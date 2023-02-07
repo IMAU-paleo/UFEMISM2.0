@@ -1,0 +1,27 @@
+# Compiler:
+  F90 = mpifort
+
+# Path to NetCDF:
+  NETCDF_DIR = /usr/local/Cellar/netcdf/4.8.0_1
+# Path to PETSc:
+  PETSC_DIR  = /usr/local/Cellar/petsc/3.15.1
+# Path to LAPACK:
+  LAPACK_DIR = /usr/local/Cellar/lapack/3.10.0
+
+# Compile with SELEN: anything else than yes (no quotes) will skip all
+# SELEN-related stuff both in the Makefile and in the model code
+  DO_SELEN   = no
+
+# Compiler flags:
+  COMPILER_FLAGS_BASIC   = -O3 -J${MOD_PATH} -ffree-line-length-none -cpp
+  COMPILER_FLAGS_CHECK   = -fbounds-check -fcheck-array-temporaries -fimplicit-none
+
+  ifeq ($(DO_SELEN),yes)
+    COMPILER_FLAGS_SELEN = -DDO_SELEN
+  endif
+
+  F90FLAGS               = ${COMPILER_FLAGS_BASIC} ${COMPILER_FLAGS_CHECK} ${COMPILER_FLAGS_SELEN} \
+                           -I$(NETCDF_DIR)/include -I$(PETSC_DIR)/include -I$(LAPACK_DIR)/include
+
+# Linking flags of libaries:
+  LDFLAGS                = -L${NETCDF_DIR}/lib -lnetcdf -lnetcdff -L${PETSC_DIR}/lib -lpetsc -L${LAPACK_DIR}/lib -llapack
