@@ -44,17 +44,19 @@ all_programs += UFEMISM_program
 # List of object files
 ifeq ($(DO_SELEN),yes)
 UFEMISM_program_objects = \
-        utilities/precisions.o \
-        utilities/parameters.o \
-        utilities/utilities.o \
+        basic/precisions.o \
+        basic/parameters.o \
+        basic/mpi_parallelisation.o \
+        basic/utilities.o \
         climate/climate_main.o \
         UFEMISM_main_model.o \
         UFEMISM_program.o
 else
 UFEMISM_program_objects = \
-        utilities/precisions.o \
-        utilities/parameters.o \
-        utilities/utilities.o \
+        basic/precisions.o \
+        basic/parameters.o \
+        basic/mpi_parallelisation.o \
+        basic/utilities.o \
         climate/climate_main.o \
         UFEMISM_main_model.o \
         UFEMISM_program.o
@@ -75,6 +77,7 @@ clean :
 	rm -fv $(all_programs) $(OBJ_PATH)/*.o $(MOD_PATH)/*.mod *.mod *.lst \
 	object-files/basal_conditions/*.o \
 	object-files/basal_mass_balance/*.o \
+	object-files/basic/*.o \
 	object-files/climate/*.o \
 	object-files/glacial_isostatic_adjustment/*.o \
 	object-files/ice/*.o \

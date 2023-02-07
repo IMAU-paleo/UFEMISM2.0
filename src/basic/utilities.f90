@@ -1,10 +1,13 @@
 MODULE utilities
+
   ! Some generally useful tools, and basic mathematical functions
 
 ! ===== Preamble =====
 ! ====================
 
+  USE mpi
   USE precisions                                             , ONLY: dp
+  USE mpi_parallelisation                                    , ONLY: cerr, ierr, sync
   USE parameters
 
   IMPLICIT NONE
@@ -38,6 +41,9 @@ MODULE utilities
   END INTERFACE
 
 CONTAINS
+
+! ===== Subroutinea ======
+! ========================
 
 ! == Floatation criterion, surface elevation, and thickness above floatation
 
@@ -295,142 +301,149 @@ CONTAINS
 
   END SUBROUTINE inverse_oblique_sg_projection
 
-!! == Line integrals used in conservative remapping
-!
-!  SUBROUTINE line_integral_xdy(   p, q, tol_dist, I_pq)
-!    ! Calculate the line integral x dy from p to q
-!
-!    IMPLICIT NONE
-!
-!    ! In/output variables:
-!    REAL(dp), DIMENSION(2),                  INTENT(IN)    :: p, q
-!    REAL(dp),                                INTENT(IN)    :: tol_dist
-!    REAL(dp),                                INTENT(OUT)   :: I_pq
-!
-!    ! Local variables:
-!    REAL(dp)                                               :: xp, yp, xq, yq, dx, dy
-!
-!    xp = p(1)
-!    yp = p(2)
-!    xq = q(1)
-!    yq = q(2)
-!
-!    IF (ABS(yp-yq) < tol_dist) THEN
-!      I_pq = 0._dp
-!      RETURN
-!    END IF
-!
-!    dx = q(1)-p(1)
-!    dy = q(2)-p(2)
-!
-!    I_pq = xp*dy - yp*dx + (dx / (2._dp*dy)) * (yq**2 - yp**2)
-!
-!  END SUBROUTINE line_integral_xdy
-!
-!  SUBROUTINE line_integral_mxydx( p, q, tol_dist, I_pq)
-!    ! Calculate the line integral -xy dx from p to q
-!
-!    IMPLICIT NONE
-!
-!    ! In/output variables:
-!    REAL(dp), DIMENSION(2),                  INTENT(IN)    :: p, q
-!    REAL(dp),                                INTENT(IN)    :: tol_dist
-!    REAL(dp),                                INTENT(OUT)   :: I_pq
-!
-!    ! Local variables:
-!    REAL(dp)                                               :: xp, yp, xq, yq, dx, dy
-!
-!    xp = p(1)
-!    yp = p(2)
-!    xq = q(1)
-!    yq = q(2)
-!
-!    IF (ABS(xp-xq) < tol_dist) THEN
-!      I_pq = 0._dp
-!      RETURN
-!    END IF
-!
-!    dx = q(1)-p(1)
-!    dy = q(2)-p(2)
-!
-!    I_pq = (1._dp/2._dp * (xp*dy/dx - yp) * (xq**2-xp**2)) - (1._dp/3._dp * dy/dx * (xq**3-xp**3))
-!
-!  END SUBROUTINE line_integral_mxydx
-!
-!  SUBROUTINE line_integral_xydy(  p, q, tol_dist, I_pq)
-!    ! Calculate the line integral xy dy from p to q
-!
-!    IMPLICIT NONE
-!
-!    ! In/output variables:
-!    REAL(dp), DIMENSION(2),                  INTENT(IN)    :: p, q
-!    REAL(dp),                                INTENT(IN)    :: tol_dist
-!    REAL(dp),                                INTENT(OUT)   :: I_pq
-!
-!    ! Local variables:
-!    REAL(dp)                                               :: xp, yp, xq, yq, dx, dy
-!
-!    xp = p(1)
-!    yp = p(2)
-!    xq = q(1)
-!    yq = q(2)
-!
-!    IF (ABS(yp-yq) < tol_dist) THEN
-!      I_pq = 0._dp
-!      RETURN
-!    END IF
-!
-!    dx = q(1)-p(1)
-!    dy = q(2)-p(2)
-!
-!    I_pq = (1._dp/2._dp * (xp - yp*dx/dy) * (yq**2-yp**2)) + (1._dp/3._dp * dx/dy * (yq**3-yp**3))
-!
-!  END SUBROUTINE line_integral_xydy
-!
-!! == Some wrappers for LAPACK matrix functionality
-!
-!  FUNCTION tridiagonal_solve( ldiag, diag, udiag, rhs) RESULT(x)
-!    ! Lapack tridiagnal solver (in double precision):
-!    ! Matrix system solver for tridiagonal matrices.
-!    ! Used e.g. in solving the ADI scheme.
-!    ! ldiag = lower diagonal elements (j,j-1) of the matrix
-!    ! diag  = diagonal elements (j,j) of the matrix
-!    ! udiag = upper diagonal elements (j,j+1) of the matrix
-!    ! rhs   = right hand side of the matrix equation in the ADI scheme
-!
-!    IMPLICIT NONE
-!
-!    ! Input variables:
-!    REAL(dp), DIMENSION(:),            INTENT(IN) :: diag
-!    REAL(dp), DIMENSION(SIZE(diag)-1), INTENT(IN) :: udiag, ldiag
-!    REAL(dp), DIMENSION(SIZE(diag)),   INTENT(IN) :: rhs
-!
-!    ! Result variable:
-!    REAL(dp), DIMENSION(SIZE(diag))               :: x
-!
-!    ! Local variables:
-!    INTEGER                                       :: info
-!    REAL(dp), DIMENSION(SIZE(diag))               :: diag_copy
-!    REAL(dp), DIMENSION(SIZE(udiag))              :: udiag_copy, ldiag_copy
-!
-!    ! The LAPACK solver will overwrite the rhs with the solution x. Therefore we
-!    ! first copy the rhs in the solution vector x:
-!    x = rhs
-!
-!    ! The LAPACK solver will change the elements in the matrix, therefore we copy them:
-!    diag_copy  =  diag
-!    udiag_copy = udiag
-!    ldiag_copy = ldiag
-!
-!    CALL DGTSV(SIZE(diag), 1, ldiag_copy, diag_copy, udiag_copy, x, SIZE(diag), info)
-!
-!    IF (info /= 0) THEN
-!      WRITE(0,*) 'tridiagonal_solve - ERROR: LAPACK solver DGTSV returned error message info = ', info
-!      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-!    END IF
-!
-!  END FUNCTION tridiagonal_solve
-!
+! == Line integrals used in conservative remapping
+
+  SUBROUTINE line_integral_xdy(   p, q, tol_dist, I_pq)
+    ! Calculate the line integral x dy from p to q
+
+    IMPLICIT NONE
+
+    ! Input variables:
+!   REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE, OPTIONAL, INTENT(INOUT) :: i
+    REAL(dp), DIMENSION(2)                             , INTENT(IN)    :: p, q
+    REAL(dp)                                           , INTENT(IN)    :: tol_dist
+
+    ! Output variables:
+    REAL(dp)                                           , INTENT(OUT)   :: I_pq
+
+    ! Local variables:
+    REAL(dp)                                                           :: xp, yp, xq, yq, dx, dy
+
+    xp = p( 1)
+    yp = p( 2)
+    xq = q( 1)
+    yq = q( 2)
+
+    IF (ABS( yp-yq) < tol_dist) THEN
+      I_pq = 0._dp
+      RETURN
+    END IF
+
+    dx = q( 1) - p( 1)
+    dy = q( 2) - p( 2)
+
+    I_pq = xp*dy - yp*dx + (dx / (2._dp*dy)) * (yq**2 - yp**2)
+
+  END SUBROUTINE line_integral_xdy
+
+  SUBROUTINE line_integral_mxydx( p, q, tol_dist, I_pq)
+    ! Calculate the line integral -xy dx from p to q
+
+    IMPLICIT NONE
+
+    ! Input variables:
+!   REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE, OPTIONAL, INTENT(INOUT) :: i
+    REAL(dp), DIMENSION(2)                             , INTENT(IN)    :: p, q
+    REAL(dp)                                           , INTENT(IN)    :: tol_dist
+
+    ! Output variables:
+    REAL(dp)                                           , INTENT(OUT)   :: I_pq
+
+    ! Local variables:
+    REAL(dp)                                                           :: xp, yp, xq, yq, dx, dy
+
+    xp = p( 1)
+    yp = p( 2)
+    xq = q( 1)
+    yq = q( 2)
+
+    IF (ABS( xp-xq) < tol_dist) THEN
+      I_pq = 0._dp
+      RETURN
+    END IF
+
+    dx = q( 1) - p( 1)
+    dy = q( 2) - p( 2)
+
+    I_pq = (1._dp/2._dp * (xp*dy/dx - yp) * (xq**2-xp**2)) - (1._dp/3._dp * dy/dx * (xq**3-xp**3))
+
+  END SUBROUTINE line_integral_mxydx
+
+  SUBROUTINE line_integral_xydy(  p, q, tol_dist, I_pq)
+    ! Calculate the line integral xy dy from p to q
+
+    IMPLICIT NONE
+
+    ! Input variables:
+!   REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE, OPTIONAL, INTENT(INOUT) :: i
+    REAL(dp), DIMENSION(2)                             , INTENT(IN)    :: p, q
+    REAL(dp)                                           , INTENT(IN)    :: tol_dist
+
+    ! Output variables:
+    REAL(dp)                                           , INTENT(OUT)   :: I_pq
+
+    ! Local variables:
+    REAL(dp)                                                           :: xp, yp, xq, yq, dx, dy
+
+    xp = p( 1)
+    yp = p( 2)
+    xq = q( 1)
+    yq = q( 2)
+
+    IF (ABS( yp-yq) < tol_dist) THEN
+      I_pq = 0._dp
+      RETURN
+    END IF
+
+    dx = q( 1 ) - p( 1)
+    dy = q( 2 ) - p( 2)
+
+    I_pq = (1._dp/2._dp * (xp - yp*dx/dy) * (yq**2-yp**2)) + (1._dp/3._dp * dx/dy * (yq**3-yp**3))
+
+  END SUBROUTINE line_integral_xydy
+
+! == Some wrappers for LAPACK matrix functionality
+
+  FUNCTION tridiagonal_solve( ldiag, diag, udiag, b) RESULT(x)
+    ! Solve the matrix equation Ax = b, where A is a tridiagonal matrix.
+    ! Provide only the three diagonals of A as vectors.
+    ! Uses the LAPACK function DGTSV to solve the equation.
+
+    IMPLICIT NONE
+
+    ! Input variables:
+!   REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE, OPTIONAL, INTENT(INOUT) :: i
+    REAL(dp), DIMENSION(:      )                       , INTENT(IN)    ::  diag    !       Diagonal of matrix A
+    REAL(dp), DIMENSION(SIZE(diag)-1)                  , INTENT(IN)    :: ldiag    ! Lower diagonal of matrix A
+    REAL(dp), DIMENSION(SIZE(diag)-1)                  , INTENT(IN)    :: udiag    ! Upper diagonal of matrix A
+    REAL(dp), DIMENSION(SIZE(diag)  )                  , INTENT(IN)    :: b        ! Right-hand side of the equation
+
+    ! Output variables:
+    REAL(dp), DIMENSION(SIZE(diag)  )                                  :: x        ! Solution to the matrix equation
+
+    ! Local variables:
+    INTEGER                                                            :: info
+    REAL(dp), DIMENSION(SIZE(diag)  )                                  :: diag_copy
+    REAL(dp), DIMENSION(SIZE(diag)-1)                                  :: udiag_copy, ldiag_copy
+
+    ! The LAPACK solver will overwrite the right-hand side b with the solution x. Therefore we
+    ! first copy b to the solution vector x:
+    x = b
+
+    ! The LAPACK solver will change the elements in the matrix, therefore we copy them:
+    diag_copy  =  diag
+    udiag_copy = udiag
+    ldiag_copy = ldiag
+
+    CALL DGTSV( SIZE( diag), 1, ldiag_copy, diag_copy, udiag_copy, x, SIZE( diag), info)
+
+    IF (info /= 0) THEN
+      WRITE(0,*) 'tridiagonal_solve - ERROR: LAPACK solver DGTSV returned error message info = ', info
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    END IF
+
+  END FUNCTION tridiagonal_solve
+
 !! == Finding inverses of some small matrices
 !
 !  SUBROUTINE calc_matrix_inverse_2_by_2( A, Ainv)

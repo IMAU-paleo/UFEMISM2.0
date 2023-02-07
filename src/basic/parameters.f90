@@ -9,6 +9,9 @@ MODULE parameters
 
   IMPLICIT NONE
 
+! ===== Global variables =====
+! ============================
+
   REAL(dp), PARAMETER :: pi                               = 3.141592653589793_dp
   REAL(dp), PARAMETER :: sec_per_year                     = 31556943.36_dp            ! = 365.2424 * 24 * 3600
   REAL(dp), PARAMETER :: T0                               = 273.16_dp                 ! [K]                 Triple point of water [K]
