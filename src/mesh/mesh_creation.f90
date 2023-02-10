@@ -10,7 +10,7 @@ MODULE mesh_creation
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, init_routine, finalise_routine
   USE reallocate_mod                                         , ONLY: reallocate
   USE math_utilities                                         , ONLY: segment_intersection, is_in_triangle, longest_triangle_leg, smallest_triangle_angle, &
-                                                                     circumcenter, lies_on_line_segment
+                                                                     circumcenter, lies_on_line_segment, crop_line_to_domain
   USE mesh_types                                             , ONLY: type_mesh
   USE mesh_memory                                            , ONLY: extend_mesh_primary, crop_mesh_primary
   USE mesh_utilities                                         , ONLY: update_triangle_circumcenter, find_containing_triangle
@@ -23,7 +23,120 @@ CONTAINS
 ! ===== Subroutines =====
 ! =======================
 
-! == Mesh refinement based on a 1-D line criterion
+! == Mesh refinement based on different criteria
+
+  SUBROUTINE refine_mesh_point( mesh, POI, res_max, alpha_min)
+    ! Refine a mesh based on a 0-D point criterion
+
+    IMPLICIT NONE
+
+    TYPE(type_mesh),            INTENT(INOUT)     :: mesh          ! The mesh that should be refined
+    REAL(dp), DIMENSION(2),     INTENT(IN)        :: POI           ! Collection of line segments
+    REAL(dp),                   INTENT(IN)        :: res_max       ! Maximum allowed resolution for triangles crossed by any of these line segments
+    REAL(dp),                   INTENT(IN)        :: alpha_min     ! Minimum allowed internal triangle angle
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'refine_mesh_line'
+    INTEGER,  DIMENSION(:    ), ALLOCATABLE       :: refinement_map
+    INTEGER,  DIMENSION(:    ), ALLOCATABLE       :: refinement_stack
+    INTEGER                                       :: refinement_stackN
+    INTEGER                                       :: ti_in
+    INTEGER                                       :: ti, via, vib, vic
+    REAL(dp), DIMENSION(2)                        :: va, vb, vc
+    REAL(dp)                                      :: longest_leg, smallest_angle
+    LOGICAL                                       :: meets_resolution_criterion
+    LOGICAL                                       :: meets_geometry_criterion
+    REAL(dp), DIMENSION(2)                        :: p_new
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+  ! == Iteratively refine the mesh ==
+  ! =================================
+
+    ALLOCATE( refinement_map(   mesh%nTri_mem), source = 0)
+    ALLOCATE( refinement_stack( mesh%nTri_mem), source = 0)
+    refinement_stackN = 0
+
+    ! Initialise the refinement stack with the triangle containing the point
+    ti_in = 1
+    CALL find_containing_triangle( mesh, POI, ti_in)
+    refinement_map( ti_in) = 1
+    refinement_stackN = 1
+    refinement_stack( 1) = ti_in
+
+    ! Keep refining until all triangles match the criterion
+    DO WHILE (refinement_stackN > 0)
+
+      ! If needed, allocate more memory for the mesh
+      IF (mesh%nV > mesh%nV_mem - 10 .OR. mesh%nTri > mesh%nTri_mem - 10) THEN
+        CALL extend_mesh_primary( mesh, mesh%nV + 1000, mesh%nTri + 2000)
+        CALL reallocate( refinement_map  , mesh%nTri_mem)
+        CALL reallocate( refinement_stack, mesh%nTri_mem)
+      END IF
+
+      ! Check the first (and therefore likely the biggest) triangle in the stack
+      ti = refinement_stack( 1)
+
+      ! The three vertices spanning this triangle
+      via = mesh%Tri( ti,1)
+      vib = mesh%Tri( ti,2)
+      vic = mesh%Tri( ti,3)
+      va  = mesh%V( via,:)
+      vb  = mesh%V( vib,:)
+      vc  = mesh%V( vic,:)
+
+      ! Check if it meets the geometry criterion
+      smallest_angle = smallest_triangle_angle( va, vb, vc)
+      meets_geometry_criterion = smallest_angle >= alpha_min
+
+      ! Check if it meets the resolution criterion
+      IF (ti_in == ti) THEN
+        ! This triangle contains the point
+        longest_leg = longest_triangle_leg( va, vb, vc)
+        meets_resolution_criterion = longest_leg <= res_max
+      ELSE
+        ! This triangle does not contain the point
+        meets_resolution_criterion = .TRUE.
+      END IF
+
+      ! If either of the two criteria is not met, split the triangle
+      IF (.NOT. meets_geometry_criterion .OR. .NOT. meets_resolution_criterion) THEN
+        ! Split triangle ti at its circumcenter
+
+        p_new = circumcenter( va, vb, vc)
+
+        CALL split_triangle( mesh, ti, p_new, &
+          refinement_map    = refinement_map   , &
+          refinement_stack  = refinement_stack , &
+          refinement_stackN = refinement_stackN)
+
+        ! Find out again which triangle contains the point, and add it to the stack
+        CALL find_containing_triangle( mesh, POI, ti_in)
+        IF (refinement_map( ti_in) == 0) THEN
+          refinement_map( ti_in) = 1
+          refinement_stackN = refinement_stackN + 1
+          refinement_stack( refinement_stackN) = ti_in
+        END IF
+
+      ELSE
+        ! Remove triangle ti from the refinement stack
+        CALL remove_triangle_from_refinement_stack( refinement_map, refinement_stack, refinement_stackN, ti)
+      END IF
+
+    END DO ! DO WHILE (refinement_stackN > 0)
+
+    ! Crop surplus mesh memory
+    CALL crop_mesh_primary( mesh)
+
+    ! Clean up after yourself
+    DEALLOCATE( refinement_map  )
+    DEALLOCATE( refinement_stack)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE refine_mesh_point
 
   SUBROUTINE refine_mesh_line( mesh, line, res_max, alpha_min)
     ! Refine a mesh based on a 1-D line criterion
@@ -40,7 +153,8 @@ CONTAINS
     INTEGER                                       :: nl
     INTEGER,  DIMENSION(:,:  ), ALLOCATABLE       :: Tri_li
     INTEGER                                       :: ti,li,it
-    REAL(dp), DIMENSION(2)                        :: pp,qq,dd
+    REAL(dp), DIMENSION(2)                        :: pp,qq,pp_cropped,qq_cropped,dd
+    LOGICAL                                       :: is_valid_line
     INTEGER                                       :: tip, tiq, n, via, vib, vic
     REAL(dp), DIMENSION(2)                        :: va,vb,vc,llis
     LOGICAL                                       :: do_cross, crosses
@@ -49,7 +163,7 @@ CONTAINS
     INTEGER                                       :: refinement_stackN
     INTEGER                                       :: li_min, li_max
     REAL(dp)                                      :: longest_leg, smallest_angle
-    LOGICAL                                       :: meets_line_resolution_criterion
+    LOGICAL                                       :: meets_resolution_criterion
     LOGICAL                                       :: meets_geometry_criterion
     REAL(dp), DIMENSION(2)                        :: p_new
 
@@ -83,6 +197,14 @@ CONTAINS
       ! Line endpoints
       pp = [line( li,1), line( li,2)]
       qq = [line( li,3), line( li,4)]
+
+      ! Crop line to mesh domain
+      CALL crop_line_to_domain( pp, qq, mesh%xmin, mesh%xmax, mesh%ymin, mesh%ymax, mesh%tol_dist, pp_cropped, qq_cropped, is_valid_line)
+      pp = pp_cropped
+      qq = qq_cropped
+
+      ! If the line segment lies outside of the mesh domain altogether, skip it
+      IF (.NOT. is_valid_line) CYCLE
 
       ! If they coincide, this line is invalid - skip
       IF (NORM2( pp - qq) < mesh%tol_dist) CYCLE
@@ -180,7 +302,7 @@ CONTAINS
         ! This triangle should be split anyway; no need to check
         ! the resolution criterion, so we can save some time)
 
-        meets_line_resolution_criterion = .TRUE.
+        meets_resolution_criterion = .TRUE.
 
       ELSE
         ! This triangle meets the geometry criterion; check if
@@ -194,7 +316,7 @@ CONTAINS
         IF (li_min == nl+1 .OR. li_max == 0) THEN
           ! No line overlap anyway
 
-          meets_line_resolution_criterion = .TRUE.
+          meets_resolution_criterion = .TRUE.
 
         ELSE  ! IF (li_min == nl+1 .OR. li_max == 0) THEN
           ! Recalculate triangle overlap range
@@ -206,6 +328,14 @@ CONTAINS
             ! Line endpoints
             pp = [line( li,1), line( li,2)]
             qq = [line( li,3), line( li,4)]
+
+            ! Crop line to mesh domain
+            CALL crop_line_to_domain( pp, qq, mesh%xmin, mesh%xmax, mesh%ymin, mesh%ymax, mesh%tol_dist, pp_cropped, qq_cropped, is_valid_line)
+            pp = pp_cropped
+            qq = qq_cropped
+
+            ! If the line segment lies outside of the mesh domain altogether, skip it
+            IF (.NOT. is_valid_line) CYCLE
 
             ! If they coincide, this line is invalid - skip
             IF (NORM2( pp - qq) < mesh%tol_dist) CYCLE
@@ -235,10 +365,10 @@ CONTAINS
           ! If this triangle overlaps with any line segments,
           ! check if it meets the resolution criterion
 
-          meets_line_resolution_criterion = .TRUE.
+          meets_resolution_criterion = .TRUE.
           IF (Tri_li( ti,1) <= Tri_li( ti,2)) THEN
             longest_leg = longest_triangle_leg( va, vb, vc)
-            IF (longest_leg > res_max) meets_line_resolution_criterion = .FALSE.
+            IF (longest_leg > res_max) meets_resolution_criterion = .FALSE.
           END IF
 
         END IF ! IF (li_min == nl+1 .OR. li_max == 0) THEN
@@ -246,7 +376,7 @@ CONTAINS
       END IF ! IF (.NOT. meets_geometry_criterion) THEN
 
       ! If either of the two criteria is not met, split the triangle
-      IF (.NOT. meets_geometry_criterion .OR. .NOT. meets_line_resolution_criterion) THEN
+      IF (.NOT. meets_geometry_criterion .OR. .NOT. meets_resolution_criterion) THEN
         ! Split triangle ti at its circumcenter
 
         p_new = circumcenter( va, vb, vc)

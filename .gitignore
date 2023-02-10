@@ -1,4 +1,5 @@
-# Object files
+# Object and module files
+*.mod
 src/object-files/*.o
 src/object-files/basal_conditions/*.o
 src/object-files/basal_mass_balance/*.o
