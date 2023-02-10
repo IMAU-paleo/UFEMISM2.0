@@ -1,4 +1,4 @@
-MODULE netcdf_basic_module
+MODULE netcdf_basic
 
   ! Basic NetCDF routines
   ! =====================
@@ -13,38 +13,31 @@ MODULE netcdf_basic_module
 ! ===== Preamble =====
 ! ====================
 
-  ! Import basic functionality
-#include <petsc/finclude/petscksp.h>
   USE mpi
-  USE configuration_module,            ONLY: dp, C, routine_path, init_routine, finalise_routine, crash, warning
-  USE parameters_module
-  USE petsc_module,                    ONLY: perr
-  USE parallel_module,                 ONLY: par, sync, ierr, cerr, partition_list, &
-                                             allocate_shared_int_0D,   allocate_shared_dp_0D, &
-                                             allocate_shared_int_1D,   allocate_shared_dp_1D, &
-                                             allocate_shared_int_2D,   allocate_shared_dp_2D, &
-                                             allocate_shared_int_3D,   allocate_shared_dp_3D, &
-                                             allocate_shared_int_4D,   allocate_shared_dp_4D, &
-                                             allocate_shared_bool_0D,  allocate_shared_bool_1D, &
-                                             reallocate_shared_int_0D, reallocate_shared_dp_0D, &
-                                             reallocate_shared_int_1D, reallocate_shared_dp_1D, &
-                                             reallocate_shared_int_2D, reallocate_shared_dp_2D, &
-                                             reallocate_shared_int_3D, reallocate_shared_dp_3D, &
-                                             deallocate_shared
-  USE utilities_module,                ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
-                                             check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D
+  USE precisions                                             , ONLY: dp
+  USE mpi_basic                                              , ONLY: par, cerr, ierr, MPI_status, sync
+  USE control_resources_and_error_messaging                  , ONLY: warning, crash, init_routine, finalise_routine
+  USE mpi_distributed_memory                                 , ONLY: gather_to_master_int_1D, gather_to_master_dp_1D, &
+                                                                     gather_to_master_int_2D, gather_to_master_dp_2D, &
+                                                                     gather_to_master_int_3D, gather_to_master_dp_3D, &
+                                                                     gather_to_master_int_4D, gather_to_master_dp_4D
+  USE math_utilities                                         , ONLY: check_for_NaN_dp_0D, check_for_NaN_int_0D, &
+                                                                     check_for_NaN_dp_1D, check_for_NaN_int_1D, &
+                                                                     check_for_NaN_dp_2D, check_for_NaN_int_2D, &
+                                                                     check_for_NaN_dp_3D, check_for_NaN_int_3D, &
+                                                                     check_for_NaN_dp_4D, check_for_NaN_int_4D
 
-  ! Import specific functionality
-  USE netcdf,                          ONLY: NF90_NOERR, NF90_OPEN, NF90_CLOSE, NF90_NOWRITE, NF90_INQ_DIMID, NF90_INQUIRE_DIMENSION, &
-                                             NF90_INQ_VARID, NF90_INQUIRE_VARIABLE, NF90_MAX_VAR_DIMS, NF90_GET_VAR, &
-                                             NF90_CREATE, NF90_NOCLOBBER, NF90_NETCDF4, NF90_ENDDEF, NF90_REDEF, NF90_DEF_DIM, NF90_DEF_VAR, &
-                                             NF90_PUT_ATT, NF90_WRITE, NF90_INT, NF90_FLOAT, NF90_DOUBLE, NF90_PUT_VAR, NF90_UNLIMITED, &
-                                             NF90_INQUIRE_ATTRIBUTE, NF90_SHARE
+  ! Import  NetCDF functionality
+  USE netcdf, ONLY: NF90_NOERR, NF90_OPEN, NF90_CLOSE, NF90_NOWRITE, NF90_INQ_DIMID, NF90_INQUIRE_DIMENSION, &
+              NF90_INQ_VARID, NF90_INQUIRE_VARIABLE, NF90_MAX_VAR_DIMS, NF90_GET_VAR, &
+              NF90_CREATE, NF90_NOCLOBBER, NF90_NETCDF4, NF90_ENDDEF, NF90_REDEF, NF90_DEF_DIM, NF90_DEF_VAR, &
+              NF90_PUT_ATT, NF90_WRITE, NF90_INT, NF90_FLOAT, NF90_DOUBLE, NF90_PUT_VAR, NF90_UNLIMITED, &
+              NF90_INQUIRE_ATTRIBUTE, NF90_SHARE
 
   IMPLICIT NONE
 
   ! NetCDF error code
-  INTEGER                 :: nerr
+  INTEGER :: nerr
 
   ! Possible names for different dimensions and variables
   ! =====================================================
@@ -403,8 +396,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'find_timeframe'
     INTEGER                                            :: nt, id_dim_time, id_var_time
-    REAL(dp), DIMENSION(:    ), POINTER                ::  time_from_file
-    INTEGER                                            :: wtime_from_file
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: time_from_file
     INTEGER                                            :: tii
     REAL(dp)                                           :: dt_min
 
@@ -420,8 +412,8 @@ CONTAINS
     ! Inquire time variable ID
     CALL inquire_var_multiple_options( filename, ncid, field_name_options_time, id_var_time)
 
-    ! Allocate shared memory
-    CALL allocate_shared_dp_1D( nt, time_from_file, wtime_from_file)
+    ! Allocate memory
+    ALLOCATE( time_from_file( nt))
 
     ! Read time from file
     CALL read_var_dp_1D( filename, ncid, id_var_time, time_from_file)
@@ -450,15 +442,15 @@ CONTAINS
     END IF
 
     ! Clean up after yourself
-    CALL deallocate_shared( wtime_from_file)
+    DEALLOCATE( time_from_file)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE find_timeframe
 
-  ! ===== Safety checks on variables and dimensions =====
-  ! =====================================================
+! ===== Safety checks on variables and dimensions =====
+! =====================================================
 
   ! x/y-grid dimensions
   SUBROUTINE check_x( filename, ncid)
@@ -480,8 +472,7 @@ CONTAINS
     INTEGER                                            :: var_type
     INTEGER                                            :: ndims_of_var
     INTEGER,  DIMENSION( NF90_MAX_VAR_DIMS)            :: dims_of_var
-    REAL(dp), DIMENSION(:    ), POINTER                :: x
-    INTEGER                                            :: wx
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: x
     REAL(dp)                                           :: dx, dxp
     INTEGER                                            :: i
 
@@ -508,8 +499,8 @@ CONTAINS
     IF (ndims_of_var /= 1) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
     IF (dims_of_var( 1) /= id_dim) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have ' // TRIM( dim_name) // ' as a dimension!')
 
-    ! Allocate shared memory
-    CALL allocate_shared_dp_1D( n, x, wx)
+    ! Allocate memory
+    ALLOCATE( x( n))
 
     ! Read variable
     CALL read_var_dp_1D( filename, ncid, id_var, x)
@@ -525,7 +516,7 @@ CONTAINS
     END DO
 
     ! Clean up after yourself
-    CALL deallocate_shared( wx)
+    DEALLOCATE( x)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -551,8 +542,7 @@ CONTAINS
     INTEGER                                            :: var_type
     INTEGER                                            :: ndims_of_var
     INTEGER,  DIMENSION( NF90_MAX_VAR_DIMS)            :: dims_of_var
-    REAL(dp), DIMENSION(:    ), POINTER                :: y
-    INTEGER                                            :: wy
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: y
     REAL(dp)                                           :: dy, dyp
     INTEGER                                            :: i
 
@@ -579,8 +569,8 @@ CONTAINS
     IF (ndims_of_var /= 1) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
     IF (dims_of_var( 1) /= id_dim) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have ' // TRIM( dim_name) // ' as a dimension!')
 
-    ! Allocate shared memory
-    CALL allocate_shared_dp_1D( n, y, wy)
+    ! Allocate memory
+    ALLOCATE( y( n))
 
     ! Read variable
     CALL read_var_dp_1D( filename, ncid, id_var, y)
@@ -596,7 +586,7 @@ CONTAINS
     END DO
 
     ! Clean up after yourself
-    CALL deallocate_shared( wy)
+    DEALLOCATE( y)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -623,8 +613,7 @@ CONTAINS
     INTEGER                                            :: var_type
     INTEGER                                            :: ndims_of_var
     INTEGER,  DIMENSION( NF90_MAX_VAR_DIMS)            :: dims_of_var
-    REAL(dp), DIMENSION(:    ), POINTER                :: lon
-    INTEGER                                            :: wlon
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: lon
     REAL(dp)                                           :: dlon, dlonp
     INTEGER                                            :: i
 
@@ -646,8 +635,8 @@ CONTAINS
     IF (ndims_of_var /= 1) CALL crash('longitude variable in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
     IF (dims_of_var( 1) /= id_dim) CALL crash('longitude variable in file "' // TRIM( filename) // '" does not have longitude as a dimension!')
 
-    ! Allocate shared memory
-    CALL allocate_shared_dp_1D( n, lon, wlon)
+    ! Allocate memory
+    ALLOCATE( lon( n))
 
     ! Read variable
     CALL read_var_dp_1D( filename, ncid, id_var, lon)
@@ -663,7 +652,7 @@ CONTAINS
     END DO
 
     ! Clean up after yourself
-    CALL deallocate_shared( wlon)
+    DEALLOCATE( lon)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -689,8 +678,7 @@ CONTAINS
     INTEGER                                            :: var_type
     INTEGER                                            :: ndims_of_var
     INTEGER,  DIMENSION( NF90_MAX_VAR_DIMS)            :: dims_of_var
-    REAL(dp), DIMENSION(:    ), POINTER                :: lat
-    INTEGER                                            :: wlat
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: lat
     REAL(dp)                                           :: dlat, dlatp
     INTEGER                                            :: i
 
@@ -712,8 +700,8 @@ CONTAINS
     IF (ndims_of_var /= 1) CALL crash('latitude variable in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
     IF (dims_of_var( 1) /= id_dim) CALL crash('latitude variable in file "' // TRIM( filename) // '" does not have latitude as a dimension!')
 
-    ! Allocate shared memory
-    CALL allocate_shared_dp_1D( n, lat, wlat)
+    ! Allocate memory
+    ALLOCATE( lat( n))
 
     ! Read variable
     CALL read_var_dp_1D( filename, ncid, id_var, lat)
@@ -729,7 +717,7 @@ CONTAINS
     END DO
 
     ! Clean up after yourself
-    CALL deallocate_shared( wlat)
+    DEALLOCATE( lat)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -911,8 +899,7 @@ CONTAINS
     INTEGER                                            :: var_type
     INTEGER                                            :: ndims_of_var
     INTEGER,  DIMENSION( NF90_MAX_VAR_DIMS)            :: dims_of_var
-    REAL(dp), DIMENSION(:    ), POINTER                :: zeta
-    INTEGER                                            :: wzeta
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: zeta
     INTEGER                                            :: k
 
     ! Add routine to path
@@ -933,8 +920,8 @@ CONTAINS
     IF (ndims_of_var /= 1) CALL crash('zeta variable in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
     IF (dims_of_var( 1) /= id_dim) CALL crash('zeta variable in file "' // TRIM( filename) // '" does not have zeta as a dimension!')
 
-    ! Allocate shared memory
-    CALL allocate_shared_dp_1D( n, zeta, wzeta)
+    ! Allocate memory
+    ALLOCATE( zeta( n))
 
     ! Read variable
     CALL read_var_dp_1D( filename, ncid, id_var, zeta)
@@ -950,7 +937,7 @@ CONTAINS
     END DO
 
     ! Clean up after yourself
-    CALL deallocate_shared( wzeta)
+    DEALLOCATE( zeta)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -976,8 +963,7 @@ CONTAINS
     INTEGER                                            :: var_type
     INTEGER                                            :: ndims_of_var
     INTEGER,  DIMENSION( NF90_MAX_VAR_DIMS)            :: dims_of_var
-    REAL(dp), DIMENSION(:    ), POINTER                :: z_ocean
-    INTEGER                                            :: wz_ocean
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: z_ocean
     INTEGER                                            :: k
 
     ! Add routine to path
@@ -998,8 +984,8 @@ CONTAINS
     IF (ndims_of_var /= 1) CALL crash('z_ocean variable in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
     IF (dims_of_var( 1) /= id_dim) CALL crash('z_ocean variable in file "' // TRIM( filename) // '" does not have z_ocean as a dimension!')
 
-    ! Allocate shared memory
-    CALL allocate_shared_dp_1D( n, z_ocean, wz_ocean)
+    ! Allocate memory
+    ALLOCATE( z_ocean( n))
 
     ! Read variable
     CALL read_var_dp_1D( filename, ncid, id_var, z_ocean)
@@ -1008,7 +994,7 @@ CONTAINS
     CALL check_for_NaN_dp_1D( z_ocean, 'z_ocean')
 
     ! Clean up after yourself
-    CALL deallocate_shared( wz_ocean)
+    DEALLOCATE( z_ocean)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -1065,8 +1051,7 @@ CONTAINS
     INTEGER                                            :: var_type
     INTEGER                                            :: ndims_of_var
     INTEGER,  DIMENSION( NF90_MAX_VAR_DIMS)            :: dims_of_var
-    REAL(dp), DIMENSION(:    ), POINTER                :: time
-    INTEGER                                            :: wtime
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: time
 
     ! Add routine to path
     CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
@@ -1088,8 +1073,8 @@ CONTAINS
     ! For new output files, time is still empty. If it's not, check if entries are valid
     IF (n > 0) THEN
 
-      ! Allocate shared memory
-      CALL allocate_shared_dp_1D( n, time, wtime)
+      ! Allocate memory
+      ALLOCATE( time( n))
 
       ! Read variable
       CALL read_var_dp_1D( filename, ncid, id_var, time)
@@ -1098,7 +1083,7 @@ CONTAINS
       CALL check_for_NaN_dp_1D( time, 'time')
 
       ! Clean up after yourself
-      CALL deallocate_shared( wtime)
+      DEALLOCATE( time)
 
     END IF ! IF (n > 0) THEN
 
@@ -3047,8 +3032,8 @@ CONTAINS
 
   END SUBROUTINE check_mesh_field_dp_3D_ocean
 
-  ! ===== Flexible looking for dimensions and variables =====
-  ! =========================================================
+! ===== Flexible looking for dimensions and variables =====
+! =========================================================
 
   ! Look for dimensions
   SUBROUTINE inquire_dim_multiple_options( filename, ncid, dim_name_options, id_dim, dim_length, dim_name)
@@ -3247,8 +3232,8 @@ CONTAINS
 
   END SUBROUTINE inquire_var_multiple_options
 
-  ! ===== Parse flexible dimension/variable names =====
-  ! ===================================================
+! ===== Parse flexible dimension/variable names =====
+! ===================================================
 
   SUBROUTINE parse_field_name_options( field_name_options, field_name_options_parsed)
     ! Check if a default set of field name options should be used.
@@ -3330,8 +3315,8 @@ CONTAINS
 
   END FUNCTION get_first_option_from_list
 
-  ! ===== Read data from variables =====
-  ! ====================================
+! ===== Read data from variables =====
+! ====================================
 
   SUBROUTINE read_var_int_0D(  filename, ncid, id_var, d)
     ! Read data from a NetCDF file
@@ -4049,8 +4034,331 @@ CONTAINS
 
   END SUBROUTINE read_var_dp_4D
 
-  ! ===== Write data to variables =====
-  ! ===================================
+! ===== Write data to variables =====
+! ===================================
+
+  ! NOTE: The write_dist_var_XX_XD routines write distributed data to
+  !       the file, by first calling gather_master_XX_XD, and then
+  !       calling write_var_XX_XD. In that last one, only the Master
+  !       performs the safety checks and writes the data to the file.
+
+! Write distributed data to a NetCDF file
+
+  SUBROUTINE write_dist_var_int_0D(  filename, ncid, id_var, d_partial)
+    ! Write distributed data to a NetCDF file
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
+    INTEGER,                             INTENT(IN)    :: ncid
+    INTEGER,                             INTENT(IN)    :: id_var
+    INTEGER,                             INTENT(IN)    :: d_partial
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_dist_var_int_0D'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Non-parallel write to file by the Master only
+    CALL write_var_int_0D( filename, ncid, id_var, d_partial)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE write_dist_var_int_0D
+
+  SUBROUTINE write_dist_var_int_1D(  filename, ncid, id_var, d_partial, start, count)
+    ! Write distributed data to a NetCDF file
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
+    INTEGER,                             INTENT(IN)    :: ncid
+    INTEGER,                             INTENT(IN)    :: id_var
+    INTEGER,  DIMENSION(:    ),          INTENT(IN)    :: d_partial
+    INTEGER,  DIMENSION(1    ), OPTIONAL,INTENT(IN)    :: start, count
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_dist_var_int_1D'
+    INTEGER,  DIMENSION(:    ), ALLOCATABLE            :: d
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Gather distributed data to the Master
+    CALL gather_to_master_int_1D( d_partial, d)
+
+    ! Non-parallel write to file by the Master only
+    CALL write_var_int_1D( filename, ncid, id_var, d, start, count)
+
+    ! Clean up after yourself
+    DEALLOCATE( d)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE write_dist_var_int_1D
+
+  SUBROUTINE write_dist_var_int_2D(  filename, ncid, id_var, d_partial, start, count)
+    ! Write distributed data to a NetCDF file
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
+    INTEGER,                             INTENT(IN)    :: ncid
+    INTEGER,                             INTENT(IN)    :: id_var
+    INTEGER,  DIMENSION(:,:  ),          INTENT(IN)    :: d_partial
+    INTEGER,  DIMENSION(2    ), OPTIONAL,INTENT(IN)    :: start, count
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_dist_var_int_2D'
+    INTEGER,  DIMENSION(:,:  ), ALLOCATABLE            :: d
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Gather distributed data to the Master
+    CALL gather_to_master_int_2D( d_partial, d)
+
+    ! Non-parallel write to file by the Master only
+    CALL write_var_int_2D( filename, ncid, id_var, d, start, count)
+
+    ! Clean up after yourself
+    DEALLOCATE( d)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE write_dist_var_int_2D
+
+  SUBROUTINE write_dist_var_int_3D(  filename, ncid, id_var, d_partial, start, count)
+    ! Write distributed data to a NetCDF file
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
+    INTEGER,                             INTENT(IN)    :: ncid
+    INTEGER,                             INTENT(IN)    :: id_var
+    INTEGER,  DIMENSION(:,:,:),          INTENT(IN)    :: d_partial
+    INTEGER,  DIMENSION(3    ), OPTIONAL,INTENT(IN)    :: start, count
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_dist_var_int_3D'
+    INTEGER,  DIMENSION(:,:,:), ALLOCATABLE            :: d
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Gather distributed data to the Master
+    CALL gather_to_master_int_3D( d_partial, d)
+
+    ! Non-parallel write to file by the Master only
+    CALL write_var_int_3D( filename, ncid, id_var, d, start, count)
+
+    ! Clean up after yourself
+    DEALLOCATE( d)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE write_dist_var_int_3D
+
+  SUBROUTINE write_dist_var_int_4D(  filename, ncid, id_var, d_partial, start, count)
+    ! Write distributed data to a NetCDF file
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
+    INTEGER,                             INTENT(IN)    :: ncid
+    INTEGER,                             INTENT(IN)    :: id_var
+    INTEGER,  DIMENSION(:,:,:,:),        INTENT(IN)    :: d_partial
+    INTEGER,  DIMENSION(4    ), OPTIONAL,INTENT(IN)    :: start, count
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_dist_var_int_4D'
+    INTEGER,  DIMENSION(:,:,:,:), ALLOCATABLE          :: d
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Gather distributed data to the Master
+    CALL gather_to_master_int_4D( d_partial, d)
+
+    ! Non-parallel write to file by the Master only
+    CALL write_var_int_4D( filename, ncid, id_var, d, start, count)
+
+    ! Clean up after yourself
+    DEALLOCATE( d)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE write_dist_var_int_4D
+
+  SUBROUTINE write_dist_var_dp_0D(  filename, ncid, id_var, d_partial)
+    ! Write distributed data to a NetCDF file
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
+    INTEGER,                             INTENT(IN)    :: ncid
+    INTEGER,                             INTENT(IN)    :: id_var
+    REAL(dp),                            INTENT(IN)    :: d_partial
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_dist_var_dp_0D'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Non-parallel write to file by the Master only
+    CALL write_var_dp_0D( filename, ncid, id_var, d_partial)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE write_dist_var_dp_0D
+
+  SUBROUTINE write_dist_var_dp_1D(  filename, ncid, id_var, d_partial, start, count)
+    ! Write distributed data to a NetCDF file
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
+    INTEGER,                             INTENT(IN)    :: ncid
+    INTEGER,                             INTENT(IN)    :: id_var
+    REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: d_partial
+    INTEGER,  DIMENSION(1    ), OPTIONAL,INTENT(IN)    :: start, count
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_dist_var_dp_1D'
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: d
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Gather distributed data to the Master
+    CALL gather_to_master_dp_1D( d_partial, d)
+
+    ! Non-parallel write to file by the Master only
+    CALL write_var_dp_1D( filename, ncid, id_var, d, start, count)
+
+    ! Clean up after yourself
+    DEALLOCATE( d)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE write_dist_var_dp_1D
+
+  SUBROUTINE write_dist_var_dp_2D(  filename, ncid, id_var, d_partial, start, count)
+    ! Write distributed data to a NetCDF file
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
+    INTEGER,                             INTENT(IN)    :: ncid
+    INTEGER,                             INTENT(IN)    :: id_var
+    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: d_partial
+    INTEGER,  DIMENSION(2    ), OPTIONAL,INTENT(IN)    :: start, count
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_dist_var_dp_2D'
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: d
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Gather distributed data to the Master
+    CALL gather_to_master_dp_2D( d_partial, d)
+
+    ! Non-parallel write to file by the Master only
+    CALL write_var_dp_2D( filename, ncid, id_var, d, start, count)
+
+    ! Clean up after yourself
+    DEALLOCATE( d)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE write_dist_var_dp_2D
+
+  SUBROUTINE write_dist_var_dp_3D(  filename, ncid, id_var, d_partial, start, count)
+    ! Write distributed data to a NetCDF file
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
+    INTEGER,                             INTENT(IN)    :: ncid
+    INTEGER,                             INTENT(IN)    :: id_var
+    REAL(dp), DIMENSION(:,:,:),          INTENT(IN)    :: d_partial
+    INTEGER,  DIMENSION(3    ), OPTIONAL,INTENT(IN)    :: start, count
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_dist_var_dp_3D'
+    REAL(dp), DIMENSION(:,:,:), ALLOCATABLE            :: d
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Gather distributed data to the Master
+    CALL gather_to_master_dp_3D( d_partial, d)
+
+    ! Non-parallel write to file by the Master only
+    CALL write_var_dp_3D( filename, ncid, id_var, d, start, count)
+
+    ! Clean up after yourself
+    DEALLOCATE( d)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE write_dist_var_dp_3D
+
+  SUBROUTINE write_dist_var_dp_4D(  filename, ncid, id_var, d_partial, start, count)
+    ! Write distributed data to a NetCDF file
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
+    INTEGER,                             INTENT(IN)    :: ncid
+    INTEGER,                             INTENT(IN)    :: id_var
+    REAL(dp), DIMENSION(:,:,:,:),        INTENT(IN)    :: d_partial
+    INTEGER,  DIMENSION(4    ), OPTIONAL,INTENT(IN)    :: start, count
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_dist_var_dp_4D'
+    REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE          :: d
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Gather distributed data to the Master
+    CALL gather_to_master_dp_4D( d_partial, d)
+
+    ! Non-parallel write to file by the Master only
+    CALL write_var_dp_4D( filename, ncid, id_var, d, start, count)
+
+    ! Clean up after yourself
+    DEALLOCATE( d)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE write_dist_var_dp_4D
+
+! Non-parallel write to file by the Master only
 
   SUBROUTINE write_var_int_0D(  filename, ncid, id_var, d)
     ! Write data to a NetCDF file
@@ -4076,11 +4384,11 @@ CONTAINS
     CALL inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var)
 
     ! Check variable type
-    IF (.NOT. (var_type == NF90_INT)) &
+    IF (par%master .AND. .NOT. (var_type == NF90_INT)) &
       CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_INT!')
 
     ! Check number of dimensions
-    IF (ndims_of_var /= 0) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+    IF (par%master .AND. ndims_of_var /= 0) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 
     ! Write the data
     IF (par%master) THEN
@@ -4124,11 +4432,11 @@ CONTAINS
     CALL inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
 
     ! Check variable type
-    IF (.NOT. (var_type == NF90_INT)) &
+    IF (par%master .AND. .NOT. (var_type == NF90_INT)) &
       CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_INT!')
 
     ! Check number of dimensions
-    IF (ndims_of_var /= 1) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+    IF (par%master .AND. ndims_of_var /= 1) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 
     ! Set start and count
     IF (PRESENT( start)) THEN
@@ -4136,14 +4444,14 @@ CONTAINS
     ELSE
       start_applied = (/ 1 /)
     END IF
-    IF (ANY( start_applied == 0)) CALL crash('start must be positive!')
+    IF (par%master .AND. ANY( start_applied == 0)) CALL crash('start must be positive!')
 
     IF (PRESENT( count)) THEN
       count_applied = count
     ELSE
       count_applied = (/ SIZE( d,1) /)
     END IF
-    IF (ANY( count_applied == 0)) CALL crash('count must be positive!')
+    IF (par%master .AND. ANY( count_applied == 0)) CALL crash('count must be positive!')
 
     ! Check sizes of dimensions
     DO di = 1, ndims_of_var
@@ -4152,11 +4460,11 @@ CONTAINS
       CALL inquire_dim_info( filename, ncid, dims_of_var( di), dim_name = dim_name, dim_length = dim_length)
 
       ! Check if the combination of dimension size, start, and count, matches the size of d
-      IF (count_applied( di) /= SIZE( d,di)) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // &
+      IF (par%master .AND. count_applied( di) /= SIZE( d,di)) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // &
         '": count({int_01}) = {int_02}, but SIZE(d,{int_03}) = {int_04}!', int_01 = di, int_02 = count_applied( di), int_03 = di, int_04 = SIZE( d,di))
 
       ! Check if this dimension is large enough to read this amount of data
-      IF (start_applied( di) + count_applied( di) - 1 > dim_length) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // &
+      IF (par%master .AND. start_applied( di) + count_applied( di) - 1 > dim_length) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // &
         TRIM( filename) // '"start + count - 1 = {int_01}, but dim_length = {int_02}!', int_01 = start_applied( di) + count_applied( di) - 1, int_02 = dim_length)
 
     END DO
@@ -4203,11 +4511,11 @@ CONTAINS
     CALL inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
 
     ! Check variable type
-    IF (.NOT. (var_type == NF90_INT)) &
+    IF (par%master .AND. .NOT. (var_type == NF90_INT)) &
       CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_INT!')
 
     ! Check number of dimensions
-    IF (ndims_of_var /= 2) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+    IF (par%master .AND. ndims_of_var /= 2) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 
     ! Set start and count
     IF (PRESENT( start)) THEN
@@ -4215,14 +4523,14 @@ CONTAINS
     ELSE
       start_applied = (/ 1, 1 /)
     END IF
-    IF (ANY( start_applied == 0)) CALL crash('start must be positive!')
+    IF (par%master .AND. ANY( start_applied == 0)) CALL crash('start must be positive!')
 
     IF (PRESENT( count)) THEN
       count_applied = count
     ELSE
       count_applied = (/ SIZE( d,1), SIZE( d,2) /)
     END IF
-    IF (ANY( count_applied == 0)) CALL crash('count must be positive!')
+    IF (par%master .AND. ANY( count_applied == 0)) CALL crash('count must be positive!')
 
     ! Check sizes of dimensions
     DO di = 1, ndims_of_var
@@ -4231,11 +4539,11 @@ CONTAINS
       CALL inquire_dim_info( filename, ncid, dims_of_var( di), dim_name = dim_name, dim_length = dim_length)
 
       ! Check if the combination of dimension size, start, and count, matches the size of d
-      IF (count_applied( di) /= SIZE( d,di)) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // &
+      IF (par%master .AND. count_applied( di) /= SIZE( d,di)) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // &
         '": count({int_01}) = {int_02}, but SIZE(d,{int_03}) = {int_04}!', int_01 = di, int_02 = count_applied( di), int_03 = di, int_04 = SIZE( d,di))
 
       ! Check if this dimension is large enough to read this amount of data
-      IF (start_applied( di) + count_applied( di) - 1 > dim_length) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // &
+      IF (par%master .AND. start_applied( di) + count_applied( di) - 1 > dim_length) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // &
         TRIM( filename) // '"start + count - 1 = {int_01}, but dim_length = {int_02}!', int_01 = start_applied( di) + count_applied( di) - 1, int_02 = dim_length)
 
     END DO
@@ -4282,11 +4590,11 @@ CONTAINS
     CALL inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
 
     ! Check variable type
-    IF (.NOT. (var_type == NF90_INT)) &
+    IF (par%master .AND. .NOT. (var_type == NF90_INT)) &
       CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_INT!')
 
     ! Check number of dimensions
-    IF (ndims_of_var /= 3) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+    IF (par%master .AND. ndims_of_var /= 3) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 
     ! Set start and count
     IF (PRESENT( start)) THEN
@@ -4294,14 +4602,14 @@ CONTAINS
     ELSE
       start_applied = (/ 1, 1, 1 /)
     END IF
-    IF (ANY( start_applied == 0)) CALL crash('start must be positive!')
+    IF (par%master .AND. ANY( start_applied == 0)) CALL crash('start must be positive!')
 
     IF (PRESENT( count)) THEN
       count_applied = count
     ELSE
       count_applied = (/ SIZE( d,1), SIZE( d,2), SIZE( d,3) /)
     END IF
-    IF (ANY( count_applied == 0)) CALL crash('count must be positive!')
+    IF (par%master .AND. ANY( count_applied == 0)) CALL crash('count must be positive!')
 
     ! Check sizes of dimensions
     DO di = 1, ndims_of_var
@@ -4310,11 +4618,11 @@ CONTAINS
       CALL inquire_dim_info( filename, ncid, dims_of_var( di), dim_name = dim_name, dim_length = dim_length)
 
       ! Check if the combination of dimension size, start, and count, matches the size of d
-      IF (count_applied( di) /= SIZE( d,di)) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // &
+      IF (par%master .AND. count_applied( di) /= SIZE( d,di)) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // &
         '": count({int_01}) = {int_02}, but SIZE(d,{int_03}) = {int_04}!', int_01 = di, int_02 = count_applied( di), int_03 = di, int_04 = SIZE( d,di))
 
       ! Check if this dimension is large enough to read this amount of data
-      IF (start_applied( di) + count_applied( di) - 1 > dim_length) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // &
+      IF (par%master .AND. start_applied( di) + count_applied( di) - 1 > dim_length) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // &
         TRIM( filename) // '"start + count - 1 = {int_01}, but dim_length = {int_02}!', int_01 = start_applied( di) + count_applied( di) - 1, int_02 = dim_length)
 
     END DO
@@ -4361,11 +4669,11 @@ CONTAINS
     CALL inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
 
     ! Check variable type
-    IF (.NOT. (var_type == NF90_INT)) &
+    IF (par%master .AND. .NOT. (var_type == NF90_INT)) &
       CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_INT!')
 
     ! Check number of dimensions
-    IF (ndims_of_var /= 4) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+    IF (par%master .AND. ndims_of_var /= 4) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 
     ! Set start and count
     IF (PRESENT( start)) THEN
@@ -4373,14 +4681,14 @@ CONTAINS
     ELSE
       start_applied = (/ 1, 1, 1, 1 /)
     END IF
-    IF (ANY( start_applied == 0)) CALL crash('start must be positive!')
+    IF (par%master .AND. ANY( start_applied == 0)) CALL crash('start must be positive!')
 
     IF (PRESENT( count)) THEN
       count_applied = count
     ELSE
       count_applied = (/ SIZE( d,1), SIZE( d,2), SIZE( d,3), SIZE( d,4) /)
     END IF
-    IF (ANY( count_applied == 0)) CALL crash('count must be positive!')
+    IF (par%master .AND. ANY( count_applied == 0)) CALL crash('count must be positive!')
 
     ! Check sizes of dimensions
     DO di = 1, ndims_of_var
@@ -4389,11 +4697,11 @@ CONTAINS
       CALL inquire_dim_info( filename, ncid, dims_of_var( di), dim_name = dim_name, dim_length = dim_length)
 
       ! Check if the combination of dimension size, start, and count, matches the size of d
-      IF (count_applied( di) /= SIZE( d,di)) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // &
+      IF (par%master .AND. count_applied( di) /= SIZE( d,di)) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // &
         '": count({int_01}) = {int_02}, but SIZE(d,{int_03}) = {int_04}!', int_01 = di, int_02 = count_applied( di), int_03 = di, int_04 = SIZE( d,di))
 
       ! Check if this dimension is large enough to read this amount of data
-      IF (start_applied( di) + count_applied( di) - 1 > dim_length) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // &
+      IF (par%master .AND. start_applied( di) + count_applied( di) - 1 > dim_length) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // &
         TRIM( filename) // '"start + count - 1 = {int_01}, but dim_length = {int_02}!', int_01 = start_applied( di) + count_applied( di) - 1, int_02 = dim_length)
 
     END DO
@@ -4434,11 +4742,11 @@ CONTAINS
     CALL inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var)
 
     ! Check variable type
-    IF (.NOT. (var_type == NF90_FLOAT .OR. var_type == NF90_DOUBLE)) &
+    IF (par%master .AND. .NOT. (var_type == NF90_FLOAT .OR. var_type == NF90_DOUBLE)) &
       CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
 
     ! Check number of dimensions
-    IF (ndims_of_var /= 0) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+    IF (par%master .AND. ndims_of_var /= 0) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 
     ! Write the data
     IF (par%master) THEN
@@ -4482,11 +4790,11 @@ CONTAINS
     CALL inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
 
     ! Check variable type
-    IF (.NOT. (var_type == NF90_FLOAT .OR. var_type == NF90_DOUBLE)) &
+    IF (par%master .AND. .NOT. (var_type == NF90_FLOAT .OR. var_type == NF90_DOUBLE)) &
       CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
 
     ! Check number of dimensions
-    IF (ndims_of_var /= 1) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+    IF (par%master .AND. ndims_of_var /= 1) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 
     ! Set start and count
     IF (PRESENT( start)) THEN
@@ -4494,14 +4802,14 @@ CONTAINS
     ELSE
       start_applied = (/ 1 /)
     END IF
-    IF (ANY( start_applied == 0)) CALL crash('start must be positive!')
+    IF (par%master .AND. ANY( start_applied == 0)) CALL crash('start must be positive!')
 
     IF (PRESENT( count)) THEN
       count_applied = count
     ELSE
       count_applied = (/ SIZE( d,1) /)
     END IF
-    IF (ANY( count_applied == 0)) CALL crash('count must be positive!')
+    IF (par%master .AND. ANY( count_applied == 0)) CALL crash('count must be positive!')
 
     ! Check sizes of dimensions
     DO di = 1, ndims_of_var
@@ -4510,11 +4818,11 @@ CONTAINS
       CALL inquire_dim_info( filename, ncid, dims_of_var( di), dim_name = dim_name, dim_length = dim_length)
 
       ! Check if the combination of dimension size, start, and count, matches the size of d
-      IF (count_applied( di) /= SIZE( d,di)) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // &
+      IF (par%master .AND. count_applied( di) /= SIZE( d,di)) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // &
         '": count({int_01}) = {int_02}, but SIZE(d,{int_03}) = {int_04}!', int_01 = di, int_02 = count_applied( di), int_03 = di, int_04 = SIZE( d,di))
 
       ! Check if this dimension is large enough to read this amount of data
-      IF (var_name /= 'time') THEN
+      IF (par%master .AND. var_name /= 'time') THEN
         ! Exception for time, because there the dimension is usually unlimited
         IF (start_applied( di) + count_applied( di) - 1 > dim_length) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // &
           TRIM( filename) // '"start + count - 1 = {int_01}, but dim_length = {int_02}!', int_01 = start_applied( di) + count_applied( di) - 1, int_02 = dim_length)
@@ -4564,11 +4872,11 @@ CONTAINS
     CALL inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
 
     ! Check variable type
-    IF (.NOT. (var_type == NF90_FLOAT .OR. var_type == NF90_DOUBLE)) &
+    IF (par%master .AND. .NOT. (var_type == NF90_FLOAT .OR. var_type == NF90_DOUBLE)) &
       CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
 
     ! Check number of dimensions
-    IF (ndims_of_var /= 2) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+    IF (par%master .AND. ndims_of_var /= 2) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 
     ! Set start and count
     IF (PRESENT( start)) THEN
@@ -4576,14 +4884,14 @@ CONTAINS
     ELSE
       start_applied = (/ 1, 1 /)
     END IF
-    IF (ANY( start_applied == 0)) CALL crash('start must be positive!')
+    IF (par%master .AND. ANY( start_applied == 0)) CALL crash('start must be positive!')
 
     IF (PRESENT( count)) THEN
       count_applied = count
     ELSE
       count_applied = (/ SIZE( d,1), SIZE( d,2) /)
     END IF
-    IF (ANY( count_applied == 0)) CALL crash('count must be positive!')
+    IF (par%master .AND. ANY( count_applied == 0)) CALL crash('count must be positive!')
 
     ! Check sizes of dimensions
     DO di = 1, ndims_of_var
@@ -4592,11 +4900,11 @@ CONTAINS
       CALL inquire_dim_info( filename, ncid, dims_of_var( di), dim_name = dim_name, dim_length = dim_length)
 
       ! Check if the combination of dimension size, start, and count, matches the size of d
-      IF (count_applied( di) /= SIZE( d,di)) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // &
+      IF (par%master .AND. count_applied( di) /= SIZE( d,di)) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // &
         '": count({int_01}) = {int_02}, but SIZE(d,{int_03}) = {int_04}!', int_01 = di, int_02 = count_applied( di), int_03 = di, int_04 = SIZE( d,di))
 
       ! Check if this dimension is large enough to read this amount of data
-      IF (start_applied( di) + count_applied( di) - 1 > dim_length) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // &
+      IF (par%master .AND. start_applied( di) + count_applied( di) - 1 > dim_length) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // &
         TRIM( filename) // '"start + count - 1 = {int_01}, but dim_length = {int_02}!', int_01 = start_applied( di) + count_applied( di) - 1, int_02 = dim_length)
 
     END DO
@@ -4643,11 +4951,11 @@ CONTAINS
     CALL inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
 
     ! Check variable type
-    IF (.NOT. (var_type == NF90_FLOAT .OR. var_type == NF90_DOUBLE)) &
+    IF (par%master .AND. .NOT. (var_type == NF90_FLOAT .OR. var_type == NF90_DOUBLE)) &
       CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
 
     ! Check number of dimensions
-    IF (ndims_of_var /= 3) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+    IF (par%master .AND. ndims_of_var /= 3) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 
     ! Set start and count
     IF (PRESENT( start)) THEN
@@ -4655,14 +4963,14 @@ CONTAINS
     ELSE
       start_applied = (/ 1, 1, 1 /)
     END IF
-    IF (ANY( start_applied == 0)) CALL crash('start must be positive!')
+    IF (par%master .AND. ANY( start_applied == 0)) CALL crash('start must be positive!')
 
     IF (PRESENT( count)) THEN
       count_applied = count
     ELSE
       count_applied = (/ SIZE( d,1), SIZE( d,2), SIZE( d,3) /)
     END IF
-    IF (ANY( count_applied == 0)) CALL crash('count must be positive!')
+    IF (par%master .AND. ANY( count_applied == 0)) CALL crash('count must be positive!')
 
     ! Check sizes of dimensions
     DO di = 1, ndims_of_var
@@ -4671,11 +4979,11 @@ CONTAINS
       CALL inquire_dim_info( filename, ncid, dims_of_var( di), dim_name = dim_name, dim_length = dim_length)
 
       ! Check if the combination of dimension size, start, and count, matches the size of d
-      IF (count_applied( di) /= SIZE( d,di)) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // &
+      IF (par%master .AND. count_applied( di) /= SIZE( d,di)) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // &
         '": count({int_01}) = {int_02}, but SIZE(d,{int_03}) = {int_04}!', int_01 = di, int_02 = count_applied( di), int_03 = di, int_04 = SIZE( d,di))
 
       ! Check if this dimension is large enough to read this amount of data
-      IF (start_applied( di) + count_applied( di) - 1 > dim_length) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // &
+      IF (par%master .AND. start_applied( di) + count_applied( di) - 1 > dim_length) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // &
         TRIM( filename) // '"start + count - 1 = {int_01}, but dim_length = {int_02}!', int_01 = start_applied( di) + count_applied( di) - 1, int_02 = dim_length)
 
     END DO
@@ -4722,11 +5030,11 @@ CONTAINS
     CALL inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
 
     ! Check variable type
-    IF (.NOT. (var_type == NF90_FLOAT .OR. var_type == NF90_DOUBLE)) &
+    IF (par%master .AND. .NOT. (var_type == NF90_FLOAT .OR. var_type == NF90_DOUBLE)) &
       CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
 
     ! Check number of dimensions
-    IF (ndims_of_var /= 4) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+    IF (par%master .AND. ndims_of_var /= 4) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 
     ! Set start and count
     IF (PRESENT( start)) THEN
@@ -4734,14 +5042,14 @@ CONTAINS
     ELSE
       start_applied = (/ 1, 1, 1, 1 /)
     END IF
-    IF (ANY( start_applied == 0)) CALL crash('start must be positive!')
+    IF (par%master .AND. ANY( start_applied == 0)) CALL crash('start must be positive!')
 
     IF (PRESENT( count)) THEN
       count_applied = count
     ELSE
       count_applied = (/ SIZE( d,1), SIZE( d,2), SIZE( d,3), SIZE( d,4) /)
     END IF
-    IF (ANY( count_applied == 0)) CALL crash('count must be positive!')
+    IF (par%master .AND. ANY( count_applied == 0)) CALL crash('count must be positive!')
 
     ! Check sizes of dimensions
     DO di = 1, ndims_of_var
@@ -4750,11 +5058,11 @@ CONTAINS
       CALL inquire_dim_info( filename, ncid, dims_of_var( di), dim_name = dim_name, dim_length = dim_length)
 
       ! Check if the combination of dimension size, start, and count, matches the size of d
-      IF (count_applied( di) /= SIZE( d,di)) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // &
+      IF (par%master .AND. count_applied( di) /= SIZE( d,di)) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // &
         '": count({int_01}) = {int_02}, but SIZE(d,{int_03}) = {int_04}!', int_01 = di, int_02 = count_applied( di), int_03 = di, int_04 = SIZE( d,di))
 
       ! Check if this dimension is large enough to read this amount of data
-      IF (start_applied( di) + count_applied( di) - 1 > dim_length) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // &
+      IF (par%master .AND. start_applied( di) + count_applied( di) - 1 > dim_length) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // &
         TRIM( filename) // '"start + count - 1 = {int_01}, but dim_length = {int_02}!', int_01 = start_applied( di) + count_applied( di) - 1, int_02 = dim_length)
 
     END DO
@@ -4771,8 +5079,8 @@ CONTAINS
 
   END SUBROUTINE write_var_dp_4D
 
-  ! ===== Basic NetCDF wrapper functions =====
-  ! ==========================================
+! ===== Basic NetCDF wrapper functions =====
+! ==========================================
 
   ! Inquire dimensions and variables
   SUBROUTINE inquire_dim( filename, ncid, dim_name, dim_length, id_dim)
@@ -5237,4 +5545,4 @@ CONTAINS
 
   END SUBROUTINE close_netcdf_file
 
-END MODULE netcdf_basic_module
+END MODULE netcdf_basic

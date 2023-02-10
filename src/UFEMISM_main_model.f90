@@ -7,7 +7,11 @@ MODULE UFEMISM_main_model
 
 #include <petsc/finclude/petscksp.h>
 
+  USE mpi
   USE precisions                                             , ONLY: dp
+  USE mpi_basic                                              , ONLY: par, cerr, ierr, MPI_status, sync
+  USE control_resources_and_error_messaging                  , ONLY: warning, crash, init_routine, finalise_routine
+  USE parameters
   USE climate_main                                           , ONLY: run_climate_module
 
   IMPLICIT NONE

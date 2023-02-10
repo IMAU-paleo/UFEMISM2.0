@@ -1,6 +1,6 @@
-MODULE mpi_parallelisation
+MODULE mpi_basic
 
-  ! A collection of different routines that make parallel programming in UFEMISM a lot easier.
+  ! Some very basic stuff to support the MPI parallelised architecture.
 
 ! ===== Preamble =====
 ! ====================
@@ -12,7 +12,8 @@ MODULE mpi_parallelisation
 ! ===== Global variables =====
 ! ============================
 
-  INTEGER :: cerr, ierr    ! Error flags for MPI routines
+  INTEGER :: cerr, ierr                    ! Error flags for MPI routines
+  INTEGER :: MPI_status( MPI_STATUS_SIZE)  ! Status flag for MPI_RECV
 
   TYPE parallel_info
 
@@ -26,26 +27,32 @@ MODULE mpi_parallelisation
 
 CONTAINS
 
-! ===== Subroutinea ======
-! ========================
+! ===== Very basic stuff ======
+! =============================
 
   ! Initialise the MPI parallelisation
   SUBROUTINE initialise_parallelisation
 
     IMPLICIT NONE
 
-    ! MPI Initialisation
-    ! ==================
-
     ! Use MPI to create copies of the program on all the processors, so the model can run in parallel.
-    CALL MPI_INIT(ierr)
+    CALL MPI_INIT( ierr)
 
     ! Get rank of current process and total number of processes
-    CALL MPI_COMM_RANK(       MPI_COMM_WORLD, par%i, ierr)
-    CALL MPI_COMM_SIZE(       MPI_COMM_WORLD, par%n, ierr)
+    CALL MPI_COMM_RANK( MPI_COMM_WORLD, par%i, ierr)
+    CALL MPI_COMM_SIZE( MPI_COMM_WORLD, par%n, ierr)
     par%master = (par%i == 0)
 
   END SUBROUTINE initialise_parallelisation
+
+  ! Finalise the MPI parallelisation
+  SUBROUTINE finalise_parallelisation
+
+    IMPLICIT NONE
+
+    CALL MPI_FINALIZE( ierr)
+
+  END SUBROUTINE finalise_parallelisation
 
   ! Synchronise the different processes
   SUBROUTINE sync
@@ -57,28 +64,4 @@ CONTAINS
 
   END SUBROUTINE sync
 
-  ! Partition a list of ntot elements over the n processes
-  SUBROUTINE partition_list( ntot, i, n, i1, i2)
-    ! Partition a list into parallel ranges (e.g. vertex domains)
-
-    ! In/output variables:
-    INTEGER,                    INTENT(IN)        :: ntot, i, n
-    INTEGER,                    INTENT(OUT)       :: i1, i2
-
-    IF (ntot > n*2) THEN
-      i1 = MAX(1,    FLOOR(REAL(ntot *  i      / n)) + 1)
-      i2 = MIN(ntot, FLOOR(REAL(ntot * (i + 1) / n)))
-    ELSE
-      IF (i==0) THEN
-        i1 = 1
-        i2 = ntot
-      ELSE
-        i1 = 1
-        i2 = 0
-      END IF
-    END IF
-
-  END SUBROUTINE partition_list
-
-
-END MODULE mpi_parallelisation
+END MODULE mpi_basic
