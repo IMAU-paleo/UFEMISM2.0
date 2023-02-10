@@ -24,10 +24,11 @@ PROGRAM UFEMISM_program
 
   TYPE(type_mesh) :: mesh
   CHARACTER(LEN=256) :: name
-  REAL(dp), DIMENSION(:,:), ALLOCATABLE :: line
+  REAL(dp), DIMENSION(:,:), ALLOCATABLE :: line, poly
   INTEGER :: i,n
   REAL(dp) :: r, theta1, theta2, alpha_min
   REAL(dp), DIMENSION(2) :: p
+  REAL(dp) :: tstart, tstop
 
 ! ===== START =====
 ! =================
@@ -37,6 +38,10 @@ PROGRAM UFEMISM_program
 
   ! Initialise the control and resource tracker
   CALL initialise_control_and_resource_tracker
+
+
+
+  tstart = MPI_WTIME()
 
 
 
@@ -73,39 +78,55 @@ PROGRAM UFEMISM_program
   p = [-0.3_dp, 0.4_dp]
   IF (par%master) CALL refine_mesh_point( mesh, p, 0.01_dp, alpha_min)
   p = [ 0.3_dp, 0.4_dp]
-  IF (par%master) CALL refine_mesh_point( mesh, p, 0.00_dp, alpha_min)
+  IF (par%master) CALL refine_mesh_point( mesh, p, 0.01_dp, alpha_min)
 
-!  n = 100
-!  ALLOCATE( line( n,4), source = 0._dp)
-!  line(  1,:) = [-0.80_dp,  0.20_dp, -0.80_dp, -0.20_dp]
-!  line(  2,:) = [-0.80_dp, -0.20_dp, -0.65_dp, -0.20_dp]
-!  line(  3,:) = [-0.65_dp, -0.20_dp, -0.65_dp,  0.20_dp]
-!  line(  4,:) = [-0.55_dp,  0.20_dp, -0.55_dp, -0.20_dp]
-!  line(  5,:) = [-0.55_dp,  0.20_dp, -0.40_dp,  0.20_dp]
-!  line(  6,:) = [-0.55_dp,  0.00_dp, -0.40_dp,  0.00_dp]
-!  IF (par%master) CALL refine_mesh_line( mesh, line, 0.01_dp, alpha_min)
-!  line(  7,:) = [-0.30_dp,  0.20_dp, -0.30_dp, -0.20_dp]
-!  IF (par%master) CALL refine_mesh_line( mesh, line, 0.01_dp, alpha_min)
-!  line(  8,:) = [-0.30_dp,  0.20_dp, -0.15_dp,  0.20_dp]
-!  line(  9,:) = [-0.30_dp,  0.00_dp, -0.15_dp,  0.00_dp]
-!  line( 10,:) = [-0.30_dp, -0.20_dp, -0.15_dp, -0.20_dp]
-!  line( 11,:) = [-0.05_dp,  0.20_dp, -0.05_dp, -0.20_dp]
-!  line( 12,:) = [-0.05_dp,  0.20_dp,  0.05_dp,  0.00_dp]
-!  line( 13,:) = [ 0.05_dp,  0.00_dp,  0.15_dp,  0.20_dp]
-!  line( 14,:) = [ 0.15_dp,  0.20_dp,  0.15_dp, -0.20_dp]
-!  line( 15,:) = [ 0.25_dp,  0.20_dp,  0.25_dp, -0.20_dp]
-!  line( 16,:) = [ 0.35_dp,  0.20_dp,  0.50_dp,  0.20_dp]
-!  line( 17,:) = [ 0.35_dp,  0.20_dp,  0.35_dp,  0.00_dp]
-!  IF (par%master) CALL refine_mesh_line( mesh, line, 0.01_dp, alpha_min)
-!  line( 18,:) = [ 0.35_dp,  0.00_dp,  0.50_dp,  0.00_dp]
-!  line( 19,:) = [ 0.50_dp,  0.00_dp,  0.50_dp, -0.20_dp]
-!  line( 20,:) = [ 0.35_dp, -0.20_dp,  0.50_dp, -0.20_dp]
-!  line( 21,:) = [ 0.60_dp,  0.20_dp,  0.60_dp, -0.20_dp]
-!  line( 22,:) = [ 0.60_dp,  0.20_dp,  0.70_dp,  0.00_dp]
-!  line( 23,:) = [ 0.70_dp,  0.00_dp,  0.80_dp,  0.20_dp]
-!  line( 24,:) = [ 0.80_dp,  0.20_dp,  0.80_dp, -0.20_dp]
-!  IF (par%master) CALL refine_mesh_line( mesh, line, 0.01_dp, alpha_min)
-!  DEALLOCATE( line)
+  n = 100
+  ALLOCATE( line( n,4), source = 0._dp)
+  line(  1,:) = [-0.80_dp,  0.20_dp, -0.80_dp, -0.20_dp]
+  line(  2,:) = [-0.80_dp, -0.20_dp, -0.65_dp, -0.20_dp]
+  line(  3,:) = [-0.65_dp, -0.20_dp, -0.65_dp,  0.20_dp]
+  line(  4,:) = [-0.55_dp,  0.20_dp, -0.55_dp, -0.20_dp]
+  line(  5,:) = [-0.55_dp,  0.20_dp, -0.40_dp,  0.20_dp]
+  line(  6,:) = [-0.55_dp,  0.00_dp, -0.40_dp,  0.00_dp]
+  IF (par%master) CALL refine_mesh_line( mesh, line, 0.01_dp, alpha_min)
+  line(  7,:) = [-0.30_dp,  0.20_dp, -0.30_dp, -0.20_dp]
+  IF (par%master) CALL refine_mesh_line( mesh, line, 0.01_dp, alpha_min)
+  line(  8,:) = [-0.30_dp,  0.20_dp, -0.15_dp,  0.20_dp]
+  line(  9,:) = [-0.30_dp,  0.00_dp, -0.15_dp,  0.00_dp]
+  line( 10,:) = [-0.30_dp, -0.20_dp, -0.15_dp, -0.20_dp]
+  line( 11,:) = [-0.05_dp,  0.20_dp, -0.05_dp, -0.20_dp]
+  line( 12,:) = [-0.05_dp,  0.20_dp,  0.05_dp,  0.00_dp]
+  line( 13,:) = [ 0.05_dp,  0.00_dp,  0.15_dp,  0.20_dp]
+  line( 14,:) = [ 0.15_dp,  0.20_dp,  0.15_dp, -0.20_dp]
+  line( 15,:) = [ 0.25_dp,  0.20_dp,  0.25_dp, -0.20_dp]
+  line( 16,:) = [ 0.35_dp,  0.20_dp,  0.50_dp,  0.20_dp]
+  line( 17,:) = [ 0.35_dp,  0.20_dp,  0.35_dp,  0.00_dp]
+  IF (par%master) CALL refine_mesh_line( mesh, line, 0.01_dp, alpha_min)
+  line( 18,:) = [ 0.35_dp,  0.00_dp,  0.50_dp,  0.00_dp]
+  line( 19,:) = [ 0.50_dp,  0.00_dp,  0.50_dp, -0.20_dp]
+  line( 20,:) = [ 0.35_dp, -0.20_dp,  0.50_dp, -0.20_dp]
+  line( 21,:) = [ 0.60_dp,  0.20_dp,  0.60_dp, -0.20_dp]
+  line( 22,:) = [ 0.60_dp,  0.20_dp,  0.70_dp,  0.00_dp]
+  line( 23,:) = [ 0.70_dp,  0.00_dp,  0.80_dp,  0.20_dp]
+  line( 24,:) = [ 0.80_dp,  0.20_dp,  0.80_dp, -0.20_dp]
+  IF (par%master) CALL refine_mesh_line( mesh, line, 0.01_dp, alpha_min)
+  DEALLOCATE( line)
+
+
+  ! Polygon
+  ALLOCATE( poly( 4,2))
+  poly( 1,:) = [0.80_dp, -0.80_dp]
+  poly( 2,:) = [0.80_dp, -0.55_dp]
+  poly( 3,:) = [0.55_dp, -0.60_dp]
+  poly( 4,:) = [0.60_dp, -0.80_dp]
+  IF (par%master) CALL refine_mesh_polygon( mesh, poly, 0.01_dp, alpha_min)
+  DEALLOCATE( poly)
+
+
+  tstop = MPI_WTIME()
+
+  IF (par%master) CALL warning('Finished generation mesh of {int_01} vertices in {dp_01} seconds.', int_01 = mesh%nV, dp_01 = tstop - tstart)
+
 
   IF (par%master) CALL write_mesh_to_text_file( mesh, 'test_mesh.txt')
 

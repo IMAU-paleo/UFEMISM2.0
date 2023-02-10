@@ -10,7 +10,7 @@ MODULE mesh_creation
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, init_routine, finalise_routine
   USE reallocate_mod                                         , ONLY: reallocate
   USE math_utilities                                         , ONLY: segment_intersection, is_in_triangle, longest_triangle_leg, smallest_triangle_angle, &
-                                                                     circumcenter, lies_on_line_segment, crop_line_to_domain
+                                                                     circumcenter, lies_on_line_segment, crop_line_to_domain, geometric_center, is_in_polygon
   USE mesh_types                                             , ONLY: type_mesh
   USE mesh_memory                                            , ONLY: extend_mesh_primary, crop_mesh_primary
   USE mesh_utilities                                         , ONLY: update_triangle_circumcenter, find_containing_triangle
@@ -406,6 +406,158 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE refine_mesh_line
+
+  SUBROUTINE refine_mesh_polygon( mesh, poly, res_max, alpha_min)
+    ! Refine a mesh based on a 2-D polygon criterion
+
+    IMPLICIT NONE
+
+    TYPE(type_mesh),            INTENT(INOUT)     :: mesh          ! The mesh that should be refined
+    REAL(dp), DIMENSION(:,:),   INTENT(IN)        :: poly          ! Polygon
+    REAL(dp),                   INTENT(IN)        :: res_max       ! Maximum allowed resolution for triangles crossed by any of these line segments
+    REAL(dp),                   INTENT(IN)        :: alpha_min     ! Minimum allowed internal triangle angle
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'refine_mesh_line'
+    INTEGER,  DIMENSION(:    ), ALLOCATABLE       :: refinement_map
+    INTEGER,  DIMENSION(:    ), ALLOCATABLE       :: refinement_stack
+    INTEGER                                       :: refinement_stackN
+    INTEGER                                       :: ti_in
+    INTEGER                                       :: ti, via, vib, vic
+    REAL(dp), DIMENSION(2)                        :: va, vb, vc, gc, vab, vbc, vca
+    REAL(dp)                                      :: longest_leg, smallest_angle
+    LOGICAL                                       :: meets_resolution_criterion
+    LOGICAL                                       :: meets_geometry_criterion
+    REAL(dp), DIMENSION(2)                        :: p_new
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+  ! == Iteratively refine the mesh ==
+  ! =================================
+
+    ALLOCATE( refinement_map(   mesh%nTri_mem), source = 0)
+    ALLOCATE( refinement_stack( mesh%nTri_mem), source = 0)
+    refinement_stackN = 0
+
+    ! Initialise the refinement stack with all triangles lying (partly) inside the polygon
+    DO ti = 1, mesh%nTri
+
+      ! The three vertices spanning this triangle
+      via = mesh%Tri( ti,1)
+      vib = mesh%Tri( ti,2)
+      vic = mesh%Tri( ti,3)
+      va  = mesh%V( via,:)
+      vb  = mesh%V( vib,:)
+      vc  = mesh%V( vic,:)
+
+      ! Its geometric centre and edge midpoints
+      gc = geometric_center( va, vb, vc)
+      vab = (va + vb) / 2._dp
+      vbc = (vb + vc) / 2._dp
+      vca = (vc + va) / 2._dp
+
+      IF (is_in_polygon( poly, va) .OR. &
+          is_in_polygon( poly, vb) .OR. &
+          is_in_polygon( poly, vc) .OR. &
+          is_in_polygon( poly, gc) .OR. &
+          is_in_polygon( poly, vab) .OR. &
+          is_in_polygon( poly, vbc) .OR. &
+          is_in_polygon( poly, vca)) THEN
+        refinement_map( ti) = 1
+        refinement_stackN = refinement_stackN + 1
+        refinement_stack( refinement_stackN) = ti
+      END IF
+
+    END DO ! DO ti = 1, mesh%nTri
+
+    ! Keep refining until all triangles match the criterion
+    DO WHILE (refinement_stackN > 0)
+
+      ! If needed, allocate more memory for the mesh
+      IF (mesh%nV > mesh%nV_mem - 10 .OR. mesh%nTri > mesh%nTri_mem - 10) THEN
+        CALL extend_mesh_primary( mesh, mesh%nV + 1000, mesh%nTri + 2000)
+        CALL reallocate( refinement_map  , mesh%nTri_mem)
+        CALL reallocate( refinement_stack, mesh%nTri_mem)
+      END IF
+
+      ! Check the first (and therefore likely the biggest) triangle in the stack
+      ti = refinement_stack( 1)
+
+      ! The three vertices spanning this triangle
+      via = mesh%Tri( ti,1)
+      vib = mesh%Tri( ti,2)
+      vic = mesh%Tri( ti,3)
+      va  = mesh%V( via,:)
+      vb  = mesh%V( vib,:)
+      vc  = mesh%V( vic,:)
+
+      ! Its geometric centre and edge midpoints
+      gc = geometric_center( va, vb, vc)
+      vab = (va + vb) / 2._dp
+      vbc = (vb + vc) / 2._dp
+      vca = (vc + va) / 2._dp
+
+      ! Check if it meets the geometry criterion
+      smallest_angle = smallest_triangle_angle( va, vb, vc)
+      meets_geometry_criterion = smallest_angle >= alpha_min
+
+      ! If it does not meet the geometry criterion, it will be split anyway -
+      ! no need to check the resolution criterion
+      IF (.NOT. meets_geometry_criterion) THEN
+        meets_resolution_criterion = .TRUE.
+      ELSE
+        ! Check if the triangle meets the resolution criterion
+
+        ! Check if the triangle lies inside the polygon
+        IF (is_in_polygon( poly, va) .OR. &
+            is_in_polygon( poly, vb) .OR. &
+            is_in_polygon( poly, vc) .OR. &
+            is_in_polygon( poly, gc) .OR. &
+            is_in_polygon( poly, vab) .OR. &
+            is_in_polygon( poly, vbc) .OR. &
+            is_in_polygon( poly, vca)) THEN
+          ! The triangle lies inside the polygon
+
+          longest_leg = longest_triangle_leg( va, vb, vc)
+          meets_resolution_criterion = longest_leg <= res_max
+
+        ELSE
+          ! The triangle does not lie inside the polygon
+          meets_resolution_criterion = .TRUE.
+        END IF
+
+      END IF ! IF (.NOT. meets_geometry_criterion) THEN
+
+      ! If either of the two criteria is not met, split the triangle
+      IF (.NOT. meets_geometry_criterion .OR. .NOT. meets_resolution_criterion) THEN
+        ! Split triangle ti at its circumcenter
+
+        p_new = circumcenter( va, vb, vc)
+
+        CALL split_triangle( mesh, ti, p_new, &
+          refinement_map    = refinement_map   , &
+          refinement_stack  = refinement_stack , &
+          refinement_stackN = refinement_stackN)
+
+      ELSE
+        ! Remove triangle ti from the refinement stack
+        CALL remove_triangle_from_refinement_stack( refinement_map, refinement_stack, refinement_stackN, ti)
+      END IF
+
+    END DO ! DO WHILE (refinement_stackN > 0)
+
+    ! Crop surplus mesh memory
+    CALL crop_mesh_primary( mesh)
+
+    ! Clean up after yourself
+    DEALLOCATE( refinement_map  )
+    DEALLOCATE( refinement_stack)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE refine_mesh_polygon
 
 ! == Initialise the five-vertex dummy mesh
 
