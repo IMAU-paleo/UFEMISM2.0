@@ -10,7 +10,7 @@ MODULE mesh_utilities
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, init_routine, finalise_routine
   USE mesh_types                                             , ONLY: type_mesh
   USE math_utilities                                         , ONLY: geometric_center, is_in_triangle, lies_on_line_segment, circumcenter, &
-                                                                     line_from_points, line_line_intersection
+                                                                     line_from_points, line_line_intersection, encroaches_upon
 
   IMPLICIT NONE
 
@@ -378,75 +378,137 @@ CONTAINS
 
 ! == Some basic geometrical operations
 
+  SUBROUTINE encroaches_upon_any( mesh, p, isso, vi, vj)
+    ! Check if p encroaches upon a boundary segment.
+    ! If so, return the indices [vi,vj] of the vertices spanning that segment.
+
+    IMPLICIT NONE
+
+    TYPE(type_mesh),            INTENT(IN)        :: mesh
+    REAL(dp), DIMENSION(2),     INTENT(IN)        :: p
+    LOGICAL,                    INTENT(OUT)       :: isso
+    INTEGER,                    INTENT(OUT)       :: vi,vj
+
+    INTEGER                                       :: ti, via, vib, vic
+    REAL(dp), DIMENSION(2)                        :: va, vb, vc
+
+    isso = .FALSE.
+    vi  = 0
+    vj  = 0
+
+    ! Go through all existing triangles - maybe only the triangle containing
+    ! vi needs to be checked?
+    DO ti = 1, mesh%nTri
+
+      via = mesh%Tri( ti,1)
+      vib = mesh%Tri( ti,2)
+      vic = mesh%Tri( ti,3)
+
+      va = mesh%V( via,:)
+      vb = mesh%V( vib,:)
+      vc = mesh%V( vic,:)
+
+      ! Only check boundary segments
+      IF (is_boundary_segment( mesh, via, vib)) THEN
+        IF (encroaches_upon( va, vb, p)) THEN
+          vi = via
+          vj = vib
+          isso = .TRUE.
+          RETURN
+        END IF
+      END IF
+
+      IF (is_boundary_segment( mesh, vib, vic)) THEN
+        IF (encroaches_upon( vb, vc, p)) THEN
+          vi = vib
+          vj = vic
+          isso = .TRUE.
+          RETURN
+        END IF
+      END IF
+
+      IF (is_boundary_segment( mesh, vic, via)) THEN
+        IF (encroaches_upon( vc, va, p)) THEN
+          vi = vic
+          vj = via
+          isso = .TRUE.
+          RETURN
+        END IF
+      END IF
+
+    END DO ! DO ti = 1, mesh%nTri
+
+  END SUBROUTINE encroaches_upon_any
+
   PURE FUNCTION is_boundary_segment( mesh, v1, v2) RESULT(isso)
    ! Determine whether or not the line between two vertices is an Edge segment
 
     IMPLICIT NONE
 
-   TYPE(type_mesh),          INTENT(IN)          :: mesh
-   INTEGER,                  INTENT(IN)          :: v1, v2
-   LOGICAL                                       :: isso
+    TYPE(type_mesh),          INTENT(IN)          :: mesh
+    INTEGER,                  INTENT(IN)          :: v1, v2
+    LOGICAL                                       :: isso
 
-   IF (mesh%edge_index( v1) == 0 .OR. mesh%edge_index( v2) == 0) THEN
-     isso = .FALSE.
-     RETURN
-   END IF
+    IF (mesh%edge_index( v1) == 0 .OR. mesh%edge_index( v2) == 0) THEN
+      isso = .FALSE.
+      RETURN
+    END IF
 
-   isso = .FALSE.
+    isso = .FALSE.
 
-   IF (mesh%edge_index( v1) == 1) THEN
-     IF (mesh%edge_index( v2) == 8 .OR. &
-         mesh%edge_index( v2) == 1 .OR. &
-         mesh%edge_index( v2) == 2) THEN
-       isso = .TRUE.
-     END IF
-   ELSEIF (mesh%edge_index( v1) == 2) THEN
-     IF (mesh%edge_index( v2) == 8 .OR. &
-         mesh%edge_index( v2) == 1 .OR. &
-         mesh%edge_index( v2) == 3 .OR. &
-         mesh%edge_index( v2) == 4) THEN
-       isso = .TRUE.
-     END IF
-   ELSEIF (mesh%edge_index( v1) == 3) THEN
-     IF (mesh%edge_index( v2) == 2 .OR. &
-         mesh%edge_index( v2) == 3 .OR. &
-         mesh%edge_index( v2) == 4) THEN
-       isso = .TRUE.
-     END IF
-   ELSEIF (mesh%edge_index( v1) == 4) THEN
-     IF (mesh%edge_index( v2) == 2 .OR. &
-         mesh%edge_index( v2) == 3 .OR. &
-         mesh%edge_index( v2) == 5 .OR. &
-         mesh%edge_index( v2) == 6) THEN
-       isso = .TRUE.
-     END IF
-   ELSEIF (mesh%edge_index( v1) == 5) THEN
-     IF (mesh%edge_index( v2) == 4 .OR. &
-         mesh%edge_index( v2) == 5 .OR. &
-         mesh%edge_index( v2) == 6) THEN
-       isso = .TRUE.
-     END IF
-   ELSEIF (mesh%edge_index( v1) == 6) THEN
-     IF (mesh%edge_index( v2) == 4 .OR. &
-         mesh%edge_index( v2) == 5 .OR. &
-         mesh%edge_index( v2) == 7 .OR. &
-         mesh%edge_index( v2) == 8) THEN
-       isso = .TRUE.
-     END IF
-   ELSEIF (mesh%edge_index( v1) == 7) THEN
-     IF (mesh%edge_index( v2) == 6 .OR. &
-         mesh%edge_index( v2) == 7 .OR. &
-         mesh%edge_index( v2) == 8) THEN
-       isso = .TRUE.
-     END IF
-   ELSEIF (mesh%edge_index( v1) == 8) THEN
-     IF (mesh%edge_index( v2) == 6 .OR. &
-         mesh%edge_index( v2) == 7 .OR. &
-         mesh%edge_index( v2) == 1 .OR. &
-         mesh%edge_index( v2) == 2) THEN
-       isso = .TRUE.
-     END IF
-   END IF
+    IF (mesh%edge_index( v1) == 1) THEN
+      IF (mesh%edge_index( v2) == 8 .OR. &
+          mesh%edge_index( v2) == 1 .OR. &
+          mesh%edge_index( v2) == 2) THEN
+        isso = .TRUE.
+      END IF
+    ELSEIF (mesh%edge_index( v1) == 2) THEN
+      IF (mesh%edge_index( v2) == 8 .OR. &
+          mesh%edge_index( v2) == 1 .OR. &
+          mesh%edge_index( v2) == 3 .OR. &
+          mesh%edge_index( v2) == 4) THEN
+        isso = .TRUE.
+      END IF
+    ELSEIF (mesh%edge_index( v1) == 3) THEN
+      IF (mesh%edge_index( v2) == 2 .OR. &
+          mesh%edge_index( v2) == 3 .OR. &
+          mesh%edge_index( v2) == 4) THEN
+        isso = .TRUE.
+      END IF
+    ELSEIF (mesh%edge_index( v1) == 4) THEN
+      IF (mesh%edge_index( v2) == 2 .OR. &
+          mesh%edge_index( v2) == 3 .OR. &
+          mesh%edge_index( v2) == 5 .OR. &
+          mesh%edge_index( v2) == 6) THEN
+        isso = .TRUE.
+      END IF
+    ELSEIF (mesh%edge_index( v1) == 5) THEN
+      IF (mesh%edge_index( v2) == 4 .OR. &
+          mesh%edge_index( v2) == 5 .OR. &
+          mesh%edge_index( v2) == 6) THEN
+        isso = .TRUE.
+      END IF
+    ELSEIF (mesh%edge_index( v1) == 6) THEN
+      IF (mesh%edge_index( v2) == 4 .OR. &
+          mesh%edge_index( v2) == 5 .OR. &
+          mesh%edge_index( v2) == 7 .OR. &
+          mesh%edge_index( v2) == 8) THEN
+        isso = .TRUE.
+      END IF
+    ELSEIF (mesh%edge_index( v1) == 7) THEN
+      IF (mesh%edge_index( v2) == 6 .OR. &
+          mesh%edge_index( v2) == 7 .OR. &
+          mesh%edge_index( v2) == 8) THEN
+        isso = .TRUE.
+      END IF
+    ELSEIF (mesh%edge_index( v1) == 8) THEN
+      IF (mesh%edge_index( v2) == 6 .OR. &
+          mesh%edge_index( v2) == 7 .OR. &
+          mesh%edge_index( v2) == 1 .OR. &
+          mesh%edge_index( v2) == 2) THEN
+        isso = .TRUE.
+      END IF
+    END IF
 
   END FUNCTION is_boundary_segment
 
@@ -526,6 +588,80 @@ CONTAINS
     mesh%Tricc( ti,:) = cc
 
   END SUBROUTINE update_triangle_circumcenter
+
+! == Tools for handling the triangle refinement stack
+
+  SUBROUTINE add_triangle_to_refinement_stack_first( mesh, ti)
+    ! Add triangle ti to the top of the refinement stack
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),            INTENT(INOUT)     :: mesh
+    INTEGER,                    INTENT(IN)        :: ti
+
+    ! Safety
+    IF (ti == 0) CALL crash('received ti=0!')
+
+    IF (mesh%refinement_map( ti) == 0) THEN
+      mesh%refinement_map( ti) = 1
+      mesh%refinement_stackN = mesh%refinement_stackN + 1
+      mesh%refinement_stack( 2: mesh%nTri_mem) = mesh%refinement_stack( 1: mesh%nTri_mem-1)
+      mesh%refinement_stack( 1) = ti
+    END IF
+
+  END SUBROUTINE add_triangle_to_refinement_stack_first
+
+  SUBROUTINE add_triangle_to_refinement_stack_last( mesh, ti)
+    ! Add triangle ti to the end of the refinement stack
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),            INTENT(INOUT)     :: mesh
+    INTEGER,                    INTENT(IN)        :: ti
+
+    ! Safety
+    IF (ti == 0) CALL crash('received ti=0!')
+
+    IF (mesh%refinement_map( ti) == 0) THEN
+      mesh%refinement_map( ti) = 1
+      mesh%refinement_stackN = mesh%refinement_stackN + 1
+      mesh%refinement_stack( mesh%refinement_stackN) = ti
+    END IF
+
+  END SUBROUTINE add_triangle_to_refinement_stack_last
+
+  SUBROUTINE remove_triangle_from_refinement_stack( mesh, ti)
+    ! Remove triangle ti from the refinement stack
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),            INTENT(INOUT)     :: mesh
+    INTEGER,                    INTENT(IN)        :: ti
+
+    ! Local variables:
+    INTEGER                                       :: i
+
+    ! Safety
+    IF (ti == 0) CALL crash('received ti=0!')
+
+    mesh%refinement_map( ti) = 0
+
+    i = 1
+    DO WHILE (i <= mesh%refinement_stackN)
+
+      IF (mesh%refinement_stack( i) == ti) THEN
+        mesh%refinement_stackN = mesh%refinement_stackN - 1
+        mesh%refinement_stack = [mesh%refinement_stack( 1:i-1), mesh%refinement_stack( i+1:mesh%nTri_mem), 0]
+      ELSE
+        i = i+1
+      END IF
+
+    END DO
+
+  END SUBROUTINE remove_triangle_from_refinement_stack
 
 ! == Some basic search operations on a mesh
 
@@ -858,6 +994,7 @@ CONTAINS
     TYPE(type_mesh),          INTENT(IN)          :: mesh
     INTEGER                                       :: vi, ci, vc, ci2, vc2, iti, iti2, ti, n, v1, v2, v3, ti2, n2
     LOGICAL                                       :: FoundIt
+    INTEGER                                       :: tj, tivia, tivib, tivic, tjvia, tjvib, tjvic
 
     ! == V
     ! =============================================================
@@ -1242,6 +1379,18 @@ CONTAINS
         END IF
       END DO
       IF (.NOT. FoundIt) WRITE(0,*) ' check_mesh - ERROR: triangle ', ti, ' contains unconnected vertices ', v2, ' and ', v3, '!'
+
+      tivia = mesh%Tri( ti,1)
+      tivib = mesh%Tri( ti,2)
+      tivic = mesh%Tri( ti,3)
+      DO tj = ti+1, mesh%nTri
+        tjvia = mesh%Tri( tj,1)
+        tjvib = mesh%Tri( tj,2)
+        tjvic = mesh%Tri( tj,3)
+        IF (ANY( [tjvia,tjvib,tjvic] == tivia) .AND. &
+            ANY( [tjvia,tjvib,tjvic] == tivib) .AND. &
+            ANY( [tjvia,tjvib,tjvic] == tivic)) WRITE(0,*) ' check_mesh - ERROR: triangles ', ti, ' and ', tj, ' are made up of the same vertices!'
+      END DO
     END DO
 
     ! == TriC

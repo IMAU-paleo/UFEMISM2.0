@@ -56,17 +56,23 @@ CONTAINS
     ! ===============
 
     ! Vertex data
-    ALLOCATE( mesh%V              (nV_mem,   2     ), source = 0._dp)
-    ALLOCATE( mesh%nC             (nV_mem          ), source = 0    )
-    ALLOCATE( mesh%C              (nV_mem,   nC_mem), source = 0    )
-    ALLOCATE( mesh%niTri          (nV_mem          ), source = 0    )
-    ALLOCATE( mesh%iTri           (nV_mem,   nC_mem), source = 0    )
-    ALLOCATE( mesh%edge_index     (nV_mem          ), source = 0    )
+    ALLOCATE( mesh%V                (nV_mem,   2     ), source = 0._dp)
+    ALLOCATE( mesh%nC               (nV_mem          ), source = 0    )
+    ALLOCATE( mesh%C                (nV_mem,   nC_mem), source = 0    )
+    ALLOCATE( mesh%niTri            (nV_mem          ), source = 0    )
+    ALLOCATE( mesh%iTri             (nV_mem,   nC_mem), source = 0    )
+    ALLOCATE( mesh%edge_index       (nV_mem          ), source = 0    )
 
     ! Triangle data
-    ALLOCATE( mesh%Tri            (nTri_mem, 3     ), source = 0    )
-    ALLOCATE( mesh%Tricc          (nTri_mem, 2     ), source = 0._dp)
-    ALLOCATE( mesh%TriC           (nTri_mem, 3     ), source = 0    )
+    ALLOCATE( mesh%Tri              (nTri_mem, 3     ), source = 0    )
+    ALLOCATE( mesh%Tricc            (nTri_mem, 2     ), source = 0._dp)
+    ALLOCATE( mesh%TriC             (nTri_mem, 3     ), source = 0    )
+
+    ! Mesh generation/refinement data
+    ALLOCATE( mesh%Tri_flip_list    (nTri_mem, 2     ), source = 0    )
+    ALLOCATE( mesh%refinement_map   (nTri_mem        ), source = 0    )
+    ALLOCATE( mesh%refinement_stack (nTri_mem        ), source = 0    )
+    ALLOCATE( mesh%Tri_li           (nTri_mem, 2     ), source = 0    )
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -93,18 +99,23 @@ CONTAINS
     mesh%nTri_mem = nTri_mem_new
 
     ! Vertex data
-    CALL reallocate( mesh%V            , nv_mem_new  , 2          )
-    CALL reallocate( mesh%V            , nV_mem_new  , 2          )
-    CALL reallocate( mesh%nC           , nV_mem_new               )
-    CALL reallocate( mesh%C            , nV_mem_new  , mesh%nC_mem)
-    CALL reallocate( mesh%niTri        , nV_mem_new               )
-    CALL reallocate( mesh%iTri         , nV_mem_new  , mesh%nC_mem)
-    CALL reallocate( mesh%edge_index   , nV_mem_new               )
+    CALL reallocate( mesh%V               , nV_mem_new  , 2          )
+    CALL reallocate( mesh%nC              , nV_mem_new               )
+    CALL reallocate( mesh%C               , nV_mem_new  , mesh%nC_mem)
+    CALL reallocate( mesh%niTri           , nV_mem_new               )
+    CALL reallocate( mesh%iTri            , nV_mem_new  , mesh%nC_mem)
+    CALL reallocate( mesh%edge_index      , nV_mem_new               )
 
     ! Triangle data
-    CALL reallocate( mesh%Tri          , nTri_mem_new, 3          )
-    CALL reallocate( mesh%Tricc        , nTri_mem_new, 2          )
-    CALL reallocate( mesh%TriC         , nTri_mem_new, 3          )
+    CALL reallocate( mesh%Tri             , nTri_mem_new, 3          )
+    CALL reallocate( mesh%Tricc           , nTri_mem_new, 2          )
+    CALL reallocate( mesh%TriC            , nTri_mem_new, 3          )
+
+    ! Mesh generation/refinement data
+    CALL reallocate( mesh%Tri_flip_list   , nTri_mem_new, 2          )
+    CALL reallocate( mesh%refinement_map  , nTri_mem_new             )
+    CALL reallocate( mesh%refinement_stack, nTri_mem_new             )
+    CALL reallocate( mesh%Tri_li          , nTri_mem_new, 2          )
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -129,16 +140,22 @@ CONTAINS
     mesh%nV_mem   = mesh%nV
     mesh%nTri_mem = mesh%nTri
 
-    CALL reallocate( mesh%V             , mesh%nV,   2          )
-    CALL reallocate( mesh%nC            , mesh%nV               )
-    CALL reallocate( mesh%C             , mesh%nV,   mesh%nC_mem)
-    CALL reallocate( mesh%niTri         , mesh%nV               )
-    CALL reallocate( mesh%iTri          , mesh%nV,   mesh%nC_mem)
-    CALL reallocate( mesh%edge_index    , mesh%nV               )
+    CALL reallocate( mesh%V               , mesh%nV,   2          )
+    CALL reallocate( mesh%nC              , mesh%nV               )
+    CALL reallocate( mesh%C               , mesh%nV,   mesh%nC_mem)
+    CALL reallocate( mesh%niTri           , mesh%nV               )
+    CALL reallocate( mesh%iTri            , mesh%nV,   mesh%nC_mem)
+    CALL reallocate( mesh%edge_index      , mesh%nV               )
 
-    CALL reallocate( mesh%Tri           , mesh%nTri, 3          )
-    CALL reallocate( mesh%Tricc         , mesh%nTri, 2          )
-    CALL reallocate( mesh%TriC          , mesh%nTri, 3          )
+    CALL reallocate( mesh%Tri             , mesh%nTri, 3          )
+    CALL reallocate( mesh%Tricc           , mesh%nTri, 2          )
+    CALL reallocate( mesh%TriC            , mesh%nTri, 3          )
+
+    ! Mesh generation/refinement data
+    CALL reallocate( mesh%Tri_flip_list   , mesh%nTri, 2          )
+    CALL reallocate( mesh%refinement_map  , mesh%nTri             )
+    CALL reallocate( mesh%refinement_stack, mesh%nTri             )
+    CALL reallocate( mesh%Tri_li          , mesh%nTri, 2          )
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

@@ -13,8 +13,11 @@ MODULE mesh_Delaunay
   USE mpi_basic                                              , ONLY: par, cerr, ierr, MPI_status, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, init_routine, finalise_routine
   USE mesh_types                                             , ONLY: type_mesh
-  USE math_utilities                                         , ONLY: is_in_triangle, lies_on_line_segment, encroaches_upon
-  USE mesh_utilities                                         , ONLY: update_triangle_circumcenter, find_containing_triangle, is_boundary_segment
+  USE math_utilities                                         , ONLY: is_in_triangle, lies_on_line_segment, line_from_points, line_line_intersection, &
+                                                                     perpENDicular_bisector_from_line, encroaches_upon
+  USE mesh_utilities                                         , ONLY: update_triangle_circumcenter, find_containing_triangle, is_boundary_segment, &
+                                                                     encroaches_upon_any, check_mesh, add_triangle_to_refinement_stack_first, &
+                                                                     add_triangle_to_refinement_stack_last
 
   IMPLICIT NONE
 
@@ -23,928 +26,1133 @@ CONTAINS
 ! ===== Subroutines =====
 ! =======================
 
-  SUBROUTINE split_triangle( mesh, ti_in_guess, p_new, refinement_map, refinement_stack, refinement_stackN, Tri_li)
-     ! Add a new vertex at p_new, possibly by splitting triangle ti_in_guess
+  SUBROUTINE split_triangle( mesh, ti_in_guess, p_new)
+    ! Add a vertex at p_new, splitting triangle ti into three new ones
+    !
+    ! Provide a guess ti_in_guess for which triangle we think contains p (can be wrong,
+    ! but guessing near the correct one speeds up the code).
+    !
+    ! If p_new coincides with a line or boundary segment, split that instead.
+    !
+    ! When going in, the local geometry looks like this:
+    !
+    !   \ /           \ /           \ /
+    ! - -o----------- vic -----------o- -
+    !   / \           / \           / \
+    !      \   tb    /   \   ta    /
+    !       \       /     \       /
+    !        \     /       \     /
+    !         \   /   ti    \   /
+    !          \ /           \ /
+    !      - - via --------- vib - -
+    !          / \           / \
+    !             \   tc    /
+    !              \       /
+    !               \     /
+    !                \   /
+    !                 \ /
+    !               - -o- -
+    !                 / \
+    !
+    ! When coming out, it looks like this:
+    !
+    !   \ /           \ /           \ /
+    ! _ _o____________ vc ___________o_ _
+    !   / \           /|\           / \
+    !      \   tb    / | \   ta    /
+    !       \       /  |  \       /
+    !        \     /t1 | t2\     /
+    !         \   /  _ vk_  \   /
+    !          \ / /   t3  \ \ /
+    !      _ _ va ___________ vb _ _
+    !          / \           / \
+    !             \   tc    /
+    !              \       /
+    !               \     /
+    !                \   /
+    !                 \ /
+    !               _ _o_ _
+    !                 / \
 
     IMPLICIT NONE
 
     ! In/output variables:
-    TYPE(type_mesh),                     INTENT(INOUT) :: mesh
-    INTEGER,                             INTENT(IN)    :: ti_in_guess
-    REAL(dp), DIMENSION(2),              INTENT(IN)    :: p_new
-    INTEGER,  DIMENSION(:  ), OPTIONAL,  INTENT(INOUT) :: refinement_map
-    INTEGER,  DIMENSION(:  ), OPTIONAL,  INTENT(INOUT) :: refinement_stack
-    INTEGER,                  OPTIONAL,  INTENT(INOUT) :: refinement_stackN
-    INTEGER,  DIMENSION(:,:), OPTIONAL,  INTENT(INOUT) :: Tri_li
+    TYPE(type_mesh),            INTENT(INOUT)     :: mesh
+    INTEGER,                    INTENT(IN)        :: ti_in_guess
+    REAL(dp), DIMENSION(2),     INTENT(IN)        :: p_new
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'split_triangle'
-    INTEGER                                            :: v1, v2, t1, n, nc, nnext, t_old
-    INTEGER                                            :: p1, p2, p3, tn1, tn2, tn3, t_new1, t_new2, t_new3
-    REAL(dp), DIMENSION(2)                             :: p
-    LOGICAL                                            :: isencroached
-    INTEGER                                            :: via, vib, vic
-    REAL(dp), DIMENSION(2)                             :: pa,pb,pc
-    INTEGER,  DIMENSION(:,:), ALLOCATABLE              :: Tri_flip
-    INTEGER                                            :: nf
-    LOGICAL                                            :: did_flip
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'split_triangle'
+    LOGICAL                                       :: isso
+    REAL(dp), DIMENSION(2)                        :: p
+    INTEGER                                       :: ci, iti, n, nf, t1, t2, t3, ti, tia, tib, tic
+    REAL(dp), DIMENSION(2)                        :: va, vb, vc
+    INTEGER                                       :: vi, via, vib, vic, vik, vj
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
-  ! == If p_new lies outside of the mesh domain, split a boundary segment instead.
-  ! ==============================================================================
+    ! If p_new encroaches upon a boundary segment, split that instead
+    CALL encroaches_upon_any( mesh, p_new, isso, vi, vj)
+    IF (isso) THEN
+      p = (mesh%V( vi,:) + mesh%V( vj,:)) / 2._dp
+      CALL split_segment( mesh, vi, vj, p)
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
+
+    ! == If p_new lies outside of the mesh domain, split a boundary segment instead.
+    ! ==============================================================================
 
     IF (p_new( 1) < mesh%xmin) THEN
       ! p_new lies to the west of the mesh domain
 
       ! Safety
-      IF (p_new( 2) < mesh%ymin .OR. p_new( 2) > mesh%ymax) CALL crash('p_new lies way outside mesh domain!')
+      IF (p_new( 2) < mesh%ymin .OR. p_new( 2) > mesh%ymax) THEN
+        CALL crash('p_new lies way outside mesh domain!')
+      END IF
 
-      ! Find the two vertices v1,v2 of the segment that must be split.
-      v1 = 1
-      v2 = mesh%C( v1, mesh%nC( v1))
-      DO WHILE (mesh%V( v2,2) < p_new( 2))
-        v1 = v2
-        v2 = mesh%C( v1, mesh%nC( v1))
+      ! Find the two vertices vi,vj of the segment that must be split.
+      vi = 1
+      vj = mesh%C( vi, mesh%nC( vi))
+      DO WHILE (mesh%V( vj,2) < p_new( 2))
+        vi = vj
+        vj = mesh%C( vi, mesh%nC( vi))
       END DO
 
       ! Safety
-      IF (.NOT. (p_new( 2) >= mesh%V( v1,2) .AND. p_new( 2) <= mesh%V( v2,2))) CALL crash('couldnt find boundary segment to split!')
+      IF (.NOT. (p_new( 2) >= mesh%V( vi,2) .AND. p_new( 2) <= mesh%V( vj,2))) THEN
+        CALL crash('couldnt find boundary segment to split!')
+      END IF
 
-      p = (mesh%V( v1,:) + mesh%V( v2,:)) / 2._dp
-      CALL split_segment( mesh, v1, v2, p, refinement_map, refinement_stack, refinement_stackN, Tri_li)
+      p = (mesh%V( vi,:) + mesh%V( vj,:)) / 2._dp
+      CALL split_segment( mesh, vi, vj, p)
 
       CALL finalise_routine( routine_name)
       RETURN
 
-    END IF ! IF (p_new( 1) < mesh%xmin) THEN
+    END IF ! IF (p_new( 1) < mesh%xmin)
 
     IF (p_new( 1) > mesh%xmax) THEN
       ! p_new lies to the east of the mesh domain
 
       ! Safety
-      IF (p_new( 2) < mesh%ymin .OR. p_new( 2) > mesh%ymax) CALL crash('p_new lies way outside mesh domain!')
+      IF (p_new( 2) < mesh%ymin .OR. p_new( 2) > mesh%ymax) THEN
+        CALL crash('p_new lies way outside mesh domain!')
+      END IF
 
-      ! Find the two vertices v1,v2 of the segment that must be split.
-      v1 = 2
-      v2 = mesh%C( v1,1)
-      DO WHILE (mesh%V( v2,2) < p_new( 2))
-        v1 = v2
-        v2 = mesh%C( v1, 1)
+      ! Find the two vertices vi,vj of the segment that must be split.
+      vi = 2
+      vj = mesh%C( vi,1)
+      DO WHILE (mesh%V( vj,2) < p_new( 2))
+        vi = vj
+        vj = mesh%C( vi, 1)
       END DO
 
       ! Safety
-      IF (.NOT. (p_new( 2) >= mesh%V( v1,2) .AND. p_new( 2) <= mesh%V( v2,2))) CALL crash('couldnt find boundary segment to split!')
+      IF (.NOT. (p_new( 2) >= mesh%V( vi,2) .AND. p_new( 2) <= mesh%V( vj,2))) THEN
+        CALL crash('couldnt find boundary segment to split!')
+      END IF
 
-      p = (mesh%V( v1,:) + mesh%V( v2,:)) / 2._dp
-      CALL split_segment( mesh, v1, v2, p, refinement_map, refinement_stack, refinement_stackN, Tri_li)
+      p = (mesh%V( vi,:) + mesh%V( vj,:)) / 2._dp
+      CALL split_segment( mesh, vi, vj, p)
 
       CALL finalise_routine( routine_name)
       RETURN
 
-    END IF ! IF (p_new( 1) < mesh%xmin) THEN
+    END IF ! IF (p_new( 1) > mesh%xmax)
 
     IF (p_new( 2) < mesh%ymin) THEN
       ! p_new lies to the south of the mesh domain
 
       ! Safety
-      IF (p_new( 1) < mesh%xmin .OR. p_new( 1) > mesh%xmax) CALL crash('p_new lies way outside mesh domain!')
+      IF (p_new( 1) < mesh%xmin .OR. p_new( 1) > mesh%xmax) THEN
+        CALL crash('p_new lies way outside mesh domain!')
+      END IF
 
-      ! Find the two vertices v1,v2 of the segment that must be split.
-      v1 = 1
-      v2 = mesh%C( v1, 1)
-      DO WHILE (mesh%V( v2,1) < p_new( 1))
-        v1 = v2
-        v2 = mesh%C( v1, 1)
+      ! Find the two vertices vi,vj of the segment that must be split.
+      vi = 1
+      vj = mesh%C( vi, 1)
+      DO WHILE (mesh%V( vj,1) < p_new( 1))
+        vi = vj
+        vj = mesh%C( vi, 1)
       END DO
 
       ! Safety
-      IF (.NOT. (p_new( 1) >= mesh%V( v1,1) .AND. p_new( 1) <= mesh%V( v2,1))) CALL crash('couldnt find segment to split!')
+      IF (.NOT. (p_new( 1) >= mesh%V( vi,1) .AND. p_new( 1) <= mesh%V( vj,1))) THEN
+        CALL crash('couldnt find segment to split!')
+      END IF
 
-      p = (mesh%V( v1,:) + mesh%V( v2,:)) / 2._dp
-      CALL split_segment( mesh, v1, v2, p, refinement_map, refinement_stack, refinement_stackN, Tri_li)
+      p = (mesh%V( vi,:) + mesh%V( vj,:)) / 2._dp
+      CALL split_segment( mesh, vi, vj, p)
 
       CALL finalise_routine( routine_name)
       RETURN
 
-    END IF ! IF (p_new( 1) < mesh%xmin) THEN
+    END IF ! IF (p_new( 2) < mesh%ymin)
 
     IF (p_new( 2) > mesh%ymax) THEN
       ! p_new lies to the north of the mesh domain
 
       ! Safety
-      IF (p_new( 1) < mesh%xmin .OR. p_new( 1) > mesh%xmax) CALL crash('p_new lies way outside mesh domain!')
+      IF (p_new( 1) < mesh%xmin .OR. p_new( 1) > mesh%xmax) THEN
+        CALL crash('p_new lies way outside mesh domain!')
+      END IF
 
-      ! Find the two vertices v1,v2 of the segment that must be split.
-      v1 = 1
-      v2 = mesh%C( v1, mesh%nC( v1))
-      DO WHILE (mesh%V( v2,1) < p_new( 1))
-        v1 = v2
-        v2 = mesh%C( v1, mesh%nC( v1))
+      ! Find the two vertices vi,vj of the segment that must be split.
+      vi = 1
+      vj = mesh%C( vi, mesh%nC( vi))
+      DO WHILE (mesh%V( vj,1) < p_new( 1))
+        vi = vj
+        vj = mesh%C( vi, mesh%nC( vi))
       END DO
 
       ! Safety
-      IF (.NOT. (p_new( 1) >= mesh%V( v1,1) .AND. p_new( 1) <= mesh%V( v2,1))) CALL crash('couldnt find segment to split!')
+      IF (.NOT. (p_new( 1) >= mesh%V( vi,1) .AND. p_new( 1) <= mesh%V( vj,1))) THEN
+        CALL crash('couldnt find segment to split!')
+      END IF
 
-      p = (mesh%V( v1,:) + mesh%V( v2,:)) / 2._dp
-      CALL split_segment( mesh, v1, v2, p, refinement_map, refinement_stack, refinement_stackN, Tri_li)
+      p = (mesh%V( vi,:) + mesh%V( vj,:)) / 2._dp
+      CALL split_segment( mesh, vi, vj, p)
 
       CALL finalise_routine( routine_name)
       RETURN
 
-    END IF ! IF (p_new( 1) < mesh%xmin) THEN
+    END IF ! IF (p_new( 2) > mesh%ymax)
 
-  ! == Find the triangle containing p_new.
-  ! ======================================
+    ! == Find the triangle containing p_new.
+    ! ======================================
 
     ! Find the triangle containing p_new
-    t_old = ti_in_guess
-    CALL find_containing_triangle( mesh, p_new, t_old)
+    ti = ti_in_guess
+    CALL find_containing_triangle( mesh, p_new, ti)
 
-    via = mesh%Tri( t_old,1)
-    vib = mesh%Tri( t_old,2)
-    vic = mesh%Tri( t_old,3)
+    ! The indices of the three vertices [a,b,c] spanning t_old
+    via = mesh%Tri( ti,1)
+    vib = mesh%Tri( ti,2)
+    vic = mesh%Tri( ti,3)
 
-    pa  = mesh%V( via,:)
-    pb  = mesh%V( vib,:)
-    pc  = mesh%V( vic,:)
+    ! The coordinates of the three vertices [a,b,c] spanning t_old
+    va  = mesh%V( via,:)
+    vb  = mesh%V( vib,:)
+    vc  = mesh%V( vic,:)
 
-    ! If the new vertex is (almost) colinear with two vertices of
-    ! the containing triangle, split the line between them instead.
+    ! Indice of the triangles neighbouring t_old
+    tia = mesh%TriC( ti,1)
+    tib = mesh%TriC( ti,2)
+    tic = mesh%TriC( ti,3)
 
-    IF     (lies_on_line_segment( pa, pb, p_new, mesh%tol_dist)) THEN
-      CALL split_line( mesh, via, vib, p_new, refinement_map, refinement_stack, refinement_stackN, Tri_li)
-      CALL finalise_routine( routine_name)
-      RETURN
-    ELSEIF (lies_on_line_segment( pb, pc, p_new, mesh%tol_dist)) THEN
-      CALL split_line( mesh, vib, vic, p_new, refinement_map, refinement_stack, refinement_stackN, Tri_li)
-      CALL finalise_routine( routine_name)
-      RETURN
-    ELSEIF (lies_on_line_segment( pc, pa, p_new, mesh%tol_dist)) THEN
-      CALL split_line( mesh, vic, via, p_new, refinement_map, refinement_stack, refinement_stackN, Tri_li)
-      CALL finalise_routine( routine_name)
-      RETURN
-    END IF
+    ! == Check IF p_new encroaches upon a boundary segment. If so, split it.
+    ! ======================================================================
 
-    ! If p_new encroaches upon a boundary segment, split that segment instead.
-
-    IF     (is_boundary_segment( mesh, via, vib) .AND. encroaches_upon( pa, pb, p_new)) THEN
-      p = (pa + pb) / 2._dp
-      CALL split_segment( mesh, via, vib, p, refinement_map, refinement_stack, refinement_stackN, Tri_li)
-      CALL finalise_routine( routine_name)
-      RETURN
-    ELSEIF (is_boundary_segment( mesh, vib, vic) .AND. encroaches_upon( pa, pb, p_new)) THEN
-      p = (pb + pc) / 2._dp
-      CALL split_segment( mesh, vib, vic, p, refinement_map, refinement_stack, refinement_stackN, Tri_li)
-      CALL finalise_routine( routine_name)
-      RETURN
-    ELSEIF (is_boundary_segment( mesh, vic, via) .AND. encroaches_upon( pa, pb, p_new)) THEN
-      p = (pc + pa) / 2._dp
-      CALL split_segment( mesh, vic, via, p, refinement_map, refinement_stack, refinement_stackN, Tri_li)
+    IF (is_boundary_segment( mesh, via, vib) .AND. encroaches_upon( va, vb, p_new)) THEN
+      p = (mesh%V( via,:) + mesh%V( vib,:)) / 2._dp
+      CALL split_segment( mesh, via, vib, p)
       CALL finalise_routine( routine_name)
       RETURN
     END IF
 
-    ! == Find that triangle's vertices and neighbours
-    p1  = mesh%Tri(  t_old,1)
-    p2  = mesh%Tri(  t_old,2)
-    p3  = mesh%Tri(  t_old,3)
-    tn1 = mesh%TriC( t_old,1)
-    tn2 = mesh%TriC( t_old,2)
-    tn3 = mesh%TriC( t_old,3)
-
-    ! == Add the new vertex to the mesh
-    mesh%nV = mesh%nV+1
-    mesh%V( mesh%nV,:) = p_new
-    mesh%edge_index( mesh%nV) = 0
-
-    ! == Replace ti_old by three new triangles
-    t_new1 = t_old
-    t_new2 = mesh%nTri+1
-    t_new3 = mesh%nTri+2
-    mesh%Tri( t_new1,:) = [p1, p2, mesh%nV]
-    mesh%Tri( t_new2,:) = [p2, p3, mesh%nV]
-    mesh%Tri( t_new3,:) = [p3, p1, mesh%nV]
-    mesh%nTri = mesh%nTri+2
-
-    ! Add these to the refinement stack
-    IF (PRESENT( refinement_map)) THEN
-      CALL remove_triangle_from_refinement_stack( refinement_map, refinement_stack, refinement_stackN, t_old)
-
-      refinement_map( t_new1) = 1
-      refinement_stackN = refinement_stackN + 1
-      refinement_stack( refinement_stackN) = t_new1
-
-      refinement_map( t_new2) = 1
-      refinement_stackN = refinement_stackN + 1
-      refinement_stack( refinement_stackN) = t_new2
-
-      refinement_map( t_new2) = 1
-      refinement_stackN = refinement_stackN + 1
-      refinement_stack( refinement_stackN) = t_new2
-    END IF ! IF (PRESENT( refinement_map)) THEN
-
-    ! == Update triangle-line overlap ranges
-    IF (PRESENT( Tri_li)) THEN
-      Tri_li( t_new1,:) = Tri_li( t_old,:)
-      Tri_li( t_new2,:) = Tri_li( t_old,:)
-      Tri_li( t_new3,:) = Tri_li( t_old,:)
+    IF (is_boundary_segment( mesh, vib, vic) .AND. encroaches_upon( va, vb, p_new)) THEN
+      p = (mesh%V( vib,:) + mesh%V( vic,:)) / 2._dp
+      CALL split_segment( mesh, vib, vic, p)
+      CALL finalise_routine( routine_name)
+      RETURN
     END IF
 
-    ! == Update vertex connectivity matrix
-    ! p1
-    DO n = 1, mesh%nC( p1)
-      IF ( mesh%C( p1,n) == p2) THEN
-        mesh%C( p1,:) = [mesh%C( p1,1:n), mesh%nV, mesh%C( p1,n+1:mesh%nC_mem-1)]
-        mesh%nC( p1) = mesh%nC( p1)+1
-        EXIT
-      END IF
-    END DO
-    ! p2
-    DO n = 1, mesh%nC( p2)
-      IF ( mesh%C( p2,n) == p3) THEN
-        mesh%C( p2,:) = [mesh%C( p2,1:n), mesh%nV, mesh%C( p2,n+1:mesh%nC_mem-1)]
-        mesh%nC( p2) = mesh%nC( p2)+1
-        EXIT
-      END IF
-    END DO
-    ! p3
-    DO n = 1, mesh%nC( p3)
-      IF ( mesh%C( p3,n) == p1) THEN
-        mesh%C( p3,:) = [mesh%C( p3,1:n), mesh%nV, mesh%C( p3,n+1:mesh%nC_mem-1)]
-        mesh%nC( p3) = mesh%nC( p3)+1
-        EXIT
-      END IF
-    END DO
-    ! new vertex
-    mesh%C( mesh%nV,1:3) = [p1, p2, p3]
-    mesh%nC( mesh%nV)    = 3
+    IF (is_boundary_segment( mesh, vic, via) .AND. encroaches_upon( va, vb, p_new)) THEN
+      p = (mesh%V( vic,:) + mesh%V( via,:)) / 2._dp
+      CALL split_segment( mesh, vic, via, p)
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
 
-    ! == Update triangle connectivity matrix
-    ! (existing) neighbours
-    DO n = 1, 3
-      IF ( tn1>0) THEN
-        IF ( mesh%TriC( tn1,n) == t_old) mesh%TriC( tn1,n) = t_new2
-      END IF
-      IF ( tn2>0) THEN
-        IF ( mesh%TriC( tn2,n) == t_old) mesh%TriC( tn2,n) = t_new3
-      END IF
-      IF ( tn3>0) THEN
-        IF ( mesh%TriC( tn3,n) == t_old) mesh%TriC( tn3,n) = t_new1
-      END IF
-    END DO
-    ! new triangles
-    mesh%TriC( t_new1,:) = [t_new2, t_new3, tn3]
-    mesh%TriC( t_new2,:) = [t_new3, t_new1, tn1]
-    mesh%TriC( t_new3,:) = [t_new1, t_new2, tn2]
+    ! == If the new vertex is (almost) colinear with two vertices of
+    !    the containing triangle, split the line between them instead.
+    ! ================================================================
 
-    ! == Update inverse triangle lists
-    ! p1
-    DO n = 1, mesh%niTri( p1)
-      IF ( mesh%iTri( p1,n) == t_old) THEN
-        mesh%iTri(  p1,:) = [mesh%iTri( p1,1:n-1), t_new1, t_new3, mesh%iTri( p1,n+1:mesh%nC_mem-1)]
-        mesh%niTri( p1  ) = mesh%niTri( p1)+1
+    IF     (lies_on_line_segment( va, vb, p_new, mesh%tol_dist)) THEN
+      CALL split_line( mesh, via, vib, p_new)
+      CALL finalise_routine( routine_name)
+      RETURN
+    ELSEIF (lies_on_line_segment( vb, vc, p_new, mesh%tol_dist)) THEN
+      CALL split_line( mesh, vib, vic, p_new)
+      CALL finalise_routine( routine_name)
+      RETURN
+    ELSEIF (lies_on_line_segment( vc, va, p_new, mesh%tol_dist)) THEN
+      CALL split_line( mesh, vic, via, p_new)
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
+
+    ! == All safety checks passes; split the triangle ti into three new ones.
+    ! =======================================================================
+
+!    ! DENK DROM
+!    CALL warning('splitting triangle {int_01}', int_01 = ti)
+
+    ! == V, Tri
+
+    ! Create a new vertex vik at p_new
+    mesh%nV = mesh%nV + 1
+    vik = mesh%nV
+    mesh%V( vik,:) = p_new
+
+    ! Let triangle t1 be spanned by [vik,vic,via]
+    t1 = ti
+    mesh%Tri( t1,:) = [vik, vic, via]
+
+    ! Let triangle t2 be spanned by [vik,vib,vic]
+    mesh%nTri = mesh%nTri + 1
+    t2 = mesh%nTri
+    mesh%Tri( t2,:) = [vik,vib,vic]
+
+    ! Let triangle t3 be spanned by [vik,via,vib]
+    mesh%nTri = mesh%nTri + 1
+    t3 = mesh%nTri
+    mesh%Tri( t3,:) = [vik,via,vib]
+
+    ! == nC, C
+
+    ! via: connection to vik is addded between vib and vic
+    mesh%nC( via) = mesh%nC( via) + 1
+    DO ci = 1, mesh%nC( via)
+      IF (mesh%C( via,ci) == vib) THEN
+        mesh%C( via,:) = [mesh%C( via,1:ci), vik, mesh%C( via,ci+1:mesh%nC_mem-1)]
         EXIT
       END IF
     END DO
-    ! p2
-    DO n = 1, mesh%niTri( p2)
-      IF ( mesh%iTri( p2,n) == t_old) THEN
-        mesh%iTri(  p2,:) = [mesh%iTri( p2,1:n-1), t_new2, t_new1, mesh%iTri( p2,n+1:mesh%nC_mem-1)]
-        mesh%niTri( p2  ) = mesh%niTri( p2)+1
+    ! vib: connection to vik is addded between vic and via
+    mesh%nC( vib) = mesh%nC( vib) + 1
+    DO ci = 1, mesh%nC( vib)
+      IF (mesh%C( vib,ci) == vic) THEN
+        mesh%C( vib,:) = [mesh%C( vib,1:ci), vik, mesh%C( vib,ci+1:mesh%nC_mem-1)]
         EXIT
       END IF
     END DO
-    ! p3
-    DO n = 1, mesh%niTri( p3)
-      IF ( mesh%iTri( p3,n) == t_old) THEN
-        mesh%iTri(  p3,:) = [mesh%iTri( p3,1:n-1), t_new3, t_new2, mesh%iTri( p3,n+1:mesh%nC_mem-1)]
-        mesh%niTri( p3  ) = mesh%niTri( p3)+1
+    ! vic: connection to vik is addded between via and vib
+    mesh%nC( vic) = mesh%nC( vic) + 1
+    DO ci = 1, mesh%nC( vic)
+      IF (mesh%C( vic,ci) == via) THEN
+        mesh%C( vic,:) = [mesh%C( vic,1:ci), vik, mesh%C( vic,ci+1:mesh%nC_mem-1)]
         EXIT
       END IF
     END DO
-    ! new vertex
-    mesh%iTri(  mesh%nV,1:3) = [t_new1, t_new2, t_new3]
-    mesh%niTri( mesh%nV    ) = 3
+    ! vik: connected to [via, vib, vic]
+    mesh%nC( vik) = 3
+    mesh%C( vik,1:3) = [via, vib, vic]
 
-    ! == Update triangle circumcenters
-    CALL update_triangle_circumcenter( mesh, t_new1)
-    CALL update_triangle_circumcenter( mesh, t_new2)
-    CALL update_triangle_circumcenter( mesh, t_new3)
+    ! == niTri, iTri
 
-    ! == Propagate flip operations outward
-    ! Start with the newly created triangles and their neighbours. Any
+    ! via: ti is replaced by [t3,t1]
+    mesh%niTri( via) = mesh%niTri( via) + 1
+    DO iti = 1, mesh%niTri( via)
+      IF (mesh%iTri( via,iti) == ti) THEN
+        mesh%iTri( via,:) = [mesh%iTri( via,1:iti-1), t3, t1, mesh%iTri( via,iti+1:mesh%nC_mem-1)]
+        EXIT
+      END IF
+    END DO
+    ! vib: ti is replaced by [t2,t3]
+    mesh%niTri( vib) = mesh%niTri( vib) + 1
+    DO iti = 1, mesh%niTri( vib)
+      IF (mesh%iTri( vib,iti) == ti) THEN
+        mesh%iTri( vib,:) = [mesh%iTri( vib,1:iti-1), t2, t3, mesh%iTri( vib,iti+1:mesh%nC_mem-1)]
+        EXIT
+      END IF
+    END DO
+    ! vic: ti is replaced by [t1,t2]
+    mesh%niTri( vic) = mesh%niTri( vic) + 1
+    DO iti = 1, mesh%niTri( vic)
+      IF (mesh%iTri( vic,iti) == ti) THEN
+        mesh%iTri( vic,:) = [mesh%iTri( vic,1:iti-1), t1, t2, mesh%iTri( vic,iti+1:mesh%nC_mem-1)]
+        EXIT
+      END IF
+    END DO
+    ! vik: surrounded by [t1, t3, t2]
+    mesh%niTri( vik) = 3
+    mesh%iTri( vik,1:3) = [t1, t3, t2]
+
+    ! == edge_index
+
+    mesh%edge_index( vik) = 0
+
+    ! == TriC
+
+    ! tia: ti is replaced by t2
+    IF (tia > 0) THEN
+      DO n = 1,3
+        IF (mesh%TriC( tia,n) == ti) THEN
+          mesh%TriC( tia,n) = t2
+          EXIT
+        END IF
+      END DO
+    END IF
+    ! tib: ti is replaced by t1
+    IF (tib > 0) THEN
+      DO n = 1,3
+        IF (mesh%TriC( tib,n) == ti) THEN
+          mesh%TriC( tib,n) = t1
+          EXIT
+        END IF
+      END DO
+    END IF
+    ! tic: ti is replaced by t3
+    IF (tic > 0) THEN
+      DO n = 1,3
+        IF (mesh%TriC( tic,n) == ti) THEN
+          mesh%TriC( tic,n) = t3
+          EXIT
+        END IF
+      END DO
+    END IF
+    ! t1: [tib, t3, t2]
+    mesh%TriC( t1,:) = [tib, t3, t2]
+    ! t2: [tia, t1, t3]
+    mesh%TriC( t2,:) = [tia, t1, t3]
+    ! t3: [tic, t2, t1]
+    mesh%TriC( t3,:) = [tic, t2, t1]
+
+    ! == Tricc
+
+    CALL update_triangle_circumcenter( mesh, t1)
+    CALL update_triangle_circumcenter( mesh, t2)
+    CALL update_triangle_circumcenter( mesh, t3)
+
+    ! == Refinement data
+
+    ! Add the three new triangles to the refinement map and stack
+    CALL add_triangle_to_refinement_stack_last( mesh, t1)
+    CALL add_triangle_to_refinement_stack_last( mesh, t2)
+    CALL add_triangle_to_refinement_stack_last( mesh, t3)
+
+    ! Update triangle-line overlap ranges
+    mesh%Tri_li( t1,:) = mesh%Tri_li( ti,:)
+    mesh%Tri_li( t2,:) = mesh%Tri_li( ti,:)
+    mesh%Tri_li( t3,:) = mesh%Tri_li( ti,:)
+
+    ! == Finished splitting the triangle. Iteratively flip any triangle pairs
+    !    in the neighbourhood that do not meet the local Delaunay criterion.
+    ! ======================================================================
+
+    ! Start with the four newly created triangles and their neighbours. Any
     ! new possible flip pairs generated by a flip pair are added to the
     ! list by flip_triangle_pairs, making sure the loop runs until all flip
     ! operations have been done.
 
-    ALLOCATE( Tri_flip( mesh%nTri, 2), source = 0)
+    mesh%Tri_flip_list( :,:) = 0
     nf = 0
 
-    IF (tn1 > 0) THEN
+    IF (tia > 0) THEN
       nf = nf + 1
-      Tri_flip( nf,:) = [t_new2, tn1]
+      mesh%Tri_flip_list( nf,:) = [t2, tia]
     END IF
-    IF (tn2 > 0) THEN
+    IF (tib > 0) THEN
       nf = nf + 1
-      Tri_flip( nf,:) = [t_new3, tn2]
+      mesh%Tri_flip_list( nf,:) = [t1, tib]
     END IF
-    IF (tn3 > 0) THEN
+    IF (tic > 0) THEN
       nf = nf + 1
-      Tri_flip( nf,:) = [t_new1, tn3]
+      mesh%Tri_flip_list( nf,:) = [t3, tic]
     END IF
 
-    DO WHILE (nf > 0)
-      CALL flip_triangle_pairs( mesh, Tri_flip, nf, did_flip, refinement_map, refinement_stack, refinement_stackN, Tri_li)
-    END DO
-
-    DEALLOCATE( Tri_flip)
+    ! Iteratively flip triangle pairs until the local Delaunay
+    ! criterion is satisfied everywhere
+    CALL flip_triangles_until_Delaunay( mesh, nf)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE split_triangle
 
-  SUBROUTINE split_line(     mesh, v1a, v2a   , p_new, refinement_map, refinement_stack, refinement_stackN, Tri_li)
-     ! Split the line between vertices v1a and v2a at point p_new
+  SUBROUTINE split_line( mesh, vi, vj, p_new)
+    ! Split the triangles t_left and t_right adjacent to line [vi,vj]
+    ! into four new ones. If [vi,vj] is a boundary segment, split that instead.
+    !
+    ! When going in, the local geometry looks like this:
+    !
+    !   \ /            \ /            \ /
+    ! - -o----------- vtop ------------o- -
+    !   / \            / \            / \
+    !      \          /   \          /
+    !       \  ttopl /     \ ttopr  /
+    !        \      /       \      /
+    !         \    /   ttop  \    /
+    !          \  /           \  /
+    !       - - vi ----------- vj - -
+    !          /  \           /  \
+    !         /    \         /    \
+    !        /      \  tbot /      \
+    !       /        \     /        \
+    !      /   tbotl  \   /  tbotr   \
+    !   \ /            \ /            \ /
+    ! - -o----------- vbot ------------o- -
+    !   / \            / \            / \
+    !
+    ! When coming out, it looks like this:
+    !
+    !   \ /            \ /            \ /
+    ! _ _o_____________vtop____________o_ _
+    !   / \            /|\            / \
+    !      \          / | \          /
+    !       \  ttopl /  |  \ ttopr  /
+    !        \      /   |   \      /
+    !         \    / t1 | t2 \    /
+    !          \  /     |     \  /
+    !       _ _ vi ___ vk ____ vj _ _
+    !          /  \     |     /  \
+    !         /    \ t3 | t4 /    \
+    !        /      \   |   /      \
+    !       /        \  |  /        \
+    !      /   tbotl  \ | /  tbotr   \
+    !   \ /            \|/            \ /
+    ! _ _o_____________vbot____________o_ _
+    !   / \            / \            / \
 
     IMPLICIT NONE
 
     ! In/output variables:
-    TYPE(type_mesh),                     INTENT(INOUT) :: mesh
-    INTEGER,                             INTENT(IN)    :: v1a, v2a
-    REAL(dp), DIMENSION(2),              INTENT(IN)    :: p_new
-    INTEGER,  DIMENSION(:  ), OPTIONAL,  INTENT(INOUT) :: refinement_map
-    INTEGER,  DIMENSION(:  ), OPTIONAL,  INTENT(INOUT) :: refinement_stack
-    INTEGER,                  OPTIONAL,  INTENT(INOUT) :: refinement_stackN
-    INTEGER,  DIMENSION(:,:), OPTIONAL,  INTENT(INOUT) :: Tri_li
+    TYPE(type_mesh),            INTENT(INOUT)     :: mesh
+    INTEGER,                    INTENT(IN)        :: vi, vj
+    REAL(dp), DIMENSION(2),     INTENT(IN)        :: p_new
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'split_line'
-    INTEGER                                            :: v1, v2, ti, t1, t2, n, nc, nnext, vo1, vo2
-    INTEGER                                            :: t1new1, t1new2, t2new1, t2new2, t1nv1, t1nv2, t2nv1, t2nv2
-    LOGICAL                                            :: AreConnected, SwitchThem
-    REAL(dp), DIMENSION(2)                             :: p
-    INTEGER                                            :: li_min, li_max
-    INTEGER,  DIMENSION(:,:), ALLOCATABLE              :: Tri_flip
-    INTEGER                                            :: nf
-    LOGICAL                                            :: did_flip
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'split_line'
+    LOGICAL                                       :: are_connected_ij, are_connected_ji
+    INTEGER                                       :: ci, cj, iti, n, n1, n2, n3, nf
+    REAL(dp), DIMENSION(2)                        :: p, pa, pb
+    INTEGER                                       :: t1, t2, t3, t4, ti, tit, tib, titl, titr, tibl, tibr, via, vib, vit, vk
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    v1 = v1a
-    v2 = v2a
+    ! == Safety
+    ! =========
 
-    ! Check if they are even connected.
-    AreConnected = .FALSE.
-    DO n = 1, mesh%nC(v1)
-      IF (mesh%C( v1,n) == v2) AreConnected = .TRUE.
+    ! Check IF vi and vj are even connected
+    are_connected_ij = .FALSE.
+    are_connected_ji = .FALSE.
+    DO ci = 1, mesh%nC( vi)
+      IF (mesh%C( vi,ci) == vj) are_connected_ij = .TRUE.
     END DO
-    IF (.NOT. AreConnected) THEN
-      CALL crash('trying to split a non-existing line!')
+    DO cj = 1, mesh%nC( vj)
+      IF (mesh%C( vj,cj) == vi) are_connected_ji = .TRUE.
+    END DO
+    IF (are_connected_ij .AND. are_connected_ji) THEN
+      ! Both vi and vj list each other as neighbours; all is well
+    ELSEIF (are_connected_ij) THEN
+      ! vi lists vj as a neighbour, not not the other way round - mesh inconsistency!
+      CALL crash('mesh inconsistency: {int_01} lists {int_02} as a neighbour, but not the other way round!', int_01 = vi, int_02 = vj)
+    ELSEIF (are_connected_ji) THEN
+      ! vj lists vi as a neighbour, not not the other way round - mesh inconsistency!
+      CALL crash('mesh inconsistency: {int_01} lists {int_02} as a neighbour, but not the other way round!', int_01 = vj, int_02 = vi)
+    ELSE
+      ! Neither vi nor vj lists the other as a neighbour
+      CALL crash('{int_01} and {int_02} are not connected!', int_01 = vi, int_02 = vj)
     END IF
 
-    ! If the line is actually a boundary segment, split that one
-    IF (is_boundary_segment( mesh,v1,v2)) THEN
-      p = (mesh%V( v1,:) + mesh%V( v2,:)) / 2._dp
-      CALL split_segment( mesh, v1, v2, p, refinement_map, refinement_stack, refinement_stackN, Tri_li)
+    ! Check IF p_new actually lies on [vi,vj]
+    pa = mesh%V( vi,:)
+    pb = mesh%V( vj,:)
+    IF (.NOT. lies_on_line_segment( pa, pb, p_new, mesh%tol_dist)) THEN
+      CALL crash('p does not lie on [{int_01}-{int_02}!', int_01 = vi, int_02 = vj)
+    END IF
+
+    ! If [vi,vj] is a boundary segment, split that instead
+    IF (is_boundary_segment( mesh, vi, vj)) THEN
+      p = (pa + pb) / 2._dp
+      CALL split_segment( mesh, vi, vj, p)
       CALL finalise_routine( routine_name)
       RETURN
     END IF
 
-    ! Find the triangles t1 and t2 that contain v1 and v2
-    t1 = 0
-    t2 = 0
-    DO ti = 1, mesh%nTri
-      nc = 0
-      DO n = 1, 3
-        IF (mesh%Tri( ti,n) == v1 .OR. mesh%Tri( ti,n) == v2) nc = nc+1
-      END DO
-      IF (nc == 2) THEN
-        IF (t1 == 0) THEN
-         t1 = ti
-        ELSE
-         t2 = ti
+    ! == All safety checks passes; split the triangles t_top and t_bot adjacent
+    !    to line [vi,vj] into four new ones
+    ! =======================================================================
+
+!    ! DENK DROM
+!    CALL warning('splitting line [{int_01}-{int_02}}]', int_01 = vi, int_02 = vj)
+
+    ! == Find the local neighbourhood of vertices and triangles
+
+    ! Find the triangles tit and tib that are above and below the line vi-vj,
+    ! respectively (see diagram).
+
+    tit = 0
+    tib = 0
+
+    DO iti = 1, mesh%niTri( vi)
+      ti = mesh%iTri( vi,iti)
+      DO n1 = 1, 3
+        n2 = n1 + 1
+        IF (n2 == 4) n2 = 1
+        IF     (mesh%Tri( ti,n1) == vi .AND. mesh%Tri( ti,n2) == vj) THEN
+          tit = ti
+        ELSEIF (mesh%Tri( ti,n1) == vj .AND. mesh%Tri( ti,n2) == vi) THEN
+          tib = ti
         END IF
-      END IF
+      END DO
     END DO
 
-    IF (t1 == 0 .OR. t2 == 0) THEN
-      CALL crash('couldnt find two triangles containing both vertices!')
+    ! Safety
+    IF (tit == 0 .OR. tib == 0) THEN
+      CALL crash('couldnt find triangles adjacent to [{int_01}-{int_02}!', int_01 = vi, int_02 = vj)
     END IF
 
-    ! Order v1 and v2 anticlockwise in triangle t1
-    SwitchThem = .FALSE.
-    DO n = 1, 3
-      nnext = n + 1
-      IF (nnext == 4) nnext = 1
-      IF (mesh%Tri( t1,n) == v1) THEN
-        IF (mesh%Tri( t1,nnext) /= v2) SwitchThem = .TRUE.
+    ! Find the vertices vit and vib that are on the opposite corners of tit and
+    ! tib, respectively (see diagram).
+
+    vit = 0
+    vib = 0
+
+    DO n1 = 1, 3
+      n2 = n1 + 1
+      IF (n2 == 4) n2 = 1
+      n3 = n2 + 1
+      IF (n3 == 4) n3 = 1
+      IF (mesh%Tri( tit,n1) == vi .AND. mesh%Tri( tit,n2) == vj) THEN
+        vit = mesh%Tri( tit,n3)
+      END IF
+      IF (mesh%Tri( tib,n1) == vj .AND. mesh%Tri( tib,n2) == vi) THEN
+        vib = mesh%Tri( tib,n3)
       END IF
     END DO
-    IF (SwitchThem) THEN
-      v1 = v1 + v2
-      v2 = v1 - v2
-      v1 = v1 - v2
+
+    ! Safety
+    IF (vit == 0 .OR. vib == 0) THEN
+      CALL crash('couldnt find vertices opposite from [{int_01}-{int_02}!', int_01 = vi, int_02 = vj)
     END IF
 
-    ! == Find the other relevant indices - non-shared vertices and neighbour triangles
-    ! t1nv1: triangle next to t1, across from v1
-    ! t1nv2: triangle next to t1, across from v2
-    ! t2nv1: triangle next to t2, across from v1
-    ! t2nv2: triangle next to t2, across from v2
-    t1nv1 = 0
-    t1nv2 = 0
-    t2nv1 = 0
-    t2nv2 = 0
-    vo1   = 0
-    vo2   = 0
-    DO n = 1, 3
-      IF ( mesh%Tri( t1,n) == v1) THEN
-        t1nv1 = mesh%TriC( t1,n)
-      ELSEIF ( mesh%Tri( t1,n) == v2) THEN
-        t1nv2 = mesh%TriC( t1,n)
-      ELSE
-        vo1 = mesh%Tri( t1,n)
+    ! Find the triangles titl, titr, tibl, and tibr that are adjacent to tit
+    ! and tir, respectively (see diagram).
+
+    titl = 0
+    titr = 0
+    tibl = 0
+    tibr = 0
+
+    DO n = 1,3
+      IF (mesh%Tri( tit,n) == vj) THEN
+        titl = mesh%TriC( tit,n)
       END IF
-      IF ( mesh%Tri( t2,n) == v1) THEN
-        t2nv1 = mesh%TriC( t2,n)
-      ELSEIF ( mesh%Tri( t2,n) == v2) THEN
-        t2nv2 = mesh%TriC( t2,n)
-      ELSE
-        vo2 = mesh%Tri( t2,n)
+      IF (mesh%Tri( tit,n) == vi) THEN
+        titr = mesh%TriC( tit,n)
+      END IF
+      IF (mesh%Tri( tib,n) == vj) THEN
+        tibl = mesh%TriC( tib,n)
+      END IF
+      IF (mesh%Tri( tib,n) == vi) THEN
+        tibr = mesh%TriC( tib,n)
       END IF
     END DO
 
-    ! == Add new vertex to mesh
+    ! == V, Tri
+
+    ! Create a new vertex vik at p_new
     mesh%nV = mesh%nV + 1
-    mesh%V( mesh%nV,:) = p_new
-    mesh%edge_index( mesh%nV) = 0
+    vk = mesh%nV
+    mesh%V( vk,:) = p_new
 
-    ! == Create four new triangles
-    t1new1 = t1
-    t1new2 = mesh%nTri + 1
-    t2new1 = t2
-    t2new2 = mesh%nTri + 2
-    mesh%Tri( t1new1,:) = [vo1, mesh%nV, v2]
-    mesh%Tri( t1new2,:) = [vo1, v1, mesh%nV]
-    mesh%Tri( t2new1,:) = [vo2, mesh%nV, v1]
-    mesh%Tri( t2new2,:) = [vo2, v2, mesh%nV]
-    mesh%nTri = mesh%nTri + 2
+    ! Let triangle t1 be spanned by [vk,vit,vi]
+    t1 = tit
+    mesh%Tri( t1,:) = [vk, vit, vi]
 
-    ! Add these to the refinement stack
-    IF (PRESENT( refinement_map)) THEN
-      CALL remove_triangle_from_refinement_stack( refinement_map, refinement_stack, refinement_stackN, t1)
-      CALL remove_triangle_from_refinement_stack( refinement_map, refinement_stack, refinement_stackN, t2)
+    ! Let triangle t2 be spanned by [vk,vj,vit]
+    t2 = tib
+    mesh%Tri( t2,:) = [vk, vj, vit]
 
-      refinement_map( t1new1) = 1
-      refinement_stackN = refinement_stackN + 1
-      refinement_stack( refinement_stackN) = t1new1
+    ! Let triangle t3 be spanned by [vk,vi,vib]
+    mesh%nTri = mesh%nTri + 1
+    t3 = mesh%nTri
+    mesh%Tri( t3,:) = [vk, vi, vib]
 
-      refinement_map( t1new2) = 1
-      refinement_stackN = refinement_stackN + 1
-      refinement_stack( refinement_stackN) = t1new2
+    ! Let triangle t4 be spanned by [vk,vib,vj]
+    mesh%nTri = mesh%nTri + 1
+    t4 = mesh%nTri
+    mesh%Tri( t4,:) = [vk, vib, vj]
 
-      refinement_map( t2new1) = 1
-      refinement_stackN = refinement_stackN + 1
-      refinement_stack( refinement_stackN) = t2new1
+    ! == nC, C
 
-      refinement_map( t2new2) = 1
-      refinement_stackN = refinement_stackN + 1
-      refinement_stack( refinement_stackN) = t2new2
-    END IF ! IF (PRESENT( refinement_map)) THEN
-
-    ! == Update triangle-line overlap ranges
-    IF (PRESENT( Tri_li)) THEN
-      li_min = MIN( Tri_li( t1,1), Tri_li( t2,1))
-      li_max = MAX( Tri_li( t1,2), Tri_li( t2,2))
-      Tri_li( t1new1,:) = [li_min, li_max]
-      Tri_li( t1new2,:) = [li_min, li_max]
-      Tri_li( t2new1,:) = [li_min, li_max]
-      Tri_li( t2new2,:) = [li_min, li_max]
-    END IF
-
-    ! == Find circumcenters
-    CALL update_triangle_circumcenter( mesh, t1new1)
-    CALL update_triangle_circumcenter( mesh, t1new2)
-    CALL update_triangle_circumcenter( mesh, t2new1)
-    CALL update_triangle_circumcenter( mesh, t2new2)
-
-    ! == Update inverse triangle lists
-    ! vo1
-    DO n = 1, mesh%niTri( vo1)
-      IF (mesh%iTri( vo1,n) == t1) THEN
-        mesh%iTri( vo1,:) = [mesh%iTri( vo1,1:n-1), t1new2, t1new1, mesh%iTri( vo1,n+1:mesh%nC_mem-1)]
-        mesh%niTri( vo1) = mesh%niTri( vo1)+1
+    ! vi: connection to vj is replaced by vk
+    DO ci = 1, mesh%nC( vi)
+      IF (mesh%C( vi,ci) == vj) THEN
+        mesh%C( vi,ci) = vk
         EXIT
       END IF
     END DO
-    ! v1
-    DO n = 1, mesh%niTri( v1)
-      IF (mesh%iTri( v1,n) == t1) mesh%iTri( v1,n) = t1new2
-      IF (mesh%iTri( v1,n) == t2) mesh%iTri( v1,n) = t2new1
-    END DO
-    ! vo2
-    DO n = 1, mesh%niTri( vo2)
-      IF (mesh%iTri( vo2,n) == t2) THEN
-        mesh%iTri( vo2,:) = [mesh%iTri( vo2,1:n-1), t2new2, t2new1, mesh%iTri( vo2,n+1:mesh%nC_mem-1)]
-        mesh%niTri( vo2) = mesh%niTri( vo2)+1
+    ! vj: connection to vi is replaced by vk
+    DO ci = 1, mesh%nC( vj)
+      IF (mesh%C( vj,ci) == vi) THEN
+        mesh%C( vj,ci) = vk
         EXIT
       END IF
     END DO
-    ! v2
-    DO n = 1, mesh%niTri( v2)
-      IF (mesh%iTri( v2,n) == t1) mesh%iTri( v2,n) = t1new1
-      IF (mesh%iTri( v2,n) == t2) mesh%iTri( v2,n) = t2new2
+    ! vit: connection to vk is added between those to vi and vj
+    mesh%nC( vit) = mesh%nC( vit) + 1
+    DO ci = 1, mesh%nC( vit)
+      IF (mesh%C( vit,ci) == vi) THEN
+        mesh%C( vit,:) = [mesh%C( vit,1:ci), vk, mesh%C( vit,ci+1:mesh%nC_mem-1)]
+        EXIT
+      END IF
     END DO
-    ! new vertex
-    mesh%iTri(  mesh%nV,1:4) = [t1new2, t2new1, t2new2, t1new1]
-    mesh%niTri( mesh%nV) = 4
+    ! vib: connection to vk is added between those to vj and vi
+    mesh%nC( vib) = mesh%nC( vib) + 1
+    DO ci = 1, mesh%nC( vib)
+      IF (mesh%C( vib,ci) == vj) THEN
+        mesh%C( vib,:) = [mesh%C( vib,1:ci), vk, mesh%C( vib,ci+1:mesh%nC_mem-1)]
+        EXIT
+      END IF
+    END DO
+    ! vik: [vi,vib,vj,vit]
+    mesh%nC( vk    ) = 4
+    mesh%C(  vk,1:4) = [vi, vib, vj, vit]
 
-    ! == Update triangle connectivity matrix
-    ! t1nv2
-    IF (t1nv2 > 0) THEN
+    ! == niTri, iTri
+
+    ! vi: tit is replaced by t1, tib is replaced by t3
+    DO iti = 1, mesh%niTri( vi)
+      IF     (mesh%iTri( vi,iti) == tit) THEN
+        mesh%iTri( vi,iti) = t1
+      ELSEIF (mesh%iTri( vi,iti) == tib) THEN
+        mesh%iTri( vi,iti) = t3
+      END IF
+    END DO
+    ! vj: tit is replaced by t2, tib is replaced by t4
+    DO iti = 1, mesh%niTri( vj)
+      IF     (mesh%iTri( vj,iti) == tit) THEN
+        mesh%iTri( vj,iti) = t2
+      ELSEIF (mesh%iTri( vj,iti) == tib) THEN
+        mesh%iTri( vj,iti) = t4
+      END IF
+    END DO
+    ! vit: tit is replaced by [t1,t2]
+    mesh%niTri( vit) = mesh%niTri( vit) + 1
+    DO iti = 1, mesh%niTri( vit)
+      IF (mesh%iTri( vit,iti) == tit) THEN
+        mesh%iTri( vit,:) = [mesh%iTri( vit,1:iti-1), t1, t2, mesh%iTri( vit,iti+1:mesh%nC_mem-1)]
+        EXIT
+      END IF
+    END DO
+    ! vib: tib is replaced by [t4,t3]
+    mesh%niTri( vib) = mesh%niTri( vib) + 1
+    DO iti = 1, mesh%niTri( vib)
+      IF (mesh%iTri( vib,iti) == tib) THEN
+        mesh%iTri( vib,:) = [mesh%iTri( vib,1:iti-1), t4, t3, mesh%iTri( vib,iti+1:mesh%nC_mem-1)]
+        EXIT
+      END IF
+    END DO
+    ! vik: [t1,t3,t4,t2]
+    mesh%niTri( vk    ) = 4
+    mesh%iTri(  vk,1:4) = [t1, t3, t4, t2]
+
+    ! == edge_index
+
+    mesh%edge_index( vk) = 0
+
+    ! == TriC
+
+    ! t1: [titl,t3,t2]
+    mesh%TriC( t1,:) = [titl, t3, t2]
+    ! t2: [titr,t1,t4]
+    mesh%TriC( t2,:) = [titr, t1, t4]
+    ! t3: [tibl,t4,t1]
+    mesh%TriC( t3,:) = [tibl, t4, t1]
+    ! t4: [tibr,t2,t3]
+    mesh%TriC( t4,:) = [tibr, t2, t3]
+    ! titl: tit is replaced by t1
+    IF (titl > 0) THEN
       DO n = 1, 3
-        IF (mesh%TriC( t1nv2,n) == t1) mesh%TriC( t1nv2,n) = t1new2
+        IF (mesh%TriC( titl,n) == tit) THEN
+          mesh%TriC( titl,n) = t1
+        END IF
       END DO
     END IF
-    ! t1nv1
-    IF (t1nv1 > 0) THEN
+    ! titr: tit is replaced by t2
+    IF (titr > 0) THEN
       DO n = 1, 3
-        IF (mesh%TriC( t1nv1,n) == t1) mesh%TriC( t1nv1,n) = t1new1
+        IF (mesh%TriC( titr,n) == tit) THEN
+          mesh%TriC( titr,n) = t2
+        END IF
       END DO
     END IF
-    ! t2nv2
-    IF (t2nv2 > 0) THEN
+    ! tibl: tib is replaced by t3
+    IF (tibl > 0) THEN
       DO n = 1, 3
-        IF (mesh%TriC( t2nv2,n) == t2) mesh%TriC( t2nv2,n) = t2new1
+        IF (mesh%TriC( tibl,n) == tib) THEN
+          mesh%TriC( tibl,n) = t3
+        END IF
       END DO
     END IF
-    ! t2nv1
-    IF (t2nv1 > 0) THEN
+    ! tibr: tib is replaced by t4
+    IF (tibr > 0) THEN
       DO n = 1, 3
-        IF (mesh%TriC( t2nv1,n) == t2) mesh%TriC( t2nv1,n) = t2new2
+        IF (mesh%TriC( tibr,n) == tib) THEN
+          mesh%TriC( tibr,n) = t4
+        END IF
       END DO
     END IF
 
-    ! The four new triangles
-    mesh%TriC( t1new1,:) = [t2new2, t1nv1, t1new2]
-    mesh%TriC( t1new2,:) = [t2new1, t1new1, t1nv2]
-    mesh%TriC( t2new1,:) = [t1new2, t2nv2, t2new2]
-    mesh%TriC( t2new2,:) = [t1new1, t2new1, t2nv1]
+    ! == Tricc
 
-    ! == Update vertex connectivity lists
-    ! po1
-    DO n = 1, mesh%nC( vo1)
-      IF (mesh%C( vo1,n) == v1) THEN
-        mesh%C( vo1,:) = [mesh%C( vo1,1:n), mesh%nV, mesh%C( vo1,n+1:mesh%nC_mem-1)]
-        mesh%nC( vo1) = mesh%nC( vo1)+1
-        EXIT
-      END IF
-    END DO
-    ! v1
-    DO n = 1, mesh%nC( v1)
-      IF (mesh%C( v1,n) == v2) THEN
-        mesh%C( v1,n) = mesh%nV
-        EXIT
-      END IF
-    END DO
-    ! vo2
-    DO n = 1, mesh%nC( vo2)
-      IF (mesh%C( vo2,n) == v2) THEN
-        mesh%C( vo2,:) = [mesh%C( vo2,1:n), mesh%nV, mesh%C( vo2,n+1:mesh%nC_mem-1)]
-        mesh%nC( vo2) = mesh%nC( vo2)+1
-        EXIT
-      END IF
-    END DO
-    ! v2
-    DO n = 1, mesh%nC( v2)
-      IF (mesh%C( v2,n) == v1) THEN
-        mesh%C( v2,n) = mesh%nV
-        EXIT
-      END IF
-    END DO
-    ! new vertex
-    mesh%C(  mesh%nV,1:4) = [v1, vo2, v2, vo1]
-    mesh%nC( mesh%nV) = 4
+    CALL update_triangle_circumcenter( mesh, t1)
+    CALL update_triangle_circumcenter( mesh, t2)
+    CALL update_triangle_circumcenter( mesh, t3)
+    CALL update_triangle_circumcenter( mesh, t4)
 
-    ! == Propagate flip operations outward
-    ! Start with the newly created triangles and their neighbours. Any
+    ! == Refinement data
+
+    ! Add the four new triangles to the refinement map and stack
+    CALL add_triangle_to_refinement_stack_last( mesh, t1)
+    CALL add_triangle_to_refinement_stack_last( mesh, t2)
+    CALL add_triangle_to_refinement_stack_last( mesh, t3)
+    CALL add_triangle_to_refinement_stack_last( mesh, t4)
+
+    ! Update triangle-line overlap ranges
+    mesh%Tri_li( t1,:) = mesh%Tri_li( tit,:)
+    mesh%Tri_li( t2,:) = mesh%Tri_li( tit,:)
+    mesh%Tri_li( t3,:) = mesh%Tri_li( tib,:)
+    mesh%Tri_li( t4,:) = mesh%Tri_li( tib,:)
+
+    ! == Finished splitting the line. Iteratively flip any triangle pairs
+    !    in the neighbourhood that do not meet the local Delaunay criterion.
+    ! ======================================================================
+
+    ! Start with the four newly created triangles and their neighbours. Any
     ! new possible flip pairs generated by a flip pair are added to the
     ! list by flip_triangle_pairs, making sure the loop runs until all flip
     ! operations have been done.
 
-    ALLOCATE( Tri_flip( mesh%nTri, 2), source = 0)
+    mesh%Tri_flip_list( :,:) = 0
     nf = 0
 
-    IF (t1nv1 > 0) THEN
-      nf=nf + 1
-      Tri_flip( nf,:) = [t1nv1, t1new1]
+    IF (titl > 0) THEN
+      nf = nf + 1
+      mesh%Tri_flip_list( nf,:) = [t1, titl]
     END IF
-    IF (t1nv2 > 0) THEN
-      nf=nf + 1
-      Tri_flip( nf,:) = [t1nv2, t1new2]
+    IF (titr > 0) THEN
+      nf = nf + 1
+      mesh%Tri_flip_list( nf,:) = [t2, titr]
     END IF
-    IF (t2nv1 > 0) THEN
-      nf=nf + 1
-      Tri_flip( nf,:) = [t2nv1, t2new2]
+    IF (tibl > 0) THEN
+      nf = nf + 1
+      mesh%Tri_flip_list( nf,:) = [t3, tibl]
     END IF
-    IF (t2nv2 > 0) THEN
-      nf=nf + 1
-      Tri_flip( nf,:) = [t2nv2, t2new1]
+    IF (tibr > 0) THEN
+      nf = nf + 1
+      mesh%Tri_flip_list( nf,:) = [t4, tibr]
     END IF
 
-    DO WHILE (nf > 0)
-      CALL flip_triangle_pairs( mesh, Tri_flip, nf, did_flip, refinement_map, refinement_stack, refinement_stackN, Tri_li)
-    END DO
-
-    DEALLOCATE( Tri_flip)
+    ! Iteratively flip triangle pairs until the local Delaunay
+    ! criterion is satisfied everywhere
+    CALL flip_triangles_until_Delaunay( mesh, nf)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE split_line
 
-  SUBROUTINE split_segment(  mesh, v1a, v2a   , p_new, refinement_map, refinement_stack, refinement_stackN, Tri_li)
-    ! Split an Edge segment in two, adding a vertex halfway.
+  SUBROUTINE split_segment( mesh, vi, vj, p_new)
+    ! Split the triangle ti adjacent to boundary segment [vi,vj] into two new ones
+    !
+    ! When going in, the local geometry looks like this:
+    !
+    !   \ /           \ /           \ /
+    ! - -o----------- vic -----------o- -
+    !   / \           / \           / \
+    !      \         /   \         /
+    !       \  tib  /     \  tia  /
+    !        \     /   ti  \     /
+    !         \   /         \   /
+    !          \ /           \ /
+    !      - - via --------- vib - -
+    !
+    ! (With either via=vi, vib=vj, or the other way round)
+    !
+    ! When coming out, it looks like this:
+    !
+    !   \ /           \ /           \ /
+    ! - -o----------- vic -----------o- -
+    !   / \           /|\           / \
+    !      \         / | \         /
+    !       \  tib  /  |  \  tia  /
+    !        \     /   |   \     /
+    !         \   / t2 | t2 \   /
+    !          \ /     |     \ /
+    !      - - via -- vik -- vib - -
 
     IMPLICIT NONE
 
     ! In/output variables:
-    TYPE(type_mesh),                     INTENT(INOUT) :: mesh
-    INTEGER,                             INTENT(IN)    :: v1a, v2a
-    REAL(dp), DIMENSION(2),              INTENT(IN)    :: p_new
-    INTEGER,  DIMENSION(:  ), OPTIONAL,  INTENT(INOUT) :: refinement_map
-    INTEGER,  DIMENSION(:  ), OPTIONAL,  INTENT(INOUT) :: refinement_stack
-    INTEGER,                  OPTIONAL,  INTENT(INOUT) :: refinement_stackN
-    INTEGER,  DIMENSION(:,:), OPTIONAL,  INTENT(INOUT) :: Tri_li
+    TYPE(type_mesh),            INTENT(INOUT)     :: mesh
+    INTEGER,                    INTENT(IN)        :: vi, vj
+    REAL(dp), DIMENSION(2),     INTENT(IN)        :: p_new
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'split_segment'
-    INTEGER                                            :: v1, v2, ti, t1, n, nc, nnext, tnv1, tnv2, vo
-    INTEGER                                            :: tnew1, tnew2
-    LOGICAL                                            :: SwitchThem
-    INTEGER,  DIMENSION(:,:), ALLOCATABLE              :: Tri_flip
-    INTEGER                                            :: nf
-    LOGICAL                                            :: did_flip
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'split_segment'
+    LOGICAL                                       :: are_connected_ij, are_connected_ji
+    INTEGER                                       :: ci, cj, iti, n, n1, n2, n3, nf
+    REAL(dp), DIMENSION(2)                        :: pa, pb
+    INTEGER                                       :: t1, t2, ti, tia, tib, tic, tii, via, vib, vic, vik
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    v1 = v1a
-    v2 = v2a
+    ! == Safety
+    ! =========
 
-    ! Find the triangle t1 that contains v1 and v2
-    t1 = 0
-    DO ti = 1, mesh%nTri
-      nc = 0
-      DO n = 1, 3
-        IF (mesh%Tri( ti,n) == v1 .OR. mesh%Tri( ti,n) == v2) nc = nc + 1
-      END DO
-      IF (nc == 2) t1 = ti
+    ! Check IF vi and vj are even connected
+    are_connected_ij = .FALSE.
+    are_connected_ji = .FALSE.
+    DO ci = 1, mesh%nC( vi)
+      IF (mesh%C( vi,ci) == vj) are_connected_ij = .TRUE.
     END DO
-
-    IF (t1 == 0) THEN
-      CALL crash('couldnt find triangle containing both vertices!')
-    END IF
-
-    IF (mesh%edge_index( v1) == 0 .OR. mesh%edge_index( v2) == 0) THEN
-      CALL crash('segment isnt made up of boundary vertices!')
-    END IF
-
-    ! Order v1 and v2 anticlockwise in triangle t1
-    SwitchThem = .FALSE.
-    DO n = 1, 3
-      nnext = n + 1
-      IF (nnext == 4) nnext = 1
-      IF (mesh%Tri( t1,n) == v1) THEN
-        IF (mesh%Tri( t1,nnext) /= v2) SwitchThem = .TRUE.
-      END IF
+    DO cj = 1, mesh%nC( vj)
+      IF (mesh%C( vj,cj) == vi) are_connected_ji = .TRUE.
     END DO
-    IF (SwitchThem) THEN
-      v1 = v1 + v2
-      v2 = v1 - v2
-      v1 = v1 - v2
-    END IF
-
-    ! == Find the other relevant indices - non-shared vertex and neighbour triangles
-    ! tnv1: triangle next to t1, across from v1
-    ! tnv2: triangle next to t1, across from v2
-    tnv1 = 0
-    tnv2 = 0
-    vo   = 0
-    DO n = 1, 3
-      IF     (mesh%Tri( t1,n) == v1) THEN
-        tnv1 = mesh%TriC( t1,n)
-      ELSEIF (mesh%Tri( t1,n) == v2) THEN
-        tnv2 = mesh%TriC( t1,n)
-      ELSE
-        vo = mesh%Tri( t1,n)
-      END IF
-    END DO
-
-    ! == Add new vertex to mesh
-    mesh%nV = mesh%nV + 1
-    mesh%V( mesh%nV,:) = p_new
-
-    ! == Determine edge index
-    IF (       mesh%edge_index( v1) == 1) THEN
-      mesh%edge_index(mesh%nV) = 1
-    ELSEIF (   mesh%edge_index( v1) == 2) THEN
-      IF (     mesh%edge_index( v2) == 1 .OR. mesh%edge_index( v2) == 8) THEN
-        mesh%edge_index(mesh%nV) = 1
-      ELSEIF ( mesh%edge_index( v2) == 3 .OR. mesh%edge_index( v2) == 4) THEN
-        mesh%edge_index(mesh%nV) = 3
-      ELSE
-        CALL crash('edge indices of v1 and v2 dont make sense!')
-      END IF
-    ELSEIF (   mesh%edge_index( v1) == 3) THEN
-      mesh%edge_index(mesh%nV) = 3
-    ELSEIF (   mesh%edge_index( v1) == 4) THEN
-      IF (     mesh%edge_index( v2) == 3 .OR. mesh%edge_index( v2) == 2) THEN
-        mesh%edge_index(mesh%nV) = 3
-      ELSEIF ( mesh%edge_index( v2) == 5 .OR. mesh%edge_index( v2) == 6) THEN
-        mesh%edge_index(mesh%nV) = 5
-      ELSE
-        CALL crash('edge indices of v1 and v2 dont make sense!')
-      END IF
-    ELSEIF (   mesh%edge_index( v1) == 5) THEN
-      mesh%edge_index(mesh%nV) = 5
-    ELSEIF (   mesh%edge_index( v1) == 6) THEN
-      IF (     mesh%edge_index( v2) == 5 .OR. mesh%edge_index( v2) == 4) THEN
-        mesh%edge_index(mesh%nV) = 5
-      ELSEIF ( mesh%edge_index( v2) == 7 .OR. mesh%edge_index( v2) == 8) THEN
-        mesh%edge_index(mesh%nV) = 7
-      ELSE
-        CALL crash('edge indices of v1 and v2 dont make sense!')
-      END IF
-    ELSEIF (   mesh%edge_index( v1) == 7) THEN
-      mesh%edge_index(mesh%nV) = 7
-    ELSEIF (   mesh%edge_index( v1) == 8) THEN
-      IF (     mesh%edge_index( v2) == 7 .OR. mesh%edge_index( v2) == 6) THEN
-        mesh%edge_index(mesh%nV) = 7
-      ELSEIF ( mesh%edge_index( v2) == 1 .OR. mesh%edge_index( v2) == 2) THEN
-        mesh%edge_index(mesh%nV) = 1
-      ELSE
-        CALL crash('edge indices of v1 and v2 dont make sense!')
-      END IF
+    IF (are_connected_ij .AND. are_connected_ji) THEN
+      ! Both vi and vj list each other as neighbours; all is well
+    ELSEIF (are_connected_ij) THEN
+      ! vi lists vj as a neighbour, not not the other way round - mesh inconsistency!
+      CALL crash('mesh inconsistency: {int_01} lists {int_02} as a neighbour, but not the other way round!', int_01 = vi, int_02 = vj)
+    ELSEIF (are_connected_ji) THEN
+      ! vj lists vi as a neighbour, not not the other way round - mesh inconsistency!
+      CALL crash('mesh inconsistency: {int_01} lists {int_02} as a neighbour, but not the other way round!', int_01 = vj, int_02 = vi)
     ELSE
-      CALL crash('edge indices of v1 and v2 dont make sense!')
+      ! Neither vi nor vj lists the other as a neighbour
+      CALL crash('{int_01} and {int_02} are not connected!', int_01 = vi, int_02 = vj)
     END IF
 
-    ! == Create two new triangles
-    tnew1 = t1
-    tnew2 = mesh%nTri + 1
-    mesh%Tri( tnew1,:) = [v1, mesh%nV, vo]
-    mesh%Tri( tnew2,:) = [v2, vo, mesh%nV]
+    ! Check IF p_new actually lies on [vi,vj]
+    pa = mesh%V( vi,:)
+    pb = mesh%V( vj,:)
+    IF (.NOT. lies_on_line_segment( pa, pb, p_new, mesh%tol_dist)) THEN
+      CALL crash('p does not lie on [{int_01}-{int_02}]!', int_01 = vi, int_02 = vj)
+    END IF
+
+    ! Check IF [vi,vj] is actually a boundary segment
+    IF (.NOT. is_boundary_segment( mesh, vi, vj)) THEN
+      CALL crash('[{int_01}-{int_02}] is not a boundary segment!', int_01 = vi, int_02 = vj)
+    END IF
+
+    ! == All safety checks passes; split the triangle ti adjacent to boundary
+    !    segment [vi,vj] into two new ones
+    ! =======================================================================
+
+!    ! DENK DROM
+!    CALL warning('splitting segment [{int_01}-{int_02}}]', int_01 = vi, int_02 = vj)
+
+    ! == Find the local neighbourhood of vertices and triangles
+
+    ! Find the triangle t1 adjacent to the boundary segment [vi,vj]
+
+    ti = 0
+    DO iti = 1, mesh%niTri( vi)
+      tii = mesh%iTri( vi,iti)
+      IF (ANY( mesh%Tri( tii,:) == vj)) THEN
+        ti = tii
+      END IF
+    END DO
+
+    IF (ti == 0) THEN
+      CALL crash('couldnt find triangle containing {int_01} and {int_02}!', int_01 = vi, int_02 = vj)
+    END IF
+
+    ! Let ti be spanned by vertices [via,vib,vic], such that via and
+    ! vib lie on the boundary, and vic in the interior. Note: either via = vi
+    ! and vib = vj, or via = vj and vib = vi, but its easier from here on to
+    ! have the three vertices ordered counter-clockwise.
+    ! Let tia and tib be the triangles adjacent to ti across from via and vib,
+    ! respectively. Note: it is possible that at most one of those doesnt exist
+    ! (but not both!)
+
+    via = 0
+    vib = 0
+    vic = 0
+
+    tia = 0
+    tib = 0
+    tic = 0
+
+    DO n1 = 1, 3
+      n2 = n1 + 1
+      IF (n2 == 4) n2 = 1
+      n3 = n2 + 1
+      IF (n3 == 4) n3 = 1
+      IF ((mesh%Tri( ti,n1) == vi .AND. mesh%Tri( ti,n2) == vj) .OR. &
+          (mesh%Tri( ti,n1) == vj .AND. mesh%Tri( ti,n2) == vi)) THEN
+        via = mesh%Tri(  ti,n1)
+        vib = mesh%Tri(  ti,n2)
+        vic = mesh%Tri(  ti,n3)
+        tia = mesh%TriC( ti,n1)
+        tib = mesh%TriC( ti,n2)
+        tic = mesh%TriC( ti,n3)
+      END IF
+    END DO
+
+    ! Safety
+    IF (via == 0 .OR. vib == 0 .OR. vic == 0) CALL crash('mesh%Tri doesnt make sense!')
+    IF (tia == 0 .AND. tib == 0) CALL crash('triangle has only one neighbour!')
+    IF (tic > 0) CALL crash('triangle doesnt appear to be a boundary triangle!')
+
+    ! == V, Tri
+
+    ! Create a new vertex vik at p_new
+    mesh%nV = mesh%nV + 1
+    vik = mesh%nV
+    mesh%V( vik,:) = p_new
+
+    ! Let triangle t1 be spanned by [via,vik,vic]
+    t1 = ti
+    mesh%Tri( t1,:) = [via, vik, vic]
+
+    ! Let triangle t2 be spanned by [vik,vib,vic]
     mesh%nTri = mesh%nTri + 1
+    t2 = mesh%nTri
+    mesh%Tri( t2,:) = [vik,vib,vic]
 
-    ! Add these to the refinement stack
-    IF (PRESENT( refinement_map)) THEN
-      CALL remove_triangle_from_refinement_stack( refinement_map, refinement_stack, refinement_stackN, t1)
+    ! == nC, C
 
-      refinement_map( tnew1) = 1
-      refinement_stackN = refinement_stackN + 1
-      refinement_stack( refinement_stackN) = tnew1
-
-      refinement_map( tnew2) = 1
-      refinement_stackN = refinement_stackN + 1
-      refinement_stack( refinement_stackN) = tnew2
-    END IF ! IF (PRESENT( refinement_map)) THEN
-
-    ! == Update triangle-line overlap ranges
-    IF (PRESENT( Tri_li)) THEN
-      Tri_li( tnew1,:) = Tri_li( t1,:)
-      Tri_li( tnew2,:) = Tri_li( t1,:)
-    END IF
-
-    ! == Update triangle circumcenters
-    CALL update_triangle_circumcenter( mesh, tnew1)
-    CALL update_triangle_circumcenter( mesh, tnew2)
-
-    ! == Update inverse triangle lists
-    ! vo
-    DO n = 1, mesh%niTri( vo)
-      IF (mesh%iTri( vo,n) == t1) THEN
-        mesh%iTri(  vo,:) = [mesh%iTri( vo,1:n-1), tnew1, tnew2, mesh%iTri( vo,n+1:mesh%nC_mem-1)]
-        mesh%niTri( vo  ) = mesh%niTri( vo) + 1
+    ! via: vik replaces vib as the first connection
+    mesh%C( via,1) = vik
+    ! vib: vik reaplces via as the last connection
+    mesh%C( vib, mesh%nC( vib)) = vik
+    ! vic: vik comes in between via and vib
+    mesh%nC( vic  ) = mesh%nC( vic) + 1
+    DO ci = 1, mesh%nC( vic)
+      IF (mesh%C( vic,ci) == via) THEN
+        mesh%C(  vic,:) = [mesh%C( vic,1:ci), vik, mesh%C( vic,ci+1:mesh%nC_mem-1)]
         EXIT
       END IF
     END DO
-    ! v1 - nothing changes here
-    ! v2
-    DO n = 1, mesh%niTri(v2)
-      IF (mesh%iTri( v2,n) == t1) mesh%iTri( v2,n) = tnew2
-    END DO
-    ! new vertex
-    mesh%iTri(  mesh%nV,1:2) = [tnew2, tnew1]
-    mesh%niTri( mesh%nV) = 2
 
-    ! == Update triangle connectivity lists
-    ! tnv1
-    IF (tnv1 > 0) THEN
+    ! vik
+    mesh%nC( vik) = 3
+    mesh%C( vik,1:3) = [vib, vic, via]
+
+    ! == niTri, iTri
+
+    ! Inverse triangle list of via: ti is replaced by t1 as the first one
+    mesh%iTri( via, 1) = t1
+    ! Inverse triangle list of vib: ti is replaced by t2 as the last one
+    mesh%iTri( vib, mesh%niTri( vib)) = t2
+    ! Inverse triangle list of vic: replace ti by [t1,t2]
+    mesh%niTri( vic  ) = mesh%niTri( vic) + 1
+    DO iti = 1, mesh%niTri( vic)
+      IF (mesh%iTri( vic,iti) == ti) THEN
+        mesh%iTri(  vic,:) = [mesh%iTri( vic,1:iti-1), t1, t2, mesh%iTri( vic,iti+1:mesh%nC_mem-1)]
+      END IF
+    END DO
+    ! Inverse triangle list of vik: [t2,t1]
+    mesh%niTri( vik) = 2
+    mesh%iTri( vik,1:2) = [t2,t1]
+
+    ! == edge_index
+
+    IF     ((mesh%edge_index( via) == 8 .OR. mesh%edge_index( via) == 1 .OR. mesh%edge_index( via) == 2) .AND. &
+            (mesh%edge_index( vib) == 8 .OR. mesh%edge_index( vib) == 1 .OR. mesh%edge_index( vib) == 2)) THEN
+      ! North
+      mesh%edge_index( vik) = 1
+    ELSEIF ((mesh%edge_index( via) == 2 .OR. mesh%edge_index( via) == 3 .OR. mesh%edge_index( via) == 4) .AND. &
+            (mesh%edge_index( vib) == 2 .OR. mesh%edge_index( vib) == 3 .OR. mesh%edge_index( vib) == 4)) THEN
+      ! East
+      mesh%edge_index( vik) = 3
+    ELSEIF ((mesh%edge_index( via) == 4 .OR. mesh%edge_index( via) == 5 .OR. mesh%edge_index( via) == 6) .AND. &
+            (mesh%edge_index( vib) == 4 .OR. mesh%edge_index( vib) == 5 .OR. mesh%edge_index( vib) == 6)) THEN
+      ! South
+      mesh%edge_index( vik) = 5
+    ELSEIF ((mesh%edge_index( via) == 6 .OR. mesh%edge_index( via) == 7 .OR. mesh%edge_index( via) == 8) .AND. &
+            (mesh%edge_index( vib) == 6 .OR. mesh%edge_index( vib) == 7 .OR. mesh%edge_index( vib) == 8)) THEN
+      ! West
+      mesh%edge_index( vik) = 7
+    ELSE
+      CALL crash('edge indices of via and vib dont make sense!')
+    END IF
+
+    ! == TriC
+
+    ! Triangle t1 is adjacent to t2 and tib
+    mesh%TriC( t1,:) = [t2,tib,0]
+    ! Triangle t2 is adjacent to tia and t1
+    mesh%TriC( t2,:) = [tia,t1,0]
+    ! Triangle tia is now adjacent to t2 instead of ti
+    IF (tia > 0) THEN
       DO n = 1, 3
-        IF (mesh%TriC( tnv1,n) == t1) mesh%TriC( tnv1,n) = tnew2
+        IF (mesh%TriC( tia,n) == ti) THEN
+          mesh%TriC( tia,n) = t2
+        END IF
       END DO
     END IF
-    ! tnv2
-    IF (tnv2 > 0) THEN
+    ! Triangle tib is now adjacent to t1 instead of ti
+    IF (tib > 0) THEN
       DO n = 1, 3
-        IF (mesh%TriC( tnv2,n) == t1) mesh%TriC( tnv2,n) = tnew1
+        IF (mesh%TriC( tib,n) == ti) THEN
+          mesh%TriC( tib,n) = t1
+        END IF
       END DO
     END IF
 
-    ! The two new triangles
-    mesh%TriC( tnew1,:) = [tnew2, tnv2, 0]
-    mesh%TriC( tnew2,:) = [tnew1, 0, tnv1]
+    ! == Tricc
 
-    ! == Update vertex connectivity lists
-    ! vo
-    DO n = 1, mesh%nC( vo)
-      IF (mesh%C( vo,n) == v1) THEN
-        mesh%C(  vo,:) = [mesh%C( vo,1:n), mesh%nV, mesh%C( vo,n+1:mesh%nC_mem-1)]
-        mesh%nC( vo  ) = mesh%nC( vo)+1
-        EXIT
-      END IF
-    END DO
-    ! v1
-    DO n = 1, mesh%nC( v1)
-      IF (mesh%C( v1,n) == v2) THEN
-        mesh%C( v1,n) = mesh%nV
-        EXIT
-      END IF
-    END DO
-    ! v2
-    DO n = 1, mesh%nC( v2)
-      IF (mesh%C( v2,n) == v1) THEN
-        mesh%C( v2,n) = mesh%nV
-        EXIT
-      END IF
-    END DO
-    ! new vertex
-    mesh%C(  mesh%nV,1:3) = [v2, vo, v1]
-    mesh%nC( mesh%nV) = 3
+    CALL update_triangle_circumcenter( mesh, t1)
+    CALL update_triangle_circumcenter( mesh, t2)
 
-    ! == Propagate flip operations outward
-    ! Start with the newly created triangles and their neighbours. Any
+    ! == Refinement data
+
+    ! Add the two new triangles to the refinement map and stack
+    CALL add_triangle_to_refinement_stack_last( mesh, t1)
+    CALL add_triangle_to_refinement_stack_last( mesh, t2)
+
+    ! Update triangle-line overlap ranges
+    mesh%Tri_li( t1,:) = mesh%Tri_li( ti,:)
+    mesh%Tri_li( t2,:) = mesh%Tri_li( ti,:)
+
+    ! == Finished splitting the segment. Iteratively flip any triangle pairs
+    !    in the neighbourhood that do not meet the local Delaunay criterion.
+    ! ======================================================================
+
+    ! Start with the two newly created triangles and their neighbours. Any
     ! new possible flip pairs generated by a flip pair are added to the
     ! list by flip_triangle_pairs, making sure the loop runs until all flip
     ! operations have been done.
 
-    ALLOCATE( Tri_flip( mesh%nTri, 2), source = 0)
+    mesh%Tri_flip_list( :,:) = 0
     nf = 0
 
-    IF (tnv2 > 0) THEN
+    IF (tia > 0) THEN
       nf = nf + 1
-      Tri_flip( nf,:) = [tnew1, tnv2]
+      mesh%Tri_flip_list( nf,:) = [t2, tia]
     END IF
-    IF (tnv1 > 0) THEN
+    IF (tib > 0) THEN
       nf = nf + 1
-      Tri_flip( nf,:) = [tnew2, tnv1]
+      mesh%Tri_flip_list( nf,:) = [t1, tib]
     END IF
 
-    DO WHILE (nf > 0)
-      CALL flip_triangle_pairs( mesh, Tri_flip, nf, did_flip, refinement_map, refinement_stack, refinement_stackN, Tri_li)
-    END DO
-
-    DEALLOCATE( Tri_flip)
+    ! Iteratively flip triangle pairs until the local Delaunay
+    ! criterion is satisfied everywhere
+    CALL flip_triangles_until_Delaunay( mesh, nf)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE split_segment
 
-  SUBROUTINE move_vertex(    mesh, vi         , p_new, refinement_map, refinement_stack, refinement_stackN, Tri_li)
-    ! Move vertex vi of the mesh to point p_new
+  SUBROUTINE move_vertex( mesh, vi, p)
+    ! Move vertex vi of the mesh to point p
 
     IMPLICIT NONE
 
     ! In/output variables:
-    TYPE(type_mesh),                     INTENT(INOUT) :: mesh
-    INTEGER,                             INTENT(IN)    :: vi
-    REAL(dp), DIMENSION(2),              INTENT(IN)    :: p_new
-    INTEGER,  DIMENSION(:  ), OPTIONAL,  INTENT(INOUT) :: refinement_map
-    INTEGER,  DIMENSION(:  ), OPTIONAL,  INTENT(INOUT) :: refinement_stack
-    INTEGER,                  OPTIONAL,  INTENT(INOUT) :: refinement_stackN
-    INTEGER,  DIMENSION(:,:), OPTIONAL,  INTENT(INOUT) :: Tri_li
+    TYPE(type_mesh),            INTENT(INOUT)     :: mesh
+    INTEGER,                    INTENT(IN)        :: vi
+    REAL(dp), DIMENSION(2),     INTENT(IN)        :: p
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'move_vertex'
-    INTEGER                                            :: iti, ti, t1, t2, n
-    INTEGER,  DIMENSION(:,:), ALLOCATABLE              :: Tri_flip
-    INTEGER                                            :: nf
-    LOGICAL                                            :: did_flip, did_flip_pair
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'move_vertex'
+    INTEGER                                       :: nf, iti, ti, n, tj
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ALLOCATE( Tri_flip( mesh%nTri, 2), source = 0)
-    nf = 0
-
     ! Move the vertex
-    mesh%V( vi,:) = p_new
+    mesh%V( vi,:) = p
 
     ! Update surrounding triangle circumcentres
     DO iti = 1, mesh%niTri( vi)
@@ -953,386 +1161,722 @@ CONTAINS
     END DO
 
     ! Update triangulation
-    did_flip = .TRUE.
-    DO WHILE (did_flip)
+    mesh%Tri_flip_list = 0
+    nf = 0
 
-      did_flip = .FALSE.
-
-      Tri_flip = 0
-      nf       = 0
-
-      DO iti = 1, mesh%niTri( vi)
-        t1 = mesh%iTri( vi,iti)
-        DO n = 1, 3
-          t2 = mesh%TriC( t1,n)
-          IF (t2 > 0) THEN
-            nf = nf + 1
-            Tri_flip( nf,:) = [t1,t2]
-          END IF
-        END DO
+    DO iti = 1, mesh%niTri( vi)
+      ti = mesh%iTri( vi,iti)
+      DO n = 1, 3
+        tj = mesh%TriC( ti,n)
+        IF (tj > 0) THEN
+          nf = nf + 1
+          mesh%Tri_flip_list( nf,:) = [ti,tj]
+        END IF
       END DO
+    END DO
 
-      DO WHILE (nf > 0)
-        CALL flip_triangle_pairs( mesh, Tri_flip, nf, did_flip_pair, refinement_map, refinement_stack, refinement_stackN, Tri_li)
-        IF (did_flip_pair) did_flip = .TRUE.
-      END DO
-
-    END DO ! DO WHILE (did_flip)
-
-    DEALLOCATE( Tri_flip)
+    CALL flip_triangles_until_Delaunay( mesh, nf)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE move_vertex
 
-  SUBROUTINE flip_triangle_pairs( mesh, Tri_flip, nf, did_flip, refinement_map, refinement_stack, refinement_stackN, Tri_li)
-    ! Flip adjacent triangles, if possible and neccesary. Add new triangle
-    ! pairs to the list.
+  SUBROUTINE flip_triangles_until_Delaunay( mesh, nf)
+    ! Iteratively flip triangle pairs until the local Delaunay
+    ! criterion is satisfied everywhere
 
     IMPLICIT NONE
 
     ! In/output variables:
-    TYPE(type_mesh),                     INTENT(INOUT) :: mesh
-    INTEGER,  DIMENSION( mesh%nTri,2),   INTENT(INOUT) :: Tri_flip
-    INTEGER,                             INTENT(INOUT) :: nf
-    LOGICAL,                             INTENT(OUT)   :: did_flip
-    INTEGER,  DIMENSION(:  ), OPTIONAL,  INTENT(INOUT) :: refinement_map
-    INTEGER,  DIMENSION(:  ), OPTIONAL,  INTENT(INOUT) :: refinement_stack
-    INTEGER,                  OPTIONAL,  INTENT(INOUT) :: refinement_stackN
-    INTEGER,  DIMENSION(:,:), OPTIONAL,  INTENT(INOUT) :: Tri_li
+    TYPE(type_mesh),            INTENT(INOUT)     :: mesh
+    INTEGER,                    INTENT(INOUT)     :: nf
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'flip_triangle_pairs'
-    INTEGER                                            :: t1, t2, n, vo1, vo2, v1, v2, t1nv1, t1nv2, t2nv1, t2nv2
-    LOGICAL                                            :: n1to2, n2to1, FlipThem
-    INTEGER                                            :: li_min, li_max
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'flip_triangles_until_Delaunay'
+    INTEGER                                       :: ti, tj
+    LOGICAL                                       :: are_connected_ij, are_connected_ji
+    INTEGER                                       :: n, vi, vj, vii
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    did_flip = .FALSE.
+    DO WHILE (nf > 0)
 
-    t1 = Tri_flip( 1,1)
-    t2 = Tri_flip( 1,2)
+      ! Take the last triangle pair from the list
+      ti = mesh%Tri_flip_list( nf,1)
+      tj = mesh%Tri_flip_list( nf,2)
+      nf = nf - 1
 
-    IF (t1 == 0 .OR. t2 == 0) THEN
-      CALL crash('received t=0!')
+      ! Safety
+      IF (ti == 0 .OR. tj == 0) THEN
+        CALL crash('found ti=0 in mesh%Tri_flip_list!')
+      END IF
+
+      ! Check IF these two triangles are still connected (they might have
+      ! become disconnected due to an earlier flip operation
+      are_connected_ij = .FALSE.
+      are_connected_ji = .FALSE.
+      DO n = 1, 3
+        IF (mesh%TriC( ti,n) == tj) are_connected_ij = .TRUE.
+        IF (mesh%TriC( tj,n) == ti) are_connected_ji = .TRUE.
+      END DO
+      IF (.NOT. are_connected_ij .AND. .NOT. are_connected_ij) THEN
+        ! These two triangles are no longer connected
+        CYCLE
+      ELSEIF ((are_connected_ij .AND. .NOT. are_connected_ji) .OR. (.NOT. are_connected_ij .AND. are_connected_ji)) THEN
+        ! Safety
+        CALL crash('inconsistency in TriC!')
+      END IF
+
+      ! If they do not meet the local Delaunay criterion, flip them, and add
+      ! any new triangle pairs to the flip list
+      IF (.NOT. are_Delaunay( mesh, ti, tj)) THEN
+        ! Flip them
+        CALL flip_triangle_pair( mesh, ti, tj, nf)
+      END IF ! IF .NOT. are_Delaunay( mesh, ti, tj)
+
+    END DO ! while (nf>0)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE flip_triangles_until_Delaunay
+
+  SUBROUTINE flip_triangle_pair( mesh, ti, tj, nf)
+    ! Flip the triangle pair ti-tj, supposedly because it doesn't meet the
+    ! local Delaunay criterion
+    !
+    ! When going in, the local geometry looks like this:
+    !
+    !   \ /           \ /           \ /
+    ! - -o----------- vic ---------- o- -
+    !   / \           / \           / \
+    !      \  tib    /   \   tia   /
+    !       \       /     \       /
+    !        \     /       \     /
+    !         \   /   ti    \   /
+    !          \ /           \ /
+    !      - - via -------- vib - -
+    !          / \           / \
+    !         /   \         /   \
+    !        /     \  tj   /     \
+    !       /       \     /       \
+    !      /   tjb   \   /   tja   \
+    !   \ /           \ /           \ /
+    ! - -o----------- vid ---------- o- -
+    !   / \           / \           / \
+    !
+    ! When coming out, it looks like this:
+    !
+    !   \ /           \ /           \ /
+    ! - -o----------- vic ---------- o- -
+    !   / \           /|\           / \
+    !      \  tib    / | \   tia   /
+    !       \       /  |  \       /
+    !        \     /   |   \     /
+    !         \   / t1 | t2 \   /
+    !          \ /     |     \ /
+    !      - - via     |     vib - -
+    !          / \     |     / \
+    !         /   \    |    /   \
+    !        /     \   |   /     \
+    !       /       \  |  /       \
+    !      /   tjb   \ | /   tja   \
+    !   \ /           \|/           \ /
+    ! - -o----------- vid ---------- o- -
+    !   / \           / \           / \
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),            INTENT(INOUT)     :: mesh
+    INTEGER,                    INTENT(IN)        :: ti,tj
+    INTEGER,                    INTENT(INOUT)     :: nf
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'flip_triangle_pair'
+    LOGICAL                                       :: are_connected_ij, are_connected_ji
+    INTEGER                                       :: n, vi, vj, vii
+    LOGICAL                                       :: is_in_tj
+    INTEGER                                       :: via, vib, vic, vid
+    INTEGER                                       :: ci, iti
+    INTEGER                                       :: li_min, li_max
+    INTEGER                                       :: n1, n2, n3
+    INTEGER                                       :: tia, tib, tja, tjb, t1, t2, tii
+    LOGICAL                                       :: via_has_ti, via_has_tj
+    LOGICAL                                       :: vib_has_ti, vib_has_tj
+    LOGICAL                                       :: vic_has_ti, vic_has_tj
+    LOGICAL                                       :: vid_has_ti, vid_has_tj
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Safety
+    IF (ti == 0 .OR. tj == 0) THEN
+      CALL crash('Found ti=0 in mesh%Tri_flip_list!')
     END IF
 
-    ! == First, check if the two are really adjacent. If not, that's because of an earlier flip operation.
-    ! The current one is now redundant, so remove it from the list.
-    n1to2 = .FALSE.
-    n2to1 = .FALSE.
+    ! Check IF these two triangles are connected
+    are_connected_ij = .FALSE.
+    are_connected_ji = .FALSE.
     DO n = 1, 3
-      IF (mesh%TriC( t1,n)==t2) n1to2 = .TRUE.
-      IF (mesh%TriC( t2,n)==t1) n2to1 = .TRUE.
+      IF (mesh%TriC( ti,n) == tj) are_connected_ij = .TRUE.
+      IF (mesh%TriC( tj,n) == ti) are_connected_ji = .TRUE.
+    END DO
+    IF (.NOT. are_connected_ij .AND. .NOT. are_connected_ij) THEN
+      ! These two triangles are not connected
+      CALL crash('{int_01} and {int_02} are not connected!', int_01 = ti, int_02 = tj)
+    ELSEIF (are_connected_ij .AND. .NOT. are_connected_ji .OR. .NOT. are_connected_ij .AND. are_connected_ji) THEN
+      ! One of them lists the other as a neighbour, but not vice versa
+      CALL crash('inconsistency in TriC!')
+    END IF
+
+    ! Find the two vertices vi and vj that are shared by ti and tj
+
+    vi = 0
+    vj = 0
+
+    DO n = 1, 3
+      vii = mesh%Tri( ti,n)
+      is_in_tj = .FALSE.
+      DO n2 = 1, 3
+        IF (mesh%Tri( tj,n2) == vii) THEN
+          is_in_tj = .TRUE.
+          EXIT
+        END IF
+      END DO
+      IF (is_in_tj) THEN
+        IF (vi == 0) THEN
+          vi = vii
+        ELSE
+          vj = vii
+        END IF
+      END IF
     END DO
 
-    IF ((n1to2 .AND. .NOT. n2to1) .OR. (n2to1 .AND. .NOT. n1to2)) THEN
-      CALL crash('somethings really wrong with the triangle connectivity matrix!')
-    END IF
-    IF (.NOT. n1to2 .AND. .NOT. n2to1) THEN
-      ! The two triangles are no longer connected; remove them from the list and return.
-      Tri_flip( 1:mesh%nTri-1,:) = Tri_flip( 2:mesh%nTri,:)
-      nf = nf - 1
-      CALL finalise_routine( routine_name)
-      RETURN
+    ! Safety
+    IF (vi == 0 .OR. vj == 0) THEN
+      CALL crash('couldnt find two shared vertices!')
     END IF
 
-    ! == Check if a flip is necessary
-    ! If not, remove the pair from the flip list.
-    CALL need_flipping( mesh, t1, t2, FlipThem, vo1, vo2, v1, v2, t1nv1, t1nv2, t2nv1, t2nv2)
+    ! Find via,vib,vic,vid (see diagram)
 
-    IF (.NOT. FlipThem) THEN
-      ! The two triangles do not need to be flipped; remove them from the list and return.
-      Tri_flip( 1:mesh%nTri-1,:) = Tri_flip( 2:mesh%nTri,:)
-      nf = nf - 1
-      CALL finalise_routine( routine_name)
-      RETURN
+    via = 0
+    vib = 0
+    vic = 0
+    vid = 0
+
+    DO n1 = 1, 3
+
+      n2 = n1 + 1
+      IF (n2 == 4) n2 = 1
+      n3 = n2 + 1
+      IF (n3 == 4) n3 = 1
+
+      IF ((mesh%Tri( ti,n1) == vi .AND. mesh%Tri( ti,n2) == vj) .OR. &
+          (mesh%Tri( ti,n1) == vj .AND. mesh%Tri( ti,n2) == vi)) THEN
+        via = mesh%Tri( ti,n1)
+        vib = mesh%Tri( ti,n2)
+        vic = mesh%Tri( ti,n3)
+      END IF
+
+      IF ((mesh%Tri( tj,n1) == vi .AND. mesh%Tri( tj,n2) == vj) .OR. &
+          (mesh%Tri( tj,n1) == vj .AND. mesh%Tri( tj,n2) == vi)) THEN
+        vid = mesh%Tri( tj,n3)
+      END IF
+
+    END DO
+
+    ! Safety
+    IF (via == 0 .OR. vib == 0 .OR. vic == 0 .OR. vid == 0) THEN
+      CALL crash('couldnt figure out local geometry!')
     END IF
 
-    ! == Flip them
-
-    did_flip = .TRUE.
-
-    ! WRITE(0,'(A,I6,A,I6)') '     Flipping triangles ', t1, ' and ', t2
-
-    ! == Update the triangle matrix
-    mesh%Tri( t1,:) = [vo1, v1, vo2]
-    mesh%Tri( t2,:) = [vo2, v2, vo1]
-
-    ! Add the neighbouring triangles to the refinement stack
-    IF (PRESENT( refinement_map)) THEN
-      CALL remove_triangle_from_refinement_stack( refinement_map, refinement_stack, refinement_stackN, t1)
-      CALL remove_triangle_from_refinement_stack( refinement_map, refinement_stack, refinement_stackN, t2)
-
-      refinement_map( t1) = 1
-      refinement_stackN = refinement_stackN + 1
-      refinement_stack( refinement_stackN) = t1
-
-      refinement_map( t2) = 1
-      refinement_stackN = refinement_stackN + 1
-      refinement_stack( refinement_stackN) = t2
-    END IF ! IF (PRESENT( refinement_map)) THEN
-
-    ! == Update triangle-line overlap ranges
-    IF (PRESENT( Tri_li)) THEN
-      li_min = MIN( Tri_li( t1,1), Tri_li( t2,1))
-      li_max = MAX( Tri_li( t1,2), Tri_li( t2,2))
-      Tri_li( t1,:) = [li_min, li_max]
-      Tri_li( t2,:) = [li_min, li_max]
+    via_has_ti = .FALSE.
+    via_has_tj = .FALSE.
+    DO iti = 1, mesh%niTri( via)
+      IF     (mesh%iTri( via,iti) == ti) THEN
+        via_has_ti = .TRUE.
+      ELSEIF (mesh%iTri( via,iti) == tj) THEN
+        via_has_tj = .TRUE.
+      END IF
+    END DO
+    IF (.NOT. via_has_ti .OR. .NOT. via_has_tj) THEN
+      CALL crash('inconsistent mesh geometry!')
     END IF
 
-    ! == Update the triangle connectivity matrix
-    ! t1nv1
-    IF (t1nv1 > 0) THEN
+    vib_has_ti = .FALSE.
+    vib_has_tj = .FALSE.
+    DO iti = 1, mesh%niTri( vib)
+      IF     (mesh%iTri( vib,iti) == ti) THEN
+        vib_has_ti = .TRUE.
+      ELSEIF (mesh%iTri( vib,iti) == tj) THEN
+        vib_has_tj = .TRUE.
+      END IF
+    END DO
+    IF (.NOT. vib_has_ti .OR. .NOT. vib_has_tj) THEN
+      CALL crash('inconsistent mesh geometry!')
+    END IF
+
+    vic_has_ti = .FALSE.
+    vic_has_tj = .FALSE.
+    DO iti = 1, mesh%niTri( vic)
+      IF     (mesh%iTri( vic,iti) == ti) THEN
+        vic_has_ti = .TRUE.
+      ELSEIF (mesh%iTri( vic,iti) == tj) THEN
+        vic_has_tj = .TRUE.
+      END IF
+    END DO
+    IF (.NOT. vic_has_ti .OR. vic_has_tj) THEN
+      CALL crash('inconsistent mesh geometry!')
+    END IF
+
+    vid_has_ti = .FALSE.
+    vid_has_tj = .FALSE.
+    DO iti = 1, mesh%niTri( vid)
+      IF     (mesh%iTri( vid,iti) == ti) THEN
+        vid_has_ti = .TRUE.
+      ELSEIF (mesh%iTri( vid,iti) == tj) THEN
+        vid_has_tj = .TRUE.
+      END IF
+    END DO
+    IF (vid_has_ti .OR. .NOT. vid_has_tj) THEN
+      CALL crash('inconsistent mesh geometry!')
+    END IF
+
+    ! Find triangles tia,tib,tja,tjb (see diagram)
+
+    tia = 0
+    DO iti = 1, mesh%niTri( vic)
+      tii = mesh%iTri( vic,iti)
+      DO n1 = 1, 3
+        n2 = n1 + 1
+        IF (n2 == 4) n2 = 1
+        IF (mesh%Tri( tii,n1) == vic .AND. mesh%Tri( tii,n2) == vib) THEN
+          tia = tii
+          EXIT
+        END IF
+      END DO
+      IF (tia > 0) EXIT
+    END DO
+
+    tib = 0
+    DO iti = 1, mesh%niTri( via)
+      tii = mesh%iTri( via,iti)
+      DO n1 = 1, 3
+        n2 = n1 + 1
+        IF (n2 == 4) n2 = 1
+        IF (mesh%Tri( tii,n1) == via .AND. mesh%Tri( tii,n2) == vic) THEN
+          tib = tii
+          EXIT
+        END IF
+      END DO
+      IF (tib > 0) EXIT
+    END DO
+
+    tja = 0
+    DO iti = 1, mesh%niTri( vib)
+      tii = mesh%iTri( vib,iti)
+      DO n1 = 1, 3
+        n2 = n1 + 1
+        IF (n2 == 4) n2 = 1
+        IF (mesh%Tri( tii,n1) == vib .AND. mesh%Tri( tii,n2) == vid) THEN
+          tja = tii
+          EXIT
+        END IF
+      END DO
+      IF (tja > 0) EXIT
+    END DO
+
+    tjb = 0
+    DO iti = 1, mesh%niTri( vid)
+      tii = mesh%iTri( vid,iti)
+      DO n1 = 1, 3
+        n2 = n1 + 1
+        IF (n2 == 4) n2 = 1
+        IF (mesh%Tri( tii,n1) == vid .AND. mesh%Tri( tii,n2) == via) THEN
+          tjb = tii
+          EXIT
+        END IF
+      END DO
+      IF (tjb > 0) EXIT
+    END DO
+
+    ! == All safety checks passes; flip the triangle pair ti-tj
+    ! =========================================================
+
+!    ! DENK DROM
+!    CALL warning('flipping triangles [{int_01}-{int_02}}]', int_01 = ti, int_02 = tj)
+
+    ! == V, Tri
+
+    ! Let triangle t1 be spanned by [via, vid, vic]
+    t1 = ti
+    mesh%Tri( t1,:) = [via, vid, vic]
+
+    ! Let triangle t2 be spanned by [vib, vic, vid]
+    t2 = tj
+    mesh%Tri( t2,:) = [vib, vic, vid]
+
+    ! == nC, C
+
+    ! via: connection to vib is removed
+    DO ci = 1, mesh%nC( via)
+      IF (mesh%C( via,ci) == vib) THEN
+        mesh%C( via,:) = [mesh%C( via,1:ci-1), mesh%C( via,ci+1:mesh%nC_mem), 0]
+        mesh%nC( via) = mesh%nC( via) - 1
+        EXIT
+      END IF
+    END DO
+    ! vib: connection to via is removed
+    DO ci = 1, mesh%nC( vib)
+      IF (mesh%C( vib,ci) == via) THEN
+        mesh%C( vib,:) = [mesh%C( vib,1:ci-1), mesh%C( vib,ci+1:mesh%nC_mem), 0]
+        mesh%nC( vib) = mesh%nC( vib) - 1
+        EXIT
+      END IF
+    END DO
+    ! vic: a connection to vid is added between via and vib
+    mesh%nC( vic) = mesh%nC( vic) + 1
+    DO ci = 1, mesh%nC( vic)
+      IF (mesh%C( vic,ci) == via) THEN
+        mesh%C( vic,:) = [mesh%C( vic,1:ci), vid, mesh%C( vic,ci+1:mesh%nC_mem-1)]
+        EXIT
+      END IF
+    END DO
+    ! vid: a connection to vic is added between vib and via
+    mesh%nC( vid) = mesh%nC( vid) + 1
+    DO ci = 1, mesh%nC( vid)
+      IF (mesh%C( vid,ci) == vib) THEN
+        mesh%C( vid,:) = [mesh%C( vid,1:ci), vic, mesh%C( vid,ci+1:mesh%nC_mem-1)]
+        EXIT
+      END IF
+    END DO
+
+    ! == niTri, iTri
+
+    ! via: tj,ti are replaced by t1
+    DO iti = 1, mesh%niTri( via)
+      IF (mesh%iTri( via,iti) == tj) THEN
+        mesh%iTri( via,:) = [mesh%iTri( via,1:iti-1), t1, mesh%iTri( via,iti+2:mesh%nC_mem), 0]
+        mesh%niTri( via) = mesh%niTri( via) - 1
+        EXIT
+      END IF
+    END DO
+    ! vib: ti,tj are replaced by t2
+    DO iti = 1, mesh%niTri( vib)
+      IF (mesh%iTri( vib,iti) == ti) THEN
+        mesh%iTri( vib,:) = [mesh%iTri( vib,1:iti-1), t2, mesh%iTri( vib,iti+2:mesh%nC_mem), 0]
+        mesh%niTri( vib) = mesh%niTri( vib) - 1
+        EXIT
+      END IF
+    END DO
+    ! vic: ti is replaced by t1,t2
+    mesh%niTri( vic) = mesh%niTri( vic) + 1
+    DO iti = 1, mesh%niTri( vic)
+      IF (mesh%iTri( vic,iti) == ti) THEN
+        mesh%iTri( vic,:) = [mesh%iTri( vic,1:iti-1), t1, t2, mesh%iTri( vic,iti+1:mesh%nC_mem-1)]
+        EXIT
+      END IF
+    END DO
+    ! vid: tj is replaced by t2,t1
+    mesh%niTri( vid) = mesh%niTri( vid) + 1
+    DO iti = 1, mesh%niTri( vid)
+      IF (mesh%iTri( vid,iti) == tj) THEN
+        mesh%iTri( vid,:) = [mesh%iTri( vid,1:iti-1), t2, t1, mesh%iTri( vid,iti+1:mesh%nC_mem-1)]
+        EXIT
+      END IF
+    END DO
+
+    ! == edge_index
+
+    ! No changes.
+
+    ! == TriC
+
+    ! tia: ti is replaced by t2
+    IF (tia > 0) THEN
       DO n = 1, 3
-        IF (mesh%TriC( t1nv1,n) == t1) mesh%TriC( t1nv1,n) = t2
+        IF (mesh%TriC( tia,n) == ti) THEN
+          mesh%TriC( tia,n) = t2
+          EXIT
+        END IF
       END DO
     END IF
-    ! t1nv2: nothing changes
-    ! t2nv1: nothing changes
-    ! t2nv2
-    IF (t2nv2 > 0) THEN
+    ! tib: ti is replaced by t1
+    IF (tib > 0) THEN
       DO n = 1, 3
-        IF (mesh%TriC( t2nv2,n) == t2) mesh%TriC( t2nv2,n) = t1
+        IF (mesh%TriC( tib,n) == ti) THEN
+          mesh%TriC( tib,n) = t1
+          EXIT
+        END IF
       END DO
     END IF
-    ! The two new triangles
-    mesh%TriC( t1,:) = [t2nv2, t2, t1nv2]
-    mesh%TriC( t2,:) = [t1nv1, t1, t2nv1]
-
-    ! == Update inverse triangle lists
-    ! v1
-    DO n = 1, mesh%niTri( v1)
-      IF ( mesh%iTri( v1,n) == t2) THEN
-        mesh%iTri( v1,:) = [mesh%iTri( v1,1:n-1), mesh%iTri( v1,n+1:mesh%nC_mem), 0]
-        mesh%niTri( v1) = mesh%niTri( v1)-1
-        EXIT
-      END IF
-    END DO
-    ! v2
-    DO n = 1, mesh%niTri( v2)
-      IF ( mesh%iTri( v2,n) == t1) THEN
-        mesh%iTri( v2,:) = [mesh%iTri( v2,1:n-1), mesh%iTri( v2,n+1:mesh%nC_mem), 0]
-        mesh%niTri( v2) = mesh%niTri( v2)-1
-        EXIT
-      END IF
-    END DO
-    ! vo1
-    DO n = 1, mesh%niTri( vo1)
-      IF ( mesh%iTri( vo1,n) == t1) THEN
-        mesh%iTri( vo1,:) = [mesh%iTri( vo1,1:n), t2, mesh%iTri( vo1,n+1:mesh%nC_mem-1)]
-        mesh%niTri( vo1) = mesh%niTri( vo1) + 1
-        EXIT
-      END IF
-    END DO
-    ! vo2
-    DO n = 1, mesh%niTri( vo2)
-      IF ( mesh%iTri( vo2,n) == t2) THEN
-        mesh%iTri( vo2,:) = [mesh%iTri( vo2,1:n), t1, mesh%iTri( vo2,n+1:mesh%nC_mem-1)]
-        mesh%niTri( vo2) = mesh%niTri( vo2) + 1
-        EXIT
-      END IF
-    END DO
-
-    ! == Update vertex connectivity lists
-    ! v1
-    DO n = 1, mesh%nC( v1)
-      IF ( mesh%C( v1,n) == v2) THEN
-        mesh%C(  v1,:) = [mesh%C( v1,1:n-1), mesh%C( v1,n+1:mesh%nC_mem), 0]
-        mesh%nC( v1  ) = mesh%nC( v1) - 1
-        EXIT
-      END IF
-    END DO
-    ! v2
-    DO n = 1, mesh%nC( v2)
-      IF ( mesh%C( v2,n) == v1) THEN
-        mesh%C(  v2,:) = [mesh%C( v2,1:n-1), mesh%C( v2,n+1:mesh%nC_mem), 0]
-        mesh%nC( v2  ) = mesh%nC( v2) - 1
-        EXIT
-      END IF
-    END DO
-    ! vo1
-    DO n = 1, mesh%nC( vo1)
-      IF ( mesh%C( vo1,n) == v1) THEN
-        mesh%C(  vo1,:) = [mesh%C( vo1,1:n), vo2, mesh%C( vo1,n+1:mesh%nC_mem-1)]
-        mesh%nC( vo1  ) = mesh%nC( vo1) + 1
-        EXIT
-      END IF
-    END DO
-    ! vo2
-    DO n = 1, mesh%nC( vo2)
-      IF ( mesh%C( vo2,n) == v2) THEN
-        mesh%C(  vo2,:) = [mesh%C( vo2,1:n), vo1, mesh%C( vo2,n+1:mesh%nC_mem-1)]
-        mesh%nC( vo2  ) = mesh%nC( vo2) + 1
-        EXIT
-      END IF
-    END DO
-
-    ! == Update triangle circumcenters
-   CALL update_triangle_circumcenter( mesh, t1)
-   CALL update_triangle_circumcenter( mesh, t2)
-
-    ! == Remove current triangle pair from flip list, add 4 new ones
-    Tri_flip( 1:mesh%nTri-1,:) = Tri_flip( 2:mesh%nTri,:)
-    nf = nf-1
-
-    IF ( t1nv1 > 0) THEN
-      Tri_flip( 2:mesh%nTri,:) = Tri_flip( 1:mesh%nTri-1,:)
-      Tri_flip( 1,:) = [t1nv1, t2]
-      nf = nf + 1
+    ! tja: tj is replaced by t2
+    IF (tja > 0) THEN
+      DO n = 1, 3
+        IF (mesh%TriC( tja,n) == tj) THEN
+          mesh%TriC( tja,n) = t2
+          EXIT
+        END IF
+      END DO
     END IF
-    IF ( t1nv2 > 0) THEN
-      Tri_flip( 2:mesh%nTri,:) = Tri_flip( 1:mesh%nTri-1,:)
-      Tri_flip( 1,:) = [t1nv2, t1]
-      nf = nf + 1
+    ! tjb: tj is replaced by t1
+    IF (tjb > 0) THEN
+      DO n = 1, 3
+        IF (mesh%TriC( tjb,n) == tj) THEN
+          mesh%TriC( tjb,n) = t1
+          EXIT
+        END IF
+      END DO
     END IF
-    IF ( t2nv1 > 0) THEN
-      Tri_flip( 2:mesh%nTri,:) = Tri_flip( 1:mesh%nTri-1,:)
-      Tri_flip( 1,:) = [t2nv1, t2]
+    ! t1 is adjacent to [t2, tib, tjb]
+    mesh%TriC( t1,:) = [t2, tib, tjb]
+    ! t2 is adjacent to [t1, tja, tia]
+    mesh%TriC( t2,:) = [t1, tja, tia]
+
+    ! == Tricc
+
+    CALL update_triangle_circumcenter( mesh, t1)
+    CALL update_triangle_circumcenter( mesh, t2)
+
+    ! == Refinement data
+
+    ! Add the two new triangles to the refinement map and stack
+    CALL add_triangle_to_refinement_stack_first( mesh, t1)
+    CALL add_triangle_to_refinement_stack_first( mesh, t2)
+
+    ! Update triangle-line overlap ranges
+    li_min = MIN( mesh%Tri_li( ti,1), mesh%Tri_li( tj,1))
+    li_max = MAX( mesh%Tri_li( ti,2), mesh%Tri_li( tj,2))
+    mesh%Tri_li( t1,:) = [li_min, li_max]
+    mesh%Tri_li( t2,:) = [li_min, li_max]
+
+    ! Add the four new pairs to the flip list
+    IF (tia > 0) THEN
       nf = nf + 1
+      mesh%Tri_flip_list( nf,:) = [tia, t2]
     END IF
-    IF ( t2nv2 > 0) THEN
-      Tri_flip( 2:mesh%nTri,:) = Tri_flip( 1:mesh%nTri-1,:)
-      Tri_flip( 1,:) = [t2nv2, t1]
+    IF (tib > 0) THEN
       nf = nf + 1
+      mesh%Tri_flip_list( nf,:) = [tib, t1]
+    END IF
+    IF (tja > 0) THEN
+      nf = nf + 1
+      mesh%Tri_flip_list( nf,:) = [tja, t2]
+    END IF
+    IF (tjb > 0) THEN
+      nf = nf + 1
+      mesh%Tri_flip_list( nf,:) = [tjb, t1]
     END IF
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
-  END SUBROUTINE flip_triangle_pairs
+  END SUBROUTINE flip_triangle_pair
 
-  SUBROUTINE need_flipping( mesh, t1, t2, isso, vo1, vo2, v1, v2, t1nv1, t1nv2, t2nv1, t2nv2)
-    ! Check if triangle pair [t1,t2] meets the local Delaunay criterion. If not, they must be flipped.
+  FUNCTION are_Delaunay( mesh, ti, tj) RESULT( isso)
+    ! Check if triangle pair ti-tj meets the local Delaunay criterion
     !
-    ! Also return some general info about the local mesh geometry, which will come in handy later.
-    ! Shared vertices v1 and v2 (sorted clockwise in t1), non-shared
-    ! vertices vo1 and vo2, neigbours to t1 t1nv1 (across from v1) and
-    ! t1nv2 (across from v2) and neighbours to t2 t2nv1 and t2nv2 (idem)
+    ! The local geometry looks like this:
+    !
+    !       vic
+    !       / \
+    !      /   \
+    !     / ti  \
+    !    /       \
+    !  via ----- vib
+    !    \       /
+    !     \ tj  /
+    !      \   /
+    !       \ /
+    !       vid
 
     IMPLICIT NONE
 
     ! In/output variables:
-    TYPE(type_mesh),                     INTENT(IN)    :: mesh
-    INTEGER,                             INTENT(IN)    :: t1, t2
-    LOGICAL,                             INTENT(OUT)   :: isso
-    INTEGER,                             INTENT(OUT)   :: vo1, vo2, v1, v2, t1nv1, t1nv2, t2nv1, t2nv2
+    TYPE(type_mesh),            INTENT(INOUT)     :: mesh
+    INTEGER,                    INTENT(IN)        :: ti,tj
+    LOGICAL                                       :: isso
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'need_flipping'
-    REAL(dp), DIMENSION(2)                             :: p, q, r, s
-    INTEGER                                            :: n, n1, n2, nnext
-    LOGICAL                                            :: isint2, SwitchThem
+    LOGICAL                                       :: are_connected_ij, are_connected_ji
+    INTEGER                                       :: n, vi, vj, vii, n1, n2, n3, iti
+    LOGICAL                                       :: is_in_tj
+    INTEGER                                       :: via, vib, vic, vid
+    LOGICAL                                       :: via_has_ti, via_has_tj
+    LOGICAL                                       :: vib_has_ti, vib_has_tj
+    LOGICAL                                       :: vic_has_ti, vic_has_tj
+    LOGICAL                                       :: vid_has_ti, vid_has_tj
+    REAL(dp), DIMENSION(2)                        :: va, vb, vc, vd, cci, ccj
+    REAL(dp)                                      :: ccri, ccrj
 
-    ! Add routine to path
-    CALL init_routine( routine_name)
-
-    v1  = 0
-    v2  = 0
-    vo1 = 0
-    DO n1 = 1, 3
-      isint2 = .FALSE.
-      DO n2 = 1, 3
-        IF (mesh%Tri( t1,n1) == mesh%Tri( t2,n2)) THEN
-          isint2 = .TRUE.
-          IF (v1 == 0) THEN
-            v1 = mesh%Tri( t1,n1)
-          ELSE
-            v2 = mesh%Tri( t1,n1)
-          END IF
-        END IF
-      END DO ! DO n2 = 1, 3
-      IF (.NOT. isint2) vo1 = mesh%Tri( t1,n1)
-    END DO ! DO n1 = 1, 3
-    DO n = 1, 3
-      IF (mesh%Tri( t2,n) /= v1 .AND. mesh%Tri( t2,n) /= v2) vo2 = mesh%Tri( t2,n)
-    END DO ! DO n = 1, 3
-
-    ! Order v1 and v2 anticlockwise in triangle t1
-    SwitchThem = .FALSE.
-    DO n = 1, 3
-      nnext = n + 1
-      IF (nnext == 4) nnext = 1
-      IF (mesh%Tri( t1,n) == v1) THEN
-        IF (mesh%Tri( t1,nnext) /= v2) SwitchThem = .TRUE.
-      END IF
-    END DO ! DO n = 1, 3
-    IF (SwitchThem) THEN
-      v1 = v1 + v2
-      v2 = v1 - v2
-      v1 = v1 - v2
+    ! Safety
+    IF (ti == 0 .OR. tj == 0) THEN
+      CALL crash('Found ti=0 in mesh%Tri_flip_list!')
     END IF
 
-    ! == Find neighbour triangles
+    ! Check if these two triangles are connected
+    are_connected_ij = .FALSE.
+    are_connected_ji = .FALSE.
     DO n = 1, 3
-      IF (mesh%Tri( t1,n) == v1) t1nv1 = mesh%TriC( t1,n)
-      IF (mesh%Tri( t1,n) == v2) t1nv2 = mesh%TriC( t1,n)
-      IF (mesh%Tri( t2,n) == v1) t2nv1 = mesh%TriC( t2,n)
-      IF (mesh%Tri( t2,n) == v2) t2nv2 = mesh%TriC( t2,n)
+      IF (mesh%TriC( ti,n) == tj) are_connected_ij = .TRUE.
+      IF (mesh%TriC( tj,n) == ti) are_connected_ji = .TRUE.
+    END DO
+    IF (.NOT. are_connected_ij .AND. .NOT. are_connected_ij) THEN
+      ! These two triangles are not connected
+      CALL crash('{int_01} and {int_02} are not connected!', int_01 = ti, int_02 = tj)
+    ELSEIF (are_connected_ij .AND. .NOT. are_connected_ji .OR. .NOT. are_connected_ij .AND. are_connected_ji) THEN
+      ! One of them lists the other as a neighbour, but not vice versa
+      CALL crash('inconsistency in TriC!')
+    END IF
+
+    ! Find the two vertices vi and vj that are shared by ti and tj
+
+    vi = 0
+    vj = 0
+
+    DO n = 1, 3
+      vii = mesh%Tri( ti,n)
+      is_in_tj = .FALSE.
+      DO n2 = 1, 3
+        IF (mesh%Tri( tj,n2) == vii) THEN
+          is_in_tj = .TRUE.
+          EXIT
+        END IF
+      END DO
+      IF (is_in_tj) THEN
+        IF (vi == 0) THEN
+          vi = vii
+        ELSE
+          vj = vii
+        END IF
+      END IF
     END DO
 
-    ! == Determine if triangle pair t1,t2 requires flipping
-    isso = .FALSE.
-!    IF (norm2(mesh%V(vo2,:) - mesh%Tricc(t1,:)) < norm2(mesh%V(mesh%Tri(t1,1),:) - mesh%Tricc(t1,:)) - mesh%tol_dist .OR. &
-!        norm2(mesh%V(vo1,:) - mesh%Tricc(t2,:)) < norm2(mesh%V(mesh%Tri(t2,1),:) - mesh%Tricc(t2,:)) - mesh%tol_dist) THEN
-    IF ( NORM2( mesh%V( vo2,:) - mesh%Tricc( t1,:)) < NORM2( mesh%V( mesh%Tri( t1,1),:) - mesh%Tricc( t1,:)) .OR. &
-        NORM2( mesh%V( vo1,:) - mesh%Tricc( t2,:)) < NORM2( mesh%V( mesh%Tri( t2,1),:) - mesh%Tricc( t2,:))) THEN
-      isso = .TRUE.
+    ! Safety
+    IF (vi == 0 .OR. vj == 0) THEN
+      CALL crash('couldnt find two shared vertices!')
     END IF
 
-    ! If the outer angle at v1 or v2 is concave, don't flip.
-    ! Check this by checking if v1 lies inside the triangle
-    ! [vo2,vo2,v2], or the other way round.
-    p = mesh%V( vo1,:)
-    q = mesh%V( vo2,:)
-    r = mesh%V( v1,:)
-    s = mesh%V( v2,:)
-    IF  (is_in_triangle( p, q, s, r) .OR. &
-         is_in_triangle( p, q, r, s)) THEN
+    ! Find via,vib,vic,vid (see diagram)
+
+    via = 0
+    vib = 0
+    vic = 0
+    vid = 0
+
+    DO n1 = 1, 3
+
+      n2 = n1 + 1
+      IF (n2 == 4) n2 = 1
+      n3 = n2 + 1
+      IF (n3 == 4) n3 = 1
+
+      IF ((mesh%Tri( ti,n1) == vi .AND. mesh%Tri( ti,n2) == vj) .OR. &
+          (mesh%Tri( ti,n1) == vj .AND. mesh%Tri( ti,n2) == vi)) THEN
+        via = mesh%Tri( ti,n1)
+        vib = mesh%Tri( ti,n2)
+        vic = mesh%Tri( ti,n3)
+      END IF
+
+      IF ((mesh%Tri( tj,n1) == vi .AND. mesh%Tri( tj,n2) == vj) .OR. &
+          (mesh%Tri( tj,n1) == vj .AND. mesh%Tri( tj,n2) == vi)) THEN
+        vid = mesh%Tri( tj,n3)
+      END IF
+
+    END DO
+
+    ! Safety
+    IF (via == 0 .OR. vib == 0 .OR. vic == 0 .OR. vid == 0) THEN
+      CALL crash('Couldnt figure out local geometry!')
+    END IF
+
+    via_has_ti = .FALSE.
+    via_has_tj = .FALSE.
+    DO iti = 1, mesh%niTri( via)
+      IF     (mesh%iTri( via,iti) == ti) THEN
+        via_has_ti = .TRUE.
+      ELSEIF (mesh%iTri( via,iti) == tj) THEN
+        via_has_tj = .TRUE.
+      END IF
+    END DO
+    IF (.NOT. via_has_ti .OR. .NOT. via_has_tj) THEN
+      CALL crash('inconsistent mesh geometry!')
+    END IF
+
+    vib_has_ti = .FALSE.
+    vib_has_tj = .FALSE.
+    DO iti = 1, mesh%niTri( vib)
+      IF     (mesh%iTri( vib,iti) == ti) THEN
+        vib_has_ti = .TRUE.
+      ELSEIF (mesh%iTri( vib,iti) == tj) THEN
+        vib_has_tj = .TRUE.
+      END IF
+    END DO
+    IF (.NOT. vib_has_ti .OR. .NOT. vib_has_tj) THEN
+      CALL crash('inconsistent mesh geometry!')
+    END IF
+
+    vic_has_ti = .FALSE.
+    vic_has_tj = .FALSE.
+    DO iti = 1, mesh%niTri( vic)
+      IF     (mesh%iTri( vic,iti) == ti) THEN
+        vic_has_ti = .TRUE.
+      ELSEIF (mesh%iTri( vic,iti) == tj) THEN
+        vic_has_tj = .TRUE.
+      END IF
+    END DO
+    IF (.NOT. vic_has_ti .OR. vic_has_tj) THEN
+      CALL crash('inconsistent mesh geometry!')
+    END IF
+
+    vid_has_ti = .FALSE.
+    vid_has_tj = .FALSE.
+    DO iti = 1, mesh%niTri( vid)
+      IF     (mesh%iTri( vid,iti) == ti) THEN
+        vid_has_ti = .TRUE.
+      ELSEIF (mesh%iTri( vid,iti) == tj) THEN
+        vid_has_tj = .TRUE.
+      END IF
+    END DO
+    IF (vid_has_ti .OR. .NOT. vid_has_tj) THEN
+      CALL crash('inconsistent mesh geometry!')
+    END IF
+
+    ! Check if ti-tj meets the Delaunay criterion
+
+    va = mesh%V( via,:)
+    vb = mesh%V( vib,:)
+    vc = mesh%V( vic,:)
+    vd = mesh%V( vid,:)
+
+    cci = mesh%Tricc( ti,:)
+    ccj = mesh%Tricc( tj,:)
+
+    ccri = NORM2( va - cci)
+    ccrj = NORM2( va - ccj)
+
+    isso = .TRUE.
+
+    IF     (NORM2( vd - cci) < ccri) THEN
+      ! vid lies inside the circumcircle of ti
+      isso = .FALSE.
+    ELSEIF (NORM2( vc - ccj) < ccrj) THEN
+      ! vic lies inside the circumcircle of tj
       isso = .FALSE.
     END IF
 
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    ! If the outer angle at via or vib is concave, don't flip.
+    ! Check this by checking if via lies inside the triangle
+    ! [vib,vic,vid], or the other way round.
 
-  END SUBROUTINE need_flipping
+    IF  (is_in_triangle( vb, vc, vd, va) .OR. &
+         is_in_triangle( va, vd, vc, vb)) THEN
+      isso = .TRUE.
+    END IF
 
-  SUBROUTINE remove_triangle_from_refinement_stack( refinement_map, refinement_stack, refinement_stackN, ti)
-    ! Remove triangle ti from the refinement map and stack
-    ! (So that triangles in the stack can be sort-of sorted from big to small)
-
-    IMPLICIT NONE
-
-    ! In/output variables:
-    INTEGER,  DIMENSION(:),              INTENT(INOUT) :: refinement_map
-    INTEGER,  DIMENSION(:),              INTENT(INOUT) :: refinement_stack
-    INTEGER,                             INTENT(INOUT) :: refinement_stackN
-    INTEGER,                             INTENT(IN)    :: ti
-
-    ! Local variables:
-    INTEGER                                            :: i
-    LOGICAL                                            :: foundit
-
-    ! Map
-!    IF (refinement_map( ti) == 0) CALL crash('triangle ti was not marked for refinement on the map!')
-    refinement_map( ti) = 0
-
-    ! Stack
-    foundit = .FALSE.
-    DO i = 1, refinement_stackN
-      IF (refinement_stack( i) == ti) THEN
-        foundit = .TRUE.
-        refinement_stack( i:refinement_stackN-1) = refinement_stack( i+1:refinement_stackN)
-        refinement_stack(   refinement_stackN  ) = 0
-        refinement_stackN = refinement_stackN - 1
-        EXIT
-      END IF
-    END DO
-!    IF (.NOT. foundit) CALL crash('triangle ti could not be found in the refinement stack!')
-
-  END SUBROUTINE remove_triangle_from_refinement_stack
+  END FUNCTION are_Delaunay
 
 END MODULE mesh_Delaunay

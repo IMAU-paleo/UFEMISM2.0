@@ -10,6 +10,7 @@ MODULE math_utilities
   USE mpi_basic                                              , ONLY: par, cerr, ierr, MPI_status, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, init_routine, finalise_routine
   USE parameters
+  USE reallocate_mod                                         , ONLY: reallocate
 
   IMPLICIT NONE
 
@@ -878,19 +879,8 @@ CONTAINS
     REAL(dp)                                                           :: detA
     REAL(dp), DIMENSION(2,2    )                                       :: Ainv
 
-    ! Calculate the determinant of A
-    detA = A( 1,1) * A( 2,2) - A( 1,2) * A( 2,1)
-
-    ! Safety
-    IF (ABS( detA) < TINY( detA)) THEN
-      error stop 'matrix is singular to working precision!'
-    END IF
-
     ! Calculate the inverse of A
-    Ainv( 1,1) =  A( 2,2) / detA
-    Ainv( 1,2) = -A( 1,2) / detA
-    Ainv( 2,1) = -A( 2,1) / detA
-    Ainv( 2,2) =  A( 1,1) / detA
+    Ainv = calc_matrix_inverse_2_by_2( A)
 
     ! Calculate x
     x( 1) = Ainv( 1,1) * b( 1) + Ainv( 1,2) * b( 2)
@@ -1213,18 +1203,6 @@ CONTAINS
     END IF
 
   END FUNCTION is_in_triangle
-
-  PURE FUNCTION encroaches_upon( pa, pb, pc) RESULT( isso)
-    ! TRUE if c encroaches upon the line [ab]
-
-    IMPLICIT NONE
-
-    REAL(dp), DIMENSION(2),     INTENT(IN)        :: pa, pb, pc
-    LOGICAL                                       :: isso
-
-    isso = (NORM2( pc - (pa + pb) / 2._dp) < NORM2( pa - pb) / 2._dp)
-
-  END FUNCTION encroaches_upon
 
   PURE FUNCTION longest_triangle_leg( p, q, r) RESULT( d)
     ! Find the longest leg of the triangle [p,q,r]
@@ -1711,6 +1689,224 @@ CONTAINS
     is_valid_line = .FALSE.
 
   END SUBROUTINE crop_line_to_domain
+
+  PURE FUNCTION encroaches_upon( pa, pb, pc) RESULT( isso)
+    ! Check if c encroaches upon segment ab
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    REAL(dp), DIMENSION(2), INTENT(IN)            :: pa, pb, pc
+    LOGICAL                                       :: isso
+
+    isso = (NORM2( pc - (pa + pb) / 2._dp) < NORM2( pa - pb) / 2._dp)
+
+  END FUNCTION encroaches_upon
+
+! == Calculate contour lines for mesh generation from gridded/meshed data
+
+  SUBROUTINE calc_grid_contour_as_line( x, y, d, f, line)
+    ! Calculate a contour line at level f for data d on a square grid%
+    ! Generate the contour line in UFEMISM line format (i.e. unordered
+    ! individual line segments).
+
+    IMPLICIT NONE
+
+    ! In/output variables
+    REAL(dp), DIMENSION(:    ),              INTENT(IN)    :: x, y
+    REAL(dp), DIMENSION(:,:  ),              INTENT(IN)    :: d
+    REAL(dp),                                INTENT(IN)    :: f
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE, INTENT(OUT)   :: line
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'mesh_add_smileyface'
+    REAL(dp), PARAMETER                                    :: tol = 1E-5_dp
+    INTEGER                                                :: nx, ny
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                :: d_scaled
+    REAL(dp)                                               :: d_scaled_min, d_scaled_max
+    INTEGER                                                :: i,j
+    INTEGER                                                :: n_max, n
+    REAL(dp)                                               :: d_sw, d_nw, d_se, d_ne
+    REAL(dp)                                               :: xw, xe, xs, xn, yw, ye, ys, yn
+    LOGICAL                                                :: do_cross_w, do_cross_e, do_cross_s, do_cross_n
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    nx = SIZE( x,1)
+    ny = SIZE( y,1)
+
+    ! Safety
+    IF (SIZE( d,1) /= nx .OR. SIZE( d,2) /= ny) CALL crash('d is not nx-by-ny!')
+
+    ! Trivial case: if all values of d are greater or smaller than f,
+    ! the contour line is empty
+    IF (MINVAL( d) >= f .OR. MAXVAL( d) <= f) THEN
+      ALLOCATE( line( 0,0))
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
+
+    ! Scale d so that it runs from -1 to 1, with 0 representing f
+    d_scaled = d - f
+    d_scaled_min = MINVAL( d_scaled)
+    d_scaled_max = MAXVAL( d_scaled)
+    DO i = 1, nx
+      DO j = 1, ny
+        IF (d_scaled( i,j) > 0._dp) THEN
+          d_scaled( i,j) = d_scaled( i,j) /           d_scaled_max
+        ELSE
+          d_scaled( i,j) = d_scaled( i,j) / (-1._dp * d_scaled_min)
+        END IF
+      END DO
+    END DO
+
+    n_max = 1000
+    ALLOCATE( line( n_max, 4))
+
+    n = 0
+    DO i = 1, nx-1
+      DO j = 1, ny-1
+
+        ! Extend allocated memory IF needed
+        IF (n > n_max - 10) THEN
+          n_max = n + 1000
+          CALL reallocate( line, n_max, 4)
+        END IF
+
+        ! The four corners of the b-grid cell
+        d_sw = d_scaled( i  ,j  )
+        d_nw = d_scaled( i  ,j+1)
+        d_se = d_scaled( i+1,j  )
+        d_ne = d_scaled( i+1,j+1)
+
+        xw = x( i  )
+        xe = x( i+1)
+        ys = y( j  )
+        yn = y( j+1)
+
+        ! If all four corners are above/below the level, no line here
+        IF ((d_sw >= 0._dp .AND. d_nw >= 0._dp .AND. d_se >= 0._dp .AND. d_ne >= 0._dp) .OR. &
+            (d_sw <= 0._dp .AND. d_nw <= 0._dp .AND. d_se <= 0._dp .AND. d_ne <= 0._dp)) THEN
+          CYCLE
+        END IF
+
+        ! Add tolerances to keep line lengths finite
+        IF (d_sw >= 0._dp) THEN
+          d_sw = MAX( d_sw, tol)
+        ELSE
+          d_sw = MIN( d_sw, tol)
+        END IF
+        IF (d_nw >= 0._dp) THEN
+          d_nw = MAX( d_nw, tol)
+        ELSE
+          d_nw = MIN( d_nw, tol)
+        END IF
+        IF (d_se >= 0._dp) THEN
+          d_se = MAX( d_se, tol)
+        ELSE
+          d_se = MIN( d_se, tol)
+        END IF
+        IF (d_ne >= 0._dp) THEN
+          d_ne = MAX( d_ne, tol)
+        ELSE
+          d_ne = MIN( d_ne, tol)
+        END IF
+
+        ! Find boundary crossings
+
+        do_cross_w = .FALSE.
+        do_cross_e = .FALSE.
+        do_cross_s = .FALSE.
+        do_cross_n = .FALSE.
+
+        IF (d_sw * d_nw < 0._dp) THEN
+          ! The contour crosses the western boundary of this b-grid cell
+          do_cross_w = .TRUE.
+          yw = linint_points( ys, yn, d_sw, d_nw, 0._dp)
+        END IF
+
+        IF (d_se * d_ne < 0._dp) THEN
+          ! The contour crosses the eastern boundary of this b-grid cell
+          do_cross_e = .TRUE.
+          ye = linint_points( ys, yn, d_se, d_ne, 0._dp)
+        END IF
+
+        IF (d_nw * d_ne < 0._dp) THEN
+          ! The contour crosses the northern boundary of this b-grid cell
+          do_cross_n = .TRUE.
+          xn = linint_points( xw, xe, d_nw, d_ne, 0._dp)
+        END IF
+
+        IF (d_sw * d_se < 0._dp) THEN
+          ! The contour crosses the southern boundary of this b-grid cell
+          do_cross_s = .TRUE.
+          xs = linint_points( xw, xe, d_sw, d_se, 0._dp)
+        END IF
+
+        ! Add line segments
+        n = n + 1
+        IF     (do_cross_w) THEN
+          IF     (do_cross_e) THEN
+            ! From west to east
+            line( n,:) = [xw,yw,xe,ye]
+          ELSEIF (do_cross_s) THEN
+            ! From west to south
+            line( n,:) = [xw,yw,xs,ys]
+          ELSEIF (do_cross_n) THEN
+            ! From west to north
+            line( n,:) = [xw,yw,xn,yn]
+          ELSE
+            CALL crash('found only a crossing at the western boundary!')
+          END IF
+        ELSEIF (do_cross_e) THEN
+          IF     (do_cross_s) THEN
+            ! From east to south
+            line( n,:) = [xe,ye,xs,ys]
+          ELSEIF (do_cross_n) THEN
+            ! From east to north
+            line( n,:) = [xe,ye,xn,yn]
+          ELSE
+            CALL crash('found only a crossing at the eastern boundary!')
+          END IF
+        ELSEIF (do_cross_s) THEN
+          IF     (do_cross_n) THEN
+            ! From south to north
+            line( n,:) = [xs,ys,xn,yn]
+          ELSE
+            CALL crash('found only a crossing at the southern boundary!')
+          END IF
+        ELSEIF (do_cross_n) THEN
+            CALL crash('found only a crossing at the northern boundary!')
+        ELSE
+          CALL crash('whaa!')
+        END IF
+
+      END DO
+    END DO
+
+    ! Crop memory
+    CALL reallocate( line, n, 4)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE calc_grid_contour_as_line
+
+  PURE FUNCTION linint_points( x1, x2, f1, f2, f0) RESULT( x0)
+    ! Given a function f( x) and points x1, x2 such that f( x1) = f1, f( x2) = f2,
+    ! interpolate f linearly to find the point x0 such that f( x0) = f0
+
+    IMPLICIT NONE
+
+    REAL(dp),               INTENT(IN)  :: x1, x2, f1, f2, f0
+    REAL(dp)                            :: x0
+    REAL(dp)                            :: lambda
+
+    lambda = (f2 - f1) / (x2 - x1);
+    x0 = x1 + (f0 - f1) / lambda;
+
+  END FUNCTION linint_points
 
 ! == Debugging
 

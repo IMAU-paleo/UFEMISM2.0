@@ -8,13 +8,16 @@ MODULE mesh_creation
   USE precisions                                             , ONLY: dp
   USE mpi_basic                                              , ONLY: par, cerr, ierr, MPI_status, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, init_routine, finalise_routine
+  USE parameters
   USE reallocate_mod                                         , ONLY: reallocate
   USE math_utilities                                         , ONLY: segment_intersection, is_in_triangle, longest_triangle_leg, smallest_triangle_angle, &
-                                                                     circumcenter, lies_on_line_segment, crop_line_to_domain, geometric_center, is_in_polygon
+                                                                     circumcenter, lies_on_line_segment, crop_line_to_domain, geometric_center, is_in_polygon, &
+                                                                     cross2
   USE mesh_types                                             , ONLY: type_mesh
   USE mesh_memory                                            , ONLY: extend_mesh_primary, crop_mesh_primary
-  USE mesh_utilities                                         , ONLY: update_triangle_circumcenter, find_containing_triangle
-  USE mesh_Delaunay                                          , ONLY: split_triangle, remove_triangle_from_refinement_stack
+  USE mesh_utilities                                         , ONLY: update_triangle_circumcenter, find_containing_triangle, add_triangle_to_refinement_stack_last, &
+                                                                     remove_triangle_from_refinement_stack
+  USE mesh_Delaunay                                          , ONLY: split_triangle, move_vertex
 
   IMPLICIT NONE
 
@@ -23,7 +26,212 @@ CONTAINS
 ! ===== Subroutines =====
 ! =======================
 
+! == Some fun and useful tools
+
+  SUBROUTINE mesh_add_smileyface( mesh, res)
+    ! Add a smileyface to a mesh. Because we can.
+
+    IMPLICIT NONE
+
+    TYPE(type_mesh),            INTENT(INOUT)     :: mesh
+    REAL(dp),                   INTENT(IN)        :: res
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'mesh_add_smileyface'
+    INTEGER                                       :: i,n
+    REAL(dp)                                      :: alpha_min, r, theta, x0, xw, y0, yw, x, y
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE       :: line
+    REAL(dp), DIMENSION(2)                        :: p
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    alpha_min = 25._dp * pi / 180._dp
+
+    x0 = (mesh%xmax + mesh%xmin) / 2._dp
+    xw = (mesh%xmax - mesh%xmin) / 2._dp
+    y0 = (mesh%ymax + mesh%ymin) / 2._dp
+    yw = (mesh%ymax - mesh%ymin) / 2._dp
+
+    ! Smileyface - circle
+    n = 50
+    r = 0.75_dp
+    ALLOCATE( line( n,4))
+    DO i = 1, n
+      theta = 2._dp * pi * REAL( i-1,dp) / REAL( n-1,dp)
+      line( i,1:2) = [x0 + r * xw * COS( theta), y0 + yw * r * SIN( theta)]
+      theta = 2._dp * pi * REAL( i  ,dp) / REAL( n-1,dp)
+      line( i,3:4) = [x0 + r * xw * COS( theta), y0 + yw * r * SIN( theta)]
+    END DO
+    CALL refine_mesh_line( mesh, line, res, alpha_min)
+    DEALLOCATE( line)
+
+    ! Smileyface - smile
+    n = 30
+    r = 0.4_dp
+    ALLOCATE( line( n,4))
+    DO i = 1, n
+      theta = -2._dp * pi * REAL( i-1,dp) / REAL( 2*n-1,dp)
+      line( i,1:2) = [x0 + r * xw * COS( theta), y0 + yw * r * SIN( theta)]
+      theta = -2._dp * pi * REAL( i  ,dp) / REAL( 2*n-1,dp)
+      line( i,3:4) = [x0 + r * xw * COS( theta), y0 + yw * r * SIN( theta)]
+    END DO
+    CALL refine_mesh_line( mesh, line, res, alpha_min)
+    DEALLOCATE( line)
+
+    ! Smileyface - eyes
+    p = [x0 - 0.3_dp * xw, y0 + 0.4_dp * yw]
+    CALL refine_mesh_point( mesh, p, res, alpha_min)
+    p = [x0 + 0.3_dp * xw, y0 + 0.4_dp * yw]
+    CALL refine_mesh_point( mesh, p, res, alpha_min)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE mesh_add_smileyface
+
+  SUBROUTINE mesh_add_UFEMISM_letters( mesh, res)
+    ! Add the UFEMISM letters to a mesh. Because we can.
+
+    IMPLICIT NONE
+
+    TYPE(type_mesh),            INTENT(INOUT)     :: mesh
+    REAL(dp),                   INTENT(IN)        :: res
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'mesh_add_UFEMISM_letters'
+    REAL(dp)                                      :: alpha_min
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE       :: line
+    INTEGER                                       :: i,n
+    REAL(dp)                                      :: x0, xw, y0, yw
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    alpha_min = 25._dp * pi / 180._dp
+
+    x0 = (mesh%xmax + mesh%xmin) / 2._dp
+    xw = (mesh%xmax - mesh%xmin) / 2._dp
+    y0 = (mesh%ymax + mesh%ymin) / 2._dp
+    yw = (mesh%ymax - mesh%ymin) / 2._dp
+
+    ! UFEMISM letters - normalised coordinates (mesh domain [-1,1,-1,1])
+    n = 24
+    ALLOCATE( line( n,4), source = 0._dp)
+
+    line(  1,:) = [-0.80_dp,  0.20_dp, -0.80_dp, -0.20_dp]
+    line(  2,:) = [-0.80_dp, -0.20_dp, -0.65_dp, -0.20_dp]
+    line(  3,:) = [-0.65_dp, -0.20_dp, -0.65_dp,  0.20_dp]
+    line(  4,:) = [-0.55_dp,  0.20_dp, -0.55_dp, -0.20_dp]
+    line(  5,:) = [-0.55_dp,  0.20_dp, -0.40_dp,  0.20_dp]
+    line(  6,:) = [-0.55_dp,  0.00_dp, -0.40_dp,  0.00_dp]
+    line(  7,:) = [-0.30_dp,  0.20_dp, -0.30_dp, -0.20_dp]
+    line(  8,:) = [-0.30_dp,  0.20_dp, -0.15_dp,  0.20_dp]
+    line(  9,:) = [-0.30_dp,  0.00_dp, -0.15_dp,  0.00_dp]
+    line( 10,:) = [-0.30_dp, -0.20_dp, -0.15_dp, -0.20_dp]
+    line( 11,:) = [-0.05_dp,  0.20_dp, -0.05_dp, -0.20_dp]
+    line( 12,:) = [-0.05_dp,  0.20_dp,  0.05_dp,  0.00_dp]
+    line( 13,:) = [ 0.05_dp,  0.00_dp,  0.15_dp,  0.20_dp]
+    line( 14,:) = [ 0.15_dp,  0.20_dp,  0.15_dp, -0.20_dp]
+    line( 15,:) = [ 0.25_dp,  0.20_dp,  0.25_dp, -0.20_dp]
+    line( 16,:) = [ 0.35_dp,  0.20_dp,  0.50_dp,  0.20_dp]
+    line( 17,:) = [ 0.35_dp,  0.20_dp,  0.35_dp,  0.00_dp]
+    line( 18,:) = [ 0.35_dp,  0.00_dp,  0.50_dp,  0.00_dp]
+    line( 19,:) = [ 0.50_dp,  0.00_dp,  0.50_dp, -0.20_dp]
+    line( 20,:) = [ 0.35_dp, -0.20_dp,  0.50_dp, -0.20_dp]
+    line( 21,:) = [ 0.60_dp,  0.20_dp,  0.60_dp, -0.20_dp]
+    line( 22,:) = [ 0.60_dp,  0.20_dp,  0.70_dp,  0.00_dp]
+    line( 23,:) = [ 0.70_dp,  0.00_dp,  0.80_dp,  0.20_dp]
+    line( 24,:) = [ 0.80_dp,  0.20_dp,  0.80_dp, -0.20_dp]
+
+    ! Scale to actual mesh domain
+    DO i = 1, n
+      line( n,1) = x0 + xw * line( n,1)
+      line( n,2) = y0 + yw * line( n,2)
+      line( n,3) = x0 + xw * line( n,3)
+      line( n,4) = y0 + yw * line( n,4)
+    END DO
+
+    CALL refine_mesh_line( mesh, line, 0.005_dp, alpha_min)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE mesh_add_UFEMISM_letters
+
 ! == Mesh refinement based on different criteria
+
+  SUBROUTINE refine_mesh_uniform( mesh, res_max, alpha_min)
+    ! Refine a mesh to a uniform maximum resolution
+
+    IMPLICIT NONE
+
+    TYPE(type_mesh),            INTENT(INOUT)     :: mesh          ! The mesh that should be refined
+    REAL(dp),                   INTENT(IN)        :: res_max       ! Maximum allowed resolution for triangles crossed by any of these line segments
+    REAL(dp),                   INTENT(IN)        :: alpha_min     ! Minimum allowed internal triangle angle
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'refine_mesh_uniform'
+    INTEGER                                       :: ti, via, vib, vic
+    REAL(dp), DIMENSION(2)                        :: va, vb, vc
+    REAL(dp)                                      :: longest_leg, smallest_angle
+    LOGICAL                                       :: meets_resolution_criterion
+    LOGICAL                                       :: meets_geometry_criterion
+    REAL(dp), DIMENSION(2)                        :: p_new
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Initialise the refinement stack with all triangles
+    mesh%refinement_stackN = 0
+    DO ti = 1, mesh%nTri
+      CALL add_triangle_to_refinement_stack_last( mesh, ti)
+    END DO
+
+    ! Keep refining until all triangles match the criterion
+    DO WHILE (mesh%refinement_stackN > 0)
+
+      ! If needed, allocate more memory for the mesh
+      IF (mesh%nV > mesh%nV_mem - 10 .OR. mesh%nTri > mesh%nTri_mem - 10) THEN
+        CALL extend_mesh_primary( mesh, mesh%nV + 1000, mesh%nTri + 2000)
+      END IF
+
+      ! Take the first triangle in the stack
+      ti = mesh%refinement_stack( 1)
+      CALL remove_triangle_from_refinement_stack( mesh, ti)
+
+      ! The three vertices spanning this triangle
+      via = mesh%Tri( ti,1)
+      vib = mesh%Tri( ti,2)
+      vic = mesh%Tri( ti,3)
+      va  = mesh%V( via,:)
+      vb  = mesh%V( vib,:)
+      vc  = mesh%V( vic,:)
+
+      ! Check if it meets the geometry criterion
+      smallest_angle = smallest_triangle_angle( va, vb, vc)
+      meets_geometry_criterion = smallest_angle >= alpha_min
+
+      ! Check if it meets the resolution criterion
+      longest_leg = longest_triangle_leg( va, vb, vc)
+      meets_resolution_criterion = longest_leg <= res_max
+
+      ! If either of the two criteria is not met, split the triangle
+      IF (.NOT. meets_geometry_criterion .OR. .NOT. meets_resolution_criterion) THEN
+        ! Split triangle ti at its circumcenter
+        p_new = circumcenter( va, vb, vc)
+        CALL split_triangle( mesh, ti, p_new)
+      END IF
+
+    END DO ! DO WHILE (refinement_stackN > 0)
+
+    ! Crop surplus mesh memory
+    CALL crop_mesh_primary( mesh)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE refine_mesh_uniform
 
   SUBROUTINE refine_mesh_point( mesh, POI, res_max, alpha_min)
     ! Refine a mesh based on a 0-D point criterion
@@ -36,10 +244,7 @@ CONTAINS
     REAL(dp),                   INTENT(IN)        :: alpha_min     ! Minimum allowed internal triangle angle
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'refine_mesh_line'
-    INTEGER,  DIMENSION(:    ), ALLOCATABLE       :: refinement_map
-    INTEGER,  DIMENSION(:    ), ALLOCATABLE       :: refinement_stack
-    INTEGER                                       :: refinement_stackN
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'refine_mesh_point'
     INTEGER                                       :: ti_in
     INTEGER                                       :: ti, via, vib, vic
     REAL(dp), DIMENSION(2)                        :: va, vb, vc
@@ -54,29 +259,22 @@ CONTAINS
   ! == Iteratively refine the mesh ==
   ! =================================
 
-    ALLOCATE( refinement_map(   mesh%nTri_mem), source = 0)
-    ALLOCATE( refinement_stack( mesh%nTri_mem), source = 0)
-    refinement_stackN = 0
-
     ! Initialise the refinement stack with the triangle containing the point
     ti_in = 1
     CALL find_containing_triangle( mesh, POI, ti_in)
-    refinement_map( ti_in) = 1
-    refinement_stackN = 1
-    refinement_stack( 1) = ti_in
+    CALL add_triangle_to_refinement_stack_last( mesh, ti_in)
 
     ! Keep refining until all triangles match the criterion
-    DO WHILE (refinement_stackN > 0)
+    DO WHILE (mesh%refinement_stackN > 0)
 
       ! If needed, allocate more memory for the mesh
       IF (mesh%nV > mesh%nV_mem - 10 .OR. mesh%nTri > mesh%nTri_mem - 10) THEN
         CALL extend_mesh_primary( mesh, mesh%nV + 1000, mesh%nTri + 2000)
-        CALL reallocate( refinement_map  , mesh%nTri_mem)
-        CALL reallocate( refinement_stack, mesh%nTri_mem)
       END IF
 
-      ! Check the first (and therefore likely the biggest) triangle in the stack
-      ti = refinement_stack( 1)
+      ! Take the first triangle in the stack
+      ti = mesh%refinement_stack( 1)
+      CALL remove_triangle_from_refinement_stack( mesh, ti)
 
       ! The three vertices spanning this triangle
       via = mesh%Tri( ti,1)
@@ -105,33 +303,18 @@ CONTAINS
         ! Split triangle ti at its circumcenter
 
         p_new = circumcenter( va, vb, vc)
-
-        CALL split_triangle( mesh, ti, p_new, &
-          refinement_map    = refinement_map   , &
-          refinement_stack  = refinement_stack , &
-          refinement_stackN = refinement_stackN)
+        CALL split_triangle( mesh, ti, p_new)
 
         ! Find out again which triangle contains the point, and add it to the stack
         CALL find_containing_triangle( mesh, POI, ti_in)
-        IF (refinement_map( ti_in) == 0) THEN
-          refinement_map( ti_in) = 1
-          refinement_stackN = refinement_stackN + 1
-          refinement_stack( refinement_stackN) = ti_in
-        END IF
+        CALL add_triangle_to_refinement_stack_last( mesh, ti_in)
 
-      ELSE
-        ! Remove triangle ti from the refinement stack
-        CALL remove_triangle_from_refinement_stack( refinement_map, refinement_stack, refinement_stackN, ti)
       END IF
 
     END DO ! DO WHILE (refinement_stackN > 0)
 
     ! Crop surplus mesh memory
     CALL crop_mesh_primary( mesh)
-
-    ! Clean up after yourself
-    DEALLOCATE( refinement_map  )
-    DEALLOCATE( refinement_stack)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -151,16 +334,12 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'refine_mesh_line'
     INTEGER                                       :: nl
-    INTEGER,  DIMENSION(:,:  ), ALLOCATABLE       :: Tri_li
     INTEGER                                       :: ti,li,it
     REAL(dp), DIMENSION(2)                        :: pp,qq,pp_cropped,qq_cropped,dd
     LOGICAL                                       :: is_valid_line
     INTEGER                                       :: tip, tiq, n, via, vib, vic
     REAL(dp), DIMENSION(2)                        :: va,vb,vc,llis
     LOGICAL                                       :: do_cross, crosses
-    INTEGER,  DIMENSION(:    ), ALLOCATABLE       :: refinement_map
-    INTEGER,  DIMENSION(:    ), ALLOCATABLE       :: refinement_stack
-    INTEGER                                       :: refinement_stackN
     INTEGER                                       :: li_min, li_max
     REAL(dp)                                      :: longest_leg, smallest_angle
     LOGICAL                                       :: meets_resolution_criterion
@@ -184,10 +363,9 @@ CONTAINS
     ! that the vast majority of line segments are contiguous, generally a triangle will
     ! only overlap with a small range of them.
 
-    ALLOCATE( Tri_li( mesh%nTri_mem, 2), source = 0)
-
-    Tri_li( 1:mesh%nTri,1) = nl + 1
-    Tri_li( 1:mesh%nTri,2) = 0
+    mesh%Tri_li = 0
+    mesh%Tri_li( 1:mesh%nTri,1) = nl + 1
+    mesh%Tri_li( 1:mesh%nTri,2) = 0
 
     tip = 1
     tiq = 1
@@ -216,10 +394,10 @@ CONTAINS
       CALL find_containing_triangle( mesh, qq, tiq)
 
       ! Add li to the overlap lists of tip and tiq
-      Tri_li( tip,1) = MIN( Tri_li( tip,1),li)
-      Tri_li( tip,2) = MAX( Tri_li( tip,2),li)
-      Tri_li( tiq,1) = MIN( Tri_li( tiq,1),li)
-      Tri_li( tiq,2) = MAX( Tri_li( tiq,2),li)
+      mesh%Tri_li( tip,1) = MIN( mesh%Tri_li( tip,1),li)
+      mesh%Tri_li( tip,2) = MAX( mesh%Tri_li( tip,2),li)
+      mesh%Tri_li( tiq,1) = MIN( mesh%Tri_li( tiq,1),li)
+      mesh%Tri_li( tiq,2) = MAX( mesh%Tri_li( tiq,2),li)
 
       ! If they both lie inside the same triangle, no need to trace
       IF (tip == tiq) CYCLE
@@ -237,8 +415,8 @@ CONTAINS
         CALL find_containing_triangle( mesh, pp, tip)
 
         ! Add li to the overlap lists of tip
-        Tri_li( tip,1) = MIN( Tri_li( tip,1),li)
-        Tri_li( tip,2) = MAX( Tri_li( tip,2),li)
+        mesh%Tri_li( tip,1) = MIN( mesh%Tri_li( tip,1),li)
+        mesh%Tri_li( tip,2) = MAX( mesh%Tri_li( tip,2),li)
 
         ! If we've reached tiq, the trace is done
         IF (tip == tiq) EXIT
@@ -254,36 +432,30 @@ CONTAINS
     ! If not, split it. The new triangles will inherit the old one's line segment range.
     ! Update the (now reduced) overlap range for the new triangles.
 
-    ALLOCATE( refinement_map(   mesh%nTri_mem), source = 0)
-    ALLOCATE( refinement_stack( mesh%nTri_mem), source = 0)
-    refinement_stackN = 0
+    mesh%refinement_stackN = 0
 
     ! Mark which triangles need to be refined right now
     DO ti = 1, mesh%nTri
-      IF (Tri_li( ti,2) == 0) THEN
+      IF (mesh%Tri_li( ti,2) == 0) THEN
         ! This triangle does not overlap with any line segments, so it doesn't need refining
         CYCLE
       ELSE
         ! Mark this triangle for refinement
-        refinement_map( ti) = 1
-        refinement_stackN = refinement_stackN + 1
-        refinement_stack( refinement_stackN) = ti
+        CALL add_triangle_to_refinement_stack_last( mesh, ti)
       END IF
     END DO
 
     ! Keep refining until all triangles match the criterion
-    DO WHILE (refinement_stackN > 0)
+    DO WHILE (mesh%refinement_stackN > 0)
 
       ! If needed, allocate more memory for the mesh
       IF (mesh%nV > mesh%nV_mem - 10 .OR. mesh%nTri > mesh%nTri_mem - 10) THEN
         CALL extend_mesh_primary( mesh, mesh%nV + 1000, mesh%nTri + 2000)
-        CALL reallocate( refinement_map  , mesh%nTri_mem   )
-        CALL reallocate( refinement_stack, mesh%nTri_mem   )
-        CALL reallocate( Tri_li          , mesh%nTri_mem, 2)
       END IF
 
-      ! Check the first (and therefore likely the biggest) triangle in the stack
-      ti = refinement_stack( 1)
+      ! Take the first triangle in the stack
+      ti = mesh%refinement_stack( 1)
+      CALL remove_triangle_from_refinement_stack( mesh, ti)
 
       ! The three vertices spanning this triangle
       via = mesh%Tri( ti,1)
@@ -309,8 +481,8 @@ CONTAINS
         ! it also meets the resolution criterion
 
         ! Initial guess for this triangle's line overlap range (taken from their parent)
-        li_min = Tri_li( ti,1)
-        li_max = Tri_li( ti,2)
+        li_min = mesh%Tri_li( ti,1)
+        li_max = mesh%Tri_li( ti,2)
 
         ! If that's already zero, skip
         IF (li_min == nl+1 .OR. li_max == 0) THEN
@@ -321,7 +493,7 @@ CONTAINS
         ELSE  ! IF (li_min == nl+1 .OR. li_max == 0) THEN
           ! Recalculate triangle overlap range
 
-          Tri_li( ti,:) = [nl+1,0]
+          mesh%Tri_li( ti,:) = [nl+1,0]
 
           DO li = li_min, li_max
 
@@ -356,8 +528,8 @@ CONTAINS
 
             ! If so, add it to the overlap range
             IF (crosses) THEN
-              Tri_li( ti,1) = MIN( Tri_li( ti,1),li)
-              Tri_li( ti,2) = MAX( Tri_li( ti,2),li)
+              mesh%Tri_li( ti,1) = MIN( mesh%Tri_li( ti,1),li)
+              mesh%Tri_li( ti,2) = MAX( mesh%Tri_li( ti,2),li)
             END IF
 
           END DO ! DO li = li_min, li_max
@@ -366,7 +538,7 @@ CONTAINS
           ! check if it meets the resolution criterion
 
           meets_resolution_criterion = .TRUE.
-          IF (Tri_li( ti,1) <= Tri_li( ti,2)) THEN
+          IF (mesh%Tri_li( ti,1) <= mesh%Tri_li( ti,2)) THEN
             longest_leg = longest_triangle_leg( va, vb, vc)
             IF (longest_leg > res_max) meets_resolution_criterion = .FALSE.
           END IF
@@ -378,29 +550,14 @@ CONTAINS
       ! If either of the two criteria is not met, split the triangle
       IF (.NOT. meets_geometry_criterion .OR. .NOT. meets_resolution_criterion) THEN
         ! Split triangle ti at its circumcenter
-
         p_new = circumcenter( va, vb, vc)
-
-        CALL split_triangle( mesh, ti, p_new, &
-          refinement_map    = refinement_map   , &
-          refinement_stack  = refinement_stack , &
-          refinement_stackN = refinement_stackN, &
-          Tri_li            = Tri_li)
-
-      ELSE
-        ! Remove triangle ti from the refinement stack
-        CALL remove_triangle_from_refinement_stack( refinement_map, refinement_stack, refinement_stackN, ti)
+        CALL split_triangle( mesh, ti, p_new)
       END IF
 
     END DO ! DO WHILE (refinement_stackN > 0)
 
     ! Crop surplus mesh memory
     CALL crop_mesh_primary( mesh)
-
-    ! Clean up after yourself
-    DEALLOCATE( refinement_map  )
-    DEALLOCATE( refinement_stack)
-    DEALLOCATE( Tri_li          )
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -418,10 +575,7 @@ CONTAINS
     REAL(dp),                   INTENT(IN)        :: alpha_min     ! Minimum allowed internal triangle angle
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'refine_mesh_line'
-    INTEGER,  DIMENSION(:    ), ALLOCATABLE       :: refinement_map
-    INTEGER,  DIMENSION(:    ), ALLOCATABLE       :: refinement_stack
-    INTEGER                                       :: refinement_stackN
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'refine_mesh_polygon'
     INTEGER                                       :: ti_in
     INTEGER                                       :: ti, via, vib, vic
     REAL(dp), DIMENSION(2)                        :: va, vb, vc, gc, vab, vbc, vca
@@ -436,9 +590,7 @@ CONTAINS
   ! == Iteratively refine the mesh ==
   ! =================================
 
-    ALLOCATE( refinement_map(   mesh%nTri_mem), source = 0)
-    ALLOCATE( refinement_stack( mesh%nTri_mem), source = 0)
-    refinement_stackN = 0
+    mesh%refinement_stackN = 0
 
     ! Initialise the refinement stack with all triangles lying (partly) inside the polygon
     DO ti = 1, mesh%nTri
@@ -464,25 +616,22 @@ CONTAINS
           is_in_polygon( poly, vab) .OR. &
           is_in_polygon( poly, vbc) .OR. &
           is_in_polygon( poly, vca)) THEN
-        refinement_map( ti) = 1
-        refinement_stackN = refinement_stackN + 1
-        refinement_stack( refinement_stackN) = ti
+        CALL add_triangle_to_refinement_stack_last( mesh, ti)
       END IF
 
     END DO ! DO ti = 1, mesh%nTri
 
     ! Keep refining until all triangles match the criterion
-    DO WHILE (refinement_stackN > 0)
+    DO WHILE (mesh%refinement_stackN > 0)
 
       ! If needed, allocate more memory for the mesh
       IF (mesh%nV > mesh%nV_mem - 10 .OR. mesh%nTri > mesh%nTri_mem - 10) THEN
         CALL extend_mesh_primary( mesh, mesh%nV + 1000, mesh%nTri + 2000)
-        CALL reallocate( refinement_map  , mesh%nTri_mem)
-        CALL reallocate( refinement_stack, mesh%nTri_mem)
       END IF
 
-      ! Check the first (and therefore likely the biggest) triangle in the stack
-      ti = refinement_stack( 1)
+      ! Take the first triangle in the stack
+      ti = mesh%refinement_stack( 1)
+      CALL remove_triangle_from_refinement_stack( mesh, ti)
 
       ! The three vertices spanning this triangle
       via = mesh%Tri( ti,1)
@@ -532,17 +681,8 @@ CONTAINS
       ! If either of the two criteria is not met, split the triangle
       IF (.NOT. meets_geometry_criterion .OR. .NOT. meets_resolution_criterion) THEN
         ! Split triangle ti at its circumcenter
-
         p_new = circumcenter( va, vb, vc)
-
-        CALL split_triangle( mesh, ti, p_new, &
-          refinement_map    = refinement_map   , &
-          refinement_stack  = refinement_stack , &
-          refinement_stackN = refinement_stackN)
-
-      ELSE
-        ! Remove triangle ti from the refinement stack
-        CALL remove_triangle_from_refinement_stack( refinement_map, refinement_stack, refinement_stackN, ti)
+        CALL split_triangle( mesh, ti, p_new)
       END IF
 
     END DO ! DO WHILE (refinement_stackN > 0)
@@ -550,14 +690,69 @@ CONTAINS
     ! Crop surplus mesh memory
     CALL crop_mesh_primary( mesh)
 
-    ! Clean up after yourself
-    DEALLOCATE( refinement_map  )
-    DEALLOCATE( refinement_stack)
-
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE refine_mesh_polygon
+
+! == Lloyd's algorithm for "smoothing" a mesh
+
+  SUBROUTINE Lloyds_algorithm_single_iteration( mesh)
+    ! Lloyd's algorithm: move all vertices to the geometric centers of their Voronoi cells, and update the triangulation.
+    ! This "smooths" the mesh, reducing resolution gradients and widening internal angles, thus making it more
+    ! suitable for numerical methods (particularly the SSA).
+
+    IMPLICIT NONE
+
+    ! Input variables
+    TYPE(type_mesh),            INTENT(INOUT)     :: mesh
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'Lloyds_algorithm_single_iteration'
+    INTEGER                                       :: vi, ci, cip1
+    REAL(dp)                                      :: VorTriA, sumVorTriA
+    REAL(dp), DIMENSION(2)                        :: pa, pb, pc, VorGC
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Move all non-boundary vertices to their Voronoi cell geometric centre
+    DO vi = 1, mesh%nV
+
+      ! Leave boundary vertices where they are
+      IF (mesh%edge_index( vi) > 0) CYCLE
+
+      ! Find the geometric centre of this vertex' Voronoi cell
+      VorGC      = 0._dp
+      sumVorTriA = 0._dp
+
+      DO ci = 1, mesh%nC( vi)
+
+        cip1 = ci + 1
+        IF (cip1 > mesh%nC( vi)) cip1 = 1
+
+        pa = mesh%V( vi,:)
+        pb = mesh%V( mesh%C( vi,ci  ),:)
+        pc = mesh%V( mesh%C( vi,cip1),:)
+
+        VorTriA = cross2( pb - pa, pc - pa)
+
+        VorGC = VorGC + VorTriA * (pa + pb + pc) / 3._dp
+        sumVorTriA   = sumVorTriA   + VorTriA
+
+      END DO ! DO ci = 1, mesh%nC( vi)
+
+      VorGC = VorGC / sumVorTriA
+
+      ! Move the vertex
+      CALL move_vertex( mesh, vi, VorGC)
+
+    END DO
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE Lloyds_algorithm_single_iteration
 
 ! == Initialise the five-vertex dummy mesh
 
@@ -600,61 +795,60 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Meta properties
-    mesh%xmin                 = xmin    ! Boundaries of the square domain.
-    mesh%xmax                 = xmax
-    mesh%ymin                 = ymin
-    mesh%ymax                 = ymax
+    mesh%xmin                = xmin    ! Boundaries of the square domain.
+    mesh%xmax                = xmax
+    mesh%ymin                = ymin
+    mesh%ymax                = ymax
 
     ! Horizontal distance of tolerance. Used for several small routines - points that lie within
     ! this distance of each other (vertices, triangle circumcenters, etc.) are treated as identical.
-    mesh%tol_dist   = ((mesh%xmax - mesh%xmin) + (mesh%ymax-mesh%ymin)) * tol / 2._dp
+    mesh%tol_dist            = ((mesh%xmax - mesh%xmin) + (mesh%ymax-mesh%ymin)) * tol / 2._dp
 
-    ! The four corners, plus one central vertex.
-    mesh%nV              = 5
+    mesh%nV                  = 5
 
-    mesh%V               = 0._dp
-    mesh%V( 1,:)         = [xmin, ymin]
-    mesh%V( 2,:)         = [xmax, ymin]
-    mesh%V( 3,:)         = [xmax, ymax]
-    mesh%V( 4,:)         = [xmin, ymax]
-    mesh%V( 5,:)         = [(xmin+xmax)/2._dp, (ymin+ymax)/2._dp]
+    mesh%V                   = 0._dp
+    mesh%V( 1,:)             = [xmin, ymin]
+    mesh%V( 2,:)             = [xmax, ymin]
+    mesh%V( 3,:)             = [xmax, ymax]
+    mesh%V( 4,:)             = [xmin, ymax]
+    mesh%V( 5,:)             = [(xmin+xmax)/2._dp, (ymin+ymax)/2._dp]
 
-    mesh%edge_index      = 0
-    mesh%edge_index(1:5) = [6, 4, 2, 8, 0]
+    mesh%edge_index          = 0
+    mesh%edge_index(1:5)     = [6, 4, 2, 8, 0]
 
-    mesh%nC              = 0
-    mesh%nC( 1:5)        = [3, 3, 3, 3, 4]
+    mesh%nC                  = 0
+    mesh%nC( 1:5)            = [3, 3, 3, 3, 4]
 
-    mesh%C               = 0
-    mesh%C( 1,1:4)       = [2, 5, 4, 0]
-    mesh%C( 2,1:4)       = [3, 5, 1, 0]
-    mesh%C( 3,1:4)       = [4, 5, 2, 0]
-    mesh%C( 4,1:4)       = [1, 5, 3, 0]
-    mesh%C( 5,1:4)       = [1, 2, 3, 4]
+    mesh%C                   = 0
+    mesh%C( 1,1:4)           = [2, 5, 4, 0]
+    mesh%C( 2,1:4)           = [3, 5, 1, 0]
+    mesh%C( 3,1:4)           = [4, 5, 2, 0]
+    mesh%C( 4,1:4)           = [1, 5, 3, 0]
+    mesh%C( 5,1:4)           = [1, 2, 3, 4]
 
-    mesh%niTri           = 0
-    mesh%niTri( 1:5)     = [2, 2, 2, 2, 4]
+    mesh%niTri               = 0
+    mesh%niTri( 1:5)         = [2, 2, 2, 2, 4]
 
-    mesh%iTri            = 0
-    mesh%iTri( 1,1:4)    = [1, 4, 0, 0]
-    mesh%iTri( 2,1:4)    = [2, 1, 0, 0]
-    mesh%iTri( 3,1:4)    = [3, 2, 0, 0]
-    mesh%iTri( 4,1:4)    = [4, 3, 0, 0]
-    mesh%iTri( 5,1:4)    = [1, 2, 3, 4]
+    mesh%iTri                = 0
+    mesh%iTri( 1,1:4)        = [1, 4, 0, 0]
+    mesh%iTri( 2,1:4)        = [2, 1, 0, 0]
+    mesh%iTri( 3,1:4)        = [3, 2, 0, 0]
+    mesh%iTri( 4,1:4)        = [4, 3, 0, 0]
+    mesh%iTri( 5,1:4)        = [1, 2, 3, 4]
 
-    mesh%nTri            = 4
+    mesh%nTri                = 4
 
-    mesh%Tri             = 0
-    mesh%Tri( 1,:)       = [1, 2, 5]
-    mesh%Tri( 2,:)       = [2, 3, 5]
-    mesh%Tri( 3,:)       = [3, 4, 5]
-    mesh%Tri( 4,:)       = [4, 1, 5]
+    mesh%Tri                 = 0
+    mesh%Tri( 1,:)           = [1, 2, 5]
+    mesh%Tri( 2,:)           = [2, 3, 5]
+    mesh%Tri( 3,:)           = [3, 4, 5]
+    mesh%Tri( 4,:)           = [4, 1, 5]
 
-    mesh%TriC            = 0
-    mesh%TriC( 1,:)      = [2, 4, 0]
-    mesh%TriC( 2,:)      = [3, 1, 0]
-    mesh%TriC( 3,:)      = [4, 2, 0]
-    mesh%TriC( 4,:)      = [1, 3, 0]
+    mesh%TriC                = 0
+    mesh%TriC( 1,:)          = [2, 4, 0]
+    mesh%TriC( 2,:)          = [3, 1, 0]
+    mesh%TriC( 3,:)          = [4, 2, 0]
+    mesh%TriC( 4,:)          = [1, 3, 0]
 
     mesh%TriCC = 0._dp
     CALL update_triangle_circumcenter( mesh, 1)

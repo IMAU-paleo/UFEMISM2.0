@@ -59,6 +59,16 @@ MODULE mesh_types
     INTEGER,  DIMENSION(:,:  ), ALLOCATABLE :: Tri                           !           The triangle array: Tri(ti) = [vi1, vi2, vi3] (vertices ordered counter-clockwise)
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: Tricc                         ! [m]       The X,Y-coordinates of each triangle's circumcenter
     INTEGER,  DIMENSION(:,:  ), ALLOCATABLE :: TriC                          !           The (up to) three neighbour triangles (order across from 1st, 2nd and 3d vertex, respectively)
+    INTEGER,  DIMENSION(:    ), ALLOCATABLE :: Tri_edge_index                ! [0-8]     Each triangle's Edge Index; 0 = free, 1 = north, 2 = northeast, ..., 8 = northwest
+
+  ! Data used for mesh generation/refinement
+  ! ========================================
+
+    INTEGER,  DIMENSION(:,:  ), ALLOCATABLE :: Tri_flip_list                 !           List of triangle pairs that should be checked for the local Delaunay criterion
+    INTEGER,  DIMENSION(:    ), ALLOCATABLE :: refinement_map                !           Map    of triangles that should be checked for needing refinement
+    INTEGER,  DIMENSION(:    ), ALLOCATABLE :: refinement_stack              !           Stack  of triangles that ...
+    INTEGER                                 :: refinement_stackN             !           Number of triangles that...
+    INTEGER,  DIMENSION(:,:  ), ALLOCATABLE :: Tri_li                        !           List of overlap ranges between triangles and line segments (for line-based mesh refinement)
 
   ! Secondary mesh data (everything that can be calculated after mesh creation is finished)
   ! =======================================================================================
@@ -69,7 +79,6 @@ MODULE mesh_types
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: R                             ! [m]       The resolution of each vertex (defined as distance to nearest neighbour)
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: Cw                            ! [m]       The width of all vertex connections (= length of the shared Voronoi cell edge)
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: TriGC                         ! [m]       The X,Y-coordinates of each triangle's geometric centre
-    INTEGER,  DIMENSION(:    ), ALLOCATABLE :: Tri_edge_index                ! [0-8]     Same as for vertices, only NE, SE, etc. aren't used
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: TriA                          ! [m^2]     The area of each triangle
 
   END TYPE type_mesh
