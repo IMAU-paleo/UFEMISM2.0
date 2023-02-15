@@ -146,13 +146,13 @@ CONTAINS
 
     ! Scale to actual mesh domain
     DO i = 1, n
-      line( n,1) = x0 + xw * line( n,1)
-      line( n,2) = y0 + yw * line( n,2)
-      line( n,3) = x0 + xw * line( n,3)
-      line( n,4) = y0 + yw * line( n,4)
+      line( i,1) = x0 + xw * line( i,1)
+      line( i,2) = y0 + yw * line( i,2)
+      line( i,3) = x0 + xw * line( i,3)
+      line( i,4) = y0 + yw * line( i,4)
     END DO
 
-    CALL refine_mesh_line( mesh, line, 0.005_dp, alpha_min)
+    CALL refine_mesh_line( mesh, line, res, alpha_min)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -225,6 +225,9 @@ CONTAINS
 
     END DO ! DO WHILE (refinement_stackN > 0)
 
+    ! Final step to ensure a nice clean mesh
+    CALL refine_mesh_split_encroaching_triangles( mesh, alpha_min)
+
     ! Crop surplus mesh memory
     CALL crop_mesh_primary( mesh)
 
@@ -255,9 +258,6 @@ CONTAINS
 
     ! Add routine to path
     CALL init_routine( routine_name)
-
-  ! == Iteratively refine the mesh ==
-  ! =================================
 
     ! Initialise the refinement stack with the triangle containing the point
     ti_in = 1
@@ -312,6 +312,9 @@ CONTAINS
       END IF
 
     END DO ! DO WHILE (refinement_stackN > 0)
+
+    ! Final step to ensure a nice clean mesh
+    CALL refine_mesh_split_encroaching_triangles( mesh, alpha_min)
 
     ! Crop surplus mesh memory
     CALL crop_mesh_primary( mesh)
@@ -556,6 +559,9 @@ CONTAINS
 
     END DO ! DO WHILE (refinement_stackN > 0)
 
+    ! Final step to ensure a nice clean mesh
+    CALL refine_mesh_split_encroaching_triangles( mesh, alpha_min)
+
     ! Crop surplus mesh memory
     CALL crop_mesh_primary( mesh)
 
@@ -586,9 +592,6 @@ CONTAINS
 
     ! Add routine to path
     CALL init_routine( routine_name)
-
-  ! == Iteratively refine the mesh ==
-  ! =================================
 
     mesh%refinement_stackN = 0
 
@@ -687,6 +690,9 @@ CONTAINS
 
     END DO ! DO WHILE (refinement_stackN > 0)
 
+    ! Final step to ensure a nice clean mesh
+    CALL refine_mesh_split_encroaching_triangles( mesh, alpha_min)
+
     ! Crop surplus mesh memory
     CALL crop_mesh_primary( mesh)
 
@@ -694,6 +700,97 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE refine_mesh_polygon
+
+  SUBROUTINE refine_mesh_split_encroaching_triangles( mesh, alpha_min)
+    ! As a last step in any mesh refinement, make sure no triangles exist anymore
+    ! that encroach on the domain boundary (i.e. have their circumcenter lying
+    ! outside the domain)
+
+    IMPLICIT NONE
+
+    TYPE(type_mesh),            INTENT(INOUT)     :: mesh          ! The mesh that should be refined
+    REAL(dp),                   INTENT(IN)        :: alpha_min     ! Minimum allowed internal triangle angle
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'refine_mesh_split_encroaching_triangles'
+    INTEGER                                       :: ti, n, vi, n_vertices_on_boundary
+    INTEGER                                       :: via, vib, vic
+    REAL(dp), DIMENSION(2)                        :: va, vb, vc
+    REAL(dp)                                      :: longest_leg, smallest_angle
+    LOGICAL                                       :: meets_geometry_criterion
+    LOGICAL                                       :: meets_encroachment_criterion
+    REAL(dp), DIMENSION(2)                        :: p_new
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Crop surplus mesh memory
+    CALL crop_mesh_primary( mesh)
+
+    ! Initialise the refinement stack with all boundary triangles
+    mesh%refinement_stackN = 0
+    DO ti = 1, mesh%nTri
+
+      ! Count the number of vertices in this triangle on the domain boundary
+      n_vertices_on_boundary = 0
+      DO n = 1, 3
+        vi = mesh%Tri( ti,n)
+        IF (mesh%VBI( vi) > 0) THEN
+          n_vertices_on_boundary = n_vertices_on_boundary + 1
+        END IF
+      END DO
+
+      IF (n_vertices_on_boundary >= 2) THEN
+        ! This triangle lies on the domain boundary
+        CALL add_triangle_to_refinement_stack_last( mesh, ti)
+      END IF
+
+    END DO ! DO ti = 1, mesh%nTri
+
+    ! Keep refining until all triangles match the criterion
+    DO WHILE (mesh%refinement_stackN > 0)
+
+      ! If needed, allocate more memory for the mesh
+      IF (mesh%nV > mesh%nV_mem - 10 .OR. mesh%nTri > mesh%nTri_mem - 10) THEN
+        CALL extend_mesh_primary( mesh, mesh%nV + 1000, mesh%nTri + 2000)
+      END IF
+
+      ! Take the first triangle in the stack
+      ti = mesh%refinement_stack( 1)
+      CALL remove_triangle_from_refinement_stack( mesh, ti)
+
+      ! The three vertices spanning this triangle
+      via = mesh%Tri( ti,1)
+      vib = mesh%Tri( ti,2)
+      vic = mesh%Tri( ti,3)
+      va  = mesh%V( via,:)
+      vb  = mesh%V( vib,:)
+      vc  = mesh%V( vic,:)
+
+      ! Check if it meets the geometry criterion
+      smallest_angle = smallest_triangle_angle( va, vb, vc)
+      meets_geometry_criterion = smallest_angle >= alpha_min
+
+      ! Check if it meets the encroachment criterion
+      meets_encroachment_criterion = .TRUE.
+      IF (mesh%Tricc( ti,1) < mesh%xmin .OR. mesh%Tricc( ti,2) > mesh%xmax .OR. &
+          mesh%Tricc( ti,2) < mesh%ymin .OR. mesh%Tricc( ti,2) > mesh%ymax) THEN
+        meets_encroachment_criterion = .FALSE.
+      END IF
+
+      ! If either of the two criteria is not met, split the triangle
+      IF (.NOT. meets_geometry_criterion .OR. .NOT. meets_encroachment_criterion) THEN
+        ! Split triangle ti at its circumcenter
+        p_new = circumcenter( va, vb, vc)
+        CALL split_triangle( mesh, ti, p_new)
+      END IF
+
+    END DO ! DO WHILE (refinement_stackN > 0)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE refine_mesh_split_encroaching_triangles
 
 ! == Lloyd's algorithm for "smoothing" a mesh
 
@@ -720,7 +817,7 @@ CONTAINS
     DO vi = 1, mesh%nV
 
       ! Leave boundary vertices where they are
-      IF (mesh%edge_index( vi) > 0) CYCLE
+      IF (mesh%VBI( vi) > 0) CYCLE
 
       ! Find the geometric centre of this vertex' Voronoi cell
       VorGC      = 0._dp
@@ -795,60 +892,60 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Meta properties
-    mesh%xmin                = xmin    ! Boundaries of the square domain.
-    mesh%xmax                = xmax
-    mesh%ymin                = ymin
-    mesh%ymax                = ymax
+    mesh%xmin         = xmin    ! Boundaries of the square domain.
+    mesh%xmax         = xmax
+    mesh%ymin         = ymin
+    mesh%ymax         = ymax
 
     ! Horizontal distance of tolerance. Used for several small routines - points that lie within
     ! this distance of each other (vertices, triangle circumcenters, etc.) are treated as identical.
-    mesh%tol_dist            = ((mesh%xmax - mesh%xmin) + (mesh%ymax-mesh%ymin)) * tol / 2._dp
+    mesh%tol_dist     = ((mesh%xmax - mesh%xmin) + (mesh%ymax-mesh%ymin)) * tol / 2._dp
 
-    mesh%nV                  = 5
+    mesh%nV           = 5
 
-    mesh%V                   = 0._dp
-    mesh%V( 1,:)             = [xmin, ymin]
-    mesh%V( 2,:)             = [xmax, ymin]
-    mesh%V( 3,:)             = [xmax, ymax]
-    mesh%V( 4,:)             = [xmin, ymax]
-    mesh%V( 5,:)             = [(xmin+xmax)/2._dp, (ymin+ymax)/2._dp]
+    mesh%V            = 0._dp
+    mesh%V( 1,:)      = [xmin, ymin]
+    mesh%V( 2,:)      = [xmax, ymin]
+    mesh%V( 3,:)      = [xmax, ymax]
+    mesh%V( 4,:)      = [xmin, ymax]
+    mesh%V( 5,:)      = [(xmin+xmax)/2._dp, (ymin+ymax)/2._dp]
 
-    mesh%edge_index          = 0
-    mesh%edge_index(1:5)     = [6, 4, 2, 8, 0]
+    mesh%VBI          = 0
+    mesh%VBI(1:5)     = [6, 4, 2, 8, 0]
 
-    mesh%nC                  = 0
-    mesh%nC( 1:5)            = [3, 3, 3, 3, 4]
+    mesh%nC           = 0
+    mesh%nC( 1:5)     = [3, 3, 3, 3, 4]
 
-    mesh%C                   = 0
-    mesh%C( 1,1:4)           = [2, 5, 4, 0]
-    mesh%C( 2,1:4)           = [3, 5, 1, 0]
-    mesh%C( 3,1:4)           = [4, 5, 2, 0]
-    mesh%C( 4,1:4)           = [1, 5, 3, 0]
-    mesh%C( 5,1:4)           = [1, 2, 3, 4]
+    mesh%C            = 0
+    mesh%C( 1,1:4)    = [2, 5, 4, 0]
+    mesh%C( 2,1:4)    = [3, 5, 1, 0]
+    mesh%C( 3,1:4)    = [4, 5, 2, 0]
+    mesh%C( 4,1:4)    = [1, 5, 3, 0]
+    mesh%C( 5,1:4)    = [1, 2, 3, 4]
 
-    mesh%niTri               = 0
-    mesh%niTri( 1:5)         = [2, 2, 2, 2, 4]
+    mesh%niTri        = 0
+    mesh%niTri( 1:5)  = [2, 2, 2, 2, 4]
 
-    mesh%iTri                = 0
-    mesh%iTri( 1,1:4)        = [1, 4, 0, 0]
-    mesh%iTri( 2,1:4)        = [2, 1, 0, 0]
-    mesh%iTri( 3,1:4)        = [3, 2, 0, 0]
-    mesh%iTri( 4,1:4)        = [4, 3, 0, 0]
-    mesh%iTri( 5,1:4)        = [1, 2, 3, 4]
+    mesh%iTri         = 0
+    mesh%iTri( 1,1:4) = [1, 4, 0, 0]
+    mesh%iTri( 2,1:4) = [2, 1, 0, 0]
+    mesh%iTri( 3,1:4) = [3, 2, 0, 0]
+    mesh%iTri( 4,1:4) = [4, 3, 0, 0]
+    mesh%iTri( 5,1:4) = [1, 2, 3, 4]
 
-    mesh%nTri                = 4
+    mesh%nTri         = 4
 
-    mesh%Tri                 = 0
-    mesh%Tri( 1,:)           = [1, 2, 5]
-    mesh%Tri( 2,:)           = [2, 3, 5]
-    mesh%Tri( 3,:)           = [3, 4, 5]
-    mesh%Tri( 4,:)           = [4, 1, 5]
+    mesh%Tri          = 0
+    mesh%Tri( 1,:)    = [1, 2, 5]
+    mesh%Tri( 2,:)    = [2, 3, 5]
+    mesh%Tri( 3,:)    = [3, 4, 5]
+    mesh%Tri( 4,:)    = [4, 1, 5]
 
-    mesh%TriC                = 0
-    mesh%TriC( 1,:)          = [2, 4, 0]
-    mesh%TriC( 2,:)          = [3, 1, 0]
-    mesh%TriC( 3,:)          = [4, 2, 0]
-    mesh%TriC( 4,:)          = [1, 3, 0]
+    mesh%TriC         = 0
+    mesh%TriC( 1,:)   = [2, 4, 0]
+    mesh%TriC( 2,:)   = [3, 1, 0]
+    mesh%TriC( 3,:)   = [4, 2, 0]
+    mesh%TriC( 4,:)   = [1, 3, 0]
 
     mesh%TriCC = 0._dp
     CALL update_triangle_circumcenter( mesh, 1)

@@ -40,17 +40,21 @@ CONTAINS
     mesh%nC_mem   = nC_mem
 
     ! Safety: check to make sure that no memory is allocated for this mesh yet
-    !         (which should never be the case!)
-
-    IF (ALLOCATED( mesh%V         ) .OR. &
-        ALLOCATED( mesh%nC        ) .OR. &
-        ALLOCATED( mesh%C         ) .OR. &
-        ALLOCATED( mesh%niTri     ) .OR. &
-        ALLOCATED( mesh%iTri      ) .OR. &
-        ALLOCATED( mesh%edge_index) .OR. &
-        ALLOCATED( mesh%Tri       ) .OR. &
-        ALLOCATED( mesh%Tricc     ) .OR. &
-        ALLOCATED( mesh%TriC      )) CALL crash('memory is already allocated for mesh "' // TRIM( name) // '"!')
+    IF (ALLOCATED( mesh%V               ) .OR. &
+        ALLOCATED( mesh%nC              ) .OR. &
+        ALLOCATED( mesh%C               ) .OR. &
+        ALLOCATED( mesh%niTri           ) .OR. &
+        ALLOCATED( mesh%iTri            ) .OR. &
+        ALLOCATED( mesh%VBI             ) .OR. &
+        ALLOCATED( mesh%Tri             ) .OR. &
+        ALLOCATED( mesh%Tricc           ) .OR. &
+        ALLOCATED( mesh%TriC            ) .OR. &
+        ALLOCATED( mesh%Tri_flip_list   ) .OR. &
+        ALLOCATED( mesh%refinement_map  ) .OR. &
+        ALLOCATED( mesh%refinement_stack) .OR. &
+        ALLOCATED( mesh%Tri_li          )) THEN
+      CALL crash('memory is already allocated for mesh "' // TRIM( name) // '"!')
+    END IF
 
     ! Allocate memory
     ! ===============
@@ -61,7 +65,7 @@ CONTAINS
     ALLOCATE( mesh%C                (nV_mem,   nC_mem), source = 0    )
     ALLOCATE( mesh%niTri            (nV_mem          ), source = 0    )
     ALLOCATE( mesh%iTri             (nV_mem,   nC_mem), source = 0    )
-    ALLOCATE( mesh%edge_index       (nV_mem          ), source = 0    )
+    ALLOCATE( mesh%VBI              (nV_mem          ), source = 0    )
 
     ! Triangle data
     ALLOCATE( mesh%Tri              (nTri_mem, 3     ), source = 0    )
@@ -104,7 +108,7 @@ CONTAINS
     CALL reallocate( mesh%C               , nV_mem_new  , mesh%nC_mem)
     CALL reallocate( mesh%niTri           , nV_mem_new               )
     CALL reallocate( mesh%iTri            , nV_mem_new  , mesh%nC_mem)
-    CALL reallocate( mesh%edge_index      , nV_mem_new               )
+    CALL reallocate( mesh%VBI             , nV_mem_new               )
 
     ! Triangle data
     CALL reallocate( mesh%Tri             , nTri_mem_new, 3          )
@@ -145,7 +149,7 @@ CONTAINS
     CALL reallocate( mesh%C               , mesh%nV,   mesh%nC_mem)
     CALL reallocate( mesh%niTri           , mesh%nV               )
     CALL reallocate( mesh%iTri            , mesh%nV,   mesh%nC_mem)
-    CALL reallocate( mesh%edge_index      , mesh%nV               )
+    CALL reallocate( mesh%VBI             , mesh%nV               )
 
     CALL reallocate( mesh%Tri             , mesh%nTri, 3          )
     CALL reallocate( mesh%Tricc           , mesh%nTri, 2          )

@@ -17,9 +17,15 @@ MODULE mesh_Delaunay
                                                                      perpENDicular_bisector_from_line, encroaches_upon
   USE mesh_utilities                                         , ONLY: update_triangle_circumcenter, find_containing_triangle, is_boundary_segment, &
                                                                      encroaches_upon_any, check_mesh, add_triangle_to_refinement_stack_first, &
-                                                                     add_triangle_to_refinement_stack_last
+                                                                     add_triangle_to_refinement_stack_last, check_if_triangle_already_exists, &
+                                                                     write_mesh_to_text_file
 
   IMPLICIT NONE
+
+! ===== Global variables =====
+! ============================
+
+  LOGICAL :: do_debug = .FALSE.
 
 CONTAINS
 
@@ -287,8 +293,8 @@ CONTAINS
     ! == All safety checks passes; split the triangle ti into three new ones.
     ! =======================================================================
 
-!    ! DENK DROM
-!    CALL warning('splitting triangle {int_01}', int_01 = ti)
+    ! DENK DROM
+    IF (do_debug) CALL warning('splitting triangle {int_01}', int_01 = ti)
 
     ! == V, Tri
 
@@ -310,6 +316,11 @@ CONTAINS
     mesh%nTri = mesh%nTri + 1
     t3 = mesh%nTri
     mesh%Tri( t3,:) = [vik,via,vib]
+
+    ! DENK DROM
+    IF (do_debug) CALL check_if_triangle_already_exists( mesh, t1)
+    IF (do_debug) CALL check_if_triangle_already_exists( mesh, t2)
+    IF (do_debug) CALL check_if_triangle_already_exists( mesh, t3)
 
     ! == nC, C
 
@@ -371,9 +382,9 @@ CONTAINS
     mesh%niTri( vik) = 3
     mesh%iTri( vik,1:3) = [t1, t3, t2]
 
-    ! == edge_index
+    ! == Boundary index
 
-    mesh%edge_index( vik) = 0
+    mesh%VBI( vik) = 0
 
     ! == TriC
 
@@ -568,8 +579,8 @@ CONTAINS
     !    to line [vi,vj] into four new ones
     ! =======================================================================
 
-!    ! DENK DROM
-!    CALL warning('splitting line [{int_01}-{int_02}}]', int_01 = vi, int_02 = vj)
+    ! DENK DROM
+    IF (do_debug) CALL warning('splitting line [{int_01}-{int_02}}]', int_01 = vi, int_02 = vj)
 
     ! == Find the local neighbourhood of vertices and triangles
 
@@ -669,6 +680,12 @@ CONTAINS
     t4 = mesh%nTri
     mesh%Tri( t4,:) = [vk, vib, vj]
 
+    ! DENK DROM
+    IF (do_debug) CALL check_if_triangle_already_exists( mesh, t1)
+    IF (do_debug) CALL check_if_triangle_already_exists( mesh, t2)
+    IF (do_debug) CALL check_if_triangle_already_exists( mesh, t3)
+    IF (do_debug) CALL check_if_triangle_already_exists( mesh, t4)
+
     ! == nC, C
 
     ! vi: connection to vj is replaced by vk
@@ -743,9 +760,9 @@ CONTAINS
     mesh%niTri( vk    ) = 4
     mesh%iTri(  vk,1:4) = [t1, t3, t4, t2]
 
-    ! == edge_index
+    ! == Boundary index
 
-    mesh%edge_index( vk) = 0
+    mesh%VBI( vk) = 0
 
     ! == TriC
 
@@ -936,8 +953,8 @@ CONTAINS
     !    segment [vi,vj] into two new ones
     ! =======================================================================
 
-!    ! DENK DROM
-!    CALL warning('splitting segment [{int_01}-{int_02}}]', int_01 = vi, int_02 = vj)
+    ! DENK DROM
+    IF (do_debug) CALL warning('splitting segment [{int_01}-{int_02}}]', int_01 = vi, int_02 = vj)
 
     ! == Find the local neighbourhood of vertices and triangles
 
@@ -1008,6 +1025,10 @@ CONTAINS
     t2 = mesh%nTri
     mesh%Tri( t2,:) = [vik,vib,vic]
 
+    ! DENK DROM
+    IF (do_debug) CALL check_if_triangle_already_exists( mesh, t1)
+    IF (do_debug) CALL check_if_triangle_already_exists( mesh, t2)
+
     ! == nC, C
 
     ! via: vik replaces vib as the first connection
@@ -1044,24 +1065,24 @@ CONTAINS
     mesh%niTri( vik) = 2
     mesh%iTri( vik,1:2) = [t2,t1]
 
-    ! == edge_index
+    ! == Boundary index
 
-    IF     ((mesh%edge_index( via) == 8 .OR. mesh%edge_index( via) == 1 .OR. mesh%edge_index( via) == 2) .AND. &
-            (mesh%edge_index( vib) == 8 .OR. mesh%edge_index( vib) == 1 .OR. mesh%edge_index( vib) == 2)) THEN
+    IF     ((mesh%VBI( via) == 8 .OR. mesh%VBI( via) == 1 .OR. mesh%VBI( via) == 2) .AND. &
+            (mesh%VBI( vib) == 8 .OR. mesh%VBI( vib) == 1 .OR. mesh%VBI( vib) == 2)) THEN
       ! North
-      mesh%edge_index( vik) = 1
-    ELSEIF ((mesh%edge_index( via) == 2 .OR. mesh%edge_index( via) == 3 .OR. mesh%edge_index( via) == 4) .AND. &
-            (mesh%edge_index( vib) == 2 .OR. mesh%edge_index( vib) == 3 .OR. mesh%edge_index( vib) == 4)) THEN
+      mesh%VBI( vik) = 1
+    ELSEIF ((mesh%VBI( via) == 2 .OR. mesh%VBI( via) == 3 .OR. mesh%VBI( via) == 4) .AND. &
+            (mesh%VBI( vib) == 2 .OR. mesh%VBI( vib) == 3 .OR. mesh%VBI( vib) == 4)) THEN
       ! East
-      mesh%edge_index( vik) = 3
-    ELSEIF ((mesh%edge_index( via) == 4 .OR. mesh%edge_index( via) == 5 .OR. mesh%edge_index( via) == 6) .AND. &
-            (mesh%edge_index( vib) == 4 .OR. mesh%edge_index( vib) == 5 .OR. mesh%edge_index( vib) == 6)) THEN
+      mesh%VBI( vik) = 3
+    ELSEIF ((mesh%VBI( via) == 4 .OR. mesh%VBI( via) == 5 .OR. mesh%VBI( via) == 6) .AND. &
+            (mesh%VBI( vib) == 4 .OR. mesh%VBI( vib) == 5 .OR. mesh%VBI( vib) == 6)) THEN
       ! South
-      mesh%edge_index( vik) = 5
-    ELSEIF ((mesh%edge_index( via) == 6 .OR. mesh%edge_index( via) == 7 .OR. mesh%edge_index( via) == 8) .AND. &
-            (mesh%edge_index( vib) == 6 .OR. mesh%edge_index( vib) == 7 .OR. mesh%edge_index( vib) == 8)) THEN
+      mesh%VBI( vik) = 5
+    ELSEIF ((mesh%VBI( via) == 6 .OR. mesh%VBI( via) == 7 .OR. mesh%VBI( via) == 8) .AND. &
+            (mesh%VBI( vib) == 6 .OR. mesh%VBI( vib) == 7 .OR. mesh%VBI( vib) == 8)) THEN
       ! West
-      mesh%edge_index( vik) = 7
+      mesh%VBI( vik) = 7
     ELSE
       CALL crash('edge indices of via and vib dont make sense!')
     END IF
@@ -1392,6 +1413,11 @@ CONTAINS
     IF (via == 0 .OR. vib == 0 .OR. vic == 0 .OR. vid == 0) THEN
       CALL crash('couldnt figure out local geometry!')
     END IF
+    IF (via == vib .OR. via == vic .OR. via == vid .OR. &
+                        vib == vic .OR. vib == vid .OR. &
+                                        vic == vid) THEN
+      CALL crash('found duplicate vertices!')
+    END IF
 
     via_has_ti = .FALSE.
     via_has_tj = .FALSE.
@@ -1503,11 +1529,49 @@ CONTAINS
       IF (tjb > 0) EXIT
     END DO
 
+    ! Safety
+    IF (tia > 0 .AND. tib > 0) THEN
+      IF (tia == tib) THEN
+        CALL write_mesh_to_text_file( mesh, 'crashmesh.txt')
+        CALL crash('found duplicate triangles!')
+      END IF
+    END IF
+    IF (tia > 0 .AND. tja > 0) THEN
+      IF (tia == tja) THEN
+        CALL write_mesh_to_text_file( mesh, 'crashmesh.txt')
+        CALL crash('found duplicate triangles!')
+      END IF
+    END IF
+    IF (tia > 0 .AND. tjb > 0) THEN
+      IF (tia == tjb) THEN
+        CALL write_mesh_to_text_file( mesh, 'crashmesh.txt')
+        CALL crash('found duplicate triangles!')
+      END IF
+    END IF
+    IF (tib > 0 .AND. tja > 0) THEN
+      IF (tib == tja) THEN
+        CALL write_mesh_to_text_file( mesh, 'crashmesh.txt')
+        CALL crash('found duplicate triangles!')
+      END IF
+    END IF
+    IF (tib > 0 .AND. tjb > 0) THEN
+      IF (tib == tjb) THEN
+        CALL write_mesh_to_text_file( mesh, 'crashmesh.txt')
+        CALL crash('found duplicate triangles!')
+      END IF
+    END IF
+    IF (tja > 0 .AND. tjb > 0) THEN
+      IF (tja == tjb) THEN
+        CALL write_mesh_to_text_file( mesh, 'crashmesh.txt')
+        CALL crash('found duplicate triangles!')
+      END IF
+    END IF
+
     ! == All safety checks passes; flip the triangle pair ti-tj
     ! =========================================================
 
-!    ! DENK DROM
-!    CALL warning('flipping triangles [{int_01}-{int_02}}]', int_01 = ti, int_02 = tj)
+    ! DENK DROM
+    IF (do_debug) CALL warning('flipping triangles [{int_01}-{int_02}}]', int_01 = ti, int_02 = tj)
 
     ! == V, Tri
 
@@ -1518,6 +1582,10 @@ CONTAINS
     ! Let triangle t2 be spanned by [vib, vic, vid]
     t2 = tj
     mesh%Tri( t2,:) = [vib, vic, vid]
+
+    ! DENK DROM
+    IF (do_debug) CALL check_if_triangle_already_exists( mesh, t1)
+    IF (do_debug) CALL check_if_triangle_already_exists( mesh, t2)
 
     ! == nC, C
 
@@ -1589,7 +1657,7 @@ CONTAINS
       END IF
     END DO
 
-    ! == edge_index
+    ! == Boundary index
 
     ! No changes.
 
@@ -1701,6 +1769,7 @@ CONTAINS
     LOGICAL                                       :: isso
 
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'are_Delaunay'
     LOGICAL                                       :: are_connected_ij, are_connected_ji
     INTEGER                                       :: n, vi, vj, vii, n1, n2, n3, iti
     LOGICAL                                       :: is_in_tj
@@ -1711,6 +1780,9 @@ CONTAINS
     LOGICAL                                       :: vid_has_ti, vid_has_tj
     REAL(dp), DIMENSION(2)                        :: va, vb, vc, vd, cci, ccj
     REAL(dp)                                      :: ccri, ccrj
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
 
     ! Safety
     IF (ti == 0 .OR. tj == 0) THEN
@@ -1790,7 +1862,7 @@ CONTAINS
 
     ! Safety
     IF (via == 0 .OR. vib == 0 .OR. vic == 0 .OR. vid == 0) THEN
-      CALL crash('Couldnt figure out local geometry!')
+      CALL crash('couldnt figure out local geometry!')
     END IF
 
     via_has_ti = .FALSE.
@@ -1802,9 +1874,8 @@ CONTAINS
         via_has_tj = .TRUE.
       END IF
     END DO
-    IF (.NOT. via_has_ti .OR. .NOT. via_has_tj) THEN
-      CALL crash('inconsistent mesh geometry!')
-    END IF
+    IF (.NOT. via_has_ti) CALL crash('inconsistent mesh geometry! (via doesnt have ti as an itriangle)')
+    IF (.NOT. via_has_tj) CALL crash('inconsistent mesh geometry! (via doesnt have tj as an itriangle)')
 
     vib_has_ti = .FALSE.
     vib_has_tj = .FALSE.
@@ -1815,9 +1886,8 @@ CONTAINS
         vib_has_tj = .TRUE.
       END IF
     END DO
-    IF (.NOT. vib_has_ti .OR. .NOT. vib_has_tj) THEN
-      CALL crash('inconsistent mesh geometry!')
-    END IF
+    IF (.NOT. vib_has_ti) CALL crash('inconsistent mesh geometry! (vib doesnt have ti as an itriangle)')
+    IF (.NOT. vib_has_tj) CALL crash('inconsistent mesh geometry! (vib doesnt have tj as an itriangle)')
 
     vic_has_ti = .FALSE.
     vic_has_tj = .FALSE.
@@ -1828,9 +1898,13 @@ CONTAINS
         vic_has_tj = .TRUE.
       END IF
     END DO
-    IF (.NOT. vic_has_ti .OR. vic_has_tj) THEN
-      CALL crash('inconsistent mesh geometry!')
+    IF (.NOT. vic_has_ti) CALL crash('inconsistent mesh geometry! (vic doesnt have ti as an itriangle)')
+    IF (      vic_has_tj) THEN
+      CALL warning('ti = [{int_01}, {int_02}, {int_03}], tj = [{int_04}, {int_05}, {int_06}]', &
+        int_01 = mesh%Tri( ti,1), int_02 = mesh%Tri( ti,2), int_03 = mesh%Tri( ti,3), &
+        int_04 = mesh%Tri( tj,1), int_05 = mesh%Tri( tj,2), int_06 = mesh%Tri( tj,3))
     END IF
+    IF (      vic_has_tj) CALL crash('inconsistent mesh geometry! (vic has tj as an itriangle)')
 
     vid_has_ti = .FALSE.
     vid_has_tj = .FALSE.
@@ -1841,9 +1915,8 @@ CONTAINS
         vid_has_tj = .TRUE.
       END IF
     END DO
-    IF (vid_has_ti .OR. .NOT. vid_has_tj) THEN
-      CALL crash('inconsistent mesh geometry!')
-    END IF
+    IF (      vid_has_ti) CALL crash('inconsistent mesh geometry! (vid has ti as an itriangle)')
+    IF (.NOT. vid_has_tj) CALL crash('inconsistent mesh geometry! (vid doesnt have tj as an itriangle)')
 
     ! Check if ti-tj meets the Delaunay criterion
 
@@ -1876,6 +1949,9 @@ CONTAINS
          is_in_triangle( va, vd, vc, vb)) THEN
       isso = .TRUE.
     END IF
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
 
   END FUNCTION are_Delaunay
 

@@ -11,6 +11,7 @@ MODULE math_utilities
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, init_routine, finalise_routine
   USE parameters
   USE reallocate_mod                                         , ONLY: reallocate
+  USE basic_data_types                                       , ONLY: type_grid
 
   IMPLICIT NONE
 
@@ -177,9 +178,9 @@ CONTAINS
     REAL(dp)                                           , INTENT(IN)    :: phi            ! [degrees north] Latitude
 
     ! Polar stereographic projection parameters
-    REAL(dp)                                           , INTENT(IN)    :: lambda_M_deg   ! [degrees] Central parallel
-    REAL(dp)                                           , INTENT(IN)    :: phi_M_deg      ! [degrees] Central meridian
-    REAL(dp)                                           , INTENT(IN)    :: beta_deg       ! [degrees] Stereographic projection angle
+    REAL(dp)                                           , INTENT(IN)    :: lambda_M_deg   ! [degrees east]  Longitude of the pole of the oblique stereographic projection
+    REAL(dp)                                           , INTENT(IN)    :: phi_M_deg      ! [degrees north] Latitude  of the pole of the oblique stereographic projection
+    REAL(dp)                                           , INTENT(IN)    :: beta_deg       ! [degrees]       Standard parallel     of the oblique stereographic projection
 
     ! Output variables:
     REAL(dp)                                           , INTENT(OUT)   :: x              ! [m] x-coordinate
@@ -233,9 +234,9 @@ CONTAINS
     REAL(dp)                                           , INTENT(IN)    :: y              ! [m] y-coordinate
 
     ! Polar stereographic projection parameters
-    REAL(dp)                                           , INTENT(IN)    :: lambda_M_deg   ! [degrees] Central parallel
-    REAL(dp)                                           , INTENT(IN)    :: phi_M_deg      ! [degrees] Central meridian
-    REAL(dp)                                           , INTENT(IN)    :: beta_deg       ! [degrees] Stereographic projection angle
+    REAL(dp)                                           , INTENT(IN)    :: lambda_M_deg   ! [degrees east]  Longitude of the pole of the oblique stereographic projection
+    REAL(dp)                                           , INTENT(IN)    :: phi_M_deg      ! [degrees north] Latitude  of the pole of the oblique stereographic projection
+    REAL(dp)                                           , INTENT(IN)    :: beta_deg       ! [degrees]       Standard parallel     of the oblique stereographic projection
 
     ! Output variables:
     REAL(dp)                                           , INTENT(OUT)   :: lambda_P       ! [degrees east ] Longitude
@@ -263,7 +264,7 @@ CONTAINS
 
     ! See equations (2.14-2.16) or equations (B.21-B.23) in Reerink et al. (2010):
     x_3D_P_prime = earth_radius * COS(alpha) * COS(lambda_M) * COS(phi_M) - SIN(lambda_M) * x - COS(lambda_M) * SIN(phi_M) * y
-    y_3D_P_prime = earth_radius * COS(alpha) * SIN(lambda_M) * COS(phi_M) + COS(lambda_M) * y - SIN(lambda_M) * SIN(phi_M) * y
+    y_3D_P_prime = earth_radius * COS(alpha) * SIN(lambda_M) * COS(phi_M) + COS(lambda_M) * x - SIN(lambda_M) * SIN(phi_M) * y
     z_3D_P_prime = earth_radius * COS(alpha) *                 SIN(phi_M)                     +                 COS(phi_M) * y
 
     ! See equation (2.13) or equation (B.20) in Reerink et al. (2010):
@@ -1705,7 +1706,7 @@ CONTAINS
 
 ! == Calculate contour lines for mesh generation from gridded/meshed data
 
-  SUBROUTINE calc_grid_contour_as_line( x, y, d, f, line)
+  SUBROUTINE calc_grid_contour_as_line( grid, d, f, line)
     ! Calculate a contour line at level f for data d on a square grid%
     ! Generate the contour line in UFEMISM line format (i.e. unordered
     ! individual line segments).
@@ -1713,7 +1714,7 @@ CONTAINS
     IMPLICIT NONE
 
     ! In/output variables
-    REAL(dp), DIMENSION(:    ),              INTENT(IN)    :: x, y
+    TYPE(type_grid),                         INTENT(IN)    :: grid
     REAL(dp), DIMENSION(:,:  ),              INTENT(IN)    :: d
     REAL(dp),                                INTENT(IN)    :: f
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE, INTENT(OUT)   :: line
@@ -1721,7 +1722,6 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'mesh_add_smileyface'
     REAL(dp), PARAMETER                                    :: tol = 1E-5_dp
-    INTEGER                                                :: nx, ny
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                :: d_scaled
     REAL(dp)                                               :: d_scaled_min, d_scaled_max
     INTEGER                                                :: i,j
@@ -1733,11 +1733,8 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    nx = SIZE( x,1)
-    ny = SIZE( y,1)
-
     ! Safety
-    IF (SIZE( d,1) /= nx .OR. SIZE( d,2) /= ny) CALL crash('d is not nx-by-ny!')
+    IF (SIZE( d,1) /= grid%nx .OR. SIZE( d,2) /= grid%ny) CALL crash('d is not nx-by-ny!')
 
     ! Trivial case: if all values of d are greater or smaller than f,
     ! the contour line is empty
@@ -1751,8 +1748,8 @@ CONTAINS
     d_scaled = d - f
     d_scaled_min = MINVAL( d_scaled)
     d_scaled_max = MAXVAL( d_scaled)
-    DO i = 1, nx
-      DO j = 1, ny
+    DO i = 1, grid%nx
+      DO j = 1, grid%ny
         IF (d_scaled( i,j) > 0._dp) THEN
           d_scaled( i,j) = d_scaled( i,j) /           d_scaled_max
         ELSE
@@ -1765,8 +1762,8 @@ CONTAINS
     ALLOCATE( line( n_max, 4))
 
     n = 0
-    DO i = 1, nx-1
-      DO j = 1, ny-1
+    DO i = 1, grid%nx-1
+      DO j = 1, grid%ny-1
 
         ! Extend allocated memory IF needed
         IF (n > n_max - 10) THEN
@@ -1780,10 +1777,10 @@ CONTAINS
         d_se = d_scaled( i+1,j  )
         d_ne = d_scaled( i+1,j+1)
 
-        xw = x( i  )
-        xe = x( i+1)
-        ys = y( j  )
-        yn = y( j+1)
+        xw = grid%x( i  )
+        xe = grid%x( i+1)
+        ys = grid%y( j  )
+        yn = grid%y( j+1)
 
         ! If all four corners are above/below the level, no line here
         IF ((d_sw >= 0._dp .AND. d_nw >= 0._dp .AND. d_se >= 0._dp .AND. d_ne >= 0._dp) .OR. &
@@ -1903,10 +1900,590 @@ CONTAINS
     REAL(dp)                            :: x0
     REAL(dp)                            :: lambda
 
+    ! Safety - if f1 == f2, then f = f0 = f1 everywhere
+    IF (ABS( 1._dp - f1/f2) < 1E-9_dp) THEN
+      x0 = (x1 + x2) / 2._dp
+      RETURN
+    END IF
+
     lambda = (f2 - f1) / (x2 - x1);
     x0 = x1 + (f0 - f1) / lambda;
 
   END FUNCTION linint_points
+
+! == Basic array operations
+
+  SUBROUTINE permute_2D_int(  d, map)
+    ! Permute a 2-D array
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    INTEGER,  DIMENSION(:,:  ), ALLOCATABLE, INTENT(INOUT) :: d
+    INTEGER,  DIMENSION(2),                  INTENT(IN)    :: map
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'permute_2D_int'
+    INTEGER                                                :: i,j,n1,n2,i1,i2
+    INTEGER,  DIMENSION(:,:  ), ALLOCATABLE                :: d_temp
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    IF (map( 1) == 1 .AND. map( 2) == 2) THEN
+      ! Trivial
+      RETURN
+    ELSEIF (map( 1) == 2 .AND. map( 2) == 1) THEN
+      ! 2-D transpose, as expected
+    ELSE
+      CALL crash('invalid permutation!')
+    END IF
+
+    n1 = SIZE( d,1)
+    n2 = SIZE( d,2)
+
+    ! Allocate temporary memory
+    ALLOCATE( d_temp( n1, n2))
+
+    ! Copy data to temporary memory
+    d_temp = d
+
+    ! Deallocate memory
+    DEALLOCATE( d)
+
+    ! Reallocate transposed memory
+    ALLOCATE( d( n2, n1))
+
+    ! Copy and transpose data from temporary memory
+    DO i = 1, n1
+    DO j = 1, n2
+      d( j,i) = d_temp( i,j)
+    END DO
+    END DO
+
+    ! Deallocate temporary memory
+    DEALLOCATE( d_temp)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE permute_2D_int
+
+  SUBROUTINE permute_2D_dp(  d, map)
+    ! Permute a 2-D array
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE, INTENT(INOUT) :: d
+    INTEGER,  DIMENSION(2),                  INTENT(IN)    :: map
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'permute_2D_dp'
+    INTEGER                                                :: i,j,n1,n2,i1,i2
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                :: d_temp
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    IF (map( 1) == 1 .AND. map( 2) == 2) THEN
+      ! Trivial
+      RETURN
+    ELSEIF (map( 1) == 2 .AND. map( 2) == 1) THEN
+      ! 2-D transpose, as expected
+    ELSE
+      CALL crash('invalid permutation!')
+    END IF
+
+    n1 = SIZE( d,1)
+    n2 = SIZE( d,2)
+
+    ! Allocate temporary memory
+    ALLOCATE( d_temp( n1, n2))
+
+    ! Copy data to temporary memory
+    d_temp = d
+
+    ! Deallocate memory
+    DEALLOCATE( d)
+
+    ! Reallocate transposed memory
+    ALLOCATE( d( n2, n1))
+
+    ! Copy and transpose data from temporary memory
+    DO i = 1, n1
+    DO j = 1, n2
+      d( j,i) = d_temp( i,j)
+    END DO
+    END DO
+
+    ! Deallocate temporary memory
+    DEALLOCATE( d_temp)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE permute_2D_dp
+
+  SUBROUTINE permute_3D_int(  d, map)
+    ! Permute a 3-D array
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    INTEGER,  DIMENSION(:,:,:), ALLOCATABLE, INTENT(INOUT) :: d
+    INTEGER,  DIMENSION(3),                  INTENT(IN)    :: map
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'permute_3D_int'
+    INTEGER                                            :: i,j,k,n1,n2,n3,i1,i2
+    INTEGER,  DIMENSION(:,:,:), ALLOCATABLE            :: d_temp
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    n1 = SIZE( d,1)
+    n2 = SIZE( d,2)
+    n3 = SIZE( d,3)
+
+    ! Allocate temporary memory
+    ALLOCATE( d_temp( n1, n2, n3))
+
+    ! Copy data to temporary memory
+    d_temp = d
+
+    ! Deallocate memory
+    DEALLOCATE( d)
+
+    ! Different permutation options
+    IF (map( 1) == 1 .AND. map( 2) == 2 .AND. map( 3) == 3) THEN
+      ! [i,j,k] -> [i,j,k] (trivial...)
+
+      ! Reallocate permuted memory
+      ALLOCATE( d( n1, n2, n3))
+
+      ! Copy and permuted data from temporary memory
+      DO i = 1, n1
+      DO j = 1, n2
+      DO k = 1, n3
+        d( i,j,k) = d_temp( i,j,k)
+      END DO
+      END DO
+      END DO
+
+    ELSEIF (map( 1) == 1 .AND. map( 2) == 3 .AND. map( 3) == 2) THEN
+      ! [i,j,k] -> [i,k,j]
+
+      ! Reallocate permuted memory
+      ALLOCATE( d( n1, n3, n2))
+
+      ! Copy and permuted data from temporary memory
+      DO i = 1, n1
+      DO j = 1, n2
+      DO k = 1, n3
+        d( i,k,j) = d_temp( i,j,k)
+      END DO
+      END DO
+      END DO
+
+    ELSEIF (map( 1) == 2 .AND. map( 2) == 1 .AND. map( 3) == 3) THEN
+      ! [i,j,k] -> [j,i,k]
+
+      ! Reallocate permuted memory
+      ALLOCATE( d( n2, n1, n3))
+
+      ! Copy and permuted data from temporary memory
+      DO i = 1, n1
+      DO j = 1, n2
+      DO k = 1, n3
+        d( j,i,k) = d_temp( i,j,k)
+      END DO
+      END DO
+      END DO
+
+    ELSEIF (map( 1) == 2 .AND. map( 2) == 3 .AND. map( 3) == 1) THEN
+      ! [i,j,k] -> [j,k,i]
+
+      ! Reallocate permuted memory
+      ALLOCATE( d( n2, n3, n1))
+
+      ! Copy and permuted data from temporary memory
+      DO i = 1, n1
+      DO j = 1, n2
+      DO k = 1, n3
+        d( j,k,i) = d_temp( i,j,k)
+      END DO
+      END DO
+      END DO
+
+    ELSEIF (map( 1) == 3 .AND. map( 2) == 1 .AND. map( 3) == 2) THEN
+      ! [i,j,k] -> [k,i,j]
+
+      ! Reallocate permuted memory
+      ALLOCATE( d( n3, n1, n2))
+
+      ! Copy and permuted data from temporary memory
+      DO i = 1, n1
+      DO j = 1, n2
+      DO k = 1, n3
+        d( k,i,j) = d_temp( i,j,k)
+      END DO
+      END DO
+      END DO
+
+    ELSEIF (map( 1) == 3 .AND. map( 2) == 2 .AND. map( 3) == 1) THEN
+      ! [i,j,k] -> [k,j,i]
+
+      ! Reallocate permuted memory
+      ALLOCATE( d( n3, n2, n1))
+
+      ! Copy and permuted data from temporary memory
+      DO i = 1, n1
+      DO j = 1, n2
+      DO k = 1, n3
+        d( k,j,i) = d_temp( i,j,k)
+      END DO
+      END DO
+      END DO
+
+    ELSE
+      CALL crash('invalid permutation!')
+    END IF
+
+    ! Deallocate temporary memory
+    DEALLOCATE( d_temp)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE permute_3D_int
+
+  SUBROUTINE permute_3D_dp(  d, map)
+    ! Permute a 3-D array
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    REAL(dp), DIMENSION(:,:,:), ALLOCATABLE, INTENT(INOUT) :: d
+    INTEGER,  DIMENSION(3),                  INTENT(IN)    :: map
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'permute_3D_dp'
+    INTEGER                                            :: i,j,k,n1,n2,n3,i1,i2
+    REAL(dp), DIMENSION(:,:,:), ALLOCATABLE            :: d_temp
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    n1 = SIZE( d,1)
+    n2 = SIZE( d,2)
+    n3 = SIZE( d,3)
+
+    ! Allocate temporary memory
+    ALLOCATE( d_temp( n1, n2, n3))
+
+    ! Copy data to temporary memory
+    d_temp = d
+
+    ! Deallocate memory
+    DEALLOCATE( d)
+
+    ! Different permutation options
+    IF (map( 1) == 1 .AND. map( 2) == 2 .AND. map( 3) == 3) THEN
+      ! [i,j,k] -> [i,j,k] (trivial...)
+
+      ! Reallocate permuted memory
+      ALLOCATE( d( n1, n2, n3))
+
+      ! Copy and permuted data from temporary memory
+      DO i = 1, n1
+      DO j = 1, n2
+      DO k = 1, n3
+        d( i,j,k) = d_temp( i,j,k)
+      END DO
+      END DO
+      END DO
+
+    ELSEIF (map( 1) == 1 .AND. map( 2) == 3 .AND. map( 3) == 2) THEN
+      ! [i,j,k] -> [i,k,j]
+
+      ! Reallocate permuted memory
+      ALLOCATE( d( n1, n3, n2))
+
+      ! Copy and permuted data from temporary memory
+      DO i = 1, n1
+      DO j = 1, n2
+      DO k = 1, n3
+        d( i,k,j) = d_temp( i,j,k)
+      END DO
+      END DO
+      END DO
+
+    ELSEIF (map( 1) == 2 .AND. map( 2) == 1 .AND. map( 3) == 3) THEN
+      ! [i,j,k] -> [j,i,k]
+
+      ! Reallocate permuted memory
+      ALLOCATE( d( n2, n1, n3))
+
+      ! Copy and permuted data from temporary memory
+      DO i = 1, n1
+      DO j = 1, n2
+      DO k = 1, n3
+        d( j,i,k) = d_temp( i,j,k)
+      END DO
+      END DO
+      END DO
+
+    ELSEIF (map( 1) == 2 .AND. map( 2) == 3 .AND. map( 3) == 1) THEN
+      ! [i,j,k] -> [j,k,i]
+
+      ! Reallocate permuted memory
+      ALLOCATE( d( n2, n3, n1))
+
+      ! Copy and permuted data from temporary memory
+      DO i = 1, n1
+      DO j = 1, n2
+      DO k = 1, n3
+        d( j,k,i) = d_temp( i,j,k)
+      END DO
+      END DO
+      END DO
+
+    ELSEIF (map( 1) == 3 .AND. map( 2) == 1 .AND. map( 3) == 2) THEN
+      ! [i,j,k] -> [k,i,j]
+
+      ! Reallocate permuted memory
+      ALLOCATE( d( n3, n1, n2))
+
+      ! Copy and permuted data from temporary memory
+      DO i = 1, n1
+      DO j = 1, n2
+      DO k = 1, n3
+        d( k,i,j) = d_temp( i,j,k)
+      END DO
+      END DO
+      END DO
+
+    ELSEIF (map( 1) == 3 .AND. map( 2) == 2 .AND. map( 3) == 1) THEN
+      ! [i,j,k] -> [k,j,i]
+
+      ! Reallocate permuted memory
+      ALLOCATE( d( n3, n2, n1))
+
+      ! Copy and permuted data from temporary memory
+      DO i = 1, n1
+      DO j = 1, n2
+      DO k = 1, n3
+        d( k,j,i) = d_temp( i,j,k)
+      END DO
+      END DO
+      END DO
+
+    ELSE
+      CALL crash('invalid permutation!')
+    END IF
+
+    ! Deallocate temporary memory
+    DEALLOCATE( d_temp)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE permute_3D_dp
+
+  SUBROUTINE flip_1D_dp( d)
+    ! Flip a 1-D array
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    REAL(dp), DIMENSION(:    ),          INTENT(INOUT) :: d
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'flip_1D_dp'
+    INTEGER                                            :: i,nx,iopp
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    nx = SIZE( d,1)
+
+    ! Flip the data
+    DO i = 1, nx
+      iopp = nx + 1 - i
+      IF (iopp <= i) EXIT         ! [a  ] [b  ]
+      d( i   ) = d( i) + d( iopp) ! [a+b] [b  ]
+      d( iopp) = d( i) - d( iopp) ! [a+b] [a  ]
+      d( i   ) = d( i) - d( iopp) ! [b  ] [a  ]
+    END DO
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE flip_1D_dp
+
+  SUBROUTINE flip_2D_x1_dp( d)
+    ! Flip a 2-D array along the first dimension
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    REAL(dp), DIMENSION(:,:  ),          INTENT(INOUT) :: d
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'flip_2D_x1_dp'
+    INTEGER                                            :: i,n1,n2,iopp
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    n1 = SIZE( d,1)
+    n2 = SIZE( d,2)
+
+    ! Flip the data
+    DO i = 1, n1
+      iopp = n1 + 1 - i
+      IF (iopp <= i) EXIT               ! [a  ] [b  ]
+      d( i   ,:) = d( i,:) + d( iopp,:) ! [a+b] [b  ]
+      d( iopp,:) = d( i,:) - d( iopp,:) ! [a+b] [a  ]
+      d( i   ,:) = d( i,:) - d( iopp,:) ! [b  ] [a  ]
+    END DO
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE flip_2D_x1_dp
+
+  SUBROUTINE flip_2D_x2_dp( d)
+    ! Flip a 2-D array along the second dimension
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    REAL(dp), DIMENSION(:,:  ),          INTENT(INOUT) :: d
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'flip_2D_x2_dp'
+    INTEGER                                            :: j,n1,n2,jopp
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    n1 = SIZE( d,1)
+    n2 = SIZE( d,2)
+
+    ! Flip the data
+    DO j = 1, n2
+      jopp = n2 + 1 - j
+      IF (jopp <= j) EXIT               ! [a  ] [b  ]
+      d( :,j   ) = d( :,j) + d( :,jopp) ! [a+b] [b  ]
+      d( :,jopp) = d( :,j) - d( :,jopp) ! [a+b] [a  ]
+      d( :,j   ) = d( :,j) - d( :,jopp) ! [b  ] [a  ]
+    END DO
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE flip_2D_x2_dp
+
+  SUBROUTINE flip_3D_x1_dp( d)
+    ! Flip a 3-D array along the first dimension
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    REAL(dp), DIMENSION(:,:,:),          INTENT(INOUT) :: d
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'flip_3D_x1_dp'
+    INTEGER                                            :: i,n1,n2,n3,iopp
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    n1 = SIZE( d,1)
+    n2 = SIZE( d,2)
+    n3 = SIZE( d,3)
+
+    ! Flip the data
+    DO i = 1, n1
+      iopp = n1 + 1 - i
+      IF (iopp <= i) EXIT                     ! [a  ] [b  ]
+      d( i   ,:,:) = d( i,:,:) + d( iopp,:,:) ! [a+b] [b  ]
+      d( iopp,:,:) = d( i,:,:) - d( iopp,:,:) ! [a+b] [a  ]
+      d( i   ,:,:) = d( i,:,:) - d( iopp,:,:) ! [b  ] [a  ]
+    END DO
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE flip_3D_x1_dp
+
+  SUBROUTINE flip_3D_x2_dp( d)
+    ! Flip a 3-D array along the second dimension
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    REAL(dp), DIMENSION(:,:,:),          INTENT(INOUT) :: d
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'flip_3D_x2_dp'
+    INTEGER                                            :: j,n1,n2,n3,jopp
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    n1 = SIZE( d,1)
+    n2 = SIZE( d,2)
+    n3 = SIZE( d,3)
+
+    ! Flip the data
+    DO j = 1, n2
+      jopp = n2 + 1 - j
+      IF (jopp <= j) EXIT                     ! [a  ] [b  ]
+      d( :,j   ,:) = d( :,j,:) + d( :,jopp,:) ! [a+b] [b  ]
+      d( :,jopp,:) = d( :,j,:) - d( :,jopp,:) ! [a+b] [a  ]
+      d( :,j   ,:) = d( :,j,:) - d( :,jopp,:) ! [b  ] [a  ]
+    END DO
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE flip_3D_x2_dp
+
+  SUBROUTINE flip_3D_x3_dp( d)
+    ! Flip a 3-D array along the third dimension
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    REAL(dp), DIMENSION(:,:,:),          INTENT(INOUT) :: d
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'flip_3D_x3_dp'
+    INTEGER                                            :: k,n1,n2,n3,kopp
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    n1 = SIZE( d,1)
+    n2 = SIZE( d,2)
+    n3 = SIZE( d,3)
+
+    ! Flip the data
+    DO k = 1, n3
+      kopp = n3 + 1 - k
+      IF (kopp <= k) EXIT                     ! [a  ] [b  ]
+      d( :,:,k   ) = d( :,:,k) + d( :,:,kopp) ! [a+b] [b  ]
+      d( :,:,kopp) = d( :,:,k) - d( :,:,kopp) ! [a+b] [a  ]
+      d( :,:,k   ) = d( :,:,k) - d( :,:,kopp) ! [b  ] [a  ]
+    END DO
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE flip_3D_x3_dp
 
 ! == Debugging
 

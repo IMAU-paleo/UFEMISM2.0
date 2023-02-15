@@ -59,10 +59,10 @@ MODULE netcdf_basic
   CHARACTER(LEN=256), PARAMETER :: field_name_options_dim_nV         = 'vi'
   CHARACTER(LEN=256), PARAMETER :: field_name_options_dim_nTri       = 'ti'
   CHARACTER(LEN=256), PARAMETER :: field_name_options_dim_nC_mem     = 'ci'
-  CHARACTER(LEN=256), PARAMETER :: field_name_options_dim_nAc        = 'aci'
+  CHARACTER(LEN=256), PARAMETER :: field_name_options_dim_nE         = 'ei'
   CHARACTER(LEN=256), PARAMETER :: field_name_options_dim_two        = 'two'
   CHARACTER(LEN=256), PARAMETER :: field_name_options_dim_three      = 'three'
-  CHARACTER(LEN=256), PARAMETER :: field_name_options_dim_six        = 'six'
+  CHARACTER(LEN=256), PARAMETER :: field_name_options_dim_four       = 'four'
 
   CHARACTER(LEN=256), PARAMETER :: field_name_options_V              = 'V'
   CHARACTER(LEN=256), PARAMETER :: field_name_options_Tri            = 'Tri'
@@ -70,13 +70,15 @@ MODULE netcdf_basic
   CHARACTER(LEN=256), PARAMETER :: field_name_options_C              = 'C'
   CHARACTER(LEN=256), PARAMETER :: field_name_options_niTri          = 'niTri'
   CHARACTER(LEN=256), PARAMETER :: field_name_options_iTri           = 'iTri'
-  CHARACTER(LEN=256), PARAMETER :: field_name_options_edge_index     = 'edge_index'
+  CHARACTER(LEN=256), PARAMETER :: field_name_options_VBI            = 'VBI'
   CHARACTER(LEN=256), PARAMETER :: field_name_options_Tricc          = 'Tricc'
   CHARACTER(LEN=256), PARAMETER :: field_name_options_TriC           = 'TriC'
-  CHARACTER(LEN=256), PARAMETER :: field_name_options_Tri_edge_index = 'Tri_edge_index'
-  CHARACTER(LEN=256), PARAMETER :: field_name_options_VAc            = 'VAc'
-  CHARACTER(LEN=256), PARAMETER :: field_name_options_Aci            = 'Aci'
-  CHARACTER(LEN=256), PARAMETER :: field_name_options_iAci           = 'iAci'
+  CHARACTER(LEN=256), PARAMETER :: field_name_options_TriBI          = 'TriBI'
+  CHARACTER(LEN=256), PARAMETER :: field_name_options_E              = 'E'
+  CHARACTER(LEN=256), PARAMETER :: field_name_options_VE             = 'VE'
+  CHARACTER(LEN=256), PARAMETER :: field_name_options_EV             = 'EV'
+  CHARACTER(LEN=256), PARAMETER :: field_name_options_ETri           = 'ETri'
+  CHARACTER(LEN=256), PARAMETER :: field_name_options_EBI            = 'EBI'
   CHARACTER(LEN=256), PARAMETER :: field_name_options_A              = 'A'
   CHARACTER(LEN=256), PARAMETER :: field_name_options_R              = 'R'
 
@@ -195,8 +197,8 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'inquire_mesh'
     INTEGER                                            :: ncid
     INTEGER                                            :: id_dim_vi, id_dim_ti, id_dim_ci, id_dim_two, id_dim_three
-    INTEGER                                            :: id_var_V, id_var_nC, id_var_C, id_var_niTri, id_var_iTri, id_var_edge_index
-    INTEGER                                            :: id_var_Tri, id_var_Tricc, id_var_TriC, id_var_Tri_edge_index
+    INTEGER                                            :: id_var_V, id_var_nC, id_var_C, id_var_niTri, id_var_iTri, id_var_VBI
+    INTEGER                                            :: id_var_Tri, id_var_Tricc, id_var_TriC, id_var_TrIBI
 
     ! Add routine to path
     CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
@@ -205,43 +207,43 @@ CONTAINS
     CALL open_existing_netcdf_file_for_reading( filename, ncid)
 
     ! Inquire mesh dimensions
-    CALL inquire_dim_multiple_options( filename, ncid, field_name_options_dim_nV        , id_dim_vi            )
-    CALL inquire_dim_multiple_options( filename, ncid, field_name_options_dim_nTri      , id_dim_ti            )
-    CALL inquire_dim_multiple_options( filename, ncid, field_name_options_dim_nC_mem    , id_dim_ci            )
-    CALL inquire_dim_multiple_options( filename, ncid, field_name_options_dim_two       , id_dim_two           )
-    CALL inquire_dim_multiple_options( filename, ncid, field_name_options_dim_three     , id_dim_three         )
+    CALL inquire_dim_multiple_options( filename, ncid, field_name_options_dim_nV    , id_dim_vi   )
+    CALL inquire_dim_multiple_options( filename, ncid, field_name_options_dim_nTri  , id_dim_ti   )
+    CALL inquire_dim_multiple_options( filename, ncid, field_name_options_dim_nC_mem, id_dim_ci   )
+    CALL inquire_dim_multiple_options( filename, ncid, field_name_options_dim_two   , id_dim_two  )
+    CALL inquire_dim_multiple_options( filename, ncid, field_name_options_dim_three , id_dim_three)
 
     ! Inquire mesh variables
-    CALL inquire_var_multiple_options( filename, ncid, field_name_options_V             , id_var_V             )
-    CALL inquire_var_multiple_options( filename, ncid, field_name_options_nC            , id_var_nC            )
-    CALL inquire_var_multiple_options( filename, ncid, field_name_options_C             , id_var_C             )
-    CALL inquire_var_multiple_options( filename, ncid, field_name_options_niTri         , id_var_niTri         )
-    CALL inquire_var_multiple_options( filename, ncid, field_name_options_iTri          , id_var_iTri          )
-    CALL inquire_var_multiple_options( filename, ncid, field_name_options_edge_index    , id_var_edge_index    )
-    CALL inquire_var_multiple_options( filename, ncid, field_name_options_Tri           , id_var_Tri           )
-    CALL inquire_var_multiple_options( filename, ncid, field_name_options_Tricc         , id_var_Tricc         )
-    CALL inquire_var_multiple_options( filename, ncid, field_name_options_TriC          , id_var_TriC          )
-    CALL inquire_var_multiple_options( filename, ncid, field_name_options_Tri_edge_index, id_var_Tri_edge_index)
+    CALL inquire_var_multiple_options( filename, ncid, field_name_options_V         , id_var_V    )
+    CALL inquire_var_multiple_options( filename, ncid, field_name_options_nC        , id_var_nC   )
+    CALL inquire_var_multiple_options( filename, ncid, field_name_options_C         , id_var_C    )
+    CALL inquire_var_multiple_options( filename, ncid, field_name_options_niTri     , id_var_niTri)
+    CALL inquire_var_multiple_options( filename, ncid, field_name_options_iTri      , id_var_iTri )
+    CALL inquire_var_multiple_options( filename, ncid, field_name_options_VBI       , id_var_VBI  )
+    CALL inquire_var_multiple_options( filename, ncid, field_name_options_Tri       , id_var_Tri  )
+    CALL inquire_var_multiple_options( filename, ncid, field_name_options_Tricc     , id_var_Tricc)
+    CALL inquire_var_multiple_options( filename, ncid, field_name_options_TriC      , id_var_TriC )
+    CALL inquire_var_multiple_options( filename, ncid, field_name_options_TriBI     , id_var_TriBI)
 
     ! Check if everything is there
     has_mesh = .TRUE.
 
-    IF (id_dim_vi             == -1) has_mesh = .FALSE.
-    IF (id_dim_ti             == -1) has_mesh = .FALSE.
-    IF (id_dim_ci             == -1) has_mesh = .FALSE.
-    IF (id_dim_two            == -1) has_mesh = .FALSE.
-    IF (id_dim_three          == -1) has_mesh = .FALSE.
+    IF (id_dim_vi    == -1) has_mesh = .FALSE.
+    IF (id_dim_ti    == -1) has_mesh = .FALSE.
+    IF (id_dim_ci    == -1) has_mesh = .FALSE.
+    IF (id_dim_two   == -1) has_mesh = .FALSE.
+    IF (id_dim_three == -1) has_mesh = .FALSE.
 
-    IF (id_var_V              == -1) has_mesh = .FALSE.
-    IF (id_var_nC             == -1) has_mesh = .FALSE.
-    IF (id_var_C              == -1) has_mesh = .FALSE.
-    IF (id_var_niTri          == -1) has_mesh = .FALSE.
-    IF (id_var_iTri           == -1) has_mesh = .FALSE.
-    IF (id_var_edge_index     == -1) has_mesh = .FALSE.
-    IF (id_var_Tri            == -1) has_mesh = .FALSE.
-    IF (id_var_Tricc          == -1) has_mesh = .FALSE.
-    IF (id_var_TriC           == -1) has_mesh = .FALSE.
-    IF (id_var_Tri_edge_index == -1) has_mesh = .FALSE.
+    IF (id_var_V     == -1) has_mesh = .FALSE.
+    IF (id_var_nC    == -1) has_mesh = .FALSE.
+    IF (id_var_C     == -1) has_mesh = .FALSE.
+    IF (id_var_niTri == -1) has_mesh = .FALSE.
+    IF (id_var_iTri  == -1) has_mesh = .FALSE.
+    IF (id_var_VBI   == -1) has_mesh = .FALSE.
+    IF (id_var_Tri   == -1) has_mesh = .FALSE.
+    IF (id_var_Tricc == -1) has_mesh = .FALSE.
+    IF (id_var_TriC  == -1) has_mesh = .FALSE.
+    IF (id_var_TriBI == -1) has_mesh = .FALSE.
 
     ! Close the NetCDF file
     CALL close_netcdf_file( ncid)
@@ -824,10 +826,10 @@ CONTAINS
     IF (.NOT. (dims_of_var( 1) == id_dim_vi .AND. dims_of_var( 2) == id_dim_ci)) &
       CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have vi and ci as dimensions!')
 
-    ! Inquire variables: edge_index
-    CALL inquire_var_multiple_options( filename, ncid, field_name_options_edge_index, id_var, var_name = var_name, &
+    ! Inquire variables: VBI
+    CALL inquire_var_multiple_options( filename, ncid, field_name_options_VBI, id_var, var_name = var_name, &
       var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
-    IF (id_var == -1) CALL crash('no valid edge_index variable could be found in file "' // TRIM( filename) // '"!')
+    IF (id_var == -1) CALL crash('no valid VBI variable could be found in file "' // TRIM( filename) // '"!')
     IF (.NOT. var_type == NF90_INT) &
       CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_INT!')
     IF (ndims_of_var /= 1) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
@@ -864,10 +866,10 @@ CONTAINS
     IF (.NOT. (dims_of_var( 1) == id_dim_ti .AND. dims_of_var( 2) == id_dim_three)) &
       CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have ti and three as dimensions!')
 
-    ! Inquire variables: Tri_edge_index
-    CALL inquire_var_multiple_options( filename, ncid, field_name_options_Tri_edge_index, id_var, var_name = var_name, &
+    ! Inquire variables: TriBI
+    CALL inquire_var_multiple_options( filename, ncid, field_name_options_TriBI, id_var, var_name = var_name, &
       var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
-    IF (id_var == -1) CALL crash('no valid Tri_edge_index variable could be found in file "' // TRIM( filename) // '"!')
+    IF (id_var == -1) CALL crash('no valid TriBI variable could be found in file "' // TRIM( filename) // '"!')
     IF (.NOT. var_type == NF90_INT) &
       CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_INT!')
     IF (ndims_of_var /= 1) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
@@ -1503,110 +1505,6 @@ CONTAINS
 
   END SUBROUTINE check_xy_grid_field_dp_3D
 
-  SUBROUTINE check_xy_grid_field_dp_3D_ocean(       filename, ncid, var_name, should_have_time)
-    ! Check if this file contains a 3-D ocean x/y-grid variable by this name
-
-    IMPLICIT NONE
-
-    ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    CHARACTER(LEN=*),                    INTENT(IN)    :: var_name
-    LOGICAL,                   OPTIONAL, INTENT(IN)    :: should_have_time
-
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'check_xy_grid_field_dp_3D_ocean'
-    INTEGER                                            :: id_dim_x, id_dim_y, id_dim_z_ocean, id_dim_time, id_var
-    INTEGER                                            :: var_type
-    INTEGER                                            :: ndims_of_var
-    INTEGER, DIMENSION( NF90_MAX_VAR_DIMS)             :: dims_of_var
-    LOGICAL                                            :: file_has_time
-
-    ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
-
-    ! Check if the file has valid x and y dimensions and variables
-    CALL check_x(       filename, ncid)
-    CALL check_y(       filename, ncid)
-    CALL check_z_ocean( filename, ncid)
-
-    ! Inquire x,y,z_ocean dimensions
-    CALL inquire_dim_multiple_options( filename, ncid, field_name_options_x      , id_dim_x      )
-    CALL inquire_dim_multiple_options( filename, ncid, field_name_options_y      , id_dim_y      )
-    CALL inquire_dim_multiple_options( filename, ncid, field_name_options_z_ocean, id_dim_z_ocean)
-
-    ! Inquire variable
-    CALL inquire_var( filename, ncid, var_name, id_var)
-    IF (id_var == -1) CALL crash('variable "' // TRIM( var_name) // '" could not be found in file "' // TRIM( filename) // '"!')
-
-    ! Inquire variable info
-    CALL inquire_var_info( filename, ncid, id_var, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
-
-    ! Check variable type
-    IF (.NOT. (var_type == NF90_FLOAT .OR. var_type == NF90_DOUBLE)) THEN
-      CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
-    END IF
-
-    ! Check x,y dimensions
-    IF (.NOT. ANY( dims_of_var == id_dim_x      )) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have x as a dimension!')
-    IF (.NOT. ANY( dims_of_var == id_dim_y      )) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have y as a dimension!')
-    IF (.NOT. ANY( dims_of_var == id_dim_z_ocean)) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have z_ocean as a dimension!')
-
-    IF (.NOT. PRESENT( should_have_time)) THEN
-      ! This variable is allowed to either have or not have a time dimension
-
-      ! Check if the file contains a time dimension
-      CALL inquire_dim_multiple_options( filename, ncid, field_name_options_time, id_dim_time)
-      IF (id_dim_time == -1) THEN
-        file_has_time = .FALSE.
-      ELSE
-        file_has_time = .TRUE.
-      END IF
-
-      IF (file_has_time) THEN
-        ! Check if the variable has time as a dimension
-        IF (ndims_of_var == 3) THEN
-          ! The variable only has x,y,z_ocean as dimensions.
-        ELSE
-          IF (ndims_of_var == 4) THEN
-            IF (.NOT. ANY( dims_of_var == id_dim_time)) CALL crash('variable "' // TRIM( var_name) // '" in file "' &
-              // TRIM( filename) // '" has four dimensions, but the fourth one is not time!')
-          ELSE
-            CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-          END IF
-        END IF
-      ELSE ! IF (file_has_time) THEN
-        ! The file does not have a time dimension; the variable should only have x,y,z_ocean as dimensions
-        IF (ndims_of_var /= 3) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-      END IF ! IF (file_has_time) THEN
-
-    ELSE ! IF (.NOT. PRESENT( should_have_time)) THEN
-      IF (should_have_time) THEN
-        ! This variable should have a time dimension
-
-        ! Check if the file has a valid time dimension
-        CALL check_time( filename, ncid)
-
-        ! Inquire the time dimension
-        CALL inquire_dim_multiple_options( filename, ncid, field_name_options_time, id_dim_time)
-
-        ! Check if the variable has time as a dimension
-        IF (ndims_of_var /= 4) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-        IF (.NOT. ANY( dims_of_var == id_dim_time)) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have time as a dimension!')
-
-      ELSE ! IF (should_have_time) THEN
-        ! This variable should not have a time dimension; the variable should only have x,y,z_ocean as dimensions
-
-        IF (ndims_of_var /= 3) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-
-      END IF ! IF (should_have_time) THEN
-    END IF ! IF (.NOT. PRESENT( should_have_time)) THEN
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE check_xy_grid_field_dp_3D_ocean
-
   ! lon/lat-grid field variables
   SUBROUTINE check_lonlat_grid_field_int_2D(        filename, ncid, var_name, should_have_time)
     ! Check if this file contains a 2-D lon/lat-grid variable by this name
@@ -2018,110 +1916,6 @@ CONTAINS
 
   END SUBROUTINE check_lonlat_grid_field_dp_3D
 
-  SUBROUTINE check_lonlat_grid_field_dp_3D_ocean(   filename, ncid, var_name, should_have_time)
-    ! Check if this file contains a 3-D ocean lon/lat-grid variable by this name
-
-    IMPLICIT NONE
-
-    ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    CHARACTER(LEN=*),                    INTENT(IN)    :: var_name
-    LOGICAL,                   OPTIONAL, INTENT(IN)    :: should_have_time
-
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'check_lonlat_grid_field_dp_3D_ocean'
-    INTEGER                                            :: id_dim_lon, id_dim_lat, id_dim_z_ocean, id_dim_time, id_var
-    INTEGER                                            :: var_type
-    INTEGER                                            :: ndims_of_var
-    INTEGER, DIMENSION( NF90_MAX_VAR_DIMS)             :: dims_of_var
-    LOGICAL                                            :: file_has_time
-
-    ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
-
-    ! Check if the file has valid lon and lat dimensions and variables
-    CALL check_lon(     filename, ncid)
-    CALL check_lat(     filename, ncid)
-    CALL check_z_ocean( filename, ncid)
-
-    ! Inquire lon,lat,z_ocean dimensions
-    CALL inquire_dim_multiple_options( filename, ncid, field_name_options_lon    , id_dim_lon    )
-    CALL inquire_dim_multiple_options( filename, ncid, field_name_options_lat    , id_dim_lat    )
-    CALL inquire_dim_multiple_options( filename, ncid, field_name_options_z_ocean, id_dim_z_ocean)
-
-    ! Inquire variable
-    CALL inquire_var( filename, ncid, var_name, id_var)
-    IF (id_var == -1) CALL crash('variable "' // TRIM( var_name) // '" could not be found in file "' // TRIM( filename) // '"!')
-
-    ! Inquire variable info
-    CALL inquire_var_info( filename, ncid, id_var, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
-
-    ! Check variable type
-    IF (.NOT. (var_type == NF90_FLOAT .OR. var_type == NF90_DOUBLE)) THEN
-      CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
-    END IF
-
-    ! Check lon,lat dimensions
-    IF (.NOT. ANY( dims_of_var == id_dim_lon    )) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have longitude as a dimension!')
-    IF (.NOT. ANY( dims_of_var == id_dim_lat    )) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have latitude as a dimension!')
-    IF (.NOT. ANY( dims_of_var == id_dim_z_ocean)) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have z_ocean as a dimension!')
-
-    IF (.NOT. PRESENT( should_have_time)) THEN
-      ! This variable is allowed to either have or not have a time dimension
-
-      ! Check if the file contains a time dimension
-      CALL inquire_dim_multiple_options( filename, ncid, field_name_options_time, id_dim_time)
-      IF (id_dim_time == -1) THEN
-        file_has_time = .FALSE.
-      ELSE
-        file_has_time = .TRUE.
-      END IF
-
-      IF (file_has_time) THEN
-        ! Check if the variable has time as a dimension
-        IF (ndims_of_var == 3) THEN
-          ! The variable only has lon,lat,z_ocean as dimensions.
-        ELSE
-          IF (ndims_of_var == 4) THEN
-            IF (.NOT. ANY( dims_of_var == id_dim_time)) CALL crash('variable "' // TRIM( var_name) // '" in file "' &
-              // TRIM( filename) // '" has four dimensions, but the fourth one is not time!')
-          ELSE
-            CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-          END IF
-        END IF
-      ELSE ! IF (file_has_time) THEN
-        ! The file does not have a time dimension; the variable should only have lon,lat,z_ocean as dimensions
-        IF (ndims_of_var /= 3) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-      END IF ! IF (file_has_time) THEN
-
-    ELSE ! IF (.NOT. PRESENT( should_have_time)) THEN
-      IF (should_have_time) THEN
-        ! This variable should have a time dimension
-
-        ! Check if the file has a valid time dimension
-        CALL check_time( filename, ncid)
-
-        ! Inquire the time dimension
-        CALL inquire_dim_multiple_options( filename, ncid, field_name_options_time, id_dim_time)
-
-        ! Check if the variable has time as a dimension
-        IF (ndims_of_var /= 4) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-        IF (.NOT. ANY( dims_of_var == id_dim_time)) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have time as a dimension!')
-
-      ELSE ! IF (should_have_time) THEN
-        ! This variable should not have a time dimension; the variable should only have lon,lat,z_ocean as dimensions
-
-        IF (ndims_of_var /= 3) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-
-      END IF ! IF (should_have_time) THEN
-    END IF ! IF (.NOT. PRESENT( should_have_time)) THEN
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE check_lonlat_grid_field_dp_3D_ocean
-
   ! mesh field variables
   SUBROUTINE check_mesh_field_int_2D(               filename, ncid, var_name, should_have_time)
     ! Check if this file contains a 2-D mesh variable by this name
@@ -2338,7 +2132,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'check_mesh_field_int_2D_c'
-    INTEGER                                            :: id_dim_aci, id_dim_time, id_var
+    INTEGER                                            :: id_dim_ei, id_dim_time, id_var
     INTEGER                                            :: var_type
     INTEGER                                            :: ndims_of_var
     INTEGER, DIMENSION( NF90_MAX_VAR_DIMS)             :: dims_of_var
@@ -2351,7 +2145,7 @@ CONTAINS
     CALL check_mesh_dimensions( filename, ncid)
 
     ! Inquire mesh dimensions
-    CALL inquire_dim_multiple_options( filename, ncid, field_name_options_dim_nAc, id_dim_aci)
+    CALL inquire_dim_multiple_options( filename, ncid, field_name_options_dim_nE, id_dim_ei)
 
     ! Inquire variable
     CALL inquire_var( filename, ncid, var_name, id_var)
@@ -2366,7 +2160,7 @@ CONTAINS
     END IF
 
     ! Check mesh dimensions
-    IF (.NOT. ANY( dims_of_var == id_dim_aci)) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have aci as a dimension!')
+    IF (.NOT. ANY( dims_of_var == id_dim_ei)) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have ei as a dimension!')
 
     IF (.NOT. PRESENT( should_have_time)) THEN
       ! This variable is allowed to either have or not have a time dimension
@@ -2638,7 +2432,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'check_mesh_field_dp_2D_c'
-    INTEGER                                            :: id_dim_aci, id_dim_time, id_var
+    INTEGER                                            :: id_dim_ei, id_dim_time, id_var
     INTEGER                                            :: var_type
     INTEGER                                            :: ndims_of_var
     INTEGER, DIMENSION( NF90_MAX_VAR_DIMS)             :: dims_of_var
@@ -2651,7 +2445,7 @@ CONTAINS
     CALL check_mesh_dimensions( filename, ncid)
 
     ! Inquire mesh dimensions
-    CALL inquire_dim_multiple_options( filename, ncid, field_name_options_dim_nAc, id_dim_aci)
+    CALL inquire_dim_multiple_options( filename, ncid, field_name_options_dim_nE, id_dim_ei)
 
     ! Inquire variable
     CALL inquire_var( filename, ncid, var_name, id_var)
@@ -2666,7 +2460,7 @@ CONTAINS
     END IF
 
     ! Check mesh dimensions
-    IF (.NOT. ANY( dims_of_var == id_dim_aci)) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have aci as a dimension!')
+    IF (.NOT. ANY( dims_of_var == id_dim_ei)) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have ei as a dimension!')
 
     IF (.NOT. PRESENT( should_have_time)) THEN
       ! This variable is allowed to either have or not have a time dimension
@@ -2928,109 +2722,6 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE check_mesh_field_dp_3D
-
-  SUBROUTINE check_mesh_field_dp_3D_ocean(          filename, ncid, var_name, should_have_time)
-    ! Check if this file contains a 3-D ocean mesh variable by this name
-    !
-    ! NOTE: this is 3-D in the physical sense, so a 2-D array!
-
-    IMPLICIT NONE
-
-    ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    CHARACTER(LEN=*),                    INTENT(IN)    :: var_name
-    LOGICAL,                   OPTIONAL, INTENT(IN)    :: should_have_time
-
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'check_mesh_field_dp_3D_ocean'
-    INTEGER                                            :: id_dim_vi, id_dim_z_ocean, id_dim_time, id_var
-    INTEGER                                            :: var_type
-    INTEGER                                            :: ndims_of_var
-    INTEGER, DIMENSION( NF90_MAX_VAR_DIMS)             :: dims_of_var
-    LOGICAL                                            :: file_has_time
-
-    ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
-
-    ! Check if the file has valid mesh dimensions and variables
-    CALL check_mesh_dimensions( filename, ncid)
-    CALL check_z_ocean(         filename, ncid)
-
-    ! Inquire mesh dimensions
-    CALL inquire_dim_multiple_options( filename, ncid, field_name_options_dim_nV , id_dim_vi     )
-    CALL inquire_dim_multiple_options( filename, ncid, field_name_options_z_ocean, id_dim_z_ocean)
-
-    ! Inquire variable
-    CALL inquire_var( filename, ncid, var_name, id_var)
-    IF (id_var == -1) CALL crash('variable "' // TRIM( var_name) // '" could not be found in file "' // TRIM( filename) // '"!')
-
-    ! Inquire variable info
-    CALL inquire_var_info( filename, ncid, id_var, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
-
-    ! Check variable type
-    IF (.NOT. (var_type == NF90_FLOAT .OR. var_type == NF90_DOUBLE)) THEN
-      CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
-    END IF
-
-    ! Check mesh dimensions
-    IF (.NOT. ANY( dims_of_var == id_dim_vi     )) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have vi as a dimension!')
-    IF (.NOT. ANY( dims_of_var == id_dim_z_ocean)) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have z_ocean as a dimension!')
-
-    IF (.NOT. PRESENT( should_have_time)) THEN
-      ! This variable is allowed to either have or not have a time dimension
-
-      ! Check if the file contains a time dimension
-      CALL inquire_dim_multiple_options( filename, ncid, field_name_options_time, id_dim_time)
-      IF (id_dim_time == -1) THEN
-        file_has_time = .FALSE.
-      ELSE
-        file_has_time = .TRUE.
-      END IF
-
-      IF (file_has_time) THEN
-        ! Check if the variable has time as a dimension
-        IF (ndims_of_var == 2) THEN
-          ! The variable only has vi,z_ocean as dimensions
-        ELSE
-          IF (ndims_of_var == 3) THEN
-            IF (.NOT. ANY( dims_of_var == id_dim_time)) CALL crash('variable "' // TRIM( var_name) // '" in file "' &
-              // TRIM( filename) // '" has three dimensions, but the third one is not time!')
-          ELSE
-            CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-          END IF
-        END IF
-      ELSE ! IF (file_has_time) THEN
-        ! The file does not have a time dimension; the variable should only have vi,z_ocean as dimensions
-        IF (ndims_of_var /= 2) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-      END IF ! IF (file_has_time) THEN
-
-    ELSE ! IF (.NOT. PRESENT( should_have_time)) THEN
-      IF (should_have_time) THEN
-        ! This variable should have a time dimension
-
-        ! Check if the file has a valid time dimension
-        CALL check_time( filename, ncid)
-
-        ! Inquire the time dimension
-        CALL inquire_dim_multiple_options( filename, ncid, field_name_options_time, id_dim_time)
-
-        ! Check if the variable has time as a dimension
-        IF (ndims_of_var /= 3) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-        IF (.NOT. ANY( dims_of_var == id_dim_time)) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have time as a dimension!')
-
-      ELSE ! IF (should_have_time) THEN
-        ! This variable should not have a time dimension; the variable should only have vi,z_ocean as dimensions
-
-        IF (ndims_of_var /= 2) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-
-      END IF ! IF (should_have_time) THEN
-    END IF ! IF (.NOT. PRESENT( should_have_time)) THEN
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE check_mesh_field_dp_3D_ocean
 
 ! ===== Flexible looking for dimensions and variables =====
 ! =========================================================
@@ -3318,8 +3009,14 @@ CONTAINS
 ! ===== Read data from variables =====
 ! ====================================
 
+  ! NOTE: only the Master actually reads data from the disk; it then
+  !       MPI_BCASTs it to the other processes
+
   SUBROUTINE read_var_int_0D(  filename, ncid, id_var, d)
     ! Read data from a NetCDF file
+    !
+    ! NOTE: only the Master actually reads data from the disk; it then
+    !       MPI_BCASTs it to the other processes
 
     IMPLICIT NONE
 
@@ -3355,6 +3052,9 @@ CONTAINS
     END IF
     CALL sync
 
+    ! Broadcast to the other processes
+    CALL MPI_BCAST( d, 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
+
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
@@ -3362,6 +3062,9 @@ CONTAINS
 
   SUBROUTINE read_var_int_1D(  filename, ncid, id_var, d, start, count)
     ! Read data from a NetCDF file
+    !
+    ! NOTE: only the Master actually reads data from the disk; it then
+    !       MPI_BCASTs it to the other processes
 
     IMPLICIT NONE
 
@@ -3434,6 +3137,9 @@ CONTAINS
     END IF
     CALL sync
 
+    ! Broadcast to the other processes
+    CALL MPI_BCAST( d, SIZE( d,1), MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
+
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
@@ -3441,6 +3147,9 @@ CONTAINS
 
   SUBROUTINE read_var_int_2D(  filename, ncid, id_var, d, start, count)
     ! Read data from a NetCDF file
+    !
+    ! NOTE: only the Master actually reads data from the disk; it then
+    !       MPI_BCASTs it to the other processes
 
     IMPLICIT NONE
 
@@ -3513,6 +3222,9 @@ CONTAINS
     END IF
     CALL sync
 
+    ! Broadcast to the other processes
+    CALL MPI_BCAST( d, SIZE( d,1) * SIZE( d,2), MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
+
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
@@ -3520,6 +3232,9 @@ CONTAINS
 
   SUBROUTINE read_var_int_3D(  filename, ncid, id_var, d, start, count)
     ! Read data from a NetCDF file
+    !
+    ! NOTE: only the Master actually reads data from the disk; it then
+    !       MPI_BCASTs it to the other processes
 
     IMPLICIT NONE
 
@@ -3592,6 +3307,9 @@ CONTAINS
     END IF
     CALL sync
 
+    ! Broadcast to the other processes
+    CALL MPI_BCAST( d, SIZE( d,1) * SIZE( d,2) * SIZE( d,3), MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
+
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
@@ -3599,6 +3317,9 @@ CONTAINS
 
   SUBROUTINE read_var_int_4D(  filename, ncid, id_var, d, start, count)
     ! Read data from a NetCDF file
+    !
+    ! NOTE: only the Master actually reads data from the disk; it then
+    !       MPI_BCASTs it to the other processes
 
     IMPLICIT NONE
 
@@ -3671,6 +3392,9 @@ CONTAINS
     END IF
     CALL sync
 
+    ! Broadcast to the other processes
+    CALL MPI_BCAST( d, SIZE( d,1) * SIZE( d,2) * SIZE( d,3) * SIZE( d,4), MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
+
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
@@ -3678,6 +3402,9 @@ CONTAINS
 
   SUBROUTINE read_var_dp_0D(  filename, ncid, id_var, d)
     ! Read data from a NetCDF file
+    !
+    ! NOTE: only the Master actually reads data from the disk; it then
+    !       MPI_BCASTs it to the other processes
 
     IMPLICIT NONE
 
@@ -3713,6 +3440,9 @@ CONTAINS
     END IF
     CALL sync
 
+    ! Broadcast to the other processes
+    CALL MPI_BCAST( d, 1, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
@@ -3720,6 +3450,9 @@ CONTAINS
 
   SUBROUTINE read_var_dp_1D(  filename, ncid, id_var, d, start, count)
     ! Read data from a NetCDF file
+    !
+    ! NOTE: only the Master actually reads data from the disk; it then
+    !       MPI_BCASTs it to the other processes
 
     IMPLICIT NONE
 
@@ -3792,6 +3525,9 @@ CONTAINS
     END IF
     CALL sync
 
+    ! Broadcast to the other processes
+    CALL MPI_BCAST( d, SIZE( d,1), MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
@@ -3799,6 +3535,9 @@ CONTAINS
 
   SUBROUTINE read_var_dp_2D(  filename, ncid, id_var, d, start, count)
     ! Read data from a NetCDF file
+    !
+    ! NOTE: only the Master actually reads data from the disk; it then
+    !       MPI_BCASTs it to the other processes
 
     IMPLICIT NONE
 
@@ -3871,6 +3610,9 @@ CONTAINS
     END IF
     CALL sync
 
+    ! Broadcast to the other processes
+    CALL MPI_BCAST( d, SIZE( d,1) * SIZE( d,2), MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
@@ -3878,6 +3620,9 @@ CONTAINS
 
   SUBROUTINE read_var_dp_3D(  filename, ncid, id_var, d, start, count)
     ! Read data from a NetCDF file
+    !
+    ! NOTE: only the Master actually reads data from the disk; it then
+    !       MPI_BCASTs it to the other processes
 
     IMPLICIT NONE
 
@@ -3950,6 +3695,9 @@ CONTAINS
     END IF
     CALL sync
 
+    ! Broadcast to the other processes
+    CALL MPI_BCAST( d, SIZE( d,1) * SIZE( d,2) * SIZE( d,3), MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
@@ -3957,6 +3705,9 @@ CONTAINS
 
   SUBROUTINE read_var_dp_4D(  filename, ncid, id_var, d, start, count)
     ! Read data from a NetCDF file
+    !
+    ! NOTE: only the Master actually reads data from the disk; it then
+    !       MPI_BCASTs it to the other processes
 
     IMPLICIT NONE
 
@@ -4028,6 +3779,9 @@ CONTAINS
       IF (nerr /= NF90_NOERR) CALL crash('NF90_GET_VAR failed for variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '"!')
     END IF
     CALL sync
+
+    ! Broadcast to the other processes
+    CALL MPI_BCAST( d, SIZE( d,1) * SIZE( d,2) * SIZE( d,3) * SIZE( d,4), MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

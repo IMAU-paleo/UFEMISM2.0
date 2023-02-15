@@ -46,6 +46,7 @@ ifeq ($(DO_SELEN),yes)
 UFEMISM_program_objects = \
         basic/precisions.o \
         basic/parameters.o \
+        basic/basic_data_types.o \
         basic/mpi_basic.o \
         basic/reallocate_mod.o \
         basic/control_resources_and_error_messaging.o \
@@ -55,8 +56,12 @@ UFEMISM_program_objects = \
         mesh/mesh_memory.o \
         mesh/mesh_utilities.o \
         mesh/mesh_Delaunay.o \
+        mesh/mesh_edges.o \
+        mesh/mesh_secondary.o \
         mesh/mesh_creation.o \
         netcdf/netcdf_basic.o \
+        netcdf/netcdf_input.o \
+        netcdf/netcdf_output.o \
         climate/climate_main.o \
         UFEMISM_main_model.o \
         UFEMISM_program.o
@@ -64,6 +69,7 @@ else
 UFEMISM_program_objects = \
         basic/precisions.o \
         basic/parameters.o \
+        basic/basic_data_types.o \
         basic/mpi_basic.o \
         basic/reallocate_mod.o \
         basic/control_resources_and_error_messaging.o \
@@ -73,8 +79,12 @@ UFEMISM_program_objects = \
         mesh/mesh_memory.o \
         mesh/mesh_utilities.o \
         mesh/mesh_Delaunay.o \
+        mesh/mesh_edges.o \
+        mesh/mesh_secondary.o \
         mesh/mesh_creation.o \
         netcdf/netcdf_basic.o \
+        netcdf/netcdf_input.o \
+        netcdf/netcdf_output.o \
         climate/climate_main.o \
         UFEMISM_main_model.o \
         UFEMISM_program.o

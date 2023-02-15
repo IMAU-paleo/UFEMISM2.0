@@ -1,16 +1,24 @@
-# Object and module files
-src/module-files/*.mod
-src/object-files/*.o
-src/object-files/basal_conditions/*.o
-src/object-files/basal_mass_balance/*.o
-src/object-files/basic/*.o
-src/object-files/climate/*.o
-src/object-files/glacial_isostatic_adjustment/*.o
-src/object-files/ice/*.o
-src/object-files/mesh/*.o
-src/object-files/netcdf/*.o
-src/object-files/ocean/*.o
-src/object-files/surface_mass_balance/*.o
+# Ignore the main executable
+UFEMISM_program
 
-# MacOS files
-*.DS_Store
+# Ignore scripts in main folder
+/*.sh
+/*.csh
+
+# Ignore the module and object files
+*.mod
+*.o
+
+# Ignore output files
+result*/
+/benchmarks/MISMIP_mod/MISMIP_mod*
+/benchmarks/ISMIP-HOM/ISMIP_HOM_*
+
+# Ignore MacOS files
+.DS_Store
+
+# Ignore SLURM output on Snellius
+slurm-*.out
+
+# Ignore depend file
+.depend

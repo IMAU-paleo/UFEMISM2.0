@@ -35,16 +35,16 @@ nc = nc+1;
 mesh.iTri = temp{nc}; for c = 2:mesh.nC_mem; nc = nc+1; mesh.iTri = [mesh.iTri temp{nc}]; end
 nc = nc+1;
 
-mesh.edge_index = temp{nc};
+mesh.VBI = temp{nc};
 
 temp = textscan(fid,'%s',3,'delimiter','\n');
 
 % Triangle data
 temp = textscan(fid,'%d %d %d %d %d %d %d',mesh.nTri);
 
-mesh.Tri  = [temp{1} temp{2} temp{3}];
-mesh.TriC = [temp{4} temp{5} temp{6}];
-mesh.Tri_edge_index = temp{7};
+mesh.Tri   = [temp{1} temp{2} temp{3}];
+mesh.TriC  = [temp{4} temp{5} temp{6}];
+mesh.TriBI = temp{7};
 
 fclose(fid);
 

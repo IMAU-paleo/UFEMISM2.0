@@ -23,34 +23,41 @@ CONTAINS
 
   SUBROUTINE calc_Voronoi_cell_vertices(        mesh, vi, Vor, nVor)
     ! Find the coordinates of the points making up a vertex's Voronoi cell
+    !
+    ! NOTE: points are not repeated; if you want to calculated a loop integral
+    !       around the entire Voronoi cell, be sure to include the section
+    !       from Vor( nVor,:) to Vor( 1,:)!
+    !
+    ! NOTE: assumes that the mesh does not have any triangles whose circumcenter
+    !       lies outside of the mesh domain!
 
     IMPLICIT NONE
 
     TYPE(type_mesh),                     INTENT(IN)    :: mesh
     INTEGER,                             INTENT(IN)    :: vi
-    REAL(dp), DIMENSION( mesh%nC_mem,2), INTENT(OUT)   :: Vor
+    REAL(dp), DIMENSION(:,:  ),          INTENT(OUT)   :: Vor
     INTEGER,                             INTENT(OUT)   :: nVor
 
     ! Local variables
     INTEGER                                            :: vvi
 
-    IF (mesh%edge_index( vi) == 0) THEN
+    IF (mesh%VBI( vi) == 0) THEN
       ! Free vertex
 
-      CALL calc_Voronoi_cell_vertices_free(mesh, vi, Vor, nVor)
+      CALL calc_Voronoi_cell_vertices_free( mesh, vi, Vor, nVor)
 
-    ELSEIF (mesh%edge_index( vi) == 2 .OR. &
-            mesh%edge_index( vi) == 4 .OR. &
-            mesh%edge_index( vi) == 6 .OR. &
-            mesh%edge_index( vi) == 8) THEN
+    ELSEIF (mesh%VBI( vi) == 2 .OR. &
+            mesh%VBI( vi) == 4 .OR. &
+            mesh%VBI( vi) == 6 .OR. &
+            mesh%VBI( vi) == 8) THEN
       ! Corner vertex
 
-      CALL calc_Voronoi_cell_vertices_corner(mesh, vi, Vor, nVor)
+      CALL calc_Voronoi_cell_vertices_corner( mesh, vi, Vor, nVor)
 
     ELSE
       ! Boundary vertex
 
-      CALL calc_Voronoi_cell_vertices_edge(mesh, vi, Vor, nVor)
+      CALL calc_Voronoi_cell_vertices_boundary( mesh, vi, Vor, nVor)
 
     END IF
 
@@ -59,15 +66,15 @@ CONTAINS
     DO vvi = 1, nVor
 
       ! Safety: if a Voronoi vertex is too far outside the mesh domain, crash.
-      IF (Vor(vvi,1) < mesh%xmin - mesh%tol_dist .OR. &
-          Vor(vvi,1) > mesh%xmax + mesh%tol_dist .OR. &
-          Vor(vvi,2) < mesh%ymin - mesh%tol_dist .OR. &
-          Vor(vvi,2) > mesh%ymax + mesh%tol_dist) THEN
+      IF (Vor( vvi,1) < mesh%xmin - mesh%tol_dist .OR. &
+          Vor( vvi,1) > mesh%xmax + mesh%tol_dist .OR. &
+          Vor( vvi,2) < mesh%ymin - mesh%tol_dist .OR. &
+          Vor( vvi,2) > mesh%ymax + mesh%tol_dist) THEN
         CALL crash('find_Voronoi_cell_vertices: found Voronoi cell vertex outside of mesh domain!')
       END IF
 
-      Vor(vvi,1) = MAX( MIN( Vor(vvi,1), mesh%xmax), mesh%xmin)
-      Vor(vvi,2) = MAX( MIN( Vor(vvi,2), mesh%ymax), mesh%ymin)
+      Vor( vvi,1) = MAX( MIN( Vor( vvi,1), mesh%xmax), mesh%xmin)
+      Vor( vvi,2) = MAX( MIN( Vor( vvi,2), mesh%ymax), mesh%ymin)
 
     END DO
 
@@ -80,141 +87,93 @@ CONTAINS
 
     TYPE(type_mesh),                     INTENT(IN)    :: mesh
     INTEGER,                             INTENT(IN)    :: vi
-    REAL(dp), DIMENSION( mesh%nC_mem,2), INTENT(OUT)   :: Vor
+    REAL(dp), DIMENSION(:,:  ),          INTENT(OUT)   :: Vor
     INTEGER,                             INTENT(OUT)   :: nVor
 
     ! Local variables
-    INTEGER                                            :: iti, iti_clock, iti_anti, ti, ti_clock, ti_anti
-    REAL(dp), DIMENSION(2)                             :: cc, cc_clock, cc_anti
+    INTEGER                                            :: iti, ti
 
+    ! Initialise
     Vor  = 0._dp
     nVor = 0
 
-    DO iti = 1, mesh%niTri(vi)
-
-      ! Find indices of current, clockwise neighbouring and anticlockwise
-      ! neighbouring triangles.
-      iti_clock = iti - 1
-      IF (iti_clock == 0) iti_clock = mesh%niTri( vi)
-      iti_anti  = iti + 1
-      IF (iti_anti > mesh%niTri( vi)) iti_anti = 1
-
-      ti       = mesh%iTri( vi,iti)
-      ti_clock = mesh%iTri( vi,iti_clock)
-      ti_anti  = mesh%iTri( vi,iti_anti)
-
-      ! If necessary, crop (split) the circumcenter of the current triangle.
-      cc       = mesh%Tricc( ti,:)
-      CALL crop_circumcenter( mesh, ti, ti_clock, cc_clock)
-      CALL crop_circumcenter( mesh, ti, ti_anti,  cc_anti)
-
-      ! Add the resulting Voronoi vertex/vertices
-      IF (cc_clock( 1) /= cc_anti( 1) .OR. cc_clock( 2) /= cc_anti( 2)) THEN
-        nVor = nVor+1
-        Vor( nVor,:) = cc_clock
-        nVor = nVor+1
-        Vor( nVor,:) = cc_anti
-      ELSE
-        nVor = nVor+1
-        Vor( nVor,:) = cc
-      END IF
-
-    END DO ! DO t = 1, mesh%niTri(vi)
-
-    ! Repeat the first Voronoi vertex
-    nVor = nVor+1
-    Vor( nVor,:) = Vor( 1,:)
+    DO iti = 1, mesh%niTri( vi)
+      ti = mesh%iTri( vi, iti)
+      nVor = nVor + 1
+      Vor( nVor,:) = mesh%Tricc( ti,:)
+    END DO
 
   END SUBROUTINE calc_Voronoi_cell_vertices_free
 
-  SUBROUTINE calc_Voronoi_cell_vertices_edge(   mesh, vi, Vor, nVor)
-    ! Find the coordinates of the points making up an edge vertex's Voronoi cell
+  SUBROUTINE calc_Voronoi_cell_vertices_boundary(   mesh, vi, Vor, nVor)
+    ! Find the coordinates of the points making up a boundary vertex's Voronoi cell
 
     IMPLICIT NONE
 
     TYPE(type_mesh),                     INTENT(IN)    :: mesh
     INTEGER,                             INTENT(IN)    :: vi
-    REAL(dp), DIMENSION( mesh%nC_mem,2), INTENT(OUT)   :: Vor
+    REAL(dp), DIMENSION(:,:  ),          INTENT(OUT)   :: Vor
     INTEGER,                             INTENT(OUT)   :: nVor
 
     ! Local variables
-    INTEGER                                            :: iti
-    REAL(dp), DIMENSION(2)                             :: cc, cc_clock, cc_anti, cc_cropped
+    INTEGER                                            :: iti, ti
 
+    ! Initialise
     Vor  = 0._dp
     nVor = 0
 
-    ! == Boundary cell ==
-    ! If the first or last circumcenter lies outside of the grid, crop it.
-    ! If not, add the point on the edge closest to that circumcenter as an additional Voronoi cell vertex.
+    ! Start with the projection of the first triangle's circumcenter on the domain boundary
+    ti = mesh%iTri( vi,1)
+    IF     (mesh%VBI( vi) == 1) THEN
+      ! This vertex lies on the northern boundary
+      nVor = nVor + 1
+      Vor( nVor,:) = [mesh%Tricc( ti,1), mesh%ymax]
+    ELSEIF (mesh%VBI( vi) == 3) THEN
+      ! This vertex lies on the eastern boundary
+      nVor = nVor + 1
+      Vor( nVor,:) = [mesh%xmax, mesh%Tricc( ti,2)]
+    ELSEIF (mesh%VBI( vi) == 5) THEN
+      ! This vertex lies on the southern boundary
+      nVor = nVor + 1
+      Vor( nVor,:) = [mesh%Tricc( ti,1), mesh%ymin]
+    ELSEIF (mesh%VBI( vi) == 7) THEN
+      ! This vertex lies on the western boundary
+      nVor = nVor + 1
+      Vor( nVor,:) = [mesh%xmin, mesh%Tricc( ti,2)]
+    ELSE
+      CALL crash('vertex does not lie on the domain boundary!')
+    END IF
 
+    ! Then add all the triangle circumcenters
     DO iti = 1, mesh%niTri( vi)
+      ti = mesh%iTri( vi, iti)
+      nVor = nVor + 1
+      Vor( nVor,:) = mesh%Tricc( ti,:)
+    END DO
 
-      cc = mesh%Tricc(mesh%iTri( vi,iti),:)
+    ! End with the projection of the last triangle's circumcenter on the domain boundary
+    ti = mesh%iTri( vi, mesh%niTri( vi))
+    IF     (mesh%VBI( vi) == 1) THEN
+      ! This vertex lies on the northern boundary
+      nVor = nVor + 1
+      Vor( nVor,:) = [mesh%Tricc( ti,1), mesh%ymax]
+    ELSEIF (mesh%VBI( vi) == 3) THEN
+      ! This vertex lies on the eastern boundary
+      nVor = nVor + 1
+      Vor( nVor,:) = [mesh%xmax, mesh%Tricc( ti,2)]
+    ELSEIF (mesh%VBI( vi) == 5) THEN
+      ! This vertex lies on the southern boundary
+      nVor = nVor + 1
+      Vor( nVor,:) = [mesh%Tricc( ti,1), mesh%ymin]
+    ELSEIF (mesh%VBI( vi) == 7) THEN
+      ! This vertex lies on the western boundary
+      nVor = nVor + 1
+      Vor( nVor,:) = [mesh%xmin, mesh%Tricc( ti,2)]
+    ELSE
+      CALL crash('vertex does not lie on the domain boundary!')
+    END IF
 
-      IF (iti  ==  1) THEN
-        ! Start by possibly adding the boundary projection of the vertex
-        IF     ((mesh%edge_index( vi) == 1 .OR. mesh%edge_index( vi) == 2) .AND. cc( 2)<mesh%ymax) THEN
-          nVor = nVor+1
-          Vor( nVor,:) = [cc( 1), mesh%ymax]
-        ELSEIF ((mesh%edge_index( vi) == 3 .OR. mesh%edge_index( vi) == 4) .AND. cc( 1)<mesh%xmax) THEN
-          nVor = nVor+1
-          Vor( nVor,:) = [mesh%xmax, cc( 2)]
-        ELSEIF ((mesh%edge_index( vi) == 5 .OR. mesh%edge_index( vi) == 6) .AND. cc( 2)>mesh%ymin) THEN
-          nVor = nVor+1
-          Vor( nVor,:) = [cc( 1), mesh%ymin]
-        ELSEIF ((mesh%edge_index( vi) == 7 .OR. mesh%edge_index( vi) == 8) .AND. cc( 1)>mesh%xmin) THEN
-          nVor = nVor+1
-          Vor( nVor,:) = [mesh%xmin, cc( 2)]
-        END IF
-
-        ! Then add the (possibly cropped) vertex
-        CALL crop_circumcenter(mesh, mesh%iTri( vi,1), mesh%iTri( vi,2), cc_cropped)
-        nVor = nVor+1
-        Vor( nVor,:) = cc_cropped
-      END IF ! IF (iti  ==  1) THEN
-
-      IF (iti > 1 .AND. iti < mesh%niTri( vi)) THEN
-        ! Split the circumcenter
-        CALL crop_circumcenter(mesh, mesh%iTri( vi,iti), mesh%iTri( vi,iti+1), cc_anti)
-        CALL crop_circumcenter(mesh, mesh%iTri( vi,iti), mesh%iTri( vi,iti-1), cc_clock)
-        IF (cc_anti( 1) /= cc_clock( 1) .OR. cc_anti( 2) /= cc_clock( 2)) THEN
-          nVor = nVor+1
-          Vor( nVor,:) = cc_clock
-          nVor = nVor+1
-          Vor( nVor,:) = cc_anti
-        ELSE
-          nVor = nVor+1
-          Vor( nVor,:) = cc
-        END IF
-      END IF ! IF (iti > 1 .AND. iti < mesh%niTri( vi)) THEN
-
-      IF (iti  ==  mesh%niTri( vi)) THEN
-        ! First add the (possibly cropped) vertex
-        CALL crop_circumcenter(mesh, mesh%iTri( vi,iti), mesh%iTri( vi,iti-1), cc_cropped)
-        nVor = nVor+1
-        Vor( nVor,:) = cc_cropped
-
-        ! Then possibly add the boundary projection of the vertex
-        IF     ((mesh%edge_index( vi) == 1 .OR. mesh%edge_index( vi) == 8) .AND. cc( 2)<mesh%ymax) THEN
-          nVor = nVor+1
-          Vor( nVor,:) = [cc( 1), mesh%ymax]
-        ELSEIF ((mesh%edge_index( vi) == 3 .OR. mesh%edge_index( vi) == 2) .AND. cc( 1)<mesh%xmax) THEN
-          nVor = nVor+1
-          Vor( nVor,:) = [mesh%xmax, cc( 2)]
-        ELSEIF ((mesh%edge_index( vi) == 5 .OR. mesh%edge_index( vi) == 4) .AND. cc( 2)>mesh%ymin) THEN
-          nVor = nVor+1
-          Vor( nVor,:) = [cc( 1), mesh%ymin]
-        ELSEIF ((mesh%edge_index( vi) == 7 .OR. mesh%edge_index( vi) == 6) .AND. cc( 1)>mesh%xmin) THEN
-          nVor = nVor+1
-          Vor( nVor,:) = [mesh%xmin, cc( 2)]
-        END IF
-
-      END IF ! IF (iti  ==  mesh%niTri( vi)) THEN
-
-    END DO ! DO n = 1, mesh%niTri( vi)
-
-  END SUBROUTINE calc_Voronoi_cell_vertices_edge
+  END SUBROUTINE calc_Voronoi_cell_vertices_boundary
 
   SUBROUTINE calc_Voronoi_cell_vertices_corner( mesh, vi, Vor, nVor)
     ! Find the coordinates of the points making up a corner vertex's Voronoi cell
@@ -223,158 +182,72 @@ CONTAINS
 
     TYPE(type_mesh),                     INTENT(IN)    :: mesh
     INTEGER,                             INTENT(IN)    :: vi
-    REAL(dp), DIMENSION( mesh%nC_mem,2), INTENT(OUT)   :: Vor
+    REAL(dp), DIMENSION(:,:  ),          INTENT(OUT)   :: Vor
     INTEGER,                             INTENT(OUT)   :: nVor
 
     ! Local variables
-    REAL(dp), DIMENSION(2)                             :: cc
+    INTEGER                                            :: iti, ti
 
+    ! Initialise
     Vor  = 0._dp
     nVor = 0
 
-    IF (mesh%niTri( vi) > 1) THEN
-      ! This corner vertex has more than one triangle, can be handled by Edge version
-
-      CALL calc_Voronoi_cell_vertices_edge(mesh, vi, Vor, nVor)
-
-      IF     (mesh%edge_index( vi) == 2) THEN
-        ! Northeast corner
-        nVor = nVor + 1
-        Vor( nVor,:) = [mesh%xmax, mesh%ymax]
-      ELSEIF (mesh%edge_index( vi) == 4) THEN
-        ! Southeast corner
-        nVor = nVor + 1
-        Vor( nVor,:) = [mesh%xmax, mesh%ymin]
-      ELSEIF (mesh%edge_index( vi) == 6) THEN
-        ! Southwest corner
-        nVor = nVor + 1
-        Vor( nVor,:) = [mesh%xmin, mesh%ymin]
-      ELSEIF (mesh%edge_index( vi) == 8) THEN
-        ! Northwest corner
-        nVor = nVor + 1
-        Vor( nVor,:) = [mesh%xmin, mesh%ymax]
-      END IF
-
+    ! Start with the projection of the first triangle's circumcenter on the domain boundary
+    ti = mesh%iTri( vi,1)
+    IF     (mesh%VBI( vi) == 2) THEN
+      ! This vertex lies on the northeast corner; project onto the northern boundary
+      nVor = nVor + 1
+      Vor( nVor,:) = [mesh%Tricc( ti,1), mesh%ymax]
+    ELSEIF (mesh%VBI( vi) == 4) THEN
+      ! This vertex lies on the southeast corner; project onto the eastern boundary
+      nVor = nVor + 1
+      Vor( nVor,:) = [mesh%xmax, mesh%Tricc( ti,2)]
+    ELSEIF (mesh%VBI( vi) == 6) THEN
+      ! This vertex lies on the southwest corner; project onto the southern boundary
+      nVor = nVor + 1
+      Vor( nVor,:) = [mesh%Tricc( ti,1), mesh%ymin]
+    ELSEIF (mesh%VBI( vi) == 8) THEN
+      ! This vertex lies on the northwest corner; project onto the western boundary
+      nVor = nVor + 1
+      Vor( nVor,:) = [mesh%xmin, mesh%Tricc( ti,2)]
     ELSE
-      ! This corner vertex has only a single triangle, best handled manually
-
-      cc = mesh%Tricc(mesh%iTri( vi,1),:)
-
-      IF     (mesh%edge_index( vi)==2) THEN
-        ! Northeast corner
-        nVor = 3
-        Vor( 1,:) = [cc( 1), mesh%ymax]
-        Vor( 2,:) = cc
-        Vor( 3,:) = [mesh%xmax, cc( 2)]
-      ELSEIF (mesh%edge_index( vi)==4) THEN
-        ! Southeast corner
-        nVor = 3
-        Vor( 1,:) = [mesh%xmax, cc( 2)]
-        Vor( 2,:) = cc
-        Vor( 3,:) = [cc( 1), mesh%ymin]
-      ELSEIF (mesh%edge_index( vi)==6) THEN
-        ! Southwest corner
-        nVor = 3
-        Vor( 1,:) = [cc( 1), mesh%ymin]
-        Vor( 2,:) = cc
-        Vor( 3,:) = [mesh%xmin, cc( 2)]
-      ELSEIF (mesh%edge_index( vi)==8) THEN
-        ! Northwest corner
-        nVor = 3
-        Vor( 1,:) = [mesh%xmin, cc( 2)]
-        Vor( 2,:) = cc
-        Vor( 3,:) = [cc( 1), mesh%ymax]
-      ELSE
-        CALL crash('calc_Voronoi_cell_vertices_corner: a non-corner vertex has only one triangle? This cannot be!')
-      END IF ! IF (mesh%edge_index( vi)==2) THEN
-
+      CALL crash('vertex does not lie on the domain boundary!')
     END IF
+
+    ! Then add all the triangle circumcenters
+    DO iti = 1, mesh%niTri( vi)
+      ti = mesh%iTri( vi, iti)
+      nVor = nVor + 1
+      Vor( nVor,:) = mesh%Tricc( ti,:)
+    END DO
+
+    ! End with the projection of the last triangle's circumcenter on the domain boundary
+    ti = mesh%iTri( vi,1)
+    IF     (mesh%VBI( vi) == 2) THEN
+      ! This vertex lies on the northeast corner; project onto the eastern boundary
+      nVor = nVor + 1
+      Vor( nVor,:) = [mesh%xmax, mesh%Tricc( ti,2)]
+    ELSEIF (mesh%VBI( vi) == 4) THEN
+      ! This vertex lies on the southeast corner; project onto the southern boundary
+      nVor = nVor + 1
+      Vor( nVor,:) = [mesh%Tricc( ti,1), mesh%ymin]
+    ELSEIF (mesh%VBI( vi) == 6) THEN
+      ! This vertex lies on the southwest corner; project onto the western boundary
+      nVor = nVor + 1
+      Vor( nVor,:) = [mesh%xmin, mesh%Tricc( ti,2)]
+    ELSEIF (mesh%VBI( vi) == 8) THEN
+      ! This vertex lies on the northwest corner; project onto the northern boundary
+      nVor = nVor + 1
+      Vor( nVor,:) = [mesh%Tricc( ti,1), mesh%ymax]
+    ELSE
+      CALL crash('vertex does not lie on the domain boundary!')
+    END IF
+
+    ! Finally, include the vertex itself (i.e. the domain corner)
+    nVor = nVor + 1
+    Vor( nVor,:) = mesh%V( vi,:)
 
   END SUBROUTINE calc_Voronoi_cell_vertices_corner
-
-  SUBROUTINE crop_circumcenter( mesh, t1, t2, ccc)
-    ! Crop the circumcenter of triangle t1 in the direction of t2
-
-    IMPLICIT NONE
-
-    TYPE(type_mesh),          INTENT(IN)          :: mesh
-    INTEGER,                  INTENT(IN)          :: t1, t2
-    REAL(dp), DIMENSION(2),   INTENT(OUT)         :: ccc
-
-    REAL(dp)                                      :: la, lb, lc, le, lf, lg
-    REAL(dp), DIMENSION(2)                        :: p, q
-
-    ccc  = mesh%Tricc( t1,:)
-
-    IF     (mesh%Tri_edge_index( t1) == 1 .AND. mesh%Tricc( t1,2) > mesh%ymax) THEN
-      ! North boundary triangle
-      CALL line_from_points([mesh%xmin, mesh%ymax], [mesh%xmax, mesh%ymax], la, lb, lc)
-    ELSEIF (mesh%Tri_edge_index( t1) == 3 .AND. mesh%Tricc( t1,1) > mesh%xmax) THEN
-      ! East boundary triangle
-      CALL line_from_points([mesh%xmax, mesh%ymax], [mesh%xmax, mesh%ymin], la, lb, lc)
-    ELSEIF (mesh%Tri_edge_index( t1) == 5 .AND. mesh%Tricc( t1,2) < mesh%ymin) THEN
-      ! South boundary triangle
-      CALL line_from_points([mesh%xmin, mesh%ymin], [mesh%xmax, mesh%ymin], la, lb, lc)
-    ELSEIF (mesh%Tri_edge_index( t1) == 7 .AND. mesh%Tricc( t1,1) < mesh%xmin) THEN
-      ! West boundary triangle
-      CALL line_from_points([mesh%xmin, mesh%ymax], [mesh%xmin, mesh%ymin], la, lb, lc)
-    ELSE
-      RETURN
-    END IF
-
-   p = mesh%Tricc( t1,:)
-   q = mesh%Tricc( t2,:)
-   CALL line_from_points( p, q, le, lf, lg)
-   CALL line_line_intersection( la, lb, lc, le, lf, lg, ccc)
-
-  END SUBROUTINE crop_circumcenter
-
-!  SUBROUTINE calc_shared_Voronoi_boundary( mesh, aci, cc1, cc2)
-!    ! Return the endpoints of the shared Voronoi cell boundary represented by edge aci
-!
-!    IMPLICIT NONE
-!
-!    ! In/output variables
-!    TYPE(type_mesh),          INTENT(IN)          :: mesh
-!    INTEGER,                  INTENT(IN)          :: aci
-!    REAL(dp), DIMENSION(2),   INTENT(OUT)         :: cc1, cc2
-!
-!    ! Local variables
-!    INTEGER                                       :: til,tir
-!
-!    til = mesh%Aci( aci,5)
-!    tir = mesh%Aci( aci,6)
-!
-!    IF (mesh%edge_index_Ac( aci) > 0) THEN
-!      ! Boundary segments have only one adjacent triangle
-!
-!      IF (til > 0) THEN
-!        cc1 = mesh%Tricc( til,:)
-!      ELSE
-!        cc1 = mesh%Tricc( tir,:)
-!      END IF
-!      IF     (mesh%edge_index_Ac( aci) == 1) THEN
-!        ! North
-!        cc2 = [cc1(1), mesh%ymax]
-!      ELSEIF (mesh%edge_index_Ac( aci) == 3) THEN
-!        ! East
-!        cc2 = [mesh%xmax, cc1(2)]
-!      ELSEIF (mesh%edge_index_Ac( aci) == 5) THEN
-!        ! South
-!        cc2 = [cc1(1), mesh%ymin]
-!      ELSEIF (mesh%edge_index_Ac( aci) == 7) THEN
-!        ! West
-!        cc2 = [mesh%xmin, cc1(2)]
-!      END IF
-!
-!    ELSE ! IF (mesh%edge_index_Ac( aci) > 0) THEN
-!
-!      cc1 = mesh%Tricc( til,:)
-!      cc2 = mesh%Tricc( tir,:)
-!
-!    END IF ! IF (mesh%edge_index_Ac( aci) > 0) THEN
-!
-!  END SUBROUTINE calc_shared_Voronoi_boundary
 
 ! == Some basic geometrical operations
 
@@ -449,63 +322,63 @@ CONTAINS
     INTEGER,                  INTENT(IN)          :: v1, v2
     LOGICAL                                       :: isso
 
-    IF (mesh%edge_index( v1) == 0 .OR. mesh%edge_index( v2) == 0) THEN
+    IF (mesh%VBI( v1) == 0 .OR. mesh%VBI( v2) == 0) THEN
       isso = .FALSE.
       RETURN
     END IF
 
     isso = .FALSE.
 
-    IF (mesh%edge_index( v1) == 1) THEN
-      IF (mesh%edge_index( v2) == 8 .OR. &
-          mesh%edge_index( v2) == 1 .OR. &
-          mesh%edge_index( v2) == 2) THEN
+    IF (mesh%VBI( v1) == 1) THEN
+      IF (mesh%VBI( v2) == 8 .OR. &
+          mesh%VBI( v2) == 1 .OR. &
+          mesh%VBI( v2) == 2) THEN
         isso = .TRUE.
       END IF
-    ELSEIF (mesh%edge_index( v1) == 2) THEN
-      IF (mesh%edge_index( v2) == 8 .OR. &
-          mesh%edge_index( v2) == 1 .OR. &
-          mesh%edge_index( v2) == 3 .OR. &
-          mesh%edge_index( v2) == 4) THEN
+    ELSEIF (mesh%VBI( v1) == 2) THEN
+      IF (mesh%VBI( v2) == 8 .OR. &
+          mesh%VBI( v2) == 1 .OR. &
+          mesh%VBI( v2) == 3 .OR. &
+          mesh%VBI( v2) == 4) THEN
         isso = .TRUE.
       END IF
-    ELSEIF (mesh%edge_index( v1) == 3) THEN
-      IF (mesh%edge_index( v2) == 2 .OR. &
-          mesh%edge_index( v2) == 3 .OR. &
-          mesh%edge_index( v2) == 4) THEN
+    ELSEIF (mesh%VBI( v1) == 3) THEN
+      IF (mesh%VBI( v2) == 2 .OR. &
+          mesh%VBI( v2) == 3 .OR. &
+          mesh%VBI( v2) == 4) THEN
         isso = .TRUE.
       END IF
-    ELSEIF (mesh%edge_index( v1) == 4) THEN
-      IF (mesh%edge_index( v2) == 2 .OR. &
-          mesh%edge_index( v2) == 3 .OR. &
-          mesh%edge_index( v2) == 5 .OR. &
-          mesh%edge_index( v2) == 6) THEN
+    ELSEIF (mesh%VBI( v1) == 4) THEN
+      IF (mesh%VBI( v2) == 2 .OR. &
+          mesh%VBI( v2) == 3 .OR. &
+          mesh%VBI( v2) == 5 .OR. &
+          mesh%VBI( v2) == 6) THEN
         isso = .TRUE.
       END IF
-    ELSEIF (mesh%edge_index( v1) == 5) THEN
-      IF (mesh%edge_index( v2) == 4 .OR. &
-          mesh%edge_index( v2) == 5 .OR. &
-          mesh%edge_index( v2) == 6) THEN
+    ELSEIF (mesh%VBI( v1) == 5) THEN
+      IF (mesh%VBI( v2) == 4 .OR. &
+          mesh%VBI( v2) == 5 .OR. &
+          mesh%VBI( v2) == 6) THEN
         isso = .TRUE.
       END IF
-    ELSEIF (mesh%edge_index( v1) == 6) THEN
-      IF (mesh%edge_index( v2) == 4 .OR. &
-          mesh%edge_index( v2) == 5 .OR. &
-          mesh%edge_index( v2) == 7 .OR. &
-          mesh%edge_index( v2) == 8) THEN
+    ELSEIF (mesh%VBI( v1) == 6) THEN
+      IF (mesh%VBI( v2) == 4 .OR. &
+          mesh%VBI( v2) == 5 .OR. &
+          mesh%VBI( v2) == 7 .OR. &
+          mesh%VBI( v2) == 8) THEN
         isso = .TRUE.
       END IF
-    ELSEIF (mesh%edge_index( v1) == 7) THEN
-      IF (mesh%edge_index( v2) == 6 .OR. &
-          mesh%edge_index( v2) == 7 .OR. &
-          mesh%edge_index( v2) == 8) THEN
+    ELSEIF (mesh%VBI( v1) == 7) THEN
+      IF (mesh%VBI( v2) == 6 .OR. &
+          mesh%VBI( v2) == 7 .OR. &
+          mesh%VBI( v2) == 8) THEN
         isso = .TRUE.
       END IF
-    ELSEIF (mesh%edge_index( v1) == 8) THEN
-      IF (mesh%edge_index( v2) == 6 .OR. &
-          mesh%edge_index( v2) == 7 .OR. &
-          mesh%edge_index( v2) == 1 .OR. &
-          mesh%edge_index( v2) == 2) THEN
+    ELSEIF (mesh%VBI( v1) == 8) THEN
+      IF (mesh%VBI( v2) == 6 .OR. &
+          mesh%VBI( v2) == 7 .OR. &
+          mesh%VBI( v2) == 1 .OR. &
+          mesh%VBI( v2) == 2) THEN
         isso = .TRUE.
       END IF
     END IF
@@ -532,10 +405,10 @@ CONTAINS
 
    DO n = 1, 3
      vi = mesh%Tri( ti,n)
-     IF (mesh%edge_index( vi) == 1) has_north = .TRUE.
-     IF (mesh%edge_index( vi) == 3) has_east  = .TRUE.
-     IF (mesh%edge_index( vi) == 5) has_south = .TRUE.
-     IF (mesh%edge_index( vi) == 7) has_west  = .TRUE.
+     IF (mesh%VBI( vi) == 1) has_north = .TRUE.
+     IF (mesh%VBI( vi) == 3) has_east  = .TRUE.
+     IF (mesh%VBI( vi) == 5) has_south = .TRUE.
+     IF (mesh%VBI( vi) == 7) has_west  = .TRUE.
    END DO
 
    isso = .FALSE.
@@ -918,10 +791,10 @@ CONTAINS
     WRITE(0,*) ' ymin = ', mesh%ymin
     WRITE(0,*) ' ymax = ', mesh%ymax
     WRITE(0,*) ''
-    WRITE(0,*) ' vi    nC             C            niTri         iTri         edge_index         x              y'
+    WRITE(0,*) ' vi    nC             C            niTri         iTri         VBI                x              y'
     DO vi = 1, mesh%nV
       WRITE(0,'(A,I3,A,I3,A,6I3,A,I3,A,6I3,A,I3,A,F12.1,A,F12.1)') &
-      ' ', vi, '   ', mesh%nC(vi), '    ', mesh%C(vi,1:6), '    ', mesh%niTri(vi), '    ', mesh%iTri(vi,1:6), '    ', mesh%edge_index(vi), &
+      ' ', vi, '   ', mesh%nC(vi), '    ', mesh%C(vi,1:6), '    ', mesh%niTri(vi), '    ', mesh%iTri(vi,1:6), '    ', mesh%VBI(vi), &
       '    ', mesh%V(vi,1), '    ', mesh%V(vi,2)
     END DO
 
@@ -960,7 +833,7 @@ CONTAINS
     WRITE(UNIT = fp, FMT = '(A)')       ''
 
     ! Vertex data
-    WRITE(UNIT = fp, FMT = '(A)')       'V  nC  C  niTri  iTri  edge_index'
+    WRITE(UNIT = fp, FMT = '(A)')       'V  nC  C  niTri  iTri  VBI'
     DO vi = 1, mesh%nV
       WRITE(UNIT = fp, FMT = '(2F24.14,I3)', ADVANCE = 'NO') mesh%V(vi,1), mesh%V(vi,2), mesh%nC(vi)
       DO ci = 1, mesh%nC_mem
@@ -970,7 +843,7 @@ CONTAINS
       DO ci = 1, mesh%nC_mem
         WRITE(UNIT = fp, FMT = '(I6)', ADVANCE = 'NO') mesh%iTri(vi,ci)
       END DO
-      WRITE(UNIT = fp, FMT = '(I3)', ADVANCE = 'NO') mesh%edge_index(vi)
+      WRITE(UNIT = fp, FMT = '(I3)', ADVANCE = 'NO') mesh%VBI(vi)
       WRITE(UNIT = fp, FMT = '(A)') ''
     END DO
     WRITE(UNIT = fp, FMT = '(A)')       ''
@@ -1060,7 +933,7 @@ CONTAINS
         IF (.NOT. FoundIt) WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' lists triangle ', ti, ' in iTri, but that triangle ', ti, ' doesnt contain vertex ', vi, '!'
       END DO
 
-      IF (mesh%edge_index(vi) == 0) THEN
+      IF (mesh%VBI(vi) == 0) THEN
 
         DO ci = 1, mesh%nC(vi)
           vc = mesh%C(vi,ci)
@@ -1078,11 +951,11 @@ CONTAINS
           IF (.NOT. (n==2)) WRITE(0,*) ' check_mesh - ERROR: non-edge vertices ', vi, ' and ', vc, ' share ', n, ' triangles'
         END DO
 
-      ELSE ! IF (mesh%edge_index(vi) == 0) THEN
+      ELSE ! IF (mesh%VBI(vi) == 0) THEN
 
         DO ci = 1, mesh%nC(vi)
           vc = mesh%C(vi,ci)
-          IF (mesh%edge_index(vc)==0) THEN
+          IF (mesh%VBI(vc)==0) THEN
 
             n = 0
             DO iti = 1, mesh%niTri(vi)
@@ -1097,7 +970,7 @@ CONTAINS
             END DO
             IF (.NOT. (n==2)) WRITE(0,*) ' check_mesh - ERROR: edge vertex ', vi, ' and non-edge vertex ', vc, ' share ', n, ' triangles'
 
-          ELSE ! IF (mesh%edge_index(vc)==0) THEN
+          ELSE ! IF (mesh%VBI(vc)==0) THEN
 
             n = 0
             DO iti = 1, mesh%niTri(vi)
@@ -1119,14 +992,14 @@ CONTAINS
       END IF
     END DO
 
-    ! == edge_index
+    ! == boundary index
     ! =============================================================
     DO vi = 1, mesh%nV
 
-      IF (mesh%edge_index(vi) == 0) THEN
+      IF (mesh%VBI(vi) == 0) THEN
 
         IF (mesh%V(vi,1) <= mesh%xmin .OR. mesh%V(vi,1) >= mesh%xmax .OR. mesh%V(vi,2) <= mesh%ymin .OR. mesh%V(vi,2) >= mesh%ymax) THEN
-          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has edge_index 0 but lies on or beyond the mesh domain boundary!'
+          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has boundary index 0 but lies on or beyond the mesh domain boundary!'
         END IF
 
         ! First and last neighbours must be connected
@@ -1140,190 +1013,190 @@ CONTAINS
             EXIT
           END IF
         END DO
-        IF (.NOT. FoundIt) WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has edge_index 0, but its first and last neighbours are not connected!'
+        IF (.NOT. FoundIt) WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has boundary index 0, but its first and last neighbours are not connected!'
 
-      ELSEIF (mesh%edge_index(vi) == 1) THEN
+      ELSEIF (mesh%VBI(vi) == 1) THEN
 
         IF (ABS(mesh%V(vi,2) - mesh%ymax) > mesh%tol_dist) THEN
-          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has edge_index 1 but does not lie on the N boundary!'
+          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has boundary index 1 but does not lie on the N boundary!'
         END IF
         vc = mesh%C(vi,1)
-        IF (.NOT. (mesh%edge_index(vc)==8 .OR. mesh%edge_index(vc)==1)) THEN
-          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has edge_index 1 but its first connection doesnt have a matching edge_index!'
+        IF (.NOT. (mesh%VBI(vc)==8 .OR. mesh%VBI(vc)==1)) THEN
+          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has boundary index 1 but its first connection doesnt have a matching boundary index!'
         END IF
         vc = mesh%C(vi,mesh%nC(vi))
-        IF (.NOT. (mesh%edge_index(vc)==1 .OR. mesh%edge_index(vc)==2)) THEN
-          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has edge_index 1 but its last connection doesnt have a matching edge_index!'
+        IF (.NOT. (mesh%VBI(vc)==1 .OR. mesh%VBI(vc)==2)) THEN
+          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has boundary index 1 but its last connection doesnt have a matching boundary index!'
         END IF
 !        ti = mesh%iTri(vi,1)
-!        IF (.NOT. (mesh%Tri_edge_index(ti)==7 .OR. mesh%Tri_edge_index(ti)==8 .OR. mesh%Tri_edge_index(ti)==1)) THEN
-!          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has edge_index 1 but its first iTri doesnt have a matching Tri_edge_index!'
+!        IF (.NOT. (mesh%TriBI(ti)==7 .OR. mesh%TriBI(ti)==8 .OR. mesh%TriBI(ti)==1)) THEN
+!          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has boundary index 1 but its first iTri doesnt have a matching TriBI!'
 !        END IF
 !        ti = mesh%iTri(vi,mesh%niTri(vi))
-!        IF (.NOT. (mesh%Tri_edge_index(ti)==1 .OR. mesh%Tri_edge_index(ti)==2 .OR. mesh%Tri_edge_index(ti)==3)) THEN
-!          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has edge_index 1 but its last iTri doesnt have a matching Tri_edge_index!'
+!        IF (.NOT. (mesh%TriBI(ti)==1 .OR. mesh%TriBI(ti)==2 .OR. mesh%TriBI(ti)==3)) THEN
+!          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has boundary index 1 but its last iTri doesnt have a matching TriBI!'
 !        END IF
 
-      ELSEIF (mesh%edge_index(vi) == 2) THEN
+      ELSEIF (mesh%VBI(vi) == 2) THEN
 
         IF (.NOT. vi==3) WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' is listed as NE corner!'
 
         IF (ABS(mesh%V(vi,1) - mesh%xmax) > mesh%tol_dist .OR. ABS(mesh%V(vi,2) - mesh%ymax) > mesh%tol_dist) THEN
-          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has edge_index 2 but does not lie on the NE corner!'
+          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has boundary index 2 but does not lie on the NE corner!'
         END IF
         vc = mesh%C(vi,1)
-        IF (.NOT. (mesh%edge_index(vc)==8 .OR. mesh%edge_index(vc)==1)) THEN
-          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has edge_index 2 but its first connection doesnt have a matching edge_index!'
+        IF (.NOT. (mesh%VBI(vc)==8 .OR. mesh%VBI(vc)==1)) THEN
+          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has boundary index 2 but its first connection doesnt have a matching boundary index!'
         END IF
         vc = mesh%C(vi,mesh%nC(vi))
-        IF (.NOT. (mesh%edge_index(vc)==3 .OR. mesh%edge_index(vc)==4)) THEN
-          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has edge_index 2 but its last connection doesnt have a matching edge_index!'
+        IF (.NOT. (mesh%VBI(vc)==3 .OR. mesh%VBI(vc)==4)) THEN
+          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has boundary index 2 but its last connection doesnt have a matching boundary index!'
         END IF
 !        ti = mesh%iTri(vi,1)
-!        IF (.NOT. (mesh%Tri_edge_index(ti)==1 .OR. mesh%Tri_edge_index(ti)==2 .OR. mesh%Tri_edge_index(ti)==3)) THEN
-!          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has edge_index 2 but its first iTri doesnt have a matching Tri_edge_index!'
+!        IF (.NOT. (mesh%TriBI(ti)==1 .OR. mesh%TriBI(ti)==2 .OR. mesh%TriBI(ti)==3)) THEN
+!          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has boundary index 2 but its first iTri doesnt have a matching TriBI!'
 !        END IF
 !        ti = mesh%iTri(vi,mesh%niTri(vi))
-!        IF (.NOT. (mesh%Tri_edge_index(ti)==1 .OR. mesh%Tri_edge_index(ti)==2 .OR. mesh%Tri_edge_index(ti)==3)) THEN
-!          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has edge_index 2 but its last iTri doesnt have a matching Tri_edge_index!'
+!        IF (.NOT. (mesh%TriBI(ti)==1 .OR. mesh%TriBI(ti)==2 .OR. mesh%TriBI(ti)==3)) THEN
+!          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has boundary index 2 but its last iTri doesnt have a matching TriBI!'
 !        END IF
 
-      ELSEIF (mesh%edge_index(vi) == 3) THEN
+      ELSEIF (mesh%VBI(vi) == 3) THEN
 
         IF (ABS(mesh%V(vi,1) - mesh%xmax) > mesh%tol_dist) THEN
-          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has edge_index 3 but does not lie on the E boundary!'
+          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has boundary index 3 but does not lie on the E boundary!'
         END IF
         vc = mesh%C(vi,1)
-        IF (.NOT. (mesh%edge_index(vc)==2 .OR. mesh%edge_index(vc)==3)) THEN
-          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has edge_index 3 but its first connection doesnt have a matching edge_index!'
+        IF (.NOT. (mesh%VBI(vc)==2 .OR. mesh%VBI(vc)==3)) THEN
+          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has boundary index 3 but its first connection doesnt have a matching boundary index!'
         END IF
         vc = mesh%C(vi,mesh%nC(vi))
-        IF (.NOT. (mesh%edge_index(vc)==3 .OR. mesh%edge_index(vc)==4)) THEN
-          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has edge_index 3 but its last connection doesnt have a matching edge_index!'
+        IF (.NOT. (mesh%VBI(vc)==3 .OR. mesh%VBI(vc)==4)) THEN
+          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has boundary index 3 but its last connection doesnt have a matching boundary index!'
         END IF
 !        ti = mesh%iTri(vi,1)
-!        IF (.NOT. (mesh%Tri_edge_index(ti)==1 .OR. mesh%Tri_edge_index(ti)==2 .OR. mesh%Tri_edge_index(ti)==3)) THEN
-!          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has edge_index 3 but its first iTri doesnt have a matching Tri_edge_index!'
+!        IF (.NOT. (mesh%TriBI(ti)==1 .OR. mesh%TriBI(ti)==2 .OR. mesh%TriBI(ti)==3)) THEN
+!          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has boundary index 3 but its first iTri doesnt have a matching TriBI!'
 !        END IF
 !        ti = mesh%iTri(vi,mesh%niTri(vi))
-!        IF (.NOT. (mesh%Tri_edge_index(ti)==3 .OR. mesh%Tri_edge_index(ti)==4 .OR. mesh%Tri_edge_index(ti)==5)) THEN
-!          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has edge_index 3 but its last iTri doesnt have a matching Tri_edge_index!'
+!        IF (.NOT. (mesh%TriBI(ti)==3 .OR. mesh%TriBI(ti)==4 .OR. mesh%TriBI(ti)==5)) THEN
+!          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has boundary index 3 but its last iTri doesnt have a matching TriBI!'
 !        END IF
 
-      ELSEIF (mesh%edge_index(vi) == 4) THEN
+      ELSEIF (mesh%VBI(vi) == 4) THEN
 
         IF (.NOT. vi==2) WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' is listed as SE corner!'
 
         IF (ABS(mesh%V(vi,1) - mesh%xmax) > mesh%tol_dist .OR. ABS(mesh%V(vi,2) - mesh%ymin) > mesh%tol_dist) THEN
-          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has edge_index 4 but does not lie on the SE corner!'
+          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has boundary index 4 but does not lie on the SE corner!'
         END IF
         vc = mesh%C(vi,1)
-        IF (.NOT. (mesh%edge_index(vc)==2 .OR. mesh%edge_index(vc)==3)) THEN
-          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has edge_index 4 but its first connection doesnt have a matching edge_index!'
+        IF (.NOT. (mesh%VBI(vc)==2 .OR. mesh%VBI(vc)==3)) THEN
+          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has boundary index 4 but its first connection doesnt have a matching boundary index!'
         END IF
         vc = mesh%C(vi,mesh%nC(vi))
-        IF (.NOT. (mesh%edge_index(vc)==5 .OR. mesh%edge_index(vc)==6)) THEN
-          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has edge_index 4 but its last connection doesnt have a matching edge_index!'
+        IF (.NOT. (mesh%VBI(vc)==5 .OR. mesh%VBI(vc)==6)) THEN
+          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has boundary index 4 but its last connection doesnt have a matching boundary index!'
         END IF
 !        ti = mesh%iTri(vi,1)
-!        IF (.NOT. (mesh%Tri_edge_index(ti)==3 .OR. mesh%Tri_edge_index(ti)==4 .OR. mesh%Tri_edge_index(ti)==5)) THEN
-!          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has edge_index 4 but its first iTri doesnt have a matching Tri_edge_index!'
+!        IF (.NOT. (mesh%TriBI(ti)==3 .OR. mesh%TriBI(ti)==4 .OR. mesh%TriBI(ti)==5)) THEN
+!          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has boundary index 4 but its first iTri doesnt have a matching TriBI!'
 !        END IF
 !        ti = mesh%iTri(vi,mesh%niTri(vi))
-!        IF (.NOT. (mesh%Tri_edge_index(ti)==3 .OR. mesh%Tri_edge_index(ti)==4 .OR. mesh%Tri_edge_index(ti)==5)) THEN
-!          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has edge_index 4 but its last iTri doesnt have a matching Tri_edge_index!'
+!        IF (.NOT. (mesh%TriBI(ti)==3 .OR. mesh%TriBI(ti)==4 .OR. mesh%TriBI(ti)==5)) THEN
+!          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has boundary index 4 but its last iTri doesnt have a matching TriBI!'
 !        END IF
 
-      ELSEIF (mesh%edge_index(vi) == 5) THEN
+      ELSEIF (mesh%VBI(vi) == 5) THEN
 
         IF (ABS(mesh%V(vi,2) - mesh%ymin) > mesh%tol_dist) THEN
-          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has edge_index 5 but does not lie on the S boundary!'
+          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has boundary index 5 but does not lie on the S boundary!'
         END IF
         vc = mesh%C(vi,1)
-        IF (.NOT. (mesh%edge_index(vc)==4 .OR. mesh%edge_index(vc)==5)) THEN
-          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has edge_index 5 but its first connection doesnt have a matching edge_index!'
+        IF (.NOT. (mesh%VBI(vc)==4 .OR. mesh%VBI(vc)==5)) THEN
+          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has boundary index 5 but its first connection doesnt have a matching boundary index!'
         END IF
         vc = mesh%C(vi,mesh%nC(vi))
-        IF (.NOT. (mesh%edge_index(vc)==5 .OR. mesh%edge_index(vc)==6)) THEN
-          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has edge_index 5 but its last connection doesnt have a matching edge_index!'
+        IF (.NOT. (mesh%VBI(vc)==5 .OR. mesh%VBI(vc)==6)) THEN
+          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has boundary index 5 but its last connection doesnt have a matching boundary index!'
         END IF
 !        ti = mesh%iTri(vi,1)
-!        IF (.NOT. (mesh%Tri_edge_index(ti)==3 .OR. mesh%Tri_edge_index(ti)==4 .OR. mesh%Tri_edge_index(ti)==5)) THEN
-!          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has edge_index 5 but its first iTri doesnt have a matching Tri_edge_index!'
+!        IF (.NOT. (mesh%TriBI(ti)==3 .OR. mesh%TriBI(ti)==4 .OR. mesh%TriBI(ti)==5)) THEN
+!          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has boundary index 5 but its first iTri doesnt have a matching TriBI!'
 !        END IF
 !        ti = mesh%iTri(vi,mesh%niTri(vi))
-!        IF (.NOT. (mesh%Tri_edge_index(ti)==5 .OR. mesh%Tri_edge_index(ti)==6 .OR. mesh%Tri_edge_index(ti)==7)) THEN
-!          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has edge_index 5 but its last iTri doesnt have a matching Tri_edge_index!'
+!        IF (.NOT. (mesh%TriBI(ti)==5 .OR. mesh%TriBI(ti)==6 .OR. mesh%TriBI(ti)==7)) THEN
+!          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has boundary index 5 but its last iTri doesnt have a matching TriBI!'
 !        END IF
 
-      ELSEIF (mesh%edge_index(vi) == 6) THEN
+      ELSEIF (mesh%VBI(vi) == 6) THEN
 
         IF (.NOT. vi==1) WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' is listed as SW corner!'
 
         IF (ABS(mesh%V(vi,1) - mesh%xmin) > mesh%tol_dist .OR. ABS(mesh%V(vi,2) - mesh%ymin) > mesh%tol_dist) THEN
-          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has edge_index 6 but does not lie on the SW corner!'
+          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has boundary index 6 but does not lie on the SW corner!'
         END IF
         vc = mesh%C(vi,1)
-        IF (.NOT. (mesh%edge_index(vc)==4 .OR. mesh%edge_index(vc)==5)) THEN
-          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has edge_index 6 but its first connection doesnt have a matching edge_index!'
+        IF (.NOT. (mesh%VBI(vc)==4 .OR. mesh%VBI(vc)==5)) THEN
+          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has boundary index 6 but its first connection doesnt have a matching boundary index!'
         END IF
         vc = mesh%C(vi,mesh%nC(vi))
-        IF (.NOT. (mesh%edge_index(vc)==7 .OR. mesh%edge_index(vc)==8)) THEN
-          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has edge_index 6 but its last connection doesnt have a matching edge_index!'
+        IF (.NOT. (mesh%VBI(vc)==7 .OR. mesh%VBI(vc)==8)) THEN
+          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has boundary index 6 but its last connection doesnt have a matching boundary index!'
         END IF
 !        ti = mesh%iTri(vi,1)
-!        IF (.NOT. (mesh%Tri_edge_index(ti)==5 .OR. mesh%Tri_edge_index(ti)==6 .OR. mesh%Tri_edge_index(ti)==7)) THEN
-!          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has edge_index 6 but its first iTri doesnt have a matching Tri_edge_index!'
+!        IF (.NOT. (mesh%TriBI(ti)==5 .OR. mesh%TriBI(ti)==6 .OR. mesh%TriBI(ti)==7)) THEN
+!          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has boundary index 6 but its first iTri doesnt have a matching TriBI!'
 !        END IF
 !        ti = mesh%iTri(vi,mesh%niTri(vi))
-!        IF (.NOT. (mesh%Tri_edge_index(ti)==5 .OR. mesh%Tri_edge_index(ti)==6 .OR. mesh%Tri_edge_index(ti)==7)) THEN
-!          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has edge_index 6 but its last iTri doesnt have a matching Tri_edge_index!'
+!        IF (.NOT. (mesh%TriBI(ti)==5 .OR. mesh%TriBI(ti)==6 .OR. mesh%TriBI(ti)==7)) THEN
+!          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has boundary index 6 but its last iTri doesnt have a matching TriBI!'
 !        END IF
 
-      ELSEIF (mesh%edge_index(vi) == 7) THEN
+      ELSEIF (mesh%VBI(vi) == 7) THEN
 
         IF (ABS(mesh%V(vi,1) - mesh%xmin) > mesh%tol_dist) THEN
-          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has edge_index 7 but does not lie on the W boundary!'
+          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has boundary index 7 but does not lie on the W boundary!'
         END IF
         vc = mesh%C(vi,1)
-        IF (.NOT. (mesh%edge_index(vc)==6 .OR. mesh%edge_index(vc)==7)) THEN
-          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has edge_index 7 but its first connection doesnt have a matching edge_index!'
+        IF (.NOT. (mesh%VBI(vc)==6 .OR. mesh%VBI(vc)==7)) THEN
+          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has boundary index 7 but its first connection doesnt have a matching boundary index!'
         END IF
         vc = mesh%C(vi,mesh%nC(vi))
-        IF (.NOT. (mesh%edge_index(vc)==7 .OR. mesh%edge_index(vc)==8)) THEN
-          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has edge_index 7 but its last connection doesnt have a matching edge_index!'
+        IF (.NOT. (mesh%VBI(vc)==7 .OR. mesh%VBI(vc)==8)) THEN
+          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has boundary index 7 but its last connection doesnt have a matching boundary index!'
         END IF
 !        ti = mesh%iTri(vi,1)
-!        IF (.NOT. (mesh%Tri_edge_index(ti)==5 .OR. mesh%Tri_edge_index(ti)==6 .OR. mesh%Tri_edge_index(ti)==7)) THEN
-!          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has edge_index 7 but its first iTri doesnt have a matching Tri_edge_index!'
+!        IF (.NOT. (mesh%TriBI(ti)==5 .OR. mesh%TriBI(ti)==6 .OR. mesh%TriBI(ti)==7)) THEN
+!          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has boundary index 7 but its first iTri doesnt have a matching TriBI!'
 !        END IF
 !        ti = mesh%iTri(vi,mesh%niTri(vi))
-!        IF (.NOT. (mesh%Tri_edge_index(ti)==7 .OR. mesh%Tri_edge_index(ti)==8 .OR. mesh%Tri_edge_index(ti)==1)) THEN
-!          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has edge_index 7 but its last iTri doesnt have a matching Tri_edge_index!'
+!        IF (.NOT. (mesh%TriBI(ti)==7 .OR. mesh%TriBI(ti)==8 .OR. mesh%TriBI(ti)==1)) THEN
+!          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has boundary index 7 but its last iTri doesnt have a matching TriBI!'
 !        END IF
 
-      ELSEIF (mesh%edge_index(vi) == 8) THEN
+      ELSEIF (mesh%VBI(vi) == 8) THEN
 
         IF (.NOT. vi==4) WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' is listed as NW corner!'
 
         IF (ABS(mesh%V(vi,1) - mesh%xmin) > mesh%tol_dist .OR. ABS(mesh%V(vi,2) - mesh%ymax) > mesh%tol_dist) THEN
-          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has edge_index 8 but does not lie on the NW corner!'
+          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has boundary index 8 but does not lie on the NW corner!'
         END IF
         vc = mesh%C(vi,1)
-        IF (.NOT. (mesh%edge_index(vc)==6 .OR. mesh%edge_index(vc)==7)) THEN
-          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has edge_index 8 but its first connection doesnt have a matching edge_index!'
+        IF (.NOT. (mesh%VBI(vc)==6 .OR. mesh%VBI(vc)==7)) THEN
+          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has boundary index 8 but its first connection doesnt have a matching boundary index!'
         END IF
         vc = mesh%C(vi,mesh%nC(vi))
-        IF (.NOT. (mesh%edge_index(vc)==1 .OR. mesh%edge_index(vc)==2)) THEN
-          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has edge_index 8 but its last connection doesnt have a matching edge_index!'
+        IF (.NOT. (mesh%VBI(vc)==1 .OR. mesh%VBI(vc)==2)) THEN
+          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has boundary index 8 but its last connection doesnt have a matching boundary index!'
         END IF
 !        ti = mesh%iTri(vi,1)
-!        IF (.NOT. (mesh%Tri_edge_index(ti)==7 .OR. mesh%Tri_edge_index(ti)==8 .OR. mesh%Tri_edge_index(ti)==1)) THEN
-!          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has edge_index 8 but its first iTri doesnt have a matching Tri_edge_index!'
+!        IF (.NOT. (mesh%TriBI(ti)==7 .OR. mesh%TriBI(ti)==8 .OR. mesh%TriBI(ti)==1)) THEN
+!          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has boundary index 8 but its first iTri doesnt have a matching TriBI!'
 !        END IF
 !        ti = mesh%iTri(vi,mesh%niTri(vi))
-!        IF (.NOT. (mesh%Tri_edge_index(ti)==7 .OR. mesh%Tri_edge_index(ti)==8 .OR. mesh%Tri_edge_index(ti)==1)) THEN
-!          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has edge_index 8 but its last iTri doesnt have a matching Tri_edge_index!'
+!        IF (.NOT. (mesh%TriBI(ti)==7 .OR. mesh%TriBI(ti)==8 .OR. mesh%TriBI(ti)==1)) THEN
+!          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has boundary index 8 but its last iTri doesnt have a matching TriBI!'
 !        END IF
 
       END IF
@@ -1400,7 +1273,7 @@ CONTAINS
       DO n = 1, 3
         ti2 = mesh%TriC(ti,n)
         IF (ti2 == 0) THEN
-!          IF (mesh%Tri_edge_index(ti) == 0) WRITE(0,*) ' check_mesh - ERROR: non-edge triangle ', ti, ' misses a neighbour!'
+!          IF (mesh%TriBI(ti) == 0) WRITE(0,*) ' check_mesh - ERROR: non-edge triangle ', ti, ' misses a neighbour!'
           CYCLE
         END IF
         FoundIt = .FALSE.
@@ -1416,5 +1289,27 @@ CONTAINS
 
 
   END SUBROUTINE check_mesh
+
+  SUBROUTINE check_if_triangle_already_exists( mesh, ti)
+    ! Check if any duplicate triangles exist
+
+    IMPLICIT NONE
+
+    TYPE(type_mesh),          INTENT(IN)          :: mesh
+    INTEGER,                  INTENT(IN)          :: ti
+    INTEGER                                       :: via, vib, vic, tj
+
+    via = mesh%Tri( ti,1)
+    vib = mesh%Tri( ti,2)
+    vic = mesh%Tri( ti,3)
+
+    DO tj = 1, mesh%nTri
+      IF (tj == ti) CYCLE
+      IF (ANY( via == mesh%Tri( tj,:)) .AND. ANY( vib == mesh%Tri( tj,:)) .AND. ANY( vic == mesh%Tri( tj,:))) THEN
+        CALL crash('duplicate triangles detected at ti = {int_01}, tj = {int_02}', int_01 = ti, int_02 = tj)
+      END IF
+    END DO
+
+  END SUBROUTINE check_if_triangle_already_exists
 
 END MODULE mesh_utilities
