@@ -6,8 +6,8 @@ UFEMISM_program
 /*.csh
 
 # Ignore the module and object files
-*.mod
-*.o
+#*.mod
+#*.o
 
 # Ignore output files
 result*/
