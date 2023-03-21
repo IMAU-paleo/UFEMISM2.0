@@ -11,11 +11,12 @@ MODULE mesh_parallel_creation
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, init_routine, finalise_routine
   USE parameters
   USE reallocate_mod                                         , ONLY: reallocate
+  USE math_utilities                                         , ONLY: cross2
   USE mesh_types                                             , ONLY: type_mesh
   USE mesh_memory                                            , ONLY: allocate_mesh_primary, extend_mesh_primary, crop_mesh_primary, deallocate_mesh
   USE mesh_utilities                                         , ONLY: list_border_vertices_west, list_border_vertices_east, list_border_vertices_south, &
                                                                      list_border_vertices_north, find_containing_triangle, write_mesh_to_text_file
-  USE mesh_Delaunay                                          , ONLY: split_border_edge
+  USE mesh_Delaunay                                          , ONLY: split_border_edge, flip_triangles_until_Delaunay, move_vertex
   USE mesh_creation                                          , ONLY: initialise_dummy_mesh, refine_mesh_uniform, refine_mesh_point, refine_mesh_line, &
                                                                      refine_mesh_polygon, refine_mesh_split_encroaching_triangles, &
                                                                      Lloyds_algorithm_single_iteration
@@ -26,6 +27,74 @@ CONTAINS
 
 ! ===== Subroutines =====
 ! =======================
+
+  SUBROUTINE broadcast_merged_mesh( mesh)
+    ! Broadcast the merged mesh from the master to all other processes
+
+    IMPLICIT NONE
+
+    ! Input variables
+    TYPE(type_mesh),            INTENT(INOUT)     :: mesh
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'broadcast_merged_mesh'
+    INTEGER                                       :: nV_mem, nTri_mem, nC_mem
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Deallocate meshes in other processes just to be sure
+    IF (.NOT. par%master) CALL deallocate_mesh( mesh)
+
+    ! Crop master mesh just to be sure
+    IF (par%master) CALL crop_mesh_primary( mesh)
+
+    ! Broadcast mesh size
+
+    IF (par%master) THEN
+      nV_mem    = mesh%nV_mem
+      nTri_mem  = mesh%nTri_mem
+      nC_mem    = mesh%nC_mem
+    END IF
+
+    CALL MPI_BCAST( nV_mem    , 1                , MPI_INTEGER         , 0, MPI_COMM_WORLD, ierr)
+    CALL MPI_BCAST( nTri_mem  , 1                , MPI_INTEGER         , 0, MPI_COMM_WORLD, ierr)
+    CALL MPI_BCAST( nC_mem    , 1                , MPI_INTEGER         , 0, MPI_COMM_WORLD, ierr)
+    CALL MPI_BCAST( mesh%name , 256              , MPI_CHAR            , 0, MPI_COMM_WORLD, ierr)
+
+    ! Allocate memory on non-master processes
+    IF (.NOT. par%master) THEN
+      CALL allocate_mesh_primary( mesh, mesh%name, nV_mem, nTri_mem, nC_mem)
+    END IF
+
+    ! Broadcast mesh data
+
+    ! Metadata
+    CALL MPI_BCAST( mesh%nV   , 1                , MPI_INTEGER         , 0, MPI_COMM_WORLD, ierr)
+    CALL MPI_BCAST( mesh%nTri , 1                , MPI_INTEGER         , 0, MPI_COMM_WORLD, ierr)
+    CALL MPI_BCAST( mesh%name , 256              , MPI_CHAR            , 0, MPI_COMM_WORLD, ierr)
+    CALL MPI_BCAST( mesh%xmin , 1                , MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+    CALL MPI_BCAST( mesh%xmax , 1                , MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+    CALL MPI_BCAST( mesh%ymin , 1                , MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+    CALL MPI_BCAST( mesh%ymax , 1                , MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+
+    ! Vertex data
+    CALL MPI_BCAST( mesh%V    , nV_mem   * 2     , MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+    CALL MPI_BCAST( mesh%nC   , nV_mem           , MPI_INTEGER         , 0, MPI_COMM_WORLD, ierr)
+    CALL MPI_BCAST( mesh%C    , nV_mem   * nC_mem, MPI_INTEGER         , 0, MPI_COMM_WORLD, ierr)
+    CALL MPI_BCAST( mesh%niTri, nV_mem           , MPI_INTEGER         , 0, MPI_COMM_WORLD, ierr)
+    CALL MPI_BCAST( mesh%iTri , nV_mem   * nC_mem, MPI_INTEGER         , 0, MPI_COMM_WORLD, ierr)
+    CALL MPI_BCAST( mesh%VBI  , nV_mem           , MPI_INTEGER         , 0, MPI_COMM_WORLD, ierr)
+
+    ! Triangle data
+    CALL MPI_BCAST( mesh%Tri  , nTri_mem * 3     , MPI_INTEGER         , 0, MPI_COMM_WORLD, ierr)
+    CALL MPI_BCAST( mesh%TriC , nTri_mem * 3     , MPI_INTEGER         , 0, MPI_COMM_WORLD, ierr)
+    CALL MPI_BCAST( mesh%Tricc, nTri_mem * 2     , MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE broadcast_merged_mesh
 
   SUBROUTINE merge_submeshes( mesh, p_left, p_right, orientation)
     ! Merge the submesh owned by p_right into the one owned by p_left,
@@ -192,7 +261,9 @@ CONTAINS
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE       :: V_border
     INTEGER                                       :: i, vi_left, vi_right
     INTEGER                                       :: nV_left, nV_right, nV_new, nTri_left, nTri_right, nTri_new
-    INTEGER                                       :: vi, ci, iti, ti, n
+    INTEGER                                       :: vi, ci, iti, ti, n, vj, nf, tj, cip1
+    REAL(dp), DIMENSION(2)                        :: pa, pb, pc, VorGC
+    REAL(dp)                                      :: VorTriA, sumVorTriA
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -203,6 +274,9 @@ CONTAINS
     ELSEIF (orientation == 'north-south') THEN
       IF (mesh_left%ymax /= mesh_right%ymin) CALL crash('northern border of left submesh doesnt coincide with southern border of right submesh!')
     END IF
+
+  ! List all to-be-merged vertices of both submeshes on the shared border
+  ! =====================================================================
 
     ! Allocate memory for indices of border vertices
     ALLOCATE( lvi_border_left(  mesh_left%nV    ), source = 0)
@@ -243,7 +317,8 @@ CONTAINS
     nTri_new   = nTri_left + nTri_right
     CALL extend_mesh_primary( mesh_left, nV_new, nTri_new)
 
-    ! Increase vertex and triangle indices in mesh_right and lvi_border_right
+  ! Increase vertex and triangle indices in mesh_right and lvi_border_right
+  ! =======================================================================
 
     DO vi = 1, mesh_right%nV
       ! C
@@ -265,7 +340,8 @@ CONTAINS
 
     lvi_border_right( 1:nvi_border_right) = lvi_border_right( 1:nvi_border_right) + nV_left
 
-    ! Copy data from mesh_right to mesh_left
+  ! Copy data from mesh_right to mesh_left
+  ! ======================================
 
     ! Vertex data
     mesh_left%V(     nV_left  +1: nV_new  , :) = mesh_right%V(     1:nV_right  , :)
@@ -290,6 +366,98 @@ CONTAINS
       vi_right = lvi_border_right( i)
       CALL merge_vertices( mesh_left, vi_left, vi_right, nV_left, nV_right, nTri_left, nTri_right, lvi_border_left, lvi_border_right)
     END DO
+
+    ! Update domain size
+    IF     (orientation == 'east-west') THEN
+      mesh_left%xmax = mesh_right%xmax
+    ELSEIF (orientation == 'north-south') THEN
+      mesh_left%ymax = mesh_right%ymax
+    END IF
+
+  ! Reset corner vertices to 1,2,3,4
+  ! ================================
+
+    IF (orientation == 'east-west') THEN
+
+      vi = 2
+      vj = nV_left + 1
+      CALL switch_vertices( mesh_left, vi, vj)
+      vi = 3
+      vj = nV_left + 2
+      CALL switch_vertices( mesh_left, vi, vj)
+
+    ELSEIF (orientation == 'north-south') THEN
+
+      vi = 3
+      vj = nV_left + 1
+      CALL switch_vertices( mesh_left, vi, vj)
+      vi = 4
+      vj = nV_left + 2
+      CALL switch_vertices( mesh_left, vi, vj)
+
+    END IF
+
+  ! Check if any seam triangles require flipping
+  ! ============================================
+
+    DO i = 1, nvi_border_left
+
+      vi = lvi_border_left( i)
+
+      nf = 0
+
+      DO iti = 1, mesh_left%niTri( vi)
+        ti = mesh_left%iTri( vi,iti)
+        DO n = 1, 3
+          tj = mesh_left%TriC( ti,n)
+          IF (tj > 0) THEN
+            nf = nf + 1
+            mesh_left%Tri_flip_list( nf,:) = [ti,tj]
+          END IF
+        END DO
+      END DO
+
+      ! Flip triangle pairs
+      CALL flip_triangles_until_Delaunay( mesh_left, nf)
+
+    END DO ! DO i = 1, nvi_border_left
+
+  ! Lloyd's algorithm: move seam vertices to their Voronoi cell geometric centres
+  ! =============================================================================
+
+    DO i = 1, nvi_border_left
+
+      vi = lvi_border_left( i)
+
+      ! Skip the two boundary vertices
+      IF (mesh_left%VBI( vi) > 0) CYCLE
+
+      ! Find the geometric centre of this vertex' Voronoi cell
+      VorGC      = 0._dp
+      sumVorTriA = 0._dp
+
+      DO ci = 1, mesh_left%nC( vi)
+
+        cip1 = ci + 1
+        IF (cip1 > mesh_left%nC( vi)) cip1 = 1
+
+        pa = mesh_left%V( vi,:)
+        pb = mesh_left%V( mesh_left%C( vi,ci  ),:)
+        pc = mesh_left%V( mesh_left%C( vi,cip1),:)
+
+        VorTriA = cross2( pb - pa, pc - pa)
+
+        VorGC = VorGC + VorTriA * (pa + pb + pc) / 3._dp
+        sumVorTriA   = sumVorTriA   + VorTriA
+
+      END DO ! DO ci = 1, mesh_left%nC( vi)
+
+      VorGC = VorGC / sumVorTriA
+
+      ! Move the vertex
+      CALL move_vertex( mesh_left, vi, VorGC)
+
+    END DO ! DO i = 1, nvi_border_left
 
     ! Crop merged mesh_left
     CALL crop_mesh_primary( mesh_left)
@@ -720,6 +888,138 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE merge_vertices_last
+
+  SUBROUTINE switch_vertices( mesh, vi, vj)
+    ! Switch vertices vi and vj
+
+    IMPLICIT NONE
+
+    ! Input variables
+    TYPE(type_mesh),            INTENT(INOUT)     :: mesh
+    INTEGER,                    INTENT(IN)        :: vi, vj
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'switch_vertices'
+    INTEGER, DIMENSION(:,:), ALLOCATABLE          :: ctovi, ctovj
+    INTEGER                                       :: ci, vc, ti, iti, n, ci2
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ALLOCATE( ctovi( mesh%nC_mem, 2))
+    ALLOCATE( ctovj( mesh%nC_mem, 2))
+
+    ! == Vertex coordinates
+    mesh%V(vi,:) = mesh%V(vi,:) + mesh%V(vj,:)
+    mesh%V(vj,:) = mesh%V(vi,:) - mesh%V(vj,:)
+    mesh%V(vi,:) = mesh%V(vi,:) - mesh%V(vj,:)
+
+    ! == Vertex connectivity
+
+    ! List all connections pointing to vi (if connection ci
+    ! of vertex vc points to vi, list [vc,ci] in the array)
+
+    ctovi = 0
+    DO ci = 1, mesh%nC( vi)
+      vc = mesh%C( vi,ci)
+      IF (vc == vj) CYCLE
+      DO ci2 = 1, mesh%nC( vc)
+        IF (mesh%C( vc,ci2) == vi) THEN
+          ctovi( ci,:) = [vc,ci2]
+          EXIT
+        END IF
+      END DO
+    END DO
+
+    ! List all connections pointing to vj (if connection ci
+    ! of vertex vc points to vj, list [vc,ci] in the array)
+
+    ctovj = 0
+    DO ci = 1, mesh%nC( vj)
+      vc = mesh%C( vj,ci)
+      IF (vc == vi) CYCLE
+      DO ci2 = 1, mesh%nC( vc)
+        IF (mesh%C( vc,ci2) == vj) THEN
+          ctovj( ci,:) = [vc,ci2]
+          EXIT
+        END IF
+      END DO
+    END DO
+
+    ! Switch their own connectivity lists
+    mesh%C(  vi,:) = mesh%C(  vi,:) + mesh%C(  vj,:)
+    mesh%C(  vj,:) = mesh%C(  vi,:) - mesh%C(  vj,:)
+    mesh%C(  vi,:) = mesh%C(  vi,:) - mesh%C(  vj,:)
+    mesh%nC( vi  ) = mesh%nC( vi  ) + mesh%nC( vj  )
+    mesh%nC( vj  ) = mesh%nC( vi  ) - mesh%nC( vj  )
+    mesh%nC( vi  ) = mesh%nC( vi  ) - mesh%nC( vj  )
+
+    ! If they are interconnected, change those too
+    DO ci = 1, mesh%nC( vi)
+      IF (mesh%C( vi,ci) == vi) mesh%C( vi,ci) = vj
+    END DO
+    DO ci = 1, mesh%nC( vj)
+      IF (mesh%C( vj,ci) == vj) mesh%C( vj,ci) = vi
+    END DO
+
+    ! Switch the other connections
+    DO ci = 1, mesh%nC( vj)
+      IF (ctovi( ci,1) == 0) CYCLE
+      mesh%C( ctovi( ci,1), ctovi( ci,2)) = vj
+    END DO
+    DO ci = 1, mesh%nC( vi)
+      IF (ctovj( ci,1) == 0) CYCLE
+      mesh%C( ctovj( ci,1), ctovj( ci,2)) = vi
+    END DO
+
+    ! == Triangles
+
+    ! First update the surrounding triangles
+    DO iti = 1, mesh%niTri( vi)
+      ti = mesh%iTri( vi,iti)
+      DO n = 1, 3
+        IF (mesh%Tri( ti,n) == vi) mesh%Tri( ti,n) = -1
+      END DO
+    END DO
+    DO iti = 1, mesh%niTri( vj)
+      ti = mesh%iTri( vj,iti)
+      DO n = 1, 3
+        IF (mesh%Tri( ti,n)==vj) mesh%Tri( ti,n) = -2
+      END DO
+    END DO
+    DO iti = 1, mesh%niTri( vi)
+      ti = mesh%iTri( vi,iti)
+      DO n = 1, 3
+        IF (mesh%Tri( ti,n)== -1) mesh%Tri( ti,n) = vj
+      END DO
+    END DO
+    DO iti = 1, mesh%niTri( vj)
+      ti = mesh%iTri( vj,iti)
+      DO n = 1, 3
+        IF (mesh%Tri( ti,n)== -2) mesh%Tri( ti,n) = vi
+      END DO
+    END DO
+
+    ! Then switch their own triangles
+    mesh%iTri(  vi,:) = mesh%iTri(  vi,:) + mesh%iTri(  vj,:)
+    mesh%iTri(  vj,:) = mesh%iTri(  vi,:) - mesh%iTri(  vj,:)
+    mesh%iTri(  vi,:) = mesh%iTri(  vi,:) - mesh%iTri(  vj,:)
+    mesh%niTri( vi  ) = mesh%niTri( vi  ) + mesh%niTri( vj  )
+    mesh%niTri( vj  ) = mesh%niTri( vi  ) - mesh%niTri( vj  )
+    mesh%niTri( vi  ) = mesh%niTri( vi  ) - mesh%niTri( vj  )
+
+    ! == Border indices
+    mesh%VBI( vi  ) = mesh%VBI( vi  ) + mesh%VBI( vj  )
+    mesh%VBI( vj  ) = mesh%VBI( vi  ) - mesh%VBI( vj  )
+    mesh%VBI( vi  ) = mesh%VBI( vi  ) - mesh%VBI( vj  )
+
+    DEALLOCATE( ctovi)
+    DEALLOCATE( ctovj)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE switch_vertices
 
   SUBROUTINE align_submeshes( mesh, p_left, p_right, orientation)
     ! Align: add vertices to the [side] border of this process' mesh so that

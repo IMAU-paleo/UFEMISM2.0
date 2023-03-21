@@ -84,21 +84,17 @@ PROGRAM UFEMISM_program
   name = 'test_mesh'
   CALL allocate_mesh_primary( mesh, name, 1000, 2000, 32)
   IF (par%i == 0) THEN
-    CALL initialise_dummy_mesh( mesh, grid%xmin, (grid%xmin + grid%xmax) / 2._dp, grid%ymin, grid%ymax)
+    CALL initialise_dummy_mesh( mesh, -3040000._dp, 0._dp, -3040000._dp, 3040000._dp)
   ELSE
-    CALL initialise_dummy_mesh( mesh, (grid%xmin + grid%xmax) / 2._dp, grid%xmax, grid%ymin, grid%ymax)
+    CALL initialise_dummy_mesh( mesh,  0._dp, 3040000._dp, -3040000._dp, 3040000._dp)
   END IF
   alpha_min = 25._dp * pi / 180._dp
 
   ! Uniform
-  IF (par%i == 0) THEN
-    CALL refine_mesh_uniform( mesh, 4E5_dp, alpha_min)
-  ELSE
-    CALL refine_mesh_uniform( mesh, 1E5_dp, alpha_min)
-  END IF
+  CALL refine_mesh_uniform( mesh, 4E5_dp, alpha_min)
 
-!  ! Smooth
-!  CALL Lloyds_algorithm_single_iteration( mesh)
+  ! Smooth
+  CALL Lloyds_algorithm_single_iteration( mesh)
 
 !  ! Smileyface
 !  res   = 50E3_dp
@@ -110,43 +106,53 @@ PROGRAM UFEMISM_program
 !  width = 20E3_dp
 !  CALL mesh_add_UFEMISM_letters( mesh, res, width)
 
-!  ! Grounding line
-!  res = 20E3_dp
-!  width = 20E3_dp
-!  CALL refine_mesh_line( mesh, line_GL, res, width, alpha_min)
+  ! Grounding line
+  res = 20E3_dp
+  width = 20E3_dp
+  CALL refine_mesh_line( mesh, line_GL, res, width, alpha_min)
 
-!  ! Smooth again
-!  CALL Lloyds_algorithm_single_iteration( mesh)
+  ! Smooth again
+  CALL Lloyds_algorithm_single_iteration( mesh)
+
+  CALL warning('before merging: mesh domain = [{dp_01} - {dp_02}, {dp_03} - {dp_04}]', dp_01 = mesh%xmin, dp_02 = mesh%xmax, dp_03 = mesh%ymin, dp_04 = mesh%ymax)
+
+  ! Merge submeshes
+  CALL merge_submeshes( mesh, 0, 1, 'east-west')
+
+  ! Smooth again
+  IF (par%master) CALL Lloyds_algorithm_single_iteration( mesh)
+  IF (par%master) CALL refine_mesh_split_encroaching_triangles( mesh, alpha_min)
+
+  ! Broadcast from Master
+  CALL broadcast_merged_mesh( mesh)
+
+  CALL warning('after  merging: mesh domain = [{dp_01} - {dp_02}, {dp_03} - {dp_04}]', dp_01 = mesh%xmin, dp_02 = mesh%xmax, dp_03 = mesh%ymin, dp_04 = mesh%ymax)
 
 
-!  ! Calculate all secondary mesh data
-!  lambda_M    = 0._dp
-!  phi_M       = -90._dp
-!  beta_stereo = 71._dp
-!  CALL calc_all_secondary_mesh_data( mesh, lambda_M, phi_M, beta_stereo)
+  ! Calculate all secondary mesh data
+  lambda_M    = 0._dp
+  phi_M       = -90._dp
+  beta_stereo = 71._dp
+  CALL calc_all_secondary_mesh_data( mesh, lambda_M, phi_M, beta_stereo)
 
   tstop = MPI_WTIME()
   CALL warning('Finished generation mesh of {int_01} vertices in {dp_01} seconds.', int_01 = mesh%nV, dp_01 = tstop - tstart)
 
 
-  ! Merge submeshes
-  CALL merge_submeshes( mesh, 0, 1, 'east-west')
-
-
-  ! DENK DROM
-  IF (par%i == 0) THEN
-    CALL write_mesh_to_text_file( mesh, 'mesh_01.txt')
-  END IF
-  CALL sync
+!  ! DENK DROM
+!  IF (par%i == 0) THEN
+!    CALL write_mesh_to_text_file( mesh, 'mesh_01.txt')
+!  END IF
+!  CALL sync
 
 
   ! == WRITE TO NETCDF ==
   ! =====================
 
-!  filename = 'test_mesh_netcdf.nc'
-!  CALL create_new_netcdf_file_for_writing( filename, ncid)
-!  CALL setup_mesh_in_netcdf_file( filename, ncid, mesh)
-!  CALL close_netcdf_file( ncid)
+  filename = 'test_mesh_netcdf.nc'
+  CALL create_new_netcdf_file_for_writing( filename, ncid)
+  CALL setup_mesh_in_netcdf_file( filename, ncid, mesh)
+  CALL close_netcdf_file( ncid)
 
 
 
