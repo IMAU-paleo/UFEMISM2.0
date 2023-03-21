@@ -83,12 +83,15 @@ CONTAINS
 
         vj = mesh%C( vi,ci)
 
-        ! Skip connections that were already considered in the opposite direction
+        ! Skip edges that were already considered in the opposite direction
         IF (mesh%VE( vi,ci) > 0) CYCLE
 
-        ! Add this connection to the list
+        ! Add this edge to the list
         mesh%nE = mesh%nE + 1
         ei = mesh%nE
+
+        ! Coordinates of this edge
+        mesh%E( ei,:) = (mesh%V( vi,:) + mesh%V( vj,:)) / 2._dp
 
         ! Add this edge to the vertex-to-edge connectivity list of vertex vi
         mesh%VE( vi,ci) = ei

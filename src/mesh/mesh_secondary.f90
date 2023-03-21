@@ -13,6 +13,10 @@ MODULE mesh_secondary
   USE math_utilities                                         , ONLY: cross2, line_integral_xdy, line_integral_xydy, line_integral_mxydx, triangle_area, &
                                                                      geometric_center, inverse_oblique_sg_projection
   USE mesh_edges                                             , ONLY: construct_mesh_edges
+  USE mesh_operators                                         , ONLY: calc_field_to_vector_form_translation_tables, calc_matrix_operators_mesh_b_b_2nd_order, &
+                                                                     calc_matrix_operators_mesh_a_a, calc_matrix_operators_mesh_a_b, calc_matrix_operators_mesh_a_c, &
+                                                                     calc_matrix_operators_mesh_b_a, calc_matrix_operators_mesh_b_b, calc_matrix_operators_mesh_b_c, &
+                                                                     calc_matrix_operators_mesh_c_a, calc_matrix_operators_mesh_c_b, calc_matrix_operators_mesh_c_c
 
   IMPLICIT NONE
 
@@ -38,7 +42,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! Calculate all secondary mesh data
+    ! Secondary geometry data
     CALL construct_mesh_edges(                mesh)
     CALL calc_TriBI(                          mesh)
     CALL calc_Voronoi_cell_areas(             mesh)
@@ -48,6 +52,23 @@ CONTAINS
     CALL calc_mesh_resolution(                mesh)
     CALL calc_triangle_geometric_centres(     mesh)
     CALL calc_lonlat(                         mesh, lambda_M, phi_M, beta_stereo)
+
+    ! Matrix operators
+    CALL calc_field_to_vector_form_translation_tables( mesh)
+
+    CALL calc_matrix_operators_mesh_a_a(               mesh)
+    CALL calc_matrix_operators_mesh_a_b(               mesh)
+    CALL calc_matrix_operators_mesh_a_c(               mesh)
+
+    CALL calc_matrix_operators_mesh_b_a(               mesh)
+    CALL calc_matrix_operators_mesh_b_b(               mesh)
+    CALL calc_matrix_operators_mesh_b_c(               mesh)
+
+    CALL calc_matrix_operators_mesh_c_a(               mesh)
+    CALL calc_matrix_operators_mesh_c_b(               mesh)
+    CALL calc_matrix_operators_mesh_c_c(               mesh)
+
+    CALL calc_matrix_operators_mesh_b_b_2nd_order(     mesh)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

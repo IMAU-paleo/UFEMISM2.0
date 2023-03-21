@@ -22,6 +22,8 @@ PROGRAM UFEMISM_program
   USE math_utilities
   USE mesh_edges
   USE mesh_secondary
+  USE mesh_refinement
+  USE mesh_operators
   USE netcdf_basic
   USE netcdf_input
   USE netcdf_output
@@ -91,7 +93,7 @@ PROGRAM UFEMISM_program
   alpha_min = 25._dp * pi / 180._dp
 
   ! Uniform
-  CALL refine_mesh_uniform( mesh, 4E5_dp, alpha_min)
+  CALL refine_mesh_uniform( mesh, 2E5_dp, alpha_min)
 
   ! Smooth
   CALL Lloyds_algorithm_single_iteration( mesh)
@@ -107,14 +109,12 @@ PROGRAM UFEMISM_program
 !  CALL mesh_add_UFEMISM_letters( mesh, res, width)
 
   ! Grounding line
-  res = 20E3_dp
-  width = 20E3_dp
+  res = 40E3_dp
+  width = 40E3_dp
   CALL refine_mesh_line( mesh, line_GL, res, width, alpha_min)
 
   ! Smooth again
   CALL Lloyds_algorithm_single_iteration( mesh)
-
-  CALL warning('before merging: mesh domain = [{dp_01} - {dp_02}, {dp_03} - {dp_04}]', dp_01 = mesh%xmin, dp_02 = mesh%xmax, dp_03 = mesh%ymin, dp_04 = mesh%ymax)
 
   ! Merge submeshes
   CALL merge_submeshes( mesh, 0, 1, 'east-west')
@@ -125,9 +125,6 @@ PROGRAM UFEMISM_program
 
   ! Broadcast from Master
   CALL broadcast_merged_mesh( mesh)
-
-  CALL warning('after  merging: mesh domain = [{dp_01} - {dp_02}, {dp_03} - {dp_04}]', dp_01 = mesh%xmin, dp_02 = mesh%xmax, dp_03 = mesh%ymin, dp_04 = mesh%ymax)
-
 
   ! Calculate all secondary mesh data
   lambda_M    = 0._dp

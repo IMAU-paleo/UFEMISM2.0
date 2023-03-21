@@ -1003,6 +1003,183 @@ CONTAINS
 
   END FUNCTION is_in_Voronoi_cell
 
+! == Flood-fill operations
+
+  SUBROUTINE extend_group_single_iteration_a( mesh, map, stack, stackN)
+    ! Extend the group of vertices described by the provided map and stack
+    ! outward by a single flood-fill iteration
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
+    INTEGER,  DIMENSION(mesh%nV),        INTENT(INOUT) :: map, stack
+    INTEGER,                             INTENT(INOUT) :: stackN
+
+    ! Local variables:
+    INTEGER                                            :: n,i,vi,ci,vj
+
+    ! Safety
+    IF (stackN == 0) CALL crash('extend_group_single_iteration_a - needs at least one vertex to start!')
+
+    n = stackN
+
+    DO i = 1, n
+
+      vi = stack( i)
+
+      ! Safety
+      IF (map( vi) == 0) CALL crash('extend_group_single_iteration_a - map and stack do not match!')
+
+      ! Add all non-listed neighbours of vi
+      DO ci = 1, mesh%nC( vi)
+        vj = mesh%C( vi,ci)
+        IF (map( vj) == 0) THEN
+          map( vj) = 1
+          stackN = stackN + 1
+          stack( stackN) = vj
+        END IF
+      END DO
+
+    END DO ! DO i = 1, n
+
+  END SUBROUTINE extend_group_single_iteration_a
+
+  SUBROUTINE extend_group_single_iteration_b( mesh, map, stack, stackN)
+    ! Extend the group of triangles described by the provided map and stack
+    ! outward by a single flood-fill iteration
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
+    INTEGER,  DIMENSION(mesh%nTri),      INTENT(INOUT) :: map, stack
+    INTEGER,                             INTENT(INOUT) :: stackN
+
+    ! Local variables:
+    INTEGER                                            :: n,i,ti,n2,tj
+
+    ! Safety
+    IF (stackN == 0) CALL crash('extend_group_single_iteration_b - needs at least one vertex to start!')
+
+    n = stackN
+
+    DO i = 1, n
+
+      ti = stack( i)
+
+      ! Safety
+      IF (map( ti) == 0) CALL crash('extend_group_single_iteration_b - map and stack do not match!')
+
+      ! Add all non-listed neighbours of vi
+      DO n2 = 1, 3
+        tj = mesh%TriC( ti,n2)
+        IF (tj == 0) CYCLE
+        IF (map( tj) == 0) THEN
+          map( tj) = 1
+          stackN = stackN + 1
+          stack( stackN) = tj
+        END IF
+      END DO
+
+    END DO ! DO i = 1, n
+
+  END SUBROUTINE extend_group_single_iteration_b
+
+  SUBROUTINE extend_group_single_iteration_c( mesh, map, stack, stackN)
+    ! Extend the group of edges described by the provided map and stack
+    ! outward by a single flood-fill iteration
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                     INTENT(INOUT) :: mesh
+    INTEGER,  DIMENSION(mesh%nE),        INTENT(INOUT) :: map, stack
+    INTEGER,                             INTENT(INOUT) :: stackN
+
+    ! Local variables:
+    INTEGER                                            :: n,i,ei,vi,vj,vl,vr,ci,ej,eil,ejl,eir,ejr
+
+    ! Safety
+    IF (stackN == 0) CALL crash('extend_group_single_iteration_c - needs at least one triangles to start!')
+
+    n = stackN
+
+    DO i = 1, n
+
+      ei = stack( i)
+
+      ! Safety
+      IF (map( ei) == 0) CALL crash('extend_group_single_iteration_c - map and stack do not match!')
+
+      ! Find the (up to) four nearby edges
+
+      vi = mesh%EV( ei,1)
+      vj = mesh%EV( ei,2)
+      vl = mesh%EV( ei,3)
+      vr = mesh%EV( ei,4)
+
+      eil = 0
+      ejl = 0
+      eir = 0
+      ejr = 0
+
+      IF (vl > 0) THEN
+
+        DO ci = 1, mesh%nC( vi)
+          IF (mesh%C( vi,ci) == vl) eil = mesh%VE( vi,ci)
+        END DO
+        DO ci = 1, mesh%nC( vj)
+          IF (mesh%C( vj,ci) == vl) ejl = mesh%VE( vj,ci)
+        END DO
+
+        ! Safety
+        IF (eil == 0 .OR. ejl == 0) CALL crash('inconsistency in mesh%VE!')
+
+        IF (map( eil) == 0) THEN
+          map( eil) = 1
+          stackN = stackN + 1
+          stack( stackN) = eil
+        END IF
+
+        IF (map( ejl) == 0) THEN
+          map( ejl) = 1
+          stackN = stackN + 1
+          stack( stackN) = ejl
+        END IF
+
+      END IF ! IF (vl > 0) THEN
+
+      IF (vr > 0) THEN
+
+        DO ci = 1, mesh%nC( vi)
+          IF (mesh%C( vi,ci) == vr) eir = mesh%VE( vi,ci)
+        END DO
+        DO ci = 1, mesh%nC( vj)
+          IF (mesh%C( vj,ci) == vr) ejr = mesh%VE( vj,ci)
+        END DO
+
+        ! Safety
+        IF (eir == 0 .OR. ejr == 0) CALL crash('inconsistency in mesh%VE!')
+
+        IF (map( eir) == 0) THEN
+          map( eir) = 1
+          stackN = stackN + 1
+          stack( stackN) = eir
+        END IF
+
+        IF (map( ejr) == 0) THEN
+          map( ejr) = 1
+          stackN = stackN + 1
+          stack( stackN) = ejr
+        END IF
+
+      END IF ! IF (vl > 0) THEN
+
+    END DO ! DO i = 1, n
+
+  END SUBROUTINE extend_group_single_iteration_c
+
 ! == Diagnostic tools
 
   SUBROUTINE write_mesh_to_screen( mesh)

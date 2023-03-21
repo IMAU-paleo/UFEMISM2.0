@@ -16,6 +16,7 @@ MODULE basic_data_types
     ! Compressed Sparse Row (CSR) format matrix
 
     INTEGER                                 :: m,n                           ! A = [m-by-n]
+    INTEGER                                 :: i1,i2                         ! rows owned by each process
     INTEGER                                 :: nnz_max                       ! Maximum number of non-zero entries in A
     INTEGER                                 :: nnz                           ! Actual  number of non-zero entries in A
     INTEGER,  DIMENSION(:    ), ALLOCATABLE :: ptr                           ! Row start indices

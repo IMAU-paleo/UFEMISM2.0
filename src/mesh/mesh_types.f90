@@ -6,6 +6,7 @@ MODULE mesh_types
 ! ====================
 
   USE precisions                                             , ONLY: dp
+  USE basic_data_types                                       , ONLY: type_sparse_matrix_CSR_dp
 
   IMPLICIT NONE
 
@@ -93,6 +94,75 @@ MODULE mesh_types
     INTEGER,  DIMENSION(:,:  ), ALLOCATABLE :: EV                            !           Edge-to-vertex connectivity list
     INTEGER,  DIMENSION(:,:  ), ALLOCATABLE :: ETri                          !           Edge-to-triangle connectivity list
     INTEGER,  DIMENSION(:    ), ALLOCATABLE :: EBI                           ! [0-8]     Each edge's border index; 0 = free, 1 = north, 2 = northeast, ..., 8 = northwest
+
+  ! Matrix operators
+  ! ================
+
+    ! Grid-cell-to-matrix-row translation tables
+
+    ! a-grid (vertices)
+    INTEGER                                 :: nna, nnauv
+    INTEGER,  DIMENSION(:,:  ), ALLOCATABLE :: n2vi
+    INTEGER,  DIMENSION(:,:  ), ALLOCATABLE :: n2viuv
+    INTEGER,  DIMENSION(:    ), ALLOCATABLE :: vi2n
+    INTEGER,  DIMENSION(:,:  ), ALLOCATABLE :: viuv2n
+
+    ! b-grid (triangles)
+    INTEGER                                 :: nnb, nnbuv
+    INTEGER,  DIMENSION(:,:  ), ALLOCATABLE :: n2ti
+    INTEGER,  DIMENSION(:,:  ), ALLOCATABLE :: n2tiuv
+    INTEGER,  DIMENSION(:    ), ALLOCATABLE :: ti2n
+    INTEGER,  DIMENSION(:,:  ), ALLOCATABLE :: tiuv2n
+
+    ! c-grid (edges)
+    INTEGER                                 :: nnc, nncuv
+    INTEGER,  DIMENSION(:,:  ), ALLOCATABLE :: n2ei
+    INTEGER,  DIMENSION(:,:  ), ALLOCATABLE :: n2eiuv
+    INTEGER,  DIMENSION(:    ), ALLOCATABLE :: ei2n
+    INTEGER,  DIMENSION(:,:  ), ALLOCATABLE :: eiuv2n
+
+    ! Basic mapping and gradient operators
+
+    ! a-grid (vertices) to a-grid (vertices)
+    TYPE(type_sparse_matrix_CSR_dp)         :: M_ddx_a_a
+    TYPE(type_sparse_matrix_CSR_dp)         :: M_ddy_a_a
+    ! a-grid (vertices) to b-grid (triangles)
+    TYPE(type_sparse_matrix_CSR_dp)         :: M_map_a_b
+    TYPE(type_sparse_matrix_CSR_dp)         :: M_ddx_a_b
+    TYPE(type_sparse_matrix_CSR_dp)         :: M_ddy_a_b
+    ! a-grid (vertices) to c-grid (edges)
+    TYPE(type_sparse_matrix_CSR_dp)         :: M_map_a_c
+    TYPE(type_sparse_matrix_CSR_dp)         :: M_ddx_a_c
+    TYPE(type_sparse_matrix_CSR_dp)         :: M_ddy_a_c
+    ! b-grid (triangles) to a-grid (vertices)
+    TYPE(type_sparse_matrix_CSR_dp)         :: M_map_b_a
+    TYPE(type_sparse_matrix_CSR_dp)         :: M_ddx_b_a
+    TYPE(type_sparse_matrix_CSR_dp)         :: M_ddy_b_a
+    ! b-grid (triangles) to b-grid (triangles)
+    TYPE(type_sparse_matrix_CSR_dp)         :: M_ddx_b_b
+    TYPE(type_sparse_matrix_CSR_dp)         :: M_ddy_b_b
+    ! b-grid (triangles) to c-grid (edges)
+    TYPE(type_sparse_matrix_CSR_dp)         :: M_map_b_c
+    TYPE(type_sparse_matrix_CSR_dp)         :: M_ddx_b_c
+    TYPE(type_sparse_matrix_CSR_dp)         :: M_ddy_b_c
+    ! c-grid (edges) to a-grid (vertices)
+    TYPE(type_sparse_matrix_CSR_dp)         :: M_map_c_a
+    TYPE(type_sparse_matrix_CSR_dp)         :: M_ddx_c_a
+    TYPE(type_sparse_matrix_CSR_dp)         :: M_ddy_c_a
+    ! c-grid (edges) to b-grid (triangles)
+    TYPE(type_sparse_matrix_CSR_dp)         :: M_map_c_b
+    TYPE(type_sparse_matrix_CSR_dp)         :: M_ddx_c_b
+    TYPE(type_sparse_matrix_CSR_dp)         :: M_ddy_c_b
+    ! c-grid (edges) to c-grid (edges)
+    TYPE(type_sparse_matrix_CSR_dp)         :: M_ddx_c_c
+    TYPE(type_sparse_matrix_CSR_dp)         :: M_ddy_c_c
+
+    ! b-grid (triangles) to b-grid (triangles), 2nd-order accurate
+    TYPE(type_sparse_matrix_CSR_dp)         :: M2_ddx_b_b
+    TYPE(type_sparse_matrix_CSR_dp)         :: M2_ddy_b_b
+    TYPE(type_sparse_matrix_CSR_dp)         :: M2_d2dx2_b_b
+    TYPE(type_sparse_matrix_CSR_dp)         :: M2_d2dxdy_b_b
+    TYPE(type_sparse_matrix_CSR_dp)         :: M2_d2dy2_b_b
 
   END TYPE type_mesh
 

@@ -54,6 +54,7 @@ ifeq ($(DO_SELEN),yes)
     basic/control_resources_and_error_messaging.o \
     basic/mpi_distributed_memory.o \
     basic/math_utilities.o \
+    basic/CSR_sparse_matrix_utilities.o \
     basic/config_file_utilities.o \
     \
     mesh/mesh_configuration.o \
@@ -62,9 +63,11 @@ ifeq ($(DO_SELEN),yes)
     mesh/mesh_utilities.o \
     mesh/mesh_Delaunay.o \
     mesh/mesh_edges.o \
+    mesh/mesh_refinement.o \
+    mesh/mesh_parallel_creation.o \
+    mesh/mesh_operators.o \
     mesh/mesh_secondary.o \
     mesh/mesh_creation.o \
-    mesh/mesh_parallel_creation.o \
     \
     netcdf/netcdf_basic.o \
     netcdf/netcdf_input.o \
@@ -87,6 +90,7 @@ else
     basic/control_resources_and_error_messaging.o \
     basic/mpi_distributed_memory.o \
     basic/math_utilities.o \
+    basic/CSR_sparse_matrix_utilities.o \
     basic/config_file_utilities.o \
     \
     mesh/mesh_configuration.o \
@@ -95,9 +99,11 @@ else
     mesh/mesh_utilities.o \
     mesh/mesh_Delaunay.o \
     mesh/mesh_edges.o \
+    mesh/mesh_refinement.o \
+    mesh/mesh_parallel_creation.o \
+    mesh/mesh_operators.o \
     mesh/mesh_secondary.o \
     mesh/mesh_creation.o \
-    mesh/mesh_parallel_creation.o \
     \
     netcdf/netcdf_basic.o \
     netcdf/netcdf_input.o \

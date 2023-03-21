@@ -15,11 +15,8 @@ MODULE mesh_parallel_creation
   USE mesh_types                                             , ONLY: type_mesh
   USE mesh_memory                                            , ONLY: allocate_mesh_primary, extend_mesh_primary, crop_mesh_primary, deallocate_mesh
   USE mesh_utilities                                         , ONLY: list_border_vertices_west, list_border_vertices_east, list_border_vertices_south, &
-                                                                     list_border_vertices_north, find_containing_triangle, write_mesh_to_text_file
+                                                                     list_border_vertices_north, find_containing_triangle
   USE mesh_Delaunay                                          , ONLY: split_border_edge, flip_triangles_until_Delaunay, move_vertex
-  USE mesh_creation                                          , ONLY: initialise_dummy_mesh, refine_mesh_uniform, refine_mesh_point, refine_mesh_line, &
-                                                                     refine_mesh_polygon, refine_mesh_split_encroaching_triangles, &
-                                                                     Lloyds_algorithm_single_iteration
 
   IMPLICIT NONE
 
