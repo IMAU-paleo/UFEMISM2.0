@@ -1,6 +1,6 @@
 MODULE mesh_Delaunay
 
-  ! Routines used for updating a Delaunay triangulation by splitting a triangle, a line or a segment.
+  ! Routines used for updating a Delaunay triangulation by splitting a triangle, an edge, or a border edge.
   !
   ! All these routines are set up so that, if the mesh that goes in is self-consistent (i.e. there
   ! are no erroneous entries in the connectivity lists) and meets the Delaunay criterion everywhere,
@@ -15,7 +15,7 @@ MODULE mesh_Delaunay
   USE mesh_types                                             , ONLY: type_mesh
   USE math_utilities                                         , ONLY: is_in_triangle, lies_on_line_segment, line_from_points, line_line_intersection, &
                                                                      perpENDicular_bisector_from_line, encroaches_upon
-  USE mesh_utilities                                         , ONLY: update_triangle_circumcenter, find_containing_triangle, is_boundary_segment, &
+  USE mesh_utilities                                         , ONLY: update_triangle_circumcenter, find_containing_triangle, is_border_edge, &
                                                                      encroaches_upon_any, check_mesh, add_triangle_to_refinement_stack_first, &
                                                                      add_triangle_to_refinement_stack_last, check_if_triangle_already_exists, &
                                                                      write_mesh_to_text_file
@@ -38,7 +38,7 @@ CONTAINS
     ! Provide a guess ti_in_guess for which triangle we think contains p (can be wrong,
     ! but guessing near the correct one speeds up the code).
     !
-    ! If p_new coincides with a line or boundary segment, split that instead.
+    ! If p_new coincides with a line or border edge, split that instead.
     !
     ! When going in, the local geometry looks like this:
     !
@@ -94,21 +94,22 @@ CONTAINS
     INTEGER                                       :: ci, iti, n, nf, t1, t2, t3, ti, tia, tib, tic
     REAL(dp), DIMENSION(2)                        :: va, vb, vc
     INTEGER                                       :: vi, via, vib, vic, vik, vj
+    INTEGER                                       :: li_min, li_max
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! If p_new encroaches upon a boundary segment, split that instead
+    ! If p_new encroaches upon a border edge, split that instead
     CALL encroaches_upon_any( mesh, p_new, isso, vi, vj)
     IF (isso) THEN
       p = (mesh%V( vi,:) + mesh%V( vj,:)) / 2._dp
-      CALL split_segment( mesh, vi, vj, p)
+      CALL split_border_edge( mesh, vi, vj, p)
       CALL finalise_routine( routine_name)
       RETURN
     END IF
 
-    ! == If p_new lies outside of the mesh domain, split a boundary segment instead.
-    ! ==============================================================================
+    ! == If p_new lies outside of the mesh domain, split a border edge instead.
+    ! =========================================================================
 
     IF (p_new( 1) < mesh%xmin) THEN
       ! p_new lies to the west of the mesh domain
@@ -118,7 +119,7 @@ CONTAINS
         CALL crash('p_new lies way outside mesh domain!')
       END IF
 
-      ! Find the two vertices vi,vj of the segment that must be split.
+      ! Find the two vertices vi,vj of the border edge that must be split.
       vi = 1
       vj = mesh%C( vi, mesh%nC( vi))
       DO WHILE (mesh%V( vj,2) < p_new( 2))
@@ -128,11 +129,11 @@ CONTAINS
 
       ! Safety
       IF (.NOT. (p_new( 2) >= mesh%V( vi,2) .AND. p_new( 2) <= mesh%V( vj,2))) THEN
-        CALL crash('couldnt find boundary segment to split!')
+        CALL crash('couldnt find border edge to split!')
       END IF
 
       p = (mesh%V( vi,:) + mesh%V( vj,:)) / 2._dp
-      CALL split_segment( mesh, vi, vj, p)
+      CALL split_border_edge( mesh, vi, vj, p)
 
       CALL finalise_routine( routine_name)
       RETURN
@@ -147,7 +148,7 @@ CONTAINS
         CALL crash('p_new lies way outside mesh domain!')
       END IF
 
-      ! Find the two vertices vi,vj of the segment that must be split.
+      ! Find the two vertices vi,vj of the border edge that must be split.
       vi = 2
       vj = mesh%C( vi,1)
       DO WHILE (mesh%V( vj,2) < p_new( 2))
@@ -157,11 +158,11 @@ CONTAINS
 
       ! Safety
       IF (.NOT. (p_new( 2) >= mesh%V( vi,2) .AND. p_new( 2) <= mesh%V( vj,2))) THEN
-        CALL crash('couldnt find boundary segment to split!')
+        CALL crash('couldnt find border edge to split!')
       END IF
 
       p = (mesh%V( vi,:) + mesh%V( vj,:)) / 2._dp
-      CALL split_segment( mesh, vi, vj, p)
+      CALL split_border_edge( mesh, vi, vj, p)
 
       CALL finalise_routine( routine_name)
       RETURN
@@ -176,7 +177,7 @@ CONTAINS
         CALL crash('p_new lies way outside mesh domain!')
       END IF
 
-      ! Find the two vertices vi,vj of the segment that must be split.
+      ! Find the two vertices vi,vj of the border edge that must be split.
       vi = 1
       vj = mesh%C( vi, 1)
       DO WHILE (mesh%V( vj,1) < p_new( 1))
@@ -186,11 +187,11 @@ CONTAINS
 
       ! Safety
       IF (.NOT. (p_new( 1) >= mesh%V( vi,1) .AND. p_new( 1) <= mesh%V( vj,1))) THEN
-        CALL crash('couldnt find segment to split!')
+        CALL crash('couldnt find border edge to split!')
       END IF
 
       p = (mesh%V( vi,:) + mesh%V( vj,:)) / 2._dp
-      CALL split_segment( mesh, vi, vj, p)
+      CALL split_border_edge( mesh, vi, vj, p)
 
       CALL finalise_routine( routine_name)
       RETURN
@@ -205,7 +206,7 @@ CONTAINS
         CALL crash('p_new lies way outside mesh domain!')
       END IF
 
-      ! Find the two vertices vi,vj of the segment that must be split.
+      ! Find the two vertices vi,vj of the border edge that must be split.
       vi = 1
       vj = mesh%C( vi, mesh%nC( vi))
       DO WHILE (mesh%V( vj,1) < p_new( 1))
@@ -215,11 +216,11 @@ CONTAINS
 
       ! Safety
       IF (.NOT. (p_new( 1) >= mesh%V( vi,1) .AND. p_new( 1) <= mesh%V( vj,1))) THEN
-        CALL crash('couldnt find segment to split!')
+        CALL crash('couldnt find border edge to split!')
       END IF
 
       p = (mesh%V( vi,:) + mesh%V( vj,:)) / 2._dp
-      CALL split_segment( mesh, vi, vj, p)
+      CALL split_border_edge( mesh, vi, vj, p)
 
       CALL finalise_routine( routine_name)
       RETURN
@@ -233,41 +234,41 @@ CONTAINS
     ti = ti_in_guess
     CALL find_containing_triangle( mesh, p_new, ti)
 
-    ! The indices of the three vertices [a,b,c] spanning t_old
+    ! The indices of the three vertices [a,b,c] spanning ti
     via = mesh%Tri( ti,1)
     vib = mesh%Tri( ti,2)
     vic = mesh%Tri( ti,3)
 
-    ! The coordinates of the three vertices [a,b,c] spanning t_old
+    ! The coordinates of the three vertices [a,b,c] spanning ti
     va  = mesh%V( via,:)
     vb  = mesh%V( vib,:)
     vc  = mesh%V( vic,:)
 
-    ! Indice of the triangles neighbouring t_old
+    ! Indice of the triangles neighbouring ti
     tia = mesh%TriC( ti,1)
     tib = mesh%TriC( ti,2)
     tic = mesh%TriC( ti,3)
 
-    ! == Check IF p_new encroaches upon a boundary segment. If so, split it.
+    ! == Check IF p_new encroaches upon a border edge. If so, split it.
     ! ======================================================================
 
-    IF (is_boundary_segment( mesh, via, vib) .AND. encroaches_upon( va, vb, p_new)) THEN
+    IF (is_border_edge( mesh, via, vib) .AND. encroaches_upon( va, vb, p_new, mesh%tol_dist)) THEN
       p = (mesh%V( via,:) + mesh%V( vib,:)) / 2._dp
-      CALL split_segment( mesh, via, vib, p)
+      CALL split_border_edge( mesh, via, vib, p)
       CALL finalise_routine( routine_name)
       RETURN
     END IF
 
-    IF (is_boundary_segment( mesh, vib, vic) .AND. encroaches_upon( va, vb, p_new)) THEN
+    IF (is_border_edge( mesh, vib, vic) .AND. encroaches_upon( va, vb, p_new, mesh%tol_dist)) THEN
       p = (mesh%V( vib,:) + mesh%V( vic,:)) / 2._dp
-      CALL split_segment( mesh, vib, vic, p)
+      CALL split_border_edge( mesh, vib, vic, p)
       CALL finalise_routine( routine_name)
       RETURN
     END IF
 
-    IF (is_boundary_segment( mesh, vic, via) .AND. encroaches_upon( va, vb, p_new)) THEN
+    IF (is_border_edge( mesh, vic, via) .AND. encroaches_upon( va, vb, p_new, mesh%tol_dist)) THEN
       p = (mesh%V( vic,:) + mesh%V( via,:)) / 2._dp
-      CALL split_segment( mesh, vic, via, p)
+      CALL split_border_edge( mesh, vic, via, p)
       CALL finalise_routine( routine_name)
       RETURN
     END IF
@@ -277,15 +278,15 @@ CONTAINS
     ! ================================================================
 
     IF     (lies_on_line_segment( va, vb, p_new, mesh%tol_dist)) THEN
-      CALL split_line( mesh, via, vib, p_new)
+      CALL split_edge( mesh, via, vib, p_new)
       CALL finalise_routine( routine_name)
       RETURN
     ELSEIF (lies_on_line_segment( vb, vc, p_new, mesh%tol_dist)) THEN
-      CALL split_line( mesh, vib, vic, p_new)
+      CALL split_edge( mesh, vib, vic, p_new)
       CALL finalise_routine( routine_name)
       RETURN
     ELSEIF (lies_on_line_segment( vc, va, p_new, mesh%tol_dist)) THEN
-      CALL split_line( mesh, vic, via, p_new)
+      CALL split_edge( mesh, vic, via, p_new)
       CALL finalise_routine( routine_name)
       RETURN
     END IF
@@ -382,7 +383,7 @@ CONTAINS
     mesh%niTri( vik) = 3
     mesh%iTri( vik,1:3) = [t1, t3, t2]
 
-    ! == Boundary index
+    ! == Border index
 
     mesh%VBI( vik) = 0
 
@@ -436,9 +437,11 @@ CONTAINS
     CALL add_triangle_to_refinement_stack_last( mesh, t3)
 
     ! Update triangle-line overlap ranges
-    mesh%Tri_li( t1,:) = mesh%Tri_li( ti,:)
-    mesh%Tri_li( t2,:) = mesh%Tri_li( ti,:)
-    mesh%Tri_li( t3,:) = mesh%Tri_li( ti,:)
+    li_min = mesh%Tri_li( ti,1)
+    li_max = mesh%Tri_li( ti,2)
+    mesh%Tri_li( t1,:) = [li_min, li_max]
+    mesh%Tri_li( t2,:) = [li_min, li_max]
+    mesh%Tri_li( t3,:) = [li_min, li_max]
 
     ! == Finished splitting the triangle. Iteratively flip any triangle pairs
     !    in the neighbourhood that do not meet the local Delaunay criterion.
@@ -474,9 +477,9 @@ CONTAINS
 
   END SUBROUTINE split_triangle
 
-  SUBROUTINE split_line( mesh, vi, vj, p_new)
+  SUBROUTINE split_edge( mesh, vi, vj, p_new)
     ! Split the triangles t_left and t_right adjacent to line [vi,vj]
-    ! into four new ones. If [vi,vj] is a boundary segment, split that instead.
+    ! into four new ones. If [vi,vj] is a border edge, split that instead.
     !
     ! When going in, the local geometry looks like this:
     !
@@ -526,11 +529,12 @@ CONTAINS
     REAL(dp), DIMENSION(2),     INTENT(IN)        :: p_new
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'split_line'
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'split_edge'
     LOGICAL                                       :: are_connected_ij, are_connected_ji
     INTEGER                                       :: ci, cj, iti, n, n1, n2, n3, nf
     REAL(dp), DIMENSION(2)                        :: p, pa, pb
     INTEGER                                       :: t1, t2, t3, t4, ti, tit, tib, titl, titr, tibl, tibr, via, vib, vit, vk
+    INTEGER                                       :: li_min, li_max
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -567,10 +571,10 @@ CONTAINS
       CALL crash('p does not lie on [{int_01}-{int_02}!', int_01 = vi, int_02 = vj)
     END IF
 
-    ! If [vi,vj] is a boundary segment, split that instead
-    IF (is_boundary_segment( mesh, vi, vj)) THEN
+    ! If [vi,vj] is a border edge, split that instead
+    IF (is_border_edge( mesh, vi, vj)) THEN
       p = (pa + pb) / 2._dp
-      CALL split_segment( mesh, vi, vj, p)
+      CALL split_border_edge( mesh, vi, vj, p)
       CALL finalise_routine( routine_name)
       RETURN
     END IF
@@ -760,7 +764,7 @@ CONTAINS
     mesh%niTri( vk    ) = 4
     mesh%iTri(  vk,1:4) = [t1, t3, t4, t2]
 
-    ! == Boundary index
+    ! == Border index
 
     mesh%VBI( vk) = 0
 
@@ -823,10 +827,12 @@ CONTAINS
     CALL add_triangle_to_refinement_stack_last( mesh, t4)
 
     ! Update triangle-line overlap ranges
-    mesh%Tri_li( t1,:) = mesh%Tri_li( tit,:)
-    mesh%Tri_li( t2,:) = mesh%Tri_li( tit,:)
-    mesh%Tri_li( t3,:) = mesh%Tri_li( tib,:)
-    mesh%Tri_li( t4,:) = mesh%Tri_li( tib,:)
+    li_min = MIN( mesh%Tri_li( tit,1), mesh%Tri_li( tib,1))
+    li_max = MAX( mesh%Tri_li( tit,2), mesh%Tri_li( tib,2))
+    mesh%Tri_li( t1,:) = [li_min, li_max]
+    mesh%Tri_li( t2,:) = [li_min, li_max]
+    mesh%Tri_li( t3,:) = [li_min, li_max]
+    mesh%Tri_li( t4,:) = [li_min, li_max]
 
     ! == Finished splitting the line. Iteratively flip any triangle pairs
     !    in the neighbourhood that do not meet the local Delaunay criterion.
@@ -864,10 +870,10 @@ CONTAINS
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
-  END SUBROUTINE split_line
+  END SUBROUTINE split_edge
 
-  SUBROUTINE split_segment( mesh, vi, vj, p_new)
-    ! Split the triangle ti adjacent to boundary segment [vi,vj] into two new ones
+  SUBROUTINE split_border_edge( mesh, vi, vj, p_new)
+    ! Split the triangle ti adjacent to border edge [vi,vj] into two new ones
     !
     ! When going in, the local geometry looks like this:
     !
@@ -903,11 +909,12 @@ CONTAINS
     REAL(dp), DIMENSION(2),     INTENT(IN)        :: p_new
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'split_segment'
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'split_border_edge'
     LOGICAL                                       :: are_connected_ij, are_connected_ji
     INTEGER                                       :: ci, cj, iti, n, n1, n2, n3, nf
     REAL(dp), DIMENSION(2)                        :: pa, pb
     INTEGER                                       :: t1, t2, ti, tia, tib, tic, tii, via, vib, vic, vik
+    INTEGER                                       :: li_min, li_max
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -944,21 +951,21 @@ CONTAINS
       CALL crash('p does not lie on [{int_01}-{int_02}]!', int_01 = vi, int_02 = vj)
     END IF
 
-    ! Check IF [vi,vj] is actually a boundary segment
-    IF (.NOT. is_boundary_segment( mesh, vi, vj)) THEN
-      CALL crash('[{int_01}-{int_02}] is not a boundary segment!', int_01 = vi, int_02 = vj)
+    ! Check IF [vi,vj] is actually a border edge
+    IF (.NOT. is_border_edge( mesh, vi, vj)) THEN
+      CALL crash('[{int_01}-{int_02}] is not a border edge!', int_01 = vi, int_02 = vj)
     END IF
 
-    ! == All safety checks passes; split the triangle ti adjacent to boundary
-    !    segment [vi,vj] into two new ones
+    ! == All safety checks passes; split the triangle ti adjacent to border
+    !    edge [vi,vj] into two new ones
     ! =======================================================================
 
     ! DENK DROM
-    IF (do_debug) CALL warning('splitting segment [{int_01}-{int_02}}]', int_01 = vi, int_02 = vj)
+    IF (do_debug) CALL warning('splitting border edge [{int_01}-{int_02}}]', int_01 = vi, int_02 = vj)
 
     ! == Find the local neighbourhood of vertices and triangles
 
-    ! Find the triangle t1 adjacent to the boundary segment [vi,vj]
+    ! Find the triangle t1 adjacent to the border edge [vi,vj]
 
     ti = 0
     DO iti = 1, mesh%niTri( vi)
@@ -973,7 +980,7 @@ CONTAINS
     END IF
 
     ! Let ti be spanned by vertices [via,vib,vic], such that via and
-    ! vib lie on the boundary, and vic in the interior. Note: either via = vi
+    ! vib lie on the border, and vic in the interior. Note: either via = vi
     ! and vib = vj, or via = vj and vib = vi, but its easier from here on to
     ! have the three vertices ordered counter-clockwise.
     ! Let tia and tib be the triangles adjacent to ti across from via and vib,
@@ -1007,7 +1014,7 @@ CONTAINS
     ! Safety
     IF (via == 0 .OR. vib == 0 .OR. vic == 0) CALL crash('mesh%Tri doesnt make sense!')
     IF (tia == 0 .AND. tib == 0) CALL crash('triangle has only one neighbour!')
-    IF (tic > 0) CALL crash('triangle doesnt appear to be a boundary triangle!')
+    IF (tic > 0) CALL crash('triangle doesnt appear to be a border triangle!')
 
     ! == V, Tri
 
@@ -1065,7 +1072,7 @@ CONTAINS
     mesh%niTri( vik) = 2
     mesh%iTri( vik,1:2) = [t2,t1]
 
-    ! == Boundary index
+    ! == Border index
 
     IF     ((mesh%VBI( via) == 8 .OR. mesh%VBI( via) == 1 .OR. mesh%VBI( via) == 2) .AND. &
             (mesh%VBI( vib) == 8 .OR. mesh%VBI( vib) == 1 .OR. mesh%VBI( vib) == 2)) THEN
@@ -1122,10 +1129,12 @@ CONTAINS
     CALL add_triangle_to_refinement_stack_last( mesh, t2)
 
     ! Update triangle-line overlap ranges
-    mesh%Tri_li( t1,:) = mesh%Tri_li( ti,:)
-    mesh%Tri_li( t2,:) = mesh%Tri_li( ti,:)
+    li_min = mesh%Tri_li( ti,1)
+    li_max = mesh%Tri_li( ti,2)
+    mesh%Tri_li( t1,:) = [li_min, li_max]
+    mesh%Tri_li( t2,:) = [li_min, li_max]
 
-    ! == Finished splitting the segment. Iteratively flip any triangle pairs
+    ! == Finished splitting the border edge. Iteratively flip any triangle pairs
     !    in the neighbourhood that do not meet the local Delaunay criterion.
     ! ======================================================================
 
@@ -1153,7 +1162,7 @@ CONTAINS
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
-  END SUBROUTINE split_segment
+  END SUBROUTINE split_border_edge
 
   SUBROUTINE move_vertex( mesh, vi, p)
     ! Move vertex vi of the mesh to point p
@@ -1322,13 +1331,13 @@ CONTAINS
     LOGICAL                                       :: is_in_tj
     INTEGER                                       :: via, vib, vic, vid
     INTEGER                                       :: ci, iti
-    INTEGER                                       :: li_min, li_max
     INTEGER                                       :: n1, n2, n3
     INTEGER                                       :: tia, tib, tja, tjb, t1, t2, tii
     LOGICAL                                       :: via_has_ti, via_has_tj
     LOGICAL                                       :: vib_has_ti, vib_has_tj
     LOGICAL                                       :: vic_has_ti, vic_has_tj
     LOGICAL                                       :: vid_has_ti, vid_has_tj
+    INTEGER                                       :: li_min, li_max
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -1657,7 +1666,7 @@ CONTAINS
       END IF
     END DO
 
-    ! == Boundary index
+    ! == Border index
 
     ! No changes.
 

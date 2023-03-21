@@ -35,17 +35,17 @@ CONTAINS
     !   For each edge, list [vi,vj,vl,vr], such that the edge runs from vi to vj,
     !   with vl and vr being the opposite corners of the triangles to the left and
     !   to the right of the edge, respectively. If the edge lies on the domain
-    !   boundary, either vl or vr will be zero.
+    !   border, either vl or vr will be zero.
     !
     ! ETri: [nE-by-2] edge-to-triangle connectivity list
     !
     !   For each edge, list [til,tir], being the triangles to the left and to the right
-    !   of the edge, respectively. If the edge lies on the domain boundary, either til
+    !   of the edge, respectively. If the edge lies on the domain border, either til
     !   or tir will be zero.
     !
-    ! EBI:  [nE] edge boundary index
+    ! EBI:  [nE] edge border index
     !
-    !   Boundary indices of all edges: 0 = free, 1 = north, 2 = northeast, ..., 8 = northwest
+    !   Border indices of all edges: 0 = free, 1 = north, 2 = northeast, ..., 8 = northwest
 
     IMPLICIT NONE
 
@@ -101,8 +101,8 @@ CONTAINS
           END IF
         END DO
 
-        ! Determine this edge's boundary index
-        mesh%EBI( ei) = edge_boundary_index( mesh, vi, vj)
+        ! Determine this edge's border index
+        mesh%EBI( ei) = edge_border_index( mesh, vi, vj)
 
         ! Find the triangles and vertices to the left and right of this edge
 
@@ -143,13 +143,13 @@ CONTAINS
         ! Safety
         IF (mesh%EBI( ei) == 0) THEN
           IF (vil == 0 .OR. vir == 0 .OR. til == 0 .OR. tir == 0) THEN
-            CALL crash('couldnt find all vil, vir, til, tir for non-boundary edge {int_01}', int_01 = ei)
+            CALL crash('couldnt find all vil, vir, til, tir for non-border edge {int_01}', int_01 = ei)
           END IF
         ELSE
           IF (vil == 0 .AND. vir == 0 .AND. til == 0 .AND. tir == 0) THEN
-            CALL crash('couldnt find all vil, vir, til, tir for boundary edge {int_01}', int_01 = ei)
+            CALL crash('couldnt find all vil, vir, til, tir for border edge {int_01}', int_01 = ei)
           ELSEIF (vil > 0 .AND. vir > 0 .AND. til > 0 .AND. tir > 0) THEN
-            CALL crash('found too many vil, vir, til, tir for boundary edge {int_01}', int_01 = ei)
+            CALL crash('found too many vil, vir, til, tir for border edge {int_01}', int_01 = ei)
           END IF
         END IF
 
@@ -173,8 +173,8 @@ CONTAINS
 
   END SUBROUTINE construct_mesh_edges
 
-  FUNCTION edge_boundary_index( mesh, vi, vj) RESULT( EBI)
-    ! Find the boundary index of the edge connecting vi and vj
+  FUNCTION edge_border_index( mesh, vi, vj) RESULT( EBI)
+    ! Find the border index of the edge connecting vi and vj
 
     IMPLICIT NONE
 
@@ -184,7 +184,7 @@ CONTAINS
     INTEGER                                       :: EBI
 
     IF     (mesh%VBI( vi) == 0 .OR. mesh%VBI( vj) == 0) THEN
-      ! This edge doesn't lie on the domain boundary
+      ! This edge doesn't lie on the domain border
       EBI = 0
     ELSEIF ((mesh%VBI( vi) == 8 .OR. mesh%VBI( vi) == 1 .OR. mesh%VBI( vi) == 2) .AND. &
             (mesh%VBI( vj) == 8 .OR. mesh%VBI( vj) == 1 .OR. mesh%VBI( vj) == 2)) THEN
@@ -203,10 +203,10 @@ CONTAINS
       ! West
       EBI = 7
     ELSE
-      ! This edge doesn't lie on the domain boundary
+      ! This edge doesn't lie on the domain border
       EBI = 0
     END IF
 
-  END FUNCTION edge_boundary_index
+  END FUNCTION edge_border_index
 
 END MODULE mesh_edges

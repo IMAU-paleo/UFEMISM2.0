@@ -1691,16 +1691,17 @@ CONTAINS
 
   END SUBROUTINE crop_line_to_domain
 
-  PURE FUNCTION encroaches_upon( pa, pb, pc) RESULT( isso)
+  PURE FUNCTION encroaches_upon( pa, pb, pc, tol_dist) RESULT( isso)
     ! Check if c encroaches upon segment ab
 
     IMPLICIT NONE
 
     ! In/output variables:
     REAL(dp), DIMENSION(2), INTENT(IN)            :: pa, pb, pc
+    REAL(dp),               INTENT(IN)            :: tol_dist
     LOGICAL                                       :: isso
 
-    isso = (NORM2( pc - (pa + pb) / 2._dp) < NORM2( pa - pb) / 2._dp)
+    isso = NORM2( pc - (pa + pb) / 2._dp) < NORM2( pa - pb) / 2._dp + tol_dist
 
   END FUNCTION encroaches_upon
 

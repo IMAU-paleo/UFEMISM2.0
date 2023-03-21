@@ -17,6 +17,7 @@ PROGRAM UFEMISM_program
   USE mesh_utilities
   USE mesh_Delaunay
   USE mesh_creation
+  USE mesh_parallel_creation
   USE basic_data_types
   USE math_utilities
   USE mesh_edges
@@ -40,6 +41,7 @@ PROGRAM UFEMISM_program
   INTEGER :: i,j
   INTEGER :: ncid
   REAL(dp) :: lambda_M, phi_M, beta_stereo
+  REAL(dp) :: res, width
 
 ! ===== START =====
 ! =================
@@ -81,50 +83,70 @@ PROGRAM UFEMISM_program
   ! DENK DROM
   name = 'test_mesh'
   CALL allocate_mesh_primary( mesh, name, 1000, 2000, 32)
-  CALL initialise_dummy_mesh( mesh, grid%xmin, grid%xmax, grid%ymin, grid%ymax)
+  IF (par%i == 0) THEN
+    CALL initialise_dummy_mesh( mesh, grid%xmin, (grid%xmin + grid%xmax) / 2._dp, grid%ymin, grid%ymax)
+  ELSE
+    CALL initialise_dummy_mesh( mesh, (grid%xmin + grid%xmax) / 2._dp, grid%xmax, grid%ymin, grid%ymax)
+  END IF
   alpha_min = 25._dp * pi / 180._dp
 
-  ! Move central vertex
-  CALL move_vertex( mesh, 5, [1E4_dp, 3.7E4_dp])
-
   ! Uniform
-  CALL refine_mesh_uniform( mesh, 4E5_dp, alpha_min)
+  IF (par%i == 0) THEN
+    CALL refine_mesh_uniform( mesh, 4E5_dp, alpha_min)
+  ELSE
+    CALL refine_mesh_uniform( mesh, 1E5_dp, alpha_min)
+  END IF
 
-  ! Smooth
-  CALL Lloyds_algorithm_single_iteration( mesh)
+!  ! Smooth
+!  CALL Lloyds_algorithm_single_iteration( mesh)
 
-  ! Grounding line
-  CALL refine_mesh_line( mesh, line_GL, 5E4_dp, alpha_min)
+!  ! Smileyface
+!  res   = 50E3_dp
+!  width = 100E3_dp
+!  CALL mesh_add_smileyface( mesh, res, width)
 
-  ! Smileyface
-  CALL mesh_add_smileyface( mesh, 5E4_dp)
+!  ! UFEMISM letters
+!  res = 30E3_dp
+!  width = 20E3_dp
+!  CALL mesh_add_UFEMISM_letters( mesh, res, width)
 
-  ! UFEMISM letters
-  CALL mesh_add_UFEMISM_letters( mesh, 5E4_dp)
+!  ! Grounding line
+!  res = 20E3_dp
+!  width = 20E3_dp
+!  CALL refine_mesh_line( mesh, line_GL, res, width, alpha_min)
 
-  ! Smooth again
-  CALL Lloyds_algorithm_single_iteration( mesh)
+!  ! Smooth again
+!  CALL Lloyds_algorithm_single_iteration( mesh)
 
-  ! Calculate all secondary mesh data
-  lambda_M    = 0._dp
-  phi_M       = -90._dp
-  beta_stereo = 71._dp
-  CALL calc_all_secondary_mesh_data( mesh, lambda_M, phi_M, beta_stereo)
+
+!  ! Calculate all secondary mesh data
+!  lambda_M    = 0._dp
+!  phi_M       = -90._dp
+!  beta_stereo = 71._dp
+!  CALL calc_all_secondary_mesh_data( mesh, lambda_M, phi_M, beta_stereo)
 
   tstop = MPI_WTIME()
   CALL warning('Finished generation mesh of {int_01} vertices in {dp_01} seconds.', int_01 = mesh%nV, dp_01 = tstop - tstart)
 
-  CALL write_mesh_to_text_file( mesh, 'test_mesh.txt')
 
+  ! Merge submeshes
+  CALL merge_submeshes( mesh, 0, 1, 'east-west')
+
+
+  ! DENK DROM
+  IF (par%i == 0) THEN
+    CALL write_mesh_to_text_file( mesh, 'mesh_01.txt')
+  END IF
+  CALL sync
 
 
   ! == WRITE TO NETCDF ==
   ! =====================
 
-  filename = 'test_mesh_netcdf.nc'
-  CALL create_new_netcdf_file_for_writing( filename, ncid)
-  CALL setup_mesh_in_netcdf_file( filename, ncid, mesh)
-  CALL close_netcdf_file( ncid)
+!  filename = 'test_mesh_netcdf.nc'
+!  CALL create_new_netcdf_file_for_writing( filename, ncid)
+!  CALL setup_mesh_in_netcdf_file( filename, ncid, mesh)
+!  CALL close_netcdf_file( ncid)
 
 
 

@@ -26,139 +26,6 @@ CONTAINS
 ! ===== Subroutines =====
 ! =======================
 
-! == Some fun and useful tools
-
-  SUBROUTINE mesh_add_smileyface( mesh, res)
-    ! Add a smileyface to a mesh. Because we can.
-
-    IMPLICIT NONE
-
-    TYPE(type_mesh),            INTENT(INOUT)     :: mesh
-    REAL(dp),                   INTENT(IN)        :: res
-
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'mesh_add_smileyface'
-    INTEGER                                       :: i,n
-    REAL(dp)                                      :: alpha_min, r, theta, x0, xw, y0, yw, x, y
-    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE       :: line
-    REAL(dp), DIMENSION(2)                        :: p
-
-    ! Add routine to path
-    CALL init_routine( routine_name)
-
-    alpha_min = 25._dp * pi / 180._dp
-
-    x0 = (mesh%xmax + mesh%xmin) / 2._dp
-    xw = (mesh%xmax - mesh%xmin) / 2._dp
-    y0 = (mesh%ymax + mesh%ymin) / 2._dp
-    yw = (mesh%ymax - mesh%ymin) / 2._dp
-
-    ! Smileyface - circle
-    n = 50
-    r = 0.75_dp
-    ALLOCATE( line( n,4))
-    DO i = 1, n
-      theta = 2._dp * pi * REAL( i-1,dp) / REAL( n-1,dp)
-      line( i,1:2) = [x0 + r * xw * COS( theta), y0 + yw * r * SIN( theta)]
-      theta = 2._dp * pi * REAL( i  ,dp) / REAL( n-1,dp)
-      line( i,3:4) = [x0 + r * xw * COS( theta), y0 + yw * r * SIN( theta)]
-    END DO
-    CALL refine_mesh_line( mesh, line, res, alpha_min)
-    DEALLOCATE( line)
-
-    ! Smileyface - smile
-    n = 30
-    r = 0.4_dp
-    ALLOCATE( line( n,4))
-    DO i = 1, n
-      theta = -2._dp * pi * REAL( i-1,dp) / REAL( 2*n-1,dp)
-      line( i,1:2) = [x0 + r * xw * COS( theta), y0 + yw * r * SIN( theta)]
-      theta = -2._dp * pi * REAL( i  ,dp) / REAL( 2*n-1,dp)
-      line( i,3:4) = [x0 + r * xw * COS( theta), y0 + yw * r * SIN( theta)]
-    END DO
-    CALL refine_mesh_line( mesh, line, res, alpha_min)
-    DEALLOCATE( line)
-
-    ! Smileyface - eyes
-    p = [x0 - 0.3_dp * xw, y0 + 0.4_dp * yw]
-    CALL refine_mesh_point( mesh, p, res, alpha_min)
-    p = [x0 + 0.3_dp * xw, y0 + 0.4_dp * yw]
-    CALL refine_mesh_point( mesh, p, res, alpha_min)
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE mesh_add_smileyface
-
-  SUBROUTINE mesh_add_UFEMISM_letters( mesh, res)
-    ! Add the UFEMISM letters to a mesh. Because we can.
-
-    IMPLICIT NONE
-
-    TYPE(type_mesh),            INTENT(INOUT)     :: mesh
-    REAL(dp),                   INTENT(IN)        :: res
-
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'mesh_add_UFEMISM_letters'
-    REAL(dp)                                      :: alpha_min
-    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE       :: line
-    INTEGER                                       :: i,n
-    REAL(dp)                                      :: x0, xw, y0, yw
-
-    ! Add routine to path
-    CALL init_routine( routine_name)
-
-    alpha_min = 25._dp * pi / 180._dp
-
-    x0 = (mesh%xmax + mesh%xmin) / 2._dp
-    xw = (mesh%xmax - mesh%xmin) / 2._dp
-    y0 = (mesh%ymax + mesh%ymin) / 2._dp
-    yw = (mesh%ymax - mesh%ymin) / 2._dp
-
-    ! UFEMISM letters - normalised coordinates (mesh domain [-1,1,-1,1])
-    n = 24
-    ALLOCATE( line( n,4), source = 0._dp)
-
-    line(  1,:) = [-0.80_dp,  0.20_dp, -0.80_dp, -0.20_dp]
-    line(  2,:) = [-0.80_dp, -0.20_dp, -0.65_dp, -0.20_dp]
-    line(  3,:) = [-0.65_dp, -0.20_dp, -0.65_dp,  0.20_dp]
-    line(  4,:) = [-0.55_dp,  0.20_dp, -0.55_dp, -0.20_dp]
-    line(  5,:) = [-0.55_dp,  0.20_dp, -0.40_dp,  0.20_dp]
-    line(  6,:) = [-0.55_dp,  0.00_dp, -0.40_dp,  0.00_dp]
-    line(  7,:) = [-0.30_dp,  0.20_dp, -0.30_dp, -0.20_dp]
-    line(  8,:) = [-0.30_dp,  0.20_dp, -0.15_dp,  0.20_dp]
-    line(  9,:) = [-0.30_dp,  0.00_dp, -0.15_dp,  0.00_dp]
-    line( 10,:) = [-0.30_dp, -0.20_dp, -0.15_dp, -0.20_dp]
-    line( 11,:) = [-0.05_dp,  0.20_dp, -0.05_dp, -0.20_dp]
-    line( 12,:) = [-0.05_dp,  0.20_dp,  0.05_dp,  0.00_dp]
-    line( 13,:) = [ 0.05_dp,  0.00_dp,  0.15_dp,  0.20_dp]
-    line( 14,:) = [ 0.15_dp,  0.20_dp,  0.15_dp, -0.20_dp]
-    line( 15,:) = [ 0.25_dp,  0.20_dp,  0.25_dp, -0.20_dp]
-    line( 16,:) = [ 0.35_dp,  0.20_dp,  0.50_dp,  0.20_dp]
-    line( 17,:) = [ 0.35_dp,  0.20_dp,  0.35_dp,  0.00_dp]
-    line( 18,:) = [ 0.35_dp,  0.00_dp,  0.50_dp,  0.00_dp]
-    line( 19,:) = [ 0.50_dp,  0.00_dp,  0.50_dp, -0.20_dp]
-    line( 20,:) = [ 0.35_dp, -0.20_dp,  0.50_dp, -0.20_dp]
-    line( 21,:) = [ 0.60_dp,  0.20_dp,  0.60_dp, -0.20_dp]
-    line( 22,:) = [ 0.60_dp,  0.20_dp,  0.70_dp,  0.00_dp]
-    line( 23,:) = [ 0.70_dp,  0.00_dp,  0.80_dp,  0.20_dp]
-    line( 24,:) = [ 0.80_dp,  0.20_dp,  0.80_dp, -0.20_dp]
-
-    ! Scale to actual mesh domain
-    DO i = 1, n
-      line( i,1) = x0 + xw * line( i,1)
-      line( i,2) = y0 + yw * line( i,2)
-      line( i,3) = x0 + xw * line( i,3)
-      line( i,4) = y0 + yw * line( i,4)
-    END DO
-
-    CALL refine_mesh_line( mesh, line, res, alpha_min)
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE mesh_add_UFEMISM_letters
-
 ! == Mesh refinement based on different criteria
 
   SUBROUTINE refine_mesh_uniform( mesh, res_max, alpha_min)
@@ -166,6 +33,7 @@ CONTAINS
 
     IMPLICIT NONE
 
+    ! In/output variables:
     TYPE(type_mesh),            INTENT(INOUT)     :: mesh          ! The mesh that should be refined
     REAL(dp),                   INTENT(IN)        :: res_max       ! Maximum allowed resolution for triangles crossed by any of these line segments
     REAL(dp),                   INTENT(IN)        :: alpha_min     ! Minimum allowed internal triangle angle
@@ -241,8 +109,9 @@ CONTAINS
 
     IMPLICIT NONE
 
+    ! In/output variables:
     TYPE(type_mesh),            INTENT(INOUT)     :: mesh          ! The mesh that should be refined
-    REAL(dp), DIMENSION(2),     INTENT(IN)        :: POI           ! Collection of line segments
+    REAL(dp), DIMENSION(2),     INTENT(IN)        :: POI           ! [m] x,y-coordinates of point of interest where the mesh should be refined
     REAL(dp),                   INTENT(IN)        :: res_max       ! Maximum allowed resolution for triangles crossed by any of these line segments
     REAL(dp),                   INTENT(IN)        :: alpha_min     ! Minimum allowed internal triangle angle
 
@@ -258,6 +127,13 @@ CONTAINS
 
     ! Add routine to path
     CALL init_routine( routine_name)
+
+    ! Safety: if the POI lies outside the mesh domain,
+    !         no refinement is needed (or indeed possible).
+    IF (POI( 1) < mesh%xmin .OR. POI( 1) > mesh%xmax .OR. POI( 2) < mesh%ymin .OR. POI( 2) > mesh%ymax) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
 
     ! Initialise the refinement stack with the triangle containing the point
     ti_in = 1
@@ -324,23 +200,25 @@ CONTAINS
 
   END SUBROUTINE refine_mesh_point
 
-  SUBROUTINE refine_mesh_line( mesh, line, res_max, alpha_min)
+  SUBROUTINE refine_mesh_line( mesh, p_line, res_max, width, alpha_min)
     ! Refine a mesh based on a 1-D line criterion
 
     IMPLICIT NONE
 
+    ! In/output variables:
     TYPE(type_mesh),            INTENT(INOUT)     :: mesh          ! The mesh that should be refined
-    REAL(dp), DIMENSION(:,:),   INTENT(IN)        :: line          ! Collection of line segments
+    REAL(dp), DIMENSION(:,:),   INTENT(IN)        :: p_line        ! Collection of line segments
     REAL(dp),                   INTENT(IN)        :: res_max       ! Maximum allowed resolution for triangles crossed by any of these line segments
+    REAL(dp),                   INTENT(IN)        :: width         ! Maximum allowed resolution for triangles crossed by any of these line segments
     REAL(dp),                   INTENT(IN)        :: alpha_min     ! Minimum allowed internal triangle angle
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'refine_mesh_line'
     INTEGER                                       :: nl
     INTEGER                                       :: ti,li,it
-    REAL(dp), DIMENSION(2)                        :: pp,qq,pp_cropped,qq_cropped,dd
+    REAL(dp), DIMENSION(2)                        :: pp,qq,pp2,qq2,pp_cropped,qq_cropped,dd
     LOGICAL                                       :: is_valid_line
-    INTEGER                                       :: tip, tiq, n, via, vib, vic
+    INTEGER                                       :: tip, tiq, n, via, vib, vic, tip2, tiq2
     REAL(dp), DIMENSION(2)                        :: va,vb,vc,llis
     LOGICAL                                       :: do_cross, crosses
     INTEGER                                       :: li_min, li_max
@@ -352,9 +230,9 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    nl = SIZE( line,1)
+    nl = SIZE( p_line,1)
     ! Safety
-    IF (SIZE( line,2) /= 4) CALL crash('line must be an n-by-4 array!')
+    IF (SIZE( p_line,2) /= 4) CALL crash('line must be an n-by-4 array!')
 
   ! == Initialise triangle-line overlap ranges ==
   ! =============================================
@@ -376,8 +254,8 @@ CONTAINS
     DO li = 1, nl
 
       ! Line endpoints
-      pp = [line( li,1), line( li,2)]
-      qq = [line( li,3), line( li,4)]
+      pp = [p_line( li,1), p_line( li,2)]
+      qq = [p_line( li,3), p_line( li,4)]
 
       ! Crop line to mesh domain
       CALL crop_line_to_domain( pp, qq, mesh%xmin, mesh%xmax, mesh%ymin, mesh%ymax, mesh%tol_dist, pp_cropped, qq_cropped, is_valid_line)
@@ -407,6 +285,45 @@ CONTAINS
 
       ! p and q lie in different triangles - perform a pseudo-trace
       DO WHILE (NORM2( pp - qq) > res_max)
+
+        ! Move sideways to include line width
+        pp2 = pp - [(pp( 2) - qq( 2)), qq( 1) - pp( 1)]
+        qq2 = pp + [(pp( 2) - qq( 2)), qq( 1) - pp( 1)]
+
+        CALL crop_line_to_domain( pp2, qq2, mesh%xmin, mesh%xmax, mesh%ymin, mesh%ymax, mesh%tol_dist, pp_cropped, qq_cropped, is_valid_line)
+        pp2 = pp_cropped
+        qq2 = qq_cropped
+
+        IF (is_valid_line) THEN
+
+          tip2 = tiq
+          CALL find_containing_triangle( mesh, pp, tip2)
+          tiq2 = tip2
+          CALL find_containing_triangle( mesh, qq, tiq2)
+
+          DO WHILE (NORM2 ( pp2 - qq2) > res_max)
+
+            ! Move pp in the direction of qq
+            dd = qq2 - pp2
+            dd = dd / NORM2( dd)
+            dd = dd * res_max
+            pp2 = pp2 + dd
+
+            ! Find the triangle that now contains pp
+            CALL find_containing_triangle( mesh, pp2, tip2)
+
+            ! Add li to the overlap lists of tip
+            mesh%Tri_li( tip2,1) = MIN( mesh%Tri_li( tip2,1),li)
+            mesh%Tri_li( tip2,2) = MAX( mesh%Tri_li( tip2,2),li)
+
+            ! If we've reached tiq, the trace is done
+            IF (tip2 == tiq2) EXIT
+
+          END DO ! DO WHILE (NORM2 ( pp2 - qq2) > res_max)
+
+        END IF ! IF (is_valid_line) THEN
+
+        ! Move along pq
 
         ! Move pp in the direction of qq
         dd = qq - pp
@@ -501,8 +418,8 @@ CONTAINS
           DO li = li_min, li_max
 
             ! Line endpoints
-            pp = [line( li,1), line( li,2)]
-            qq = [line( li,3), line( li,4)]
+            pp = [p_line( li,1), p_line( li,2)]
+            qq = [p_line( li,3), p_line( li,4)]
 
             ! Crop line to mesh domain
             CALL crop_line_to_domain( pp, qq, mesh%xmin, mesh%xmax, mesh%ymin, mesh%ymax, mesh%tol_dist, pp_cropped, qq_cropped, is_valid_line)
@@ -525,9 +442,9 @@ CONTAINS
             crosses = crosses .OR. do_cross
             CALL segment_intersection( pp, qq, vc, va, llis, do_cross, mesh%tol_dist)
             crosses = crosses .OR. do_cross
-            crosses = crosses .OR. lies_on_line_segment( pp, qq, va, mesh%tol_dist)
-            crosses = crosses .OR. lies_on_line_segment( pp, qq, vb, mesh%tol_dist)
-            crosses = crosses .OR. lies_on_line_segment( pp, qq, vc, mesh%tol_dist)
+            crosses = crosses .OR. lies_on_line_segment( pp, qq, va, width)
+            crosses = crosses .OR. lies_on_line_segment( pp, qq, vb, width)
+            crosses = crosses .OR. lies_on_line_segment( pp, qq, vc, width)
 
             ! If so, add it to the overlap range
             IF (crosses) THEN
@@ -575,8 +492,9 @@ CONTAINS
 
     IMPLICIT NONE
 
+    ! In/output variables:
     TYPE(type_mesh),            INTENT(INOUT)     :: mesh          ! The mesh that should be refined
-    REAL(dp), DIMENSION(:,:),   INTENT(IN)        :: poly          ! Polygon
+    REAL(dp), DIMENSION(:,:),   INTENT(IN)        :: poly          ! Polygon of interest
     REAL(dp),                   INTENT(IN)        :: res_max       ! Maximum allowed resolution for triangles crossed by any of these line segments
     REAL(dp),                   INTENT(IN)        :: alpha_min     ! Minimum allowed internal triangle angle
 
@@ -585,6 +503,7 @@ CONTAINS
     INTEGER                                       :: ti_in
     INTEGER                                       :: ti, via, vib, vic
     REAL(dp), DIMENSION(2)                        :: va, vb, vc, gc, vab, vbc, vca
+    LOGICAL                                       :: has_any_overlap
     REAL(dp)                                      :: longest_leg, smallest_angle
     LOGICAL                                       :: meets_resolution_criterion
     LOGICAL                                       :: meets_geometry_criterion
@@ -596,6 +515,7 @@ CONTAINS
     mesh%refinement_stackN = 0
 
     ! Initialise the refinement stack with all triangles lying (partly) inside the polygon
+    has_any_overlap = .FALSE.
     DO ti = 1, mesh%nTri
 
       ! The three vertices spanning this triangle
@@ -619,10 +539,18 @@ CONTAINS
           is_in_polygon( poly, vab) .OR. &
           is_in_polygon( poly, vbc) .OR. &
           is_in_polygon( poly, vca)) THEN
+        has_any_overlap = .TRUE.
         CALL add_triangle_to_refinement_stack_last( mesh, ti)
       END IF
 
     END DO ! DO ti = 1, mesh%nTri
+
+    ! Safety: if the polygon doesn't overlap with the mesh
+    !         at all, no refinement is needed (or indeed possible).
+    IF (.NOT. has_any_overlap) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
 
     ! Keep refining until all triangles match the criterion
     DO WHILE (mesh%refinement_stackN > 0)
@@ -703,17 +631,18 @@ CONTAINS
 
   SUBROUTINE refine_mesh_split_encroaching_triangles( mesh, alpha_min)
     ! As a last step in any mesh refinement, make sure no triangles exist anymore
-    ! that encroach on the domain boundary (i.e. have their circumcenter lying
+    ! that encroach on the domain border (i.e. have their circumcenter lying
     ! outside the domain)
 
     IMPLICIT NONE
 
+    ! In/output variables:
     TYPE(type_mesh),            INTENT(INOUT)     :: mesh          ! The mesh that should be refined
     REAL(dp),                   INTENT(IN)        :: alpha_min     ! Minimum allowed internal triangle angle
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'refine_mesh_split_encroaching_triangles'
-    INTEGER                                       :: ti, n, vi, n_vertices_on_boundary
+    INTEGER                                       :: ti, n, vi, n_vertices_on_border
     INTEGER                                       :: via, vib, vic
     REAL(dp), DIMENSION(2)                        :: va, vb, vc
     REAL(dp)                                      :: longest_leg, smallest_angle
@@ -727,21 +656,21 @@ CONTAINS
     ! Crop surplus mesh memory
     CALL crop_mesh_primary( mesh)
 
-    ! Initialise the refinement stack with all boundary triangles
+    ! Initialise the refinement stack with all border triangles
     mesh%refinement_stackN = 0
     DO ti = 1, mesh%nTri
 
-      ! Count the number of vertices in this triangle on the domain boundary
-      n_vertices_on_boundary = 0
+      ! Count the number of vertices in this triangle on the domain border
+      n_vertices_on_border = 0
       DO n = 1, 3
         vi = mesh%Tri( ti,n)
         IF (mesh%VBI( vi) > 0) THEN
-          n_vertices_on_boundary = n_vertices_on_boundary + 1
+          n_vertices_on_border = n_vertices_on_border + 1
         END IF
       END DO
 
-      IF (n_vertices_on_boundary >= 2) THEN
-        ! This triangle lies on the domain boundary
+      IF (n_vertices_on_border >= 2) THEN
+        ! This triangle lies on the domain border
         CALL add_triangle_to_refinement_stack_last( mesh, ti)
       END IF
 
@@ -773,7 +702,7 @@ CONTAINS
 
       ! Check if it meets the encroachment criterion
       meets_encroachment_criterion = .TRUE.
-      IF (mesh%Tricc( ti,1) < mesh%xmin .OR. mesh%Tricc( ti,2) > mesh%xmax .OR. &
+      IF (mesh%Tricc( ti,1) < mesh%xmin .OR. mesh%Tricc( ti,1) > mesh%xmax .OR. &
           mesh%Tricc( ti,2) < mesh%ymin .OR. mesh%Tricc( ti,2) > mesh%ymax) THEN
         meets_encroachment_criterion = .FALSE.
       END IF
@@ -801,7 +730,7 @@ CONTAINS
 
     IMPLICIT NONE
 
-    ! Input variables
+    ! In/output variables:
     TYPE(type_mesh),            INTENT(INOUT)     :: mesh
 
     ! Local variables:
@@ -813,10 +742,10 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! Move all non-boundary vertices to their Voronoi cell geometric centre
+    ! Move all non-border vertices to their Voronoi cell geometric centre
     DO vi = 1, mesh%nV
 
-      ! Leave boundary vertices where they are
+      ! Leave border vertices where they are
       IF (mesh%VBI( vi) > 0) CYCLE
 
       ! Find the geometric centre of this vertex' Voronoi cell
@@ -878,6 +807,7 @@ CONTAINS
 
     IMPLICIT NONE
 
+    ! In/output variables:
     TYPE(type_mesh),            INTENT(INOUT)     :: mesh
     REAL(dp),                   INTENT(IN)        :: xmin    ! Mesh domain
     REAL(dp),                   INTENT(IN)        :: xmax
@@ -899,7 +829,7 @@ CONTAINS
 
     ! Horizontal distance of tolerance. Used for several small routines - points that lie within
     ! this distance of each other (vertices, triangle circumcenters, etc.) are treated as identical.
-    mesh%tol_dist     = ((mesh%xmax - mesh%xmin) + (mesh%ymax-mesh%ymin)) * tol / 2._dp
+    mesh%tol_dist     = ((mesh%xmax - mesh%xmin) + (mesh%ymax - mesh%ymin)) * tol / 2._dp
 
     mesh%nV           = 5
 
@@ -908,7 +838,10 @@ CONTAINS
     mesh%V( 2,:)      = [xmax, ymin]
     mesh%V( 3,:)      = [xmax, ymax]
     mesh%V( 4,:)      = [xmin, ymax]
-    mesh%V( 5,:)      = [(xmin+xmax)/2._dp, (ymin+ymax)/2._dp]
+    ! Make sure the central vertex is slightly off-centre, to prevent trivial Delaunay criteria
+    ! in the early stages of mesh refinement (i.e. 4 or more vertices being cocircular), which
+    ! can lead to different meshes depending on processor/compiler/phase of the moon.
+    mesh%V( 5,:)      = [(xmin+xmax)/2._dp + (xmax-xmin)*pi*1e-3_dp, (ymin+ymax)/2._dp + (ymax-ymin)*pi*2.1e-3_dp]
 
     mesh%VBI          = 0
     mesh%VBI(1:5)     = [6, 4, 2, 8, 0]
@@ -957,5 +890,142 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE initialise_dummy_mesh
+
+! == Some fun and useful tools
+
+  SUBROUTINE mesh_add_smileyface( mesh, res, width)
+    ! Add a smileyface to a mesh. Because we can.
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),            INTENT(INOUT)     :: mesh
+    REAL(dp),                   INTENT(IN)        :: res
+    REAL(dp),                   INTENT(IN)        :: width
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'mesh_add_smileyface'
+    INTEGER                                       :: i,n
+    REAL(dp)                                      :: alpha_min, r, theta, x0, xw, y0, yw, x, y
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE       :: line
+    REAL(dp), DIMENSION(2)                        :: p
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    alpha_min = 25._dp * pi / 180._dp
+
+    x0 = (mesh%xmax + mesh%xmin) / 2._dp
+    xw = (mesh%xmax - mesh%xmin) / 2._dp
+    y0 = (mesh%ymax + mesh%ymin) / 2._dp
+    yw = (mesh%ymax - mesh%ymin) / 2._dp
+
+    ! Smileyface - circle
+    n = 50
+    r = 0.75_dp
+    ALLOCATE( line( n,4))
+    DO i = 1, n
+      theta = 2._dp * pi * REAL( i-1,dp) / REAL( n-1,dp)
+      line( i,1:2) = [x0 + r * xw * COS( theta), y0 + yw * r * SIN( theta)]
+      theta = 2._dp * pi * REAL( i  ,dp) / REAL( n-1,dp)
+      line( i,3:4) = [x0 + r * xw * COS( theta), y0 + yw * r * SIN( theta)]
+    END DO
+    CALL refine_mesh_line( mesh, line, res, width, alpha_min)
+    DEALLOCATE( line)
+
+    ! Smileyface - smile
+    n = 30
+    r = 0.4_dp
+    ALLOCATE( line( n,4))
+    DO i = 1, n
+      theta = -2._dp * pi * REAL( i-1,dp) / REAL( 2*n-1,dp)
+      line( i,1:2) = [x0 + r * xw * COS( theta), y0 + yw * r * SIN( theta)]
+      theta = -2._dp * pi * REAL( i  ,dp) / REAL( 2*n-1,dp)
+      line( i,3:4) = [x0 + r * xw * COS( theta), y0 + yw * r * SIN( theta)]
+    END DO
+    CALL refine_mesh_line( mesh, line, res, width, alpha_min)
+    DEALLOCATE( line)
+
+    ! Smileyface - eyes
+    p = [x0 - 0.3_dp * xw, y0 + 0.4_dp * yw]
+    CALL refine_mesh_point( mesh, p, res, alpha_min)
+    p = [x0 + 0.3_dp * xw, y0 + 0.4_dp * yw]
+    CALL refine_mesh_point( mesh, p, res, alpha_min)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE mesh_add_smileyface
+
+  SUBROUTINE mesh_add_UFEMISM_letters( mesh, res, width)
+    ! Add the UFEMISM letters to a mesh. Because we can.
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),            INTENT(INOUT)     :: mesh
+    REAL(dp),                   INTENT(IN)        :: res
+    REAL(dp),                   INTENT(IN)        :: width
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'mesh_add_UFEMISM_letters'
+    REAL(dp)                                      :: alpha_min
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE       :: line
+    INTEGER                                       :: i,n
+    REAL(dp)                                      :: x0, xw, y0, yw
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    alpha_min = 25._dp * pi / 180._dp
+
+    x0 = (mesh%xmax + mesh%xmin) / 2._dp
+    xw = (mesh%xmax - mesh%xmin) / 2._dp
+    y0 = (mesh%ymax + mesh%ymin) / 2._dp
+    yw = (mesh%ymax - mesh%ymin) / 2._dp
+
+    ! UFEMISM letters - normalised coordinates (mesh domain [-1,1,-1,1])
+    n = 24
+    ALLOCATE( line( n,4), source = 0._dp)
+
+    line(  1,:) = [-0.80_dp,  0.20_dp, -0.80_dp, -0.20_dp]
+    line(  2,:) = [-0.80_dp, -0.20_dp, -0.65_dp, -0.20_dp]
+    line(  3,:) = [-0.65_dp, -0.20_dp, -0.65_dp,  0.20_dp]
+    line(  4,:) = [-0.55_dp,  0.20_dp, -0.55_dp, -0.20_dp]
+    line(  5,:) = [-0.55_dp,  0.20_dp, -0.40_dp,  0.20_dp]
+    line(  6,:) = [-0.55_dp,  0.00_dp, -0.40_dp,  0.00_dp]
+    line(  7,:) = [-0.30_dp,  0.20_dp, -0.30_dp, -0.20_dp]
+    line(  8,:) = [-0.30_dp,  0.20_dp, -0.15_dp,  0.20_dp]
+    line(  9,:) = [-0.30_dp,  0.00_dp, -0.15_dp,  0.00_dp]
+    line( 10,:) = [-0.30_dp, -0.20_dp, -0.15_dp, -0.20_dp]
+    line( 11,:) = [-0.05_dp,  0.20_dp, -0.05_dp, -0.20_dp]
+    line( 12,:) = [-0.05_dp,  0.20_dp,  0.05_dp,  0.00_dp]
+    line( 13,:) = [ 0.05_dp,  0.00_dp,  0.15_dp,  0.20_dp]
+    line( 14,:) = [ 0.15_dp,  0.20_dp,  0.15_dp, -0.20_dp]
+    line( 15,:) = [ 0.25_dp,  0.20_dp,  0.25_dp, -0.20_dp]
+    line( 16,:) = [ 0.35_dp,  0.20_dp,  0.50_dp,  0.20_dp]
+    line( 17,:) = [ 0.35_dp,  0.20_dp,  0.35_dp,  0.00_dp]
+    line( 18,:) = [ 0.35_dp,  0.00_dp,  0.50_dp,  0.00_dp]
+    line( 19,:) = [ 0.50_dp,  0.00_dp,  0.50_dp, -0.20_dp]
+    line( 20,:) = [ 0.35_dp, -0.20_dp,  0.50_dp, -0.20_dp]
+    line( 21,:) = [ 0.60_dp,  0.20_dp,  0.60_dp, -0.20_dp]
+    line( 22,:) = [ 0.60_dp,  0.20_dp,  0.70_dp,  0.00_dp]
+    line( 23,:) = [ 0.70_dp,  0.00_dp,  0.80_dp,  0.20_dp]
+    line( 24,:) = [ 0.80_dp,  0.20_dp,  0.80_dp, -0.20_dp]
+
+    ! Scale to actual mesh domain
+    DO i = 1, n
+      line( i,1) = x0 + xw * line( i,1)
+      line( i,2) = y0 + yw * line( i,2)
+      line( i,3) = x0 + xw * line( i,3)
+      line( i,4) = y0 + yw * line( i,4)
+    END DO
+
+    CALL refine_mesh_line( mesh, line, res, width, alpha_min)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE mesh_add_UFEMISM_letters
 
 END MODULE mesh_creation

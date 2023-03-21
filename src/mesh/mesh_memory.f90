@@ -166,191 +166,70 @@ CONTAINS
 
   END SUBROUTINE crop_mesh_primary
 
-!  SUBROUTINE allocate_mesh_secondary(     mesh)
-!    ! Allocate memory for mesh data
-!
-!    IMPLICIT NONE
-!
-!    ! In/output variables:
-!    TYPE(type_mesh),                 INTENT(INOUT)     :: mesh
-!
-!    ! Local variables:
-!    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'allocate_mesh_secondary'
-!
-!    ! Add routine to path
-!    CALL init_routine( routine_name)
-!
-!    if (allocated(mesh% A    )) deallocate(mesh% A    )
-!    if (allocated(mesh% VorGC)) deallocate(mesh% VorGC)
-!    if (allocated(mesh% R    )) deallocate(mesh% R    )
-!    if (allocated(mesh% Cw   )) deallocate(mesh% Cw   )
-!    if (allocated(mesh% TriA )) deallocate(mesh% TriA )
-!    if (allocated(mesh% TriGC)) deallocate(mesh% TriGC)
-!    if (allocated(mesh% lat  )) deallocate(mesh% lat  )
-!    if (allocated(mesh% lon  )) deallocate(mesh% lon  )
-!
-!    allocate(mesh%A    ( 1       :mesh%nV    )) ! Globally used kinda
-!    allocate(mesh%VorGC( mesh%vi1:mesh%vi2,2 ))
-!    allocate(mesh%R    ( 1       :mesh%nV    )) ! Globally used kinda
-!    allocate(mesh%Cw   ( mesh%vi1:mesh%vi2,mesh%nC_mem ))
-!
-!    allocate(mesh%TriA ( mesh%ti1:mesh%ti2   ))
-!    allocate(mesh%TriGC( 1:mesh%nTri,2       )) ! Globally needed
-!
-!    allocate(mesh%lat  ( mesh%vi1:mesh%vi2   ))
-!    allocate(mesh%lon  ( mesh%vi1:mesh%vi2   ))
-!
-!    ! Finalise routine path
-!    CALL finalise_routine( routine_name, n_extra_windows_expected = 9)
-!
-!  END SUBROUTINE allocate_mesh_secondary
-!
-!  SUBROUTINE deallocate_mesh_all(         mesh)
-!    ! Deallocate memory for mesh data
-!
-!    IMPLICIT NONE
-!
-!    ! In/output variables:
-!    TYPE(type_mesh),                 INTENT(INOUT)     :: mesh
-!
-!    ! Local variables:
-!    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'deallocate_mesh_all'
-!
-!    ! Add routine to path
-!    CALL init_routine( routine_name)
-!
-!    ! Basic meta properties
-!    ! =====================
-!
-!!   CALL deallocate_shared( mesh%wlambda_M)
-!!   CALL deallocate_shared( mesh%wphi_M)
-!!   CALL deallocate_shared( mesh%walpha_stereo)
-!!   CALL deallocate_shared( mesh%wxmin)
-!!   CALL deallocate_shared( mesh%wxmax)
-!!   CALL deallocate_shared( mesh%wymin)
-!!   CALL deallocate_shared( mesh%wymax)
-!!   CALL deallocate_shared( mesh%wtol_dist)
-!!   CALL deallocate_shared( mesh%wnV_mem)
-!!   CALL deallocate_shared( mesh%wnTri_mem)
-!!   CALL deallocate_shared( mesh%wnC_mem)
-!!   CALL deallocate_shared( mesh%wnV)
-!!   CALL deallocate_shared( mesh%wnTri)
-!!   CALL deallocate_shared( mesh%wperturb_dir)
-!!   CALL deallocate_shared( mesh%walpha_min)
-!!   CALL deallocate_shared( mesh%wdz_max_ice)
-!!   CALL deallocate_shared( mesh%wres_max)
-!!   CALL deallocate_shared( mesh%wres_max_margin)
-!!   CALL deallocate_shared( mesh%wres_max_gl)
-!!   CALL deallocate_shared( mesh%wres_max_cf)
-!!   CALL deallocate_shared( mesh%wres_max_mountain)
-!!   CALL deallocate_shared( mesh%wres_max_coast)
-!!   CALL deallocate_shared( mesh%wres_min)
-!!   CALL deallocate_shared( mesh%wresolution_min)
-!!   CALL deallocate_shared( mesh%wresolution_max)
-!
-!!   ! Primary mesh data (needed for mesh creation & refinement)
-!!   ! =========================================================
-!!
-!!   CALL deallocate_shared( mesh%wV)
-!!   CALL deallocate_shared( mesh%wnC)
-!!   CALL deallocate_shared( mesh%wC)
-!!   CALL deallocate_shared( mesh%wniTri)
-!!   CALL deallocate_shared( mesh%wiTri)
-!!   CALL deallocate_shared( mesh%wedge_index)
-!!   CALL deallocate_shared( mesh%wmesh_old_ti_in)
-!!
-!!   CALL deallocate_shared( mesh%wTri)
-!!   CALL deallocate_shared( mesh%wTricc)
-!!   CALL deallocate_shared( mesh%wTriC)
-!!   CALL deallocate_shared( mesh%wTri_edge_index)
-!!
-!!   CALL deallocate_shared( mesh%wTriflip)
-!!   CALL deallocate_shared( mesh%wRefMap)
-!!   CALL deallocate_shared( mesh%wRefStack)
-!!   CALL deallocate_shared( mesh%wRefStackN)
-!!
-!!   CALL deallocate_shared( mesh%wVMap)
-!!   CALL deallocate_shared( mesh%wVStack1)
-!!   CALL deallocate_shared( mesh%wVStack2)
-!!   CALL deallocate_shared( mesh%wTriMap)
-!!   CALL deallocate_shared( mesh%wTriStack1)
-!!   CALL deallocate_shared( mesh%wTriStack2)
-!!
-!!   CALL deallocate_shared( mesh%wnPOI               )
-!!   CALL deallocate_shared( mesh%wPOI_coordinates    )
-!!   CALL deallocate_shared( mesh%wPOI_XY_coordinates )
-!!   CALL deallocate_shared( mesh%wPOI_resolutions    )
-!!   CALL deallocate_shared( mesh%wPOI_vi             )
-!!   CALL deallocate_shared( mesh%wPOI_w              )
-!!
-!!   ! Secondary mesh data
-!!   ! ===================
-!
-!!   CALL deallocate_shared( mesh%wA)
-!!   CALL deallocate_shared( mesh%wVorGC)
-!!   CALL deallocate_shared( mesh%wR)
-!!   CALL deallocate_shared( mesh%wCw)
-!!   CALL deallocate_shared( mesh%wTriGC)
-!!   CALL deallocate_shared( mesh%wTriA)
-!!
-!!   CALL deallocate_shared( mesh%wlat)
-!!   CALL deallocate_shared( mesh%wlon)
-!!
-!!   CALL deallocate_shared( mesh%wnAc)
-!!   CALL deallocate_shared( mesh%wVAc)
-!!   CALL deallocate_shared( mesh%wAci)
-!!   CALL deallocate_shared( mesh%wiAci)
-!!   CALL deallocate_shared( mesh%wedge_index_Ac)
-!
-!    CALL MatDestroy( mesh%M_map_a_b             , perr)
-!    CALL MatDestroy( mesh%M_map_a_c             , perr)
-!    CALL MatDestroy( mesh%M_map_b_a             , perr)
-!    CALL MatDestroy( mesh%M_map_b_c             , perr)
-!    CALL MatDestroy( mesh%M_map_c_a             , perr)
-!    CALL MatDestroy( mesh%M_map_c_b             , perr)
-!
-!    CALL MatDestroy( mesh%M_ddx_a_a             , perr)
-!    CALL MatDestroy( mesh%M_ddx_a_b             , perr)
-!    CALL MatDestroy( mesh%M_ddx_a_c             , perr)
-!    CALL MatDestroy( mesh%M_ddx_b_a             , perr)
-!    CALL MatDestroy( mesh%M_ddx_b_b             , perr)
-!    CALL MatDestroy( mesh%M_ddx_b_c             , perr)
-!    CALL MatDestroy( mesh%M_ddx_c_a             , perr)
-!    CALL MatDestroy( mesh%M_ddx_c_b             , perr)
-!    CALL MatDestroy( mesh%M_ddx_c_c             , perr)
-!
-!    CALL MatDestroy( mesh%M_ddy_a_a             , perr)
-!    CALL MatDestroy( mesh%M_ddy_a_b             , perr)
-!    CALL MatDestroy( mesh%M_ddy_a_c             , perr)
-!    CALL MatDestroy( mesh%M_ddy_b_a             , perr)
-!    CALL MatDestroy( mesh%M_ddy_b_b             , perr)
-!    CALL MatDestroy( mesh%M_ddy_b_c             , perr)
-!    CALL MatDestroy( mesh%M_ddy_c_a             , perr)
-!    CALL MatDestroy( mesh%M_ddy_c_b             , perr)
-!    CALL MatDestroy( mesh%M_ddy_c_c             , perr)
-!
-!    CALL MatDestroy( mesh%M2_ddx_b_b            , perr)
-!    CALL MatDestroy( mesh%M2_ddy_b_b            , perr)
-!    CALL MatDestroy( mesh%M2_d2dx2_b_b          , perr)
-!    CALL MatDestroy( mesh%M2_d2dxdy_b_b         , perr)
-!    CALL MatDestroy( mesh%M2_d2dy2_b_b          , perr)
-!
-!    CALL deallocate_matrix_CSR( mesh%M2_ddx_b_b_CSR    )
-!    CALL deallocate_matrix_CSR( mesh%M2_ddy_b_b_CSR    )
-!    CALL deallocate_matrix_CSR( mesh%M2_d2dx2_b_b_CSR  )
-!    CALL deallocate_matrix_CSR( mesh%M2_d2dxdy_b_b_CSR )
-!    CALL deallocate_matrix_CSR( mesh%M2_d2dy2_b_b_CSR  )
-!
-!    CALL MatDestroy( mesh%M_Neumann_BC_b        , perr)
-!    CALL deallocate_matrix_CSR( mesh%M_Neumann_BC_b_CSR)
-!
-!!    CALL deallocate_shared( mesh%wnV_transect)
-!!    CALL deallocate_shared( mesh%wvi_transect)
-!!    CALL deallocate_shared( mesh%ww_transect )
-!
-!    ! Finalise routine path
-!    CALL finalise_routine( routine_name)
-!
-!   END SUBROUTINE deallocate_mesh_all
+  SUBROUTINE deallocate_mesh( mesh)
+    ! Deallocate all mesh data
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                 INTENT(INOUT)     :: mesh
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'deallocate_mesh'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+  ! Primary mesh data
+  ! =================
+
+    ! Vertex data
+    IF (ALLOCATED( mesh%V               )) DEALLOCATE( mesh%V               )
+    IF (ALLOCATED( mesh%nC              )) DEALLOCATE( mesh%nC              )
+    IF (ALLOCATED( mesh%C               )) DEALLOCATE( mesh%C               )
+    IF (ALLOCATED( mesh%niTri           )) DEALLOCATE( mesh%niTri           )
+    IF (ALLOCATED( mesh%iTri            )) DEALLOCATE( mesh%iTri            )
+    IF (ALLOCATED( mesh%VBI             )) DEALLOCATE( mesh%VBI             )
+
+    ! Triangle data
+    IF (ALLOCATED( mesh%Tri             )) DEALLOCATE( mesh%Tri             )
+    IF (ALLOCATED( mesh%TriC            )) DEALLOCATE( mesh%TriC            )
+    IF (ALLOCATED( mesh%Tricc           )) DEALLOCATE( mesh%Tricc           )
+
+  ! Refinement data
+  ! ===============
+
+    IF (ALLOCATED( mesh%Tri_flip_list   )) DEALLOCATE( mesh%Tri_flip_list   )
+    IF (ALLOCATED( mesh%refinement_map  )) DEALLOCATE( mesh%refinement_map  )
+    IF (ALLOCATED( mesh%refinement_stack)) DEALLOCATE( mesh%refinement_stack)
+    IF (ALLOCATED( mesh%Tri_li          )) DEALLOCATE( mesh%Tri_li          )
+
+  ! Secondary mesh data (everything that can be calculated after mesh creation is finished)
+  ! =======================================================================================
+
+    ! Derived geometry data
+    IF (ALLOCATED( mesh%A               )) DEALLOCATE( mesh%A               )
+    IF (ALLOCATED( mesh%VorGC           )) DEALLOCATE( mesh%VorGC           )
+    IF (ALLOCATED( mesh%R               )) DEALLOCATE( mesh%R               )
+    IF (ALLOCATED( mesh%Cw              )) DEALLOCATE( mesh%Cw              )
+    IF (ALLOCATED( mesh%TriBI           )) DEALLOCATE( mesh%TriBI           )
+    IF (ALLOCATED( mesh%TriGC           )) DEALLOCATE( mesh%TriGC           )
+    IF (ALLOCATED( mesh%TriA            )) DEALLOCATE( mesh%TriA            )
+
+    ! lon/lat coordinates
+    IF (ALLOCATED( mesh%lat             )) DEALLOCATE( mesh%lat             )
+    IF (ALLOCATED( mesh%lon             )) DEALLOCATE( mesh%lon             )
+
+    ! Edges (c-grid)
+    IF (ALLOCATED( mesh%E               )) DEALLOCATE( mesh%E               )
+    IF (ALLOCATED( mesh%VE              )) DEALLOCATE( mesh%VE              )
+    IF (ALLOCATED( mesh%EV              )) DEALLOCATE( mesh%EV              )
+    IF (ALLOCATED( mesh%ETri            )) DEALLOCATE( mesh%ETri            )
+    IF (ALLOCATED( mesh%EBI             )) DEALLOCATE( mesh%EBI             )
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE deallocate_mesh
 
 END MODULE mesh_memory
