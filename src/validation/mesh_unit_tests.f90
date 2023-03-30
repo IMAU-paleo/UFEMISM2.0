@@ -11,7 +11,7 @@ MODULE mesh_unit_tests
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine
   USE parameters
   USE mesh_types                                             , ONLY: type_mesh
-  USE mesh_memory                                            , ONLY: allocate_mesh_primary
+  USE mesh_memory                                            , ONLY: allocate_mesh_primary, deallocate_mesh
   USE mesh_utilities                                         , ONLY: check_mesh
   USE mesh_creation                                          , ONLY: initialise_dummy_mesh
   USE mesh_refinement                                        , ONLY: refine_mesh_uniform, Lloyds_algorithm_single_iteration, mesh_add_smileyface, &
@@ -30,7 +30,7 @@ MODULE mesh_unit_tests
 ! ===== Global variables =====
 ! ============================
 
-  LOGICAL :: do_write_results_to_netcdf = .TRUE.
+  LOGICAL :: do_write_results_to_netcdf = .FALSE.
 
 CONTAINS
 
@@ -43,14 +43,14 @@ CONTAINS
     IMPLICIT NONE
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'run_all_mesh_unit_tests'
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_all_mesh_unit_tests'
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
     ! Run all mesh unit tests
-!    CALL test_mesh_creation_basic_single_core
-!    CALL test_mesh_creation_basic_two_cores
+    CALL test_mesh_creation_basic_single_core
+    CALL test_mesh_creation_basic_two_cores
     CALL test_mesh_operators_basic
 
     ! Finalise routine path
@@ -204,6 +204,9 @@ CONTAINS
       CALL setup_mesh_in_netcdf_file( filename, ncid, mesh)
       CALL close_netcdf_file( ncid)
     END IF
+
+    ! Clean up after yourself
+    CALL deallocate_mesh( mesh)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -385,6 +388,9 @@ CONTAINS
       CALL close_netcdf_file( ncid)
     END IF
 
+    ! Clean up after yourself
+    CALL deallocate_mesh( mesh)
+
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
@@ -397,7 +403,6 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'test_mesh_operators_basic'
-    REAL(dp)                                           :: tstart, tcomp
     REAL(dp), PARAMETER                                :: xmin = -3040E3_dp  ! Just use the standard Antarctica domain; doesn't really matter here...
     REAL(dp), PARAMETER                                :: xmax =  3040E3_dp
     REAL(dp), PARAMETER                                :: ymin = -3040E3_dp
@@ -443,8 +448,6 @@ CONTAINS
 
   ! == Create a nice mesh, with a smileyface and the UFEMISM letters
   ! ================================================================
-
-    tcomp = 0._dp
 
     ! Allocate memory
     CALL allocate_mesh_primary( mesh, name, 1000, 2000, 32)
@@ -853,9 +856,9 @@ CONTAINS
     ! If no errors occurred, we are happy
     CALL MPI_ALLREDUCE( MPI_IN_PLACE, found_errors, 1, MPI_LOGICAL, MPI_LOR, MPI_COMM_WORLD, ierr)
     IF (.NOT. found_errors) THEN
-      IF (par%master) CALL happy('validated all basic matrix operators on the mesh')
+      IF (par%master) CALL happy('validated all basic mesh matrix operators')
     ELSE
-      IF (par%master) CALL warning('found errors in basic mesh operators')
+      IF (par%master) CALL warning('found errors in basic mesh matrix operators')
     END IF
 
     ! Write results to a NetCDF file
@@ -1029,6 +1032,8 @@ CONTAINS
     DEALLOCATE( d2dx2_b_b  )
     DEALLOCATE( d2dxdy_b_b )
     DEALLOCATE( d2dy2_b_b  )
+
+    CALL deallocate_mesh( mesh)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

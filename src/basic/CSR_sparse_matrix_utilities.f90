@@ -74,9 +74,9 @@ CONTAINS
     A%nnz_max = 0
     A%nnz     = 0
 
-    DEALLOCATE( A%ptr)
-    DEALLOCATE( A%ind)
-    DEALLOCATE( A%val)
+    IF (ALLOCATED( A%ptr)) DEALLOCATE( A%ptr)
+    IF (ALLOCATED( A%ind)) DEALLOCATE( A%ind)
+    IF (ALLOCATED( A%val)) DEALLOCATE( A%val)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

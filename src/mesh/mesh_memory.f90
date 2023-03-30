@@ -11,6 +11,7 @@ MODULE mesh_memory
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine
   USE mesh_types                                             , ONLY: type_mesh
   USE reallocate_mod                                         , ONLY: reallocate
+  USE CSR_sparse_matrix_utilities                            , ONLY: deallocate_matrix_CSR_dist
 
   IMPLICIT NONE
 
@@ -239,6 +240,96 @@ CONTAINS
     IF (ALLOCATED( mesh%EV              )) DEALLOCATE( mesh%EV              )
     IF (ALLOCATED( mesh%ETri            )) DEALLOCATE( mesh%ETri            )
     IF (ALLOCATED( mesh%EBI             )) DEALLOCATE( mesh%EBI             )
+
+  ! Matrix operators
+  ! ================
+
+    ! Grid-cell-to-matrix-row translation tables
+
+    ! a-grid (vertices)
+    IF (ALLOCATED( mesh%n2vi            )) DEALLOCATE( mesh%n2vi            )
+    IF (ALLOCATED( mesh%n2viuv          )) DEALLOCATE( mesh%n2viuv          )
+    IF (ALLOCATED( mesh%n2vik           )) DEALLOCATE( mesh%n2vik           )
+    IF (ALLOCATED( mesh%n2vikuv         )) DEALLOCATE( mesh%n2vikuv         )
+    IF (ALLOCATED( mesh%n2viks          )) DEALLOCATE( mesh%n2viks          )
+    IF (ALLOCATED( mesh%n2viksuv        )) DEALLOCATE( mesh%n2viksuv        )
+    IF (ALLOCATED( mesh%vi2n            )) DEALLOCATE( mesh%vi2n            )
+    IF (ALLOCATED( mesh%viuv2n          )) DEALLOCATE( mesh%viuv2n          )
+    IF (ALLOCATED( mesh%vik2n           )) DEALLOCATE( mesh%vik2n           )
+    IF (ALLOCATED( mesh%vikuv2n         )) DEALLOCATE( mesh%vikuv2n         )
+    IF (ALLOCATED( mesh%viks2n          )) DEALLOCATE( mesh%viks2n          )
+    IF (ALLOCATED( mesh%viksuv2n        )) DEALLOCATE( mesh%viksuv2n        )
+
+    ! b-grid (triangles)
+    IF (ALLOCATED( mesh%n2ti            )) DEALLOCATE( mesh%n2ti            )
+    IF (ALLOCATED( mesh%n2tiuv          )) DEALLOCATE( mesh%n2tiuv          )
+    IF (ALLOCATED( mesh%n2tik           )) DEALLOCATE( mesh%n2tik           )
+    IF (ALLOCATED( mesh%n2tikuv         )) DEALLOCATE( mesh%n2tikuv         )
+    IF (ALLOCATED( mesh%n2tiks          )) DEALLOCATE( mesh%n2tiks          )
+    IF (ALLOCATED( mesh%n2tiksuv        )) DEALLOCATE( mesh%n2tiksuv        )
+    IF (ALLOCATED( mesh%ti2n            )) DEALLOCATE( mesh%ti2n            )
+    IF (ALLOCATED( mesh%tiuv2n          )) DEALLOCATE( mesh%tiuv2n          )
+    IF (ALLOCATED( mesh%tik2n           )) DEALLOCATE( mesh%tik2n           )
+    IF (ALLOCATED( mesh%tikuv2n         )) DEALLOCATE( mesh%tikuv2n         )
+    IF (ALLOCATED( mesh%tiks2n          )) DEALLOCATE( mesh%tiks2n          )
+    IF (ALLOCATED( mesh%tiksuv2n        )) DEALLOCATE( mesh%tiksuv2n        )
+
+    ! c-grid (edges)
+    IF (ALLOCATED( mesh%n2ei            )) DEALLOCATE( mesh%n2ei            )
+    IF (ALLOCATED( mesh%n2eiuv          )) DEALLOCATE( mesh%n2eiuv          )
+    IF (ALLOCATED( mesh%n2eik           )) DEALLOCATE( mesh%n2eik           )
+    IF (ALLOCATED( mesh%n2eikuv         )) DEALLOCATE( mesh%n2eikuv         )
+    IF (ALLOCATED( mesh%n2eiks          )) DEALLOCATE( mesh%n2eiks          )
+    IF (ALLOCATED( mesh%n2eiksuv        )) DEALLOCATE( mesh%n2eiksuv        )
+    IF (ALLOCATED( mesh%ei2n            )) DEALLOCATE( mesh%ei2n            )
+    IF (ALLOCATED( mesh%eiuv2n          )) DEALLOCATE( mesh%eiuv2n          )
+    IF (ALLOCATED( mesh%eik2n           )) DEALLOCATE( mesh%eik2n           )
+    IF (ALLOCATED( mesh%eikuv2n         )) DEALLOCATE( mesh%eikuv2n         )
+    IF (ALLOCATED( mesh%eiks2n          )) DEALLOCATE( mesh%eiks2n          )
+    IF (ALLOCATED( mesh%eiksuv2n        )) DEALLOCATE( mesh%eiksuv2n        )
+
+    ! Basic mapping and gradient operators
+
+    ! a-grid (vertices) to a-grid (vertices)
+    CALL deallocate_matrix_CSR_dist( mesh%M_ddx_a_a)
+    CALL deallocate_matrix_CSR_dist( mesh%M_ddy_a_a)
+    ! a-grid (vertices) to b-grid (triangles)
+    CALL deallocate_matrix_CSR_dist( mesh%M_map_a_b)
+    CALL deallocate_matrix_CSR_dist( mesh%M_ddx_a_b)
+    CALL deallocate_matrix_CSR_dist( mesh%M_ddy_a_b)
+    ! a-grid (vertices) to c-grid (edges)
+    CALL deallocate_matrix_CSR_dist( mesh%M_map_a_c)
+    CALL deallocate_matrix_CSR_dist( mesh%M_ddx_a_c)
+    CALL deallocate_matrix_CSR_dist( mesh%M_ddy_a_c)
+    ! b-grid (triangles) to a-grid (vertices)
+    CALL deallocate_matrix_CSR_dist( mesh%M_map_b_a)
+    CALL deallocate_matrix_CSR_dist( mesh%M_ddx_b_a)
+    CALL deallocate_matrix_CSR_dist( mesh%M_ddy_b_a)
+    ! b-grid (triangles) to b-grid (triangles)
+    CALL deallocate_matrix_CSR_dist( mesh%M_ddx_b_b)
+    CALL deallocate_matrix_CSR_dist( mesh%M_ddy_b_b)
+    ! b-grid (triangles) to c-grid (edges)
+    CALL deallocate_matrix_CSR_dist( mesh%M_map_b_c)
+    CALL deallocate_matrix_CSR_dist( mesh%M_ddx_b_c)
+    CALL deallocate_matrix_CSR_dist( mesh%M_ddy_b_c)
+    ! c-grid (edges) to a-grid (vertices)
+    CALL deallocate_matrix_CSR_dist( mesh%M_map_c_a)
+    CALL deallocate_matrix_CSR_dist( mesh%M_ddx_c_a)
+    CALL deallocate_matrix_CSR_dist( mesh%M_ddy_c_a)
+    ! c-grid (edges) to b-grid (triangles)
+    CALL deallocate_matrix_CSR_dist( mesh%M_map_c_b)
+    CALL deallocate_matrix_CSR_dist( mesh%M_ddx_c_b)
+    CALL deallocate_matrix_CSR_dist( mesh%M_ddy_c_b)
+    ! c-grid (edges) to c-grid (edges)
+    CALL deallocate_matrix_CSR_dist( mesh%M_ddx_c_c)
+    CALL deallocate_matrix_CSR_dist( mesh%M_ddy_c_c)
+
+    ! b-grid (triangles) to b-grid (triangles), 2nd-order accurate
+    CALL deallocate_matrix_CSR_dist( mesh%M2_ddx_b_b   )
+    CALL deallocate_matrix_CSR_dist( mesh%M2_ddy_b_b   )
+    CALL deallocate_matrix_CSR_dist( mesh%M2_d2dx2_b_b )
+    CALL deallocate_matrix_CSR_dist( mesh%M2_d2dxdy_b_b)
+    CALL deallocate_matrix_CSR_dist( mesh%M2_d2dy2_b_b )
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
