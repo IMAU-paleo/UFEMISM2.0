@@ -8,7 +8,7 @@ MODULE math_utilities
   USE mpi
   USE precisions                                             , ONLY: dp
   USE mpi_basic                                              , ONLY: par, cerr, ierr, MPI_status, sync
-  USE control_resources_and_error_messaging                  , ONLY: warning, crash, init_routine, finalise_routine
+  USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine
   USE parameters
   USE reallocate_mod                                         , ONLY: reallocate
   USE basic_data_types                                       , ONLY: type_grid
@@ -1907,8 +1907,8 @@ CONTAINS
       RETURN
     END IF
 
-    lambda = (f2 - f1) / (x2 - x1);
-    x0 = x1 + (f0 - f1) / lambda;
+    lambda = (f2 - f1) / (x2 - x1)
+    x0 = x1 + (f0 - f1) / lambda
 
   END FUNCTION linint_points
 

@@ -5,9 +5,10 @@ MODULE mesh_utilities
 ! ===== Preamble =====
 ! ====================
 
+  USE mpi
   USE precisions                                             , ONLY: dp
   USE mpi_basic                                              , ONLY: par, cerr, ierr, MPI_status, sync
-  USE control_resources_and_error_messaging                  , ONLY: warning, crash, init_routine, finalise_routine
+  USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine
   USE mesh_types                                             , ONLY: type_mesh
   USE math_utilities                                         , ONLY: geometric_center, is_in_triangle, lies_on_line_segment, circumcenter, &
                                                                      line_from_points, line_line_intersection, encroaches_upon
@@ -1290,8 +1291,8 @@ CONTAINS
     DO vi = 1, mesh%nV
       IF (mesh%V(vi,1) < mesh%xmin - mesh%tol_dist .OR. mesh%V(vi,1) > mesh%xmax + mesh%tol_dist .OR. &
           mesh%V(vi,2) < mesh%ymin - mesh%tol_dist .OR. mesh%V(vi,2) > mesh%ymax + mesh%tol_dist) THEN
-        WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' outside mesh domain! (x = [', &
-          mesh%xmin, ', ', mesh%V(vi,1), ',', mesh%xmax, '], y = [', mesh%ymin, ', ', mesh%V(vi,2), ',', mesh%ymax, ']'
+        CALL warning('vertex {int_01} outside mesh domain! (x = [{dp_01}, {dp_02}, {dp_03}], y = [{dp_04, dp_05, dp_06}]', &
+          int_01 = vi, dp_01 = mesh%xmin, dp_02 = mesh%V( vi,1), dp_03 = mesh%xmax, dp_04 = mesh%xmin, dp_05 = mesh%V( vi,1), dp_06 = mesh%xmax)
       END IF
     END DO
 
@@ -1299,10 +1300,10 @@ CONTAINS
     ! =============================================================
     DO vi = 1, mesh%nV
       DO ci = 1, mesh%nC(vi)
-        IF (mesh%C(vi,ci) == 0) WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has fewer connections than nC says!'
+        IF (mesh%C(vi,ci) == 0) CALL warning('vertex {int_01} has fewer connections than nC says!', int_01 = vi)
       END DO
       DO ci = mesh%nC(vi)+1, mesh%nC_mem
-        IF (mesh%C(vi,ci) > 0)  WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has more connections than nC says!'
+        IF (mesh%C(vi,ci) > 0)  CALL warning('vertex {int_01} has more connections than nC says!', int_01 = vi)
       END DO
     END DO
 
@@ -1319,7 +1320,7 @@ CONTAINS
             EXIT
           END IF
         END DO
-        IF (.NOT. FoundIt) WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' is connected to ', vc, ', but not the other way round!'
+        IF (.NOT. FoundIt) CALL warning('vertex {int_01} is connected to {int_02}, but not the other way round!', int_01 = vi, int_02 = vc)
       END DO
     END DO
 
@@ -1327,10 +1328,10 @@ CONTAINS
     ! =============================================================
     DO vi = 1, mesh%nV
       DO iti = 1, mesh%niTri(vi)
-        IF (mesh%iTri(vi,iti) == 0) WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has fewer iTriangles than niTri says!'
+        IF (mesh%iTri(vi,iti) == 0) CALL warning('vertex {int_01} has fewer iTriangles than niTri says!', int_01 = vi)
       END DO
       DO iti = mesh%niTri(vi)+1, mesh%nC_mem
-        IF (mesh%iTri(vi,iti) > 0)  WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has more iTriangles than nC says!'
+        IF (mesh%iTri(vi,iti) > 0)  CALL warning('vertex {int_01} has more iTriangles than niTri says!', int_01 = vi)
       END DO
     END DO
 
@@ -1346,7 +1347,8 @@ CONTAINS
             EXIT
           END IF
         END DO
-        IF (.NOT. FoundIt) WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' lists triangle ', ti, ' in iTri, but that triangle ', ti, ' doesnt contain vertex ', vi, '!'
+        IF (.NOT. FoundIt) CALL warning('vertex {int_01} lists triangle {int_02} in iTri, but that triangle {int_03} doesnt contain vertex {int_04}!', &
+          int_01 = vi, int_02 = ti, int_03 = ti, int_04 = vi)
       END DO
 
       IF (mesh%VBI(vi) == 0) THEN
@@ -1364,7 +1366,7 @@ CONTAINS
               END IF
             END DO
           END DO
-          IF (.NOT. (n==2)) WRITE(0,*) ' check_mesh - ERROR: non-edge vertices ', vi, ' and ', vc, ' share ', n, ' triangles'
+          IF (.NOT. (n==2)) CALL warning('non-edge vertices {int_01} and {int_02} share {int_03} triangles', int_01 = vi, int_02 = vc, int_03 = n)
         END DO
 
       ELSE ! IF (mesh%VBI(vi) == 0) THEN
@@ -1384,7 +1386,7 @@ CONTAINS
                 END IF
               END DO
             END DO
-            IF (.NOT. (n==2)) WRITE(0,*) ' check_mesh - ERROR: edge vertex ', vi, ' and non-edge vertex ', vc, ' share ', n, ' triangles'
+            IF (.NOT. (n==2)) CALL warning('edge vertex {int_01} and non-edge vertex {int_02} share {int_03} triangles', int_01 = vi, int_02 = vc, int_03 = n)
 
           ELSE ! IF (mesh%VBI(vc)==0) THEN
 
@@ -1400,7 +1402,7 @@ CONTAINS
               END DO
             END DO
             IF (.NOT. is_border_edge( mesh, vi, vc)) CYCLE
-            IF (.NOT. (n==1)) WRITE(0,*) ' check_mesh - ERROR: edge vertices ', vi, ' and ', vc, ' share ', n, ' triangles'
+            IF (.NOT. (n==1)) CALL warning('edge vertices {int_01} and {int_02} share {int_03} triangles', int_01 = vi, int_02 = vc,int_03 = n)
 
           END IF
         END DO
@@ -1415,7 +1417,7 @@ CONTAINS
       IF (mesh%VBI(vi) == 0) THEN
 
         IF (mesh%V(vi,1) <= mesh%xmin .OR. mesh%V(vi,1) >= mesh%xmax .OR. mesh%V(vi,2) <= mesh%ymin .OR. mesh%V(vi,2) >= mesh%ymax) THEN
-          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has border index 0 but lies on or beyond the mesh domain border!'
+          CALL warning('vertex {int_01} has border index 0 but lies on or beyond the mesh domain border!', int_01 = vi)
         END IF
 
         ! First and last neighbours must be connected
@@ -1429,191 +1431,127 @@ CONTAINS
             EXIT
           END IF
         END DO
-        IF (.NOT. FoundIt) WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has border index 0, but its first and last neighbours are not connected!'
+        IF (.NOT. FoundIt) CALL warning('vertex {int_01} has border index 0, but its first and last neighbours are not connected!', int_01 = vi)
 
       ELSEIF (mesh%VBI(vi) == 1) THEN
 
         IF (ABS(mesh%V(vi,2) - mesh%ymax) > mesh%tol_dist) THEN
-          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has border index 1 but does not lie on the N border!'
+          CALL warning('vertex {int_01} has border index 1 but does not lie on the N border!', int_01 = vi)
         END IF
         vc = mesh%C(vi,1)
         IF (.NOT. (mesh%VBI(vc)==8 .OR. mesh%VBI(vc)==1)) THEN
-          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has border index 1 but its first connection doesnt have a matching border index!'
+          CALL warning('vertex {int_01} has border index 1 but its first connection doesnt have a matching border index!', int_01 = vi)
         END IF
         vc = mesh%C(vi,mesh%nC(vi))
         IF (.NOT. (mesh%VBI(vc)==1 .OR. mesh%VBI(vc)==2)) THEN
-          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has border index 1 but its last connection doesnt have a matching border index!'
+          CALL warning('vertex {int_01} has border index 1 but its last connection doesnt have a matching border index!', int_01 = vi)
         END IF
-!        ti = mesh%iTri(vi,1)
-!        IF (.NOT. (mesh%TriBI(ti)==7 .OR. mesh%TriBI(ti)==8 .OR. mesh%TriBI(ti)==1)) THEN
-!          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has border index 1 but its first iTri doesnt have a matching TriBI!'
-!        END IF
-!        ti = mesh%iTri(vi,mesh%niTri(vi))
-!        IF (.NOT. (mesh%TriBI(ti)==1 .OR. mesh%TriBI(ti)==2 .OR. mesh%TriBI(ti)==3)) THEN
-!          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has border index 1 but its last iTri doesnt have a matching TriBI!'
-!        END IF
 
       ELSEIF (mesh%VBI(vi) == 2) THEN
 
-        IF (.NOT. vi==3) WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' is listed as NE corner!'
+        IF (.NOT. vi==3) CALL warning('vertex {int_01} is listed as NE corner!', int_01 = vi)
 
         IF (ABS(mesh%V(vi,1) - mesh%xmax) > mesh%tol_dist .OR. ABS(mesh%V(vi,2) - mesh%ymax) > mesh%tol_dist) THEN
-          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has border index 2 but does not lie on the NE corner!'
+          CALL warning('vertex {int_01} has border index 2 but does not lie on the NE corner!', int_01 = vi)
         END IF
         vc = mesh%C(vi,1)
         IF (.NOT. (mesh%VBI(vc)==8 .OR. mesh%VBI(vc)==1)) THEN
-          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has border index 2 but its first connection doesnt have a matching border index!'
+          CALL warning('vertex {int_01} has border index 2 but its first connection doesnt have a matching border index!', int_01 = vi)
         END IF
         vc = mesh%C(vi,mesh%nC(vi))
         IF (.NOT. (mesh%VBI(vc)==3 .OR. mesh%VBI(vc)==4)) THEN
-          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has border index 2 but its last connection doesnt have a matching border index!'
+          CALL warning('vertex {int_01} has border index 2 but its last connection doesnt have a matching border index!', int_01 = vi)
         END IF
-!        ti = mesh%iTri(vi,1)
-!        IF (.NOT. (mesh%TriBI(ti)==1 .OR. mesh%TriBI(ti)==2 .OR. mesh%TriBI(ti)==3)) THEN
-!          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has border index 2 but its first iTri doesnt have a matching TriBI!'
-!        END IF
-!        ti = mesh%iTri(vi,mesh%niTri(vi))
-!        IF (.NOT. (mesh%TriBI(ti)==1 .OR. mesh%TriBI(ti)==2 .OR. mesh%TriBI(ti)==3)) THEN
-!          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has border index 2 but its last iTri doesnt have a matching TriBI!'
-!        END IF
 
       ELSEIF (mesh%VBI(vi) == 3) THEN
 
         IF (ABS(mesh%V(vi,1) - mesh%xmax) > mesh%tol_dist) THEN
-          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has border index 3 but does not lie on the E border!'
+          CALL warning('vertex {int_01} has border index 3 but does not lie on the E border!', int_01 = vi)
         END IF
         vc = mesh%C(vi,1)
         IF (.NOT. (mesh%VBI(vc)==2 .OR. mesh%VBI(vc)==3)) THEN
-          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has border index 3 but its first connection doesnt have a matching border index!'
+          CALL warning('vertex {int_01} has border index 3 but its first connection doesnt have a matching border index!', int_01 = vi)
         END IF
         vc = mesh%C(vi,mesh%nC(vi))
         IF (.NOT. (mesh%VBI(vc)==3 .OR. mesh%VBI(vc)==4)) THEN
-          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has border index 3 but its last connection doesnt have a matching border index!'
+          CALL warning('vertex {int_01} has border index 3 but its last connection doesnt have a matching border index!', int_01 = vi)
         END IF
-!        ti = mesh%iTri(vi,1)
-!        IF (.NOT. (mesh%TriBI(ti)==1 .OR. mesh%TriBI(ti)==2 .OR. mesh%TriBI(ti)==3)) THEN
-!          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has border index 3 but its first iTri doesnt have a matching TriBI!'
-!        END IF
-!        ti = mesh%iTri(vi,mesh%niTri(vi))
-!        IF (.NOT. (mesh%TriBI(ti)==3 .OR. mesh%TriBI(ti)==4 .OR. mesh%TriBI(ti)==5)) THEN
-!          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has border index 3 but its last iTri doesnt have a matching TriBI!'
-!        END IF
 
       ELSEIF (mesh%VBI(vi) == 4) THEN
 
-        IF (.NOT. vi==2) WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' is listed as SE corner!'
+        IF (.NOT. vi==2) CALL warning('vertex {int_01} is listed as SE corner!', int_01 = vi)
 
         IF (ABS(mesh%V(vi,1) - mesh%xmax) > mesh%tol_dist .OR. ABS(mesh%V(vi,2) - mesh%ymin) > mesh%tol_dist) THEN
-          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has border index 4 but does not lie on the SE corner!'
+          CALL warning('vertex {int_01} has border index 4 but does not lie on the SE corner!', int_01 = vi)
         END IF
         vc = mesh%C(vi,1)
         IF (.NOT. (mesh%VBI(vc)==2 .OR. mesh%VBI(vc)==3)) THEN
-          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has border index 4 but its first connection doesnt have a matching border index!'
+          CALL warning('vertex {int_01} has border index 4 but its first connection doesnt have a matching border index!', int_01 = vi)
         END IF
         vc = mesh%C(vi,mesh%nC(vi))
         IF (.NOT. (mesh%VBI(vc)==5 .OR. mesh%VBI(vc)==6)) THEN
-          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has border index 4 but its last connection doesnt have a matching border index!'
+          CALL warning('vertex {int_01} has border index 4 but its last connection doesnt have a matching border index!', int_01 = vi)
         END IF
-!        ti = mesh%iTri(vi,1)
-!        IF (.NOT. (mesh%TriBI(ti)==3 .OR. mesh%TriBI(ti)==4 .OR. mesh%TriBI(ti)==5)) THEN
-!          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has border index 4 but its first iTri doesnt have a matching TriBI!'
-!        END IF
-!        ti = mesh%iTri(vi,mesh%niTri(vi))
-!        IF (.NOT. (mesh%TriBI(ti)==3 .OR. mesh%TriBI(ti)==4 .OR. mesh%TriBI(ti)==5)) THEN
-!          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has border index 4 but its last iTri doesnt have a matching TriBI!'
-!        END IF
 
       ELSEIF (mesh%VBI(vi) == 5) THEN
 
         IF (ABS(mesh%V(vi,2) - mesh%ymin) > mesh%tol_dist) THEN
-          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has border index 5 but does not lie on the S border!'
+          CALL warning('vertex {int_01} has border index 5 but does not lie on the S border!', int_01 = vi)
         END IF
         vc = mesh%C(vi,1)
         IF (.NOT. (mesh%VBI(vc)==4 .OR. mesh%VBI(vc)==5)) THEN
-          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has border index 5 but its first connection doesnt have a matching border index!'
+          CALL warning('vertex {int_01} has border index 5 but its first connection doesnt have a matching border index!', int_01 = vi)
         END IF
         vc = mesh%C(vi,mesh%nC(vi))
         IF (.NOT. (mesh%VBI(vc)==5 .OR. mesh%VBI(vc)==6)) THEN
-          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has border index 5 but its last connection doesnt have a matching border index!'
+          CALL warning('vertex {int_01} has border index 5 but its last connection doesnt have a matching border index!', int_01 = vi)
         END IF
-!        ti = mesh%iTri(vi,1)
-!        IF (.NOT. (mesh%TriBI(ti)==3 .OR. mesh%TriBI(ti)==4 .OR. mesh%TriBI(ti)==5)) THEN
-!          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has border index 5 but its first iTri doesnt have a matching TriBI!'
-!        END IF
-!        ti = mesh%iTri(vi,mesh%niTri(vi))
-!        IF (.NOT. (mesh%TriBI(ti)==5 .OR. mesh%TriBI(ti)==6 .OR. mesh%TriBI(ti)==7)) THEN
-!          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has border index 5 but its last iTri doesnt have a matching TriBI!'
-!        END IF
 
       ELSEIF (mesh%VBI(vi) == 6) THEN
 
-        IF (.NOT. vi==1) WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' is listed as SW corner!'
+        IF (.NOT. vi==1) CALL warning('vertex {int_01} is listed as SW corner!', int_01 = vi)
 
         IF (ABS(mesh%V(vi,1) - mesh%xmin) > mesh%tol_dist .OR. ABS(mesh%V(vi,2) - mesh%ymin) > mesh%tol_dist) THEN
-          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has border index 6 but does not lie on the SW corner!'
+          CALL warning('vertex {int_01} has border index 6 but does not lie on the SW corner!', int_01 = vi)
         END IF
         vc = mesh%C(vi,1)
         IF (.NOT. (mesh%VBI(vc)==4 .OR. mesh%VBI(vc)==5)) THEN
-          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has border index 6 but its first connection doesnt have a matching border index!'
+          CALL warning('vertex {int_01} has border index 6 but its first connection doesnt have a matching border index!', int_01 = vi)
         END IF
         vc = mesh%C(vi,mesh%nC(vi))
         IF (.NOT. (mesh%VBI(vc)==7 .OR. mesh%VBI(vc)==8)) THEN
-          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has border index 6 but its last connection doesnt have a matching border index!'
+          CALL warning('vertex {int_01} has border index 6 but its last connection doesnt have a matching border index!', int_01 = vi)
         END IF
-!        ti = mesh%iTri(vi,1)
-!        IF (.NOT. (mesh%TriBI(ti)==5 .OR. mesh%TriBI(ti)==6 .OR. mesh%TriBI(ti)==7)) THEN
-!          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has border index 6 but its first iTri doesnt have a matching TriBI!'
-!        END IF
-!        ti = mesh%iTri(vi,mesh%niTri(vi))
-!        IF (.NOT. (mesh%TriBI(ti)==5 .OR. mesh%TriBI(ti)==6 .OR. mesh%TriBI(ti)==7)) THEN
-!          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has border index 6 but its last iTri doesnt have a matching TriBI!'
-!        END IF
 
       ELSEIF (mesh%VBI(vi) == 7) THEN
 
         IF (ABS(mesh%V(vi,1) - mesh%xmin) > mesh%tol_dist) THEN
-          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has border index 7 but does not lie on the W border!'
+          CALL warning('vertex {int_01} has border index 7 but does not lie on the W border!', int_01 = vi)
         END IF
         vc = mesh%C(vi,1)
         IF (.NOT. (mesh%VBI(vc)==6 .OR. mesh%VBI(vc)==7)) THEN
-          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has border index 7 but its first connection doesnt have a matching border index!'
+          CALL warning('vertex {int_01} has border index 7 but its first connection doesnt have a matching border index!', int_01 = vi)
         END IF
         vc = mesh%C(vi,mesh%nC(vi))
         IF (.NOT. (mesh%VBI(vc)==7 .OR. mesh%VBI(vc)==8)) THEN
-          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has border index 7 but its last connection doesnt have a matching border index!'
+          CALL warning('vertex {int_01} has border index 7 but its last connection doesnt have a matching border index!', int_01 = vi)
         END IF
-!        ti = mesh%iTri(vi,1)
-!        IF (.NOT. (mesh%TriBI(ti)==5 .OR. mesh%TriBI(ti)==6 .OR. mesh%TriBI(ti)==7)) THEN
-!          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has border index 7 but its first iTri doesnt have a matching TriBI!'
-!        END IF
-!        ti = mesh%iTri(vi,mesh%niTri(vi))
-!        IF (.NOT. (mesh%TriBI(ti)==7 .OR. mesh%TriBI(ti)==8 .OR. mesh%TriBI(ti)==1)) THEN
-!          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has border index 7 but its last iTri doesnt have a matching TriBI!'
-!        END IF
 
       ELSEIF (mesh%VBI(vi) == 8) THEN
 
-        IF (.NOT. vi==4) WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' is listed as NW corner!'
+        IF (.NOT. vi==4) CALL warning('vertex {int_01} is listed as NW corner!', int_01 = vi)
 
         IF (ABS(mesh%V(vi,1) - mesh%xmin) > mesh%tol_dist .OR. ABS(mesh%V(vi,2) - mesh%ymax) > mesh%tol_dist) THEN
-          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has border index 8 but does not lie on the NW corner!'
+          CALL warning('vertex {int_01} has border index 8 but does not lie on the NW corner!', int_01 = vi)
         END IF
         vc = mesh%C(vi,1)
         IF (.NOT. (mesh%VBI(vc)==6 .OR. mesh%VBI(vc)==7)) THEN
-          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has border index 8 but its first connection doesnt have a matching border index!'
+          CALL warning('vertex {int_01} has border index 8 but its first connection doesnt have a matching border index!', int_01 = vi)
         END IF
         vc = mesh%C(vi,mesh%nC(vi))
         IF (.NOT. (mesh%VBI(vc)==1 .OR. mesh%VBI(vc)==2)) THEN
-          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has border index 8 but its last connection doesnt have a matching border index!'
+          CALL warning('vertex {int_01} has border index 8 but its last connection doesnt have a matching border index!', int_01 = vi)
         END IF
-!        ti = mesh%iTri(vi,1)
-!        IF (.NOT. (mesh%TriBI(ti)==7 .OR. mesh%TriBI(ti)==8 .OR. mesh%TriBI(ti)==1)) THEN
-!          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has border index 8 but its first iTri doesnt have a matching TriBI!'
-!        END IF
-!        ti = mesh%iTri(vi,mesh%niTri(vi))
-!        IF (.NOT. (mesh%TriBI(ti)==7 .OR. mesh%TriBI(ti)==8 .OR. mesh%TriBI(ti)==1)) THEN
-!          WRITE(0,*) ' check_mesh - ERROR: vertex ', vi, ' has border index 8 but its last iTri doesnt have a matching TriBI!'
-!        END IF
 
       END IF
 
@@ -1632,7 +1570,7 @@ CONTAINS
             EXIT
           END IF
         END DO
-        IF (.NOT. FoundIt) WRITE(0,*) ' check_mesh - ERROR: triangle ', ti, ' contains vertex ', vi, ', but that vertex doesnt list ti as an iTri!'
+        IF (.NOT. FoundIt) CALL warning('triangle {int_01} contains vertex {int_02}, but that vertex doesnt list ti as an iTri!', int_01 = ti, int_02 = vi)
       END DO
 
       v1 = mesh%Tri(ti,1)
@@ -1647,7 +1585,7 @@ CONTAINS
           EXIT
         END IF
       END DO
-      IF (.NOT. FoundIt) WRITE(0,*) ' check_mesh - ERROR: triangle ', ti, ' contains unconnected vertices ', v1, ' and ', v2, '!'
+      IF (.NOT. FoundIt) CALL warning('triangle {int_01} contains unconnected vertices {int_02} and {int_03}!', int_01 = ti, int_02 = v1, int_03 = v2)
 
       FoundIt = .FALSE.
       DO ci = 1, mesh%nC(v1)
@@ -1657,7 +1595,7 @@ CONTAINS
           EXIT
         END IF
       END DO
-      IF (.NOT. FoundIt) WRITE(0,*) ' check_mesh - ERROR: triangle ', ti, ' contains unconnected vertices ', v1, ' and ', v3, '!'
+      IF (.NOT. FoundIt) CALL warning('triangle {int_01} contains unconnected vertices {int_02} and {int_03}!', int_01 = ti, int_02 = v1, int_03 = v3)
 
       FoundIt = .FALSE.
       DO ci = 1, mesh%nC(v2)
@@ -1667,7 +1605,7 @@ CONTAINS
           EXIT
         END IF
       END DO
-      IF (.NOT. FoundIt) WRITE(0,*) ' check_mesh - ERROR: triangle ', ti, ' contains unconnected vertices ', v2, ' and ', v3, '!'
+      IF (.NOT. FoundIt) CALL warning('triangle {int_01} contains unconnected vertices {int_02} and {int_03}!', int_01 = ti, int_02 = v2, int_03 = v3)
 
       tivia = mesh%Tri( ti,1)
       tivib = mesh%Tri( ti,2)
@@ -1678,7 +1616,7 @@ CONTAINS
         tjvic = mesh%Tri( tj,3)
         IF (ANY( [tjvia,tjvib,tjvic] == tivia) .AND. &
             ANY( [tjvia,tjvib,tjvic] == tivib) .AND. &
-            ANY( [tjvia,tjvib,tjvic] == tivic)) WRITE(0,*) ' check_mesh - ERROR: triangles ', ti, ' and ', tj, ' are made up of the same vertices!'
+            ANY( [tjvia,tjvib,tjvic] == tivic)) CALL warning('triangles {int_01} and {int_02} are made up of the same vertices!', int_01 = ti, int_02 = tj)
       END DO
     END DO
 
@@ -1689,7 +1627,6 @@ CONTAINS
       DO n = 1, 3
         ti2 = mesh%TriC(ti,n)
         IF (ti2 == 0) THEN
-!          IF (mesh%TriBI(ti) == 0) WRITE(0,*) ' check_mesh - ERROR: non-edge triangle ', ti, ' misses a neighbour!'
           CYCLE
         END IF
         FoundIt = .FALSE.
@@ -1699,10 +1636,9 @@ CONTAINS
             EXIT
           END IF
         END DO
-        IF (.NOT. FoundIt) WRITE(0,*) ' check_mesh - ERROR: triangle ', ti, ' is connected to ', ti2, ', but not the other way round!'
+        IF (.NOT. FoundIt) CALL warning('triangle {int_01} is connected to {int_02}, but not the other way round!', int_01 = ti, int_02 = ti2)
       END DO
     END DO
-
 
   END SUBROUTINE check_mesh
 

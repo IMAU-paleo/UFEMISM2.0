@@ -5,9 +5,10 @@ MODULE mesh_operators
 ! ===== Preamble =====
 ! ====================
 
+  USE mpi
   USE precisions                                             , ONLY: dp
   USE mpi_basic                                              , ONLY: par, cerr, ierr, MPI_status, sync
-  USE control_resources_and_error_messaging                  , ONLY: warning, crash, init_routine, finalise_routine
+  USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine
   USE mesh_types                                             , ONLY: type_mesh
   USE basic_data_types                                       , ONLY: type_sparse_matrix_CSR_dp
   USE math_utilities                                         , ONLY: calc_matrix_inverse_2_by_2, calc_matrix_inverse_3_by_3, calc_matrix_inverse_5_by_5
@@ -22,10 +23,48 @@ CONTAINS
 ! ===== Subroutines =====
 ! =======================
 
+  SUBROUTINE calc_all_matrix_operators_mesh( mesh)
+    ! Calculate mapping, d/dx, and d/dy matrix operators between all the grids (a,b,c) on the mesh
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                     INTENT(INOUT) :: mesh
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_all_matrix_operators_mesh'
+    INTEGER                                            :: nz
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Matrix operators
+    nz = 4 ! DENK DROM - need to replace this with actual zeta thing!
+    CALL calc_field_to_vector_form_translation_tables( mesh, nz)
+
+    CALL calc_matrix_operators_mesh_a_a(               mesh)
+    CALL calc_matrix_operators_mesh_a_b(               mesh)
+    CALL calc_matrix_operators_mesh_a_c(               mesh)
+
+    CALL calc_matrix_operators_mesh_b_a(               mesh)
+    CALL calc_matrix_operators_mesh_b_b(               mesh)
+    CALL calc_matrix_operators_mesh_b_c(               mesh)
+
+    CALL calc_matrix_operators_mesh_c_a(               mesh)
+    CALL calc_matrix_operators_mesh_c_b(               mesh)
+    CALL calc_matrix_operators_mesh_c_c(               mesh)
+
+    CALL calc_matrix_operators_mesh_b_b_2nd_order(     mesh)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE calc_all_matrix_operators_mesh
+
 ! == Calculate mapping and gradient operators between the a-, b-, and c-grids
 
   SUBROUTINE calc_matrix_operators_mesh_a_a( mesh)
-    ! Calculate mapping, d/dx, and d/dy matrix operators between the a-grid (vertices) and the a-grid (vertices)
+    ! Calculate d/dx, and d/dy matrix operators between the a-grid (vertices) and the a-grid (vertices)
 
     IMPLICIT NONE
 
@@ -544,7 +583,7 @@ CONTAINS
   END SUBROUTINE calc_matrix_operators_mesh_b_a
 
   SUBROUTINE calc_matrix_operators_mesh_b_b( mesh)
-    ! Calculate mapping, d/dx, and d/dy matrix operators between the b-grid (triangles) and the b-grid (triangles)
+    ! Calculate d/dx, and d/dy matrix operators between the b-grid (triangles) and the b-grid (triangles)
 
     IMPLICIT NONE
 
@@ -557,7 +596,7 @@ CONTAINS
     INTEGER                                            :: row
     INTEGER                                            :: ti
     REAL(dp)                                           :: x, y
-    INTEGER                                            :: n, tj
+    INTEGER                                            :: tj
     INTEGER                                            :: n_neighbours_min
     INTEGER                                            :: n_neighbours_max
     INTEGER,  DIMENSION(mesh%nTri)                     :: map, stack
@@ -579,9 +618,9 @@ CONTAINS
   ! =====================================================================
 
     ! Matrix size
-    ncols           = mesh%nTri      ! from
-    nrows           = mesh%nTri      ! to
-    nnz_per_row_est = 3
+    ncols           = mesh%nTri    ! from
+    nrows           = mesh%nTri    ! to
+    nnz_per_row_est = mesh%nC_mem+1
     nnz_est_proc    = CEILING( REAL( nnz_per_row_est * nrows, dp) / REAL( par%n, dp))
 
     CALL allocate_matrix_CSR_dist( mesh%M_ddx_b_b, nrows, ncols, nnz_est_proc)
@@ -604,15 +643,15 @@ CONTAINS
 
     DO row = mesh%M_ddx_b_b%i1, mesh%M_ddx_b_b%i2
 
-      ! The vertex represented by this matrix row
+      ! The triangle represented by this matrix row
       ti = mesh%n2ti( row,1)
       x  = mesh%TriGC( ti,1)
       y  = mesh%TriGC( ti,2)
 
       ! Clean up previous map
       DO i = 1, stackN
-        ti = stack( i)
-        map( ti) = 0
+        tj = stack( i)
+        map( tj) = 0
       END DO
 
       ! Initialise the list of neighbours: just ti itself
@@ -672,7 +711,7 @@ CONTAINS
   END SUBROUTINE calc_matrix_operators_mesh_b_b
 
   SUBROUTINE calc_matrix_operators_mesh_b_b_2nd_order( mesh)
-    ! Calculate mapping, d/dx, and d/dy matrix operators between the b-grid (triangles) and the b-grid (triangles)
+    ! Calculate 2nd-order accurate d/dx, d/dy, d2/dx2, d2/dxdy, and d2/dy2 matrix operators between the b-grid (triangles) and the b-grid (triangles)
 
     IMPLICIT NONE
 
@@ -685,7 +724,7 @@ CONTAINS
     INTEGER                                            :: row
     INTEGER                                            :: ti
     REAL(dp)                                           :: x, y
-    INTEGER                                            :: n, tj
+    INTEGER                                            :: tj
     INTEGER                                            :: n_neighbours_min
     INTEGER                                            :: n_neighbours_max
     INTEGER,  DIMENSION(mesh%nTri)                     :: map, stack
@@ -707,13 +746,13 @@ CONTAINS
   ! =====================================================================
 
     ! Matrix size
-    ncols           = mesh%nTri      ! from
-    nrows           = mesh%nTri      ! to
-    nnz_per_row_est = 10
+    ncols           = mesh%nTri    ! from
+    nrows           = mesh%nTri    ! to
+    nnz_per_row_est = mesh%nC_mem+1
     nnz_est_proc    = CEILING( REAL( nnz_per_row_est * nrows, dp) / REAL( par%n, dp))
 
-    CALL allocate_matrix_CSR_dist( mesh%M2_ddx_b_b   , nrows, ncols, nnz_est_proc)
-    CALL allocate_matrix_CSR_dist( mesh%M2_ddy_b_b   , nrows, ncols, nnz_est_proc)
+    CALL allocate_matrix_CSR_dist( mesh%M2_ddx_b_b    , nrows, ncols, nnz_est_proc)
+    CALL allocate_matrix_CSR_dist( mesh%M2_ddy_b_b    , nrows, ncols, nnz_est_proc)
     CALL allocate_matrix_CSR_dist( mesh%M2_d2dx2_b_b , nrows, ncols, nnz_est_proc)
     CALL allocate_matrix_CSR_dist( mesh%M2_d2dxdy_b_b, nrows, ncols, nnz_est_proc)
     CALL allocate_matrix_CSR_dist( mesh%M2_d2dy2_b_b , nrows, ncols, nnz_est_proc)
@@ -738,15 +777,15 @@ CONTAINS
 
     DO row = mesh%M2_ddx_b_b%i1, mesh%M2_ddx_b_b%i2
 
-      ! The vertex represented by this matrix row
+      ! The triangle represented by this matrix row
       ti = mesh%n2ti( row,1)
       x  = mesh%TriGC( ti,1)
       y  = mesh%TriGC( ti,2)
 
       ! Clean up previous map
       DO i = 1, stackN
-        ti = stack( i)
-        map( ti) = 0
+        tj = stack( i)
+        map( tj) = 0
       END DO
 
       ! Initialise the list of neighbours: just ti itself
@@ -1218,7 +1257,7 @@ CONTAINS
   END SUBROUTINE calc_matrix_operators_mesh_c_b
 
   SUBROUTINE calc_matrix_operators_mesh_c_c( mesh)
-    ! Calculate mapping, d/dx, and d/dy matrix operators between the c-grid (edges) and the c-grid (edges)
+    ! Calculate d/dx, and d/dy matrix operators between the c-grid (edges) and the c-grid (edges)
 
     IMPLICIT NONE
 
@@ -1253,8 +1292,8 @@ CONTAINS
   ! =====================================================================
 
     ! Matrix size
-    ncols           = mesh%nE     ! from
-    nrows           = mesh%nE     ! to
+    ncols           = mesh%nE      ! from
+    nrows           = mesh%nE      ! to
     nnz_per_row_est = mesh%nC_mem+1
     nnz_est_proc    = CEILING( REAL( nnz_per_row_est * nrows, dp) / REAL( par%n, dp))
 
@@ -1278,18 +1317,18 @@ CONTAINS
 
     DO row = mesh%M_ddx_c_c%i1, mesh%M_ddx_c_c%i2
 
-      ! The vertex represented by this matrix row
+      ! The edge represented by this matrix row
       ei = mesh%n2ei( row,1)
       x  = mesh%E( ei,1)
       y  = mesh%E( ei,2)
 
       ! Clean up previous map
       DO i = 1, stackN
-        ei = stack( i)
-        map( ei) = 0
+        ej = stack( i)
+        map( ej) = 0
       END DO
 
-      ! Initialise the list of neighbours: just aci itself
+      ! Initialise the list of neighbours: just ei itself
       map( ei)  = 1
       stackN    = 1
       stack( 1) = ei
@@ -1347,112 +1386,335 @@ CONTAINS
 
 ! == Calculate field-to-vector-form translation tables
 
-  SUBROUTINE calc_field_to_vector_form_translation_tables( mesh)
+  SUBROUTINE calc_field_to_vector_form_translation_tables( mesh, nz)
     ! Calculate grid-cell-to-matrix-row translation tables
 
     IMPLICIT NONE
 
     ! In/output variables:
     TYPE(type_mesh),                     INTENT(INOUT) :: mesh
+    INTEGER,                             INTENT(IN)    :: nz
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_grid_cell_to_matrix_row_translation_tables'
-    INTEGER                                            :: vi,ti,ei,uv,n
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_field_to_vector_form_translation_tables'
+    INTEGER                                            :: vi,ti,ei,k,ks,uv,n
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
     ! Grid sizes
-    mesh%nna   = mesh%nV
-    mesh%nnb   = mesh%nTri
-    mesh%nnc   = mesh%nE
-    mesh%nnauv = mesh%nV   * 2
-    mesh%nnbuv = mesh%nTri * 2
-    mesh%nncuv = mesh%nE   * 2
+    mesh%nna     = mesh%nV
+    mesh%nnauv   = mesh%nV            * 2
+    mesh%nnak    = mesh%nV   *  nz
+    mesh%nnakuv  = mesh%nV   *  nz    * 2
+    mesh%nnaks   = mesh%nV   * (nz-1)
+    mesh%nnaksuv = mesh%nV   * (nz-1) * 2
 
-    ! Allocate memory
-    ALLOCATE( mesh%n2vi(   mesh%nna    , 1), source = 0)
-    ALLOCATE( mesh%n2ti(   mesh%nnb    , 1), source = 0)
-    ALLOCATE( mesh%n2ei(   mesh%nnc    , 1), source = 0)
-    ALLOCATE( mesh%n2viuv( mesh%nnauv  , 2), source = 0)
-    ALLOCATE( mesh%n2tiuv( mesh%nnbuv  , 2), source = 0)
-    ALLOCATE( mesh%n2eiuv( mesh%nncuv  , 2), source = 0)
+    mesh%nnb     = mesh%nTri
+    mesh%nnbuv   = mesh%nTri          * 2
+    mesh%nnbk    = mesh%nTri *  nz
+    mesh%nnbkuv  = mesh%nTri *  nz    * 2
+    mesh%nnbks   = mesh%nTri * (nz-1)
+    mesh%nnbksuv = mesh%nTri * (nz-1) * 2
 
-    ALLOCATE( mesh%vi2n(   mesh%nV        ), source = 0)
-    ALLOCATE( mesh%ti2n(   mesh%nTri      ), source = 0)
-    ALLOCATE( mesh%ei2n(   mesh%nE        ), source = 0)
-    ALLOCATE( mesh%viuv2n( mesh%nV     , 2), source = 0)
-    ALLOCATE( mesh%tiuv2n( mesh%nTri   , 2), source = 0)
-    ALLOCATE( mesh%eiuv2n( mesh%nE     , 2), source = 0)
+    mesh%nnc     = mesh%nE
+    mesh%nncuv   = mesh%nE            * 2
+    mesh%nnck    = mesh%nE   *  nz
+    mesh%nnckuv  = mesh%nE   *  nz    * 2
+    mesh%nncks   = mesh%nE   * (nz-1)
+    mesh%nncksuv = mesh%nE   * (nz-1) * 2
 
-  ! == a-grid (vertices)
+    ! Allocate shared memory
+    ALLOCATE( mesh%n2vi(     mesh%nna    , 1), source = 0)
+    ALLOCATE( mesh%n2viuv(   mesh%nnauv  , 2), source = 0)
+    ALLOCATE( mesh%n2vik(    mesh%nnak   , 2), source = 0)
+    ALLOCATE( mesh%n2vikuv(  mesh%nnakuv , 3), source = 0)
+    ALLOCATE( mesh%n2viks(   mesh%nnaks  , 2), source = 0)
+    ALLOCATE( mesh%n2viksuv( mesh%nnaksuv, 3), source = 0)
 
-    ! scalar
+    ALLOCATE( mesh%n2ti(     mesh%nnb    , 1), source = 0)
+    ALLOCATE( mesh%n2tiuv(   mesh%nnbuv  , 2), source = 0)
+    ALLOCATE( mesh%n2tik(    mesh%nnbk   , 2), source = 0)
+    ALLOCATE( mesh%n2tikuv(  mesh%nnbkuv , 3), source = 0)
+    ALLOCATE( mesh%n2tiks(   mesh%nnbks  , 2), source = 0)
+    ALLOCATE( mesh%n2tiksuv( mesh%nnbksuv, 3), source = 0)
 
-    n = 0
-    DO vi = 1, mesh%nV
-      n = n+1
-      mesh%vi2n( vi) = n
-      mesh%n2vi( n,1) = vi
-    END DO
+    ALLOCATE( mesh%n2ei(     mesh%nnc    , 1), source = 0)
+    ALLOCATE( mesh%n2eiuv(   mesh%nncuv  , 2), source = 0)
+    ALLOCATE( mesh%n2eik(    mesh%nnck   , 2), source = 0)
+    ALLOCATE( mesh%n2eikuv(  mesh%nnckuv , 3), source = 0)
+    ALLOCATE( mesh%n2eiks(   mesh%nncks  , 2), source = 0)
+    ALLOCATE( mesh%n2eiksuv( mesh%nncksuv, 3), source = 0)
 
-    ! vector
+    ALLOCATE( mesh%vi2n(     mesh%nV           ), source = 0)
+    ALLOCATE( mesh%viuv2n(   mesh%nV        , 2), source = 0)
+    ALLOCATE( mesh%vik2n(    mesh%nV  , nz     ), source = 0)
+    ALLOCATE( mesh%vikuv2n(  mesh%nV  , nz  , 2), source = 0)
+    ALLOCATE( mesh%viks2n(   mesh%nV  , nz-1   ), source = 0)
+    ALLOCATE( mesh%viksuv2n( mesh%nV  , nz-1, 2), source = 0)
 
-    n = 0
-    DO vi = 1, mesh%nV
-      DO uv = 1, 2
+    ALLOCATE( mesh%ti2n(     mesh%nTri         ), source = 0)
+    ALLOCATE( mesh%tiuv2n(   mesh%nTri      , 2), source = 0)
+    ALLOCATE( mesh%tik2n(    mesh%nTri, nz     ), source = 0)
+    ALLOCATE( mesh%tikuv2n(  mesh%nTri, nz  , 2), source = 0)
+    ALLOCATE( mesh%tiks2n(   mesh%nTri, nz-1   ), source = 0)
+    ALLOCATE( mesh%tiksuv2n( mesh%nTri, nz-1, 2), source = 0)
+
+    ALLOCATE( mesh%ei2n(     mesh%nE           ), source = 0)
+    ALLOCATE( mesh%eiuv2n(   mesh%nE        , 2), source = 0)
+    ALLOCATE( mesh%eik2n(    mesh%nE  , nz     ), source = 0)
+    ALLOCATE( mesh%eikuv2n(  mesh%nE  , nz  , 2), source = 0)
+    ALLOCATE( mesh%eiks2n(   mesh%nE  , nz-1   ), source = 0)
+    ALLOCATE( mesh%eiksuv2n( mesh%nE  , nz-1, 2), source = 0)
+
+! == a-grid (vertices)
+
+  ! == 2-D
+
+    ! == scalar
+
+      n = 0
+      DO vi = 1, mesh%nV
         n = n+1
-        mesh%viuv2n( vi,uv) = n
-        mesh%n2viuv( n,1) = vi
-        mesh%n2viuv( n,2) = uv
+        mesh%vi2n( vi) = n
+        mesh%n2vi( n,1) = vi
       END DO
-    END DO
 
-  ! == b-grid (triangles)
+    ! == vector
 
-    ! scalar
+      n = 0
+      DO vi = 1, mesh%nV
+        DO uv = 1, 2
+          n = n+1
+          mesh%viuv2n( vi,uv) = n
+          mesh%n2viuv( n,1) = vi
+          mesh%n2viuv( n,2) = uv
+        END DO
+      END DO
 
-    n = 0
-    DO ti = 1, mesh%nTri
-      n = n+1
-      mesh%ti2n( ti) = n
-      mesh%n2ti( n,1) = ti
-    END DO
+  ! == 3-D regular
 
-    ! vector
+    ! == scalar
 
-    n = 0
-    DO ti = 1, mesh%nTri
-      DO uv = 1, 2
+      n = 0
+      DO vi = 1, mesh%nV
+        DO k = 1, nz
+          n = n+1
+          mesh%vik2n( vi,k) = n
+          mesh%n2vik( n,1) = vi
+          mesh%n2vik( n,2) = k
+        END DO
+      END DO
+
+    ! == vector
+
+      n = 0
+      DO vi = 1, mesh%nV
+        DO k = 1, nz
+          DO uv = 1, 2
+            n = n+1
+            mesh%vikuv2n( vi,k,uv) = n
+            mesh%n2vikuv( n,1) = vi
+            mesh%n2vikuv( n,2) = k
+            mesh%n2vikuv( n,3) = uv
+          END DO
+        END DO
+      END DO
+
+  ! == 3-D staggered
+
+    ! == scalar
+
+      n = 0
+      DO vi = 1, mesh%nV
+        DO ks = 1, nz-1
+          n = n+1
+          mesh%viks2n( vi,ks) = n
+          mesh%n2viks( n,1) = vi
+          mesh%n2viks( n,2) = ks
+        END DO
+      END DO
+
+    ! == vector
+
+      n = 0
+      DO vi = 1, mesh%nV
+        DO ks = 1, nz-1
+          DO uv = 1, 2
+            n = n+1
+            mesh%viksuv2n( vi,ks,uv) = n
+            mesh%n2viksuv( n,1) = vi
+            mesh%n2viksuv( n,2) = ks
+            mesh%n2viksuv( n,3) = uv
+          END DO
+        END DO
+      END DO
+
+! == b-grid (triangles)
+
+  ! == 2-D
+
+    ! == scalar
+
+      n = 0
+      DO ti = 1, mesh%nTri
         n = n+1
-        mesh%tiuv2n( ti,uv) = n
-        mesh%n2tiuv( n,1) = ti
-        mesh%n2tiuv( n,2) = uv
+        mesh%ti2n( ti) = n
+        mesh%n2ti( n,1) = ti
       END DO
-    END DO
 
-  ! == c-grid (edges)
+    ! == vector
 
-    ! scalar
+      n = 0
+      DO ti = 1, mesh%nTri
+        DO uv = 1, 2
+          n = n+1
+          mesh%tiuv2n( ti,uv) = n
+          mesh%n2tiuv( n,1) = ti
+          mesh%n2tiuv( n,2) = uv
+        END DO
+      END DO
 
-    n = 0
-    DO ei = 1, mesh%nE
-      n = n+1
-      mesh%ei2n( ei) = n
-      mesh%n2ei( n,1) = ei
-    END DO
+  ! == 3-D regular
 
-    ! vector
+    ! == scalar
 
-    n = 0
-    DO ei = 1, mesh%nE
-      DO uv = 1, 2
+      n = 0
+      DO ti = 1, mesh%nTri
+        DO k = 1, nz
+          n = n+1
+          mesh%tik2n( ti,k) = n
+          mesh%n2tik( n,1) = ti
+          mesh%n2tik( n,2) = k
+        END DO
+      END DO
+
+    ! == vector
+
+      n = 0
+      DO ti = 1, mesh%nTri
+        DO k = 1, nz
+          DO uv = 1, 2
+            n = n+1
+            mesh%tikuv2n( ti,k,uv) = n
+            mesh%n2tikuv( n,1) = ti
+            mesh%n2tikuv( n,2) = k
+            mesh%n2tikuv( n,3) = uv
+          END DO
+        END DO
+      END DO
+
+  ! == 3-D regustaggeredlar
+
+    ! == scalar
+
+      n = 0
+      DO ti = 1, mesh%nTri
+        DO ks = 1, nz-1
+          n = n+1
+          mesh%tiks2n( ti,ks) = n
+          mesh%n2tiks( n,1) = ti
+          mesh%n2tiks( n,2) = ks
+        END DO
+      END DO
+
+    ! == vector
+
+      n = 0
+      DO ti = 1, mesh%nTri
+        DO ks = 1, nz-1
+          DO uv = 1, 2
+            n = n+1
+            mesh%tiksuv2n( ti,ks,uv) = n
+            mesh%n2tiksuv( n,1) = ti
+            mesh%n2tiksuv( n,2) = ks
+            mesh%n2tiksuv( n,3) = uv
+          END DO
+        END DO
+      END DO
+
+! == c-grid (edges)
+
+  ! == 2-D
+
+    ! == scalar
+
+      n = 0
+      DO ei = 1, mesh%nE
         n = n+1
-        mesh%eiuv2n( ei,uv) = n
-        mesh%n2eiuv( n,1) = ei
-        mesh%n2eiuv( n,2) = uv
+        mesh%ei2n( ei) = n
+        mesh%n2ei( n,1) = ei
       END DO
-    END DO
+
+    ! == vector
+
+      n = 0
+      DO ei = 1, mesh%nE
+        DO uv = 1, 2
+          n = n+1
+          mesh%eiuv2n( ei,uv) = n
+          mesh%n2eiuv( n,1) = ei
+          mesh%n2eiuv( n,2) = uv
+        END DO
+      END DO
+
+  ! == 3-D regular
+
+    ! == scalar
+
+      n = 0
+      DO ei = 1, mesh%nE
+        DO k = 1, nz
+          n = n+1
+          mesh%eik2n( ei,k) = n
+          mesh%n2eik( n,1) = ei
+          mesh%n2eik( n,2) = k
+        END DO
+      END DO
+
+    ! == vector
+
+      n = 0
+      DO ei = 1, mesh%nE
+        DO k = 1, nz
+          DO uv = 1, 2
+            n = n+1
+            mesh%eikuv2n( ei,k,uv) = n
+            mesh%n2eikuv( n,1) = ei
+            mesh%n2eikuv( n,2) = k
+            mesh%n2eikuv( n,3) = uv
+          END DO
+        END DO
+      END DO
+
+  ! == 3-D staggered
+
+    ! == scalar
+
+      n = 0
+      DO ei = 1, mesh%nE
+        DO ks = 1, nz-1
+          n = n+1
+          mesh%eiks2n( ei,ks) = n
+          mesh%n2eiks( n,1) = ei
+          mesh%n2eiks( n,2) = ks
+        END DO
+      END DO
+
+    ! == vector
+
+      n = 0
+      DO ei = 1, mesh%nE
+        DO ks = 1, nz-1
+          DO uv = 1, 2
+            n = n+1
+            mesh%eiksuv2n( ei,ks,uv) = n
+            mesh%n2eiksuv( n,1) = ei
+            mesh%n2eiksuv( n,2) = ks
+            mesh%n2eiksuv( n,3) = uv
+          END DO
+        END DO
+      END DO
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

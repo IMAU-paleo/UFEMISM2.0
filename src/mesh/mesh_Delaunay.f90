@@ -9,9 +9,10 @@ MODULE mesh_Delaunay
 ! ===== Preamble =====
 ! ====================
 
+  USE mpi
   USE precisions                                             , ONLY: dp
   USE mpi_basic                                              , ONLY: par, cerr, ierr, MPI_status, sync
-  USE control_resources_and_error_messaging                  , ONLY: warning, crash, init_routine, finalise_routine
+  USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine
   USE mesh_types                                             , ONLY: type_mesh
   USE math_utilities                                         , ONLY: is_in_triangle, lies_on_line_segment, line_from_points, line_line_intersection, &
                                                                      perpENDicular_bisector_from_line, encroaches_upon
@@ -1338,6 +1339,7 @@ CONTAINS
     LOGICAL                                       :: vic_has_ti, vic_has_tj
     LOGICAL                                       :: vid_has_ti, vid_has_tj
     INTEGER                                       :: li_min, li_max
+    LOGICAL                                       :: foundit
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -1634,21 +1636,39 @@ CONTAINS
     ! == niTri, iTri
 
     ! via: tj,ti are replaced by t1
+    ! First remove ti
     DO iti = 1, mesh%niTri( via)
-      IF (mesh%iTri( via,iti) == tj) THEN
-        mesh%iTri( via,:) = [mesh%iTri( via,1:iti-1), t1, mesh%iTri( via,iti+2:mesh%nC_mem), 0]
+      IF (mesh%iTri( via,iti) == ti) THEN
+        mesh%iTri( via,:) = [mesh%iTri( via,1:iti-1), mesh%iTri( via,iti+1:mesh%nC_mem), 0]
         mesh%niTri( via) = mesh%niTri( via) - 1
         EXIT
       END IF
     END DO
+    ! Then replace tj by t1
+    DO iti = 1, mesh%niTri( via)
+      IF (mesh%iTri( via,iti) == tj) THEN
+        mesh%iTri( via,iti) = t1
+        EXIT
+      END IF
+    END DO
+
     ! vib: ti,tj are replaced by t2
+    ! First remove tj
     DO iti = 1, mesh%niTri( vib)
-      IF (mesh%iTri( vib,iti) == ti) THEN
-        mesh%iTri( vib,:) = [mesh%iTri( vib,1:iti-1), t2, mesh%iTri( vib,iti+2:mesh%nC_mem), 0]
+      IF (mesh%iTri( vib,iti) == tj) THEN
+        mesh%iTri( vib,:) = [mesh%iTri( vib,1:iti-1), mesh%iTri( vib,iti+1:mesh%nC_mem), 0]
         mesh%niTri( vib) = mesh%niTri( vib) - 1
         EXIT
       END IF
     END DO
+    ! Then replace ti by t2
+    DO iti = 1, mesh%niTri( vib)
+      IF (mesh%iTri( vib,iti) == ti) THEN
+        mesh%iTri( vib,iti) = t2
+        EXIT
+      END IF
+    END DO
+
     ! vic: ti is replaced by t1,t2
     mesh%niTri( vic) = mesh%niTri( vic) + 1
     DO iti = 1, mesh%niTri( vic)
@@ -1657,10 +1677,12 @@ CONTAINS
         EXIT
       END IF
     END DO
+
     ! vid: tj is replaced by t2,t1
     mesh%niTri( vid) = mesh%niTri( vid) + 1
     DO iti = 1, mesh%niTri( vid)
       IF (mesh%iTri( vid,iti) == tj) THEN
+        foundit = .TRUE.
         mesh%iTri( vid,:) = [mesh%iTri( vid,1:iti-1), t2, t1, mesh%iTri( vid,iti+1:mesh%nC_mem-1)]
         EXIT
       END IF
@@ -1773,7 +1795,7 @@ CONTAINS
     IMPLICIT NONE
 
     ! In/output variables:
-    TYPE(type_mesh),            INTENT(INOUT)     :: mesh
+    TYPE(type_mesh),            INTENT(IN)        :: mesh
     INTEGER,                    INTENT(IN)        :: ti,tj
     LOGICAL                                       :: isso
 

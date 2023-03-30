@@ -5,9 +5,10 @@ MODULE mesh_refinement
 ! ===== Preamble =====
 ! ====================
 
+  USE mpi
   USE precisions                                             , ONLY: dp
   USE mpi_basic                                              , ONLY: par, cerr, ierr, MPI_status, sync
-  USE control_resources_and_error_messaging                  , ONLY: warning, crash, init_routine, finalise_routine
+  USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine
   USE parameters
   USE reallocate_mod                                         , ONLY: reallocate
   USE math_utilities                                         , ONLY: segment_intersection, is_in_triangle, longest_triangle_leg, smallest_triangle_angle, &
@@ -653,9 +654,6 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! Crop surplus mesh memory
-    CALL crop_mesh_primary( mesh)
-
     ! Initialise the refinement stack with all border triangles
     mesh%refinement_stackN = 0
     DO ti = 1, mesh%nTri
@@ -716,6 +714,9 @@ CONTAINS
 
     END DO ! DO WHILE (refinement_stackN > 0)
 
+    ! Crop surplus mesh memory
+    CALL crop_mesh_primary( mesh)
+
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
@@ -723,7 +724,7 @@ CONTAINS
 
 ! == Lloyd's algorithm for "smoothing" a mesh
 
-  SUBROUTINE Lloyds_algorithm_single_iteration( mesh)
+  SUBROUTINE Lloyds_algorithm_single_iteration( mesh, alpha_min)
     ! Lloyd's algorithm: move all vertices to the geometric centers of their Voronoi cells, and update the triangulation.
     ! This "smooths" the mesh, reducing resolution gradients and widening internal angles, thus making it more
     ! suitable for numerical methods (particularly the SSA).
@@ -732,6 +733,7 @@ CONTAINS
 
     ! In/output variables:
     TYPE(type_mesh),            INTENT(INOUT)     :: mesh
+    REAL(dp),                   INTENT(IN)        :: alpha_min     ! Minimum allowed internal triangle angle
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'Lloyds_algorithm_single_iteration'
@@ -774,6 +776,9 @@ CONTAINS
       CALL move_vertex( mesh, vi, VorGC)
 
     END DO
+
+    ! Final step to ensure a nice clean mesh
+    CALL refine_mesh_split_encroaching_triangles( mesh, alpha_min)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

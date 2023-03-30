@@ -8,7 +8,7 @@ MODULE CSR_sparse_matrix_utilities
   USE mpi
   USE precisions                                             , ONLY: dp
   USE mpi_basic                                              , ONLY: par, cerr, ierr, MPI_status, sync
-  USE control_resources_and_error_messaging                  , ONLY: warning, crash, init_routine, finalise_routine
+  USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine
   USE parameters
   USE reallocate_mod                                         , ONLY: reallocate
   USE basic_data_types                                       , ONLY: type_sparse_matrix_CSR_dp
@@ -53,6 +53,35 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE allocate_matrix_CSR_dist
+
+  SUBROUTINE deallocate_matrix_CSR_dist( A)
+    ! Deallocate memory for a CSR-format sparse matrix A
+
+    IMPLICIT NONE
+
+    ! In- and output variables:
+    TYPE(type_sparse_matrix_CSR_dp),     INTENT(INOUT) :: A
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'deallocate_matrix_CSR_dist'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Matrix dimensions
+    A%m       = 0
+    A%n       = 0
+    A%nnz_max = 0
+    A%nnz     = 0
+
+    DEALLOCATE( A%ptr)
+    DEALLOCATE( A%ind)
+    DEALLOCATE( A%val)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE deallocate_matrix_CSR_dist
 
   SUBROUTINE add_entry_CSR_dist( A, i, j, v)
     ! Add value v to row i, column j of CSR-formatted matrix A

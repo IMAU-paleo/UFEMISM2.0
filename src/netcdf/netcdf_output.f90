@@ -10,9 +10,10 @@ MODULE netcdf_output
 ! ===== Preamble =====
 ! ====================
 
+  USE mpi
   USE precisions                                             , ONLY: dp
   USE mpi_basic                                              , ONLY: par, cerr, ierr, MPI_status, sync
-  USE control_resources_and_error_messaging                  , ONLY: warning, crash, init_routine, finalise_routine
+  USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine
   USE basic_data_types                                       , ONLY: type_grid, type_grid_lonlat
   USE math_utilities                                         , ONLY: permute_2D_int, permute_2D_dp, permute_3D_int, permute_3D_dp, &
                                                                      flip_1D_dp, flip_2D_x1_dp, flip_2D_x2_dp, flip_3D_x1_dp, flip_3D_x2_dp, flip_3D_x3_dp, &
@@ -46,7 +47,8 @@ MODULE netcdf_output
                           write_dist_var_dp_0D, write_dist_var_dp_1D, write_dist_var_dp_2D, write_dist_var_dp_3D, write_dist_var_dp_4D, &
                           write_var_int_0D, write_var_int_1D, write_var_int_2D, write_var_int_3D, write_var_int_4D, &
                           write_var_dp_0D, write_var_dp_1D, write_var_dp_2D, write_var_dp_3D, write_var_dp_4D, &
-                          add_attribute_char, check_month, check_time, create_dimension, create_variable, inquire_var
+                          add_attribute_char, check_month, check_time, create_dimension, create_variable, inquire_var, &
+                          open_existing_netcdf_file_for_writing, switch_to_data_mode
 
   IMPLICIT NONE
 
@@ -1045,7 +1047,7 @@ CONTAINS
 
     ! In/output variables:
     CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
+    INTEGER,                             INTENT(INOUT) :: ncid
     TYPE(type_mesh),                     INTENT(IN)    :: mesh
 
     ! Local variables:
@@ -1095,30 +1097,24 @@ CONTAINS
     CALL create_variable( filename, ncid, get_first_option_from_list( field_name_options_V             ), NF90_DOUBLE, (/ id_dim_vi, id_dim_two   /), id_var_V             )
     CALL add_attribute_char( filename, ncid, id_var_V             , 'long_name'  , 'Vertex coordinates'         )
     CALL add_attribute_char( filename, ncid, id_var_V             , 'units'      , 'm'                          )
-    CALL write_var_dp_2D(    filename, ncid, id_var_V             , mesh%V             )
     ! nC
     CALL create_variable( filename, ncid, get_first_option_from_list( field_name_options_nC            ), NF90_INT   , (/ id_dim_vi               /), id_var_nC            )
     CALL add_attribute_char( filename, ncid, id_var_nC            , 'long_name'  , 'Number of vertex-vertex connections')
-    CALL write_var_int_1D(   filename, ncid, id_var_nC            , mesh%nC            )
     ! C
     CALL create_variable( filename, ncid, get_first_option_from_list( field_name_options_C             ), NF90_INT   , (/ id_dim_vi, id_dim_ci    /), id_var_C             )
     CALL add_attribute_char( filename, ncid, id_var_C             , 'long_name'  , 'Vertex-vertex connections')
     CALL add_attribute_char( filename, ncid, id_var_C             , 'orientation', 'counter-clockwise'          )
-    CALL write_var_int_2D(   filename, ncid, id_var_C             , mesh%C             )
     ! niTri
     CALL create_variable( filename, ncid, get_first_option_from_list( field_name_options_niTri         ), NF90_INT   , (/ id_dim_vi               /), id_var_niTri         )
     CALL add_attribute_char( filename, ncid, id_var_niTri         , 'long_name'  , 'Number of vertex-triangle connections')
-    CALL write_var_int_1D(   filename, ncid, id_var_niTri         , mesh%niTri         )
     ! iTri
     CALL create_variable( filename, ncid, get_first_option_from_list( field_name_options_iTri          ), NF90_INT   , (/ id_dim_vi, id_dim_ci    /), id_var_iTri          )
     CALL add_attribute_char( filename, ncid, id_var_iTri          , 'long_name'  , 'Vertex-triangle connections')
     CALL add_attribute_char( filename, ncid, id_var_iTri          , 'orientation', 'counter-clockwise'          )
-    CALL write_var_int_2D(   filename, ncid, id_var_iTri          , mesh%iTri          )
     ! VBI
     CALL create_variable( filename, ncid, get_first_option_from_list( field_name_options_VBI           ), NF90_INT   , (/ id_dim_vi               /), id_var_VBI           )
     CALL add_attribute_char( filename, ncid, id_var_VBI           , 'long_name'  , 'Vertex boundary index')
     CALL add_attribute_char( filename, ncid, id_var_VBI           , 'orientation', '1 = N, 2 = NE, 3 = E, 4 = SE, 5 = S, 6 = SW, 7 = W, 8 = NW')
-    CALL write_var_int_1D(   filename, ncid, id_var_VBI           , mesh%VBI           )
 
     ! Create and write mesh variables - triangle data
 
@@ -1126,22 +1122,18 @@ CONTAINS
     CALL create_variable( filename, ncid, get_first_option_from_list( field_name_options_Tri           ), NF90_INT   , (/ id_dim_ti, id_dim_three /), id_var_Tri           )
     CALL add_attribute_char( filename, ncid, id_var_Tri           , 'long_name'  , 'Vertex indices per triangle')
     CALL add_attribute_char( filename, ncid, id_var_Tri           , 'orientation', 'counter-clockwise'          )
-    CALL write_var_int_2D(   filename, ncid, id_var_Tri           , mesh%Tri           )
     ! Tricc
     CALL create_variable( filename, ncid, get_first_option_from_list( field_name_options_Tricc         ), NF90_DOUBLE, (/ id_dim_ti, id_dim_two   /), id_var_Tricc         )
     CALL add_attribute_char( filename, ncid, id_var_Tricc         , 'long_name'  , 'Triangle circumcentre coordinates')
     CALL add_attribute_char( filename, ncid, id_var_Tricc         , 'units'      , 'm'                          )
-    CALL write_var_dp_2D(    filename, ncid, id_var_Tricc         , mesh%Tricc         )
     ! TriC
     CALL create_variable( filename, ncid, get_first_option_from_list( field_name_options_TriC          ), NF90_INT   , (/ id_dim_ti, id_dim_three /), id_var_TriC          )
     CALL add_attribute_char( filename, ncid, id_var_TriC          , 'long_name'  , 'Triangle-triangle connections')
     CALL add_attribute_char( filename, ncid, id_var_TriC          , 'orientation', 'counter-clockwise, opposite from constituent vertices (i.e. first entry is opposite from first vertex)')
-    CALL write_var_int_2D(   filename, ncid, id_var_TriC          , mesh%TriC          )
     ! TriBI
     CALL create_variable( filename, ncid, get_first_option_from_list( field_name_options_TriBI         ), NF90_INT   , (/ id_dim_ti               /), id_var_TriBI)
     CALL add_attribute_char( filename, ncid, id_var_TriBI         , 'long_name'  , 'Triangle boundary index')
     CALL add_attribute_char( filename, ncid, id_var_TriBI         , 'orientation', '1 = N, 2 = NE, 3 = E, 4 = SE, 5 = S, 6 = SW, 7 = W, 8 = NW')
-    CALL write_var_int_1D(   filename, ncid, id_var_TriBI         , mesh%triBI)
 
     ! Create and write mesh variables - edge data
 
@@ -1149,46 +1141,58 @@ CONTAINS
     CALL create_variable( filename, ncid, get_first_option_from_list( field_name_options_E             ), NF90_DOUBLE, (/ id_dim_ei, id_dim_two   /), id_var_E             )
     CALL add_attribute_char( filename, ncid, id_var_E             , 'long_name'  , 'Edge midpoint coordinates')
     CALL add_attribute_char( filename, ncid, id_var_E             , 'units'      , 'm'                           )
-    CALL write_var_dp_2D(    filename, ncid, id_var_E             , mesh%E             )
     ! VE
     CALL create_variable( filename, ncid, get_first_option_from_list( field_name_options_VE            ), NF90_INT   , (/ id_dim_vi, id_dim_ci    /), id_var_VE            )
     CALL add_attribute_char( filename, ncid, id_var_VE            , 'long_name'  , 'Vertex-to-edge connectivity list')
     CALL add_attribute_char( filename, ncid, id_var_VE            , 'orientation', 'same as vertex-vertex connectivity list')
-    CALL write_var_int_2D(   filename, ncid, id_var_VE            , mesh%VE            )
     ! EV
     CALL create_variable( filename, ncid, get_first_option_from_list( field_name_options_EV            ), NF90_INT   , (/ id_dim_ei,  id_dim_four /), id_var_EV            )
     CALL add_attribute_char( filename, ncid, id_var_EV            , 'long_name'  , 'Edge-to-vertex connectivity list')
     CALL add_attribute_char( filename, ncid, id_var_EV            , 'orientation', 'vi,vj,vl,vr (start,end,left,right)')
-    CALL write_var_int_2D(   filename, ncid, id_var_EV            , mesh%EV            )
     ! ETri
     CALL create_variable( filename, ncid, get_first_option_from_list( field_name_options_ETri          ), NF90_INT   , (/ id_dim_ei,  id_dim_two  /), id_var_ETri          )
     CALL add_attribute_char( filename, ncid, id_var_ETri          , 'long_name'  , 'Edge-to-triangle connectivity list')
     CALL add_attribute_char( filename, ncid, id_var_ETri          , 'orientation', 'tl,tr (left,right)')
-    CALL write_var_int_2D(   filename, ncid, id_var_ETri          , mesh%ETri          )
     ! EBI
     CALL create_variable( filename, ncid, get_first_option_from_list( field_name_options_EBI           ), NF90_INT   , (/ id_dim_ei               /), id_var_EBI           )
     CALL add_attribute_char( filename, ncid, id_var_EBI           , 'long_name'  , 'Edge boundary index')
     CALL add_attribute_char( filename, ncid, id_var_EBI           , 'orientation', '1 = N, 2 = NE, 3 = E, 4 = SE, 5 = S, 6 = SW, 7 = W, 8 = NW')
-    CALL write_var_int_1D(   filename, ncid, id_var_EBI           , mesh%EBI           )
 
     ! Create and write mesh variables - resolution, Voronoi cell area, longitude, and latitude
 
     ! R
     CALL add_field_mesh_dp_2D_notime( filename, ncid, get_first_option_from_list( field_name_options_R             ), long_name = 'Resolution', units = 'm')
     CALL inquire_var(                 filename, ncid, get_first_option_from_list( field_name_options_R             ), id_var_R)
-    CALL write_var_dp_1D( filename, ncid, id_var_R              , mesh%R  )
     ! A
     CALL add_field_mesh_dp_2D_notime( filename, ncid, get_first_option_from_list( field_name_options_A             ), long_name = 'Voronoi cell area', units = 'm^2')
     CALL inquire_var(                 filename, ncid, get_first_option_from_list( field_name_options_A             ), id_var_A)
-    CALL write_var_dp_1D( filename, ncid, id_var_A              , mesh%A  )
     ! lon
     CALL add_field_mesh_dp_2D_notime( filename, ncid, get_first_option_from_list( field_name_options_lon           ), long_name = 'Longitude', units = 'degrees east')
     CALL inquire_var(                 filename, ncid, get_first_option_from_list( field_name_options_lon           ), id_var_lon)
-    CALL write_var_dp_1D( filename, ncid, id_var_lon            , mesh%lon)
     ! lat
     CALL add_field_mesh_dp_2D_notime( filename, ncid, get_first_option_from_list( field_name_options_lat           ), long_name = 'Latitude' , units = 'degrees north')
     CALL inquire_var(                 filename, ncid, get_first_option_from_list( field_name_options_lat           ), id_var_lat)
-    CALL write_var_dp_1D( filename, ncid, id_var_lat            , mesh%lat)
+
+    ! Write mesh data to file
+    CALL write_var_dp_2D(    filename, ncid, id_var_V             , mesh%V             )
+    CALL write_var_int_1D(   filename, ncid, id_var_nC            , mesh%nC            )
+    CALL write_var_int_2D(   filename, ncid, id_var_C             , mesh%C             )
+    CALL write_var_int_1D(   filename, ncid, id_var_niTri         , mesh%niTri         )
+    CALL write_var_int_2D(   filename, ncid, id_var_iTri          , mesh%iTri          )
+    CALL write_var_int_1D(   filename, ncid, id_var_VBI           , mesh%VBI           )
+    CALL write_var_int_2D(   filename, ncid, id_var_Tri           , mesh%Tri           )
+    CALL write_var_dp_2D(    filename, ncid, id_var_Tricc         , mesh%Tricc         )
+    CALL write_var_int_2D(   filename, ncid, id_var_TriC          , mesh%TriC          )
+    CALL write_var_int_1D(   filename, ncid, id_var_TriBI         , mesh%TriBI         )
+    CALL write_var_dp_2D(    filename, ncid, id_var_E             , mesh%E             )
+    CALL write_var_int_2D(   filename, ncid, id_var_VE            , mesh%VE            )
+    CALL write_var_int_2D(   filename, ncid, id_var_EV            , mesh%EV            )
+    CALL write_var_int_2D(   filename, ncid, id_var_ETri          , mesh%ETri          )
+    CALL write_var_int_1D(   filename, ncid, id_var_EBI           , mesh%EBI           )
+    CALL write_var_dp_1D(    filename, ncid, id_var_R             , mesh%R             )
+    CALL write_var_dp_1D(    filename, ncid, id_var_A             , mesh%A             )
+    CALL write_var_dp_1D(    filename, ncid, id_var_lon           , mesh%lon           )
+    CALL write_var_dp_1D(    filename, ncid, id_var_lat           , mesh%lat           )
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

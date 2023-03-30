@@ -1,0 +1,224 @@
+clc
+clear all
+close all
+
+filename = '../../test_mesh_operators_basic_output.nc';
+
+mesh = read_mesh_from_file( filename);
+
+%% Map
+
+wa = 200;
+ha = 200;
+margins_hor = [25, 25, 25, 25, 25];
+margins_ver = [25, 25, 25, 25];
+H_map = setup_multipanel_figure( wa, ha, margins_hor, margins_ver);
+
+for i = 1: 3
+  for j = 1: 4
+    set( H_map.Ax{ i,j},'xtick',[],'ytick',[],'clim',[-1,1]);
+  end
+end
+
+d_a_ex = ncread( filename,'d_a_ex');
+d_b_ex = ncread( filename,'d_b_ex');
+d_c_ex = ncread( filename,'d_c_ex');
+
+% d_a_a  = ncread( filename,'d_a_a');
+d_a_b  = ncread( filename,'d_a_b');
+d_a_c  = ncread( filename,'d_a_c');
+
+d_b_a  = ncread( filename,'d_b_a');
+% d_b_b  = ncread( filename,'d_b_b');
+d_b_c  = ncread( filename,'d_b_c');
+
+d_c_a  = ncread( filename,'d_c_a');
+d_c_b  = ncread( filename,'d_c_b');
+% d_c_c  = ncread( filename,'d_c_c');
+
+plot_mesh_data_a( H_map.Ax{ 1,1}, mesh, d_a_ex);
+% plot_mesh_data_a( H_map.Ax{ 1,2}, mesh, d_a_a);
+plot_mesh_data_a( H_map.Ax{ 1,3}, mesh, d_b_a);
+plot_mesh_data_a( H_map.Ax{ 1,4}, mesh, d_c_a);
+
+plot_mesh_data_b( H_map.Ax{ 2,1}, mesh, d_b_ex);
+plot_mesh_data_b( H_map.Ax{ 2,2}, mesh, d_a_b);
+% plot_mesh_data_b( H_map.Ax{ 2,3}, mesh, d_b_b);
+plot_mesh_data_b( H_map.Ax{ 2,4}, mesh, d_c_b);
+
+plot_mesh_data_c( H_map.Ax{ 3,1}, mesh, d_c_ex);
+plot_mesh_data_c( H_map.Ax{ 3,2}, mesh, d_a_c);
+plot_mesh_data_c( H_map.Ax{ 3,3}, mesh, d_b_c);
+% plot_mesh_data_c( H_map.Ax{ 3,4}, mesh, d_c_c);
+
+%% d/dx
+
+wa = 200;
+ha = 200;
+margins_hor = [25, 25, 25, 25, 25];
+margins_ver = [25, 25, 25, 25];
+H_ddx = setup_multipanel_figure( wa, ha, margins_hor, margins_ver);
+
+for i = 1: 3
+  for j = 1: 4
+    set( H_ddx.Ax{ i,j},'xtick',[],'ytick',[],'clim',[-1e-6,1e-6]);
+  end
+end
+
+ddx_a_ex = ncread( filename,'ddx_a_ex');
+ddx_b_ex = ncread( filename,'ddx_b_ex');
+ddx_c_ex = ncread( filename,'ddx_c_ex');
+
+ddx_a_a  = ncread( filename,'ddx_a_a');
+ddx_a_b  = ncread( filename,'ddx_a_b');
+ddx_a_c  = ncread( filename,'ddx_a_c');
+
+ddx_b_a  = ncread( filename,'ddx_b_a');
+ddx_b_b  = ncread( filename,'ddx_b_b');
+ddx_b_c  = ncread( filename,'ddx_b_c');
+
+ddx_c_a  = ncread( filename,'ddx_c_a');
+ddx_c_b  = ncread( filename,'ddx_c_b');
+ddx_c_c  = ncread( filename,'ddx_c_c');
+
+plot_mesh_data_a( H_ddx.Ax{ 1,1}, mesh, ddx_a_ex);
+plot_mesh_data_a( H_ddx.Ax{ 1,2}, mesh, ddx_a_a);
+plot_mesh_data_a( H_ddx.Ax{ 1,3}, mesh, ddx_b_a);
+plot_mesh_data_a( H_ddx.Ax{ 1,4}, mesh, ddx_c_a);
+
+plot_mesh_data_b( H_ddx.Ax{ 2,1}, mesh, ddx_b_ex);
+plot_mesh_data_b( H_ddx.Ax{ 2,2}, mesh, ddx_a_b);
+plot_mesh_data_b( H_ddx.Ax{ 2,3}, mesh, ddx_b_b);
+plot_mesh_data_b( H_ddx.Ax{ 2,4}, mesh, ddx_c_b);
+
+plot_mesh_data_c( H_ddx.Ax{ 3,1}, mesh, ddx_c_ex);
+plot_mesh_data_c( H_ddx.Ax{ 3,2}, mesh, ddx_a_c);
+plot_mesh_data_c( H_ddx.Ax{ 3,3}, mesh, ddx_b_c);
+plot_mesh_data_c( H_ddx.Ax{ 3,4}, mesh, ddx_c_c);
+
+%% d/dy
+
+wa = 200;
+ha = 200;
+margins_hor = [25, 25, 25, 25, 25];
+margins_ver = [25, 25, 25, 25];
+H_ddy = setup_multipanel_figure( wa, ha, margins_hor, margins_ver);
+
+for i = 1: 3
+  for j = 1: 4
+    set( H_ddy.Ax{ i,j},'xtick',[],'ytick',[],'clim',[-1.55e-6,1.55e-6]);
+  end
+end
+
+ddy_a_ex = ncread( filename,'ddy_a_ex');
+ddy_b_ex = ncread( filename,'ddy_b_ex');
+ddy_c_ex = ncread( filename,'ddy_c_ex');
+
+ddy_a_a  = ncread( filename,'ddy_a_a');
+ddy_a_b  = ncread( filename,'ddy_a_b');
+ddy_a_c  = ncread( filename,'ddy_a_c');
+
+ddy_b_a  = ncread( filename,'ddy_b_a');
+ddy_b_b  = ncread( filename,'ddy_b_b');
+ddy_b_c  = ncread( filename,'ddy_b_c');
+
+ddy_c_a  = ncread( filename,'ddy_c_a');
+ddy_c_b  = ncread( filename,'ddy_c_b');
+ddy_c_c  = ncread( filename,'ddy_c_c');
+
+plot_mesh_data_a( H_ddy.Ax{ 1,1}, mesh, ddy_a_ex);
+plot_mesh_data_a( H_ddy.Ax{ 1,2}, mesh, ddy_a_a);
+plot_mesh_data_a( H_ddy.Ax{ 1,3}, mesh, ddy_b_a);
+plot_mesh_data_a( H_ddy.Ax{ 1,4}, mesh, ddy_c_a);
+
+plot_mesh_data_b( H_ddy.Ax{ 2,1}, mesh, ddy_b_ex);
+plot_mesh_data_b( H_ddy.Ax{ 2,2}, mesh, ddy_a_b);
+plot_mesh_data_b( H_ddy.Ax{ 2,3}, mesh, ddy_b_b);
+plot_mesh_data_b( H_ddy.Ax{ 2,4}, mesh, ddy_c_b);
+
+plot_mesh_data_c( H_ddy.Ax{ 3,1}, mesh, ddy_c_ex);
+plot_mesh_data_c( H_ddy.Ax{ 3,2}, mesh, ddy_a_c);
+plot_mesh_data_c( H_ddy.Ax{ 3,3}, mesh, ddy_b_c);
+plot_mesh_data_c( H_ddy.Ax{ 3,4}, mesh, ddy_c_c);
+
+%% 2nd order
+
+wa = 200;
+ha = 200;
+margins_hor = [25, 25, 25];
+margins_ver = [25, 25, 25, 25];
+H_M2 = setup_multipanel_figure( wa, ha, margins_hor, margins_ver);
+
+for i = 1: 3
+  for j = 1: 2
+    set( H_M2.Ax{ i,j},'xtick',[],'ytick',[]);
+  end
+end
+
+d2dx2_b_ex  = ncread( filename,'d2dx2_b_ex' );
+d2dxdy_b_ex = ncread( filename,'d2dxdy_b_ex');
+d2dy2_b_ex  = ncread( filename,'d2dy2_b_ex' );
+
+d2dx2_b_b  = ncread( filename,'d2dx2_b_b' );
+d2dxdy_b_b = ncread( filename,'d2dxdy_b_b');
+d2dy2_b_b  = ncread( filename,'d2dy2_b_b' );
+
+set( H_M2.Ax{ 1,1},'clim', [min( d2dx2_b_ex), max( d2dx2_b_ex)]);
+set( H_M2.Ax{ 1,2},'clim', [min( d2dx2_b_ex), max( d2dx2_b_ex)]);
+
+set( H_M2.Ax{ 2,1},'clim', [min( d2dxdy_b_ex), max( d2dxdy_b_ex)]);
+set( H_M2.Ax{ 2,2},'clim', [min( d2dxdy_b_ex), max( d2dxdy_b_ex)]);
+
+set( H_M2.Ax{ 3,1},'clim', [min( d2dy2_b_ex), max( d2dy2_b_ex)]);
+set( H_M2.Ax{ 3,2},'clim', [min( d2dy2_b_ex), max( d2dy2_b_ex)]);
+
+plot_mesh_data_b( H_M2.Ax{ 1,1}, mesh, d2dx2_b_ex);
+plot_mesh_data_b( H_M2.Ax{ 2,1}, mesh, d2dxdy_b_ex);
+plot_mesh_data_b( H_M2.Ax{ 3,1}, mesh, d2dy2_b_ex);
+
+plot_mesh_data_b( H_M2.Ax{ 1,2}, mesh, d2dx2_b_b);
+plot_mesh_data_b( H_M2.Ax{ 2,2}, mesh, d2dxdy_b_b);
+plot_mesh_data_b( H_M2.Ax{ 3,2}, mesh, d2dy2_b_b);
+
+function plot_mesh_data_a( ax, mesh, d)
+  patch('parent',ax,'vertices',mesh.V(1:mesh.nV,:),'faces',mesh.Tri(1:mesh.nTri,:),...
+    'facecolor','interp','facevertexcdata',d,'edgecolor','none');
+  set(ax,'xlim',[mesh.xmin,mesh.xmax],'ylim',[mesh.ymin,mesh.ymax]);
+end
+function plot_mesh_data_b( ax, mesh, d)
+  patch('parent',ax,'vertices',mesh.V(1:mesh.nV,:),'faces',mesh.Tri(1:mesh.nTri,:),...
+    'facecolor','flat','facevertexcdata',d,'edgecolor','none');
+  set(ax,'xlim',[mesh.xmin,mesh.xmax],'ylim',[mesh.ymin,mesh.ymax]);
+end
+function plot_mesh_data_c( ax, mesh, d)
+
+  set(ax,'xlim',[mesh.xmin,mesh.xmax],'ylim',[mesh.ymin,mesh.ymax]);
+  
+  ncols = 256;
+  cmap = parula(ncols);
+  clim = [min(d), max(d)];
+  if (clim(1)==clim(2))
+    clim(1) = clim(1)-1;
+    clim(2) = clim(2)+1;
+  end
+  set(ax,'clim',clim)
+  
+  for ci = 1: ncols
+    linedata(ci).x = [];
+    linedata(ci).y = [];
+  end
+  for aci = 1: mesh.nE
+    ci = (d( aci) - clim(1)) / (clim(2) - clim(1));
+    ci = max(1,min(ncols,1 + round(ci*(ncols-1))));
+    linedata(ci).x( end+1) = mesh.E( aci,1);
+    linedata(ci).y( end+1) = mesh.E( aci,2);
+  end
+  for ci = 1: ncols
+    line('parent',ax,'xdata',linedata( ci).x,'ydata',linedata( ci).y,'linestyle','none',...
+      'marker','o','markerfacecolor',cmap( ci,:),'markeredgecolor',cmap( ci,:),'markersize',8);
+  end
+  
+  % lastly NaN values
+  line('parent',ax,'xdata',mesh.E( isnan(d),1),'ydata',mesh.E( isnan(d),2),'linestyle','none',...
+      'marker','x','markerfacecolor','r','markeredgecolor','r','markersize',8);
+end

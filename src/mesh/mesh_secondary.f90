@@ -5,9 +5,11 @@ MODULE mesh_secondary
 ! ===== Preamble =====
 ! ====================
 
+  USE mpi
   USE precisions                                             , ONLY: dp
   USE mpi_basic                                              , ONLY: par, cerr, ierr, MPI_status, sync
-  USE control_resources_and_error_messaging                  , ONLY: warning, crash, init_routine, finalise_routine
+  USE mpi_distributed_memory                                 , ONLY: partition_list
+  USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine
   USE mesh_types                                             , ONLY: type_mesh
   USE mesh_utilities                                         , ONLY: calc_Voronoi_cell_vertices
   USE math_utilities                                         , ONLY: cross2, line_integral_xdy, line_integral_xydy, line_integral_mxydx, triangle_area, &
@@ -38,6 +40,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_all_secondary_mesh_data'
+    INTEGER                                            :: nz
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -52,23 +55,7 @@ CONTAINS
     CALL calc_mesh_resolution(                mesh)
     CALL calc_triangle_geometric_centres(     mesh)
     CALL calc_lonlat(                         mesh, lambda_M, phi_M, beta_stereo)
-
-    ! Matrix operators
-    CALL calc_field_to_vector_form_translation_tables( mesh)
-
-    CALL calc_matrix_operators_mesh_a_a(               mesh)
-    CALL calc_matrix_operators_mesh_a_b(               mesh)
-    CALL calc_matrix_operators_mesh_a_c(               mesh)
-
-    CALL calc_matrix_operators_mesh_b_a(               mesh)
-    CALL calc_matrix_operators_mesh_b_b(               mesh)
-    CALL calc_matrix_operators_mesh_b_c(               mesh)
-
-    CALL calc_matrix_operators_mesh_c_a(               mesh)
-    CALL calc_matrix_operators_mesh_c_b(               mesh)
-    CALL calc_matrix_operators_mesh_c_c(               mesh)
-
-    CALL calc_matrix_operators_mesh_b_b_2nd_order(     mesh)
+    CALL calc_mesh_parallelisation_ranges(    mesh)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -509,5 +496,28 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE calc_lonlat
+
+  SUBROUTINE calc_mesh_parallelisation_ranges( mesh)
+    ! Calculate ranges of vertices, triangles, and edges "owned" by each process
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),            INTENT(INOUT)     :: mesh
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'calc_mesh_parallelisation_ranges'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    CALL partition_list( mesh%nV  , par%i, par%n, mesh%vi1, mesh%vi2)
+    CALL partition_list( mesh%nTri, par%i, par%n, mesh%ti1, mesh%ti2)
+    CALL partition_list( mesh%nE  , par%i, par%n, mesh%ei1, mesh%ei2)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE calc_mesh_parallelisation_ranges
 
 END MODULE mesh_secondary

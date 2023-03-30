@@ -55,6 +55,7 @@ ifeq ($(DO_SELEN),yes)
     basic/mpi_distributed_memory.o \
     basic/math_utilities.o \
     basic/CSR_sparse_matrix_utilities.o \
+    basic/petsc_basic.o \
     basic/config_file_utilities.o \
     \
     mesh/mesh_configuration.o \
@@ -74,6 +75,8 @@ ifeq ($(DO_SELEN),yes)
     netcdf/netcdf_output.o \
     \
     climate/climate_main.o \
+    \
+    validation/mesh_validation.o \
     \
     UFEMISM_main_model.o \
     UFEMISM_program.o
@@ -91,6 +94,7 @@ else
     basic/mpi_distributed_memory.o \
     basic/math_utilities.o \
     basic/CSR_sparse_matrix_utilities.o \
+    basic/petsc_basic.o \
     basic/config_file_utilities.o \
     \
     mesh/mesh_configuration.o \
@@ -110,6 +114,8 @@ else
     netcdf/netcdf_output.o \
     \
     climate/climate_main.o \
+    \
+    validation/mesh_unit_tests.o \
     \
     UFEMISM_main_model.o \
     UFEMISM_program.o
@@ -139,7 +145,8 @@ clean :
 	object-files/netcdf/*.o \
 	object-files/ocean/*.o \
 	object-files/surface_mass_balance/*.o \
-	object-files/utilities/*.o
+	object-files/utilities/*.o \
+	object-files/validation/*.o
 
 
 

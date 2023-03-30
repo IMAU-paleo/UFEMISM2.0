@@ -5,9 +5,10 @@ MODULE mesh_memory
 ! ===== Preamble =====
 ! ====================
 
+  USE mpi
   USE precisions                                             , ONLY: dp
   USE mpi_basic                                              , ONLY: par, cerr, ierr, MPI_status, sync
-  USE control_resources_and_error_messaging                  , ONLY: warning, crash, init_routine, finalise_routine
+  USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine
   USE mesh_types                                             , ONLY: type_mesh
   USE reallocate_mod                                         , ONLY: reallocate
 
@@ -76,6 +77,7 @@ CONTAINS
     ALLOCATE( mesh%Tri_flip_list    (nTri_mem, 2     ), source = 0    )
     ALLOCATE( mesh%refinement_map   (nTri_mem        ), source = 0    )
     ALLOCATE( mesh%refinement_stack (nTri_mem        ), source = 0    )
+    mesh%refinement_stackN = 0
     ALLOCATE( mesh%Tri_li           (nTri_mem, 2     ), source = 0    )
 
     ! Finalise routine path
@@ -141,25 +143,36 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    mesh%nV_mem   = mesh%nV
-    mesh%nTri_mem = mesh%nTri
+    IF (mesh%nV_mem > mesh%nV) THEN
 
-    CALL reallocate( mesh%V               , mesh%nV,   2          )
-    CALL reallocate( mesh%nC              , mesh%nV               )
-    CALL reallocate( mesh%C               , mesh%nV,   mesh%nC_mem)
-    CALL reallocate( mesh%niTri           , mesh%nV               )
-    CALL reallocate( mesh%iTri            , mesh%nV,   mesh%nC_mem)
-    CALL reallocate( mesh%VBI             , mesh%nV               )
+      mesh%nV_mem   = mesh%nV
 
-    CALL reallocate( mesh%Tri             , mesh%nTri, 3          )
-    CALL reallocate( mesh%Tricc           , mesh%nTri, 2          )
-    CALL reallocate( mesh%TriC            , mesh%nTri, 3          )
+      ! Vertex data
+      CALL reallocate( mesh%V               , mesh%nV,   2          )
+      CALL reallocate( mesh%nC              , mesh%nV               )
+      CALL reallocate( mesh%C               , mesh%nV,   mesh%nC_mem)
+      CALL reallocate( mesh%niTri           , mesh%nV               )
+      CALL reallocate( mesh%iTri            , mesh%nV,   mesh%nC_mem)
+      CALL reallocate( mesh%VBI             , mesh%nV               )
 
-    ! Mesh generation/refinement data
-    CALL reallocate( mesh%Tri_flip_list   , mesh%nTri, 2          )
-    CALL reallocate( mesh%refinement_map  , mesh%nTri             )
-    CALL reallocate( mesh%refinement_stack, mesh%nTri             )
-    CALL reallocate( mesh%Tri_li          , mesh%nTri, 2          )
+    END IF ! IF (mesh%nV_mem > mesh%nV) THEN
+
+    IF (mesh%nTri_mem > mesh%nTri) THEN
+
+      mesh%nTri_mem = mesh%nTri
+
+      ! Triangle data
+      CALL reallocate( mesh%Tri             , mesh%nTri, 3          )
+      CALL reallocate( mesh%Tricc           , mesh%nTri, 2          )
+      CALL reallocate( mesh%TriC            , mesh%nTri, 3          )
+
+      ! Mesh generation/refinement data
+      CALL reallocate( mesh%Tri_flip_list   , mesh%nTri, 2          )
+      CALL reallocate( mesh%refinement_map  , mesh%nTri             )
+      CALL reallocate( mesh%refinement_stack, mesh%nTri             )
+      CALL reallocate( mesh%Tri_li          , mesh%nTri, 2          )
+
+    END IF ! IF (mesh%nTri_mem > mesh%nTri) THEN
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

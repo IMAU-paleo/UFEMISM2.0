@@ -40,8 +40,7 @@ CONTAINS
     INTEGER                            , INTENT(IN)      :: newx
     REAL(dp), ALLOCATABLE, DIMENSION(:)                  :: newarray
 
-    ALLOCATE( newarray( newx))
-    newarray = 0._dp
+    ALLOCATE( newarray( newx), source = 0._dp)
     newarray( 1: MIN( newx,SIZE( array,1))) = array(1: MIN( newx,SIZE( array,1)))
     CALL MOVE_ALLOC( newarray, array)
 
@@ -57,8 +56,7 @@ CONTAINS
     INTEGER                              , INTENT(IN)    :: newy
     REAL(dp), ALLOCATABLE, DIMENSION(:,:)                :: newarray
 
-    ALLOCATE( newarray( newx,newy))
-    newarray = 0._dp
+    ALLOCATE( newarray( newx,newy), source = 0._dp)
     newarray( 1: MIN( newx,SIZE( array,1)),1: MIN( newy,SIZE( array,2))) &
         = array(1: MIN( newx,SIZE( array,1)),1: MIN( newy,SIZE( array,2)))
     CALL MOVE_ALLOC( newarray, array)
@@ -74,8 +72,7 @@ CONTAINS
     INTEGER                            , INTENT(IN)      :: newx
     INTEGER,  ALLOCATABLE, DIMENSION(:)                  :: newarray
 
-    ALLOCATE( newarray( newx))
-    newarray = 0
+    ALLOCATE( newarray( newx), source = 0)
     newarray( 1: MIN( newx,SIZE( array,1))) = array(1: MIN( newx,SIZE( array,1)))
     CALL MOVE_ALLOC( newarray, array)
 
@@ -91,8 +88,7 @@ CONTAINS
     INTEGER                              , INTENT(IN)    :: newy
     INTEGER,  ALLOCATABLE, DIMENSION(:,:)                :: newarray
 
-    ALLOCATE( newarray( newx,newy))
-    newarray = 0d0
+    ALLOCATE( newarray( newx,newy), source = 0)
     newarray( 1: MIN( newx,SIZE( array,1)),1: MIN( newy,SIZE( array,2))) &
         = array(1: MIN( newx,SIZE( array,1)),1: MIN( newy,SIZE( array,2)))
     CALL MOVE_ALLOC( newarray, array)
@@ -108,8 +104,7 @@ CONTAINS
     INTEGER                            , INTENT(IN)      :: start, stop
     REAL(dp), ALLOCATABLE, DIMENSION(:)                  :: newarray
 
-    ALLOCATE( newarray( start:stop))
-    newarray = 0d0
+    ALLOCATE( newarray( start:stop), source = 0._dp)
     CALL MOVE_ALLOC( newarray, array)
 
   END SUBROUTINE
@@ -123,8 +118,7 @@ CONTAINS
     INTEGER                              , INTENT(IN)    :: start, stop, d2
     REAL(dp), ALLOCATABLE, DIMENSION(:,:)                :: newarray
 
-    ALLOCATE( newarray( start:stop,d2))
-    newarray = 0d0
+    ALLOCATE( newarray( start:stop,d2), source = 0._dp)
     CALL MOVE_ALLOC( newarray, array)
 
   END SUBROUTINE
@@ -138,8 +132,7 @@ CONTAINS
     INTEGER                            , INTENT(IN)      :: start, stop
     INTEGER , ALLOCATABLE, DIMENSION(:)                  :: newarray
 
-    ALLOCATE( newarray( start:stop))
-    newarray = 0
+    ALLOCATE( newarray( start:stop), source = 0)
     CALL MOVE_ALLOC( newarray, array)
 
   END SUBROUTINE
@@ -153,8 +146,7 @@ CONTAINS
     INTEGER                              , INTENT(IN)    :: start, stop, d2
     INTEGER , ALLOCATABLE, DIMENSION(:,:)                :: newarray
 
-    ALLOCATE( newarray( start:stop,d2))
-    newarray = 0
+    ALLOCATE( newarray( start:stop,d2), source = 0)
     CALL MOVE_ALLOC( newarray, array)
 
   END SUBROUTINE

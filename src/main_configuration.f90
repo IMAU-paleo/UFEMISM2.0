@@ -1,4 +1,4 @@
-MODULE mesh_configuration
+MODULE main_configuration
 
   ! The main model configuration parameters
 
@@ -82,4 +82,4 @@ CONTAINS
 ! ===== Subroutines ======
 ! ========================
 
-END MODULE mesh_configuration
+END MODULE main_configuration

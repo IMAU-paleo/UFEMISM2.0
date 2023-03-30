@@ -95,31 +95,60 @@ MODULE mesh_types
     INTEGER,  DIMENSION(:,:  ), ALLOCATABLE :: ETri                          !           Edge-to-triangle connectivity list
     INTEGER,  DIMENSION(:    ), ALLOCATABLE :: EBI                           ! [0-8]     Each edge's border index; 0 = free, 1 = north, 2 = northeast, ..., 8 = northwest
 
+    ! Parallelisation ranges
+    INTEGER                                 :: vi1, vi2                      ! Each process "owns" vertices  vi1 - vi2
+    INTEGER                                 :: ti1, ti2                      ! Each process "owns" triangles ti1 - ti2
+    INTEGER                                 :: ei1, ei2                      ! Each process "owns" edges     ei1 - ei2
+
   ! Matrix operators
   ! ================
 
     ! Grid-cell-to-matrix-row translation tables
 
     ! a-grid (vertices)
-    INTEGER                                 :: nna, nnauv
+    INTEGER                                 :: nna, nnauv, nnak, nnaks, nnakuv, nnaksuv
     INTEGER,  DIMENSION(:,:  ), ALLOCATABLE :: n2vi
     INTEGER,  DIMENSION(:,:  ), ALLOCATABLE :: n2viuv
+    INTEGER,  DIMENSION(:,:  ), ALLOCATABLE :: n2vik
+    INTEGER,  DIMENSION(:,:  ), ALLOCATABLE :: n2vikuv
+    INTEGER,  DIMENSION(:,:  ), ALLOCATABLE :: n2viks
+    INTEGER,  DIMENSION(:,:  ), ALLOCATABLE :: n2viksuv
     INTEGER,  DIMENSION(:    ), ALLOCATABLE :: vi2n
     INTEGER,  DIMENSION(:,:  ), ALLOCATABLE :: viuv2n
+    INTEGER,  DIMENSION(:,:  ), ALLOCATABLE :: vik2n
+    INTEGER,  DIMENSION(:,:,:), ALLOCATABLE :: vikuv2n
+    INTEGER,  DIMENSION(:,:  ), ALLOCATABLE :: viks2n
+    INTEGER,  DIMENSION(:,:,:), ALLOCATABLE :: viksuv2n
 
     ! b-grid (triangles)
-    INTEGER                                 :: nnb, nnbuv
+    INTEGER                                 :: nnb, nnbuv, nnbk, nnbks, nnbkuv, nnbksuv
     INTEGER,  DIMENSION(:,:  ), ALLOCATABLE :: n2ti
     INTEGER,  DIMENSION(:,:  ), ALLOCATABLE :: n2tiuv
+    INTEGER,  DIMENSION(:,:  ), ALLOCATABLE :: n2tik
+    INTEGER,  DIMENSION(:,:  ), ALLOCATABLE :: n2tikuv
+    INTEGER,  DIMENSION(:,:  ), ALLOCATABLE :: n2tiks
+    INTEGER,  DIMENSION(:,:  ), ALLOCATABLE :: n2tiksuv
     INTEGER,  DIMENSION(:    ), ALLOCATABLE :: ti2n
     INTEGER,  DIMENSION(:,:  ), ALLOCATABLE :: tiuv2n
+    INTEGER,  DIMENSION(:,:  ), ALLOCATABLE :: tik2n
+    INTEGER,  DIMENSION(:,:,:), ALLOCATABLE :: tikuv2n
+    INTEGER,  DIMENSION(:,:  ), ALLOCATABLE :: tiks2n
+    INTEGER,  DIMENSION(:,:,:), ALLOCATABLE :: tiksuv2n
 
     ! c-grid (edges)
-    INTEGER                                 :: nnc, nncuv
+    INTEGER                                 :: nnc, nncuv, nnck, nncks, nnckuv, nncksuv
     INTEGER,  DIMENSION(:,:  ), ALLOCATABLE :: n2ei
     INTEGER,  DIMENSION(:,:  ), ALLOCATABLE :: n2eiuv
+    INTEGER,  DIMENSION(:,:  ), ALLOCATABLE :: n2eik
+    INTEGER,  DIMENSION(:,:  ), ALLOCATABLE :: n2eikuv
+    INTEGER,  DIMENSION(:,:  ), ALLOCATABLE :: n2eiks
+    INTEGER,  DIMENSION(:,:  ), ALLOCATABLE :: n2eiksuv
     INTEGER,  DIMENSION(:    ), ALLOCATABLE :: ei2n
     INTEGER,  DIMENSION(:,:  ), ALLOCATABLE :: eiuv2n
+    INTEGER,  DIMENSION(:,:  ), ALLOCATABLE :: eik2n
+    INTEGER,  DIMENSION(:,:,:), ALLOCATABLE :: eikuv2n
+    INTEGER,  DIMENSION(:,:  ), ALLOCATABLE :: eiks2n
+    INTEGER,  DIMENSION(:,:,:), ALLOCATABLE :: eiksuv2n
 
     ! Basic mapping and gradient operators
 

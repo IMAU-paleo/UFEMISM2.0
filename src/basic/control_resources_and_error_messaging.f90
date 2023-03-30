@@ -359,6 +359,76 @@ CONTAINS
 
   END SUBROUTINE warning
 
+  SUBROUTINE happy( err_msg, int_01, int_02, int_03, int_04, int_05, int_06, int_07, int_08, int_09, int_10, &
+                                dp_01,  dp_02,  dp_03,  dp_04,  dp_05,  dp_06,  dp_07,  dp_08,  dp_09,  dp_10)
+    ! Write a happy message to the screen
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+!   REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE, OPTIONAL, INTENT(INOUT) :: i
+    CHARACTER(LEN=*)                                   , INTENT(IN)    :: err_msg
+    INTEGER                                  , OPTIONAL, INTENT(IN)    :: int_01, int_02, int_03, int_04, int_05, int_06, int_07, int_08, int_09, int_10
+    REAL(dp)                                 , OPTIONAL, INTENT(IN)    ::  dp_01,  dp_02,  dp_03,  dp_04,  dp_05,  dp_06,  dp_07,  dp_08,  dp_09,  dp_10
+
+    ! Local variables:
+    CHARACTER(LEN=1024)                                                :: err_msg_loc
+    INTEGER                                                            :: nc
+    CHARACTER(LEN=9)                                                   :: fmt
+    CHARACTER(LEN=:), ALLOCATABLE                                      :: process_str
+
+    ! Get local, edit-able copy of error message string
+    err_msg_loc = err_msg
+
+    ! Set the process string (e.g. "05/16")
+    IF     (par%n < 10) THEN
+      nc = 1
+    ELSEIF (par%n < 100) THEN
+      nc = 2
+    ELSEIF (par%n < 1000) THEN
+      nc = 3
+    ELSEIF (par%n < 10000) THEN
+      nc = 4
+    ELSE
+      nc = 5
+    END IF
+
+    WRITE( fmt,'(A,I1,A,I1,A)') '(I', nc, ',A,I', nc, ')'
+    ALLOCATE(CHARACTER(2*nc+1) :: process_str)
+    WRITE( process_str,fmt) par%i, '/', par%n
+
+    ! Insert numbers into string if needed
+    IF (PRESENT( int_01)) CALL insert_val_into_string_int( err_msg_loc, '{int_01}', int_01)
+    IF (PRESENT( int_02)) CALL insert_val_into_string_int( err_msg_loc, '{int_02}', int_02)
+    IF (PRESENT( int_03)) CALL insert_val_into_string_int( err_msg_loc, '{int_03}', int_03)
+    IF (PRESENT( int_04)) CALL insert_val_into_string_int( err_msg_loc, '{int_04}', int_04)
+    IF (PRESENT( int_05)) CALL insert_val_into_string_int( err_msg_loc, '{int_05}', int_05)
+    IF (PRESENT( int_06)) CALL insert_val_into_string_int( err_msg_loc, '{int_06}', int_06)
+    IF (PRESENT( int_07)) CALL insert_val_into_string_int( err_msg_loc, '{int_07}', int_07)
+    IF (PRESENT( int_08)) CALL insert_val_into_string_int( err_msg_loc, '{int_08}', int_08)
+    IF (PRESENT( int_09)) CALL insert_val_into_string_int( err_msg_loc, '{int_09}', int_09)
+    IF (PRESENT( int_10)) CALL insert_val_into_string_int( err_msg_loc, '{int_10}', int_10)
+
+    IF (PRESENT( dp_01 )) CALL insert_val_into_string_dp(  err_msg_loc, '{dp_01}' , dp_01 )
+    IF (PRESENT( dp_02 )) CALL insert_val_into_string_dp(  err_msg_loc, '{dp_02}' , dp_02 )
+    IF (PRESENT( dp_03 )) CALL insert_val_into_string_dp(  err_msg_loc, '{dp_03}' , dp_03 )
+    IF (PRESENT( dp_04 )) CALL insert_val_into_string_dp(  err_msg_loc, '{dp_04}' , dp_04 )
+    IF (PRESENT( dp_05 )) CALL insert_val_into_string_dp(  err_msg_loc, '{dp_05}' , dp_05 )
+    IF (PRESENT( dp_06 )) CALL insert_val_into_string_dp(  err_msg_loc, '{dp_06}' , dp_06 )
+    IF (PRESENT( dp_07 )) CALL insert_val_into_string_dp(  err_msg_loc, '{dp_07}' , dp_07 )
+    IF (PRESENT( dp_08 )) CALL insert_val_into_string_dp(  err_msg_loc, '{dp_08}' , dp_08 )
+    IF (PRESENT( dp_09 )) CALL insert_val_into_string_dp(  err_msg_loc, '{dp_09}' , dp_09 )
+    IF (PRESENT( dp_10 )) CALL insert_val_into_string_dp(  err_msg_loc, '{dp_10}' , dp_10 )
+
+    ! Write the error to the screen
+    WRITE(0,'(A,A,A,A,A,A)') colour_string(' SUCCESS: ' // TRIM( err_msg_loc),'green') // ' in ' // colour_string( TRIM(routine_path),'light blue') // &
+      ' on process ', colour_string( process_str,'light blue'), ' (0 = master)'
+
+    ! Clean up after yourself
+    DEALLOCATE( process_str)
+
+  END SUBROUTINE happy
+
   FUNCTION colour_string( str, col) RESULT( str_col)
     ! Add colour to a string for writing to the terminal
 
