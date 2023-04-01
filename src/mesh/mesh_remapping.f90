@@ -590,7 +590,7 @@ CONTAINS
     TYPE(PetscErrorCode)                               :: perr
     LOGICAL                                            :: count_coincidences
     INTEGER,  DIMENSION(:,:  ), ALLOCATABLE            :: overlaps_with_small_triangle, containing_triangle
-    INTEGER                                            :: ti
+    INTEGER                                            :: row, ti
     INTEGER                                            :: via, vib, vic
     REAL(dp), DIMENSION(2)                             :: pa, pb, pc
     REAL(dp)                                           :: xmin, xmax, ymin, ymax
@@ -598,21 +598,22 @@ CONTAINS
     INTEGER                                            :: i, j, n_ext, ii, jj
     INTEGER                                            :: nrows, ncols, nrows_loc, ncols_loc, nnz_est, nnz_est_proc, nnz_per_row_max
     TYPE(type_sparse_matrix_CSR_dp)                    :: A_xdy_g_b_CSR, A_mxydx_g_b_CSR, A_xydy_g_b_CSR
-    TYPE(tMat)                                         :: A_xdy_g_b    , A_mxydx_g_b    , A_xydy_g_b
     TYPE(type_single_row_mapping_matrices)             :: single_row_grid, single_row_Tri
-    INTEGER                                            :: row, ti_hint
+    INTEGER                                            :: ti_hint
     REAL(dp), DIMENSION(2)                             :: p
     REAL(dp)                                           :: xl, xu, yl, yu
     REAL(dp), DIMENSION(2)                             :: sw, se, nw, ne
     INTEGER                                            :: k, kk, nn
     REAL(dp)                                           :: LI_xdy, LI_mxydx, LI_xydy
-    TYPE(tMat)                                         :: w0, w1x, w1y
-    INTEGER                                            :: ncols_row
-    INTEGER,  DIMENSION(:    ), ALLOCATABLE            :: cols_row
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: vals_row, w0_row, w1x_row, w1y_row
+    TYPE(type_sparse_matrix_CSR_dp)                    :: w0_CSR, w1x_CSR, w1y_CSR
+    TYPE(tMat)                                         :: w0    , w1x    , w1y
+    INTEGER                                            :: k1, k2, col
     REAL(dp)                                           :: A_overlap_tot
     TYPE(tMat)                                         :: M_map_a_b, M_ddx_a_b, M_ddy_a_b
     TYPE(tMat)                                         :: M1, M2
+    INTEGER                                            :: ncols_row
+    INTEGER,  DIMENSION(:    ), ALLOCATABLE            :: cols_row
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: vals_row
     LOGICAL                                            :: has_value
 
     ! Add routine to path
@@ -635,7 +636,9 @@ CONTAINS
     ALLOCATE( overlaps_with_small_triangle( grid%nx, grid%ny), source = 0)
     ALLOCATE( containing_triangle(          grid%nx, grid%ny), source = 0)
 
-    DO ti = mesh%ti1, mesh%ti2
+    DO row = mesh%ti1, mesh%ti2
+
+      ti = mesh%n2ti( row)
 
       ! The three vertices spanning this triangle
       via = mesh%Tri( ti,1)
@@ -689,7 +692,10 @@ CONTAINS
       END IF ! IF (mesh%TriA( ti) < 4._dp * grid%dx**2) THEN
 
     END DO
-    CALL sync
+
+     ! Reduce results across the processes
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, overlaps_with_small_triangle, grid%nx * grid%ny, MPI_INTEGER, MPI_MAX, MPI_COMM_WORLD, ierr)
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, containing_triangle         , grid%nx * grid%ny, MPI_INTEGER, MPI_MAX, MPI_COMM_WORLD, ierr)
 
     ! Treat grid cells that possibly were not yet marked before
     DO row = grid%n1, grid%n2
@@ -844,6 +850,8 @@ CONTAINS
 
           ti = single_row_grid%index_left( k)
 
+          col = mesh%ti2n( ti)
+
           ! The three vertices spanning this triangle
           via = mesh%Tri( ti,1)
           vib = mesh%Tri( ti,2)
@@ -879,9 +887,9 @@ CONTAINS
           END DO ! DO kk = 1, single_row_grid%n
 
           ! Add entries to the big matrices
-          CALL add_entry_CSR_dist( A_xdy_g_b_CSR  , row, ti, single_row_grid%LI_xdy(   k))
-          CALL add_entry_CSR_dist( A_mxydx_g_b_CSR, row, ti, single_row_grid%LI_mxydx( k))
-          CALL add_entry_CSR_dist( A_xydy_g_b_CSR , row, ti, single_row_grid%LI_xydy(  k))
+          CALL add_entry_CSR_dist( A_xdy_g_b_CSR  , row, col, single_row_grid%LI_xdy(   k))
+          CALL add_entry_CSR_dist( A_mxydx_g_b_CSR, row, col, single_row_grid%LI_mxydx( k))
+          CALL add_entry_CSR_dist( A_xydy_g_b_CSR , row, col, single_row_grid%LI_xydy(  k))
 
         END DO ! DO k = 1, single_row_grid%n
 
@@ -891,13 +899,15 @@ CONTAINS
 
         ti_hint = containing_triangle( i,j)
 
+        col = mesh%ti2n( ti_hint)
+
         LI_xdy   = grid%dx**2
         LI_mxydx = grid%dx**2 * grid%x( i)
         LI_xydy  = grid%dx**2 * grid%y( j)
 
-        CALL add_entry_CSR_dist( A_xdy_g_b_CSR  , row, ti_hint, LI_xdy  )
-        CALL add_entry_CSR_dist( A_mxydx_g_b_CSR, row, ti_hint, LI_mxydx)
-        CALL add_entry_CSR_dist( A_xydy_g_b_CSR , row, ti_hint, LI_xydy )
+        CALL add_entry_CSR_dist( A_xdy_g_b_CSR  , row, col, LI_xdy  )
+        CALL add_entry_CSR_dist( A_mxydx_g_b_CSR, row, col, LI_mxydx)
+        CALL add_entry_CSR_dist( A_xydy_g_b_CSR , row, col, LI_xydy )
 
       END IF ! IF (overlaps_with_small_triangle( i,j) == 1) THEN
 
@@ -917,85 +927,43 @@ CONTAINS
     DEALLOCATE( single_row_Tri%LI_mxydx   )
     DEALLOCATE( single_row_Tri%LI_xydy    )
 
-    ! Convert matrices from Fortran to PETSc types
-    CALL mat_CSR2petsc( A_xdy_g_b_CSR  , A_xdy_g_b  )
-    CALL mat_CSR2petsc( A_mxydx_g_b_CSR, A_mxydx_g_b)
-    CALL mat_CSR2petsc( A_xydy_g_b_CSR , A_xydy_g_b )
+  ! Calculate w0, w1x, w1y for the mesh-to-grid remapping operator
+  ! ==============================================================
 
-    ! Clean up the Fortran versions
+    CALL allocate_matrix_CSR_dist( w0_CSR , nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+    CALL allocate_matrix_CSR_dist( w1x_CSR, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+    CALL allocate_matrix_CSR_dist( w1y_CSR, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+
+    DO row = grid%n1, grid%n2
+
+      k1 = A_xdy_g_b_CSR%ptr( row  )
+      k2 = A_xdy_g_b_CSR%ptr( row+1) - 1
+
+      A_overlap_tot = SUM( A_xdy_g_b_CSR%val( k1:k2))
+
+      DO k = k1, k2
+        col = A_xdy_g_b_CSR%ind( k)
+        ti = mesh%n2ti( col)
+        CALL add_entry_CSR_dist( w0_CSR , row, col,  A_xdy_g_b_CSR%val(   k) / A_overlap_tot)
+        CALL add_entry_CSR_dist( w1x_CSR, row, col, (A_mxydx_g_b_CSR%val( k) / A_overlap_tot) - (mesh%TriGC( ti,1) * w0_CSR%val( k)))
+        CALL add_entry_CSR_dist( w1y_CSR, row, col, (A_xydy_g_b_CSR%val(  k) / A_overlap_tot) - (mesh%TriGC( ti,2) * w0_CSR%val( k)))
+      END DO
+
+    END DO ! DO row = mesh%vi1, mesh%vi2
+    CALL sync
+
+    ! Clean up after yourself
     CALL deallocate_matrix_CSR_dist( A_xdy_g_b_CSR  )
     CALL deallocate_matrix_CSR_dist( A_mxydx_g_b_CSR)
     CALL deallocate_matrix_CSR_dist( A_xydy_g_b_CSR )
 
-  ! Calculate w0, w1x, w1y for the mesh-to-grid remapping operator
-  ! ==============================================================
+    ! Convert matrices from Fortran to PETSc types
+    CALL mat_CSR2petsc( w0_CSR , w0 )
+    CALL mat_CSR2petsc( w1x_CSR, w1x)
+    CALL mat_CSR2petsc( w1y_CSR, w1y)
 
-    CALL MatDuplicate( A_xdy_g_b, MAT_SHARE_NONZERO_PATTERN, w0 , perr)
-    CALL MatDuplicate( A_xdy_g_b, MAT_SHARE_NONZERO_PATTERN, w1x, perr)
-    CALL MatDuplicate( A_xdy_g_b, MAT_SHARE_NONZERO_PATTERN, w1y, perr)
-
-    ALLOCATE( cols_row( nnz_per_row_max))
-    ALLOCATE( vals_row( nnz_per_row_max))
-    ALLOCATE( w0_row(   nnz_per_row_max))
-    ALLOCATE( w1x_row(  nnz_per_row_max))
-    ALLOCATE( w1y_row(  nnz_per_row_max))
-
-    DO row = grid%n1, grid%n2
-
-      ! w0
-      CALL MatGetRow( A_xdy_g_b, row-1, ncols_row, cols_row, vals_row, perr)
-      A_overlap_tot = SUM( vals_row( 1:ncols_row))
-      DO k = 1, ncols_row
-        w0_row( k) = vals_row( k) / A_overlap_tot
-        CALL MatSetValues( w0, 1, row-1, 1, cols_row( k), w0_row( k), INSERT_VALUES, perr)
-      END DO
-      CALL MatRestoreRow( A_xdy_g_b, row-1, ncols_row, cols_row, vals_row, perr)
-
-      ! w1x
-      CALL MatGetRow( A_mxydx_g_b, row-1, ncols_row, cols_row, vals_row, perr)
-      DO k = 1, ncols_row
-        ti = cols_row( k)+1
-        w1x_row( k) = (vals_row( k) / A_overlap_tot) - (mesh%TriGC( ti,1) * w0_row( k))
-        CALL MatSetValues( w1x, 1, row-1, 1, cols_row( k), w1x_row( k), INSERT_VALUES, perr)
-      END DO
-      CALL MatRestoreRow( A_mxydx_g_b, row-1, ncols_row, cols_row, vals_row, perr)
-
-      ! w1y
-      CALL MatGetRow( A_xydy_g_b, row-1, ncols_row, cols_row, vals_row, perr)
-      DO k = 1, ncols_row
-        ti = cols_row( k)+1
-        w1y_row( k) = (vals_row( k) / A_overlap_tot) - (mesh%TriGC( ti,2) * w0_row( k))
-        CALL MatSetValues( w1y, 1, row-1, 1, cols_row( k), w1y_row( k), INSERT_VALUES, perr)
-      END DO
-      CALL MatRestoreRow( A_xydy_g_b, row-1, ncols_row, cols_row, vals_row, perr)
-
-    END DO
-    CALL sync
-
-    ! Clean up after yourself
-    DEALLOCATE( cols_row)
-    DEALLOCATE( vals_row)
-    DEALLOCATE( w0_row  )
-    DEALLOCATE( w1x_row )
-    DEALLOCATE( w1y_row )
-    CALL MatDestroy( A_xdy_g_b  , perr)
-    CALL MatDestroy( A_mxydx_g_b, perr)
-    CALL MatDestroy( A_xydy_g_b , perr)
-
-    ! Assemble matrix and vectors, using the 2-step process:
-    !   MatAssemblyBegin(), MatAssemblyEnd()
-    ! Computations can be done while messages are in transition
-    ! by placing code between these two statements.
-
-    CALL MatAssemblyBegin( w0 , MAT_FINAL_ASSEMBLY, perr)
-    CALL MatAssemblyBegin( w1x, MAT_FINAL_ASSEMBLY, perr)
-    CALL MatAssemblyBegin( w1y, MAT_FINAL_ASSEMBLY, perr)
-
-    CALL MatAssemblyEnd(   w0 , MAT_FINAL_ASSEMBLY, perr)
-    CALL MatAssemblyEnd(   w1x, MAT_FINAL_ASSEMBLY, perr)
-    CALL MatAssemblyEnd(   w1y, MAT_FINAL_ASSEMBLY, perr)
-
-    ! Calculate the remapping matrix
+  ! Calculate the remapping matrix
+  ! ==============================
 
     CALL mat_CSR2petsc( mesh%M_map_a_b, M_map_a_b)
     CALL mat_CSR2petsc( mesh%M_ddx_a_b, M_ddx_a_b)
@@ -1018,7 +986,8 @@ CONTAINS
     CALL MatDestroy( M1, perr)
     CALL MatDestroy( M2, perr)
 
-    ! Safety: check if all grid cells get values
+  ! Safety: check if all grid cells get values
+  ! ==========================================
 
     ALLOCATE( cols_row( nnz_per_row_max))
     ALLOCATE( vals_row( nnz_per_row_max))
