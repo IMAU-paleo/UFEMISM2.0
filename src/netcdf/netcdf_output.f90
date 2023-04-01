@@ -1092,6 +1092,8 @@ CONTAINS
     INTEGER                                            :: id_dim_y
     INTEGER                                            :: id_var_x
     INTEGER                                            :: id_var_y
+    INTEGER                                            :: id_var_lon
+    INTEGER                                            :: id_var_lat
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -1107,11 +1109,33 @@ CONTAINS
     CALL add_attribute_char( filename, ncid, id_var_x, 'long_name', 'x-coordinate')
     CALL add_attribute_char( filename, ncid, id_var_x, 'units'    , 'm'           )
     CALL write_var_master_dp_1D( filename, ncid, id_var_x, grid%x)
+
     ! y
     CALL create_variable( filename, ncid, get_first_option_from_list( field_name_options_y), NF90_DOUBLE, (/ id_dim_y /), id_var_y)
     CALL add_attribute_char( filename, ncid, id_var_y, 'long_name', 'y-coordinate')
     CALL add_attribute_char( filename, ncid, id_var_y, 'units'    , 'm'           )
     CALL write_var_master_dp_1D( filename, ncid, id_var_y, grid%y)
+
+    ! lon/lat-coordinates
+    IF (ALLOCATED( grid%lon) .OR. ALLOCATED( grid%lat)) THEN
+
+      ! Safety
+      IF (.NOT. ALLOCATED( grid%lon)) CALL crash('grid has lat but no lon coordinates!')
+      IF (.NOT. ALLOCATED( grid%lat)) CALL crash('grid has lon but no lat coordinates!')
+
+      ! lon
+      CALL create_variable( filename, ncid, get_first_option_from_list( field_name_options_lon), NF90_DOUBLE, (/ id_dim_x, id_dim_y /), id_var_lon)
+      CALL add_attribute_char( filename, ncid, id_var_lon, 'long_name', 'Longitude')
+      CALL add_attribute_char( filename, ncid, id_var_lon, 'units'    , 'degrees east')
+      CALL write_var_master_dp_2D( filename, ncid, id_var_lon, grid%lon)
+
+      ! lat
+      CALL create_variable( filename, ncid, get_first_option_from_list( field_name_options_lat), NF90_DOUBLE, (/ id_dim_x, id_dim_y /), id_var_lat)
+      CALL add_attribute_char( filename, ncid, id_var_lat, 'long_name', 'Latitude')
+      CALL add_attribute_char( filename, ncid, id_var_lat, 'units'    , 'degrees north')
+      CALL write_var_master_dp_2D( filename, ncid, id_var_lat, grid%lat)
+
+    END IF ! IF (ALLOCATED( grid%lon)) THEN
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

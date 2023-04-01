@@ -21,7 +21,6 @@ MODULE mesh_remapping
                                                                      line_integral_xydy, crop_line_to_domain, segment_intersection
   USE mesh_utilities                                         , ONLY: is_in_Voronoi_cell, calc_Voronoi_cell, find_containing_vertex, find_containing_triangle, &
                                                                      find_shared_Voronoi_boundary
-  USE netcdf_debug                                           , ONLY: write_CSR_matrix_to_NetCDF
 
   IMPLICIT NONE
 

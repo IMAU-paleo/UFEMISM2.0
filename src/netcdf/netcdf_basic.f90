@@ -3022,14 +3022,14 @@ CONTAINS
     ELSE
       start_applied = (/ 1 /)
     END IF
-    IF (ANY( start_applied == 0)) CALL crash('start must be positive!')
+    IF (par%master .AND. ANY( start_applied == 0)) CALL crash('start must be positive!')
 
     IF (PRESENT( count)) THEN
       count_applied = count
     ELSE
       count_applied = (/ SIZE( d,1) /)
     END IF
-    IF (ANY( count_applied == 0)) CALL crash('count must be positive!')
+    IF (par%master .AND. ANY( count_applied == 0)) CALL crash('count must be positive!')
 
     ! Check sizes of dimensions
     DO di = 1, ndims_of_var
@@ -3038,11 +3038,11 @@ CONTAINS
       CALL inquire_dim_info( filename, ncid, dims_of_var( di), dim_name = dim_name, dim_length = dim_length)
 
       ! Check if the combination of dimension size, start, and count, matches the size of d
-      IF (count_applied( di) /= SIZE( d,di)) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // &
+      IF (par%master .AND. count_applied( di) /= SIZE( d,di)) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // &
         '": count({int_01}) = {int_02}, but SIZE(d,{int_03}) = {int_04}!', int_01 = di, int_02 = count_applied( di), int_03 = di, int_04 = SIZE( d,di))
 
       ! Check if this dimension is large enough to read this amount of data
-      IF (start_applied( di) + count_applied( di) - 1 > dim_length) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // &
+      IF (par%master .AND. start_applied( di) + count_applied( di) - 1 > dim_length) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // &
         TRIM( filename) // '"start + count - 1 = {int_01}, but dim_length = {int_02}!', int_01 = start_applied( di) + count_applied( di) - 1, int_02 = dim_length)
 
     END DO
@@ -3104,14 +3104,14 @@ CONTAINS
     ELSE
       start_applied = (/ 1, 1 /)
     END IF
-    IF (ANY( start_applied == 0)) CALL crash('start must be positive!')
+    IF (par%master .AND. ANY( start_applied == 0)) CALL crash('start must be positive!')
 
     IF (PRESENT( count)) THEN
       count_applied = count
     ELSE
       count_applied = (/ SIZE( d,1), SIZE( d,2) /)
     END IF
-    IF (ANY( count_applied == 0)) CALL crash('count must be positive!')
+    IF (par%master .AND. ANY( count_applied == 0)) CALL crash('count must be positive!')
 
     ! Check sizes of dimensions
     DO di = 1, ndims_of_var
@@ -3120,11 +3120,11 @@ CONTAINS
       CALL inquire_dim_info( filename, ncid, dims_of_var( di), dim_name = dim_name, dim_length = dim_length)
 
       ! Check if the combination of dimension size, start, and count, matches the size of d
-      IF (count_applied( di) /= SIZE( d,di)) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // &
+      IF (par%master .AND. count_applied( di) /= SIZE( d,di)) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // &
         '": count({int_01}) = {int_02}, but SIZE(d,{int_03}) = {int_04}!', int_01 = di, int_02 = count_applied( di), int_03 = di, int_04 = SIZE( d,di))
 
       ! Check if this dimension is large enough to read this amount of data
-      IF (start_applied( di) + count_applied( di) - 1 > dim_length) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // &
+      IF (par%master .AND. start_applied( di) + count_applied( di) - 1 > dim_length) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // &
         TRIM( filename) // '"start + count - 1 = {int_01}, but dim_length = {int_02}!', int_01 = start_applied( di) + count_applied( di) - 1, int_02 = dim_length)
 
     END DO
@@ -3186,14 +3186,14 @@ CONTAINS
     ELSE
       start_applied = (/ 1, 1, 1 /)
     END IF
-    IF (ANY( start_applied == 0)) CALL crash('start must be positive!')
+    IF (par%master .AND. ANY( start_applied == 0)) CALL crash('start must be positive!')
 
     IF (PRESENT( count)) THEN
       count_applied = count
     ELSE
       count_applied = (/ SIZE( d,1), SIZE( d,2), SIZE( d,3) /)
     END IF
-    IF (ANY( count_applied == 0)) CALL crash('count must be positive!')
+    IF (par%master .AND. ANY( count_applied == 0)) CALL crash('count must be positive!')
 
     ! Check sizes of dimensions
     DO di = 1, ndims_of_var
@@ -3202,11 +3202,11 @@ CONTAINS
       CALL inquire_dim_info( filename, ncid, dims_of_var( di), dim_name = dim_name, dim_length = dim_length)
 
       ! Check if the combination of dimension size, start, and count, matches the size of d
-      IF (count_applied( di) /= SIZE( d,di)) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // &
+      IF (par%master .AND. count_applied( di) /= SIZE( d,di)) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // &
         '": count({int_01}) = {int_02}, but SIZE(d,{int_03}) = {int_04}!', int_01 = di, int_02 = count_applied( di), int_03 = di, int_04 = SIZE( d,di))
 
       ! Check if this dimension is large enough to read this amount of data
-      IF (start_applied( di) + count_applied( di) - 1 > dim_length) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // &
+      IF (par%master .AND. start_applied( di) + count_applied( di) - 1 > dim_length) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // &
         TRIM( filename) // '"start + count - 1 = {int_01}, but dim_length = {int_02}!', int_01 = start_applied( di) + count_applied( di) - 1, int_02 = dim_length)
 
     END DO
@@ -3268,14 +3268,14 @@ CONTAINS
     ELSE
       start_applied = (/ 1, 1, 1, 1 /)
     END IF
-    IF (ANY( start_applied == 0)) CALL crash('start must be positive!')
+    IF (par%master .AND. ANY( start_applied == 0)) CALL crash('start must be positive!')
 
     IF (PRESENT( count)) THEN
       count_applied = count
     ELSE
       count_applied = (/ SIZE( d,1), SIZE( d,2), SIZE( d,3), SIZE( d,4) /)
     END IF
-    IF (ANY( count_applied == 0)) CALL crash('count must be positive!')
+    IF (par%master .AND. ANY( count_applied == 0)) CALL crash('count must be positive!')
 
     ! Check sizes of dimensions
     DO di = 1, ndims_of_var
@@ -3284,11 +3284,11 @@ CONTAINS
       CALL inquire_dim_info( filename, ncid, dims_of_var( di), dim_name = dim_name, dim_length = dim_length)
 
       ! Check if the combination of dimension size, start, and count, matches the size of d
-      IF (count_applied( di) /= SIZE( d,di)) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // &
+      IF (par%master .AND. count_applied( di) /= SIZE( d,di)) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // &
         '": count({int_01}) = {int_02}, but SIZE(d,{int_03}) = {int_04}!', int_01 = di, int_02 = count_applied( di), int_03 = di, int_04 = SIZE( d,di))
 
       ! Check if this dimension is large enough to read this amount of data
-      IF (start_applied( di) + count_applied( di) - 1 > dim_length) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // &
+      IF (par%master .AND. start_applied( di) + count_applied( di) - 1 > dim_length) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // &
         TRIM( filename) // '"start + count - 1 = {int_01}, but dim_length = {int_02}!', int_01 = start_applied( di) + count_applied( di) - 1, int_02 = dim_length)
 
     END DO
@@ -3395,14 +3395,14 @@ CONTAINS
     ELSE
       start_applied = (/ 1 /)
     END IF
-    IF (ANY( start_applied == 0)) CALL crash('start must be positive!')
+    IF (par%master .AND. ANY( start_applied == 0)) CALL crash('start must be positive!')
 
     IF (PRESENT( count)) THEN
       count_applied = count
     ELSE
       count_applied = (/ SIZE( d,1) /)
     END IF
-    IF (ANY( count_applied == 0)) CALL crash('count must be positive!')
+    IF (par%master .AND. ANY( count_applied == 0)) CALL crash('count must be positive!')
 
     ! Check sizes of dimensions
     DO di = 1, ndims_of_var
@@ -3411,11 +3411,11 @@ CONTAINS
       CALL inquire_dim_info( filename, ncid, dims_of_var( di), dim_name = dim_name, dim_length = dim_length)
 
       ! Check if the combination of dimension size, start, and count, matches the size of d
-      IF (count_applied( di) /= SIZE( d,di)) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // &
+      IF (par%master .AND. count_applied( di) /= SIZE( d,di)) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // &
         '": count({int_01}) = {int_02}, but SIZE(d,{int_03}) = {int_04}!', int_01 = di, int_02 = count_applied( di), int_03 = di, int_04 = SIZE( d,di))
 
       ! Check if this dimension is large enough to read this amount of data
-      IF (start_applied( di) + count_applied( di) - 1 > dim_length) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // &
+      IF (par%master .AND. start_applied( di) + count_applied( di) - 1 > dim_length) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // &
         TRIM( filename) // '"start + count - 1 = {int_01}, but dim_length = {int_02}!', int_01 = start_applied( di) + count_applied( di) - 1, int_02 = dim_length)
 
     END DO
@@ -3477,14 +3477,14 @@ CONTAINS
     ELSE
       start_applied = (/ 1, 1 /)
     END IF
-    IF (ANY( start_applied == 0)) CALL crash('start must be positive!')
+    IF (par%master .AND. ANY( start_applied == 0)) CALL crash('start must be positive!')
 
     IF (PRESENT( count)) THEN
       count_applied = count
     ELSE
       count_applied = (/ SIZE( d,1), SIZE( d,2) /)
     END IF
-    IF (ANY( count_applied == 0)) CALL crash('count must be positive!')
+    IF (par%master .AND. ANY( count_applied == 0)) CALL crash('count must be positive!')
 
     ! Check sizes of dimensions
     DO di = 1, ndims_of_var
@@ -3493,11 +3493,11 @@ CONTAINS
       CALL inquire_dim_info( filename, ncid, dims_of_var( di), dim_name = dim_name, dim_length = dim_length)
 
       ! Check if the combination of dimension size, start, and count, matches the size of d
-      IF (count_applied( di) /= SIZE( d,di)) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // &
+      IF (par%master .AND. count_applied( di) /= SIZE( d,di)) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // &
         '": count({int_01}) = {int_02}, but SIZE(d,{int_03}) = {int_04}!', int_01 = di, int_02 = count_applied( di), int_03 = di, int_04 = SIZE( d,di))
 
       ! Check if this dimension is large enough to read this amount of data
-      IF (start_applied( di) + count_applied( di) - 1 > dim_length) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // &
+      IF (par%master .AND. start_applied( di) + count_applied( di) - 1 > dim_length) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // &
         TRIM( filename) // '"start + count - 1 = {int_01}, but dim_length = {int_02}!', int_01 = start_applied( di) + count_applied( di) - 1, int_02 = dim_length)
 
     END DO
@@ -3559,14 +3559,14 @@ CONTAINS
     ELSE
       start_applied = (/ 1, 1, 1 /)
     END IF
-    IF (ANY( start_applied == 0)) CALL crash('start must be positive!')
+    IF (par%master .AND. ANY( start_applied == 0)) CALL crash('start must be positive!')
 
     IF (PRESENT( count)) THEN
       count_applied = count
     ELSE
       count_applied = (/ SIZE( d,1), SIZE( d,2), SIZE( d,3) /)
     END IF
-    IF (ANY( count_applied == 0)) CALL crash('count must be positive!')
+    IF (par%master .AND. ANY( count_applied == 0)) CALL crash('count must be positive!')
 
     ! Check sizes of dimensions
     DO di = 1, ndims_of_var
@@ -3575,11 +3575,11 @@ CONTAINS
       CALL inquire_dim_info( filename, ncid, dims_of_var( di), dim_name = dim_name, dim_length = dim_length)
 
       ! Check if the combination of dimension size, start, and count, matches the size of d
-      IF (count_applied( di) /= SIZE( d,di)) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // &
+      IF (par%master .AND. count_applied( di) /= SIZE( d,di)) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // &
         '": count({int_01}) = {int_02}, but SIZE(d,{int_03}) = {int_04}!', int_01 = di, int_02 = count_applied( di), int_03 = di, int_04 = SIZE( d,di))
 
       ! Check if this dimension is large enough to read this amount of data
-      IF (start_applied( di) + count_applied( di) - 1 > dim_length) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // &
+      IF (par%master .AND. start_applied( di) + count_applied( di) - 1 > dim_length) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // &
         TRIM( filename) // '"start + count - 1 = {int_01}, but dim_length = {int_02}!', int_01 = start_applied( di) + count_applied( di) - 1, int_02 = dim_length)
 
     END DO
@@ -3641,14 +3641,14 @@ CONTAINS
     ELSE
       start_applied = (/ 1, 1, 1, 1 /)
     END IF
-    IF (ANY( start_applied == 0)) CALL crash('start must be positive!')
+    IF (par%master .AND. ANY( start_applied == 0)) CALL crash('start must be positive!')
 
     IF (PRESENT( count)) THEN
       count_applied = count
     ELSE
       count_applied = (/ SIZE( d,1), SIZE( d,2), SIZE( d,3), SIZE( d,4) /)
     END IF
-    IF (ANY( count_applied == 0)) CALL crash('count must be positive!')
+    IF (par%master .AND. ANY( count_applied == 0)) CALL crash('count must be positive!')
 
     ! Check sizes of dimensions
     DO di = 1, ndims_of_var
@@ -3657,11 +3657,11 @@ CONTAINS
       CALL inquire_dim_info( filename, ncid, dims_of_var( di), dim_name = dim_name, dim_length = dim_length)
 
       ! Check if the combination of dimension size, start, and count, matches the size of d
-      IF (count_applied( di) /= SIZE( d,di)) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // &
+      IF (par%master .AND. count_applied( di) /= SIZE( d,di)) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // &
         '": count({int_01}) = {int_02}, but SIZE(d,{int_03}) = {int_04}!', int_01 = di, int_02 = count_applied( di), int_03 = di, int_04 = SIZE( d,di))
 
       ! Check if this dimension is large enough to read this amount of data
-      IF (start_applied( di) + count_applied( di) - 1 > dim_length) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // &
+      IF (par%master .AND. start_applied( di) + count_applied( di) - 1 > dim_length) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // &
         TRIM( filename) // '"start + count - 1 = {int_01}, but dim_length = {int_02}!', int_01 = start_applied( di) + count_applied( di) - 1, int_02 = dim_length)
 
     END DO

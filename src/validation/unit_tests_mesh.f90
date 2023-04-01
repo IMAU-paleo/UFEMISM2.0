@@ -25,8 +25,7 @@ MODULE unit_tests_mesh
                                                                      write_to_field_multiple_options_mesh_dp_2D_b_notime, write_to_field_multiple_options_mesh_dp_2D_c_notime, &
                                                                      setup_xy_grid_in_netcdf_file, add_field_grid_dp_2D_notime, write_to_field_multiple_options_grid_dp_2D_notime
   USE petsc_basic                                            , ONLY: multiply_CSR_matrix_with_vector_1D
-  USE grid_basic                                             , ONLY: type_grid, calc_field_to_vector_form_translation_tables, distribute_gridded_data_from_master_dp_2D, &
-                                                                     gather_gridded_data_to_master_dp_2D
+  USE grid_basic                                             , ONLY: type_grid, setup_square_grid, distribute_gridded_data_from_master_dp_2D
   USE mesh_remapping                                         , ONLY: map_from_xy_grid_to_mesh_2D, map_from_mesh_to_xy_grid_2D
 
   IMPLICIT NONE
@@ -1059,10 +1058,11 @@ CONTAINS
     REAL(dp), PARAMETER                                :: lambda_M    = 0._dp
     REAL(dp), PARAMETER                                :: phi_M       = -90._dp
     REAL(dp), PARAMETER                                :: beta_stereo = 71._dp
-    CHARACTER(LEN=256), PARAMETER                      :: name = 'test_mesh'
+    CHARACTER(LEN=256)                                 :: name
     TYPE(type_mesh)                                    :: mesh
     REAL(dp)                                           :: alpha_min, res_max
     REAL(dp)                                           :: res, width
+    REAL(dp)                                           :: dx
     TYPE(type_grid)                                    :: grid
     INTEGER                                            :: i,j
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: d_grid
@@ -1083,6 +1083,7 @@ CONTAINS
   ! ================================================================
 
     ! Allocate memory
+    name = 'test_mesh'
     CALL allocate_mesh_primary( mesh, name, 1000, 2000, 32)
 
     ! Initialise the dummy mesh
@@ -1118,30 +1119,9 @@ CONTAINS
   ! == Set up a square grid
   ! =======================
 
-    grid%name = 'test_grid'
-
-    grid%xmin = xmin
-    grid%xmax = xmax
-    grid%ymin = ymin
-    grid%ymax = ymax
-
-    grid%dx = 32E3_dp
-    grid%nx = 191
-    grid%ny = 191
-
-    grid%tol_dist = 1E-1_dp
-
-    ALLOCATE( grid%x( grid%nx))
-    ALLOCATE( grid%y( grid%ny))
-
-    DO i = 1, grid%nx
-      grid%x( i) = grid%xmin + REAL( i-1,dp) * grid%dx
-    END DO
-    DO j = 1, grid%ny
-      grid%y( j) = grid%ymin + REAL( j-1,dp) * grid%dx
-    END DO
-
-    CALL calc_field_to_vector_form_translation_tables( grid)
+    name = 'test_grid'
+    dx   = 32E3_dp
+    CALL setup_square_grid( name, xmin, xmax, ymin, ymax, dx, lambda_M, phi_M, beta_stereo, grid)
 
   ! == Calculate, apply, and validate grid-to-mesh remapping operator
   ! =================================================================
@@ -1208,7 +1188,7 @@ CONTAINS
     IF (do_write_results_to_netcdf) THEN
 
       ! Create a file and write the mesh to it
-      filename = TRIM( routine_name) // '_output_mesh.nc'
+      filename = TRIM( routine_name) // '_output.nc'
       CALL create_new_netcdf_file_for_writing( filename, ncid)
       CALL setup_mesh_in_netcdf_file( filename, ncid, mesh)
 
@@ -1247,10 +1227,11 @@ CONTAINS
     REAL(dp), PARAMETER                                :: lambda_M    = 0._dp
     REAL(dp), PARAMETER                                :: phi_M       = -90._dp
     REAL(dp), PARAMETER                                :: beta_stereo = 71._dp
-    CHARACTER(LEN=256), PARAMETER                      :: name = 'test_mesh'
+    CHARACTER(LEN=256)                                 :: name
     TYPE(type_mesh)                                    :: mesh
     REAL(dp)                                           :: alpha_min, res_max
     REAL(dp)                                           :: res, width
+    REAL(dp)                                           :: dx
     TYPE(type_grid)                                    :: grid
     INTEGER                                            :: i,j,n,n_glob
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: d_mesh_partial
@@ -1269,6 +1250,7 @@ CONTAINS
   ! ================================================================
 
     ! Allocate memory
+    name = 'test_mesh'
     CALL allocate_mesh_primary( mesh, name, 1000, 2000, 32)
 
     ! Initialise the dummy mesh
@@ -1304,30 +1286,9 @@ CONTAINS
   ! == Set up a square grid
   ! =======================
 
-    grid%name = 'test_grid'
-
-    grid%xmin = xmin
-    grid%xmax = xmax
-    grid%ymin = ymin
-    grid%ymax = ymax
-
-    grid%dx = 32E3_dp
-    grid%nx = 191
-    grid%ny = 191
-
-    grid%tol_dist = 1E-1_dp
-
-    ALLOCATE( grid%x( grid%nx))
-    ALLOCATE( grid%y( grid%ny))
-
-    DO i = 1, grid%nx
-      grid%x( i) = grid%xmin + REAL( i-1,dp) * grid%dx
-    END DO
-    DO j = 1, grid%ny
-      grid%y( j) = grid%ymin + REAL( j-1,dp) * grid%dx
-    END DO
-
-    CALL calc_field_to_vector_form_translation_tables( grid)
+    name = 'test_grid'
+    dx   = 32E3_dp
+    CALL setup_square_grid( name, xmin, xmax, ymin, ymax, dx, lambda_M, phi_M, beta_stereo, grid)
 
   ! == Calculate, apply, and validate grid-to-mesh remapping operator
   ! =================================================================
@@ -1390,7 +1351,7 @@ CONTAINS
     IF (do_write_results_to_netcdf) THEN
 
       ! Create a file and write the mesh to it
-      filename = TRIM( routine_name) // '_output_mesh.nc'
+      filename = TRIM( routine_name) // '_output.nc'
       CALL create_new_netcdf_file_for_writing( filename, ncid)
       CALL setup_xy_grid_in_netcdf_file( filename, ncid, grid)
 

@@ -17,6 +17,7 @@ PROGRAM UFEMISM_program
   USE unit_tests_mpi
   USE unit_tests_petsc
   USE unit_tests_mesh
+  USE unit_tests_netcdf
 
   IMPLICIT NONE
 
@@ -37,9 +38,10 @@ PROGRAM UFEMISM_program
 
 
   ! Test
-  CALL run_all_mpi_distributed_memory_unit_tests
-  CALL run_all_petsc_unit_tests
-  CALL run_all_mesh_unit_tests
+!  CALL run_all_mpi_distributed_memory_unit_tests
+!  CALL run_all_petsc_unit_tests
+!  CALL run_all_mesh_unit_tests
+  CALL run_all_netcdf_unit_tests
 
 
 

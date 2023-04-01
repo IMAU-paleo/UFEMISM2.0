@@ -87,6 +87,7 @@ ifeq ($(DO_SELEN),yes)
     validation/unit_tests_mpi.o \
     validation/unit_tests_petsc.o \
     validation/unit_tests_mesh.o \
+    validation/unit_tests_netcdf.o \
     \
     UFEMISM_main_model.o \
     UFEMISM_program.o
@@ -136,6 +137,7 @@ else
     validation/unit_tests_mpi.o \
     validation/unit_tests_petsc.o \
     validation/unit_tests_mesh.o \
+    validation/unit_tests_netcdf.o \
     \
     UFEMISM_main_model.o \
     UFEMISM_program.o

@@ -14,7 +14,7 @@ MODULE grid_basic
   USE parameters
   USE petsc_basic                                            , ONLY: perr, mat_CSR2petsc
   USE reallocate_mod                                         , ONLY: reallocate
-  USE math_utilities                                         , ONLY: linint_points
+  USE math_utilities                                         , ONLY: linint_points, inverse_oblique_sg_projection
   USE mpi_distributed_memory                                 , ONLY: partition_list, distribute_from_master_dp_1D, gather_to_master_dp_1D
   USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp, allocate_matrix_CSR_dist, add_entry_CSR_dist, &
                                                                      deallocate_matrix_CSR_dist
@@ -43,6 +43,12 @@ MODULE grid_basic
     ! Remapping data
     REAL(dp)                                :: tol_dist                      ! [m]       Horizontal distance tolerance; points closer together than this are assumed to be identical (typically set to a billionth of linear domain size)
     INTEGER,  DIMENSION(:,:  ), ALLOCATABLE :: ij2n, n2ij                    !           Conversion table for grid-form vs. vector-form data
+
+    ! Lon/lat-coordinates
+    REAL(dp)                                :: lambda_M
+    REAL(dp)                                :: phi_M
+    REAL(dp)                                :: beta_stereo
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: lon, lat
 
     ! Parallelisation
     INTEGER                                 :: n1,n2,n_loc                   ! Matrix rows owned by each process
@@ -79,6 +85,213 @@ CONTAINS
 
 ! ===== Subroutines ======
 ! ========================
+
+! == Set up a square grid
+
+  SUBROUTINE setup_square_grid( name, xmin, xmax, ymin, ymax, dx, lambda_M, phi_M, beta_stereo, grid)
+    ! Set up a square grid that covers the specified domain
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    CHARACTER(LEN=256),                  INTENT(IN)    :: name
+    REAL(dp),                            INTENT(IN)    :: xmin, xmax, ymin, ymax        ! [m] Domain
+    REAL(dp),                            INTENT(IN)    :: dx                            ! [m] Resolution
+    REAL(dp),                  OPTIONAL, INTENT(IN)    :: lambda_M, phi_M, beta_stereo
+    TYPE(type_grid),                     INTENT(OUT)   :: grid
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'setup_square_grid'
+    REAL(dp)                                           :: xmid, ymid
+    INTEGER                                            :: nx_pos, ny_pos
+    INTEGER                                            :: i,j,ii,jj
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Name
+    grid%name = name
+
+    ! Resolution
+    grid%dx = dx
+
+    ! Determine how many grid points are needed to fully cover the domain
+
+    xmid = (xmin + xmax) / 2._dp
+    nx_pos = 0
+    DO WHILE (xmid + REAL( nx_pos,dp) * grid%dx + grid%dx / 2._dp < xmax)
+      nx_pos = nx_pos + 1
+    END DO
+    grid%nx = 1 + 2 * nx_pos
+
+    ymid = (ymin + ymax) / 2._dp
+    ny_pos = 0
+    DO WHILE (ymid + REAL( ny_pos,dp) * grid%dx + grid%dx / 2._dp < ymax)
+      ny_pos = ny_pos + 1
+    END DO
+    grid%ny = 1 + 2 * ny_pos
+
+    ! Fill in x and y
+    ALLOCATE( grid%x( grid%nx))
+    ALLOCATE( grid%y( grid%ny))
+
+    DO i = 1, grid%nx
+      ii = i - (nx_pos+1)
+      grid%x( i) = xmid + REAL( ii,dp) * grid%dx
+    END DO
+
+    DO j = 1, grid%ny
+      jj = j - (ny_pos+1)
+      grid%y( j) = ymid + REAL( jj,dp) * grid%dx
+    END DO
+
+    ! Calculate secondary grid geometry data
+    CALL calc_secondary_grid_data( grid, lambda_M, phi_M, beta_stereo)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE setup_square_grid
+
+! == Set up a square grid
+
+  SUBROUTINE deallocate_grid( grid)
+    ! Deallocate memory for a grid object
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_grid),                     INTENT(INOUT) :: grid
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'deallocate_grid'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    IF (ALLOCATED( grid%x   )) DEALLOCATE( grid%x   )
+    IF (ALLOCATED( grid%y   )) DEALLOCATE( grid%y   )
+    IF (ALLOCATED( grid%lon )) DEALLOCATE( grid%lon )
+    IF (ALLOCATED( grid%lat )) DEALLOCATE( grid%lat )
+    IF (ALLOCATED( grid%ij2n)) DEALLOCATE( grid%ij2n)
+    IF (ALLOCATED( grid%n2ij)) DEALLOCATE( grid%n2ij)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE deallocate_grid
+
+! == Set up a square grid
+
+  SUBROUTINE check_if_grids_are_identical( grid1, grid2, isso)
+    ! Check if two grids are identical
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_grid),                     INTENT(IN)    :: grid1, grid2
+    LOGICAL,                             INTENT(OUT)   :: isso
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'check_if_grids_are_identical'
+    REAL(dp), PARAMETER                                :: tol = 1E-9_dp
+    INTEGER                                            :: i,j
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    isso = .TRUE.
+
+    ! Size
+    IF (grid1%nx /= grid2%nx .OR. grid1%ny /= grid2%ny) THEN
+      isso = .FALSE.
+      RETURN
+    END IF
+
+    ! Coordinates
+    DO i = 1, grid1%nx
+      IF (ABS( 1._dp - (grid1%x( i) / grid2%x( i))) > tol) THEN
+        isso = .FALSE.
+        RETURN
+      END IF
+    END DO
+    DO j = 1, grid1%ny
+      IF (ABS( 1._dp - (grid1%y( j) / grid2%y( j))) > tol) THEN
+        isso = .FALSE.
+        RETURN
+      END IF
+    END DO
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE check_if_grids_are_identical
+
+! == Calculate secondary geometry data for a square grid
+
+  SUBROUTINE calc_secondary_grid_data( grid, lambda_M, phi_M, beta_stereo)
+    ! Calculate secondary geometry data for a square grid
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_grid),                     INTENT(INOUT) :: grid
+    REAL(dp),                  OPTIONAL, INTENT(IN)    :: lambda_M, phi_M, beta_stereo
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_secondary_grid_data'
+    INTEGER                                            :: i,j
+    REAL(dp), PARAMETER                                :: tol = 1E-9_dp
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Resolution
+    grid%dx   = ABS( grid%x( 2) - grid%x( 1))
+
+    ! Safety
+    DO i = 1, grid%nx-1
+      IF (1._dp - ABS(grid%x( i+1) - grid%x( i)) / grid%dx > 1E-6_dp) CALL crash( TRIM( grid%name) // '" has an irregular x-dimension!')
+    END DO
+    DO j = 1, grid%ny-1
+      IF (1._dp - ABS(grid%y( j+1) - grid%y( j)) / grid%dx > 1E-6_dp) CALL crash( TRIM( grid%name) // '" has an irregular y-dimension!')
+    END DO
+
+    ! Domain size
+    grid%xmin = MINVAL( grid%x)
+    grid%xmax = MAXVAL( grid%x)
+    grid%ymin = MINVAL( grid%y)
+    grid%ymax = MAXVAL( grid%y)
+
+    ! Tolerance; points lying within this distance of each other are treated as identical
+    grid%tol_dist = ((grid%xmax - grid%xmin) + (grid%ymax - grid%ymin)) * tol / 2._dp
+
+    ! Conversion tables for grid-form vs. vector-form data
+    CALL calc_field_to_vector_form_translation_tables( grid)
+
+    ! Lon/lat-coordinates
+    IF (PRESENT( lambda_M) .OR. PRESENT( phi_M) .OR. PRESENT( beta_stereo)) THEN
+
+      ! Safety
+      IF (.NOT. (PRESENT( lambda_M) .AND. PRESENT( phi_M) .AND. PRESENT( beta_stereo))) CALL crash('need lambda_M, phi_M, and beta_stereo!')
+
+      ! Allocate memory
+      ALLOCATE( grid%lon( grid%nx, grid%ny))
+      ALLOCATE( grid%lat( grid%nx, grid%ny))
+
+      ! Calculate lon/lat-coordinates for each grid point using the provided oblique stereographic projection parameters
+      DO i = 1, grid%nx
+      DO j = 1, grid%ny
+        CALL inverse_oblique_sg_projection( grid%x( i), grid%y( j), lambda_M, phi_M, beta_stereo, grid%lon( i,j), grid%lat( i,j))
+      END DO
+      END DO
+
+    END IF ! IF (PRESENT( lambda_M) .OR. PRESENT( phi_M) .OR. PRESENT( beta_stereo)) THEN
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE calc_secondary_grid_data
 
 ! == Calculate contour lines for mesh generation from gridded/meshed data
 
@@ -548,14 +761,14 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Safety
-    IF (SIZE( d_grid,3) /= SIZE( d_grid_vec_partial,2)) CALL crash('vector sizes dont match!')
+    IF (par%master .AND. SIZE( d_grid,3) /= SIZE( d_grid_vec_partial,2)) CALL crash('vector sizes dont match!')
 
     ! Allocate memory
     IF (par%master) ALLOCATE( d_grid_2D( SIZE( d_grid,1), SIZE( d_grid,2)), source = 0._dp)
     ALLOCATE( d_grid_vec_partial_2D( SIZE( d_grid_vec_partial,1)), source = 0._dp)
 
     ! Treat each layer as a separate 2-D field
-    DO k = 1, SIZE( d_grid,3)
+    DO k = 1, SIZE( d_grid_vec_partial,2)
       IF (par%master) d_grid_2D = d_grid( :,:,k)
       CALL distribute_gridded_data_from_master_dp_2D( grid, d_grid_2D, d_grid_vec_partial_2D)
       d_grid_vec_partial( :,k) = d_grid_vec_partial_2D
@@ -641,14 +854,14 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Safety
-    IF (SIZE( d_grid,3) /= SIZE( d_grid_vec_partial,2)) CALL crash('vector sizes dont match!')
+    IF (par%master .AND. SIZE( d_grid,3) /= SIZE( d_grid_vec_partial,2)) CALL crash('vector sizes dont match!')
 
     ! Allocate memory
-    IF (par%master) ALLOCATE( d_grid_2D( SIZE( d_grid,1), SIZE( d_grid,2)), source = 0._dp)
-    ALLOCATE( d_grid_vec_partial_2D( SIZE( d_grid_vec_partial,1)), source = 0._dp)
+    IF (par%master) ALLOCATE( d_grid_2D( grid%nx, grid%ny), source = 0._dp)
+    ALLOCATE( d_grid_vec_partial_2D( grid%n_loc), source = 0._dp)
 
     ! Treat each layer as a separate 2-D field
-    DO k = 1, SIZE( d_grid,3)
+    DO k = 1, SIZE( d_grid_vec_partial,2)
       d_grid_vec_partial_2D = d_grid_vec_partial( :,k)
       CALL gather_gridded_data_to_master_dp_2D( grid, d_grid_vec_partial_2D, d_grid_2D)
       IF (par%master) d_grid( :,:,k) = d_grid_2D
