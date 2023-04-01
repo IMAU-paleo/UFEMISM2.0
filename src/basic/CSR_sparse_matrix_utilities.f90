@@ -11,40 +11,68 @@ MODULE CSR_sparse_matrix_utilities
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine
   USE parameters
   USE reallocate_mod                                         , ONLY: reallocate
-  USE basic_data_types                                       , ONLY: type_sparse_matrix_CSR_dp
   USE mpi_distributed_memory                                 , ONLY: partition_list
 
   IMPLICIT NONE
+
+  ! The basic CSR matrix type
+  TYPE type_sparse_matrix_CSR_dp
+    ! Compressed Sparse Row (CSR) format matrix
+
+    INTEGER                                 :: m,n                           ! A = [m-by-n]
+    INTEGER                                 :: m_loc,n_loc                   ! number of rows and columns owned by each process
+    INTEGER                                 :: i1,i2,j1,j2                   ! rows and columns owned by each process
+    INTEGER                                 :: nnz_max                       ! Maximum number of non-zero entries in A
+    INTEGER                                 :: nnz                           ! Actual  number of non-zero entries in A
+    INTEGER,  DIMENSION(:    ), ALLOCATABLE :: ptr                           ! Row start indices
+    INTEGER,  DIMENSION(:    ), ALLOCATABLE :: ind                           ! Column indices
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: val                           ! Values
+
+  END TYPE type_sparse_matrix_CSR_dp
 
 CONTAINS
 
 ! ===== Subroutinea ======
 ! ========================
 
-  SUBROUTINE allocate_matrix_CSR_dist( A, m, n, nnz_max_proc)
+  SUBROUTINE allocate_matrix_CSR_dist( A, m_glob, n_glob, m_loc, n_loc, nnz_max_proc)
     ! Allocate memory for a CSR-format sparse m-by-n matrix A
 
     IMPLICIT NONE
 
     ! In- and output variables:
     TYPE(type_sparse_matrix_CSR_dp),     INTENT(INOUT) :: A
-    INTEGER,                             INTENT(IN)    :: m, n, nnz_max_proc
+    INTEGER,                             INTENT(IN)    :: m_glob, n_glob, m_loc, n_loc, nnz_max_proc
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'allocate_matrix_CSR_dist'
+    INTEGER,  DIMENSION(par%n)                         :: m_loc_all, n_loc_all
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
     ! Matrix dimensions
-    A%m       = m
-    A%n       = n
+    A%m       = m_glob
+    A%n       = n_glob
+    A%m_loc   = m_loc
+    A%n_loc   = n_loc
     A%nnz_max = nnz_max_proc
     A%nnz     = 0
 
-    ! Partition rows over the processes
-    CALL partition_list( m, par%i, par%n, A%i1, A%i2)
+    ! Partition rows and columns over the processes
+    CALL MPI_ALLGATHER( m_loc, 1, MPI_INTEGER, m_loc_all, 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
+    CALL MPI_ALLGATHER( n_loc, 1, MPI_INTEGER, n_loc_all, 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
 
+    ! Safety
+    IF (SUM( m_loc_all) /= m_glob) CALL crash('sum of numbers of local rows doesnt match number of global rows!')
+    IF (SUM( n_loc_all) /= n_glob) CALL crash('sum of numbers of local columns doesnt match number of global columns!')
+
+    A%i1 = 1 + SUM( m_loc_all( 1:par%i  ))
+    A%i2 = 1 + SUM( m_loc_all( 1:par%i+1))-1
+    A%j1 = 1 + SUM( n_loc_all( 1:par%i  ))
+    A%j2 = 1 + SUM( n_loc_all( 1:par%i+1))-1
+
+    ! Allocate memory
     ALLOCATE( A%ptr( A%m+1    ), source = 1    )
     ALLOCATE( A%ind( A%nnz_max), source = 0    )
     ALLOCATE( A%val( A%nnz_max), source = 0._dp)

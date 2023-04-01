@@ -5,23 +5,498 @@ MODULE mesh_operators
 ! ===== Preamble =====
 ! ====================
 
+#include <petsc/finclude/petscksp.h>
+  USE petscksp
   USE mpi
   USE precisions                                             , ONLY: dp
   USE mpi_basic                                              , ONLY: par, cerr, ierr, MPI_status, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine
   USE mesh_types                                             , ONLY: type_mesh
-  USE basic_data_types                                       , ONLY: type_sparse_matrix_CSR_dp
   USE math_utilities                                         , ONLY: calc_matrix_inverse_2_by_2, calc_matrix_inverse_3_by_3, calc_matrix_inverse_5_by_5
-  USE CSR_sparse_matrix_utilities                            , ONLY: allocate_matrix_CSR_dist, add_entry_CSR_dist
+  USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp, allocate_matrix_CSR_dist, add_entry_CSR_dist
   USE mesh_utilities                                         , ONLY: extend_group_single_iteration_a, extend_group_single_iteration_b, &
                                                                      extend_group_single_iteration_c
+  USE petsc_basic                                            , ONLY: perr, multiply_CSR_matrix_with_vector_1D, multiply_CSR_matrix_with_vector_2D
 
   IMPLICIT NONE
 
 CONTAINS
 
-! ===== Subroutines =====
-! =======================
+! ===== Subroutines for applying mesh operators =====
+! ===================================================
+
+  ! NOTE: not all possible combinations are written, as only a few
+  !       are ever needed.
+
+  ! Gradients between a-grid and a-grid
+  SUBROUTINE ddx_a_a_2D( mesh, d_a, ddx_a)
+    ! ddx a 2-D data field from the a-grid (vertices) to the a-grid (vertices)
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)     :: mesh
+    REAL(dp), DIMENSION(:    ),          INTENT(IN)     :: d_a
+    REAL(dp), DIMENSION(:    ),          INTENT(OUT)    :: ddx_a
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                       :: routine_name = 'ddx_a_a_2D'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Safety
+    IF (SIZE( d_a,1) /= mesh%nV_loc .OR. SIZE( ddx_a,1) /= mesh%nV_loc) THEN
+      CALL crash('vector and matrix sizes dont match!')
+    END IF
+
+    ! Perform the ddxping operation as a matrix multiplication
+    CALL multiply_CSR_matrix_with_vector_1D( mesh%M_ddx_a_a, d_a, ddx_a)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE ddx_a_a_2D
+
+  SUBROUTINE ddx_a_a_3D( mesh, d_a, ddx_a)
+    ! ddx a 3-D data field from the a-grid (vertices) to the a-grid (vertices)
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)     :: mesh
+    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)     :: d_a
+    REAL(dp), DIMENSION(:,:  ),          INTENT(OUT)    :: ddx_a
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                       :: routine_name = 'ddx_a_a_3D'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Safety
+    IF (SIZE( d_a,1) /= mesh%nV_loc .OR. SIZE( ddx_a,1) /= mesh%nV_loc .OR. SIZE( d_a,2) /= SIZE( ddx_a,2)) THEN
+      CALL crash('vector and matrix sizes dont match!')
+    END IF
+
+    ! Perform the ddxping operation as a matrix multiplication
+    CALL multiply_CSR_matrix_with_vector_2D( mesh%M_ddx_a_a, d_a, ddx_a)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE ddx_a_a_3D
+
+  SUBROUTINE ddy_a_a_2D( mesh, d_a, ddy_a)
+    ! ddy a 2-D data field from the a-grid (vertices) to the a-grid (vertices)
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)     :: mesh
+    REAL(dp), DIMENSION(:    ),          INTENT(IN)     :: d_a
+    REAL(dp), DIMENSION(:    ),          INTENT(OUT)    :: ddy_a
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                       :: routine_name = 'ddy_a_a_2D'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Safety
+    IF (SIZE( d_a,1) /= mesh%nV_loc .OR. SIZE( ddy_a,1) /= mesh%nV_loc) THEN
+      CALL crash('vector and matrix sizes dont match!')
+    END IF
+
+    ! Perform the ddyping operation as a matrix multiplication
+    CALL multiply_CSR_matrix_with_vector_1D( mesh%M_ddy_a_a, d_a, ddy_a)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE ddy_a_a_2D
+
+  SUBROUTINE ddy_a_a_3D( mesh, d_a, ddy_a)
+    ! ddy a 3-D data field from the a-grid (vertices) to the a-grid (vertices)
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)     :: mesh
+    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)     :: d_a
+    REAL(dp), DIMENSION(:,:  ),          INTENT(OUT)    :: ddy_a
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                       :: routine_name = 'ddy_a_a_3D'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Safety
+    IF (SIZE( d_a,1) /= mesh%nV_loc .OR. SIZE( ddy_a,1) /= mesh%nV_loc .OR. SIZE( d_a,2) /= SIZE( ddy_a,2)) THEN
+      CALL crash('vector and matrix sizes dont match!')
+    END IF
+
+    ! Perform the ddyping operation as a matrix multiplication
+    CALL multiply_CSR_matrix_with_vector_2D( mesh%M_ddy_a_a, d_a, ddy_a)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE ddy_a_a_3D
+
+  ! Mapping between a-grid and b-grid
+  SUBROUTINE map_a_b_2D( mesh, d_a, d_b)
+    ! Map a 2-D data field from the a-grid (vertices) to the b-grid (triangles)
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)     :: mesh
+    REAL(dp), DIMENSION(:    ),          INTENT(IN)     :: d_a
+    REAL(dp), DIMENSION(:    ),          INTENT(OUT)    :: d_b
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                       :: routine_name = 'map_a_b_2D'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Safety
+    IF (SIZE( d_a,1) /= mesh%nV_loc .OR. SIZE( d_b,1) /= mesh%nTri_loc) THEN
+      CALL crash('vector and matrix sizes dont match!')
+    END IF
+
+    ! Perform the mapping operation as a matrix multiplication
+    CALL multiply_CSR_matrix_with_vector_1D( mesh%M_map_a_b, d_a, d_b)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE map_a_b_2D
+
+  SUBROUTINE map_a_b_3D( mesh, d_a, d_b)
+    ! Map a 3-D data field from the a-grid (vertices) to the b-grid (triangles)
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)     :: mesh
+    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)     :: d_a
+    REAL(dp), DIMENSION(:,:  ),          INTENT(OUT)    :: d_b
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                       :: routine_name = 'map_a_b_3D'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Safety
+    IF (SIZE( d_a,1) /= mesh%nV_loc .OR. SIZE( d_b,1) /= mesh%nTri_loc .OR. SIZE( d_a,2) /= SIZE( d_b,2)) THEN
+      CALL crash('vector and matrix sizes dont match!')
+    END IF
+
+    ! Perform the mapping operation as a matrix multiplication
+    CALL multiply_CSR_matrix_with_vector_2D( mesh%M_map_a_b, d_a, d_b)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE map_a_b_3D
+
+  SUBROUTINE map_b_a_2D( mesh, d_b, d_a)
+    ! Map a 2-D data field from the b-grid (triangles) to the a-grid (vertices)
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)     :: mesh
+    REAL(dp), DIMENSION(:    ),          INTENT(IN)     :: d_b
+    REAL(dp), DIMENSION(:    ),          INTENT(OUT)    :: d_a
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                       :: routine_name = 'map_b_a_2D'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Safety
+    IF (SIZE( d_a,1) /= mesh%nV_loc .OR. SIZE( d_b,1) /= mesh%nTri_loc) THEN
+      CALL crash('vector and matrix sizes dont match!')
+    END IF
+
+    ! Perform the mapping operation as a matrix multiplication
+    CALL multiply_CSR_matrix_with_vector_1D( mesh%M_map_b_a, d_b, d_a)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE map_b_a_2D
+
+  SUBROUTINE map_b_a_3D( mesh, d_b, d_a)
+    ! Map a 3-D data field from the b-grid (triangles) to the a-grid (vertices)
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)     :: mesh
+    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)     :: d_b
+    REAL(dp), DIMENSION(:,:  ),          INTENT(OUT)    :: d_a
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                       :: routine_name = 'map_b_a_3D'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Safety
+    IF (SIZE( d_a,1) /= mesh%nV_loc .OR. SIZE( d_b,1) /= mesh%nTri_loc .OR. SIZE( d_a,2) /= SIZE( d_b,2)) THEN
+      CALL crash('vector and matrix sizes dont match!')
+    END IF
+
+    ! Perform the mapping operation as a matrix multiplication
+    CALL multiply_CSR_matrix_with_vector_2D( mesh%M_map_b_a, d_b, d_a)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE map_b_a_3D
+
+  ! Gradients between a-grid and b-grid
+  SUBROUTINE ddx_a_b_2D( mesh, d_a, ddx_b)
+    ! ddx a 2-D data field from the a-grid (vertices) to the b-grid (triangles)
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)     :: mesh
+    REAL(dp), DIMENSION(:    ),          INTENT(IN)     :: d_a
+    REAL(dp), DIMENSION(:    ),          INTENT(OUT)    :: ddx_b
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                       :: routine_name = 'ddx_a_b_2D'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Safety
+    IF (SIZE( d_a,1) /= mesh%nV_loc .OR. SIZE( ddx_b,1) /= mesh%nTri_loc) THEN
+      CALL crash('vector and matrix sizes dont match!')
+    END IF
+
+    ! Perform the ddxping operation as a matrix multiplication
+    CALL multiply_CSR_matrix_with_vector_1D( mesh%M_ddx_a_b, d_a, ddx_b)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE ddx_a_b_2D
+
+  SUBROUTINE ddx_a_b_3D( mesh, d_a, ddx_b)
+    ! ddx a 3-D data field from the a-grid (vertices) to the b-grid (triangles)
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)     :: mesh
+    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)     :: d_a
+    REAL(dp), DIMENSION(:,:  ),          INTENT(OUT)    :: ddx_b
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                       :: routine_name = 'ddx_a_b_3D'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Safety
+    IF (SIZE( d_a,1) /= mesh%nV_loc .OR. SIZE( ddx_b,1) /= mesh%nTri_loc .OR. SIZE( d_a,2) /= SIZE( ddx_b,2)) THEN
+      CALL crash('vector and matrix sizes dont match!')
+    END IF
+
+    ! Perform the ddxping operation as a matrix multiplication
+    CALL multiply_CSR_matrix_with_vector_2D( mesh%M_ddx_a_b, d_a, ddx_b)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE ddx_a_b_3D
+
+  SUBROUTINE ddx_b_a_2D( mesh, d_b, ddx_a)
+    ! ddx a 2-D data field from the b-grid (triangles) to the a-grid (vertices)
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)     :: mesh
+    REAL(dp), DIMENSION(:    ),          INTENT(IN)     :: d_b
+    REAL(dp), DIMENSION(:    ),          INTENT(OUT)    :: ddx_a
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                       :: routine_name = 'ddx_b_a_2D'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Safety
+    IF (SIZE( ddx_a,1) /= mesh%nV_loc .OR. SIZE( d_b,1) /= mesh%nTri_loc) THEN
+      CALL crash('vector and matrix sizes dont match!')
+    END IF
+
+    ! Perform the ddxping operation as a matrix multiplication
+    CALL multiply_CSR_matrix_with_vector_1D( mesh%M_ddx_b_a, d_b, ddx_a)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE ddx_b_a_2D
+
+  SUBROUTINE ddx_b_a_3D( mesh, d_b, ddx_a)
+    ! ddx a 3-D data field from the b-grid (triangles) to the a-grid (vertices)
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)     :: mesh
+    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)     :: d_b
+    REAL(dp), DIMENSION(:,:  ),          INTENT(OUT)    :: ddx_a
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                       :: routine_name = 'ddx_b_a_3D'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Safety
+    IF (SIZE( ddx_a,1) /= mesh%nV_loc .OR. SIZE( d_b,1) /= mesh%nTri_loc .OR. SIZE( ddx_a,2) /= SIZE( d_b,2)) THEN
+      CALL crash('vector and matrix sizes dont match!')
+    END IF
+
+    ! Perform the ddxping operation as a matrix multiplication
+    CALL multiply_CSR_matrix_with_vector_2D( mesh%M_ddx_b_a, d_b, ddx_a)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE ddx_b_a_3D
+
+  SUBROUTINE ddy_a_b_2D( mesh, d_a, ddy_b)
+    ! ddy a 2-D data field from the a-grid (vertices) to the b-grid (triangles)
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)     :: mesh
+    REAL(dp), DIMENSION(:    ),          INTENT(IN)     :: d_a
+    REAL(dp), DIMENSION(:    ),          INTENT(OUT)    :: ddy_b
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                       :: routine_name = 'ddy_a_b_2D'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Safety
+    IF (SIZE( d_a,1) /= mesh%nV_loc .OR. SIZE( ddy_b,1) /= mesh%nTri_loc) THEN
+      CALL crash('vector and matrix sizes dont match!')
+    END IF
+
+    ! Perform the ddyping operation as a matrix multiplication
+    CALL multiply_CSR_matrix_with_vector_1D( mesh%M_ddy_a_b, d_a, ddy_b)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE ddy_a_b_2D
+
+  SUBROUTINE ddy_a_b_3D( mesh, d_a, ddy_b)
+    ! ddy a 3-D data field from the a-grid (vertices) to the b-grid (triangles)
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)     :: mesh
+    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)     :: d_a
+    REAL(dp), DIMENSION(:,:  ),          INTENT(OUT)    :: ddy_b
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                       :: routine_name = 'ddy_a_b_3D'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Safety
+    IF (SIZE( d_a,1) /= mesh%nV_loc .OR. SIZE( ddy_b,1) /= mesh%nTri_loc .OR. SIZE( d_a,2) /= SIZE( ddy_b,2)) THEN
+      CALL crash('vector and matrix sizes dont match!')
+    END IF
+
+    ! Perform the ddyping operation as a matrix multiplication
+    CALL multiply_CSR_matrix_with_vector_2D( mesh%M_ddy_a_b, d_a, ddy_b)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE ddy_a_b_3D
+
+  SUBROUTINE ddy_b_a_2D( mesh, d_b, ddy_a)
+    ! ddy a 2-D data field from the b-grid (triangles) to the a-grid (vertices)
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)     :: mesh
+    REAL(dp), DIMENSION(:    ),          INTENT(IN)     :: d_b
+    REAL(dp), DIMENSION(:    ),          INTENT(OUT)    :: ddy_a
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                       :: routine_name = 'ddy_b_a_2D'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Safety
+    IF (SIZE( ddy_a,1) /= mesh%nV_loc .OR. SIZE( d_b,1) /= mesh%nTri_loc) THEN
+      CALL crash('vector and matrix sizes dont match!')
+    END IF
+
+    ! Perform the ddyping operation as a matrix multiplication
+    CALL multiply_CSR_matrix_with_vector_1D( mesh%M_ddy_b_a, d_b, ddy_a)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE ddy_b_a_2D
+
+  SUBROUTINE ddy_b_a_3D( mesh, d_b, ddy_a)
+    ! ddy a 3-D data field from the b-grid (triangles) to the a-grid (vertices)
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)     :: mesh
+    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)     :: d_b
+    REAL(dp), DIMENSION(:,:  ),          INTENT(OUT)    :: ddy_a
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                       :: routine_name = 'ddy_b_a_3D'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Safety
+    IF (SIZE( ddy_a,1) /= mesh%nV_loc .OR. SIZE( d_b,1) /= mesh%nTri_loc .OR. SIZE( ddy_a,2) /= SIZE( d_b,2)) THEN
+      CALL crash('vector and matrix sizes dont match!')
+    END IF
+
+    ! Perform the ddyping operation as a matrix multiplication
+    CALL multiply_CSR_matrix_with_vector_2D( mesh%M_ddy_b_a, d_b, ddy_a)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE ddy_b_a_3D
+
+! ===== Subroutines for calculating mesh operators =====
+! ======================================================
 
   SUBROUTINE calc_all_matrix_operators_mesh( mesh)
     ! Calculate mapping, d/dx, and d/dy matrix operators between all the grids (a,b,c) on the mesh
@@ -73,7 +548,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_matrix_operators_mesh_a_a'
-    INTEGER                                            :: ncols, nrows, nnz_per_row_est, nnz_est_proc
+    INTEGER                                            :: ncols, nrows, ncols_loc, nrows_loc, nnz_per_row_est, nnz_est_proc
     INTEGER                                            :: row
     INTEGER                                            :: vi
     REAL(dp)                                           :: x, y
@@ -100,12 +575,14 @@ CONTAINS
 
     ! Matrix size
     ncols           = mesh%nV      ! from
+    ncols_loc       = mesh%nV_loc
     nrows           = mesh%nV      ! to
+    nrows_loc       = mesh%nV_loc
     nnz_per_row_est = mesh%nC_mem+1
-    nnz_est_proc    = CEILING( REAL( nnz_per_row_est * nrows, dp) / REAL( par%n, dp))
+    nnz_est_proc    = nrows_loc * nnz_per_row_est
 
-    CALL allocate_matrix_CSR_dist( mesh%M_ddx_a_a, nrows, ncols, nnz_est_proc)
-    CALL allocate_matrix_CSR_dist( mesh%M_ddy_a_a, nrows, ncols, nnz_est_proc)
+    CALL allocate_matrix_CSR_dist( mesh%M_ddx_a_a, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+    CALL allocate_matrix_CSR_dist( mesh%M_ddy_a_a, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
 
   ! Calculate shape functions and fill them into the matrices
   ! =========================================================
@@ -201,7 +678,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_matrix_operators_mesh_a_b'
-    INTEGER                                            :: ncols, nrows, nnz_per_row_est, nnz_est_proc
+    INTEGER                                            :: ncols, nrows, ncols_loc, nrows_loc, nnz_per_row_est, nnz_est_proc
     INTEGER                                            :: row
     INTEGER                                            :: ti
     REAL(dp)                                           :: x, y
@@ -227,13 +704,15 @@ CONTAINS
 
     ! Matrix size
     ncols           = mesh%nV        ! from
+    ncols_loc       = mesh%nV_loc
     nrows           = mesh%nTri      ! to
+    nrows_loc       = mesh%nTri_loc
     nnz_per_row_est = 3
-    nnz_est_proc    = CEILING( REAL( nnz_per_row_est * nrows, dp) / REAL( par%n, dp))
+    nnz_est_proc    = nrows_loc * nnz_per_row_est
 
-    CALL allocate_matrix_CSR_dist( mesh%M_map_a_b, nrows, ncols, nnz_est_proc)
-    CALL allocate_matrix_CSR_dist( mesh%M_ddx_a_b, nrows, ncols, nnz_est_proc)
-    CALL allocate_matrix_CSR_dist( mesh%M_ddy_a_b, nrows, ncols, nnz_est_proc)
+    CALL allocate_matrix_CSR_dist( mesh%M_map_a_b, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+    CALL allocate_matrix_CSR_dist( mesh%M_ddx_a_b, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+    CALL allocate_matrix_CSR_dist( mesh%M_ddy_a_b, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
 
   ! Calculate shape functions and fill them into the matrices
   ! =========================================================
@@ -331,7 +810,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_matrix_operators_mesh_a_c'
-    INTEGER                                            :: ncols, nrows, nnz_per_row_est, nnz_est_proc
+    INTEGER                                            :: ncols, nrows, ncols_loc, nrows_loc, nnz_per_row_est, nnz_est_proc
     INTEGER                                            :: row
     INTEGER                                            :: ei
     REAL(dp)                                           :: x, y
@@ -357,13 +836,15 @@ CONTAINS
 
     ! Matrix size
     ncols           = mesh%nV        ! from
+    ncols_loc       = mesh%nV_loc
     nrows           = mesh%nE        ! to
+    nrows_loc       = mesh%nE_loc
     nnz_per_row_est = 4
-    nnz_est_proc    = CEILING( REAL( nnz_per_row_est * nrows, dp) / REAL( par%n, dp))
+    nnz_est_proc    = nrows_loc * nnz_per_row_est
 
-    CALL allocate_matrix_CSR_dist( mesh%M_map_a_c, nrows, ncols, nnz_est_proc)
-    CALL allocate_matrix_CSR_dist( mesh%M_ddx_a_c, nrows, ncols, nnz_est_proc)
-    CALL allocate_matrix_CSR_dist( mesh%M_ddy_a_c, nrows, ncols, nnz_est_proc)
+    CALL allocate_matrix_CSR_dist( mesh%M_map_a_c, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+    CALL allocate_matrix_CSR_dist( mesh%M_ddx_a_c, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+    CALL allocate_matrix_CSR_dist( mesh%M_ddy_a_c, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
 
   ! Calculate shape functions and fill them into the matrices
   ! =========================================================
@@ -462,7 +943,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_matrix_operators_mesh_b_a'
-    INTEGER                                            :: ncols, nrows, nnz_per_row_est, nnz_est_proc
+    INTEGER                                            :: ncols, nrows, ncols_loc, nrows_loc, nnz_per_row_est, nnz_est_proc
     INTEGER                                            :: row
     INTEGER                                            :: vi
     REAL(dp)                                           :: x, y
@@ -488,13 +969,15 @@ CONTAINS
 
     ! Matrix size
     ncols           = mesh%nTri    ! from
+    ncols_loc       = mesh%nTri_loc
     nrows           = mesh%nV      ! to
+    nrows_loc       = mesh%nV_loc
     nnz_per_row_est = mesh%nC_mem+1
-    nnz_est_proc    = CEILING( REAL( nnz_per_row_est * nrows, dp) / REAL( par%n, dp))
+    nnz_est_proc    = nrows_loc * nnz_per_row_est
 
-    CALL allocate_matrix_CSR_dist( mesh%M_map_b_a, nrows, ncols, nnz_est_proc)
-    CALL allocate_matrix_CSR_dist( mesh%M_ddx_b_a, nrows, ncols, nnz_est_proc)
-    CALL allocate_matrix_CSR_dist( mesh%M_ddy_b_a, nrows, ncols, nnz_est_proc)
+    CALL allocate_matrix_CSR_dist( mesh%M_map_b_a, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+    CALL allocate_matrix_CSR_dist( mesh%M_ddx_b_a, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+    CALL allocate_matrix_CSR_dist( mesh%M_ddy_b_a, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
 
   ! Calculate shape functions and fill them into the matrices
   ! =========================================================
@@ -592,7 +1075,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_matrix_operators_mesh_b_b'
-    INTEGER                                            :: ncols, nrows, nnz_per_row_est, nnz_est_proc
+    INTEGER                                            :: ncols, nrows, ncols_loc, nrows_loc, nnz_per_row_est, nnz_est_proc
     INTEGER                                            :: row
     INTEGER                                            :: ti
     REAL(dp)                                           :: x, y
@@ -619,12 +1102,14 @@ CONTAINS
 
     ! Matrix size
     ncols           = mesh%nTri    ! from
+    ncols_loc       = mesh%nTri_loc
     nrows           = mesh%nTri    ! to
+    nrows_loc       = mesh%nTri_loc
     nnz_per_row_est = mesh%nC_mem+1
-    nnz_est_proc    = CEILING( REAL( nnz_per_row_est * nrows, dp) / REAL( par%n, dp))
+    nnz_est_proc    = nrows_loc * nnz_per_row_est
 
-    CALL allocate_matrix_CSR_dist( mesh%M_ddx_b_b, nrows, ncols, nnz_est_proc)
-    CALL allocate_matrix_CSR_dist( mesh%M_ddy_b_b, nrows, ncols, nnz_est_proc)
+    CALL allocate_matrix_CSR_dist( mesh%M_ddx_b_b, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+    CALL allocate_matrix_CSR_dist( mesh%M_ddy_b_b, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
 
   ! Calculate shape functions and fill them into the matrices
   ! =========================================================
@@ -720,7 +1205,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_matrix_operators_mesh_b_b_2nd_order'
-    INTEGER                                            :: ncols, nrows, nnz_per_row_est, nnz_est_proc
+    INTEGER                                            :: ncols, nrows, ncols_loc, nrows_loc, nnz_per_row_est, nnz_est_proc
     INTEGER                                            :: row
     INTEGER                                            :: ti
     REAL(dp)                                           :: x, y
@@ -747,15 +1232,17 @@ CONTAINS
 
     ! Matrix size
     ncols           = mesh%nTri    ! from
+    ncols_loc       = mesh%nTri_loc
     nrows           = mesh%nTri    ! to
+    nrows_loc       = mesh%nTri_loc
     nnz_per_row_est = mesh%nC_mem+1
-    nnz_est_proc    = CEILING( REAL( nnz_per_row_est * nrows, dp) / REAL( par%n, dp))
+    nnz_est_proc    = nrows_loc * nnz_per_row_est
 
-    CALL allocate_matrix_CSR_dist( mesh%M2_ddx_b_b    , nrows, ncols, nnz_est_proc)
-    CALL allocate_matrix_CSR_dist( mesh%M2_ddy_b_b    , nrows, ncols, nnz_est_proc)
-    CALL allocate_matrix_CSR_dist( mesh%M2_d2dx2_b_b , nrows, ncols, nnz_est_proc)
-    CALL allocate_matrix_CSR_dist( mesh%M2_d2dxdy_b_b, nrows, ncols, nnz_est_proc)
-    CALL allocate_matrix_CSR_dist( mesh%M2_d2dy2_b_b , nrows, ncols, nnz_est_proc)
+    CALL allocate_matrix_CSR_dist( mesh%M2_ddx_b_b   , nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+    CALL allocate_matrix_CSR_dist( mesh%M2_ddy_b_b   , nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+    CALL allocate_matrix_CSR_dist( mesh%M2_d2dx2_b_b , nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+    CALL allocate_matrix_CSR_dist( mesh%M2_d2dxdy_b_b, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+    CALL allocate_matrix_CSR_dist( mesh%M2_d2dy2_b_b , nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
 
   ! Calculate shape functions and fill them into the matrices
   ! =========================================================
@@ -863,7 +1350,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_matrix_operators_mesh_b_c'
-    INTEGER                                            :: ncols, nrows, nnz_per_row_est, nnz_est_proc
+    INTEGER                                            :: ncols, nrows, ncols_loc, nrows_loc, nnz_per_row_est, nnz_est_proc
     INTEGER                                            :: row
     INTEGER                                            :: ei
     REAL(dp)                                           :: x, y
@@ -889,13 +1376,15 @@ CONTAINS
 
     ! Matrix size
     ncols           = mesh%nTri      ! from
+    ncols_loc       = mesh%nTri_loc
     nrows           = mesh%nE        ! to
+    nrows_loc       = mesh%nE_loc
     nnz_per_row_est = 6
-    nnz_est_proc    = CEILING( REAL( nnz_per_row_est * nrows, dp) / REAL( par%n, dp))
+    nnz_est_proc    = nrows_loc * nnz_per_row_est
 
-    CALL allocate_matrix_CSR_dist( mesh%M_map_b_c, nrows, ncols, nnz_est_proc)
-    CALL allocate_matrix_CSR_dist( mesh%M_ddx_b_c, nrows, ncols, nnz_est_proc)
-    CALL allocate_matrix_CSR_dist( mesh%M_ddy_b_c, nrows, ncols, nnz_est_proc)
+    CALL allocate_matrix_CSR_dist( mesh%M_map_b_c, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+    CALL allocate_matrix_CSR_dist( mesh%M_ddx_b_c, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+    CALL allocate_matrix_CSR_dist( mesh%M_ddy_b_c, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
 
   ! Calculate shape functions and fill them into the matrices
   ! =========================================================
@@ -994,7 +1483,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_matrix_operators_mesh_c_a'
-    INTEGER                                            :: ncols, nrows, nnz_per_row_est, nnz_est_proc
+    INTEGER                                            :: ncols, nrows, ncols_loc, nrows_loc, nnz_per_row_est, nnz_est_proc
     INTEGER                                            :: row
     INTEGER                                            :: vi
     REAL(dp)                                           :: x, y
@@ -1020,13 +1509,15 @@ CONTAINS
 
     ! Matrix size
     ncols           = mesh%nE      ! from
+    ncols_loc       = mesh%nE_loc
     nrows           = mesh%nV      ! to
+    nrows_loc       = mesh%nV_loc
     nnz_per_row_est = mesh%nC_mem+1
-    nnz_est_proc    = CEILING( REAL( nnz_per_row_est * nrows, dp) / REAL( par%n, dp))
+    nnz_est_proc    = nrows_loc * nnz_per_row_est
 
-    CALL allocate_matrix_CSR_dist( mesh%M_map_c_a, nrows, ncols, nnz_est_proc)
-    CALL allocate_matrix_CSR_dist( mesh%M_ddx_c_a, nrows, ncols, nnz_est_proc)
-    CALL allocate_matrix_CSR_dist( mesh%M_ddy_c_a, nrows, ncols, nnz_est_proc)
+    CALL allocate_matrix_CSR_dist( mesh%M_map_c_a, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+    CALL allocate_matrix_CSR_dist( mesh%M_ddx_c_a, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+    CALL allocate_matrix_CSR_dist( mesh%M_ddy_c_a, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
 
   ! Calculate shape functions and fill them into the matrices
   ! =========================================================
@@ -1124,7 +1615,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_matrix_operators_mesh_c_b'
-    INTEGER                                            :: ncols, nrows, nnz_per_row_est, nnz_est_proc
+    INTEGER                                            :: ncols, nrows, ncols_loc, nrows_loc, nnz_per_row_est, nnz_est_proc
     INTEGER                                            :: row
     INTEGER                                            :: ti
     REAL(dp)                                           :: x, y
@@ -1150,13 +1641,15 @@ CONTAINS
 
     ! Matrix size
     ncols           = mesh%nE        ! from
+    ncols_loc       = mesh%nE_loc
     nrows           = mesh%nTri      ! to
+    nrows_loc       = mesh%nTri_loc
     nnz_per_row_est = 3
-    nnz_est_proc    = CEILING( REAL( nnz_per_row_est * nrows, dp) / REAL( par%n, dp))
+    nnz_est_proc    = nrows_loc * nnz_per_row_est
 
-    CALL allocate_matrix_CSR_dist( mesh%M_map_c_b, nrows, ncols, nnz_est_proc)
-    CALL allocate_matrix_CSR_dist( mesh%M_ddx_c_b, nrows, ncols, nnz_est_proc)
-    CALL allocate_matrix_CSR_dist( mesh%M_ddy_c_b, nrows, ncols, nnz_est_proc)
+    CALL allocate_matrix_CSR_dist( mesh%M_map_c_b, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+    CALL allocate_matrix_CSR_dist( mesh%M_ddx_c_b, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+    CALL allocate_matrix_CSR_dist( mesh%M_ddy_c_b, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
 
   ! Calculate shape functions and fill them into the matrices
   ! =========================================================
@@ -1266,7 +1759,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_matrix_operators_mesh_c_c'
-    INTEGER                                            :: ncols, nrows, nnz_per_row_est, nnz_est_proc
+    INTEGER                                            :: ncols, nrows, ncols_loc, nrows_loc, nnz_per_row_est, nnz_est_proc
     INTEGER                                            :: row
     INTEGER                                            :: ei
     REAL(dp)                                           :: x, y
@@ -1293,12 +1786,14 @@ CONTAINS
 
     ! Matrix size
     ncols           = mesh%nE      ! from
+    ncols_loc       = mesh%nE_loc
     nrows           = mesh%nE      ! to
+    nrows_loc       = mesh%nE_loc
     nnz_per_row_est = mesh%nC_mem+1
-    nnz_est_proc    = CEILING( REAL( nnz_per_row_est * nrows, dp) / REAL( par%n, dp))
+    nnz_est_proc    = nrows_loc * nnz_per_row_est
 
-    CALL allocate_matrix_CSR_dist( mesh%M_ddx_c_c, nrows, ncols, nnz_est_proc)
-    CALL allocate_matrix_CSR_dist( mesh%M_ddy_c_c, nrows, ncols, nnz_est_proc)
+    CALL allocate_matrix_CSR_dist( mesh%M_ddx_c_c, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+    CALL allocate_matrix_CSR_dist( mesh%M_ddy_c_c, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
 
   ! Calculate shape functions and fill them into the matrices
   ! =========================================================

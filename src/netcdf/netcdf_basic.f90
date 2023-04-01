@@ -17,10 +17,6 @@ MODULE netcdf_basic
   USE precisions                                             , ONLY: dp
   USE mpi_basic                                              , ONLY: par, cerr, ierr, MPI_status, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine
-  USE mpi_distributed_memory                                 , ONLY: gather_to_master_int_1D, gather_to_master_dp_1D, &
-                                                                     gather_to_master_int_2D, gather_to_master_dp_2D, &
-                                                                     gather_to_master_int_3D, gather_to_master_dp_3D, &
-                                                                     gather_to_master_int_4D, gather_to_master_dp_4D
   USE math_utilities                                         , ONLY: check_for_NaN_dp_0D, check_for_NaN_int_0D, &
                                                                      check_for_NaN_dp_1D, check_for_NaN_int_1D, &
                                                                      check_for_NaN_dp_2D, check_for_NaN_int_2D, &
@@ -49,7 +45,6 @@ MODULE netcdf_basic
   CHARACTER(LEN=256), PARAMETER :: field_name_options_x              = 'x||X||x1||X1||nx||NX||x-coordinate||X-coordinate||easting||Easting'
   CHARACTER(LEN=256), PARAMETER :: field_name_options_y              = 'y||Y||y1||Y1||ny||NY||y-coordinate||Y-coordinate||northing||Northing'
   CHARACTER(LEN=256), PARAMETER :: field_name_options_zeta           = 'zeta||Zeta'
-  CHARACTER(LEN=256), PARAMETER :: field_name_options_z_ocean        = 'depth||Depth||z_ocean'
   CHARACTER(LEN=256), PARAMETER :: field_name_options_lon            = 'lon||Lon||long||Long||longitude||Longitude'
   CHARACTER(LEN=256), PARAMETER :: field_name_options_lat            = 'lat||Lat||latitude||Latitude'
   CHARACTER(LEN=256), PARAMETER :: field_name_options_time           = 'time||Time||t||nt'
@@ -287,38 +282,6 @@ CONTAINS
 
   END SUBROUTINE inquire_zeta
 
-  SUBROUTINE inquire_z_ocean( filename, ncid, has_z_ocean)
-    ! Inquire if a NetCDF file contains a z_ocean dimension and variable
-
-    IMPLICIT NONE
-
-    ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    LOGICAL,                             INTENT(OUT)   :: has_z_ocean
-
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'inquire_z_ocean'
-    INTEGER                                            :: id_dim_z_ocean, id_var_z_ocean
-
-    ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
-
-    ! Look for z_ocean dimension and variable
-    CALL inquire_dim_multiple_options( filename, ncid, field_name_options_z_ocean, id_dim_z_ocean)
-    CALL inquire_var_multiple_options( filename, ncid, field_name_options_z_ocean, id_var_z_ocean)
-
-    ! Check if everything is there
-    has_z_ocean = .TRUE.
-
-    IF (id_dim_z_ocean           == -1) has_z_ocean = .FALSE.
-    IF (id_var_z_ocean           == -1) has_z_ocean = .FALSE.
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE inquire_z_ocean
-
   SUBROUTINE inquire_month( filename, ncid, has_month)
     ! Inquire if a NetCDF file contains a month dimension and variable
 
@@ -418,7 +381,8 @@ CONTAINS
     ALLOCATE( time_from_file( nt))
 
     ! Read time from file
-    CALL read_var_dp_1D( filename, ncid, id_var_time, time_from_file)
+    CALL read_var_master_dp_1D( filename, ncid, id_var_time, time_from_file)
+    CALL MPI_BCAST( time_from_file, nt, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
 
     ! Find timeframe closest to desired time
     IF (time_from_file( 1) > time) THEN
@@ -505,17 +469,20 @@ CONTAINS
     ALLOCATE( x( n))
 
     ! Read variable
-    CALL read_var_dp_1D( filename, ncid, id_var, x)
+    CALL read_var_master_dp_1D( filename, ncid, id_var, x)
 
     ! Check validity
-    CALL check_for_NaN_dp_1D( x, 'x')
+    IF (par%master) CALL check_for_NaN_dp_1D( x, 'x')
 
     ! Check grid spacing
-    dx = x( 2) - x( 1)
-    DO i = 2, n
-      dxp = x( i) - x( i-1)
-      IF (ABS( 1._dp - dxp / dx) > 1E-5_dp) CALL crash('x coordinate in file "' // TRIM( filename) // '" is irregular!')
-    END DO
+    IF (par%master) THEN
+      dx = x( 2) - x( 1)
+      DO i = 2, n
+        dxp = x( i) - x( i-1)
+        IF (ABS( 1._dp - dxp / dx) > 1E-5_dp) CALL crash('x coordinate in file "' // TRIM( filename) // '" is irregular!')
+      END DO
+    END IF ! IF (par%master) THEN
+    CALL sync
 
     ! Clean up after yourself
     DEALLOCATE( x)
@@ -575,17 +542,20 @@ CONTAINS
     ALLOCATE( y( n))
 
     ! Read variable
-    CALL read_var_dp_1D( filename, ncid, id_var, y)
+    CALL read_var_master_dp_1D( filename, ncid, id_var, y)
 
     ! Check validity
-    CALL check_for_NaN_dp_1D( y, 'y')
+    IF (par%master) CALL check_for_NaN_dp_1D( y, 'y')
 
     ! Check grid spacing
-    dy = y( 2) - y( 1)
-    DO i = 2, n
-      dyp = y( i) - y( i-1)
-      IF (ABS( 1._dp - dyp / dy) > 1E-5_dp) CALL crash('y coordinate in file "' // TRIM( filename) // '" is irregular!')
-    END DO
+    IF (par%master) THEN
+      dy = y( 2) - y( 1)
+      DO i = 2, n
+        dyp = y( i) - y( i-1)
+        IF (ABS( 1._dp - dyp / dy) > 1E-5_dp) CALL crash('y coordinate in file "' // TRIM( filename) // '" is irregular!')
+      END DO
+    END IF
+    CALL sync
 
     ! Clean up after yourself
     DEALLOCATE( y)
@@ -641,17 +611,20 @@ CONTAINS
     ALLOCATE( lon( n))
 
     ! Read variable
-    CALL read_var_dp_1D( filename, ncid, id_var, lon)
+    IF (par%master) CALL read_var_master_dp_1D( filename, ncid, id_var, lon)
 
     ! Check validity
-    CALL check_for_NaN_dp_1D( lon, 'lon')
+    IF (par%master) CALL check_for_NaN_dp_1D( lon, 'lon')
 
     ! Check grid spacing
-    dlon = MINVAL([ ABS(lon( 2) - lon( 1)), ABS( lon( 2) + 360._dp - lon( 1)), ABS( lon( 2) - 360._dp - lon( 1)) ])
-    DO i = 2, n
-      dlonp = MINVAL([ ABS(lon( i) - lon( i-1)), ABS( lon( i) + 360._dp - lon( i-1)), ABS( lon( i) - 360._dp - lon( i-1)) ])
-      IF (ABS( 1._dp - dlonp / dlon) > 1E-5_dp) CALL crash('lon coordinate in file "' // TRIM( filename) // '" is irregular!')
-    END DO
+    IF (par%master) THEN
+      dlon = MINVAL([ ABS(lon( 2) - lon( 1)), ABS( lon( 2) + 360._dp - lon( 1)), ABS( lon( 2) - 360._dp - lon( 1)) ])
+      DO i = 2, n
+        dlonp = MINVAL([ ABS(lon( i) - lon( i-1)), ABS( lon( i) + 360._dp - lon( i-1)), ABS( lon( i) - 360._dp - lon( i-1)) ])
+        IF (ABS( 1._dp - dlonp / dlon) > 1E-5_dp) CALL crash('lon coordinate in file "' // TRIM( filename) // '" is irregular!')
+      END DO
+    END IF
+    CALL sync
 
     ! Clean up after yourself
     DEALLOCATE( lon)
@@ -706,17 +679,20 @@ CONTAINS
     ALLOCATE( lat( n))
 
     ! Read variable
-    CALL read_var_dp_1D( filename, ncid, id_var, lat)
+    CALL read_var_master_dp_1D( filename, ncid, id_var, lat)
 
     ! Check validity
-    CALL check_for_NaN_dp_1D( lat, 'lat')
+    IF (par%master) CALL check_for_NaN_dp_1D( lat, 'lat')
 
     ! Check grid spacing
-    dlat = lat( 2) - lat( 1)
-    DO i = 2, n
-      dlatp = lat( i) - lat( i-1)
-      IF (ABS( 1._dp - dlatp / dlat) > 1E-5_dp) CALL crash('latitude coordinate in file "' // TRIM( filename) // '" is irregular!')
-    END DO
+    IF (par%master) THEN
+      dlat = lat( 2) - lat( 1)
+      DO i = 2, n
+        dlatp = lat( i) - lat( i-1)
+        IF (ABS( 1._dp - dlatp / dlat) > 1E-5_dp) CALL crash('latitude coordinate in file "' // TRIM( filename) // '" is irregular!')
+      END DO
+    END IF
+    CALL sync
 
     ! Clean up after yourself
     DEALLOCATE( lat)
@@ -926,17 +902,20 @@ CONTAINS
     ALLOCATE( zeta( n))
 
     ! Read variable
-    CALL read_var_dp_1D( filename, ncid, id_var, zeta)
+    CALL read_var_master_dp_1D( filename, ncid, id_var, zeta)
 
     ! Check validity
-    CALL check_for_NaN_dp_1D( zeta, 'zeta')
+    IF (par%master) THEN
+      CALL check_for_NaN_dp_1D( zeta, 'zeta')
 
-    IF (zeta( 1) /= 0._dp) CALL crash('zeta in file "' // TRIM( filename) // '" does not start at zero!')
-    IF (zeta( n) /= 1._dp) CALL crash('zeta in file "' // TRIM( filename) // '" does not end at one!')
+      IF (zeta( 1) /= 0._dp) CALL crash('zeta in file "' // TRIM( filename) // '" does not start at zero!')
+      IF (zeta( n) /= 1._dp) CALL crash('zeta in file "' // TRIM( filename) // '" does not end at one!')
 
-    DO k = 2, n
-      IF (zeta( k) <= zeta( k-1)) CALL crash('zeta in file "' // TRIM( filename) // '" does not increase monotonously!')
-    END DO
+      DO k = 2, n
+        IF (zeta( k) <= zeta( k-1)) CALL crash('zeta in file "' // TRIM( filename) // '" does not increase monotonously!')
+      END DO
+    END IF
+    CALL sync
 
     ! Clean up after yourself
     DEALLOCATE( zeta)
@@ -945,63 +924,6 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE check_zeta
-
-  SUBROUTINE check_z_ocean( filename, ncid)
-    ! Check if this file contains a valid z_ocean dimension and variable
-
-    IMPLICIT NONE
-
-    ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'check_z_ocean'
-    INTEGER                                            :: id_dim
-    INTEGER                                            :: n
-    CHARACTER(LEN=256)                                 :: dim_name
-    INTEGER                                            :: id_var
-    CHARACTER(LEN=256)                                 :: var_name
-    INTEGER                                            :: var_type
-    INTEGER                                            :: ndims_of_var
-    INTEGER,  DIMENSION( NF90_MAX_VAR_DIMS)            :: dims_of_var
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: z_ocean
-    INTEGER                                            :: k
-
-    ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
-
-    ! Inquire dimension
-    CALL inquire_dim_multiple_options( filename, ncid, field_name_options_z_ocean, id_dim, dim_length = n, dim_name = dim_name)
-
-    ! Safety checks on dimension
-    IF (id_dim == -1) CALL crash('no valid z_ocean dimension could be found in file "' // TRIM( filename) // '"!')
-    IF (n == NF90_UNLIMITED) CALL crash('z_ocean dimension in file "' // TRIM( filename) // '" is unlimited!')
-    IF (n < 1) CALL crash('z_ocean dimension in file "' // TRIM( filename) // '" has length n = {int_01}!', int_01  = n)
-
-    ! Inquire variable
-    CALL inquire_var_multiple_options( filename, ncid, field_name_options_z_ocean, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
-    IF (id_var == -1) CALL crash('no valid z_ocean variable could be found in file "' // TRIM( filename) // '"!')
-    IF (.NOT. (var_type == NF90_FLOAT .OR. var_type == NF90_DOUBLE)) CALL crash('z_ocean variable in file "' // TRIM( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
-    IF (ndims_of_var /= 1) CALL crash('z_ocean variable in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-    IF (dims_of_var( 1) /= id_dim) CALL crash('z_ocean variable in file "' // TRIM( filename) // '" does not have z_ocean as a dimension!')
-
-    ! Allocate memory
-    ALLOCATE( z_ocean( n))
-
-    ! Read variable
-    CALL read_var_dp_1D( filename, ncid, id_var, z_ocean)
-
-    ! Check validity
-    CALL check_for_NaN_dp_1D( z_ocean, 'z_ocean')
-
-    ! Clean up after yourself
-    DEALLOCATE( z_ocean)
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE check_z_ocean
 
   SUBROUTINE check_month( filename, ncid)
     ! Check if this file contains a valid month dimension (we don't really care about the variable)
@@ -1079,10 +1001,10 @@ CONTAINS
       ALLOCATE( time( n))
 
       ! Read variable
-      CALL read_var_dp_1D( filename, ncid, id_var, time)
+      CALL read_var_master_dp_1D( filename, ncid, id_var, time)
 
       ! Check validity
-      CALL check_for_NaN_dp_1D( time, 'time')
+      IF (par%master) CALL check_for_NaN_dp_1D( time, 'time')
 
       ! Clean up after yourself
       DEALLOCATE( time)
@@ -2953,8 +2875,6 @@ CONTAINS
         field_name_options_parsed = field_name_options_y
       ELSEIF (field_name_options == 'default_options_zeta') THEN
         field_name_options_parsed = field_name_options_zeta
-      ELSEIF (field_name_options == 'default_options_z_ocean') THEN
-        field_name_options_parsed = field_name_options_z_ocean
       ELSEIF (field_name_options == 'default_options_lon') THEN
         field_name_options_parsed = field_name_options_lon
       ELSEIF (field_name_options == 'default_options_lat') THEN
@@ -3009,14 +2929,14 @@ CONTAINS
 ! ===== Read data from variables =====
 ! ====================================
 
-  ! NOTE: only the Master actually reads data from the disk; it then
-  !       MPI_BCASTs it to the other processes
+  ! NOTE: only the Master actually reads data! Distributing to other processes
+  !       must be done afterward
 
-  SUBROUTINE read_var_int_0D(  filename, ncid, id_var, d)
+  SUBROUTINE read_var_master_int_0D(  filename, ncid, id_var, d)
     ! Read data from a NetCDF file
     !
-    ! NOTE: only the Master actually reads data from the disk; it then
-    !       MPI_BCASTs it to the other processes
+    ! NOTE: only the Master actually reads data! Distributing to other processes
+    !       must be done afterward
 
     IMPLICIT NONE
 
@@ -3027,7 +2947,7 @@ CONTAINS
     INTEGER,                             INTENT(OUT)   :: d
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'read_var_int_0D'
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'read_var_master_int_0D'
     CHARACTER(LEN=256)                                 :: var_name
     INTEGER                                            :: var_type
     INTEGER                                            :: ndims_of_var
@@ -3052,19 +2972,16 @@ CONTAINS
     END IF
     CALL sync
 
-    ! Broadcast to the other processes
-    CALL MPI_BCAST( d, 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
-
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
-  END SUBROUTINE read_var_int_0D
+  END SUBROUTINE read_var_master_int_0D
 
-  SUBROUTINE read_var_int_1D(  filename, ncid, id_var, d, start, count)
+  SUBROUTINE read_var_master_int_1D(  filename, ncid, id_var, d, start, count)
     ! Read data from a NetCDF file
     !
-    ! NOTE: only the Master actually reads data from the disk; it then
-    !       MPI_BCASTs it to the other processes
+    ! NOTE: only the Master actually reads data! Distributing to other processes
+    !       must be done afterward
 
     IMPLICIT NONE
 
@@ -3076,7 +2993,7 @@ CONTAINS
     INTEGER,  DIMENSION(1    ), OPTIONAL,INTENT(IN)    :: start, count
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'read_var_int_1D'
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'read_var_master_int_1D'
     CHARACTER(LEN=256)                                 :: var_name
     INTEGER                                            :: var_type
     INTEGER                                            :: ndims_of_var
@@ -3137,19 +3054,16 @@ CONTAINS
     END IF
     CALL sync
 
-    ! Broadcast to the other processes
-    CALL MPI_BCAST( d, SIZE( d,1), MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
-
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
-  END SUBROUTINE read_var_int_1D
+  END SUBROUTINE read_var_master_int_1D
 
-  SUBROUTINE read_var_int_2D(  filename, ncid, id_var, d, start, count)
+  SUBROUTINE read_var_master_int_2D(  filename, ncid, id_var, d, start, count)
     ! Read data from a NetCDF file
     !
-    ! NOTE: only the Master actually reads data from the disk; it then
-    !       MPI_BCASTs it to the other processes
+    ! NOTE: only the Master actually reads data! Distributing to other processes
+    !       must be done afterward
 
     IMPLICIT NONE
 
@@ -3161,7 +3075,7 @@ CONTAINS
     INTEGER,  DIMENSION(2    ), OPTIONAL,INTENT(IN)    :: start, count
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'read_var_int_2D'
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'read_var_master_int_2D'
     CHARACTER(LEN=256)                                 :: var_name
     INTEGER                                            :: var_type
     INTEGER                                            :: ndims_of_var
@@ -3222,19 +3136,16 @@ CONTAINS
     END IF
     CALL sync
 
-    ! Broadcast to the other processes
-    CALL MPI_BCAST( d, SIZE( d,1) * SIZE( d,2), MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
-
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
-  END SUBROUTINE read_var_int_2D
+  END SUBROUTINE read_var_master_int_2D
 
-  SUBROUTINE read_var_int_3D(  filename, ncid, id_var, d, start, count)
+  SUBROUTINE read_var_master_int_3D(  filename, ncid, id_var, d, start, count)
     ! Read data from a NetCDF file
     !
-    ! NOTE: only the Master actually reads data from the disk; it then
-    !       MPI_BCASTs it to the other processes
+    ! NOTE: only the Master actually reads data! Distributing to other processes
+    !       must be done afterward
 
     IMPLICIT NONE
 
@@ -3246,7 +3157,7 @@ CONTAINS
     INTEGER,  DIMENSION(3    ), OPTIONAL,INTENT(IN)    :: start, count
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'read_var_int_3D'
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'read_var_master_int_3D'
     CHARACTER(LEN=256)                                 :: var_name
     INTEGER                                            :: var_type
     INTEGER                                            :: ndims_of_var
@@ -3307,19 +3218,16 @@ CONTAINS
     END IF
     CALL sync
 
-    ! Broadcast to the other processes
-    CALL MPI_BCAST( d, SIZE( d,1) * SIZE( d,2) * SIZE( d,3), MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
-
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
-  END SUBROUTINE read_var_int_3D
+  END SUBROUTINE read_var_master_int_3D
 
-  SUBROUTINE read_var_int_4D(  filename, ncid, id_var, d, start, count)
+  SUBROUTINE read_var_master_int_4D(  filename, ncid, id_var, d, start, count)
     ! Read data from a NetCDF file
     !
-    ! NOTE: only the Master actually reads data from the disk; it then
-    !       MPI_BCASTs it to the other processes
+    ! NOTE: only the Master actually reads data! Distributing to other processes
+    !       must be done afterward
 
     IMPLICIT NONE
 
@@ -3331,7 +3239,7 @@ CONTAINS
     INTEGER,  DIMENSION(4    ), OPTIONAL,INTENT(IN)    :: start, count
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'read_var_int_4D'
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'read_var_master_int_4D'
     CHARACTER(LEN=256)                                 :: var_name
     INTEGER                                            :: var_type
     INTEGER                                            :: ndims_of_var
@@ -3392,19 +3300,16 @@ CONTAINS
     END IF
     CALL sync
 
-    ! Broadcast to the other processes
-    CALL MPI_BCAST( d, SIZE( d,1) * SIZE( d,2) * SIZE( d,3) * SIZE( d,4), MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
-
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
-  END SUBROUTINE read_var_int_4D
+  END SUBROUTINE read_var_master_int_4D
 
-  SUBROUTINE read_var_dp_0D(  filename, ncid, id_var, d)
+  SUBROUTINE read_var_master_dp_0D(  filename, ncid, id_var, d)
     ! Read data from a NetCDF file
     !
-    ! NOTE: only the Master actually reads data from the disk; it then
-    !       MPI_BCASTs it to the other processes
+    ! NOTE: only the Master actually reads data! Distributing to other processes
+    !       must be done afterward
 
     IMPLICIT NONE
 
@@ -3415,7 +3320,7 @@ CONTAINS
     REAL(dp),                            INTENT(OUT)   :: d
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'read_var_dp_0D'
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'read_var_master_dp_0D'
     CHARACTER(LEN=256)                                 :: var_name
     INTEGER                                            :: var_type
     INTEGER                                            :: ndims_of_var
@@ -3440,19 +3345,16 @@ CONTAINS
     END IF
     CALL sync
 
-    ! Broadcast to the other processes
-    CALL MPI_BCAST( d, 1, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
-
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
-  END SUBROUTINE read_var_dp_0D
+  END SUBROUTINE read_var_master_dp_0D
 
-  SUBROUTINE read_var_dp_1D(  filename, ncid, id_var, d, start, count)
+  SUBROUTINE read_var_master_dp_1D(  filename, ncid, id_var, d, start, count)
     ! Read data from a NetCDF file
     !
-    ! NOTE: only the Master actually reads data from the disk; it then
-    !       MPI_BCASTs it to the other processes
+    ! NOTE: only the Master actually reads data! Distributing to other processes
+    !       must be done afterward
 
     IMPLICIT NONE
 
@@ -3464,7 +3366,7 @@ CONTAINS
     INTEGER,  DIMENSION(1    ), OPTIONAL,INTENT(IN)    :: start, count
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'read_var_dp_1D'
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'read_var_master_dp_1D'
     CHARACTER(LEN=256)                                 :: var_name
     INTEGER                                            :: var_type
     INTEGER                                            :: ndims_of_var
@@ -3525,19 +3427,16 @@ CONTAINS
     END IF
     CALL sync
 
-    ! Broadcast to the other processes
-    CALL MPI_BCAST( d, SIZE( d,1), MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
-
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
-  END SUBROUTINE read_var_dp_1D
+  END SUBROUTINE read_var_master_dp_1D
 
-  SUBROUTINE read_var_dp_2D(  filename, ncid, id_var, d, start, count)
+  SUBROUTINE read_var_master_dp_2D(  filename, ncid, id_var, d, start, count)
     ! Read data from a NetCDF file
     !
-    ! NOTE: only the Master actually reads data from the disk; it then
-    !       MPI_BCASTs it to the other processes
+    ! NOTE: only the Master actually reads data! Distributing to other processes
+    !       must be done afterward
 
     IMPLICIT NONE
 
@@ -3549,7 +3448,7 @@ CONTAINS
     INTEGER,  DIMENSION(2    ), OPTIONAL,INTENT(IN)    :: start, count
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'read_var_dp_2D'
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'read_var_master_dp_2D'
     CHARACTER(LEN=256)                                 :: var_name
     INTEGER                                            :: var_type
     INTEGER                                            :: ndims_of_var
@@ -3610,19 +3509,16 @@ CONTAINS
     END IF
     CALL sync
 
-    ! Broadcast to the other processes
-    CALL MPI_BCAST( d, SIZE( d,1) * SIZE( d,2), MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
-
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
-  END SUBROUTINE read_var_dp_2D
+  END SUBROUTINE read_var_master_dp_2D
 
-  SUBROUTINE read_var_dp_3D(  filename, ncid, id_var, d, start, count)
+  SUBROUTINE read_var_master_dp_3D(  filename, ncid, id_var, d, start, count)
     ! Read data from a NetCDF file
     !
-    ! NOTE: only the Master actually reads data from the disk; it then
-    !       MPI_BCASTs it to the other processes
+    ! NOTE: only the Master actually reads data! Distributing to other processes
+    !       must be done afterward
 
     IMPLICIT NONE
 
@@ -3634,7 +3530,7 @@ CONTAINS
     INTEGER,  DIMENSION(3    ), OPTIONAL,INTENT(IN)    :: start, count
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'read_var_dp_3D'
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'read_var_master_dp_3D'
     CHARACTER(LEN=256)                                 :: var_name
     INTEGER                                            :: var_type
     INTEGER                                            :: ndims_of_var
@@ -3695,19 +3591,16 @@ CONTAINS
     END IF
     CALL sync
 
-    ! Broadcast to the other processes
-    CALL MPI_BCAST( d, SIZE( d,1) * SIZE( d,2) * SIZE( d,3), MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
-
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
-  END SUBROUTINE read_var_dp_3D
+  END SUBROUTINE read_var_master_dp_3D
 
-  SUBROUTINE read_var_dp_4D(  filename, ncid, id_var, d, start, count)
+  SUBROUTINE read_var_master_dp_4D(  filename, ncid, id_var, d, start, count)
     ! Read data from a NetCDF file
     !
-    ! NOTE: only the Master actually reads data from the disk; it then
-    !       MPI_BCASTs it to the other processes
+    ! NOTE: only the Master actually reads data! Distributing to other processes
+    !       must be done afterward
 
     IMPLICIT NONE
 
@@ -3719,7 +3612,7 @@ CONTAINS
     INTEGER,  DIMENSION(4    ), OPTIONAL,INTENT(IN)    :: start, count
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'read_var_dp_4D'
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'read_var_master_dp_4D'
     CHARACTER(LEN=256)                                 :: var_name
     INTEGER                                            :: var_type
     INTEGER                                            :: ndims_of_var
@@ -3780,342 +3673,22 @@ CONTAINS
     END IF
     CALL sync
 
-    ! Broadcast to the other processes
-    CALL MPI_BCAST( d, SIZE( d,1) * SIZE( d,2) * SIZE( d,3) * SIZE( d,4), MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
-
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
-  END SUBROUTINE read_var_dp_4D
+  END SUBROUTINE read_var_master_dp_4D
 
 ! ===== Write data to variables =====
 ! ===================================
 
-  ! NOTE: The write_dist_var_XX_XD routines write distributed data to
-  !       the file, by first calling gather_master_XX_XD, and then
-  !       calling write_var_XX_XD. In that last one, only the Master
-  !       performs the safety checks and writes the data to the file.
+  ! NOTE: only the Master actually writes data! Gathering from other processes
+  !       must be done beforehand
 
-! Write distributed data to a NetCDF file
-
-  SUBROUTINE write_dist_var_int_0D(  filename, ncid, id_var, d_partial)
-    ! Write distributed data to a NetCDF file
-
-    IMPLICIT NONE
-
-    ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    INTEGER,                             INTENT(IN)    :: id_var
-    INTEGER,                             INTENT(IN)    :: d_partial
-
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_dist_var_int_0D'
-
-    ! Add routine to path
-    CALL init_routine( routine_name)
-
-    ! Non-parallel write to file by the Master only
-    CALL write_var_int_0D( filename, ncid, id_var, d_partial)
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE write_dist_var_int_0D
-
-  SUBROUTINE write_dist_var_int_1D(  filename, ncid, id_var, d_partial, start, count)
-    ! Write distributed data to a NetCDF file
-
-    IMPLICIT NONE
-
-    ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    INTEGER,                             INTENT(IN)    :: id_var
-    INTEGER,  DIMENSION(:    ),          INTENT(IN)    :: d_partial
-    INTEGER,  DIMENSION(1    ), OPTIONAL,INTENT(IN)    :: start, count
-
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_dist_var_int_1D'
-    INTEGER,  DIMENSION(:    ), ALLOCATABLE            :: d
-
-    ! Add routine to path
-    CALL init_routine( routine_name)
-
-    ! Gather distributed data to the Master
-    CALL gather_to_master_int_1D( d_partial, d)
-
-    ! Non-parallel write to file by the Master only
-    CALL write_var_int_1D( filename, ncid, id_var, d, start, count)
-
-    ! Clean up after yourself
-    DEALLOCATE( d)
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE write_dist_var_int_1D
-
-  SUBROUTINE write_dist_var_int_2D(  filename, ncid, id_var, d_partial, start, count)
-    ! Write distributed data to a NetCDF file
-
-    IMPLICIT NONE
-
-    ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    INTEGER,                             INTENT(IN)    :: id_var
-    INTEGER,  DIMENSION(:,:  ),          INTENT(IN)    :: d_partial
-    INTEGER,  DIMENSION(2    ), OPTIONAL,INTENT(IN)    :: start, count
-
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_dist_var_int_2D'
-    INTEGER,  DIMENSION(:,:  ), ALLOCATABLE            :: d
-
-    ! Add routine to path
-    CALL init_routine( routine_name)
-
-    ! Gather distributed data to the Master
-    CALL gather_to_master_int_2D( d_partial, d)
-
-    ! Non-parallel write to file by the Master only
-    CALL write_var_int_2D( filename, ncid, id_var, d, start, count)
-
-    ! Clean up after yourself
-    DEALLOCATE( d)
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE write_dist_var_int_2D
-
-  SUBROUTINE write_dist_var_int_3D(  filename, ncid, id_var, d_partial, start, count)
-    ! Write distributed data to a NetCDF file
-
-    IMPLICIT NONE
-
-    ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    INTEGER,                             INTENT(IN)    :: id_var
-    INTEGER,  DIMENSION(:,:,:),          INTENT(IN)    :: d_partial
-    INTEGER,  DIMENSION(3    ), OPTIONAL,INTENT(IN)    :: start, count
-
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_dist_var_int_3D'
-    INTEGER,  DIMENSION(:,:,:), ALLOCATABLE            :: d
-
-    ! Add routine to path
-    CALL init_routine( routine_name)
-
-    ! Gather distributed data to the Master
-    CALL gather_to_master_int_3D( d_partial, d)
-
-    ! Non-parallel write to file by the Master only
-    CALL write_var_int_3D( filename, ncid, id_var, d, start, count)
-
-    ! Clean up after yourself
-    DEALLOCATE( d)
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE write_dist_var_int_3D
-
-  SUBROUTINE write_dist_var_int_4D(  filename, ncid, id_var, d_partial, start, count)
-    ! Write distributed data to a NetCDF file
-
-    IMPLICIT NONE
-
-    ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    INTEGER,                             INTENT(IN)    :: id_var
-    INTEGER,  DIMENSION(:,:,:,:),        INTENT(IN)    :: d_partial
-    INTEGER,  DIMENSION(4    ), OPTIONAL,INTENT(IN)    :: start, count
-
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_dist_var_int_4D'
-    INTEGER,  DIMENSION(:,:,:,:), ALLOCATABLE          :: d
-
-    ! Add routine to path
-    CALL init_routine( routine_name)
-
-    ! Gather distributed data to the Master
-    CALL gather_to_master_int_4D( d_partial, d)
-
-    ! Non-parallel write to file by the Master only
-    CALL write_var_int_4D( filename, ncid, id_var, d, start, count)
-
-    ! Clean up after yourself
-    DEALLOCATE( d)
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE write_dist_var_int_4D
-
-  SUBROUTINE write_dist_var_dp_0D(  filename, ncid, id_var, d_partial)
-    ! Write distributed data to a NetCDF file
-
-    IMPLICIT NONE
-
-    ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    INTEGER,                             INTENT(IN)    :: id_var
-    REAL(dp),                            INTENT(IN)    :: d_partial
-
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_dist_var_dp_0D'
-
-    ! Add routine to path
-    CALL init_routine( routine_name)
-
-    ! Non-parallel write to file by the Master only
-    CALL write_var_dp_0D( filename, ncid, id_var, d_partial)
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE write_dist_var_dp_0D
-
-  SUBROUTINE write_dist_var_dp_1D(  filename, ncid, id_var, d_partial, start, count)
-    ! Write distributed data to a NetCDF file
-
-    IMPLICIT NONE
-
-    ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    INTEGER,                             INTENT(IN)    :: id_var
-    REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: d_partial
-    INTEGER,  DIMENSION(1    ), OPTIONAL,INTENT(IN)    :: start, count
-
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_dist_var_dp_1D'
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: d
-
-    ! Add routine to path
-    CALL init_routine( routine_name)
-
-    ! Gather distributed data to the Master
-    CALL gather_to_master_dp_1D( d_partial, d)
-
-    ! Non-parallel write to file by the Master only
-    CALL write_var_dp_1D( filename, ncid, id_var, d, start, count)
-
-    ! Clean up after yourself
-    DEALLOCATE( d)
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE write_dist_var_dp_1D
-
-  SUBROUTINE write_dist_var_dp_2D(  filename, ncid, id_var, d_partial, start, count)
-    ! Write distributed data to a NetCDF file
-
-    IMPLICIT NONE
-
-    ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    INTEGER,                             INTENT(IN)    :: id_var
-    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: d_partial
-    INTEGER,  DIMENSION(2    ), OPTIONAL,INTENT(IN)    :: start, count
-
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_dist_var_dp_2D'
-    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: d
-
-    ! Add routine to path
-    CALL init_routine( routine_name)
-
-    ! Gather distributed data to the Master
-    CALL gather_to_master_dp_2D( d_partial, d)
-
-    ! Non-parallel write to file by the Master only
-    CALL write_var_dp_2D( filename, ncid, id_var, d, start, count)
-
-    ! Clean up after yourself
-    DEALLOCATE( d)
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE write_dist_var_dp_2D
-
-  SUBROUTINE write_dist_var_dp_3D(  filename, ncid, id_var, d_partial, start, count)
-    ! Write distributed data to a NetCDF file
-
-    IMPLICIT NONE
-
-    ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    INTEGER,                             INTENT(IN)    :: id_var
-    REAL(dp), DIMENSION(:,:,:),          INTENT(IN)    :: d_partial
-    INTEGER,  DIMENSION(3    ), OPTIONAL,INTENT(IN)    :: start, count
-
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_dist_var_dp_3D'
-    REAL(dp), DIMENSION(:,:,:), ALLOCATABLE            :: d
-
-    ! Add routine to path
-    CALL init_routine( routine_name)
-
-    ! Gather distributed data to the Master
-    CALL gather_to_master_dp_3D( d_partial, d)
-
-    ! Non-parallel write to file by the Master only
-    CALL write_var_dp_3D( filename, ncid, id_var, d, start, count)
-
-    ! Clean up after yourself
-    DEALLOCATE( d)
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE write_dist_var_dp_3D
-
-  SUBROUTINE write_dist_var_dp_4D(  filename, ncid, id_var, d_partial, start, count)
-    ! Write distributed data to a NetCDF file
-
-    IMPLICIT NONE
-
-    ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    INTEGER,                             INTENT(IN)    :: id_var
-    REAL(dp), DIMENSION(:,:,:,:),        INTENT(IN)    :: d_partial
-    INTEGER,  DIMENSION(4    ), OPTIONAL,INTENT(IN)    :: start, count
-
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_dist_var_dp_4D'
-    REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE          :: d
-
-    ! Add routine to path
-    CALL init_routine( routine_name)
-
-    ! Gather distributed data to the Master
-    CALL gather_to_master_dp_4D( d_partial, d)
-
-    ! Non-parallel write to file by the Master only
-    CALL write_var_dp_4D( filename, ncid, id_var, d, start, count)
-
-    ! Clean up after yourself
-    DEALLOCATE( d)
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE write_dist_var_dp_4D
-
-! Non-parallel write to file by the Master only
-
-  SUBROUTINE write_var_int_0D(  filename, ncid, id_var, d)
+  SUBROUTINE write_var_master_int_0D(  filename, ncid, id_var, d)
     ! Write data to a NetCDF file
+    !
+    ! NOTE: only the Master actually writes data! Gathering from other processes
+    !       must be done beforehand
 
     IMPLICIT NONE
 
@@ -4126,7 +3699,7 @@ CONTAINS
     INTEGER,                             INTENT(IN)    :: d
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_var_int_0D'
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_var_master_int_0D'
     CHARACTER(LEN=256)                                 :: var_name
     INTEGER                                            :: var_type
     INTEGER                                            :: ndims_of_var
@@ -4154,10 +3727,13 @@ CONTAINS
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
-  END SUBROUTINE write_var_int_0D
+  END SUBROUTINE write_var_master_int_0D
 
-  SUBROUTINE write_var_int_1D(  filename, ncid, id_var, d, start, count)
+  SUBROUTINE write_var_master_int_1D(  filename, ncid, id_var, d, start, count)
     ! Write data to a NetCDF file
+    !
+    ! NOTE: only the Master actually writes data! Gathering from other processes
+    !       must be done beforehand
 
     IMPLICIT NONE
 
@@ -4169,7 +3745,7 @@ CONTAINS
     INTEGER,  DIMENSION(1    ), OPTIONAL,INTENT(IN)    :: start, count
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_var_int_1D'
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_var_master_int_1D'
     CHARACTER(LEN=256)                                 :: var_name
     INTEGER                                            :: var_type
     INTEGER                                            :: ndims_of_var
@@ -4233,10 +3809,13 @@ CONTAINS
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
-  END SUBROUTINE write_var_int_1D
+  END SUBROUTINE write_var_master_int_1D
 
-  SUBROUTINE write_var_int_2D(  filename, ncid, id_var, d, start, count)
+  SUBROUTINE write_var_master_int_2D(  filename, ncid, id_var, d, start, count)
     ! Write data to a NetCDF file
+    !
+    ! NOTE: only the Master actually writes data! Gathering from other processes
+    !       must be done beforehand
 
     IMPLICIT NONE
 
@@ -4248,7 +3827,7 @@ CONTAINS
     INTEGER,  DIMENSION(2    ), OPTIONAL,INTENT(IN)    :: start, count
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_var_int_2D'
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_var_master_int_2D'
     CHARACTER(LEN=256)                                 :: var_name
     INTEGER                                            :: var_type
     INTEGER                                            :: ndims_of_var
@@ -4312,10 +3891,13 @@ CONTAINS
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
-  END SUBROUTINE write_var_int_2D
+  END SUBROUTINE write_var_master_int_2D
 
-  SUBROUTINE write_var_int_3D(  filename, ncid, id_var, d, start, count)
+  SUBROUTINE write_var_master_int_3D(  filename, ncid, id_var, d, start, count)
     ! Write data to a NetCDF file
+    !
+    ! NOTE: only the Master actually writes data! Gathering from other processes
+    !       must be done beforehand
 
     IMPLICIT NONE
 
@@ -4327,7 +3909,7 @@ CONTAINS
     INTEGER,  DIMENSION(3    ), OPTIONAL,INTENT(IN)    :: start, count
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_var_int_3D'
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_var_master_int_3D'
     CHARACTER(LEN=256)                                 :: var_name
     INTEGER                                            :: var_type
     INTEGER                                            :: ndims_of_var
@@ -4391,10 +3973,13 @@ CONTAINS
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
-  END SUBROUTINE write_var_int_3D
+  END SUBROUTINE write_var_master_int_3D
 
-  SUBROUTINE write_var_int_4D(  filename, ncid, id_var, d, start, count)
+  SUBROUTINE write_var_master_int_4D(  filename, ncid, id_var, d, start, count)
     ! Write data to a NetCDF file
+    !
+    ! NOTE: only the Master actually writes data! Gathering from other processes
+    !       must be done beforehand
 
     IMPLICIT NONE
 
@@ -4406,7 +3991,7 @@ CONTAINS
     INTEGER,  DIMENSION(4    ), OPTIONAL,INTENT(IN)    :: start, count
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_var_int_4D'
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_var_master_int_4D'
     CHARACTER(LEN=256)                                 :: var_name
     INTEGER                                            :: var_type
     INTEGER                                            :: ndims_of_var
@@ -4470,10 +4055,13 @@ CONTAINS
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
-  END SUBROUTINE write_var_int_4D
+  END SUBROUTINE write_var_master_int_4D
 
-  SUBROUTINE write_var_dp_0D(  filename, ncid, id_var, d)
+  SUBROUTINE write_var_master_dp_0D(  filename, ncid, id_var, d)
     ! Write data to a NetCDF file
+    !
+    ! NOTE: only the Master actually writes data! Gathering from other processes
+    !       must be done beforehand
 
     IMPLICIT NONE
 
@@ -4484,7 +4072,7 @@ CONTAINS
     REAL(dp),                            INTENT(IN)    :: d
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_var_dp_0D'
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_var_master_dp_0D'
     CHARACTER(LEN=256)                                 :: var_name
     INTEGER                                            :: var_type
     INTEGER                                            :: ndims_of_var
@@ -4512,10 +4100,13 @@ CONTAINS
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
-  END SUBROUTINE write_var_dp_0D
+  END SUBROUTINE write_var_master_dp_0D
 
-  SUBROUTINE write_var_dp_1D(  filename, ncid, id_var, d, start, count)
+  SUBROUTINE write_var_master_dp_1D(  filename, ncid, id_var, d, start, count)
     ! Write data to a NetCDF file
+    !
+    ! NOTE: only the Master actually writes data! Gathering from other processes
+    !       must be done beforehand
 
     IMPLICIT NONE
 
@@ -4527,7 +4118,7 @@ CONTAINS
     INTEGER,  DIMENSION(1    ), OPTIONAL,INTENT(IN)    :: start, count
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_var_dp_1D'
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_var_master_dp_1D'
     CHARACTER(LEN=256)                                 :: var_name
     INTEGER                                            :: var_type
     INTEGER                                            :: ndims_of_var
@@ -4594,10 +4185,13 @@ CONTAINS
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
-  END SUBROUTINE write_var_dp_1D
+  END SUBROUTINE write_var_master_dp_1D
 
-  SUBROUTINE write_var_dp_2D(  filename, ncid, id_var, d, start, count)
+  SUBROUTINE write_var_master_dp_2D(  filename, ncid, id_var, d, start, count)
     ! Write data to a NetCDF file
+    !
+    ! NOTE: only the Master actually writes data! Gathering from other processes
+    !       must be done beforehand
 
     IMPLICIT NONE
 
@@ -4609,7 +4203,7 @@ CONTAINS
     INTEGER,  DIMENSION(2    ), OPTIONAL,INTENT(IN)    :: start, count
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_var_dp_2D'
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_var_master_dp_2D'
     CHARACTER(LEN=256)                                 :: var_name
     INTEGER                                            :: var_type
     INTEGER                                            :: ndims_of_var
@@ -4673,10 +4267,13 @@ CONTAINS
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
-  END SUBROUTINE write_var_dp_2D
+  END SUBROUTINE write_var_master_dp_2D
 
-  SUBROUTINE write_var_dp_3D(  filename, ncid, id_var, d, start, count)
+  SUBROUTINE write_var_master_dp_3D(  filename, ncid, id_var, d, start, count)
     ! Write data to a NetCDF file
+    !
+    ! NOTE: only the Master actually writes data! Gathering from other processes
+    !       must be done beforehand
 
     IMPLICIT NONE
 
@@ -4688,7 +4285,7 @@ CONTAINS
     INTEGER,  DIMENSION(3    ), OPTIONAL,INTENT(IN)    :: start, count
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_var_dp_3D'
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_var_master_dp_3D'
     CHARACTER(LEN=256)                                 :: var_name
     INTEGER                                            :: var_type
     INTEGER                                            :: ndims_of_var
@@ -4752,10 +4349,13 @@ CONTAINS
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
-  END SUBROUTINE write_var_dp_3D
+  END SUBROUTINE write_var_master_dp_3D
 
-  SUBROUTINE write_var_dp_4D(  filename, ncid, id_var, d, start, count)
+  SUBROUTINE write_var_master_dp_4D(  filename, ncid, id_var, d, start, count)
     ! Write data to a NetCDF file
+    !
+    ! NOTE: only the Master actually writes data! Gathering from other processes
+    !       must be done beforehand
 
     IMPLICIT NONE
 
@@ -4767,7 +4367,7 @@ CONTAINS
     INTEGER,  DIMENSION(4    ), OPTIONAL,INTENT(IN)    :: start, count
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_var_dp_4D'
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_var_master_dp_4D'
     CHARACTER(LEN=256)                                 :: var_name
     INTEGER                                            :: var_type
     INTEGER                                            :: ndims_of_var
@@ -4831,7 +4431,7 @@ CONTAINS
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
-  END SUBROUTINE write_var_dp_4D
+  END SUBROUTINE write_var_master_dp_4D
 
 ! ===== Basic NetCDF wrapper functions =====
 ! ==========================================

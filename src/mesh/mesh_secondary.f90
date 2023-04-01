@@ -11,7 +11,7 @@ MODULE mesh_secondary
   USE mpi_distributed_memory                                 , ONLY: partition_list
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine
   USE mesh_types                                             , ONLY: type_mesh
-  USE mesh_utilities                                         , ONLY: calc_Voronoi_cell_vertices
+  USE mesh_utilities                                         , ONLY: calc_Voronoi_cell
   USE math_utilities                                         , ONLY: cross2, line_integral_xdy, line_integral_xydy, line_integral_mxydx, triangle_area, &
                                                                      geometric_center, inverse_oblique_sg_projection
   USE mesh_edges                                             , ONLY: construct_mesh_edges
@@ -156,8 +156,6 @@ CONTAINS
 
   SUBROUTINE calc_Voronoi_cell_areas( mesh)
     ! Calculate the areas of the Voronoi cells of all the vertices
-    !
-    ! According to the divergence theorem, int_A dA = cint_omega_A x dy
 
     IMPLICIT NONE
 
@@ -165,10 +163,13 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_Voronoi_cell_areas'
-    INTEGER                                            :: vi, nVor, vvi1, vvi2
-    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: Vor
-    REAL(dp)                                           :: Aerr, LI_xdy, LI_xdy_seg
-    REAL(dp), DIMENSION(2) :: p, q
+    INTEGER                                            :: vi
+    REAL(dp), DIMENSION( mesh%nC_mem,2)                :: Vor
+    INTEGER,  DIMENSION( mesh%nC_mem  )                :: Vor_vi
+    INTEGER,  DIMENSION( mesh%nC_mem  )                :: Vor_ti
+    INTEGER                                            :: nVor
+    INTEGER                                            :: vori, vori_next
+    REAL(dp)                                           :: A_tot_Vor, A_tot_ex, Aerr
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -177,31 +178,27 @@ CONTAINS
     IF (ALLOCATED( mesh%A)) DEALLOCATE( mesh%A)
     ALLOCATE( mesh%A( mesh%nV), source = 0._dp)
 
-    ALLOCATE( Vor( mesh%nC_mem+2,2))
-
     DO vi = 1, mesh%nV
 
-      CALL calc_Voronoi_cell_vertices( mesh, vi, Vor, nVor)
+      CALL calc_Voronoi_cell( mesh, vi, 0._dp, Vor, Vor_vi, Vor_ti, nVor)
 
-      LI_xdy = 0._dp
-      DO vvi1 = 1, nVor
-        vvi2 = vvi1 + 1
-        IF (vvi2 == nVor + 1) vvi2 = 1
-        p = Vor( vvi1,:)
-        q = Vor( vvi2,:)
-        LI_xdy_seg = line_integral_xdy( p, q, mesh%tol_dist)
-        LI_xdy = LI_xdy + LI_xdy_seg
+      DO vori = 1, nVor
+
+        vori_next = vori + 1
+        IF (vori_next == nVor + 1) vori_next = 1
+
+        mesh%A( vi) = mesh%A( vi) + ABS( cross2( &
+          [Vor( vori_next,1) - mesh%V( vi,1), Vor( vori_next,2) - mesh%V( vi,2)], &
+          [Vor( vori     ,1) - mesh%V( vi,1), Vor( vori     ,2) - mesh%V( vi,2)] )) / 2._dp
       END DO
-
-      mesh%A( vi) = LI_xdy
 
     END DO
 
-    DEALLOCATE(Vor)
-
     ! Check if everything went alright
-    Aerr = ABS( 1._dp - SUM( mesh%A ) / ((mesh%xmax - mesh%xmin) * (mesh%ymax - mesh%ymin))) / 100._dp
-    IF (Aerr > 0.0001_dp) CALL warning('sum of Voronoi cell areas doesnt match square area of mesh! (error of {dp_01} %)', dp_01 = Aerr)
+    A_tot_Vor = SUM( mesh%A)
+    A_tot_ex  = (mesh%xmax - mesh%xmin) * (mesh%ymax - mesh%ymin)
+    Aerr = ABS( 1._dp - A_tot_vor / A_tot_ex) / 100._dp
+    IF (Aerr > 0.0001_dp .AND. par%master) CALL warning('sum of Voronoi cell areas doesnt match square area of mesh! (error of {dp_01} %)', dp_01 = Aerr)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -217,9 +214,12 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_Voronoi_cell_geometric_centres'
-    INTEGER                                            :: vi, nvi
-    REAL(dp), DIMENSION(:,:), ALLOCATABLE              :: Vor
+    INTEGER                                            :: vi
+    REAL(dp), DIMENSION( mesh%nC_mem,2)                :: Vor
+    INTEGER,  DIMENSION( mesh%nC_mem  )                :: Vor_vi
+    INTEGER,  DIMENSION( mesh%nC_mem  )                :: Vor_ti
     INTEGER                                            :: nVor
+    INTEGER                                            :: vori, vori_next
     REAL(dp), DIMENSION(2)                             :: p, q
     REAL(dp)                                           :: LI_mxydx, LI_xydy
     REAL(dp)                                           :: LI_mxydx_seg, LI_xydy_seg
@@ -231,47 +231,32 @@ CONTAINS
     IF (ALLOCATED( mesh%VorGC)) DEALLOCATE( mesh%VorGC)
     ALLOCATE( mesh%VorGC( mesh%nV,2), source = 0._dp)
 
-    ALLOCATE( Vor( mesh%nC_mem+2,2))
-
     DO vi = 1, mesh%nV
 
-      CALL calc_Voronoi_cell_vertices( mesh, vi, Vor, nVor)
+      CALL calc_Voronoi_cell( mesh, vi, 0._dp, Vor, Vor_vi, Vor_ti, nVor)
 
       LI_mxydx = 0._dp
       LI_xydy  = 0._dp
 
-      DO nvi = 2, nVor
-        p = Vor( nvi-1,:)
-        q = Vor( nvi,:)
+      DO vori = 1, nVor
+
+        vori_next = vori + 1
+        IF (vori_next == nVor + 1) vori_next = 1
+
+        p = Vor( vori     ,:)
+        q = Vor( vori_next,:)
+
         LI_mxydx_seg = line_integral_mxydx( p, q, mesh%tol_dist)
         LI_xydy_seg  = line_integral_xydy(  p, q, mesh%tol_dist)
+
         LI_mxydx = LI_mxydx + LI_mxydx_seg
         LI_xydy  = LI_xydy  + LI_xydy_seg
+
       END DO
-
-      IF (mesh%VBI( vi) > 0) THEN
-
-        p = Vor( nVor,:)
-        q = mesh%V( vi,:)
-        LI_mxydx_seg = line_integral_mxydx( p, q, mesh%tol_dist)
-        LI_xydy_seg  = line_integral_xydy(  p, q, mesh%tol_dist)
-        LI_mxydx = LI_mxydx + LI_mxydx_seg
-        LI_xydy  = LI_xydy  + LI_xydy_seg
-
-        p = mesh%V( vi,:)
-        q = Vor( 1,:)
-        LI_mxydx_seg = line_integral_mxydx( p, q, mesh%tol_dist)
-        LI_xydy_seg  = line_integral_xydy(  p, q, mesh%tol_dist)
-        LI_mxydx = LI_mxydx + LI_mxydx_seg
-        LI_xydy  = LI_xydy  + LI_xydy_seg
-
-      END IF
 
       mesh%VorGC( vi,:) = [LI_mxydx / mesh%A( vi), LI_xydy / mesh%A( vi)]
 
     END DO ! DO vi = 1, mesh%nV
-
-    DEALLOCATE(Vor)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -514,6 +499,10 @@ CONTAINS
     CALL partition_list( mesh%nV  , par%i, par%n, mesh%vi1, mesh%vi2)
     CALL partition_list( mesh%nTri, par%i, par%n, mesh%ti1, mesh%ti2)
     CALL partition_list( mesh%nE  , par%i, par%n, mesh%ei1, mesh%ei2)
+
+    mesh%nV_loc   = mesh%vi2 +1 - mesh%vi1
+    mesh%nTri_loc = mesh%ti2 +1 - mesh%ti1
+    mesh%nE_loc   = mesh%ei2 +1 - mesh%ei1
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

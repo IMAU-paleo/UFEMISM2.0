@@ -1,12 +1,14 @@
 MODULE mesh_types
 
-  ! The different data types used in the mesh module
+  ! The different data types used in the mesh modules
 
 ! ===== Preamble =====
 ! ====================
 
+#include <petsc/finclude/petscksp.h>
+  USE petscksp
   USE precisions                                             , ONLY: dp
-  USE basic_data_types                                       , ONLY: type_sparse_matrix_CSR_dp
+  USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp
 
   IMPLICIT NONE
 
@@ -44,6 +46,8 @@ MODULE mesh_types
     REAL(dp)                                :: res_max_coast                 ! [m]       Maximum allowed resolution over ice-free coast line (to make plots look nicer)
     REAL(dp)                                :: resolution_min                ! [m]       Finest   actual resolution of the mesh ( = MINVAL(R), where R = distance to nearest neighbour)
     REAL(dp)                                :: resolution_max                ! [m]       Coarsest actual resolution of the mesh
+    INTEGER                                 :: nz                            !           Number of vertical layers
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: zeta                          ! [0-1]     Scaled vertical coordinate
 
   ! Primary mesh data
   ! =================
@@ -96,9 +100,9 @@ MODULE mesh_types
     INTEGER,  DIMENSION(:    ), ALLOCATABLE :: EBI                           ! [0-8]     Each edge's border index; 0 = free, 1 = north, 2 = northeast, ..., 8 = northwest
 
     ! Parallelisation ranges
-    INTEGER                                 :: vi1, vi2                      ! Each process "owns" vertices  vi1 - vi2
-    INTEGER                                 :: ti1, ti2                      ! Each process "owns" triangles ti1 - ti2
-    INTEGER                                 :: ei1, ei2                      ! Each process "owns" edges     ei1 - ei2
+    INTEGER                                 :: vi1, vi2, nV_loc              ! Each process "owns" nV_loc   vertices  vi1 - vi2, so that nV_loc   = vi2 + 1 - vi1
+    INTEGER                                 :: ti1, ti2, nTri_loc            ! Each process "owns" nTri_loc triangles ti1 - ti2, so that nTri_loc = ti2 + 1 - ti1
+    INTEGER                                 :: ei1, ei2, nE_loc              ! Each process "owns" nE_loc   edges     ei1 - ei2, so that nE_loc   = ei2 + 1 - ei1
 
   ! Matrix operators
   ! ================

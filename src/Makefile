@@ -48,7 +48,6 @@ ifeq ($(DO_SELEN),yes)
     \
     basic/precisions.o \
     basic/parameters.o \
-    basic/basic_data_types.o \
     basic/mpi_basic.o \
     basic/reallocate_mod.o \
     basic/control_resources_and_error_messaging.o \
@@ -56,6 +55,7 @@ ifeq ($(DO_SELEN),yes)
     basic/math_utilities.o \
     basic/CSR_sparse_matrix_utilities.o \
     basic/petsc_basic.o \
+    basic/grid_basic.o \
     basic/config_file_utilities.o \
     \
     mesh/mesh_configuration.o \
@@ -66,7 +66,9 @@ ifeq ($(DO_SELEN),yes)
     mesh/mesh_edges.o \
     mesh/mesh_refinement.o \
     mesh/mesh_parallel_creation.o \
+    mesh/mesh_zeta.o \
     mesh/mesh_operators.o \
+    mesh/mesh_remapping.o \
     mesh/mesh_secondary.o \
     mesh/mesh_creation.o \
     \
@@ -76,7 +78,14 @@ ifeq ($(DO_SELEN),yes)
     \
     climate/climate_main.o \
     \
-    validation/mesh_validation.o \
+    ice/ice_configuration.o \
+    ice/ice_model_types.o \
+    ice/ice_velocity_SIA.o \
+    ice/ice_model_main.o \
+    \
+    validation/unit_tests_mpi.o \
+    validation/unit_tests_petsc.o \
+    validation/unit_tests_mesh.o \
     \
     UFEMISM_main_model.o \
     UFEMISM_program.o
@@ -87,7 +96,6 @@ else
     \
     basic/precisions.o \
     basic/parameters.o \
-    basic/basic_data_types.o \
     basic/mpi_basic.o \
     basic/reallocate_mod.o \
     basic/control_resources_and_error_messaging.o \
@@ -95,6 +103,7 @@ else
     basic/math_utilities.o \
     basic/CSR_sparse_matrix_utilities.o \
     basic/petsc_basic.o \
+    basic/grid_basic.o \
     basic/config_file_utilities.o \
     \
     mesh/mesh_configuration.o \
@@ -105,7 +114,9 @@ else
     mesh/mesh_edges.o \
     mesh/mesh_refinement.o \
     mesh/mesh_parallel_creation.o \
+    mesh/mesh_zeta.o \
     mesh/mesh_operators.o \
+    mesh/mesh_remapping.o \
     mesh/mesh_secondary.o \
     mesh/mesh_creation.o \
     \
@@ -115,7 +126,14 @@ else
     \
     climate/climate_main.o \
     \
-    validation/mesh_unit_tests.o \
+    ice/ice_configuration.o \
+    ice/ice_model_types.o \
+    ice/ice_velocity_SIA.o \
+    ice/ice_model_main.o \
+    \
+    validation/unit_tests_mpi.o \
+    validation/unit_tests_petsc.o \
+    validation/unit_tests_mesh.o \
     \
     UFEMISM_main_model.o \
     UFEMISM_program.o

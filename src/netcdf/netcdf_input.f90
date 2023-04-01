@@ -16,14 +16,14 @@ MODULE netcdf_input
   USE precisions                                             , ONLY: dp
   USE mpi_basic                                              , ONLY: par, cerr, ierr, MPI_status, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine
-  USE basic_data_types                                       , ONLY: type_grid, type_grid_lonlat
+  USE grid_basic                                             , ONLY: type_grid, type_grid_lonlat
   USE math_utilities                                         , ONLY: permute_2D_int, permute_2D_dp, permute_3D_int, permute_3D_dp, &
                                                                      flip_1D_dp, flip_2D_x1_dp, flip_2D_x2_dp, flip_3D_x1_dp, flip_3D_x2_dp, flip_3D_x3_dp, &
                                                                      inverse_oblique_sg_projection
   USE mesh_types                                             , ONLY: type_mesh
 
   USE netcdf      , ONLY: NF90_MAX_VAR_DIMS
-  USE netcdf_basic, ONLY: nerr, field_name_options_x, field_name_options_y, field_name_options_zeta, field_name_options_z_ocean, &
+  USE netcdf_basic, ONLY: nerr, field_name_options_x, field_name_options_y, field_name_options_zeta, &
                           field_name_options_lon, field_name_options_lat, field_name_options_time, field_name_options_month, &
                           field_name_options_dim_nV, field_name_options_dim_nTri, field_name_options_dim_nC_mem, &
                           field_name_options_dim_nE, field_name_options_dim_two, field_name_options_dim_three, &
@@ -36,9 +36,9 @@ MODULE netcdf_input
                           field_name_options_SL, field_name_options_Ti, get_first_option_from_list, &
                           open_existing_netcdf_file_for_reading, close_netcdf_file, &
                           inquire_dim_multiple_options, inquire_var_multiple_options, &
-                          read_var_int_0D, read_var_int_1D, read_var_int_2D, read_var_int_3D, read_var_int_4D, &
-                          read_var_dp_0D , read_var_dp_1D , read_var_dp_2D , read_var_dp_3D , read_var_dp_4D, &
-                          check_x, check_y, check_lon, check_lat, check_mesh_dimensions, check_zeta, check_z_ocean, find_timeframe, &
+                          read_var_master_int_0D, read_var_master_int_1D, read_var_master_int_2D, read_var_master_int_3D, read_var_master_int_4D, &
+                          read_var_master_dp_0D , read_var_master_dp_1D , read_var_master_dp_2D , read_var_master_dp_3D , read_var_master_dp_4D, &
+                          check_x, check_y, check_lon, check_lat, check_mesh_dimensions, check_zeta, find_timeframe, &
                           check_xy_grid_field_int_2D, check_xy_grid_field_dp_2D, check_xy_grid_field_dp_2D_monthly, check_xy_grid_field_dp_3D, &
                           check_lonlat_grid_field_int_2D, check_lonlat_grid_field_dp_2D, check_lonlat_grid_field_dp_2D_monthly, check_lonlat_grid_field_dp_3D, &
                           check_mesh_field_int_2D, check_mesh_field_dp_2D, check_mesh_field_dp_2D_monthly, check_mesh_field_dp_3D, &
@@ -81,128 +81,131 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! Open the NetCDF file
-    CALL open_existing_netcdf_file_for_reading( filename, ncid)
+    ! DENK DROM
+    CALL crash('fixme!')
 
-    ! Set up the grid from the file
-    CALL setup_xy_grid_from_file( filename, ncid, grid_loc)
-
-    ! Look for the specified variable in the file
-    CALL inquire_var_multiple_options( filename, ncid, field_name_options, id_var, var_name = var_name)
-    IF (id_var == -1) CALL crash('couldnt find any of the options "' // TRIM( field_name_options) // '" in file "' // TRIM( filename)  // '"!')
-
-    ! Check if the variable has the required dimensions
-    CALL check_xy_grid_field_dp_2D( filename, ncid, var_name, should_have_time = PRESENT( time_to_read))
-
-    ! Determine indexing and dimension directions
-    CALL determine_xy_indexing( filename, ncid, var_name, indexing, xdir, ydir)
-
-    IF     (indexing == 'xy') THEN
-
-      ! Allocate memory
-      ALLOCATE( d( grid_loc%nx, grid_loc%ny))
-
-      ! Read data from file
-      IF (.NOT. PRESENT( time_to_read)) THEN
-        CALL read_var_dp_2D( filename, ncid, id_var, d)
-      ELSE
-        ! Allocate memory
-        ALLOCATE( d_with_time( grid_loc%nx, grid_loc%ny, 1))
-        ! Find out which timeframe to read
-        CALL find_timeframe( filename, ncid, time_to_read, ti)
-        ! Read data
-        CALL read_var_dp_3D( filename, ncid, id_var, d_with_time, start = (/ 1, 1, ti /), count = (/ grid_loc%nx, grid_loc%ny, 1 /) )
-        ! Copy to output memory
-        d = d_with_time( :,:,1)
-        ! Clean up after yourself
-        DEALLOCATE( d_with_time)
-      END IF
-
-    ELSEIF (indexing == 'yx') THEN
-
-      ! Allocate memory
-      ALLOCATE( d( grid_loc%ny, grid_loc%nx))
-
-      ! Read data from file
-      IF (.NOT. PRESENT( time_to_read)) THEN
-        CALL read_var_dp_2D( filename, ncid, id_var, d)
-      ELSE
-        ! Allocate memory
-        ALLOCATE( d_with_time( grid_loc%ny, grid_loc%nx, 1))
-        ! Find out which timeframe to read
-        CALL find_timeframe( filename, ncid, time_to_read, ti)
-        ! Read data
-        CALL read_var_dp_3D( filename, ncid, id_var, d_with_time, start = (/ 1, 1, ti /), count = (/ grid_loc%ny, grid_loc%nx, 1 /) )
-        ! Copy to output memory
-        d = d_with_time( :,:,1)
-        ! Clean up after yourself
-        DEALLOCATE( d_with_time)
-      END IF
-
-    ELSE
-      CALL crash('unknown indexing = "' // TRIM( indexing) // '"!')
-    END IF
-
-    ! Perform necessary corrections to the gridded data
-
-    ! Indexing
-    IF     (indexing == 'xy') THEN
-      ! No need to do anything
-    ELSEIF (indexing == 'yx') THEN
-      CALL permute_2D_dp( d, map = [2,1])
-    ELSE
-      CALL crash('unknown indexing = "' // TRIM( indexing) // '"!')
-    END IF
-
-    ! xdir
-    IF     (xdir == 'normal') THEN
-      ! No need to do anything
-    ELSEIF (xdir == 'reverse') THEN
-      CALL flip_1D_dp( grid_loc%x)
-      CALL flip_2D_x1_dp( d)
-    ELSE
-      CALL crash('unknown xdir = "' // TRIM( xdir) // '"!')
-    END IF
-
-    ! ydir
-    IF     (ydir == 'normal') THEN
-      ! No need to do anything
-    ELSEIF (ydir == 'reverse') THEN
-      CALL flip_1D_dp( grid_loc%y)
-      CALL flip_2D_x2_dp( d)
-    ELSE
-      CALL crash('unknown ydir = "' // TRIM( ydir) // '"!')
-    END IF
-
-    ! If needed, provide the grid as output
-    IF (PRESENT( grid)) THEN
-      ! Allocate memory
-      ALLOCATE( grid%x(    grid_loc%nx             ))
-      ALLOCATE( grid%y(                 grid_loc%ny))
-      ALLOCATE( grid%ij2n( grid_loc%nx, grid_loc%ny))
-      ! Copy data
-      grid%name     = grid_loc%name
-      grid%nx       = grid_loc%nx
-      grid%ny       = grid_loc%ny
-      grid%n        = grid_loc%n
-      grid%dx       = grid_loc%dx
-      grid%x        = grid_loc%x
-      grid%y        = grid_loc%y
-      grid%xmin     = grid_loc%xmin
-      grid%xmax     = grid_loc%xmax
-      grid%ymin     = grid_loc%ymin
-      grid%ymax     = grid_loc%ymax
-      grid%tol_dist = grid_loc%tol_dist
-      grid%ij2n     = grid_loc%ij2n
-    END IF
-
-    ! Close the NetCDF file
-    CALL close_netcdf_file( ncid)
-
-    ! Clean up after yourself
-    DEALLOCATE( grid_loc%x   )
-    DEALLOCATE( grid_loc%y   )
-    DEALLOCATE( grid_loc%ij2n)
+!    ! Open the NetCDF file
+!    CALL open_existing_netcdf_file_for_reading( filename, ncid)
+!
+!    ! Set up the grid from the file
+!    CALL setup_xy_grid_from_file( filename, ncid, grid_loc)
+!
+!    ! Look for the specified variable in the file
+!    CALL inquire_var_multiple_options( filename, ncid, field_name_options, id_var, var_name = var_name)
+!    IF (id_var == -1) CALL crash('couldnt find any of the options "' // TRIM( field_name_options) // '" in file "' // TRIM( filename)  // '"!')
+!
+!    ! Check if the variable has the required dimensions
+!    CALL check_xy_grid_field_dp_2D( filename, ncid, var_name, should_have_time = PRESENT( time_to_read))
+!
+!    ! Determine indexing and dimension directions
+!    CALL determine_xy_indexing( filename, ncid, var_name, indexing, xdir, ydir)
+!
+!    IF     (indexing == 'xy') THEN
+!
+!      ! Allocate memory
+!      ALLOCATE( d( grid_loc%nx, grid_loc%ny))
+!
+!      ! Read data from file
+!      IF (.NOT. PRESENT( time_to_read)) THEN
+!        CALL read_var_dp_2D( filename, ncid, id_var, d)
+!      ELSE
+!        ! Allocate memory
+!        ALLOCATE( d_with_time( grid_loc%nx, grid_loc%ny, 1))
+!        ! Find out which timeframe to read
+!        CALL find_timeframe( filename, ncid, time_to_read, ti)
+!        ! Read data
+!        CALL read_var_dp_3D( filename, ncid, id_var, d_with_time, start = (/ 1, 1, ti /), count = (/ grid_loc%nx, grid_loc%ny, 1 /) )
+!        ! Copy to output memory
+!        d = d_with_time( :,:,1)
+!        ! Clean up after yourself
+!        DEALLOCATE( d_with_time)
+!      END IF
+!
+!    ELSEIF (indexing == 'yx') THEN
+!
+!      ! Allocate memory
+!      ALLOCATE( d( grid_loc%ny, grid_loc%nx))
+!
+!      ! Read data from file
+!      IF (.NOT. PRESENT( time_to_read)) THEN
+!        CALL read_var_dp_2D( filename, ncid, id_var, d)
+!      ELSE
+!        ! Allocate memory
+!        ALLOCATE( d_with_time( grid_loc%ny, grid_loc%nx, 1))
+!        ! Find out which timeframe to read
+!        CALL find_timeframe( filename, ncid, time_to_read, ti)
+!        ! Read data
+!        CALL read_var_dp_3D( filename, ncid, id_var, d_with_time, start = (/ 1, 1, ti /), count = (/ grid_loc%ny, grid_loc%nx, 1 /) )
+!        ! Copy to output memory
+!        d = d_with_time( :,:,1)
+!        ! Clean up after yourself
+!        DEALLOCATE( d_with_time)
+!      END IF
+!
+!    ELSE
+!      CALL crash('unknown indexing = "' // TRIM( indexing) // '"!')
+!    END IF
+!
+!    ! Perform necessary corrections to the gridded data
+!
+!    ! Indexing
+!    IF     (indexing == 'xy') THEN
+!      ! No need to do anything
+!    ELSEIF (indexing == 'yx') THEN
+!      CALL permute_2D_dp( d, map = [2,1])
+!    ELSE
+!      CALL crash('unknown indexing = "' // TRIM( indexing) // '"!')
+!    END IF
+!
+!    ! xdir
+!    IF     (xdir == 'normal') THEN
+!      ! No need to do anything
+!    ELSEIF (xdir == 'reverse') THEN
+!      CALL flip_1D_dp( grid_loc%x)
+!      CALL flip_2D_x1_dp( d)
+!    ELSE
+!      CALL crash('unknown xdir = "' // TRIM( xdir) // '"!')
+!    END IF
+!
+!    ! ydir
+!    IF     (ydir == 'normal') THEN
+!      ! No need to do anything
+!    ELSEIF (ydir == 'reverse') THEN
+!      CALL flip_1D_dp( grid_loc%y)
+!      CALL flip_2D_x2_dp( d)
+!    ELSE
+!      CALL crash('unknown ydir = "' // TRIM( ydir) // '"!')
+!    END IF
+!
+!    ! If needed, provide the grid as output
+!    IF (PRESENT( grid)) THEN
+!      ! Allocate memory
+!      ALLOCATE( grid%x(    grid_loc%nx             ))
+!      ALLOCATE( grid%y(                 grid_loc%ny))
+!      ALLOCATE( grid%ij2n( grid_loc%nx, grid_loc%ny))
+!      ! Copy data
+!      grid%name     = grid_loc%name
+!      grid%nx       = grid_loc%nx
+!      grid%ny       = grid_loc%ny
+!      grid%n        = grid_loc%n
+!      grid%dx       = grid_loc%dx
+!      grid%x        = grid_loc%x
+!      grid%y        = grid_loc%y
+!      grid%xmin     = grid_loc%xmin
+!      grid%xmax     = grid_loc%xmax
+!      grid%ymin     = grid_loc%ymin
+!      grid%ymax     = grid_loc%ymax
+!      grid%tol_dist = grid_loc%tol_dist
+!      grid%ij2n     = grid_loc%ij2n
+!    END IF
+!
+!    ! Close the NetCDF file
+!    CALL close_netcdf_file( ncid)
+!
+!    ! Clean up after yourself
+!    DEALLOCATE( grid_loc%x   )
+!    DEALLOCATE( grid_loc%y   )
+!    DEALLOCATE( grid_loc%ij2n)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -234,72 +237,75 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! Give the grid a nice name
-    grid%name = 'xy_grid_from_file_"' // TRIM( filename) // '"'
+    ! DENK DROM
+    CALL crash('fixme!')
 
-  ! == Read x,y from file
-
-    ! Check grid dimensions and variables for validity
-    CALL check_x( filename, ncid)
-    CALL check_y( filename, ncid)
-
-    ! Inquire x and y dimensions
-    CALL inquire_dim_multiple_options( filename, ncid, field_name_options_x, id_dim_x, dim_length = grid%nx)
-    CALL inquire_dim_multiple_options( filename, ncid, field_name_options_y, id_dim_y, dim_length = grid%ny)
-    grid%n = grid%nx * grid%ny
-
-    ! Allocate memory for x and y
-    ALLOCATE( grid%x( grid%nx), SOURCE = 0._dp)
-    ALLOCATE( grid%y( grid%ny), SOURCE = 0._dp)
-
-    ! Inquire x and y variables
-    CALL inquire_var_multiple_options( filename, ncid, field_name_options_x, id_var_x)
-    CALL inquire_var_multiple_options( filename, ncid, field_name_options_y, id_var_y)
-
-    ! Read x and y
-    CALL read_var_dp_1D(  filename, ncid, id_var_x, grid%x)
-    CALL read_var_dp_1D(  filename, ncid, id_var_y, grid%y)
-
-  ! == Calculate secondary grid properties
-
-    ! Resolution
-    grid%dx   = ABS( grid%x( 2) - grid%x( 1))
-
-    ! Safety
-    DO i = 1, grid%nx-1
-      IF (1._dp - ABS(grid%x( i+1) - grid%x( i)) / grid%dx > 1E-6_dp) CALL crash('file "' // TRIM( filename) // '" has an irregular x-dimension!')
-    END DO
-    DO j = 1, grid%ny-1
-      IF (1._dp - ABS(grid%y( j+1) - grid%y( j)) / grid%dx > 1E-6_dp) CALL crash('file "' // TRIM( filename) // '" has an irregular y-dimension!')
-    END DO
-
-    ! Domain size
-    grid%xmin = MINVAL( grid%x)
-    grid%xmax = MAXVAL( grid%x)
-    grid%ymin = MINVAL( grid%y)
-    grid%ymax = MAXVAL( grid%y)
-
-    ! Tolerance; points lying within this distance of each other are treated as identical
-    grid%tol_dist = ((grid%xmax - grid%xmin) + (grid%ymax - grid%ymin)) * tol / 2._dp
-
-    ! Conversion tables for grid-form vs. vector-form data
-
-    ALLOCATE( grid%ij2n( grid%nx, grid%ny))
-
-    n = 0
-    DO i = 1, grid%nx
-      IF (MOD(i,2) == 1) THEN
-        DO j = 1, grid%ny
-          n = n+1
-          grid%ij2n( i,j) = n
-        END DO
-      ELSE
-        DO j = grid%ny, 1, -1
-          n = n+1
-          grid%ij2n( i,j) = n
-        END DO
-      END IF
-    END DO
+!    ! Give the grid a nice name
+!    grid%name = 'xy_grid_from_file_"' // TRIM( filename) // '"'
+!
+!  ! == Read x,y from file
+!
+!    ! Check grid dimensions and variables for validity
+!    CALL check_x( filename, ncid)
+!    CALL check_y( filename, ncid)
+!
+!    ! Inquire x and y dimensions
+!    CALL inquire_dim_multiple_options( filename, ncid, field_name_options_x, id_dim_x, dim_length = grid%nx)
+!    CALL inquire_dim_multiple_options( filename, ncid, field_name_options_y, id_dim_y, dim_length = grid%ny)
+!    grid%n = grid%nx * grid%ny
+!
+!    ! Allocate memory for x and y
+!    ALLOCATE( grid%x( grid%nx), SOURCE = 0._dp)
+!    ALLOCATE( grid%y( grid%ny), SOURCE = 0._dp)
+!
+!    ! Inquire x and y variables
+!    CALL inquire_var_multiple_options( filename, ncid, field_name_options_x, id_var_x)
+!    CALL inquire_var_multiple_options( filename, ncid, field_name_options_y, id_var_y)
+!
+!    ! Read x and y
+!    CALL read_var_dp_1D(  filename, ncid, id_var_x, grid%x)
+!    CALL read_var_dp_1D(  filename, ncid, id_var_y, grid%y)
+!
+!  ! == Calculate secondary grid properties
+!
+!    ! Resolution
+!    grid%dx   = ABS( grid%x( 2) - grid%x( 1))
+!
+!    ! Safety
+!    DO i = 1, grid%nx-1
+!      IF (1._dp - ABS(grid%x( i+1) - grid%x( i)) / grid%dx > 1E-6_dp) CALL crash('file "' // TRIM( filename) // '" has an irregular x-dimension!')
+!    END DO
+!    DO j = 1, grid%ny-1
+!      IF (1._dp - ABS(grid%y( j+1) - grid%y( j)) / grid%dx > 1E-6_dp) CALL crash('file "' // TRIM( filename) // '" has an irregular y-dimension!')
+!    END DO
+!
+!    ! Domain size
+!    grid%xmin = MINVAL( grid%x)
+!    grid%xmax = MAXVAL( grid%x)
+!    grid%ymin = MINVAL( grid%y)
+!    grid%ymax = MAXVAL( grid%y)
+!
+!    ! Tolerance; points lying within this distance of each other are treated as identical
+!    grid%tol_dist = ((grid%xmax - grid%xmin) + (grid%ymax - grid%ymin)) * tol / 2._dp
+!
+!    ! Conversion tables for grid-form vs. vector-form data
+!
+!    ALLOCATE( grid%ij2n( grid%nx, grid%ny))
+!
+!    n = 0
+!    DO i = 1, grid%nx
+!      IF (MOD(i,2) == 1) THEN
+!        DO j = 1, grid%ny
+!          n = n+1
+!          grid%ij2n( i,j) = n
+!        END DO
+!      ELSE
+!        DO j = grid%ny, 1, -1
+!          n = n+1
+!          grid%ij2n( i,j) = n
+!        END DO
+!      END IF
+!    END DO
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -350,8 +356,10 @@ CONTAINS
     CALL inquire_var_multiple_options( filename, ncid, field_name_options_y, id_var_y)
 
     ! Read x and y
-    CALL read_var_dp_1D(  filename, ncid, id_var_x, x)
-    CALL read_var_dp_1D(  filename, ncid, id_var_y, y)
+    CALL read_var_master_dp_1D(  filename, ncid, id_var_x, x)
+    CALL read_var_master_dp_1D(  filename, ncid, id_var_y, y)
+    CALL MPI_BCAST( x, nx, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+    CALL MPI_BCAST( y, ny, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
 
     ! Determine directions of x and y
     IF (x( 2) > x( 1)) THEN
@@ -427,8 +435,10 @@ CONTAINS
     CALL inquire_var_multiple_options( filename, ncid, field_name_options_lat, id_var_lat)
 
     ! Read lon and lat
-    CALL read_var_dp_1D(  filename, ncid, id_var_lon, lon)
-    CALL read_var_dp_1D(  filename, ncid, id_var_lat, lat)
+    CALL read_var_master_dp_1D(  filename, ncid, id_var_lon, lon)
+    CALL read_var_master_dp_1D(  filename, ncid, id_var_lat, lat)
+    CALL MPI_BCAST( lon, nlon, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+    CALL MPI_BCAST( lat, nlat, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
 
     ! Determine directions of x and y
     IF (lon( 2) > lon( 1)) THEN

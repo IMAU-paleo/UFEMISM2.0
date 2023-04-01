@@ -14,9 +14,9 @@ PROGRAM UFEMISM_program
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, initialise_control_and_resource_tracker
   USE UFEMISM_main_model                                     , ONLY: run_model
 
-  USE petsc_basic
-  USE mesh_unit_tests
-  USE mpi_distributed_memory
+  USE unit_tests_mpi
+  USE unit_tests_petsc
+  USE unit_tests_mesh
 
   IMPLICIT NONE
 

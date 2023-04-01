@@ -14,14 +14,16 @@ MODULE netcdf_output
   USE precisions                                             , ONLY: dp
   USE mpi_basic                                              , ONLY: par, cerr, ierr, MPI_status, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine
-  USE basic_data_types                                       , ONLY: type_grid, type_grid_lonlat
+  USE grid_basic                                             , ONLY: type_grid
   USE math_utilities                                         , ONLY: permute_2D_int, permute_2D_dp, permute_3D_int, permute_3D_dp, &
                                                                      flip_1D_dp, flip_2D_x1_dp, flip_2D_x2_dp, flip_3D_x1_dp, flip_3D_x2_dp, flip_3D_x3_dp, &
                                                                      inverse_oblique_sg_projection
   USE mesh_types                                             , ONLY: type_mesh
+  USE mpi_distributed_memory                                 , ONLY: gather_to_master_int_1D, gather_to_master_int_2D, gather_to_master_dp_1D, &
+                                                                     gather_to_master_dp_2D
 
   USE netcdf,       ONLY: NF90_UNLIMITED, NF90_INT, NF90_FLOAT, NF90_DOUBLE
-  USE netcdf_basic, ONLY: nerr, field_name_options_x, field_name_options_y, field_name_options_zeta, field_name_options_z_ocean, &
+  USE netcdf_basic, ONLY: nerr, field_name_options_x, field_name_options_y, field_name_options_zeta, &
                           field_name_options_lon, field_name_options_lat, field_name_options_time, field_name_options_month, &
                           field_name_options_dim_nV, field_name_options_dim_nTri, field_name_options_dim_nC_mem, &
                           field_name_options_dim_nE, field_name_options_dim_two, field_name_options_dim_three, &
@@ -34,19 +36,15 @@ MODULE netcdf_output
                           field_name_options_SL, field_name_options_Ti, get_first_option_from_list, &
                           open_existing_netcdf_file_for_reading, close_netcdf_file, &
                           inquire_dim_multiple_options, inquire_var_multiple_options, &
-                          read_var_int_0D, read_var_int_1D, read_var_int_2D, read_var_int_3D, read_var_int_4D, &
-                          read_var_dp_0D , read_var_dp_1D , read_var_dp_2D , read_var_dp_3D , read_var_dp_4D, &
-                          check_x, check_y, check_lon, check_lat, check_mesh_dimensions, check_zeta, check_z_ocean, find_timeframe, &
+                          check_x, check_y, check_lon, check_lat, check_mesh_dimensions, check_zeta, find_timeframe, &
                           check_xy_grid_field_int_2D, check_xy_grid_field_dp_2D, check_xy_grid_field_dp_2D_monthly, check_xy_grid_field_dp_3D, &
                           check_lonlat_grid_field_int_2D, check_lonlat_grid_field_dp_2D, check_lonlat_grid_field_dp_2D_monthly, check_lonlat_grid_field_dp_3D, &
                           check_mesh_field_int_2D, check_mesh_field_int_2D_b, check_mesh_field_int_2D_c, &
                           check_mesh_field_dp_2D, check_mesh_field_dp_2D_b, check_mesh_field_dp_2D_c, &
                           check_mesh_field_dp_2D_monthly, check_mesh_field_dp_3D, &
                           inquire_xy_grid, inquire_lonlat_grid, inquire_mesh, &
-                          write_dist_var_int_0D, write_dist_var_int_1D, write_dist_var_int_2D, write_dist_var_int_3D, write_dist_var_int_4D, &
-                          write_dist_var_dp_0D, write_dist_var_dp_1D, write_dist_var_dp_2D, write_dist_var_dp_3D, write_dist_var_dp_4D, &
-                          write_var_int_0D, write_var_int_1D, write_var_int_2D, write_var_int_3D, write_var_int_4D, &
-                          write_var_dp_0D, write_var_dp_1D, write_var_dp_2D, write_var_dp_3D, write_var_dp_4D, &
+                          write_var_master_int_0D, write_var_master_int_1D, write_var_master_int_2D, write_var_master_int_3D, write_var_master_int_4D, &
+                          write_var_master_dp_0D, write_var_master_dp_1D, write_var_master_dp_2D, write_var_master_dp_3D, write_var_master_dp_4D, &
                           add_attribute_char, check_month, check_time, create_dimension, create_variable, inquire_var, &
                           open_existing_netcdf_file_for_writing, switch_to_data_mode
 
@@ -58,26 +56,29 @@ CONTAINS
   ! ================================================
 
   ! Write data to a mesh output file
-  SUBROUTINE write_to_field_multiple_options_mesh_int_2D(               filename, ncid, field_name_options, d)
+  SUBROUTINE write_to_field_multiple_options_mesh_int_2D(               mesh, filename, ncid, field_name_options, d_partial)
     ! Write a 2-D data field defined on a mesh to a NetCDF file variable on the same mesh
     ! (Mind you, that's 2-D in the physical sense, so a 1-D array!)
     !
     ! Write to the last time frame of the variable
+    !
+    ! d is stored distributed over the processes
 
     IMPLICIT NONE
 
     ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
     CHARACTER(LEN=*),                    INTENT(IN)    :: filename
     INTEGER,                             INTENT(IN)    :: ncid
     CHARACTER(LEN=*),                    INTENT(IN)    :: field_name_options
-    INTEGER,  DIMENSION(:    ),          INTENT(IN)    :: d
+    INTEGER,  DIMENSION(:    ),          INTENT(IN)    :: d_partial
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_to_field_multiple_options_mesh_int_2D'
     INTEGER                                            :: id_var, id_dim_time, ti
     CHARACTER(LEN=256)                                 :: var_name
-    INTEGER                                            :: nV
-    INTEGER,  DIMENSION(:,:  ), POINTER                :: d_with_time
+    INTEGER,  DIMENSION(:    ), ALLOCATABLE            :: d_tot
+    INTEGER,  DIMENSION(:,:  ), ALLOCATABLE            :: d_tot_with_time
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -89,47 +90,56 @@ CONTAINS
     ! Check if this variable has the correct type and dimensions
     CALL check_mesh_field_int_2D( filename, ncid, var_name, should_have_time = .TRUE.)
 
+    ! Gather data to the master
+    IF (par%master) ALLOCATE( d_tot( mesh%nV))
+    CALL gather_to_master_int_1D( d_partial, d_tot)
+
+    ! Add "pretend" time dimension
+    IF (par%master) THEN
+      ALLOCATE( d_tot_with_time( mesh%nV,1))
+      d_tot_with_time( :,1) = d_tot
+    END IF
+
     ! Inquire length of time dimension
     CALL inquire_dim_multiple_options( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
-    ! Allocate memory
-    nV = SIZE( d,1)
-    ALLOCATE( d_with_time( nV,1))
-
-    ! Copy data
-    d_with_time( :,1) = d
-
     ! Write data to the variable
-    CALL write_dist_var_int_2D( filename, ncid, id_var, d_with_time, start = (/ 1, ti /), count = (/ nV, 1 /) )
+    CALL write_var_master_int_2D( filename, ncid, id_var, d_tot_with_time, start = (/ 1, ti /), count = (/ mesh%nV, 1 /) )
 
     ! Clean up after yourself
-    DEALLOCATE( d_with_time)
+    IF (par%master) THEN
+      DEALLOCATE( d_tot)
+      DEALLOCATE( d_tot_with_time)
+    END IF
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE write_to_field_multiple_options_mesh_int_2D
 
-  SUBROUTINE write_to_field_multiple_options_mesh_dp_2D(                filename, ncid, field_name_options, d)
+  SUBROUTINE write_to_field_multiple_options_mesh_dp_2D(                mesh, filename, ncid, field_name_options, d_partial)
     ! Write a 2-D data field defined on a mesh to a NetCDF file variable on the same mesh
     ! (Mind you, that's 2-D in the physical sense, so a 1-D array!)
     !
     ! Write to the last time frame of the variable
+    !
+    ! d is stored distributed over the processes
 
     IMPLICIT NONE
 
     ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
     CHARACTER(LEN=*),                    INTENT(IN)    :: filename
     INTEGER,                             INTENT(IN)    :: ncid
     CHARACTER(LEN=*),                    INTENT(IN)    :: field_name_options
-    REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: d
+    REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: d_partial
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_to_field_multiple_options_mesh_dp_2D'
     INTEGER                                            :: id_var, id_dim_time, ti
     CHARACTER(LEN=256)                                 :: var_name
-    INTEGER                                            :: nV
-    REAL(dp), DIMENSION(:,:  ), POINTER                :: d_with_time
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: d_tot
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: d_tot_with_time
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -141,47 +151,56 @@ CONTAINS
     ! Check if this variable has the correct type and dimensions
     CALL check_mesh_field_dp_2D( filename, ncid, var_name, should_have_time = .TRUE.)
 
+    ! Gather data to the master
+    IF (par%master) ALLOCATE( d_tot( mesh%nV))
+    CALL gather_to_master_dp_1D( d_partial, d_tot)
+
+    ! Add "pretend" time dimension
+    IF (par%master) THEN
+      ALLOCATE( d_tot_with_time( mesh%nV,1))
+      d_tot_with_time( :,1) = d_tot
+    END IF
+
     ! Inquire length of time dimension
     CALL inquire_dim_multiple_options( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
-    ! Allocate memory
-    nV = SIZE( d,1)
-    ALLOCATE( d_with_time( nV, 1))
-
-    ! Copy data
-    d_with_time( :,1) = d
-
     ! Write data to the variable
-    CALL write_dist_var_dp_2D( filename, ncid, id_var, d_with_time, start = (/ 1, ti /), count = (/ nV, 1 /) )
+    CALL write_var_master_dp_2D( filename, ncid, id_var, d_tot_with_time, start = (/ 1, ti /), count = (/ mesh%nV, 1 /) )
 
     ! Clean up after yourself
-    DEALLOCATE( d_with_time)
+    IF (par%master) THEN
+      DEALLOCATE( d_tot)
+      DEALLOCATE( d_tot_with_time)
+    END IF
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE write_to_field_multiple_options_mesh_dp_2D
 
-  SUBROUTINE write_to_field_multiple_options_mesh_dp_2D_monthly(        filename, ncid, field_name_options, d)
+  SUBROUTINE write_to_field_multiple_options_mesh_dp_2D_monthly(        mesh, filename, ncid, field_name_options, d_partial)
     ! Write a 2-D monthly data field defined on a mesh to a NetCDF file variable on the same mesh
     ! (Mind you, that's 2-D monthly in the physical sense, so a 2-D array!)
     !
     ! Write to the last time frame of the variable
+    !
+    ! d is stored distributed over the processes
 
     IMPLICIT NONE
 
     ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
     CHARACTER(LEN=*),                    INTENT(IN)    :: filename
     INTEGER,                             INTENT(IN)    :: ncid
     CHARACTER(LEN=*),                    INTENT(IN)    :: field_name_options
-    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: d
+    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: d_partial
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_to_field_multiple_options_mesh_dp_2D_monthly'
     INTEGER                                            :: id_var, id_dim_time, ti
     CHARACTER(LEN=256)                                 :: var_name
-    INTEGER                                            :: nV
-    REAL(dp), DIMENSION(:,:,:), POINTER                :: d_with_time
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: d_tot
+    REAL(dp), DIMENSION(:,:,:), ALLOCATABLE            :: d_tot_with_time
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -193,47 +212,56 @@ CONTAINS
     ! Check if this variable has the correct type and dimensions
     CALL check_mesh_field_dp_2D_monthly( filename, ncid, var_name, should_have_time = .TRUE.)
 
+    ! Gather data to the master
+    IF (par%master) ALLOCATE( d_tot( mesh%nV, 12))
+    CALL gather_to_master_dp_2D( d_partial, d_tot)
+
+    ! Add "pretend" time dimension
+    IF (par%master) THEN
+      ALLOCATE( d_tot_with_time( mesh%nV,12,1))
+      d_tot_with_time( :,:,1) = d_tot
+    END IF
+
     ! Inquire length of time dimension
     CALL inquire_dim_multiple_options( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
-    ! Allocate memory
-    nV = SIZE( d,1)
-    ALLOCATE( d_with_time( nV, 12, 1))
-
-    ! Copy data
-    d_with_time( :,:,1) = d
-
     ! Write data to the variable
-    CALL write_dist_var_dp_3D( filename, ncid, id_var, d_with_time, start = (/ 1, 1, ti /), count = (/ nV, 12, 1 /) )
+    CALL write_var_master_dp_3D( filename, ncid, id_var, d_tot_with_time, start = (/ 1, 1, ti /), count = (/ mesh%nV, 12, 1 /) )
 
     ! Clean up after yourself
-    DEALLOCATE( d_with_time)
+    IF (par%master) THEN
+      DEALLOCATE( d_tot)
+      DEALLOCATE( d_tot_with_time)
+    END IF
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE write_to_field_multiple_options_mesh_dp_2D_monthly
 
-  SUBROUTINE write_to_field_multiple_options_mesh_dp_3D(                filename, ncid, field_name_options, d)
+  SUBROUTINE write_to_field_multiple_options_mesh_dp_3D(                mesh, filename, ncid, field_name_options, d_partial)
     ! Write a 3-D data field defined on a mesh to a NetCDF file variable on the same mesh
     ! (Mind you, that's 3-D in the physical sense, so a 2-D array!)
     !
     ! Write to the last time frame of the variable
+    !
+    ! d is stored distributed over the processes
 
     IMPLICIT NONE
 
     ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
     CHARACTER(LEN=*),                    INTENT(IN)    :: filename
     INTEGER,                             INTENT(IN)    :: ncid
     CHARACTER(LEN=*),                    INTENT(IN)    :: field_name_options
-    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: d
+    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: d_partial
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_to_field_multiple_options_mesh_dp_3D'
     INTEGER                                            :: id_var, id_dim_time, ti
     CHARACTER(LEN=256)                                 :: var_name
-    INTEGER                                            :: nV, nz
-    REAL(dp), DIMENSION(:,:,:), ALLOCATABLE            :: d_with_time
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: d_tot
+    REAL(dp), DIMENSION(:,:,:), ALLOCATABLE            :: d_tot_with_time
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -245,46 +273,55 @@ CONTAINS
     ! Check if this variable has the correct type and dimensions
     CALL check_mesh_field_dp_3D( filename, ncid, var_name, should_have_time = .TRUE.)
 
+    ! Gather data to the master
+    IF (par%master) ALLOCATE( d_tot( mesh%nV, mesh%nz))
+    CALL gather_to_master_dp_2D( d_partial, d_tot)
+
+    ! Add "pretend" time dimension
+    IF (par%master) THEN
+      ALLOCATE( d_tot_with_time( mesh%nV,mesh%nz,1))
+      d_tot_with_time( :,:,1) = d_tot
+    END IF
+
     ! Inquire length of time dimension
     CALL inquire_dim_multiple_options( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
-    ! Allocate memory
-    nV = SIZE( d,1)
-    nz = SIZE( d,2)
-    ALLOCATE( d_with_time( nV, nz, 1))
-
-    ! Copy data
-    d_with_time( :,:,1) = d
-
     ! Write data to the variable
-    CALL write_dist_var_dp_3D( filename, ncid, id_var, d_with_time, start = (/ 1, 1, ti /), count = (/ nV, nz, 1 /) )
+    CALL write_var_master_dp_3D( filename, ncid, id_var, d_tot_with_time, start = (/ 1, 1, ti /), count = (/ mesh%nV, mesh%nz, 1 /) )
 
     ! Clean up after yourself
-    DEALLOCATE( d_with_time)
+    IF (par%master) THEN
+      DEALLOCATE( d_tot)
+      DEALLOCATE( d_tot_with_time)
+    END IF
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE write_to_field_multiple_options_mesh_dp_3D
 
-  SUBROUTINE write_to_field_multiple_options_mesh_int_2D_notime(        filename, ncid, field_name_options, d)
+  SUBROUTINE write_to_field_multiple_options_mesh_int_2D_notime(        mesh, filename, ncid, field_name_options, d_partial)
     ! Write a 2-D data field defined on a mesh to a NetCDF file variable on the same mesh
     ! (Mind you, that's 2-D in the physical sense, so a 1-D array!)
     !
-    ! The variable in the NetCDF file has no time dimension.
+    ! Write to the last time frame of the variable
+    !
+    ! d is stored distributed over the processes
 
     IMPLICIT NONE
 
     ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
     CHARACTER(LEN=*),                    INTENT(IN)    :: filename
     INTEGER,                             INTENT(IN)    :: ncid
     CHARACTER(LEN=*),                    INTENT(IN)    :: field_name_options
-    INTEGER,  DIMENSION(:    ),          INTENT(IN)    :: d
+    INTEGER,  DIMENSION(:    ),          INTENT(IN)    :: d_partial
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_to_field_multiple_options_mesh_int_2D_notime'
-    INTEGER                                            :: id_var
+    INTEGER                                            :: id_var, id_dim_time, ti
     CHARACTER(LEN=256)                                 :: var_name
+    INTEGER,  DIMENSION(:    ), ALLOCATABLE            :: d_tot
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -296,32 +333,48 @@ CONTAINS
     ! Check if this variable has the correct type and dimensions
     CALL check_mesh_field_int_2D( filename, ncid, var_name, should_have_time = .FALSE.)
 
+    ! Gather data to the master
+    IF (par%master) ALLOCATE( d_tot( mesh%nV))
+    CALL gather_to_master_int_1D( d_partial, d_tot)
+
+    ! Inquire length of time dimension
+    CALL inquire_dim_multiple_options( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
+
     ! Write data to the variable
-    CALL write_dist_var_int_1D( filename, ncid, id_var, d)
+    CALL write_var_master_int_1D( filename, ncid, id_var, d_tot)
+
+    ! Clean up after yourself
+    IF (par%master) THEN
+      DEALLOCATE( d_tot)
+    END IF
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE write_to_field_multiple_options_mesh_int_2D_notime
 
-  SUBROUTINE write_to_field_multiple_options_mesh_int_2D_b_notime(      filename, ncid, field_name_options, d)
+  SUBROUTINE write_to_field_multiple_options_mesh_int_2D_b_notime(      mesh, filename, ncid, field_name_options, d_partial)
     ! Write a 2-D data field defined on a mesh to a NetCDF file variable on the same mesh
     ! (Mind you, that's 2-D in the physical sense, so a 1-D array!)
     !
-    ! The variable in the NetCDF file has no time dimension.
+    ! Write to the last time frame of the variable
+    !
+    ! d is stored distributed over the processes
 
     IMPLICIT NONE
 
     ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
     CHARACTER(LEN=*),                    INTENT(IN)    :: filename
     INTEGER,                             INTENT(IN)    :: ncid
     CHARACTER(LEN=*),                    INTENT(IN)    :: field_name_options
-    INTEGER,  DIMENSION(:    ),          INTENT(IN)    :: d
+    INTEGER,  DIMENSION(:    ),          INTENT(IN)    :: d_partial
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_to_field_multiple_options_mesh_int_2D_b_notime'
-    INTEGER                                            :: id_var
+    INTEGER                                            :: id_var, id_dim_time, ti
     CHARACTER(LEN=256)                                 :: var_name
+    INTEGER,  DIMENSION(:    ), ALLOCATABLE            :: d_tot
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -333,32 +386,48 @@ CONTAINS
     ! Check if this variable has the correct type and dimensions
     CALL check_mesh_field_int_2D_b( filename, ncid, var_name, should_have_time = .FALSE.)
 
+    ! Gather data to the master
+    IF (par%master) ALLOCATE( d_tot( mesh%nTri))
+    CALL gather_to_master_int_1D( d_partial, d_tot)
+
+    ! Inquire length of time dimension
+    CALL inquire_dim_multiple_options( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
+
     ! Write data to the variable
-    CALL write_dist_var_int_1D( filename, ncid, id_var, d)
+    CALL write_var_master_int_1D( filename, ncid, id_var, d_tot)
+
+    ! Clean up after yourself
+    IF (par%master) THEN
+      DEALLOCATE( d_tot)
+    END IF
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE write_to_field_multiple_options_mesh_int_2D_b_notime
 
-  SUBROUTINE write_to_field_multiple_options_mesh_int_2D_c_notime(      filename, ncid, field_name_options, d)
+  SUBROUTINE write_to_field_multiple_options_mesh_int_2D_c_notime(      mesh, filename, ncid, field_name_options, d_partial)
     ! Write a 2-D data field defined on a mesh to a NetCDF file variable on the same mesh
     ! (Mind you, that's 2-D in the physical sense, so a 1-D array!)
     !
-    ! The variable in the NetCDF file has no time dimension.
+    ! Write to the last time frame of the variable
+    !
+    ! d is stored distributed over the processes
 
     IMPLICIT NONE
 
     ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
     CHARACTER(LEN=*),                    INTENT(IN)    :: filename
     INTEGER,                             INTENT(IN)    :: ncid
     CHARACTER(LEN=*),                    INTENT(IN)    :: field_name_options
-    INTEGER,  DIMENSION(:    ),          INTENT(IN)    :: d
+    INTEGER,  DIMENSION(:    ),          INTENT(IN)    :: d_partial
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_to_field_multiple_options_mesh_int_2D_c_notime'
-    INTEGER                                            :: id_var
+    INTEGER                                            :: id_var, id_dim_time, ti
     CHARACTER(LEN=256)                                 :: var_name
+    INTEGER,  DIMENSION(:    ), ALLOCATABLE            :: d_tot
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -370,32 +439,48 @@ CONTAINS
     ! Check if this variable has the correct type and dimensions
     CALL check_mesh_field_int_2D_c( filename, ncid, var_name, should_have_time = .FALSE.)
 
+    ! Gather data to the master
+    IF (par%master) ALLOCATE( d_tot( mesh%nE))
+    CALL gather_to_master_int_1D( d_partial, d_tot)
+
+    ! Inquire length of time dimension
+    CALL inquire_dim_multiple_options( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
+
     ! Write data to the variable
-    CALL write_dist_var_int_1D( filename, ncid, id_var, d)
+    CALL write_var_master_int_1D( filename, ncid, id_var, d_tot)
+
+    ! Clean up after yourself
+    IF (par%master) THEN
+      DEALLOCATE( d_tot)
+    END IF
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE write_to_field_multiple_options_mesh_int_2D_c_notime
 
-  SUBROUTINE write_to_field_multiple_options_mesh_dp_2D_notime(         filename, ncid, field_name_options, d)
+  SUBROUTINE write_to_field_multiple_options_mesh_dp_2D_notime(         mesh, filename, ncid, field_name_options, d_partial)
     ! Write a 2-D data field defined on a mesh to a NetCDF file variable on the same mesh
     ! (Mind you, that's 2-D in the physical sense, so a 1-D array!)
     !
-    ! The variable in the NetCDF file has no time dimension.
+    ! Write to the last time frame of the variable
+    !
+    ! d is stored distributed over the processes
 
     IMPLICIT NONE
 
     ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
     CHARACTER(LEN=*),                    INTENT(IN)    :: filename
     INTEGER,                             INTENT(IN)    :: ncid
     CHARACTER(LEN=*),                    INTENT(IN)    :: field_name_options
-    REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: d
+    REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: d_partial
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_to_field_multiple_options_mesh_dp_2D_notime'
-    INTEGER                                            :: id_var
+    INTEGER                                            :: id_var, id_dim_time, ti
     CHARACTER(LEN=256)                                 :: var_name
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: d_tot
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -407,32 +492,48 @@ CONTAINS
     ! Check if this variable has the correct type and dimensions
     CALL check_mesh_field_dp_2D( filename, ncid, var_name, should_have_time = .FALSE.)
 
+    ! Gather data to the master
+    IF (par%master) ALLOCATE( d_tot( mesh%nV))
+    CALL gather_to_master_dp_1D( d_partial, d_tot)
+
+    ! Inquire length of time dimension
+    CALL inquire_dim_multiple_options( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
+
     ! Write data to the variable
-    CALL write_dist_var_dp_1D( filename, ncid, id_var, d)
+    CALL write_var_master_dp_1D( filename, ncid, id_var, d_tot)
+
+    ! Clean up after yourself
+    IF (par%master) THEN
+      DEALLOCATE( d_tot)
+    END IF
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE write_to_field_multiple_options_mesh_dp_2D_notime
 
-  SUBROUTINE write_to_field_multiple_options_mesh_dp_2D_b_notime(       filename, ncid, field_name_options, d)
+  SUBROUTINE write_to_field_multiple_options_mesh_dp_2D_b_notime(       mesh, filename, ncid, field_name_options, d_partial)
     ! Write a 2-D data field defined on a mesh to a NetCDF file variable on the same mesh
     ! (Mind you, that's 2-D in the physical sense, so a 1-D array!)
     !
-    ! The variable in the NetCDF file has no time dimension.
+    ! Write to the last time frame of the variable
+    !
+    ! d is stored distributed over the processes
 
     IMPLICIT NONE
 
     ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
     CHARACTER(LEN=*),                    INTENT(IN)    :: filename
     INTEGER,                             INTENT(IN)    :: ncid
     CHARACTER(LEN=*),                    INTENT(IN)    :: field_name_options
-    REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: d
+    REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: d_partial
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_to_field_multiple_options_mesh_dp_2D_b_notime'
-    INTEGER                                            :: id_var
+    INTEGER                                            :: id_var, id_dim_time, ti
     CHARACTER(LEN=256)                                 :: var_name
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: d_tot
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -444,32 +545,48 @@ CONTAINS
     ! Check if this variable has the correct type and dimensions
     CALL check_mesh_field_dp_2D_b( filename, ncid, var_name, should_have_time = .FALSE.)
 
+    ! Gather data to the master
+    IF (par%master) ALLOCATE( d_tot( mesh%nTri))
+    CALL gather_to_master_dp_1D( d_partial, d_tot)
+
+    ! Inquire length of time dimension
+    CALL inquire_dim_multiple_options( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
+
     ! Write data to the variable
-    CALL write_dist_var_dp_1D( filename, ncid, id_var, d)
+    CALL write_var_master_dp_1D( filename, ncid, id_var, d_tot)
+
+    ! Clean up after yourself
+    IF (par%master) THEN
+      DEALLOCATE( d_tot)
+    END IF
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE write_to_field_multiple_options_mesh_dp_2D_b_notime
 
-  SUBROUTINE write_to_field_multiple_options_mesh_dp_2D_c_notime(       filename, ncid, field_name_options, d)
+  SUBROUTINE write_to_field_multiple_options_mesh_dp_2D_c_notime(       mesh, filename, ncid, field_name_options, d_partial)
     ! Write a 2-D data field defined on a mesh to a NetCDF file variable on the same mesh
     ! (Mind you, that's 2-D in the physical sense, so a 1-D array!)
     !
-    ! The variable in the NetCDF file has no time dimension.
+    ! Write to the last time frame of the variable
+    !
+    ! d is stored distributed over the processes
 
     IMPLICIT NONE
 
     ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
     CHARACTER(LEN=*),                    INTENT(IN)    :: filename
     INTEGER,                             INTENT(IN)    :: ncid
     CHARACTER(LEN=*),                    INTENT(IN)    :: field_name_options
-    REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: d
+    REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: d_partial
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_to_field_multiple_options_mesh_dp_2D_c_notime'
-    INTEGER                                            :: id_var
+    INTEGER                                            :: id_var, id_dim_time, ti
     CHARACTER(LEN=256)                                 :: var_name
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: d_tot
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -481,32 +598,48 @@ CONTAINS
     ! Check if this variable has the correct type and dimensions
     CALL check_mesh_field_dp_2D_c( filename, ncid, var_name, should_have_time = .FALSE.)
 
+    ! Gather data to the master
+    IF (par%master) ALLOCATE( d_tot( mesh%nE))
+    CALL gather_to_master_dp_1D( d_partial, d_tot)
+
+    ! Inquire length of time dimension
+    CALL inquire_dim_multiple_options( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
+
     ! Write data to the variable
-    CALL write_dist_var_dp_1D( filename, ncid, id_var, d)
+    CALL write_var_master_dp_1D( filename, ncid, id_var, d_tot)
+
+    ! Clean up after yourself
+    IF (par%master) THEN
+      DEALLOCATE( d_tot)
+    END IF
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE write_to_field_multiple_options_mesh_dp_2D_c_notime
 
-  SUBROUTINE write_to_field_multiple_options_mesh_dp_2D_monthly_notime( filename, ncid, field_name_options, d)
+  SUBROUTINE write_to_field_multiple_options_mesh_dp_2D_monthly_notime( mesh, filename, ncid, field_name_options, d_partial)
     ! Write a 2-D monthly data field defined on a mesh to a NetCDF file variable on the same mesh
     ! (Mind you, that's 2-D monthly in the physical sense, so a 2-D array!)
     !
-    ! The variable in the NetCDF file has no time dimension.
+    ! Write to the last time frame of the variable
+    !
+    ! d is stored distributed over the processes
 
     IMPLICIT NONE
 
     ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
     CHARACTER(LEN=*),                    INTENT(IN)    :: filename
     INTEGER,                             INTENT(IN)    :: ncid
     CHARACTER(LEN=*),                    INTENT(IN)    :: field_name_options
-    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: d
+    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: d_partial
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_to_field_multiple_options_mesh_dp_2D_monthly_notime'
-    INTEGER                                            :: id_var
+    INTEGER                                            :: id_var, id_dim_time, ti
     CHARACTER(LEN=256)                                 :: var_name
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: d_tot
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -518,32 +651,48 @@ CONTAINS
     ! Check if this variable has the correct type and dimensions
     CALL check_mesh_field_dp_2D_monthly( filename, ncid, var_name, should_have_time = .FALSE.)
 
+    ! Gather data to the master
+    IF (par%master) ALLOCATE( d_tot( mesh%nV, 12))
+    CALL gather_to_master_dp_2D( d_partial, d_tot)
+
+    ! Inquire length of time dimension
+    CALL inquire_dim_multiple_options( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
+
     ! Write data to the variable
-    CALL write_dist_var_dp_2D( filename, ncid, id_var, d)
+    CALL write_var_master_dp_2D( filename, ncid, id_var, d_tot)
+
+    ! Clean up after yourself
+    IF (par%master) THEN
+      DEALLOCATE( d_tot)
+    END IF
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE write_to_field_multiple_options_mesh_dp_2D_monthly_notime
 
-  SUBROUTINE write_to_field_multiple_options_mesh_dp_3D_notime(         filename, ncid, field_name_options, d)
+  SUBROUTINE write_to_field_multiple_options_mesh_dp_3D_notime(         mesh, filename, ncid, field_name_options, d_partial)
     ! Write a 3-D data field defined on a mesh to a NetCDF file variable on the same mesh
     ! (Mind you, that's 3-D in the physical sense, so a 2-D array!)
     !
-    ! The variable in the NetCDF file has no time dimension.
+    ! Write to the last time frame of the variable
+    !
+    ! d is stored distributed over the processes
 
     IMPLICIT NONE
 
     ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
     CHARACTER(LEN=*),                    INTENT(IN)    :: filename
     INTEGER,                             INTENT(IN)    :: ncid
     CHARACTER(LEN=*),                    INTENT(IN)    :: field_name_options
-    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: d
+    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: d_partial
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_to_field_multiple_options_mesh_dp_3D_notime'
-    INTEGER                                            :: id_var
+    INTEGER                                            :: id_var, id_dim_time, ti
     CHARACTER(LEN=256)                                 :: var_name
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: d_tot
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -555,8 +704,20 @@ CONTAINS
     ! Check if this variable has the correct type and dimensions
     CALL check_mesh_field_dp_3D( filename, ncid, var_name, should_have_time = .FALSE.)
 
+    ! Gather data to the master
+    IF (par%master) ALLOCATE( d_tot( mesh%nV, mesh%nz))
+    CALL gather_to_master_dp_2D( d_partial, d_tot)
+
+    ! Inquire length of time dimension
+    CALL inquire_dim_multiple_options( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
+
     ! Write data to the variable
-    CALL write_dist_var_dp_2D( filename, ncid, id_var, d)
+    CALL write_var_master_dp_2D( filename, ncid, id_var, d_tot)
+
+    ! Clean up after yourself
+    IF (par%master) THEN
+      DEALLOCATE( d_tot)
+    END IF
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -594,7 +755,7 @@ CONTAINS
 
     ! Write time
     nt = nt + 1
-    CALL write_var_dp_1D( filename, ncid, id_var_time, (/ time /), start = (/ nt /), count = (/ 1 /) )
+    CALL write_var_master_dp_1D( filename, ncid, id_var_time, (/ time /), start = (/ nt /), count = (/ 1 /) )
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -635,12 +796,12 @@ CONTAINS
     CALL create_variable( filename, ncid, get_first_option_from_list( field_name_options_x), NF90_DOUBLE, (/ id_dim_x /), id_var_x)
     CALL add_attribute_char( filename, ncid, id_var_x, 'long_name', 'x-coordinate')
     CALL add_attribute_char( filename, ncid, id_var_x, 'units'    , 'm'           )
-    CALL write_var_dp_1D( filename, ncid, id_var_x, grid%x)
+    CALL write_var_master_dp_1D( filename, ncid, id_var_x, grid%x)
     ! y
     CALL create_variable( filename, ncid, get_first_option_from_list( field_name_options_y), NF90_DOUBLE, (/ id_dim_y /), id_var_y)
     CALL add_attribute_char( filename, ncid, id_var_y, 'long_name', 'y-coordinate')
     CALL add_attribute_char( filename, ncid, id_var_y, 'units'    , 'm'           )
-    CALL write_var_dp_1D( filename, ncid, id_var_y, grid%y)
+    CALL write_var_master_dp_1D( filename, ncid, id_var_y, grid%y)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -1174,25 +1335,25 @@ CONTAINS
     CALL inquire_var(                 filename, ncid, get_first_option_from_list( field_name_options_lat           ), id_var_lat)
 
     ! Write mesh data to file
-    CALL write_var_dp_2D(    filename, ncid, id_var_V             , mesh%V             )
-    CALL write_var_int_1D(   filename, ncid, id_var_nC            , mesh%nC            )
-    CALL write_var_int_2D(   filename, ncid, id_var_C             , mesh%C             )
-    CALL write_var_int_1D(   filename, ncid, id_var_niTri         , mesh%niTri         )
-    CALL write_var_int_2D(   filename, ncid, id_var_iTri          , mesh%iTri          )
-    CALL write_var_int_1D(   filename, ncid, id_var_VBI           , mesh%VBI           )
-    CALL write_var_int_2D(   filename, ncid, id_var_Tri           , mesh%Tri           )
-    CALL write_var_dp_2D(    filename, ncid, id_var_Tricc         , mesh%Tricc         )
-    CALL write_var_int_2D(   filename, ncid, id_var_TriC          , mesh%TriC          )
-    CALL write_var_int_1D(   filename, ncid, id_var_TriBI         , mesh%TriBI         )
-    CALL write_var_dp_2D(    filename, ncid, id_var_E             , mesh%E             )
-    CALL write_var_int_2D(   filename, ncid, id_var_VE            , mesh%VE            )
-    CALL write_var_int_2D(   filename, ncid, id_var_EV            , mesh%EV            )
-    CALL write_var_int_2D(   filename, ncid, id_var_ETri          , mesh%ETri          )
-    CALL write_var_int_1D(   filename, ncid, id_var_EBI           , mesh%EBI           )
-    CALL write_var_dp_1D(    filename, ncid, id_var_R             , mesh%R             )
-    CALL write_var_dp_1D(    filename, ncid, id_var_A             , mesh%A             )
-    CALL write_var_dp_1D(    filename, ncid, id_var_lon           , mesh%lon           )
-    CALL write_var_dp_1D(    filename, ncid, id_var_lat           , mesh%lat           )
+    CALL write_var_master_dp_2D(    filename, ncid, id_var_V    , mesh%V    )
+    CALL write_var_master_int_1D(   filename, ncid, id_var_nC   , mesh%nC   )
+    CALL write_var_master_int_2D(   filename, ncid, id_var_C    , mesh%C    )
+    CALL write_var_master_int_1D(   filename, ncid, id_var_niTri, mesh%niTri)
+    CALL write_var_master_int_2D(   filename, ncid, id_var_iTri , mesh%iTri )
+    CALL write_var_master_int_1D(   filename, ncid, id_var_VBI  , mesh%VBI  )
+    CALL write_var_master_int_2D(   filename, ncid, id_var_Tri  , mesh%Tri  )
+    CALL write_var_master_dp_2D(    filename, ncid, id_var_Tricc, mesh%Tricc)
+    CALL write_var_master_int_2D(   filename, ncid, id_var_TriC , mesh%TriC )
+    CALL write_var_master_int_1D(   filename, ncid, id_var_TriBI, mesh%TriBI)
+    CALL write_var_master_dp_2D(    filename, ncid, id_var_E    , mesh%E    )
+    CALL write_var_master_int_2D(   filename, ncid, id_var_VE   , mesh%VE   )
+    CALL write_var_master_int_2D(   filename, ncid, id_var_EV   , mesh%EV   )
+    CALL write_var_master_int_2D(   filename, ncid, id_var_ETri , mesh%ETri )
+    CALL write_var_master_int_1D(   filename, ncid, id_var_EBI  , mesh%EBI  )
+    CALL write_var_master_dp_1D(    filename, ncid, id_var_R    , mesh%R    )
+    CALL write_var_master_dp_1D(    filename, ncid, id_var_A    , mesh%A    )
+    CALL write_var_master_dp_1D(    filename, ncid, id_var_lon  , mesh%lon  )
+    CALL write_var_master_dp_1D(    filename, ncid, id_var_lat  , mesh%lat  )
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -1793,7 +1954,7 @@ CONTAINS
     CALL add_attribute_char( filename, ncid, id_var_month, 'description', '1 = Jan, 2 = Feb, ..., 12 = Dec')
 
     ! Write month variable
-    CALL write_var_int_1D( filename, ncid, id_var_month, (/ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 /) )
+    CALL write_var_master_int_1D( filename, ncid, id_var_month, (/ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 /) )
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -1831,7 +1992,7 @@ CONTAINS
     CALL add_attribute_char( filename, ncid, id_var_zeta, 'transformation', 'zeta = (h - z) / H; zeta = 0 at the ice surface; zeta = 1 at the ice base')
 
     ! Write month variable
-    CALL write_var_dp_1D( filename, ncid, id_var_zeta, zeta)
+    CALL write_var_master_dp_1D( filename, ncid, id_var_zeta, zeta)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
