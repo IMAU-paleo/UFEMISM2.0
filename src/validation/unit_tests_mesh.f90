@@ -23,10 +23,11 @@ MODULE unit_tests_mesh
   USE netcdf_output                                          , ONLY: setup_mesh_in_netcdf_file, add_field_mesh_dp_2D_notime, add_field_mesh_dp_2D_b_notime, &
                                                                      add_field_mesh_dp_2D_c_notime, write_to_field_multiple_options_mesh_dp_2D_notime, &
                                                                      write_to_field_multiple_options_mesh_dp_2D_b_notime, write_to_field_multiple_options_mesh_dp_2D_c_notime, &
-                                                                     setup_xy_grid_in_netcdf_file
+                                                                     setup_xy_grid_in_netcdf_file, add_field_grid_dp_2D_notime, write_to_field_multiple_options_grid_dp_2D_notime
   USE petsc_basic                                            , ONLY: multiply_CSR_matrix_with_vector_1D
-  USE grid_basic                                             , ONLY: type_grid, calc_field_to_vector_form_translation_tables, distribute_gridded_data_from_master_dp_2D
-  USE mesh_remapping                                         , ONLY: map_from_xy_grid_to_mesh_2D
+  USE grid_basic                                             , ONLY: type_grid, calc_field_to_vector_form_translation_tables, distribute_gridded_data_from_master_dp_2D, &
+                                                                     gather_gridded_data_to_master_dp_2D
+  USE mesh_remapping                                         , ONLY: map_from_xy_grid_to_mesh_2D, map_from_mesh_to_xy_grid_2D
 
   IMPLICIT NONE
 
@@ -52,10 +53,11 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Run all mesh unit tests
-!    CALL test_mesh_creation_basic_single_core
-!    CALL test_mesh_creation_basic_two_cores
-!    CALL test_mesh_operators_basic
-    CALL test_grid2mesh_remapping
+    CALL test_mesh_creation_basic_single_core
+    CALL test_mesh_creation_basic_two_cores
+    CALL test_mesh_operators_basic
+    CALL test_remapping_grid2mesh
+    CALL test_remapping_mesh2grid
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -1043,13 +1045,13 @@ CONTAINS
 
   END SUBROUTINE test_mesh_operators_basic
 
-  SUBROUTINE test_grid2mesh_remapping
+  SUBROUTINE test_remapping_grid2mesh
     ! Test remapping from a square grid to a mesh
 
     IMPLICIT NONE
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'test_grid2mesh_remapping'
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'test_remapping_grid2mesh'
     REAL(dp), PARAMETER                                :: xmin = -3040E3_dp  ! Just use the standard Antarctica domain; doesn't really matter here...
     REAL(dp), PARAMETER                                :: xmax =  3040E3_dp
     REAL(dp), PARAMETER                                :: ymin = -3040E3_dp
@@ -1067,7 +1069,7 @@ CONTAINS
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: d_grid_vec_partial
     REAL(dp)                                           :: x,y,d,ddx,ddy,d2dx2,d2dxdy,d2dy2
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: d_mesh_partial
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: d_mesh_partial_ex
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: d_mesh_ex_partial
     INTEGER                                            :: vi, vi_glob
     REAL(dp)                                           :: maxerr
     LOGICAL                                            :: found_errors
@@ -1170,13 +1172,13 @@ CONTAINS
     CALL map_from_xy_grid_to_mesh_2D( grid, mesh, d_grid_vec_partial, d_mesh_partial)
 
     ! Calculate exact solution
-    ALLOCATE( d_mesh_partial_ex( mesh%nV_loc))
+    ALLOCATE( d_mesh_ex_partial( mesh%nV_loc))
     DO vi = 1, mesh%nV_loc
       vi_glob = mesh%vi1 + vi - 1
       x = mesh%V( vi_glob,1)
       y = mesh%V( vi_glob,2)
       CALL test_function( x, y, mesh%xmin, mesh%xmax, mesh%ymin, mesh%ymax, d, ddx, ddy, d2dx2, d2dxdy, d2dy2)
-      d_mesh_partial_ex( vi) = d
+      d_mesh_ex_partial( vi) = d
     END DO
 
     ! Calculate error
@@ -1185,7 +1187,7 @@ CONTAINS
       ! Skip border vertices
       vi_glob = mesh%vi1 + vi - 1
       IF (mesh%VBI( vi_glob) > 0) CYCLE
-      maxerr = MAX( maxerr, ABS( d_mesh_partial( vi) - d_mesh_partial_ex( vi)))
+      maxerr = MAX( maxerr, ABS( d_mesh_partial( vi) - d_mesh_ex_partial( vi)))
     END DO
     CALL MPI_ALLREDUCE( MPI_IN_PLACE, maxerr, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
 
@@ -1216,7 +1218,7 @@ CONTAINS
 
       ! Write all the variables
       CALL write_to_field_multiple_options_mesh_dp_2D_notime( mesh, filename, ncid, 'd_mesh'   , d_mesh_partial   )
-      CALL write_to_field_multiple_options_mesh_dp_2D_notime( mesh, filename, ncid, 'd_mesh_ex', d_mesh_partial_ex)
+      CALL write_to_field_multiple_options_mesh_dp_2D_notime( mesh, filename, ncid, 'd_mesh_ex', d_mesh_ex_partial)
 
       ! Close the file
       CALL close_netcdf_file( ncid)
@@ -1229,7 +1231,189 @@ CONTAINS
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
-  END SUBROUTINE test_grid2mesh_remapping
+  END SUBROUTINE test_remapping_grid2mesh
+
+  SUBROUTINE test_remapping_mesh2grid
+    ! Test remapping from a mesh to a square grid
+
+    IMPLICIT NONE
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'test_remapping_mesh2grid'
+    REAL(dp), PARAMETER                                :: xmin = -3040E3_dp  ! Just use the standard Antarctica domain; doesn't really matter here...
+    REAL(dp), PARAMETER                                :: xmax =  3040E3_dp
+    REAL(dp), PARAMETER                                :: ymin = -3040E3_dp
+    REAL(dp), PARAMETER                                :: ymax =  3040E3_dp
+    REAL(dp), PARAMETER                                :: lambda_M    = 0._dp
+    REAL(dp), PARAMETER                                :: phi_M       = -90._dp
+    REAL(dp), PARAMETER                                :: beta_stereo = 71._dp
+    CHARACTER(LEN=256), PARAMETER                      :: name = 'test_mesh'
+    TYPE(type_mesh)                                    :: mesh
+    REAL(dp)                                           :: alpha_min, res_max
+    REAL(dp)                                           :: res, width
+    TYPE(type_grid)                                    :: grid
+    INTEGER                                            :: i,j,n,n_glob
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: d_mesh_partial
+    INTEGER                                            :: vi, vi_glob
+    REAL(dp)                                           :: x,y,d,ddx,ddy,d2dx2,d2dxdy,d2dy2
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: d_grid_vec_partial, d_grid_ex_vec_partial
+    REAL(dp)                                           :: maxerr
+    LOGICAL                                            :: found_errors
+    CHARACTER(LEN=256)                                 :: filename
+    INTEGER                                            :: ncid
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+  ! == Create a nice mesh, with a smileyface and the UFEMISM letters
+  ! ================================================================
+
+    ! Allocate memory
+    CALL allocate_mesh_primary( mesh, name, 1000, 2000, 32)
+
+    ! Initialise the dummy mesh
+    CALL initialise_dummy_mesh( mesh, xmin, xmax, ymin, ymax)
+
+    ! Refine the mesh with a uniform 400 km resolution
+    alpha_min = 25._dp * pi / 180._dp
+    res_max   = 400E3_dp
+    CALL refine_mesh_uniform( mesh, res_max, alpha_min)
+
+    ! Smooth the mesh by applying a single iteration of Lloyd's algorithm
+    CALL Lloyds_algorithm_single_iteration( mesh, alpha_min)
+
+    ! Add a smileyface
+    res   = 80E3_dp
+    width = 100E3_dp
+    CALL mesh_add_smileyface( mesh, res, width)
+
+    ! Add the UFEMISM letters
+    res   = 50E3_dp
+    width = 40E3_dp
+    CALL mesh_add_UFEMISM_letters( mesh, res, width)
+
+    ! Smooth the mesh again
+    CALL Lloyds_algorithm_single_iteration( mesh, alpha_min)
+
+    ! Calculate secondary geometry data (needed in order to be able to write to NetCDF)
+    CALL calc_all_secondary_mesh_data( mesh, lambda_M, phi_M, beta_stereo)
+
+    ! Calculate all matrix operators
+    CALL calc_all_matrix_operators_mesh( mesh)
+
+  ! == Set up a square grid
+  ! =======================
+
+    grid%name = 'test_grid'
+
+    grid%xmin = xmin
+    grid%xmax = xmax
+    grid%ymin = ymin
+    grid%ymax = ymax
+
+    grid%dx = 32E3_dp
+    grid%nx = 191
+    grid%ny = 191
+
+    grid%tol_dist = 1E-1_dp
+
+    ALLOCATE( grid%x( grid%nx))
+    ALLOCATE( grid%y( grid%ny))
+
+    DO i = 1, grid%nx
+      grid%x( i) = grid%xmin + REAL( i-1,dp) * grid%dx
+    END DO
+    DO j = 1, grid%ny
+      grid%y( j) = grid%ymin + REAL( j-1,dp) * grid%dx
+    END DO
+
+    CALL calc_field_to_vector_form_translation_tables( grid)
+
+  ! == Calculate, apply, and validate grid-to-mesh remapping operator
+  ! =================================================================
+
+    found_errors = .FALSE.
+
+    ! Create a nice data field on the mesh
+    ALLOCATE( d_mesh_partial( mesh%nV_loc), source = 0._dp)
+    DO vi = 1, mesh%nV_loc
+      vi_glob = mesh%vi1 + vi - 1
+      x = mesh%V( vi_glob,1)
+      y = mesh%V( vi_glob,2)
+      CALL test_function( x, y, mesh%xmin, mesh%xmax, mesh%ymin, mesh%ymax, d, ddx, ddy, d2dx2, d2dxdy, d2dy2)
+      d_mesh_partial( vi) = d
+    END DO
+
+    ! Map meshed data to the grid
+    ALLOCATE( d_grid_vec_partial( grid%n_loc))
+    CALL map_from_mesh_to_xy_grid_2D( mesh, grid, d_mesh_partial, d_grid_vec_partial)
+
+    ! Calculate exact solution on the grid
+    ALLOCATE( d_grid_ex_vec_partial( grid%n_loc))
+    DO n = 1, grid%n_loc
+      n_glob = grid%n1 + n - 1
+      i = grid%n2ij( n_glob,1)
+      j = grid%n2ij( n_glob,2)
+      x = grid%x( i)
+      y = grid%y( j)
+      CALL test_function( x, y, mesh%xmin, mesh%xmax, mesh%ymin, mesh%ymax, d, ddx, ddy, d2dx2, d2dxdy, d2dy2)
+      d_grid_ex_vec_partial( n) = d
+    END DO
+
+    ! Calculate error
+    maxerr = 0._dp
+    DO n = 1, grid%n_loc
+      n_glob = grid%n1 + n - 1
+      i = grid%n2ij( n_glob,1)
+      j = grid%n2ij( n_glob,2)
+      ! Skip the border
+      IF (i == 1 .OR. i == grid%nx .OR. j == 1 .OR. j == grid%ny) CYCLE
+      maxerr = MAX( maxerr, ABS( d_grid_vec_partial( n) - d_grid_ex_vec_partial( n)))
+    END DO
+
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, maxerr, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
+
+    IF (maxerr > 0.6E-1_dp) found_errors = .TRUE.
+
+  ! == Validation
+  ! =============
+
+    ! If no errors occurred, we are happy
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, found_errors, 1, MPI_LOGICAL, MPI_LOR, MPI_COMM_WORLD, ierr)
+    IF (.NOT. found_errors) THEN
+      IF (par%master) CALL happy('validated mesh to grid remapping')
+    ELSE
+      IF (par%master) CALL warning('found errors in mesh to grid remapping')
+    END IF
+
+    ! Write results to a NetCDF file
+    IF (do_write_results_to_netcdf) THEN
+
+      ! Create a file and write the mesh to it
+      filename = TRIM( routine_name) // '_output_mesh.nc'
+      CALL create_new_netcdf_file_for_writing( filename, ncid)
+      CALL setup_xy_grid_in_netcdf_file( filename, ncid, grid)
+
+      ! Add all the variables
+      CALL add_field_grid_dp_2D_notime( filename, ncid, 'd_grid')
+      CALL add_field_grid_dp_2D_notime( filename, ncid, 'd_grid_ex')
+
+      ! Write all the variables
+      CALL write_to_field_multiple_options_grid_dp_2D_notime( grid, filename, ncid, 'd_grid'   , d_grid_vec_partial   )
+      CALL write_to_field_multiple_options_grid_dp_2D_notime( grid, filename, ncid, 'd_grid_ex', d_grid_ex_vec_partial)
+
+      ! Close the file
+      CALL close_netcdf_file( ncid)
+
+    END IF ! IF (do_write_results_to_netcdf) THEN
+
+    ! Clean up after yourself
+    CALL deallocate_mesh( mesh)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE test_remapping_mesh2grid
 
   SUBROUTINE test_function( x, y, xmin, xmax, ymin, ymax, d, ddx, ddy, d2dx2, d2dxdy, d2dy2)
     ! A simple test function to validate matrix operators

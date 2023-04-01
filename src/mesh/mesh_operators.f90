@@ -602,7 +602,7 @@ CONTAINS
     DO row = mesh%M_ddx_a_a%i1, mesh%M_ddx_a_a%i2
 
       ! The vertex represented by this matrix row
-      vi = mesh%n2vi( row,1)
+      vi = mesh%n2vi( row)
       x  = mesh%V( vi,1)
       y  = mesh%V( vi,2)
 
@@ -733,7 +733,7 @@ CONTAINS
     DO row = mesh%M_map_a_b%i1, mesh%M_map_a_b%i2
 
       ! The vertex represented by this matrix row
-      ti = mesh%n2ti( row,1)
+      ti = mesh%n2ti( row)
       x  = mesh%TriGC( ti,1)
       y  = mesh%TriGC( ti,2)
 
@@ -865,7 +865,7 @@ CONTAINS
     DO row = mesh%M_map_a_c%i1, mesh%M_map_a_c%i2
 
       ! The edge represented by this matrix row
-      ei = mesh%n2ei( row,1)
+      ei = mesh%n2ei( row)
       x  = mesh%E( ei,1)
       y  = mesh%E( ei,2)
 
@@ -998,7 +998,7 @@ CONTAINS
     DO row = mesh%M_map_b_a%i1, mesh%M_map_b_a%i2
 
       ! The vertex represented by this matrix row
-      vi = mesh%n2vi( row,1)
+      vi = mesh%n2vi( row)
       x  = mesh%V( vi,1)
       y  = mesh%V( vi,2)
 
@@ -1129,7 +1129,7 @@ CONTAINS
     DO row = mesh%M_ddx_b_b%i1, mesh%M_ddx_b_b%i2
 
       ! The triangle represented by this matrix row
-      ti = mesh%n2ti( row,1)
+      ti = mesh%n2ti( row)
       x  = mesh%TriGC( ti,1)
       y  = mesh%TriGC( ti,2)
 
@@ -1265,7 +1265,7 @@ CONTAINS
     DO row = mesh%M2_ddx_b_b%i1, mesh%M2_ddx_b_b%i2
 
       ! The triangle represented by this matrix row
-      ti = mesh%n2ti( row,1)
+      ti = mesh%n2ti( row)
       x  = mesh%TriGC( ti,1)
       y  = mesh%TriGC( ti,2)
 
@@ -1405,7 +1405,7 @@ CONTAINS
     DO row = mesh%M_map_b_c%i1, mesh%M_map_b_c%i2
 
       ! The edge represented by this matrix row
-      ei = mesh%n2ei( row,1)
+      ei = mesh%n2ei( row)
       x  = mesh%E( ei,1)
       y  = mesh%E( ei,2)
 
@@ -1538,7 +1538,7 @@ CONTAINS
     DO row = mesh%M_map_c_a%i1, mesh%M_map_c_a%i2
 
       ! The vertex represented by this matrix row
-      vi = mesh%n2vi( row,1)
+      vi = mesh%n2vi( row)
       x  = mesh%V( vi,1)
       y  = mesh%V( vi,2)
 
@@ -1670,7 +1670,7 @@ CONTAINS
     DO row = mesh%M_map_c_b%i1, mesh%M_map_c_b%i2
 
       ! The vertex represented by this matrix row
-      ti = mesh%n2ti( row,1)
+      ti = mesh%n2ti( row)
       x  = mesh%TriGC( ti,1)
       y  = mesh%TriGC( ti,2)
 
@@ -1813,7 +1813,7 @@ CONTAINS
     DO row = mesh%M_ddx_c_c%i1, mesh%M_ddx_c_c%i2
 
       ! The edge represented by this matrix row
-      ei = mesh%n2ei( row,1)
+      ei = mesh%n2ei( row)
       x  = mesh%E( ei,1)
       y  = mesh%E( ei,2)
 
@@ -1920,21 +1920,21 @@ CONTAINS
     mesh%nncksuv = mesh%nE   * (nz-1) * 2
 
     ! Allocate shared memory
-    ALLOCATE( mesh%n2vi(     mesh%nna    , 1), source = 0)
+    ALLOCATE( mesh%n2vi(     mesh%nna       ), source = 0)
     ALLOCATE( mesh%n2viuv(   mesh%nnauv  , 2), source = 0)
     ALLOCATE( mesh%n2vik(    mesh%nnak   , 2), source = 0)
     ALLOCATE( mesh%n2vikuv(  mesh%nnakuv , 3), source = 0)
     ALLOCATE( mesh%n2viks(   mesh%nnaks  , 2), source = 0)
     ALLOCATE( mesh%n2viksuv( mesh%nnaksuv, 3), source = 0)
 
-    ALLOCATE( mesh%n2ti(     mesh%nnb    , 1), source = 0)
+    ALLOCATE( mesh%n2ti(     mesh%nnb       ), source = 0)
     ALLOCATE( mesh%n2tiuv(   mesh%nnbuv  , 2), source = 0)
     ALLOCATE( mesh%n2tik(    mesh%nnbk   , 2), source = 0)
     ALLOCATE( mesh%n2tikuv(  mesh%nnbkuv , 3), source = 0)
     ALLOCATE( mesh%n2tiks(   mesh%nnbks  , 2), source = 0)
     ALLOCATE( mesh%n2tiksuv( mesh%nnbksuv, 3), source = 0)
 
-    ALLOCATE( mesh%n2ei(     mesh%nnc    , 1), source = 0)
+    ALLOCATE( mesh%n2ei(     mesh%nnc       ), source = 0)
     ALLOCATE( mesh%n2eiuv(   mesh%nncuv  , 2), source = 0)
     ALLOCATE( mesh%n2eik(    mesh%nnck   , 2), source = 0)
     ALLOCATE( mesh%n2eikuv(  mesh%nnckuv , 3), source = 0)
@@ -1972,7 +1972,7 @@ CONTAINS
       DO vi = 1, mesh%nV
         n = n+1
         mesh%vi2n( vi) = n
-        mesh%n2vi( n,1) = vi
+        mesh%n2vi( n ) = vi
       END DO
 
     ! == vector
@@ -2055,7 +2055,7 @@ CONTAINS
       DO ti = 1, mesh%nTri
         n = n+1
         mesh%ti2n( ti) = n
-        mesh%n2ti( n,1) = ti
+        mesh%n2ti( n ) = ti
       END DO
 
     ! == vector
@@ -2099,7 +2099,7 @@ CONTAINS
         END DO
       END DO
 
-  ! == 3-D regustaggeredlar
+  ! == 3-D staggered
 
     ! == scalar
 
@@ -2138,7 +2138,7 @@ CONTAINS
       DO ei = 1, mesh%nE
         n = n+1
         mesh%ei2n( ei) = n
-        mesh%n2ei( n,1) = ei
+        mesh%n2ei( n ) = ei
       END DO
 
     ! == vector

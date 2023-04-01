@@ -75,6 +75,7 @@ ifeq ($(DO_SELEN),yes)
     netcdf/netcdf_basic.o \
     netcdf/netcdf_input.o \
     netcdf/netcdf_output.o \
+    netcdf/netcdf_debug.o \
     \
     climate/climate_main.o \
     \
@@ -123,6 +124,7 @@ else
     netcdf/netcdf_basic.o \
     netcdf/netcdf_input.o \
     netcdf/netcdf_output.o \
+    netcdf/netcdf_debug.o \
     \
     climate/climate_main.o \
     \

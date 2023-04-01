@@ -162,7 +162,7 @@ CONTAINS
 
     ! In- and output variables:
     REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: xx
-    TYPE(tVec),                          INTENT(INOUT) :: x
+    TYPE(tVec),                          INTENT(OUT)   :: x
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'vec_double2petsc'

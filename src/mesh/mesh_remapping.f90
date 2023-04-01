@@ -21,6 +21,7 @@ MODULE mesh_remapping
                                                                      line_integral_xydy, crop_line_to_domain, segment_intersection
   USE mesh_utilities                                         , ONLY: is_in_Voronoi_cell, calc_Voronoi_cell, find_containing_vertex, find_containing_triangle, &
                                                                      find_shared_Voronoi_boundary
+  USE netcdf_debug                                           , ONLY: write_CSR_matrix_to_NetCDF
 
   IMPLICIT NONE
 
@@ -119,6 +120,64 @@ CONTAINS
 
   END SUBROUTINE map_from_xy_grid_to_mesh_2D
 
+  ! From a mesh to an x/y-grid
+  SUBROUTINE map_from_mesh_to_xy_grid_2D( mesh, grid, d_mesh_partial, d_grid_vec_partial, method)
+    ! Map a 2-D data field from an x/y-grid to a mesh.
+
+    IMPLICIT NONE
+
+    ! In/output variables
+    TYPE(type_mesh),                     INTENT(INOUT) :: mesh
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: d_mesh_partial
+    REAL(dp), DIMENSION(:    ),          INTENT(OUT)   :: d_grid_vec_partial
+    CHARACTER(LEN=256), OPTIONAL,        INTENT(IN)    :: method
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'map_from_mesh_to_xy_grid_2D'
+    INTEGER                                            :: mi, mi_valid
+    LOGICAL                                            :: found_map, found_empty_page
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Browse the Atlas to see if an appropriate mapping object already exists.
+    found_map = .FALSE.
+    DO mi = 1, SIZE( Atlas, 1)
+      IF (Atlas( mi)%name_src == mesh%name .AND. Atlas( mi)%name_dst == grid%name) THEN
+        ! If so specified, look for a mapping object with the correct method
+        IF (PRESENT( method)) THEN
+          IF (Atlas( mi)%method /= method) CYCLE
+        END IF
+        found_map = .TRUE.
+        mi_valid  = mi
+        EXIT
+      END IF
+    END DO
+
+    ! If no appropriate mapping object could be found, create one.
+    IF (.NOT. found_map) THEN
+      found_empty_page = .FALSE.
+      DO mi = 1, SIZE( Atlas,1)
+        IF (.NOT. Atlas( mi)%is_in_use) THEN
+          found_empty_page = .TRUE.
+          CALL create_map_from_mesh_to_xy_grid( mesh, grid,Atlas( mi))
+          mi_valid = mi
+          EXIT
+        END IF
+      END DO
+      ! Safety
+      IF (.NOT. found_empty_page) CALL crash('No more room in Atlas - assign more memory!')
+    END IF
+
+    ! Apply the appropriate mapping object
+    CALL apply_map_mesh_to_xy_grid_2D( mesh, grid, Atlas( mi), d_mesh_partial, d_grid_vec_partial)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE map_from_mesh_to_xy_grid_2D
+
 ! == Apply existing mapping objects to remap data between grids
 ! =============================================================
 
@@ -155,6 +214,38 @@ CONTAINS
 
   END SUBROUTINE apply_map_xy_grid_to_mesh_2D
 
+  ! From a mesh to an x/y-grid
+  SUBROUTINE apply_map_mesh_to_xy_grid_2D( mesh, grid, map, d_mesh_partial, d_grid_vec_partial)
+    ! Map a 2-D data field from a mesh to an x/y-grid.
+
+    IMPLICIT NONE
+
+    ! In/output variables
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    TYPE(type_map),                      INTENT(IN)    :: map
+    REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: d_mesh_partial
+    REAL(dp), DIMENSION(:    ),          INTENT(OUT)   :: d_grid_vec_partial
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'apply_map_mesh_to_xy_grid_2D'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Safety
+    IF (SIZE( d_mesh_partial,1) /= mesh%nV_loc .OR. SIZE( d_grid_vec_partial,1) /= grid%n_loc) THEN
+      CALL crash('data fields are the wrong size!')
+    END IF
+
+    ! Perform the mapping operation as a matrix multiplication
+    CALL multiply_PETSc_matrix_with_vector_1D( map%M, d_mesh_partial, d_grid_vec_partial)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE apply_map_mesh_to_xy_grid_2D
+
 ! == Create remapping objects
 ! ===========================
 
@@ -183,7 +274,6 @@ CONTAINS
     LOGICAL                                            :: count_coincidences
     INTEGER                                            :: nrows, ncols, nrows_loc, ncols_loc, nnz_est, nnz_est_proc, nnz_per_row_max
     TYPE(type_sparse_matrix_CSR_dp)                    :: A_xdy_a_g_CSR, A_mxydx_a_g_CSR, A_xydy_a_g_CSR
-    TYPE(tMat)                                         :: A_xdy_a_g    , A_mxydx_a_g    , A_xydy_a_g
     INTEGER,  DIMENSION(:    ), ALLOCATABLE            :: mask_do_simple_average
     INTEGER                                            :: vi1, vi2, vi
     REAL(dp), DIMENSION( mesh%nC_mem,2)                :: Vor
@@ -192,17 +282,16 @@ CONTAINS
     INTEGER                                            :: nVor
     INTEGER                                            :: vori1, vori2
     REAL(dp), DIMENSION(2)                             :: p, q
-    INTEGER                                            :: k, n, i, j, kk, vj
+    INTEGER                                            :: k, i, j, kk, vj
     REAL(dp)                                           :: xl, xu, yl, yu
     REAL(dp), DIMENSION(2)                             :: sw, se, nw, ne
     INTEGER                                            :: vi_hint
     REAL(dp)                                           :: xmin, xmax, ymin, ymax
     INTEGER                                            :: il, iu, jl, ju
     TYPE(type_single_row_mapping_matrices)             :: single_row_Vor, single_row_grid
-    TYPE(tMat)                                         :: w0, w1x, w1y
-    INTEGER                                            :: ncols_row
-    INTEGER,  DIMENSION(:    ), ALLOCATABLE            :: cols_row
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: vals_Row, w0_row, w1x_row, w1y_row
+    TYPE(type_sparse_matrix_CSR_dp)                    :: w0_CSR, w1x_CSR, w1y_CSR
+    TYPE(tMat)                                         :: w0    , w1x    , w1y
+    INTEGER                                            :: row, k1, k2, col
     REAL(dp)                                           :: A_overlap_tot
     TYPE(tMat)                                         :: grid_M_ddx, grid_M_ddy
     TYPE(tMat)                                         :: M1, M2
@@ -256,7 +345,9 @@ CONTAINS
     ALLOCATE( mask_do_simple_average( mesh%nV), source = 0)
 
     ! Calculate line integrals around all Voronoi cells
-    DO vi = mesh%vi1, mesh%vi2
+    DO row = mesh%vi1, mesh%vi2
+
+      vi = mesh%n2vi( row)
 
       IF (mesh%A( vi) < 10._dp * grid%dx**2) THEN
         ! This Voronoi cell is small enough to warrant a proper line integral
@@ -292,9 +383,9 @@ CONTAINS
           single_row_grid%LI_xydy    = 0._dp
 
           ! The grid cell
-          n  = single_row_Vor%index_left( k)
-          i  = grid%n2ij( n,1)
-          j  = grid%n2ij( n,2)
+          col = single_row_Vor%index_left( k)
+          i   = grid%n2ij( col,1)
+          j   = grid%n2ij( col,2)
 
           xl = grid%x( i) - grid%dx / 2._dp
           xu = grid%x( i) + grid%dx / 2._dp
@@ -327,9 +418,9 @@ CONTAINS
           END DO ! DO kk = 1, single_row_grid%n
 
           ! Add entries to the big matrices
-          CALL add_entry_CSR_dist( A_xdy_a_g_CSR  , vi, n, single_row_Vor%LI_xdy(   k))
-          CALL add_entry_CSR_dist( A_mxydx_a_g_CSR, vi, n, single_row_Vor%LI_mxydx( k))
-          CALL add_entry_CSR_dist( A_xydy_a_g_CSR , vi, n, single_row_Vor%LI_xydy(  k))
+          CALL add_entry_CSR_dist( A_xdy_a_g_CSR  , row, col, single_row_Vor%LI_xdy(   k))
+          CALL add_entry_CSR_dist( A_mxydx_a_g_CSR, row, col, single_row_Vor%LI_mxydx( k))
+          CALL add_entry_CSR_dist( A_xydy_a_g_CSR , row, col, single_row_Vor%LI_xydy(  k))
 
         END DO ! DO k = 1, single_row_Vor%n
 
@@ -358,13 +449,13 @@ CONTAINS
         DO i = il, iu
         DO j = jl, ju
 
-          n = grid%ij2n( i,j)
-          p = [grid%x( i), grid%y( j)]
+          col = grid%ij2n( i,j)
+          p   = [grid%x( i), grid%y( j)]
 
           IF (is_in_Voronoi_cell( mesh, p, vi)) THEN
             ! This grid cell lies inside the triangle; add it to the single row
             single_row_Vor%n = single_row_Vor%n + 1
-            single_row_Vor%index_left( single_row_Vor%n) = n
+            single_row_Vor%index_left( single_row_Vor%n) = col
             single_row_Vor%LI_xdy(     single_row_Vor%n) = grid%dx**2
             single_row_Vor%LI_mxydx(   single_row_Vor%n) = grid%x( i) * grid%dx**2
             single_row_Vor%LI_xydy(    single_row_Vor%n) = grid%y( j) * grid%dx**2
@@ -375,10 +466,10 @@ CONTAINS
 
         ! Add entries to the big matrices
         DO k = 1, single_row_Vor%n
-          n = single_row_Vor%index_left( k)
-          CALL add_entry_CSR_dist( A_xdy_a_g_CSR  , vi, n, single_row_Vor%LI_xdy(   k))
-          CALL add_entry_CSR_dist( A_mxydx_a_g_CSR, vi, n, single_row_Vor%LI_mxydx( k))
-          CALL add_entry_CSR_dist( A_xydy_a_g_CSR , vi, n, single_row_Vor%LI_xydy(  k))
+          col = single_row_Vor%index_left( k)
+          CALL add_entry_CSR_dist( A_xdy_a_g_CSR  , vi, col, single_row_Vor%LI_xdy(   k))
+          CALL add_entry_CSR_dist( A_mxydx_a_g_CSR, vi, col, single_row_Vor%LI_mxydx( k))
+          CALL add_entry_CSR_dist( A_xydy_a_g_CSR , vi, col, single_row_Vor%LI_xydy(  k))
         END DO
 
       END IF ! IF (mesh%A( vi) < 4._dp * grid%dx**2) THEN
@@ -397,89 +488,56 @@ CONTAINS
     DEALLOCATE( single_row_grid%LI_mxydx   )
     DEALLOCATE( single_row_grid%LI_xydy    )
 
-    ! Convert matrices from Fortran to PETSc types
-    CALL mat_CSR2petsc( A_xdy_a_g_CSR  , A_xdy_a_g  )
-    CALL mat_CSR2petsc( A_mxydx_a_g_CSR, A_mxydx_a_g)
-    CALL mat_CSR2petsc( A_xydy_a_g_CSR , A_xydy_a_g )
-
-    ! Clean up the Fortran versions
-    CALL deallocate_matrix_CSR_dist( A_xdy_a_g_CSR  )
-    CALL deallocate_matrix_CSR_dist( A_mxydx_a_g_CSR)
-    CALL deallocate_matrix_CSR_dist( A_xydy_a_g_CSR )
-
   ! Calculate w0, w1x, w1y for the mesh-to-grid remapping operator
   ! ==============================================================
 
-    CALL MatDuplicate( A_xdy_a_g, MAT_SHARE_NONZERO_PATTERN, w0 , perr)
-    CALL MatDuplicate( A_xdy_a_g, MAT_SHARE_NONZERO_PATTERN, w1x, perr)
-    CALL MatDuplicate( A_xdy_a_g, MAT_SHARE_NONZERO_PATTERN, w1y, perr)
+    CALL allocate_matrix_CSR_dist( w0_CSR , nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+    CALL allocate_matrix_CSR_dist( w1x_CSR, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+    CALL allocate_matrix_CSR_dist( w1y_CSR, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
 
-    ALLOCATE( cols_row( nnz_per_row_max))
-    ALLOCATE( vals_row( nnz_per_row_max))
-    ALLOCATE( w0_row(   nnz_per_row_max))
-    ALLOCATE( w1x_row(  nnz_per_row_max))
-    ALLOCATE( w1y_row(  nnz_per_row_max))
+    DO row = mesh%vi1, mesh%vi2
 
-    ! Get parallelisation domains ("ownership ranges")
-    CALL MatGetOwnershipRange( A_xdy_a_g, vi1, vi2, perr)
+      vi = mesh%n2vi( row)
 
-    DO vi = vi1+1, vi2 ! +1 because PETSc indexes from 0
+      k1 = A_xdy_a_g_CSR%ptr( row  )
+      k2 = A_xdy_a_g_CSR%ptr( row+1) - 1
 
-      ! w0
-      CALL MatGetRow( A_xdy_a_g, vi-1, ncols_row, cols_row, vals_row, perr)
-      A_overlap_tot = SUM( vals_row( 1:ncols_row))
-      DO k = 1, ncols_row
-        w0_row( k) = vals_row( k) / A_overlap_tot
-        CALL MatSetValues( w0, 1, vi-1, 1, cols_row( k), w0_row( k), INSERT_VALUES, perr)
+      A_overlap_tot = SUM( A_xdy_a_g_CSR%val( k1:k2))
+
+      DO k = k1, k2
+        col = A_xdy_a_g_CSR%ind( k)
+        CALL add_entry_CSR_dist( w0_CSR, row, col, A_xdy_a_g_CSR%val( k) / A_overlap_tot)
       END DO
-      CALL MatRestoreRow( A_xdy_a_g, vi-1, ncols_row, cols_row, vals_row, perr)
 
       IF (mask_do_simple_average( vi) == 0) THEN
         ! For small vertices, include the gradient terms
 
-        ! w1x
-        CALL MatGetRow( A_mxydx_a_g, vi-1, ncols_row, cols_row, vals_row, perr)
-        DO k = 1, ncols_row
-          n = cols_row( k)+1
-          i = grid%n2ij( n,1)
-          j = grid%n2ij( n,2)
-          w1x_row( k) = (vals_row( k) / A_overlap_tot) - (grid%x( i) * w0_row( k))
-          CALL MatSetValues( w1x, 1, vi-1, 1, cols_row( k), w1x_row( k), INSERT_VALUES, perr)
+        DO k = k1, k2
+          col = A_xdy_a_g_CSR%ind( k)
+          ! Grid cell
+          i = grid%n2ij( col,1)
+          j = grid%n2ij( col,2)
+          CALL add_entry_CSR_dist( w1x_CSR, row, col, (A_mxydx_a_g_CSR%val( k) / A_overlap_tot) - (grid%x( i) * w0_CSR%val( k)))
+          CALL add_entry_CSR_dist( w1y_CSR, row, col, (A_xydy_a_g_CSR%val(  k) / A_overlap_tot) - (grid%y( j) * w0_CSR%val( k)))
         END DO
-        CALL MatRestoreRow( A_mxydx_a_g, vi-1, ncols_row, cols_row, vals_row, perr)
 
-        ! w1y
-        CALL MatGetRow( A_xydy_a_g, vi-1, ncols_row, cols_row, vals_row, perr)
-        DO k = 1, ncols_row
-          n = cols_row( k)+1
-          i = grid%n2ij( n,1)
-          j = grid%n2ij( n,2)
-          w1y_row( k) = (vals_row( k) / A_overlap_tot) - (grid%y( j) * w0_row( k))
-          CALL MatSetValues( w1y, 1, vi-1, 1, cols_row( k), w1y_row( k), INSERT_VALUES, perr)
-        END DO
-        CALL MatRestoreRow( A_xydy_a_g, vi-1, ncols_row, cols_row, vals_row, perr)
+      ELSE
+        ! For large vertices, don't include the gradient terms
 
       END IF ! IF (mask_do_simple_average( vi) == 0) THEN
 
-    END DO ! DO vi = vi1+1, vi2 ! +1 because PETSc indexes from 0
+    END DO ! DO row = mesh%vi1, mesh%vi2
     CALL sync
 
-    CALL MatDestroy( A_xdy_a_g  , perr)
-    CALL MatDestroy( A_mxydx_a_g, perr)
-    CALL MatDestroy( A_xydy_a_g , perr)
+    ! Clean up after yourself
+    CALL deallocate_matrix_CSR_dist( A_xdy_a_g_CSR  )
+    CALL deallocate_matrix_CSR_dist( A_mxydx_a_g_CSR)
+    CALL deallocate_matrix_CSR_dist( A_xydy_a_g_CSR )
 
-    ! Assemble matrix and vectors, using the 2-step process:
-    !   MatAssemblyBegin(), MatAssemblyEnd()
-    ! Computations can be done while messages are in transition
-    ! by placing code between these two statements.
-
-    CALL MatAssemblyBegin( w0 , MAT_FINAL_ASSEMBLY, perr)
-    CALL MatAssemblyBegin( w1x, MAT_FINAL_ASSEMBLY, perr)
-    CALL MatAssemblyBegin( w1y, MAT_FINAL_ASSEMBLY, perr)
-
-    CALL MatAssemblyEnd(   w0 , MAT_FINAL_ASSEMBLY, perr)
-    CALL MatAssemblyEnd(   w1x, MAT_FINAL_ASSEMBLY, perr)
-    CALL MatAssemblyEnd(   w1y, MAT_FINAL_ASSEMBLY, perr)
+    ! Convert matrices from Fortran to PETSc types
+    CALL mat_CSR2petsc( w0_CSR , w0 )
+    CALL mat_CSR2petsc( w1x_CSR, w1x)
+    CALL mat_CSR2petsc( w1y_CSR, w1y)
 
     ! Calculate the remapping matrix
 
@@ -502,8 +560,6 @@ CONTAINS
     CALL MatDestroy( M1, perr)
     CALL MatDestroy( M2, perr)
     DEALLOCATE( mask_do_simple_average)
-    DEALLOCATE( cols_row)
-    DEALLOCATE( vals_row)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

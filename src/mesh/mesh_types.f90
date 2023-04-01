@@ -111,7 +111,7 @@ MODULE mesh_types
 
     ! a-grid (vertices)
     INTEGER                                 :: nna, nnauv, nnak, nnaks, nnakuv, nnaksuv
-    INTEGER,  DIMENSION(:,:  ), ALLOCATABLE :: n2vi
+    INTEGER,  DIMENSION(:    ), ALLOCATABLE :: n2vi
     INTEGER,  DIMENSION(:,:  ), ALLOCATABLE :: n2viuv
     INTEGER,  DIMENSION(:,:  ), ALLOCATABLE :: n2vik
     INTEGER,  DIMENSION(:,:  ), ALLOCATABLE :: n2vikuv
@@ -126,7 +126,7 @@ MODULE mesh_types
 
     ! b-grid (triangles)
     INTEGER                                 :: nnb, nnbuv, nnbk, nnbks, nnbkuv, nnbksuv
-    INTEGER,  DIMENSION(:,:  ), ALLOCATABLE :: n2ti
+    INTEGER,  DIMENSION(:    ), ALLOCATABLE :: n2ti
     INTEGER,  DIMENSION(:,:  ), ALLOCATABLE :: n2tiuv
     INTEGER,  DIMENSION(:,:  ), ALLOCATABLE :: n2tik
     INTEGER,  DIMENSION(:,:  ), ALLOCATABLE :: n2tikuv
@@ -141,7 +141,7 @@ MODULE mesh_types
 
     ! c-grid (edges)
     INTEGER                                 :: nnc, nncuv, nnck, nncks, nnckuv, nncksuv
-    INTEGER,  DIMENSION(:,:  ), ALLOCATABLE :: n2ei
+    INTEGER,  DIMENSION(:    ), ALLOCATABLE :: n2ei
     INTEGER,  DIMENSION(:,:  ), ALLOCATABLE :: n2eiuv
     INTEGER,  DIMENSION(:,:  ), ALLOCATABLE :: n2eik
     INTEGER,  DIMENSION(:,:  ), ALLOCATABLE :: n2eikuv

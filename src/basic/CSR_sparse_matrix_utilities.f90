@@ -98,7 +98,13 @@ CONTAINS
 
     ! Matrix dimensions
     A%m       = 0
+    A%m_loc   = 0
+    A%i1      = 0
+    A%i2      = 0
     A%n       = 0
+    A%n_loc   = 0
+    A%j1      = 0
+    A%j2      = 0
     A%nnz_max = 0
     A%nnz     = 0
 
@@ -166,5 +172,153 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE extend_matrix_CSR_dist
+
+  SUBROUTINE gather_CSR_dist_to_master( A, A_tot)
+    ! Gather a CSR-format sparse m-by-n matrix A that is distributed over the processes, to the master
+
+    IMPLICIT NONE
+
+    ! In- and output variables:
+    TYPE(type_sparse_matrix_CSR_dp),     INTENT(IN)    :: A
+    TYPE(type_sparse_matrix_CSR_dp),     INTENT(OUT)   :: A_tot
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'gather_CSR_dist_to_master'
+    INTEGER,  DIMENSION(par%n)                         :: m_glob_all, n_glob_all, m_loc_all, n_loc_all
+    INTEGER                                            :: nnz_tot
+    INTEGER                                            :: p
+    INTEGER                                            :: row, k1, k2, k, col
+    REAL(dp)                                           :: val
+    TYPE(type_sparse_matrix_CSR_dp)                    :: A_proc
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Gather dimensions
+    CALL MPI_ALLGATHER( A%m    , 1, MPI_INTEGER, m_glob_all, 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
+    CALL MPI_ALLGATHER( A%n    , 1, MPI_INTEGER, n_glob_all, 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
+    CALL MPI_ALLGATHER( A%m_loc, 1, MPI_INTEGER, m_loc_all , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
+    CALL MPI_ALLGATHER( A%n_loc, 1, MPI_INTEGER, n_loc_all , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
+
+    CALL MPI_ALLREDUCE( A%nnz, nnz_tot, 1, MPI_INTEGER, MPI_SUM, MPI_COMM_WORLD, ierr)
+
+    ! Safety - check if dimensions match
+    IF (ANY( m_glob_all /= A%m)) CALL crash('global numbers of rows do not match across the processes!')
+    IF (ANY( n_glob_all /= A%n)) CALL crash('global numbers of columns do not match across the processes!')
+    IF (SUM( m_loc_all) /= A%m ) CALL crash('local numbers of rows do not add up across the processes!')
+    IF (SUM( n_loc_all) /= A%n ) CALL crash('local numbers of columns do not add up across the processes!')
+
+    ! Allocate memory
+    IF (par%master) THEN
+      A_tot%m       = A%m
+      A_tot%m_loc   = A%m
+      A_tot%i1      = 1
+      A_tot%i2      = A%m
+      A_tot%n       = A%n
+      A_tot%n_loc   = A%n
+      A_tot%j1      = 1
+      A_tot%j2      = A%n
+      A_tot%nnz     = 0
+      A_tot%nnz_max = nnz_tot
+      ALLOCATE( A_tot%ptr( A%m+1)  , source = 1    )
+      ALLOCATE( A_tot%ind( nnz_tot), source = 0    )
+      ALLOCATE( A_tot%val( nnz_tot), source = 0._dp)
+    ELSE
+      A_tot%m       = A%m
+      A_tot%m_loc   = 0
+      A_tot%i1      = 1
+      A_tot%i2      = 0
+      A_tot%n       = A%n
+      A_tot%n_loc   = 0
+      A_tot%j1      = 1
+      A_tot%j2      = 0
+      A_tot%nnz     = 0
+      A_tot%nnz_max = 0
+    END IF
+
+    ! Start with the master's own data
+    IF (par%master) THEN
+      DO row = A%i1, A%i2
+        k1 = A%ptr( row)
+        k2 = A%ptr( row+1) - 1
+        DO k = k1, k2
+          col = A%ind( k)
+          val = A%val( k)
+          CALL add_entry_CSR_dist( A_tot, row, col, val)
+        END DO
+      END DO
+    END IF
+
+    ! Collect data from the other processes
+    DO p = 1, par%n-1
+
+      IF     (par%i == p) THEN
+
+        ! Send matrix metadata to master
+        CALL MPI_SEND( A%m      , 1, MPI_INTEGER, 0, 0, MPI_COMM_WORLD, ierr)
+        CALL MPI_SEND( A%m_loc  , 1, MPI_INTEGER, 0, 0, MPI_COMM_WORLD, ierr)
+        CALL MPI_SEND( A%i1     , 1, MPI_INTEGER, 0, 0, MPI_COMM_WORLD, ierr)
+        CALL MPI_SEND( A%i2     , 1, MPI_INTEGER, 0, 0, MPI_COMM_WORLD, ierr)
+        CALL MPI_SEND( A%n      , 1, MPI_INTEGER, 0, 0, MPI_COMM_WORLD, ierr)
+        CALL MPI_SEND( A%n_loc  , 1, MPI_INTEGER, 0, 0, MPI_COMM_WORLD, ierr)
+        CALL MPI_SEND( A%j1     , 1, MPI_INTEGER, 0, 0, MPI_COMM_WORLD, ierr)
+        CALL MPI_SEND( A%j2     , 1, MPI_INTEGER, 0, 0, MPI_COMM_WORLD, ierr)
+        CALL MPI_SEND( A%nnz    , 1, MPI_INTEGER, 0, 0, MPI_COMM_WORLD, ierr)
+        CALL MPI_SEND( A%nnz_max, 1, MPI_INTEGER, 0, 0, MPI_COMM_WORLD, ierr)
+
+        ! Send matrix data to master
+        CALL MPI_SEND( A%ptr, A%m+1    , MPI_INTEGER         , 0, 0, MPI_COMM_WORLD, ierr)
+        CALL MPI_SEND( A%ind, A%nnz_max, MPI_INTEGER         , 0, 0, MPI_COMM_WORLD, ierr)
+        CALL MPI_SEND( A%val, A%nnz_max, MPI_DOUBLE_PRECISION, 0, 0, MPI_COMM_WORLD, ierr)
+
+      ELSEIF (par%master) THEN
+
+        ! Receive matrix metadata from process
+        CALL MPI_RECV( A_proc%m      , 1, MPI_INTEGER, p, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_status, ierr)
+        CALL MPI_RECV( A_proc%m_loc  , 1, MPI_INTEGER, p, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_status, ierr)
+        CALL MPI_RECV( A_proc%i1     , 1, MPI_INTEGER, p, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_status, ierr)
+        CALL MPI_RECV( A_proc%i2     , 1, MPI_INTEGER, p, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_status, ierr)
+        CALL MPI_RECV( A_proc%n      , 1, MPI_INTEGER, p, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_status, ierr)
+        CALL MPI_RECV( A_proc%n_loc  , 1, MPI_INTEGER, p, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_status, ierr)
+        CALL MPI_RECV( A_proc%j1     , 1, MPI_INTEGER, p, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_status, ierr)
+        CALL MPI_RECV( A_proc%j2     , 1, MPI_INTEGER, p, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_status, ierr)
+        CALL MPI_RECV( A_proc%nnz    , 1, MPI_INTEGER, p, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_status, ierr)
+        CALL MPI_RECV( A_proc%nnz_max, 1, MPI_INTEGER, p, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_status, ierr)
+
+        ! Allocate memory
+        ALLOCATE( A_proc%ptr( A_proc%m+1    ), source = 0    )
+        ALLOCATE( A_proc%ind( A_proc%nnz_max), source = 0    )
+        ALLOCATE( A_proc%val( A_proc%nnz_max), source = 0._dp)
+
+        ! Receive matrix data from process
+        CALL MPI_RECV( A_proc%ptr, A_proc%m+1    , MPI_INTEGER         , p, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_status, ierr)
+        CALL MPI_RECV( A_proc%ind, A_proc%nnz_max, MPI_INTEGER         , p, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_status, ierr)
+        CALL MPI_RECV( A_proc%val, A_proc%nnz_max, MPI_DOUBLE_PRECISION, p, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_status, ierr)
+
+        ! Write to total matrix
+        DO row = A_proc%i1, A_proc%i2
+          k1 = A_proc%ptr( row)
+          k2 = A_proc%ptr( row+1) - 1
+          DO k = k1, k2
+            col = A_proc%ind( k)
+            val = A_proc%val( k)
+            CALL add_entry_CSR_dist( A_tot, row, col, val)
+          END DO
+        END DO
+
+        ! Clean up after yourself
+        DEALLOCATE( A_proc%ptr)
+        DEALLOCATE( A_proc%ind)
+        DEALLOCATE( A_proc%val)
+
+      END IF ! IF     (par%i == p) THEN
+      CALL sync
+
+    END DO ! DO p = 0, par%n-1
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE gather_CSR_dist_to_master
 
 END MODULE CSR_sparse_matrix_utilities

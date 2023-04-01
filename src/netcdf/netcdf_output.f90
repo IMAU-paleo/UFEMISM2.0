@@ -14,7 +14,7 @@ MODULE netcdf_output
   USE precisions                                             , ONLY: dp
   USE mpi_basic                                              , ONLY: par, cerr, ierr, MPI_status, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine
-  USE grid_basic                                             , ONLY: type_grid
+  USE grid_basic                                             , ONLY: type_grid, gather_gridded_data_to_master_dp_2D, gather_gridded_data_to_master_dp_3D
   USE math_utilities                                         , ONLY: permute_2D_int, permute_2D_dp, permute_3D_int, permute_3D_dp, &
                                                                      flip_1D_dp, flip_2D_x1_dp, flip_2D_x2_dp, flip_3D_x1_dp, flip_3D_x2_dp, flip_3D_x3_dp, &
                                                                      inverse_oblique_sg_projection
@@ -54,6 +54,332 @@ CONTAINS
 
   ! ==== Write data to flexibly-defined fields =====
   ! ================================================
+
+  ! Write data to a gridded output file
+  SUBROUTINE write_to_field_multiple_options_grid_dp_2D(                grid, filename, ncid, field_name_options, d_grid_vec_partial)
+    ! Write a 2-D data field defined on a grid to a NetCDF file variable on the same grid
+    !
+    ! Write to the last time frame of the variable
+    !
+    ! d is stored in vector form, distributed over the processes
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
+    INTEGER,                             INTENT(IN)    :: ncid
+    CHARACTER(LEN=*),                    INTENT(IN)    :: field_name_options
+    REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: d_grid_vec_partial
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_to_field_multiple_options_grid_dp_2D'
+    INTEGER                                            :: id_var, id_dim_time, ti
+    CHARACTER(LEN=256)                                 :: var_name
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: d_grid
+    REAL(dp), DIMENSION(:,:,:), ALLOCATABLE            :: d_grid_with_time
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Inquire the variable
+    CALL inquire_var_multiple_options( filename, ncid, field_name_options, id_var, var_name = var_name)
+    IF (id_var == -1) CALL crash('no variables for name options "' // TRIM( field_name_options) // '" were found in file "' // TRIM( filename) // '"!')
+
+    ! Check if this variable has the correct type and dimensions
+    CALL check_xy_grid_field_dp_2D( filename, ncid, var_name, should_have_time = .TRUE.)
+
+    ! Gather data to the master
+    IF (par%master) ALLOCATE( d_grid( grid%nx, grid%ny))
+    CALL gather_gridded_data_to_master_dp_2D( grid, d_grid_vec_partial, d_grid)
+
+    ! Add "pretend" time dimension
+    IF (par%master) THEN
+      ALLOCATE( d_grid_with_time( grid%nx, grid%ny,1))
+      d_grid_with_time( :,:,1) = d_grid
+    END IF
+
+    ! Inquire length of time dimension
+    CALL inquire_dim_multiple_options( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
+
+    ! Write data to the variable
+    CALL write_var_master_dp_3D( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, ti /), count = (/ grid%nx, grid%ny, 1 /) )
+
+    ! Clean up after yourself
+    IF (par%master) THEN
+      DEALLOCATE( d_grid)
+      DEALLOCATE( d_grid_with_time)
+    END IF
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE write_to_field_multiple_options_grid_dp_2D
+
+  SUBROUTINE write_to_field_multiple_options_grid_dp_2D_monthly(        grid, filename, ncid, field_name_options, d_grid_vec_partial)
+    ! Write a 2-D monthly data field defined on a grid to a NetCDF file variable on the same grid
+    !
+    ! Write to the last time frame of the variable
+    !
+    ! d is stored in vector form, distributed over the processes
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
+    INTEGER,                             INTENT(IN)    :: ncid
+    CHARACTER(LEN=*),                    INTENT(IN)    :: field_name_options
+    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: d_grid_vec_partial
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_to_field_multiple_options_grid_dp_2D_monthly'
+    INTEGER                                            :: id_var, id_dim_time, ti
+    CHARACTER(LEN=256)                                 :: var_name
+    REAL(dp), DIMENSION(:,:,:  ), ALLOCATABLE          :: d_grid
+    REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE          :: d_grid_with_time
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Inquire the variable
+    CALL inquire_var_multiple_options( filename, ncid, field_name_options, id_var, var_name = var_name)
+    IF (id_var == -1) CALL crash('no variables for name options "' // TRIM( field_name_options) // '" were found in file "' // TRIM( filename) // '"!')
+
+    ! Check if this variable has the correct type and dimensions
+    CALL check_xy_grid_field_dp_2D_monthly( filename, ncid, var_name, should_have_time = .TRUE.)
+
+    ! Gather data to the master
+    IF (par%master) ALLOCATE( d_grid( grid%nx, grid%ny, 12))
+    CALL gather_gridded_data_to_master_dp_3D( grid, d_grid_vec_partial, d_grid)
+
+    ! Add "pretend" time dimension
+    IF (par%master) THEN
+      ALLOCATE( d_grid_with_time( grid%nx, grid%ny,12,1))
+      d_grid_with_time( :,:,:,1) = d_grid
+    END IF
+
+    ! Inquire length of time dimension
+    CALL inquire_dim_multiple_options( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
+
+    ! Write data to the variable
+    CALL write_var_master_dp_4D( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid%nx, grid%ny, 12, 1 /) )
+
+    ! Clean up after yourself
+    IF (par%master) THEN
+      DEALLOCATE( d_grid)
+      DEALLOCATE( d_grid_with_time)
+    END IF
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE write_to_field_multiple_options_grid_dp_2D_monthly
+
+  SUBROUTINE write_to_field_multiple_options_grid_dp_3D        (        grid, filename, ncid, field_name_options, d_grid_vec_partial)
+    ! Write a 3-D data field defined on a grid to a NetCDF file variable on the same grid
+    !
+    ! Write to the last time frame of the variable
+    !
+    ! d is stored in vector form, distributed over the processes
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
+    INTEGER,                             INTENT(IN)    :: ncid
+    CHARACTER(LEN=*),                    INTENT(IN)    :: field_name_options
+    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: d_grid_vec_partial
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_to_field_multiple_options_grid_dp_3D'
+    INTEGER                                            :: id_var, id_dim_time, ti, nz
+    CHARACTER(LEN=256)                                 :: var_name
+    REAL(dp), DIMENSION(:,:,:  ), ALLOCATABLE          :: d_grid
+    REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE          :: d_grid_with_time
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    nz = SIZE( d_grid_vec_partial,2)
+
+    ! Inquire the variable
+    CALL inquire_var_multiple_options( filename, ncid, field_name_options, id_var, var_name = var_name)
+    IF (id_var == -1) CALL crash('no variables for name options "' // TRIM( field_name_options) // '" were found in file "' // TRIM( filename) // '"!')
+
+    ! Check if this variable has the correct type and dimensions
+    CALL check_xy_grid_field_dp_3D( filename, ncid, var_name, should_have_time = .TRUE.)
+
+    ! Gather data to the master
+    IF (par%master) ALLOCATE( d_grid( grid%nx, grid%ny, nz))
+    CALL gather_gridded_data_to_master_dp_3D( grid, d_grid_vec_partial, d_grid)
+
+    ! Add "pretend" time dimension
+    IF (par%master) THEN
+      ALLOCATE( d_grid_with_time( grid%nx, grid%ny,nz,1))
+      d_grid_with_time( :,:,:,1) = d_grid
+    END IF
+
+    ! Inquire length of time dimension
+    CALL inquire_dim_multiple_options( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
+
+    ! Write data to the variable
+    CALL write_var_master_dp_4D( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid%nx, grid%ny, nz, 1 /) )
+
+    ! Clean up after yourself
+    IF (par%master) THEN
+      DEALLOCATE( d_grid)
+      DEALLOCATE( d_grid_with_time)
+    END IF
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE write_to_field_multiple_options_grid_dp_3D
+
+  SUBROUTINE write_to_field_multiple_options_grid_dp_2D_notime(         grid, filename, ncid, field_name_options, d_grid_vec_partial)
+    ! Write a 2-D data field defined on a grid to a NetCDF file variable on the same grid
+    !
+    ! d is stored in vector form, distributed over the processes
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
+    INTEGER,                             INTENT(IN)    :: ncid
+    CHARACTER(LEN=*),                    INTENT(IN)    :: field_name_options
+    REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: d_grid_vec_partial
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_to_field_multiple_options_grid_dp_2D_notime'
+    INTEGER                                            :: id_var
+    CHARACTER(LEN=256)                                 :: var_name
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: d_grid
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Inquire the variable
+    CALL inquire_var_multiple_options( filename, ncid, field_name_options, id_var, var_name = var_name)
+    IF (id_var == -1) CALL crash('no variables for name options "' // TRIM( field_name_options) // '" were found in file "' // TRIM( filename) // '"!')
+
+    ! Check if this variable has the correct type and dimensions
+    CALL check_xy_grid_field_dp_2D( filename, ncid, var_name, should_have_time = .FALSE.)
+
+    ! Gather data to the master
+    IF (par%master) ALLOCATE( d_grid( grid%nx, grid%ny))
+    CALL gather_gridded_data_to_master_dp_2D( grid, d_grid_vec_partial, d_grid)
+
+    ! Write data to the variable
+    CALL write_var_master_dp_2D( filename, ncid, id_var, d_grid)
+
+    ! Clean up after yourself
+    IF (par%master) THEN
+      DEALLOCATE( d_grid)
+    END IF
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE write_to_field_multiple_options_grid_dp_2D_notime
+
+  SUBROUTINE write_to_field_multiple_options_grid_dp_2D_monthly_notime( grid, filename, ncid, field_name_options, d_grid_vec_partial)
+    ! Write a 2-D monthly data field defined on a grid to a NetCDF file variable on the same grid
+    !
+    ! d is stored in vector form, distributed over the processes
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
+    INTEGER,                             INTENT(IN)    :: ncid
+    CHARACTER(LEN=*),                    INTENT(IN)    :: field_name_options
+    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: d_grid_vec_partial
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_to_field_multiple_options_grid_dp_2D_monthly_notime'
+    INTEGER                                            :: id_var
+    CHARACTER(LEN=256)                                 :: var_name
+    REAL(dp), DIMENSION(:,:,:), ALLOCATABLE            :: d_grid
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Inquire the variable
+    CALL inquire_var_multiple_options( filename, ncid, field_name_options, id_var, var_name = var_name)
+    IF (id_var == -1) CALL crash('no variables for name options "' // TRIM( field_name_options) // '" were found in file "' // TRIM( filename) // '"!')
+
+    ! Check if this variable has the correct type and dimensions
+    CALL check_xy_grid_field_dp_2D_monthly( filename, ncid, var_name, should_have_time = .FALSE.)
+
+    ! Gather data to the master
+    IF (par%master) ALLOCATE( d_grid( grid%nx, grid%ny, 12))
+    CALL gather_gridded_data_to_master_dp_3D( grid, d_grid_vec_partial, d_grid)
+
+    ! Write data to the variable
+    CALL write_var_master_dp_3D( filename, ncid, id_var, d_grid)
+
+    ! Clean up after yourself
+    IF (par%master) THEN
+      DEALLOCATE( d_grid)
+    END IF
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE write_to_field_multiple_options_grid_dp_2D_monthly_notime
+
+  SUBROUTINE write_to_field_multiple_options_grid_dp_3D_notime(         grid, filename, ncid, field_name_options, d_grid_vec_partial)
+    ! Write a 3-D data field defined on a grid to a NetCDF file variable on the same grid
+    !
+    ! d is stored in vector form, distributed over the processes
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
+    INTEGER,                             INTENT(IN)    :: ncid
+    CHARACTER(LEN=*),                    INTENT(IN)    :: field_name_options
+    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: d_grid_vec_partial
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_to_field_multiple_options_grid_dp_3D_notime'
+    INTEGER                                            :: id_var, nz
+    CHARACTER(LEN=256)                                 :: var_name
+    REAL(dp), DIMENSION(:,:,:), ALLOCATABLE            :: d_grid
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    nz = SIZE( d_grid_vec_partial,2)
+
+    ! Inquire the variable
+    CALL inquire_var_multiple_options( filename, ncid, field_name_options, id_var, var_name = var_name)
+    IF (id_var == -1) CALL crash('no variables for name options "' // TRIM( field_name_options) // '" were found in file "' // TRIM( filename) // '"!')
+
+    ! Check if this variable has the correct type and dimensions
+    CALL check_xy_grid_field_dp_3D( filename, ncid, var_name, should_have_time = .FALSE.)
+
+    ! Gather data to the master
+    IF (par%master) ALLOCATE( d_grid( grid%nx, grid%ny, nz))
+    CALL gather_gridded_data_to_master_dp_3D( grid, d_grid_vec_partial, d_grid)
+
+    ! Write data to the variable
+    CALL write_var_master_dp_3D( filename, ncid, id_var, d_grid)
+
+    ! Clean up after yourself
+    IF (par%master) THEN
+      DEALLOCATE( d_grid)
+    END IF
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE write_to_field_multiple_options_grid_dp_3D_notime
 
   ! Write data to a mesh output file
   SUBROUTINE write_to_field_multiple_options_mesh_int_2D(               mesh, filename, ncid, field_name_options, d_partial)
@@ -304,8 +630,6 @@ CONTAINS
     ! Write a 2-D data field defined on a mesh to a NetCDF file variable on the same mesh
     ! (Mind you, that's 2-D in the physical sense, so a 1-D array!)
     !
-    ! Write to the last time frame of the variable
-    !
     ! d is stored distributed over the processes
 
     IMPLICIT NONE
@@ -356,8 +680,6 @@ CONTAINS
   SUBROUTINE write_to_field_multiple_options_mesh_int_2D_b_notime(      mesh, filename, ncid, field_name_options, d_partial)
     ! Write a 2-D data field defined on a mesh to a NetCDF file variable on the same mesh
     ! (Mind you, that's 2-D in the physical sense, so a 1-D array!)
-    !
-    ! Write to the last time frame of the variable
     !
     ! d is stored distributed over the processes
 
@@ -410,8 +732,6 @@ CONTAINS
     ! Write a 2-D data field defined on a mesh to a NetCDF file variable on the same mesh
     ! (Mind you, that's 2-D in the physical sense, so a 1-D array!)
     !
-    ! Write to the last time frame of the variable
-    !
     ! d is stored distributed over the processes
 
     IMPLICIT NONE
@@ -462,8 +782,6 @@ CONTAINS
   SUBROUTINE write_to_field_multiple_options_mesh_dp_2D_notime(         mesh, filename, ncid, field_name_options, d_partial)
     ! Write a 2-D data field defined on a mesh to a NetCDF file variable on the same mesh
     ! (Mind you, that's 2-D in the physical sense, so a 1-D array!)
-    !
-    ! Write to the last time frame of the variable
     !
     ! d is stored distributed over the processes
 
@@ -516,8 +834,6 @@ CONTAINS
     ! Write a 2-D data field defined on a mesh to a NetCDF file variable on the same mesh
     ! (Mind you, that's 2-D in the physical sense, so a 1-D array!)
     !
-    ! Write to the last time frame of the variable
-    !
     ! d is stored distributed over the processes
 
     IMPLICIT NONE
@@ -568,8 +884,6 @@ CONTAINS
   SUBROUTINE write_to_field_multiple_options_mesh_dp_2D_c_notime(       mesh, filename, ncid, field_name_options, d_partial)
     ! Write a 2-D data field defined on a mesh to a NetCDF file variable on the same mesh
     ! (Mind you, that's 2-D in the physical sense, so a 1-D array!)
-    !
-    ! Write to the last time frame of the variable
     !
     ! d is stored distributed over the processes
 
@@ -622,8 +936,6 @@ CONTAINS
     ! Write a 2-D monthly data field defined on a mesh to a NetCDF file variable on the same mesh
     ! (Mind you, that's 2-D monthly in the physical sense, so a 2-D array!)
     !
-    ! Write to the last time frame of the variable
-    !
     ! d is stored distributed over the processes
 
     IMPLICIT NONE
@@ -674,8 +986,6 @@ CONTAINS
   SUBROUTINE write_to_field_multiple_options_mesh_dp_3D_notime(         mesh, filename, ncid, field_name_options, d_partial)
     ! Write a 3-D data field defined on a mesh to a NetCDF file variable on the same mesh
     ! (Mind you, that's 3-D in the physical sense, so a 2-D array!)
-    !
-    ! Write to the last time frame of the variable
     !
     ! d is stored distributed over the processes
 

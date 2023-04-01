@@ -15,6 +15,7 @@ MODULE unit_tests_petsc
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine
   USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp, deallocate_matrix_CSR_dist
   USE petsc_basic                                            , ONLY: perr, mat_CSR2petsc, multiply_CSR_matrix_with_vector_1D, multiply_petsc_matrix_with_vector_1D
+  USE netcdf_debug                                           , ONLY: write_CSR_matrix_to_NetCDF
 
   IMPLICIT NONE
 
@@ -147,70 +148,7 @@ CONTAINS
       IF (ANY( yy /= [28._dp, 59._dp, 40._dp, 105._dp])) found_errors = .TRUE.
     END IF
 
-    ! Clean up after yourself
-    CALL deallocate_matrix_CSR_dist( AA)
-    DEALLOCATE( xx)
-    DEALLOCATE( yy)
-
   ! == multiply_PETSc_matrix_with_vector_1D
-
-    ! Calculate the following matrix-vector multiplication:
-    !
-    ! [  1,   ,   ,   ,   ,   ] [ 1] = [  1]
-    ! [  2,  3,   ,   ,   ,   ] [ 2] = [  8]
-    ! [   ,  4,   ,  5,   ,   ] [ 3] = [ 28]
-    ! [   ,   ,   ,  6,  7,   ] [ 4] = [ 59]
-    ! [   ,   ,   ,   ,  8,   ] [ 5] = [ 40]
-    ! [   ,   ,   ,   ,  9, 10] [ 6] = [105]
-
-    ! Let process 0 own rows 1-2, and let process 1 own rows 3-6
-    IF     (par%i == 0) THEN
-
-      ! A
-      AA%m   = 6
-      AA%i1  = 1
-      AA%i2  = 2
-      AA%n   = 6
-      AA%nnz = 3
-      AA%nnz_max = AA%nnz
-      ALLOCATE( AA%ptr( AA%m+1))
-      ALLOCATE( AA%ind( AA%nnz_max))
-      ALLOCATE( AA%val( AA%nnz_max))
-
-      AA%ptr = [1, 2, 4, 4, 4, 4, 4]
-      AA%ind = [1, 1, 2]
-      AA%val = [1._dp, 2._dp, 3._dp]
-
-      ! x,y
-      ALLOCATE( xx( 2), source = 0._dp)
-      ALLOCATE( yy( 2), source = 0._dp)
-
-      xx = [1._dp, 2._dp]
-
-    ELSEIF (par%i == 1) THEN
-
-      ! A
-      AA%m   = 6
-      AA%i1  = 3
-      AA%i2  = 6
-      AA%n   = 6
-      AA%nnz = 7
-      AA%nnz_max = AA%nnz
-      ALLOCATE( AA%ptr( AA%m+1))
-      ALLOCATE( AA%ind( AA%nnz_max))
-      ALLOCATE( AA%val( AA%nnz_max))
-
-      AA%ptr = [1, 1, 1, 3, 5, 6, 8]
-      AA%ind = [2, 4, 4, 5, 5, 5, 6]
-      AA%val = [4._dp, 5._dp, 6._dp, 7._dp, 8._dp, 9._dp, 10._dp]
-
-      ! x,y
-      ALLOCATE( xx( 4), source = 0._dp)
-      ALLOCATE( yy( 4), source = 0._dp)
-
-      xx = [3._dp, 4._dp, 5._dp, 6._dp]
-
-    END IF
 
     ! Turn AA into a PETSc matrix
     CALL mat_CSR2petsc( AA, A)
