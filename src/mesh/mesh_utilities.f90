@@ -1344,6 +1344,7 @@ CONTAINS
     ! Size
     IF (mesh1%nV /= mesh2%nV .OR. mesh1%nTri /= mesh2%nTri) THEN
       isso = .FALSE.
+      CALL finalise_routine( routine_name)
       RETURN
     END IF
 
@@ -1351,6 +1352,7 @@ CONTAINS
     DO vi = 1, mesh1%nV
       IF (NORM2( mesh1%V( vi,:) - mesh2%V( vi,:)) > tol) THEN
         isso = .FALSE.
+        CALL finalise_routine( routine_name)
         RETURN
       END IF
     END DO
@@ -1359,11 +1361,13 @@ CONTAINS
     DO vi = 1, mesh1%nV
       IF (mesh1%nC( vi) /= mesh2%nC( vi)) THEN
         isso = .FALSE.
+        CALL finalise_routine( routine_name)
         RETURN
       END IF
       DO ci = 1, mesh1%nC( vi)
         IF (mesh1%C( vi,ci) /= mesh2%C( vi,ci)) THEN
           isso = .FALSE.
+          CALL finalise_routine( routine_name)
           RETURN
         END IF
       END DO
@@ -1373,11 +1377,13 @@ CONTAINS
     DO vi = 1, mesh1%nV
       IF (mesh1%niTri( vi) /= mesh2%niTri( vi)) THEN
         isso = .FALSE.
+        CALL finalise_routine( routine_name)
         RETURN
       END IF
       DO iti = 1, mesh1%niTri( vi)
         IF (mesh1%iTri( vi,iti) /= mesh2%iTri( vi,iti)) THEN
           isso = .FALSE.
+          CALL finalise_routine( routine_name)
           RETURN
         END IF
       END DO
@@ -1388,6 +1394,7 @@ CONTAINS
       DO n = 1, 3
         IF (mesh1%Tri( ti,n) /= mesh2%Tri( ti,n)) THEN
           isso = .FALSE.
+          CALL finalise_routine( routine_name)
           RETURN
         END IF
       END DO
@@ -1397,6 +1404,7 @@ CONTAINS
     DO ti = 1, mesh1%nTri
       IF (NORM2( mesh1%Tricc( ti,:) - mesh2%Tricc( ti,:)) > tol) THEN
         isso = .FALSE.
+        CALL finalise_routine( routine_name)
         RETURN
       END IF
     END DO
@@ -1406,6 +1414,7 @@ CONTAINS
       DO n = 1, 3
         IF (mesh1%TriC( ti,n) /= mesh2%TriC( ti,n)) THEN
           isso = .FALSE.
+          CALL finalise_routine( routine_name)
           RETURN
         END IF
       END DO

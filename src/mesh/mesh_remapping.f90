@@ -16,11 +16,12 @@ MODULE mesh_remapping
   USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp, allocate_matrix_CSR_dist, add_entry_CSR_dist, deallocate_matrix_CSR_dist
   USE petsc_basic                                            , ONLY: mat_CSR2petsc, multiply_PETSc_matrix_with_vector_1D
   USE grid_basic                                             , ONLY: type_grid, calc_matrix_operators_grid
+  USE grid_lonlat_basic                                      , ONLY: type_grid_lonlat
   USE mesh_types                                             , ONLY: type_mesh
   USE math_utilities                                         , ONLY: is_in_triangle, lies_on_line_segment, line_integral_xdy, line_integral_mxydx, &
-                                                                     line_integral_xydy, crop_line_to_domain, segment_intersection
+                                                                     line_integral_xydy, crop_line_to_domain, segment_intersection, triangle_area
   USE mesh_utilities                                         , ONLY: is_in_Voronoi_cell, calc_Voronoi_cell, find_containing_vertex, find_containing_triangle, &
-                                                                     find_shared_Voronoi_boundary
+                                                                     find_shared_Voronoi_boundary, check_if_meshes_are_identical
 
   IMPLICIT NONE
 
@@ -62,14 +63,14 @@ CONTAINS
 ! =======================
 
   ! From an x/y-grid to a mesh
-  SUBROUTINE map_from_xy_grid_to_mesh_2D( grid, mesh, d_grid_vec_partial, d_mesh_partial, method)
+  SUBROUTINE map_from_xy_grid_to_mesh_2D(     grid, mesh, d_grid_vec_partial, d_mesh_partial, method)
     ! Map a 2-D data field from an x/y-grid to a mesh.
 
     IMPLICIT NONE
 
     ! In/output variables
     TYPE(type_grid),                     INTENT(IN)    :: grid
-    TYPE(type_mesh),                     INTENT(INOUT) :: mesh
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
     REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: d_grid_vec_partial
     REAL(dp), DIMENSION(:    ),          INTENT(OUT)   :: d_mesh_partial
     CHARACTER(LEN=256), OPTIONAL,        INTENT(IN)    :: method
@@ -119,6 +120,64 @@ CONTAINS
 
   END SUBROUTINE map_from_xy_grid_to_mesh_2D
 
+  ! From a lon/lat-grid to a mesh
+  SUBROUTINE map_from_lonlat_grid_to_mesh_2D( grid, mesh, d_grid_vec_partial, d_mesh_partial, method)
+    ! Map a 2-D data field from a lon/lat-grid to a mesh.
+
+    IMPLICIT NONE
+
+    ! In/output variables
+    TYPE(type_grid_lonlat),              INTENT(IN)    :: grid
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
+    REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: d_grid_vec_partial
+    REAL(dp), DIMENSION(:    ),          INTENT(OUT)   :: d_mesh_partial
+    CHARACTER(LEN=256), OPTIONAL,        INTENT(IN)    :: method
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'map_from_lonlat_grid_to_mesh_2D'
+    INTEGER                                            :: mi, mi_valid
+    LOGICAL                                            :: found_map, found_empty_page
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Browse the Atlas to see if an appropriate mapping object already exists.
+    found_map = .FALSE.
+    DO mi = 1, SIZE( Atlas, 1)
+      IF (Atlas( mi)%name_src == grid%name .AND. Atlas( mi)%name_dst == mesh%name) THEN
+        ! If so specified, look for a mapping object with the correct method
+        IF (PRESENT( method)) THEN
+          IF (Atlas( mi)%method /= method) CYCLE
+        END IF
+        found_map = .TRUE.
+        mi_valid  = mi
+        EXIT
+      END IF
+    END DO
+
+    ! If no appropriate mapping object could be found, create one.
+    IF (.NOT. found_map) THEN
+      found_empty_page = .FALSE.
+      DO mi = 1, SIZE( Atlas,1)
+        IF (.NOT. Atlas( mi)%is_in_use) THEN
+          found_empty_page = .TRUE.
+          CALL create_map_from_lonlat_grid_to_mesh( grid, mesh, Atlas( mi))
+          mi_valid = mi
+          EXIT
+        END IF
+      END DO
+      ! Safety
+      IF (.NOT. found_empty_page) CALL crash('No more room in Atlas - assign more memory!')
+    END IF
+
+    ! Apply the appropriate mapping object
+    CALL apply_map_lonlat_grid_to_mesh_2D( grid, mesh, Atlas( mi), d_grid_vec_partial, d_mesh_partial)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE map_from_lonlat_grid_to_mesh_2D
+
   ! From a mesh to an x/y-grid
   SUBROUTINE map_from_mesh_to_xy_grid_2D( mesh, grid, d_mesh_partial, d_grid_vec_partial, method)
     ! Map a 2-D data field from an x/y-grid to a mesh.
@@ -126,7 +185,7 @@ CONTAINS
     IMPLICIT NONE
 
     ! In/output variables
-    TYPE(type_mesh),                     INTENT(INOUT) :: mesh
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
     TYPE(type_grid),                     INTENT(IN)    :: grid
     REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: d_mesh_partial
     REAL(dp), DIMENSION(:    ),          INTENT(OUT)   :: d_grid_vec_partial
@@ -177,11 +236,88 @@ CONTAINS
 
   END SUBROUTINE map_from_mesh_to_xy_grid_2D
 
+  ! From a mesh to a mesh
+  SUBROUTINE map_from_mesh_to_mesh_2D( mesh_src, mesh_dst, d_src_partial, d_dst_partial, method)
+    ! Map a 2-D data field from a mesh to a mesh.
+
+    IMPLICIT NONE
+
+    ! In/output variables
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh_src
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh_dst
+    REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: d_src_partial
+    REAL(dp), DIMENSION(:    ),          INTENT(OUT)   :: d_dst_partial
+    CHARACTER(LEN=256), OPTIONAL,        INTENT(IN)    :: method
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'map_from_mesh_to_mesh_2D'
+    LOGICAL                                            :: are_identical
+    INTEGER                                            :: mi, mi_valid
+    LOGICAL                                            :: found_map, found_empty_page
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! If the two meshes are identical, the remapping operation is trivial
+    CALL check_if_meshes_are_identical( mesh_src, mesh_dst, are_identical)
+    IF (are_identical) THEN
+      d_dst_partial = d_src_partial
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
+
+    ! Browse the Atlas to see if an appropriate mapping object already exists.
+    found_map = .FALSE.
+    DO mi = 1, SIZE( Atlas, 1)
+      IF (Atlas( mi)%name_src == mesh_src%name .AND. Atlas( mi)%name_dst == mesh_dst%name) THEN
+        ! If so specified, look for a mapping object with the correct method
+        IF (PRESENT( method)) THEN
+          IF (Atlas( mi)%method /= method) CYCLE
+        END IF
+        found_map = .TRUE.
+        mi_valid  = mi
+        EXIT
+      END IF
+    END DO
+
+    ! If no appropriate mapping object could be found, create one.
+    IF (.NOT. found_map) THEN
+      found_empty_page = .FALSE.
+      DO mi = 1, SIZE( Atlas,1)
+        IF (.NOT. Atlas( mi)%is_in_use) THEN
+          found_empty_page = .TRUE.
+          IF (PRESENT( method)) THEN
+            IF     (method == 'nearest_neighbour') THEN
+              CALL create_map_from_mesh_to_mesh_nearest_neighbour(      mesh_src, mesh_dst, Atlas( mi))
+            ELSEIF (method == 'trilin') THEN
+              CALL create_map_from_mesh_to_mesh_trilin(                 mesh_src, mesh_dst, Atlas( mi))
+            ELSEIF (method == '2nd_order_conservative') THEN
+              CALL create_map_from_mesh_to_mesh_2nd_order_conservative( mesh_src, mesh_dst, Atlas( mi))
+            END IF
+          ELSE
+              CALL create_map_from_mesh_to_mesh_2nd_order_conservative( mesh_src, mesh_dst, Atlas( mi))
+          END IF
+          mi_valid = mi
+          EXIT
+        END IF
+      END DO
+      ! Safety
+      IF (.NOT. found_empty_page) CALL crash('No more room in Atlas - assign more memory!')
+    END IF
+
+    ! Apply the appropriate mapping object
+    CALL apply_map_mesh_to_mesh_2D( mesh_src, mesh_dst, Atlas( mi), d_src_partial, d_dst_partial)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE map_from_mesh_to_mesh_2D
+
 ! == Apply existing mapping objects to remap data between grids
 ! =============================================================
 
   ! From an x/y-grid to a mesh
-  SUBROUTINE apply_map_xy_grid_to_mesh_2D( grid, mesh, map, d_grid_vec_partial, d_mesh_partial)
+  SUBROUTINE apply_map_xy_grid_to_mesh_2D(     grid, mesh, map, d_grid_vec_partial, d_mesh_partial    )
     ! Map a 2-D data field from an x/y-grid to a mesh.
 
     IMPLICIT NONE
@@ -213,8 +349,41 @@ CONTAINS
 
   END SUBROUTINE apply_map_xy_grid_to_mesh_2D
 
+  ! From a lon/lat-grid to a mesh
+  SUBROUTINE apply_map_lonlat_grid_to_mesh_2D( grid, mesh, map, d_grid_vec_partial, d_mesh_partial    )
+    ! Map a 2-D data field from a lon/lat-grid to a mesh.
+
+    IMPLICIT NONE
+
+    ! In/output variables
+    TYPE(type_grid_lonlat),              INTENT(IN)    :: grid
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
+    TYPE(type_map),                      INTENT(IN)    :: map
+    REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: d_grid_vec_partial
+    REAL(dp), DIMENSION(:    ),          INTENT(OUT)   :: d_mesh_partial
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'apply_map_lonlat_grid_to_mesh_2D'
+    INTEGER                                            :: n,i,j
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Safety
+    IF (SIZE( d_mesh_partial,1) /= mesh%nV_loc .OR. SIZE( d_grid_vec_partial,1) /= grid%n_loc) THEN
+      CALL crash('data fields are the wrong size!')
+    END IF
+
+    ! Perform the mapping operation as a matrix multiplication
+    CALL multiply_PETSc_matrix_with_vector_1D( map%M, d_grid_vec_partial, d_mesh_partial)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE apply_map_lonlat_grid_to_mesh_2D
+
   ! From a mesh to an x/y-grid
-  SUBROUTINE apply_map_mesh_to_xy_grid_2D( mesh, grid, map, d_mesh_partial, d_grid_vec_partial)
+  SUBROUTINE apply_map_mesh_to_xy_grid_2D(     mesh, grid, map, d_mesh_partial    , d_grid_vec_partial)
     ! Map a 2-D data field from a mesh to an x/y-grid.
 
     IMPLICIT NONE
@@ -244,6 +413,38 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE apply_map_mesh_to_xy_grid_2D
+
+  ! From a mesh to a mesh
+  SUBROUTINE apply_map_mesh_to_mesh_2D( mesh_src, mesh_dst, map, d_src_partial, d_dst_partial)
+    ! Map a 2-D data field from a mesh to a mesh.
+
+    IMPLICIT NONE
+
+    ! In/output variables
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh_src
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh_dst
+    TYPE(type_map),                      INTENT(IN)    :: map
+    REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: d_src_partial
+    REAL(dp), DIMENSION(:    ),          INTENT(OUT)   :: d_dst_partial
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'apply_map_mesh_to_mesh_2D'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Safety
+    IF (SIZE( d_src_partial,1) /= mesh_src%nV_loc .OR. SIZE( d_dst_partial,1) /= mesh_dst%nV_loc) THEN
+      CALL crash('data fields are the wrong size!')
+    END IF
+
+    ! Perform the mapping operation as a matrix multiplication
+    CALL multiply_PETSc_matrix_with_vector_1D( map%M, d_src_partial, d_dst_partial)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE apply_map_mesh_to_mesh_2D
 
 ! == Create remapping objects
 ! ===========================
@@ -312,7 +513,7 @@ CONTAINS
   ! == Initialise the three matrices using the native UFEMISM CSR-matrix format
   ! ===========================================================================
 
-    ! Matrix sise
+    ! Matrix size
     nrows           = mesh%nV  ! to
     nrows_loc       = mesh%nV_loc
     ncols           = grid%n   ! from
@@ -580,7 +781,7 @@ CONTAINS
     IMPLICIT NONE
 
     ! In/output variables
-    TYPE(type_mesh),                     INTENT(INOUT) :: mesh
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_map),                      INTENT(INOUT) :: map
 
@@ -1015,6 +1216,479 @@ CONTAINS
 
   END SUBROUTINE create_map_from_mesh_to_xy_grid
 
+  SUBROUTINE create_map_from_lonlat_grid_to_mesh( grid, mesh, map)
+    ! Create a new mapping object from a lon/lat-grid to a mesh.
+    !
+    ! By default uses bilinear interpolation.
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_grid_lonlat),              INTENT(IN)    :: grid
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
+    TYPE(type_map),                      INTENT(INOUT) :: map
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'create_map_from_lonlat_grid_to_mesh'
+    INTEGER                                            :: nrows, ncols, nrows_loc, ncols_loc, nnz_est, nnz_est_proc, nnz_per_row_max
+    TYPE(type_sparse_matrix_CSR_dp)                    :: M_CSR
+    INTEGER                                            :: vi
+    INTEGER                                            :: il,iu,jl,ju
+    REAL(dp)                                           :: wil,wiu,wjl,wju
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Safety
+    IF (map%is_in_use) CALL crash('this map is already in use!')
+
+  ! == Initialise map metadata
+  ! ==========================
+
+    map%is_in_use = .TRUE.
+    map%name_src  = grid%name
+    map%name_dst  = mesh%name
+    map%method    = 'bilin'
+
+  ! == Initialise the mapping matrix using the native UFEMISM CSR-matrix format
+  ! ===========================================================================
+
+    ! Matrix size
+    nrows           = mesh%nV  ! to
+    nrows_loc       = mesh%nV_loc
+    ncols           = grid%n   ! from
+    ncols_loc       = grid%n_loc
+    nnz_per_row_max = 4
+    nnz_est         = nnz_per_row_max * nrows
+    nnz_est_proc    = CEILING( REAL( nnz_est, dp) / REAL( par%n, dp))
+
+    CALL allocate_matrix_CSR_dist( M_CSR, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+
+    ! Fill in the CSR matrix
+    DO vi = mesh%vi1, mesh%vi2
+
+      ! Find enveloping lat-lon indices
+      il  = MAX(1, MIN( grid%nlon-1, 1 + FLOOR((mesh%lon( vi) - MINVAL(grid%lon)) / (grid%lon(2) - grid%lon(1)))))
+      iu  = il + 1
+      wil = (grid%lon(iu) - mesh%lon( vi)) / (grid%lon(2) - grid%lon(1))
+      wiu = 1._dp - wil
+
+      ! Exception for pixels near the zero meridian
+      IF (mesh%lon( vi) < MINVAL(grid%lon)) THEN
+        il  = grid%nlon
+        iu  = 1
+        wil = (grid%lon( iu) - mesh%lon( vi)) / (grid%lon(2) - grid%lon(1))
+        wiu = 1._dp - wil
+      ELSEIF (mesh%lon( vi) > MAXVAL(grid%lon)) THEN
+        il  = grid%nlon
+        iu  = 1
+        wiu = (mesh%lon( vi) - grid%lon( il)) / (grid%lon(2) - grid%lon(1))
+        wil = 1._dp - wiu
+      END IF
+
+      jl  = MAX(1, MIN( grid%nlat-1, 1 + FLOOR((mesh%lat( vi) - MINVAL(grid%lat)) / (grid%lat(2) - grid%lat(1)))))
+      ju  = jl + 1
+      wjl = (grid%lat( ju) - mesh%lat( vi)) / (grid%lat(2) - grid%lat(1))
+      wju = 1 - wjl
+
+      ! Add values to the CSR matrix
+      CALL add_entry_CSR_dist( M_CSR, vi, grid%ij2n( il,jl), wil * wjl)
+      CALL add_entry_CSR_dist( M_CSR, vi, grid%ij2n( il,ju), wil * wju)
+      CALL add_entry_CSR_dist( M_CSR, vi, grid%ij2n( iu,jl), wiu * wjl)
+      CALL add_entry_CSR_dist( M_CSR, vi, grid%ij2n( iu,ju), wiu * wju)
+
+    END DO ! DO vi = mesh%vi1, mesh%vi2
+    CALL sync
+
+    ! Convert matrices from Fortran to PETSc types
+    CALL mat_CSR2petsc( M_CSR, map%M)
+
+    ! Clean up the Fortran versions
+    CALL deallocate_matrix_CSR_dist( M_CSR)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE create_map_from_lonlat_grid_to_mesh
+
+  SUBROUTINE create_map_from_mesh_to_mesh_nearest_neighbour( mesh_src, mesh_dst, map)
+    ! Create a new mapping object from a mesh to a mesh.
+    !
+    ! Uses nearest-neighbour interpolation.
+
+    IMPLICIT NONE
+
+    ! In/output variables
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh_src
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh_dst
+    TYPE(type_map),                      INTENT(INOUT) :: map
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'create_map_from_mesh_to_mesh_nearest_neighbour'
+    INTEGER                                            :: ncols, nrows, nrows_loc, ncols_loc, nnz_per_row_max, nnz_est_proc
+    TYPE(type_sparse_matrix_CSR_dp)                    :: M_CSR
+    INTEGER                                            :: row, vi_dst
+    REAL(dp), DIMENSION(2)                             :: p
+    INTEGER                                            :: vi_src, col
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Safety
+    IF (map%is_in_use) CALL crash('this map is already in use!')
+
+  ! == Initialise map metadata
+  ! ==========================
+
+    map%is_in_use = .TRUE.
+    map%name_src  = mesh_src%name
+    map%name_dst  = mesh_dst%name
+    map%method    = 'nearest_neighbour'
+
+  ! == Initialise the matrix using the native UFEMISM CSR-matrix format
+  ! ===================================================================
+
+    ! Matrix size
+    nrows           = mesh_dst%nV   ! to
+    nrows_loc       = mesh_dst%nV_loc
+    ncols           = mesh_src%nV   ! from
+    ncols_loc       = mesh_src%nV_loc
+    nnz_per_row_max = 1
+    nnz_est_proc    = nnz_per_row_max * nrows_loc
+
+    CALL allocate_matrix_CSR_dist( M_CSR, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+
+    ! For all mesh_dst vertices, find the mesh_src triangle containing them
+    vi_src = 1
+    DO row = mesh_dst%vi1, mesh_dst%vi2
+
+      vi_dst = mesh_dst%n2vi( row)
+
+      p = mesh_dst%V( vi_dst,:)
+      CALL find_containing_vertex( mesh_src, p, vi_src)
+
+      col = mesh_src%vi2n( vi_src)
+
+      ! Add to the matrix
+      CALL add_entry_CSR_dist( M_CSR, row, col, 1._dp)
+
+    END DO ! DO row = mesh_dst%vi1, mesh_dst%vi2
+    CALL sync
+
+    ! Convert matrices from Fortran to PETSc types
+    CALL mat_CSR2petsc( M_CSR, map%M)
+
+    ! Clean up after yourself
+    CALL deallocate_matrix_CSR_dist( M_CSR)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE create_map_from_mesh_to_mesh_nearest_neighbour
+
+  SUBROUTINE create_map_from_mesh_to_mesh_trilin( mesh_src, mesh_dst, map)
+    ! Create a new mapping object from a mesh to a mesh.
+    !
+    ! Uses trilinear interpolation.
+
+    IMPLICIT NONE
+
+    ! In/output variables
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh_src
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh_dst
+    TYPE(type_map),                      INTENT(INOUT) :: map
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'create_map_from_mesh_to_mesh_trilin'
+    INTEGER                                            :: ncols, nrows, nrows_loc, ncols_loc, nnz_per_row_max, nnz_est_proc
+    TYPE(type_sparse_matrix_CSR_dp)                    :: M_CSR
+    INTEGER                                            :: row, vi_dst
+    REAL(dp), DIMENSION(2)                             :: p
+    INTEGER                                            :: ti_src, via, vib, vic
+    REAL(dp), DIMENSION(2)                             :: pa, pb, pc
+    REAL(dp)                                           :: Atri_abp, Atri_bcp, Atri_cap, Atri_abc, wa, wb, wc
+    INTEGER                                            :: cola, colb, colc
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Safety
+    IF (map%is_in_use) CALL crash('this map is already in use!')
+
+  ! == Initialise map metadata
+  ! ==========================
+
+    map%is_in_use = .TRUE.
+    map%name_src  = mesh_src%name
+    map%name_dst  = mesh_dst%name
+    map%method    = 'trilin'
+
+  ! == Initialise the matrix using the native UFEMISM CSR-matrix format
+  ! ===================================================================
+
+    ! Matrix size
+    nrows           = mesh_dst%nV   ! to
+    nrows_loc       = mesh_dst%nV_loc
+    ncols           = mesh_src%nV   ! from
+    ncols_loc       = mesh_src%nV_loc
+    nnz_per_row_max = 3
+    nnz_est_proc    = nnz_per_row_max * nrows_loc
+
+    CALL allocate_matrix_CSR_dist( M_CSR, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+
+    ! For all mesh_dst vertices, find the mesh_src triangle containing them
+    ti_src = 1
+    DO row = mesh_dst%vi1, mesh_dst%vi2
+
+      vi_dst = mesh_dst%n2vi( row)
+
+      p = mesh_dst%V( vi_dst,:)
+      CALL find_containing_triangle( mesh_src, p, ti_src)
+
+      ! Calculate the trilinear interpolation weights
+      via = mesh_src%Tri( ti_src,1)
+      vib = mesh_src%Tri( ti_src,2)
+      vic = mesh_src%Tri( ti_src,3)
+
+      pa  = mesh_src%V( via,:)
+      pb  = mesh_src%V( vib,:)
+      pc  = mesh_src%V( vic,:)
+
+      Atri_abp = triangle_area( pa, pb, p)
+      Atri_bcp = triangle_area( pb, pc, p)
+      Atri_cap = triangle_area( pc, pa, p)
+      Atri_abc = Atri_abp + Atri_bcp + Atri_cap
+
+      wa = Atri_bcp / Atri_abc
+      wb = Atri_cap / Atri_abc
+      wc = Atri_abp / Atri_abc
+
+      ! Matrix columns corresponding to these three vertices
+      cola = mesh_src%vi2n( via)
+      colb = mesh_src%vi2n( vib)
+      colc = mesh_src%vi2n( vic)
+
+      ! Add to the matrix
+      CALL add_entry_CSR_dist( M_CSR, row, cola, wa)
+      CALL add_entry_CSR_dist( M_CSR, row, colb, wb)
+      CALL add_entry_CSR_dist( M_CSR, row, colc, wc)
+
+    END DO ! DO row = mesh_dst%vi1, mesh_dst%vi2
+    CALL sync
+
+    ! Convert matrices from Fortran to PETSc types
+    CALL mat_CSR2petsc( M_CSR, map%M)
+
+    ! Clean up after yourself
+    CALL deallocate_matrix_CSR_dist( M_CSR)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE create_map_from_mesh_to_mesh_trilin
+
+  SUBROUTINE create_map_from_mesh_to_mesh_2nd_order_conservative( mesh_src, mesh_dst, map)
+    ! Create a new mapping object from a mesh to a mesh.
+    !
+    ! Uses 2nd-order conservative interpolation.
+
+    IMPLICIT NONE
+
+    ! In/output variables
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh_src
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh_dst
+    TYPE(type_map),                      INTENT(INOUT) :: map
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'create_map_from_mesh_to_mesh_2nd_order_conservative'
+    TYPE(PetscErrorCode)                               :: perr
+    LOGICAL                                            :: count_coincidences
+    INTEGER                                            :: nnz_per_row_max
+    TYPE(tMat)                                         :: B_xdy_b_a  , B_mxydx_b_a  , B_xydy_b_a
+    TYPE(tMat)                                         :: B_xdy_a_b  , B_mxydx_a_b  , B_xydy_a_b
+    TYPE(tMat)                                         :: B_xdy_b_a_T, B_mxydx_b_a_T, B_xydy_b_a_T
+    TYPE(tMat)                                         :: w0, w1x, w1y
+    INTEGER                                            :: istart, iend, n, k, ti, vi
+    INTEGER                                            :: ncols
+    INTEGER,  DIMENSION(:    ), ALLOCATABLE            :: cols
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: vals, w0_row, w1x_row, w1y_row
+    REAL(dp)                                           :: A_overlap_tot
+    TYPE(tMat)                                         :: M_map_a_b, M_ddx_a_b, M_ddy_a_b
+    TYPE(tMat)                                         :: M1, M2, M_cons_1st_order
+    INTEGER                                            :: n_rows_set_to_zero
+    INTEGER,  DIMENSION(:    ), ALLOCATABLE            :: rows_set_to_zero
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Safety
+    IF (map%is_in_use) CALL crash('this map is already in use!')
+
+  ! == Initialise map metadata
+  ! ==========================
+
+    map%is_in_use = .TRUE.
+    map%name_src  = mesh_src%name
+    map%name_dst  = mesh_dst%name
+    map%method    = '2nd_order_conservative'
+
+    ! Integrate around the Voronoi cells of the destination mesh through the triangles of the source mesh
+    count_coincidences = .TRUE.
+    CALL integrate_Voronoi_cells_through_triangles( mesh_dst, mesh_src, B_xdy_a_b, B_mxydx_a_b, B_xydy_a_b, count_coincidences)
+
+    ! Integrate around the triangles of the source mesh through the Voronoi cells of the destination mesh
+    count_coincidences = .FALSE.
+    CALL integrate_triangles_through_Voronoi_cells( mesh_src, mesh_dst, B_xdy_b_a, B_mxydx_b_a, B_xydy_b_a, count_coincidences)
+
+    ! Transpose line integral matrices
+    !IF (par%master) WRITE(0,*) 'calc_remapping_operators_mesh_mesh_conservative - transposing line integral matrices...'
+    CALL MatCreateTranspose( B_xdy_b_a  , B_xdy_b_a_T  , perr)
+    CALL MatCreateTranspose( B_mxydx_b_a, B_mxydx_b_a_T, perr)
+    CALL MatCreateTranspose( B_xydy_b_a , B_xydy_b_a_T , perr)
+
+    ! Combine line integrals around areas of overlap to get surface integrals over areas of overlap
+    CALL MatAXPY( B_xdy_a_b  , 1._dp, B_xdy_b_a_T  , UNKNOWN_NONZERO_PATTERN, perr)
+    CALL MatAXPY( B_mxydx_a_b, 1._dp, B_mxydx_b_a_T, UNKNOWN_NONZERO_PATTERN, perr)
+    CALL MatAXPY( B_xydy_a_b , 1._dp, B_xydy_b_a_T , UNKNOWN_NONZERO_PATTERN, perr)
+
+    CALL MatDestroy( B_xdy_b_a_T  , perr)
+    CALL MatDestroy( B_mxydx_b_a_T, perr)
+    CALL MatDestroy( B_xydy_b_a_T , perr)
+
+    ! Calculate w0, w1x, w1y for the mesh-to-grid remapping operator
+    CALL MatDuplicate( B_xdy_a_b, MAT_SHARE_NONZERO_PATTERN, w0 , perr)
+    CALL MatDuplicate( B_xdy_a_b, MAT_SHARE_NONZERO_PATTERN, w1x, perr)
+    CALL MatDuplicate( B_xdy_a_b, MAT_SHARE_NONZERO_PATTERN, w1y, perr)
+
+    ! Estimate maximum number of non-zeros per row (i.e. maximum number of grid cells overlapping with a mesh triangle)
+    nnz_per_row_max = MAX( 32, MAX( CEILING( 2._dp * MAXVAL( mesh_src%TriA) / MINVAL( mesh_dst%A   )), &
+                                    CEILING( 2._dp * MAXVAL( mesh_dst%A   ) / MINVAL( mesh_src%TriA))) )
+
+    ! Allocate memory for a single matrix row
+    ALLOCATE( cols(    nnz_per_row_max))
+    ALLOCATE( vals(    nnz_per_row_max))
+    ALLOCATE( w0_row(  nnz_per_row_max))
+    ALLOCATE( w1x_row( nnz_per_row_max))
+    ALLOCATE( w1y_row( nnz_per_row_max))
+
+    CALL MatGetOwnershipRange( B_xdy_a_b  , istart, iend, perr)
+
+    DO n = istart+1, iend ! +1 because PETSc indexes from 0
+
+      ! w0
+      CALL MatGetRow( B_xdy_a_b, n-1, ncols, cols, vals, perr)
+      A_overlap_tot = SUM( vals( 1:ncols))
+      DO k = 1, ncols
+        w0_row( k) = vals( k) / A_overlap_tot
+        CALL MatSetValues( w0, 1, n-1, 1, cols( k), w0_row( k), INSERT_VALUES, perr)
+      END DO
+      CALL MatRestoreRow( B_xdy_a_b, n-1, ncols, cols, vals, perr)
+
+      ! w1x
+      CALL MatGetRow( B_mxydx_a_b, n-1, ncols, cols, vals, perr)
+      DO k = 1, ncols
+        ti = cols( k)+1
+        w1x_row( k) = (vals( k) / A_overlap_tot) - (mesh_src%TriGC( ti,1) * w0_row( k))
+        CALL MatSetValues( w1x, 1, n-1, 1, cols( k), w1x_row( k), INSERT_VALUES, perr)
+      END DO
+      CALL MatRestoreRow( B_mxydx_a_b, n-1, ncols, cols, vals, perr)
+
+      ! w1y
+      CALL MatGetRow( B_xydy_a_b, n-1, ncols, cols, vals, perr)
+      DO k = 1, ncols
+        ti = cols( k)+1
+        w1y_row( k) = (vals( k) / A_overlap_tot) - (mesh_src%TriGC( ti,2) * w0_row( k))
+        CALL MatSetValues( w1y, 1, n-1, 1, cols( k), w1y_row( k), INSERT_VALUES, perr)
+      END DO
+      CALL MatRestoreRow( B_xydy_a_b, n-1, ncols, cols, vals, perr)
+
+    END DO
+    CALL sync
+
+    CALL MatDestroy( B_xdy_a_b  , perr)
+    CALL MatDestroy( B_mxydx_a_b, perr)
+    CALL MatDestroy( B_xydy_a_b , perr)
+
+  ! == Calculate the remapping matrices
+  ! ===================================
+
+    CALL mat_CSR2petsc( mesh_src%M_map_a_b, M_map_a_b)
+    CALL mat_CSR2petsc( mesh_src%M_ddx_a_b, M_ddx_a_b)
+    CALL mat_CSR2petsc( mesh_src%M_ddy_a_b, M_ddy_a_b)
+
+    ! 1st-order = w0 * map_a_b
+    CALL MatMatMult( w0 , M_map_a_b, MAT_INITIAL_MATRIX, PETSC_DEFAULT_REAL, M_cons_1st_order, perr)
+
+    ! 2nd-order = 1st-order + w1x * ddx_a_b + w1y * ddy_a_b
+    CALL MatDuplicate( M_cons_1st_order, MAT_COPY_VALUES, map%M, perr)
+    CALL MatMatMult( w1x, M_ddx_a_b, MAT_INITIAL_MATRIX, PETSC_DEFAULT_REAL, M1, perr)  ! This can be done more efficiently now that the non-zero structure is known...
+    CALL MatMatMult( w1y, M_ddy_a_b, MAT_INITIAL_MATRIX, PETSC_DEFAULT_REAL, M2, perr)
+
+    CALL MatDestroy( w0       , perr)
+    CALL MatDestroy( w1x      , perr)
+    CALL MatDestroy( w1y      , perr)
+    CALL MatDestroy( M_map_a_b, perr)
+    CALL MatDestroy( M_ddx_a_b, perr)
+    CALL MatDestroy( M_ddy_a_b, perr)
+
+    CALL MatAXPY( map%M, 1._dp, M1, DIFFERENT_NONZERO_PATTERN, perr)
+    CALL MatAXPY( map%M, 1._dp, M2, DIFFERENT_NONZERO_PATTERN, perr)
+
+    ! 2nd-order conservative doesn't work all that well on the domain border,
+    ! but 1st-order seems to work just fine; replace rows for border vertices
+    ! with those from M_cons_1st_order
+
+    ! First set all rows for border vertices to zero
+
+    n_rows_set_to_zero = 0
+    CALL MatGetOwnershipRange( map%M, istart, iend, perr)
+    DO n = istart+1, iend ! +1 because PETSc indexes from 0
+      IF (mesh_dst%VBI( n) > 0) THEN
+        n_rows_set_to_zero = n_rows_set_to_zero + 1
+      END IF
+    END DO
+
+    ALLOCATE( rows_set_to_zero( n_rows_set_to_zero))
+
+    n_rows_set_to_zero = 0
+    DO n = istart+1, iend ! +1 because PETSc indexes from 0
+      IF (mesh_dst%VBI( n) > 0) THEN
+        n_rows_set_to_zero = n_rows_set_to_zero + 1
+        rows_set_to_zero( n_rows_set_to_zero) = n-1
+      END IF
+    END DO
+
+    CALL MatZeroRowsColumns( map%M, n_rows_set_to_zero, rows_set_to_zero, 0._dp, PETSC_NULL_VEC, PETSC_NULL_VEC, perr)
+
+    ! Then fill in the values from M_cons_1st_order
+    CALL MatGetOwnershipRange( M_cons_1st_order  , istart, iend, perr)
+    DO n = istart+1, iend ! +1 because PETSc indexes from 0
+      CALL MatGetRow( M_cons_1st_order, n-1, ncols, cols, vals, perr)
+      DO k = 1, ncols
+        CALL MatSetValues( map%M, 1, n-1, 1, cols( k), vals( k), INSERT_VALUES, perr)
+      END DO
+      CALL MatRestoreRow( M_cons_1st_order, n-1, ncols, cols, vals, perr)
+    END DO
+    CALL sync
+
+    CALL MatAssemblyBegin( map%M, MAT_FINAL_ASSEMBLY, perr)
+    CALL MatAssemblyEnd(   map%M, MAT_FINAL_ASSEMBLY, perr)
+
+    ! Clean up after yourself
+    DEALLOCATE( cols   )
+    DEALLOCATE( vals   )
+    DEALLOCATE( w0_row )
+    DEALLOCATE( w1x_row)
+    DEALLOCATE( w1y_row)
+    CALL MatDestroy( M1              , perr)
+    CALL MatDestroy( M2              , perr)
+    CALL MatDestroy( M_cons_1st_order, perr)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE create_map_from_mesh_to_mesh_2nd_order_conservative
+
 ! == Routines used in creating remapping matrices
 ! ===============================================
 
@@ -1025,8 +1699,8 @@ CONTAINS
     IMPLICIT NONE
 
     ! In/output variables
-    TYPE(type_mesh),                     INTENT(INOUT) :: mesh_tri
-    TYPE(type_mesh),                     INTENT(INOUT) :: mesh_Vor
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh_tri
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh_Vor
     TYPE(tMat),                          INTENT(INOUT) :: B_xdy_b_a
     TYPE(tMat),                          INTENT(INOUT) :: B_mxydx_b_a
     TYPE(tMat),                          INTENT(INOUT) :: B_xydy_b_a
@@ -1137,8 +1811,8 @@ CONTAINS
     IMPLICIT NONE
 
     ! In/output variables
-    TYPE(type_mesh),                     INTENT(INOUT) :: mesh_Vor
-    TYPE(type_mesh),                     INTENT(INOUT) :: mesh_tri
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh_Vor
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh_tri
     TYPE(tMat),                          INTENT(INOUT) :: B_xdy_a_b
     TYPE(tMat),                          INTENT(INOUT) :: B_mxydx_a_b
     TYPE(tMat),                          INTENT(INOUT) :: B_xydy_a_b
@@ -1247,7 +1921,7 @@ CONTAINS
     IMPLICIT NONE
 
     ! In/output variables
-    TYPE(type_mesh),                     INTENT(INOUT) :: mesh
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
     REAL(dp), DIMENSION(2),              INTENT(IN)    :: p,q
     TYPE(type_single_row_mapping_matrices), INTENT(INOUT) :: single_row
     LOGICAL,                             INTENT(IN)    :: count_coincidences
@@ -1293,6 +1967,8 @@ CONTAINS
       ELSEIF (ei_on > 0) THEN
         ! p lies on edge ei_on
         CALL trace_line_tri_ei( mesh, pp, qq, p_next, ti_in, vi_on, ei_on, ti_left, coincides, finished)
+      ELSE
+        CALL crash('coincidence indicators dont make sense!')
       END IF
 
       ! Calculate the three line integrals
@@ -1330,7 +2006,7 @@ CONTAINS
     IMPLICIT NONE
 
     ! In/output variables:
-    TYPE(type_mesh),                     INTENT(INOUT) :: mesh
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
     REAL(dp), DIMENSION(2),              INTENT(IN)    :: p
     INTEGER,                             INTENT(INOUT) :: ti_hint
     INTEGER,                             INTENT(OUT)   :: ti_in
@@ -1446,8 +2122,11 @@ CONTAINS
     pc  = mesh%V( vic,:)
 
     ! Safety
-    IF (ti_in == 0 .OR. vi_on > 0 .OR. ei_on > 0 .OR. (.NOT. is_in_triangle( pa, pb, pc, p))) THEN
+    IF (ti_in == 0 .OR. vi_on > 0 .OR. ei_on > 0) THEN
       CALL crash('trace_line_tri_ti - coincidence indicators dont make sense!')
+    END IF
+    IF (.NOT. is_in_triangle( pa, pb, pc, p)) THEN
+      CALL crash('trace_line_tri_ti - p does not lie inside triangle ti_in!')
     END IF
 
     ! Check if q lies inside the same triangle
@@ -1676,8 +2355,11 @@ CONTAINS
     LOGICAL                                            :: do_cross
 
     ! Safety
-    IF (ti_in > 0 .OR. vi_on == 0 .OR. ei_on > 0 .OR. NORM2( p - mesh%V( vi_on,:)) > mesh%tol_dist) THEN
+    IF (ti_in > 0 .OR. vi_on == 0 .OR. ei_on > 0) THEN
       CALL crash('trace_line_tri_vi - coincidence indicators dont make sense!')
+    END IF
+    IF (NORM2( p - mesh%V( vi_on,:)) > mesh%tol_dist) THEN
+      CALL crash('trace_line_tri_vi - p does not lie on vertex vi_on!')
     END IF
 
     ! Check if q lies on any of the edges originating in this vertex
@@ -1735,9 +2417,9 @@ CONTAINS
       pv = mesh%V( vj,:)
       IF (lies_on_line_segment( p, q, pv, mesh%tol_dist)) THEN
         ! [pq] passes through neighbouring vertex vj, which is connected to vi_on by edge ei
-        p_next    = q
+        p_next    = pv
         ti_in     = 0
-        vi_on     = 0
+        vi_on     = vj
         ei_on     = 0
         IF (mesh%EV( ei,1) == vi_on) THEN
           ti_left = mesh%ETri( ei,1)
@@ -1750,7 +2432,7 @@ CONTAINS
       END IF
     END DO
 
-    ! Check if [pq] exits any of the adjacent triangles
+    ! Check if [pq] exits into any of the adjacent triangles
     DO vti = 1, mesh%niTri( vi_on)
       ti  = mesh%iTri( vi_on,vti)
       DO n1 = 1, 3
@@ -1831,8 +2513,11 @@ CONTAINS
     IF (vir > 0) pr  = mesh%V( vir,:)
 
     ! Safety
-    IF (ti_in > 0 .OR. vi_on > 0 .OR. ei_on == 0 .OR. (.NOT. lies_on_line_segment( pa, pb, p, mesh%tol_dist))) THEN
+    IF (ti_in > 0 .OR. vi_on > 0 .OR. ei_on == 0) THEN
       CALL crash('trace_line_tri_ei - coincidence indicators dont make sense!')
+    END IF
+    IF (.NOT. lies_on_line_segment( pa, pb, p, mesh%tol_dist)) THEN
+      CALL crash('trace_line_tri_ei - p does not lie on edge ei_on!')
     END IF
 
     ! Check if q lies on the same edge in the direction of via

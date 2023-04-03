@@ -438,7 +438,7 @@ CONTAINS
   ! == Test writing grid and gridded data to NetCDF
   ! ===============================================
 
-    ! Set up a square grid
+    ! Set up a lon/lat-grid
     name = 'test_lonlat_grid'
     nlon = 360
     nlat = 180
@@ -531,7 +531,7 @@ CONTAINS
   ! == Test writing grid and gridded data to NetCDF
   ! ===============================================
 
-    ! Set up a square grid
+    ! Set up a lon/lat-grid
     name = 'test_lonlat_grid'
     nlon = 360
     nlat = 180
@@ -633,7 +633,7 @@ CONTAINS
   ! == Test writing grid and gridded data to NetCDF
   ! ===============================================
 
-    ! Set up a square grid
+    ! Set up a lon/lat-grid
     name = 'test_lonlat_grid'
     nlon = 360
     nlat = 180

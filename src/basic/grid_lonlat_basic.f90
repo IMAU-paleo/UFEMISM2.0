@@ -91,9 +91,9 @@ CONTAINS
       grid%lon( i) = REAL( i,dp) * grid%dlon
     END DO
 
-    grid%dlat = 180._dp / REAL( grid%nlat,dp)
+    grid%dlat = 180._dp / REAL( grid%nlat-1,dp)
     DO j = 1, grid%nlat
-      grid%lat( j) = REAL( j,dp) * grid%dlat
+      grid%lat( j) = -180._dp + REAL( j-1,dp) * grid%dlat
     END DO
 
     ! Metadata

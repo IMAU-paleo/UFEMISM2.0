@@ -23,10 +23,13 @@ MODULE unit_tests_mesh
   USE netcdf_output                                          , ONLY: setup_mesh_in_netcdf_file, add_field_mesh_dp_2D_notime, add_field_mesh_dp_2D_b_notime, &
                                                                      add_field_mesh_dp_2D_c_notime, write_to_field_multopt_mesh_dp_2D_notime, &
                                                                      write_to_field_multopt_mesh_dp_2D_b_notime, write_to_field_multopt_mesh_dp_2D_c_notime, &
-                                                                     setup_xy_grid_in_netcdf_file, add_field_grid_dp_2D_notime, write_to_field_multopt_grid_dp_2D_notime
+                                                                     setup_xy_grid_in_netcdf_file, add_field_grid_dp_2D_notime, &
+                                                                     write_to_field_multopt_grid_dp_2D_notime
   USE petsc_basic                                            , ONLY: multiply_CSR_matrix_with_vector_1D
   USE grid_basic                                             , ONLY: type_grid, setup_square_grid, distribute_gridded_data_from_master_dp_2D
-  USE mesh_remapping                                         , ONLY: map_from_xy_grid_to_mesh_2D, map_from_mesh_to_xy_grid_2D
+  USE grid_lonlat_basic                                      , ONLY: type_grid_lonlat, setup_simple_lonlat_grid, distribute_lonlat_gridded_data_from_master_dp_2D
+  USE mesh_remapping                                         , ONLY: map_from_xy_grid_to_mesh_2D, map_from_mesh_to_xy_grid_2D, map_from_lonlat_grid_to_mesh_2D, &
+                                                                     map_from_mesh_to_mesh_2D
 
   IMPLICIT NONE
 
@@ -47,16 +50,21 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_all_mesh_unit_tests'
+    TYPE(type_mesh)                                    :: mesh, mesh2
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
     ! Run all mesh unit tests
     CALL test_mesh_creation_basic_single_core
-    CALL test_mesh_creation_basic_two_cores
-    CALL test_mesh_operators_basic
-    CALL test_remapping_grid2mesh
-    CALL test_remapping_mesh2grid
+
+    CALL test_mesh_creation_basic_two_cores(       mesh)
+    CALL test_mesh_creation_basic_two_cores_prime( mesh2)
+    CALL test_mesh_operators_basic(                mesh)
+    CALL test_remapping_grid2mesh(                 mesh)
+    CALL test_remapping_lonlat2mesh(               mesh)
+    CALL test_remapping_mesh2grid(                 mesh)
+    CALL test_remapping_mesh2mesh(                 mesh, mesh2)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -144,6 +152,9 @@ CONTAINS
     CALL calc_all_secondary_mesh_data( mesh, lambda_M, phi_M, beta_stereo)
     tcomp = tcomp + MPI_WTIME() - tstart
 
+    ! Calculate all matrix operators
+    CALL calc_all_matrix_operators_mesh( mesh)
+
   ! == Validation
   ! =============
 
@@ -218,10 +229,13 @@ CONTAINS
 
   END SUBROUTINE test_mesh_creation_basic_single_core
 
-  SUBROUTINE test_mesh_creation_basic_two_cores
+  SUBROUTINE test_mesh_creation_basic_two_cores( mesh)
     ! Test creation of a very simple mesh without parallelised mesh generation.
 
     IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                     INTENT(OUT)   :: mesh
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'test_mesh_creation_basic_two_cores'
@@ -234,7 +248,6 @@ CONTAINS
     REAL(dp), PARAMETER                                :: phi_M       = -90._dp
     REAL(dp), PARAMETER                                :: beta_stereo = 71._dp
     CHARACTER(LEN=256), PARAMETER                      :: name = 'test_mesh'
-    TYPE(type_mesh)                                    :: mesh
     REAL(dp)                                           :: alpha_min, res_max
     REAL(dp)                                           :: res, width
     INTEGER                                            :: vi, ci, vj
@@ -327,6 +340,9 @@ CONTAINS
     CALL calc_all_secondary_mesh_data( mesh, lambda_M, phi_M, beta_stereo)
     tcomp = tcomp + MPI_WTIME() - tstart
 
+    ! Calculate all matrix operators
+    CALL calc_all_matrix_operators_mesh( mesh)
+
   ! == Validation
   ! =============
 
@@ -393,21 +409,22 @@ CONTAINS
       CALL close_netcdf_file( ncid)
     END IF
 
-    ! Clean up after yourself
-    CALL deallocate_mesh( mesh)
-
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE test_mesh_creation_basic_two_cores
 
-  SUBROUTINE test_mesh_operators_basic
-    ! Test the basic mapping/gradient matrix operators
+  SUBROUTINE test_mesh_creation_basic_two_cores_prime( mesh)
+    ! Test creation of another very simple mesh without parallelised mesh generation.
 
     IMPLICIT NONE
 
+    ! In/output variables:
+    TYPE(type_mesh),                     INTENT(OUT)   :: mesh
+
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'test_mesh_operators_basic'
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'test_mesh_creation_basic_two_cores_prime'
+    REAL(dp)                                           :: tstart, tcomp
     REAL(dp), PARAMETER                                :: xmin = -3040E3_dp  ! Just use the standard Antarctica domain; doesn't really matter here...
     REAL(dp), PARAMETER                                :: xmax =  3040E3_dp
     REAL(dp), PARAMETER                                :: ymin = -3040E3_dp
@@ -415,10 +432,168 @@ CONTAINS
     REAL(dp), PARAMETER                                :: lambda_M    = 0._dp
     REAL(dp), PARAMETER                                :: phi_M       = -90._dp
     REAL(dp), PARAMETER                                :: beta_stereo = 71._dp
-    CHARACTER(LEN=256), PARAMETER                      :: name = 'test_mesh'
-    TYPE(type_mesh)                                    :: mesh
+    CHARACTER(LEN=256), PARAMETER                      :: name = 'test_mesh2'
     REAL(dp)                                           :: alpha_min, res_max
     REAL(dp)                                           :: res, width
+    INTEGER                                            :: vi, ci, vj
+    REAL(dp)                                           :: RA, RA_max
+    LOGICAL                                            :: found_errors
+    CHARACTER(LEN=256)                                 :: filename
+    INTEGER                                            :: ncid
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+  ! == Create a nice mesh on each process, with a smileyface and the UFEMISM letters
+  ! ================================================================================
+
+    tcomp = 0._dp
+
+    ! Allocate memory
+    CALL allocate_mesh_primary( mesh, name, 1000, 2000, 32)
+
+    ! Safety - must be run on at least two cores!
+    IF (par%n < 2) CALL crash('this validation check needs to be run on at least two cores!')
+
+    ! Initialise the dummy mesh
+    IF (par%i == 0) THEN
+      CALL initialise_dummy_mesh( mesh, xmin, (xmin + xmax) / 2._dp, ymin, ymax)
+    ELSE
+      CALL initialise_dummy_mesh( mesh, (xmin + xmax) / 2._dp, xmax, ymin, ymax)
+    END IF
+    CALL check_mesh( mesh)
+
+    ! Refine the mesh with a uniform 350 km resolution
+    alpha_min = 25._dp * pi / 180._dp
+    res_max   = 350E3_dp
+    tstart = MPI_WTIME()
+    CALL refine_mesh_uniform( mesh, res_max, alpha_min)
+    tcomp = tcomp + MPI_WTIME() - tstart
+    CALL check_mesh( mesh)
+
+    ! Smooth the mesh by applying a single iteration of Lloyd's algorithm
+    tstart = MPI_WTIME()
+    CALL Lloyds_algorithm_single_iteration( mesh, alpha_min)
+    tcomp = tcomp + MPI_WTIME() - tstart
+    CALL check_mesh( mesh)
+
+    ! Add a smileyface
+    res   = 80E3_dp
+    width = 100E3_dp
+    tstart = MPI_WTIME()
+    CALL mesh_add_smileyface( mesh, res, width)
+    tcomp = tcomp + MPI_WTIME() - tstart
+    CALL check_mesh( mesh)
+
+    ! Smooth the mesh again
+    tstart = MPI_WTIME()
+    CALL Lloyds_algorithm_single_iteration( mesh, alpha_min)
+    CALL Lloyds_algorithm_single_iteration( mesh, alpha_min)
+    tcomp = tcomp + MPI_WTIME() - tstart
+    CALL check_mesh( mesh)
+
+  ! == Merge the two meshes
+  ! =======================
+
+    ! Merge submeshes
+    tstart = MPI_WTIME()
+    CALL merge_submeshes( mesh, 0, 1, 'east-west')
+    tcomp = tcomp + MPI_WTIME() - tstart
+    IF (par%master) CALL check_mesh( mesh)
+
+    ! Smooth again
+    tstart = MPI_WTIME()
+    IF (par%master) CALL Lloyds_algorithm_single_iteration( mesh, alpha_min)
+    tcomp = tcomp + MPI_WTIME() - tstart
+    IF (par%master) CALL check_mesh( mesh)
+
+    ! Broadcast from Master
+    tstart = MPI_WTIME()
+    CALL broadcast_merged_mesh( mesh)
+    tcomp = tcomp + MPI_WTIME() - tstart
+    CALL check_mesh( mesh)
+
+    ! Calculate secondary geometry data (needed in order to be able to write to NetCDF)
+    tstart = MPI_WTIME()
+    CALL calc_all_secondary_mesh_data( mesh, lambda_M, phi_M, beta_stereo)
+    tcomp = tcomp + MPI_WTIME() - tstart
+
+    ! Calculate all matrix operators
+    CALL calc_all_matrix_operators_mesh( mesh)
+
+  ! == Validation
+  ! =============
+
+    found_errors = .FALSE.
+
+    ! 2023-03-23: mesh has 4606 vertices
+    IF (mesh%nV < 4000 .OR. mesh%nV > 5000) THEN
+      found_errors = .TRUE.
+      CALL warning('mesh has unexepcted amount of vertices! Expected 4606, found {int_01}', int_01 = mesh%nV)
+    END IF
+
+    ! 2023-03-23: mesh has 9071 triangles
+    IF (mesh%nTri < 8000 .OR. mesh%nTri > 10000) THEN
+      found_errors = .TRUE.
+      CALL warning('mesh has unexepcted amount of triangles! Expected 9071, found {int_01}', int_01 = mesh%nTri)
+    END IF
+
+    ! 2023-03-23: mesh has 13676 edges
+    IF (mesh%nE < 12000 .OR. mesh%nE > 15000) THEN
+      found_errors = .TRUE.
+      CALL warning('mesh has unexepcted amount of edges! Expected 13676, found {int_01}', int_01 = mesh%nE)
+    END IF
+
+    ! 2023-03-23: smallest vertex has a Voronoi cell area of 0.18202E+10
+    IF (MINVAL( mesh%A) < 0.1E10) THEN
+      found_errors = .TRUE.
+      CALL warning('mesh has unexpectedly small vertices! Expected MINVAL( mesh%A) = 0.18202E+10, found {dp_01}', dp_01 = MINVAL( mesh%A))
+    END IF
+
+    ! 2023-03-23: largest vertex has a Voronoi cell area of 0.53694E+11
+    IF (MAXVAL( mesh%A) > 1.0E12) THEN
+      found_errors = .TRUE.
+      CALL warning('mesh has unexpectedly large vertices! Expected MAXVAL( mesh%A) = 0.53694E+11, found {dp_01}', dp_01 = MAXVAL( mesh%A))
+    END IF
+
+    ! 2023-03-23: mesh has a maximum ratio of Voronoi cell area A of adjacent vertices of 0.35787E+01
+    RA_max = 0._dp
+    DO vi = 1, mesh%nV
+      DO ci = 1, mesh%nC( vi)
+        vj = mesh%C( vi,ci)
+        RA = MAX( mesh%A( vi) / mesh%A( vj), mesh%A( vj) / mesh%A( vi))
+        RA_max = MAX( RA_max, RA)
+      END DO
+    END DO
+    IF (RA_max > 7._dp)  THEN
+      found_errors = .TRUE.
+      CALL warning('mesh has unexpectedly high resolution gradient! Expected RA_max = 0.35787E+01, found {dp_01}', dp_01 = RA_max)
+    END IF
+
+    ! If no errors occurred, we are happy
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, found_errors, 1, MPI_LOGICAL, MPI_LOR, MPI_COMM_WORLD, ierr)
+    IF (.NOT. found_errors) THEN
+      IF (par%master) CALL happy('created a test mesh with {int_01} vertices, {int_02} triangles, and {int_03} edges in {dp_01} seconds', &
+        int_01 = mesh%nV, int_02 = mesh%nTri, int_03 = mesh%nE, dp_01 = tcomp)
+    ELSE
+      IF (par%master) CALL warning('found errors in basic two-core mesh creation')
+    END IF
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE test_mesh_creation_basic_two_cores_prime
+
+  SUBROUTINE test_mesh_operators_basic( mesh)
+    ! Test the basic mapping/gradient matrix operators
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                     INTENT(INOUT) :: mesh
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'test_mesh_operators_basic'
     INTEGER                                            :: vi,ti,ei,row
     REAL(dp)                                           :: x,y,d,ddx,ddy,d2dx2,d2dxdy,d2dy2
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: d_a_ex, ddx_a_ex, ddy_a_ex
@@ -451,44 +626,8 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-  ! == Create a nice mesh, with a smileyface and the UFEMISM letters
-  ! ================================================================
-
-    ! Allocate memory
-    CALL allocate_mesh_primary( mesh, name, 1000, 2000, 32)
-
-    ! Initialise the dummy mesh
-    CALL initialise_dummy_mesh( mesh, xmin, xmax, ymin, ymax)
-
-    ! Refine the mesh with a uniform 400 km resolution
-    alpha_min = 25._dp * pi / 180._dp
-    res_max   = 400E3_dp
-    CALL refine_mesh_uniform( mesh, res_max, alpha_min)
-
-    ! Smooth the mesh by applying a single iteration of Lloyd's algorithm
-    CALL Lloyds_algorithm_single_iteration( mesh, alpha_min)
-
-    ! Add a smileyface
-    res   = 80E3_dp
-    width = 100E3_dp
-    CALL mesh_add_smileyface( mesh, res, width)
-
-    ! Add the UFEMISM letters
-    res   = 50E3_dp
-    width = 40E3_dp
-    CALL mesh_add_UFEMISM_letters( mesh, res, width)
-
-    ! Smooth the mesh again
-    CALL Lloyds_algorithm_single_iteration( mesh, alpha_min)
-
-    ! Calculate secondary geometry data (needed in order to be able to write to NetCDF)
-    CALL calc_all_secondary_mesh_data( mesh, lambda_M, phi_M, beta_stereo)
-
-  ! == Calculate and validate all matrix operators
-  ! ==============================================
-
-    ! Calculate all matrix operators
-    CALL calc_all_matrix_operators_mesh( mesh)
+  ! == Validate all matrix operators
+  ! ================================
 
     ! Allocate distributed memory
     ALLOCATE( d_a_ex(      mesh%vi1:mesh%vi2), source = 0._dp)
@@ -1037,31 +1176,22 @@ CONTAINS
     DEALLOCATE( d2dxdy_b_b )
     DEALLOCATE( d2dy2_b_b  )
 
-    CALL deallocate_mesh( mesh)
-
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE test_mesh_operators_basic
 
-  SUBROUTINE test_remapping_grid2mesh
+  SUBROUTINE test_remapping_grid2mesh( mesh)
     ! Test remapping from a square grid to a mesh
 
     IMPLICIT NONE
 
+    ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
+
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'test_remapping_grid2mesh'
-    REAL(dp), PARAMETER                                :: xmin = -3040E3_dp  ! Just use the standard Antarctica domain; doesn't really matter here...
-    REAL(dp), PARAMETER                                :: xmax =  3040E3_dp
-    REAL(dp), PARAMETER                                :: ymin = -3040E3_dp
-    REAL(dp), PARAMETER                                :: ymax =  3040E3_dp
-    REAL(dp), PARAMETER                                :: lambda_M    = 0._dp
-    REAL(dp), PARAMETER                                :: phi_M       = -90._dp
-    REAL(dp), PARAMETER                                :: beta_stereo = 71._dp
     CHARACTER(LEN=256)                                 :: name
-    TYPE(type_mesh)                                    :: mesh
-    REAL(dp)                                           :: alpha_min, res_max
-    REAL(dp)                                           :: res, width
     REAL(dp)                                           :: dx
     TYPE(type_grid)                                    :: grid
     INTEGER                                            :: i,j
@@ -1079,49 +1209,12 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-  ! == Create a nice mesh, with a smileyface and the UFEMISM letters
-  ! ================================================================
-
-    ! Allocate memory
-    name = 'test_mesh'
-    CALL allocate_mesh_primary( mesh, name, 1000, 2000, 32)
-
-    ! Initialise the dummy mesh
-    CALL initialise_dummy_mesh( mesh, xmin, xmax, ymin, ymax)
-
-    ! Refine the mesh with a uniform 400 km resolution
-    alpha_min = 25._dp * pi / 180._dp
-    res_max   = 400E3_dp
-    CALL refine_mesh_uniform( mesh, res_max, alpha_min)
-
-    ! Smooth the mesh by applying a single iteration of Lloyd's algorithm
-    CALL Lloyds_algorithm_single_iteration( mesh, alpha_min)
-
-    ! Add a smileyface
-    res   = 80E3_dp
-    width = 100E3_dp
-    CALL mesh_add_smileyface( mesh, res, width)
-
-    ! Add the UFEMISM letters
-    res   = 50E3_dp
-    width = 40E3_dp
-    CALL mesh_add_UFEMISM_letters( mesh, res, width)
-
-    ! Smooth the mesh again
-    CALL Lloyds_algorithm_single_iteration( mesh, alpha_min)
-
-    ! Calculate secondary geometry data (needed in order to be able to write to NetCDF)
-    CALL calc_all_secondary_mesh_data( mesh, lambda_M, phi_M, beta_stereo)
-
-    ! Calculate all matrix operators
-    CALL calc_all_matrix_operators_mesh( mesh)
-
   ! == Set up a square grid
   ! =======================
 
     name = 'test_grid'
     dx   = 32E3_dp
-    CALL setup_square_grid( name, xmin, xmax, ymin, ymax, dx, lambda_M, phi_M, beta_stereo, grid)
+    CALL setup_square_grid( name, mesh%xmin, mesh%xmax, mesh%ymin, mesh%ymax, dx, mesh%lambda_M, mesh%phi_M, mesh%beta_stereo, grid)
 
   ! == Calculate, apply, and validate grid-to-mesh remapping operator
   ! =================================================================
@@ -1134,7 +1227,7 @@ CONTAINS
       DO i = 1, grid%nx
       DO j = 1, grid%ny
         x = grid%x( i)
-        y = grid%x( j)
+        y = grid%y( j)
         CALL test_function( x, y, grid%xmin, grid%xmax, grid%ymin, grid%ymax, d, ddx, ddy, d2dx2, d2dxdy, d2dy2)
         d_grid( i,j) = d
       END DO
@@ -1205,32 +1298,22 @@ CONTAINS
 
     END IF ! IF (do_write_results_to_netcdf) THEN
 
-    ! Clean up after yourself
-    CALL deallocate_mesh( mesh)
-
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE test_remapping_grid2mesh
 
-  SUBROUTINE test_remapping_mesh2grid
+  SUBROUTINE test_remapping_mesh2grid( mesh)
     ! Test remapping from a mesh to a square grid
 
     IMPLICIT NONE
 
+    ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
+
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'test_remapping_mesh2grid'
-    REAL(dp), PARAMETER                                :: xmin = -3040E3_dp  ! Just use the standard Antarctica domain; doesn't really matter here...
-    REAL(dp), PARAMETER                                :: xmax =  3040E3_dp
-    REAL(dp), PARAMETER                                :: ymin = -3040E3_dp
-    REAL(dp), PARAMETER                                :: ymax =  3040E3_dp
-    REAL(dp), PARAMETER                                :: lambda_M    = 0._dp
-    REAL(dp), PARAMETER                                :: phi_M       = -90._dp
-    REAL(dp), PARAMETER                                :: beta_stereo = 71._dp
     CHARACTER(LEN=256)                                 :: name
-    TYPE(type_mesh)                                    :: mesh
-    REAL(dp)                                           :: alpha_min, res_max
-    REAL(dp)                                           :: res, width
     REAL(dp)                                           :: dx
     TYPE(type_grid)                                    :: grid
     INTEGER                                            :: i,j,n,n_glob
@@ -1246,49 +1329,12 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-  ! == Create a nice mesh, with a smileyface and the UFEMISM letters
-  ! ================================================================
-
-    ! Allocate memory
-    name = 'test_mesh'
-    CALL allocate_mesh_primary( mesh, name, 1000, 2000, 32)
-
-    ! Initialise the dummy mesh
-    CALL initialise_dummy_mesh( mesh, xmin, xmax, ymin, ymax)
-
-    ! Refine the mesh with a uniform 400 km resolution
-    alpha_min = 25._dp * pi / 180._dp
-    res_max   = 400E3_dp
-    CALL refine_mesh_uniform( mesh, res_max, alpha_min)
-
-    ! Smooth the mesh by applying a single iteration of Lloyd's algorithm
-    CALL Lloyds_algorithm_single_iteration( mesh, alpha_min)
-
-    ! Add a smileyface
-    res   = 80E3_dp
-    width = 100E3_dp
-    CALL mesh_add_smileyface( mesh, res, width)
-
-    ! Add the UFEMISM letters
-    res   = 50E3_dp
-    width = 40E3_dp
-    CALL mesh_add_UFEMISM_letters( mesh, res, width)
-
-    ! Smooth the mesh again
-    CALL Lloyds_algorithm_single_iteration( mesh, alpha_min)
-
-    ! Calculate secondary geometry data (needed in order to be able to write to NetCDF)
-    CALL calc_all_secondary_mesh_data( mesh, lambda_M, phi_M, beta_stereo)
-
-    ! Calculate all matrix operators
-    CALL calc_all_matrix_operators_mesh( mesh)
-
   ! == Set up a square grid
   ! =======================
 
     name = 'test_grid'
     dx   = 32E3_dp
-    CALL setup_square_grid( name, xmin, xmax, ymin, ymax, dx, lambda_M, phi_M, beta_stereo, grid)
+    CALL setup_square_grid( name, mesh%xmin, mesh%xmax, mesh%ymin, mesh%ymax, dx, mesh%lambda_M, mesh%phi_M, mesh%beta_stereo, grid)
 
   ! == Calculate, apply, and validate grid-to-mesh remapping operator
   ! =================================================================
@@ -1368,13 +1414,349 @@ CONTAINS
 
     END IF ! IF (do_write_results_to_netcdf) THEN
 
-    ! Clean up after yourself
-    CALL deallocate_mesh( mesh)
-
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE test_remapping_mesh2grid
+
+  SUBROUTINE test_remapping_lonlat2mesh( mesh)
+    ! Test remapping from a lon/lat-grid to a mesh
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'test_remapping_lonlat2mesh'
+    CHARACTER(LEN=256)                                 :: name
+    INTEGER                                            :: nlon, nlat
+    TYPE(type_grid_lonlat)                             :: grid
+    INTEGER                                            :: i,j
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: d_grid
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: d_grid_vec_partial
+    REAL(dp)                                           :: lon,lat,d
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: d_mesh_partial
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: d_mesh_ex_partial
+    INTEGER                                            :: vi, vi_glob
+    REAL(dp)                                           :: maxerr
+    LOGICAL                                            :: found_errors
+    CHARACTER(LEN=256)                                 :: filename
+    INTEGER                                            :: ncid
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+  ! == Set up a square grid
+  ! =======================
+
+    ! Set up a lon/lat-grid
+    name = 'test_lonlat_grid'
+    nlon = 360
+    nlat = 180
+    CALL setup_simple_lonlat_grid( name, nlon, nlat, grid)
+
+  ! == Calculate, apply, and validate grid-to-mesh remapping operator
+  ! =================================================================
+
+    found_errors = .FALSE.
+
+    ! Create a nice gridded data field on the master
+    IF (par%master) THEN
+      ALLOCATE( d_grid( grid%nlon, grid%nlat))
+      DO i = 1, grid%nlon
+      DO j = 1, grid%nlat
+        lon = grid%lon( i)
+        lat = grid%lat( j)
+        CALL test_function_lonlat( lon, lat, d)
+        d_grid( i,j) = d
+      END DO
+      END DO
+    END IF
+    CALL sync
+
+    ! Distribute gridded data
+    ALLOCATE( d_grid_vec_partial( grid%n_loc))
+    CALL distribute_lonlat_gridded_data_from_master_dp_2D( grid, d_grid, d_grid_vec_partial)
+    IF (par%master) DEALLOCATE( d_grid)
+
+    ! Map gridded data to the mesh
+    ALLOCATE( d_mesh_partial( mesh%nV_loc))
+    CALL map_from_lonlat_grid_to_mesh_2D( grid, mesh, d_grid_vec_partial, d_mesh_partial)
+
+    ! Calculate exact solution
+    ALLOCATE( d_mesh_ex_partial( mesh%nV_loc))
+    DO vi = 1, mesh%nV_loc
+      vi_glob = mesh%vi1 + vi - 1
+      lon = mesh%lon( vi_glob)
+      lat = mesh%lat( vi_glob)
+      CALL test_function_lonlat( lon, lat, d)
+      d_mesh_ex_partial( vi) = d
+    END DO
+
+    ! Calculate error
+    maxerr = 0._dp
+    DO vi = 1, mesh%nV_loc
+      ! Skip border vertices
+      vi_glob = mesh%vi1 + vi - 1
+      IF (mesh%VBI( vi_glob) > 0) CYCLE
+      maxerr = MAX( maxerr, ABS( d_mesh_partial( vi) - d_mesh_ex_partial( vi)))
+    END DO
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, maxerr, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
+
+    IF (maxerr > 0.5E-4_dp) found_errors = .TRUE.
+
+  ! == Validation
+  ! =============
+
+    ! If no errors occurred, we are happy
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, found_errors, 1, MPI_LOGICAL, MPI_LOR, MPI_COMM_WORLD, ierr)
+    IF (.NOT. found_errors) THEN
+      IF (par%master) CALL happy('validated lon/lat to mesh remapping')
+    ELSE
+      IF (par%master) CALL warning('found errors in lon/lat to mesh remapping')
+    END IF
+
+    ! Write results to a NetCDF file
+    IF (do_write_results_to_netcdf) THEN
+
+      ! Create a file and write the mesh to it
+      filename = TRIM( routine_name) // '_output.nc'
+      CALL create_new_netcdf_file_for_writing( filename, ncid)
+      CALL setup_mesh_in_netcdf_file( filename, ncid, mesh)
+
+      ! Add all the variables
+      CALL add_field_mesh_dp_2D_notime( filename, ncid, 'd_mesh')
+      CALL add_field_mesh_dp_2D_notime( filename, ncid, 'd_mesh_ex')
+
+      ! Write all the variables
+      CALL write_to_field_multopt_mesh_dp_2D_notime( mesh, filename, ncid, 'd_mesh'   , d_mesh_partial   )
+      CALL write_to_field_multopt_mesh_dp_2D_notime( mesh, filename, ncid, 'd_mesh_ex', d_mesh_ex_partial)
+
+      ! Close the file
+      CALL close_netcdf_file( ncid)
+
+    END IF ! IF (do_write_results_to_netcdf) THEN
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE test_remapping_lonlat2mesh
+
+  SUBROUTINE test_remapping_mesh2mesh( mesh1, mesh2)
+    ! Test remapping from a mesh to another mesh
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh1, mesh2
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'test_remapping_mesh2mesh'
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: d1_ex, d2_ex
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: d12_nn, d12_trilin, d12_cons
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: d21_nn, d21_trilin, d21_cons
+    INTEGER                                            :: vi, vi_glob
+    REAL(dp)                                           :: x,y,d,ddx,ddy,d2dx2,d2dxdy,d2dy2
+    CHARACTER(LEN=256)                                 :: method
+    LOGICAL                                            :: found_errors
+    REAL(dp)                                           :: maxerr
+    CHARACTER(LEN=256)                                 :: filename
+    INTEGER                                            :: ncid
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Allocate memory
+    ALLOCATE( d1_ex(      mesh1%nV_loc), source = 0._dp)
+    ALLOCATE( d2_ex(      mesh2%nV_loc), source = 0._dp)
+
+    ALLOCATE( d12_nn(     mesh2%nV_loc), source = 0._dp)
+    ALLOCATE( d12_trilin( mesh2%nV_loc), source = 0._dp)
+    ALLOCATE( d12_cons(   mesh2%nV_loc), source = 0._dp)
+
+    ALLOCATE( d21_nn(     mesh1%nV_loc), source = 0._dp)
+    ALLOCATE( d21_trilin( mesh1%nV_loc), source = 0._dp)
+    ALLOCATE( d21_cons(   mesh1%nV_loc), source = 0._dp)
+
+    ! Initialise exact solutions
+    DO vi = 1, mesh1%nV_loc
+      vi_glob = mesh1%vi1 + vi - 1
+      x = mesh1%V( vi_glob,1)
+      y = mesh1%V( vi_glob,2)
+      CALL test_function( x, y, mesh1%xmin, mesh1%xmax, mesh1%ymin, mesh1%ymax, d, ddx, ddy, d2dx2, d2dxdy, d2dy2)
+      d1_ex( vi) = d
+    END DO
+    DO vi = 1, mesh2%nV_loc
+      vi_glob = mesh2%vi1 + vi - 1
+      x = mesh2%V( vi_glob,1)
+      y = mesh2%V( vi_glob,2)
+      CALL test_function( x, y, mesh2%xmin, mesh2%xmax, mesh2%ymin, mesh2%ymax, d, ddx, ddy, d2dx2, d2dxdy, d2dy2)
+      d2_ex( vi) = d
+    END DO
+
+  ! == Remap data
+  ! =============
+
+    method = 'nearest_neighbour'
+    CALL map_from_mesh_to_mesh_2D( mesh1, mesh2, d1_ex, d12_nn, method)
+    CALL map_from_mesh_to_mesh_2D( mesh2, mesh1, d2_ex, d21_nn, method)
+
+    method = 'trilin'
+    CALL map_from_mesh_to_mesh_2D( mesh1, mesh2, d1_ex, d12_trilin, method)
+    CALL map_from_mesh_to_mesh_2D( mesh2, mesh1, d2_ex, d21_trilin, method)
+
+    method = '2nd_order_conservative'
+    CALL map_from_mesh_to_mesh_2D( mesh1, mesh2, d1_ex, d12_cons, method)
+    CALL map_from_mesh_to_mesh_2D( mesh2, mesh1, d2_ex, d21_cons, method)
+
+  ! == Validation
+  ! =============
+
+    found_errors = .FALSE.
+
+    ! Nearest-neighbour
+    maxerr = 0._dp
+    DO vi = 1, mesh2%nV_loc
+      maxerr = MAX( maxerr, ABS( d12_nn( vi) - d2_ex( vi)))
+    END DO
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, maxerr, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
+    IF (maxerr > 0.15_dp) THEN
+      CALL warning('unexpectedly high local errors detected in mesh-to-mesh nearest-neighbour remapping')
+      found_errors = .TRUE.
+    END IF
+!    IF (par%master) CALL warning('d12_nn: maxerr = {dp_01}', dp_01 = maxerr)
+
+    maxerr = 0._dp
+    DO vi = 1, mesh1%nV_loc
+      maxerr = MAX( maxerr, ABS( d21_nn( vi) - d1_ex( vi)))
+    END DO
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, maxerr, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
+    IF (maxerr > 0.15_dp) THEN
+      CALL warning('unexpectedly high local errors detected in mesh-to-mesh nearest-neighbour remapping')
+      found_errors = .TRUE.
+    END IF
+!    IF (par%master) CALL warning('d21_nn: maxerr = {dp_01}', dp_01 = maxerr)
+
+    ! Trilinear
+    maxerr = 0._dp
+    DO vi = 1, mesh2%nV_loc
+      maxerr = MAX( maxerr, ABS( d12_trilin( vi) - d2_ex( vi)))
+    END DO
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, maxerr, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
+    IF (maxerr > 0.015_dp) THEN
+      CALL warning('unexpectedly high local errors detected in mesh-to-mesh trilinear remapping')
+      found_errors = .TRUE.
+    END IF
+!    IF (par%master) CALL warning('d12_trilin: maxerr = {dp_01}', dp_01 = maxerr)
+
+    maxerr = 0._dp
+    DO vi = 1, mesh1%nV_loc
+      maxerr = MAX( maxerr, ABS( d21_trilin( vi) - d1_ex( vi)))
+    END DO
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, maxerr, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
+    IF (maxerr > 0.015_dp) THEN
+      CALL warning('unexpectedly high local errors detected in mesh-to-mesh trilinear remapping')
+      found_errors = .TRUE.
+    END IF
+!    IF (par%master) CALL warning('d21_trilin: maxerr = {dp_01}', dp_01 = maxerr)
+
+    ! 2nd-order conservative
+    maxerr = 0._dp
+    DO vi = 1, mesh2%nV_loc
+      maxerr = MAX( maxerr, ABS( d12_cons( vi) - d2_ex( vi)))
+    END DO
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, maxerr, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
+    IF (maxerr > 0.2_dp) THEN
+      CALL warning('unexpectedly high local errors detected in mesh-to-mesh 2nd-order conservative remapping')
+      found_errors = .TRUE.
+    END IF
+!    IF (par%master) CALL warning('d12_cons: maxerr = {dp_01}', dp_01 = maxerr)
+
+    maxerr = 0._dp
+    DO vi = 1, mesh1%nV_loc
+      maxerr = MAX( maxerr, ABS( d21_cons( vi) - d1_ex( vi)))
+    END DO
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, maxerr, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
+    IF (maxerr > 0.2_dp) THEN
+      CALL warning('unexpectedly high local errors detected in mesh-to-mesh 2nd-order conservative remapping')
+      found_errors = .TRUE.
+    END IF
+!    IF (par%master) CALL warning('d21_cons: maxerr = {dp_01}', dp_01 = maxerr)
+
+    ! If no errors occurred, we are happy
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, found_errors, 1, MPI_LOGICAL, MPI_LOR, MPI_COMM_WORLD, ierr)
+    IF (.NOT. found_errors) THEN
+      IF (par%master) CALL happy('validated mesh to mesh remapping')
+    ELSE
+      IF (par%master) CALL warning('found errors in mesh to mesh remapping')
+    END IF
+
+    ! Write results to a NetCDF file
+    IF (do_write_results_to_netcdf) THEN
+
+      ! Mesh 1
+      ! ======
+
+      ! Create a file and write the mesh to it
+      filename = TRIM( routine_name) // '_output1.nc'
+      CALL create_new_netcdf_file_for_writing( filename, ncid)
+      CALL setup_mesh_in_netcdf_file( filename, ncid, mesh1)
+
+      ! Add all the variables
+      CALL add_field_mesh_dp_2D_notime( filename, ncid, 'd1_ex')
+      CALL add_field_mesh_dp_2D_notime( filename, ncid, 'd21_nn')
+      CALL add_field_mesh_dp_2D_notime( filename, ncid, 'd21_trilin')
+      CALL add_field_mesh_dp_2D_notime( filename, ncid, 'd21_cons')
+
+      ! Write all the variables
+      CALL write_to_field_multopt_mesh_dp_2D_notime( mesh1, filename, ncid, 'd1_ex'     , d1_ex     )
+      CALL write_to_field_multopt_mesh_dp_2D_notime( mesh1, filename, ncid, 'd21_nn'    , d21_nn    )
+      CALL write_to_field_multopt_mesh_dp_2D_notime( mesh1, filename, ncid, 'd21_trilin', d21_trilin)
+      CALL write_to_field_multopt_mesh_dp_2D_notime( mesh1, filename, ncid, 'd21_cons'  , d21_cons  )
+
+      ! Close the file
+      CALL close_netcdf_file( ncid)
+
+      ! Mesh 2
+      ! ======
+
+      ! Create a file and write the mesh to it
+      filename = TRIM( routine_name) // '_output2.nc'
+      CALL create_new_netcdf_file_for_writing( filename, ncid)
+      CALL setup_mesh_in_netcdf_file( filename, ncid, mesh2)
+
+      ! Add all the variables
+      CALL add_field_mesh_dp_2D_notime( filename, ncid, 'd2_ex')
+      CALL add_field_mesh_dp_2D_notime( filename, ncid, 'd12_nn')
+      CALL add_field_mesh_dp_2D_notime( filename, ncid, 'd12_trilin')
+      CALL add_field_mesh_dp_2D_notime( filename, ncid, 'd12_cons')
+
+      ! Write all the variables
+      CALL write_to_field_multopt_mesh_dp_2D_notime( mesh2, filename, ncid, 'd2_ex'     , d2_ex     )
+      CALL write_to_field_multopt_mesh_dp_2D_notime( mesh2, filename, ncid, 'd12_nn'    , d12_nn    )
+      CALL write_to_field_multopt_mesh_dp_2D_notime( mesh2, filename, ncid, 'd12_trilin', d12_trilin)
+      CALL write_to_field_multopt_mesh_dp_2D_notime( mesh2, filename, ncid, 'd12_cons'  , d12_cons  )
+
+      ! Close the file
+      CALL close_netcdf_file( ncid)
+
+    END IF ! IF (do_write_results_to_netcdf) THEN
+
+    ! Clean up after yourself
+    DEALLOCATE( d1_ex)
+    DEALLOCATE( d2_ex)
+    DEALLOCATE( d12_nn)
+    DEALLOCATE( d12_trilin)
+    DEALLOCATE( d12_cons)
+    DEALLOCATE( d21_nn)
+    DEALLOCATE( d21_trilin)
+    DEALLOCATE( d21_cons)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE test_remapping_mesh2mesh
 
   SUBROUTINE test_function( x, y, xmin, xmax, ymin, ymax, d, ddx, ddy, d2dx2, d2dxdy, d2dy2)
     ! A simple test function to validate matrix operators
@@ -1401,5 +1783,18 @@ CONTAINS
     d2dy2  =            SIN( c1 * (x - xmin)) * (-c2)**2 * SIN( c2 * (y - ymin))
 
   END SUBROUTINE test_function
+
+  SUBROUTINE test_function_lonlat( lon, lat, d)
+    ! A simple test function to validate lon/lat gridding stuff
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    REAL(dp),                   INTENT(IN)        :: lon,lat
+    REAL(dp),                   INTENT(OUT)       :: d
+
+    d = SIN( lon * pi / 180._dp) * COS( lat * pi / 180)
+
+  END SUBROUTINE test_function_lonlat
 
 END MODULE unit_tests_mesh
