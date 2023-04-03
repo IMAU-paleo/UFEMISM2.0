@@ -55,38 +55,12 @@ MODULE grid_basic
 
   END TYPE type_grid
 
-  TYPE type_grid_lonlat
-    ! A lon/lat grid
-
-    ! Basic properties
-    CHARACTER(LEN=256)                      :: name                          !           A nice name tag
-    INTEGER                                 :: nlon                          !           Number of grid cells in the longitude direction
-    INTEGER                                 :: nlat                          !           Number of grid cells in the latitude direction
-    INTEGER                                 :: n                             !           Total number of grid cells (= nx * ny)
-    REAL(dp)                                :: dlon                          ! [degrees] Resolution in the longitude direction
-    REAL(dp)                                :: dlat                          ! [degrees] Resolution in the latitude direction
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: lon                           ! [degrees east ] Longitude of each grid point
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: lat                           ! [degrees north] Latitude  of each grid point
-    REAL(dp)                                :: lonmin                        ! [degrees east ] Lon/lat range covered by the grid
-    REAL(dp)                                :: lonmax                        ! [degrees east ]
-    REAL(dp)                                :: latmin                        ! [degrees north]
-    REAL(dp)                                :: latmax                        ! [degrees north]
-
-    ! Remapping data
-    REAL(dp)                                :: tol_dist                      ! [m]       Horizontal distance tolerance; points closer together than this are assumed to be identical (typically set to a billionth of linear domain size)
-    INTEGER,  DIMENSION(:,:  ), ALLOCATABLE :: ij2n, n2ij                    !           Conversion tables for grid-form vs. vector-form data
-
-    ! Parallelisation
-    INTEGER                                 :: n1,n2,n_loc                   ! Matrix rows owned by each process
-
-  END TYPE type_grid_lonlat
-
 CONTAINS
 
 ! ===== Subroutines ======
 ! ========================
 
-! == Set up a square grid
+! == Basic square grid functionality
 
   SUBROUTINE setup_square_grid( name, xmin, xmax, ymin, ymax, dx, lambda_M, phi_M, beta_stereo, grid)
     ! Set up a square grid that covers the specified domain
@@ -153,8 +127,6 @@ CONTAINS
 
   END SUBROUTINE setup_square_grid
 
-! == Set up a square grid
-
   SUBROUTINE deallocate_grid( grid)
     ! Deallocate memory for a grid object
 
@@ -180,8 +152,6 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE deallocate_grid
-
-! == Set up a square grid
 
   SUBROUTINE check_if_grids_are_identical( grid1, grid2, isso)
     ! Check if two grids are identical
@@ -226,8 +196,6 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE check_if_grids_are_identical
-
-! == Calculate secondary geometry data for a square grid
 
   SUBROUTINE calc_secondary_grid_data( grid, lambda_M, phi_M, beta_stereo)
     ! Calculate secondary geometry data for a square grid
@@ -293,7 +261,213 @@ CONTAINS
 
   END SUBROUTINE calc_secondary_grid_data
 
-! == Calculate contour lines for mesh generation from gridded/meshed data
+  SUBROUTINE calc_matrix_operators_grid( grid, M_ddx, M_ddy)
+    ! Calculate matrix operators for partial derivatives on a regular grid (needed for conservative remapping)
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    TYPE(tMat),                          INTENT(OUT)   :: M_ddx, M_ddy
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_matrix_operators_grid'
+    INTEGER                                            :: ncols, nrows, ncols_loc, nrows_loc, nnz_per_row_est, nnz_est_proc
+    TYPE(type_sparse_matrix_CSR_dp)                    :: M_ddx_CSR, M_ddy_CSR
+    INTEGER                                            :: row, i, j, col
+    REAL(dp)                                           :: val
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+  ! == Initialise the matrices using the native UFEMISM CSR-matrix format
+  ! =====================================================================
+
+    ! Matrix size
+    ncols           = grid%n      ! from
+    ncols_loc       = grid%n_loc
+    nrows           = grid%n      ! to
+    nrows_loc       = grid%n_loc
+    nnz_per_row_est = 3
+    nnz_est_proc    = nrows_loc * nnz_per_row_est
+
+    CALL allocate_matrix_CSR_dist( M_ddx_CSR, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+    CALL allocate_matrix_CSR_dist( M_ddy_CSR, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+
+  ! == Fill matrix coefficients
+  ! ===========================
+
+    DO row = grid%n1, grid%n2
+
+      ! Grid indices
+      i = grid%n2ij( row,1)
+      j = grid%n2ij( row,2)
+
+    ! == d/dx
+
+      IF     (i == 1) THEN
+        ! Use a second-order accurate three-point one-sided differencing scheme on the border
+
+        ! i
+        col = grid%ij2n( i,j)
+        val = -1.5_dp / grid%dx
+        CALL add_entry_CSR_dist( M_ddx_CSR, row, col, val)
+
+        ! i+1
+        col = grid%ij2n( i+1,j)
+        val = 2._dp / grid%dx
+        CALL add_entry_CSR_dist( M_ddx_CSR, row, col, val)
+
+        ! i+2
+        col = grid%ij2n( i+2,j)
+        val = -0.5_dp / grid%dx
+        CALL add_entry_CSR_dist( M_ddx_CSR, row, col, val)
+
+      ELSEIF (i == grid%nx) THEN
+        ! Use a second-order accurate three-point one-sided differencing scheme on the border
+
+        ! i
+        col = grid%ij2n( i,j)
+        val = 1.5_dp / grid%dx
+        CALL add_entry_CSR_dist( M_ddx_CSR, row, col, val)
+
+        ! i-1
+        col = grid%ij2n( i-1,j)
+        val = -2._dp / grid%dx
+        CALL add_entry_CSR_dist( M_ddx_CSR, row, col, val)
+
+        ! i-2
+        col = grid%ij2n( i-2,j)
+        val = 0.5_dp / grid%dx
+        CALL add_entry_CSR_dist( M_ddx_CSR, row, col, val)
+
+      ELSE
+        ! Use a second-order accurate two-sided differencing scheme in the interior
+
+        ! i-1
+        col = grid%ij2n( i-1,j)
+        val = -0.5_dp / grid%dx
+        CALL add_entry_CSR_dist( M_ddx_CSR, row, col, val)
+
+        ! i+1
+        col = grid%ij2n( i+1,j)
+        val = 0.5_dp / grid%dx
+        CALL add_entry_CSR_dist( M_ddx_CSR, row, col, val)
+
+      END IF
+
+    ! == d/dy
+
+      IF     (j == 1) THEN
+        ! Use a second-order accurate three-point one-sided differencing scheme on the border
+
+        ! j
+        col = grid%ij2n( i,j)
+        val = -1.5_dp / grid%dx
+        CALL add_entry_CSR_dist( M_ddy_CSR, row, col, val)
+
+        ! j+1
+        col = grid%ij2n( i,j+1)
+        val = 2._dp / grid%dx
+        CALL add_entry_CSR_dist( M_ddy_CSR, row, col, val)
+
+        ! j+2
+        col = grid%ij2n( i,j+2)
+        val = -0.5_dp / grid%dx
+        CALL add_entry_CSR_dist( M_ddy_CSR, row, col, val)
+
+      ELSEIF (j == grid%ny) THEN
+        ! Use a second-order accurate three-point one-sided differencing scheme on the border
+
+        ! j
+        col = grid%ij2n( i,j)
+        val = 1.5_dp / grid%dx
+        CALL add_entry_CSR_dist( M_ddy_CSR, row, col, val)
+
+        ! j-1
+        col = grid%ij2n( i,j-1)
+        val = -2._dp / grid%dx
+        CALL add_entry_CSR_dist( M_ddy_CSR, row, col, val)
+
+        ! j-2
+        col = grid%ij2n( i,j-2)
+        val = 0.5_dp / grid%dx
+        CALL add_entry_CSR_dist( M_ddy_CSR, row, col, val)
+
+      ELSE
+        ! Use a second-order accurate two-sided differencing scheme in the interior
+
+        ! j-1
+        col = grid%ij2n( i,j-1)
+        val = -0.5_dp / grid%dx
+        CALL add_entry_CSR_dist( M_ddy_CSR, row, col, val)
+
+        ! j+1
+        col = grid%ij2n( i,j+1)
+        val = 0.5_dp / grid%dx
+        CALL add_entry_CSR_dist( M_ddy_CSR, row, col, val)
+
+      END IF
+
+    END DO ! DO n = grid%n1, grid%n2
+
+    ! Convert to PETSc format
+    CALL mat_CSR2petsc( M_ddx_CSR, M_ddx)
+    CALL mat_CSR2petsc( M_ddy_CSR, M_ddy)
+
+    ! Clean up after yourself
+    CALL deallocate_matrix_CSR_dist( M_ddx_CSR)
+    CALL deallocate_matrix_CSR_dist( M_ddy_CSR)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE calc_matrix_operators_grid
+
+  SUBROUTINE calc_field_to_vector_form_translation_tables( grid)
+    ! Calculate grid-cell-to-matrix-row translation tables
+
+    IMPLICIT NONE
+
+    ! In/output variables
+    TYPE(type_grid),                         INTENT(INOUT) :: grid
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'calc_field_to_vector_form_translation_tables'
+    INTEGER                                                :: i,j,n
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Total number of grid cells
+    grid%n = grid%nx * grid%ny
+
+    ! Allocate memory
+    IF (ALLOCATED( grid%ij2n)) DEALLOCATE( grid%ij2n)
+    IF (ALLOCATED( grid%n2ij)) DEALLOCATE( grid%n2ij)
+    ALLOCATE( grid%ij2n( grid%nx, grid%ny), source = 0)
+    ALLOCATE( grid%n2ij( grid%n , 2      ), source = 0)
+
+    ! Fill in tables
+    n = 0
+    DO i = 1, grid%nx
+    DO j = 1, grid%ny
+      n = n + 1
+      grid%ij2n( i,j) = n
+      grid%n2ij( n,:) = [i,j]
+    END DO
+    END DO
+
+    ! Parallelisation domains
+    CALL partition_list( grid%n, par%i, par%n, grid%n1, grid%n2)
+    grid%n_loc = grid%n2 + 1 - grid%n1
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE calc_field_to_vector_form_translation_tables
+
+! == Calculate contour lines from gridded/meshed data (for mesh generation)
 
   SUBROUTINE calc_grid_contour_as_line( grid, d, f, line)
     ! Calculate a contour line at level f for data d on a square grid%
@@ -479,215 +653,7 @@ CONTAINS
 
   END SUBROUTINE calc_grid_contour_as_line
 
-! == Calculate d/dx, d/dy operators on a square grid (used in grid-to-mesh remapping)
-
-  SUBROUTINE calc_matrix_operators_grid( grid, M_ddx, M_ddy)
-    ! Calculate matrix operators for partial derivatives on a regular grid (needed for conservative remapping)
-
-    IMPLICIT NONE
-
-    ! In/output variables:
-    TYPE(type_grid),                     INTENT(IN)    :: grid
-    TYPE(tMat),                          INTENT(OUT)   :: M_ddx, M_ddy
-
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_matrix_operators_grid'
-    INTEGER                                            :: ncols, nrows, ncols_loc, nrows_loc, nnz_per_row_est, nnz_est_proc
-    TYPE(type_sparse_matrix_CSR_dp)                    :: M_ddx_CSR, M_ddy_CSR
-    INTEGER                                            :: row, i, j, col
-    REAL(dp)                                           :: val
-
-    ! Add routine to path
-    CALL init_routine( routine_name)
-
-  ! == Initialise the matrices using the native UFEMISM CSR-matrix format
-  ! =====================================================================
-
-    ! Matrix size
-    ncols           = grid%n      ! from
-    ncols_loc       = grid%n_loc
-    nrows           = grid%n      ! to
-    nrows_loc       = grid%n_loc
-    nnz_per_row_est = 3
-    nnz_est_proc    = nrows_loc * nnz_per_row_est
-
-    CALL allocate_matrix_CSR_dist( M_ddx_CSR, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
-    CALL allocate_matrix_CSR_dist( M_ddy_CSR, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
-
-  ! == Fill matrix coefficients
-  ! ===========================
-
-    DO row = grid%n1, grid%n2
-
-      ! Grid indices
-      i = grid%n2ij( row,1)
-      j = grid%n2ij( row,2)
-
-    ! == d/dx
-
-      IF     (i == 1) THEN
-        ! Use a second-order accurate three-point one-sided differencing scheme on the border
-
-        ! i
-        col = grid%ij2n( i,j)
-        val = -1.5_dp / grid%dx
-        CALL add_entry_CSR_dist( M_ddx_CSR, row, col, val)
-
-        ! i+1
-        col = grid%ij2n( i+1,j)
-        val = 2._dp / grid%dx
-        CALL add_entry_CSR_dist( M_ddx_CSR, row, col, val)
-
-        ! i+2
-        col = grid%ij2n( i+2,j)
-        val = -0.5_dp / grid%dx
-        CALL add_entry_CSR_dist( M_ddx_CSR, row, col, val)
-
-      ELSEIF (i == grid%nx) THEN
-        ! Use a second-order accurate three-point one-sided differencing scheme on the border
-
-        ! i
-        col = grid%ij2n( i,j)
-        val = 1.5_dp / grid%dx
-        CALL add_entry_CSR_dist( M_ddx_CSR, row, col, val)
-
-        ! i-1
-        col = grid%ij2n( i-1,j)
-        val = -2._dp / grid%dx
-        CALL add_entry_CSR_dist( M_ddx_CSR, row, col, val)
-
-        ! i-2
-        col = grid%ij2n( i-2,j)
-        val = 0.5_dp / grid%dx
-        CALL add_entry_CSR_dist( M_ddx_CSR, row, col, val)
-
-      ELSE
-        ! Use a second-order accurate two-sided differencing scheme in the interior
-
-        ! i-1
-        col = grid%ij2n( i-1,j)
-        val = -0.5_dp / grid%dx
-        CALL add_entry_CSR_dist( M_ddx_CSR, row, col, val)
-
-        ! i+1
-        col = grid%ij2n( i+1,j)
-        val = 0.5_dp / grid%dx
-        CALL add_entry_CSR_dist( M_ddx_CSR, row, col, val)
-
-      END IF
-
-    ! == d/dy
-
-      IF     (j == 1) THEN
-        ! Use a second-order accurate three-point one-sided differencing scheme on the border
-
-        ! j
-        col = grid%ij2n( i,j)
-        val = -1.5_dp / grid%dx
-        CALL add_entry_CSR_dist( M_ddy_CSR, row, col, val)
-
-        ! j+1
-        col = grid%ij2n( i,j+1)
-        val = 2._dp / grid%dx
-        CALL add_entry_CSR_dist( M_ddy_CSR, row, col, val)
-
-        ! j+2
-        col = grid%ij2n( i,j+2)
-        val = -0.5_dp / grid%dx
-        CALL add_entry_CSR_dist( M_ddy_CSR, row, col, val)
-
-      ELSEIF (j == grid%ny) THEN
-        ! Use a second-order accurate three-point one-sided differencing scheme on the border
-
-        ! j
-        col = grid%ij2n( i,j)
-        val = 1.5_dp / grid%dx
-        CALL add_entry_CSR_dist( M_ddy_CSR, row, col, val)
-
-        ! j-1
-        col = grid%ij2n( i,j-1)
-        val = -2._dp / grid%dx
-        CALL add_entry_CSR_dist( M_ddy_CSR, row, col, val)
-
-        ! j-2
-        col = grid%ij2n( i,j-2)
-        val = 0.5_dp / grid%dx
-        CALL add_entry_CSR_dist( M_ddy_CSR, row, col, val)
-
-      ELSE
-        ! Use a second-order accurate two-sided differencing scheme in the interior
-
-        ! j-1
-        col = grid%ij2n( i,j-1)
-        val = -0.5_dp / grid%dx
-        CALL add_entry_CSR_dist( M_ddy_CSR, row, col, val)
-
-        ! j+1
-        col = grid%ij2n( i,j+1)
-        val = 0.5_dp / grid%dx
-        CALL add_entry_CSR_dist( M_ddy_CSR, row, col, val)
-
-      END IF
-
-    END DO ! DO n = grid%n1, grid%n2
-
-    ! Convert to PETSc format
-    CALL mat_CSR2petsc( M_ddx_CSR, M_ddx)
-    CALL mat_CSR2petsc( M_ddy_CSR, M_ddy)
-
-    ! Clean up after yourself
-    CALL deallocate_matrix_CSR_dist( M_ddx_CSR)
-    CALL deallocate_matrix_CSR_dist( M_ddy_CSR)
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE calc_matrix_operators_grid
-
-! == Set up field-form -to- vector-form translation tables
-
-  SUBROUTINE calc_field_to_vector_form_translation_tables( grid)
-    ! Calculate grid-cell-to-matrix-row translation tables
-
-    IMPLICIT NONE
-
-    ! In/output variables
-    TYPE(type_grid),                         INTENT(INOUT) :: grid
-
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'calc_field_to_vector_form_translation_tables'
-    INTEGER                                                :: i,j,n
-
-    ! Add routine to path
-    CALL init_routine( routine_name)
-
-    ! Total number of grid cells
-    grid%n = grid%nx * grid%ny
-
-    ! Allocate memory
-    ALLOCATE( grid%ij2n( grid%nx, grid%ny), source = 0)
-    ALLOCATE( grid%n2ij( grid%n , 2      ), source = 0)
-
-    ! Fill in tables
-    n = 0
-    DO i = 1, grid%nx
-    DO j = 1, grid%ny
-      n = n + 1
-      grid%ij2n( i,j) = n
-      grid%n2ij( n,:) = [i,j]
-    END DO
-    END DO
-
-    ! Parallelisation domains
-    CALL partition_list( grid%n, par%i, par%n, grid%n1, grid%n2)
-    grid%n_loc = grid%n2 + 1 - grid%n1
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE calc_field_to_vector_form_translation_tables
-
-! == Distribute gridded data from the Master
+! == Subroutines for manipulating gridded data in distributed memory
 
   SUBROUTINE distribute_gridded_data_from_master_dp_2D( grid, d_grid, d_grid_vec_partial)
     ! Distribute a 2-D gridded data field from the Master.
@@ -782,8 +748,6 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE distribute_gridded_data_from_master_dp_3D
-
-! == Gather gridded data to the Master
 
   SUBROUTINE gather_gridded_data_to_master_dp_2D( grid, d_grid_vec_partial, d_grid)
     ! Gather a 2-D gridded data field to the Master.

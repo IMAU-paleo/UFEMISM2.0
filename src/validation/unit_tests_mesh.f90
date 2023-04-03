@@ -21,9 +21,9 @@ MODULE unit_tests_mesh
   USE mesh_operators                                         , ONLY: calc_all_matrix_operators_mesh
   USE netcdf_basic                                           , ONLY: create_new_netcdf_file_for_writing, close_netcdf_file
   USE netcdf_output                                          , ONLY: setup_mesh_in_netcdf_file, add_field_mesh_dp_2D_notime, add_field_mesh_dp_2D_b_notime, &
-                                                                     add_field_mesh_dp_2D_c_notime, write_to_field_multiple_options_mesh_dp_2D_notime, &
-                                                                     write_to_field_multiple_options_mesh_dp_2D_b_notime, write_to_field_multiple_options_mesh_dp_2D_c_notime, &
-                                                                     setup_xy_grid_in_netcdf_file, add_field_grid_dp_2D_notime, write_to_field_multiple_options_grid_dp_2D_notime
+                                                                     add_field_mesh_dp_2D_c_notime, write_to_field_multopt_mesh_dp_2D_notime, &
+                                                                     write_to_field_multopt_mesh_dp_2D_b_notime, write_to_field_multopt_mesh_dp_2D_c_notime, &
+                                                                     setup_xy_grid_in_netcdf_file, add_field_grid_dp_2D_notime, write_to_field_multopt_grid_dp_2D_notime
   USE petsc_basic                                            , ONLY: multiply_CSR_matrix_with_vector_1D
   USE grid_basic                                             , ONLY: type_grid, setup_square_grid, distribute_gridded_data_from_master_dp_2D
   USE mesh_remapping                                         , ONLY: map_from_xy_grid_to_mesh_2D, map_from_mesh_to_xy_grid_2D
@@ -927,57 +927,57 @@ CONTAINS
       CALL add_field_mesh_dp_2D_b_notime( filename, ncid, 'd2dy2_b_b'  )
 
       ! Write all the variables
-      CALL write_to_field_multiple_options_mesh_dp_2D_notime(   mesh, filename, ncid, 'd_a_ex'     , d_a_ex     )
-      CALL write_to_field_multiple_options_mesh_dp_2D_notime(   mesh, filename, ncid, 'ddx_a_ex'   , ddx_a_ex   )
-      CALL write_to_field_multiple_options_mesh_dp_2D_notime(   mesh, filename, ncid, 'ddy_a_ex'   , ddy_a_ex   )
+      CALL write_to_field_multopt_mesh_dp_2D_notime(   mesh, filename, ncid, 'd_a_ex'     , d_a_ex     )
+      CALL write_to_field_multopt_mesh_dp_2D_notime(   mesh, filename, ncid, 'ddx_a_ex'   , ddx_a_ex   )
+      CALL write_to_field_multopt_mesh_dp_2D_notime(   mesh, filename, ncid, 'ddy_a_ex'   , ddy_a_ex   )
 
-      CALL write_to_field_multiple_options_mesh_dp_2D_b_notime( mesh, filename, ncid, 'd_b_ex'     , d_b_ex     )
-      CALL write_to_field_multiple_options_mesh_dp_2D_b_notime( mesh, filename, ncid, 'ddx_b_ex'   , ddx_b_ex   )
-      CALL write_to_field_multiple_options_mesh_dp_2D_b_notime( mesh, filename, ncid, 'ddy_b_ex'   , ddy_b_ex   )
-      CALL write_to_field_multiple_options_mesh_dp_2D_b_notime( mesh, filename, ncid, 'd2dx2_b_ex' , d2dx2_b_ex )
-      CALL write_to_field_multiple_options_mesh_dp_2D_b_notime( mesh, filename, ncid, 'd2dxdy_b_ex', d2dxdy_b_ex)
-      CALL write_to_field_multiple_options_mesh_dp_2D_b_notime( mesh, filename, ncid, 'd2dy2_b_ex' , d2dy2_b_ex )
+      CALL write_to_field_multopt_mesh_dp_2D_b_notime( mesh, filename, ncid, 'd_b_ex'     , d_b_ex     )
+      CALL write_to_field_multopt_mesh_dp_2D_b_notime( mesh, filename, ncid, 'ddx_b_ex'   , ddx_b_ex   )
+      CALL write_to_field_multopt_mesh_dp_2D_b_notime( mesh, filename, ncid, 'ddy_b_ex'   , ddy_b_ex   )
+      CALL write_to_field_multopt_mesh_dp_2D_b_notime( mesh, filename, ncid, 'd2dx2_b_ex' , d2dx2_b_ex )
+      CALL write_to_field_multopt_mesh_dp_2D_b_notime( mesh, filename, ncid, 'd2dxdy_b_ex', d2dxdy_b_ex)
+      CALL write_to_field_multopt_mesh_dp_2D_b_notime( mesh, filename, ncid, 'd2dy2_b_ex' , d2dy2_b_ex )
 
-      CALL write_to_field_multiple_options_mesh_dp_2D_c_notime( mesh, filename, ncid, 'd_c_ex'     , d_c_ex     )
-      CALL write_to_field_multiple_options_mesh_dp_2D_c_notime( mesh, filename, ncid, 'ddx_c_ex'   , ddx_c_ex   )
-      CALL write_to_field_multiple_options_mesh_dp_2D_c_notime( mesh, filename, ncid, 'ddy_c_ex'   , ddy_c_ex   )
+      CALL write_to_field_multopt_mesh_dp_2D_c_notime( mesh, filename, ncid, 'd_c_ex'     , d_c_ex     )
+      CALL write_to_field_multopt_mesh_dp_2D_c_notime( mesh, filename, ncid, 'ddx_c_ex'   , ddx_c_ex   )
+      CALL write_to_field_multopt_mesh_dp_2D_c_notime( mesh, filename, ncid, 'ddy_c_ex'   , ddy_c_ex   )
 
-      CALL write_to_field_multiple_options_mesh_dp_2D_b_notime( mesh, filename, ncid, 'd_a_b'      , d_a_b      )
-      CALL write_to_field_multiple_options_mesh_dp_2D_c_notime( mesh, filename, ncid, 'd_a_c'      , d_a_c      )
+      CALL write_to_field_multopt_mesh_dp_2D_b_notime( mesh, filename, ncid, 'd_a_b'      , d_a_b      )
+      CALL write_to_field_multopt_mesh_dp_2D_c_notime( mesh, filename, ncid, 'd_a_c'      , d_a_c      )
 
-      CALL write_to_field_multiple_options_mesh_dp_2D_notime(   mesh, filename, ncid, 'd_b_a'      , d_b_a      )
-      CALL write_to_field_multiple_options_mesh_dp_2D_c_notime( mesh, filename, ncid, 'd_b_c'      , d_b_c      )
+      CALL write_to_field_multopt_mesh_dp_2D_notime(   mesh, filename, ncid, 'd_b_a'      , d_b_a      )
+      CALL write_to_field_multopt_mesh_dp_2D_c_notime( mesh, filename, ncid, 'd_b_c'      , d_b_c      )
 
-      CALL write_to_field_multiple_options_mesh_dp_2D_notime(   mesh, filename, ncid, 'd_c_a'      , d_c_a      )
-      CALL write_to_field_multiple_options_mesh_dp_2D_b_notime( mesh, filename, ncid, 'd_c_b'      , d_c_b      )
+      CALL write_to_field_multopt_mesh_dp_2D_notime(   mesh, filename, ncid, 'd_c_a'      , d_c_a      )
+      CALL write_to_field_multopt_mesh_dp_2D_b_notime( mesh, filename, ncid, 'd_c_b'      , d_c_b      )
 
-      CALL write_to_field_multiple_options_mesh_dp_2D_notime(   mesh, filename, ncid, 'ddx_a_a'    , ddx_a_a    )
-      CALL write_to_field_multiple_options_mesh_dp_2D_b_notime( mesh, filename, ncid, 'ddx_a_b'    , ddx_a_b    )
-      CALL write_to_field_multiple_options_mesh_dp_2D_c_notime( mesh, filename, ncid, 'ddx_a_c'    , ddx_a_c    )
+      CALL write_to_field_multopt_mesh_dp_2D_notime(   mesh, filename, ncid, 'ddx_a_a'    , ddx_a_a    )
+      CALL write_to_field_multopt_mesh_dp_2D_b_notime( mesh, filename, ncid, 'ddx_a_b'    , ddx_a_b    )
+      CALL write_to_field_multopt_mesh_dp_2D_c_notime( mesh, filename, ncid, 'ddx_a_c'    , ddx_a_c    )
 
-      CALL write_to_field_multiple_options_mesh_dp_2D_notime(   mesh, filename, ncid, 'ddx_b_a'    , ddx_b_a    )
-      CALL write_to_field_multiple_options_mesh_dp_2D_b_notime( mesh, filename, ncid, 'ddx_b_b'    , ddx_b_b    )
-      CALL write_to_field_multiple_options_mesh_dp_2D_c_notime( mesh, filename, ncid, 'ddx_b_c'    , ddx_b_c    )
+      CALL write_to_field_multopt_mesh_dp_2D_notime(   mesh, filename, ncid, 'ddx_b_a'    , ddx_b_a    )
+      CALL write_to_field_multopt_mesh_dp_2D_b_notime( mesh, filename, ncid, 'ddx_b_b'    , ddx_b_b    )
+      CALL write_to_field_multopt_mesh_dp_2D_c_notime( mesh, filename, ncid, 'ddx_b_c'    , ddx_b_c    )
 
-      CALL write_to_field_multiple_options_mesh_dp_2D_notime(   mesh, filename, ncid, 'ddx_c_a'    , ddx_c_a    )
-      CALL write_to_field_multiple_options_mesh_dp_2D_b_notime( mesh, filename, ncid, 'ddx_c_b'    , ddx_c_b    )
-      CALL write_to_field_multiple_options_mesh_dp_2D_c_notime( mesh, filename, ncid, 'ddx_c_c'    , ddx_c_c    )
+      CALL write_to_field_multopt_mesh_dp_2D_notime(   mesh, filename, ncid, 'ddx_c_a'    , ddx_c_a    )
+      CALL write_to_field_multopt_mesh_dp_2D_b_notime( mesh, filename, ncid, 'ddx_c_b'    , ddx_c_b    )
+      CALL write_to_field_multopt_mesh_dp_2D_c_notime( mesh, filename, ncid, 'ddx_c_c'    , ddx_c_c    )
 
-      CALL write_to_field_multiple_options_mesh_dp_2D_notime(   mesh, filename, ncid, 'ddy_a_a'    , ddy_a_a    )
-      CALL write_to_field_multiple_options_mesh_dp_2D_b_notime( mesh, filename, ncid, 'ddy_a_b'    , ddy_a_b    )
-      CALL write_to_field_multiple_options_mesh_dp_2D_c_notime( mesh, filename, ncid, 'ddy_a_c'    , ddy_a_c    )
+      CALL write_to_field_multopt_mesh_dp_2D_notime(   mesh, filename, ncid, 'ddy_a_a'    , ddy_a_a    )
+      CALL write_to_field_multopt_mesh_dp_2D_b_notime( mesh, filename, ncid, 'ddy_a_b'    , ddy_a_b    )
+      CALL write_to_field_multopt_mesh_dp_2D_c_notime( mesh, filename, ncid, 'ddy_a_c'    , ddy_a_c    )
 
-      CALL write_to_field_multiple_options_mesh_dp_2D_notime(   mesh, filename, ncid, 'ddy_b_a'    , ddy_b_a    )
-      CALL write_to_field_multiple_options_mesh_dp_2D_b_notime( mesh, filename, ncid, 'ddy_b_b'    , ddy_b_b    )
-      CALL write_to_field_multiple_options_mesh_dp_2D_c_notime( mesh, filename, ncid, 'ddy_b_c'    , ddy_b_c    )
+      CALL write_to_field_multopt_mesh_dp_2D_notime(   mesh, filename, ncid, 'ddy_b_a'    , ddy_b_a    )
+      CALL write_to_field_multopt_mesh_dp_2D_b_notime( mesh, filename, ncid, 'ddy_b_b'    , ddy_b_b    )
+      CALL write_to_field_multopt_mesh_dp_2D_c_notime( mesh, filename, ncid, 'ddy_b_c'    , ddy_b_c    )
 
-      CALL write_to_field_multiple_options_mesh_dp_2D_notime(   mesh, filename, ncid, 'ddy_c_a'    , ddy_c_a    )
-      CALL write_to_field_multiple_options_mesh_dp_2D_b_notime( mesh, filename, ncid, 'ddy_c_b'    , ddy_c_b    )
-      CALL write_to_field_multiple_options_mesh_dp_2D_c_notime( mesh, filename, ncid, 'ddy_c_c'    , ddy_c_c    )
+      CALL write_to_field_multopt_mesh_dp_2D_notime(   mesh, filename, ncid, 'ddy_c_a'    , ddy_c_a    )
+      CALL write_to_field_multopt_mesh_dp_2D_b_notime( mesh, filename, ncid, 'ddy_c_b'    , ddy_c_b    )
+      CALL write_to_field_multopt_mesh_dp_2D_c_notime( mesh, filename, ncid, 'ddy_c_c'    , ddy_c_c    )
 
-      CALL write_to_field_multiple_options_mesh_dp_2D_b_notime( mesh, filename, ncid, 'd2dx2_b_b'  , d2dx2_b_b  )
-      CALL write_to_field_multiple_options_mesh_dp_2D_b_notime( mesh, filename, ncid, 'd2dxdy_b_b' , d2dxdy_b_b )
-      CALL write_to_field_multiple_options_mesh_dp_2D_b_notime( mesh, filename, ncid, 'd2dy2_b_b'  , d2dy2_b_b  )
+      CALL write_to_field_multopt_mesh_dp_2D_b_notime( mesh, filename, ncid, 'd2dx2_b_b'  , d2dx2_b_b  )
+      CALL write_to_field_multopt_mesh_dp_2D_b_notime( mesh, filename, ncid, 'd2dxdy_b_b' , d2dxdy_b_b )
+      CALL write_to_field_multopt_mesh_dp_2D_b_notime( mesh, filename, ncid, 'd2dy2_b_b'  , d2dy2_b_b  )
 
       ! Close the file
       CALL close_netcdf_file( ncid)
@@ -1197,8 +1197,8 @@ CONTAINS
       CALL add_field_mesh_dp_2D_notime( filename, ncid, 'd_mesh_ex')
 
       ! Write all the variables
-      CALL write_to_field_multiple_options_mesh_dp_2D_notime( mesh, filename, ncid, 'd_mesh'   , d_mesh_partial   )
-      CALL write_to_field_multiple_options_mesh_dp_2D_notime( mesh, filename, ncid, 'd_mesh_ex', d_mesh_ex_partial)
+      CALL write_to_field_multopt_mesh_dp_2D_notime( mesh, filename, ncid, 'd_mesh'   , d_mesh_partial   )
+      CALL write_to_field_multopt_mesh_dp_2D_notime( mesh, filename, ncid, 'd_mesh_ex', d_mesh_ex_partial)
 
       ! Close the file
       CALL close_netcdf_file( ncid)
@@ -1360,8 +1360,8 @@ CONTAINS
       CALL add_field_grid_dp_2D_notime( filename, ncid, 'd_grid_ex')
 
       ! Write all the variables
-      CALL write_to_field_multiple_options_grid_dp_2D_notime( grid, filename, ncid, 'd_grid'   , d_grid_vec_partial   )
-      CALL write_to_field_multiple_options_grid_dp_2D_notime( grid, filename, ncid, 'd_grid_ex', d_grid_ex_vec_partial)
+      CALL write_to_field_multopt_grid_dp_2D_notime( grid, filename, ncid, 'd_grid'   , d_grid_vec_partial   )
+      CALL write_to_field_multopt_grid_dp_2D_notime( grid, filename, ncid, 'd_grid_ex', d_grid_ex_vec_partial)
 
       ! Close the file
       CALL close_netcdf_file( ncid)

@@ -56,6 +56,7 @@ ifeq ($(DO_SELEN),yes)
     basic/CSR_sparse_matrix_utilities.o \
     basic/petsc_basic.o \
     basic/grid_basic.o \
+    basic/grid_lonlat_basic.o \
     basic/config_file_utilities.o \
     \
     mesh/mesh_configuration.o \
@@ -106,6 +107,7 @@ else
     basic/CSR_sparse_matrix_utilities.o \
     basic/petsc_basic.o \
     basic/grid_basic.o \
+    basic/grid_lonlat_basic.o \
     basic/config_file_utilities.o \
     \
     mesh/mesh_configuration.o \

@@ -38,9 +38,9 @@ PROGRAM UFEMISM_program
 
 
   ! Test
-!  CALL run_all_mpi_distributed_memory_unit_tests
-!  CALL run_all_petsc_unit_tests
-!  CALL run_all_mesh_unit_tests
+  CALL run_all_mpi_distributed_memory_unit_tests
+  CALL run_all_petsc_unit_tests
+  CALL run_all_mesh_unit_tests
   CALL run_all_netcdf_unit_tests
 
 
@@ -49,8 +49,10 @@ PROGRAM UFEMISM_program
 ! ===== FINISH =====
 ! ==================
 
-  ! Finalise MPI parallelisation
+  ! Finalise PETSc and MPI parallelisation
+  CALL sync
   CALL PetscFinalize( perr)
+  CALL sync
   CALL finalise_parallelisation
 
 END PROGRAM UFEMISM_program

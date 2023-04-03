@@ -1322,6 +1322,100 @@ CONTAINS
 
 ! == Diagnostic tools
 
+  SUBROUTINE check_if_meshes_are_identical( mesh1, mesh2, isso)
+    ! Check if two meshes are identical
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh1, mesh2
+    LOGICAL,                             INTENT(OUT)   :: isso
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'check_if_meshes_are_identical'
+    REAL(dp), PARAMETER                                :: tol = 1E-9_dp
+    INTEGER                                            :: vi,ci,iti,ti,n
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    isso = .TRUE.
+
+    ! Size
+    IF (mesh1%nV /= mesh2%nV .OR. mesh1%nTri /= mesh2%nTri) THEN
+      isso = .FALSE.
+      RETURN
+    END IF
+
+    ! Vertex coordinates
+    DO vi = 1, mesh1%nV
+      IF (NORM2( mesh1%V( vi,:) - mesh2%V( vi,:)) > tol) THEN
+        isso = .FALSE.
+        RETURN
+      END IF
+    END DO
+
+    ! Vertex-to-vertex connectivity
+    DO vi = 1, mesh1%nV
+      IF (mesh1%nC( vi) /= mesh2%nC( vi)) THEN
+        isso = .FALSE.
+        RETURN
+      END IF
+      DO ci = 1, mesh1%nC( vi)
+        IF (mesh1%C( vi,ci) /= mesh2%C( vi,ci)) THEN
+          isso = .FALSE.
+          RETURN
+        END IF
+      END DO
+    END DO
+
+    ! Vertex-to-triangle connectivity
+    DO vi = 1, mesh1%nV
+      IF (mesh1%niTri( vi) /= mesh2%niTri( vi)) THEN
+        isso = .FALSE.
+        RETURN
+      END IF
+      DO iti = 1, mesh1%niTri( vi)
+        IF (mesh1%iTri( vi,iti) /= mesh2%iTri( vi,iti)) THEN
+          isso = .FALSE.
+          RETURN
+        END IF
+      END DO
+    END DO
+
+    ! Triangle-to-vertex connectivity
+    DO ti = 1, mesh1%nTri
+      DO n = 1, 3
+        IF (mesh1%Tri( ti,n) /= mesh2%Tri( ti,n)) THEN
+          isso = .FALSE.
+          RETURN
+        END IF
+      END DO
+    END DO
+
+    ! Triangle circumcenter coordinates
+    DO ti = 1, mesh1%nTri
+      IF (NORM2( mesh1%Tricc( ti,:) - mesh2%Tricc( ti,:)) > tol) THEN
+        isso = .FALSE.
+        RETURN
+      END IF
+    END DO
+
+    ! Triangle-to-triangle connectivity
+    DO ti = 1, mesh1%nTri
+      DO n = 1, 3
+        IF (mesh1%TriC( ti,n) /= mesh2%TriC( ti,n)) THEN
+          isso = .FALSE.
+          RETURN
+        END IF
+      END DO
+    END DO
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE check_if_meshes_are_identical
+
   SUBROUTINE write_mesh_to_screen( mesh)
     ! Write a mesh to the screen. Best not to do this with large meshes.
 
@@ -1430,8 +1524,8 @@ CONTAINS
     DO vi = 1, mesh%nV
       IF (mesh%V(vi,1) < mesh%xmin - mesh%tol_dist .OR. mesh%V(vi,1) > mesh%xmax + mesh%tol_dist .OR. &
           mesh%V(vi,2) < mesh%ymin - mesh%tol_dist .OR. mesh%V(vi,2) > mesh%ymax + mesh%tol_dist) THEN
-        CALL warning('vertex {int_01} outside mesh domain! (x = [{dp_01}, {dp_02}, {dp_03}], y = [{dp_04, dp_05, dp_06}]', &
-          int_01 = vi, dp_01 = mesh%xmin, dp_02 = mesh%V( vi,1), dp_03 = mesh%xmax, dp_04 = mesh%xmin, dp_05 = mesh%V( vi,1), dp_06 = mesh%xmax)
+        CALL warning('vertex {int_01} outside mesh domain! (x = [{dp_01}, {dp_02}, {dp_03}], y = [{dp_04}, {dp_05}, {dp_06}]', &
+          int_01 = vi, dp_01 = mesh%xmin, dp_02 = mesh%V( vi,1), dp_03 = mesh%xmax, dp_04 = mesh%ymin, dp_05 = mesh%V( vi,2), dp_06 = mesh%ymax)
       END IF
     END DO
 
