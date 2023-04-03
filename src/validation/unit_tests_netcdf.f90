@@ -36,7 +36,9 @@ MODULE unit_tests_netcdf
                                                                      write_to_field_multopt_mesh_dp_3D_notime
   USE netcdf_input                                           , ONLY: read_field_from_xy_file_2D, read_field_from_xy_file_2D_monthly, read_field_from_xy_file_3D, &
                                                                      read_field_from_lonlat_file_2D, read_field_from_lonlat_file_2D_monthly, read_field_from_lonlat_file_3D, &
-                                                                     read_field_from_mesh_file_2D, read_field_from_mesh_file_2D_monthly, read_field_from_mesh_file_3D
+                                                                     read_field_from_mesh_file_2D, read_field_from_mesh_file_2D_monthly, read_field_from_mesh_file_3D, &
+                                                                     read_field_from_file_2D, read_field_from_file_2D_monthly, read_field_from_file_3D, &
+                                                                     setup_zeta_from_file
 
   IMPLICIT NONE
 
@@ -57,7 +59,7 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_all_netcdf_unit_tests'
     CHARACTER(LEN=256)                                 :: filename_grid_2D, filename_grid_2D_monthly, filename_grid_3D
     CHARACTER(LEN=256)                                 :: filename_lonlat_grid_2D, filename_lonlat_grid_2D_monthly, filename_lonlat_grid_3D
-    TYPE(type_mesh)                                    :: mesh
+    TYPE(type_mesh)                                    :: mesh, mesh2
     CHARACTER(LEN=256)                                 :: filename_mesh_2D, filename_mesh_2D_monthly, filename_mesh_3D
 
     ! Add routine to path
@@ -78,6 +80,12 @@ CONTAINS
     CALL test_netcdf_mesh_in_and_output_2D(          mesh, filename_mesh_2D               )
     CALL test_netcdf_mesh_in_and_output_2D_monthly(  mesh, filename_mesh_2D_monthly       )
     CALL test_netcdf_mesh_in_and_output_3D(          mesh, filename_mesh_3D               )
+
+    ! Test flexible input reading
+    CALL create_test_mesh2( mesh2)
+    CALL test_flexible_input_2D(         mesh2, filename_grid_2D        , filename_lonlat_grid_2D        , filename_mesh_2D        )
+    CALL test_flexible_input_2D_monthly( mesh2, filename_grid_2D_monthly, filename_lonlat_grid_2D_monthly, filename_mesh_2D_monthly)
+    CALL test_flexible_input_3D(         mesh2, filename_grid_3D        , filename_lonlat_grid_3D        , filename_mesh_3D        )
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -1054,6 +1062,260 @@ CONTAINS
 
   END SUBROUTINE test_netcdf_mesh_in_and_output_3D
 
+! == Test flexible input reading
+
+  SUBROUTINE create_test_mesh2( mesh)
+    ! Create another simple test mesh to save time
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                     INTENT(OUT)   :: mesh
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'create_test_mesh2'
+    REAL(dp), PARAMETER                                :: xmin = -3040E3_dp  ! Just use the standard Antarctica domain; doesn't really matter here...
+    REAL(dp), PARAMETER                                :: xmax =  3040E3_dp
+    REAL(dp), PARAMETER                                :: ymin = -3040E3_dp
+    REAL(dp), PARAMETER                                :: ymax =  3040E3_dp
+    REAL(dp), PARAMETER                                :: lambda_M    = 0._dp
+    REAL(dp), PARAMETER                                :: phi_M       = -90._dp
+    REAL(dp), PARAMETER                                :: beta_stereo = 71._dp
+    CHARACTER(LEN=256)                                 :: name
+    REAL(dp)                                           :: alpha_min, res_max
+    REAL(dp)                                           :: res, width
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+  ! == Create a nice mesh, with a smileyface and the UFEMISM letters
+  ! ================================================================
+
+    ! Allocate memory
+    name = 'test_mesh_new'
+    CALL allocate_mesh_primary( mesh, name, 1000, 2000, 32)
+
+    ! Initialise the dummy mesh
+    CALL initialise_dummy_mesh( mesh, xmin, xmax, ymin, ymax)
+
+    ! Refine the mesh with a uniform 400 km resolution
+    alpha_min = 25._dp * pi / 180._dp
+    res_max   = 300E3_dp
+    CALL refine_mesh_uniform( mesh, res_max, alpha_min)
+
+    ! Smooth the mesh by applying a single iteration of Lloyd's algorithm
+    CALL Lloyds_algorithm_single_iteration( mesh, alpha_min)
+
+    ! Add a smileyface
+    res   = 80E3_dp
+    width = 100E3_dp
+    CALL mesh_add_smileyface( mesh, res, width)
+
+    ! Smooth the mesh again
+    CALL Lloyds_algorithm_single_iteration( mesh, alpha_min)
+
+    ! Calculate secondary geometry data (needed in order to be able to write to NetCDF)
+    CALL calc_all_secondary_mesh_data( mesh, lambda_M, phi_M, beta_stereo)
+
+    ! Calculate all matrix operators
+    CALL calc_all_matrix_operators_mesh( mesh)
+
+    ! Set up a zeta coordinate
+    mesh%nz = 11
+    ALLOCATE( mesh%zeta( 11))
+    mesh%zeta = [0.0_dp, 0.1_dp, 0.2_dp, 0.3_dp, 0.4_dp, 0.5_dp, 0.6_dp, 0.7_dp, 0.8_dp, 0.9_dp, 1.0_dp]
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE create_test_mesh2
+
+  SUBROUTINE test_flexible_input_2D( mesh, filename_grid, filename_lonlat_grid, filename_mesh)
+    ! Test the flexible input reading routines
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
+    CHARACTER(LEN=256)                 , INTENT(IN)    :: filename_grid, filename_lonlat_grid, filename_mesh
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'test_flexible_input_2D'
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: d_from_grid, d_from_lonlat_grid, d_from_mesh
+    CHARACTER(LEN=256)                                 :: filename
+    INTEGER                                            :: ncid
+    LOGICAL                                            :: found_errors
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Read data from files
+    CALL read_field_from_file_2D( filename_grid       , 'd', mesh, d_from_grid       )
+    CALL read_field_from_file_2D( filename_lonlat_grid, 'd', mesh, d_from_lonlat_grid)
+    CALL read_field_from_file_2D( filename_mesh       , 'd', mesh, d_from_mesh       )
+
+    ! Create a file and write the mesh to it
+    filename = TRIM( routine_name) // '_output.nc'
+    CALL create_new_netcdf_file_for_writing( filename, ncid)
+    CALL setup_mesh_in_netcdf_file( filename, ncid, mesh)
+
+    ! Add all the variables
+    CALL add_field_mesh_dp_2D_notime( filename, ncid, 'd_from_grid'       )
+    CALL add_field_mesh_dp_2D_notime( filename, ncid, 'd_from_lonlat_grid')
+    CALL add_field_mesh_dp_2D_notime( filename, ncid, 'd_from_mesh'       )
+
+    ! Write all the variables
+    CALL write_to_field_multopt_mesh_dp_2D_notime( mesh, filename, ncid, 'd_from_grid'       , d_from_grid       )
+    CALL write_to_field_multopt_mesh_dp_2D_notime( mesh, filename, ncid, 'd_from_lonlat_grid', d_from_lonlat_grid)
+    CALL write_to_field_multopt_mesh_dp_2D_notime( mesh, filename, ncid, 'd_from_mesh'       , d_from_mesh       )
+
+    ! Close the file
+    CALL close_netcdf_file( ncid)
+
+  ! == Validation
+  ! =============
+
+    found_errors = .FALSE.
+
+    ! If no errors occurred, we are happy
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, found_errors, 1, MPI_LOGICAL, MPI_LOR, MPI_COMM_WORLD, ierr)
+    IF (.NOT. found_errors) THEN
+      IF (par%master) CALL happy('validated all flexible 2-D input routines')
+    ELSE
+      IF (par%master) CALL warning('found errors in flexible 2-D input routines')
+    END IF
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE test_flexible_input_2D
+
+  SUBROUTINE test_flexible_input_2D_monthly( mesh, filename_grid, filename_lonlat_grid, filename_mesh)
+    ! Test the flexible input reading routines
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
+    CHARACTER(LEN=256)                 , INTENT(IN)    :: filename_grid, filename_lonlat_grid, filename_mesh
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'test_flexible_input_2D_monthly'
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: d_from_grid, d_from_lonlat_grid, d_from_mesh
+    CHARACTER(LEN=256)                                 :: filename
+    INTEGER                                            :: ncid
+    LOGICAL                                            :: found_errors
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Read data from files
+    CALL read_field_from_file_2D_monthly( filename_grid       , 'd', mesh, d_from_grid       )
+    CALL read_field_from_file_2D_monthly( filename_lonlat_grid, 'd', mesh, d_from_lonlat_grid)
+    CALL read_field_from_file_2D_monthly( filename_mesh       , 'd', mesh, d_from_mesh       )
+
+    ! Create a file and write the mesh to it
+    filename = TRIM( routine_name) // '_output.nc'
+    CALL create_new_netcdf_file_for_writing( filename, ncid)
+    CALL setup_mesh_in_netcdf_file( filename, ncid, mesh)
+    CALL add_month_dimension_to_file( filename, ncid)
+
+    ! Add all the variables
+    CALL add_field_mesh_dp_2D_monthly_notime( filename, ncid, 'd_from_grid'       )
+    CALL add_field_mesh_dp_2D_monthly_notime( filename, ncid, 'd_from_lonlat_grid')
+    CALL add_field_mesh_dp_2D_monthly_notime( filename, ncid, 'd_from_mesh'       )
+
+    ! Write all the variables
+    CALL write_to_field_multopt_mesh_dp_2D_monthly_notime( mesh, filename, ncid, 'd_from_grid'       , d_from_grid       )
+    CALL write_to_field_multopt_mesh_dp_2D_monthly_notime( mesh, filename, ncid, 'd_from_lonlat_grid', d_from_lonlat_grid)
+    CALL write_to_field_multopt_mesh_dp_2D_monthly_notime( mesh, filename, ncid, 'd_from_mesh'       , d_from_mesh       )
+
+    ! Close the file
+    CALL close_netcdf_file( ncid)
+
+  ! == Validation
+  ! =============
+
+    found_errors = .FALSE.
+
+    ! If no errors occurred, we are happy
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, found_errors, 1, MPI_LOGICAL, MPI_LOR, MPI_COMM_WORLD, ierr)
+    IF (.NOT. found_errors) THEN
+      IF (par%master) CALL happy('validated all flexible 2-D monthly input routines')
+    ELSE
+      IF (par%master) CALL warning('found errors in flexible 2-D monthly input routines')
+    END IF
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE test_flexible_input_2D_monthly
+
+  SUBROUTINE test_flexible_input_3D( mesh, filename_grid, filename_lonlat_grid, filename_mesh)
+    ! Test the flexible input reading routines
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
+    CHARACTER(LEN=256)                 , INTENT(IN)    :: filename_grid, filename_lonlat_grid, filename_mesh
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'test_flexible_input_3D'
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: d_from_grid, d_from_lonlat_grid, d_from_mesh
+    INTEGER                                            :: nzeta
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: zeta
+    CHARACTER(LEN=256)                                 :: filename
+    INTEGER                                            :: ncid
+    LOGICAL                                            :: found_errors
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Read data from files
+    CALL read_field_from_file_3D( filename_grid       , 'd', mesh, d_from_grid       , nzeta = nzeta, zeta = zeta)
+    CALL read_field_from_file_3D( filename_lonlat_grid, 'd', mesh, d_from_lonlat_grid)
+    CALL read_field_from_file_3D( filename_mesh       , 'd', mesh, d_from_mesh       )
+
+    ! Create a file and write the mesh to it
+    filename = TRIM( routine_name) // '_output.nc'
+    CALL create_new_netcdf_file_for_writing( filename, ncid)
+    CALL setup_mesh_in_netcdf_file( filename, ncid, mesh)
+    CALL add_zeta_dimension_to_file( filename, ncid, zeta)
+
+    ! Add all the variables
+    CALL add_field_mesh_dp_3D_notime( filename, ncid, 'd_from_grid'       )
+    CALL add_field_mesh_dp_3D_notime( filename, ncid, 'd_from_lonlat_grid')
+    CALL add_field_mesh_dp_3D_notime( filename, ncid, 'd_from_mesh'       )
+
+    ! Write all the variables
+    CALL write_to_field_multopt_mesh_dp_3D_notime( mesh, filename, ncid, 'd_from_grid'       , d_from_grid       )
+    CALL write_to_field_multopt_mesh_dp_3D_notime( mesh, filename, ncid, 'd_from_lonlat_grid', d_from_lonlat_grid)
+    CALL write_to_field_multopt_mesh_dp_3D_notime( mesh, filename, ncid, 'd_from_mesh'       , d_from_mesh       )
+
+    ! Close the file
+    CALL close_netcdf_file( ncid)
+
+  ! == Validation
+  ! =============
+
+    found_errors = .FALSE.
+
+    ! If no errors occurred, we are happy
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, found_errors, 1, MPI_LOGICAL, MPI_LOR, MPI_COMM_WORLD, ierr)
+    IF (.NOT. found_errors) THEN
+      IF (par%master) CALL happy('validated all flexible 3-D input routines')
+    ELSE
+      IF (par%master) CALL warning('found errors in flexible 3-D input routines')
+    END IF
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE test_flexible_input_3D
+
+! == Test functions for generating dummy data fields
+
   SUBROUTINE test_function( x, y, xmin, xmax, ymin, ymax, d, ddx, ddy, d2dx2, d2dxdy, d2dy2)
     ! A simple test function to validate matrix operators
 
@@ -1089,7 +1351,7 @@ CONTAINS
     REAL(dp),                   INTENT(IN)        :: lon,lat
     REAL(dp),                   INTENT(OUT)       :: d
 
-    d = SIN( lon * pi / 180._dp) * SIN( lat * pi / 180)
+    d = SIN( lon * pi / 180._dp) * COS( lat * pi / 180)
 
   END SUBROUTINE test_function_lonlat
 

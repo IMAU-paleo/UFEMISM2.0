@@ -1549,7 +1549,7 @@ CONTAINS
     IMPLICIT NONE
 
     ! In/output variables:
-    TYPE(type_mesh),                     INTENT(IN)    :: mesh1, mesh2
+    TYPE(type_mesh),                     INTENT(INOUT) :: mesh1, mesh2
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'test_remapping_mesh2mesh'

@@ -14,7 +14,7 @@ MODULE mesh_remapping
   USE mpi_distributed_memory                                 , ONLY: partition_list
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine
   USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp, allocate_matrix_CSR_dist, add_entry_CSR_dist, deallocate_matrix_CSR_dist
-  USE petsc_basic                                            , ONLY: mat_CSR2petsc, multiply_PETSc_matrix_with_vector_1D
+  USE petsc_basic                                            , ONLY: mat_CSR2petsc, multiply_PETSc_matrix_with_vector_1D, multiply_PETSc_matrix_with_vector_2D
   USE grid_basic                                             , ONLY: type_grid, calc_matrix_operators_grid
   USE grid_lonlat_basic                                      , ONLY: type_grid_lonlat
   USE mesh_types                                             , ONLY: type_mesh
@@ -22,6 +22,7 @@ MODULE mesh_remapping
                                                                      line_integral_xydy, crop_line_to_domain, segment_intersection, triangle_area
   USE mesh_utilities                                         , ONLY: is_in_Voronoi_cell, calc_Voronoi_cell, find_containing_vertex, find_containing_triangle, &
                                                                      find_shared_Voronoi_boundary, check_if_meshes_are_identical
+  USE mesh_operators                                         , ONLY: calc_all_matrix_operators_mesh
 
   IMPLICIT NONE
 
@@ -120,6 +121,63 @@ CONTAINS
 
   END SUBROUTINE map_from_xy_grid_to_mesh_2D
 
+  SUBROUTINE map_from_xy_grid_to_mesh_3D(     grid, mesh, d_grid_vec_partial, d_mesh_partial, method)
+    ! Map a 3-D data field from an x/y-grid to a mesh.
+
+    IMPLICIT NONE
+
+    ! In/output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
+    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: d_grid_vec_partial
+    REAL(dp), DIMENSION(:,:  ),          INTENT(OUT)   :: d_mesh_partial
+    CHARACTER(LEN=256), OPTIONAL,        INTENT(IN)    :: method
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'map_from_xy_grid_to_mesh_3D'
+    INTEGER                                            :: mi, mi_valid
+    LOGICAL                                            :: found_map, found_empty_page
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Browse the Atlas to see if an appropriate mapping object already exists.
+    found_map = .FALSE.
+    DO mi = 1, SIZE( Atlas, 1)
+      IF (Atlas( mi)%name_src == grid%name .AND. Atlas( mi)%name_dst == mesh%name) THEN
+        ! If so specified, look for a mapping object with the correct method
+        IF (PRESENT( method)) THEN
+          IF (Atlas( mi)%method /= method) CYCLE
+        END IF
+        found_map = .TRUE.
+        mi_valid  = mi
+        EXIT
+      END IF
+    END DO
+
+    ! If no appropriate mapping object could be found, create one.
+    IF (.NOT. found_map) THEN
+      found_empty_page = .FALSE.
+      DO mi = 1, SIZE( Atlas,1)
+        IF (.NOT. Atlas( mi)%is_in_use) THEN
+          found_empty_page = .TRUE.
+          CALL create_map_from_xy_grid_to_mesh( grid, mesh, Atlas( mi))
+          mi_valid = mi
+          EXIT
+        END IF
+      END DO
+      ! Safety
+      IF (.NOT. found_empty_page) CALL crash('No more room in Atlas - assign more memory!')
+    END IF
+
+    ! Apply the appropriate mapping object
+    CALL apply_map_xy_grid_to_mesh_3D( grid, mesh, Atlas( mi), d_grid_vec_partial, d_mesh_partial)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE map_from_xy_grid_to_mesh_3D
+
   ! From a lon/lat-grid to a mesh
   SUBROUTINE map_from_lonlat_grid_to_mesh_2D( grid, mesh, d_grid_vec_partial, d_mesh_partial, method)
     ! Map a 2-D data field from a lon/lat-grid to a mesh.
@@ -177,6 +235,63 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE map_from_lonlat_grid_to_mesh_2D
+
+  SUBROUTINE map_from_lonlat_grid_to_mesh_3D( grid, mesh, d_grid_vec_partial, d_mesh_partial, method)
+    ! Map a 3-D data field from a lon/lat-grid to a mesh.
+
+    IMPLICIT NONE
+
+    ! In/output variables
+    TYPE(type_grid_lonlat),              INTENT(IN)    :: grid
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
+    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: d_grid_vec_partial
+    REAL(dp), DIMENSION(:,:  ),          INTENT(OUT)   :: d_mesh_partial
+    CHARACTER(LEN=256), OPTIONAL,        INTENT(IN)    :: method
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'map_from_lonlat_grid_to_mesh_3D'
+    INTEGER                                            :: mi, mi_valid
+    LOGICAL                                            :: found_map, found_empty_page
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Browse the Atlas to see if an appropriate mapping object already exists.
+    found_map = .FALSE.
+    DO mi = 1, SIZE( Atlas, 1)
+      IF (Atlas( mi)%name_src == grid%name .AND. Atlas( mi)%name_dst == mesh%name) THEN
+        ! If so specified, look for a mapping object with the correct method
+        IF (PRESENT( method)) THEN
+          IF (Atlas( mi)%method /= method) CYCLE
+        END IF
+        found_map = .TRUE.
+        mi_valid  = mi
+        EXIT
+      END IF
+    END DO
+
+    ! If no appropriate mapping object could be found, create one.
+    IF (.NOT. found_map) THEN
+      found_empty_page = .FALSE.
+      DO mi = 1, SIZE( Atlas,1)
+        IF (.NOT. Atlas( mi)%is_in_use) THEN
+          found_empty_page = .TRUE.
+          CALL create_map_from_lonlat_grid_to_mesh( grid, mesh, Atlas( mi))
+          mi_valid = mi
+          EXIT
+        END IF
+      END DO
+      ! Safety
+      IF (.NOT. found_empty_page) CALL crash('No more room in Atlas - assign more memory!')
+    END IF
+
+    ! Apply the appropriate mapping object
+    CALL apply_map_lonlat_grid_to_mesh_3D( grid, mesh, Atlas( mi), d_grid_vec_partial, d_mesh_partial)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE map_from_lonlat_grid_to_mesh_3D
 
   ! From a mesh to an x/y-grid
   SUBROUTINE map_from_mesh_to_xy_grid_2D( mesh, grid, d_mesh_partial, d_grid_vec_partial, method)
@@ -236,6 +351,63 @@ CONTAINS
 
   END SUBROUTINE map_from_mesh_to_xy_grid_2D
 
+  SUBROUTINE map_from_mesh_to_xy_grid_3D( mesh, grid, d_mesh_partial, d_grid_vec_partial, method)
+    ! Map a 3-D data field from an x/y-grid to a mesh.
+
+    IMPLICIT NONE
+
+    ! In/output variables
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: d_mesh_partial
+    REAL(dp), DIMENSION(:,:  ),          INTENT(OUT)   :: d_grid_vec_partial
+    CHARACTER(LEN=256), OPTIONAL,        INTENT(IN)    :: method
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'map_from_mesh_to_xy_grid_3D'
+    INTEGER                                            :: mi, mi_valid
+    LOGICAL                                            :: found_map, found_empty_page
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Browse the Atlas to see if an appropriate mapping object already exists.
+    found_map = .FALSE.
+    DO mi = 1, SIZE( Atlas, 1)
+      IF (Atlas( mi)%name_src == mesh%name .AND. Atlas( mi)%name_dst == grid%name) THEN
+        ! If so specified, look for a mapping object with the correct method
+        IF (PRESENT( method)) THEN
+          IF (Atlas( mi)%method /= method) CYCLE
+        END IF
+        found_map = .TRUE.
+        mi_valid  = mi
+        EXIT
+      END IF
+    END DO
+
+    ! If no appropriate mapping object could be found, create one.
+    IF (.NOT. found_map) THEN
+      found_empty_page = .FALSE.
+      DO mi = 1, SIZE( Atlas,1)
+        IF (.NOT. Atlas( mi)%is_in_use) THEN
+          found_empty_page = .TRUE.
+          CALL create_map_from_mesh_to_xy_grid( mesh, grid,Atlas( mi))
+          mi_valid = mi
+          EXIT
+        END IF
+      END DO
+      ! Safety
+      IF (.NOT. found_empty_page) CALL crash('No more room in Atlas - assign more memory!')
+    END IF
+
+    ! Apply the appropriate mapping object
+    CALL apply_map_mesh_to_xy_grid_3D( mesh, grid, Atlas( mi), d_mesh_partial, d_grid_vec_partial)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE map_from_mesh_to_xy_grid_3D
+
   ! From a mesh to a mesh
   SUBROUTINE map_from_mesh_to_mesh_2D( mesh_src, mesh_dst, d_src_partial, d_dst_partial, method)
     ! Map a 2-D data field from a mesh to a mesh.
@@ -243,7 +415,7 @@ CONTAINS
     IMPLICIT NONE
 
     ! In/output variables
-    TYPE(type_mesh),                     INTENT(IN)    :: mesh_src
+    TYPE(type_mesh),                     INTENT(INOUT) :: mesh_src
     TYPE(type_mesh),                     INTENT(IN)    :: mesh_dst
     REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: d_src_partial
     REAL(dp), DIMENSION(:    ),          INTENT(OUT)   :: d_dst_partial
@@ -313,11 +485,87 @@ CONTAINS
 
   END SUBROUTINE map_from_mesh_to_mesh_2D
 
+  SUBROUTINE map_from_mesh_to_mesh_3D( mesh_src, mesh_dst, d_src_partial, d_dst_partial, method)
+    ! Map a 3-D data field from a mesh to a mesh.
+
+    IMPLICIT NONE
+
+    ! In/output variables
+    TYPE(type_mesh),                     INTENT(INOUT) :: mesh_src
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh_dst
+    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: d_src_partial
+    REAL(dp), DIMENSION(:,:  ),          INTENT(OUT)   :: d_dst_partial
+    CHARACTER(LEN=256), OPTIONAL,        INTENT(IN)    :: method
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'map_from_mesh_to_mesh_3D'
+    LOGICAL                                            :: are_identical
+    INTEGER                                            :: mi, mi_valid
+    LOGICAL                                            :: found_map, found_empty_page
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! If the two meshes are identical, the remapping operation is trivial
+    CALL check_if_meshes_are_identical( mesh_src, mesh_dst, are_identical)
+    IF (are_identical) THEN
+      d_dst_partial = d_src_partial
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
+
+    ! Browse the Atlas to see if an appropriate mapping object already exists.
+    found_map = .FALSE.
+    DO mi = 1, SIZE( Atlas, 1)
+      IF (Atlas( mi)%name_src == mesh_src%name .AND. Atlas( mi)%name_dst == mesh_dst%name) THEN
+        ! If so specified, look for a mapping object with the correct method
+        IF (PRESENT( method)) THEN
+          IF (Atlas( mi)%method /= method) CYCLE
+        END IF
+        found_map = .TRUE.
+        mi_valid  = mi
+        EXIT
+      END IF
+    END DO
+
+    ! If no appropriate mapping object could be found, create one.
+    IF (.NOT. found_map) THEN
+      found_empty_page = .FALSE.
+      DO mi = 1, SIZE( Atlas,1)
+        IF (.NOT. Atlas( mi)%is_in_use) THEN
+          found_empty_page = .TRUE.
+          IF (PRESENT( method)) THEN
+            IF     (method == 'nearest_neighbour') THEN
+              CALL create_map_from_mesh_to_mesh_nearest_neighbour(      mesh_src, mesh_dst, Atlas( mi))
+            ELSEIF (method == 'trilin') THEN
+              CALL create_map_from_mesh_to_mesh_trilin(                 mesh_src, mesh_dst, Atlas( mi))
+            ELSEIF (method == '2nd_order_conservative') THEN
+              CALL create_map_from_mesh_to_mesh_2nd_order_conservative( mesh_src, mesh_dst, Atlas( mi))
+            END IF
+          ELSE
+              CALL create_map_from_mesh_to_mesh_2nd_order_conservative( mesh_src, mesh_dst, Atlas( mi))
+          END IF
+          mi_valid = mi
+          EXIT
+        END IF
+      END DO
+      ! Safety
+      IF (.NOT. found_empty_page) CALL crash('No more room in Atlas - assign more memory!')
+    END IF
+
+    ! Apply the appropriate mapping object
+    CALL apply_map_mesh_to_mesh_3D( mesh_src, mesh_dst, Atlas( mi), d_src_partial, d_dst_partial)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE map_from_mesh_to_mesh_3D
+
 ! == Apply existing mapping objects to remap data between grids
 ! =============================================================
 
   ! From an x/y-grid to a mesh
-  SUBROUTINE apply_map_xy_grid_to_mesh_2D(     grid, mesh, map, d_grid_vec_partial, d_mesh_partial    )
+  SUBROUTINE apply_map_xy_grid_to_mesh_2D( grid, mesh, map, d_grid_vec_partial, d_mesh_partial)
     ! Map a 2-D data field from an x/y-grid to a mesh.
 
     IMPLICIT NONE
@@ -349,8 +597,41 @@ CONTAINS
 
   END SUBROUTINE apply_map_xy_grid_to_mesh_2D
 
+  SUBROUTINE apply_map_xy_grid_to_mesh_3D( grid, mesh, map, d_grid_vec_partial, d_mesh_partial)
+    ! Map a 3-D data field from an x/y-grid to a mesh.
+
+    IMPLICIT NONE
+
+    ! In/output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
+    TYPE(type_map),                      INTENT(IN)    :: map
+    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: d_grid_vec_partial
+    REAL(dp), DIMENSION(:,:  ),          INTENT(OUT)   :: d_mesh_partial
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'apply_map_xy_grid_to_mesh_3D'
+    INTEGER                                            :: n,i,j
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Safety
+    IF (SIZE( d_mesh_partial,1) /= mesh%nV_loc .OR. SIZE( d_grid_vec_partial,1) /= grid%n_loc .OR. &
+      SIZE( d_grid_vec_partial,2) /= SIZE( d_mesh_partial,2)) THEN
+      CALL crash('data fields are the wrong size!')
+    END IF
+
+    ! Perform the mapping operation as a matrix multiplication
+    CALL multiply_PETSc_matrix_with_vector_2D( map%M, d_grid_vec_partial, d_mesh_partial)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE apply_map_xy_grid_to_mesh_3D
+
   ! From a lon/lat-grid to a mesh
-  SUBROUTINE apply_map_lonlat_grid_to_mesh_2D( grid, mesh, map, d_grid_vec_partial, d_mesh_partial    )
+  SUBROUTINE apply_map_lonlat_grid_to_mesh_2D( grid, mesh, map, d_grid_vec_partial, d_mesh_partial)
     ! Map a 2-D data field from a lon/lat-grid to a mesh.
 
     IMPLICIT NONE
@@ -382,8 +663,41 @@ CONTAINS
 
   END SUBROUTINE apply_map_lonlat_grid_to_mesh_2D
 
+  SUBROUTINE apply_map_lonlat_grid_to_mesh_3D( grid, mesh, map, d_grid_vec_partial, d_mesh_partial)
+    ! Map a 3-D data field from a lon/lat-grid to a mesh.
+
+    IMPLICIT NONE
+
+    ! In/output variables
+    TYPE(type_grid_lonlat),              INTENT(IN)    :: grid
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
+    TYPE(type_map),                      INTENT(IN)    :: map
+    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: d_grid_vec_partial
+    REAL(dp), DIMENSION(:,:  ),          INTENT(OUT)   :: d_mesh_partial
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'apply_map_lonlat_grid_to_mesh_3D'
+    INTEGER                                            :: n,i,j
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Safety
+    IF (SIZE( d_mesh_partial,1) /= mesh%nV_loc .OR. SIZE( d_grid_vec_partial,1) /= grid%n_loc .OR. &
+      SIZE( d_grid_vec_partial,2) /= SIZE( d_mesh_partial,2)) THEN
+      CALL crash('data fields are the wrong size!')
+    END IF
+
+    ! Perform the mapping operation as a matrix multiplication
+    CALL multiply_PETSc_matrix_with_vector_2D( map%M, d_grid_vec_partial, d_mesh_partial)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE apply_map_lonlat_grid_to_mesh_3D
+
   ! From a mesh to an x/y-grid
-  SUBROUTINE apply_map_mesh_to_xy_grid_2D(     mesh, grid, map, d_mesh_partial    , d_grid_vec_partial)
+  SUBROUTINE apply_map_mesh_to_xy_grid_2D( mesh, grid, map, d_mesh_partial, d_grid_vec_partial)
     ! Map a 2-D data field from a mesh to an x/y-grid.
 
     IMPLICIT NONE
@@ -413,6 +727,38 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE apply_map_mesh_to_xy_grid_2D
+
+  SUBROUTINE apply_map_mesh_to_xy_grid_3D( mesh, grid, map, d_mesh_partial, d_grid_vec_partial)
+    ! Map a 3-D data field from a mesh to an x/y-grid.
+
+    IMPLICIT NONE
+
+    ! In/output variables
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    TYPE(type_map),                      INTENT(IN)    :: map
+    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: d_mesh_partial
+    REAL(dp), DIMENSION(:,:  ),          INTENT(OUT)   :: d_grid_vec_partial
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'apply_map_mesh_to_xy_grid_3D'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Safety
+    IF (SIZE( d_mesh_partial,1) /= mesh%nV_loc .OR. SIZE( d_grid_vec_partial,1) /= grid%n_loc .OR. &
+      SIZE( d_mesh_partial,2) /= SIZE( d_grid_vec_partial,2)) THEN
+      CALL crash('data fields are the wrong size!')
+    END IF
+
+    ! Perform the mapping operation as a matrix multiplication
+    CALL multiply_PETSc_matrix_with_vector_2D( map%M, d_mesh_partial, d_grid_vec_partial)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE apply_map_mesh_to_xy_grid_3D
 
   ! From a mesh to a mesh
   SUBROUTINE apply_map_mesh_to_mesh_2D( mesh_src, mesh_dst, map, d_src_partial, d_dst_partial)
@@ -445,6 +791,38 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE apply_map_mesh_to_mesh_2D
+
+  SUBROUTINE apply_map_mesh_to_mesh_3D( mesh_src, mesh_dst, map, d_src_partial, d_dst_partial)
+    ! Map a 3-D data field from a mesh to a mesh.
+
+    IMPLICIT NONE
+
+    ! In/output variables
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh_src
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh_dst
+    TYPE(type_map),                      INTENT(IN)    :: map
+    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: d_src_partial
+    REAL(dp), DIMENSION(:,:  ),          INTENT(OUT)   :: d_dst_partial
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'apply_map_mesh_to_mesh_3D'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Safety
+    IF (SIZE( d_src_partial,1) /= mesh_src%nV_loc .OR. SIZE( d_dst_partial,1) /= mesh_dst%nV_loc .OR. &
+      SIZE( d_src_partial,2) /= SIZE( d_dst_partial,2)) THEN
+      CALL crash('data fields are the wrong size!')
+    END IF
+
+    ! Perform the mapping operation as a matrix multiplication
+    CALL multiply_PETSc_matrix_with_vector_2D( map%M, d_src_partial, d_dst_partial)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE apply_map_mesh_to_mesh_3D
 
 ! == Create remapping objects
 ! ===========================
@@ -1165,26 +1543,27 @@ CONTAINS
   ! Calculate the remapping matrix
   ! ==============================
 
+    ! Convert matrices to PETSc format
     CALL mat_CSR2petsc( mesh%M_map_a_b, M_map_a_b)
     CALL mat_CSR2petsc( mesh%M_ddx_a_b, M_ddx_a_b)
     CALL mat_CSR2petsc( mesh%M_ddy_a_b, M_ddy_a_b)
 
+    ! M = (w0 * M_map_a_b) + (w1x * M_ddx_a_b) + (w1y * M_ddy_a_b)
     CALL MatMatMult( w0,  M_map_a_b, MAT_INITIAL_MATRIX, PETSC_DEFAULT_REAL, map%M, perr)
     CALL MatMatMult( w1x, M_ddx_a_b, MAT_INITIAL_MATRIX, PETSC_DEFAULT_REAL, M1   , perr)  ! This can be done more efficiently now that the non-zero structure is known...
     CALL MatMatMult( w1y, M_ddy_a_b, MAT_INITIAL_MATRIX, PETSC_DEFAULT_REAL, M2   , perr)
+    CALL MatAXPY( map%M, 1._dp, M1, DIFFERENT_NONZERO_PATTERN, perr)
+    CALL MatAXPY( map%M, 1._dp, M2, DIFFERENT_NONZERO_PATTERN, perr)
 
+    ! Clean up after yourself
     CALL MatDestroy( w0            , perr)
     CALL MatDestroy( w1x           , perr)
     CALL MatDestroy( w1y           , perr)
     CALL MatDestroy( M_map_a_b     , perr)
     CALL MatDestroy( M_ddx_a_b     , perr)
     CALL MatDestroy( M_ddy_a_b     , perr)
-
-    CALL MatAXPY( map%M, 1._dp, M1, DIFFERENT_NONZERO_PATTERN, perr)
-    CALL MatAXPY( map%M, 1._dp, M2, DIFFERENT_NONZERO_PATTERN, perr)
-
-    CALL MatDestroy( M1, perr)
-    CALL MatDestroy( M2, perr)
+    CALL MatDestroy( M1            , perr)
+    CALL MatDestroy( M2            , perr)
 
   ! Safety: check if all grid cells get values
   ! ==========================================
@@ -1495,7 +1874,7 @@ CONTAINS
     IMPLICIT NONE
 
     ! In/output variables
-    TYPE(type_mesh),                     INTENT(IN)    :: mesh_src
+    TYPE(type_mesh),                     INTENT(INOUT) :: mesh_src
     TYPE(type_mesh),                     INTENT(IN)    :: mesh_dst
     TYPE(type_map),                      INTENT(INOUT) :: map
 
@@ -1612,6 +1991,12 @@ CONTAINS
   ! == Calculate the remapping matrices
   ! ===================================
 
+    ! If needed, calculate the matrix operators for this mesh
+    IF (.NOT. ALLOCATED( mesh_src%vi2n)) THEN
+      CALL calc_all_matrix_operators_mesh( mesh_src)
+    END IF
+
+    ! Convert matrices to PETSc format
     CALL mat_CSR2petsc( mesh_src%M_map_a_b, M_map_a_b)
     CALL mat_CSR2petsc( mesh_src%M_ddx_a_b, M_ddx_a_b)
     CALL mat_CSR2petsc( mesh_src%M_ddy_a_b, M_ddy_a_b)

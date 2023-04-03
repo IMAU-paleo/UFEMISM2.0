@@ -29,6 +29,8 @@ MODULE netcdf_input
   USE mesh_utilities                                         , ONLY: check_mesh
   USE mesh_secondary                                         , ONLY: calc_all_secondary_mesh_data
   USE mesh_parallel_creation                                 , ONLY: broadcast_merged_mesh
+  USE mesh_remapping                                         , ONLY: map_from_xy_grid_to_mesh_2D, map_from_lonlat_grid_to_mesh_2D, map_from_mesh_to_mesh_2D, &
+                                                                     map_from_xy_grid_to_mesh_3D, map_from_lonlat_grid_to_mesh_3D, map_from_mesh_to_mesh_3D
 
   USE netcdf      , ONLY: NF90_MAX_VAR_DIMS
   USE netcdf_basic, ONLY: nerr, field_name_options_x, field_name_options_y, field_name_options_zeta, &
@@ -58,6 +60,350 @@ CONTAINS
 
   ! ===== Top-level functions =====
   ! ===============================
+
+  ! Read and map to mesh
+  SUBROUTINE read_field_from_file_2D(         filename, field_name_options, mesh, d_partial, time_to_read)
+    ! Read a data field from a NetCDF file, and map it to the model mesh.
+    !
+    ! Ultimate flexibility; the file can provide the data on a global lon/lat-grid,
+    ! a regional x/y-grid, or a regional mesh - it matters not, all shall be fine.
+    ! The order of dimensions ([x,y] or [y,x], [lon,lat] or [lat,lon]) and direction
+    ! (increasing or decreasing) also does not matter any more.
+    !
+    ! NOTE: memory for d_partial is allocated here!
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    CHARACTER(LEN=*),                        INTENT(IN)    :: filename
+    CHARACTER(LEN=*),                        INTENT(IN)    :: field_name_options
+    TYPE(type_mesh),                         INTENT(IN)    :: mesh
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE, INTENT(OUT)   :: d_partial
+    REAL(dp), OPTIONAL,                      INTENT(IN)    :: time_to_read
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'read_field_from_file_2D'
+    LOGICAL                                                :: file_exists
+    LOGICAL                                                :: has_xy_grid, has_lonlat_grid, has_mesh, has_time
+    TYPE(type_grid)                                        :: grid_from_file
+    TYPE(type_grid_lonlat)                                 :: grid_lonlat_from_file
+    TYPE(type_mesh)                                        :: mesh_from_file
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE                :: d_grid_vec_partial_from_file
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE                :: d_grid_lonlat_vec_partial_from_file
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE                :: d_mesh_partial_from_file
+    CHARACTER(LEN=256), PARAMETER                          :: method_mesh2mesh = '2nd_order_conservative'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Check if this file actually exists
+    INQUIRE( EXIST = file_exists, FILE = TRIM( filename))
+    IF (.NOT. file_exists) THEN
+      CALL crash('file "' // TRIM( filename) // '" not found!')
+    END IF
+
+    ! Find out on what kind of grid the file is defined
+    CALL inquire_xy_grid(     filename, has_xy_grid    )
+    CALL inquire_lonlat_grid( filename, has_lonlat_grid)
+    CALL inquire_mesh(        filename, has_mesh       )
+
+    ! Files with more than one grid are not recognised
+    IF (has_xy_grid     .AND. has_lonlat_grid) CALL crash('file "' // TRIM( filename) // '" contains both an x/y-grid and a lon/lat-grid!')
+    IF (has_xy_grid     .AND. has_mesh       ) CALL crash('file "' // TRIM( filename) // '" contains both an x/y-grid and a mesh!')
+    IF (has_lonlat_grid .AND. has_mesh       ) CALL crash('file "' // TRIM( filename) // '" contains both a lon/lat-grid and a mesh!')
+
+    ! Choose the appropriate subroutine
+    IF (has_xy_grid) THEN
+      ! Data is provided on an x/y-grid
+
+      ! Read grid and gridded data
+      CALL read_field_from_xy_file_2D( filename, field_name_options, d_grid_vec_partial_from_file, grid = grid_from_file, time_to_read = time_to_read)
+
+      ! Allocate memory for data on the model mesh
+      ALLOCATE( d_partial( mesh%nV_loc), source = 0._dp)
+
+      ! Remap data
+      CALL map_from_xy_grid_to_mesh_2D( grid_from_file, mesh, d_grid_vec_partial_from_file, d_partial)
+
+      ! Clean up after yourself
+      CALL deallocate_grid( grid_from_file)
+      DEALLOCATE( d_grid_vec_partial_from_file)
+
+    ELSEIF (has_lonlat_grid) THEN
+      ! Data is provided on a lon/lat-grid
+
+      ! Read grid and gridded data
+      CALL read_field_from_lonlat_file_2D( filename, field_name_options, d_grid_lonlat_vec_partial_from_file, grid = grid_lonlat_from_file, time_to_read = time_to_read)
+
+      ! Allocate memory for data on the model mesh
+      ALLOCATE( d_partial( mesh%nV_loc), source = 0._dp)
+
+      ! Remap data
+      CALL map_from_lonlat_grid_to_mesh_2D( grid_lonlat_from_file, mesh, d_grid_lonlat_vec_partial_from_file, d_partial)
+
+      ! Clean up after yourself
+      CALL deallocate_lonlat_grid( grid_lonlat_from_file)
+      DEALLOCATE( d_grid_lonlat_vec_partial_from_file)
+
+    ELSEIF (has_mesh) THEN
+      ! Data is provided on a mesh
+
+      ! Read grid and gridded data
+      CALL read_field_from_mesh_file_2D( filename, field_name_options, d_mesh_partial_from_file, mesh = mesh_from_file, time_to_read = time_to_read)
+
+      ! Allocate memory for data on the model mesh
+      ALLOCATE( d_partial( mesh%nV_loc), source = 0._dp)
+
+      ! Remap data
+      CALL map_from_mesh_to_mesh_2D( mesh_from_file, mesh, d_mesh_partial_from_file, d_partial, method = method_mesh2mesh)
+
+      ! Clean up after yourself
+      CALL deallocate_mesh( mesh_from_file)
+      DEALLOCATE( d_mesh_partial_from_file)
+
+    ELSE
+      CALL crash('file "' // TRIM( filename) // '" does not contain a recognised x/y-grid, lon/lat-grid, or mesh!')
+    END IF
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE read_field_from_file_2D
+
+  SUBROUTINE read_field_from_file_2D_monthly( filename, field_name_options, mesh, d_partial, time_to_read)
+    ! Read a data field from a NetCDF file, and map it to the model mesh.
+    !
+    ! Ultimate flexibility; the file can provide the data on a global lon/lat-grid,
+    ! a regional x/y-grid, or a regional mesh - it matters not, all shall be fine.
+    ! The order of dimensions ([x,y] or [y,x], [lon,lat] or [lat,lon]) and direction
+    ! (increasing or decreasing) also does not matter any more.
+    !
+    ! NOTE: memory for d_partial is allocated here!
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    CHARACTER(LEN=*),                        INTENT(IN)    :: filename
+    CHARACTER(LEN=*),                        INTENT(IN)    :: field_name_options
+    TYPE(type_mesh),                         INTENT(IN)    :: mesh
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE, INTENT(OUT)   :: d_partial
+    REAL(dp), OPTIONAL,                      INTENT(IN)    :: time_to_read
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'read_field_from_file_2D_monthly'
+    LOGICAL                                                :: file_exists
+    LOGICAL                                                :: has_xy_grid, has_lonlat_grid, has_mesh, has_time
+    TYPE(type_grid)                                        :: grid_from_file
+    TYPE(type_grid_lonlat)                                 :: grid_lonlat_from_file
+    TYPE(type_mesh)                                        :: mesh_from_file
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                :: d_grid_vec_partial_from_file
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                :: d_grid_lonlat_vec_partial_from_file
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                :: d_mesh_partial_from_file
+    CHARACTER(LEN=256), PARAMETER                          :: method_mesh2mesh = '2nd_order_conservative'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Check if this file actually exists
+    INQUIRE( EXIST = file_exists, FILE = TRIM( filename))
+    IF (.NOT. file_exists) THEN
+      CALL crash('file "' // TRIM( filename) // '" not found!')
+    END IF
+
+    ! Find out on what kind of grid the file is defined
+    CALL inquire_xy_grid(     filename, has_xy_grid    )
+    CALL inquire_lonlat_grid( filename, has_lonlat_grid)
+    CALL inquire_mesh(        filename, has_mesh       )
+
+    ! Files with more than one grid are not recognised
+    IF (has_xy_grid     .AND. has_lonlat_grid) CALL crash('file "' // TRIM( filename) // '" contains both an x/y-grid and a lon/lat-grid!')
+    IF (has_xy_grid     .AND. has_mesh       ) CALL crash('file "' // TRIM( filename) // '" contains both an x/y-grid and a mesh!')
+    IF (has_lonlat_grid .AND. has_mesh       ) CALL crash('file "' // TRIM( filename) // '" contains both a lon/lat-grid and a mesh!')
+
+    ! Choose the appropriate subroutine
+    IF (has_xy_grid) THEN
+      ! Data is provided on an x/y-grid
+
+      ! Read grid and gridded data
+      CALL read_field_from_xy_file_2D_monthly( filename, field_name_options, d_grid_vec_partial_from_file, grid = grid_from_file, time_to_read = time_to_read)
+
+      ! Allocate memory for data on the model mesh
+      ALLOCATE( d_partial( mesh%nV_loc, 12), source = 0._dp)
+
+      ! Remap data
+      CALL map_from_xy_grid_to_mesh_3D( grid_from_file, mesh, d_grid_vec_partial_from_file, d_partial)
+
+      ! Clean up after yourself
+      CALL deallocate_grid( grid_from_file)
+      DEALLOCATE( d_grid_vec_partial_from_file)
+
+    ELSEIF (has_lonlat_grid) THEN
+      ! Data is provided on a lon/lat-grid
+
+      ! Read grid and gridded data
+      CALL read_field_from_lonlat_file_2D_monthly( filename, field_name_options, d_grid_lonlat_vec_partial_from_file, grid = grid_lonlat_from_file, time_to_read = time_to_read)
+
+      ! Allocate memory for data on the model mesh
+      ALLOCATE( d_partial( mesh%nV_loc, 12), source = 0._dp)
+
+      ! Remap data
+      CALL map_from_lonlat_grid_to_mesh_3D( grid_lonlat_from_file, mesh, d_grid_lonlat_vec_partial_from_file, d_partial)
+
+      ! Clean up after yourself
+      CALL deallocate_lonlat_grid( grid_lonlat_from_file)
+      DEALLOCATE( d_grid_lonlat_vec_partial_from_file)
+
+    ELSEIF (has_mesh) THEN
+      ! Data is provided on a mesh
+
+      ! Read grid and gridded data
+      CALL read_field_from_mesh_file_2D_monthly( filename, field_name_options, d_mesh_partial_from_file, mesh = mesh_from_file, time_to_read = time_to_read)
+
+      ! Allocate memory for data on the model mesh
+      ALLOCATE( d_partial( mesh%nV_loc, 12), source = 0._dp)
+
+      ! Remap data
+      CALL map_from_mesh_to_mesh_3D( mesh_from_file, mesh, d_mesh_partial_from_file, d_partial, method = method_mesh2mesh)
+
+      ! Clean up after yourself
+      CALL deallocate_mesh( mesh_from_file)
+      DEALLOCATE( d_mesh_partial_from_file)
+
+    ELSE
+      CALL crash('file "' // TRIM( filename) // '" does not contain a recognised x/y-grid, lon/lat-grid, or mesh!')
+    END IF
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE read_field_from_file_2D_monthly
+
+  SUBROUTINE read_field_from_file_3D( filename, field_name_options, mesh, d_partial, time_to_read, nzeta, zeta)
+    ! Read a data field from a NetCDF file, and map it to the model mesh.
+    !
+    ! Ultimate flexibility; the file can provide the data on a global lon/lat-grid,
+    ! a regional x/y-grid, or a regional mesh - it matters not, all shall be fine.
+    ! The order of dimensions ([x,y] or [y,x], [lon,lat] or [lat,lon]) and direction
+    ! (increasing or decreasing) also does not matter any more.
+    !
+    ! NOTE: memory for d_partial is allocated here!
+    !
+    ! NOTE: data is returned on the horizontal model mesh, but on the vertical grid
+    !       of the input file!
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    CHARACTER(LEN=*),                        INTENT(IN)    :: filename
+    CHARACTER(LEN=*),                        INTENT(IN)    :: field_name_options
+    TYPE(type_mesh),                         INTENT(IN)    :: mesh
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE, INTENT(OUT)   :: d_partial
+    REAL(dp), OPTIONAL,                      INTENT(IN)    :: time_to_read
+    INTEGER ,                                INTENT(OUT), OPTIONAL :: nzeta
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE, INTENT(OUT), OPTIONAL :: zeta
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'read_field_from_file_3D'
+    LOGICAL                                                :: file_exists
+    LOGICAL                                                :: has_xy_grid, has_lonlat_grid, has_mesh, has_time
+    TYPE(type_grid)                                        :: grid_from_file
+    TYPE(type_grid_lonlat)                                 :: grid_lonlat_from_file
+    TYPE(type_mesh)                                        :: mesh_from_file
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                :: d_grid_vec_partial_from_file
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                :: d_grid_lonlat_vec_partial_from_file
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                :: d_mesh_partial_from_file
+    CHARACTER(LEN=256), PARAMETER                          :: method_mesh2mesh = '2nd_order_conservative'
+    INTEGER                                                :: nzeta_loc
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE                :: zeta_loc
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Check if this file actually exists
+    INQUIRE( EXIST = file_exists, FILE = TRIM( filename))
+    IF (.NOT. file_exists) THEN
+      CALL crash('file "' // TRIM( filename) // '" not found!')
+    END IF
+
+    ! Find out on what kind of grid the file is defined
+    CALL inquire_xy_grid(     filename, has_xy_grid    )
+    CALL inquire_lonlat_grid( filename, has_lonlat_grid)
+    CALL inquire_mesh(        filename, has_mesh       )
+
+    ! Files with more than one grid are not recognised
+    IF (has_xy_grid     .AND. has_lonlat_grid) CALL crash('file "' // TRIM( filename) // '" contains both an x/y-grid and a lon/lat-grid!')
+    IF (has_xy_grid     .AND. has_mesh       ) CALL crash('file "' // TRIM( filename) // '" contains both an x/y-grid and a mesh!')
+    IF (has_lonlat_grid .AND. has_mesh       ) CALL crash('file "' // TRIM( filename) // '" contains both a lon/lat-grid and a mesh!')
+
+    ! Choose the appropriate subroutine
+    IF (has_xy_grid) THEN
+      ! Data is provided on an x/y-grid
+
+      ! Read grid and gridded data
+      CALL read_field_from_xy_file_3D( filename, field_name_options, d_grid_vec_partial_from_file, grid = grid_from_file, &
+        time_to_read = time_to_read, nzeta = nzeta_loc, zeta = zeta_loc)
+
+      ! Allocate memory for data on the model mesh
+      ALLOCATE( d_partial( mesh%nV_loc, nzeta_loc), source = 0._dp)
+
+      ! Remap data
+      CALL map_from_xy_grid_to_mesh_3D( grid_from_file, mesh, d_grid_vec_partial_from_file, d_partial)
+
+      ! Clean up after yourself
+      CALL deallocate_grid( grid_from_file)
+      DEALLOCATE( d_grid_vec_partial_from_file)
+
+    ELSEIF (has_lonlat_grid) THEN
+      ! Data is provided on a lon/lat-grid
+
+      ! Read grid and gridded data
+      CALL read_field_from_lonlat_file_3D( filename, field_name_options, d_grid_lonlat_vec_partial_from_file, grid = grid_lonlat_from_file, &
+        time_to_read = time_to_read, nzeta = nzeta_loc, zeta = zeta_loc)
+
+      ! Allocate memory for data on the model mesh
+      ALLOCATE( d_partial( mesh%nV_loc, nzeta_loc), source = 0._dp)
+
+      ! Remap data
+      CALL map_from_lonlat_grid_to_mesh_3D( grid_lonlat_from_file, mesh, d_grid_lonlat_vec_partial_from_file, d_partial)
+
+      ! Clean up after yourself
+      CALL deallocate_lonlat_grid( grid_lonlat_from_file)
+      DEALLOCATE( d_grid_lonlat_vec_partial_from_file)
+
+    ELSEIF (has_mesh) THEN
+      ! Data is provided on a mesh
+
+      ! Read grid and gridded data
+      CALL read_field_from_mesh_file_3D( filename, field_name_options, d_mesh_partial_from_file, mesh = mesh_from_file, &
+        time_to_read = time_to_read, nzeta = nzeta_loc, zeta = zeta_loc)
+
+      ! Allocate memory for data on the model mesh
+      ALLOCATE( d_partial( mesh%nV_loc, nzeta_loc), source = 0._dp)
+
+      ! Remap data
+      CALL map_from_mesh_to_mesh_3D( mesh_from_file, mesh, d_mesh_partial_from_file, d_partial, method = method_mesh2mesh)
+
+      ! Clean up after yourself
+      CALL deallocate_mesh( mesh_from_file)
+      DEALLOCATE( d_mesh_partial_from_file)
+
+    ELSE
+      CALL crash('file "' // TRIM( filename) // '" does not contain a recognised x/y-grid, lon/lat-grid, or mesh!')
+    END IF
+
+    ! If so specified, return the zeta read from file as output
+    IF (PRESENT( nzeta) .OR. PRESENT( zeta)) THEN
+      ! Safety
+      IF (.NOT. PRESENT( nzeta) .OR. .NOT. PRESENT( zeta)) CALL crash('should ask for both nzeta and zeta!')
+      nzeta = nzeta_loc
+      ALLOCATE( zeta( nzeta))
+      zeta = zeta_loc
+    END IF
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE read_field_from_file_3D
 
   ! ===== Medium-level functions =====
   ! ==================================
