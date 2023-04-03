@@ -82,6 +82,7 @@ ifeq ($(DO_SELEN),yes)
     \
     ice/ice_configuration.o \
     ice/ice_model_types.o \
+    ice/ice_analytical_solutions.o \
     ice/ice_velocity_SIA.o \
     ice/ice_model_main.o \
     \
@@ -133,6 +134,7 @@ else
     \
     ice/ice_configuration.o \
     ice/ice_model_types.o \
+    ice/ice_analytical_solutions.o \
     ice/ice_velocity_SIA.o \
     ice/ice_model_main.o \
     \

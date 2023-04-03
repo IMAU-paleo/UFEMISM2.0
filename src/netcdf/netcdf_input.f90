@@ -410,7 +410,6 @@ CONTAINS
 
   ! Read data fields from an x/y-grid file
   SUBROUTINE read_field_from_xy_file_2D(             filename, field_name_options, d_grid_vec_partial, grid, time_to_read)
-
     ! Read a 2-D data field from a NetCDF file on an x/y-grid, and optionally return the grid as well.
 
     IMPLICIT NONE
@@ -566,7 +565,6 @@ CONTAINS
   END SUBROUTINE read_field_from_xy_file_2D
 
   SUBROUTINE read_field_from_xy_file_2D_monthly(     filename, field_name_options, d_grid_vec_partial, grid, time_to_read)
-
     ! Read a 2-D monthly data field from a NetCDF file on an x/y-grid, and optionally return the grid as well.
 
     IMPLICIT NONE
@@ -725,7 +723,6 @@ CONTAINS
   END SUBROUTINE read_field_from_xy_file_2D_monthly
 
   SUBROUTINE read_field_from_xy_file_3D(             filename, field_name_options, d_grid_vec_partial, grid, time_to_read, nzeta, zeta)
-
     ! Read a 3-D data field from a NetCDF file on an x/y-grid, and optionally return the grid as well.
 
     IMPLICIT NONE
@@ -897,7 +894,6 @@ CONTAINS
 
   ! Read data fields from an x/y-grid file
   SUBROUTINE read_field_from_lonlat_file_2D(         filename, field_name_options, d_grid_vec_partial, grid, time_to_read)
-
     ! Read a 2-D data field from a NetCDF file on a lon/lat-grid, and optionally return the grid as well.
 
     IMPLICIT NONE
@@ -1053,7 +1049,6 @@ CONTAINS
   END SUBROUTINE read_field_from_lonlat_file_2D
 
   SUBROUTINE read_field_from_lonlat_file_2D_monthly( filename, field_name_options, d_grid_vec_partial, grid, time_to_read)
-
     ! Read a 2-D monthly data field from a NetCDF file on a lon/lat-grid, and optionally return the grid as well.
 
     IMPLICIT NONE
@@ -1212,7 +1207,6 @@ CONTAINS
   END SUBROUTINE read_field_from_lonlat_file_2D_monthly
 
   SUBROUTINE read_field_from_lonlat_file_3D(         filename, field_name_options, d_grid_vec_partial, grid, time_to_read, nzeta, zeta)
-
     ! Read a 2-D monthly data field from a NetCDF file on a lon/lat-grid, and optionally return the grid as well.
 
     IMPLICIT NONE
@@ -1384,7 +1378,6 @@ CONTAINS
 
   ! Read data fields from a mesh file
   SUBROUTINE read_field_from_mesh_file_2D(           filename, field_name_options, d_mesh_partial, mesh, time_to_read)
-
     ! Read a 2-D data field from a NetCDF file on a mesh, and optionally return the mesh as well.
 
     IMPLICIT NONE
@@ -1477,7 +1470,6 @@ CONTAINS
   END SUBROUTINE read_field_from_mesh_file_2D
 
   SUBROUTINE read_field_from_mesh_file_2D_monthly(   filename, field_name_options, d_mesh_partial, mesh, time_to_read)
-
     ! Read a 2-D data monthly field from a NetCDF file on a mesh, and optionally return the mesh as well.
 
     IMPLICIT NONE
@@ -1573,7 +1565,6 @@ CONTAINS
   END SUBROUTINE read_field_from_mesh_file_2D_monthly
 
   SUBROUTINE read_field_from_mesh_file_3D(           filename, field_name_options, d_mesh_partial, mesh, time_to_read, nzeta, zeta)
-
     ! Read a 2-D data monthly field from a NetCDF file on a mesh, and optionally return the mesh as well.
 
     IMPLICIT NONE

@@ -36,7 +36,7 @@ MODULE unit_tests_mesh
 ! ===== Global variables =====
 ! ============================
 
-  LOGICAL :: do_write_results_to_netcdf = .TRUE.
+  LOGICAL :: do_write_results_to_netcdf = .FALSE.
 
 CONTAINS
 
