@@ -17,6 +17,7 @@ MODULE netcdf_basic
   USE precisions                                             , ONLY: dp
   USE mpi_basic                                              , ONLY: par, cerr, ierr, MPI_status, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine
+  USE main_configuration                                     , ONLY: C
   USE math_utilities                                         , ONLY: check_for_NaN_dp_0D, check_for_NaN_int_0D, &
                                                                      check_for_NaN_dp_1D, check_for_NaN_int_1D, &
                                                                      check_for_NaN_dp_2D, check_for_NaN_int_2D, &

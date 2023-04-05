@@ -6,7 +6,7 @@ MODULE ice_model_types
 ! ====================
 
   USE precisions                                             , ONLY: dp
-  USE ice_configuration                                      , ONLY: type_CFG_ice
+  USE main_configuration                                     , ONLY: C
 
   IMPLICIT NONE
 
@@ -29,9 +29,6 @@ MODULE ice_model_types
 
   TYPE type_ice_model
     ! The ice dynamics model data structure.
-
-    ! Configuration parameters
-    TYPE(type_CFG_ice)                      :: C
 
     ! Basic ice geometry - ice thickness, bedrock elevation, surface elevation, ice base elevation, sea level elevation, thickness above floatation
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: Hi                          ! [m] Ice thickness

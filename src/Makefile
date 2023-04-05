@@ -56,10 +56,12 @@ ifeq ($(DO_SELEN),yes)
     basic/CSR_sparse_matrix_utilities.o \
     basic/petsc_basic.o \
     basic/grid_basic.o \
-    basic/grid_lonlat_basic.o \
-    basic/config_file_utilities.o \
     \
+    basic/config_file_utilities.o \
     mesh/mesh_configuration.o \
+    ice/ice_configuration.o \
+    main_configuration.o \
+    \
     mesh/mesh_types.o \
     mesh/mesh_memory.o \
     mesh/mesh_utilities.o \
@@ -78,9 +80,6 @@ ifeq ($(DO_SELEN),yes)
     netcdf/netcdf_output.o \
     netcdf/netcdf_debug.o \
     \
-    climate/climate_main.o \
-    \
-    ice/ice_configuration.o \
     ice/ice_model_types.o \
     ice/ice_analytical_solutions.o \
     ice/ice_velocity_SIA.o \
@@ -90,6 +89,8 @@ ifeq ($(DO_SELEN),yes)
     validation/unit_tests_petsc.o \
     validation/unit_tests_mesh.o \
     validation/unit_tests_netcdf.o \
+    validation/unit_tests_ice.o \
+    validation/main_validation.o \
     \
     UFEMISM_main_model.o \
     UFEMISM_program.o
@@ -109,9 +110,12 @@ else
     basic/petsc_basic.o \
     basic/grid_basic.o \
     basic/grid_lonlat_basic.o \
-    basic/config_file_utilities.o \
     \
+    basic/config_file_utilities.o \
     mesh/mesh_configuration.o \
+    ice/ice_configuration.o \
+    main_configuration.o \
+    \
     mesh/mesh_types.o \
     mesh/mesh_memory.o \
     mesh/mesh_utilities.o \
@@ -130,9 +134,6 @@ else
     netcdf/netcdf_output.o \
     netcdf/netcdf_debug.o \
     \
-    climate/climate_main.o \
-    \
-    ice/ice_configuration.o \
     ice/ice_model_types.o \
     ice/ice_analytical_solutions.o \
     ice/ice_velocity_SIA.o \
@@ -142,6 +143,8 @@ else
     validation/unit_tests_petsc.o \
     validation/unit_tests_mesh.o \
     validation/unit_tests_netcdf.o \
+    validation/unit_tests_ice.o \
+    validation/main_validation.o \
     \
     UFEMISM_main_model.o \
     UFEMISM_program.o

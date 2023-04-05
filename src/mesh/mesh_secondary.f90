@@ -10,6 +10,7 @@ MODULE mesh_secondary
   USE mpi_basic                                              , ONLY: par, cerr, ierr, MPI_status, sync
   USE mpi_distributed_memory                                 , ONLY: partition_list
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine
+  USE main_configuration                                     , ONLY: C
   USE mesh_types                                             , ONLY: type_mesh
   USE mesh_utilities                                         , ONLY: calc_Voronoi_cell
   USE math_utilities                                         , ONLY: cross2, line_integral_xdy, line_integral_xydy, line_integral_mxydx, triangle_area, &
@@ -402,9 +403,6 @@ CONTAINS
         mesh%R( vi) = MIN( mesh%R( vi), NORM2( mesh%V( vi,:) - mesh%V( vj,:)))
       END DO
     END DO
-
-    mesh%resolution_min = MINVAL( mesh%R)
-    mesh%resolution_max = MAXVAL( mesh%R)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

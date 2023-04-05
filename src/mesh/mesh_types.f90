@@ -8,6 +8,7 @@ MODULE mesh_types
 #include <petsc/finclude/petscksp.h>
   USE petscksp
   USE precisions                                             , ONLY: dp
+  USE main_configuration                                     , ONLY: C
   USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp
 
   IMPLICIT NONE
@@ -35,17 +36,6 @@ MODULE mesh_types
     INTEGER                                 :: nC_mem                        !           Maximum allowed number of connections per vertex
     INTEGER                                 :: nV                            !           Number of vertices
     INTEGER                                 :: nTri                          !           Number of triangles
-    REAL(dp)                                :: alpha_min                     ! [degrees] Sharpest inner angle allowed by Rupperts algorithm
-    REAL(dp)                                :: res_max                       ! [m]       Maximum allowed resolution
-    REAL(dp)                                :: res_min                       ! [m]       Minimum allowed resolution
-    REAL(dp)                                :: res_max_ice                   ! [m]       Maximum allowed resolution over ice
-    REAL(dp)                                :: res_max_margin                ! [m]       Maximum allowed resolution over the ice margin
-    REAL(dp)                                :: res_max_gl                    ! [m]       Maximum allowed resolution over the grounding line
-    REAL(dp)                                :: res_max_cf                    ! [m]       Maximum allowed resolution over the calving front
-    REAL(dp)                                :: res_max_mountain              ! [m]       Maximum allowed resolution over ice-free mountains  (important for getting the inception right)
-    REAL(dp)                                :: res_max_coast                 ! [m]       Maximum allowed resolution over ice-free coast line (to make plots look nicer)
-    REAL(dp)                                :: resolution_min                ! [m]       Finest   actual resolution of the mesh ( = MINVAL(R), where R = distance to nearest neighbour)
-    REAL(dp)                                :: resolution_max                ! [m]       Coarsest actual resolution of the mesh
     INTEGER                                 :: nz                            !           Number of vertical layers
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: zeta                          ! [0-1]     Scaled vertical coordinate
 

@@ -15,6 +15,10 @@ MODULE ice_configuration
   ! new config parameters a bit tedious - you have to add the "_config" variable, add it
   ! as a field in the "C" type, add it to the namelist, and let the "C" type field be
   ! overwritten in the end.
+  !
+  ! From UFEMISM2.0 on, config files should have ALL config variables. If not, the model
+  ! will crash and tell you which ones are missing. This will promote reproducibility of
+  ! results, and encourage people to be thorough when setting up their config files.
 
 ! ===== Preamble =====
 ! ====================
@@ -22,7 +26,7 @@ MODULE ice_configuration
   USE mpi
   USE precisions                                             , ONLY: dp
   USE mpi_basic                                              , ONLY: par, cerr, ierr, MPI_status, sync
-  USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine
+  USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE config_file_utilities                                  , ONLY: check_config_file_validity
 
   IMPLICIT NONE
@@ -34,13 +38,6 @@ MODULE ice_configuration
   ! by the values in the external config file. Remember the "_config" extension!
   ! The values listed here are the default values that are used when the variable
   ! is not listed in the config file.
-
-  ! == The scaled vertical coordinate zeta
-  ! ======================================
-
-    CHARACTER(LEN=256)  :: choice_zeta_grid_config                     = 'regular'                        ! The type of vertical grid to use; can be "regular", "irregular_log", "old_15_layer_zeta"
-    INTEGER             :: nz_config                                   = 12                               ! The number of vertical layers to use
-    REAL(dp)            :: zeta_irregular_log_R_config                 = 10._dp                           ! Ratio between surface and base layer spacings
 
   ! == Ice dynamics - velocity
   ! ==========================
@@ -70,10 +67,6 @@ MODULE ice_configuration
 
     CHARACTER(LEN=256)  :: choice_timestepping_config                  = 'pc'                             ! Choice of timestepping method: "direct", "pc" (NOTE: 'direct' does not work with DIVA ice dynamcis!)
     CHARACTER(LEN=256)  :: choice_ice_integration_method_config        = 'explicit'                       ! Choice of ice thickness integration scheme: "none" (i.e. unchanging geometry), "explicit", "semi-implicit"
-    CHARACTER(LEN=256)  :: dHi_choice_matrix_solver_config             = 'SOR'                            ! Choice of matrix solver for the semi-implicit ice thickness equation: "SOR", "PETSc"
-    INTEGER             :: dHi_SOR_nit_config                          = 3000                             ! dHi SOR   solver - maximum number of iterations
-    REAL(dp)            :: dHi_SOR_tol_config                          = 2.5_dp                           ! dHi SOR   solver - stop criterion, absolute difference
-    REAL(dp)            :: dHi_SOR_omega_config                        = 1.3_dp                           ! dHi SOR   solver - over-relaxation parameter
     REAL(dp)            :: dHi_PETSc_rtol_config                       = 0.001_dp                         ! dHi PETSc solver - stop criterion, relative difference (iteration stops if rtol OR abstol is reached)
     REAL(dp)            :: dHi_PETSc_abstol_config                     = 0.001_dp                         ! dHi PETSc solver - stop criterion, absolute difference
 
@@ -119,13 +112,6 @@ MODULE ice_configuration
 
   TYPE type_CFG_ice
     ! The different parameters that control the ice-dynamical model
-
-  ! == The scaled vertical coordinate zeta
-  ! ======================================
-
-    CHARACTER(LEN=256)  :: choice_zeta_grid
-    INTEGER             :: nz
-    REAL(dp)            :: zeta_irregular_log_R
 
   ! == Ice dynamics - velocity
   ! ==========================
@@ -197,14 +183,16 @@ CONTAINS
 ! ===== Subroutines ======
 ! ========================
 
-  SUBROUTINE initialise_ice_config_from_file( config_filename, C)
-    ! Initialise the C structure from an external config text file
+  SUBROUTINE initialise_ice_config_from_file( config_filename, region_name, output_dir, CFG)
+    ! Initialise a config structure from an external config text file
 
     IMPLICIT NONE
 
     ! In/output variables:
     CHARACTER(LEN=*),                INTENT(IN)        :: config_filename
-    TYPE(type_CFG_ice),              INTENT(OUT)       :: C
+    CHARACTER(LEN=3),                INTENT(IN)        :: region_name
+    CHARACTER(LEN=*),                INTENT(IN)        :: output_dir
+    TYPE(type_CFG_ice),              INTENT(OUT)       :: CFG
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_ice_config_from_file'
@@ -212,6 +200,9 @@ CONTAINS
 
     ! Add routine to path
     CALL init_routine( routine_name)
+
+    IF (par%master) WRITE(0,*) ' Initialising ice settings for region ', colour_string( region_name, 'light blue'), &
+      ' from configuration file: ', colour_string( TRIM( config_filename), 'light blue')
 
     ! Let each of the processors read the config file in turns so there's no access conflicts
     DO i = 0, par%n-1
@@ -222,8 +213,8 @@ CONTAINS
         ! values of the XXX_config variables
         CALL read_ice_config_file( config_filename)
 
-        ! Copy values from the XXX_config variables to the C structure
-        CALL copy_ice_config_variables_to_struct( C)
+        ! Copy values from the XXX_config variables to the config structure
+        CALL copy_ice_config_variables_to_struct( CFG)
 
       END IF ! IF (i == par%i) THEN
 
@@ -231,6 +222,12 @@ CONTAINS
       CALL sync
 
     END DO ! DO i = 0, par%n-1
+
+    ! Copy the config file to the output directory
+    IF (par%master) THEN
+      CALL system('cp ' // TRIM( config_filename) // ' ' // TRIM( output_dir) // '/config_ice_' // region_name // '.cfg')
+    END IF ! IF (master) THEN
+    CALL sync
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -258,9 +255,6 @@ CONTAINS
 
     ! The NAMELIST that's used to read the external config file.
     NAMELIST /CONFIG_ICE/&
-      choice_zeta_grid_config                         , &
-      nz_config                                       , &
-      zeta_irregular_log_R_config                     , &
       choice_stress_balance_approximation_config      , &
       n_flow_config                                   , &
       m_enh_sheet_config                              , &
@@ -333,15 +327,15 @@ CONTAINS
 
   END SUBROUTINE read_ice_config_file
 
-  SUBROUTINE copy_ice_config_variables_to_struct( C)
-    ! Overwrite the values in the fields of the C type with the values
+  SUBROUTINE copy_ice_config_variables_to_struct( CFG)
+    ! Overwrite the values in the fields of the config structure with the values
     ! of the "_config" variables, some which by now have had their default
     ! values overwritten by the values that were read from the config file.
 
     IMPLICIT NONE
 
     ! In/output variables:
-    TYPE(type_CFG_ice),              INTENT(OUT)       :: C
+    TYPE(type_CFG_ice),              INTENT(OUT)       :: CFG
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'copy_ice_config_variables_to_struct'
@@ -349,75 +343,68 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-  ! == The scaled vertical coordinate zeta
-  ! ======================================
-
-    C%choice_zeta_grid                         = choice_zeta_grid_config
-    C%nz                                       = nz_config
-    C%zeta_irregular_log_R                     = zeta_irregular_log_R_config
-
   ! == Ice dynamics - velocity
   ! ==========================
 
-    C%choice_stress_balance_approximation      = choice_stress_balance_approximation_config
-    C%n_flow                                   = n_flow_config
-    C%m_enh_sheet                              = m_enh_sheet_config
-    C%m_enh_shelf                              = m_enh_shelf_config
-    C%choice_hybrid_SIASSA_scheme              = choice_hybrid_SIASSA_scheme_config
-    C%do_GL_subgrid_friction                   = do_GL_subgrid_friction_config
-    C%subgrid_friction_exponent                = subgrid_friction_exponent_config
+    CFG%choice_stress_balance_approximation      = choice_stress_balance_approximation_config
+    CFG%n_flow                                   = n_flow_config
+    CFG%m_enh_sheet                              = m_enh_sheet_config
+    CFG%m_enh_shelf                              = m_enh_shelf_config
+    CFG%choice_hybrid_SIASSA_scheme              = choice_hybrid_SIASSA_scheme_config
+    CFG%do_GL_subgrid_friction                   = do_GL_subgrid_friction_config
+    CFG%subgrid_friction_exponent                = subgrid_friction_exponent_config
 
     ! Some parameters for numerically solving the stress balance
-    C%SIA_maximum_diffusivity                  = SIA_maximum_diffusivity_config
-    C%visc_it_norm_dUV_tol                     = visc_it_norm_dUV_tol_config
-    C%visc_it_nit                              = visc_it_nit_config
-    C%visc_it_relax                            = visc_it_relax_config
-    C%epsilon_sq_0                             = epsilon_sq_0_config
-    C%visc_eff_min                             = visc_eff_min_config
-    C%beta_max                                 = beta_max_config
-    C%vel_max                                  = vel_max_config
-    C%stressbalance_PETSc_rtol                 = stressbalance_PETSc_rtol_config
-    C%stressbalance_PETSc_abstol               = stressbalance_PETSc_abstol_config
+    CFG%SIA_maximum_diffusivity                  = SIA_maximum_diffusivity_config
+    CFG%visc_it_norm_dUV_tol                     = visc_it_norm_dUV_tol_config
+    CFG%visc_it_nit                              = visc_it_nit_config
+    CFG%visc_it_relax                            = visc_it_relax_config
+    CFG%epsilon_sq_0                             = epsilon_sq_0_config
+    CFG%visc_eff_min                             = visc_eff_min_config
+    CFG%beta_max                                 = beta_max_config
+    CFG%vel_max                                  = vel_max_config
+    CFG%stressbalance_PETSc_rtol                 = stressbalance_PETSc_rtol_config
+    CFG%stressbalance_PETSc_abstol               = stressbalance_PETSc_abstol_config
 
   ! == Ice dynamics - time integration
   ! ==================================
 
-    C%choice_timestepping                      = choice_timestepping_config
-    C%choice_ice_integration_method            = choice_ice_integration_method_config
-    C%dHi_PETSc_rtol                           = dHi_PETSc_rtol_config
-    C%dHi_PETSc_abstol                         = dHi_PETSc_abstol_config
+    CFG%choice_timestepping                      = choice_timestepping_config
+    CFG%choice_ice_integration_method            = choice_ice_integration_method_config
+    CFG%dHi_PETSc_rtol                           = dHi_PETSc_rtol_config
+    CFG%dHi_PETSc_abstol                         = dHi_PETSc_abstol_config
 
     ! Predictor-corrector ice-thickness update
-    C%pc_epsilon                               = pc_epsilon_config
-    C%pc_k_I                                   = pc_k_I_config
-    C%pc_k_p                                   = pc_k_p_config
-    C%pc_eta_min                               = pc_eta_min_config
+    CFG%pc_epsilon                               = pc_epsilon_config
+    CFG%pc_k_I                                   = pc_k_I_config
+    CFG%pc_k_p                                   = pc_k_p_config
+    CFG%pc_eta_min                               = pc_eta_min_config
 
   ! == Ice dynamics - boundary conditions
   ! ====================================
 
-    C%BC_u_west                                = BC_u_west_config
-    C%BC_u_east                                = BC_u_east_config
-    C%BC_u_south                               = BC_u_south_config
-    C%BC_u_north                               = BC_u_north_config
-    C%BC_v_west                                = BC_v_west_config
-    C%BC_v_east                                = BC_v_east_config
-    C%BC_v_south                               = BC_v_south_config
-    C%BC_v_north                               = BC_v_north_config
-    C%BC_H_west                                = BC_H_west_config
-    C%BC_H_east                                = BC_H_east_config
-    C%BC_H_south                               = BC_H_south_config
-    C%BC_H_north                               = BC_H_north_config
+    CFG%BC_u_west                                = BC_u_west_config
+    CFG%BC_u_east                                = BC_u_east_config
+    CFG%BC_u_south                               = BC_u_south_config
+    CFG%BC_u_north                               = BC_u_north_config
+    CFG%BC_v_west                                = BC_v_west_config
+    CFG%BC_v_east                                = BC_v_east_config
+    CFG%BC_v_south                               = BC_v_south_config
+    CFG%BC_v_north                               = BC_v_north_config
+    CFG%BC_H_west                                = BC_H_west_config
+    CFG%BC_H_east                                = BC_H_east_config
+    CFG%BC_H_south                               = BC_H_south_config
+    CFG%BC_H_north                               = BC_H_north_config
 
   ! == Ice dynamics - stabilisation
   ! ===============================
 
-    C%choice_mask_noice                        = choice_mask_noice_config
+    CFG%choice_mask_noice                        = choice_mask_noice_config
 
     ! Partially fixed geometry, useful for initialisation and inversion runs
-    C%fixed_shelf_geometry                     = fixed_shelf_geometry_config
-    C%fixed_sheet_geometry                     = fixed_sheet_geometry_config
-    C%fixed_grounding_line                     = fixed_grounding_line_config
+    CFG%fixed_shelf_geometry                     = fixed_shelf_geometry_config
+    CFG%fixed_sheet_geometry                     = fixed_sheet_geometry_config
+    CFG%fixed_grounding_line                     = fixed_grounding_line_config
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

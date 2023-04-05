@@ -14,6 +14,7 @@ MODULE netcdf_output
   USE precisions                                             , ONLY: dp
   USE mpi_basic                                              , ONLY: par, cerr, ierr, MPI_status, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine
+  USE main_configuration                                     , ONLY: C
   USE grid_basic                                             , ONLY: type_grid, gather_gridded_data_to_master_dp_2D, gather_gridded_data_to_master_dp_3D
   USE grid_lonlat_basic                                      , ONLY: type_grid_lonlat, gather_lonlat_gridded_data_to_master_dp_2D, &
                                                                      gather_lonlat_gridded_data_to_master_dp_3D

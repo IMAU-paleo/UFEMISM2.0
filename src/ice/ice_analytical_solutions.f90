@@ -9,6 +9,7 @@ MODULE ice_analytical_solutions
   USE precisions                                             , ONLY: dp
   USE mpi_basic                                              , ONLY: par, cerr, ierr, MPI_status, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine
+  USE main_configuration                                     , ONLY: C
   USE parameters
 
   IMPLICIT NONE

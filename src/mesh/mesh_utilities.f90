@@ -9,6 +9,7 @@ MODULE mesh_utilities
   USE precisions                                             , ONLY: dp
   USE mpi_basic                                              , ONLY: par, cerr, ierr, MPI_status, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine
+  USE main_configuration                                     , ONLY: C
   USE mesh_types                                             , ONLY: type_mesh
   USE math_utilities                                         , ONLY: geometric_center, is_in_triangle, lies_on_line_segment, circumcenter, &
                                                                      line_from_points, line_line_intersection, encroaches_upon, crop_line_to_domain

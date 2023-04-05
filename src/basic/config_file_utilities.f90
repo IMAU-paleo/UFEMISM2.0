@@ -23,11 +23,6 @@ CONTAINS
 
   SUBROUTINE check_config_file_validity( config_filename, namelist_filename)
     ! Check if the config file "config_filename" is valid
-    !
-    ! Do this by reading one line at a time of the config file, determining the name of the variable
-    ! declared in that line, and checking if that variable also exists in the namelist file.
-    !
-    ! A namelist file is created earlier by writing the namelist to a text file.
 
     IMPLICIT NONE
 
@@ -37,18 +32,60 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'check_config_file_validity'
+    LOGICAL                                            :: ex, all_are_valid, all_are_present
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Safety
+    INQUIRE( FILE = config_filename, EXIST = ex)
+    IF (.NOT. ex) CALL crash('config file ' // TRIM( config_filename) // ' could not be found!')
+    INQUIRE( FILE = namelist_filename, EXIST = ex)
+    IF (.NOT. ex) CALL crash('namelist file ' // TRIM( namelist_filename) // ' could not be found!')
+
+    ! Check if all the variables appearing in the config file "config_filename" are valid
+    CALL check_if_all_config_variables_are_valid( config_filename, namelist_filename, all_are_valid)
+
+    ! Check if all the expected config variables appear in the config file "config_filename"
+    CALL check_if_all_expected_config_variables_are_present( config_filename, namelist_filename, all_are_present)
+
+    ! If not all is well, crash
+    IF (.NOT. (all_are_valid .AND. all_are_present)) CALL crash('config file "' // TRIM( config_filename) // '" is invalid!')
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE check_config_file_validity
+
+  SUBROUTINE check_if_all_config_variables_are_valid( config_filename, namelist_filename, all_are_valid)
+    ! Check if all the variables appearing in the config file "config_filename" are valid
+    !
+    ! Do this by reading one line at a time of the config file, determining the name of the variable
+    ! declared in that line, and checking if that variable also exists in the namelist file.
+    !
+    ! The namelist file is created earlier by writing the namelist to a text file.
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    CHARACTER(LEN=*),                INTENT(IN)        :: config_filename
+    CHARACTER(LEN=*),                INTENT(IN)        :: namelist_filename
+    LOGICAL,                         INTENT(OUT)       :: all_are_valid
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'check_if_all_config_variables_are_valid'
     INTEGER, PARAMETER                                 :: config_unit   = 1337
     INTEGER, PARAMETER                                 :: namelist_unit = 1338
     INTEGER                                            :: ios
     LOGICAL                                            :: found_end_of_file_config, found_end_of_file_namelist
     CHARACTER(256)                                     :: single_line_config      , single_line_namelist
     INTEGER                                            :: line_counter_config     , line_counter_namelist
-    LOGICAL                                            :: found_match, found_mismatch
+    LOGICAL                                            :: found_match
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! Open the config and namelist files
+    ! Open the config file
     OPEN( UNIT = config_unit, FILE = config_filename, IOSTAT = ios)
     IF (ios /= 0) CALL crash('couldnt open config file "' // TRIM( config_filename) // '"!')
 
@@ -57,7 +94,7 @@ CONTAINS
 
     found_end_of_file_config = .FALSE.
     line_counter_config      = 0
-    found_mismatch           = .FALSE.
+    all_are_valid            = .TRUE.
 
     DO WHILE (.NOT. found_end_of_file_config)
 
@@ -135,7 +172,10 @@ CONTAINS
       END DO ! DO WHILE ((.NOT. found_end_of_file_namelist) .AND. (.NOT. found_match))
 
       ! If no matching variable was found in the namelist file, print an error
-      IF (.NOT. found_match) CALL warning('invalid config variable "' // TRIM( single_line_config) // '" in file "' // TRIM( config_filename) // '", line {int_01}')
+      IF (.NOT. found_match) THEN
+        all_are_valid = .FALSE.
+        CALL warning('invalid config variable "' // TRIM( single_line_config) // '" in file "' // TRIM( config_filename) // '", line {int_01}')
+      END IF
 
       ! Close the namelist file
       CLOSE( UNIT = namelist_unit)
@@ -145,12 +185,142 @@ CONTAINS
     ! Close the config file
     CLOSE( UNIT = config_unit)
 
-    ! If an invalid config variable was found, crash.
-    IF (found_mismatch) CALL crash('found invalid config variables!')
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE check_if_all_config_variables_are_valid
+
+  SUBROUTINE check_if_all_expected_config_variables_are_present( config_filename, namelist_filename, all_are_present)
+    ! Check if all the expected config variables appear in the config file "config_filename"
+    !
+    ! Do this by reading one line at a time of the namelist file, determining the name of the variable
+    ! declared in that line, and checking if that variable also exists in the config file.
+    !
+    ! The namelist file is created earlier by writing the namelist to a text file.
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    CHARACTER(LEN=*),                INTENT(IN)        :: config_filename
+    CHARACTER(LEN=*),                INTENT(IN)        :: namelist_filename
+    LOGICAL,                         INTENT(OUT)       :: all_are_present
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'check_if_all_expected_config_variables_are_present'
+    INTEGER, PARAMETER                                 :: config_unit   = 1337
+    INTEGER, PARAMETER                                 :: namelist_unit = 1338
+    INTEGER                                            :: ios
+    LOGICAL                                            :: found_end_of_file_config, found_end_of_file_namelist
+    CHARACTER(256)                                     :: single_line_config      , single_line_namelist
+    INTEGER                                            :: line_counter_config     , line_counter_namelist
+    LOGICAL                                            :: found_match
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Open the namelist file
+    OPEN( UNIT = namelist_unit, FILE = namelist_filename, IOSTAT = ios)
+    IF (ios /= 0) CALL crash('couldnt open namelist file "' // TRIM( namelist_filename) // '"!')
+
+    ! Read one line at a time of the nanmelist file, determine the name of the variable
+    ! declared in that line, and check if that variable also exists in the config file
+
+    found_end_of_file_namelist = .FALSE.
+    line_counter_namelist      = 0
+    all_are_present            = .TRUE.
+
+    DO WHILE (.NOT. found_end_of_file_namelist)
+
+      line_counter_namelist = line_counter_namelist + 1
+
+      ! Read a single line from the config file
+      READ( UNIT = namelist_unit, FMT = '(A)', IOSTAT = ios) single_line_namelist
+
+      ! If we've reached the end of the file before finding the terminating forward slash, this namelist file is not valid.
+      IF (ios < 0) CALL crash('namelist file "' // TRIM( namelist_filename) // '" is not terminated with a forward slash!')
+
+      ! Remove all leading spaces
+      CALL remove_leading_spaces( single_line_namelist)
+
+      ! The variable name is the part of the string left of the first (, =, or space.
+      single_line_namelist = single_line_namelist( 1:SCAN( single_line_namelist, '( =')-1)
+
+      ! Get namelist variable in all caps for case-insensitive comparison
+      CALL capitalise_string( single_line_namelist)
+
+      ! The forward slash at the end terminates the namelist file
+      IF (single_line_namelist == '/') THEN
+        found_end_of_file_namelist = .TRUE.
+      END IF
+
+      ! Disregard empty lines, commented lines, the header line, and the final line
+      IF (single_line_namelist == '' .OR. single_line_namelist( 1:1) == '&' .OR. single_line_namelist( 1:1) == '!') THEN
+        CYCLE
+      END IF
+
+      ! Open the config file
+      OPEN( UNIT = config_unit, FILE = config_filename)
+      IF (ios /= 0) CALL crash('couldnt open config file "' // TRIM( config_filename) // '"!')
+
+      ! Read all variables from the config file and check if any of them match the current namelist variable
+
+      found_end_of_file_config = .FALSE.
+      line_counter_config      = 0
+      found_match              = .FALSE.
+
+      DO WHILE ((.NOT. found_end_of_file_config) .AND. (.NOT. found_match))
+
+        line_counter_config = line_counter_config + 1
+
+        ! Read a single line from the config file
+        READ( UNIT = config_unit, FMT = '(A)', IOSTAT = ios) single_line_config
+
+        ! If we've reached the end of the file before finding the terminating forward slash, this config file is not valid.
+        IF (ios < 0) CALL crash('config file "' // TRIM( config_filename) // '" is not terminated with a forward slash!')
+
+        ! Remove all leading spaces
+        CALL remove_leading_spaces( single_line_config)
+
+        ! The variable name is the part of the string left of the first (, =, or space.
+        single_line_config = single_line_config( 1:SCAN( single_line_config, '( =')-1)
+
+        ! Get config variable in all caps for case-insensitive comparison
+        CALL capitalise_string( single_line_config)
+
+        ! The forward slash at the end terminates the config file
+        IF (single_line_config == '/') THEN
+          found_end_of_file_config = .TRUE.
+        END IF
+
+        ! Disregard empty lines, commented lines, and the header line
+        IF (single_line_config == '' .OR. single_line_config( 1:1) == '&' .OR. single_line_config( 1:1) == '!') THEN
+          CYCLE
+        END IF
+
+        ! Check if this namelist variable matches the config variable
+        IF (single_line_config == single_line_namelist) THEN
+          found_match = .TRUE.
+        END IF
+
+      END DO ! DO WHILE ((.NOT. found_end_of_file_config) .AND. (.NOT. found_match))
+
+      ! If no matching variable was found in the config file, print an error
+      IF (.NOT. found_match) THEN
+        all_are_present = .FALSE.
+        CALL warning('couldnt find config variable "' // TRIM( single_line_namelist) // '" in file "' // TRIM( config_filename) // '"')
+      END IF
+
+      ! Close the namelist file
+      CLOSE( UNIT = config_unit)
+
+    END DO ! DO WHILE (.NOT. found_end_of_file_namelist)
+
+    ! Close the config file
+    CLOSE( UNIT = namelist_unit)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
-  END SUBROUTINE check_config_file_validity
+  END SUBROUTINE check_if_all_expected_config_variables_are_present
 
 END MODULE config_file_utilities
