@@ -16,7 +16,7 @@ MODULE netcdf_input
   USE precisions                                             , ONLY: dp
   USE mpi_basic                                              , ONLY: par, cerr, ierr, MPI_status, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine
-  USE main_configuration                                     , ONLY: C
+  USE model_configuration                                    , ONLY: C
   USE mpi_distributed_memory                                 , ONLY: distribute_from_master_dp_1D, distribute_from_master_dp_2D
   USE grid_basic                                             , ONLY: type_grid, calc_secondary_grid_data, deallocate_grid, &
                                                                      distribute_gridded_data_from_master_dp_2D, distribute_gridded_data_from_master_dp_3D

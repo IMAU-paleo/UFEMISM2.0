@@ -11,7 +11,7 @@ MODULE mesh_operators
   USE precisions                                             , ONLY: dp
   USE mpi_basic                                              , ONLY: par, cerr, ierr, MPI_status, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine
-  USE main_configuration                                     , ONLY: C
+  USE model_configuration                                    , ONLY: C
   USE mesh_types                                             , ONLY: type_mesh
   USE math_utilities                                         , ONLY: calc_matrix_inverse_2_by_2, calc_matrix_inverse_3_by_3, calc_matrix_inverse_5_by_5
   USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp, allocate_matrix_CSR_dist, add_entry_CSR_dist

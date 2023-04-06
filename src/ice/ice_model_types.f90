@@ -6,7 +6,7 @@ MODULE ice_model_types
 ! ====================
 
   USE precisions                                             , ONLY: dp
-  USE main_configuration                                     , ONLY: C
+  USE model_configuration                                    , ONLY: C
 
   IMPLICIT NONE
 

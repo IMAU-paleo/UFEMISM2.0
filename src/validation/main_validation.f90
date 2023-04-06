@@ -9,7 +9,7 @@ MODULE main_validation
   USE precisions                                             , ONLY: dp
   USE mpi_basic                                              , ONLY: par, cerr, ierr, MPI_status, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine
-  USE main_configuration                                     , ONLY: C
+  USE model_configuration                                    , ONLY: C
   USE unit_tests_mpi                                         , ONLY: run_all_mpi_distributed_memory_unit_tests
   USE unit_tests_petsc                                       , ONLY: run_all_petsc_unit_tests
   USE unit_tests_mesh                                        , ONLY: run_all_mesh_unit_tests

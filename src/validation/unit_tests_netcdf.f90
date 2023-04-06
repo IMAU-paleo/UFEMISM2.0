@@ -9,7 +9,7 @@ MODULE unit_tests_netcdf
   USE precisions                                             , ONLY: dp
   USE mpi_basic                                              , ONLY: par, cerr, ierr, MPI_status, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine
-  USE main_configuration                                     , ONLY: C
+  USE model_configuration                                    , ONLY: C
   USE parameters
   USE grid_basic                                             , ONLY: type_grid, setup_square_grid, check_if_grids_are_identical
   USE grid_lonlat_basic                                      , ONLY: type_grid_lonlat, setup_simple_lonlat_grid, check_if_lonlat_grids_are_identical

@@ -32,7 +32,7 @@ PROGRAM UFEMISM_program
   USE petsc_basic                                            , ONLY: perr
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string, do_colour_strings, &
                                                                      initialise_control_and_resource_tracker, print_UFEMISM_start, print_UFEMISM_end
-  USE main_configuration                                     , ONLY: C, initialise_model_configuration
+  USE model_configuration                                    , ONLY: C, initialise_model_configuration
   USE main_validation                                        , ONLY: run_all_unit_tests
   USE UFEMISM_main_model                                     , ONLY: type_model_region, run_model
 

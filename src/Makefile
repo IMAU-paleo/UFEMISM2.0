@@ -51,16 +51,14 @@ ifeq ($(DO_SELEN),yes)
     basic/mpi_basic.o \
     basic/reallocate_mod.o \
     basic/control_resources_and_error_messaging.o \
+    basic/model_configuration.o \
     basic/mpi_distributed_memory.o \
     basic/math_utilities.o \
     basic/CSR_sparse_matrix_utilities.o \
     basic/petsc_basic.o \
     basic/grid_basic.o \
+    basic/grid_lonlat_basic.o \
     \
-    basic/config_file_utilities.o \
-    mesh/mesh_configuration.o \
-    ice/ice_configuration.o \
-    main_configuration.o \
     \
     mesh/mesh_types.o \
     mesh/mesh_memory.o \
@@ -104,6 +102,7 @@ else
     basic/mpi_basic.o \
     basic/reallocate_mod.o \
     basic/control_resources_and_error_messaging.o \
+    basic/model_configuration.o \
     basic/mpi_distributed_memory.o \
     basic/math_utilities.o \
     basic/CSR_sparse_matrix_utilities.o \
@@ -111,10 +110,6 @@ else
     basic/grid_basic.o \
     basic/grid_lonlat_basic.o \
     \
-    basic/config_file_utilities.o \
-    mesh/mesh_configuration.o \
-    ice/ice_configuration.o \
-    main_configuration.o \
     \
     mesh/mesh_types.o \
     mesh/mesh_memory.o \

@@ -9,7 +9,7 @@ MODULE ice_velocity_SIA
   USE precisions                                             , ONLY: dp
   USE mpi_basic                                              , ONLY: par, cerr, ierr, MPI_status, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine
-  USE main_configuration                                     , ONLY: C
+  USE model_configuration                                    , ONLY: C
   USE mesh_types                                             , ONLY: type_mesh
   USE ice_model_types                                        , ONLY: type_ice_model, type_ice_velocity_solver_SIA
   USE mesh_operators                                         , ONLY: map_a_b_2D, map_a_b_3D, ddx_a_a_2D, ddy_a_a_2D, ddx_a_b_2D, ddy_a_b_2D
@@ -134,14 +134,14 @@ CONTAINS
 
       ! Calculate the integral from b to z of (A_flow * (h - zeta)^n) dzeta
       z = Hs_b( ti) - mesh%zeta * Hi_b( ti)
-      int_A_hminzetan = integrate_from_zeta_is_one_to_zeta_is_zetap( z, A_flow_3D_b( ti,:) * (Hs_b( ti) - z)**C%ice%n_flow)
+      int_A_hminzetan = integrate_from_zeta_is_one_to_zeta_is_zetap( z, A_flow_3D_b( ti,:) * (Hs_b( ti) - z)**C%n_flow)
 
       ! Calculate the diffusivity term
       abs_grad_Hs = SQRT( dHs_dx_b( ti)**2 + dHs_dy_b( ti)**2)
-      SIA%D_3D_b( ti,:) = -2._dp * (ice_density * grav)**C%ice%n_flow * abs_grad_Hs**(C%ice%n_flow - 1._dp) * int_A_hminzetan
+      SIA%D_3D_b( ti,:) = -2._dp * (ice_density * grav)**C%n_flow * abs_grad_Hs**(C%n_flow - 1._dp) * int_A_hminzetan
 
       ! Safety
-      SIA%D_3D_b( ti,:) = MAX( -C%ice%SIA_maximum_diffusivity, SIA%D_3D_b( ti,:))
+      SIA%D_3D_b( ti,:) = MAX( -C%SIA_maximum_diffusivity, SIA%D_3D_b( ti,:))
 
       ! Calculate the velocities
       SIA%u_3D_b( ti,:) = SIA%D_3D_b( ti,:) * dHs_dx_b( ti)
@@ -156,10 +156,10 @@ CONTAINS
       z = ice%Hs( vi) - mesh%zeta * ice%Hi( vi)
 
       DO k = 1, mesh%nz
-        SIA%du_dz_3D_a( vi,k) = -2._dp * (ice_density * grav)**C%ice%n_flow * abs_grad_Hs**(C%ice%n_flow - 1._dp) * &
-          ice%A_flow_3D( vi,k) * (ice%Hs( vi) - z( k))**C%ice%n_flow * dHs_dx_a( vi)
-        SIA%dv_dz_3D_a( vi,k) = -2._dp * (ice_density * grav)**C%ice%n_flow * abs_grad_Hs**(C%ice%n_flow - 1._dp) * &
-          ice%A_flow_3D( vi,k) * (ice%Hs( vi) - z( k))**C%ice%n_flow * dHs_dy_a( vi)
+        SIA%du_dz_3D_a( vi,k) = -2._dp * (ice_density * grav)**C%n_flow * abs_grad_Hs**(C%n_flow - 1._dp) * &
+          ice%A_flow_3D( vi,k) * (ice%Hs( vi) - z( k))**C%n_flow * dHs_dx_a( vi)
+        SIA%dv_dz_3D_a( vi,k) = -2._dp * (ice_density * grav)**C%n_flow * abs_grad_Hs**(C%n_flow - 1._dp) * &
+          ice%A_flow_3D( vi,k) * (ice%Hs( vi) - z( k))**C%n_flow * dHs_dy_a( vi)
       END DO
 
     END DO ! DO vi = 1, mesh%nV_loc
