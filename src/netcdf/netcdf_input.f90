@@ -15,7 +15,7 @@ MODULE netcdf_input
   USE mpi
   USE precisions                                             , ONLY: dp
   USE mpi_basic                                              , ONLY: par, cerr, ierr, MPI_status, sync
-  USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine
+  USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
   USE mpi_distributed_memory                                 , ONLY: distribute_from_master_dp_1D, distribute_from_master_dp_2D
   USE grid_basic                                             , ONLY: type_grid, calc_secondary_grid_data, deallocate_grid, &
@@ -85,7 +85,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'read_field_from_file_2D'
     LOGICAL                                                :: file_exists
-    LOGICAL                                                :: has_xy_grid, has_lonlat_grid, has_mesh, has_time
+    LOGICAL                                                :: has_xy_grid, has_lonlat_grid, has_mesh
     TYPE(type_grid)                                        :: grid_from_file
     TYPE(type_grid_lonlat)                                 :: grid_lonlat_from_file
     TYPE(type_mesh)                                        :: mesh_from_file
@@ -193,7 +193,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'read_field_from_file_2D_monthly'
     LOGICAL                                                :: file_exists
-    LOGICAL                                                :: has_xy_grid, has_lonlat_grid, has_mesh, has_time
+    LOGICAL                                                :: has_xy_grid, has_lonlat_grid, has_mesh
     TYPE(type_grid)                                        :: grid_from_file
     TYPE(type_grid_lonlat)                                 :: grid_lonlat_from_file
     TYPE(type_mesh)                                        :: mesh_from_file
@@ -306,7 +306,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'read_field_from_file_3D'
     LOGICAL                                                :: file_exists
-    LOGICAL                                                :: has_xy_grid, has_lonlat_grid, has_mesh, has_time
+    LOGICAL                                                :: has_xy_grid, has_lonlat_grid, has_mesh
     TYPE(type_grid)                                        :: grid_from_file
     TYPE(type_grid_lonlat)                                 :: grid_lonlat_from_file
     TYPE(type_mesh)                                        :: mesh_from_file

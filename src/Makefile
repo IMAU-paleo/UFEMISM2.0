@@ -54,11 +54,11 @@ ifeq ($(DO_SELEN),yes)
     basic/model_configuration.o \
     basic/mpi_distributed_memory.o \
     basic/math_utilities.o \
+    basic/analytical_solutions.o \
     basic/CSR_sparse_matrix_utilities.o \
     basic/petsc_basic.o \
     basic/grid_basic.o \
     basic/grid_lonlat_basic.o \
-    \
     \
     mesh/mesh_types.o \
     mesh/mesh_memory.o \
@@ -79,9 +79,10 @@ ifeq ($(DO_SELEN),yes)
     netcdf/netcdf_debug.o \
     \
     ice/ice_model_types.o \
-    ice/ice_analytical_solutions.o \
     ice/ice_velocity_SIA.o \
     ice/ice_model_main.o \
+    \
+    basic/reference_geometries.o \
     \
     validation/unit_tests_mpi.o \
     validation/unit_tests_petsc.o \
@@ -105,11 +106,11 @@ else
     basic/model_configuration.o \
     basic/mpi_distributed_memory.o \
     basic/math_utilities.o \
+    basic/analytical_solutions.o \
     basic/CSR_sparse_matrix_utilities.o \
     basic/petsc_basic.o \
     basic/grid_basic.o \
     basic/grid_lonlat_basic.o \
-    \
     \
     mesh/mesh_types.o \
     mesh/mesh_memory.o \
@@ -130,9 +131,10 @@ else
     netcdf/netcdf_debug.o \
     \
     ice/ice_model_types.o \
-    ice/ice_analytical_solutions.o \
     ice/ice_velocity_SIA.o \
     ice/ice_model_main.o \
+    \
+    basic/reference_geometries.o \
     \
     validation/unit_tests_mpi.o \
     validation/unit_tests_petsc.o \

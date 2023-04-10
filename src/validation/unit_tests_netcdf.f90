@@ -8,7 +8,7 @@ MODULE unit_tests_netcdf
   USE mpi
   USE precisions                                             , ONLY: dp
   USE mpi_basic                                              , ONLY: par, cerr, ierr, MPI_status, sync
-  USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine
+  USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
   USE parameters
   USE grid_basic                                             , ONLY: type_grid, setup_square_grid, check_if_grids_are_identical
@@ -133,7 +133,7 @@ CONTAINS
     ! Set up a square grid
     name = 'test_grid'
     dx   = 32E3_dp
-    CALL setup_square_grid( name, xmin, xmax, ymin, ymax, dx, lambda_M, phi_M, beta_stereo, grid)
+    CALL setup_square_grid( name, xmin, xmax, ymin, ymax, dx, grid, lambda_M, phi_M, beta_stereo)
 
     ! Generate a simple test data field
     ALLOCATE( d_grid_vec_partial( grid%n_loc))
@@ -232,7 +232,7 @@ CONTAINS
     ! Set up a square grid
     name = 'test_grid'
     dx   = 32E3_dp
-    CALL setup_square_grid( name, xmin, xmax, ymin, ymax, dx, lambda_M, phi_M, beta_stereo, grid)
+    CALL setup_square_grid( name, xmin, xmax, ymin, ymax, dx, grid, lambda_M, phi_M, beta_stereo)
 
     ! Generate a simple test data field
     ALLOCATE( d_grid_vec_partial( grid%n_loc, 12))
@@ -340,7 +340,7 @@ CONTAINS
     ! Set up a square grid
     name = 'test_grid'
     dx   = 32E3_dp
-    CALL setup_square_grid( name, xmin, xmax, ymin, ymax, dx, lambda_M, phi_M, beta_stereo, grid)
+    CALL setup_square_grid( name, xmin, xmax, ymin, ymax, dx, grid, lambda_M, phi_M, beta_stereo)
 
     ! Set up a zeta coordinate
     nzeta = 11

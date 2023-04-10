@@ -8,11 +8,19 @@ MODULE mesh_creation
   USE mpi
   USE precisions                                             , ONLY: dp
   USE mpi_basic                                              , ONLY: par, cerr, ierr, MPI_status, sync
-  USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine
+  USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
   USE parameters
   USE mesh_types                                             , ONLY: type_mesh
+  USE mesh_memory                                            , ONLY: allocate_mesh_primary
   USE mesh_utilities                                         , ONLY: update_triangle_circumcenter
+  USE mesh_refinement                                        , ONLY: refine_mesh_uniform, refine_mesh_line, Lloyds_algorithm_single_iteration, &
+                                                                     refine_mesh_polygon
+  USE mesh_secondary                                         , ONLY: calc_all_secondary_mesh_data
+  USE mesh_operators                                         , ONLY: calc_all_matrix_operators_mesh
+  USE grid_basic                                             , ONLY: type_grid, gather_gridded_data_to_master_dp_2D, calc_grid_contour_as_line, &
+                                                                     calc_grid_mask_as_polygons
+  USE math_utilities                                         , ONLY: thickness_above_floatation
 
   IMPLICIT NONE
 
@@ -21,8 +29,495 @@ CONTAINS
 ! ===== Subroutines =====
 ! =======================
 
-! == Initialise the five-vertex dummy mesh
+  ! Create a mesh from ice geometry on a grid
+  SUBROUTINE create_mesh_from_gridded_geometry( grid, Hi, Hb, Hs, SL, xmin, xmax, ymin, ymax, lambda_M, phi_M, beta_stereo, mesh)
+    ! Create a mesh from ice geometry on a grid
 
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_grid),            INTENT(IN)        :: grid
+    REAL(dp), DIMENSION(:    ), INTENT(IN)        :: Hi, Hb, Hs, SL
+    REAL(dp),                   INTENT(IN)        :: xmin, xmax, ymin, ymax
+    REAL(dp),                   INTENT(IN)        :: lambda_M, phi_M, beta_stereo
+    TYPE(type_mesh),            INTENT(OUT)       :: mesh
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'create_mesh_from_gridded_geometry'
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE       :: Hi_grid
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE       :: Hb_grid
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE       :: Hs_grid
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE       :: SL_grid
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE       :: TAF_grid
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE       :: Hb_minus_SL_grid
+    INTEGER                                       :: i,j,ii,jj
+    LOGICAL,  DIMENSION(:,:  ), ALLOCATABLE       :: mask_sheet
+    LOGICAL,  DIMENSION(:,:  ), ALLOCATABLE       :: mask_shelf
+    LOGICAL,  DIMENSION(:,:  ), ALLOCATABLE       :: mask_calc_grounding_line
+    LOGICAL,  DIMENSION(:,:  ), ALLOCATABLE       :: mask_calc_calving_front
+    LOGICAL,  DIMENSION(:,:  ), ALLOCATABLE       :: mask_calc_ice_front
+    LOGICAL,  DIMENSION(:,:  ), ALLOCATABLE       :: mask_calc_coastline
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE       :: poly_mult_sheet
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE       :: poly_mult_shelf
+    INTEGER                                       :: n_poly_mult_sheet
+    INTEGER                                       :: n_poly_mult_shelf
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE       :: p_line_grounding_line
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE       :: p_line_calving_front
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE       :: p_line_ice_front
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE       :: p_line_coastline
+    INTEGER                                       :: n_line_grounding_line
+    INTEGER                                       :: n_line_calving_front
+    INTEGER                                       :: n_line_ice_front
+    INTEGER                                       :: n_line_coastline
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+  ! == Reduce the ice geometry to lines and polygons
+  ! ================================================
+
+    ! Allocate memory for ice geometry data in grid form
+    IF (par%master) THEN
+      ALLOCATE( Hi_grid( grid%nx, grid%ny))
+      ALLOCATE( Hb_grid( grid%nx, grid%ny))
+      ALLOCATE( Hs_grid( grid%nx, grid%ny))
+      ALLOCATE( SL_grid( grid%nx, grid%ny))
+    END IF
+
+    ! Gather ice geometry data in grid form to the master
+    CALL gather_gridded_data_to_master_dp_2D( grid, Hi, Hi_grid)
+    CALL gather_gridded_data_to_master_dp_2D( grid, Hb, Hb_grid)
+    CALL gather_gridded_data_to_master_dp_2D( grid, Hs, Hs_grid)
+    CALL gather_gridded_data_to_master_dp_2D( grid, SL, SL_grid)
+
+    ! Let the master calculate the lines
+
+    IF (par%master) THEN
+
+      ! Allocate memory for thickness above floatation and Hb-SL
+      ALLOCATE( TAF_grid(         grid%nx, grid%ny))
+      ALLOCATE( Hb_minus_SL_grid( grid%nx, grid%ny))
+
+      ! Calculate thickness above floatation and Hb-SL
+      DO i = 1, grid%nx
+      DO j = 1, grid%ny
+        TAF_grid(         i,j) = thickness_above_floatation( Hi_grid( i,j), Hb_grid( i,j), SL_grid( i,j))
+        Hb_minus_SL_grid( i,j) = Hb_grid( i,j) - SL_grid( i,j)
+      END DO
+      END DO
+
+      ! Fill in masks for floating/grounded ice
+      ALLOCATE( mask_sheet( grid%nx, grid%ny), source = .FALSE.)
+      ALLOCATE( mask_shelf( grid%nx, grid%ny), source = .FALSE.)
+
+      DO i = 1, grid%nx
+      DO j = 1, grid%ny
+        IF (Hi_grid( i,j) > 0.1_dp) THEN
+          IF (TAF_grid( i,j) > 0._dp) THEN
+            mask_sheet( i,j) = .TRUE.
+          ELSE
+            mask_shelf( i,j) = .TRUE.
+          END IF
+        END IF
+      END DO
+      END DO
+
+      ! Fill in masks for where to calculate lines
+      ALLOCATE( mask_calc_grounding_line( grid%nx, grid%ny), source = .FALSE.)
+      ALLOCATE( mask_calc_calving_front(  grid%nx, grid%ny), source = .FALSE.)
+      ALLOCATE( mask_calc_ice_front(      grid%nx, grid%ny), source = .FALSE.)
+      ALLOCATE( mask_calc_coastline(      grid%nx, grid%ny), source = .FALSE.)
+
+      DO i = 1, grid%nx
+      DO j = 1, grid%ny
+
+        ! Grounding line should only be calculated where there's ice
+        IF (Hi_grid( i,j) > 0.1_dp) THEN
+          mask_calc_grounding_line( i,j) = .TRUE.
+        END IF
+
+        ! Calving front should only be calculated for ice (both floating and grounded) next to ocean
+        IF (Hi_grid( i,j) > 0.1_dp) THEN
+          ! This grid cell has ice
+          DO ii = MAX( 1, i-1), MIN( grid%nx, i+1)
+          DO jj = MAX( 1, j-1), MIN( grid%ny, j+1)
+            IF (Hi_grid( ii,jj) < 0.1_dp .AND. Hb_grid( ii,jj) < SL_grid( ii,jj)) THEN
+              ! This neighbour is open ocean
+              mask_calc_calving_front( i,j) = .TRUE.
+            END IF
+          END DO
+          END DO
+        END IF
+
+        ! Ice front is simply ice next to non-ice
+        IF (Hi_grid( i,j) > 0.1_dp) THEN
+          ! This grid cell has ice
+          DO ii = MAX( 1, i-1), MIN( grid%nx, i+1)
+          DO jj = MAX( 1, j-1), MIN( grid%ny, j+1)
+            IF (Hi_grid( ii,jj) < 0.1_dp) THEN
+              ! This neighbour is ice-free
+              mask_calc_ice_front( i,j) = .TRUE.
+            END IF
+          END DO
+          END DO
+        END IF
+
+        ! Coastline is ice-free land next to open ocean
+        IF (Hi_grid( i,j) < 0.1_dp .AND. Hb_grid( i,j) > SL_grid( i,j)) THEN
+          ! This grid cell is ice-free land
+          DO ii = MAX( 1, i-1), MIN( grid%nx, i+1)
+          DO jj = MAX( 1, j-1), MIN( grid%ny, j+1)
+            IF (Hi_grid( ii,jj) < 0.1_dp .AND. Hb_grid( ii,jj) < SL_grid( ii,jj)) THEN
+              ! This neighbour is open ocean
+              mask_calc_coastline( i,j) = .TRUE.
+            END IF
+          END DO
+          END DO
+        END IF
+
+      END DO
+      END DO
+
+      ! Calculate polygons enveloping sheet and shelf
+      CALL calc_grid_mask_as_polygons( grid, mask_sheet, poly_mult_sheet)
+      CALL calc_grid_mask_as_polygons( grid, mask_shelf, poly_mult_shelf)
+
+      ! Get polygon sizes
+      n_poly_mult_sheet = SIZE( poly_mult_sheet,1)
+      n_poly_mult_shelf = SIZE( poly_mult_shelf,1)
+
+      ! Calculate lines in line segment format
+      CALL calc_grid_contour_as_line( grid, TAF_grid        , 0.0_dp, p_line_grounding_line, mask_calc_grounding_line)
+      CALL calc_grid_contour_as_line( grid, Hi_grid         , 0.1_dp, p_line_calving_front , mask_calc_calving_front )
+      CALL calc_grid_contour_as_line( grid, Hi_grid         , 0.1_dp, p_line_ice_front     , mask_calc_ice_front     )
+      CALL calc_grid_contour_as_line( grid, Hb_minus_SL_grid, 0.0_dp, p_line_coastline     , mask_calc_coastline     )
+
+      ! Get line sizes
+      n_line_grounding_line = SIZE( p_line_grounding_line,1)
+      n_line_calving_front  = SIZE( p_line_calving_front ,1)
+      n_line_ice_front      = SIZE( p_line_ice_front     ,1)
+      n_line_coastline      = SIZE( p_line_coastline     ,1)
+
+    END IF ! IF (par%master) THEN
+    CALL sync
+
+    ! Broadcast polygon sizes to all processes
+    CALL MPI_BCAST( n_poly_mult_sheet, 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
+    CALL MPI_BCAST( n_poly_mult_shelf, 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
+
+    ! Allocate memory for the polygons on the other processes
+    IF (.NOT. par%master) THEN
+      ALLOCATE( poly_mult_sheet( n_poly_mult_sheet,2))
+      ALLOCATE( poly_mult_shelf( n_poly_mult_shelf,2))
+    END IF
+
+    ! Broadcast polygons to all processes
+    CALL MPI_BCAST( poly_mult_sheet, n_poly_mult_sheet*2, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+    CALL MPI_BCAST( poly_mult_shelf, n_poly_mult_shelf*2, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+
+    ! Broadcast line sizes to all processes
+    CALL MPI_BCAST( n_line_grounding_line, 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
+    CALL MPI_BCAST( n_line_calving_front , 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
+    CALL MPI_BCAST( n_line_ice_front     , 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
+    CALL MPI_BCAST( n_line_coastline     , 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
+
+    ! Allocate memory for the lines on the other processes
+    IF (.NOT. par%master) THEN
+      ALLOCATE( p_line_grounding_line( n_line_grounding_line,4))
+      ALLOCATE( p_line_calving_front(  n_line_calving_front ,4))
+      ALLOCATE( p_line_ice_front(      n_line_ice_front     ,4))
+      ALLOCATE( p_line_coastline(      n_line_coastline     ,4))
+    END IF
+
+    ! Broadcast lines to all processes
+    CALL MPI_BCAST( p_line_grounding_line, n_line_grounding_line*4, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+    CALL MPI_BCAST( p_line_calving_front , n_line_calving_front *4, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+    CALL MPI_BCAST( p_line_ice_front     , n_line_ice_front     *4, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+    CALL MPI_BCAST( p_line_coastline     , n_line_coastline     *4, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+
+  ! == Create mesh from the ice geometry lines
+  ! ==========================================
+
+    CALL create_mesh_from_geometry( poly_mult_sheet, poly_mult_shelf, p_line_grounding_line, p_line_calving_front, p_line_ice_front, p_line_coastline, &
+      xmin, xmax, ymin, ymax, lambda_M, phi_M, beta_stereo, mesh)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE create_mesh_from_gridded_geometry
+
+  ! Create a mesh from ice geometry on a mesh
+  SUBROUTINE create_mesh_from_meshed_geometry( mesh_src, Hi, Hb, Hs, SL, xmin, xmax, ymin, ymax, lambda_M, phi_M, beta_stereo, mesh)
+    ! Create a mesh from ice geometry on a mesh
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),            INTENT(IN)        :: mesh_src
+    REAL(dp), DIMENSION(:    ), INTENT(IN)        :: Hi, Hb, Hs, SL
+    REAL(dp),                   INTENT(IN)        :: xmin, xmax, ymin, ymax
+    REAL(dp),                   INTENT(IN)        :: lambda_M, phi_M, beta_stereo
+    TYPE(type_mesh),            INTENT(OUT)       :: mesh
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'create_mesh_from_meshed_geometry'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! DENK DROM
+    CALL crash('whoopsiedaisy!')
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE create_mesh_from_meshed_geometry
+
+  ! Create a mesh from ice geometry lines
+  SUBROUTINE create_mesh_from_geometry( poly_mult_sheet, poly_mult_shelf, p_line_grounding_line, p_line_calving_front, p_line_ice_front, p_line_coastline, &
+    xmin, xmax, ymin, ymax, lambda_M, phi_M, beta_stereo, mesh)
+    ! Create mesh from the ice geometry lines
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    REAL(dp), DIMENSION(:,:  ), INTENT(IN)        :: poly_mult_sheet
+    REAL(dp), DIMENSION(:,:  ), INTENT(IN)        :: poly_mult_shelf
+    REAL(dp), DIMENSION(:,:  ), INTENT(IN)        :: p_line_grounding_line
+    REAL(dp), DIMENSION(:,:  ), INTENT(IN)        :: p_line_calving_front
+    REAL(dp), DIMENSION(:,:  ), INTENT(IN)        :: p_line_ice_front
+    REAL(dp), DIMENSION(:,:  ), INTENT(IN)        :: p_line_coastline
+    REAL(dp),                   INTENT(IN)        :: xmin, xmax, ymin, ymax
+    REAL(dp),                   INTENT(IN)        :: lambda_M, phi_M, beta_stereo
+    TYPE(type_mesh),            INTENT(OUT)       :: mesh
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'create_mesh_from_geometry'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Choose single-core or parallelised version
+    IF (C%do_singlecore_mesh_creation) THEN
+      CALL create_mesh_from_geometry_singlecore( poly_mult_sheet, poly_mult_shelf, p_line_grounding_line, p_line_calving_front, p_line_ice_front, p_line_coastline, &
+        xmin, xmax, ymin, ymax, lambda_M, phi_M, beta_stereo, mesh)
+    ELSE
+      CALL create_mesh_from_geometry_parallelised( poly_mult_sheet, poly_mult_shelf, p_line_grounding_line, p_line_calving_front, p_line_ice_front, p_line_coastline, &
+        xmin, xmax, ymin, ymax, lambda_M, phi_M, beta_stereo, mesh)
+    END IF
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE create_mesh_from_geometry
+
+  SUBROUTINE create_mesh_from_geometry_singlecore( poly_mult_sheet, poly_mult_shelf, p_line_grounding_line, p_line_calving_front, p_line_ice_front, p_line_coastline, &
+    xmin, xmax, ymin, ymax, lambda_M, phi_M, beta_stereo, mesh)
+    ! Create mesh from the ice geometry lines
+    !
+    ! Single-core version; all processes generate the same mesh independently
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    REAL(dp), DIMENSION(:,:  ), INTENT(IN)        :: poly_mult_sheet
+    REAL(dp), DIMENSION(:,:  ), INTENT(IN)        :: poly_mult_shelf
+    REAL(dp), DIMENSION(:,:  ), INTENT(IN)        :: p_line_grounding_line
+    REAL(dp), DIMENSION(:,:  ), INTENT(IN)        :: p_line_calving_front
+    REAL(dp), DIMENSION(:,:  ), INTENT(IN)        :: p_line_ice_front
+    REAL(dp), DIMENSION(:,:  ), INTENT(IN)        :: p_line_coastline
+    REAL(dp),                   INTENT(IN)        :: xmin, xmax, ymin, ymax
+    REAL(dp),                   INTENT(IN)        :: lambda_M, phi_M, beta_stereo
+    TYPE(type_mesh),            INTENT(OUT)       :: mesh
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'create_mesh_from_geometry_singlecore'
+    CHARACTER(LEN=256)                            :: name
+    REAL(dp)                                      :: res_max_uniform_applied
+    INTEGER                                       :: n1,nn,n2
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE       :: poly
+    INTEGER                                       :: i
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! DENK DROM
+    name = 'mesh_name'
+    CALL warning('need procedural mesh names!')
+
+    ! Allocate mesh memory
+    CALL allocate_mesh_primary( mesh, name, 1000, 2000, C%nC_mem)
+
+    ! Initialise the dummy mesh
+    CALL initialise_dummy_mesh( mesh, xmin, xmax, ymin, ymax)
+
+  ! == Refine to a uniform resolution; iteratively reduce this,
+  ! == and smooth the mesh in between to get a nice, high-quality mesh
+  ! ==================================================================
+
+    res_max_uniform_applied = MAX( xmax-xmin, ymax-ymin)
+
+    DO WHILE (.TRUE.)
+
+      ! Reduce the applied uniform resolution
+      res_max_uniform_applied = MAX( res_max_uniform_applied / 2._dp, C%maximum_resolution_uniform)
+
+      ! Refine the mesh to the applied uniform resolution
+      CALL refine_mesh_uniform( mesh, res_max_uniform_applied, C%alpha_min)
+
+      ! Smooth the mesh
+      CALL Lloyds_algorithm_single_iteration( mesh, C%alpha_min)
+
+      ! Stop refining once we've reached the desired resolution
+      IF (res_max_uniform_applied == C%maximum_resolution_uniform) EXIT
+
+    END DO ! DO WHILE (.TRUE.)
+
+  ! == Refine along the ice geometry lines (grounding line, calving front, etc.)
+  ! ============================================================================
+
+    ! Refine the mesh along the ice geometry lines
+    CALL refine_mesh_line( mesh, p_line_grounding_line, C%maximum_resolution_grounding_line, C%grounding_line_width, C%alpha_min)
+    CALL refine_mesh_line( mesh, p_line_calving_front , C%maximum_resolution_calving_front , C%calving_front_width , C%alpha_min)
+    CALL refine_mesh_line( mesh, p_line_ice_front     , C%maximum_resolution_ice_front     , C%ice_front_width     , C%alpha_min)
+    CALL refine_mesh_line( mesh, p_line_coastline     , C%maximum_resolution_coastline     , C%coastline_width     , C%alpha_min)
+
+  ! == Refine along the ice geometry areas (sheet, shelf, etc.)
+  ! ===========================================================
+
+      ! Ice sheet
+      ! =========
+
+      n1 = 1
+      n2 = 0
+
+      DO WHILE (n2 < SIZE( poly_mult_sheet,1))
+
+        ! Copy a single polygon from poly_mult
+        nn = NINT( poly_mult_sheet( n1,1))
+        n2 = n1 + nn
+        ALLOCATE( poly( nn,2))
+        poly = poly_mult_sheet( n1+1:n2,:)
+        n1 = n2+1
+
+        ! Refine mesh over this single polygon
+        CALL refine_mesh_polygon( mesh, poly, C%maximum_resolution_grounded_ice, C%alpha_min)
+
+        ! Clean up after yourself
+        DEALLOCATE( poly)
+
+      END DO ! DO WHILE (n2 < SIZE( poly_mult_sheet,1))
+
+      ! Ice shelf
+      ! =========
+
+      n1 = 1
+      n2 = 0
+
+      DO WHILE (n2 < SIZE( poly_mult_shelf,1))
+
+        ! Copy a single polygon from poly_mult
+        nn = NINT( poly_mult_shelf( n1,1))
+        n2 = n1 + nn
+        ALLOCATE( poly( nn,2))
+        poly = poly_mult_shelf( n1+1:n2,:)
+        n1 = n2+1
+
+        ! Refine mesh over this single polygon
+        CALL refine_mesh_polygon( mesh, poly, C%maximum_resolution_floating_ice, C%alpha_min)
+
+        ! Clean up after yourself
+        DEALLOCATE( poly)
+
+      END DO ! DO WHILE (n2 < SIZE( poly_mult_sheet,1))
+
+  ! == Smooth the mesh
+  ! ==================
+
+    DO i = 1, C%nit_Lloyds_algorithm
+      CALL Lloyds_algorithm_single_iteration( mesh, C%alpha_min)
+    END DO
+
+  ! == Calculate secondary geometry data
+  ! ====================================
+
+    ! Calculate all secondary geometry data
+    CALL calc_all_secondary_mesh_data( mesh, lambda_M, phi_M, beta_stereo)
+
+    ! Calculate all matrix operators
+    CALL calc_all_matrix_operators_mesh( mesh)
+
+    ! Write the mesh creation success message to the terminal
+    CALL write_mesh_success( mesh)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE create_mesh_from_geometry_singlecore
+
+  SUBROUTINE create_mesh_from_geometry_parallelised( poly_mult_sheet, poly_mult_shelf, p_line_grounding_line, p_line_calving_front, p_line_ice_front, p_line_coastline, &
+    xmin, xmax, ymin, ymax, lambda_M, phi_M, beta_stereo, mesh)
+    ! Create mesh from the ice geometry lines
+    !
+    ! Parallelised version
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    REAL(dp), DIMENSION(:,:  ), INTENT(IN)        :: poly_mult_sheet
+    REAL(dp), DIMENSION(:,:  ), INTENT(IN)        :: poly_mult_shelf
+    REAL(dp), DIMENSION(:,:  ), INTENT(IN)        :: p_line_grounding_line
+    REAL(dp), DIMENSION(:,:  ), INTENT(IN)        :: p_line_calving_front
+    REAL(dp), DIMENSION(:,:  ), INTENT(IN)        :: p_line_ice_front
+    REAL(dp), DIMENSION(:,:  ), INTENT(IN)        :: p_line_coastline
+    REAL(dp),                   INTENT(IN)        :: xmin, xmax, ymin, ymax
+    REAL(dp),                   INTENT(IN)        :: lambda_M, phi_M, beta_stereo
+    TYPE(type_mesh),            INTENT(OUT)       :: mesh
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'create_mesh_from_geometry_parallelised'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! DENK DROM
+    CALL crash('whoopsiedaisy!')
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE create_mesh_from_geometry_parallelised
+
+  ! Mesh creation success message
+  SUBROUTINE write_mesh_success( mesh)
+    ! Write the mesh creation success message to the terminal
+
+    USE control_resources_and_error_messaging, ONLY: insert_val_into_string_int
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),            INTENT(IN)        :: mesh
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'write_mesh_success'
+    CHARACTER(LEN=256)                            :: str
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    str = '  Created a mesh with {int_01} vertices and {int_02} triangles'
+    CALL insert_val_into_string_int( str, '{int_01}', mesh%nV)
+    CALL insert_val_into_string_int( str, '{int_02}', mesh%nTri)
+
+    IF (par%master) WRITE(0,'(A)') colour_string( TRIM( str), 'green')
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE write_mesh_success
+
+  ! Initialise the five-vertex dummy mesh
   SUBROUTINE initialise_dummy_mesh( mesh, xmin, xmax, ymin, ymax)
     ! Initialises a 5-vertex, 4-triangle "dummy"  mesh:
     !
@@ -50,10 +545,7 @@ CONTAINS
 
     ! In/output variables:
     TYPE(type_mesh),            INTENT(INOUT)     :: mesh
-    REAL(dp),                   INTENT(IN)        :: xmin    ! Mesh domain
-    REAL(dp),                   INTENT(IN)        :: xmax
-    REAL(dp),                   INTENT(IN)        :: ymin
-    REAL(dp),                   INTENT(IN)        :: ymax
+    REAL(dp),                   INTENT(IN)        :: xmin, xmax, ymin, ymax
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'initialise_dummy_mesh'

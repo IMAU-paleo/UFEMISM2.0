@@ -15,6 +15,10 @@ MODULE model_configuration
   ! new config parameters a bit tedious - you have to add the "_config" variable, add it
   ! as a field in the "C" type, add it to the namelist, and let the "C" type field be
   ! overwritten in the end.
+  !
+  ! NOTE: since UFEMISM 2.0, config files should list ALL config variables. This means the
+  !       default values in this module are now only for illustration, and are not used
+  !       anymore, so that the config file completely determines the model behaviour.
 
 ! ===== Preamble =====
 ! ====================
@@ -169,6 +173,22 @@ MODULE model_configuration
     REAL(dp)            :: timeframe_refgeo_GIAeq_GRL_config            = 1E9_dp
     REAL(dp)            :: timeframe_refgeo_GIAeq_ANT_config            = 1E9_dp
 
+    ! == Parameters for idealised geometries
+    ! ======================================
+
+    REAL(dp)            :: refgeo_idealised_slabonaslope_Hi_config      = 0._dp                            ! Suggested value: 2000 m
+    REAL(dp)            :: refgeo_idealised_slabonaslope_dhdx_config    = 1._dp                            ! Suggested value: -0.001
+    REAL(dp)            :: refgeo_idealised_Halfar_H0_config            = 0._dp                            ! Suggested value: 3000 m
+    REAL(dp)            :: refgeo_idealised_Halfar_R0_config            = 0._dp                            ! Suggested value: 500E3 m
+    REAL(dp)            :: refgeo_idealised_Bueler_H0_config            = 0._dp                            ! Suggested value: 3000 m
+    REAL(dp)            :: refgeo_idealised_Bueler_R0_config            = 0._dp                            ! Suggested value: 500E3 m
+    REAL(dp)            :: refgeo_idealised_Bueler_lambda_config        = 0._dp                            ! Suggested value: 5.0
+    REAL(dp)            :: refgeo_idealised_SSA_icestream_Hi_config     = 0._dp                            ! Suggested value: 2000 m
+    REAL(dp)            :: refgeo_idealised_SSA_icestream_dhdx_config   = 1._dp                            ! Suggested value: -0.001
+    REAL(dp)            :: refgeo_idealised_MISMIP_mod_Hi_init_config   = -1._dp                           ! Suggested value: 100 m
+    REAL(dp)            :: refgeo_idealised_ISMIP_HOM_L_config          = 0._dp                            ! Suggested value: 5E3 - 160E3 m
+    REAL(dp)            :: refgeo_idealised_MISMIPplus_Hi_init_config   = -1._dp                           ! Suggested value: 100 m
+
   ! == Mesh generation
   ! ==================
 
@@ -185,15 +205,20 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: filename_initial_mesh_ANT_config             = ''
 
     ! Resolutions for different regions
-    REAL(dp)            :: maximum_resolution_uniform_config            = 500._dp                          ! [m]          Maximum resolution for the entire domain
-    REAL(dp)            :: maximum_resolution_grounded_ice_config       = 200._dp                          ! [m]          Maximum resolution for grounded ice
-    REAL(dp)            :: maximum_resolution_floating_ice_config       = 100._dp                          ! [m]          Maximum resolution for floating ice
-    REAL(dp)            :: maximum_resolution_grounding_line_config     = 30._dp                           ! [m]          Maximum resolution for the grounding line
-    REAL(dp)            :: grounding_line_width_config                  = 50._dp                           ! [m]          Width of the band around the grounding line that should get this resolution
-    REAL(dp)            :: maximum_resolution_calving_front_config      = 50._dp                           ! [m]          Maximum resolution for the calving front
-    REAL(dp)            :: calving_front_width_config                   = 100._dp                          ! [m]          Width of the band around the calving front that should get this resolution
+    REAL(dp)            :: maximum_resolution_uniform_config            = 800e3_dp                         ! [m]          Maximum resolution for the entire domain
+    REAL(dp)            :: maximum_resolution_grounded_ice_config       = 400e3_dp                         ! [m]          Maximum resolution for grounded ice
+    REAL(dp)            :: maximum_resolution_floating_ice_config       = 200e3_dp                         ! [m]          Maximum resolution for floating ice
+    REAL(dp)            :: maximum_resolution_grounding_line_config     = 100e3_dp                         ! [m]          Maximum resolution for the grounding line
+    REAL(dp)            :: grounding_line_width_config                  = 200e3_dp                         ! [m]          Width of the band around the grounding line that should get this resolution
+    REAL(dp)            :: maximum_resolution_calving_front_config      = 100e3_dp                         ! [m]          Maximum resolution for the calving front
+    REAL(dp)            :: calving_front_width_config                   = 100e3_dp                         ! [m]          Width of the band around the calving front that should get this resolution
+    REAL(dp)            :: maximum_resolution_ice_front_config          = 100e3_dp                         ! [m]          Maximum resolution for the ice front
+    REAL(dp)            :: ice_front_width_config                       = 200e3_dp                         ! [m]          Width of the band around the ice front that should get this resolution
+    REAL(dp)            :: maximum_resolution_coastline_config          = 100e3_dp                         ! [m]          Maximum resolution for the coastline
+    REAL(dp)            :: coastline_width_config                       = 200e3_dp                         ! [m]          Width of the band around the coastline that should get this resolution
 
     ! Advanced geometry parameters
+    LOGICAL             :: do_singlecore_mesh_creation_config           = .TRUE.                           !              Whether or not to use only a single core for mesh generation (for better reproducibility)
     REAL(dp)            :: alpha_min_config                             = 0.4363_dp                        ! [radians]    Smallest allowed internal triangle angle
     INTEGER             :: nit_Lloyds_algorithm_config                  = 3                                ! [-]          Number of iterations of Lloyds algorithm to be applied after refinement
 
@@ -576,6 +601,22 @@ MODULE model_configuration
     REAL(dp)            :: timeframe_refgeo_GIAeq_GRL
     REAL(dp)            :: timeframe_refgeo_GIAeq_ANT
 
+    ! == Parameters for idealised geometries
+    ! ======================================
+
+    REAL(dp)            :: refgeo_idealised_slabonaslope_Hi
+    REAL(dp)            :: refgeo_idealised_slabonaslope_dhdx
+    REAL(dp)            :: refgeo_idealised_Halfar_H0
+    REAL(dp)            :: refgeo_idealised_Halfar_R0
+    REAL(dp)            :: refgeo_idealised_Bueler_H0
+    REAL(dp)            :: refgeo_idealised_Bueler_R0
+    REAL(dp)            :: refgeo_idealised_Bueler_lambda
+    REAL(dp)            :: refgeo_idealised_SSA_icestream_Hi
+    REAL(dp)            :: refgeo_idealised_SSA_icestream_dhdx
+    REAL(dp)            :: refgeo_idealised_MISMIP_mod_Hi_init
+    REAL(dp)            :: refgeo_idealised_ISMIP_HOM_L
+    REAL(dp)            :: refgeo_idealised_MISMIPplus_Hi_init
+
   ! == Mesh generation
   ! ==================
 
@@ -599,8 +640,13 @@ MODULE model_configuration
     REAL(dp)            :: grounding_line_width
     REAL(dp)            :: maximum_resolution_calving_front
     REAL(dp)            :: calving_front_width
+    REAL(dp)            :: maximum_resolution_ice_front
+    REAL(dp)            :: ice_front_width
+    REAL(dp)            :: maximum_resolution_coastline
+    REAL(dp)            :: coastline_width
 
     ! Advanced geometry parameters
+    LOGICAL             :: do_singlecore_mesh_creation
     REAL(dp)            :: alpha_min
     INTEGER             :: nit_Lloyds_algorithm
 
@@ -877,8 +923,8 @@ CONTAINS
     END IF ! IF (master) THEN
     CALL MPI_BCAST( config_filename,    256, MPI_CHAR, 0, MPI_COMM_WORLD, ierr)
 
-    IF (par%master) WRITE(0,*) ''
-    IF (par%master) WRITE(0,*) ' Running UFEMISM with settings from configuration file: ', colour_string( TRIM( config_filename), 'light blue')
+    IF (par%master) WRITE(0,'(A)') ''
+    IF (par%master) WRITE(0,'(A)') ' Running UFEMISM with settings from configuration file: ' // colour_string( TRIM( config_filename), 'light blue')
 
     ! Initialise the main config structure from the config file
     CALL initialise_config_from_file( config_filename)
@@ -918,8 +964,8 @@ CONTAINS
       CALL system('mkdir ' // TRIM( C%output_dir))
 
       ! Tell the user where it is
-      WRITE(0,*) ''
-      WRITE(0,*) ' Output directory: ', colour_string( TRIM( C%output_dir), 'light blue')
+      WRITE(0,'(A)') ''
+      WRITE(0,'(A)') ' Output directory: ' // colour_string( TRIM( C%output_dir), 'light blue')
 
     END IF ! IF (par%master) THEN
     CALL sync
@@ -994,7 +1040,7 @@ CONTAINS
     INTEGER                                            :: ios
 
     ! The NAMELIST that's used to read the external config file.
-    NAMELIST /CONFIG_MAIN/&
+    NAMELIST /CONFIG/&
       create_procedural_output_dir_config                   , &
       fixed_output_dir_config                               , &
       do_write_debug_data_config                            , &
@@ -1079,6 +1125,18 @@ CONTAINS
       timeframe_refgeo_GIAeq_EAS_config                     , &
       timeframe_refgeo_GIAeq_GRL_config                     , &
       timeframe_refgeo_GIAeq_ANT_config                     , &
+      refgeo_idealised_slabonaslope_Hi_config               , &
+      refgeo_idealised_slabonaslope_dhdx_config             , &
+      refgeo_idealised_Halfar_H0_config                     , &
+      refgeo_idealised_Halfar_R0_config                     , &
+      refgeo_idealised_Bueler_H0_config                     , &
+      refgeo_idealised_Bueler_R0_config                     , &
+      refgeo_idealised_Bueler_lambda_config                 , &
+      refgeo_idealised_SSA_icestream_Hi_config              , &
+      refgeo_idealised_SSA_icestream_dhdx_config            , &
+      refgeo_idealised_MISMIP_mod_Hi_init_config            , &
+      refgeo_idealised_ISMIP_HOM_L_config                   , &
+      refgeo_idealised_MISMIPplus_Hi_init_config            , &
       choice_initial_mesh_NAM_config                        , &
       choice_initial_mesh_EAS_config                        , &
       choice_initial_mesh_GRL_config                        , &
@@ -1094,6 +1152,11 @@ CONTAINS
       grounding_line_width_config                           , &
       maximum_resolution_calving_front_config               , &
       calving_front_width_config                            , &
+      maximum_resolution_ice_front_config                   , &
+      ice_front_width_config                                , &
+      maximum_resolution_coastline_config                   , &
+      coastline_width_config                                , &
+      do_singlecore_mesh_creation_config                    , &
       alpha_min_config                                      , &
       nit_Lloyds_algorithm_config                           , &
       nC_mem_config                                         , &
@@ -1251,7 +1314,7 @@ CONTAINS
 
     ! Write the CONFIG namelist to a temporary file
     OPEN(  UNIT = namelist_unit, FILE = TRIM( namelist_filename))
-    WRITE( UNIT = namelist_unit, NML  = CONFIG_MAIN)
+    WRITE( UNIT = namelist_unit, NML  = CONFIG)
     CLOSE( UNIT = namelist_unit)
 
     ! Check the config file for validity
@@ -1265,7 +1328,7 @@ CONTAINS
     IF (ios /= 0) CALL crash('couldnt open config file "' // TRIM( config_filename) // '"!')
 
     ! Read the config file using the CONFIG namelist
-    READ(  UNIT = config_unit, NML = CONFIG_MAIN, IOSTAT = ios)
+    READ(  UNIT = config_unit, NML = CONFIG, IOSTAT = ios)
     IF (ios /= 0) CALL crash('error while reading config file "' // TRIM( config_filename) // '"!')
 
     ! Close the config file
@@ -1427,6 +1490,22 @@ CONTAINS
     C%timeframe_refgeo_GIAeq_GRL               = timeframe_refgeo_GIAeq_GRL_config
     C%timeframe_refgeo_GIAeq_ANT               = timeframe_refgeo_GIAeq_ANT_config
 
+    ! == Parameters for idealised geometries
+    ! ======================================
+
+    C%refgeo_idealised_slabonaslope_Hi         = refgeo_idealised_slabonaslope_Hi_config
+    C%refgeo_idealised_slabonaslope_dhdx       = refgeo_idealised_slabonaslope_dhdx_config
+    C%refgeo_idealised_Halfar_H0               = refgeo_idealised_Halfar_H0_config
+    C%refgeo_idealised_Halfar_R0               = refgeo_idealised_Halfar_R0_config
+    C%refgeo_idealised_Bueler_H0               = refgeo_idealised_Bueler_H0_config
+    C%refgeo_idealised_Bueler_R0               = refgeo_idealised_Bueler_R0_config
+    C%refgeo_idealised_Bueler_lambda           = refgeo_idealised_Bueler_lambda_config
+    C%refgeo_idealised_SSA_icestream_Hi        = refgeo_idealised_SSA_icestream_Hi_config
+    C%refgeo_idealised_SSA_icestream_dhdx      = refgeo_idealised_SSA_icestream_dhdx_config
+    C%refgeo_idealised_MISMIP_mod_Hi_init      = refgeo_idealised_MISMIP_mod_Hi_init_config
+    C%refgeo_idealised_ISMIP_HOM_L             = refgeo_idealised_ISMIP_HOM_L_config
+    C%refgeo_idealised_MISMIPplus_Hi_init      = refgeo_idealised_MISMIPplus_Hi_init_config
+
   ! == Mesh generation
   ! ==================
 
@@ -1450,8 +1529,13 @@ CONTAINS
     C%grounding_line_width                     = grounding_line_width_config
     C%maximum_resolution_calving_front         = maximum_resolution_calving_front_config
     C%calving_front_width                      = calving_front_width_config
+    C%maximum_resolution_ice_front             = maximum_resolution_ice_front_config
+    C%ice_front_width                          = ice_front_width_config
+    C%maximum_resolution_coastline             = maximum_resolution_coastline_config
+    C%coastline_width                          = coastline_width_config
 
     ! Advanced geometry parameters
+    C%do_singlecore_mesh_creation              = do_singlecore_mesh_creation_config
     C%alpha_min                                = alpha_min_config
     C%nit_Lloyds_algorithm                     = nit_Lloyds_algorithm_config
 

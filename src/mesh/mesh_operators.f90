@@ -10,10 +10,11 @@ MODULE mesh_operators
   USE mpi
   USE precisions                                             , ONLY: dp
   USE mpi_basic                                              , ONLY: par, cerr, ierr, MPI_status, sync
-  USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine
+  USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
   USE mesh_types                                             , ONLY: type_mesh
-  USE math_utilities                                         , ONLY: calc_matrix_inverse_2_by_2, calc_matrix_inverse_3_by_3, calc_matrix_inverse_5_by_5
+  USE math_utilities                                         , ONLY: calc_determinant_2_by_2, calc_determinant_3_by_3, calc_determinant_5_by_5, &
+                                                                     calc_matrix_inverse_2_by_2, calc_matrix_inverse_3_by_3, calc_matrix_inverse_5_by_5
   USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp, allocate_matrix_CSR_dist, add_entry_CSR_dist
   USE mesh_utilities                                         , ONLY: extend_group_single_iteration_a, extend_group_single_iteration_b, &
                                                                      extend_group_single_iteration_c
@@ -564,6 +565,7 @@ CONTAINS
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: x_c, y_c
     REAL(dp)                                           :: Nfx_i, Nfy_i
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: Nfx_c, Nfy_c
+    LOGICAL                                            :: succeeded
     INTEGER                                            :: col
 
     ! Add routine to path
@@ -621,25 +623,33 @@ CONTAINS
       ! Extend outward until enough neighbours are found to calculate the shape functions
       DO WHILE (stackN - 1 < n_neighbours_min)
         CALL extend_group_single_iteration_a( mesh, map, stack, stackN)
+        ! Safety
+        IF (stackN - 1 > n_neighbours_max) CALL crash('expanded local neighbourhood too far!')
       END DO
 
-      ! Safety
-      IF (stackN - 1 > n_neighbours_max) CALL crash('expanded local neighbourhood too far!')
+      ! Calculate shape functions; if this fails, add more neighbours until it succeeds
+      succeeded = .FALSE.
+      DO WHILE (.NOT. succeeded)
 
-      ! Get the coordinates of the neighbours
-      n_c = 0
-      DO i = 1, stackN
-        IF (n_c == n_neighbours_max) EXIT
-        vj = stack( i)
-        IF (vj == vi) CYCLE
-        n_c = n_c + 1
-        i_c( n_c) = vj
-        x_c( n_c) = mesh%V( vj,1)
-        y_c( n_c) = mesh%V( vj,2)
-      END DO
+        ! Get the coordinates of the neighbours
+        n_c = 0
+        DO i = 1, stackN
+          IF (n_c == n_neighbours_max) EXIT
+          vj = stack( i)
+          IF (vj == vi) CYCLE
+          n_c = n_c + 1
+          i_c( n_c) = vj
+          x_c( n_c) = mesh%V( vj,1)
+          y_c( n_c) = mesh%V( vj,2)
+        END DO
 
-      ! Calculate shape functions
-      CALL calc_shape_functions_2D_reg_1st_order( x, y, n_neighbours_max, n_c, x_c, y_c, Nfx_i, Nfy_i, Nfx_c, Nfy_c)
+        ! Calculate shape functions
+        CALL calc_shape_functions_2D_reg_1st_order( x, y, n_neighbours_max, n_c, x_c, y_c, Nfx_i, Nfy_i, Nfx_c, Nfy_c, succeeded)
+
+        ! If the shape functions couldnt be calculated, include more neighbours and try again
+        IF (.NOT. succeeded) CALL extend_group_single_iteration_a( mesh, map, stack, stackN)
+
+      END DO ! DO WHILE (.NOT. succeeded)
 
       ! Fill them into the matrices
 
@@ -693,6 +703,7 @@ CONTAINS
     INTEGER,  DIMENSION(:    ), ALLOCATABLE            :: i_c
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: x_c, y_c
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: Nf_c, Nfx_c, Nfy_c
+    LOGICAL                                            :: succeeded
     INTEGER                                            :: col
 
     ! Add routine to path
@@ -756,24 +767,32 @@ CONTAINS
       ! Extend outward until enough neighbours are found to calculate the shape functions
       DO WHILE (stackN < n_neighbours_min)
         CALL extend_group_single_iteration_a( mesh, map, stack, stackN)
+        ! Safety
+        IF (stackN - 1 > n_neighbours_max) CALL crash('expanded local neighbourhood too far!')
       END DO
 
-      ! Safety
-      IF (stackN - 1 > n_neighbours_max) CALL crash('expanded local neighbourhood too far!')
+      ! Calculate shape functions; if this fails, add more neighbours until it succeeds
+      succeeded = .FALSE.
+      DO WHILE (.NOT. succeeded)
 
-      ! Get the coordinates of the neighbours
-      n_c = 0
-      DO i = 1, stackN
-        IF (n_c == n_neighbours_max) EXIT
-        vi = stack( i)
-        n_c = n_c + 1
-        i_c( n_c) = vi
-        x_c( n_c) = mesh%V( vi,1)
-        y_c( n_c) = mesh%V( vi,2)
-      END DO
+        ! Get the coordinates of the neighbours
+        n_c = 0
+        DO i = 1, stackN
+          IF (n_c == n_neighbours_max) EXIT
+          vi = stack( i)
+          n_c = n_c + 1
+          i_c( n_c) = vi
+          x_c( n_c) = mesh%V( vi,1)
+          y_c( n_c) = mesh%V( vi,2)
+        END DO
 
-      ! Calculate shape functions
-      CALL calc_shape_functions_2D_stag_1st_order( x, y, n_neighbours_max, n_c, x_c, y_c, Nf_c, Nfx_c, Nfy_c)
+        ! Calculate shape functions
+        CALL calc_shape_functions_2D_stag_1st_order( x, y, n_neighbours_max, n_c, x_c, y_c, Nf_c, Nfx_c, Nfy_c, succeeded)
+
+        ! If the shape functions couldnt be calculated, include more neighbours and try again
+        IF (.NOT. succeeded) CALL extend_group_single_iteration_a( mesh, map, stack, stackN)
+
+      END DO ! DO WHILE (.NOT. succeeded)
 
       ! Fill them into the matrices
 
@@ -825,6 +844,7 @@ CONTAINS
     INTEGER,  DIMENSION(:    ), ALLOCATABLE            :: i_c
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: x_c, y_c
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: Nf_c, Nfx_c, Nfy_c
+    LOGICAL                                            :: succeeded
     INTEGER                                            :: col
 
     ! Add routine to path
@@ -889,24 +909,32 @@ CONTAINS
       ! Extend outward until enough neighbours are found to calculate the shape functions
       DO WHILE (stackN < n_neighbours_min)
         CALL extend_group_single_iteration_a( mesh, map, stack, stackN)
+        ! Safety
+        IF (stackN - 1 > n_neighbours_max) CALL crash('expanded local neighbourhood too far!')
       END DO
 
-      ! Safety
-      IF (stackN - 1 > n_neighbours_max) CALL crash('expanded local neighbourhood too far!')
+      ! Calculate shape functions; if this fails, add more neighbours until it succeeds
+      succeeded = .FALSE.
+      DO WHILE (.NOT. succeeded)
 
-      ! Get the coordinates of the neighbours
-      n_c = 0
-      DO i = 1, stackN
-        IF (n_c == n_neighbours_max) EXIT
-        vi = stack( i)
-        n_c = n_c + 1
-        i_c( n_c) = vi
-        x_c( n_c) = mesh%V( vi,1)
-        y_c( n_c) = mesh%V( vi,2)
-      END DO
+        ! Get the coordinates of the neighbours
+        n_c = 0
+        DO i = 1, stackN
+          IF (n_c == n_neighbours_max) EXIT
+          vi = stack( i)
+          n_c = n_c + 1
+          i_c( n_c) = vi
+          x_c( n_c) = mesh%V( vi,1)
+          y_c( n_c) = mesh%V( vi,2)
+        END DO
 
-      ! Calculate shape functions
-      CALL calc_shape_functions_2D_stag_1st_order( x, y, n_neighbours_max, n_c, x_c, y_c, Nf_c, Nfx_c, Nfy_c)
+        ! Calculate shape functions
+        CALL calc_shape_functions_2D_stag_1st_order( x, y, n_neighbours_max, n_c, x_c, y_c, Nf_c, Nfx_c, Nfy_c, succeeded)
+
+        ! If the shape functions couldnt be calculated, include more neighbours and try again
+        IF (.NOT. succeeded) CALL extend_group_single_iteration_a( mesh, map, stack, stackN)
+
+      END DO ! DO WHILE (.NOT. succeeded)
 
       ! Fill them into the matrices
 
@@ -958,6 +986,7 @@ CONTAINS
     INTEGER,  DIMENSION(:    ), ALLOCATABLE            :: i_c
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: x_c, y_c
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: Nf_c, Nfx_c, Nfy_c
+    LOGICAL                                            :: succeeded
     INTEGER                                            :: col
 
     ! Add routine to path
@@ -1021,24 +1050,32 @@ CONTAINS
       ! Extend outward until enough neighbours are found to calculate the shape functions
       DO WHILE (stackN < n_neighbours_min)
         CALL extend_group_single_iteration_b( mesh, map, stack, stackN)
+        ! Safety
+        IF (stackN - 1 > n_neighbours_max) CALL crash('expanded local neighbourhood too far!')
       END DO
 
-      ! Safety
-      IF (stackN - 1 > n_neighbours_max) CALL crash('expanded local neighbourhood too far!')
+      ! Calculate shape functions; if this fails, add more neighbours until it succeeds
+      succeeded = .FALSE.
+      DO WHILE (.NOT. succeeded)
 
-      ! Get the coordinates of the neighbours
-      n_c = 0
-      DO i = 1, stackN
-        IF (n_c == n_neighbours_max) EXIT
-        ti = stack( i)
-        n_c = n_c + 1
-        i_c( n_c) = ti
-        x_c( n_c) = mesh%TriGC( ti,1)
-        y_c( n_c) = mesh%TriGC( ti,2)
-      END DO
+        ! Get the coordinates of the neighbours
+        n_c = 0
+        DO i = 1, stackN
+          IF (n_c == n_neighbours_max) EXIT
+          ti = stack( i)
+          n_c = n_c + 1
+          i_c( n_c) = ti
+          x_c( n_c) = mesh%TriGC( ti,1)
+          y_c( n_c) = mesh%TriGC( ti,2)
+        END DO
 
-      ! Calculate shape functions
-      CALL calc_shape_functions_2D_stag_1st_order( x, y, n_neighbours_max, n_c, x_c, y_c, Nf_c, Nfx_c, Nfy_c)
+        ! Calculate shape functions
+        CALL calc_shape_functions_2D_stag_1st_order( x, y, n_neighbours_max, n_c, x_c, y_c, Nf_c, Nfx_c, Nfy_c, succeeded)
+
+        ! If the shape functions couldnt be calculated, include more neighbours and try again
+        IF (.NOT. succeeded) CALL extend_group_single_iteration_b( mesh, map, stack, stackN)
+
+      END DO ! DO WHILE (.NOT. succeeded)
 
       ! Fill them into the matrices
 
@@ -1091,7 +1128,10 @@ CONTAINS
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: x_c, y_c
     REAL(dp)                                           :: Nfx_i, Nfy_i
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: Nfx_c, Nfy_c
+    LOGICAL                                            :: succeeded
     INTEGER                                            :: col
+
+    INTEGER :: ii,jj
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -1148,25 +1188,33 @@ CONTAINS
       ! Extend outward until enough neighbours are found to calculate the shape functions
       DO WHILE (stackN - 1 < n_neighbours_min)
         CALL extend_group_single_iteration_b( mesh, map, stack, stackN)
+        ! Safety
+        IF (stackN - 1 > n_neighbours_max) CALL crash('expanded local neighbourhood too far!')
       END DO
 
-      ! Safety
-      IF (stackN - 1 > n_neighbours_max) CALL crash('expanded local neighbourhood too far!')
+      ! Calculate shape functions; if this fails, add more neighbours until it succeeds
+      succeeded = .FALSE.
+      DO WHILE (.NOT. succeeded)
 
-      ! Get the coordinates of the neighbours
-      n_c = 0
-      DO i = 1, stackN
-        IF (n_c == n_neighbours_max) EXIT
-        tj = stack( i)
-        IF (tj == ti) CYCLE
-        n_c = n_c + 1
-        i_c( n_c) = tj
-        x_c( n_c) = mesh%TriGC( tj,1)
-        y_c( n_c) = mesh%TriGC( tj,2)
-      END DO
+        ! Get the coordinates of the neighbours
+        n_c = 0
+        DO i = 1, stackN
+          IF (n_c == n_neighbours_max) EXIT
+          tj = stack( i)
+          IF (tj == ti) CYCLE
+          n_c = n_c + 1
+          i_c( n_c) = tj
+          x_c( n_c) = mesh%TriGC( tj,1)
+          y_c( n_c) = mesh%TriGC( tj,2)
+        END DO
 
-      ! Calculate shape functions
-      CALL calc_shape_functions_2D_reg_1st_order( x, y, n_neighbours_max, n_c, x_c, y_c, Nfx_i, Nfy_i, Nfx_c, Nfy_c)
+        ! Calculate shape functions
+        CALL calc_shape_functions_2D_reg_1st_order( x, y, n_neighbours_max, n_c, x_c, y_c, Nfx_i, Nfy_i, Nfx_c, Nfy_c, succeeded)
+
+        ! If the shape functions couldnt be calculated, include more neighbours and try again
+        IF (.NOT. succeeded) CALL extend_group_single_iteration_b( mesh, map, stack, stackN)
+
+      END DO ! DO WHILE (.NOT. succeeded)
 
       ! Fill them into the matrices
 
@@ -1221,6 +1269,7 @@ CONTAINS
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: x_c, y_c
     REAL(dp)                                           :: Nfx_i, Nfy_i, Nfxx_i, Nfxy_i, Nfyy_i
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: Nfx_c, Nfy_c, Nfxx_c, Nfxy_c, Nfyy_c
+    LOGICAL                                            :: succeeded
     INTEGER                                            :: col
 
     ! Add routine to path
@@ -1284,25 +1333,33 @@ CONTAINS
       ! Extend outward until enough neighbours are found to calculate the shape functions
       DO WHILE (stackN - 1 < n_neighbours_min)
         CALL extend_group_single_iteration_b( mesh, map, stack, stackN)
+        ! Safety
+        IF (stackN - 1 > n_neighbours_max) CALL crash('expanded local neighbourhood too far!')
       END DO
 
-      ! Safety
-      IF (stackN - 1 > n_neighbours_max) CALL crash('expanded local neighbourhood too far!')
+      ! Calculate shape functions; if this fails, add more neighbours until it succeeds
+      succeeded = .FALSE.
+      DO WHILE (.NOT. succeeded)
 
-      ! Get the coordinates of the neighbours
-      n_c = 0
-      DO i = 1, stackN
-        IF (n_c == n_neighbours_max) EXIT
-        tj = stack( i)
-        IF (tj == ti) CYCLE
-        n_c = n_c + 1
-        i_c( n_c) = tj
-        x_c( n_c) = mesh%TriGC( tj,1)
-        y_c( n_c) = mesh%TriGC( tj,2)
-      END DO
+        ! Get the coordinates of the neighbours
+        n_c = 0
+        DO i = 1, stackN
+          IF (n_c == n_neighbours_max) EXIT
+          tj = stack( i)
+          IF (tj == ti) CYCLE
+          n_c = n_c + 1
+          i_c( n_c) = tj
+          x_c( n_c) = mesh%TriGC( tj,1)
+          y_c( n_c) = mesh%TriGC( tj,2)
+        END DO
 
-      ! Calculate shape functions
-      CALL calc_shape_functions_2D_reg_2nd_order( x, y, n_neighbours_max, n_c, x_c, y_c, Nfx_i, Nfy_i, Nfxx_i, Nfxy_i, Nfyy_i, Nfx_c, Nfy_c, Nfxx_c, Nfxy_c, Nfyy_c)
+        ! Calculate shape functions
+        CALL calc_shape_functions_2D_reg_2nd_order( x, y, n_neighbours_max, n_c, x_c, y_c, Nfx_i, Nfy_i, Nfxx_i, Nfxy_i, Nfyy_i, Nfx_c, Nfy_c, Nfxx_c, Nfxy_c, Nfyy_c, succeeded)
+
+        ! If the shape functions couldnt be calculated, include more neighbours and try again
+        IF (.NOT. succeeded) CALL extend_group_single_iteration_b( mesh, map, stack, stackN)
+
+      END DO ! DO WHILE (.NOT. succeeded)
 
       ! Fill them into the matrices
 
@@ -1365,6 +1422,7 @@ CONTAINS
     INTEGER,  DIMENSION(:    ), ALLOCATABLE            :: i_c
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: x_c, y_c
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: Nf_c, Nfx_c, Nfy_c
+    LOGICAL                                            :: succeeded
     INTEGER                                            :: col
 
     ! Add routine to path
@@ -1429,24 +1487,32 @@ CONTAINS
       ! Extend outward until enough neighbours are found to calculate the shape functions
       DO WHILE (stackN < n_neighbours_min)
         CALL extend_group_single_iteration_b( mesh, map, stack, stackN)
+        ! Safety
+        IF (stackN - 1 > n_neighbours_max) CALL crash('expanded local neighbourhood too far!')
       END DO
 
-      ! Safety
-      IF (stackN - 1 > n_neighbours_max) CALL crash('expanded local neighbourhood too far!')
+      ! Calculate shape functions; if this fails, add more neighbours until it succeeds
+      succeeded = .FALSE.
+      DO WHILE (.NOT. succeeded)
 
-      ! Get the coordinates of the neighbours
-      n_c = 0
-      DO i = 1, stackN
-        IF (n_c == n_neighbours_max) EXIT
-        ti = stack( i)
-        n_c = n_c + 1
-        i_c( n_c) = ti
-        x_c( n_c) = mesh%TriGC( ti,1)
-        y_c( n_c) = mesh%TriGC( ti,2)
-      END DO
+        ! Get the coordinates of the neighbours
+        n_c = 0
+        DO i = 1, stackN
+          IF (n_c == n_neighbours_max) EXIT
+          ti = stack( i)
+          n_c = n_c + 1
+          i_c( n_c) = ti
+          x_c( n_c) = mesh%TriGC( ti,1)
+          y_c( n_c) = mesh%TriGC( ti,2)
+        END DO
 
-      ! Calculate shape functions
-      CALL calc_shape_functions_2D_stag_1st_order( x, y, n_neighbours_max, n_c, x_c, y_c, Nf_c, Nfx_c, Nfy_c)
+        ! Calculate shape functions
+        CALL calc_shape_functions_2D_stag_1st_order( x, y, n_neighbours_max, n_c, x_c, y_c, Nf_c, Nfx_c, Nfy_c, succeeded)
+
+        ! If the shape functions couldnt be calculated, include more neighbours and try again
+        IF (.NOT. succeeded) CALL extend_group_single_iteration_b( mesh, map, stack, stackN)
+
+      END DO ! DO WHILE (.NOT. succeeded)
 
       ! Fill them into the matrices
 
@@ -1498,6 +1564,7 @@ CONTAINS
     INTEGER,  DIMENSION(:    ), ALLOCATABLE            :: i_c
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: x_c, y_c
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: Nf_c, Nfx_c, Nfy_c
+    LOGICAL                                            :: succeeded
     INTEGER                                            :: col
 
     ! Add routine to path
@@ -1561,24 +1628,32 @@ CONTAINS
       ! Extend outward until enough neighbours are found to calculate the shape functions
       DO WHILE (stackN < n_neighbours_min)
         CALL extend_group_single_iteration_c( mesh, map, stack, stackN)
+        ! Safety
+        IF (stackN - 1 > n_neighbours_max) CALL crash('expanded local neighbourhood too far!')
       END DO
 
-      ! Safety
-      IF (stackN - 1 > n_neighbours_max) CALL crash('expanded local neighbourhood too far!')
+      ! Calculate shape functions; if this fails, add more neighbours until it succeeds
+      succeeded = .FALSE.
+      DO WHILE (.NOT. succeeded)
 
-      ! Get the coordinates of the neighbours
-      n_c = 0
-      DO i = 1, stackN
-        IF (n_c == n_neighbours_max) EXIT
-        ei = stack( i)
-        n_c = n_c + 1
-        i_c( n_c) = ei
-        x_c( n_c) = mesh%E( ei,1)
-        y_c( n_c) = mesh%E( ei,2)
-      END DO
+        ! Get the coordinates of the neighbours
+        n_c = 0
+        DO i = 1, stackN
+          IF (n_c == n_neighbours_max) EXIT
+          ei = stack( i)
+          n_c = n_c + 1
+          i_c( n_c) = ei
+          x_c( n_c) = mesh%E( ei,1)
+          y_c( n_c) = mesh%E( ei,2)
+        END DO
 
-      ! Calculate shape functions
-      CALL calc_shape_functions_2D_stag_1st_order( x, y, n_neighbours_max, n_c, x_c, y_c, Nf_c, Nfx_c, Nfy_c)
+        ! Calculate shape functions
+        CALL calc_shape_functions_2D_stag_1st_order( x, y, n_neighbours_max, n_c, x_c, y_c, Nf_c, Nfx_c, Nfy_c, succeeded)
+
+        ! If the shape functions couldnt be calculated, include more neighbours and try again
+        IF (.NOT. succeeded) CALL extend_group_single_iteration_c( mesh, map, stack, stackN)
+
+      END DO ! DO WHILE (.NOT. succeeded)
 
       ! Fill them into the matrices
 
@@ -1630,6 +1705,7 @@ CONTAINS
     INTEGER,  DIMENSION(:    ), ALLOCATABLE            :: i_c
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: x_c, y_c
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: Nf_c, Nfx_c, Nfy_c
+    LOGICAL                                            :: succeeded
     INTEGER                                            :: col
 
     ! Add routine to path
@@ -1705,24 +1781,32 @@ CONTAINS
       ! Extend outward until enough neighbours are found to calculate the shape functions
       DO WHILE (stackN < n_neighbours_min)
         CALL extend_group_single_iteration_c( mesh, map, stack, stackN)
+        ! Safety
+        IF (stackN - 1 > n_neighbours_max) CALL crash('expanded local neighbourhood too far!')
       END DO
 
-      ! Safety
-      IF (stackN - 1 > n_neighbours_max) CALL crash('expanded local neighbourhood too far!')
+      ! Calculate shape functions; if this fails, add more neighbours until it succeeds
+      succeeded = .FALSE.
+      DO WHILE (.NOT. succeeded)
 
-      ! Get the coordinates of the neighbours
-      n_c = 0
-      DO i = 1, stackN
-        IF (n_c == n_neighbours_max) EXIT
-        ei = stack( i)
-        n_c = n_c + 1
-        i_c( n_c) = ei
-        x_c( n_c) = mesh%E( ei,1)
-        y_c( n_c) = mesh%E( ei,2)
-      END DO
+        ! Get the coordinates of the neighbours
+        n_c = 0
+        DO i = 1, stackN
+          IF (n_c == n_neighbours_max) EXIT
+          ei = stack( i)
+          n_c = n_c + 1
+          i_c( n_c) = ei
+          x_c( n_c) = mesh%E( ei,1)
+          y_c( n_c) = mesh%E( ei,2)
+        END DO
 
-      ! Calculate shape functions
-      CALL calc_shape_functions_2D_stag_1st_order( x, y, n_neighbours_max, n_c, x_c, y_c, Nf_c, Nfx_c, Nfy_c)
+        ! Calculate shape functions
+        CALL calc_shape_functions_2D_stag_1st_order( x, y, n_neighbours_max, n_c, x_c, y_c, Nf_c, Nfx_c, Nfy_c, succeeded)
+
+        ! If the shape functions couldnt be calculated, include more neighbours and try again
+        IF (.NOT. succeeded) CALL extend_group_single_iteration_c( mesh, map, stack, stackN)
+
+      END DO ! DO WHILE (.NOT. succeeded)
 
       ! Fill them into the matrices
 
@@ -1775,6 +1859,7 @@ CONTAINS
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: x_c, y_c
     REAL(dp)                                           :: Nfx_i, Nfy_i
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: Nfx_c, Nfy_c
+    LOGICAL                                            :: succeeded
     INTEGER                                            :: col
 
     ! Add routine to path
@@ -1832,25 +1917,33 @@ CONTAINS
       ! Extend outward until enough neighbours are found to calculate the shape functions
       DO WHILE (stackN - 1 < n_neighbours_min)
         CALL extend_group_single_iteration_c( mesh, map, stack, stackN)
+        ! Safety
+        IF (stackN - 1 > n_neighbours_max) CALL crash('expanded local neighbourhood too far!')
       END DO
 
-      ! Safety
-      IF (stackN - 1 > n_neighbours_max) CALL crash('expanded local neighbourhood too far!')
+      ! Calculate shape functions; if this fails, add more neighbours until it succeeds
+      succeeded = .FALSE.
+      DO WHILE (.NOT. succeeded)
 
-      ! Get the coordinates of the neighbours
-      n_c = 0
-      DO i = 1, stackN
-        IF (n_c == n_neighbours_max) EXIT
-        ej = stack( i)
-        IF (ej == ei) CYCLE
-        n_c = n_c + 1
-        i_c( n_c) = ej
-        x_c( n_c) = mesh%E( ej,1)
-        y_c( n_c) = mesh%E( ej,2)
-      END DO
+        ! Get the coordinates of the neighbours
+        n_c = 0
+        DO i = 1, stackN
+          IF (n_c == n_neighbours_max) EXIT
+          ej = stack( i)
+          IF (ej == ei) CYCLE
+          n_c = n_c + 1
+          i_c( n_c) = ej
+          x_c( n_c) = mesh%E( ej,1)
+          y_c( n_c) = mesh%E( ej,2)
+        END DO
 
-      ! Calculate shape functions
-      CALL calc_shape_functions_2D_reg_1st_order( x, y, n_neighbours_max, n_c, x_c, y_c, Nfx_i, Nfy_i, Nfx_c, Nfy_c)
+        ! Calculate shape functions
+        CALL calc_shape_functions_2D_reg_1st_order( x, y, n_neighbours_max, n_c, x_c, y_c, Nfx_i, Nfy_i, Nfx_c, Nfy_c, succeeded)
+
+        ! If the shape functions couldnt be calculated, include more neighbours and try again
+        IF (.NOT. succeeded) CALL extend_group_single_iteration_c( mesh, map, stack, stackN)
+
+      END DO ! DO WHILE (.NOT. succeeded)
 
       ! Fill them into the matrices
 
@@ -2352,7 +2445,7 @@ CONTAINS
 
   END SUBROUTINE calc_shape_functions_1D_stag_2nd_order
 
-  SUBROUTINE calc_shape_functions_2D_reg_1st_order( x, y, n_max, n_c, x_c, y_c, Nfx_i, Nfy_i, Nfx_c, Nfy_c)
+  SUBROUTINE calc_shape_functions_2D_reg_1st_order( x, y, n_max, n_c, x_c, y_c, Nfx_i, Nfy_i, Nfx_c, Nfy_c, succeeded)
     ! Calculate shape functions...
     ! ...in two dimensions...
     ! ...on the regular grid (i.e. f is known)...
@@ -2371,12 +2464,15 @@ CONTAINS
     REAL(dp),                            INTENT(OUT)   :: Nfy_i      ! d/dy   shape function for the point [x,y]
     REAL(dp), DIMENSION(n_max),          INTENT(OUT)   :: Nfx_c      ! d/dx   shape functions for the surrounding points
     REAL(dp), DIMENSION(n_max),          INTENT(OUT)   :: Nfy_c      ! d/dy   shape functions for the surrounding points
+    LOGICAL,                             INTENT(OUT)   :: succeeded  ! Whether or not we succeeded (if not, we need more neighbours)
 
     ! Local variables:
     REAL(dp), PARAMETER                                :: q = 1.5_dp
     INTEGER                                            :: ci
     REAL(dp), DIMENSION(n_c)                           :: dx, dy, w
-    REAL(dp), DIMENSION(2,2)                           :: ATWTWA, M
+    REAL(dp), DIMENSION(2,2)                           :: ATWTWA
+    REAL(dp)                                           :: detATWTWA
+    REAL(dp), DIMENSION(2,2)                           :: M
 
     ! Safety
     IF (n_c < 2) CALL crash('calc_shape_functions_2D_reg_1st_order needs at least 2 neighbours!')
@@ -2402,6 +2498,16 @@ CONTAINS
       ATWTWA( 2,2) = ATWTWA( 2,2) + w(ci)**2 *       dy( ci)    *       dy( ci)
     END DO
 
+    ! Check if this matrix is singular
+    detATWTWA = calc_determinant_2_by_2( ATWTWA)
+    IF (ABS( detATWTWA) < TINY( detATWTWA)) THEN
+      ! ATWTWA is singular; try again with more neighbours!
+      succeeded = .FALSE.
+      RETURN
+    ELSE
+      succeeded = .TRUE.
+    END IF
+
     ! Invert ATWTWA to find M
     M = calc_matrix_inverse_2_by_2( ATWTWA)
 
@@ -2422,7 +2528,7 @@ CONTAINS
 
   END SUBROUTINE calc_shape_functions_2D_reg_1st_order
 
-  SUBROUTINE calc_shape_functions_2D_reg_2nd_order( x, y, n_max, n_c, x_c, y_c, Nfx_i, Nfy_i, Nfxx_i, Nfxy_i, Nfyy_i, Nfx_c, Nfy_c, Nfxx_c, Nfxy_c, Nfyy_c)
+  SUBROUTINE calc_shape_functions_2D_reg_2nd_order( x, y, n_max, n_c, x_c, y_c, Nfx_i, Nfy_i, Nfxx_i, Nfxy_i, Nfyy_i, Nfx_c, Nfy_c, Nfxx_c, Nfxy_c, Nfyy_c, succeeded)
     ! Calculate shape functions...
     ! ...in two dimensions...
     ! ...on the regular grid (i.e. f is known)...
@@ -2447,12 +2553,15 @@ CONTAINS
     REAL(dp), DIMENSION(n_max),          INTENT(OUT)   :: Nfxx_c     ! d2/dx2  shape functions for the surrounding points
     REAL(dp), DIMENSION(n_max),          INTENT(OUT)   :: Nfxy_c     ! d2/dxdy shape functions for the surrounding points
     REAL(dp), DIMENSION(n_max),          INTENT(OUT)   :: Nfyy_c     ! d2/dy2  shape functions for the surrounding points
+    LOGICAL,                             INTENT(OUT)   :: succeeded  ! Whether or not we succeeded (if not, we need more neighbours)
 
     ! Local variables:
     REAL(dp), PARAMETER                                :: q = 1.5_dp
     INTEGER                                            :: ci
     REAL(dp), DIMENSION(n_c)                           :: dx, dy, w
-    REAL(dp), DIMENSION(5,5)                           :: ATWTWA, M
+    REAL(dp), DIMENSION(5,5)                           :: ATWTWA
+    REAL(dp)                                           :: detATWTWA
+    REAL(dp), DIMENSION(5,5)                           :: M
 
     ! Safety
     IF (n_c < 5) CALL crash('calc_shape_functions_2D_reg_2nd_order needs at least 2 neighbours!')
@@ -2503,6 +2612,16 @@ CONTAINS
       ATWTWA( 5,5) = ATWTWA( 5,5) + w( ci)**2 * 1/2 *              dy( ci)**2 * 1/2 *              dy( ci)**2
 
     END DO
+
+    ! Check if this matrix is singular
+    detATWTWA = calc_determinant_5_by_5( ATWTWA)
+    IF (ABS( detATWTWA) < TINY( detATWTWA)) THEN
+      ! ATWTWA is singular; try again with more neighbours!
+      succeeded = .FALSE.
+      RETURN
+    ELSE
+      succeeded = .TRUE.
+    END IF
 
     ! Invert ATWTWA to find M
     M = calc_matrix_inverse_5_by_5( ATWTWA)
@@ -2562,7 +2681,7 @@ CONTAINS
 
   END SUBROUTINE calc_shape_functions_2D_reg_2nd_order
 
-  SUBROUTINE calc_shape_functions_2D_stag_1st_order( x, y, n_max, n_c, x_c, y_c, Nf_c, Nfx_c, Nfy_c)
+  SUBROUTINE calc_shape_functions_2D_stag_1st_order( x, y, n_max, n_c, x_c, y_c, Nf_c, Nfx_c, Nfy_c, succeeded)
     ! Calculate shape functions...
     ! ...in two dimensions...
     ! ...on the staggered grid (i.e. f is not known)...
@@ -2580,12 +2699,15 @@ CONTAINS
     REAL(dp), DIMENSION(n_max),          INTENT(OUT)   :: Nf_c       ! map    shape functions for the surrounding points
     REAL(dp), DIMENSION(n_max),          INTENT(OUT)   :: Nfx_c      ! d/dx   shape functions for the surrounding points
     REAL(dp), DIMENSION(n_max),          INTENT(OUT)   :: Nfy_c      ! d/dy   shape functions for the surrounding points
+    LOGICAL,                             INTENT(OUT)   :: succeeded  ! Whether or not we succeeded (if not, we need more neighbours)
 
     ! Local variables:
     REAL(dp), PARAMETER                                :: q = 1.5_dp
     INTEGER                                            :: ci
     REAL(dp), DIMENSION(n_c)                           :: dx, dy, w
-    REAL(dp), DIMENSION(3,3)                           :: ATWTWA, M
+    REAL(dp), DIMENSION(3,3)                           :: ATWTWA
+    REAL(dp)                                           :: detATWTWA
+    REAL(dp), DIMENSION(3,3)                           :: M
     REAL(dp) :: det
 
     ! Safety
@@ -2617,6 +2739,16 @@ CONTAINS
       ATWTWA( 3,2) = ATWTWA( 3,2) + (w( ci)**2 * dy( ci) * dx( ci))
       ATWTWA( 3,3) = ATWTWA( 3,3) + (w( ci)**2 * dy( ci) * dy( ci))
     END DO
+
+    ! Check if this matrix is singular
+    detATWTWA = calc_determinant_3_by_3( ATWTWA)
+    IF (ABS( detATWTWA) < TINY( detATWTWA)) THEN
+      ! ATWTWA is singular; try again with more neighbours!
+      succeeded = .FALSE.
+      RETURN
+    ELSE
+      succeeded = .TRUE.
+    END IF
 
     ! Invert ATWTWA to find M
     M = calc_matrix_inverse_3_by_3( ATWTWA)

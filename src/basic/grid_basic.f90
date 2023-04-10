@@ -10,7 +10,7 @@ MODULE grid_basic
   USE mpi
   USE precisions                                             , ONLY: dp
   USE mpi_basic                                              , ONLY: par, cerr, ierr, MPI_status, sync
-  USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine
+  USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE parameters
   USE petsc_basic                                            , ONLY: perr, mat_CSR2petsc
   USE reallocate_mod                                         , ONLY: reallocate
@@ -62,7 +62,7 @@ CONTAINS
 
 ! == Basic square grid functionality
 
-  SUBROUTINE setup_square_grid( name, xmin, xmax, ymin, ymax, dx, lambda_M, phi_M, beta_stereo, grid)
+  SUBROUTINE setup_square_grid( name, xmin, xmax, ymin, ymax, dx, grid, lambda_M, phi_M, beta_stereo)
     ! Set up a square grid that covers the specified domain
 
     IMPLICIT NONE
@@ -71,8 +71,8 @@ CONTAINS
     CHARACTER(LEN=256),                  INTENT(IN)    :: name
     REAL(dp),                            INTENT(IN)    :: xmin, xmax, ymin, ymax        ! [m] Domain
     REAL(dp),                            INTENT(IN)    :: dx                            ! [m] Resolution
-    REAL(dp),                  OPTIONAL, INTENT(IN)    :: lambda_M, phi_M, beta_stereo
     TYPE(type_grid),                     INTENT(OUT)   :: grid
+    REAL(dp),                  OPTIONAL, INTENT(IN)    :: lambda_M, phi_M, beta_stereo
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'setup_square_grid'
@@ -467,11 +467,11 @@ CONTAINS
 
   END SUBROUTINE calc_field_to_vector_form_translation_tables
 
-! == Calculate contour lines from gridded/meshed data (for mesh generation)
+! == Calculate contour lines and polygons from gridded data (for mesh generation)
 
-  SUBROUTINE calc_grid_contour_as_line( grid, d, f, line)
-    ! Calculate a contour line at level f for data d on a square grid%
-    ! Generate the contour line in UFEMISM line format (i.e. unordered
+  SUBROUTINE calc_grid_contour_as_line( grid, d, f, line, mask)
+    ! Calculate a contour line at level f for data d on a square grid.
+    ! Generate the contour line in UFEMISM line-segment format (i.e. unordered
     ! individual line segments).
 
     IMPLICIT NONE
@@ -481,6 +481,7 @@ CONTAINS
     REAL(dp), DIMENSION(:,:  ),              INTENT(IN)    :: d
     REAL(dp),                                INTENT(IN)    :: f
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE, INTENT(OUT)   :: line
+    LOGICAL,  DIMENSION(:,:  ), OPTIONAL,    INTENT(IN)    :: mask
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'mesh_add_smileyface'
@@ -488,6 +489,7 @@ CONTAINS
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                :: d_scaled
     REAL(dp)                                               :: d_scaled_min, d_scaled_max
     INTEGER                                                :: i,j
+    LOGICAL,  DIMENSION(:,:  ), ALLOCATABLE                :: mask_loc
     INTEGER                                                :: n_max, n
     REAL(dp)                                               :: d_sw, d_nw, d_se, d_ne
     REAL(dp)                                               :: xw, xe, xs, xn, yw, ye, ys, yn
@@ -521,12 +523,26 @@ CONTAINS
       END DO
     END DO
 
+    ! Set the mask to optionally skip certain grid cells
+    ALLOCATE( mask_loc( grid%nx, grid%ny))
+    IF (PRESENT( mask)) THEN
+      mask_loc = mask
+    ELSE
+      mask_loc =  .TRUE.
+    END IF
+
     n_max = 1000
     ALLOCATE( line( n_max, 4))
 
     n = 0
     DO i = 1, grid%nx-1
       DO j = 1, grid%ny-1
+
+        ! Skip this grid cell if told so
+        IF ((.NOT. mask_loc( i  ,j  )) .AND. &
+            (.NOT. mask_loc( i  ,j+1)) .AND. &
+            (.NOT. mask_loc( i+1,j  )) .AND. &
+            (.NOT. mask_loc( i+1,j+1))) CYCLE
 
         ! Extend allocated memory IF needed
         IF (n > n_max - 10) THEN
@@ -652,6 +668,322 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE calc_grid_contour_as_line
+
+  SUBROUTINE poly2line( poly, line)
+    ! Convert a multi-polygon to UFEMISM line-segment format (i.e. unordered
+    ! individual line segments).
+
+    IMPLICIT NONE
+
+    ! In/output variables
+    REAL(dp), DIMENSION(:,:  ),              INTENT(IN)    :: poly
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE, INTENT(OUT)   :: line
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'poly2line'
+    INTEGER                                                :: n,i1,i2
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    n = SIZE( poly,1)
+
+    ! Allocate memory for line segments
+    ALLOCATE( line( n,4))
+
+    ! Convert polygon to line-segment format
+    DO i1 = 1, n
+      i2 = i1 + 1
+      IF (i2 == n+1) i2 = 1
+      line( i1,:) = [poly( i1,1), poly( i1,2), poly( i2,1), poly( i2,2)]
+    END DO
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE poly2line
+
+  SUBROUTINE calc_grid_mask_as_polygons( grid, mask, poly_mult)
+    ! Calculate a set of polygon enveloping all TRUE-valued mask cells
+
+    IMPLICIT NONE
+
+    ! In/output variables
+    TYPE(type_grid),                         INTENT(IN)    :: grid
+    LOGICAL,  DIMENSION(:,:  ),              INTENT(IN)    :: mask
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE, INTENT(OUT)   :: poly_mult
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'calc_grid_mask_as_polygons'
+    LOGICAL,  DIMENSION(:,:  ), ALLOCATABLE                :: mask_loc
+    INTEGER                                                :: i,j
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                :: poly
+    INTEGER                                                :: n_poly, n_tot
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Safety
+    IF (SIZE( mask,1) /= grid%nx .OR. SIZE( mask,2) /= grid%ny) CALL crash('incorrect data dimensions!')
+
+    ! Trivial case for no TRUE values at all
+    IF (.NOT. ANY( mask)) THEN
+      ALLOCATE( poly_mult( 0,0))
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
+
+    ! Make a local copy of the logical mask
+    ALLOCATE( mask_loc( grid%nx, grid%ny))
+    mask_loc = mask
+
+    ! Initialise poly_mult and poly
+    ALLOCATE( poly_mult( grid%nx*grid%ny,2))
+    ALLOCATE( poly(      grid%nx*grid%ny,2))
+    n_tot = 0
+
+    ! Calculate polygons for all TRUE regions of the mask
+    DO i = 1, grid%nx
+    DO j = 1, grid%ny
+
+      IF (mask_loc( i,j)) THEN
+        ! Found a seed for a TRUE region
+
+        ! Calculate a polygon enveloping this TRUE region, and
+        ! remove the region from the mask
+        CALL calc_grid_mask_as_polygon( grid, mask_loc, i, j, poly, n_poly)
+
+        ! Add this polygon to poly_mult
+        poly_mult( n_tot+1,1) = REAL( n_poly,dp)
+        poly_mult( n_tot+1,2) = 0._dp
+        poly_mult( n_tot+2:n_tot+1+n_poly,:) = poly( 1:n_poly,:)
+        n_tot = n_tot + 1 + n_poly
+
+      END IF ! IF (mask_loc( i,j)) THEN
+
+    END DO
+    END DO
+
+    ! Crop memory
+    CALL reallocate( poly_mult, n_tot, 2)
+
+    ! Clean up after yourself
+    DEALLOCATE( mask_loc)
+    DEALLOCATE( poly)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE calc_grid_mask_as_polygons
+
+  SUBROUTINE calc_grid_mask_as_polygon( grid, mask, i0, j0, poly, n_poly)
+    ! Calculate a polygon enveloping the set of TRUE-valued mask cells around i0,j0,
+    ! and remove that set of grid cells from the mask
+
+    IMPLICIT NONE
+
+    ! In/output variables
+    TYPE(type_grid),                         INTENT(IN)    :: grid
+    LOGICAL,  DIMENSION(:,:  ),              INTENT(INOUT) :: mask
+    INTEGER,                                 INTENT(IN)    :: i0,j0
+    REAL(dp), DIMENSION(:,:  ),              INTENT(OUT)   :: poly
+    INTEGER,                                 INTENT(OUT)   :: n_poly
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'calc_grid_mask_as_polygon'
+    LOGICAL,  DIMENSION(:,:  ), ALLOCATABLE                :: mask_ext
+    INTEGER,  DIMENSION(:,:  ), ALLOCATABLE                :: map
+    INTEGER,  DIMENSION(:,:  ), ALLOCATABLE                :: stack
+    INTEGER                                                :: stackN
+    INTEGER                                                :: i,j,ii,jj,i_sw,j_sw
+    CHARACTER(LEN=256)                                     :: dir, dir_prev
+    INTEGER                                                :: it
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Safety
+    IF (SIZE( mask,1) /= grid%nx .OR. SIZE( mask,2) /= grid%ny) CALL crash('incorrect data dimensions!')
+    IF (.NOT. mask( i0,j0)) CALL crash('seed at i0,j0 is not TRUE!')
+
+    ! Pad a row of FALSEs around the mask so the set of TRUEs around i0,j0 is really an island
+    ALLOCATE( mask_ext( 0:grid%nx+1, 0:grid%ny+1), source = .FALSE.)
+    mask_ext( 1:grid%nx, 1:grid%ny) = mask
+
+    ! Use a flood-fill algorithm to find the map of same-valued grid cells around mask cell i0,j0
+    ALLOCATE( map(   0:grid%nx+1, 0:grid%ny+1) , source = 0)
+    ALLOCATE( stack( (grid%nx+2)*(grid%ny+2),2))
+
+    map( i0,j0) = 1
+    stackN = 1
+    stack( 1,:) = [i0,j0]
+
+    DO WHILE (stackN > 0)
+
+      ! Take the last element from the stack
+      i = stack( stackN,1)
+      j = stack( stackN,2)
+      stackN = stackN - 1
+
+      ! Mark it as mapped
+      map( i,j) = 2
+
+      ! Remove it from the input mask
+      mask( i,j) = .FALSE.
+
+      ! Add all non-mapped, non-stacked, TRUE-valued neighbours to the stack
+      DO ii = MAX( 0, i-1), MIN( grid%nx+1, i+1)
+      DO jj = MAX( 0, j-1), MIN( grid%ny+1, j+1)
+        IF (ii /= i .AND. jj /= j) CYCLE ! Don't include diagonal neighbours
+        IF (map( ii,jj) == 0 .AND. mask_ext( ii,jj)) THEN
+          ! Add this neighbour to the stack
+          stackN = stackN + 1
+          stack( stackN,:) = [ii,jj]
+          ! Mark this neighbour on the map as stacked
+          map( ii,jj) = 1
+        END IF
+      END DO
+      END DO
+
+      ! If it is a southwest corner, save it as a starting point for the outline tracer
+      IF (.NOT. mask_ext( i-1,j) .AND. .NOT. mask_ext( i,j-1)) THEN
+        i_sw = i
+        j_sw = j
+      END IF
+
+    END DO
+
+    ! Start at the southwest corner we found earlier
+    ii = i_sw
+    jj = j_sw
+    n_poly = 2
+    poly( 1,:) = [grid%x( ii) - grid%dx/2._dp, grid%y( jj) - grid%dx/2._dp]
+    poly( 2,:) = [grid%x( ii) + grid%dx/2._dp, grid%y( jj) - grid%dx/2._dp]
+    dir = 'east'
+
+    ! Trace the outline of the mapped grid cells.
+    it = 0
+    DO WHILE (.TRUE.)
+
+      ! Safety
+      it = it + 1
+      IF (it > grid%nx*grid%ny) CALL crash('outline tracer got stuck!')
+
+      ! Cycle direction
+      dir_prev = dir
+
+      ! Check which way we go next
+      IF     (dir_prev == 'east') THEN
+        ! We were going east, so [ii,jj] is to the north of us, and we can
+        ! continue north, east, or south
+
+        IF     (map( ii+1,jj) == 0) THEN
+          ! Go north
+          dir = 'north'
+        ELSEIF (map( ii+1,jj-1) == 0) THEN
+          ! Go east
+          dir = 'east'
+          ii = ii+1
+        ELSEIF (map( ii,jj-1) == 0) THEN
+          ! Go south
+          dir = 'south'
+          ii = ii+1
+          jj = jj-1
+        ELSE
+          CALL crash('outline tracer got stuck while going east!')
+        END IF
+
+      ELSEIF (dir_prev == 'north') THEN
+        ! We were going north, so [ii,jj] is to the west of us, and we can
+        ! continue west, north, or east
+
+        IF     (map( ii,jj+1) == 0) THEN
+          ! Go west
+          dir = 'west'
+        ELSEIF (map( ii+1,jj+1) == 0) THEN
+          ! Go north
+          dir = 'north'
+          jj = jj+1
+        ELSEIF (map( ii+1,jj) == 0) THEN
+          ! Go east
+          dir = 'east'
+          ii = ii+1
+          jj = jj+1
+        ELSE
+          CALL crash('outline tracer got stuck while going north!')
+        END IF
+
+      ELSEIF (dir_prev == 'west') THEN
+        ! We were going west, so [ii,jj] is to the south of us, and we can
+        ! continue south, west, or north
+
+        IF     (map( ii-1,jj) == 0) THEN
+          ! Go south
+          dir = 'south'
+        ELSEIF (map( ii-1,jj+1) == 0) THEN
+          ! Go west
+          dir = 'west'
+          ii = ii-1
+        ELSEIF (map( ii,jj+1) == 0) THEN
+          ! Go north
+          dir = 'north'
+          ii = ii-1
+          jj = jj+1
+        ELSE
+          CALL crash('outline tracer got stuck while going north!')
+        END IF
+
+      ELSEIF (dir_prev == 'south') THEN
+        ! We were going south, so [ii,jj] is to the east of us, and we can
+        ! continue east, south, or west
+
+        IF     (map( ii,jj-1) == 0) THEN
+          ! Go east
+          dir = 'east'
+        ELSEIF (map( ii-1,jj-1) == 0) THEN
+          ! Go south
+          dir = 'south'
+          jj = jj-1
+        ELSEIF (map( ii-1,jj) == 0) THEN
+          ! Go west
+          dir = 'west'
+          ii = ii-1
+          jj = jj-1
+        ELSE
+          CALL crash('outline tracer got stuck while going north!')
+        END IF
+
+      ELSE
+        CALL crash('unknown dir_prev "' // TRIM( dir_prev) // '"!')
+      END IF
+
+      ! Add new vertex to the polygon
+      n_poly = n_poly+1
+      IF     (dir == 'east') THEN
+        poly( n_poly,:) = poly( n_poly-1,:) + [grid%dx, 0._dp]
+      ELSEIF (dir == 'north') THEN
+        poly( n_poly,:) = poly( n_poly-1,:) + [0._dp, grid%dx]
+      ELSEIF (dir == 'west') THEN
+        poly( n_poly,:) = poly( n_poly-1,:) + [-grid%dx, 0._dp]
+      ELSEIF (dir == 'south') THEN
+        poly( n_poly,:) = poly( n_poly-1,:) + [0._dp, -grid%dx]
+      ELSE
+        CALL crash('unknown dir "' // TRIM( dir) // '"!')
+      END IF
+
+      ! If we've reached the starting point again, we're done
+      IF (NORM2( poly( n_poly,:) - poly( 1,:)) < grid%dx / 10._dp) THEN
+        ! Don't double count
+        n_poly = n_poly-1
+        EXIT
+      END IF
+
+    END DO ! DO WHILE (.TRUE.)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE calc_grid_mask_as_polygon
 
 ! == Subroutines for manipulating gridded data in distributed memory
 

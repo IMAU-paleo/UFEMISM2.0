@@ -8,7 +8,7 @@ MODULE mesh_refinement
   USE mpi
   USE precisions                                             , ONLY: dp
   USE mpi_basic                                              , ONLY: par, cerr, ierr, MPI_status, sync
-  USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine
+  USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
   USE parameters
   USE reallocate_mod                                         , ONLY: reallocate
@@ -20,6 +20,7 @@ MODULE mesh_refinement
   USE mesh_utilities                                         , ONLY: update_triangle_circumcenter, find_containing_triangle, add_triangle_to_refinement_stack_last, &
                                                                      remove_triangle_from_refinement_stack
   USE mesh_Delaunay                                          , ONLY: split_triangle, move_vertex
+  USE grid_basic                                             , ONLY: poly2line
 
   IMPLICIT NONE
 
@@ -502,9 +503,10 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'refine_mesh_polygon'
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE       :: p_line
     INTEGER                                       :: ti_in
     INTEGER                                       :: ti, via, vib, vic
-    REAL(dp), DIMENSION(2)                        :: va, vb, vc, gc, vab, vbc, vca
+    REAL(dp), DIMENSION(2)                        :: va, vb, vc
     LOGICAL                                       :: has_any_overlap
     REAL(dp)                                      :: longest_leg, smallest_angle
     LOGICAL                                       :: meets_resolution_criterion
@@ -514,9 +516,12 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    mesh%refinement_stackN = 0
+    ! First refine the mesh along the polygon perimeter by treating it as a 1-D line
+    CALL poly2line( poly, p_line)
+    CALL refine_mesh_line( mesh, p_line, res_max, res_max, alpha_min)
 
     ! Initialise the refinement stack with all triangles lying (partly) inside the polygon
+    mesh%refinement_stackN = 0
     has_any_overlap = .FALSE.
     DO ti = 1, mesh%nTri
 
@@ -528,19 +533,10 @@ CONTAINS
       vb  = mesh%V( vib,:)
       vc  = mesh%V( vic,:)
 
-      ! Its geometric centre and edge midpoints
-      gc = geometric_center( va, vb, vc)
-      vab = (va + vb) / 2._dp
-      vbc = (vb + vc) / 2._dp
-      vca = (vc + va) / 2._dp
-
+      ! If this triangle lies (partly) inside the polygon, mark it for refinement
       IF (is_in_polygon( poly, va) .OR. &
           is_in_polygon( poly, vb) .OR. &
-          is_in_polygon( poly, vc) .OR. &
-          is_in_polygon( poly, gc) .OR. &
-          is_in_polygon( poly, vab) .OR. &
-          is_in_polygon( poly, vbc) .OR. &
-          is_in_polygon( poly, vca)) THEN
+          is_in_polygon( poly, vc)) THEN
         has_any_overlap = .TRUE.
         CALL add_triangle_to_refinement_stack_last( mesh, ti)
       END IF
@@ -574,12 +570,6 @@ CONTAINS
       vb  = mesh%V( vib,:)
       vc  = mesh%V( vic,:)
 
-      ! Its geometric centre and edge midpoints
-      gc = geometric_center( va, vb, vc)
-      vab = (va + vb) / 2._dp
-      vbc = (vb + vc) / 2._dp
-      vca = (vc + va) / 2._dp
-
       ! Check if it meets the geometry criterion
       smallest_angle = smallest_triangle_angle( va, vb, vc)
       meets_geometry_criterion = smallest_angle >= alpha_min
@@ -594,11 +584,7 @@ CONTAINS
         ! Check if the triangle lies inside the polygon
         IF (is_in_polygon( poly, va) .OR. &
             is_in_polygon( poly, vb) .OR. &
-            is_in_polygon( poly, vc) .OR. &
-            is_in_polygon( poly, gc) .OR. &
-            is_in_polygon( poly, vab) .OR. &
-            is_in_polygon( poly, vbc) .OR. &
-            is_in_polygon( poly, vca)) THEN
+            is_in_polygon( poly, vc)) THEN
           ! The triangle lies inside the polygon
 
           longest_leg = longest_triangle_leg( va, vb, vc)

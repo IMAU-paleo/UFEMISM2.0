@@ -34,7 +34,7 @@ PROGRAM UFEMISM_program
                                                                      initialise_control_and_resource_tracker, print_UFEMISM_start, print_UFEMISM_end
   USE model_configuration                                    , ONLY: C, initialise_model_configuration
   USE main_validation                                        , ONLY: run_all_unit_tests
-  USE UFEMISM_main_model                                     , ONLY: type_model_region, run_model
+  USE UFEMISM_main_model                                     , ONLY: type_model_region, initialise_model_region, run_model_region
 
   IMPLICIT NONE
 
@@ -68,6 +68,17 @@ PROGRAM UFEMISM_program
 
   ! Initialise the main model configuration
   CALL initialise_model_configuration
+
+  ! DENK DROM
+!  CALL run_all_unit_tests
+
+  ! == Initialise the model regions
+  ! ===============================
+
+  IF (C%do_NAM) CALL initialise_model_region( NAM, 'NAM')
+  IF (C%do_EAS) CALL initialise_model_region( EAS, 'EAS')
+  IF (C%do_GRL) CALL initialise_model_region( GRL, 'GRL')
+  IF (C%do_ANT) CALL initialise_model_region( ANT, 'ANT')
 
 
 

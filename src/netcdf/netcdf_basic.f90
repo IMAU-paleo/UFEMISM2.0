@@ -16,7 +16,7 @@ MODULE netcdf_basic
   USE mpi
   USE precisions                                             , ONLY: dp
   USE mpi_basic                                              , ONLY: par, cerr, ierr, MPI_status, sync
-  USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine
+  USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
   USE math_utilities                                         , ONLY: check_for_NaN_dp_0D, check_for_NaN_int_0D, &
                                                                      check_for_NaN_dp_1D, check_for_NaN_int_1D, &
@@ -82,8 +82,8 @@ MODULE netcdf_basic
   CHARACTER(LEN=256), PARAMETER :: field_name_options_Hi             = 'Hi||thickness||lithk'
   CHARACTER(LEN=256), PARAMETER :: field_name_options_Hb             = 'Hb||bed||topg'
   CHARACTER(LEN=256), PARAMETER :: field_name_options_Hs             = 'Hs||surface||orog'
-  CHARACTER(LEN=256), PARAMETER :: field_name_options_dHb            = 'dHb'
   CHARACTER(LEN=256), PARAMETER :: field_name_options_SL             = 'SL'
+  CHARACTER(LEN=256), PARAMETER :: field_name_options_dHb            = 'dHb'
   CHARACTER(LEN=256), PARAMETER :: field_name_options_Ti             = 'Ti'
 
 CONTAINS
@@ -2958,6 +2958,8 @@ CONTAINS
         field_name_options_parsed = field_name_options_Hb
       ELSEIF (field_name_options == 'default_options_Hs') THEN
         field_name_options_parsed = field_name_options_Hs
+      ELSEIF (field_name_options == 'default_options_SL') THEN
+        field_name_options_parsed = field_name_options_SL
 
       ! Unrecognised default options
       ELSE
@@ -5003,31 +5005,5 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE close_netcdf_file
-
-  SUBROUTINE switch_to_data_mode( ncid)
-    ! Switch an open NetCDF file to data mode
-
-    IMPLICIT NONE
-
-    ! In/output variables:
-    INTEGER,                             INTENT(IN)    :: ncid
-
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'switch_to_data_mode'
-
-    ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
-
-    ! Close netCDF file:
-    IF (par%master) THEN
-      nerr = NF90_ENDDEF( ncid)
-      IF (nerr /= NF90_NOERR) CALL crash('NF90_ENDDEF failed!')
-    END IF ! IF (par%master) THEN
-    CALL sync
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE switch_to_data_mode
 
 END MODULE netcdf_basic

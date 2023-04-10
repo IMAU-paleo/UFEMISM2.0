@@ -8,7 +8,7 @@ MODULE math_utilities
   USE mpi
   USE precisions                                             , ONLY: dp
   USE mpi_basic                                              , ONLY: par, cerr, ierr, MPI_status, sync
-  USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine
+  USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE parameters
   USE reallocate_mod                                         , ONLY: reallocate
 
@@ -446,6 +446,126 @@ CONTAINS
   END FUNCTION tridiagonal_solve
 
 ! == Finding inverses of some small matrices
+
+  PURE FUNCTION calc_determinant_2_by_2( A) RESULT( detA)
+    ! Determinant of a 2-by-2 matrix
+
+    IMPLICIT NONE
+
+    ! Input variables:
+    REAL(dp), DIMENSION(2,2    )                       , INTENT(IN)    :: A
+
+    ! Output variables:
+    REAL(dp)                                                           :: detA
+
+    ! Calculate the determinant of A
+    detA = A( 1,1) * A( 2,2) - A( 1,2) * A( 2,1)
+
+  END FUNCTION calc_determinant_2_by_2
+
+  PURE FUNCTION calc_determinant_3_by_3( A) RESULT( detA)
+    ! Determinant of a 2-by-2 matrix
+
+    IMPLICIT NONE
+
+    ! Input variables:
+    REAL(dp), DIMENSION(3,3    )                       , INTENT(IN)    :: A
+
+    ! Output variables:
+    REAL(dp)                                                           :: detA
+
+    ! Local variables:
+    REAL(dp), DIMENSION(3,3    )                                       :: Ainv
+
+    ! Calculate the minors of A
+    Ainv( 1,1) = A( 2,2) * A( 3,3) - A( 2,3) * A( 3,2)
+    Ainv( 1,2) = A( 2,1) * A( 3,3) - A( 2,3) * A( 3,1)
+    Ainv( 1,3) = A( 2,1) * A( 3,2) - A( 2,2) * A( 3,1)
+    Ainv( 2,1) = A( 1,2) * A( 3,3) - A( 1,3) * A( 3,2)
+    Ainv( 2,2) = A( 1,1) * A( 3,3) - A( 1,3) * A( 3,1)
+    Ainv( 2,3) = A( 1,1) * A( 3,2) - A( 1,2) * A( 3,1)
+    Ainv( 3,1) = A( 1,2) * A( 2,3) - A( 1,3) * A( 2,2)
+    Ainv( 3,2) = A( 1,1) * A( 2,3) - A( 1,3) * A( 2,1)
+    Ainv( 3,3) = A( 1,1) * A( 2,2) - A( 1,2) * A( 2,1)
+
+    ! Calculate the determinant of A
+    detA = A( 1,1) * Ainv( 1,1) - A( 1,2) * Ainv( 1,2) + A( 1,3) * Ainv( 1,3)
+
+  END FUNCTION calc_determinant_3_by_3
+
+  PURE FUNCTION calc_determinant_5_by_5( A) RESULT( detA)
+    ! Determinant of a 5-by-5 matrix
+    !
+    ! Source: https://caps.gsfc.nasa.gov/simpson/software/m55inv_f90.txt, accessed 2023-02-07
+
+    USE iso_fortran_env, ONLY: real128
+
+    IMPLICIT NONE
+
+    ! Input variables:
+!   REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE, OPTIONAL, INTENT(INOUT) :: i
+    REAL(dp), DIMENSION(5,5    )                       , INTENT(IN)    :: A
+
+    ! Output variables:
+    REAL(dp)                                                           :: detA    ! Determinant of A
+
+    ! Local variables:
+
+    ! Local variables:
+    REAL(real128) :: A11, A12, A13, A14, A15, A21, A22, A23, A24, &
+         A25, A31, A32, A33, A34, A35, A41, A42, A43, A44, A45,   &
+         A51, A52, A53, A54, A55
+    REAL(real128), DIMENSION(5,5) :: COFACTOR
+
+    A11=A(1,1); A12=A(1,2); A13=A(1,3); A14=A(1,4); A15=A(1,5)
+    A21=A(2,1); A22=A(2,2); A23=A(2,3); A24=A(2,4); A25=A(2,5)
+    A31=A(3,1); A32=A(3,2); A33=A(3,3); A34=A(3,4); A35=A(3,5)
+    A41=A(4,1); A42=A(4,2); A43=A(4,3); A44=A(4,4); A45=A(4,5)
+    A51=A(5,1); A52=A(5,2); A53=A(5,3); A54=A(5,4); A55=A(5,5)
+
+    detA = REAL(                                                          &
+       A15*A24*A33*A42*A51-A14*A25*A33*A42*A51-A15*A23*A34*A42*A51+       &
+       A13*A25*A34*A42*A51+A14*A23*A35*A42*A51-A13*A24*A35*A42*A51-       &
+       A15*A24*A32*A43*A51+A14*A25*A32*A43*A51+A15*A22*A34*A43*A51-       &
+       A12*A25*A34*A43*A51-A14*A22*A35*A43*A51+A12*A24*A35*A43*A51+       &
+       A15*A23*A32*A44*A51-A13*A25*A32*A44*A51-A15*A22*A33*A44*A51+       &
+       A12*A25*A33*A44*A51+A13*A22*A35*A44*A51-A12*A23*A35*A44*A51-       &
+       A14*A23*A32*A45*A51+A13*A24*A32*A45*A51+A14*A22*A33*A45*A51-       &
+       A12*A24*A33*A45*A51-A13*A22*A34*A45*A51+A12*A23*A34*A45*A51-       &
+       A15*A24*A33*A41*A52+A14*A25*A33*A41*A52+A15*A23*A34*A41*A52-       &
+       A13*A25*A34*A41*A52-A14*A23*A35*A41*A52+A13*A24*A35*A41*A52+       &
+       A15*A24*A31*A43*A52-A14*A25*A31*A43*A52-A15*A21*A34*A43*A52+       &
+       A11*A25*A34*A43*A52+A14*A21*A35*A43*A52-A11*A24*A35*A43*A52-       &
+       A15*A23*A31*A44*A52+A13*A25*A31*A44*A52+A15*A21*A33*A44*A52-       &
+       A11*A25*A33*A44*A52-A13*A21*A35*A44*A52+A11*A23*A35*A44*A52+       &
+       A14*A23*A31*A45*A52-A13*A24*A31*A45*A52-A14*A21*A33*A45*A52+       &
+       A11*A24*A33*A45*A52+A13*A21*A34*A45*A52-A11*A23*A34*A45*A52+       &
+       A15*A24*A32*A41*A53-A14*A25*A32*A41*A53-A15*A22*A34*A41*A53+       &
+       A12*A25*A34*A41*A53+A14*A22*A35*A41*A53-A12*A24*A35*A41*A53-       &
+       A15*A24*A31*A42*A53+A14*A25*A31*A42*A53+A15*A21*A34*A42*A53-       &
+       A11*A25*A34*A42*A53-A14*A21*A35*A42*A53+A11*A24*A35*A42*A53+       &
+       A15*A22*A31*A44*A53-A12*A25*A31*A44*A53-A15*A21*A32*A44*A53+       &
+       A11*A25*A32*A44*A53+A12*A21*A35*A44*A53-A11*A22*A35*A44*A53-       &
+       A14*A22*A31*A45*A53+A12*A24*A31*A45*A53+A14*A21*A32*A45*A53-       &
+       A11*A24*A32*A45*A53-A12*A21*A34*A45*A53+A11*A22*A34*A45*A53-       &
+       A15*A23*A32*A41*A54+A13*A25*A32*A41*A54+A15*A22*A33*A41*A54-       &
+       A12*A25*A33*A41*A54-A13*A22*A35*A41*A54+A12*A23*A35*A41*A54+       &
+       A15*A23*A31*A42*A54-A13*A25*A31*A42*A54-A15*A21*A33*A42*A54+       &
+       A11*A25*A33*A42*A54+A13*A21*A35*A42*A54-A11*A23*A35*A42*A54-       &
+       A15*A22*A31*A43*A54+A12*A25*A31*A43*A54+A15*A21*A32*A43*A54-       &
+       A11*A25*A32*A43*A54-A12*A21*A35*A43*A54+A11*A22*A35*A43*A54+       &
+       A13*A22*A31*A45*A54-A12*A23*A31*A45*A54-A13*A21*A32*A45*A54+       &
+       A11*A23*A32*A45*A54+A12*A21*A33*A45*A54-A11*A22*A33*A45*A54+       &
+       A14*A23*A32*A41*A55-A13*A24*A32*A41*A55-A14*A22*A33*A41*A55+       &
+       A12*A24*A33*A41*A55+A13*A22*A34*A41*A55-A12*A23*A34*A41*A55-       &
+       A14*A23*A31*A42*A55+A13*A24*A31*A42*A55+A14*A21*A33*A42*A55-       &
+       A11*A24*A33*A42*A55-A13*A21*A34*A42*A55+A11*A23*A34*A42*A55+       &
+       A14*A22*A31*A43*A55-A12*A24*A31*A43*A55-A14*A21*A32*A43*A55+       &
+       A11*A24*A32*A43*A55+A12*A21*A34*A43*A55-A11*A22*A34*A43*A55-       &
+       A13*A22*A31*A44*A55+A12*A23*A31*A44*A55+A13*A21*A32*A44*A55-       &
+       A11*A23*A32*A44*A55-A12*A21*A33*A44*A55+A11*A22*A33*A44*A55, dp)
+
+  END FUNCTIOn calc_determinant_5_by_5
 
   PURE FUNCTION calc_matrix_inverse_2_by_2( A) RESULT( Ainv)
     ! Direct inversion of a 2-by-2 matrix

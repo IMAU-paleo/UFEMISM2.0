@@ -8,7 +8,7 @@ MODULE unit_tests_mesh
   USE mpi
   USE precisions                                             , ONLY: dp
   USE mpi_basic                                              , ONLY: par, cerr, ierr, MPI_status, sync
-  USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine
+  USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
   USE parameters
   USE mesh_types                                             , ONLY: type_mesh
@@ -27,7 +27,8 @@ MODULE unit_tests_mesh
                                                                      setup_xy_grid_in_netcdf_file, add_field_grid_dp_2D_notime, &
                                                                      write_to_field_multopt_grid_dp_2D_notime
   USE petsc_basic                                            , ONLY: multiply_CSR_matrix_with_vector_1D
-  USE grid_basic                                             , ONLY: type_grid, setup_square_grid, distribute_gridded_data_from_master_dp_2D
+  USE grid_basic                                             , ONLY: type_grid, setup_square_grid, distribute_gridded_data_from_master_dp_2D, &
+                                                                     calc_grid_mask_as_polygons
   USE grid_lonlat_basic                                      , ONLY: type_grid_lonlat, setup_simple_lonlat_grid, distribute_lonlat_gridded_data_from_master_dp_2D
   USE mesh_remapping                                         , ONLY: map_from_xy_grid_to_mesh_2D, map_from_mesh_to_xy_grid_2D, map_from_lonlat_grid_to_mesh_2D, &
                                                                      map_from_mesh_to_mesh_2D
@@ -37,7 +38,7 @@ MODULE unit_tests_mesh
 ! ===== Global variables =====
 ! ============================
 
-  LOGICAL :: do_write_results_to_netcdf = .FALSE.
+  LOGICAL :: do_write_results_to_netcdf = .TRUE.
 
 CONTAINS
 
@@ -58,7 +59,6 @@ CONTAINS
 
     ! Run all mesh unit tests
     CALL test_mesh_creation_basic_single_core
-
     CALL test_mesh_creation_basic_two_cores(       mesh)
     CALL test_mesh_creation_basic_two_cores_prime( mesh2)
     CALL test_mesh_operators_basic(                mesh)
@@ -1215,7 +1215,7 @@ CONTAINS
 
     name = 'test_grid'
     dx   = 32E3_dp
-    CALL setup_square_grid( name, mesh%xmin, mesh%xmax, mesh%ymin, mesh%ymax, dx, mesh%lambda_M, mesh%phi_M, mesh%beta_stereo, grid)
+    CALL setup_square_grid( name, mesh%xmin, mesh%xmax, mesh%ymin, mesh%ymax, dx, grid, lambda_M = mesh%lambda_M, phi_M = mesh%phi_M, beta_stereo = mesh%beta_stereo)
 
   ! == Calculate, apply, and validate grid-to-mesh remapping operator
   ! =================================================================
@@ -1335,7 +1335,7 @@ CONTAINS
 
     name = 'test_grid'
     dx   = 32E3_dp
-    CALL setup_square_grid( name, mesh%xmin, mesh%xmax, mesh%ymin, mesh%ymax, dx, mesh%lambda_M, mesh%phi_M, mesh%beta_stereo, grid)
+    CALL setup_square_grid( name, mesh%xmin, mesh%xmax, mesh%ymin, mesh%ymax, dx, grid, lambda_M = mesh%lambda_M, phi_M = mesh%phi_M, beta_stereo = mesh%beta_stereo)
 
   ! == Calculate, apply, and validate grid-to-mesh remapping operator
   ! =================================================================
