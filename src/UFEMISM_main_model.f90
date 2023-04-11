@@ -124,31 +124,30 @@ CONTAINS
     CALL setup_first_mesh( region)
 
     ! Remap reference geometries to the model mesh
-    IF (par%master) WRITE(0,'(A)') '   Mapping reference geometries to model mesh...'
+    IF (par%master) WRITE(0,'(A)') '  Mapping reference geometries to model mesh...'
     CALL remap_reference_geometry_to_mesh( region%mesh, region%refgeo_init )
     CALL remap_reference_geometry_to_mesh( region%mesh, region%refgeo_PD   )
     CALL remap_reference_geometry_to_mesh( region%mesh, region%refgeo_GIAeq)
 
-    ! DENK DROM
-    filename = 'testfile.nc'
-    CALL create_new_netcdf_file_for_writing( filename, ncid)
-    CALL setup_mesh_in_netcdf_file( filename, ncid, region%mesh)
-    CALL add_field_mesh_dp_2D_notime( filename, ncid, 'Hi')
-    CALL add_field_mesh_dp_2D_notime( filename, ncid, 'Hb')
-    CALL add_field_mesh_dp_2D_notime( filename, ncid, 'Hs')
-    CALL add_field_mesh_dp_2D_notime( filename, ncid, 'SL')
-    CALL write_to_field_multopt_mesh_dp_2D_notime( region%mesh, filename, ncid, 'Hi', region%refgeo_init%Hi)
-    CALL write_to_field_multopt_mesh_dp_2D_notime( region%mesh, filename, ncid, 'Hb', region%refgeo_init%Hb)
-    CALL write_to_field_multopt_mesh_dp_2D_notime( region%mesh, filename, ncid, 'Hs', region%refgeo_init%Hs)
-    CALL write_to_field_multopt_mesh_dp_2D_notime( region%mesh, filename, ncid, 'SL', region%refgeo_init%SL)
-    CALL close_netcdf_file( ncid)
-
-    ! DENK DROM
-    CALL crash('whoopsiedaisy!')
+!    ! DENK DROM
+!    filename = 'testfile.nc'
+!    CALL create_new_netcdf_file_for_writing( filename, ncid)
+!    CALL setup_mesh_in_netcdf_file( filename, ncid, region%mesh)
+!    CALL add_field_mesh_dp_2D_notime( filename, ncid, 'Hi')
+!    CALL add_field_mesh_dp_2D_notime( filename, ncid, 'Hb')
+!    CALL add_field_mesh_dp_2D_notime( filename, ncid, 'Hs')
+!    CALL add_field_mesh_dp_2D_notime( filename, ncid, 'SL')
+!    CALL write_to_field_multopt_mesh_dp_2D_notime( region%mesh, filename, ncid, 'Hi', region%refgeo_init%Hi)
+!    CALL write_to_field_multopt_mesh_dp_2D_notime( region%mesh, filename, ncid, 'Hb', region%refgeo_init%Hb)
+!    CALL write_to_field_multopt_mesh_dp_2D_notime( region%mesh, filename, ncid, 'Hs', region%refgeo_init%Hs)
+!    CALL write_to_field_multopt_mesh_dp_2D_notime( region%mesh, filename, ncid, 'SL', region%refgeo_init%SL)
+!    CALL close_netcdf_file( ncid)
+!
+!    ! DENK DROM
+!    CALL crash('whoopsiedaisy!')
 
     ! Print to screen
-    IF (par%master) WRITE(0,'(A)') ''
-    IF (par%master) WRITE(0,'(A)') ' Finished initialising model region ' // colour_string( region%long_name,'light blue')
+    IF (par%master) WRITE(0,'(A)') ' Finished initialising model region ' // colour_string( TRIM( region%long_name),'light blue')
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -166,6 +165,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'setup_first_mesh'
     CHARACTER(LEN=256)                                                 :: choice_initial_mesh
+    CHARACTER(LEN=256)                                                 :: mesh_name
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -186,25 +186,33 @@ CONTAINS
       CALL crash('unknown region name "' // TRIM( region%name) // '"!')
     END IF
 
+    ! Mesh name
+    mesh_name = 'model_mesh_' // TRIM( region%name) // '_00001'
+
+    ! Calculate a new mesh based on the initial ice-sheet geometry, or read an existing mesh from a file
     IF     (choice_initial_mesh == 'calc_from_initial_geometry') THEN
-      CALL setup_first_mesh_from_initial_geometry( region)
+      CALL setup_first_mesh_from_initial_geometry( mesh_name, region)
     ELSEIF (choice_initial_mesh == 'read_from_file') THEN
-      CALL setup_first_mesh_from_file( region)
+      CALL setup_first_mesh_from_file( mesh_name, region)
     ELSE
       CALL crash('unknown choice_initial_mesh "' // TRIM( choice_initial_mesh) // '"!')
     END IF
+
+    ! Write the mesh creation success message to the terminal
+    CALL write_mesh_success( region%mesh)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE setup_first_mesh
 
-  SUBROUTINE setup_first_mesh_from_initial_geometry( region)
+  SUBROUTINE setup_first_mesh_from_initial_geometry( mesh_name, region)
     ! Set up the first model mesh based on the initial ice-sheet geometry
 
     IMPLICIT NONE
 
     ! In/output variables:
+    CHARACTER(LEN=256),                                  INTENT(IN)    :: mesh_name
     TYPE(type_model_region),                             INTENT(INOUT) :: region
 
     ! Local variables:
@@ -263,7 +271,7 @@ CONTAINS
       IF (ALLOCATED( region%refgeo_init%mesh_raw%V)) CALL crash('found boht grid and mesh in region%refgeo_init!')
 
       ! Create mesh from gridded initial geometry data
-      CALL create_mesh_from_gridded_geometry( &
+      CALL create_mesh_from_gridded_geometry( mesh_name, &
         region%refgeo_init%grid_raw, &
         region%refgeo_init%Hi_grid_raw, &
         region%refgeo_init%Hb_grid_raw, &
@@ -279,7 +287,7 @@ CONTAINS
       IF (ALLOCATED( region%refgeo_init%grid_raw%x)) CALL crash('found boht grid and mesh in region%refgeo_init!')
 
       ! Create mesh from gridded initial geometry data
-      CALL create_mesh_from_meshed_geometry( &
+      CALL create_mesh_from_meshed_geometry( mesh_name, &
         region%refgeo_init%mesh_raw, &
         region%refgeo_init%Hi_mesh_raw, &
         region%refgeo_init%Hb_mesh_raw, &
@@ -297,12 +305,13 @@ CONTAINS
 
   END SUBROUTINE setup_first_mesh_from_initial_geometry
 
-  SUBROUTINE setup_first_mesh_from_file( region)
+  SUBROUTINE setup_first_mesh_from_file( mesh_name, region)
     ! Set up the first model mesh from an external NetCDF file
 
     IMPLICIT NONE
 
     ! In/output variables:
+    CHARACTER(LEN=256),                                  INTENT(IN)    :: mesh_name
     TYPE(type_model_region),                             INTENT(INOUT) :: region
 
     ! Local variables:
@@ -368,10 +377,13 @@ CONTAINS
     ! Print to screen
     IF (par%master) WRITE(0,'(A)') '   Reading mesh from file "' // colour_string( TRIM( filename_initial_mesh),'light blue') // '"...'
 
-    ! Read the mest from the NetCDF file
+    ! Read the mesh from the NetCDF file
     CALL open_existing_netcdf_file_for_reading( filename_initial_mesh, ncid)
     CALL setup_mesh_from_file(                  filename_initial_mesh, ncid, region%mesh)
     CALL close_netcdf_file(                                            ncid)
+
+    ! Give the mesh a nice name
+    region%mesh%name = mesh_name
 
     ! Safety - check if the mesh we read from the file matches this region's domain and projection
     IF (region%mesh%xmin        /= xmin       ) CALL crash('expected xmin        = {dp_01}, found {dp_02}', dp_01 = xmin       , dp_02 = region%mesh%xmin       )
@@ -384,9 +396,6 @@ CONTAINS
 
     ! Calculate all matrix operators
     CALL calc_all_matrix_operators_mesh( region%mesh)
-
-    ! Write the mesh creation success message to the terminal
-    CALL write_mesh_success( region%mesh)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

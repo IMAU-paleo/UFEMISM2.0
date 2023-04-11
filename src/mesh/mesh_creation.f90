@@ -32,12 +32,13 @@ CONTAINS
 ! =======================
 
   ! Create a mesh from ice geometry on a grid
-  SUBROUTINE create_mesh_from_gridded_geometry( grid, Hi, Hb, Hs, SL, xmin, xmax, ymin, ymax, lambda_M, phi_M, beta_stereo, mesh)
+  SUBROUTINE create_mesh_from_gridded_geometry( name, grid, Hi, Hb, Hs, SL, xmin, xmax, ymin, ymax, lambda_M, phi_M, beta_stereo, mesh)
     ! Create a mesh from ice geometry on a grid
 
     IMPLICIT NONE
 
     ! In/output variables:
+    CHARACTER(LEN=256),         INTENT(IN)        :: name
     TYPE(type_grid),            INTENT(IN)        :: grid
     REAL(dp), DIMENSION(:    ), INTENT(IN)        :: Hi, Hb, Hs, SL
     REAL(dp),                   INTENT(IN)        :: xmin, xmax, ymin, ymax
@@ -240,7 +241,7 @@ CONTAINS
   ! == Create mesh from the ice geometry lines
   ! ==========================================
 
-    CALL create_mesh_from_geometry( poly_mult_sheet, poly_mult_shelf, p_line_grounding_line, p_line_calving_front, p_line_ice_front, p_line_coastline, &
+    CALL create_mesh_from_geometry( name, poly_mult_sheet, poly_mult_shelf, p_line_grounding_line, p_line_calving_front, p_line_ice_front, p_line_coastline, &
       xmin, xmax, ymin, ymax, lambda_M, phi_M, beta_stereo, mesh)
 
     ! Finalise routine path
@@ -249,12 +250,13 @@ CONTAINS
   END SUBROUTINE create_mesh_from_gridded_geometry
 
   ! Create a mesh from ice geometry on a mesh
-  SUBROUTINE create_mesh_from_meshed_geometry( mesh_src, Hi, Hb, Hs, SL, xmin, xmax, ymin, ymax, lambda_M, phi_M, beta_stereo, mesh)
+  SUBROUTINE create_mesh_from_meshed_geometry( name, mesh_src, Hi, Hb, Hs, SL, xmin, xmax, ymin, ymax, lambda_M, phi_M, beta_stereo, mesh)
     ! Create a mesh from ice geometry on a mesh
 
     IMPLICIT NONE
 
     ! In/output variables:
+    CHARACTER(LEN=256),         INTENT(IN)        :: name
     TYPE(type_mesh),            INTENT(IN)        :: mesh_src
     REAL(dp), DIMENSION(:    ), INTENT(IN)        :: Hi, Hb, Hs, SL
     REAL(dp),                   INTENT(IN)        :: xmin, xmax, ymin, ymax
@@ -448,7 +450,7 @@ CONTAINS
   ! == Create mesh from the ice geometry lines
   ! ==========================================
 
-    CALL create_mesh_from_geometry( poly_mult_sheet, poly_mult_shelf, p_line_grounding_line, p_line_calving_front, p_line_ice_front, p_line_coastline, &
+    CALL create_mesh_from_geometry( name, poly_mult_sheet, poly_mult_shelf, p_line_grounding_line, p_line_calving_front, p_line_ice_front, p_line_coastline, &
       xmin, xmax, ymin, ymax, lambda_M, phi_M, beta_stereo, mesh)
 
     ! Finalise routine path
@@ -457,13 +459,14 @@ CONTAINS
   END SUBROUTINE create_mesh_from_meshed_geometry
 
   ! Create a mesh from ice geometry lines
-  SUBROUTINE create_mesh_from_geometry( poly_mult_sheet, poly_mult_shelf, p_line_grounding_line, p_line_calving_front, p_line_ice_front, p_line_coastline, &
+  SUBROUTINE create_mesh_from_geometry( name, poly_mult_sheet, poly_mult_shelf, p_line_grounding_line, p_line_calving_front, p_line_ice_front, p_line_coastline, &
     xmin, xmax, ymin, ymax, lambda_M, phi_M, beta_stereo, mesh)
     ! Create mesh from the ice geometry lines
 
     IMPLICIT NONE
 
     ! In/output variables:
+    CHARACTER(LEN=256),         INTENT(IN)        :: name
     REAL(dp), DIMENSION(:,:  ), INTENT(IN)        :: poly_mult_sheet
     REAL(dp), DIMENSION(:,:  ), INTENT(IN)        :: poly_mult_shelf
     REAL(dp), DIMENSION(:,:  ), INTENT(IN)        :: p_line_grounding_line
@@ -482,10 +485,10 @@ CONTAINS
 
     ! Choose single-core or parallelised version
     IF (C%do_singlecore_mesh_creation) THEN
-      CALL create_mesh_from_geometry_singlecore( poly_mult_sheet, poly_mult_shelf, p_line_grounding_line, p_line_calving_front, p_line_ice_front, p_line_coastline, &
+      CALL create_mesh_from_geometry_singlecore( name, poly_mult_sheet, poly_mult_shelf, p_line_grounding_line, p_line_calving_front, p_line_ice_front, p_line_coastline, &
         xmin, xmax, ymin, ymax, lambda_M, phi_M, beta_stereo, mesh)
     ELSE
-      CALL create_mesh_from_geometry_parallelised( poly_mult_sheet, poly_mult_shelf, p_line_grounding_line, p_line_calving_front, p_line_ice_front, p_line_coastline, &
+      CALL create_mesh_from_geometry_parallelised( name, poly_mult_sheet, poly_mult_shelf, p_line_grounding_line, p_line_calving_front, p_line_ice_front, p_line_coastline, &
         xmin, xmax, ymin, ymax, lambda_M, phi_M, beta_stereo, mesh)
     END IF
 
@@ -494,7 +497,7 @@ CONTAINS
 
   END SUBROUTINE create_mesh_from_geometry
 
-  SUBROUTINE create_mesh_from_geometry_singlecore( poly_mult_sheet, poly_mult_shelf, p_line_grounding_line, p_line_calving_front, p_line_ice_front, p_line_coastline, &
+  SUBROUTINE create_mesh_from_geometry_singlecore( name, poly_mult_sheet, poly_mult_shelf, p_line_grounding_line, p_line_calving_front, p_line_ice_front, p_line_coastline, &
     xmin, xmax, ymin, ymax, lambda_M, phi_M, beta_stereo, mesh)
     ! Create mesh from the ice geometry lines
     !
@@ -503,6 +506,7 @@ CONTAINS
     IMPLICIT NONE
 
     ! In/output variables:
+    CHARACTER(LEN=256),         INTENT(IN)        :: name
     REAL(dp), DIMENSION(:,:  ), INTENT(IN)        :: poly_mult_sheet
     REAL(dp), DIMENSION(:,:  ), INTENT(IN)        :: poly_mult_shelf
     REAL(dp), DIMENSION(:,:  ), INTENT(IN)        :: p_line_grounding_line
@@ -515,7 +519,6 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'create_mesh_from_geometry_singlecore'
-    CHARACTER(LEN=256)                            :: name
     REAL(dp)                                      :: res_max_uniform_applied
     INTEGER                                       :: n1,nn,n2
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE       :: poly
@@ -523,10 +526,6 @@ CONTAINS
 
     ! Add routine to path
     CALL init_routine( routine_name)
-
-    ! DENK DROM
-    name = 'mesh_name'
-    CALL warning('need procedural mesh names!')
 
     ! Single-core mesh generation: let the master do this,
     ! and then broadcast its result to all the other processes.
@@ -639,15 +638,12 @@ CONTAINS
     ! Calculate all matrix operators
     CALL calc_all_matrix_operators_mesh( mesh)
 
-    ! Write the mesh creation success message to the terminal
-    CALL write_mesh_success( mesh)
-
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE create_mesh_from_geometry_singlecore
 
-  SUBROUTINE create_mesh_from_geometry_parallelised( poly_mult_sheet, poly_mult_shelf, p_line_grounding_line, p_line_calving_front, p_line_ice_front, p_line_coastline, &
+  SUBROUTINE create_mesh_from_geometry_parallelised( name, poly_mult_sheet, poly_mult_shelf, p_line_grounding_line, p_line_calving_front, p_line_ice_front, p_line_coastline, &
     xmin, xmax, ymin, ymax, lambda_M, phi_M, beta_stereo, mesh)
     ! Create mesh from the ice geometry lines
     !
@@ -656,6 +652,7 @@ CONTAINS
     IMPLICIT NONE
 
     ! In/output variables:
+    CHARACTER(LEN=256),         INTENT(IN)        :: name
     REAL(dp), DIMENSION(:,:  ), INTENT(IN)        :: poly_mult_sheet
     REAL(dp), DIMENSION(:,:  ), INTENT(IN)        :: poly_mult_shelf
     REAL(dp), DIMENSION(:,:  ), INTENT(IN)        :: p_line_grounding_line
@@ -698,11 +695,11 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    str = '  Created a mesh with {int_01} vertices and {int_02} triangles'
+    str = '   Set up ' // colour_string( TRIM( mesh%name),'light blue') // ' with {int_01} vertices and {int_02} triangles'
     CALL insert_val_into_string_int( str, '{int_01}', mesh%nV)
     CALL insert_val_into_string_int( str, '{int_02}', mesh%nTri)
 
-    IF (par%master) WRITE(0,'(A)') colour_string( TRIM( str), 'green')
+    IF (par%master) WRITE(0,'(A)') TRIM( str)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
