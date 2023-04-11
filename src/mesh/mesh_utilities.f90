@@ -10,6 +10,7 @@ MODULE mesh_utilities
   USE mpi_basic                                              , ONLY: par, cerr, ierr, MPI_status, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
+  USE reallocate_mod
   USE mesh_types                                             , ONLY: type_mesh
   USE math_utilities                                         , ONLY: geometric_center, is_in_triangle, lies_on_line_segment, circumcenter, &
                                                                      line_from_points, line_line_intersection, encroaches_upon, crop_line_to_domain
@@ -1320,6 +1321,369 @@ CONTAINS
     END DO ! DO i = 1, n
 
   END SUBROUTINE extend_group_single_iteration_c
+
+! == Contours and polygons for mesh generation
+
+  SUBROUTINE calc_mesh_contour_as_line( mesh, d, f, line, mask)
+    ! Calculate a contour line at level f for data d on a mesh.
+    ! Generate the contour line in UFEMISM line-segment format (i.e. unordered
+    ! individual line segments).
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                         INTENT(IN)    :: mesh
+    REAL(dp), DIMENSION(:    ),              INTENT(IN)    :: d
+    REAL(dp),                                INTENT(IN)    :: f
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE, INTENT(OUT)   :: line
+    LOGICAL,  DIMENSION(:    ), OPTIONAL,    INTENT(IN)    :: mask
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'calc_mesh_contour_as_line'
+    REAL(dp), PARAMETER                                    :: tol = 1E-5_dp
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE                :: d_scaled
+    LOGICAL,  DIMENSION(:    ), ALLOCATABLE                :: mask_loc
+    INTEGER                                                :: n
+    INTEGER                                                :: ei, vi, vj
+    REAL(dp)                                               :: di, dj
+    REAL(dp), DIMENSION(2)                                 :: p,q
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Safety
+    IF (SIZE( d,1) /= mesh%nV) CALL crash('wrong vector size!')
+
+    ! Trivial case: if all values of d are greater or smaller than f,
+    ! the contour line is empty
+    IF (MINVAL( d) >= f .OR. MAXVAL( d) <= f) THEN
+      ALLOCATE( line( 0,0))
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
+
+    ! Shift d so the contour lies at d_scaled = 0
+    ALLOCATE( d_scaled( mesh%nV))
+    d_scaled = d - f
+
+    ! Set the mask to optionally skip certain grid cells
+    ALLOCATE( mask_loc( mesh%nV_loc))
+    IF (PRESENT( mask)) THEN
+      mask_loc = mask
+    ELSE
+      mask_loc =  .TRUE.
+    END IF
+
+    ! Allocate memory for the line segments
+    ALLOCATE( line( mesh%nE, 4))
+    n = 0
+
+    ! Go over all edges; if the contour lies on it, add it to the line segment list
+    DO ei = 1, mesh%nE
+
+      ! The four vertices adjacent to this edge
+      vi = mesh%EV( ei,1)
+      vj = mesh%EV( ei,2)
+
+      ! Skip this edge if told so
+      IF (.NOT. mask_loc( vi) .AND. .NOT. mask_loc( vj)) CYCLE
+
+      ! The values of d on these vertices
+      di = d( vi)
+      dj = d( vj)
+
+      ! If the product is negative, the contour lies in between vi and vj
+      IF (di * dj <= 0._dp) THEN
+        ! Find the shared Voronoi cell boundary between vi and vj
+        CALL find_shared_Voronoi_boundary( mesh, ei, p, q)
+        ! Add this shared boundary as a line segment
+        n = n + 1
+        line( n,:) = [p(1), p(2), q(1), q(2)]
+      END IF
+
+    END DO ! DO ei = 1, mesh%nE
+
+    ! Crop memory
+    CALL reallocate( line, n, 4)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE calc_mesh_contour_as_line
+
+  SUBROUTINE calc_mesh_mask_as_polygons( mesh, mask, poly_mult)
+    ! Calculate a set of polygon enveloping all TRUE-valued mask cells
+
+    IMPLICIT NONE
+
+    ! In/output variables
+    TYPE(type_mesh),                         INTENT(IN)    :: mesh
+    LOGICAL,  DIMENSION(:    ),              INTENT(IN)    :: mask
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE, INTENT(OUT)   :: poly_mult
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'calc_mesh_mask_as_polygons'
+    LOGICAL,  DIMENSION(:    ), ALLOCATABLE                :: mask_loc
+    INTEGER                                                :: vi
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                :: poly
+    INTEGER                                                :: n_poly, n_tot
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Safety
+    IF (SIZE( mask,1) /= mesh%nV) CALL crash('incorrect data dimensions!')
+
+    ! Trivial case for no TRUE values at all
+    IF (.NOT. ANY( mask)) THEN
+      ALLOCATE( poly_mult( 0,0))
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
+
+    ! Make a local copy of the logical mask
+    ALLOCATE( mask_loc( mesh%nV))
+    mask_loc = mask
+
+    ! Initialise poly_mult and poly
+    ALLOCATE( poly_mult( mesh%nE,2))
+    ALLOCATE( poly(      mesh%nE,2))
+    n_tot = 0
+
+    ! Calculate polygons for all TRUE regions of the mask
+    DO vi = 1, mesh%nV
+
+      IF (mask_loc( vi)) THEN
+        ! Found a seed for a TRUE region
+
+        ! Calculate a polygon enveloping this TRUE region, and
+        ! remove the region from the mask
+        CALL calc_mesh_mask_as_polygon( mesh, mask_loc, vi, poly, n_poly)
+
+        ! Add this polygon to poly_mult
+        poly_mult( n_tot+1,1) = REAL( n_poly,dp)
+        poly_mult( n_tot+1,2) = 0._dp
+        poly_mult( n_tot+2:n_tot+1+n_poly,:) = poly( 1:n_poly,:)
+        n_tot = n_tot + 1 + n_poly
+
+      END IF ! IF (mask_loc( vi)) THEN
+
+    END DO
+
+    ! Crop memory
+    CALL reallocate( poly_mult, n_tot, 2)
+
+    ! Clean up after yourself
+    DEALLOCATE( mask_loc)
+    DEALLOCATE( poly)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE calc_mesh_mask_as_polygons
+
+  SUBROUTINE calc_mesh_mask_as_polygon( mesh, mask, vi0, poly, n_poly)
+    ! Calculate a polygon enveloping the set of TRUE-valued mask vertices around vi0,
+    ! and remove that set of vertices from the mask
+
+    IMPLICIT NONE
+
+    ! In/output variables
+    TYPE(type_mesh),                         INTENT(IN)    :: mesh
+    LOGICAL,  DIMENSION(:    ),              INTENT(INOUT) :: mask
+    INTEGER,                                 INTENT(IN)    :: vi0
+    REAL(dp), DIMENSION(:,:  ),              INTENT(OUT)   :: poly
+    INTEGER,                                 INTENT(OUT)   :: n_poly
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'calc_mesh_mask_as_polygon'
+    INTEGER,  DIMENSION(:    ), ALLOCATABLE                :: map, stack
+    INTEGER                                                :: stackN
+    INTEGER                                                :: vi, ci, vj, ei0, ei, it, cii, ci2, vk, ck, ck2, it2, til, tir
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Safety
+    IF (SIZE( mask,1) /= mesh%nV) CALL crash('incorrect data dimensions!')
+    IF (.NOT. mask( vi0)) CALL crash('seed at vi0 is not TRUE!')
+
+    ! Use a flood-fill algorithm to find the map of same-valued grid cells around mask cell vi0
+    ALLOCATE( map(   mesh%nV), source = 0)
+    ALLOCATE( stack( mesh%nV), source = 0)
+
+    map( vi0) = 1
+    stackN = 1
+    stack( 1) = vi0
+
+    DO WHILE (stackN > 0)
+
+      ! Take the last element from the stack
+      vi = stack( stackN)
+      stackN = stackN - 1
+
+      ! Mark it as mapped
+      map( vi) = 2
+
+      ! Remove it from the input mask
+      mask( vi) = .FALSE.
+
+      ! Add all non-mapped, non-stacked, TRUE-valued neighbours to the stack
+      DO ci = 1, mesh%nC( vi)
+        vj = mesh%C( vi,ci)
+        ! IF this neighbour lies outside the TRUE region, store the connection
+        ! as a starting point for the outline tracer
+        IF (map( vj) == 0 .AND. .NOT. mask( vj) .AND. .NOT. (mesh%VBI( vi) > 0 .AND. mesh%VBI( vj) > 0)) ei0 = mesh%VE( vi,ci)
+        ! IF this neighbour lies inside the TRUE region and isn't
+        ! marked yet, add it to the stack and mark it
+        IF (map( vj) == 0 .AND. mask( vj)) THEN
+          ! Add this neighbour to the stack
+          stackN = stackN + 1
+          stack( stackN) = vj
+          ! Mark this neighbour on the map as stacked
+          map( vj) = 1
+        END IF
+      END DO
+
+    END DO ! DO DO WHILE (stackN > 0)
+    ! Safety
+    IF (ei0 == 0) CALL crash('couldnt find starting edge!')
+
+    ! Starting at the edge we found earlier, trace the outline of the TRUE region
+    ei     = ei0
+    n_poly = 0
+    it     = 0
+
+    DO WHILE (.TRUE.)
+
+      ! Safety
+      it = it + 1
+      IF (it > mesh%nE) CALL crash('outline tracer got stuck!')
+
+      ! Find the vertices vi and vj spanning the current edge ei,
+      ! sorted such that vi lies inside the TRUE region and vj lies outside of it.
+      IF     (map( mesh%EV( ei,1)) == 2 .AND. map( mesh%EV( ei,2)) == 0) THEN
+        vi  = mesh%EV(   ei,1)
+        vj  = mesh%EV(   ei,2)
+        til = mesh%ETri( ei,1)
+        tir = mesh%ETri( ei,2)
+      ELSEIF (map( mesh%EV( ei,1)) == 0 .AND. map( mesh%EV( ei,2)) == 2) THEN
+        vi  = mesh%EV(   ei,2)
+        vj  = mesh%EV(   ei,1)
+        til = mesh%ETri( ei,2)
+        tir = mesh%ETri( ei,1)
+      ELSE
+        ! Apparently this edge doesn't cross the border of the TRUE region
+        CALL crash('found non-border edge!')
+      END IF
+
+      ! Add this edge to the polygon
+      n_poly = n_poly + 1
+      IF (tir == 0) THEN
+        ! vi-vj is a border edge?
+        IF (mesh%VBI( vi) > 0 .AND. mesh%VBI( vj) > 0) THEN
+          poly( n_poly,:) = (mesh%V( vi,:) + mesh%V( vj,:)) / 2._dp
+        ELSE
+          CALL crash('expected vi-vj to be a border edge!')
+        END IF
+      ELSE
+        poly( n_poly,:) = mesh%Tricc( tir,:)
+      END IF
+
+      ! Find the index ci such that VE( vi,ci) = ei
+      ci = 0
+      DO cii = 1, mesh%nC( vi)
+        IF (mesh%VE( vi,cii) == ei) THEN
+          ci = cii
+          EXIT
+        END IF
+      END DO
+      ! Safety
+      IF (ci == 0) CALL crash('couldnt find connection index ci such that VE( vi,ci) = ei!')
+
+      IF (mesh%VBI( vi) > 0 .AND. ci == mesh%nC( vi)) THEN
+        ! Special case DO when the tracer reaches the domain border
+
+        ! Move along the border until we find the other END of the TRUE region
+
+        ! Add the last Voronoi cell boundary section
+        n_poly = n_poly + 1
+        poly( n_poly,:) = (mesh%V( vi,:) + mesh%V( vj,:)) / 2._dp
+
+        ! Add the section from the Voronoi cell boundary to vi
+        n_poly = n_poly + 1
+        poly( n_poly,:) = mesh%V( vi,:)
+
+        ! Add all border sections until we find the other END of the TRUE region
+        it2 = 0
+        DO WHILE (map( mesh%C( vi,1)) == 2)
+          ! Safety
+          it2 = it2 + 1
+          IF (it2 > mesh%nV) CALL crash('outline tracer DO mesh border got stuck!')
+          ! Move to next border vertex
+          vi = mesh%C( vi,1)
+          ! Add section to polygon
+          n_poly = n_poly + 1
+          poly( n_poly,:) = mesh%V( vi,:)
+        END DO
+
+        ! The next edge
+        ei = mesh%VE( vi,1)
+
+      ELSE ! IF (mesh%VBI( vi) > 0 .AND. ci == mesh%nC( vi))
+        ! Regular case DO the domain interior
+
+        ! The index ci2 of the next edge originating from vi, counterclockwise from ci
+        ci2 = ci + 1
+        IF (ci2 > mesh%nC( vi)) ci2 = 1
+
+        ! The vertex that this edge points to
+        vk = mesh%C( vi,ci2)
+
+        IF (map( vk) == 2) THEN
+          ! IF vk also lies inside the TRUE region, move to its Voronoi cell boundary
+
+          ! Find the connection index ck such that C( vk,ci) = vi
+          ck = 0
+          DO cii = 1, mesh%nC( vk)
+            IF (mesh%C( vk,cii) == vi) THEN
+              ck = cii
+              EXIT
+            END IF
+          END DO
+          ! Safety
+          IF (ck == 0) CALL crash('couldnt find connection index ck such that C( vk,ci) = vi')
+
+          ! The index ck2 of the next edge originating from vk, counterclockwise from ck
+          ck2 = ck + 1
+          IF (ck2 > mesh%nC( vk)) ck2 = 1
+
+          ! The next edge
+          ei = mesh%VE( vk,ck2)
+
+        ELSE ! IF (map( vk) == 2)
+          ! IF vk lies outside the TRUE region, move to the next edge along vi
+
+          ! The next edge
+          ei = mesh%VE( vi,ci2)
+
+        END IF ! IF (map( vk) == 2)
+
+      END IF ! IF  IF (mesh%VBI( vi) > 0 .AND. ci == mesh%nC( vi))
+
+      ! IF we've reached the starting point again, stop
+      IF (it > 1) THEN
+        IF (NORM2( poly( n_poly,:) - poly( 1,:)) < mesh%tol_dist) THEN
+          EXIT
+        END IF
+      END IF
+
+    END DO ! DO DO WHILE (.TRUE.)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE calc_mesh_mask_as_polygon
 
 ! == Diagnostic tools
 

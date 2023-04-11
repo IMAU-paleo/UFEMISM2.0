@@ -11,15 +11,18 @@ MODULE UFEMISM_main_model
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
   USE mesh_types                                             , ONLY: type_mesh
-  USE reference_geometries                                   , ONLY: type_reference_geometry, initialise_reference_geometries_raw
+  USE reference_geometries                                   , ONLY: type_reference_geometry, initialise_reference_geometries_raw, &
+                                                                     remap_reference_geometry_to_mesh
   USE ice_model_types                                        , ONLY: type_ice_model
   USE netcdf_basic                                           , ONLY: open_existing_netcdf_file_for_reading, close_netcdf_file
   USE netcdf_input                                           , ONLY: setup_mesh_from_file
-  USE mesh_creation                                          , ONLY: create_mesh_from_gridded_geometry, create_mesh_from_meshed_geometry
+  USE mesh_creation                                          , ONLY: create_mesh_from_gridded_geometry, create_mesh_from_meshed_geometry, write_mesh_success
+  USE mesh_secondary                                         , ONLY: calc_all_secondary_mesh_data
+  USE mesh_operators                                         , ONLY: calc_all_matrix_operators_mesh
 
   ! DENK DROM
   USE netcdf_basic , ONLY: create_new_netcdf_file_for_writing
-  USE netcdf_output, ONLY: setup_mesh_in_netcdf_file
+  USE netcdf_output, ONLY: setup_mesh_in_netcdf_file, add_field_mesh_dp_2D_notime, write_to_field_multopt_mesh_dp_2D_notime
 
   IMPLICIT NONE
 
@@ -89,6 +92,9 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'initialise_model_region'
 
+    CHARACTER(LEN=256) :: filename
+    INTEGER :: ncid
+
     ! Add routine to path
     CALL init_routine( routine_name)
 
@@ -117,6 +123,26 @@ CONTAINS
     ! Set up the first model mesh
     CALL setup_first_mesh( region)
 
+    ! Remap reference geometries to the model mesh
+    IF (par%master) WRITE(0,'(A)') '   Mapping reference geometries to model mesh...'
+    CALL remap_reference_geometry_to_mesh( region%mesh, region%refgeo_init )
+    CALL remap_reference_geometry_to_mesh( region%mesh, region%refgeo_PD   )
+    CALL remap_reference_geometry_to_mesh( region%mesh, region%refgeo_GIAeq)
+
+    ! DENK DROM
+    filename = 'testfile.nc'
+    CALL create_new_netcdf_file_for_writing( filename, ncid)
+    CALL setup_mesh_in_netcdf_file( filename, ncid, region%mesh)
+    CALL add_field_mesh_dp_2D_notime( filename, ncid, 'Hi')
+    CALL add_field_mesh_dp_2D_notime( filename, ncid, 'Hb')
+    CALL add_field_mesh_dp_2D_notime( filename, ncid, 'Hs')
+    CALL add_field_mesh_dp_2D_notime( filename, ncid, 'SL')
+    CALL write_to_field_multopt_mesh_dp_2D_notime( region%mesh, filename, ncid, 'Hi', region%refgeo_init%Hi)
+    CALL write_to_field_multopt_mesh_dp_2D_notime( region%mesh, filename, ncid, 'Hb', region%refgeo_init%Hb)
+    CALL write_to_field_multopt_mesh_dp_2D_notime( region%mesh, filename, ncid, 'Hs', region%refgeo_init%Hs)
+    CALL write_to_field_multopt_mesh_dp_2D_notime( region%mesh, filename, ncid, 'SL', region%refgeo_init%SL)
+    CALL close_netcdf_file( ncid)
+
     ! DENK DROM
     CALL crash('whoopsiedaisy!')
 
@@ -140,9 +166,6 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'setup_first_mesh'
     CHARACTER(LEN=256)                                                 :: choice_initial_mesh
-
-    CHARACTER(LEN=256) :: filename
-    INTEGER :: ncid
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -170,15 +193,6 @@ CONTAINS
     ELSE
       CALL crash('unknown choice_initial_mesh "' // TRIM( choice_initial_mesh) // '"!')
     END IF
-
-    ! DENK DROM
-    filename = TRIM( routine_name) // '_output.nc'
-    CALL create_new_netcdf_file_for_writing( filename, ncid)
-    CALL setup_mesh_in_netcdf_file( filename, ncid, region%mesh)
-    CALL close_netcdf_file( ncid)
-
-    ! DENK DROM
-    CALL crash('whoopsiedaisy!')
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -293,11 +307,50 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'setup_first_mesh'
+    REAL(dp)                                                           :: xmin, xmax, ymin, ymax
+    REAL(dp)                                                           :: lambda_M, phi_M, beta_stereo
     CHARACTER(LEN=256)                                                 :: filename_initial_mesh
     INTEGER                                                            :: ncid
 
     ! Add routine to path
     CALL init_routine( routine_name)
+
+    ! Determine model domain
+    IF     (region%name == 'NAM') THEN
+      xmin        = C%xmin_NAM
+      xmax        = C%xmax_NAM
+      ymin        = C%ymin_NAM
+      ymax        = C%ymax_NAM
+      lambda_M    = C%lambda_M_NAM
+      phi_M       = C%phi_M_NAM
+      beta_stereo = C%beta_stereo_NAM
+    ELSEIF (region%name == 'EAS') THEN
+      xmin        = C%xmin_EAS
+      xmax        = C%xmax_EAS
+      ymin        = C%ymin_EAS
+      ymax        = C%ymax_EAS
+      lambda_M    = C%lambda_M_EAS
+      phi_M       = C%phi_M_EAS
+      beta_stereo = C%beta_stereo_EAS
+    ELSEIF (region%name == 'GRL') THEN
+      xmin        = C%xmin_GRL
+      xmax        = C%xmax_GRL
+      ymin        = C%ymin_GRL
+      ymax        = C%ymax_GRL
+      lambda_M    = C%lambda_M_GRL
+      phi_M       = C%phi_M_GRL
+      beta_stereo = C%beta_stereo_GRL
+    ELSEIF (region%name == 'ANT') THEN
+      xmin        = C%xmin_ANT
+      xmax        = C%xmax_ANT
+      ymin        = C%ymin_ANT
+      ymax        = C%ymax_ANT
+      lambda_M    = C%lambda_M_ANT
+      phi_M       = C%phi_M_ANT
+      beta_stereo = C%beta_stereo_ANT
+    ELSE
+      CALL crash('unknown region name "' // TRIM( region%name) // '"!')
+    END IF
 
     ! Get filename from config
     IF     (region%name == 'NAM') THEN
@@ -313,12 +366,27 @@ CONTAINS
     END IF
 
     ! Print to screen
-    IF (par%master) WRITE(0,'(A)') '   Reading mesh from file "' // colour_string( region%name,'light blue') // '"...'
+    IF (par%master) WRITE(0,'(A)') '   Reading mesh from file "' // colour_string( TRIM( filename_initial_mesh),'light blue') // '"...'
 
     ! Read the mest from the NetCDF file
     CALL open_existing_netcdf_file_for_reading( filename_initial_mesh, ncid)
     CALL setup_mesh_from_file(                  filename_initial_mesh, ncid, region%mesh)
     CALL close_netcdf_file(                                            ncid)
+
+    ! Safety - check if the mesh we read from the file matches this region's domain and projection
+    IF (region%mesh%xmin        /= xmin       ) CALL crash('expected xmin        = {dp_01}, found {dp_02}', dp_01 = xmin       , dp_02 = region%mesh%xmin       )
+    IF (region%mesh%xmax        /= xmax       ) CALL crash('expected xmax        = {dp_01}, found {dp_02}', dp_01 = xmax       , dp_02 = region%mesh%xmax       )
+    IF (region%mesh%ymin        /= ymin       ) CALL crash('expected ymin        = {dp_01}, found {dp_02}', dp_01 = ymin       , dp_02 = region%mesh%ymin       )
+    IF (region%mesh%ymax        /= ymax       ) CALL crash('expected ymax        = {dp_01}, found {dp_02}', dp_01 = ymax       , dp_02 = region%mesh%ymax       )
+    IF (region%mesh%lambda_M    /= lambda_M   ) CALL crash('expected lambda_M    = {dp_01}, found {dp_02}', dp_01 = lambda_M   , dp_02 = region%mesh%lambda_M   )
+    IF (region%mesh%phi_M       /= phi_M      ) CALL crash('expected phi_M       = {dp_01}, found {dp_02}', dp_01 = phi_M      , dp_02 = region%mesh%phi_M      )
+    IF (region%mesh%beta_stereo /= beta_stereo) CALL crash('expected beta_stereo = {dp_01}, found {dp_02}', dp_01 = beta_stereo, dp_02 = region%mesh%beta_stereo)
+
+    ! Calculate all matrix operators
+    CALL calc_all_matrix_operators_mesh( region%mesh)
+
+    ! Write the mesh creation success message to the terminal
+    CALL write_mesh_success( region%mesh)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

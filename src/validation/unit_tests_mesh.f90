@@ -17,7 +17,7 @@ MODULE unit_tests_mesh
   USE mesh_creation                                          , ONLY: initialise_dummy_mesh
   USE mesh_refinement                                        , ONLY: refine_mesh_uniform, Lloyds_algorithm_single_iteration, mesh_add_smileyface, &
                                                                      mesh_add_UFEMISM_letters
-  USE mesh_parallel_creation                                 , ONLY: merge_submeshes, broadcast_merged_mesh
+  USE mesh_parallel_creation                                 , ONLY: merge_submeshes, broadcast_mesh
   USE mesh_secondary                                         , ONLY: calc_all_secondary_mesh_data
   USE mesh_operators                                         , ONLY: calc_all_matrix_operators_mesh
   USE netcdf_basic                                           , ONLY: create_new_netcdf_file_for_writing, close_netcdf_file
@@ -332,7 +332,7 @@ CONTAINS
 
     ! Broadcast from Master
     tstart = MPI_WTIME()
-    CALL broadcast_merged_mesh( mesh)
+    CALL broadcast_mesh( mesh)
     tcomp = tcomp + MPI_WTIME() - tstart
     CALL check_mesh( mesh)
 
@@ -510,7 +510,7 @@ CONTAINS
 
     ! Broadcast from Master
     tstart = MPI_WTIME()
-    CALL broadcast_merged_mesh( mesh)
+    CALL broadcast_mesh( mesh)
     tcomp = tcomp + MPI_WTIME() - tstart
     CALL check_mesh( mesh)
 

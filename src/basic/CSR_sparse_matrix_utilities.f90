@@ -140,7 +140,7 @@ CONTAINS
     A%val( A%nnz) = v
 
     ! Update pointer list
-    A%ptr( i+1 : A%m+1) = A%nnz+1
+    A%ptr( i+1 : MIN( i+2,A%m+1)) = A%nnz+1
 
     ! Extend memory if necessary
     IF (A%nnz > A%nnz_max - 10) CALL extend_matrix_CSR_dist( A, 1000)
@@ -158,15 +158,14 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'extend_matrix_CSR_dist'
-    INTEGER,  DIMENSION(:    ), ALLOCATABLE            :: index_temp
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: val_temp
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
     ! Extend memory
-    CALL reallocate( A%ind, A%nnz + nnz_extra)
-    CALL reallocate( A%val, A%nnz + nnz_extra)
+    A%nnz_max = A%nnz + nnz_extra
+    CALL reallocate( A%ind, A%nnz_max)
+    CALL reallocate( A%val, A%nnz_max)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

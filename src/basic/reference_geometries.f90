@@ -20,7 +20,8 @@ MODULE reference_geometries
   USE analytical_solutions                                   , ONLY: Halfar_dome, Bueler_dome
   USE netcdf_basic                                           , ONLY: inquire_xy_grid, inquire_lonlat_grid, inquire_mesh, open_existing_netcdf_file_for_reading, &
                                                                      inquire_var_multopt, close_netcdf_file
-  USE netcdf_input                                           , ONLY: read_field_from_xy_file_2D
+  USE netcdf_input                                           , ONLY: read_field_from_xy_file_2D, read_field_from_mesh_file_2D
+  USE mesh_remapping                                         , ONLY: map_from_xy_grid_to_mesh_2D, map_from_mesh_to_mesh_2D
 
   IMPLICIT NONE
 
@@ -51,6 +52,9 @@ CONTAINS
 
 ! ===== Subroutines =====
 ! =======================
+
+  ! Initialise reference geometries on their raw input grid/mesh
+  ! ============================================================
 
   SUBROUTINE initialise_reference_geometries_raw( region_name, refgeo_init, refgeo_PD, refgeo_GIAeq)
     ! Initialise a reference geometry on the raw grid/mesh for the given set of config choices
@@ -452,31 +456,116 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'initialise_reference_geometry_raw_from_file_mesh'
+    INTEGER                                                            :: ncid, id_var
+    LOGICAL                                                            :: has_SL
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    ! Check if a sea level variable exists in the file
+    CALL open_existing_netcdf_file_for_reading( filename_refgeo, ncid)
+    CALL inquire_var_multopt( filename_refgeo, ncid, 'default_options_SL', id_var)
+    has_SL = id_var /= -1
+    CALL close_netcdf_file( ncid)
+
     IF (timeframe_refgeo /= 1E9_dp) THEN
       ! We need to read a specific time frame
 
-!      CALL read_field_from_xy_file_2D( filename_refgeo, 'default_options_Hi', refgeo%Hi_grid_raw, time_to_read = timeframe_refgeo, grid = refgeo%grid_raw)
-!      CALL read_field_from_xy_file_2D( filename_refgeo, 'default_options_Hb', refgeo%Hb_grid_raw, time_to_read = timeframe_refgeo)
-!      CALL read_field_from_xy_file_2D( filename_refgeo, 'default_options_Hs', refgeo%Hs_grid_raw, time_to_read = timeframe_refgeo)
+      CALL read_field_from_mesh_file_2D( filename_refgeo, 'default_options_Hi', refgeo%Hi_mesh_raw, time_to_read = timeframe_refgeo, mesh = refgeo%mesh_raw)
+      CALL read_field_from_mesh_file_2D( filename_refgeo, 'default_options_Hb', refgeo%Hb_mesh_raw, time_to_read = timeframe_refgeo)
+      CALL read_field_from_mesh_file_2D( filename_refgeo, 'default_options_Hs', refgeo%Hs_mesh_raw, time_to_read = timeframe_refgeo)
+
+      ! If the file has a sea-level field, read that; if not, assume present-day (i.e. zero)
+      IF (has_SL) THEN
+        CALL read_field_from_mesh_file_2D( filename_refgeo, 'default_options_SL', refgeo%SL_mesh_raw, time_to_read = timeframe_refgeo)
+      ELSE
+        ALLOCATE( refgeo%SL_mesh_raw( refgeo%mesh_raw%nV_loc), source = 0._dp)
+      END IF
 
     ELSE !  IF (timeframe_refgeo /= 1E9_dp) THEN
       ! We need to read data from a time-less NetCDF file
 
-!      CALL read_field_from_xy_file_2D( filename_refgeo, 'default_options_Hi', refgeo%Hi_grid_raw, grid = refgeo%grid_raw)
+      CALL read_field_from_mesh_file_2D( filename_refgeo, 'default_options_Hi', refgeo%Hi_mesh_raw, mesh = refgeo%mesh_raw)
+      CALL read_field_from_mesh_file_2D( filename_refgeo, 'default_options_Hb', refgeo%Hb_mesh_raw)
+      CALL read_field_from_mesh_file_2D( filename_refgeo, 'default_options_Hs', refgeo%Hs_mesh_raw)
+
+      ! If the file has a sea-level field, read that; if not, assume present-day (i.e. zero)
+      IF (has_SL) THEN
+        CALL read_field_from_mesh_file_2D( filename_refgeo, 'default_options_SL', refgeo%SL_mesh_raw)
+      ELSE
+        ALLOCATE( refgeo%SL_mesh_raw( refgeo%mesh_raw%nV_loc), source = 0._dp)
+      END IF
 
     END IF !  IF (timeframe_refgeo /= 1E9_dp) THEN
-
-    ! DENK DROM
-    CALL crash('fixme!')
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE initialise_reference_geometry_raw_from_file_mesh
+
+  ! Remap reference geometry to the model mesh
+  ! ==========================================
+
+  SUBROUTINE remap_reference_geometry_to_mesh( mesh, refgeo)
+    ! Remap reference geometry to the model mesh
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh)                                    , INTENT(IN)    :: mesh
+    TYPE(type_reference_geometry)                      , INTENT(INOUT) :: refgeo
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'remap_reference_geometry_to_mesh'
+    CHARACTER(LEN=256)                                                 :: method
+    INTEGER                                                            :: vi
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Allocate memory for reference ice geometry on the model mesh
+    ALLOCATE( refgeo%Hi( mesh%nV_loc))
+    ALLOCATE( refgeo%Hb( mesh%nV_loc))
+    ALLOCATE( refgeo%Hs( mesh%nV_loc))
+    ALLOCATE( refgeo%SL( mesh%nV_loc))
+
+    ! Determine if the initial geometry is provided gridded or meshed
+    IF (ALLOCATED( refgeo%grid_raw%x)) THEN
+      ! Gridded
+
+      ! Safety
+      IF (ALLOCATED( refgeo%mesh_raw%V)) CALL crash('found boht grid and mesh in refgeo!')
+
+      ! Remap data to the model mesh
+      CALL map_from_xy_grid_to_mesh_2D( refgeo%grid_raw, mesh, refgeo%Hi_grid_raw, refgeo%Hi)
+      CALL map_from_xy_grid_to_mesh_2D( refgeo%grid_raw, mesh, refgeo%Hb_grid_raw, refgeo%Hb)
+      CALL map_from_xy_grid_to_mesh_2D( refgeo%grid_raw, mesh, refgeo%SL_grid_raw, refgeo%SL)
+
+    ELSEIF (ALLOCATED( refgeo%mesh_raw%V)) THEN
+      ! Meshed
+
+      ! Safety
+      IF (ALLOCATED( refgeo%grid_raw%x)) CALL crash('found boht grid and mesh in refgeo!')
+
+      ! Remap data to the model mesh
+      method = '2nd_order_conservative'
+      CALL map_from_mesh_to_mesh_2D( refgeo%mesh_raw, mesh, refgeo%Hi_mesh_raw, refgeo%Hi, method)
+      CALL map_from_mesh_to_mesh_2D( refgeo%mesh_raw, mesh, refgeo%Hb_mesh_raw, refgeo%Hb, method)
+      CALL map_from_mesh_to_mesh_2D( refgeo%mesh_raw, mesh, refgeo%SL_mesh_raw, refgeo%SL, method)
+
+    ELSE
+      CALL crash('no grid or mesh is found in refgeo!')
+    END IF
+
+    ! Don't remap Hs, but recalculate it after remapping Hi,Hb,SL
+    DO vi = 1, mesh%nV_loc
+      refgeo%Hs( vi) = ice_surface_elevation( refgeo%Hi( vi), refgeo%Hb( vi), refgeo%SL( vi))
+    END DO
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE remap_reference_geometry_to_mesh
 
   ! Calculate various idealsed geometries
   ! =====================================

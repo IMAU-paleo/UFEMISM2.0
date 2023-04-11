@@ -26,7 +26,7 @@ CONTAINS
 ! ===== Subroutines =====
 ! =======================
 
-  SUBROUTINE broadcast_merged_mesh( mesh)
+  SUBROUTINE broadcast_mesh( mesh)
     ! Broadcast the merged mesh from the master to all other processes
 
     IMPLICIT NONE
@@ -35,7 +35,7 @@ CONTAINS
     TYPE(type_mesh),            INTENT(INOUT)     :: mesh
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'broadcast_merged_mesh'
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'broadcast_mesh'
     INTEGER                                       :: nV_mem, nTri_mem, nC_mem
 
     ! Add routine to path
@@ -96,7 +96,7 @@ CONTAINS
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
-  END SUBROUTINE broadcast_merged_mesh
+  END SUBROUTINE broadcast_mesh
 
   SUBROUTINE merge_submeshes( mesh, p_left, p_right, orientation)
     ! Merge the submesh owned by p_right into the one owned by p_left,

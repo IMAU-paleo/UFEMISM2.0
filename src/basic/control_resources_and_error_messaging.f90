@@ -18,6 +18,7 @@ MODULE control_resources_and_error_messaging
 ! ============================
 
   LOGICAL             :: do_colour_strings = .TRUE.
+  LOGICAL             :: do_display_path   = .FALSE.
 
   CHARACTER(LEN=1024) :: routine_path
 
@@ -85,6 +86,11 @@ CONTAINS
     ! Append this routine to the routine path
     routine_path = TRIM( routine_path) // '/' // TRIM( routine_name)
 
+    ! If so specified, print the current routine path to the terminal (useful for debugging)
+    IF (do_display_path) THEN
+      IF (par%master) WRITE(0,'(A)') '   Initialising ' // TRIM( routine_path)
+    END IF
+
     ! Check if resource use for this subroutine should be tracked
     ! (especially for the NetCDF routines we don't want to do this, as there are
     ! a great many of them and the resource tracker output file will become annoyingly big)
@@ -124,6 +130,11 @@ CONTAINS
     INTEGER                                                            :: len_path_tot, i, ii
     INTEGER                                                            :: ierr, cerr
     REAL(dp)                                                           :: dt
+
+    ! If so specified, print the current routine path to the terminal (useful for debugging)
+    IF (do_display_path) THEN
+      IF (par%master) WRITE(0,'(A)') '   Finalising   ' // TRIM( routine_path)
+    END IF
 
     ! Check if resource use should be tracked for this subroutine
     i = INDEX( routine_path, '_NOTRACK')

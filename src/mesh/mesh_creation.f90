@@ -13,14 +13,16 @@ MODULE mesh_creation
   USE parameters
   USE mesh_types                                             , ONLY: type_mesh
   USE mesh_memory                                            , ONLY: allocate_mesh_primary
-  USE mesh_utilities                                         , ONLY: update_triangle_circumcenter
+  USE mesh_utilities                                         , ONLY: update_triangle_circumcenter, calc_mesh_contour_as_line, calc_mesh_mask_as_polygons
   USE mesh_refinement                                        , ONLY: refine_mesh_uniform, refine_mesh_line, Lloyds_algorithm_single_iteration, &
                                                                      refine_mesh_polygon
+  USe mesh_parallel_creation                                 , ONLY: broadcast_mesh
   USE mesh_secondary                                         , ONLY: calc_all_secondary_mesh_data
   USE mesh_operators                                         , ONLY: calc_all_matrix_operators_mesh
   USE grid_basic                                             , ONLY: type_grid, gather_gridded_data_to_master_dp_2D, calc_grid_contour_as_line, &
                                                                      calc_grid_mask_as_polygons
   USE math_utilities                                         , ONLY: thickness_above_floatation
+  USE mpi_distributed_memory                                 , ONLY: gather_to_master_dp_1D
 
   IMPLICIT NONE
 
@@ -76,7 +78,7 @@ CONTAINS
   ! == Reduce the ice geometry to lines and polygons
   ! ================================================
 
-    ! Allocate memory for ice geometry data in grid form
+    ! Allocate memory for gathered ice geometry data
     IF (par%master) THEN
       ALLOCATE( Hi_grid( grid%nx, grid%ny))
       ALLOCATE( Hb_grid( grid%nx, grid%ny))
@@ -261,12 +263,193 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'create_mesh_from_meshed_geometry'
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE       :: Hi_tot
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE       :: Hb_tot
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE       :: Hs_tot
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE       :: SL_tot
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE       :: TAF_tot
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE       :: Hb_minus_SL_tot
+    INTEGER                                       :: vi,ci,vj
+    LOGICAL,  DIMENSION(:    ), ALLOCATABLE       :: mask_sheet
+    LOGICAL,  DIMENSION(:    ), ALLOCATABLE       :: mask_shelf
+    LOGICAL,  DIMENSION(:    ), ALLOCATABLE       :: mask_calc_grounding_line
+    LOGICAL,  DIMENSION(:    ), ALLOCATABLE       :: mask_calc_calving_front
+    LOGICAL,  DIMENSION(:    ), ALLOCATABLE       :: mask_calc_ice_front
+    LOGICAL,  DIMENSION(:    ), ALLOCATABLE       :: mask_calc_coastline
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE       :: poly_mult_sheet
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE       :: poly_mult_shelf
+    INTEGER                                       :: n_poly_mult_sheet
+    INTEGER                                       :: n_poly_mult_shelf
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE       :: p_line_grounding_line
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE       :: p_line_calving_front
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE       :: p_line_ice_front
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE       :: p_line_coastline
+    INTEGER                                       :: n_line_grounding_line
+    INTEGER                                       :: n_line_calving_front
+    INTEGER                                       :: n_line_ice_front
+    INTEGER                                       :: n_line_coastline
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! DENK DROM
-    CALL crash('whoopsiedaisy!')
+  ! == Reduce the ice geometry to lines and polygons
+  ! ================================================
+
+    ! Allocate memory for gathered ice geometry data
+    IF (par%master) THEN
+      ALLOCATE( Hi_tot( mesh_src%nV))
+      ALLOCATE( Hb_tot( mesh_src%nV))
+      ALLOCATE( Hs_tot( mesh_src%nV))
+      ALLOCATE( SL_tot( mesh_src%nV))
+    END IF
+
+    ! Gather ice geometry data in grid form to the master
+    CALL gather_to_master_dp_1D( Hi, Hi_tot)
+    CALL gather_to_master_dp_1D( Hb, Hb_tot)
+    CALL gather_to_master_dp_1D( Hs, Hs_tot)
+    CALL gather_to_master_dp_1D( SL, SL_tot)
+
+    ! Let the master calculate the lines
+
+    IF (par%master) THEN
+
+      ! Allocate memory for thickness above floatation and Hb-SL
+      ALLOCATE( TAF_tot(         mesh_src%nV))
+      ALLOCATE( Hb_minus_SL_tot( mesh_src%nV))
+
+      ! Calculate thickness above floatation and Hb-SL
+      DO vi = 1, mesh_src%nV
+        TAF_tot(         vi) = thickness_above_floatation( Hi_tot( vi), Hb_tot( vi), SL_tot( vi))
+        Hb_minus_SL_tot( vi) = Hb_tot( vi) - SL_tot( vi)
+      END DO
+
+      ! Fill in masks for floating/grounded ice
+      ALLOCATE( mask_sheet( mesh_src%nV), source = .FALSE.)
+      ALLOCATE( mask_shelf( mesh_src%nV), source = .FALSE.)
+
+      DO vi = 1, mesh_src%nV
+        IF (Hi_tot( vi) > 0.1_dp) THEN
+          IF (TAF_tot( vi) > 0._dp) THEN
+            mask_sheet( vi) = .TRUE.
+          ELSE
+            mask_shelf( vi) = .TRUE.
+          END IF
+        END IF
+      END DO
+
+      ! Fill in masks for where to calculate lines
+      ALLOCATE( mask_calc_grounding_line( mesh_src%nV), source = .FALSE.)
+      ALLOCATE( mask_calc_calving_front(  mesh_src%nV), source = .FALSE.)
+      ALLOCATE( mask_calc_ice_front(      mesh_src%nV), source = .FALSE.)
+      ALLOCATE( mask_calc_coastline(      mesh_src%nV), source = .FALSE.)
+
+      DO vi = 1, mesh_src%nV
+
+        ! Grounding line should only be calculated where there's ice
+        IF (Hi_tot( vi) > 0.1_dp) THEN
+          mask_calc_grounding_line( vi) = .TRUE.
+        END IF
+
+        ! Calving front should only be calculated for ice (both floating and grounded) next to ocean
+        IF (Hi_tot( vi) > 0.1_dp) THEN
+          ! This grid cell has ice
+          DO ci = 1, mesh_src%nC( vi)
+            vj = mesh_src%C( vi,ci)
+            IF (Hi_tot( vj) < 0.1_dp .AND. Hb_tot( vj) < SL_tot( vj)) THEN
+              ! This neighbour is open ocean
+              mask_calc_calving_front( vi) = .TRUE.
+            END IF
+          END DO
+        END IF
+
+        ! Ice front is simply ice next to non-ice
+        IF (Hi_tot( vi) > 0.1_dp) THEN
+          ! This grid cell has ice
+          DO ci = 1, mesh_src%nC( vi)
+            vj = mesh_src%C( vi,ci)
+            IF (Hi_tot( vj) < 0.1_dp) THEN
+              ! This neighbour is ice-free
+              mask_calc_ice_front( vi) = .TRUE.
+            END IF
+          END DO
+        END IF
+
+        ! Coastline is ice-free land next to open ocean
+        IF (Hi_tot( vi) < 0.1_dp .AND. Hb_tot( vi) > SL_tot( vi)) THEN
+          ! This grid cell is ice-free land
+          DO ci = 1, mesh_src%nC( vi)
+            vj = mesh_src%C( vi,ci)
+            IF (Hi_tot( vj) < 0.1_dp .AND. Hb_tot( vj) < SL_tot( vj)) THEN
+              ! This neighbour is open ocean
+              mask_calc_coastline( vi) = .TRUE.
+            END IF
+          END DO
+        END IF
+
+      END DO
+
+      ! Calculate polygons enveloping sheet and shelf
+      CALL calc_mesh_mask_as_polygons( mesh_src, mask_sheet, poly_mult_sheet)
+      CALL calc_mesh_mask_as_polygons( mesh_src, mask_shelf, poly_mult_shelf)
+
+      ! Get polygon sizes
+      n_poly_mult_sheet = SIZE( poly_mult_sheet,1)
+      n_poly_mult_shelf = SIZE( poly_mult_shelf,1)
+
+      ! Calculate lines in line segment format
+      CALL calc_mesh_contour_as_line( mesh_src, TAF_tot        , 0.0_dp, p_line_grounding_line, mask_calc_grounding_line)
+      CALL calc_mesh_contour_as_line( mesh_src, Hi_tot         , 0.1_dp, p_line_calving_front , mask_calc_calving_front )
+      CALL calc_mesh_contour_as_line( mesh_src, Hi_tot         , 0.1_dp, p_line_ice_front     , mask_calc_ice_front     )
+      CALL calc_mesh_contour_as_line( mesh_src, Hb_minus_SL_tot, 0.0_dp, p_line_coastline     , mask_calc_coastline     )
+
+      ! Get line sizes
+      n_line_grounding_line = SIZE( p_line_grounding_line,1)
+      n_line_calving_front  = SIZE( p_line_calving_front ,1)
+      n_line_ice_front      = SIZE( p_line_ice_front     ,1)
+      n_line_coastline      = SIZE( p_line_coastline     ,1)
+
+    END IF ! IF (par%master) THEN
+    CALL sync
+
+    ! Broadcast polygon sizes to all processes
+    CALL MPI_BCAST( n_poly_mult_sheet, 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
+    CALL MPI_BCAST( n_poly_mult_shelf, 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
+
+    ! Allocate memory for the polygons on the other processes
+    IF (.NOT. par%master) THEN
+      ALLOCATE( poly_mult_sheet( n_poly_mult_sheet,2))
+      ALLOCATE( poly_mult_shelf( n_poly_mult_shelf,2))
+    END IF
+
+    ! Broadcast polygons to all processes
+    CALL MPI_BCAST( poly_mult_sheet, n_poly_mult_sheet*2, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+    CALL MPI_BCAST( poly_mult_shelf, n_poly_mult_shelf*2, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+
+    ! Broadcast line sizes to all processes
+    CALL MPI_BCAST( n_line_grounding_line, 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
+    CALL MPI_BCAST( n_line_calving_front , 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
+    CALL MPI_BCAST( n_line_ice_front     , 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
+    CALL MPI_BCAST( n_line_coastline     , 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
+
+    ! Allocate memory for the lines on the other processes
+    IF (.NOT. par%master) THEN
+      ALLOCATE( p_line_grounding_line( n_line_grounding_line,4))
+      ALLOCATE( p_line_calving_front(  n_line_calving_front ,4))
+      ALLOCATE( p_line_ice_front(      n_line_ice_front     ,4))
+      ALLOCATE( p_line_coastline(      n_line_coastline     ,4))
+    END IF
+
+    ! Broadcast lines to all processes
+    CALL MPI_BCAST( p_line_grounding_line, n_line_grounding_line*4, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+    CALL MPI_BCAST( p_line_calving_front , n_line_calving_front *4, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+    CALL MPI_BCAST( p_line_ice_front     , n_line_ice_front     *4, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+    CALL MPI_BCAST( p_line_coastline     , n_line_coastline     *4, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+
+  ! == Create mesh from the ice geometry lines
+  ! ==========================================
+
+    CALL create_mesh_from_geometry( poly_mult_sheet, poly_mult_shelf, p_line_grounding_line, p_line_calving_front, p_line_ice_front, p_line_coastline, &
+      xmin, xmax, ymin, ymax, lambda_M, phi_M, beta_stereo, mesh)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -345,98 +528,107 @@ CONTAINS
     name = 'mesh_name'
     CALL warning('need procedural mesh names!')
 
-    ! Allocate mesh memory
-    CALL allocate_mesh_primary( mesh, name, 1000, 2000, C%nC_mem)
+    ! Single-core mesh generation: let the master do this,
+    ! and then broadcast its result to all the other processes.
+    IF (par%master) THEN
 
-    ! Initialise the dummy mesh
-    CALL initialise_dummy_mesh( mesh, xmin, xmax, ymin, ymax)
+      ! Allocate mesh memory
+      CALL allocate_mesh_primary( mesh, name, 1000, 2000, C%nC_mem)
 
-  ! == Refine to a uniform resolution; iteratively reduce this,
-  ! == and smooth the mesh in between to get a nice, high-quality mesh
-  ! ==================================================================
+      ! Initialise the dummy mesh
+      CALL initialise_dummy_mesh( mesh, xmin, xmax, ymin, ymax)
 
-    res_max_uniform_applied = MAX( xmax-xmin, ymax-ymin)
+    ! == Refine to a uniform resolution; iteratively reduce this,
+    ! == and smooth the mesh in between to get a nice, high-quality mesh
+    ! ==================================================================
 
-    DO WHILE (.TRUE.)
+      res_max_uniform_applied = MAX( xmax-xmin, ymax-ymin)
 
-      ! Reduce the applied uniform resolution
-      res_max_uniform_applied = MAX( res_max_uniform_applied / 2._dp, C%maximum_resolution_uniform)
+      DO WHILE (.TRUE.)
 
-      ! Refine the mesh to the applied uniform resolution
-      CALL refine_mesh_uniform( mesh, res_max_uniform_applied, C%alpha_min)
+        ! Reduce the applied uniform resolution
+        res_max_uniform_applied = MAX( res_max_uniform_applied / 2._dp, C%maximum_resolution_uniform)
 
-      ! Smooth the mesh
-      CALL Lloyds_algorithm_single_iteration( mesh, C%alpha_min)
+        ! Refine the mesh to the applied uniform resolution
+        CALL refine_mesh_uniform( mesh, res_max_uniform_applied, C%alpha_min)
 
-      ! Stop refining once we've reached the desired resolution
-      IF (res_max_uniform_applied == C%maximum_resolution_uniform) EXIT
+        ! Smooth the mesh
+        CALL Lloyds_algorithm_single_iteration( mesh, C%alpha_min)
 
-    END DO ! DO WHILE (.TRUE.)
+        ! Stop refining once we've reached the desired resolution
+        IF (res_max_uniform_applied == C%maximum_resolution_uniform) EXIT
 
-  ! == Refine along the ice geometry lines (grounding line, calving front, etc.)
-  ! ============================================================================
+      END DO ! DO WHILE (.TRUE.)
 
-    ! Refine the mesh along the ice geometry lines
-    CALL refine_mesh_line( mesh, p_line_grounding_line, C%maximum_resolution_grounding_line, C%grounding_line_width, C%alpha_min)
-    CALL refine_mesh_line( mesh, p_line_calving_front , C%maximum_resolution_calving_front , C%calving_front_width , C%alpha_min)
-    CALL refine_mesh_line( mesh, p_line_ice_front     , C%maximum_resolution_ice_front     , C%ice_front_width     , C%alpha_min)
-    CALL refine_mesh_line( mesh, p_line_coastline     , C%maximum_resolution_coastline     , C%coastline_width     , C%alpha_min)
+    ! == Refine along the ice geometry lines (grounding line, calving front, etc.)
+    ! ============================================================================
 
-  ! == Refine along the ice geometry areas (sheet, shelf, etc.)
-  ! ===========================================================
+      ! Refine the mesh along the ice geometry lines
+      CALL refine_mesh_line( mesh, p_line_grounding_line, C%maximum_resolution_grounding_line, C%grounding_line_width, C%alpha_min)
+      CALL refine_mesh_line( mesh, p_line_calving_front , C%maximum_resolution_calving_front , C%calving_front_width , C%alpha_min)
+      CALL refine_mesh_line( mesh, p_line_ice_front     , C%maximum_resolution_ice_front     , C%ice_front_width     , C%alpha_min)
+      CALL refine_mesh_line( mesh, p_line_coastline     , C%maximum_resolution_coastline     , C%coastline_width     , C%alpha_min)
 
-      ! Ice sheet
-      ! =========
+    ! == Refine along the ice geometry areas (sheet, shelf, etc.)
+    ! ===========================================================
 
-      n1 = 1
-      n2 = 0
+        ! Ice sheet
+        ! =========
 
-      DO WHILE (n2 < SIZE( poly_mult_sheet,1))
+        n1 = 1
+        n2 = 0
 
-        ! Copy a single polygon from poly_mult
-        nn = NINT( poly_mult_sheet( n1,1))
-        n2 = n1 + nn
-        ALLOCATE( poly( nn,2))
-        poly = poly_mult_sheet( n1+1:n2,:)
-        n1 = n2+1
+        DO WHILE (n2 < SIZE( poly_mult_sheet,1))
 
-        ! Refine mesh over this single polygon
-        CALL refine_mesh_polygon( mesh, poly, C%maximum_resolution_grounded_ice, C%alpha_min)
+          ! Copy a single polygon from poly_mult
+          nn = NINT( poly_mult_sheet( n1,1))
+          n2 = n1 + nn
+          ALLOCATE( poly( nn,2))
+          poly = poly_mult_sheet( n1+1:n2,:)
+          n1 = n2+1
 
-        ! Clean up after yourself
-        DEALLOCATE( poly)
+          ! Refine mesh over this single polygon
+          CALL refine_mesh_polygon( mesh, poly, C%maximum_resolution_grounded_ice, C%alpha_min)
 
-      END DO ! DO WHILE (n2 < SIZE( poly_mult_sheet,1))
+          ! Clean up after yourself
+          DEALLOCATE( poly)
 
-      ! Ice shelf
-      ! =========
+        END DO ! DO WHILE (n2 < SIZE( poly_mult_sheet,1))
 
-      n1 = 1
-      n2 = 0
+        ! Ice shelf
+        ! =========
 
-      DO WHILE (n2 < SIZE( poly_mult_shelf,1))
+        n1 = 1
+        n2 = 0
 
-        ! Copy a single polygon from poly_mult
-        nn = NINT( poly_mult_shelf( n1,1))
-        n2 = n1 + nn
-        ALLOCATE( poly( nn,2))
-        poly = poly_mult_shelf( n1+1:n2,:)
-        n1 = n2+1
+        DO WHILE (n2 < SIZE( poly_mult_shelf,1))
 
-        ! Refine mesh over this single polygon
-        CALL refine_mesh_polygon( mesh, poly, C%maximum_resolution_floating_ice, C%alpha_min)
+          ! Copy a single polygon from poly_mult
+          nn = NINT( poly_mult_shelf( n1,1))
+          n2 = n1 + nn
+          ALLOCATE( poly( nn,2))
+          poly = poly_mult_shelf( n1+1:n2,:)
+          n1 = n2+1
 
-        ! Clean up after yourself
-        DEALLOCATE( poly)
+          ! Refine mesh over this single polygon
+          CALL refine_mesh_polygon( mesh, poly, C%maximum_resolution_floating_ice, C%alpha_min)
 
-      END DO ! DO WHILE (n2 < SIZE( poly_mult_sheet,1))
+          ! Clean up after yourself
+          DEALLOCATE( poly)
 
-  ! == Smooth the mesh
-  ! ==================
+        END DO ! DO WHILE (n2 < SIZE( poly_mult_sheet,1))
 
-    DO i = 1, C%nit_Lloyds_algorithm
-      CALL Lloyds_algorithm_single_iteration( mesh, C%alpha_min)
-    END DO
+    ! == Smooth the mesh
+    ! ==================
+
+      DO i = 1, C%nit_Lloyds_algorithm
+        CALL Lloyds_algorithm_single_iteration( mesh, C%alpha_min)
+      END DO
+
+    END IF ! IF (par%master) THEN
+
+    ! Broadcast the Master's mesh
+    CALL broadcast_mesh( mesh)
 
   ! == Calculate secondary geometry data
   ! ====================================

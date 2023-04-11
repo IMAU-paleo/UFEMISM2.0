@@ -464,6 +464,11 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    ! Metadata
+    mesh%lambda_M    = lambda_M
+    mesh%phi_M       = phi_M
+    mesh%beta_stereo = beta_stereo
+
     ! Allocate clean memory
     IF (ALLOCATED( mesh%lon)) DEALLOCATE( mesh%lon)
     ALLOCATE( mesh%lon( mesh%nV), source = 0._dp)

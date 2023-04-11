@@ -29,7 +29,7 @@ MODULE netcdf_input
   USE mesh_memory                                            , ONLY: allocate_mesh_primary, deallocate_mesh
   USE mesh_utilities                                         , ONLY: check_mesh
   USE mesh_secondary                                         , ONLY: calc_all_secondary_mesh_data
-  USE mesh_parallel_creation                                 , ONLY: broadcast_merged_mesh
+  USE mesh_parallel_creation                                 , ONLY: broadcast_mesh
   USE mesh_remapping                                         , ONLY: map_from_xy_grid_to_mesh_2D, map_from_lonlat_grid_to_mesh_2D, map_from_mesh_to_mesh_2D, &
                                                                      map_from_xy_grid_to_mesh_3D, map_from_lonlat_grid_to_mesh_3D, map_from_mesh_to_mesh_3D
 
@@ -1881,7 +1881,7 @@ CONTAINS
     IF (par%master) CALL check_mesh( mesh)
 
     ! Broadcast read mesh from the master to the other processes
-    CALL broadcast_merged_mesh( mesh)
+    CALL broadcast_mesh( mesh)
 
     ! Calculate secondary mesh data
     CALL calc_all_secondary_mesh_data( mesh, mesh%lambda_M, mesh%phi_M, mesh%beta_stereo)

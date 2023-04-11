@@ -3699,6 +3699,36 @@ CONTAINS
       ccr = mesh%Tricc( tir,:)
     END IF
 
+    ! Check if q coincides with vil (if it exists)
+    IF (vil > 0) THEN
+      IF (NORM2( mesh%V( vil,:) - q) < mesh%tol_dist) THEN
+        ! q coincides with ccl
+        p_next    = q
+        vi_in     = 0
+        ti_on     = 0
+        ei_on     = 0
+        vi_left   = via
+        coincides = .FALSE.
+        finished  = .TRUE.
+        RETURN
+      END IF
+    END IF
+
+    ! Check if q coincides with vir (if it exists)
+    IF (vir > 0) THEN
+      IF (NORM2( mesh%V( vir,:) - q) < mesh%tol_dist) THEN
+        ! q coincides with ccr
+        p_next    = q
+        vi_in     = 0
+        ti_on     = 0
+        ei_on     = 0
+        vi_left   = vib
+        coincides = .FALSE.
+        finished  = .TRUE.
+        RETURN
+      END IF
+    END IF
+
     ! Check if q coincides with ccl
     IF (NORM2( ccl - q) < mesh%tol_dist) THEN
       ! q coincides with ccl
@@ -3880,7 +3910,15 @@ CONTAINS
     END DO
 
     ! This point should not be reachable!
-    CALL crash('trace_line_Vor_ei - reached the unreachable END IF of the subroutine!')
+    CALL warning('via = [{dp_01},{dp_02}];',dp_01 = mesh%V( via,1), dp_02 = mesh%V( via,2))
+    CALL warning('vib = [{dp_01},{dp_02}];',dp_01 = mesh%V( vib,1), dp_02 = mesh%V( vib,2))
+    CALL warning('vil = [{dp_01},{dp_02}];',dp_01 = mesh%V( vil,1), dp_02 = mesh%V( vil,2))
+    CALL warning('vir = [{dp_01},{dp_02}];',dp_01 = mesh%V( vir,1), dp_02 = mesh%V( vir,2))
+    CALL warning('ccl = [{dp_01},{dp_02}];',dp_01 = ccl( 1), dp_02 = ccl( 2))
+    CALL warning('ccr = [{dp_01},{dp_02}];',dp_01 = ccr( 1), dp_02 = ccr( 2))
+    CALL warning('p   = [{dp_01},{dp_02}];',dp_01 = p( 1), dp_02 = p( 2))
+    CALL warning('q   = [{dp_01},{dp_02}];',dp_01 = q( 1), dp_02 = q( 2))
+    CALL crash('trace_line_Vor_ei - reached the unreachable end of the subroutine!')
 
   END SUBROUTINE trace_line_Vor_ei
 
