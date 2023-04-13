@@ -204,7 +204,7 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: filename_initial_mesh_GRL_config             = ''
     CHARACTER(LEN=256)  :: filename_initial_mesh_ANT_config             = ''
 
-    ! Resolutions for different regions
+    ! Resolutions for different parts of the ice sheet
     REAL(dp)            :: maximum_resolution_uniform_config            = 800e3_dp                         ! [m]          Maximum resolution for the entire domain
     REAL(dp)            :: maximum_resolution_grounded_ice_config       = 400e3_dp                         ! [m]          Maximum resolution for grounded ice
     REAL(dp)            :: maximum_resolution_floating_ice_config       = 200e3_dp                         ! [m]          Maximum resolution for floating ice
@@ -216,6 +216,20 @@ MODULE model_configuration
     REAL(dp)            :: ice_front_width_config                       = 200e3_dp                         ! [m]          Width of the band around the ice front that should get this resolution
     REAL(dp)            :: maximum_resolution_coastline_config          = 100e3_dp                         ! [m]          Maximum resolution for the coastline
     REAL(dp)            :: coastline_width_config                       = 200e3_dp                         ! [m]          Width of the band around the coastline that should get this resolution
+
+    ! Regions of interest
+    CHARACTER(LEN=256)  :: choice_regions_of_interest_config            = ''                               ! Regions of interest where other (higher) resolutions apply. Separated by double vertical bars "||", e.g. "PineIsland||Thwaites"
+    REAL(dp)            :: ROI_maximum_resolution_uniform_config        = 100e3_dp                         ! [m]          Maximum resolution for the entire domain
+    REAL(dp)            :: ROI_maximum_resolution_grounded_ice_config   = 50e3_dp                          ! [m]          Maximum resolution for grounded ice
+    REAL(dp)            :: ROI_maximum_resolution_floating_ice_config   = 20e3_dp                          ! [m]          Maximum resolution for floating ice
+    REAL(dp)            :: ROI_maximum_resolution_grounding_line_config = 5e3_dp                           ! [m]          Maximum resolution for the grounding line
+    REAL(dp)            :: ROI_grounding_line_width_config              = 5e3_dp                           ! [m]          Width of the band around the grounding line that should get this resolution
+    REAL(dp)            :: ROI_maximum_resolution_calving_front_config  = 10e3_dp                          ! [m]          Maximum resolution for the calving front
+    REAL(dp)            :: ROI_calving_front_width_config               = 10e3_dp                          ! [m]          Width of the band around the calving front that should get this resolution
+    REAL(dp)            :: ROI_maximum_resolution_ice_front_config      = 20e3_dp                          ! [m]          Maximum resolution for the ice front
+    REAL(dp)            :: ROI_ice_front_width_config                   = 20e3_dp                          ! [m]          Width of the band around the ice front that should get this resolution
+    REAL(dp)            :: ROI_maximum_resolution_coastline_config      = 50e3_dp                          ! [m]          Maximum resolution for the coastline
+    REAL(dp)            :: ROI_coastline_width_config                   = 50e3_dp                          ! [m]          Width of the band around the coastline that should get this resolution
 
     ! Advanced geometry parameters
     LOGICAL             :: do_singlecore_mesh_creation_config           = .TRUE.                           !              Whether or not to use only a single core for mesh generation (for better reproducibility)
@@ -632,7 +646,7 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: filename_initial_mesh_GRL
     CHARACTER(LEN=256)  :: filename_initial_mesh_ANT
 
-    ! Resolutions for different regions
+    ! Resolutions for different parts of the ice sheet
     REAL(dp)            :: maximum_resolution_uniform
     REAL(dp)            :: maximum_resolution_grounded_ice
     REAL(dp)            :: maximum_resolution_floating_ice
@@ -644,6 +658,20 @@ MODULE model_configuration
     REAL(dp)            :: ice_front_width
     REAL(dp)            :: maximum_resolution_coastline
     REAL(dp)            :: coastline_width
+
+    ! Regions of interest
+    CHARACTER(LEN=256)  :: choice_regions_of_interest
+    REAL(dp)            :: ROI_maximum_resolution_uniform
+    REAL(dp)            :: ROI_maximum_resolution_grounded_ice
+    REAL(dp)            :: ROI_maximum_resolution_floating_ice
+    REAL(dp)            :: ROI_maximum_resolution_grounding_line
+    REAL(dp)            :: ROI_grounding_line_width
+    REAL(dp)            :: ROI_maximum_resolution_calving_front
+    REAL(dp)            :: ROI_calving_front_width
+    REAL(dp)            :: ROI_maximum_resolution_ice_front
+    REAL(dp)            :: ROI_ice_front_width
+    REAL(dp)            :: ROI_maximum_resolution_coastline
+    REAL(dp)            :: ROI_coastline_width
 
     ! Advanced geometry parameters
     LOGICAL             :: do_singlecore_mesh_creation
@@ -1156,6 +1184,18 @@ CONTAINS
       ice_front_width_config                                , &
       maximum_resolution_coastline_config                   , &
       coastline_width_config                                , &
+      choice_regions_of_interest_config                     , &
+      ROI_maximum_resolution_uniform_config                 , &
+      ROI_maximum_resolution_grounded_ice_config            , &
+      ROI_maximum_resolution_floating_ice_config            , &
+      ROI_maximum_resolution_grounding_line_config          , &
+      ROI_grounding_line_width_config                       , &
+      ROI_maximum_resolution_calving_front_config           , &
+      ROI_calving_front_width_config                        , &
+      ROI_maximum_resolution_ice_front_config               , &
+      ROI_ice_front_width_config                            , &
+      ROI_maximum_resolution_coastline_config               , &
+      ROI_coastline_width_config                            , &
       do_singlecore_mesh_creation_config                    , &
       alpha_min_config                                      , &
       nit_Lloyds_algorithm_config                           , &
@@ -1521,7 +1561,7 @@ CONTAINS
     C%filename_initial_mesh_GRL                = filename_initial_mesh_GRL_config
     C%filename_initial_mesh_ANT                = filename_initial_mesh_ANT_config
 
-    ! Resolutions for different regions
+    ! Resolutions for different parts of the ice sheet
     C%maximum_resolution_uniform               = maximum_resolution_uniform_config
     C%maximum_resolution_grounded_ice          = maximum_resolution_grounded_ice_config
     C%maximum_resolution_floating_ice          = maximum_resolution_floating_ice_config
@@ -1533,6 +1573,20 @@ CONTAINS
     C%ice_front_width                          = ice_front_width_config
     C%maximum_resolution_coastline             = maximum_resolution_coastline_config
     C%coastline_width                          = coastline_width_config
+
+    ! Regions of interest
+    C%choice_regions_of_interest               = choice_regions_of_interest_config
+    C%ROI_maximum_resolution_uniform           = ROI_maximum_resolution_uniform_config
+    C%ROI_maximum_resolution_grounded_ice      = ROI_maximum_resolution_grounded_ice_config
+    C%ROI_maximum_resolution_floating_ice      = ROI_maximum_resolution_floating_ice_config
+    C%ROI_maximum_resolution_grounding_line    = ROI_maximum_resolution_grounding_line_config
+    C%ROI_grounding_line_width                 = ROI_grounding_line_width_config
+    C%ROI_maximum_resolution_calving_front     = ROI_maximum_resolution_calving_front_config
+    C%ROI_calving_front_width                  = ROI_calving_front_width_config
+    C%ROI_maximum_resolution_ice_front         = ROI_maximum_resolution_ice_front_config
+    C%ROI_ice_front_width                      = ROI_ice_front_width_config
+    C%ROI_maximum_resolution_coastline         = ROI_maximum_resolution_coastline_config
+    C%ROI_coastline_width                      = ROI_coastline_width_config
 
     ! Advanced geometry parameters
     C%do_singlecore_mesh_creation              = do_singlecore_mesh_creation_config

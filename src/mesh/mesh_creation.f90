@@ -15,7 +15,8 @@ MODULE mesh_creation
   USE mesh_memory                                            , ONLY: allocate_mesh_primary
   USE mesh_utilities                                         , ONLY: update_triangle_circumcenter, calc_mesh_contour_as_line, calc_mesh_mask_as_polygons
   USE mesh_refinement                                        , ONLY: refine_mesh_uniform, refine_mesh_line, Lloyds_algorithm_single_iteration, &
-                                                                     refine_mesh_polygon
+                                                                     refine_mesh_polygon, refine_mesh_line_ROI, refine_mesh_polygon_ROI, &
+                                                                     calc_polygon_Pine_Island_Glacier, calc_polygon_Thwaites_Glacier
   USe mesh_parallel_creation                                 , ONLY: broadcast_mesh
   USE mesh_secondary                                         , ONLY: calc_all_secondary_mesh_data
   USE mesh_operators                                         , ONLY: calc_all_matrix_operators_mesh
@@ -35,12 +36,13 @@ CONTAINS
 ! ============================================================
 
   ! Create a mesh from ice geometry on a grid
-  SUBROUTINE create_mesh_from_gridded_geometry( name, grid, Hi, Hb, Hs, SL, xmin, xmax, ymin, ymax, lambda_M, phi_M, beta_stereo, mesh)
+  SUBROUTINE create_mesh_from_gridded_geometry( region_name, name, grid, Hi, Hb, Hs, SL, xmin, xmax, ymin, ymax, lambda_M, phi_M, beta_stereo, mesh)
     ! Create a mesh from ice geometry on a grid
 
     IMPLICIT NONE
 
     ! In/output variables:
+    CHARACTER(LEN=3),           INTENT(IN)        :: region_name
     CHARACTER(LEN=256),         INTENT(IN)        :: name
     TYPE(type_grid),            INTENT(IN)        :: grid
     REAL(dp), DIMENSION(:    ), INTENT(IN)        :: Hi, Hb, Hs, SL
@@ -65,7 +67,7 @@ CONTAINS
       p_line_grounding_line, p_line_calving_front, p_line_ice_front, p_line_coastline)
 
     ! Create a mesh from the reduced ice geometry
-    CALL create_mesh_from_reduced_geometry( name, poly_mult_sheet, poly_mult_shelf, &
+    CALL create_mesh_from_reduced_geometry( region_name, name, poly_mult_sheet, poly_mult_shelf, &
       p_line_grounding_line, p_line_calving_front, p_line_ice_front, p_line_coastline, &
       xmin, xmax, ymin, ymax, lambda_M, phi_M, beta_stereo, mesh)
 
@@ -83,12 +85,13 @@ CONTAINS
   END SUBROUTINE create_mesh_from_gridded_geometry
 
   ! Create a mesh from ice geometry on a mesh
-  SUBROUTINE create_mesh_from_meshed_geometry( name, mesh_src, Hi, Hb, Hs, SL, xmin, xmax, ymin, ymax, lambda_M, phi_M, beta_stereo, mesh)
+  SUBROUTINE create_mesh_from_meshed_geometry( region_name, name, mesh_src, Hi, Hb, Hs, SL, xmin, xmax, ymin, ymax, lambda_M, phi_M, beta_stereo, mesh)
     ! Create a mesh from ice geometry on a mesh
 
     IMPLICIT NONE
 
     ! In/output variables:
+    CHARACTER(LEN=3),           INTENT(IN)        :: region_name
     CHARACTER(LEN=256),         INTENT(IN)        :: name
     TYPE(type_mesh),            INTENT(IN)        :: mesh_src
     REAL(dp), DIMENSION(:    ), INTENT(IN)        :: Hi, Hb, Hs, SL
@@ -113,7 +116,7 @@ CONTAINS
       p_line_grounding_line, p_line_calving_front, p_line_ice_front, p_line_coastline)
 
     ! Create a mesh from the reduced ice geometry
-    CALL create_mesh_from_reduced_geometry( name, poly_mult_sheet, poly_mult_shelf, &
+    CALL create_mesh_from_reduced_geometry( region_name, name, poly_mult_sheet, poly_mult_shelf, &
       p_line_grounding_line, p_line_calving_front, p_line_ice_front, p_line_coastline, &
       xmin, xmax, ymin, ymax, lambda_M, phi_M, beta_stereo, mesh)
 
@@ -583,7 +586,7 @@ CONTAINS
 ! == Create a mesh from reduced ice geometry
 ! ==========================================
 
-  SUBROUTINE create_mesh_from_reduced_geometry( name, poly_mult_sheet, poly_mult_shelf, &
+  SUBROUTINE create_mesh_from_reduced_geometry( region_name, name, poly_mult_sheet, poly_mult_shelf, &
     p_line_grounding_line, p_line_calving_front, p_line_ice_front, p_line_coastline, &
     xmin, xmax, ymin, ymax, lambda_M, phi_M, beta_stereo, mesh)
     ! Create mesh from the reduced ice geometry
@@ -591,6 +594,7 @@ CONTAINS
     IMPLICIT NONE
 
     ! In/output variables:
+    CHARACTER(LEN=3),           INTENT(IN)        :: region_name
     CHARACTER(LEN=256),         INTENT(IN)        :: name
     REAL(dp), DIMENSION(:,:  ), INTENT(IN)        :: poly_mult_sheet
     REAL(dp), DIMENSION(:,:  ), INTENT(IN)        :: poly_mult_shelf
@@ -610,11 +614,11 @@ CONTAINS
 
     ! Choose single-core or parallelised version
     IF (C%do_singlecore_mesh_creation) THEN
-      CALL create_mesh_from_reduced_geometry_singlecore( name, poly_mult_sheet, poly_mult_shelf, &
+      CALL create_mesh_from_reduced_geometry_singlecore( region_name, name, poly_mult_sheet, poly_mult_shelf, &
         p_line_grounding_line, p_line_calving_front, p_line_ice_front, p_line_coastline, &
         xmin, xmax, ymin, ymax, lambda_M, phi_M, beta_stereo, mesh)
     ELSE
-      CALL create_mesh_from_reduced_geometry_parallelised( name, poly_mult_sheet, poly_mult_shelf, &
+      CALL create_mesh_from_reduced_geometry_parallelised( region_name, name, poly_mult_sheet, poly_mult_shelf, &
         p_line_grounding_line, p_line_calving_front, p_line_ice_front, p_line_coastline, &
         xmin, xmax, ymin, ymax, lambda_M, phi_M, beta_stereo, mesh)
     END IF
@@ -624,7 +628,7 @@ CONTAINS
 
   END SUBROUTINE create_mesh_from_reduced_geometry
 
-  SUBROUTINE create_mesh_from_reduced_geometry_singlecore( name, poly_mult_sheet, poly_mult_shelf, &
+  SUBROUTINE create_mesh_from_reduced_geometry_singlecore( region_name, name, poly_mult_sheet, poly_mult_shelf, &
     p_line_grounding_line, p_line_calving_front, p_line_ice_front, p_line_coastline, &
     xmin, xmax, ymin, ymax, lambda_M, phi_M, beta_stereo, mesh)
     ! Create mesh from the ice geometry lines
@@ -634,6 +638,7 @@ CONTAINS
     IMPLICIT NONE
 
     ! In/output variables:
+    CHARACTER(LEN=3),           INTENT(IN)        :: region_name
     CHARACTER(LEN=256),         INTENT(IN)        :: name
     REAL(dp), DIMENSION(:,:  ), INTENT(IN)        :: poly_mult_sheet
     REAL(dp), DIMENSION(:,:  ), INTENT(IN)        :: poly_mult_shelf
@@ -745,6 +750,12 @@ CONTAINS
 
         END DO ! DO WHILE (n2 < SIZE( poly_mult_sheet,1))
 
+    ! == Refine in regions of interest
+    ! ================================
+
+      CALL refine_mesh_in_regions_of_interest( region_name, poly_mult_sheet, poly_mult_shelf, &
+        p_line_grounding_line, p_line_calving_front, p_line_ice_front, p_line_coastline, mesh)
+
     ! == Smooth the mesh
     ! ==================
 
@@ -771,7 +782,7 @@ CONTAINS
 
   END SUBROUTINE create_mesh_from_reduced_geometry_singlecore
 
-  SUBROUTINE create_mesh_from_reduced_geometry_parallelised( name, poly_mult_sheet, poly_mult_shelf, &
+  SUBROUTINE create_mesh_from_reduced_geometry_parallelised( region_name, name, poly_mult_sheet, poly_mult_shelf, &
     p_line_grounding_line, p_line_calving_front, p_line_ice_front, p_line_coastline, &
     xmin, xmax, ymin, ymax, lambda_M, phi_M, beta_stereo, mesh)
     ! Create mesh from the ice geometry lines
@@ -781,6 +792,7 @@ CONTAINS
     IMPLICIT NONE
 
     ! In/output variables:
+    CHARACTER(LEN=3),           INTENT(IN)        :: region_name
     CHARACTER(LEN=256),         INTENT(IN)        :: name
     REAL(dp), DIMENSION(:,:  ), INTENT(IN)        :: poly_mult_sheet
     REAL(dp), DIMENSION(:,:  ), INTENT(IN)        :: poly_mult_shelf
@@ -805,6 +817,147 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE create_mesh_from_reduced_geometry_parallelised
+
+! == Region of interest mesh refinement
+! =====================================
+
+  SUBROUTINE refine_mesh_in_regions_of_interest( region_name, poly_mult_sheet, poly_mult_shelf, &
+    p_line_grounding_line, p_line_calving_front, p_line_ice_front, p_line_coastline, mesh)
+    ! Refine the mesh in the specified regions of interest
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    CHARACTER(LEN=3),           INTENT(IN)        :: region_name
+    REAL(dp), DIMENSION(:,:  ), INTENT(IN)        :: poly_mult_sheet
+    REAL(dp), DIMENSION(:,:  ), INTENT(IN)        :: poly_mult_shelf
+    REAL(dp), DIMENSION(:,:  ), INTENT(IN)        :: p_line_grounding_line
+    REAL(dp), DIMENSION(:,:  ), INTENT(IN)        :: p_line_calving_front
+    REAL(dp), DIMENSION(:,:  ), INTENT(IN)        :: p_line_ice_front
+    REAL(dp), DIMENSION(:,:  ), INTENT(IN)        :: p_line_coastline
+    TYPE(type_mesh),            INTENT(INOUT)     :: mesh
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'refine_mesh_in_regions_of_interest'
+    INTEGER                                       :: i
+    CHARACTER(LEN=256)                            :: all_names_ROI, name_ROI
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE       :: poly_ROI
+    INTEGER                                       :: n1,n2,nn
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE       :: poly
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! If no regions of interest are specified, do nothing
+    IF (C%choice_regions_of_interest == '') THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
+
+    all_names_ROI = C%choice_regions_of_interest
+
+    DO WHILE (.TRUE.)
+
+      ! Get the first region of interest from the list
+      i = INDEX( all_names_ROI, '||')
+      IF (i == 0) THEN
+        ! There is only one left in the list
+        name_ROI = TRIM( all_names_ROI)
+        all_names_ROI = ''
+      ELSE
+        ! Get the first first one from the list and remove it
+        name_ROI = all_names_ROI( 1:i-1)
+        all_names_ROI = all_names_ROI( i+2:LEN_TRIM( all_names_ROI))
+      END IF
+
+      ! Calculate the polygon describing the specified region of interest
+      IF     (region_name == 'NAM') THEN
+      ELSEIF (region_name == 'EAS') THEN
+      ELSEIF (region_name == 'GRL') THEN
+      ELSEIF (region_name == 'ANT') THEN
+        IF     (name_ROI == 'PineIsland') THEN
+          CALL calc_polygon_Pine_Island_Glacier( poly_ROI)
+        ELSEIF (name_ROI == 'Thwaites') THEN
+          CALL calc_polygon_Thwaites_Glacier( poly_ROI)
+        ELSE
+          CALL crash('unknown region of interest "' // TRIM( name_ROI) // '"!')
+        END IF
+      ELSE
+        CALL crash('unknown region_name "' // TRIM( region_name) // '"!')
+      END IF
+
+      ! Refine the mesh in the specified region of interest
+      ! ===================================================
+
+      ! Uniform
+      CALL refine_mesh_polygon( mesh, poly_ROI, C%ROI_maximum_resolution_uniform, C%alpha_min)
+
+      ! Polygons: ice sheet, ice shelf
+
+      ! Ice sheet
+      ! =========
+
+      n1 = 1
+      n2 = 0
+
+      DO WHILE (n2 < SIZE( poly_mult_sheet,1))
+
+        ! Copy a single polygon from poly_mult
+        nn = NINT( poly_mult_sheet( n1,1))
+        n2 = n1 + nn
+        ALLOCATE( poly( nn,2))
+        poly = poly_mult_sheet( n1+1:n2,:)
+        n1 = n2+1
+
+        ! Refine mesh over this single polygon
+        CALL refine_mesh_polygon_ROI( mesh, poly, C%ROI_maximum_resolution_grounded_ice, C%alpha_min, poly_ROI)
+
+        ! Clean up after yourself
+        DEALLOCATE( poly)
+
+      END DO ! DO WHILE (n2 < SIZE( poly_mult_sheet,1))
+
+      ! Ice shelf
+      ! =========
+
+      n1 = 1
+      n2 = 0
+
+      DO WHILE (n2 < SIZE( poly_mult_shelf,1))
+
+        ! Copy a single polygon from poly_mult
+        nn = NINT( poly_mult_shelf( n1,1))
+        n2 = n1 + nn
+        ALLOCATE( poly( nn,2))
+        poly = poly_mult_shelf( n1+1:n2,:)
+        n1 = n2+1
+
+        ! Refine mesh over this single polygon
+        CALL refine_mesh_polygon_ROI( mesh, poly, C%ROI_maximum_resolution_floating_ice, C%alpha_min, poly_ROI)
+
+        ! Clean up after yourself
+        DEALLOCATE( poly)
+
+      END DO ! DO WHILE (n2 < SIZE( poly_mult_sheet,1))
+
+      ! Lines: grounding line, calving front, ice front, coastline
+      CALL refine_mesh_line_ROI( mesh, p_line_grounding_line, C%ROI_maximum_resolution_grounding_line, C%ROI_grounding_line_width, C%alpha_min, poly_ROI)
+      CALL refine_mesh_line_ROI( mesh, p_line_grounding_line, C%ROI_maximum_resolution_calving_front , C%ROI_calving_front_width , C%alpha_min, poly_ROI)
+      CALL refine_mesh_line_ROI( mesh, p_line_grounding_line, C%ROI_maximum_resolution_ice_front     , C%ROI_ice_front_width     , C%alpha_min, poly_ROI)
+      CALL refine_mesh_line_ROI( mesh, p_line_grounding_line, C%ROI_maximum_resolution_coastline     , C%ROI_coastline_width     , C%alpha_min, poly_ROI)
+
+      ! Clean up after yourself
+      DEALLOCATE( poly_ROI)
+
+      ! If no names are left, we are finished
+      IF (all_names_ROI == '') EXIT
+
+    END DO
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE refine_mesh_in_regions_of_interest
 
 ! == Some useful tools
 ! ====================
