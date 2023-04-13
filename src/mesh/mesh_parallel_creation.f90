@@ -464,8 +464,11 @@ CONTAINS
     ! Crop merged mesh_left
     CALL crop_mesh_primary( mesh_left)
 
-    ! Deallocate mesh_right
+    ! Clean up after yourself
     CALL deallocate_mesh( mesh_right)
+    DEALLOCATE( lvi_border_left)
+    DEALLOCATE( lvi_border_right)
+    DEALLOCATE( V_border)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -1015,6 +1018,7 @@ CONTAINS
     mesh%VBI( vj  ) = mesh%VBI( vi  ) - mesh%VBI( vj  )
     mesh%VBI( vi  ) = mesh%VBI( vi  ) - mesh%VBI( vj  )
 
+    ! Clean up after yourself
     DEALLOCATE( ctovi)
     DEALLOCATE( ctovj)
 

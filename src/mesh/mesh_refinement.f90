@@ -612,6 +612,9 @@ CONTAINS
     ! Crop surplus mesh memory
     CALL crop_mesh_primary( mesh)
 
+    ! Clean up after yourself
+    DEALLOCATE( p_line)
+
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
@@ -903,6 +906,9 @@ CONTAINS
     END DO
 
     CALL refine_mesh_line( mesh, line, res, width, alpha_min)
+
+    ! Clean up after yourself
+    DEALLOCATE( line)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

@@ -523,6 +523,12 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    ! Deallocate existing memory if needed
+    IF (ALLOCATED( refgeo%Hi)) DEALLOCATE( refgeo%Hi)
+    IF (ALLOCATED( refgeo%Hb)) DEALLOCATE( refgeo%Hb)
+    IF (ALLOCATED( refgeo%Hs)) DEALLOCATE( refgeo%Hs)
+    IF (ALLOCATED( refgeo%SL)) DEALLOCATE( refgeo%SL)
+
     ! Allocate memory for reference ice geometry on the model mesh
     ALLOCATE( refgeo%Hi( mesh%nV_loc))
     ALLOCATE( refgeo%Hb( mesh%nV_loc))

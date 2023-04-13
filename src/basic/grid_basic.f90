@@ -653,6 +653,10 @@ CONTAINS
     ! Crop memory
     CALL reallocate( line, n, 4)
 
+    ! Clean up after yourself
+    DEALLOCATE( d_scaled)
+    DEALLOCATE( mask_loc)
+
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
@@ -973,6 +977,11 @@ CONTAINS
       END IF
 
     END DO ! DO WHILE (.TRUE.)
+
+    ! Clean up after yourself
+    DEALLOCATE( mask_ext)
+    DEALLOCATE( map)
+    DEALLOCATE( stack)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

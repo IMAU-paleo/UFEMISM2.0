@@ -2087,9 +2087,9 @@ CONTAINS
     ! In/output variables
     TYPE(type_mesh),                     INTENT(IN)    :: mesh_tri
     TYPE(type_mesh),                     INTENT(IN)    :: mesh_Vor
-    TYPE(tMat),                          INTENT(INOUT) :: B_xdy_b_a
-    TYPE(tMat),                          INTENT(INOUT) :: B_mxydx_b_a
-    TYPE(tMat),                          INTENT(INOUT) :: B_xydy_b_a
+    TYPE(tMat),                          INTENT(OUT)   :: B_xdy_b_a
+    TYPE(tMat),                          INTENT(OUT)   :: B_mxydx_b_a
+    TYPE(tMat),                          INTENT(OUT)   :: B_xydy_b_a
     LOGICAL,                             INTENT(IN)    :: count_coincidences
 
     ! Local variables:
@@ -2199,9 +2199,9 @@ CONTAINS
     ! In/output variables
     TYPE(type_mesh),                     INTENT(IN)    :: mesh_Vor
     TYPE(type_mesh),                     INTENT(IN)    :: mesh_tri
-    TYPE(tMat),                          INTENT(INOUT) :: B_xdy_a_b
-    TYPE(tMat),                          INTENT(INOUT) :: B_mxydx_a_b
-    TYPE(tMat),                          INTENT(INOUT) :: B_xydy_a_b
+    TYPE(tMat),                          INTENT(OUT)   :: B_xdy_a_b
+    TYPE(tMat),                          INTENT(OUT)   :: B_mxydx_a_b
+    TYPE(tMat),                          INTENT(OUT)   :: B_xydy_a_b
     LOGICAL,                             INTENT(IN)    :: count_coincidences
 
     ! Local variables:

@@ -124,26 +124,30 @@ CONTAINS
     CALL setup_first_mesh( region)
 
     ! Remap reference geometries to the model mesh
-    IF (par%master) WRITE(0,'(A)') '  Mapping reference geometries to model mesh...'
-    CALL remap_reference_geometry_to_mesh( region%mesh, region%refgeo_init )
-    CALL remap_reference_geometry_to_mesh( region%mesh, region%refgeo_PD   )
-    CALL remap_reference_geometry_to_mesh( region%mesh, region%refgeo_GIAeq)
+    ALLOCATE( region%refgeo_init%Hi( region%mesh%nV_loc), source = 0._dp)
+    ALLOCATE( region%refgeo_init%Hb( region%mesh%nV_loc), source = 0._dp)
+    ALLOCATE( region%refgeo_init%Hs( region%mesh%nV_loc), source = 0._dp)
+    ALLOCATE( region%refgeo_init%SL( region%mesh%nV_loc), source = 0._dp)
+!    IF (par%master) WRITE(0,'(A)') '  Mapping reference geometries to model mesh...'
+!    CALL remap_reference_geometry_to_mesh( region%mesh, region%refgeo_init )
+!    CALL remap_reference_geometry_to_mesh( region%mesh, region%refgeo_PD   )
+!    CALL remap_reference_geometry_to_mesh( region%mesh, region%refgeo_GIAeq)
 
-!    ! DENK DROM
-!    filename = 'testfile.nc'
-!    CALL create_new_netcdf_file_for_writing( filename, ncid)
-!    CALL setup_mesh_in_netcdf_file( filename, ncid, region%mesh)
-!    CALL add_field_mesh_dp_2D_notime( filename, ncid, 'Hi')
-!    CALL add_field_mesh_dp_2D_notime( filename, ncid, 'Hb')
-!    CALL add_field_mesh_dp_2D_notime( filename, ncid, 'Hs')
-!    CALL add_field_mesh_dp_2D_notime( filename, ncid, 'SL')
-!    CALL write_to_field_multopt_mesh_dp_2D_notime( region%mesh, filename, ncid, 'Hi', region%refgeo_init%Hi)
-!    CALL write_to_field_multopt_mesh_dp_2D_notime( region%mesh, filename, ncid, 'Hb', region%refgeo_init%Hb)
-!    CALL write_to_field_multopt_mesh_dp_2D_notime( region%mesh, filename, ncid, 'Hs', region%refgeo_init%Hs)
-!    CALL write_to_field_multopt_mesh_dp_2D_notime( region%mesh, filename, ncid, 'SL', region%refgeo_init%SL)
-!    CALL close_netcdf_file( ncid)
-!
-!    ! DENK DROM
+    ! DENK DROM
+    filename = 'testfile.nc'
+    CALL create_new_netcdf_file_for_writing( filename, ncid)
+    CALL setup_mesh_in_netcdf_file( filename, ncid, region%mesh)
+    CALL add_field_mesh_dp_2D_notime( filename, ncid, 'Hi')
+    CALL add_field_mesh_dp_2D_notime( filename, ncid, 'Hb')
+    CALL add_field_mesh_dp_2D_notime( filename, ncid, 'Hs')
+    CALL add_field_mesh_dp_2D_notime( filename, ncid, 'SL')
+    CALL write_to_field_multopt_mesh_dp_2D_notime( region%mesh, filename, ncid, 'Hi', region%refgeo_init%Hi)
+    CALL write_to_field_multopt_mesh_dp_2D_notime( region%mesh, filename, ncid, 'Hb', region%refgeo_init%Hb)
+    CALL write_to_field_multopt_mesh_dp_2D_notime( region%mesh, filename, ncid, 'Hs', region%refgeo_init%Hs)
+    CALL write_to_field_multopt_mesh_dp_2D_notime( region%mesh, filename, ncid, 'SL', region%refgeo_init%SL)
+    CALL close_netcdf_file( ncid)
+
+    ! DENK DROM
 !    CALL crash('whoopsiedaisy!')
 
     ! Print to screen
