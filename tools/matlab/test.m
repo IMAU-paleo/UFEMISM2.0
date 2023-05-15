@@ -2,11 +2,13 @@ clc
 clear all
 close all
 
-% filename = '../../test_mesh.txt';
-% mesh = read_mesh_from_text_file( filename);
-% figure; patch('vertices',mesh.V,'faces',mesh.Tri,'facecolor','none');
+filename = 'testfile.nc';
+filename = ['../../' filename];
 
-filename = '../../test_mesh_netcdf.nc';
 mesh = read_mesh_from_file( filename);
-figure; patch('vertices',mesh.V,'faces',mesh.Tri,'facecolor','interp',...
-  'facevertexcdata',mesh.lon,'edgecolor','none');
+R = ncread( filename,'R');
+plot_mesh( mesh);
+H = plot_mesh_data_a( mesh, R);
+set( H.Ax,'colorscale','log','clim',[1e3,500e3]);
+colormap( H.Ax, flipud( parula( 32)));
+colorbar( H.Ax)

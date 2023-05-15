@@ -24,8 +24,10 @@ function mesh = read_mesh_from_file( filename)
   mesh.VE             = ncread(filename,'VE');
   mesh.EV             = ncread(filename,'EV');
   mesh.ETri           = ncread(filename,'ETri');
+  mesh.EBI            = ncread(filename,'EBI');
   mesh.nE             = size( mesh.E,1);
   
+  mesh.TriGC          = ncread( filename,'TriGC');
   mesh.R              = ncread( filename,'R');
   mesh.A              = ncread( filename,'A');
   mesh.lon            = ncread( filename,'lon');

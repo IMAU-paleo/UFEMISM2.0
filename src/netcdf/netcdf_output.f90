@@ -32,7 +32,7 @@ MODULE netcdf_output
                           field_name_options_dim_nE, field_name_options_dim_two, field_name_options_dim_three, &
                           field_name_options_dim_four, field_name_options_V, field_name_options_Tri, field_name_options_nC, &
                           field_name_options_C, field_name_options_niTri, field_name_options_iTri, &
-                          field_name_options_VBI, field_name_options_Tricc, field_name_options_TriC, &
+                          field_name_options_VBI, field_name_options_Tricc, field_name_options_TriC, field_name_options_TriGC, &
                           field_name_options_TriBI, field_name_options_E, field_name_options_VE, field_name_options_EV, &
                           field_name_options_ETri, field_name_options_EBI, field_name_options_A, field_name_options_R, &
                           field_name_options_Hi, field_name_options_Hb, field_name_options_Hs, field_name_options_dHb, &
@@ -2348,6 +2348,7 @@ CONTAINS
     INTEGER                                            :: id_var_ETri
     INTEGER                                            :: id_var_EBI
 
+    INTEGER                                            :: id_var_TriGC
     INTEGER                                            :: id_var_R
     INTEGER                                            :: id_var_A
     INTEGER                                            :: id_var_lon
@@ -2481,6 +2482,10 @@ CONTAINS
   ! == Create mesh variables - secondary geometry data
   ! ==================================================
 
+    ! TriGC
+    CALL create_variable( filename, ncid, get_first_option_from_list( field_name_options_TriGC         ), NF90_DOUBLE, (/ id_dim_ti, id_dim_two   /), id_var_TriGC         )
+    CALL add_attribute_char( filename, ncid, id_var_TriGC         , 'long_name'  , 'Triangle geometric centre coordinates')
+    CALL add_attribute_char( filename, ncid, id_var_TriGC         , 'units'      , 'm')
     ! R
     CALL add_field_mesh_dp_2D_notime( filename, ncid, get_first_option_from_list( field_name_options_R             ), long_name = 'Resolution', units = 'm')
     CALL inquire_var(                 filename, ncid, get_first_option_from_list( field_name_options_R             ), id_var_R)
@@ -2529,6 +2534,7 @@ CONTAINS
     CALL write_var_master_int_1D(   filename, ncid, id_var_EBI        , mesh%EBI        )
 
     ! Secondary geometry data
+    CALL write_var_master_dp_2D(    filename, ncid, id_var_TriGC      , mesh%TriGC      )
     CALL write_var_master_dp_1D(    filename, ncid, id_var_R          , mesh%R          )
     CALL write_var_master_dp_1D(    filename, ncid, id_var_A          , mesh%A          )
     CALL write_var_master_dp_1D(    filename, ncid, id_var_lon        , mesh%lon        )

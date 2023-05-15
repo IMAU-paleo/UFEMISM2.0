@@ -243,8 +243,7 @@ CONTAINS
     CALL gather_CSR_dist_to_master( AA, AA_tot)
 
     ! Append output directory to filename
-!    filename_applied = TRIM( C%output_dir) // TRIM( filename) // '.nc'
-    filename_applied = TRIM( filename)
+    filename_applied = TRIM( C%output_dir) // TRIM( filename) // '.nc'
 
     ! Create a new NetCDF file
     CALL create_new_netcdf_file_for_writing( filename_applied, ncid)

@@ -23,6 +23,7 @@ MODULE UFEMISM_main_model
   ! DENK DROM
   USE netcdf_basic , ONLY: create_new_netcdf_file_for_writing
   USE netcdf_output, ONLY: setup_mesh_in_netcdf_file, add_field_mesh_dp_2D_notime, write_to_field_multopt_mesh_dp_2D_notime
+  USE netcdf_debug , ONLY: write_CSR_matrix_to_NetCDF
 
   IMPLICIT NONE
 
@@ -117,13 +118,13 @@ CONTAINS
     IF (par%master) WRITE(0,'(A)') ' Initialising model region ' // colour_string( region%name,'light blue') // ' (' // &
       colour_string( TRIM( region%long_name),'light blue') // ')...'
 
-    ! Initialise all the reference geometries
+    ! Initialise all the reference geometries on their raw input grids
     CALL initialise_reference_geometries_raw( region%name, region%refgeo_init, region%refgeo_PD, region%refgeo_GIAeq)
 
     ! Set up the first model mesh
     CALL setup_first_mesh( region)
 
-    ! Remap reference geometries to the model mesh
+    ! Remap reference geometries from their raw input grids to the model mesh
     ALLOCATE( region%refgeo_init%Hi( region%mesh%nV_loc), source = 0._dp)
     ALLOCATE( region%refgeo_init%Hb( region%mesh%nV_loc), source = 0._dp)
     ALLOCATE( region%refgeo_init%Hs( region%mesh%nV_loc), source = 0._dp)
@@ -134,7 +135,7 @@ CONTAINS
 !    CALL remap_reference_geometry_to_mesh( region%mesh, region%refgeo_GIAeq)
 
     ! DENK DROM
-    filename = 'testfile.nc'
+    filename = TRIM( C%output_dir) // 'testfile.nc'
     CALL create_new_netcdf_file_for_writing( filename, ncid)
     CALL setup_mesh_in_netcdf_file( filename, ncid, region%mesh)
     CALL add_field_mesh_dp_2D_notime( filename, ncid, 'Hi')
