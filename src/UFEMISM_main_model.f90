@@ -125,14 +125,14 @@ CONTAINS
     CALL setup_first_mesh( region)
 
     ! Remap reference geometries from their raw input grids to the model mesh
-    ALLOCATE( region%refgeo_init%Hi( region%mesh%nV_loc), source = 0._dp)
-    ALLOCATE( region%refgeo_init%Hb( region%mesh%nV_loc), source = 0._dp)
-    ALLOCATE( region%refgeo_init%Hs( region%mesh%nV_loc), source = 0._dp)
-    ALLOCATE( region%refgeo_init%SL( region%mesh%nV_loc), source = 0._dp)
-!    IF (par%master) WRITE(0,'(A)') '  Mapping reference geometries to model mesh...'
-!    CALL remap_reference_geometry_to_mesh( region%mesh, region%refgeo_init )
-!    CALL remap_reference_geometry_to_mesh( region%mesh, region%refgeo_PD   )
-!    CALL remap_reference_geometry_to_mesh( region%mesh, region%refgeo_GIAeq)
+!    ALLOCATE( region%refgeo_init%Hi( region%mesh%nV_loc), source = 0._dp)
+!    ALLOCATE( region%refgeo_init%Hb( region%mesh%nV_loc), source = 0._dp)
+!    ALLOCATE( region%refgeo_init%Hs( region%mesh%nV_loc), source = 0._dp)
+!    ALLOCATE( region%refgeo_init%SL( region%mesh%nV_loc), source = 0._dp)
+    IF (par%master) WRITE(0,'(A)') '  Mapping reference geometries to model mesh...'
+    CALL remap_reference_geometry_to_mesh( region%mesh, region%refgeo_init )
+    CALL remap_reference_geometry_to_mesh( region%mesh, region%refgeo_PD   )
+    CALL remap_reference_geometry_to_mesh( region%mesh, region%refgeo_GIAeq)
 
     ! DENK DROM
     filename = TRIM( C%output_dir) // 'testfile.nc'
