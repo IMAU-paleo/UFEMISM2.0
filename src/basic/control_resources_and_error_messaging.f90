@@ -380,8 +380,7 @@ CONTAINS
       ' on process ', colour_string( process_str,'light blue'), ' (0 = master)'
 
     ! Stop the program
-    CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-
+    error stop
   END SUBROUTINE crash
 
   SUBROUTINE warning( err_msg, int_01, int_02, int_03, int_04, int_05, int_06, int_07, int_08, int_09, int_10, &
