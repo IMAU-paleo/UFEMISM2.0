@@ -2,9 +2,9 @@
   F90 = mpifort
 
 # Path to NetCDF:
-  NETCDF_DIR = /opt/homebrew/Cellar/netcdf/4.8.0_1
+  NETCDF_DIR = /usr/local/Cellar/netcdf/4.8.0_1
 # Path to PETSc:
-  PETSC_DIR  = /opt/homebrew/Cellar/petsc/3.15.1
+  PETSC_DIR  = /usr/local/Cellar/petsc/3.15.1
 
 # Compiler flags:
   COMPILER_FLAGS_BASIC    = -O3 -Wall -ffree-line-length-none -cpp \
