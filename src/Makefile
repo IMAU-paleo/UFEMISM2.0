@@ -10,6 +10,7 @@
 
 #include Makefile_include_local.txt
 include Makefile_include_mac.txt
+#include Makefile_include_nix.txt
 #include Makefile_include_gemini.txt
 #include Makefile_include_snellius.txt
 
@@ -17,20 +18,20 @@ include Makefile_include_mac.txt
 OBJ_PATH = object-files
 MOD_PATH = module-files
 
+# Compile with SELEN: anything else than yes (no quotes) will skip all
+# SELEN-related stuff both in the Makefile and in the model code
+DO_SELEN = no
+ifeq ($(DO_SELEN),yes)
+  F90FLAGS += -DDO_SELEN
+endif
+
 # ==========================
 #       Building rules
 # ==========================
 
-# Pattern rules for creating object files from *.f90 (fortran 90) source files:
-$(OBJ_PATH)/%.o : %.f90
-	$(F90) $(F90FLAGS) -c -o $@ $<
-
-$(OBJ_PATH)/%.o : %.F90
-	$(F90) $(F90FLAGS) -c -o $@ $<
-
-# This rule is used to build an executable from the object files:
-% :
-	$(F90) $(F90FLAGS)    -o $@ $^ $(LDFLAGS)
+# Pattern rules for creating object files from *.f90 (fortran 90) source files
+$(OBJ_PATH)/%.o : %.f90 Makefile
+	$(F90) $(F90FLAGS) -J${MOD_PATH} -fbackslash -c -o $@ $<
 
 
 
@@ -148,8 +149,10 @@ else
 
 endif
 
+# This rule is used to build an executable from the object files:
 # The executable (the target) depends on the object files:
 UFEMISM_program : $(UFEMISM_program_objects:%=$(OBJ_PATH)/%)
+	$(F90) $(F90FLAGS)    -o $@ $^ $(LDFLAGS)
 
 
 
@@ -183,3 +186,23 @@ clean :
 .PHONY : all
 
 all : $(all_programs)
+
+
+
+# =============================================================
+#      Make dependency graph, better re-compilation + multi
+#      threaded compilation (-j flag)
+#      Does nothing when makedepf90 is not present
+# =============================================================
+
+ifeq ($(shell command -v makedepf90 2>&1 > /dev/null; echo $$?), 0)
+include .depend
+.depend: Makefile *.f90
+	  makedepf90 -b $(OBJ_PATH) *.f90 > .depend;
+	  makedepf90 -b $(TEST_OBJ_DIR) *.f90 >> .depend;
+else
+.NOTPARALLEL:
+.depend:
+	$(warning makedepf90 disabled, enabling .NOTPARALLEL: for the whole makefile )
+	touch .depend;
+endif

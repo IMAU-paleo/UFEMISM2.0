@@ -1,10 +1,16 @@
-# Compiler:
+# Depends on this file
+$(OBJ_PATH)/%.o : %.f90 Makefile_include_local.txt
+
+# Compiler names:
   F90 = mpifort
 
-# Path to NetCDF:
-  NETCDF_DIR = /opt/homebrew/Cellar/netcdf/4.8.0_1
-# Path to PETSc:
-  PETSC_DIR  = /opt/homebrew/Cellar/petsc/3.15.1
+# Setting the path for the netcdf libraries:  
+  NCLIB     = $(shell pkg-config netcdf-fortran --libs)
+  NCINC     = $(shell pkg-config netcdf-fortran --cflags)
+  PETSCINC  = $(shell pkg-config petsc --cflags )
+  PETSCLIB  = $(shell pkg-config petsc --libs )
+  LAPACKLIB  = $(shell pkg-config lapack --libs )
+
 
 # Compiler flags:
   COMPILER_FLAGS_BASIC    = -O3 -Wall -ffree-line-length-none -cpp \
@@ -20,8 +26,9 @@
                             -finit-real=nan -finit-integer=-42 -finit-character=33 \
                             -ffpe-trap=invalid,zero,overflow
 
-  F90FLAGS               = ${COMPILER_FLAGS_BASIC} ${COMPILER_FLAGS_CHECK} \
-                           -I$(NETCDF_DIR)/include -I$(PETSC_DIR)/include
+  F90FLAGS                = ${COMPILER_FLAGS_BASIC} \
+                            ${COMPILER_FLAGS_CHECK} \
+                            ${NCINC} ${PETSCINC}
 
 # Linking flags of libaries:
-  LDFLAGS                = -L${NETCDF_DIR}/lib -lnetcdf -lnetcdff -L${PETSC_DIR}/lib -lpetsc
+  LDFLAGS                 = ${PETSCLIB} ${NCLIB} ${LAPACKLIB} -g
