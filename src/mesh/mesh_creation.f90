@@ -190,6 +190,11 @@ CONTAINS
       ALLOCATE( Hb_grid( grid%nx, grid%ny))
       ALLOCATE( Hs_grid( grid%nx, grid%ny))
       ALLOCATE( SL_grid( grid%nx, grid%ny))
+    else
+      ALLOCATE( Hi_grid( 0, 0))
+      ALLOCATE( Hb_grid( 0, 0))
+      ALLOCATE( Hs_grid( 0, 0))
+      ALLOCATE( SL_grid( 0, 0))
     END IF
 
     ! Gather ice geometry data in grid form to the master
@@ -344,11 +349,11 @@ CONTAINS
     CALL MPI_BCAST( p_line_coastline     , n_line_coastline     *4, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
 
     ! Clean up after yourself
+    DEALLOCATE( Hi_grid)
+    DEALLOCATE( Hb_grid)
+    DEALLOCATE( Hs_grid)
+    DEALLOCATE( SL_grid)
     IF (par%master) THEN
-      DEALLOCATE( Hi_grid)
-      DEALLOCATE( Hb_grid)
-      DEALLOCATE( Hs_grid)
-      DEALLOCATE( SL_grid)
       DEALLOCATE( TAF_grid)
       DEALLOCATE( Hb_minus_SL_grid)
       DEALLOCATE( mask_sheet)

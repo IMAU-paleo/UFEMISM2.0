@@ -458,7 +458,11 @@ CONTAINS
     IF     (indexing == 'xy') THEN
 
       ! Allocate memory
-      IF (par%master) ALLOCATE( d_grid( grid_loc%nx, grid_loc%ny))
+      if (par%master) then
+        ALLOCATE( d_grid( grid_loc%nx, grid_loc%ny))
+      else
+        allocate( d_grid( 0,0))
+      end if
 
       ! Read data from file
       IF (.NOT. PRESENT( time_to_read)) THEN
@@ -479,7 +483,11 @@ CONTAINS
     ELSEIF (indexing == 'yx') THEN
 
       ! Allocate memory
-      IF (par%master) ALLOCATE( d_grid( grid_loc%ny, grid_loc%nx))
+      if (par%master) then
+        ALLOCATE( d_grid( grid_loc%ny, grid_loc%nx))
+      else
+        allocate( d_grid( 0,0))
+      end if
 
       ! Read data from file
       IF (.NOT. PRESENT( time_to_read)) THEN
@@ -546,7 +554,7 @@ CONTAINS
     CALL distribute_gridded_data_from_master_dp_2D( grid_loc, d_grid, d_grid_vec_partial)
 
     ! Clean up gridded data on the master
-    IF (par%master) DEALLOCATE( d_grid)
+    DEALLOCATE( d_grid)
 
   ! == If so specified, return the read grid as output
   ! ==================================================

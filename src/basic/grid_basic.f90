@@ -1025,13 +1025,16 @@ CONTAINS
         d_grid_vec_total( n) = d_grid( i,j)
       END DO
 
+    ! When passing arrays, it is required they exist
+    ELSE
+      ALLOCATE( d_grid_vec_total(0) )
     END IF ! IF (par%master) THEN
 
     ! Distribute vector-form data to the processes
     CALL distribute_from_master_dp_1D( d_grid_vec_total, d_grid_vec_partial)
 
     ! Clean up after yourself
-    IF (par%master) DEALLOCATE( d_grid_vec_total)
+    DEALLOCATE( d_grid_vec_total)
 
     ! Add routine to path
     CALL finalise_routine( routine_name)
@@ -1065,7 +1068,12 @@ CONTAINS
     IF (par%master .AND. SIZE( d_grid,3) /= SIZE( d_grid_vec_partial,2)) CALL crash('vector sizes dont match!')
 
     ! Allocate memory
-    IF (par%master) ALLOCATE( d_grid_2D( SIZE( d_grid,1), SIZE( d_grid,2)), source = 0._dp)
+    IF (par%master) then
+       ALLOCATE( d_grid_2D( SIZE( d_grid,1), SIZE( d_grid,2)), source = 0._dp)
+    else
+       allocate ( d_grid_2d(0,0))
+    end if
+
     ALLOCATE( d_grid_vec_partial_2D( SIZE( d_grid_vec_partial,1)), source = 0._dp)
 
     ! Treat each layer as a separate 2-D field
@@ -1076,7 +1084,7 @@ CONTAINS
     END DO
 
     ! Clean up after yourself
-    IF (par%master) DEALLOCATE( d_grid_2D)
+    DEALLOCATE( d_grid_2D)
     DEALLOCATE( d_grid_vec_partial_2D)
 
     ! Add routine to path
@@ -1107,7 +1115,12 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Allocate memory
-    IF (par%master) ALLOCATE( d_grid_vec_total( grid%n), source = 0._dp)
+    IF (par%master) THEN
+      ALLOCATE( d_grid_vec_total( grid%n), source = 0._dp)
+    else
+      ! It must be allocated to be used in a function call
+      allocate( d_grid_vec_total(0) )
+    end if
 
     ! Gather data
     CALL gather_to_master_dp_1D( d_grid_vec_partial, d_grid_vec_total)
@@ -1122,7 +1135,7 @@ CONTAINS
     END IF ! IF (par%master) THEN
 
     ! Clean up after yourself
-    IF (par%master) DEALLOCATE( d_grid_vec_total)
+    DEALLOCATE( d_grid_vec_total)
 
     ! Add routine to path
     CALL finalise_routine( routine_name)
@@ -1156,7 +1169,12 @@ CONTAINS
     IF (par%master .AND. SIZE( d_grid,3) /= SIZE( d_grid_vec_partial,2)) CALL crash('vector sizes dont match!')
 
     ! Allocate memory
-    IF (par%master) ALLOCATE( d_grid_2D( grid%nx, grid%ny), source = 0._dp)
+    IF (par%master) then
+      ALLOCATE( d_grid_2D( grid%nx, grid%ny), source = 0._dp)
+    else
+      allocate( d_grid_2d(0,0))
+    end if
+
     ALLOCATE( d_grid_vec_partial_2D( grid%n_loc), source = 0._dp)
 
     ! Treat each layer as a separate 2-D field
@@ -1167,7 +1185,7 @@ CONTAINS
     END DO
 
     ! Clean up after yourself
-    IF (par%master) DEALLOCATE( d_grid_2D)
+    DEALLOCATE( d_grid_2D)
     DEALLOCATE( d_grid_vec_partial_2D)
 
     ! Add routine to path
