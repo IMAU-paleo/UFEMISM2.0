@@ -40,7 +40,7 @@ jobs:
 
       - name: Run Unit Tests
         run: |
-          mpirun -n 2 ../src/UFEMISM_program config-files/unit_tests.cfg
+          mpirun -n 2 src/UFEMISM_program config-files/unit_tests.cfg
 
      #- name: Generate Images for EISMINT 1
      #  if: ${{ always() }}
