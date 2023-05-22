@@ -36,7 +36,7 @@ jobs:
       - name: compile UFEMISM
         run: |
           cd src
-          make
+          make -j1
 
       - name: Run Unit Tests
         run: |

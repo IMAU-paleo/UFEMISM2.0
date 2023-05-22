@@ -9,8 +9,8 @@
 # Include settings from (uncommented) file below:
 
 #include Makefile_include_local.txt
-include Makefile_include_mac.txt
-#include Makefile_include_nix.txt
+#include Makefile_include_mac.txt
+include Makefile_include_nix.txt
 #include Makefile_include_gemini.txt
 #include Makefile_include_snellius.txt
 
@@ -198,8 +198,7 @@ all : $(all_programs)
 ifeq ($(shell command -v makedepf90 2>&1 > /dev/null; echo $$?), 0)
 include .depend
 .depend: Makefile *.f90
-	  makedepf90 -b $(OBJ_PATH) *.f90 > .depend;
-	  makedepf90 -b $(TEST_OBJ_DIR) *.f90 >> .depend;
+	  makedepf90 -b $(OBJ_PATH) *.f90 */*.f90 > .depend;
 else
 .NOTPARALLEL:
 .depend:
