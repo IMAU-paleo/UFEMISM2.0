@@ -73,7 +73,7 @@ CONTAINS
     A%j2 = 1 + SUM( n_loc_all( 1:par%i+1))-1
 
     ! Allocate memory
-    ALLOCATE( A%ptr( A%m+1    ), source = 1    )
+    ALLOCATE( A%ptr( A%i1: A%i2+1    ), source = 1    )
     ALLOCATE( A%ind( A%nnz_max), source = 0    )
     ALLOCATE( A%val( A%nnz_max), source = 0._dp)
 
@@ -140,7 +140,7 @@ CONTAINS
     A%val( A%nnz) = v
 
     ! Update pointer list
-    A%ptr( i+1 : MIN( i+2,A%m+1)) = A%nnz+1
+    A%ptr( i+1 : A%i2+1 ) = A%nnz+1
 
     ! Extend memory if necessary
     IF (A%nnz > A%nnz_max - 10) CALL extend_matrix_CSR_dist( A, 1000)
