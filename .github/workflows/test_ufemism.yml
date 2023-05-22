@@ -1,0 +1,106 @@
+name: UFEMISM Github Action
+env:
+  os: ubuntu-22.04
+
+on:
+  push:
+    branches: 
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    if: github.event.pull_request.draft == false
+    name: Build  and Test Minimism
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          # sudo apt-get upgrade
+          sudo apt-get install libopenmpi-dev libnetcdff-dev \
+                               netcdf-bin makedepf90 petsc-dev
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.10' 
+      - name: Install Python Packages
+        run: pip install xarray netCDF4 matplotlib
+      
+      - name: compile UFEMISM
+        run: |
+          cd src
+          make
+
+      - name: Run Unit Tests
+        run: |
+          mpirun -n 2 ../src/UFEMISM_program config-files/unit_tests.cfg
+
+     #- name: Generate Images for EISMINT 1
+     #  if: ${{ always() }}
+     #  run: |
+     #    cd tests
+     #    ./eismint_1_images.py
+
+     #- name: Run ISMIP_HOM_A
+     #  if: ${{ always() }}
+     #  run: |
+     #    cd tests
+     #    mpirun -n 2 ../src/UFEMISM_program ISMIP_HOM_A.cfg
+
+     #- uses: actions/checkout@v3
+     #  if: ${{ always() }}
+     #  with:
+     #    path: validation_plots
+     #    repository: IMAU-paleo/validation_plots
+
+     #- name: Commit pictures to the validation repository
+     #  if: ${{ always() }}
+     #  run: |
+     #    mkdir -p validation_plots/${{ github.sha }}/
+     #    cp tests/*.png validation_plots/${{ github.sha }}/
+     #    cd validation_plots
+     #    git add ${{ github.sha }} 
+     #    git config --global user.email "victor@lipsum.eu"
+     #    git config --global user.name "Minimism Github Action"
+     #    git commit -m "added ${{ github.sha }}"
+
+     #- name: Pushes to validation repository
+     #  if: ${{ always() }}
+     #  uses: cpina/github-action-push-to-another-repository@main
+     #  env:
+     #    SSH_DEPLOY_KEY: "${{ secrets.VALIDATION_PLOTS_KEYS }}"
+     #  with:
+     #    source-directory: 'validation_plots'
+     #    destination-github-username: 'IMAU-paleo'
+     #    destination-repository-name: 'validation_plots'
+     #    user-email: "victor@lipsum.eu"
+     #    user-name: "Minimism Github Action"
+     #    target-branch: "main"
+
+     #- name: Create comment for the pull request
+     #  if: ${{ always() }}
+     #  run: |
+     #    echo "I, GAB, the github action bot, hereby present you with some results for some
+     #          tests that I have run with the code that you wrote:" > comment.txt
+     #    echo "#### Reports (nothing is good)" >> comment.txt
+     #    echo "" >> comment.txt
+     #    cd tests
+     #    ./get_vreports.sh >> ../comment.txt
+     #    cd ../
+     #    echo "" >> comment.txt
+     #    echo "#### Images" >> comment.txt
+     #    echo "<img src=\"https://raw.githubusercontent.com/IMAU-paleo/validation_plots/main/${{ github.sha }}/eismint_1_hi.png\" width=50%>" >> comment.txt
+
+
+     #- name: Comment on pull request
+     #  if: ${{ always() }}
+     #  uses: thollander/actions-comment-pull-request@v2
+     #  with:
+     #    filePath: comment.txt
