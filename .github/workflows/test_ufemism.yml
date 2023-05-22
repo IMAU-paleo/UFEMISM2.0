@@ -14,7 +14,7 @@ on:
 jobs:
   build:
     if: github.event.pull_request.draft == false
-    name: Build  and Test Minimism
+    name: Build  and Test UFEMISM
     runs-on: ubuntu-22.04
 
     steps:
