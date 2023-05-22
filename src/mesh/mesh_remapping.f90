@@ -15,7 +15,7 @@ MODULE mesh_remapping
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
   USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp, allocate_matrix_CSR_dist, add_entry_CSR_dist, deallocate_matrix_CSR_dist
-  USE petsc_basic                                            , ONLY: mat_CSR2petsc, multiply_PETSc_matrix_with_vector_1D, multiply_PETSc_matrix_with_vector_2D
+  USE petsc_basic                                            , ONLY: mat_CSR2petsc, multiply_PETSc_matrix_with_vector_1D, multiply_PETSc_matrix_with_vector_2D, MatDestroy
   USE grid_basic                                             , ONLY: type_grid, calc_matrix_operators_grid
   USE grid_lonlat_basic                                      , ONLY: type_grid_lonlat
   USE mesh_types                                             , ONLY: type_mesh

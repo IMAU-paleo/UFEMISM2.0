@@ -64,6 +64,11 @@ MODULE model_configuration
     LOGICAL             :: do_GRL_config                                = .FALSE.
     LOGICAL             :: do_ANT_config                                = .FALSE.
 
+  ! Do only unit tests
+  ! ==================
+    
+    logical             :: do_unit_tests_config                         = .false.
+
   ! == The four model regions
   ! =========================
 
@@ -506,6 +511,11 @@ MODULE model_configuration
     LOGICAL             :: do_GRL
     LOGICAL             :: do_ANT
 
+  ! == Switch to do unit tests
+  ! ==========================
+    
+    LOGICAL             :: do_unit_tests
+  
   ! == The four model regions
   ! =========================
 
@@ -1081,6 +1091,7 @@ CONTAINS
       do_EAS_config                                         , &
       do_GRL_config                                         , &
       do_ANT_config                                         , &
+      do_unit_tests_config                                  , &
       lambda_M_NAM_config                                   , &
       phi_M_NAM_config                                      , &
       beta_stereo_NAM_config                                , &
@@ -1420,6 +1431,11 @@ CONTAINS
     C%do_EAS                                   = do_EAS_config
     C%do_GRL                                   = do_GRL_config
     C%do_ANT                                   = do_ANT_config
+
+  ! == Switch to do unit tests
+  ! ==========================
+    
+    C%do_unit_tests                            = do_unit_tests_config
 
   ! == The four model regions
   ! =========================

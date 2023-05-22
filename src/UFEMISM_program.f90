@@ -69,8 +69,11 @@ PROGRAM UFEMISM_program
   ! Initialise the main model configuration
   CALL initialise_model_configuration
 
-  ! DENK DROM
-!  CALL run_all_unit_tests
+  ! Unit testing
+  IF(C%do_unit_tests) then
+    CALL run_all_unit_tests
+    return
+  End if
 
   ! == Initialise the model regions
   ! ===============================

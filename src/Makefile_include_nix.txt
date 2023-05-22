@@ -5,8 +5,8 @@ $(OBJ_PATH)/%.o : %.f90 Makefile_include_local.txt
   F90 = mpifort
 
 # Setting the path for the netcdf libraries:  
-  NCLIB     = $(shell pkg-config netcdf-fortran --libs)
-  NCINC     = $(shell pkg-config netcdf-fortran --cflags)
+  NCLIB     = $(shell nf-config --flibs)
+  NCINC     = $(shell nf-config --fflags)
   PETSCINC  = $(shell pkg-config petsc --cflags )
   PETSCLIB  = $(shell pkg-config petsc --libs )
   LAPACKLIB  = $(shell pkg-config lapack --libs )

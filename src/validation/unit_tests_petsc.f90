@@ -15,7 +15,7 @@ MODULE unit_tests_petsc
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine
   USE model_configuration                                    , ONLY: C
   USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp, deallocate_matrix_CSR_dist
-  USE petsc_basic                                            , ONLY: perr, mat_CSR2petsc, multiply_CSR_matrix_with_vector_1D, multiply_petsc_matrix_with_vector_1D
+  USE petsc_basic                                            , ONLY: perr, mat_CSR2petsc, multiply_CSR_matrix_with_vector_1D, multiply_petsc_matrix_with_vector_1D, MatDestroy
   USE netcdf_debug                                           , ONLY: write_CSR_matrix_to_NetCDF
 
   IMPLICIT NONE
