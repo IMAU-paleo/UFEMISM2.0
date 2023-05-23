@@ -164,7 +164,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'check_if_grids_are_identical'
-    REAL(dp), PARAMETER                                :: tol = 1E-9_dp
+    REAL(dp), PARAMETER                                :: rtol = 1E-9_dp
     INTEGER                                            :: i,j
 
     ! Add routine to path
@@ -180,13 +180,13 @@ CONTAINS
 
     ! Coordinates
     DO i = 1, grid1%nx
-      IF (ABS( 1._dp - (grid1%x( i) / grid2%x( i))) > tol) THEN
+      IF (abs(grid1%x( i) - grid2%x( i)) > abs(rtol * max(grid1%x(i), grid2%x(i)))) THEN
         isso = .FALSE.
         RETURN
       END IF
     END DO
     DO j = 1, grid1%ny
-      IF (ABS( 1._dp - (grid1%y( j) / grid2%y( j))) > tol) THEN
+      IF (abs(grid1%y( j) - grid2%y( j)) > abs(rtol * max(grid1%y(j), grid2%y(j)))) THEN
         isso = .FALSE.
         RETURN
       END IF
@@ -999,7 +999,7 @@ CONTAINS
 
     ! Input variables:
     TYPE(type_grid),                                     INTENT(IN)    :: grid
-    REAL(dp), DIMENSION(:,:    ),                        INTENT(IN)    :: d_grid
+    REAL(dp), DIMENSION(:,:    ), optional,              INTENT(IN)    :: d_grid
 
     ! Output variables:
     REAL(dp), DIMENSION(:      ),                        INTENT(OUT)   :: d_grid_vec_partial
@@ -1014,6 +1014,7 @@ CONTAINS
 
     ! Convert gridded data to vector form
     IF (par%master) THEN
+      if (.not. present(d_grid)) call crash('d_grid must be present on master')
 
       ! Allocate memory
       ALLOCATE( d_grid_vec_total( grid%n), source = 0._dp)
@@ -1104,7 +1105,7 @@ CONTAINS
     REAL(dp), DIMENSION(:      ),                        INTENT(IN)    :: d_grid_vec_partial
 
     ! Output variables:
-    REAL(dp), DIMENSION(:,:    ),                        INTENT(OUT)   :: d_grid
+    REAL(dp), DIMENSION(:,:    ), optional,              INTENT(OUT)   :: d_grid
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'gather_gridded_data_to_master_dp_2D'
@@ -1127,6 +1128,7 @@ CONTAINS
 
     ! Convert to grid form
     IF (par%master) THEN
+      if (.not. present(d_grid)) call crash("d_grid must be present on master")
       DO n = 1, grid%n
         i = grid%n2ij( n,1)
         j = grid%n2ij( n,2)

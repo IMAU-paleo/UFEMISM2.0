@@ -232,7 +232,7 @@ CONTAINS
 
     ! Input variables:
     TYPE(type_grid_lonlat),                              INTENT(IN)    :: grid
-    REAL(dp), DIMENSION(:,:    ),                        INTENT(IN)    :: d_grid
+    REAL(dp), DIMENSION(:,:    ), optional,              INTENT(IN)    :: d_grid
 
     ! Output variables:
     REAL(dp), DIMENSION(:      ),                        INTENT(OUT)   :: d_grid_vec_partial
@@ -247,6 +247,7 @@ CONTAINS
 
     ! Convert gridded data to vector form
     IF (par%master) THEN
+      if (.not. present(d_grid)) call crash('d_grid should be present on the master process')
 
       ! Allocate memory
       ALLOCATE( d_grid_vec_total( grid%n), source = 0._dp)

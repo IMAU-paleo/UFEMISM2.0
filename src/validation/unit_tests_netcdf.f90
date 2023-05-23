@@ -177,7 +177,8 @@ CONTAINS
 
     ! Check if the data read from the file is identical to the original
     DO n = 1, grid%n_loc
-      IF (ABS( 1._dp - d_grid_vec_partial_read( n) / d_grid_vec_partial( n)) > 1E-9_dp) found_errors = .TRUE.
+      IF (ABS( d_grid_vec_partial_read( n) - d_grid_vec_partial( n)) > & 
+          ABS(1E-9_dp * MAX(d_grid_vec_partial_read(n), d_grid_vec_partial( n) ))) found_errors = .TRUE.
     END DO
 
     ! If no errors occurred, we are happy

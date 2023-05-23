@@ -59,7 +59,7 @@ CONTAINS
     INTEGER , DIMENSION(:      ),                        INTENT(IN)    :: d_partial
 
     ! Output variables:
-    INTEGER , DIMENSION(:      ),                        INTENT(OUT)   :: d_tot
+    INTEGER , DIMENSION(:      ), optional,              INTENT(OUT)   :: d_tot
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'gather_to_master_int_1D'
@@ -80,7 +80,13 @@ CONTAINS
     CALL MPI_BCAST( n_tot, 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
 
     ! Safety
-    IF (par%master .AND. n_tot /= SIZE( d_tot,1)) CALL crash('combined sizes of d_partial dont match size of d_tot')
+    IF (par%master) then
+      if (present(d_tot)) then
+        if( n_tot /= SIZE( d_tot,1)) CALL crash('combined sizes of d_partial dont match size of d_tot')
+      else
+        CALL crash('d_tot must be present on master process')
+      endif
+    endif
 
     ! Calculate displacements for MPI_GATHERV
     displs( 1) = 0
@@ -106,14 +112,13 @@ CONTAINS
     INTEGER , DIMENSION(:,:    ),                        INTENT(IN)    :: d_partial
 
     ! Output variables:
-    INTEGER , DIMENSION(:,:    ),                        INTENT(OUT)   :: d_tot
+    INTEGER , DIMENSION(:,:    ), optional,              INTENT(OUT)   :: d_tot
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'gather_to_master_int_2D'
     INTEGER                                                            :: n1,n2,i,n2_proc
-    INTEGER , DIMENSION(:      ), ALLOCATABLE                          :: d_partial_1D
-    INTEGER , DIMENSION(:      ), ALLOCATABLE                          :: d_tot_1D
     INTEGER                                                            :: n1_tot,j
+    integer                                                            :: dummy(1)
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -132,20 +137,18 @@ CONTAINS
       END IF
     END DO
 
-    ! Gather 1 column at a time
-    ALLOCATE( d_partial_1D( n1))
-    n1_tot = SIZE( d_tot,1)
-    IF (par%master) ALLOCATE( d_tot_1D( n1_tot))
+    IF (par%master) then
+      if (.not. present(d_tot)) CALL crash('d_tot must be present on master process')
+    endif
+
 
     DO j = 1, n2
-      d_partial_1D = d_partial( :,j)
-      CALL gather_to_master_int_1D( d_partial_1D, d_tot_1D)
-      IF (par%master) d_tot( :,j) = d_tot_1D
+      if (par%master) then
+        CALL gather_to_master_int_1D( d_partial(:,j), d_tot( :, j))
+      else
+        CALL gather_to_master_int_1D( d_partial(:,j), dummy)
+      end if
     END DO
-
-    ! Clean up after yourself
-    DEALLOCATE( d_partial_1D)
-    IF (par%master) DEALLOCATE( d_tot_1D)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -162,7 +165,7 @@ CONTAINS
     REAL(dp), DIMENSION(:      ),                        INTENT(IN)    :: d_partial
 
     ! Output variables:
-    REAL(dp), DIMENSION(:      ),                        INTENT(OUT)   :: d_tot
+    REAL(dp), DIMENSION(:      ), optional,              INTENT(OUT)   :: d_tot
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'gather_to_master_dp_1D'
@@ -183,7 +186,13 @@ CONTAINS
     CALL MPI_BCAST( n_tot, 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
 
     ! Safety
-    IF (par%master .AND. n_tot /= SIZE( d_tot,1)) CALL crash('combined sizes of d_partial dont match size of d_tot')
+    IF (par%master) then
+      if (present(d_tot)) then
+        if( n_tot /= SIZE( d_tot,1)) CALL crash('combined sizes of d_partial dont match size of d_tot')
+      else
+        CALL crash('d_tot must be present on master process')
+      endif
+    endif
 
     ! Calculate displacements for MPI_GATHERV
     displs( 1) = 0
@@ -209,14 +218,13 @@ CONTAINS
     REAL(dp), DIMENSION(:,:    ),                        INTENT(IN)    :: d_partial
 
     ! Output variables:
-    REAL(dp), DIMENSION(:,:    ),                        INTENT(OUT)   :: d_tot
+    REAL(dp), DIMENSION(:,:    ), optional,              INTENT(OUT)   :: d_tot
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'gather_to_master_dp_2D'
     INTEGER                                                            :: n1,n2,i,n2_proc
-    REAL(dp), DIMENSION(:      ), ALLOCATABLE                          :: d_partial_1D
-    REAL(dp), DIMENSION(:      ), ALLOCATABLE                          :: d_tot_1D
     INTEGER                                                            :: n1_tot,j
+    real(dp)                                                           :: dummy(1)
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -235,20 +243,18 @@ CONTAINS
       END IF
     END DO
 
-    ! Gather 1 column at a time
-    ALLOCATE( d_partial_1D( n1))
-    n1_tot = SIZE( d_tot,1)
-    IF (par%master) ALLOCATE( d_tot_1D( n1_tot))
+    IF (par%master) then
+      if (.not. present(d_tot)) CALL crash('d_tot must be present on master process')
+    endif
 
     DO j = 1, n2
-      d_partial_1D = d_partial( :,j)
-      CALL gather_to_master_dp_1D( d_partial_1D, d_tot_1D)
-      IF (par%master) d_tot( :,j) = d_tot_1D
+      if (par%master) then
+        CALL gather_to_master_dp_1D( d_partial(:,j), d_tot( :, j))
+      else
+        CALL gather_to_master_dp_1D( d_partial(:,j), dummy)
+      end if
     END DO
 
-    ! Clean up after yourself
-    DEALLOCATE( d_partial_1D)
-    IF (par%master) DEALLOCATE( d_tot_1D)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -529,8 +535,6 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'distribute_from_master_int_2D'
     INTEGER                                                            :: n1,n2,i,n2_proc
-    INTEGER , DIMENSION(:      ), ALLOCATABLE                          :: d_partial_1D
-    INTEGER , DIMENSION(:      ), ALLOCATABLE                          :: d_tot_1D
     INTEGER                                                            :: n1_tot,j
 
     ! Add routine to path
@@ -550,20 +554,9 @@ CONTAINS
       END IF
     END DO
 
-    ! Distribute 1 column at a time
-    ALLOCATE( d_partial_1D( n1))
-    n1_tot = SIZE( d_tot,1)
-    IF (par%master) ALLOCATE( d_tot_1D( n1_tot))
-
     DO j = 1, n2
-      IF (par%master) d_tot_1D = d_tot( :,j)
-      CALL distribute_from_master_int_1D( d_tot_1D, d_partial_1D)
-      d_partial( :,j) = d_partial_1D
+      CALL distribute_from_master_int_1D( d_tot( :, j), d_partial( : ,j))
     END DO
-
-    ! Clean up after yourself
-    DEALLOCATE( d_partial_1D)
-    IF (par%master) DEALLOCATE( d_tot_1D)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -578,7 +571,7 @@ CONTAINS
 
     ! Input variables:
 !   REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE, OPTIONAL, INTENT(INOUT) :: i
-    REAL(dp), DIMENSION(:      ),                        INTENT(IN)    :: d_tot
+    REAL(dp), DIMENSION(:      ), optional,              INTENT(IN)    :: d_tot
 
     ! Output variables:
     REAL(dp), DIMENSION(:      ),                        INTENT(OUT)   :: d_partial
@@ -600,7 +593,10 @@ CONTAINS
     CALL MPI_BCAST( n_tot, 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
 
     ! Safety
-    IF (par%master .AND. n_tot /= SIZE( d_tot,1)) CALL crash('combined sizes of d_partial dont match size of d_tot')
+    IF (par%master) then
+      if( .not. present( d_tot)) CALL crash('d_tot must be present on master')
+      if( n_tot /= SIZE( d_tot,1)) CALL crash('combined sizes of d_partial dont match size of d_tot')
+    end if
 
     ! Calculate displacements for MPI_SCATTERV
     displs( 1) = 0
@@ -632,8 +628,6 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'distribute_from_master_dp_2D'
     INTEGER                                                            :: n1,n2,i,n2_proc
-    REAL(dp), DIMENSION(:      ), ALLOCATABLE                          :: d_partial_1D
-    REAL(dp), DIMENSION(:      ), ALLOCATABLE                          :: d_tot_1D
     INTEGER                                                            :: n1_tot,j
 
     ! Add routine to path
@@ -654,19 +648,9 @@ CONTAINS
     END DO
 
     ! Distribute 1 column at a time
-    ALLOCATE( d_partial_1D( n1))
-    n1_tot = SIZE( d_tot,1)
-    IF (par%master) ALLOCATE( d_tot_1D( n1_tot))
-
     DO j = 1, n2
-      IF (par%master) d_tot_1D = d_tot( :,j)
-      CALL distribute_from_master_dp_1D( d_tot_1D, d_partial_1D)
-      d_partial( :,j) = d_partial_1D
+      CALL distribute_from_master_dp_1D( d_tot( :, j), d_partial( : ,j))
     END DO
-
-    ! Clean up after yourself
-    DEALLOCATE( d_partial_1D)
-    IF (par%master) DEALLOCATE( d_tot_1D)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
