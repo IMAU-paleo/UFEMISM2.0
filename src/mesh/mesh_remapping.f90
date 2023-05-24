@@ -15,7 +15,7 @@ MODULE mesh_remapping
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
   USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp, allocate_matrix_CSR_dist, add_entry_CSR_dist, deallocate_matrix_CSR_dist
-  USE petsc_basic                                            , ONLY: mat_CSR2petsc, multiply_PETSc_matrix_with_vector_1D, multiply_PETSc_matrix_with_vector_2D, MatDestroy
+  USE petsc_basic                                            , ONLY: mat_CSR2petsc, multiply_PETSc_matrix_with_vector_1D, multiply_PETSc_matrix_with_vector_2D, MatDestroy, MatConvert
   USE grid_basic                                             , ONLY: type_grid, calc_matrix_operators_grid
   USE grid_lonlat_basic                                      , ONLY: type_grid_lonlat
   USE mesh_types                                             , ONLY: type_mesh
@@ -1936,9 +1936,9 @@ CONTAINS
     CALL MatDestroy( B_xydy_b_a_T , perr)
 
     ! Calculate w0, w1x, w1y for the mesh-to-grid remapping operator
-    CALL MatDuplicate( B_xdy_a_b, MAT_SHARE_NONZERO_PATTERN, w0 , perr)
-    CALL MatDuplicate( B_xdy_a_b, MAT_SHARE_NONZERO_PATTERN, w1x, perr)
-    CALL MatDuplicate( B_xdy_a_b, MAT_SHARE_NONZERO_PATTERN, w1y, perr)
+    CALL MatConvert( B_xdy_a_b, MATAIJ, MAT_INITIAL_MATRIX, w0, perr)
+    CALL MatConvert( B_xdy_a_b, MATAIJ, MAT_INITIAL_MATRIX, w1x, perr)
+    CALL MatConvert( B_xdy_a_b, MATAIJ, MAT_INITIAL_MATRIX, w1y, perr)
 
     ! Estimate maximum number of non-zeros per row (i.e. maximum number of grid cells overlapping with a mesh triangle)
     nnz_per_row_max = MAX( 32, MAX( CEILING( 2._dp * MAXVAL( mesh_src%TriA) / MINVAL( mesh_dst%A   )), &
@@ -1983,6 +1983,12 @@ CONTAINS
       CALL MatRestoreRow( B_xydy_a_b, n-1, ncols, cols, vals, perr)
 
     END DO
+    CALL MatAssemblyBegin( w0, MAT_FINAL_ASSEMBLY, perr)
+    CALL MatAssemblyEnd(   w0, MAT_FINAL_ASSEMBLY, perr)
+    CALL MatAssemblyBegin( w1x, MAT_FINAL_ASSEMBLY, perr)
+    CALL MatAssemblyEnd(   w1x, MAT_FINAL_ASSEMBLY, perr)
+    CALL MatAssemblyBegin( w1y, MAT_FINAL_ASSEMBLY, perr)
+    CALL MatAssemblyEnd(   w1y, MAT_FINAL_ASSEMBLY, perr)
     CALL sync
 
     CALL MatDestroy( B_xdy_a_b  , perr)
@@ -2006,7 +2012,6 @@ CONTAINS
     CALL MatMatMult( w0 , M_map_a_b, MAT_INITIAL_MATRIX, PETSC_DEFAULT_REAL, M_cons_1st_order, perr)
 
     ! 2nd-order = 1st-order + w1x * ddx_a_b + w1y * ddy_a_b
-    CALL MatDuplicate( M_cons_1st_order, MAT_COPY_VALUES, map%M, perr)
     CALL MatMatMult( w1x, M_ddx_a_b, MAT_INITIAL_MATRIX, PETSC_DEFAULT_REAL, M1, perr)  ! This can be done more efficiently now that the non-zero structure is known...
     CALL MatMatMult( w1y, M_ddy_a_b, MAT_INITIAL_MATRIX, PETSC_DEFAULT_REAL, M2, perr)
 
@@ -2017,6 +2022,8 @@ CONTAINS
     CALL MatDestroy( M_ddx_a_b, perr)
     CALL MatDestroy( M_ddy_a_b, perr)
 
+
+    CALL MatConvert( M_cons_1st_order, MATAIJ, MAT_INITIAL_MATRIX, map%M, perr)
     CALL MatAXPY( map%M, 1._dp, M1, DIFFERENT_NONZERO_PATTERN, perr)
     CALL MatAXPY( map%M, 1._dp, M2, DIFFERENT_NONZERO_PATTERN, perr)
 
@@ -2044,6 +2051,8 @@ CONTAINS
       END IF
     END DO
 
+    ! TODO, this call is borked and writes where it shouldn't, should be fixed somehow
+    call warning("This routine should be fixed before it is used")
     CALL MatZeroRowsColumns( map%M, n_rows_set_to_zero, rows_set_to_zero, 0._dp, PETSC_NULL_VEC, PETSC_NULL_VEC, perr)
 
     ! Then fill in the values from M_cons_1st_order
