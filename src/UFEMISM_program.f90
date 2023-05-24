@@ -33,6 +33,7 @@ PROGRAM UFEMISM_program
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string, do_colour_strings, &
                                                                      initialise_control_and_resource_tracker, print_UFEMISM_start, print_UFEMISM_end
   USE model_configuration                                    , ONLY: C, initialise_model_configuration
+  USE netcdf_resource_tracking                               , ONLY: create_resource_tracking_file, write_to_resource_tracking_file
   USE main_validation                                        , ONLY: run_all_unit_tests
   USE UFEMISM_main_model                                     , ONLY: type_model_region, initialise_model_region, run_model_region
 
@@ -69,11 +70,14 @@ PROGRAM UFEMISM_program
   ! Initialise the main model configuration
   CALL initialise_model_configuration
 
+  ! Create the resource tracking output file
+  CALL create_resource_tracking_file
+
   ! Unit testing
-  IF(C%do_unit_tests) then
+  IF (C%do_unit_tests) THEN
     CALL run_all_unit_tests
-    return
-  End if
+    RETURN
+  END IF
 
   ! == Initialise the model regions
   ! ===============================
@@ -83,7 +87,8 @@ PROGRAM UFEMISM_program
   IF (C%do_GRL) CALL initialise_model_region( GRL, 'GRL')
   IF (C%do_ANT) CALL initialise_model_region( ANT, 'ANT')
 
-
+  ! DENK DROM
+  CALL write_to_resource_tracking_file( 0._dp)
 
 
 ! ===== FINISH =====

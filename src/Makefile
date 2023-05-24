@@ -78,6 +78,7 @@ ifeq ($(DO_SELEN),yes)
     netcdf/netcdf_input.o \
     netcdf/netcdf_output.o \
     netcdf/netcdf_debug.o \
+    netcdf/netcdf_resource_tracking.o \
     \
     ice/ice_model_types.o \
     ice/ice_velocity_SIA.o \
@@ -130,6 +131,7 @@ else
     netcdf/netcdf_input.o \
     netcdf/netcdf_output.o \
     netcdf/netcdf_debug.o \
+    netcdf/netcdf_resource_tracking.o \
     \
     ice/ice_model_types.o \
     ice/ice_velocity_SIA.o \
