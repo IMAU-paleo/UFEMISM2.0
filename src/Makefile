@@ -22,17 +22,23 @@ MOD_PATH = module-files
 # SELEN-related stuff both in the Makefile and in the model code
 DO_SELEN = no
 ifeq ($(DO_SELEN),yes)
-  F90FLAGS += -DDO_SELEN
+  F90DEFINITIONS += -DDO_SELEN
 endif
 
 # ==========================
 #       Building rules
 # ==========================
+main: UFEMISM_program
+
+$(OBJ_PATH) $(MOD_PATH):
+	mkdir -p $@
 
 # Pattern rules for creating object files from *.f90 (fortran 90) source files
-$(OBJ_PATH)/%.o : %.f90 Makefile
-	$(F90) $(F90FLAGS) -J${MOD_PATH} -fbackslash -c -o $@ $<
+$(OBJ_PATH)/%.o : */%.f90 $(OBJ_PATH) $(MOD_PATH) Makefile 
+	$(F90) $(F90FLAGS) $(F90DEFINITIONS) -J${MOD_PATH} -fbackslash -c -o $@ $<
 
+$(OBJ_PATH)/%.o : %.f90 $(OBJ_PATH) $(MOD_PATH) Makefile 
+	$(F90) $(F90FLAGS) $(F90DEFINITIONS) -J${MOD_PATH} -fbackslash -c -o $@ $<
 
 
 # ========================================
@@ -43,120 +49,65 @@ $(OBJ_PATH)/%.o : %.f90 Makefile
 all_programs += UFEMISM_program
 
 # List of object files
-ifeq ($(DO_SELEN),yes)
 
-  UFEMISM_program_objects = \
-    \
-    basic/precisions.o \
-    basic/parameters.o \
-    basic/mpi_basic.o \
-    basic/reallocate_mod.o \
-    basic/control_resources_and_error_messaging.o \
-    basic/model_configuration.o \
-    basic/mpi_distributed_memory.o \
-    basic/math_utilities.o \
-    basic/analytical_solutions.o \
-    basic/CSR_sparse_matrix_utilities.o \
-    basic/petsc_basic.o \
-    basic/grid_basic.o \
-    basic/grid_lonlat_basic.o \
-    \
-    mesh/mesh_types.o \
-    mesh/mesh_memory.o \
-    mesh/mesh_utilities.o \
-    mesh/mesh_Delaunay.o \
-    mesh/mesh_edges.o \
-    mesh/mesh_refinement.o \
-    mesh/mesh_parallel_creation.o \
-    mesh/mesh_zeta.o \
-    mesh/mesh_operators.o \
-    mesh/mesh_remapping.o \
-    mesh/mesh_secondary.o \
-    mesh/mesh_creation.o \
-    \
-    netcdf/netcdf_basic.o \
-    netcdf/netcdf_input.o \
-    netcdf/netcdf_output.o \
-    netcdf/netcdf_debug.o \
-    netcdf/netcdf_resource_tracking.o \
-    \
-    ice/ice_model_types.o \
-    ice/ice_velocity_SIA.o \
-    ice/ice_model_main.o \
-    \
-    basic/reference_geometries.o \
-    \
-    validation/unit_tests_mpi.o \
-    validation/unit_tests_petsc.o \
-    validation/unit_tests_mesh.o \
-    validation/unit_tests_netcdf.o \
-    validation/unit_tests_ice.o \
-    validation/main_validation.o \
-    \
-    UFEMISM_main_model.o \
-    UFEMISM_program.o
+UFEMISM_source = \
+  \
+  basic/precisions.f90 \
+  basic/parameters.f90 \
+  basic/mpi_basic.f90 \
+  basic/reallocate_mod.f90 \
+  basic/control_resources_and_error_messaging.f90 \
+  basic/model_configuration.f90 \
+  basic/mpi_distributed_memory.f90 \
+  basic/math_utilities.f90 \
+  basic/analytical_solutions.f90 \
+  basic/CSR_sparse_matrix_utilities.f90 \
+  basic/petsc_basic.f90 \
+  basic/grid_basic.f90 \
+  basic/grid_lonlat_basic.f90 \
+  \
+  mesh/mesh_types.f90 \
+  mesh/mesh_memory.f90 \
+  mesh/mesh_utilities.f90 \
+  mesh/mesh_Delaunay.f90 \
+  mesh/mesh_edges.f90 \
+  mesh/mesh_refinement.f90 \
+  mesh/mesh_parallel_creation.f90 \
+  mesh/mesh_zeta.f90 \
+  mesh/mesh_operators.f90 \
+  mesh/mesh_remapping.f90 \
+  mesh/mesh_secondary.f90 \
+  mesh/mesh_creation.f90 \
+  \
+  netcdf/netcdf_basic.f90 \
+  netcdf/netcdf_input.f90 \
+  netcdf/netcdf_output.f90 \
+  netcdf/netcdf_debug.f90 \
+  netcdf/netcdf_resource_tracking.f90 \
+  \
+  ice/ice_model_types.f90 \
+  ice/ice_velocity_SIA.f90 \
+  ice/ice_model_main.f90 \
+  \
+  basic/reference_geometries.f90 \
+  \
+  validation/unit_tests_mpi.f90 \
+  validation/unit_tests_petsc.f90 \
+  validation/unit_tests_mesh.f90 \
+  validation/unit_tests_netcdf.f90 \
+  validation/unit_tests_ice.f90 \
+  validation/main_validation.f90 \
+  \
+  UFEMISM_main_model.f90 \
+  UFEMISM_program.f90
 
-else
-
-  UFEMISM_program_objects = \
-    \
-    basic/precisions.o \
-    basic/parameters.o \
-    basic/mpi_basic.o \
-    basic/reallocate_mod.o \
-    basic/control_resources_and_error_messaging.o \
-    basic/model_configuration.o \
-    basic/mpi_distributed_memory.o \
-    basic/math_utilities.o \
-    basic/analytical_solutions.o \
-    basic/CSR_sparse_matrix_utilities.o \
-    basic/petsc_basic.o \
-    basic/grid_basic.o \
-    basic/grid_lonlat_basic.o \
-    \
-    mesh/mesh_types.o \
-    mesh/mesh_memory.o \
-    mesh/mesh_utilities.o \
-    mesh/mesh_Delaunay.o \
-    mesh/mesh_edges.o \
-    mesh/mesh_refinement.o \
-    mesh/mesh_parallel_creation.o \
-    mesh/mesh_zeta.o \
-    mesh/mesh_operators.o \
-    mesh/mesh_remapping.o \
-    mesh/mesh_secondary.o \
-    mesh/mesh_creation.o \
-    \
-    netcdf/netcdf_basic.o \
-    netcdf/netcdf_input.o \
-    netcdf/netcdf_output.o \
-    netcdf/netcdf_debug.o \
-    netcdf/netcdf_resource_tracking.o \
-    \
-    ice/ice_model_types.o \
-    ice/ice_velocity_SIA.o \
-    ice/ice_model_main.o \
-    \
-    basic/reference_geometries.o \
-    \
-    validation/unit_tests_mpi.o \
-    validation/unit_tests_petsc.o \
-    validation/unit_tests_mesh.o \
-    validation/unit_tests_netcdf.o \
-    validation/unit_tests_ice.o \
-    validation/main_validation.o \
-    \
-    UFEMISM_main_model.o \
-    UFEMISM_program.o
-
-endif
+UFEMISM_source_files_=$(notdir $(UFEMISM_source))
+UFEMISM_program_objects=$(UFEMISM_source_files_:%.f90=%.o)
 
 # This rule is used to build an executable from the object files:
 # The executable (the target) depends on the object files:
 UFEMISM_program : $(UFEMISM_program_objects:%=$(OBJ_PATH)/%)
-	$(F90) $(F90FLAGS)    -o $@ $^ $(LDFLAGS)
-
-
+	$(F90) $(F90FLAGS) $(F90DEFINITIONS) -o $@ $^ $(LDFLAGS)
 
 # ==================================
 #       Cleaning up everything
@@ -165,19 +116,7 @@ UFEMISM_program : $(UFEMISM_program_objects:%=$(OBJ_PATH)/%)
 .PHONY : clean
 
 clean :
-	rm -fv $(all_programs) $(OBJ_PATH)/*.o $(MOD_PATH)/*.mod *.mod *.lst \
-	object-files/basal_conditions/*.o \
-	object-files/basal_mass_balance/*.o \
-	object-files/basic/*.o \
-	object-files/climate/*.o \
-	object-files/glacial_isostatic_adjustment/*.o \
-	object-files/ice/*.o \
-	object-files/mesh/*.o \
-	object-files/netcdf/*.o \
-	object-files/ocean/*.o \
-	object-files/surface_mass_balance/*.o \
-	object-files/utilities/*.o \
-	object-files/validation/*.o
+	rm -frv $(all_programs) $(OBJ_PATH) $(MOD_PATH) *.mod *.lst
 
 
 
@@ -200,7 +139,7 @@ all : $(all_programs)
 ifeq ($(shell command -v makedepf90 2>&1 > /dev/null; echo $$?), 0)
 include .depend
 .depend: Makefile *.f90
-	  makedepf90 -b $(OBJ_PATH) *.f90 */*.f90 > .depend;
+	makedepf90 $(F90DEFINITIONS) -b $(OBJ_PATH)/ *.f90 */*.f90 > .depend;
 else
 .NOTPARALLEL:
 .depend:
