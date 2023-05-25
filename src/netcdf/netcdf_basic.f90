@@ -3061,7 +3061,7 @@ CONTAINS
     CHARACTER(LEN=*),                    INTENT(IN)    :: filename
     INTEGER,                             INTENT(IN)    :: ncid
     INTEGER,                             INTENT(IN)    :: id_var
-    INTEGER,  DIMENSION(:    ),          INTENT(OUT)   :: d
+    INTEGER,  DIMENSION(:    ), optional,INTENT(OUT)   :: d
     INTEGER,  DIMENSION(1    ), OPTIONAL,INTENT(IN)    :: start, count
 
     ! Local variables:
@@ -3088,6 +3088,8 @@ CONTAINS
     ! Check number of dimensions
     IF (ndims_of_var /= 1) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 
+    if (par%master .and. .not. present(d)) call crash('d needs to be present on master')
+
     ! Set start and count
     IF (PRESENT( start)) THEN
       start_applied = start
@@ -3099,7 +3101,11 @@ CONTAINS
     IF (PRESENT( count)) THEN
       count_applied = count
     ELSE
-      count_applied = (/ SIZE( d,1) /)
+      if (par%master) then
+        count_applied = shape(d)
+      else
+        count_applied = 1
+      end if
     END IF
     IF (par%master .AND. ANY( count_applied == 0)) CALL crash('count must be positive!')
 
@@ -3143,7 +3149,7 @@ CONTAINS
     CHARACTER(LEN=*),                    INTENT(IN)    :: filename
     INTEGER,                             INTENT(IN)    :: ncid
     INTEGER,                             INTENT(IN)    :: id_var
-    INTEGER,  DIMENSION(:,:  ),          INTENT(OUT)   :: d
+    INTEGER,  DIMENSION(:,:  ), optional,INTENT(OUT)   :: d
     INTEGER,  DIMENSION(2    ), OPTIONAL,INTENT(IN)    :: start, count
 
     ! Local variables:
@@ -3170,6 +3176,8 @@ CONTAINS
     ! Check number of dimensions
     IF (ndims_of_var /= 2) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 
+    if (par%master .and. .not. present(d)) call crash('d needs to be present on master')
+
     ! Set start and count
     IF (PRESENT( start)) THEN
       start_applied = start
@@ -3181,7 +3189,11 @@ CONTAINS
     IF (PRESENT( count)) THEN
       count_applied = count
     ELSE
-      count_applied = (/ SIZE( d,1), SIZE( d,2) /)
+      if (par%master) then
+        count_applied = shape(d)
+      else
+        count_applied = 1
+      end if
     END IF
     IF (par%master .AND. ANY( count_applied == 0)) CALL crash('count must be positive!')
 
@@ -3225,7 +3237,7 @@ CONTAINS
     CHARACTER(LEN=*),                    INTENT(IN)    :: filename
     INTEGER,                             INTENT(IN)    :: ncid
     INTEGER,                             INTENT(IN)    :: id_var
-    INTEGER,  DIMENSION(:,:,:),          INTENT(OUT)   :: d
+    INTEGER,  DIMENSION(:,:,:), optional,INTENT(OUT)   :: d
     INTEGER,  DIMENSION(3    ), OPTIONAL,INTENT(IN)    :: start, count
 
     ! Local variables:
@@ -3252,6 +3264,8 @@ CONTAINS
     ! Check number of dimensions
     IF (ndims_of_var /= 3) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 
+    if (par%master .and. .not. present(d)) call crash('d needs to be present on master')
+
     ! Set start and count
     IF (PRESENT( start)) THEN
       start_applied = start
@@ -3263,7 +3277,11 @@ CONTAINS
     IF (PRESENT( count)) THEN
       count_applied = count
     ELSE
-      count_applied = (/ SIZE( d,1), SIZE( d,2), SIZE( d,3) /)
+      if (par%master) then
+        count_applied = shape(d)
+      else
+        count_applied = 1
+      end if
     END IF
     IF (par%master .AND. ANY( count_applied == 0)) CALL crash('count must be positive!')
 
@@ -3307,7 +3325,7 @@ CONTAINS
     CHARACTER(LEN=*),                    INTENT(IN)    :: filename
     INTEGER,                             INTENT(IN)    :: ncid
     INTEGER,                             INTENT(IN)    :: id_var
-    INTEGER,  DIMENSION(:,:,:,:),        INTENT(OUT)   :: d
+    INTEGER,  DIMENSION(:,:,:,:),optional,INTENT(OUT)  :: d
     INTEGER,  DIMENSION(4    ), OPTIONAL,INTENT(IN)    :: start, count
 
     ! Local variables:
@@ -3334,6 +3352,8 @@ CONTAINS
     ! Check number of dimensions
     IF (ndims_of_var /= 4) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 
+    if (par%master .and. .not. present(d)) call crash('d needs to be present on master')
+
     ! Set start and count
     IF (PRESENT( start)) THEN
       start_applied = start
@@ -3345,7 +3365,11 @@ CONTAINS
     IF (PRESENT( count)) THEN
       count_applied = count
     ELSE
-      count_applied = (/ SIZE( d,1), SIZE( d,2), SIZE( d,3), SIZE( d,4) /)
+      if (par%master) then
+        count_applied = shape(d)
+      else
+        count_applied = 1
+      end if
     END IF
     IF (par%master .AND. ANY( count_applied == 0)) CALL crash('count must be positive!')
 
@@ -3434,7 +3458,7 @@ CONTAINS
     CHARACTER(LEN=*),                    INTENT(IN)    :: filename
     INTEGER,                             INTENT(IN)    :: ncid
     INTEGER,                             INTENT(IN)    :: id_var
-    REAL(dp), DIMENSION(:    ),          INTENT(OUT)   :: d
+    REAL(dp), DIMENSION(:    ), optional,INTENT(OUT)   :: d
     INTEGER,  DIMENSION(1    ), OPTIONAL,INTENT(IN)    :: start, count
 
     ! Local variables:
@@ -3461,6 +3485,8 @@ CONTAINS
     ! Check number of dimensions
     IF (ndims_of_var /= 1) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 
+    if (par%master .and. .not. present(d)) call crash('d needs to be present on master')
+
     ! Set start and count
     IF (PRESENT( start)) THEN
       start_applied = start
@@ -3472,7 +3498,11 @@ CONTAINS
     IF (PRESENT( count)) THEN
       count_applied = count
     ELSE
-      count_applied = (/ SIZE( d,1) /)
+      if (par%master) then
+        count_applied = shape(d)
+      else
+        count_applied = 1
+      end if
     END IF
     IF (par%master .AND. ANY( count_applied == 0)) CALL crash('count must be positive!')
 
@@ -3516,7 +3546,7 @@ CONTAINS
     CHARACTER(LEN=*),                    INTENT(IN)    :: filename
     INTEGER,                             INTENT(IN)    :: ncid
     INTEGER,                             INTENT(IN)    :: id_var
-    REAL(dp), DIMENSION(:,:  ),          INTENT(OUT)   :: d
+    REAL(dp), DIMENSION(:,:  ), Optional,INTENT(OUT)   :: d
     INTEGER,  DIMENSION(2    ), OPTIONAL,INTENT(IN)    :: start, count
 
     ! Local variables:
@@ -3543,6 +3573,8 @@ CONTAINS
     ! Check number of dimensions
     IF (ndims_of_var /= 2) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 
+    if (par%master .and. .not. present(d)) call crash('d needs to be present on master')
+
     ! Set start and count
     IF (PRESENT( start)) THEN
       start_applied = start
@@ -3554,7 +3586,11 @@ CONTAINS
     IF (PRESENT( count)) THEN
       count_applied = count
     ELSE
-      count_applied = (/ SIZE( d,1), SIZE( d,2) /)
+      if (par%master) then
+        count_applied = shape(d)
+      else
+        count_applied = 1
+      end if
     END IF
     IF (par%master .AND. ANY( count_applied == 0)) CALL crash('count must be positive!')
 
@@ -3598,7 +3634,7 @@ CONTAINS
     CHARACTER(LEN=*),                    INTENT(IN)    :: filename
     INTEGER,                             INTENT(IN)    :: ncid
     INTEGER,                             INTENT(IN)    :: id_var
-    REAL(dp), DIMENSION(:,:,:),          INTENT(OUT)   :: d
+    REAL(dp), DIMENSION(:,:,:), optional,INTENT(OUT)   :: d
     INTEGER,  DIMENSION(3    ), OPTIONAL,INTENT(IN)    :: start, count
 
     ! Local variables:
@@ -3625,6 +3661,8 @@ CONTAINS
     ! Check number of dimensions
     IF (ndims_of_var /= 3) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 
+    if (par%master .and. .not. present(d)) call crash('d needs to be present on master')
+
     ! Set start and count
     IF (PRESENT( start)) THEN
       start_applied = start
@@ -3636,7 +3674,11 @@ CONTAINS
     IF (PRESENT( count)) THEN
       count_applied = count
     ELSE
-      count_applied = (/ SIZE( d,1), SIZE( d,2), SIZE( d,3) /)
+      if (par%master) then
+        count_applied = shape(d)
+      else
+        count_applied = 1
+      end if
     END IF
     IF (par%master .AND. ANY( count_applied == 0)) CALL crash('count must be positive!')
 
@@ -3680,7 +3722,7 @@ CONTAINS
     CHARACTER(LEN=*),                    INTENT(IN)    :: filename
     INTEGER,                             INTENT(IN)    :: ncid
     INTEGER,                             INTENT(IN)    :: id_var
-    REAL(dp), DIMENSION(:,:,:,:),        INTENT(OUT)   :: d
+    REAL(dp), DIMENSION(:,:,:,:), optional, INTENT(OUT)   :: d
     INTEGER,  DIMENSION(4    ), OPTIONAL,INTENT(IN)    :: start, count
 
     ! Local variables:
@@ -3707,6 +3749,8 @@ CONTAINS
     ! Check number of dimensions
     IF (ndims_of_var /= 4) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 
+    if (par%master .and. .not. present(d)) call crash('d needs to be present on master')
+
     ! Set start and count
     IF (PRESENT( start)) THEN
       start_applied = start
@@ -3718,7 +3762,11 @@ CONTAINS
     IF (PRESENT( count)) THEN
       count_applied = count
     ELSE
-      count_applied = (/ SIZE( d,1), SIZE( d,2), SIZE( d,3), SIZE( d,4) /)
+      if (par%master) then
+        count_applied = shape(d)
+      else
+        count_applied = 1
+      end if
     END IF
     IF (par%master .AND. ANY( count_applied == 0)) CALL crash('count must be positive!')
 
