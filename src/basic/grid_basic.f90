@@ -275,7 +275,7 @@ CONTAINS
     INTEGER                                            :: ncols, nrows, ncols_loc, nrows_loc, nnz_per_row_est, nnz_est_proc
     TYPE(type_sparse_matrix_CSR_dp)                    :: M_ddx_CSR, M_ddy_CSR
     INTEGER                                            :: row, i, j, col
-    REAL(dp)                                           :: val
+    REAL(dp)                                           :: valpos, valneg
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -288,7 +288,7 @@ CONTAINS
     ncols_loc       = grid%n_loc
     nrows           = grid%n      ! to
     nrows_loc       = grid%n_loc
-    nnz_per_row_est = 3
+    nnz_per_row_est = 2
     nnz_est_proc    = nrows_loc * nnz_per_row_est
 
     CALL allocate_matrix_CSR_dist( M_ddx_CSR, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
@@ -297,117 +297,55 @@ CONTAINS
   ! == Fill matrix coefficients
   ! ===========================
 
+    valpos =  1._dp / (2._dp * grid%dx)
+    valneg = -1._dp / (2._dp * grid%dx)
+
     DO row = grid%n1, grid%n2
 
       ! Grid indices
       i = grid%n2ij( row,1)
       j = grid%n2ij( row,2)
 
+      ! Skip the border
+      IF (i == 1 .OR. i == grid%nx .OR. j == 1 .OR. j == grid%ny) THEN
+        M_ddx_CSR%ptr( row+1) = M_ddx_CSR%ptr( row)
+        M_ddy_CSR%ptr( row+1) = M_ddy_CSR%ptr( row)
+        CYCLE
+      END IF
+
     ! == d/dx
 
-      IF     (i == 1) THEN
-        ! Use a second-order accurate three-point one-sided differencing scheme on the border
+      ! Left
+      col = grid%ij2n( i-1,j)
+      M_ddx_CSR%nnz = M_ddx_CSR%nnz + 1
+      M_ddx_CSR%ind( M_ddx_CSR%nnz) = col
+      M_ddx_CSR%val( M_ddx_CSR%nnz) = valneg
 
-        ! i
-        col = grid%ij2n( i,j)
-        val = -1.5_dp / grid%dx
-        CALL add_entry_CSR_dist( M_ddx_CSR, row, col, val)
+      ! Left
+      col = grid%ij2n( i+1,j)
+      M_ddx_CSR%nnz = M_ddx_CSR%nnz + 1
+      M_ddx_CSR%ind( M_ddx_CSR%nnz) = col
+      M_ddx_CSR%val( M_ddx_CSR%nnz) = valpos
 
-        ! i+1
-        col = grid%ij2n( i+1,j)
-        val = 2._dp / grid%dx
-        CALL add_entry_CSR_dist( M_ddx_CSR, row, col, val)
-
-        ! i+2
-        col = grid%ij2n( i+2,j)
-        val = -0.5_dp / grid%dx
-        CALL add_entry_CSR_dist( M_ddx_CSR, row, col, val)
-
-      ELSEIF (i == grid%nx) THEN
-        ! Use a second-order accurate three-point one-sided differencing scheme on the border
-
-        ! i
-        col = grid%ij2n( i,j)
-        val = 1.5_dp / grid%dx
-        CALL add_entry_CSR_dist( M_ddx_CSR, row, col, val)
-
-        ! i-1
-        col = grid%ij2n( i-1,j)
-        val = -2._dp / grid%dx
-        CALL add_entry_CSR_dist( M_ddx_CSR, row, col, val)
-
-        ! i-2
-        col = grid%ij2n( i-2,j)
-        val = 0.5_dp / grid%dx
-        CALL add_entry_CSR_dist( M_ddx_CSR, row, col, val)
-
-      ELSE
-        ! Use a second-order accurate two-sided differencing scheme in the interior
-
-        ! i-1
-        col = grid%ij2n( i-1,j)
-        val = -0.5_dp / grid%dx
-        CALL add_entry_CSR_dist( M_ddx_CSR, row, col, val)
-
-        ! i+1
-        col = grid%ij2n( i+1,j)
-        val = 0.5_dp / grid%dx
-        CALL add_entry_CSR_dist( M_ddx_CSR, row, col, val)
-
-      END IF
+      ! Ptr
+      M_ddx_CSR%ptr( row+1) = M_ddx_CSR%ptr( row) + 2
 
     ! == d/dy
 
-      IF     (j == 1) THEN
-        ! Use a second-order accurate three-point one-sided differencing scheme on the border
+      ! Left
+      col = grid%ij2n( i,j-1)
+      M_ddy_CSR%nnz = M_ddy_CSR%nnz + 1
+      M_ddy_CSR%ind( M_ddy_CSR%nnz) = col
+      M_ddy_CSR%val( M_ddy_CSR%nnz) = valneg
 
-        ! j
-        col = grid%ij2n( i,j)
-        val = -1.5_dp / grid%dx
-        CALL add_entry_CSR_dist( M_ddy_CSR, row, col, val)
+      ! Left
+      col = grid%ij2n( i,j+1)
+      M_ddy_CSR%nnz = M_ddy_CSR%nnz + 1
+      M_ddy_CSR%ind( M_ddy_CSR%nnz) = col
+      M_ddy_CSR%val( M_ddy_CSR%nnz) = valpos
 
-        ! j+1
-        col = grid%ij2n( i,j+1)
-        val = 2._dp / grid%dx
-        CALL add_entry_CSR_dist( M_ddy_CSR, row, col, val)
-
-        ! j+2
-        col = grid%ij2n( i,j+2)
-        val = -0.5_dp / grid%dx
-        CALL add_entry_CSR_dist( M_ddy_CSR, row, col, val)
-
-      ELSEIF (j == grid%ny) THEN
-        ! Use a second-order accurate three-point one-sided differencing scheme on the border
-
-        ! j
-        col = grid%ij2n( i,j)
-        val = 1.5_dp / grid%dx
-        CALL add_entry_CSR_dist( M_ddy_CSR, row, col, val)
-
-        ! j-1
-        col = grid%ij2n( i,j-1)
-        val = -2._dp / grid%dx
-        CALL add_entry_CSR_dist( M_ddy_CSR, row, col, val)
-
-        ! j-2
-        col = grid%ij2n( i,j-2)
-        val = 0.5_dp / grid%dx
-        CALL add_entry_CSR_dist( M_ddy_CSR, row, col, val)
-
-      ELSE
-        ! Use a second-order accurate two-sided differencing scheme in the interior
-
-        ! j-1
-        col = grid%ij2n( i,j-1)
-        val = -0.5_dp / grid%dx
-        CALL add_entry_CSR_dist( M_ddy_CSR, row, col, val)
-
-        ! j+1
-        col = grid%ij2n( i,j+1)
-        val = 0.5_dp / grid%dx
-        CALL add_entry_CSR_dist( M_ddy_CSR, row, col, val)
-
-      END IF
+      ! Ptr
+      M_ddy_CSR%ptr( row+1) = M_ddy_CSR%ptr( row) + 2
 
     END DO ! DO row = grid%n1, grid%n2
 
