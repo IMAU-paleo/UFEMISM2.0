@@ -64,7 +64,7 @@ CONTAINS
     IMPLICIT NONE
 
     ! In/output variables:
-!   REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE, OPTIONAL, INTENT(INOUT) :: i
+    ! REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE, OPTIONAL, INTENT(INOUT) :: i
     CHARACTER(LEN=256)                                 , INTENT(IN)    :: routine_name
     LOGICAL                                  , OPTIONAL, INTENT(IN)    :: do_track_resource_use
 
@@ -122,7 +122,7 @@ CONTAINS
     IMPLICIT NONE
 
     ! In/output variables:
-!   REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE, OPTIONAL, INTENT(INOUT) :: i
+    ! REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE, OPTIONAL, INTENT(INOUT) :: i
     CHARACTER(LEN=256)                                 , INTENT(IN)    :: routine_name
 
     ! Local variables:
@@ -187,7 +187,7 @@ CONTAINS
     IMPLICIT NONE
 
     ! In/output variables:
-!   REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE, OPTIONAL, INTENT(INOUT) :: i
+    ! REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE, OPTIONAL, INTENT(INOUT) :: i
     INTEGER                                            , INTENT(OUT)   :: i
 
     ! Local variables:
@@ -217,7 +217,7 @@ CONTAINS
     IMPLICIT NONE
 
     ! Local variables:
-!   REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE, OPTIONAL, INTENT(INOUT) :: i
+    ! REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE, OPTIONAL, INTENT(INOUT) :: i
     INTEGER                                                            :: i,n
 
     n = SIZE( resource_tracker)
@@ -238,7 +238,7 @@ CONTAINS
     IMPLICIT NONE
 
     ! In/output variables:
-!   REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE, OPTIONAL, INTENT(INOUT) :: i
+    ! REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE, OPTIONAL, INTENT(INOUT) :: i
 
     ! Local variables:
     CHARACTER(LEN=128)                                                 :: str1, str2
@@ -268,7 +268,7 @@ CONTAINS
     IMPLICIT NONE
 
     ! In/output variables:
-!   REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE, OPTIONAL, INTENT(INOUT) :: i
+    ! REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE, OPTIONAL, INTENT(INOUT) :: i
     REAL(dp)                                           , INTENT(IN)    :: tcomp
 
     ! Local variables:
@@ -321,7 +321,7 @@ CONTAINS
     IMPLICIT NONE
 
     ! In/output variables:
-!   REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE, OPTIONAL, INTENT(INOUT) :: i
+    ! REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE, OPTIONAL, INTENT(INOUT) :: i
     CHARACTER(LEN=*)                                   , INTENT(IN)    :: err_msg
     INTEGER                                  , OPTIONAL, INTENT(IN)    :: int_01, int_02, int_03, int_04, int_05, int_06, int_07, int_08, int_09, int_10
     REAL(dp)                                 , OPTIONAL, INTENT(IN)    ::  dp_01,  dp_02,  dp_03,  dp_04,  dp_05,  dp_06,  dp_07,  dp_08,  dp_09,  dp_10
@@ -390,7 +390,7 @@ CONTAINS
     IMPLICIT NONE
 
     ! In/output variables:
-!   REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE, OPTIONAL, INTENT(INOUT) :: i
+    ! REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE, OPTIONAL, INTENT(INOUT) :: i
     CHARACTER(LEN=*)                                   , INTENT(IN)    :: err_msg
     INTEGER                                  , OPTIONAL, INTENT(IN)    :: int_01, int_02, int_03, int_04, int_05, int_06, int_07, int_08, int_09, int_10
     REAL(dp)                                 , OPTIONAL, INTENT(IN)    ::  dp_01,  dp_02,  dp_03,  dp_04,  dp_05,  dp_06,  dp_07,  dp_08,  dp_09,  dp_10
@@ -460,7 +460,7 @@ CONTAINS
     IMPLICIT NONE
 
     ! In/output variables:
-!   REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE, OPTIONAL, INTENT(INOUT) :: i
+    ! REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE, OPTIONAL, INTENT(INOUT) :: i
     CHARACTER(LEN=*)                                   , INTENT(IN)    :: err_msg
     INTEGER                                  , OPTIONAL, INTENT(IN)    :: int_01, int_02, int_03, int_04, int_05, int_06, int_07, int_08, int_09, int_10
     REAL(dp)                                 , OPTIONAL, INTENT(IN)    ::  dp_01,  dp_02,  dp_03,  dp_04,  dp_05,  dp_06,  dp_07,  dp_08,  dp_09,  dp_10
@@ -529,7 +529,7 @@ CONTAINS
     IMPLICIT NONE
 
     ! Input variables:
-!   REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE, OPTIONAL, INTENT(INOUT) :: i
+    ! REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE, OPTIONAL, INTENT(INOUT) :: i
     CHARACTER(LEN=*),                                    INTENT(IN)    :: str, col
 
     ! Result variables:
@@ -577,7 +577,7 @@ CONTAINS
     IMPLICIT NONE
 
     ! In/output variables:
-!   REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE, OPTIONAL, INTENT(INOUT) :: i
+    ! REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE, OPTIONAL, INTENT(INOUT) :: i
     CHARACTER(LEN=*)                                   , INTENT(INOUT) :: str
     CHARACTER(LEN=*)                                   , INTENT(IN)    :: marker
     INTEGER                                            , INTENT(IN)    :: val
@@ -646,7 +646,7 @@ CONTAINS
     IMPLICIT NONE
 
     ! In/output variables:
-!   REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE, OPTIONAL, INTENT(INOUT) :: i
+    ! REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE, OPTIONAL, INTENT(INOUT) :: i
     CHARACTER(LEN=*)                                   , INTENT(INOUT) :: str
     CHARACTER(LEN=*)                                   , INTENT(IN)    :: marker
     REAL(dp)                                           , INTENT(IN)    :: val
@@ -680,7 +680,7 @@ CONTAINS
     IMPLICIT NONE
 
     ! In/output variables:
-!   REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE, OPTIONAL, INTENT(INOUT) :: i
+    ! REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE, OPTIONAL, INTENT(INOUT) :: i
     CHARACTER(LEN=*)                                   , INTENT(INOUT) :: str
 
     ! Local variables:
@@ -701,7 +701,7 @@ CONTAINS
     IMPLICIT NONE
 
     ! In/output variables:
-!   REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE, OPTIONAL, INTENT(INOUT) :: i
+    ! REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE, OPTIONAL, INTENT(INOUT) :: i
     CHARACTER(LEN=*)                                   , INTENT(INOUT) :: str
 
     ! Local variables:

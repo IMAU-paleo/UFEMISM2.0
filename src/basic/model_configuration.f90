@@ -66,7 +66,7 @@ MODULE model_configuration
 
   ! Do only unit tests
   ! ==================
-    
+
     logical             :: do_unit_tests_config                         = .false.
 
   ! == The four model regions
@@ -473,6 +473,12 @@ MODULE model_configuration
     INTEGER             :: SELEN_TABOO_DEG1_config                      = 1                               ! Tidal love numbers degree
     REAL(dp)            :: SELEN_TABOO_RCMB_config                      = 3480._dp                        ! Radius of CMB (km)
 
+  ! == Sea level
+  ! ============
+
+    CHARACTER(LEN=256)  :: choice_sealevel_model_config                 = 'fixed'                         ! Can be "fixed", "prescribed", "eustatic", or "SELEN"
+    REAL(dp)            :: fixed_sealevel_config                        = 0._dp                           ! Fixed sea level value for the "fixed" choice
+
 
 ! ===== The config type =====
 ! ===========================
@@ -513,9 +519,9 @@ MODULE model_configuration
 
   ! == Switch to do unit tests
   ! ==========================
-    
+
     LOGICAL             :: do_unit_tests
-  
+
   ! == The four model regions
   ! =========================
 
@@ -916,10 +922,29 @@ MODULE model_configuration
     INTEGER             :: SELEN_TABOO_DEG1
     REAL(dp)            :: SELEN_TABOO_RCMB
 
+  ! == Sea level
+  ! ============
+
+    CHARACTER(LEN=256)  :: choice_sealevel_model
+    REAL(dp)            :: fixed_sealevel
+
   ! == Non-configurable variables
   ! =============================
 
     CHARACTER(LEN=256)  :: output_dir
+
+    ! Values to be filled into the total mask (used only for diagnostic output)
+    INTEGER                             :: type_land
+    INTEGER                             :: type_ocean
+    INTEGER                             :: type_lake
+    INTEGER                             :: type_sheet
+    INTEGER                             :: type_shelf
+    INTEGER                             :: type_coast
+    INTEGER                             :: type_margin
+    INTEGER                             :: type_groundingline_gr
+    INTEGER                             :: type_groundingline_fl
+    INTEGER                             :: type_calvingfront_gr
+    INTEGER                             :: type_calvingfront_fl
 
   END TYPE type_config
 
@@ -1358,7 +1383,9 @@ CONTAINS
       SELEN_TABOO_CDE_config                                , &
       SELEN_TABOO_TLOVE_config                              , &
       SELEN_TABOO_DEG1_config                               , &
-      SELEN_TABOO_RCMB_config
+      SELEN_TABOO_RCMB_config                               , &
+      choice_sealevel_model_config                          , &
+      fixed_sealevel_config
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -1434,7 +1461,7 @@ CONTAINS
 
   ! == Switch to do unit tests
   ! ==========================
-    
+
     C%do_unit_tests                            = do_unit_tests_config
 
   ! == The four model regions
@@ -1836,6 +1863,27 @@ CONTAINS
     C%SELEN_TABOO_TLOVE                        = SELEN_TABOO_TLOVE_config
     C%SELEN_TABOO_DEG1                         = SELEN_TABOO_DEG1_config
     C%SELEN_TABOO_RCMB                         = SELEN_TABOO_RCMB_config
+
+  ! == Sea level
+  ! ============
+
+    C%choice_sealevel_model                    = choice_sealevel_model_config
+    C%fixed_sealevel                           = fixed_sealevel_config
+
+  ! Total mask values (used only for diagnostic output)
+  ! ===================================================
+
+    C%type_land                                = 0
+    C%type_ocean                               = 1
+    C%type_lake                                = 2
+    C%type_sheet                               = 3
+    C%type_shelf                               = 4
+    C%type_coast                               = 5
+    C%type_margin                              = 6
+    C%type_groundingline_gr                    = 7
+    C%type_groundingline_fl                    = 7
+    C%type_calvingfront_gr                     = 8
+    C%type_calvingfront_fl                     = 8
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

@@ -14,6 +14,7 @@ MODULE UFEMISM_main_model
   USE reference_geometries                                   , ONLY: type_reference_geometry, initialise_reference_geometries_raw, &
                                                                      remap_reference_geometry_to_mesh
   USE ice_model_types                                        , ONLY: type_ice_model
+  USE ice_model_main                                         , ONLY: initialise_ice_model
   USE netcdf_basic                                           , ONLY: open_existing_netcdf_file_for_reading, close_netcdf_file
   USE netcdf_input                                           , ONLY: setup_mesh_from_file
   USE mesh_creation                                          , ONLY: create_mesh_from_gridded_geometry, create_mesh_from_meshed_geometry, write_mesh_success
@@ -22,7 +23,7 @@ MODULE UFEMISM_main_model
 
   ! DENK DROM
   USE netcdf_basic , ONLY: create_new_netcdf_file_for_writing
-  USE netcdf_output, ONLY: setup_mesh_in_netcdf_file, add_field_mesh_dp_2D_notime, write_to_field_multopt_mesh_dp_2D_notime
+  USE netcdf_output, ONLY: setup_mesh_in_netcdf_file, add_field_mesh_dp_2D_notime, write_to_field_multopt_mesh_dp_2D_notime, add_field_mesh_int_2D_notime, write_to_field_multopt_mesh_int_2D_notime
   USE netcdf_debug , ONLY: write_CSR_matrix_to_NetCDF
 
   IMPLICIT NONE
@@ -99,6 +100,9 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    ! ===== Region name =====
+    ! =======================
+
     ! Which region are we initialising?
     region%name = region_name
     IF     (region%name == 'NAM') THEN
@@ -118,21 +122,31 @@ CONTAINS
     IF (par%master) WRITE(0,'(A)') ' Initialising model region ' // colour_string( region%name,'light blue') // ' (' // &
       colour_string( TRIM( region%long_name),'light blue') // ')...'
 
+    ! ===== Reference geometries =====
+    ! ================================
+
     ! Initialise all the reference geometries on their raw input grids
     CALL initialise_reference_geometries_raw( region%name, region%refgeo_init, region%refgeo_PD, region%refgeo_GIAeq)
+
+    ! ===== Initial mesh =====
+    ! ========================
 
     ! Set up the first model mesh
     CALL setup_first_mesh( region)
 
     ! Remap reference geometries from their raw input grids to the model mesh
-!    ALLOCATE( region%refgeo_init%Hi( region%mesh%nV_loc), source = 0._dp)
-!    ALLOCATE( region%refgeo_init%Hb( region%mesh%nV_loc), source = 0._dp)
-!    ALLOCATE( region%refgeo_init%Hs( region%mesh%nV_loc), source = 0._dp)
-!    ALLOCATE( region%refgeo_init%SL( region%mesh%nV_loc), source = 0._dp)
     IF (par%master) WRITE(0,'(A)') '  Mapping reference geometries to model mesh...'
     CALL remap_reference_geometry_to_mesh( region%mesh, region%refgeo_init )
     CALL remap_reference_geometry_to_mesh( region%mesh, region%refgeo_PD   )
     CALL remap_reference_geometry_to_mesh( region%mesh, region%refgeo_GIAeq)
+
+    ! ===== Ice dynamics =====
+    ! ========================
+
+    CALL initialise_ice_model( region%mesh, region%ice, region%refgeo_init, region%refgeo_PD)
+
+    ! ===== Regional output =====
+    ! ===========================
 
     ! DENK DROM
     filename = TRIM( C%output_dir) // 'testfile.nc'
@@ -142,14 +156,16 @@ CONTAINS
     CALL add_field_mesh_dp_2D_notime( filename, ncid, 'Hb')
     CALL add_field_mesh_dp_2D_notime( filename, ncid, 'Hs')
     CALL add_field_mesh_dp_2D_notime( filename, ncid, 'SL')
+    CALL add_field_mesh_int_2D_notime( filename, ncid, 'mask')
     CALL write_to_field_multopt_mesh_dp_2D_notime( region%mesh, filename, ncid, 'Hi', region%refgeo_init%Hi)
     CALL write_to_field_multopt_mesh_dp_2D_notime( region%mesh, filename, ncid, 'Hb', region%refgeo_init%Hb)
     CALL write_to_field_multopt_mesh_dp_2D_notime( region%mesh, filename, ncid, 'Hs', region%refgeo_init%Hs)
     CALL write_to_field_multopt_mesh_dp_2D_notime( region%mesh, filename, ncid, 'SL', region%refgeo_init%SL)
+    CALL write_to_field_multopt_mesh_int_2D_notime( region%mesh, filename, ncid, 'mask', region%ice%mask)
     CALL close_netcdf_file( ncid)
 
-    ! DENK DROM
-!    CALL crash('whoopsiedaisy!')
+    ! ===== Finalisation =====
+    ! ========================
 
     ! Print to screen
     IF (par%master) WRITE(0,'(A)') ' Finished initialising model region ' // colour_string( TRIM( region%long_name),'light blue')
