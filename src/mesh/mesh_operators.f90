@@ -518,6 +518,7 @@ CONTAINS
     ! Matrix operators
     nz = 4 ! DENK DROM - need to replace this with actual zeta thing!
     CALL calc_field_to_vector_form_translation_tables( mesh, nz)
+    CALL calc_buv_matrices(                            mesh)
 
     CALL calc_matrix_operators_mesh_a_a(               mesh)
     CALL calc_matrix_operators_mesh_a_b(               mesh)
@@ -1131,8 +1132,6 @@ CONTAINS
     LOGICAL                                            :: succeeded
     INTEGER                                            :: col
 
-    INTEGER :: ii,jj
-
     ! Add routine to path
     CALL init_routine( routine_name)
 
@@ -1559,7 +1558,7 @@ CONTAINS
     INTEGER                                            :: n_neighbours_max
     INTEGER,  DIMENSION(mesh%nE)                       :: map, stack
     INTEGER                                            :: stackN
-    INTEGER                                            :: i,j
+    INTEGER                                            :: i
     INTEGER                                            :: n_c
     INTEGER,  DIMENSION(:    ), ALLOCATABLE            :: i_c
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: x_c, y_c
@@ -2310,6 +2309,194 @@ CONTAINS
 
   END SUBROUTINE calc_field_to_vector_form_translation_tables
 
+  ! Calculate matrices representing mapping operators between the scalar and vector b grids
+  SUBROUTINE calc_buv_matrices( mesh)
+    ! Calculate matrices representing mapping operators between the scalar and vector b grids
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                     INTENT(INOUT)           :: mesh
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'calc_buv_matrices'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    CALL calc_buv_matrices_buv_b(   mesh)
+    CALL calc_buv_matrices_b_buv(   mesh)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE calc_buv_matrices
+
+  SUBROUTINE calc_buv_matrices_buv_b( mesh)
+    ! Calculate matrices representing mapping operators between the scalar and vector b grids
+    !
+    ! These are created immediately in PETSc matrix format instead of the UFEMISM native
+    ! CSR format, because they are [n-by-2n], and our own parallelisation domains for
+    ! 2n are sometimes off-by-one from the PETSc ownership ranges.
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                               INTENT(INOUT) :: mesh
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'calc_buv_matrices_buv_b'
+    TYPE(PetscErrorCode)                                         :: perr
+    INTEGER                                                      :: ncols, nrows, nnz_per_row_max
+    INTEGER                                                      :: istart, iend, rowb, ti, rowbu, rowbv
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+  ! == Use PETSc routines to initialise the matrix object
+  ! =====================================================
+
+    ! Matrix size
+    nrows           = mesh%nnb     ! to
+    ncols           = mesh%nnbuv   ! from
+    nnz_per_row_max = 1
+
+    ! Initialise the matrix object
+    CALL MatCreate( PETSC_COMM_WORLD, mesh%M_map_bu_b, perr)
+    CALL MatCreate( PETSC_COMM_WORLD, mesh%M_map_bv_b, perr)
+
+    ! Set the matrix type to parallel (MPI) Aij
+    CALL MatSetType( mesh%M_map_bu_b, 'mpiaij', perr)
+    CALL MatSetType( mesh%M_map_bv_b, 'mpiaij', perr)
+
+    ! Set the size, let PETSc automatically determine parallelisation domains
+    CALL MatSetSizes( mesh%M_map_bu_b, PETSC_DECIDE, PETSC_DECIDE, nrows, ncols, perr)
+    CALL MatSetSizes( mesh%M_map_bv_b, PETSC_DECIDE, PETSC_DECIDE, nrows, ncols, perr)
+
+    ! Not entirely sure what this one does, but apparently it's really important
+    CALL MatSetFromOptions( mesh%M_map_bu_b, perr)
+    CALL MatSetFromOptions( mesh%M_map_bv_b, perr)
+
+    ! Tell PETSc how much memory needs to be allocated
+    CALL MatMPIAIJSetPreallocation( mesh%M_map_bu_b, nnz_per_row_max+1, PETSC_NULL_INTEGER, nnz_per_row_max+1, PETSC_NULL_INTEGER, perr)
+    CALL MatMPIAIJSetPreallocation( mesh%M_map_bv_b, nnz_per_row_max+1, PETSC_NULL_INTEGER, nnz_per_row_max+1, PETSC_NULL_INTEGER, perr)
+
+    ! Get parallelisation domains ("ownership ranges")
+    CALL MatGetOwnershipRange( mesh%M_map_bu_b, istart, iend, perr)
+    CALL MatGetOwnershipRange( mesh%M_map_bv_b, istart, iend, perr)
+
+    DO rowb = istart+1, iend ! +1 because PETSc indexes from 0
+
+      ti    = mesh%n2ti(   rowb)
+      rowbu = mesh%tiuv2n( ti,1)
+      rowbv = mesh%tiuv2n( ti,1)
+
+      ! Add to the matrix
+      CALL MatSetValues( mesh%M_map_bu_b, 1, rowb-1, 1, rowbu-1, 1._dp, INSERT_VALUES, perr)
+      CALL MatSetValues( mesh%M_map_bv_b, 1, rowb-1, 1, rowbv-1, 1._dp, INSERT_VALUES, perr)
+
+    END DO ! DO row = istart+1, iend
+    CALL sync
+
+    ! Assemble matrix and vectors, using the 2-step process:
+    !   MatAssemblyBegin(), MatAssemblyEnd()
+    ! Computations can be done while messages are in transition
+    ! by placing code between these two statements.
+
+    CALL MatAssemblyBegin( mesh%M_map_bu_b, MAT_FINAL_ASSEMBLY, perr)
+    CALL MatAssemblyBegin( mesh%M_map_bv_b, MAT_FINAL_ASSEMBLY, perr)
+    CALL MatAssemblyEnd(   mesh%M_map_bu_b, MAT_FINAL_ASSEMBLY, perr)
+    CALL MatAssemblyEnd(   mesh%M_map_bv_b, MAT_FINAL_ASSEMBLY, perr)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE calc_buv_matrices_buv_b
+
+  SUBROUTINE calc_buv_matrices_b_buv( mesh)
+    ! Calculate matrices representing mapping operators between the scalar and vector b grids
+    !
+    ! These are created immediately in PETSc matrix format instead of the UFEMISM native
+    ! CSR format, because they are [n-by-2n], and our own parallelisation domains for
+    ! 2n are sometimes off-by-one from the PETSc ownership ranges.
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                               INTENT(INOUT) :: mesh
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'calc_buv_matrices_b_buv'
+    TYPE(PetscErrorCode)                                         :: perr
+    INTEGER                                                      :: ncols, nrows, nnz_per_row_max
+    INTEGER                                                      :: istart, iend, rowbuv, ti, uv, rowb
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+  ! == Use PETSc routines to initialise the matrix object
+  ! =====================================================
+
+    ! Matrix size
+    nrows           = mesh%nnbuv   ! to
+    ncols           = mesh%nnb     ! from
+    nnz_per_row_max = 1
+
+    ! Initialise the matrix object
+    CALL MatCreate( PETSC_COMM_WORLD, mesh%M_map_b_bu, perr)
+    CALL MatCreate( PETSC_COMM_WORLD, mesh%M_map_b_bv, perr)
+
+    ! Set the matrix type to parallel (MPI) Aij
+    CALL MatSetType( mesh%M_map_b_bu, 'mpiaij', perr)
+    CALL MatSetType( mesh%M_map_b_bv, 'mpiaij', perr)
+
+    ! Set the size, let PETSc automatically determine parallelisation domains
+    CALL MatSetSizes( mesh%M_map_b_bu, PETSC_DECIDE, PETSC_DECIDE, nrows, ncols, perr)
+    CALL MatSetSizes( mesh%M_map_b_bv, PETSC_DECIDE, PETSC_DECIDE, nrows, ncols, perr)
+
+    ! Not entirely sure what this one does, but apparently it's really important
+    CALL MatSetFromOptions( mesh%M_map_b_bu, perr)
+    CALL MatSetFromOptions( mesh%M_map_b_bv, perr)
+
+    ! Tell PETSc how much memory needs to be allocated
+    CALL MatMPIAIJSetPreallocation( mesh%M_map_b_bu, nnz_per_row_max+1, PETSC_NULL_INTEGER, nnz_per_row_max+1, PETSC_NULL_INTEGER, perr)
+    CALL MatMPIAIJSetPreallocation( mesh%M_map_b_bv, nnz_per_row_max+1, PETSC_NULL_INTEGER, nnz_per_row_max+1, PETSC_NULL_INTEGER, perr)
+
+    ! Get parallelisation domains ("ownership ranges")
+    CALL MatGetOwnershipRange( mesh%M_map_b_bu, istart, iend, perr)
+    CALL MatGetOwnershipRange( mesh%M_map_b_bv, istart, iend, perr)
+
+    DO rowbuv = istart+1, iend ! +1 because PETSc indexes from 0
+
+      ti   = mesh%n2tiuv( rowbuv,1)
+      uv   = mesh%n2tiuv( rowbuv,2)
+      rowb = mesh%ti2n(   ti)
+
+      ! Add to the matrix
+      IF     (uv == 1) THEN
+        CALL MatSetValues( mesh%M_map_b_bu, 1, rowbuv-1, 1, rowb-1, 1._dp, INSERT_VALUES, perr)
+      ELSEIF (uv == 2) THEN
+        CALL MatSetValues( mesh%M_map_b_bv, 1, rowbuv-1, 1, rowb-1, 1._dp, INSERT_VALUES, perr)
+      END IF
+
+    END DO ! DO row = istart+1, iend
+    CALL sync
+
+    ! Assemble matrix and vectors, using the 2-step process:
+    !   MatAssemblyBegin(), MatAssemblyEnd()
+    ! Computations can be done while messages are in transition
+    ! by placing code between these two statements.
+
+    CALL MatAssemblyBegin( mesh%M_map_b_bu, MAT_FINAL_ASSEMBLY, perr)
+    CALL MatAssemblyBegin( mesh%M_map_b_bv, MAT_FINAL_ASSEMBLY, perr)
+    CALL MatAssemblyEnd(   mesh%M_map_b_bu, MAT_FINAL_ASSEMBLY, perr)
+    CALL MatAssemblyEnd(   mesh%M_map_b_bv, MAT_FINAL_ASSEMBLY, perr)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE calc_buv_matrices_b_buv
+
 ! == Shape functions
 
   SUBROUTINE calc_shape_functions_1D_reg_2nd_order( x, n_max, n_c, x_c, Nfx_i, Nfxx_i, Nfx_c, Nfxx_c)
@@ -2708,7 +2895,6 @@ CONTAINS
     REAL(dp), DIMENSION(3,3)                           :: ATWTWA
     REAL(dp)                                           :: detATWTWA
     REAL(dp), DIMENSION(3,3)                           :: M
-    REAL(dp) :: det
 
     ! Safety
     IF (n_c < 3) CALL crash('calc_shape_functions_2D_stag_1st_order needs at least 3 neighbours!')

@@ -75,7 +75,9 @@ UFEMISM_source = \
   basic/grid_basic.f90 \
   basic/grid_lonlat_basic.f90 \
   \
-  mesh/mesh_types.f90 \
+  types/mesh_types.f90 \
+  types/ice_model_types.f90 \
+  \
   mesh/mesh_memory.f90 \
   mesh/mesh_utilities.f90 \
   mesh/mesh_Delaunay.f90 \
@@ -94,12 +96,14 @@ UFEMISM_source = \
   netcdf/netcdf_debug.f90 \
   netcdf/netcdf_resource_tracking.f90 \
   \
-  basic/reference_geometries.f90 \
+  reference_states/reference_geometries.f90 \
   \
-  ice/ice_model_types.o \
+  basal_conditions/sliding_laws.f90 \
+  \
   ice/ice_model_memory.o \
   ice/ice_model_utilities.o \
   ice/ice_velocity_SIA.o \
+  ice/ice_velocity_SSA.f90 \
   ice/ice_model_main.o \
   \
   validation/unit_tests_mpi.f90 \

@@ -5,8 +5,15 @@ MODULE ice_model_types
 ! ===== Preamble =====
 ! ====================
 
+#include <petsc/finclude/petscksp.h>
+  USE petscksp
+  USE mpi
   USE precisions                                             , ONLY: dp
+  USE mpi_basic                                              , ONLY: par, cerr, ierr, MPI_status, sync
+  USE mpi_distributed_memory                                 , ONLY: partition_list
+  USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
+  USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp
 
   IMPLICIT NONE
 
@@ -26,6 +33,69 @@ MODULE ice_model_types
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: D_3D_b                      ! [m yr^-1] Diffusivity
 
   END TYPE type_ice_velocity_solver_SIA
+
+  TYPE type_ice_velocity_solver_SSA
+    ! Data fields needed to solve the Shallow Shelf Approximation
+
+    ! Solution
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: u_b                         ! [m yr^-1] 2-D horizontal ice velocity
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: v_b
+
+    ! Intermediate data fields
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: A_flow_vav_a                ! [Pa^-3 y^-1] Vertically averaged Glen's flow law parameter
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: du_dx_a                     ! [yr^-1] 2-D horizontal strain rates
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: du_dy_a
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dv_dx_a
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dv_dy_a
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: eta_a                       ! Effective viscosity
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: N_a                         ! Product term N = eta * H
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: N_b
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dN_dx_b                     ! Gradients of N
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dN_dy_b
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: beta_b_b                    ! Friction coefficient (tau_b = u * beta_b)
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: tau_dx_b                    ! Driving stress
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: tau_dy_b
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: u_b_prev                    ! Velocity solution from previous viscosity iteration
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: v_b_prev
+
+    ! Parameters for the iterative solver used to solve the matrix equation representing the linearised SSA
+    REAL(dp)                                :: PETSc_rtol
+    REAL(dp)                                :: PETSc_abstol
+
+    ! Stiffness matrices and load vectors
+    TYPE(tMat)                              :: AA                          ! Total stiffness matrix
+    TYPE(tMat)                              :: AA_free                     ! Stiffness matrix describing the free SSA
+    TYPE(tMat)                              :: AA_BC_west                  ! Stiffness matrix describing boundary conditions on the western  domain boundary
+    TYPE(tMat)                              :: AA_BC_east                  ! Stiffness matrix describing boundary conditions on the eastern  domain boundary
+    TYPE(tMat)                              :: AA_BC_south                 ! Stiffness matrix describing boundary conditions on the southern domain boundary
+    TYPE(tMat)                              :: AA_BC_north                 ! Stiffness matrix describing boundary conditions on the northern domain boundary
+    TYPE(tMat)                              :: AA_BC_prescr                ! Stiffness matrix describing boundary conditions for prescribed velocities
+
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: bb                          ! Total load vector
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: bb_free                     ! Load vector for the free SSA
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: bb_BC_west                  ! Load vector for the boundary conditions on the western  domain boundary
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: bb_BC_east                  ! Load vector for the boundary conditions on the eastern  domain boundary
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: bb_BC_south                 ! Load vector for the boundary conditions on the southern domain boundary
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: bb_BC_north                 ! Load vector for the boundary conditions on the northern domain boundary
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: bb_BC_prescr                ! Load vector for the boundary conditions for prescribed velocities
+
+    ! Matrices describing masks for the different components of the equation
+    TYPE(tMat)                              :: m_free                      ! Matrix mask for the free SSA
+    TYPE(tMat)                              :: m_BC_west                   ! Matrix mask for the boundary conditions on the western  domain boundary
+    TYPE(tMat)                              :: m_BC_east                   ! Matrix mask for the boundary conditions on the eastern  domain boundary
+    TYPE(tMat)                              :: m_BC_south                  ! Matrix mask for the boundary conditions on the southern domain boundary
+    TYPE(tMat)                              :: m_BC_north                  ! Matrix mask for the boundary conditions on the northern domain boundary
+    TYPE(tMat)                              :: m_BC_prescr                 ! Matrix mask for the boundary conditions for prescribed velocities
+
+    ! Some useful combined mesh operators
+    TYPE(tMat)                              :: M_4_d2udx2_p_3_d2vdxdy_p_d2udy2_buv_b
+    TYPE(tMat)                              :: M_4_dudx_p_2_dvdy_buv_b
+    TYPE(tMat)                              :: M_dudy_p_dvdx_buv_b
+    TYPE(tMat)                              :: M_4_d2vdy2_p_3_d2udxdy_p_d2vdx2_buv_b
+    TYPE(tMat)                              :: M_4_dvdy_p_2_dudx_buv_b
+    TYPE(tMat)                              :: M_dvdx_p_dudy_buv_b
+
+  END TYPE type_ice_velocity_solver_SSA
 
   TYPE type_ice_model
     ! The ice dynamics model data structure.
@@ -91,7 +161,7 @@ MODULE ice_model_types
 
     ! Velocity solvers
     TYPE(type_ice_velocity_solver_SIA)      :: SIA                         ! Shallow Ice Approximation
-    ! TYPE(type_ice_velocity_solver_SSA)      :: SSA                         ! Shallow Shelf Approximation
+    TYPE(type_ice_velocity_solver_SSA)      :: SSA                         ! Shallow Shelf Approximation
     ! TYPE(type_ice_velocity_solver_DIVA)     :: DIVA                        ! Depth-Integrated Viscosity Approximation
     ! TYPE(type_ice_velocity_solver_BPA)      :: BPA                         ! Blatter-Pattyn Approximation
 
@@ -140,6 +210,11 @@ MODULE ice_model_types
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: dw_dx_3D
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: dw_dy_3D
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: dw_dz_3D
+
+    ! == Basal conditions ==
+    ! ======================
+
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: beta_b                      ! Basal friction coefficient (tau_b = u * beta_b)
 
     ! === Sea level ===
     ! =================

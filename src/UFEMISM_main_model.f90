@@ -25,6 +25,7 @@ MODULE UFEMISM_main_model
   USE netcdf_basic , ONLY: create_new_netcdf_file_for_writing
   USE netcdf_output, ONLY: setup_mesh_in_netcdf_file, add_field_mesh_dp_2D_notime, write_to_field_multopt_mesh_dp_2D_notime, add_field_mesh_int_2D_notime, write_to_field_multopt_mesh_int_2D_notime
   USE netcdf_debug , ONLY: write_CSR_matrix_to_NetCDF
+  USE ice_velocity_SSA, ONLY: initialise_SSA_solver
 
   IMPLICIT NONE
 
@@ -147,6 +148,9 @@ CONTAINS
 
     ! ===== Regional output =====
     ! ===========================
+
+    ! DENK DROM
+    CALL initialise_SSA_solver( region%mesh, region%ice%SSA)
 
     ! DENK DROM
     filename = TRIM( C%output_dir) // 'testfile.nc'
