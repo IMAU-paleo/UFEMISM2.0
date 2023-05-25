@@ -26,17 +26,34 @@
           ncview
       ];
     };
-    defaultPackage.x86_64-linux = 
+    packages.x86_64-linux.UFEMISM = 
     stdenv.mkDerivation {
-       name = "minimism";
+       name = "UFEMISM";
        src = self;
        sourceRoot = "source/src";
-       buildInputs = self.devShell.x86_64-linux.buildInputs;
+       buildInputs = [ gfortran
+                       openmpi
+                       netcdf4
+                       netcdffortran
+                       petsc
+                       lapack
+                       pkg-config ];
        installPhase = "
-         cp UFEMISM_program minimism;
          mkdir -p $out/bin; 
-         install -t $out/bin minimism";
+         install -t $out/bin UFEMISM_program";
     };
+
+
+    # nix run <loc>#UFEMISM_program
+    apps.x86_64-linux.UFEMISM_program = {
+    type = "app";
+    program = "${self.packages.x86_64-linux.UFEMISM}/bin/UFEMISM_program";
+    };
+
+
+    # Default nix run
+    apps.x86_64-linux.default = self.apps.x86_64-linux.UFEMISM_program;
+
   };
 
 }
