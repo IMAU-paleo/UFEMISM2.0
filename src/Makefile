@@ -13,6 +13,7 @@
 include Makefile_include_nix.txt
 #include Makefile_include_gemini.txt
 #include Makefile_include_snellius.txt
+#include Makefile_include_book.txt
 
 # The OBJ_PATH and the MOD_PATH are defined as:
 OBJ_PATH = object-files
@@ -49,7 +50,7 @@ $(OBJ_PATH) $(MOD_PATH):
 	mkdir -p $@
 
 # Pattern rules for creating object files from *.f90 (fortran 90) source files
-$(OBJ_PATH)/%.o : */%.f90 Makefile | $(OBJ_PATH) $(MOD_PATH) 
+$(OBJ_PATH)/%.o : */%.f90 Makefile | $(OBJ_PATH) $(MOD_PATH)
 	$(F90) $(F90FLAGS) $(F90DEFINITIONS) -J${MOD_PATH} -fbackslash -c -o $@ $<
 
 $(OBJ_PATH)/%.o : %.f90 Makefile | $(OBJ_PATH) $(MOD_PATH)
@@ -93,11 +94,13 @@ UFEMISM_source = \
   netcdf/netcdf_debug.f90 \
   netcdf/netcdf_resource_tracking.f90 \
   \
-  ice/ice_model_types.f90 \
-  ice/ice_velocity_SIA.f90 \
-  ice/ice_model_main.f90 \
-  \
   basic/reference_geometries.f90 \
+  \
+  ice/ice_model_types.o \
+  ice/ice_model_memory.o \
+  ice/ice_model_utilities.o \
+  ice/ice_velocity_SIA.o \
+  ice/ice_model_main.o \
   \
   validation/unit_tests_mpi.f90 \
   validation/unit_tests_petsc.f90 \
