@@ -25,28 +25,36 @@ ifeq ($(DO_SELEN),yes)
   F90DEFINITIONS += -DDO_SELEN
 endif
 
-# ==========================
-#       Building rules
-# ==========================
-main: UFEMISM_program
-
-$(OBJ_PATH) $(MOD_PATH):
-	mkdir -p $@
-
-# Pattern rules for creating object files from *.f90 (fortran 90) source files
-$(OBJ_PATH)/%.o : */%.f90 $(OBJ_PATH) $(MOD_PATH) Makefile 
-	$(F90) $(F90FLAGS) $(F90DEFINITIONS) -J${MOD_PATH} -fbackslash -c -o $@ $<
-
-$(OBJ_PATH)/%.o : %.f90 $(OBJ_PATH) $(MOD_PATH) Makefile 
-	$(F90) $(F90FLAGS) $(F90DEFINITIONS) -J${MOD_PATH} -fbackslash -c -o $@ $<
-
-
 # ========================================
 #       Building the UFEMISM_program
 # ========================================
 
 # Adding this program to the list of all programs:
 all_programs += UFEMISM_program
+
+# ===============================
+#       Building everything
+# ===============================
+
+.PHONY : all
+
+all : $(all_programs)
+
+
+# ==========================
+#       Building rules
+# ==========================
+
+$(OBJ_PATH) $(MOD_PATH):
+	mkdir -p $@
+
+# Pattern rules for creating object files from *.f90 (fortran 90) source files
+$(OBJ_PATH)/%.o : */%.f90 Makefile | $(OBJ_PATH) $(MOD_PATH) 
+	$(F90) $(F90FLAGS) $(F90DEFINITIONS) -J${MOD_PATH} -fbackslash -c -o $@ $<
+
+$(OBJ_PATH)/%.o : %.f90 Makefile | $(OBJ_PATH) $(MOD_PATH)
+	$(F90) $(F90FLAGS) $(F90DEFINITIONS) -J${MOD_PATH} -fbackslash -c -o $@ $<
+
 
 # List of object files
 
@@ -117,16 +125,6 @@ UFEMISM_program : $(UFEMISM_program_objects:%=$(OBJ_PATH)/%)
 
 clean :
 	rm -frv $(all_programs) $(OBJ_PATH) $(MOD_PATH) *.mod *.lst
-
-
-
-# ===============================
-#       Building everything
-# ===============================
-
-.PHONY : all
-
-all : $(all_programs)
 
 
 
