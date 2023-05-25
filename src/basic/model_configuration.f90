@@ -240,6 +240,7 @@ MODULE model_configuration
     LOGICAL             :: do_singlecore_mesh_creation_config           = .TRUE.                           !              Whether or not to use only a single core for mesh generation (for better reproducibility)
     REAL(dp)            :: alpha_min_config                             = 0.4363_dp                        ! [radians]    Smallest allowed internal triangle angle
     INTEGER             :: nit_Lloyds_algorithm_config                  = 3                                ! [-]          Number of iterations of Lloyds algorithm to be applied after refinement
+    REAL(dp)            :: mesh_resolution_tolerance_config             = 1.25_dp                          ! [-]          Factors the target resolution for trangle-size requirement. 1=strict, use >1 to avoid unnecesarily high resolution
 
     ! Memory
     INTEGER             :: nC_mem_config                                = 32                               ! [-]          How many columns of memory should be allocated for connectivity lists
@@ -693,6 +694,7 @@ MODULE model_configuration
     LOGICAL             :: do_singlecore_mesh_creation
     REAL(dp)            :: alpha_min
     INTEGER             :: nit_Lloyds_algorithm
+    REAL(dp)            :: mesh_resolution_tolerance
 
     ! Memory
     INTEGER             :: nC_mem
@@ -1235,6 +1237,7 @@ CONTAINS
       do_singlecore_mesh_creation_config                    , &
       alpha_min_config                                      , &
       nit_Lloyds_algorithm_config                           , &
+      mesh_resolution_tolerance_config                      , &
       nC_mem_config                                         , &
       choice_zeta_grid_config                               , &
       nz_config                                             , &
@@ -1635,6 +1638,7 @@ CONTAINS
     C%do_singlecore_mesh_creation              = do_singlecore_mesh_creation_config
     C%alpha_min                                = alpha_min_config
     C%nit_Lloyds_algorithm                     = nit_Lloyds_algorithm_config
+    C%mesh_resolution_tolerance                = mesh_resolution_tolerance_config
 
     ! Memory
     C%nC_mem                                   = nC_mem_config

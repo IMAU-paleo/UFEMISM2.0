@@ -171,7 +171,7 @@ CONTAINS
       IF (ti_in == ti) THEN
         ! This triangle contains the point
         longest_leg = longest_triangle_leg( va, vb, vc)
-        meets_resolution_criterion = longest_leg <= res_max
+        meets_resolution_criterion = longest_leg <= res_max * C%mesh_resolution_tolerance
       ELSE
         ! This triangle does not contain the point
         meets_resolution_criterion = .TRUE.
@@ -463,7 +463,7 @@ CONTAINS
           meets_resolution_criterion = .TRUE.
           IF (mesh%Tri_li( ti,1) <= mesh%Tri_li( ti,2)) THEN
             longest_leg = longest_triangle_leg( va, vb, vc)
-            IF (longest_leg > res_max) meets_resolution_criterion = .FALSE.
+            IF (longest_leg > res_max * C%mesh_resolution_tolerance) meets_resolution_criterion = .FALSE.
           END IF
 
         END IF ! IF (li_min == nl+1 .OR. li_max == 0) THEN
@@ -588,7 +588,7 @@ CONTAINS
           ! The triangle lies inside the polygon
 
           longest_leg = longest_triangle_leg( va, vb, vc)
-          meets_resolution_criterion = longest_leg <= res_max
+          meets_resolution_criterion = longest_leg <= res_max * C%mesh_resolution_tolerance
 
         ELSE
           ! The triangle does not lie inside the polygon
@@ -1001,7 +1001,7 @@ CONTAINS
           meets_resolution_criterion = .TRUE.
           IF (mesh%Tri_li( ti,1) <= mesh%Tri_li( ti,2)) THEN
             longest_leg = longest_triangle_leg( va, vb, vc)
-            IF (longest_leg > res_max) meets_resolution_criterion = .FALSE.
+            IF (longest_leg > res_max * C%mesh_resolution_tolerance) meets_resolution_criterion = .FALSE.
           END IF
 
         END IF ! IF (li_min == nl+1 .OR. li_max == 0) THEN
@@ -1128,7 +1128,7 @@ CONTAINS
           ! The triangle lies inside the polygon
 
           longest_leg = longest_triangle_leg( va, vb, vc)
-          meets_resolution_criterion = longest_leg <= res_max
+          meets_resolution_criterion = longest_leg <= res_max * C%mesh_resolution_tolerance
 
         ELSE
           ! The triangle does not lie inside the polygon
