@@ -47,12 +47,14 @@ subroutine determine_masks( mesh, ice)
     allocate( Hi   ( mesh%nV ))
     allocate( Hb   ( mesh%nV ))
     allocate( SL   ( mesh%nV ))
-    allocate( mask ( mesh%nV ))
 
     ! Fill in the full arrays so all processes have them
     call gather_to_all_dp_1D( ice%Hi, Hi)
     call gather_to_all_dp_1D( ice%Hb, Hb)
     call gather_to_all_dp_1D( ice%SL, SL)
+
+    ! Allocate local full-array diagnostic mask for each process
+    allocate( mask ( mesh%nV ))
 
     mask = C%type_land
 
@@ -207,6 +209,7 @@ subroutine determine_masks( mesh, ice)
     ! === Diagnostic mask ===
     ! =======================
 
+    ! Distribute local mask to each process
     call distribute_from_master_int_1D( mask, ice%mask)
 
     ! === Finalisation ===

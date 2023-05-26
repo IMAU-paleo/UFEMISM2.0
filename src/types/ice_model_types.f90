@@ -138,7 +138,11 @@ MODULE ice_model_types
     ! === Ice change ===
     ! ==================
 
-    ! TBA
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHi_dt                      ! [m yr^-1] Ice thickness rate of change
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHb_dt                      ! [m yr^-1] Bedrock elevation rate of change
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHs_dt                      ! [m yr^-1] Ice surface elevation rate of change
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHib_dt                     ! [m yr^-1] Ice base elevation rate of change
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: Hi_tplusdt                  ! [m] Predicted ice thickness at next time step
 
     ! === Thermodynamics ===
     ! ======================
@@ -214,7 +218,19 @@ MODULE ice_model_types
     ! == Basal conditions ==
     ! ======================
 
+    ! Basal hydrology
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: pore_water_pressure         ! Basal pore water pressure
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: overburden_pressure         ! Basal overburden pressure
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: effective_pressure          ! Basal effective pressure
+
+    ! Basal sliding
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: basal_shear_stress          ! Basal shear stress
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: beta_b                      ! Basal friction coefficient (tau_b = u * beta_b)
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: friction_coef_1             ! Generic basal friction coefficient 1
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: friction_coef_2             ! Generic basal friction coefficient 2
+
+    ! Geothermal heat
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: geothermal_heat_flux        ! Geothermal heat flux
 
     ! === Sea level ===
     ! =================

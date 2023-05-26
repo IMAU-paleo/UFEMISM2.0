@@ -256,7 +256,7 @@ MODULE model_configuration
   ! ==========================
 
     ! General
-    CHARACTER(LEN=256)  :: choice_stress_balance_approximation_config   = 'SIA/SSA'                        ! Choice of stress balance approximation: "none" (= no flow, though geometry can still change due to mass balance), "SIA", "SSA", "SIA/SSA", "DIVA", "BPA"
+    CHARACTER(LEN=256)  :: choice_stress_balance_approximation_config   = 'SSA'                            ! Choice of stress balance approximation: "none" (= no flow, though geometry can still change due to mass balance), "SIA", "SSA", "SIA/SSA", "DIVA", "BPA"
     REAL(dp)            :: n_flow_config                                = 3.0_dp                           ! Exponent in Glen's flow law
     REAL(dp)            :: m_enh_sheet_config                           = 1.0_dp                           ! Ice flow enhancement factor for grounded ice
     REAL(dp)            :: m_enh_shelf_config                           = 1.0_dp                           ! Ice flow enhancement factor for floating ice
@@ -282,12 +282,16 @@ MODULE model_configuration
     ! Sliding laws
     CHARACTER(LEN=256)  :: choice_sliding_law_config                    = 'Zoet-Iverson'                   ! Choice of sliding law: "no_sliding", "idealised", "Coulomb", "Budd", "Weertman", "Tsai2015", "Schoof2005", "Zoet-Iverson"
     CHARACTER(LEN=256)  :: choice_idealised_sliding_law_config          = ''                               ! "ISMIP_HOM_C", "ISMIP_HOM_D", "ISMIP_HOM_E", "ISMIP_HOM_F"
-    REAL(dp)            :: slid_delta_v_config                          = 1.0E-3_dp                        ! Normalisation parameter to prevent errors when velocity is zero
+
+    ! Exponents
     REAL(dp)            :: slid_Weertman_m_config                       = 3._dp                            ! Exponent in Weertman sliding law
-    REAL(dp)            :: slid_Budd_q_plastic_config                   = 0.3_dp                           ! Scaling exponent   in Budd sliding law
+    REAL(dp)            :: slid_Budd_q_plastic_config                   = 0.3_dp                           ! Scaling exponent in Budd sliding law
+    REAL(dp)            :: slid_ZI_p_config                             = 5._dp                            ! Velocity exponent used in the Zoet-Iverson sliding law
+
+    ! Stability
+    REAL(dp)            :: slid_delta_v_config                          = 1.0E-3_dp                        ! Normalisation parameter to prevent errors when velocity is zero
     REAL(dp)            :: slid_Budd_u_threshold_config                 = 100._dp                          ! Threshold velocity in Budd sliding law
     REAL(dp)            :: slid_ZI_ut_config                            = 200._dp                          ! (uniform) transition velocity used in the Zoet-Iverson sliding law [m/yr]
-    REAL(dp)            :: slid_ZI_p_config                             = 5._dp                            ! Velocity exponent             used in the Zoet-Iverson sliding law
 
   ! == Ice dynamics - boundary conditions
   ! =====================================
@@ -353,7 +357,7 @@ MODULE model_configuration
   ! == Bed roughness
   ! ==================
 
-    CHARACTER(LEN=256)  :: choice_bed_roughness_config                  = 'uniform'                        ! "uniform", "parameterised", "read_from_file"
+    CHARACTER(LEN=256)  :: choice_bed_roughness_config                  = 'uniform'                        ! Choice of source for friction coefficients: "uniform", "parameterised", "read_from_file"
     CHARACTER(LEN=256)  :: choice_bed_roughness_parameterised_config    = 'Martin2011'                     ! "Martin2011", "SSA_icestream", "MISMIP+", "BIVMIP_A", "BIVMIP_B", "BIVMIP_C"
     ! Paths to files containing bed roughness fields for the chosen sliding law
     CHARACTER(LEN=256)  :: filename_bed_roughness_NAM_config            = ''
@@ -367,7 +371,8 @@ MODULE model_configuration
     REAL(dp)            :: timeframe_bed_roughness_ANT_config           = 1E9_dp
     ! Values for uniform bed roughness
     REAL(dp)            :: slid_Weertman_beta_sq_uniform_config         = 1.0E4_dp                         ! Uniform value for beta_sq  in Weertman sliding law
-    REAL(dp)            :: slid_Coulomb_phi_fric_uniform_config         = 15._dp                           ! Uniform value for phi_fric in (regularised) Coulomb sliding law
+    REAL(dp)            :: slid_Coulomb_phi_fric_uniform_config         = 15._dp                           ! Uniform value for phi_fric in Coulomb sliding law
+    REAL(dp)            :: slid_Budd_phi_fric_uniform_config            = 15._dp                           ! Uniform value for phi_fric in Budd sliding law
     REAL(dp)            :: slid_Tsai2015_alpha_sq_uniform_config        = 0.5_dp                           ! Uniform value for alpha_sq in the Tsai2015 sliding law
     REAL(dp)            :: slid_Tsai2015_beta_sq_uniform_config         = 1.0E4_dp                         ! Uniform value for beta_sq  in the Tsai2015 sliding law
     REAL(dp)            :: slid_Schoof2005_alpha_sq_uniform_config      = 0.5_dp                           ! Uniform value for alpha_sq in the Schoof2005 sliding law
@@ -407,6 +412,13 @@ MODULE model_configuration
     REAL(dp)            :: BIVgeo_Berends2022_phimin_config             = 0.1_dp                           ! Smallest allowed value for the inverted till friction angle phi
     REAL(dp)            :: BIVgeo_Berends2022_phimax_config             = 30._dp                           ! Largest  allowed value for the inverted till friction angle phi
     CHARACTER(LEN=256)  :: BIVgeo_target_velocity_filename_config       = ''                               ! NetCDF file where the target velocities are read in the CISM+ and Berends2022 geometry/velocity-based basal inversion methods
+
+  ! == Geothermal heat flux
+  ! =======================
+
+    CHARACTER(LEN=256)  :: choice_geothermal_heat_flux_config          = 'constant'                        ! Choice of geothermal heat flux; can be 'constant' or 'read_from_file'
+    REAL(dp)            :: constant_geothermal_heat_flux_config        = 1.72E06_dp                        ! Geothermal Heat flux [J m^-2 yr^-1] Sclater et al. (1980)
+    CHARACTER(LEN=256)  :: filename_geothermal_heat_flux_config        = 'data/GHF/geothermal_heatflux_ShapiroRitzwoller2004_global_1x1_deg.nc'
 
   ! == Thermodynamics and rheology
   ! ==============================
@@ -821,6 +833,7 @@ MODULE model_configuration
     ! Values for uniform bed roughness
     REAL(dp)            :: slid_Weertman_beta_sq_uniform
     REAL(dp)            :: slid_Coulomb_phi_fric_uniform
+    REAL(dp)            :: slid_Budd_phi_fric_uniform
     REAL(dp)            :: slid_Tsai2015_alpha_sq_uniform
     REAL(dp)            :: slid_Tsai2015_beta_sq_uniform
     REAL(dp)            :: slid_Schoof2005_alpha_sq_uniform
@@ -860,6 +873,13 @@ MODULE model_configuration
     REAL(dp)            :: BIVgeo_Berends2022_phimin
     REAL(dp)            :: BIVgeo_Berends2022_phimax
     CHARACTER(LEN=256)  :: BIVgeo_target_velocity_filename
+
+  ! == Geothermal heat flux
+  ! =======================
+
+    CHARACTER(LEN=256)  :: choice_geothermal_heat_flux
+    REAL(dp)            :: constant_geothermal_heat_flux
+    CHARACTER(LEN=256)  :: filename_geothermal_heat_flux
 
   ! == Thermodynamics and rheology
   ! ==============================
@@ -1314,6 +1334,7 @@ CONTAINS
       timeframe_bed_roughness_ANT_config                    , &
       slid_Weertman_beta_sq_uniform_config                  , &
       slid_Coulomb_phi_fric_uniform_config                  , &
+      slid_Budd_phi_fric_uniform_config                     , &
       slid_Tsai2015_alpha_sq_uniform_config                 , &
       slid_Tsai2015_beta_sq_uniform_config                  , &
       slid_Schoof2005_alpha_sq_uniform_config               , &
@@ -1345,6 +1366,9 @@ CONTAINS
       BIVgeo_Berends2022_phimin_config                      , &
       BIVgeo_Berends2022_phimax_config                      , &
       BIVgeo_target_velocity_filename_config                , &
+      choice_geothermal_heat_flux_config                    , &
+      constant_geothermal_heat_flux_config                  , &
+      filename_geothermal_heat_flux_config                  , &
       choice_initial_ice_temperature_NAM_config             , &
       choice_initial_ice_temperature_EAS_config             , &
       choice_initial_ice_temperature_GRL_config             , &
@@ -1765,6 +1789,7 @@ CONTAINS
     ! Values for uniform bed roughness
     C%slid_Weertman_beta_sq_uniform            = slid_Weertman_beta_sq_uniform_config
     C%slid_Coulomb_phi_fric_uniform            = slid_Coulomb_phi_fric_uniform_config
+    C%slid_Budd_phi_fric_uniform               = slid_Budd_phi_fric_uniform_config
     C%slid_Tsai2015_alpha_sq_uniform           = slid_Tsai2015_alpha_sq_uniform_config
     C%slid_Tsai2015_beta_sq_uniform            = slid_Tsai2015_beta_sq_uniform_config
     C%slid_Schoof2005_alpha_sq_uniform         = slid_Schoof2005_alpha_sq_uniform_config
@@ -1804,6 +1829,13 @@ CONTAINS
     C%BIVgeo_Berends2022_phimin                = BIVgeo_Berends2022_phimin_config
     C%BIVgeo_Berends2022_phimax                = BIVgeo_Berends2022_phimax_config
     C%BIVgeo_target_velocity_filename          = BIVgeo_target_velocity_filename_config
+
+  ! == Geothermal heat flux
+  ! =======================
+
+    C%choice_geothermal_heat_flux              = choice_geothermal_heat_flux_config
+    C%constant_geothermal_heat_flux            = constant_geothermal_heat_flux_config
+    C%filename_geothermal_heat_flux            = filename_geothermal_heat_flux_config
 
   ! == Thermodynamics and rheology
   ! ==============================

@@ -17,6 +17,9 @@ MODULE ice_model_main
   USE ice_model_utilities                                    , ONLY: determine_masks
   USE reference_geometries                                   , ONLY: type_reference_geometry
   USE math_utilities                                         , ONLY: ice_surface_elevation, thickness_above_floatation
+  USE basal_conditions_main                                  , ONLY: initialise_basal_conditions
+  USE ice_velocity_SIA                                       , ONLY: initialise_SIA_solver
+  USE ice_velocity_SSA                                       , ONLY: initialise_SSA_solver
 
   IMPLICIT NONE
 
@@ -25,7 +28,7 @@ CONTAINS
 ! ===== Main routines =====
 ! =========================
 
-subroutine initialise_ice_model( mesh, ice, refgeo_init, refgeo_PD)
+  subroutine initialise_ice_model( mesh, ice, refgeo_init, refgeo_PD)
     ! Initialise all data fields of the ice module
 
     implicit none
@@ -91,6 +94,7 @@ subroutine initialise_ice_model( mesh, ice, refgeo_init, refgeo_PD)
     ! Initial topography
     ! ==================
 
+    ! Basic topography
     do vi = 1, mesh%nV_loc
       ! Main quantities
       ice%Hi ( vi) = refgeo_init%Hi( vi)
@@ -107,52 +111,117 @@ subroutine initialise_ice_model( mesh, ice, refgeo_init, refgeo_PD)
       ice%dHib( vi)  = ice%Hib( vi) - (refgeo_PD%Hs ( vi) - refgeo_PD%Hi( vi))
     end do
 
+    ! Initialised predicted ice thickness
+    ice%Hi_tplusdt = ice%Hi
+
     ! Initial masks
     ! =============
 
+    ! Sector masks
     call determine_masks( mesh, ice)
 
-    ! ! Initialise some numbers for the predictor/corrector ice thickness update method
-    ! ice%pc_zeta        = 1._dp
-    ! ice%pc_eta         = C%pc_epsilon
-    ! ice%pc_eta_prev    = C%pc_epsilon
+    ! Initialise previous-time-step mask
+    ice%mask_ice_prev = ice%mask_ice
 
-    ! ice%dHb_dt_a = 0._dp
-    ! ice%dHi_dt_a = 0._dp
-    ! ice%dHs_dt_a = 0._dp
+    ! Initial rates of change
+    ! =======================
 
-    ! ! Initialise the "previous ice mask", so that the first call to thermodynamics works correctly
-    ! ice%mask_ice_a_prev( mesh%vi1:mesh%vi2) = ice%mask_ice_a( mesh%vi1:mesh%vi2)
-    ! call allgather_array(ice%mask_ice_a_prev)
+    ice%dHi_dt  = 0._dp
+    ice%dHb_dt  = 0._dp
+    ice%dHs_dt  = 0._dp
+    ice%dHib_dt = 0._dp
 
-    ! ! Allocate and initialise basal conditions
-    ! call initialise_basal_conditions( mesh, ice)
+    ! Basal conditions
+    ! ================
 
-    ! ! Geothermal heat flux
-    ! select case (C%choice_geothermal_heat_flux)
+    ! Allocate and initialise basal conditions
+    call initialise_basal_conditions( mesh, ice)
 
-    !   case ('constant')
-    !     ! Uniform value over whole domain
-    !     ice%GHF_a( mesh%vi1:mesh%vi2) = C%constant_geothermal_heat_flux
+    ! Velocities
+    ! ==========
 
-    !   case ('spatial')
-    !     ! Spatially variable field
-    !     call crash ('spatially variable GHF not yet implemented!')
-    !     ! call map_geothermal_heat_flux_to_mesh( mesh, ice)
-
-    !   case default
-    !     ! Unknown case
-    !     call crash('unknown choice_geothermal_heat_flux "' // &
-    !                 trim( C%choice_geothermal_heat_flux) // '"!')
-
-    ! end select
-
-    ! ! Initialise data and matrices for the velocity solver(s)
-    ! call initialise_velocity_solver( mesh, ice)
+    ! Initialise data and matrices for the velocity solver(s)
+    call initialise_velocity_solver( mesh, ice)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
 
   end subroutine initialise_ice_model
+
+! ===== Stress balance =====
+! ==========================
+
+  subroutine initialise_velocity_solver( mesh, ice)
+    ! Allocation and initialisation
+
+    implicit none
+
+    ! Input variables:
+    type(type_mesh),      intent(in)    :: mesh
+    type(type_ice_model), intent(inout) :: ice
+
+    ! Local variables:
+    character(len=256), parameter       :: routine_name = 'initialise_velocity_solver'
+
+    ! === Initialisation ===
+    ! ======================
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    if (par%master) then
+      write(*,"(A)") '   Initialising ice velocities using ' // colour_string( trim(C%choice_stress_balance_approximation),'light blue') // ' dynamics...'
+    end if
+    call sync
+
+    ! === Ice dynamics approximation ===
+    ! ==================================
+
+    select case (C%choice_stress_balance_approximation)
+
+      case ('SIA')
+        ! Shallow Ice Approximation
+
+        ! Initialise solver
+        call initialise_SIA_solver( mesh, ice%SIA)
+
+      case ('SSA')
+        ! Shallow Shelf Approximation
+
+        ! Initialise solver
+        call initialise_SSA_solver( mesh, ice%SSA)
+
+      case ('SIA/SSA')
+        ! Hybrid SIA/SSA
+
+        ! Initialise solver
+        call crash('SIA/SSA solver not implemented yet')
+
+      case ('DIVA')
+        ! Depth-Integrated Viscosity Approximation
+
+        ! Initialise solver
+        call crash('DIVA solver not implemented yet')
+
+      case ('BPA')
+        ! Blatter-Pattyn Approximation
+
+        ! Initialise solver
+        call crash('BPA solver not implemented yet')
+
+      case default
+        ! Unkwon case
+        call crash('unknown choice_stress_balance_approximation "' // &
+                    trim( C%choice_stress_balance_approximation) // '"!')
+
+    end select
+
+    ! === Finalisation ===
+    ! ====================
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine initialise_velocity_solver
 
 END MODULE ice_model_main

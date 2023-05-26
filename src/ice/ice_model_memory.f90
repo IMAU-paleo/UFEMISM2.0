@@ -82,18 +82,22 @@ subroutine allocate_ice_model( mesh, ice)
     allocate( ice%SL ( mesh%nV_loc ))
     ice%SL = 0d0
 
-    ! ! === Ice change ===
-    ! ! ==================
+    ! === Ice change ===
+    ! ==================
 
-    ! ! dH/dt
-    ! allocate( ice%dVi_in       ( 1:mesh%nV, mesh%nC_mem ))
-    ! ice%dVi_in = 0d0
-    ! allocate( ice%dHi_dt_a     ( mesh%nV_loc      ))
-    ! ice%dHi_dt_a = 0d0
-    ! allocate( ice%Hi_tplusdt_a ( mesh%nV_loc      ))
-    ! ice%Hi_tplusdt_a = 0d0
-    ! allocate( ice%dHs_dt_a     ( mesh%nV_loc      ))
-    ! ice%dHs_dt_a = 0d0
+    ! Rates of change
+    allocate( ice%dHi_dt     ( mesh%nV_loc      ))
+    ice%dHi_dt = 0d0
+    allocate( ice%dHb_dt     ( mesh%nV_loc      ))
+    ice%dHb_dt = 0d0
+    allocate( ice%dHs_dt     ( mesh%nV_loc      ))
+    ice%dHs_dt = 0d0
+    allocate( ice%dHib_dt    ( mesh%nV_loc      ))
+    ice%dHib_dt = 0d0
+
+    ! Predicted ice thickness at next step
+    allocate( ice%Hi_tplusdt ( mesh%nV_loc      ))
+    ice%Hi_tplusdt = 0d0
 
     ! ! Predictor/corrector method
     ! allocate( ice%pc_tau       ( mesh%nV_loc      ))
@@ -137,7 +141,7 @@ subroutine allocate_ice_model( mesh, ice)
     ! ice%frictional_heating_a = 0d0
 
     ! ! Geothermal heat flux
-    ! allocate( ice%GHF_a                ( mesh%nV_loc       ))   ! Geothermal heat flux
+    ! allocate( ice%geothermal_heat_flux                ( mesh%nV_loc       ))   ! Geothermal heat flux
 
     ! ! === Ice flow ===
     ! ! ================
@@ -208,6 +212,29 @@ subroutine allocate_ice_model( mesh, ice)
     ! ice%uabs_base_a = 0d0
     ! allocate( ice%uabs_base_b ( nTri_loc ))
     ! ice%uabs_base_b = 0d0
+
+    ! === Basal conditions ===
+    ! ========================
+
+    ! Basal hydrology
+    allocate( ice%pore_water_pressure ( mesh%nV_loc ))
+    ice%pore_water_pressure = 0d0
+    allocate( ice%overburden_pressure ( mesh%nV_loc ))
+    ice%overburden_pressure = 0d0
+    allocate( ice%effective_pressure  ( mesh%nV_loc ))
+    ice%effective_pressure = 0d0
+
+    ! Basal sliding
+    allocate( ice%friction_coef_1    ( mesh%nV_loc ))
+    ice%friction_coef_1 = 0d0
+    allocate( ice%friction_coef_2    ( mesh%nV_loc ))
+    ice%friction_coef_2 = 0d0
+    allocate( ice%basal_shear_stress ( mesh%nV_loc ))
+    ice%basal_shear_stress = 0d0
+
+    ! Geothermal heat flux
+    allocate( ice%geothermal_heat_flux ( mesh%nV_loc ))
+    ice%geothermal_heat_flux = 0d0
 
     ! ! === Grounded area fractions ===
     ! ! ===============================

@@ -99,12 +99,13 @@ UFEMISM_source = \
   reference_states/reference_geometries.f90 \
   \
   basal_conditions/sliding_laws.f90 \
+  basal_conditions/basal_conditions_main.f90 \
   \
-  ice/ice_model_memory.o \
-  ice/ice_model_utilities.o \
-  ice/ice_velocity_SIA.o \
+  ice/ice_model_memory.f90 \
+  ice/ice_model_utilities.f90 \
+  ice/ice_velocity_SIA.f90 \
   ice/ice_velocity_SSA.f90 \
-  ice/ice_model_main.o \
+  ice/ice_model_main.f90 \
   \
   validation/unit_tests_mpi.f90 \
   validation/unit_tests_petsc.f90 \
