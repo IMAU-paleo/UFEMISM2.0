@@ -73,143 +73,138 @@ subroutine allocate_ice_model( mesh, ice)
     allocate( ice%dHib ( mesh%nV_loc ))
     ice%dHib = 0d0
 
-    ! === Sea level ===
-    ! =================
-
-    ! Sea level
-    allocate( ice%SL ( mesh%nV_loc ))
-    ice%SL = 0d0
-
-    ! === Ice change ===
-    ! ==================
-
-    ! Rates of change
-    allocate( ice%dHi_dt     ( mesh%nV_loc      ))
-    ice%dHi_dt = 0d0
-    allocate( ice%dHb_dt     ( mesh%nV_loc      ))
-    ice%dHb_dt = 0d0
-    allocate( ice%dHs_dt     ( mesh%nV_loc      ))
-    ice%dHs_dt = 0d0
-    allocate( ice%dHib_dt    ( mesh%nV_loc      ))
-    ice%dHib_dt = 0d0
-
     ! Predicted ice thickness at next step
-    allocate( ice%Hi_tplusdt ( mesh%nV_loc      ))
+    allocate( ice%Hi_tplusdt ( mesh%nV_loc ))
     ice%Hi_tplusdt = 0d0
 
-    ! ! Predictor/corrector method
-    ! allocate( ice%pc_tau       ( mesh%nV_loc      ))
-    ! ice%pc_tau = 0d0
-    ! allocate( ice%pc_fcb       ( mesh%nV_loc      ))
-    ! ice%pc_fcb = 0d0
-    ! allocate( ice%pc_f1        ( mesh%nV_loc      ))
-    ! ice%pc_f1 = 0d0
-    ! allocate( ice%pc_f2        ( mesh%nV_loc      ))
-    ! ice%pc_f2 = 0d0
-    ! allocate( ice%pc_f3        ( mesh%nV_loc      ))
-    ! ice%pc_f3 = 0d0
-    ! allocate( ice%pc_f4        ( mesh%nV_loc      ))
-    ! ice%pc_f4 = 0d0
-    ! allocate( ice%Hi_old       ( mesh%nV_loc      ))
-    ! ice%Hi_old = 0d0
-    ! allocate( ice%Hi_pred      ( mesh%nV_loc      ))
-    ! ice%Hi_pred = 0d0
-    ! allocate( ice%Hi_corr      ( mesh%nV_loc      ))
-    ! ice%Hi_corr = 0d0
+    ! === Geometry rates of change ===
+    ! ================================
 
-    ! ! === Thermodynamics ===
-    ! ! ======================
+    allocate( ice%dHi_dt  ( mesh%nV_loc ))
+    ice%dHi_dt = 0d0
+    allocate( ice%dHb_dt  ( mesh%nV_loc ))
+    ice%dHb_dt = 0d0
+    allocate( ice%dHs_dt  ( mesh%nV_loc ))
+    ice%dHs_dt = 0d0
+    allocate( ice%dHib_dt ( mesh%nV_loc ))
+    ice%dHib_dt = 0d0
 
-    ! ! Ice temperatures
-    ! allocate( ice%Ti_a                 ( mesh%nV_loc, C%nz ))   ! Ice temperatures
-    ! ice%Ti_pmp_a = 0d0
-    ! allocate( ice%Ti_pmp_a             ( mesh%nV_loc, C%nz ))   ! Ice pressure melting point
-    ! ice%Ti_pmp_a = 0d0
+    ! === Thermodynamics ===
+    ! ======================
 
-    ! ! Physical quantities
-    ! allocate( ice%Cpi_a                ( mesh%nV_loc, C%nz ))   ! Ice specific heat capacity
-    ! ice%Cpi_a = 0d0
-    ! allocate( ice%Ki_a                 ( mesh%nV_loc, C%nz ))   ! Ice conductivity
-    ! ice%Ki_a = 0d0
+    ! Ice temperatures
+    allocate( ice%Ti     ( mesh%nV_loc, C%nz ))   ! Ice temperatures
+    ice%Ti = 0d0
+    allocate( ice%Ti_pmp ( mesh%nV_loc, C%nz ))   ! Ice pressure melting point
+    ice%Ti_pmp = 0d0
 
-    ! ! Heating
-    ! allocate( ice%internal_heating_a   ( mesh%nV_loc, C%nz ))
-    ! ice%internal_heating_a = 0d0
-    ! allocate( ice%frictional_heating_a ( mesh%nV_loc       ))
-    ! ice%frictional_heating_a = 0d0
+    ! Physical quantities
+    allocate( ice%Cpi ( mesh%nV_loc, C%nz ))   ! Ice specific heat capacity
+    ice%Cpi = 0d0
+    allocate( ice%Ki  ( mesh%nV_loc, C%nz ))   ! Ice conductivity
+    ice%Ki = 0d0
 
-    ! ! Geothermal heat flux
-    ! allocate( ice%geothermal_heat_flux                ( mesh%nV_loc       ))   ! Geothermal heat flux
+    ! Heating
+    allocate( ice%internal_heating   ( mesh%nV_loc, C%nz ))
+    ice%internal_heating = 0d0
+    allocate( ice%frictional_heating ( mesh%nV_loc       ))
+    ice%frictional_heating = 0d0
 
-    ! ! === Ice flow ===
-    ! ! ================
+    ! === Ice flow ===
+    ! ================
 
-    ! allocate( ice%A_flow_3D_a  ( mesh%nV_loc, C%nz ))   ! Ice flow factor
-    ! ice%A_flow_3D_a = 0d0
-    ! allocate( ice%A_flow_vav_a ( mesh%nV_loc       ))   ! Vertically integrated
-    ! ice%A_flow_vav_a = 0d0
-    ! ice%GHF_a = 0d0
+    allocate( ice%A_flow_3D  ( mesh%nV_loc, C%nz ))   ! Ice flow factor
+    ice%A_flow_3D = 0d0
+    allocate( ice%A_flow_vav ( mesh%nV_loc       ))   ! Vertically integrated
+    ice%A_flow_vav = 0d0
 
-    ! ! === Ice velocities ===
-    ! ! ======================
+    ! === Ice velocities ===
+    ! ======================
 
-    ! ! 3-D
-    ! allocate( ice%u_3D_a ( mesh%nV_loc, C%nz ))
-    ! ice%u_3D_a = 0d0
-    ! allocate( ice%v_3D_a ( mesh%nV_loc, C%nz ))
-    ! ice%v_3D_a = 0d0
-    ! allocate( ice%u_3D_b ( nTri_loc, C%nz ))
-    ! ice%u_3D_b = 0d0
-    ! allocate( ice%v_3D_b ( nTri_loc, C%nz ))
-    ! ice%v_3D_b = 0d0
-    ! allocate( ice%w_3D_a ( mesh%nV_loc, C%nz ))
-    ! ice%w_3D_a = 0d0
+    ! 3-D
+    allocate( ice%u_3D   ( mesh%nV_loc, C%nz   ))
+    ice%u_3D = 0d0
+    allocate( ice%v_3D   ( mesh%nV_loc, C%nz   ))
+    ice%v_3D = 0d0
+    allocate( ice%u_3D_b ( mesh%nTri_loc, C%nz ))
+    ice%u_3D_b = 0d0
+    allocate( ice%v_3D_b ( mesh%nTri_loc, C%nz ))
+    ice%v_3D_b = 0d0
+    allocate( ice%w_3D   ( mesh%nV_loc, C%nz   ))
+    ice%w_3D = 0d0
 
-    ! ! Vertically integrated
-    ! allocate( ice%u_vav_a    ( mesh%nV_loc ))
-    ! ice%u_vav_a = 0d0
-    ! allocate( ice%v_vav_a    ( mesh%nV_loc ))
-    ! ice%v_vav_a = 0d0
-    ! allocate( ice%u_vav_b    ( nTri_loc ))
-    ! ice%u_vav_b = 0d0
-    ! allocate( ice%v_vav_b    ( nTri_loc ))
-    ! ice%v_vav_b = 0d0
-    ! allocate( ice%uabs_vav_a ( mesh%nV_loc ))
-    ! ice%uabs_vav_a = 0d0
-    ! allocate( ice%uabs_vav_b ( nTri_loc ))
-    ! ice%uabs_vav_b = 0d0
+    ! Vertically integrated
+    allocate( ice%u_vav      ( mesh%nV_loc   ))
+    ice%u_vav = 0d0
+    allocate( ice%v_vav      ( mesh%nV_loc   ))
+    ice%v_vav = 0d0
+    allocate( ice%u_vav_b    ( mesh%nTri_loc ))
+    ice%u_vav_b = 0d0
+    allocate( ice%v_vav_b    ( mesh%nTri_loc ))
+    ice%v_vav_b = 0d0
+    allocate( ice%uabs_vav   ( mesh%nV_loc   ))
+    ice%uabs_vav = 0d0
+    allocate( ice%uabs_vav_b ( mesh%nTri_loc ))
+    ice%uabs_vav_b = 0d0
 
-    ! ! Surface
-    ! allocate( ice%u_surf_a    ( mesh%nV_loc ))
-    ! ice%u_surf_a = 0d0
-    ! allocate( ice%v_surf_a    ( mesh%nV_loc ))
-    ! ice%v_surf_a = 0d0
-    ! allocate( ice%u_surf_b    ( nTri_loc ))
-    ! ice%u_surf_b = 0d0
-    ! allocate( ice%v_surf_b    ( nTri_loc ))
-    ! ice%v_surf_b = 0d0
-    ! allocate( ice%w_surf_a    ( mesh%nV_loc ))
-    ! ice%w_surf_a = 0d0
-    ! allocate( ice%uabs_surf_a ( mesh%nV_loc ))
-    ! ice%uabs_surf_a = 0d0
-    ! allocate( ice%uabs_surf_b ( nTri_loc ))
-    ! ice%uabs_surf_b = 0d0
+    ! Surface
+    allocate( ice%u_surf      ( mesh%nV_loc   ))
+    ice%u_surf = 0d0
+    allocate( ice%v_surf      ( mesh%nV_loc   ))
+    ice%v_surf = 0d0
+    allocate( ice%u_surf_b    ( mesh%nTri_loc ))
+    ice%u_surf_b = 0d0
+    allocate( ice%v_surf_b    ( mesh%nTri_loc ))
+    ice%v_surf_b = 0d0
+    allocate( ice%w_surf      ( mesh%nV_loc   ))
+    ice%w_surf = 0d0
+    allocate( ice%uabs_surf   ( mesh%nV_loc   ))
+    ice%uabs_surf = 0d0
+    allocate( ice%uabs_surf_b ( mesh%nTri_loc ))
+    ice%uabs_surf_b = 0d0
 
-    ! ! Basal
-    ! allocate( ice%u_base_a    ( mesh%nV_loc ))
-    ! ice%u_base_a = 0d0
-    ! allocate( ice%v_base_a    ( mesh%nV_loc ))
-    ! ice%v_base_a = 0d0
-    ! allocate( ice%u_base_b    ( nTri_loc ))
-    ! ice%u_base_b = 0d0
-    ! allocate( ice%v_base_b    ( nTri_loc ))
-    ! ice%v_base_b = 0d0
-    ! allocate( ice%w_base_a    ( mesh%nV_loc ))
-    ! ice%w_base_a = 0d0
-    ! allocate( ice%uabs_base_a ( mesh%nV_loc ))
-    ! ice%uabs_base_a = 0d0
-    ! allocate( ice%uabs_base_b ( nTri_loc ))
-    ! ice%uabs_base_b = 0d0
+    ! Basal
+    allocate( ice%u_base      ( mesh%nV_loc   ))
+    ice%u_base = 0d0
+    allocate( ice%v_base      ( mesh%nV_loc   ))
+    ice%v_base = 0d0
+    allocate( ice%u_base_b    ( mesh%nTri_loc ))
+    ice%u_base_b = 0d0
+    allocate( ice%v_base_b    ( mesh%nTri_loc ))
+    ice%v_base_b = 0d0
+    allocate( ice%w_base      ( mesh%nV_loc   ))
+    ice%w_base = 0d0
+    allocate( ice%uabs_base   ( mesh%nV_loc   ))
+    ice%uabs_base = 0d0
+    allocate( ice%uabs_base_b ( mesh%nTri_loc ))
+    ice%uabs_base_b = 0d0
+
+    ! === Strain rates ===
+    ! ====================
+
+    ! u-component
+    allocate( ice%du_dx_3D ( mesh%nV_loc, C%nz ))
+    allocate( ice%du_dy_3D ( mesh%nV_loc, C%nz ))
+    allocate( ice%du_dz_3D ( mesh%nV_loc, C%nz ))
+    ice%du_dx_3D = 0d0
+    ice%du_dy_3D = 0d0
+    ice%du_dz_3D = 0d0
+
+    ! v-component
+    allocate( ice%dv_dx_3D ( mesh%nV_loc, C%nz ))
+    allocate( ice%dv_dy_3D ( mesh%nV_loc, C%nz ))
+    allocate( ice%dv_dz_3D ( mesh%nV_loc, C%nz ))
+    ice%dv_dx_3D = 0d0
+    ice%dv_dy_3D = 0d0
+    ice%dv_dz_3D = 0d0
+
+    ! w-component
+    allocate( ice%dw_dx_3D ( mesh%nV_loc, C%nz ))
+    allocate( ice%dw_dy_3D ( mesh%nV_loc, C%nz ))
+    allocate( ice%dw_dz_3D ( mesh%nV_loc, C%nz ))
+    ice%dw_dx_3D = 0d0
+    ice%dw_dy_3D = 0d0
+    ice%dw_dz_3D = 0d0
 
     ! === Basal conditions ===
     ! ========================
@@ -234,47 +229,32 @@ subroutine allocate_ice_model( mesh, ice)
     allocate( ice%geothermal_heat_flux ( mesh%nV_loc ))
     ice%geothermal_heat_flux = 0d0
 
-    ! ! === Grounded area fractions ===
-    ! ! ===============================
+    ! === Sea level ===
+    ! =================
 
-    ! allocate( ice%f_grnd_a ( mesh%nV_loc ))
-    ! allocate( ice%f_grnd_b ( nTri_loc ))
+    ! Regional sea level
+    allocate( ice%SL ( mesh%nV_loc ))
+    ice%SL = 0d0
 
-    ! ! === Zeta derivatives ===
-    ! ! ========================
+    ! === Area fractions ===
+    ! ======================
 
-    ! allocate( ice%dzeta_dt_a ( mesh%nV_loc , C%nz ))
-    ! ice%dzeta_dt_a = 0d0
-    ! allocate( ice%dzeta_dx_a ( mesh%nV_loc , C%nz ))
-    ! ice%dzeta_dx_a = 0d0
-    ! allocate( ice%dzeta_dy_a ( mesh%nV_loc , C%nz ))
-    ! ice%dzeta_dy_a = 0d0
-    ! allocate( ice%dzeta_dz_a ( mesh%nV_loc        ))
-    ! ice%dzeta_dz_a = 0d0
+    ! Grounded
+    allocate( ice%fraction_gr   ( mesh%nV_loc   ))
+    ice%fraction_gr = 0d0
+    allocate( ice%fraction_gr_b ( mesh%nTri_loc ))
+    ice%fraction_gr_b = 0d0
 
-    ! ! === Calving ===
-    ! ! ===============
+    ! Calving front
+    allocate( ice%fraction_cf   ( mesh%nV_loc   ))
+    ice%fraction_cf = 0d0
 
-    ! allocate( ice%float_margin_frac_a ( mesh%nV_loc ))
-    ! ice%float_margin_frac_a = 0d0
-    ! allocate( ice%Hi_eff_cf_a         ( mesh%nV_loc ))
-    ! ice%Hi_eff_cf_a = 0d0
+    ! === Basins ===
+    ! ==============
 
-    ! ! === GIA ===
-    ! ! ===========
-
-    ! allocate( ice%dHb_dt_a ( mesh%nV_loc ))
-    ! ice%dHb_dt_a = 0d0
-    ! allocate( ice%dSL_dt_a ( mesh%nV_loc ))
-    ! ice%dSL_dt_a = 0d0
-
-    ! ! === Extras ===
-    ! ! ==============
-
-    ! allocate( ice%surf_curv    ( mesh%nV ))
-    ! ice%surf_curv = 0d0
-    ! allocate( ice%log_velocity ( mesh%nV_loc ))
-    ! ice%log_velocity = 0d0
+    ! Basin ID's
+    allocate( ice%basin_ID ( mesh%nV_loc ))
+    ice%basin_ID = 0
 
     ! Finalise routine path
     call finalise_routine( routine_name)

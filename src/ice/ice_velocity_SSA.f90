@@ -1183,7 +1183,7 @@ CONTAINS
     ! Apply the sub-grid grounded fraction
     IF (C%do_GL_subgrid_friction) THEN
       DO ti = 1, mesh%nTri_loc
-        SSA%beta_b_b( ti) = SSA%beta_b_b( ti) * ice%f_grnd_b( ti)**2
+        SSA%beta_b_b( ti) = SSA%beta_b_b( ti) * ice%fraction_gr_b( ti)**2
       END DO
     END IF
 

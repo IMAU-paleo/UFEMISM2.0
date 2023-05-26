@@ -10,8 +10,8 @@ MODULE ice_model_types
 
   IMPLICIT NONE
 
-! ===== Global variables =====
-! ============================
+! ===== Types =====
+! =================
 
   TYPE type_ice_velocity_solver_SIA
     ! Data fields needed to solve the Shallow Ice Approximation
@@ -115,10 +115,15 @@ MODULE ice_model_types
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: Cpi                         ! [J kg^-1 K^-1] Specific heat capacity
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: Ki                          ! [J m^-1 K^-1 yr^-1] Thermal conductivity
 
+    ! Heating
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: internal_heating            ! [?] Internal heating
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: frictional_heating          ! [?] Frictional heating
+
     ! === Ice flow ===
     ! ================
 
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: A_flow_3D                   ! [Pa^-3 y^-1] Glen's flow law parameter
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: A_flow_vav                  ! [Pa^-3 y^-1] Vertically averaged Glen's flow law parameter
 
     ! === Ice velocities ===
     ! ======================
@@ -188,12 +193,12 @@ MODULE ice_model_types
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: tau_c                       ! Till yield stress tauc   (used when choice_sliding_law = "Coloumb" or "Coulomb_regularised")
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: alpha_sq                    ! Coulomb-law friction coefficient [unitless]         (used when choice_sliding_law =             "Tsai2015", or "Schoof2005")
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: beta_sq                     ! Power-law friction coefficient   [Pa m^−1/3 yr^1/3] (used when choice_sliding_law = "Weertman", "Tsai2015", or "Schoof2005")
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: beta_b                      ! Basal friction (tau_b = u * beta_b)
 
     ! Basal sliding
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: basal_shear_stress          ! Basal shear stress
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: beta_b                      ! Basal friction coefficient (tau_b = u * beta_b)
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: friction_coef_1             ! Generic basal friction coefficient 1
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: friction_coef_2             ! Generic basal friction coefficient 2
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: basal_shear_stress          ! Basal shear stress
 
     ! Geothermal heat
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: geothermal_heat_flux        ! Geothermal heat flux
@@ -203,11 +208,15 @@ MODULE ice_model_types
 
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: SL                          ! [m] Sea level (geoid) elevation (w.r.t. PD sea level)
 
-    ! === Grounded area fractions ===
-    ! ===============================
+    ! === Area fractions ===
+    ! ======================
 
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: f_grnd                      ! [0-1] Grounded fractions of vertices
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: f_grnd_b                    ! [0-1] Grounded fractions of triangles
+    ! Grounded
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: fraction_gr                 ! [0-1] Grounded area fractions of vertices
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: fraction_gr_b               ! [0-1] Grounded area fractions of triangles
+
+    ! Calving front
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: fraction_cf                 ! [0-1] Ice-covered area fractions of calving fronts
 
     ! === Extras ===
     ! ==============
@@ -217,8 +226,5 @@ MODULE ice_model_types
   END TYPE type_ice_model
 
 CONTAINS
-
-! ===== Subroutines ======
-! ========================
 
 END MODULE ice_model_types
