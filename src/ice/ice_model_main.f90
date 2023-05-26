@@ -5,13 +5,11 @@ MODULE ice_model_main
 ! ===== Preamble =====
 ! ====================
 
-  USE mpi
   USE precisions                                             , ONLY: dp
-  USE mpi_basic                                              , ONLY: par, cerr, ierr, MPI_status, sync
-  USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
+  USE mpi_basic                                              , ONLY: par, sync
+  USE control_resources_and_error_messaging                  , ONLY: crash, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
   USE mesh_types                                             , ONLY: type_mesh
-  USE grid_basic                                             , ONLY: type_grid
   USE ice_model_types                                        , ONLY: type_ice_model
   USE ice_model_memory                                       , ONLY: allocate_ice_model
   USE ice_model_utilities                                    , ONLY: determine_masks
@@ -170,7 +168,9 @@ CONTAINS
     call init_routine( routine_name)
 
     if (par%master) then
-      write(*,"(A)") '   Initialising ice velocities using ' // colour_string( trim(C%choice_stress_balance_approximation),'light blue') // ' dynamics...'
+      write(*,"(A)") '   Initialising ice velocities using ' // &
+                      colour_string( trim(C%choice_stress_balance_approximation),'light blue') // &
+                     ' dynamics...'
     end if
     call sync
 

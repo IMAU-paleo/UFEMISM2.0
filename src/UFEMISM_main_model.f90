@@ -5,10 +5,10 @@ MODULE UFEMISM_main_model
 ! ===== Preamble =====
 ! ====================
 
-  USE mpi
+  ! USE mpi
   USE precisions                                             , ONLY: dp
-  USE mpi_basic                                              , ONLY: par, cerr, ierr, MPI_status, sync
-  USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
+  USE mpi_basic                                              , ONLY: par, sync
+  USE control_resources_and_error_messaging                  , ONLY: crash, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
   USE mesh_types                                             , ONLY: type_mesh
   USE reference_geometries                                   , ONLY: type_reference_geometry, initialise_reference_geometries_raw, &
@@ -18,7 +18,6 @@ MODULE UFEMISM_main_model
   USE netcdf_basic                                           , ONLY: open_existing_netcdf_file_for_reading, close_netcdf_file
   USE netcdf_input                                           , ONLY: setup_mesh_from_file
   USE mesh_creation                                          , ONLY: create_mesh_from_gridded_geometry, create_mesh_from_meshed_geometry, write_mesh_success
-  USE mesh_secondary                                         , ONLY: calc_all_secondary_mesh_data
   USE mesh_operators                                         , ONLY: calc_all_matrix_operators_mesh
 
   ! DENK DROM

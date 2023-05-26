@@ -5,15 +5,8 @@ MODULE ice_model_types
 ! ===== Preamble =====
 ! ====================
 
-#include <petsc/finclude/petscksp.h>
-  USE petscksp
-  USE mpi
+  USE petscksp                                               , ONLY: tMat
   USE precisions                                             , ONLY: dp
-  USE mpi_basic                                              , ONLY: par, cerr, ierr, MPI_status, sync
-  USE mpi_distributed_memory                                 , ONLY: partition_list
-  USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
-  USE model_configuration                                    , ONLY: C
-  USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp
 
   IMPLICIT NONE
 
@@ -135,8 +128,8 @@ MODULE ice_model_types
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHs                         ! [m] Surface elevation difference (w.r.t. to reference)
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHib                        ! [m] Base elevation difference (w.r.t. to reference)
 
-    ! === Ice change ===
-    ! ==================
+    ! === Geometry rates of change ===
+    ! ================================
 
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHi_dt                      ! [m yr^-1] Ice thickness rate of change
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHb_dt                      ! [m yr^-1] Bedrock elevation rate of change
