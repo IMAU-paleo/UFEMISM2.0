@@ -38,6 +38,7 @@ MODULE mesh_types
     INTEGER                                 :: nTri                          !           Number of triangles
     INTEGER                                 :: nz                            !           Number of vertical layers
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: zeta                          ! [0-1]     Scaled vertical coordinate
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: zeta_stag                     !           Staggered zeta grid
 
   ! Primary mesh data
   ! =================
@@ -186,16 +187,6 @@ MODULE mesh_types
     TYPE(type_sparse_matrix_CSR_dp)         :: M2_d2dx2_b_b
     TYPE(type_sparse_matrix_CSR_dp)         :: M2_d2dxdy_b_b
     TYPE(type_sparse_matrix_CSR_dp)         :: M2_d2dy2_b_b
-
-    ! Vector component to scalar conversion matrices, b-grid (triangles)
-    TYPE(tMat)                              :: M_map_bu_b
-    TYPE(tMat)                              :: M_map_bv_b
-    TYPE(tMat)                              :: M_map_b_bu
-    TYPE(tMat)                              :: M_map_b_bv
-    TYPE(tMat)                              :: M_map_bku_bk
-    TYPE(tMat)                              :: M_map_bkv_bk
-    TYPE(tMat)                              :: M_map_bk_bku
-    TYPE(tMat)                              :: M_map_bk_bkv
 
   END TYPE type_mesh
 

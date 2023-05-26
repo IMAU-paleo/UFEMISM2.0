@@ -12,7 +12,7 @@ MODULE petsc_basic
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE parameters
   USE reallocate_mod                                         , ONLY: reallocate
-  USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp
+  USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp, allocate_matrix_CSR_dist, add_entry_CSR_dist, deallocate_matrix_CSR_dist
   USE mpi_distributed_memory                                 , ONLY: partition_list, gather_to_all_dp_1D
 
   IMPLICIT NONE
@@ -97,7 +97,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'solve_matrix_equation_PETSc'
-    INTEGER                                            :: m, n, n1, n2, m1, m2, m_local, n_local
+    INTEGER                                            :: m, n, m_local, n_local
     TYPE(tVec)                                         :: b
     TYPE(tVec)                                         :: x
     TYPE(tKSP)                                         :: KSP_solver
@@ -106,56 +106,56 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-!    ! Safety
-!    CALL MatGetSize( A, m, n, perr)
-!    CALL MatGetLocalSize( A, m_local, n_local, perr)
-!
-!    IF (n_local /= SIZE( xx,1) .OR. m_local /= SIZE( bb,1)) THEN
-!      CALL crash('matrix and vector sub-sizes dont match!')
-!    END IF
-!
-!  ! == Set up right-hand side and solution vectors as PETSc data structures
-!  ! =======================================================================
-!
-!    CALL vec_double2petsc( xx, x, n, n_local)
-!    CALL vec_double2petsc( bb, b, m, m_local)
-!
-!  ! Set up the solver
-!  ! =================
-!
-!    ! Set up the KSP solver
-!    CALL KSPcreate( PETSC_COMM_WORLD, KSP_solver, perr)
-!
-!    ! Set operators. Here the matrix that defines the linear system
-!    ! also serves as the preconditioning matrix.
-!    CALL KSPSetOperators( KSP_solver, A, A, perr)
-!
-!    ! Iterative solver tolerances
-!    CALL KSPSetTolerances( KSP_solver, rtol, abstol, PETSC_DEFAULT_REAL, PETSC_DEFAULT_INTEGER, perr)
-!
-!    ! Set runtime options, e.g.,
-!    !     -ksp_type <type> -pc_type <type> -ksp_monitor -ksp_rtol <rtol>
-!    ! These options will override those specified above as long as
-!    ! KSPSetFromOptions() is called _after_ any other customization routines.
-!    CALL KSPSetFromOptions( KSP_solver, perr)
-!
-!  ! == Solve Ax=b
-!  ! =============
-!
-!    ! Solve the linear system
-!    CALL KSPSolve( KSP_solver, b, x, perr)
-!
-!    ! Find out how many iterations it took
-!    CALL KSPGetIterationNumber( KSP_solver, its, perr)
-!    !IF (par%master) WRITE(0,*) '   PETSc solved Ax=b in ', its, ' iterations'
-!
-!    ! Get the solution back to the native UFEMISM storage structure
-!    CALL vec_petsc2double( x, xx)
-!
-!    ! Clean up after yourself
-!    CALL KSPDestroy( KSP_solver, perr)
-!    CALL VecDestroy( x, perr)
-!    CALL VecDestroy( b, perr)
+    ! Safety
+    CALL MatGetSize( A, m, n, perr)
+    CALL MatGetLocalSize( A, m_local, n_local, perr)
+
+    IF (n_local /= SIZE( xx,1) .OR. m_local /= SIZE( bb,1)) THEN
+      CALL crash('matrix and vector sub-sizes dont match!')
+    END IF
+
+  ! == Set up right-hand side and solution vectors as PETSc data structures
+  ! =======================================================================
+
+    CALL vec_double2petsc( xx, x)
+    CALL vec_double2petsc( bb, b)
+
+  ! Set up the solver
+  ! =================
+
+    ! Set up the KSP solver
+    CALL KSPcreate( PETSC_COMM_WORLD, KSP_solver, perr)
+
+    ! Set operators. Here the matrix that defines the linear system
+    ! also serves as the preconditioning matrix.
+    CALL KSPSetOperators( KSP_solver, A, A, perr)
+
+    ! Iterative solver tolerances
+    CALL KSPSetTolerances( KSP_solver, rtol, abstol, PETSC_DEFAULT_REAL, PETSC_DEFAULT_INTEGER, perr)
+
+    ! Set runtime options, e.g.,
+    !     -ksp_type <type> -pc_type <type> -ksp_monitor -ksp_rtol <rtol>
+    ! These options will override those specified above as long as
+    ! KSPSetFromOptions() is called _after_ any other customization routines.
+    CALL KSPSetFromOptions( KSP_solver, perr)
+
+  ! == Solve Ax=b
+  ! =============
+
+    ! Solve the linear system
+    CALL KSPSolve( KSP_solver, b, x, perr)
+
+    ! Find out how many iterations it took
+    CALL KSPGetIterationNumber( KSP_solver, its, perr)
+    !IF (par%master) WRITE(0,*) '   PETSc solved Ax=b in ', its, ' iterations'
+
+    ! Get the solution back to the native UFEMISM storage structure
+    CALL vec_petsc2double( x, xx)
+
+    ! Clean up after yourself
+    CALL KSPDestroy( KSP_solver, perr)
+    CALL VecDestroy( x, perr)
+    CALL VecDestroy( b, perr)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
