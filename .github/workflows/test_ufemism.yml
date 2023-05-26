@@ -1,4 +1,4 @@
-name: UFEMISM Github Action
+name: Run Tests for UFEMISM
 env:
   os: ubuntu-22.04
 

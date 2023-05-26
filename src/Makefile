@@ -8,9 +8,9 @@
 
 # Include settings from (uncommented) file below:
 
-#include Makefile_include_local.txt
+include Makefile_include_local.txt
 #include Makefile_include_mac.txt
-include Makefile_include_nix.txt
+#include Makefile_include_nix.txt
 #include Makefile_include_gemini.txt
 #include Makefile_include_snellius.txt
 #include Makefile_include_book.txt
