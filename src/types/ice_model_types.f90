@@ -55,39 +55,6 @@ MODULE ice_model_types
     REAL(dp)                                :: PETSc_rtol
     REAL(dp)                                :: PETSc_abstol
 
-    ! Stiffness matrices and load vectors
-    TYPE(tMat)                              :: AA                          ! Total stiffness matrix
-    TYPE(tMat)                              :: AA_free                     ! Stiffness matrix describing the free SSA
-    TYPE(tMat)                              :: AA_BC_west                  ! Stiffness matrix describing boundary conditions on the western  domain boundary
-    TYPE(tMat)                              :: AA_BC_east                  ! Stiffness matrix describing boundary conditions on the eastern  domain boundary
-    TYPE(tMat)                              :: AA_BC_south                 ! Stiffness matrix describing boundary conditions on the southern domain boundary
-    TYPE(tMat)                              :: AA_BC_north                 ! Stiffness matrix describing boundary conditions on the northern domain boundary
-    TYPE(tMat)                              :: AA_BC_prescr                ! Stiffness matrix describing boundary conditions for prescribed velocities
-
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: bb                          ! Total load vector
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: bb_free                     ! Load vector for the free SSA
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: bb_BC_west                  ! Load vector for the boundary conditions on the western  domain boundary
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: bb_BC_east                  ! Load vector for the boundary conditions on the eastern  domain boundary
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: bb_BC_south                 ! Load vector for the boundary conditions on the southern domain boundary
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: bb_BC_north                 ! Load vector for the boundary conditions on the northern domain boundary
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: bb_BC_prescr                ! Load vector for the boundary conditions for prescribed velocities
-
-    ! Matrices describing masks for the different components of the equation
-    TYPE(tMat)                              :: m_free                      ! Matrix mask for the free SSA
-    TYPE(tMat)                              :: m_BC_west                   ! Matrix mask for the boundary conditions on the western  domain boundary
-    TYPE(tMat)                              :: m_BC_east                   ! Matrix mask for the boundary conditions on the eastern  domain boundary
-    TYPE(tMat)                              :: m_BC_south                  ! Matrix mask for the boundary conditions on the southern domain boundary
-    TYPE(tMat)                              :: m_BC_north                  ! Matrix mask for the boundary conditions on the northern domain boundary
-    TYPE(tMat)                              :: m_BC_prescr                 ! Matrix mask for the boundary conditions for prescribed velocities
-
-    ! Some useful combined mesh operators
-    TYPE(tMat)                              :: M_4_d2udx2_p_3_d2vdxdy_p_d2udy2_buv_b
-    TYPE(tMat)                              :: M_4_dudx_p_2_dvdy_buv_b
-    TYPE(tMat)                              :: M_dudy_p_dvdx_buv_b
-    TYPE(tMat)                              :: M_4_d2vdy2_p_3_d2udxdy_p_d2vdx2_buv_b
-    TYPE(tMat)                              :: M_4_dvdy_p_2_dudx_buv_b
-    TYPE(tMat)                              :: M_dvdx_p_dudy_buv_b
-
   END TYPE type_ice_velocity_solver_SSA
 
   TYPE type_ice_model
@@ -215,6 +182,12 @@ MODULE ice_model_types
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: pore_water_pressure         ! Basal pore water pressure
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: overburden_pressure         ! Basal overburden pressure
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: effective_pressure          ! Basal effective pressure
+
+    ! Basal roughness / friction
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: phi_fric                    ! Till friction angle (degrees)
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: tau_c                       ! Till yield stress tauc   (used when choice_sliding_law = "Coloumb" or "Coulomb_regularised")
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: alpha_sq                    ! Coulomb-law friction coefficient [unitless]         (used when choice_sliding_law =             "Tsai2015", or "Schoof2005")
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: beta_sq                     ! Power-law friction coefficient   [Pa m^−1/3 yr^1/3] (used when choice_sliding_law = "Weertman", "Tsai2015", or "Schoof2005")
 
     ! Basal sliding
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: basal_shear_stress          ! Basal shear stress

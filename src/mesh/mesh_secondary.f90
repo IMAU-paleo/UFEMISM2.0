@@ -20,6 +20,7 @@ MODULE mesh_secondary
                                                                      calc_matrix_operators_mesh_a_a, calc_matrix_operators_mesh_a_b, calc_matrix_operators_mesh_a_c, &
                                                                      calc_matrix_operators_mesh_b_a, calc_matrix_operators_mesh_b_b, calc_matrix_operators_mesh_b_c, &
                                                                      calc_matrix_operators_mesh_c_a, calc_matrix_operators_mesh_c_b, calc_matrix_operators_mesh_c_c
+  USE mesh_zeta                                              , ONLY: initialise_scaled_vertical_coordinate
 
   IMPLICIT NONE
 
@@ -41,22 +42,22 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_all_secondary_mesh_data'
-    INTEGER                                            :: nz
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
     ! Secondary geometry data
-    CALL construct_mesh_edges(                mesh)
-    CALL calc_TriBI(                          mesh)
-    CALL calc_Voronoi_cell_areas(             mesh)
-    CALL calc_Voronoi_cell_geometric_centres( mesh)
-    CALL calc_connection_widths(              mesh)
-    CALL calc_triangle_areas(                 mesh)
-    CALL calc_mesh_resolution(                mesh)
-    CALL calc_triangle_geometric_centres(     mesh)
-    CALL calc_lonlat(                         mesh, lambda_M, phi_M, beta_stereo)
-    CALL calc_mesh_parallelisation_ranges(    mesh)
+    CALL construct_mesh_edges(                  mesh)
+    CALL calc_TriBI(                            mesh)
+    CALL calc_Voronoi_cell_areas(               mesh)
+    CALL calc_Voronoi_cell_geometric_centres(   mesh)
+    CALL calc_connection_widths(                mesh)
+    CALL calc_triangle_areas(                   mesh)
+    CALL calc_mesh_resolution(                  mesh)
+    CALL calc_triangle_geometric_centres(       mesh)
+    CALL calc_lonlat(                           mesh, lambda_M, phi_M, beta_stereo)
+    CALL calc_mesh_parallelisation_ranges(      mesh)
+    CALL initialise_scaled_vertical_coordinate( mesh)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

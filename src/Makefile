@@ -98,6 +98,8 @@ UFEMISM_source = \
   \
   reference_states/reference_geometries.f90 \
   \
+  basal_conditions/basal_hydrology.f90 \
+  basal_conditions/bed_roughness.f90 \
   basal_conditions/sliding_laws.f90 \
   basal_conditions/basal_conditions_main.f90 \
   \

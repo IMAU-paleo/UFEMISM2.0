@@ -320,4 +320,32 @@ CONTAINS
 
   END SUBROUTINE gather_CSR_dist_to_master
 
+  SUBROUTINE read_single_row_CSR_dist( A, i, ind, val, nnz)
+    ! Read the coefficients of a single row of A
+
+    IMPLICIT NONE
+
+    ! In- and output variables:
+    TYPE(type_sparse_matrix_CSR_dp),     INTENT(IN)    :: A
+    INTEGER,                             INTENT(IN)    :: i
+    INTEGER,  DIMENSION(:    ),          INTENT(INOUT) :: ind
+    REAL(dp), DIMENSION(:    ),          INTENT(INOUT) :: val
+    INTEGER,                             INTENT(OUT)   :: nnz
+
+    ! Local variables:
+    INTEGER                                            :: k1,k2
+
+    ! Safety
+    IF (i < A%i1 .OR. i > A%i2) CALL crash('row {int_01} is not owned by process {int_02}!', int_01 = i, int_02 = par%i)
+
+    k1 = A%ptr( i)
+    k2 = A%ptr( i+1) - 1
+
+    nnz = k2 + 1 - k1
+
+    ind( 1:nnz) = A%ind( k1:k2)
+    val( 1:nnz) = A%val( k1:k2)
+
+  END SUBROUTINE read_single_row_CSR_dist
+
 END MODULE CSR_sparse_matrix_utilities
