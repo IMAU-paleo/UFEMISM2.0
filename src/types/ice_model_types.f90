@@ -191,7 +191,6 @@ MODULE ice_model_types
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: effective_pressure          ! Basal effective pressure
 
     ! Basal roughness / friction
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: beta_b                      ! Friction coefficient ([basal shear stress] = [friction coefficient] * [basal velocity])
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: phi_fric                    ! Till friction angle (degrees)
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: tau_c                       ! Till yield stress tauc   (used when choice_sliding_law = "Coloumb" or "Coulomb_regularised")
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: alpha_sq                    ! Coulomb-law friction coefficient [unitless]         (used when choice_sliding_law =             "Tsai2015", or "Schoof2005")
