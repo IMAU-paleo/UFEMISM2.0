@@ -689,9 +689,6 @@ CONTAINS
         ! Refine the mesh to the applied uniform resolution
         CALL refine_mesh_uniform( mesh, res_max_uniform_applied, C%alpha_min)
 
-        ! Smooth the mesh
-        CALL Lloyds_algorithm_single_iteration( mesh, C%alpha_min)
-
         ! Stop refining once we've reached the desired resolution
         IF (res_max_uniform_applied == C%maximum_resolution_uniform) EXIT
 

@@ -233,8 +233,14 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    nl = SIZE( p_line,1)
+    ! If the line is empty, the solution is trivial
+    IF (SIZE( p_line,1) == 0 .AND. SIZE( p_line,2) == 0) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
+
     ! Safety
+    nl = SIZE( p_line,1)
     IF (SIZE( p_line,2) /= 4) CALL crash('line must be an n-by-4 array!')
 
   ! == Initialise triangle-line overlap ranges ==
@@ -515,6 +521,12 @@ CONTAINS
 
     ! Add routine to path
     CALL init_routine( routine_name)
+
+    ! If the polygon is empty, the solution is trivial
+    IF (SIZE( poly,1) == 0 .AND. SIZE( poly,2) == 0) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
 
     ! First refine the mesh along the polygon perimeter by treating it as a 1-D line
     CALL poly2line( poly, p_line)

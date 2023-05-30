@@ -3678,7 +3678,7 @@ CONTAINS
     REAL(dp), DIMENSION(2)                             :: cc1, cc2, ccl, ccr, llis
     LOGICAL                                            :: do_cross
 
-    ! Find the END IFpoints of this shared Voronoi boundary
+    ! Find the endpoints of this shared Voronoi boundary
     CALL find_shared_Voronoi_boundary( mesh, ei_on, cc1, cc2)
 
     ! Safety
@@ -3706,6 +3706,58 @@ CONTAINS
       ! ei lies in the interior and has triangles on both sides
       ccl = mesh%Tricc( til,:)
       ccr = mesh%Tricc( tir,:)
+    END IF
+
+    ! Check if q coincides with ccl
+    IF (NORM2( ccl - q) < mesh%tol_dist) THEN
+      ! q coincides with ccl
+      p_next    = q
+      vi_in     = 0
+      ti_on     = 0
+      ei_on     = 0
+      vi_left   = via
+      coincides = .TRUE.
+      finished  = .TRUE.
+      RETURN
+    END IF
+
+    ! Check if q coincides with ccr
+    IF (NORM2( ccr - q) < mesh%tol_dist) THEN
+      ! q coincides with ccr
+      p_next    = q
+      vi_in     = 0
+      ti_on     = 0
+      ei_on     = 0
+      vi_left   = vib
+      coincides = .TRUE.
+      finished  = .TRUE.
+      RETURN
+    END IF
+
+    ! Check if [pq] passes through ccl
+    IF (lies_on_line_segment( p, q, ccl, mesh%tol_dist)) THEN
+      ! [pq] passes through ccl
+      p_next    = ccl
+      vi_in     = 0
+      ti_on     = til
+      ei_on     = 0
+      vi_left   = via
+      coincides = .TRUE.
+      finished  = .FALSE.
+      RETURN
+    END IF
+
+    ! Check if [pq] passes through ccr
+    IF (lies_on_line_segment( p, q, ccr, mesh%tol_dist)) THEN
+      ! [pq] passes through ccr
+      p_next    = ccr
+      vi_in     = 0
+      ti_on     = tir
+      ei_on     = 0
+      vi_left   = vib
+      coincides = .TRUE.
+      finished  = .FALSE.
+      RETURN
     END IF
 
     ! Check if q coincides with vil (if it exists)
@@ -3736,32 +3788,6 @@ CONTAINS
         finished  = .TRUE.
         RETURN
       END IF
-    END IF
-
-    ! Check if q coincides with ccl
-    IF (NORM2( ccl - q) < mesh%tol_dist) THEN
-      ! q coincides with ccl
-      p_next    = q
-      vi_in     = 0
-      ti_on     = 0
-      ei_on     = 0
-      vi_left   = via
-      coincides = .TRUE.
-      finished  = .TRUE.
-      RETURN
-    END IF
-
-    ! Check if q coincides with ccr
-    IF (NORM2( ccr - q) < mesh%tol_dist) THEN
-      ! q coincides with ccr
-      p_next    = q
-      vi_in     = 0
-      ti_on     = 0
-      ei_on     = 0
-      vi_left   = vib
-      coincides = .TRUE.
-      finished  = .TRUE.
-      RETURN
     END IF
 
     ! Check if q lies inside the Voronoi cell of via
@@ -3856,29 +3882,22 @@ CONTAINS
       END IF
     END DO
 
-    ! Check if [pq] passes through either of this boundary's endpoints
-    IF (lies_on_line_segment( p, q, ccl, mesh%tol_dist)) THEN
-      ! [pq] passes through ccl
-      p_next    = ccl
-      vi_in     = 0
-      ti_on     = til
-      ei_on     = 0
-      vi_left   = via
-      coincides = .TRUE.
-      finished  = .FALSE.
-      RETURN
-    END IF
-    IF (lies_on_line_segment( p, q, ccr, mesh%tol_dist)) THEN
-      ! [pq] passes through ccr
-      p_next    = ccr
-      vi_in     = 0
-      ti_on     = tir
-      ei_on     = 0
-      vi_left   = vib
-      coincides = .TRUE.
-      finished  = .FALSE.
-      RETURN
-    END IF
+    ! Check if pq crosses the circumcentre of any of the triangles surrounding via
+    DO vti = 1, mesh%niTri( via)
+      ti = mesh%iTri( via,vti)
+      cc1 = mesh%Tricc( ti,:)
+      IF (lies_on_line_segment( p, q, cc1, mesh%tol_dist)) THEN
+        ! [pq] passes through the circumcentre of triangle ti
+        p_next    = cc1
+        vi_in     = 0
+        ti_on     = ti
+        ei_on     = 0
+        vi_left   = via
+        coincides = .FALSE.
+        finished  = .FALSE.
+        RETURN
+      END IF
+    END DO
 
     ! Check if pq crosses the boundary of the Voronoi cell of via
     DO vvi = 1, mesh%nC( via)
@@ -3893,6 +3912,23 @@ CONTAINS
         ti_on     = 0
         ei_on     = ei
         vi_left   = via
+        coincides = .FALSE.
+        finished  = .FALSE.
+        RETURN
+      END IF
+    END DO
+
+    ! Check if pq crosses the circumcentre of any of the triangles surrounding vib
+    DO vti = 1, mesh%niTri( vib)
+      ti = mesh%iTri( vib,vti)
+      cc1 = mesh%Tricc( ti,:)
+      IF (lies_on_line_segment( p, q, cc1, mesh%tol_dist)) THEN
+        ! [pq] passes through the circumcentre of triangle ti
+        p_next    = cc1
+        vi_in     = 0
+        ti_on     = ti
+        ei_on     = 0
+        vi_left   = vib
         coincides = .FALSE.
         finished  = .FALSE.
         RETURN

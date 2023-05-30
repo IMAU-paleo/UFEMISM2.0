@@ -76,7 +76,7 @@ CONTAINS
     ALLOCATE( mesh%TriC             (nTri_mem, 3     ), source = 0    )
 
     ! Mesh generation/refinement data
-    ALLOCATE( mesh%Tri_flip_list    (nTri_mem, 2     ), source = 0    )
+    ALLOCATE( mesh%Tri_flip_list    (nTri_mem*2, 2   ), source = 0    )
     ALLOCATE( mesh%refinement_map   (nTri_mem        ), source = 0    )
     ALLOCATE( mesh%refinement_stack (nTri_mem        ), source = 0    )
     mesh%refinement_stackN = 0
@@ -120,7 +120,7 @@ CONTAINS
     CALL reallocate( mesh%TriC            , nTri_mem_new, 3          )
 
     ! Mesh generation/refinement data
-    CALL reallocate( mesh%Tri_flip_list   , nTri_mem_new, 2          )
+    CALL reallocate( mesh%Tri_flip_list   , nTri_mem_new*2, 2        )
     CALL reallocate( mesh%refinement_map  , nTri_mem_new             )
     CALL reallocate( mesh%refinement_stack, nTri_mem_new             )
     CALL reallocate( mesh%Tri_li          , nTri_mem_new, 2          )
@@ -169,7 +169,7 @@ CONTAINS
       CALL reallocate( mesh%TriC            , mesh%nTri, 3          )
 
       ! Mesh generation/refinement data
-      CALL reallocate( mesh%Tri_flip_list   , mesh%nTri, 2          )
+      CALL reallocate( mesh%Tri_flip_list   , mesh%nTri*2, 2        )
       CALL reallocate( mesh%refinement_map  , mesh%nTri             )
       CALL reallocate( mesh%refinement_stack, mesh%nTri             )
       CALL reallocate( mesh%Tri_li          , mesh%nTri, 2          )
