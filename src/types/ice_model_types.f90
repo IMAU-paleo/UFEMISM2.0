@@ -19,8 +19,8 @@ MODULE ice_model_types
     ! Solution
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: u_3D_b                      ! [m yr^-1] 3-D ice velocity
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: v_3D_b
-    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: du_dz_3D_a                  ! [yr^-1] Vertical shear strain rates
-    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: dv_dz_3D_a
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: du_dz_3D                    ! [yr^-1] Vertical shear strain rates
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: dv_dz_3D
 
     ! Intermediate data fields
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: D_3D_b                      ! [m yr^-1] Diffusivity
@@ -103,6 +103,14 @@ MODULE ice_model_types
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHs_dt                      ! [m yr^-1] Ice surface elevation rate of change
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHib_dt                     ! [m yr^-1] Ice base elevation rate of change
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: Hi_tplusdt                  ! [m] Predicted ice thickness at next time step
+
+    ! === Terrain-following coordinate zeta gradients ===
+    ! ===================================================
+
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: dzeta_dx_3D                 ! Gradients of the terrain-following (i.e. ice-geometry-dependent) vertical coordinate zeta
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: dzeta_dy_3D
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: dzeta_dz_3D
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: dzeta_dt_3D
 
     ! === Thermodynamics ===
     ! ======================

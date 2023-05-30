@@ -65,13 +65,13 @@ CONTAINS
     ! Allocate shared memory
 
     ! Solution
-    ALLOCATE( SIA%u_3D_b(     mesh%nTri_loc, mesh%nz), source = 0._dp)
-    ALLOCATE( SIA%v_3D_b(     mesh%nTri_loc, mesh%nz), source = 0._dp)
-    ALLOCATE( SIA%du_dz_3D_a( mesh%nV_loc  , mesh%nz), source = 0._dp)
-    ALLOCATE( SIA%dv_dz_3D_a( mesh%nV_loc  , mesh%nz), source = 0._dp)
+    ALLOCATE( SIA%u_3D_b(   mesh%nTri_loc, mesh%nz), source = 0._dp)
+    ALLOCATE( SIA%v_3D_b(   mesh%nTri_loc, mesh%nz), source = 0._dp)
+    ALLOCATE( SIA%du_dz_3D( mesh%nV_loc  , mesh%nz), source = 0._dp)
+    ALLOCATE( SIA%dv_dz_3D( mesh%nV_loc  , mesh%nz), source = 0._dp)
 
     ! Intermediate data fields
-    ALLOCATE( SIA%D_3D_b(     mesh%nTri_loc, mesh%nz), source = 0._dp)
+    ALLOCATE( SIA%D_3D_b(   mesh%nTri_loc, mesh%nz), source = 0._dp)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -90,10 +90,8 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'solve_SIA'
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE            ::  Hi_b,  Hs_b,  dHs_dx_a,  dHs_dy_a,  dHs_dx_b,  dHs_dy_b
-    INTEGER                                            :: wHi_b, wHs_b, wdHs_dx_a, wdHs_dy_a, wdHs_dx_b, wdHs_dy_b
-    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            ::  A_flow_3D_b
-    INTEGER                                            :: wA_flow_3D_b
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: Hi_b, Hs_b, dHs_dx, dHs_dy, dHs_dx_b, dHs_dy_b
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: A_flow_3D_b
     INTEGER                                            :: vi,ti,k
     REAL(dp)                                           :: abs_grad_Hs
     REAL(dp), DIMENSION(mesh%nz)                       :: z, int_A_hminzetan
@@ -104,8 +102,8 @@ CONTAINS
     ! Allocate memory
     ALLOCATE( Hi_b(        mesh%nTri_loc         ), source = 0._dp)
     ALLOCATE( Hs_b(        mesh%nTri_loc         ), source = 0._dp)
-    ALLOCATE( dHs_dx_a(    mesh%nV_loc           ), source = 0._dp)
-    ALLOCATE( dHs_dy_a(    mesh%nV_loc           ), source = 0._dp)
+    ALLOCATE( dHs_dx(      mesh%nV_loc           ), source = 0._dp)
+    ALLOCATE( dHs_dy(      mesh%nV_loc           ), source = 0._dp)
     ALLOCATE( dHs_dx_b(    mesh%nTri_loc         ), source = 0._dp)
     ALLOCATE( dHs_dy_b(    mesh%nTri_loc         ), source = 0._dp)
     ALLOCATE( A_flow_3D_b( mesh%nTri_loc, mesh%nz), source = 0._dp)
@@ -113,8 +111,8 @@ CONTAINS
     ! Calculate ice thickness, surface elevation, surface slopes, and ice flow factor on the b-grid
     CALL map_a_b_2D( mesh, ice%Hi       , Hi_b       )
     CALL map_a_b_2D( mesh, ice%Hs       , Hs_b       )
-    CALL ddx_a_a_2D( mesh, ice%Hs       , dHs_dx_a   )
-    CALL ddy_a_a_2D( mesh, ice%Hs       , dHs_dy_a   )
+    CALL ddx_a_a_2D( mesh, ice%Hs       , dHs_dx     )
+    CALL ddy_a_a_2D( mesh, ice%Hs       , dHs_dy     )
     CALL ddx_a_b_2D( mesh, ice%Hs       , dHs_dx_b   )
     CALL ddy_a_b_2D( mesh, ice%Hs       , dHs_dy_b   )
     CALL map_a_b_3D( mesh, ice%A_flow_3D, A_flow_3D_b)
@@ -152,14 +150,14 @@ CONTAINS
     ! Calculate vertical shear strain rates (needed later to calculate strain heating in thermodynamics)
     DO vi = 1, mesh%nV_loc
 
-      abs_grad_Hs = SQRT( dHs_dx_a( vi)**2 + dHs_dy_a( vi)**2)
+      abs_grad_Hs = SQRT( dHs_dx( vi)**2 + dHs_dy( vi)**2)
       z = ice%Hs( vi) - mesh%zeta * ice%Hi( vi)
 
       DO k = 1, mesh%nz
-        SIA%du_dz_3D_a( vi,k) = -2._dp * (ice_density * grav)**C%n_flow * abs_grad_Hs**(C%n_flow - 1._dp) * &
-          ice%A_flow_3D( vi,k) * (ice%Hs( vi) - z( k))**C%n_flow * dHs_dx_a( vi)
-        SIA%dv_dz_3D_a( vi,k) = -2._dp * (ice_density * grav)**C%n_flow * abs_grad_Hs**(C%n_flow - 1._dp) * &
-          ice%A_flow_3D( vi,k) * (ice%Hs( vi) - z( k))**C%n_flow * dHs_dy_a( vi)
+        SIA%du_dz_3D( vi,k) = -2._dp * (ice_density * grav)**C%n_flow * abs_grad_Hs**(C%n_flow - 1._dp) * &
+          ice%A_flow_3D( vi,k) * (ice%Hs( vi) - z( k))**C%n_flow * dHs_dx( vi)
+        SIA%dv_dz_3D( vi,k) = -2._dp * (ice_density * grav)**C%n_flow * abs_grad_Hs**(C%n_flow - 1._dp) * &
+          ice%A_flow_3D( vi,k) * (ice%Hs( vi) - z( k))**C%n_flow * dHs_dy( vi)
       END DO
 
     END DO ! DO vi = 1, mesh%nV_loc
@@ -167,8 +165,8 @@ CONTAINS
     ! Clean up after yourself
     DEALLOCATE( Hi_b       )
     DEALLOCATE( Hs_b       )
-    DEALLOCATE( dHs_dx_a   )
-    DEALLOCATE( dHs_dy_a   )
+    DEALLOCATE( dHs_dx     )
+    DEALLOCATE( dHs_dy     )
     DEALLOCATE( dHs_dx_b   )
     DEALLOCATE( dHs_dy_b   )
     DEALLOCATE( A_flow_3D_b)
@@ -204,13 +202,13 @@ CONTAINS
     ! Reallocate shared memory
 
     ! Solution
-    CALL reallocate_clean( SIA%u_3D_b    , mesh_new%nTri_loc, mesh_new%nz)
-    CALL reallocate_clean( SIA%v_3D_b    , mesh_new%nTri_loc, mesh_new%nz)
-    CALL reallocate_clean( SIA%du_dz_3D_a, mesh_new%nV_loc  , mesh_new%nz)
-    CALL reallocate_clean( SIA%dv_dz_3D_a, mesh_new%nV_loc  , mesh_new%nz)
+    CALL reallocate_clean( SIA%u_3D_b  , mesh_new%nTri_loc, mesh_new%nz)
+    CALL reallocate_clean( SIA%v_3D_b  , mesh_new%nTri_loc, mesh_new%nz)
+    CALL reallocate_clean( SIA%du_dz_3D, mesh_new%nV_loc  , mesh_new%nz)
+    CALL reallocate_clean( SIA%dv_dz_3D, mesh_new%nV_loc  , mesh_new%nz)
 
     ! Intermediate data fields
-    CALL reallocate_clean( SIA%D_3D_b    , mesh_new%nTri_loc, mesh_new%nz)
+    CALL reallocate_clean( SIA%D_3D_b  , mesh_new%nTri_loc, mesh_new%nz)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
