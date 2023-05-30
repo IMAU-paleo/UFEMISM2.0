@@ -131,7 +131,7 @@ CONTAINS
     IF (n /= 3._dp) CALL crash('Schoof only derived a solution for the case of n=3!')
 
     ! Calculate the gravitational driving stress f
-    f = ice_density * grav * H * tantheta
+    f = -ice_density * grav * H * tantheta
 
     ! Calculate the ice hardness factor B
     B = A**(-1._dp/3._dp)

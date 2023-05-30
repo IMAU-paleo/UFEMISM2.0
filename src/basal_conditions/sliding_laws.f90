@@ -341,11 +341,10 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! To prevent compiler warnings...
-    dummy_dp = u_a( 1)
-    dummy_dp = v_a( 1)
-
-    IF     (C%choice_idealised_sliding_law == 'ISMIP_HOM_C') THEN
+    IF     (C%choice_idealised_sliding_law == 'SSA_icestream') THEN
+      ! SSA ice stream (Schoof, 2006)
+      CALL calc_sliding_law_idealised_SSA_icestream( mesh, ice, u_a, v_a)
+    ELSEIF (C%choice_idealised_sliding_law == 'ISMIP_HOM_C') THEN
       ! ISMIP-HOM experiment C
       CALL calc_sliding_law_idealised_ISMIP_HOM_C( mesh, ice)
     ELSEIF (C%choice_idealised_sliding_law == 'ISMIP_HOM_D') THEN
@@ -365,6 +364,45 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE calc_sliding_law_idealised
+
+  SUBROUTINE calc_sliding_law_idealised_SSA_icestream( mesh, ice, u_a, v_a)
+    ! Sliding laws for some idealised experiments
+    !
+    ! The SSA ice stream experiment (Schoof, 2006) has a Coulomb sliding law,
+    ! but without the effective pressure term. Rather than implementing this
+    ! as an exception in the existing Coulomb sliding law routine, better
+    ! to simply add it as an idealised sliding law.
+
+    IMPLICIT NONE
+
+    ! In- and output variables:
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
+    TYPE(type_ice_model),                INTENT(INOUT) :: ice
+    REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: u_a
+    REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: v_a
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_sliding_law_idealised_SSA_icestream'
+    INTEGER                                            :: vi
+    REAL(dp)                                           :: uabs
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Calculate beta
+    DO vi = 1, mesh%nV_loc
+
+      ! Include a normalisation term following Bueler & Brown (2009) to prevent divide-by-zero errors.
+      uabs = SQRT( C%slid_delta_v**2 + u_a( vi)**2 + v_a( vi)**2)
+
+      ice%beta_b( vi) = ice%tau_c( vi) / uabs
+
+    END DO
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE calc_sliding_law_idealised_SSA_icestream
 
   SUBROUTINE calc_sliding_law_idealised_ISMIP_HOM_C( mesh, ice)
     ! Sliding laws for some idealised experiments

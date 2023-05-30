@@ -3473,7 +3473,7 @@ CONTAINS
         NORM2( cc1 - q) < mesh%tol_dist .OR. &
         NORM2( cc2 - q) < mesh%tol_dist) THEN
       ! q lies on the Voronoi cell boundary separating vib from vic
-      IF (mesh%EV( acbc,5) == ti_on) THEN
+      IF (mesh%ETri( acbc,1) == ti_on) THEN
         vi_left = mesh%EV( acbc,2)
       ELSE
         vi_left = mesh%EV( acbc,1)
@@ -3493,7 +3493,7 @@ CONTAINS
         NORM2( cc1 - q) < mesh%tol_dist .OR. &
         NORM2( cc2 - q) < mesh%tol_dist) THEN
       ! q lies on the Voronoi cell boundary separating vic from via
-      IF (mesh%EV( acca,5) == ti_on) THEN
+      IF (mesh%ETri( acca,1) == ti_on) THEN
         vi_left = mesh%EV( acca,2)
       ELSE
         vi_left = mesh%EV( acca,1)

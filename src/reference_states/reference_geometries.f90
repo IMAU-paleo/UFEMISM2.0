@@ -573,6 +573,36 @@ CONTAINS
 
   END SUBROUTINE remap_reference_geometry_to_mesh
 
+  ! Initialise idealised geometries on the model mesh
+  ! =================================================
+
+  SUBROUTINE initialise_reference_geometry_idealised( mesh, choice_refgeo_idealised, refgeo)
+    ! Initialise an idealised reference geometry on the model mesh
+
+    IMPLICIT NONE
+
+    ! In/output variables
+    TYPE(type_mesh)                                    , INTENT(IN)    :: mesh
+    CHARACTER(LEN=256)                                 , INTENT(IN)    :: choice_refgeo_idealised
+    TYPE(type_reference_geometry)                      , INTENT(INOUT) :: refgeo
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'initialise_reference_geometry_idealised'
+    INTEGER                                                            :: vii,vi
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    DO vii = 1, mesh%nV_loc
+      vi = mesh%vi1 + vii - 1
+      CALL calc_idealised_geometry( mesh%V( vi,1), mesh%V( vi,2), refgeo%Hi( vii), refgeo%Hb( vii), refgeo%Hs( vii), refgeo%SL( vii), choice_refgeo_idealised)
+    END DO
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE initialise_reference_geometry_idealised
+
   ! Calculate various idealsed geometries
   ! =====================================
 

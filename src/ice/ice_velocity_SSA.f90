@@ -12,6 +12,7 @@ MODULE ice_velocity_SSA
   USE mpi_basic                                              , ONLY: par, cerr, ierr, MPI_status, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
+  USE netcdf_debug                                           , ONLY: save_variable_as_netcdf_dp_1D, save_variable_as_netcdf_dp_2D
   USE petsc_basic                                            , ONLY: solve_matrix_equation_CSR_PETSc
   USE mesh_types                                             , ONLY: type_mesh
   USE ice_model_types                                        , ONLY: type_ice_model, type_ice_velocity_solver_SSA
@@ -23,6 +24,7 @@ MODULE ice_velocity_SSA
   USE mesh_utilities                                         , ONLY: find_ti_copy_ISMIP_HOM_periodic
   USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp, allocate_matrix_CSR_dist, add_entry_CSR_dist, read_single_row_CSR_dist, &
                                                                      deallocate_matrix_CSR_dist
+  USE analytical_solutions                                   , ONLY: Schoof2006_icestream
 
   IMPLICIT NONE
 
@@ -42,12 +44,27 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_SSA_solver'
+    INTEGER :: tii, ti
+    REAL(dp) :: y, tau_c
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
     ! Allocate memory
     CALL allocate_SSA_solver( mesh, SSA)
+
+    ! Set tolerances for PETSc matrix solver for the linearised SSA
+    SSA%PETSc_rtol   = C%stress_balance_PETSc_rtol
+    SSA%PETSc_abstol = C%stress_balance_PETSc_abstol
+
+!    ! DENK DROM
+!    DO tii = 1, mesh%nTri_loc
+!      ti = tii + mesh%ti1 - 1
+!      y = mesh%TriGC( ti,2)
+!      CALL Schoof2006_icestream( C%uniform_flow_factor, C%n_flow, C%refgeo_idealised_SSA_icestream_Hi, &
+!        C%refgeo_idealised_SSA_icestream_dhdx, C%refgeo_idealised_SSA_icestream_L, C%refgeo_idealised_SSA_icestream_m, &
+!        y, SSA%u_b( tii), tau_c)
+!    END DO
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -117,6 +134,7 @@ CONTAINS
     INTEGER                                                      :: viscosity_iteration_i
     LOGICAL                                                      :: has_converged
     REAL(dp)                                                     :: resid_UV
+    REAL(dp)                                                     :: uv_min, uv_max
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -183,8 +201,12 @@ CONTAINS
       ! Calculate the L2-norm of the two consecutive velocity solutions
       CALL calc_visc_iter_UV_resid( mesh, SSA, resid_UV)
 
-!      ! DENK DROM
-!      IF (par%master) WRITE(0,*) '    SSA - viscosity iteration ', viscosity_iteration_i, ', u = [', MINVAL( SSA%u_b), ' - ', MAXVAL( SSA%u_b), '], resid = ', resid_UV
+      ! DENK DROM
+      uv_min = MINVAL( SSA%u_b)
+      uv_max = MAXVAL( SSA%u_b)
+      CALL MPI_ALLREDUCE( MPI_IN_PLACE, uv_min, 1, MPI_DOUBLE_PRECISION, MPI_MIN, MPI_COMM_WORLD, ierr)
+      CALL MPI_ALLREDUCE( MPI_IN_PLACE, uv_max, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
+!      IF (par%master) WRITE(0,*) '    SSA - viscosity iteration ', viscosity_iteration_i, ', u = [', uv_min, ' - ', uv_max, '], resid = ', resid_UV
 
       ! If the viscosity iteration has converged, or has reached the maximum allowed number of iterations, stop it.
       has_converged = .FALSE.
@@ -389,19 +411,27 @@ CONTAINS
   SUBROUTINE calc_SSA_stiffness_matrix_row_free( mesh, SSA, A_CSR, bb, row_buv_glob)
     ! Add coefficients to this matrix row to represent the linearised SSA
     !
-    ! The first equation of the SSA reads;
+    ! The SSA reads;
     !
     !   d/dx [ 2 N ( 2 du/dx + dv/dy )] + d/dy [ N ( du/dy + dv/dx)] - beta_b u = -tau_dx
+    !
+    !   d/dy [ 2 N ( 2 dv/dy + du/dx )] + d/dx [ N ( dv/dx + du/dy)] - beta_b v = -tau_dy
     !
     ! Using the chain rule, this expands to read:
     !
     !   4 N d2u/dx2 + 4 dN/dx du/dx + 2 N d2v/dxdy + 2 dN/dx dv/dy + ...
     !     N d2u/dy2 +   dN/dy du/dy +   N d2v/dxdy +   dN/dy dv/dx - beta_b u = -tau_dx
     !
+    !   4 N d2v/dy2 + 4 dN/dy dv/dy + 2 N d2u/dxdy + 2 dN/dy du/dx + ...
+    !     N d2v/dx2 +   dN/dx dv/dx +   N d2u/dxdy +   dN/dx du/dy - beta_b v = -tau_dy
+    !
     ! Rearranging to gather the terms involving u and v gives:
     !
     !   4 N d2u/dx2  + 4 dN/dx du/dx + N d2u/dy2 + dN/dy du/dy - beta_b u + ...
     !   3 N d2v/dxdy + 2 dN/dx dv/dy +             dN/dy dv/dx = -tau_dx
+    !
+    !   4 N d2v/dy2  + 4 dN/dy dv/dy + N d2v/dx2 + dN/dx dv/dx - beta_b v + ...
+    !   3 N d2u/dxdy + 2 dN/dy du/dx +             dN/dx du/dy = -tau_dy
     !
     ! We define the velocities u,v, the basal friction coefficient beta_b, and the driving
     ! stress tau_d on the b-grid (triangles), and the effective viscosity eta and the
@@ -469,6 +499,9 @@ CONTAINS
         col_bu_glob = mesh%tiuv2n( tj_glob,1)
         col_bv_glob = mesh%tiuv2n( tj_glob,2)
 
+        !   4 N d2u/dx2  + 4 dN/dx du/dx + N d2u/dy2 + dN/dy du/dy - beta_b u + ...
+        !   3 N d2v/dxdy + 2 dN/dx dv/dy +             dN/dy dv/dx = -tau_dx
+
         ! Combine the mesh operators
         Au = 4._dp * N     * single_row_d2dx2_val(  k) + &  ! 4  N    d2u/dx2
              4._dp * dN_dx * single_row_ddx_val(    k) + &  ! 4 dN/dx du/dx
@@ -480,7 +513,7 @@ CONTAINS
              2._dp * dN_dx * single_row_ddy_val(    k) + &  ! 2 dN/dx dv/dy
                      dN_dy * single_row_ddx_val(    k)      !   dN/dy dv/dx
 
-       ! Add coefficients to the stiffness matrix
+        ! Add coefficients to the stiffness matrix
         CALL add_entry_CSR_dist( A_CSR, row_buv_glob, col_bu_glob, Au)
         CALL add_entry_CSR_dist( A_CSR, row_buv_glob, col_bv_glob, Av)
 
@@ -499,6 +532,9 @@ CONTAINS
         col_bu_glob = mesh%tiuv2n( tj_glob,1)
         col_bv_glob = mesh%tiuv2n( tj_glob,2)
 
+        !   4 N d2v/dy2  + 4 dN/dy dv/dy + N d2v/dx2 + dN/dx dv/dx - beta_b v + ...
+        !   3 N d2u/dxdy + 2 dN/dy du/dx +             dN/dx du/dy = -tau_dy
+
         ! Combine the mesh operators
         Av = 4._dp * N     * single_row_d2dy2_val(  k) + &  ! 4  N    d2v/dy2
              4._dp * dN_dy * single_row_ddy_val(    k) + &  ! 4 dN/dy dv/dy
@@ -510,7 +546,7 @@ CONTAINS
              2._dp * dN_dy * single_row_ddx_val(    k) + &  ! 2 dN/dy du/dx
                      dN_dx * single_row_ddy_val(    k)      !   dN/dx du/dy
 
-       ! Add coefficients to the stiffness matrix
+        ! Add coefficients to the stiffness matrix
         CALL add_entry_CSR_dist( A_CSR, row_buv_glob, col_bu_glob, Au)
         CALL add_entry_CSR_dist( A_CSR, row_buv_glob, col_bv_glob, Av)
 
@@ -548,36 +584,33 @@ CONTAINS
 
     ! Local variables:
     INTEGER                                                      :: row_buv_loc,ti,uv,row_b_glob
-    INTEGER,  DIMENSION(:    ), ALLOCATABLE                      :: single_row_ind
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: single_row_ddx_val
-    INTEGER                                                      :: single_row_nnz
     INTEGER                                                      :: k, col_b_glob, tj, col_buv_glob
+    INTEGER                                                      :: n, n_neighbours
 
     row_buv_loc = row_buv_glob - A_CSR%i1 + 1
     ti = mesh%n2tiuv( row_buv_glob,1)
     uv = mesh%n2tiuv( row_buv_glob,2)
     row_b_glob = mesh%ti2n( ti)
 
-    ! Allocate memory for single matrix rows
-    ALLOCATE( single_row_ind(     mesh%nC_mem*2))
-    ALLOCATE( single_row_ddx_val( mesh%nC_mem*2))
-
     IF (uv == 1) THEN
       ! x-component
 
       IF     (C%BC_u_west == 'infinite') THEN
         ! du/dy = 0
+        !
+        ! NOTE: using the d/dx operator matrix doesn't always work well, not sure why...
 
-        ! Read coefficients of the d/dx operator matrix
-        CALL read_single_row_CSR_dist( mesh%M2_ddx_b_b, row_b_glob, single_row_ind, single_row_ddx_val, single_row_nnz)
-
-        ! Add coefficients to stiffness matrix
-        DO k = 1, single_row_nnz
-          col_b_glob = single_row_ind( k)
-          tj = mesh%n2ti( col_b_glob)
+        ! Set u on this triangle equal to the average value on its neighbours
+        n_neighbours = 0
+        DO n = 1, 3
+          tj = mesh%TriC( ti,n)
+          IF (tj == 0) CYCLE
+          n_neighbours = n_neighbours + 1
           col_buv_glob = mesh%tiuv2n( tj,uv)
-          CALL add_entry_CSR_dist( A_CSR, row_buv_glob, col_buv_glob, single_row_ddx_val( k))
+          CALL add_entry_CSR_dist( A_CSR, row_buv_glob, col_buv_glob, 1._dp)
         END DO
+        IF (n_neighbours == 0) CALL crash('whaa!')
+        CALL add_entry_CSR_dist( A_CSR, row_buv_glob, row_buv_glob, -1._dp * REAL( n_neighbours,dp))
 
         ! Load vector
         bb( row_buv_loc) = 0._dp
@@ -606,17 +639,20 @@ CONTAINS
 
       IF     (C%BC_v_west == 'infinite') THEN
         ! dv/dy = 0
+        !
+        ! NOTE: using the d/dx operator matrix doesn't always work well, not sure why...
 
-        ! Read coefficients of the d/dx operator matrix
-        CALL read_single_row_CSR_dist( mesh%M2_ddx_b_b, row_b_glob, single_row_ind, single_row_ddx_val, single_row_nnz)
-
-        ! Add coefficients to stiffness matrix
-        DO k = 1, single_row_nnz
-          col_b_glob = single_row_ind( k)
-          tj = mesh%n2ti( col_b_glob)
+        ! Set v on this triangle equal to the average value on its neighbours
+        n_neighbours = 0
+        DO n = 1, 3
+          tj = mesh%TriC( ti,n)
+          IF (tj == 0) CYCLE
+          n_neighbours = n_neighbours + 1
           col_buv_glob = mesh%tiuv2n( tj,uv)
-          CALL add_entry_CSR_dist( A_CSR, row_buv_glob, col_buv_glob, single_row_ddx_val( k))
+          CALL add_entry_CSR_dist( A_CSR, row_buv_glob, col_buv_glob, 1._dp)
         END DO
+        IF (n_neighbours == 0) CALL crash('whaa!')
+        CALL add_entry_CSR_dist( A_CSR, row_buv_glob, row_buv_glob, -1._dp * REAL( n_neighbours,dp))
 
         ! Load vector
         bb( row_buv_loc) = 0._dp
@@ -644,10 +680,6 @@ CONTAINS
       CALL crash('uv can only be 1 or 2!')
     END IF
 
-    ! Clean up after yourself
-    DEALLOCATE( single_row_ind)
-    DEALLOCATE( single_row_ddx_val)
-
   END SUBROUTINE calc_SSA_stiffness_matrix_row_BC_west
 
   SUBROUTINE calc_SSA_stiffness_matrix_row_BC_east( mesh, SSA, A_CSR, bb, row_buv_glob)
@@ -665,36 +697,33 @@ CONTAINS
 
     ! Local variables:
     INTEGER                                                      :: row_buv_loc,ti,uv,row_b_glob
-    INTEGER,  DIMENSION(:    ), ALLOCATABLE                      :: single_row_ind
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: single_row_ddx_val
-    INTEGER                                                      :: single_row_nnz
     INTEGER                                                      :: k, col_b_glob, tj, col_buv_glob
+    INTEGER                                                      :: n, n_neighbours
 
     row_buv_loc = row_buv_glob - A_CSR%i1 + 1
     ti = mesh%n2tiuv( row_buv_glob,1)
     uv = mesh%n2tiuv( row_buv_glob,2)
     row_b_glob = mesh%ti2n( ti)
 
-    ! Allocate memory for single matrix rows
-    ALLOCATE( single_row_ind(     mesh%nC_mem*2))
-    ALLOCATE( single_row_ddx_val( mesh%nC_mem*2))
-
     IF (uv == 1) THEN
       ! x-component
 
       IF     (C%BC_u_east == 'infinite') THEN
         ! du/dy = 0
+        !
+        ! NOTE: using the d/dx operator matrix doesn't always work well, not sure why...
 
-        ! Read coefficients of the d/dx operator matrix
-        CALL read_single_row_CSR_dist( mesh%M2_ddx_b_b, row_b_glob, single_row_ind, single_row_ddx_val, single_row_nnz)
-
-        ! Add coefficients to stiffness matrix
-        DO k = 1, single_row_nnz
-          col_b_glob = single_row_ind( k)
-          tj = mesh%n2ti( col_b_glob)
+        ! Set u on this triangle equal to the average value on its neighbours
+        n_neighbours = 0
+        DO n = 1, 3
+          tj = mesh%TriC( ti,n)
+          IF (tj == 0) CYCLE
+          n_neighbours = n_neighbours + 1
           col_buv_glob = mesh%tiuv2n( tj,uv)
-          CALL add_entry_CSR_dist( A_CSR, row_buv_glob, col_buv_glob, single_row_ddx_val( k))
+          CALL add_entry_CSR_dist( A_CSR, row_buv_glob, col_buv_glob, 1._dp)
         END DO
+        IF (n_neighbours == 0) CALL crash('whaa!')
+        CALL add_entry_CSR_dist( A_CSR, row_buv_glob, row_buv_glob, -1._dp * REAL( n_neighbours,dp))
 
         ! Load vector
         bb( row_buv_loc) = 0._dp
@@ -723,17 +752,20 @@ CONTAINS
 
       IF     (C%BC_v_east == 'infinite') THEN
         ! dv/dy = 0
+        !
+        ! NOTE: using the d/dx operator matrix doesn't always work well, not sure why...
 
-        ! Read coefficients of the d/dx operator matrix
-        CALL read_single_row_CSR_dist( mesh%M2_ddx_b_b, row_b_glob, single_row_ind, single_row_ddx_val, single_row_nnz)
-
-        ! Add coefficients to stiffness matrix
-        DO k = 1, single_row_nnz
-          col_b_glob = single_row_ind( k)
-          tj = mesh%n2ti( col_b_glob)
+        ! Set v on this triangle equal to the average value on its neighbours
+        n_neighbours = 0
+        DO n = 1, 3
+          tj = mesh%TriC( ti,n)
+          IF (tj == 0) CYCLE
+          n_neighbours = n_neighbours + 1
           col_buv_glob = mesh%tiuv2n( tj,uv)
-          CALL add_entry_CSR_dist( A_CSR, row_buv_glob, col_buv_glob, single_row_ddx_val( k))
+          CALL add_entry_CSR_dist( A_CSR, row_buv_glob, col_buv_glob, 1._dp)
         END DO
+        IF (n_neighbours == 0) CALL crash('whaa!')
+        CALL add_entry_CSR_dist( A_CSR, row_buv_glob, row_buv_glob, -1._dp * REAL( n_neighbours,dp))
 
         ! Load vector
         bb( row_buv_loc) = 0._dp
@@ -761,10 +793,6 @@ CONTAINS
       CALL crash('uv can only be 1 or 2!')
     END IF
 
-    ! Clean up after yourself
-    DEALLOCATE( single_row_ind)
-    DEALLOCATE( single_row_ddx_val)
-
   END SUBROUTINE calc_SSA_stiffness_matrix_row_BC_east
 
   SUBROUTINE calc_SSA_stiffness_matrix_row_BC_south( mesh, SSA, A_CSR, bb, row_buv_glob)
@@ -782,36 +810,33 @@ CONTAINS
 
     ! Local variables:
     INTEGER                                                      :: row_buv_loc,ti,uv,row_b_glob
-    INTEGER,  DIMENSION(:    ), ALLOCATABLE                      :: single_row_ind
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: single_row_ddy_val
-    INTEGER                                                      :: single_row_nnz
     INTEGER                                                      :: k, col_b_glob, tj, col_buv_glob
+    INTEGER                                                      :: n, n_neighbours
 
     row_buv_loc = row_buv_glob - A_CSR%i1 + 1
     ti = mesh%n2tiuv( row_buv_glob,1)
     uv = mesh%n2tiuv( row_buv_glob,2)
     row_b_glob = mesh%ti2n( ti)
 
-    ! Allocate memory for single matrix rows
-    ALLOCATE( single_row_ind(     mesh%nC_mem*2))
-    ALLOCATE( single_row_ddy_val( mesh%nC_mem*2))
-
     IF (uv == 1) THEN
       ! x-component
 
       IF     (C%BC_u_south == 'infinite') THEN
         ! du/dy = 0
+        !
+        ! NOTE: using the d/dx operator matrix doesn't always work well, not sure why...
 
-        ! Read coefficients of the d/dy operator matrix
-        CALL read_single_row_CSR_dist( mesh%M2_ddy_b_b, row_b_glob, single_row_ind, single_row_ddy_val, single_row_nnz)
-
-        ! Add coefficients to stiffness matrix
-        DO k = 1, single_row_nnz
-          col_b_glob = single_row_ind( k)
-          tj = mesh%n2ti( col_b_glob)
+        ! Set u on this triangle equal to the average value on its neighbours
+        n_neighbours = 0
+        DO n = 1, 3
+          tj = mesh%TriC( ti,n)
+          IF (tj == 0) CYCLE
+          n_neighbours = n_neighbours + 1
           col_buv_glob = mesh%tiuv2n( tj,uv)
-          CALL add_entry_CSR_dist( A_CSR, row_buv_glob, col_buv_glob, single_row_ddy_val( k))
+          CALL add_entry_CSR_dist( A_CSR, row_buv_glob, col_buv_glob, 1._dp)
         END DO
+        IF (n_neighbours == 0) CALL crash('whaa!')
+        CALL add_entry_CSR_dist( A_CSR, row_buv_glob, row_buv_glob, -1._dp * REAL( n_neighbours,dp))
 
         ! Load vector
         bb( row_buv_loc) = 0._dp
@@ -840,17 +865,20 @@ CONTAINS
 
       IF     (C%BC_v_south == 'infinite') THEN
         ! dv/dy = 0
+        !
+        ! NOTE: using the d/dx operator matrix doesn't always work well, not sure why...
 
-        ! Read coefficients of the d/dy operator matrix
-        CALL read_single_row_CSR_dist( mesh%M2_ddy_b_b, row_b_glob, single_row_ind, single_row_ddy_val, single_row_nnz)
-
-        ! Add coefficients to stiffness matrix
-        DO k = 1, single_row_nnz
-          col_b_glob = single_row_ind( k)
-          tj = mesh%n2ti( col_b_glob)
+        ! Set v on this triangle equal to the average value on its neighbours
+        n_neighbours = 0
+        DO n = 1, 3
+          tj = mesh%TriC( ti,n)
+          IF (tj == 0) CYCLE
+          n_neighbours = n_neighbours + 1
           col_buv_glob = mesh%tiuv2n( tj,uv)
-          CALL add_entry_CSR_dist( A_CSR, row_buv_glob, col_buv_glob, single_row_ddy_val( k))
+          CALL add_entry_CSR_dist( A_CSR, row_buv_glob, col_buv_glob, 1._dp)
         END DO
+        IF (n_neighbours == 0) CALL crash('whaa!')
+        CALL add_entry_CSR_dist( A_CSR, row_buv_glob, row_buv_glob, -1._dp * REAL( n_neighbours,dp))
 
         ! Load vector
         bb( row_buv_loc) = 0._dp
@@ -878,10 +906,6 @@ CONTAINS
       CALL crash('uv can only be 1 or 2!')
     END IF
 
-    ! Clean up after yourself
-    DEALLOCATE( single_row_ind)
-    DEALLOCATE( single_row_ddy_val)
-
   END SUBROUTINE calc_SSA_stiffness_matrix_row_BC_south
 
   SUBROUTINE calc_SSA_stiffness_matrix_row_BC_north( mesh, SSA, A_CSR, bb, row_buv_glob)
@@ -899,36 +923,33 @@ CONTAINS
 
     ! Local variables:
     INTEGER                                                      :: row_buv_loc,ti,uv,row_b_glob
-    INTEGER,  DIMENSION(:    ), ALLOCATABLE                      :: single_row_ind
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: single_row_ddy_val
-    INTEGER                                                      :: single_row_nnz
     INTEGER                                                      :: k, col_b_glob, tj, col_buv_glob
+    INTEGER                                                      :: n, n_neighbours
 
     row_buv_loc = row_buv_glob - A_CSR%i1 + 1
     ti = mesh%n2tiuv( row_buv_glob,1)
     uv = mesh%n2tiuv( row_buv_glob,2)
     row_b_glob = mesh%ti2n( ti)
 
-    ! Allocate memory for single matrix rows
-    ALLOCATE( single_row_ind(     mesh%nC_mem*2))
-    ALLOCATE( single_row_ddy_val( mesh%nC_mem*2))
-
     IF (uv == 1) THEN
       ! x-component
 
       IF     (C%BC_u_north == 'infinite') THEN
         ! du/dy = 0
+        !
+        ! NOTE: using the d/dx operator matrix doesn't always work well, not sure why...
 
-        ! Read coefficients of the d/dy operator matrix
-        CALL read_single_row_CSR_dist( mesh%M2_ddy_b_b, row_b_glob, single_row_ind, single_row_ddy_val, single_row_nnz)
-
-        ! Add coefficients to stiffness matrix
-        DO k = 1, single_row_nnz
-          col_b_glob = single_row_ind( k)
-          tj = mesh%n2ti( col_b_glob)
+        ! Set u on this triangle equal to the average value on its neighbours
+        n_neighbours = 0
+        DO n = 1, 3
+          tj = mesh%TriC( ti,n)
+          IF (tj == 0) CYCLE
+          n_neighbours = n_neighbours + 1
           col_buv_glob = mesh%tiuv2n( tj,uv)
-          CALL add_entry_CSR_dist( A_CSR, row_buv_glob, col_buv_glob, single_row_ddy_val( k))
+          CALL add_entry_CSR_dist( A_CSR, row_buv_glob, col_buv_glob, 1._dp)
         END DO
+        IF (n_neighbours == 0) CALL crash('whaa!')
+        CALL add_entry_CSR_dist( A_CSR, row_buv_glob, row_buv_glob, -1._dp * REAL( n_neighbours,dp))
 
         ! Load vector
         bb( row_buv_loc) = 0._dp
@@ -957,17 +978,20 @@ CONTAINS
 
       IF     (C%BC_v_north == 'infinite') THEN
         ! dv/dy = 0
+        !
+        ! NOTE: using the d/dx operator matrix doesn't always work well, not sure why...
 
-        ! Read coefficients of the d/dy operator matrix
-        CALL read_single_row_CSR_dist( mesh%M2_ddy_b_b, row_b_glob, single_row_ind, single_row_ddy_val, single_row_nnz)
-
-        ! Add coefficients to stiffness matrix
-        DO k = 1, single_row_nnz
-          col_b_glob = single_row_ind( k)
-          tj = mesh%n2ti( col_b_glob)
+        ! Set v on this triangle equal to the average value on its neighbours
+        n_neighbours = 0
+        DO n = 1, 3
+          tj = mesh%TriC( ti,n)
+          IF (tj == 0) CYCLE
+          n_neighbours = n_neighbours + 1
           col_buv_glob = mesh%tiuv2n( tj,uv)
-          CALL add_entry_CSR_dist( A_CSR, row_buv_glob, col_buv_glob, single_row_ddy_val( k))
+          CALL add_entry_CSR_dist( A_CSR, row_buv_glob, col_buv_glob, 1._dp)
         END DO
+        IF (n_neighbours == 0) CALL crash('whaa!')
+        CALL add_entry_CSR_dist( A_CSR, row_buv_glob, row_buv_glob, -1._dp * REAL( n_neighbours,dp))
 
         ! Load vector
         bb( row_buv_loc) = 0._dp
@@ -994,10 +1018,6 @@ CONTAINS
     ELSE
       CALL crash('uv can only be 1 or 2!')
     END IF
-
-    ! Clean up after yourself
-    DEALLOCATE( single_row_ind)
-    DEALLOCATE( single_row_ddy_val)
 
   END SUBROUTINE calc_SSA_stiffness_matrix_row_BC_north
 

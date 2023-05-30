@@ -10,8 +10,8 @@ else
   ha = 800;
   wa = ha * xw / yw;
 end
-wf = 25 + wa + 25;
-hf = 25 + ha + 25;
+wf = 25 + wa + 50;
+hf = 25 + ha + 50;
 
 H.Fig = figure('position',[200,200,wf,hf],'color','w');
 H.Ax  = axes('parent',H.Fig,'units','pixels','position',[25,25,wa,ha],'fontsize',24,...

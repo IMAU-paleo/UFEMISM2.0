@@ -229,19 +229,19 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_bed_roughness_SSA_icestream'
-    INTEGER                                            :: vi
-    REAL(dp)                                           :: y, dummy1
+    INTEGER                                            :: vii, vi
+    REAL(dp)                                           :: y, u
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! DENK DROM
-    CALL crash('need to add parameters for this idealised experiment as config variables!')
-
-!    DO vi = 1, mesh%nV_loc
-!      y = mesh%V( vi,2)
-!      CALL Schoof2006_icestream( 0.001_dp, ice%Hi_a( vi), ice%A_flow_vav_a( vi), y, dummy1, ice%tauc_a( vi))
-!    END DO
+    DO vii = 1, mesh%nV_loc
+      vi = vii + mesh%vi1 - 1
+      y = mesh%V( vi,2)
+      CALL Schoof2006_icestream( C%uniform_flow_factor, C%n_flow, C%refgeo_idealised_SSA_icestream_Hi, &
+        C%refgeo_idealised_SSA_icestream_dhdx, C%refgeo_idealised_SSA_icestream_L, C%refgeo_idealised_SSA_icestream_m, &
+        y, u, ice%tau_c( vii))
+    END DO
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

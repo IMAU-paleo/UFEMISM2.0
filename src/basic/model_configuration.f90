@@ -188,8 +188,10 @@ MODULE model_configuration
     REAL(dp)            :: refgeo_idealised_Bueler_H0_config            = 0._dp                            ! Suggested value: 3000 m
     REAL(dp)            :: refgeo_idealised_Bueler_R0_config            = 0._dp                            ! Suggested value: 500E3 m
     REAL(dp)            :: refgeo_idealised_Bueler_lambda_config        = 0._dp                            ! Suggested value: 5.0
-    REAL(dp)            :: refgeo_idealised_SSA_icestream_Hi_config     = 0._dp                            ! Suggested value: 2000 m
-    REAL(dp)            :: refgeo_idealised_SSA_icestream_dhdx_config   = 1._dp                            ! Suggested value: -0.001
+    REAL(dp)            :: refgeo_idealised_SSA_icestream_Hi_config     = -1._dp                           ! Suggested value: 2000 m
+    REAL(dp)            :: refgeo_idealised_SSA_icestream_dhdx_config   = 1._dp                            ! Suggested value: -0.0003
+    REAL(dp)            :: refgeo_idealised_SSA_icestream_L_config      = 0._dp                            ! Suggested value: 150 km
+    REAL(dp)            :: refgeo_idealised_SSA_icestream_m_config      = 0._dp                            ! Suggested value: 1.0
     REAL(dp)            :: refgeo_idealised_MISMIP_mod_Hi_init_config   = -1._dp                           ! Suggested value: 100 m
     REAL(dp)            :: refgeo_idealised_ISMIP_HOM_L_config          = 0._dp                            ! Suggested value: 5E3 - 160E3 m
     REAL(dp)            :: refgeo_idealised_MISMIPplus_Hi_init_config   = -1._dp                           ! Suggested value: 100 m
@@ -656,6 +658,8 @@ MODULE model_configuration
     REAL(dp)            :: refgeo_idealised_Bueler_lambda
     REAL(dp)            :: refgeo_idealised_SSA_icestream_Hi
     REAL(dp)            :: refgeo_idealised_SSA_icestream_dhdx
+    REAL(dp)            :: refgeo_idealised_SSA_icestream_L
+    REAL(dp)            :: refgeo_idealised_SSA_icestream_m
     REAL(dp)            :: refgeo_idealised_MISMIP_mod_Hi_init
     REAL(dp)            :: refgeo_idealised_ISMIP_HOM_L
     REAL(dp)            :: refgeo_idealised_MISMIPplus_Hi_init
@@ -1220,6 +1224,8 @@ CONTAINS
       refgeo_idealised_Bueler_lambda_config                 , &
       refgeo_idealised_SSA_icestream_Hi_config              , &
       refgeo_idealised_SSA_icestream_dhdx_config            , &
+      refgeo_idealised_SSA_icestream_L_config               , &
+      refgeo_idealised_SSA_icestream_m_config               , &
       refgeo_idealised_MISMIP_mod_Hi_init_config            , &
       refgeo_idealised_ISMIP_HOM_L_config                   , &
       refgeo_idealised_MISMIPplus_Hi_init_config            , &
@@ -1612,6 +1618,8 @@ CONTAINS
     C%refgeo_idealised_Bueler_lambda           = refgeo_idealised_Bueler_lambda_config
     C%refgeo_idealised_SSA_icestream_Hi        = refgeo_idealised_SSA_icestream_Hi_config
     C%refgeo_idealised_SSA_icestream_dhdx      = refgeo_idealised_SSA_icestream_dhdx_config
+    C%refgeo_idealised_SSA_icestream_L         = refgeo_idealised_SSA_icestream_L_config
+    C%refgeo_idealised_SSA_icestream_m         = refgeo_idealised_SSA_icestream_m_config
     C%refgeo_idealised_MISMIP_mod_Hi_init      = refgeo_idealised_MISMIP_mod_Hi_init_config
     C%refgeo_idealised_ISMIP_HOM_L             = refgeo_idealised_ISMIP_HOM_L_config
     C%refgeo_idealised_MISMIPplus_Hi_init      = refgeo_idealised_MISMIPplus_Hi_init_config
