@@ -257,7 +257,7 @@ CONTAINS
     ! Add routine to path
     call init_routine( routine_name)
 
-    if (par%master) write(0,*) '  Initialising sub-grid grounded area fractions...'
+    if (par%master) write(0,*) '  Initialising sub-grid grounded-area fractions...'
 
     ! Browse the Atlas to see if an appropriate mapping object already exists.
     found_map = .FALSE.
@@ -294,7 +294,7 @@ CONTAINS
 
     ! Allocate memory for list of bedrock elevations
     allocate( hb_list( refgeo%grid_raw%nx * refgeo%grid_raw%ny ))
-    hb_list = 0._dp
+    hb_list = 0d0
 
     ! Initialise cumulative density function (CDF)
     ice%bedrock_cdf = 0._dp
@@ -304,7 +304,11 @@ CONTAINS
 
     do vi_loc = 1, mesh%nV_loc
 
+      ! Compute global index for this vertex
       vi_glob = vi_loc + mesh%vi1 - 1
+
+      ! Clear the list
+      hb_list = 0d0
 
       ! Skip vertices at edge of domain
       if (mesh%VBI( vi_glob) > 0) cycle
@@ -371,6 +375,7 @@ CONTAINS
 
     ! Clean up after yourself
     deallocate( hb_list)
+    deallocate( Hb_grid_tot)
     call deallocate_matrix_CSR_dist( M_map)
 
     ! Finalise routine path

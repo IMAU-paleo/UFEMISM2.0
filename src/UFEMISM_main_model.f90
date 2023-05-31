@@ -15,7 +15,7 @@ MODULE UFEMISM_main_model
                                                                      remap_reference_geometry_to_mesh
   USE ice_model_types                                        , ONLY: type_ice_model
   USE ice_model_main                                         , ONLY: initialise_ice_model
-  USE ice_model_utilities                                    , ONLY: scan_subgrid_grounded_fractions
+  USE ice_model_utilities                                    , ONLY: calc_bedrock_CDFs
   USE netcdf_basic                                           , ONLY: open_existing_netcdf_file_for_reading, close_netcdf_file
   USE netcdf_input                                           , ONLY: setup_mesh_from_file
   USE mesh_creation                                          , ONLY: create_mesh_from_gridded_geometry, create_mesh_from_meshed_geometry, write_mesh_success
@@ -150,7 +150,7 @@ CONTAINS
     ! ==============================
 
     ! Grounded area fractions
-    CALL scan_subgrid_grounded_fractions( region%mesh, region%refgeo_PD, region%ice)
+    CALL calc_bedrock_CDFs( region%mesh, region%refgeo_PD, region%ice)
 
     ! ===== Regional output =====
     ! ===========================
