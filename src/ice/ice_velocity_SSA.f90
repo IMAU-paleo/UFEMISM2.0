@@ -24,7 +24,6 @@ MODULE ice_velocity_SSA
   USE mesh_utilities                                         , ONLY: find_ti_copy_ISMIP_HOM_periodic
   USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp, allocate_matrix_CSR_dist, add_entry_CSR_dist, read_single_row_CSR_dist, &
                                                                      deallocate_matrix_CSR_dist
-  USE analytical_solutions                                   , ONLY: Schoof2006_icestream
 
   IMPLICIT NONE
 
@@ -44,8 +43,6 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_SSA_solver'
-    INTEGER :: tii, ti
-    REAL(dp) :: y, tau_c
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -56,15 +53,6 @@ CONTAINS
     ! Set tolerances for PETSc matrix solver for the linearised SSA
     SSA%PETSc_rtol   = C%stress_balance_PETSc_rtol
     SSA%PETSc_abstol = C%stress_balance_PETSc_abstol
-
-!    ! DENK DROM
-!    DO tii = 1, mesh%nTri_loc
-!      ti = tii + mesh%ti1 - 1
-!      y = mesh%TriGC( ti,2)
-!      CALL Schoof2006_icestream( C%uniform_flow_factor, C%n_flow, C%refgeo_idealised_SSA_icestream_Hi, &
-!        C%refgeo_idealised_SSA_icestream_dhdx, C%refgeo_idealised_SSA_icestream_L, C%refgeo_idealised_SSA_icestream_m, &
-!        y, SSA%u_b( tii), tau_c)
-!    END DO
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

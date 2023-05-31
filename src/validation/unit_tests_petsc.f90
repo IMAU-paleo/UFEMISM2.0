@@ -15,7 +15,8 @@ MODULE unit_tests_petsc
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine
   USE model_configuration                                    , ONLY: C
   USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp, deallocate_matrix_CSR_dist
-  USE petsc_basic                                            , ONLY: perr, mat_CSR2petsc, multiply_CSR_matrix_with_vector_1D, multiply_petsc_matrix_with_vector_1D, MatDestroy
+  USE petsc_basic                                            , ONLY: perr, mat_CSR2petsc, multiply_CSR_matrix_with_vector_1D, multiply_petsc_matrix_with_vector_1D, MatDestroy, &
+                                                                     mat_petsc2CSR
   USE netcdf_debug                                           , ONLY: write_CSR_matrix_to_NetCDF
 
   IMPLICIT NONE
@@ -41,6 +42,7 @@ CONTAINS
 
     ! Run all unit tests for the PETSc subroutines
     CALL test_multiply_matrix_with_vector
+    CALL test_matrix_PETSc_CSR_conversion
 
     ! Add routine to path
     CALL finalise_routine( routine_name)
@@ -178,12 +180,140 @@ CONTAINS
     IF (.NOT. found_errors) THEN
       IF (par%master) CALL happy('validated all multiply_matrix_with_vector routines')
     ELSE
-      IF (par%master) CALL warning('found errors in gather_to_all routines')
+      IF (par%master) CALL warning('found errors in multiply_matrix_with_vector routines')
     END IF
 
     ! Add routine to path
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE test_multiply_matrix_with_vector
+
+  SUBROUTINE test_matrix_PETSc_CSR_conversion
+    ! Test matrix conversion between PETSc and CSR formats
+
+    IMPLICIT NONE
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'test_matrix_PETSc_CSR_conversion'
+    TYPE(type_sparse_matrix_CSR_dp)                                    :: AA, AA2
+    TYPE(tMat)                                                         :: A
+    LOGICAL                                                            :: found_errors
+    INTEGER                                                            :: i,k1,k2,k
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Safety - should be run on at least two cores
+    IF (par%n < 2) CALL crash('should be run on at least two cores')
+    IF (par%i > 1) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
+
+    found_errors = .FALSE.
+
+  ! == Initialise CSR matrix
+
+    ! Set up the following matrix
+    !
+    ! [  1,   ,   ,   ,   ,   ]
+    ! [  2,  3,   ,   ,   ,   ]
+    ! [   ,  4,   ,  5,   ,   ]
+    ! [   ,   ,   ,  6,  7,   ]
+    ! [   ,   ,   ,   ,  8,   ]
+    ! [   ,   ,   ,   ,  9, 10]
+
+    ! Let process 0 own rows 1-2, and let process 1 own rows 3-6
+    IF     (par%i == 0) THEN
+
+      ! A
+      AA%m       = 6
+      AA%m_loc   = 2
+      AA%i1      = 1
+      AA%i2      = 2
+      AA%n       = 6
+      AA%n_loc   = 2
+      AA%j1      = 1
+      AA%j2      = 2
+      AA%nnz     = 3
+      AA%nnz_max = AA%nnz
+      ALLOCATE( AA%ptr( AA%m+1))
+      ALLOCATE( AA%ind( AA%nnz_max))
+      ALLOCATE( AA%val( AA%nnz_max))
+
+      AA%ptr = [1, 2, 4, 4, 4, 4, 4]
+      AA%ind = [1, 1, 2]
+      AA%val = [1._dp, 2._dp, 3._dp]
+
+    ELSEIF (par%i == 1) THEN
+
+      ! A
+      AA%m       = 6
+      AA%m_loc   = 4
+      AA%i1      = 3
+      AA%i2      = 6
+      AA%n       = 6
+      AA%n_loc   = 4
+      AA%j1      = 3
+      AA%j2      = 6
+      AA%nnz     = 7
+      AA%nnz_max = AA%nnz
+      ALLOCATE( AA%ptr( AA%m+1))
+      ALLOCATE( AA%ind( AA%nnz_max))
+      ALLOCATE( AA%val( AA%nnz_max))
+
+      AA%ptr = [1, 1, 1, 3, 5, 6, 8]
+      AA%ind = [2, 4, 4, 5, 5, 5, 6]
+      AA%val = [4._dp, 5._dp, 6._dp, 7._dp, 8._dp, 9._dp, 10._dp]
+
+    END IF
+
+  ! == Convert to PETSc format and back to CSR
+
+    CALL mat_CSR2petsc( AA, A )
+    CALL mat_petsc2CSR( A , AA2)
+
+    ! Check if everything worked
+    IF (AA2%m     /= AA%m     .OR. AA2%n     /= AA%n     .OR. &
+        AA2%m_loc /= AA%m_loc .OR. AA2%n_loc /= AA%n_loc .OR. &
+        AA2%nnz /= AA%nnz) THEN
+      found_errors = .TRUE.
+    ELSE
+      ! At least the sizes match, now check the entries
+
+      DO i = AA%i1, AA%i2
+
+        IF (AA%ptr( i) /= AA2%ptr( i)) THEN
+          found_errors = .TRUE.
+          EXIT
+        END IF
+
+        k1 = AA%ptr( i)
+        k2 = AA%ptr( i+1) - 1
+
+        DO k = k1, k2
+          IF (AA%ind( k) /= AA2%ind( k)) found_errors = .TRUE.
+          IF (AA%val( k) /= AA2%val( k)) found_errors = .TRUE.
+        END DO
+
+      END DO ! DO ii = 1, AA%m_loc
+
+    END IF
+
+  ! == Validation
+  ! =============
+
+    ! If no errors occurred, we are happy
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, found_errors, 1, MPI_LOGICAL, MPI_LOR, MPI_COMM_WORLD, ierr)
+    IF (.NOT. found_errors) THEN
+      IF (par%master) CALL happy('validated matrix conversion between PETSc and CSR formats')
+    ELSE
+      IF (par%master) CALL warning('found errors in matrix conversion between PETSc and CSR formats')
+    END IF
+
+    ! Add routine to path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE test_matrix_PETSc_CSR_conversion
 
 END MODULE unit_tests_petsc

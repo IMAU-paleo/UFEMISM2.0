@@ -44,6 +44,12 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    IF (par%master) then
+      WRITE(*,"(A)") '   Initialising ice velocities using ' // &
+                      colour_string( TRIM( C%choice_stress_balance_approximation),'light blue') // &
+                     ' dynamics...'
+    END IF
+
     IF     (C%choice_stress_balance_approximation == 'none') THEN
       ! No need to do anything
     ELSEIF (C%choice_stress_balance_approximation == 'SIA') THEN

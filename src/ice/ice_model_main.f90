@@ -16,8 +16,7 @@ MODULE ice_model_main
   USE reference_geometries                                   , ONLY: type_reference_geometry
   USE math_utilities                                         , ONLY: ice_surface_elevation, thickness_above_floatation
   USE basal_conditions_main                                  , ONLY: initialise_basal_conditions
-  USE ice_velocity_SIA                                       , ONLY: initialise_SIA_solver
-  USE ice_velocity_SSA                                       , ONLY: initialise_SSA_solver
+  USE ice_velocity_main                                      , ONLY: initialise_velocity_solver
 
   IMPLICIT NONE
 
@@ -145,83 +144,5 @@ CONTAINS
     call finalise_routine( routine_name)
 
   end subroutine initialise_ice_model
-
-! ===== Stress balance =====
-! ==========================
-
-  subroutine initialise_velocity_solver( mesh, ice)
-    ! Allocation and initialisation
-
-    implicit none
-
-    ! Input variables:
-    type(type_mesh),      intent(in)    :: mesh
-    type(type_ice_model), intent(inout) :: ice
-
-    ! Local variables:
-    character(len=256), parameter       :: routine_name = 'initialise_velocity_solver'
-
-    ! === Initialisation ===
-    ! ======================
-
-    ! Add routine to path
-    call init_routine( routine_name)
-
-    if (par%master) then
-      write(*,"(A)") '   Initialising ice velocities using ' // &
-                      colour_string( trim(C%choice_stress_balance_approximation),'light blue') // &
-                     ' dynamics...'
-    end if
-    call sync
-
-    ! === Ice dynamics approximation ===
-    ! ==================================
-
-    select case (C%choice_stress_balance_approximation)
-
-      case ('SIA')
-        ! Shallow Ice Approximation
-
-        ! Initialise solver
-        call initialise_SIA_solver( mesh, ice%SIA)
-
-      case ('SSA')
-        ! Shallow Shelf Approximation
-
-        ! Initialise solver
-        call initialise_SSA_solver( mesh, ice%SSA)
-
-      case ('SIA/SSA')
-        ! Hybrid SIA/SSA
-
-        ! Initialise solver
-        call crash('SIA/SSA solver not implemented yet')
-
-      case ('DIVA')
-        ! Depth-Integrated Viscosity Approximation
-
-        ! Initialise solver
-        call crash('DIVA solver not implemented yet')
-
-      case ('BPA')
-        ! Blatter-Pattyn Approximation
-
-        ! Initialise solver
-        call crash('BPA solver not implemented yet')
-
-      case default
-        ! Unkwon case
-        call crash('unknown choice_stress_balance_approximation "' // &
-                    trim( C%choice_stress_balance_approximation) // '"!')
-
-    end select
-
-    ! === Finalisation ===
-    ! ====================
-
-    ! Finalise routine path
-    call finalise_routine( routine_name)
-
-  end subroutine initialise_velocity_solver
 
 END MODULE ice_model_main

@@ -313,76 +313,52 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'mat_petsc2CSR'
-    INTEGER                                            :: m, n, istart, iend, i
-    INTEGER                                            :: ncols, nnz
+    INTEGER                                            :: m_glob, n_glob, m_loc, n_loc, istart, iend, row_glob, row_loc
+    INTEGER                                            :: ncols
     INTEGER,  DIMENSION(:    ), ALLOCATABLE            :: cols
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: vals
-    INTEGER,  DIMENSION(:    ), ALLOCATABLE            ::  nnz_rows
-    INTEGER                                            :: wnnz_rows
-    INTEGER                                            :: k1, k2
+    INTEGER,  DIMENSION(:    ), ALLOCATABLE            :: nnz_row_loc
+    INTEGER                                            :: nnz_loc
+    INTEGER                                            :: k
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! DENK DROM
-    CALL crash('fixme!')
+    ! Retrieve global and local matrix size and ownership range
+    CALL MatGetSize(           A, m_glob, n_glob, perr)
+    CALL MatGetLocalSize(      A, m_loc , n_loc , perr)
+    CALL MatGetOwnershipRange( A, istart, iend  , perr)
 
-!    ! First get the number of rows and columns
-!    CALL MatGetSize( A, m, n, perr)
-!
-!    ! Find number of non-zeros per row
-!    ALLOCATE( nnz_rows( m))
-!
-!    CALL MatGetOwnershipRange( A, istart, iend, perr)
-!
-!    ALLOCATE( cols( n))
-!    ALLOCATE( vals( n))
-!
-!    DO i = istart+1, iend ! +1 because PETSc indexes from 0
-!      CALL MatGetRow( A, i-1, ncols, cols, vals, perr)
-!      nnz_rows( i) = ncols
-!      CALL MatRestoreRow( A, i-1, ncols, cols, vals, perr)
-!    END DO
-!
-!    CALL allgather_array( nnz_rows)
-!
-!    ! Find the global number of non-zeros
-!    nnz = SUM( nnz_rows)
-!
-!    ! Allocate memory for the CSR matrix
-!    AA%m       = m
-!    AA%n       = n
-!    AA%nnz_max = nnz
-!    AA%nnz     = nnz
-!
-!    ALLOCATE( AA%ptr( AA%m+1))
-!    ALLOCATE( AA%ind( AA%nnz))
-!    ALLOCATE( AA%val( AA%nnz))
-!
-!    ! Fill in the ptr array
-!    AA%ptr( 1) = 1
-!    DO i = 2, m+1
-!      AA%ptr( i) = AA%ptr( i-1) + nnz_rows( i-1)
-!    END DO
-!
-!    ! Copy data from the PETSc matrix to the CSR arrays
-!    DO i = istart+1, iend ! +1 because PETSc indexes from 0
-!      k1 = AA%ptr( i)
-!      k2 = AA%ptr( i+1) - 1
-!      CALL MatGetRow( A, i-1, ncols, cols, vals, perr)
-!      AA%ind( k1:k2) = cols( 1:ncols)+1
-!      AA%val( k1:k2) = vals( 1:ncols)
-!      CALL MatRestoreRow( A, i-1, ncols, cols, vals, perr)
-!    END DO
-!
-!    ! Make matrix available on all cores
-!    CALL allgather_array( AA%ind, AA%ptr( istart+1), AA%ptr( iend+1)-1)
-!    CALL allgather_array( AA%val, AA%ptr( istart+1), AA%ptr( iend+1)-1)
-!
-!    ! Clean up after yourself
-!    DEALLOCATE( nnz_rows)
-!    DEALLOCATE( cols    )
-!    DEALLOCATE( vals    )
+    ! Find number of non-zeros in each row
+    ALLOCATE( nnz_row_loc( m_loc ))
+    ALLOCATE( cols(        n_glob))
+    ALLOCATE( vals(        n_glob))
+
+    DO row_glob = istart+1, iend ! +1 because PETSc indexes from 0
+      row_loc = row_glob - istart
+      CALL MatGetRow( A, row_glob-1, ncols, cols, vals, perr)
+      nnz_row_loc( row_loc) = ncols
+      CALL MatRestoreRow( A, row_glob-1, ncols, cols, vals, perr)
+    END DO
+
+    nnz_loc = SUM( nnz_row_loc)
+
+    ! Allocate memory for CSR matrix
+    CALL allocate_matrix_CSR_dist( AA, m_glob, n_glob, m_loc, n_loc, nnz_loc)
+
+    ! Copy data from the PETSc matrix to the CSR arrays
+    DO row_glob = istart+1, iend ! +1 because PETSc indexes from 0
+      CALL MatGetRow( A, row_glob-1, ncols, cols, vals, perr)
+      DO k = 1, ncols
+        CALL add_entry_CSR_dist( AA, row_glob, cols( k)+1, vals( k))
+      END DO
+      CALL MatRestoreRow( A, row_glob-1, ncols, cols, vals, perr)
+    END DO
+
+    ! Clean up after yourself
+    DEALLOCATE( nnz_row_loc)
+    DEALLOCATE( cols       )
+    DEALLOCATE( vals       )
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -410,7 +386,6 @@ CONTAINS
     INTEGER                                            :: i, k1, k2, nnz_proc, ii, k, kk
     INTEGER,  DIMENSION(:    ), ALLOCATABLE            :: ptr_proc, ind_proc
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: val_proc
-    INTEGER                                            :: i1_petsc, i2_petsc
 
     ! Add routine to path
     CALL init_routine( routine_name)
