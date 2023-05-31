@@ -10,9 +10,11 @@ MODULE ice_model_main
   USE control_resources_and_error_messaging                  , ONLY: crash, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
   USE mesh_types                                             , ONLY: type_mesh
+  USE scalar_types                                           , ONLY: type_regional_scalars
   USE ice_model_types                                        , ONLY: type_ice_model
   USE ice_model_memory                                       , ONLY: allocate_ice_model
   USE ice_model_utilities                                    , ONLY: determine_masks, calc_bedrock_CDFs, calc_grounded_fractions
+  USE ice_model_scalars                                      , ONLY: calc_ice_model_scalars
   USE reference_geometries                                   , ONLY: type_reference_geometry
   USE math_utilities                                         , ONLY: ice_surface_elevation, thickness_above_floatation
   USE basal_conditions_main                                  , ONLY: initialise_basal_conditions
@@ -25,7 +27,7 @@ CONTAINS
 ! ===== Main routines =====
 ! =========================
 
-  subroutine initialise_ice_model( mesh, ice, refgeo_init, refgeo_PD)
+  subroutine initialise_ice_model( mesh, ice, refgeo_init, refgeo_PD, scalars)
     ! Initialise all data fields of the ice module
 
     implicit none
@@ -35,6 +37,7 @@ CONTAINS
     type(type_ice_model),          intent(inout) :: ice
     type(type_reference_geometry), intent(in)    :: refgeo_init
     type(type_reference_geometry), intent(in)    :: refgeo_PD
+    type(type_regional_scalars),   intent(out)   :: scalars
 
     ! Local variables:
     character(len=256), parameter                :: routine_name = 'initialise_ice_model'
@@ -132,9 +135,9 @@ CONTAINS
     ! ==================
 
     ! Compute bedrock cumulative density function
-    CALL calc_bedrock_CDFs( region%mesh, region%refgeo_PD, region%ice)
+    CALL calc_bedrock_CDFs( mesh, refgeo_PD, ice)
     ! Initialise sub-grid grounded-area fractions
-    CALL calc_grounded_fractions( region%mesh, region%ice)
+    CALL calc_grounded_fractions( mesh, ice)
 
     ! Basal conditions
     ! ================
@@ -147,6 +150,11 @@ CONTAINS
 
     ! Initialise data and matrices for the velocity solver(s)
     call initialise_velocity_solver( mesh, ice)
+
+    ! Ice-sheet-wide scalars
+    ! ======================
+
+    CALL calc_ice_model_scalars( mesh, ice, refgeo_PD, scalars)
 
     ! Finalise routine path
     call finalise_routine( routine_name)

@@ -76,6 +76,7 @@ UFEMISM_source = \
   basic/grid_lonlat_basic.f90 \
   \
   types/mesh_types.f90 \
+  types/scalar_types.f90 \
   types/ice_model_types.f90 \
   \
   mesh/mesh_memory.f90 \
@@ -104,6 +105,7 @@ UFEMISM_source = \
   basal_conditions/basal_conditions_main.f90 \
   \
   ice/ice_model_memory.f90 \
+  ice/ice_model_scalars.f90 \
   ice/ice_model_utilities.f90 \
   ice/ice_velocity_SIA.f90 \
   ice/ice_velocity_SSA.f90 \

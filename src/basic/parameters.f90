@@ -23,5 +23,6 @@ MODULE parameters
   REAL(dp), PARAMETER :: earth_density                    = 5511.57_dp                ! [kg m^-3]           Total mean Earth density
   REAL(dp), PARAMETER :: R_gas                            = 8.314_dp                  ! [J mol^-1 K^-1]     Gas constant
   REAL(dp), PARAMETER :: cp_ocean                         = 3.974E3_dp                ! [J kg^-1 K^-1]      Specific heat capacity of ocean water
+  REAL(dp), PARAMETER :: ocean_area                       = 3.611E14_dp               ! World ocean area [m^2]
 
 END MODULE parameters

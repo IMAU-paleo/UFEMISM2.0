@@ -11,6 +11,7 @@ MODULE UFEMISM_main_model
   USE control_resources_and_error_messaging                  , ONLY: crash, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
   USE mesh_types                                             , ONLY: type_mesh
+  USE scalar_types                                           , ONLY: type_regional_scalars
   USE reference_geometries                                   , ONLY: type_reference_geometry, initialise_reference_geometries_raw, &
                                                                      remap_reference_geometry_to_mesh
   USE ice_model_types                                        , ONLY: type_ice_model
@@ -49,6 +50,9 @@ MODULE UFEMISM_main_model
 
     ! The ice dynamics model
     TYPE(type_ice_model)                    :: ice
+
+    ! Scalar data
+    TYPE(type_regional_scalars)             :: scalars                     ! Scalar data (e.g. total area, volume, mass balance)
 
   END TYPE type_model_region
 
@@ -144,7 +148,7 @@ CONTAINS
     ! ===== Ice dynamics =====
     ! ========================
 
-    CALL initialise_ice_model( region%mesh, region%ice, region%refgeo_init, region%refgeo_PD)
+    CALL initialise_ice_model( region%mesh, region%ice, region%refgeo_init, region%refgeo_PD, region%scalars)
 
     ! ===== Regional output =====
     ! ===========================
