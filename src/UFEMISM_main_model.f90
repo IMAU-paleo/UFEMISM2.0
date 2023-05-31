@@ -15,7 +15,6 @@ MODULE UFEMISM_main_model
                                                                      remap_reference_geometry_to_mesh
   USE ice_model_types                                        , ONLY: type_ice_model
   USE ice_model_main                                         , ONLY: initialise_ice_model
-  USE ice_model_utilities                                    , ONLY: calc_bedrock_CDFs
   USE netcdf_basic                                           , ONLY: open_existing_netcdf_file_for_reading, close_netcdf_file
   USE netcdf_input                                           , ONLY: setup_mesh_from_file
   USE mesh_creation                                          , ONLY: create_mesh_from_gridded_geometry, create_mesh_from_meshed_geometry, write_mesh_success
@@ -23,7 +22,8 @@ MODULE UFEMISM_main_model
 
   ! DENK DROM
   USE netcdf_basic , ONLY: create_new_netcdf_file_for_writing
-  USE netcdf_output, ONLY: setup_mesh_in_netcdf_file, add_field_mesh_dp_2D_notime, write_to_field_multopt_mesh_dp_2D_notime, add_field_mesh_int_2D_notime, write_to_field_multopt_mesh_int_2D_notime
+  USE netcdf_output, ONLY: setup_mesh_in_netcdf_file, add_field_mesh_dp_2D_notime, write_to_field_multopt_mesh_dp_2D_notime, &
+                           add_field_mesh_int_2D_notime, write_to_field_multopt_mesh_int_2D_notime
   USE netcdf_debug , ONLY: write_CSR_matrix_to_NetCDF
   USE ice_velocity_SSA, ONLY: initialise_SSA_solver
 
@@ -146,12 +146,6 @@ CONTAINS
 
     CALL initialise_ice_model( region%mesh, region%ice, region%refgeo_init, region%refgeo_PD)
 
-    ! ===== Sub-grid fractions =====
-    ! ==============================
-
-    ! Grounded area fractions
-    CALL calc_bedrock_CDFs( region%mesh, region%refgeo_PD, region%ice)
-
     ! ===== Regional output =====
     ! ===========================
 
@@ -167,11 +161,15 @@ CONTAINS
     CALL add_field_mesh_dp_2D_notime( filename, ncid, 'Hs')
     CALL add_field_mesh_dp_2D_notime( filename, ncid, 'SL')
     CALL add_field_mesh_int_2D_notime( filename, ncid, 'mask')
+    CALL add_field_mesh_dp_2D_notime( filename, ncid, 'bedrock_cdf')
+    CALL add_field_mesh_dp_2D_notime( filename, ncid, 'fraction_gr')
     CALL write_to_field_multopt_mesh_dp_2D_notime( region%mesh, filename, ncid, 'Hi', region%refgeo_init%Hi)
     CALL write_to_field_multopt_mesh_dp_2D_notime( region%mesh, filename, ncid, 'Hb', region%refgeo_init%Hb)
     CALL write_to_field_multopt_mesh_dp_2D_notime( region%mesh, filename, ncid, 'Hs', region%refgeo_init%Hs)
     CALL write_to_field_multopt_mesh_dp_2D_notime( region%mesh, filename, ncid, 'SL', region%refgeo_init%SL)
     CALL write_to_field_multopt_mesh_int_2D_notime( region%mesh, filename, ncid, 'mask', region%ice%mask)
+    CALL write_to_field_multopt_mesh_dp_2D_notime( region%mesh, filename, ncid, 'bedrock_cdf', region%ice%bedrock_cdf(:,11))
+    CALL write_to_field_multopt_mesh_dp_2D_notime( region%mesh, filename, ncid, 'fraction_gr', region%ice%fraction_gr)
     CALL close_netcdf_file( ncid)
 
     ! ===== Finalisation =====

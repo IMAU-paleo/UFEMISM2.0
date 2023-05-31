@@ -12,7 +12,7 @@ MODULE ice_model_main
   USE mesh_types                                             , ONLY: type_mesh
   USE ice_model_types                                        , ONLY: type_ice_model
   USE ice_model_memory                                       , ONLY: allocate_ice_model
-  USE ice_model_utilities                                    , ONLY: determine_masks
+  USE ice_model_utilities                                    , ONLY: determine_masks, calc_bedrock_CDFs, calc_grounded_fractions
   USE reference_geometries                                   , ONLY: type_reference_geometry
   USE math_utilities                                         , ONLY: ice_surface_elevation, thickness_above_floatation
   USE basal_conditions_main                                  , ONLY: initialise_basal_conditions
@@ -127,6 +127,14 @@ CONTAINS
     ice%dHb_dt  = 0._dp
     ice%dHs_dt  = 0._dp
     ice%dHib_dt = 0._dp
+
+    ! Sub-grid fractions
+    ! ==================
+
+    ! Compute bedrock cumulative density function
+    CALL calc_bedrock_CDFs( region%mesh, region%refgeo_PD, region%ice)
+    ! Initialise sub-grid grounded-area fractions
+    CALL calc_grounded_fractions( region%mesh, region%ice)
 
     ! Basal conditions
     ! ================

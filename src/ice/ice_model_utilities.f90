@@ -10,6 +10,7 @@ MODULE ice_model_utilities
   USE mpi_basic                                              , ONLY: par, sync, ierr
   USE control_resources_and_error_messaging                  , ONLY: init_routine, finalise_routine, crash
   USE model_configuration                                    , ONLY: C
+  USE parameters                                             , ONLY: ice_density, seawater_density
   USE mesh_types                                             , ONLY: type_mesh
   USE ice_model_types                                        , ONLY: type_ice_model
   USE reference_geometries                                   , ONLY: type_reference_geometry
@@ -19,6 +20,7 @@ MODULE ice_model_utilities
   USE petsc_basic                                            , ONLY: mat_petsc2CSR
   USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp, deallocate_matrix_CSR_dist
   USE grid_basic                                             , ONLY: gather_gridded_data_to_master_dp_2D
+  USE mesh_operators                                         , ONLY: map_a_b_2D
 
   IMPLICIT NONE
 
@@ -382,5 +384,97 @@ CONTAINS
     call finalise_routine( routine_name)
 
   end subroutine calc_bedrock_CDFs
+
+  subroutine calc_grounded_fractions( mesh, ice)
+    ! Determine the sub-grid grounded-area fractions of all grid cells from a bedrock CDF
+
+    implicit none
+
+    ! In- and output variables
+    type(type_mesh),      intent(in)    :: mesh
+    type(type_ice_model), intent(inout) :: ice
+
+    ! Local variables:
+    character(len=256), parameter       :: routine_name = 'calc_grounded_fractions'
+    integer                             :: vi_loc, vi_glob, il, iu, ti_loc
+    real(dp)                            :: hb_float, wl, wu
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! === On the a-grid ===
+    ! =====================
+
+    do vi_loc = 1, mesh%nV_loc
+
+      ! Compute global index for this vertex
+      vi_glob = vi_loc + mesh%vi1 - 1
+
+      ! Edge vertices
+      if (mesh%VBI( vi_glob) > 0) then
+        ! Either 0 or 1 depending on land mask
+        if (ice%mask_land( vi_glob)) then
+          ice%fraction_gr( vi_loc) = 1._dp
+        else
+          ice%fraction_gr( vi_loc) = 0._dp
+        end if
+        ! Then skip
+        cycle
+      end if
+
+      ! Compute the bedrock depth at which the current ice thickness and sea level float
+      ! will make this point afloat. Account for GIA here so we don't have to do it in
+      ! the computation of the cumulative density function (CDF).
+
+      hb_float = ice%SL( vi_loc) - ice%Hi( vi_loc) * ice_density/seawater_density - ice%dHb( vi_loc)
+
+      ! Get the fraction of bedrock within vertex coverage that is below
+      ! hb_float as a linear interpolation of the numbers in the CDF.
+
+      if     (hb_float <= minval( ice%bedrock_cdf( vi_loc,:))) then
+        ! All sub-grid points are above the floating bedrock elevation
+        ice%fraction_gr( vi_loc) = 1._dp
+      elseif (hb_float >= maxval( ice%bedrock_cdf( vi_loc,:))) then
+        ! All sub-grid points are below the floating bedrock elevation
+        ice%fraction_gr( vi_loc) = 0._dp
+      else
+        ! Find the 2 elements in the CDF surrounding hb_float
+        iu = 1
+        do while (ice%bedrock_cdf( vi_loc,iu) < hb_float)
+          iu = iu+1
+        end do
+        il = iu-1
+
+        ! Interpolate bedrock to get the weights for both CDF percentages
+        wl = (ice%bedrock_cdf( vi_loc,iu) - hb_float) / (ice%bedrock_cdf( vi_loc,iu)-ice%bedrock_cdf( vi_loc,il))
+        wu = 1._dp - wl
+
+        ! Interpolate between percentages, assuming that there are 11 CDF bins between
+        ! 0% and 100%, at 10% intervals, i.e. element 1 is 0% =(1-1)*10%, element 2 is
+        ! 10% = (2-1)*10%, and so on.
+        ice%fraction_gr( vi_loc) = 1._dp - (10._dp*(il-1)*wl + 10._dp*(iu-1)*wu) / 100._dp
+
+        ! Safety
+        ice%fraction_gr( vi_loc) = min( 1._dp, max( 0._dp, ice%fraction_gr( vi_loc)))
+
+      end if
+
+    end do
+
+    ! === On the b-grid ===
+    ! =====================
+
+    ! Map from the a-grid to the b-grid
+    call map_a_b_2D( mesh, ice%fraction_gr, ice%fraction_gr_b)
+
+    ! Safety
+    do ti_loc = 1, mesh%nTri_loc
+      ice%fraction_gr_b( ti_loc) = min( 1._dp, max( 0._dp, ice%fraction_gr_b( ti_loc)))
+    end do
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine calc_grounded_fractions
 
 END MODULE ice_model_utilities
