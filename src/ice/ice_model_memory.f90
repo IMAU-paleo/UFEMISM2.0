@@ -240,9 +240,11 @@ subroutine allocate_ice_model( mesh, ice)
     ! ======================
 
     ! Grounded
-    allocate( ice%fraction_gr   ( mesh%nV_loc   ))
+    allocate( ice%bedrock_cdf   ( mesh%nV_loc, 11 ))
+    ice%bedrock_cdf = 0d0
+    allocate( ice%fraction_gr   ( mesh%nV_loc     ))
     ice%fraction_gr = 0d0
-    allocate( ice%fraction_gr_b ( mesh%nTri_loc ))
+    allocate( ice%fraction_gr_b ( mesh%nTri_loc   ))
     ice%fraction_gr_b = 0d0
 
     ! Calving front

@@ -220,6 +220,7 @@ MODULE ice_model_types
     ! ======================
 
     ! Grounded
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: bedrock_cdf                 ! Sub-grid bedrock cumulative density function
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: fraction_gr                 ! [0-1] Grounded area fractions of vertices
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: fraction_gr_b               ! [0-1] Grounded area fractions of triangles
 
