@@ -20,7 +20,7 @@ MODULE netcdf_resource_tracking
 
   USE netcdf,        ONLY: NF90_UNLIMITED, NF90_DOUBLE, NF90_INT
   USE netcdf_basic,  ONLY: nerr, create_new_netcdf_file_for_writing, create_dimension, create_variable, add_attribute_char, close_netcdf_file, &
-                           open_existing_netcdf_file_for_writing, find_timeframe, write_var_master_int_1D, write_var_master_dp_1D
+                           open_existing_netcdf_file_for_writing, find_timeframe, write_var_master_int_2D, write_var_master_dp_2D, inquire_var_multopt
   USE netcdf_output, ONLY: write_time_to_file
 
   IMPLICIT NONE
@@ -29,9 +29,6 @@ MODULE netcdf_resource_tracking
 ! ============================
 
   CHARACTER(LEN=256) :: filename_resource_tracker
-
-  INTEGER, DIMENSION(:), ALLOCATABLE :: id_var_names
-  INTEGER, DIMENSION(:), ALLOCATABLE :: id_var_tcomp
 
 CONTAINS
 
@@ -45,13 +42,32 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                     :: routine_name = 'write_to_resource_tracking_file'
+    INTEGER                                           :: n_routines, length_routine_name, i
+    INTEGER,  DIMENSION(:    ), ALLOCATABLE           :: routine_name_encoded
+    INTEGER,  DIMENSION(:,:  ), ALLOCATABLE           :: routine_names_encoded
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE           :: tcomp
     INTEGER                                           :: ncid
     INTEGER                                           :: ti
-    INTEGER                                           :: i,n
-    INTEGER,  DIMENSION(1024)                         :: path_int_enc
+    INTEGER                                           :: id_var_names, id_var_tcomp
 
     ! Add routine to path
     CALL init_routine( routine_name)
+
+    ! Number of routines in the resource tracker
+    n_routines          = SIZE( resource_tracker)
+    length_routine_name = LEN( resource_tracker( 1)%routine_path)
+
+    ! Allocate memory
+    ALLOCATE( routine_name_encoded(             length_routine_name))
+    ALLOCATE( routine_names_encoded( n_routines,length_routine_name))
+    ALLOCATE( tcomp(                 n_routines,1                  ))
+
+    ! Encode subroutine names and gather computation times
+    DO i = 1, n_routines
+      CALL encode_subroutine_path_as_integer( resource_tracker( i)%routine_path, routine_name_encoded)
+      routine_names_encoded( i,:) = routine_name_encoded
+      tcomp( i,1) = resource_tracker( i)%tcomp
+    END DO
 
     ! Open the file for writing
     CALL open_existing_netcdf_file_for_writing( filename_resource_tracker, ncid)
@@ -62,26 +78,23 @@ CONTAINS
     ! Find new timeframe
     CALL find_timeframe( filename_resource_tracker, ncid, time, ti)
 
-    ! Actual variables
-    ! ================
+    ! Find var_ids of variables to write to
+    CALL inquire_var_multopt( filename_resource_tracker, ncid, 'routine_names_encoded', id_var_names)
+    CALL inquire_var_multopt( filename_resource_tracker, ncid, 'tcomp'                , id_var_tcomp)
 
-    ! Per-subroutine resource use
+    ! Write data
+    CALL write_var_master_int_2D( filename_resource_tracker, ncid, id_var_names, routine_names_encoded)
 
-    n = SIZE( resource_tracker)
-
-    DO i = 1, n
-
-      ! Subroutine name
-      CALL encode_subroutine_path_as_integer( resource_tracker( i)%routine_path, path_int_enc)
-      CALL write_var_master_int_1D( filename_resource_tracker, ncid, id_var_names( i), path_int_enc)
-
-      ! Computation time
-      CALL write_var_master_dp_1D(  filename_resource_tracker, ncid, id_var_tcomp( i), [resource_tracker( i)%tcomp], start = [ti], count = [1])
-
-    END DO
+    ! Computation time
+    CALL write_var_master_dp_2D(  filename_resource_tracker, ncid, id_var_tcomp, tcomp, start = [1,ti], count = [n_routines,1])
 
     ! Close the file
     CALL close_netcdf_file( ncid)
+
+    ! Clean up after yourself
+    DEALLOCATE( routine_name_encoded )
+    DEALLOCATE( routine_names_encoded)
+    DEALLOCATE( tcomp                )
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -95,14 +108,17 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                     :: routine_name = 'create_resource_tracking_file'
+    INTEGER                                           :: n_routines, length_routine_name
     INTEGER                                           :: ncid
-    INTEGER                                           :: id_dim_time, id_dim_name_length
-    INTEGER                                           :: id_var_time
-    INTEGER                                           :: i, n
-    CHARACTER(LEN=256)                                :: var_name, long_name
+    INTEGER                                           :: id_dim_n_routines, id_dim_time, id_dim_name_length
+    INTEGER                                           :: id_var_time, id_var_names, id_var_tcomp
 
     ! Add routine to path
     CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+
+    ! Number of routines in the resource tracker
+    n_routines          = SIZE( resource_tracker)
+    length_routine_name = LEN( resource_tracker( 1)%routine_path)
 
     ! Determine the file name
     filename_resource_tracker = TRIM( C%output_dir) // '/resource_tracking.nc'
@@ -110,77 +126,28 @@ CONTAINS
     ! Create a new NetCDF file
     CALL create_new_netcdf_file_for_writing( filename_resource_tracker, ncid)
 
-    ! Define the two dimensions
-    CALL create_dimension( filename_resource_tracker, ncid, 'time'       , NF90_UNLIMITED, id_dim_time       )
-    CALL create_dimension( filename_resource_tracker, ncid, 'name_length', 1024          , id_dim_name_length)
+    ! Define the dimensions
+    CALL create_dimension( filename_resource_tracker, ncid, 'n_routines' , n_routines         , id_dim_n_routines )
+    CALL create_dimension( filename_resource_tracker, ncid, 'name_length', length_routine_name, id_dim_name_length)
+    CALL create_dimension( filename_resource_tracker, ncid, 'time'       , NF90_UNLIMITED     , id_dim_time       )
 
     ! Define variables
     ! ================
 
-    ! Dimension variables: time
+    ! Subroutine names
+    CALL create_variable(    filename_resource_tracker, ncid, 'routine_names_encoded', NF90_INT, [id_dim_n_routines, id_dim_name_length], id_var_names)
+    CALL add_attribute_char( filename_resource_tracker, ncid, id_var_names, 'long_name', 'Encoded subroutine names')
+    CALL add_attribute_char( filename_resource_tracker, ncid, id_var_names, 'encoding' , 'See UFEMISM code (src/netcdf/netcdf_resource_tracking/encode_subroutine_path_as_integer)')
+
+    ! Time
     CALL create_variable(    filename_resource_tracker, ncid, 'time', NF90_DOUBLE, [id_dim_time], id_var_time)
     CALL add_attribute_char( filename_resource_tracker, ncid, id_var_time, 'long_name', 'time')
     CALL add_attribute_char( filename_resource_tracker, ncid, id_var_time, 'units'    , 'years')
 
-    ! Per-subroutine resource use
-
-    n = SIZE( resource_tracker)
-
-    ALLOCATE( id_var_names( n))
-    ALLOCATE( id_var_tcomp( n))
-
-    DO i = 1, n
-
-      ! Subroutine name
-      ! ===============
-
-      ! Generate variable name (name_00001, name_00002, etc.)
-      var_name(  1:256) = ' '
-      long_name( 1:256) = ' '
-      IF     (i < 10) THEN
-        WRITE( var_name ,'(A,I1)') 'name_0000', i
-      ELSEIF (i < 100) THEN
-        WRITE( var_name,'(A,I2)') 'name_000', i
-      ELSEIF (i < 1000) THEN
-        WRITE( var_name,'(A,I3)') 'name_00', i
-      ELSEIF (i < 10000) THEN
-        WRITE( var_name,'(A,I4)') 'name_0', i
-      ELSEIF (i < 100000) THEN
-        WRITE( var_name,'(A,I5)') 'name_', i
-      END IF
-
-      WRITE( long_name,'(A,I1)') 'Full name of subroutine #', i
-
-      ! Create the variable in the NetCDF file
-      CALL create_variable(    filename_resource_tracker, ncid, var_name, NF90_INT, [id_dim_name_length], id_var_names( i))
-      CALL add_attribute_char( filename_resource_tracker, ncid, id_var_names( i), 'long_name', long_name)
-
-      ! Computation time
-      ! ================
-
-      ! Generate variable name (tcomp_00001, tcomp_00002, etc.)
-      var_name(  1:256) = ' '
-      long_name( 1:256) = ' '
-      IF     (i < 10) THEN
-        WRITE( var_name ,'(A,I1)') 'tcomp_0000', i
-      ELSEIF (i < 100) THEN
-        WRITE( var_name,'(A,I2)') 'tcomp_000', i
-      ELSEIF (i < 1000) THEN
-        WRITE( var_name,'(A,I3)') 'tcomp_00', i
-      ELSEIF (i < 10000) THEN
-        WRITE( var_name,'(A,I4)') 'tcomp_0', i
-      ELSEIF (i < 100000) THEN
-        WRITE( var_name,'(A,I5)') 'tcomp_', i
-      END IF
-
-      WRITE( long_name,'(A,I5)') 'Computation time for subroutine #', i
-
-      ! Create the variable in the NetCDF file
-      CALL create_variable(    filename_resource_tracker, ncid, var_name, NF90_DOUBLE, [id_dim_time], id_var_tcomp( i))
-      CALL add_attribute_char( filename_resource_tracker, ncid, id_var_tcomp( i), 'long_name', long_name)
-      CALL add_attribute_char( filename_resource_tracker, ncid, id_var_tcomp( i), 'units'    , 's'      )
-
-    END DO
+    ! Computation times
+    CALL create_variable(    filename_resource_tracker, ncid, 'tcomp', NF90_DOUBLE, [id_dim_n_routines, id_dim_time], id_var_tcomp)
+    CALL add_attribute_char( filename_resource_tracker, ncid, id_var_names, 'long_name', 'Computation times per subroutine')
+    CALL add_attribute_char( filename_resource_tracker, ncid, id_var_names, 'units'    , 's')
 
     ! Close the file
     CALL close_netcdf_file( ncid)
@@ -222,15 +189,15 @@ CONTAINS
     IMPLICIT NONE
 
     ! In/output variables:
-    CHARACTER(LEN=1024),                INTENT(IN)    :: subroutine_path
-    INTEGER,  DIMENSION(1024),          INTENT(OUT)   :: path_int_enc
+    CHARACTER(LEN=*),                         INTENT(IN)    :: subroutine_path
+    INTEGER, DIMENSION(LEN(subroutine_path)), INTENT(OUT)   :: path_int_enc
 
     ! Local variables:
     INTEGER                                           :: i
 
     path_int_enc = 0
 
-    DO i = 1, 1024
+    DO i = 1, LEN(subroutine_path)
 
       SELECT CASE ( subroutine_path( i:i))
       CASE( ' ')
