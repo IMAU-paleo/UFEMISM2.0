@@ -40,10 +40,10 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Allocate memory for bed roughness fields
-    ALLOCATE( ice%phi_fric( mesh%nV_loc))
-    ALLOCATE( ice%tau_c(    mesh%nV_loc))
-    ALLOCATE( ice%alpha_sq( mesh%nV_loc))
-    ALLOCATE( ice%beta_sq(  mesh%nV_loc))
+    ALLOCATE( ice%phi_fric( mesh%vi1:mesh%vi2))
+    ALLOCATE( ice%tau_c(    mesh%vi1:mesh%vi2))
+    ALLOCATE( ice%alpha_sq( mesh%vi1:mesh%vi2))
+    ALLOCATE( ice%beta_sq(  mesh%vi1:mesh%vi2))
 
     ice%phi_fric = 0._dp
     ice%tau_c    = 0._dp
@@ -202,7 +202,7 @@ CONTAINS
       CALL crash('only applicable when choice_sliding_law = "Coulomb", "Budd", or "Zoet-Iverson"!')
     END IF
 
-    DO vi = 1, mesh%nV_loc
+    DO vi = mesh%vi1, mesh%vi2
 
       ! Martin et al. (2011) Eq. 10
       w_Hb = MIN( 1._dp, MAX( 0._dp, (ice%Hb( vi) - C%Martin2011till_phi_Hb_min) / (C%Martin2011till_phi_Hb_max - C%Martin2011till_phi_Hb_min) ))
