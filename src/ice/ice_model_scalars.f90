@@ -92,7 +92,7 @@ contains
 
     ! Local variables:
     character(len=256), parameter                :: routine_name = 'calc_icesheet_volume_and_area_PD'
-    integer                                      :: vi_loc, vi_glob
+    integer                                      :: vi
     real(dp)                                     :: sea_level_PD, thickness_af_PD
 
     ! === Initialisation ===
@@ -113,25 +113,22 @@ contains
     ! =======================
 
     ! Calculate ice area and volume for each process
-    do vi_loc = 1, mesh%nV_loc
-
-      ! Compute global index for this vertex
-      vi_glob = vi_loc + mesh%vi1 - 1
+    do vi = mesh%vi1, mesh%vi2
 
       ! Re-initialise
       thickness_af_PD = 0._dp
 
-      if (refgeo_PD%Hi( vi_loc) > 0._dp) then
+      if (refgeo_PD%Hi( vi) > 0._dp) then
         ! Thickness above flotation
-        thickness_af_PD = refgeo_PD%Hi( vi_loc) - max(0._dp, (sea_level_PD - refgeo_PD%Hb( vi_loc)) * (seawater_density / ice_density))
+        thickness_af_PD = refgeo_PD%Hi( vi) - max(0._dp, (sea_level_PD - refgeo_PD%Hb( vi)) * (seawater_density / ice_density))
         ! Safety
         thickness_af_PD = max(0._dp, thickness_af_PD)
       end if
 
-      if (refgeo_PD%Hi( vi_loc) > 0._dp) then
-        scalars%ice_volume_PD    = scalars%ice_volume_PD    + max( 0._dp, (refgeo_PD%Hi( vi_loc) * mesh%A( vi_glob) * ice_density / (seawater_density * ocean_area)))
-        scalars%ice_area_PD      = scalars%ice_area_PD      + mesh%A( vi_glob) * 1.0E-06_dp ! [km^2]
-        scalars%ice_volume_af_PD = scalars%ice_volume_af_PD + max( 0._dp, thickness_af_PD * mesh%A( vi_glob) * ice_density / (seawater_density * ocean_area))
+      if (refgeo_PD%Hi( vi) > 0._dp) then
+        scalars%ice_volume_PD    = scalars%ice_volume_PD    + max( 0._dp, (refgeo_PD%Hi( vi) * mesh%A( vi) * ice_density / (seawater_density * ocean_area)))
+        scalars%ice_area_PD      = scalars%ice_area_PD      + mesh%A( vi) * 1.0E-06_dp ! [km^2]
+        scalars%ice_volume_af_PD = scalars%ice_volume_af_PD + max( 0._dp, thickness_af_PD * mesh%A( vi) * ice_density / (seawater_density * ocean_area))
       end if
 
     end do
@@ -161,7 +158,7 @@ contains
 
     ! Local variables:
     character(len=256), parameter            :: routine_name = 'calc_icesheet_volume_and_area'
-    integer                                  :: vi_loc, vi_glob
+    integer                                  :: vi
 
     ! === Initialisation ===
     ! ======================
@@ -178,15 +175,12 @@ contains
     ! =======================
 
     ! Calculate ice area and volume for each process
-    do vi_loc = 1, mesh%nV_loc
+    do vi = mesh%vi1, mesh%vi2
 
-      ! Compute global index for this vertex
-      vi_glob = vi_loc + mesh%vi1 - 1
-
-      if (ice%mask_ice( vi_glob)) then
-        scalars%ice_volume    = scalars%ice_volume    + max( 0._dp, (ice%Hi( vi_loc) * mesh%A( vi_glob) * ice_density / (seawater_density * ocean_area)))
-        scalars%ice_area      = scalars%ice_area      + mesh%A( vi_glob) * 1.0E-06_dp ! [km^2]
-        scalars%ice_volume_af = scalars%ice_volume_af + max( 0._dp, ice%TAF( vi_loc) * mesh%A( vi_glob) * ice_density / (seawater_density * ocean_area))
+      if (ice%mask_ice( vi)) then
+        scalars%ice_volume    = scalars%ice_volume    + max( 0._dp, (ice%Hi( vi) * mesh%A( vi) * ice_density / (seawater_density * ocean_area)))
+        scalars%ice_area      = scalars%ice_area      + mesh%A( vi) * 1.0E-06_dp ! [km^2]
+        scalars%ice_volume_af = scalars%ice_volume_af + max( 0._dp, ice%TAF( vi) * mesh%A( vi) * ice_density / (seawater_density * ocean_area))
       end if
 
     end do

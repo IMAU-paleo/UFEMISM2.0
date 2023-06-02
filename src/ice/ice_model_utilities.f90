@@ -249,7 +249,7 @@ CONTAINS
     integer                                      :: mi, mi_valid
     real(dp), dimension(:,:  ), allocatable      :: Hb_grid_tot
     real(dp), dimension(:    ), allocatable      :: hb_list
-    integer                                      :: vi_glob, vi_loc, k, n, i, j
+    integer                                      :: vi, k, n, i, j
     integer                                      :: n_grid_cells, ii0, ii1
     real(dp)                                     :: isc, wii0, wii1
 
@@ -304,23 +304,20 @@ CONTAINS
     ! === Scan ===
     ! ============
 
-    do vi_loc = 1, mesh%nV_loc
-
-      ! Compute global index for this vertex
-      vi_glob = vi_loc + mesh%vi1 - 1
+    do vi = mesh%vi1, mesh%vi2
 
       ! Clear the list
       hb_list = 0d0
 
       ! Skip vertices at edge of domain
-      if (mesh%VBI( vi_glob) > 0) cycle
+      if (mesh%VBI( vi) > 0) cycle
 
       ! List bedrock elevations from all grid cells overlapping with this vertex's
       ! Voronoi cell (as already determined by the remapping operator)
       ! ==============================================================
 
       n_grid_cells = 0
-      do k = M_map%ptr( vi_glob), M_map%ptr( vi_glob+1)-1
+      do k = M_map%ptr( vi), M_map%ptr( vi+1)-1
         n_grid_cells = n_grid_cells + 1
         n = M_map%ind( k)
         i = refgeo%grid_raw%n2ij( n,1)
@@ -331,7 +328,7 @@ CONTAINS
       ! Safety
       if (n_grid_cells == 0) then
         ! Use default mesh value
-        ice%bedrock_cdf( vi_loc,:) = ice%Hb( vi_loc)
+        ice%bedrock_cdf( vi,:) = ice%Hb( vi)
         ! And skip
         cycle
       end if
@@ -355,8 +352,8 @@ CONTAINS
 
       ! NOTE: should the number of bins be configurable?
 
-      ice%bedrock_cdf( vi_loc, 1) = hb_list( 1)
-      ice%bedrock_cdf( vi_loc,11) = hb_list( n_grid_cells)
+      ice%bedrock_cdf( vi, 1) = hb_list( 1)
+      ice%bedrock_cdf( vi,11) = hb_list( n_grid_cells)
 
       ! Compute the bedrock elevation for each of the other CDF bins,
       ! from the second (10%) to the tenth (90%)
@@ -366,7 +363,7 @@ CONTAINS
         ii1  = ceiling( isc)
         wii0 = real( ii1,dp) - isc
         wii1 = 1.0 - wii0
-        ice%bedrock_cdf( vi_loc,i) = wii0 * hb_list( ii0) + wii1 * hb_list( ii1)
+        ice%bedrock_cdf( vi,i) = wii0 * hb_list( ii0) + wii1 * hb_list( ii1)
       end do
 
     end do
@@ -396,7 +393,7 @@ CONTAINS
 
     ! Local variables:
     character(len=256), parameter       :: routine_name = 'calc_grounded_fractions'
-    integer                             :: vi_loc, vi_glob, il, iu, ti_loc
+    integer                             :: vi, il, iu, ti
     real(dp)                            :: hb_float, wl, wu
 
     ! Add routine to path
@@ -405,18 +402,15 @@ CONTAINS
     ! === On the a-grid ===
     ! =====================
 
-    do vi_loc = 1, mesh%nV_loc
-
-      ! Compute global index for this vertex
-      vi_glob = vi_loc + mesh%vi1 - 1
+    do vi = mesh%vi1, mesh%vi2
 
       ! Edge vertices
-      if (mesh%VBI( vi_glob) > 0) then
+      if (mesh%VBI( vi) > 0) then
         ! Either 0 or 1 depending on land mask
-        if (ice%mask_land( vi_glob)) then
-          ice%fraction_gr( vi_loc) = 1._dp
+        if (ice%mask_land( vi)) then
+          ice%fraction_gr( vi) = 1._dp
         else
-          ice%fraction_gr( vi_loc) = 0._dp
+          ice%fraction_gr( vi) = 0._dp
         end if
         ! Then skip
         cycle
@@ -426,36 +420,36 @@ CONTAINS
       ! will make this point afloat. Account for GIA here so we don't have to do it in
       ! the computation of the cumulative density function (CDF).
 
-      hb_float = ice%SL( vi_loc) - ice%Hi( vi_loc) * ice_density/seawater_density - ice%dHb( vi_loc)
+      hb_float = ice%SL( vi) - ice%Hi( vi) * ice_density/seawater_density - ice%dHb( vi)
 
       ! Get the fraction of bedrock within vertex coverage that is below
       ! hb_float as a linear interpolation of the numbers in the CDF.
 
-      if     (hb_float <= minval( ice%bedrock_cdf( vi_loc,:))) then
+      if     (hb_float <= minval( ice%bedrock_cdf( vi,:))) then
         ! All sub-grid points are above the floating bedrock elevation
-        ice%fraction_gr( vi_loc) = 1._dp
-      elseif (hb_float >= maxval( ice%bedrock_cdf( vi_loc,:))) then
+        ice%fraction_gr( vi) = 1._dp
+      elseif (hb_float >= maxval( ice%bedrock_cdf( vi,:))) then
         ! All sub-grid points are below the floating bedrock elevation
-        ice%fraction_gr( vi_loc) = 0._dp
+        ice%fraction_gr( vi) = 0._dp
       else
         ! Find the 2 elements in the CDF surrounding hb_float
         iu = 1
-        do while (ice%bedrock_cdf( vi_loc,iu) < hb_float)
+        do while (ice%bedrock_cdf( vi,iu) < hb_float)
           iu = iu+1
         end do
         il = iu-1
 
         ! Interpolate bedrock to get the weights for both CDF percentages
-        wl = (ice%bedrock_cdf( vi_loc,iu) - hb_float) / (ice%bedrock_cdf( vi_loc,iu)-ice%bedrock_cdf( vi_loc,il))
+        wl = (ice%bedrock_cdf( vi,iu) - hb_float) / (ice%bedrock_cdf( vi,iu)-ice%bedrock_cdf( vi,il))
         wu = 1._dp - wl
 
         ! Interpolate between percentages, assuming that there are 11 CDF bins between
         ! 0% and 100%, at 10% intervals, i.e. element 1 is 0% =(1-1)*10%, element 2 is
         ! 10% = (2-1)*10%, and so on.
-        ice%fraction_gr( vi_loc) = 1._dp - (10._dp*(il-1)*wl + 10._dp*(iu-1)*wu) / 100._dp
+        ice%fraction_gr( vi) = 1._dp - (10._dp*(il-1)*wl + 10._dp*(iu-1)*wu) / 100._dp
 
         ! Safety
-        ice%fraction_gr( vi_loc) = min( 1._dp, max( 0._dp, ice%fraction_gr( vi_loc)))
+        ice%fraction_gr( vi) = min( 1._dp, max( 0._dp, ice%fraction_gr( vi)))
 
       end if
 
@@ -468,8 +462,8 @@ CONTAINS
     call map_a_b_2D( mesh, ice%fraction_gr, ice%fraction_gr_b)
 
     ! Safety
-    do ti_loc = 1, mesh%nTri_loc
-      ice%fraction_gr_b( ti_loc) = min( 1._dp, max( 0._dp, ice%fraction_gr_b( ti_loc)))
+    do ti = mesh%ti1, mesh%ti2
+      ice%fraction_gr_b( ti) = min( 1._dp, max( 0._dp, ice%fraction_gr_b( ti)))
     end do
 
     ! Finalise routine path

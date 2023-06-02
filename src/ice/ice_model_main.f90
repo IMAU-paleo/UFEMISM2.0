@@ -95,7 +95,8 @@ CONTAINS
     ! ==================
 
     ! Basic topography
-    do vi = 1, mesh%nV_loc
+    do vi = mesh%vi1, mesh%vi2
+
       ! Main quantities
       ice%Hi ( vi) = refgeo_init%Hi( vi)
       ice%Hb ( vi) = refgeo_init%Hb( vi)
@@ -109,6 +110,7 @@ CONTAINS
       ice%dHb ( vi)  = ice%Hb ( vi) - refgeo_PD%Hb ( vi)
       ice%dHs ( vi)  = ice%Hs ( vi) - refgeo_PD%Hs ( vi)
       ice%dHib( vi)  = ice%Hib( vi) - (refgeo_PD%Hs ( vi) - refgeo_PD%Hi( vi))
+
     end do
 
     ! Initialised predicted ice thickness
