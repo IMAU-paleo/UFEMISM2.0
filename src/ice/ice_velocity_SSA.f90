@@ -144,9 +144,6 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! DENK DROM
-    CALL warning('still need to calculate bed roughness and grounded fractions in main UFEMISM model!')
-
     ! If there is no grounded ice, or no sliding, no need to solve the SSA
     IF ((.NOT. ANY( ice%mask_sheet)) .OR. C%choice_sliding_law == 'no_sliding') THEN
       SSA%u_b = 0._dp
@@ -211,7 +208,7 @@ CONTAINS
       uv_max = MAXVAL( SSA%u_b)
       CALL MPI_ALLREDUCE( MPI_IN_PLACE, uv_min, 1, MPI_DOUBLE_PRECISION, MPI_MIN, MPI_COMM_WORLD, ierr)
       CALL MPI_ALLREDUCE( MPI_IN_PLACE, uv_max, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
-      IF (par%master) WRITE(0,*) '    SSA - viscosity iteration ', viscosity_iteration_i, ', u = [', uv_min, ' - ', uv_max, '], resid = ', resid_UV
+!      IF (par%master) WRITE(0,*) '    SSA - viscosity iteration ', viscosity_iteration_i, ', u = [', uv_min, ' - ', uv_max, '], resid = ', resid_UV
 
       ! If the viscosity iteration has converged, or has reached the maximum allowed number of iterations, stop it.
       has_converged = .FALSE.
@@ -224,9 +221,6 @@ CONTAINS
          CALL warning('viscosity iteration failed to converge within {int_01} iterations!', int_01 = C%visc_it_nit)
          EXIT viscosity_iteration
        END IF
-
-       ! DENK DROM
-       IF (viscosity_iteration_i > 10) EXIT viscosity_iteration
 
     END DO viscosity_iteration
 
