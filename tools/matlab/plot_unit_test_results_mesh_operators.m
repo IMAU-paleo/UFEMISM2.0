@@ -2,7 +2,7 @@ clc
 clear all
 close all
 
-filename = '../../test_mesh_operators_basic_output.nc';
+filename = '../../results_20230605_001/test_mesh_operators_basic_output.nc';
 
 mesh = read_mesh_from_file( filename);
 
@@ -163,10 +163,22 @@ d2dx2_b_b  = ncread( filename,'d2dx2_b_b' );
 d2dxdy_b_b = ncread( filename,'d2dxdy_b_b');
 d2dy2_b_b  = ncread( filename,'d2dy2_b_b' );
 
-plot_mesh_data_b( H_M2.Ax{ 1,1}, mesh, d2dx2_b_ex);
-plot_mesh_data_b( H_M2.Ax{ 1,2}, mesh, d2dxdy_b_ex);
-plot_mesh_data_b( H_M2.Ax{ 1,3}, mesh, d2dy2_b_ex);
+set( H_M2.Ax{ 1,1},'clim', [min( d2dx2_b_ex), max( d2dx2_b_ex)]);
+set( H_M2.Ax{ 1,2},'clim', [min( d2dx2_b_ex), max( d2dx2_b_ex)]);
 
+set( H_M2.Ax{ 2,1},'clim', [min( d2dxdy_b_ex), max( d2dxdy_b_ex)]);
+set( H_M2.Ax{ 2,2},'clim', [min( d2dxdy_b_ex), max( d2dxdy_b_ex)]);
+
+set( H_M2.Ax{ 3,1},'clim', [min( d2dy2_b_ex), max( d2dy2_b_ex)]);
+set( H_M2.Ax{ 3,2},'clim', [min( d2dy2_b_ex), max( d2dy2_b_ex)]);
+
+plot_mesh_data_b( H_M2.Ax{ 1,1}, mesh, d2dx2_b_ex);
+plot_mesh_data_b( H_M2.Ax{ 2,1}, mesh, d2dxdy_b_ex);
+plot_mesh_data_b( H_M2.Ax{ 3,1}, mesh, d2dy2_b_ex);
+
+plot_mesh_data_b( H_M2.Ax{ 1,2}, mesh, d2dx2_b_b);
+plot_mesh_data_b( H_M2.Ax{ 2,2}, mesh, d2dxdy_b_b);
+plot_mesh_data_b( H_M2.Ax{ 3,2}, mesh, d2dy2_b_b);
 
 function plot_mesh_data_a( ax, mesh, d)
   patch('parent',ax,'vertices',mesh.V(1:mesh.nV,:),'faces',mesh.Tri(1:mesh.nTri,:),...

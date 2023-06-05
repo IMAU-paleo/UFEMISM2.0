@@ -35,9 +35,6 @@ MODULE unit_tests_mesh
 
   IMPLICIT NONE
 
-! ===== Global variables =====
-! ============================
-
   LOGICAL :: do_write_results_to_netcdf = .TRUE.
 
 CONTAINS
@@ -63,8 +60,8 @@ CONTAINS
     CALL test_mesh_creation_basic_two_cores_prime( mesh2)
     CALL test_mesh_operators_basic(                mesh)
     CALL test_remapping_grid2mesh(                 mesh)
-    CALL test_remapping_lonlat2mesh(               mesh)
     CALL test_remapping_mesh2grid(                 mesh)
+    CALL test_remapping_lonlat2mesh(               mesh)
     CALL test_remapping_mesh2mesh(                 mesh, mesh2)
 
     ! Finalise routine path
@@ -161,37 +158,37 @@ CONTAINS
 
     found_errors = .FALSE.
 
-    ! 2023-03-23: mesh has 6394 vertices
-    IF (mesh%nV < 5000 .OR. mesh%nV > 7500) THEN
+    ! 2023-06-05: mesh has 4435 vertices
+    IF (mesh%nV < 4000 .OR. mesh%nV > 5000) THEN
       found_errors = .TRUE.
-      CALL warning('mesh has unexepcted amount of vertices! Expected 6394, found {int_01}', int_01 = mesh%nV)
+      CALL warning('mesh has unexepcted amount of vertices! Expected 4435, found {int_01}', int_01 = mesh%nV)
     END IF
 
-    ! 2023-03-23: mesh has 12682 triangles
-    IF (mesh%nTri < 10000 .OR. mesh%nTri > 15000) THEN
+    ! 2023-06-05: mesh has 8765 triangles
+    IF (mesh%nTri < 8000 .OR. mesh%nTri > 10000) THEN
       found_errors = .TRUE.
-      CALL warning('mesh has unexepcted amount of triangles! Expected 12682, found {int_01}', int_01 = mesh%nTri)
+      CALL warning('mesh has unexepcted amount of triangles! Expected 8765, found {int_01}', int_01 = mesh%nTri)
     END IF
 
-    ! 2023-03-23: mesh has 19075 edges
-    IF (mesh%nE < 15000 .OR. mesh%nE > 25000) THEN
+    ! 2023-06-05: mesh has 13199 edges
+    IF (mesh%nE < 12000 .OR. mesh%nE > 15000) THEN
       found_errors = .TRUE.
-      CALL warning('mesh has unexepcted amount of edges! Expected 19075, found {int_01}', int_01 = mesh%nE)
+      CALL warning('mesh has unexepcted amount of edges! Expected 13199, found {int_01}', int_01 = mesh%nE)
     END IF
 
-    ! 2023-03-23: smallest vertex has a Voronoi cell area of 0.64840E+09
-    IF (MINVAL( mesh%A) < 0.3E09) THEN
+    ! 2023-06-05: smallest vertex has a Voronoi cell area of 0.10398E+10
+    IF (MINVAL( mesh%A) < 0.10398E+10 * 0.5) THEN
       found_errors = .TRUE.
-      CALL warning('mesh has unexpectedly small vertices! Expected MINVAL( mesh%A) = 0.64840E+09, found {dp_01}', dp_01 = MINVAL( mesh%A))
+      CALL warning('mesh has unexpectedly small vertices! Expected MINVAL( mesh%A) = 0.10398E+10, found {dp_01}', dp_01 = MINVAL( mesh%A))
     END IF
 
-    ! 2023-03-23: largest vertex has a Voronoi cell area of 0.83562E+11
-    IF (MAXVAL( mesh%A) > 1.6E12) THEN
+    ! 2023-06-05: largest vertex has a Voronoi cell area of 0.84217E+11
+    IF (MAXVAL( mesh%A) > 0.84217E+11 * 2.0) THEN
       found_errors = .TRUE.
-      CALL warning('mesh has unexpectedly large vertices! Expected MAXVAL( mesh%A) = 0.83562E+11, found {dp_01}', dp_01 = MAXVAL( mesh%A))
+      CALL warning('mesh has unexpectedly large vertices! Expected MAXVAL( mesh%A) = 0.84217E+11, found {dp_01}', dp_01 = MAXVAL( mesh%A))
     END IF
 
-    ! 2023-03-23: mesh has a maximum ratio of Voronoi cell area A of adjacent vertices of 5.719
+    ! 2023-06-05: mesh has a maximum ratio of Voronoi cell area A of adjacent vertices of 0.48151E+01
     RA_max = 0._dp
     DO vi = 1, mesh%nV
       DO ci = 1, mesh%nC( vi)
@@ -200,9 +197,9 @@ CONTAINS
         RA_max = MAX( RA_max, RA)
       END DO
     END DO
-    IF (RA_max > 7._dp)  THEN
+    IF (RA_max > 0.48151E+01 * 2.0)  THEN
       found_errors = .TRUE.
-      CALL warning('mesh has unexpectedly high resolution gradient! Expected RA_max = 0.57190E+01, found {dp_01}', dp_01 = RA_max)
+      CALL warning('mesh has unexpectedly high resolution gradient! Expected RA_max = 0.48151E+01, found {dp_01}', dp_01 = RA_max)
     END IF
 
     ! If no errors occurred, we are happy
@@ -215,12 +212,10 @@ CONTAINS
     END IF
 
     ! Write the resulting mesh to a NetCDF file
-    IF (do_write_results_to_netcdf) THEN
-      filename = TRIM( routine_name) // '_output.nc'
-      CALL create_new_netcdf_file_for_writing( filename, ncid)
-      CALL setup_mesh_in_netcdf_file( filename, ncid, mesh)
-      CALL close_netcdf_file( ncid)
-    END IF
+    filename = TRIM( C%output_dir) // TRIM( routine_name) // '_output.nc'
+    CALL create_new_netcdf_file_for_writing( filename, ncid)
+    CALL setup_mesh_in_netcdf_file( filename, ncid, mesh)
+    CALL close_netcdf_file( ncid)
 
     ! Clean up after yourself
     CALL deallocate_mesh( mesh)
@@ -349,37 +344,37 @@ CONTAINS
 
     found_errors = .FALSE.
 
-    ! 2023-03-23: mesh has 8934 vertices
-    IF (mesh%nV < 8000 .OR. mesh%nV > 12000) THEN
+    ! 2023-06-05: mesh has 5873 vertices
+    IF (mesh%nV < 5500 .OR. mesh%nV > 6500) THEN
       found_errors = .TRUE.
-      CALL warning('mesh has unexepcted amount of vertices! Expected 8934, found {int_01}', int_01 = mesh%nV)
+      CALL warning('mesh has unexepcted amount of vertices! Expected 5873, found {int_01}', int_01 = mesh%nV)
     END IF
 
-    ! 2023-03-23: mesh has 17737 triangles
-    IF (mesh%nTri < 15000 .OR. mesh%nTri > 20000) THEN
+    ! 2023-06-05: mesh has 11619 triangles
+    IF (mesh%nTri < 10000 .OR. mesh%nTri > 13000) THEN
       found_errors = .TRUE.
-      CALL warning('mesh has unexepcted amount of triangles! Expected 17737, found {int_01}', int_01 = mesh%nTri)
+      CALL warning('mesh has unexepcted amount of triangles! Expected 11619, found {int_01}', int_01 = mesh%nTri)
     END IF
 
-    ! 2023-03-23: mesh has 26670 edges
-    IF (mesh%nE < 22000 .OR. mesh%nE > 30000) THEN
+    ! 2023-06-05: mesh has 17491 edges
+    IF (mesh%nE < 15000 .OR. mesh%nE > 20000) THEN
       found_errors = .TRUE.
-      CALL warning('mesh has unexepcted amount of edges! Expected 19075, found {int_01}', int_01 = mesh%nE)
+      CALL warning('mesh has unexepcted amount of edges! Expected 17491, found {int_01}', int_01 = mesh%nE)
     END IF
 
-    ! 2023-03-23: smallest vertex has a Voronoi cell area of 0.62425E+09
-    IF (MINVAL( mesh%A) < 0.3E09) THEN
+    ! 2023-06-05: smallest vertex has a Voronoi cell area of 0.11096E+10
+    IF (MINVAL( mesh%A) < 0.11096E+10 * 0.5) THEN
       found_errors = .TRUE.
-      CALL warning('mesh has unexpectedly small vertices! Expected MINVAL( mesh%A) = 0.62425E+09, found {dp_01}', dp_01 = MINVAL( mesh%A))
+      CALL warning('mesh has unexpectedly small vertices! Expected MINVAL( mesh%A) = 0.11096E+10, found {dp_01}', dp_01 = MINVAL( mesh%A))
     END IF
 
-    ! 2023-03-23: largest vertex has a Voronoi cell area of 0.74116E+11
-    IF (MAXVAL( mesh%A) > 1.6E12) THEN
+    ! 2023-06-05: largest vertex has a Voronoi cell area of 0.74507E+11
+    IF (MAXVAL( mesh%A) > 0.74507E+11 * 2.0) THEN
       found_errors = .TRUE.
-      CALL warning('mesh has unexpectedly large vertices! Expected MAXVAL( mesh%A) = 0.83562E+11, found {dp_01}', dp_01 = MAXVAL( mesh%A))
+      CALL warning('mesh has unexpectedly large vertices! Expected MAXVAL( mesh%A) = 0.74507E+11, found {dp_01}', dp_01 = MAXVAL( mesh%A))
     END IF
 
-    ! 2023-03-23: mesh has a maximum ratio of Voronoi cell area A of adjacent vertices of 0.41585E+01
+    ! 2023-06-05: mesh has a maximum ratio of Voronoi cell area A of adjacent vertices of 0.34108E+01
     RA_max = 0._dp
     DO vi = 1, mesh%nV
       DO ci = 1, mesh%nC( vi)
@@ -388,9 +383,9 @@ CONTAINS
         RA_max = MAX( RA_max, RA)
       END DO
     END DO
-    IF (RA_max > 7._dp)  THEN
+    IF (RA_max > 0.34108E+01 * 2.0)  THEN
       found_errors = .TRUE.
-      CALL warning('mesh has unexpectedly high resolution gradient! Expected RA_max = 0.41585E+01, found {dp_01}', dp_01 = RA_max)
+      CALL warning('mesh has unexpectedly high resolution gradient! Expected RA_max = 0.34108E+01, found {dp_01}', dp_01 = RA_max)
     END IF
 
     ! If no errors occurred, we are happy
@@ -403,12 +398,10 @@ CONTAINS
     END IF
 
     ! Write the resulting mesh to a NetCDF file
-    IF (do_write_results_to_netcdf) THEN
-      filename = TRIM( routine_name) // '_output.nc'
-      CALL create_new_netcdf_file_for_writing( filename, ncid)
-      CALL setup_mesh_in_netcdf_file( filename, ncid, mesh)
-      CALL close_netcdf_file( ncid)
-    END IF
+    filename = TRIM( C%output_dir) // TRIM( routine_name) // '_output.nc'
+    CALL create_new_netcdf_file_for_writing( filename, ncid)
+    CALL setup_mesh_in_netcdf_file( filename, ncid, mesh)
+    CALL close_netcdf_file( ncid)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -527,37 +520,37 @@ CONTAINS
 
     found_errors = .FALSE.
 
-    ! 2023-03-23: mesh has 4606 vertices
-    IF (mesh%nV < 4000 .OR. mesh%nV > 5000) THEN
+    ! 2023-06-05: mesh has 3299 vertices
+    IF (mesh%nV < 3000 .OR. mesh%nV > 3500) THEN
       found_errors = .TRUE.
-      CALL warning('mesh has unexepcted amount of vertices! Expected 4606, found {int_01}', int_01 = mesh%nV)
+      CALL warning('mesh has unexepcted amount of vertices! Expected 3299, found {int_01}', int_01 = mesh%nV)
     END IF
 
-    ! 2023-03-23: mesh has 9071 triangles
-    IF (mesh%nTri < 8000 .OR. mesh%nTri > 10000) THEN
+    ! 2023-06-05: mesh has 6460 triangles
+    IF (mesh%nTri < 6000 .OR. mesh%nTri > 7000) THEN
       found_errors = .TRUE.
-      CALL warning('mesh has unexepcted amount of triangles! Expected 9071, found {int_01}', int_01 = mesh%nTri)
+      CALL warning('mesh has unexepcted amount of triangles! Expected 6460, found {int_01}', int_01 = mesh%nTri)
     END IF
 
-    ! 2023-03-23: mesh has 13676 edges
-    IF (mesh%nE < 12000 .OR. mesh%nE > 15000) THEN
+    ! 2023-06-05: mesh has 9758 edges
+    IF (mesh%nE < 9000 .OR. mesh%nE > 11000) THEN
       found_errors = .TRUE.
-      CALL warning('mesh has unexepcted amount of edges! Expected 13676, found {int_01}', int_01 = mesh%nE)
+      CALL warning('mesh has unexepcted amount of edges! Expected 9758, found {int_01}', int_01 = mesh%nE)
     END IF
 
-    ! 2023-03-23: smallest vertex has a Voronoi cell area of 0.18202E+10
-    IF (MINVAL( mesh%A) < 0.1E10) THEN
+    ! 2023-06-05: smallest vertex has a Voronoi cell area of 0.30736E+10
+    IF (MINVAL( mesh%A) < 0.30736E+10 * 0.5) THEN
       found_errors = .TRUE.
-      CALL warning('mesh has unexpectedly small vertices! Expected MINVAL( mesh%A) = 0.18202E+10, found {dp_01}', dp_01 = MINVAL( mesh%A))
+      CALL warning('mesh has unexpectedly small vertices! Expected MINVAL( mesh%A) = 0.30736E+10, found {dp_01}', dp_01 = MINVAL( mesh%A))
     END IF
 
-    ! 2023-03-23: largest vertex has a Voronoi cell area of 0.53694E+11
-    IF (MAXVAL( mesh%A) > 1.0E12) THEN
+    ! 2023-06-05: largest vertex has a Voronoi cell area of 0.53848E+11
+    IF (MAXVAL( mesh%A) > 0.53848E+11 * 2.0) THEN
       found_errors = .TRUE.
-      CALL warning('mesh has unexpectedly large vertices! Expected MAXVAL( mesh%A) = 0.53694E+11, found {dp_01}', dp_01 = MAXVAL( mesh%A))
+      CALL warning('mesh has unexpectedly large vertices! Expected MAXVAL( mesh%A) = 0.53848E+11, found {dp_01}', dp_01 = MAXVAL( mesh%A))
     END IF
 
-    ! 2023-03-23: mesh has a maximum ratio of Voronoi cell area A of adjacent vertices of 0.35787E+01
+    ! 2023-06-05: mesh has a maximum ratio of Voronoi cell area A of adjacent vertices of 0.29651E+01
     RA_max = 0._dp
     DO vi = 1, mesh%nV
       DO ci = 1, mesh%nC( vi)
@@ -566,9 +559,9 @@ CONTAINS
         RA_max = MAX( RA_max, RA)
       END DO
     END DO
-    IF (RA_max > 7._dp)  THEN
+    IF (RA_max > 0.29651E+01 * 2.0)  THEN
       found_errors = .TRUE.
-      CALL warning('mesh has unexpectedly high resolution gradient! Expected RA_max = 0.35787E+01, found {dp_01}', dp_01 = RA_max)
+      CALL warning('mesh has unexpectedly high resolution gradient! Expected RA_max = 0.29651E+01, found {dp_01}', dp_01 = RA_max)
     END IF
 
     ! If no errors occurred, we are happy
@@ -579,6 +572,12 @@ CONTAINS
     ELSE
       IF (par%master) CALL warning('found errors in basic two-core mesh creation')
     END IF
+
+    ! Write the resulting mesh to a NetCDF file
+    filename = TRIM( C%output_dir) // TRIM( routine_name) // '_output.nc'
+    CALL create_new_netcdf_file_for_writing( filename, ncid)
+    CALL setup_mesh_in_netcdf_file( filename, ncid, mesh)
+    CALL close_netcdf_file( ncid)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -845,14 +844,17 @@ CONTAINS
 
     ! b-grid (triangles)
 
-    maxerr_d_a_b   = 0._dp
-    maxerr_d_c_b   = 0._dp
-    maxerr_ddx_a_b = 0._dp
-    maxerr_ddx_b_b = 0._dp
-    maxerr_ddx_c_b = 0._dp
-    maxerr_ddy_a_b = 0._dp
-    maxerr_ddy_b_b = 0._dp
-    maxerr_ddy_c_b = 0._dp
+    maxerr_d_a_b      = 0._dp
+    maxerr_d_c_b      = 0._dp
+    maxerr_ddx_a_b    = 0._dp
+    maxerr_ddx_b_b    = 0._dp
+    maxerr_ddx_c_b    = 0._dp
+    maxerr_ddy_a_b    = 0._dp
+    maxerr_ddy_b_b    = 0._dp
+    maxerr_ddy_c_b    = 0._dp
+    maxerr_d2dx2_b_b  = 0._dp
+    maxerr_d2dxdy_b_b = 0._dp
+    maxerr_d2dy2_b_b  = 0._dp
 
     DO ti = mesh%ti1, mesh%ti2
 
@@ -860,30 +862,32 @@ CONTAINS
       IF (mesh%TriBI( ti) > 0) CYCLE
 
       ! Calculate errors
-      maxerr_d_a_b   = MAX( maxerr_d_a_b  , ABS( d_a_b(   ti) - d_b_ex(   ti)))
-      maxerr_d_c_b   = MAX( maxerr_d_c_b  , ABS( d_c_b(   ti) - d_b_ex(   ti)))
-
-      maxerr_ddx_a_b = MAX( maxerr_ddx_a_b, ABS( ddx_a_b( ti) - ddx_b_ex( ti)))
-      maxerr_ddx_b_b = MAX( maxerr_ddx_b_b, ABS( ddx_b_b( ti) - ddx_b_ex( ti)))
-      maxerr_ddx_c_b = MAX( maxerr_ddx_c_b, ABS( ddx_c_b( ti) - ddx_b_ex( ti)))
-
-      maxerr_ddy_a_b = MAX( maxerr_ddy_a_b, ABS( ddy_a_b( ti) - ddy_b_ex( ti)))
-      maxerr_ddy_b_b = MAX( maxerr_ddy_b_b, ABS( ddy_b_b( ti) - ddy_b_ex( ti)))
-      maxerr_ddy_c_b = MAX( maxerr_ddy_c_b, ABS( ddy_c_b( ti) - ddy_b_ex( ti)))
+      maxerr_d_a_b      = MAX( maxerr_d_a_b     , ABS( d_a_b(      ti) - d_b_ex(      ti)))
+      maxerr_d_c_b      = MAX( maxerr_d_c_b     , ABS( d_c_b(      ti) - d_b_ex(      ti)))
+      maxerr_ddx_a_b    = MAX( maxerr_ddx_a_b   , ABS( ddx_a_b(    ti) - ddx_b_ex(    ti)))
+      maxerr_ddx_b_b    = MAX( maxerr_ddx_b_b   , ABS( ddx_b_b(    ti) - ddx_b_ex(    ti)))
+      maxerr_ddx_c_b    = MAX( maxerr_ddx_c_b   , ABS( ddx_c_b(    ti) - ddx_b_ex(    ti)))
+      maxerr_ddy_a_b    = MAX( maxerr_ddy_a_b   , ABS( ddy_a_b(    ti) - ddy_b_ex(    ti)))
+      maxerr_ddy_b_b    = MAX( maxerr_ddy_b_b   , ABS( ddy_b_b(    ti) - ddy_b_ex(    ti)))
+      maxerr_ddy_c_b    = MAX( maxerr_ddy_c_b   , ABS( ddy_c_b(    ti) - ddy_b_ex(    ti)))
+      maxerr_d2dx2_b_b  = MAX( maxerr_d2dx2_b_b , ABS( d2dx2_b_b(  ti) - d2dx2_b_ex(  ti)))
+      maxerr_d2dxdy_b_b = MAX( maxerr_d2dxdy_b_b, ABS( d2dxdy_b_b( ti) - d2dxdy_b_ex( ti)))
+      maxerr_d2dy2_b_b  = MAX( maxerr_d2dy2_b_b , ABS( d2dy2_b_b(  ti) - d2dy2_b_ex(  ti)))
 
     END DO ! DO ti = mesh%ti1, mesh%ti2
 
     ! Find maximum errors across all processes
-    CALL MPI_ALLREDUCE( MPI_IN_PLACE, maxerr_d_a_b  , 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
-    CALL MPI_ALLREDUCE( MPI_IN_PLACE, maxerr_d_c_b  , 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
-
-    CALL MPI_ALLREDUCE( MPI_IN_PLACE, maxerr_ddx_a_b, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
-    CALL MPI_ALLREDUCE( MPI_IN_PLACE, maxerr_ddx_b_b, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
-    CALL MPI_ALLREDUCE( MPI_IN_PLACE, maxerr_ddx_c_b, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
-
-    CALL MPI_ALLREDUCE( MPI_IN_PLACE, maxerr_ddy_a_b, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
-    CALL MPI_ALLREDUCE( MPI_IN_PLACE, maxerr_ddy_b_b, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
-    CALL MPI_ALLREDUCE( MPI_IN_PLACE, maxerr_ddy_c_b, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, maxerr_d_a_b     , 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, maxerr_d_c_b     , 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, maxerr_ddx_a_b   , 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, maxerr_ddx_b_b   , 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, maxerr_ddx_c_b   , 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, maxerr_ddy_a_b   , 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, maxerr_ddy_b_b   , 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, maxerr_ddy_c_b   , 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, maxerr_d2dx2_b_b , 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, maxerr_d2dxdy_b_b, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, maxerr_d2dy2_b_b , 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
 
     IF (maxerr_d_a_b > 0.25E-1_dp) THEN
       found_errors = .TRUE.
@@ -1006,123 +1010,120 @@ CONTAINS
     END IF
 
     ! Write results to a NetCDF file
-    IF (do_write_results_to_netcdf) THEN
 
-      ! Create a file and write the mesh to it
-      filename = TRIM( routine_name) // '_output.nc'
-      CALL create_new_netcdf_file_for_writing( filename, ncid)
-      CALL setup_mesh_in_netcdf_file( filename, ncid, mesh)
+    ! Create a file and write the mesh to it
+    filename = TRIM( C%output_dir) // TRIM( routine_name) // '_output.nc'
+    CALL create_new_netcdf_file_for_writing( filename, ncid)
+    CALL setup_mesh_in_netcdf_file( filename, ncid, mesh)
 
-      ! Add all the variables
-      CALL add_field_mesh_dp_2D_notime(   filename, ncid, 'd_a_ex'     )
-      CALL add_field_mesh_dp_2D_notime(   filename, ncid, 'ddx_a_ex'   )
-      CALL add_field_mesh_dp_2D_notime(   filename, ncid, 'ddy_a_ex'   )
+    ! Add all the variables
+    CALL add_field_mesh_dp_2D_notime(   filename, ncid, 'd_a_ex'     )
+    CALL add_field_mesh_dp_2D_notime(   filename, ncid, 'ddx_a_ex'   )
+    CALL add_field_mesh_dp_2D_notime(   filename, ncid, 'ddy_a_ex'   )
 
-      CALL add_field_mesh_dp_2D_b_notime( filename, ncid, 'd_b_ex'     )
-      CALL add_field_mesh_dp_2D_b_notime( filename, ncid, 'ddx_b_ex'   )
-      CALL add_field_mesh_dp_2D_b_notime( filename, ncid, 'ddy_b_ex'   )
-      CALL add_field_mesh_dp_2D_b_notime( filename, ncid, 'd2dx2_b_ex' )
-      CALL add_field_mesh_dp_2D_b_notime( filename, ncid, 'd2dxdy_b_ex')
-      CALL add_field_mesh_dp_2D_b_notime( filename, ncid, 'd2dy2_b_ex' )
+    CALL add_field_mesh_dp_2D_b_notime( filename, ncid, 'd_b_ex'     )
+    CALL add_field_mesh_dp_2D_b_notime( filename, ncid, 'ddx_b_ex'   )
+    CALL add_field_mesh_dp_2D_b_notime( filename, ncid, 'ddy_b_ex'   )
+    CALL add_field_mesh_dp_2D_b_notime( filename, ncid, 'd2dx2_b_ex' )
+    CALL add_field_mesh_dp_2D_b_notime( filename, ncid, 'd2dxdy_b_ex')
+    CALL add_field_mesh_dp_2D_b_notime( filename, ncid, 'd2dy2_b_ex' )
 
-      CALL add_field_mesh_dp_2D_c_notime( filename, ncid, 'd_c_ex'     )
-      CALL add_field_mesh_dp_2D_c_notime( filename, ncid, 'ddx_c_ex'   )
-      CALL add_field_mesh_dp_2D_c_notime( filename, ncid, 'ddy_c_ex'   )
+    CALL add_field_mesh_dp_2D_c_notime( filename, ncid, 'd_c_ex'     )
+    CALL add_field_mesh_dp_2D_c_notime( filename, ncid, 'ddx_c_ex'   )
+    CALL add_field_mesh_dp_2D_c_notime( filename, ncid, 'ddy_c_ex'   )
 
-      CALL add_field_mesh_dp_2D_b_notime( filename, ncid, 'd_a_b'      )
-      CALL add_field_mesh_dp_2D_c_notime( filename, ncid, 'd_a_c'      )
+    CALL add_field_mesh_dp_2D_b_notime( filename, ncid, 'd_a_b'      )
+    CALL add_field_mesh_dp_2D_c_notime( filename, ncid, 'd_a_c'      )
 
-      CALL add_field_mesh_dp_2D_notime(   filename, ncid, 'd_b_a'      )
-      CALL add_field_mesh_dp_2D_c_notime( filename, ncid, 'd_b_c'      )
+    CALL add_field_mesh_dp_2D_notime(   filename, ncid, 'd_b_a'      )
+    CALL add_field_mesh_dp_2D_c_notime( filename, ncid, 'd_b_c'      )
 
-      CALL add_field_mesh_dp_2D_notime(   filename, ncid, 'd_c_a'      )
-      CALL add_field_mesh_dp_2D_b_notime( filename, ncid, 'd_c_b'      )
+    CALL add_field_mesh_dp_2D_notime(   filename, ncid, 'd_c_a'      )
+    CALL add_field_mesh_dp_2D_b_notime( filename, ncid, 'd_c_b'      )
 
-      CALL add_field_mesh_dp_2D_notime(   filename, ncid, 'ddx_a_a'    )
-      CALL add_field_mesh_dp_2D_b_notime( filename, ncid, 'ddx_a_b'    )
-      CALL add_field_mesh_dp_2D_c_notime( filename, ncid, 'ddx_a_c'    )
+    CALL add_field_mesh_dp_2D_notime(   filename, ncid, 'ddx_a_a'    )
+    CALL add_field_mesh_dp_2D_b_notime( filename, ncid, 'ddx_a_b'    )
+    CALL add_field_mesh_dp_2D_c_notime( filename, ncid, 'ddx_a_c'    )
 
-      CALL add_field_mesh_dp_2D_notime(   filename, ncid, 'ddx_b_a'    )
-      CALL add_field_mesh_dp_2D_b_notime( filename, ncid, 'ddx_b_b'    )
-      CALL add_field_mesh_dp_2D_c_notime( filename, ncid, 'ddx_b_c'    )
+    CALL add_field_mesh_dp_2D_notime(   filename, ncid, 'ddx_b_a'    )
+    CALL add_field_mesh_dp_2D_b_notime( filename, ncid, 'ddx_b_b'    )
+    CALL add_field_mesh_dp_2D_c_notime( filename, ncid, 'ddx_b_c'    )
 
-      CALL add_field_mesh_dp_2D_notime(   filename, ncid, 'ddx_c_a'    )
-      CALL add_field_mesh_dp_2D_b_notime( filename, ncid, 'ddx_c_b'    )
-      CALL add_field_mesh_dp_2D_c_notime( filename, ncid, 'ddx_c_c'    )
+    CALL add_field_mesh_dp_2D_notime(   filename, ncid, 'ddx_c_a'    )
+    CALL add_field_mesh_dp_2D_b_notime( filename, ncid, 'ddx_c_b'    )
+    CALL add_field_mesh_dp_2D_c_notime( filename, ncid, 'ddx_c_c'    )
 
-      CALL add_field_mesh_dp_2D_notime(   filename, ncid, 'ddy_a_a'    )
-      CALL add_field_mesh_dp_2D_b_notime( filename, ncid, 'ddy_a_b'    )
-      CALL add_field_mesh_dp_2D_c_notime( filename, ncid, 'ddy_a_c'    )
+    CALL add_field_mesh_dp_2D_notime(   filename, ncid, 'ddy_a_a'    )
+    CALL add_field_mesh_dp_2D_b_notime( filename, ncid, 'ddy_a_b'    )
+    CALL add_field_mesh_dp_2D_c_notime( filename, ncid, 'ddy_a_c'    )
 
-      CALL add_field_mesh_dp_2D_notime(   filename, ncid, 'ddy_b_a'    )
-      CALL add_field_mesh_dp_2D_b_notime( filename, ncid, 'ddy_b_b'    )
-      CALL add_field_mesh_dp_2D_c_notime( filename, ncid, 'ddy_b_c'    )
+    CALL add_field_mesh_dp_2D_notime(   filename, ncid, 'ddy_b_a'    )
+    CALL add_field_mesh_dp_2D_b_notime( filename, ncid, 'ddy_b_b'    )
+    CALL add_field_mesh_dp_2D_c_notime( filename, ncid, 'ddy_b_c'    )
 
-      CALL add_field_mesh_dp_2D_notime(   filename, ncid, 'ddy_c_a'    )
-      CALL add_field_mesh_dp_2D_b_notime( filename, ncid, 'ddy_c_b'    )
-      CALL add_field_mesh_dp_2D_c_notime( filename, ncid, 'ddy_c_c'    )
+    CALL add_field_mesh_dp_2D_notime(   filename, ncid, 'ddy_c_a'    )
+    CALL add_field_mesh_dp_2D_b_notime( filename, ncid, 'ddy_c_b'    )
+    CALL add_field_mesh_dp_2D_c_notime( filename, ncid, 'ddy_c_c'    )
 
-      CALL add_field_mesh_dp_2D_b_notime( filename, ncid, 'd2dx2_b_b'  )
-      CALL add_field_mesh_dp_2D_b_notime( filename, ncid, 'd2dxdy_b_b' )
-      CALL add_field_mesh_dp_2D_b_notime( filename, ncid, 'd2dy2_b_b'  )
+    CALL add_field_mesh_dp_2D_b_notime( filename, ncid, 'd2dx2_b_b'  )
+    CALL add_field_mesh_dp_2D_b_notime( filename, ncid, 'd2dxdy_b_b' )
+    CALL add_field_mesh_dp_2D_b_notime( filename, ncid, 'd2dy2_b_b'  )
 
-      ! Write all the variables
-      CALL write_to_field_multopt_mesh_dp_2D_notime(   mesh, filename, ncid, 'd_a_ex'     , d_a_ex     )
-      CALL write_to_field_multopt_mesh_dp_2D_notime(   mesh, filename, ncid, 'ddx_a_ex'   , ddx_a_ex   )
-      CALL write_to_field_multopt_mesh_dp_2D_notime(   mesh, filename, ncid, 'ddy_a_ex'   , ddy_a_ex   )
+    ! Write all the variables
+    CALL write_to_field_multopt_mesh_dp_2D_notime(   mesh, filename, ncid, 'd_a_ex'     , d_a_ex     )
+    CALL write_to_field_multopt_mesh_dp_2D_notime(   mesh, filename, ncid, 'ddx_a_ex'   , ddx_a_ex   )
+    CALL write_to_field_multopt_mesh_dp_2D_notime(   mesh, filename, ncid, 'ddy_a_ex'   , ddy_a_ex   )
 
-      CALL write_to_field_multopt_mesh_dp_2D_b_notime( mesh, filename, ncid, 'd_b_ex'     , d_b_ex     )
-      CALL write_to_field_multopt_mesh_dp_2D_b_notime( mesh, filename, ncid, 'ddx_b_ex'   , ddx_b_ex   )
-      CALL write_to_field_multopt_mesh_dp_2D_b_notime( mesh, filename, ncid, 'ddy_b_ex'   , ddy_b_ex   )
-      CALL write_to_field_multopt_mesh_dp_2D_b_notime( mesh, filename, ncid, 'd2dx2_b_ex' , d2dx2_b_ex )
-      CALL write_to_field_multopt_mesh_dp_2D_b_notime( mesh, filename, ncid, 'd2dxdy_b_ex', d2dxdy_b_ex)
-      CALL write_to_field_multopt_mesh_dp_2D_b_notime( mesh, filename, ncid, 'd2dy2_b_ex' , d2dy2_b_ex )
+    CALL write_to_field_multopt_mesh_dp_2D_b_notime( mesh, filename, ncid, 'd_b_ex'     , d_b_ex     )
+    CALL write_to_field_multopt_mesh_dp_2D_b_notime( mesh, filename, ncid, 'ddx_b_ex'   , ddx_b_ex   )
+    CALL write_to_field_multopt_mesh_dp_2D_b_notime( mesh, filename, ncid, 'ddy_b_ex'   , ddy_b_ex   )
+    CALL write_to_field_multopt_mesh_dp_2D_b_notime( mesh, filename, ncid, 'd2dx2_b_ex' , d2dx2_b_ex )
+    CALL write_to_field_multopt_mesh_dp_2D_b_notime( mesh, filename, ncid, 'd2dxdy_b_ex', d2dxdy_b_ex)
+    CALL write_to_field_multopt_mesh_dp_2D_b_notime( mesh, filename, ncid, 'd2dy2_b_ex' , d2dy2_b_ex )
 
-      CALL write_to_field_multopt_mesh_dp_2D_c_notime( mesh, filename, ncid, 'd_c_ex'     , d_c_ex     )
-      CALL write_to_field_multopt_mesh_dp_2D_c_notime( mesh, filename, ncid, 'ddx_c_ex'   , ddx_c_ex   )
-      CALL write_to_field_multopt_mesh_dp_2D_c_notime( mesh, filename, ncid, 'ddy_c_ex'   , ddy_c_ex   )
+    CALL write_to_field_multopt_mesh_dp_2D_c_notime( mesh, filename, ncid, 'd_c_ex'     , d_c_ex     )
+    CALL write_to_field_multopt_mesh_dp_2D_c_notime( mesh, filename, ncid, 'ddx_c_ex'   , ddx_c_ex   )
+    CALL write_to_field_multopt_mesh_dp_2D_c_notime( mesh, filename, ncid, 'ddy_c_ex'   , ddy_c_ex   )
 
-      CALL write_to_field_multopt_mesh_dp_2D_b_notime( mesh, filename, ncid, 'd_a_b'      , d_a_b      )
-      CALL write_to_field_multopt_mesh_dp_2D_c_notime( mesh, filename, ncid, 'd_a_c'      , d_a_c      )
+    CALL write_to_field_multopt_mesh_dp_2D_b_notime( mesh, filename, ncid, 'd_a_b'      , d_a_b      )
+    CALL write_to_field_multopt_mesh_dp_2D_c_notime( mesh, filename, ncid, 'd_a_c'      , d_a_c      )
 
-      CALL write_to_field_multopt_mesh_dp_2D_notime(   mesh, filename, ncid, 'd_b_a'      , d_b_a      )
-      CALL write_to_field_multopt_mesh_dp_2D_c_notime( mesh, filename, ncid, 'd_b_c'      , d_b_c      )
+    CALL write_to_field_multopt_mesh_dp_2D_notime(   mesh, filename, ncid, 'd_b_a'      , d_b_a      )
+    CALL write_to_field_multopt_mesh_dp_2D_c_notime( mesh, filename, ncid, 'd_b_c'      , d_b_c      )
 
-      CALL write_to_field_multopt_mesh_dp_2D_notime(   mesh, filename, ncid, 'd_c_a'      , d_c_a      )
-      CALL write_to_field_multopt_mesh_dp_2D_b_notime( mesh, filename, ncid, 'd_c_b'      , d_c_b      )
+    CALL write_to_field_multopt_mesh_dp_2D_notime(   mesh, filename, ncid, 'd_c_a'      , d_c_a      )
+    CALL write_to_field_multopt_mesh_dp_2D_b_notime( mesh, filename, ncid, 'd_c_b'      , d_c_b      )
 
-      CALL write_to_field_multopt_mesh_dp_2D_notime(   mesh, filename, ncid, 'ddx_a_a'    , ddx_a_a    )
-      CALL write_to_field_multopt_mesh_dp_2D_b_notime( mesh, filename, ncid, 'ddx_a_b'    , ddx_a_b    )
-      CALL write_to_field_multopt_mesh_dp_2D_c_notime( mesh, filename, ncid, 'ddx_a_c'    , ddx_a_c    )
+    CALL write_to_field_multopt_mesh_dp_2D_notime(   mesh, filename, ncid, 'ddx_a_a'    , ddx_a_a    )
+    CALL write_to_field_multopt_mesh_dp_2D_b_notime( mesh, filename, ncid, 'ddx_a_b'    , ddx_a_b    )
+    CALL write_to_field_multopt_mesh_dp_2D_c_notime( mesh, filename, ncid, 'ddx_a_c'    , ddx_a_c    )
 
-      CALL write_to_field_multopt_mesh_dp_2D_notime(   mesh, filename, ncid, 'ddx_b_a'    , ddx_b_a    )
-      CALL write_to_field_multopt_mesh_dp_2D_b_notime( mesh, filename, ncid, 'ddx_b_b'    , ddx_b_b    )
-      CALL write_to_field_multopt_mesh_dp_2D_c_notime( mesh, filename, ncid, 'ddx_b_c'    , ddx_b_c    )
+    CALL write_to_field_multopt_mesh_dp_2D_notime(   mesh, filename, ncid, 'ddx_b_a'    , ddx_b_a    )
+    CALL write_to_field_multopt_mesh_dp_2D_b_notime( mesh, filename, ncid, 'ddx_b_b'    , ddx_b_b    )
+    CALL write_to_field_multopt_mesh_dp_2D_c_notime( mesh, filename, ncid, 'ddx_b_c'    , ddx_b_c    )
 
-      CALL write_to_field_multopt_mesh_dp_2D_notime(   mesh, filename, ncid, 'ddx_c_a'    , ddx_c_a    )
-      CALL write_to_field_multopt_mesh_dp_2D_b_notime( mesh, filename, ncid, 'ddx_c_b'    , ddx_c_b    )
-      CALL write_to_field_multopt_mesh_dp_2D_c_notime( mesh, filename, ncid, 'ddx_c_c'    , ddx_c_c    )
+    CALL write_to_field_multopt_mesh_dp_2D_notime(   mesh, filename, ncid, 'ddx_c_a'    , ddx_c_a    )
+    CALL write_to_field_multopt_mesh_dp_2D_b_notime( mesh, filename, ncid, 'ddx_c_b'    , ddx_c_b    )
+    CALL write_to_field_multopt_mesh_dp_2D_c_notime( mesh, filename, ncid, 'ddx_c_c'    , ddx_c_c    )
 
-      CALL write_to_field_multopt_mesh_dp_2D_notime(   mesh, filename, ncid, 'ddy_a_a'    , ddy_a_a    )
-      CALL write_to_field_multopt_mesh_dp_2D_b_notime( mesh, filename, ncid, 'ddy_a_b'    , ddy_a_b    )
-      CALL write_to_field_multopt_mesh_dp_2D_c_notime( mesh, filename, ncid, 'ddy_a_c'    , ddy_a_c    )
+    CALL write_to_field_multopt_mesh_dp_2D_notime(   mesh, filename, ncid, 'ddy_a_a'    , ddy_a_a    )
+    CALL write_to_field_multopt_mesh_dp_2D_b_notime( mesh, filename, ncid, 'ddy_a_b'    , ddy_a_b    )
+    CALL write_to_field_multopt_mesh_dp_2D_c_notime( mesh, filename, ncid, 'ddy_a_c'    , ddy_a_c    )
 
-      CALL write_to_field_multopt_mesh_dp_2D_notime(   mesh, filename, ncid, 'ddy_b_a'    , ddy_b_a    )
-      CALL write_to_field_multopt_mesh_dp_2D_b_notime( mesh, filename, ncid, 'ddy_b_b'    , ddy_b_b    )
-      CALL write_to_field_multopt_mesh_dp_2D_c_notime( mesh, filename, ncid, 'ddy_b_c'    , ddy_b_c    )
+    CALL write_to_field_multopt_mesh_dp_2D_notime(   mesh, filename, ncid, 'ddy_b_a'    , ddy_b_a    )
+    CALL write_to_field_multopt_mesh_dp_2D_b_notime( mesh, filename, ncid, 'ddy_b_b'    , ddy_b_b    )
+    CALL write_to_field_multopt_mesh_dp_2D_c_notime( mesh, filename, ncid, 'ddy_b_c'    , ddy_b_c    )
 
-      CALL write_to_field_multopt_mesh_dp_2D_notime(   mesh, filename, ncid, 'ddy_c_a'    , ddy_c_a    )
-      CALL write_to_field_multopt_mesh_dp_2D_b_notime( mesh, filename, ncid, 'ddy_c_b'    , ddy_c_b    )
-      CALL write_to_field_multopt_mesh_dp_2D_c_notime( mesh, filename, ncid, 'ddy_c_c'    , ddy_c_c    )
+    CALL write_to_field_multopt_mesh_dp_2D_notime(   mesh, filename, ncid, 'ddy_c_a'    , ddy_c_a    )
+    CALL write_to_field_multopt_mesh_dp_2D_b_notime( mesh, filename, ncid, 'ddy_c_b'    , ddy_c_b    )
+    CALL write_to_field_multopt_mesh_dp_2D_c_notime( mesh, filename, ncid, 'ddy_c_c'    , ddy_c_c    )
 
-      CALL write_to_field_multopt_mesh_dp_2D_b_notime( mesh, filename, ncid, 'd2dx2_b_b'  , d2dx2_b_b  )
-      CALL write_to_field_multopt_mesh_dp_2D_b_notime( mesh, filename, ncid, 'd2dxdy_b_b' , d2dxdy_b_b )
-      CALL write_to_field_multopt_mesh_dp_2D_b_notime( mesh, filename, ncid, 'd2dy2_b_b'  , d2dy2_b_b  )
+    CALL write_to_field_multopt_mesh_dp_2D_b_notime( mesh, filename, ncid, 'd2dx2_b_b'  , d2dx2_b_b  )
+    CALL write_to_field_multopt_mesh_dp_2D_b_notime( mesh, filename, ncid, 'd2dxdy_b_b' , d2dxdy_b_b )
+    CALL write_to_field_multopt_mesh_dp_2D_b_notime( mesh, filename, ncid, 'd2dy2_b_b'  , d2dy2_b_b  )
 
-      ! Close the file
-      CALL close_netcdf_file( ncid)
-
-    END IF ! IF (do_write_results_to_netcdf) THEN
+    ! Close the file
+    CALL close_netcdf_file( ncid)
 
     ! Clean up after yourself
     DEALLOCATE( d_a_ex     )
@@ -1278,26 +1279,21 @@ CONTAINS
       IF (par%master) CALL warning('found errors in grid to mesh remapping')
     END IF
 
-    ! Write results to a NetCDF file
-    IF (do_write_results_to_netcdf) THEN
+    ! Create a file and write the mesh to it
+    filename = TRIM( C%output_dir) // TRIM( routine_name) // '_output.nc'
+    CALL create_new_netcdf_file_for_writing( filename, ncid)
+    CALL setup_mesh_in_netcdf_file( filename, ncid, mesh)
 
-      ! Create a file and write the mesh to it
-      filename = TRIM( routine_name) // '_output.nc'
-      CALL create_new_netcdf_file_for_writing( filename, ncid)
-      CALL setup_mesh_in_netcdf_file( filename, ncid, mesh)
+    ! Add all the variables
+    CALL add_field_mesh_dp_2D_notime( filename, ncid, 'd_mesh')
+    CALL add_field_mesh_dp_2D_notime( filename, ncid, 'd_mesh_ex')
 
-      ! Add all the variables
-      CALL add_field_mesh_dp_2D_notime( filename, ncid, 'd_mesh')
-      CALL add_field_mesh_dp_2D_notime( filename, ncid, 'd_mesh_ex')
+    ! Write all the variables
+    CALL write_to_field_multopt_mesh_dp_2D_notime( mesh, filename, ncid, 'd_mesh'   , d_mesh_partial   )
+    CALL write_to_field_multopt_mesh_dp_2D_notime( mesh, filename, ncid, 'd_mesh_ex', d_mesh_ex_partial)
 
-      ! Write all the variables
-      CALL write_to_field_multopt_mesh_dp_2D_notime( mesh, filename, ncid, 'd_mesh'   , d_mesh_partial   )
-      CALL write_to_field_multopt_mesh_dp_2D_notime( mesh, filename, ncid, 'd_mesh_ex', d_mesh_ex_partial)
-
-      ! Close the file
-      CALL close_netcdf_file( ncid)
-
-    END IF ! IF (do_write_results_to_netcdf) THEN
+    ! Close the file
+    CALL close_netcdf_file( ncid)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -1394,26 +1390,21 @@ CONTAINS
       IF (par%master) CALL warning('found errors in mesh to grid remapping')
     END IF
 
-    ! Write results to a NetCDF file
-    IF (do_write_results_to_netcdf) THEN
+    ! Create a file and write the mesh to it
+    filename = TRIM(C%output_dir) // TRIM( routine_name) // '_output.nc'
+    CALL create_new_netcdf_file_for_writing( filename, ncid)
+    CALL setup_xy_grid_in_netcdf_file( filename, ncid, grid)
 
-      ! Create a file and write the mesh to it
-      filename = TRIM( routine_name) // '_output.nc'
-      CALL create_new_netcdf_file_for_writing( filename, ncid)
-      CALL setup_xy_grid_in_netcdf_file( filename, ncid, grid)
+    ! Add all the variables
+    CALL add_field_grid_dp_2D_notime( filename, ncid, 'd_grid')
+    CALL add_field_grid_dp_2D_notime( filename, ncid, 'd_grid_ex')
 
-      ! Add all the variables
-      CALL add_field_grid_dp_2D_notime( filename, ncid, 'd_grid')
-      CALL add_field_grid_dp_2D_notime( filename, ncid, 'd_grid_ex')
+    ! Write all the variables
+    CALL write_to_field_multopt_grid_dp_2D_notime( grid, filename, ncid, 'd_grid'   , d_grid_vec_partial   )
+    CALL write_to_field_multopt_grid_dp_2D_notime( grid, filename, ncid, 'd_grid_ex', d_grid_ex_vec_partial)
 
-      ! Write all the variables
-      CALL write_to_field_multopt_grid_dp_2D_notime( grid, filename, ncid, 'd_grid'   , d_grid_vec_partial   )
-      CALL write_to_field_multopt_grid_dp_2D_notime( grid, filename, ncid, 'd_grid_ex', d_grid_ex_vec_partial)
-
-      ! Close the file
-      CALL close_netcdf_file( ncid)
-
-    END IF ! IF (do_write_results_to_netcdf) THEN
+    ! Close the file
+    CALL close_netcdf_file( ncid)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -1518,26 +1509,21 @@ CONTAINS
       IF (par%master) CALL warning('found errors in lon/lat to mesh remapping')
     END IF
 
-    ! Write results to a NetCDF file
-    IF (do_write_results_to_netcdf) THEN
+    ! Create a file and write the mesh to it
+    filename = TRIM( C%output_dir) // TRIM( routine_name) // '_output.nc'
+    CALL create_new_netcdf_file_for_writing( filename, ncid)
+    CALL setup_mesh_in_netcdf_file( filename, ncid, mesh)
 
-      ! Create a file and write the mesh to it
-      filename = TRIM( routine_name) // '_output.nc'
-      CALL create_new_netcdf_file_for_writing( filename, ncid)
-      CALL setup_mesh_in_netcdf_file( filename, ncid, mesh)
+    ! Add all the variables
+    CALL add_field_mesh_dp_2D_notime( filename, ncid, 'd_mesh')
+    CALL add_field_mesh_dp_2D_notime( filename, ncid, 'd_mesh_ex')
 
-      ! Add all the variables
-      CALL add_field_mesh_dp_2D_notime( filename, ncid, 'd_mesh')
-      CALL add_field_mesh_dp_2D_notime( filename, ncid, 'd_mesh_ex')
+    ! Write all the variables
+    CALL write_to_field_multopt_mesh_dp_2D_notime( mesh, filename, ncid, 'd_mesh'   , d_mesh_partial   )
+    CALL write_to_field_multopt_mesh_dp_2D_notime( mesh, filename, ncid, 'd_mesh_ex', d_mesh_ex_partial)
 
-      ! Write all the variables
-      CALL write_to_field_multopt_mesh_dp_2D_notime( mesh, filename, ncid, 'd_mesh'   , d_mesh_partial   )
-      CALL write_to_field_multopt_mesh_dp_2D_notime( mesh, filename, ncid, 'd_mesh_ex', d_mesh_ex_partial)
-
-      ! Close the file
-      CALL close_netcdf_file( ncid)
-
-    END IF ! IF (do_write_results_to_netcdf) THEN
+    ! Close the file
+    CALL close_netcdf_file( ncid)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -1617,73 +1603,73 @@ CONTAINS
     found_errors = .FALSE.
 
     ! Nearest-neighbour
+    ! 2023-06-05: maxerr = 0.11995E+00
     maxerr = 0._dp
     DO vi = 1, mesh2%nV_loc
       maxerr = MAX( maxerr, ABS( d12_nn( vi) - d2_ex( vi)))
     END DO
     CALL MPI_ALLREDUCE( MPI_IN_PLACE, maxerr, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
-    IF (maxerr > 0.15_dp) THEN
-      CALL warning('unexpectedly high local errors detected in mesh-to-mesh nearest-neighbour remapping')
+    IF (maxerr > 0.11995E+00 * 2.0) THEN
+      CALL warning('unexpectedly high local errors detected in mesh-to-mesh nearest-neighbour remapping; expected 0.11995E+00, found {dp_01}', dp_01 = maxerr)
       found_errors = .TRUE.
     END IF
-!    IF (par%master) CALL warning('d12_nn: maxerr = {dp_01}', dp_01 = maxerr)
 
+    ! 2023-06-05: maxerr = 0.16505E+00
     maxerr = 0._dp
     DO vi = 1, mesh1%nV_loc
       maxerr = MAX( maxerr, ABS( d21_nn( vi) - d1_ex( vi)))
     END DO
     CALL MPI_ALLREDUCE( MPI_IN_PLACE, maxerr, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
-    IF (maxerr > 0.15_dp) THEN
-      CALL warning('unexpectedly high local errors detected in mesh-to-mesh nearest-neighbour remapping')
+    IF (maxerr > 0.16505E+00 * 2.0) THEN
+      CALL warning('unexpectedly high local errors detected in mesh-to-mesh nearest-neighbour remapping: expected 0.16505E+00, found {dp_01}', dp_01 = maxerr)
       found_errors = .TRUE.
     END IF
-!    IF (par%master) CALL warning('d21_nn: maxerr = {dp_01}', dp_01 = maxerr)
 
     ! Trilinear
+    ! 2023-06-05: maxerr = 0.16466E-01
     maxerr = 0._dp
     DO vi = 1, mesh2%nV_loc
       maxerr = MAX( maxerr, ABS( d12_trilin( vi) - d2_ex( vi)))
     END DO
     CALL MPI_ALLREDUCE( MPI_IN_PLACE, maxerr, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
-    IF (maxerr > 0.015_dp) THEN
-      CALL warning('unexpectedly high local errors detected in mesh-to-mesh trilinear remapping')
+    IF (maxerr > 0.16466E-01 * 2.0) THEN
+      CALL warning('unexpectedly high local errors detected in mesh-to-mesh trilinear remapping: expected 0.16466E-01, found {dp_01}', dp_01 = maxerr)
       found_errors = .TRUE.
     END IF
-!    IF (par%master) CALL warning('d12_trilin: maxerr = {dp_01}', dp_01 = maxerr)
 
+    ! 2023-06-05: maxerr = 0.18900E-01
     maxerr = 0._dp
     DO vi = 1, mesh1%nV_loc
       maxerr = MAX( maxerr, ABS( d21_trilin( vi) - d1_ex( vi)))
     END DO
     CALL MPI_ALLREDUCE( MPI_IN_PLACE, maxerr, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
-    IF (maxerr > 0.015_dp) THEN
-      CALL warning('unexpectedly high local errors detected in mesh-to-mesh trilinear remapping')
+    IF (maxerr > 0.18900E-01 * 2.0) THEN
+      CALL warning('unexpectedly high local errors detected in mesh-to-mesh trilinear remapping: expected 0.18900E-01, found {dp_01}', dp_01 = maxerr)
       found_errors = .TRUE.
     END IF
-!    IF (par%master) CALL warning('d21_trilin: maxerr = {dp_01}', dp_01 = maxerr)
 
     ! 2nd-order conservative
+    ! 2023-06-05: maxerr = 0.27873E+00
     maxerr = 0._dp
     DO vi = 1, mesh2%nV_loc
       maxerr = MAX( maxerr, ABS( d12_cons( vi) - d2_ex( vi)))
     END DO
     CALL MPI_ALLREDUCE( MPI_IN_PLACE, maxerr, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
-    IF (maxerr > 0.2_dp) THEN
-      CALL warning('unexpectedly high local errors detected in mesh-to-mesh 2nd-order conservative remapping')
+    IF (maxerr > 0.27873E+00 * 2.0) THEN
+      CALL warning('unexpectedly high local errors detected in mesh-to-mesh 2nd-order conservative remapping: expected 0.27873E+00, found {dp_01}', dp_01 = maxerr)
       found_errors = .TRUE.
     END IF
-!    IF (par%master) CALL warning('d12_cons: maxerr = {dp_01}', dp_01 = maxerr)
 
+    ! 2023-06-05: maxerr = 0.56043E+00
     maxerr = 0._dp
     DO vi = 1, mesh1%nV_loc
       maxerr = MAX( maxerr, ABS( d21_cons( vi) - d1_ex( vi)))
     END DO
     CALL MPI_ALLREDUCE( MPI_IN_PLACE, maxerr, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
-    IF (maxerr > 0.2_dp) THEN
-      CALL warning('unexpectedly high local errors detected in mesh-to-mesh 2nd-order conservative remapping')
+    IF (maxerr > 0.56043E+00 * 2.0) THEN
+      CALL warning('unexpectedly high local errors detected in mesh-to-mesh 2nd-order conservative remapping: expected 0.56043E+00, found {dp_01}', dp_01 = maxerr)
       found_errors = .TRUE.
     END IF
-!    IF (par%master) CALL warning('d21_cons: maxerr = {dp_01}', dp_01 = maxerr)
 
     ! If no errors occurred, we are happy
     CALL MPI_ALLREDUCE( MPI_IN_PLACE, found_errors, 1, MPI_LOGICAL, MPI_LOR, MPI_COMM_WORLD, ierr)
@@ -1694,55 +1680,52 @@ CONTAINS
     END IF
 
     ! Write results to a NetCDF file
-    IF (do_write_results_to_netcdf) THEN
 
-      ! Mesh 1
-      ! ======
+    ! Mesh 1
+    ! ======
 
-      ! Create a file and write the mesh to it
-      filename = TRIM( routine_name) // '_output1.nc'
-      CALL create_new_netcdf_file_for_writing( filename, ncid)
-      CALL setup_mesh_in_netcdf_file( filename, ncid, mesh1)
+    ! Create a file and write the mesh to it
+    filename = TRIM( C%output_dir) // TRIM( routine_name) // '_output1.nc'
+    CALL create_new_netcdf_file_for_writing( filename, ncid)
+    CALL setup_mesh_in_netcdf_file( filename, ncid, mesh1)
 
-      ! Add all the variables
-      CALL add_field_mesh_dp_2D_notime( filename, ncid, 'd1_ex')
-      CALL add_field_mesh_dp_2D_notime( filename, ncid, 'd21_nn')
-      CALL add_field_mesh_dp_2D_notime( filename, ncid, 'd21_trilin')
-      CALL add_field_mesh_dp_2D_notime( filename, ncid, 'd21_cons')
+    ! Add all the variables
+    CALL add_field_mesh_dp_2D_notime( filename, ncid, 'd1_ex')
+    CALL add_field_mesh_dp_2D_notime( filename, ncid, 'd21_nn')
+    CALL add_field_mesh_dp_2D_notime( filename, ncid, 'd21_trilin')
+    CALL add_field_mesh_dp_2D_notime( filename, ncid, 'd21_cons')
 
-      ! Write all the variables
-      CALL write_to_field_multopt_mesh_dp_2D_notime( mesh1, filename, ncid, 'd1_ex'     , d1_ex     )
-      CALL write_to_field_multopt_mesh_dp_2D_notime( mesh1, filename, ncid, 'd21_nn'    , d21_nn    )
-      CALL write_to_field_multopt_mesh_dp_2D_notime( mesh1, filename, ncid, 'd21_trilin', d21_trilin)
-      CALL write_to_field_multopt_mesh_dp_2D_notime( mesh1, filename, ncid, 'd21_cons'  , d21_cons  )
+    ! Write all the variables
+    CALL write_to_field_multopt_mesh_dp_2D_notime( mesh1, filename, ncid, 'd1_ex'     , d1_ex     )
+    CALL write_to_field_multopt_mesh_dp_2D_notime( mesh1, filename, ncid, 'd21_nn'    , d21_nn    )
+    CALL write_to_field_multopt_mesh_dp_2D_notime( mesh1, filename, ncid, 'd21_trilin', d21_trilin)
+    CALL write_to_field_multopt_mesh_dp_2D_notime( mesh1, filename, ncid, 'd21_cons'  , d21_cons  )
 
-      ! Close the file
-      CALL close_netcdf_file( ncid)
+    ! Close the file
+    CALL close_netcdf_file( ncid)
 
-      ! Mesh 2
-      ! ======
+    ! Mesh 2
+    ! ======
 
-      ! Create a file and write the mesh to it
-      filename = TRIM( routine_name) // '_output2.nc'
-      CALL create_new_netcdf_file_for_writing( filename, ncid)
-      CALL setup_mesh_in_netcdf_file( filename, ncid, mesh2)
+    ! Create a file and write the mesh to it
+    filename = TRIM( C%output_dir) // TRIM( routine_name) // '_output2.nc'
+    CALL create_new_netcdf_file_for_writing( filename, ncid)
+    CALL setup_mesh_in_netcdf_file( filename, ncid, mesh2)
 
-      ! Add all the variables
-      CALL add_field_mesh_dp_2D_notime( filename, ncid, 'd2_ex')
-      CALL add_field_mesh_dp_2D_notime( filename, ncid, 'd12_nn')
-      CALL add_field_mesh_dp_2D_notime( filename, ncid, 'd12_trilin')
-      CALL add_field_mesh_dp_2D_notime( filename, ncid, 'd12_cons')
+    ! Add all the variables
+    CALL add_field_mesh_dp_2D_notime( filename, ncid, 'd2_ex')
+    CALL add_field_mesh_dp_2D_notime( filename, ncid, 'd12_nn')
+    CALL add_field_mesh_dp_2D_notime( filename, ncid, 'd12_trilin')
+    CALL add_field_mesh_dp_2D_notime( filename, ncid, 'd12_cons')
 
-      ! Write all the variables
-      CALL write_to_field_multopt_mesh_dp_2D_notime( mesh2, filename, ncid, 'd2_ex'     , d2_ex     )
-      CALL write_to_field_multopt_mesh_dp_2D_notime( mesh2, filename, ncid, 'd12_nn'    , d12_nn    )
-      CALL write_to_field_multopt_mesh_dp_2D_notime( mesh2, filename, ncid, 'd12_trilin', d12_trilin)
-      CALL write_to_field_multopt_mesh_dp_2D_notime( mesh2, filename, ncid, 'd12_cons'  , d12_cons  )
+    ! Write all the variables
+    CALL write_to_field_multopt_mesh_dp_2D_notime( mesh2, filename, ncid, 'd2_ex'     , d2_ex     )
+    CALL write_to_field_multopt_mesh_dp_2D_notime( mesh2, filename, ncid, 'd12_nn'    , d12_nn    )
+    CALL write_to_field_multopt_mesh_dp_2D_notime( mesh2, filename, ncid, 'd12_trilin', d12_trilin)
+    CALL write_to_field_multopt_mesh_dp_2D_notime( mesh2, filename, ncid, 'd12_cons'  , d12_cons  )
 
-      ! Close the file
-      CALL close_netcdf_file( ncid)
-
-    END IF ! IF (do_write_results_to_netcdf) THEN
+    ! Close the file
+    CALL close_netcdf_file( ncid)
 
     ! Clean up after yourself
     DEALLOCATE( d1_ex)
