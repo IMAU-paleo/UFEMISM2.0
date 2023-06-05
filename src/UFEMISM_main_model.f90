@@ -27,7 +27,7 @@ MODULE UFEMISM_main_model
                            add_field_mesh_int_2D_notime, write_to_field_multopt_mesh_int_2D_notime, add_field_mesh_dp_2D_b_notime, &
                            write_to_field_multopt_mesh_dp_2D_b_notime
   USE netcdf_debug , ONLY: write_CSR_matrix_to_NetCDF
-  USE ice_velocity_SSA, ONLY: initialise_SSA_solver, solve_SSA
+  USE ice_velocity_SSA, ONLY: initialise_SSA_solver, solve_SSA, create_restart_file_SSA, write_to_restart_file_SSA
   USE bed_roughness, ONLY: calc_bed_roughness_Martin2011
   USE basal_hydrology, ONLY: calc_basal_hydrology
 
@@ -151,13 +151,12 @@ CONTAINS
     ! ===== Ice dynamics =====
     ! ========================
 
-    CALL initialise_ice_model( region%mesh, region%ice, region%refgeo_init, region%refgeo_PD, region%scalars)
+    CALL initialise_ice_model( region%mesh, region%ice, region%refgeo_init, region%refgeo_PD, region%scalars, region%name)
 
     ! ===== Regional output =====
     ! ===========================
 
     ! DENK DROM
-    CALL initialise_SSA_solver( region%mesh, region%ice%SSA)
     region%ice%A_flow_3D = 1E-16_dp
     ALLOCATE( region%ice%tau_c(    region%mesh%vi1:region%mesh%vi2))
     ALLOCATE( region%ice%phi_fric( region%mesh%vi1:region%mesh%vi2))
@@ -192,6 +191,10 @@ CONTAINS
     CALL write_to_field_multopt_mesh_dp_2D_b_notime( region%mesh, filename, ncid, 'u_b', region%ice%SSA%u_b)
     CALL write_to_field_multopt_mesh_dp_2D_b_notime( region%mesh, filename, ncid, 'v_b', region%ice%SSA%v_b)
     CALL close_netcdf_file( ncid)
+
+    ! DENK DROM
+    CALL create_restart_file_SSA(   region%mesh, region%ice%SSA)
+    CALL write_to_restart_file_SSA( region%mesh, region%ice%SSA, 0._dp)
 
     ! ===== Finalisation =====
     ! ========================
