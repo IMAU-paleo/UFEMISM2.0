@@ -266,6 +266,22 @@ MODULE model_configuration
     LOGICAL             :: do_GL_subgrid_friction_config                = .TRUE.                           ! Whether or not to scale basal friction with the sub-grid grounded fraction (needed to get proper GL migration; only turn this off for showing the effect on the MISMIP_mod results!)
     REAL(dp)            :: subgrid_friction_exponent_config             = 2._dp                            ! Exponent to which f_grnd should be raised before being used to scale beta
 
+    ! Initialisation
+    CHARACTER(LEN=256)  :: choice_initial_velocity_NAM_config           = ''                               ! Can be 'zero', 'read_from_file'
+    CHARACTER(LEN=256)  :: choice_initial_velocity_EAS_config           = ''
+    CHARACTER(LEN=256)  :: choice_initial_velocity_GRL_config           = ''
+    CHARACTER(LEN=256)  :: choice_initial_velocity_ANT_config           = ''
+    ! Paths to files containing initial velocity fields
+    CHARACTER(LEN=256)  :: filename_initial_velocity_NAM_config         = ''
+    CHARACTER(LEN=256)  :: filename_initial_velocity_EAS_config         = ''
+    CHARACTER(LEN=256)  :: filename_initial_velocity_GRL_config         = ''
+    CHARACTER(LEN=256)  :: filename_initial_velocity_ANT_config         = ''
+    ! Timeframes to read from the initial velocity files (set to 1E9_dp if the file has no time dimension)
+    REAL(dp)            :: timeframe_initial_velocity_NAM_config        = 1E9_dp                           ! Can be different from C%start_time_of_run, be careful though!
+    REAL(dp)            :: timeframe_initial_velocity_EAS_config        = 1E9_dp
+    REAL(dp)            :: timeframe_initial_velocity_GRL_config        = 1E9_dp
+    REAL(dp)            :: timeframe_initial_velocity_ANT_config        = 1E9_dp
+
     ! Some parameters for numerically solving the stress balance
     REAL(dp)            :: SIA_maximum_diffusivity_config               = 1E5_dp                           ! Limit the diffusivity in the SIA to this value
     REAL(dp)            :: visc_it_norm_dUV_tol_config                  = 1E-2_dp                          ! Stop criterion for the viscosity iteration: the L2-norm of successive velocity solutions should be smaller than this number
@@ -733,6 +749,22 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: choice_hybrid_SIASSA_scheme
     LOGICAL             :: do_GL_subgrid_friction
     REAL(dp)            :: subgrid_friction_exponent
+
+    ! Initialisation
+    CHARACTER(LEN=256)  :: choice_initial_velocity_NAM
+    CHARACTER(LEN=256)  :: choice_initial_velocity_EAS
+    CHARACTER(LEN=256)  :: choice_initial_velocity_GRL
+    CHARACTER(LEN=256)  :: choice_initial_velocity_ANT
+    ! Paths to files containing initial velocity fields
+    CHARACTER(LEN=256)  :: filename_initial_velocity_NAM
+    CHARACTER(LEN=256)  :: filename_initial_velocity_EAS
+    CHARACTER(LEN=256)  :: filename_initial_velocity_GRL
+    CHARACTER(LEN=256)  :: filename_initial_velocity_ANT
+    ! Timeframes to read from the initial velocity files (set to 1E9_dp if the file has no time dimension)
+    REAL(dp)            :: timeframe_initial_velocity_NAM
+    REAL(dp)            :: timeframe_initial_velocity_EAS
+    REAL(dp)            :: timeframe_initial_velocity_GRL
+    REAL(dp)            :: timeframe_initial_velocity_ANT
 
     ! Some parameters for numerically solving the stress balance
     REAL(dp)            :: SIA_maximum_diffusivity
@@ -1275,6 +1307,18 @@ CONTAINS
       choice_hybrid_SIASSA_scheme_config                    , &
       do_GL_subgrid_friction_config                         , &
       subgrid_friction_exponent_config                      , &
+      choice_initial_velocity_NAM_config                    , &
+      choice_initial_velocity_EAS_config                    , &
+      choice_initial_velocity_GRL_config                    , &
+      choice_initial_velocity_ANT_config                    , &
+      filename_initial_velocity_NAM_config                  , &
+      filename_initial_velocity_EAS_config                  , &
+      filename_initial_velocity_GRL_config                  , &
+      filename_initial_velocity_ANT_config                  , &
+      timeframe_initial_velocity_NAM_config                 , &
+      timeframe_initial_velocity_EAS_config                 , &
+      timeframe_initial_velocity_GRL_config                 , &
+      timeframe_initial_velocity_ANT_config                 , &
       SIA_maximum_diffusivity_config                        , &
       visc_it_norm_dUV_tol_config                           , &
       visc_it_nit_config                                    , &
@@ -1693,6 +1737,22 @@ CONTAINS
     C%choice_hybrid_SIASSA_scheme              = choice_hybrid_SIASSA_scheme_config
     C%do_GL_subgrid_friction                   = do_GL_subgrid_friction_config
     C%subgrid_friction_exponent                = subgrid_friction_exponent_config
+
+    ! Initialisation
+    C%choice_initial_velocity_NAM              = choice_initial_velocity_NAM_config
+    C%choice_initial_velocity_EAS              = choice_initial_velocity_EAS_config
+    C%choice_initial_velocity_GRL              = choice_initial_velocity_GRL_config
+    C%choice_initial_velocity_ANT              = choice_initial_velocity_ANT_config
+    ! Paths to files containing initial velocity fields
+    C%filename_initial_velocity_NAM            = filename_initial_velocity_NAM_config
+    C%filename_initial_velocity_EAS            = filename_initial_velocity_EAS_config
+    C%filename_initial_velocity_GRL            = filename_initial_velocity_GRL_config
+    C%filename_initial_velocity_ANT            = filename_initial_velocity_ANT_config
+    ! Timeframes to read from the initial velocity files (set to 1E9_dp if the file has no time dimension)
+    C%timeframe_initial_velocity_NAM           = timeframe_initial_velocity_NAM_config
+    C%timeframe_initial_velocity_EAS           = timeframe_initial_velocity_EAS_config
+    C%timeframe_initial_velocity_GRL           = timeframe_initial_velocity_GRL_config
+    C%timeframe_initial_velocity_ANT           = timeframe_initial_velocity_ANT_config
 
     ! Some parameters for numerically solving the stress balance
     C%SIA_maximum_diffusivity                  = SIA_maximum_diffusivity_config

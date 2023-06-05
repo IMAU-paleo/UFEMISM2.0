@@ -55,6 +55,9 @@ MODULE ice_model_types
     REAL(dp)                                :: PETSc_rtol
     REAL(dp)                                :: PETSc_abstol
 
+    ! Restart file
+    CHARACTER(LEN=256)                      :: restart_filename
+
   END TYPE type_ice_velocity_solver_SSA
 
   TYPE type_ice_model

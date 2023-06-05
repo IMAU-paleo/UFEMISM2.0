@@ -29,7 +29,7 @@ CONTAINS
 
 ! == The main routines, to be called from the ice dynamics module
 
-  SUBROUTINE initialise_velocity_solver( mesh, ice)
+  SUBROUTINE initialise_velocity_solver( mesh, ice, region_name)
     ! Initialise the velocity solver for the chosen stress balance approximation
 
     IMPLICIT NONE
@@ -37,6 +37,7 @@ CONTAINS
     ! In/output variables:
     TYPE(type_mesh),                     INTENT(IN)    :: mesh
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
+    CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_velocity_solver'
@@ -55,10 +56,10 @@ CONTAINS
     ELSEIF (C%choice_stress_balance_approximation == 'SIA') THEN
       CALL initialise_SIA_solver(  mesh, ice%SIA)
     ELSEIF (C%choice_stress_balance_approximation == 'SSA') THEN
-      CALL initialise_SSA_solver(  mesh, ice%SSA)
+      CALL initialise_SSA_solver(  mesh, ice%SSA, region_name)
     ELSEIF (C%choice_stress_balance_approximation == 'SIA/SSA') THEN
       CALL initialise_SIA_solver(  mesh, ice%SIA)
-      CALL initialise_SSA_solver(  mesh, ice%SSA)
+      CALL initialise_SSA_solver(  mesh, ice%SSA, region_name)
     ELSEIF (C%choice_stress_balance_approximation == 'DIVA') THEN
       CALL crash('fixme!')
 !      CALL initialise_DIVA_solver( mesh, ice%DIVA)

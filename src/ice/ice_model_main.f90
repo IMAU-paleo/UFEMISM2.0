@@ -27,7 +27,7 @@ CONTAINS
 ! ===== Main routines =====
 ! =========================
 
-  subroutine initialise_ice_model( mesh, ice, refgeo_init, refgeo_PD, scalars)
+  subroutine initialise_ice_model( mesh, ice, refgeo_init, refgeo_PD, scalars, region_name)
     ! Initialise all data fields of the ice module
 
     implicit none
@@ -38,6 +38,7 @@ CONTAINS
     type(type_reference_geometry), intent(in)    :: refgeo_init
     type(type_reference_geometry), intent(in)    :: refgeo_PD
     type(type_regional_scalars),   intent(out)   :: scalars
+    character(len=3),              intent(in)    :: region_name
 
     ! Local variables:
     character(len=256), parameter                :: routine_name = 'initialise_ice_model'
@@ -151,7 +152,7 @@ CONTAINS
     ! ==========
 
     ! Initialise data and matrices for the velocity solver(s)
-    call initialise_velocity_solver( mesh, ice)
+    call initialise_velocity_solver( mesh, ice, region_name)
 
     ! Ice-sheet-wide scalars
     ! ======================

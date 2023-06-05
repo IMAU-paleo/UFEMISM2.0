@@ -24,6 +24,10 @@ MODULE ice_velocity_SSA
   USE mesh_utilities                                         , ONLY: find_ti_copy_ISMIP_HOM_periodic
   USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp, allocate_matrix_CSR_dist, add_entry_CSR_dist, read_single_row_CSR_dist, &
                                                                      deallocate_matrix_CSR_dist
+  USE netcdf_basic                                           , ONLY: create_new_netcdf_file_for_writing, close_netcdf_file, open_existing_netcdf_file_for_writing
+  USE netcdf_output                                          , ONLY: generate_filename_XXXXXdotnc, setup_mesh_in_netcdf_file, add_time_dimension_to_file, &
+                                                                     add_field_mesh_dp_2D_b, write_time_to_file, write_to_field_multopt_mesh_dp_2D_b
+  USE netcdf_input                                           , ONLY: read_field_from_mesh_file_2D_b
 
   IMPLICIT NONE
 
@@ -32,7 +36,9 @@ CONTAINS
 ! ===== Subroutines =====
 ! =======================
 
-  SUBROUTINE initialise_SSA_solver( mesh, SSA)
+! == Main routines
+
+  SUBROUTINE initialise_SSA_solver( mesh, SSA, region_name)
     ! Initialise the SSA solver
 
     IMPLICIT NONE
@@ -40,15 +46,40 @@ CONTAINS
     ! In/output variables:
     TYPE(type_mesh),                     INTENT(IN)    :: mesh
     TYPE(type_ice_velocity_solver_SSA),  INTENT(OUT)   :: SSA
+    CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_SSA_solver'
+    CHARACTER(LEN=256)                                 :: choice_initial_velocity
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
     ! Allocate memory
     CALL allocate_SSA_solver( mesh, SSA)
+
+    ! Determine the choice of initial velocities for this model region
+    IF     (region_name == 'NAM') THEN
+      choice_initial_velocity  = C%choice_initial_velocity_NAM
+    ELSEIF (region_name == 'EAS') THEN
+      choice_initial_velocity  = C%choice_initial_velocity_EAS
+    ELSEIF (region_name == 'GRL') THEN
+      choice_initial_velocity  = C%choice_initial_velocity_GRL
+    ELSEIF (region_name == 'ANT') THEN
+      choice_initial_velocity  = C%choice_initial_velocity_ANT
+    ELSE
+      CALL crash('unknown model region "' // region_name // '"!')
+    END IF
+
+    ! Initialise velocities according to the specified method
+    IF     (choice_initial_velocity == 'zero') THEN
+      SSA%u_b = 0._dp
+      SSA%v_b = 0._dp
+    ELSEIF (choice_initial_velocity == 'read_from_file') THEN
+      CALL initialise_SSA_velocities_from_file( mesh, SSA, region_name)
+    ELSE
+      CALL crash('unknown choice_initial_velocity "' // TRIM( choice_initial_velocity) // '"!')
+    END IF
 
     ! Set tolerances for PETSc matrix solver for the linearised SSA
     SSA%PETSc_rtol   = C%stress_balance_PETSc_rtol
@@ -58,64 +89,6 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE initialise_SSA_solver
-
-  SUBROUTINE allocate_SSA_solver( mesh, SSA)
-    ! Allocate memory the SSA solver
-
-    IMPLICIT NONE
-
-    ! In/output variables:
-    TYPE(type_mesh),                     INTENT(IN)    :: mesh
-    TYPE(type_ice_velocity_solver_SSA),  INTENT(OUT)   :: SSA
-
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'allocate_SSA_solver'
-
-    ! Add routine to path
-    CALL init_routine( routine_name)
-
-    ! Solution
-    ALLOCATE( SSA%u_b(          mesh%ti1:mesh%ti2))                   ! [m yr^-1] 2-D horizontal ice velocity
-    SSA%u_b = 0._dp
-    ALLOCATE( SSA%v_b(          mesh%ti1:mesh%ti2))
-    SSA%v_b = 0._dp
-
-    ! Intermediate data fields
-    ALLOCATE( SSA%A_flow_vav_a( mesh%vi1:mesh%vi2))                   ! [Pa^-3 y^-1] Vertically averaged Glen's flow law parameter
-    SSA%A_flow_vav_a = 0._dp
-    ALLOCATE( SSA%du_dx_a(      mesh%vi1:mesh%vi2))                   ! [yr^-1] 2-D horizontal strain rates
-    SSA%du_dx_a = 0._dp
-    ALLOCATE( SSA%du_dy_a(      mesh%vi1:mesh%vi2))
-    SSA%du_dy_a = 0._dp
-    ALLOCATE( SSA%dv_dx_a(      mesh%vi1:mesh%vi2))
-    SSA%dv_dx_a = 0._dp
-    ALLOCATE( SSA%dv_dy_a(      mesh%vi1:mesh%vi2))
-    SSA%dv_dy_a = 0._dp
-    ALLOCATE( SSA%eta_a(        mesh%vi1:mesh%vi2))                   ! Effective viscosity
-    SSA%eta_a = 0._dp
-    ALLOCATE( SSA%N_a(          mesh%vi1:mesh%vi2))                   ! Product term N = eta * H
-    SSA%N_a = 0._dp
-    ALLOCATE( SSA%N_b(          mesh%ti1:mesh%ti2))
-    SSA%N_b = 0._dp
-    ALLOCATE( SSA%dN_dx_b(      mesh%ti1:mesh%ti2))                   ! Gradients of N
-    SSA%dN_dx_b = 0._dp
-    ALLOCATE( SSA%dN_dy_b(      mesh%ti1:mesh%ti2))
-    SSA%dN_dy_b = 0._dp
-    ALLOCATE( SSA%beta_b_b(     mesh%ti1:mesh%ti2))                   ! Friction coefficient (tau_b = u * beta_b)
-    SSA%beta_b_b = 0._dp
-    ALLOCATE( SSA%tau_dx_b(     mesh%ti1:mesh%ti2))                   ! Driving stress
-    SSA%tau_dx_b = 0._dp
-    ALLOCATE( SSA%tau_dy_b(     mesh%ti1:mesh%ti2))
-    SSA%tau_dy_b = 0._dp
-    ALLOCATE( SSA%u_b_prev(     mesh%ti1:mesh%ti2))                   ! Velocity solution from previous viscosity iteration
-    SSA%u_b_prev = 0._dp
-    ALLOCATE( SSA%v_b_prev(     mesh%ti1:mesh%ti2))
-    SSA%v_b_prev = 0._dp
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE allocate_SSA_solver
 
   SUBROUTINE solve_SSA( mesh, ice, SSA, BC_prescr_mask_b, BC_prescr_u_b, BC_prescr_v_b)
     ! Calculate ice velocities by solving the Shallow Ice Approximation
@@ -132,7 +105,6 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'solve_SSA'
-    TYPE(PetscErrorCode)                                         :: perr
     INTEGER,  DIMENSION(:    ), ALLOCATABLE                      :: BC_prescr_mask_b_applied
     REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: BC_prescr_u_b_applied
     REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: BC_prescr_v_b_applied
@@ -183,7 +155,7 @@ CONTAINS
       viscosity_iteration_i = viscosity_iteration_i + 1
 
       ! Calculate the strain rates for the current velocity solution
-      CALL calc_strain_rates( mesh, ice, SSA)
+      CALL calc_strain_rates( mesh, SSA)
 
       ! Calculate the effective viscosity for the current velocity solution
       CALL calc_effective_viscosity( mesh, ice, SSA)
@@ -247,7 +219,6 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'remap_SSA_solver'
-    REAL(dp)                                           :: dp_dummy
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -345,22 +316,22 @@ CONTAINS
       ELSEIF (mesh%TriBI( ti) == 1 .OR. mesh%TriBI( ti) == 2) THEN
         ! Northern domain border
 
-        CALL calc_SSA_stiffness_matrix_row_BC_north( mesh, SSA, A_CSR, bb, row_tiuv)
+        CALL calc_SSA_stiffness_matrix_row_BC_north( mesh, A_CSR, bb, row_tiuv)
 
       ELSEIF (mesh%TriBI( ti) == 3 .OR. mesh%TriBI( ti) == 4) THEN
         ! Eastern domain border
 
-        CALL calc_SSA_stiffness_matrix_row_BC_east( mesh, SSA, A_CSR, bb, row_tiuv)
+        CALL calc_SSA_stiffness_matrix_row_BC_east( mesh, A_CSR, bb, row_tiuv)
 
       ELSEIF (mesh%TriBI( ti) == 5 .OR. mesh%TriBI( ti) == 6) THEN
         ! Northern domain border
 
-        CALL calc_SSA_stiffness_matrix_row_BC_south( mesh, SSA, A_CSR, bb, row_tiuv)
+        CALL calc_SSA_stiffness_matrix_row_BC_south( mesh, A_CSR, bb, row_tiuv)
 
       ELSEIF (mesh%TriBI( ti) == 7 .OR. mesh%TriBI( ti) == 8) THEN
         ! Western domain border
 
-        CALL calc_SSA_stiffness_matrix_row_BC_west( mesh, SSA, A_CSR, bb, row_tiuv)
+        CALL calc_SSA_stiffness_matrix_row_BC_west( mesh, A_CSR, bb, row_tiuv)
 
       ELSE
         ! No boundary conditions apply; solve the SSA
@@ -558,7 +529,7 @@ CONTAINS
 
   END SUBROUTINE calc_SSA_stiffness_matrix_row_free
 
-  SUBROUTINE calc_SSA_stiffness_matrix_row_BC_west( mesh, SSA, A_CSR, bb, row_tiuv)
+  SUBROUTINE calc_SSA_stiffness_matrix_row_BC_west( mesh, A_CSR, bb, row_tiuv)
     ! Add coefficients to this matrix row to represent boundary conditions at the
     ! western domain border.
 
@@ -566,14 +537,13 @@ CONTAINS
 
     ! In/output variables:
     TYPE(type_mesh),                     INTENT(IN)              :: mesh
-    TYPE(type_ice_velocity_solver_SSA),  INTENT(IN)              :: SSA
     TYPE(type_sparse_matrix_CSR_dp),     INTENT(INOUT)           :: A_CSR
     REAL(dp), DIMENSION(mesh%ti1*2-1: mesh%ti2*2), INTENT(INOUT) :: bb
     INTEGER,                             INTENT(IN)              :: row_tiuv
 
     ! Local variables:
     INTEGER                                                      :: ti,uv,row_ti
-    INTEGER                                                      :: k, col_tj, tj, col_tjuv
+    INTEGER                                                      :: tj, col_tjuv
     INTEGER                                                      :: n, n_neighbours
 
     ti = mesh%n2tiuv( row_tiuv,1)
@@ -670,7 +640,7 @@ CONTAINS
 
   END SUBROUTINE calc_SSA_stiffness_matrix_row_BC_west
 
-  SUBROUTINE calc_SSA_stiffness_matrix_row_BC_east( mesh, SSA, A_CSR, bb, row_tiuv)
+  SUBROUTINE calc_SSA_stiffness_matrix_row_BC_east( mesh, A_CSR, bb, row_tiuv)
     ! Add coefficients to this matrix row to represent boundary conditions at the
     ! eastern domain border.
 
@@ -678,14 +648,13 @@ CONTAINS
 
     ! In/output variables:
     TYPE(type_mesh),                     INTENT(IN)              :: mesh
-    TYPE(type_ice_velocity_solver_SSA),  INTENT(IN)              :: SSA
     TYPE(type_sparse_matrix_CSR_dp),     INTENT(INOUT)           :: A_CSR
     REAL(dp), DIMENSION(mesh%ti1*2-1: mesh%ti2*2), INTENT(INOUT) :: bb
     INTEGER,                             INTENT(IN)              :: row_tiuv
 
     ! Local variables:
     INTEGER                                                      :: ti,uv,row_ti
-    INTEGER                                                      :: k, col_tj, tj, col_tjuv
+    INTEGER                                                      :: tj, col_tjuv
     INTEGER                                                      :: n, n_neighbours
 
     ti = mesh%n2tiuv( row_tiuv,1)
@@ -782,7 +751,7 @@ CONTAINS
 
   END SUBROUTINE calc_SSA_stiffness_matrix_row_BC_east
 
-  SUBROUTINE calc_SSA_stiffness_matrix_row_BC_south( mesh, SSA, A_CSR, bb, row_tiuv)
+  SUBROUTINE calc_SSA_stiffness_matrix_row_BC_south( mesh, A_CSR, bb, row_tiuv)
     ! Add coefficients to this matrix row to represent boundary conditions at the
     ! southern domain border.
 
@@ -790,14 +759,13 @@ CONTAINS
 
     ! In/output variables:
     TYPE(type_mesh),                     INTENT(IN)              :: mesh
-    TYPE(type_ice_velocity_solver_SSA),  INTENT(IN)              :: SSA
     TYPE(type_sparse_matrix_CSR_dp),     INTENT(INOUT)           :: A_CSR
     REAL(dp), DIMENSION(mesh%ti1*2-1: mesh%ti2*2), INTENT(INOUT) :: bb
     INTEGER,                             INTENT(IN)              :: row_tiuv
 
     ! Local variables:
     INTEGER                                                      :: ti,uv,row_ti
-    INTEGER                                                      :: k, col_tj, tj, col_tjuv
+    INTEGER                                                      :: tj, col_tjuv
     INTEGER                                                      :: n, n_neighbours
 
     ti = mesh%n2tiuv( row_tiuv,1)
@@ -894,7 +862,7 @@ CONTAINS
 
   END SUBROUTINE calc_SSA_stiffness_matrix_row_BC_south
 
-  SUBROUTINE calc_SSA_stiffness_matrix_row_BC_north( mesh, SSA, A_CSR, bb, row_tiuv)
+  SUBROUTINE calc_SSA_stiffness_matrix_row_BC_north( mesh, A_CSR, bb, row_tiuv)
     ! Add coefficients to this matrix row to represent boundary conditions at the
     ! northern domain border.
 
@@ -902,14 +870,13 @@ CONTAINS
 
     ! In/output variables:
     TYPE(type_mesh),                     INTENT(IN)              :: mesh
-    TYPE(type_ice_velocity_solver_SSA),  INTENT(IN)              :: SSA
     TYPE(type_sparse_matrix_CSR_dp),     INTENT(INOUT)           :: A_CSR
     REAL(dp), DIMENSION(mesh%ti1*2-1: mesh%ti2*2), INTENT(INOUT) :: bb
     INTEGER,                             INTENT(IN)              :: row_tiuv
 
     ! Local variables:
     INTEGER                                                      :: ti,uv,row_ti
-    INTEGER                                                      :: k, col_tj, tj, col_tjuv
+    INTEGER                                                      :: tj, col_tjuv
     INTEGER                                                      :: n, n_neighbours
 
     ti = mesh%n2tiuv( row_tiuv,1)
@@ -1054,14 +1021,13 @@ CONTAINS
 
   END SUBROUTINE calc_driving_stress
 
-  SUBROUTINE calc_strain_rates( mesh, ice, SSA)
+  SUBROUTINE calc_strain_rates( mesh, SSA)
     ! Calculate the strain rates
 
     IMPLICIT NONE
 
     ! In/output variables:
     TYPE(type_mesh),                     INTENT(IN)              :: mesh
-    TYPE(type_ice_model),                INTENT(IN)              :: ice
     TYPE(type_ice_velocity_solver_SSA),  INTENT(INOUT)           :: SSA
 
     ! Local variables:
@@ -1304,5 +1270,199 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE apply_velocity_limits
+
+! == Initialisation
+
+  SUBROUTINE initialise_SSA_velocities_from_file( mesh, SSA, region_name)
+    ! Initialise the velocities for the SSA solver from an external NetCDF file
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
+    TYPE(type_ice_velocity_solver_SSA),  INTENT(INOUT) :: SSA
+    CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_SSA_velocities_from_file'
+    CHARACTER(LEN=256)                                 :: filename
+    REAL(dp)                                           :: timeframe
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Determine the filename and timeframe to read for this model region
+    IF     (region_name == 'NAM') THEN
+      filename  = C%filename_initial_velocity_NAM
+      timeframe = C%timeframe_initial_velocity_NAM
+    ELSEIF (region_name == 'EAS') THEN
+      filename  = C%filename_initial_velocity_EAS
+      timeframe = C%timeframe_initial_velocity_EAS
+    ELSEIF (region_name == 'GRL') THEN
+      filename  = C%filename_initial_velocity_GRL
+      timeframe = C%timeframe_initial_velocity_GRL
+    ELSEIF (region_name == 'ANT') THEN
+      filename  = C%filename_initial_velocity_ANT
+      timeframe = C%timeframe_initial_velocity_ANT
+    ELSE
+      CALL crash('unknown model region "' // region_name // '"!')
+    END IF
+
+    ! Write to terminal
+    IF (par%master) WRITE(0,*) '   Initialising SSA velocities from file "' // colour_string( TRIM( filename),'light blue') // '"...'
+
+    ! Read velocities from the file
+    IF (timeframe == 1E9_dp) THEN
+      ! Assume the file has no time dimension
+      CALL read_field_from_mesh_file_2D_b( filename, 'u_b', SSA%u_b)
+      CALL read_field_from_mesh_file_2D_b( filename, 'v_b', SSA%v_b)
+    ELSE
+      ! Read specified timeframe
+      CALL read_field_from_mesh_file_2D_b( filename, 'u_b', SSA%u_b, time_to_read = timeframe)
+      CALL read_field_from_mesh_file_2D_b( filename, 'v_b', SSA%v_b, time_to_read = timeframe)
+    END IF
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE initialise_SSA_velocities_from_file
+
+  SUBROUTINE allocate_SSA_solver( mesh, SSA)
+    ! Allocate memory the SSA solver
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
+    TYPE(type_ice_velocity_solver_SSA),  INTENT(OUT)   :: SSA
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'allocate_SSA_solver'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Solution
+    ALLOCATE( SSA%u_b(          mesh%ti1:mesh%ti2))                   ! [m yr^-1] 2-D horizontal ice velocity
+    SSA%u_b = 0._dp
+    ALLOCATE( SSA%v_b(          mesh%ti1:mesh%ti2))
+    SSA%v_b = 0._dp
+
+    ! Intermediate data fields
+    ALLOCATE( SSA%A_flow_vav_a( mesh%vi1:mesh%vi2))                   ! [Pa^-3 y^-1] Vertically averaged Glen's flow law parameter
+    SSA%A_flow_vav_a = 0._dp
+    ALLOCATE( SSA%du_dx_a(      mesh%vi1:mesh%vi2))                   ! [yr^-1] 2-D horizontal strain rates
+    SSA%du_dx_a = 0._dp
+    ALLOCATE( SSA%du_dy_a(      mesh%vi1:mesh%vi2))
+    SSA%du_dy_a = 0._dp
+    ALLOCATE( SSA%dv_dx_a(      mesh%vi1:mesh%vi2))
+    SSA%dv_dx_a = 0._dp
+    ALLOCATE( SSA%dv_dy_a(      mesh%vi1:mesh%vi2))
+    SSA%dv_dy_a = 0._dp
+    ALLOCATE( SSA%eta_a(        mesh%vi1:mesh%vi2))                   ! Effective viscosity
+    SSA%eta_a = 0._dp
+    ALLOCATE( SSA%N_a(          mesh%vi1:mesh%vi2))                   ! Product term N = eta * H
+    SSA%N_a = 0._dp
+    ALLOCATE( SSA%N_b(          mesh%ti1:mesh%ti2))
+    SSA%N_b = 0._dp
+    ALLOCATE( SSA%dN_dx_b(      mesh%ti1:mesh%ti2))                   ! Gradients of N
+    SSA%dN_dx_b = 0._dp
+    ALLOCATE( SSA%dN_dy_b(      mesh%ti1:mesh%ti2))
+    SSA%dN_dy_b = 0._dp
+    ALLOCATE( SSA%beta_b_b(     mesh%ti1:mesh%ti2))                   ! Friction coefficient (tau_b = u * beta_b)
+    SSA%beta_b_b = 0._dp
+    ALLOCATE( SSA%tau_dx_b(     mesh%ti1:mesh%ti2))                   ! Driving stress
+    SSA%tau_dx_b = 0._dp
+    ALLOCATE( SSA%tau_dy_b(     mesh%ti1:mesh%ti2))
+    SSA%tau_dy_b = 0._dp
+    ALLOCATE( SSA%u_b_prev(     mesh%ti1:mesh%ti2))                   ! Velocity solution from previous viscosity iteration
+    SSA%u_b_prev = 0._dp
+    ALLOCATE( SSA%v_b_prev(     mesh%ti1:mesh%ti2))
+    SSA%v_b_prev = 0._dp
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE allocate_SSA_solver
+
+! == Restart NetCDF files
+
+  SUBROUTINE write_to_restart_file_SSA( mesh, SSA, time)
+    ! Write to the restart NetCDF file for the SSA solver
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)              :: mesh
+    TYPE(type_ice_velocity_solver_SSA),  INTENT(INOUT)           :: SSA
+    REAL(dp),                            INTENT(IN)              :: time
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'write_to_restart_file_SSA'
+    INTEGER                                                      :: ncid
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Open the NetCDF file
+    CALL open_existing_netcdf_file_for_writing( SSA%restart_filename, ncid)
+
+    ! Write the time to the file
+    CALL write_time_to_file( SSA%restart_filename, ncid, time)
+
+    ! Write the velocity fields to the file
+    CALL write_to_field_multopt_mesh_dp_2D_b( mesh, SSA%restart_filename, ncid, 'u_b', SSA%u_b)
+    CALL write_to_field_multopt_mesh_dp_2D_b( mesh, SSA%restart_filename, ncid, 'v_b', SSA%v_b)
+
+    ! Close the file
+    CALL close_netcdf_file( ncid)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE write_to_restart_file_SSA
+
+  SUBROUTINE create_restart_file_SSA( mesh, SSA)
+    ! Create a restart NetCDF file for the SSA solver
+    ! Includes generation of the procedural filename (e.g. "restart_SSA_00001.nc")
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)              :: mesh
+    TYPE(type_ice_velocity_solver_SSA),  INTENT(INOUT)           :: SSA
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'create_restart_file_SSA'
+    CHARACTER(LEN=256)                                           :: filename_base
+    INTEGER                                                      :: ncid
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Set the filename
+    filename_base = TRIM( C%output_dir) // 'restart_ice_velocity_SSA'
+    CALL generate_filename_XXXXXdotnc( filename_base, SSA%restart_filename)
+
+    ! Create the NetCDF file
+    CALL create_new_netcdf_file_for_writing( SSA%restart_filename, ncid)
+
+    ! Set up the mesh in the file
+    CALL setup_mesh_in_netcdf_file( SSA%restart_filename, ncid, mesh)
+
+    ! Add a time dimension to the file
+    CALL add_time_dimension_to_file( SSA%restart_filename, ncid)
+
+    ! Add the velocity fields to the file
+    CALL add_field_mesh_dp_2D_b( SSA%restart_filename, ncid, 'u_b')
+    CALL add_field_mesh_dp_2D_b( SSA%restart_filename, ncid, 'v_b')
+
+    ! Close the file
+    CALL close_netcdf_file( ncid)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE create_restart_file_SSA
 
 END MODULE ice_velocity_SSA

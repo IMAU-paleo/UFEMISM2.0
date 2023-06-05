@@ -52,7 +52,7 @@ MODULE netcdf_input
                           check_x, check_y, check_lon, check_lat, check_mesh_dimensions, check_zeta, check_month, find_timeframe, &
                           check_xy_grid_field_int_2D, check_xy_grid_field_dp_2D, check_xy_grid_field_dp_2D_monthly, check_xy_grid_field_dp_3D, &
                           check_lonlat_grid_field_int_2D, check_lonlat_grid_field_dp_2D, check_lonlat_grid_field_dp_2D_monthly, check_lonlat_grid_field_dp_3D, &
-                          check_mesh_field_int_2D, check_mesh_field_dp_2D, check_mesh_field_dp_2D_monthly, check_mesh_field_dp_3D, &
+                          check_mesh_field_int_2D, check_mesh_field_dp_2D, check_mesh_field_dp_2D_b, check_mesh_field_dp_2D_monthly, check_mesh_field_dp_3D, &
                           inquire_xy_grid, inquire_lonlat_grid, inquire_mesh
 
   IMPLICIT NONE
@@ -1453,7 +1453,7 @@ CONTAINS
   ! ==================================================================================
 
     ! Allocate memory
-    ALLOCATE( d_mesh_partial( mesh_loc%nV_loc))
+    ALLOCATE( d_mesh_partial( mesh_loc%vi1:mesh_loc%vi2))
 
     ! Distribute data
     CALL distribute_from_master_dp_1D( d_mesh, d_mesh_partial)
@@ -1477,6 +1477,100 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE read_field_from_mesh_file_2D
+
+  SUBROUTINE read_field_from_mesh_file_2D_b(         filename, field_name_options, d_mesh_partial, mesh, time_to_read)
+    ! Read a 2-D data field from a NetCDF file on a mesh, and optionally return the mesh as well.
+    !
+    ! Assumes the data is provided on the mesh b-grid
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    CHARACTER(LEN=*),                        INTENT(IN)    :: filename
+    CHARACTER(LEN=*),                        INTENT(IN)    :: field_name_options
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE, INTENT(OUT)   :: d_mesh_partial
+    TYPE(type_mesh),            OPTIONAL,    INTENT(OUT)   :: mesh
+    REAL(dp),                   OPTIONAL,    INTENT(IN)    :: time_to_read
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'read_field_from_mesh_file_2D_b'
+    INTEGER                                                :: ncid
+    TYPE(type_mesh)                                        :: mesh_loc
+    INTEGER                                                :: id_var
+    CHARACTER(LEN=256)                                     :: var_name
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE                :: d_mesh
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                :: d_mesh_with_time
+    INTEGER                                                :: ti
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+  ! == Read grid and data from file
+  ! ===============================
+
+    ! Open the NetCDF file
+    CALL open_existing_netcdf_file_for_reading( filename, ncid)
+
+    ! Set up the grid from the file
+    CALL setup_mesh_from_file( filename, ncid, mesh_loc)
+
+    ! Look for the specified variable in the file
+    CALL inquire_var_multopt( filename, ncid, field_name_options, id_var, var_name = var_name)
+    IF (id_var == -1) CALL crash('couldnt find any of the options "' // TRIM( field_name_options) // '" in file "' // TRIM( filename)  // '"!')
+
+    ! Check if the variable has the required dimensions
+    CALL check_mesh_field_dp_2D_b( filename, ncid, var_name, should_have_time = PRESENT( time_to_read))
+
+    ! Allocate memory
+    IF (par%master) ALLOCATE( d_mesh( mesh_loc%nTri))
+
+    ! Read data from file
+    IF (.NOT. PRESENT( time_to_read)) THEN
+      CALL read_var_master_dp_1D( filename, ncid, id_var, d_mesh)
+    ELSE
+      ! Allocate memory
+      IF (par%master) ALLOCATE( d_mesh_with_time( mesh_loc%nTri, 1))
+      ! Find out which timeframe to read
+      CALL find_timeframe( filename, ncid, time_to_read, ti)
+      ! Read data
+      CALL read_var_master_dp_2D( filename, ncid, id_var, d_mesh_with_time, start = (/ 1, ti /), count = (/ mesh_loc%nTri, 1 /) )
+      ! Copy to output memory
+      IF (par%master) d_mesh = d_mesh_with_time( :,1)
+      ! Clean up after yourself
+      IF (par%master) DEALLOCATE( d_mesh_with_time)
+    END IF
+
+    ! Close the NetCDF file
+    CALL close_netcdf_file( ncid)
+
+  ! == Distribute gridded data from the master to all processes in partial vector form
+  ! ==================================================================================
+
+    ! Allocate memory
+    ALLOCATE( d_mesh_partial( mesh_loc%ti1:mesh_loc%ti2))
+
+    ! Distribute data
+    CALL distribute_from_master_dp_1D( d_mesh, d_mesh_partial)
+
+    ! Clean up gridded data on the master
+    IF (par%master) DEALLOCATE( d_mesh)
+
+  ! == If so specified, return the read mesh as output
+  ! ==================================================
+
+    IF (PRESENT( mesh)) THEN
+      CALL open_existing_netcdf_file_for_reading( filename, ncid)
+      CALL setup_mesh_from_file( filename, ncid, mesh)
+      CALL close_netcdf_file( ncid)
+    END IF ! IF (PRESENT( grid)) THEN
+
+    ! Clean up after yourself
+    CALL deallocate_mesh( mesh_loc)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE read_field_from_mesh_file_2D_b
 
   SUBROUTINE read_field_from_mesh_file_2D_monthly(   filename, field_name_options, d_mesh_partial, mesh, time_to_read)
     ! Read a 2-D data monthly field from a NetCDF file on a mesh, and optionally return the mesh as well.
@@ -1548,7 +1642,7 @@ CONTAINS
   ! ==================================================================================
 
     ! Allocate memory
-    ALLOCATE( d_mesh_partial( mesh_loc%nV_loc, 12))
+    ALLOCATE( d_mesh_partial( mesh_loc%vi1:mesh_loc%vi2, 12))
 
     ! Distribute data
     CALL distribute_from_master_dp_2D( d_mesh, d_mesh_partial)
@@ -1647,7 +1741,7 @@ CONTAINS
   ! ==================================================================================
 
     ! Allocate memory
-    ALLOCATE( d_mesh_partial( mesh_loc%nV_loc, nzeta_loc))
+    ALLOCATE( d_mesh_partial( mesh_loc%vi1:mesh_loc%vi2, nzeta_loc))
 
     ! Distribute data
     CALL distribute_from_master_dp_2D( d_mesh, d_mesh_partial)
