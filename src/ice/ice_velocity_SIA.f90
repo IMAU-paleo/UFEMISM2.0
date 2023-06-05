@@ -65,13 +65,18 @@ CONTAINS
     ! Allocate shared memory
 
     ! Solution
-    ALLOCATE( SIA%u_3D_b(   mesh%nTri_loc, mesh%nz), source = 0._dp)
-    ALLOCATE( SIA%v_3D_b(   mesh%nTri_loc, mesh%nz), source = 0._dp)
-    ALLOCATE( SIA%du_dz_3D( mesh%nV_loc  , mesh%nz), source = 0._dp)
-    ALLOCATE( SIA%dv_dz_3D( mesh%nV_loc  , mesh%nz), source = 0._dp)
+    ALLOCATE( SIA%u_3D_b(   mesh%ti1:mesh%ti2, mesh%nz))
+    SIA%u_3D_b = 0._dp
+    ALLOCATE( SIA%v_3D_b(   mesh%ti1:mesh%ti2, mesh%nz))
+    SIA%v_3D_b = 0._dp
+    ALLOCATE( SIA%du_dz_3D( mesh%vi1:mesh%vi2, mesh%nz))
+    SIA%du_dz_3D = 0._dp
+    ALLOCATE( SIA%dv_dz_3D( mesh%vi1:mesh%vi2, mesh%nz))
+    SIA%dv_dz_3D = 0._dp
 
     ! Intermediate data fields
-    ALLOCATE( SIA%D_3D_b(   mesh%nTri_loc, mesh%nz), source = 0._dp)
+    ALLOCATE( SIA%D_3D_b(   mesh%ti1:mesh%ti2, mesh%nz))
+    SIA%D_3D_b = 0._dp
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -128,7 +133,7 @@ CONTAINS
     !   dv/dz( z) = -2 (rho g)^n (abs(grad H))^(n-1) A(T*) (h - z)^n dh/dy
 
     ! Calculate velocities
-    DO ti = 1, mesh%nTri_loc
+    DO ti = mesh%ti1, mesh%ti2
 
       ! Calculate the integral from b to z of (A_flow * (h - zeta)^n) dzeta
       z = Hs_b( ti) - mesh%zeta * Hi_b( ti)
@@ -148,7 +153,7 @@ CONTAINS
     END DO ! DO ti = 1, mesh%nTri_loc
 
     ! Calculate vertical shear strain rates (needed later to calculate strain heating in thermodynamics)
-    DO vi = 1, mesh%nV_loc
+    DO vi = mesh%vi1, mesh%vi2
 
       abs_grad_Hs = SQRT( dHs_dx( vi)**2 + dHs_dy( vi)**2)
       z = ice%Hs( vi) - mesh%zeta * ice%Hi( vi)

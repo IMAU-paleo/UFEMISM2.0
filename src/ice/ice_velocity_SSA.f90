@@ -75,25 +75,42 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Solution
-    ALLOCATE( SSA%u_b(          mesh%nTri_loc), source = 0._dp)                   ! [m yr^-1] 2-D horizontal ice velocity
-    ALLOCATE( SSA%v_b(          mesh%nTri_loc), source = 0._dp)
+    ALLOCATE( SSA%u_b(          mesh%ti1:mesh%ti2))                   ! [m yr^-1] 2-D horizontal ice velocity
+    SSA%u_b = 0._dp
+    ALLOCATE( SSA%v_b(          mesh%ti1:mesh%ti2))
+    SSA%v_b = 0._dp
 
     ! Intermediate data fields
-    ALLOCATE( SSA%A_flow_vav_a( mesh%nV_loc  ), source = 0._dp)                   ! [Pa^-3 y^-1] Vertically averaged Glen's flow law parameter
-    ALLOCATE( SSA%du_dx_a(      mesh%nV_loc  ), source = 0._dp)                   ! [yr^-1] 2-D horizontal strain rates
-    ALLOCATE( SSA%du_dy_a(      mesh%nV_loc  ), source = 0._dp)
-    ALLOCATE( SSA%dv_dx_a(      mesh%nV_loc  ), source = 0._dp)
-    ALLOCATE( SSA%dv_dy_a(      mesh%nV_loc  ), source = 0._dp)
-    ALLOCATE( SSA%eta_a(        mesh%nV_loc  ), source = 0._dp)                   ! Effective viscosity
-    ALLOCATE( SSA%N_a(          mesh%nV_loc  ), source = 0._dp)                   ! Product term N = eta * H
-    ALLOCATE( SSA%N_b(          mesh%nTri_loc), source = 0._dp)
-    ALLOCATE( SSA%dN_dx_b(      mesh%nTri_loc), source = 0._dp)                   ! Gradients of N
-    ALLOCATE( SSA%dN_dy_b(      mesh%nTri_loc), source = 0._dp)
-    ALLOCATE( SSA%beta_b_b(     mesh%nTri_loc), source = 0._dp)                   ! Friction coefficient (tau_b = u * beta_b)
-    ALLOCATE( SSA%tau_dx_b(     mesh%nTri_loc), source = 0._dp)                   ! Driving stress
-    ALLOCATE( SSA%tau_dy_b(     mesh%nTri_loc), source = 0._dp)
-    ALLOCATE( SSA%u_b_prev(     mesh%nTri_loc), source = 0._dp)                   ! Velocity solution from previous viscosity iteration
-    ALLOCATE( SSA%v_b_prev(     mesh%nTri_loc), source = 0._dp)
+    ALLOCATE( SSA%A_flow_vav_a( mesh%vi1:mesh%vi2))                   ! [Pa^-3 y^-1] Vertically averaged Glen's flow law parameter
+    SSA%A_flow_vav_a = 0._dp
+    ALLOCATE( SSA%du_dx_a(      mesh%vi1:mesh%vi2))                   ! [yr^-1] 2-D horizontal strain rates
+    SSA%du_dx_a = 0._dp
+    ALLOCATE( SSA%du_dy_a(      mesh%vi1:mesh%vi2))
+    SSA%du_dy_a = 0._dp
+    ALLOCATE( SSA%dv_dx_a(      mesh%vi1:mesh%vi2))
+    SSA%dv_dx_a = 0._dp
+    ALLOCATE( SSA%dv_dy_a(      mesh%vi1:mesh%vi2))
+    SSA%dv_dy_a = 0._dp
+    ALLOCATE( SSA%eta_a(        mesh%vi1:mesh%vi2))                   ! Effective viscosity
+    SSA%eta_a = 0._dp
+    ALLOCATE( SSA%N_a(          mesh%vi1:mesh%vi2))                   ! Product term N = eta * H
+    SSA%N_a = 0._dp
+    ALLOCATE( SSA%N_b(          mesh%ti1:mesh%ti2))
+    SSA%N_b = 0._dp
+    ALLOCATE( SSA%dN_dx_b(      mesh%ti1:mesh%ti2))                   ! Gradients of N
+    SSA%dN_dx_b = 0._dp
+    ALLOCATE( SSA%dN_dy_b(      mesh%ti1:mesh%ti2))
+    SSA%dN_dy_b = 0._dp
+    ALLOCATE( SSA%beta_b_b(     mesh%ti1:mesh%ti2))                   ! Friction coefficient (tau_b = u * beta_b)
+    SSA%beta_b_b = 0._dp
+    ALLOCATE( SSA%tau_dx_b(     mesh%ti1:mesh%ti2))                   ! Driving stress
+    SSA%tau_dx_b = 0._dp
+    ALLOCATE( SSA%tau_dy_b(     mesh%ti1:mesh%ti2))
+    SSA%tau_dy_b = 0._dp
+    ALLOCATE( SSA%u_b_prev(     mesh%ti1:mesh%ti2))                   ! Velocity solution from previous viscosity iteration
+    SSA%u_b_prev = 0._dp
+    ALLOCATE( SSA%v_b_prev(     mesh%ti1:mesh%ti2))
+    SSA%v_b_prev = 0._dp
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -127,9 +144,6 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! DENK DROM
-    CALL warning('still need to calculate bed roughness and grounded fractions in main UFEMISM model!')
-
     ! If there is no grounded ice, or no sliding, no need to solve the SSA
     IF ((.NOT. ANY( ice%mask_sheet)) .OR. C%choice_sliding_law == 'no_sliding') THEN
       SSA%u_b = 0._dp
@@ -139,9 +153,9 @@ CONTAINS
     END IF
 
     ! Handle the optional prescribed u,v boundary conditions
-    ALLOCATE( BC_prescr_mask_b_applied( mesh%nTri_loc))
-    ALLOCATE( BC_prescr_u_b_applied(    mesh%nTri_loc))
-    ALLOCATE( BC_prescr_v_b_applied(    mesh%nTri_loc))
+    ALLOCATE( BC_prescr_mask_b_applied( mesh%ti1:mesh%ti2))
+    ALLOCATE( BC_prescr_u_b_applied(    mesh%ti1:mesh%ti2))
+    ALLOCATE( BC_prescr_v_b_applied(    mesh%ti1:mesh%ti2))
     IF (PRESENT( BC_prescr_mask_b) .OR. PRESENT( BC_prescr_u_b) .OR. PRESENT( BC_prescr_v_b)) THEN
       ! Safety
       IF (.NOT. (PRESENT( BC_prescr_mask_b) .AND. PRESENT( BC_prescr_u_b) .AND. PRESENT( BC_prescr_v_b))) THEN
@@ -256,9 +270,9 @@ CONTAINS
     ! In/output variables:
     TYPE(type_mesh),                     INTENT(IN)              :: mesh
     TYPE(type_ice_velocity_solver_SSA),  INTENT(INOUT)           :: SSA
-    INTEGER,  DIMENSION(:    ),          INTENT(IN)              :: BC_prescr_mask_b      ! Mask of triangles where velocity is prescribed
-    REAL(dp), DIMENSION(:    ),          INTENT(IN)              :: BC_prescr_u_b         ! Prescribed velocities in the x-direction
-    REAL(dp), DIMENSION(:    ),          INTENT(IN)              :: BC_prescr_v_b         ! Prescribed velocities in the y-direction
+    INTEGER,  DIMENSION(mesh%ti1:mesh%ti2),          INTENT(IN)  :: BC_prescr_mask_b      ! Mask of triangles where velocity is prescribed
+    REAL(dp), DIMENSION(mesh%ti1:mesh%ti2),          INTENT(IN)  :: BC_prescr_u_b         ! Prescribed velocities in the x-direction
+    REAL(dp), DIMENSION(mesh%ti1:mesh%ti2),          INTENT(IN)  :: BC_prescr_v_b         ! Prescribed velocities in the y-direction
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'solve_SSA_linearised'
@@ -266,7 +280,7 @@ CONTAINS
     TYPE(type_sparse_matrix_CSR_dp)                              :: A_CSR
     REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: bb
     REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: uv_buv
-    INTEGER                                                      :: row_buv_glob,row_buv_loc,ti_glob,ti_loc,uv
+    INTEGER                                                      :: row_tiuv,ti,uv
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -289,79 +303,73 @@ CONTAINS
     CALL allocate_matrix_CSR_dist( A_CSR, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
 
     ! Allocate memory for the load vector and the solution
-    ALLOCATE( bb(     mesh%nTri_loc * 2))
-    ALLOCATE( uv_buv( mesh%nTri_loc * 2))
+    ALLOCATE( bb(     mesh%ti1*2-1: mesh%ti2*2))
+    ALLOCATE( uv_buv( mesh%ti1*2-1: mesh%ti2*2))
 
     ! Fill in the current velocity solution
-    DO ti_loc = 1, mesh%nTri_loc
-
-      ti_glob = mesh%ti1 + ti_loc - 1
+    DO ti = mesh%ti1, mesh%ti2
 
       ! u
-      row_buv_glob = mesh%tiuv2n( ti_glob,1)
-      row_buv_loc = row_buv_glob - A_CSR%i1 + 1
-      uv_buv( row_buv_loc) = SSA%u_b( ti_loc)
+      row_tiuv = mesh%tiuv2n( ti,1)
+      uv_buv( row_tiuv) = SSA%u_b( ti)
 
       ! v
-      row_buv_glob = mesh%tiuv2n( ti_glob,2)
-      row_buv_loc = row_buv_glob - A_CSR%i1 + 1
-      uv_buv( row_buv_loc) = SSA%v_b( ti_loc)
+      row_tiuv = mesh%tiuv2n( ti,2)
+      uv_buv( row_tiuv) = SSA%v_b( ti)
 
-    END DO ! DO ti_loc = 1, mesh%nTri_loc
+    END DO ! DO ti = mesh%ti1, mesh%ti2
 
   ! == Construct the stiffness matrix for the linearised SSA
   ! ========================================================
 
-    DO row_buv_glob = A_CSR%i1, A_CSR%i2
+    DO row_tiuv = A_CSR%i1, A_CSR%i2
 
-      row_buv_loc = row_buv_glob - A_CSR%i1 + 1
-      ti_glob = mesh%n2tiuv( row_buv_glob,1)
-      ti_loc = ti_glob - mesh%ti1 + 1
-      uv = mesh%n2tiuv( row_buv_glob,2)
+      ti = mesh%n2tiuv( row_tiuv,1)
+      uv = mesh%n2tiuv( row_tiuv,2)
 
-      IF (BC_prescr_mask_b( ti_loc) == 1) THEN
+      IF (BC_prescr_mask_b( ti) == 1) THEN
         ! Dirichlet boundary condition; velocities are prescribed for this triangle
 
         ! Stiffness matrix: diagonal element set to 1
-        CALL add_entry_CSR_dist( A_CSR, row_buv_glob, row_buv_glob, 1._dp)
+        CALL add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, 1._dp)
 
         ! Load vector: prescribed velocity
         IF     (uv == 1) THEN
-          bb( row_buv_loc) = BC_prescr_u_b( ti_loc)
+          bb( row_tiuv) = BC_prescr_u_b( ti)
         ELSEIF (uv == 2) THEN
-          bb( row_buv_loc) = BC_prescr_v_b( ti_loc)
+          bb( row_tiuv) = BC_prescr_v_b( ti)
         ELSE
           CALL crash('uv can only be 1 or 2!')
         END IF
 
-      ELSEIF (mesh%TriBI( ti_glob) == 1 .OR. mesh%TriBI( ti_glob) == 2) THEN
+      ELSEIF (mesh%TriBI( ti) == 1 .OR. mesh%TriBI( ti) == 2) THEN
         ! Northern domain border
 
-        CALL calc_SSA_stiffness_matrix_row_BC_north( mesh, SSA, A_CSR, bb, row_buv_glob)
+        CALL calc_SSA_stiffness_matrix_row_BC_north( mesh, SSA, A_CSR, bb, row_tiuv)
 
-      ELSEIF (mesh%TriBI( ti_glob) == 3 .OR. mesh%TriBI( ti_glob) == 4) THEN
+      ELSEIF (mesh%TriBI( ti) == 3 .OR. mesh%TriBI( ti) == 4) THEN
         ! Eastern domain border
 
-        CALL calc_SSA_stiffness_matrix_row_BC_east( mesh, SSA, A_CSR, bb, row_buv_glob)
+        CALL calc_SSA_stiffness_matrix_row_BC_east( mesh, SSA, A_CSR, bb, row_tiuv)
 
-      ELSEIF (mesh%TriBI( ti_glob) == 5 .OR. mesh%TriBI( ti_glob) == 6) THEN
+      ELSEIF (mesh%TriBI( ti) == 5 .OR. mesh%TriBI( ti) == 6) THEN
         ! Northern domain border
 
-        CALL calc_SSA_stiffness_matrix_row_BC_south( mesh, SSA, A_CSR, bb, row_buv_glob)
+        CALL calc_SSA_stiffness_matrix_row_BC_south( mesh, SSA, A_CSR, bb, row_tiuv)
 
-      ELSEIF (mesh%TriBI( ti_glob) == 7 .OR. mesh%TriBI( ti_glob) == 8) THEN
+      ELSEIF (mesh%TriBI( ti) == 7 .OR. mesh%TriBI( ti) == 8) THEN
         ! Western domain border
 
-        CALL calc_SSA_stiffness_matrix_row_BC_west( mesh, SSA, A_CSR, bb, row_buv_glob)
+        CALL calc_SSA_stiffness_matrix_row_BC_west( mesh, SSA, A_CSR, bb, row_tiuv)
 
       ELSE
         ! No boundary conditions apply; solve the SSA
 
-        CALL calc_SSA_stiffness_matrix_row_free( mesh, SSA, A_CSR, bb, row_buv_glob)
+        CALL calc_SSA_stiffness_matrix_row_free( mesh, SSA, A_CSR, bb, row_tiuv)
 
       END IF
 
-    END DO
+    END DO ! DO row_tiuv = A_CSR%i1, A_CSR%i2
 
   ! == Solve the matrix equation
   ! ============================
@@ -370,21 +378,17 @@ CONTAINS
     CALL solve_matrix_equation_CSR_PETSc( A_CSR, bb, uv_buv, SSA%PETSc_rtol, SSA%PETSc_abstol)
 
     ! Disentangle the u and v components of the velocity solution
-    DO ti_loc = 1, mesh%nTri_loc
-
-      ti_glob = mesh%ti1 + ti_loc - 1
+    DO ti = mesh%ti1, mesh%ti2
 
       ! u
-      row_buv_glob = mesh%tiuv2n( ti_glob,1)
-      row_buv_loc = row_buv_glob - A_CSR%i1 + 1
-      SSA%u_b( ti_loc) = uv_buv( row_buv_loc)
+      row_tiuv = mesh%tiuv2n( ti,1)
+      SSA%u_b( ti) = uv_buv( row_tiuv)
 
       ! v
-      row_buv_glob = mesh%tiuv2n( ti_glob,2)
-      row_buv_loc = row_buv_glob - A_CSR%i1 + 1
-      SSA%v_b( ti_loc) = uv_buv( row_buv_loc)
+      row_tiuv = mesh%tiuv2n( ti,2)
+      SSA%v_b( ti) = uv_buv( row_tiuv)
 
-    END DO ! DO ti_loc = 1, mesh%nTri_loc
+    END DO ! DO ti = mesh%ti1, mesh%ti2
 
     ! Clean up after yourself
     CALL deallocate_matrix_CSR_dist( A_CSR)
@@ -396,7 +400,7 @@ CONTAINS
 
   END SUBROUTINE solve_SSA_linearised
 
-  SUBROUTINE calc_SSA_stiffness_matrix_row_free( mesh, SSA, A_CSR, bb, row_buv_glob)
+  SUBROUTINE calc_SSA_stiffness_matrix_row_free( mesh, SSA, A_CSR, bb, row_tiuv)
     ! Add coefficients to this matrix row to represent the linearised SSA
     !
     ! The SSA reads;
@@ -431,11 +435,11 @@ CONTAINS
     TYPE(type_mesh),                     INTENT(IN)              :: mesh
     TYPE(type_ice_velocity_solver_SSA),  INTENT(IN)              :: SSA
     TYPE(type_sparse_matrix_CSR_dp),     INTENT(INOUT)           :: A_CSR
-    REAL(dp), DIMENSION(:    ),          INTENT(INOUT)           :: bb
-    INTEGER,                             INTENT(IN)              :: row_buv_glob
+    REAL(dp), DIMENSION(mesh%ti1*2-1: mesh%ti2*2), INTENT(INOUT) :: bb
+    INTEGER,                             INTENT(IN)              :: row_tiuv
 
     ! Local variables:
-    INTEGER                                                      :: row_buv_loc, ti_glob, uv, row_b_glob, row_b_loc
+    INTEGER                                                      :: ti, uv
     REAL(dp)                                                     :: N, dN_dx, dN_dy, beta_b, tau_dx, tau_dy
     INTEGER,  DIMENSION(:    ), ALLOCATABLE                      :: single_row_ind
     REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: single_row_ddx_val
@@ -445,22 +449,19 @@ CONTAINS
     REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: single_row_d2dy2_val
     INTEGER                                                      :: single_row_nnz
     REAL(dp)                                                     :: Au, Av
-    INTEGER                                                      :: k, tj_glob, col_bu_glob, col_bv_glob
+    INTEGER                                                      :: k, tj, col_tju, col_tjv
 
     ! Relevant indices for this triangle
-    row_buv_loc = row_buv_glob - A_CSR%i1 + 1
-    ti_glob     = mesh%n2tiuv( row_buv_glob,1)
-    uv          = mesh%n2tiuv( row_buv_glob,2)
-    row_b_glob  = mesh%ti2n( ti_glob)
-    row_b_loc   = row_b_glob - mesh%ti1 + 1
+    ti     = mesh%n2tiuv( row_tiuv,1)
+    uv     = mesh%n2tiuv( row_tiuv,2)
 
     ! N, dN/dx, dN/dy, beta_b, tau_dx, and tau_dy on this triangle
-    N      = SSA%N_b(      row_b_loc)
-    dN_dx  = SSA%dN_dx_b(  row_b_loc)
-    dN_dy  = SSA%dN_dy_b(  row_b_loc)
-    beta_b = SSA%beta_b_b( row_b_loc)
-    tau_dx = SSA%tau_dx_b( row_b_loc)
-    tau_dy = SSA%tau_dy_b( row_b_loc)
+    N      = SSA%N_b(      ti)
+    dN_dx  = SSA%dN_dx_b(  ti)
+    dN_dy  = SSA%dN_dy_b(  ti)
+    beta_b = SSA%beta_b_b( ti)
+    tau_dx = SSA%tau_dx_b( ti)
+    tau_dy = SSA%tau_dy_b( ti)
 
     ! Allocate memory for single matrix rows
     ALLOCATE( single_row_ind(        mesh%nC_mem*2))
@@ -471,11 +472,11 @@ CONTAINS
     ALLOCATE( single_row_d2dy2_val(  mesh%nC_mem*2))
 
     ! Read coefficients of the operator matrices
-    CALL read_single_row_CSR_dist( mesh%M2_ddx_b_b   , row_b_glob, single_row_ind, single_row_ddx_val   , single_row_nnz)
-    CALL read_single_row_CSR_dist( mesh%M2_ddy_b_b   , row_b_glob, single_row_ind, single_row_ddy_val   , single_row_nnz)
-    CALL read_single_row_CSR_dist( mesh%M2_d2dx2_b_b , row_b_glob, single_row_ind, single_row_d2dx2_val , single_row_nnz)
-    CALL read_single_row_CSR_dist( mesh%M2_d2dxdy_b_b, row_b_glob, single_row_ind, single_row_d2dxdy_val, single_row_nnz)
-    CALL read_single_row_CSR_dist( mesh%M2_d2dy2_b_b , row_b_glob, single_row_ind, single_row_d2dy2_val , single_row_nnz)
+    CALL read_single_row_CSR_dist( mesh%M2_ddx_b_b   , ti, single_row_ind, single_row_ddx_val   , single_row_nnz)
+    CALL read_single_row_CSR_dist( mesh%M2_ddy_b_b   , ti, single_row_ind, single_row_ddy_val   , single_row_nnz)
+    CALL read_single_row_CSR_dist( mesh%M2_d2dx2_b_b , ti, single_row_ind, single_row_d2dx2_val , single_row_nnz)
+    CALL read_single_row_CSR_dist( mesh%M2_d2dxdy_b_b, ti, single_row_ind, single_row_d2dxdy_val, single_row_nnz)
+    CALL read_single_row_CSR_dist( mesh%M2_d2dy2_b_b , ti, single_row_ind, single_row_d2dy2_val , single_row_nnz)
 
     IF (uv == 1) THEN
       ! x-component
@@ -483,9 +484,9 @@ CONTAINS
       DO k = 1, single_row_nnz
 
         ! Relevant indices for this neighbouring triangle
-        tj_glob     = single_row_ind( k)
-        col_bu_glob = mesh%tiuv2n( tj_glob,1)
-        col_bv_glob = mesh%tiuv2n( tj_glob,2)
+        tj      = single_row_ind( k)
+        col_tju = mesh%tiuv2n( tj,1)
+        col_tjv = mesh%tiuv2n( tj,2)
 
         !   4 N d2u/dx2  + 4 dN/dx du/dx + N d2u/dy2 + dN/dy du/dy - beta_b u + ...
         !   3 N d2v/dxdy + 2 dN/dx dv/dy +             dN/dy dv/dx = -tau_dx
@@ -495,20 +496,20 @@ CONTAINS
              4._dp * dN_dx * single_row_ddx_val(    k) + &  ! 4 dN/dx du/dx
                      N     * single_row_d2dy2_val(  k) + &  !    N    d2u/dy2
                      dN_dy * single_row_ddy_val(    k)      !   dN/dy du/dy
-        IF (tj_glob == ti_glob) Au = Au - beta_b            ! - beta_b u
+        IF (tj == ti) Au = Au - beta_b            ! - beta_b u
 
         Av = 3._dp * N     * single_row_d2dxdy_val( k) + &  ! 3  N    d2v/dxdy
              2._dp * dN_dx * single_row_ddy_val(    k) + &  ! 2 dN/dx dv/dy
                      dN_dy * single_row_ddx_val(    k)      !   dN/dy dv/dx
 
         ! Add coefficients to the stiffness matrix
-        CALL add_entry_CSR_dist( A_CSR, row_buv_glob, col_bu_glob, Au)
-        CALL add_entry_CSR_dist( A_CSR, row_buv_glob, col_bv_glob, Av)
+        CALL add_entry_CSR_dist( A_CSR, row_tiuv, col_tju, Au)
+        CALL add_entry_CSR_dist( A_CSR, row_tiuv, col_tjv, Av)
 
       END DO
 
       ! Load vector
-      bb( row_buv_loc) = -SSA%tau_dx_b( row_b_loc)
+      bb( row_tiuv) = -SSA%tau_dx_b( ti)
 
     ELSEIF (uv == 2) THEN
       ! y-component
@@ -516,9 +517,9 @@ CONTAINS
       DO k = 1, single_row_nnz
 
         ! Relevant indices for this neighbouring triangle
-        tj_glob     = single_row_ind( k)
-        col_bu_glob = mesh%tiuv2n( tj_glob,1)
-        col_bv_glob = mesh%tiuv2n( tj_glob,2)
+        tj      = single_row_ind( k)
+        col_tju = mesh%tiuv2n( tj,1)
+        col_tjv = mesh%tiuv2n( tj,2)
 
         !   4 N d2v/dy2  + 4 dN/dy dv/dy + N d2v/dx2 + dN/dx dv/dx - beta_b v + ...
         !   3 N d2u/dxdy + 2 dN/dy du/dx +             dN/dx du/dy = -tau_dy
@@ -528,20 +529,20 @@ CONTAINS
              4._dp * dN_dy * single_row_ddy_val(    k) + &  ! 4 dN/dy dv/dy
                      N     * single_row_d2dx2_val(  k) + &  !    N    d2v/dx2
                      dN_dx * single_row_ddx_val(    k)      !   dN/dx dv/dx
-        IF (tj_glob == ti_glob) Av = Av - beta_b            ! - beta_b v
+        IF (tj == ti) Av = Av - beta_b            ! - beta_b v
 
         Au = 3._dp * N     * single_row_d2dxdy_val( k) + &  ! 3  N    d2u/dxdy
              2._dp * dN_dy * single_row_ddx_val(    k) + &  ! 2 dN/dy du/dx
                      dN_dx * single_row_ddy_val(    k)      !   dN/dx du/dy
 
         ! Add coefficients to the stiffness matrix
-        CALL add_entry_CSR_dist( A_CSR, row_buv_glob, col_bu_glob, Au)
-        CALL add_entry_CSR_dist( A_CSR, row_buv_glob, col_bv_glob, Av)
+        CALL add_entry_CSR_dist( A_CSR, row_tiuv, col_tju, Au)
+        CALL add_entry_CSR_dist( A_CSR, row_tiuv, col_tjv, Av)
 
       END DO
 
       ! Load vector
-      bb( row_buv_loc) = -SSA%tau_dy_b( row_b_loc)
+      bb( row_tiuv) = -SSA%tau_dy_b( ti)
 
     ELSE
       CALL crash('uv can only be 1 or 2!')
@@ -557,7 +558,7 @@ CONTAINS
 
   END SUBROUTINE calc_SSA_stiffness_matrix_row_free
 
-  SUBROUTINE calc_SSA_stiffness_matrix_row_BC_west( mesh, SSA, A_CSR, bb, row_buv_glob)
+  SUBROUTINE calc_SSA_stiffness_matrix_row_BC_west( mesh, SSA, A_CSR, bb, row_tiuv)
     ! Add coefficients to this matrix row to represent boundary conditions at the
     ! western domain border.
 
@@ -567,24 +568,23 @@ CONTAINS
     TYPE(type_mesh),                     INTENT(IN)              :: mesh
     TYPE(type_ice_velocity_solver_SSA),  INTENT(IN)              :: SSA
     TYPE(type_sparse_matrix_CSR_dp),     INTENT(INOUT)           :: A_CSR
-    REAL(dp), DIMENSION(:    ),          INTENT(INOUT)           :: bb
-    INTEGER,                             INTENT(IN)              :: row_buv_glob
+    REAL(dp), DIMENSION(mesh%ti1*2-1: mesh%ti2*2), INTENT(INOUT) :: bb
+    INTEGER,                             INTENT(IN)              :: row_tiuv
 
     ! Local variables:
-    INTEGER                                                      :: row_buv_loc,ti,uv,row_b_glob
-    INTEGER                                                      :: k, col_b_glob, tj, col_buv_glob
+    INTEGER                                                      :: ti,uv,row_ti
+    INTEGER                                                      :: k, col_tj, tj, col_tjuv
     INTEGER                                                      :: n, n_neighbours
 
-    row_buv_loc = row_buv_glob - A_CSR%i1 + 1
-    ti = mesh%n2tiuv( row_buv_glob,1)
-    uv = mesh%n2tiuv( row_buv_glob,2)
-    row_b_glob = mesh%ti2n( ti)
+    ti = mesh%n2tiuv( row_tiuv,1)
+    uv = mesh%n2tiuv( row_tiuv,2)
+    row_ti = mesh%ti2n( ti)
 
     IF (uv == 1) THEN
       ! x-component
 
       IF     (C%BC_u_west == 'infinite') THEN
-        ! du/dy = 0
+        ! du/dx = 0
         !
         ! NOTE: using the d/dx operator matrix doesn't always work well, not sure why...
 
@@ -594,23 +594,23 @@ CONTAINS
           tj = mesh%TriC( ti,n)
           IF (tj == 0) CYCLE
           n_neighbours = n_neighbours + 1
-          col_buv_glob = mesh%tiuv2n( tj,uv)
-          CALL add_entry_CSR_dist( A_CSR, row_buv_glob, col_buv_glob, 1._dp)
+          col_tjuv = mesh%tiuv2n( tj,uv)
+          CALL add_entry_CSR_dist( A_CSR, row_tiuv, col_tjuv, 1._dp)
         END DO
         IF (n_neighbours == 0) CALL crash('whaa!')
-        CALL add_entry_CSR_dist( A_CSR, row_buv_glob, row_buv_glob, -1._dp * REAL( n_neighbours,dp))
+        CALL add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, -1._dp * REAL( n_neighbours,dp))
 
         ! Load vector
-        bb( row_buv_loc) = 0._dp
+        bb( row_tiuv) = 0._dp
 
       ELSEIF (C%BC_u_west == 'zero') THEN
         ! u = 0
 
         ! Stiffness matrix
-        CALL add_entry_CSR_dist( A_CSR, row_buv_glob, row_buv_glob, 1._dp)
+        CALL add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, 1._dp)
 
         ! Load vector
-        bb( row_buv_loc) = 0._dp
+        bb( row_tiuv) = 0._dp
 
       ELSEIF (C%BC_u_west == 'periodic_ISMIP_HOM') THEN
         ! u(x,y) = u(x+L/2,y+L/2)
@@ -626,7 +626,7 @@ CONTAINS
       ! y-component
 
       IF     (C%BC_v_west == 'infinite') THEN
-        ! dv/dy = 0
+        ! dv/dx = 0
         !
         ! NOTE: using the d/dx operator matrix doesn't always work well, not sure why...
 
@@ -636,32 +636,32 @@ CONTAINS
           tj = mesh%TriC( ti,n)
           IF (tj == 0) CYCLE
           n_neighbours = n_neighbours + 1
-          col_buv_glob = mesh%tiuv2n( tj,uv)
-          CALL add_entry_CSR_dist( A_CSR, row_buv_glob, col_buv_glob, 1._dp)
+          col_tjuv = mesh%tiuv2n( tj,uv)
+          CALL add_entry_CSR_dist( A_CSR, row_tiuv, col_tjuv, 1._dp)
         END DO
         IF (n_neighbours == 0) CALL crash('whaa!')
-        CALL add_entry_CSR_dist( A_CSR, row_buv_glob, row_buv_glob, -1._dp * REAL( n_neighbours,dp))
+        CALL add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, -1._dp * REAL( n_neighbours,dp))
 
         ! Load vector
-        bb( row_buv_loc) = 0._dp
+        bb( row_tiuv) = 0._dp
 
       ELSEIF (C%BC_v_west == 'zero') THEN
         ! v = 0
 
         ! Stiffness matrix
-        CALL add_entry_CSR_dist( A_CSR, row_buv_glob, row_buv_glob, 1._dp)
+        CALL add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, 1._dp)
 
         ! Load vector
-        bb( row_buv_loc) = 0._dp
+        bb( row_tiuv) = 0._dp
 
       ELSEIF (C%BC_v_west == 'periodic_ISMIP_HOM') THEN
-        ! v(x,y) = u(x+L/2,y+L/2)
+        ! v(x,y) = v(x+L/2,y+L/2)
 
         ! DENK DROM
         CALL crash('fixme!')
 
       ELSE
-        CALL crash('unknown BC_v_west "' // TRIM( C%BC_v_west) // '"!')
+        CALL crash('unknown BC_u_west "' // TRIM( C%BC_u_west) // '"!')
       END IF
 
     ELSE
@@ -670,7 +670,7 @@ CONTAINS
 
   END SUBROUTINE calc_SSA_stiffness_matrix_row_BC_west
 
-  SUBROUTINE calc_SSA_stiffness_matrix_row_BC_east( mesh, SSA, A_CSR, bb, row_buv_glob)
+  SUBROUTINE calc_SSA_stiffness_matrix_row_BC_east( mesh, SSA, A_CSR, bb, row_tiuv)
     ! Add coefficients to this matrix row to represent boundary conditions at the
     ! eastern domain border.
 
@@ -680,24 +680,23 @@ CONTAINS
     TYPE(type_mesh),                     INTENT(IN)              :: mesh
     TYPE(type_ice_velocity_solver_SSA),  INTENT(IN)              :: SSA
     TYPE(type_sparse_matrix_CSR_dp),     INTENT(INOUT)           :: A_CSR
-    REAL(dp), DIMENSION(:    ),          INTENT(INOUT)           :: bb
-    INTEGER,                             INTENT(IN)              :: row_buv_glob
+    REAL(dp), DIMENSION(mesh%ti1*2-1: mesh%ti2*2), INTENT(INOUT) :: bb
+    INTEGER,                             INTENT(IN)              :: row_tiuv
 
     ! Local variables:
-    INTEGER                                                      :: row_buv_loc,ti,uv,row_b_glob
-    INTEGER                                                      :: k, col_b_glob, tj, col_buv_glob
+    INTEGER                                                      :: ti,uv,row_ti
+    INTEGER                                                      :: k, col_tj, tj, col_tjuv
     INTEGER                                                      :: n, n_neighbours
 
-    row_buv_loc = row_buv_glob - A_CSR%i1 + 1
-    ti = mesh%n2tiuv( row_buv_glob,1)
-    uv = mesh%n2tiuv( row_buv_glob,2)
-    row_b_glob = mesh%ti2n( ti)
+    ti = mesh%n2tiuv( row_tiuv,1)
+    uv = mesh%n2tiuv( row_tiuv,2)
+    row_ti = mesh%ti2n( ti)
 
     IF (uv == 1) THEN
       ! x-component
 
       IF     (C%BC_u_east == 'infinite') THEN
-        ! du/dy = 0
+        ! du/dx = 0
         !
         ! NOTE: using the d/dx operator matrix doesn't always work well, not sure why...
 
@@ -707,23 +706,23 @@ CONTAINS
           tj = mesh%TriC( ti,n)
           IF (tj == 0) CYCLE
           n_neighbours = n_neighbours + 1
-          col_buv_glob = mesh%tiuv2n( tj,uv)
-          CALL add_entry_CSR_dist( A_CSR, row_buv_glob, col_buv_glob, 1._dp)
+          col_tjuv = mesh%tiuv2n( tj,uv)
+          CALL add_entry_CSR_dist( A_CSR, row_tiuv, col_tjuv, 1._dp)
         END DO
         IF (n_neighbours == 0) CALL crash('whaa!')
-        CALL add_entry_CSR_dist( A_CSR, row_buv_glob, row_buv_glob, -1._dp * REAL( n_neighbours,dp))
+        CALL add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, -1._dp * REAL( n_neighbours,dp))
 
         ! Load vector
-        bb( row_buv_loc) = 0._dp
+        bb( row_tiuv) = 0._dp
 
       ELSEIF (C%BC_u_east == 'zero') THEN
         ! u = 0
 
         ! Stiffness matrix
-        CALL add_entry_CSR_dist( A_CSR, row_buv_glob, row_buv_glob, 1._dp)
+        CALL add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, 1._dp)
 
         ! Load vector
-        bb( row_buv_loc) = 0._dp
+        bb( row_tiuv) = 0._dp
 
       ELSEIF (C%BC_u_east == 'periodic_ISMIP_HOM') THEN
         ! u(x,y) = u(x+L/2,y+L/2)
@@ -739,7 +738,7 @@ CONTAINS
       ! y-component
 
       IF     (C%BC_v_east == 'infinite') THEN
-        ! dv/dy = 0
+        ! dv/dx = 0
         !
         ! NOTE: using the d/dx operator matrix doesn't always work well, not sure why...
 
@@ -749,32 +748,32 @@ CONTAINS
           tj = mesh%TriC( ti,n)
           IF (tj == 0) CYCLE
           n_neighbours = n_neighbours + 1
-          col_buv_glob = mesh%tiuv2n( tj,uv)
-          CALL add_entry_CSR_dist( A_CSR, row_buv_glob, col_buv_glob, 1._dp)
+          col_tjuv = mesh%tiuv2n( tj,uv)
+          CALL add_entry_CSR_dist( A_CSR, row_tiuv, col_tjuv, 1._dp)
         END DO
         IF (n_neighbours == 0) CALL crash('whaa!')
-        CALL add_entry_CSR_dist( A_CSR, row_buv_glob, row_buv_glob, -1._dp * REAL( n_neighbours,dp))
+        CALL add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, -1._dp * REAL( n_neighbours,dp))
 
         ! Load vector
-        bb( row_buv_loc) = 0._dp
+        bb( row_tiuv) = 0._dp
 
       ELSEIF (C%BC_v_east == 'zero') THEN
         ! v = 0
 
         ! Stiffness matrix
-        CALL add_entry_CSR_dist( A_CSR, row_buv_glob, row_buv_glob, 1._dp)
+        CALL add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, 1._dp)
 
         ! Load vector
-        bb( row_buv_loc) = 0._dp
+        bb( row_tiuv) = 0._dp
 
       ELSEIF (C%BC_v_east == 'periodic_ISMIP_HOM') THEN
-        ! v(x,y) = u(x+L/2,y+L/2)
+        ! v(x,y) = v(x+L/2,y+L/2)
 
         ! DENK DROM
         CALL crash('fixme!')
 
       ELSE
-        CALL crash('unknown BC_v_east "' // TRIM( C%BC_v_east) // '"!')
+        CALL crash('unknown BC_u_east "' // TRIM( C%BC_u_east) // '"!')
       END IF
 
     ELSE
@@ -783,7 +782,7 @@ CONTAINS
 
   END SUBROUTINE calc_SSA_stiffness_matrix_row_BC_east
 
-  SUBROUTINE calc_SSA_stiffness_matrix_row_BC_south( mesh, SSA, A_CSR, bb, row_buv_glob)
+  SUBROUTINE calc_SSA_stiffness_matrix_row_BC_south( mesh, SSA, A_CSR, bb, row_tiuv)
     ! Add coefficients to this matrix row to represent boundary conditions at the
     ! southern domain border.
 
@@ -793,18 +792,17 @@ CONTAINS
     TYPE(type_mesh),                     INTENT(IN)              :: mesh
     TYPE(type_ice_velocity_solver_SSA),  INTENT(IN)              :: SSA
     TYPE(type_sparse_matrix_CSR_dp),     INTENT(INOUT)           :: A_CSR
-    REAL(dp), DIMENSION(:    ),          INTENT(INOUT)           :: bb
-    INTEGER,                             INTENT(IN)              :: row_buv_glob
+    REAL(dp), DIMENSION(mesh%ti1*2-1: mesh%ti2*2), INTENT(INOUT) :: bb
+    INTEGER,                             INTENT(IN)              :: row_tiuv
 
     ! Local variables:
-    INTEGER                                                      :: row_buv_loc,ti,uv,row_b_glob
-    INTEGER                                                      :: k, col_b_glob, tj, col_buv_glob
+    INTEGER                                                      :: ti,uv,row_ti
+    INTEGER                                                      :: k, col_tj, tj, col_tjuv
     INTEGER                                                      :: n, n_neighbours
 
-    row_buv_loc = row_buv_glob - A_CSR%i1 + 1
-    ti = mesh%n2tiuv( row_buv_glob,1)
-    uv = mesh%n2tiuv( row_buv_glob,2)
-    row_b_glob = mesh%ti2n( ti)
+    ti = mesh%n2tiuv( row_tiuv,1)
+    uv = mesh%n2tiuv( row_tiuv,2)
+    row_ti = mesh%ti2n( ti)
 
     IF (uv == 1) THEN
       ! x-component
@@ -812,7 +810,7 @@ CONTAINS
       IF     (C%BC_u_south == 'infinite') THEN
         ! du/dy = 0
         !
-        ! NOTE: using the d/dx operator matrix doesn't always work well, not sure why...
+        ! NOTE: using the d/dy operator matrix doesn't always work well, not sure why...
 
         ! Set u on this triangle equal to the average value on its neighbours
         n_neighbours = 0
@@ -820,23 +818,23 @@ CONTAINS
           tj = mesh%TriC( ti,n)
           IF (tj == 0) CYCLE
           n_neighbours = n_neighbours + 1
-          col_buv_glob = mesh%tiuv2n( tj,uv)
-          CALL add_entry_CSR_dist( A_CSR, row_buv_glob, col_buv_glob, 1._dp)
+          col_tjuv = mesh%tiuv2n( tj,uv)
+          CALL add_entry_CSR_dist( A_CSR, row_tiuv, col_tjuv, 1._dp)
         END DO
         IF (n_neighbours == 0) CALL crash('whaa!')
-        CALL add_entry_CSR_dist( A_CSR, row_buv_glob, row_buv_glob, -1._dp * REAL( n_neighbours,dp))
+        CALL add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, -1._dp * REAL( n_neighbours,dp))
 
         ! Load vector
-        bb( row_buv_loc) = 0._dp
+        bb( row_tiuv) = 0._dp
 
       ELSEIF (C%BC_u_south == 'zero') THEN
         ! u = 0
 
         ! Stiffness matrix
-        CALL add_entry_CSR_dist( A_CSR, row_buv_glob, row_buv_glob, 1._dp)
+        CALL add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, 1._dp)
 
         ! Load vector
-        bb( row_buv_loc) = 0._dp
+        bb( row_tiuv) = 0._dp
 
       ELSEIF (C%BC_u_south == 'periodic_ISMIP_HOM') THEN
         ! u(x,y) = u(x+L/2,y+L/2)
@@ -854,7 +852,7 @@ CONTAINS
       IF     (C%BC_v_south == 'infinite') THEN
         ! dv/dy = 0
         !
-        ! NOTE: using the d/dx operator matrix doesn't always work well, not sure why...
+        ! NOTE: using the d/dy operator matrix doesn't always work well, not sure why...
 
         ! Set v on this triangle equal to the average value on its neighbours
         n_neighbours = 0
@@ -862,32 +860,32 @@ CONTAINS
           tj = mesh%TriC( ti,n)
           IF (tj == 0) CYCLE
           n_neighbours = n_neighbours + 1
-          col_buv_glob = mesh%tiuv2n( tj,uv)
-          CALL add_entry_CSR_dist( A_CSR, row_buv_glob, col_buv_glob, 1._dp)
+          col_tjuv = mesh%tiuv2n( tj,uv)
+          CALL add_entry_CSR_dist( A_CSR, row_tiuv, col_tjuv, 1._dp)
         END DO
         IF (n_neighbours == 0) CALL crash('whaa!')
-        CALL add_entry_CSR_dist( A_CSR, row_buv_glob, row_buv_glob, -1._dp * REAL( n_neighbours,dp))
+        CALL add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, -1._dp * REAL( n_neighbours,dp))
 
         ! Load vector
-        bb( row_buv_loc) = 0._dp
+        bb( row_tiuv) = 0._dp
 
       ELSEIF (C%BC_v_south == 'zero') THEN
         ! v = 0
 
         ! Stiffness matrix
-        CALL add_entry_CSR_dist( A_CSR, row_buv_glob, row_buv_glob, 1._dp)
+        CALL add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, 1._dp)
 
         ! Load vector
-        bb( row_buv_loc) = 0._dp
+        bb( row_tiuv) = 0._dp
 
       ELSEIF (C%BC_v_south == 'periodic_ISMIP_HOM') THEN
-        ! v(x,y) = u(x+L/2,y+L/2)
+        ! v(x,y) = v(x+L/2,y+L/2)
 
         ! DENK DROM
         CALL crash('fixme!')
 
       ELSE
-        CALL crash('unknown BC_v_south "' // TRIM( C%BC_v_south) // '"!')
+        CALL crash('unknown BC_u_south "' // TRIM( C%BC_u_south) // '"!')
       END IF
 
     ELSE
@@ -896,7 +894,7 @@ CONTAINS
 
   END SUBROUTINE calc_SSA_stiffness_matrix_row_BC_south
 
-  SUBROUTINE calc_SSA_stiffness_matrix_row_BC_north( mesh, SSA, A_CSR, bb, row_buv_glob)
+  SUBROUTINE calc_SSA_stiffness_matrix_row_BC_north( mesh, SSA, A_CSR, bb, row_tiuv)
     ! Add coefficients to this matrix row to represent boundary conditions at the
     ! northern domain border.
 
@@ -906,18 +904,17 @@ CONTAINS
     TYPE(type_mesh),                     INTENT(IN)              :: mesh
     TYPE(type_ice_velocity_solver_SSA),  INTENT(IN)              :: SSA
     TYPE(type_sparse_matrix_CSR_dp),     INTENT(INOUT)           :: A_CSR
-    REAL(dp), DIMENSION(:    ),          INTENT(INOUT)           :: bb
-    INTEGER,                             INTENT(IN)              :: row_buv_glob
+    REAL(dp), DIMENSION(mesh%ti1*2-1: mesh%ti2*2), INTENT(INOUT) :: bb
+    INTEGER,                             INTENT(IN)              :: row_tiuv
 
     ! Local variables:
-    INTEGER                                                      :: row_buv_loc,ti,uv,row_b_glob
-    INTEGER                                                      :: k, col_b_glob, tj, col_buv_glob
+    INTEGER                                                      :: ti,uv,row_ti
+    INTEGER                                                      :: k, col_tj, tj, col_tjuv
     INTEGER                                                      :: n, n_neighbours
 
-    row_buv_loc = row_buv_glob - A_CSR%i1 + 1
-    ti = mesh%n2tiuv( row_buv_glob,1)
-    uv = mesh%n2tiuv( row_buv_glob,2)
-    row_b_glob = mesh%ti2n( ti)
+    ti = mesh%n2tiuv( row_tiuv,1)
+    uv = mesh%n2tiuv( row_tiuv,2)
+    row_ti = mesh%ti2n( ti)
 
     IF (uv == 1) THEN
       ! x-component
@@ -925,7 +922,7 @@ CONTAINS
       IF     (C%BC_u_north == 'infinite') THEN
         ! du/dy = 0
         !
-        ! NOTE: using the d/dx operator matrix doesn't always work well, not sure why...
+        ! NOTE: using the d/dy operator matrix doesn't always work well, not sure why...
 
         ! Set u on this triangle equal to the average value on its neighbours
         n_neighbours = 0
@@ -933,23 +930,23 @@ CONTAINS
           tj = mesh%TriC( ti,n)
           IF (tj == 0) CYCLE
           n_neighbours = n_neighbours + 1
-          col_buv_glob = mesh%tiuv2n( tj,uv)
-          CALL add_entry_CSR_dist( A_CSR, row_buv_glob, col_buv_glob, 1._dp)
+          col_tjuv = mesh%tiuv2n( tj,uv)
+          CALL add_entry_CSR_dist( A_CSR, row_tiuv, col_tjuv, 1._dp)
         END DO
         IF (n_neighbours == 0) CALL crash('whaa!')
-        CALL add_entry_CSR_dist( A_CSR, row_buv_glob, row_buv_glob, -1._dp * REAL( n_neighbours,dp))
+        CALL add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, -1._dp * REAL( n_neighbours,dp))
 
         ! Load vector
-        bb( row_buv_loc) = 0._dp
+        bb( row_tiuv) = 0._dp
 
       ELSEIF (C%BC_u_north == 'zero') THEN
         ! u = 0
 
         ! Stiffness matrix
-        CALL add_entry_CSR_dist( A_CSR, row_buv_glob, row_buv_glob, 1._dp)
+        CALL add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, 1._dp)
 
         ! Load vector
-        bb( row_buv_loc) = 0._dp
+        bb( row_tiuv) = 0._dp
 
       ELSEIF (C%BC_u_north == 'periodic_ISMIP_HOM') THEN
         ! u(x,y) = u(x+L/2,y+L/2)
@@ -967,7 +964,7 @@ CONTAINS
       IF     (C%BC_v_north == 'infinite') THEN
         ! dv/dy = 0
         !
-        ! NOTE: using the d/dx operator matrix doesn't always work well, not sure why...
+        ! NOTE: using the d/dy operator matrix doesn't always work well, not sure why...
 
         ! Set v on this triangle equal to the average value on its neighbours
         n_neighbours = 0
@@ -975,32 +972,32 @@ CONTAINS
           tj = mesh%TriC( ti,n)
           IF (tj == 0) CYCLE
           n_neighbours = n_neighbours + 1
-          col_buv_glob = mesh%tiuv2n( tj,uv)
-          CALL add_entry_CSR_dist( A_CSR, row_buv_glob, col_buv_glob, 1._dp)
+          col_tjuv = mesh%tiuv2n( tj,uv)
+          CALL add_entry_CSR_dist( A_CSR, row_tiuv, col_tjuv, 1._dp)
         END DO
         IF (n_neighbours == 0) CALL crash('whaa!')
-        CALL add_entry_CSR_dist( A_CSR, row_buv_glob, row_buv_glob, -1._dp * REAL( n_neighbours,dp))
+        CALL add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, -1._dp * REAL( n_neighbours,dp))
 
         ! Load vector
-        bb( row_buv_loc) = 0._dp
+        bb( row_tiuv) = 0._dp
 
       ELSEIF (C%BC_v_north == 'zero') THEN
         ! v = 0
 
         ! Stiffness matrix
-        CALL add_entry_CSR_dist( A_CSR, row_buv_glob, row_buv_glob, 1._dp)
+        CALL add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, 1._dp)
 
         ! Load vector
-        bb( row_buv_loc) = 0._dp
+        bb( row_tiuv) = 0._dp
 
       ELSEIF (C%BC_v_north == 'periodic_ISMIP_HOM') THEN
-        ! v(x,y) = u(x+L/2,y+L/2)
+        ! v(x,y) = v(x+L/2,y+L/2)
 
         ! DENK DROM
         CALL crash('fixme!')
 
       ELSE
-        CALL crash('unknown BC_v_north "' // TRIM( C%BC_v_north) // '"!')
+        CALL crash('unknown BC_u_north "' // TRIM( C%BC_u_north) // '"!')
       END IF
 
     ELSE
@@ -1032,9 +1029,9 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Allocate shared memory
-    ALLOCATE( Hi_b(     mesh%nTri_loc))
-    ALLOCATE( dHs_dx_b( mesh%nTri_loc))
-    ALLOCATE( dHs_dy_b( mesh%nTri_loc))
+    ALLOCATE( Hi_b(     mesh%ti1:mesh%ti2))
+    ALLOCATE( dHs_dx_b( mesh%ti1:mesh%ti2))
+    ALLOCATE( dHs_dy_b( mesh%ti1:mesh%ti2))
 
     ! Calculate Hi, dHs/dx, and dHs/dy on the b-grid
     CALL map_a_b_2D( mesh, ice%Hi, Hi_b    )
@@ -1042,7 +1039,7 @@ CONTAINS
     CALL ddy_a_b_2D( mesh, ice%Hs, dHs_dy_b)
 
     ! Calculate the driving stress
-    DO ti = 1, mesh%nTri_loc
+    DO ti = mesh%ti1, mesh%ti2
       SSA%tau_dx_b( ti) = -ice_density * grav * Hi_b( ti) * dHs_dx_b( ti)
       SSA%tau_dy_b( ti) = -ice_density * grav * Hi_b( ti) * dHs_dy_b( ti)
     END DO
@@ -1103,7 +1100,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Calculate the vertical average of Glen's flow parameter A
-    DO vi = 1, mesh%nV_loc
+    DO vi = mesh%vi1, mesh%vi2
       A_prof = ice%A_flow_3D( vi,:)
       SSA%A_flow_vav_a( vi) = vertical_average( mesh%zeta, A_prof)
     END DO
@@ -1131,7 +1128,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    DO vi = 1, mesh%nV_loc
+    DO vi = mesh%vi1, mesh%vi2
 
       ! Calculate the square of the effective strain rate epsilon
       epsilon_sq = SSA%du_dx_a( vi)**2 + &
@@ -1190,7 +1187,7 @@ CONTAINS
 
     ! Apply the sub-grid grounded fraction
     IF (C%do_GL_subgrid_friction) THEN
-      DO ti = 1, mesh%nTri_loc
+      DO ti = mesh%ti1, mesh%ti2
         SSA%beta_b_b( ti) = SSA%beta_b_b( ti) * ice%fraction_gr_b( ti)**2
       END DO
     END IF
@@ -1218,7 +1215,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    DO ti = 1, mesh%nTri_loc
+    DO ti = mesh%ti1, mesh%ti2
       SSA%u_b( ti) = (C%visc_it_relax * SSA%u_b( ti)) + ((1._dp - C%visc_it_relax) * SSA%u_b_prev( ti))
       SSA%v_b( ti) = (C%visc_it_relax * SSA%v_b( ti)) + ((1._dp - C%visc_it_relax) * SSA%v_b_prev( ti))
     END DO
@@ -1250,7 +1247,7 @@ CONTAINS
     res1 = 0._dp
     res2 = 0._dp
 
-    DO ti = 1, mesh%nTri_loc
+    DO ti = mesh%ti1, mesh%ti2
 
       res1 = res1 + (SSA%u_b( ti) - SSA%u_b_prev( ti))**2
       res1 = res1 + (SSA%v_b( ti) - SSA%v_b_prev( ti))**2
@@ -1289,7 +1286,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    DO ti = 1, mesh%nTri_loc
+    DO ti = mesh%ti1, mesh%ti2
 
       ! Calculate absolute speed
       uabs = SQRT( SSA%u_b( ti)**2 + SSA%v_b( ti)**2)

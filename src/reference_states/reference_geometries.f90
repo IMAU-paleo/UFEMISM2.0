@@ -530,10 +530,10 @@ CONTAINS
     IF (ALLOCATED( refgeo%SL)) DEALLOCATE( refgeo%SL)
 
     ! Allocate memory for reference ice geometry on the model mesh
-    ALLOCATE( refgeo%Hi( mesh%nV_loc))
-    ALLOCATE( refgeo%Hb( mesh%nV_loc))
-    ALLOCATE( refgeo%Hs( mesh%nV_loc))
-    ALLOCATE( refgeo%SL( mesh%nV_loc))
+    ALLOCATE( refgeo%Hi( mesh%vi1:mesh%vi2))
+    ALLOCATE( refgeo%Hb( mesh%vi1:mesh%vi2))
+    ALLOCATE( refgeo%Hs( mesh%vi1:mesh%vi2))
+    ALLOCATE( refgeo%SL( mesh%vi1:mesh%vi2))
 
     ! Determine if the initial geometry is provided gridded or meshed
     IF (ALLOCATED( refgeo%grid_raw%x)) THEN
@@ -564,7 +564,7 @@ CONTAINS
     END IF
 
     ! Don't remap Hs, but recalculate it after remapping Hi,Hb,SL
-    DO vi = 1, mesh%nV_loc
+    DO vi = mesh%vi1, mesh%vi2
       refgeo%Hs( vi) = ice_surface_elevation( refgeo%Hi( vi), refgeo%Hb( vi), refgeo%SL( vi))
     END DO
 

@@ -24,9 +24,12 @@ MODULE UFEMISM_main_model
   ! DENK DROM
   USE netcdf_basic , ONLY: create_new_netcdf_file_for_writing
   USE netcdf_output, ONLY: setup_mesh_in_netcdf_file, add_field_mesh_dp_2D_notime, write_to_field_multopt_mesh_dp_2D_notime, &
-                           add_field_mesh_int_2D_notime, write_to_field_multopt_mesh_int_2D_notime
+                           add_field_mesh_int_2D_notime, write_to_field_multopt_mesh_int_2D_notime, add_field_mesh_dp_2D_b_notime, &
+                           write_to_field_multopt_mesh_dp_2D_b_notime
   USE netcdf_debug , ONLY: write_CSR_matrix_to_NetCDF
-  USE ice_velocity_SSA, ONLY: initialise_SSA_solver
+  USE ice_velocity_SSA, ONLY: initialise_SSA_solver, solve_SSA
+  USE bed_roughness, ONLY: calc_bed_roughness_Martin2011
+  USE basal_hydrology, ONLY: calc_basal_hydrology
 
   IMPLICIT NONE
 
@@ -155,6 +158,14 @@ CONTAINS
 
     ! DENK DROM
     CALL initialise_SSA_solver( region%mesh, region%ice%SSA)
+    region%ice%A_flow_3D = 1E-16_dp
+    ALLOCATE( region%ice%tau_c(    region%mesh%vi1:region%mesh%vi2))
+    ALLOCATE( region%ice%phi_fric( region%mesh%vi1:region%mesh%vi2))
+    ALLOCATE( region%ice%beta_b(   region%mesh%vi1:region%mesh%vi2))
+    CALL calc_bed_roughness_Martin2011( region%mesh, region%ice)
+    CALL calc_basal_hydrology( region%mesh, region%ice)
+    C%choice_sliding_law = 'Zoet-Iverson'
+    CALL solve_SSA( region%mesh, region%ice, region%ice%SSA)
 
     ! DENK DROM
     filename = TRIM( C%output_dir) // 'testfile.nc'
@@ -167,6 +178,9 @@ CONTAINS
     CALL add_field_mesh_int_2D_notime( filename, ncid, 'mask')
     CALL add_field_mesh_dp_2D_notime( filename, ncid, 'bedrock_cdf')
     CALL add_field_mesh_dp_2D_notime( filename, ncid, 'fraction_gr')
+    CALL add_field_mesh_dp_2D_b_notime( filename, ncid, 'beta_b_b')
+    CALL add_field_mesh_dp_2D_b_notime( filename, ncid, 'u_b')
+    CALL add_field_mesh_dp_2D_b_notime( filename, ncid, 'v_b')
     CALL write_to_field_multopt_mesh_dp_2D_notime( region%mesh, filename, ncid, 'Hi', region%refgeo_init%Hi)
     CALL write_to_field_multopt_mesh_dp_2D_notime( region%mesh, filename, ncid, 'Hb', region%refgeo_init%Hb)
     CALL write_to_field_multopt_mesh_dp_2D_notime( region%mesh, filename, ncid, 'Hs', region%refgeo_init%Hs)
@@ -174,6 +188,9 @@ CONTAINS
     CALL write_to_field_multopt_mesh_int_2D_notime( region%mesh, filename, ncid, 'mask', region%ice%mask)
     CALL write_to_field_multopt_mesh_dp_2D_notime( region%mesh, filename, ncid, 'bedrock_cdf', region%ice%bedrock_cdf(:,11))
     CALL write_to_field_multopt_mesh_dp_2D_notime( region%mesh, filename, ncid, 'fraction_gr', region%ice%fraction_gr)
+    CALL write_to_field_multopt_mesh_dp_2D_b_notime( region%mesh, filename, ncid, 'beta_b_b', region%ice%SSA%beta_b_b)
+    CALL write_to_field_multopt_mesh_dp_2D_b_notime( region%mesh, filename, ncid, 'u_b', region%ice%SSA%u_b)
+    CALL write_to_field_multopt_mesh_dp_2D_b_notime( region%mesh, filename, ncid, 'v_b', region%ice%SSA%v_b)
     CALL close_netcdf_file( ncid)
 
     ! ===== Finalisation =====

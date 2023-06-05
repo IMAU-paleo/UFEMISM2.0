@@ -53,9 +53,9 @@ CONTAINS
     ! Calculate overburden and effective pressure
     ! ===========================================
 
-    DO vi = 1, mesh%nV_loc
+    DO vi = mesh%vi1, mesh%vi2
       ice%overburden_pressure( vi) = ice_density * grav * ice%Hi( vi)
-      ice%effective_pressure(               vi) = MAX( 0._dp, ice%overburden_pressure( vi) - ice%pore_water_pressure( vi))
+      ice%effective_pressure(  vi) = MAX( 0._dp, ice%overburden_pressure( vi) - ice%pore_water_pressure( vi))
     END DO
 
     ! Finalise routine path
@@ -80,13 +80,13 @@ CONTAINS
 
     ! Allocate shared memory
     IF     (C%choice_basal_hydrology == 'saturated') THEN
-      ALLOCATE( ice%pore_water_pressure( mesh%nV_loc))
-      ALLOCATE( ice%overburden_pressure( mesh%nV_loc))
-      ALLOCATE( ice%effective_pressure(               mesh%nV_loc))
+      ALLOCATE( ice%pore_water_pressure( mesh%vi1:mesh%vi2))
+      ALLOCATE( ice%overburden_pressure( mesh%vi1:mesh%vi2))
+      ALLOCATE( ice%effective_pressure(  mesh%vi1:mesh%vi2))
     ELSEIF (C%choice_basal_hydrology == 'Martin2011') THEN
-      ALLOCATE( ice%pore_water_pressure( mesh%nV_loc))
-      ALLOCATE( ice%overburden_pressure( mesh%nV_loc))
-      ALLOCATE( ice%effective_pressure(               mesh%nV_loc))
+      ALLOCATE( ice%pore_water_pressure( mesh%vi1:mesh%vi2))
+      ALLOCATE( ice%overburden_pressure( mesh%vi1:mesh%vi2))
+      ALLOCATE( ice%effective_pressure(  mesh%vi1:mesh%vi2))
     ELSE
       CALL crash('unknown choice_basal_hydrology "' // TRIM( C%choice_basal_hydrology) // '"!')
     END IF
@@ -114,7 +114,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    DO vi = 1, mesh%nV_loc
+    DO vi = mesh%vi1, mesh%vi2
       ice%pore_water_pressure( vi) = -seawater_density * grav * (ice%SL( vi) - ice%Hb( vi))
     END DO
 
@@ -142,7 +142,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    DO vi = 1, mesh%nV_loc
+    DO vi = mesh%vi1, mesh%vi2
 
       ! Pore water pressure scaling factor (Martin et al., 2011, Eq. 12)
       lambda_p = MIN( 1._dp, MAX( 0._dp, 1._dp - (ice%Hb( vi) - ice%SL( vi) - C%Martin2011_hydro_Hb_min) / (C%Martin2011_hydro_Hb_max - C%Martin2011_hydro_Hb_min) ))

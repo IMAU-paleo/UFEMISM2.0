@@ -29,8 +29,8 @@ CONTAINS
     ! In- and output variables:
     TYPE(type_mesh),                     INTENT(IN)    :: mesh
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
-    REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: u_b
-    REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: v_b
+    REAL(dp), DIMENSION(:),          INTENT(IN)    :: u_b
+    REAL(dp), DIMENSION(:),          INTENT(IN)    :: v_b
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_basal_friction_coefficient'
@@ -40,8 +40,8 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Allocate shared memory
-    ALLOCATE( u_a( mesh%nV_loc))
-    ALLOCATE( v_a( mesh%nV_loc))
+    ALLOCATE( u_a( mesh%vi1:mesh%vi2))
+    ALLOCATE( v_a( mesh%vi1:mesh%vi2))
 
     ! Map velocities to the a-grid
     CALL map_b_a_2D( mesh, u_b, u_a)
@@ -92,7 +92,7 @@ CONTAINS
     ! In- and output variables:
     TYPE(type_mesh),                     INTENT(IN)    :: mesh
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
-    REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: u_a, v_a
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2),          INTENT(IN)    :: u_a, v_a
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_sliding_law_Weertman'
@@ -103,7 +103,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Calculate beta
-    DO vi = 1, mesh%nV_loc
+    DO vi = mesh%vi1, mesh%vi2
 
       ! Include a normalisation term following Bueler & Brown (2009) to prevent divide-by-zero errors.
       uabs = SQRT( C%slid_delta_v**2 + u_a( vi)**2 + v_a( vi)**2)
@@ -127,8 +127,7 @@ CONTAINS
     ! In- and output variables:
     TYPE(type_mesh),                     INTENT(IN)    :: mesh
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
-    REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: u_a
-    REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: v_a
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2),          INTENT(IN)    :: u_a, v_a
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_sliding_law_Coulomb'
@@ -139,12 +138,12 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Calculate the till yield stress from the till friction angle and the effective pressure
-    DO vi = 1, mesh%nV_loc
+    DO vi = mesh%vi1, mesh%vi2
       ice%tau_c( vi) = TAN((pi / 180._dp) * ice%phi_fric( vi)) * ice%effective_pressure( vi)
     END DO
 
     ! Calculate beta
-    DO vi = 1, mesh%nV_loc
+    DO vi = mesh%vi1, mesh%vi2
 
       ! Include a normalisation term following Bueler & Brown (2009) to prevent divide-by-zero errors.
       uabs = SQRT( C%slid_delta_v**2 + u_a( vi)**2 + v_a( vi)**2)
@@ -166,8 +165,7 @@ CONTAINS
     ! In- and output variables:
     TYPE(type_mesh),                     INTENT(IN)    :: mesh
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
-    REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: u_a
-    REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: v_a
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2),          INTENT(IN)    :: u_a, v_a
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_sliding_law_Budd'
@@ -178,12 +176,12 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Calculate the till yield stress from the till friction angle and the effective pressure
-    DO vi = 1, mesh%nV_loc
+    DO vi = mesh%vi1, mesh%vi2
       ice%tau_c( vi) = TAN((pi / 180._dp) * ice%phi_fric( vi)) * ice%effective_pressure( vi)
     END DO
 
     ! Calculate beta
-    DO vi = 1, mesh%nV_loc
+    DO vi = mesh%vi1, mesh%vi2
 
       ! Include a normalisation term following Bueler & Brown (2009) to prevent divide-by-zero errors.
       uabs = SQRT( C%slid_delta_v**2 + u_a( vi)**2 + v_a( vi)**2)
@@ -213,8 +211,7 @@ CONTAINS
     ! In- and output variables:
     TYPE(type_mesh),                     INTENT(IN)    :: mesh
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
-    REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: u_a
-    REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: v_a
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2),          INTENT(IN)    :: u_a, v_a
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_sliding_law_Tsai2015'
@@ -225,7 +222,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Calculate beta
-    DO vi = 1, mesh%nV_loc
+    DO vi = mesh%vi1, mesh%vi2
 
       ! Include a normalisation term following Bueler & Brown (2009) to prevent divide-by-zero errors.
       uabs = SQRT( C%slid_delta_v**2 + u_a( vi)**2 + v_a( vi)**2)
@@ -255,8 +252,7 @@ CONTAINS
     ! In- and output variables:
     TYPE(type_mesh),                     INTENT(IN)    :: mesh
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
-    REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: u_a
-    REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: v_a
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2),          INTENT(IN)    :: u_a, v_a
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_sliding_law_Schoof2005'
@@ -267,7 +263,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Calculate beta
-    DO vi = 1, mesh%nV_loc
+    DO vi = mesh%vi1, mesh%vi2
 
       ! Include a normalisation term following Bueler & Brown (2009) to prevent divide-by-zero errors.
       uabs = SQRT( C%slid_delta_v**2 + u_a( vi)**2 + v_a( vi)**2)
@@ -291,8 +287,7 @@ CONTAINS
     ! In- and output variables:
     TYPE(type_mesh),                     INTENT(IN)    :: mesh
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
-    REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: u_a
-    REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: v_a
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2),          INTENT(IN)    :: u_a, v_a
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_sliding_law_ZoetIverson'
@@ -303,12 +298,12 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Calculate the till yield stress from the till friction angle and the effective pressure
-    DO vi = 1, mesh%nV_loc
+    DO vi = mesh%vi1, mesh%vi2
       ice%tau_c( vi) = TAN((pi / 180._dp) * ice%phi_fric( vi)) * ice%effective_pressure( vi)
     END DO
 
     ! Calculate beta
-    DO vi = 1, mesh%nV_loc
+    DO vi = mesh%vi1, mesh%vi2
 
       ! Include a normalisation term following Bueler & Brown (2009) to prevent divide-by-zero errors.
       uabs = SQRT( C%slid_delta_v**2 + u_a( vi)**2 + v_a( vi)**2)
@@ -331,8 +326,7 @@ CONTAINS
     ! In- and output variables:
     TYPE(type_mesh),                     INTENT(IN)    :: mesh
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
-    REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: u_a
-    REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: v_a
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2),          INTENT(IN)    :: u_a, v_a
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_sliding_law_idealised'
@@ -378,8 +372,7 @@ CONTAINS
     ! In- and output variables:
     TYPE(type_mesh),                     INTENT(IN)    :: mesh
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
-    REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: u_a
-    REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: v_a
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2),          INTENT(IN)    :: u_a, v_a
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_sliding_law_idealised_SSA_icestream'
@@ -390,7 +383,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Calculate beta
-    DO vi = 1, mesh%nV_loc
+    DO vi = mesh%vi1, mesh%vi2
 
       ! Include a normalisation term following Bueler & Brown (2009) to prevent divide-by-zero errors.
       uabs = SQRT( C%slid_delta_v**2 + u_a( vi)**2 + v_a( vi)**2)
@@ -426,7 +419,7 @@ CONTAINS
     ! DENK DROM
     CALL crash('fixme!')
 
-!    DO vi = 1, mesh%nV_loc
+!    DO vi = mesh%vi1, mesh%vi2
 !      x = mesh%V( vi,1)
 !      y = mesh%V( vi,2)
 !      ice%beta_b( vi) = 1000._dp + 1000._dp * SIN( 2._dp * pi * x / C%ISMIP_HOM_L) * SIN( 2._dp * pi * y / C%ISMIP_HOM_L)
@@ -459,7 +452,7 @@ CONTAINS
     ! DENK DROM
     CALL crash('fixme!')
 
-!    DO vi = 1, mesh%nV_loc
+!    DO vi = mesh%vi1, mesh%vi2
 !      x = mesh%V( vi,1)
 !      ice%beta_b( vi) = 1000._dp + 1000._dp * SIN( 2._dp * pi * x / C%ISMIP_HOM_L)
 !    END DO
@@ -487,7 +480,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    DO vi = 1, mesh%nV_loc
+    DO vi = mesh%vi1, mesh%vi2
       ice%beta_b( vi) = (C%uniform_flow_factor * 1000._dp)**(-1._dp)
     END DO
 
