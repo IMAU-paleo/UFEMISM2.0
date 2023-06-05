@@ -75,12 +75,27 @@ PROGRAM UFEMISM_program
 
   ! Unit testing
   IF (C%do_unit_tests) THEN
+
+    ! Run all unit tests
     CALL run_all_unit_tests
+
+    ! Stop the clock
     tstop = MPI_WTIME()
     tcomp = tstop - tstart
+
+    ! Print the UFEMISM end message to the terminal
     CALL print_UFEMISM_end( tcomp)
+
+    ! Finalise PETSc and MPI parallelisation
+    CALL sync
+    CALL PetscFinalize( perr)
+    CALL sync
+    CALL finalise_parallelisation
+
+    ! Stop the program
     RETURN
-  END IF
+
+  END IF ! IF (C%do_unit_tests) THEN
 
   ! == Initialise the model regions
   ! ===============================
