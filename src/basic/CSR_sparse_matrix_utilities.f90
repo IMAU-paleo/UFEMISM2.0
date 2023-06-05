@@ -140,12 +140,31 @@ CONTAINS
     A%val( A%nnz) = v
 
     ! Update pointer list
-    A%ptr( i+1 : A%i2+1 ) = A%nnz+1
+    A%ptr( i+1) = A%nnz+1
 
     ! Extend memory if necessary
     IF (A%nnz > A%nnz_max - 10) CALL extend_matrix_CSR_dist( A, 1000)
 
   END SUBROUTINE add_entry_CSR_dist
+
+  SUBROUTINE add_empty_row_CSR_dist( A, i)
+    ! Add an empty row i to CSR-formatted matrix A
+    !
+    ! NOTE: assumes all rows before i are finished and nothing exists yet for rows after i!
+
+    IMPLICIT NONE
+
+    ! In- and output variables:
+    TYPE(type_sparse_matrix_CSR_dp),     INTENT(INOUT) :: A
+    INTEGER,                             INTENT(IN)    :: i
+
+    ! Safety
+    IF (i < A%i1 .OR. i > A%i2) CALL crash('out of ownership range!')
+
+    ! Update pointer list
+    A%ptr( i+1) = A%nnz+1
+
+  END SUBROUTINE add_empty_row_CSR_dist
 
   SUBROUTINE extend_matrix_CSR_dist( A, nnz_extra)
     ! Extend memory for a CSR-format sparse m-by-n matrix A

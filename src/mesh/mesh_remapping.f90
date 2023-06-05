@@ -14,8 +14,10 @@ MODULE mesh_remapping
   USE mpi_distributed_memory                                 , ONLY: partition_list
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
-  USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp, allocate_matrix_CSR_dist, add_entry_CSR_dist, deallocate_matrix_CSR_dist
-  USE petsc_basic                                            , ONLY: mat_CSR2petsc, multiply_PETSc_matrix_with_vector_1D, multiply_PETSc_matrix_with_vector_2D, MatDestroy, MatConvert
+  USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp, allocate_matrix_CSR_dist, add_entry_CSR_dist, deallocate_matrix_CSR_dist, &
+                                                                     add_empty_row_CSR_dist
+  USE petsc_basic                                            , ONLY: mat_CSR2petsc, multiply_PETSc_matrix_with_vector_1D, multiply_PETSc_matrix_with_vector_2D, &
+                                                                     MatDestroy, MatConvert
   USE grid_basic                                             , ONLY: type_grid, calc_matrix_operators_grid
   USE grid_lonlat_basic                                      , ONLY: type_grid_lonlat
   USE mesh_types                                             , ONLY: type_mesh
@@ -580,7 +582,6 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'apply_map_xy_grid_to_mesh_2D'
-    INTEGER                                            :: n,i,j
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -612,7 +613,6 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'apply_map_xy_grid_to_mesh_3D'
-    INTEGER                                            :: n,i,j
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -646,7 +646,6 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'apply_map_lonlat_grid_to_mesh_2D'
-    INTEGER                                            :: n,i,j
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -678,7 +677,6 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'apply_map_lonlat_grid_to_mesh_3D'
-    INTEGER                                            :: n,i,j
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -854,7 +852,7 @@ CONTAINS
     INTEGER                                            :: nrows, ncols, nrows_loc, ncols_loc, nnz_est, nnz_est_proc, nnz_per_row_max
     TYPE(type_sparse_matrix_CSR_dp)                    :: A_xdy_a_g_CSR, A_mxydx_a_g_CSR, A_xydy_a_g_CSR
     INTEGER,  DIMENSION(:    ), ALLOCATABLE            :: mask_do_simple_average
-    INTEGER                                            :: vi1, vi2, vi
+    INTEGER                                            :: vi
     REAL(dp), DIMENSION( mesh%nC_mem,2)                :: Vor
     INTEGER,  DIMENSION( mesh%nC_mem  )                :: Vor_vi
     INTEGER,  DIMENSION( mesh%nC_mem  )                :: Vor_ti
@@ -951,7 +949,10 @@ CONTAINS
           CALL trace_line_grid( grid, p, q, single_row_Vor, count_coincidences)
         END DO
 
-        ! Next integrate around the grid cells overlapping with this triangle
+        ! Safety
+        IF (single_row_Vor%n == 0) CALL crash('couldnt find any grid cells overlapping with this Voronoi cell!')
+
+        ! Next integrate around the grid cells overlapping with this Voronoi cell
         DO k = 1, single_row_Vor%n
 
           ! Clean up single row results
@@ -983,6 +984,9 @@ CONTAINS
           CALL trace_line_Vor( mesh, se, ne, single_row_grid, count_coincidences, vi_hint)
           CALL trace_line_Vor( mesh, ne, nw, single_row_grid, count_coincidences, vi_hint)
           CALL trace_line_Vor( mesh, nw, sw, single_row_grid, count_coincidences, vi_hint)
+
+          ! Safety
+          IF (single_row_grid%n == 0) CALL crash('couldnt find any grid cells overlapping with this Voronoi cell!')
 
           ! Add contribution for this particular triangle
           DO kk = 1, single_row_grid%n
@@ -1043,6 +1047,9 @@ CONTAINS
         END DO
         END DO
 
+        ! Safety
+        IF (single_row_Vor%n == 0) CALL crash('couldnt find any grid cells overlapping with this Voronoi cell!')
+
         ! Add entries to the big matrices
         DO k = 1, single_row_Vor%n
           col = single_row_Vor%index_left( k)
@@ -1102,6 +1109,9 @@ CONTAINS
 
       ELSE
         ! For large vertices, don't include the gradient terms
+
+        CALL add_empty_row_CSR_dist( w1x_CSR, row)
+        CALL add_empty_row_CSR_dist( w1y_CSR, row)
 
       END IF ! IF (mask_do_simple_average( vi) == 0) THEN
 
@@ -1888,7 +1898,7 @@ CONTAINS
     TYPE(tMat)                                         :: B_xdy_a_b  , B_mxydx_a_b  , B_xydy_a_b
     TYPE(tMat)                                         :: B_xdy_b_a_T, B_mxydx_b_a_T, B_xydy_b_a_T
     TYPE(tMat)                                         :: w0, w1x, w1y
-    INTEGER                                            :: istart, iend, n, k, ti, vi
+    INTEGER                                            :: istart, iend, n, k, ti
     INTEGER                                            :: ncols
     INTEGER,  DIMENSION(:    ), ALLOCATABLE            :: cols
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: vals, w0_row, w1x_row, w1y_row
@@ -2170,11 +2180,17 @@ CONTAINS
       CALL trace_line_Vor( mesh_Vor, p, q, single_row, count_coincidences, vi_hint)
 
       ! Add the results for this triangle to the sparse matrix
-      DO k = 1, single_row%n
-        CALL add_entry_CSR_dist( B_xdy_b_a_CSR  , ti, single_row%index_left( k), single_row%LI_xdy(   k))
-        CALL add_entry_CSR_dist( B_mxydx_b_a_CSR, ti, single_row%index_left( k), single_row%LI_mxydx( k))
-        CALL add_entry_CSR_dist( B_xydy_b_a_CSR , ti, single_row%index_left( k), single_row%LI_xydy(  k))
-      END DO
+      IF (single_row%n == 0) THEN
+        CALL add_empty_row_CSR_dist( B_xdy_b_a_CSR  , ti)
+        CALL add_empty_row_CSR_dist( B_mxydx_b_a_CSR, ti)
+        CALL add_empty_row_CSR_dist( B_xydy_b_a_CSR , ti)
+      ELSE
+        DO k = 1, single_row%n
+          CALL add_entry_CSR_dist( B_xdy_b_a_CSR  , ti, single_row%index_left( k), single_row%LI_xdy(   k))
+          CALL add_entry_CSR_dist( B_mxydx_b_a_CSR, ti, single_row%index_left( k), single_row%LI_mxydx( k))
+          CALL add_entry_CSR_dist( B_xydy_b_a_CSR , ti, single_row%index_left( k), single_row%LI_xydy(  k))
+        END DO
+      END IF
 
     END DO ! DO ti = mesh_tri%ti1, mesh_tri%ti2
     CALL sync
@@ -2278,11 +2294,17 @@ CONTAINS
       END DO
 
       ! Add the results for this triangle to the sparse matrix
-      DO k = 1, single_row%n
-        CALL add_entry_CSR_dist( B_xdy_a_b_CSR  , vi, single_row%index_left( k), single_row%LI_xdy(   k))
-        CALL add_entry_CSR_dist( B_mxydx_a_b_CSR, vi, single_row%index_left( k), single_row%LI_mxydx( k))
-        CALL add_entry_CSR_dist( B_xydy_a_b_CSR , vi, single_row%index_left( k), single_row%LI_xydy(  k))
-      END DO
+      IF (single_row%n == 0) THEN
+        CALL add_empty_row_CSR_dist( B_xdy_a_b_CSR  , vi)
+        CALL add_empty_row_CSR_dist( B_mxydx_a_b_CSR, vi)
+        CALL add_empty_row_CSR_dist( B_xydy_a_b_CSR , vi)
+      ELSE
+        DO k = 1, single_row%n
+          CALL add_entry_CSR_dist( B_xdy_a_b_CSR  , vi, single_row%index_left( k), single_row%LI_xdy(   k))
+          CALL add_entry_CSR_dist( B_mxydx_a_b_CSR, vi, single_row%index_left( k), single_row%LI_mxydx( k))
+          CALL add_entry_CSR_dist( B_xydy_a_b_CSR , vi, single_row%index_left( k), single_row%LI_xydy(  k))
+        END DO
+      END IF
 
     END DO ! DO vi = mesh_Vor%vi1, mesh_Vor%vi2
     CALL sync
@@ -3150,7 +3172,6 @@ CONTAINS
     INTEGER                                            :: vi_left
     LOGICAL                                            :: coincides
     REAL(dp)                                           :: LI_xdy, LI_mxydx, LI_xydy
-    INTEGER                                            :: vi_p, vi_q, vi_next
 
     ! Crop the line [pq] so that it lies within the mesh domain
     CALL crop_line_to_domain( p, q, mesh%xmin, mesh%xmax, mesh%ymin, mesh%ymax, mesh%tol_dist, pp, qq, is_valid_line)
@@ -3282,7 +3303,7 @@ CONTAINS
 
     ! Local variables:
     INTEGER                                            :: vti, ti, ei, vori, vorj, ci, vj
-    REAL(dp), DIMENSION(2)                             :: cc1, cc2, r, llis, pa, pb
+    REAL(dp), DIMENSION(2)                             :: r, llis, pa, pb
     REAL(dp)                                           :: dx
     LOGICAL                                            :: do_cross
     REAL(dp), DIMENSION( mesh%nC_mem,2)                :: Vor
