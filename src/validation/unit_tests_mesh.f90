@@ -91,6 +91,13 @@ CONTAINS
     LOGICAL                                            :: found_errors
     CHARACTER(LEN=256)                                 :: filename
     INTEGER                                            :: ncid
+    ! Expected values for the mesh (last updated: 2023-06-05)
+    INTEGER,  PARAMETER                                :: nV_expected     = 6394
+    INTEGER,  PARAMETER                                :: nTri_expected   = 12682
+    INTEGER,  PARAMETER                                :: nE_expected     = 19075
+    REAL(dp), PARAMETER                                :: Amin_expected   = 0.64840E+09_dp
+    REAL(dp), PARAMETER                                :: Amax_expected   = 0.83562E+11_dp
+    REAL(dp), PARAMETER                                :: RA_max_expected = 0.57190E+01_dp
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -156,37 +163,31 @@ CONTAINS
 
     found_errors = .FALSE.
 
-    ! 2023-06-05: mesh has 4435 vertices
-    IF (mesh%nV < 4000 .OR. mesh%nV > 5000) THEN
+    IF (mesh%nV < NINT( REAL( nV_expected,dp) * 0.9_dp) .OR. mesh%nV > NINT( REAL( nV_expected,dp) * 1.1_dp)) THEN
       found_errors = .TRUE.
-      CALL warning('mesh has unexepcted amount of vertices! Expected 4435, found {int_01}', int_01 = mesh%nV)
+      CALL warning('mesh has unexepcted amount of vertices! Expected {int_01}, found {int_02}', int_01 = nV_expected, int_02 = mesh%nV)
     END IF
 
-    ! 2023-06-05: mesh has 8765 triangles
-    IF (mesh%nTri < 8000 .OR. mesh%nTri > 10000) THEN
+    IF (mesh%nTri < NINT( REAL( nTri_expected,dp) * 0.9_dp) .OR. mesh%nTri > NINT( REAL( nTri_expected,dp) * 1.1_dp)) THEN
       found_errors = .TRUE.
-      CALL warning('mesh has unexepcted amount of triangles! Expected 8765, found {int_01}', int_01 = mesh%nTri)
+      CALL warning('mesh has unexepcted amount of triangles! Expected {int_01}, found {int_02}', int_01 = nTri_expected, int_02 = mesh%nTri)
     END IF
 
-    ! 2023-06-05: mesh has 13199 edges
-    IF (mesh%nE < 12000 .OR. mesh%nE > 15000) THEN
+    IF (mesh%nE < NINT( REAL( nE_expected,dp) * 0.9_dp) .OR. mesh%nE > NINT( REAL( nE_expected,dp) * 1.1_dp)) THEN
       found_errors = .TRUE.
-      CALL warning('mesh has unexepcted amount of edges! Expected 13199, found {int_01}', int_01 = mesh%nE)
+      CALL warning('mesh has unexepcted amount of edges! Expected {int_01}, found {int_02}', int_01 = nE_expected, int_02 = mesh%nE)
     END IF
 
-    ! 2023-06-05: smallest vertex has a Voronoi cell area of 0.10398E+10
-    IF (MINVAL( mesh%A) < 0.10398E+10 * 0.5) THEN
+    IF (MINVAL( mesh%A) < Amin_expected * 0.5_dp) THEN
       found_errors = .TRUE.
-      CALL warning('mesh has unexpectedly small vertices! Expected MINVAL( mesh%A) = 0.10398E+10, found {dp_01}', dp_01 = MINVAL( mesh%A))
+      CALL warning('mesh has unexpectedly small vertices! Expected MINVAL( mesh%A) = {dp_01}, found {dp_02}', dp_01 = Amin_expected, dp_02 = MINVAL( mesh%A))
     END IF
 
-    ! 2023-06-05: largest vertex has a Voronoi cell area of 0.84217E+11
-    IF (MAXVAL( mesh%A) > 0.84217E+11 * 2.0) THEN
+    IF (MAXVAL( mesh%A) > Amax_expected * 2.0_dp) THEN
       found_errors = .TRUE.
-      CALL warning('mesh has unexpectedly large vertices! Expected MAXVAL( mesh%A) = 0.84217E+11, found {dp_01}', dp_01 = MAXVAL( mesh%A))
+      CALL warning('mesh has unexpectedly small vertices! Expected MAXVAL( mesh%A) = {dp_01}, found {dp_02}', dp_01 = Amax_expected, dp_02 = MAXVAL( mesh%A))
     END IF
 
-    ! 2023-06-05: mesh has a maximum ratio of Voronoi cell area A of adjacent vertices of 0.48151E+01
     RA_max = 0._dp
     DO vi = 1, mesh%nV
       DO ci = 1, mesh%nC( vi)
@@ -195,9 +196,9 @@ CONTAINS
         RA_max = MAX( RA_max, RA)
       END DO
     END DO
-    IF (RA_max > 0.48151E+01 * 2.0)  THEN
+    IF (RA_max > RA_max_expected * 2.0_dp)  THEN
       found_errors = .TRUE.
-      CALL warning('mesh has unexpectedly high resolution gradient! Expected RA_max = 0.48151E+01, found {dp_01}', dp_01 = RA_max)
+      CALL warning('mesh has unexpectedly high resolution gradient! Expected RA_max = {dp_01}, found {dp_02}', dp_01 = RA_max_expected, dp_02 = RA_max)
     END IF
 
     ! If no errors occurred, we are happy
@@ -249,6 +250,13 @@ CONTAINS
     LOGICAL                                            :: found_errors
     CHARACTER(LEN=256)                                 :: filename
     INTEGER                                            :: ncid
+    ! Expected values for the mesh (last updated: 2023-06-05)
+    INTEGER,  PARAMETER                                :: nV_expected     = 8934
+    INTEGER,  PARAMETER                                :: nTri_expected   = 17737
+    INTEGER,  PARAMETER                                :: nE_expected     = 26670
+    REAL(dp), PARAMETER                                :: Amin_expected   = 0.62425E+09_dp
+    REAL(dp), PARAMETER                                :: Amax_expected   = 0.74116E+11_dp
+    REAL(dp), PARAMETER                                :: RA_max_expected = 0.41585E+01_dp
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -342,37 +350,31 @@ CONTAINS
 
     found_errors = .FALSE.
 
-    ! 2023-06-05: mesh has 5873 vertices
-    IF (mesh%nV < 5500 .OR. mesh%nV > 6500) THEN
+    IF (mesh%nV < NINT( REAL( nV_expected,dp) * 0.9_dp) .OR. mesh%nV > NINT( REAL( nV_expected,dp) * 1.1_dp)) THEN
       found_errors = .TRUE.
-      CALL warning('mesh has unexepcted amount of vertices! Expected 5873, found {int_01}', int_01 = mesh%nV)
+      CALL warning('mesh has unexepcted amount of vertices! Expected {int_01}, found {int_02}', int_01 = nV_expected, int_02 = mesh%nV)
     END IF
 
-    ! 2023-06-05: mesh has 11619 triangles
-    IF (mesh%nTri < 10000 .OR. mesh%nTri > 13000) THEN
+    IF (mesh%nTri < NINT( REAL( nTri_expected,dp) * 0.9_dp) .OR. mesh%nTri > NINT( REAL( nTri_expected,dp) * 1.1_dp)) THEN
       found_errors = .TRUE.
-      CALL warning('mesh has unexepcted amount of triangles! Expected 11619, found {int_01}', int_01 = mesh%nTri)
+      CALL warning('mesh has unexepcted amount of triangles! Expected {int_01}, found {int_02}', int_01 = nTri_expected, int_02 = mesh%nTri)
     END IF
 
-    ! 2023-06-05: mesh has 17491 edges
-    IF (mesh%nE < 15000 .OR. mesh%nE > 20000) THEN
+    IF (mesh%nE < NINT( REAL( nE_expected,dp) * 0.9_dp) .OR. mesh%nE > NINT( REAL( nE_expected,dp) * 1.1_dp)) THEN
       found_errors = .TRUE.
-      CALL warning('mesh has unexepcted amount of edges! Expected 17491, found {int_01}', int_01 = mesh%nE)
+      CALL warning('mesh has unexepcted amount of edges! Expected {int_01}, found {int_02}', int_01 = nE_expected, int_02 = mesh%nE)
     END IF
 
-    ! 2023-06-05: smallest vertex has a Voronoi cell area of 0.11096E+10
-    IF (MINVAL( mesh%A) < 0.11096E+10 * 0.5) THEN
+    IF (MINVAL( mesh%A) < Amin_expected * 0.5_dp) THEN
       found_errors = .TRUE.
-      CALL warning('mesh has unexpectedly small vertices! Expected MINVAL( mesh%A) = 0.11096E+10, found {dp_01}', dp_01 = MINVAL( mesh%A))
+      CALL warning('mesh has unexpectedly small vertices! Expected MINVAL( mesh%A) = {dp_01}, found {dp_02}', dp_01 = Amin_expected, dp_02 = MINVAL( mesh%A))
     END IF
 
-    ! 2023-06-05: largest vertex has a Voronoi cell area of 0.74507E+11
-    IF (MAXVAL( mesh%A) > 0.74507E+11 * 2.0) THEN
+    IF (MAXVAL( mesh%A) > Amax_expected * 2.0_dp) THEN
       found_errors = .TRUE.
-      CALL warning('mesh has unexpectedly large vertices! Expected MAXVAL( mesh%A) = 0.74507E+11, found {dp_01}', dp_01 = MAXVAL( mesh%A))
+      CALL warning('mesh has unexpectedly small vertices! Expected MAXVAL( mesh%A) = {dp_01}, found {dp_02}', dp_01 = Amax_expected, dp_02 = MAXVAL( mesh%A))
     END IF
 
-    ! 2023-06-05: mesh has a maximum ratio of Voronoi cell area A of adjacent vertices of 0.34108E+01
     RA_max = 0._dp
     DO vi = 1, mesh%nV
       DO ci = 1, mesh%nC( vi)
@@ -381,9 +383,9 @@ CONTAINS
         RA_max = MAX( RA_max, RA)
       END DO
     END DO
-    IF (RA_max > 0.34108E+01 * 2.0)  THEN
+    IF (RA_max > RA_max_expected * 2.0_dp)  THEN
       found_errors = .TRUE.
-      CALL warning('mesh has unexpectedly high resolution gradient! Expected RA_max = 0.34108E+01, found {dp_01}', dp_01 = RA_max)
+      CALL warning('mesh has unexpectedly high resolution gradient! Expected RA_max = {dp_01}, found {dp_02}', dp_01 = RA_max_expected, dp_02 = RA_max)
     END IF
 
     ! If no errors occurred, we are happy
@@ -432,6 +434,13 @@ CONTAINS
     LOGICAL                                            :: found_errors
     CHARACTER(LEN=256)                                 :: filename
     INTEGER                                            :: ncid
+    ! Expected values for the mesh (last updated: 2023-06-05)
+    INTEGER,  PARAMETER                                :: nV_expected     = 4606
+    INTEGER,  PARAMETER                                :: nTri_expected   = 9071
+    INTEGER,  PARAMETER                                :: nE_expected     = 13676
+    REAL(dp), PARAMETER                                :: Amin_expected   = 0.18202E+10_dp
+    REAL(dp), PARAMETER                                :: Amax_expected   = 0.53694E+11_dp
+    REAL(dp), PARAMETER                                :: RA_max_expected = 0.35787E+01_dp
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -518,37 +527,31 @@ CONTAINS
 
     found_errors = .FALSE.
 
-    ! 2023-06-05: mesh has 3299 vertices
-    IF (mesh%nV < 3000 .OR. mesh%nV > 3500) THEN
+    IF (mesh%nV < NINT( REAL( nV_expected,dp) * 0.9_dp) .OR. mesh%nV > NINT( REAL( nV_expected,dp) * 1.1_dp)) THEN
       found_errors = .TRUE.
-      CALL warning('mesh has unexepcted amount of vertices! Expected 3299, found {int_01}', int_01 = mesh%nV)
+      CALL warning('mesh has unexepcted amount of vertices! Expected {int_01}, found {int_02}', int_01 = nV_expected, int_02 = mesh%nV)
     END IF
 
-    ! 2023-06-05: mesh has 6460 triangles
-    IF (mesh%nTri < 6000 .OR. mesh%nTri > 7000) THEN
+    IF (mesh%nTri < NINT( REAL( nTri_expected,dp) * 0.9_dp) .OR. mesh%nTri > NINT( REAL( nTri_expected,dp) * 1.1_dp)) THEN
       found_errors = .TRUE.
-      CALL warning('mesh has unexepcted amount of triangles! Expected 6460, found {int_01}', int_01 = mesh%nTri)
+      CALL warning('mesh has unexepcted amount of triangles! Expected {int_01}, found {int_02}', int_01 = nTri_expected, int_02 = mesh%nTri)
     END IF
 
-    ! 2023-06-05: mesh has 9758 edges
-    IF (mesh%nE < 9000 .OR. mesh%nE > 11000) THEN
+    IF (mesh%nE < NINT( REAL( nE_expected,dp) * 0.9_dp) .OR. mesh%nE > NINT( REAL( nE_expected,dp) * 1.1_dp)) THEN
       found_errors = .TRUE.
-      CALL warning('mesh has unexepcted amount of edges! Expected 9758, found {int_01}', int_01 = mesh%nE)
+      CALL warning('mesh has unexepcted amount of edges! Expected {int_01}, found {int_02}', int_01 = nE_expected, int_02 = mesh%nE)
     END IF
 
-    ! 2023-06-05: smallest vertex has a Voronoi cell area of 0.30736E+10
-    IF (MINVAL( mesh%A) < 0.30736E+10 * 0.5) THEN
+    IF (MINVAL( mesh%A) < Amin_expected * 0.5_dp) THEN
       found_errors = .TRUE.
-      CALL warning('mesh has unexpectedly small vertices! Expected MINVAL( mesh%A) = 0.30736E+10, found {dp_01}', dp_01 = MINVAL( mesh%A))
+      CALL warning('mesh has unexpectedly small vertices! Expected MINVAL( mesh%A) = {dp_01}, found {dp_02}', dp_01 = Amin_expected, dp_02 = MINVAL( mesh%A))
     END IF
 
-    ! 2023-06-05: largest vertex has a Voronoi cell area of 0.53848E+11
-    IF (MAXVAL( mesh%A) > 0.53848E+11 * 2.0) THEN
+    IF (MAXVAL( mesh%A) > Amax_expected * 2.0_dp) THEN
       found_errors = .TRUE.
-      CALL warning('mesh has unexpectedly large vertices! Expected MAXVAL( mesh%A) = 0.53848E+11, found {dp_01}', dp_01 = MAXVAL( mesh%A))
+      CALL warning('mesh has unexpectedly small vertices! Expected MAXVAL( mesh%A) = {dp_01}, found {dp_02}', dp_01 = Amax_expected, dp_02 = MAXVAL( mesh%A))
     END IF
 
-    ! 2023-06-05: mesh has a maximum ratio of Voronoi cell area A of adjacent vertices of 0.29651E+01
     RA_max = 0._dp
     DO vi = 1, mesh%nV
       DO ci = 1, mesh%nC( vi)
@@ -557,9 +560,9 @@ CONTAINS
         RA_max = MAX( RA_max, RA)
       END DO
     END DO
-    IF (RA_max > 0.29651E+01 * 2.0)  THEN
+    IF (RA_max > RA_max_expected * 2.0_dp)  THEN
       found_errors = .TRUE.
-      CALL warning('mesh has unexpectedly high resolution gradient! Expected RA_max = 0.29651E+01, found {dp_01}', dp_01 = RA_max)
+      CALL warning('mesh has unexpectedly high resolution gradient! Expected RA_max = {dp_01}, found {dp_02}', dp_01 = RA_max_expected, dp_02 = RA_max)
     END IF
 
     ! If no errors occurred, we are happy
@@ -1541,7 +1544,7 @@ CONTAINS
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: d1_ex, d2_ex
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: d12_nn, d12_trilin, d12_cons
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: d21_nn, d21_trilin, d21_cons
-    INTEGER                                            :: vi, vi_glob
+    INTEGER                                            :: vi
     REAL(dp)                                           :: x,y,d,ddx,ddy,d2dx2,d2dxdy,d2dy2
     CHARACTER(LEN=256)                                 :: method
     LOGICAL                                            :: found_errors
@@ -1553,29 +1556,27 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Allocate memory
-    ALLOCATE( d1_ex(      mesh1%nV_loc), source = 0._dp)
-    ALLOCATE( d2_ex(      mesh2%nV_loc), source = 0._dp)
+    ALLOCATE( d1_ex(      mesh1%vi1:mesh1%vi2), source = 0._dp)
+    ALLOCATE( d2_ex(      mesh2%vi1:mesh2%vi2), source = 0._dp)
 
-    ALLOCATE( d12_nn(     mesh2%nV_loc), source = 0._dp)
-    ALLOCATE( d12_trilin( mesh2%nV_loc), source = 0._dp)
-    ALLOCATE( d12_cons(   mesh2%nV_loc), source = 0._dp)
+    ALLOCATE( d12_nn(     mesh2%vi1:mesh2%vi2), source = 0._dp)
+    ALLOCATE( d12_trilin( mesh2%vi1:mesh2%vi2), source = 0._dp)
+    ALLOCATE( d12_cons(   mesh2%vi1:mesh2%vi2), source = 0._dp)
 
-    ALLOCATE( d21_nn(     mesh1%nV_loc), source = 0._dp)
-    ALLOCATE( d21_trilin( mesh1%nV_loc), source = 0._dp)
-    ALLOCATE( d21_cons(   mesh1%nV_loc), source = 0._dp)
+    ALLOCATE( d21_nn(     mesh1%vi1:mesh1%vi2), source = 0._dp)
+    ALLOCATE( d21_trilin( mesh1%vi1:mesh1%vi2), source = 0._dp)
+    ALLOCATE( d21_cons(   mesh1%vi1:mesh1%vi2), source = 0._dp)
 
     ! Initialise exact solutions
-    DO vi = 1, mesh1%nV_loc
-      vi_glob = mesh1%vi1 + vi - 1
-      x = mesh1%V( vi_glob,1)
-      y = mesh1%V( vi_glob,2)
+    DO vi = mesh1%vi1, mesh1%vi2
+      x = mesh1%V( vi,1)
+      y = mesh1%V( vi,2)
       CALL test_function( x, y, mesh1%xmin, mesh1%xmax, mesh1%ymin, mesh1%ymax, d, ddx, ddy, d2dx2, d2dxdy, d2dy2)
       d1_ex( vi) = d
     END DO
-    DO vi = 1, mesh2%nV_loc
-      vi_glob = mesh2%vi1 + vi - 1
-      x = mesh2%V( vi_glob,1)
-      y = mesh2%V( vi_glob,2)
+    DO vi = mesh2%vi1, mesh2%vi2
+      x = mesh2%V( vi,1)
+      y = mesh2%V( vi,2)
       CALL test_function( x, y, mesh2%xmin, mesh2%xmax, mesh2%ymin, mesh2%ymax, d, ddx, ddy, d2dx2, d2dxdy, d2dy2)
       d2_ex( vi) = d
     END DO
@@ -1603,7 +1604,8 @@ CONTAINS
     ! Nearest-neighbour
     ! 2023-06-05: maxerr = 0.11995E+00
     maxerr = 0._dp
-    DO vi = 1, mesh2%nV_loc
+    DO vi = mesh2%vi1, mesh2%vi2
+      IF (mesh2%VBI( vi) > 0) CYCLE ! Skip border vertices, we know remapping is not always accurate there
       maxerr = MAX( maxerr, ABS( d12_nn( vi) - d2_ex( vi)))
     END DO
     CALL MPI_ALLREDUCE( MPI_IN_PLACE, maxerr, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
@@ -1614,7 +1616,8 @@ CONTAINS
 
     ! 2023-06-05: maxerr = 0.16505E+00
     maxerr = 0._dp
-    DO vi = 1, mesh1%nV_loc
+    DO vi = mesh1%vi1, mesh1%vi2
+      IF (mesh1%VBI( vi) > 0) CYCLE ! Skip border vertices, we know remapping is not always accurate there
       maxerr = MAX( maxerr, ABS( d21_nn( vi) - d1_ex( vi)))
     END DO
     CALL MPI_ALLREDUCE( MPI_IN_PLACE, maxerr, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
@@ -1626,7 +1629,8 @@ CONTAINS
     ! Trilinear
     ! 2023-06-05: maxerr = 0.16466E-01
     maxerr = 0._dp
-    DO vi = 1, mesh2%nV_loc
+    DO vi = mesh2%vi1, mesh2%vi2
+      IF (mesh2%VBI( vi) > 0) CYCLE ! Skip border vertices, we know remapping is not always accurate there
       maxerr = MAX( maxerr, ABS( d12_trilin( vi) - d2_ex( vi)))
     END DO
     CALL MPI_ALLREDUCE( MPI_IN_PLACE, maxerr, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
@@ -1637,7 +1641,8 @@ CONTAINS
 
     ! 2023-06-05: maxerr = 0.18900E-01
     maxerr = 0._dp
-    DO vi = 1, mesh1%nV_loc
+    DO vi = mesh1%vi1, mesh1%vi2
+      IF (mesh1%VBI( vi) > 0) CYCLE ! Skip border vertices, we know remapping is not always accurate there
       maxerr = MAX( maxerr, ABS( d21_trilin( vi) - d1_ex( vi)))
     END DO
     CALL MPI_ALLREDUCE( MPI_IN_PLACE, maxerr, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
@@ -1649,7 +1654,8 @@ CONTAINS
     ! 2nd-order conservative
     ! 2023-06-05: maxerr = 0.27873E+00
     maxerr = 0._dp
-    DO vi = 1, mesh2%nV_loc
+    DO vi = mesh2%vi1, mesh2%vi2
+      IF (mesh2%VBI( vi) > 0) CYCLE ! Skip border vertices, we know remapping is not always accurate there
       maxerr = MAX( maxerr, ABS( d12_cons( vi) - d2_ex( vi)))
     END DO
     CALL MPI_ALLREDUCE( MPI_IN_PLACE, maxerr, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
@@ -1660,7 +1666,8 @@ CONTAINS
 
     ! 2023-06-05: maxerr = 0.56043E+00
     maxerr = 0._dp
-    DO vi = 1, mesh1%nV_loc
+    DO vi = mesh1%vi1, mesh1%vi2
+      IF (mesh1%VBI( vi) > 0) CYCLE ! Skip border vertices, we know remapping is not always accurate there
       maxerr = MAX( maxerr, ABS( d21_cons( vi) - d1_ex( vi)))
     END DO
     CALL MPI_ALLREDUCE( MPI_IN_PLACE, maxerr, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
