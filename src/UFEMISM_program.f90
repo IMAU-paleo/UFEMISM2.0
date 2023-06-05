@@ -76,6 +76,9 @@ PROGRAM UFEMISM_program
   ! Unit testing
   IF (C%do_unit_tests) THEN
     CALL run_all_unit_tests
+    tstop = MPI_WTIME()
+    tcomp = tstop - tstart
+    CALL print_UFEMISM_end( tcomp)
     RETURN
   END IF
 

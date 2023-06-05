@@ -161,13 +161,13 @@ CONTAINS
 
     ! Coordinates
     DO i = 1, grid1%nlon
-      IF (ABS( 1._dp - (grid1%lon( i) / grid2%lon( i))) > tol) THEN
+      IF ( 1._dp - MAX( 0.001_dp, ABS( grid1%lon( i))) / MAX( 0.001_dp, ABS( grid2%lon( i))) > tol) THEN
         isso = .FALSE.
         RETURN
       END IF
     END DO
     DO j = 1, grid1%nlat
-      IF (ABS( 1._dp - (grid1%lat( j) / grid2%lat( j))) > tol) THEN
+      IF ( 1._dp - MAX( 0.001_dp, ABS( grid1%lat( j))) / MAX( 0.001_dp, ABS( grid2%lat( j))) > tol) THEN
         isso = .FALSE.
         RETURN
       END IF

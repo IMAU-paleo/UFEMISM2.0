@@ -35,8 +35,6 @@ MODULE unit_tests_mesh
 
   IMPLICIT NONE
 
-  LOGICAL :: do_write_results_to_netcdf = .TRUE.
-
 CONTAINS
 
 ! ===== Subroutines =====

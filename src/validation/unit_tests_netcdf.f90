@@ -70,7 +70,7 @@ CONTAINS
     CALL test_netcdf_grid_in_and_output_2D_monthly(        filename_grid_2D_monthly       )
     CALL test_netcdf_grid_in_and_output_3D(                filename_grid_3D               )
 
-    ! Test reading/writing lonn/lat-gridded data
+    ! Test reading/writing lon/lat-gridded data
     CALL test_netcdf_lonlat_grid_in_and_output_2D(         filename_lonlat_grid_2D        )
     CALL test_netcdf_lonlat_grid_in_and_output_2D_monthly( filename_lonlat_grid_2D_monthly)
     CALL test_netcdf_lonlat_grid_in_and_output_3D(         filename_lonlat_grid_3D        )
@@ -147,7 +147,7 @@ CONTAINS
     END DO
 
     ! Create a file and write the grid to it
-    filename = TRIM( routine_name) // '_output.nc'
+    filename = TRIM( C%output_dir) // TRIM( routine_name) // '_output.nc'
     CALL create_new_netcdf_file_for_writing( filename, ncid)
     CALL setup_xy_grid_in_netcdf_file( filename, ncid, grid)
 
@@ -173,11 +173,14 @@ CONTAINS
 
     ! Check if the grid read from the file is identical to the original
     CALL check_if_grids_are_identical( grid, grid_read, are_identical)
-    found_errors = found_errors .OR. (.NOT. are_identical)
+    IF (.NOT. are_identical) THEN
+      CALL warning('grids are not identical')
+      found_errors = .TRUE.
+    END IF
 
     ! Check if the data read from the file is identical to the original
     DO n = 1, grid%n_loc
-      IF (ABS( d_grid_vec_partial_read( n) - d_grid_vec_partial( n)) > & 
+      IF (ABS( d_grid_vec_partial_read( n) - d_grid_vec_partial( n)) > &
           ABS(1E-9_dp * MAX(d_grid_vec_partial_read(n), d_grid_vec_partial( n) ))) found_errors = .TRUE.
     END DO
 
@@ -249,7 +252,7 @@ CONTAINS
     END DO
 
     ! Create a file and write the grid to it
-    filename = TRIM( routine_name) // '_output.nc'
+    filename = TRIM( C%output_dir) // TRIM( routine_name) // '_output.nc'
     CALL create_new_netcdf_file_for_writing( filename, ncid)
     CALL setup_xy_grid_in_netcdf_file( filename, ncid, grid)
     CALL add_month_dimension_to_file( filename, ncid)
@@ -276,7 +279,10 @@ CONTAINS
 
     ! Check if the grid read from the file is identical to the original
     CALL check_if_grids_are_identical( grid, grid_read, are_identical)
-    found_errors = found_errors .OR. (.NOT. are_identical)
+    IF (.NOT. are_identical) THEN
+      CALL warning('grids are not identical')
+      found_errors = .TRUE.
+    END IF
 
     ! Check if the data read from the file is identical to the original
     DO n = 1, grid%n_loc
@@ -343,9 +349,11 @@ CONTAINS
     CALL setup_square_grid( name, xmin, xmax, ymin, ymax, dx, grid, lambda_M, phi_M, beta_stereo)
 
     ! Set up a zeta coordinate
-    nzeta = 11
-    ALLOCATE( zeta( 11))
-    zeta = [0.0_dp, 0.1_dp, 0.2_dp, 0.3_dp, 0.4_dp, 0.5_dp, 0.6_dp, 0.7_dp, 0.8_dp, 0.9_dp, 1.0_dp]
+    nzeta = C%nz
+    ALLOCATE( zeta( nzeta))
+    DO k = 1, nzeta
+      zeta( k) = REAL( k-1,dp) / REAL( nzeta-1,dp)
+    END DO
 
     ! Generate a simple test data field
     ALLOCATE( d_grid_vec_partial( grid%n_loc, nzeta))
@@ -362,7 +370,7 @@ CONTAINS
     END DO
 
     ! Create a file and write the grid to it
-    filename = TRIM( routine_name) // '_output.nc'
+    filename = TRIM( C%output_dir) // TRIM( routine_name) // '_output.nc'
     CALL create_new_netcdf_file_for_writing( filename, ncid)
     CALL setup_xy_grid_in_netcdf_file( filename, ncid, grid)
     CALL add_zeta_dimension_to_file( filename, ncid, zeta)
@@ -389,18 +397,26 @@ CONTAINS
 
     ! Check if the grid read from the file is identical to the original
     CALL check_if_grids_are_identical( grid, grid_read, are_identical)
-    found_errors = found_errors .OR. (.NOT. are_identical)
+    IF (.NOT. are_identical) THEN
+      CALL warning('grids are not identical')
+      found_errors = .TRUE.
+    END IF
 
     ! Check if the zeta read from the file is identical to the original
     IF (nzeta /= nzeta_read) found_errors = .TRUE.
     DO k = 1, MIN( nzeta, nzeta_read)
-      IF (ABS( 1._dp - zeta( k) / zeta_read( k)) > 1E-9_dp) found_errors = .TRUE.
+      IF (ABS( 1._dp - MAX( 0.001_dp, zeta( k)) / MAX( 0.001_dp, zeta_read( k))) > 1E-9_dp) THEN
+        CALL warning('zeta grids are not identical')
+        found_errors = .TRUE.
+      END IF
     END DO
 
     ! Check if the data read from the file is identical to the original
     DO n = 1, grid%n_loc
     DO k = 1, MIN( nzeta, nzeta_read)
-      IF (ABS( 1._dp - d_grid_vec_partial_read( n,k) / d_grid_vec_partial( n,k)) > 1E-9_dp) found_errors = .TRUE.
+      IF ( 1._dp - MAX( 0.001_dp, ABS( d_grid_vec_partial_read( n,k))) / MAX( 0.001_dp, ABS( d_grid_vec_partial( n,k))) > 1E-9_dp) THEN
+        found_errors = .TRUE.
+      END IF
     END DO
     END DO
 
@@ -466,7 +482,7 @@ CONTAINS
     END DO
 
     ! Create a file and write the grid to it
-    filename = TRIM( routine_name) // '_output.nc'
+    filename = TRIM( C%output_dir) // TRIM( routine_name) // '_output.nc'
     CALL create_new_netcdf_file_for_writing( filename, ncid)
     CALL setup_lonlat_grid_in_netcdf_file( filename, ncid, grid)
 
@@ -492,11 +508,14 @@ CONTAINS
 
     ! Check if the grid read from the file is identical to the original
     CALL check_if_lonlat_grids_are_identical( grid, grid_read, are_identical)
-    found_errors = found_errors .OR. (.NOT. are_identical)
+    IF (.NOT. are_identical) THEN
+      CALL warning('grids are not identical')
+      found_errors = .TRUE.
+    END IF
 
     ! Check if the data read from the file is identical to the original
     DO n = 1, grid%n_loc
-      IF (ABS( 1._dp - d_grid_vec_partial_read( n) / d_grid_vec_partial( n)) > 1E-7_dp) found_errors = .TRUE.
+      IF ( 1._dp - MAX( 0.001_dp, ABS( d_grid_vec_partial_read( n))) / MAX( 0.001_dp, ABS( d_grid_vec_partial( n))) > 1E-7_dp) found_errors = .TRUE.
     END DO
 
     ! If no errors occurred, we are happy
@@ -561,7 +580,7 @@ CONTAINS
     END DO
 
     ! Create a file and write the grid to it
-    filename = TRIM( routine_name) // '_output.nc'
+    filename = TRIM( C%output_dir) // TRIM( routine_name) // '_output.nc'
     CALL create_new_netcdf_file_for_writing( filename, ncid)
     CALL setup_lonlat_grid_in_netcdf_file( filename, ncid, grid)
     CALL add_month_dimension_to_file( filename, ncid)
@@ -588,12 +607,15 @@ CONTAINS
 
     ! Check if the grid read from the file is identical to the original
     CALL check_if_lonlat_grids_are_identical( grid, grid_read, are_identical)
-    found_errors = found_errors .OR. (.NOT. are_identical)
+    IF (.NOT. are_identical) THEN
+      CALL warning('grids are not identical')
+      found_errors = .TRUE.
+    END IF
 
     ! Check if the data read from the file is identical to the original
     DO n = 1, grid%n_loc
     DO m = 1, 12
-      IF (ABS( 1._dp - d_grid_vec_partial_read( n,m) / d_grid_vec_partial( n,m)) > 1E-7_dp) found_errors = .TRUE.
+      IF ( 1._dp - MAX( 0.001_dp, ABS( d_grid_vec_partial_read( n,m))) / MAX( 0.001_dp, ABS( d_grid_vec_partial( n,m))) > 1E-7_dp) found_errors = .TRUE.
     END DO
     END DO
 
@@ -649,9 +671,11 @@ CONTAINS
     CALL setup_simple_lonlat_grid( name, nlon, nlat, grid)
 
     ! Set up a zeta coordinate
-    nzeta = 11
-    ALLOCATE( zeta( 11))
-    zeta = [0.0_dp, 0.1_dp, 0.2_dp, 0.3_dp, 0.4_dp, 0.5_dp, 0.6_dp, 0.7_dp, 0.8_dp, 0.9_dp, 1.0_dp]
+    nzeta = C%nz
+    ALLOCATE( zeta( nzeta))
+    DO k = 1, nzeta
+      zeta( k) = REAL( k-1,dp) / REAL( nzeta-1,dp)
+    END DO
 
     ! Generate a simple test data field
     ALLOCATE( d_grid_vec_partial( grid%n_loc, nzeta))
@@ -668,7 +692,7 @@ CONTAINS
     END DO
 
     ! Create a file and write the grid to it
-    filename = TRIM( routine_name) // '_output.nc'
+    filename = TRIM( C%output_dir) // TRIM( routine_name) // '_output.nc'
     CALL create_new_netcdf_file_for_writing( filename, ncid)
     CALL setup_lonlat_grid_in_netcdf_file( filename, ncid, grid)
     CALL add_zeta_dimension_to_file( filename, ncid, zeta)
@@ -695,18 +719,21 @@ CONTAINS
 
     ! Check if the grid read from the file is identical to the original
     CALL check_if_lonlat_grids_are_identical( grid, grid_read, are_identical)
-    found_errors = found_errors .OR. (.NOT. are_identical)
+    IF (.NOT. are_identical) THEN
+      CALL warning('grids are not identical')
+      found_errors = .TRUE.
+    END IF
 
     ! Check if the zeta read from the file is identical to the original
     IF (nzeta /= nzeta_read) found_errors = .TRUE.
     DO k = 1, MIN( nzeta, nzeta_read)
-      IF (ABS( 1._dp - zeta( k) / zeta_read( k)) > 1E-9_dp) found_errors = .TRUE.
+      IF (1._dp - MAX( 0.001_dp, ABS( zeta( k))) / MAX( 0.001_dp, ABS( zeta_read( k))) > 1E-9_dp) found_errors = .TRUE.
     END DO
 
     ! Check if the data read from the file is identical to the original
     DO n = 1, grid%n_loc
     DO k = 1, nzeta
-      IF (ABS( 1._dp - d_grid_vec_partial_read( n,k) / d_grid_vec_partial( n,k)) > 1E-7_dp) found_errors = .TRUE.
+      IF ( 1._dp - MAX( 0.001_dp, ABS( d_grid_vec_partial_read( n,k))) / MAX( 0.001_dp, ABS( d_grid_vec_partial( n,k))) > 1E-7_dp) found_errors = .TRUE.
     END DO
     END DO
 
@@ -786,11 +813,6 @@ CONTAINS
     ! Calculate all matrix operators
     CALL calc_all_matrix_operators_mesh( mesh)
 
-    ! Set up a zeta coordinate
-    mesh%nz = 11
-    ALLOCATE( mesh%zeta( 11))
-    mesh%zeta = [0.0_dp, 0.1_dp, 0.2_dp, 0.3_dp, 0.4_dp, 0.5_dp, 0.6_dp, 0.7_dp, 0.8_dp, 0.9_dp, 1.0_dp]
-
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
@@ -808,7 +830,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'test_netcdf_mesh_in_and_output_2D'
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: d_mesh_partial
-    INTEGER                                            :: vi,vi_glob
+    INTEGER                                            :: vi
     REAL(dp)                                           :: x,y,d,ddx,ddy,d2dx2,d2dxdy,d2dy2
     INTEGER                                            :: ncid
     TYPE(type_mesh)                                    :: mesh_read
@@ -823,17 +845,16 @@ CONTAINS
   ! ===============================================
 
     ! Generate a simple test data field
-    ALLOCATE( d_mesh_partial( mesh%nV_loc))
-    DO vi = 1, mesh%nV_loc
-      vi_glob = mesh%vi1 + vi - 1
-      x = mesh%V( vi_glob,1)
-      y = mesh%V( vi_glob,2)
+    ALLOCATE( d_mesh_partial( mesh%vi1:mesh%vi2))
+    DO vi = mesh%vi1, mesh%vi2
+      x = mesh%V( vi,1)
+      y = mesh%V( vi,2)
       CALL test_function( x, y, mesh%xmin, mesh%xmax, mesh%ymin, mesh%ymax, d, ddx, ddy, d2dx2, d2dxdy, d2dy2)
       d_mesh_partial( vi) = d
     END DO
 
     ! Create a file and write the mesh to it
-    filename = TRIM( routine_name) // '_output.nc'
+    filename = TRIM( C%output_dir) // TRIM( routine_name) // '_output.nc'
     CALL create_new_netcdf_file_for_writing( filename, ncid)
     CALL setup_mesh_in_netcdf_file( filename, ncid, mesh)
 
@@ -859,11 +880,14 @@ CONTAINS
 
     ! Check if the grid read from the file is identical to the original
     CALL check_if_meshes_are_identical( mesh, mesh_read, are_identical)
-    found_errors = found_errors .OR. (.NOT. are_identical)
+    IF (.NOT. are_identical) THEN
+      CALL warning('meshes are not identical')
+      found_errors = .TRUE.
+    END IF
 
     ! Check if the data read from the file is identical to the original
-    DO vi = 1, mesh%nV_loc
-      IF (ABS( 1._dp - d_mesh_partial_read( vi) / d_mesh_partial( vi)) > 1E-9_dp) found_errors = .TRUE.
+    DO vi = mesh%vi1, mesh%vi2
+      IF (1._dp - MAX( 0.001_dp, ABS( d_mesh_partial_read( vi))) / MAX( 0.001_dp, ABS( d_mesh_partial( vi))) > 1E-9_dp) found_errors = .TRUE.
     END DO
 
     ! If no errors occurred, we are happy
@@ -891,7 +915,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'test_netcdf_mesh_in_and_output_2D_monthly'
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: d_mesh_partial
-    INTEGER                                            :: vi,vi_glob,m
+    INTEGER                                            :: vi,m
     REAL(dp)                                           :: x,y,d,ddx,ddy,d2dx2,d2dxdy,d2dy2
     INTEGER                                            :: ncid
     TYPE(type_mesh)                                    :: mesh_read
@@ -906,11 +930,10 @@ CONTAINS
   ! ===============================================
 
     ! Generate a simple test data field
-    ALLOCATE( d_mesh_partial( mesh%nV_loc, 12))
-    DO vi = 1, mesh%nV_loc
-      vi_glob = mesh%vi1 + vi - 1
-      x = mesh%V( vi_glob,1)
-      y = mesh%V( vi_glob,2)
+    ALLOCATE( d_mesh_partial( mesh%vi1:mesh%vi2, 12))
+    DO vi = mesh%vi1,mesh%vi2
+      x = mesh%V( vi,1)
+      y = mesh%V( vi,2)
       CALL test_function( x, y, mesh%xmin, mesh%xmax, mesh%ymin, mesh%ymax, d, ddx, ddy, d2dx2, d2dxdy, d2dy2)
       DO m = 1, 12
         d_mesh_partial( vi,m) = d + REAL( m,dp)
@@ -918,7 +941,7 @@ CONTAINS
     END DO
 
     ! Create a file and write the mesh to it
-    filename = TRIM( routine_name) // '_output.nc'
+    filename = TRIM( C%output_dir) // TRIM( routine_name) // '_output.nc'
     CALL create_new_netcdf_file_for_writing( filename, ncid)
     CALL setup_mesh_in_netcdf_file( filename, ncid, mesh)
     CALL add_month_dimension_to_file( filename, ncid)
@@ -945,12 +968,15 @@ CONTAINS
 
     ! Check if the grid read from the file is identical to the original
     CALL check_if_meshes_are_identical( mesh, mesh_read, are_identical)
-    found_errors = found_errors .OR. (.NOT. are_identical)
+    IF (.NOT. are_identical) THEN
+      CALL warning('meshes are not identical')
+      found_errors = .TRUE.
+    END IF
 
     ! Check if the data read from the file is identical to the original
-    DO vi = 1, mesh%nV_loc
+    DO vi = mesh%vi1, mesh%vi2
     DO m = 1, 12
-      IF (ABS( 1._dp - d_mesh_partial_read( vi,m) / d_mesh_partial( vi,m)) > 1E-9_dp) found_errors = .TRUE.
+      IF ( 1._dp - MAX( 0.001_dp, ABS( d_mesh_partial_read( vi,m))) / MAX( 0.001_dp, ABS( d_mesh_partial( vi,m))) > 1E-9_dp) found_errors = .TRUE.
     END DO
     END DO
 
@@ -979,7 +1005,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'test_netcdf_mesh_in_and_output_3D'
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: d_mesh_partial
-    INTEGER                                            :: vi,vi_glob,k
+    INTEGER                                            :: vi,k
     REAL(dp)                                           :: x,y,d,ddx,ddy,d2dx2,d2dxdy,d2dy2
     INTEGER                                            :: ncid
     TYPE(type_mesh)                                    :: mesh_read
@@ -996,11 +1022,10 @@ CONTAINS
   ! ===============================================
 
     ! Generate a simple test data field
-    ALLOCATE( d_mesh_partial( mesh%nV_loc, mesh%nz))
-    DO vi = 1, mesh%nV_loc
-      vi_glob = mesh%vi1 + vi - 1
-      x = mesh%V( vi_glob,1)
-      y = mesh%V( vi_glob,2)
+    ALLOCATE( d_mesh_partial( mesh%vi1:mesh%vi2, mesh%nz))
+    DO vi = mesh%vi1, mesh%vi2
+      x = mesh%V( vi,1)
+      y = mesh%V( vi,2)
       CALL test_function( x, y, mesh%xmin, mesh%xmax, mesh%ymin, mesh%ymax, d, ddx, ddy, d2dx2, d2dxdy, d2dy2)
       DO k = 1, mesh%nz
         d_mesh_partial( vi,k) = d + mesh%zeta( k)
@@ -1008,7 +1033,7 @@ CONTAINS
     END DO
 
     ! Create a file and write the mesh to it
-    filename = TRIM( routine_name) // '_output.nc'
+    filename = TRIM( C%output_dir) // TRIM( routine_name) // '_output.nc'
     CALL create_new_netcdf_file_for_writing( filename, ncid)
     CALL setup_mesh_in_netcdf_file( filename, ncid, mesh)
     CALL add_zeta_dimension_to_file( filename, ncid, mesh%zeta)
@@ -1035,18 +1060,21 @@ CONTAINS
 
     ! Check if the grid read from the file is identical to the original
     CALL check_if_meshes_are_identical( mesh, mesh_read, are_identical)
-    found_errors = found_errors .OR. (.NOT. are_identical)
+    IF (.NOT. are_identical) THEN
+      CALL warning('meshes are not identical')
+      found_errors = .TRUE.
+    END IF
 
     ! Check if the zeta read from the file is identical to the original
     IF (mesh%nz /= nzeta_read) found_errors = .TRUE.
     DO k = 1, MIN( mesh%nz, nzeta_read)
-      IF (ABS( 1._dp - mesh%zeta( k) / zeta_read( k)) > 1E-9_dp) found_errors = .TRUE.
+      IF ( 1._dp - MAX( 0.001_dp, ABS( mesh%zeta( k))) / MAX( 0.001_dp, ABS( zeta_read( k))) > 1E-9_dp) found_errors = .TRUE.
     END DO
 
     ! Check if the data read from the file is identical to the original
-    DO vi = 1, mesh%nV_loc
+    DO vi = mesh%vi1, mesh%vi2
     DO k = 1, MIN( mesh%nz, nzeta_read)
-      IF (ABS( 1._dp - d_mesh_partial_read( vi,k) / d_mesh_partial( vi,k)) > 1E-9_dp) found_errors = .TRUE.
+      IF ( 1._dp - MAX( 0.001_dp, ABS( d_mesh_partial_read( vi,k))) / MAX( 0.001_dp, ABS( d_mesh_partial( vi,k))) > 1E-9_dp) found_errors = .TRUE.
     END DO
     END DO
 
@@ -1121,11 +1149,6 @@ CONTAINS
     ! Calculate all matrix operators
     CALL calc_all_matrix_operators_mesh( mesh)
 
-    ! Set up a zeta coordinate
-    mesh%nz = 11
-    ALLOCATE( mesh%zeta( 11))
-    mesh%zeta = [0.0_dp, 0.1_dp, 0.2_dp, 0.3_dp, 0.4_dp, 0.5_dp, 0.6_dp, 0.7_dp, 0.8_dp, 0.9_dp, 1.0_dp]
-
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
@@ -1156,7 +1179,7 @@ CONTAINS
     CALL read_field_from_file_2D( filename_mesh       , 'd', mesh, d_from_mesh       )
 
     ! Create a file and write the mesh to it
-    filename = TRIM( routine_name) // '_output.nc'
+    filename = TRIM( C%output_dir) // TRIM( routine_name) // '_output.nc'
     CALL create_new_netcdf_file_for_writing( filename, ncid)
     CALL setup_mesh_in_netcdf_file( filename, ncid, mesh)
 
@@ -1216,7 +1239,7 @@ CONTAINS
     CALL read_field_from_file_2D_monthly( filename_mesh       , 'd', mesh, d_from_mesh       )
 
     ! Create a file and write the mesh to it
-    filename = TRIM( routine_name) // '_output.nc'
+    filename = TRIM( C%output_dir) // TRIM( routine_name) // '_output.nc'
     CALL create_new_netcdf_file_for_writing( filename, ncid)
     CALL setup_mesh_in_netcdf_file( filename, ncid, mesh)
     CALL add_month_dimension_to_file( filename, ncid)
@@ -1279,7 +1302,7 @@ CONTAINS
     CALL read_field_from_file_3D( filename_mesh       , 'd', mesh, d_from_mesh       )
 
     ! Create a file and write the mesh to it
-    filename = TRIM( routine_name) // '_output.nc'
+    filename = TRIM( C%output_dir) // TRIM( routine_name) // '_output.nc'
     CALL create_new_netcdf_file_for_writing( filename, ncid)
     CALL setup_mesh_in_netcdf_file( filename, ncid, mesh)
     CALL add_zeta_dimension_to_file( filename, ncid, zeta)
