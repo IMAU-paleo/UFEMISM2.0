@@ -1240,7 +1240,7 @@ CONTAINS
     INTEGER,                             INTENT(INOUT) :: stackN
 
     ! Local variables:
-    INTEGER                                            :: n,i,ei,vi,vj,vl,vr,ci,ej,eil,ejl,eir,ejr
+    INTEGER                                            :: n,i,ei,vi,vj,vl,vr,ci,eil,ejl,eir,ejr
 
     ! Safety
     IF (stackN == 0) CALL crash('extend_group_single_iteration_c - needs at least one triangles to start!')
@@ -1715,40 +1715,37 @@ CONTAINS
     REAL(dp), DIMENSION(2)                                       :: gc, p
     INTEGER                                                      :: n, tj
 
-    ! DENK DROM
-    CALL crash('need to add parameters for benchmark experiments as config variables!')
+    ! This triangle's geometric centre
+    gc = mesh%TriGC( ti,:)
 
-!    ! This triangle's geometric centre
-!    gc = mesh%TriGC( ti,:)
-!
-!    ! The point where we want to copy the previous velocity solution
-!    IF (gc( 1) > 0._dp) THEN
-!      p( 1) = gc( 1) - C%ISMIP_HOM_L / 2._dp
-!    ELSE
-!      p( 1) = gc( 1) + C%ISMIP_HOM_L / 2._dp
-!    END IF
-!    IF (gc( 2) > 0._dp) THEN
-!      p( 2) = gc( 2) - C%ISMIP_HOM_L / 2._dp
-!    ELSE
-!      p( 2) = gc( 2) + C%ISMIP_HOM_L / 2._dp
-!    END IF
-!
-!    ! The triangle where we want to copy the previous velocity solution
-!    ti_copy = ti
-!    CALL find_containing_triangle( mesh, p, ti_copy)
-!
-!    ! Safety: make sure ti_copy does not also lie on the domain boundary
-!    IF (mesh%TriBI( ti_copy) > 0) THEN
-!      DO n = 1, 3
-!        tj = mesh%TriC( ti_copy,n)
-!        IF (tj == 0) CYCLE
-!        IF (mesh%TriBI( tj) == 0) THEN
-!          ti_copy = tj
-!          EXIT
-!        END IF
-!      END DO
-!    END IF
-!    IF (mesh%TriBI( ti_copy) > 0) CALL crash('couldnt find non-boundary triangle to copy data from!')
+    ! The point where we want to copy the previous velocity solution
+    IF (gc( 1) > 0._dp) THEN
+      p( 1) = gc( 1) - C%refgeo_idealised_ISMIP_HOM_L / 2._dp
+    ELSE
+      p( 1) = gc( 1) + C%refgeo_idealised_ISMIP_HOM_L / 2._dp
+    END IF
+    IF (gc( 2) > 0._dp) THEN
+      p( 2) = gc( 2) - C%refgeo_idealised_ISMIP_HOM_L / 2._dp
+    ELSE
+      p( 2) = gc( 2) + C%refgeo_idealised_ISMIP_HOM_L / 2._dp
+    END IF
+
+    ! The triangle where we want to copy the previous velocity solution
+    ti_copy = ti
+    CALL find_containing_triangle( mesh, p, ti_copy)
+
+    ! Safety: make sure ti_copy does not also lie on the domain boundary
+    IF (mesh%TriBI( ti_copy) > 0) THEN
+      DO n = 1, 3
+        tj = mesh%TriC( ti_copy,n)
+        IF (tj == 0) CYCLE
+        IF (mesh%TriBI( tj) == 0) THEN
+          ti_copy = tj
+          EXIT
+        END IF
+      END DO
+    END IF
+    IF (mesh%TriBI( ti_copy) > 0) CALL crash('couldnt find non-boundary triangle to copy data from!')
 
   END SUBROUTINE find_ti_copy_ISMIP_HOM_periodic
 

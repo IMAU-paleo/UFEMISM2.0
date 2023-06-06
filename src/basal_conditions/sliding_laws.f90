@@ -416,14 +416,11 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! DENK DROM
-    CALL crash('fixme!')
-
-!    DO vi = mesh%vi1, mesh%vi2
-!      x = mesh%V( vi,1)
-!      y = mesh%V( vi,2)
-!      ice%beta_b( vi) = 1000._dp + 1000._dp * SIN( 2._dp * pi * x / C%ISMIP_HOM_L) * SIN( 2._dp * pi * y / C%ISMIP_HOM_L)
-!    END DO
+    DO vi = mesh%vi1, mesh%vi2
+      x = mesh%V( vi,1)
+      y = mesh%V( vi,2)
+      ice%beta_b( vi) = 1000._dp + 1000._dp * SIN( 2._dp * pi * x / C%refgeo_idealised_ISMIP_HOM_L) * SIN( 2._dp * pi * y / C%refgeo_idealised_ISMIP_HOM_L)
+    END DO
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -449,13 +446,10 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! DENK DROM
-    CALL crash('fixme!')
-
-!    DO vi = mesh%vi1, mesh%vi2
-!      x = mesh%V( vi,1)
-!      ice%beta_b( vi) = 1000._dp + 1000._dp * SIN( 2._dp * pi * x / C%ISMIP_HOM_L)
-!    END DO
+    DO vi = mesh%vi1, mesh%vi2
+      x = mesh%V( vi,1)
+      ice%beta_b( vi) = 1000._dp + 1000._dp * SIN( 2._dp * pi * x / C%refgeo_idealised_ISMIP_HOM_L)
+    END DO
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

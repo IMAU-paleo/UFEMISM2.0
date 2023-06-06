@@ -53,11 +53,256 @@ CONTAINS
 ! ===== Subroutines =====
 ! =======================
 
+  ! Initialise reference geometries on the model mesh
+  ! =================================================
+
+  SUBROUTINE initialise_reference_geometries_on_model_mesh( region_name, mesh, refgeo_init, refgeo_PD, refgeo_GIAeq)
+    ! Initialise all reference geometries on the model mesh for the given set of config choices
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    CHARACTER(LEN=3)                                   , INTENT(IN)    :: region_name
+    TYPE(type_mesh)                                    , INTENT(IN)    :: mesh
+    TYPE(type_reference_geometry)                      , INTENT(INOUT) :: refgeo_init
+    TYPE(type_reference_geometry)                      , INTENT(INOUT) :: refgeo_PD
+    TYPE(type_reference_geometry)                      , INTENT(INOUT) :: refgeo_GIAeq
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'initialise_reference_geometries_raw'
+    CHARACTER(LEN=256)                                                 :: choice_refgeo, choice_refgeo_idealised
+    INTEGER                                                            :: vi
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! == Initial geometry
+    ! ===================
+
+    ! Deallocate existing memory if needed
+    IF (ALLOCATED( refgeo_init%Hi)) DEALLOCATE( refgeo_init%Hi)
+    IF (ALLOCATED( refgeo_init%Hb)) DEALLOCATE( refgeo_init%Hb)
+    IF (ALLOCATED( refgeo_init%Hs)) DEALLOCATE( refgeo_init%Hs)
+    IF (ALLOCATED( refgeo_init%SL)) DEALLOCATE( refgeo_init%SL)
+
+    ! Allocate memory for reference ice geometry on the model mesh
+    ALLOCATE( refgeo_init%Hi( mesh%vi1:mesh%vi2))
+    ALLOCATE( refgeo_init%Hb( mesh%vi1:mesh%vi2))
+    ALLOCATE( refgeo_init%Hs( mesh%vi1:mesh%vi2))
+    ALLOCATE( refgeo_init%SL( mesh%vi1:mesh%vi2))
+
+    ! Get config choices for this model region
+    IF     (region_name == 'NAM') THEN
+      choice_refgeo           = C%choice_refgeo_init_NAM
+      choice_refgeo_idealised = C%choice_refgeo_init_idealised
+    ELSEIF (region_name == 'EAS') THEN
+      choice_refgeo           = C%choice_refgeo_init_EAS
+      choice_refgeo_idealised = C%choice_refgeo_init_idealised
+    ELSEIF (region_name == 'GRL') THEN
+      choice_refgeo           = C%choice_refgeo_init_GRL
+      choice_refgeo_idealised = C%choice_refgeo_init_idealised
+    ELSEIF (region_name == 'ANT') THEN
+      choice_refgeo           = C%choice_refgeo_init_ANT
+      choice_refgeo_idealised = C%choice_refgeo_init_idealised
+    ELSE
+      CALL crash('unknown region_name "' // TRIM( region_name) // '"!')
+    END IF
+
+    IF     (choice_refgeo == 'read_from_file') THEN
+      ! For realistic geometries read from a file, remap them to the model mesh
+
+      CALL remap_reference_geometry_to_mesh( mesh, refgeo_init)
+
+    ELSEIF (choice_refgeo == 'idealised') THEN
+      ! For idealised geometries, calculate them directly on the model mesh
+
+      DO vi = mesh%vi1, mesh%vi2
+        CALL calc_idealised_geometry( mesh%V( vi,1), mesh%V( vi,2), &
+        refgeo_init%Hi( vi), refgeo_init%Hb( vi), refgeo_init%Hs( vi), refgeo_init%SL( vi), &
+        choice_refgeo_idealised)
+      END DO
+
+    ELSE
+      CALL crash('unknown choice_refgeo "' // TRIM( choice_refgeo) // '"!')
+    END IF
+
+    ! == Present-day geometry
+    ! =======================
+
+    ! Deallocate existing memory if needed
+    IF (ALLOCATED( refgeo_PD%Hi)) DEALLOCATE( refgeo_PD%Hi)
+    IF (ALLOCATED( refgeo_PD%Hb)) DEALLOCATE( refgeo_PD%Hb)
+    IF (ALLOCATED( refgeo_PD%Hs)) DEALLOCATE( refgeo_PD%Hs)
+    IF (ALLOCATED( refgeo_PD%SL)) DEALLOCATE( refgeo_PD%SL)
+
+    ! Allocate memory for reference ice geometry on the model mesh
+    ALLOCATE( refgeo_PD%Hi( mesh%vi1:mesh%vi2))
+    ALLOCATE( refgeo_PD%Hb( mesh%vi1:mesh%vi2))
+    ALLOCATE( refgeo_PD%Hs( mesh%vi1:mesh%vi2))
+    ALLOCATE( refgeo_PD%SL( mesh%vi1:mesh%vi2))
+
+    ! Get config choices for this model region
+    IF     (region_name == 'NAM') THEN
+      choice_refgeo           = C%choice_refgeo_PD_NAM
+      choice_refgeo_idealised = C%choice_refgeo_PD_idealised
+    ELSEIF (region_name == 'EAS') THEN
+      choice_refgeo           = C%choice_refgeo_PD_EAS
+      choice_refgeo_idealised = C%choice_refgeo_PD_idealised
+    ELSEIF (region_name == 'GRL') THEN
+      choice_refgeo           = C%choice_refgeo_PD_GRL
+      choice_refgeo_idealised = C%choice_refgeo_PD_idealised
+    ELSEIF (region_name == 'ANT') THEN
+      choice_refgeo           = C%choice_refgeo_PD_ANT
+      choice_refgeo_idealised = C%choice_refgeo_PD_idealised
+    ELSE
+      CALL crash('unknown region_name "' // TRIM( region_name) // '"!')
+    END IF
+
+    IF     (choice_refgeo == 'read_from_file') THEN
+      ! For realistic geometries read from a file, remap them to the model mesh
+
+      CALL remap_reference_geometry_to_mesh( mesh, refgeo_PD)
+
+    ELSEIF (choice_refgeo == 'idealised') THEN
+      ! For idealised geometries, calculate them directly on the model mesh
+
+      DO vi = mesh%vi1, mesh%vi2
+        CALL calc_idealised_geometry( mesh%V( vi,1), mesh%V( vi,2), &
+        refgeo_PD%Hi( vi), refgeo_PD%Hb( vi), refgeo_PD%Hs( vi), refgeo_PD%SL( vi), &
+        choice_refgeo_idealised)
+      END DO
+
+    ELSE
+      CALL crash('unknown choice_refgeo "' // TRIM( choice_refgeo) // '"!')
+    END IF
+
+    ! == GIA equilibrium geometry
+    ! ===========================
+
+    ! Deallocate existing memory if needed
+    IF (ALLOCATED( refgeo_GIAeq%Hi)) DEALLOCATE( refgeo_GIAeq%Hi)
+    IF (ALLOCATED( refgeo_GIAeq%Hb)) DEALLOCATE( refgeo_GIAeq%Hb)
+    IF (ALLOCATED( refgeo_GIAeq%Hs)) DEALLOCATE( refgeo_GIAeq%Hs)
+    IF (ALLOCATED( refgeo_GIAeq%SL)) DEALLOCATE( refgeo_GIAeq%SL)
+
+    ! Allocate memory for reference ice geometry on the model mesh
+    ALLOCATE( refgeo_GIAeq%Hi( mesh%vi1:mesh%vi2))
+    ALLOCATE( refgeo_GIAeq%Hb( mesh%vi1:mesh%vi2))
+    ALLOCATE( refgeo_GIAeq%Hs( mesh%vi1:mesh%vi2))
+    ALLOCATE( refgeo_GIAeq%SL( mesh%vi1:mesh%vi2))
+
+    ! Get config choices for this model region
+    IF     (region_name == 'NAM') THEN
+      choice_refgeo           = C%choice_refgeo_GIAeq_NAM
+      choice_refgeo_idealised = C%choice_refgeo_GIAeq_idealised
+    ELSEIF (region_name == 'EAS') THEN
+      choice_refgeo           = C%choice_refgeo_GIAeq_EAS
+      choice_refgeo_idealised = C%choice_refgeo_GIAeq_idealised
+    ELSEIF (region_name == 'GRL') THEN
+      choice_refgeo           = C%choice_refgeo_GIAeq_GRL
+      choice_refgeo_idealised = C%choice_refgeo_GIAeq_idealised
+    ELSEIF (region_name == 'ANT') THEN
+      choice_refgeo           = C%choice_refgeo_GIAeq_ANT
+      choice_refgeo_idealised = C%choice_refgeo_GIAeq_idealised
+    ELSE
+      CALL crash('unknown region_name "' // TRIM( region_name) // '"!')
+    END IF
+
+    IF     (choice_refgeo == 'read_from_file') THEN
+      ! For realistic geometries read from a file, remap them to the model mesh
+
+      CALL remap_reference_geometry_to_mesh( mesh, refgeo_GIAeq)
+
+    ELSEIF (choice_refgeo == 'idealised') THEN
+      ! For idealised geometries, calculate them directly on the model mesh
+
+      DO vi = mesh%vi1, mesh%vi2
+        CALL calc_idealised_geometry( mesh%V( vi,1), mesh%V( vi,2), &
+        refgeo_GIAeq%Hi( vi), refgeo_GIAeq%Hb( vi), refgeo_GIAeq%Hs( vi), refgeo_GIAeq%SL( vi), &
+        choice_refgeo_idealised)
+      END DO
+
+    ELSE
+      CALL crash('unknown choice_refgeo "' // TRIM( choice_refgeo) // '"!')
+    END IF
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE initialise_reference_geometries_on_model_mesh
+
+  SUBROUTINE remap_reference_geometry_to_mesh( mesh, refgeo)
+    ! Remap reference geometry to the model mesh
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh)                                    , INTENT(IN)    :: mesh
+    TYPE(type_reference_geometry)                      , INTENT(INOUT) :: refgeo
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'remap_reference_geometry_to_mesh'
+    CHARACTER(LEN=256)                                                 :: method
+    INTEGER                                                            :: vi
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Deallocate existing memory if needed
+    IF (ALLOCATED( refgeo%Hi)) DEALLOCATE( refgeo%Hi)
+    IF (ALLOCATED( refgeo%Hb)) DEALLOCATE( refgeo%Hb)
+    IF (ALLOCATED( refgeo%Hs)) DEALLOCATE( refgeo%Hs)
+    IF (ALLOCATED( refgeo%SL)) DEALLOCATE( refgeo%SL)
+
+    ! Allocate memory for reference ice geometry on the model mesh
+    ALLOCATE( refgeo%Hi( mesh%vi1:mesh%vi2))
+    ALLOCATE( refgeo%Hb( mesh%vi1:mesh%vi2))
+    ALLOCATE( refgeo%Hs( mesh%vi1:mesh%vi2))
+    ALLOCATE( refgeo%SL( mesh%vi1:mesh%vi2))
+
+    ! Determine if the initial geometry is provided gridded or meshed
+    IF (ALLOCATED( refgeo%grid_raw%x)) THEN
+      ! Gridded
+
+      ! Safety
+      IF (ALLOCATED( refgeo%mesh_raw%V)) CALL crash('found both grid and mesh in refgeo!')
+
+      ! Remap data to the model mesh
+      CALL map_from_xy_grid_to_mesh_2D( refgeo%grid_raw, mesh, refgeo%Hi_grid_raw, refgeo%Hi)
+      CALL map_from_xy_grid_to_mesh_2D( refgeo%grid_raw, mesh, refgeo%Hb_grid_raw, refgeo%Hb)
+      CALL map_from_xy_grid_to_mesh_2D( refgeo%grid_raw, mesh, refgeo%SL_grid_raw, refgeo%SL)
+
+    ELSEIF (ALLOCATED( refgeo%mesh_raw%V)) THEN
+      ! Meshed
+
+      ! Safety
+      IF (ALLOCATED( refgeo%grid_raw%x)) CALL crash('found both grid and mesh in refgeo!')
+
+      ! Remap data to the model mesh
+      method = '2nd_order_conservative'
+      CALL map_from_mesh_to_mesh_2D( refgeo%mesh_raw, mesh, refgeo%Hi_mesh_raw, refgeo%Hi, method)
+      CALL map_from_mesh_to_mesh_2D( refgeo%mesh_raw, mesh, refgeo%Hb_mesh_raw, refgeo%Hb, method)
+      CALL map_from_mesh_to_mesh_2D( refgeo%mesh_raw, mesh, refgeo%SL_mesh_raw, refgeo%SL, method)
+
+    ELSE
+      CALL crash('no grid or mesh is found in refgeo!')
+    END IF
+
+    ! Don't remap Hs, but recalculate it after remapping Hi,Hb,SL
+    DO vi = mesh%vi1, mesh%vi2
+      refgeo%Hs( vi) = ice_surface_elevation( refgeo%Hi( vi), refgeo%Hb( vi), refgeo%SL( vi))
+    END DO
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE remap_reference_geometry_to_mesh
+
   ! Initialise reference geometries on their raw input grid/mesh
   ! ============================================================
 
   SUBROUTINE initialise_reference_geometries_raw( region_name, refgeo_init, refgeo_PD, refgeo_GIAeq)
-    ! Initialise a reference geometry on the raw grid/mesh for the given set of config choices
+    ! Initialise all reference geometries on the raw grid/mesh for the given set of config choices
 
     IMPLICIT NONE
 
@@ -209,10 +454,10 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    IF (choice_refgeo == 'idealised') THEN
+    IF     (choice_refgeo == 'idealised') THEN
       CALL initialise_reference_geometry_raw_idealised( region_name, refgeo_name, refgeo, choice_refgeo_idealised, dx_refgeo_idealised)
     ELSEIF (choice_refgeo == 'read_from_file') THEN
-      CALL initialise_reference_geometry_raw_from_file( region_name, refgeo_name, refgeo, choice_refgeo, filename_refgeo, timeframe_refgeo)
+      CALL initialise_reference_geometry_raw_from_file( region_name, refgeo_name, refgeo, filename_refgeo, timeframe_refgeo)
     ELSE
       CALL crash('unknown choice_refgeo "' // TRIM( choice_refgeo) // '"!')
     END IF
@@ -240,7 +485,6 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'initialise_reference_geometry_raw_idealised'
     REAL(dp)                                                           :: xmin, xmax, ymin, ymax
     CHARACTER(LEN=256)                                                 :: name
-    TYPE(type_grid)                                                    :: grid
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                            :: Hi, Hb, Hs, SL
     INTEGER                                                            :: i,j
 
@@ -322,7 +566,7 @@ CONTAINS
 
   END SUBROUTINE initialise_reference_geometry_raw_idealised
 
-  SUBROUTINE initialise_reference_geometry_raw_from_file( region_name, refgeo_name, refgeo, choice_refgeo, filename_refgeo, timeframe_refgeo)
+  SUBROUTINE initialise_reference_geometry_raw_from_file( region_name, refgeo_name, refgeo, filename_refgeo, timeframe_refgeo)
     ! Initialise a reference geometry on the raw grid/mesh for the given set of config choices!
     !
     ! For the case of a (probably) realistic geometry provided through a NetCDF file
@@ -333,7 +577,6 @@ CONTAINS
     CHARACTER(LEN=3)                                   , INTENT(IN)    :: region_name
     CHARACTER(LEN=*)                                   , INTENT(IN)    :: refgeo_name
     TYPE(type_reference_geometry)                      , INTENT(OUT)   :: refgeo
-    CHARACTER(LEN=256)                                 , INTENT(IN)    :: choice_refgeo
     CHARACTER(LEN=256)                                 , INTENT(IN)    :: filename_refgeo
     REAL(dp)                                           , INTENT(IN)    :: timeframe_refgeo
 
@@ -362,10 +605,10 @@ CONTAINS
     ! Read the grid'mesh and data from the file
     IF (has_xy_grid) THEN
       ! Read reference ice sheet geometry data from an xy-gridded file
-      CALL initialise_reference_geometry_raw_from_file_grid( region_name, refgeo_name, refgeo, choice_refgeo, filename_refgeo, timeframe_refgeo)
+      CALL initialise_reference_geometry_raw_from_file_grid( refgeo, filename_refgeo, timeframe_refgeo)
     ELSEIF (has_mesh) THEN
       ! Read reference ice sheet geometry data from a meshed file
-      CALL initialise_reference_geometry_raw_from_file_mesh( region_name, refgeo_name, refgeo, choice_refgeo, filename_refgeo, timeframe_refgeo)
+      CALL initialise_reference_geometry_raw_from_file_mesh( refgeo, filename_refgeo, timeframe_refgeo)
     ELSE
       CALL crash('can only read reference geometry from gridded or meshed data files!')
     END IF
@@ -375,7 +618,7 @@ CONTAINS
 
   END SUBROUTINE initialise_reference_geometry_raw_from_file
 
-  SUBROUTINE initialise_reference_geometry_raw_from_file_grid( region_name, refgeo_name, refgeo, choice_refgeo, filename_refgeo, timeframe_refgeo)
+  SUBROUTINE initialise_reference_geometry_raw_from_file_grid( refgeo, filename_refgeo, timeframe_refgeo)
     ! Initialise a reference geometry on the raw grid/mesh for the given set of config choices!
     !
     ! For the case of a (probably) realistic geometry provided through a gridded NetCDF file
@@ -383,10 +626,7 @@ CONTAINS
     IMPLICIT NONE
 
     ! In/output variables:
-    CHARACTER(LEN=3)                                   , INTENT(IN)    :: region_name
-    CHARACTER(LEN=*)                                   , INTENT(IN)    :: refgeo_name
     TYPE(type_reference_geometry)                      , INTENT(OUT)   :: refgeo
-    CHARACTER(LEN=256)                                 , INTENT(IN)    :: choice_refgeo
     CHARACTER(LEN=256)                                 , INTENT(IN)    :: filename_refgeo
     REAL(dp)                                           , INTENT(IN)    :: timeframe_refgeo
 
@@ -439,7 +679,7 @@ CONTAINS
 
   END SUBROUTINE initialise_reference_geometry_raw_from_file_grid
 
-  SUBROUTINE initialise_reference_geometry_raw_from_file_mesh( region_name, refgeo_name, refgeo, choice_refgeo, filename_refgeo, timeframe_refgeo)
+  SUBROUTINE initialise_reference_geometry_raw_from_file_mesh( refgeo, filename_refgeo, timeframe_refgeo)
     ! Initialise a reference geometry on the raw grid/mesh for the given set of config choices!
     !
     ! For the case of a (probably) realistic geometry provided through a meshed NetCDF file
@@ -447,10 +687,7 @@ CONTAINS
     IMPLICIT NONE
 
     ! In/output variables:
-    CHARACTER(LEN=3)                                   , INTENT(IN)    :: region_name
-    CHARACTER(LEN=*)                                   , INTENT(IN)    :: refgeo_name
     TYPE(type_reference_geometry)                      , INTENT(OUT)   :: refgeo
-    CHARACTER(LEN=256)                                 , INTENT(IN)    :: choice_refgeo
     CHARACTER(LEN=256)                                 , INTENT(IN)    :: filename_refgeo
     REAL(dp)                                           , INTENT(IN)    :: timeframe_refgeo
 
@@ -502,76 +739,6 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE initialise_reference_geometry_raw_from_file_mesh
-
-  ! Remap reference geometry to the model mesh
-  ! ==========================================
-
-  SUBROUTINE remap_reference_geometry_to_mesh( mesh, refgeo)
-    ! Remap reference geometry to the model mesh
-
-    IMPLICIT NONE
-
-    ! In/output variables:
-    TYPE(type_mesh)                                    , INTENT(IN)    :: mesh
-    TYPE(type_reference_geometry)                      , INTENT(INOUT) :: refgeo
-
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'remap_reference_geometry_to_mesh'
-    CHARACTER(LEN=256)                                                 :: method
-    INTEGER                                                            :: vi
-
-    ! Add routine to path
-    CALL init_routine( routine_name)
-
-    ! Deallocate existing memory if needed
-    IF (ALLOCATED( refgeo%Hi)) DEALLOCATE( refgeo%Hi)
-    IF (ALLOCATED( refgeo%Hb)) DEALLOCATE( refgeo%Hb)
-    IF (ALLOCATED( refgeo%Hs)) DEALLOCATE( refgeo%Hs)
-    IF (ALLOCATED( refgeo%SL)) DEALLOCATE( refgeo%SL)
-
-    ! Allocate memory for reference ice geometry on the model mesh
-    ALLOCATE( refgeo%Hi( mesh%vi1:mesh%vi2))
-    ALLOCATE( refgeo%Hb( mesh%vi1:mesh%vi2))
-    ALLOCATE( refgeo%Hs( mesh%vi1:mesh%vi2))
-    ALLOCATE( refgeo%SL( mesh%vi1:mesh%vi2))
-
-    ! Determine if the initial geometry is provided gridded or meshed
-    IF (ALLOCATED( refgeo%grid_raw%x)) THEN
-      ! Gridded
-
-      ! Safety
-      IF (ALLOCATED( refgeo%mesh_raw%V)) CALL crash('found boht grid and mesh in refgeo!')
-
-      ! Remap data to the model mesh
-      CALL map_from_xy_grid_to_mesh_2D( refgeo%grid_raw, mesh, refgeo%Hi_grid_raw, refgeo%Hi)
-      CALL map_from_xy_grid_to_mesh_2D( refgeo%grid_raw, mesh, refgeo%Hb_grid_raw, refgeo%Hb)
-      CALL map_from_xy_grid_to_mesh_2D( refgeo%grid_raw, mesh, refgeo%SL_grid_raw, refgeo%SL)
-
-    ELSEIF (ALLOCATED( refgeo%mesh_raw%V)) THEN
-      ! Meshed
-
-      ! Safety
-      IF (ALLOCATED( refgeo%grid_raw%x)) CALL crash('found boht grid and mesh in refgeo!')
-
-      ! Remap data to the model mesh
-      method = '2nd_order_conservative'
-      CALL map_from_mesh_to_mesh_2D( refgeo%mesh_raw, mesh, refgeo%Hi_mesh_raw, refgeo%Hi, method)
-      CALL map_from_mesh_to_mesh_2D( refgeo%mesh_raw, mesh, refgeo%Hb_mesh_raw, refgeo%Hb, method)
-      CALL map_from_mesh_to_mesh_2D( refgeo%mesh_raw, mesh, refgeo%SL_mesh_raw, refgeo%SL, method)
-
-    ELSE
-      CALL crash('no grid or mesh is found in refgeo!')
-    END IF
-
-    ! Don't remap Hs, but recalculate it after remapping Hi,Hb,SL
-    DO vi = mesh%vi1, mesh%vi2
-      refgeo%Hs( vi) = ice_surface_elevation( refgeo%Hi( vi), refgeo%Hb( vi), refgeo%SL( vi))
-    END DO
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE remap_reference_geometry_to_mesh
 
   ! Initialise idealised geometries on the model mesh
   ! =================================================
@@ -646,7 +813,7 @@ CONTAINS
             choice_refgeo_idealised == 'ISMIP-HOM_D') THEN
       CALL calc_idealised_geometry_ISMIP_HOM_CD( x, y, Hi, Hb, Hs, SL)
     ELSEIF (choice_refgeo_idealised == 'ISMIP-HOM_E') THEN
-      CALL calc_idealised_geometry_ISMIP_HOM_E( x, y, Hi, Hb, Hs, SL)
+      CALL crash('ISMIP-HOM E is not implemented in UFEMISM!')
     ELSEIF (choice_refgeo_idealised == 'ISMIP-HOM_F') THEN
       CALL calc_idealised_geometry_ISMIP_HOM_F( x, y, Hi, Hb, Hs, SL)
     ELSEIF (choice_refgeo_idealised == 'MISMIP+' .OR. &
@@ -677,6 +844,11 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'calc_idealised_geometry_flatearth'
+    REAL(dp)                                      :: dp_dummy
+
+    ! To prevent compiler warnings
+    dp_dummy = x
+    dp_dummy = y
 
     ! Add routine to path
     CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
@@ -708,6 +880,10 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'calc_idealised_geometry_slabonaslope'
     REAL(dp), PARAMETER                           :: dhdx = -0.01_dp
+    REAL(dp)                                      :: dp_dummy
+
+    ! To prevent compiler warnings
+    dp_dummy = y
 
     ! Add routine to path
     CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
@@ -843,6 +1019,10 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'calc_idealised_geometry_SSA_icestream'
+    REAL(dp)                                      :: dp_dummy
+
+    ! To prevent compiler warnings
+    dp_dummy = y
 
     ! Add routine to path
     CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
@@ -954,6 +1134,10 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'calc_idealised_geometry_ISMIP_HOM_B'
+    REAL(dp)                                      :: dp_dummy
+
+    ! To prevent compiler warnings
+    dp_dummy = y
 
     ! Add routine to path
     CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
@@ -990,6 +1174,10 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'calc_idealised_geometry_ISMIP_HOM_CD'
+    REAL(dp)                                      :: dp_dummy
+
+    ! To prevent compiler warnings
+    dp_dummy = y
 
     ! Add routine to path
     CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
@@ -1000,7 +1188,7 @@ CONTAINS
       CALL crash('refgeo_idealised_ISMIP_HOM_L has unrealistic value of {dp_01}!', dp_01 = C%refgeo_idealised_ISMIP_HOM_L)
     END IF
 
-    Hs = 2000._dp - x * TAN( 0.5_dp * pi / 180._dp)
+    Hs = 2000._dp - x * TAN( 0.1_dp * pi / 180._dp)
     Hb = Hs - 1000._dp
     Hi = Hs - Hb
     SL = -10000._dp
@@ -1009,33 +1197,6 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE calc_idealised_geometry_ISMIP_HOM_CD
-
-  SUBROUTINE calc_idealised_geometry_ISMIP_HOM_E( x, y, Hi, Hb, Hs, SL)
-    ! Calculate an idealised geometry
-    !
-    ! ISMIP-HOM Experiment E (Haut Glacier d'Arolla)
-
-    IMPLICIT NONE
-
-    ! In/output variables:
-    REAL(dp),                       INTENT(IN)    :: x,y             ! [m] Coordinates
-    REAL(dp),                       INTENT(OUT)   :: Hi              ! [m] Ice thickness
-    REAL(dp),                       INTENT(OUT)   :: Hb              ! [m] Bedrock elevation
-    REAL(dp),                       INTENT(OUT)   :: Hs              ! [m] Surface elevation
-    REAL(dp),                       INTENT(OUT)   :: SL              ! [m] Sea level
-
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'calc_idealised_geometry_ISMIP_HOM_E'
-
-    ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
-
-    CALL crash('ISMIP-HOM E is not implemented in UFEMISM!')
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE calc_idealised_geometry_ISMIP_HOM_E
 
   SUBROUTINE calc_idealised_geometry_ISMIP_HOM_F( x, y, Hi, Hb, Hs, SL)
     ! Calculate an idealised geometry

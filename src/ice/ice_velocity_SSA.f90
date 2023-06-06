@@ -467,7 +467,7 @@ CONTAINS
              4._dp * dN_dx * single_row_ddx_val(    k) + &  ! 4 dN/dx du/dx
                      N     * single_row_d2dy2_val(  k) + &  !    N    d2u/dy2
                      dN_dy * single_row_ddy_val(    k)      !   dN/dy du/dy
-        IF (tj == ti) Au = Au - beta_b            ! - beta_b u
+        IF (tj == ti) Au = Au - beta_b                      ! - beta_b u
 
         Av = 3._dp * N     * single_row_d2dxdy_val( k) + &  ! 3  N    d2v/dxdy
              2._dp * dN_dx * single_row_ddy_val(    k) + &  ! 2 dN/dx dv/dy
@@ -500,7 +500,7 @@ CONTAINS
              4._dp * dN_dy * single_row_ddy_val(    k) + &  ! 4 dN/dy dv/dy
                      N     * single_row_d2dx2_val(  k) + &  !    N    d2v/dx2
                      dN_dx * single_row_ddx_val(    k)      !   dN/dx dv/dx
-        IF (tj == ti) Av = Av - beta_b            ! - beta_b v
+        IF (tj == ti) Av = Av - beta_b                      ! - beta_b v
 
         Au = 3._dp * N     * single_row_d2dxdy_val( k) + &  ! 3  N    d2u/dxdy
              2._dp * dN_dy * single_row_ddx_val(    k) + &  ! 2 dN/dy du/dx
@@ -543,7 +543,7 @@ CONTAINS
 
     ! Local variables:
     INTEGER                                                      :: ti,uv,row_ti
-    INTEGER                                                      :: tj, col_tjuv
+    INTEGER                                                      :: tj, col_tjuv, ti_copy, col_ticopyuv
     INTEGER                                                      :: n, n_neighbours
 
     ti = mesh%n2tiuv( row_tiuv,1)
@@ -582,11 +582,18 @@ CONTAINS
         ! Load vector
         bb( row_tiuv) = 0._dp
 
-      ELSEIF (C%BC_u_west == 'periodic_ISMIP_HOM') THEN
-        ! u(x,y) = u(x+L/2,y+L/2)
+      ELSEIF (C%BC_u_west == 'periodic_ISMIP-HOM') THEN
+        ! u(x,y) = u(x+-L/2,y+-L/2)
 
-        ! DENK DROM
-        CALL crash('fixme!')
+        ! Find the triangle ti_copy that is displaced by [x+-L/2,y+-L/2] relative to ti
+        ti_copy = ti
+        CALL find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy)
+
+        ! Set value at ti equal to value at ti_copy
+        col_ticopyuv = mesh%tiuv2n( ti_copy,uv)
+        CALL add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv    ,  1._dp)
+        CALL add_entry_CSR_dist( A_CSR, row_tiuv, col_ticopyuv, -1._dp)
+        bb( row_tiuv) = 0._dp
 
       ELSE
         CALL crash('unknown BC_u_west "' // TRIM( C%BC_u_west) // '"!')
@@ -624,11 +631,18 @@ CONTAINS
         ! Load vector
         bb( row_tiuv) = 0._dp
 
-      ELSEIF (C%BC_v_west == 'periodic_ISMIP_HOM') THEN
-        ! v(x,y) = v(x+L/2,y+L/2)
+      ELSEIF (C%BC_v_west == 'periodic_ISMIP-HOM') THEN
+        ! v(x,y) = v(x+-L/2,y+-L/2)
 
-        ! DENK DROM
-        CALL crash('fixme!')
+        ! Find the triangle ti_copy that is displaced by [x+-L/2,y+-L/2] relative to ti
+        ti_copy = ti
+        CALL find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy)
+
+        ! Set value at ti equal to value at ti_copy
+        col_ticopyuv = mesh%tiuv2n( ti_copy,uv)
+        CALL add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv    ,  1._dp)
+        CALL add_entry_CSR_dist( A_CSR, row_tiuv, col_ticopyuv, -1._dp)
+        bb( row_tiuv) = 0._dp
 
       ELSE
         CALL crash('unknown BC_u_west "' // TRIM( C%BC_u_west) // '"!')
@@ -653,8 +667,8 @@ CONTAINS
     INTEGER,                             INTENT(IN)              :: row_tiuv
 
     ! Local variables:
-    INTEGER                                                      :: ti,uv,row_ti
-    INTEGER                                                      :: tj, col_tjuv
+    INTEGER                                                      :: ti,uv,row_ti,ti_copy
+    INTEGER                                                      :: tj, col_tjuv,col_ticopyuv
     INTEGER                                                      :: n, n_neighbours
 
     ti = mesh%n2tiuv( row_tiuv,1)
@@ -693,11 +707,18 @@ CONTAINS
         ! Load vector
         bb( row_tiuv) = 0._dp
 
-      ELSEIF (C%BC_u_east == 'periodic_ISMIP_HOM') THEN
-        ! u(x,y) = u(x+L/2,y+L/2)
+      ELSEIF (C%BC_u_east == 'periodic_ISMIP-HOM') THEN
+        ! u(x,y) = u(x+-L/2,y+-L/2)
 
-        ! DENK DROM
-        CALL crash('fixme!')
+        ! Find the triangle ti_copy that is displaced by [x+-L/2,y+-L/2] relative to ti
+        ti_copy = ti
+        CALL find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy)
+
+        ! Set value at ti equal to value at ti_copy
+        col_ticopyuv = mesh%tiuv2n( ti_copy,uv)
+        CALL add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv    ,  1._dp)
+        CALL add_entry_CSR_dist( A_CSR, row_tiuv, col_ticopyuv, -1._dp)
+        bb( row_tiuv) = 0._dp
 
       ELSE
         CALL crash('unknown BC_u_east "' // TRIM( C%BC_u_east) // '"!')
@@ -735,11 +756,18 @@ CONTAINS
         ! Load vector
         bb( row_tiuv) = 0._dp
 
-      ELSEIF (C%BC_v_east == 'periodic_ISMIP_HOM') THEN
-        ! v(x,y) = v(x+L/2,y+L/2)
+      ELSEIF (C%BC_v_east == 'periodic_ISMIP-HOM') THEN
+        ! v(x,y) = v(x+-L/2,y+-L/2)
 
-        ! DENK DROM
-        CALL crash('fixme!')
+        ! Find the triangle ti_copy that is displaced by [x+-L/2,y+-L/2] relative to ti
+        ti_copy = ti
+        CALL find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy)
+
+        ! Set value at ti equal to value at ti_copy
+        col_ticopyuv = mesh%tiuv2n( ti_copy,uv)
+        CALL add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv    ,  1._dp)
+        CALL add_entry_CSR_dist( A_CSR, row_tiuv, col_ticopyuv, -1._dp)
+        bb( row_tiuv) = 0._dp
 
       ELSE
         CALL crash('unknown BC_u_east "' // TRIM( C%BC_u_east) // '"!')
@@ -764,8 +792,8 @@ CONTAINS
     INTEGER,                             INTENT(IN)              :: row_tiuv
 
     ! Local variables:
-    INTEGER                                                      :: ti,uv,row_ti
-    INTEGER                                                      :: tj, col_tjuv
+    INTEGER                                                      :: ti,uv,row_ti,ti_copy
+    INTEGER                                                      :: tj, col_tjuv,col_ticopyuv
     INTEGER                                                      :: n, n_neighbours
 
     ti = mesh%n2tiuv( row_tiuv,1)
@@ -804,11 +832,18 @@ CONTAINS
         ! Load vector
         bb( row_tiuv) = 0._dp
 
-      ELSEIF (C%BC_u_south == 'periodic_ISMIP_HOM') THEN
-        ! u(x,y) = u(x+L/2,y+L/2)
+      ELSEIF (C%BC_u_south == 'periodic_ISMIP-HOM') THEN
+        ! u(x,y) = u(x+-L/2,y+-L/2)
 
-        ! DENK DROM
-        CALL crash('fixme!')
+        ! Find the triangle ti_copy that is displaced by [x+-L/2,y+-L/2] relative to ti
+        ti_copy = ti
+        CALL find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy)
+
+        ! Set value at ti equal to value at ti_copy
+        col_ticopyuv = mesh%tiuv2n( ti_copy,uv)
+        CALL add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv    ,  1._dp)
+        CALL add_entry_CSR_dist( A_CSR, row_tiuv, col_ticopyuv, -1._dp)
+        bb( row_tiuv) = 0._dp
 
       ELSE
         CALL crash('unknown BC_u_south "' // TRIM( C%BC_u_south) // '"!')
@@ -846,11 +881,18 @@ CONTAINS
         ! Load vector
         bb( row_tiuv) = 0._dp
 
-      ELSEIF (C%BC_v_south == 'periodic_ISMIP_HOM') THEN
-        ! v(x,y) = v(x+L/2,y+L/2)
+      ELSEIF (C%BC_v_south == 'periodic_ISMIP-HOM') THEN
+        ! v(x,y) = v(x+-L/2,y+-L/2)
 
-        ! DENK DROM
-        CALL crash('fixme!')
+        ! Find the triangle ti_copy that is displaced by [x+-L/2,y+-L/2] relative to ti
+        ti_copy = ti
+        CALL find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy)
+
+        ! Set value at ti equal to value at ti_copy
+        col_ticopyuv = mesh%tiuv2n( ti_copy,uv)
+        CALL add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv    ,  1._dp)
+        CALL add_entry_CSR_dist( A_CSR, row_tiuv, col_ticopyuv, -1._dp)
+        bb( row_tiuv) = 0._dp
 
       ELSE
         CALL crash('unknown BC_u_south "' // TRIM( C%BC_u_south) // '"!')
@@ -875,8 +917,8 @@ CONTAINS
     INTEGER,                             INTENT(IN)              :: row_tiuv
 
     ! Local variables:
-    INTEGER                                                      :: ti,uv,row_ti
-    INTEGER                                                      :: tj, col_tjuv
+    INTEGER                                                      :: ti,uv,row_ti,ti_copy
+    INTEGER                                                      :: tj, col_tjuv,col_ticopyuv
     INTEGER                                                      :: n, n_neighbours
 
     ti = mesh%n2tiuv( row_tiuv,1)
@@ -915,11 +957,18 @@ CONTAINS
         ! Load vector
         bb( row_tiuv) = 0._dp
 
-      ELSEIF (C%BC_u_north == 'periodic_ISMIP_HOM') THEN
-        ! u(x,y) = u(x+L/2,y+L/2)
+      ELSEIF (C%BC_u_north == 'periodic_ISMIP-HOM') THEN
+        ! u(x,y) = u(x+-L/2,y+-L/2)
 
-        ! DENK DROM
-        CALL crash('fixme!')
+        ! Find the triangle ti_copy that is displaced by [x+-L/2,y+-L/2] relative to ti
+        ti_copy = ti
+        CALL find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy)
+
+        ! Set value at ti equal to value at ti_copy
+        col_ticopyuv = mesh%tiuv2n( ti_copy,uv)
+        CALL add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv    ,  1._dp)
+        CALL add_entry_CSR_dist( A_CSR, row_tiuv, col_ticopyuv, -1._dp)
+        bb( row_tiuv) = 0._dp
 
       ELSE
         CALL crash('unknown BC_u_north "' // TRIM( C%BC_u_north) // '"!')
@@ -957,11 +1006,18 @@ CONTAINS
         ! Load vector
         bb( row_tiuv) = 0._dp
 
-      ELSEIF (C%BC_v_north == 'periodic_ISMIP_HOM') THEN
-        ! v(x,y) = v(x+L/2,y+L/2)
+      ELSEIF (C%BC_v_north == 'periodic_ISMIP-HOM') THEN
+        ! v(x,y) = v(x+-L/2,y+-L/2)
 
-        ! DENK DROM
-        CALL crash('fixme!')
+        ! Find the triangle ti_copy that is displaced by [x+-L/2,y+-L/2] relative to ti
+        ti_copy = ti
+        CALL find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy)
+
+        ! Set value at ti equal to value at ti_copy
+        col_ticopyuv = mesh%tiuv2n( ti_copy,uv)
+        CALL add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv    ,  1._dp)
+        CALL add_entry_CSR_dist( A_CSR, row_tiuv, col_ticopyuv, -1._dp)
+        bb( row_tiuv) = 0._dp
 
       ELSE
         CALL crash('unknown BC_u_north "' // TRIM( C%BC_u_north) // '"!')
@@ -1104,7 +1160,7 @@ CONTAINS
                    C%epsilon_sq_0
 
       ! Calculate the effective viscosity eta
-      SSA%eta_a( vi) = 0.5_dp * SSA%A_flow_vav_a( vi)**(-1._dp/  C%n_flow) * (epsilon_sq)**((1._dp - C%n_flow)/(2._dp*C%n_flow))
+      SSA%eta_a( vi) = 0.5_dp * SSA%A_flow_vav_a( vi)**(-1._dp / C%n_flow) * (epsilon_sq)**((1._dp - C%n_flow)/(2._dp*C%n_flow))
 
       ! Safety
       SSA%eta_a( vi) = MAX( SSA%eta_a( vi), C%visc_eff_min)
@@ -1151,10 +1207,10 @@ CONTAINS
     ! Map basal friction coefficient beta_b to the b-grid
     CALL map_a_b_2D( mesh, ice%beta_b, SSA%beta_b_b)
 
-    ! Apply the sub-grid grounded fraction
+    ! Apply the sub-grid grounded fraction, and limit the friction coefficient to improve stability
     IF (C%do_GL_subgrid_friction) THEN
       DO ti = mesh%ti1, mesh%ti2
-        SSA%beta_b_b( ti) = SSA%beta_b_b( ti) * ice%fraction_gr_b( ti)**2
+        SSA%beta_b_b( ti) = MIN( C%beta_max, SSA%beta_b_b( ti) * ice%fraction_gr_b( ti)**C%subgrid_friction_exponent )
       END DO
     END IF
 

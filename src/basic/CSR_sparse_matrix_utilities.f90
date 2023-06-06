@@ -285,7 +285,7 @@ CONTAINS
         CALL MPI_SEND( A%nnz_max, 1, MPI_INTEGER, 0, 0, MPI_COMM_WORLD, ierr)
 
         ! Send matrix data to master
-        CALL MPI_SEND( A%ptr, A%m+1    , MPI_INTEGER         , 0, 0, MPI_COMM_WORLD, ierr)
+        CALL MPI_SEND( A%ptr, A%m_loc+1, MPI_INTEGER         , 0, 0, MPI_COMM_WORLD, ierr)
         CALL MPI_SEND( A%ind, A%nnz_max, MPI_INTEGER         , 0, 0, MPI_COMM_WORLD, ierr)
         CALL MPI_SEND( A%val, A%nnz_max, MPI_DOUBLE_PRECISION, 0, 0, MPI_COMM_WORLD, ierr)
 
@@ -304,12 +304,12 @@ CONTAINS
         CALL MPI_RECV( A_proc%nnz_max, 1, MPI_INTEGER, p, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_status, ierr)
 
         ! Allocate memory
-        ALLOCATE( A_proc%ptr( A_proc%m+1    ), source = 0    )
+        ALLOCATE( A_proc%ptr( A_proc%i1: A_proc%i2+1), source = 0    )
         ALLOCATE( A_proc%ind( A_proc%nnz_max), source = 0    )
         ALLOCATE( A_proc%val( A_proc%nnz_max), source = 0._dp)
 
         ! Receive matrix data from process
-        CALL MPI_RECV( A_proc%ptr, A_proc%m+1    , MPI_INTEGER         , p, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_status, ierr)
+        CALL MPI_RECV( A_proc%ptr, A_proc%m_loc+1, MPI_INTEGER         , p, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_status, ierr)
         CALL MPI_RECV( A_proc%ind, A_proc%nnz_max, MPI_INTEGER         , p, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_status, ierr)
         CALL MPI_RECV( A_proc%val, A_proc%nnz_max, MPI_DOUBLE_PRECISION, p, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_status, ierr)
 
@@ -332,7 +332,7 @@ CONTAINS
       END IF ! IF     (par%i == p) THEN
       CALL sync
 
-    END DO ! DO p = 0, par%n-1
+    END DO ! DO p = 1, par%n-1
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

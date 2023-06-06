@@ -13,7 +13,7 @@ MODULE UFEMISM_main_model
   USE mesh_types                                             , ONLY: type_mesh
   USE scalar_types                                           , ONLY: type_regional_scalars
   USE reference_geometries                                   , ONLY: type_reference_geometry, initialise_reference_geometries_raw, &
-                                                                     remap_reference_geometry_to_mesh
+                                                                     initialise_reference_geometries_on_model_mesh
   USE ice_model_types                                        , ONLY: type_ice_model
   USE ice_model_main                                         , ONLY: initialise_ice_model
   USE netcdf_basic                                           , ONLY: open_existing_netcdf_file_for_reading, close_netcdf_file
@@ -144,9 +144,7 @@ CONTAINS
 
     ! Remap reference geometries from their raw input grids to the model mesh
     IF (par%master) WRITE(0,'(A)') '  Mapping reference geometries to model mesh...'
-    CALL remap_reference_geometry_to_mesh( region%mesh, region%refgeo_init )
-    CALL remap_reference_geometry_to_mesh( region%mesh, region%refgeo_PD   )
-    CALL remap_reference_geometry_to_mesh( region%mesh, region%refgeo_GIAeq)
+    CALL initialise_reference_geometries_on_model_mesh( region%name, region%mesh, region%refgeo_init, region%refgeo_PD, region%refgeo_GIAeq)
 
     ! ===== Ice dynamics =====
     ! ========================
@@ -158,12 +156,9 @@ CONTAINS
 
     ! DENK DROM
     region%ice%A_flow_3D = 1E-16_dp
-    ALLOCATE( region%ice%tau_c(    region%mesh%vi1:region%mesh%vi2))
-    ALLOCATE( region%ice%phi_fric( region%mesh%vi1:region%mesh%vi2))
+!    ALLOCATE( region%ice%tau_c(    region%mesh%vi1:region%mesh%vi2))
+!    ALLOCATE( region%ice%phi_fric( region%mesh%vi1:region%mesh%vi2))
     ALLOCATE( region%ice%beta_b(   region%mesh%vi1:region%mesh%vi2))
-    CALL calc_bed_roughness_Martin2011( region%mesh, region%ice)
-    CALL calc_basal_hydrology( region%mesh, region%ice)
-    C%choice_sliding_law = 'Zoet-Iverson'
     CALL solve_SSA( region%mesh, region%ice, region%ice%SSA)
 
     ! DENK DROM
