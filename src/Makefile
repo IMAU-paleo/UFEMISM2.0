@@ -109,6 +109,7 @@ UFEMISM_source = \
   ice/ice_model_utilities.f90 \
   ice/ice_velocity_SIA.f90 \
   ice/ice_velocity_SSA.f90 \
+  ice/ice_velocity_DIVA.f90 \
   ice/ice_velocity_main.f90 \
   ice/ice_model_main.f90 \
   \

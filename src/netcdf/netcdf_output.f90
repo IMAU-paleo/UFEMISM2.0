@@ -44,7 +44,7 @@ MODULE netcdf_output
                           check_lonlat_grid_field_int_2D, check_lonlat_grid_field_dp_2D, check_lonlat_grid_field_dp_2D_monthly, check_lonlat_grid_field_dp_3D, &
                           check_mesh_field_int_2D, check_mesh_field_int_2D_b, check_mesh_field_int_2D_c, &
                           check_mesh_field_dp_2D, check_mesh_field_dp_2D_b, check_mesh_field_dp_2D_c, &
-                          check_mesh_field_dp_2D_monthly, check_mesh_field_dp_3D, &
+                          check_mesh_field_dp_2D_monthly, check_mesh_field_dp_3D, check_mesh_field_dp_3D_b, &
                           inquire_xy_grid, inquire_lonlat_grid, inquire_mesh, &
                           write_var_master_int_0D, write_var_master_int_1D, write_var_master_int_2D, write_var_master_int_3D, write_var_master_int_4D, &
                           write_var_master_dp_0D, write_var_master_dp_1D, write_var_master_dp_2D, write_var_master_dp_3D, write_var_master_dp_4D, &
@@ -1015,6 +1015,67 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE write_to_field_multopt_mesh_dp_3D
+
+  SUBROUTINE write_to_field_multopt_mesh_dp_3D_b(                     mesh, filename, ncid, field_name_options, d_partial)
+    ! Write a 3-D data field defined on a mesh to a NetCDF file variable on the same mesh
+    ! (Mind you, that's 3-D in the physical sense, so a 2-D array!)
+    !
+    ! Write to the last time frame of the variable
+    !
+    ! d is stored distributed over the processes
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
+    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
+    INTEGER,                             INTENT(IN)    :: ncid
+    CHARACTER(LEN=*),                    INTENT(IN)    :: field_name_options
+    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: d_partial
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_to_field_multopt_mesh_dp_3D_b'
+    INTEGER                                            :: id_var, id_dim_time, ti
+    CHARACTER(LEN=256)                                 :: var_name
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: d_tot
+    REAL(dp), DIMENSION(:,:,:), ALLOCATABLE            :: d_tot_with_time
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Inquire the variable
+    CALL inquire_var_multopt( filename, ncid, field_name_options, id_var, var_name = var_name)
+    IF (id_var == -1) CALL crash('no variables for name options "' // TRIM( field_name_options) // '" were found in file "' // TRIM( filename) // '"!')
+
+    ! Check if this variable has the correct type and dimensions
+    CALL check_mesh_field_dp_3D_b( filename, ncid, var_name, should_have_time = .TRUE.)
+
+    ! Gather data to the master
+    IF (par%master) ALLOCATE( d_tot( mesh%nTri, mesh%nz))
+    CALL gather_to_master_dp_2D( d_partial, d_tot)
+
+    ! Add "pretend" time dimension
+    IF (par%master) THEN
+      ALLOCATE( d_tot_with_time( mesh%nTri,mesh%nz,1))
+      d_tot_with_time( :,:,1) = d_tot
+    END IF
+
+    ! Inquire length of time dimension
+    CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
+
+    ! Write data to the variable
+    CALL write_var_master_dp_3D( filename, ncid, id_var, d_tot_with_time, start = (/ 1, 1, ti /), count = (/ mesh%nTri, mesh%nz, 1 /) )
+
+    ! Clean up after yourself
+    IF (par%master) THEN
+      DEALLOCATE( d_tot)
+      DEALLOCATE( d_tot_with_time)
+    END IF
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE write_to_field_multopt_mesh_dp_3D_b
 
   SUBROUTINE write_to_field_multopt_mesh_int_2D_notime(               mesh, filename, ncid, field_name_options, d_partial)
     ! Write a 2-D data field defined on a mesh to a NetCDF file variable on the same mesh
@@ -2836,6 +2897,54 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE add_field_mesh_dp_3D
+
+  SUBROUTINE add_field_mesh_dp_3D_b(                     filename, ncid, var_name, long_name, units)
+    ! Add a 3-D variable to an existing NetCDF file with a mesh
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
+    INTEGER,                             INTENT(IN)    :: ncid
+    CHARACTER(LEN=*),                    INTENT(IN)    :: var_name
+    CHARACTER(LEN=*),          OPTIONAL, INTENT(IN)    :: long_name
+    CHARACTER(LEN=*),          OPTIONAL, INTENT(IN)    :: units
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'add_field_mesh_dp_3D_b'
+    INTEGER                                            :: id_dim_ti, id_dim_zeta, id_dim_time, id_var
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Check if all mesh dimensions and variables are there
+    CALL check_zeta(            filename, ncid)
+    CALL check_mesh_dimensions( filename, ncid)
+
+    ! Inquire dimensions
+    CALL inquire_dim_multopt( filename, ncid, field_name_options_dim_nTri, id_dim_ti  )
+    CALL inquire_dim_multopt( filename, ncid, field_name_options_zeta    , id_dim_zeta)
+    CALL inquire_dim_multopt( filename, ncid, field_name_options_time    , id_dim_time)
+
+    ! Safety
+    IF (id_dim_ti   == -1) CALL crash('no ti dimension could be found in file "' // TRIM( filename) // '"!')
+    IF (id_dim_zeta == -1) CALL crash('no zeta dimension could be found in file "' // TRIM( filename) // '"!')
+    IF (id_dim_time == -1) CALL crash('no time dimension could be found in file "' // TRIM( filename) // '"!')
+
+    ! Create variable
+    CALL create_variable( filename, ncid, var_name, NF90_DOUBLE, (/ id_dim_ti, id_dim_zeta, id_dim_time /), id_var)
+
+    ! Add attributes
+    IF (PRESENT( long_name)) CALL add_attribute_char( filename, ncid, id_var, 'long_name', long_name)
+    IF (PRESENT( units    )) CALL add_attribute_char( filename, ncid, id_var, 'units'    , units    )
+
+    ! Final safety check
+    CALL check_mesh_field_dp_3D_b( filename, ncid, var_name, should_have_time = .TRUE.)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE add_field_mesh_dp_3D_b
 
   SUBROUTINE add_field_mesh_int_2D_notime(               filename, ncid, var_name, long_name, units)
     ! Add a 2-D variable to an existing NetCDF file with a mesh

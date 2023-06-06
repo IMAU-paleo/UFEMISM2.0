@@ -2715,6 +2715,109 @@ CONTAINS
 
   END SUBROUTINE check_mesh_field_dp_3D
 
+  SUBROUTINE check_mesh_field_dp_3D_b(              filename, ncid, var_name, should_have_time)
+    ! Check if this file contains a 3-D mesh variable by this name
+    !
+    ! NOTE: this is 3-D in the physical sense, so a 2-D array!
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
+    INTEGER,                             INTENT(IN)    :: ncid
+    CHARACTER(LEN=*),                    INTENT(IN)    :: var_name
+    LOGICAL,                   OPTIONAL, INTENT(IN)    :: should_have_time
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'check_mesh_field_dp_3D'
+    INTEGER                                            :: id_dim_ti, id_dim_zeta, id_dim_time, id_var
+    INTEGER                                            :: var_type
+    INTEGER                                            :: ndims_of_var
+    INTEGER, DIMENSION( NF90_MAX_VAR_DIMS)             :: dims_of_var
+    LOGICAL                                            :: file_has_time
+
+    ! Add routine to path
+    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+
+    ! Check if the file has valid mesh dimensions and variables
+    CALL check_mesh_dimensions( filename, ncid)
+    CALL check_zeta(            filename, ncid)
+
+    ! Inquire mesh dimensions
+    CALL inquire_dim_multopt( filename, ncid, field_name_options_dim_nTri, id_dim_ti  )
+    CALL inquire_dim_multopt( filename, ncid, field_name_options_zeta    , id_dim_zeta)
+
+    ! Inquire variable
+    CALL inquire_var( filename, ncid, var_name, id_var)
+    IF (id_var == -1) CALL crash('variable "' // TRIM( var_name) // '" could not be found in file "' // TRIM( filename) // '"!')
+
+    ! Inquire variable info
+    CALL inquire_var_info( filename, ncid, id_var, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
+
+    ! Check variable type
+    IF (.NOT. (var_type == NF90_FLOAT .OR. var_type == NF90_DOUBLE)) THEN
+      CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
+    END IF
+
+    ! Check mesh dimensions
+    IF (.NOT. ANY( dims_of_var == id_dim_ti  )) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have ti as a dimension!')
+    IF (.NOT. ANY( dims_of_var == id_dim_zeta)) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have zeta as a dimension!')
+
+    IF (.NOT. PRESENT( should_have_time)) THEN
+      ! This variable is allowed to either have or not have a time dimension
+
+      ! Check if the file contains a time dimension
+      CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
+      IF (id_dim_time == -1) THEN
+        file_has_time = .FALSE.
+      ELSE
+        file_has_time = .TRUE.
+      END IF
+
+      IF (file_has_time) THEN
+        ! Check if the variable has time as a dimension
+        IF (ndims_of_var == 2) THEN
+          ! The variable only has ti,zeta as dimensions
+        ELSE
+          IF (ndims_of_var == 3) THEN
+            IF (.NOT. ANY( dims_of_var == id_dim_time)) CALL crash('variable "' // TRIM( var_name) // '" in file "' &
+              // TRIM( filename) // '" has three dimensions, but the third one is not time!')
+          ELSE
+            CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+          END IF
+        END IF
+      ELSE ! IF (file_has_time) THEN
+        ! The file does not have a time dimension; the variable should only have ti,zeta as dimensions
+        IF (ndims_of_var /= 2) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+      END IF ! IF (file_has_time) THEN
+
+    ELSE ! IF (.NOT. PRESENT( should_have_time)) THEN
+      IF (should_have_time) THEN
+        ! This variable should have a time dimension
+
+        ! Check if the file has a valid time dimension
+        CALL check_time( filename, ncid)
+
+        ! Inquire the time dimension
+        CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
+
+        ! Check if the variable has time as a dimension
+        IF (ndims_of_var /= 3) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+        IF (.NOT. ANY( dims_of_var == id_dim_time)) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have time as a dimension!')
+
+      ELSE ! IF (should_have_time) THEN
+        ! This variable should not have a time dimension; the variable should only have ti,zeta as dimensions
+
+        IF (ndims_of_var /= 2) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+
+      END IF ! IF (should_have_time) THEN
+    END IF ! IF (.NOT. PRESENT( should_have_time)) THEN
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE check_mesh_field_dp_3D_b
+
 ! ===== Flexible looking for dimensions and variables =====
 ! =========================================================
 
@@ -3894,7 +3997,7 @@ CONTAINS
     IF (PRESENT( start)) THEN
       start_applied = start
     ELSE
-      start_applied = 1 
+      start_applied = 1
     END IF
     IF (par%master .AND. ANY( start_applied == 0)) CALL crash('start must be positive!')
 

@@ -474,7 +474,7 @@ CONTAINS
     CALL MPI_ALLREDUCE( ny_local, ny_global, 1, MPI_INTEGER, MPI_SUM, MPI_COMM_WORLD, ierr)
 
     ! Safety: check sizes
-    IF (ny_local /= (AA%i2 + 1 - AA%i1) .OR. nx_global /= AA%n .OR. ny_global /= AA%m) THEN
+    IF (ny_local /= (AA%m_loc) .OR. nx_global /= AA%n .OR. ny_global /= AA%m) THEN
       CALL warning('nx_local = {int_01}, nx_global = {int_02}', int_01 = nx_local, int_02 = nx_global)
       CALL warning('ny_local = {int_01}, ny_global = {int_02}', int_01 = ny_local, int_02 = ny_global)
       CALL warning('A: m = {int_01}, n = {int_02}, i1 = {int_03}, i2 = {int_04}', int_01 = AA%m, int_02 = AA%n, int_03 = AA%i1, int_04 = AA%i2)
@@ -536,7 +536,7 @@ CONTAINS
 
     ! Allocate memory
     ALLOCATE( xx_1D( n1), source = 0._dp)
-    ALLOCATE( yy_1D( n1), source = 0._dp)
+    ALLOCATE( yy_1D( AA%i1:AA%i2), source = 0._dp)
 
     ! Calculate each column separately
     DO j = 1, n2

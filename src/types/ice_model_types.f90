@@ -45,7 +45,7 @@ MODULE ice_model_types
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: N_b
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dN_dx_b                     ! Gradients of N
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dN_dy_b
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: beta_b_b                    ! Friction coefficient (tau_b = u * beta_b)
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: beta_b_b                    ! Basal friction coefficient (tau_b = u * beta_b)
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: tau_dx_b                    ! Driving stress
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: tau_dy_b
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: u_b_prev                    ! Velocity solution from previous viscosity iteration
@@ -59,6 +59,54 @@ MODULE ice_model_types
     CHARACTER(LEN=256)                      :: restart_filename
 
   END TYPE type_ice_velocity_solver_SSA
+
+  TYPE type_ice_velocity_solver_DIVA
+    ! Data fields needed to solve the Depth-Integrated Viscosity Approximation
+
+    ! Solution
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: u_vav_b                     ! [m yr^-1] 2-D horizontal ice velocity
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: v_vav_b
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: u_base_b                    ! [m yr^-1] 2-D horizontal ice velocity at the ice base
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: v_base_b
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: u_3D_b                      ! [m yr^-1] 3-D horizontal ice velocity
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: v_3D_b
+
+    ! Intermediate data fields
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: du_dx_a                     ! [yr^-1] 2-D horizontal strain rates
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: du_dy_a
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dv_dx_a
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dv_dy_a
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: du_dz_3D_a                  ! [yr^-1] 3-D vertical shear strain rates
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: dv_dz_3D_a
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: eta_3D_a                    ! Effective viscosity
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: eta_3D_b
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: eta_vav_a
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: N_a                         ! Product term N = eta * H
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: N_b
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dN_dx_b                     ! Gradients of N
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dN_dy_b
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: F1_3D_a                     ! F-integrals
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: F2_3D_a
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: F1_3D_b
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: F2_3D_b
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: beta_b_b                    ! Basal friction coefficient (tau_b = u * beta_b)
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: beta_eff_a                  ! "Effective" friction coefficient (turning the SSA into the DIVA)
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: beta_eff_b
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: tau_bx_b                    ! Basal shear stress
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: tau_by_b
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: tau_dx_b                    ! Driving stress
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: tau_dy_b
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: u_b_prev                    ! Velocity solution from previous viscosity iteration
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: v_b_prev
+
+    ! Parameters for the iterative solver used to solve the matrix equation representing the linearised SSA
+    REAL(dp)                                :: PETSc_rtol
+    REAL(dp)                                :: PETSc_abstol
+
+    ! Restart file
+    CHARACTER(LEN=256)                      :: restart_filename
+
+  END TYPE type_ice_velocity_solver_DIVA
 
   TYPE type_ice_model
     ! The ice dynamics model data structure.
@@ -142,7 +190,7 @@ MODULE ice_model_types
     ! Velocity solvers
     TYPE(type_ice_velocity_solver_SIA)      :: SIA                         ! Shallow Ice Approximation
     TYPE(type_ice_velocity_solver_SSA)      :: SSA                         ! Shallow Shelf Approximation
-    ! TYPE(type_ice_velocity_solver_DIVA)     :: DIVA                        ! Depth-Integrated Viscosity Approximation
+    TYPE(type_ice_velocity_solver_DIVA)     :: DIVA                        ! Depth-Integrated Viscosity Approximation
     ! TYPE(type_ice_velocity_solver_BPA)      :: BPA                         ! Blatter-Pattyn Approximation
 
     ! 3-D

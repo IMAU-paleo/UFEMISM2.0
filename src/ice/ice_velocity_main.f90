@@ -14,12 +14,14 @@ MODULE ice_velocity_main
   USE model_configuration                                    , ONLY: C
   USE petsc_basic                                            , ONLY: solve_matrix_equation_CSR_PETSc
   USE mesh_types                                             , ONLY: type_mesh
-  USE ice_model_types                                        , ONLY: type_ice_model, type_ice_velocity_solver_SIA, type_ice_velocity_solver_SSA
+  USE ice_model_types                                        , ONLY: type_ice_model, type_ice_velocity_solver_SIA, type_ice_velocity_solver_SSA, &
+                                                                     type_ice_velocity_solver_DIVA
   USE parameters
   USE reallocate_mod                                         , ONLY: reallocate_clean
   USE mesh_operators                                         , ONLY: map_b_a_2D, map_b_a_3D, ddx_a_a_2D, ddy_a_a_2D
-  USE ice_velocity_SIA                                       , ONLY: initialise_SIA_solver, solve_SIA, remap_SIA_solver
-  USE ice_velocity_SSA                                       , ONLY: initialise_SSA_solver, solve_SSA, remap_SSA_solver
+  USE ice_velocity_SIA                                       , ONLY: initialise_SIA_solver , solve_SIA , remap_SIA_solver
+  USE ice_velocity_SSA                                       , ONLY: initialise_SSA_solver , solve_SSA , remap_SSA_solver
+  USE ice_velocity_DIVA                                      , ONLY: initialise_DIVA_solver, solve_DIVA, remap_DIVA_solver
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_1D, gather_to_all_dp_2D
   USE mesh_zeta                                              , ONLY: vertical_average
 
@@ -61,8 +63,7 @@ CONTAINS
       CALL initialise_SIA_solver(  mesh, ice%SIA)
       CALL initialise_SSA_solver(  mesh, ice%SSA, region_name)
     ELSEIF (C%choice_stress_balance_approximation == 'DIVA') THEN
-      CALL crash('fixme!')
-!      CALL initialise_DIVA_solver( mesh, ice%DIVA)
+      CALL initialise_DIVA_solver( mesh, ice%DIVA, region_name)
     ELSEIF (C%choice_stress_balance_approximation == 'BPA') THEN
       CALL crash('fixme!')
 !      CALL initialise_BPA_solver(  mesh, ice%BPA)
@@ -116,9 +117,8 @@ CONTAINS
     ELSEIF (C%choice_stress_balance_approximation == 'DIVA') THEN
       ! Calculate velocities according to the Depth-Integrated Viscosity Approximation
 
-      CALL crash('fixme!')
-!      CALL solve_DIVA( mesh, ice, ice%DIVA)
-!      CALL set_ice_velocities_to_DIVA_results( mesh, ice, ice%DIVA)
+      CALL solve_DIVA( mesh, ice, ice%DIVA)
+      CALL set_ice_velocities_to_DIVA_results( mesh, ice, ice%DIVA)
 
     ELSEIF (C%choice_stress_balance_approximation == 'BPA') THEN
       ! Calculate velocities according to the Depth-Integrated Viscosity Approximation
@@ -398,8 +398,7 @@ CONTAINS
       CALL remap_SIA_solver(  mesh_old, mesh_new, ice, ice%SIA)
       CALL remap_SSA_solver(  mesh_old, mesh_new, ice, ice%SSA)
     ELSEIF (C%choice_stress_balance_approximation == 'DIVA') THEN
-      CALL crash('fixme!')
-!      CALL remap_DIVA_solver( mesh_old, mesh_new, ice, ice%DIVA)
+      CALL remap_DIVA_solver( mesh_old, mesh_new, ice, ice%DIVA)
     ELSEIF (C%choice_stress_balance_approximation == 'BPA') THEN
       CALL crash('fixme!')
 !      CALL remap_BPA_solver(  mesh_old, mesh_new, ice, ice%BPA)
@@ -552,52 +551,49 @@ CONTAINS
 
   END SUBROUTINE set_ice_velocities_to_SIASSA_results
 
-!  SUBROUTINE set_ice_velocities_to_DIVA_results( mesh, ice, DIVA)
-!    ! Set applied ice model velocities to DIVA results
-!
-!    IMPLICIT NONE
-!
-!    ! In/output variables:
-!    TYPE(type_mesh),                     INTENT(INOUT) :: mesh
-!    TYPE(type_ice_model),                INTENT(INOUT) :: ice
-!    TYPE(type_velocity_solver_DIVA),     INTENT(IN)    :: DIVA
-!
-!    ! Local variables:
-!    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'set_ice_velocities_to_DIVA_results'
-!    INTEGER                                            :: ti,vi
-!
-!    ! Add routine to path
-!    CALL init_routine( routine_name)
-!
-!    ! DENK DROM
-!    CALL crash('fixme!')
-!
-!!    ! Velocities
-!!    DO ti = mesh%ti1, mesh%ti2
-!!      ice%u_3D_b( ti,:) = DIVA%u_3D_b( ti,:)
-!!      ice%v_3D_b( ti,:) = DIVA%v_3D_b( ti,:)
-!!    END DO
-!!
-!!    ! Strain rates
-!!    DO vi = mesh%vi1, mesh%vi2
-!!      ice%du_dx_3D_a( vi,:) = DIVA%du_dx_a(    vi  )
-!!      ice%du_dy_3D_a( vi,:) = DIVA%du_dy_a(    vi  )
-!!      ice%du_dz_3D_a( vi,:) = DIVA%du_dz_3D_a( vi,:)
-!!      ice%dv_dx_3D_a( vi,:) = DIVA%dv_dx_a(    vi  )
-!!      ice%dv_dy_3D_a( vi,:) = DIVA%dv_dy_a(    vi  )
-!!      ice%dv_dz_3D_a( vi,:) = DIVA%dv_dz_3D_a( vi,:)
-!!    END DO
-!!    ! In the DIVA, gradients of w are neglected
-!!    ice%dw_dx_3D_a( mesh%vi1:mesh%vi2,:) = 0._dp
-!!    ice%dw_dy_3D_a( mesh%vi1:mesh%vi2,:) = 0._dp
-!!    ice%dw_dz_3D_a( mesh%vi1:mesh%vi2,:) = 0._dp
-!!    CALL sync
-!
-!    ! Finalise routine path
-!    CALL finalise_routine( routine_name)
-!
-!  END SUBROUTINE set_ice_velocities_to_DIVA_results
-!
+  SUBROUTINE set_ice_velocities_to_DIVA_results( mesh, ice, DIVA)
+    ! Set applied ice model velocities to DIVA results
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
+    TYPE(type_ice_model),                INTENT(INOUT) :: ice
+    TYPE(type_ice_velocity_solver_DIVA), INTENT(IN)    :: DIVA
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'set_ice_velocities_to_DIVA_results'
+    INTEGER                                            :: ti,vi
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Velocities
+    DO ti = mesh%ti1, mesh%ti2
+      ice%u_3D_b( ti,:) = DIVA%u_3D_b( ti,:)
+      ice%v_3D_b( ti,:) = DIVA%v_3D_b( ti,:)
+    END DO
+
+    ! Strain rates
+    DO vi = mesh%vi1, mesh%vi2
+      ice%du_dx_3D( vi,:) = DIVA%du_dx_a(    vi  )
+      ice%du_dy_3D( vi,:) = DIVA%du_dy_a(    vi  )
+      ice%du_dz_3D( vi,:) = DIVA%du_dz_3D_a( vi,:)
+      ice%dv_dx_3D( vi,:) = DIVA%dv_dx_a(    vi  )
+      ice%dv_dy_3D( vi,:) = DIVA%dv_dy_a(    vi  )
+      ice%dv_dz_3D( vi,:) = DIVA%dv_dz_3D_a( vi,:)
+    END DO
+    ! In the DIVA, gradients of w are neglected
+    ice%dw_dx_3D( mesh%vi1:mesh%vi2,:) = 0._dp
+    ice%dw_dy_3D( mesh%vi1:mesh%vi2,:) = 0._dp
+    ice%dw_dz_3D( mesh%vi1:mesh%vi2,:) = 0._dp
+    CALL sync
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE set_ice_velocities_to_DIVA_results
+
 !  SUBROUTINE set_ice_velocities_to_BPA_results( mesh, ice, BPA)
 !    ! Set applied ice model velocities and strain rates to BPA results
 !
