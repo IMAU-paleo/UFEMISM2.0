@@ -265,6 +265,7 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: choice_hybrid_SIASSA_scheme_config           = 'add'                            ! Choice of scheme for combining SIA and SSA velocities in the hybrid approach
     LOGICAL             :: do_GL_subgrid_friction_config                = .TRUE.                           ! Whether or not to scale basal friction with the sub-grid grounded fraction (needed to get proper GL migration; only turn this off for showing the effect on the MISMIP_mod results!)
     REAL(dp)            :: subgrid_friction_exponent_config             = 2._dp                            ! Exponent to which f_grnd should be raised before being used to scale beta
+    LOGICAL             :: do_include_SSADIVA_crossterms_config         = .TRUE.                           ! Whether or not to include the gradients of the effective viscosity (the "cross-terms") in the solution of the SSA/DIVA
 
     ! Initialisation
     CHARACTER(LEN=256)  :: choice_initial_velocity_NAM_config           = ''                               ! Can be 'zero', 'read_from_file'
@@ -749,6 +750,7 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: choice_hybrid_SIASSA_scheme
     LOGICAL             :: do_GL_subgrid_friction
     REAL(dp)            :: subgrid_friction_exponent
+    LOGICAL             :: do_include_SSADIVA_crossterms
 
     ! Initialisation
     CHARACTER(LEN=256)  :: choice_initial_velocity_NAM
@@ -1307,6 +1309,7 @@ CONTAINS
       choice_hybrid_SIASSA_scheme_config                    , &
       do_GL_subgrid_friction_config                         , &
       subgrid_friction_exponent_config                      , &
+      do_include_SSADIVA_crossterms_config                  , &
       choice_initial_velocity_NAM_config                    , &
       choice_initial_velocity_EAS_config                    , &
       choice_initial_velocity_GRL_config                    , &
@@ -1737,6 +1740,7 @@ CONTAINS
     C%choice_hybrid_SIASSA_scheme              = choice_hybrid_SIASSA_scheme_config
     C%do_GL_subgrid_friction                   = do_GL_subgrid_friction_config
     C%subgrid_friction_exponent                = subgrid_friction_exponent_config
+    C%do_include_SSADIVA_crossterms            = do_include_SSADIVA_crossterms_config
 
     ! Initialisation
     C%choice_initial_velocity_NAM              = choice_initial_velocity_NAM_config

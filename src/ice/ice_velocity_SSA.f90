@@ -336,7 +336,13 @@ CONTAINS
       ELSE
         ! No boundary conditions apply; solve the SSA
 
-        CALL calc_SSA_stiffness_matrix_row_free( mesh, SSA, A_CSR, bb, row_tiuv)
+        IF (C%do_include_SSADIVA_crossterms) THEN
+          ! Calculate matrix coefficients for the full SSA
+          CALL calc_SSA_stiffness_matrix_row_free( mesh, SSA, A_CSR, bb, row_tiuv)
+        ELSE
+          ! Calculate matrix coefficients for the SSA sans the gradients of the effective viscosity (the "cross-terms")
+          CALL calc_SSA_sans_stiffness_matrix_row_free( mesh, SSA, A_CSR, bb, row_tiuv)
+        END IF
 
       END IF
 
@@ -528,6 +534,163 @@ CONTAINS
     DEALLOCATE( single_row_d2dy2_val)
 
   END SUBROUTINE calc_SSA_stiffness_matrix_row_free
+
+  SUBROUTINE calc_SSA_sans_stiffness_matrix_row_free( mesh, SSA, A_CSR, bb, row_tiuv)
+    ! Add coefficients to this matrix row to represent the linearised SSA
+    ! sans the gradients of the effective viscosity (the "cross-terms")
+    !
+    ! The SSA reads;
+    !
+    !   d/dx [ 2 N ( 2 du/dx + dv/dy )] + d/dy [ N ( du/dy + dv/dx)] - beta_b u = -tau_dx
+    !
+    !   d/dy [ 2 N ( 2 dv/dy + du/dx )] + d/dx [ N ( dv/dx + du/dy)] - beta_b v = -tau_dy
+    !
+    ! Using the chain rule, this expands to read:
+    !
+    !   4 N d2u/dx2 + 4 dN/dx du/dx + 2 N d2v/dxdy + 2 dN/dx dv/dy + ...
+    !     N d2u/dy2 +   dN/dy du/dy +   N d2v/dxdy +   dN/dy dv/dx - beta_b u = -tau_dx
+    !
+    !   4 N d2v/dy2 + 4 dN/dy dv/dy + 2 N d2u/dxdy + 2 dN/dy du/dx + ...
+    !     N d2v/dx2 +   dN/dx dv/dx +   N d2u/dxdy +   dN/dx du/dy - beta_b v = -tau_dy
+    !
+    ! The "sans" approximation neglects the gradients dN/dx, dN/dy of N:
+    !
+    !   4 N d2u/dx2 + N d2u/dy2 + 3 N d2v/dxdy - beta_b u = -tau_dx
+    !   4 N d2v/dy2 + N d2v/dx2 + 3 N d2u/dxdy - beta_b v = -tau_dy
+    !
+    ! Dividing both sides by N yields:
+    !
+    !   4 d2u/dx2 + d2u/dy2 + 3 d2v/dxdy - beta_b u / N = -tau_dx / N
+    !   4 d2v/dy2 + d2v/dx2 + 3 d2u/dxdy - beta_b v / N = -tau_dy / N
+    !
+    ! Note that there is no clear mathematical or physical reason why this should be allowed.
+    ! However, while I (Tijn Berends, 2023) have found a few cases where there are noticeable
+    ! differences    ! in the solutions (e.g. ISMIP-HOM experiments with high strain rates),
+    ! most of the time the difference with respect to the full SSA/DIVA is very small.
+    ! The "sans" option makes the solver quite a lot more stable and therefore faster.
+    ! Someone really ought to perform some proper experiments to determine whether or not
+    ! this should be the default.
+    !
+    ! We define the velocities u,v, the basal friction coefficient beta_b, and the driving
+    ! stress tau_d on the b-grid (triangles), and the effective viscosity eta and the
+    ! product term N = eta H on the a-grid (vertices).
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)              :: mesh
+    TYPE(type_ice_velocity_solver_SSA),  INTENT(IN)              :: SSA
+    TYPE(type_sparse_matrix_CSR_dp),     INTENT(INOUT)           :: A_CSR
+    REAL(dp), DIMENSION(mesh%ti1*2-1: mesh%ti2*2), INTENT(INOUT) :: bb
+    INTEGER,                             INTENT(IN)              :: row_tiuv
+
+    ! Local variables:
+    INTEGER                                                      :: ti, uv
+    REAL(dp)                                                     :: N, beta_b, tau_dx, tau_dy
+    INTEGER,  DIMENSION(:    ), ALLOCATABLE                      :: single_row_ind
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: single_row_ddx_val
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: single_row_ddy_val
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: single_row_d2dx2_val
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: single_row_d2dxdy_val
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: single_row_d2dy2_val
+    INTEGER                                                      :: single_row_nnz
+    REAL(dp)                                                     :: Au, Av
+    INTEGER                                                      :: k, tj, col_tju, col_tjv
+
+    ! Relevant indices for this triangle
+    ti     = mesh%n2tiuv( row_tiuv,1)
+    uv     = mesh%n2tiuv( row_tiuv,2)
+
+    ! N, beta_b, tau_dx, and tau_dy on this triangle
+    N      = SSA%N_b(      ti)
+    beta_b = SSA%beta_b_b( ti)
+    tau_dx = SSA%tau_dx_b( ti)
+    tau_dy = SSA%tau_dy_b( ti)
+
+    ! Allocate memory for single matrix rows
+    ALLOCATE( single_row_ind(        mesh%nC_mem*2))
+    ALLOCATE( single_row_ddx_val(    mesh%nC_mem*2))
+    ALLOCATE( single_row_ddy_val(    mesh%nC_mem*2))
+    ALLOCATE( single_row_d2dx2_val(  mesh%nC_mem*2))
+    ALLOCATE( single_row_d2dxdy_val( mesh%nC_mem*2))
+    ALLOCATE( single_row_d2dy2_val(  mesh%nC_mem*2))
+
+    ! Read coefficients of the operator matrices
+    CALL read_single_row_CSR_dist( mesh%M2_ddx_b_b   , ti, single_row_ind, single_row_ddx_val   , single_row_nnz)
+    CALL read_single_row_CSR_dist( mesh%M2_ddy_b_b   , ti, single_row_ind, single_row_ddy_val   , single_row_nnz)
+    CALL read_single_row_CSR_dist( mesh%M2_d2dx2_b_b , ti, single_row_ind, single_row_d2dx2_val , single_row_nnz)
+    CALL read_single_row_CSR_dist( mesh%M2_d2dxdy_b_b, ti, single_row_ind, single_row_d2dxdy_val, single_row_nnz)
+    CALL read_single_row_CSR_dist( mesh%M2_d2dy2_b_b , ti, single_row_ind, single_row_d2dy2_val , single_row_nnz)
+
+    IF (uv == 1) THEN
+      ! x-component
+
+      DO k = 1, single_row_nnz
+
+        ! Relevant indices for this neighbouring triangle
+        tj      = single_row_ind( k)
+        col_tju = mesh%tiuv2n( tj,1)
+        col_tjv = mesh%tiuv2n( tj,2)
+
+        !   4 d2u/dx2 + d2u/dy2 + 3 d2v/dxdy - beta_b u / N = -tau_dx / N
+
+        ! Combine the mesh operators
+        Au = 4._dp * single_row_d2dx2_val(  k) + &  ! 4 d2u/dx2
+                     single_row_d2dy2_val(  k)      !   d2u/dy2
+        IF (tj == ti) Au = Au - beta_b / N          ! - beta_b u / N
+
+        Av = 3._dp * single_row_d2dxdy_val( k)      ! 3 d2v/dxdy
+
+        ! Add coefficients to the stiffness matrix
+        CALL add_entry_CSR_dist( A_CSR, row_tiuv, col_tju, Au)
+        CALL add_entry_CSR_dist( A_CSR, row_tiuv, col_tjv, Av)
+
+      END DO
+
+      ! Load vector
+      bb( row_tiuv) = -SSA%tau_dx_b( ti) / N
+
+    ELSEIF (uv == 2) THEN
+      ! y-component
+
+      DO k = 1, single_row_nnz
+
+        ! Relevant indices for this neighbouring triangle
+        tj      = single_row_ind( k)
+        col_tju = mesh%tiuv2n( tj,1)
+        col_tjv = mesh%tiuv2n( tj,2)
+
+        !   4 d2v/dy2 + d2v/dx2 + 3 d2u/dxdy - beta_b v / N = -tau_dy / N
+
+        ! Combine the mesh operators
+        Av = 4._dp * single_row_d2dy2_val(  k) + &  ! 4 d2v/dy2
+                     single_row_d2dx2_val(  k)      !   d2v/dx2
+        IF (tj == ti) Av = Av - beta_b / N          ! - beta_b v / N
+
+        Au = 3._dp * single_row_d2dxdy_val( k)      ! 3 d2u/dxdy
+
+        ! Add coefficients to the stiffness matrix
+        CALL add_entry_CSR_dist( A_CSR, row_tiuv, col_tju, Au)
+        CALL add_entry_CSR_dist( A_CSR, row_tiuv, col_tjv, Av)
+
+      END DO
+
+      ! Load vector
+      bb( row_tiuv) = -SSA%tau_dy_b( ti) / N
+
+    ELSE
+      CALL crash('uv can only be 1 or 2!')
+    END IF
+
+    ! Clean up after yourself
+    DEALLOCATE( single_row_ind)
+    DEALLOCATE( single_row_ddx_val)
+    DEALLOCATE( single_row_ddy_val)
+    DEALLOCATE( single_row_d2dx2_val)
+    DEALLOCATE( single_row_d2dxdy_val)
+    DEALLOCATE( single_row_d2dy2_val)
+
+  END SUBROUTINE calc_SSA_sans_stiffness_matrix_row_free
 
   SUBROUTINE calc_SSA_stiffness_matrix_row_BC_west( mesh, A_CSR, bb, row_tiuv)
     ! Add coefficients to this matrix row to represent boundary conditions at the
