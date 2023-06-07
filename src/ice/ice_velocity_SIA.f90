@@ -105,13 +105,13 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Allocate memory
-    ALLOCATE( Hi_b(        mesh%nTri_loc         ), source = 0._dp)
-    ALLOCATE( Hs_b(        mesh%nTri_loc         ), source = 0._dp)
-    ALLOCATE( dHs_dx(      mesh%nV_loc           ), source = 0._dp)
-    ALLOCATE( dHs_dy(      mesh%nV_loc           ), source = 0._dp)
-    ALLOCATE( dHs_dx_b(    mesh%nTri_loc         ), source = 0._dp)
-    ALLOCATE( dHs_dy_b(    mesh%nTri_loc         ), source = 0._dp)
-    ALLOCATE( A_flow_3D_b( mesh%nTri_loc, mesh%nz), source = 0._dp)
+    ALLOCATE( Hi_b(        mesh%ti1:mesh%ti2         ), source = 0._dp)
+    ALLOCATE( Hs_b(        mesh%ti1:mesh%ti2         ), source = 0._dp)
+    ALLOCATE( dHs_dx(      mesh%vi1:mesh%vi2         ), source = 0._dp)
+    ALLOCATE( dHs_dy(      mesh%vi1:mesh%vi2         ), source = 0._dp)
+    ALLOCATE( dHs_dx_b(    mesh%ti1:mesh%ti2         ), source = 0._dp)
+    ALLOCATE( dHs_dy_b(    mesh%ti1:mesh%ti2         ), source = 0._dp)
+    ALLOCATE( A_flow_3D_b( mesh%ti1:mesh%ti2, mesh%nz), source = 0._dp)
 
     ! Calculate ice thickness, surface elevation, surface slopes, and ice flow factor on the b-grid
     CALL map_a_b_2D( mesh, ice%Hi       , Hi_b       )

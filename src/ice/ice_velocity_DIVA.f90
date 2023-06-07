@@ -117,10 +117,14 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! If there is no grounded ice, or no sliding, no need to solve the DIVA
-    IF ((.NOT. ANY( ice%mask_sheet)) .OR. C%choice_sliding_law == 'no_sliding') THEN
-      DIVA%u_vav_b = 0._dp
-      DIVA%v_vav_b = 0._dp
+    ! If there is no grounded ice, no need (in fact, no way) to solve the DIVA
+    IF (.NOT. ANY( ice%mask_sheet)) THEN
+      DIVA%u_vav_b  = 0._dp
+      DIVA%v_vav_b  = 0._dp
+      DIVA%u_base_b = 0._dp
+      DIVA%v_base_b = 0._dp
+      DIVA%u_3D_b   = 0._dp
+      DIVA%v_3D_b   = 0._dp
       CALL finalise_routine( routine_name)
       RETURN
     END IF
@@ -162,7 +166,7 @@ CONTAINS
       CALL calc_effective_viscosity( mesh, ice, DIVA)
 
       ! Calculate the F-integrals (Lipscomb et al. (2019), Eq. 30)
-      CALL calc_F_integrals( mesh, DIVA)
+      CALL calc_F_integrals( mesh, ice, DIVA)
 
       ! Calculate the "effective" friction coefficient (turning the SSA into the DIVA)
       CALL calc_effective_basal_friction_coefficient( mesh, ice, DIVA)
@@ -176,11 +180,11 @@ CONTAINS
       ! Reduce the change between velocity solutions
       CALL relax_viscosity_iterations( mesh, DIVA)
 
-      ! Calculate basal shear stress
-      CALL calc_basal_shear_stress( mesh, DIVA)
-
       ! Calculate basal velocities
       CALL calc_basal_velocities( mesh, DIVA)
+
+      ! Calculate basal shear stress
+      CALL calc_basal_shear_stress( mesh, DIVA)
 
       ! Calculate the L2-norm of the two consecutive velocity solutions
       CALL calc_visc_iter_UV_resid( mesh, DIVA, resid_UV)
@@ -499,7 +503,7 @@ CONTAINS
       END DO
 
       ! Load vector
-      bb( row_tiuv) = -DIVA%tau_dx_b( ti)
+      bb( row_tiuv) = -tau_dx
 
     ELSEIF (uv == 2) THEN
       ! y-component
@@ -532,7 +536,7 @@ CONTAINS
       END DO
 
       ! Load vector
-      bb( row_tiuv) = -DIVA%tau_dy_b( ti)
+      bb( row_tiuv) = -tau_dy
 
     ELSE
       CALL crash('uv can only be 1 or 2!')
@@ -660,7 +664,7 @@ CONTAINS
       END DO
 
       ! Load vector
-      bb( row_tiuv) = -DIVA%tau_dx_b( ti) / N
+      bb( row_tiuv) = -tau_dx / N
 
     ELSEIF (uv == 2) THEN
       ! y-component
@@ -688,7 +692,7 @@ CONTAINS
       END DO
 
       ! Load vector
-      bb( row_tiuv) = -DIVA%tau_dy_b( ti) / N
+      bb( row_tiuv) = -tau_dy / N
 
     ELSE
       CALL crash('uv can only be 1 or 2!')
@@ -1310,7 +1314,7 @@ CONTAINS
 
     ! Map vertical shear strain rates from the b-grid to the a-grid
     CALL map_b_a_3D( mesh, du_dz_3D_b, DIVA%du_dz_3D_a)
-    CALL map_b_a_3D( mesh, du_dz_3D_b, DIVA%du_dz_3D_a)
+    CALL map_b_a_3D( mesh, dv_dz_3D_b, DIVA%dv_dz_3D_a)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -1331,10 +1335,16 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'calc_effective_viscosity'
     INTEGER                                                      :: vi,k
     REAL(dp)                                                     :: epsilon_sq
+    REAL(dp)                                                     :: A_min, eta_max
     REAL(dp), DIMENSION( mesh%nz)                                :: prof
 
     ! Add routine to path
     CALL init_routine( routine_name)
+
+    ! Calculate maximum allowed effective viscosity, for stability
+    A_min = MINVAL( ice%A_flow_3D)
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, A_min, 1, MPI_DOUBLE_PRECISION, MPI_MIN, MPI_COMM_WORLD, ierr)
+    eta_max = 0.5_dp * A_min**(-1._dp / C%n_flow) * (C%epsilon_sq_0)**((1._dp - C%n_flow)/(2._dp*C%n_flow))
 
     DO vi = mesh%vi1, mesh%vi2
     DO k = 1, mesh%nz
@@ -1351,7 +1361,7 @@ CONTAINS
       DIVA%eta_3D_a( vi,k) = 0.5_dp * ice%A_flow_3D( vi,k)**(-1._dp / C%n_flow) * (epsilon_sq)**((1._dp - C%n_flow)/(2._dp*C%n_flow))
 
       ! Safety
-      DIVA%eta_3D_a( vi,k) = MAX( DIVA%eta_3D_a( vi,k), C%visc_eff_min)
+      DIVA%eta_3D_a( vi,k) = MIN( MAX( DIVA%eta_3D_a( vi,k), C%visc_eff_min), eta_max)
 
     END DO
     END DO
@@ -1380,13 +1390,14 @@ CONTAINS
 
   END SUBROUTINE calc_effective_viscosity
 
-  SUBROUTINE calc_F_integrals( mesh, DIVA)
+  SUBROUTINE calc_F_integrals( mesh, ice, DIVA)
     ! Calculate the F-integrals on the a-grid (Lipscomb et al. (2019), Eq. 30)
 
     IMPLICIT NONE
 
     ! In/output variables:
     TYPE(type_mesh),                     INTENT(IN)              :: mesh
+    TYPE(type_ice_model),                INTENT(IN)              :: ice
     TYPE(type_ice_velocity_solver_DIVA), INTENT(INOUT)           :: DIVA
 
     ! Local variables:
@@ -1401,15 +1412,15 @@ CONTAINS
 
       ! F1
       DO k = 1, mesh%nz
-        prof( k) = (1._dp / DIVA%eta_3D_a( vi,k)) * mesh%zeta( k)
+        prof( k) = (mesh%zeta( k)    / DIVA%eta_3D_a( vi,k))
       END DO
-      DIVA%F1_3D_a( vi,:) = integrate_from_zeta_is_one_to_zeta_is_zetap( mesh%zeta, prof)
+      DIVA%F1_3D_a( vi,:) = -MAX( 0.1_dp, ice%Hi( vi)) * integrate_from_zeta_is_one_to_zeta_is_zetap( mesh%zeta, prof)
 
       ! F2
       DO k = 1, mesh%nz
-        prof( k) = (1._dp / DIVA%eta_3D_a( vi,k)) * mesh%zeta( k)**2
+        prof( k) = (mesh%zeta( k)**2 / DIVA%eta_3D_a( vi,k))
       END DO
-      DIVA%F2_3D_a( vi,:) = integrate_from_zeta_is_one_to_zeta_is_zetap( mesh%zeta, prof)
+      DIVA%F2_3D_a( vi,:) = -MAX( 0.1_dp, ice%Hi( vi)) * integrate_from_zeta_is_one_to_zeta_is_zetap( mesh%zeta, prof)
 
     END DO ! DO vi = mesh%vi1, mesh%vi2
 
@@ -1519,11 +1530,21 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! Calculate basal velocities (Lipscomb et al., 2019, Eq. 32)
-    DO ti = mesh%ti1, mesh%ti2
-      DIVA%u_base_b( ti) = DIVA%u_vav_b( ti) / (1._dp + DIVA%beta_b_b( ti) * DIVA%F2_3D_b( ti,1))
-      DIVA%v_base_b( ti) = DIVA%v_vav_b( ti) / (1._dp + DIVA%beta_b_b( ti) * DIVA%F2_3D_b( ti,1))
-    END DO
+    IF (C%choice_sliding_law == 'no_sliding') THEN
+      ! Exception for the case of no sliding
+
+      DIVA%u_base_b = 0._dp
+      DIVA%v_base_b = 0._dp
+
+    ELSE ! IF (C%choice_sliding_law == 'no_sliding') THEN
+
+      ! Calculate basal velocities (Lipscomb et al., 2019, Eq. 32)
+      DO ti = mesh%ti1, mesh%ti2
+        DIVA%u_base_b( ti) = DIVA%u_vav_b( ti) / (1._dp + DIVA%beta_b_b( ti) * DIVA%F2_3D_b( ti,1))
+        DIVA%v_base_b( ti) = DIVA%v_vav_b( ti) / (1._dp + DIVA%beta_b_b( ti) * DIVA%F2_3D_b( ti,1))
+      END DO
+
+    END IF ! IF (C%choice_sliding_law == 'no_sliding') THEN
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -1553,6 +1574,7 @@ CONTAINS
       DO k = 1, mesh%nz
         ! Lipscomb et al., 2019, Eq. 29, and text between Eqs. 33 and 34
         DIVA%u_3D_b( ti,k) = DIVA%tau_bx_b( ti) * DIVA%F1_3D_b( ti,k)
+        DIVA%v_3D_b( ti,k) = DIVA%tau_by_b( ti) * DIVA%F1_3D_b( ti,k)
       END DO
       END DO
 
@@ -1562,6 +1584,7 @@ CONTAINS
       DO k = 1, mesh%nz
         ! Lipscomb et al., 2019, Eq. 29
         DIVA%u_3D_b( ti,k) = DIVA%u_base_b( ti) * (1._dp + DIVA%beta_b_b( ti) * DIVA%F1_3D_b( ti,k))
+        DIVA%v_3D_b( ti,k) = DIVA%v_base_b( ti) * (1._dp + DIVA%beta_b_b( ti) * DIVA%F1_3D_b( ti,k))
       END DO
       END DO
 

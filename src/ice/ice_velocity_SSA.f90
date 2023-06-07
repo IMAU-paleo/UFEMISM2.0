@@ -486,7 +486,7 @@ CONTAINS
       END DO
 
       ! Load vector
-      bb( row_tiuv) = -SSA%tau_dx_b( ti)
+      bb( row_tiuv) = -tau_dx
 
     ELSEIF (uv == 2) THEN
       ! y-component
@@ -519,7 +519,7 @@ CONTAINS
       END DO
 
       ! Load vector
-      bb( row_tiuv) = -SSA%tau_dy_b( ti)
+      bb( row_tiuv) = -tau_dy
 
     ELSE
       CALL crash('uv can only be 1 or 2!')
@@ -648,7 +648,7 @@ CONTAINS
       END DO
 
       ! Load vector
-      bb( row_tiuv) = -SSA%tau_dx_b( ti) / N
+      bb( row_tiuv) = -tau_dx / N
 
     ELSEIF (uv == 2) THEN
       ! y-component
@@ -676,7 +676,7 @@ CONTAINS
       END DO
 
       ! Load vector
-      bb( row_tiuv) = -SSA%tau_dy_b( ti) / N
+      bb( row_tiuv) = -tau_dy / N
 
     ELSE
       CALL crash('uv can only be 1 or 2!')

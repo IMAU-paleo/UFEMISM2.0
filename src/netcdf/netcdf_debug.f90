@@ -394,7 +394,7 @@ CONTAINS
 
     ! Create dimensions
     CALL create_dimension( filename, ncid, 'n1', n_tot, id_dim_n1)
-    CALL create_dimension( filename, ncid, 'n2', n_tot, id_dim_n2)
+    CALL create_dimension( filename, ncid, 'n2', n2   , id_dim_n2)
 
     ! Create variable
     CALL create_variable( filename, ncid, field_name, NF90_DOUBLE, (/ id_dim_n1, id_dim_n2 /), id_var)

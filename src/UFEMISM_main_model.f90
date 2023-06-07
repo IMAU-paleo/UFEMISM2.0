@@ -27,9 +27,9 @@ MODULE UFEMISM_main_model
                            add_field_mesh_int_2D_notime, write_to_field_multopt_mesh_int_2D_notime, add_field_mesh_dp_2D_b_notime, &
                            write_to_field_multopt_mesh_dp_2D_b_notime
   USE netcdf_debug , ONLY: write_CSR_matrix_to_NetCDF
-  USE ice_velocity_DIVA, ONLY: solve_DIVA, create_restart_file_DIVA, write_to_restart_file_DIVA
-  USE bed_roughness, ONLY: calc_bed_roughness_Martin2011
+  USE bed_roughness, ONLY: initialise_bed_roughness
   USE basal_hydrology, ONLY: calc_basal_hydrology
+  USE ice_velocity_main, ONLY: solve_stress_balance
 
   IMPLICIT NONE
 
@@ -159,7 +159,8 @@ CONTAINS
 !    ALLOCATE( region%ice%tau_c(    region%mesh%vi1:region%mesh%vi2))
 !    ALLOCATE( region%ice%phi_fric( region%mesh%vi1:region%mesh%vi2))
     ALLOCATE( region%ice%beta_b(   region%mesh%vi1:region%mesh%vi2))
-    CALL solve_DIVA( region%mesh, region%ice, region%ice%DIVA)
+    CALL initialise_bed_roughness( region%mesh, region%ice, region%name)
+    CALL solve_stress_balance( region%mesh, region%ice)
 
     ! DENK DROM
     filename = TRIM( C%output_dir) // 'testfile.nc'
@@ -172,8 +173,10 @@ CONTAINS
     CALL add_field_mesh_int_2D_notime( filename, ncid, 'mask')
     CALL add_field_mesh_dp_2D_notime( filename, ncid, 'bedrock_cdf')
     CALL add_field_mesh_dp_2D_notime( filename, ncid, 'fraction_gr')
-    CALL add_field_mesh_dp_2D_b_notime( filename, ncid, 'u_b')
-    CALL add_field_mesh_dp_2D_b_notime( filename, ncid, 'v_b')
+    CALL add_field_mesh_dp_2D_b_notime( filename, ncid, 'u_vav_b')
+    CALL add_field_mesh_dp_2D_b_notime( filename, ncid, 'v_vav_b')
+    CALL add_field_mesh_dp_2D_b_notime( filename, ncid, 'u_surf_b')
+    CALL add_field_mesh_dp_2D_b_notime( filename, ncid, 'v_surf_b')
     CALL write_to_field_multopt_mesh_dp_2D_notime( region%mesh, filename, ncid, 'Hi', region%refgeo_init%Hi)
     CALL write_to_field_multopt_mesh_dp_2D_notime( region%mesh, filename, ncid, 'Hb', region%refgeo_init%Hb)
     CALL write_to_field_multopt_mesh_dp_2D_notime( region%mesh, filename, ncid, 'Hs', region%refgeo_init%Hs)
@@ -181,13 +184,11 @@ CONTAINS
     CALL write_to_field_multopt_mesh_int_2D_notime( region%mesh, filename, ncid, 'mask', region%ice%mask)
     CALL write_to_field_multopt_mesh_dp_2D_notime( region%mesh, filename, ncid, 'bedrock_cdf', region%ice%bedrock_cdf(:,11))
     CALL write_to_field_multopt_mesh_dp_2D_notime( region%mesh, filename, ncid, 'fraction_gr', region%ice%fraction_gr)
-    CALL write_to_field_multopt_mesh_dp_2D_b_notime( region%mesh, filename, ncid, 'u_b', region%ice%DIVA%u_vav_b)
-    CALL write_to_field_multopt_mesh_dp_2D_b_notime( region%mesh, filename, ncid, 'v_b', region%ice%DIVA%v_vav_b)
+    CALL write_to_field_multopt_mesh_dp_2D_b_notime( region%mesh, filename, ncid, 'u_vav_b', region%ice%u_vav_b)
+    CALL write_to_field_multopt_mesh_dp_2D_b_notime( region%mesh, filename, ncid, 'v_vav_b', region%ice%v_vav_b)
+    CALL write_to_field_multopt_mesh_dp_2D_b_notime( region%mesh, filename, ncid, 'u_surf_b', region%ice%u_surf_b)
+    CALL write_to_field_multopt_mesh_dp_2D_b_notime( region%mesh, filename, ncid, 'v_surf_b', region%ice%v_surf_b)
     CALL close_netcdf_file( ncid)
-
-    ! DENK DROM
-    CALL create_restart_file_DIVA(   region%mesh, region%ice%DIVA)
-    CALL write_to_restart_file_DIVA( region%mesh, region%ice%DIVA, 0._dp)
 
     ! ===== Finalisation =====
     ! ========================

@@ -133,7 +133,7 @@ CONTAINS
 
   ! == Fill in derived velocity fields (surface, base, vertical average)
 
-    DO ti = 1, mesh%nTri_loc
+    DO ti = mesh%ti1, mesh%ti2
 
       ! Surface
       ice%u_surf_b(    ti) = ice%u_3D_b( ti,1)
@@ -153,7 +153,6 @@ CONTAINS
       ice%uabs_vav_b( ti) = SQRT( ice%u_vav_b( ti)**2 + ice%v_vav_b( ti)**2)
 
     END DO
-    CALL sync
 
   ! == Calculate velocities on the a-grid (needed to calculate the vertical velocity w, and for writing to output)
 
@@ -174,7 +173,7 @@ CONTAINS
     CALL map_b_a_2D( mesh, ice%v_vav_b , ice%v_vav )
 
     ! Absolute
-    DO vi = 1, mesh%nV_loc
+    DO vi = mesh%vi1, mesh%vi2
       ice%uabs_surf( vi) = SQRT( ice%u_surf( vi)**2 + ice%v_surf( vi)**2)
       ice%uabs_base( vi) = SQRT( ice%u_base( vi)**2 + ice%v_base( vi)**2)
       ice%uabs_vav(  vi) = SQRT( ice%u_vav(  vi)**2 + ice%v_vav(  vi)**2)
@@ -431,13 +430,13 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Velocities
-    DO ti = 1, mesh%nTri_loc
+    DO ti = mesh%ti1, mesh%ti2
       ice%u_3D_b( ti,:) = SIA%u_3D_b( ti,:)
       ice%v_3D_b( ti,:) = SIA%v_3D_b( ti,:)
     END DO
 
     ! Strain rates
-    DO vi = 1, mesh%nV_loc
+    DO vi = mesh%vi1, mesh%vi2
       ice%du_dz_3D( vi,:) = SIA%du_dz_3D( vi,:)
       ice%dv_dz_3D( vi,:) = SIA%dv_dz_3D( vi,:)
     END DO
@@ -450,7 +449,6 @@ CONTAINS
     ice%dw_dx_3D = 0._dp
     ice%dw_dy_3D = 0._dp
     ice%dw_dz_3D = 0._dp
-    CALL sync
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
