@@ -108,6 +108,47 @@ MODULE ice_model_types
 
   END TYPE type_ice_velocity_solver_DIVA
 
+  TYPE type_ice_velocity_solver_BPA
+    ! Data fields needed to solve the Blatter-Pattyn Approximation
+
+    ! Solution
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: u_bk                        ! 3-D horizontal ice velocity [m yr^-1]
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: v_bk
+
+    ! Intermediate data fields
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: du_dx_ak                    ! Strain rates [yr^-1]
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: du_dy_ak
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: du_dz_ak
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: dv_dx_ak
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: dv_dy_ak
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: dv_dz_ak
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: du_dx_bks
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: du_dy_bks
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: du_dz_bks
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: dv_dx_bks
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: dv_dy_bks
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: dv_dz_bks
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: eta_ak                      ! Effective viscosity
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: eta_bks
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: eta_bk
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: deta_dx_bk                  ! Gradients of eta
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: deta_dy_bk
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: deta_dz_bk
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: beta_b_b                    ! Friction coefficient (tau_b = u * beta_b)
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: tau_dx_b                    ! Driving stress
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: tau_dy_b
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: u_bk_prev                   ! Previous velocity solution
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: v_bk_prev
+
+    ! Parameters for the iterative solver used to solve the matrix equation representing the linearised SSA
+    REAL(dp)                                :: PETSc_rtol
+    REAL(dp)                                :: PETSc_abstol
+
+    ! Restart file
+    CHARACTER(LEN=256)                      :: restart_filename
+
+  END TYPE type_ice_velocity_solver_BPA
+
   TYPE type_ice_model
     ! The ice dynamics model data structure.
 
@@ -191,7 +232,7 @@ MODULE ice_model_types
     TYPE(type_ice_velocity_solver_SIA)      :: SIA                         ! Shallow Ice Approximation
     TYPE(type_ice_velocity_solver_SSA)      :: SSA                         ! Shallow Shelf Approximation
     TYPE(type_ice_velocity_solver_DIVA)     :: DIVA                        ! Depth-Integrated Viscosity Approximation
-    ! TYPE(type_ice_velocity_solver_BPA)      :: BPA                         ! Blatter-Pattyn Approximation
+    TYPE(type_ice_velocity_solver_BPA)      :: BPA                         ! Blatter-Pattyn Approximation
 
     ! 3-D
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: u_3D                        ! [m yr^-1] 3-D ice velocity

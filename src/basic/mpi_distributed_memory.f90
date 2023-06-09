@@ -64,7 +64,6 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'gather_to_master_int_1D'
     INTEGER                                                            :: n1,i
-    INTEGER                                                            :: i1,i2
     INTEGER                                                            :: n_tot
     INTEGER,  DIMENSION(1:par%n)                                       :: counts, displs
 
@@ -117,7 +116,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'gather_to_master_int_2D'
     INTEGER                                                            :: n1,n2,i,n2_proc
-    INTEGER                                                            :: n1_tot,j
+    INTEGER                                                            :: j
     integer                                                            :: dummy(1)
 
     ! Add routine to path
@@ -170,7 +169,6 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'gather_to_master_dp_1D'
     INTEGER                                                            :: n1,i
-    INTEGER                                                            :: i1,i2
     INTEGER                                                            :: n_tot
     INTEGER,  DIMENSION(1:par%n)                                       :: counts, displs
 
@@ -223,7 +221,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'gather_to_master_dp_2D'
     INTEGER                                                            :: n1,n2,i,n2_proc
-    INTEGER                                                            :: n1_tot,j
+    INTEGER                                                            :: j
     real(dp)                                                           :: dummy(1)
 
     ! Add routine to path
@@ -279,7 +277,6 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'gather_to_all_int_1D'
     INTEGER                                                            :: n1,i
-    INTEGER                                                            :: i1,i2
     INTEGER                                                            :: n_tot
     INTEGER,  DIMENSION(1:par%n)                                       :: counts, displs
 
@@ -382,7 +379,6 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'gather_to_all_dp_1D'
     INTEGER                                                            :: n1,i
-    INTEGER                                                            :: i1,i2
     INTEGER                                                            :: n_tot
     INTEGER,  DIMENSION(1:par%n)                                       :: counts, displs
 
@@ -538,9 +534,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'distribute_from_master_int_2D'
     INTEGER                                                            :: n1,n2,i,n2_proc
-    INTEGER                                                            :: n1_tot,j
-
-  
+    INTEGER                                                            :: j
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -637,7 +631,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'distribute_from_master_dp_2D'
     INTEGER                                                            :: n1,n2,i,n2_proc
-    INTEGER                                                            :: n1_tot,j
+    INTEGER                                                            :: j
 
     ! Add routine to path
     CALL init_routine( routine_name)

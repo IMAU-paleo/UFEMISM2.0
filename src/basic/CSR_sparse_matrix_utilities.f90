@@ -35,6 +35,9 @@ CONTAINS
 ! ===== Subroutinea ======
 ! ========================
 
+  ! ===== CSR matrices in distributed memory =====
+  ! ==============================================
+
   SUBROUTINE allocate_matrix_CSR_dist( A, m_glob, n_glob, m_loc, n_loc, nnz_max_proc)
     ! Allocate memory for a CSR-format sparse m-by-n matrix A
 
@@ -366,5 +369,46 @@ CONTAINS
     val( 1:nnz) = A%val( k1:k2)
 
   END SUBROUTINE read_single_row_CSR_dist
+
+  ! ===== CSR matrices in local memory =====
+  ! ========================================
+
+  SUBROUTINE allocate_matrix_CSR_loc( A, m, n, nnz_max)
+    ! Allocate memory for a CSR-format sparse m-by-n matrix A
+
+    IMPLICIT NONE
+
+    ! In- and output variables:
+    TYPE(type_sparse_matrix_CSR_dp),     INTENT(INOUT) :: A
+    INTEGER,                             INTENT(IN)    :: m, n, nnz_max
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'allocate_matrix_CSR_loc'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Matrix dimensions
+    A%m       = m
+    A%n       = n
+    A%m_loc   = m
+    A%n_loc   = n
+    A%nnz_max = nnz_max
+    A%nnz     = 0
+
+    A%i1 = 1
+    A%i2 = m
+    A%j1 = 1
+    A%j2 = n
+
+    ! Allocate memory
+    ALLOCATE( A%ptr( A%m+1    ), source = 1    )
+    ALLOCATE( A%ind( A%nnz_max), source = 0    )
+    ALLOCATE( A%val( A%nnz_max), source = 0._dp)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE allocate_matrix_CSR_loc
 
 END MODULE CSR_sparse_matrix_utilities

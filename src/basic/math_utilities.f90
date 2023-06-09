@@ -158,7 +158,7 @@ CONTAINS
 
 ! == The oblique stereographic projection
 
-  PURE SUBROUTINE oblique_sg_projection( lambda, phi, lambda_M_deg, phi_M_deg, beta_deg, x, y, k_P)
+  PURE SUBROUTINE oblique_sg_projection( lambda, phi, lambda_M_deg, phi_M_deg, beta_deg, x, y)
     ! This subroutine projects with an oblique stereographic projection the longitude-latitude
     ! coordinates to a rectangular coordinate system, with coordinates (x,y).
     !
@@ -184,7 +184,6 @@ CONTAINS
     ! Output variables:
     REAL(dp)                                           , INTENT(OUT)   :: x              ! [m] x-coordinate
     REAL(dp)                                           , INTENT(OUT)   :: y              ! [m] y-coordinate
-    REAL(dp)                                 , OPTIONAL, INTENT(OUT)   :: k_P            ! Length scale factor [-],  k in Snyder (1987)
 
     ! Local variables:
     REAL(dp)                                                           :: alpha_deg      ! [degrees]
@@ -211,9 +210,6 @@ CONTAINS
     ! See equations (2.4-2.5) or equations (A.54-A.55) in Reerink et al. (2010):
     x =  earth_radius * (COS(phi_P) * SIN(lambda_P - lambda_M)) * t_P_prime
     y =  earth_radius * (SIN(phi_P) * COS(phi_M) - (COS(phi_P) * SIN(phi_M)) * COS(lambda_P - lambda_M)) * t_P_prime
-
-!    ! See equation (21-4) on page 157 in Snyder (1987):
-!    IF(PRESENT(k_P)) k_P = (1._dp + COS(alpha)) / (1._dp + SIN(phi_M) * SIN(phi_P) + COS(phi_M) * COS(phi_P) * COS(lambda_P - lambda_M))
 
   END SUBROUTINE oblique_sg_projection
 
@@ -515,7 +511,6 @@ CONTAINS
     REAL(real128) :: A11, A12, A13, A14, A15, A21, A22, A23, A24, &
          A25, A31, A32, A33, A34, A35, A41, A42, A43, A44, A45,   &
          A51, A52, A53, A54, A55
-    REAL(real128), DIMENSION(5,5) :: COFACTOR
 
     A11=A(1,1); A12=A(1,2); A13=A(1,3); A14=A(1,4); A15=A(1,5)
     A21=A(2,1); A22=A(2,2); A23=A(2,3); A24=A(2,4); A25=A(2,5)
@@ -996,7 +991,6 @@ CONTAINS
     REAL(dp), DIMENSION(2      )                                       :: x       ! THe solution x
 
     ! Local variables:
-    REAL(dp)                                                           :: detA
     REAL(dp), DIMENSION(2,2    )                                       :: Ainv
 
     ! Calculate the inverse of A
@@ -1845,6 +1839,469 @@ CONTAINS
 
   END FUNCTION linint_points
 
+! == Shape functions (also known as finite difference coefficients)
+
+  SUBROUTINE calc_shape_functions_1D_reg_2nd_order( x, n_max, n_c, x_c, Nfx_i, Nfxx_i, Nfx_c, Nfxx_c)
+    ! Calculate shape functions...
+    ! ...in one dimension...
+    ! ...on the regular grid (i.e. f is known)...
+    ! ...to 2nd-order accuracy.
+    !
+    ! Based on the least-squares approach from Syrakos et al. (2017).
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    REAL(dp),                            INTENT(IN)    :: x          ! The location where we want to know the gradients
+    INTEGER,                             INTENT(IN)    :: n_max      ! The maximum number of surrounding points
+    INTEGER,                             INTENT(IN)    :: n_c        ! The number  of     surrounding points where we know f
+    REAL(dp), DIMENSION(n_max),          INTENT(IN)    :: x_c        ! Coordinates of the surrounding points where we know f
+    REAL(dp),                            INTENT(OUT)   :: Nfx_i      ! d/dx   shape function for the point [x,y]
+    REAL(dp),                            INTENT(OUT)   :: Nfxx_i     ! d2/dx2 shape function for the point [x,y]
+    REAL(dp), DIMENSION(n_max),          INTENT(OUT)   :: Nfx_c      ! d/dx   shape functions for the surrounding points
+    REAL(dp), DIMENSION(n_max),          INTENT(OUT)   :: Nfxx_c     ! d2/dx2 shape functions for the surrounding points
+
+    ! Local variables:
+    REAL(dp), PARAMETER                                :: q = 1.5_dp
+    INTEGER                                            :: ci
+    REAL(dp), DIMENSION(n_c)                           :: dx, w
+    REAL(dp), DIMENSION(2,2)                           :: ATWTWA, M
+
+    ! Safety
+    IF (n_c < 2) CALL crash('calc_shape_functions_1D_reg_2nd_order needs at least 2 neighbours!')
+
+    ! Calculate distances relative to x
+    DO ci = 1, n_c
+      dx( ci) = x_c( ci) - x
+    END DO
+
+    ! Calculate the weights w
+    DO ci = 1, n_c
+      w( ci) = 1._dp / (ABS( dx( ci))**q)
+    END DO
+
+    ! The matrix ATWTWA that needs to be inverted
+    ATWTWA = 0._dp
+    DO ci = 1, n_c
+      ATWTWA( 1,1) = ATWTWA( 1,1) + w(ci)**2 *       dx( ci)    *       dx( ci)
+      ATWTWA( 1,2) = ATWTWA( 1,2) + w(ci)**2 *       dx( ci)    * 1/2 * dx( ci)**2
+
+      ATWTWA( 2,1) = ATWTWA( 2,1) + w(ci)**2 * 1/2 * dx( ci)**2 *       dx( ci)
+      ATWTWA( 2,2) = ATWTWA( 2,2) + w(ci)**2 * 1/2 * dx( ci)**2 * 1/2 * dx( ci)**2
+    END DO
+
+    ! Invert ATWTWA to find M
+    M = calc_matrix_inverse_2_by_2( ATWTWA)
+
+    ! Calculate shape functions
+    Nfx_c   = 0._dp
+    Nfxx_c  = 0._dp
+    DO ci = 1, n_c
+      Nfx_c(   ci) = w( ci)**2 * ( &
+        (M( 1,1) *        dx( ci)   ) + &
+        (M( 1,2) * 1/2  * dx( ci)**2))
+      Nfxx_c(  ci) = w( ci)**2 * ( &
+        (M( 2,1) *        dx( ci)   ) + &
+        (M( 2,2) * 1/2  * dx( ci)**2))
+    END DO
+
+    Nfx_i  = -SUM( Nfx_c )
+    Nfxx_i = -SUM( Nfxx_c)
+
+  END SUBROUTINE calc_shape_functions_1D_reg_2nd_order
+
+  SUBROUTINE calc_shape_functions_1D_stag_2nd_order( x, n_max, n_c, x_c, Nf_c, Nfx_c)
+    ! Calculate shape functions...
+    ! ...in one dimension...
+    ! ...on the staggered grid (i.e. f is not known)...
+    ! ...to 2nd-order accuracy.
+    !
+    ! Based on the least-squares approach from Syrakos et al. (2017).
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    REAL(dp),                            INTENT(IN)    :: x          ! The location where we want to know the gradients
+    INTEGER,                             INTENT(IN)    :: n_max      ! The maximum number of surrounding points
+    INTEGER,                             INTENT(IN)    :: n_c        ! The number  of     surrounding points where we know f
+    REAL(dp), DIMENSION(n_max),          INTENT(IN)    :: x_c      ! Coordinates of the surrounding points where we know f
+    REAL(dp), DIMENSION(n_max),          INTENT(OUT)   :: Nf_c       ! map    shape functions for the surrounding points
+    REAL(dp), DIMENSION(n_max),          INTENT(OUT)   :: Nfx_c      ! d/dx   shape functions for the surrounding points
+
+    ! Local variables:
+    REAL(dp), PARAMETER                                :: q = 1.5_dp
+    INTEGER                                            :: ci
+    REAL(dp), DIMENSION(n_c)                           :: dx, w
+    REAL(dp), DIMENSION(2,2)                           :: ATWTWA, M
+
+    ! Safety
+    IF (n_c < 2) CALL crash('calc_shape_functions_1D_stag_2nd_order needs at least 2 neighbours!')
+
+    ! Calculate distances relative to x
+    DO ci = 1, n_c
+      dx( ci) = x_c( ci) - x
+    END DO
+
+    ! Calculate the weights w
+    DO ci = 1, n_c
+      w( ci) = 1._dp / (ABS( dx( ci))**q)
+    END DO
+
+    ! The matrix ATWTWA that needs to be inverted
+    ATWTWA = 0._dp
+    DO ci = 1, n_c
+      ATWTWA( 1,1) = ATWTWA( 1,1) + (w( ci)**2 * 1       * 1      )
+      ATWTWA( 1,2) = ATWTWA( 1,2) + (w( ci)**2 * 1       * dx( ci))
+
+      ATWTWA( 2,1) = ATWTWA( 2,1) + (w( ci)**2 * dx( ci) * 1      )
+      ATWTWA( 2,2) = ATWTWA( 2,2) + (w( ci)**2 * dx( ci) * dx( ci))
+    END DO
+
+    ! Invert ATWTWA to find M
+    M = calc_matrix_inverse_2_by_2( ATWTWA)
+
+    ! Calculate shape functions
+    Nf_c   = 0._dp
+    Nfx_c  = 0._dp
+    DO ci = 1, n_c
+      Nf_c(   ci) = w( ci)**2 * ( &
+        (M( 1,1) *        1         ) + &
+        (M( 1,2) *        dx( ci)**2))
+      Nfx_c(  ci) = w( ci)**2 * ( &
+        (M( 2,1) *        1         ) + &
+        (M( 2,2) *        dx( ci)**2))
+    END DO
+
+  END SUBROUTINE calc_shape_functions_1D_stag_2nd_order
+
+  SUBROUTINE calc_shape_functions_2D_reg_1st_order( x, y, n_max, n_c, x_c, y_c, Nfx_i, Nfy_i, Nfx_c, Nfy_c, succeeded)
+    ! Calculate shape functions...
+    ! ...in two dimensions...
+    ! ...on the regular grid (i.e. f is known)...
+    ! ...to 1st-order accuracy.
+    !
+    ! Based on the least-squares approach from Syrakos et al. (2017).
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    REAL(dp),                            INTENT(IN)    :: x, y       ! The location where we want to know the gradients
+    INTEGER,                             INTENT(IN)    :: n_max      ! The maximum number of surrounding points
+    INTEGER,                             INTENT(IN)    :: n_c        ! The number  of     surrounding points where we know f
+    REAL(dp), DIMENSION(n_max),          INTENT(IN)    :: x_c, y_c   ! Coordinates of the surrounding points where we know f
+    REAL(dp),                            INTENT(OUT)   :: Nfx_i      ! d/dx   shape function for the point [x,y]
+    REAL(dp),                            INTENT(OUT)   :: Nfy_i      ! d/dy   shape function for the point [x,y]
+    REAL(dp), DIMENSION(n_max),          INTENT(OUT)   :: Nfx_c      ! d/dx   shape functions for the surrounding points
+    REAL(dp), DIMENSION(n_max),          INTENT(OUT)   :: Nfy_c      ! d/dy   shape functions for the surrounding points
+    LOGICAL,                             INTENT(OUT)   :: succeeded  ! Whether or not we succeeded (if not, we need more neighbours)
+
+    ! Local variables:
+    REAL(dp), PARAMETER                                :: q = 1.5_dp
+    INTEGER                                            :: ci
+    REAL(dp), DIMENSION(n_c)                           :: dx, dy, w
+    REAL(dp), DIMENSION(2,2)                           :: ATWTWA
+    REAL(dp)                                           :: detATWTWA
+    REAL(dp), DIMENSION(2,2)                           :: M
+
+    ! Safety
+    IF (n_c < 2) CALL crash('calc_shape_functions_2D_reg_1st_order needs at least 2 neighbours!')
+
+    ! Calculate distances relative to [x,y]
+    DO ci = 1, n_c
+      dx( ci) = x_c( ci) - x
+      dy( ci) = y_c( ci) - y
+    END DO
+
+    ! Calculate the weights w
+    DO ci = 1, n_c
+      w( ci) = 1._dp / (NORM2( [dx( ci), dy( ci)])**q)
+    END DO
+
+    ! The matrix ATWTWA that needs to be inverted
+    ATWTWA = 0._dp
+    DO ci = 1, n_c
+      ATWTWA( 1,1) = ATWTWA( 1,1) + w(ci)**2 *       dx( ci)    *       dx( ci)
+      ATWTWA( 1,2) = ATWTWA( 1,2) + w(ci)**2 *       dx( ci)    *       dy( ci)
+
+      ATWTWA( 2,1) = ATWTWA( 2,1) + w(ci)**2 *       dy( ci)    *       dx( ci)
+      ATWTWA( 2,2) = ATWTWA( 2,2) + w(ci)**2 *       dy( ci)    *       dy( ci)
+    END DO
+
+    ! Check if this matrix is singular
+    detATWTWA = calc_determinant_2_by_2( ATWTWA)
+    IF (ABS( detATWTWA) < TINY( detATWTWA)) THEN
+      ! ATWTWA is singular; try again with more neighbours!
+      succeeded = .FALSE.
+      RETURN
+    ELSE
+      succeeded = .TRUE.
+    END IF
+
+    ! Invert ATWTWA to find M
+    M = calc_matrix_inverse_2_by_2( ATWTWA)
+
+    ! Calculate shape functions
+    Nfx_c   = 0._dp
+    Nfy_c   = 0._dp
+    DO ci = 1, n_c
+      Nfx_c(   ci) = w( ci)**2 * ( &
+        (M( 1,1) *        dx( ci)   ) + &
+        (M( 1,2) *        dy( ci)   ))
+      Nfy_c(   ci) = w( ci)**2 * ( &
+        (M( 2,1) *        dx( ci)   ) + &
+        (M( 2,2) *        dy( ci)   ))
+    END DO
+
+    Nfx_i  = -SUM( Nfx_c )
+    Nfy_i  = -SUM( Nfy_c )
+
+  END SUBROUTINE calc_shape_functions_2D_reg_1st_order
+
+  SUBROUTINE calc_shape_functions_2D_reg_2nd_order( x, y, n_max, n_c, x_c, y_c, Nfx_i, Nfy_i, Nfxx_i, Nfxy_i, Nfyy_i, Nfx_c, Nfy_c, Nfxx_c, Nfxy_c, Nfyy_c, succeeded)
+    ! Calculate shape functions...
+    ! ...in two dimensions...
+    ! ...on the regular grid (i.e. f is known)...
+    ! ...to 2nd-order accuracy.
+    !
+    ! Based on the least-squares approach from Syrakos et al. (2017).
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    REAL(dp),                            INTENT(IN)    :: x, y       ! The location where we want to know the gradients
+    INTEGER,                             INTENT(IN)    :: n_max      ! The maximum number of surrounding points
+    INTEGER,                             INTENT(IN)    :: n_c        ! The number  of     surrounding points where we know f
+    REAL(dp), DIMENSION(n_max),          INTENT(IN)    :: x_c, y_c   ! Coordinates of the surrounding points where we know f
+    REAL(dp),                            INTENT(OUT)   :: Nfx_i      ! d/dx    shape function for the point [x,y]
+    REAL(dp),                            INTENT(OUT)   :: Nfy_i      ! d/dy    shape function for the point [x,y]
+    REAL(dp),                            INTENT(OUT)   :: Nfxx_i     ! d2/dx2  shape function for the point [x,y]
+    REAL(dp),                            INTENT(OUT)   :: Nfxy_i     ! d2/dxdy shape function for the point [x,y]
+    REAL(dp),                            INTENT(OUT)   :: Nfyy_i     ! d2/dxy2 shape function for the point [x,y]
+    REAL(dp), DIMENSION(n_max),          INTENT(OUT)   :: Nfx_c      ! d/dx    shape functions for the surrounding points
+    REAL(dp), DIMENSION(n_max),          INTENT(OUT)   :: Nfy_c      ! d/dy    shape functions for the surrounding points
+    REAL(dp), DIMENSION(n_max),          INTENT(OUT)   :: Nfxx_c     ! d2/dx2  shape functions for the surrounding points
+    REAL(dp), DIMENSION(n_max),          INTENT(OUT)   :: Nfxy_c     ! d2/dxdy shape functions for the surrounding points
+    REAL(dp), DIMENSION(n_max),          INTENT(OUT)   :: Nfyy_c     ! d2/dy2  shape functions for the surrounding points
+    LOGICAL,                             INTENT(OUT)   :: succeeded  ! Whether or not we succeeded (if not, we need more neighbours)
+
+    ! Local variables:
+    REAL(dp), PARAMETER                                :: q = 1.5_dp
+    INTEGER                                            :: ci
+    REAL(dp), DIMENSION(n_c)                           :: dx, dy, w
+    REAL(dp), DIMENSION(5,5)                           :: ATWTWA
+    REAL(dp)                                           :: detATWTWA
+    REAL(dp), DIMENSION(5,5)                           :: M
+
+    ! Safety
+    IF (n_c < 5) CALL crash('calc_shape_functions_2D_reg_2nd_order needs at least 2 neighbours!')
+
+    ! Calculate distances relative to [x,y]
+    DO ci = 1, n_c
+      dx( ci) = x_c( ci) - x
+      dy( ci) = y_c( ci) - y
+    END DO
+
+    ! Calculate the weights w
+    DO ci = 1, n_c
+      w( ci) = 1._dp / (NORM2( [dx( ci), dy( ci)])**q)
+    END DO
+
+    ! The matrix ATWTWA that needs to be inverted
+    ATWTWA = 0._dp
+    DO ci = 1, n_c
+
+      ATWTWA( 1,1) = ATWTWA( 1,1) + w( ci)**2 *       dx( ci)                 *       dx( ci)
+      ATWTWA( 1,2) = ATWTWA( 1,2) + w( ci)**2 *       dx( ci)                 *                    dy( ci)
+      ATWTWA( 1,3) = ATWTWA( 1,3) + w( ci)**2 *       dx( ci)                 * 1/2 * dx( ci)**2
+      ATWTWA( 1,4) = ATWTWA( 1,4) + w( ci)**2 *       dx( ci)                 *       dx( ci)    * dy( ci)
+      ATWTWA( 1,5) = ATWTWA( 1,5) + w( ci)**2 *       dx( ci)                 * 1/2 *              dy( ci)**2
+
+      ATWTWA( 2,1) = ATWTWA( 2,1) + w( ci)**2 *                    dy( ci)    *       dx( ci)
+      ATWTWA( 2,2) = ATWTWA( 2,2) + w( ci)**2 *                    dy( ci)    *                    dy( ci)
+      ATWTWA( 2,3) = ATWTWA( 2,3) + w( ci)**2 *                    dy( ci)    * 1/2 * dx( ci)**2
+      ATWTWA( 2,4) = ATWTWA( 2,4) + w( ci)**2 *                    dy( ci)    *       dx( ci)    * dy( ci)
+      ATWTWA( 2,5) = ATWTWA( 2,5) + w( ci)**2 *                    dy( ci)    * 1/2 *              dy( ci)**2
+
+      ATWTWA( 3,1) = ATWTWA( 3,1) + w( ci)**2 * 1/2 * dx( ci)**2              *       dx( ci)
+      ATWTWA( 3,2) = ATWTWA( 3,2) + w( ci)**2 * 1/2 * dx( ci)**2              *                    dy( ci)
+      ATWTWA( 3,3) = ATWTWA( 3,3) + w( ci)**2 * 1/2 * dx( ci)**2              * 1/2 * dx( ci)**2
+      ATWTWA( 3,4) = ATWTWA( 3,4) + w( ci)**2 * 1/2 * dx( ci)**2              *       dx( ci)    * dy( ci)
+      ATWTWA( 3,5) = ATWTWA( 3,5) + w( ci)**2 * 1/2 * dx( ci)**2              * 1/2 *              dy( ci)**2
+
+      ATWTWA( 4,1) = ATWTWA( 4,1) + w( ci)**2 *       dx( ci)    * dy( ci)    *       dx( ci)
+      ATWTWA( 4,2) = ATWTWA( 4,2) + w( ci)**2 *       dx( ci)    * dy( ci)    *                    dy( ci)
+      ATWTWA( 4,3) = ATWTWA( 4,3) + w( ci)**2 *       dx( ci)    * dy( ci)    * 1/2 * dx( ci)**2
+      ATWTWA( 4,4) = ATWTWA( 4,4) + w( ci)**2 *       dx( ci)    * dy( ci)    *       dx( ci)    * dy( ci)
+      ATWTWA( 4,5) = ATWTWA( 4,5) + w( ci)**2 *       dx( ci)    * dy( ci)    * 1/2 *              dy( ci)**2
+
+      ATWTWA( 5,1) = ATWTWA( 5,1) + w( ci)**2 * 1/2 *              dy( ci)**2 *       dx( ci)
+      ATWTWA( 5,2) = ATWTWA( 5,2) + w( ci)**2 * 1/2 *              dy( ci)**2 *                    dy( ci)
+      ATWTWA( 5,3) = ATWTWA( 5,3) + w( ci)**2 * 1/2 *              dy( ci)**2 * 1/2 * dx( ci)**2
+      ATWTWA( 5,4) = ATWTWA( 5,4) + w( ci)**2 * 1/2 *              dy( ci)**2 *       dx( ci)    * dy( ci)
+      ATWTWA( 5,5) = ATWTWA( 5,5) + w( ci)**2 * 1/2 *              dy( ci)**2 * 1/2 *              dy( ci)**2
+
+    END DO
+
+    ! Check if this matrix is singular
+    detATWTWA = calc_determinant_5_by_5( ATWTWA)
+    IF (ABS( detATWTWA) < TINY( detATWTWA)) THEN
+      ! ATWTWA is singular; try again with more neighbours!
+      succeeded = .FALSE.
+      RETURN
+    ELSE
+      succeeded = .TRUE.
+    END IF
+
+    ! Invert ATWTWA to find M
+    M = calc_matrix_inverse_5_by_5( ATWTWA)
+
+    ! Calculate shape functions
+
+    Nfx_c   = 0._dp
+    Nfy_c   = 0._dp
+    Nfxx_c  = 0._dp
+    Nfxy_c  = 0._dp
+    Nfyy_c  = 0._dp
+
+    DO ci = 1, n_c
+
+      Nfx_c(   ci) = w( ci)**2 * ( &
+        (M( 1,1) *       dx( ci)                ) + &
+        (M( 1,2) *                    dy( ci)   ) + &
+        (M( 1,3) * 1/2 * dx( ci)**2             ) + &
+        (M( 1,4) *       dx( ci)    * dy( ci)   ) + &
+        (M( 1,5) * 1/2 *              dy( ci)**2))
+
+      Nfy_c(   ci) = w( ci)**2 * ( &
+        (M( 2,1) *       dx( ci)                ) + &
+        (M( 2,2) *                    dy( ci)   ) + &
+        (M( 2,3) * 1/2 * dx( ci)**2             ) + &
+        (M( 2,4) *       dx( ci)    * dy( ci)   ) + &
+        (M( 2,5) * 1/2 *              dy( ci)**2))
+
+      Nfxx_c(   ci) = w( ci)**2 * ( &
+        (M( 3,1) *       dx( ci)                ) + &
+        (M( 3,2) *                    dy( ci)   ) + &
+        (M( 3,3) * 1/2 * dx( ci)**2             ) + &
+        (M( 3,4) *       dx( ci)    * dy( ci)   ) + &
+        (M( 3,5) * 1/2 *              dy( ci)**2))
+
+      Nfxy_c(   ci) = w( ci)**2 * ( &
+        (M( 4,1) *       dx( ci)                ) + &
+        (M( 4,2) *                    dy( ci)   ) + &
+        (M( 4,3) * 1/2 * dx( ci)**2             ) + &
+        (M( 4,4) *       dx( ci)    * dy( ci)   ) + &
+        (M( 4,5) * 1/2 *              dy( ci)**2))
+
+      Nfyy_c(   ci) = w( ci)**2 * ( &
+        (M( 5,1) *       dx( ci)                ) + &
+        (M( 5,2) *                    dy( ci)   ) + &
+        (M( 5,3) * 1/2 * dx( ci)**2             ) + &
+        (M( 5,4) *       dx( ci)    * dy( ci)   ) + &
+        (M( 5,5) * 1/2 *              dy( ci)**2))
+
+    END DO
+
+    Nfx_i   = -SUM( Nfx_c  )
+    Nfy_i   = -SUM( Nfy_c  )
+    Nfxx_i  = -SUM( Nfxx_c )
+    Nfxy_i  = -SUM( Nfxy_c )
+    Nfyy_i  = -SUM( Nfyy_c )
+
+  END SUBROUTINE calc_shape_functions_2D_reg_2nd_order
+
+  SUBROUTINE calc_shape_functions_2D_stag_1st_order( x, y, n_max, n_c, x_c, y_c, Nf_c, Nfx_c, Nfy_c, succeeded)
+    ! Calculate shape functions...
+    ! ...in two dimensions...
+    ! ...on the staggered grid (i.e. f is not known)...
+    ! ...to 1st-order accuracy.
+    !
+    ! Based on the least-squares approach from Syrakos et al. (2017).
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    REAL(dp),                            INTENT(IN)    :: x, y       ! The location where we want to know the gradients
+    INTEGER,                             INTENT(IN)    :: n_max      ! The maximum number of surrounding points
+    INTEGER,                             INTENT(IN)    :: n_c        ! The number  of     surrounding points where we know f
+    REAL(dp), DIMENSION(n_max),          INTENT(IN)    :: x_c, y_c   ! Coordinates of the surrounding points where we know f
+    REAL(dp), DIMENSION(n_max),          INTENT(OUT)   :: Nf_c       ! map    shape functions for the surrounding points
+    REAL(dp), DIMENSION(n_max),          INTENT(OUT)   :: Nfx_c      ! d/dx   shape functions for the surrounding points
+    REAL(dp), DIMENSION(n_max),          INTENT(OUT)   :: Nfy_c      ! d/dy   shape functions for the surrounding points
+    LOGICAL,                             INTENT(OUT)   :: succeeded  ! Whether or not we succeeded (if not, we need more neighbours)
+
+    ! Local variables:
+    REAL(dp), PARAMETER                                :: q = 1.5_dp
+    INTEGER                                            :: ci
+    REAL(dp), DIMENSION(n_c)                           :: dx, dy, w
+    REAL(dp), DIMENSION(3,3)                           :: ATWTWA
+    REAL(dp)                                           :: detATWTWA
+    REAL(dp), DIMENSION(3,3)                           :: M
+
+    ! Safety
+    IF (n_c < 3) CALL crash('calc_shape_functions_2D_stag_1st_order needs at least 3 neighbours!')
+
+    ! Calculate distances relative to [x,y]
+    DO ci = 1, n_c
+      dx( ci) = x_c( ci) - x
+      dy( ci) = y_c( ci) - y
+    END DO
+
+    ! Calculate the weights w
+    DO ci = 1, n_c
+      w( ci) = 1._dp / (NORM2( [dx( ci), dy( ci)])**q)
+    END DO
+
+    ! The matrix ATWTWA that needs to be inverted
+    ATWTWA = 0._dp
+    DO ci = 1, n_c
+      ATWTWA( 1,1) = ATWTWA( 1,1) + (w( ci)**2 * 1._dp   * 1._dp  )
+      ATWTWA( 1,2) = ATWTWA( 1,2) + (w( ci)**2 * 1._dp   * dx( ci))
+      ATWTWA( 1,3) = ATWTWA( 1,3) + (w( ci)**2 * 1._dp   * dy( ci))
+
+      ATWTWA( 2,1) = ATWTWA( 2,1) + (w( ci)**2 * dx( ci) * 1._dp  )
+      ATWTWA( 2,2) = ATWTWA( 2,2) + (w( ci)**2 * dx( ci) * dx( ci))
+      ATWTWA( 2,3) = ATWTWA( 2,3) + (w( ci)**2 * dx( ci) * dy( ci))
+
+      ATWTWA( 3,1) = ATWTWA( 3,1) + (w( ci)**2 * dy( ci) * 1._dp  )
+      ATWTWA( 3,2) = ATWTWA( 3,2) + (w( ci)**2 * dy( ci) * dx( ci))
+      ATWTWA( 3,3) = ATWTWA( 3,3) + (w( ci)**2 * dy( ci) * dy( ci))
+    END DO
+
+    ! Check if this matrix is singular
+    detATWTWA = calc_determinant_3_by_3( ATWTWA)
+    IF (ABS( detATWTWA) < TINY( detATWTWA)) THEN
+      ! ATWTWA is singular; try again with more neighbours!
+      succeeded = .FALSE.
+      RETURN
+    ELSE
+      succeeded = .TRUE.
+    END IF
+
+    ! Invert ATWTWA to find M
+    M = calc_matrix_inverse_3_by_3( ATWTWA)
+
+    ! Calculate shape functions
+    Nf_c    = 0._dp
+    Nfx_c   = 0._dp
+    Nfy_c   = 0._dp
+    DO ci = 1, n_c
+      Nf_c(  ci) = w( ci)**2 * ( &
+        (M( 1,1) * 1._dp  ) + &
+        (M( 1,2) * dx( ci)) + &
+        (M( 1,3) * dy( ci)))
+      Nfx_c(  ci) = w( ci)**2 * ( &
+        (M( 2,1) * 1._dp  ) + &
+        (M( 2,2) * dx( ci)) + &
+        (M( 2,3) * dy( ci)))
+      Nfy_c(  ci) = w( ci)**2 * ( &
+        (M( 3,1) * 1._dp  ) + &
+        (M( 3,2) * dx( ci)) + &
+        (M( 3,3) * dy( ci)))
+    END DO
+
+  END SUBROUTINE calc_shape_functions_2D_stag_1st_order
+
 ! == Basic array operations
 
   SUBROUTINE permute_2D_int(  d, map)
@@ -1858,7 +2315,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'permute_2D_int'
-    INTEGER                                                :: i,j,n1,n2,i1,i2
+    INTEGER                                                :: i,j,n1,n2
     INTEGER,  DIMENSION(:,:  ), ALLOCATABLE                :: d_temp
 
     ! Add routine to path
@@ -1914,7 +2371,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'permute_2D_dp'
-    INTEGER                                                :: i,j,n1,n2,i1,i2
+    INTEGER                                                :: i,j,n1,n2
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                :: d_temp
 
     ! Add routine to path
@@ -1970,7 +2427,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'permute_3D_int'
-    INTEGER                                            :: i,j,k,n1,n2,n3,i1,i2
+    INTEGER                                            :: i,j,k,n1,n2,n3
     INTEGER,  DIMENSION(:,:,:), ALLOCATABLE            :: d_temp
 
     ! Add routine to path
@@ -2103,7 +2560,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'permute_3D_dp'
-    INTEGER                                            :: i,j,k,n1,n2,n3,i1,i2
+    INTEGER                                            :: i,j,k,n1,n2,n3
     REAL(dp), DIMENSION(:,:,:), ALLOCATABLE            :: d_temp
 
     ! Add routine to path

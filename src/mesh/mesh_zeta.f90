@@ -12,6 +12,8 @@ MODULE mesh_zeta
   USE model_configuration                                    , ONLY: C
   USE reallocate_mod                                         , ONLY: reallocate
   USE mesh_types                                             , ONLY: type_mesh
+  USE CSR_sparse_matrix_utilities                            , ONLY: allocate_matrix_CSR_loc, add_entry_CSR_dist
+  USE math_utilities                                         , ONLY: calc_shape_functions_1D_reg_2nd_order
 
   IMPLICIT NONE
 
@@ -19,6 +21,9 @@ CONTAINS
 
 ! ===== Subroutines =====
 ! =======================
+
+  ! Initialising the scaled vertical coordinate zeta
+  ! ================================================
 
   SUBROUTINE initialise_scaled_vertical_coordinate( mesh)
     ! Initialise the scaled vertical coordinate zeta
@@ -159,6 +164,9 @@ CONTAINS
 
   END SUBROUTINE initialise_scaled_vertical_coordinate_old_15_layer
 
+  ! Some mathematical operations on a function of zeta
+  ! ==================================================
+
   PURE FUNCTION integrate_from_zeta_is_one_to_zeta_is_zetap( zeta, f) RESULT( integral_f)
     ! This subroutine integrates f from zeta( k=nz) = 1 (which corresponds to the ice base)
     ! to the level zetap = zeta( k) for all values of k
@@ -280,5 +288,327 @@ CONTAINS
     END DO
 
   END FUNCTION vertical_average
+
+  ! Gradient operators in the zeta dimension
+  ! ========================================
+
+  SUBROUTINE calc_vertical_operators_reg_1D( mesh)
+    ! Calculate mapping and d/dzeta operators in the 1-D vertical column
+    !
+    ! NOTE: since its well possible that the number of cores running the model
+    !       exceeds the number of vertical layers, these matrices are stored in
+    !       process-local memory
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                           INTENT(INOUT)     :: mesh
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'calc_vertical_operators_reg_1D'
+    INTEGER                                                      :: ncols, nrows, nnz_per_row_est, nnz_est
+    INTEGER                                                      :: k
+    REAL(dp)                                                     :: z
+    INTEGER                                                      :: n_c
+    INTEGER,  DIMENSION(2)                                       :: i_c
+    REAL(dp), DIMENSION(2)                                       :: z_c
+    INTEGER                                                      :: i,kn
+    REAL(dp)                                                     :: Nfz_i, Nfzz_i
+    REAL(dp), DIMENSION(2)                                       :: Nfz_c, Nfzz_c
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+  ! == Initialise the matrices using the native UFEMISM CSR-matrix format
+  ! =====================================================================
+
+    ! Matrix size
+    ncols           = mesh%nz      ! from
+    nrows           = mesh%nz      ! to
+    nnz_per_row_est = 3
+    nnz_est         = nrows * nnz_per_row_est
+
+    CALL allocate_matrix_CSR_loc( mesh%M_ddzeta_k_k_1D  , nrows, ncols, nnz_est)
+    CALL allocate_matrix_CSR_loc( mesh%M_d2dzeta2_k_k_1D, nrows, ncols, nnz_est)
+
+    DO k = 1, mesh%nz
+
+      ! Source: layer k
+      z = mesh%zeta( k)
+
+      ! Neighbours: layers k-1 and k+1
+      IF     (k == 1) THEN
+        n_c = 2
+        i_c = [2, 3]
+        z_c = [mesh%zeta( 2), mesh%zeta( 3)]
+      ELSEIF (k == mesh%nz) THEN
+        n_c = 2
+        i_c = [mesh%nz-2, mesh%nz-1]
+        z_c = [mesh%zeta( mesh%nz-2), mesh%zeta( mesh%nz-1)]
+      ELSE
+        n_c = 2
+        i_c = [k-1, k+1]
+        z_c = [mesh%zeta( k-1), mesh%zeta( k+1)]
+      END IF
+
+      ! Calculate shape functions
+      CALL calc_shape_functions_1D_reg_2nd_order( z, n_c, n_c, z_c, Nfz_i, Nfzz_i, Nfz_c, Nfzz_c)
+
+      ! Diagonal element: shape function for the source point
+      CALL add_entry_CSR_dist( mesh%M_ddzeta_k_k_1D  , k, k, Nfz_i )
+      CALL add_entry_CSR_dist( mesh%M_d2dzeta2_k_k_1D, k, k, Nfzz_i)
+
+      ! Off-diagonal elements: shape functions for neighbours
+      DO i = 1, n_c
+        kn = i_c( i)
+        CALL add_entry_CSR_dist( mesh%M_ddzeta_k_k_1D  , k, kn, Nfz_c(  i))
+        CALL add_entry_CSR_dist( mesh%M_d2dzeta2_k_k_1D, k, kn, Nfzz_c( i))
+      END DO
+
+    END DO
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE calc_vertical_operators_reg_1D
+
+  SUBROUTINE calc_vertical_operators_stag_1D( mesh)
+    ! Calculate mapping and d/dzeta operators in the 1-D vertical column
+    !
+    ! NOTE: since its well possible that the number of cores running the model
+    !       exceeds the number of vertical layers, these matrices are stored in
+    !       process-local memory
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                           INTENT(INOUT)     :: mesh
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'calc_vertical_operators_stag_1D'
+    INTEGER                                                      :: ncols, nrows, nnz_per_row_est, nnz_est
+    INTEGER                                                      :: ks
+    REAL(dp)                                                     :: dzeta
+    INTEGER                                                      :: k, row, col
+    INTEGER                                                      ::  k_lo,  k_hi,  ks_lo,  ks_hi
+    REAL(dp)                                                     :: wk_lo, wk_hi, wks_lo, wks_hi
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+  ! == k (regular) to ks (staggered)
+
+  ! == Initialise the matrices using the native UFEMISM CSR-matrix format
+  ! =====================================================================
+
+    ! Matrix size
+    ncols           = mesh%nz      ! from
+    nrows           = mesh%nz-1    ! to
+    nnz_per_row_est = 2
+    nnz_est         = nrows * nnz_per_row_est
+
+    CALL allocate_matrix_CSR_loc( mesh%M_map_k_ks_1D   , nrows, ncols, nnz_est)
+    CALL allocate_matrix_CSR_loc( mesh%M_ddzeta_k_ks_1D, nrows, ncols, nnz_est)
+
+    DO ks = 1, mesh%nz-1
+
+      ! Indices of neighbouring grid points
+      k_lo = ks
+      k_hi = ks + 1
+
+      ! Local grid spacing
+      dzeta = mesh%zeta( k_hi) - mesh%zeta( k_lo)
+
+      ! Linear interpolation weights
+      wk_lo = (mesh%zeta( k_hi) - mesh%zeta_stag( ks)) / dzeta
+      wk_hi = 1._dp - wk_lo
+
+      ! Left-hand neighbour
+      row = ks
+      col = k_lo
+      CALL add_entry_CSR_dist( mesh%M_map_k_ks_1D   , row, col, wk_lo         )
+      CALL add_entry_CSR_dist( mesh%M_ddzeta_k_ks_1D, row, col, -1._dp / dzeta)
+
+      ! Right-hand neighbour
+      row = ks
+      col = k_hi
+      CALL add_entry_CSR_dist( mesh%M_map_k_ks_1D   , row, col, wk_hi         )
+      CALL add_entry_CSR_dist( mesh%M_ddzeta_k_ks_1D, row, col,  1._dp / dzeta)
+
+    END DO
+
+  ! == ks (staggered) to k (regular)
+
+  ! == Initialise the matrices using the native UFEMISM CSR-matrix format
+  ! =====================================================================
+
+    ! Matrix size
+    ncols           = mesh%nz-1    ! from
+    nrows           = mesh%nz      ! to
+    nnz_per_row_est = 2
+    nnz_est         = nrows * nnz_per_row_est
+
+    CALL allocate_matrix_CSR_loc( mesh%M_map_ks_k_1D   , nrows, ncols, nnz_est)
+    CALL allocate_matrix_CSR_loc( mesh%M_ddzeta_ks_k_1D, nrows, ncols, nnz_est)
+
+    DO k = 1, mesh%nz
+
+      ! Indices of neighbouring grid points
+      IF     (k == 1) THEN
+        ks_lo = 1
+        ks_hi = 2
+      ELSEIF (k == mesh%nz) THEN
+        ks_lo = mesh%nz - 2
+        ks_hi = mesh%nz - 1
+      ELSE
+        ks_lo = k - 1
+        ks_hi = k
+      END IF
+
+      ! Local grid spacing
+      dzeta = mesh%zeta_stag( ks_hi) - mesh%zeta_stag( ks_lo)
+
+      ! Linear interpolation weights
+      wks_lo = (mesh%zeta_stag( ks_hi) - mesh%zeta( k)) / dzeta
+      wks_hi = 1._dp - wks_lo
+
+      ! Left-hand neighbour
+      row = k
+      col = ks_lo
+      CALL add_entry_CSR_dist( mesh%M_map_ks_k_1D   , row, col, wks_lo        )
+      CALL add_entry_CSR_dist( mesh%M_ddzeta_ks_k_1D, row, col, -1._dp / dzeta)
+
+      ! Right-hand neighbour
+      row = k
+      col = ks_hi
+      CALL add_entry_CSR_dist( mesh%M_map_ks_k_1D   , row, col, wks_hi        )
+      CALL add_entry_CSR_dist( mesh%M_ddzeta_ks_k_1D, row, col,  1._dp / dzeta)
+
+    END DO
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE calc_vertical_operators_stag_1D
+
+  SUBROUTINE calc_zeta_operators_tridiagonal( mesh)
+    ! Calculate zeta operators in tridiagonal form for efficient use in thermodynamics
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                     INTENT(INOUT)           :: mesh
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'calc_zeta_operators_tridiagonal'
+    INTEGER                                                      :: k,i,ii1,ii2,ii,j
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Allocate memory for the three diagonals of both matrices
+    ALLOCATE( mesh%M_ddzeta_k_k_ldiag(   C%nz-1))
+    ALLOCATE( mesh%M_ddzeta_k_k_diag(    C%nz  ))
+    ALLOCATE( mesh%M_ddzeta_k_k_udiag(   C%nz-1))
+    ALLOCATE( mesh%M_d2dzeta2_k_k_ldiag( C%nz-1))
+    ALLOCATE( mesh%M_d2dzeta2_k_k_diag(  C%nz  ))
+    ALLOCATE( mesh%M_d2dzeta2_k_k_udiag( C%nz-1))
+
+    ! Fill in coefficients
+
+    ! d/dzeta
+    DO k = 1, C%nz
+
+      ! Lower diagonal
+      IF (k > 1) THEN
+        ! Initialise
+        mesh%M_ddzeta_k_k_ldiag( k-1) = 0._dp
+        ! Find matrix element at [k,k-1]
+        i = k
+        ii1 = mesh%M_ddzeta_k_k_1D%ptr( i)
+        ii2 = mesh%M_ddzeta_k_k_1D%ptr( i+1)-1
+        DO ii = ii1, ii2
+          j = mesh%M_ddzeta_k_k_1D%ind( ii)
+          IF (j == k-1) mesh%M_ddzeta_k_k_ldiag( k-1) = mesh%M_ddzeta_k_k_1D%val( ii)
+        END DO
+      END IF ! IF (k > 1) THEN
+
+      ! Central diagonal
+      ! Initialise
+      mesh%M_ddzeta_k_k_diag( k) = 0._dp
+      ! Find matrix element at [k,k-1]
+      i = k
+      ii1 = mesh%M_ddzeta_k_k_1D%ptr( i)
+      ii2 = mesh%M_ddzeta_k_k_1D%ptr( i+1)-1
+      DO ii = ii1, ii2
+        j = mesh%M_ddzeta_k_k_1D%ind( ii)
+        IF (j == k) mesh%M_ddzeta_k_k_diag( k) = mesh%M_ddzeta_k_k_1D%val( ii)
+      END DO
+
+      ! Upper diagonal
+      IF (k < C%nz) THEN
+        ! Initialise
+        mesh%M_ddzeta_k_k_udiag( k) = 0._dp
+        ! Find matrix element at [k,k-1]
+        i = k
+        ii1 = mesh%M_ddzeta_k_k_1D%ptr( i)
+        ii2 = mesh%M_ddzeta_k_k_1D%ptr( i+1)-1
+        DO ii = ii1, ii2
+          j = mesh%M_ddzeta_k_k_1D%ind( ii)
+          IF (j == k+1) mesh%M_ddzeta_k_k_udiag( k) = mesh%M_ddzeta_k_k_1D%val( ii)
+        END DO
+      END IF ! IF (k > 1) THEN
+
+    END DO ! DO k = 1, C%nz
+
+    ! d2/dzeta2
+    DO k = 1, C%nz
+
+      ! Lower diagonal
+      IF (k > 1) THEN
+        ! Initialise
+        mesh%M_d2dzeta2_k_k_ldiag( k-1) = 0._dp
+        ! Find matrix element at [k,k-1]
+        i = k
+        ii1 = mesh%M_d2dzeta2_k_k_1D%ptr( i)
+        ii2 = mesh%M_d2dzeta2_k_k_1D%ptr( i+1)-1
+        DO ii = ii1, ii2
+          j = mesh%M_d2dzeta2_k_k_1D%ind( ii)
+          IF (j == k-1) mesh%M_d2dzeta2_k_k_ldiag( k-1) = mesh%M_d2dzeta2_k_k_1D%val( ii)
+        END DO
+      END IF ! IF (k > 1) THEN
+
+      ! Central diagonal
+      ! Initialise
+      mesh%M_d2dzeta2_k_k_diag( k) = 0._dp
+      ! Find matrix element at [k,k-1]
+      i = k
+      ii1 = mesh%M_d2dzeta2_k_k_1D%ptr( i)
+      ii2 = mesh%M_d2dzeta2_k_k_1D%ptr( i+1)-1
+      DO ii = ii1, ii2
+        j = mesh%M_d2dzeta2_k_k_1D%ind( ii)
+        IF (j == k) mesh%M_d2dzeta2_k_k_diag( k) = mesh%M_d2dzeta2_k_k_1D%val( ii)
+      END DO
+
+      ! Upper diagonal
+      IF (k < C%nz) THEN
+        ! Initialise
+        mesh%M_d2dzeta2_k_k_udiag( k) = 0._dp
+        ! Find matrix element at [k,k-1]
+        i = k
+        ii1 = mesh%M_d2dzeta2_k_k_1D%ptr( i)
+        ii2 = mesh%M_d2dzeta2_k_k_1D%ptr( i+1)-1
+        DO ii = ii1, ii2
+          j = mesh%M_d2dzeta2_k_k_1D%ind( ii)
+          IF (j == k+1) mesh%M_d2dzeta2_k_k_udiag( k) = mesh%M_d2dzeta2_k_k_1D%val( ii)
+        END DO
+      END IF ! IF (k > 1) THEN
+
+    END DO ! DO k = 1, C%nz
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE calc_zeta_operators_tridiagonal
 
 END MODULE mesh_zeta

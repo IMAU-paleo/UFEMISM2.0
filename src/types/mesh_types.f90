@@ -145,7 +145,7 @@ MODULE mesh_types
     INTEGER,  DIMENSION(:,:  ), ALLOCATABLE :: eiks2n
     INTEGER,  DIMENSION(:,:,:), ALLOCATABLE :: eiksuv2n
 
-    ! Basic mapping and gradient operators
+    ! Basic 2-D mapping and gradient operators
 
     ! a-grid (vertices) to a-grid (vertices)
     TYPE(type_sparse_matrix_CSR_dp)         :: M_ddx_a_a
@@ -187,6 +187,41 @@ MODULE mesh_types
     TYPE(type_sparse_matrix_CSR_dp)         :: M2_d2dx2_b_b
     TYPE(type_sparse_matrix_CSR_dp)         :: M2_d2dxdy_b_b
     TYPE(type_sparse_matrix_CSR_dp)         :: M2_d2dy2_b_b
+
+    ! Operators on the zeta grids
+    TYPE(type_sparse_matrix_CSR_dp)         :: M_ddzeta_k_k_1D
+    TYPE(type_sparse_matrix_CSR_dp)         :: M_d2dzeta2_k_k_1D
+    TYPE(type_sparse_matrix_CSR_dp)         :: M_map_k_ks_1D
+    TYPE(type_sparse_matrix_CSR_dp)         :: M_ddzeta_k_ks_1D
+    TYPE(type_sparse_matrix_CSR_dp)         :: M_map_ks_k_1D
+    TYPE(type_sparse_matrix_CSR_dp)         :: M_ddzeta_ks_k_1D
+
+    ! Zeta operators in tridiagonal form for efficient use in thermodynamics
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: M_ddzeta_k_k_ldiag
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: M_ddzeta_k_k_diag
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: M_ddzeta_k_k_udiag
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: M_d2dzeta2_k_k_ldiag
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: M_d2dzeta2_k_k_diag
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: M_d2dzeta2_k_k_udiag
+
+    ! Basic 3-D mapping and gradient operators
+
+    ! 3-D mapping and gradient operators in [x',y']
+    TYPE(type_sparse_matrix_CSR_dp)         :: M_ddxp_ak_ak
+    TYPE(type_sparse_matrix_CSR_dp)         :: M_ddyp_ak_ak
+    TYPE(type_sparse_matrix_CSR_dp)         :: M_ddxp_bk_bk
+    TYPE(type_sparse_matrix_CSR_dp)         :: M_ddyp_bk_bk
+    TYPE(type_sparse_matrix_CSR_dp)         :: M2_ddxp_bk_bk
+    TYPE(type_sparse_matrix_CSR_dp)         :: M2_ddyp_bk_bk
+    TYPE(type_sparse_matrix_CSR_dp)         :: M2_d2dxp2_bk_bk
+    TYPE(type_sparse_matrix_CSR_dp)         :: M2_d2dxpdyp_bk_bk
+    TYPE(type_sparse_matrix_CSR_dp)         :: M2_d2dyp2_bk_bk
+    TYPE(type_sparse_matrix_CSR_dp)         :: M_map_ak_bk
+    TYPE(type_sparse_matrix_CSR_dp)         :: M_ddxp_ak_bk
+    TYPE(type_sparse_matrix_CSR_dp)         :: M_ddyp_ak_bk
+    TYPE(type_sparse_matrix_CSR_dp)         :: M_map_bk_ak
+    TYPE(type_sparse_matrix_CSR_dp)         :: M_ddxp_bk_ak
+    TYPE(type_sparse_matrix_CSR_dp)         :: M_ddyp_bk_ak
 
   END TYPE type_mesh
 

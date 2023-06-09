@@ -70,7 +70,6 @@ CONTAINS
 
     ! Local variables:
     INTEGER                                                            :: len_path_tot, len_path_used, len_name
-    INTEGER                                                            :: ierr, cerr
     INTEGER                                                            :: i
     LOGICAL                                                            :: do_track_resource_use_loc
 
@@ -127,8 +126,7 @@ CONTAINS
 
     ! Local variables:
     LOGICAL                                                            :: do_track_resource_use
-    INTEGER                                                            :: len_path_tot, i, ii
-    INTEGER                                                            :: ierr, cerr
+    INTEGER                                                            :: len_path_tot, i
     REAL(dp)                                                           :: dt
 
     ! If so specified, print the current routine path to the terminal (useful for debugging)

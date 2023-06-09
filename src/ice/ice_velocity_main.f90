@@ -15,7 +15,7 @@ MODULE ice_velocity_main
   USE petsc_basic                                            , ONLY: solve_matrix_equation_CSR_PETSc
   USE mesh_types                                             , ONLY: type_mesh
   USE ice_model_types                                        , ONLY: type_ice_model, type_ice_velocity_solver_SIA, type_ice_velocity_solver_SSA, &
-                                                                     type_ice_velocity_solver_DIVA
+                                                                     type_ice_velocity_solver_DIVA, type_ice_velocity_solver_BPA
   USE parameters
   USE reallocate_mod                                         , ONLY: reallocate_clean
   USE mesh_operators                                         , ONLY: map_b_a_2D, map_b_a_3D, ddx_a_a_2D, ddy_a_a_2D
@@ -473,13 +473,13 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Velocities
-    DO ti = 1, mesh%nTri_loc
+    DO ti = mesh%ti1, mesh%ti2
       ice%u_3D_b( ti,:) = SSA%u_b( ti)
       ice%v_3D_b( ti,:) = SSA%v_b( ti)
     END DO
 
     ! Strain rates
-    DO vi = 1, mesh%nV_loc
+    DO vi = mesh%vi1, mesh%vi2
       ice%du_dx_3D( vi,:) = SSA%du_dx_a( vi)
       ice%du_dy_3D( vi,:) = SSA%du_dy_a( vi)
       ice%dv_dx_3D( vi,:) = SSA%dv_dx_a( vi)
@@ -520,13 +520,13 @@ CONTAINS
       ! u = u_SIA + u_SSA
 
       ! Velocities
-      DO ti = 1, mesh%nTri_loc
+      DO ti = mesh%ti1, mesh%ti2
         ice%u_3D_b( ti,:) = SIA%u_3D_b( ti,:) + SSA%u_b( ti)
         ice%v_3D_b( ti,:) = SIA%v_3D_b( ti,:) + SSA%v_b( ti)
       END DO
 
       ! Strain rates
-      DO vi = 1, mesh%nV_loc
+      DO vi = mesh%vi1, mesh%vi2
         ice%du_dz_3D( vi,:) = SIA%du_dz_3D( vi,:)
         ice%dv_dz_3D( vi,:) = SIA%dv_dz_3D( vi,:)
         ice%du_dx_3D( vi,:) = SSA%du_dx_a(  vi  )
@@ -582,9 +582,9 @@ CONTAINS
       ice%dv_dz_3D( vi,:) = DIVA%dv_dz_3D_a( vi,:)
     END DO
     ! In the DIVA, gradients of w are neglected
-    ice%dw_dx_3D( mesh%vi1:mesh%vi2,:) = 0._dp
-    ice%dw_dy_3D( mesh%vi1:mesh%vi2,:) = 0._dp
-    ice%dw_dz_3D( mesh%vi1:mesh%vi2,:) = 0._dp
+    ice%dw_dx_3D = 0._dp
+    ice%dw_dy_3D = 0._dp
+    ice%dw_dz_3D = 0._dp
     CALL sync
 
     ! Finalise routine path
@@ -592,49 +592,49 @@ CONTAINS
 
   END SUBROUTINE set_ice_velocities_to_DIVA_results
 
-!  SUBROUTINE set_ice_velocities_to_BPA_results( mesh, ice, BPA)
-!    ! Set applied ice model velocities and strain rates to BPA results
-!
-!    IMPLICIT NONE
-!
-!    ! In/output variables:
-!    TYPE(type_mesh),                     INTENT(INOUT) :: mesh
-!    TYPE(type_ice_model),                INTENT(INOUT) :: ice
-!    TYPE(type_velocity_solver_BPA),      INTENT(IN)    :: BPA
-!
-!    ! Local variables:
-!    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'set_ice_velocities_to_BPA_results'
-!    INTEGER                                            :: ti
-!
-!    ! Add routine to path
-!    CALL init_routine( routine_name)
-!
-!    ! DENK DROM
-!    CALL crash('fixme!')
-!
-!!    ! Velocities
-!!    DO ti = mesh%ti1, mesh%ti2
-!!      ice%u_3D_b( ti,:) = BPA%u_3D_b( ti,:)
-!!      ice%v_3D_b( ti,:) = BPA%v_3D_b( ti,:)
-!!    END DO
-!!
-!!    ! Strain rates
-!!    CALL vec2field_ak( mesh, BPA%du_dx_ak_vec, ice%du_dx_3D_a)
-!!    CALL vec2field_ak( mesh, BPA%du_dy_ak_vec, ice%du_dy_3D_a)
-!!    CALL vec2field_ak( mesh, BPA%du_dz_ak_vec, ice%du_dz_3D_a)
-!!    CALL vec2field_ak( mesh, BPA%dv_dx_ak_vec, ice%dv_dx_3D_a)
-!!    CALL vec2field_ak( mesh, BPA%dv_dy_ak_vec, ice%dv_dy_3D_a)
-!!    CALL vec2field_ak( mesh, BPA%dv_dz_ak_vec, ice%dv_dz_3D_a)
-!!    ! In the BPA, gradients of w are neglected
-!!    ice%dw_dx_3D_a( mesh%vi1:mesh%vi2,:) = 0._dp
-!!    ice%dw_dy_3D_a( mesh%vi1:mesh%vi2,:) = 0._dp
-!!    ice%dw_dz_3D_a( mesh%vi1:mesh%vi2,:) = 0._dp
-!!    CALL sync
-!
-!    ! Finalise routine path
-!    CALL finalise_routine( routine_name)
-!
-!  END SUBROUTINE set_ice_velocities_to_BPA_results
+  SUBROUTINE set_ice_velocities_to_BPA_results( mesh, ice, BPA)
+    ! Set applied ice model velocities and strain rates to BPA results
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                     INTENT(INOUT) :: mesh
+    TYPE(type_ice_model),                INTENT(INOUT) :: ice
+    TYPE(type_ice_velocity_solver_BPA),  INTENT(IN)    :: BPA
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'set_ice_velocities_to_BPA_results'
+    INTEGER                                            :: ti,vi
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Velocities
+    DO ti = mesh%ti1, mesh%ti2
+      ice%u_3D_b( ti,:) = BPA%u_bk( ti,:)
+      ice%v_3D_b( ti,:) = BPA%v_bk( ti,:)
+    END DO
+
+    ! Strain rates
+    DO vi = mesh%vi1, mesh%vi2
+      ice%du_dx_3D( vi,:) = BPA%du_dx_ak( vi,:)
+      ice%du_dy_3D( vi,:) = BPA%du_dy_ak( vi,:)
+      ice%du_dz_3D( vi,:) = BPA%du_dz_ak( vi,:)
+      ice%dv_dx_3D( vi,:) = BPA%dv_dx_ak( vi,:)
+      ice%dv_dy_3D( vi,:) = BPA%dv_dy_ak( vi,:)
+      ice%dv_dz_3D( vi,:) = BPA%dv_dz_ak( vi,:)
+    END DO
+
+    ! In the BPA, gradients of w are neglected
+    ice%dw_dx_3D = 0._dp
+    ice%dw_dy_3D = 0._dp
+    ice%dw_dz_3D = 0._dp
+    CALL sync
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE set_ice_velocities_to_BPA_results
 
 ! == Calculate velocities on the c-grid for solving the ice thickness equation
 
