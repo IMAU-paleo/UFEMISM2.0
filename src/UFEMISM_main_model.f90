@@ -30,6 +30,7 @@ MODULE UFEMISM_main_model
   USE bed_roughness, ONLY: initialise_bed_roughness
   USE basal_hydrology, ONLY: calc_basal_hydrology
   USE ice_velocity_main, ONLY: solve_stress_balance
+  USE mesh_operators, ONLY: calc_3D_matrix_operators_mesh
 
   IMPLICIT NONE
 
@@ -155,6 +156,7 @@ CONTAINS
     ! ===========================
 
     ! DENK DROM
+    CALL calc_3D_matrix_operators_mesh( region%mesh, region%ice)
     region%ice%A_flow_3D = 1E-16_dp
 !    ALLOCATE( region%ice%tau_c(    region%mesh%vi1:region%mesh%vi2))
 !    ALLOCATE( region%ice%phi_fric( region%mesh%vi1:region%mesh%vi2))

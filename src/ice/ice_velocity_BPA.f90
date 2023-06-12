@@ -18,7 +18,8 @@ MODULE ice_velocity_BPA
   USE ice_model_types                                        , ONLY: type_ice_model, type_ice_velocity_solver_BPA
   USE parameters
   USE reallocate_mod                                         , ONLY: reallocate_clean
-  USE mesh_operators                                         , ONLY: map_a_b_2D, ddx_a_b_2D, ddy_a_b_2D, ddx_b_a_3D, ddy_b_a_3D
+  USE mesh_operators                                         , ONLY: map_a_b_2D, ddx_a_b_2D, ddy_a_b_2D, ddx_b_a_3D, ddy_b_a_3D, &
+                                                                     calc_3D_gradient_bk_ak, calc_3D_gradient_bk_bks, map_ak_bks, map_bks_ak
   USE mesh_zeta                                              , ONLY: vertical_average
   USE sliding_laws                                           , ONLY: calc_basal_friction_coefficient
   USE mesh_utilities                                         , ONLY: find_ti_copy_ISMIP_HOM_periodic
@@ -191,6 +192,9 @@ CONTAINS
          EXIT viscosity_iteration
        END IF
 
+       ! DENK DROM
+       EXIT viscosity_iteration
+
     END DO viscosity_iteration
 
     ! Clean up after yourself
@@ -293,13 +297,25 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! Calculate the strain rates
-!    CALL ddx_b_a_3D( mesh, BPA%u_bk, BPA%du_dx_ak)
-!    CALL ddy_b_a_3D( mesh, BPA%u_bk, BPA%du_dy_ak)
-!    CALL ddz_b_a_3D( mesh, BPA%u_bk, BPA%du_dz_ak)
-!    CALL ddx_b_a_3D( mesh, BPA%v_bk, BPA%dv_dx_ak)
-!    CALL ddy_b_a_3D( mesh, BPA%v_bk, BPA%dv_dy_ak)
-!    CALL ddz_b_a_3D( mesh, BPA%v_bk, BPA%dv_dz_ak)
+    ! Calculate horizontal stretch/strain rates on the ak-grid
+    CALL calc_3D_gradient_bk_ak(  mesh, mesh%M_ddx_bk_ak , BPA%u_bk, BPA%du_dx_ak )
+    CALL calc_3D_gradient_bk_ak(  mesh, mesh%M_ddy_bk_ak , BPA%u_bk, BPA%du_dy_ak )
+    CALL calc_3D_gradient_bk_ak(  mesh, mesh%M_ddx_bk_ak , BPA%v_bk, BPA%dv_dx_ak )
+    CALL calc_3D_gradient_bk_ak(  mesh, mesh%M_ddy_bk_ak , BPA%v_bk, BPA%dv_dy_ak )
+
+    ! Calculate vertical shear strain rates on the bks-grid
+    CALL calc_3D_gradient_bk_bks( mesh, mesh%M_ddz_bk_bks, BPA%u_bk, BPA%du_dz_bks)
+    CALL calc_3D_gradient_bk_bks( mesh, mesh%M_ddz_bk_bks, BPA%v_bk, BPA%dv_dz_bks)
+
+    ! Map horizontal stretch/shear strain rates from the ak-grid to the bks-grid
+    CALL map_ak_bks( mesh, mesh%M_map_ak_bks, BPA%du_dx_ak, BPA%du_dx_bks)
+    CALL map_ak_bks( mesh, mesh%M_map_ak_bks, BPA%du_dy_ak, BPA%du_dy_bks)
+    CALL map_ak_bks( mesh, mesh%M_map_ak_bks, BPA%dv_dx_ak, BPA%dv_dx_bks)
+    CALL map_ak_bks( mesh, mesh%M_map_ak_bks, BPA%dv_dy_ak, BPA%dv_dy_bks)
+
+    ! Map vertical shear strain rates from the bks-grid to the ak-grid
+    CALL map_bks_ak( mesh, mesh%M_map_bks_ak, BPA%du_dz_bks, BPA%du_dz_ak)
+    CALL map_bks_ak( mesh, mesh%M_map_bks_ak, BPA%dv_dz_bks, BPA%dv_dz_ak)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

@@ -22,6 +22,7 @@ MODULE ice_velocity_main
   USE ice_velocity_SIA                                       , ONLY: initialise_SIA_solver , solve_SIA , remap_SIA_solver
   USE ice_velocity_SSA                                       , ONLY: initialise_SSA_solver , solve_SSA , remap_SSA_solver
   USE ice_velocity_DIVA                                      , ONLY: initialise_DIVA_solver, solve_DIVA, remap_DIVA_solver
+  USE ice_velocity_BPA                                       , ONLY: initialise_BPA_solver , solve_BPA , remap_BPA_solver
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_1D, gather_to_all_dp_2D
   USE mesh_zeta                                              , ONLY: vertical_average
 
@@ -65,8 +66,7 @@ CONTAINS
     ELSEIF (C%choice_stress_balance_approximation == 'DIVA') THEN
       CALL initialise_DIVA_solver( mesh, ice%DIVA, region_name)
     ELSEIF (C%choice_stress_balance_approximation == 'BPA') THEN
-      CALL crash('fixme!')
-!      CALL initialise_BPA_solver(  mesh, ice%BPA)
+      CALL initialise_BPA_solver(  mesh, ice%BPA, region_name)
     ELSE
       CALL crash('unknown choice_stress_balance_approximation "' // TRIM( C%choice_stress_balance_approximation) // '"!')
     END IF
@@ -123,9 +123,8 @@ CONTAINS
     ELSEIF (C%choice_stress_balance_approximation == 'BPA') THEN
       ! Calculate velocities according to the Depth-Integrated Viscosity Approximation
 
-      CALL crash('fixme!')
-!      CALL solve_BPA( mesh, ice, ice%BPA)
-!      CALL set_ice_velocities_to_BPA_results( mesh, ice, ice%BPA)
+      CALL solve_BPA( mesh, ice, ice%BPA)
+      CALL set_ice_velocities_to_BPA_results( mesh, ice, ice%BPA)
 
     ELSE
       CALL crash('unknown choice_stress_balance_approximation "' // TRIM( C%choice_stress_balance_approximation) // '"!')
@@ -598,7 +597,7 @@ CONTAINS
     IMPLICIT NONE
 
     ! In/output variables:
-    TYPE(type_mesh),                     INTENT(INOUT) :: mesh
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
     TYPE(type_ice_velocity_solver_BPA),  INTENT(IN)    :: BPA
 

@@ -205,6 +205,26 @@ MODULE mesh_types
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: M_d2dzeta2_k_k_udiag
 
     ! 3-D gradient operators
+
+    ! bk to ak (for calculating the horizontal stretch/shear strain rates in the BPA)
+    TYPE(type_sparse_matrix_CSR_dp)         :: M_ddx_bk_ak
+    TYPE(type_sparse_matrix_CSR_dp)         :: M_ddy_bk_ak
+
+    ! ak to bk (for calculating the horizontal gradients of the effective viscosity in the BPA)
+    TYPE(type_sparse_matrix_CSR_dp)         :: M_ddx_ak_bk
+    TYPE(type_sparse_matrix_CSR_dp)         :: M_ddy_ak_bk
+
+    ! bk to bks (for calculating the vertical shear strain rates in the BPA)
+    TYPE(type_sparse_matrix_CSR_dp)         :: M_ddz_bk_bks
+
+    ! bks to bk (for calculating the vertical gradient of the effective viscosity in the BPA)
+    TYPE(type_sparse_matrix_CSR_dp)         :: M_ddz_bks_bk
+
+    ! Map between the bks-grid and the ak-grid (for calculating strain rates in the BPA)
+    TYPE(type_sparse_matrix_CSR_dp)         :: M_map_bks_ak
+    TYPE(type_sparse_matrix_CSR_dp)         :: M_map_ak_bks
+
+    ! bk to bk (for constructing the BPA stiffness matrix)
     TYPE(type_sparse_matrix_CSR_dp)         :: M2_ddx_bk_bk
     TYPE(type_sparse_matrix_CSR_dp)         :: M2_ddy_bk_bk
     TYPE(type_sparse_matrix_CSR_dp)         :: M2_d2dx2_bk_bk
