@@ -345,9 +345,9 @@ CONTAINS
         dv_dzeta_ks = (ice%v_3D( vi,ks+1) - ice%v_3D( vi,ks)) / dzeta
 
         ! Calculate dzeta/dx, dzeta/dy, dzeta/dz
-        dzeta_dx_ks = 0.5_dp * (ice%dzeta_dx_3D( vi,ks) + ice%dzeta_dx_3D( vi,ks+1))
-        dzeta_dy_ks = 0.5_dp * (ice%dzeta_dy_3D( vi,ks) + ice%dzeta_dy_3D( vi,ks+1))
-        dzeta_dz_ks = 0.5_dp * (ice%dzeta_dz_3D( vi,ks) + ice%dzeta_dz_3D( vi,ks+1))
+        dzeta_dx_ks = 0.5_dp * (ice%dzeta_dx_ak( vi,ks) + ice%dzeta_dx_ak( vi,ks+1))
+        dzeta_dy_ks = 0.5_dp * (ice%dzeta_dy_ak( vi,ks) + ice%dzeta_dy_ak( vi,ks+1))
+        dzeta_dz_ks = 0.5_dp * (ice%dzeta_dz_ak( vi,ks) + ice%dzeta_dz_ak( vi,ks+1))
 
         ! Calculate dw/dzeta
         dw_dzeta_ks = -1._dp / dzeta_dz_ks * (grad_uv_ks + dzeta_dx_ks * du_dzeta_ks + dzeta_dy_ks * dv_dzeta_ks)

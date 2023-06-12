@@ -535,7 +535,7 @@ CONTAINS
     LOGICAL                                       :: are_connected_ij, are_connected_ji
     INTEGER                                       :: ci, cj, iti, n, n1, n2, n3, nf
     REAL(dp), DIMENSION(2)                        :: p, pa, pb
-    INTEGER                                       :: t1, t2, t3, t4, ti, tit, tib, titl, titr, tibl, tibr, via, vib, vit, vk
+    INTEGER                                       :: t1, t2, t3, t4, ti, tit, tib, titl, titr, tibl, tibr, vib, vit, vk
     INTEGER                                       :: li_min, li_max
 
     ! Add routine to path
@@ -1228,7 +1228,7 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'flip_triangles_until_Delaunay'
     INTEGER                                       :: ti, tj
     LOGICAL                                       :: are_connected_ij, are_connected_ji
-    INTEGER                                       :: n, vi, vj, vii
+    INTEGER                                       :: n
 
     ! Add routine to path
     CALL init_routine( routine_name)

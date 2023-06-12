@@ -199,10 +199,32 @@ MODULE ice_model_types
     ! === Terrain-following coordinate zeta gradients ===
     ! ===================================================
 
-    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: dzeta_dx_3D                 ! Gradients of the terrain-following (i.e. ice-geometry-dependent) vertical coordinate zeta
-    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: dzeta_dy_3D
-    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: dzeta_dz_3D
-    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: dzeta_dt_3D
+    ! Gradients of the terrain-following (i.e. ice-geometry-dependent) vertical coordinate zeta
+
+    ! On the ak-grid (vertices, vertically regular)
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: dzeta_dt_ak
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: dzeta_dx_ak
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: dzeta_dy_ak
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: dzeta_dz_ak
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: d2zeta_dx2_ak
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: d2zeta_dxdy_ak
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: d2zeta_dy2_ak
+
+    ! On the bk-grid (triangles, vertically regular)
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: dzeta_dx_bk
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: dzeta_dy_bk
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: dzeta_dz_bk
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: d2zeta_dx2_bk
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: d2zeta_dxdy_bk
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: d2zeta_dy2_bk
+
+    ! On the bks-grid (triangles, vertically staggered)
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: dzeta_dx_bks
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: dzeta_dy_bks
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: dzeta_dz_bks
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: d2zeta_dx2_bks
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: d2zeta_dxdy_bks
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: d2zeta_dy2_bks
 
     ! === Thermodynamics ===
     ! ======================

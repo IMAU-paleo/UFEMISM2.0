@@ -204,24 +204,14 @@ MODULE mesh_types
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: M_d2dzeta2_k_k_diag
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: M_d2dzeta2_k_k_udiag
 
-    ! Basic 3-D mapping and gradient operators
-
-    ! 3-D mapping and gradient operators in [x',y']
-    TYPE(type_sparse_matrix_CSR_dp)         :: M_ddxp_ak_ak
-    TYPE(type_sparse_matrix_CSR_dp)         :: M_ddyp_ak_ak
-    TYPE(type_sparse_matrix_CSR_dp)         :: M_ddxp_bk_bk
-    TYPE(type_sparse_matrix_CSR_dp)         :: M_ddyp_bk_bk
-    TYPE(type_sparse_matrix_CSR_dp)         :: M2_ddxp_bk_bk
-    TYPE(type_sparse_matrix_CSR_dp)         :: M2_ddyp_bk_bk
-    TYPE(type_sparse_matrix_CSR_dp)         :: M2_d2dxp2_bk_bk
-    TYPE(type_sparse_matrix_CSR_dp)         :: M2_d2dxpdyp_bk_bk
-    TYPE(type_sparse_matrix_CSR_dp)         :: M2_d2dyp2_bk_bk
-    TYPE(type_sparse_matrix_CSR_dp)         :: M_map_ak_bk
-    TYPE(type_sparse_matrix_CSR_dp)         :: M_ddxp_ak_bk
-    TYPE(type_sparse_matrix_CSR_dp)         :: M_ddyp_ak_bk
-    TYPE(type_sparse_matrix_CSR_dp)         :: M_map_bk_ak
-    TYPE(type_sparse_matrix_CSR_dp)         :: M_ddxp_bk_ak
-    TYPE(type_sparse_matrix_CSR_dp)         :: M_ddyp_bk_ak
+    ! 3-D gradient operators
+    TYPE(type_sparse_matrix_CSR_dp)         :: M2_ddx_bk_bk
+    TYPE(type_sparse_matrix_CSR_dp)         :: M2_ddy_bk_bk
+    TYPE(type_sparse_matrix_CSR_dp)         :: M2_d2dx2_bk_bk
+    TYPE(type_sparse_matrix_CSR_dp)         :: M2_d2dxdy_bk_bk
+    TYPE(type_sparse_matrix_CSR_dp)         :: M2_d2dy2_bk_bk
+    TYPE(type_sparse_matrix_CSR_dp)         :: M2_ddz_bk_bk
+    TYPE(type_sparse_matrix_CSR_dp)         :: M2_d2dz2_bk_bk
 
   END TYPE type_mesh
 

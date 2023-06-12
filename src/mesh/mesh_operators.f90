@@ -15,11 +15,14 @@ MODULE mesh_operators
   USE mesh_types                                             , ONLY: type_mesh
   USE math_utilities                                         , ONLY: calc_shape_functions_2D_reg_1st_order, calc_shape_functions_2D_reg_2nd_order, &
                                                                      calc_shape_functions_2D_stag_1st_order
-  USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp, allocate_matrix_CSR_dist, add_entry_CSR_dist
+  USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp, allocate_matrix_CSR_dist, add_entry_CSR_dist, &
+                                                                     read_single_row_CSR_dist
   USE mesh_utilities                                         , ONLY: extend_group_single_iteration_a, extend_group_single_iteration_b, &
                                                                      extend_group_single_iteration_c
   USE petsc_basic                                            , ONLY: multiply_CSR_matrix_with_vector_1D, multiply_CSR_matrix_with_vector_2D
   USE mesh_zeta                                              , ONLY: calc_vertical_operators_reg_1D, calc_vertical_operators_stag_1D, calc_zeta_operators_tridiagonal
+  USE ice_model_types                                        , ONLY: type_ice_model
+  USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_2D
 
   IMPLICIT NONE
 
@@ -498,8 +501,8 @@ CONTAINS
 
   END SUBROUTINE ddy_b_a_3D
 
-! ===== Subroutines for calculating mesh operators =====
-! ======================================================
+! ===== Subroutines for calculating 2-D mesh operators =====
+! ==========================================================
 
   SUBROUTINE calc_all_matrix_operators_mesh( mesh)
     ! Calculate mapping, d/dx, and d/dy matrix operators between all the grids (a,b,c) on the mesh
@@ -2315,5 +2318,304 @@ CONTAINS
 
   END SUBROUTINE calc_field_to_vector_form_translation_tables
 
+! ===== Subroutines for calculating 3-D mesh operators =====
+! ==========================================================
+
+  SUBROUTINE calc_3D_matrix_operators_mesh( mesh, ice)
+    ! Calculate all 3-D gradient operators in Cartesian coordinates
+    !
+    ! The basic operators are defined in transformed coordinates [xh, yh, zeta], which
+    ! are defined as:
+    !
+    !   xh   = x
+    !   yh   = y
+    !   zeta = (Hs - z) / Hi
+    !
+    ! Applying the chain rule to the gradient operators d/dx, d/dy, d/dz, d2/dx2, d2/dxdy,
+    ! d2/dy2, d2/dz2 yields:
+    !
+    !    d/dx   =  d/dxh    +  dzeta/dx   d/dzeta
+    !    d/dy   =  d/dyh    +  dzeta/dy   d/dzeta
+    !    d/dz   =              dzeta/dz   d/dzeta
+    !   d2/dx2  = d2/dxh2   + d2zeta/dx2  d/dzeta + (dzeta/dx)^2       d2/dzeta2 + 2 dzeta/dx d2/dxhdzeta
+    !   d2/dxdy = d2/dxhdyh + d2zeta/dxdy d/dzeta +  dzeta/dx dzeta/dy d2/dzeta2 +   dzeta/dx d2/dyhdzeta + dzeta/dy dxhdzeta
+    !   d2/dy2  = d2/dyh2   + d2zeta/dy2  d/dzeta + (dzeta/dy)^2       d2/dzeta2 + 2 dzeta/dy d2/dyhdzeta
+    !   d2/dz2  =                                   (dzeta/dz)^2       d2/dzeta2
+    !
+    ! The d/dxh, d/dyh, d2/dxh2, d2/dxhdyh, d2/dyh2 operators all act in the horizontal plane, so
+    ! calculating them requires only information from neighbouring triangles in the same horizontal
+    ! layer k. The d/dzeta, d2/dzeta2 operators only act in the vertical column, so they only
+    ! require information from the two adjacent horizontal layers k-1, k+1 at the same triangle ti.
+    ! Only the two "mixed" gradient operators, d2/dxhdzeta, d2/dyhdzeta, require information from
+    ! all neighbouring triangles in both adjacent layers.
+    !
+    ! Theoretically, we could convert all these basic matrix operators to PETSc format, perform
+    ! matrix multiplications on them (so e.g. M_d2dxhdzeta = M_ddxh * M_ddzeta), and then convert
+    ! the result back to CSR format. However, this is rather cumbersome to do (especially because
+    ! the basic operators are defined in 2-D for the horizontal ones and in 1-D for the vertical,
+    ! so we'd need to convert them to act on the 3-D mesh first).
+    !
+    ! Since the resulting operators  are relatively easy to interpret, we can just calculate
+    ! their coefficients directly, which is done here.
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                     INTENT(INOUT) :: mesh
+    TYPE(type_ice_model),                INTENT(IN)    :: ice
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_3D_matrix_operators_mesh'
+    INTEGER                                            :: ncols, nrows, ncols_loc, nrows_loc, nnz_per_row_est, nnz_est_proc
+    INTEGER                                            :: ti
+    INTEGER,  DIMENSION(:    ), ALLOCATABLE            :: single_row_ti_ind
+    INTEGER                                            :: single_row_ti_nnz
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: single_row_ddxh_val
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: single_row_ddyh_val
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: single_row_d2dxh2_val
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: single_row_d2dxhdyh_val
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: single_row_d2dyh2_val
+    INTEGER                                            :: k
+    INTEGER,  DIMENSION(:    ), ALLOCATABLE            :: single_row_k_ind
+    INTEGER                                            :: single_row_k_nnz
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: single_row_ddzeta_val
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: single_row_d2dzeta2_val
+    INTEGER                                            :: row_tik
+    INTEGER                                            :: ii,col_tj,tj,jj,kk,col_tjkk
+    REAL(dp)                                           :: dzeta_dx, dzeta_dy, dzeta_dz, d2zeta_dx2, d2zeta_dxdy, d2zeta_dy2
+    REAL(dp)                                           :: c_ddxh, c_ddyh, c_d2dxh2, c_d2dxhdyh, c_d2dyh2, c_ddzeta, c_d2dzeta2
+    REAL(dp)                                           :: c_ddx, c_ddy, c_ddz, c_d2dx2, c_d2dxdy, c_d2dy2, c_d2dz2
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+  ! == Initialise the matrices using the native UFEMISM CSR-matrix format
+  ! =====================================================================
+
+    ! Matrix size
+    ncols           = mesh%nTri     * mesh%nz! from
+    ncols_loc       = mesh%nTri_loc * mesh%nz
+    nrows           = mesh%nTri     * mesh%nz! to
+    nrows_loc       = mesh%nTri_loc * mesh%nz
+    nnz_per_row_est = mesh%nC_mem   * 3
+    nnz_est_proc    = nrows_loc * nnz_per_row_est
+
+    CALL allocate_matrix_CSR_dist( mesh%M2_ddx_bk_bk   , nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+    CALL allocate_matrix_CSR_dist( mesh%M2_ddy_bk_bk   , nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+    CALL allocate_matrix_CSR_dist( mesh%M2_d2dx2_bk_bk , nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+    CALL allocate_matrix_CSR_dist( mesh%M2_d2dxdy_bk_bk, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+    CALL allocate_matrix_CSR_dist( mesh%M2_d2dy2_bk_bk , nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+    CALL allocate_matrix_CSR_dist( mesh%M2_ddz_bk_bk   , nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+    CALL allocate_matrix_CSR_dist( mesh%M2_d2dz2_bk_bk , nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+
+  ! Calculate shape functions and fill them into the matrices
+  ! =========================================================
+
+    ! Allocate memory for single matrix rows
+    ALLOCATE( single_row_ti_ind(       mesh%nC_mem*2))
+    ALLOCATE( single_row_ddxh_val(     mesh%nC_mem*2))
+    ALLOCATE( single_row_ddyh_val(     mesh%nC_mem*2))
+    ALLOCATE( single_row_d2dxh2_val(   mesh%nC_mem*2))
+    ALLOCATE( single_row_d2dxhdyh_val( mesh%nC_mem*2))
+    ALLOCATE( single_row_d2dyh2_val(   mesh%nC_mem*2))
+
+    ALLOCATE( single_row_k_ind(        mesh%nz      ))
+    ALLOCATE( single_row_ddzeta_val(   mesh%nz      ))
+    ALLOCATE( single_row_d2dzeta2_val( mesh%nz      ))
+
+    ! Loop over all triangles
+    DO ti = mesh%ti1, mesh%ti2
+
+      ! Read coefficients from the 2-D gradient operators for this triangle
+      CALL read_single_row_CSR_dist( mesh%M2_ddx_b_b   , ti, single_row_ti_ind, single_row_ddxh_val    , single_row_ti_nnz)
+      CALL read_single_row_CSR_dist( mesh%M2_ddy_b_b   , ti, single_row_ti_ind, single_row_ddyh_val    , single_row_ti_nnz)
+      CALL read_single_row_CSR_dist( mesh%M2_d2dx2_b_b , ti, single_row_ti_ind, single_row_d2dxh2_val  , single_row_ti_nnz)
+      CALL read_single_row_CSR_dist( mesh%M2_d2dxdy_b_b, ti, single_row_ti_ind, single_row_d2dxhdyh_val, single_row_ti_nnz)
+      CALL read_single_row_CSR_dist( mesh%M2_d2dy2_b_b , ti, single_row_ti_ind, single_row_d2dyh2_val  , single_row_ti_nnz)
+
+      ! Loop over all vertical layers
+      DO k = 1, mesh%nz
+
+        ! Triangle ti, layer k corresponds to this matrix row
+        row_tik = mesh%tik2n( ti,k)
+
+        ! Read coefficients from the zeta gradient operators for this vertical layer
+        CALL read_single_row_CSR_dist( mesh%M_ddzeta_k_k_1D  , k, single_row_k_ind, single_row_ddzeta_val  , single_row_k_nnz)
+        CALL read_single_row_CSR_dist( mesh%M_d2dzeta2_k_k_1D, k, single_row_k_ind, single_row_d2dzeta2_val, single_row_k_nnz)
+
+        ! Gradients of zeta at triangle ti, layer k
+        dzeta_dx    = ice%dzeta_dx_bk(    ti,k)
+        dzeta_dy    = ice%dzeta_dy_bk(    ti,k)
+        dzeta_dz    = ice%dzeta_dz_bk(    ti,k)
+        d2zeta_dx2  = ice%d2zeta_dx2_bk(  ti,k)
+        d2zeta_dxdy = ice%d2zeta_dxdy_bk( ti,k)
+        d2zeta_dy2  = ice%d2zeta_dy2_bk(  ti,k)
+
+        ! Loop over the entire 3-D local neighbourhood, calculate
+        ! coefficients for all 3-D matrix operators
+
+        DO ii = 1, single_row_ti_nnz
+
+          col_tj = single_row_ti_ind( ii)
+          tj = mesh%ti2n( col_tj)
+
+          ! Coefficients for horizontal gradient matrix operators
+          c_ddxh     = single_row_ddxh_val(     ii)
+          c_ddyh     = single_row_ddyh_val(     ii)
+          c_d2dxh2   = single_row_d2dxh2_val(   ii)
+          c_d2dxhdyh = single_row_d2dxhdyh_val( ii)
+          c_d2dyh2   = single_row_d2dyh2_val(   ii)
+
+          DO jj = 1, single_row_k_nnz
+
+            kk = single_row_k_ind( jj)
+
+            ! Triangle tj, layer kk corresponds to this matrix row
+            col_tjkk = mesh%tik2n( tj,kk)
+
+            ! Coefficients for vertical gradient matrix operators
+            c_ddzeta   = single_row_ddzeta_val(   jj)
+            c_d2dzeta2 = single_row_d2dzeta2_val( jj)
+
+            ! Calculate coefficients
+            c_ddx    = 0._dp
+            c_ddy    = 0._dp
+            c_ddz    = 0._dp
+            c_d2dx2  = 0._dp
+            c_d2dxdy = 0._dp
+            c_d2dy2  = 0._dp
+            c_d2dz2  = 0._dp
+
+            ! Horizontal-only part
+            IF (kk == k) THEN
+              c_ddx    = c_ddx    + c_ddxh                                                            ! Now:  d/dx   =  d/dxh ...
+              c_ddy    = c_ddy    + c_ddyh                                                            ! Now:  d/dy   =  d/dyh ...
+              c_d2dx2  = c_d2dx2  + c_d2dxh2                                                          ! Now: d2/dx2  = d2/dxh2 ...
+              c_d2dxdy = c_d2dxdy + c_d2dxhdyh                                                        ! Now: d2/dxdy = d2/dxhdyh ...
+              c_d2dy2  = c_d2dy2  + c_d2dyh2                                                          ! Now: d2/dy2  = d2/dyh2 ...
+            END IF ! IF (kk == k) THEN
+
+            ! Vertical-only part
+            IF (tj == ti) THEN
+              c_ddx    = c_ddx    + dzeta_dx    * c_ddzeta                                            ! Now:  d/dx   =  d/dxh    +  dzeta/dx   d/dzeta
+              c_ddy    = c_ddy    + dzeta_dy    * c_ddzeta                                            ! Now:  d/dy   =  d/dyh    +  dzeta/dy   d/dzeta
+              c_ddz    = c_ddz    + dzeta_dz    * c_ddzeta                                            ! Now:  d/dz   =              dzeta/dz   d/dzeta
+              c_d2dx2  = c_d2dx2  + d2zeta_dx2  * c_ddzeta + dzeta_dx * dzeta_dx * c_d2dzeta2         ! Now: d2/dx2  = d2/dxh2   + d2zeta/dx2  d/dzeta + (dzeta/dx)^2       d2/dzeta2 + ...
+              c_d2dxdy = c_d2dxdy + d2zeta_dxdy * c_ddzeta + dzeta_dx * dzeta_dy * c_d2dzeta2         ! Now: d2/dxdy = d2/dxhdyh + d2zeta/dxdy d/dzeta +  dzeta/dx dzeta/dy d2/dzeta2 + ...
+              c_d2dy2  = c_d2dy2  + d2zeta_dy2  * c_ddzeta + dzeta_dy * dzeta_dy * c_d2dzeta2         ! Now: d2/dy2  = d2/dyh2   + d2zeta/dy2  d/dzeta + (dzeta/dy)^2       d2/dzeta2 + ...
+              c_d2dz2  = c_d2dz2  + dzeta_dz**2 * c_d2dzeta2                                          ! Now: d2/dz2  =                                   (dzeta/dz)^2       d2/dzeta2
+            END IF ! IF (tj == ti) THEN
+
+            ! Mixed part
+            c_d2dx2  = c_d2dx2  + 2._dp * dzeta_dx * c_ddxh * c_ddzeta                                ! Now: d2/dx2  = d2/dxh2   + d2zeta/dx2  d/dzeta + (dzeta/dx)^2       d2/dzeta2 + 2 dzeta/dx d2/dxhdzeta
+            c_d2dxdy = c_d2dxdy +         dzeta_dx * c_ddyh * c_ddzeta + dzeta_dy * c_ddxh * c_ddzeta ! Now: d2/dxdy = d2/dxhdyh + d2zeta/dxdy d/dzeta +  dzeta/dx dzeta/dy d2/dzeta2 +   dzeta/dx d2/dyhdzeta + dzeta/dy dxhdzeta
+            c_d2dy2  = c_d2dy2  + 2._dp * dzeta_dy * c_ddyh * c_ddzeta                                ! Now: d2/dy2  = d2/dyh2   + d2zeta/dy2  d/dzeta + (dzeta/dy)^2       d2/dzeta2 + 2 dzeta/dy d2/dyhdzeta
+
+            ! Add to CSR matrices
+            CALL add_entry_CSR_dist( mesh%M2_ddx_bk_bk   , row_tik, col_tjkk, c_ddx   )
+            CALL add_entry_CSR_dist( mesh%M2_ddy_bk_bk   , row_tik, col_tjkk, c_ddy   )
+            CALL add_entry_CSR_dist( mesh%M2_ddz_bk_bk   , row_tik, col_tjkk, c_ddz   )
+            CALL add_entry_CSR_dist( mesh%M2_d2dx2_bk_bk , row_tik, col_tjkk, c_d2dx2 )
+            CALL add_entry_CSR_dist( mesh%M2_d2dxdy_bk_bk, row_tik, col_tjkk, c_d2dxdy)
+            CALL add_entry_CSR_dist( mesh%M2_d2dy2_bk_bk , row_tik, col_tjkk, c_d2dy2 )
+            CALL add_entry_CSR_dist( mesh%M2_d2dz2_bk_bk , row_tik, col_tjkk, c_d2dz2 )
+
+          END DO ! DO jj = 1, single_row_k_nnz
+        END DO ! DO ii = 1, single_row_ti_nnz
+
+      END DO ! DO k = 1, mesh%nz
+    END DO ! DO ti = mesh%ti1, mesh%ti2
+
+    ! Clean up after yourself
+    DEALLOCATE( single_row_ti_ind)
+    DEALLOCATE( single_row_ddxh_val)
+    DEALLOCATE( single_row_ddyh_val)
+    DEALLOCATE( single_row_d2dxh2_val)
+    DEALLOCATE( single_row_d2dxhdyh_val)
+    DEALLOCATE( single_row_d2dyh2_val)
+    DEALLOCATE( single_row_k_ind)
+    DEALLOCATE( single_row_ddzeta_val)
+    DEALLOCATE( single_row_d2dzeta2_val)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE calc_3D_matrix_operators_mesh
+
+  SUBROUTINE calc_3D_gradient_bk_bk( mesh, AA, d_bk, grad_d_bk)
+    ! Apply a 3-D gradient operator to a 3-D data field on the bk-grid (triangles, vertically regular)
+
+    IMPLICIT NONE
+
+    ! In- and output variables:
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
+    TYPE(type_sparse_matrix_CSR_dp),     INTENT(IN)    :: AA
+    REAL(dp), DIMENSION(mesh%ti1:mesh%ti2,mesh%nz),          INTENT(IN)    :: d_bk
+    REAL(dp), DIMENSION(mesh%ti1:mesh%ti2,mesh%nz),          INTENT(OUT)   :: grad_d_bk
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_3D_gradient_bk_bk'
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: d_bk_tot
+    INTEGER                                            :: ti,k,row_tik,ii1,ii2,ii,col_tjkk,tj,kk
+    REAL(dp)                                           :: cAA
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Safety: check sizes
+    IF (AA%m_loc /= mesh%nTri_loc * mesh%nz .OR. &
+        AA%m     /= mesh%nTri     * mesh%nz .OR. &
+        AA%n_loc /= mesh%nTri_loc * mesh%nz .OR. &
+        AA%n     /= mesh%nTri     * mesh%nz .OR. &
+        SIZE(      d_bk,1) /= mesh%nTri_loc .OR. SIZE(      d_bk,2) /= mesh%nz .OR. &
+        SIZE( grad_d_bk,1) /= mesh%nTri_loc .OR. SIZE( grad_d_bk,2) /= mesh%nz) THEN
+      CALL crash('matrix and vector sizes dont match!')
+    END IF
+
+    ! Allocate memory for gathered vector x
+    ALLOCATE( d_bk_tot( mesh%nTri, mesh%nz))
+
+    ! Gather data
+    CALL gather_to_all_dp_2D( d_bk, d_bk_tot)
+
+    ! Calculate gradient
+    DO ti = mesh%ti1, mesh%ti2
+    DO k  = 1, mesh%nz
+
+      ! Triangle ti, layer k corresponds to this matrix row
+      row_tik = mesh%tik2n( ti,k)
+
+      ! Initialise
+      grad_d_bk( ti,k) = 0._dp
+
+      ! Loop over all contributing 3-D neighbours
+      ii1 = AA%ptr( row_tik)
+      ii2 = AA%ptr( row_tik+1) - 1
+
+      DO ii = ii1, ii2
+
+        ! Read matrix coefficient
+        col_tjkk = AA%ind( ii)
+        cAA      = AA%val( ii)
+
+        ! This matrix column corresponds to triangle tj, layer kk
+        tj = mesh%n2tik( col_tjkk,1)
+        kk = mesh%n2tik( col_tjkk,2)
+
+        ! Add contribution
+        grad_d_bk( ti,k) = grad_d_bk( ti,k) + cAA * d_bk_tot( tj,kk)
+
+      END DO ! DO ii = ii1, ii2
+
+    END DO ! DO k  = 1, mesh%nz
+    END DO ! DO ti = mesh%ti1, mesh%ti2
+
+    ! Clean up after yourself
+    DEALLOCATE( d_bk_tot)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE calc_3D_gradient_bk_bk
 
 END MODULE mesh_operators

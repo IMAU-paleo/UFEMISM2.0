@@ -89,6 +89,55 @@ subroutine allocate_ice_model( mesh, ice)
     allocate( ice%dHib_dt ( mesh%vi1:mesh%vi2 ))
     ice%dHib_dt = 0d0
 
+    ! === Terrain-following coordinate zeta gradients ===
+    ! ===================================================
+
+    ! Gradients of the terrain-following (i.e. ice-geometry-dependent) vertical coordinate zeta
+
+    ! On the ak-grid (vertices, vertically regular)
+    ALLOCATE( ice%dzeta_dt_ak(    mesh%vi1:mesh%vi2,mesh%nz))
+    ALLOCATE( ice%dzeta_dx_ak(    mesh%vi1:mesh%vi2,mesh%nz))
+    ALLOCATE( ice%dzeta_dy_ak(    mesh%vi1:mesh%vi2,mesh%nz))
+    ALLOCATE( ice%dzeta_dz_ak(    mesh%vi1:mesh%vi2,mesh%nz))
+    ALLOCATE( ice%d2zeta_dx2_ak(  mesh%vi1:mesh%vi2,mesh%nz))
+    ALLOCATE( ice%d2zeta_dxdy_ak( mesh%vi1:mesh%vi2,mesh%nz))
+    ALLOCATE( ice%d2zeta_dy2_ak(  mesh%vi1:mesh%vi2,mesh%nz))
+    ice%dzeta_dt_ak    = 0._dp
+    ice%dzeta_dx_ak    = 0._dp
+    ice%dzeta_dy_ak    = 0._dp
+    ice%dzeta_dz_ak    = 0._dp
+    ice%d2zeta_dx2_ak  = 0._dp
+    ice%d2zeta_dxdy_ak = 0._dp
+    ice%d2zeta_dy2_ak  = 0._dp
+
+    ! On the bk-grid (triangles, vertically regular)
+    ALLOCATE( ice%dzeta_dx_bk(    mesh%ti1:mesh%ti2,mesh%nz))
+    ALLOCATE( ice%dzeta_dy_bk(    mesh%ti1:mesh%ti2,mesh%nz))
+    ALLOCATE( ice%dzeta_dz_bk(    mesh%ti1:mesh%ti2,mesh%nz))
+    ALLOCATE( ice%d2zeta_dx2_bk(  mesh%ti1:mesh%ti2,mesh%nz))
+    ALLOCATE( ice%d2zeta_dxdy_bk( mesh%ti1:mesh%ti2,mesh%nz))
+    ALLOCATE( ice%d2zeta_dy2_bk(  mesh%ti1:mesh%ti2,mesh%nz))
+    ice%dzeta_dx_bk    = 0._dp
+    ice%dzeta_dy_bk    = 0._dp
+    ice%dzeta_dz_bk    = 0._dp
+    ice%d2zeta_dx2_bk  = 0._dp
+    ice%d2zeta_dxdy_bk = 0._dp
+    ice%d2zeta_dy2_bk  = 0._dp
+
+    ! On the bks-grid (triangles, vertically staggered)
+    ALLOCATE( ice%dzeta_dx_bks(    mesh%ti1:mesh%ti2,mesh%nz-1))
+    ALLOCATE( ice%dzeta_dy_bks(    mesh%ti1:mesh%ti2,mesh%nz-1))
+    ALLOCATE( ice%dzeta_dz_bks(    mesh%ti1:mesh%ti2,mesh%nz-1))
+    ALLOCATE( ice%d2zeta_dx2_bks(  mesh%ti1:mesh%ti2,mesh%nz-1))
+    ALLOCATE( ice%d2zeta_dxdy_bks( mesh%ti1:mesh%ti2,mesh%nz-1))
+    ALLOCATE( ice%d2zeta_dy2_bks(  mesh%ti1:mesh%ti2,mesh%nz-1))
+    ice%dzeta_dx_bks    = 0._dp
+    ice%dzeta_dy_bks    = 0._dp
+    ice%dzeta_dz_bks    = 0._dp
+    ice%d2zeta_dx2_bks  = 0._dp
+    ice%d2zeta_dxdy_bks = 0._dp
+    ice%d2zeta_dy2_bks  = 0._dp
+
     ! === Thermodynamics ===
     ! ======================
 

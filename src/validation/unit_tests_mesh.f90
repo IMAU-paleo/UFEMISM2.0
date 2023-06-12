@@ -19,19 +19,24 @@ MODULE unit_tests_mesh
                                                                      mesh_add_UFEMISM_letters
   USE mesh_parallel_creation                                 , ONLY: merge_submeshes, broadcast_mesh
   USE mesh_secondary                                         , ONLY: calc_all_secondary_mesh_data
-  USE mesh_operators                                         , ONLY: calc_all_matrix_operators_mesh
+  USE mesh_operators                                         , ONLY: calc_all_matrix_operators_mesh, calc_3D_matrix_operators_mesh, calc_3D_gradient_bk_bk
   USE netcdf_basic                                           , ONLY: create_new_netcdf_file_for_writing, close_netcdf_file
   USE netcdf_output                                          , ONLY: setup_mesh_in_netcdf_file, add_field_mesh_dp_2D_notime, add_field_mesh_dp_2D_b_notime, &
                                                                      add_field_mesh_dp_2D_c_notime, write_to_field_multopt_mesh_dp_2D_notime, &
                                                                      write_to_field_multopt_mesh_dp_2D_b_notime, write_to_field_multopt_mesh_dp_2D_c_notime, &
                                                                      setup_xy_grid_in_netcdf_file, add_field_grid_dp_2D_notime, &
-                                                                     write_to_field_multopt_grid_dp_2D_notime
+                                                                     write_to_field_multopt_grid_dp_2D_notime, add_zeta_dimension_to_file, &
+                                                                     add_field_mesh_dp_3D_b_notime, write_to_field_multopt_mesh_dp_3D_notime, &
+                                                                     write_to_field_multopt_mesh_dp_3D_b_notime
   USE petsc_basic                                            , ONLY: multiply_CSR_matrix_with_vector_1D
   USE grid_basic                                             , ONLY: type_grid, setup_square_grid, distribute_gridded_data_from_master_dp_2D, &
                                                                      calc_grid_mask_as_polygons
   USE grid_lonlat_basic                                      , ONLY: type_grid_lonlat, setup_simple_lonlat_grid, distribute_lonlat_gridded_data_from_master_dp_2D
   USE mesh_remapping                                         , ONLY: map_from_xy_grid_to_mesh_2D, map_from_mesh_to_xy_grid_2D, map_from_lonlat_grid_to_mesh_2D, &
                                                                      map_from_mesh_to_mesh_2D
+  USE ice_model_types                                        , ONLY: type_ice_model
+  USE ice_model_memory                                       , ONLY: allocate_ice_model
+  USE ice_model_main                                         , ONLY: calc_zeta_gradients
 
   IMPLICIT NONE
 
@@ -57,6 +62,7 @@ CONTAINS
     CALL test_mesh_creation_basic_two_cores(       mesh)
     CALL test_mesh_creation_basic_two_cores_prime( mesh2)
     CALL test_mesh_operators_basic(                mesh)
+    CALL test_mesh_operators_3D(                   mesh)
     CALL test_remapping_grid2mesh(                 mesh)
     CALL test_remapping_mesh2grid(                 mesh)
     CALL test_remapping_lonlat2mesh(               mesh)
@@ -1184,6 +1190,210 @@ CONTAINS
 
   END SUBROUTINE test_mesh_operators_basic
 
+  SUBROUTINE test_mesh_operators_3D( mesh)
+    ! Test the 3-D gradient matrix operators
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                     INTENT(INOUT) :: mesh
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'test_mesh_operators_3D'
+    TYPE(type_ice_model)                               :: ice
+    INTEGER                                            :: vi,ti,k
+    REAL(dp)                                           :: x, y, xmin, xmax, ymin, ymax, zeta, Hi, Hb, Hs, SL, f, dfdx, dfdy, dfdz, d2fdx2, d2fdxdy, d2fdy2, d2fdz2
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: f_bk_ex
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: df_dx_bk_ex
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: df_dy_bk_ex
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: df_dz_bk_ex
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: d2f_dx2_bk_ex
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: d2f_dxdy_bk_ex
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: d2f_dy2_bk_ex
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: d2f_dz2_bk_ex
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: df_dx_bk
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: df_dy_bk
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: df_dz_bk
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: d2f_dx2_bk
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: d2f_dxdy_bk
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: d2f_dy2_bk
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: d2f_dz2_bk
+    LOGICAL                                            :: found_errors
+    CHARACTER(LEN=256)                                 :: filename
+    INTEGER                                            :: ncid
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Allocate ice model memory
+    CALL allocate_ice_model( mesh, ice)
+
+    ! Set up a nice test geometry
+
+    xmin = mesh%xmin
+    xmax = mesh%xmax
+    ymin = mesh%ymin
+    ymax = mesh%ymax
+
+    DO vi = mesh%vi1, mesh%vi2
+    DO k  = 1, mesh%nz
+
+      x    = mesh%V( vi,1)
+      y    = mesh%V( vi,2)
+      zeta = mesh%zeta( k)
+
+      CALL test_function_3D( x, y, xmin, xmax, ymin, ymax, zeta, Hi, Hb, Hs, SL, f, dfdx, dfdy, dfdz, d2fdx2, d2fdxdy, d2fdy2, d2fdz2)
+
+      ice%Hi( vi) = Hi
+      ice%Hb( vi) = Hb
+      ice%Hs( vi) = Hs
+      ice%SL( vi) = SL
+
+    END DO
+    END DO
+
+    ! Calculate the exact solution
+
+    ALLOCATE( f_bk_ex(        mesh%ti1:mesh%ti2,mesh%nz))
+    ALLOCATE( df_dx_bk_ex(    mesh%ti1:mesh%ti2,mesh%nz))
+    ALLOCATE( df_dy_bk_ex(    mesh%ti1:mesh%ti2,mesh%nz))
+    ALLOCATE( df_dz_bk_ex(    mesh%ti1:mesh%ti2,mesh%nz))
+    ALLOCATE( d2f_dx2_bk_ex(  mesh%ti1:mesh%ti2,mesh%nz))
+    ALLOCATE( d2f_dxdy_bk_ex( mesh%ti1:mesh%ti2,mesh%nz))
+    ALLOCATE( d2f_dy2_bk_ex(  mesh%ti1:mesh%ti2,mesh%nz))
+    ALLOCATE( d2f_dz2_bk_ex(  mesh%ti1:mesh%ti2,mesh%nz))
+
+    DO ti = mesh%ti1, mesh%ti2
+    DO k  = 1, mesh%nz
+
+      x    = mesh%TriGC( ti,1)
+      y    = mesh%TriGC( ti,2)
+      zeta = mesh%zeta( k)
+
+      CALL test_function_3D( x, y, xmin, xmax, ymin, ymax, zeta, Hi, Hb, Hs, SL, f, dfdx, dfdy, dfdz, d2fdx2, d2fdxdy, d2fdy2, d2fdz2)
+
+      f_bk_ex(        ti,k) = f
+      df_dx_bk_ex(    ti,k) = dfdx
+      df_dy_bk_ex(    ti,k) = dfdy
+      df_dz_bk_ex(    ti,k) = dfdz
+      d2f_dx2_bk_ex(  ti,k) = d2fdx2
+      d2f_dxdy_bk_ex( ti,k) = d2fdxdy
+      d2f_dy2_bk_ex(  ti,k) = d2fdy2
+      d2f_dz2_bk_ex(  ti,k) = d2fdz2
+
+    END DO
+    END DO
+
+    ! Calculate gradients of zeta
+    CALL calc_zeta_gradients( mesh, ice)
+
+    ! Calculate 3-D gradient operators
+    CALL calc_3D_matrix_operators_mesh( mesh, ice)
+
+    ! Calculate gradients of f
+
+    ALLOCATE( df_dx_bk(    mesh%ti1:mesh%ti2,mesh%nz))
+    ALLOCATE( df_dy_bk(    mesh%ti1:mesh%ti2,mesh%nz))
+    ALLOCATE( df_dz_bk(    mesh%ti1:mesh%ti2,mesh%nz))
+    ALLOCATE( d2f_dx2_bk(  mesh%ti1:mesh%ti2,mesh%nz))
+    ALLOCATE( d2f_dxdy_bk( mesh%ti1:mesh%ti2,mesh%nz))
+    ALLOCATE( d2f_dy2_bk(  mesh%ti1:mesh%ti2,mesh%nz))
+    ALLOCATE( d2f_dz2_bk(  mesh%ti1:mesh%ti2,mesh%nz))
+
+    CALL calc_3D_gradient_bk_bk( mesh, mesh%M2_ddx_bk_bk   , f_bk_ex, df_dx_bk   )
+    CALL calc_3D_gradient_bk_bk( mesh, mesh%M2_ddy_bk_bk   , f_bk_ex, df_dy_bk   )
+    CALL calc_3D_gradient_bk_bk( mesh, mesh%M2_ddz_bk_bk   , f_bk_ex, df_dz_bk   )
+    CALL calc_3D_gradient_bk_bk( mesh, mesh%M2_d2dx2_bk_bk , f_bk_ex, d2f_dx2_bk )
+    CALL calc_3D_gradient_bk_bk( mesh, mesh%M2_d2dxdy_bk_bk, f_bk_ex, d2f_dxdy_bk)
+    CALL calc_3D_gradient_bk_bk( mesh, mesh%M2_d2dy2_bk_bk , f_bk_ex, d2f_dy2_bk )
+    CALL calc_3D_gradient_bk_bk( mesh, mesh%M2_d2dz2_bk_bk , f_bk_ex, d2f_dz2_bk )
+
+    ! If no errors occurred, we are happy
+    found_errors = .FALSE.
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, found_errors, 1, MPI_LOGICAL, MPI_LOR, MPI_COMM_WORLD, ierr)
+    IF (.NOT. found_errors) THEN
+      IF (par%master) CALL happy('validated all 3-D mesh matrix operators')
+    ELSE
+      IF (par%master) CALL warning('found errors in 3-D mesh matrix operators')
+    END IF
+
+    ! Write results to a NetCDF file
+
+    ! Create a file and write the mesh to it
+    filename = TRIM( C%output_dir) // TRIM( routine_name) // '_output.nc'
+    CALL create_new_netcdf_file_for_writing( filename, ncid)
+    CALL setup_mesh_in_netcdf_file( filename, ncid, mesh)
+    CALL add_zeta_dimension_to_file( filename, ncid, mesh%zeta)
+
+    ! Add all the variables
+    CALL add_field_mesh_dp_2D_notime(   filename, ncid, 'Hi')
+    CALL add_field_mesh_dp_2D_notime(   filename, ncid, 'Hb')
+    CALL add_field_mesh_dp_2D_notime(   filename, ncid, 'Hs')
+
+    CALL add_field_mesh_dp_3D_b_notime( filename, ncid, 'f_bk_ex'       )
+    CALL add_field_mesh_dp_3D_b_notime( filename, ncid, 'df_dx_bk_ex'   )
+    CALL add_field_mesh_dp_3D_b_notime( filename, ncid, 'df_dy_bk_ex'   )
+    CALL add_field_mesh_dp_3D_b_notime( filename, ncid, 'df_dz_bk_ex'   )
+    CALL add_field_mesh_dp_3D_b_notime( filename, ncid, 'd2f_dx2_bk_ex' )
+    CALL add_field_mesh_dp_3D_b_notime( filename, ncid, 'd2f_dxdy_bk_ex')
+    CALL add_field_mesh_dp_3D_b_notime( filename, ncid, 'd2f_dy2_bk_ex' )
+    CALL add_field_mesh_dp_3D_b_notime( filename, ncid, 'd2f_dz2_bk_ex' )
+
+    CALL add_field_mesh_dp_3D_b_notime( filename, ncid, 'df_dx_bk'   )
+    CALL add_field_mesh_dp_3D_b_notime( filename, ncid, 'df_dy_bk'   )
+    CALL add_field_mesh_dp_3D_b_notime( filename, ncid, 'df_dz_bk'   )
+    CALL add_field_mesh_dp_3D_b_notime( filename, ncid, 'd2f_dx2_bk' )
+    CALL add_field_mesh_dp_3D_b_notime( filename, ncid, 'd2f_dxdy_bk')
+    CALL add_field_mesh_dp_3D_b_notime( filename, ncid, 'd2f_dy2_bk' )
+    CALL add_field_mesh_dp_3D_b_notime( filename, ncid, 'd2f_dz2_bk' )
+
+    ! Write all the variables
+    CALL write_to_field_multopt_mesh_dp_2D_notime(   mesh, filename, ncid, 'Hi'            , ice%Hi        )
+    CALL write_to_field_multopt_mesh_dp_2D_notime(   mesh, filename, ncid, 'Hb'            , ice%Hb        )
+    CALL write_to_field_multopt_mesh_dp_2D_notime(   mesh, filename, ncid, 'Hs'            , ice%Hs        )
+
+    CALL write_to_field_multopt_mesh_dp_3D_b_notime( mesh, filename, ncid, 'f_bk_ex'       , f_bk_ex       )
+    CALL write_to_field_multopt_mesh_dp_3D_b_notime( mesh, filename, ncid, 'df_dx_bk_ex'   , df_dx_bk_ex   )
+    CALL write_to_field_multopt_mesh_dp_3D_b_notime( mesh, filename, ncid, 'df_dy_bk_ex'   , df_dy_bk_ex   )
+    CALL write_to_field_multopt_mesh_dp_3D_b_notime( mesh, filename, ncid, 'df_dz_bk_ex'   , df_dz_bk_ex   )
+    CALL write_to_field_multopt_mesh_dp_3D_b_notime( mesh, filename, ncid, 'd2f_dx2_bk_ex' , d2f_dx2_bk_ex )
+    CALL write_to_field_multopt_mesh_dp_3D_b_notime( mesh, filename, ncid, 'd2f_dxdy_bk_ex', d2f_dxdy_bk_ex)
+    CALL write_to_field_multopt_mesh_dp_3D_b_notime( mesh, filename, ncid, 'd2f_dy2_bk_ex' , d2f_dy2_bk_ex )
+    CALL write_to_field_multopt_mesh_dp_3D_b_notime( mesh, filename, ncid, 'd2f_dz2_bk_ex' , d2f_dz2_bk_ex )
+
+    CALL write_to_field_multopt_mesh_dp_3D_b_notime( mesh, filename, ncid, 'df_dx_bk'      , df_dx_bk      )
+    CALL write_to_field_multopt_mesh_dp_3D_b_notime( mesh, filename, ncid, 'df_dy_bk'      , df_dy_bk      )
+    CALL write_to_field_multopt_mesh_dp_3D_b_notime( mesh, filename, ncid, 'df_dz_bk'      , df_dz_bk      )
+    CALL write_to_field_multopt_mesh_dp_3D_b_notime( mesh, filename, ncid, 'd2f_dx2_bk'    , d2f_dx2_bk    )
+    CALL write_to_field_multopt_mesh_dp_3D_b_notime( mesh, filename, ncid, 'd2f_dxdy_bk'   , d2f_dxdy_bk   )
+    CALL write_to_field_multopt_mesh_dp_3D_b_notime( mesh, filename, ncid, 'd2f_dy2_bk'    , d2f_dy2_bk    )
+    CALL write_to_field_multopt_mesh_dp_3D_b_notime( mesh, filename, ncid, 'd2f_dz2_bk'    , d2f_dz2_bk    )
+
+    ! Close the file
+    CALL close_netcdf_file( ncid)
+
+    ! Clean up after yourself
+    DEALLOCATE( f_bk_ex)
+    DEALLOCATE( df_dx_bk_ex)
+    DEALLOCATE( df_dy_bk_ex)
+    DEALLOCATE( df_dz_bk_ex)
+    DEALLOCATE( d2f_dx2_bk_ex)
+    DEALLOCATE( d2f_dxdy_bk_ex)
+    DEALLOCATE( d2f_dy2_bk_ex)
+    DEALLOCATE( d2f_dz2_bk_ex)
+    DEALLOCATE( df_dx_bk)
+    DEALLOCATE( df_dy_bk)
+    DEALLOCATE( df_dz_bk)
+    DEALLOCATE( d2f_dx2_bk)
+    DEALLOCATE( d2f_dxdy_bk)
+    DEALLOCATE( d2f_dy2_bk)
+    DEALLOCATE( d2f_dz2_bk)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE test_mesh_operators_3D
+
   SUBROUTINE test_remapping_grid2mesh( mesh)
     ! Test remapping from a square grid to a mesh
 
@@ -1785,5 +1995,48 @@ CONTAINS
     d = SIN( lon * pi / 180._dp) * COS( lat * pi / 180)
 
   END SUBROUTINE test_function_lonlat
+
+  SUBROUTINE test_function_3D( x, y, xmin, xmax, ymin, ymax, zeta, Hi, Hb, Hs, SL, f, dfdx, dfdy, dfdz, d2fdx2, d2fdxdy, d2fdy2, d2fdz2)
+    ! A simple test function to validate the 3-D matrix operators
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    REAL(dp),                   INTENT(IN)        :: x,y,xmin,xmax,ymin,ymax,zeta
+    REAL(dp),                   INTENT(OUT)       :: Hi, Hb, Hs, SL
+    REAL(dp),                   INTENT(OUT)       :: f, dfdx, dfdy, dfdz, d2fdx2, d2fdxdy, d2fdy2, d2fdz2
+
+    ! Local variables:
+    REAL(dp), PARAMETER                           :: a  = 500._dp  ! Amplitude of bedrock undulations
+    REAL(dp), PARAMETER                           :: h0 = 2000._dp ! Uniform surface elevation
+    REAL(dp)                                      :: cx,cy,z,cz
+
+    ! Ice-sheet geometry: sort of like ISMIP-HOM but without
+    ! the uniform bed slope. So a layer of ice with a flat surface at h = h0,
+    ! lying on a bed with undulations of amplitude a.
+
+    cx = 2._dp * pi / (xmax - xmin)
+    cy = 3._dp * pi / (ymax - ymin)
+
+    Hb = a * SIN( cx * x) * SIN( cy * y)
+    Hs = h0
+    Hi = Hs - Hb
+    SL = -10000._dp
+
+    ! Actual vertical coordinate
+    z  = Hs - zeta * Hi
+    cz = 4._dp * pi / (h0 + a)
+
+    ! The function f and its gradients
+    f       = (cx * x)**3 + (cy * y)**3 + (cz * z)**3 + (cx * x * cy * y)**2
+    dfdx    = 3._dp * cx**3 * x**2 + 2._dp * cx**2 * cy**2 * x * y**2
+    dfdy    = 3._dp * cy**3 * y**2 + 2._dp * cx**2 * cy**2 * x**2 * y
+    dfdz    = 3._dp * cz**3 * z**2
+    d2fdx2  = 6._dp * cx**3 * x + 2._dp * cx**2 * cy**2 * y**2
+    d2fdxdy = 4._dp * cx**2 * cy**2 * x * y
+    d2fdy2  = 6._dp * cy**3 * y + 2._dp * cx**2 * cy**2 * x**2
+    d2fdz2  = 6._dp * cz**3 * z
+
+  END SUBROUTINE test_function_3D
 
 END MODULE unit_tests_mesh
