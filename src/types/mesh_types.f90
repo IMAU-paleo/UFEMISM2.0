@@ -217,7 +217,8 @@ MODULE mesh_types
     ! bk to bks (for calculating the vertical shear strain rates in the BPA)
     TYPE(type_sparse_matrix_CSR_dp)         :: M_ddz_bk_bks
 
-    ! bks to bk (for calculating the vertical gradient of the effective viscosity in the BPA)
+    ! bks to bk (for calculating (the vertical gradient of) the effective viscosity in the BPA)
+    TYPE(type_sparse_matrix_CSR_dp)         :: M_map_bks_bk
     TYPE(type_sparse_matrix_CSR_dp)         :: M_ddz_bks_bk
 
     ! Map between the bks-grid and the ak-grid (for calculating strain rates in the BPA)

@@ -8,7 +8,7 @@ MODULE UFEMISM_main_model
   ! USE mpi
   USE precisions                                             , ONLY: dp
   USE mpi_basic                                              , ONLY: par, sync
-  USE control_resources_and_error_messaging                  , ONLY: crash, init_routine, finalise_routine, colour_string
+  USE control_resources_and_error_messaging                  , ONLY: happy, warning, crash, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
   USE mesh_types                                             , ONLY: type_mesh
   USE scalar_types                                           , ONLY: type_regional_scalars
@@ -25,12 +25,14 @@ MODULE UFEMISM_main_model
   USE netcdf_basic , ONLY: create_new_netcdf_file_for_writing
   USE netcdf_output, ONLY: setup_mesh_in_netcdf_file, add_field_mesh_dp_2D_notime, write_to_field_multopt_mesh_dp_2D_notime, &
                            add_field_mesh_int_2D_notime, write_to_field_multopt_mesh_int_2D_notime, add_field_mesh_dp_2D_b_notime, &
-                           write_to_field_multopt_mesh_dp_2D_b_notime
+                           write_to_field_multopt_mesh_dp_2D_b_notime, add_field_mesh_dp_3D_b_notime, write_to_field_multopt_mesh_dp_3D_b_notime, &
+                           add_zeta_dimension_to_file, write_to_field_multopt_mesh_dp_3D_notime, add_field_mesh_dp_3D_notime
   USE netcdf_debug , ONLY: write_CSR_matrix_to_NetCDF
   USE bed_roughness, ONLY: initialise_bed_roughness
   USE basal_hydrology, ONLY: calc_basal_hydrology
   USE ice_velocity_main, ONLY: solve_stress_balance
   USE mesh_operators, ONLY: calc_3D_matrix_operators_mesh
+  USE ice_model_main, ONLY: calc_zeta_gradients
 
   IMPLICIT NONE
 
@@ -156,6 +158,7 @@ CONTAINS
     ! ===========================
 
     ! DENK DROM
+    CALL calc_zeta_gradients( region%mesh, region%ice)
     CALL calc_3D_matrix_operators_mesh( region%mesh, region%ice)
     region%ice%A_flow_3D = 1E-16_dp
 !    ALLOCATE( region%ice%tau_c(    region%mesh%vi1:region%mesh%vi2))
@@ -168,6 +171,7 @@ CONTAINS
     filename = TRIM( C%output_dir) // 'testfile.nc'
     CALL create_new_netcdf_file_for_writing( filename, ncid)
     CALL setup_mesh_in_netcdf_file( filename, ncid, region%mesh)
+    CALL add_zeta_dimension_to_file( filename, ncid, region%mesh%zeta)
     CALL add_field_mesh_dp_2D_notime( filename, ncid, 'Hi')
     CALL add_field_mesh_dp_2D_notime( filename, ncid, 'Hb')
     CALL add_field_mesh_dp_2D_notime( filename, ncid, 'Hs')
@@ -179,6 +183,17 @@ CONTAINS
     CALL add_field_mesh_dp_2D_b_notime( filename, ncid, 'v_vav_b')
     CALL add_field_mesh_dp_2D_b_notime( filename, ncid, 'u_surf_b')
     CALL add_field_mesh_dp_2D_b_notime( filename, ncid, 'v_surf_b')
+    CALL add_field_mesh_dp_2D_b_notime( filename, ncid, 'u_base_b')
+    CALL add_field_mesh_dp_2D_b_notime( filename, ncid, 'v_base_b')
+    CALL add_field_mesh_dp_3D_b_notime( filename, ncid, 'u_3D_b')
+    CALL add_field_mesh_dp_3D_b_notime( filename, ncid, 'v_3D_b')
+    CALL add_field_mesh_dp_3D_notime( filename, ncid, 'du_dx_ak')
+    CALL add_field_mesh_dp_3D_notime( filename, ncid, 'du_dy_ak')
+    CALL add_field_mesh_dp_3D_notime( filename, ncid, 'du_dz_ak')
+    CALL add_field_mesh_dp_3D_notime( filename, ncid, 'dv_dx_ak')
+    CALL add_field_mesh_dp_3D_notime( filename, ncid, 'dv_dy_ak')
+    CALL add_field_mesh_dp_3D_notime( filename, ncid, 'dv_dz_ak')
+    CALL add_field_mesh_dp_3D_b_notime( filename, ncid, 'eta_bk')
     CALL write_to_field_multopt_mesh_dp_2D_notime( region%mesh, filename, ncid, 'Hi', region%refgeo_init%Hi)
     CALL write_to_field_multopt_mesh_dp_2D_notime( region%mesh, filename, ncid, 'Hb', region%refgeo_init%Hb)
     CALL write_to_field_multopt_mesh_dp_2D_notime( region%mesh, filename, ncid, 'Hs', region%refgeo_init%Hs)
@@ -190,6 +205,17 @@ CONTAINS
     CALL write_to_field_multopt_mesh_dp_2D_b_notime( region%mesh, filename, ncid, 'v_vav_b', region%ice%v_vav_b)
     CALL write_to_field_multopt_mesh_dp_2D_b_notime( region%mesh, filename, ncid, 'u_surf_b', region%ice%u_surf_b)
     CALL write_to_field_multopt_mesh_dp_2D_b_notime( region%mesh, filename, ncid, 'v_surf_b', region%ice%v_surf_b)
+    CALL write_to_field_multopt_mesh_dp_2D_b_notime( region%mesh, filename, ncid, 'u_base_b', region%ice%u_base_b)
+    CALL write_to_field_multopt_mesh_dp_2D_b_notime( region%mesh, filename, ncid, 'v_base_b', region%ice%v_base_b)
+    CALL write_to_field_multopt_mesh_dp_3D_b_notime( region%mesh, filename, ncid, 'u_3D_b', region%ice%u_3D_b)
+    CALL write_to_field_multopt_mesh_dp_3D_b_notime( region%mesh, filename, ncid, 'v_3D_b', region%ice%v_3D_b)
+    CALL write_to_field_multopt_mesh_dp_3D_notime( region%mesh, filename, ncid, 'du_dx_ak', region%ice%BPA%du_dx_ak)
+    CALL write_to_field_multopt_mesh_dp_3D_notime( region%mesh, filename, ncid, 'du_dy_ak', region%ice%BPA%du_dy_ak)
+    CALL write_to_field_multopt_mesh_dp_3D_notime( region%mesh, filename, ncid, 'du_dz_ak', region%ice%BPA%du_dz_ak)
+    CALL write_to_field_multopt_mesh_dp_3D_notime( region%mesh, filename, ncid, 'dv_dx_ak', region%ice%BPA%dv_dx_ak)
+    CALL write_to_field_multopt_mesh_dp_3D_notime( region%mesh, filename, ncid, 'dv_dy_ak', region%ice%BPA%dv_dy_ak)
+    CALL write_to_field_multopt_mesh_dp_3D_notime( region%mesh, filename, ncid, 'dv_dz_ak', region%ice%BPA%dv_dz_ak)
+    CALL write_to_field_multopt_mesh_dp_3D_b_notime( region%mesh, filename, ncid, 'eta_bk', region%ice%BPA%eta_bk)
     CALL close_netcdf_file( ncid)
 
     ! ===== Finalisation =====

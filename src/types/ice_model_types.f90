@@ -135,6 +135,10 @@ MODULE ice_model_types
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: deta_dy_bk
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: deta_dz_bk
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: beta_b_b                    ! Friction coefficient (tau_b = u * beta_b)
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dh_dx_b                     ! Surface slope
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dh_dy_b
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: db_dx_b                     ! Basal slope
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: db_dy_b
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: tau_dx_b                    ! Driving stress
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: tau_dy_b
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: u_bk_prev                   ! Previous velocity solution

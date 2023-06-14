@@ -8,6 +8,9 @@ henk = dir( main_src_path);
 
 n_tot = 0;
 
+R.n     = [];
+R.names = {};
+
 for i = 1: length( henk)
   if henk( i).isdir
     if strcmpi( henk( i).name,'.') || strcmpi( henk( i).name,'..'); continue; end
@@ -16,11 +19,24 @@ for i = 1: length( henk)
       n = count_lines( f90_files);
       n_tot = n_tot + n;
       disp(['UFEMISM v2.0 module "' henk( i).name '" contains ' num2str( n) ' lines of code'])
+      R.n( end+1) = n;
+      R.names{ end+1} = [strrep( henk( i).name, '_', '\_') ': ' num2str( n)];
     end
   end
 end
 
 disp(['UFEMISM v2.0 in total contains ' num2str( n_tot) ' lines of code'])
+
+%% plot
+p = pie( R.n, ones( size( R.n)), R.names);
+for i = 1: length( p)
+  if strcmpi( class( p( i)), 'matlab.graphics.primitive.Text')
+    set( p( i), 'fontsize', 24)
+  end
+end
+set( gcf,'position',[744   346   827   704],'color','w');
+set( gca,'position',[0.1, 0.1, 0.75, 0.8],'fontsize',24,'ylim',[-1.2,1.4]);
+title( gca,['Total: ' num2str( n_tot)])
 
 function f90_files = find_all_lower_f90_files( henk, f90_files)
 

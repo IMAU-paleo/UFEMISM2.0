@@ -18,8 +18,9 @@ MODULE ice_velocity_BPA
   USE ice_model_types                                        , ONLY: type_ice_model, type_ice_velocity_solver_BPA
   USE parameters
   USE reallocate_mod                                         , ONLY: reallocate_clean
-  USE mesh_operators                                         , ONLY: map_a_b_2D, ddx_a_b_2D, ddy_a_b_2D, ddx_b_a_3D, ddy_b_a_3D, &
-                                                                     calc_3D_gradient_bk_ak, calc_3D_gradient_bk_bks, map_ak_bks, map_bks_ak
+  USE mesh_operators                                         , ONLY: map_a_b_2D, map_a_b_3D, ddx_a_b_2D, ddy_a_b_2D, ddx_b_a_3D, ddy_b_a_3D, &
+                                                                     calc_3D_gradient_bk_ak, calc_3D_gradient_bk_bks, map_ak_bks, map_bks_ak, &
+                                                                     calc_3D_gradient_ak_bk, calc_3D_gradient_bks_bk
   USE mesh_zeta                                              , ONLY: vertical_average
   USE sliding_laws                                           , ONLY: calc_basal_friction_coefficient
   USE mesh_utilities                                         , ONLY: find_ti_copy_ISMIP_HOM_periodic
@@ -155,23 +156,23 @@ CONTAINS
       ! Calculate the strain rates for the current velocity solution
       CALL calc_strain_rates( mesh, BPA)
 
-!      ! Calculate the effective viscosity for the current velocity solution
-!      CALL calc_effective_viscosity( mesh, ice, BPA)
-!
-!      ! Calculate the basal friction coefficient betab for the current velocity solution
-!      CALL calc_applied_basal_friction_coefficient( mesh, ice, BPA)
-!
-!      ! Solve the linearised BPA to calculate a new velocity solution
-!      CALL solve_BPA_linearised( mesh, BPA, BC_prescr_mask_bk_applied, BC_prescr_u_bk_applied, BC_prescr_v_bk_applied)
-!
-!      ! Limit velocities for improved stability
-!      CALL apply_velocity_limits( mesh, BPA)
-!
-!      ! Reduce the change between velocity solutions
-!      CALL relax_viscosity_iterations( mesh, BPA)
-!
-!      ! Calculate the L2-norm of the two consecutive velocity solutions
-!      CALL calc_visc_iter_UV_resid( mesh, BPA, resid_UV)
+      ! Calculate the effective viscosity for the current velocity solution
+      CALL calc_effective_viscosity( mesh, ice, BPA)
+
+      ! Calculate the basal friction coefficient betab for the current velocity solution
+      CALL calc_applied_basal_friction_coefficient( mesh, ice, BPA)
+
+      ! Solve the linearised BPA to calculate a new velocity solution
+      CALL solve_BPA_linearised( mesh, ice, BPA, BC_prescr_mask_bk_applied, BC_prescr_u_bk_applied, BC_prescr_v_bk_applied)
+
+      ! Limit velocities for improved stability
+      CALL apply_velocity_limits( mesh, BPA)
+
+      ! Reduce the change between velocity solutions
+      CALL relax_viscosity_iterations( mesh, BPA)
+
+      ! Calculate the L2-norm of the two consecutive velocity solutions
+      CALL calc_visc_iter_UV_resid( mesh, BPA, resid_UV)
 
       ! DENK DROM
       uv_min = MINVAL( BPA%u_bk)
@@ -191,9 +192,6 @@ CONTAINS
          CALL warning('viscosity iteration failed to converge within {int_01} iterations!', int_01 = C%visc_it_nit)
          EXIT viscosity_iteration
        END IF
-
-       ! DENK DROM
-       EXIT viscosity_iteration
 
     END DO viscosity_iteration
 
@@ -234,6 +232,1371 @@ CONTAINS
 
 ! == Assemble and solve the linearised BPA
 
+  SUBROUTINE solve_BPA_linearised( mesh, ice, BPA, BC_prescr_mask_bk, BC_prescr_u_bk, BC_prescr_v_bk)
+    ! Solve the linearised BPA
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)              :: mesh
+    TYPE(type_ice_model),                INTENT(IN)              :: ice
+    TYPE(type_ice_velocity_solver_BPA),  INTENT(INOUT)           :: BPA
+    INTEGER,  DIMENSION(mesh%ti1:mesh%ti2,mesh%nz),  INTENT(IN)  :: BC_prescr_mask_bk      ! Mask of triangles where velocity is prescribed
+    REAL(dp), DIMENSION(mesh%ti1:mesh%ti2,mesh%nz),  INTENT(IN)  :: BC_prescr_u_bk         ! Prescribed velocities in the x-direction
+    REAL(dp), DIMENSION(mesh%ti1:mesh%ti2,mesh%nz),  INTENT(IN)  :: BC_prescr_v_bk         ! Prescribed velocities in the y-direction
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'solve_BPA_linearised'
+    INTEGER                                                      :: ncols, ncols_loc, nrows, nrows_loc, nnz_per_row_est, nnz_est_proc
+    TYPE(type_sparse_matrix_CSR_dp)                              :: A_CSR
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: bb
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: uv_bkuv
+    INTEGER                                                      :: row_tikuv,ti,k,uv
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Store the previous solution
+    BPA%u_bk_prev = BPA%u_bk
+    BPA%v_bk_prev = BPA%v_bk
+
+  ! == Initialise the stiffness matrix using the native UFEMISM CSR-matrix format
+  ! =============================================================================
+
+    ! Matrix size
+    ncols           = mesh%nTri     * mesh%nz * 2      ! from
+    ncols_loc       = mesh%nTri_loc * mesh%nz * 2
+    nrows           = mesh%nTri     * mesh%nz * 2      ! to
+    nrows_loc       = mesh%nTri_loc * mesh%nz * 2
+    nnz_per_row_est = mesh%nC_mem * mesh%nz * 2
+    nnz_est_proc    = nrows_loc * nnz_per_row_est
+
+    CALL allocate_matrix_CSR_dist( A_CSR, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+
+    ! Allocate memory for the load vector and the solution
+    ALLOCATE( bb(      A_CSR%i1:A_CSR%i2))
+    ALLOCATE( uv_bkuv( A_CSR%i1:A_CSR%i2))
+
+    ! Fill in the current velocity solution
+    DO ti = mesh%ti1, mesh%ti2
+    DO k  = 1, mesh%nz
+
+      ! u
+      row_tikuv = mesh%tikuv2n( ti,k,1)
+      uv_bkuv( row_tikuv) = BPA%u_bk( ti,k)
+
+      ! v
+      row_tikuv = mesh%tikuv2n( ti,k,2)
+      uv_bkuv( row_tikuv) = BPA%v_bk( ti,k)
+
+    END DO ! DO k  = 1, mesh%nz
+    END DO ! DO ti = mesh%ti1, mesh%ti2
+
+  ! == Construct the stiffness matrix for the linearised BPA
+  ! ========================================================
+
+    DO row_tikuv = A_CSR%i1, A_CSR%i2
+
+      ti = mesh%n2tikuv( row_tikuv,1)
+      k  = mesh%n2tikuv( row_tikuv,2)
+      uv = mesh%n2tikuv( row_tikuv,3)
+
+      IF (BC_prescr_mask_bk( ti,k) == 1) THEN
+        ! Dirichlet boundary condition; velocities are prescribed for this triangle
+
+        ! Stiffness matrix: diagonal element set to 1
+        CALL add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv, 1._dp)
+
+        ! Load vector: prescribed velocity
+        IF     (uv == 1) THEN
+          bb( row_tikuv) = BC_prescr_u_bk( ti,k)
+        ELSEIF (uv == 2) THEN
+          bb( row_tikuv) = BC_prescr_v_bk( ti,k)
+        ELSE
+          CALL crash('uv can only be 1 or 2!')
+        END IF
+
+      ELSEIF (mesh%TriBI( ti) == 1 .OR. mesh%TriBI( ti) == 2) THEN
+        ! Northern domain border
+
+        CALL calc_BPA_stiffness_matrix_row_BC_north( mesh, A_CSR, bb, row_tikuv)
+
+      ELSEIF (mesh%TriBI( ti) == 3 .OR. mesh%TriBI( ti) == 4) THEN
+        ! Eastern domain border
+
+        CALL calc_BPA_stiffness_matrix_row_BC_east( mesh, A_CSR, bb, row_tikuv)
+
+      ELSEIF (mesh%TriBI( ti) == 5 .OR. mesh%TriBI( ti) == 6) THEN
+        ! Southern domain border
+
+        CALL calc_BPA_stiffness_matrix_row_BC_south( mesh, A_CSR, bb, row_tikuv)
+
+      ELSEIF (mesh%TriBI( ti) == 7 .OR. mesh%TriBI( ti) == 8) THEN
+        ! Western domain border
+
+        CALL calc_BPA_stiffness_matrix_row_BC_west( mesh, A_CSR, bb, row_tikuv)
+
+      ELSEIF (k == 1) THEN
+        ! Ice surface
+
+        CALL calc_BPA_stiffness_matrix_row_BC_surf( mesh, ice, BPA, A_CSR, bb, row_tikuv)
+
+      ELSEIF (k == mesh%nz) THEN
+        ! Ice base
+
+        CALL calc_BPA_stiffness_matrix_row_BC_base( mesh, ice, BPA, A_CSR, bb, row_tikuv)
+
+      ELSE
+        ! No boundary conditions apply; solve the BPA
+
+        CALL calc_BPA_stiffness_matrix_row_free( mesh, BPA, A_CSR, bb, row_tikuv)
+
+      END IF
+
+    END DO ! DO row_tikuv = A_CSR%i1, A_CSR%i2
+
+  ! == Solve the matrix equation
+  ! ============================
+
+    ! Use PETSc to solve the matrix equation
+    CALL solve_matrix_equation_CSR_PETSc( A_CSR, bb, uv_bkuv, BPA%PETSc_rtol, BPA%PETSc_abstol)
+
+    ! Disentangle the u and v components of the velocity solution
+    DO ti = mesh%ti1, mesh%ti2
+    DO k  = 1, mesh%nz
+
+      ! u
+      row_tikuv = mesh%tikuv2n( ti,k,1)
+      BPA%u_bk( ti,k) = uv_bkuv( row_tikuv)
+
+      ! v
+      row_tikuv = mesh%tikuv2n( ti,k,2)
+      BPA%v_bk( ti,k) = uv_bkuv( row_tikuv)
+
+    END DO ! DO k  = 1, mesh%nz
+    END DO ! DO ti = mesh%ti1, mesh%ti2
+
+    ! Clean up after yourself
+    CALL deallocate_matrix_CSR_dist( A_CSR)
+    DEALLOCATE( bb)
+    DEALLOCATE( uv_bkuv)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE solve_BPA_linearised
+
+  SUBROUTINE calc_BPA_stiffness_matrix_row_free( mesh, BPA, A_CSR, bb, row_tikuv)
+    ! Add coefficients to this matrix row to represent the linearised BPA
+    !
+    ! The BPA reads;
+    !
+    !   d/dx [ 2 eta ( 2 du/dx + dv/dy )] + d/dy [ eta ( du/dy + dv/dx)] + d/dz [ eta du/dz] = -tau_dx
+    !
+    !   d/dy [ 2 eta ( 2 dv/dy + du/dx )] + d/dx [ eta ( dv/dx + du/dy)] + d/dz [ eta dv/dz] = -tau_dy
+    !
+    ! Using the chain rule, this expands to read:
+    !
+    !   4 eta d2u/dx2 + 4 deta/dx du/dx + 2 eta d2v/dxdy + 2 deta/dx dv/dy + ...
+    !     eta d2u/dy2 +   deta/dy du/dy +   eta d2v/dxdy +   deta/dy dv/dx + ...
+    !     eta d2u/dz2 +   deta/dz du/dz = -tau_dx
+    !
+    !   4 eta d2v/dy2 + 4 deta/dy dv/dy + 2 eta d2u/dxdy + 2 deta/dy du/dx + ...
+    !     eta d2v/dx2 +   deta/dx dv/dx +   eta d2u/dxdy +   deta/dx du/dy + ...
+    !     eta d2v/dz2 +   deta/dz dv/dz = -tau_dy
+    !
+    ! Rearranging to gather the terms involving u and v gives:
+    !
+    !   4 eta d2u/dx2  + 4 deta/dx du/dx + eta d2u/dy2 + deta/dy du/dy + eta d2u/dz2 + deta/dz du/dz + ...
+    !   3 eta d2v/dxdy + 2 deta/dx dv/dy +               deta/dy dv/dx = -tau_dx
+    !
+    !   4 eta d2v/dy2  + 4 deta/dy dv/dy + eta d2v/dx2 + deta/dx dv/dx + eta d2v/dz2 + deta/dz dv/dz + ...
+    !   3 eta d2u/dxdy + 2 deta/dy du/dx +               deta/dx du/dy = -tau_dy
+    !
+    ! We define the velocities u,v, and the driving stress tau_d on the bk-grid
+    ! (triangles, regular vertical), and the effective viscosity eta on the ak-grid
+    ! (vertices, regular vertical) and the bks-grid (triangles, staggered vertical).
+    ! From this, we then calculate the gradients of eta on the bk-grid.
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)              :: mesh
+    TYPE(type_ice_velocity_solver_BPA),  INTENT(IN)              :: BPA
+    TYPE(type_sparse_matrix_CSR_dp),     INTENT(INOUT)           :: A_CSR
+    REAL(dp), DIMENSION(A_CSR%i1:A_CSR%i2), INTENT(INOUT)        :: bb
+    INTEGER,                             INTENT(IN)              :: row_tikuv
+
+    ! Local variables:
+    INTEGER                                                      :: ti, k, uv
+    REAL(dp)                                                     :: eta, deta_dx, deta_dy, deta_dz, tau_dx, tau_dy
+    INTEGER,  DIMENSION(:    ), ALLOCATABLE                      :: single_row_ind
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: single_row_ddx_val
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: single_row_ddy_val
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: single_row_ddz_val
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: single_row_d2dx2_val
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: single_row_d2dxdy_val
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: single_row_d2dy2_val
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: single_row_d2dz2_val
+    INTEGER                                                      :: single_row_nnz
+    INTEGER                                                      :: row_tik
+    REAL(dp)                                                     :: Au, Av
+    INTEGER                                                      :: n, row_tjkk, tj, kk, col_tjkku, col_tjkkv
+
+    ! Relevant indices for this triangle and layer
+    ti = mesh%n2tikuv( row_tikuv,1)
+    k  = mesh%n2tikuv( row_tikuv,2)
+    uv = mesh%n2tikuv( row_tikuv,3)
+
+    ! eta, deta/dx, deta/dy, deta/dz, tau_dx, and tau_dy on this triangle and layer
+    eta     = BPA%eta_bk(     ti,k)
+    deta_dx = BPA%deta_dx_bk( ti,k)
+    deta_dy = BPA%deta_dy_bk( ti,k)
+    deta_dz = BPA%deta_dz_bk( ti,k)
+    tau_dx  = BPA%tau_dx_b(   ti  )
+    tau_dy  = BPA%tau_dy_b(   ti  )
+
+    ! Allocate memory for single matrix rows
+    ALLOCATE( single_row_ind(        mesh%nC_mem*3*2))
+    ALLOCATE( single_row_ddx_val(    mesh%nC_mem*3*2))
+    ALLOCATE( single_row_ddy_val(    mesh%nC_mem*3*2))
+    ALLOCATE( single_row_ddz_val(    mesh%nC_mem*3*2))
+    ALLOCATE( single_row_d2dx2_val(  mesh%nC_mem*3*2))
+    ALLOCATE( single_row_d2dxdy_val( mesh%nC_mem*3*2))
+    ALLOCATE( single_row_d2dy2_val(  mesh%nC_mem*3*2))
+    ALLOCATE( single_row_d2dz2_val(  mesh%nC_mem*3*2))
+
+    ! Read coefficients of the operator matrices
+    row_tik = mesh%tik2n( ti,k)
+    CALL read_single_row_CSR_dist( mesh%M2_ddx_bk_bk   , row_tik, single_row_ind, single_row_ddx_val   , single_row_nnz)
+    CALL read_single_row_CSR_dist( mesh%M2_ddy_bk_bk   , row_tik, single_row_ind, single_row_ddy_val   , single_row_nnz)
+    CALL read_single_row_CSR_dist( mesh%M2_ddz_bk_bk   , row_tik, single_row_ind, single_row_ddz_val   , single_row_nnz)
+    CALL read_single_row_CSR_dist( mesh%M2_d2dx2_bk_bk , row_tik, single_row_ind, single_row_d2dx2_val , single_row_nnz)
+    CALL read_single_row_CSR_dist( mesh%M2_d2dxdy_bk_bk, row_tik, single_row_ind, single_row_d2dxdy_val, single_row_nnz)
+    CALL read_single_row_CSR_dist( mesh%M2_d2dy2_bk_bk , row_tik, single_row_ind, single_row_d2dy2_val , single_row_nnz)
+    CALL read_single_row_CSR_dist( mesh%M2_d2dz2_bk_bk , row_tik, single_row_ind, single_row_d2dz2_val , single_row_nnz)
+
+    IF (uv == 1) THEN
+      ! x-component
+
+      DO n = 1, single_row_nnz
+
+        ! Relevant indices for this neighbouring triangle
+        row_tjkk  = single_row_ind( n)
+        tj        = mesh%n2tik( row_tjkk,1)
+        kk        = mesh%n2tik( row_tjkk,2)
+        col_tjkku = mesh%tikuv2n( tj,kk,1)
+        col_tjkkv = mesh%tikuv2n( tj,kk,2)
+
+        !   4 eta d2u/dx2  + 4 deta/dx du/dx + eta d2u/dy2 + deta/dy du/dy + eta d2u/dz2 + deta/dz du/dz + ...
+        !   3 eta d2v/dxdy + 2 deta/dx dv/dy +               deta/dy dv/dx = -tau_dx
+
+        ! Combine the mesh operators
+        Au = 4._dp * eta     * single_row_d2dx2_val(  n) + &  ! 4  eta    d2u/dx2
+             4._dp * deta_dx * single_row_ddx_val(    n) + &  ! 4 deta/dx  du/dx
+                     eta     * single_row_d2dy2_val(  n) + &  !    eta    d2u/dy2
+                     deta_dy * single_row_ddy_val(    n) + &  !   deta/dy  du/dy
+                     eta     * single_row_d2dz2_val(  n) + &  !    eta    d2u/dz2
+                     deta_dz * single_row_ddz_val(    n)      !   deta/dz  du/dz
+
+        Av = 3._dp * eta     * single_row_d2dxdy_val( n) + &  ! 3  eta    d2v/dxdy
+             2._dp * deta_dx * single_row_ddy_val(    n) + &  ! 2 deta/dx  dv/dy
+                     deta_dy * single_row_ddx_val(    n)      !   deta/dy  dv/dx
+
+        ! Add coefficients to the stiffness matrix
+        CALL add_entry_CSR_dist( A_CSR, row_tikuv, col_tjkku, Au)
+        CALL add_entry_CSR_dist( A_CSR, row_tikuv, col_tjkkv, Av)
+
+      END DO
+
+      ! Load vector
+      bb( row_tikuv) = -tau_dx
+
+    ELSEIF (uv == 2) THEN
+      ! y-component
+
+      DO n = 1, single_row_nnz
+
+        ! Releuant indices for this neighbouring triangle
+        row_tjkk  = single_row_ind( n)
+        tj        = mesh%n2tik( row_tjkk,1)
+        kk        = mesh%n2tik( row_tjkk,2)
+        col_tjkku = mesh%tikuv2n( tj,kk,1)
+        col_tjkkv = mesh%tikuv2n( tj,kk,2)
+
+        !   4 eta d2v/dy2  + 4 deta/dy dv/dy + eta d2v/dx2 + deta/dx dv/dx + eta d2v/dz2 + deta/dz dv/dz + ...
+        !   3 eta d2u/dxdy + 2 deta/dy du/dx +               deta/dx du/dy = -tau_dy
+
+        ! Combine the mesh operators
+        Av = 4._dp * eta     * single_row_d2dy2_val(  n) + &  ! 4  eta    d2v/dy2
+             4._dp * deta_dy * single_row_ddy_val(    n) + &  ! 4 deta/dy  dv/dy
+                     eta     * single_row_d2dx2_val(  n) + &  !    eta    d2v/dx2
+                     deta_dx * single_row_ddx_val(    n) + &  !   deta/dx  dv/dx
+                     eta     * single_row_d2dz2_val(  n) + &  !    eta    d2v/dz2
+                     deta_dz * single_row_ddz_val(    n)      !   deta/dz  dv/dz
+
+        Au = 3._dp * eta     * single_row_d2dxdy_val( n) + &  ! 3  eta    d2u/dxdy
+             2._dp * deta_dy * single_row_ddx_val(    n) + &  ! 2 deta/dy  du/dx
+                     deta_dx * single_row_ddy_val(    n)      !   deta/dx  du/dy
+
+        ! Add coefficients to the stiffness matrix
+        CALL add_entry_CSR_dist( A_CSR, row_tikuv, col_tjkkv, Av)
+        CALL add_entry_CSR_dist( A_CSR, row_tikuv, col_tjkku, Au)
+
+      END DO
+
+      ! Load uector
+      bb( row_tikuv) = -tau_dy
+
+    ELSE
+      CALL crash('uv can only be 1 or 2!')
+    END IF
+
+    ! Clean up after yourself
+    DEALLOCATE( single_row_ind)
+    DEALLOCATE( single_row_ddx_val)
+    DEALLOCATE( single_row_ddy_val)
+    DEALLOCATE( single_row_d2dx2_val)
+    DEALLOCATE( single_row_d2dxdy_val)
+    DEALLOCATE( single_row_d2dy2_val)
+
+  END SUBROUTINE calc_BPA_stiffness_matrix_row_free
+
+  SUBROUTINE calc_BPA_stiffness_matrix_row_BC_surf( mesh, ice, BPA, A_CSR, bb, row_tikuv)
+    ! Add coefficients to this matrix row to represent the boundary conditions to the BPA at the ice surface
+    !
+    ! At the ice surface (k=1), the zero-stress boundary condition implies that:
+    !
+    ! [1]     2 dh/dx (2 du/dx + dv/dy) + dh/dy (du/dy + dv/dx) - du/dz = 0
+    !
+    ! The two-sided differencing schemes for the first and second derivatives du/dz, d2u/dz2 read:
+    !
+    ! [2]     du/dz  =  dzeta/dz    (u( k+1) - u( k-1)) / (2 dzeta)
+    ! [3]    d2u/dz2 = (dzeta/dz)^2 (u( k+1) + u( k-1) - 2 u( k)) / dzeta^2
+    !
+    ! A the ice surface, u( k-1) doesn't actually exist, but we can treat it as a "ghost point".
+    ! Since, at the ice surface, we know du/dz from the zero-stress boundary condition [1]:
+    !
+    ! [4]     du/dz = 2 dh/dx (2 du/dx + dv/dy) + dh/dy (du/dy + dv/dx)
+    !
+    ! Substituting [4] into [2] yields:
+    !
+    !         dzeta/dz (u( k+1) - u( k-1)) / (2 dzeta) = 2 dh/dx (2 du/dx + dv/dy) + dh/dy (du/dy + dv/dx)
+    !         u( k+1) - u( k-1) = 2 dzeta / (dzeta/dz)  (2 dh/dx (2 du/dx + dv/dy) + dh/dy (du/dy + dv/dx))
+    ! [5]     u( k-1) = u( k+1) - 2 dzeta / (dzeta/dz)  (2 dh/dx (2 du/dx + dv/dy) + dh/dy (du/dy + dv/dx))
+    !
+    ! Substituting [5] into [3] yields:
+    !
+    !         d2u/dz2 = (dzeta/dz)^2 1/dzeta^2 ( -2 u( k) + u( k+1) + u( k-1))
+    !                 = (dzeta/dz)^2 1/dzeta^2 ( -2 u( k) + 2 u( k+1) - 2 dzeta / (dzeta/dz) (2 dh/dx (2 du/dx + dv/dy) + dh/dy (du/dy + dv/dx)))
+    ! [6]             = (dzeta/dz)^2 2/dzeta^2 ( u( k+1) - u( k) - dzeta / (dzeta/dz) (2 dh/dx (2 du/dx + dv/dy) + dh/dy (du/dy + dv/dx)))
+    !
+    ! The product-rule-expanded form of the BPA reads:
+    !
+    ! [7]     4 eta d2u/dx2  + 4 deta/dx du/dx + ...
+    !           eta d2u/dy2  +   deta/dy du/dy + ...
+    !         3 eta d2v/dxdy + 2 deta/dx dv/dy + ...
+    !                            deta/dy dv/dx + ...
+    !           eta d2u/dz2  +   deta/dz du/dz = - tau_d,x
+    !
+    ! Substituting [4] and [6] into [7] yields:
+    !
+    !         4 eta d2u/dx2  + 4 deta/dx du/dx + ...
+    !           eta d2u/dy2  +   deta/dy du/dy + ...
+    !         3 eta d2v/dxdy + 2 deta/dx dv/dy + ...
+    !                            deta/dy dv/dx + ...
+    !           eta (dzeta/dz)^2 2/dzeta^2 ( u( k+1) - u( k) - dzeta / (dzeta/dz) (2 dh/dx (2 du/dx + dv/dy) + dh/dy (du/dy + dv/dx))) + ...
+    !          deta/dx 2 dh/dx (2 du/dx + dv/dy) + dh/dy (du/dy + dv/dx) = -tau_d,x
+    !
+    ! Rearranging to group the terms involving du/dx, du/dy, dv/dx, du/dy yields:
+    !
+    !         4 eta d2u/dx2 + eta d2u/dy2 + 3 eta d2v/dxdy + ...
+    !         du/dx   [ 4 deta/dx + eta (dzeta/dz)^2 ( 2 / dzeta^2) (-dzeta / (dzeta/dz)) 4 dh/dx + 4 deta/dz dh/dx] + ...
+    !         du/dy   [   deta/dy + eta (dzeta/dz)^2 ( 2 / dzeta^2) (-dzeta / (dzeta/dz))   dh/dy +   deta/dz dh/dy] + ...
+    !         dv/dy   [ 2 deta/dx + eta (dzeta/dz)^2 ( 2 / dzeta^2) (-dzeta / (dzeta/dz)) 2 dh/dx + 2 deta/dz dh/dx] + ...
+    !         dv/dx   [   deta/dy + eta (dzeta/dz)^2 ( 2 / dzeta^2) (-dzeta / (dzeta/dz)    dh/dy +   deta/dz dh/dy] + ...
+    !         u( k+1) [             eta (dzeta/dz)^2 ( 2 / dzeta^2)] + ...
+    !         u( k  ) [            -eta (dzeta/dz)^2 ( 2 / dzeta^2)] = -tau_d,x
+    !
+    ! Rearranging some of the cancelling dzeta/dz and dzeta terms yields:
+    !
+    ! [8]     4 eta d2u/dx2 + eta d2u/dy2 + 3 eta d2v/dxdy + ...
+    !         du/dx   [ 4 deta/dx - 2 eta / dzeta    dzeta/dz   4 dh/dx + 4 deta/dz dh/dx] + ...
+    !         du/dy   [   deta/dy - 2 eta / dzeta    dzeta/dz     dh/dy +   deta/dz dh/dy] + ...
+    !         dv/dy   [ 2 deta/dx - 2 eta / dzeta    dzeta/dz   2 dh/dx + 2 deta/dz dh/dx] + ...
+    !         dv/dx   [   deta/dy - 2 eta / dzeta    dzeta/dz     dh/dy +   deta/dz dh/dy] + ...
+    !         u( k+1) [             2 eta / dzeta^2 (dzeta/dz)^2] + ...
+    !         u( k  ) [            -2 eta / dzeta^2 (dzeta/dz)^2] = -tau_d,x
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)              :: mesh
+    TYPE(type_ice_velocity_solver_BPA),  INTENT(IN)              :: BPA
+    TYPE(type_ice_model),                INTENT(IN)              :: ice
+    TYPE(type_sparse_matrix_CSR_dp),     INTENT(INOUT)           :: A_CSR
+    REAL(dp), DIMENSION(A_CSR%i1:A_CSR%i2), INTENT(INOUT)        :: bb
+    INTEGER,                             INTENT(IN)              :: row_tikuv
+
+    ! Local variables:
+    INTEGER                                                      :: ti, k, uv
+    REAL(dp)                                                     :: eta, deta_dx, deta_dy, deta_dz, tau_dx, tau_dy, dh_dx, dh_dy, dzeta_dz, dzeta
+    INTEGER,  DIMENSION(:    ), ALLOCATABLE                      :: single_row_ind
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: single_row_ddx_val
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: single_row_ddy_val
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: single_row_d2dx2_val
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: single_row_d2dxdy_val
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: single_row_d2dy2_val
+    INTEGER                                                      :: single_row_nnz
+    INTEGER                                                      :: row_tik
+    REAL(dp)                                                     :: cu_dudx, cu_dudy, cu_d2udx2, cu_d2udy2, cu_dvdx, cu_dvdy, cu_d2vdxdy, cu_uk, cu_ukp1
+    REAL(dp)                                                     :: cv_dvdy, cv_dvdx, cv_d2vdy2, cv_d2vdx2, cv_dudy, cv_dudx, cv_d2udxdy, cv_vk, cv_vkp1
+    REAL(dp)                                                     :: Au, Av
+    INTEGER                                                      :: n, row_tjkk, tj, kk, col_tjkku, col_tjkkv
+
+    ! Relevant indices for this triangle and layer
+    ti = mesh%n2tikuv( row_tikuv,1)
+    k  = mesh%n2tikuv( row_tikuv,2)
+    uv = mesh%n2tikuv( row_tikuv,3)
+
+    ! Safety
+    IF (k /= 1) CALL crash('Received k = {int_01}; only applicable at ice surface!', int_01 = k)
+
+    ! eta, deta/dx, deta/dy, deta/dz, tau_dx, and tau_dy on this triangle and layer
+    eta      = BPA%eta_bks(     ti,1)
+    deta_dx  = BPA%deta_dx_bk(  ti,1)
+    deta_dy  = BPA%deta_dy_bk(  ti,1)
+    deta_dz  = BPA%deta_dz_bk(  ti,1)
+    tau_dx   = BPA%tau_dx_b(    ti  )
+    tau_dy   = BPA%tau_dy_b(    ti  )
+    dh_dx    = BPA%dh_dx_b(     ti  )
+    dh_dy    = BPA%dh_dy_b(     ti  )
+    dzeta_dz = ice%dzeta_dz_bk( ti,1)
+    dzeta    = mesh%zeta( 2) - mesh%zeta( 1)
+
+    ! Calculate coefficients for the different gradients of u and v
+    IF (uv == 1) THEN
+      ! x-component
+
+      ! 4 eta d2u/dx2 + eta d2u/dy2 + 3 eta d2v/dxdy + ...
+      ! du/dx   [ 4 deta/dx - 2 eta / dzeta    dzeta/dz   4 dh/dx + 4 deta/dz dh/dx] + ...
+      ! du/dy   [   deta/dy - 2 eta / dzeta    dzeta/dz     dh/dy +   deta/dz dh/dy] + ...
+      ! dv/dy   [ 2 deta/dx - 2 eta / dzeta    dzeta/dz   2 dh/dx + 2 deta/dz dh/dx] + ...
+      ! dv/dx   [   deta/dy - 2 eta / dzeta    dzeta/dz     dh/dy +   deta/dz dh/dy] + ...
+      ! u( k+1) [             2 eta / dzeta^2 (dzeta/dz)^2] + ...
+      ! u( k  ) [            -2 eta / dzeta^2 (dzeta/dz)^2] = -tau_d,x
+
+      cu_dudx    =  4._dp * deta_dx - 2._dp * eta / dzeta * dzeta_dz * 4._dp * dh_dx + 4._dp * deta_dz * dh_dx
+      cu_dudy    =          deta_dy - 2._dp * eta / dzeta * dzeta_dz *         dh_dy +         deta_dz * dh_dy
+      cu_dvdy    =  2._dp * deta_dx - 2._dp * eta / dzeta * dzeta_dz * 2._dp * dh_dx + 2._dp * deta_dz * dh_dx
+      cu_dvdx    =          deta_dy - 2._dp * eta / dzeta * dzeta_dz *         dh_dy +         deta_dz * dh_dy
+      cu_d2udx2  =  4._dp * eta
+      cu_d2udy2  =          eta
+      cu_d2vdxdy =  3._dp * eta
+      cu_uk      = -2._dp * eta / dzeta**2 * dzeta_dz**2
+      cu_ukp1    =  2._dp * eta / dzeta**2 * dzeta_dz**2
+
+    ELSEIF (uv == 2) THEN
+      ! y-component
+
+      ! 4 eta d2v/dy2 + eta d2v/dx2 + 3 eta d2u/dxdy + ...
+      ! dv/dy   [ 4 deta/dy - 2 eta / dzeta    dzeta/dz   4 dh/dy + 4 deta/dz dh/dy] + ...
+      ! dv/dx   [   deta/dx - 2 eta / dzeta    dzeta/dz     dh/dx +   deta/dz dh/dx] + ...
+      ! du/dx   [ 2 deta/dy - 2 eta / dzeta    dzeta/dz   2 dh/dy + 2 deta/dz dh/dy] + ...
+      ! du/dy   [   deta/dx - 2 eta / dzeta    dzeta/dz     dh/dx +   deta/dz dh/dx] + ...
+      ! v( k+1) [             2 eta / dzeta^2 (dzeta/dz)^2] + ...
+      ! v( k  ) [            -2 eta / dzeta^2 (dzeta/dz)^2] = -tau_d,y
+
+      cv_dvdy    =  4._dp * deta_dy - 2._dp * eta / dzeta * dzeta_dz * 4._dp * dh_dy + 4._dp * deta_dz * dh_dy
+      cv_dvdx    =          deta_dx - 2._dp * eta / dzeta * dzeta_dz *         dh_dx +         deta_dz * dh_dx
+      cv_dudx    =  2._dp * deta_dy - 2._dp * eta / dzeta * dzeta_dz * 2._dp * dh_dy + 2._dp * deta_dz * dh_dy
+      cv_dudy    =          deta_dx - 2._dp * eta / dzeta * dzeta_dz *         dh_dx +         deta_dz * dh_dx
+      cv_d2vdy2  =  4._dp * eta
+      cv_d2vdx2  =          eta
+      cv_d2udxdy =  3._dp * eta
+      cv_vk      = -2._dp * eta / dzeta**2 * dzeta_dz**2
+      cv_vkp1    =  2._dp * eta / dzeta**2 * dzeta_dz**2
+
+    ELSE
+      CALL crash('uv can only be 1 or 2!')
+    END IF
+
+    ! Allocate memory for single matrix rows
+    ALLOCATE( single_row_ind(        mesh%nC_mem*3*2))
+    ALLOCATE( single_row_ddx_val(    mesh%nC_mem*3*2))
+    ALLOCATE( single_row_ddy_val(    mesh%nC_mem*3*2))
+    ALLOCATE( single_row_d2dx2_val(  mesh%nC_mem*3*2))
+    ALLOCATE( single_row_d2dxdy_val( mesh%nC_mem*3*2))
+    ALLOCATE( single_row_d2dy2_val(  mesh%nC_mem*3*2))
+
+    ! Read coefficients of the operator matrices
+    row_tik = mesh%tik2n( ti,k)
+    CALL read_single_row_CSR_dist( mesh%M2_ddx_bk_bk   , row_tik, single_row_ind, single_row_ddx_val   , single_row_nnz)
+    CALL read_single_row_CSR_dist( mesh%M2_ddy_bk_bk   , row_tik, single_row_ind, single_row_ddy_val   , single_row_nnz)
+    CALL read_single_row_CSR_dist( mesh%M2_d2dx2_bk_bk , row_tik, single_row_ind, single_row_d2dx2_val , single_row_nnz)
+    CALL read_single_row_CSR_dist( mesh%M2_d2dxdy_bk_bk, row_tik, single_row_ind, single_row_d2dxdy_val, single_row_nnz)
+    CALL read_single_row_CSR_dist( mesh%M2_d2dy2_bk_bk , row_tik, single_row_ind, single_row_d2dy2_val , single_row_nnz)
+
+    IF (uv == 1) THEN
+      ! x-component
+
+      DO n = 1, single_row_nnz
+
+        ! Relevant indices for this neighbouring triangle
+        row_tjkk  = single_row_ind( n)
+        tj        = mesh%n2tik( row_tjkk,1)
+        kk        = mesh%n2tik( row_tjkk,2)
+        col_tjkku = mesh%tikuv2n( tj,kk,1)
+        col_tjkkv = mesh%tikuv2n( tj,kk,2)
+
+        ! Combine coefficients
+        Au = cu_dudx    * single_row_ddx_val(    n) + &
+             cu_dudy    * single_row_ddy_val(    n) + &
+             cu_d2udx2  * single_row_d2dx2_val(  n) + &
+             cu_d2udy2  * single_row_d2dy2_val(  n)
+        IF (tj == ti .AND. kk == k  ) Au = Au + cu_uk
+        IF (tj == ti .AND. kk == k+1) Au = Au + cu_ukp1
+
+        Av = cu_dvdy    * single_row_ddy_val(    n) + &
+             cu_dvdx    * single_row_ddx_val(    n) + &
+             cu_d2vdxdy * single_row_d2dxdy_val( n)
+
+        ! Add coefficients to the stiffness matrix
+        CALL add_entry_CSR_dist( A_CSR, row_tikuv, col_tjkku, Au)
+        CALL add_entry_CSR_dist( A_CSR, row_tikuv, col_tjkkv, Av)
+
+      END DO
+
+      ! Load vector
+      bb( row_tikuv) = -tau_dx
+
+    ELSEIF (uv == 2) THEN
+      ! y-component
+
+      DO n = 1, single_row_nnz
+
+        ! Relevant indices for this neighbouring triangle
+        row_tjkk  = single_row_ind( n)
+        tj        = mesh%n2tik( row_tjkk,1)
+        kk        = mesh%n2tik( row_tjkk,2)
+        col_tjkkv = mesh%tikuv2n( tj,kk,2)
+        col_tjkku = mesh%tikuv2n( tj,kk,1)
+
+        ! Combine coefficients
+        Av = cv_dvdy    * single_row_ddy_val(    n) + &
+             cv_dvdx    * single_row_ddx_val(    n) + &
+             cv_d2vdy2  * single_row_d2dy2_val(  n) + &
+             cv_d2vdx2  * single_row_d2dx2_val(  n)
+        IF (tj == ti .AND. kk == k  ) Av = Av + cv_vk
+        IF (tj == ti .AND. kk == k+1) Av = Av + cv_vkp1
+
+        Au = cv_dudx    * single_row_ddx_val(    n) + &
+             cv_dudy    * single_row_ddy_val(    n) + &
+             cv_d2udxdy * single_row_d2dxdy_val( n)
+
+        ! Add coefficients to the stiffness matrix
+        CALL add_entry_CSR_dist( A_CSR, row_tikuv, col_tjkkv, Av)
+        CALL add_entry_CSR_dist( A_CSR, row_tikuv, col_tjkku, Au)
+
+      END DO
+
+      ! Load uector
+      bb( row_tikuv) = -tau_dy
+
+    ELSE
+      CALL crash('uv can only be 1 or 2!')
+    END IF
+
+    ! Clean up after yourself
+    DEALLOCATE( single_row_ind)
+    DEALLOCATE( single_row_ddx_val)
+    DEALLOCATE( single_row_ddy_val)
+    DEALLOCATE( single_row_d2dx2_val)
+    DEALLOCATE( single_row_d2dxdy_val)
+    DEALLOCATE( single_row_d2dy2_val)
+
+  END SUBROUTINE calc_BPA_stiffness_matrix_row_BC_surf
+
+  SUBROUTINE calc_BPA_stiffness_matrix_row_BC_base( mesh, ice, BPA, A_CSR, bb, row_tikuv)
+    ! Add coefficients to this matrix row to represent the boundary conditions to the BPA at the ice base
+    !
+    ! At the ice surface (k=1), the zero-stress boundary condition implies that:
+    !
+    ! [1]     2 db/dx (2 du/dx + dv/dy) + db/dy (du/dy + dv/dx) - du/dz + beta_b/eta u = 0
+    !
+    ! As a shorthand, define:
+    !
+    ! [2]     P = du/dz = 2 db/dx (2 du/dx + dv/dy) + db/dy (du/dy + dv/dx) + beta_b/eta u
+    !
+    ! The two-sided differencing schemes for the first and second derivatives du/dz, d2u/dz2 read:
+    !
+    ! [3]     du/dz  =  dzeta/dz    (u( k+1) - u( k-1)          ) / (2 dzeta)
+    ! [4]    d2u/dz2 = (dzeta/dz)^2 (u( k+1) + u( k-1) - 2 u( k)) /    dzeta^2
+    !
+    ! Substituting [3] into [2] and rearranging yields an expression for the ghost node u( k+1):
+    !
+    !         dzeta/dz (u( k+1) - u( k-1)) / (2 dzeta) = P
+    !         u( k+1) - u( k-1) = 2 P dzeta / dzeta_dz
+    ! [5]     u( k+1) = u( k-1) + 2 P dzeta / dzeta_dz
+    !
+    ! We then substitute [5] into [4] to find an expression for d2u/dz2 that no longer depends
+    ! on the ghost node u( k+1):
+    !
+    !         d2u/dz2 = (dzeta/dz)^2 1 / dzeta^2 (u( k+1) + u( k-1) - 2 u( k))
+    !                 = (dzeta/dz)^2 1 / dzeta^2 (u( k-1) + 2 P dzeta / dzeta_dz + u( k-1) - 2 u( k))
+    !                 = (dzeta/dz)^2 1 / dzeta^2 (2 u( k-1) - 2 u( k) + 2 P dzeta / dzeta_dz)
+    ! [6]             = (dzeta/dz)^2 2 / dzeta^2 (u( k-1) - u( k) + P dzeta / dzeta_dz)
+    !
+    ! The product-rule-expanded form of the BPA reads:
+    !
+    ! [7]     4 eta d2u/dx2  + 4 deta/dx du/dx + eta d2u/dy2  +   deta/dy du/dy + ...
+    !         3 eta d2v/dxdy + 2 deta/dx dv/dy + deta/dy dv/dx + ...
+    !           eta d2u/dz2  +   deta/dz du/dz = -tau_d,x
+    !
+    ! Substituting [6] and [2] into [7] yields:
+    !
+    ! [8]     4 eta d2u/dx2  + 4 deta/dx du/dx + eta d2u/dy2  +   deta/dy du/dy + ...
+    !         3 eta d2v/dxdy + 2 deta/dx dv/dy + deta/dy dv/dx + ...
+    !           eta [(dzeta/dz)^2 2 / dzeta^2 (u( k-1) - u( k) + P dzeta / dzeta_dz)] + ...
+    !          deta/dz P = -tau_d,x
+    !
+    ! As more shorthand, define:
+    !
+    ! [9]     Q = eta (dzeta/dz)^2 2 / dzeta^2 = 2 eta / dzeta^2 (dzeta/dz)^2
+    !
+    ! Substituting [9] into [8] yields:
+    !
+    ! [10]    4 eta d2u/dx2  + 4 deta/dx du/dx + eta d2u/dy2  +   deta/dy du/dy + ...
+    !         3 eta d2v/dxdy + 2 deta/dx dv/dy + deta/dy dv/dx + ...
+    !         Q u( k-1) - Q u( k) + P Q dzeta / dzeta_dz)] + deta/dz P = -tau_d,x
+    !
+    ! As even more shorthand, define:
+    !
+    ! [11]    R = Q dzeta / (dzeta/dz) + deta/dz = 2 eta / dzeta dzeta/dz + deta/dz
+    !
+    ! Substituting [11] into [10] yields:
+    !
+    ! [12]    4 eta d2u/dx2  + 4 deta/dx du/dx + eta d2u/dy2  +   deta/dy du/dy + ...
+    !         3 eta d2v/dxdy + 2 deta/dx dv/dy + deta/dy dv/dx + ...
+    !         Q u( k-1) - Q u( k) + R P = -tau_d,x
+    !
+    ! Substituting [2] back into [12] yields:
+    !
+    ! [12]    4 eta d2u/dx2  + 4 deta/dx du/dx + eta d2u/dy2  +   deta/dy du/dy + ...
+    !         3 eta d2v/dxdy + 2 deta/dx dv/dy + deta/dy dv/dx + ...
+    !         Q u( k-1) - Q u( k) + ...
+    !         R [2 db/dx (2 du/dx + dv/dy) + db/dy (du/dy + dv/dx) + beta_b/eta u] = -tau_d,x
+    !
+    ! Rearranging to collect the terms involving du/dx, du/dy, dv/dx, dv/dy yields:
+    !
+    ! [13]    4 eta d2u/dx2  + eta d2u/dy2 + 3 eta d2v/dxdy + ...
+    !         du/dx   [ 4 deta/dx + 4 R db/dx] + ...
+    !         du/dy   [   deta/dy +   R db/dy] + ...
+    !         dv/dy   [ 2 deta/dx + 2 R db/dx] + ...
+    !         dv/dx   [   deta/dy +   R db/dy] + ...
+    !         u( k  ) [R beta_b/eta - Q] + ...
+    !         u( k-1) [Q] = -tau_d,x
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)              :: mesh
+    TYPE(type_ice_velocity_solver_BPA),  INTENT(IN)              :: BPA
+    TYPE(type_ice_model),                INTENT(IN)              :: ice
+    TYPE(type_sparse_matrix_CSR_dp),     INTENT(INOUT)           :: A_CSR
+    REAL(dp), DIMENSION(A_CSR%i1:A_CSR%i2), INTENT(INOUT)        :: bb
+    INTEGER,                             INTENT(IN)              :: row_tikuv
+
+    ! Local variables:
+    INTEGER                                                      :: ti, k, uv
+    REAL(dp)                                                     :: eta, deta_dx, deta_dy, deta_dz, tau_dx, tau_dy, db_dx, db_dy, dzeta_dz, dzeta, beta_b, Q, R
+    INTEGER,  DIMENSION(:    ), ALLOCATABLE                      :: single_row_ind
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: single_row_ddx_val
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: single_row_ddy_val
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: single_row_d2dx2_val
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: single_row_d2dxdy_val
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: single_row_d2dy2_val
+    INTEGER                                                      :: single_row_nnz
+    INTEGER                                                      :: row_tik
+    REAL(dp)                                                     :: cu_dudx, cu_dudy, cu_d2udx2, cu_d2udy2, cu_dvdx, cu_dvdy, cu_d2vdxdy, cu_uk, cu_ukm1
+    REAL(dp)                                                     :: cv_dvdy, cv_dvdx, cv_d2vdy2, cv_d2vdx2, cv_dudy, cv_dudx, cv_d2udxdy, cv_vk, cv_vkm1
+    REAL(dp)                                                     :: Au, Av
+    INTEGER                                                      :: n, row_tjkk, tj, kk, col_tjkku, col_tjkkv
+
+    ! Relevant indices for this triangle and layer
+    ti = mesh%n2tikuv( row_tikuv,1)
+    k  = mesh%n2tikuv( row_tikuv,2)
+    uv = mesh%n2tikuv( row_tikuv,3)
+
+    ! Safety
+    IF (k /= mesh%nz) CALL crash('Received k = {int_01}; only applicable at ice base!', int_01 = k)
+
+    ! eta, deta/dx, deta/dy, deta/dz, tau_dx, and tau_dy on this triangle and layer
+    eta      = BPA%eta_bks(     ti,mesh%nz-1)
+    deta_dx  = BPA%deta_dx_bk(  ti,mesh%nz)
+    deta_dy  = BPA%deta_dy_bk(  ti,mesh%nz)
+    deta_dz  = BPA%deta_dz_bk(  ti,mesh%nz)
+    tau_dx   = BPA%tau_dx_b(    ti  )
+    tau_dy   = BPA%tau_dy_b(    ti  )
+    db_dx    = BPA%db_dx_b(     ti  )
+    db_dy    = BPA%db_dy_b(     ti  )
+    beta_b   = BPA%beta_b_b(    ti  )
+    dzeta_dz = ice%dzeta_dz_bk( ti,mesh%nz)
+    dzeta    = mesh%zeta( mesh%nz) - mesh%zeta( mesh%nz-1)
+
+    ! [9]     Q = eta (dzeta/dz)^2 2 / dzeta^2 = 2 eta / dzeta^2 (dzeta/dz)^2
+    Q = 2._dp * eta / dzeta**2 * dzeta_dz**2
+
+    ! [11]    R = Q dzeta / (dzeta/dz) + deta/dz = 2 eta / dzeta dzeta/dz + deta/dz
+    R = 2._dp * eta / dzeta    * dzeta_dz    + deta_dz
+
+    ! Calculate coefficients for the different gradients of u and v
+    IF (uv == 1) THEN
+      ! x-component
+
+      ! [13]    4 eta d2u/dx2  + eta d2u/dy2 + 3 eta d2v/dxdy + ...
+      !         du/dx   [ 4 deta/dx + 4 R db/dx] + ...
+      !         du/dy   [   deta/dy +   R db/dy] + ...
+      !         dv/dy   [ 2 deta/dx + 2 R db/dx] + ...
+      !         dv/dx   [   deta/dy +   R db/dy] + ...
+      !         u( k  ) [R beta_b/eta - Q] + ...
+      !         u( k-1) [Q] = -tau_d,x
+
+      cu_dudx    =  4._dp * deta_dx + 4._dp * R * db_dx
+      cu_dudy    =          deta_dy +         R * db_dy
+      cu_dvdy    =  2._dp * deta_dx + 2._dp * R * db_dx
+      cu_dvdx    =          deta_dy +         R * db_dy
+      cu_d2udx2  =  4._dp * eta
+      cu_d2udy2  =          eta
+      cu_d2vdxdy =  3._dp * eta
+      cu_uk      = ( R * beta_b / eta) - Q
+      cu_ukm1    = Q
+
+    ELSEIF (uv == 2) THEN
+      ! y-component
+
+      ! [13]    4 eta d2v/dy2  + eta d2v/dx2 + 3 eta d2u/dydx + ...
+      !         dv/dy   [ 4 deta/dy + 4 R db/dy] + ...
+      !         dv/dx   [   deta/dx +   R db/dx] + ...
+      !         du/dx   [ 2 deta/dy + 2 R db/dy] + ...
+      !         du/dy   [   deta/dx +   R db/dx] + ...
+      !         v( k  ) [R beta_b/eta - Q] + ...
+      !         v( k-1) [Q] = -tau_d,y
+
+      cv_dvdy    =  4._dp * deta_dy + 4._dp * R * db_dy
+      cv_dvdx    =          deta_dx +         R * db_dx
+      cv_dudx    =  2._dp * deta_dy + 2._dp * R * db_dy
+      cv_dudy    =          deta_dx +         R * db_dx
+      cv_d2vdy2  =  4._dp * eta
+      cv_d2vdx2  =          eta
+      cv_d2udxdy =  3._dp * eta
+      cv_vk      = ( R * beta_b / eta) - Q
+      cv_vkm1    = Q
+
+    ELSE
+      CALL crash('uv can only be 1 or 2!')
+    END IF
+
+    ! Allocate memory for single matrix rows
+    ALLOCATE( single_row_ind(        mesh%nC_mem*3*2))
+    ALLOCATE( single_row_ddx_val(    mesh%nC_mem*3*2))
+    ALLOCATE( single_row_ddy_val(    mesh%nC_mem*3*2))
+    ALLOCATE( single_row_d2dx2_val(  mesh%nC_mem*3*2))
+    ALLOCATE( single_row_d2dxdy_val( mesh%nC_mem*3*2))
+    ALLOCATE( single_row_d2dy2_val(  mesh%nC_mem*3*2))
+
+    ! Read coefficients of the operator matrices
+    row_tik = mesh%tik2n( ti,k)
+    CALL read_single_row_CSR_dist( mesh%M2_ddx_bk_bk   , row_tik, single_row_ind, single_row_ddx_val   , single_row_nnz)
+    CALL read_single_row_CSR_dist( mesh%M2_ddy_bk_bk   , row_tik, single_row_ind, single_row_ddy_val   , single_row_nnz)
+    CALL read_single_row_CSR_dist( mesh%M2_d2dx2_bk_bk , row_tik, single_row_ind, single_row_d2dx2_val , single_row_nnz)
+    CALL read_single_row_CSR_dist( mesh%M2_d2dxdy_bk_bk, row_tik, single_row_ind, single_row_d2dxdy_val, single_row_nnz)
+    CALL read_single_row_CSR_dist( mesh%M2_d2dy2_bk_bk , row_tik, single_row_ind, single_row_d2dy2_val , single_row_nnz)
+
+    IF (uv == 1) THEN
+      ! x-component
+
+      DO n = 1, single_row_nnz
+
+        ! Relevant indices for this neighbouring triangle
+        row_tjkk  = single_row_ind( n)
+        tj        = mesh%n2tik( row_tjkk,1)
+        kk        = mesh%n2tik( row_tjkk,2)
+        col_tjkku = mesh%tikuv2n( tj,kk,1)
+        col_tjkkv = mesh%tikuv2n( tj,kk,2)
+
+        ! Combine coefficients
+        Au = cu_dudx    * single_row_ddx_val(    n) + &
+             cu_dudy    * single_row_ddy_val(    n) + &
+             cu_d2udx2  * single_row_d2dx2_val(  n) + &
+             cu_d2udy2  * single_row_d2dy2_val(  n)
+        IF (tj == ti .AND. kk == k  ) Au = Au + cu_uk
+        IF (tj == ti .AND. kk == k-1) Au = Au + cu_ukm1
+
+        Av = cu_dvdy    * single_row_ddy_val(    n) + &
+             cu_dvdx    * single_row_ddx_val(    n) + &
+             cu_d2vdxdy * single_row_d2dxdy_val( n)
+
+        ! Add coefficients to the stiffness matrix
+        CALL add_entry_CSR_dist( A_CSR, row_tikuv, col_tjkku, Au)
+        CALL add_entry_CSR_dist( A_CSR, row_tikuv, col_tjkkv, Av)
+
+      END DO
+
+      ! Load vector
+      bb( row_tikuv) = -tau_dx
+
+    ELSEIF (uv == 2) THEN
+      ! y-component
+
+      DO n = 1, single_row_nnz
+
+        ! Relevant indices for this neighbouring triangle
+        row_tjkk  = single_row_ind( n)
+        tj        = mesh%n2tik( row_tjkk,1)
+        kk        = mesh%n2tik( row_tjkk,2)
+        col_tjkkv = mesh%tikuv2n( tj,kk,2)
+        col_tjkku = mesh%tikuv2n( tj,kk,1)
+
+        ! Combine coefficients
+        Av = cv_dvdy    * single_row_ddy_val(    n) + &
+             cv_dvdx    * single_row_ddx_val(    n) + &
+             cv_d2vdy2  * single_row_d2dy2_val(  n) + &
+             cv_d2vdx2  * single_row_d2dx2_val(  n)
+        IF (tj == ti .AND. kk == k  ) Av = Av + cv_vk
+        IF (tj == ti .AND. kk == k+1) Av = Av + cv_vkm1
+
+        Au = cv_dudx    * single_row_ddx_val(    n) + &
+             cv_dudy    * single_row_ddy_val(    n) + &
+             cv_d2udxdy * single_row_d2dxdy_val( n)
+
+        ! Add coefficients to the stiffness matrix
+        CALL add_entry_CSR_dist( A_CSR, row_tikuv, col_tjkkv, Av)
+        CALL add_entry_CSR_dist( A_CSR, row_tikuv, col_tjkku, Au)
+
+      END DO
+
+      ! Load uector
+      bb( row_tikuv) = -tau_dy
+
+    ELSE
+      CALL crash('uv can only be 1 or 2!')
+    END IF
+
+    ! Clean up after yourself
+    DEALLOCATE( single_row_ind)
+    DEALLOCATE( single_row_ddx_val)
+    DEALLOCATE( single_row_ddy_val)
+    DEALLOCATE( single_row_d2dx2_val)
+    DEALLOCATE( single_row_d2dxdy_val)
+    DEALLOCATE( single_row_d2dy2_val)
+
+  END SUBROUTINE calc_BPA_stiffness_matrix_row_BC_base
+
+  SUBROUTINE calc_BPA_stiffness_matrix_row_BC_west( mesh, A_CSR, bb, row_tikuv)
+    ! Add coefficients to this matrix row to represent boundary conditions at the
+    ! western domain border.
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)              :: mesh
+    TYPE(type_sparse_matrix_CSR_dp),     INTENT(INOUT)           :: A_CSR
+    REAL(dp), DIMENSION(A_CSR%i1:A_CSR%i2), INTENT(INOUT)        :: bb
+    INTEGER,                             INTENT(IN)              :: row_tikuv
+
+    ! Local variables:
+    INTEGER                                                      :: ti,k,uv,row_ti
+    INTEGER                                                      :: tj, col_tjkuv, ti_copy, col_ticopykuv
+    INTEGER                                                      :: n, n_neighbours
+
+    ti = mesh%n2tikuv( row_tikuv,1)
+    k  = mesh%n2tikuv( row_tikuv,2)
+    uv = mesh%n2tikuv( row_tikuv,3)
+    row_ti = mesh%ti2n( ti)
+
+    IF (uv == 1) THEN
+      ! x-component
+
+      IF     (C%BC_u_west == 'infinite') THEN
+        ! du/dx = 0
+        !
+        ! NOTE: using the d/dx operator matrix doesn't always work well, not sure why...
+
+        ! Set u on this triangle equal to the average value on its neighbours
+        n_neighbours = 0
+        DO n = 1, 3
+          tj = mesh%TriC( ti,n)
+          IF (tj == 0) CYCLE
+          n_neighbours = n_neighbours + 1
+          col_tjkuv = mesh%tikuv2n( tj,k,uv)
+          CALL add_entry_CSR_dist( A_CSR, row_tikuv, col_tjkuv, 1._dp)
+        END DO
+        IF (n_neighbours == 0) CALL crash('whaa!')
+        CALL add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv, -1._dp * REAL( n_neighbours,dp))
+
+        ! Load vector
+        bb( row_tikuv) = 0._dp
+
+      ELSEIF (C%BC_u_west == 'zero') THEN
+        ! u = 0
+
+        ! Stiffness matrix
+        CALL add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv, 1._dp)
+
+        ! Load vector
+        bb( row_tikuv) = 0._dp
+
+      ELSEIF (C%BC_u_west == 'periodic_ISMIP-HOM') THEN
+        ! u(x,y) = u(x+-L/2,y+-L/2)
+
+        ! Find the triangle ti_copy that is displaced by [x+-L/2,y+-L/2] relative to ti
+        ti_copy = ti
+        CALL find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy)
+
+        ! Set value at ti equal to value at ti_copy
+        col_ticopykuv = mesh%tikuv2n( ti_copy,k,uv)
+        CALL add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv    ,  1._dp)
+        CALL add_entry_CSR_dist( A_CSR, row_tikuv, col_ticopykuv, -1._dp)
+        bb( row_tikuv) = 0._dp
+
+      ELSE
+        CALL crash('unknown BC_u_west "' // TRIM( C%BC_u_west) // '"!')
+      END IF
+
+    ELSEIF (uv == 2) THEN
+      ! y-component
+
+      IF     (C%BC_v_west == 'infinite') THEN
+        ! dv/dx = 0
+        !
+        ! NOTE: using the d/dx operator matrix doesn't always work well, not sure why...
+
+        ! Set v on this triangle equal to the average value on its neighbours
+        n_neighbours = 0
+        DO n = 1, 3
+          tj = mesh%TriC( ti,n)
+          IF (tj == 0) CYCLE
+          n_neighbours = n_neighbours + 1
+          col_tjkuv = mesh%tikuv2n( tj,k,uv)
+          CALL add_entry_CSR_dist( A_CSR, row_tikuv, col_tjkuv, 1._dp)
+        END DO
+        IF (n_neighbours == 0) CALL crash('whaa!')
+        CALL add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv, -1._dp * REAL( n_neighbours,dp))
+
+        ! Load vector
+        bb( row_tikuv) = 0._dp
+
+      ELSEIF (C%BC_v_west == 'zero') THEN
+        ! v = 0
+
+        ! Stiffness matrix
+        CALL add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv, 1._dp)
+
+        ! Load vector
+        bb( row_tikuv) = 0._dp
+
+      ELSEIF (C%BC_v_west == 'periodic_ISMIP-HOM') THEN
+        ! v(x,y) = v(x+-L/2,y+-L/2)
+
+        ! Find the triangle ti_copy that is displaced by [x+-L/2,y+-L/2] relative to ti
+        ti_copy = ti
+        CALL find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy)
+
+        ! Set value at ti equal to value at ti_copy
+        col_ticopykuv = mesh%tikuv2n( ti_copy,k,uv)
+        CALL add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv    ,  1._dp)
+        CALL add_entry_CSR_dist( A_CSR, row_tikuv, col_ticopykuv, -1._dp)
+        bb( row_tikuv) = 0._dp
+
+      ELSE
+        CALL crash('unknown BC_u_west "' // TRIM( C%BC_u_west) // '"!')
+      END IF
+
+    ELSE
+      CALL crash('uv can only be 1 or 2!')
+    END IF
+
+  END SUBROUTINE calc_BPA_stiffness_matrix_row_BC_west
+
+  SUBROUTINE calc_BPA_stiffness_matrix_row_BC_east( mesh, A_CSR, bb, row_tikuv)
+    ! Add coefficients to this matrix row to represent boundary conditions at the
+    ! eastern domain border.
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)              :: mesh
+    TYPE(type_sparse_matrix_CSR_dp),     INTENT(INOUT)           :: A_CSR
+    REAL(dp), DIMENSION(A_CSR%i1:A_CSR%i2), INTENT(INOUT)        :: bb
+    INTEGER,                             INTENT(IN)              :: row_tikuv
+
+    ! Local variables:
+    INTEGER                                                      :: ti,k,uv,row_ti
+    INTEGER                                                      :: tj, col_tjkuv, ti_copy, col_ticopykuv
+    INTEGER                                                      :: n, n_neighbours
+
+    ti = mesh%n2tikuv( row_tikuv,1)
+    k  = mesh%n2tikuv( row_tikuv,2)
+    uv = mesh%n2tikuv( row_tikuv,3)
+    row_ti = mesh%ti2n( ti)
+
+    IF (uv == 1) THEN
+      ! x-component
+
+      IF     (C%BC_u_east == 'infinite') THEN
+        ! du/dx = 0
+        !
+        ! NOTE: using the d/dx operator matrix doesn't always work well, not sure why...
+
+        ! Set u on this triangle equal to the average value on its neighbours
+        n_neighbours = 0
+        DO n = 1, 3
+          tj = mesh%TriC( ti,n)
+          IF (tj == 0) CYCLE
+          n_neighbours = n_neighbours + 1
+          col_tjkuv = mesh%tikuv2n( tj,k,uv)
+          CALL add_entry_CSR_dist( A_CSR, row_tikuv, col_tjkuv, 1._dp)
+        END DO
+        IF (n_neighbours == 0) CALL crash('whaa!')
+        CALL add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv, -1._dp * REAL( n_neighbours,dp))
+
+        ! Load vector
+        bb( row_tikuv) = 0._dp
+
+      ELSEIF (C%BC_u_east == 'zero') THEN
+        ! u = 0
+
+        ! Stiffness matrix
+        CALL add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv, 1._dp)
+
+        ! Load vector
+        bb( row_tikuv) = 0._dp
+
+      ELSEIF (C%BC_u_east == 'periodic_ISMIP-HOM') THEN
+        ! u(x,y) = u(x+-L/2,y+-L/2)
+
+        ! Find the triangle ti_copy that is displaced by [x+-L/2,y+-L/2] relative to ti
+        ti_copy = ti
+        CALL find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy)
+
+        ! Set value at ti equal to value at ti_copy
+        col_ticopykuv = mesh%tikuv2n( ti_copy,k,uv)
+        CALL add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv    ,  1._dp)
+        CALL add_entry_CSR_dist( A_CSR, row_tikuv, col_ticopykuv, -1._dp)
+        bb( row_tikuv) = 0._dp
+
+      ELSE
+        CALL crash('unknown BC_u_east "' // TRIM( C%BC_u_east) // '"!')
+      END IF
+
+    ELSEIF (uv == 2) THEN
+      ! y-component
+
+      IF     (C%BC_v_east == 'infinite') THEN
+        ! dv/dx = 0
+        !
+        ! NOTE: using the d/dx operator matrix doesn't always work well, not sure why...
+
+        ! Set v on this triangle equal to the average value on its neighbours
+        n_neighbours = 0
+        DO n = 1, 3
+          tj = mesh%TriC( ti,n)
+          IF (tj == 0) CYCLE
+          n_neighbours = n_neighbours + 1
+          col_tjkuv = mesh%tikuv2n( tj,k,uv)
+          CALL add_entry_CSR_dist( A_CSR, row_tikuv, col_tjkuv, 1._dp)
+        END DO
+        IF (n_neighbours == 0) CALL crash('whaa!')
+        CALL add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv, -1._dp * REAL( n_neighbours,dp))
+
+        ! Load vector
+        bb( row_tikuv) = 0._dp
+
+      ELSEIF (C%BC_v_east == 'zero') THEN
+        ! v = 0
+
+        ! Stiffness matrix
+        CALL add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv, 1._dp)
+
+        ! Load vector
+        bb( row_tikuv) = 0._dp
+
+      ELSEIF (C%BC_v_east == 'periodic_ISMIP-HOM') THEN
+        ! v(x,y) = v(x+-L/2,y+-L/2)
+
+        ! Find the triangle ti_copy that is displaced by [x+-L/2,y+-L/2] relative to ti
+        ti_copy = ti
+        CALL find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy)
+
+        ! Set value at ti equal to value at ti_copy
+        col_ticopykuv = mesh%tikuv2n( ti_copy,k,uv)
+        CALL add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv    ,  1._dp)
+        CALL add_entry_CSR_dist( A_CSR, row_tikuv, col_ticopykuv, -1._dp)
+        bb( row_tikuv) = 0._dp
+
+      ELSE
+        CALL crash('unknown BC_u_east "' // TRIM( C%BC_u_east) // '"!')
+      END IF
+
+    ELSE
+      CALL crash('uv can only be 1 or 2!')
+    END IF
+
+  END SUBROUTINE calc_BPA_stiffness_matrix_row_BC_east
+
+  SUBROUTINE calc_BPA_stiffness_matrix_row_BC_south( mesh, A_CSR, bb, row_tikuv)
+    ! Add coefficients to this matrix row to represent boundary conditions at the
+    ! southern domain border.
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)              :: mesh
+    TYPE(type_sparse_matrix_CSR_dp),     INTENT(INOUT)           :: A_CSR
+    REAL(dp), DIMENSION(A_CSR%i1:A_CSR%i2), INTENT(INOUT)        :: bb
+    INTEGER,                             INTENT(IN)              :: row_tikuv
+
+    ! Local variables:
+    INTEGER                                                      :: ti,k,uv,row_ti
+    INTEGER                                                      :: tj, col_tjkuv, ti_copy, col_ticopykuv
+    INTEGER                                                      :: n, n_neighbours
+
+    ti = mesh%n2tikuv( row_tikuv,1)
+    k  = mesh%n2tikuv( row_tikuv,2)
+    uv = mesh%n2tikuv( row_tikuv,3)
+    row_ti = mesh%ti2n( ti)
+
+    IF (uv == 1) THEN
+      ! x-component
+
+      IF     (C%BC_u_south == 'infinite') THEN
+        ! du/dy = 0
+        !
+        ! NOTE: using the d/dy operator matrix doesn't always work well, not sure why...
+
+        ! Set u on this triangle equal to the average value on its neighbours
+        n_neighbours = 0
+        DO n = 1, 3
+          tj = mesh%TriC( ti,n)
+          IF (tj == 0) CYCLE
+          n_neighbours = n_neighbours + 1
+          col_tjkuv = mesh%tikuv2n( tj,k,uv)
+          CALL add_entry_CSR_dist( A_CSR, row_tikuv, col_tjkuv, 1._dp)
+        END DO
+        IF (n_neighbours == 0) CALL crash('whaa!')
+        CALL add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv, -1._dp * REAL( n_neighbours,dp))
+
+        ! Load vector
+        bb( row_tikuv) = 0._dp
+
+      ELSEIF (C%BC_u_south == 'zero') THEN
+        ! u = 0
+
+        ! Stiffness matrix
+        CALL add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv, 1._dp)
+
+        ! Load vector
+        bb( row_tikuv) = 0._dp
+
+      ELSEIF (C%BC_u_south == 'periodic_ISMIP-HOM') THEN
+        ! u(x,y) = u(x+-L/2,y+-L/2)
+
+        ! Find the triangle ti_copy that is displaced by [x+-L/2,y+-L/2] relative to ti
+        ti_copy = ti
+        CALL find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy)
+
+        ! Set value at ti equal to value at ti_copy
+        col_ticopykuv = mesh%tikuv2n( ti_copy,k,uv)
+        CALL add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv    ,  1._dp)
+        CALL add_entry_CSR_dist( A_CSR, row_tikuv, col_ticopykuv, -1._dp)
+        bb( row_tikuv) = 0._dp
+
+      ELSE
+        CALL crash('unknown BC_u_south "' // TRIM( C%BC_u_south) // '"!')
+      END IF
+
+    ELSEIF (uv == 2) THEN
+      ! y-component
+
+      IF     (C%BC_v_south == 'infinite') THEN
+        ! dv/dy = 0
+        !
+        ! NOTE: using the d/dy operator matrix doesn't always work well, not sure why...
+
+        ! Set v on this triangle equal to the average value on its neighbours
+        n_neighbours = 0
+        DO n = 1, 3
+          tj = mesh%TriC( ti,n)
+          IF (tj == 0) CYCLE
+          n_neighbours = n_neighbours + 1
+          col_tjkuv = mesh%tikuv2n( tj,k,uv)
+          CALL add_entry_CSR_dist( A_CSR, row_tikuv, col_tjkuv, 1._dp)
+        END DO
+        IF (n_neighbours == 0) CALL crash('whaa!')
+        CALL add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv, -1._dp * REAL( n_neighbours,dp))
+
+        ! Load vector
+        bb( row_tikuv) = 0._dp
+
+      ELSEIF (C%BC_v_south == 'zero') THEN
+        ! v = 0
+
+        ! Stiffness matrix
+        CALL add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv, 1._dp)
+
+        ! Load vector
+        bb( row_tikuv) = 0._dp
+
+      ELSEIF (C%BC_v_south == 'periodic_ISMIP-HOM') THEN
+        ! v(x,y) = v(x+-L/2,y+-L/2)
+
+        ! Find the triangle ti_copy that is displaced by [x+-L/2,y+-L/2] relative to ti
+        ti_copy = ti
+        CALL find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy)
+
+        ! Set value at ti equal to value at ti_copy
+        col_ticopykuv = mesh%tikuv2n( ti_copy,k,uv)
+        CALL add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv    ,  1._dp)
+        CALL add_entry_CSR_dist( A_CSR, row_tikuv, col_ticopykuv, -1._dp)
+        bb( row_tikuv) = 0._dp
+
+      ELSE
+        CALL crash('unknown BC_u_south "' // TRIM( C%BC_u_south) // '"!')
+      END IF
+
+    ELSE
+      CALL crash('uv can only be 1 or 2!')
+    END IF
+
+  END SUBROUTINE calc_BPA_stiffness_matrix_row_BC_south
+
+  SUBROUTINE calc_BPA_stiffness_matrix_row_BC_north( mesh, A_CSR, bb, row_tikuv)
+    ! Add coefficients to this matrix row to represent boundary conditions at the
+    ! northern domain border.
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)              :: mesh
+    TYPE(type_sparse_matrix_CSR_dp),     INTENT(INOUT)           :: A_CSR
+    REAL(dp), DIMENSION(A_CSR%i1:A_CSR%i2), INTENT(INOUT)        :: bb
+    INTEGER,                             INTENT(IN)              :: row_tikuv
+
+    ! Local variables:
+    INTEGER                                                      :: ti,k,uv,row_ti
+    INTEGER                                                      :: tj, col_tjkuv, ti_copy, col_ticopykuv
+    INTEGER                                                      :: n, n_neighbours
+
+    ti = mesh%n2tikuv( row_tikuv,1)
+    k  = mesh%n2tikuv( row_tikuv,2)
+    uv = mesh%n2tikuv( row_tikuv,3)
+    row_ti = mesh%ti2n( ti)
+
+    IF (uv == 1) THEN
+      ! x-component
+
+      IF     (C%BC_u_north == 'infinite') THEN
+        ! du/dy = 0
+        !
+        ! NOTE: using the d/dy operator matrix doesn't always work well, not sure why...
+
+        ! Set u on this triangle equal to the average value on its neighbours
+        n_neighbours = 0
+        DO n = 1, 3
+          tj = mesh%TriC( ti,n)
+          IF (tj == 0) CYCLE
+          n_neighbours = n_neighbours + 1
+          col_tjkuv = mesh%tikuv2n( tj,k,uv)
+          CALL add_entry_CSR_dist( A_CSR, row_tikuv, col_tjkuv, 1._dp)
+        END DO
+        IF (n_neighbours == 0) CALL crash('whaa!')
+        CALL add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv, -1._dp * REAL( n_neighbours,dp))
+
+        ! Load vector
+        bb( row_tikuv) = 0._dp
+
+      ELSEIF (C%BC_u_north == 'zero') THEN
+        ! u = 0
+
+        ! Stiffness matrix
+        CALL add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv, 1._dp)
+
+        ! Load vector
+        bb( row_tikuv) = 0._dp
+
+      ELSEIF (C%BC_u_north == 'periodic_ISMIP-HOM') THEN
+        ! u(x,y) = u(x+-L/2,y+-L/2)
+
+        ! Find the triangle ti_copy that is displaced by [x+-L/2,y+-L/2] relative to ti
+        ti_copy = ti
+        CALL find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy)
+
+        ! Set value at ti equal to value at ti_copy
+        col_ticopykuv = mesh%tikuv2n( ti_copy,k,uv)
+        CALL add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv    ,  1._dp)
+        CALL add_entry_CSR_dist( A_CSR, row_tikuv, col_ticopykuv, -1._dp)
+        bb( row_tikuv) = 0._dp
+
+      ELSE
+        CALL crash('unknown BC_u_north "' // TRIM( C%BC_u_north) // '"!')
+      END IF
+
+    ELSEIF (uv == 2) THEN
+      ! y-component
+
+      IF     (C%BC_v_north == 'infinite') THEN
+        ! dv/dy = 0
+        !
+        ! NOTE: using the d/dy operator matrix doesn't always work well, not sure why...
+
+        ! Set v on this triangle equal to the average value on its neighbours
+        n_neighbours = 0
+        DO n = 1, 3
+          tj = mesh%TriC( ti,n)
+          IF (tj == 0) CYCLE
+          n_neighbours = n_neighbours + 1
+          col_tjkuv = mesh%tikuv2n( tj,k,uv)
+          CALL add_entry_CSR_dist( A_CSR, row_tikuv, col_tjkuv, 1._dp)
+        END DO
+        IF (n_neighbours == 0) CALL crash('whaa!')
+        CALL add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv, -1._dp * REAL( n_neighbours,dp))
+
+        ! Load vector
+        bb( row_tikuv) = 0._dp
+
+      ELSEIF (C%BC_v_north == 'zero') THEN
+        ! v = 0
+
+        ! Stiffness matrix
+        CALL add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv, 1._dp)
+
+        ! Load vector
+        bb( row_tikuv) = 0._dp
+
+      ELSEIF (C%BC_v_north == 'periodic_ISMIP-HOM') THEN
+        ! v(x,y) = v(x+-L/2,y+-L/2)
+
+        ! Find the triangle ti_copy that is displaced by [x+-L/2,y+-L/2] relative to ti
+        ti_copy = ti
+        CALL find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy)
+
+        ! Set value at ti equal to value at ti_copy
+        col_ticopykuv = mesh%tikuv2n( ti_copy,k,uv)
+        CALL add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv    ,  1._dp)
+        CALL add_entry_CSR_dist( A_CSR, row_tikuv, col_ticopykuv, -1._dp)
+        bb( row_tikuv) = 0._dp
+
+      ELSE
+        CALL crash('unknown BC_u_north "' // TRIM( C%BC_u_north) // '"!')
+      END IF
+
+    ELSE
+      CALL crash('uv can only be 1 or 2!')
+    END IF
+
+  END SUBROUTINE calc_BPA_stiffness_matrix_row_BC_north
+
 ! == Calculate several intermediate terms in the BPA
 
   SUBROUTINE calc_driving_stress( mesh, ice, BPA)
@@ -248,34 +1611,22 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'calc_driving_stress'
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: Hi_b
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: dHs_dx_b
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: dHs_dy_b
     INTEGER                                                      :: ti
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! Allocate shared memory
-    ALLOCATE( Hi_b(     mesh%ti1:mesh%ti2))
-    ALLOCATE( dHs_dx_b( mesh%ti1:mesh%ti2))
-    ALLOCATE( dHs_dy_b( mesh%ti1:mesh%ti2))
-
-    ! Calculate Hi, dHs/dx, and dHs/dy on the b-grid
-    CALL map_a_b_2D( mesh, ice%Hi, Hi_b    )
-    CALL ddx_a_b_2D( mesh, ice%Hs, dHs_dx_b)
-    CALL ddy_a_b_2D( mesh, ice%Hs, dHs_dy_b)
+    ! Calculate dh/dx, dh/dy, db/dx, db/dy on the b-grid
+    CALL ddx_a_b_2D( mesh, ice%Hs , BPA%dh_dx_b)
+    CALL ddy_a_b_2D( mesh, ice%Hs , BPA%dh_dy_b)
+    CALL ddx_a_b_2D( mesh, ice%Hib, BPA%db_dx_b)
+    CALL ddy_a_b_2D( mesh, ice%Hib, BPA%db_dy_b)
 
     ! Calculate the driving stress
     DO ti = mesh%ti1, mesh%ti2
-      BPA%tau_dx_b( ti) = -ice_density * grav * Hi_b( ti) * dHs_dx_b( ti)
-      BPA%tau_dy_b( ti) = -ice_density * grav * Hi_b( ti) * dHs_dy_b( ti)
+      BPA%tau_dx_b( ti) = -ice_density * grav * BPA%dh_dx_b( ti)
+      BPA%tau_dy_b( ti) = -ice_density * grav * BPA%dh_dy_b( ti)
     END DO
-
-    ! Clean up after yourself
-    DEALLOCATE( Hi_b    )
-    DEALLOCATE( dHs_dx_b)
-    DEALLOCATE( dHs_dy_b)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -284,6 +1635,16 @@ CONTAINS
 
   SUBROUTINE calc_strain_rates( mesh, BPA)
     ! Calculate the strain rates
+    !
+    ! The velocities u and v are defined on the bk-grid (triangles, regular vertical)
+    !
+    ! The horizontal stretch/shear strain rates du/dx, du/dy, dv/dx, dv/dy are
+    ! calculated on the ak-grid (vertices, regular vertical), and are then mapped
+    ! to the bks-grid (triangles, staggered vertical)
+    !
+    ! The vertical shear strain rates du/dz, dv/dz are calculated on the bks-grid
+    ! (triangles, staggered vertical), and are then mapped to the ak-grid (vertices,
+    ! regular vertical).
 
     IMPLICIT NONE
 
@@ -322,7 +1683,259 @@ CONTAINS
 
   END SUBROUTINE calc_strain_rates
 
+  SUBROUTINE calc_effective_viscosity( mesh, ice, BPA)
+    ! Calculate the effective viscosity eta, the product term N = eta*H, and the gradients of N
+    !
+    ! The effective viscosity eta is calculated separately on both the ak-grid (vertices, regular vertical)
+    ! and on the bks-grid (triangles, staggered vertical), using the strain rates calculated in calc_strain_rates.
+    !
+    ! eta_bk, deta_dx_bk, and deta_dy_bk are calculated from eta_ak
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)              :: mesh
+    TYPE(type_ice_model),                INTENT(IN)              :: ice
+    TYPE(type_ice_velocity_solver_BPA),  INTENT(INOUT)           :: BPA
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'calc_effective_viscosity'
+    REAL(dp), DIMENSION(:,:  ), POINTER                          ::  A_flow_bks
+    INTEGER                                                      :: vi,ti,k,ks
+    REAL(dp)                                                     :: epsilon_sq, A_min, eta_max
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Calculate maximum allowed effective viscosity, for stability
+    A_min = MINVAL( ice%A_flow_3D)
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, A_min, 1, MPI_DOUBLE_PRECISION, MPI_MIN, MPI_COMM_WORLD, ierr)
+    eta_max = 0.5_dp * A_min**(-1._dp / C%n_flow) * (C%epsilon_sq_0)**((1._dp - C%n_flow)/(2._dp*C%n_flow))
+
+    ! Allocate memory
+    ALLOCATE( A_flow_bks( mesh%ti1:mesh%ti2, mesh%nz-1))
+
+    ! Map ice flow factor from the ak-grid to the bks-grid
+    CALL map_ak_bks( mesh, mesh%M_map_ak_bks, ice%A_flow_3D, A_flow_bks)
+
+  ! == Calculate effective viscosity on the ak-grid
+
+    DO vi = mesh%vi1, mesh%vi2
+    DO k = 1, mesh%nz
+
+      ! Calculate the square of the effective strain rate epsilon
+      epsilon_sq = BPA%du_dx_ak( vi,k)**2 + &
+                   BPA%dv_dy_ak( vi,k)**2 + &
+                   BPA%du_dx_ak( vi,k) * BPA%dv_dy_ak( vi,k) + &
+                   0.25_dp * (BPA%du_dy_ak( vi,k) + BPA%dv_dx_ak( vi,k))**2 + &
+                   0.25_dp * (BPA%du_dz_ak( vi,k)**2 + BPA%dv_dz_ak( vi,k)**2) + &
+                   C%epsilon_sq_0
+
+      ! Calculate the effective viscosity eta
+      BPA%eta_ak( vi,k) = 0.5_dp * ice%A_flow_3D( vi,k)**(-1._dp / C%n_flow) * (epsilon_sq)**((1._dp - C%n_flow)/(2._dp*C%n_flow))
+
+      ! Safety
+      BPA%eta_ak( vi,k) = MIN( MAX( BPA%eta_ak( vi,k), C%visc_eff_min), eta_max)
+
+    END DO
+    END DO
+
+  ! == Calculate effective viscosity on the bks-grid
+
+    DO ti = mesh%ti1, mesh%ti2
+    DO ks = 1, mesh%nz-1
+
+      ! Calculate the square of the effective strain rate epsilon
+      epsilon_sq = BPA%du_dx_bks( ti,ks)**2 + &
+                   BPA%dv_dy_bks( ti,ks)**2 + &
+                   BPA%du_dx_bks( ti,ks) * BPA%dv_dy_bks( ti,ks) + &
+                   0.25_dp * (BPA%du_dy_bks( ti,ks) + BPA%dv_dx_bks( ti,ks))**2 + &
+                   0.25_dp * (BPA%du_dz_bks( ti,ks)**2 + BPA%dv_dz_bks( ti,ks)**2) + &
+                   C%epsilon_sq_0
+
+      ! Calculate the effective viscosity eta
+      BPA%eta_bks( ti,ks) = 0.5_dp * A_flow_bks( ti,ks)**(-1._dp / C%n_flow) * (epsilon_sq)**((1._dp - C%n_flow)/(2._dp*C%n_flow))
+
+      ! Safety
+      BPA%eta_bks( ti,ks) = MIN( MAX( BPA%eta_bks( ti,ks), C%visc_eff_min), eta_max)
+
+    END DO
+    END DO
+
+    ! Map the effective viscosity from the ak-grid to the bk-grid
+    CALL map_a_b_3D( mesh, BPA%eta_ak, BPA%eta_bk)
+!    CALL calc_3D_gradient_bks_bk( mesh, mesh%M_map_bks_bk, BPA%eta_bks, BPA%eta_bk)
+
+    ! Calculate the horizontal gradients of the effective viscosity from its value on the ak-grid
+    CALL calc_3D_gradient_ak_bk(  mesh, mesh%M_ddx_ak_bk , BPA%eta_ak , BPA%deta_dx_bk)
+    CALL calc_3D_gradient_ak_bk(  mesh, mesh%M_ddy_ak_bk , BPA%eta_ak , BPA%deta_dy_bk)
+
+    ! Calculate the vertical gradients of the effective viscosity from its value on the bks-grid
+    CALL calc_3D_gradient_bks_bk( mesh, mesh%M_ddz_bks_bk, BPA%eta_bks, BPA%deta_dz_bk)
+
+    ! Clean up after yourself
+    DEALLOCATE( A_flow_bks)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE calc_effective_viscosity
+
+  SUBROUTINE calc_applied_basal_friction_coefficient( mesh, ice, BPA)
+    ! Calculate the applied basal friction coefficient beta_b, i.e. on the b-grid
+    ! and scaled with the sub-grid grounded fraction
+    !
+    ! This is where the sliding law is called!
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)              :: mesh
+    TYPE(type_ice_model),                INTENT(INOUT)           :: ice
+    TYPE(type_ice_velocity_solver_BPA),  INTENT(INOUT)           :: BPA
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'calc_applied_basal_friction_coefficient'
+    INTEGER                                                      :: ti
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: u_base_b, v_base_b
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Allocate memory
+    ALLOCATE( u_base_b( mesh%ti1:mesh%ti2))
+    ALLOCATE( v_base_b( mesh%ti1:mesh%ti2))
+
+    ! Copy basal velocities from 3-D fields
+    u_base_b = BPA%u_bk( :,mesh%nz)
+    v_base_b = BPA%v_bk( :,mesh%nz)
+
+    ! Calculate the basal friction coefficient beta_b for the current velocity solution
+    ! This is where the sliding law is called!
+    CALL calc_basal_friction_coefficient( mesh, ice, u_base_b, v_base_b)
+
+    ! Map basal friction coefficient beta_b to the b-grid
+    CALL map_a_b_2D( mesh, ice%beta_b, BPA%beta_b_b)
+
+    ! Apply the sub-grid grounded fraction, and limit the friction coefficient to improve stability
+    IF (C%do_GL_subgrid_friction) THEN
+      DO ti = mesh%ti1, mesh%ti2
+        BPA%beta_b_b( ti) = MIN( C%beta_max, BPA%beta_b_b( ti) * ice%fraction_gr_b( ti)**C%subgrid_friction_exponent )
+      END DO
+    END IF
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE calc_applied_basal_friction_coefficient
+
 ! == Some useful tools for improving numerical stability of the viscosity iteration
+
+  SUBROUTINE relax_viscosity_iterations( mesh, BPA)
+    ! Reduce the change between velocity solutions
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)              :: mesh
+    TYPE(type_ice_velocity_solver_BPA),  INTENT(INOUT)           :: BPA
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'relax_viscosity_iterations'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    BPA%u_bk = (C%visc_it_relax * BPA%u_bk) + ((1._dp - C%visc_it_relax) * BPA%u_bk_prev)
+    BPA%v_bk = (C%visc_it_relax * BPA%v_bk) + ((1._dp - C%visc_it_relax) * BPA%v_bk_prev)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE relax_viscosity_iterations
+
+  SUBROUTINE calc_visc_iter_UV_resid( mesh, BPA, resid_UV)
+    ! Calculate the L2-norm of the two consecutive velocity solutions
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)              :: mesh
+    TYPE(type_ice_velocity_solver_BPA),  INTENT(IN)              :: BPA
+    REAL(dp),                            INTENT(OUT)             :: resid_UV
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'calc_visc_iter_UV_resid'
+    INTEGER                                                      :: ierr
+    INTEGER                                                      :: ti,k
+    REAL(dp)                                                     :: res1, res2
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    res1 = 0._dp
+    res2 = 0._dp
+
+    DO ti = mesh%ti1, mesh%ti2
+    DO k  = 1, mesh%nz
+
+      res1 = res1 + (BPA%u_bk( ti,k) - BPA%u_bk_prev( ti,k))**2
+      res1 = res1 + (BPA%v_bk( ti,k) - BPA%v_bk_prev( ti,k))**2
+
+      res2 = res2 + (BPA%u_bk( ti,k) + BPA%u_bk_prev( ti,k))**2
+      res2 = res2 + (BPA%v_bk( ti,k) + BPA%v_bk_prev( ti,k))**2
+
+    END DO
+    END DO
+
+    ! Combine results from all processes
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, res1, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, res2, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+
+    ! Calculate residual
+    resid_UV = 2._dp * res1 / MAX( res2, 1E-8_dp)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE calc_visc_iter_UV_resid
+
+  SUBROUTINE apply_velocity_limits( mesh, BPA)
+    ! Limit velocities for improved stability
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)              :: mesh
+    TYPE(type_ice_velocity_solver_BPA),  INTENT(INOUT)           :: BPA
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'apply_velocity_limits'
+    INTEGER                                                      :: ti,k
+    REAL(dp)                                                     :: uabs
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    DO ti = mesh%ti1, mesh%ti2
+    DO k  = 1, mesh%nz
+
+      ! Calculate absolute speed
+      uabs = SQRT( BPA%u_bk( ti,k)**2 + BPA%v_bk( ti,k)**2)
+
+      ! Reduce velocities if neceBPAry
+      IF (uabs > C%vel_max) THEN
+        BPA%u_bk( ti,k) = BPA%u_bk( ti,k) * C%vel_max / uabs
+        BPA%v_bk( ti,k) = BPA%v_bk( ti,k) * C%vel_max / uabs
+      END IF
+
+    END DO
+    END DO
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE apply_velocity_limits
 
 ! == Initialisation
 
@@ -440,6 +2053,14 @@ CONTAINS
     BPA%deta_dz_bk = 0._dp
     ALLOCATE( BPA%beta_b_b(      mesh%ti1:mesh%ti2))                           ! Basal friction coefficient (tau_b = u * beta_b)
     BPA%beta_b_b = 0._dp
+    ALLOCATE( BPA%dh_dx_b(       mesh%ti1:mesh%ti2))                           ! Surface slope
+    BPA%dh_dx_b = 0._dp
+    ALLOCATE( BPA%dh_dy_b(       mesh%ti1:mesh%ti2))
+    BPA%dh_dy_b = 0._dp
+    ALLOCATE( BPA%db_dx_b(       mesh%ti1:mesh%ti2))                           ! Basal slope
+    BPA%db_dx_b = 0._dp
+    ALLOCATE( BPA%db_dy_b(       mesh%ti1:mesh%ti2))
+    BPA%db_dy_b = 0._dp
     ALLOCATE( BPA%tau_dx_b(      mesh%ti1:mesh%ti2))                           ! Driving stress
     BPA%tau_dx_b = 0._dp
     ALLOCATE( BPA%tau_dy_b(      mesh%ti1:mesh%ti2))

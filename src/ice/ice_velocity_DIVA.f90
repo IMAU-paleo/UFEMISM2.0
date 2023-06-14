@@ -341,7 +341,7 @@ CONTAINS
         CALL calc_DIVA_stiffness_matrix_row_BC_east( mesh, A_CSR, bb, row_tiuv)
 
       ELSEIF (mesh%TriBI( ti) == 5 .OR. mesh%TriBI( ti) == 6) THEN
-        ! Northern domain border
+        ! Southern domain border
 
         CALL calc_DIVA_stiffness_matrix_row_BC_south( mesh, A_CSR, bb, row_tiuv)
 

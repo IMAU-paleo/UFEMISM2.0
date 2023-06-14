@@ -2776,7 +2776,7 @@ CONTAINS
           c_ddzeta = single_row_ddzeta_val( jj)
 
           ! Calculate coefficients
-          c_ddz = c_ddz + dzeta_dz * c_ddzeta
+          c_ddz = dzeta_dz * c_ddzeta
 
           ! Add to CSR matrices
           CALL add_entry_CSR_dist( mesh%M_ddz_bk_bks, row_tiks, col_tik, c_ddz)
@@ -2832,12 +2832,13 @@ CONTAINS
     INTEGER                                            :: k
     INTEGER,  DIMENSION(:    ), ALLOCATABLE            :: single_row_k_ind
     INTEGER                                            :: single_row_k_nnz
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: single_row_map_val
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: single_row_ddzeta_val
     INTEGER                                            :: row_tik
     INTEGER                                            :: jj,ks,col_tiks
     REAL(dp)                                           :: dzeta_dz
     REAL(dp)                                           :: c_ddzeta
-    REAL(dp)                                           :: c_ddz
+    REAL(dp)                                           :: c_ddz, c_map
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -2853,6 +2854,7 @@ CONTAINS
     nnz_per_row_est = 2
     nnz_est_proc    = nrows_loc * nnz_per_row_est
 
+    CALL allocate_matrix_CSR_dist( mesh%M_map_bks_bk, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
     CALL allocate_matrix_CSR_dist( mesh%M_ddz_bks_bk, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
 
   ! Calculate shape functions and fill them into the matrices
@@ -2860,6 +2862,7 @@ CONTAINS
 
     ! Allocate memory for single matrix rows
     ALLOCATE( single_row_k_ind(      mesh%nz))
+    ALLOCATE( single_row_map_val(    mesh%nz))
     ALLOCATE( single_row_ddzeta_val( mesh%nz))
 
     ! Loop over all triangles
@@ -2872,6 +2875,7 @@ CONTAINS
         row_tik = mesh%tik2n( ti,k)
 
         ! Read coefficients from the zeta gradient operators for this staggered layer
+        CALL read_single_row_CSR_dist( mesh%M_map_ks_k_1D   , k, single_row_k_ind, single_row_map_val   , single_row_k_nnz)
         CALL read_single_row_CSR_dist( mesh%M_ddzeta_ks_k_1D, k, single_row_k_ind, single_row_ddzeta_val, single_row_k_nnz)
 
         ! Gradients of zeta at triangle ti, layer k
@@ -2888,12 +2892,14 @@ CONTAINS
           col_tiks = mesh%tiks2n( ti,ks)
 
           ! Coefficients for vertical gradient matrix operators
+          c_map    = single_row_map_val(    jj)
           c_ddzeta = single_row_ddzeta_val( jj)
 
           ! Calculate coefficients
-          c_ddz = c_ddz + dzeta_dz * c_ddzeta
+          c_ddz = dzeta_dz * c_ddzeta
 
           ! Add to CSR matrices
+          CALL add_entry_CSR_dist( mesh%M_map_bks_bk, row_tik, col_tiks, c_map)
           CALL add_entry_CSR_dist( mesh%M_ddz_bks_bk, row_tik, col_tiks, c_ddz)
 
         END DO ! DO jj = 1, single_row_k_nnz
@@ -2903,6 +2909,7 @@ CONTAINS
 
     ! Clean up after yourself
     DEALLOCATE( single_row_k_ind)
+    DEALLOCATE( single_row_map_val)
     DEALLOCATE( single_row_ddzeta_val)
 
     ! Finalise routine path

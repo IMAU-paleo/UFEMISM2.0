@@ -324,7 +324,7 @@ CONTAINS
         CALL calc_SSA_stiffness_matrix_row_BC_east( mesh, A_CSR, bb, row_tiuv)
 
       ELSEIF (mesh%TriBI( ti) == 5 .OR. mesh%TriBI( ti) == 6) THEN
-        ! Northern domain border
+        ! Southern domain border
 
         CALL calc_SSA_stiffness_matrix_row_BC_south( mesh, A_CSR, bb, row_tiuv)
 
@@ -1308,10 +1308,15 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'calc_effective_viscosity'
     INTEGER                                                      :: vi
-    REAL(dp)                                                     :: epsilon_sq
+    REAL(dp)                                                     :: epsilon_sq, A_min, eta_max
 
     ! Add routine to path
     CALL init_routine( routine_name)
+
+    ! Calculate maximum allowed effective viscosity, for stability
+    A_min = MINVAL( ice%A_flow_3D)
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, A_min, 1, MPI_DOUBLE_PRECISION, MPI_MIN, MPI_COMM_WORLD, ierr)
+    eta_max = 0.5_dp * A_min**(-1._dp / C%n_flow) * (C%epsilon_sq_0)**((1._dp - C%n_flow)/(2._dp*C%n_flow))
 
     DO vi = mesh%vi1, mesh%vi2
 
@@ -1326,7 +1331,7 @@ CONTAINS
       SSA%eta_a( vi) = 0.5_dp * SSA%A_flow_vav_a( vi)**(-1._dp / C%n_flow) * (epsilon_sq)**((1._dp - C%n_flow)/(2._dp*C%n_flow))
 
       ! Safety
-      SSA%eta_a( vi) = MAX( SSA%eta_a( vi), C%visc_eff_min)
+      SSA%eta_a( vi) = MIN( MAX( SSA%eta_a( vi), C%visc_eff_min), eta_max)
 
       ! Calculate the product term N = eta * H
       SSA%N_a( vi) = SSA%eta_a( vi) * MAX( 0.1_dp, ice%Hi( vi))

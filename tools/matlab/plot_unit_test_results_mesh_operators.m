@@ -14,8 +14,8 @@ margins_hor = [25, 25, 25, 25, 25];
 margins_ver = [25, 25, 25, 25];
 H_map = setup_multipanel_figure( wa, ha, margins_hor, margins_ver);
 
-for i = 1: 3
-  for j = 1: 4
+for i = 1: size( H.Ax,1)
+  for j = 1: size( H.Ax,2)
     set( H_map.Ax{ i,j},'xtick',[],'ytick',[],'clim',[-1,1]);
   end
 end
