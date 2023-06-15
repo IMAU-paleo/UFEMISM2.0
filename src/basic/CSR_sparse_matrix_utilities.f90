@@ -194,6 +194,30 @@ CONTAINS
 
   END SUBROUTINE extend_matrix_CSR_dist
 
+  SUBROUTINE crop_matrix_CSR_dist( A)
+    ! Crop memory for a CSR-format sparse m-by-n matrix A
+
+    IMPLICIT NONE
+
+    ! In- and output variables:
+    TYPE(type_sparse_matrix_CSR_dp),     INTENT(INOUT) :: A
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'crop_matrix_CSR_dist'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Crop memory
+    A%nnz_max = A%nnz
+    CALL reallocate( A%ind, A%nnz_max)
+    CALL reallocate( A%val, A%nnz_max)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE crop_matrix_CSR_dist
+
   SUBROUTINE gather_CSR_dist_to_master( A, A_tot)
     ! Gather a CSR-format sparse m-by-n matrix A that is distributed over the processes, to the master
 

@@ -264,7 +264,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'solve_DIVA_linearised'
-    INTEGER                                                      :: ncols, ncols_loc, nrows, nrows_loc, nnz_per_row_est, nnz_est_proc
+    INTEGER                                                      :: ncols, ncols_loc, nrows, nrows_loc, nnz_est_proc
     TYPE(type_sparse_matrix_CSR_dp)                              :: A_CSR
     REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: bb
     REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: uv_buv
@@ -285,8 +285,7 @@ CONTAINS
     ncols_loc       = mesh%nTri_loc * 2
     nrows           = mesh%nTri     * 2      ! to
     nrows_loc       = mesh%nTri_loc * 2
-    nnz_per_row_est = mesh%nC_mem * 2
-    nnz_est_proc    = nrows_loc * nnz_per_row_est
+    nnz_est_proc    = mesh%M2_ddx_b_b%nnz * 4t
 
     CALL allocate_matrix_CSR_dist( A_CSR, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
 

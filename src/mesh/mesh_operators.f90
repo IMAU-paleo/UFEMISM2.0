@@ -16,7 +16,7 @@ MODULE mesh_operators
   USE math_utilities                                         , ONLY: calc_shape_functions_2D_reg_1st_order, calc_shape_functions_2D_reg_2nd_order, &
                                                                      calc_shape_functions_2D_stag_1st_order
   USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp, allocate_matrix_CSR_dist, add_entry_CSR_dist, &
-                                                                     read_single_row_CSR_dist
+                                                                     read_single_row_CSR_dist, crop_matrix_CSR_dist
   USE mesh_utilities                                         , ONLY: extend_group_single_iteration_a, extend_group_single_iteration_b, &
                                                                      extend_group_single_iteration_c
   USE petsc_basic                                            , ONLY: multiply_CSR_matrix_with_vector_1D, multiply_CSR_matrix_with_vector_2D
@@ -676,6 +676,10 @@ CONTAINS
 
     END DO ! DO row = row1, row2
 
+    ! Crop matrix memory
+    CALL crop_matrix_CSR_dist( mesh%M_ddx_a_a)
+    CALL crop_matrix_CSR_dist( mesh%M_ddy_a_a)
+
     ! Clean up after yourself
     DEALLOCATE( i_c   )
     DEALLOCATE( x_c   )
@@ -815,6 +819,11 @@ CONTAINS
       END DO
 
     END DO ! DO row = row1, row2
+
+    ! Crop matrix memory
+    CALL crop_matrix_CSR_dist( mesh%M_map_a_b)
+    CALL crop_matrix_CSR_dist( mesh%M_ddx_a_b)
+    CALL crop_matrix_CSR_dist( mesh%M_ddy_a_b)
 
     ! Clean up after yourself
     DEALLOCATE( i_c   )
@@ -958,6 +967,11 @@ CONTAINS
 
     END DO ! DO row = row1, row2
 
+    ! Crop matrix memory
+    CALL crop_matrix_CSR_dist( mesh%M_map_a_c)
+    CALL crop_matrix_CSR_dist( mesh%M_ddx_a_c)
+    CALL crop_matrix_CSR_dist( mesh%M_ddy_a_c)
+
     ! Clean up after yourself
     DEALLOCATE( i_c   )
     DEALLOCATE( x_c   )
@@ -1099,6 +1113,11 @@ CONTAINS
 
     END DO ! DO row = row1, row2
 
+    ! Crop matrix memory
+    CALL crop_matrix_CSR_dist( mesh%M_map_b_a)
+    CALL crop_matrix_CSR_dist( mesh%M_ddx_b_a)
+    CALL crop_matrix_CSR_dist( mesh%M_ddy_b_a)
+
     ! Clean up after yourself
     DEALLOCATE( i_c   )
     DEALLOCATE( x_c   )
@@ -1238,6 +1257,10 @@ CONTAINS
       END DO
 
     END DO ! DO row = row1, row2
+
+    ! Crop matrix memory
+    CALL crop_matrix_CSR_dist( mesh%M_ddx_b_b)
+    CALL crop_matrix_CSR_dist( mesh%M_ddy_b_b)
 
     ! Clean up after yourself
     DEALLOCATE( i_c   )
@@ -1390,6 +1413,13 @@ CONTAINS
 
     END DO ! DO row = row1, row2
 
+    ! Crop matrix memory
+    CALL crop_matrix_CSR_dist( mesh%M2_ddx_b_b   )
+    CALL crop_matrix_CSR_dist( mesh%M2_ddy_b_b   )
+    CALL crop_matrix_CSR_dist( mesh%M2_d2dx2_b_b )
+    CALL crop_matrix_CSR_dist( mesh%M2_d2dxdy_b_b)
+    CALL crop_matrix_CSR_dist( mesh%M2_d2dy2_b_b )
+
     ! Clean up after yourself
     DEALLOCATE( i_c   )
     DEALLOCATE( x_c   )
@@ -1534,6 +1564,11 @@ CONTAINS
 
     END DO ! DO row = row1, row2
 
+    ! Crop matrix memory
+    CALL crop_matrix_CSR_dist( mesh%M_map_b_c)
+    CALL crop_matrix_CSR_dist( mesh%M_ddx_b_c)
+    CALL crop_matrix_CSR_dist( mesh%M_ddy_b_c)
+
     ! Clean up after yourself
     DEALLOCATE( i_c   )
     DEALLOCATE( x_c   )
@@ -1674,6 +1709,11 @@ CONTAINS
       END DO
 
     END DO ! DO row = row1, row2
+
+    ! Crop matrix memory
+    CALL crop_matrix_CSR_dist( mesh%M_map_c_a)
+    CALL crop_matrix_CSR_dist( mesh%M_ddx_c_a)
+    CALL crop_matrix_CSR_dist( mesh%M_ddy_c_a)
 
     ! Clean up after yourself
     DEALLOCATE( i_c   )
@@ -1828,6 +1868,11 @@ CONTAINS
 
     END DO ! DO row = row1, row2
 
+    ! Crop matrix memory
+    CALL crop_matrix_CSR_dist( mesh%M_map_c_b)
+    CALL crop_matrix_CSR_dist( mesh%M_ddx_c_b)
+    CALL crop_matrix_CSR_dist( mesh%M_ddy_c_b)
+
     ! Clean up after yourself
     DEALLOCATE( i_c   )
     DEALLOCATE( x_c   )
@@ -1967,6 +2012,10 @@ CONTAINS
       END DO
 
     END DO ! DO row = row1, row2
+
+    ! Crop matrix memory
+    CALL crop_matrix_CSR_dist( mesh%M_ddx_c_c)
+    CALL crop_matrix_CSR_dist( mesh%M_ddy_c_c)
 
     ! Clean up after yourself
     DEALLOCATE( i_c   )
@@ -2394,7 +2443,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_3D_matrix_operators_mesh_bk_ak'
-    INTEGER                                            :: ncols, nrows, ncols_loc, nrows_loc, nnz_per_row_est, nnz_est_proc
+    INTEGER                                            :: ncols, nrows, ncols_loc, nrows_loc, nnz_est_proc
     INTEGER                                            :: vi
     INTEGER,  DIMENSION(:    ), ALLOCATABLE            :: single_row_vi_ind
     INTEGER                                            :: single_row_vi_nnz
@@ -2422,8 +2471,7 @@ CONTAINS
     ncols_loc       = mesh%nTri_loc * mesh%nz
     nrows           = mesh%nV       * mesh%nz ! to
     nrows_loc       = mesh%nV_loc   * mesh%nz
-    nnz_per_row_est = mesh%nC_mem   * 3
-    nnz_est_proc    = nrows_loc * nnz_per_row_est
+    nnz_est_proc    = mesh%M_map_b_a%nnz * mesh%nz * 3
 
     CALL allocate_matrix_CSR_dist( mesh%M_ddx_bk_ak, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
     CALL allocate_matrix_CSR_dist( mesh%M_ddy_bk_ak, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
@@ -2508,6 +2556,10 @@ CONTAINS
       END DO ! DO k = 1, mesh%nz
     END DO ! DO vi = mesh%vi1, mesh%vi2
 
+    ! Crop matrix memory
+    CALL crop_matrix_CSR_dist( mesh%M_ddx_bk_ak)
+    CALL crop_matrix_CSR_dist( mesh%M_ddy_bk_ak)
+
     ! Clean up after yourself
     DEALLOCATE( single_row_vi_ind)
     DEALLOCATE( single_row_map_val)
@@ -2553,7 +2605,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_3D_matrix_operators_mesh_ak_bk'
-    INTEGER                                            :: ncols, nrows, ncols_loc, nrows_loc, nnz_per_row_est, nnz_est_proc
+    INTEGER                                            :: ncols, nrows, ncols_loc, nrows_loc, nnz_est_proc
     INTEGER                                            :: ti
     INTEGER,  DIMENSION(:    ), ALLOCATABLE            :: single_row_ti_ind
     INTEGER                                            :: single_row_ti_nnz
@@ -2581,8 +2633,7 @@ CONTAINS
     ncols_loc       = mesh%nV_loc   * mesh%nz
     nrows           = mesh%nTri     * mesh%nz ! to
     nrows_loc       = mesh%nTri_loc * mesh%nz
-    nnz_per_row_est = mesh%nC_mem   * 3
-    nnz_est_proc    = nrows_loc * nnz_per_row_est
+    nnz_est_proc    = mesh%M_map_a_b%nnz * mesh%nz * 3
 
     CALL allocate_matrix_CSR_dist( mesh%M_ddx_ak_bk, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
     CALL allocate_matrix_CSR_dist( mesh%M_ddy_ak_bk, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
@@ -2666,6 +2717,10 @@ CONTAINS
 
       END DO ! DO k = 1, mesh%nz
     END DO ! DO ti = mesh%ti1, mesh%ti2
+
+    ! Crop matrix memory
+    CALL crop_matrix_CSR_dist( mesh%M_ddx_ak_bk)
+    CALL crop_matrix_CSR_dist( mesh%M_ddy_ak_bk)
 
     ! Clean up after yourself
     DEALLOCATE( single_row_ti_ind)
@@ -2790,6 +2845,9 @@ CONTAINS
     DEALLOCATE( single_row_ks_ind)
     DEALLOCATE( single_row_ddzeta_val)
 
+    ! Crop matrix memory
+    CALL crop_matrix_CSR_dist( mesh%M_ddz_bk_bks)
+
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
@@ -2907,6 +2965,10 @@ CONTAINS
       END DO ! DO ks = 1, mesh%nz
     END DO ! DO ti = mesh%ti1, mesh%ti2
 
+    ! Crop matrix memory
+    CALL crop_matrix_CSR_dist( mesh%M_map_bks_bk)
+    CALL crop_matrix_CSR_dist( mesh%M_ddz_bks_bk)
+
     ! Clean up after yourself
     DEALLOCATE( single_row_k_ind)
     DEALLOCATE( single_row_map_val)
@@ -2927,7 +2989,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_3D_mapping_operator_mesh_bks_ak'
-    INTEGER                                            :: ncols, nrows, ncols_loc, nrows_loc, nnz_per_row_est, nnz_est_proc
+    INTEGER                                            :: ncols, nrows, ncols_loc, nrows_loc, nnz_est_proc
     INTEGER                                            :: vi
     INTEGER,  DIMENSION(:    ), ALLOCATABLE            :: single_row_vi_ind
     INTEGER                                            :: single_row_vi_nnz
@@ -2952,8 +3014,7 @@ CONTAINS
     ncols_loc       = mesh%nTri_loc * (mesh%nz-1)
     nrows           = mesh%nV       *  mesh%nz    ! to
     nrows_loc       = mesh%nV_loc   *  mesh%nz
-    nnz_per_row_est = mesh%nC_mem * 3
-    nnz_est_proc    = nrows_loc * nnz_per_row_est
+    nnz_est_proc    = mesh%M_map_b_a%nnz * mesh%nz * 2
 
     CALL allocate_matrix_CSR_dist( mesh%M_map_bks_ak, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
 
@@ -3015,6 +3076,9 @@ CONTAINS
       END DO ! DO k = 1, mesh%nz
     END DO ! DO vi = mesh%vi1, mesh%vi2
 
+    ! Crop matrix memory
+    CALL crop_matrix_CSR_dist( mesh%M_map_bks_ak)
+
     ! Clean up after yourself
     DEALLOCATE( single_row_vi_ind)
     DEALLOCATE( single_row_map_b_a_val)
@@ -3036,7 +3100,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_3D_mapping_operator_mesh_ak_bks'
-    INTEGER                                            :: ncols, nrows, ncols_loc, nrows_loc, nnz_per_row_est, nnz_est_proc
+    INTEGER                                            :: ncols, nrows, ncols_loc, nrows_loc, nnz_est_proc
     INTEGER                                            :: ti
     INTEGER,  DIMENSION(:    ), ALLOCATABLE            :: single_row_ti_ind
     INTEGER                                            :: single_row_ti_nnz
@@ -3061,8 +3125,7 @@ CONTAINS
     ncols_loc       = mesh%nV_loc   *  mesh%nz
     nrows           = mesh%nTri     * (mesh%nz-1) ! to
     nrows_loc       = mesh%nTri_loc * (mesh%nz-1)
-    nnz_per_row_est = mesh%nC_mem * 3
-    nnz_est_proc    = nrows_loc * nnz_per_row_est
+    nnz_est_proc    = mesh%M_map_a_b%nnz * (mesh%nz-1) * 2
 
     CALL allocate_matrix_CSR_dist( mesh%M_map_ak_bks, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
 
@@ -3124,6 +3187,9 @@ CONTAINS
       END DO ! DO ks = 1, mesh%nz-1
     END DO !     DO ti = mesh%ti1, mesh%ti2
 
+    ! Crop matrix memory
+    CALL crop_matrix_CSR_dist( mesh%M_map_ak_bks)
+
     ! Clean up after yourself
     DEALLOCATE( single_row_ti_ind)
     DEALLOCATE( single_row_map_a_b_val)
@@ -3180,7 +3246,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_3D_matrix_operators_mesh_bk_bk'
-    INTEGER                                            :: ncols, nrows, ncols_loc, nrows_loc, nnz_per_row_est, nnz_est_proc
+    INTEGER                                            :: ncols, nrows, ncols_loc, nrows_loc, nnz_est_proc
     INTEGER                                            :: ti
     INTEGER,  DIMENSION(:    ), ALLOCATABLE            :: single_row_ti_ind
     INTEGER                                            :: single_row_ti_nnz
@@ -3211,8 +3277,7 @@ CONTAINS
     ncols_loc       = mesh%nTri_loc * mesh%nz
     nrows           = mesh%nTri     * mesh%nz ! to
     nrows_loc       = mesh%nTri_loc * mesh%nz
-    nnz_per_row_est = mesh%nC_mem   * 3
-    nnz_est_proc    = nrows_loc * nnz_per_row_est
+    nnz_est_proc    = mesh%M2_ddx_b_b%nnz * mesh%nz * 3
 
     CALL allocate_matrix_CSR_dist( mesh%M2_ddx_bk_bk   , nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
     CALL allocate_matrix_CSR_dist( mesh%M2_ddy_bk_bk   , nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
@@ -3339,6 +3404,15 @@ CONTAINS
 
       END DO ! DO k = 1, mesh%nz
     END DO ! DO ti = mesh%ti1, mesh%ti2
+
+    ! Crop matrix memory
+    CALL crop_matrix_CSR_dist( mesh%M2_ddx_bk_bk)
+    CALL crop_matrix_CSR_dist( mesh%M2_ddy_bk_bk)
+    CALL crop_matrix_CSR_dist( mesh%M2_ddz_bk_bk)
+    CALL crop_matrix_CSR_dist( mesh%M2_d2dx2_bk_bk)
+    CALL crop_matrix_CSR_dist( mesh%M2_d2dxdy_bk_bk)
+    CALL crop_matrix_CSR_dist( mesh%M2_d2dy2_bk_bk)
+    CALL crop_matrix_CSR_dist( mesh%M2_d2dz2_bk_bk)
 
     ! Clean up after yourself
     DEALLOCATE( single_row_ti_ind)

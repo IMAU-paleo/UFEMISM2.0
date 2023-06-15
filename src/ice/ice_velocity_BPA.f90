@@ -268,8 +268,7 @@ CONTAINS
     ncols_loc       = mesh%nTri_loc * mesh%nz * 2
     nrows           = mesh%nTri     * mesh%nz * 2      ! to
     nrows_loc       = mesh%nTri_loc * mesh%nz * 2
-    nnz_per_row_est = mesh%nC_mem * mesh%nz * 2
-    nnz_est_proc    = nrows_loc * nnz_per_row_est
+    nnz_est_proc    = mesh%M2_ddx_bk_bk%nnz   * 4
 
     CALL allocate_matrix_CSR_dist( A_CSR, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
 
