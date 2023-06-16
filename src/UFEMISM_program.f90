@@ -79,6 +79,9 @@ PROGRAM UFEMISM_program
     ! Run all unit tests
     CALL run_all_unit_tests
 
+    ! Write to resource tracking file
+    CALL write_to_resource_tracking_file( 0._dp)
+
     ! Stop the clock
     tstop = MPI_WTIME()
     tcomp = tstop - tstart

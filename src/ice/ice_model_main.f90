@@ -269,7 +269,7 @@ CONTAINS
     ! ak
     DO vi = mesh%vi1, mesh%vi2
 
-      Hi = MAX( 0.1_dp, ice%Hi( vi))
+      Hi = MAX( 10._dp, ice%Hi( vi))
 
       DO k = 1, mesh%nz
 
@@ -291,7 +291,7 @@ CONTAINS
     ! bk
     DO ti = mesh%ti1, mesh%ti2
 
-      Hi = MAX( 0.1_dp, Hi_b( ti))
+      Hi = MAX( 10._dp, Hi_b( ti))
 
       DO k = 1, mesh%nz
 
@@ -311,7 +311,7 @@ CONTAINS
     ! bks
     DO ti = mesh%ti1, mesh%ti2
 
-      Hi = MAX( 0.1_dp, Hi_b( ti))
+      Hi = MAX( 10._dp, Hi_b( ti))
 
       DO ks = 1, mesh%nz-1
 

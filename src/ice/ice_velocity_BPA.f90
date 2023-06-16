@@ -119,7 +119,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! If there is no grounded ice, or no sliding, no need to solve the BPA
-    IF ((.NOT. ANY( ice%mask_sheet)) .OR. C%choice_sliding_law == 'no_sliding') THEN
+    IF (.NOT. ANY( ice%mask_sheet)) THEN
       BPA%u_bk = 0._dp
       BPA%v_bk = 0._dp
       CALL finalise_routine( routine_name)
@@ -247,7 +247,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'solve_BPA_linearised'
-    INTEGER                                                      :: ncols, ncols_loc, nrows, nrows_loc, nnz_per_row_est, nnz_est_proc
+    INTEGER                                                      :: ncols, ncols_loc, nrows, nrows_loc, nnz_est_proc
     TYPE(type_sparse_matrix_CSR_dp)                              :: A_CSR
     REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: bb
     REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: uv_bkuv
@@ -929,6 +929,14 @@ CONTAINS
 
     ! Safety
     IF (k /= mesh%nz) CALL crash('Received k = {int_01}; only applicable at ice base!', int_01 = k)
+
+    ! Exception for the case of no sliding
+    IF (C%choice_sliding_law == 'no_sliding') THEN
+      ! u = v = 0
+      CALL add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv, 1._dp)
+      bb( row_tikuv) = 0._dp
+      RETURN
+    END IF
 
     ! eta, deta/dx, deta/dy, deta/dz, tau_dx, and tau_dy on this triangle and layer
     eta      = BPA%eta_bks(     ti,mesh%nz-1)
@@ -1699,9 +1707,11 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'calc_effective_viscosity'
-    REAL(dp), DIMENSION(:,:  ), POINTER                          ::  A_flow_bks
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                      ::  A_flow_bks
     INTEGER                                                      :: vi,ti,k,ks
     REAL(dp)                                                     :: epsilon_sq, A_min, eta_max
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                      :: eta_bk_from_ak, eta_bk_from_bks
+    REAL(dp)                                                     :: uabs_base, uabs_surf, R_shear
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -1761,10 +1771,6 @@ CONTAINS
     END DO
     END DO
 
-    ! Map the effective viscosity from the ak-grid to the bk-grid
-    CALL map_a_b_3D( mesh, BPA%eta_ak, BPA%eta_bk)
-!    CALL calc_3D_gradient_bks_bk( mesh, mesh%M_map_bks_bk, BPA%eta_bks, BPA%eta_bk)
-
     ! Calculate the horizontal gradients of the effective viscosity from its value on the ak-grid
     CALL calc_3D_gradient_ak_bk(  mesh, mesh%M_ddx_ak_bk , BPA%eta_ak , BPA%deta_dx_bk)
     CALL calc_3D_gradient_ak_bk(  mesh, mesh%M_ddy_ak_bk , BPA%eta_ak , BPA%deta_dy_bk)
@@ -1772,8 +1778,41 @@ CONTAINS
     ! Calculate the vertical gradients of the effective viscosity from its value on the bks-grid
     CALL calc_3D_gradient_bks_bk( mesh, mesh%M_ddz_bks_bk, BPA%eta_bks, BPA%deta_dz_bk)
 
+    ! Map the effective viscosity from the ak- and bks-grids to the bk-grid
+
+    ALLOCATE( eta_bk_from_ak(  mesh%ti1:mesh%ti2,mesh%nz))
+    ALLOCATE( eta_bk_from_bks( mesh%ti1:mesh%ti2,mesh%nz))
+
+    CALL map_a_b_3D( mesh, BPA%eta_ak, eta_bk_from_ak)
+    CALL calc_3D_gradient_bks_bk( mesh, mesh%M_map_bks_bk, BPA%eta_bks, eta_bk_from_bks)
+
+    ! Preliminary experiments suggest that in settings where ice flow is dominated by
+    ! vertical shear (e.g. the Halfar dome with no sliding), the solver is only stable
+    ! when using eta_bk_from_bks. But in settings with a lot of sliding and little
+    ! vertical shear (e.g. ISMIP-HOM C), it needs eta_from_ak instead. The "shear factor"
+    ! R_shear serves to provide a crude approximation to which flow mode dominates,
+    ! which is then use to calculate a weighted average between the two versions of eta.
+
+    DO ti = mesh%ti1, mesh%ti2
+
+      ! Calculate the shear factor R_shear
+      uabs_surf = SQRT( 0.1_dp + BPA%u_bk( ti,1      )**2 + BPA%v_bk( ti,1      )**2)
+      uabs_base = SQRT( 0.1_dp + BPA%u_bk( ti,mesh%nz)**2 + BPA%v_bk( ti,mesh%nz)**2)
+      R_shear = uabs_base / uabs_surf
+
+      ! By the nature of ice flow, uabs_base <= uabs_surf, so 0 <= R_shear <= 1,
+      ! with 0 indicating no sliding and therefore full vertical shear, and
+      ! 1 indicating full sliding.
+
+      ! Weighted average
+      BPA%eta_bk( ti,:) = R_shear * eta_bk_from_ak( ti,:) + (1._dp - R_shear) * eta_bk_from_bks( ti,:)
+
+    END DO ! DO ti = mesh%ti1, mesh%ti2
+
     ! Clean up after yourself
     DEALLOCATE( A_flow_bks)
+    DEALLOCATE( eta_bk_from_ak)
+    DEALLOCATE( eta_bk_from_bks)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

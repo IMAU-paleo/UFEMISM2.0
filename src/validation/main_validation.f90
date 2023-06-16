@@ -42,6 +42,7 @@ CONTAINS
     CALL run_all_petsc_unit_tests
     CALL run_all_mesh_unit_tests
     CALL run_all_netcdf_unit_tests
+    CALL run_all_ice_unit_tests
 
     ! Add routine to path
     CALL finalise_routine( routine_name)

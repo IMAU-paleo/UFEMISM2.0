@@ -361,7 +361,7 @@ CONTAINS
       ! Safety
       IF (ALLOCATED( region%refgeo_init%grid_raw%x)) CALL crash('found boht grid and mesh in region%refgeo_init!')
 
-      ! Create mesh from gridded initial geometry data
+      ! Create mesh from meshed initial geometry data
       CALL create_mesh_from_meshed_geometry( region%name, mesh_name, &
         region%refgeo_init%mesh_raw, &
         region%refgeo_init%Hi_mesh_raw, &
