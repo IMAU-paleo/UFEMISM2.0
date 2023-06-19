@@ -12,12 +12,13 @@ MODULE ice_thickness
   USE mpi_basic                                              , ONLY: par, cerr, ierr, MPI_status, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
+  USE netcdf_debug                                           , ONLY: save_variable_as_netcdf_dp_1D, write_CSR_matrix_to_NetCDF
   USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp, allocate_matrix_CSR_dist, add_entry_CSR_dist, &
-                                                                     deallocate_matrix_CSR_dist
+                                                                     deallocate_matrix_CSR_dist, duplicate_matrix_CSR_dist
   USE mesh_types                                             , ONLY: type_mesh
   USE ice_model_types                                        , ONLY: type_ice_model
   USE ice_velocity_main                                      , ONLY: map_velocities_from_b_to_c_2D
-  USE petsc_basic                                            , ONLY: multiply_CSR_matrix_with_vector_1D
+  USE petsc_basic                                            , ONLY: multiply_CSR_matrix_with_vector_1D, solve_matrix_equation_CSR_PETSc
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_1D
 
   IMPLICIT NONE
@@ -44,18 +45,37 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'calc_Hi_tplusdt'
+    INTEGER                                               :: vi
+    LOGICAL                                               :: found_negative_vals
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
     IF     (C%choice_ice_integration_method == 'explicit') THEN
       CALL calc_Hi_tplusdt_explicit( mesh, Hi, u_vav_b, v_vav_b, SMB, BMB, dt, dHi_dt, Hi_tplusdt)
+    ELSEIF (C%choice_ice_integration_method == 'implicit') THEN
+      CALL calc_Hi_tplusdt_implicit( mesh, Hi, u_vav_b, v_vav_b, SMB, BMB, dt, dHi_dt, Hi_tplusdt)
     ELSEIF (C%choice_ice_integration_method == 'semi-implicit') THEN
       ! DENK DROM
       CALL crash('fixme!')
     ELSE
       CALL crash('unknown choice_ice_integration_method "' // TRIM( C%choice_ice_integration_method) // '"!')
     END IF
+
+    ! Limit ice thickness to zero; throw a warning if negative thickness are encountered
+    found_negative_vals = .FALSE.
+    DO vi = mesh%vi1, mesh%vi2
+      IF (Hi_tplusdt( vi) < 0._dp) THEN
+        found_negative_vals = .TRUE.
+        Hi_tplusdt( vi) = 0._dp
+      END IF
+    END DO ! DO vi = mesh%vi1, mesh%vi2
+    IF (found_negative_vals) THEN
+      CALL warning('encountered negative values for Hi_tplusdt - time step too large?')
+    END IF
+
+    ! Recalculate dH/dt with adjusted values of H
+    dHi_dt = (Hi_tplusdt - Hi) / dt
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -84,8 +104,6 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'calc_Hi_tplusdt_explicit'
     TYPE(type_sparse_matrix_CSR_dp)                       :: M_divQ
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: divQ
-    INTEGER                                               :: vi
-    LOGICAL                                               :: found_negative_vals
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -102,18 +120,6 @@ CONTAINS
     ! Calculate ice thickness at t+dt
     Hi_tplusdt = Hi + dHi_dt * dt
 
-    ! Limit ice thickness to zero; throw a warning if negative thickness are encountered
-    found_negative_vals = .FALSE.
-    DO vi = mesh%vi1, mesh%vi2
-      IF (Hi_tplusdt( vi) < 0._dp) THEN
-        found_negative_vals = .TRUE.
-        Hi_tplusdt( vi) = 0._dp
-      END IF
-    END DO ! DO vi = mesh%vi1, mesh%vi2
-    IF (found_negative_vals) THEN
-      CALL warning('encountered negative values for Hi_tplusdt - time step too large?')
-    END IF
-
     ! Clean up after yourself
     CALL deallocate_matrix_CSR_dist( M_divQ)
 
@@ -121,6 +127,77 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE calc_Hi_tplusdt_explicit
+
+  SUBROUTINE calc_Hi_tplusdt_implicit( mesh, Hi, u_vav_b, v_vav_b, SMB, BMB, dt, dHi_dt, Hi_tplusdt)
+    ! Calculate ice thickness rates of change (dH/dt)
+    !
+    ! Use a time-implicit discretisation scheme for the ice fluxes
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: Hi
+    REAL(dp), DIMENSION(mesh%ti1:mesh%ti2), INTENT(IN)    :: u_vav_b
+    REAL(dp), DIMENSION(mesh%ti1:mesh%ti2), INTENT(IN)    :: v_vav_b
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: SMB
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: BMB
+    REAL(dp),                               INTENT(IN)    :: dt
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)   :: dHi_dt
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)   :: Hi_tplusdt
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'calc_Hi_tplusdt_implicit'
+    TYPE(type_sparse_matrix_CSR_dp)                       :: M_divQ
+    TYPE(type_sparse_matrix_CSR_dp)                       :: AA
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: bb
+    INTEGER                                               :: vi, k1, k2, k, vj
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Calculate the ice flux divergence matrix M_divQ using an upwind scheme
+    CALL calc_ice_flux_divergence_matrix_upwind( mesh, u_vav_b, v_vav_b, M_divQ)
+
+    ! Calculate the stiffness matrix A and the load vector b
+
+    ! Start by letting AA = M_divQ
+    CALL duplicate_matrix_CSR_dist( M_divQ, AA)
+
+    ! Add 1/dt to the diagonal
+    DO vi = mesh%vi1, mesh%vi2
+      k1 = AA%ptr( vi)
+      k2 = AA%ptr( vi+1)-1
+      DO k = k1, k2
+        vj = M_divQ%ind( k)
+        IF (vj == vi) THEN
+          AA%val( k) = AA%val( k) + 1._dp / dt
+        END IF
+      END DO ! DO k = k1, k2
+    END DO ! DO vi = mesh%vi1, mesh%vi2
+
+    ! Load vector
+    DO vi = mesh%vi1, mesh%vi2
+      bb( vi) = Hi( vi) / dt + SMB( vi) + BMB( vi)
+    END DO ! DO vi = mesh%vi1, mesh%vi2
+
+    ! Take current ice thickness as the initial guess
+    Hi_tplusdt = Hi
+
+    ! Solve for Hi_tplusdt
+    CALL solve_matrix_equation_CSR_PETSc( AA, bb, Hi_tplusdt, 1E-7_dp, 1E-2_dp)
+
+    ! Calculate dH/dt
+    dHi_dt = (Hi_tplusdt - Hi) / dt
+
+    ! Clean up after yourself
+    CALL deallocate_matrix_CSR_dist( M_divQ)
+    CALL deallocate_matrix_CSR_dist( AA)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE calc_Hi_tplusdt_implicit
 
   SUBROUTINE calc_ice_flux_divergence_matrix_upwind( mesh, u_vav_b, v_vav_b, M_divQ)
     ! Calculate the ice flux divergence matrix M_divQ using an upwind scheme
@@ -141,7 +218,7 @@ CONTAINS
     INTEGER                                               :: vi, ci, ei, vj
     REAL(dp)                                              :: A_i, L_c
     REAL(dp)                                              :: D_x, D_y, D, u_perp
-    REAL(dp)                                              :: cM_divQ
+    REAL(dp), DIMENSION(0:mesh%nC_mem)                    :: cM_divQ
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -159,7 +236,7 @@ CONTAINS
     ncols_loc       = mesh%nV_loc
     nrows           = mesh%nV      ! to
     nrows_loc       = mesh%nV_loc
-    nnz_est_proc    = SUM( mesh%nC( mesh%vi1:mesh%vi2))
+    nnz_est_proc    = mesh%nV_loc + SUM( mesh%nC( mesh%vi1:mesh%vi2))
 
     CALL allocate_matrix_CSR_dist( M_divQ, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
 
@@ -167,38 +244,43 @@ CONTAINS
   ! =========================
 
     DO vi = mesh%vi1, mesh%vi2
-    DO ci = 1, mesh%nC( vi)
 
-      ! Connection ci from vertex vi leads through edge ei to vertex vj
-      ei = mesh%VE( vi,ci)
-      vj = mesh%C(  vi,ci)
+      ! Initialise
+      cM_divQ = 0._dp
 
-      ! The Voronoi cell of vertex vi has area A_i
-      A_i = mesh%A( vi)
+      ! Loopover all connections of vertex vi
+      DO ci = 1, mesh%nC( vi)
 
-      ! The shared Voronoi cell boundary section between the Voronoi cells
-      ! of vertices vi and vj has length L_c
-      L_c = mesh%Cw( vi,ci)
+        ! Connection ci from vertex vi leads through edge ei to vertex vj
+        ei = mesh%VE( vi,ci)
+        vj = mesh%C(  vi,ci)
 
-      ! Calculate vertically averaged ice velocity component perpendicular to this shared Voronoi cell boundary section
-      D_x = mesh%V( vj,1) - mesh%V( vi,1)
-      D_y = mesh%V( vj,2) - mesh%V( vi,2)
-      D   = SQRT( D_x**2 + D_y**2)
-      u_perp = u_vav_c_tot( ei) * D_x/D + v_vav_c_tot( ei) * D_y/D
+        ! The Voronoi cell of vertex vi has area A_i
+        A_i = mesh%A( vi)
 
-      ! Value of matrix coefficient
-      cM_divQ = L_c * u_perp / A_i
+        ! The shared Voronoi cell boundary section between the Voronoi cells
+        ! of vertices vi and vj has length L_c
+        L_c = mesh%Cw( vi,ci)
 
-      ! Upwind scheme
-      IF (u_perp > 0._dp) THEN
-        ! Ice flows from vi to vj
-        CALL add_entry_CSR_dist( M_divQ, vi, vi, cM_divQ)
-      ELSE
-        ! Ice flows from vj to vi
-        CALL add_entry_CSR_dist( M_divQ, vi, vj, cM_divQ)
-      END IF
+        ! Calculate vertically averaged ice velocity component perpendicular to this shared Voronoi cell boundary section
+        D_x = mesh%V( vj,1) - mesh%V( vi,1)
+        D_y = mesh%V( vj,2) - mesh%V( vi,2)
+        D   = SQRT( D_x**2 + D_y**2)
+        u_perp = u_vav_c_tot( ei) * D_x/D + v_vav_c_tot( ei) * D_y/D
 
-    END DO ! DO ci = 1, mesh%nC( vi)
+        ! Calculate matrix coefficients
+        cM_divQ( 0 ) = cM_divQ( 0) + L_c * MAX( 0._dp, u_perp) / A_i
+        cM_divQ( ci) =               L_c * MIN( 0._dp, u_perp) / A_i
+
+      END DO ! DO ci = 1, mesh%nC( vi)
+
+      ! Add coefficients to matrix
+      CALL add_entry_CSR_dist( M_divQ, vi, vi, cM_divQ( 0))
+      DO ci = 1, mesh%nC( vi)
+        vj = mesh%C(  vi,ci)
+        CALL add_entry_CSR_dist( M_divQ, vi, vj, cM_divQ( ci))
+      END DO ! DO ci = 1, mesh%nC( vi)
+
     END DO ! DO vi = mesh%vi1, mesh%vi2
 
     ! Finalise routine path

@@ -120,6 +120,48 @@ CONTAINS
 
   END SUBROUTINE deallocate_matrix_CSR_dist
 
+  SUBROUTINE duplicate_matrix_CSR_dist( A, B)
+    ! Duplicate the CSR-format sparse matrix A
+
+    IMPLICIT NONE
+
+    ! In- and output variables:
+    TYPE(type_sparse_matrix_CSR_dp),     INTENT(IN)    :: A
+    TYPE(type_sparse_matrix_CSR_dp),     INTENT(OUT)   :: B
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'duplicate_matrix_CSR_dist'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Matrix dimensions
+    B%m       = A%m
+    B%m_loc   = A%m_loc
+    B%i1      = A%i1
+    B%i2      = A%i2
+    B%n       = A%n
+    B%n_loc   = A%n_loc
+    B%j1      = A%j1
+    B%j2      = A%j2
+    B%nnz_max = A%nnz_max
+    B%nnz     = A%nnz
+
+    ! Allocate memory
+    ALLOCATE( B%ptr( B%i1: B%i2+1    ), source = 1    )
+    ALLOCATE( B%ind( B%nnz_max), source = 0    )
+    ALLOCATE( B%val( B%nnz_max), source = 0._dp)
+
+    ! Copy data
+    B%ptr = A%ptr
+    B%ind = A%ind
+    B%val = A%val
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE duplicate_matrix_CSR_dist
+
   SUBROUTINE add_entry_CSR_dist( A, i, j, v)
     ! Add value v to row i, column j of CSR-formatted matrix A
     !
