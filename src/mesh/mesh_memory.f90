@@ -195,6 +195,12 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+  ! Basic meta properties
+  ! =====================
+
+    IF (ALLOCATED( mesh%zeta            )) DEALLOCATE( mesh%zeta            )
+    IF (ALLOCATED( mesh%zeta_stag       )) DEALLOCATE( mesh%zeta_stag       )
+
   ! Primary mesh data
   ! =================
 
@@ -331,6 +337,52 @@ CONTAINS
     CALL deallocate_matrix_CSR_dist( mesh%M2_d2dx2_b_b )
     CALL deallocate_matrix_CSR_dist( mesh%M2_d2dxdy_b_b)
     CALL deallocate_matrix_CSR_dist( mesh%M2_d2dy2_b_b )
+
+    ! Operators on the zeta grids
+    CALL deallocate_matrix_CSR_dist( mesh%M_ddzeta_k_k_1D)
+    CALL deallocate_matrix_CSR_dist( mesh%M_d2dzeta2_k_k_1D)
+    CALL deallocate_matrix_CSR_dist( mesh%M_map_k_ks_1D)
+    CALL deallocate_matrix_CSR_dist( mesh%M_ddzeta_k_ks_1D)
+    CALL deallocate_matrix_CSR_dist( mesh%M_map_ks_k_1D)
+    CALL deallocate_matrix_CSR_dist( mesh%M_ddzeta_ks_k_1D)
+
+    ! Zeta operators in tridiagonal form for efficient use in thermodynamics
+    IF (ALLOCATED( mesh%M_ddzeta_k_k_ldiag  )) DEALLOCATE( mesh%M_ddzeta_k_k_ldiag  )
+    IF (ALLOCATED( mesh%M_ddzeta_k_k_diag   )) DEALLOCATE( mesh%M_ddzeta_k_k_diag   )
+    IF (ALLOCATED( mesh%M_ddzeta_k_k_udiag  )) DEALLOCATE( mesh%M_ddzeta_k_k_udiag  )
+    IF (ALLOCATED( mesh%M_d2dzeta2_k_k_ldiag)) DEALLOCATE( mesh%M_d2dzeta2_k_k_ldiag)
+    IF (ALLOCATED( mesh%M_d2dzeta2_k_k_diag )) DEALLOCATE( mesh%M_d2dzeta2_k_k_diag )
+    IF (ALLOCATED( mesh%M_d2dzeta2_k_k_udiag)) DEALLOCATE( mesh%M_d2dzeta2_k_k_udiag)
+
+    ! 3-D gradient operators
+
+    ! bk to ak (for calculating the horizontal stretch/shear strain rates in the BPA)
+    CALL deallocate_matrix_CSR_dist( mesh%M_ddx_bk_ak)
+    CALL deallocate_matrix_CSR_dist( mesh%M_ddy_bk_ak)
+
+    ! ak to bk (for calculating the horizontal gradients of the effective viscosity in the BPA)
+    CALL deallocate_matrix_CSR_dist( mesh%M_ddx_ak_bk)
+    CALL deallocate_matrix_CSR_dist( mesh%M_ddy_ak_bk)
+
+    ! bk to bks (for calculating the vertical shear strain rates in the BPA)
+    CALL deallocate_matrix_CSR_dist( mesh%M_ddz_bk_bks)
+
+    ! bks to bk (for calculating (the vertical gradient of) the effective viscosity in the BPA)
+    CALL deallocate_matrix_CSR_dist( mesh%M_map_bks_bk)
+    CALL deallocate_matrix_CSR_dist( mesh%M_ddz_bks_bk)
+
+    ! Map between the bks-grid and the ak-grid (for calculating strain rates in the BPA)
+    CALL deallocate_matrix_CSR_dist( mesh%M_map_bks_ak)
+    CALL deallocate_matrix_CSR_dist( mesh%M_map_ak_bks)
+
+    ! bk to bk (for constructing the BPA stiffness matrix)
+    CALL deallocate_matrix_CSR_dist( mesh%M2_ddx_bk_bk)
+    CALL deallocate_matrix_CSR_dist( mesh%M2_ddy_bk_bk)
+    CALL deallocate_matrix_CSR_dist( mesh%M2_d2dx2_bk_bk)
+    CALL deallocate_matrix_CSR_dist( mesh%M2_d2dxdy_bk_bk)
+    CALL deallocate_matrix_CSR_dist( mesh%M2_d2dy2_bk_bk)
+    CALL deallocate_matrix_CSR_dist( mesh%M2_ddz_bk_bk)
+    CALL deallocate_matrix_CSR_dist( mesh%M2_d2dz2_bk_bk)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

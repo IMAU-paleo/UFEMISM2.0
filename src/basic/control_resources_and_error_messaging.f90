@@ -43,7 +43,7 @@ CONTAINS
     INTEGER                                                            :: i,n
 
     ! Allocate space to track up to 2,000 subroutines, that should be enough for a while...
-    n = 2000
+    n = 5000
     ALLOCATE( resource_tracker( n))
 
     ! Initialise values
@@ -205,7 +205,7 @@ CONTAINS
     END DO
 
     ! If we've reached this point, then the resource tracker is overflowing
-    CALL crash('Resource tracker overflows! Allocate more memory for it in initialise_model_configuration.')
+    CALL crash('Resource tracker overflows! Allocate more memory for it in control_resources_and_error_messaging/initialise_control_and_resource_tracker!')
 
   END SUBROUTINE find_subroutine_in_resource_tracker
 

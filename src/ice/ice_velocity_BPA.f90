@@ -30,6 +30,7 @@ MODULE ice_velocity_BPA
   USE netcdf_output                                          , ONLY: generate_filename_XXXXXdotnc, setup_mesh_in_netcdf_file, add_time_dimension_to_file, &
                                                                      add_zeta_dimension_to_file, add_field_mesh_dp_3D_b, write_time_to_file, write_to_field_multopt_mesh_dp_3D_b
   USE netcdf_input                                           , ONLY: read_field_from_mesh_file_3D_b
+  USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_2D
 
   IMPLICIT NONE
 
@@ -257,8 +258,8 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Store the previous solution
-    BPA%u_bk_prev = BPA%u_bk
-    BPA%v_bk_prev = BPA%v_bk
+    CALL gather_to_all_dp_2D( BPA%u_bk, BPA%u_bk_prev)
+    CALL gather_to_all_dp_2D( BPA%v_bk, BPA%v_bk_prev)
 
   ! == Initialise the stiffness matrix using the native UFEMISM CSR-matrix format
   ! =============================================================================
@@ -318,22 +319,22 @@ CONTAINS
       ELSEIF (mesh%TriBI( ti) == 1 .OR. mesh%TriBI( ti) == 2) THEN
         ! Northern domain border
 
-        CALL calc_BPA_stiffness_matrix_row_BC_north( mesh, A_CSR, bb, row_tikuv)
+        CALL calc_BPA_stiffness_matrix_row_BC_north( mesh, BPA, A_CSR, bb, row_tikuv)
 
       ELSEIF (mesh%TriBI( ti) == 3 .OR. mesh%TriBI( ti) == 4) THEN
         ! Eastern domain border
 
-        CALL calc_BPA_stiffness_matrix_row_BC_east( mesh, A_CSR, bb, row_tikuv)
+        CALL calc_BPA_stiffness_matrix_row_BC_east( mesh, BPA, A_CSR, bb, row_tikuv)
 
       ELSEIF (mesh%TriBI( ti) == 5 .OR. mesh%TriBI( ti) == 6) THEN
         ! Southern domain border
 
-        CALL calc_BPA_stiffness_matrix_row_BC_south( mesh, A_CSR, bb, row_tikuv)
+        CALL calc_BPA_stiffness_matrix_row_BC_south( mesh, BPA, A_CSR, bb, row_tikuv)
 
       ELSEIF (mesh%TriBI( ti) == 7 .OR. mesh%TriBI( ti) == 8) THEN
         ! Western domain border
 
-        CALL calc_BPA_stiffness_matrix_row_BC_west( mesh, A_CSR, bb, row_tikuv)
+        CALL calc_BPA_stiffness_matrix_row_BC_west( mesh, BPA, A_CSR, bb, row_tikuv)
 
       ELSEIF (k == 1) THEN
         ! Ice surface
@@ -1100,7 +1101,7 @@ CONTAINS
 
   END SUBROUTINE calc_BPA_stiffness_matrix_row_BC_base
 
-  SUBROUTINE calc_BPA_stiffness_matrix_row_BC_west( mesh, A_CSR, bb, row_tikuv)
+  SUBROUTINE calc_BPA_stiffness_matrix_row_BC_west( mesh, BPA, A_CSR, bb, row_tikuv)
     ! Add coefficients to this matrix row to represent boundary conditions at the
     ! western domain border.
 
@@ -1108,13 +1109,17 @@ CONTAINS
 
     ! In/output variables:
     TYPE(type_mesh),                     INTENT(IN)              :: mesh
+    TYPE(type_ice_velocity_solver_BPA),  INTENT(IN)              :: BPA
     TYPE(type_sparse_matrix_CSR_dp),     INTENT(INOUT)           :: A_CSR
     REAL(dp), DIMENSION(A_CSR%i1:A_CSR%i2), INTENT(INOUT)        :: bb
     INTEGER,                             INTENT(IN)              :: row_tikuv
 
     ! Local variables:
     INTEGER                                                      :: ti,k,uv,row_ti
-    INTEGER                                                      :: tj, col_tjkuv, ti_copy, col_ticopykuv
+    INTEGER                                                      :: tj, col_tjkuv
+    INTEGER,  DIMENSION(mesh%nC_mem)                             :: ti_copy
+    REAL(dp), DIMENSION(mesh%nC_mem)                             :: wti_copy
+    REAL(dp)                                                     :: u_fixed, v_fixed
     INTEGER                                                      :: n, n_neighbours
 
     ti = mesh%n2tikuv( row_tikuv,1)
@@ -1158,14 +1163,20 @@ CONTAINS
         ! u(x,y) = u(x+-L/2,y+-L/2)
 
         ! Find the triangle ti_copy that is displaced by [x+-L/2,y+-L/2] relative to ti
-        ti_copy = ti
-        CALL find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy)
+        CALL find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy, wti_copy)
 
         ! Set value at ti equal to value at ti_copy
-        col_ticopykuv = mesh%tikuv2n( ti_copy,k,uv)
-        CALL add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv    ,  1._dp)
-        CALL add_entry_CSR_dist( A_CSR, row_tikuv, col_ticopykuv, -1._dp)
-        bb( row_tikuv) = 0._dp
+        CALL add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv,  1._dp)
+        u_fixed = 0._dp
+        DO n = 1, mesh%nC_mem
+          tj = ti_copy( n)
+          IF (tj == 0) CYCLE
+          u_fixed = u_fixed + wti_copy( n) * BPA%u_bk_prev( tj,k)
+        END DO
+        ! Relax solution to improve stability
+        u_fixed = (C%visc_it_relax * u_fixed) + ((1._dp - C%visc_it_relax) * BPA%u_bk_prev( ti,k))
+        ! Set load vector
+        bb( row_tikuv) = u_fixed
 
       ELSE
         CALL crash('unknown BC_u_west "' // TRIM( C%BC_u_west) // '"!')
@@ -1207,14 +1218,20 @@ CONTAINS
         ! v(x,y) = v(x+-L/2,y+-L/2)
 
         ! Find the triangle ti_copy that is displaced by [x+-L/2,y+-L/2] relative to ti
-        ti_copy = ti
-        CALL find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy)
+        CALL find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy, wti_copy)
 
         ! Set value at ti equal to value at ti_copy
-        col_ticopykuv = mesh%tikuv2n( ti_copy,k,uv)
-        CALL add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv    ,  1._dp)
-        CALL add_entry_CSR_dist( A_CSR, row_tikuv, col_ticopykuv, -1._dp)
-        bb( row_tikuv) = 0._dp
+        CALL add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv,  1._dp)
+        v_fixed = 0._dp
+        DO n = 1, mesh%nC_mem
+          tj = ti_copy( n)
+          IF (tj == 0) CYCLE
+          v_fixed = v_fixed + wti_copy( n) * BPA%v_bk_prev( tj,k)
+        END DO
+        ! Relax solution to improve stability
+        v_fixed = (C%visc_it_relax * v_fixed) + ((1._dp - C%visc_it_relax) * BPA%v_bk_prev( ti,k))
+        ! Set load vector
+        bb( row_tikuv) = v_fixed
 
       ELSE
         CALL crash('unknown BC_u_west "' // TRIM( C%BC_u_west) // '"!')
@@ -1226,7 +1243,7 @@ CONTAINS
 
   END SUBROUTINE calc_BPA_stiffness_matrix_row_BC_west
 
-  SUBROUTINE calc_BPA_stiffness_matrix_row_BC_east( mesh, A_CSR, bb, row_tikuv)
+  SUBROUTINE calc_BPA_stiffness_matrix_row_BC_east( mesh, BPA, A_CSR, bb, row_tikuv)
     ! Add coefficients to this matrix row to represent boundary conditions at the
     ! eastern domain border.
 
@@ -1234,13 +1251,17 @@ CONTAINS
 
     ! In/output variables:
     TYPE(type_mesh),                     INTENT(IN)              :: mesh
+    TYPE(type_ice_velocity_solver_BPA),  INTENT(IN)              :: BPA
     TYPE(type_sparse_matrix_CSR_dp),     INTENT(INOUT)           :: A_CSR
     REAL(dp), DIMENSION(A_CSR%i1:A_CSR%i2), INTENT(INOUT)        :: bb
     INTEGER,                             INTENT(IN)              :: row_tikuv
 
     ! Local variables:
     INTEGER                                                      :: ti,k,uv,row_ti
-    INTEGER                                                      :: tj, col_tjkuv, ti_copy, col_ticopykuv
+    INTEGER                                                      :: tj, col_tjkuv
+    INTEGER,  DIMENSION(mesh%nC_mem)                             :: ti_copy
+    REAL(dp), DIMENSION(mesh%nC_mem)                             :: wti_copy
+    REAL(dp)                                                     :: u_fixed, v_fixed
     INTEGER                                                      :: n, n_neighbours
 
     ti = mesh%n2tikuv( row_tikuv,1)
@@ -1284,14 +1305,20 @@ CONTAINS
         ! u(x,y) = u(x+-L/2,y+-L/2)
 
         ! Find the triangle ti_copy that is displaced by [x+-L/2,y+-L/2] relative to ti
-        ti_copy = ti
-        CALL find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy)
+        CALL find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy, wti_copy)
 
         ! Set value at ti equal to value at ti_copy
-        col_ticopykuv = mesh%tikuv2n( ti_copy,k,uv)
-        CALL add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv    ,  1._dp)
-        CALL add_entry_CSR_dist( A_CSR, row_tikuv, col_ticopykuv, -1._dp)
-        bb( row_tikuv) = 0._dp
+        CALL add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv,  1._dp)
+        u_fixed = 0._dp
+        DO n = 1, mesh%nC_mem
+          tj = ti_copy( n)
+          IF (tj == 0) CYCLE
+          u_fixed = u_fixed + wti_copy( n) * BPA%u_bk_prev( tj,k)
+        END DO
+        ! Relax solution to improve stability
+        u_fixed = (C%visc_it_relax * u_fixed) + ((1._dp - C%visc_it_relax) * BPA%u_bk_prev( ti,k))
+        ! Set load vector
+        bb( row_tikuv) = u_fixed
 
       ELSE
         CALL crash('unknown BC_u_east "' // TRIM( C%BC_u_east) // '"!')
@@ -1333,14 +1360,20 @@ CONTAINS
         ! v(x,y) = v(x+-L/2,y+-L/2)
 
         ! Find the triangle ti_copy that is displaced by [x+-L/2,y+-L/2] relative to ti
-        ti_copy = ti
-        CALL find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy)
+        CALL find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy, wti_copy)
 
         ! Set value at ti equal to value at ti_copy
-        col_ticopykuv = mesh%tikuv2n( ti_copy,k,uv)
-        CALL add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv    ,  1._dp)
-        CALL add_entry_CSR_dist( A_CSR, row_tikuv, col_ticopykuv, -1._dp)
-        bb( row_tikuv) = 0._dp
+        CALL add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv,  1._dp)
+        v_fixed = 0._dp
+        DO n = 1, mesh%nC_mem
+          tj = ti_copy( n)
+          IF (tj == 0) CYCLE
+          v_fixed = v_fixed + wti_copy( n) * BPA%v_bk_prev( tj,k)
+        END DO
+        ! Relax solution to improve stability
+        v_fixed = (C%visc_it_relax * v_fixed) + ((1._dp - C%visc_it_relax) * BPA%v_bk_prev( ti,k))
+        ! Set load vector
+        bb( row_tikuv) = v_fixed
 
       ELSE
         CALL crash('unknown BC_u_east "' // TRIM( C%BC_u_east) // '"!')
@@ -1352,7 +1385,7 @@ CONTAINS
 
   END SUBROUTINE calc_BPA_stiffness_matrix_row_BC_east
 
-  SUBROUTINE calc_BPA_stiffness_matrix_row_BC_south( mesh, A_CSR, bb, row_tikuv)
+  SUBROUTINE calc_BPA_stiffness_matrix_row_BC_south( mesh, BPA, A_CSR, bb, row_tikuv)
     ! Add coefficients to this matrix row to represent boundary conditions at the
     ! southern domain border.
 
@@ -1360,13 +1393,17 @@ CONTAINS
 
     ! In/output variables:
     TYPE(type_mesh),                     INTENT(IN)              :: mesh
+    TYPE(type_ice_velocity_solver_BPA),  INTENT(IN)              :: BPA
     TYPE(type_sparse_matrix_CSR_dp),     INTENT(INOUT)           :: A_CSR
     REAL(dp), DIMENSION(A_CSR%i1:A_CSR%i2), INTENT(INOUT)        :: bb
     INTEGER,                             INTENT(IN)              :: row_tikuv
 
     ! Local variables:
     INTEGER                                                      :: ti,k,uv,row_ti
-    INTEGER                                                      :: tj, col_tjkuv, ti_copy, col_ticopykuv
+    INTEGER                                                      :: tj, col_tjkuv
+    INTEGER,  DIMENSION(mesh%nC_mem)                             :: ti_copy
+    REAL(dp), DIMENSION(mesh%nC_mem)                             :: wti_copy
+    REAL(dp)                                                     :: u_fixed, v_fixed
     INTEGER                                                      :: n, n_neighbours
 
     ti = mesh%n2tikuv( row_tikuv,1)
@@ -1410,14 +1447,20 @@ CONTAINS
         ! u(x,y) = u(x+-L/2,y+-L/2)
 
         ! Find the triangle ti_copy that is displaced by [x+-L/2,y+-L/2] relative to ti
-        ti_copy = ti
-        CALL find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy)
+        CALL find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy, wti_copy)
 
         ! Set value at ti equal to value at ti_copy
-        col_ticopykuv = mesh%tikuv2n( ti_copy,k,uv)
-        CALL add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv    ,  1._dp)
-        CALL add_entry_CSR_dist( A_CSR, row_tikuv, col_ticopykuv, -1._dp)
-        bb( row_tikuv) = 0._dp
+        CALL add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv,  1._dp)
+        u_fixed = 0._dp
+        DO n = 1, mesh%nC_mem
+          tj = ti_copy( n)
+          IF (tj == 0) CYCLE
+          u_fixed = u_fixed + wti_copy( n) * BPA%u_bk_prev( tj,k)
+        END DO
+        ! Relax solution to improve stability
+        u_fixed = (C%visc_it_relax * u_fixed) + ((1._dp - C%visc_it_relax) * BPA%u_bk_prev( ti,k))
+        ! Set load vector
+        bb( row_tikuv) = u_fixed
 
       ELSE
         CALL crash('unknown BC_u_south "' // TRIM( C%BC_u_south) // '"!')
@@ -1459,14 +1502,20 @@ CONTAINS
         ! v(x,y) = v(x+-L/2,y+-L/2)
 
         ! Find the triangle ti_copy that is displaced by [x+-L/2,y+-L/2] relative to ti
-        ti_copy = ti
-        CALL find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy)
+        CALL find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy, wti_copy)
 
         ! Set value at ti equal to value at ti_copy
-        col_ticopykuv = mesh%tikuv2n( ti_copy,k,uv)
-        CALL add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv    ,  1._dp)
-        CALL add_entry_CSR_dist( A_CSR, row_tikuv, col_ticopykuv, -1._dp)
-        bb( row_tikuv) = 0._dp
+        CALL add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv,  1._dp)
+        v_fixed = 0._dp
+        DO n = 1, mesh%nC_mem
+          tj = ti_copy( n)
+          IF (tj == 0) CYCLE
+          v_fixed = v_fixed + wti_copy( n) * BPA%v_bk_prev( tj,k)
+        END DO
+        ! Relax solution to improve stability
+        v_fixed = (C%visc_it_relax * v_fixed) + ((1._dp - C%visc_it_relax) * BPA%v_bk_prev( ti,k))
+        ! Set load vector
+        bb( row_tikuv) = v_fixed
 
       ELSE
         CALL crash('unknown BC_u_south "' // TRIM( C%BC_u_south) // '"!')
@@ -1478,7 +1527,7 @@ CONTAINS
 
   END SUBROUTINE calc_BPA_stiffness_matrix_row_BC_south
 
-  SUBROUTINE calc_BPA_stiffness_matrix_row_BC_north( mesh, A_CSR, bb, row_tikuv)
+  SUBROUTINE calc_BPA_stiffness_matrix_row_BC_north( mesh, BPA, A_CSR, bb, row_tikuv)
     ! Add coefficients to this matrix row to represent boundary conditions at the
     ! northern domain border.
 
@@ -1486,13 +1535,17 @@ CONTAINS
 
     ! In/output variables:
     TYPE(type_mesh),                     INTENT(IN)              :: mesh
+    TYPE(type_ice_velocity_solver_BPA),  INTENT(IN)              :: BPA
     TYPE(type_sparse_matrix_CSR_dp),     INTENT(INOUT)           :: A_CSR
     REAL(dp), DIMENSION(A_CSR%i1:A_CSR%i2), INTENT(INOUT)        :: bb
     INTEGER,                             INTENT(IN)              :: row_tikuv
 
     ! Local variables:
     INTEGER                                                      :: ti,k,uv,row_ti
-    INTEGER                                                      :: tj, col_tjkuv, ti_copy, col_ticopykuv
+    INTEGER                                                      :: tj, col_tjkuv
+    INTEGER,  DIMENSION(mesh%nC_mem)                             :: ti_copy
+    REAL(dp), DIMENSION(mesh%nC_mem)                             :: wti_copy
+    REAL(dp)                                                     :: u_fixed, v_fixed
     INTEGER                                                      :: n, n_neighbours
 
     ti = mesh%n2tikuv( row_tikuv,1)
@@ -1536,14 +1589,20 @@ CONTAINS
         ! u(x,y) = u(x+-L/2,y+-L/2)
 
         ! Find the triangle ti_copy that is displaced by [x+-L/2,y+-L/2] relative to ti
-        ti_copy = ti
-        CALL find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy)
+        CALL find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy, wti_copy)
 
         ! Set value at ti equal to value at ti_copy
-        col_ticopykuv = mesh%tikuv2n( ti_copy,k,uv)
-        CALL add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv    ,  1._dp)
-        CALL add_entry_CSR_dist( A_CSR, row_tikuv, col_ticopykuv, -1._dp)
-        bb( row_tikuv) = 0._dp
+        CALL add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv,  1._dp)
+        u_fixed = 0._dp
+        DO n = 1, mesh%nC_mem
+          tj = ti_copy( n)
+          IF (tj == 0) CYCLE
+          u_fixed = u_fixed + wti_copy( n) * BPA%u_bk_prev( tj,k)
+        END DO
+        ! Relax solution to improve stability
+        u_fixed = (C%visc_it_relax * u_fixed) + ((1._dp - C%visc_it_relax) * BPA%u_bk_prev( ti,k))
+        ! Set load vector
+        bb( row_tikuv) = u_fixed
 
       ELSE
         CALL crash('unknown BC_u_north "' // TRIM( C%BC_u_north) // '"!')
@@ -1585,14 +1644,20 @@ CONTAINS
         ! v(x,y) = v(x+-L/2,y+-L/2)
 
         ! Find the triangle ti_copy that is displaced by [x+-L/2,y+-L/2] relative to ti
-        ti_copy = ti
-        CALL find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy)
+        CALL find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy, wti_copy)
 
         ! Set value at ti equal to value at ti_copy
-        col_ticopykuv = mesh%tikuv2n( ti_copy,k,uv)
-        CALL add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv    ,  1._dp)
-        CALL add_entry_CSR_dist( A_CSR, row_tikuv, col_ticopykuv, -1._dp)
-        bb( row_tikuv) = 0._dp
+        CALL add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv,  1._dp)
+        v_fixed = 0._dp
+        DO n = 1, mesh%nC_mem
+          tj = ti_copy( n)
+          IF (tj == 0) CYCLE
+          v_fixed = v_fixed + wti_copy( n) * BPA%v_bk_prev( tj,k)
+        END DO
+        ! Relax solution to improve stability
+        v_fixed = (C%visc_it_relax * v_fixed) + ((1._dp - C%visc_it_relax) * BPA%v_bk_prev( ti,k))
+        ! Set load vector
+        bb( row_tikuv) = v_fixed
 
       ELSE
         CALL crash('unknown BC_u_north "' // TRIM( C%BC_u_north) // '"!')
@@ -1880,12 +1945,15 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'relax_viscosity_iterations'
+    INTEGER                                                      :: ti
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    BPA%u_bk = (C%visc_it_relax * BPA%u_bk) + ((1._dp - C%visc_it_relax) * BPA%u_bk_prev)
-    BPA%v_bk = (C%visc_it_relax * BPA%v_bk) + ((1._dp - C%visc_it_relax) * BPA%v_bk_prev)
+    DO ti = mesh%ti1, mesh%ti2
+      BPA%u_bk( ti,:) = (C%visc_it_relax * BPA%u_bk( ti,:)) + ((1._dp - C%visc_it_relax) * BPA%u_bk_prev( ti,:))
+      BPA%v_bk( ti,:) = (C%visc_it_relax * BPA%v_bk( ti,:)) + ((1._dp - C%visc_it_relax) * BPA%v_bk_prev( ti,:))
+    END DO
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -2103,9 +2171,9 @@ CONTAINS
     BPA%tau_dx_b = 0._dp
     ALLOCATE( BPA%tau_dy_b(      mesh%ti1:mesh%ti2))
     BPA%tau_dy_b = 0._dp
-    ALLOCATE( BPA%u_bk_prev(     mesh%ti1:mesh%ti2,mesh%nz))                   ! Velocity solution from previous viscosity iteration
+    ALLOCATE( BPA%u_bk_prev(     mesh%nTri,mesh%nz))                   ! Velocity solution from previous viscosity iteration
     BPA%u_bk_prev = 0._dp
-    ALLOCATE( BPA%v_bk_prev(     mesh%ti1:mesh%ti2,mesh%nz))
+    ALLOCATE( BPA%v_bk_prev(     mesh%nTri,mesh%nz))
     BPA%v_bk_prev = 0._dp
 
     ! Finalise routine path

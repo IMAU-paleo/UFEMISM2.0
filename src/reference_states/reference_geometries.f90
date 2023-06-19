@@ -69,9 +69,8 @@ CONTAINS
     TYPE(type_reference_geometry)                      , INTENT(INOUT) :: refgeo_GIAeq
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'initialise_reference_geometries_raw'
+    CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'initialise_reference_geometries_on_model_mesh'
     CHARACTER(LEN=256)                                                 :: choice_refgeo, choice_refgeo_idealised
-    INTEGER                                                            :: vi
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -116,11 +115,7 @@ CONTAINS
     ELSEIF (choice_refgeo == 'idealised') THEN
       ! For idealised geometries, calculate them directly on the model mesh
 
-      DO vi = mesh%vi1, mesh%vi2
-        CALL calc_idealised_geometry( mesh%V( vi,1), mesh%V( vi,2), &
-        refgeo_init%Hi( vi), refgeo_init%Hb( vi), refgeo_init%Hs( vi), refgeo_init%SL( vi), &
-        choice_refgeo_idealised)
-      END DO
+      CALL initialise_reference_geometry_idealised( mesh, choice_refgeo_idealised, refgeo_init)
 
     ELSE
       CALL crash('unknown choice_refgeo "' // TRIM( choice_refgeo) // '"!')
@@ -166,11 +161,7 @@ CONTAINS
     ELSEIF (choice_refgeo == 'idealised') THEN
       ! For idealised geometries, calculate them directly on the model mesh
 
-      DO vi = mesh%vi1, mesh%vi2
-        CALL calc_idealised_geometry( mesh%V( vi,1), mesh%V( vi,2), &
-        refgeo_PD%Hi( vi), refgeo_PD%Hb( vi), refgeo_PD%Hs( vi), refgeo_PD%SL( vi), &
-        choice_refgeo_idealised)
-      END DO
+      CALL initialise_reference_geometry_idealised( mesh, choice_refgeo_idealised, refgeo_PD)
 
     ELSE
       CALL crash('unknown choice_refgeo "' // TRIM( choice_refgeo) // '"!')
@@ -216,11 +207,7 @@ CONTAINS
     ELSEIF (choice_refgeo == 'idealised') THEN
       ! For idealised geometries, calculate them directly on the model mesh
 
-      DO vi = mesh%vi1, mesh%vi2
-        CALL calc_idealised_geometry( mesh%V( vi,1), mesh%V( vi,2), &
-        refgeo_GIAeq%Hi( vi), refgeo_GIAeq%Hb( vi), refgeo_GIAeq%Hs( vi), refgeo_GIAeq%SL( vi), &
-        choice_refgeo_idealised)
-      END DO
+      CALL initialise_reference_geometry_idealised( mesh, choice_refgeo_idealised, refgeo_GIAeq)
 
     ELSE
       CALL crash('unknown choice_refgeo "' // TRIM( choice_refgeo) // '"!')
@@ -453,6 +440,12 @@ CONTAINS
 
     ! Add routine to path
     CALL init_routine( routine_name)
+
+    ! Clean up memory if necessary
+    IF (ALLOCATED( refgeo%Hi_grid_raw)) DEALLOCATE( refgeo%Hi_grid_raw)
+    IF (ALLOCATED( refgeo%Hb_grid_raw)) DEALLOCATE( refgeo%Hb_grid_raw)
+    IF (ALLOCATED( refgeo%Hs_grid_raw)) DEALLOCATE( refgeo%Hs_grid_raw)
+    IF (ALLOCATED( refgeo%SL_grid_raw)) DEALLOCATE( refgeo%SL_grid_raw)
 
     IF     (choice_refgeo == 'idealised') THEN
       CALL initialise_reference_geometry_raw_idealised( region_name, refgeo_name, refgeo, choice_refgeo_idealised, dx_refgeo_idealised)
@@ -755,14 +748,13 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'initialise_reference_geometry_idealised'
-    INTEGER                                                            :: vii,vi
+    INTEGER                                                            :: vi
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    DO vii = 1, mesh%nV_loc
-      vi = mesh%vi1 + vii - 1
-      CALL calc_idealised_geometry( mesh%V( vi,1), mesh%V( vi,2), refgeo%Hi( vii), refgeo%Hb( vii), refgeo%Hs( vii), refgeo%SL( vii), choice_refgeo_idealised)
+    DO vi = mesh%vi1, mesh%vi2
+      CALL calc_idealised_geometry( mesh%V( vi,1), mesh%V( vi,2), refgeo%Hi( vi), refgeo%Hb( vi), refgeo%Hs( vi), refgeo%SL( vi), choice_refgeo_idealised)
     END DO
 
     ! Finalise routine path

@@ -10,12 +10,15 @@ else
   ha = 800;
   wa = ha * xw / yw;
 end
-wf = 25 + wa + 50;
+wf = 25 + wa + 100;
 hf = 25 + ha + 50;
 
 H.Fig = figure('position',[200,200,wf,hf],'color','w');
 H.Ax  = axes('parent',H.Fig,'units','pixels','position',[25,25,wa,ha],'fontsize',24,...
   'xtick',[],'ytick',[],'xlim',[mesh.xmin,mesh.xmax],'ylim',[mesh.ymin,mesh.ymax]);
+pos = get( H.Ax,'position');
+H.Cbar = colorbar( H.Ax,'location','eastoutside');
+set( H.Ax,'position',pos);
 
 ncols = 256;
 cmap = parula(ncols);

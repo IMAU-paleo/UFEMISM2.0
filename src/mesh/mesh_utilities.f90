@@ -1695,7 +1695,7 @@ CONTAINS
 
 ! == ISMIP-HOM periodic boundary conditions
 
-  SUBROUTINE find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy)
+  SUBROUTINE find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy, wti_copy)
     ! Periodic boundary conditions in the ISMIP-HOM experiments are implemented by
     ! taking advantage of the fact that u(x,y) = u(x+L/2,y+L/2)
     !
@@ -1709,11 +1709,13 @@ CONTAINS
     ! In/output variables:
     TYPE(type_mesh),                     INTENT(IN)              :: mesh
     INTEGER,                             INTENT(IN)              :: ti
-    INTEGER,                             INTENT(OUT)             :: ti_copy
+    INTEGER,  DIMENSION(mesh%nC_mem),    INTENT(OUT)             :: ti_copy
+    REAL(dp), DIMENSION(mesh%nC_mem),    INTENT(OUT)             :: wti_copy
 
     ! Local variables:
     REAL(dp), DIMENSION(2)                                       :: gc, p
-    INTEGER                                                      :: n, tj
+    INTEGER                                                      :: vi, iti, tj
+    REAL(dp)                                                     :: dist
 
     ! This triangle's geometric centre
     gc = mesh%TriGC( ti,:)
@@ -1730,22 +1732,23 @@ CONTAINS
       p( 2) = gc( 2) + C%refgeo_idealised_ISMIP_HOM_L / 2._dp
     END IF
 
-    ! The triangle where we want to copy the previous velocity solution
-    ti_copy = ti
-    CALL find_containing_triangle( mesh, p, ti_copy)
+    ! The vertex whose Voronoi cell contains this point
+    vi = 5
+    CALL find_containing_vertex( mesh, p, vi)
 
-    ! Safety: make sure ti_copy does not also lie on the domain boundary
-    IF (mesh%TriBI( ti_copy) > 0) THEN
-      DO n = 1, 3
-        tj = mesh%TriC( ti_copy,n)
-        IF (tj == 0) CYCLE
-        IF (mesh%TriBI( tj) == 0) THEN
-          ti_copy = tj
-          EXIT
-        END IF
-      END DO
-    END IF
-    IF (mesh%TriBI( ti_copy) > 0) CALL crash('couldnt find non-boundary triangle to copy data from!')
+    ! Weighted average over the triangles surrounding this vertex
+    ti_copy  = 0
+    wti_copy = 0._dp
+
+    DO iti = 1, mesh%niTri( vi)
+      tj = mesh%iTri( vi,iti)
+      dist = NORM2( p - mesh%TriGC( tj,:))
+      ti_copy(  iti) = tj
+      wti_copy( iti) = 1._dp / dist**2
+    END DO
+
+    ! Normalise weights
+    wti_copy( 1:mesh%niTri( vi)) = wti_copy( 1:mesh%niTri( vi)) / SUM( wti_copy( 1:mesh%niTri( vi)))
 
   END SUBROUTINE find_ti_copy_ISMIP_HOM_periodic
 

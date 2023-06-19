@@ -330,7 +330,6 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_sliding_law_idealised'
-    REAL(dp) :: dummy_dp
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -338,16 +337,16 @@ CONTAINS
     IF     (C%choice_idealised_sliding_law == 'SSA_icestream') THEN
       ! SSA ice stream (Schoof, 2006)
       CALL calc_sliding_law_idealised_SSA_icestream( mesh, ice, u_a, v_a)
-    ELSEIF (C%choice_idealised_sliding_law == 'ISMIP_HOM_C') THEN
+    ELSEIF (C%choice_idealised_sliding_law == 'ISMIP-HOM_C') THEN
       ! ISMIP-HOM experiment C
       CALL calc_sliding_law_idealised_ISMIP_HOM_C( mesh, ice)
-    ELSEIF (C%choice_idealised_sliding_law == 'ISMIP_HOM_D') THEN
+    ELSEIF (C%choice_idealised_sliding_law == 'ISMIP-HOM_D') THEN
       ! ISMIP-HOM experiment D
       CALL calc_sliding_law_idealised_ISMIP_HOM_D( mesh, ice)
-    ELSEIF (C%choice_idealised_sliding_law == 'ISMIP_HOM_E') THEN
+    ELSEIF (C%choice_idealised_sliding_law == 'ISMIP-HOM_E') THEN
       ! ISMIP-HOM experiment E
       CALL crash('the Glacier Arolla experiment is not implemented in UFEMISM!')
-    ELSEIF (C%choice_idealised_sliding_law == 'ISMIP_HOM_F') THEN
+    ELSEIF (C%choice_idealised_sliding_law == 'ISMIP-HOM_F') THEN
       ! ISMIP-HOM experiment F
       CALL calc_sliding_law_idealised_ISMIP_HOM_F( mesh, ice)
     ELSE
