@@ -18,12 +18,38 @@ for i = 1: length( henk)
     if ~isempty( f90_files)
       n = count_lines( f90_files);
       n_tot = n_tot + n;
-      disp(['UFEMISM v2.0 module "' henk( i).name '" contains ' num2str( n) ' lines of code'])
-      R.n( end+1) = n;
-      R.names{ end+1} = [strrep( henk( i).name, '_', '\_') ': ' num2str( n)];
+      R.n( end+1,1) = n;
+      R.names{ end+1} = strrep( strrep( strrep( [henk( i).name ': ' num2str( n)], ...
+        'surface_mass_balance','SMB'),...
+        'basal_mass_balance','BMB'),...
+        '_','\_');
     end
   end
 end
+
+% Sort by number of lines
+[n_sorted,ind] = sortrows( R.n);
+
+ind2 = [];
+i = 0;
+while ~isempty( ind)
+  i = 1-i;
+  if i==1
+    ind2( end+1) = ind( 1);
+    ind( 1) = [];
+  else
+    ind2( end+1) = ind( end);
+    ind( end) = [];
+  end
+end
+ind = ind2;
+
+R.n     = R.n( ind);
+names_new = {};
+for i = 1: length( R.names)
+  names_new{ end+1} = R.names{ ind( i)};
+end
+R.names = names_new;
 
 disp(['UFEMISM v2.0 in total contains ' num2str( n_tot) ' lines of code'])
 
@@ -35,7 +61,7 @@ for i = 1: length( p)
   end
 end
 set( gcf,'position',[744   346   827   704],'color','w');
-set( gca,'position',[0.1, 0.1, 0.75, 0.8],'fontsize',24,'ylim',[-1.2,1.4]);
+set( gca,'position',[0.15, 0.1, 0.55, 0.8],'fontsize',24,'ylim',[-1.2,1.4]);
 title( gca,['Total: ' num2str( n_tot)])
 
 function f90_files = find_all_lower_f90_files( henk, f90_files)

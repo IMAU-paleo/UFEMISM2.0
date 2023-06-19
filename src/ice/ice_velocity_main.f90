@@ -645,16 +645,16 @@ CONTAINS
     IMPLICIT NONE
 
     ! In/output variables:
-    TYPE(type_mesh),                     INTENT(IN)    :: mesh
-    REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: u_b_partial
-    REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: v_b_partial
-    REAL(dp), DIMENSION(:    ),          INTENT(OUT)   :: u_c
-    REAL(dp), DIMENSION(:    ),          INTENT(OUT)   :: v_c
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh
+    REAL(dp), DIMENSION(mesh%ti1:mesh%ti2), INTENT(IN)    :: u_b_partial
+    REAL(dp), DIMENSION(mesh%ti1:mesh%ti2), INTENT(IN)    :: v_b_partial
+    REAL(dp), DIMENSION(mesh%ei1:mesh%ei2), INTENT(OUT)   :: u_c
+    REAL(dp), DIMENSION(mesh%ei1:mesh%ei2), INTENT(OUT)   :: v_c
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'map_velocities_from_b_to_c_2D'
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: u_b_tot, v_b_tot
-    INTEGER                                            :: eii, ei, til, tir
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'map_velocities_from_b_to_c_2D'
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE               :: u_b_tot, v_b_tot
+    INTEGER                                               :: ei, til, tir
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -668,21 +668,20 @@ CONTAINS
     CALL gather_to_all_dp_1D( v_b_partial, v_b_tot)
 
     ! Map velocities from the b-grid (triangles) to the c-grid (edges)
-    DO eii = 1, mesh%nE_loc
+    DO ei = mesh%ei1, mesh%ei2
 
-      ei = mesh%ei1 + eii - 1
-      til = mesh%ETri( ei,5)
-      tir = mesh%ETri( ei,6)
+      til = mesh%ETri( ei,1)
+      tir = mesh%ETri( ei,2)
 
       IF     (til == 0 .AND. tir > 0) THEN
-        u_c( eii) = u_b_tot( tir)
-        v_c( eii) = v_b_tot( tir)
+        u_c( ei) = u_b_tot( tir)
+        v_c( ei) = v_b_tot( tir)
       ELSEIF (tir == 0 .AND. til > 0) THEN
-        u_c( eii) = u_b_tot( til)
-        v_c( eii) = v_b_tot( til)
+        u_c( ei) = u_b_tot( til)
+        v_c( ei) = v_b_tot( til)
       ELSEIF (til >  0 .AND. tir > 0) THEN
-        u_c( eii) = (u_b_tot( til) + u_b_tot( tir)) / 2._dp
-        v_c( eii) = (v_b_tot( til) + v_b_tot( tir)) / 2._dp
+        u_c( ei) = (u_b_tot( til) + u_b_tot( tir)) / 2._dp
+        v_c( ei) = (v_b_tot( til) + v_b_tot( tir)) / 2._dp
       ELSE
         CALL crash('something is seriously wrong with the ETri array of this mesh!')
       END IF
@@ -706,44 +705,43 @@ CONTAINS
     IMPLICIT NONE
 
     ! In/output variables:
-    TYPE(type_mesh),                     INTENT(IN)    :: mesh
-    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: u_b_partial
-    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: v_b_partial
-    REAL(dp), DIMENSION(:,:  ),          INTENT(OUT)   :: u_c
-    REAL(dp), DIMENSION(:,:  ),          INTENT(OUT)   :: v_c
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh
+    REAL(dp), DIMENSION(mesh%ti1:mesh%ti2,mesh%nz), INTENT(IN)    :: u_b_partial
+    REAL(dp), DIMENSION(mesh%ti1:mesh%ti2,mesh%nz), INTENT(IN)    :: v_b_partial
+    REAL(dp), DIMENSION(mesh%ei1:mesh%ei2,mesh%nz), INTENT(OUT)   :: u_c
+    REAL(dp), DIMENSION(mesh%ei1:mesh%ei2,mesh%nz), INTENT(OUT)   :: v_c
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'map_velocities_from_b_to_c_3D'
-    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: u_b_tot, v_b_tot
-    INTEGER                                            :: eii, ei, til, tir
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'map_velocities_from_b_to_c_3D'
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE               :: u_b_tot, v_b_tot
+    INTEGER                                               :: ei, til, tir
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
     ! Allocate memory
-    ALLOCATE( u_b_tot( mesh%nTri, mesh%nz))
-    ALLOCATE( v_b_tot( mesh%nTri, mesh%nz))
+    ALLOCATE( u_b_tot( mesh%nTri,mesh%nz))
+    ALLOCATE( v_b_tot( mesh%nTri,mesh%nz))
 
     ! Gather the full b-grid velocity fields to all processes
     CALL gather_to_all_dp_2D( u_b_partial, u_b_tot)
     CALL gather_to_all_dp_2D( v_b_partial, v_b_tot)
 
     ! Map velocities from the b-grid (triangles) to the c-grid (edges)
-    DO eii = 1, mesh%nE_loc
+    DO ei = mesh%ei1, mesh%ei2
 
-      ei = mesh%ei1 + eii - 1
-      til = mesh%ETri( ei,5)
-      tir = mesh%ETri( ei,6)
+      til = mesh%ETri( ei,1)
+      tir = mesh%ETri( ei,2)
 
       IF     (til == 0 .AND. tir > 0) THEN
-        u_c( eii,:) = u_b_tot( tir,:)
-        v_c( eii,:) = v_b_tot( tir,:)
+        u_c( ei,:) = u_b_tot( tir,:)
+        v_c( ei,:) = v_b_tot( tir,:)
       ELSEIF (tir == 0 .AND. til > 0) THEN
-        u_c( eii,:) = u_b_tot( til,:)
-        v_c( eii,:) = v_b_tot( til,:)
+        u_c( ei,:) = u_b_tot( til,:)
+        v_c( ei,:) = v_b_tot( til,:)
       ELSEIF (til >  0 .AND. tir > 0) THEN
-        u_c( eii,:) = (u_b_tot( til,:) + u_b_tot( tir,:)) / 2._dp
-        v_c( eii,:) = (v_b_tot( til,:) + v_b_tot( tir,:)) / 2._dp
+        u_c( ei,:) = (u_b_tot( til,:) + u_b_tot( tir,:)) / 2._dp
+        v_c( ei,:) = (v_b_tot( til,:) + v_b_tot( tir,:)) / 2._dp
       ELSE
         CALL crash('something is seriously wrong with the ETri array of this mesh!')
       END IF

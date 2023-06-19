@@ -78,6 +78,8 @@ UFEMISM_source = \
   types/mesh_types.f90 \
   types/scalar_types.f90 \
   types/ice_model_types.f90 \
+  types/SMB_types.f90 \
+  types/BMB_types.f90 \
   \
   mesh/mesh_memory.f90 \
   mesh/mesh_utilities.f90 \
@@ -112,7 +114,12 @@ UFEMISM_source = \
   ice/ice_velocity_DIVA.f90 \
   ice/ice_velocity_BPA.f90 \
   ice/ice_velocity_main.f90 \
+  ice/ice_thickness.f90 \
   ice/ice_model_main.f90 \
+  \
+  surface_mass_balance/SMB_main.f90 \
+  \
+  basal_mass_balance/BMB_main.f90 \
   \
   validation/unit_tests_mpi.f90 \
   validation/unit_tests_petsc.f90 \
