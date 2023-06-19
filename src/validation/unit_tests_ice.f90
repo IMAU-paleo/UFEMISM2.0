@@ -89,6 +89,7 @@ CONTAINS
       L = Ls( li)
 
       ! Run the ISMIP-HOM experiments
+      CALL test_ISMIP_HOM_A( L)
       CALL test_ISMIP_HOM_C( L)
 
     END DO ! DO li = 1, 6
@@ -97,6 +98,265 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE test_ISMIP_HOM_all
+
+  SUBROUTINE test_ISMIP_HOM_A( L)
+    ! Run and validate ISMIP-HOM experiment A at this length scale
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    REAL(dp),                                            INTENT(IN)    :: L
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'test_ISMIP_HOM_A'
+    TYPE(type_mesh)                                                    :: mesh
+    TYPE(type_ice_model)                                               :: ice
+    TYPE(type_regional_scalars)                                        :: scalars
+    TYPE(type_reference_geometry)                                      :: refgeo_init, refgeo_PD, refgeo_GIAeq
+    CHARACTER(LEN=256)                                                 :: region_name, mesh_name
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                            :: u_3D_b_SIASSA, v_3D_b_SIASSA
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                            :: u_3D_b_DIVA  , v_3D_b_DIVA
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                            :: u_3D_b_BPA   , v_3D_b_BPA
+    LOGICAL                                                            :: found_errors_SIASSA, found_errors_DIVA, found_errors_BPA
+    REAL(dp), PARAMETER                                                :: u_surf_min_check = 1.8_dp
+    REAL(dp), PARAMETER                                                :: u_surf_min_tol   = 0.5_dp
+    REAL(dp), PARAMETER                                                :: u_surf_max_check = 100.0_dp
+    REAL(dp), PARAMETER                                                :: u_surf_max_tol   = 25.0_dp
+    INTEGER                                                            :: ti
+    REAL(dp), DIMENSION(2)                                             :: p
+    REAL(dp)                                                           :: u_surf_min_SIASSA, u_surf_min_DIVA, u_surf_min_BPA
+    REAL(dp)                                                           :: u_surf_max_SIASSA, u_surf_max_DIVA, u_surf_max_BPA
+    CHARACTER(LEN=256)                                                 :: filename
+    CHARACTER(LEN=256)                                                 :: filename_ext
+    INTEGER                                                            :: ncid
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Filename extension for experiment scale
+    IF     (L == 160E3_dp) THEN
+      filename_ext = '_160km'
+    ELSEIF (L == 80E3_dp) THEN
+      filename_ext = '_80km'
+    ELSEIF (L == 40E3_dp) THEN
+      filename_ext = '_40km'
+    ELSEIF (L == 20E3_dp) THEN
+      filename_ext = '_20km'
+    ELSEIF (L == 10E3_dp) THEN
+      filename_ext = '_10km'
+    ELSEIF (L == 5E3_dp) THEN
+      filename_ext = '_5km'
+    ELSE
+      CALL crash('invalid ISMIP-HOM length scale L = {dp_01} km', dp_01 = L)
+    END IF
+
+    region_name = 'ANT'
+
+    ! Set up configuration for this experiment
+    CALL set_config_for_ISMIP_HOM( L)
+
+    C%choice_refgeo_init_idealised          = 'ISMIP-HOM_A'                    ! Choice of idealised present-day geometry; see "generate_idealised_geometry" in reference_fields_module for options
+    C%choice_refgeo_PD_idealised            = 'ISMIP-HOM_A'                    ! Choice of idealised present-day geometry; see "generate_idealised_geometry" in reference_fields_module for options
+    C%choice_refgeo_GIAeq_idealised         = 'ISMIP-HOM_A'                    ! Choice of idealised present-day geometry; see "generate_idealised_geometry" in reference_fields_module for options
+    C%choice_sliding_law                    = 'no_sliding'                     ! Choice of sliding law: "no_sliding", "idealised", "Coulomb", "Budd", "Weertman", "Tsai2015", "Schoof2005", "Zoet-Iverson"
+
+  ! Initialise the model
+  ! ====================
+
+    ! Initialise all the reference geometries on their raw input grids
+    CALL initialise_reference_geometries_raw( region_name, refgeo_init, refgeo_PD, refgeo_GIAeq)
+
+    ! Create mesh from gridded initial geometry data
+    mesh_name = 'ISMIP_HOM_A' // TRIM( filename_ext) // '_mesh'
+    CALL create_mesh_from_gridded_geometry( region_name, mesh_name, &
+      refgeo_init%grid_raw, &
+      refgeo_init%Hi_grid_raw, &
+      refgeo_init%Hb_grid_raw, &
+      refgeo_init%Hs_grid_raw, &
+      refgeo_init%SL_grid_raw, &
+      C%xmin_ANT, C%xmax_ANT, C%ymin_ANT, C%ymax_ANT, C%lambda_M_ANT, C%phi_M_ANT, C%beta_stereo_ANT, &
+      mesh)
+
+    ! Write the mesh creation success message to the terminal
+    CALL write_mesh_success( mesh)
+
+    ! Remap reference geometries from their raw input grids to the model mesh
+    CALL initialise_reference_geometries_on_model_mesh( region_name, mesh, refgeo_init, refgeo_PD, refgeo_GIAeq)
+
+    ! Initialise the ice model
+    C%choice_stress_balance_approximation = 'SIA/SSA'
+    CALL initialise_ice_model( mesh, ice, refgeo_init, refgeo_PD, scalars, region_name)
+    ice%A_flow_3D = C%uniform_flow_factor
+    ALLOCATE( ice%beta_b( mesh%vi1:mesh%vi2))
+
+    ! Also initialise DIVA and BPA solvers
+    C%choice_stress_balance_approximation = 'DIVA'
+    CALL initialise_velocity_solver( mesh, ice, region_name)
+    C%choice_stress_balance_approximation = 'BPA'
+    CALL initialise_velocity_solver( mesh, ice, region_name)
+
+    ! Calculate necessary 3-D matrix operators
+    CALL calc_zeta_gradients( mesh, ice)
+    CALL calc_3D_matrix_operators_mesh( mesh, ice)
+
+  ! Calculate ice velocities
+  ! ========================
+
+    ! Allocate memory
+    ALLOCATE( u_3D_b_SIASSA( mesh%ti1:mesh%ti2, mesh%nz))
+    ALLOCATE( v_3D_b_SIASSA( mesh%ti1:mesh%ti2, mesh%nz))
+    ALLOCATE( u_3D_b_DIVA(   mesh%ti1:mesh%ti2, mesh%nz))
+    ALLOCATE( v_3D_b_DIVA(   mesh%ti1:mesh%ti2, mesh%nz))
+    ALLOCATE( u_3D_b_BPA(    mesh%ti1:mesh%ti2, mesh%nz))
+    ALLOCATE( v_3D_b_BPA(    mesh%ti1:mesh%ti2, mesh%nz))
+
+    ! Calculate velocities
+
+    ! SIA/SSA
+    IF (par%master) WRITE(0,*) '  Calculating ice velocities for ISMIP-HOM A with the ' // colour_string( 'SIA/SSA','light blue') // '...'
+    C%choice_stress_balance_approximation = 'SIA/SSA'
+    CALL solve_stress_balance( mesh, ice)
+    u_3D_b_SIASSA = ice%u_3D_b
+    v_3D_b_SIASSA = ice%v_3D_b
+
+    ! DIVA
+    IF (par%master) WRITE(0,*) '  Calculating ice velocities for ISMIP-HOM A with the ' // colour_string( 'DIVA','light blue') // '...'
+    C%choice_stress_balance_approximation = 'DIVA'
+    CALL solve_stress_balance( mesh, ice)
+    u_3D_b_DIVA = ice%u_3D_b
+    v_3D_b_DIVA = ice%v_3D_b
+
+    ! BPA
+    IF (par%master) WRITE(0,*) '  Calculating ice velocities for ISMIP-HOM A with the ' // colour_string( 'BPA','light blue') // '...'
+    C%choice_stress_balance_approximation = 'BPA'
+    CALL solve_stress_balance( mesh, ice)
+    u_3D_b_BPA = ice%u_3D_b
+    v_3D_b_BPA = ice%v_3D_b
+
+  ! ===== Validate results =====
+  ! ============================
+
+    found_errors_SIASSA = .FALSE.
+    found_errors_DIVA   = .FALSE.
+    found_errors_BPA    = .FALSE.
+
+    ! Look, I'm not going to manually define desired min/max/tol velocities for 4 experiments,
+    ! each at 6 scales, for 3 different stress balance approximations.
+    ! Instead, we'll look only at the 16 km version, where all three approximations give
+    ! roughly the same answer.
+
+    IF (L == 160E3_dp) THEN
+
+    ! == Minimum surface velocity
+    ! ===========================
+
+      ! Find the triangle that should contain the minimum velocity
+      p = [0.25_dp, 0.25_dp] * L
+      ti = 1
+      CALL find_containing_triangle( mesh, p, ti)
+
+      ! IF this triangle lies in this process' domain, obtain velocities and compare to target
+      IF (ti >= mesh%ti1 .AND. ti < mesh%ti2) THEN
+
+        ! Obtain surface velocities
+        u_surf_min_SIASSA = u_3D_b_SIASSA( ti,1)
+        u_surf_min_DIVA   = u_3D_b_DIVA(   ti,1)
+        u_surf_min_BPA    = u_3D_b_BPA(    ti,1)
+
+        ! Compare to target
+        IF (ABS( u_surf_min_SIASSA - u_surf_min_check) > u_surf_min_tol) found_errors_SIASSA = .TRUE.
+        IF (ABS( u_surf_min_DIVA   - u_surf_min_check) > u_surf_min_tol) found_errors_DIVA   = .TRUE.
+        IF (ABS( u_surf_min_BPA    - u_surf_min_check) > u_surf_min_tol) found_errors_BPA    = .TRUE.
+
+      END IF ! IF (ti >= mesh%ti1 .AND. ti < mesh%ti2) THEN
+
+    ! == Maximum surface velocity
+    ! ===========================
+
+      ! Find the triangle that should contain the maximum velocity
+      p = [-0.25_dp, 0.25_dp] * L
+      ti = 1
+      CALL find_containing_triangle( mesh, p, ti)
+
+      ! IF this triangle lies in this process' domain, obtain velocities and compare to target
+      IF (ti >= mesh%ti1 .AND. ti < mesh%ti2) THEN
+
+        ! Obtain surface velocities
+        u_surf_max_SIASSA = u_3D_b_SIASSA( ti,1)
+        u_surf_max_DIVA   = u_3D_b_DIVA(   ti,1)
+        u_surf_max_BPA    = u_3D_b_BPA(    ti,1)
+
+        ! Compare to target
+        IF (ABS( u_surf_max_SIASSA - u_surf_max_check) > u_surf_max_tol) found_errors_SIASSA = .TRUE.
+        IF (ABS( u_surf_max_DIVA   - u_surf_max_check) > u_surf_max_tol) found_errors_DIVA   = .TRUE.
+        IF (ABS( u_surf_max_BPA    - u_surf_max_check) > u_surf_max_tol) found_errors_BPA    = .TRUE.
+
+      END IF ! IF (ti >= mesh%ti1 .AND. ti < mesh%ti2) THEN
+
+    END IF ! IF (L == 160E3_dp) THEN
+
+    ! If no errors occurred, we are happy
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, found_errors_SIASSA, 1, MPI_LOGICAL, MPI_LOR, MPI_COMM_WORLD, ierr)
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, found_errors_DIVA  , 1, MPI_LOGICAL, MPI_LOR, MPI_COMM_WORLD, ierr)
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, found_errors_BPA   , 1, MPI_LOGICAL, MPI_LOR, MPI_COMM_WORLD, ierr)
+
+    IF (.NOT. (found_errors_SIASSA .OR. found_errors_DIVA .OR. found_errors_BPA)) THEN
+      IF (par%master) CALL happy('validated SIA/SSA, DIVA, and BPA solvers for diagnostic velocities in the ISMIP-HOM A geometry')
+    END IF
+    IF (found_errors_SIASSA) THEN
+      IF (par%master) CALL warning('found errors in SIA/SSA solver for diagnostic velocities in the ISMIP-HOM A geometry')
+    END IF
+    IF (found_errors_DIVA) THEN
+      IF (par%master) CALL warning('found errors in DIVA solver for diagnostic velocities in the ISMIP-HOM A geometry')
+    END IF
+    IF (found_errors_BPA) THEN
+      IF (par%master) CALL warning('found errors in BPA solver for diagnostic velocities in the ISMIP-HOM A geometry')
+    END IF
+
+  ! Write results to NetCDF
+  ! =======================
+
+    ! Create a NetCDF output file
+    filename = TRIM( C%output_dir) // TRIM( routine_name) // TRIM( filename_ext) // '_output.nc'
+    CALL create_new_netcdf_file_for_writing( filename, ncid)
+
+    ! Set up the mesh in the file
+    CALL setup_mesh_in_netcdf_file( filename, ncid, mesh)
+
+    ! Add a zeta dimension for the 3-D ice velocities
+    CALL add_zeta_dimension_to_file( filename, ncid, mesh%zeta)
+
+    ! Add all the ice velocities as fields
+    CALL add_field_mesh_dp_3D_b_notime( filename, ncid, 'u_3D_b_SIASSA')
+    CALL add_field_mesh_dp_3D_b_notime( filename, ncid, 'v_3D_b_SIASSA')
+    CALL add_field_mesh_dp_3D_b_notime( filename, ncid, 'u_3D_b_DIVA'  )
+    CALL add_field_mesh_dp_3D_b_notime( filename, ncid, 'v_3D_b_DIVA'  )
+    CALL add_field_mesh_dp_3D_b_notime( filename, ncid, 'u_3D_b_BPA'   )
+    CALL add_field_mesh_dp_3D_b_notime( filename, ncid, 'v_3D_b_BPA'   )
+
+    ! Write the velocities to the file
+    CALL write_to_field_multopt_mesh_dp_3D_b_notime( mesh, filename, ncid, 'u_3D_b_SIASSA', u_3D_b_SIASSA)
+    CALL write_to_field_multopt_mesh_dp_3D_b_notime( mesh, filename, ncid, 'v_3D_b_SIASSA', v_3D_b_SIASSA)
+    CALL write_to_field_multopt_mesh_dp_3D_b_notime( mesh, filename, ncid, 'u_3D_b_DIVA'  , u_3D_b_DIVA  )
+    CALL write_to_field_multopt_mesh_dp_3D_b_notime( mesh, filename, ncid, 'v_3D_b_DIVA'  , v_3D_b_DIVA  )
+    CALL write_to_field_multopt_mesh_dp_3D_b_notime( mesh, filename, ncid, 'u_3D_b_BPA'   , u_3D_b_BPA   )
+    CALL write_to_field_multopt_mesh_dp_3D_b_notime( mesh, filename, ncid, 'v_3D_b_BPA'   , v_3D_b_BPA   )
+
+    ! Close the file
+    CALL close_netcdf_file( ncid)
+
+    ! Clean up after yourself
+    DEALLOCATE( u_3D_b_SIASSA)
+    DEALLOCATE( v_3D_b_SIASSA)
+    DEALLOCATE( u_3D_b_DIVA)
+    DEALLOCATE( v_3D_b_DIVA)
+    DEALLOCATE( u_3D_b_BPA)
+    DEALLOCATE( v_3D_b_BPA)
+
+    ! Add routine to path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE test_ISMIP_HOM_A
 
   SUBROUTINE test_ISMIP_HOM_C( L)
     ! Run and validate ISMIP-HOM experiment C at this length scale

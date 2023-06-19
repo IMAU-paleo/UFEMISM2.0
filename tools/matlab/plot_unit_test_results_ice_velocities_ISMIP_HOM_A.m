@@ -2,13 +2,13 @@ clc
 clear all
 close all
 
-foldername = '../../results_ISMIP_HOM_C';
+foldername = '../../results_ISMIP_HOM_A';
 
 %% Velocity maps
 
 Ls    = [160,80,40,20,10,5];
-umins = [  0, 0, 0, 0, 0, 0];
-umaxs = [170,80,40,20,20,20];
+umins = [  0,  0, 0, 0, 0, 0];
+umaxs = [125,100,80,60,40,30];
 
 for li = 1: length( Ls)
   
@@ -16,7 +16,7 @@ for li = 1: length( Ls)
   umin = umins( li);
   umax = umaxs( li);
 
-  filename = [foldername '/test_ISMIP_HOM_C_' num2str( L) 'km_output.nc'];
+  filename = [foldername '/test_ISMIP_HOM_A_' num2str( L) 'km_output.nc'];
 
   mesh = read_mesh_from_file( filename);
 
@@ -114,27 +114,27 @@ line(  H2.Ax{1,1},'xdata'   ,[],'ydata',[],'color'    ,c_BPA   ,'linewidth',3);
 for xi = 1:6
   
   if xi == 1
-    ex = 'c160';
+    ex = 'a160';
     i = 1;
     j = 1;
   elseif xi == 2
-    ex = 'c080';
+    ex = 'a080';
     i = 1;
     j = 2;
   elseif xi == 3
-    ex = 'c040';
+    ex = 'a040';
     i = 1;
     j = 3;
   elseif xi == 4
-    ex = 'c020';
+    ex = 'a020';
     i = 2;
     j = 1;
   elseif xi == 5
-    ex = 'c010';
+    ex = 'a010';
     i = 2;
     j = 2;
   elseif xi == 6
-    ex = 'c005';
+    ex = 'a005';
     i = 2;
     j = 3;
   end
@@ -238,7 +238,7 @@ end
 
 %% Calculate transect matrix for UFEMISM mesh
 
-filename = [foldername '/test_ISMIP_HOM_C_160km_output.nc'];
+filename = [foldername '/test_ISMIP_HOM_A_160km_output.nc'];
 mesh = read_mesh_from_file( filename);
 
 p = [mesh.xmin,-mesh.ymax/4];
@@ -281,7 +281,7 @@ for xi = 1: 6
   
   L = Ls( xi);
 
-  filename = [foldername '/test_ISMIP_HOM_C_' num2str( L) 'km_output.nc'];
+  filename = [foldername '/test_ISMIP_HOM_A_' num2str( L) 'km_output.nc'];
 
   % Read data
   u_3D_b_SIASSA = ncread( filename,'u_3D_b_SIASSA');
@@ -367,12 +367,12 @@ model_types = {...
 models = dir(foldername);
 models = models(3:end);
 
-R.c160 = [];
-R.c080 = [];
-R.c040 = [];
-R.c020 = [];
-R.c010 = [];
-R.c005 = [];
+R.a160 = [];
+R.a080 = [];
+R.a040 = [];
+R.a020 = [];
+R.a010 = [];
+R.a005 = [];
 
 for mi = 1: length(models)
   
@@ -408,7 +408,7 @@ for mi = 1: length(models)
           v_vec = zeros(n,1);
           w_vec = zeros(n,1);
           for i = 1:n
-            temp2 = textscan(temp{i},'%f %f %f %f %f %f %f %f %f %f');
+            temp2 = textscan(temp{i},'%f %f %f %f %f %f %f %f');
             x_vec(i) = temp2{1};
             y_vec(i) = temp2{2};
             u_vec(i) = temp2{3};
