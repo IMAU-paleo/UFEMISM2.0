@@ -51,18 +51,18 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    ! Calculate Hi( t+dt) with the specified time discretisation scheme
     IF     (C%choice_ice_integration_method == 'explicit') THEN
       CALL calc_Hi_tplusdt_explicit( mesh, Hi, u_vav_b, v_vav_b, SMB, BMB, dt, dHi_dt, Hi_tplusdt)
     ELSEIF (C%choice_ice_integration_method == 'implicit') THEN
       CALL calc_Hi_tplusdt_implicit( mesh, Hi, u_vav_b, v_vav_b, SMB, BMB, dt, dHi_dt, Hi_tplusdt)
     ELSEIF (C%choice_ice_integration_method == 'semi-implicit') THEN
-      ! DENK DROM
-      CALL crash('fixme!')
+      CALL calc_Hi_tplusdt_semiimplicit( mesh, Hi, u_vav_b, v_vav_b, SMB, BMB, dt, dHi_dt, Hi_tplusdt)
     ELSE
       CALL crash('unknown choice_ice_integration_method "' // TRIM( C%choice_ice_integration_method) // '"!')
     END IF
 
-    ! Limit ice thickness to zero; throw a warning if negative thickness are encountered
+    ! Limit Hi( t+dt) to zero; throw a warning if negative thickness are encountered
     found_negative_vals = .FALSE.
     DO vi = mesh%vi1, mesh%vi2
       IF (Hi_tplusdt( vi) < 0._dp) THEN
@@ -185,7 +185,7 @@ CONTAINS
     Hi_tplusdt = Hi
 
     ! Solve for Hi_tplusdt
-    CALL solve_matrix_equation_CSR_PETSc( AA, bb, Hi_tplusdt, 1E-7_dp, 1E-2_dp)
+    CALL solve_matrix_equation_CSR_PETSc( AA, bb, Hi_tplusdt, C%dHi_PETSc_rtol, C%dHi_PETSc_abstol)
 
     ! Calculate dH/dt
     dHi_dt = (Hi_tplusdt - Hi) / dt
@@ -198,6 +198,82 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE calc_Hi_tplusdt_implicit
+
+  SUBROUTINE calc_Hi_tplusdt_semiimplicit( mesh, Hi, u_vav_b, v_vav_b, SMB, BMB, dt, dHi_dt, Hi_tplusdt)
+    ! Calculate ice thickness rates of change (dH/dt)
+    !
+    ! Use a time-implicit discretisation scheme for the ice fluxes
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: Hi
+    REAL(dp), DIMENSION(mesh%ti1:mesh%ti2), INTENT(IN)    :: u_vav_b
+    REAL(dp), DIMENSION(mesh%ti1:mesh%ti2), INTENT(IN)    :: v_vav_b
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: SMB
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: BMB
+    REAL(dp),                               INTENT(IN)    :: dt
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)   :: dHi_dt
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)   :: Hi_tplusdt
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'calc_Hi_tplusdt_semiimplicit'
+    TYPE(type_sparse_matrix_CSR_dp)                       :: M_divQ
+    TYPE(type_sparse_matrix_CSR_dp)                       :: AA
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: M_divQ_H
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: bb
+    INTEGER                                               :: vi, k1, k2, k, vj
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Calculate the ice flux divergence matrix M_divQ using an upwind scheme
+    CALL calc_ice_flux_divergence_matrix_upwind( mesh, u_vav_b, v_vav_b, M_divQ)
+
+    ! Calculate the stiffness matrix A and the load vector b
+
+    ! Start by letting AA = M_divQ
+    CALL duplicate_matrix_CSR_dist( M_divQ, AA)
+
+    ! Multiply by f_s
+    AA%val = AA%val * C%dHi_semiimplicit_fs
+
+    ! Add 1/dt to the diagonal
+    DO vi = mesh%vi1, mesh%vi2
+      k1 = AA%ptr( vi)
+      k2 = AA%ptr( vi+1)-1
+      DO k = k1, k2
+        vj = M_divQ%ind( k)
+        IF (vj == vi) THEN
+          AA%val( k) = AA%val( k) + 1._dp / dt
+        END IF
+      END DO ! DO k = k1, k2
+    END DO ! DO vi = mesh%vi1, mesh%vi2
+
+    ! Load vector
+    CALL multiply_CSR_matrix_with_vector_1D( M_divQ, Hi, M_divQ_H)
+    DO vi = mesh%vi1, mesh%vi2
+      bb( vi) = Hi( vi) / dt - ((1._dp - C%dHi_semiimplicit_fs) * M_divQ_H( vi)) + SMB( vi) + BMB( vi)
+    END DO ! DO vi = mesh%vi1, mesh%vi2
+
+    ! Take current ice thickness as the initial guess
+    Hi_tplusdt = Hi
+
+    ! Solve for Hi_tplusdt
+    CALL solve_matrix_equation_CSR_PETSc( AA, bb, Hi_tplusdt, C%dHi_PETSc_rtol, C%dHi_PETSc_abstol)
+
+    ! Calculate dH/dt
+    dHi_dt = (Hi_tplusdt - Hi) / dt
+
+    ! Clean up after yourself
+    CALL deallocate_matrix_CSR_dist( M_divQ)
+    CALL deallocate_matrix_CSR_dist( AA)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE calc_Hi_tplusdt_semiimplicit
 
   SUBROUTINE calc_ice_flux_divergence_matrix_upwind( mesh, u_vav_b, v_vav_b, M_divQ)
     ! Calculate the ice flux divergence matrix M_divQ using an upwind scheme

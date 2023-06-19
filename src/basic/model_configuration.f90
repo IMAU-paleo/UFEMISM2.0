@@ -333,8 +333,9 @@ MODULE model_configuration
 
     CHARACTER(LEN=256)  :: choice_timestepping_config                   = 'pc'                             ! Choice of timestepping method: "direct", "pc" (NOTE: 'direct' does not work with DIVA ice dynamcis!)
     CHARACTER(LEN=256)  :: choice_ice_integration_method_config         = 'explicit'                       ! Choice of ice thickness integration scheme: "none" (i.e. unchanging geometry), "explicit", "semi-implicit"
-    REAL(dp)            :: dHi_PETSc_rtol_config                        = 0.001_dp                         ! dHi PETSc solver - stop criterion, relative difference (iteration stops if rtol OR abstol is reached)
-    REAL(dp)            :: dHi_PETSc_abstol_config                      = 0.001_dp                         ! dHi PETSc solver - stop criterion, absolute difference
+    REAL(dp)            :: dHi_semiimplicit_fs_config                   = 1.5_dp                           ! Factor for the semi-implicit ice thickness solver (0 = explicit, 0<f<1 = semi-implicit, 1 = implicit, >1 = over-implicit)
+    REAL(dp)            :: dHi_PETSc_rtol_config                        = 1E-7_dp                          ! dHi PETSc solver - stop criterion, relative difference (iteration stops if rtol OR abstol is reached)
+    REAL(dp)            :: dHi_PETSc_abstol_config                      = 1E-2_dp                          ! dHi PETSc solver - stop criterion, absolute difference
 
     ! Predictor-corrector ice-thickness update
     REAL(dp)            :: pc_epsilon_config                            = 3._dp                            ! Target truncation error in dHi_dt [m/yr] (epsilon in Robinson et al., 2020, Eq. 33)
@@ -814,6 +815,7 @@ MODULE model_configuration
 
     CHARACTER(LEN=256)  :: choice_timestepping
     CHARACTER(LEN=256)  :: choice_ice_integration_method
+    REAL(dp)            :: dHi_semiimplicit_fs
     REAL(dp)            :: dHi_PETSc_rtol
     REAL(dp)            :: dHi_PETSc_abstol
 
@@ -1354,6 +1356,7 @@ CONTAINS
       BC_H_north_config                                     , &
       choice_timestepping_config                            , &
       choice_ice_integration_method_config                  , &
+      dHi_semiimplicit_fs_config                            , &
       dHi_PETSc_rtol_config                                 , &
       dHi_PETSc_abstol_config                               , &
       pc_epsilon_config                                     , &
@@ -1804,6 +1807,7 @@ CONTAINS
 
     C%choice_timestepping                      = choice_timestepping_config
     C%choice_ice_integration_method            = choice_ice_integration_method_config
+    C%dHi_semiimplicit_fs                      = dHi_semiimplicit_fs_config
     C%dHi_PETSc_rtol                           = dHi_PETSc_rtol_config
     C%dHi_PETSc_abstol                         = dHi_PETSc_rtol_config
 
