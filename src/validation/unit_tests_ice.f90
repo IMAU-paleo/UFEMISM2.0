@@ -54,7 +54,7 @@ CONTAINS
     ! Run all ice-dynamics-related unit tests
     CALL test_ice_velocities_Halfar_dome
     CALL test_ISMIP_HOM_all
-    CALL test_thickness_evolution_Halfar_dome
+    CALL test_thickness_evolution_Halfar_dome_all
 
     ! Add routine to path
     CALL finalise_routine( routine_name)
@@ -105,7 +105,7 @@ CONTAINS
     CALL initialise_reference_geometries_raw( region_name, refgeo_init, refgeo_PD, refgeo_GIAeq)
 
     ! Create mesh from gridded initial geometry data
-    mesh_name = 'Halfar_mesh'
+    mesh_name = 'mesh_' // TRIM( routine_name)
     CALL create_mesh_from_gridded_geometry( region_name, mesh_name, &
       refgeo_init%grid_raw, &
       refgeo_init%Hi_grid_raw, &
@@ -515,7 +515,7 @@ CONTAINS
     CALL initialise_reference_geometries_raw( region_name, refgeo_init, refgeo_PD, refgeo_GIAeq)
 
     ! Create mesh from gridded initial geometry data
-    mesh_name = 'ISMIP_HOM_A' // TRIM( filename_ext) // '_mesh'
+    mesh_name = 'mesh_' // TRIM( routine_name) // '_' // TRIM( filename_ext)
     CALL create_mesh_from_gridded_geometry( region_name, mesh_name, &
       refgeo_init%grid_raw, &
       refgeo_init%Hi_grid_raw, &
@@ -775,7 +775,7 @@ CONTAINS
     CALL initialise_reference_geometries_raw( region_name, refgeo_init, refgeo_PD, refgeo_GIAeq)
 
     ! Create mesh from gridded initial geometry data
-    mesh_name = 'ISMIP_HOM_C' // TRIM( filename_ext) // '_mesh'
+    mesh_name = 'mesh_' // TRIM( routine_name) // '_' // TRIM( filename_ext)
     CALL create_mesh_from_gridded_geometry( region_name, mesh_name, &
       refgeo_init%grid_raw, &
       refgeo_init%Hi_grid_raw, &
@@ -1150,11 +1150,43 @@ CONTAINS
   ! ===== Ice thickness evolution in the Halfar dome geometry =====
   ! ===============================================================
 
-  SUBROUTINE test_thickness_evolution_Halfar_dome
+  SUBROUTINE test_thickness_evolution_Halfar_dome_all
+    ! Generate a simple Halfar dome geometry and calculate ice thickness evolution
+    ! for a few thousand years to see if it matches the analytical solution.
+    !
+    ! Test it with all three options for calculating dH/dt (explicit, implicit, semi-implicit)
+
+    IMPLICIT NONE
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'test_thickness_evolution_Halfar_dome_all'
+    CHARACTER(LEN=256)                                                 :: choice_ice_integration_method
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    choice_ice_integration_method = 'explicit'
+    CALL test_thickness_evolution_Halfar_dome( choice_ice_integration_method)
+
+    choice_ice_integration_method = 'implicit'
+    CALL test_thickness_evolution_Halfar_dome( choice_ice_integration_method)
+
+    choice_ice_integration_method = 'semi-implicit'
+    CALL test_thickness_evolution_Halfar_dome( choice_ice_integration_method)
+
+    ! Finalise routine
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE test_thickness_evolution_Halfar_dome_all
+
+  SUBROUTINE test_thickness_evolution_Halfar_dome( choice_ice_integration_method)
     ! Generate a simple Halfar dome geometry and calculate ice thickness evolution
     ! for a few thousand years to see if it matches the analytical solution.
 
     IMPLICIT NONE
+
+    ! In/output variables:
+    CHARACTER(LEN=256),                                  INTENT(IN)    :: choice_ice_integration_method
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'test_thickness_evolution_Halfar_dome'
@@ -1163,7 +1195,7 @@ CONTAINS
     TYPE(type_regional_scalars)                                        :: scalars
     TYPE(type_reference_geometry)                                      :: refgeo_init, refgeo_PD, refgeo_GIAeq
     CHARACTER(LEN=256)                                                 :: region_name, mesh_name
-    REAL(dp), PARAMETER                                                :: tstart    =     0._dp   ! [yr] Start time of simulation
+    REAL(dp), PARAMETER                                                :: tstart    =    0._dp    ! [yr] Start time of simulation
     REAL(dp), PARAMETER                                                :: tstop     = 5000._dp    ! [yr] End   time of simulation
     REAL(dp)                                                           :: dt                      ! [yr] Time step
     REAL(dp), PARAMETER                                                :: dt_output =  100._dp    ! [yr] Time step
@@ -1180,7 +1212,8 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Print to screen that we're doing this experiment
-    IF (par%master) WRITE(0,*) '   Calculating ice thickness evolution for the Halfar dome...'
+    IF (par%master) WRITE(0,*) '   Calculating ice thickness evolution for the Halfar dome using choice_ice_integration_method = ' // &
+      colour_string( TRIM( choice_ice_integration_method), 'light blue') // '...'
 
     ! Model domain
     region_name = 'ANT'
@@ -1201,6 +1234,9 @@ CONTAINS
     C%maximum_resolution_coastline          = 100e3_dp                         ! [m]          Maximum resolution for the coastline
     C%coastline_width                       = 100e3_dp                         ! [m]          Width of the band around the coastline that should get this resolution
 
+    C%choice_ice_integration_method         = choice_ice_integration_method
+    C%dHi_semiimplicit_fs                   = 2.5_dp
+
   ! Initialise the model
   ! ====================
 
@@ -1208,7 +1244,7 @@ CONTAINS
     CALL initialise_reference_geometries_raw( region_name, refgeo_init, refgeo_PD, refgeo_GIAeq)
 
     ! Create mesh from gridded initial geometry data
-    mesh_name = 'Halfar_mesh'
+    mesh_name = 'mesh_' // TRIM( routine_name)
     CALL create_mesh_from_gridded_geometry( region_name, mesh_name, &
       refgeo_init%grid_raw, &
       refgeo_init%Hi_grid_raw, &
@@ -1242,7 +1278,7 @@ CONTAINS
   ! =========================
 
     ! Create a NetCDF output file
-    filename = TRIM( C%output_dir) // TRIM( routine_name) // '_output.nc'
+    filename = TRIM( C%output_dir) // TRIM( routine_name) // '_' // TRIM( choice_ice_integration_method) // '_output.nc'
     CALL create_new_netcdf_file_for_writing( filename, ncid)
 
     ! Set up the mesh in the file

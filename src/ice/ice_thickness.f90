@@ -66,7 +66,10 @@ CONTAINS
     found_negative_vals = .FALSE.
     DO vi = mesh%vi1, mesh%vi2
       IF (Hi_tplusdt( vi) < 0._dp) THEN
-        found_negative_vals = .TRUE.
+        ! Implicit solvers sometimes give VERY small negative numbers (e.g. -2e-189),
+        ! only throw a warning if things get properly negative
+        IF (Hi_tplusdt( vi) < -0.1_dp) found_negative_vals = .TRUE.
+        ! Limit to zero
         Hi_tplusdt( vi) = 0._dp
       END IF
     END DO ! DO vi = mesh%vi1, mesh%vi2
@@ -86,6 +89,27 @@ CONTAINS
     ! Calculate ice thickness rates of change (dH/dt)
     !
     ! Use a time-explicit discretisation scheme for the ice fluxes
+    !
+    ! The ice continuity equation (alternatively known as the ice thickness equation,
+    ! or just conservation of mass) reads:
+    !
+    !     [1] dH/dt = -div( Q) + m
+    !
+    ! Here, Q is the horizontal ice flux vector, and m is the net mass balance.
+    !
+    ! We define a matrix operator M_divQ that can be multiplied with the ice thickness
+    ! to produce the flux divergence:
+    !
+    !     [2] div( Q) = M_divQ * H
+    !
+    ! Substituting [2] into [1] yields:
+    !
+    !     [3] dH/dt = -M_divQ H + m
+    !
+    ! Using a time-explicit discretisation scheme so that H on the right-hand side
+    ! is defined at time t yields:
+    !
+    !     [4] (H( t+dt) - H( t)) / dt = -M_divQ H( t) + m
 
     IMPLICIT NONE
 
@@ -132,6 +156,34 @@ CONTAINS
     ! Calculate ice thickness rates of change (dH/dt)
     !
     ! Use a time-implicit discretisation scheme for the ice fluxes
+    !
+    ! The ice continuity equation (alternatively known as the ice thickness equation,
+    ! or just conservation of mass) reads:
+    !
+    !     [1] dH/dt = -div( Q) + m
+    !
+    ! Here, Q is the horizontal ice flux vector, and m is the net mass balance.
+    !
+    ! We define a matrix operator M_divQ that can be multiplied with the ice thickness
+    ! to produce the flux divergence:
+    !
+    !     [2] div( Q) = M_divQ * H
+    !
+    ! Substituting [2] into [1] yields:
+    !
+    !     [3] dH/dt = -M_divQ H + m
+    !
+    ! Using a time-implicit discretisation scheme so that H on the right-hand side
+    ! is defined at time t+dt yields:
+    !
+    !     [4] (H( t+dt) - H( t)) / dt = -M_divQ H( t+dt) + m
+    !
+    ! Rearranging to place all H( t+dt) terms on the left-hand side yields:
+    !
+    !     [5] (1/dt + M_divQ) H( t+dt) = H( t) / dt + m
+    !
+    ! This is a matrix equation, with the stiffness matrix A = 1/dt + M_divQ, the
+    ! load vector b = H( t) / dt + m, which can be solved for H( t+dt)
 
     IMPLICIT NONE
 
@@ -202,7 +254,40 @@ CONTAINS
   SUBROUTINE calc_Hi_tplusdt_semiimplicit( mesh, Hi, u_vav_b, v_vav_b, SMB, BMB, dt, dHi_dt, Hi_tplusdt)
     ! Calculate ice thickness rates of change (dH/dt)
     !
-    ! Use a time-implicit discretisation scheme for the ice fluxes
+    ! Use a semi-implicit time discretisation scheme for the ice fluxes
+    !
+    ! The ice continuity equation (alternatively known as the ice thickness equation,
+    ! or just conservation of mass) reads:
+    !
+    !     [1] dH/dt = -div( Q) + m
+    !
+    ! Here, Q is the horizontal ice flux vector, and m is the net mass balance.
+    !
+    ! We define a matrix operator M_divQ that can be multiplied with the ice thickness
+    ! to produce the flux divergence:
+    !
+    !     [2] div( Q) = M_divQ * H
+    !
+    ! Substituting [2] into [1] yields:
+    !
+    !     [3] dH/dt = -M_divQ H + m
+    !
+    ! Using a semi-implicit discretisation scheme, so that H on the right-hand side
+    ! is defined as a weighted average of H( t) and H( t+dt), yields:
+    !
+    !     [4] (H( t+dt) - H( t)) / dt = -M_divQ [f_s H( t+dt) + (1 - f_s) H( t)] + m
+    !
+    ! This implies that f_s = 0 is equivalent to the explicit scheme, f_s = 1 is the
+    ! implicit scheme, 0 < f_s < 1 is called "semi-implicit", and f_s > 1 is called
+    ! "over-implicit".
+    !
+    ! Rearranging to place all H( t+dt) terms on the left-hand side yields:
+    !
+    !         (1/dt + f_s M_divQ) H( t+dt) = (1 / dt - (1 - f_s) M_divQ) H( t) + m
+    !     [5] (1/dt + f_s M_divQ) H( t+dt) = H( t) / dt - (1 - f_s) M_divQ H( t) + m
+    !
+    ! This is a matrix equation, with the stiffness matrix A = 1/dt + f_s M_divQ, the
+    ! load vector b = H( t) / dt - (1 - f_s) M_divQ H( t) + m, which can be solved for H( t+dt).
 
     IMPLICIT NONE
 
@@ -277,6 +362,15 @@ CONTAINS
 
   SUBROUTINE calc_ice_flux_divergence_matrix_upwind( mesh, u_vav_b, v_vav_b, M_divQ)
     ! Calculate the ice flux divergence matrix M_divQ using an upwind scheme
+    !
+    ! The vertically averaged ice flux divergence represents the net ice volume (which,
+    ! assuming constant density, is proportional to the ice mass) entering each Voronoi
+    ! cell per unit time. This is found by calculating the ice fluxes through each
+    ! shared Voronoi cell boundary, using an upwind scheme: if ice flows from vertex vi
+    ! to vertex vj, the flux is found by multiplying the velocity at their shared
+    ! boundary u_c with the ice thickness at vi (and, of course, the length L_c of the
+    ! shared boundary). If instead it flows from vj to vi, u_c is multiplied with the
+    ! ice thickness at vj.
 
     IMPLICIT NONE
 
