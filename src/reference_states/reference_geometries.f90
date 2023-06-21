@@ -14,6 +14,7 @@ MODULE reference_geometries
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
   USE parameters
+  USE reference_geometry_types                               , ONLY: type_reference_geometry
   USE mesh_types                                             , ONLY: type_mesh
   USE grid_basic                                             , ONLY: type_grid, setup_square_grid, distribute_gridded_data_from_master_dp_2D
   USE math_utilities                                         , ONLY: ice_surface_elevation
@@ -24,29 +25,6 @@ MODULE reference_geometries
   USE mesh_remapping                                         , ONLY: map_from_xy_grid_to_mesh_2D, map_from_mesh_to_mesh_2D
 
   IMPLICIT NONE
-
-  ! Data structure containing a reference ice-sheet geometry
-  TYPE type_reference_geometry
-
-    ! Data on the raw grid/mesh
-    TYPE(type_grid)                         :: grid_raw
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: Hi_grid_raw
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: Hb_grid_raw
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: Hs_grid_raw
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: SL_grid_raw
-    TYPE(type_mesh)                         :: mesh_raw
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: Hi_mesh_raw
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: Hb_mesh_raw
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: Hs_mesh_raw
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: SL_mesh_raw
-
-    ! Data on the model mesh
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: Hi                          ! [m] Ice thickness
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: Hb                          ! [m] Bedrock elevation [w.r.t. PD sea level]
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: Hs                          ! [m] Surface elevation [w.r.t. PD sea level]
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: SL                          ! [m] Sea surface elevation [w.r.t. PD sea level]
-
-  END TYPE type_reference_geometry
 
 CONTAINS
 
@@ -924,8 +902,8 @@ CONTAINS
          C%uniform_flow_factor > 1E-15_dp) THEN
       CALL crash('uniform_flow_factor has unrealistic value of {dp_01}!', dp_01 = C%uniform_flow_factor)
     END IF
-    IF ( C%n_flow < 1._dp .OR. C%n_flow > 5._dp) THEN
-      CALL crash('n_flow has unrealistic value of {dp_01}!', dp_01 = C%n_flow)
+    IF ( C%Glens_flow_law_exponent < 1._dp .OR. C%Glens_flow_law_exponent > 5._dp) THEN
+      CALL crash('Glens_flow_law_exponent has unrealistic value of {dp_01}!', dp_01 = C%Glens_flow_law_exponent)
     END IF
     IF ( C%refgeo_idealised_Halfar_H0 < 100._dp .OR. C%refgeo_idealised_Halfar_H0 > 10000._dp) THEN
       CALL crash('refgeo_idealised_Halfar_H0 has unrealistic value of {dp_01}!', dp_01 = C%refgeo_idealised_Halfar_H0)
@@ -934,7 +912,7 @@ CONTAINS
       CALL crash('refgeo_idealised_Halfar_R0 has unrealistic value of {dp_01}!', dp_01 = C%refgeo_idealised_Halfar_R0)
     END IF
 
-    CALL Halfar_dome( C%uniform_flow_factor, C%n_flow, C%refgeo_idealised_Halfar_H0, C%refgeo_idealised_Halfar_R0, &
+    CALL Halfar_dome( C%uniform_flow_factor, C%Glens_flow_law_exponent, C%refgeo_idealised_Halfar_H0, C%refgeo_idealised_Halfar_R0, &
       x, y, 0._dp, Hi)
     Hb = 0._dp
     SL = -10000._dp
@@ -971,8 +949,8 @@ CONTAINS
          C%uniform_flow_factor > 1E-15_dp) THEN
       CALL crash('uniform_flow_factor has unrealistic value of {dp_01}!', dp_01 = C%uniform_flow_factor)
     END IF
-    IF ( C%n_flow < 1._dp .OR. C%n_flow > 5._dp) THEN
-      CALL crash('n_flow has unrealistic value of {dp_01}!', dp_01 = C%n_flow)
+    IF ( C%Glens_flow_law_exponent < 1._dp .OR. C%Glens_flow_law_exponent > 5._dp) THEN
+      CALL crash('Glens_flow_law_exponent has unrealistic value of {dp_01}!', dp_01 = C%Glens_flow_law_exponent)
     END IF
     IF ( C%refgeo_idealised_Bueler_H0 < 100._dp .OR. C%refgeo_idealised_Bueler_H0 > 10000._dp) THEN
       CALL crash('refgeo_idealised_Bueler_H0 has unrealistic value of {dp_01}!', dp_01 = C%refgeo_idealised_Bueler_H0)
@@ -984,7 +962,7 @@ CONTAINS
       CALL crash('refgeo_idealised_Bueler_lambda has unrealistic value of {dp_01}!', dp_01 = C%refgeo_idealised_Bueler_lambda)
     END IF
 
-    CALL Bueler_dome( C%uniform_flow_factor, C%n_flow, C%refgeo_idealised_Bueler_H0, C%refgeo_idealised_Bueler_R0, &
+    CALL Bueler_dome( C%uniform_flow_factor, C%Glens_flow_law_exponent, C%refgeo_idealised_Bueler_H0, C%refgeo_idealised_Bueler_R0, &
       C%refgeo_idealised_Bueler_lambda, x, y, 0._dp, Hi, M)
     Hb = 0._dp
     SL = -10000._dp

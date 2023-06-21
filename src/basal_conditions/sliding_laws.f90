@@ -75,6 +75,9 @@ CONTAINS
       CALL crash('unknown choice_sliding_law "' // TRIM( C%choice_sliding_law) // '"!')
     END IF
 
+    ! Limit beta_b to improve stability
+    ice%beta_b = MIN( C%slid_beta_max, ice%beta_b)
+
     ! Clean up after yourself
     DEALLOCATE( u_a   )
     DEALLOCATE( v_a   )

@@ -35,7 +35,8 @@ PROGRAM UFEMISM_program
   USE model_configuration                                    , ONLY: C, initialise_model_configuration
   USE netcdf_resource_tracking                               , ONLY: create_resource_tracking_file, write_to_resource_tracking_file
   USE main_validation                                        , ONLY: run_all_unit_tests
-  USE UFEMISM_main_model                                     , ONLY: type_model_region, initialise_model_region, run_model_region
+  USE region_types                                           , ONLY: type_model_region
+  USE UFEMISM_main_model                                     , ONLY: initialise_model_region, run_model_region
 
   IMPLICIT NONE
 

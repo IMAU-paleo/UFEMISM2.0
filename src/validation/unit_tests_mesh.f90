@@ -36,7 +36,7 @@ MODULE unit_tests_mesh
                                                                      map_from_mesh_to_mesh_2D
   USE ice_model_types                                        , ONLY: type_ice_model
   USE ice_model_memory                                       , ONLY: allocate_ice_model
-  USE ice_model_main                                         , ONLY: calc_zeta_gradients
+  USE ice_model_utilities                                    , ONLY: calc_zeta_gradients
 
   IMPLICIT NONE
 

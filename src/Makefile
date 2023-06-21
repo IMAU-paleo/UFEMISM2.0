@@ -80,6 +80,8 @@ UFEMISM_source = \
   types/ice_model_types.f90 \
   types/SMB_types.f90 \
   types/BMB_types.f90 \
+  types/reference_geometry_types.f90 \
+  types/region_types.f90 \
   \
   mesh/mesh_memory.f90 \
   mesh/mesh_utilities.f90 \
@@ -109,6 +111,7 @@ UFEMISM_source = \
   ice/ice_model_memory.f90 \
   ice/ice_model_scalars.f90 \
   ice/ice_model_utilities.f90 \
+  ice/ice_flow_laws.f90 \
   ice/ice_velocity_SIA.f90 \
   ice/ice_velocity_SSA.f90 \
   ice/ice_velocity_DIVA.f90 \

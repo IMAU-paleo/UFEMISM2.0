@@ -30,6 +30,7 @@ MODULE ice_velocity_DIVA
                                                                      write_to_field_multopt_mesh_dp_3D_b, add_zeta_dimension_to_file
   USE netcdf_input                                           , ONLY: read_field_from_mesh_file_2D_b, read_field_from_mesh_file_3D_b
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_1D
+  USE ice_flow_laws                                          , ONLY: calc_effective_viscosity_Glen_3D_uv_only
 
   IMPLICIT NONE
 
@@ -1406,29 +1407,27 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Calculate maximum allowed effective viscosity, for stability
-    A_min = MINVAL( ice%A_flow_3D)
-    CALL MPI_ALLREDUCE( MPI_IN_PLACE, A_min, 1, MPI_DOUBLE_PRECISION, MPI_MIN, MPI_COMM_WORLD, ierr)
-    eta_max = 0.5_dp * A_min**(-1._dp / C%n_flow) * (C%epsilon_sq_0)**((1._dp - C%n_flow)/(2._dp*C%n_flow))
+    A_min = 1E-18_dp
+    eta_max = 0.5_dp * A_min**(-1._dp / C%Glens_flow_law_exponent) * (C%Glens_flow_law_epsilon_sq_0)**((1._dp - C%Glens_flow_law_exponent)/(2._dp*C%Glens_flow_law_exponent))
 
-    DO vi = mesh%vi1, mesh%vi2
-    DO k = 1, mesh%nz
+    ! Calculate the effective viscosity eta
+    IF (C%choice_flow_law == 'Glen') THEN
+      ! Calculate the effective viscosity according to Glen's flow law
 
-      ! Calculate the square of the effective strain rate epsilon
-      epsilon_sq = DIVA%du_dx_a( vi)**2 + &
-                   DIVA%dv_dy_a( vi)**2 + &
-                   DIVA%du_dx_a( vi) * DIVA%dv_dy_a( vi) + &
-                   0.25_dp * (DIVA%du_dy_a( vi) + DIVA%dv_dx_a( vi))**2 + &
-                   0.25_dp * (DIVA%du_dz_3D_a( vi,k)**2 + DIVA%dv_dz_3D_a( vi,k)**2) + &
-                   C%epsilon_sq_0
+      DO vi = mesh%vi1, mesh%vi2
+      DO k  = 1, mesh%nz
+        DIVA%eta_3D_a( vi,k) = calc_effective_viscosity_Glen_3D_uv_only( &
+          DIVA%du_dx_a( vi), DIVA%du_dy_a( vi), DIVA%du_dz_3D_a( vi,k), &
+          DIVA%dv_dx_a( vi), DIVA%dv_dy_a( vi), DIVA%dv_dz_3D_a( vi,k), ice%A_flow_3D( vi,k))
+      END DO
+      END DO
 
-      ! Calculate the effective viscosity eta
-      DIVA%eta_3D_a( vi,k) = 0.5_dp * ice%A_flow_3D( vi,k)**(-1._dp / C%n_flow) * (epsilon_sq)**((1._dp - C%n_flow)/(2._dp*C%n_flow))
+    ELSE
+      CALL crash('unknown choice_flow_law "' // TRIM( C%choice_flow_law) // '"!')
+    END IF
 
-      ! Safety
-      DIVA%eta_3D_a( vi,k) = MIN( MAX( DIVA%eta_3D_a( vi,k), C%visc_eff_min), eta_max)
-
-    END DO
-    END DO
+    ! Safety
+    DIVA%eta_3D_a = MIN( MAX( DIVA%eta_3D_a, C%visc_eff_min), eta_max)
 
     ! Map effective viscosity to the b-grid
     CALL map_a_b_3D( mesh, DIVA%eta_3D_a, DIVA%eta_3D_b)
@@ -1542,7 +1541,7 @@ CONTAINS
     ! Apply the sub-grid grounded fraction, and limit the friction coefficient to improve stability
     IF (C%do_GL_subgrid_friction) THEN
       DO ti = mesh%ti1, mesh%ti2
-        DIVA%beta_eff_b( ti) = MIN( C%beta_max, DIVA%beta_eff_b( ti) * ice%fraction_gr_b( ti)**C%subgrid_friction_exponent )
+        DIVA%beta_eff_b( ti) = DIVA%beta_eff_b( ti) * ice%fraction_gr_b( ti)**C%subgrid_friction_exponent
       END DO
     END IF
 
@@ -1926,7 +1925,7 @@ CONTAINS
 
     ! In/output variables:
     TYPE(type_mesh),                     INTENT(IN)              :: mesh
-    TYPE(type_ice_velocity_solver_DIVA), INTENT(INOUT)           :: DIVA
+    TYPE(type_ice_velocity_solver_DIVA), INTENT(IN)              :: DIVA
     REAL(dp),                            INTENT(IN)              :: time
 
     ! Local variables:

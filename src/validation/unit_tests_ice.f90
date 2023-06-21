@@ -16,7 +16,8 @@ MODULE unit_tests_ice
   USE scalar_types                                           , ONLY: type_regional_scalars
   USE reference_geometries                                   , ONLY: type_reference_geometry, initialise_reference_geometries_raw, initialise_reference_geometries_on_model_mesh
   USE mesh_creation                                          , ONLY: create_mesh_from_gridded_geometry, write_mesh_success
-  USE ice_model_main                                         , ONLY: initialise_ice_model, calc_zeta_gradients
+  USE ice_model_main                                         , ONLY: initialise_ice_model
+  USE ice_model_utilities                                    , ONLY: calc_zeta_gradients
   USE ice_velocity_main                                      , ONLY: initialise_velocity_solver, solve_stress_balance
   USE mesh_operators                                         , ONLY: calc_3D_matrix_operators_mesh
   USE netcdf_basic                                           , ONLY: create_new_netcdf_file_for_writing, open_existing_netcdf_file_for_writing, close_netcdf_file
@@ -24,7 +25,7 @@ MODULE unit_tests_ice
                                                                      write_to_field_multopt_mesh_dp_3D_b_notime, add_field_mesh_dp_2D_b_notime, &
                                                                      write_to_field_multopt_mesh_dp_2D_b_notime, add_time_dimension_to_file, add_field_mesh_dp_2D, &
                                                                      add_field_mesh_dp_2D_b, write_time_to_file, write_to_field_multopt_mesh_dp_2D, &
-                                                                     write_to_field_multopt_mesh_dp_2D_b
+                                                                     write_to_field_multopt_mesh_dp_2D_b, add_field_mesh_dp_3D_notime, write_to_field_multopt_mesh_dp_3D_notime
   USE mesh_utilities                                         , ONLY: find_containing_triangle, integrate_over_domain, average_over_domain
   USE ice_thickness                                          , ONLY: calc_Hi_tplusdt
   USE math_utilities                                         , ONLY: ice_surface_elevation
@@ -77,9 +78,10 @@ CONTAINS
     TYPE(type_regional_scalars)                                        :: scalars
     TYPE(type_reference_geometry)                                      :: refgeo_init, refgeo_PD, refgeo_GIAeq
     CHARACTER(LEN=256)                                                 :: region_name, mesh_name
-    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                            :: u_3D_b_SIA , v_3D_b_SIA
-    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                            :: u_3D_b_DIVA, v_3D_b_DIVA
-    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                            :: u_3D_b_BPA , v_3D_b_BPA
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE                            :: BMB
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                            :: u_3D_b_SIA , v_3D_b_SIA , w_3D_SIA
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                            :: u_3D_b_DIVA, v_3D_b_DIVA, w_3D_DIVA
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                            :: u_3D_b_BPA , v_3D_b_BPA , w_3D_BPA
     LOGICAL                                                            :: found_errors_SIA, found_errors_DIVA, found_errors_BPA
     REAL(dp), PARAMETER                                                :: R_check         = 440E3_dp  ! At this distance from the ice divide, uabs_surf should be equal to...
     REAL(dp), PARAMETER                                                :: uabs_surf_check = 105._dp   ! ...this value...
@@ -141,35 +143,45 @@ CONTAINS
   ! ========================
 
     ! Allocate memory
+    ALLOCATE( BMB(         mesh%vi1:mesh%vi2         ), source = 0._dp)
+
     ALLOCATE( u_3D_b_SIA(  mesh%ti1:mesh%ti2, mesh%nz))
     ALLOCATE( v_3D_b_SIA(  mesh%ti1:mesh%ti2, mesh%nz))
+    ALLOCATE( w_3D_SIA(    mesh%vi1:mesh%vi2, mesh%nz))
+
     ALLOCATE( u_3D_b_DIVA( mesh%ti1:mesh%ti2, mesh%nz))
     ALLOCATE( v_3D_b_DIVA( mesh%ti1:mesh%ti2, mesh%nz))
+    ALLOCATE( w_3D_DIVA(   mesh%vi1:mesh%vi2, mesh%nz))
+
     ALLOCATE( u_3D_b_BPA(  mesh%ti1:mesh%ti2, mesh%nz))
     ALLOCATE( v_3D_b_BPA(  mesh%ti1:mesh%ti2, mesh%nz))
+    ALLOCATE( w_3D_BPA(    mesh%vi1:mesh%vi2, mesh%nz))
 
     ! Calculate velocities
 
     ! SIA
     IF (par%master) WRITE(0,*) '   Calculating ice velocities for the Halfar dome with the ' // colour_string( 'SIA','light blue') // '...'
     C%choice_stress_balance_approximation = 'SIA'
-    CALL solve_stress_balance( mesh, ice)
+    CALL solve_stress_balance( mesh, ice, BMB)
     u_3D_b_SIA = ice%u_3D_b
     v_3D_b_SIA = ice%v_3D_b
+    w_3D_SIA   = ice%w_3D
 
     ! DIVA
     IF (par%master) WRITE(0,*) '   Calculating ice velocities for the Halfar dome with the ' // colour_string( 'DIVA','light blue') // '...'
     C%choice_stress_balance_approximation = 'DIVA'
-    CALL solve_stress_balance( mesh, ice)
+    CALL solve_stress_balance( mesh, ice, BMB)
     u_3D_b_DIVA = ice%u_3D_b
     v_3D_b_DIVA = ice%v_3D_b
+    w_3D_DIVA  = ice%w_3D
 
     ! BPA
     IF (par%master) WRITE(0,*) '   Calculating ice velocities for the Halfar dome with the ' // colour_string( 'BPA','light blue') // '...'
     C%choice_stress_balance_approximation = 'BPA'
-    CALL solve_stress_balance( mesh, ice)
+    CALL solve_stress_balance( mesh, ice, BMB)
     u_3D_b_BPA = ice%u_3D_b
     v_3D_b_BPA = ice%v_3D_b
+    w_3D_BPA   = ice%w_3D
 
     ! Validate results - check if the surface velocity follows the expected
     ! linear increase away from the ice divide
@@ -235,29 +247,46 @@ CONTAINS
     ! Add all the ice velocities as fields
     CALL add_field_mesh_dp_3D_b_notime( filename, ncid, 'u_3D_b_SIA' )
     CALL add_field_mesh_dp_3D_b_notime( filename, ncid, 'v_3D_b_SIA' )
+    CALL add_field_mesh_dp_3D_notime(   filename, ncid, 'w_3D_SIA'   )
+
     CALL add_field_mesh_dp_3D_b_notime( filename, ncid, 'u_3D_b_DIVA')
     CALL add_field_mesh_dp_3D_b_notime( filename, ncid, 'v_3D_b_DIVA')
+    CALL add_field_mesh_dp_3D_notime(   filename, ncid, 'w_3D_DIVA'  )
+
     CALL add_field_mesh_dp_3D_b_notime( filename, ncid, 'u_3D_b_BPA' )
     CALL add_field_mesh_dp_3D_b_notime( filename, ncid, 'v_3D_b_BPA' )
+    CALL add_field_mesh_dp_3D_notime(   filename, ncid, 'w_3D_BPA'   )
 
     ! Write the velocities to the file
     CALL write_to_field_multopt_mesh_dp_3D_b_notime( mesh, filename, ncid, 'u_3D_b_SIA' , u_3D_b_SIA )
     CALL write_to_field_multopt_mesh_dp_3D_b_notime( mesh, filename, ncid, 'v_3D_b_SIA' , v_3D_b_SIA )
+    CALL write_to_field_multopt_mesh_dp_3D_notime(   mesh, filename, ncid, 'w_3D_SIA'   , w_3D_SIA   )
+
     CALL write_to_field_multopt_mesh_dp_3D_b_notime( mesh, filename, ncid, 'u_3D_b_DIVA', u_3D_b_DIVA)
     CALL write_to_field_multopt_mesh_dp_3D_b_notime( mesh, filename, ncid, 'v_3D_b_DIVA', v_3D_b_DIVA)
+    CALL write_to_field_multopt_mesh_dp_3D_notime(   mesh, filename, ncid, 'w_3D_DIVA'  , w_3D_DIVA  )
+
     CALL write_to_field_multopt_mesh_dp_3D_b_notime( mesh, filename, ncid, 'u_3D_b_BPA' , u_3D_b_BPA )
     CALL write_to_field_multopt_mesh_dp_3D_b_notime( mesh, filename, ncid, 'v_3D_b_BPA' , v_3D_b_BPA )
+    CALL write_to_field_multopt_mesh_dp_3D_notime(   mesh, filename, ncid, 'w_3D_BPA'   , w_3D_BPA   )
 
     ! Close the file
     CALL close_netcdf_file( ncid)
 
     ! Clean up after yourself
+    DEALLOCATE( BMB)
+
     DEALLOCATE( u_3D_b_SIA)
     DEALLOCATE( v_3D_b_SIA)
+    DEALLOCATE( w_3D_SIA)
+
     DEALLOCATE( u_3D_b_DIVA)
     DEALLOCATE( v_3D_b_DIVA)
+    DEALLOCATE( w_3D_DIVA)
+
     DEALLOCATE( u_3D_b_BPA)
     DEALLOCATE( v_3D_b_BPA)
+    DEALLOCATE( w_3D_BPA)
 
     ! Add routine to path
     CALL finalise_routine( routine_name)
@@ -351,7 +380,7 @@ CONTAINS
 
     ! General
     C%choice_stress_balance_approximation   = 'SIA'                            ! Choice of stress balance approximation: "none" (= no flow, though geometry can still change due to mass balance), "SIA", "SSA", "SIA/SSA", "DIVA", "BPA"
-    C%n_flow                                = 3._dp                            ! Exponent in Glen's flow law
+    C%Glens_flow_law_exponent               = 3._dp                            ! Exponent in Glen's flow law
     C%m_enh_sheet                           = 1._dp                            ! Ice flow enhancement factor for grounded ice
     C%m_enh_shelf                           = 1._dp                            ! Ice flow enhancement factor for floating ice
     C%choice_hybrid_SIASSA_scheme           = 'add'                            ! Choice of scheme for combining SIA and SSA velocities in the hybrid approach
@@ -367,9 +396,9 @@ CONTAINS
     C%visc_it_norm_dUV_tol                  = 5E-6_dp                          ! Stop criterion for the viscosity iteration: the L2-norm of successive velocity solutions should be smaller than this number
     C%visc_it_nit                           = 500._dp                          ! Maximum number of effective viscosity iterations
     C%visc_it_relax                         = 0.4_dp                           ! Relaxation parameter for subsequent viscosity iterations (for improved stability)
-    C%epsilon_sq_0                          = 1E-10_dp                         ! Normalisation term so that zero velocity gives non-zero viscosity
+    C%Glens_flow_law_epsilon_sq_0           = 1E-10_dp                         ! Normalisation term so that zero velocity gives non-zero viscosity
     C%visc_eff_min                          = 1E0_dp                           ! Minimum value for effective viscosity
-    C%beta_max                              = 1E20_dp                          ! Maximum value for basal friction coefficient
+    C%slid_beta_max                         = 1E20_dp                          ! Maximum value for basal friction coefficient
     C%vel_max                               = 5000._dp                         ! Velocities are limited to this value
     C%stress_balance_PETSc_rtol             = 1E-6_dp                          ! PETSc solver - stop criterion, relative difference (iteration stops if rtol OR abstol is reached)
     C%stress_balance_PETSc_abstol           = 1E-4_dp                          ! PETSc solver - stop criterion, absolute difference
@@ -462,9 +491,10 @@ CONTAINS
     TYPE(type_regional_scalars)                                        :: scalars
     TYPE(type_reference_geometry)                                      :: refgeo_init, refgeo_PD, refgeo_GIAeq
     CHARACTER(LEN=256)                                                 :: region_name, mesh_name
-    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                            :: u_3D_b_SIASSA, v_3D_b_SIASSA
-    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                            :: u_3D_b_DIVA  , v_3D_b_DIVA
-    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                            :: u_3D_b_BPA   , v_3D_b_BPA
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE                            :: BMB
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                            :: u_3D_b_SIASSA, v_3D_b_SIASSA, w_3D_SIASSA
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                            :: u_3D_b_DIVA  , v_3D_b_DIVA  , w_3D_DIVA
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                            :: u_3D_b_BPA   , v_3D_b_BPA   , w_3D_BPA
     LOGICAL                                                            :: found_errors_SIASSA, found_errors_DIVA, found_errors_BPA
     REAL(dp), PARAMETER                                                :: u_surf_min_check = 1.8_dp
     REAL(dp), PARAMETER                                                :: u_surf_min_tol   = 0.5_dp
@@ -551,35 +581,45 @@ CONTAINS
   ! ========================
 
     ! Allocate memory
+    ALLOCATE( BMB(           mesh%vi1:mesh%vi2         ), source = 0._dp)
+
     ALLOCATE( u_3D_b_SIASSA( mesh%ti1:mesh%ti2, mesh%nz))
     ALLOCATE( v_3D_b_SIASSA( mesh%ti1:mesh%ti2, mesh%nz))
+    ALLOCATE( w_3D_SIASSA(   mesh%vi1:mesh%vi2, mesh%nz))
+
     ALLOCATE( u_3D_b_DIVA(   mesh%ti1:mesh%ti2, mesh%nz))
     ALLOCATE( v_3D_b_DIVA(   mesh%ti1:mesh%ti2, mesh%nz))
+    ALLOCATE( w_3D_DIVA(     mesh%vi1:mesh%vi2, mesh%nz))
+
     ALLOCATE( u_3D_b_BPA(    mesh%ti1:mesh%ti2, mesh%nz))
     ALLOCATE( v_3D_b_BPA(    mesh%ti1:mesh%ti2, mesh%nz))
+    ALLOCATE( w_3D_BPA(      mesh%vi1:mesh%vi2, mesh%nz))
 
     ! Calculate velocities
 
     ! SIA/SSA
     IF (par%master) WRITE(0,*) '  Calculating ice velocities for ISMIP-HOM A with the ' // colour_string( 'SIA/SSA','light blue') // '...'
     C%choice_stress_balance_approximation = 'SIA/SSA'
-    CALL solve_stress_balance( mesh, ice)
+    CALL solve_stress_balance( mesh, ice, BMB)
     u_3D_b_SIASSA = ice%u_3D_b
     v_3D_b_SIASSA = ice%v_3D_b
+    w_3D_SIASSA   = ice%w_3D
 
     ! DIVA
     IF (par%master) WRITE(0,*) '  Calculating ice velocities for ISMIP-HOM A with the ' // colour_string( 'DIVA','light blue') // '...'
     C%choice_stress_balance_approximation = 'DIVA'
-    CALL solve_stress_balance( mesh, ice)
+    CALL solve_stress_balance( mesh, ice, BMB)
     u_3D_b_DIVA = ice%u_3D_b
     v_3D_b_DIVA = ice%v_3D_b
+    w_3D_DIVA   = ice%w_3D
 
     ! BPA
     IF (par%master) WRITE(0,*) '  Calculating ice velocities for ISMIP-HOM A with the ' // colour_string( 'BPA','light blue') // '...'
     C%choice_stress_balance_approximation = 'BPA'
-    CALL solve_stress_balance( mesh, ice)
+    CALL solve_stress_balance( mesh, ice, BMB)
     u_3D_b_BPA = ice%u_3D_b
     v_3D_b_BPA = ice%v_3D_b
+    w_3D_BPA   = ice%w_3D
 
   ! ===== Validate results =====
   ! ============================
@@ -677,29 +717,46 @@ CONTAINS
     ! Add all the ice velocities as fields
     CALL add_field_mesh_dp_3D_b_notime( filename, ncid, 'u_3D_b_SIASSA')
     CALL add_field_mesh_dp_3D_b_notime( filename, ncid, 'v_3D_b_SIASSA')
+    CALL add_field_mesh_dp_3D_notime(   filename, ncid, 'w_3D_SIASSA'  )
+
     CALL add_field_mesh_dp_3D_b_notime( filename, ncid, 'u_3D_b_DIVA'  )
     CALL add_field_mesh_dp_3D_b_notime( filename, ncid, 'v_3D_b_DIVA'  )
+    CALL add_field_mesh_dp_3D_notime(   filename, ncid, 'w_3D_DIVA'    )
+
     CALL add_field_mesh_dp_3D_b_notime( filename, ncid, 'u_3D_b_BPA'   )
     CALL add_field_mesh_dp_3D_b_notime( filename, ncid, 'v_3D_b_BPA'   )
+    CALL add_field_mesh_dp_3D_notime(   filename, ncid, 'w_3D_BPA'     )
 
     ! Write the velocities to the file
     CALL write_to_field_multopt_mesh_dp_3D_b_notime( mesh, filename, ncid, 'u_3D_b_SIASSA', u_3D_b_SIASSA)
     CALL write_to_field_multopt_mesh_dp_3D_b_notime( mesh, filename, ncid, 'v_3D_b_SIASSA', v_3D_b_SIASSA)
+    CALL write_to_field_multopt_mesh_dp_3D_notime(   mesh, filename, ncid, 'w_3D_SIASSA'  , w_3D_SIASSA  )
+
     CALL write_to_field_multopt_mesh_dp_3D_b_notime( mesh, filename, ncid, 'u_3D_b_DIVA'  , u_3D_b_DIVA  )
     CALL write_to_field_multopt_mesh_dp_3D_b_notime( mesh, filename, ncid, 'v_3D_b_DIVA'  , v_3D_b_DIVA  )
+    CALL write_to_field_multopt_mesh_dp_3D_notime(   mesh, filename, ncid, 'w_3D_DIVA'    , w_3D_DIVA    )
+
     CALL write_to_field_multopt_mesh_dp_3D_b_notime( mesh, filename, ncid, 'u_3D_b_BPA'   , u_3D_b_BPA   )
     CALL write_to_field_multopt_mesh_dp_3D_b_notime( mesh, filename, ncid, 'v_3D_b_BPA'   , v_3D_b_BPA   )
+    CALL write_to_field_multopt_mesh_dp_3D_notime(   mesh, filename, ncid, 'w_3D_BPA'     , w_3D_BPA     )
 
     ! Close the file
     CALL close_netcdf_file( ncid)
 
     ! Clean up after yourself
+    DEALLOCATE( BMB)
+
     DEALLOCATE( u_3D_b_SIASSA)
     DEALLOCATE( v_3D_b_SIASSA)
+    DEALLOCATE( w_3D_SIASSA)
+
     DEALLOCATE( u_3D_b_DIVA)
     DEALLOCATE( v_3D_b_DIVA)
+    DEALLOCATE( w_3D_DIVA)
+
     DEALLOCATE( u_3D_b_BPA)
     DEALLOCATE( v_3D_b_BPA)
+    DEALLOCATE( w_3D_BPA)
 
     ! Add routine to path
     CALL finalise_routine( routine_name)
@@ -721,9 +778,10 @@ CONTAINS
     TYPE(type_regional_scalars)                                        :: scalars
     TYPE(type_reference_geometry)                                      :: refgeo_init, refgeo_PD, refgeo_GIAeq
     CHARACTER(LEN=256)                                                 :: region_name, mesh_name
-    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                            :: u_3D_b_SIASSA, v_3D_b_SIASSA
-    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                            :: u_3D_b_DIVA  , v_3D_b_DIVA
-    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                            :: u_3D_b_BPA   , v_3D_b_BPA
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE                            :: BMB
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                            :: u_3D_b_SIASSA, v_3D_b_SIASSA, w_3D_SIASSA
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                            :: u_3D_b_DIVA  , v_3D_b_DIVA  , w_3D_DIVA
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                            :: u_3D_b_BPA   , v_3D_b_BPA   , w_3D_BPA
     LOGICAL                                                            :: found_errors_SIASSA, found_errors_DIVA, found_errors_BPA
     REAL(dp), PARAMETER                                                :: u_surf_min_check = 10.5_dp
     REAL(dp), PARAMETER                                                :: u_surf_min_tol   = 2.0_dp
@@ -811,35 +869,45 @@ CONTAINS
   ! ========================
 
     ! Allocate memory
+    ALLOCATE( BMB(           mesh%vi1:mesh%vi2         ), source = 0._dp)
+
     ALLOCATE( u_3D_b_SIASSA( mesh%ti1:mesh%ti2, mesh%nz))
     ALLOCATE( v_3D_b_SIASSA( mesh%ti1:mesh%ti2, mesh%nz))
+    ALLOCATE( w_3D_SIASSA(   mesh%vi1:mesh%vi2, mesh%nz))
+
     ALLOCATE( u_3D_b_DIVA(   mesh%ti1:mesh%ti2, mesh%nz))
     ALLOCATE( v_3D_b_DIVA(   mesh%ti1:mesh%ti2, mesh%nz))
+    ALLOCATE( w_3D_DIVA(     mesh%vi1:mesh%vi2, mesh%nz))
+
     ALLOCATE( u_3D_b_BPA(    mesh%ti1:mesh%ti2, mesh%nz))
     ALLOCATE( v_3D_b_BPA(    mesh%ti1:mesh%ti2, mesh%nz))
+    ALLOCATE( w_3D_BPA(      mesh%vi1:mesh%vi2, mesh%nz))
 
     ! Calculate velocities
 
     ! SIA/SSA
     IF (par%master) WRITE(0,*) '  Calculating ice velocities for ISMIP-HOM C with the ' // colour_string( 'SIA/SSA','light blue') // '...'
     C%choice_stress_balance_approximation = 'SIA/SSA'
-    CALL solve_stress_balance( mesh, ice)
+    CALL solve_stress_balance( mesh, ice, BMB)
     u_3D_b_SIASSA = ice%u_3D_b
     v_3D_b_SIASSA = ice%v_3D_b
+    w_3D_SIASSA   = ice%w_3D
 
     ! DIVA
     IF (par%master) WRITE(0,*) '  Calculating ice velocities for ISMIP-HOM C with the ' // colour_string( 'DIVA','light blue') // '...'
     C%choice_stress_balance_approximation = 'DIVA'
-    CALL solve_stress_balance( mesh, ice)
+    CALL solve_stress_balance( mesh, ice, BMB)
     u_3D_b_DIVA = ice%u_3D_b
     v_3D_b_DIVA = ice%v_3D_b
+    w_3D_DIVA   = ice%w_3D
 
     ! BPA
     IF (par%master) WRITE(0,*) '  Calculating ice velocities for ISMIP-HOM C with the ' // colour_string( 'BPA','light blue') // '...'
     C%choice_stress_balance_approximation = 'BPA'
-    CALL solve_stress_balance( mesh, ice)
+    CALL solve_stress_balance( mesh, ice, BMB)
     u_3D_b_BPA = ice%u_3D_b
     v_3D_b_BPA = ice%v_3D_b
+    w_3D_BPA   = ice%w_3D
 
   ! ===== Validate results =====
   ! ============================
@@ -937,29 +1005,46 @@ CONTAINS
     ! Add all the ice velocities as fields
     CALL add_field_mesh_dp_3D_b_notime( filename, ncid, 'u_3D_b_SIASSA')
     CALL add_field_mesh_dp_3D_b_notime( filename, ncid, 'v_3D_b_SIASSA')
+    CALL add_field_mesh_dp_3D_notime(   filename, ncid, 'w_3D_SIASSA'  )
+
     CALL add_field_mesh_dp_3D_b_notime( filename, ncid, 'u_3D_b_DIVA'  )
     CALL add_field_mesh_dp_3D_b_notime( filename, ncid, 'v_3D_b_DIVA'  )
+    CALL add_field_mesh_dp_3D_notime(   filename, ncid, 'w_3D_DIVA'    )
+
     CALL add_field_mesh_dp_3D_b_notime( filename, ncid, 'u_3D_b_BPA'   )
     CALL add_field_mesh_dp_3D_b_notime( filename, ncid, 'v_3D_b_BPA'   )
+    CALL add_field_mesh_dp_3D_notime(   filename, ncid, 'w_3D_BPA'     )
 
     ! Write the velocities to the file
     CALL write_to_field_multopt_mesh_dp_3D_b_notime( mesh, filename, ncid, 'u_3D_b_SIASSA', u_3D_b_SIASSA)
     CALL write_to_field_multopt_mesh_dp_3D_b_notime( mesh, filename, ncid, 'v_3D_b_SIASSA', v_3D_b_SIASSA)
+    CALL write_to_field_multopt_mesh_dp_3D_notime(   mesh, filename, ncid, 'w_3D_SIASSA'  , w_3D_SIASSA  )
+
     CALL write_to_field_multopt_mesh_dp_3D_b_notime( mesh, filename, ncid, 'u_3D_b_DIVA'  , u_3D_b_DIVA  )
     CALL write_to_field_multopt_mesh_dp_3D_b_notime( mesh, filename, ncid, 'v_3D_b_DIVA'  , v_3D_b_DIVA  )
+    CALL write_to_field_multopt_mesh_dp_3D_notime(   mesh, filename, ncid, 'w_3D_DIVA'    , w_3D_DIVA    )
+
     CALL write_to_field_multopt_mesh_dp_3D_b_notime( mesh, filename, ncid, 'u_3D_b_BPA'   , u_3D_b_BPA   )
     CALL write_to_field_multopt_mesh_dp_3D_b_notime( mesh, filename, ncid, 'v_3D_b_BPA'   , v_3D_b_BPA   )
+    CALL write_to_field_multopt_mesh_dp_3D_notime(   mesh, filename, ncid, 'w_3D_BPA'     , w_3D_BPA     )
 
     ! Close the file
     CALL close_netcdf_file( ncid)
 
     ! Clean up after yourself
+    DEALLOCATE( BMB)
+
     DEALLOCATE( u_3D_b_SIASSA)
     DEALLOCATE( v_3D_b_SIASSA)
+    DEALLOCATE( w_3D_SIASSA)
+
     DEALLOCATE( u_3D_b_DIVA)
     DEALLOCATE( v_3D_b_DIVA)
+    DEALLOCATE( w_3D_DIVA)
+
     DEALLOCATE( u_3D_b_BPA)
     DEALLOCATE( v_3D_b_BPA)
+    DEALLOCATE( w_3D_BPA)
 
     ! Add routine to path
     CALL finalise_routine( routine_name)
@@ -1082,7 +1167,7 @@ CONTAINS
 
     ! General
     C%choice_stress_balance_approximation   = 'SSA'                            ! Choice of stress balance approximation: "none" (= no flow, though geometry can still change due to mass balance), "SIA", "SSA", "SIA/SSA", "DIVA", "BPA"
-    C%n_flow                                = 3.0_dp                           ! Exponent in Glen's flow law
+    C%Glens_flow_law_exponent               = 3.0_dp                           ! Exponent in Glen's flow law
     C%m_enh_sheet                           = 1.0_dp                           ! Ice flow enhancement factor for grounded ice
     C%m_enh_shelf                           = 1.0_dp                           ! Ice flow enhancement factor for floating ice
     C%choice_hybrid_SIASSA_scheme           = 'add'                            ! Choice of scheme for combining SIA and SSA velocities in the hybrid approach
@@ -1098,9 +1183,9 @@ CONTAINS
     C%visc_it_norm_dUV_tol                  = 5E-6_dp                          ! Stop criterion for the viscosity iteration: the L2-norm of successive velocity solutions should be smaller than this number
     C%visc_it_nit                           = 500                              ! Maximum number of effective viscosity iterations
     C%visc_it_relax                         = 0.4_dp                           ! Relaxation parameter for subsequent viscosity iterations (for improved stability)
-    C%epsilon_sq_0                          = 1E-15_dp                         ! Normalisation term so that zero velocity gives non-zero viscosity
+    C%Glens_flow_law_epsilon_sq_0           = 1E-15_dp                         ! Normalisation term so that zero velocity gives non-zero viscosity
     C%visc_eff_min                          = 1E4_dp                           ! Minimum value for effective viscosity
-    C%beta_max                              = 1E20_dp                          ! Maximum value for basal friction coefficient
+    C%slid_beta_max                         = 1E20_dp                          ! Maximum value for basal friction coefficient
     C%vel_max                               = 5000._dp                         ! Velocities are limited to this value
     C%stress_balance_PETSc_rtol             = 1E-5_dp                          ! PETSc solver - stop criterion, relative difference (iteration stops if rtol OR abstol is reached)
     C%stress_balance_PETSc_abstol           = 1E-3_dp                          ! PETSc solver - stop criterion, absolute difference
@@ -1305,7 +1390,7 @@ CONTAINS
     DO WHILE (time < tstop)
 
       ! Solve the stress balance to calculate ice velocities
-      CALL solve_stress_balance( mesh, ice)
+      CALL solve_stress_balance( mesh, ice, BMB)
 
       ! After 100 years we can go for a larger time step
       IF (time >= 100._dp) dt = 1._dp
@@ -1332,7 +1417,7 @@ CONTAINS
         ! Calculate analytical solution
         DO vi = mesh%vi1, mesh%vi2
           ! Calculate analytical solution
-          CALL Halfar_dome( C%uniform_flow_factor, C%n_flow, C%refgeo_idealised_Halfar_H0, C%refgeo_idealised_Halfar_R0, &
+          CALL Halfar_dome( C%uniform_flow_factor, C%Glens_flow_law_exponent, C%refgeo_idealised_Halfar_H0, C%refgeo_idealised_Halfar_R0, &
             mesh%V( vi,1), mesh%V( vi,2), time, Hi_an( vi))
         END DO ! DO vi = mesh%vi1, mesh%vi2
 
@@ -1365,7 +1450,7 @@ CONTAINS
     ! Calculate analytical solution
     DO vi = mesh%vi1, mesh%vi2
       ! Calculate analytical solution
-      CALL Halfar_dome( C%uniform_flow_factor, C%n_flow, C%refgeo_idealised_Halfar_H0, C%refgeo_idealised_Halfar_R0, &
+      CALL Halfar_dome( C%uniform_flow_factor, C%Glens_flow_law_exponent, C%refgeo_idealised_Halfar_H0, C%refgeo_idealised_Halfar_R0, &
         mesh%V( vi,1), mesh%V( vi,2), time, Hi_an( vi))
     END DO ! DO vi = mesh%vi1, mesh%vi2
 

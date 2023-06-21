@@ -34,7 +34,7 @@ MODULE model_configuration
 ! ===== Configuration variables =====
 ! ===================================
 
-  ! The "_config" variables, which will be collected into a NAMELIST, and possibly replaced
+  ! The "_config" variables, which will be collected into a NAMELIST, and replaced
   ! by the values in the external config file. Remember the "_config" extension!
 
   ! General model instructions
@@ -42,90 +42,85 @@ MODULE model_configuration
 
     ! Output directory
     LOGICAL             :: create_procedural_output_dir_config          = .TRUE.                           ! Automatically create an output directory with a procedural name (e.g. results_20210720_001/)
-    CHARACTER(LEN=256)  :: fixed_output_dir_config                      = 'results_UFEMISM'                ! If not, create a directory with this name instead (stops the program if this directory already exists)
+    CHARACTER(LEN=256)  :: fixed_output_dir_config                      = ''                               ! If not, create a directory with this name instead (stops the program if this directory already exists)
 
     ! Debugging
-    LOGICAL             :: do_write_debug_data_config                   = .FALSE.                          ! Whether or not the debug NetCDF file should be created and written to
+    logical             :: do_unit_tests_config                         = .FALSE.                          ! Whether or not to (only) perform the unit tests in the main_validation module
     LOGICAL             :: do_check_for_NaN_config                      = .FALSE.                          ! Whether or not fields should be checked for NaN values
     LOGICAL             :: do_time_display_config                       = .FALSE.                          ! Print current model time to screen
 
-  ! == Time steps and range
-  ! =======================
+  ! == Time of simulation
+  ! =====================
 
-    REAL(dp)            :: start_time_of_run_config                     = 0.0_dp                           ! [yr] Start time of the simulations
-    REAL(dp)            :: end_time_of_run_config                       = 0.0_dp                           ! [yr] End   time of the simulations
-    REAL(dp)            :: dt_coupling_config                           = 100._dp                          ! [yr] Interval of coupling between the different model regions
+    REAL(dp)            :: start_time_of_run_config                     = 0._dp                            ! [yr] Start time of the simulation
+    REAL(dp)            :: end_time_of_run_config                       = 0._dp                            ! [yr] End   time of the simulation
 
   ! == Which model regions to simulate
   ! ==================================
 
+    REAL(dp)            :: dt_coupling_config                           = 0._dp                            ! [yr] Interval of coupling between the different model regions
     LOGICAL             :: do_NAM_config                                = .FALSE.
     LOGICAL             :: do_EAS_config                                = .FALSE.
     LOGICAL             :: do_GRL_config                                = .FALSE.
     LOGICAL             :: do_ANT_config                                = .FALSE.
 
-  ! Do only unit tests
-  ! ==================
-
-    logical             :: do_unit_tests_config                         = .false.
-
   ! == The four model regions
   ! =========================
 
     ! North America
-    REAL(dp)            :: lambda_M_NAM_config                          = 265._dp                          ! Longitude of the pole of the stereographic projection for the North America domain [degrees east]
-    REAL(dp)            :: phi_M_NAM_config                             = 62._dp                           ! Latitude  of the pole of the stereographic projection for the North America domain [degrees north]
-    REAL(dp)            :: beta_stereo_NAM_config                       = 71._dp                           ! Standard parallel     of the stereographic projection for the North America domain [degrees]
-    REAL(dp)            :: xmin_NAM_config                              = -3600000._dp                     ! Western  boundary     of the North America domain [m]
-    REAL(dp)            :: xmax_NAM_config                              =  3600000._dp                     ! Eastern  boundary     of the North America domain [m]
-    REAL(dp)            :: ymin_NAM_config                              = -2400000._dp                     ! Southern boundary     of the North America domain [m]
-    REAL(dp)            :: ymax_NAM_config                              =  2400000._dp                     ! Northern boundary     of the North America domain [m]
+    REAL(dp)            :: lambda_M_NAM_config                          = 265._dp                          ! [degrees east]  [default: 265.0]   Longitude of the pole of the stereographic projection for the North America domain
+    REAL(dp)            :: phi_M_NAM_config                             =  62._dp                          ! [degrees north] [default:  62.0]   Latitude  of the pole of the stereographic projection for the North America domain
+    REAL(dp)            :: beta_stereo_NAM_config                       =  71._dp                          ! [degrees]       [default:  71.0]   Standard parallel     of the stereographic projection for the North America domain
+    REAL(dp)            :: xmin_NAM_config                              = -3600000._dp                     ! [m]             [default: -3600E3] Western  boundary     of the North America domain
+    REAL(dp)            :: xmax_NAM_config                              =  3600000._dp                     ! [m]             [default:  3600E3] Eastern  boundary     of the North America domain
+    REAL(dp)            :: ymin_NAM_config                              = -2400000._dp                     ! [m]             [default: -2400E3] Southern boundary     of the North America domain
+    REAL(dp)            :: ymax_NAM_config                              =  2400000._dp                     ! [m]             [default:  2400E3] Northern boundary     of the North America domain
 
     ! Eurasia
-    REAL(dp)            :: lambda_M_EAS_config                          = 40._dp                           ! Longitude of the pole of the stereographic projection for the Eurasia domain [degrees east]
-    REAL(dp)            :: phi_M_EAS_config                             = 70._dp                           ! Latitude  of the pole of the stereographic projection for the Eurasia domain [degrees north]
-    REAL(dp)            :: beta_stereo_EAS_config                       = 71._dp                           ! Standard parallel     of the stereographic projection for the Eurasia domain [degrees]
-    REAL(dp)            :: xmin_EAS_config                              = -3400000._dp                     ! Western  boundary     of the Eurasia domain [m]
-    REAL(dp)            :: xmax_EAS_config                              =  3400000._dp                     ! Eastern  boundary     of the Eurasia domain [m]
-    REAL(dp)            :: ymin_EAS_config                              = -2080000._dp                     ! Southern boundary     of the Eurasia domain [m]
-    REAL(dp)            :: ymax_EAS_config                              =  2080000._dp                     ! Northern boundary     of the Eurasia domain [m]
+    REAL(dp)            :: lambda_M_EAS_config                          = 40._dp                           ! [degrees east]  [default:  40.0]   Longitude of the pole of the stereographic projection for the Eurasia domain
+    REAL(dp)            :: phi_M_EAS_config                             = 70._dp                           ! [degrees north] [default:  70.0]   Latitude  of the pole of the stereographic projection for the Eurasia domain
+    REAL(dp)            :: beta_stereo_EAS_config                       = 71._dp                           ! [degrees]       [default:  71.0]   Standard parallel     of the stereographic projection for the Eurasia domain
+    REAL(dp)            :: xmin_EAS_config                              = -3400000._dp                     ! [m]             [default: -3400E3] Western  boundary     of the Eurasia domain
+    REAL(dp)            :: xmax_EAS_config                              =  3400000._dp                     ! [m]             [default:  3400E3] Eastern  boundary     of the Eurasia domain
+    REAL(dp)            :: ymin_EAS_config                              = -2080000._dp                     ! [m]             [default: -2080E3] Southern boundary     of the Eurasia domain
+    REAL(dp)            :: ymax_EAS_config                              =  2080000._dp                     ! [m]             [default:  2080E3] Northern boundary     of the Eurasia domain
 
     ! Greenland
-    REAL(dp)            :: lambda_M_GRL_config                          = -45._dp                          ! Longitude of the pole of the stereographic projection for the Greenland domain [degrees east]
-    REAL(dp)            :: phi_M_GRL_config                             = 90._dp                           ! Latitude  of the pole of the stereographic projection for the Greenland domain [degrees north]
-    REAL(dp)            :: beta_stereo_GRL_config                       = 70._dp                           ! Standard parallel     of the stereographic projection for the Greenland domain [degrees]
-    REAL(dp)            :: xmin_GRL_config                              =  -720000._dp                     ! Western  boundary     of the Greenland domain [m]
-    REAL(dp)            :: xmax_GRL_config                              =   960000._dp                     ! Eastern  boundary     of the Greenland domain [m]
-    REAL(dp)            :: ymin_GRL_config                              = -3450000._dp                     ! Southern boundary     of the Greenland domain [m]
-    REAL(dp)            :: ymax_GRL_config                              =  -570000._dp                     ! Northern boundary     of the Greenland domain [m]
+    REAL(dp)            :: lambda_M_GRL_config                          = -45._dp                          ! [degrees east]  [default: -45.0]   Longitude of the pole of the stereographic projection for the Greenland domain
+    REAL(dp)            :: phi_M_GRL_config                             = 90._dp                           ! [degrees north] [default:  90.0]   Latitude  of the pole of the stereographic projection for the Greenland domain
+    REAL(dp)            :: beta_stereo_GRL_config                       = 70._dp                           ! [degrees]       [default:  70.0]   Standard parallel     of the stereographic projection for the Greenland domain
+    REAL(dp)            :: xmin_GRL_config                              =  -720000._dp                     ! [m]             [default:  -720E3] Western  boundary     of the Greenland domain [m]
+    REAL(dp)            :: xmax_GRL_config                              =   960000._dp                     ! [m]             [default:   960E3] Eastern  boundary     of the Greenland domain [m]
+    REAL(dp)            :: ymin_GRL_config                              = -3450000._dp                     ! [m]             [default: -3450E3] Southern boundary     of the Greenland domain [m]
+    REAL(dp)            :: ymax_GRL_config                              =  -570000._dp                     ! [m]             [default:  -570E3] Northern boundary     of the Greenland domain [m]
 
     ! Antarctica
-    REAL(dp)            :: lambda_M_ANT_config                          = 0._dp                            ! Longitude of the pole of the stereographic projection for the Antarctica domain [degrees east]
-    REAL(dp)            :: phi_M_ANT_config                             = -90._dp                          ! Latitude  of the pole of the stereographic projection for the Antarctica domain [degrees north]
-    REAL(dp)            :: beta_stereo_ANT_config                       = 71._dp                           ! Standard parallel     of the stereographic projection for the Antarctica domain [degrees]
-    REAL(dp)            :: xmin_ANT_config                              = -3040000._dp                     ! Western  boundary     of the Antarctica domain [m]
-    REAL(dp)            :: xmax_ANT_config                              =  3040000._dp                     ! Eastern  boundary     of the Antarctica domain [m]
-    REAL(dp)            :: ymin_ANT_config                              = -3040000._dp                     ! Southern boundary     of the Antarctica domain [m]
-    REAL(dp)            :: ymax_ANT_config                              =  3040000._dp                     ! Northern boundary     of the Antarctica domain [m]
+    REAL(dp)            :: lambda_M_ANT_config                          = 0._dp                            ! [degrees east]  [default:   0.0]   Longitude of the pole of the stereographic projection for the Antarctica domain
+    REAL(dp)            :: phi_M_ANT_config                             = -90._dp                          ! [degrees north] [default: -90.0]   Latitude  of the pole of the stereographic projection for the Antarctica domain
+    REAL(dp)            :: beta_stereo_ANT_config                       = 71._dp                           ! [degrees]       [default:  71.0]   Standard parallel     of the stereographic projection for the Antarctica domain
+    REAL(dp)            :: xmin_ANT_config                              = -3040000._dp                     ! [m]             [default: -3040E3] Western  boundary     of the Antarctica domain [m]
+    REAL(dp)            :: xmax_ANT_config                              =  3040000._dp                     ! [m]             [default:  3040E3] Eastern  boundary     of the Antarctica domain [m]
+    REAL(dp)            :: ymin_ANT_config                              = -3040000._dp                     ! [m]             [default: -3040E3] Southern boundary     of the Antarctica domain [m]
+    REAL(dp)            :: ymax_ANT_config                              =  3040000._dp                     ! [m]             [default:  3040E3] Northern boundary     of the Antarctica domain [m]
 
   ! == Reference geometries (initial, present-day, and GIA equilibrium)
   ! ===================================================================
 
     ! Some pre-processing stuff for reference ice geometry
-    REAL(dp)            :: refgeo_Hi_min_config                         = 2.0_dp                           ! Remove ice thinner than this value in the reference ice geometry. Particularly useful for BedMachine Greenland, which somehow covers the entire tundra with half a meter of ice...
-    LOGICAL             :: remove_Lake_Vostok_config                    = .TRUE.
+    REAL(dp)            :: refgeo_Hi_min_config                         = 2.0_dp                           ! [m]             [default: 2.0]     Remove ice thinner than this value in the reference ice geometry. Particularly useful for BedMachine Greenland, which somehow covers the entire tundra with half a meter of ice...
+    LOGICAL             :: remove_Lake_Vostok_config                    = .TRUE.                           ! Whether or not to replace subglacial Lake Vostok in Antarctica with ice (recommended to set to TRUE, otherwise it will really slow down your model for the first few hundred years...)
 
     ! == Initial geometry
     ! ===================
 
-    CHARACTER(LEN=256)  :: choice_refgeo_init_NAM_config                = 'read_from_file'                 ! Choice of present-day geometry for North America; can be "idealised", or "read_from_file"
-    CHARACTER(LEN=256)  :: choice_refgeo_init_EAS_config                = 'read_from_file'                 ! Choice of present-day geometry for Eurasia      ; can be "idealised", or "read_from_file"
-    CHARACTER(LEN=256)  :: choice_refgeo_init_GRL_config                = 'read_from_file'                 ! Choice of present-day geometry for Greenland    ; can be "idealised", or "read_from_file"
-    CHARACTER(LEN=256)  :: choice_refgeo_init_ANT_config                = 'read_from_file'                 ! Choice of present-day geometry for Antarctica   ; can be "idealised", or "read_from_file"
+    CHARACTER(LEN=256)  :: choice_refgeo_init_NAM_config                = 'read_from_file'                 ! Choice of initial geometry for North America; can be "idealised", or "read_from_file"
+    CHARACTER(LEN=256)  :: choice_refgeo_init_EAS_config                = 'read_from_file'                 ! Choice of initial geometry for Eurasia      ; can be "idealised", or "read_from_file"
+    CHARACTER(LEN=256)  :: choice_refgeo_init_GRL_config                = 'read_from_file'                 ! Choice of initial geometry for Greenland    ; can be "idealised", or "read_from_file"
+    CHARACTER(LEN=256)  :: choice_refgeo_init_ANT_config                = 'read_from_file'                 ! Choice of initial geometry for Antarctica   ; can be "idealised", or "read_from_file"
     ! Idealised geometry when choice_refgeo_init == 'idealised'
-    CHARACTER(LEN=256)  :: choice_refgeo_init_idealised_config          = 'flatearth'                      ! Choice of idealised present-day geometry; see "generate_idealised_geometry" in reference_fields_module for options
-    REAL(dp)            :: dx_refgeo_init_idealised_config              = 5000._dp                         ! Resolution of square grid used for idealised present-day geometry
-    ! Path to file containing present-day geometry when choice_refgeo_init == 'read_from_file'
+    CHARACTER(LEN=256)  :: choice_refgeo_init_idealised_config          = ''                               ! Choice of idealised initial geometry; see reference_geometries/calc_idealised_geometry for options
+    REAL(dp)            :: dx_refgeo_init_idealised_config              = 5000._dp                         ! Resolution of square grid used for idealised initial geometry
+    ! Path to file containing initial geometry when choice_refgeo_init == 'read_from_file'
     CHARACTER(LEN=256)  :: filename_refgeo_init_NAM_config              = 'data/ETOPO1/NorthAmerica_ETOPO1_5km.nc'
     CHARACTER(LEN=256)  :: filename_refgeo_init_EAS_config              = 'data/ETOPO1/Eurasia_ETOPO1_5km.nc'
     CHARACTER(LEN=256)  :: filename_refgeo_init_GRL_config              = 'data/Bedmachine_Greenland/BedMachine_Greenland_v4_5km.nc'
@@ -144,7 +139,7 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: choice_refgeo_PD_GRL_config                  = 'read_from_file'                 ! Choice of present-day geometry for Greenland    ; can be "idealised", or "read_from_file"
     CHARACTER(LEN=256)  :: choice_refgeo_PD_ANT_config                  = 'read_from_file'                 ! Choice of present-day geometry for Antarctica   ; can be "idealised", or "read_from_file"
     ! Idealised geometry when choice_refgeo_PD == 'idealised'
-    CHARACTER(LEN=256)  :: choice_refgeo_PD_idealised_config            = 'flatearth'                      ! Choice of idealised present-day geometry; see "generate_idealised_geometry" in reference_fields_module for options
+    CHARACTER(LEN=256)  :: choice_refgeo_PD_idealised_config            = ''                               ! Choice of idealised present-day geometry; see reference_geometries/calc_idealised_geometry for options
     REAL(dp)            :: dx_refgeo_PD_idealised_config                = 5000._dp                         ! Resolution of square grid used for idealised present-day geometry
     ! Path to file containing present-day geometry when choice_refgeo_PD == 'read_from_file'
     CHARACTER(LEN=256)  :: filename_refgeo_PD_NAM_config                = 'data/ETOPO1/NorthAmerica_ETOPO1_5km.nc'
@@ -160,14 +155,14 @@ MODULE model_configuration
     ! == GIA equilibrium geometry
     ! ===========================
 
-    CHARACTER(LEN=256)  :: choice_refgeo_GIAeq_NAM_config               = 'read_from_file'                 ! Choice of present-day geometry for North America; can be "idealised", or "read_from_file"
-    CHARACTER(LEN=256)  :: choice_refgeo_GIAeq_EAS_config               = 'read_from_file'                 ! Choice of present-day geometry for Eurasia      ; can be "idealised", or "read_from_file"
-    CHARACTER(LEN=256)  :: choice_refgeo_GIAeq_GRL_config               = 'read_from_file'                 ! Choice of present-day geometry for Greenland    ; can be "idealised", or "read_from_file"
-    CHARACTER(LEN=256)  :: choice_refgeo_GIAeq_ANT_config               = 'read_from_file'                 ! Choice of present-day geometry for Antarctica   ; can be "idealised", or "read_from_file"
+    CHARACTER(LEN=256)  :: choice_refgeo_GIAeq_NAM_config               = 'read_from_file'                 ! Choice of GIA equilibrium reference geometry for North America; can be "idealised", or "read_from_file"
+    CHARACTER(LEN=256)  :: choice_refgeo_GIAeq_EAS_config               = 'read_from_file'                 ! Choice of GIA equilibrium reference geometry for Eurasia      ; can be "idealised", or "read_from_file"
+    CHARACTER(LEN=256)  :: choice_refgeo_GIAeq_GRL_config               = 'read_from_file'                 ! Choice of GIA equilibrium reference geometry for Greenland    ; can be "idealised", or "read_from_file"
+    CHARACTER(LEN=256)  :: choice_refgeo_GIAeq_ANT_config               = 'read_from_file'                 ! Choice of GIA equilibrium reference geometry for Antarctica   ; can be "idealised", or "read_from_file"
     ! Idealised geometry when choice_refgeo_GIAeq == 'idealised'
-    CHARACTER(LEN=256)  :: choice_refgeo_GIAeq_idealised_config         = 'flatearth'                      ! Choice of idealised present-day geometry; see "generate_idealised_geometry" in reference_fields_module for options
-    REAL(dp)            :: dx_refgeo_GIAeq_idealised_config             = 5000._dp                         ! Resolution of square grid used for idealised present-day geometry
-    ! Path to file containing present-day geometry when choice_refgeo_GIAeq == 'read_from_file'
+    CHARACTER(LEN=256)  :: choice_refgeo_GIAeq_idealised_config         = ''                               ! Choice of idealised GIA equilibrium reference geometry; see reference_geometries/calc_idealised_geometry for options
+    REAL(dp)            :: dx_refgeo_GIAeq_idealised_config             = 5000._dp                         ! Resolution of square grid used for idealised GIA equilibrium reference geometry
+    ! Path to file containing GIA equilibrium reference geometry when choice_refgeo_GIAeq == 'read_from_file'
     CHARACTER(LEN=256)  :: filename_refgeo_GIAeq_NAM_config             = 'data/ETOPO1/NorthAmerica_ETOPO1_5km.nc'
     CHARACTER(LEN=256)  :: filename_refgeo_GIAeq_EAS_config             = 'data/ETOPO1/Eurasia_ETOPO1_5km.nc'
     CHARACTER(LEN=256)  :: filename_refgeo_GIAeq_GRL_config             = 'data/Bedmachine_Greenland/BedMachine_Greenland_v4_5km.nc'
@@ -230,7 +225,7 @@ MODULE model_configuration
     REAL(dp)            :: ROI_maximum_resolution_grounded_ice_config   = 50e3_dp                          ! [m]          Maximum resolution for grounded ice
     REAL(dp)            :: ROI_maximum_resolution_floating_ice_config   = 20e3_dp                          ! [m]          Maximum resolution for floating ice
     REAL(dp)            :: ROI_maximum_resolution_grounding_line_config = 5e3_dp                           ! [m]          Maximum resolution for the grounding line
-    REAL(dp)            :: ROI_grounding_line_width_config              = 5e3_dp                           ! [m]          Width of the band around the grounding line that should get this resolution
+    REAL(dp)            :: ROI_grounding_line_width_config              = 2e3_dp                           ! [m]          Width of the band around the grounding line that should get this resolution
     REAL(dp)            :: ROI_maximum_resolution_calving_front_config  = 10e3_dp                          ! [m]          Maximum resolution for the calving front
     REAL(dp)            :: ROI_calving_front_width_config               = 10e3_dp                          ! [m]          Width of the band around the calving front that should get this resolution
     REAL(dp)            :: ROI_maximum_resolution_ice_front_config      = 20e3_dp                          ! [m]          Maximum resolution for the ice front
@@ -238,9 +233,12 @@ MODULE model_configuration
     REAL(dp)            :: ROI_maximum_resolution_coastline_config      = 50e3_dp                          ! [m]          Maximum resolution for the coastline
     REAL(dp)            :: ROI_coastline_width_config                   = 50e3_dp                          ! [m]          Width of the band around the coastline that should get this resolution
 
+    ! Mesh update settings
+    REAL(dp)            :: dt_mesh_update_min_config                    = 50._dp                           ! [yr]         Minimum amount of time between mesh updates
+
     ! Advanced geometry parameters
     LOGICAL             :: do_singlecore_mesh_creation_config           = .TRUE.                           !              Whether or not to use only a single core for mesh generation (for better reproducibility)
-    REAL(dp)            :: alpha_min_config                             = 0.4363_dp                        ! [radians]    Smallest allowed internal triangle angle
+    REAL(dp)            :: alpha_min_config                             = 0.4363_dp                        ! [radians]    Smallest allowed internal triangle angle (recommended value: 25 degrees = 0.4363)
     INTEGER             :: nit_Lloyds_algorithm_config                  = 3                                ! [-]          Number of iterations of Lloyds algorithm to be applied after refinement
     REAL(dp)            :: mesh_resolution_tolerance_config             = 1.25_dp                          ! [-]          Factors the target resolution for trangle-size requirement. 1=strict, use >1 to avoid unnecesarily high resolution
 
@@ -258,20 +256,15 @@ MODULE model_configuration
   ! ==========================
 
     ! General
-    CHARACTER(LEN=256)  :: choice_stress_balance_approximation_config   = 'SSA'                            ! Choice of stress balance approximation: "none" (= no flow, though geometry can still change due to mass balance), "SIA", "SSA", "SIA/SSA", "DIVA", "BPA"
-    REAL(dp)            :: n_flow_config                                = 3.0_dp                           ! Exponent in Glen's flow law
-    REAL(dp)            :: m_enh_sheet_config                           = 1.0_dp                           ! Ice flow enhancement factor for grounded ice
-    REAL(dp)            :: m_enh_shelf_config                           = 1.0_dp                           ! Ice flow enhancement factor for floating ice
+    CHARACTER(LEN=256)  :: choice_stress_balance_approximation_config   = 'DIVA'                           ! Choice of stress balance approximation: "none" (= no flow, though geometry can still change due to mass balance), "SIA", "SSA", "SIA/SSA", "DIVA", "BPA"
     CHARACTER(LEN=256)  :: choice_hybrid_SIASSA_scheme_config           = 'add'                            ! Choice of scheme for combining SIA and SSA velocities in the hybrid approach
-    LOGICAL             :: do_GL_subgrid_friction_config                = .TRUE.                           ! Whether or not to scale basal friction with the sub-grid grounded fraction (needed to get proper GL migration; only turn this off for showing the effect on the MISMIP_mod results!)
-    REAL(dp)            :: subgrid_friction_exponent_config             = 2._dp                            ! Exponent to which f_grnd should be raised before being used to scale beta
     LOGICAL             :: do_include_SSADIVA_crossterms_config         = .TRUE.                           ! Whether or not to include the gradients of the effective viscosity (the "cross-terms") in the solution of the SSA/DIVA
 
     ! Initialisation
-    CHARACTER(LEN=256)  :: choice_initial_velocity_NAM_config           = ''                               ! Can be 'zero', 'read_from_file'
-    CHARACTER(LEN=256)  :: choice_initial_velocity_EAS_config           = ''
-    CHARACTER(LEN=256)  :: choice_initial_velocity_GRL_config           = ''
-    CHARACTER(LEN=256)  :: choice_initial_velocity_ANT_config           = ''
+    CHARACTER(LEN=256)  :: choice_initial_velocity_NAM_config           = 'zero'                           ! Can be 'zero', 'read_from_file'
+    CHARACTER(LEN=256)  :: choice_initial_velocity_EAS_config           = 'zero'
+    CHARACTER(LEN=256)  :: choice_initial_velocity_GRL_config           = 'zero'
+    CHARACTER(LEN=256)  :: choice_initial_velocity_ANT_config           = 'zero'
     ! Paths to files containing initial velocity fields
     CHARACTER(LEN=256)  :: filename_initial_velocity_NAM_config         = ''
     CHARACTER(LEN=256)  :: filename_initial_velocity_EAS_config         = ''
@@ -285,36 +278,15 @@ MODULE model_configuration
 
     ! Some parameters for numerically solving the stress balance
     REAL(dp)            :: SIA_maximum_diffusivity_config               = 1E5_dp                           ! Limit the diffusivity in the SIA to this value
-    REAL(dp)            :: visc_it_norm_dUV_tol_config                  = 1E-2_dp                          ! Stop criterion for the viscosity iteration: the L2-norm of successive velocity solutions should be smaller than this number
-    INTEGER             :: visc_it_nit_config                           = 50                               ! Maximum number of effective viscosity iterations
+    REAL(dp)            :: visc_it_norm_dUV_tol_config                  = 5E-6_dp                          ! Stop criterion for the viscosity iteration: the L2-norm of successive velocity solutions should be smaller than this number
+    INTEGER             :: visc_it_nit_config                           = 500                              ! Maximum number of effective viscosity iterations
     REAL(dp)            :: visc_it_relax_config                         = 0.4_dp                           ! Relaxation parameter for subsequent viscosity iterations (for improved stability)
-    REAL(dp)            :: epsilon_sq_0_config                          = 1E-15_dp                         ! Normalisation term so that zero velocity gives non-zero viscosity
-    REAL(dp)            :: visc_eff_min_config                          = 1E3_dp                           ! Minimum value for effective viscosity
-    REAL(dp)            :: beta_max_config                              = 1E20_dp                          ! Maximum value for basal friction coefficient
+    REAL(dp)            :: visc_eff_min_config                          = 1E4_dp                           ! Minimum value for effective viscosity
     REAL(dp)            :: vel_max_config                               = 5000._dp                         ! Velocities are limited to this value
-    REAL(dp)            :: stress_balance_PETSc_rtol_config             = 1E-2_dp                          ! PETSc solver - stop criterion, relative difference (iteration stops if rtol OR abstol is reached)
-    REAL(dp)            :: stress_balance_PETSc_abstol_config           = 1.0_dp                           ! PETSc solver - stop criterion, absolute difference
+    REAL(dp)            :: stress_balance_PETSc_rtol_config             = 1E-5_dp                          ! PETSc solver - stop criterion, relative difference (iteration stops if rtol OR abstol is reached)
+    REAL(dp)            :: stress_balance_PETSc_abstol_config           = 1E-3_dp                          ! PETSc solver - stop criterion, absolute difference
 
-  ! == Ice dynamics - sliding law
-  ! =============================
-
-    ! Sliding laws
-    CHARACTER(LEN=256)  :: choice_sliding_law_config                    = 'Zoet-Iverson'                   ! Choice of sliding law: "no_sliding", "idealised", "Coulomb", "Budd", "Weertman", "Tsai2015", "Schoof2005", "Zoet-Iverson"
-    CHARACTER(LEN=256)  :: choice_idealised_sliding_law_config          = ''                               ! "ISMIP_HOM_C", "ISMIP_HOM_D", "ISMIP_HOM_E", "ISMIP_HOM_F"
-
-    ! Exponents
-    REAL(dp)            :: slid_Weertman_m_config                       = 3._dp                            ! Exponent in Weertman sliding law
-    REAL(dp)            :: slid_Budd_q_plastic_config                   = 0.3_dp                           ! Scaling exponent in Budd sliding law
-    REAL(dp)            :: slid_ZI_p_config                             = 5._dp                            ! Velocity exponent used in the Zoet-Iverson sliding law
-
-    ! Stability
-    REAL(dp)            :: slid_delta_v_config                          = 1.0E-3_dp                        ! Normalisation parameter to prevent errors when velocity is zero
-    REAL(dp)            :: slid_Budd_u_threshold_config                 = 100._dp                          ! Threshold velocity in Budd sliding law
-    REAL(dp)            :: slid_ZI_ut_config                            = 200._dp                          ! (uniform) transition velocity used in the Zoet-Iverson sliding law [m/yr]
-
-  ! == Ice dynamics - boundary conditions
-  ! =====================================
-
+    ! Boundary conditions
     CHARACTER(LEN=256)  :: BC_u_west_config                             = 'infinite'                       ! Boundary conditions for the ice velocity field at the domain border
     CHARACTER(LEN=256)  :: BC_u_east_config                             = 'infinite'                       ! Allowed choices: "infinite", "zero", "periodic_ISMIP-HOM"
     CHARACTER(LEN=256)  :: BC_u_south_config                            = 'infinite'
@@ -323,22 +295,56 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: BC_v_east_config                             = 'infinite'
     CHARACTER(LEN=256)  :: BC_v_south_config                            = 'infinite'
     CHARACTER(LEN=256)  :: BC_v_north_config                            = 'infinite'
-    CHARACTER(LEN=256)  :: BC_H_west_config                             = 'zero'                           ! Boundary conditions for ice thickness at the domain boundary
-    CHARACTER(LEN=256)  :: BC_H_east_config                             = 'zero'                           ! Allowed choices:  "infinite", "zero", "ISMIP_HOM_F"
-    CHARACTER(LEN=256)  :: BC_H_south_config                            = 'zero'
-    CHARACTER(LEN=256)  :: BC_H_north_config                            = 'zero'
 
-  ! == Ice dynamics - time integration
-  ! ==================================
+  ! == Ice dynamics - sliding
+  ! =========================
 
-    CHARACTER(LEN=256)  :: choice_timestepping_config                   = 'pc'                             ! Choice of timestepping method: "direct", "pc" (NOTE: 'direct' does not work with DIVA ice dynamcis!)
+    ! General
+    CHARACTER(LEN=256)  :: choice_sliding_law_config                    = 'Zoet-Iverson'                   ! Choice of sliding law: "no_sliding", "idealised", "Coulomb", "Budd", "Weertman", "Tsai2015", "Schoof2005", "Zoet-Iverson"
+    CHARACTER(LEN=256)  :: choice_idealised_sliding_law_config          = ''                               ! "ISMIP_HOM_C", "ISMIP_HOM_D", "ISMIP_HOM_E", "ISMIP_HOM_F"
+
+    ! Parameters for different sliding laws
+    REAL(dp)            :: slid_Weertman_m_config                       = 3._dp                            ! Exponent in Weertman sliding law
+    REAL(dp)            :: slid_Budd_q_plastic_config                   = 0.3_dp                           ! Scaling exponent in Budd sliding law
+    REAL(dp)            :: slid_Budd_u_threshold_config                 = 100._dp                          ! Threshold velocity in Budd sliding law
+    REAL(dp)            :: slid_ZI_p_config                             = 5._dp                            ! Velocity exponent used in the Zoet-Iverson sliding law
+    REAL(dp)            :: slid_ZI_ut_config                            = 200._dp                          ! (uniform) transition velocity used in the Zoet-Iverson sliding law [m/yr]
+
+    ! Sub-grid scaling of basal friction
+    LOGICAL             :: do_GL_subgrid_friction_config                = .TRUE.                           ! Whether or not to scale basal friction with the sub-grid grounded fraction (needed to get proper GL migration; only turn this off for showing the effect on the MISMIP_mod results!)
+    CHARACTER(LEN=256)  :: choice_subgrid_grounded_fraction_config      = 'bedrock_CDF'                    ! Choice of scheme to calculate the sub-grid grounded fractions: 'trilin', 'bedrock_CDF'
+    REAL(dp)            :: subgrid_friction_exponent_config             = 2._dp                            ! Exponent to which f_grnd should be raised before being used to scale beta
+
+    ! Stability
+    REAL(dp)            :: slid_beta_max_config                         = 1E20_dp                          ! Maximum value for basal friction coefficient
+    REAL(dp)            :: slid_delta_v_config                          = 1.0E-3_dp                        ! Normalisation parameter to prevent errors when velocity is zero
+
+  ! == Ice dynamics - ice thickness calculation
+  ! ===========================================
+
+    ! Calculation of dH/dt
     CHARACTER(LEN=256)  :: choice_ice_integration_method_config         = 'explicit'                       ! Choice of ice thickness integration scheme: "none" (i.e. unchanging geometry), "explicit", "semi-implicit"
     REAL(dp)            :: dHi_semiimplicit_fs_config                   = 1.5_dp                           ! Factor for the semi-implicit ice thickness solver (0 = explicit, 0<f<1 = semi-implicit, 1 = implicit, >1 = over-implicit)
     REAL(dp)            :: dHi_PETSc_rtol_config                        = 1E-7_dp                          ! dHi PETSc solver - stop criterion, relative difference (iteration stops if rtol OR abstol is reached)
     REAL(dp)            :: dHi_PETSc_abstol_config                      = 1E-2_dp                          ! dHi PETSc solver - stop criterion, absolute difference
 
+    ! Boundary conditions
+    CHARACTER(LEN=256)  :: BC_H_west_config                             = 'zero'                           ! Boundary conditions for ice thickness at the domain boundary
+    CHARACTER(LEN=256)  :: BC_H_east_config                             = 'zero'                           ! Allowed choices:  "infinite", "zero", "ISMIP_HOM_F"
+    CHARACTER(LEN=256)  :: BC_H_south_config                            = 'zero'
+    CHARACTER(LEN=256)  :: BC_H_north_config                            = 'zero'
+
+  ! == Ice dynamics - time stepping
+  ! ===============================
+
+    ! Time stepping
+    CHARACTER(LEN=256)  :: choice_timestepping_config                   = 'pc'                             ! Choice of timestepping method: "direct", "pc" (NOTE: 'direct' does not work with DIVA ice dynamcis!)
+    REAL(dp)            :: dt_ice_max_config                            = 0.0_dp                           ! [yr] Maximum time step of the ice dynamics model
+    REAL(dp)            :: dt_ice_min_config                            = 1.0_dp                           ! [yr] Minimum time step of the ice dynamics model
+    REAL(dp)            :: dt_ice_startup_phase_config                  = 0._dp                            ! [yr] Length of time window after start_time and before end_time when dt = dt_min, to ensure smooth restarts
+
     ! Predictor-corrector ice-thickness update
-    REAL(dp)            :: pc_epsilon_config                            = 3._dp                            ! Target truncation error in dHi_dt [m/yr] (epsilon in Robinson et al., 2020, Eq. 33)
+    REAL(dp)            :: pc_epsilon_config                            = 0.1_dp                           ! Target truncation error in dHi_dt [m/yr] (epsilon in Robinson et al., 2020, Eq. 33)
     REAL(dp)            :: pc_k_I_config                                = 0.2_dp                           ! Exponent k_I in  Robinson et al., 2020, Eq. 33
     REAL(dp)            :: pc_k_p_config                                = 0.2_dp                           ! Exponent k_p in  Robinson et al., 2020, Eq. 33
     REAL(dp)            :: pc_eta_min_config                            = 1E-8_dp                          ! Normalisation term in estimation of the truncation error (Robinson et al., Eq. 32)
@@ -372,7 +378,6 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: choice_basal_hydrology_config                = 'Martin2011'                     ! Choice of basal hydrology model: "saturated", "Martin2011"
     REAL(dp)            :: Martin2011_hydro_Hb_min_config               = 0._dp                            ! Martin et al. (2011) basal hydrology model: low-end  Hb  value of bedrock-dependent pore-water pressure
     REAL(dp)            :: Martin2011_hydro_Hb_max_config               = 1000._dp                         ! Martin et al. (2011) basal hydrology model: high-end Hb  value of bedrock-dependent pore-water pressure
-
 
   ! == Bed roughness
   ! ==================
@@ -436,12 +441,12 @@ MODULE model_configuration
   ! == Geothermal heat flux
   ! =======================
 
-    CHARACTER(LEN=256)  :: choice_geothermal_heat_flux_config          = 'constant'                        ! Choice of geothermal heat flux; can be 'constant' or 'read_from_file'
-    REAL(dp)            :: constant_geothermal_heat_flux_config        = 1.72E06_dp                        ! Geothermal Heat flux [J m^-2 yr^-1] Sclater et al. (1980)
+    CHARACTER(LEN=256)  :: choice_geothermal_heat_flux_config          = 'uniform'                         ! Choice of geothermal heat flux; can be 'uniform' or 'read_from_file'
+    REAL(dp)            :: uniform_geothermal_heat_flux_config         = 1.72E06_dp                        ! Value when choice_geothermal_heat_flux == 'uniform' (1.72E06 J m^-2 yr^-1 according to Sclater et al. (1980))
     CHARACTER(LEN=256)  :: filename_geothermal_heat_flux_config        = 'data/GHF/geothermal_heatflux_ShapiroRitzwoller2004_global_1x1_deg.nc'
 
-  ! == Thermodynamics and rheology
-  ! ==============================
+  ! == Thermodynamics
+  ! =================
 
     ! Initial temperature profile
     CHARACTER(LEN=256)  :: choice_initial_ice_temperature_NAM_config    = 'Robin'                          ! Choice of initial ice temperature profile: "uniform", "linear", "Robin", "read_from_file"
@@ -470,7 +475,17 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: choice_ice_thermal_conductivity_config       = 'Ritz1987'                       ! Choice of ice heat capacity model: "uniform", "Ritz1987"
     REAL(dp)            :: uniform_ice_thermal_conductivity_config      = 6.626958E7_dp                    ! Uniform ice thermal conductivity (applied when choice_ice_thermal_conductivity_config = "uniform")
 
-    ! Rheological model (relating Glen's flow parameter to ice temperature)
+  ! == Rheology and flow law
+  ! =========================
+
+    ! Flow law
+    CHARACTER(LEN=256)  :: choice_flow_law_config                       = 'Glen'                           ! Choice of flow law, relating effective viscosity to effective strain rate
+    REAL(dp)            :: Glens_flow_law_exponent_config               = 3.0_dp                           ! Exponent in Glen's flow law
+    REAL(dp)            :: Glens_flow_law_epsilon_sq_0_config           = 1E-15_dp                         ! Normalisation term so that zero strain rates produce a high but finite viscosity
+    REAL(dp)            :: m_enh_sheet_config                           = 1.0_dp                           ! Ice flow enhancement factor for grounded ice
+    REAL(dp)            :: m_enh_shelf_config                           = 1.0_dp                           ! Ice flow enhancement factor for floating ice
+
+    ! Rheology
     CHARACTER(LEN=256)  :: choice_ice_rheology_config                   = 'Huybrechts1992'                 ! Choice of ice rheology model: "uniform", "Huybrechts1992", "MISMIP_mod"
     REAL(dp)            :: uniform_flow_factor_config                   = 1E-16_dp                         ! Uniform ice flow factor (applied when choice_ice_rheology_model_config = "uniform")
 
@@ -512,6 +527,12 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: choice_sealevel_model_config                 = 'fixed'                         ! Can be "fixed", "prescribed", "eustatic", or "SELEN"
     REAL(dp)            :: fixed_sealevel_config                        = 0._dp                           ! Fixed sea level value for the "fixed" choice
 
+! ===== Configuration variables - end =====
+! =========================================
+
+
+
+
 
 ! ===== The config type =====
 ! ===========================
@@ -527,33 +548,29 @@ MODULE model_configuration
   ! General model instructions
   ! ==========================
 
+    ! Output directory
     LOGICAL             :: create_procedural_output_dir
     CHARACTER(LEN=256)  :: fixed_output_dir
 
     ! Debugging
-    LOGICAL             :: do_write_debug_data
+    logical             :: do_unit_tests
     LOGICAL             :: do_check_for_NaN
     LOGICAL             :: do_time_display
 
-  ! == Time steps and range
-  ! =======================
+  ! == Time of simulation
+  ! =====================
 
     REAL(dp)            :: start_time_of_run
     REAL(dp)            :: end_time_of_run
-    REAL(dp)            :: dt_coupling
 
   ! == Which model regions to simulate
   ! ==================================
 
+    REAL(dp)            :: dt_coupling
     LOGICAL             :: do_NAM
     LOGICAL             :: do_EAS
     LOGICAL             :: do_GRL
     LOGICAL             :: do_ANT
-
-  ! == Switch to do unit tests
-  ! ==========================
-
-    LOGICAL             :: do_unit_tests
 
   ! == The four model regions
   ! =========================
@@ -611,7 +628,7 @@ MODULE model_configuration
     ! Idealised geometry when choice_refgeo_init == 'idealised'
     CHARACTER(LEN=256)  :: choice_refgeo_init_idealised
     REAL(dp)            :: dx_refgeo_init_idealised
-    ! Path to file containing present-day geometry when choice_refgeo_init == 'read_from_file'
+    ! Path to file containing initial geometry when choice_refgeo_init == 'read_from_file'
     CHARACTER(LEN=256)  :: filename_refgeo_init_NAM
     CHARACTER(LEN=256)  :: filename_refgeo_init_EAS
     CHARACTER(LEN=256)  :: filename_refgeo_init_GRL
@@ -653,7 +670,7 @@ MODULE model_configuration
     ! Idealised geometry when choice_refgeo_GIAeq == 'idealised'
     CHARACTER(LEN=256)  :: choice_refgeo_GIAeq_idealised
     REAL(dp)            :: dx_refgeo_GIAeq_idealised
-    ! Path to file containing present-day geometry when choice_refgeo_GIAeq == 'read_from_file'
+    ! Path to file containing GIA equilibrium reference geometry when choice_refgeo_GIAeq == 'read_from_file'
     CHARACTER(LEN=256)  :: filename_refgeo_GIAeq_NAM
     CHARACTER(LEN=256)  :: filename_refgeo_GIAeq_EAS
     CHARACTER(LEN=256)  :: filename_refgeo_GIAeq_GRL
@@ -724,6 +741,9 @@ MODULE model_configuration
     REAL(dp)            :: ROI_maximum_resolution_coastline
     REAL(dp)            :: ROI_coastline_width
 
+    ! Mesh update settings
+    REAL(dp)            :: dt_mesh_update_min
+
     ! Advanced geometry parameters
     LOGICAL             :: do_singlecore_mesh_creation
     REAL(dp)            :: alpha_min
@@ -745,12 +765,7 @@ MODULE model_configuration
 
     ! General
     CHARACTER(LEN=256)  :: choice_stress_balance_approximation
-    REAL(dp)            :: n_flow
-    REAL(dp)            :: m_enh_sheet
-    REAL(dp)            :: m_enh_shelf
     CHARACTER(LEN=256)  :: choice_hybrid_SIASSA_scheme
-    LOGICAL             :: do_GL_subgrid_friction
-    REAL(dp)            :: subgrid_friction_exponent
     LOGICAL             :: do_include_SSADIVA_crossterms
 
     ! Initialisation
@@ -774,29 +789,12 @@ MODULE model_configuration
     REAL(dp)            :: visc_it_norm_dUV_tol
     INTEGER             :: visc_it_nit
     REAL(dp)            :: visc_it_relax
-    REAL(dp)            :: epsilon_sq_0
     REAL(dp)            :: visc_eff_min
-    REAL(dp)            :: beta_max
     REAL(dp)            :: vel_max
     REAL(dp)            :: stress_balance_PETSc_rtol
     REAL(dp)            :: stress_balance_PETSc_abstol
 
-  ! == Ice dynamics - sliding law
-  ! =============================
-
-    ! Sliding laws
-    CHARACTER(LEN=256)  :: choice_sliding_law
-    CHARACTER(LEN=256)  :: choice_idealised_sliding_law
-    REAL(dp)            :: slid_delta_v
-    REAL(dp)            :: slid_Weertman_m
-    REAL(dp)            :: slid_Budd_q_plastic
-    REAL(dp)            :: slid_Budd_u_threshold
-    REAL(dp)            :: slid_ZI_ut
-    REAL(dp)            :: slid_ZI_p
-
-  ! == Ice dynamics - boundary conditions
-  ! =====================================
-
+    ! Boundary conditions
     CHARACTER(LEN=256)  :: BC_u_west
     CHARACTER(LEN=256)  :: BC_u_east
     CHARACTER(LEN=256)  :: BC_u_south
@@ -805,19 +803,53 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: BC_v_east
     CHARACTER(LEN=256)  :: BC_v_south
     CHARACTER(LEN=256)  :: BC_v_north
+
+  ! == Ice dynamics - sliding
+  ! =========================
+
+    ! General
+    CHARACTER(LEN=256)  :: choice_sliding_law
+    CHARACTER(LEN=256)  :: choice_idealised_sliding_law
+
+    ! Parameters for different sliding laws
+    REAL(dp)            :: slid_Weertman_m
+    REAL(dp)            :: slid_Budd_q_plastic
+    REAL(dp)            :: slid_Budd_u_threshold
+    REAL(dp)            :: slid_ZI_p
+    REAL(dp)            :: slid_ZI_ut
+
+    ! Sub-grid scaling of basal friction
+    LOGICAL             :: do_GL_subgrid_friction
+    CHARACTER(LEN=256)  :: choice_subgrid_grounded_fraction
+    REAL(dp)            :: subgrid_friction_exponent
+
+    ! Stability
+    REAL(dp)            :: slid_beta_max
+    REAL(dp)            :: slid_delta_v
+
+  ! == Ice dynamics - ice thickness calculation
+  ! ===========================================
+
+    ! Calculation of dH/dt
+    CHARACTER(LEN=256)  :: choice_ice_integration_method
+    REAL(dp)            :: dHi_semiimplicit_fs
+    REAL(dp)            :: dHi_PETSc_rtol
+    REAL(dp)            :: dHi_PETSc_abstol
+
+    ! Boundary conditions
     CHARACTER(LEN=256)  :: BC_H_west
     CHARACTER(LEN=256)  :: BC_H_east
     CHARACTER(LEN=256)  :: BC_H_south
     CHARACTER(LEN=256)  :: BC_H_north
 
-  ! == Ice dynamics - time integration
-  ! ==================================
+  ! == Ice dynamics - time stepping
+  ! ===============================
 
+    ! Time stepping
     CHARACTER(LEN=256)  :: choice_timestepping
-    CHARACTER(LEN=256)  :: choice_ice_integration_method
-    REAL(dp)            :: dHi_semiimplicit_fs
-    REAL(dp)            :: dHi_PETSc_rtol
-    REAL(dp)            :: dHi_PETSc_abstol
+    REAL(dp)            :: dt_ice_max
+    REAL(dp)            :: dt_ice_min
+    REAL(dp)            :: dt_ice_startup_phase
 
     ! Predictor-corrector ice-thickness update
     REAL(dp)            :: pc_epsilon
@@ -918,11 +950,11 @@ MODULE model_configuration
   ! =======================
 
     CHARACTER(LEN=256)  :: choice_geothermal_heat_flux
-    REAL(dp)            :: constant_geothermal_heat_flux
+    REAL(dp)            :: uniform_geothermal_heat_flux
     CHARACTER(LEN=256)  :: filename_geothermal_heat_flux
 
-  ! == Thermodynamics and rheology
-  ! ==============================
+  ! == Thermodynamics
+  ! =================
 
     ! Initial temperature profile
     CHARACTER(LEN=256)  :: choice_initial_ice_temperature_NAM
@@ -945,14 +977,23 @@ MODULE model_configuration
     REAL(dp)            :: timeframe_initial_ice_temperature_GRL
     REAL(dp)            :: timeframe_initial_ice_temperature_ANT
     ! Thermodynamical model
-
     CHARACTER(LEN=256)  :: choice_thermo_model
     CHARACTER(LEN=256)  :: choice_ice_heat_capacity
     REAL(dp)            :: uniform_ice_heat_capacity
     CHARACTER(LEN=256)  :: choice_ice_thermal_conductivity
     REAL(dp)            :: uniform_ice_thermal_conductivity
 
-    ! Rheological model (relating Glen's flow parameter to ice temperature)
+  ! == Rheology and flow law
+  ! =========================
+
+    ! Flow law
+    CHARACTER(LEN=256)  :: choice_flow_law
+    REAL(dp)            :: Glens_flow_law_exponent
+    REAL(dp)            :: Glens_flow_law_epsilon_sq_0
+    REAL(dp)            :: m_enh_sheet
+    REAL(dp)            :: m_enh_shelf
+
+    ! Rheology
     CHARACTER(LEN=256)  :: choice_ice_rheology
     REAL(dp)            :: uniform_flow_factor
 
@@ -996,17 +1037,17 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: output_dir
 
     ! Values to be filled into the total mask (used only for diagnostic output)
-    INTEGER                             :: type_land
-    INTEGER                             :: type_ocean
-    INTEGER                             :: type_lake
-    INTEGER                             :: type_sheet
-    INTEGER                             :: type_shelf
-    INTEGER                             :: type_coast
-    INTEGER                             :: type_margin
-    INTEGER                             :: type_groundingline_gr
-    INTEGER                             :: type_groundingline_fl
-    INTEGER                             :: type_calvingfront_gr
-    INTEGER                             :: type_calvingfront_fl
+    INTEGER             :: type_land
+    INTEGER             :: type_ocean
+    INTEGER             :: type_lake
+    INTEGER             :: type_sheet
+    INTEGER             :: type_shelf
+    INTEGER             :: type_coast
+    INTEGER             :: type_margin
+    INTEGER             :: type_groundingline_gr
+    INTEGER             :: type_groundingline_fl
+    INTEGER             :: type_calvingfront_gr
+    INTEGER             :: type_calvingfront_fl
 
   END TYPE type_config
 
@@ -1166,309 +1207,315 @@ CONTAINS
 
     ! The NAMELIST that's used to read the external config file.
     NAMELIST /CONFIG/&
-      create_procedural_output_dir_config                   , &
-      fixed_output_dir_config                               , &
-      do_write_debug_data_config                            , &
-      do_check_for_NaN_config                               , &
-      do_time_display_config                                , &
-      start_time_of_run_config                              , &
-      end_time_of_run_config                                , &
-      dt_coupling_config                                    , &
-      do_NAM_config                                         , &
-      do_EAS_config                                         , &
-      do_GRL_config                                         , &
-      do_ANT_config                                         , &
-      do_unit_tests_config                                  , &
-      lambda_M_NAM_config                                   , &
-      phi_M_NAM_config                                      , &
-      beta_stereo_NAM_config                                , &
-      xmin_NAM_config                                       , &
-      xmax_NAM_config                                       , &
-      ymin_NAM_config                                       , &
-      ymax_NAM_config                                       , &
-      lambda_M_EAS_config                                   , &
-      phi_M_EAS_config                                      , &
-      beta_stereo_EAS_config                                , &
-      xmin_EAS_config                                       , &
-      xmax_EAS_config                                       , &
-      ymin_EAS_config                                       , &
-      ymax_EAS_config                                       , &
-      lambda_M_GRL_config                                   , &
-      phi_M_GRL_config                                      , &
-      beta_stereo_GRL_config                                , &
-      xmin_GRL_config                                       , &
-      xmax_GRL_config                                       , &
-      ymin_GRL_config                                       , &
-      ymax_GRL_config                                       , &
-      lambda_M_ANT_config                                   , &
-      phi_M_ANT_config                                      , &
-      beta_stereo_ANT_config                                , &
-      xmin_ANT_config                                       , &
-      xmax_ANT_config                                       , &
-      ymin_ANT_config                                       , &
-      ymax_ANT_config                                       , &
-      refgeo_Hi_min_config                                  , &
-      remove_Lake_Vostok_config                             , &
-      choice_refgeo_init_NAM_config                         , &
-      choice_refgeo_init_EAS_config                         , &
-      choice_refgeo_init_GRL_config                         , &
-      choice_refgeo_init_ANT_config                         , &
-      choice_refgeo_init_idealised_config                   , &
-      dx_refgeo_init_idealised_config                       , &
-      filename_refgeo_init_NAM_config                       , &
-      filename_refgeo_init_EAS_config                       , &
-      filename_refgeo_init_GRL_config                       , &
-      filename_refgeo_init_ANT_config                       , &
-      timeframe_refgeo_init_NAM_config                      , &
-      timeframe_refgeo_init_EAS_config                      , &
-      timeframe_refgeo_init_GRL_config                      , &
-      timeframe_refgeo_init_ANT_config                      , &
-      choice_refgeo_PD_NAM_config                           , &
-      choice_refgeo_PD_EAS_config                           , &
-      choice_refgeo_PD_GRL_config                           , &
-      choice_refgeo_PD_ANT_config                           , &
-      choice_refgeo_PD_idealised_config                     , &
-      dx_refgeo_PD_idealised_config                         , &
-      filename_refgeo_PD_NAM_config                         , &
-      filename_refgeo_PD_EAS_config                         , &
-      filename_refgeo_PD_GRL_config                         , &
-      filename_refgeo_PD_ANT_config                         , &
-      timeframe_refgeo_PD_NAM_config                        , &
-      timeframe_refgeo_PD_EAS_config                        , &
-      timeframe_refgeo_PD_GRL_config                        , &
-      timeframe_refgeo_PD_ANT_config                        , &
-      choice_refgeo_GIAeq_NAM_config                        , &
-      choice_refgeo_GIAeq_EAS_config                        , &
-      choice_refgeo_GIAeq_GRL_config                        , &
-      choice_refgeo_GIAeq_ANT_config                        , &
-      choice_refgeo_GIAeq_idealised_config                  , &
-      dx_refgeo_GIAeq_idealised_config                      , &
-      filename_refgeo_GIAeq_NAM_config                      , &
-      filename_refgeo_GIAeq_EAS_config                      , &
-      filename_refgeo_GIAeq_GRL_config                      , &
-      filename_refgeo_GIAeq_ANT_config                      , &
-      timeframe_refgeo_GIAeq_NAM_config                     , &
-      timeframe_refgeo_GIAeq_EAS_config                     , &
-      timeframe_refgeo_GIAeq_GRL_config                     , &
-      timeframe_refgeo_GIAeq_ANT_config                     , &
-      refgeo_idealised_slabonaslope_Hi_config               , &
-      refgeo_idealised_slabonaslope_dhdx_config             , &
-      refgeo_idealised_Halfar_H0_config                     , &
-      refgeo_idealised_Halfar_R0_config                     , &
-      refgeo_idealised_Bueler_H0_config                     , &
-      refgeo_idealised_Bueler_R0_config                     , &
-      refgeo_idealised_Bueler_lambda_config                 , &
-      refgeo_idealised_SSA_icestream_Hi_config              , &
-      refgeo_idealised_SSA_icestream_dhdx_config            , &
-      refgeo_idealised_SSA_icestream_L_config               , &
-      refgeo_idealised_SSA_icestream_m_config               , &
-      refgeo_idealised_MISMIP_mod_Hi_init_config            , &
-      refgeo_idealised_ISMIP_HOM_L_config                   , &
-      refgeo_idealised_MISMIPplus_Hi_init_config            , &
-      choice_initial_mesh_NAM_config                        , &
-      choice_initial_mesh_EAS_config                        , &
-      choice_initial_mesh_GRL_config                        , &
-      choice_initial_mesh_ANT_config                        , &
-      filename_initial_mesh_NAM_config                      , &
-      filename_initial_mesh_EAS_config                      , &
-      filename_initial_mesh_GRL_config                      , &
-      filename_initial_mesh_ANT_config                      , &
-      maximum_resolution_uniform_config                     , &
-      maximum_resolution_grounded_ice_config                , &
-      maximum_resolution_floating_ice_config                , &
-      maximum_resolution_grounding_line_config              , &
-      grounding_line_width_config                           , &
-      maximum_resolution_calving_front_config               , &
-      calving_front_width_config                            , &
-      maximum_resolution_ice_front_config                   , &
-      ice_front_width_config                                , &
-      maximum_resolution_coastline_config                   , &
-      coastline_width_config                                , &
-      choice_regions_of_interest_config                     , &
-      ROI_maximum_resolution_uniform_config                 , &
-      ROI_maximum_resolution_grounded_ice_config            , &
-      ROI_maximum_resolution_floating_ice_config            , &
-      ROI_maximum_resolution_grounding_line_config          , &
-      ROI_grounding_line_width_config                       , &
-      ROI_maximum_resolution_calving_front_config           , &
-      ROI_calving_front_width_config                        , &
-      ROI_maximum_resolution_ice_front_config               , &
-      ROI_ice_front_width_config                            , &
-      ROI_maximum_resolution_coastline_config               , &
-      ROI_coastline_width_config                            , &
-      do_singlecore_mesh_creation_config                    , &
-      alpha_min_config                                      , &
-      nit_Lloyds_algorithm_config                           , &
-      mesh_resolution_tolerance_config                      , &
-      nC_mem_config                                         , &
-      choice_zeta_grid_config                               , &
-      nz_config                                             , &
-      zeta_irregular_log_R_config                           , &
-      choice_stress_balance_approximation_config            , &
-      n_flow_config                                         , &
-      m_enh_sheet_config                                    , &
-      m_enh_shelf_config                                    , &
-      choice_hybrid_SIASSA_scheme_config                    , &
-      do_GL_subgrid_friction_config                         , &
-      subgrid_friction_exponent_config                      , &
-      do_include_SSADIVA_crossterms_config                  , &
-      choice_initial_velocity_NAM_config                    , &
-      choice_initial_velocity_EAS_config                    , &
-      choice_initial_velocity_GRL_config                    , &
-      choice_initial_velocity_ANT_config                    , &
-      filename_initial_velocity_NAM_config                  , &
-      filename_initial_velocity_EAS_config                  , &
-      filename_initial_velocity_GRL_config                  , &
-      filename_initial_velocity_ANT_config                  , &
-      timeframe_initial_velocity_NAM_config                 , &
-      timeframe_initial_velocity_EAS_config                 , &
-      timeframe_initial_velocity_GRL_config                 , &
-      timeframe_initial_velocity_ANT_config                 , &
-      SIA_maximum_diffusivity_config                        , &
-      visc_it_norm_dUV_tol_config                           , &
-      visc_it_nit_config                                    , &
-      visc_it_relax_config                                  , &
-      epsilon_sq_0_config                                   , &
-      visc_eff_min_config                                   , &
-      beta_max_config                                       , &
-      vel_max_config                                        , &
-      stress_balance_PETSc_rtol_config                      , &
-      stress_balance_PETSc_abstol_config                    , &
-      choice_sliding_law_config                             , &
-      choice_idealised_sliding_law_config                   , &
-      slid_delta_v_config                                   , &
-      slid_Weertman_m_config                                , &
-      slid_Budd_q_plastic_config                            , &
-      slid_Budd_u_threshold_config                          , &
-      slid_ZI_ut_config                                     , &
-      slid_ZI_p_config                                      , &
-      BC_u_west_config                                      , &
-      BC_u_east_config                                      , &
-      BC_u_south_config                                     , &
-      BC_u_north_config                                     , &
-      BC_v_west_config                                      , &
-      BC_v_east_config                                      , &
-      BC_v_south_config                                     , &
-      BC_v_north_config                                     , &
-      BC_H_west_config                                      , &
-      BC_H_east_config                                      , &
-      BC_H_south_config                                     , &
-      BC_H_north_config                                     , &
-      choice_timestepping_config                            , &
-      choice_ice_integration_method_config                  , &
-      dHi_semiimplicit_fs_config                            , &
-      dHi_PETSc_rtol_config                                 , &
-      dHi_PETSc_abstol_config                               , &
-      pc_epsilon_config                                     , &
-      pc_k_I_config                                         , &
-      pc_k_p_config                                         , &
-      pc_eta_min_config                                     , &
-      choice_calving_law_config                             , &
-      calving_threshold_thickness_shelf_config              , &
-      calving_threshold_thickness_sheet_config              , &
-      max_calving_rounds_config                             , &
-      do_remove_shelves_config                              , &
-      remove_shelves_larger_than_PD_config                  , &
-      continental_shelf_calving_config                      , &
-      continental_shelf_min_height_config                   , &
-      choice_mask_noice_config                              , &
-      fixed_shelf_geometry_config                           , &
-      fixed_sheet_geometry_config                           , &
-      fixed_grounding_line_config                           , &
-      choice_basal_hydrology_config                         , &
-      Martin2011_hydro_Hb_min_config                        , &
-      Martin2011_hydro_Hb_max_config                        , &
-      choice_bed_roughness_config                           , &
-      choice_bed_roughness_parameterised_config             , &
-      filename_bed_roughness_NAM_config                     , &
-      filename_bed_roughness_EAS_config                     , &
-      filename_bed_roughness_GRL_config                     , &
-      filename_bed_roughness_ANT_config                     , &
-      timeframe_bed_roughness_NAM_config                    , &
-      timeframe_bed_roughness_EAS_config                    , &
-      timeframe_bed_roughness_GRL_config                    , &
-      timeframe_bed_roughness_ANT_config                    , &
-      slid_Weertman_beta_sq_uniform_config                  , &
-      slid_Coulomb_phi_fric_uniform_config                  , &
-      slid_Budd_phi_fric_uniform_config                     , &
-      slid_Tsai2015_alpha_sq_uniform_config                 , &
-      slid_Tsai2015_beta_sq_uniform_config                  , &
-      slid_Schoof2005_alpha_sq_uniform_config               , &
-      slid_Schoof2005_beta_sq_uniform_config                , &
-      slid_ZI_phi_fric_uniform_config                       , &
-      Martin2011till_phi_Hb_min_config                      , &
-      Martin2011till_phi_Hb_max_config                      , &
-      Martin2011till_phi_min_config                         , &
-      Martin2011till_phi_max_config                         , &
-      do_bed_roughness_nudging_config                       , &
-      bed_roughness_nudging_t_start_config                  , &
-      bed_roughness_nudging_t_end_config                    , &
-      choice_bed_roughness_nudging_method_config            , &
-      bed_roughness_nudging_dt_config                       , &
-      filename_inverted_bed_roughness_config                , &
-      BIVgeo_Bernales_do_smooth_config                      , &
-      BIVgeo_Bernales_scale_config                          , &
-      BIVgeo_Bernales_rsmooth_config                        , &
-      BIVgeo_Bernales_wsmooth_config                        , &
-      BIVgeo_Bernales_phi_min_config                        , &
-      BIVgeo_Bernales_phi_max_config                        , &
-      BIVgeo_Bernales_tol_diff_config                       , &
-      BIVgeo_Bernales_tol_frac_config                       , &
-      BIVgeo_Berends2022_tauc_config                        , &
-      BIVgeo_Berends2022_H0_config                          , &
-      BIVgeo_Berends2022_u0_config                          , &
-      BIVgeo_Berends2022_Hi_scale_config                    , &
-      BIVgeo_Berends2022_u_scale_config                     , &
-      BIVgeo_Berends2022_phimin_config                      , &
-      BIVgeo_Berends2022_phimax_config                      , &
-      BIVgeo_target_velocity_filename_config                , &
-      choice_geothermal_heat_flux_config                    , &
-      constant_geothermal_heat_flux_config                  , &
-      filename_geothermal_heat_flux_config                  , &
-      choice_initial_ice_temperature_NAM_config             , &
-      choice_initial_ice_temperature_EAS_config             , &
-      choice_initial_ice_temperature_GRL_config             , &
-      choice_initial_ice_temperature_ANT_config             , &
-      uniform_initial_ice_temperature_NAM_config            , &
-      uniform_initial_ice_temperature_EAS_config            , &
-      uniform_initial_ice_temperature_GRL_config            , &
-      uniform_initial_ice_temperature_ANT_config            , &
-      filename_initial_ice_temperature_NAM_config           , &
-      filename_initial_ice_temperature_EAS_config           , &
-      filename_initial_ice_temperature_GRL_config           , &
-      filename_initial_ice_temperature_ANT_config           , &
-      timeframe_initial_ice_temperature_NAM_config          , &
-      timeframe_initial_ice_temperature_EAS_config          , &
-      timeframe_initial_ice_temperature_GRL_config          , &
-      timeframe_initial_ice_temperature_ANT_config          , &
-      choice_thermo_model_config                            , &
-      choice_ice_heat_capacity_config                       , &
-      uniform_ice_heat_capacity_config                      , &
-      choice_ice_thermal_conductivity_config                , &
-      uniform_ice_thermal_conductivity_config               , &
-      choice_ice_rheology_config                            , &
-      uniform_flow_factor_config                            , &
-      SELEN_run_at_t_start_config                           , &
-      SELEN_n_TDOF_iterations_config                        , &
-      SELEN_n_recursion_iterations_config                   , &
-      SELEN_use_rotational_feedback_config                  , &
-      SELEN_n_harmonics_config                              , &
-      SELEN_display_progress_config                         , &
-      SELEN_dir_config                                      , &
-      SELEN_global_topo_filename_config                     , &
-      SELEN_TABOO_init_filename_config                      , &
-      SELEN_LMJ_VALUES_filename_config                      , &
-      SELEN_irreg_time_n_config                             , &
-      SELEN_irreg_time_window_config                        , &
-      SELEN_lith_thickness_config                           , &
-      SELEN_visc_n_config                                   , &
-      SELEN_visc_prof_config                                , &
-      SELEN_TABOO_CDE_config                                , &
-      SELEN_TABOO_TLOVE_config                              , &
-      SELEN_TABOO_DEG1_config                               , &
-      SELEN_TABOO_RCMB_config                               , &
-      choice_sealevel_model_config                          , &
+      create_procedural_output_dir_config                         , &
+      fixed_output_dir_config                                     , &
+      do_unit_tests_config                                        , &
+      do_check_for_NaN_config                                     , &
+      do_time_display_config                                      , &
+      start_time_of_run_config                                    , &
+      end_time_of_run_config                                      , &
+      dt_coupling_config                                          , &
+      do_NAM_config                                               , &
+      do_EAS_config                                               , &
+      do_GRL_config                                               , &
+      do_ANT_config                                               , &
+      lambda_M_NAM_config                                         , &
+      phi_M_NAM_config                                            , &
+      beta_stereo_NAM_config                                      , &
+      xmin_NAM_config                                             , &
+      xmax_NAM_config                                             , &
+      ymin_NAM_config                                             , &
+      ymax_NAM_config                                             , &
+      lambda_M_EAS_config                                         , &
+      phi_M_EAS_config                                            , &
+      beta_stereo_EAS_config                                      , &
+      xmin_EAS_config                                             , &
+      xmax_EAS_config                                             , &
+      ymin_EAS_config                                             , &
+      ymax_EAS_config                                             , &
+      lambda_M_GRL_config                                         , &
+      phi_M_GRL_config                                            , &
+      beta_stereo_GRL_config                                      , &
+      xmin_GRL_config                                             , &
+      xmax_GRL_config                                             , &
+      ymin_GRL_config                                             , &
+      ymax_GRL_config                                             , &
+      lambda_M_ANT_config                                         , &
+      phi_M_ANT_config                                            , &
+      beta_stereo_ANT_config                                      , &
+      xmin_ANT_config                                             , &
+      xmax_ANT_config                                             , &
+      ymin_ANT_config                                             , &
+      ymax_ANT_config                                             , &
+      refgeo_Hi_min_config                                        , &
+      remove_Lake_Vostok_config                                   , &
+      choice_refgeo_init_NAM_config                               , &
+      choice_refgeo_init_EAS_config                               , &
+      choice_refgeo_init_GRL_config                               , &
+      choice_refgeo_init_ANT_config                               , &
+      choice_refgeo_init_idealised_config                         , &
+      dx_refgeo_init_idealised_config                             , &
+      filename_refgeo_init_NAM_config                             , &
+      filename_refgeo_init_EAS_config                             , &
+      filename_refgeo_init_GRL_config                             , &
+      filename_refgeo_init_ANT_config                             , &
+      timeframe_refgeo_init_NAM_config                            , &
+      timeframe_refgeo_init_EAS_config                            , &
+      timeframe_refgeo_init_GRL_config                            , &
+      timeframe_refgeo_init_ANT_config                            , &
+      choice_refgeo_PD_NAM_config                                 , &
+      choice_refgeo_PD_EAS_config                                 , &
+      choice_refgeo_PD_GRL_config                                 , &
+      choice_refgeo_PD_ANT_config                                 , &
+      choice_refgeo_PD_idealised_config                           , &
+      dx_refgeo_PD_idealised_config                               , &
+      filename_refgeo_PD_NAM_config                               , &
+      filename_refgeo_PD_EAS_config                               , &
+      filename_refgeo_PD_GRL_config                               , &
+      filename_refgeo_PD_ANT_config                               , &
+      timeframe_refgeo_PD_NAM_config                              , &
+      timeframe_refgeo_PD_EAS_config                              , &
+      timeframe_refgeo_PD_GRL_config                              , &
+      timeframe_refgeo_PD_ANT_config                              , &
+      choice_refgeo_GIAeq_NAM_config                              , &
+      choice_refgeo_GIAeq_EAS_config                              , &
+      choice_refgeo_GIAeq_GRL_config                              , &
+      choice_refgeo_GIAeq_ANT_config                              , &
+      choice_refgeo_GIAeq_idealised_config                        , &
+      dx_refgeo_GIAeq_idealised_config                            , &
+      filename_refgeo_GIAeq_NAM_config                            , &
+      filename_refgeo_GIAeq_EAS_config                            , &
+      filename_refgeo_GIAeq_GRL_config                            , &
+      filename_refgeo_GIAeq_ANT_config                            , &
+      timeframe_refgeo_GIAeq_NAM_config                           , &
+      timeframe_refgeo_GIAeq_EAS_config                           , &
+      timeframe_refgeo_GIAeq_GRL_config                           , &
+      timeframe_refgeo_GIAeq_ANT_config                           , &
+      refgeo_idealised_slabonaslope_Hi_config                     , &
+      refgeo_idealised_slabonaslope_dhdx_config                   , &
+      refgeo_idealised_Halfar_H0_config                           , &
+      refgeo_idealised_Halfar_R0_config                           , &
+      refgeo_idealised_Bueler_H0_config                           , &
+      refgeo_idealised_Bueler_R0_config                           , &
+      refgeo_idealised_Bueler_lambda_config                       , &
+      refgeo_idealised_SSA_icestream_Hi_config                    , &
+      refgeo_idealised_SSA_icestream_dhdx_config                  , &
+      refgeo_idealised_SSA_icestream_L_config                     , &
+      refgeo_idealised_SSA_icestream_m_config                     , &
+      refgeo_idealised_MISMIP_mod_Hi_init_config                  , &
+      refgeo_idealised_ISMIP_HOM_L_config                         , &
+      refgeo_idealised_MISMIPplus_Hi_init_config                  , &
+      choice_initial_mesh_NAM_config                              , &
+      choice_initial_mesh_EAS_config                              , &
+      choice_initial_mesh_GRL_config                              , &
+      choice_initial_mesh_ANT_config                              , &
+      filename_initial_mesh_NAM_config                            , &
+      filename_initial_mesh_EAS_config                            , &
+      filename_initial_mesh_GRL_config                            , &
+      filename_initial_mesh_ANT_config                            , &
+      maximum_resolution_uniform_config                           , &
+      maximum_resolution_grounded_ice_config                      , &
+      maximum_resolution_floating_ice_config                      , &
+      maximum_resolution_grounding_line_config                    , &
+      grounding_line_width_config                                 , &
+      maximum_resolution_calving_front_config                     , &
+      calving_front_width_config                                  , &
+      maximum_resolution_ice_front_config                         , &
+      ice_front_width_config                                      , &
+      maximum_resolution_coastline_config                         , &
+      coastline_width_config                                      , &
+      choice_regions_of_interest_config                           , &
+      ROI_maximum_resolution_uniform_config                       , &
+      ROI_maximum_resolution_grounded_ice_config                  , &
+      ROI_maximum_resolution_floating_ice_config                  , &
+      ROI_maximum_resolution_grounding_line_config                , &
+      ROI_grounding_line_width_config                             , &
+      ROI_maximum_resolution_calving_front_config                 , &
+      ROI_calving_front_width_config                              , &
+      ROI_maximum_resolution_ice_front_config                     , &
+      ROI_ice_front_width_config                                  , &
+      ROI_maximum_resolution_coastline_config                     , &
+      ROI_coastline_width_config                                  , &
+      dt_mesh_update_min_config                                   , &
+      do_singlecore_mesh_creation_config                          , &
+      alpha_min_config                                            , &
+      nit_Lloyds_algorithm_config                                 , &
+      mesh_resolution_tolerance_config                            , &
+      nC_mem_config                                               , &
+      choice_zeta_grid_config                                     , &
+      nz_config                                                   , &
+      zeta_irregular_log_R_config                                 , &
+      choice_stress_balance_approximation_config                  , &
+      choice_hybrid_SIASSA_scheme_config                          , &
+      do_include_SSADIVA_crossterms_config                        , &
+      choice_initial_velocity_NAM_config                          , &
+      choice_initial_velocity_EAS_config                          , &
+      choice_initial_velocity_GRL_config                          , &
+      choice_initial_velocity_ANT_config                          , &
+      filename_initial_velocity_NAM_config                        , &
+      filename_initial_velocity_EAS_config                        , &
+      filename_initial_velocity_GRL_config                        , &
+      filename_initial_velocity_ANT_config                        , &
+      timeframe_initial_velocity_NAM_config                       , &
+      timeframe_initial_velocity_EAS_config                       , &
+      timeframe_initial_velocity_GRL_config                       , &
+      timeframe_initial_velocity_ANT_config                       , &
+      SIA_maximum_diffusivity_config                              , &
+      visc_it_norm_dUV_tol_config                                 , &
+      visc_it_nit_config                                          , &
+      visc_it_relax_config                                        , &
+      visc_eff_min_config                                         , &
+      vel_max_config                                              , &
+      stress_balance_PETSc_rtol_config                            , &
+      stress_balance_PETSc_abstol_config                          , &
+      BC_u_west_config                                            , &
+      BC_u_east_config                                            , &
+      BC_u_south_config                                           , &
+      BC_u_north_config                                           , &
+      BC_v_west_config                                            , &
+      BC_v_east_config                                            , &
+      BC_v_south_config                                           , &
+      BC_v_north_config                                           , &
+      choice_sliding_law_config                                   , &
+      choice_idealised_sliding_law_config                         , &
+      slid_Weertman_m_config                                      , &
+      slid_Budd_q_plastic_config                                  , &
+      slid_Budd_u_threshold_config                                , &
+      slid_ZI_p_config                                            , &
+      slid_ZI_ut_config                                           , &
+      do_GL_subgrid_friction_config                               , &
+      choice_subgrid_grounded_fraction_config                     , &
+      subgrid_friction_exponent_config                            , &
+      slid_beta_max_config                                        , &
+      slid_delta_v_config                                         , &
+      choice_ice_integration_method_config                        , &
+      dHi_semiimplicit_fs_config                                  , &
+      dHi_PETSc_rtol_config                                       , &
+      dHi_PETSc_abstol_config                                     , &
+      BC_H_west_config                                            , &
+      BC_H_east_config                                            , &
+      BC_H_south_config                                           , &
+      BC_H_north_config                                           , &
+      choice_timestepping_config                                  , &
+      dt_ice_max_config                                           , &
+      dt_ice_min_config                                           , &
+      dt_ice_startup_phase_config                                 , &
+      pc_epsilon_config                                           , &
+      pc_k_I_config                                               , &
+      pc_k_p_config                                               , &
+      pc_eta_min_config                                           , &
+      choice_calving_law_config                                   , &
+      calving_threshold_thickness_shelf_config                    , &
+      calving_threshold_thickness_sheet_config                    , &
+      max_calving_rounds_config                                   , &
+      do_remove_shelves_config                                    , &
+      remove_shelves_larger_than_PD_config                        , &
+      continental_shelf_calving_config                            , &
+      continental_shelf_min_height_config                         , &
+      choice_mask_noice_config                                    , &
+      fixed_shelf_geometry_config                                 , &
+      fixed_sheet_geometry_config                                 , &
+      fixed_grounding_line_config                                 , &
+      choice_basal_hydrology_config                               , &
+      Martin2011_hydro_Hb_min_config                              , &
+      Martin2011_hydro_Hb_max_config                              , &
+      choice_bed_roughness_config                                 , &
+      choice_bed_roughness_parameterised_config                   , &
+      filename_bed_roughness_NAM_config                           , &
+      filename_bed_roughness_EAS_config                           , &
+      filename_bed_roughness_GRL_config                           , &
+      filename_bed_roughness_ANT_config                           , &
+      timeframe_bed_roughness_NAM_config                          , &
+      timeframe_bed_roughness_EAS_config                          , &
+      timeframe_bed_roughness_GRL_config                          , &
+      timeframe_bed_roughness_ANT_config                          , &
+      slid_Weertman_beta_sq_uniform_config                        , &
+      slid_Coulomb_phi_fric_uniform_config                        , &
+      slid_Budd_phi_fric_uniform_config                           , &
+      slid_Tsai2015_alpha_sq_uniform_config                       , &
+      slid_Tsai2015_beta_sq_uniform_config                        , &
+      slid_Schoof2005_alpha_sq_uniform_config                     , &
+      slid_Schoof2005_beta_sq_uniform_config                      , &
+      slid_ZI_phi_fric_uniform_config                             , &
+      Martin2011till_phi_Hb_min_config                            , &
+      Martin2011till_phi_Hb_max_config                            , &
+      Martin2011till_phi_min_config                               , &
+      Martin2011till_phi_max_config                               , &
+      do_bed_roughness_nudging_config                             , &
+      bed_roughness_nudging_t_start_config                        , &
+      bed_roughness_nudging_t_end_config                          , &
+      choice_bed_roughness_nudging_method_config                  , &
+      bed_roughness_nudging_dt_config                             , &
+      filename_inverted_bed_roughness_config                      , &
+      BIVgeo_Bernales_do_smooth_config                            , &
+      BIVgeo_Bernales_scale_config                                , &
+      BIVgeo_Bernales_rsmooth_config                              , &
+      BIVgeo_Bernales_wsmooth_config                              , &
+      BIVgeo_Bernales_phi_min_config                              , &
+      BIVgeo_Bernales_phi_max_config                              , &
+      BIVgeo_Bernales_tol_diff_config                             , &
+      BIVgeo_Bernales_tol_frac_config                             , &
+      BIVgeo_Berends2022_tauc_config                              , &
+      BIVgeo_Berends2022_H0_config                                , &
+      BIVgeo_Berends2022_u0_config                                , &
+      BIVgeo_Berends2022_Hi_scale_config                          , &
+      BIVgeo_Berends2022_u_scale_config                           , &
+      BIVgeo_Berends2022_phimin_config                            , &
+      BIVgeo_Berends2022_phimax_config                            , &
+      BIVgeo_target_velocity_filename_config                      , &
+      choice_geothermal_heat_flux_config                          , &
+      uniform_geothermal_heat_flux_config                         , &
+      filename_geothermal_heat_flux_config                        , &
+      choice_initial_ice_temperature_NAM_config                   , &
+      choice_initial_ice_temperature_EAS_config                   , &
+      choice_initial_ice_temperature_GRL_config                   , &
+      choice_initial_ice_temperature_ANT_config                   , &
+      uniform_initial_ice_temperature_NAM_config                  , &
+      uniform_initial_ice_temperature_EAS_config                  , &
+      uniform_initial_ice_temperature_GRL_config                  , &
+      uniform_initial_ice_temperature_ANT_config                  , &
+      filename_initial_ice_temperature_NAM_config                 , &
+      filename_initial_ice_temperature_EAS_config                 , &
+      filename_initial_ice_temperature_GRL_config                 , &
+      filename_initial_ice_temperature_ANT_config                 , &
+      timeframe_initial_ice_temperature_NAM_config                , &
+      timeframe_initial_ice_temperature_EAS_config                , &
+      timeframe_initial_ice_temperature_GRL_config                , &
+      timeframe_initial_ice_temperature_ANT_config                , &
+      choice_thermo_model_config                                  , &
+      choice_ice_heat_capacity_config                             , &
+      uniform_ice_heat_capacity_config                            , &
+      choice_ice_thermal_conductivity_config                      , &
+      uniform_ice_thermal_conductivity_config                     , &
+      choice_flow_law_config                                      , &
+      Glens_flow_law_exponent_config                              , &
+      Glens_flow_law_epsilon_sq_0_config                          , &
+      m_enh_sheet_config                                          , &
+      m_enh_shelf_config                                          , &
+      choice_ice_rheology_config                                  , &
+      uniform_flow_factor_config                                  , &
+      SELEN_run_at_t_start_config                                 , &
+      SELEN_n_TDOF_iterations_config                              , &
+      SELEN_n_recursion_iterations_config                         , &
+      SELEN_use_rotational_feedback_config                        , &
+      SELEN_n_harmonics_config                                    , &
+      SELEN_display_progress_config                               , &
+      SELEN_dir_config                                            , &
+      SELEN_global_topo_filename_config                           , &
+      SELEN_TABOO_init_filename_config                            , &
+      SELEN_LMJ_VALUES_filename_config                            , &
+      SELEN_irreg_time_n_config                                   , &
+      SELEN_irreg_time_window_config                              , &
+      SELEN_lith_thickness_config                                 , &
+      SELEN_visc_n_config                                         , &
+      SELEN_visc_prof_config                                      , &
+      SELEN_TABOO_CDE_config                                      , &
+      SELEN_TABOO_TLOVE_config                                    , &
+      SELEN_TABOO_DEG1_config                                     , &
+      SELEN_TABOO_RCMB_config                                     , &
+      choice_sealevel_model_config                                , &
       fixed_sealevel_config
+    ! End of the config NAMELIST
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -1515,472 +1562,495 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    ! Copy the values of the _config variables to the C structure
+
   ! General model instructions
   ! ==========================
 
     ! Output directory
-    C%create_procedural_output_dir             = create_procedural_output_dir_config
-    C%fixed_output_dir                         = fixed_output_dir_config
+    C%create_procedural_output_dir                           = create_procedural_output_dir_config
+    C%fixed_output_dir                                       = fixed_output_dir_config
 
     ! Debugging
-    C%do_write_debug_data                      = do_write_debug_data_config
-    C%do_check_for_NaN                         = do_check_for_NaN_config
-    C%do_time_display                          = do_time_display_config
+    C%do_unit_tests                                          = do_unit_tests_config
+    C%do_check_for_NaN                                       = do_check_for_NaN_config
+    C%do_time_display                                        = do_time_display_config
 
-  ! == Time steps and range
-  ! =======================
+  ! == Time of simulation
+  ! =====================
 
-    C%start_time_of_run                        = start_time_of_run_config
-    C%end_time_of_run                          = end_time_of_run_config
-    C%dt_coupling                              = dt_coupling_config
+    C%start_time_of_run                                      = start_time_of_run_config
+    C%end_time_of_run                                        = end_time_of_run_config
 
   ! == Which model regions to simulate
   ! ==================================
 
-    C%do_NAM                                   = do_NAM_config
-    C%do_EAS                                   = do_EAS_config
-    C%do_GRL                                   = do_GRL_config
-    C%do_ANT                                   = do_ANT_config
-
-  ! == Switch to do unit tests
-  ! ==========================
-
-    C%do_unit_tests                            = do_unit_tests_config
+    C%dt_coupling                                            = dt_coupling_config
+    C%do_NAM                                                 = do_NAM_config
+    C%do_EAS                                                 = do_EAS_config
+    C%do_GRL                                                 = do_GRL_config
+    C%do_ANT                                                 = do_ANT_config
 
   ! == The four model regions
   ! =========================
 
     ! North America
-    C%lambda_M_NAM                             = lambda_M_NAM_config
-    C%phi_M_NAM                                = phi_M_NAM_config
-    C%beta_stereo_NAM                          = beta_stereo_NAM_config
-    C%xmin_NAM                                 = xmin_NAM_config
-    C%xmax_NAM                                 = xmax_NAM_config
-    C%ymin_NAM                                 = ymin_NAM_config
-    C%ymax_NAM                                 = ymax_NAM_config
+    C%lambda_M_NAM                                           = lambda_M_NAM_config
+    C%phi_M_NAM                                              = phi_M_NAM_config
+    C%beta_stereo_NAM                                        = beta_stereo_NAM_config
+    C%xmin_NAM                                               = xmin_NAM_config
+    C%xmax_NAM                                               = xmax_NAM_config
+    C%ymin_NAM                                               = ymin_NAM_config
+    C%ymax_NAM                                               = ymax_NAM_config
 
     ! Eurasia
-    C%lambda_M_EAS                             = lambda_M_EAS_config
-    C%phi_M_EAS                                = phi_M_EAS_config
-    C%beta_stereo_EAS                          = beta_stereo_EAS_config
-    C%xmin_EAS                                 = xmin_EAS_config
-    C%xmax_EAS                                 = xmax_EAS_config
-    C%ymin_EAS                                 = ymin_EAS_config
-    C%ymax_EAS                                 = ymax_EAS_config
+    C%lambda_M_EAS                                           = lambda_M_EAS_config
+    C%phi_M_EAS                                              = phi_M_EAS_config
+    C%beta_stereo_EAS                                        = beta_stereo_EAS_config
+    C%xmin_EAS                                               = xmin_EAS_config
+    C%xmax_EAS                                               = xmax_EAS_config
+    C%ymin_EAS                                               = ymin_EAS_config
+    C%ymax_EAS                                               = ymax_EAS_config
 
     ! Greenland
-    C%lambda_M_GRL                             = lambda_M_GRL_config
-    C%phi_M_GRL                                = phi_M_GRL_config
-    C%beta_stereo_GRL                          = beta_stereo_GRL_config
-    C%xmin_GRL                                 = xmin_GRL_config
-    C%xmax_GRL                                 = xmax_GRL_config
-    C%ymin_GRL                                 = ymin_GRL_config
-    C%ymax_GRL                                 = ymax_GRL_config
+    C%lambda_M_GRL                                           = lambda_M_GRL_config
+    C%phi_M_GRL                                              = phi_M_GRL_config
+    C%beta_stereo_GRL                                        = beta_stereo_GRL_config
+    C%xmin_GRL                                               = xmin_GRL_config
+    C%xmax_GRL                                               = xmax_GRL_config
+    C%ymin_GRL                                               = ymin_GRL_config
+    C%ymax_GRL                                               = ymax_GRL_config
 
     ! Antarctica
-    C%lambda_M_ANT                             = lambda_M_ANT_config
-    C%phi_M_ANT                                = phi_M_ANT_config
-    C%beta_stereo_ANT                          = beta_stereo_ANT_config
-    C%xmin_ANT                                 = xmin_ANT_config
-    C%xmax_ANT                                 = xmax_ANT_config
-    C%ymin_ANT                                 = ymin_ANT_config
-    C%ymax_ANT                                 = ymax_ANT_config
+    C%lambda_M_ANT                                           = lambda_M_ANT_config
+    C%phi_M_ANT                                              = phi_M_ANT_config
+    C%beta_stereo_ANT                                        = beta_stereo_ANT_config
+    C%xmin_ANT                                               = xmin_ANT_config
+    C%xmax_ANT                                               = xmax_ANT_config
+    C%ymin_ANT                                               = ymin_ANT_config
+    C%ymax_ANT                                               = ymax_ANT_config
 
   ! == Reference geometries (initial, present-day, and GIA equilibrium)
   ! ===================================================================
 
     ! Some pre-processing stuff for reference ice geometry
-    C%refgeo_Hi_min                            = refgeo_Hi_min_config
-    C%remove_Lake_Vostok                       = remove_Lake_Vostok_config
+    C%refgeo_Hi_min                                          = refgeo_Hi_min_config
+    C%remove_Lake_Vostok                                     = remove_Lake_Vostok_config
 
     ! == Initial geometry
     ! ===================
 
-    C%choice_refgeo_init_NAM                   = choice_refgeo_init_NAM_config
-    C%choice_refgeo_init_EAS                   = choice_refgeo_init_EAS_config
-    C%choice_refgeo_init_GRL                   = choice_refgeo_init_GRL_config
-    C%choice_refgeo_init_ANT                   = choice_refgeo_init_ANT_config
+    C%choice_refgeo_init_NAM                                 = choice_refgeo_init_NAM_config
+    C%choice_refgeo_init_EAS                                 = choice_refgeo_init_EAS_config
+    C%choice_refgeo_init_GRL                                 = choice_refgeo_init_GRL_config
+    C%choice_refgeo_init_ANT                                 = choice_refgeo_init_ANT_config
     ! Idealised geometry when choice_refgeo_init == 'idealised'
-    C%choice_refgeo_init_idealised             = choice_refgeo_init_idealised_config
-    C%dx_refgeo_init_idealised                 = dx_refgeo_init_idealised_config
-    ! Path to file containing present-day geometry when choice_refgeo_init == 'read_from_file'
-    C%filename_refgeo_init_NAM                 = filename_refgeo_init_NAM_config
-    C%filename_refgeo_init_EAS                 = filename_refgeo_init_EAS_config
-    C%filename_refgeo_init_GRL                 = filename_refgeo_init_GRL_config
-    C%filename_refgeo_init_ANT                 = filename_refgeo_init_ANT_config
+    C%choice_refgeo_init_idealised                           = choice_refgeo_init_idealised_config
+    C%dx_refgeo_init_idealised                               = dx_refgeo_init_idealised_config
+    ! Path to file containing initial geometry when choice_refgeo_init == 'read_from_file'
+    C%filename_refgeo_init_NAM                               = filename_refgeo_init_NAM_config
+    C%filename_refgeo_init_EAS                               = filename_refgeo_init_EAS_config
+    C%filename_refgeo_init_GRL                               = filename_refgeo_init_GRL_config
+    C%filename_refgeo_init_ANT                               = filename_refgeo_init_ANT_config
     ! Timeframe to read from the geometry file (set to 1E9_dp if the file has no time dimension)
-    C%timeframe_refgeo_init_NAM                = timeframe_refgeo_init_NAM_config
-    C%timeframe_refgeo_init_EAS                = timeframe_refgeo_init_EAS_config
-    C%timeframe_refgeo_init_GRL                = timeframe_refgeo_init_GRL_config
-    C%timeframe_refgeo_init_ANT                = timeframe_refgeo_init_ANT_config
+    C%timeframe_refgeo_init_NAM                              = timeframe_refgeo_init_NAM_config
+    C%timeframe_refgeo_init_EAS                              = timeframe_refgeo_init_EAS_config
+    C%timeframe_refgeo_init_GRL                              = timeframe_refgeo_init_GRL_config
+    C%timeframe_refgeo_init_ANT                              = timeframe_refgeo_init_ANT_config
 
     ! == Present-day geometry
     ! =======================
 
-    C%choice_refgeo_PD_NAM                     = choice_refgeo_PD_NAM_config
-    C%choice_refgeo_PD_EAS                     = choice_refgeo_PD_EAS_config
-    C%choice_refgeo_PD_GRL                     = choice_refgeo_PD_GRL_config
-    C%choice_refgeo_PD_ANT                     = choice_refgeo_PD_ANT_config
+    C%choice_refgeo_PD_NAM                                   = choice_refgeo_PD_NAM_config
+    C%choice_refgeo_PD_EAS                                   = choice_refgeo_PD_EAS_config
+    C%choice_refgeo_PD_GRL                                   = choice_refgeo_PD_GRL_config
+    C%choice_refgeo_PD_ANT                                   = choice_refgeo_PD_ANT_config
     ! Idealised geometry when choice_refgeo_PD == 'idealised'
-    C%choice_refgeo_PD_idealised               = choice_refgeo_PD_idealised_config
-    C%dx_refgeo_PD_idealised                   = dx_refgeo_PD_idealised_config
+    C%choice_refgeo_PD_idealised                             = choice_refgeo_PD_idealised_config
+    C%dx_refgeo_PD_idealised                                 = dx_refgeo_PD_idealised_config
     ! Path to file containing present-day geometry when choice_refgeo_PD == 'read_from_file'
-    C%filename_refgeo_PD_NAM                   = filename_refgeo_PD_NAM_config
-    C%filename_refgeo_PD_EAS                   = filename_refgeo_PD_EAS_config
-    C%filename_refgeo_PD_GRL                   = filename_refgeo_PD_GRL_config
-    C%filename_refgeo_PD_ANT                   = filename_refgeo_PD_ANT_config
+    C%filename_refgeo_PD_NAM                                 = filename_refgeo_PD_NAM_config
+    C%filename_refgeo_PD_EAS                                 = filename_refgeo_PD_EAS_config
+    C%filename_refgeo_PD_GRL                                 = filename_refgeo_PD_GRL_config
+    C%filename_refgeo_PD_ANT                                 = filename_refgeo_PD_ANT_config
     ! Timeframe to read from the geometry file (set to 1E9_dp if the file has no time dimension)
-    C%timeframe_refgeo_PD_NAM                  = timeframe_refgeo_PD_NAM_config
-    C%timeframe_refgeo_PD_EAS                  = timeframe_refgeo_PD_EAS_config
-    C%timeframe_refgeo_PD_GRL                  = timeframe_refgeo_PD_GRL_config
-    C%timeframe_refgeo_PD_ANT                  = timeframe_refgeo_PD_ANT_config
+    C%timeframe_refgeo_PD_NAM                                = timeframe_refgeo_PD_NAM_config
+    C%timeframe_refgeo_PD_EAS                                = timeframe_refgeo_PD_EAS_config
+    C%timeframe_refgeo_PD_GRL                                = timeframe_refgeo_PD_GRL_config
+    C%timeframe_refgeo_PD_ANT                                = timeframe_refgeo_PD_ANT_config
 
     ! == GIA equilibrium geometry
     ! ===========================
 
-    C%choice_refgeo_GIAeq_NAM                  = choice_refgeo_GIAeq_NAM_config
-    C%choice_refgeo_GIAeq_EAS                  = choice_refgeo_GIAeq_EAS_config
-    C%choice_refgeo_GIAeq_GRL                  = choice_refgeo_GIAeq_GRL_config
-    C%choice_refgeo_GIAeq_ANT                  = choice_refgeo_GIAeq_ANT_config
+    C%choice_refgeo_GIAeq_NAM                                = choice_refgeo_GIAeq_NAM_config
+    C%choice_refgeo_GIAeq_EAS                                = choice_refgeo_GIAeq_EAS_config
+    C%choice_refgeo_GIAeq_GRL                                = choice_refgeo_GIAeq_GRL_config
+    C%choice_refgeo_GIAeq_ANT                                = choice_refgeo_GIAeq_ANT_config
     ! Idealised geometry when choice_refgeo_GIAeq == 'idealised'
-    C%choice_refgeo_GIAeq_idealised            = choice_refgeo_GIAeq_idealised_config
-    C%dx_refgeo_GIAeq_idealised                = dx_refgeo_GIAeq_idealised_config
-    ! Path to file containing present-day geometry when choice_refgeo_GIAeq == 'read_from_file'
-    C%filename_refgeo_GIAeq_NAM                = filename_refgeo_GIAeq_NAM_config
-    C%filename_refgeo_GIAeq_EAS                = filename_refgeo_GIAeq_EAS_config
-    C%filename_refgeo_GIAeq_GRL                = filename_refgeo_GIAeq_GRL_config
-    C%filename_refgeo_GIAeq_ANT                = filename_refgeo_GIAeq_ANT_config
+    C%choice_refgeo_GIAeq_idealised                          = choice_refgeo_GIAeq_idealised_config
+    C%dx_refgeo_GIAeq_idealised                              = dx_refgeo_GIAeq_idealised_config
+    ! Path to file containing GIA equilibrium reference geometry when choice_refgeo_GIAeq == 'read_from_file'
+    C%filename_refgeo_GIAeq_NAM                              = filename_refgeo_GIAeq_NAM_config
+    C%filename_refgeo_GIAeq_EAS                              = filename_refgeo_GIAeq_EAS_config
+    C%filename_refgeo_GIAeq_GRL                              = filename_refgeo_GIAeq_GRL_config
+    C%filename_refgeo_GIAeq_ANT                              = filename_refgeo_GIAeq_ANT_config
     ! Timeframe to read from the geometry file (set to 1E9_dp if the file has no time dimension)
-    C%timeframe_refgeo_GIAeq_NAM               = timeframe_refgeo_GIAeq_NAM_config
-    C%timeframe_refgeo_GIAeq_EAS               = timeframe_refgeo_GIAeq_EAS_config
-    C%timeframe_refgeo_GIAeq_GRL               = timeframe_refgeo_GIAeq_GRL_config
-    C%timeframe_refgeo_GIAeq_ANT               = timeframe_refgeo_GIAeq_ANT_config
+    C%timeframe_refgeo_GIAeq_NAM                             = timeframe_refgeo_GIAeq_NAM_config
+    C%timeframe_refgeo_GIAeq_EAS                             = timeframe_refgeo_GIAeq_EAS_config
+    C%timeframe_refgeo_GIAeq_GRL                             = timeframe_refgeo_GIAeq_GRL_config
+    C%timeframe_refgeo_GIAeq_ANT                             = timeframe_refgeo_GIAeq_ANT_config
 
     ! == Parameters for idealised geometries
     ! ======================================
 
-    C%refgeo_idealised_slabonaslope_Hi         = refgeo_idealised_slabonaslope_Hi_config
-    C%refgeo_idealised_slabonaslope_dhdx       = refgeo_idealised_slabonaslope_dhdx_config
-    C%refgeo_idealised_Halfar_H0               = refgeo_idealised_Halfar_H0_config
-    C%refgeo_idealised_Halfar_R0               = refgeo_idealised_Halfar_R0_config
-    C%refgeo_idealised_Bueler_H0               = refgeo_idealised_Bueler_H0_config
-    C%refgeo_idealised_Bueler_R0               = refgeo_idealised_Bueler_R0_config
-    C%refgeo_idealised_Bueler_lambda           = refgeo_idealised_Bueler_lambda_config
-    C%refgeo_idealised_SSA_icestream_Hi        = refgeo_idealised_SSA_icestream_Hi_config
-    C%refgeo_idealised_SSA_icestream_dhdx      = refgeo_idealised_SSA_icestream_dhdx_config
-    C%refgeo_idealised_SSA_icestream_L         = refgeo_idealised_SSA_icestream_L_config
-    C%refgeo_idealised_SSA_icestream_m         = refgeo_idealised_SSA_icestream_m_config
-    C%refgeo_idealised_MISMIP_mod_Hi_init      = refgeo_idealised_MISMIP_mod_Hi_init_config
-    C%refgeo_idealised_ISMIP_HOM_L             = refgeo_idealised_ISMIP_HOM_L_config
-    C%refgeo_idealised_MISMIPplus_Hi_init      = refgeo_idealised_MISMIPplus_Hi_init_config
+    C%refgeo_idealised_slabonaslope_Hi                       = refgeo_idealised_slabonaslope_Hi_config
+    C%refgeo_idealised_slabonaslope_dhdx                     = refgeo_idealised_slabonaslope_dhdx_config
+    C%refgeo_idealised_Halfar_H0                             = refgeo_idealised_Halfar_H0_config
+    C%refgeo_idealised_Halfar_R0                             = refgeo_idealised_Halfar_R0_config
+    C%refgeo_idealised_Bueler_H0                             = refgeo_idealised_Bueler_H0_config
+    C%refgeo_idealised_Bueler_R0                             = refgeo_idealised_Bueler_R0_config
+    C%refgeo_idealised_Bueler_lambda                         = refgeo_idealised_Bueler_lambda_config
+    C%refgeo_idealised_SSA_icestream_Hi                      = refgeo_idealised_SSA_icestream_Hi_config
+    C%refgeo_idealised_SSA_icestream_dhdx                    = refgeo_idealised_SSA_icestream_dhdx_config
+    C%refgeo_idealised_SSA_icestream_L                       = refgeo_idealised_SSA_icestream_L_config
+    C%refgeo_idealised_SSA_icestream_m                       = refgeo_idealised_SSA_icestream_m_config
+    C%refgeo_idealised_MISMIP_mod_Hi_init                    = refgeo_idealised_MISMIP_mod_Hi_init_config
+    C%refgeo_idealised_ISMIP_HOM_L                           = refgeo_idealised_ISMIP_HOM_L_config
+    C%refgeo_idealised_MISMIPplus_Hi_init                    = refgeo_idealised_MISMIPplus_Hi_init_config
 
   ! == Mesh generation
   ! ==================
 
     ! How to set up the initial mesh
-    C%choice_initial_mesh_NAM                  = choice_initial_mesh_NAM_config
-    C%choice_initial_mesh_EAS                  = choice_initial_mesh_EAS_config
-    C%choice_initial_mesh_GRL                  = choice_initial_mesh_GRL_config
-    C%choice_initial_mesh_ANT                  = choice_initial_mesh_ANT_config
+    C%choice_initial_mesh_NAM                                = choice_initial_mesh_NAM_config
+    C%choice_initial_mesh_EAS                                = choice_initial_mesh_EAS_config
+    C%choice_initial_mesh_GRL                                = choice_initial_mesh_GRL_config
+    C%choice_initial_mesh_ANT                                = choice_initial_mesh_ANT_config
 
     ! Paths to files containing initial meshes, if choice_initial_mesh == 'read_from_file'
-    C%filename_initial_mesh_NAM                = filename_initial_mesh_NAM_config
-    C%filename_initial_mesh_EAS                = filename_initial_mesh_EAS_config
-    C%filename_initial_mesh_GRL                = filename_initial_mesh_GRL_config
-    C%filename_initial_mesh_ANT                = filename_initial_mesh_ANT_config
+    C%filename_initial_mesh_NAM                              = filename_initial_mesh_NAM_config
+    C%filename_initial_mesh_EAS                              = filename_initial_mesh_EAS_config
+    C%filename_initial_mesh_GRL                              = filename_initial_mesh_GRL_config
+    C%filename_initial_mesh_ANT                              = filename_initial_mesh_ANT_config
 
     ! Resolutions for different parts of the ice sheet
-    C%maximum_resolution_uniform               = maximum_resolution_uniform_config
-    C%maximum_resolution_grounded_ice          = maximum_resolution_grounded_ice_config
-    C%maximum_resolution_floating_ice          = maximum_resolution_floating_ice_config
-    C%maximum_resolution_grounding_line        = maximum_resolution_grounding_line_config
-    C%grounding_line_width                     = grounding_line_width_config
-    C%maximum_resolution_calving_front         = maximum_resolution_calving_front_config
-    C%calving_front_width                      = calving_front_width_config
-    C%maximum_resolution_ice_front             = maximum_resolution_ice_front_config
-    C%ice_front_width                          = ice_front_width_config
-    C%maximum_resolution_coastline             = maximum_resolution_coastline_config
-    C%coastline_width                          = coastline_width_config
+    C%maximum_resolution_uniform                             = maximum_resolution_uniform_config
+    C%maximum_resolution_grounded_ice                        = maximum_resolution_grounded_ice_config
+    C%maximum_resolution_floating_ice                        = maximum_resolution_floating_ice_config
+    C%maximum_resolution_grounding_line                      = maximum_resolution_grounding_line_config
+    C%grounding_line_width                                   = grounding_line_width_config
+    C%maximum_resolution_calving_front                       = maximum_resolution_calving_front_config
+    C%calving_front_width                                    = calving_front_width_config
+    C%maximum_resolution_ice_front                           = maximum_resolution_ice_front_config
+    C%ice_front_width                                        = ice_front_width_config
+    C%maximum_resolution_coastline                           = maximum_resolution_coastline_config
+    C%coastline_width                                        = coastline_width_config
 
     ! Regions of interest
-    C%choice_regions_of_interest               = choice_regions_of_interest_config
-    C%ROI_maximum_resolution_uniform           = ROI_maximum_resolution_uniform_config
-    C%ROI_maximum_resolution_grounded_ice      = ROI_maximum_resolution_grounded_ice_config
-    C%ROI_maximum_resolution_floating_ice      = ROI_maximum_resolution_floating_ice_config
-    C%ROI_maximum_resolution_grounding_line    = ROI_maximum_resolution_grounding_line_config
-    C%ROI_grounding_line_width                 = ROI_grounding_line_width_config
-    C%ROI_maximum_resolution_calving_front     = ROI_maximum_resolution_calving_front_config
-    C%ROI_calving_front_width                  = ROI_calving_front_width_config
-    C%ROI_maximum_resolution_ice_front         = ROI_maximum_resolution_ice_front_config
-    C%ROI_ice_front_width                      = ROI_ice_front_width_config
-    C%ROI_maximum_resolution_coastline         = ROI_maximum_resolution_coastline_config
-    C%ROI_coastline_width                      = ROI_coastline_width_config
+    C%choice_regions_of_interest                             = choice_regions_of_interest_config
+    C%ROI_maximum_resolution_uniform                         = ROI_maximum_resolution_uniform_config
+    C%ROI_maximum_resolution_grounded_ice                    = ROI_maximum_resolution_grounded_ice_config
+    C%ROI_maximum_resolution_floating_ice                    = ROI_maximum_resolution_floating_ice_config
+    C%ROI_maximum_resolution_grounding_line                  = ROI_maximum_resolution_grounding_line_config
+    C%ROI_grounding_line_width                               = ROI_grounding_line_width_config
+    C%ROI_maximum_resolution_calving_front                   = ROI_maximum_resolution_calving_front_config
+    C%ROI_calving_front_width                                = ROI_calving_front_width_config
+    C%ROI_maximum_resolution_ice_front                       = ROI_maximum_resolution_ice_front_config
+    C%ROI_ice_front_width                                    = ROI_ice_front_width_config
+    C%ROI_maximum_resolution_coastline                       = ROI_maximum_resolution_coastline_config
+    C%ROI_coastline_width                                    = ROI_coastline_width_config
+
+    ! Mesh update settings
+    C%dt_mesh_update_min                                     = dt_mesh_update_min_config
 
     ! Advanced geometry parameters
-    C%do_singlecore_mesh_creation              = do_singlecore_mesh_creation_config
-    C%alpha_min                                = alpha_min_config
-    C%nit_Lloyds_algorithm                     = nit_Lloyds_algorithm_config
-    C%mesh_resolution_tolerance                = mesh_resolution_tolerance_config
+    C%do_singlecore_mesh_creation                            = do_singlecore_mesh_creation_config
+    C%alpha_min                                              = alpha_min_config
+    C%nit_Lloyds_algorithm                                   = nit_Lloyds_algorithm_config
+    C%mesh_resolution_tolerance                              = mesh_resolution_tolerance_config
 
     ! Memory
-    C%nC_mem                                   = nC_mem_config
+    C%nC_mem                                                 = nC_mem_config
 
   ! == The scaled vertical coordinate zeta
   ! ======================================
 
-    C%choice_zeta_grid                         = choice_zeta_grid_config
-    C%nz                                       = nz_config
-    C%zeta_irregular_log_R                     = zeta_irregular_log_R_config
+    C%choice_zeta_grid                                       = choice_zeta_grid_config
+    C%nz                                                     = nz_config
+    C%zeta_irregular_log_R                                   = zeta_irregular_log_R_config
 
   ! == Ice dynamics - velocity
   ! ==========================
 
     ! General
-    C%choice_stress_balance_approximation      = choice_stress_balance_approximation_config
-    C%n_flow                                   = n_flow_config
-    C%m_enh_sheet                              = m_enh_sheet_config
-    C%m_enh_shelf                              = m_enh_shelf_config
-    C%choice_hybrid_SIASSA_scheme              = choice_hybrid_SIASSA_scheme_config
-    C%do_GL_subgrid_friction                   = do_GL_subgrid_friction_config
-    C%subgrid_friction_exponent                = subgrid_friction_exponent_config
-    C%do_include_SSADIVA_crossterms            = do_include_SSADIVA_crossterms_config
+    C%choice_stress_balance_approximation                    = choice_stress_balance_approximation_config
+    C%choice_hybrid_SIASSA_scheme                            = choice_hybrid_SIASSA_scheme_config
+    C%do_include_SSADIVA_crossterms                          = do_include_SSADIVA_crossterms_config
 
     ! Initialisation
-    C%choice_initial_velocity_NAM              = choice_initial_velocity_NAM_config
-    C%choice_initial_velocity_EAS              = choice_initial_velocity_EAS_config
-    C%choice_initial_velocity_GRL              = choice_initial_velocity_GRL_config
-    C%choice_initial_velocity_ANT              = choice_initial_velocity_ANT_config
+    C%choice_initial_velocity_NAM                            = choice_initial_velocity_NAM_config
+    C%choice_initial_velocity_EAS                            = choice_initial_velocity_EAS_config
+    C%choice_initial_velocity_GRL                            = choice_initial_velocity_GRL_config
+    C%choice_initial_velocity_ANT                            = choice_initial_velocity_ANT_config
     ! Paths to files containing initial velocity fields
-    C%filename_initial_velocity_NAM            = filename_initial_velocity_NAM_config
-    C%filename_initial_velocity_EAS            = filename_initial_velocity_EAS_config
-    C%filename_initial_velocity_GRL            = filename_initial_velocity_GRL_config
-    C%filename_initial_velocity_ANT            = filename_initial_velocity_ANT_config
+    C%filename_initial_velocity_NAM                          = filename_initial_velocity_NAM_config
+    C%filename_initial_velocity_EAS                          = filename_initial_velocity_EAS_config
+    C%filename_initial_velocity_GRL                          = filename_initial_velocity_GRL_config
+    C%filename_initial_velocity_ANT                          = filename_initial_velocity_ANT_config
     ! Timeframes to read from the initial velocity files (set to 1E9_dp if the file has no time dimension)
-    C%timeframe_initial_velocity_NAM           = timeframe_initial_velocity_NAM_config
-    C%timeframe_initial_velocity_EAS           = timeframe_initial_velocity_EAS_config
-    C%timeframe_initial_velocity_GRL           = timeframe_initial_velocity_GRL_config
-    C%timeframe_initial_velocity_ANT           = timeframe_initial_velocity_ANT_config
+    C%timeframe_initial_velocity_NAM                         = timeframe_initial_velocity_NAM_config
+    C%timeframe_initial_velocity_EAS                         = timeframe_initial_velocity_EAS_config
+    C%timeframe_initial_velocity_GRL                         = timeframe_initial_velocity_GRL_config
+    C%timeframe_initial_velocity_ANT                         = timeframe_initial_velocity_ANT_config
 
     ! Some parameters for numerically solving the stress balance
-    C%SIA_maximum_diffusivity                  = SIA_maximum_diffusivity_config
-    C%visc_it_norm_dUV_tol                     = visc_it_norm_dUV_tol_config
-    C%visc_it_nit                              = visc_it_nit_config
-    C%visc_it_relax                            = visc_it_relax_config
-    C%epsilon_sq_0                             = epsilon_sq_0_config
-    C%visc_eff_min                             = visc_eff_min_config
-    C%beta_max                                 = beta_max_config
-    C%vel_max                                  = vel_max_config
-    C%stress_balance_PETSc_rtol                = stress_balance_PETSc_rtol_config
-    C%stress_balance_PETSc_abstol              = stress_balance_PETSc_abstol_config
+    C%SIA_maximum_diffusivity                                = SIA_maximum_diffusivity_config
+    C%visc_it_norm_dUV_tol                                   = visc_it_norm_dUV_tol_config
+    C%visc_it_nit                                            = visc_it_nit_config
+    C%visc_it_relax                                          = visc_it_relax_config
+    C%visc_eff_min                                           = visc_eff_min_config
+    C%vel_max                                                = vel_max_config
+    C%stress_balance_PETSc_rtol                              = stress_balance_PETSc_rtol_config
+    C%stress_balance_PETSc_abstol                            = stress_balance_PETSc_abstol_config
 
-  ! == Ice dynamics - sliding law
-  ! =============================
+    ! Boundary conditions
+    C%BC_u_west                                              = BC_u_west_config
+    C%BC_u_east                                              = BC_u_east_config
+    C%BC_u_south                                             = BC_u_south_config
+    C%BC_u_north                                             = BC_u_north_config
+    C%BC_v_west                                              = BC_v_west_config
+    C%BC_v_east                                              = BC_v_east_config
+    C%BC_v_south                                             = BC_v_south_config
+    C%BC_v_north                                             = BC_v_north_config
 
-    ! Sliding laws
-    C%choice_sliding_law                       = choice_sliding_law_config
-    C%choice_idealised_sliding_law             = choice_idealised_sliding_law_config
-    C%slid_delta_v                             = slid_delta_v_config
-    C%slid_Weertman_m                          = slid_Weertman_m_config
-    C%slid_Budd_q_plastic                      = slid_Budd_q_plastic_config
-    C%slid_Budd_u_threshold                    = slid_Budd_u_threshold_config
-    C%slid_ZI_ut                               = slid_ZI_ut_config
-    C%slid_ZI_p                                = slid_ZI_p_config
+  ! == Ice dynamics - sliding
+  ! =========================
 
-  ! == Ice dynamics - boundary conditions
-  ! =====================================
+    ! General
+    C%choice_sliding_law                                     = choice_sliding_law_config
+    C%choice_idealised_sliding_law                           = choice_idealised_sliding_law_config
 
-    C%BC_u_west                                = BC_u_west_config
-    C%BC_u_east                                = BC_u_east_config
-    C%BC_u_south                               = BC_u_south_config
-    C%BC_u_north                               = BC_u_north_config
-    C%BC_v_west                                = BC_v_west_config
-    C%BC_v_east                                = BC_v_east_config
-    C%BC_v_south                               = BC_v_south_config
-    C%BC_v_north                               = BC_v_north_config
-    C%BC_H_west                                = BC_H_west_config
-    C%BC_H_east                                = BC_H_east_config
-    C%BC_H_south                               = BC_H_south_config
-    C%BC_H_north                               = BC_H_north_config
+    ! Parameters for different sliding laws
+    C%slid_Weertman_m                                        = slid_Weertman_m_config
+    C%slid_Budd_q_plastic                                    = slid_Budd_q_plastic_config
+    C%slid_Budd_u_threshold                                  = slid_Budd_u_threshold_config
+    C%slid_ZI_p                                              = slid_ZI_p_config
+    C%slid_ZI_ut                                             = slid_ZI_ut_config
 
-  ! == Ice dynamics - time integration
-  ! ==================================
+    ! Sub-grid scaling of basal friction
+    C%do_GL_subgrid_friction                                 = do_GL_subgrid_friction_config
+    C%choice_subgrid_grounded_fraction                       = choice_subgrid_grounded_fraction_config
+    C%subgrid_friction_exponent                              = subgrid_friction_exponent_config
 
-    C%choice_timestepping                      = choice_timestepping_config
-    C%choice_ice_integration_method            = choice_ice_integration_method_config
-    C%dHi_semiimplicit_fs                      = dHi_semiimplicit_fs_config
-    C%dHi_PETSc_rtol                           = dHi_PETSc_rtol_config
-    C%dHi_PETSc_abstol                         = dHi_PETSc_rtol_config
+    ! Stability
+    C%slid_beta_max                                          = slid_beta_max_config
+    C%slid_delta_v                                           = slid_delta_v_config
+
+  ! == Ice dynamics - ice thickness calculation
+  ! ===========================================
+
+    ! Calculation of dH/dt
+    C%choice_ice_integration_method                          = choice_ice_integration_method_config
+    C%dHi_semiimplicit_fs                                    = dHi_semiimplicit_fs_config
+    C%dHi_PETSc_rtol                                         = dHi_PETSc_rtol_config
+    C%dHi_PETSc_abstol                                       = dHi_PETSc_abstol_config
+
+    ! Boundary conditions
+    C%BC_H_west                                              = BC_H_west_config
+    C%BC_H_east                                              = BC_H_east_config
+    C%BC_H_south                                             = BC_H_south_config
+    C%BC_H_north                                             = BC_H_north_config
+
+  ! == Ice dynamics - time stepping
+  ! ===============================
+
+    ! Time stepping
+    C%choice_timestepping                                    = choice_timestepping_config
+    C%dt_ice_max                                             = dt_ice_max_config
+    C%dt_ice_min                                             = dt_ice_min_config
+    C%dt_ice_startup_phase                                   = dt_ice_startup_phase_config
 
     ! Predictor-corrector ice-thickness update
-    C%pc_epsilon                               = pc_epsilon_config
-    C%pc_k_I                                   = pc_k_I_config
-    C%pc_k_p                                   = pc_k_p_config
-    C%pc_eta_min                               = pc_eta_min_config
+    C%pc_epsilon                                             = pc_epsilon_config
+    C%pc_k_I                                                 = pc_k_I_config
+    C%pc_k_p                                                 = pc_k_p_config
+    C%pc_eta_min                                             = pc_eta_min_config
 
   ! == Ice dynamics - calving
   ! =========================
 
-    C%choice_calving_law                       = choice_calving_law_config
-    C%calving_threshold_thickness_shelf        = calving_threshold_thickness_shelf_config
-    C%calving_threshold_thickness_sheet        = calving_threshold_thickness_sheet_config
-    C%max_calving_rounds                       = max_calving_rounds_config
-    C%do_remove_shelves                        = do_remove_shelves_config
-    C%remove_shelves_larger_than_PD            = remove_shelves_larger_than_PD_config
-    C%continental_shelf_calving                = continental_shelf_calving_config
-    C%continental_shelf_min_height             = continental_shelf_min_height_config
+    C%choice_calving_law                                     = choice_calving_law_config
+    C%calving_threshold_thickness_shelf                      = calving_threshold_thickness_shelf_config
+    C%calving_threshold_thickness_sheet                      = calving_threshold_thickness_sheet_config
+    C%max_calving_rounds                                     = max_calving_rounds_config
+    C%do_remove_shelves                                      = do_remove_shelves_config
+    C%remove_shelves_larger_than_PD                          = remove_shelves_larger_than_PD_config
+    C%continental_shelf_calving                              = continental_shelf_calving_config
+    C%continental_shelf_min_height                           = continental_shelf_min_height_config
 
   ! == Ice dynamics - stabilisation
   ! ===============================
 
-    C%choice_mask_noice                        = choice_mask_noice_config
+    C%choice_mask_noice                                      = choice_mask_noice_config
 
     ! Partially fixed geometry, useful for initialisation and inversion runs
-    C%fixed_shelf_geometry                     = fixed_shelf_geometry_config
-    C%fixed_sheet_geometry                     = fixed_sheet_geometry_config
-    C%fixed_grounding_line                     = fixed_grounding_line_config
+    C%fixed_shelf_geometry                                   = fixed_shelf_geometry_config
+    C%fixed_sheet_geometry                                   = fixed_sheet_geometry_config
+    C%fixed_grounding_line                                   = fixed_grounding_line_config
 
   ! == Basal hydrology
   ! ==================
 
     ! Basal hydrology
-    C%choice_basal_hydrology                   = choice_basal_hydrology_config
-    C%Martin2011_hydro_Hb_min                  = Martin2011_hydro_Hb_min_config
-    C%Martin2011_hydro_Hb_max                  = Martin2011_hydro_Hb_max_config
+    C%choice_basal_hydrology                                 = choice_basal_hydrology_config
+    C%Martin2011_hydro_Hb_min                                = Martin2011_hydro_Hb_min_config
+    C%Martin2011_hydro_Hb_max                                = Martin2011_hydro_Hb_max_config
 
   ! == Bed roughness
   ! ==================
 
-    C%choice_bed_roughness                     = choice_bed_roughness_config
-    C%choice_bed_roughness_parameterised       = choice_bed_roughness_parameterised_config
+    C%choice_bed_roughness                                   = choice_bed_roughness_config
+    C%choice_bed_roughness_parameterised                     = choice_bed_roughness_parameterised_config
     ! Paths to files containing bed roughness fields for the chosen sliding law
-    C%filename_bed_roughness_NAM               = filename_bed_roughness_NAM_config
-    C%filename_bed_roughness_EAS               = filename_bed_roughness_EAS_config
-    C%filename_bed_roughness_GRL               = filename_bed_roughness_GRL_config
-    C%filename_bed_roughness_ANT               = filename_bed_roughness_ANT_config
+    C%filename_bed_roughness_NAM                             = filename_bed_roughness_NAM_config
+    C%filename_bed_roughness_EAS                             = filename_bed_roughness_EAS_config
+    C%filename_bed_roughness_GRL                             = filename_bed_roughness_GRL_config
+    C%filename_bed_roughness_ANT                             = filename_bed_roughness_ANT_config
     ! Timeframes to read from the bed roughness file (set to 1E9_dp if the file has no time dimension)
-    C%timeframe_bed_roughness_NAM              = timeframe_bed_roughness_NAM_config
-    C%timeframe_bed_roughness_EAS              = timeframe_bed_roughness_EAS_config
-    C%timeframe_bed_roughness_GRL              = timeframe_bed_roughness_GRL_config
-    C%timeframe_bed_roughness_ANT              = timeframe_bed_roughness_ANT_config
+    C%timeframe_bed_roughness_NAM                            = timeframe_bed_roughness_NAM_config
+    C%timeframe_bed_roughness_EAS                            = timeframe_bed_roughness_EAS_config
+    C%timeframe_bed_roughness_GRL                            = timeframe_bed_roughness_GRL_config
+    C%timeframe_bed_roughness_ANT                            = timeframe_bed_roughness_ANT_config
     ! Values for uniform bed roughness
-    C%slid_Weertman_beta_sq_uniform            = slid_Weertman_beta_sq_uniform_config
-    C%slid_Coulomb_phi_fric_uniform            = slid_Coulomb_phi_fric_uniform_config
-    C%slid_Budd_phi_fric_uniform               = slid_Budd_phi_fric_uniform_config
-    C%slid_Tsai2015_alpha_sq_uniform           = slid_Tsai2015_alpha_sq_uniform_config
-    C%slid_Tsai2015_beta_sq_uniform            = slid_Tsai2015_beta_sq_uniform_config
-    C%slid_Schoof2005_alpha_sq_uniform         = slid_Schoof2005_alpha_sq_uniform_config
-    C%slid_Schoof2005_beta_sq_uniform          = slid_Schoof2005_beta_sq_uniform_config
-    C%slid_ZI_phi_fric_uniform                 = slid_ZI_phi_fric_uniform_config
+    C%slid_Weertman_beta_sq_uniform                          = slid_Weertman_beta_sq_uniform_config
+    C%slid_Coulomb_phi_fric_uniform                          = slid_Coulomb_phi_fric_uniform_config
+    C%slid_Budd_phi_fric_uniform                             = slid_Budd_phi_fric_uniform_config
+    C%slid_Tsai2015_alpha_sq_uniform                         = slid_Tsai2015_alpha_sq_uniform_config
+    C%slid_Tsai2015_beta_sq_uniform                          = slid_Tsai2015_beta_sq_uniform_config
+    C%slid_Schoof2005_alpha_sq_uniform                       = slid_Schoof2005_alpha_sq_uniform_config
+    C%slid_Schoof2005_beta_sq_uniform                        = slid_Schoof2005_beta_sq_uniform_config
+    C%slid_ZI_phi_fric_uniform                               = slid_ZI_phi_fric_uniform_config
     ! Parameters for bed roughness parameterisations
-    C%Martin2011till_phi_Hb_min                = Martin2011till_phi_Hb_min_config
-    C%Martin2011till_phi_Hb_max                = Martin2011till_phi_Hb_max_config
-    C%Martin2011till_phi_min                   = Martin2011till_phi_min_config
-    C%Martin2011till_phi_max                   = Martin2011till_phi_max_config
+    C%Martin2011till_phi_Hb_min                              = Martin2011till_phi_Hb_min_config
+    C%Martin2011till_phi_Hb_max                              = Martin2011till_phi_Hb_max_config
+    C%Martin2011till_phi_min                                 = Martin2011till_phi_min_config
+    C%Martin2011till_phi_max                                 = Martin2011till_phi_max_config
 
   ! == Bed roughness inversion by nudging
   ! =====================================
 
     ! General
-    C%do_bed_roughness_nudging                 = do_bed_roughness_nudging_config
-    C%bed_roughness_nudging_t_start            = bed_roughness_nudging_t_start_config
-    C%bed_roughness_nudging_t_end              = bed_roughness_nudging_t_end_config
-    C%choice_bed_roughness_nudging_method      = choice_bed_roughness_nudging_method_config
-    C%bed_roughness_nudging_dt                 = bed_roughness_nudging_dt_config
-    C%filename_inverted_bed_roughness          = filename_inverted_bed_roughness_config
+    C%do_bed_roughness_nudging                               = do_bed_roughness_nudging_config
+    C%bed_roughness_nudging_t_start                          = bed_roughness_nudging_t_start_config
+    C%bed_roughness_nudging_t_end                            = bed_roughness_nudging_t_end_config
+    C%choice_bed_roughness_nudging_method                    = choice_bed_roughness_nudging_method_config
+    C%bed_roughness_nudging_dt                               = bed_roughness_nudging_dt_config
+    C%filename_inverted_bed_roughness                        = filename_inverted_bed_roughness_config
 
     ! Parameters
-    C%BIVgeo_Bernales_do_smooth                = BIVgeo_Bernales_do_smooth_config
-    C%BIVgeo_Bernales_scale                    = BIVgeo_Bernales_scale_config
-    C%BIVgeo_Bernales_rsmooth                  = BIVgeo_Bernales_rsmooth_config
-    C%BIVgeo_Bernales_wsmooth                  = BIVgeo_Bernales_wsmooth_config
-    C%BIVgeo_Bernales_phi_min                  = BIVgeo_Bernales_phi_min_config
-    C%BIVgeo_Bernales_phi_max                  = BIVgeo_Bernales_phi_max_config
-    C%BIVgeo_Bernales_tol_diff                 = BIVgeo_Bernales_tol_diff_config
-    C%BIVgeo_Bernales_tol_frac                 = BIVgeo_Bernales_tol_frac_config
-    C%BIVgeo_Berends2022_tauc                  = BIVgeo_Berends2022_tauc_config
-    C%BIVgeo_Berends2022_H0                    = BIVgeo_Berends2022_H0_config
-    C%BIVgeo_Berends2022_u0                    = BIVgeo_Berends2022_u0_config
-    C%BIVgeo_Berends2022_Hi_scale              = BIVgeo_Berends2022_Hi_scale_config
-    C%BIVgeo_Berends2022_u_scale               = BIVgeo_Berends2022_u_scale_config
-    C%BIVgeo_Berends2022_phimin                = BIVgeo_Berends2022_phimin_config
-    C%BIVgeo_Berends2022_phimax                = BIVgeo_Berends2022_phimax_config
-    C%BIVgeo_target_velocity_filename          = BIVgeo_target_velocity_filename_config
+    C%BIVgeo_Bernales_do_smooth                              = BIVgeo_Bernales_do_smooth_config
+    C%BIVgeo_Bernales_scale                                  = BIVgeo_Bernales_scale_config
+    C%BIVgeo_Bernales_rsmooth                                = BIVgeo_Bernales_rsmooth_config
+    C%BIVgeo_Bernales_wsmooth                                = BIVgeo_Bernales_wsmooth_config
+    C%BIVgeo_Bernales_phi_min                                = BIVgeo_Bernales_phi_min_config
+    C%BIVgeo_Bernales_phi_max                                = BIVgeo_Bernales_phi_max_config
+    C%BIVgeo_Bernales_tol_diff                               = BIVgeo_Bernales_tol_diff_config
+    C%BIVgeo_Bernales_tol_frac                               = BIVgeo_Bernales_tol_frac_config
+    C%BIVgeo_Berends2022_tauc                                = BIVgeo_Berends2022_tauc_config
+    C%BIVgeo_Berends2022_H0                                  = BIVgeo_Berends2022_H0_config
+    C%BIVgeo_Berends2022_u0                                  = BIVgeo_Berends2022_u0_config
+    C%BIVgeo_Berends2022_Hi_scale                            = BIVgeo_Berends2022_Hi_scale_config
+    C%BIVgeo_Berends2022_u_scale                             = BIVgeo_Berends2022_u_scale_config
+    C%BIVgeo_Berends2022_phimin                              = BIVgeo_Berends2022_phimin_config
+    C%BIVgeo_Berends2022_phimax                              = BIVgeo_Berends2022_phimax_config
+    C%BIVgeo_target_velocity_filename                        = BIVgeo_target_velocity_filename_config
 
   ! == Geothermal heat flux
   ! =======================
 
-    C%choice_geothermal_heat_flux              = choice_geothermal_heat_flux_config
-    C%constant_geothermal_heat_flux            = constant_geothermal_heat_flux_config
-    C%filename_geothermal_heat_flux            = filename_geothermal_heat_flux_config
+    C%choice_geothermal_heat_flux                            = choice_geothermal_heat_flux_config
+    C%uniform_geothermal_heat_flux                           = uniform_geothermal_heat_flux_config
+    C%filename_geothermal_heat_flux                          = filename_geothermal_heat_flux_config
 
-  ! == Thermodynamics and rheology
-  ! ==============================
+  ! == Thermodynamics
+  ! =================
 
     ! Initial temperature profile
-    C%choice_initial_ice_temperature_NAM       = choice_initial_ice_temperature_NAM_config
-    C%choice_initial_ice_temperature_EAS       = choice_initial_ice_temperature_EAS_config
-    C%choice_initial_ice_temperature_GRL       = choice_initial_ice_temperature_GRL_config
-    C%choice_initial_ice_temperature_ANT       = choice_initial_ice_temperature_ANT_config
+    C%choice_initial_ice_temperature_NAM                     = choice_initial_ice_temperature_NAM_config
+    C%choice_initial_ice_temperature_EAS                     = choice_initial_ice_temperature_EAS_config
+    C%choice_initial_ice_temperature_GRL                     = choice_initial_ice_temperature_GRL_config
+    C%choice_initial_ice_temperature_ANT                     = choice_initial_ice_temperature_ANT_config
     ! Uniform initial ice temperature, if choice_initial_ice_temperature == 'uniform'
-    C%uniform_initial_ice_temperature_NAM      = uniform_initial_ice_temperature_NAM_config
-    C%uniform_initial_ice_temperature_EAS      = uniform_initial_ice_temperature_EAS_config
-    C%uniform_initial_ice_temperature_GRL      = uniform_initial_ice_temperature_GRL_config
-    C%uniform_initial_ice_temperature_ANT      = uniform_initial_ice_temperature_ANT_config
+    C%uniform_initial_ice_temperature_NAM                    = uniform_initial_ice_temperature_NAM_config
+    C%uniform_initial_ice_temperature_EAS                    = uniform_initial_ice_temperature_EAS_config
+    C%uniform_initial_ice_temperature_GRL                    = uniform_initial_ice_temperature_GRL_config
+    C%uniform_initial_ice_temperature_ANT                    = uniform_initial_ice_temperature_ANT_config
     ! Paths to files containing initial temperature fields, if
-    C%filename_initial_ice_temperature_NAM     = filename_initial_ice_temperature_NAM_config
-    C%filename_initial_ice_temperature_EAS     = filename_initial_ice_temperature_EAS_config
-    C%filename_initial_ice_temperature_GRL     = filename_initial_ice_temperature_GRL_config
-    C%filename_initial_ice_temperature_ANT     = filename_initial_ice_temperature_ANT_config
+    C%filename_initial_ice_temperature_NAM                   = filename_initial_ice_temperature_NAM_config
+    C%filename_initial_ice_temperature_EAS                   = filename_initial_ice_temperature_EAS_config
+    C%filename_initial_ice_temperature_GRL                   = filename_initial_ice_temperature_GRL_config
+    C%filename_initial_ice_temperature_ANT                   = filename_initial_ice_temperature_ANT_config
     ! Timeframes to read from the bed roughness file (set to 1E9_dp if the file has no time dimension)
-    C%timeframe_initial_ice_temperature_NAM    = timeframe_initial_ice_temperature_NAM_config
-    C%timeframe_initial_ice_temperature_EAS    = timeframe_initial_ice_temperature_EAS_config
-    C%timeframe_initial_ice_temperature_GRL    = timeframe_initial_ice_temperature_GRL_config
-    C%timeframe_initial_ice_temperature_ANT    = timeframe_initial_ice_temperature_ANT_config
+    C%timeframe_initial_ice_temperature_NAM                  = timeframe_initial_ice_temperature_NAM_config
+    C%timeframe_initial_ice_temperature_EAS                  = timeframe_initial_ice_temperature_EAS_config
+    C%timeframe_initial_ice_temperature_GRL                  = timeframe_initial_ice_temperature_GRL_config
+    C%timeframe_initial_ice_temperature_ANT                  = timeframe_initial_ice_temperature_ANT_config
     ! Thermodynamical model
+    C%choice_thermo_model                                    = choice_thermo_model_config
+    C%choice_ice_heat_capacity                               = choice_ice_heat_capacity_config
+    C%uniform_ice_heat_capacity                              = uniform_ice_heat_capacity_config
+    C%choice_ice_thermal_conductivity                        = choice_ice_thermal_conductivity_config
+    C%uniform_ice_thermal_conductivity                       = uniform_ice_thermal_conductivity_config
 
-    C%choice_thermo_model                      = choice_thermo_model_config
-    C%choice_ice_heat_capacity                 = choice_ice_heat_capacity_config
-    C%uniform_ice_heat_capacity                = uniform_ice_heat_capacity_config
-    C%choice_ice_thermal_conductivity          = choice_ice_thermal_conductivity_config
-    C%uniform_ice_thermal_conductivity         = uniform_ice_thermal_conductivity_config
+  ! == Rheology and flow law
+  ! =========================
 
-    ! Rheological model (relating Glen's flow parameter to ice temperature)
-    C%choice_ice_rheology                      = choice_ice_rheology_config
-    C%uniform_flow_factor                      = uniform_flow_factor_config
+    ! Flow law
+    C%choice_flow_law                                        = choice_flow_law_config
+    C%Glens_flow_law_exponent                                = Glens_flow_law_exponent_config
+    C%Glens_flow_law_epsilon_sq_0                            = Glens_flow_law_epsilon_sq_0_config
+    C%m_enh_sheet                                            = m_enh_sheet_config
+    C%m_enh_shelf                                            = m_enh_shelf_config
+
+    ! Rheology
+    C%choice_ice_rheology                                    = choice_ice_rheology_config
+    C%uniform_flow_factor                                    = uniform_flow_factor_config
 
   ! == SELEN
   ! ========
 
-    C%SELEN_run_at_t_start                     = SELEN_run_at_t_start_config
-    C%SELEN_n_TDOF_iterations                  = SELEN_n_TDOF_iterations_config
-    C%SELEN_n_recursion_iterations             = SELEN_n_recursion_iterations_config
-    C%SELEN_use_rotational_feedback            = SELEN_use_rotational_feedback_config
-    C%SELEN_n_harmonics                        = SELEN_n_harmonics_config
-    C%SELEN_display_progress                   = SELEN_display_progress_config
+    C%SELEN_run_at_t_start                                   = SELEN_run_at_t_start_config
+    C%SELEN_n_TDOF_iterations                                = SELEN_n_TDOF_iterations_config
+    C%SELEN_n_recursion_iterations                           = SELEN_n_recursion_iterations_config
+    C%SELEN_use_rotational_feedback                          = SELEN_use_rotational_feedback_config
+    C%SELEN_n_harmonics                                      = SELEN_n_harmonics_config
+    C%SELEN_display_progress                                 = SELEN_display_progress_config
 
-    C%SELEN_dir                                = SELEN_dir_config
-    C%SELEN_global_topo_filename               = SELEN_global_topo_filename_config
-    C%SELEN_TABOO_init_filename                = SELEN_TABOO_init_filename_config
-    C%SELEN_LMJ_VALUES_filename                = SELEN_LMJ_VALUES_filename_config
+    C%SELEN_dir                                              = SELEN_dir_config
+    C%SELEN_global_topo_filename                             = SELEN_global_topo_filename_config
+    C%SELEN_TABOO_init_filename                              = SELEN_TABOO_init_filename_config
+    C%SELEN_LMJ_VALUES_filename                              = SELEN_LMJ_VALUES_filename_config
 
-    C%SELEN_irreg_time_n                       = SELEN_irreg_time_n_config
-    C%SELEN_irreg_time_window                  = SELEN_irreg_time_window_config
+    C%SELEN_irreg_time_n                                     = SELEN_irreg_time_n_config
+    C%SELEN_irreg_time_window                                = SELEN_irreg_time_window_config
 
-    C%SELEN_lith_thickness                     = SELEN_lith_thickness_config
-    C%SELEN_visc_n                             = SELEN_visc_n_config
-    C%SELEN_visc_prof                          = SELEN_visc_prof_config
+    C%SELEN_lith_thickness                                   = SELEN_lith_thickness_config
+    C%SELEN_visc_n                                           = SELEN_visc_n_config
+    C%SELEN_visc_prof                                        = SELEN_visc_prof_config
 
     ! Settings for the TABOO Earth deformation model
-    C%SELEN_TABOO_CDE                          = SELEN_TABOO_CDE_config
-    C%SELEN_TABOO_TLOVE                        = SELEN_TABOO_TLOVE_config
-    C%SELEN_TABOO_DEG1                         = SELEN_TABOO_DEG1_config
-    C%SELEN_TABOO_RCMB                         = SELEN_TABOO_RCMB_config
+    C%SELEN_TABOO_CDE                                        = SELEN_TABOO_CDE_config
+    C%SELEN_TABOO_TLOVE                                      = SELEN_TABOO_TLOVE_config
+    C%SELEN_TABOO_DEG1                                       = SELEN_TABOO_DEG1_config
+    C%SELEN_TABOO_RCMB                                       = SELEN_TABOO_RCMB_config
 
   ! == Sea level
   ! ============
 
-    C%choice_sealevel_model                    = choice_sealevel_model_config
-    C%fixed_sealevel                           = fixed_sealevel_config
+    C%choice_sealevel_model                                  = choice_sealevel_model_config
+    C%fixed_sealevel                                         = fixed_sealevel_config
+
+    ! Finished copying the values of the _config variables to the C structure
 
   ! Total mask values (used only for diagnostic output)
   ! ===================================================

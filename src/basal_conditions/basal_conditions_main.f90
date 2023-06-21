@@ -235,9 +235,9 @@ CONTAINS
 
     select case (C%choice_geothermal_heat_flux)
 
-      case ('constant')
+      case ('uniform')
         ! Uniform value over whole domain
-        ice%geothermal_heat_flux = C%constant_geothermal_heat_flux
+        ice%geothermal_heat_flux = C%uniform_geothermal_heat_flux
 
       case ('read_from_file')
         ! Spatially variable field

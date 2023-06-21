@@ -29,6 +29,7 @@ MODULE ice_velocity_SSA
                                                                      add_field_mesh_dp_2D_b, write_time_to_file, write_to_field_multopt_mesh_dp_2D_b
   USE netcdf_input                                           , ONLY: read_field_from_mesh_file_2D_b
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_1D
+  USE ice_flow_laws                                          , ONLY: calc_effective_viscosity_Glen_2D
 
   IMPLICIT NONE
 
@@ -1371,36 +1372,33 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'calc_effective_viscosity'
+    REAL(dp)                                                     :: A_min, eta_max
     INTEGER                                                      :: vi
-    REAL(dp)                                                     :: epsilon_sq, A_min, eta_max
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
     ! Calculate maximum allowed effective viscosity, for stability
-    A_min = MINVAL( ice%A_flow_3D)
-    CALL MPI_ALLREDUCE( MPI_IN_PLACE, A_min, 1, MPI_DOUBLE_PRECISION, MPI_MIN, MPI_COMM_WORLD, ierr)
-    eta_max = 0.5_dp * A_min**(-1._dp / C%n_flow) * (C%epsilon_sq_0)**((1._dp - C%n_flow)/(2._dp*C%n_flow))
+    A_min = 1E-18_dp
+    eta_max = 0.5_dp * A_min**(-1._dp / C%Glens_flow_law_exponent) * (C%Glens_flow_law_epsilon_sq_0)**((1._dp - C%Glens_flow_law_exponent)/(2._dp*C%Glens_flow_law_exponent))
 
-    DO vi = mesh%vi1, mesh%vi2
+    ! Calculate the effective viscosity eta
+    IF (C%choice_flow_law == 'Glen') THEN
+      ! Calculate the effective viscosity according to Glen's flow law
 
-      ! Calculate the square of the effective strain rate epsilon
-      epsilon_sq = SSA%du_dx_a( vi)**2 + &
-                   SSA%dv_dy_a( vi)**2 + &
-                   SSA%du_dx_a( vi) * SSA%dv_dy_a( vi) + &
-                   0.25_dp * (SSA%du_dy_a( vi) + SSA%dv_dx_a( vi))**2 + &
-                   C%epsilon_sq_0
+      DO vi = mesh%vi1, mesh%vi2
+        SSA%eta_a( vi) = calc_effective_viscosity_Glen_2D( SSA%du_dx_a( vi), SSA%du_dy_a( vi), SSA%dv_dx_a( vi), SSA%dv_dy_a( vi), SSA%A_flow_vav_a( vi))
+      END DO
 
-      ! Calculate the effective viscosity eta
-      SSA%eta_a( vi) = 0.5_dp * SSA%A_flow_vav_a( vi)**(-1._dp / C%n_flow) * (epsilon_sq)**((1._dp - C%n_flow)/(2._dp*C%n_flow))
+    ELSE
+      CALL crash('unknown choice_flow_law "' // TRIM( C%choice_flow_law) // '"!')
+    END IF
 
-      ! Safety
-      SSA%eta_a( vi) = MIN( MAX( SSA%eta_a( vi), C%visc_eff_min), eta_max)
+    ! Safety
+    SSA%eta_a = MIN( MAX( SSA%eta_a, C%visc_eff_min), eta_max)
 
-      ! Calculate the product term N = eta * H
-      SSA%N_a( vi) = SSA%eta_a( vi) * MAX( 0.1_dp, ice%Hi( vi))
-
-    END DO
+    ! Calculate the product term N = eta * H on the a-grid
+    SSA%N_a = SSA%eta_a * MAX( 0.1_dp, ice%Hi)
 
     ! Calculate the product term N and its gradients on the b-grid
     CALL map_a_b_2D( mesh, SSA%N_a, SSA%N_b    )
@@ -1442,7 +1440,7 @@ CONTAINS
     ! Apply the sub-grid grounded fraction, and limit the friction coefficient to improve stability
     IF (C%do_GL_subgrid_friction) THEN
       DO ti = mesh%ti1, mesh%ti2
-        SSA%beta_b_b( ti) = MIN( C%beta_max, SSA%beta_b_b( ti) * ice%fraction_gr_b( ti)**C%subgrid_friction_exponent )
+        SSA%beta_b_b( ti) = SSA%beta_b_b( ti) * ice%fraction_gr_b( ti)**C%subgrid_friction_exponent
       END DO
     END IF
 
@@ -1682,7 +1680,7 @@ CONTAINS
 
     ! In/output variables:
     TYPE(type_mesh),                     INTENT(IN)              :: mesh
-    TYPE(type_ice_velocity_solver_SSA),  INTENT(INOUT)           :: SSA
+    TYPE(type_ice_velocity_solver_SSA),  INTENT(IN)              :: SSA
     REAL(dp),                            INTENT(IN)              :: time
 
     ! Local variables:

@@ -31,6 +31,7 @@ MODULE ice_velocity_BPA
                                                                      add_zeta_dimension_to_file, add_field_mesh_dp_3D_b, write_time_to_file, write_to_field_multopt_mesh_dp_3D_b
   USE netcdf_input                                           , ONLY: read_field_from_mesh_file_3D_b
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_2D
+  USE ice_flow_laws                                          , ONLY: calc_effective_viscosity_Glen_3D_uv_only
 
   IMPLICIT NONE
 
@@ -1774,7 +1775,7 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'calc_effective_viscosity'
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                      ::  A_flow_bks
     INTEGER                                                      :: vi,ti,k,ks
-    REAL(dp)                                                     :: epsilon_sq, A_min, eta_max
+    REAL(dp)                                                     :: A_min, eta_max
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                      :: eta_bk_from_ak, eta_bk_from_bks
     REAL(dp)                                                     :: uabs_base, uabs_surf, R_shear
 
@@ -1782,9 +1783,8 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Calculate maximum allowed effective viscosity, for stability
-    A_min = MINVAL( ice%A_flow_3D)
-    CALL MPI_ALLREDUCE( MPI_IN_PLACE, A_min, 1, MPI_DOUBLE_PRECISION, MPI_MIN, MPI_COMM_WORLD, ierr)
-    eta_max = 0.5_dp * A_min**(-1._dp / C%n_flow) * (C%epsilon_sq_0)**((1._dp - C%n_flow)/(2._dp*C%n_flow))
+    A_min = 1E-18_dp
+    eta_max = 0.5_dp * A_min**(-1._dp / C%Glens_flow_law_exponent) * (C%Glens_flow_law_epsilon_sq_0)**((1._dp - C%Glens_flow_law_exponent)/(2._dp*C%Glens_flow_law_exponent))
 
     ! Allocate memory
     ALLOCATE( A_flow_bks( mesh%ti1:mesh%ti2, mesh%nz-1))
@@ -1794,47 +1794,45 @@ CONTAINS
 
   ! == Calculate effective viscosity on the ak-grid
 
-    DO vi = mesh%vi1, mesh%vi2
-    DO k = 1, mesh%nz
+    ! Calculate the effective viscosity eta
+    IF (C%choice_flow_law == 'Glen') THEN
+      ! Calculate the effective viscosity according to Glen's flow law
 
-      ! Calculate the square of the effective strain rate epsilon
-      epsilon_sq = BPA%du_dx_ak( vi,k)**2 + &
-                   BPA%dv_dy_ak( vi,k)**2 + &
-                   BPA%du_dx_ak( vi,k) * BPA%dv_dy_ak( vi,k) + &
-                   0.25_dp * (BPA%du_dy_ak( vi,k) + BPA%dv_dx_ak( vi,k))**2 + &
-                   0.25_dp * (BPA%du_dz_ak( vi,k)**2 + BPA%dv_dz_ak( vi,k)**2) + &
-                   C%epsilon_sq_0
+      DO vi = mesh%vi1, mesh%vi2
+      DO k  = 1, mesh%nz
+        BPA%eta_ak( vi,k) = calc_effective_viscosity_Glen_3D_uv_only( &
+          BPA%du_dx_ak( vi,k), BPA%du_dy_ak( vi,k), BPA%du_dz_ak( vi,k), &
+          BPA%dv_dx_ak( vi,k), BPA%dv_dy_ak( vi,k), BPA%dv_dz_ak( vi,k), ice%A_flow_3D( vi,k))
+      END DO
+      END DO
 
-      ! Calculate the effective viscosity eta
-      BPA%eta_ak( vi,k) = 0.5_dp * ice%A_flow_3D( vi,k)**(-1._dp / C%n_flow) * (epsilon_sq)**((1._dp - C%n_flow)/(2._dp*C%n_flow))
+    ELSE
+      CALL crash('unknown choice_flow_law "' // TRIM( C%choice_flow_law) // '"!')
+    END IF
 
-      ! Safety
-      BPA%eta_ak( vi,k) = MIN( MAX( BPA%eta_ak( vi,k), C%visc_eff_min), eta_max)
-
-    END DO
-    END DO
+    ! Safety
+    BPA%eta_ak = MIN( MAX( BPA%eta_ak, C%visc_eff_min), eta_max)
 
   ! == Calculate effective viscosity on the bks-grid
 
-    DO ti = mesh%ti1, mesh%ti2
-    DO ks = 1, mesh%nz-1
+    ! Calculate the effective viscosity eta
+    IF (C%choice_flow_law == 'Glen') THEN
+      ! Calculate the effective viscosity according to Glen's flow law
 
-      ! Calculate the square of the effective strain rate epsilon
-      epsilon_sq = BPA%du_dx_bks( ti,ks)**2 + &
-                   BPA%dv_dy_bks( ti,ks)**2 + &
-                   BPA%du_dx_bks( ti,ks) * BPA%dv_dy_bks( ti,ks) + &
-                   0.25_dp * (BPA%du_dy_bks( ti,ks) + BPA%dv_dx_bks( ti,ks))**2 + &
-                   0.25_dp * (BPA%du_dz_bks( ti,ks)**2 + BPA%dv_dz_bks( ti,ks)**2) + &
-                   C%epsilon_sq_0
+      DO ti = mesh%ti1, mesh%ti2
+      DO ks  = 1, mesh%nz-1
+        BPA%eta_bks( ti,ks) = calc_effective_viscosity_Glen_3D_uv_only( &
+          BPA%du_dx_bks( ti,ks), BPA%du_dy_bks( ti,ks), BPA%du_dz_bks( ti,ks), &
+          BPA%dv_dx_bks( ti,ks), BPA%dv_dy_bks( ti,ks), BPA%dv_dz_bks( ti,ks), A_flow_bks( ti,ks))
+      END DO
+      END DO
 
-      ! Calculate the effective viscosity eta
-      BPA%eta_bks( ti,ks) = 0.5_dp * A_flow_bks( ti,ks)**(-1._dp / C%n_flow) * (epsilon_sq)**((1._dp - C%n_flow)/(2._dp*C%n_flow))
+    ELSE
+      CALL crash('unknown choice_flow_law "' // TRIM( C%choice_flow_law) // '"!')
+    END IF
 
-      ! Safety
-      BPA%eta_bks( ti,ks) = MIN( MAX( BPA%eta_bks( ti,ks), C%visc_eff_min), eta_max)
-
-    END DO
-    END DO
+    ! Safety
+    BPA%eta_bks = MIN( MAX( BPA%eta_bks, C%visc_eff_min), eta_max)
 
     ! Calculate the horizontal gradients of the effective viscosity from its value on the ak-grid
     CALL calc_3D_gradient_ak_bk(  mesh, mesh%M_ddx_ak_bk , BPA%eta_ak , BPA%deta_dx_bk)
@@ -1923,7 +1921,7 @@ CONTAINS
     ! Apply the sub-grid grounded fraction, and limit the friction coefficient to improve stability
     IF (C%do_GL_subgrid_friction) THEN
       DO ti = mesh%ti1, mesh%ti2
-        BPA%beta_b_b( ti) = MIN( C%beta_max, BPA%beta_b_b( ti) * ice%fraction_gr_b( ti)**C%subgrid_friction_exponent )
+        BPA%beta_b_b( ti) = BPA%beta_b_b( ti) * ice%fraction_gr_b( ti)**C%subgrid_friction_exponent
       END DO
     END IF
 
@@ -2190,7 +2188,7 @@ CONTAINS
 
     ! In/output variables:
     TYPE(type_mesh),                     INTENT(IN)              :: mesh
-    TYPE(type_ice_velocity_solver_BPA),  INTENT(INOUT)           :: BPA
+    TYPE(type_ice_velocity_solver_BPA),  INTENT(IN)              :: BPA
     REAL(dp),                            INTENT(IN)              :: time
 
     ! Local variables:

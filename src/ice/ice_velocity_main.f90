@@ -20,9 +20,9 @@ MODULE ice_velocity_main
   USE reallocate_mod                                         , ONLY: reallocate_clean
   USE mesh_operators                                         , ONLY: map_b_a_2D, map_b_a_3D, ddx_a_a_2D, ddy_a_a_2D
   USE ice_velocity_SIA                                       , ONLY: initialise_SIA_solver , solve_SIA , remap_SIA_solver
-  USE ice_velocity_SSA                                       , ONLY: initialise_SSA_solver , solve_SSA , remap_SSA_solver
-  USE ice_velocity_DIVA                                      , ONLY: initialise_DIVA_solver, solve_DIVA, remap_DIVA_solver
-  USE ice_velocity_BPA                                       , ONLY: initialise_BPA_solver , solve_BPA , remap_BPA_solver
+  USE ice_velocity_SSA                                       , ONLY: initialise_SSA_solver , solve_SSA , remap_SSA_solver , create_restart_file_SSA , write_to_restart_file_SSA
+  USE ice_velocity_DIVA                                      , ONLY: initialise_DIVA_solver, solve_DIVA, remap_DIVA_solver, create_restart_file_DIVA, write_to_restart_file_DIVA
+  USE ice_velocity_BPA                                       , ONLY: initialise_BPA_solver , solve_BPA , remap_BPA_solver , create_restart_file_BPA , write_to_restart_file_BPA
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_1D, gather_to_all_dp_2D
   USE mesh_zeta                                              , ONLY: vertical_average
 
@@ -49,9 +49,9 @@ CONTAINS
     CALL init_routine( routine_name)
 
     IF (par%master) then
-      WRITE(*,"(A)") '   Initialising ice velocities using ' // &
+      WRITE(*,"(A)") '   Initialising ice velocity solver for the ' // &
                       colour_string( TRIM( C%choice_stress_balance_approximation),'light blue') // &
-                     ' dynamics...'
+                     ' stress balance approximation...'
     END IF
 
     IF     (C%choice_stress_balance_approximation == 'none') THEN
@@ -76,7 +76,7 @@ CONTAINS
 
   END SUBROUTINE initialise_velocity_solver
 
-  SUBROUTINE solve_stress_balance( mesh, ice)
+  SUBROUTINE solve_stress_balance( mesh, ice, BMB)
     ! Calculate all ice velocities based on the chosen stress balance approximation
 
     IMPLICIT NONE
@@ -84,6 +84,7 @@ CONTAINS
     ! In/output variables:
     TYPE(type_mesh),                     INTENT(IN)    :: mesh
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN) :: BMB
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'solve_stress_balance'
@@ -178,197 +179,14 @@ CONTAINS
       ice%uabs_vav(  vi) = SQRT( ice%u_vav(  vi)**2 + ice%v_vav(  vi)**2)
     END DO
 
+  ! == Calculate vertical velocities
+
+    CALL calc_vertical_velocities( mesh, ice, BMB)
+
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE solve_stress_balance
-
-  SUBROUTINE calc_vertical_velocities( mesh, ice)!, BMB)
-    ! Calculate vertical velocity w from conservation of mass
-    !
-    ! NOTE: since the vertical velocities for floating ice depend on
-    !       the thinning rate dH/dt, this routine must be called
-    !       after having calculated dHi_dt!
-    !
-    ! Derivation:
-    !
-    ! Conservation of mass, combined with the incompressibility
-    ! condition (i.e. constant density) of ice, is described by:
-    !
-    !   du/dx + dv/dy + dw/dz = 0
-    !
-    ! Applying the zeta coordinate transformation yields:
-    !
-    !   du/dxp + dzeta/dx du/dzeta + dv/dxp + dzeta/dy dv/dzeta + dzeta/dz dw/dzeta = 0
-    !
-    ! The terms du/dxp + dv/dyp describe the two-dimensional divergence in scaled coordinates:
-    !
-    !   grad uv = du/dxp + dv/dyp
-    !
-    ! The average value over a single grid cell (Voronoi cell) of this divergence is:
-    !
-    !   grad uv = intint_Voronoi (grad uv) dA / intint dA = 1/A intint_Voronoi (grad uv) dA
-    !
-    ! By applying the divergence theorem, the surface integral over the Voronoi cell
-    ! can be transformed into a loop integral over the boundary of that Voronoi cell:
-    !
-    !   grad uv = 1/A cint (uv * n_hat) dS
-    !
-    ! Here, n_hat is the outward unit normal to the Voronoi cell boundary. Substituting
-    ! this into the equation for conservation of mass yields:
-    !
-    !   dw/dzeta = -1 / dzeta/dz [ 1/A cint (uv * n_hat) dS + dzeta/dx du/zeta + dzeta/dy dv/dzeta]
-    !
-    ! The vertical velocity w at the ice base is equal to the horizontal motion along
-    ! the sloping ice base, plus the vertical motion of the ice base itself, plus the
-    ! vertical motion of an ice particle with respect to the ice base (i.e. the basal melt rate):
-    !
-    !   w( z=b) = u( z=b) * dH_base/dx + v( z=b) * dH_base/dy + dH_base/dt + M_base
-    !
-    ! With this boundary condition, dw/dzeta can be integrated over zeta to yield w( z).
-
-    IMPLICIT NONE
-
-    ! In- and output variables:
-    TYPE(type_mesh),                     INTENT(IN)    :: mesh
-    TYPE(type_ice_model),                INTENT(INOUT) :: ice
-!    TYPE(type_BMB_model),                INTENT(IN)    :: BMB
-
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_vertical_velocities'
-    INTEGER                                            :: vi,ks,ci,vj,ei
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: dHib_dx
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: dHib_dy
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: dHib_dt
-    REAL(dp)                                           :: dzeta
-    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: u_3D_c
-    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: v_3D_c
-    REAL(dp)                                           :: cint_un_dS, dS, u_ks, v_ks, un_dS, grad_uv_ks
-    REAL(dp), DIMENSION(2)                             :: n_hat
-    REAL(dp)                                           :: du_dzeta_ks, dv_dzeta_ks
-    REAL(dp)                                           :: dzeta_dx_ks, dzeta_dy_ks, dzeta_dz_ks
-    REAL(dp)                                           :: dw_dzeta_ks
-
-    ! Add routine to path
-    CALL init_routine( routine_name)
-
-    ! DENK DROM
-    CALL warning('need to include basal melt rates here!')
-
-    ! Allocate shared memory
-    ALLOCATE( dHib_dx( mesh%nV_loc))
-    ALLOCATE( dHib_dy( mesh%nV_loc))
-    ALLOCATE( dHib_dt( mesh%nV_loc))
-    ALLOCATE( u_3D_c(  mesh%nE_loc, mesh%nz))
-    ALLOCATE( v_3D_c(  mesh%nE_loc, mesh%nz))
-
-    DO vi = 1, mesh%nV_loc
-
-      ! Calculate rate of change of ice base elevation
-      IF     (ice%mask_sheet( vi)) THEN
-        ! For grounded ice, the ice base simply moves with the bedrock
-        dHib_dt( vi) =  ice%dHb_dt( vi)
-      ELSEIF (ice%mask_shelf( vi)) THEN
-        ! For floating ice, the ice base moves according to the thinning rate times the density fraction
-        dHib_dt( vi) = -ice%dHi_dt( vi) * ice_density / seawater_density
-      ELSE
-        ! No ice, so no vertical velocity
-        dHib_dt( vi) = 0._dp
-      END IF
-
-    END DO ! DO vi = mesh%vi1, mesh%vi2
-
-    ! Calculate slopes of the ice base
-    CALL ddx_a_a_2D( mesh, ice%Hib, dHib_dx)
-    CALL ddy_a_a_2D( mesh, ice%Hib, dHib_dy)
-
-    ! Calculate u,v on the c-grid (edges)
-    CALL map_velocities_from_b_to_c_3D( mesh, ice%u_3D_b, ice%v_3D_b, u_3D_c, v_3D_c)
-
-    ! Calculate vertical velocities by solving conservation of mass in each 3-D cell
-    DO vi = 1, mesh%nV_loc
-
-      ! No ice means no velocity
-      IF (.NOT. ice%mask_ice( vi)) THEN
-        ice%w_3D( vi,:) = 0._dp
-        CYCLE
-      END IF
-
-      ! Calculate the vertical velocity at the ice base
-      !
-      ! NOTE: BMB is defined so that a positive number means accumulation of ice;
-      !       at the ice base, that means that a positive BMB means a positive
-      !       value of w
-
-      ice%w_3D( vi,C%nz) = (ice%u_3D( vi,C%nz) * dHib_dx( vi)) + &
-                           (ice%v_3D( vi,C%nz) * dHib_dy( vi)) + &
-                            dHib_dt( vi)! + BMB%BMB( vi)
-
-      ! Exception for very thin ice / ice margin: assume horizontal stretching
-      ! is negligible, so that w( z) = w( z = b)
-      IF (ice%Hi( vi) < 10._dp) THEN
-        ice%w_3D( vi,:) = ice%w_3D( vi,C%nz)
-        CYCLE
-      END IF ! IF (ice%mask_margin_a( vi) == 1 .OR. ice%Hi_a( vi) < 10._dp) THEN
-
-      ! Calculate vertical velocities by integrating dw/dz over the vertical column
-
-      DO ks = mesh%nz-1, 1, -1
-
-        dzeta = mesh%zeta( ks+1) - mesh%zeta( ks)
-
-        ! Integrate u*n_hat around the Voronoi cell boundary
-        cint_un_dS = 0._dp
-        DO ci = 1, mesh%nC( vi)
-          vj = mesh%C(  vi,ci)
-          ei = mesh%VE( vi,ci)
-          ! Velocities at this section of the boundary
-          u_ks = 0.5_dp * (u_3D_c( ei,ks) + u_3D_c( ei,ks+1))
-          v_ks = 0.5_dp * (v_3D_c( ei,ks) + v_3D_c( ei,ks+1))
-          ! Length of this section of the boundary
-          dS = mesh%Cw( vi,ci)
-          ! Outward normal vector to this section of the boundary
-          n_hat = mesh%V( vj,:) - mesh%V( vi,:)
-          n_hat = n_hat / NORM2( n_hat)
-          ! Line integral over this section of the boundary
-          un_dS = (u_ks * n_hat( 1) + v_ks * n_hat( 2)) * dS
-          ! Add to loop integral
-          cint_un_dS = cint_un_dS + un_dS
-        END DO
-
-        ! Calculate grad uv from the divergence theorem
-        grad_uv_ks = cint_un_dS / mesh%A( vi)
-
-        ! Calculate du/dzeta, dv/dzeta
-        du_dzeta_ks = (ice%u_3D( vi,ks+1) - ice%u_3D( vi,ks)) / dzeta
-        dv_dzeta_ks = (ice%v_3D( vi,ks+1) - ice%v_3D( vi,ks)) / dzeta
-
-        ! Calculate dzeta/dx, dzeta/dy, dzeta/dz
-        dzeta_dx_ks = 0.5_dp * (ice%dzeta_dx_ak( vi,ks) + ice%dzeta_dx_ak( vi,ks+1))
-        dzeta_dy_ks = 0.5_dp * (ice%dzeta_dy_ak( vi,ks) + ice%dzeta_dy_ak( vi,ks+1))
-        dzeta_dz_ks = 0.5_dp * (ice%dzeta_dz_ak( vi,ks) + ice%dzeta_dz_ak( vi,ks+1))
-
-        ! Calculate dw/dzeta
-        dw_dzeta_ks = -1._dp / dzeta_dz_ks * (grad_uv_ks + dzeta_dx_ks * du_dzeta_ks + dzeta_dy_ks * dv_dzeta_ks)
-
-        ! Calculate w
-        ice%w_3D( vi,ks) = ice%w_3D( vi,ks+1) - dzeta * dw_dzeta_ks
-
-      END DO ! DO k = C%nz-1, 1, -1
-
-    END DO ! DO vi = mesh%vi1, mesh%vi2
-
-    ! Clean up after yourself
-    DEALLOCATE( dHib_dx)
-    DEALLOCATE( dHib_dy)
-    DEALLOCATE( dHib_dt)
-    DEALLOCATE( u_3D_c)
-    DEALLOCATE( v_3D_c)
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE calc_vertical_velocities
 
   SUBROUTINE remap_velocity_solver( mesh_old, mesh_new, ice)
     ! Remap the velocity solver for the chosen stress balance approximation
@@ -398,8 +216,7 @@ CONTAINS
     ELSEIF (C%choice_stress_balance_approximation == 'DIVA') THEN
       CALL remap_DIVA_solver( mesh_old, mesh_new, ice, ice%DIVA)
     ELSEIF (C%choice_stress_balance_approximation == 'BPA') THEN
-      CALL crash('fixme!')
-!      CALL remap_BPA_solver(  mesh_old, mesh_new, ice, ice%BPA)
+      CALL remap_BPA_solver(  mesh_old, mesh_new, ice, ice%BPA)
     ELSE
       CALL crash('unknown choice_stress_balance_approximation "' // TRIM( C%choice_stress_balance_approximation) // '"!')
     END IF
@@ -756,5 +573,268 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE map_velocities_from_b_to_c_3D
+
+! == Calculate vertical velocities from conservation of mass
+
+  SUBROUTINE calc_vertical_velocities( mesh, ice, BMB)
+    ! Calculate vertical velocities w from conservation of mass
+    !
+    ! NOTE: since the vertical velocities for floating ice depend on
+    !       the thinning rate dH/dt, this routine must be called
+    !       after having calculated dHi_dt!
+    !
+    ! Derivation:
+    !
+    ! Conservation of mass, combined with the incompressibility
+    ! condition (i.e. constant density) of ice, is described by:
+    !
+    !   du/dx + dv/dy + dw/dz = 0
+    !
+    ! Applying the zeta coordinate transformation yields:
+    !
+    !   du/dxp + dzeta/dx du/dzeta + dv/dxp + dzeta/dy dv/dzeta + dzeta/dz dw/dzeta = 0
+    !
+    ! The terms du/dxp + dv/dyp describe the two-dimensional divergence in scaled coordinates:
+    !
+    !   grad uv = du/dxp + dv/dyp
+    !
+    ! The average value over a single grid cell (Voronoi cell) of this divergence is:
+    !
+    !   grad uv = intint_Voronoi (grad uv) dA / intint dA = 1/A intint_Voronoi (grad uv) dA
+    !
+    ! By applying the divergence theorem, the surface integral over the Voronoi cell
+    ! can be transformed into a loop integral over the boundary of that Voronoi cell:
+    !
+    !   grad uv = 1/A cint (uv * n_hat) dS
+    !
+    ! Here, n_hat is the outward unit normal to the Voronoi cell boundary. Substituting
+    ! this into the equation for conservation of mass yields:
+    !
+    !   dw/dzeta = -1 / dzeta/dz [ 1/A cint (uv * n_hat) dS + dzeta/dx du/zeta + dzeta/dy dv/dzeta]
+    !
+    ! The vertical velocity w at the ice base is equal to the horizontal motion along
+    ! the sloping ice base, plus the vertical motion of the ice base itself, plus the
+    ! vertical motion of an ice particle with respect to the ice base (i.e. the basal melt rate):
+    !
+    !   w( z=b) = u( z=b) * dH_base/dx + v( z=b) * dH_base/dy + dH_base/dt + M_base
+    !
+    ! With this boundary condition, dw/dzeta can be integrated over zeta to yield w( z).
+
+    IMPLICIT NONE
+
+    ! In- and output variables:
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
+    TYPE(type_ice_model),                INTENT(INOUT) :: ice
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN) :: BMB
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_vertical_velocities'
+    INTEGER                                            :: vi,ks,ci,vj,ei
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: dHib_dx
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: dHib_dy
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: dHib_dt
+    REAL(dp)                                           :: dzeta
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: u_3D_c, u_3D_c_tot
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: v_3D_c, v_3D_c_tot
+    REAL(dp)                                           :: cint_un_dS, dS, u_ks, v_ks, un_dS, grad_uv_ks
+    REAL(dp), DIMENSION(2)                             :: n_hat
+    REAL(dp)                                           :: du_dzeta_ks, dv_dzeta_ks
+    REAL(dp)                                           :: dzeta_dx_ks, dzeta_dy_ks, dzeta_dz_ks
+    REAL(dp)                                           :: dw_dzeta_ks
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Allocate shared memory
+    ALLOCATE( dHib_dx( mesh%vi1:mesh%vi2))
+    ALLOCATE( dHib_dy( mesh%vi1:mesh%vi2))
+    ALLOCATE( dHib_dt( mesh%vi1:mesh%vi2))
+    ALLOCATE( u_3D_c(  mesh%ei1:mesh%ei2, mesh%nz))
+    ALLOCATE( v_3D_c(  mesh%ei1:mesh%ei2, mesh%nz))
+    ALLOCATE( u_3D_c_tot(  mesh%nE, mesh%nz))
+    ALLOCATE( v_3D_c_tot(  mesh%nE, mesh%nz))
+
+    DO vi = mesh%vi1, mesh%vi2
+
+      ! Calculate rate of change of ice base elevation
+      IF     (ice%mask_sheet( vi)) THEN
+        ! For grounded ice, the ice base simply moves with the bedrock
+        dHib_dt( vi) =  ice%dHb_dt( vi)
+      ELSEIF (ice%mask_shelf( vi)) THEN
+        ! For floating ice, the ice base moves according to the thinning rate times the density fraction
+        dHib_dt( vi) = -ice%dHi_dt( vi) * ice_density / seawater_density
+      ELSE
+        ! No ice, so no vertical velocity
+        dHib_dt( vi) = 0._dp
+      END IF
+
+    END DO ! DO vi = mesh%vi1, mesh%vi2
+
+    ! Calculate slopes of the ice base
+    CALL ddx_a_a_2D( mesh, ice%Hib, dHib_dx)
+    CALL ddy_a_a_2D( mesh, ice%Hib, dHib_dy)
+
+    ! Calculate u,v on the c-grid (edges)
+    CALL map_velocities_from_b_to_c_3D( mesh, ice%u_3D_b, ice%v_3D_b, u_3D_c, v_3D_c)
+    CALL gather_to_all_dp_2D( u_3D_c, u_3D_c_tot)
+    CALL gather_to_all_dp_2D( v_3D_c, v_3D_c_tot)
+
+    ! Calculate vertical velocities by solving conservation of mass in each 3-D cell
+    DO vi = mesh%vi1, mesh%vi2
+
+      ! No ice means no velocity
+      IF (.NOT. ice%mask_ice( vi)) THEN
+        ice%w_3D( vi,:) = 0._dp
+        CYCLE
+      END IF
+
+      ! Calculate the vertical velocity at the ice base
+      !
+      ! NOTE: BMB is defined so that a positive number means accumulation of ice;
+      !       at the ice base, that means that a positive BMB means a positive
+      !       value of w
+
+      ice%w_3D( vi,C%nz) = (ice%u_3D( vi,C%nz) * dHib_dx( vi)) + &
+                           (ice%v_3D( vi,C%nz) * dHib_dy( vi)) + &
+                            dHib_dt( vi) + BMB( vi)
+
+      ! Exception for very thin ice / ice margin: assume horizontal stretching
+      ! is negligible, so that w( z) = w( z = b)
+      IF (ice%Hi( vi) < 10._dp) THEN
+        ice%w_3D( vi,:) = ice%w_3D( vi,C%nz)
+        CYCLE
+      END IF ! IF (ice%mask_margin_a( vi) == 1 .OR. ice%Hi_a( vi) < 10._dp) THEN
+
+      ! Calculate vertical velocities by integrating dw/dz over the vertical column
+
+      DO ks = mesh%nz-1, 1, -1
+
+        dzeta = mesh%zeta( ks+1) - mesh%zeta( ks)
+
+        ! Integrate u*n_hat around the Voronoi cell boundary
+        cint_un_dS = 0._dp
+        DO ci = 1, mesh%nC( vi)
+          vj = mesh%C(  vi,ci)
+          ei = mesh%VE( vi,ci)
+          ! Velocities at this section of the boundary
+          u_ks = 0.5_dp * (u_3D_c_tot( ei,ks) + u_3D_c_tot( ei,ks+1))
+          v_ks = 0.5_dp * (v_3D_c_tot( ei,ks) + v_3D_c_tot( ei,ks+1))
+          ! Length of this section of the boundary
+          dS = mesh%Cw( vi,ci)
+          ! Outward normal vector to this section of the boundary
+          n_hat = mesh%V( vj,:) - mesh%V( vi,:)
+          n_hat = n_hat / NORM2( n_hat)
+          ! Line integral over this section of the boundary
+          un_dS = (u_ks * n_hat( 1) + v_ks * n_hat( 2)) * dS
+          ! Add to loop integral
+          cint_un_dS = cint_un_dS + un_dS
+        END DO
+
+        ! Calculate grad uv from the divergence theorem
+        grad_uv_ks = cint_un_dS / mesh%A( vi)
+
+        ! Calculate du/dzeta, dv/dzeta
+        du_dzeta_ks = (ice%u_3D( vi,ks+1) - ice%u_3D( vi,ks)) / dzeta
+        dv_dzeta_ks = (ice%v_3D( vi,ks+1) - ice%v_3D( vi,ks)) / dzeta
+
+        ! Calculate dzeta/dx, dzeta/dy, dzeta/dz
+        dzeta_dx_ks = 0.5_dp * (ice%dzeta_dx_ak( vi,ks) + ice%dzeta_dx_ak( vi,ks+1))
+        dzeta_dy_ks = 0.5_dp * (ice%dzeta_dy_ak( vi,ks) + ice%dzeta_dy_ak( vi,ks+1))
+        dzeta_dz_ks = 0.5_dp * (ice%dzeta_dz_ak( vi,ks) + ice%dzeta_dz_ak( vi,ks+1))
+
+        ! Calculate dw/dzeta
+        dw_dzeta_ks = -1._dp / dzeta_dz_ks * (grad_uv_ks + dzeta_dx_ks * du_dzeta_ks + dzeta_dy_ks * dv_dzeta_ks)
+
+        ! Calculate w
+        ice%w_3D( vi,ks) = ice%w_3D( vi,ks+1) - dzeta * dw_dzeta_ks
+
+      END DO ! DO k = C%nz-1, 1, -1
+
+    END DO ! DO vi = mesh%vi1, mesh%vi2
+
+    ! Clean up after yourself
+    DEALLOCATE( dHib_dx)
+    DEALLOCATE( dHib_dy)
+    DEALLOCATE( dHib_dt)
+    DEALLOCATE( u_3D_c)
+    DEALLOCATE( v_3D_c)
+    DEALLOCATE( u_3D_c_tot)
+    DEALLOCATE( v_3D_c_tot)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE calc_vertical_velocities
+
+! == Restart NetCDF files
+
+  SUBROUTINE write_to_restart_file_ice_velocity( mesh, ice, time)
+    ! Write to the restart NetCDF file for the ice velocity solver
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)              :: mesh
+    TYPE(type_ice_model),                INTENT(IN)              :: ice
+    REAL(dp),                            INTENT(IN)              :: time
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'write_to_restart_file_ice_velocity'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    IF     (C%choice_stress_balance_approximation == 'SIA') THEN
+      ! The SIA doesn't have a restart file
+    ELSEIF (C%choice_stress_balance_approximation == 'SSA') THEN
+      CALL write_to_restart_file_SSA( mesh, ice%SSA, time)
+    ELSEIF (C%choice_stress_balance_approximation == 'SIA/SSA') THEN
+      CALL write_to_restart_file_SSA( mesh, ice%SSA, time)
+    ELSEIF (C%choice_stress_balance_approximation == 'DIVA') THEN
+      CALL write_to_restart_file_DIVA( mesh, ice%DIVA, time)
+    ELSEIF (C%choice_stress_balance_approximation == 'BPA') THEN
+      CALL write_to_restart_file_BPA( mesh, ice%BPA, time)
+    ELSE
+      CALL crash('unknown choice_stress_balance_approximation "' // TRIM( C%choice_stress_balance_approximation) // '"!')
+    END IF
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE write_to_restart_file_ice_velocity
+
+  SUBROUTINE create_restart_file_ice_velocity( mesh, ice)
+    ! Create a restart NetCDF file for the ice velocity solver
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)              :: mesh
+    TYPE(type_ice_model),                INTENT(INOUT)           :: ice
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'create_restart_file_ice_velocity'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    IF     (C%choice_stress_balance_approximation == 'SIA') THEN
+      ! The SIA doesn't have a restart file
+    ELSEIF (C%choice_stress_balance_approximation == 'SSA') THEN
+      CALL create_restart_file_SSA( mesh, ice%SSA)
+    ELSEIF (C%choice_stress_balance_approximation == 'SIA/SSA') THEN
+      CALL create_restart_file_SSA( mesh, ice%SSA)
+    ELSEIF (C%choice_stress_balance_approximation == 'DIVA') THEN
+      CALL create_restart_file_DIVA( mesh, ice%DIVA)
+    ELSEIF (C%choice_stress_balance_approximation == 'BPA') THEN
+      CALL create_restart_file_BPA( mesh, ice%BPA)
+    ELSE
+      CALL crash('unknown choice_stress_balance_approximation "' // TRIM( C%choice_stress_balance_approximation) // '"!')
+    END IF
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE create_restart_file_ice_velocity
 
 END MODULE ice_velocity_main

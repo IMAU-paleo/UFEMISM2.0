@@ -84,7 +84,7 @@ CONTAINS
   END SUBROUTINE allocate_SIA_solver
 
   SUBROUTINE solve_SIA( mesh, ice, SIA)
-    ! Calculate ice velocities by solving the Shallow Ice Approximation
+    ! Calculate ice velocities by solving the Shallow Ice Approximation with Glen's flow law
 
     IMPLICIT NONE
 
@@ -103,6 +103,11 @@ CONTAINS
 
     ! Add routine to path
     CALL init_routine( routine_name)
+
+    ! Safety
+    IF (.NOT. C%choice_flow_law == 'Glen') THEN
+      CALL crash('the analytical solution to the SIA is only valid when using Glens flow law!')
+    END IF
 
     ! Allocate memory
     ALLOCATE( Hi_b(        mesh%ti1:mesh%ti2         ), source = 0._dp)
@@ -137,11 +142,11 @@ CONTAINS
 
       ! Calculate the integral from b to z of (A_flow * (h - zeta)^n) dzeta
       z = Hs_b( ti) - mesh%zeta * Hi_b( ti)
-      int_A_hminzetan = integrate_from_zeta_is_one_to_zeta_is_zetap( z, A_flow_3D_b( ti,:) * (Hs_b( ti) - z)**C%n_flow)
+      int_A_hminzetan = integrate_from_zeta_is_one_to_zeta_is_zetap( z, A_flow_3D_b( ti,:) * (Hs_b( ti) - z)**C%Glens_flow_law_exponent)
 
       ! Calculate the diffusivity term
       abs_grad_Hs = SQRT( dHs_dx_b( ti)**2 + dHs_dy_b( ti)**2)
-      SIA%D_3D_b( ti,:) = -2._dp * (ice_density * grav)**C%n_flow * abs_grad_Hs**(C%n_flow - 1._dp) * int_A_hminzetan
+      SIA%D_3D_b( ti,:) = -2._dp * (ice_density * grav)**C%Glens_flow_law_exponent * abs_grad_Hs**(C%Glens_flow_law_exponent - 1._dp) * int_A_hminzetan
 
       ! Safety
       SIA%D_3D_b( ti,:) = MAX( -C%SIA_maximum_diffusivity, SIA%D_3D_b( ti,:))
@@ -159,10 +164,10 @@ CONTAINS
       z = ice%Hs( vi) - mesh%zeta * ice%Hi( vi)
 
       DO k = 1, mesh%nz
-        SIA%du_dz_3D( vi,k) = -2._dp * (ice_density * grav)**C%n_flow * abs_grad_Hs**(C%n_flow - 1._dp) * &
-          ice%A_flow_3D( vi,k) * (ice%Hs( vi) - z( k))**C%n_flow * dHs_dx( vi)
-        SIA%dv_dz_3D( vi,k) = -2._dp * (ice_density * grav)**C%n_flow * abs_grad_Hs**(C%n_flow - 1._dp) * &
-          ice%A_flow_3D( vi,k) * (ice%Hs( vi) - z( k))**C%n_flow * dHs_dy( vi)
+        SIA%du_dz_3D( vi,k) = -2._dp * (ice_density * grav)**C%Glens_flow_law_exponent * abs_grad_Hs**(C%Glens_flow_law_exponent - 1._dp) * &
+          ice%A_flow_3D( vi,k) * (ice%Hs( vi) - z( k))**C%Glens_flow_law_exponent * dHs_dx( vi)
+        SIA%dv_dz_3D( vi,k) = -2._dp * (ice_density * grav)**C%Glens_flow_law_exponent * abs_grad_Hs**(C%Glens_flow_law_exponent - 1._dp) * &
+          ice%A_flow_3D( vi,k) * (ice%Hs( vi) - z( k))**C%Glens_flow_law_exponent * dHs_dy( vi)
       END DO
 
     END DO ! DO vi = 1, mesh%nV_loc
