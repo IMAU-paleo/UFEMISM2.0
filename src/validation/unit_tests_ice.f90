@@ -1351,6 +1351,9 @@ CONTAINS
     ice%A_flow_3D = C%uniform_flow_factor
     ALLOCATE( ice%beta_b( mesh%vi1:mesh%vi2))
 
+    ! Calculate zeta gradients
+    CALL calc_zeta_gradients( mesh, ice)
+
     ! Calculate initial ice volume
     CALL integrate_over_domain( mesh, ice%Hi, ice_volume_init)
 

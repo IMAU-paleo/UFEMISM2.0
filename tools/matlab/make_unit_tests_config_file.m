@@ -84,7 +84,7 @@ for i = 1: length( param_block)
   
   % Make sure this config actually performs the unit tests
   if contains( str,'create_procedural_output_dir_config')
-    str = ['    create_procedural_output_dir_config          = .TRUE.                           '...
+    str = ['    create_procedural_output_dir_config          = .FALSE.                          '...
       '! Automatically create an output directory with a procedural name (e.g. results_20210720_001/)'];
   end
   if contains( str,'fixed_output_dir_config')
