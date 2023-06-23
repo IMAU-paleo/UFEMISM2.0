@@ -128,7 +128,6 @@ CONTAINS
     C%choice_stress_balance_approximation = 'SIA'
     CALL initialise_ice_dynamics_model( mesh, ice, refgeo_init, refgeo_PD, scalars, region_name)
     ice%A_flow_3D = C%uniform_flow_factor
-    ALLOCATE( ice%beta_b( mesh%vi1:mesh%vi2))
 
     ! Also initialise DIVA and BPA solvers
     C%choice_stress_balance_approximation = 'DIVA'
@@ -566,7 +565,6 @@ CONTAINS
     C%choice_stress_balance_approximation = 'SIA/SSA'
     CALL initialise_ice_dynamics_model( mesh, ice, refgeo_init, refgeo_PD, scalars, region_name)
     ice%A_flow_3D = C%uniform_flow_factor
-    ALLOCATE( ice%beta_b( mesh%vi1:mesh%vi2))
 
     ! Also initialise DIVA and BPA solvers
     C%choice_stress_balance_approximation = 'DIVA'
@@ -854,7 +852,6 @@ CONTAINS
     C%choice_stress_balance_approximation = 'SIA/SSA'
     CALL initialise_ice_dynamics_model( mesh, ice, refgeo_init, refgeo_PD, scalars, region_name)
     ice%A_flow_3D = C%uniform_flow_factor
-    ALLOCATE( ice%beta_b( mesh%vi1:mesh%vi2))
 
     ! Also initialise DIVA and BPA solvers
     C%choice_stress_balance_approximation = 'DIVA'
