@@ -119,7 +119,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! If there is no grounded ice, or no sliding, no need to solve the SSA
-    IF ((.NOT. ANY( ice%mask_sheet)) .OR. C%choice_sliding_law == 'no_sliding') THEN
+    IF ((.NOT. ANY( ice%mask_grounded_ice)) .OR. C%choice_sliding_law == 'no_sliding') THEN
       SSA%u_b = 0._dp
       SSA%v_b = 0._dp
       CALL finalise_routine( routine_name)
@@ -1740,8 +1740,8 @@ CONTAINS
     CALL add_time_dimension_to_file( SSA%restart_filename, ncid)
 
     ! Add the velocity fields to the file
-    CALL add_field_mesh_dp_2D_b( SSA%restart_filename, ncid, 'u_b')
-    CALL add_field_mesh_dp_2D_b( SSA%restart_filename, ncid, 'v_b')
+    CALL add_field_mesh_dp_2D_b( SSA%restart_filename, ncid, 'u_b', long_name = '2-D horizontal ice velocity in the x-direction', units = 'm/yr')
+    CALL add_field_mesh_dp_2D_b( SSA%restart_filename, ncid, 'v_b', long_name = '2-D horizontal ice velocity in the y-direction', units = 'm/yr')
 
     ! Close the file
     CALL close_netcdf_file( ncid)

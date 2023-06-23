@@ -27,7 +27,7 @@ CONTAINS
 
 ! == The main routines, to be called from the ice dynamics module
 
-  SUBROUTINE calc_Hi_tplusdt( mesh, Hi, u_vav_b, v_vav_b, SMB, BMB, dt, dHi_dt, Hi_tplusdt)
+  SUBROUTINE calc_dHi_dt( mesh, Hi, u_vav_b, v_vav_b, SMB, BMB, dt, dHi_dt, Hi_tplusdt)
     ! Calculate ice thickness at time t+dt
 
     IMPLICIT NONE
@@ -44,7 +44,7 @@ CONTAINS
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)   :: Hi_tplusdt
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'calc_Hi_tplusdt'
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'calc_dHi_dt'
     INTEGER                                               :: vi
     LOGICAL                                               :: found_negative_vals
 
@@ -53,11 +53,11 @@ CONTAINS
 
     ! Calculate Hi( t+dt) with the specified time discretisation scheme
     IF     (C%choice_ice_integration_method == 'explicit') THEN
-      CALL calc_Hi_tplusdt_explicit( mesh, Hi, u_vav_b, v_vav_b, SMB, BMB, dt, dHi_dt, Hi_tplusdt)
+      CALL calc_dHi_dt_explicit( mesh, Hi, u_vav_b, v_vav_b, SMB, BMB, dt, dHi_dt, Hi_tplusdt)
     ELSEIF (C%choice_ice_integration_method == 'implicit') THEN
-      CALL calc_Hi_tplusdt_implicit( mesh, Hi, u_vav_b, v_vav_b, SMB, BMB, dt, dHi_dt, Hi_tplusdt)
+      CALL calc_dHi_dt_implicit( mesh, Hi, u_vav_b, v_vav_b, SMB, BMB, dt, dHi_dt, Hi_tplusdt)
     ELSEIF (C%choice_ice_integration_method == 'semi-implicit') THEN
-      CALL calc_Hi_tplusdt_semiimplicit( mesh, Hi, u_vav_b, v_vav_b, SMB, BMB, dt, dHi_dt, Hi_tplusdt)
+      CALL calc_dHi_dt_semiimplicit( mesh, Hi, u_vav_b, v_vav_b, SMB, BMB, dt, dHi_dt, Hi_tplusdt)
     ELSE
       CALL crash('unknown choice_ice_integration_method "' // TRIM( C%choice_ice_integration_method) // '"!')
     END IF
@@ -83,9 +83,9 @@ CONTAINS
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
-  END SUBROUTINE calc_Hi_tplusdt
+  END SUBROUTINE calc_dHi_dt
 
-  SUBROUTINE calc_Hi_tplusdt_explicit( mesh, Hi, u_vav_b, v_vav_b, SMB, BMB, dt, dHi_dt, Hi_tplusdt)
+  SUBROUTINE calc_dHi_dt_explicit( mesh, Hi, u_vav_b, v_vav_b, SMB, BMB, dt, dHi_dt, Hi_tplusdt)
     ! Calculate ice thickness rates of change (dH/dt)
     !
     ! Use a time-explicit discretisation scheme for the ice fluxes
@@ -125,7 +125,7 @@ CONTAINS
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)   :: Hi_tplusdt
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'calc_Hi_tplusdt_explicit'
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'calc_dHi_dt_explicit'
     TYPE(type_sparse_matrix_CSR_dp)                       :: M_divQ
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: divQ
 
@@ -150,9 +150,9 @@ CONTAINS
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
-  END SUBROUTINE calc_Hi_tplusdt_explicit
+  END SUBROUTINE calc_dHi_dt_explicit
 
-  SUBROUTINE calc_Hi_tplusdt_implicit( mesh, Hi, u_vav_b, v_vav_b, SMB, BMB, dt, dHi_dt, Hi_tplusdt)
+  SUBROUTINE calc_dHi_dt_implicit( mesh, Hi, u_vav_b, v_vav_b, SMB, BMB, dt, dHi_dt, Hi_tplusdt)
     ! Calculate ice thickness rates of change (dH/dt)
     !
     ! Use a time-implicit discretisation scheme for the ice fluxes
@@ -199,7 +199,7 @@ CONTAINS
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)   :: Hi_tplusdt
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'calc_Hi_tplusdt_implicit'
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'calc_dHi_dt_implicit'
     TYPE(type_sparse_matrix_CSR_dp)                       :: M_divQ
     TYPE(type_sparse_matrix_CSR_dp)                       :: AA
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: bb
@@ -249,9 +249,9 @@ CONTAINS
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
-  END SUBROUTINE calc_Hi_tplusdt_implicit
+  END SUBROUTINE calc_dHi_dt_implicit
 
-  SUBROUTINE calc_Hi_tplusdt_semiimplicit( mesh, Hi, u_vav_b, v_vav_b, SMB, BMB, dt, dHi_dt, Hi_tplusdt)
+  SUBROUTINE calc_dHi_dt_semiimplicit( mesh, Hi, u_vav_b, v_vav_b, SMB, BMB, dt, dHi_dt, Hi_tplusdt)
     ! Calculate ice thickness rates of change (dH/dt)
     !
     ! Use a semi-implicit time discretisation scheme for the ice fluxes
@@ -303,7 +303,7 @@ CONTAINS
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)   :: Hi_tplusdt
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'calc_Hi_tplusdt_semiimplicit'
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'calc_dHi_dt_semiimplicit'
     TYPE(type_sparse_matrix_CSR_dp)                       :: M_divQ
     TYPE(type_sparse_matrix_CSR_dp)                       :: AA
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: M_divQ_H
@@ -358,7 +358,7 @@ CONTAINS
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
-  END SUBROUTINE calc_Hi_tplusdt_semiimplicit
+  END SUBROUTINE calc_dHi_dt_semiimplicit
 
   SUBROUTINE calc_ice_flux_divergence_matrix_upwind( mesh, u_vav_b, v_vav_b, M_divQ)
     ! Calculate the ice flux divergence matrix M_divQ using an upwind scheme

@@ -124,6 +124,8 @@ UFEMISM_source = \
   \
   basal_mass_balance/BMB_main.f90 \
   \
+  UFEMISM_main_model.f90 \
+  \
   validation/unit_tests_mpi.f90 \
   validation/unit_tests_petsc.f90 \
   validation/unit_tests_mesh.f90 \
@@ -131,7 +133,6 @@ UFEMISM_source = \
   validation/unit_tests_ice.f90 \
   validation/main_validation.f90 \
   \
-  UFEMISM_main_model.f90 \
   UFEMISM_program.f90
 
 UFEMISM_source_files_=$(notdir $(UFEMISM_source))

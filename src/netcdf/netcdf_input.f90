@@ -46,7 +46,7 @@ MODULE netcdf_input
                           field_name_options_Hi, field_name_options_Hb, field_name_options_Hs, field_name_options_dHb, &
                           field_name_options_SL, field_name_options_Ti, get_first_option_from_list, &
                           open_existing_netcdf_file_for_reading, close_netcdf_file, &
-                          inquire_dim_multopt, inquire_var_multopt, &
+                          inquire_dim_multopt, inquire_var_multopt, check_time, inquire_var_info, &
                           read_var_master_int_0D, read_var_master_int_1D, read_var_master_int_2D, read_var_master_int_3D, read_var_master_int_4D, &
                           read_var_master_dp_0D , read_var_master_dp_1D , read_var_master_dp_2D , read_var_master_dp_3D , read_var_master_dp_4D, &
                           check_x, check_y, check_lon, check_lat, check_mesh_dimensions, check_zeta, check_month, find_timeframe, &
@@ -1880,6 +1880,87 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE read_field_from_mesh_file_3D_b
+
+  ! Read 0-D data from a file
+  SUBROUTINE read_field_from_file_0D(                filename, field_name_options, d, time_to_read)
+    ! Read a 0-D data field from a NetCDF file
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    CHARACTER(LEN=*),                        INTENT(IN)    :: filename
+    CHARACTER(LEN=*),                        INTENT(IN)    :: field_name_options
+    REAL(dp),                                INTENT(OUT)   :: d
+    REAL(dp),                   OPTIONAL,    INTENT(IN)    :: time_to_read
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'read_field_from_file_0D'
+    INTEGER                                                :: ncid
+    INTEGER                                                :: id_var, id_dim_time
+    CHARACTER(LEN=256)                                     :: var_name
+    INTEGER                                                :: var_type
+    INTEGER                                                :: ndims_of_var
+    INTEGER, DIMENSION( NF90_MAX_VAR_DIMS)                 :: dims_of_var
+    INTEGER                                                :: ti
+    REAL(dp), DIMENSION(1)                                 :: d_with_time
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Open the NetCDF file
+    CALL open_existing_netcdf_file_for_reading( filename, ncid)
+
+    ! Look for the specified variable in the file
+    CALL inquire_var_multopt( filename, ncid, field_name_options, id_var, var_name = var_name)
+    IF (id_var == -1) CALL crash('couldnt find any of the options "' // TRIM( field_name_options) // '" in file "' // TRIM( filename)  // '"!')
+
+    IF (PRESENT( time_to_read)) THEN
+      ! Assume the file has a time dimension, and we're reading from time_to_read
+
+      ! Check if the file has a time dimension and variable
+      CALL check_time( filename, ncid)
+
+      ! Inquire variable info
+      CALL inquire_var_info( filename, ncid, id_var, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
+
+      ! Inquire file time dimension
+      CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
+
+      ! Check if the variable has time as a dimension
+      IF (ndims_of_var /= 1) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+      IF (.NOT. ANY( dims_of_var == id_dim_time)) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have time as a dimension!')
+
+      ! Inquire length of time dimension
+      CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
+
+      ! Read the data
+      CALL read_var_master_dp_1D( filename, ncid, id_var, d_with_time, start = (/ ti /), count = (/ 1 /))
+      IF (par%master) d = d_with_time( 1)
+
+      ! Broadcast to all processes
+      CALL MPI_BCAST( d, 1, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+
+    ELSE ! IF (PRESENT( time_to_read)) THEN
+      ! Assume the file has no time dimension and we're just reading the data directly
+
+      ! Inquire variable info
+      CALL inquire_var_info( filename, ncid, id_var, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
+
+      ! Check if the variable has time as a dimension
+      IF (ndims_of_var /= 0) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+
+      ! Read the data
+      CALL read_var_master_dp_0D( filename, ncid, id_var, d)
+
+      ! Broadcast to all processes
+      CALL MPI_BCAST( d, 1, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+
+    END IF ! IF (PRESENT( time_to_read)) THEN
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE read_field_from_file_0D
 
   ! ===== Set up grids/mesh from a NetCDF file =====
   ! ================================================

@@ -262,6 +262,52 @@ CONTAINS
 ! ===== Gather distributed variables to all processes =====
 ! =========================================================
 
+  SUBROUTINE gather_to_all_logical_1D( d_partial, d_tot)
+    ! Gather a distributed 1-D logical variable to all processes
+
+    IMPLICIT NONE
+
+    ! Input variables:
+!   REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE, OPTIONAL, INTENT(INOUT) :: i
+    LOGICAL , DIMENSION(:      ),                        INTENT(IN)    :: d_partial
+
+    ! Output variables:
+    LOGICAL , DIMENSION(:      ),                        INTENT(OUT)   :: d_tot
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'gather_to_all_logical_1D'
+    INTEGER                                                            :: n1,i
+    INTEGER                                                            :: n_tot
+    INTEGER,  DIMENSION(1:par%n)                                       :: counts, displs
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Size of the array owned by this process
+    n1 = SIZE( d_partial,1)
+
+    ! Determine total size of distributed array
+    CALL MPI_ALLGATHER( n1, 1, MPI_INTEGER, counts, 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
+    n_tot = SUM( counts)
+    CALL MPI_BCAST( n_tot, 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
+
+    ! Safety
+    IF (n_tot /= SIZE( d_tot,1)) CALL crash('combined sizes of d_partial dont match size of d_tot')
+
+    ! Calculate displacements for MPI_GATHERV
+    displs( 1) = 0
+    DO i = 2, par%n
+      displs( i) = displs( i-1) + counts( i-1)
+    END DO
+
+    ! Gather data to all processes
+    CALL MPI_ALLGATHERV( d_partial, n1, MPI_LOGICAL, d_tot, counts, displs, MPI_LOGICAL, MPI_COMM_WORLD, ierr)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE gather_to_all_logical_1D
+
   SUBROUTINE gather_to_all_int_1D( d_partial, d_tot)
     ! Gather a distributed 1-D integer variable to all processes
 

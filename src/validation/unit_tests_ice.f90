@@ -15,21 +15,22 @@ MODULE unit_tests_ice
   USE ice_model_types                                        , ONLY: type_ice_model
   USE scalar_types                                           , ONLY: type_regional_scalars
   USE reference_geometries                                   , ONLY: type_reference_geometry, initialise_reference_geometries_raw, initialise_reference_geometries_on_model_mesh
+  USE region_types                                           , ONLY: type_model_region
   USE mesh_creation                                          , ONLY: create_mesh_from_gridded_geometry, write_mesh_success
-  USE ice_model_main                                         , ONLY: initialise_ice_model
+  USE ice_model_main                                         , ONLY: initialise_ice_dynamics_model
   USE ice_model_utilities                                    , ONLY: calc_zeta_gradients
   USE ice_velocity_main                                      , ONLY: initialise_velocity_solver, solve_stress_balance
   USE mesh_operators                                         , ONLY: calc_3D_matrix_operators_mesh
   USE netcdf_basic                                           , ONLY: create_new_netcdf_file_for_writing, open_existing_netcdf_file_for_writing, close_netcdf_file
-  USE netcdf_output                                          , ONLY: add_zeta_dimension_to_file, setup_mesh_in_netcdf_file, add_field_mesh_dp_3D_b_notime, &
-                                                                     write_to_field_multopt_mesh_dp_3D_b_notime, add_field_mesh_dp_2D_b_notime, &
-                                                                     write_to_field_multopt_mesh_dp_2D_b_notime, add_time_dimension_to_file, add_field_mesh_dp_2D, &
-                                                                     add_field_mesh_dp_2D_b, write_time_to_file, write_to_field_multopt_mesh_dp_2D, &
-                                                                     write_to_field_multopt_mesh_dp_2D_b, add_field_mesh_dp_3D_notime, write_to_field_multopt_mesh_dp_3D_notime
+  USE netcdf_output                                          , ONLY: add_zeta_dimension_to_file, setup_mesh_in_netcdf_file, &
+                                                                     add_field_mesh_dp_3D_b_notime, write_to_field_multopt_mesh_dp_3D_b_notime, &
+                                                                     add_field_mesh_dp_3D_notime  , write_to_field_multopt_mesh_dp_3D_notime, &
+                                                                     add_field_mesh_dp_2D_notime  , write_to_field_multopt_mesh_dp_2D_notime
   USE mesh_utilities                                         , ONLY: find_containing_triangle, integrate_over_domain, average_over_domain
-  USE ice_thickness                                          , ONLY: calc_Hi_tplusdt
+  USE ice_thickness                                          , ONLY: calc_dHi_dt
   USE math_utilities                                         , ONLY: ice_surface_elevation
   USE analytical_solutions                                   , ONLY: Halfar_dome
+  USE UFEMISM_main_model                                     , ONLY: initialise_model_region, run_model_region
 
   IMPLICIT NONE
 
@@ -125,7 +126,7 @@ CONTAINS
 
     ! Initialise the ice model
     C%choice_stress_balance_approximation = 'SIA'
-    CALL initialise_ice_model( mesh, ice, refgeo_init, refgeo_PD, scalars, region_name)
+    CALL initialise_ice_dynamics_model( mesh, ice, refgeo_init, refgeo_PD, scalars, region_name)
     ice%A_flow_3D = C%uniform_flow_factor
     ALLOCATE( ice%beta_b( mesh%vi1:mesh%vi2))
 
@@ -563,7 +564,7 @@ CONTAINS
 
     ! Initialise the ice model
     C%choice_stress_balance_approximation = 'SIA/SSA'
-    CALL initialise_ice_model( mesh, ice, refgeo_init, refgeo_PD, scalars, region_name)
+    CALL initialise_ice_dynamics_model( mesh, ice, refgeo_init, refgeo_PD, scalars, region_name)
     ice%A_flow_3D = C%uniform_flow_factor
     ALLOCATE( ice%beta_b( mesh%vi1:mesh%vi2))
 
@@ -851,7 +852,7 @@ CONTAINS
 
     ! Initialise the ice model
     C%choice_stress_balance_approximation = 'SIA/SSA'
-    CALL initialise_ice_model( mesh, ice, refgeo_init, refgeo_PD, scalars, region_name)
+    CALL initialise_ice_dynamics_model( mesh, ice, refgeo_init, refgeo_PD, scalars, region_name)
     ice%A_flow_3D = C%uniform_flow_factor
     ALLOCATE( ice%beta_b( mesh%vi1:mesh%vi2))
 
@@ -1275,20 +1276,10 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'test_thickness_evolution_Halfar_dome'
-    TYPE(type_mesh)                                                    :: mesh
-    TYPE(type_ice_model)                                               :: ice
-    TYPE(type_regional_scalars)                                        :: scalars
-    TYPE(type_reference_geometry)                                      :: refgeo_init, refgeo_PD, refgeo_GIAeq
-    CHARACTER(LEN=256)                                                 :: region_name, mesh_name
-    REAL(dp), PARAMETER                                                :: tstart    =    0._dp    ! [yr] Start time of simulation
-    REAL(dp), PARAMETER                                                :: tstop     = 5000._dp    ! [yr] End   time of simulation
-    REAL(dp)                                                           :: dt                      ! [yr] Time step
-    REAL(dp), PARAMETER                                                :: dt_output =  100._dp    ! [yr] Time step
-    REAL(dp)                                                           :: time, time_next_output
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE                            :: SMB, BMB
+    TYPE(type_model_region)                                            :: region
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE                            :: Hi_analytical
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE                            :: SE_Hi
     INTEGER                                                            :: vi
-    REAL(dp)                                                           :: ice_volume_init, ice_volume
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE                            :: Hi_an, dHi_sq
     REAL(dp)                                                           :: MSE_Hi, RMSE_Hi
     CHARACTER(LEN=256)                                                 :: filename
     INTEGER                                                            :: ncid
@@ -1296,17 +1287,19 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! Print to screen that we're doing this experiment
-    IF (par%master) WRITE(0,*) '   Calculating ice thickness evolution for the Halfar dome using choice_ice_integration_method = ' // &
-      colour_string( TRIM( choice_ice_integration_method), 'light blue') // '...'
+  ! == Set the appropriate model configuration
+  ! ==========================================
 
-    ! Model domain
-    region_name = 'ANT'
-
-    ! Set model configuration for this experiment
+    ! General Halfar dome config
     CALL set_config_for_Halfar_dome
 
     ! Specific for this experiment
+
+    ! Duration of simulation
+    C%start_time_of_run                     = 0._dp
+    C%end_time_of_run                       = 5000._dp
+
+    ! Resolutions for different parts of the ice sheet
     C%maximum_resolution_uniform            = 40e3_dp                          ! [m]          Maximum resolution for the entire domain
     C%maximum_resolution_grounded_ice       = 100e3_dp                         ! [m]          Maximum resolution for grounded ice
     C%maximum_resolution_floating_ice       = 100e3_dp                         ! [m]          Maximum resolution for floating ice
@@ -1319,178 +1312,83 @@ CONTAINS
     C%maximum_resolution_coastline          = 100e3_dp                         ! [m]          Maximum resolution for the coastline
     C%coastline_width                       = 100e3_dp                         ! [m]          Width of the band around the coastline that should get this resolution
 
+    ! Ice integration method
     C%choice_ice_integration_method         = choice_ice_integration_method
-    C%dHi_semiimplicit_fs                   = 2.5_dp
 
-  ! Initialise the model
-  ! ====================
+    ! Target truncation error
+    C%pc_epsilon                            = 0.01_dp
 
-    ! Initialise all the reference geometries on their raw input grids
-    CALL initialise_reference_geometries_raw( region_name, refgeo_init, refgeo_PD, refgeo_GIAeq)
+  ! == Initialise the model region
+  ! ==============================
 
-    ! Create mesh from gridded initial geometry data
-    mesh_name = 'mesh_' // TRIM( routine_name)
-    CALL create_mesh_from_gridded_geometry( region_name, mesh_name, &
-      refgeo_init%grid_raw, &
-      refgeo_init%Hi_grid_raw, &
-      refgeo_init%Hb_grid_raw, &
-      refgeo_init%Hs_grid_raw, &
-      refgeo_init%SL_grid_raw, &
-      C%xmin_ANT, C%xmax_ANT, C%ymin_ANT, C%ymax_ANT, C%lambda_M_ANT, C%phi_M_ANT, C%beta_stereo_ANT, &
-      mesh)
+    CALL initialise_model_region( region, 'ANT')
 
-    ! Write the mesh creation success message to the terminal
-    CALL write_mesh_success( mesh)
+    ! SMB and BMB not implemented yet...
+    ALLOCATE( region%SMB%SMB( region%mesh%vi1:region%mesh%vi2), source = 0._dp)
+    ALLOCATE( region%BMB%BMB( region%mesh%vi1:region%mesh%vi2), source = 0._dp)
 
-    ! Remap reference geometries from their raw input grids to the model mesh
-    CALL initialise_reference_geometries_on_model_mesh( region_name, mesh, refgeo_init, refgeo_PD, refgeo_GIAeq)
+    ! Thermodynamics and rheology not implemented yet...
+    region%ice%A_flow_3D = C%uniform_flow_factor
 
-    ! Initialise the ice model
-    C%choice_stress_balance_approximation = 'SIA'
-    CALL initialise_ice_model( mesh, ice, refgeo_init, refgeo_PD, scalars, region_name)
-    ice%A_flow_3D = C%uniform_flow_factor
-    ALLOCATE( ice%beta_b( mesh%vi1:mesh%vi2))
+    ! We don't want regional output for this experiment
+    region%output_t_next = C%end_time_of_run + 1000._dp
 
-    ! Calculate zeta gradients
-    CALL calc_zeta_gradients( mesh, ice)
+  ! == Run the model for 5,000 years
+  ! ================================
 
-    ! Calculate initial ice volume
-    CALL integrate_over_domain( mesh, ice%Hi, ice_volume_init)
+    CALL run_model_region( region, C%end_time_of_run)
 
-    ! Allocate memory for (unused) SMB and BMB
-    ALLOCATE( SMB(   mesh%vi1:mesh%vi2), source = 0._dp)
-    ALLOCATE( BMB(   mesh%vi1:mesh%vi2), source = 0._dp)
-    ALLOCATE( Hi_an( mesh%vi1:mesh%vi2), source = 0._dp)
+  ! == Compare to analytical solution
+  ! =================================
 
-  ! Create a nice output file
-  ! =========================
+    ! Allocate memory
+    ALLOCATE( Hi_analytical( region%mesh%vi1:region%mesh%vi2))
+    ALLOCATE( SE_Hi(         region%mesh%vi1:region%mesh%vi2))
+
+    DO vi = region%mesh%vi1, region%mesh%vi2
+
+      ! Calculate analytical solution
+      CALL Halfar_dome( C%uniform_flow_factor, C%Glens_flow_law_exponent, C%refgeo_idealised_Halfar_H0, C%refgeo_idealised_Halfar_R0, &
+        region%mesh%V( vi,1), region%mesh%V( vi,2), C%end_time_of_run, Hi_analytical( vi))
+
+      ! Calculate square error in ice thickness
+      SE_Hi( vi) = (region%ice%Hi( vi) - Hi_analytical( vi))**2
+
+    END DO ! DO vi = region%mesh%vi1, region%mesh%vi2
+
+    ! Calculate root-mean-square error in ice thickness
+    CALL average_over_domain( region%mesh, SE_Hi, MSE_Hi)
+    RMSE_Hi = SQRT( MSE_Hi)
+
+    ! Validation
+    IF (RMSE_Hi < 25._dp) THEN
+      IF (par%master) CALL happy('validated transient Halfar dome geometry for {dp_01} yr using ' // &
+        TRIM( choice_ice_integration_method) // ' time-stepping', dp_01 = C%end_time_of_run)
+    ELSE
+      IF (par%master) CALL warning('found unexpectedly large RMSE of {dp_01} m ice after {dp_02} yr in the  transient Halfar dome geometry using ' // &
+        TRIM( choice_ice_integration_method) // ' time-stepping', dp_01 = RMSE_Hi, dp_02 = C%end_time_of_run)
+    END IF
+
+  ! == Write to output
+  ! ==================
 
     ! Create a NetCDF output file
     filename = TRIM( C%output_dir) // TRIM( routine_name) // '_' // TRIM( choice_ice_integration_method) // '_output.nc'
     CALL create_new_netcdf_file_for_writing( filename, ncid)
 
     ! Set up the mesh in the file
-    CALL setup_mesh_in_netcdf_file( filename, ncid, mesh)
+    CALL setup_mesh_in_netcdf_file( filename, ncid, region%mesh)
 
-    ! Add a time dimension to the file
-    CALL add_time_dimension_to_file( filename, ncid)
+    ! Add all the fields
+    CALL add_field_mesh_dp_2D_notime( filename, ncid, 'Hi_modelled' )
+    CALL add_field_mesh_dp_2D_notime( filename, ncid, 'Hi_analytical' )
 
-    ! Add data fields
-    CALL add_field_mesh_dp_2D(   filename, ncid, 'Hi_an'  , long_name = 'Ice thickness (analytical solution)', units = 'm')
-    CALL add_field_mesh_dp_2D(   filename, ncid, 'Hi'     , long_name = 'Ice thickness', units = 'm')
-    CALL add_field_mesh_dp_2D_b( filename, ncid, 'u_vav_b', long_name = 'Vertically averaged velocity in x-direction', units = 'm/yr')
-    CALL add_field_mesh_dp_2D_b( filename, ncid, 'v_vav_b', long_name = 'Vertically averaged velocity in y-direction', units = 'm/yr')
-
-    ! Close the file
-    CALL close_netcdf_file( ncid)
-
-  ! Integrate the model through time
-  ! ================================
-
-    time             = tstart
-    time_next_output = tstart
-    dt               = 0.5_dp
-    DO WHILE (time < tstop)
-
-      ! Solve the stress balance to calculate ice velocities
-      CALL solve_stress_balance( mesh, ice, BMB)
-
-      ! After 100 years we can go for a larger time step
-      IF (time >= 100._dp) dt = 1._dp
-      ! After 1000 years we can go for an even larger time step
-      IF (time >= 1000._dp) dt = 2.5_dp
-      ! After 2000 years we can go for an even even larger time step
-      IF (time >= 2000._dp) dt = 5._dp
-
-      ! Calculate ice thickness in next time step
-      CALL calc_Hi_tplusdt( mesh, ice%Hi, ice%u_vav_b, ice%v_vav_b, SMB, BMB, dt, ice%dHi_dt, ice%Hi_tplusdt)
-
-      ! Write to output
-      IF (time >= time_next_output - dt / 2._dp) THEN
-
-        ! Update timer
-        time_next_output = time_next_output + dt_output
-
-        ! Open NetCDF file
-        CALL open_existing_netcdf_file_for_writing(     filename, ncid)
-
-        ! Write current time to file
-        CALL write_time_to_file(                        filename, ncid, time)
-
-        ! Calculate analytical solution
-        DO vi = mesh%vi1, mesh%vi2
-          ! Calculate analytical solution
-          CALL Halfar_dome( C%uniform_flow_factor, C%Glens_flow_law_exponent, C%refgeo_idealised_Halfar_H0, C%refgeo_idealised_Halfar_R0, &
-            mesh%V( vi,1), mesh%V( vi,2), time, Hi_an( vi))
-        END DO ! DO vi = mesh%vi1, mesh%vi2
-
-        ! Write model data to file
-        CALL write_to_field_multopt_mesh_dp_2D(   mesh, filename, ncid, 'Hi_an'  , Hi_an      )
-        CALL write_to_field_multopt_mesh_dp_2D(   mesh, filename, ncid, 'Hi'     , ice%Hi     )
-        CALL write_to_field_multopt_mesh_dp_2D_b( mesh, filename, ncid, 'u_vav_b', ice%u_vav_b)
-        CALL write_to_field_multopt_mesh_dp_2D_b( mesh, filename, ncid, 'v_vav_b', ice%v_vav_b)
-
-        ! Close the file
-        CALL close_netcdf_file( ncid)
-
-      END IF ! IF (time >= time_next_output) THEN
-
-      ! Advance to next time step
-      ice%Hi = ice%Hi_tplusdt
-      DO vi = mesh%vi1, mesh%vi2
-        ice%Hs( vi) = ice_surface_elevation( ice%Hi( vi), ice%Hb( vi), ice%SL( vi))
-      END DO
-      time   = time + dt
-
-    END DO ! DO WHILE (time < tstop)
-
-    ! Open NetCDF file
-    CALL open_existing_netcdf_file_for_writing(     filename, ncid)
-
-    ! Write current time to file
-    CALL write_time_to_file(                        filename, ncid, time)
-
-    ! Calculate analytical solution
-    DO vi = mesh%vi1, mesh%vi2
-      ! Calculate analytical solution
-      CALL Halfar_dome( C%uniform_flow_factor, C%Glens_flow_law_exponent, C%refgeo_idealised_Halfar_H0, C%refgeo_idealised_Halfar_R0, &
-        mesh%V( vi,1), mesh%V( vi,2), time, Hi_an( vi))
-    END DO ! DO vi = mesh%vi1, mesh%vi2
-
-    ! Write model data to file
-    CALL write_to_field_multopt_mesh_dp_2D(   mesh, filename, ncid, 'Hi_an'  , Hi_an      )
-    CALL write_to_field_multopt_mesh_dp_2D(   mesh, filename, ncid, 'Hi'     , ice%Hi     )
-    CALL write_to_field_multopt_mesh_dp_2D_b( mesh, filename, ncid, 'u_vav_b', ice%u_vav_b)
-    CALL write_to_field_multopt_mesh_dp_2D_b( mesh, filename, ncid, 'v_vav_b', ice%v_vav_b)
+    ! Write to file
+    CALL write_to_field_multopt_mesh_dp_2D_notime( region%mesh, filename, ncid, 'Hi_modelled'   , region%ice%Hi )
+    CALL write_to_field_multopt_mesh_dp_2D_notime( region%mesh, filename, ncid, 'Hi_analytical' , Hi_analytical )
 
     ! Close the file
     CALL close_netcdf_file( ncid)
-
-  ! == Validation
-  ! =============
-
-    ! Calculate integrated ice volume and compare to initial volume (should be identical)
-    CALL integrate_over_domain( mesh, ice%Hi, ice_volume)
-    IF (ABS( 1._dp - ice_volume / ice_volume_init) > 1E-5_dp) THEN
-      IF (par%master) CALL warning('Halfar dome experiment violates conservation of mass')
-    END IF
-
-    ! Calculate (squared) error in modelled ice thickness
-    ALLOCATE( dHi_sq( mesh%vi1:mesh%vi2))
-    dHi_sq = (ice%Hi - Hi_an)**2
-
-    ! Calculate root-mean-square-error in modelled ice thickness
-    CALL average_over_domain( mesh, dHi_sq, MSE_Hi)
-    RMSE_Hi = SQRT( MSE_Hi)
-    IF (RMSE_Hi > 0.2E2_dp) THEN
-      IF (par%master) CALL warning('Halfar dome experiment deviates further than expected from analytical solution')
-    END IF
-
-    ! Clean up after yourself
-    DEALLOCATE( SMB   )
-    DEALLOCATE( BMB   )
-    DEALLOCATE( Hi_an )
-    DEALLOCATE( dHi_sq)
 
     ! Finalise routine
     CALL finalise_routine( routine_name)

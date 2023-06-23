@@ -153,55 +153,76 @@ MODULE ice_model_types
 
   END TYPE type_ice_velocity_solver_BPA
 
+  TYPE type_ice_pc
+    ! Data fields needed for the predictor/corrector time-stepping scheme
+
+    REAL(dp)                                :: dt_n                         ! [yr]   Previous time step
+    REAL(dp)                                :: dt_np1                       ! [yr]   Current  time step
+    REAL(dp)                                :: zeta_t                       ! [-]    Ratio between previous and new time step
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHi_dt_Hi_nm1_u_nm1          ! [m/yr] Thinning rates from previous time step
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHi_dt_Hi_n_u_n              ! [m/yr] Thinning rates for current time step with old geometry
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: Hi_star_np1                  ! [m]    Predicted ice thickness
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHi_dt_Hi_star_np1_u_np1     ! [m/yr] Thinning rates for predicted ice thickness and updated velocity
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: Hi_np1                       ! [m]    Corrected ice thickness
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: tau_np1                      ! [m]    Truncation error
+    REAL(dp)                                :: eta_n                        ! [m]    Previous maximum truncation error
+    REAL(dp)                                :: eta_np1                      ! [m]    Current  maximum truncation error
+
+    ! Restart file
+    CHARACTER(LEN=256)                      :: restart_filename
+
+  END TYPE type_ice_pc
+
   TYPE type_ice_model
     ! The ice dynamics model data structure.
 
-    ! === Masks ===
-    ! =============
+  ! === Ice-sheet geometry ===
+  ! ==========================
 
-    LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_land                   ! T: land above water level (sea and/or lake), F: land below water level (idem)
-    LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_ocean                  ! T: land below sea level, F: land above sea level
-    LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_lake                   ! T: land below lake level, F: land above lake level
-    LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_ice                    ! T: Hi > 0, F: Hi = 0
-    LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_sheet                  ! T: grounded ice, F: floating ice or ice-free
-    LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_shelf                  ! T: floating ice, F: grounded ice or ice-free
-    LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_coast                  ! T: land next to sea/lake, F: otherwise
-    LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_margin                 ! T: ice next to ice-free, F: otherwise
-    LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_gl_gr                  ! T: grounded ice next to floating ice, F: otherwise
-    LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_gl_fl                  ! T: floating ice next to grounded ice, F: otherwise
-    LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_cf_gr                  ! T: grounded ice next to ice-free water (sea or lake), F: otherwise
-    LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_cf_fl                  ! T: floating ice next to ice-free water (sea or lake), F: otherwise
-    LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_ice_prev               ! T: ice-covered during previous time step, F: otherwise
-    INTEGER,  DIMENSION(:    ), ALLOCATABLE :: mask                        ! Combined mask with integers representing different parts, only used for quick visual inspection of output
-
-    ! === Basic geometry ===
-    ! ======================
-
+    ! Basic geometry
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: Hi                          ! [m] Ice thickness
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: Hb                          ! [m] Bedrock elevation (w.r.t. PD sea level)
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: Hs                          ! [m] Surface elevation (w.r.t. PD sea level)
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: SL                          ! [m] Sea level (geoid) elevation (w.r.t. PD sea level)
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: Hib                         ! [m] Ice base elevation (w.r.t. PD sea level)
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: TAF                         ! [m] Thickness above flotation
 
-    ! === Geometry changes ===
-    ! ========================
-
+    ! Geometry changes
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHi                         ! [m] Ice thickness difference (w.r.t. to reference)
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHb                         ! [m] Bedrock elevation difference (w.r.t. to reference)
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHs                         ! [m] Surface elevation difference (w.r.t. to reference)
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHib                        ! [m] Base elevation difference (w.r.t. to reference)
 
-    ! === Geometry rates of change ===
-    ! ================================
-
+    ! Rates of change
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHi_dt                      ! [m yr^-1] Ice thickness rate of change
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHb_dt                      ! [m yr^-1] Bedrock elevation rate of change
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHs_dt                      ! [m yr^-1] Ice surface elevation rate of change
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHib_dt                     ! [m yr^-1] Ice base elevation rate of change
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: Hi_tplusdt                  ! [m] Predicted ice thickness at next time step
 
-    ! === Terrain-following coordinate zeta gradients ===
-    ! ===================================================
+    ! Masks
+    LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_icefree_land           ! T: ice-free land , F: otherwise
+    LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_icefree_ocean          ! T: ice-free ocean, F: otherwise
+    LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_grounded_ice           ! T: grounded ice  , F: otherwise
+    LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_floating_ice           ! T: floating ice  , F: otherwise
+    LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_icefree_land_prev      ! T: ice-free land , F: otherwise (during previous time step)
+    LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_icefree_ocean_prev     ! T: ice-free ocean, F: otherwise (during previous time step)
+    LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_grounded_ice_prev      ! T: grounded ice  , F: otherwise (during previous time step)
+    LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_floating_ice_prev      ! T: floating ice  , F: otherwise (during previous time step)
+    LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_gl_gr                  ! T: grounded ice next to floating ice, F: otherwise
+    LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_gl_fl                  ! T: floating ice next to grounded ice, F: otherwise
+    LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_cf_gr                  ! T: grounded ice next to ice-free water (sea or lake), F: otherwise
+    LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_cf_fl                  ! T: floating ice next to ice-free water (sea or lake), F: otherwise
+    INTEGER,  DIMENSION(:    ), ALLOCATABLE :: mask                        ! Diagnostic, only meant for quick visual inspection in output
+    INTEGER,  DIMENSION(:    ), ALLOCATABLE :: basin_ID                    ! The drainage basin to which each vertex belongs
+
+    ! Area fractions
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: bedrock_cdf                 ! Sub-grid bedrock cumulative density functions
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: fraction_gr                 ! [0-1] Grounded area fractions of vertices
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: fraction_gr_b               ! [0-1] Grounded area fractions of triangles
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: fraction_cf                 ! [0-1] Ice-covered area fractions of calving fronts
+
+  ! === Terrain-following coordinate zeta gradients ===
+  ! ===================================================
 
     ! Gradients of the terrain-following (i.e. ice-geometry-dependent) vertical coordinate zeta
 
@@ -230,8 +251,8 @@ MODULE ice_model_types
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: d2zeta_dxdy_bks
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: d2zeta_dy2_bks
 
-    ! === Thermodynamics ===
-    ! ======================
+  ! === Thermodynamics and rheology ===
+  ! ===================================
 
     ! Ice temperatures
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: Ti                          ! [K] Englacial temperature
@@ -245,14 +266,11 @@ MODULE ice_model_types
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: internal_heating            ! [?] Internal heating
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: frictional_heating          ! [?] Frictional heating
 
-    ! === Ice flow ===
-    ! ================
+    ! Glen's flow law factor
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: A_flow_3D                   ! [Pa^-3 y^-1] Glen's flow law factor
 
-    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: A_flow_3D                   ! [Pa^-3 y^-1] Glen's flow law parameter
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: A_flow_vav                  ! [Pa^-3 y^-1] Vertically averaged Glen's flow law parameter
-
-    ! === Ice velocities ===
-    ! ======================
+  ! === Ice velocities ===
+  ! ======================
 
     ! Velocity solvers
     TYPE(type_ice_velocity_solver_SIA)      :: SIA                         ! Shallow Ice Approximation
@@ -293,9 +311,7 @@ MODULE ice_model_types
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: uabs_base
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: uabs_base_b
 
-    ! === Strain rates ===
-    ! ====================
-
+    ! Strain rates
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: du_dx_3D                    ! [yr^-1]
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: du_dy_3D
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: du_dz_3D
@@ -306,8 +322,8 @@ MODULE ice_model_types
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: dw_dy_3D
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: dw_dz_3D
 
-    ! == Basal conditions ==
-    ! ======================
+  ! == Basal conditions ==
+  ! ======================
 
     ! Basal hydrology
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: pore_water_pressure         ! Basal pore water pressure
@@ -329,26 +345,17 @@ MODULE ice_model_types
     ! Geothermal heat
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: geothermal_heat_flux        ! Geothermal heat flux
 
-    ! === Sea level ===
-    ! =================
+  ! === Time stepping ===
+  ! =====================
 
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: SL                          ! [m] Sea level (geoid) elevation (w.r.t. PD sea level)
+    ! Time-stepping solvers
+    TYPE(type_ice_pc)                       :: pc
 
-    ! === Area fractions ===
-    ! ======================
-
-    ! Grounded
-    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: bedrock_cdf                 ! Sub-grid bedrock cumulative density function
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: fraction_gr                 ! [0-1] Grounded area fractions of vertices
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: fraction_gr_b               ! [0-1] Grounded area fractions of triangles
-
-    ! Calving front
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: fraction_cf                 ! [0-1] Ice-covered area fractions of calving fronts
-
-    ! === Extras ===
-    ! ==============
-
-    INTEGER,  DIMENSION(:    ), ALLOCATABLE :: basin_ID                    ! The drainage basin to which each vertex belongs
+    ! Time frames and ice thicknesses
+    REAL(dp)                                :: t_prev                      ! [yr] Time of the previous state
+    REAL(dp)                                :: t_next                      ! [yr] Time of the next state
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: Hi_prev                     ! [m]  The previous state
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: Hi_next                     ! [m]  The next state
 
   END TYPE type_ice_model
 

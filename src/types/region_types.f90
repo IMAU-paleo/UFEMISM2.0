@@ -47,6 +47,10 @@ MODULE region_types
     ! Scalar data
     TYPE(type_regional_scalars)             :: scalars                     ! Scalar data (e.g. total area, volume, mass balance)
 
+    ! Output
+    CHARACTER(LEN=256)                      :: output_filename             ! Name of NetCDF output file
+    REAL(dp)                                :: output_t_next               ! Time when we should next write to output
+
   END TYPE type_model_region
 
 CONTAINS

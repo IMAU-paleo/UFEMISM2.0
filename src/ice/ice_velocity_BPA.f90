@@ -121,7 +121,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! If there is no grounded ice, or no sliding, no need to solve the BPA
-    IF (.NOT. ANY( ice%mask_sheet)) THEN
+    IF (.NOT. ANY( ice%mask_grounded_ice)) THEN
       BPA%u_bk = 0._dp
       BPA%v_bk = 0._dp
       CALL finalise_routine( routine_name)
@@ -2251,8 +2251,8 @@ CONTAINS
     CALL add_zeta_dimension_to_file( BPA%restart_filename, ncid, mesh%zeta)
 
     ! Add the velocity fields to the file
-    CALL add_field_mesh_dp_3D_b( BPA%restart_filename, ncid, 'u_bk')
-    CALL add_field_mesh_dp_3D_b( BPA%restart_filename, ncid, 'v_bk')
+    CALL add_field_mesh_dp_3D_b( BPA%restart_filename, ncid, 'u_bk', long_name = '3-D horizontal ice velocity in the x-direction', units = 'm/yr')
+    CALL add_field_mesh_dp_3D_b( BPA%restart_filename, ncid, 'v_bk', long_name = '3-D horizontal ice velocity in the y-direction', units = 'm/yr')
 
     ! Close the file
     CALL close_netcdf_file( ncid)

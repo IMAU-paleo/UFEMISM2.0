@@ -12,7 +12,7 @@ MODULE UFEMISM_main_model
   USE model_configuration                                    , ONLY: C
   USE region_types                                           , ONLY: type_model_region
   USE reference_geometries                                   , ONLY: initialise_reference_geometries_raw, initialise_reference_geometries_on_model_mesh
-  USE ice_model_main                                         , ONLY: initialise_ice_model
+  USE ice_model_main                                         , ONLY: initialise_ice_dynamics_model, run_ice_dynamics_model
   USE netcdf_basic                                           , ONLY: open_existing_netcdf_file_for_reading, close_netcdf_file
   USE netcdf_input                                           , ONLY: setup_mesh_from_file
   USE mesh_creation                                          , ONLY: create_mesh_from_gridded_geometry, create_mesh_from_meshed_geometry, write_mesh_success
@@ -35,18 +35,126 @@ CONTAINS
     REAL(dp)                                           , INTENT(IN)    :: t_end    ! [yr]
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'run_model'
+    CHARACTER(LEN=256)                                                 :: routine_name
 
     ! Add routine to path
+    routine_name = 'run_model('  //  region%name  //  ')'
     CALL init_routine( routine_name)
 
-    ! DENK DROM
-    CALL crash('fixme!')
+    IF (par%master) WRITE(0,*) ''
+    IF (par%master) WRITE (0,'(A,A,A,A,A,F9.3,A,F9.3,A)') &
+      '  Running model region ', colour_string( region%name, 'light blue'), ' (', colour_string( TRIM( region%long_name), 'light blue'), &
+      ') from t = ', region%time/1000._dp, ' to t = ', t_end/1000._dp, ' kyr'
+
+    ! The main UFEMISM time loop
+    main_time_loop: DO WHILE (region%time <= t_end)
+
+      ! Run the ice dynamics model to calculate ice geometry at the desired time, and update
+      ! velocities, thinning rates, and predicted geometry if necessary
+      CALL run_ice_dynamics_model( region)
+
+      ! Write to the main regional output NetCDF file
+      CALL write_to_main_regional_output( region)
+
+      ! Advance this region's time to the time of the next "action"
+      CALL advance_region_time_to_time_of_next_action( region, t_end)
+
+      ! If we've reached the end of this coupling interval, stp
+      IF (region%time == t_end) EXIT main_time_loop
+
+    END DO main_time_loop ! DO WHILE (region%time <= t_end)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE run_model_region
+
+  ! == Time stepping
+  ! ================
+
+  SUBROUTINE advance_region_time_to_time_of_next_action( region, t_end)
+    ! Advance this region's time to the time of the next "action"
+    ! (e.g. running the ice dynamics model, writing to output, running
+    ! the SMB model, etc.)
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_model_region)                            , INTENT(INOUT) :: region
+    REAL(dp)                                           , INTENT(IN)    :: t_end    ! [yr]
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'advance_region_time_to_time_of_next_action'
+    REAL(dp)                                                           :: time_of_next_action
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+  ! == Find time of next action
+  ! ===========================
+
+    ! Start by setting the time of next action to the end of this coupling interval,
+    ! then reduce it over all possible actions to find the first one.
+
+    time_of_next_action = t_end
+
+    ! Ice dynamics
+    time_of_next_action = MIN( time_of_next_action, region%ice%t_next)
+
+    ! Output
+    time_of_next_action = MIN( time_of_next_action, region%output_t_next)
+
+  ! == Advance region time
+  ! ======================
+
+    region%time = time_of_next_action
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE advance_region_time_to_time_of_next_action
+
+  ! == Main regional output
+  ! =======================
+
+  SUBROUTINE write_to_main_regional_output( region)
+    ! Write to the main regional output NetCDF file
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_model_region)                            , INTENT(INOUT) :: region
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'write_to_main_regional_output'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    IF     (region%time < region%output_t_next) THEN
+      ! It is not yet time to write to output
+      CALL finalise_routine( routine_name)
+      RETURN
+    ELSEIF (region%time > region%output_t_next) THEN
+      ! This should not be possible
+      CALL crash('overshot the output time step')
+    ELSEIF (region%time == region%output_t_next) THEN
+      ! It is time to write to output!
+    ELSE
+      ! region%time is NaN?
+      CALL crash('region%time is apparently NaN')
+    END IF
+
+    ! DENK DROM
+    CALL warning('regional output not yet implemented...')
+
+    ! Update time stamp
+    region%output_t_next = region%output_t_next + C%dt_output
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE write_to_main_regional_output
 
   ! == Model initialisation
   ! =======================
@@ -107,10 +215,12 @@ CONTAINS
     ! ===== Ice dynamics =====
     ! ========================
 
-    CALL initialise_ice_model( region%mesh, region%ice, region%refgeo_init, region%refgeo_PD, region%scalars, region%name)
+    CALL initialise_ice_dynamics_model( region%mesh, region%ice, region%refgeo_init, region%refgeo_PD, region%scalars, region%name)
 
     ! ===== Regional output =====
     ! ===========================
+
+    region%output_t_next = C%start_time_of_run
 
     ! ===== Finalisation =====
     ! ========================

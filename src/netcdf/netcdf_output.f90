@@ -25,7 +25,7 @@ MODULE netcdf_output
   USE mpi_distributed_memory                                 , ONLY: gather_to_master_int_1D, gather_to_master_int_2D, gather_to_master_dp_1D, &
                                                                      gather_to_master_dp_2D
 
-  USE netcdf,       ONLY: NF90_UNLIMITED, NF90_INT, NF90_FLOAT, NF90_DOUBLE
+  USE netcdf,       ONLY: NF90_UNLIMITED, NF90_INT, NF90_FLOAT, NF90_DOUBLE, NF90_MAX_VAR_DIMS
   USE netcdf_basic, ONLY: nerr, field_name_options_x, field_name_options_y, field_name_options_zeta, &
                           field_name_options_lon, field_name_options_lat, field_name_options_time, field_name_options_month, &
                           field_name_options_dim_nV, field_name_options_dim_nTri, field_name_options_dim_nC_mem, &
@@ -49,7 +49,7 @@ MODULE netcdf_output
                           write_var_master_int_0D, write_var_master_int_1D, write_var_master_int_2D, write_var_master_int_3D, write_var_master_int_4D, &
                           write_var_master_dp_0D, write_var_master_dp_1D, write_var_master_dp_2D, write_var_master_dp_3D, write_var_master_dp_4D, &
                           add_attribute_char, check_month, check_time, create_dimension, create_variable, create_scalar_variable, inquire_var, &
-                          open_existing_netcdf_file_for_writing
+                          open_existing_netcdf_file_for_writing, inquire_var_info
 
   IMPLICIT NONE
 
@@ -1535,6 +1535,59 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE write_to_field_multopt_mesh_dp_3D_b_notime
+
+  ! Write a scalar variable
+  SUBROUTINE write_to_field_multopt_dp_0D( filename, ncid, field_name_options, d)
+    ! Write a 0-D data field to a NetCDF file variable
+    !
+    ! Write to the last time frame of the variable
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
+    INTEGER,                             INTENT(IN)    :: ncid
+    CHARACTER(LEN=*),                    INTENT(IN)    :: field_name_options
+    REAL(dp),                            INTENT(IN)    :: d
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_to_field_multopt_dp_0D'
+    INTEGER                                            :: id_var, id_dim_time, ti
+    CHARACTER(LEN=256)                                 :: var_name
+    INTEGER                                            :: var_type
+    INTEGER                                            :: ndims_of_var
+    INTEGER, DIMENSION( NF90_MAX_VAR_DIMS)             :: dims_of_var
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Inquire the variable
+    CALL inquire_var_multopt( filename, ncid, field_name_options, id_var, var_name = var_name)
+    IF (id_var == -1) CALL crash('no variables for name options "' // TRIM( field_name_options) // '" were found in file "' // TRIM( filename) // '"!')
+
+    ! Check if the file has a time dimension and variable
+    CALL check_time( filename, ncid)
+
+    ! Inquire variable info
+    CALL inquire_var_info( filename, ncid, id_var, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
+
+    ! Inquire file time dimension
+    CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
+
+    ! Check if the variable has time as a dimension
+    IF (ndims_of_var /= 1) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+    IF (.NOT. ANY( dims_of_var == id_dim_time)) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have time as a dimension!')
+
+    ! Inquire length of time dimension
+    CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
+
+    ! Write data to the variable
+    CALL write_var_master_dp_1D( filename, ncid, id_var, (/ d /), start = (/ ti /), count = (/ 1 /) )
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE write_to_field_multopt_dp_0D
 
   ! Write new time value to file
   SUBROUTINE write_time_to_file( filename, ncid, time)
@@ -3495,6 +3548,44 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE add_zeta_dimension_to_file
+
+  ! Add scalar variables
+  SUBROUTINE add_field_dp_0D( filename, ncid, var_name, long_name, units)
+    ! Add a 0-D variable to an existing NetCDF file
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
+    INTEGER,                             INTENT(IN)    :: ncid
+    CHARACTER(LEN=*),                    INTENT(IN)    :: var_name
+    CHARACTER(LEN=*),          OPTIONAL, INTENT(IN)    :: long_name
+    CHARACTER(LEN=*),          OPTIONAL, INTENT(IN)    :: units
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'add_field_dp_0D'
+    INTEGER                                            :: id_dim_time, id_var
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Inquire dimensions
+    CALL inquire_dim_multopt( filename, ncid, field_name_options_time  , id_dim_time)
+
+    ! Safety
+    IF (id_dim_time == -1) CALL crash('no time dimension could be found in file "' // TRIM( filename) // '"!')
+
+    ! Create variable
+    CALL create_variable( filename, ncid, var_name, NF90_DOUBLE, (/ id_dim_time /), id_var)
+
+    ! Add attributes
+    IF (PRESENT( long_name)) CALL add_attribute_char( filename, ncid, id_var, 'long_name', long_name)
+    IF (PRESENT( units    )) CALL add_attribute_char( filename, ncid, id_var, 'units'    , units    )
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE add_field_dp_0D
 
   ! ===== Generate procedural file names =====
   ! ==========================================

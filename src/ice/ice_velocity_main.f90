@@ -657,10 +657,10 @@ CONTAINS
     DO vi = mesh%vi1, mesh%vi2
 
       ! Calculate rate of change of ice base elevation
-      IF     (ice%mask_sheet( vi)) THEN
+      IF     (ice%mask_grounded_ice( vi)) THEN
         ! For grounded ice, the ice base simply moves with the bedrock
         dHib_dt( vi) =  ice%dHb_dt( vi)
-      ELSEIF (ice%mask_shelf( vi)) THEN
+      ELSEIF (ice%mask_floating_ice( vi)) THEN
         ! For floating ice, the ice base moves according to the thinning rate times the density fraction
         dHib_dt( vi) = -ice%dHi_dt( vi) * ice_density / seawater_density
       ELSE
@@ -683,7 +683,7 @@ CONTAINS
     DO vi = mesh%vi1, mesh%vi2
 
       ! No ice means no velocity
-      IF (.NOT. ice%mask_ice( vi)) THEN
+      IF (.NOT. (ice%mask_grounded_ice( vi) .OR. ice%mask_floating_ice( vi))) THEN
         ice%w_3D( vi,:) = 0._dp
         CYCLE
       END IF

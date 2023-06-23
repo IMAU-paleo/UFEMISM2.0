@@ -59,19 +59,6 @@ contains
     ! Calculate GMSL contribution using modelled - PD volumes above floatation
     scalars%sea_level_contribution = -1._dp * (scalars%ice_volume_af - scalars%ice_volume_af_PD)
 
-    ! === Finalisation ===
-    ! ====================
-
-    ! DENK DROM
-    if (par%master) then
-      print*, ''
-      print*, 'Present-day ice-sheet area:                   ', scalars%ice_area_PD, 'km^2'
-      print*, 'Present-day ice-sheet volume :                ', scalars%ice_volume_PD, 'm SLE'
-      print*, 'Present-day ice-sheet volume above floatation:', scalars%ice_volume_af_PD, 'm SLE'
-      print*, 'Initial ice-sheet sea level contribution:     ', scalars%sea_level_contribution, 'm SLE'
-      print*, ''
-    end if
-
     ! Finalise routine path
     call finalise_routine( routine_name)
 
@@ -177,7 +164,7 @@ contains
     ! Calculate ice area and volume for each process
     do vi = mesh%vi1, mesh%vi2
 
-      if (ice%mask_ice( vi)) then
+      if (ice%mask_grounded_ice( vi) .or. ice%mask_floating_ice( vi)) then
         scalars%ice_volume    = scalars%ice_volume    + max( 0._dp, (ice%Hi( vi) * mesh%A( vi) * ice_density / (seawater_density * ocean_area)))
         scalars%ice_area      = scalars%ice_area      + mesh%A( vi) * 1.0E-06_dp ! [km^2]
         scalars%ice_volume_af = scalars%ice_volume_af + max( 0._dp, ice%TAF( vi) * mesh%A( vi) * ice_density / (seawater_density * ocean_area))

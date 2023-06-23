@@ -120,7 +120,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! If there is no grounded ice, no need (in fact, no way) to solve the DIVA
-    IF (.NOT. ANY( ice%mask_sheet)) THEN
+    IF (.NOT. ANY( ice%mask_grounded_ice)) THEN
       DIVA%u_vav_b  = 0._dp
       DIVA%v_vav_b  = 0._dp
       DIVA%u_base_b = 0._dp
@@ -1399,7 +1399,6 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'calc_effective_viscosity'
     INTEGER                                                      :: vi,k
-    REAL(dp)                                                     :: epsilon_sq
     REAL(dp)                                                     :: A_min, eta_max
     REAL(dp), DIMENSION( mesh%nz)                                :: prof
 
@@ -1991,11 +1990,11 @@ CONTAINS
     CALL add_zeta_dimension_to_file( DIVA%restart_filename, ncid, mesh%zeta)
 
     ! Add the velocity fields to the file
-    CALL add_field_mesh_dp_2D_b( DIVA%restart_filename, ncid, 'u_vav_b' )
-    CALL add_field_mesh_dp_2D_b( DIVA%restart_filename, ncid, 'v_vav_b' )
-    CALL add_field_mesh_dp_2D_b( DIVA%restart_filename, ncid, 'tau_bx_b')
-    CALL add_field_mesh_dp_2D_b( DIVA%restart_filename, ncid, 'tau_by_b')
-    CALL add_field_mesh_dp_3D_b( DIVA%restart_filename, ncid, 'eta_3D_b')
+    CALL add_field_mesh_dp_2D_b( DIVA%restart_filename, ncid, 'u_vav_b' , long_name = 'Vertically averaged horizontal ice velocity in the x-direction', units = 'm/yr')
+    CALL add_field_mesh_dp_2D_b( DIVA%restart_filename, ncid, 'v_vav_b' , long_name = 'Vertically averaged horizontal ice velocity in the y-direction', units = 'm/yr')
+    CALL add_field_mesh_dp_2D_b( DIVA%restart_filename, ncid, 'tau_bx_b', long_name = 'Basal shear stress in the x-direction', units = 'Pa')
+    CALL add_field_mesh_dp_2D_b( DIVA%restart_filename, ncid, 'tau_by_b', long_name = 'Basal shear stress in the y-direction', units = 'Pa')
+    CALL add_field_mesh_dp_3D_b( DIVA%restart_filename, ncid, 'eta_3D_b', long_name = '3-D effective viscosity')
 
     ! Close the file
     CALL close_netcdf_file( ncid)

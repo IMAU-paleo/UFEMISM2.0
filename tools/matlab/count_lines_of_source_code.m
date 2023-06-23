@@ -14,7 +14,7 @@ R.names = {};
 for i = 1: length( henk)
   if henk( i).isdir
     if strcmpi( henk( i).name,'.') || strcmpi( henk( i).name,'..'); continue; end
-    f90_files = find_all_lower_f90_files( [main_src_path '/' henk( i).name], []);
+    f90_files = find_all_f90_files( [main_src_path '/' henk( i).name]);
     if ~isempty( f90_files)
       n = count_lines( f90_files);
       n_tot = n_tot + n;
@@ -25,6 +25,14 @@ for i = 1: length( henk)
         '_','\_');
     end
   end
+end
+% Main
+f90_files = find_all_f90_files( main_src_path);
+if ~isempty( f90_files)
+  n = count_lines( f90_files);
+  n_tot = n_tot + n;
+  R.n( end+1,1) = n;
+  R.names{ end+1} = ['main: ' num2str( n)];
 end
 
 % Sort by number of lines
@@ -64,7 +72,9 @@ set( gcf,'position',[744   346   827   704],'color','w');
 set( gca,'position',[0.15, 0.1, 0.55, 0.8],'fontsize',24,'ylim',[-1.2,1.4]);
 title( gca,['Total: ' num2str( n_tot)])
 
-function f90_files = find_all_lower_f90_files( henk, f90_files)
+function f90_files = find_all_f90_files( henk)
+
+f90_files = {};
 
 piet = dir( henk);
 
@@ -72,8 +82,6 @@ for i = 1: length( piet)
   if strcmpi( piet( i).name,'.') || strcmpi( piet( i).name,'..'); continue; end
   if contains( piet( i).name,'.f90') || contains( piet( i).name,'.F90')
     f90_files{ end+1} = [henk '/' piet( i).name];
-  elseif piet( i).isdir
-    f90_files = find_all_lower_f90_files( [henk '/' piet( i).name], f90_files);
   end
 end
 

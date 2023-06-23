@@ -339,8 +339,8 @@ MODULE model_configuration
 
     ! Time stepping
     CHARACTER(LEN=256)  :: choice_timestepping_config                   = 'pc'                             ! Choice of timestepping method: "direct", "pc" (NOTE: 'direct' does not work with DIVA ice dynamcis!)
-    REAL(dp)            :: dt_ice_max_config                            = 0.0_dp                           ! [yr] Maximum time step of the ice dynamics model
-    REAL(dp)            :: dt_ice_min_config                            = 1.0_dp                           ! [yr] Minimum time step of the ice dynamics model
+    REAL(dp)            :: dt_ice_max_config                            = 10.0_dp                          ! [yr] Maximum time step of the ice dynamics model
+    REAL(dp)            :: dt_ice_min_config                            = 0.01_dp                          ! [yr] Minimum time step of the ice dynamics model
     REAL(dp)            :: dt_ice_startup_phase_config                  = 0._dp                            ! [yr] Length of time window after start_time and before end_time when dt = dt_min, to ensure smooth restarts
 
     ! Predictor-corrector ice-thickness update
@@ -348,6 +348,23 @@ MODULE model_configuration
     REAL(dp)            :: pc_k_I_config                                = 0.2_dp                           ! Exponent k_I in  Robinson et al., 2020, Eq. 33
     REAL(dp)            :: pc_k_p_config                                = 0.2_dp                           ! Exponent k_p in  Robinson et al., 2020, Eq. 33
     REAL(dp)            :: pc_eta_min_config                            = 1E-8_dp                          ! Normalisation term in estimation of the truncation error (Robinson et al., Eq. 32)
+    REAL(dp)            :: pc_max_time_step_increase_config             = 1.2_dp                           ! Each new time step is only allowed to be this much larger than the previous one
+
+    ! Initialisation of the predictor-corrector ice-thickness update
+    CHARACTER(LEN=256)  :: pc_choice_initialise_NAM_config              = 'zero'                           ! How to initialise the p/c scheme: 'zero', 'read_from_file'
+    CHARACTER(LEN=256)  :: pc_choice_initialise_EAS_config              = 'zero'
+    CHARACTER(LEN=256)  :: pc_choice_initialise_GRL_config              = 'zero'
+    CHARACTER(LEN=256)  :: pc_choice_initialise_ANT_config              = 'zero'
+    ! Paths to files containing initial fields & values for the p/c scheme
+    CHARACTER(LEN=256)  :: filename_pc_initialise_NAM_config            = ''
+    CHARACTER(LEN=256)  :: filename_pc_initialise_EAS_config            = ''
+    CHARACTER(LEN=256)  :: filename_pc_initialise_GRL_config            = ''
+    CHARACTER(LEN=256)  :: filename_pc_initialise_ANT_config            = ''
+    ! Timeframes to read from the p/c scheme initial file (set to 1E9_dp if the file has no time dimension)
+    REAL(dp)            :: timeframe_pc_initialise_NAM_config           = 1E9_dp                           ! Can be different from C%start_time_of_run, be careful though!
+    REAL(dp)            :: timeframe_pc_initialise_EAS_config           = 1E9_dp
+    REAL(dp)            :: timeframe_pc_initialise_GRL_config           = 1E9_dp
+    REAL(dp)            :: timeframe_pc_initialise_ANT_config           = 1E9_dp
 
   ! == Ice dynamics - calving
   ! =========================
@@ -526,6 +543,11 @@ MODULE model_configuration
 
     CHARACTER(LEN=256)  :: choice_sealevel_model_config                 = 'fixed'                         ! Can be "fixed", "prescribed", "eustatic", or "SELEN"
     REAL(dp)            :: fixed_sealevel_config                        = 0._dp                           ! Fixed sea level value for the "fixed" choice
+
+  ! == Output
+  ! =========
+
+    REAL(dp)            :: dt_output_config                             = 1000._dp                        ! Time step for writing output
 
 ! ===== Configuration variables - end =====
 ! =========================================
@@ -856,6 +878,23 @@ MODULE model_configuration
     REAL(dp)            :: pc_k_I
     REAL(dp)            :: pc_k_p
     REAL(dp)            :: pc_eta_min
+    REAL(dp)            :: pc_max_time_step_increase
+
+    ! Initialisation of the predictor-corrector ice-thickness update
+    CHARACTER(LEN=256)  :: pc_choice_initialise_NAM
+    CHARACTER(LEN=256)  :: pc_choice_initialise_EAS
+    CHARACTER(LEN=256)  :: pc_choice_initialise_GRL
+    CHARACTER(LEN=256)  :: pc_choice_initialise_ANT
+    ! Paths to files containing initial fields & values for the p/c scheme
+    CHARACTER(LEN=256)  :: filename_pc_initialise_NAM
+    CHARACTER(LEN=256)  :: filename_pc_initialise_EAS
+    CHARACTER(LEN=256)  :: filename_pc_initialise_GRL
+    CHARACTER(LEN=256)  :: filename_pc_initialise_ANT
+    ! Timeframes to read from the p/c scheme initial file (set to 1E9_dp if the file has no time dimension)
+    REAL(dp)            :: timeframe_pc_initialise_NAM
+    REAL(dp)            :: timeframe_pc_initialise_EAS
+    REAL(dp)            :: timeframe_pc_initialise_GRL
+    REAL(dp)            :: timeframe_pc_initialise_ANT
 
   ! == Ice dynamics - calving
   ! =========================
@@ -1031,19 +1070,23 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: choice_sealevel_model
     REAL(dp)            :: fixed_sealevel
 
+  ! == Output
+  ! =========
+
+    REAL(dp)            :: dt_output
+
   ! == Non-configurable variables
   ! =============================
 
     CHARACTER(LEN=256)  :: output_dir
 
-    ! Values to be filled into the total mask (used only for diagnostic output)
-    INTEGER             :: type_land
-    INTEGER             :: type_ocean
-    INTEGER             :: type_lake
-    INTEGER             :: type_sheet
-    INTEGER             :: type_shelf
-    INTEGER             :: type_coast
-    INTEGER             :: type_margin
+  ! Total mask values (used only for diagnostic output)
+  ! ===================================================
+
+    INTEGER             :: type_icefree_land
+    INTEGER             :: type_icefree_ocean
+    INTEGER             :: type_grounded_ice
+    INTEGER             :: type_floating_ice
     INTEGER             :: type_groundingline_gr
     INTEGER             :: type_groundingline_fl
     INTEGER             :: type_calvingfront_gr
@@ -1404,6 +1447,19 @@ CONTAINS
       pc_k_I_config                                               , &
       pc_k_p_config                                               , &
       pc_eta_min_config                                           , &
+      pc_max_time_step_increase_config                            , &
+      pc_choice_initialise_NAM_config                             , &
+      pc_choice_initialise_EAS_config                             , &
+      pc_choice_initialise_GRL_config                             , &
+      pc_choice_initialise_ANT_config                             , &
+      filename_pc_initialise_NAM_config                           , &
+      filename_pc_initialise_EAS_config                           , &
+      filename_pc_initialise_GRL_config                           , &
+      filename_pc_initialise_ANT_config                           , &
+      timeframe_pc_initialise_NAM_config                          , &
+      timeframe_pc_initialise_EAS_config                          , &
+      timeframe_pc_initialise_GRL_config                          , &
+      timeframe_pc_initialise_ANT_config                          , &
       choice_calving_law_config                                   , &
       calving_threshold_thickness_shelf_config                    , &
       calving_threshold_thickness_sheet_config                    , &
@@ -1514,7 +1570,8 @@ CONTAINS
       SELEN_TABOO_DEG1_config                                     , &
       SELEN_TABOO_RCMB_config                                     , &
       choice_sealevel_model_config                                , &
-      fixed_sealevel_config
+      fixed_sealevel_config                                       , &
+      dt_output_config
     ! End of the config NAMELIST
 
     ! Add routine to path
@@ -1875,6 +1932,23 @@ CONTAINS
     C%pc_k_I                                                 = pc_k_I_config
     C%pc_k_p                                                 = pc_k_p_config
     C%pc_eta_min                                             = pc_eta_min_config
+    C%pc_max_time_step_increase                              = pc_max_time_step_increase_config
+
+    ! Initialisation of the predictor-corrector ice-thickness update
+    C%pc_choice_initialise_NAM                               = pc_choice_initialise_NAM_config
+    C%pc_choice_initialise_EAS                               = pc_choice_initialise_EAS_config
+    C%pc_choice_initialise_GRL                               = pc_choice_initialise_GRL_config
+    C%pc_choice_initialise_ANT                               = pc_choice_initialise_ANT_config
+    ! Paths to files containing initial fields & values for the p/c scheme
+    C%filename_pc_initialise_NAM                             = filename_pc_initialise_NAM_config
+    C%filename_pc_initialise_EAS                             = filename_pc_initialise_EAS_config
+    C%filename_pc_initialise_GRL                             = filename_pc_initialise_GRL_config
+    C%filename_pc_initialise_ANT                             = filename_pc_initialise_ANT_config
+    ! Timeframes to read from the p/c scheme initial file (set to 1E9_dp if the file has no time dimension)
+    C%timeframe_pc_initialise_NAM                            = timeframe_pc_initialise_NAM_config
+    C%timeframe_pc_initialise_EAS                            = timeframe_pc_initialise_EAS_config
+    C%timeframe_pc_initialise_GRL                            = timeframe_pc_initialise_GRL_config
+    C%timeframe_pc_initialise_ANT                            = timeframe_pc_initialise_ANT_config
 
   ! == Ice dynamics - calving
   ! =========================
@@ -2050,21 +2124,23 @@ CONTAINS
     C%choice_sealevel_model                                  = choice_sealevel_model_config
     C%fixed_sealevel                                         = fixed_sealevel_config
 
+  ! == Output
+  ! =========
+
+    C%dt_output                                              = dt_output_config
+
     ! Finished copying the values of the _config variables to the C structure
 
   ! Total mask values (used only for diagnostic output)
   ! ===================================================
 
-    C%type_land                                = 0
-    C%type_ocean                               = 1
-    C%type_lake                                = 2
-    C%type_sheet                               = 3
-    C%type_shelf                               = 4
-    C%type_coast                               = 5
-    C%type_margin                              = 6
-    C%type_groundingline_gr                    = 7
-    C%type_groundingline_fl                    = 7
-    C%type_calvingfront_gr                     = 8
+    C%type_icefree_land                        = 1
+    C%type_icefree_ocean                       = 2
+    C%type_grounded_ice                        = 3
+    C%type_floating_ice                        = 4
+    C%type_groundingline_gr                    = 5
+    C%type_groundingline_fl                    = 6
+    C%type_calvingfront_gr                     = 7
     C%type_calvingfront_fl                     = 8
 
     ! Finalise routine path
