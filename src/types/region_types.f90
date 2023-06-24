@@ -6,6 +6,7 @@ MODULE region_types
 ! ====================
 
   USE precisions                                             , ONLY: dp
+  USE grid_basic                                             , ONLY: type_grid
   USE mesh_types                                             , ONLY: type_mesh
   USE reference_geometry_types                               , ONLY: type_reference_geometry
   USE ice_model_types                                        , ONLY: type_ice_model
@@ -48,7 +49,9 @@ MODULE region_types
     TYPE(type_regional_scalars)             :: scalars                     ! Scalar data (e.g. total area, volume, mass balance)
 
     ! Output
-    CHARACTER(LEN=256)                      :: output_filename             ! Name of NetCDF output file
+    TYPE(type_grid)                         :: output_grid                 ! The square grid used for gridded output files
+    CHARACTER(LEN=256)                      :: output_filename_mesh        ! Name of NetCDF output file (mesh version)
+    CHARACTER(LEN=256)                      :: output_filename_grid        ! Name of NetCDF output file (grid version)
     REAL(dp)                                :: output_t_next               ! Time when we should next write to output
 
   END TYPE type_model_region

@@ -192,9 +192,9 @@ CONTAINS
     ice%frictional_heating          = 0._dp
 
     ! Glen's flow law factor
-    ALLOCATE( ice%A_flow_3D                   ( mesh%vi1:mesh%vi2,mesh%nz))  ! [Pa^-3 y^-1] Glen's flow law factor
+    ALLOCATE( ice%A_flow                      ( mesh%vi1:mesh%vi2,mesh%nz))  ! [Pa^-3 y^-1] Glen's flow law factor
 
-    ice%A_flow_3D                   = 0._dp
+    ice%A_flow                      = 0._dp
 
   ! === Ice velocities ===
   ! ======================
@@ -261,7 +261,9 @@ CONTAINS
     ice%uabs_base                   = 0._dp
     ice%uabs_base_b                 = 0._dp
 
-    ! Strain rates
+  ! == Strain rates ==
+  ! ==================
+
     ALLOCATE( ice%du_dx_3D                    ( mesh%vi1:mesh%vi2,mesh%nz))  ! [yr^-1]
     ALLOCATE( ice%du_dy_3D                    ( mesh%vi1:mesh%vi2,mesh%nz))
     ALLOCATE( ice%du_dz_3D                    ( mesh%vi1:mesh%vi2,mesh%nz))

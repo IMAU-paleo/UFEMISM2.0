@@ -127,7 +127,7 @@ CONTAINS
     ! Initialise the ice model
     C%choice_stress_balance_approximation = 'SIA'
     CALL initialise_ice_dynamics_model( mesh, ice, refgeo_init, refgeo_PD, scalars, region_name)
-    ice%A_flow_3D = C%uniform_flow_factor
+    ice%A_flow = C%uniform_flow_factor
 
     ! Also initialise DIVA and BPA solvers
     C%choice_stress_balance_approximation = 'DIVA'
@@ -564,7 +564,7 @@ CONTAINS
     ! Initialise the ice model
     C%choice_stress_balance_approximation = 'SIA/SSA'
     CALL initialise_ice_dynamics_model( mesh, ice, refgeo_init, refgeo_PD, scalars, region_name)
-    ice%A_flow_3D = C%uniform_flow_factor
+    ice%A_flow = C%uniform_flow_factor
 
     ! Also initialise DIVA and BPA solvers
     C%choice_stress_balance_approximation = 'DIVA'
@@ -851,7 +851,7 @@ CONTAINS
     ! Initialise the ice model
     C%choice_stress_balance_approximation = 'SIA/SSA'
     CALL initialise_ice_dynamics_model( mesh, ice, refgeo_init, refgeo_PD, scalars, region_name)
-    ice%A_flow_3D = C%uniform_flow_factor
+    ice%A_flow = C%uniform_flow_factor
 
     ! Also initialise DIVA and BPA solvers
     C%choice_stress_balance_approximation = 'DIVA'
@@ -1315,6 +1315,9 @@ CONTAINS
     ! Target truncation error
     C%pc_epsilon                            = 0.01_dp
 
+    ! We don't want regional output for this experiment
+    C%do_create_netcdf_output = .FALSE.
+
   ! == Initialise the model region
   ! ==============================
 
@@ -1325,10 +1328,7 @@ CONTAINS
     ALLOCATE( region%BMB%BMB( region%mesh%vi1:region%mesh%vi2), source = 0._dp)
 
     ! Thermodynamics and rheology not implemented yet...
-    region%ice%A_flow_3D = C%uniform_flow_factor
-
-    ! We don't want regional output for this experiment
-    region%output_t_next = C%end_time_of_run + 1000._dp
+    region%ice%A_flow = C%uniform_flow_factor
 
   ! == Run the model for 5,000 years
   ! ================================

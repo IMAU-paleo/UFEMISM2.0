@@ -1790,7 +1790,7 @@ CONTAINS
     ALLOCATE( A_flow_bks( mesh%ti1:mesh%ti2, mesh%nz-1))
 
     ! Map ice flow factor from the ak-grid to the bks-grid
-    CALL map_ak_bks( mesh, mesh%M_map_ak_bks, ice%A_flow_3D, A_flow_bks)
+    CALL map_ak_bks( mesh, mesh%M_map_ak_bks, ice%A_flow, A_flow_bks)
 
   ! == Calculate effective viscosity on the ak-grid
 
@@ -1802,7 +1802,7 @@ CONTAINS
       DO k  = 1, mesh%nz
         BPA%eta_ak( vi,k) = calc_effective_viscosity_Glen_3D_uv_only( &
           BPA%du_dx_ak( vi,k), BPA%du_dy_ak( vi,k), BPA%du_dz_ak( vi,k), &
-          BPA%dv_dx_ak( vi,k), BPA%dv_dy_ak( vi,k), BPA%dv_dz_ak( vi,k), ice%A_flow_3D( vi,k))
+          BPA%dv_dx_ak( vi,k), BPA%dv_dy_ak( vi,k), BPA%dv_dz_ak( vi,k), ice%A_flow( vi,k))
       END DO
       END DO
 
@@ -2198,6 +2198,12 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    ! If no NetCDF output should be created, do nothing
+    IF (.NOT. C%do_create_netcdf_output) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
+
     ! Open the NetCDF file
     CALL open_existing_netcdf_file_for_writing( BPA%restart_filename, ncid)
 
@@ -2233,6 +2239,12 @@ CONTAINS
 
     ! Add routine to path
     CALL init_routine( routine_name)
+
+    ! If no NetCDF output should be created, do nothing
+    IF (.NOT. C%do_create_netcdf_output) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
 
     ! Set the filename
     filename_base = TRIM( C%output_dir) // 'restart_ice_velocity_BPA'

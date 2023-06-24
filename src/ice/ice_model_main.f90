@@ -591,6 +591,12 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    ! If no NetCDF output should be created, do nothing
+    IF (.NOT. C%do_create_netcdf_output) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
+
     ! Open the NetCDF file
     CALL open_existing_netcdf_file_for_writing( pc%restart_filename, ncid)
 
@@ -635,6 +641,12 @@ CONTAINS
 
     ! Add routine to path
     CALL init_routine( routine_name)
+
+    ! If no NetCDF output should be created, do nothing
+    IF (.NOT. C%do_create_netcdf_output) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
 
     ! Set the filename
     filename_base = TRIM( C%output_dir) // 'restart_pc_scheme'

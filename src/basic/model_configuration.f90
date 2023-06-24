@@ -533,21 +533,79 @@ MODULE model_configuration
     REAL(dp), DIMENSION(3) :: SELEN_visc_prof_config                    = (/ 3._dp, 0.6_dp, 0.3_dp /)     ! Viscosities of viscous asthenosphere layers [?]
 
     ! Settings for the TABOO Earth deformation model
-    INTEGER             :: SELEN_TABOO_CDE_config                       = 0                               ! code of the model (see taboo for explanation)
-    INTEGER             :: SELEN_TABOO_TLOVE_config                     = 1                               ! Tidal love numbers yes/no
-    INTEGER             :: SELEN_TABOO_DEG1_config                      = 1                               ! Tidal love numbers degree
-    REAL(dp)            :: SELEN_TABOO_RCMB_config                      = 3480._dp                        ! Radius of CMB (km)
+    INTEGER             :: SELEN_TABOO_CDE_config                       = 0                               !     code of the model (see taboo for explanation)
+    INTEGER             :: SELEN_TABOO_TLOVE_config                     = 1                               !     Tidal love numbers yes/no
+    INTEGER             :: SELEN_TABOO_DEG1_config                      = 1                               !     Tidal love numbers degree
+    REAL(dp)            :: SELEN_TABOO_RCMB_config                      = 3480._dp                        ! [m] Radius of CMB
 
   ! == Sea level
   ! ============
 
-    CHARACTER(LEN=256)  :: choice_sealevel_model_config                 = 'fixed'                         ! Can be "fixed", "prescribed", "eustatic", or "SELEN"
-    REAL(dp)            :: fixed_sealevel_config                        = 0._dp                           ! Fixed sea level value for the "fixed" choice
+    CHARACTER(LEN=256)  :: choice_sealevel_model_config                 = 'fixed'                         !     Can be "fixed", "prescribed", "eustatic", or "SELEN"
+    REAL(dp)            :: fixed_sealevel_config                        = 0._dp                           ! [m] Fixed sea level value for the "fixed" choice
 
   ! == Output
   ! =========
 
-    REAL(dp)            :: dt_output_config                             = 1000._dp                        ! Time step for writing output
+    ! Basic settings
+    LOGICAL             :: do_create_netcdf_output_config               = .TRUE.                          !     Whether or not NetCDF output files should be created at all
+    REAL(dp)            :: dt_output_config                             = 1000._dp                        !     Time step for writing output
+    REAL(dp)            :: dx_output_grid_NAM_config                    = 40E3_dp                         ! [m] Horizontal resolution for the square grid used for output for North America
+    REAL(dp)            :: dx_output_grid_EAS_config                    = 40E3_dp                         ! [m] Horizontal resolution for the square grid used for output for Eurasia
+    REAL(dp)            :: dx_output_grid_GRL_config                    = 20E3_dp                         ! [m] Horizontal resolution for the square grid used for output for Greenland
+    REAL(dp)            :: dx_output_grid_ANT_config                    = 40E3_dp                         ! [m] Horizontal resolution for the square grid used for output for Antarctica
+
+    ! Which data fields we want to write to the main NetCDF output files
+    CHARACTER(LEN=256)  :: choice_output_field_01_config                = 'none'
+    CHARACTER(LEN=256)  :: choice_output_field_02_config                = 'none'
+    CHARACTER(LEN=256)  :: choice_output_field_03_config                = 'none'
+    CHARACTER(LEN=256)  :: choice_output_field_04_config                = 'none'
+    CHARACTER(LEN=256)  :: choice_output_field_05_config                = 'none'
+    CHARACTER(LEN=256)  :: choice_output_field_06_config                = 'none'
+    CHARACTER(LEN=256)  :: choice_output_field_07_config                = 'none'
+    CHARACTER(LEN=256)  :: choice_output_field_08_config                = 'none'
+    CHARACTER(LEN=256)  :: choice_output_field_09_config                = 'none'
+    CHARACTER(LEN=256)  :: choice_output_field_10_config                = 'none'
+    CHARACTER(LEN=256)  :: choice_output_field_11_config                = 'none'
+    CHARACTER(LEN=256)  :: choice_output_field_12_config                = 'none'
+    CHARACTER(LEN=256)  :: choice_output_field_13_config                = 'none'
+    CHARACTER(LEN=256)  :: choice_output_field_14_config                = 'none'
+    CHARACTER(LEN=256)  :: choice_output_field_15_config                = 'none'
+    CHARACTER(LEN=256)  :: choice_output_field_16_config                = 'none'
+    CHARACTER(LEN=256)  :: choice_output_field_17_config                = 'none'
+    CHARACTER(LEN=256)  :: choice_output_field_18_config                = 'none'
+    CHARACTER(LEN=256)  :: choice_output_field_19_config                = 'none'
+    CHARACTER(LEN=256)  :: choice_output_field_20_config                = 'none'
+    CHARACTER(LEN=256)  :: choice_output_field_21_config                = 'none'
+    CHARACTER(LEN=256)  :: choice_output_field_22_config                = 'none'
+    CHARACTER(LEN=256)  :: choice_output_field_23_config                = 'none'
+    CHARACTER(LEN=256)  :: choice_output_field_24_config                = 'none'
+    CHARACTER(LEN=256)  :: choice_output_field_25_config                = 'none'
+    CHARACTER(LEN=256)  :: choice_output_field_26_config                = 'none'
+    CHARACTER(LEN=256)  :: choice_output_field_27_config                = 'none'
+    CHARACTER(LEN=256)  :: choice_output_field_28_config                = 'none'
+    CHARACTER(LEN=256)  :: choice_output_field_29_config                = 'none'
+    CHARACTER(LEN=256)  :: choice_output_field_30_config                = 'none'
+    CHARACTER(LEN=256)  :: choice_output_field_31_config                = 'none'
+    CHARACTER(LEN=256)  :: choice_output_field_32_config                = 'none'
+    CHARACTER(LEN=256)  :: choice_output_field_33_config                = 'none'
+    CHARACTER(LEN=256)  :: choice_output_field_34_config                = 'none'
+    CHARACTER(LEN=256)  :: choice_output_field_35_config                = 'none'
+    CHARACTER(LEN=256)  :: choice_output_field_36_config                = 'none'
+    CHARACTER(LEN=256)  :: choice_output_field_37_config                = 'none'
+    CHARACTER(LEN=256)  :: choice_output_field_38_config                = 'none'
+    CHARACTER(LEN=256)  :: choice_output_field_39_config                = 'none'
+    CHARACTER(LEN=256)  :: choice_output_field_40_config                = 'none'
+    CHARACTER(LEN=256)  :: choice_output_field_41_config                = 'none'
+    CHARACTER(LEN=256)  :: choice_output_field_42_config                = 'none'
+    CHARACTER(LEN=256)  :: choice_output_field_43_config                = 'none'
+    CHARACTER(LEN=256)  :: choice_output_field_44_config                = 'none'
+    CHARACTER(LEN=256)  :: choice_output_field_45_config                = 'none'
+    CHARACTER(LEN=256)  :: choice_output_field_46_config                = 'none'
+    CHARACTER(LEN=256)  :: choice_output_field_47_config                = 'none'
+    CHARACTER(LEN=256)  :: choice_output_field_48_config                = 'none'
+    CHARACTER(LEN=256)  :: choice_output_field_49_config                = 'none'
+    CHARACTER(LEN=256)  :: choice_output_field_50_config                = 'none'
 
 ! ===== Configuration variables - end =====
 ! =========================================
@@ -1073,7 +1131,65 @@ MODULE model_configuration
   ! == Output
   ! =========
 
+    ! Basic settings
+    LOGICAL             :: do_create_netcdf_output
     REAL(dp)            :: dt_output
+    REAL(dp)            :: dx_output_grid_NAM
+    REAL(dp)            :: dx_output_grid_EAS
+    REAL(dp)            :: dx_output_grid_GRL
+    REAL(dp)            :: dx_output_grid_ANT
+
+    ! Which data fields we want to write to the main NetCDF output files
+    CHARACTER(LEN=256)  :: choice_output_field_01
+    CHARACTER(LEN=256)  :: choice_output_field_02
+    CHARACTER(LEN=256)  :: choice_output_field_03
+    CHARACTER(LEN=256)  :: choice_output_field_04
+    CHARACTER(LEN=256)  :: choice_output_field_05
+    CHARACTER(LEN=256)  :: choice_output_field_06
+    CHARACTER(LEN=256)  :: choice_output_field_07
+    CHARACTER(LEN=256)  :: choice_output_field_08
+    CHARACTER(LEN=256)  :: choice_output_field_09
+    CHARACTER(LEN=256)  :: choice_output_field_10
+    CHARACTER(LEN=256)  :: choice_output_field_11
+    CHARACTER(LEN=256)  :: choice_output_field_12
+    CHARACTER(LEN=256)  :: choice_output_field_13
+    CHARACTER(LEN=256)  :: choice_output_field_14
+    CHARACTER(LEN=256)  :: choice_output_field_15
+    CHARACTER(LEN=256)  :: choice_output_field_16
+    CHARACTER(LEN=256)  :: choice_output_field_17
+    CHARACTER(LEN=256)  :: choice_output_field_18
+    CHARACTER(LEN=256)  :: choice_output_field_19
+    CHARACTER(LEN=256)  :: choice_output_field_20
+    CHARACTER(LEN=256)  :: choice_output_field_21
+    CHARACTER(LEN=256)  :: choice_output_field_22
+    CHARACTER(LEN=256)  :: choice_output_field_23
+    CHARACTER(LEN=256)  :: choice_output_field_24
+    CHARACTER(LEN=256)  :: choice_output_field_25
+    CHARACTER(LEN=256)  :: choice_output_field_26
+    CHARACTER(LEN=256)  :: choice_output_field_27
+    CHARACTER(LEN=256)  :: choice_output_field_28
+    CHARACTER(LEN=256)  :: choice_output_field_29
+    CHARACTER(LEN=256)  :: choice_output_field_30
+    CHARACTER(LEN=256)  :: choice_output_field_31
+    CHARACTER(LEN=256)  :: choice_output_field_32
+    CHARACTER(LEN=256)  :: choice_output_field_33
+    CHARACTER(LEN=256)  :: choice_output_field_34
+    CHARACTER(LEN=256)  :: choice_output_field_35
+    CHARACTER(LEN=256)  :: choice_output_field_36
+    CHARACTER(LEN=256)  :: choice_output_field_37
+    CHARACTER(LEN=256)  :: choice_output_field_38
+    CHARACTER(LEN=256)  :: choice_output_field_39
+    CHARACTER(LEN=256)  :: choice_output_field_40
+    CHARACTER(LEN=256)  :: choice_output_field_41
+    CHARACTER(LEN=256)  :: choice_output_field_42
+    CHARACTER(LEN=256)  :: choice_output_field_43
+    CHARACTER(LEN=256)  :: choice_output_field_44
+    CHARACTER(LEN=256)  :: choice_output_field_45
+    CHARACTER(LEN=256)  :: choice_output_field_46
+    CHARACTER(LEN=256)  :: choice_output_field_47
+    CHARACTER(LEN=256)  :: choice_output_field_48
+    CHARACTER(LEN=256)  :: choice_output_field_49
+    CHARACTER(LEN=256)  :: choice_output_field_50
 
   ! == Non-configurable variables
   ! =============================
@@ -1571,7 +1687,62 @@ CONTAINS
       SELEN_TABOO_RCMB_config                                     , &
       choice_sealevel_model_config                                , &
       fixed_sealevel_config                                       , &
-      dt_output_config
+      do_create_netcdf_output_config                              , &
+      dt_output_config                                            , &
+      dx_output_grid_NAM_config                                   , &
+      dx_output_grid_EAS_config                                   , &
+      dx_output_grid_GRL_config                                   , &
+      dx_output_grid_ANT_config                                   , &
+      choice_output_field_01_config                               , &
+      choice_output_field_02_config                               , &
+      choice_output_field_03_config                               , &
+      choice_output_field_04_config                               , &
+      choice_output_field_05_config                               , &
+      choice_output_field_06_config                               , &
+      choice_output_field_07_config                               , &
+      choice_output_field_08_config                               , &
+      choice_output_field_09_config                               , &
+      choice_output_field_10_config                               , &
+      choice_output_field_11_config                               , &
+      choice_output_field_12_config                               , &
+      choice_output_field_13_config                               , &
+      choice_output_field_14_config                               , &
+      choice_output_field_15_config                               , &
+      choice_output_field_16_config                               , &
+      choice_output_field_17_config                               , &
+      choice_output_field_18_config                               , &
+      choice_output_field_19_config                               , &
+      choice_output_field_20_config                               , &
+      choice_output_field_21_config                               , &
+      choice_output_field_22_config                               , &
+      choice_output_field_23_config                               , &
+      choice_output_field_24_config                               , &
+      choice_output_field_25_config                               , &
+      choice_output_field_26_config                               , &
+      choice_output_field_27_config                               , &
+      choice_output_field_28_config                               , &
+      choice_output_field_29_config                               , &
+      choice_output_field_30_config                               , &
+      choice_output_field_31_config                               , &
+      choice_output_field_32_config                               , &
+      choice_output_field_33_config                               , &
+      choice_output_field_34_config                               , &
+      choice_output_field_35_config                               , &
+      choice_output_field_36_config                               , &
+      choice_output_field_37_config                               , &
+      choice_output_field_38_config                               , &
+      choice_output_field_39_config                               , &
+      choice_output_field_40_config                               , &
+      choice_output_field_41_config                               , &
+      choice_output_field_42_config                               , &
+      choice_output_field_43_config                               , &
+      choice_output_field_44_config                               , &
+      choice_output_field_45_config                               , &
+      choice_output_field_46_config                               , &
+      choice_output_field_47_config                               , &
+      choice_output_field_48_config                               , &
+      choice_output_field_49_config                               , &
+      choice_output_field_50_config
     ! End of the config NAMELIST
 
     ! Add routine to path
@@ -2127,7 +2298,65 @@ CONTAINS
   ! == Output
   ! =========
 
+    ! Basic settings
+    C%do_create_netcdf_output                                = do_create_netcdf_output_config
     C%dt_output                                              = dt_output_config
+    C%dx_output_grid_NAM                                     = dx_output_grid_NAM_config
+    C%dx_output_grid_EAS                                     = dx_output_grid_EAS_config
+    C%dx_output_grid_GRL                                     = dx_output_grid_GRL_config
+    C%dx_output_grid_ANT                                     = dx_output_grid_ANT_config
+
+    ! Which data fields we want to write to the main NetCDF output files
+    C%choice_output_field_01                                 = choice_output_field_01_config
+    C%choice_output_field_02                                 = choice_output_field_02_config
+    C%choice_output_field_03                                 = choice_output_field_03_config
+    C%choice_output_field_04                                 = choice_output_field_04_config
+    C%choice_output_field_05                                 = choice_output_field_05_config
+    C%choice_output_field_06                                 = choice_output_field_06_config
+    C%choice_output_field_07                                 = choice_output_field_07_config
+    C%choice_output_field_08                                 = choice_output_field_08_config
+    C%choice_output_field_09                                 = choice_output_field_09_config
+    C%choice_output_field_10                                 = choice_output_field_10_config
+    C%choice_output_field_11                                 = choice_output_field_11_config
+    C%choice_output_field_12                                 = choice_output_field_12_config
+    C%choice_output_field_13                                 = choice_output_field_13_config
+    C%choice_output_field_14                                 = choice_output_field_14_config
+    C%choice_output_field_15                                 = choice_output_field_15_config
+    C%choice_output_field_16                                 = choice_output_field_16_config
+    C%choice_output_field_17                                 = choice_output_field_17_config
+    C%choice_output_field_18                                 = choice_output_field_18_config
+    C%choice_output_field_19                                 = choice_output_field_19_config
+    C%choice_output_field_20                                 = choice_output_field_20_config
+    C%choice_output_field_21                                 = choice_output_field_21_config
+    C%choice_output_field_22                                 = choice_output_field_22_config
+    C%choice_output_field_23                                 = choice_output_field_23_config
+    C%choice_output_field_24                                 = choice_output_field_24_config
+    C%choice_output_field_25                                 = choice_output_field_25_config
+    C%choice_output_field_26                                 = choice_output_field_26_config
+    C%choice_output_field_27                                 = choice_output_field_27_config
+    C%choice_output_field_28                                 = choice_output_field_28_config
+    C%choice_output_field_29                                 = choice_output_field_29_config
+    C%choice_output_field_30                                 = choice_output_field_30_config
+    C%choice_output_field_31                                 = choice_output_field_31_config
+    C%choice_output_field_32                                 = choice_output_field_32_config
+    C%choice_output_field_33                                 = choice_output_field_33_config
+    C%choice_output_field_34                                 = choice_output_field_34_config
+    C%choice_output_field_35                                 = choice_output_field_35_config
+    C%choice_output_field_36                                 = choice_output_field_36_config
+    C%choice_output_field_37                                 = choice_output_field_37_config
+    C%choice_output_field_38                                 = choice_output_field_38_config
+    C%choice_output_field_39                                 = choice_output_field_39_config
+    C%choice_output_field_40                                 = choice_output_field_40_config
+    C%choice_output_field_41                                 = choice_output_field_41_config
+    C%choice_output_field_42                                 = choice_output_field_42_config
+    C%choice_output_field_43                                 = choice_output_field_43_config
+    C%choice_output_field_44                                 = choice_output_field_44_config
+    C%choice_output_field_45                                 = choice_output_field_45_config
+    C%choice_output_field_46                                 = choice_output_field_46_config
+    C%choice_output_field_47                                 = choice_output_field_47_config
+    C%choice_output_field_48                                 = choice_output_field_48_config
+    C%choice_output_field_49                                 = choice_output_field_49_config
+    C%choice_output_field_50                                 = choice_output_field_50_config
 
     ! Finished copying the values of the _config variables to the C structure
 

@@ -267,7 +267,7 @@ MODULE ice_model_types
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: frictional_heating          ! [?] Frictional heating
 
     ! Glen's flow law factor
-    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: A_flow_3D                   ! [Pa^-3 y^-1] Glen's flow law factor
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: A_flow                      ! [Pa^-3 y^-1] Glen's flow law factor
 
   ! === Ice velocities ===
   ! ======================
@@ -311,7 +311,9 @@ MODULE ice_model_types
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: uabs_base
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: uabs_base_b
 
-    ! Strain rates
+  ! == Strain rates ==
+  ! ==================
+
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: du_dx_3D                    ! [yr^-1]
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: du_dy_3D
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: du_dz_3D

@@ -96,7 +96,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'solve_SIA'
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: Hi_b, Hs_b, dHs_dx, dHs_dy, dHs_dx_b, dHs_dy_b
-    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: A_flow_3D_b
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: A_flow_b
     INTEGER                                            :: vi,ti,k
     REAL(dp)                                           :: abs_grad_Hs
     REAL(dp), DIMENSION(mesh%nz)                       :: z, int_A_hminzetan
@@ -110,22 +110,22 @@ CONTAINS
     END IF
 
     ! Allocate memory
-    ALLOCATE( Hi_b(        mesh%ti1:mesh%ti2         ), source = 0._dp)
-    ALLOCATE( Hs_b(        mesh%ti1:mesh%ti2         ), source = 0._dp)
-    ALLOCATE( dHs_dx(      mesh%vi1:mesh%vi2         ), source = 0._dp)
-    ALLOCATE( dHs_dy(      mesh%vi1:mesh%vi2         ), source = 0._dp)
-    ALLOCATE( dHs_dx_b(    mesh%ti1:mesh%ti2         ), source = 0._dp)
-    ALLOCATE( dHs_dy_b(    mesh%ti1:mesh%ti2         ), source = 0._dp)
-    ALLOCATE( A_flow_3D_b( mesh%ti1:mesh%ti2, mesh%nz), source = 0._dp)
+    ALLOCATE( Hi_b(     mesh%ti1:mesh%ti2         ), source = 0._dp)
+    ALLOCATE( Hs_b(     mesh%ti1:mesh%ti2         ), source = 0._dp)
+    ALLOCATE( dHs_dx(   mesh%vi1:mesh%vi2         ), source = 0._dp)
+    ALLOCATE( dHs_dy(   mesh%vi1:mesh%vi2         ), source = 0._dp)
+    ALLOCATE( dHs_dx_b( mesh%ti1:mesh%ti2         ), source = 0._dp)
+    ALLOCATE( dHs_dy_b( mesh%ti1:mesh%ti2         ), source = 0._dp)
+    ALLOCATE( A_flow_b( mesh%ti1:mesh%ti2, mesh%nz), source = 0._dp)
 
     ! Calculate ice thickness, surface elevation, surface slopes, and ice flow factor on the b-grid
-    CALL map_a_b_2D( mesh, ice%Hi       , Hi_b       )
-    CALL map_a_b_2D( mesh, ice%Hs       , Hs_b       )
-    CALL ddx_a_a_2D( mesh, ice%Hs       , dHs_dx     )
-    CALL ddy_a_a_2D( mesh, ice%Hs       , dHs_dy     )
-    CALL ddx_a_b_2D( mesh, ice%Hs       , dHs_dx_b   )
-    CALL ddy_a_b_2D( mesh, ice%Hs       , dHs_dy_b   )
-    CALL map_a_b_3D( mesh, ice%A_flow_3D, A_flow_3D_b)
+    CALL map_a_b_2D( mesh, ice%Hi    , Hi_b    )
+    CALL map_a_b_2D( mesh, ice%Hs    , Hs_b    )
+    CALL ddx_a_a_2D( mesh, ice%Hs    , dHs_dx  )
+    CALL ddy_a_a_2D( mesh, ice%Hs    , dHs_dy  )
+    CALL ddx_a_b_2D( mesh, ice%Hs    , dHs_dx_b)
+    CALL ddy_a_b_2D( mesh, ice%Hs    , dHs_dy_b)
+    CALL map_a_b_3D( mesh, ice%A_flow, A_flow_b)
 
     ! Calculate velocities and strain rates according to the analytical solution of the SIA:
     ! (see also Bueler and Brown, 2009, Eqs. 12-13)
@@ -142,7 +142,7 @@ CONTAINS
 
       ! Calculate the integral from b to z of (A_flow * (h - zeta)^n) dzeta
       z = Hs_b( ti) - mesh%zeta * Hi_b( ti)
-      int_A_hminzetan = integrate_from_zeta_is_one_to_zeta_is_zetap( z, A_flow_3D_b( ti,:) * (Hs_b( ti) - z)**C%Glens_flow_law_exponent)
+      int_A_hminzetan = integrate_from_zeta_is_one_to_zeta_is_zetap( z, A_flow_b( ti,:) * (Hs_b( ti) - z)**C%Glens_flow_law_exponent)
 
       ! Calculate the diffusivity term
       abs_grad_Hs = SQRT( dHs_dx_b( ti)**2 + dHs_dy_b( ti)**2)
@@ -165,21 +165,21 @@ CONTAINS
 
       DO k = 1, mesh%nz
         SIA%du_dz_3D( vi,k) = -2._dp * (ice_density * grav)**C%Glens_flow_law_exponent * abs_grad_Hs**(C%Glens_flow_law_exponent - 1._dp) * &
-          ice%A_flow_3D( vi,k) * (ice%Hs( vi) - z( k))**C%Glens_flow_law_exponent * dHs_dx( vi)
+          ice%A_flow( vi,k) * (ice%Hs( vi) - z( k))**C%Glens_flow_law_exponent * dHs_dx( vi)
         SIA%dv_dz_3D( vi,k) = -2._dp * (ice_density * grav)**C%Glens_flow_law_exponent * abs_grad_Hs**(C%Glens_flow_law_exponent - 1._dp) * &
-          ice%A_flow_3D( vi,k) * (ice%Hs( vi) - z( k))**C%Glens_flow_law_exponent * dHs_dy( vi)
+          ice%A_flow( vi,k) * (ice%Hs( vi) - z( k))**C%Glens_flow_law_exponent * dHs_dy( vi)
       END DO
 
     END DO ! DO vi = 1, mesh%nV_loc
 
     ! Clean up after yourself
-    DEALLOCATE( Hi_b       )
-    DEALLOCATE( Hs_b       )
-    DEALLOCATE( dHs_dx     )
-    DEALLOCATE( dHs_dy     )
-    DEALLOCATE( dHs_dx_b   )
-    DEALLOCATE( dHs_dy_b   )
-    DEALLOCATE( A_flow_3D_b)
+    DEALLOCATE( Hi_b    )
+    DEALLOCATE( Hs_b    )
+    DEALLOCATE( dHs_dx  )
+    DEALLOCATE( dHs_dy  )
+    DEALLOCATE( dHs_dx_b)
+    DEALLOCATE( dHs_dy_b)
+    DEALLOCATE( A_flow_b)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

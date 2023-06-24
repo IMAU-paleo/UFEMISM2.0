@@ -1351,7 +1351,7 @@ CONTAINS
 
     ! Calculate the vertical average of Glen's flow parameter A
     DO vi = mesh%vi1, mesh%vi2
-      A_prof = ice%A_flow_3D( vi,:)
+      A_prof = ice%A_flow( vi,:)
       SSA%A_flow_vav_a( vi) = vertical_average( mesh%zeta, A_prof)
     END DO
 
@@ -1690,6 +1690,12 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    ! If no NetCDF output should be created, do nothing
+    IF (.NOT. C%do_create_netcdf_output) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
+
     ! Open the NetCDF file
     CALL open_existing_netcdf_file_for_writing( SSA%restart_filename, ncid)
 
@@ -1725,6 +1731,12 @@ CONTAINS
 
     ! Add routine to path
     CALL init_routine( routine_name)
+
+    ! If no NetCDF output should be created, do nothing
+    IF (.NOT. C%do_create_netcdf_output) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
 
     ! Set the filename
     filename_base = TRIM( C%output_dir) // 'restart_ice_velocity_SSA'

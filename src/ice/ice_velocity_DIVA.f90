@@ -1417,7 +1417,7 @@ CONTAINS
       DO k  = 1, mesh%nz
         DIVA%eta_3D_a( vi,k) = calc_effective_viscosity_Glen_3D_uv_only( &
           DIVA%du_dx_a( vi), DIVA%du_dy_a( vi), DIVA%du_dz_3D_a( vi,k), &
-          DIVA%dv_dx_a( vi), DIVA%dv_dy_a( vi), DIVA%dv_dz_3D_a( vi,k), ice%A_flow_3D( vi,k))
+          DIVA%dv_dx_a( vi), DIVA%dv_dy_a( vi), DIVA%dv_dz_3D_a( vi,k), ice%A_flow( vi,k))
       END DO
       END DO
 
@@ -1934,6 +1934,12 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    ! If no NetCDF output should be created, do nothing
+    IF (.NOT. C%do_create_netcdf_output) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
+
     ! Open the NetCDF file
     CALL open_existing_netcdf_file_for_writing( DIVA%restart_filename, ncid)
 
@@ -1972,6 +1978,12 @@ CONTAINS
 
     ! Add routine to path
     CALL init_routine( routine_name)
+
+    ! If no NetCDF output should be created, do nothing
+    IF (.NOT. C%do_create_netcdf_output) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
 
     ! Set the filename
     filename_base = TRIM( C%output_dir) // 'restart_ice_velocity_DIVA'
