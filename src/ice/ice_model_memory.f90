@@ -105,7 +105,7 @@ CONTAINS
     ice%basin_ID                    = 0
 
     ! Area fractions
-    ALLOCATE( ice%bedrock_cdf                 ( mesh%vi1:mesh%vi2, 11    ))  ! Sub-grid bedrock cumulative density functions
+    ALLOCATE( ice%bedrock_cdf                 ( mesh%vi1:mesh%vi2, C%subgrid_bedrock_cdf_nbins))  ! Sub-grid bedrock cumulative density functions
     ALLOCATE( ice%fraction_gr                 ( mesh%vi1:mesh%vi2        ))  ! [0-1] Grounded area fractions of vertices
     ALLOCATE( ice%fraction_gr_b               ( mesh%ti1:mesh%ti2        ))  ! [0-1] Grounded area fractions of triangles
     ALLOCATE( ice%fraction_cf                 ( mesh%vi1:mesh%vi2        ))  ! [0-1] Ice-covered area fractions of calving fronts

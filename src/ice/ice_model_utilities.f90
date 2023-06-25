@@ -185,34 +185,34 @@ CONTAINS
 
   END SUBROUTINE determine_masks
 
-  subroutine calc_bedrock_CDFs( mesh, refgeo, ice)
+  SUBROUTINE calc_bedrock_CDFs( mesh, refgeo, ice)
     ! Calculate the bedrock cumulative density functions
 
-    implicit none
+    IMPLICIT NONE
 
     ! In/output variables:
-    type(type_mesh),               intent(in)    :: mesh
-    type(type_reference_geometry), intent(in)    :: refgeo
-    type(type_ice_model),          intent(inout) :: ice
+    TYPE(type_mesh),               INTENT(IN)    :: mesh
+    TYPE(type_reference_geometry), INTENT(IN)    :: refgeo
+    TYPE(type_ice_model),          INTENT(INOUT) :: ice
 
     ! Local variables:
-    character(len=256), parameter                :: routine_name = 'calc_bedrock_CDFs'
-    type(type_sparse_matrix_CSR_dp)              :: M_map
-    logical                                      :: found_map, found_empty_page
-    integer                                      :: mi, mi_valid
-    real(dp), dimension(:,:  ), allocatable      :: Hb_grid_tot
-    real(dp), dimension(:    ), allocatable      :: hb_list
-    integer                                      :: vi, k, n, i, j
-    integer                                      :: n_grid_cells, ii0, ii1
-    real(dp)                                     :: isc, wii0, wii1
+    CHARACTER(len=256), PARAMETER                :: routine_name = 'calc_bedrock_CDFs'
+    TYPE(type_sparse_matrix_CSR_dp)              :: M_map
+    LOGICAL                                      :: found_map, found_empty_page
+    INTEGER                                      :: mi, mi_valid
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE      :: Hb_grid_tot
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE      :: hb_list
+    INTEGER                                      :: vi, k, n, i, j
+    INTEGER                                      :: n_grid_cells, ii0, ii1
+    REAL(dp)                                     :: isc, wii0, wii1
 
     ! === Initialisation ===
     ! ======================
 
     ! Add routine to path
-    call init_routine( routine_name)
+    CALL init_routine( routine_name)
 
-    if (par%master) write(0,*) '  Initialising sub-grid grounded-area fractions...'
+    IF (par%master) WRITE(0,*) '  Initialising sub-grid grounded-area fractions...'
 
     ! Browse the Atlas to see if an appropriate mapping object already exists.
     found_map = .FALSE.
@@ -248,8 +248,8 @@ CONTAINS
     CALL MPI_BCAST( Hb_grid_tot, refgeo%grid_raw%nx * refgeo%grid_raw%ny, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
 
     ! Allocate memory for list of bedrock elevations
-    allocate( hb_list( refgeo%grid_raw%nx * refgeo%grid_raw%ny ))
-    hb_list = 0d0
+    ALLOCATE( hb_list( refgeo%grid_raw%nx * refgeo%grid_raw%ny ))
+    hb_list = 0._dp
 
     ! Initialise cumulative density function (CDF)
     ice%bedrock_cdf = 0._dp
@@ -257,83 +257,78 @@ CONTAINS
     ! === Scan ===
     ! ============
 
-    do vi = mesh%vi1, mesh%vi2
+    DO vi = mesh%vi1, mesh%vi2
 
       ! Clear the list
-      hb_list = 0d0
+      hb_list = 0._dp
 
       ! Skip vertices at edge of domain
-      if (mesh%VBI( vi) > 0) cycle
+      IF (mesh%VBI( vi) > 0) CYCLE
 
       ! List bedrock elevations from all grid cells overlapping with this vertex's
       ! Voronoi cell (as already determined by the remapping operator)
       ! ==============================================================
 
       n_grid_cells = 0
-      do k = M_map%ptr( vi), M_map%ptr( vi+1)-1
+      DO k = M_map%ptr( vi), M_map%ptr( vi+1)-1
         n_grid_cells = n_grid_cells + 1
         n = M_map%ind( k)
         i = refgeo%grid_raw%n2ij( n,1)
         j = refgeo%grid_raw%n2ij( n,2)
         hb_list( n_grid_cells) = Hb_grid_tot( i,j)
-      end do
+      END DO
 
       ! Safety
-      if (n_grid_cells == 0) then
+      IF (n_grid_cells == 0) THEN
         ! Use default mesh value
         ice%bedrock_cdf( vi,:) = ice%Hb( vi)
         ! And skip
-        cycle
-      end if
+        CYCLE
+      END IF
 
       ! === Cumulative density function ===
       ! ===================================
 
       ! Inefficient but easy sorting of hb_list
-      do i = 1, n_grid_cells-1
-      do j = i+1, n_grid_cells
-        if (hb_list( i) > hb_list( j)) then
+      DO i = 1, n_grid_cells-1
+      DO j = i+1, n_grid_cells
+        IF (hb_list( i) > hb_list( j)) THEN
           hb_list( i) = hb_list( i) + hb_list( j)
           hb_list( j) = hb_list( i) - hb_list( j)
           hb_list( i) = hb_list( i) - hb_list( j)
         end if
-      end do
-      end do
+      END DO
+      END DO
 
       ! Set first (0%) and last bins (100%) of the CDF to the minimum
       ! and maximum bedrock elevations scanned, respectively
+      ice%bedrock_cdf( vi, 1                          ) = hb_list( 1)
+      ice%bedrock_cdf( vi, C%subgrid_bedrock_cdf_nbins) = hb_list( n_grid_cells)
 
-      ! NOTE: should the number of bins be configurable?
-
-      ice%bedrock_cdf( vi, 1) = hb_list( 1)
-      ice%bedrock_cdf( vi,11) = hb_list( n_grid_cells)
-
-      ! Compute the bedrock elevation for each of the other CDF bins,
-      ! from the second (10%) to the tenth (90%)
-      do i = 2, 10
-        isc  = 1._dp + (real( n_grid_cells,dp) - 1._dp) * (real( i,dp) - 1._dp) / 10._dp
-        ii0  = floor( isc)
-        ii1  = ceiling( isc)
-        wii0 = real( ii1,dp) - isc
+      ! Compute the bedrock elevation for each of the other CDF bins
+      DO i = 2, C%subgrid_bedrock_cdf_nbins - 1
+        isc  = 1._dp + (REAL( n_grid_cells,dp) - 1._dp) * (REAL( i,dp) - 1._dp) / (C%subgrid_bedrock_cdf_nbins - 1)
+        ii0  = FLOOR( isc)
+        ii1  = CEILING( isc)
+        wii0 = REAL( ii1,dp) - isc
         wii1 = 1.0 - wii0
         ice%bedrock_cdf( vi,i) = wii0 * hb_list( ii0) + wii1 * hb_list( ii1)
-      end do
+      END DO
 
-    end do
-    CALL sync
+    END DO
 
     ! === Finalisation ===
     ! ====================
 
     ! Clean up after yourself
-    deallocate( hb_list)
-    deallocate( Hb_grid_tot)
-    call deallocate_matrix_CSR_dist( M_map)
+    DEALLOCATE( hb_list)
+    DEALLOCATE( Hb_grid_tot)
+    CALL deallocate_matrix_CSR_dist( M_map)
 
     ! Finalise routine path
-    call finalise_routine( routine_name)
+    CALL finalise_routine( routine_name)
 
-  end subroutine calc_bedrock_CDFs
+  END SUBROUTINE calc_bedrock_CDFs
 
   subroutine calc_grounded_fractions( mesh, ice)
     ! Determine the sub-grid grounded-area fractions of all grid cells from a bedrock CDF

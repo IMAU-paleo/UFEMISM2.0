@@ -1,6 +1,6 @@
 fill_configuration_module
 create_config_unit_tests
-% create_config_Halfar
+create_config_Halfar
 
 function fill_configuration_module
 
@@ -403,8 +403,6 @@ for i = 1: length( config)
   
   str2 = '';
   
-  %% Set config parameters
-  
   % Don't do the unit tests
   if contains( str,'do_unit_tests_config')
     str2 = '    do_unit_tests_config = .FALSE.';
@@ -423,10 +421,8 @@ for i = 1: length( config)
     str2 = '    start_time_of_run_config = 0.0';
   end
   if contains( str,'end_time_of_run_config')
-    str2 = '    end_time_of_run_config = 10000.0';
+    str2 = '    start_time_of_run_config = 0.0';
   end
-  
-  %% Add to structure
   
   % Append note
   if ~isempty( str2)
