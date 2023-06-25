@@ -488,6 +488,7 @@ MODULE model_configuration
     REAL(dp)            :: timeframe_initial_ice_temperature_ANT_config = 1E9_dp
     ! Thermodynamical model
     CHARACTER(LEN=256)  :: choice_thermo_model_config                   = '3D_heat_equation'               ! Choice of thermodynamical model: "none", "3D_heat_equation"
+    REAL(dp)            :: dt_thermodynamics_config                     = 1._dp                            ! Time step for the thermodynamical model
     CHARACTER(LEN=256)  :: choice_ice_heat_capacity_config              = 'Pounder1965'                    ! Choice of ice heat capacity model: "uniform", "Pounder1965"
     REAL(dp)            :: uniform_ice_heat_capacity_config             = 2009._dp                         ! Uniform ice heat capacity (applied when choice_ice_heat_capacity_config = "uniform")
     CHARACTER(LEN=256)  :: choice_ice_thermal_conductivity_config       = 'Ritz1987'                       ! Choice of ice heat capacity model: "uniform", "Ritz1987"
@@ -1077,6 +1078,7 @@ MODULE model_configuration
     REAL(dp)            :: timeframe_initial_ice_temperature_ANT
     ! Thermodynamical model
     CHARACTER(LEN=256)  :: choice_thermo_model
+    REAL(dp)            :: dt_thermodynamics
     CHARACTER(LEN=256)  :: choice_ice_heat_capacity
     REAL(dp)            :: uniform_ice_heat_capacity
     CHARACTER(LEN=256)  :: choice_ice_thermal_conductivity
@@ -1658,6 +1660,7 @@ CONTAINS
       timeframe_initial_ice_temperature_GRL_config                , &
       timeframe_initial_ice_temperature_ANT_config                , &
       choice_thermo_model_config                                  , &
+      dt_thermodynamics_config                                    , &
       choice_ice_heat_capacity_config                             , &
       uniform_ice_heat_capacity_config                            , &
       choice_ice_thermal_conductivity_config                      , &
@@ -2246,6 +2249,7 @@ CONTAINS
     C%timeframe_initial_ice_temperature_ANT                  = timeframe_initial_ice_temperature_ANT_config
     ! Thermodynamical model
     C%choice_thermo_model                                    = choice_thermo_model_config
+    C%dt_thermodynamics                                      = dt_thermodynamics_config
     C%choice_ice_heat_capacity                               = choice_ice_heat_capacity_config
     C%uniform_ice_heat_capacity                              = uniform_ice_heat_capacity_config
     C%choice_ice_thermal_conductivity                        = choice_ice_thermal_conductivity_config

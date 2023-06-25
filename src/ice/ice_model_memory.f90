@@ -323,8 +323,8 @@ CONTAINS
 
     ice%geothermal_heat_flux        = 0._dp
 
-  ! === Time stepping ===
-  ! =====================
+  ! === Ice thickness time stepping ===
+  ! ===================================
 
     ! Predicted model state at next time step
     ALLOCATE( ice%Hi_prev                     ( mesh%vi1:mesh%vi2        ))  ! [m]  The previous state
@@ -332,6 +332,16 @@ CONTAINS
 
     ice%Hi_prev                     = 0._dp
     ice%Hi_next                     = 0._dp
+
+  ! === Ice temperature time stepping ===
+  ! =====================================
+
+    ! Predicted model state at next time step
+    ALLOCATE( ice%Ti_prev                     ( mesh%vi1:mesh%vi2,mesh%nz))  ! [m]  The previous state
+    ALLOCATE( ice%Ti_next                     ( mesh%vi1:mesh%vi2,mesh%nz))  ! [m]  The next state
+
+    ice%Ti_prev                     = 0._dp
+    ice%Ti_next                     = 0._dp
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

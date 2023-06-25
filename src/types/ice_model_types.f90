@@ -347,17 +347,27 @@ MODULE ice_model_types
     ! Geothermal heat
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: geothermal_heat_flux        ! Geothermal heat flux
 
-  ! === Time stepping ===
-  ! =====================
+  ! === Ice thickness time stepping ===
+  ! ===================================
 
-    ! Time-stepping solvers
+    ! Ice thickness time-stepping solvers
     TYPE(type_ice_pc)                       :: pc
 
     ! Time frames and ice thicknesses
-    REAL(dp)                                :: t_prev                      ! [yr] Time of the previous state
-    REAL(dp)                                :: t_next                      ! [yr] Time of the next state
+    REAL(dp)                                :: t_Hi_prev                   ! [yr] Time of the previous state
+    REAL(dp)                                :: t_Hi_next                   ! [yr] Time of the next state
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: Hi_prev                     ! [m]  The previous state
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: Hi_next                     ! [m]  The next state
+
+  ! === Ice temperature time stepping ===
+  ! =====================================
+
+    ! Time frames and ice temperatures
+    REAL(dp)                                :: t_Ti_prev                   ! [yr] Time of the previous state
+    REAL(dp)                                :: t_Ti_next                   ! [yr] Time of the next state
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: Ti_prev                     ! [m]  The previous state
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: Ti_next                     ! [m]  The next state
+    CHARACTER(LEN=256)                      :: thermo_restart_filename     !      Filename for thermodynamics restart file
 
   END TYPE type_ice_model
 

@@ -10,6 +10,7 @@ MODULE region_types
   USE mesh_types                                             , ONLY: type_mesh
   USE reference_geometry_types                               , ONLY: type_reference_geometry
   USE ice_model_types                                        , ONLY: type_ice_model
+  USE climate_types                                          , ONLY: type_climate_model
   USE SMB_types                                              , ONLY: type_SMB_model
   USE BMB_types                                              , ONLY: type_BMB_model
   USE scalar_types                                           , ONLY: type_regional_scalars
@@ -38,6 +39,9 @@ MODULE region_types
 
     ! The ice dynamics model
     TYPE(type_ice_model)                    :: ice
+
+    ! The climate model
+    TYPE(type_climate_model)                :: climate
 
     ! The surface mass balance model
     TYPE(type_SMB_model)                    :: SMB

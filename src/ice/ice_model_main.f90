@@ -67,7 +67,7 @@ CONTAINS
     ! and a new next modelled ice thickness.
     ! ======================================
 
-    IF (region%time == region%ice%t_next) THEN
+    IF (region%time == region%ice%t_Hi_next) THEN
       ! Need to calculate new ice velocities, thinning rates, and predicted ice thickness
 
       ! Start with the maximum allowed ice model time step
@@ -86,7 +86,7 @@ CONTAINS
         CALL crash('unknown choice_timestepping "' // TRIM( C%choice_timestepping) // '"!')
       END IF
 
-    ELSEIF (region%time > region%ice%t_next) THEN
+    ELSEIF (region%time > region%ice%t_Hi_next) THEN
       ! This should not be possible
       CALL crash('overshot the ice dynamics time step')
     ELSE
@@ -98,10 +98,10 @@ CONTAINS
     ! ========================================
 
     ! Calculate time interpolation weights
-    wt_prev = (region%ice%t_next - region%time) / (region%ice%t_next - region%ice%t_prev)
+    wt_prev = (region%ice%t_Hi_next - region%time) / (region%ice%t_Hi_next - region%ice%t_Hi_prev)
     wt_next = 1._dp - wt_prev
 
-    ! Interpolate predicted ice thickness to desired time
+    ! Interpolate modelled ice thickness to desired time
     DO vi = region%mesh%vi1, region%mesh%vi2
       region%ice%Hi( vi) = wt_prev * region%ice%Hi_prev( vi) + wt_next * region%ice%Hi_next( vi)
     END DO
@@ -123,7 +123,7 @@ CONTAINS
       region%ice%dHib( vi)  = region%ice%Hib( vi) - (region%refgeo_PD%Hs ( vi) - region%refgeo_PD%Hi( vi))
 
       ! Rates of change
-      region%ice%dHi_dt( vi) = (region%ice%Hi_next( vi) - region%ice%Hi_prev( vi)) / (region%ice%t_next - region%ice%t_prev)
+      region%ice%dHi_dt( vi) = (region%ice%Hi_next( vi) - region%ice%Hi_prev( vi)) / (region%ice%t_Hi_next - region%ice%t_Hi_prev)
       IF (region%ice%TAF( vi) > 0._dp) THEN
         ! Grounded ice
         region%ice%dHs_dt ( vi) = region%ice%dHb_dt( vi) + region%ice%dHi_dt( vi)
@@ -248,10 +248,10 @@ CONTAINS
     CALL calc_zeta_gradients( mesh, ice)
 
     ! Model states for ice dynamics model
-    ice%t_prev  = C%start_time_of_run
-    ice%t_next  = C%start_time_of_run
-    ice%Hi_prev = ice%Hi
-    ice%Hi_next = ice%Hi
+    ice%t_Hi_prev = C%start_time_of_run
+    ice%t_Hi_next = C%start_time_of_run
+    ice%Hi_prev   = ice%Hi
+    ice%Hi_next   = ice%Hi
 
     ! Initialise masks
     ! ================
@@ -325,8 +325,8 @@ CONTAINS
     ALLOCATE( Hi_dummy( region%mesh%vi1:region%mesh%vi2))
 
     ! Store previous ice model state
-    region%ice%t_prev  = region%ice%t_next
-    region%ice%Hi_prev = region%ice%Hi_next
+    region%ice%t_Hi_prev  = region%ice%t_Hi_next
+    region%ice%Hi_prev    = region%ice%Hi_next
 
   ! == Calculate time step ==
   ! =========================
@@ -398,8 +398,8 @@ CONTAINS
     CALL calc_pc_truncation_error( region%mesh, region%ice%pc)
 
     ! Set next modelled ice thickness
-    region%ice%t_next  = region%ice%t_prev + region%ice%pc%dt_np1
-    region%ice%Hi_next = region%ice%pc%Hi_np1
+    region%ice%t_Hi_next = region%ice%t_Hi_prev + region%ice%pc%dt_np1
+    region%ice%Hi_next   = region%ice%pc%Hi_np1
 
     ! Clean up after yourself
     DEALLOCATE( Hi_dummy)

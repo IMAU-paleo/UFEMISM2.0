@@ -123,7 +123,7 @@ CONTAINS
     time_of_next_action = t_end
 
     ! Ice dynamics
-    time_of_next_action = MIN( time_of_next_action, region%ice%t_next)
+    time_of_next_action = MIN( time_of_next_action, region%ice%t_Hi_next)
 
     ! Output
     time_of_next_action = MIN( time_of_next_action, region%output_t_next)

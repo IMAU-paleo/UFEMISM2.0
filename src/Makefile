@@ -78,6 +78,7 @@ UFEMISM_source = \
   types/mesh_types.f90 \
   types/scalar_types.f90 \
   types/ice_model_types.f90 \
+  types/climate_types.f90 \
   types/SMB_types.f90 \
   types/BMB_types.f90 \
   types/reference_geometry_types.f90 \
@@ -119,6 +120,9 @@ UFEMISM_source = \
   ice/ice_velocity_main.f90 \
   ice/ice_thickness.f90 \
   ice/ice_model_main.f90 \
+  \
+  thermodynamics/thermodynamics_3D_heat_equation.f90 \
+  thermodynamics/thermodynamics_main.f90 \
   \
   surface_mass_balance/SMB_main.f90 \
   \
