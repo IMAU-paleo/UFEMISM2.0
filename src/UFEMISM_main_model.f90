@@ -60,6 +60,8 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256)                                                 :: routine_name
+    INTEGER                                                            :: ndt_av
+    REAL(dp)                                                           :: dt_av
 
     ! Add routine to path
     routine_name = 'run_model('  //  region%name  //  ')'
@@ -70,6 +72,10 @@ CONTAINS
       '  Running model region ', colour_string( region%name, 'light blue'), ' (', colour_string( TRIM( region%long_name), 'light blue'), &
       ') from t = ', region%time/1000._dp, ' to t = ', t_end/1000._dp, ' kyr'
 
+    ! Initialise average ice-dynamical time step
+    ndt_av = 0
+    dt_av  = 0._dp
+
     ! The main UFEMISM time loop
     main_time_loop: DO WHILE (region%time <= t_end)
 
@@ -77,13 +83,18 @@ CONTAINS
       ! velocities, thinning rates, and predicted geometry if necessary
       CALL run_ice_dynamics_model( region)
 
+      ! Keep track of the average ice-dynamical time step and print it to the terminal
+      ndt_av = ndt_av + 1
+      dt_av  = dt_av  + (region%ice%t_Hi_next - region%ice%t_Hi_prev)
+      IF (par%master .AND. C%do_time_display) CALL time_display( region, t_end, dt_av, ndt_av)
+
       ! Write to the main regional output NetCDF file
       CALL write_to_main_regional_output( region)
 
       ! Advance this region's time to the time of the next "action"
       CALL advance_region_time_to_time_of_next_action( region, t_end)
 
-      ! If we've reached the end of this coupling interval, stp
+      ! If we've reached the end of this coupling interval, stop
       IF (region%time == t_end) EXIT main_time_loop
 
     END DO main_time_loop ! DO WHILE (region%time <= t_end)
@@ -1905,7 +1916,11 @@ CONTAINS
     CALL create_main_regional_output_file_grid( region)
 
     ! Set output writing time to stat of run, so the initial state will be written to output
-    region%output_t_next = C%start_time_of_run
+    IF (C%do_create_netcdf_output) THEN
+      region%output_t_next = C%start_time_of_run
+    ELSE
+      region%output_t_next = C%end_time_of_run
+    END IF
 
     ! ===== Finalisation =====
     ! ========================
@@ -2165,5 +2180,47 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE setup_first_mesh_from_file
+
+  ! == Extras
+  ! =========
+
+  SUBROUTINE time_display( region, t_end, dt_av, ndt_av)
+    ! Little time display for the screen
+
+    USE, INTRINSIC :: ISO_C_BINDING, ONLY: c_backspace
+
+    IMPLICIT NONE
+
+    ! Input/Ouput variables
+    TYPE(type_model_region),                             INTENT(IN)    :: region
+    REAL(dp),                                            INTENT(IN)    :: t_end
+    REAL(dp),                                            INTENT(IN)    :: dt_av
+    INTEGER,                                             INTENT(IN)    :: ndt_av
+
+    ! Local variables
+    REAL(dp)                                                           :: dt_ice
+    CHARACTER(LEN=9)                                                   :: r_time, r_step, r_adv
+
+    dt_ice = region%ice%t_Hi_next - region%ice%t_Hi_prev
+
+    IF (region%time < t_end) THEN
+      r_adv = "no"
+      WRITE( r_time,"(F8.3)") MIN( region%time,t_end) / 1000._dp
+      WRITE( r_step,"(F6.3)") MAX( dt_ice, C%dt_ice_min)
+      WRITE( *     ,"(A)", ADVANCE = TRIM( r_adv)) REPEAT( c_backspace,999) // &
+              "   t = " // TRIM( r_time) // " kyr - dt = " // TRIM( r_step) // " yr"
+    ELSE
+      r_adv = "yes"
+      WRITE( r_time,"(F8.3)") MIN( region%time,t_end) / 1000._dp
+      WRITE( r_step,"(F6.3)") dt_av / REAL( ndt_av,dp)
+      WRITE( *     ,"(A)", ADVANCE = TRIM( r_adv)) REPEAT( c_backspace,999) // &
+            "   t = " // TRIM( r_time) // " kyr - dt_av = " // TRIM( r_step) // " yr"
+    END IF
+    IF (region%time == region%output_t_next) THEN
+      r_adv = "no"
+      WRITE( *,"(A)", ADVANCE = TRIM( r_adv)) REPEAT( c_backspace,999)
+    END IF
+
+  END SUBROUTINE time_display
 
 END MODULE UFEMISM_main_model

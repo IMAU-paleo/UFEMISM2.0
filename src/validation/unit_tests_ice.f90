@@ -1280,6 +1280,7 @@ CONTAINS
     REAL(dp)                                                           :: MSE_Hi, RMSE_Hi
     CHARACTER(LEN=256)                                                 :: filename
     INTEGER                                                            :: ncid
+    REAL(dp)                                                           :: t_end, dt
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -1333,7 +1334,20 @@ CONTAINS
   ! == Run the model for 5,000 years
   ! ================================
 
-    CALL run_model_region( region, C%end_time_of_run)
+    ! Do a sort-of coupling interval, just to make sure it works
+
+    dt = 100._dp
+
+    t_end = C%start_time_of_run
+    DO WHILE (.TRUE.)
+
+      t_end = t_end + dt
+
+      CALL run_model_region( region, t_end)
+
+      IF (t_end >= C%end_time_of_run) EXIT
+
+    END DO
 
   ! == Compare to analytical solution
   ! =================================
