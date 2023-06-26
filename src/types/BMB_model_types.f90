@@ -1,4 +1,4 @@
-MODULE BMB_types
+MODULE BMB_model_types
 
   ! The different data types used in the BMB modules
 
@@ -15,10 +15,16 @@ MODULE BMB_types
   TYPE type_BMB_model
     ! The BMB model data structure.
 
+    ! Main data fields
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: BMB                         ! [m.i.e./yr] Basal mass balance
+
+    ! Sub-models
+
+    ! Timestepping
+    REAL(dp)                                :: t_next
 
   END TYPE type_BMB_model
 
 CONTAINS
 
-END MODULE BMB_types
+END MODULE BMB_model_types

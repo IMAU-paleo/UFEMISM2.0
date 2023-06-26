@@ -12,8 +12,12 @@ MODULE UFEMISM_main_model
   USE model_configuration                                    , ONLY: C
   USE region_types                                           , ONLY: type_model_region
   USE reference_geometries                                   , ONLY: initialise_reference_geometries_raw, initialise_reference_geometries_on_model_mesh
-  USE ice_model_main                                         , ONLY: initialise_ice_dynamics_model, run_ice_dynamics_model
+  USE ice_model_main                                         , ONLY: initialise_ice_dynamics_model  , run_ice_dynamics_model
   USE thermodynamics_main                                    , ONLY: initialise_thermodynamics_model, run_thermodynamics_model
+  USE climate_main                                           , ONLY: initialise_climate_model       , run_climate_model
+  USE ocean_main                                             , ONLY: initialise_ocean_model         , run_ocean_model
+  USE SMB_main                                               , ONLY: initialise_SMB_model           , run_SMB_model
+  USE BMB_main                                               , ONLY: initialise_BMB_model           , run_BMB_model
   USE netcdf_basic                                           , ONLY: open_existing_netcdf_file_for_reading, close_netcdf_file
   USE netcdf_input                                           , ONLY: setup_mesh_from_file
   USE mesh_creation                                          , ONLY: create_mesh_from_gridded_geometry, create_mesh_from_meshed_geometry, write_mesh_success
@@ -62,14 +66,26 @@ CONTAINS
       ! velocities, thinning rates, and predicted geometry if necessary
       CALL run_ice_dynamics_model( region)
 
-      ! Calculate ice temperature at the desired time, and update
-      ! predicted temperature if necessary
-      CALL run_thermodynamics_model( region)
-
       ! Keep track of the average ice-dynamical time step and print it to the terminal
       ndt_av = ndt_av + 1
       dt_av  = dt_av  + (region%ice%t_Hi_next - region%ice%t_Hi_prev)
       IF (par%master .AND. C%do_time_display) CALL time_display( region, t_end, dt_av, ndt_av)
+
+      ! Calculate ice temperature at the desired time, and update
+      ! predicted temperature if necessary
+      CALL run_thermodynamics_model( region)
+
+      ! Calculate the climate
+      CALL run_climate_model( region%mesh, region%ice, region%climate, region%name, region%time)
+
+      ! Calculate the ocean
+      CALL run_ocean_model( region%mesh, region%ice, region%ocean, region%name, region%time)
+
+      ! Calculate the surface mass balance
+      CALL run_SMB_model( region%mesh, region%ice, region%climate, region%SMB, region%name, region%time)
+
+      ! Calculate the basal mass balance
+      CALL run_BMB_model( region%mesh, region%ice, region%ocean, region%BMB, region%name, region%time)
 
       ! Write to the main regional output NetCDF file
       CALL write_to_main_regional_output_files( region)
@@ -121,6 +137,18 @@ CONTAINS
 
     ! Thermodynamics
     time_of_next_action = MIN( time_of_next_action, region%ice%t_Ti_next)
+
+    ! Climate
+    time_of_next_action = MIN( time_of_next_action, region%climate%t_next)
+
+    ! Ocean
+    time_of_next_action = MIN( time_of_next_action, region%ocean%t_next)
+
+    ! SMB
+    time_of_next_action = MIN( time_of_next_action, region%SMB%t_next)
+
+    ! BMB
+    time_of_next_action = MIN( time_of_next_action, region%BMB%t_next)
 
     ! Output
     time_of_next_action = MIN( time_of_next_action, region%output_t_next)
@@ -201,6 +229,26 @@ CONTAINS
     ! ==========================
 
     CALL initialise_thermodynamics_model( region)
+
+    ! ===== Climate =====
+    ! ===================
+
+    CALL initialise_climate_model( region%mesh, region%climate, region%name)
+
+    ! ===== Ocean =====
+    ! =================
+
+    CALL initialise_ocean_model( region%mesh, region%ocean, region%name)
+
+    ! ===== Surface mass balance =====
+    ! ================================
+
+    CALL initialise_SMB_model( region%mesh, region%SMB, region%name)
+
+    ! ===== Basal mass balance =====
+    ! ================================
+
+    CALL initialise_BMB_model( region%mesh, region%BMB, region%name)
 
     ! ===== Regional output =====
     ! ===========================

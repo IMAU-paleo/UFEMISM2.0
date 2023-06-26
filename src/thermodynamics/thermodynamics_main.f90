@@ -19,9 +19,9 @@ MODULE thermodynamics_main
   USE region_types                                           , ONLY: type_model_region
   USE mesh_types                                             , ONLY: type_mesh
   USE ice_model_types                                        , ONLY: type_ice_model
-  USE climate_types                                          , ONLY: type_climate_model
-  USE SMB_types                                              , ONLY: type_SMB_model
-  USE BMB_types                                              , ONLY: type_BMB_model
+  USE climate_model_types                                    , ONLY: type_climate_model
+  USE SMB_model_types                                        , ONLY: type_SMB_model
+  USE BMB_model_types                                        , ONLY: type_BMB_model
   USE netcdf_basic                                           , ONLY: create_new_netcdf_file_for_writing, close_netcdf_file, &
                                                                      open_existing_netcdf_file_for_writing, field_name_options_Ti
   USE netcdf_output                                          , ONLY: generate_filename_XXXXXdotnc, setup_mesh_in_netcdf_file, add_time_dimension_to_file, &

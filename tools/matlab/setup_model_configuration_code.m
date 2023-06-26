@@ -79,6 +79,8 @@ end
 
 type_block = {};
 
+n_config_variables = 0;
+
 for i = 1: length( param_block)
   
   % Read line from the parameters block
@@ -87,6 +89,7 @@ for i = 1: length( param_block)
   % Check if a parameter is defined in this line
   ii = strfind( str,'_config');
   if ~isempty( ii)
+    n_config_variables = n_config_variables + 1;
     % Remove the "_config" extension and everything after that.
     str = str( 1:ii-1);
   end
@@ -102,6 +105,8 @@ for i = 1: length( param_block)
   type_block{ end+1} = str;
   
 end
+
+disp(['UFEMISM v2.0 has ' num2str( n_config_variables) ' config variables'])
 
 %% Create the namelist block
 

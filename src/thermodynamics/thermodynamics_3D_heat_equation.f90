@@ -18,9 +18,9 @@ MODULE thermodynamics_3D_heat_equation
   USE parameters
   USE mesh_types                                             , ONLY: type_mesh
   USE ice_model_types                                        , ONLY: type_ice_model
-  USE climate_types                                          , ONLY: type_climate_model
-  USE SMB_types                                              , ONLY: type_SMB_model
-  USE BMB_types                                              , ONLY: type_BMB_model
+  USE climate_model_types                                    , ONLY: type_climate_model
+  USE SMB_model_types                                        , ONLY: type_SMB_model
+  USE BMB_model_types                                        , ONLY: type_BMB_model
   USE ice_model_utilities                                    , ONLY: calc_zeta_gradients
   USE thermodynamics_utilities                               , ONLY: calc_upwind_heat_flux_derivatives, calc_strain_heating, calc_frictional_heating, &
                                                                      replace_Ti_with_robin_solution

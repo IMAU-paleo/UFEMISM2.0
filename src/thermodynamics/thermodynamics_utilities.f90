@@ -18,8 +18,8 @@ MODULE thermodynamics_utilities
   USE parameters
   USE mesh_types                                             , ONLY: type_mesh
   USE ice_model_types                                        , ONLY: type_ice_model
-  USE climate_types                                          , ONLY: type_climate_model
-  USE SMB_types                                              , ONLY: type_SMB_model
+  USE climate_model_types                                    , ONLY: type_climate_model
+  USE SMB_model_types                                        , ONLY: type_SMB_model
   USE mesh_operators                                         , ONLY: ddx_a_b_3D, ddy_a_b_3D
   USE math_utilities                                         , ONLY: cross2
 

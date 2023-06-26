@@ -511,6 +511,82 @@ MODULE model_configuration
     REAL(dp)            :: m_enh_sheet_config                           = 1.0_dp                           ! Ice flow enhancement factor for grounded ice
     REAL(dp)            :: m_enh_shelf_config                           = 1.0_dp                           ! Ice flow enhancement factor for floating ice
 
+  ! == Climate
+  ! ==========
+
+    ! Time step
+    LOGICAL             :: do_asynchronous_climate_config               = .TRUE.                           ! Whether or not the climate should be calculated asynchronously from the rest of the model; if so, use dt_climate; if not, calculate it in every time step
+    REAL(dp)            :: dt_climate_config                            = 10._dp                           ! [yr] Time step for calculating climate
+
+    ! Choice of climate model
+    CHARACTER(LEN=256)  :: choice_climate_model_NAM_config              = 'none'
+    CHARACTER(LEN=256)  :: choice_climate_model_EAS_config              = 'none'
+    CHARACTER(LEN=256)  :: choice_climate_model_GRL_config              = 'none'
+    CHARACTER(LEN=256)  :: choice_climate_model_ANT_config              = 'none'
+
+    ! Choice of idealised climate model
+    CHARACTER(LEN=256)  :: choice_climate_model_idealised_config        = ''
+
+  ! == Ocean
+  ! ========
+
+    ! Time step
+    LOGICAL             :: do_asynchronous_ocean_config                 = .TRUE.                           ! Whether or not the ocean should be calculated asynchronously from the rest of the model; if so, use dt_climate; if not, calculate it in every time step
+    REAL(dp)            :: dt_ocean_config                              = 10._dp                           ! [yr] Time step for calculating ocean
+
+    ! Choice of ocean model
+    CHARACTER(LEN=256)  :: choice_ocean_model_NAM_config                = 'none'
+    CHARACTER(LEN=256)  :: choice_ocean_model_EAS_config                = 'none'
+    CHARACTER(LEN=256)  :: choice_ocean_model_GRL_config                = 'none'
+    CHARACTER(LEN=256)  :: choice_ocean_model_ANT_config                = 'none'
+
+    ! Choice of idealised ocean model
+    CHARACTER(LEN=256)  :: choice_ocean_model_idealised_config          = ''
+
+  ! == Surface mass balance
+  ! =======================
+
+    ! Time step
+    LOGICAL             :: do_asynchronous_SMB_config                   = .TRUE.                           ! Whether or not the SMB should be calculated asynchronously from the rest of the model; if so, use dt_climate; if not, calculate it in every time step
+    REAL(dp)            :: dt_SMB_config                                = 10._dp                           ! [yr] Time step for calculating SMB
+
+    ! Choice of SMB model
+    CHARACTER(LEN=256)  :: choice_SMB_model_NAM_config                  = 'uniform'
+    CHARACTER(LEN=256)  :: choice_SMB_model_EAS_config                  = 'uniform'
+    CHARACTER(LEN=256)  :: choice_SMB_model_GRL_config                  = 'uniform'
+    CHARACTER(LEN=256)  :: choice_SMB_model_ANT_config                  = 'uniform'
+
+    ! Choice of idealised SMB model
+    CHARACTER(LEN=256)  :: choice_SMB_model_idealised_config            = ''
+
+    ! "uniform"
+    REAL(dp)            :: uniform_SMB_config                           = 0._dp
+
+  ! == Basal mass balance
+  ! =====================
+
+    ! Time step
+    LOGICAL             :: do_asynchronous_BMB_config                   = .TRUE.                           ! Whether or not the BMB should be calculated asynchronously from the rest of the model; if so, use dt_climate; if not, calculate it in every time step
+    REAL(dp)            :: dt_BMB_config                                = 10._dp                           ! [yr] Time step for calculating BMB
+
+    ! Choice of BMB model
+    CHARACTER(LEN=256)  :: choice_BMB_model_NAM_config                  = 'uniform'
+    CHARACTER(LEN=256)  :: choice_BMB_model_EAS_config                  = 'uniform'
+    CHARACTER(LEN=256)  :: choice_BMB_model_GRL_config                  = 'uniform'
+    CHARACTER(LEN=256)  :: choice_BMB_model_ANT_config                  = 'uniform'
+
+    ! Choice of idealised BMB model
+    CHARACTER(LEN=256)  :: choice_BMB_model_idealised_config            = ''
+
+    ! "uniform"
+    REAL(dp)            :: uniform_BMB_config                           = 0._dp
+
+  ! == Sea level
+  ! ============
+
+    CHARACTER(LEN=256)  :: choice_sealevel_model_config                 = 'fixed'                         !     Can be "fixed", "prescribed", "eustatic", or "SELEN"
+    REAL(dp)            :: fixed_sealevel_config                        = 0._dp                           ! [m] Fixed sea level value for the "fixed" choice
+
   ! == SELEN
   ! ========
 
@@ -542,12 +618,6 @@ MODULE model_configuration
     INTEGER             :: SELEN_TABOO_TLOVE_config                     = 1                               !     Tidal love numbers yes/no
     INTEGER             :: SELEN_TABOO_DEG1_config                      = 1                               !     Tidal love numbers degree
     REAL(dp)            :: SELEN_TABOO_RCMB_config                      = 3480._dp                        ! [m] Radius of CMB
-
-  ! == Sea level
-  ! ============
-
-    CHARACTER(LEN=256)  :: choice_sealevel_model_config                 = 'fixed'                         !     Can be "fixed", "prescribed", "eustatic", or "SELEN"
-    REAL(dp)            :: fixed_sealevel_config                        = 0._dp                           ! [m] Fixed sea level value for the "fixed" choice
 
   ! == Output
   ! =========
@@ -1104,6 +1174,82 @@ MODULE model_configuration
     REAL(dp)            :: m_enh_sheet
     REAL(dp)            :: m_enh_shelf
 
+  ! == Climate
+  ! ==========
+
+    ! Time step
+    LOGICAL             :: do_asynchronous_climate
+    REAL(dp)            :: dt_climate
+
+    ! Choice of climate model
+    CHARACTER(LEN=256)  :: choice_climate_model_NAM
+    CHARACTER(LEN=256)  :: choice_climate_model_EAS
+    CHARACTER(LEN=256)  :: choice_climate_model_GRL
+    CHARACTER(LEN=256)  :: choice_climate_model_ANT
+
+    ! Choice of idealised climate model
+    CHARACTER(LEN=256)  :: choice_climate_model_idealised
+
+  ! == Ocean
+  ! ========
+
+    ! Time step
+    LOGICAL             :: do_asynchronous_ocean
+    REAL(dp)            :: dt_ocean
+
+    ! Choice of ocean model
+    CHARACTER(LEN=256)  :: choice_ocean_model_NAM
+    CHARACTER(LEN=256)  :: choice_ocean_model_EAS
+    CHARACTER(LEN=256)  :: choice_ocean_model_GRL
+    CHARACTER(LEN=256)  :: choice_ocean_model_ANT
+
+    ! Choice of idealised ocean model
+    CHARACTER(LEN=256)  :: choice_ocean_model_idealised
+
+  ! == Surface mass balance
+  ! =======================
+
+    ! Time step
+    LOGICAL             :: do_asynchronous_SMB
+    REAL(dp)            :: dt_SMB
+
+    ! Choice of SMB model
+    CHARACTER(LEN=256)  :: choice_SMB_model_NAM
+    CHARACTER(LEN=256)  :: choice_SMB_model_EAS
+    CHARACTER(LEN=256)  :: choice_SMB_model_GRL
+    CHARACTER(LEN=256)  :: choice_SMB_model_ANT
+
+    ! Choice of idealised SMB model
+    CHARACTER(LEN=256)  :: choice_SMB_model_idealised
+
+    ! "uniform"
+    REAL(dp)            :: uniform_SMB
+
+  ! == Basal mass balance
+  ! =====================
+
+    ! Time step
+    LOGICAL             :: do_asynchronous_BMB
+    REAL(dp)            :: dt_BMB
+
+    ! Choice of BMB model
+    CHARACTER(LEN=256)  :: choice_BMB_model_NAM
+    CHARACTER(LEN=256)  :: choice_BMB_model_EAS
+    CHARACTER(LEN=256)  :: choice_BMB_model_GRL
+    CHARACTER(LEN=256)  :: choice_BMB_model_ANT
+
+    ! Choice of idealised BMB model
+    CHARACTER(LEN=256)  :: choice_BMB_model_idealised
+
+    ! "uniform"
+    REAL(dp)            :: uniform_BMB
+
+  ! == Sea level
+  ! ============
+
+    CHARACTER(LEN=256)  :: choice_sealevel_model
+    REAL(dp)            :: fixed_sealevel
+
   ! == SELEN
   ! ========
 
@@ -1131,12 +1277,6 @@ MODULE model_configuration
     INTEGER             :: SELEN_TABOO_TLOVE
     INTEGER             :: SELEN_TABOO_DEG1
     REAL(dp)            :: SELEN_TABOO_RCMB
-
-  ! == Sea level
-  ! ============
-
-    CHARACTER(LEN=256)  :: choice_sealevel_model
-    REAL(dp)            :: fixed_sealevel
 
   ! == Output
   ! =========
@@ -1679,6 +1819,38 @@ CONTAINS
       uniform_Glens_flow_factor_config                            , &
       m_enh_sheet_config                                          , &
       m_enh_shelf_config                                          , &
+      do_asynchronous_climate_config                              , &
+      dt_climate_config                                           , &
+      choice_climate_model_NAM_config                             , &
+      choice_climate_model_EAS_config                             , &
+      choice_climate_model_GRL_config                             , &
+      choice_climate_model_ANT_config                             , &
+      choice_climate_model_idealised_config                       , &
+      do_asynchronous_ocean_config                                , &
+      dt_ocean_config                                             , &
+      choice_ocean_model_NAM_config                               , &
+      choice_ocean_model_EAS_config                               , &
+      choice_ocean_model_GRL_config                               , &
+      choice_ocean_model_ANT_config                               , &
+      choice_ocean_model_idealised_config                         , &
+      do_asynchronous_SMB_config                                  , &
+      dt_SMB_config                                               , &
+      choice_SMB_model_NAM_config                                 , &
+      choice_SMB_model_EAS_config                                 , &
+      choice_SMB_model_GRL_config                                 , &
+      choice_SMB_model_ANT_config                                 , &
+      choice_SMB_model_idealised_config                           , &
+      uniform_SMB_config                                          , &
+      do_asynchronous_BMB_config                                  , &
+      dt_BMB_config                                               , &
+      choice_BMB_model_NAM_config                                 , &
+      choice_BMB_model_EAS_config                                 , &
+      choice_BMB_model_GRL_config                                 , &
+      choice_BMB_model_ANT_config                                 , &
+      choice_BMB_model_idealised_config                           , &
+      uniform_BMB_config                                          , &
+      choice_sealevel_model_config                                , &
+      fixed_sealevel_config                                       , &
       SELEN_run_at_t_start_config                                 , &
       SELEN_n_TDOF_iterations_config                              , &
       SELEN_n_recursion_iterations_config                         , &
@@ -1698,8 +1870,6 @@ CONTAINS
       SELEN_TABOO_TLOVE_config                                    , &
       SELEN_TABOO_DEG1_config                                     , &
       SELEN_TABOO_RCMB_config                                     , &
-      choice_sealevel_model_config                                , &
-      fixed_sealevel_config                                       , &
       do_create_netcdf_output_config                              , &
       dt_output_config                                            , &
       dx_output_grid_NAM_config                                   , &
@@ -2279,6 +2449,82 @@ CONTAINS
     C%m_enh_sheet                                            = m_enh_sheet_config
     C%m_enh_shelf                                            = m_enh_shelf_config
 
+  ! == Climate
+  ! ==========
+
+    ! Time step
+    C%do_asynchronous_climate                                = do_asynchronous_climate_config
+    C%dt_climate                                             = dt_climate_config
+
+    ! Choice of climate model
+    C%choice_climate_model_NAM                               = choice_climate_model_NAM_config
+    C%choice_climate_model_EAS                               = choice_climate_model_EAS_config
+    C%choice_climate_model_GRL                               = choice_climate_model_GRL_config
+    C%choice_climate_model_ANT                               = choice_climate_model_ANT_config
+
+    ! Choice of idealised climate model
+    C%choice_climate_model_idealised                         = choice_climate_model_idealised_config
+
+  ! == Ocean
+  ! ========
+
+    ! Time step
+    C%do_asynchronous_ocean                                  = do_asynchronous_ocean_config
+    C%dt_ocean                                               = dt_ocean_config
+
+    ! Choice of ocean model
+    C%choice_ocean_model_NAM                                 = choice_ocean_model_NAM_config
+    C%choice_ocean_model_EAS                                 = choice_ocean_model_EAS_config
+    C%choice_ocean_model_GRL                                 = choice_ocean_model_GRL_config
+    C%choice_ocean_model_ANT                                 = choice_ocean_model_ANT_config
+
+    ! Choice of idealised ocean model
+    C%choice_ocean_model_idealised                           = choice_ocean_model_idealised_config
+
+  ! == Surface mass balance
+  ! =======================
+
+    ! Time step
+    C%do_asynchronous_SMB                                    = do_asynchronous_SMB_config
+    C%dt_SMB                                                 = dt_SMB_config
+
+    ! Choice of SMB model
+    C%choice_SMB_model_NAM                                   = choice_SMB_model_NAM_config
+    C%choice_SMB_model_EAS                                   = choice_SMB_model_EAS_config
+    C%choice_SMB_model_GRL                                   = choice_SMB_model_GRL_config
+    C%choice_SMB_model_ANT                                   = choice_SMB_model_ANT_config
+
+    ! Choice of idealised SMB model
+    C%choice_SMB_model_idealised                             = choice_SMB_model_idealised_config
+
+    ! "uniform"
+    C%uniform_SMB                                            = uniform_SMB_config
+
+  ! == Basal mass balance
+  ! =====================
+
+    ! Time step
+    C%do_asynchronous_BMB                                    = do_asynchronous_BMB_config
+    C%dt_BMB                                                 = dt_BMB_config
+
+    ! Choice of BMB model
+    C%choice_BMB_model_NAM                                   = choice_BMB_model_NAM_config
+    C%choice_BMB_model_EAS                                   = choice_BMB_model_EAS_config
+    C%choice_BMB_model_GRL                                   = choice_BMB_model_GRL_config
+    C%choice_BMB_model_ANT                                   = choice_BMB_model_ANT_config
+
+    ! Choice of idealised BMB model
+    C%choice_BMB_model_idealised                             = choice_BMB_model_idealised_config
+
+    ! "uniform"
+    C%uniform_BMB                                            = uniform_BMB_config
+
+  ! == Sea level
+  ! ============
+
+    C%choice_sealevel_model                                  = choice_sealevel_model_config
+    C%fixed_sealevel                                         = fixed_sealevel_config
+
   ! == SELEN
   ! ========
 
@@ -2306,12 +2552,6 @@ CONTAINS
     C%SELEN_TABOO_TLOVE                                      = SELEN_TABOO_TLOVE_config
     C%SELEN_TABOO_DEG1                                       = SELEN_TABOO_DEG1_config
     C%SELEN_TABOO_RCMB                                       = SELEN_TABOO_RCMB_config
-
-  ! == Sea level
-  ! ============
-
-    C%choice_sealevel_model                                  = choice_sealevel_model_config
-    C%fixed_sealevel                                         = fixed_sealevel_config
 
   ! == Output
   ! =========

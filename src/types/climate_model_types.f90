@@ -1,6 +1,6 @@
-MODULE climate_types
+MODULE climate_model_types
 
-  ! The different data types used in the climate module
+  ! The different data types used in the climate modules
 
 ! ===== Preamble =====
 ! ====================
@@ -15,12 +15,17 @@ MODULE climate_types
   TYPE type_climate_model
     ! The climate model data structure.
 
-    ! Main fields
+    ! Main data fields
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: T2m                         ! [K]      Monthly 2-m air temperature
-    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: Precp                       ! [m.w.e.] Monthly precipitation
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: Precip                      ! [m.w.e.] Monthly precipitation
+
+    ! Sub-models
+
+    ! Timestepping
+    REAL(dp)                                :: t_next
 
   END TYPE type_climate_model
 
 CONTAINS
 
-END MODULE climate_types
+END MODULE climate_model_types

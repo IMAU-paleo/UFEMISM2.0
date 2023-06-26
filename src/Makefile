@@ -78,9 +78,10 @@ UFEMISM_source = \
   types/mesh_types.f90 \
   types/scalar_types.f90 \
   types/ice_model_types.f90 \
-  types/climate_types.f90 \
-  types/SMB_types.f90 \
-  types/BMB_types.f90 \
+  types/climate_model_types.f90 \
+  types/ocean_model_types.f90 \
+  types/SMB_model_types.f90 \
+  types/BMB_model_types.f90 \
   types/reference_geometry_types.f90 \
   types/region_types.f90 \
   \
@@ -124,6 +125,10 @@ UFEMISM_source = \
   thermodynamics/thermodynamics_utilities.f90 \
   thermodynamics/thermodynamics_3D_heat_equation.f90 \
   thermodynamics/thermodynamics_main.f90 \
+  \
+  climate/climate_main.f90 \
+  \
+  ocean/ocean_main.f90 \
   \
   surface_mass_balance/SMB_main.f90 \
   \
