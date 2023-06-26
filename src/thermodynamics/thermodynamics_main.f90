@@ -29,6 +29,8 @@ MODULE thermodynamics_main
                                                                      write_to_field_multopt_mesh_dp_3D
   USE netcdf_input                                           , ONLY: read_field_from_file_3D
   USE thermodynamics_3D_heat_equation                        , ONLY: solve_3D_heat_equation
+  USE thermodynamics_utilities                               , ONLY: calc_heat_capacity, calc_thermal_conductivity, calc_pressure_melting_point, &
+                                                                     replace_Ti_with_robin_solution
 
   IMPLICIT NONE
 
@@ -63,7 +65,7 @@ CONTAINS
 
       ! Run the thermodynamics model to calculate a new next modelled ice temperature.
       IF     (C%choice_thermo_model == '3D_heat_equation') THEN
-        CALL solve_3D_heat_equation( region%mesh, region%ice, region%SMB, region%BMB, C%dt_thermodynamics)
+        CALL solve_3D_heat_equation( region%mesh, region%ice, region%climate, region%SMB, C%dt_thermodynamics)
       ELSE
         CALL crash('unknown choice_thermo_model "' // TRIM( C%choice_thermo_model) // '"!')
       END IF
@@ -72,7 +74,7 @@ CONTAINS
       ! This should not be possible
       CALL crash('overshot the thermodynamics time step')
     ELSE
-      ! We're within the current ice dynamics prediction window
+      ! We're within the current thermodynamics prediction window
     END IF ! IF (region%time == region%ice%t_next) THEN
 
     ! Interpolate between previous and next modelled ice temperature
@@ -87,6 +89,12 @@ CONTAINS
     DO vi = region%mesh%vi1, region%mesh%vi2
       region%ice%Ti( vi,:) = wt_prev * region%ice%Ti_prev( vi,:) + wt_next * region%ice%Ti_next( vi,:)
     END DO
+
+    ! Calculate all other thermodynamical quantities
+    ! ==============================================
+
+    CALL calc_heat_capacity(        region%mesh, region%ice)
+    CALL calc_thermal_conductivity( region%mesh, region%ice)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -297,13 +305,13 @@ CONTAINS
     ! DENK CROM
     CALL crash('fixme!')
 
-!    ! Calculate Ti_pmp
-!    CALL calc_pressure_melting_point( mesh, ice)
-!
-!    ! Initialise with the Robin solution
-!    DO vi = mesh%vi1, mesh%vi2
-!      CALL replace_Ti_with_robin_solution( ice, climate, SMB, ice%Ti_a, vi)
-!    END DO
+    ! Calculate Ti_pmp
+    CALL calc_pressure_melting_point( mesh, ice)
+
+    ! Initialise with the Robin solution
+    DO vi = mesh%vi1, mesh%vi2
+      CALL replace_Ti_with_robin_solution( mesh, ice, climate, SMB, ice%Ti, vi)
+    END DO
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

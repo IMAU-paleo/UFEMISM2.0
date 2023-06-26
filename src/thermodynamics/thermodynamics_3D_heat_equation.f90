@@ -18,8 +18,13 @@ MODULE thermodynamics_3D_heat_equation
   USE parameters
   USE mesh_types                                             , ONLY: type_mesh
   USE ice_model_types                                        , ONLY: type_ice_model
+  USE climate_types                                          , ONLY: type_climate_model
   USE SMB_types                                              , ONLY: type_SMB_model
   USE BMB_types                                              , ONLY: type_BMB_model
+  USE ice_model_utilities                                    , ONLY: calc_zeta_gradients
+  USE thermodynamics_utilities                               , ONLY: calc_upwind_heat_flux_derivatives, calc_strain_heating, calc_frictional_heating, &
+                                                                     replace_Ti_with_robin_solution
+  USE math_utilities                                         , ONLY: tridiagonal_solve
 
   IMPLICIT NONE
 
@@ -28,27 +33,411 @@ CONTAINS
 ! ===== Main routines =====
 ! =========================
 
-  SUBROUTINE solve_3D_heat_equation( mesh, ice, SMB, BMB, dt)
-    ! Solve the 3-D heat equation to calculate temperature at time t+dt
+  SUBROUTINE solve_3D_heat_equation( mesh, ice, climate, SMB, dt)
+    ! Solve the three-dimensional heat equation
+    !
+    ! (See solve_1D_heat_equation for the derivation)
+    !
+    ! Uses time-step reduction on a per-vertex basis; for each vertex, it
+    ! checks for instability in T(t+dt). If that is detected, it tries
+    ! again with dt' = dt/2, repeatedly halving the time step until the
+    ! instability disappears. This is done separately for every vertex.
 
     IMPLICIT NONE
 
-    ! In/output variables:
-    TYPE(type_mesh),                        INTENT(IN)    :: mesh
-    TYPE(type_ice_model),                   INTENT(INOUT) :: ice
-    TYPE(type_SMB_model),                   INTENT(IN)    :: SMB
-    TYPE(type_BMB_model),                   INTENT(IN)    :: BMB
-    REAL(dp),                               INTENT(IN)    :: dt
+    ! In/output variables
+    TYPE(type_mesh),                      INTENT(INOUT) :: mesh
+    TYPE(type_ice_model),                 INTENT(INOUT) :: ice
+    TYPE(type_climate_model),             INTENT(IN)    :: climate
+    TYPE(type_SMB_model),                 INTENT(IN)    :: SMB
+    REAL(dp),                             INTENT(IN)    :: dt
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'solve_3D_heat_equation'
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'solve_3D_heat_equation'
+    INTEGER                                            :: vi, k
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: u_times_dTdxp_upwind, v_times_dTdyp_upwind
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: T_surf_annual, Q_base_grnd, T_base_float
+    REAL(dp)                                           :: dt_applied
+    INTEGER                                            :: it_dt, it_it_dt
+    LOGICAL                                            :: found_stable_solution
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: Ti_tplusdt
+    INTEGER,  DIMENSION(:    ), ALLOCATABLE            :: is_unstable
+    INTEGER                                            :: n_unstable
+
+    REAL(dp), DIMENSION( C%nz)                         :: icecol_Ti                   ! Vertical profile of ice temperature at time t                     [K]
+    REAL(dp), DIMENSION( C%nz)                         :: icecol_u                    !   "         "    "  horizontal ice velocity in the x-direction    [m yr^-1]
+    REAL(dp), DIMENSION( C%nz)                         :: icecol_v                    !   "         "    "  horizontal ice velocity in the y-direction    [m yr^-1]
+    REAL(dp), DIMENSION( C%nz)                         :: icecol_w                    !   "         "    "  vertical   ice velocity                       [m yr^-1]
+    REAL(dp), DIMENSION( C%nz)                         :: icecol_u_times_dTdxp_upwind !   "         "    "  u * dT/dxp in the upwind direction            [K yr^-1]
+    REAL(dp), DIMENSION( C%nz)                         :: icecol_v_times_dTdyp_upwind !   "         "    "  u * dT/dxp in the upwind direction            [K yr^-1]
+    REAL(dp), DIMENSION( C%nz)                         :: icecol_Ti_pmp               !   "         "    "  pressure melting point temperature            [K]
+    REAL(dp), DIMENSION( C%nz)                         :: icecol_Ki                   !   "         "    "  thermal conductivity of ice                   [J yr^-1 m^-1 K^-1]
+    REAL(dp), DIMENSION( C%nz)                         :: icecol_Cpi                  !   "         "    "  specific heat of ice                          [J kg^-1 K^-1]
+    REAL(dp), DIMENSION( C%nz)                         :: icecol_dzeta_dx             !   "         "    "  x-derivative of the scaled coordinate zeta    [m^-1]
+    REAL(dp), DIMENSION( C%nz)                         :: icecol_dzeta_dy             !   "         "    "  y-derivative of the scaled coordinate zeta    [m^-1]
+    REAL(dp), DIMENSION( C%nz)                         :: icecol_dzeta_dz             !   "         "    "  z-derivative of the scaled coordinate zeta    [m^-1]
+    REAL(dp), DIMENSION( C%nz)                         :: icecol_dzeta_dt             !   "         "    "  time-derivative of the scaled coordinate zeta [yr^-1]
+    REAL(dp), DIMENSION( C%nz)                         :: icecol_Phi                  !   "         "    "  internal heat production                      [J kg^1 yr^1]
+    REAL(dp), DIMENSION( C%nz)                         :: icecol_Ti_tplusdt           ! Vertical profile of ice temperature at time t + dt                [K]
 
     ! Add routine to path
     CALL init_routine( routine_name)
+
+    ! Allocate memory
+    ALLOCATE( u_times_dTdxp_upwind( mesh%vi1:mesh%vi2,mesh%nz), source = 0._dp)
+    ALLOCATE( v_times_dTdyp_upwind( mesh%vi1:mesh%vi2,mesh%nz), source = 0._dp)
+    ALLOCATE( T_surf_annual       ( mesh%vi1:mesh%vi2        ), source = 0._dp)
+    ALLOCATE( Q_base_grnd         ( mesh%vi1:mesh%vi2        ), source = 0._dp)
+    ALLOCATE( T_base_float        ( mesh%vi1:mesh%vi2        ), source = 0._dp)
+    ALLOCATE( Ti_tplusdt          ( mesh%vi1:mesh%vi2,mesh%nz), source = 0._dp)
+    ALLOCATE( is_unstable         ( mesh%vi1:mesh%vi2        ), source = 0    )
+
+    ! Calculate zeta gradients
+    CALL calc_zeta_gradients( mesh, ice)
+
+    ! Calculate upwind velocity times temperature gradients
+    CALL calc_upwind_heat_flux_derivatives( mesh, ice, u_times_dTdxp_upwind, v_times_dTdyp_upwind)
+
+    ! Calculate heating terms
+    CALL calc_strain_heating(     mesh, ice)
+    CALL calc_frictional_heating( mesh, ice)
+
+    ! Calculate annual mean surface temperature
+    DO vi = mesh%vi1, mesh%vi2
+      T_surf_annual( vi) = SUM( climate%T2m( vi,:)) / REAL( SIZE( climate%T2m,2),dp)
+    END DO
+
+    ! For floating ice, basal temperatures are assumed to be always at
+    ! the pressure melting point (since ocean water cannot be colder than
+    ! this, and the ice itself cannot be warmer than this).
+    DO vi = mesh%vi1, mesh%vi2
+     T_base_float( vi) = ice%Ti_pmp( vi,C%nz)
+    END DO
+
+    ! Calculate heat flux at the base of the grounded ice
+    DO vi = mesh%vi1, mesh%vi2
+      Q_base_grnd( vi) = ice%frictional_heating( vi) + ice%geothermal_heat_flux( vi)
+    END DO
+
+    ! Solve the heat equation for all vertices
+    is_unstable = 0
+    n_unstable  = 0
+    DO vi = mesh%vi1, mesh%vi2
+
+      ! For very thin ice, just let the profile equal the surface temperature
+      IF (ice%Hi( vi) < C%Hi_min_thermo) THEN
+        is_unstable( vi) = 0
+        Ti_tplusdt( vi,:) = T_surf_annual( vi)
+        CYCLE
+      END IF
+
+      ! Gather all the data needed to solve the 1-D heat equation
+      icecol_Ti                   = ice%Ti(               vi,:)
+      icecol_u                    = ice%u_3D(             vi,:)
+      icecol_v                    = ice%v_3D(             vi,:)
+      icecol_w                    = ice%w_3D(             vi,:)
+      icecol_u_times_dTdxp_upwind = u_times_dTdxp_upwind( vi,:)
+      icecol_v_times_dTdyp_upwind = v_times_dTdyp_upwind( vi,:)
+      icecol_Ti_pmp               = ice%Ti_pmp(           vi,:)
+      icecol_Ki                   = ice%Ki(               vi,:)
+      icecol_Cpi                  = ice%Cpi(              vi,:)
+      icecol_dzeta_dx             = ice%dzeta_dx_ak(      vi,:)
+      icecol_dzeta_dy             = ice%dzeta_dy_ak(      vi,:)
+      icecol_dzeta_dz             = ice%dzeta_dz_ak(      vi,:)
+      icecol_dzeta_dt             = ice%dzeta_dt_ak(      vi,:)
+      icecol_Phi                  = ice%internal_heating( vi,:)
+
+      ! Solve the 1-D heat equation in the vertical column;
+      ! if the solution is unstable, try again with a smaller timestep
+
+      found_stable_solution = .FALSE.
+      it_dt = 0
+      DO WHILE ((.NOT. found_stable_solution) .AND. it_dt < 10)
+
+        it_dt = it_dt + 1
+        dt_applied = dt * (0.5_dp**(REAL( it_dt-1,dp)))   ! When it_dt = 0, dt_applied = dt; when it_dt = 1, dt_applied = dt/2, etc.
+
+        ! If dt_applied = dt, solve it once; if dt_applied = dt/2, solve it twice; etc.
+        DO it_it_dt = 1, 2**(it_dt-1)
+
+          ! Solve the heat equation in the vertical column
+          IF     (ice%mask_grounded_ice( vi)) THEN
+            ! Grounded ice: use Q_base_grnd as boundary condition
+
+            CALL solve_1D_heat_equation( mesh, icecol_Ti, icecol_u, icecol_v, icecol_w, &
+              icecol_u_times_dTdxp_upwind, icecol_v_times_dTdyp_upwind, T_surf_annual( vi), &
+              icecol_Ti_pmp, icecol_Ki, icecol_Cpi, icecol_dzeta_dx, icecol_dzeta_dy, icecol_dzeta_dz, icecol_dzeta_dt, &
+              icecol_Phi, dt_applied, icecol_Ti_tplusdt, Q_base_grnd = Q_base_grnd( vi))
+
+          ELSEIF (ice%mask_floating_ice( vi)) THEN
+            ! Floating ice: use T_base_float as boundary condition
+
+            CALL solve_1D_heat_equation( mesh, icecol_Ti, icecol_u, icecol_v, icecol_w, &
+              icecol_u_times_dTdxp_upwind, icecol_v_times_dTdyp_upwind, T_surf_annual( vi), &
+              icecol_Ti_pmp, icecol_Ki, icecol_Cpi, icecol_dzeta_dx, icecol_dzeta_dy, icecol_dzeta_dz, icecol_dzeta_dt, &
+              icecol_Phi, dt_applied, icecol_Ti_tplusdt, T_base_float = T_base_float( vi))
+
+          ELSE
+            CALL crash('Hi > Hi_min_thermo, but mask_grounded_ice and mask_floating_ice are both .false.')
+          END IF
+
+          ! Update temperature solution for next semi-time-step
+          icecol_Ti = icecol_Ti_tplusdt
+
+        END DO ! DO it_it_dt = 1, 2**(it_dt-1)
+
+        ! Check if we found a stable solution
+        found_stable_solution = .TRUE.
+        DO k = 1, mesh%nz
+          IF (icecol_Ti( k) /= icecol_Ti( k)) found_stable_solution = .FALSE.   ! If we found NaN, the solution is unstable
+          IF (icecol_Ti( k) < 180._dp)        found_stable_solution = .FALSE.   ! If we found temperatures below 180 K, the solution is unstable
+          IF (icecol_Ti( k) > T0)             found_stable_solution = .FALSE.   ! If we found temperatures above freezing point, the solution is unstable
+        END DO
+
+      END DO ! DO WHILE ((.NOT. found_stable_solution) .AND. it_dt < 10)
+
+      ! If the solution is still unstable, set the vertical temperature profile
+      ! here to the Robin solution. Not the most accurate, but at least it will
+      ! keep the model running. If too many grid cells need this, crash the model.
+      IF (.NOT. found_stable_solution) THEN
+        is_unstable( vi) = 1
+        n_unstable = n_unstable + 1
+      END IF
+
+      ! Copy temperature solution
+      Ti_tplusdt( vi,:) = icecol_Ti
+
+    END DO ! DO vi = mesh%vi1, mesh%vi2
+    CALL sync
+
+    ! Cope with instability
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, n_unstable, 1, MPI_INTEGER, MPI_SUM, MPI_COMM_WORLD, ierr)
+    IF (n_unstable < CEILING( REAL( mesh%nV) / 100._dp)) THEN
+      ! Instability is limited to an acceptably small number (< 1%) of grid cells;
+      ! replace the temperature profile in those cells with the Robin solution
+
+      DO vi = mesh%vi1, mesh%vi2
+        IF (is_unstable( vi) == 1) THEN
+          CALL replace_Ti_with_robin_solution( mesh, ice, climate, SMB, Ti_tplusdt, vi)
+        END IF
+      END DO
+      CALL sync
+
+    ELSE
+      ! An unacceptably large number of grid cells was unstable; throw an error.
+
+      CALL save_variable_as_netcdf_dp_1D(  ice%Hi                  , 'Hi'                  )
+      CALL save_variable_as_netcdf_dp_1D(  ice%Hb                  , 'Hb'                  )
+      CALL save_variable_as_netcdf_dp_1D(  ice%SL                  , 'SL'                  )
+      CALL save_variable_as_netcdf_dp_2D(  ice%dzeta_dx_ak         , 'dzeta_dx_ak'         )
+      CALL save_variable_as_netcdf_dp_2D(  ice%dzeta_dy_ak         , 'dzeta_dy_ak'         )
+      CALL save_variable_as_netcdf_dp_2D(  ice%dzeta_dz_ak         , 'dzeta_dz_ak'         )
+      CALL save_variable_as_netcdf_dp_2D(  ice%dzeta_dt_ak         , 'dzeta_dt_ak'         )
+      CALL save_variable_as_netcdf_dp_2D(  ice%u_3D                , 'u_3D'                )
+      CALL save_variable_as_netcdf_dp_2D(  ice%v_3D                , 'v_3D'                )
+      CALL save_variable_as_netcdf_dp_2D(  ice%w_3D                , 'w_3D'                )
+      CALL save_variable_as_netcdf_dp_1D(  ice%frictional_heating  , 'frictional_heating'  )
+      CALL save_variable_as_netcdf_dp_2D(  ice%internal_heating    , 'internal_heating'    )
+      CALL save_variable_as_netcdf_dp_1D(  T_surf_annual           , 'T_surf_annual'       )
+      CALL save_variable_as_netcdf_dp_1D(  Q_base_grnd             , 'Q_base_grnd'         )
+      CALL save_variable_as_netcdf_dp_1D(  T_base_float            , 'T_base_float'        )
+      CALL save_variable_as_netcdf_dp_2D(  ice%Ti                  , 'Ti'                  )
+      CALL save_variable_as_netcdf_dp_2D(  Ti_tplusdt              , 'Ti_tplusdt'          )
+      CALL save_variable_as_netcdf_int_1D( is_unstable             , 'is_unstable'         )
+      CALL crash('heat equation solver unstable for more than 1% of vertices!')
+
+    END IF
+
+    ! Update modelled ice temperatures for time stepping
+    ice%t_Ti_prev  = ice%t_Ti_next
+    ice%t_Ti_next  = ice%t_Ti_prev + dt
+    ice%Ti_prev    = ice%Ti_next
+    ice%Ti_next    = Ti_tplusdt
+
+    ! Clean up after yourself
+    DEALLOCATE( u_times_dTdxp_upwind)
+    DEALLOCATE( v_times_dTdyp_upwind)
+    DEALLOCATE( T_surf_annual       )
+    DEALLOCATE( Q_base_grnd         )
+    DEALLOCATE( T_base_float        )
+    DEALLOCATE( Ti_tplusdt          )
+    DEALLOCATE( is_unstable         )
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE solve_3D_heat_equation
+
+  SUBROUTINE solve_1D_heat_equation( mesh, Ti, u, v, w, u_times_dTdxp_upwind, v_times_dTdyp_upwind, T_surf, &
+    Ti_pmp, Ki, Cpi, dzeta_dx, dzeta_dy, dzeta_dz, dzeta_dt, Phi, dt, Ti_tplusdt, Q_base_grnd, T_base_float)
+    ! Solve the heat equation in the vertical column, i.e. using implicit discretisation of dT/dz, but explicit for dT/dx, dT/dy
+    !
+    ! The general heat equation (i.e. conservation of energy) inside the ice reads:
+    !
+    !   dT/dt = k / (rho cp) grad^2 T - u dT/dx - v dT/dy - w dT/dz + Phi / (rho cp)
+    !
+    ! With the following quantities:
+    !
+    !   T     - ice temperature
+    !   k     - thermal conductivity of the ice
+    !   rho   - density of the ice
+    !   cp    - specific heat of the ice
+    !   u,v,w - velocity of the ice
+    !   Phi   - internal heating of the ice (due to strain rates)
+    !
+    ! By neglecting horizontal diffusion of heat (which can be done because of the flat
+    ! geometry of the ice sheet), the grad^2 operator reduces to d2/dz2:
+    !
+    !   dT/dt = k / (rho cp) d2T/dz2 - u dT/dx - v dT/dy - w dT/dz + Phi / (rho cp)
+    !
+    ! Transforming into [xp,yp,zeta]-coordinates (xp = x, yp = y, zeta = (Hs(x,y) - z) / Hi(x,y)) yields:
+    !
+    !   dT/dt + dT/dzeta dzeta/dt = k / (rho cp) d2T/dzeta2 (dzeta/dz)^2 ...
+    !                                - u (dT/dxp + dT/dzeta dzeta/dx) ...
+    !                                - v (dT/dyp + dT/dzeta dzeta/dy) ...
+    !                                - w (         dT/dzeta dzeta/dz) ...
+    !                                + Phi / (rho cp)
+    !
+    ! The horizontal temperature gradients dT/dxp, dT/dyp are discretised explicitly in time,
+    ! whereas the vertical gradients dT/dzeta, d2T/dzeta2 are discretised implicitly, yielding:
+    !
+    !   (T( t+dt) - T( t)) / dt + dzeta/dt d/dzeta( T( t+dt)) = ...
+    !       k / (rho cp) (dzeta/dz)^2 d2/dzeta2( T( t+dt)) ...
+    !     - u (dT( t)/dxp + dzeta/dx  d /dzeta ( T( t+dt))) ...
+    !     - v (dT( t)/dyp + dzeta/dy  d /dzeta ( T( t+dt))) ...
+    !     - w (             dzeta/dz  d /dzeta ( T( t+dt))) ...
+    !     + Phi / (rho cp)
+    !
+    ! Moving all terms involving the unknown T( t+dt) to the left-hand side,
+    ! and all other terms to the right-hand side, yields:
+    !
+    !   [ 1 / dt + dzeta/dt d/dzeta ...
+    !     - k / (rho cp) (dzeta/dz)^2 d2/dzeta2 ...
+    !     + u dzeta/dx d/dzeta ...
+    !     + v dzeta/dy d/dzeta ...
+    !     + w dzeta/dz d/dzeta ] T( t+dt) = ...
+    !      T( t) / dt - u dT( t)/dxp - v dT( t)/dyp + Phi / (rho cp)
+    !
+    ! This can be further rearranged to read:
+    !
+    !   [ 1/dt + (dzeta/dt + u dzeta/dx + v dzeta/dy + w dzeta/dz) d/dzeta - k / (rho cp) (dzeta/dz)^2 d2/dzeta2 ] T( t+dt) = ...
+    !      T( t) / dt - u dT( t)/dxp - v dT( t)/dyp + Phi / (rho cp)
+    !
+    ! Discretising this expression in space, the d/dzeta and d2/dzeta2 operators on the
+    ! left-hand side become matrices, while all other terms become vectors. The equation
+    ! thus describes a system of linear equations, with T( t+dt) the solution.
+    !
+    ! In order to solve this, boundary conditions must be applied at the surface and
+    ! base of the ice. At the surface, the ice temperature is assumed to equal the
+    ! annual mean surface temperature. At the base of grounded ice, the temperature
+    ! gradient dT/dz must follow the heat flux at the base: dT/dz = -Q_base / k, and
+    ! the temperature must also not exceed the pressure melting point temperature.
+    ! At the base of floating ice, the temperature is assumed to equal the temperature
+    ! of the ocean, limited by the pressure melting point temperature.
+    !
+    ! NOTE: with the current vertical discretisation scheme, d/dzeta and d2/dzeta2 are
+    !       tridiagonal matrices, so that the entire matrix is tridiagonal. The LAPACK
+    !       solver depends on this fact; changing the vertical discretisation to a
+    !       higher-order scheme will require a different matrix solver.
+
+    IMPLICIT NONE
+
+    ! In/output variables
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh                 ! Contains the d/dzeta, d2/dzeta2 operators
+    REAL(dp), DIMENSION( mesh%nz),          INTENT(IN)    :: Ti                   ! Vertical profile of ice temperature at time t                     [K]
+    REAL(dp), DIMENSION( mesh%nz),          INTENT(IN)    :: u                    !   "         "    "  horizontal ice velocity in the x-direction    [m yr^-1]
+    REAL(dp), DIMENSION( mesh%nz),          INTENT(IN)    :: v                    !   "         "    "  horizontal ice velocity in the y-direction    [m yr^-1]
+    REAL(dp), DIMENSION( mesh%nz),          INTENT(IN)    :: w                    !   "         "    "  vertical   ice velocity                       [m yr^-1]
+    REAL(dp), DIMENSION( mesh%nz),          INTENT(IN)    :: u_times_dTdxp_upwind !   "         "    "  u * dT/dxp in the upwind direction            [K yr^-1]
+    REAL(dp), DIMENSION( mesh%nz),          INTENT(IN)    :: v_times_dTdyp_upwind !   "         "    "  u * dT/dxp in the upwind direction            [K yr^-1]
+    REAL(dp),                               INTENT(IN)    :: T_surf               ! Annual mean surface temperature                                   [K]
+    REAL(dp), DIMENSION( mesh%nz),          INTENT(IN)    :: Ti_pmp               !   "         "    "  pressure melting point temperature            [K]
+    REAL(dp), DIMENSION( mesh%nz),          INTENT(IN)    :: Ki                   !   "         "    "  thermal conductivity of ice                   [J yr^-1 m^-1 K^-1]
+    REAL(dp), DIMENSION( mesh%nz),          INTENT(IN)    :: Cpi                  !   "         "    "  specific heat of ice                          [J kg^-1 K^-1]
+    REAL(dp), DIMENSION( mesh%nz),          INTENT(IN)    :: dzeta_dx             !   "         "    "  x-derivative of the scaled coordinate zeta    [m^-1]
+    REAL(dp), DIMENSION( mesh%nz),          INTENT(IN)    :: dzeta_dy             !   "         "    "  y-derivative of the scaled coordinate zeta    [m^-1]
+    REAL(dp), DIMENSION( mesh%nz),          INTENT(IN)    :: dzeta_dz             !   "         "    "  z-derivative of the scaled coordinate zeta    [m^-1]
+    REAL(dp), DIMENSION( mesh%nz),          INTENT(IN)    :: dzeta_dt             !   "         "    "  time-derivative of the scaled coordinate zeta [yr^-1]
+    REAL(dp), DIMENSION( mesh%nz),          INTENT(IN)    :: Phi                  !   "         "    "  internal heat production                      [J kg^1 yr^1]
+    REAL(dp),                               INTENT(IN)    :: dt                   ! Time step                                                         [yr]
+    REAL(dp), DIMENSION( mesh%nz),          INTENT(OUT)   :: Ti_tplusdt           ! Vertical profile of ice temperature at time t + dt                [K]
+    REAL(dp),                     OPTIONAL, INTENT(IN)    :: Q_base_grnd   ! Heat flux at the base of grounded ice                             [J m^-2 yr^-1]
+    REAL(dp),                     OPTIONAL, INTENT(IN)    :: T_base_float  ! Heat flux at the ice base                                         [J m^-2 yr^-1]
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'solve_1D_heat_equation'
+    REAL(dp), DIMENSION( mesh%nz-1)                       :: AA_ldiag           ! Lower diagonal of A
+    REAL(dp), DIMENSION( mesh%nz  )                       :: AA_diag            !       Diagonal of A
+    REAL(dp), DIMENSION( mesh%nz-1)                       :: AA_udiag           ! Upper diagonal of A
+    REAL(dp), DIMENSION( mesh%nz)                         :: bb                 ! Right-hand side b
+    INTEGER                                               :: k
+    REAL(dp)                                              :: c_ddzeta, c_d2dzeta2
+
+    ! Add routine to path
+    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+
+    ! Initialise
+    AA_ldiag = 0._dp
+    AA_diag  = 0._dp
+    AA_udiag = 0._dp
+    bb       = 0._dp
+
+    ! Ice surface boundary conditions: T = MIN( T_surf, T0)
+    AA_diag(  1) = 1._dp
+    bb(       1) = MIN( T_surf, T0)
+
+    ! Ice base: either dT( t+dt)/dz = -Q_base / k, T( t+dt) <= T_pmp  for grounded ice, or:
+    !                   T           = MIN( T_base_float, T_pmp)       for floating ice
+
+    IF (PRESENT( Q_base_grnd)) THEN
+      ! For grounded ice, let dT/dz = -Q_base / k
+
+      ! Safety
+      IF (PRESENT( T_base_float)) CALL crash('must provide either Q_base_grnd or T_base_float, but not both!')
+
+      AA_diag(  mesh%nz) = 1._dp
+      bb(       mesh%nz) = MIN( Ti_pmp( mesh%nz), Ti( mesh%nz-1) - (mesh%zeta( mesh%nz) - mesh%zeta( mesh%nz-1)) * Q_base_grnd / (dzeta_dz( mesh%nz) * Ki( mesh%nz)))
+
+    ELSEIF (PRESENT( T_base_float)) THEN
+      ! For floating ice, let T = MIN( T_base_float, T_pmp)
+
+      ! Safety
+      IF (PRESENT( Q_base_grnd)) CALL crash('must provide either Q_base_grnd or T_base_float, but not both!')
+
+      AA_diag(  mesh%nz) = 1._dp
+      bb(       mesh%nz) = MIN( T_base_float, Ti_pmp( mesh%nz))
+
+    ELSE
+      CALL crash('must provide either Q_base_grnd or T_base_float, but not both!')
+    END IF ! IF (PRESENT( Q_base_grnd)) THEN
+
+    ! Ice column
+    DO k = 2, mesh%nz-1
+
+      ! Calculate matrix coefficients
+      c_ddzeta   = dzeta_dt( k) + (u( k) * dzeta_dx( k)) + (v( k) * dzeta_dy( k)) + (w( k) * dzeta_dz( k))
+      c_d2dzeta2 = -Ki( k) / (ice_density * Cpi( k)) * dzeta_dz( k)**2
+
+      AA_ldiag( k-1) =              (c_ddzeta * mesh%M_ddzeta_k_k_ldiag( k-1)) + (c_d2dzeta2 * mesh%M_d2dzeta2_k_k_ldiag( k-1))
+      AA_diag(  k  ) = 1._dp / dt + (c_ddzeta * mesh%M_ddzeta_k_k_diag(  k  )) + (c_d2dzeta2 * mesh%M_d2dzeta2_k_k_diag(  k  ))
+      AA_udiag( k  ) =              (c_ddzeta * mesh%M_ddzeta_k_k_udiag( k  )) + (c_d2dzeta2 * mesh%M_d2dzeta2_k_k_udiag( k  ))
+
+      ! Calculate right-hand side
+      bb(       k) = Ti( k) / dt - u_times_dTdxp_upwind( k) - v_times_dTdyp_upwind( k) + Phi( k) / (ice_density * Cpi( k))
+
+    END DO ! DO k = 1, mesh%nz
+
+    ! Solve the tridiagonal matrix equation representing the heat equation for this grid cell
+    Ti_tplusdt = tridiagonal_solve( AA_ldiag, AA_diag, AA_udiag, bb)
+
+    ! Make sure ice temperature doesn't exceed pressure melting point
+    DO k = 1, mesh%nz
+      Ti_tplusdt( k) = MIN( Ti_tplusdt( k), Ti_pmp( k))
+    END DO
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE solve_1D_heat_equation
 
 END MODULE thermodynamics_3D_heat_equation

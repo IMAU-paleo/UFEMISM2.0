@@ -47,7 +47,7 @@ MODULE model_configuration
     ! Debugging
     logical             :: do_unit_tests_config                         = .FALSE.                          ! Whether or not to (only) perform the unit tests in the main_validation module
     LOGICAL             :: do_check_for_NaN_config                      = .FALSE.                          ! Whether or not fields should be checked for NaN values
-    LOGICAL             :: do_time_display_config                       = .FALSE.                          ! Print current model time to screen
+    LOGICAL             :: do_time_display_config                       = .TRUE.                           ! Print current model time to screen
 
   ! == Time of simulation
   ! =====================
@@ -488,7 +488,8 @@ MODULE model_configuration
     REAL(dp)            :: timeframe_initial_ice_temperature_ANT_config = 1E9_dp
     ! Thermodynamical model
     CHARACTER(LEN=256)  :: choice_thermo_model_config                   = '3D_heat_equation'               ! Choice of thermodynamical model: "none", "3D_heat_equation"
-    REAL(dp)            :: dt_thermodynamics_config                     = 1._dp                            ! Time step for the thermodynamical model
+    REAL(dp)            :: dt_thermodynamics_config                     = 1._dp                            ! [yr] Time step for the thermodynamical model
+    REAL(dp)            :: Hi_min_thermo_config                         = 10._dp                           ! [m]  Ice thinner than this is assumed to have a temperature equal to the annual mean surface temperature throughout the vertical column
     CHARACTER(LEN=256)  :: choice_ice_heat_capacity_config              = 'Pounder1965'                    ! Choice of ice heat capacity model: "uniform", "Pounder1965"
     REAL(dp)            :: uniform_ice_heat_capacity_config             = 2009._dp                         ! Uniform ice heat capacity (applied when choice_ice_heat_capacity_config = "uniform")
     CHARACTER(LEN=256)  :: choice_ice_thermal_conductivity_config       = 'Ritz1987'                       ! Choice of ice heat capacity model: "uniform", "Ritz1987"
@@ -1079,6 +1080,7 @@ MODULE model_configuration
     ! Thermodynamical model
     CHARACTER(LEN=256)  :: choice_thermo_model
     REAL(dp)            :: dt_thermodynamics
+    REAL(dp)            :: Hi_min_thermo
     CHARACTER(LEN=256)  :: choice_ice_heat_capacity
     REAL(dp)            :: uniform_ice_heat_capacity
     CHARACTER(LEN=256)  :: choice_ice_thermal_conductivity
@@ -1661,6 +1663,7 @@ CONTAINS
       timeframe_initial_ice_temperature_ANT_config                , &
       choice_thermo_model_config                                  , &
       dt_thermodynamics_config                                    , &
+      Hi_min_thermo_config                                        , &
       choice_ice_heat_capacity_config                             , &
       uniform_ice_heat_capacity_config                            , &
       choice_ice_thermal_conductivity_config                      , &
@@ -2250,6 +2253,7 @@ CONTAINS
     ! Thermodynamical model
     C%choice_thermo_model                                    = choice_thermo_model_config
     C%dt_thermodynamics                                      = dt_thermodynamics_config
+    C%Hi_min_thermo                                          = Hi_min_thermo_config
     C%choice_ice_heat_capacity                               = choice_ice_heat_capacity_config
     C%uniform_ice_heat_capacity                              = uniform_ice_heat_capacity_config
     C%choice_ice_thermal_conductivity                        = choice_ice_thermal_conductivity_config
