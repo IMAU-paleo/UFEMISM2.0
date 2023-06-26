@@ -576,6 +576,38 @@ CONTAINS
       CASE ('geothermal_heat_flux')
         CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'geothermal_heat_flux', region%ice%geothermal_heat_flux)
 
+    ! == Climate ==
+    ! =============
+
+      ! Main climate variables
+      CASE ('T2m')
+        CALL write_to_field_multopt_mesh_dp_2D_monthly( region%mesh, filename, ncid, 'T2m', region%climate%T2m)
+      CASE ('Precip')
+        CALL write_to_field_multopt_mesh_dp_2D_monthly( region%mesh, filename, ncid, 'Precip', region%climate%Precip)
+
+    ! == Ocean ==
+    ! ==========================
+
+      ! Main ocean variables
+      CASE ('T_ocean')
+        CALL warning('ocean temperature not implemented yet!')
+      CASE ('S_ocean')
+        CALL warning('ocean salinity not implemented yet!')
+
+    ! == Surface mass balance ==
+    ! ==========================
+
+      ! Main SMB variables
+      CASE ('SMB')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'SMB', region%SMB%SMB)
+
+    ! == Basal mass balance ==
+    ! ========================
+
+      ! Main BMB variables
+      CASE ('BMB')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'BMB', region%BMB%BMB)
+
     ! ===== End of user-defined output fields =====
     ! =============================================
 
@@ -935,6 +967,42 @@ CONTAINS
       CASE ('geothermal_heat_flux')
         CALL map_from_mesh_to_xy_grid_2D( region%mesh, region%output_grid, region%ice%geothermal_heat_flux, d_grid_vec_partial_2D)
         CALL write_to_field_multopt_grid_dp_2D( region%output_grid, filename, ncid, 'geothermal_heat_flux', d_grid_vec_partial_2D)
+
+    ! == Climate ==
+    ! =============
+
+      ! Main climate variables
+      CASE ('T2m')
+        CALL map_from_mesh_to_xy_grid_3D( region%mesh, region%output_grid, region%climate%T2m, d_grid_vec_partial_2D_monthly)
+        CALL write_to_field_multopt_grid_dp_2D_monthly( region%output_grid, filename, ncid, 'T2m', d_grid_vec_partial_2D_monthly)
+      CASE ('Precip')
+        CALL map_from_mesh_to_xy_grid_3D( region%mesh, region%output_grid, region%climate%Precip, d_grid_vec_partial_2D_monthly)
+        CALL write_to_field_multopt_grid_dp_2D_monthly( region%output_grid, filename, ncid, 'Precip', d_grid_vec_partial_2D_monthly)
+
+    ! == Ocean ==
+    ! ==========================
+
+      ! Main ocean variables
+      CASE ('T_ocean')
+        CALL warning('ocean temperature not implemented yet!')
+      CASE ('S_ocean')
+        CALL warning('ocean salinity not implemented yet!')
+
+    ! == Surface mass balance ==
+    ! ==========================
+
+      ! Main SMB variables
+      CASE ('SMB')
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, region%output_grid, region%SMB%SMB, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( region%output_grid, filename, ncid, 'SMB', d_grid_vec_partial_2D)
+
+    ! == Basal mass balance ==
+    ! ========================
+
+      ! Main BMB variables
+      CASE ('BMB')
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, region%output_grid, region%BMB%BMB, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( region%output_grid, filename, ncid, 'BMB', d_grid_vec_partial_2D)
 
     ! ===== End of user-defined output fields =====
     ! =============================================
@@ -1460,6 +1528,38 @@ CONTAINS
       CASE ('geothermal_heat_flux')
         CALL add_field_mesh_dp_2D( filename, ncid, 'geothermal_heat_flux', long_name = 'Geothermal heat flux', units = 'J yr^-1 m^-2')
 
+    ! == Climate ==
+    ! =============
+
+      ! Main climate variables
+      CASE ('T2m')
+        CALL add_field_mesh_dp_2D_monthly( filename, ncid, 'T2m', long_name = 'Monthly mean 2-m air temperature', units = 'K')
+      CASE ('Precip')
+        CALL add_field_mesh_dp_2D_monthly( filename, ncid, 'Precip', long_name = 'Monthly total precipitation', units = 'm.w.e.')
+
+    ! == Ocean ==
+    ! ==========================
+
+      ! Main ocean variables
+      CASE ('T_ocean')
+        CALL warning('ocean temperature not implemented yet!')
+      CASE ('S_ocean')
+        CALL warning('ocean salinity not implemented yet!')
+
+    ! == Surface mass balance ==
+    ! ==========================
+
+      ! Main SMB variables
+      CASE ('SMB')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'SMB', long_name = 'Surface mass balance', units = 'm yr^-1')
+
+    ! == Basal mass balance ==
+    ! ========================
+
+      ! Main BMB variables
+      CASE ('BMB')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'BMB', long_name = 'Basal mass balance', units = 'm yr^-1')
+
     ! ===== End of user-defined output fields =====
     ! =============================================
 
@@ -1736,6 +1836,38 @@ CONTAINS
       ! Geothermal heat
       CASE ('geothermal_heat_flux')
         CALL add_field_grid_dp_2D( filename, ncid, 'geothermal_heat_flux', long_name = 'Geothermal heat flux', units = 'J yr^-1 m^-2')
+
+    ! == Climate ==
+    ! =============
+
+      ! Main climate variables
+      CASE ('T2m')
+        CALL add_field_grid_dp_2D_monthly( filename, ncid, 'T2m', long_name = 'Monthly mean 2-m air temperature', units = 'K')
+      CASE ('Precip')
+        CALL add_field_grid_dp_2D_monthly( filename, ncid, 'Precip', long_name = 'Monthly total precipitation', units = 'm.w.e.')
+
+    ! == Ocean ==
+    ! ==========================
+
+      ! Main ocean variables
+      CASE ('T_ocean')
+        CALL warning('ocean temperature not implemented yet!')
+      CASE ('S_ocean')
+        CALL warning('ocean salinity not implemented yet!')
+
+    ! == Surface mass balance ==
+    ! ==========================
+
+      ! Main SMB variables
+      CASE ('SMB')
+        CALL add_field_grid_dp_2D( filename, ncid, 'SMB', long_name = 'Surface mass balance', units = 'm yr^-1')
+
+    ! == Basal mass balance ==
+    ! ========================
+
+      ! Main BMB variables
+      CASE ('BMB')
+        CALL add_field_grid_dp_2D( filename, ncid, 'BMB', long_name = 'Basal mass balance', units = 'm yr^-1')
 
     ! ===== End of user-defined output fields =====
     ! =============================================

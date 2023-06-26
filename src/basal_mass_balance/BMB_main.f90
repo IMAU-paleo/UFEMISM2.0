@@ -9,6 +9,7 @@ MODULE BMB_main
   USE mpi_basic                                              , ONLY: par, sync
   USE control_resources_and_error_messaging                  , ONLY: crash, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
+  USE parameters
   USE mesh_types                                             , ONLY: type_mesh
   USE ice_model_types                                        , ONLY: type_ice_model
   USE ocean_model_types                                      , ONLY: type_ocean_model
@@ -122,7 +123,7 @@ CONTAINS
     END IF
 
     ! Allocate memory for main variables
-    ALLOCATE( BMB%BMB( mesh%vi1:mesh%vi1))
+    ALLOCATE( BMB%BMB( mesh%vi1:mesh%vi2))
     BMB%BMB = 0._dp
 
     ! Set time of next calculation to start time

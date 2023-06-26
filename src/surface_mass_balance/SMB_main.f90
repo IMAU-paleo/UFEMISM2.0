@@ -9,10 +9,12 @@ MODULE SMB_main
   USE mpi_basic                                              , ONLY: par, sync
   USE control_resources_and_error_messaging                  , ONLY: crash, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
+  USE parameters
   USE mesh_types                                             , ONLY: type_mesh
   USE ice_model_types                                        , ONLY: type_ice_model
   USE climate_model_types                                    , ONLY: type_climate_model
   USE SMB_model_types                                        , ONLY: type_SMB_model
+  USE SMB_idealised                                          , ONLY: initialise_SMB_model_idealised, run_SMB_model_idealised
 
   IMPLICIT NONE
 
@@ -77,8 +79,10 @@ CONTAINS
     END IF
 
     ! Run the chosen SMB model
-    IF (choice_SMB_model == 'uniform') THEN
+    IF     (choice_SMB_model == 'uniform') THEN
       SMB%SMB = C%uniform_SMB
+    ELSEIF (choice_SMB_model == 'idealised') THEN
+      CALL run_SMB_model_idealised( mesh, ice, SMB, time)
     ELSE
       CALL crash('unknown choice_SMB_model "' // TRIM( choice_SMB_model) // '"')
     END IF
@@ -122,15 +126,17 @@ CONTAINS
     END IF
 
     ! Allocate memory for main variables
-    ALLOCATE( SMB%SMB( mesh%vi1:mesh%vi1))
+    ALLOCATE( SMB%SMB( mesh%vi1:mesh%vi2))
     SMB%SMB = 0._dp
 
     ! Set time of next calculation to start time
     SMB%t_next = C%start_time_of_run
 
     ! Determine which SMB model to initialise
-    IF (choice_SMB_model == 'uniform') THEN
+    IF     (choice_SMB_model == 'uniform') THEN
       ! No need to do anything
+    ELSEIF (choice_SMB_model == 'idealised') THEN
+      CALL initialise_SMB_model_idealised( mesh, SMB)
     ELSE
       CALL crash('unknown choice_SMB_model "' // TRIM( choice_SMB_model) // '"')
     END IF

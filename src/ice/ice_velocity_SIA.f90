@@ -10,11 +10,12 @@ MODULE ice_velocity_SIA
   USE mpi_basic                                              , ONLY: par, cerr, ierr, MPI_status, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
+  USE parameters
   USE mesh_types                                             , ONLY: type_mesh
   USE ice_model_types                                        , ONLY: type_ice_model, type_ice_velocity_solver_SIA
   USE mesh_operators                                         , ONLY: map_a_b_2D, map_a_b_3D, ddx_a_a_2D, ddy_a_a_2D, ddx_a_b_2D, ddy_a_b_2D
   USE mesh_zeta                                              , ONLY: integrate_from_zeta_is_one_to_zeta_is_zetap
-  USE parameters
+  USE ice_flow_laws                                          , ONLY: calc_effective_viscosity_Glen_2D, calc_ice_rheology_Glen
   USE reallocate_mod                                         , ONLY: reallocate_clean
 
   IMPLICIT NONE
@@ -90,7 +91,7 @@ CONTAINS
 
     ! In/output variables:
     TYPE(type_mesh),                     INTENT(IN)    :: mesh
-    TYPE(type_ice_model),                INTENT(IN)    :: ice
+    TYPE(type_ice_model),                INTENT(INOUT) :: ice
     TYPE(type_ice_velocity_solver_SIA),  INTENT(INOUT) :: SIA
 
     ! Local variables:
@@ -117,6 +118,9 @@ CONTAINS
     ALLOCATE( dHs_dx_b( mesh%ti1:mesh%ti2         ), source = 0._dp)
     ALLOCATE( dHs_dy_b( mesh%ti1:mesh%ti2         ), source = 0._dp)
     ALLOCATE( A_flow_b( mesh%ti1:mesh%ti2, mesh%nz), source = 0._dp)
+
+    ! Calculate flow factors
+    CALL calc_ice_rheology_Glen( mesh, ice)
 
     ! Calculate ice thickness, surface elevation, surface slopes, and ice flow factor on the b-grid
     CALL map_a_b_2D( mesh, ice%Hi    , Hi_b    )

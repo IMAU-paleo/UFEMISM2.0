@@ -126,10 +126,12 @@ UFEMISM_source = \
   thermodynamics/thermodynamics_3D_heat_equation.f90 \
   thermodynamics/thermodynamics_main.f90 \
   \
+  climate/climate_idealised.f90 \
   climate/climate_main.f90 \
   \
   ocean/ocean_main.f90 \
   \
+  surface_mass_balance/SMB_idealised.f90 \
   surface_mass_balance/SMB_main.f90 \
   \
   basal_mass_balance/BMB_main.f90 \

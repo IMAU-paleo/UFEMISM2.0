@@ -9,9 +9,11 @@ MODULE climate_main
   USE mpi_basic                                              , ONLY: par, sync
   USE control_resources_and_error_messaging                  , ONLY: crash, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
+  USE parameters
   USE mesh_types                                             , ONLY: type_mesh
   USE ice_model_types                                        , ONLY: type_ice_model
   USE climate_model_types                                    , ONLY: type_climate_model
+  USE climate_idealised                                      , ONLY: initialise_climate_model_idealised, run_climate_model_idealised
 
   IMPLICIT NONE
 
@@ -75,8 +77,10 @@ CONTAINS
     END IF
 
     ! Run the chosen climate model
-    IF (choice_climate_model == 'none') THEN
+    IF     (choice_climate_model == 'none') THEN
       ! No need to do anything
+    ELSEIF (choice_climate_model == 'idealised') THEN
+      CALL run_climate_model_idealised( mesh, ice, climate, time)
     ELSE
       CALL crash('unknown choice_climate_model "' // TRIM( choice_climate_model) // '"')
     END IF
@@ -120,8 +124,8 @@ CONTAINS
     END IF
 
     ! Allocate memory for main variables
-    ALLOCATE( climate%T2m(    mesh%vi1:mesh%vi1,12))
-    ALLOCATE( climate%Precip( mesh%vi1:mesh%vi1,12))
+    ALLOCATE( climate%T2m(    mesh%vi1:mesh%vi2,12))
+    ALLOCATE( climate%Precip( mesh%vi1:mesh%vi2,12))
     climate%T2m    = 0._dp
     climate%Precip = 0._dp
 
@@ -129,8 +133,10 @@ CONTAINS
     climate%t_next = C%start_time_of_run
 
     ! Determine which climate model to initialise
-    IF (choice_climate_model == 'none') THEN
+    IF     (choice_climate_model == 'none') THEN
       ! No need to do anything
+    ELSEIF (choice_climate_model == 'idealised') THEN
+      CALL initialise_climate_model_idealised( mesh, climate)
     ELSE
       CALL crash('unknown choice_climate_model "' // TRIM( choice_climate_model) // '"')
     END IF

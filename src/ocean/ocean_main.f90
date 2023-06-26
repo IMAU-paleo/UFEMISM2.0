@@ -9,6 +9,7 @@ MODULE ocean_main
   USE mpi_basic                                              , ONLY: par, sync
   USE control_resources_and_error_messaging                  , ONLY: crash, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
+  USE parameters
   USE mesh_types                                             , ONLY: type_mesh
   USE ice_model_types                                        , ONLY: type_ice_model
   USE ocean_model_types                                      , ONLY: type_ocean_model
@@ -93,7 +94,7 @@ CONTAINS
 
     ! In- and output variables
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
-    TYPE(type_ocean_model),               INTENT(OUT)   :: ocean
+    TYPE(type_ocean_model),                 INTENT(OUT)   :: ocean
     CHARACTER(LEN=3),                       INTENT(IN)    :: region_name
 
     ! Local variables:
@@ -120,8 +121,8 @@ CONTAINS
     END IF
 
     ! Allocate memory for main variables
-    ALLOCATE( ocean%T( mesh%vi1:mesh%vi1,12))
-    ALLOCATE( ocean%S( mesh%vi1:mesh%vi1,12))
+    ALLOCATE( ocean%T( mesh%vi1:mesh%vi2,12))
+    ALLOCATE( ocean%S( mesh%vi1:mesh%vi2,12))
     ocean%T = 0._dp
     ocean%S = 0._dp
 
