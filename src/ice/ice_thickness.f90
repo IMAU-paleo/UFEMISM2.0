@@ -52,7 +52,15 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Calculate Hi( t+dt) with the specified time discretisation scheme
-    IF     (C%choice_ice_integration_method == 'explicit') THEN
+    IF     (C%choice_ice_integration_method == 'none') THEN
+      ! Unchanging ice geometry
+
+      Hi_tplusdt = Hi
+      dHi_dt     = 0._dp
+      CALL finalise_routine( routine_name)
+      RETURN
+
+    ELSEIF (C%choice_ice_integration_method == 'explicit') THEN
       CALL calc_dHi_dt_explicit( mesh, Hi, u_vav_b, v_vav_b, SMB, BMB, dt, dHi_dt, Hi_tplusdt)
     ELSEIF (C%choice_ice_integration_method == 'implicit') THEN
       CALL calc_dHi_dt_implicit( mesh, Hi, u_vav_b, v_vav_b, SMB, BMB, dt, dHi_dt, Hi_tplusdt)

@@ -18,6 +18,7 @@ MODULE UFEMISM_main_model
   USE ocean_main                                             , ONLY: initialise_ocean_model         , run_ocean_model
   USE SMB_main                                               , ONLY: initialise_SMB_model           , run_SMB_model
   USE BMB_main                                               , ONLY: initialise_BMB_model           , run_BMB_model
+  USE GIA_main                                               , ONLY: initialise_GIA_model           , run_GIA_model
   USE netcdf_basic                                           , ONLY: open_existing_netcdf_file_for_reading, close_netcdf_file
   USE netcdf_input                                           , ONLY: setup_mesh_from_file
   USE mesh_creation                                          , ONLY: create_mesh_from_gridded_geometry, create_mesh_from_meshed_geometry, write_mesh_success
@@ -87,6 +88,10 @@ CONTAINS
       ! Calculate the basal mass balance
       CALL run_BMB_model( region%mesh, region%ice, region%ocean, region%BMB, region%name, region%time)
 
+      ! Calculate bedrock deformation at the desired time, and update
+      ! predicted deformation if necessary
+      CALL run_GIA_model( region)
+
       ! Write to the main regional output NetCDF file
       CALL write_to_main_regional_output_files( region)
 
@@ -149,6 +154,9 @@ CONTAINS
 
     ! BMB
     time_of_next_action = MIN( time_of_next_action, region%BMB%t_next)
+
+    ! GIA
+    time_of_next_action = MIN( time_of_next_action, region%GIA%t_next)
 
     ! Output
     time_of_next_action = MIN( time_of_next_action, region%output_t_next)
@@ -246,9 +254,14 @@ CONTAINS
     CALL initialise_SMB_model( region%mesh, region%SMB, region%name)
 
     ! ===== Basal mass balance =====
-    ! ================================
+    ! ==============================
 
     CALL initialise_BMB_model( region%mesh, region%BMB, region%name)
+
+    ! ===== Glacial isostatic adjustment =====
+    ! ========================================
+
+    CALL initialise_GIA_model( region%mesh, region%GIA, region%name)
 
     ! ===== Regional output =====
     ! ===========================

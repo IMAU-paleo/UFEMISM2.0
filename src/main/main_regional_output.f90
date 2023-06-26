@@ -59,12 +59,6 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! If no NetCDF output should be created, do nothing
-    IF (.NOT. C%do_create_netcdf_output) THEN
-      CALL finalise_routine( routine_name)
-      RETURN
-    END IF
-
     IF     (region%time < region%output_t_next) THEN
       ! It is not yet time to write to output
       CALL finalise_routine( routine_name)

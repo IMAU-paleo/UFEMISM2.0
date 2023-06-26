@@ -60,6 +60,7 @@ CONTAINS
 
     ELSE ! IF (C%do_asynchronous_ocean) THEN
       ! Synchronous coupling: calculate a new ocean in every model loop
+      ocean%t_next = time + C%dt_ocean
     END IF
 
     ! Determine which ocean model to run for this region

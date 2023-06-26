@@ -29,8 +29,7 @@ MODULE thermodynamics_main
                                                                      write_to_field_multopt_mesh_dp_3D
   USE netcdf_input                                           , ONLY: read_field_from_file_3D
   USE thermodynamics_3D_heat_equation                        , ONLY: solve_3D_heat_equation
-  USE thermodynamics_utilities                               , ONLY: calc_heat_capacity, calc_thermal_conductivity, calc_pressure_melting_point, &
-                                                                     replace_Ti_with_robin_solution
+  USE thermodynamics_utilities                               , ONLY: calc_pressure_melting_point, replace_Ti_with_robin_solution
 
   IMPLICIT NONE
 
@@ -56,21 +55,22 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! If we don't want to solve thermodynamics, do nothing
-    IF (C%choice_thermo_model == 'none') THEN
-      CALL finalise_routine( routine_name)
-      RETURN
-    END IF
-
     ! If the desired time is beyond the time of the next modelled ice temperature,
-    ! run the ice dynamics model to calculate a new next modelled ice temperature.
-    ! ============================================================================
+    ! run the thermodynamics model to calculate a new next modelled ice temperature.
+    ! ==============================================================================
 
     IF (region%time == region%ice%t_Ti_next) THEN
       ! Need to calculate new predicted ice temperature
 
+      ! Store previous modelled ice temperature
+      region%ice%Ti_prev = region%ice%Ti_next
+      region%ice%t_Ti_prev = region%ice%t_Ti_next
+      region%ice%t_Ti_next = region%ice%t_Ti_prev + C%dt_thermodynamics
+
       ! Run the thermodynamics model to calculate a new next modelled ice temperature.
-      IF     (C%choice_thermo_model == '3D_heat_equation') THEN
+      IF     (C%choice_thermo_model == 'none') THEN
+        ! No need to do anything
+      ELSEIF (C%choice_thermo_model == '3D_heat_equation') THEN
         CALL solve_3D_heat_equation( region%mesh, region%ice, region%climate, region%SMB, C%dt_thermodynamics)
       ELSE
         CALL crash('unknown choice_thermo_model "' // TRIM( C%choice_thermo_model) // '"!')
@@ -96,12 +96,6 @@ CONTAINS
       region%ice%Ti( vi,:) = wt_prev * region%ice%Ti_prev( vi,:) + wt_next * region%ice%Ti_next( vi,:)
     END DO
 
-    ! Calculate all other thermodynamical quantities
-    ! ==============================================
-
-    CALL calc_heat_capacity(        region%mesh, region%ice)
-    CALL calc_thermal_conductivity( region%mesh, region%ice)
-
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
@@ -125,17 +119,10 @@ CONTAINS
     CALL initialise_ice_temperature( region%mesh, region%ice, region%climate, region%SMB, region%name)
 
     ! Model states for thermodynamics model
-    IF (C%choice_thermo_model == 'none') THEN
-      region%ice%t_Ti_prev = C%start_time_of_run
-      region%ice%t_Ti_next = C%end_time_of_run
-      region%ice%Ti_prev   = region%ice%Ti
-      region%ice%Ti_next   = region%ice%Ti
-    ELSE
-      region%ice%t_Ti_prev = C%start_time_of_run
-      region%ice%t_Ti_next = C%start_time_of_run
-      region%ice%Ti_prev   = region%ice%Ti
-      region%ice%Ti_next   = region%ice%Ti
-    END IF
+    region%ice%t_Ti_prev = C%start_time_of_run
+    region%ice%t_Ti_next = C%start_time_of_run
+    region%ice%Ti_prev   = region%ice%Ti
+    region%ice%Ti_next   = region%ice%Ti
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

@@ -62,6 +62,7 @@ CONTAINS
 
     ELSE ! IF (C%do_asynchronous_BMB) THEN
       ! Synchronous coupling: calculate a new BMB in every model loop
+      BMB%t_next = time + C%dt_BMB
     END IF
 
     ! Determine which BMB model to run for this region

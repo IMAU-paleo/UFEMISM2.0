@@ -22,8 +22,8 @@ MODULE thermodynamics_3D_heat_equation
   USE SMB_model_types                                        , ONLY: type_SMB_model
   USE BMB_model_types                                        , ONLY: type_BMB_model
   USE ice_model_utilities                                    , ONLY: calc_zeta_gradients
-  USE thermodynamics_utilities                               , ONLY: calc_upwind_heat_flux_derivatives, calc_strain_heating, calc_frictional_heating, &
-                                                                     replace_Ti_with_robin_solution
+  USE thermodynamics_utilities                               , ONLY: calc_heat_capacity, calc_thermal_conductivity, calc_upwind_heat_flux_derivatives, &
+                                                                     calc_strain_heating, calc_frictional_heating, replace_Ti_with_robin_solution
   USE math_utilities                                         , ONLY: tridiagonal_solve
 
   IMPLICIT NONE
@@ -94,6 +94,12 @@ CONTAINS
 
     ! Calculate zeta gradients
     CALL calc_zeta_gradients( mesh, ice)
+
+    ! Calculate temperature-dependent heat capacity
+    CALL calc_heat_capacity(        mesh, ice)
+
+    ! Calculate temperature-dependent thermal conductivity
+    CALL calc_thermal_conductivity( mesh, ice)
 
     ! Calculate upwind velocity times temperature gradients
     CALL calc_upwind_heat_flux_derivatives( mesh, ice, u_times_dTdxp_upwind, v_times_dTdyp_upwind)
@@ -248,11 +254,8 @@ CONTAINS
 
     END IF
 
-    ! Update modelled ice temperatures for time stepping
-    ice%t_Ti_prev  = ice%t_Ti_next
-    ice%t_Ti_next  = ice%t_Ti_prev + dt
-    ice%Ti_prev    = ice%Ti_next
-    ice%Ti_next    = Ti_tplusdt
+    ! Update modelled ice temperature for time stepping
+    ice%Ti_next = Ti_tplusdt
 
     ! Clean up after yourself
     DEALLOCATE( u_times_dTdxp_upwind)

@@ -3,7 +3,7 @@ clc
 clear all
 close all
   
-filename = '../../results_20230601_001/resource_tracking.nc';
+filename = '../../results_unit_tests/resource_tracking.nc';
 
 R = read_resource_tracking_file( filename);
 % save('tempdata.mat','R')

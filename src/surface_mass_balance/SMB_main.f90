@@ -63,6 +63,7 @@ CONTAINS
 
     ELSE ! IF (C%do_asynchronous_SMB) THEN
       ! Synchronous coupling: calculate a new SMB in every model loop
+      SMB%t_next = time + C%dt_SMB
     END IF
 
     ! Determine which SMB model to run for this region

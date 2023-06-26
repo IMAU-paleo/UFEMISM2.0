@@ -76,13 +76,14 @@ UFEMISM_source = \
   basic/grid_lonlat_basic.f90 \
   \
   types/mesh_types.f90 \
+  types/reference_geometry_types.f90 \
   types/scalar_types.f90 \
   types/ice_model_types.f90 \
   types/climate_model_types.f90 \
   types/ocean_model_types.f90 \
   types/SMB_model_types.f90 \
   types/BMB_model_types.f90 \
-  types/reference_geometry_types.f90 \
+  types/GIA_model_types.f90 \
   types/region_types.f90 \
   \
   mesh/mesh_memory.f90 \
@@ -135,6 +136,8 @@ UFEMISM_source = \
   surface_mass_balance/SMB_main.f90 \
   \
   basal_mass_balance/BMB_main.f90 \
+  \
+  glacial_isostatic_adjustment/GIA_main.f90 \
   \
   main/main_regional_output.f90 \
   main/UFEMISM_main_model.f90 \

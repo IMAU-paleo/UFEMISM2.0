@@ -61,6 +61,7 @@ CONTAINS
 
     ELSE ! IF (C%do_asynchronous_climate) THEN
       ! Synchronous coupling: calculate a new climate in every model loop
+      climate%t_next = time + C%dt_climate
     END IF
 
     ! Determine which climate model to run for this region

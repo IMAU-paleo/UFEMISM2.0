@@ -345,7 +345,7 @@ MODULE model_configuration
     REAL(dp)            :: dt_ice_startup_phase_config                  = 0._dp                            ! [yr] Length of time window after start_time and before end_time when dt = dt_min, to ensure smooth restarts
 
     ! Predictor-corrector ice-thickness update
-    REAL(dp)            :: pc_epsilon_config                            = 0.1_dp                           ! Target truncation error in dHi_dt [m/yr] (epsilon in Robinson et al., 2020, Eq. 33)
+    REAL(dp)            :: pc_epsilon_config                            = 0.01_dp                          ! Target truncation error in dHi_dt [m/yr] (epsilon in Robinson et al., 2020, Eq. 33)
     REAL(dp)            :: pc_k_I_config                                = 0.2_dp                           ! Exponent k_I in  Robinson et al., 2020, Eq. 33
     REAL(dp)            :: pc_k_p_config                                = 0.2_dp                           ! Exponent k_p in  Robinson et al., 2020, Eq. 33
     REAL(dp)            :: pc_eta_min_config                            = 1E-8_dp                          ! Normalisation term in estimation of the truncation error (Robinson et al., Eq. 32)
@@ -459,9 +459,9 @@ MODULE model_configuration
   ! == Geothermal heat flux
   ! =======================
 
-    CHARACTER(LEN=256)  :: choice_geothermal_heat_flux_config          = 'uniform'                         ! Choice of geothermal heat flux; can be 'uniform' or 'read_from_file'
-    REAL(dp)            :: uniform_geothermal_heat_flux_config         = 1.72E06_dp                        ! Value when choice_geothermal_heat_flux == 'uniform' (1.72E06 J m^-2 yr^-1 according to Sclater et al. (1980))
-    CHARACTER(LEN=256)  :: filename_geothermal_heat_flux_config        = 'data/GHF/geothermal_heatflux_ShapiroRitzwoller2004_global_1x1_deg.nc'
+    CHARACTER(LEN=256)  :: choice_geothermal_heat_flux_config           = 'uniform'                         ! Choice of geothermal heat flux; can be 'uniform' or 'read_from_file'
+    REAL(dp)            :: uniform_geothermal_heat_flux_config          = 1.72E06_dp                        ! Value when choice_geothermal_heat_flux == 'uniform' (1.72E06 J m^-2 yr^-1 according to Sclater et al. (1980))
+    CHARACTER(LEN=256)  :: filename_geothermal_heat_flux_config         = 'data/GHF/geothermal_heatflux_ShapiroRitzwoller2004_global_1x1_deg.nc'
 
   ! == Thermodynamics
   ! =================
@@ -501,7 +501,7 @@ MODULE model_configuration
     ! Flow law
     CHARACTER(LEN=256)  :: choice_flow_law_config                       = 'Glen'                           ! Choice of flow law, relating effective viscosity to effective strain rate
     REAL(dp)            :: Glens_flow_law_exponent_config               = 3.0_dp                           ! Exponent in Glen's flow law
-    REAL(dp)            :: Glens_flow_law_epsilon_sq_0_config           = 1E-15_dp                         ! Normalisation term so that zero strain rates produce a high but finite viscosity
+    REAL(dp)            :: Glens_flow_law_epsilon_sq_0_config           = 1E-12_dp                         ! Normalisation term so that zero strain rates produce a high but finite viscosity
 
     ! Rheology
     CHARACTER(LEN=256)  :: choice_ice_rheology_Glen_config              = 'Huybrechts1992'                 ! Choice of ice rheology model for Glen's flow law: "uniform", "Huybrechts1992", "MISMIP_mod"
@@ -580,6 +580,14 @@ MODULE model_configuration
 
     ! "uniform"
     REAL(dp)            :: uniform_BMB_config                           = 0._dp
+
+  ! == Glacial isostatic adjustment
+  ! ===============================
+
+    ! General settings
+    CHARACTER(LEN=256)  :: choice_GIA_model_config                      = 'none'
+    REAL(dp)            :: dt_GIA_config                                = 100._dp                         ! [yr] GIA model time step
+    REAL(dp)            :: dx_GIA_config                                = 50E3_dp                         ! [m]  GIA model square grid resolution
 
   ! == Sea level
   ! ============
@@ -1244,6 +1252,14 @@ MODULE model_configuration
     ! "uniform"
     REAL(dp)            :: uniform_BMB
 
+  ! == Glacial isostatic adjustment
+  ! ===============================
+
+    ! General settings
+    CHARACTER(LEN=256)  :: choice_GIA_model
+    REAL(dp)            :: dt_GIA
+    REAL(dp)            :: dx_GIA
+
   ! == Sea level
   ! ============
 
@@ -1849,6 +1865,9 @@ CONTAINS
       choice_BMB_model_ANT_config                                 , &
       choice_BMB_model_idealised_config                           , &
       uniform_BMB_config                                          , &
+      choice_GIA_model_config                                     , &
+      dt_GIA_config                                               , &
+      dx_GIA_config                                               , &
       choice_sealevel_model_config                                , &
       fixed_sealevel_config                                       , &
       SELEN_run_at_t_start_config                                 , &
@@ -2518,6 +2537,14 @@ CONTAINS
 
     ! "uniform"
     C%uniform_BMB                                            = uniform_BMB_config
+
+  ! == Glacial isostatic adjustment
+  ! ===============================
+
+    ! General settings
+    C%choice_GIA_model                                       = choice_GIA_model_config
+    C%dt_GIA                                                 = dt_GIA_config
+    C%dx_GIA                                                 = dx_GIA_config
 
   ! == Sea level
   ! ============

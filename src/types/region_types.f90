@@ -14,6 +14,7 @@ MODULE region_types
   USE ocean_model_types                                      , ONLY: type_ocean_model
   USE SMB_model_types                                        , ONLY: type_SMB_model
   USE BMB_model_types                                        , ONLY: type_BMB_model
+  USE GIA_model_types                                        , ONLY: type_GIA_model
   USE scalar_types                                           , ONLY: type_regional_scalars
 
   IMPLICIT NONE
@@ -52,6 +53,9 @@ MODULE region_types
 
     ! The basal mass balance model
     TYPE(type_BMB_model)                    :: BMB
+
+    ! The glacial isostatic adjustment model
+    TYPE(type_GIA_model)                    :: GIA
 
     ! Scalar data
     TYPE(type_regional_scalars)             :: scalars                     ! Scalar data (e.g. total area, volume, mass balance)

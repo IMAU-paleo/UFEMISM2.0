@@ -32,6 +32,7 @@ MODULE ice_velocity_BPA
   USE netcdf_input                                           , ONLY: read_field_from_mesh_file_3D_b
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_2D
   USE ice_flow_laws                                          , ONLY: calc_effective_viscosity_Glen_3D_uv_only
+  USE ice_model_utilities                                    , ONLY: calc_zeta_gradients
 
   IMPLICIT NONE
 
@@ -145,6 +146,9 @@ CONTAINS
       BC_prescr_u_bk_applied    = 0._dp
       BC_prescr_v_bk_applied    = 0._dp
     END IF
+
+    ! Calculate zeta gradients
+    CALL calc_zeta_gradients( mesh, ice)
 
     ! Calculate the driving stress
     CALL calc_driving_stress( mesh, ice, BPA)

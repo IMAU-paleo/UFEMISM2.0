@@ -139,8 +139,10 @@ CONTAINS
     ! Update masks
     CALL determine_masks( region%mesh, region%ice)
 
-    ! Calculate zeta gradients
-    CALL calc_zeta_gradients( region%mesh, region%ice)
+    ! NOTE: as calculating the zeta gradients is quite expensive, only do so when necessary,
+    !       i.e. when solving the heat equation or the Blatter-Pattyn stress balance
+!    ! Calculate zeta gradients
+!    CALL calc_zeta_gradients( region%mesh, region%ice)
 
     ! Calculate sub-grid grounded-area fractions
     CALL calc_grounded_fractions( region%mesh, region%ice)
