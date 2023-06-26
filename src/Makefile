@@ -121,6 +121,7 @@ UFEMISM_source = \
   ice/ice_thickness.f90 \
   ice/ice_model_main.f90 \
   \
+  thermodynamics/thermodynamics_utilities.f90 \
   thermodynamics/thermodynamics_3D_heat_equation.f90 \
   thermodynamics/thermodynamics_main.f90 \
   \
