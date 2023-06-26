@@ -127,7 +127,7 @@ CONTAINS
     ! Initialise the ice model
     C%choice_stress_balance_approximation = 'SIA'
     CALL initialise_ice_dynamics_model( mesh, ice, refgeo_init, refgeo_PD, scalars, region_name)
-    ice%A_flow = C%uniform_flow_factor
+    ice%A_flow = C%uniform_Glens_flow_factor
 
     ! Also initialise DIVA and BPA solvers
     C%choice_stress_balance_approximation = 'DIVA'
@@ -423,9 +423,9 @@ CONTAINS
     C%BC_H_south                            = 'zero'
     C%BC_H_north                            = 'zero'
 
-    ! Rheological model (relating Glen's flow parameter to ice temperature)
-    C%choice_ice_rheology                   = 'uniform'                        ! Choice of ice rheology model: "uniform", "Huybrechts1992", "MISMIP_mod"
-    C%uniform_flow_factor                   = 1E-16_dp                         ! Uniform ice flow factor (applied when choice_ice_rheology_model_config = "uniform")
+    ! Rheology
+    C%choice_ice_rheology_Glen              = 'uniform'                        ! Choice of ice rheology model for Glen's flow law: "uniform", "Huybrechts1992", "MISMIP_mod"
+    C%uniform_Glens_flow_factor             = 1E-16_dp                         ! Uniform ice flow factor (applied when choice_ice_rheology_model_config = "uniform")
 
     ! Add routine to path
     CALL finalise_routine( routine_name)
@@ -564,7 +564,7 @@ CONTAINS
     ! Initialise the ice model
     C%choice_stress_balance_approximation = 'SIA/SSA'
     CALL initialise_ice_dynamics_model( mesh, ice, refgeo_init, refgeo_PD, scalars, region_name)
-    ice%A_flow = C%uniform_flow_factor
+    ice%A_flow = C%uniform_Glens_flow_factor
 
     ! Also initialise DIVA and BPA solvers
     C%choice_stress_balance_approximation = 'DIVA'
@@ -851,7 +851,7 @@ CONTAINS
     ! Initialise the ice model
     C%choice_stress_balance_approximation = 'SIA/SSA'
     CALL initialise_ice_dynamics_model( mesh, ice, refgeo_init, refgeo_PD, scalars, region_name)
-    ice%A_flow = C%uniform_flow_factor
+    ice%A_flow = C%uniform_Glens_flow_factor
 
     ! Also initialise DIVA and BPA solvers
     C%choice_stress_balance_approximation = 'DIVA'
@@ -1221,9 +1221,9 @@ CONTAINS
     C%BC_H_south                            = 'zero'
     C%BC_H_north                            = 'zero'
 
-    ! Rheological model (relating Glen's flow parameter to ice temperature)
-    C%choice_ice_rheology                   = 'uniform'                        ! Choice of ice rheology model: "uniform", "Huybrechts1992", "MISMIP_mod"
-    C%uniform_flow_factor                   = 1E-16_dp                         ! Uniform ice flow factor (applied when choice_ice_rheology_model_config = "uniform")
+    ! Rheology
+    C%choice_ice_rheology_Glen              = 'uniform'                        ! Choice of ice rheology model for Glen's flow law: "uniform", "Huybrechts1992", "MISMIP_mod"
+    C%uniform_Glens_flow_factor             = 1E-16_dp                         ! Uniform ice flow factor (applied when choice_ice_rheology_model_config = "uniform")
 
     ! Add routine to path
     CALL finalise_routine( routine_name)
@@ -1319,6 +1319,10 @@ CONTAINS
     ! We don't want regional output for this experiment
     C%do_create_netcdf_output = .FALSE.
 
+    ! We don't want thermodynamics for this experiment
+    C%choice_thermo_model = 'none'
+    C%choice_initial_ice_temperature_ANT = 'uniform'
+
   ! == Initialise the model region
   ! ==============================
 
@@ -1329,7 +1333,7 @@ CONTAINS
     ALLOCATE( region%BMB%BMB( region%mesh%vi1:region%mesh%vi2), source = 0._dp)
 
     ! Thermodynamics and rheology not implemented yet...
-    region%ice%A_flow = C%uniform_flow_factor
+    region%ice%A_flow = C%uniform_Glens_flow_factor
 
   ! == Run the model for 5,000 years
   ! ================================
@@ -1359,7 +1363,7 @@ CONTAINS
     DO vi = region%mesh%vi1, region%mesh%vi2
 
       ! Calculate analytical solution
-      CALL Halfar_dome( C%uniform_flow_factor, C%Glens_flow_law_exponent, C%refgeo_idealised_Halfar_H0, C%refgeo_idealised_Halfar_R0, &
+      CALL Halfar_dome( C%uniform_Glens_flow_factor, C%Glens_flow_law_exponent, C%refgeo_idealised_Halfar_H0, C%refgeo_idealised_Halfar_R0, &
         region%mesh%V( vi,1), region%mesh%V( vi,2), C%end_time_of_run, Hi_analytical( vi))
 
       ! Calculate square error in ice thickness
@@ -1372,6 +1376,7 @@ CONTAINS
     RMSE_Hi = SQRT( MSE_Hi)
 
     ! Validation
+    IF (par%master) WRITE(0,*) ''
     IF (RMSE_Hi < 25._dp) THEN
       IF (par%master) CALL happy('validated transient Halfar dome geometry for {dp_01} yr using ' // &
         TRIM( choice_ice_integration_method) // ' time-stepping', dp_01 = C%end_time_of_run)

@@ -56,6 +56,12 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    ! If we don't want to solve thermodynamics, do nothing
+    IF (C%choice_thermo_model == 'none') THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
+
     ! If the desired time is beyond the time of the next modelled ice temperature,
     ! run the ice dynamics model to calculate a new next modelled ice temperature.
     ! ============================================================================
@@ -119,10 +125,17 @@ CONTAINS
     CALL initialise_ice_temperature( region%mesh, region%ice, region%climate, region%SMB, region%name)
 
     ! Model states for thermodynamics model
-    region%ice%t_Ti_prev = C%start_time_of_run
-    region%ice%t_Ti_next = C%start_time_of_run
-    region%ice%Ti_prev   = region%ice%Ti
-    region%ice%Ti_next   = region%ice%Ti
+    IF (C%choice_thermo_model == 'none') THEN
+      region%ice%t_Ti_prev = C%start_time_of_run
+      region%ice%t_Ti_next = C%end_time_of_run
+      region%ice%Ti_prev   = region%ice%Ti
+      region%ice%Ti_next   = region%ice%Ti
+    ELSE
+      region%ice%t_Ti_prev = C%start_time_of_run
+      region%ice%t_Ti_next = C%start_time_of_run
+      region%ice%Ti_prev   = region%ice%Ti
+      region%ice%Ti_next   = region%ice%Ti
+    END IF
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -156,9 +169,9 @@ CONTAINS
       choice_initial_ice_temperature = C%choice_initial_ice_temperature_NAM
     ELSEIF (region_name == 'EAS') THEN
       choice_initial_ice_temperature = C%choice_initial_ice_temperature_EAS
-    ELSEIF (region_name == 'EAS') THEN
+    ELSEIF (region_name == 'GRL') THEN
       choice_initial_ice_temperature = C%choice_initial_ice_temperature_GRL
-    ELSEIF (region_name == 'EAS') THEN
+    ELSEIF (region_name == 'ANT') THEN
       choice_initial_ice_temperature = C%choice_initial_ice_temperature_ANT
     ELSE
       CALL crash('unknown region_name "' // region_name // '"')
@@ -206,16 +219,16 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Print to terminal
-    IF (par%master) WRITE (0,*) '  Initialising uniform ice temperatures...'
+    IF (par%master) WRITE (0,*) '  Initialising ice temperatures with a uniform value...'
 
     ! Determine choice of initial uniform ice temperatures for this model region
     IF     (region_name == 'NAM') THEN
       uniform_initial_ice_temperature = C%uniform_initial_ice_temperature_NAM
     ELSEIF (region_name == 'EAS') THEN
       uniform_initial_ice_temperature = C%uniform_initial_ice_temperature_EAS
-    ELSEIF (region_name == 'EAS') THEN
+    ELSEIF (region_name == 'GRL') THEN
       uniform_initial_ice_temperature = C%uniform_initial_ice_temperature_GRL
-    ELSEIF (region_name == 'EAS') THEN
+    ELSEIF (region_name == 'ANT') THEN
       uniform_initial_ice_temperature = C%uniform_initial_ice_temperature_ANT
     ELSE
       CALL crash('unknown region_name "' // region_name // '"')
@@ -257,7 +270,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Print to terminal
-    IF (par%master) WRITE (0,*) '  Initialising linear ice temperature profile...'
+    IF (par%master) WRITE (0,*) '  Initialising ice temperatures with a linear profile...'
 
     DO vi = mesh%vi1, mesh%vi2
 
@@ -300,10 +313,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Print to terminal
-    IF (par%master) WRITE (0,*) '  Initialising ice temperatures with Robin solution...'
-
-    ! DENK CROM
-    CALL crash('fixme!')
+    IF (par%master) WRITE (0,*) '  Initialising ice temperatures with the Robin solution...'
 
     ! Calculate Ti_pmp
     CALL calc_pressure_melting_point( mesh, ice)

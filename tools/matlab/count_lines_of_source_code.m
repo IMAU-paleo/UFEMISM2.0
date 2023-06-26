@@ -26,14 +26,6 @@ for i = 1: length( henk)
     end
   end
 end
-% Main
-f90_files = find_all_f90_files( main_src_path);
-if ~isempty( f90_files)
-  n = count_lines( f90_files);
-  n_tot = n_tot + n;
-  R.n( end+1,1) = n;
-  R.names{ end+1} = ['main: ' num2str( n)];
-end
 
 % Sort by number of lines
 [n_sorted,ind] = sortrows( R.n);

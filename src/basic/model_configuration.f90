@@ -502,12 +502,14 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: choice_flow_law_config                       = 'Glen'                           ! Choice of flow law, relating effective viscosity to effective strain rate
     REAL(dp)            :: Glens_flow_law_exponent_config               = 3.0_dp                           ! Exponent in Glen's flow law
     REAL(dp)            :: Glens_flow_law_epsilon_sq_0_config           = 1E-15_dp                         ! Normalisation term so that zero strain rates produce a high but finite viscosity
-    REAL(dp)            :: m_enh_sheet_config                           = 1.0_dp                           ! Ice flow enhancement factor for grounded ice
-    REAL(dp)            :: m_enh_shelf_config                           = 1.0_dp                           ! Ice flow enhancement factor for floating ice
 
     ! Rheology
-    CHARACTER(LEN=256)  :: choice_ice_rheology_config                   = 'Huybrechts1992'                 ! Choice of ice rheology model: "uniform", "Huybrechts1992", "MISMIP_mod"
-    REAL(dp)            :: uniform_flow_factor_config                   = 1E-16_dp                         ! Uniform ice flow factor (applied when choice_ice_rheology_model_config = "uniform")
+    CHARACTER(LEN=256)  :: choice_ice_rheology_Glen_config              = 'Huybrechts1992'                 ! Choice of ice rheology model for Glen's flow law: "uniform", "Huybrechts1992", "MISMIP_mod"
+    REAL(dp)            :: uniform_Glens_flow_factor_config             = 1E-16_dp                         ! Uniform ice flow factor (applied when choice_ice_rheology_model_config = "uniform")
+
+    ! Enhancement factors
+    REAL(dp)            :: m_enh_sheet_config                           = 1.0_dp                           ! Ice flow enhancement factor for grounded ice
+    REAL(dp)            :: m_enh_shelf_config                           = 1.0_dp                           ! Ice flow enhancement factor for floating ice
 
   ! == SELEN
   ! ========
@@ -1093,12 +1095,14 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: choice_flow_law
     REAL(dp)            :: Glens_flow_law_exponent
     REAL(dp)            :: Glens_flow_law_epsilon_sq_0
-    REAL(dp)            :: m_enh_sheet
-    REAL(dp)            :: m_enh_shelf
 
     ! Rheology
-    CHARACTER(LEN=256)  :: choice_ice_rheology
-    REAL(dp)            :: uniform_flow_factor
+    CHARACTER(LEN=256)  :: choice_ice_rheology_Glen
+    REAL(dp)            :: uniform_Glens_flow_factor
+
+    ! Enhancement factors
+    REAL(dp)            :: m_enh_sheet
+    REAL(dp)            :: m_enh_shelf
 
   ! == SELEN
   ! ========
@@ -1671,10 +1675,10 @@ CONTAINS
       choice_flow_law_config                                      , &
       Glens_flow_law_exponent_config                              , &
       Glens_flow_law_epsilon_sq_0_config                          , &
+      choice_ice_rheology_Glen_config                             , &
+      uniform_Glens_flow_factor_config                            , &
       m_enh_sheet_config                                          , &
       m_enh_shelf_config                                          , &
-      choice_ice_rheology_config                                  , &
-      uniform_flow_factor_config                                  , &
       SELEN_run_at_t_start_config                                 , &
       SELEN_n_TDOF_iterations_config                              , &
       SELEN_n_recursion_iterations_config                         , &
@@ -2266,12 +2270,14 @@ CONTAINS
     C%choice_flow_law                                        = choice_flow_law_config
     C%Glens_flow_law_exponent                                = Glens_flow_law_exponent_config
     C%Glens_flow_law_epsilon_sq_0                            = Glens_flow_law_epsilon_sq_0_config
-    C%m_enh_sheet                                            = m_enh_sheet_config
-    C%m_enh_shelf                                            = m_enh_shelf_config
 
     ! Rheology
-    C%choice_ice_rheology                                    = choice_ice_rheology_config
-    C%uniform_flow_factor                                    = uniform_flow_factor_config
+    C%choice_ice_rheology_Glen                               = choice_ice_rheology_Glen_config
+    C%uniform_Glens_flow_factor                              = uniform_Glens_flow_factor_config
+
+    ! Enhancement factors
+    C%m_enh_sheet                                            = m_enh_sheet_config
+    C%m_enh_shelf                                            = m_enh_shelf_config
 
   ! == SELEN
   ! ========

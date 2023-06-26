@@ -901,9 +901,9 @@ CONTAINS
     CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
 
     ! Safety
-    IF ( C%uniform_flow_factor < 1E-18_dp .OR. &
-         C%uniform_flow_factor > 1E-15_dp) THEN
-      CALL crash('uniform_flow_factor has unrealistic value of {dp_01}!', dp_01 = C%uniform_flow_factor)
+    IF ( C%uniform_Glens_flow_factor < 1E-18_dp .OR. &
+         C%uniform_Glens_flow_factor > 1E-15_dp) THEN
+      CALL crash('uniform_flow_factor has unrealistic value of {dp_01}!', dp_01 = C%uniform_Glens_flow_factor)
     END IF
     IF ( C%Glens_flow_law_exponent < 1._dp .OR. C%Glens_flow_law_exponent > 5._dp) THEN
       CALL crash('Glens_flow_law_exponent has unrealistic value of {dp_01}!', dp_01 = C%Glens_flow_law_exponent)
@@ -915,7 +915,7 @@ CONTAINS
       CALL crash('refgeo_idealised_Halfar_R0 has unrealistic value of {dp_01}!', dp_01 = C%refgeo_idealised_Halfar_R0)
     END IF
 
-    CALL Halfar_dome( C%uniform_flow_factor, C%Glens_flow_law_exponent, C%refgeo_idealised_Halfar_H0, C%refgeo_idealised_Halfar_R0, &
+    CALL Halfar_dome( C%uniform_Glens_flow_factor, C%Glens_flow_law_exponent, C%refgeo_idealised_Halfar_H0, C%refgeo_idealised_Halfar_R0, &
       x, y, 0._dp, Hi)
     Hb = 0._dp
     SL = -10000._dp
@@ -948,9 +948,9 @@ CONTAINS
     CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
 
     ! Safety
-    IF ( C%uniform_flow_factor < 1E-18_dp .OR. &
-         C%uniform_flow_factor > 1E-15_dp) THEN
-      CALL crash('uniform_flow_factor has unrealistic value of {dp_01}!', dp_01 = C%uniform_flow_factor)
+    IF ( C%uniform_Glens_flow_factor < 1E-18_dp .OR. &
+         C%uniform_Glens_flow_factor > 1E-15_dp) THEN
+      CALL crash('uniform_flow_factor has unrealistic value of {dp_01}!', dp_01 = C%uniform_Glens_flow_factor)
     END IF
     IF ( C%Glens_flow_law_exponent < 1._dp .OR. C%Glens_flow_law_exponent > 5._dp) THEN
       CALL crash('Glens_flow_law_exponent has unrealistic value of {dp_01}!', dp_01 = C%Glens_flow_law_exponent)
@@ -965,7 +965,7 @@ CONTAINS
       CALL crash('refgeo_idealised_Bueler_lambda has unrealistic value of {dp_01}!', dp_01 = C%refgeo_idealised_Bueler_lambda)
     END IF
 
-    CALL Bueler_dome( C%uniform_flow_factor, C%Glens_flow_law_exponent, C%refgeo_idealised_Bueler_H0, C%refgeo_idealised_Bueler_R0, &
+    CALL Bueler_dome( C%uniform_Glens_flow_factor, C%Glens_flow_law_exponent, C%refgeo_idealised_Bueler_H0, C%refgeo_idealised_Bueler_R0, &
       C%refgeo_idealised_Bueler_lambda, x, y, 0._dp, Hi, M)
     Hb = 0._dp
     SL = -10000._dp

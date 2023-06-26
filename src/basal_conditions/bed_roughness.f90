@@ -238,7 +238,7 @@ CONTAINS
     DO vii = 1, mesh%nV_loc
       vi = vii + mesh%vi1 - 1
       y = mesh%V( vi,2)
-      CALL Schoof2006_icestream( C%uniform_flow_factor, C%Glens_flow_law_exponent, C%refgeo_idealised_SSA_icestream_Hi, &
+      CALL Schoof2006_icestream( C%uniform_Glens_flow_factor, C%Glens_flow_law_exponent, C%refgeo_idealised_SSA_icestream_Hi, &
         C%refgeo_idealised_SSA_icestream_dhdx, C%refgeo_idealised_SSA_icestream_L, C%refgeo_idealised_SSA_icestream_m, &
         y, u, ice%tau_c( vii))
     END DO

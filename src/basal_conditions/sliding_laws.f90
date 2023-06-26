@@ -477,7 +477,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     DO vi = mesh%vi1, mesh%vi2
-      ice%beta_b( vi) = (C%uniform_flow_factor * 1000._dp)**(-1._dp)
+      ice%beta_b( vi) = (C%uniform_Glens_flow_factor * 1000._dp)**(-1._dp)
     END DO
 
     ! Finalise routine path

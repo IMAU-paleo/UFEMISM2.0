@@ -29,7 +29,7 @@ MODULE ice_velocity_SSA
                                                                      add_field_mesh_dp_2D_b, write_time_to_file, write_to_field_multopt_mesh_dp_2D_b
   USE netcdf_input                                           , ONLY: read_field_from_mesh_file_2D_b
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_1D
-  USE ice_flow_laws                                          , ONLY: calc_effective_viscosity_Glen_2D
+  USE ice_flow_laws                                          , ONLY: calc_effective_viscosity_Glen_2D, calc_ice_rheology_Glen
 
   IMPLICIT NONE
 
@@ -143,9 +143,6 @@ CONTAINS
       BC_prescr_u_b_applied    = 0._dp
       BC_prescr_v_b_applied    = 0._dp
     END IF
-
-    ! Calculate the vertical average of Glen's flow parameter A
-    CALL calc_vertically_averaged_flow_parameter( mesh, ice, SSA)
 
     ! Calculate the driving stress
     CALL calc_driving_stress( mesh, ice, SSA)
@@ -1367,7 +1364,7 @@ CONTAINS
 
     ! In/output variables:
     TYPE(type_mesh),                     INTENT(IN)              :: mesh
-    TYPE(type_ice_model),                INTENT(IN)              :: ice
+    TYPE(type_ice_model),                INTENT(INOUT)           :: ice
     TYPE(type_ice_velocity_solver_SSA),  INTENT(INOUT)           :: SSA
 
     ! Local variables:
@@ -1386,6 +1383,11 @@ CONTAINS
     IF (C%choice_flow_law == 'Glen') THEN
       ! Calculate the effective viscosity according to Glen's flow law
 
+      ! Calculate flow factors
+      CALL calc_ice_rheology_Glen( mesh, ice)
+      CALL calc_vertically_averaged_flow_parameter( mesh, ice, SSA)
+
+      ! Calculate effective viscosity
       DO vi = mesh%vi1, mesh%vi2
         SSA%eta_a( vi) = calc_effective_viscosity_Glen_2D( SSA%du_dx_a( vi), SSA%du_dy_a( vi), SSA%dv_dx_a( vi), SSA%dv_dy_a( vi), SSA%A_flow_vav_a( vi))
       END DO
