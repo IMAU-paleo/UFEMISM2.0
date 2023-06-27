@@ -16,19 +16,27 @@ MODULE UFEMISM_main_model
                                                                      save_variable_as_netcdf_dp_1D , save_variable_as_netcdf_dp_2D
   USE region_types                                           , ONLY: type_model_region
   USE reference_geometries                                   , ONLY: initialise_reference_geometries_raw, initialise_reference_geometries_on_model_mesh
-  USE ice_model_main                                         , ONLY: initialise_ice_dynamics_model  , run_ice_dynamics_model
-  USE thermodynamics_main                                    , ONLY: initialise_thermodynamics_model, run_thermodynamics_model
-  USE climate_main                                           , ONLY: initialise_climate_model       , run_climate_model
-  USE ocean_main                                             , ONLY: initialise_ocean_model         , run_ocean_model
-  USE SMB_main                                               , ONLY: initialise_SMB_model           , run_SMB_model
-  USE BMB_main                                               , ONLY: initialise_BMB_model           , run_BMB_model
-  USE GIA_main                                               , ONLY: initialise_GIA_model           , run_GIA_model
+  USE ice_model_main                                         , ONLY: initialise_ice_dynamics_model, run_ice_dynamics_model, &
+                                                                     create_restart_files_ice_model, write_to_restart_files_ice_model
+  USE thermodynamics_main                                    , ONLY: initialise_thermodynamics_model, run_thermodynamics_model, &
+                                                                     create_restart_file_thermo, write_to_restart_file_thermo
+  USE climate_main                                           , ONLY: initialise_climate_model, run_climate_model, &
+                                                                     create_restart_file_climate_model, write_to_restart_file_climate_model
+  USE ocean_main                                             , ONLY: initialise_ocean_model, run_ocean_model, &
+                                                                     create_restart_file_ocean_model, write_to_restart_file_ocean_model
+  USE SMB_main                                               , ONLY: initialise_SMB_model, run_SMB_model, &
+                                                                     create_restart_file_SMB_model, write_to_restart_file_SMB_model
+  USE BMB_main                                               , ONLY: initialise_BMB_model, run_BMB_model, &
+                                                                     create_restart_file_BMB_model, write_to_restart_file_BMB_model
+  USE GIA_main                                               , ONLY: initialise_GIA_model, run_GIA_model, &
+                                                                     create_restart_file_GIA_model, write_to_restart_file_GIA_model
   USE netcdf_basic                                           , ONLY: open_existing_netcdf_file_for_reading, close_netcdf_file
   USE netcdf_input                                           , ONLY: setup_mesh_from_file
   USE mesh_creation                                          , ONLY: create_mesh_from_gridded_geometry, create_mesh_from_meshed_geometry, write_mesh_success
   USE mesh_operators                                         , ONLY: calc_all_matrix_operators_mesh
   USE grid_basic                                             , ONLY: setup_square_grid
-  USE main_regional_output                                   , ONLY: create_main_regional_output_files, write_to_main_regional_output_files
+  USE main_regional_output                                   , ONLY:   create_main_regional_output_file_mesh,   create_main_regional_output_file_grid, &
+                                                                     write_to_main_regional_output_file_mesh, write_to_main_regional_output_file_grid
 
   IMPLICIT NONE
 
@@ -92,7 +100,7 @@ CONTAINS
       CALL run_GIA_model( region)
 
       ! Write to the main regional output NetCDF file
-      CALL write_to_main_regional_output_files( region)
+      CALL write_to_regional_output_files( region)
 
       ! Advance this region's time to the time of the next "action"
       CALL advance_region_time_to_time_of_next_action( region, t_end)
@@ -109,13 +117,62 @@ CONTAINS
 
     ! Write the final model state to output
     IF (region%time == C%end_time_of_run) THEN
-      CALL write_to_main_regional_output_files( region)
+      CALL write_to_regional_output_files( region)
     END IF
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE run_model_region
+
+  SUBROUTINE write_to_regional_output_files( region)
+    ! Write to all regional output files
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_model_region)                            , INTENT(INOUT) :: region
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'initialise_model_region'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    IF     (region%time < region%output_t_next) THEN
+      ! It is not yet time to write to output
+      CALL finalise_routine( routine_name)
+      RETURN
+    ELSEIF (region%time > region%output_t_next) THEN
+      ! This should not be possible
+      CALL crash('overshot the output time step')
+    ELSEIF (region%time == region%output_t_next) THEN
+      ! It is time to write to output!
+    ELSE
+      ! region%time is NaN?
+      CALL crash('region%time is apparently NaN')
+    END IF
+
+    ! Update time stamp
+    region%output_t_next = region%output_t_next + C%dt_output
+
+    ! Write to the main regional output files
+    CALL write_to_main_regional_output_file_mesh( region)
+    CALL write_to_main_regional_output_file_grid( region)
+
+    ! Write to the restart files for all the model components
+    CALL write_to_restart_files_ice_model   ( region%mesh, region%ice                 , region%time)
+    CALL write_to_restart_file_thermo       ( region%mesh, region%ice                 , region%time)
+    CALL write_to_restart_file_climate_model( region%mesh, region%climate, region%name, region%time)
+    CALL write_to_restart_file_ocean_model  ( region%mesh, region%ocean  , region%name, region%time)
+    CALL write_to_restart_file_SMB_model    ( region%mesh, region%SMB    , region%name, region%time)
+    CALL write_to_restart_file_BMB_model    ( region%mesh, region%BMB    , region%name, region%time)
+    CALL write_to_restart_file_GIA_model    ( region%mesh, region%GIA    , region%name, region%time)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE write_to_regional_output_files
 
   ! == Time stepping
   ! ================
@@ -331,8 +388,18 @@ CONTAINS
        dx_grid_output, region%output_grid, &
        lambda_M = region%mesh%lambda_M, phi_M = region%mesh%phi_M, beta_stereo = region%mesh%beta_stereo)
 
-    ! Create the mesh and grid output files
-    CALL create_main_regional_output_files( region)
+    ! Create the main regional output files
+    CALL create_main_regional_output_file_mesh( region)
+    CALL create_main_regional_output_file_grid( region)
+
+    ! Create the restart files for all the model components
+    CALL create_restart_files_ice_model   ( region%mesh, region%ice)
+    CALL create_restart_file_thermo       ( region%mesh, region%ice)
+    CALL create_restart_file_climate_model( region%mesh, region%climate, region%name)
+    CALL create_restart_file_ocean_model  ( region%mesh, region%ocean  , region%name)
+    CALL create_restart_file_SMB_model    ( region%mesh, region%SMB    , region%name)
+    CALL create_restart_file_BMB_model    ( region%mesh, region%BMB    , region%name)
+    CALL create_restart_file_GIA_model    ( region%mesh, region%GIA    , region%name)
 
     ! Set output writing time to stat of run, so the initial state will be written to output
     IF (C%do_create_netcdf_output) THEN

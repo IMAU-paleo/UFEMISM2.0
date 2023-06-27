@@ -11,6 +11,9 @@ MODULE unit_tests_ice
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
   USE parameters
+  USE netcdf_debug                                           , ONLY: write_PETSc_matrix_to_NetCDF, write_CSR_matrix_to_NetCDF, &
+                                                                     save_variable_as_netcdf_int_1D, save_variable_as_netcdf_int_2D, &
+                                                                     save_variable_as_netcdf_dp_1D , save_variable_as_netcdf_dp_2D
   USE mesh_types                                             , ONLY: type_mesh
   USE ice_model_types                                        , ONLY: type_ice_model
   USE scalar_types                                           , ONLY: type_regional_scalars
@@ -2061,10 +2064,10 @@ CONTAINS
     CALL set_config_for_EISMINT1
 
     ! Set parameters specific for this experiment
-    C%start_time_of_run              = -20000._dp
-    C%end_time_of_run                =       0._dp
-    C%choice_climate_model_idealised = 'EISMINT1_A'
-    C%choice_SMB_model_idealised     = 'EISMINT1_A'
+    C%start_time_of_run                     = -20000._dp
+    C%end_time_of_run                       =       0._dp
+    C%choice_climate_model_idealised        = 'EISMINT1_A'
+    C%choice_SMB_model_idealised            = 'EISMINT1_A'
 
   ! == Initialise the model region
   ! ==============================
@@ -2119,6 +2122,9 @@ CONTAINS
 
     ! Set up the mesh in the file
     CALL setup_mesh_in_netcdf_file( filename, ncid, region%mesh)
+
+    ! Add a zeta dimension for the 3-D ice velocities
+    CALL add_zeta_dimension_to_file( filename, ncid, region%mesh%zeta)
 
     ! Add all the fields
     CALL add_field_mesh_dp_2D_notime( filename, ncid, 'Hi')

@@ -3607,34 +3607,45 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    i = 1
-    filename_base_XXXXXdotnc = TRIM( filename_base) // '_00001.nc'
+    ! Let the Master do this, and broadcast the result to the other processes,
+    ! to prevent racing conditions (i.e. one processes creating file _00001 before
+    ! the others get a chance to look, so they see _00001 already exists and try
+    ! to create _00002 instead.)
 
-    INQUIRE( FILE = filename_base_XXXXXdotnc, EXIST = ex)
+    IF (par%master) THEN
 
-    DO WHILE (ex)
-
-      i = i+1
-
-      IF     (i < 10) THEN
-        WRITE( i_str,'(A,I1)') '0000',i
-      ELSEIF (i < 100) THEN
-        WRITE( i_str,'(A,I2)') '000',i
-      ELSEIF (i < 1000) THEN
-        WRITE( i_str,'(A,I3)') '00',i
-      ELSEIF (i < 10000) THEN
-        WRITE( i_str,'(A,I4)') '0',i
-      ELSEIF (i < 100000) THEN
-        WRITE( i_str,'(A,I5)') i
-      ELSE
-        CALL crash('10000 files of base name "' // TRIM( filename_base) // '" already exist!')
-      END IF
-
-      filename_base_XXXXXdotnc = TRIM( filename_base) // '_' // i_str // '.nc'
+      i = 1
+      filename_base_XXXXXdotnc = TRIM( filename_base) // '_00001.nc'
 
       INQUIRE( FILE = filename_base_XXXXXdotnc, EXIST = ex)
 
-    END DO ! DO WHILE (ex)
+      DO WHILE (ex)
+
+        i = i+1
+
+        IF     (i < 10) THEN
+          WRITE( i_str,'(A,I1)') '0000',i
+        ELSEIF (i < 100) THEN
+          WRITE( i_str,'(A,I2)') '000',i
+        ELSEIF (i < 1000) THEN
+          WRITE( i_str,'(A,I3)') '00',i
+        ELSEIF (i < 10000) THEN
+          WRITE( i_str,'(A,I4)') '0',i
+        ELSEIF (i < 100000) THEN
+          WRITE( i_str,'(A,I5)') i
+        ELSE
+          CALL crash('10000 files of base name "' // TRIM( filename_base) // '" already exist!')
+        END IF
+
+        filename_base_XXXXXdotnc = TRIM( filename_base) // '_' // i_str // '.nc'
+
+        INQUIRE( FILE = filename_base_XXXXXdotnc, EXIST = ex)
+
+      END DO ! DO WHILE (ex)
+
+    END IF ! IF (par%master) THEN
+
+    CALL MPI_BCAST( filename_base_XXXXXdotnc, LEN( filename_base_XXXXXdotnc), MPI_CHARACTER, 0, MPI_COMM_WORLD, ierr)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

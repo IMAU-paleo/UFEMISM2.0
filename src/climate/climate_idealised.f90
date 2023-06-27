@@ -57,6 +57,47 @@ CONTAINS
 
   END SUBROUTINE run_climate_model_idealised
 
+  SUBROUTINE initialise_climate_model_idealised( mesh, climate)
+    ! Initialise the climate model
+    !
+    ! Use an idealised climate scheme
+
+    IMPLICIT NONE
+
+    ! In- and output variables
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh
+    TYPE(type_climate_model),               INTENT(INOUT) :: climate
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'initialise_climate_model_idealised'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Print to terminal
+    IF (par%master)  WRITE(*,"(A)") '   Initialising idealised climate model "' // &
+      colour_string( TRIM( C%choice_climate_model_idealised),'light blue') // '"...'
+
+    ! Run the chosen idealised climate model
+    IF (C%choice_climate_model_idealised == 'EISMINT1_A' .OR. &
+        C%choice_climate_model_idealised == 'EISMINT1_B' .OR. &
+        C%choice_climate_model_idealised == 'EISMINT1_C' .OR. &
+        C%choice_climate_model_idealised == 'EISMINT1_D' .OR. &
+        C%choice_climate_model_idealised == 'EISMINT1_E' .OR. &
+        C%choice_climate_model_idealised == 'EISMINT1_F') THEN
+      ! No need to do anything
+    ELSE
+      CALL crash('unknown choice_climate_model_idealised "' // TRIM( C%choice_climate_model_idealised) // '"')
+    END IF
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE initialise_climate_model_idealised
+
+  ! == EISMINT1
+  ! ===========
+
   SUBROUTINE run_climate_model_idealised_EISMINT1( mesh, ice, climate, time)
     ! Temperature for the EISMINT1 experiments (Huybrechts et al., 1996)
 
@@ -143,43 +184,5 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE run_climate_model_idealised_EISMINT1
-
-  SUBROUTINE initialise_climate_model_idealised( mesh, climate)
-    ! Initialise the climate model
-    !
-    ! Use an idealised climate scheme
-
-    IMPLICIT NONE
-
-    ! In- and output variables
-    TYPE(type_mesh),                        INTENT(IN)    :: mesh
-    TYPE(type_climate_model),               INTENT(INOUT) :: climate
-
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'initialise_climate_model_idealised'
-
-    ! Add routine to path
-    CALL init_routine( routine_name)
-
-    ! Print to terminal
-    IF (par%master)  WRITE(*,"(A)") '   Initialising idealised climate model "' // &
-      colour_string( TRIM( C%choice_climate_model_idealised),'light blue') // '"...'
-
-    ! Run the chosen idealised climate model
-    IF (C%choice_climate_model_idealised == 'EISMINT1_A' .OR. &
-        C%choice_climate_model_idealised == 'EISMINT1_B' .OR. &
-        C%choice_climate_model_idealised == 'EISMINT1_C' .OR. &
-        C%choice_climate_model_idealised == 'EISMINT1_D' .OR. &
-        C%choice_climate_model_idealised == 'EISMINT1_E' .OR. &
-        C%choice_climate_model_idealised == 'EISMINT1_F') THEN
-      ! No need to do anything
-    ELSE
-      CALL crash('unknown choice_climate_model_idealised "' // TRIM( C%choice_climate_model_idealised) // '"')
-    END IF
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE initialise_climate_model_idealised
 
 END MODULE climate_idealised

@@ -1173,7 +1173,7 @@ CONTAINS
 
     ! Find the global minimum value of d
     d_min = MINVAL( d)
-    CALL MPI_ALLREDUCE( MPI_IN_PLACE, d, 1, MPI_DOUBLE_PRECISION, MPI_MIN, MPI_COMM_WORLD, ierr)
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, d_min, 1, MPI_DOUBLE_PRECISION, MPI_MIN, MPI_COMM_WORLD, ierr)
 
     ! Find the triangle containing p
     ti = 1

@@ -1698,6 +1698,10 @@ CONTAINS
       RETURN
     END IF
 
+    ! Print to terminal
+    IF (par%master) WRITE(0,'(A)') '   Writing to SSA restart file "' // &
+      colour_string( TRIM( SSA%restart_filename), 'light blue') // '"...'
+
     ! Open the NetCDF file
     CALL open_existing_netcdf_file_for_writing( SSA%restart_filename, ncid)
 
@@ -1743,6 +1747,10 @@ CONTAINS
     ! Set the filename
     filename_base = TRIM( C%output_dir) // 'restart_ice_velocity_SSA'
     CALL generate_filename_XXXXXdotnc( filename_base, SSA%restart_filename)
+
+    ! Print to terminal
+    IF (par%master) WRITE(0,'(A)') '   Creating SSA restart file "' // &
+      colour_string( TRIM( SSA%restart_filename), 'light blue') // '"...'
 
     ! Create the NetCDF file
     CALL create_new_netcdf_file_for_writing( SSA%restart_filename, ncid)

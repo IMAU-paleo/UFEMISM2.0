@@ -303,6 +303,71 @@ CONTAINS
 
   END SUBROUTINE initialise_ice_dynamics_model
 
+  SUBROUTINE write_to_restart_files_ice_model( mesh, ice, time)
+    ! Write to all the restart files for the ice dynamics model
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh
+    TYPE(type_ice_model),                   INTENT(IN)    :: ice
+    REAL(dp),                               INTENT(IN)    :: time
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'write_to_restart_files_ice_model'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! First for the velocity solver
+    CALL write_to_restart_file_ice_velocity( mesh, ice, time)
+
+    ! Then for the time-stepper
+    IF     (C%choice_timestepping == 'direct') THEN
+      ! Direct time stepping doesn't require a restart file
+    ELSEIF (C%choice_timestepping == 'pc') THEN
+      CALL write_to_restart_file_pc_scheme( mesh, ice%pc, time)
+    ELSE
+      CALL crash('unknown choice_timestepping "' // TRIM( C%choice_timestepping) // '"!')
+    END IF
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE write_to_restart_files_ice_model
+
+  SUBROUTINE create_restart_files_ice_model( mesh, ice)
+    ! Create all the restart files for the ice dynamics model
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh
+    TYPE(type_ice_model),                   INTENT(INOUT) :: ice
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'create_restart_files_ice_model'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! First for the velocity solver
+    CALL create_restart_file_ice_velocity( mesh, ice)
+
+    ! Then for the time-stepper
+    IF     (C%choice_timestepping == 'direct') THEN
+      ! Direct time stepping doesn't require a restart file
+    ELSEIF (C%choice_timestepping == 'pc') THEN
+      CALL create_restart_file_pc_scheme( mesh, ice%pc)
+    ELSE
+      CALL crash('unknown choice_timestepping "' // TRIM( C%choice_timestepping) // '"!')
+    END IF
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE create_restart_files_ice_model
+
 ! ===== Predictor-corrector scheme =====
 ! ======================================
 
@@ -604,6 +669,10 @@ CONTAINS
       RETURN
     END IF
 
+    ! Print to terminal
+    IF (par%master) WRITE(0,'(A)') '   Writing to ice dynamics restart file "' // &
+      colour_string( TRIM( pc%restart_filename), 'light blue') // '"...'
+
     ! Open the NetCDF file
     CALL open_existing_netcdf_file_for_writing( pc%restart_filename, ncid)
 
@@ -658,6 +727,10 @@ CONTAINS
     ! Set the filename
     filename_base = TRIM( C%output_dir) // 'restart_pc_scheme'
     CALL generate_filename_XXXXXdotnc( filename_base, pc%restart_filename)
+
+    ! Print to terminal
+    IF (par%master) WRITE(0,'(A)') '   Creating ice dynamics restart file "' // &
+      colour_string( TRIM( pc%restart_filename), 'light blue') // '"...'
 
     ! Create the NetCDF file
     CALL create_new_netcdf_file_for_writing( pc%restart_filename, ncid)

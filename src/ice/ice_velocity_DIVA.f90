@@ -1944,6 +1944,10 @@ CONTAINS
       RETURN
     END IF
 
+    ! Print to terminal
+    IF (par%master) WRITE(0,'(A)') '   Writing to DIVA restart file "' // &
+      colour_string( TRIM( DIVA%restart_filename), 'light blue') // '"...'
+
     ! Open the NetCDF file
     CALL open_existing_netcdf_file_for_writing( DIVA%restart_filename, ncid)
 
@@ -1992,6 +1996,10 @@ CONTAINS
     ! Set the filename
     filename_base = TRIM( C%output_dir) // 'restart_ice_velocity_DIVA'
     CALL generate_filename_XXXXXdotnc( filename_base, DIVA%restart_filename)
+
+    ! Print to terminal
+    IF (par%master) WRITE(0,'(A)') '   Creating DIVA restart file "' // &
+      colour_string( TRIM( DIVA%restart_filename), 'light blue') // '"...'
 
     ! Create the NetCDF file
     CALL create_new_netcdf_file_for_writing( DIVA%restart_filename, ncid)

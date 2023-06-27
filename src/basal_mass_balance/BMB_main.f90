@@ -142,4 +142,93 @@ CONTAINS
 
   END SUBROUTINE initialise_BMB_model
 
+  SUBROUTINE write_to_restart_file_BMB_model( mesh, BMB, region_name, time)
+    ! Write to the restart file for the BMB model
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh
+    TYPE(type_BMB_model),                   INTENT(IN)    :: BMB
+    CHARACTER(LEN=3),                       INTENT(IN)    :: region_name
+    REAL(dp),                               INTENT(IN)    :: time
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'write_to_restart_file_BMB_model'
+    CHARACTER(LEN=256)                                    :: choice_BMB_model
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Determine which BMB model to initialise for this region
+    IF     (region_name == 'NAM') THEN
+      choice_BMB_model = C%choice_BMB_model_NAM
+    ELSEIF (region_name == 'EAS') THEN
+      choice_BMB_model = C%choice_BMB_model_EAS
+    ELSEIF (region_name == 'GRL') THEN
+      choice_BMB_model = C%choice_BMB_model_GRL
+    ELSEIF (region_name == 'ANT') THEN
+      choice_BMB_model = C%choice_BMB_model_ANT
+    ELSE
+      CALL crash('unknown region_name "' // region_name // '"')
+    END IF
+
+    ! Write to the restart file of the chosen BMB model
+    IF     (choice_BMB_model == 'uniform') THEN
+      ! No need to do anything
+    ELSEIF (choice_BMB_model == 'idealised') THEN
+      ! No need to do anything
+    ELSE
+      CALL crash('unknown choice_BMB_model "' // TRIM( choice_BMB_model) // '"')
+    END IF
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE write_to_restart_file_BMB_model
+
+  SUBROUTINE create_restart_file_BMB_model( mesh, BMB, region_name)
+    ! Create the restart file for the BMB model
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh
+    TYPE(type_BMB_model),                   INTENT(INOUT) :: BMB
+    CHARACTER(LEN=3),                       INTENT(IN)    :: region_name
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'create_restart_file_BMB_model'
+    CHARACTER(LEN=256)                                    :: choice_BMB_model
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Determine which BMB model to initialise for this region
+    IF     (region_name == 'NAM') THEN
+      choice_BMB_model = C%choice_BMB_model_NAM
+    ELSEIF (region_name == 'EAS') THEN
+      choice_BMB_model = C%choice_BMB_model_EAS
+    ELSEIF (region_name == 'GRL') THEN
+      choice_BMB_model = C%choice_BMB_model_GRL
+    ELSEIF (region_name == 'ANT') THEN
+      choice_BMB_model = C%choice_BMB_model_ANT
+    ELSE
+      CALL crash('unknown region_name "' // region_name // '"')
+    END IF
+
+    ! Create the restart file of the chosen BMB model
+    IF     (choice_BMB_model == 'uniform') THEN
+      ! No need to do anything
+    ELSEIF (choice_BMB_model == 'idealised') THEN
+      ! No need to do anything
+    ELSE
+      CALL crash('unknown choice_BMB_model "' // TRIM( choice_BMB_model) // '"')
+    END IF
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE create_restart_file_BMB_model
+
 END MODULE BMB_main

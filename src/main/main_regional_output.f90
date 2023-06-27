@@ -45,46 +45,6 @@ CONTAINS
   ! == Write to main regional output files
   ! ======================================
 
-  SUBROUTINE write_to_main_regional_output_files( region)
-    ! Write to the main regional output NetCDF files
-
-    IMPLICIT NONE
-
-    ! In/output variables:
-    TYPE(type_model_region)                            , INTENT(INOUT) :: region
-
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'write_to_main_regional_output_files'
-
-    ! Add routine to path
-    CALL init_routine( routine_name)
-
-    IF     (region%time < region%output_t_next) THEN
-      ! It is not yet time to write to output
-      CALL finalise_routine( routine_name)
-      RETURN
-    ELSEIF (region%time > region%output_t_next) THEN
-      ! This should not be possible
-      CALL crash('overshot the output time step')
-    ELSEIF (region%time == region%output_t_next) THEN
-      ! It is time to write to output!
-    ELSE
-      ! region%time is NaN?
-      CALL crash('region%time is apparently NaN')
-    END IF
-
-    ! Write to the main regional output files
-    CALL write_to_main_regional_output_file_mesh( region)
-    CALL write_to_main_regional_output_file_grid( region)
-
-    ! Update time stamp
-    region%output_t_next = region%output_t_next + C%dt_output
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE write_to_main_regional_output_files
-
   SUBROUTINE write_to_main_regional_output_file_mesh( region)
     ! Write to the main regional output NetCDF file - mesh version
 
@@ -1018,35 +978,6 @@ CONTAINS
 
   ! == Create main regional output files
   ! ====================================
-
-  SUBROUTINE create_main_regional_output_files( region)
-    ! Create the main regional output NetCDF files
-
-    IMPLICIT NONE
-
-    ! In/output variables:
-    TYPE(type_model_region)                            , INTENT(INOUT) :: region
-
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'create_main_regional_output_files'
-
-    ! Add routine to path
-    CALL init_routine( routine_name)
-
-    ! If no NetCDF output should be created, do nothing
-    IF (.NOT. C%do_create_netcdf_output) THEN
-      CALL finalise_routine( routine_name)
-      RETURN
-    END IF
-
-    ! Create both main regional output NetCDF files
-    CALL create_main_regional_output_file_mesh( region)
-    CALL create_main_regional_output_file_grid( region)
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE create_main_regional_output_files
 
   SUBROUTINE create_main_regional_output_file_mesh( region)
     ! Create the main regional output NetCDF file - mesh version

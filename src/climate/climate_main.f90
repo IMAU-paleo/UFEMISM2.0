@@ -147,4 +147,93 @@ CONTAINS
 
   END SUBROUTINE initialise_climate_model
 
+  SUBROUTINE write_to_restart_file_climate_model( mesh, climate, region_name, time)
+    ! Write to the restart file for the climate model
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh
+    TYPE(type_climate_model),               INTENT(IN)    :: climate
+    CHARACTER(LEN=3),                       INTENT(IN)    :: region_name
+    REAL(dp),                               INTENT(IN)    :: time
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'write_to_restart_file_climate_model'
+    CHARACTER(LEN=256)                                    :: choice_climate_model
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Determine which climate model to initialise for this region
+    IF     (region_name == 'NAM') THEN
+      choice_climate_model = C%choice_climate_model_NAM
+    ELSEIF (region_name == 'EAS') THEN
+      choice_climate_model = C%choice_climate_model_EAS
+    ELSEIF (region_name == 'GRL') THEN
+      choice_climate_model = C%choice_climate_model_GRL
+    ELSEIF (region_name == 'ANT') THEN
+      choice_climate_model = C%choice_climate_model_ANT
+    ELSE
+      CALL crash('unknown region_name "' // region_name // '"')
+    END IF
+
+    ! Write to the restart file of the chosen climate model
+    IF     (choice_climate_model == 'none') THEN
+      ! No need to do anything
+    ELSEIF (choice_climate_model == 'idealised') THEN
+      ! No need to do anything
+    ELSE
+      CALL crash('unknown choice_climate_model "' // TRIM( choice_climate_model) // '"')
+    END IF
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE write_to_restart_file_climate_model
+
+  SUBROUTINE create_restart_file_climate_model( mesh, climate, region_name)
+    ! Create the restart file for the climate model
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh
+    TYPE(type_climate_model),               INTENT(INOUT) :: climate
+    CHARACTER(LEN=3),                       INTENT(IN)    :: region_name
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'create_restart_file_climate_model'
+    CHARACTER(LEN=256)                                    :: choice_climate_model
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Determine which climate model to initialise for this region
+    IF     (region_name == 'NAM') THEN
+      choice_climate_model = C%choice_climate_model_NAM
+    ELSEIF (region_name == 'EAS') THEN
+      choice_climate_model = C%choice_climate_model_EAS
+    ELSEIF (region_name == 'GRL') THEN
+      choice_climate_model = C%choice_climate_model_GRL
+    ELSEIF (region_name == 'ANT') THEN
+      choice_climate_model = C%choice_climate_model_ANT
+    ELSE
+      CALL crash('unknown region_name "' // region_name // '"')
+    END IF
+
+    ! Create the restart file of the chosen climate model
+    IF     (choice_climate_model == 'none') THEN
+      ! No need to do anything
+    ELSEIF (choice_climate_model == 'idealised') THEN
+      ! No need to do anything
+    ELSE
+      CALL crash('unknown choice_climate_model "' // TRIM( choice_climate_model) // '"')
+    END IF
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE create_restart_file_climate_model
+
 END MODULE climate_main
