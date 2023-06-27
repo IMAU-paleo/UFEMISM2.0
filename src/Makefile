@@ -178,8 +178,8 @@ clean :
 
 ifeq ($(shell command -v makedepf90 2>&1 > /dev/null; echo $$?), 0)
 include .depend
-.depend: Makefile *.f90
-	makedepf90 $(F90DEFINITIONS) -b $(OBJ_PATH)/ *.f90 */*.f90 > .depend;
+.depend: Makefile */*.f90
+	makedepf90 $(F90DEFINITIONS) -b $(OBJ_PATH)/ */*.f90 > .depend;
 else
 .NOTPARALLEL:
 .depend:
