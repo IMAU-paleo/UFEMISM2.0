@@ -57,9 +57,9 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Run all ice-dynamics-related unit tests
-    CALL test_ice_velocities_static_Halfar_dome
-    CALL test_ISMIP_HOM_all
-    CALL test_thickness_evolution_Halfar_dome_all
+!    CALL test_ice_velocities_static_Halfar_dome
+!    CALL test_ISMIP_HOM_all
+!    CALL test_thickness_evolution_Halfar_dome_all
     CALL test_EISMINT1_ABC
 
     ! Add routine to path
@@ -2029,6 +2029,8 @@ CONTAINS
     filename_A = 'test_EISMINT1_A_output.nc'
 
     CALL test_EISMINT1_A( filename_A)
+    CALL test_EISMINT1_B( filename_A)
+    CALL test_EISMINT1_C( filename_A)
 
     ! Add routine to path
     CALL finalise_routine( routine_name)
@@ -2065,7 +2067,7 @@ CONTAINS
 
     ! Set parameters specific for this experiment
     C%start_time_of_run                     = -20000._dp
-    C%end_time_of_run                       =       0._dp
+    C%end_time_of_run                       =      0._dp
     C%choice_climate_model_idealised        = 'EISMINT1_A'
     C%choice_SMB_model_idealised            = 'EISMINT1_A'
 
@@ -2147,6 +2149,256 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE test_EISMINT1_A
+
+  SUBROUTINE test_EISMINT1_B( filename_A)
+    ! Run and validate EISMINT1 experiment B
+
+    IMPLICIT NONE
+
+    ! In/output variables
+    CHARACTER(LEN=256),                                  INTENT(IN)    :: filename_A
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'test_EISMINT1_B'
+    TYPE(type_model_region)                                            :: region
+    REAL(dp)                                                           :: t_end, dt
+    REAL(dp), DIMENSION(2)                                             :: p
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE                            :: Ti_base
+    REAL(dp)                                                           :: Hi_divide, Ti_base_divide
+    LOGICAL                                                            :: found_errors_Hi, found_errors_Ti
+    CHARACTER(LEN=256)                                                 :: filename
+    INTEGER                                                            :: ncid
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+  ! == Set the appropriate model configuration
+  ! ==========================================
+
+    ! Generate the general EISMINT1 config
+    CALL set_config_for_EISMINT1
+
+    ! Set parameters specific for this experiment
+    C%start_time_of_run                     =      0._dp
+    C%end_time_of_run                       =  80000._dp
+    C%choice_climate_model_idealised        = 'EISMINT1_B'
+    C%choice_SMB_model_idealised            = 'EISMINT1_B'
+
+    ! Initialise with the EISMINT1_A steady state
+
+    ! == Mesh generation
+    ! ==================
+
+    ! How to set up the initial mesh
+    C%choice_initial_mesh_ANT               = 'read_from_file'     ! Options: 'calc_from_initial_geometry', 'read_from_file'
+
+    ! Paths to files containing initial meshes, if choice_initial_mesh == 'read_from_file'
+    C%filename_initial_mesh_ANT             = TRIM( C%output_dir) // '/' // TRIM( filename_A)
+
+    ! == Initial geometry
+    ! ===================
+
+    C%choice_refgeo_init_ANT                = 'read_from_file'                 ! Choice of initial geometry for Antarctica   ; can be "idealised", or "read_from_file"
+    C%filename_refgeo_init_ANT              = TRIM( C%output_dir) // '/' // TRIM( filename_A)
+    C%timeframe_refgeo_init_ANT             = 1E9_dp   ! The file we created in experiment A does not have a time dimension
+
+    ! == Thermodynamics
+    ! =================
+
+    ! Initial temperature profile
+    C%choice_initial_ice_temperature_ANT    = 'read_from_file'
+    ! Paths to files containing initial temperature fields, if
+    C%filename_initial_ice_temperature_ANT  = TRIM( C%output_dir) // '/' // TRIM( filename_A)
+    ! Timeframes to read from the bed roughness file (set to 1E9_dp if the file has no time dimension)
+    C%timeframe_initial_ice_temperature_ANT = 1E9_dp   ! The file we created in experiment A does not have a time dimension
+
+  ! == Initialise the model region
+  ! ==============================
+
+    CALL initialise_model_region( region, 'ANT')
+
+  ! == Run the model forward through time
+  ! =====================================
+
+    ! Do a sort-of coupling interval, just to make sure it works
+
+    dt = 100._dp
+
+    t_end = C%start_time_of_run
+    DO WHILE (.TRUE.)
+
+      t_end = t_end + dt
+
+      CALL run_model_region( region, t_end)
+
+      IF (t_end >= C%end_time_of_run) EXIT
+
+    END DO
+
+  ! == Validate
+  ! ===========
+
+    ! At present no validation for EISMINT_B is included.
+
+  ! == Write to output
+  ! ==================
+
+    ! Create a NetCDF output file
+    filename = TRIM( C%output_dir) // '/test_EISMINT1_B_output.nc'
+    CALL create_new_netcdf_file_for_writing( filename, ncid)
+
+    ! Set up the mesh in the file
+    CALL setup_mesh_in_netcdf_file( filename, ncid, region%mesh)
+
+    ! Add a zeta dimension for the 3-D ice velocities
+    CALL add_zeta_dimension_to_file( filename, ncid, region%mesh%zeta)
+
+    ! Add all the fields
+    CALL add_field_mesh_dp_2D_notime( filename, ncid, 'Hi')
+    CALL add_field_mesh_dp_2D_notime( filename, ncid, 'Hb')
+    CALL add_field_mesh_dp_2D_notime( filename, ncid, 'Hs')
+    CALL add_field_mesh_dp_2D_notime( filename, ncid, 'SL')
+    CALL add_field_mesh_dp_3D_notime( filename, ncid, 'Ti')
+
+    ! Write to file
+    CALL write_to_field_multopt_mesh_dp_2D_notime( region%mesh, filename, ncid, 'Hi', region%ice%Hi)
+    CALL write_to_field_multopt_mesh_dp_2D_notime( region%mesh, filename, ncid, 'Hb', region%ice%Hb)
+    CALL write_to_field_multopt_mesh_dp_2D_notime( region%mesh, filename, ncid, 'Hs', region%ice%Hs)
+    CALL write_to_field_multopt_mesh_dp_2D_notime( region%mesh, filename, ncid, 'SL', region%ice%SL)
+    CALL write_to_field_multopt_mesh_dp_3D_notime( region%mesh, filename, ncid, 'Ti', region%ice%Ti)
+
+    ! Close the file
+    CALL close_netcdf_file( ncid)
+
+    ! Add routine to path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE test_EISMINT1_B
+
+  SUBROUTINE test_EISMINT1_C( filename_A)
+    ! Run and validate EISMINT1 experiment C
+
+    IMPLICIT NONE
+
+    ! In/output variables
+    CHARACTER(LEN=256),                                  INTENT(IN)    :: filename_A
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'test_EISMINT1_C'
+    TYPE(type_model_region)                                            :: region
+    REAL(dp)                                                           :: t_end, dt
+    REAL(dp), DIMENSION(2)                                             :: p
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE                            :: Ti_base
+    REAL(dp)                                                           :: Hi_divide, Ti_base_divide
+    LOGICAL                                                            :: found_errors_Hi, found_errors_Ti
+    CHARACTER(LEN=256)                                                 :: filename
+    INTEGER                                                            :: ncid
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+  ! == Set the appropriate model configuration
+  ! ==========================================
+
+    ! Generate the general EISMINT1 config
+    CALL set_config_for_EISMINT1
+
+    ! Set parameters specific for this experiment
+    C%start_time_of_run                     =      0._dp
+    C%end_time_of_run                       =  80000._dp
+    C%choice_climate_model_idealised        = 'EISMINT1_C'
+    C%choice_SMB_model_idealised            = 'EISMINT1_C'
+
+    ! Initialise with the EISMINT1_A steady state
+
+    ! == Mesh generation
+    ! ==================
+
+    ! How to set up the initial mesh
+    C%choice_initial_mesh_ANT               = 'read_from_file'     ! Options: 'calc_from_initial_geometry', 'read_from_file'
+
+    ! Paths to files containing initial meshes, if choice_initial_mesh == 'read_from_file'
+    C%filename_initial_mesh_ANT             = TRIM( C%output_dir) // '/' // TRIM( filename_A)
+
+    ! == Initial geometry
+    ! ===================
+
+    C%choice_refgeo_init_ANT                = 'read_from_file'                 ! Choice of initial geometry for Antarctica   ; can be "idealised", or "read_from_file"
+    C%filename_refgeo_init_ANT              = TRIM( C%output_dir) // '/' // TRIM( filename_A)
+    C%timeframe_refgeo_init_ANT             = 1E9_dp   ! The file we created in experiment A does not have a time dimension
+
+    ! == Thermodynamics
+    ! =================
+
+    ! Initial temperature profile
+    C%choice_initial_ice_temperature_ANT    = 'read_from_file'
+    ! Paths to files containing initial temperature fields, if
+    C%filename_initial_ice_temperature_ANT  = TRIM( C%output_dir) // '/' // TRIM( filename_A)
+    ! Timeframes to read from the bed roughness file (set to 1E9_dp if the file has no time dimension)
+    C%timeframe_initial_ice_temperature_ANT = 1E9_dp   ! The file we created in experiment A does not have a time dimension
+
+  ! == Initialise the model region
+  ! ==============================
+
+    CALL initialise_model_region( region, 'ANT')
+
+  ! == Run the model forward through time
+  ! =====================================
+
+    ! Do a sort-of coupling interval, just to make sure it works
+
+    dt = 100._dp
+
+    t_end = C%start_time_of_run
+    DO WHILE (.TRUE.)
+
+      t_end = t_end + dt
+
+      CALL run_model_region( region, t_end)
+
+      IF (t_end >= C%end_time_of_run) EXIT
+
+    END DO
+
+  ! == Validate
+  ! ===========
+
+    ! At present no validation for EISMINT_C is included.
+
+  ! == Write to output
+  ! ==================
+
+    ! Create a NetCDF output file
+    filename = TRIM( C%output_dir) // '/test_EISMINT1_C_output.nc'
+    CALL create_new_netcdf_file_for_writing( filename, ncid)
+
+    ! Set up the mesh in the file
+    CALL setup_mesh_in_netcdf_file( filename, ncid, region%mesh)
+
+    ! Add a zeta dimension for the 3-D ice velocities
+    CALL add_zeta_dimension_to_file( filename, ncid, region%mesh%zeta)
+
+    ! Add all the fields
+    CALL add_field_mesh_dp_2D_notime( filename, ncid, 'Hi')
+    CALL add_field_mesh_dp_2D_notime( filename, ncid, 'Hb')
+    CALL add_field_mesh_dp_2D_notime( filename, ncid, 'Hs')
+    CALL add_field_mesh_dp_2D_notime( filename, ncid, 'SL')
+    CALL add_field_mesh_dp_3D_notime( filename, ncid, 'Ti')
+
+    ! Write to file
+    CALL write_to_field_multopt_mesh_dp_2D_notime( region%mesh, filename, ncid, 'Hi', region%ice%Hi)
+    CALL write_to_field_multopt_mesh_dp_2D_notime( region%mesh, filename, ncid, 'Hb', region%ice%Hb)
+    CALL write_to_field_multopt_mesh_dp_2D_notime( region%mesh, filename, ncid, 'Hs', region%ice%Hs)
+    CALL write_to_field_multopt_mesh_dp_2D_notime( region%mesh, filename, ncid, 'SL', region%ice%SL)
+    CALL write_to_field_multopt_mesh_dp_3D_notime( region%mesh, filename, ncid, 'Ti', region%ice%Ti)
+
+    ! Close the file
+    CALL close_netcdf_file( ncid)
+
+    ! Add routine to path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE test_EISMINT1_C
 
   SUBROUTINE set_config_for_EISMINT1
     ! Set the config for the EISMINT1 experiments

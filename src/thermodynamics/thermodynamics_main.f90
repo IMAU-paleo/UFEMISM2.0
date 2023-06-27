@@ -305,7 +305,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Print to terminal
-    IF (par%master) WRITE (0,*) '  Initialising ice temperatures with a uniform value...'
+    IF (par%master) WRITE (0,*) ' Initialising ice temperatures with a uniform value...'
 
     ! Determine choice of initial uniform ice temperatures for this model region
     IF     (region_name == 'NAM') THEN
@@ -350,7 +350,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Print to terminal
-    IF (par%master) WRITE (0,*) '  Initialising ice temperatures with a linear profile...'
+    IF (par%master) WRITE (0,*) ' Initialising ice temperatures with a linear profile...'
 
     DO vi = mesh%vi1, mesh%vi2
 
@@ -393,7 +393,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Print to terminal
-    IF (par%master) WRITE (0,*) '  Initialising ice temperatures with the Robin solution...'
+    IF (par%master) WRITE (0,*) ' Initialising ice temperatures with the Robin solution...'
 
     ! Calculate Ti_pmp
     CALL calc_pressure_melting_point( mesh, ice)
@@ -439,10 +439,10 @@ CONTAINS
     ELSEIF (region_name == 'EAS') THEN
       filename_initial_ice_temperature  = C%filename_initial_ice_temperature_EAS
       timeframe_initial_ice_temperature = C%timeframe_initial_ice_temperature_EAS
-    ELSEIF (region_name == 'EAS') THEN
+    ELSEIF (region_name == 'GRL') THEN
       filename_initial_ice_temperature  = C%filename_initial_ice_temperature_GRL
       timeframe_initial_ice_temperature = C%timeframe_initial_ice_temperature_GRL
-    ELSEIF (region_name == 'EAS') THEN
+    ELSEIF (region_name == 'ANT') THEN
       filename_initial_ice_temperature  = C%filename_initial_ice_temperature_ANT
       timeframe_initial_ice_temperature = C%timeframe_initial_ice_temperature_ANT
     ELSE
@@ -450,7 +450,8 @@ CONTAINS
     END IF
 
     ! Print to terminal
-    IF (par%master) WRITE (0,*) '  Initialising ice temperatures from file "' // TRIM( filename_initial_ice_temperature) // '"...'
+    IF (par%master) WRITE (0,*) ' Initialising ice temperatures from file "' // &
+      colour_string( TRIM( filename_initial_ice_temperature), 'light blue') // '"...'
 
     ! Read data
     IF (timeframe_initial_ice_temperature == 1E9_dp) THEN
@@ -470,7 +471,7 @@ CONTAINS
       CALL crash('zeta dimension in initial ice temperature file does not match that of UFEMISM!')
     END IF
     DO k = 1, mesh%nz
-      IF (ABS( 1._dp - zeta_read( k) / mesh%zeta( k)) > 1E-5_dp) THEN
+      IF (ABS( 1._dp - MAX( 0.001_dp, zeta_read( k)) / MAX( 0.001_dp, mesh%zeta( k))) > 1E-5_dp) THEN
         CALL crash('zeta dimension in initial ice temperature file does not match that of UFEMISM!')
       END IF
     END DO
