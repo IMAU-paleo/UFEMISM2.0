@@ -222,13 +222,7 @@ CONTAINS
     END IF
 
     DO vi = mesh%vi1, mesh%vi2
-
-      IF (ice%Hi( vi) > 0._dp) THEN
-        ice%Ti( vi,:) = uniform_initial_ice_temperature
-      ELSE
-        ice%Ti( vi,:) = 0._dp
-      END IF
-
+      ice%Ti( vi,:) = uniform_initial_ice_temperature
     END DO
 
     ! Finalise routine path
@@ -269,7 +263,7 @@ CONTAINS
           ice%Ti( vi,k) = ((1._dp - mesh%zeta( k)) * T_surf_annual) + (mesh%zeta( k) * T_PMP_base)
         END DO
       ELSE
-        ice%Ti( vi,:) = 0._dp
+        ice%Ti( vi,:) = T_surf_annual
       END IF
 
     END DO

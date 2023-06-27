@@ -184,7 +184,7 @@ CONTAINS
 
     ! In- and output variables
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
-    TYPE(type_SMB_model),                   INTENT(OUT)   :: SMB
+    TYPE(type_SMB_model),                   INTENT(INOUT) :: SMB
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'initialise_SMB_model_idealised'
@@ -193,7 +193,8 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Print to terminal
-    IF (par%master)  WRITE(*,"(A)") '   Initialising idealised surface mass balance model...'
+    IF (par%master)  WRITE(*,"(A)") '   Initialising idealised SMB model "' // &
+      colour_string( TRIM( C%choice_SMB_model_idealised),'light blue') // '"...'
 
     ! Run the chosen idealised SMB model
     IF (C%choice_SMB_model_idealised == 'EISMINT1_A' .OR. &

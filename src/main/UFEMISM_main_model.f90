@@ -10,6 +10,10 @@ MODULE UFEMISM_main_model
   USE mpi_basic                                              , ONLY: par, sync
   USE control_resources_and_error_messaging                  , ONLY: happy, warning, crash, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
+  USE parameters
+  USE netcdf_debug                                           , ONLY: write_PETSc_matrix_to_NetCDF, write_CSR_matrix_to_NetCDF, &
+                                                                     save_variable_as_netcdf_int_1D, save_variable_as_netcdf_int_2D, &
+                                                                     save_variable_as_netcdf_dp_1D , save_variable_as_netcdf_dp_2D
   USE region_types                                           , ONLY: type_model_region
   USE reference_geometries                                   , ONLY: initialise_reference_geometries_raw, initialise_reference_geometries_on_model_mesh
   USE ice_model_main                                         , ONLY: initialise_ice_dynamics_model  , run_ice_dynamics_model
@@ -67,11 +71,6 @@ CONTAINS
       ! velocities, thinning rates, and predicted geometry if necessary
       CALL run_ice_dynamics_model( region)
 
-      ! Keep track of the average ice-dynamical time step and print it to the terminal
-      ndt_av = ndt_av + 1
-      dt_av  = dt_av  + (region%ice%t_Hi_next - region%ice%t_Hi_prev)
-      IF (par%master .AND. C%do_time_display) CALL time_display( region, t_end, dt_av, ndt_av)
-
       ! Calculate ice temperature at the desired time, and update
       ! predicted temperature if necessary
       CALL run_thermodynamics_model( region)
@@ -98,10 +97,20 @@ CONTAINS
       ! Advance this region's time to the time of the next "action"
       CALL advance_region_time_to_time_of_next_action( region, t_end)
 
+      ! Keep track of the average ice-dynamical time step and print it to the terminal
+      ndt_av = ndt_av + 1
+      dt_av  = dt_av  + (region%ice%t_Hi_next - region%ice%t_Hi_prev)
+      IF (par%master .AND. C%do_time_display) CALL time_display( region, t_end, dt_av, ndt_av)
+
       ! If we've reached the end of this coupling interval, stop
       IF (region%time == t_end) EXIT main_time_loop
 
     END DO main_time_loop ! DO WHILE (region%time <= t_end)
+
+    ! Write the final model state to output
+    IF (region%time == C%end_time_of_run) THEN
+      CALL write_to_main_regional_output_files( region)
+    END IF
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -161,6 +170,21 @@ CONTAINS
     ! Output
     time_of_next_action = MIN( time_of_next_action, region%output_t_next)
 
+!    ! DENK DROM
+!    IF (par%master) THEN
+!      WRITE(0,*) ''
+!      WRITE(0,*) '  Times of next actions at time = ', region%time, ':'
+!      WRITE(0,*) '    ice    :', region%ice%t_Hi_next
+!      WRITE(0,*) '    thermo :', region%ice%t_Ti_next
+!      WRITE(0,*) '    climate:', region%climate%t_next
+!      WRITE(0,*) '    ocean  :', region%ocean%t_next
+!      WRITE(0,*) '    SMB    :', region%SMB%t_next
+!      WRITE(0,*) '    BMB    :', region%BMB%t_next
+!      WRITE(0,*) '    GIA    :', region%GIA%t_next
+!      WRITE(0,*) '    output :', region%output_t_next
+!      WRITE(0,*) ''
+!    END IF
+
   ! == Advance region time
   ! ======================
 
@@ -190,6 +214,9 @@ CONTAINS
 
     ! Add routine to path
     CALL init_routine( routine_name)
+
+    ! Set region time
+    region%time = C%start_time_of_run
 
     ! ===== Region name =====
     ! =======================
@@ -233,11 +260,6 @@ CONTAINS
 
     CALL initialise_ice_dynamics_model( region%mesh, region%ice, region%refgeo_init, region%refgeo_PD, region%scalars, region%name)
 
-    ! ===== Thermodynamics =====
-    ! ==========================
-
-    CALL initialise_thermodynamics_model( region)
-
     ! ===== Climate =====
     ! ===================
 
@@ -257,6 +279,30 @@ CONTAINS
     ! ==============================
 
     CALL initialise_BMB_model( region%mesh, region%BMB, region%name)
+
+    ! ===== Run the climate, ocean, SMB, and BMB models =====
+    ! =======================================================
+
+    ! Run the models
+    CALL run_climate_model( region%mesh, region%ice,                 region%climate, region%name, C%start_time_of_run)
+    CALL run_ocean_model(   region%mesh, region%ice,                 region%ocean  , region%name, C%start_time_of_run)
+    CALL run_SMB_model(     region%mesh, region%ice, region%climate, region%SMB    , region%name, C%start_time_of_run)
+    CALL run_BMB_model(     region%mesh, region%ice, region%ocean  , region%BMB    , region%name, C%start_time_of_run)
+
+    ! Reset the timers
+    region%climate%t_next = C%start_time_of_run
+    region%ocean%t_next   = C%start_time_of_run
+    region%SMB%t_next     = C%start_time_of_run
+    region%BMB%t_next     = C%start_time_of_run
+
+    ! ===== Thermodynamics =====
+    ! ==========================
+
+    ! NOTE: must be initialised after the climate, ocean, SMB, and BMB have been initialised
+    !       AND run at least once, so appropriate values for surface temperature, etc. are
+    !       available.
+
+    CALL initialise_thermodynamics_model( region)
 
     ! ===== Glacial isostatic adjustment =====
     ! ========================================

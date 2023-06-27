@@ -150,7 +150,7 @@ CONTAINS
     dHi_dt = -divQ + SMB + BMB
 
     ! Calculate ice thickness at t+dt
-    Hi_tplusdt = Hi + dHi_dt * dt
+    Hi_tplusdt = MAX( 0._dp, Hi + dHi_dt * dt)
 
     ! Clean up after yourself
     CALL deallocate_matrix_CSR_dist( M_divQ)
@@ -190,8 +190,16 @@ CONTAINS
     !
     !     [5] (1/dt + M_divQ) H( t+dt) = H( t) / dt + m
     !
-    ! This is a matrix equation, with the stiffness matrix A = 1/dt + M_divQ, the
-    ! load vector b = H( t) / dt + m, which can be solved for H( t+dt)
+    ! Finally, multiplying both sides by dt yields:
+    !
+    !     [6] ( 1 + dt M_divQ) H( t+dt) = H( t) + m dt
+    !
+    ! This is a matrix equation, with the stiffness matrix A = 1 + dt M_divQ, the
+    ! load vector b = H( t) + dt m, which can be solved for H( t+dt)
+    !
+    ! Multiplying by dt gives the advantage that the mass balance term on the right
+    ! has units of meters, so we can more easily calculate the "applied" mass balance
+    ! to limit melt to the available ice mass.
 
     IMPLICIT NONE
 
@@ -224,21 +232,24 @@ CONTAINS
     ! Start by letting AA = M_divQ
     CALL duplicate_matrix_CSR_dist( M_divQ, AA)
 
-    ! Add 1/dt to the diagonal
+    ! Multiply by dt so AA = dt M_divQ
+    AA%val = AA%val * dt
+
+    ! Add 1 to the diagonal
     DO vi = mesh%vi1, mesh%vi2
       k1 = AA%ptr( vi)
       k2 = AA%ptr( vi+1)-1
       DO k = k1, k2
         vj = M_divQ%ind( k)
         IF (vj == vi) THEN
-          AA%val( k) = AA%val( k) + 1._dp / dt
+          AA%val( k) = AA%val( k) + 1._dp
         END IF
       END DO ! DO k = k1, k2
     END DO ! DO vi = mesh%vi1, mesh%vi2
 
     ! Load vector
     DO vi = mesh%vi1, mesh%vi2
-      bb( vi) = Hi( vi) / dt + SMB( vi) + BMB( vi)
+      bb( vi) = Hi( vi) + MAX( -1._dp * Hi( vi), dt * (SMB( vi) + BMB( vi)))
     END DO ! DO vi = mesh%vi1, mesh%vi2
 
     ! Take current ice thickness as the initial guess
@@ -294,8 +305,17 @@ CONTAINS
     !         (1/dt + f_s M_divQ) H( t+dt) = (1 / dt - (1 - f_s) M_divQ) H( t) + m
     !     [5] (1/dt + f_s M_divQ) H( t+dt) = H( t) / dt - (1 - f_s) M_divQ H( t) + m
     !
+    !
+    ! Finally, multiplying both sides by dt yields:
+    !
+    !     [6] ( 1 + dt f_s M_divQ) H( t+dt) = H( t) - dt (1 - f_s) M_divQ H( t) + m dt
+    !
     ! This is a matrix equation, with the stiffness matrix A = 1/dt + f_s M_divQ, the
     ! load vector b = H( t) / dt - (1 - f_s) M_divQ H( t) + m, which can be solved for H( t+dt).
+    !
+    ! Multiplying by dt gives the advantage that the mass balance term on the right
+    ! has units of meters, so we can more easily calculate the "applied" mass balance
+    ! to limit melt to the available ice mass.
 
     IMPLICIT NONE
 
@@ -329,17 +349,17 @@ CONTAINS
     ! Start by letting AA = M_divQ
     CALL duplicate_matrix_CSR_dist( M_divQ, AA)
 
-    ! Multiply by f_s
-    AA%val = AA%val * C%dHi_semiimplicit_fs
+    ! Multiply by dt f_s
+    AA%val = AA%val * dt * C%dHi_semiimplicit_fs
 
-    ! Add 1/dt to the diagonal
+    ! Add 1 to the diagonal
     DO vi = mesh%vi1, mesh%vi2
       k1 = AA%ptr( vi)
       k2 = AA%ptr( vi+1)-1
       DO k = k1, k2
         vj = M_divQ%ind( k)
         IF (vj == vi) THEN
-          AA%val( k) = AA%val( k) + 1._dp / dt
+          AA%val( k) = AA%val( k) + 1._dp
         END IF
       END DO ! DO k = k1, k2
     END DO ! DO vi = mesh%vi1, mesh%vi2
@@ -347,7 +367,7 @@ CONTAINS
     ! Load vector
     CALL multiply_CSR_matrix_with_vector_1D( M_divQ, Hi, M_divQ_H)
     DO vi = mesh%vi1, mesh%vi2
-      bb( vi) = Hi( vi) / dt - ((1._dp - C%dHi_semiimplicit_fs) * M_divQ_H( vi)) + SMB( vi) + BMB( vi)
+      bb( vi) = Hi( vi) - (dt * (1._dp - C%dHi_semiimplicit_fs) * M_divQ_H( vi)) + MAX( -1._dp * Hi( vi), dt * (SMB( vi) + BMB( vi)))
     END DO ! DO vi = mesh%vi1, mesh%vi2
 
     ! Take current ice thickness as the initial guess

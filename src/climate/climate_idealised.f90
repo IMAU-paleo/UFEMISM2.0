@@ -153,7 +153,7 @@ CONTAINS
 
     ! In- and output variables
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
-    TYPE(type_climate_model),               INTENT(OUT)   :: climate
+    TYPE(type_climate_model),               INTENT(INOUT) :: climate
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'initialise_climate_model_idealised'
@@ -162,7 +162,8 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Print to terminal
-    IF (par%master)  WRITE(*,"(A)") '   Initialising idealised climate model...'
+    IF (par%master)  WRITE(*,"(A)") '   Initialising idealised climate model "' // &
+      colour_string( TRIM( C%choice_climate_model_idealised),'light blue') // '"...'
 
     ! Run the chosen idealised climate model
     IF (C%choice_climate_model_idealised == 'EISMINT1_A' .OR. &

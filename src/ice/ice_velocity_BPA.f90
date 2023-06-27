@@ -31,7 +31,7 @@ MODULE ice_velocity_BPA
                                                                      add_zeta_dimension_to_file, add_field_mesh_dp_3D_b, write_time_to_file, write_to_field_multopt_mesh_dp_3D_b
   USE netcdf_input                                           , ONLY: read_field_from_mesh_file_3D_b
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_2D
-  USE ice_flow_laws                                          , ONLY: calc_effective_viscosity_Glen_3D_uv_only
+  USE ice_flow_laws                                          , ONLY: calc_effective_viscosity_Glen_3D_uv_only, calc_ice_rheology_Glen
   USE ice_model_utilities                                    , ONLY: calc_zeta_gradients
 
   IMPLICIT NONE
@@ -1772,7 +1772,7 @@ CONTAINS
 
     ! In/output variables:
     TYPE(type_mesh),                     INTENT(IN)              :: mesh
-    TYPE(type_ice_model),                INTENT(IN)              :: ice
+    TYPE(type_ice_model),                INTENT(INOUT)           :: ice
     TYPE(type_ice_velocity_solver_BPA),  INTENT(INOUT)           :: BPA
 
     ! Local variables:
@@ -1793,15 +1793,16 @@ CONTAINS
     ! Allocate memory
     ALLOCATE( A_flow_bks( mesh%ti1:mesh%ti2, mesh%nz-1))
 
-    ! Map ice flow factor from the ak-grid to the bks-grid
-    CALL map_ak_bks( mesh, mesh%M_map_ak_bks, ice%A_flow, A_flow_bks)
-
   ! == Calculate effective viscosity on the ak-grid
 
     ! Calculate the effective viscosity eta
     IF (C%choice_flow_law == 'Glen') THEN
-      ! Calculate the effective viscosity according to Glen's flow law
+      ! Calculate the effective viscosity eta according to Glen's flow law
 
+      ! Calculate flow factors
+      CALL calc_ice_rheology_Glen( mesh, ice)
+
+      ! Calculate effective viscosity
       DO vi = mesh%vi1, mesh%vi2
       DO k  = 1, mesh%nz
         BPA%eta_ak( vi,k) = calc_effective_viscosity_Glen_3D_uv_only( &
@@ -1823,6 +1824,10 @@ CONTAINS
     IF (C%choice_flow_law == 'Glen') THEN
       ! Calculate the effective viscosity according to Glen's flow law
 
+      ! Calculate flow factors: map ice flow factor from the ak-grid to the bks-grid
+      CALL map_ak_bks( mesh, mesh%M_map_ak_bks, ice%A_flow, A_flow_bks)
+
+      ! Calculate effective viscosity
       DO ti = mesh%ti1, mesh%ti2
       DO ks  = 1, mesh%nz-1
         BPA%eta_bks( ti,ks) = calc_effective_viscosity_Glen_3D_uv_only( &

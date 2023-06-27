@@ -13,7 +13,8 @@ MODULE mesh_utilities
   USE reallocate_mod
   USE mesh_types                                             , ONLY: type_mesh
   USE math_utilities                                         , ONLY: geometric_center, is_in_triangle, lies_on_line_segment, circumcenter, &
-                                                                     line_from_points, line_line_intersection, encroaches_upon, crop_line_to_domain
+                                                                     line_from_points, line_line_intersection, encroaches_upon, crop_line_to_domain, &
+                                                                     triangle_area
 
   IMPLICIT NONE
 
@@ -1145,7 +1146,88 @@ CONTAINS
 
   END FUNCTION is_in_Voronoi_cell
 
-! == Spatial integration / averaging
+! == Spatial interpolation / integration / averaging
+
+  SUBROUTINE interpolate_to_point_dp_2D( mesh, d, p, d_int)
+    ! Find the value d_int of the 2-D data field d at the point p
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                         INTENT(IN)          :: mesh
+    REAL(dp), DIMENSION( mesh%vi1:mesh%vi2), INTENT(IN)          :: d
+    REAL(dp), DIMENSION(2),                  INTENT(IN)          :: p
+    REAL(dp),                                INTENT(OUT)         :: d_int
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'interpolate_to_point_dp_2D'
+    REAL(dp)                                                     :: d_min
+    INTEGER                                                      :: ti, via, vib, vic
+    REAL(dp)                                                     :: da, db, dc
+    REAL(dp), DIMENSION(2)                                       :: pa, pb, pc
+    REAL(dp)                                                     :: Atri_abp, Atri_bcp, Atri_cap, Atri_tot
+    REAL(dp)                                                     :: wa, wb, wc
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Find the global minimum value of d
+    d_min = MINVAL( d)
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, d, 1, MPI_DOUBLE_PRECISION, MPI_MIN, MPI_COMM_WORLD, ierr)
+
+    ! Find the triangle containing p
+    ti = 1
+    CALL find_containing_triangle( mesh, p, ti)
+
+    ! The three vertices spanning ti
+    via = mesh%Tri( ti,1)
+    vib = mesh%Tri( ti,2)
+    vic = mesh%Tri( ti,3)
+
+    ! Communicate the values of d on these three vertices
+
+    IF (via >= mesh%vi1 .AND. via <= mesh%vi2) THEN
+      da = d( via)
+    ELSE
+      da = d_min
+    END IF
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, da, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
+
+    IF (vib >= mesh%vi1 .AND. vib <= mesh%vi2) THEN
+      db = d( vib)
+    ELSE
+      db = d_min
+    END IF
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, db, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
+
+    IF (vic >= mesh%vi1 .AND. vic <= mesh%vi2) THEN
+      dc = d( vic)
+    ELSE
+      dc = d_min
+    END IF
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, dc, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
+
+    ! Trilinearly interpolate between a,b,c to find d_int
+    pa = mesh%V( via,:)
+    pb = mesh%V( vib,:)
+    pc = mesh%V( vic,:)
+
+    Atri_abp = triangle_area( pa, pb, p)
+    Atri_bcp = triangle_area( pb, pc, p)
+    Atri_cap = triangle_area( pc, pa, p)
+
+    Atri_tot = Atri_abp + Atri_bcp + Atri_cap
+
+    wc = Atri_abp / Atri_tot
+    wa = Atri_bcp / Atri_tot
+    wb = Atri_cap / Atri_tot
+
+    d_int = da * wa + db * wb + dc * wc
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE interpolate_to_point_dp_2D
 
   SUBROUTINE integrate_over_domain( mesh, d, int_d)
     ! Calculate the integral int_d over the model domain of a 2-D data field d

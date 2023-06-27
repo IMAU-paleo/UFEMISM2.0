@@ -26,7 +26,7 @@ MODULE unit_tests_ice
                                                                      add_field_mesh_dp_3D_b_notime, write_to_field_multopt_mesh_dp_3D_b_notime, &
                                                                      add_field_mesh_dp_3D_notime  , write_to_field_multopt_mesh_dp_3D_notime, &
                                                                      add_field_mesh_dp_2D_notime  , write_to_field_multopt_mesh_dp_2D_notime
-  USE mesh_utilities                                         , ONLY: find_containing_triangle, integrate_over_domain, average_over_domain
+  USE mesh_utilities                                         , ONLY: find_containing_triangle, average_over_domain, interpolate_to_point_dp_2D
   USE ice_thickness                                          , ONLY: calc_dHi_dt
   USE math_utilities                                         , ONLY: ice_surface_elevation
   USE analytical_solutions                                   , ONLY: Halfar_dome
@@ -57,6 +57,7 @@ CONTAINS
     CALL test_ice_velocities_static_Halfar_dome
     CALL test_ISMIP_HOM_all
     CALL test_thickness_evolution_Halfar_dome_all
+    CALL test_EISMINT1_ABC
 
     ! Add routine to path
     CALL finalise_routine( routine_name)
@@ -1575,13 +1576,13 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'test_thickness_evolution_Halfar_dome'
     TYPE(type_model_region)                                            :: region
+    REAL(dp)                                                           :: t_end, dt
     REAL(dp), DIMENSION(:    ), ALLOCATABLE                            :: Hi_analytical
     REAL(dp), DIMENSION(:    ), ALLOCATABLE                            :: SE_Hi
     INTEGER                                                            :: vi
     REAL(dp)                                                           :: MSE_Hi, RMSE_Hi
     CHARACTER(LEN=256)                                                 :: filename
     INTEGER                                                            :: ncid
-    REAL(dp)                                                           :: t_end, dt
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -1984,5 +1985,465 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE set_config_for_transient_Halfar_dome
+
+  ! ===== Ice thickness and temperature in the EISMINT1 experiments =====
+  ! =====================================================================
+
+  SUBROUTINE test_EISMINT1_ABC
+    ! Run and validate EISMINT1 experiments A, B, and C
+    !
+    ! The first set of experiments of the European Ice-Sheet Modelling INiTiative (EISMINT)
+    ! benchmark consists of 6 different idealised-geometry experiments, investigating
+    ! ice thickness and temperature in transient simulations of continental-sized ice sheets
+    ! in pseudo-glacial cycles.
+    !
+    ! The first three experiments, A-C, concern a circular ice dome lying on a flat bed,
+    ! subjected to a parameterised SMB that results in a stable ice margin. Experiment A
+    ! consists of a 100,000-yr spin-up to achieve a steady-state ice-sheet geometry and
+    ! temperature. Experiments B and C are both initialised with the geometry from
+    ! experiment A. Here, the parameterised SMB periodically changes, with a period of
+    ! either 20,000 yr (experiment B) or 40,000 yr (experiment C).!
+    !
+    ! The second set of experiments, D-F, are similar to the first set. However, here the
+    ! SMB is parameterised such that it is positive over the entire domain. An ice margin
+    ! is instead forced at the domain boundary. The rationale behind this is that, back in
+    ! 1996, most ice-sheet models did not simulate shelves. Instead, floating ice was forcibly
+    ! removed, resulting in sharp margins at the grounding line. Experiments D-F were
+    ! designed to test how models deal with these enforced margins. With the advent of
+    ! ice-sheet models that simulate both grounded and floating ice (which, these days,
+    ! practically all of them do), these experiments have become obsolete, so they are
+    ! not run here.
+
+    IMPLICIT NONE
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'test_EISMINT1_ABC'
+    CHARACTER(LEN=256)                                                 :: filename_A
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    filename_A = 'test_EISMINT1_A_output.nc'
+
+    CALL test_EISMINT1_A( filename_A)
+
+    ! Add routine to path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE test_EISMINT1_ABC
+
+  SUBROUTINE test_EISMINT1_A( filename_A)
+    ! Run and validate EISMINT1 experiment A
+
+    IMPLICIT NONE
+
+    ! In/output variables
+    CHARACTER(LEN=256),                                  INTENT(IN)    :: filename_A
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'test_EISMINT1_A'
+    TYPE(type_model_region)                                            :: region
+    REAL(dp)                                                           :: t_end, dt
+    REAL(dp), DIMENSION(2)                                             :: p
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE                            :: Ti_base
+    REAL(dp)                                                           :: Hi_divide, Ti_base_divide
+    LOGICAL                                                            :: found_errors_Hi, found_errors_Ti
+    CHARACTER(LEN=256)                                                 :: filename
+    INTEGER                                                            :: ncid
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+  ! == Set the appropriate model configuration
+  ! ==========================================
+
+    ! Generate the general EISMINT1 config
+    CALL set_config_for_EISMINT1
+
+    ! Set parameters specific for this experiment
+    C%start_time_of_run              = -20000._dp
+    C%end_time_of_run                =       0._dp
+    C%choice_climate_model_idealised = 'EISMINT1_A'
+    C%choice_SMB_model_idealised     = 'EISMINT1_A'
+
+  ! == Initialise the model region
+  ! ==============================
+
+    CALL initialise_model_region( region, 'ANT')
+
+  ! == Run the model forward through time
+  ! =====================================
+
+    ! Do a sort-of coupling interval, just to make sure it works
+
+    dt = 100._dp
+
+    t_end = C%start_time_of_run
+    DO WHILE (.TRUE.)
+
+      t_end = t_end + dt
+
+      CALL run_model_region( region, t_end)
+
+      IF (t_end >= C%end_time_of_run) EXIT
+
+    END DO
+
+  ! == Validate
+  ! ===========
+
+    ! The ice divide is at the centre of the domain
+    p = [0._dp, 0._dp]
+
+    ! Ice thickness at the divide should be about 2,950 m
+    CALL interpolate_to_point_dp_2D( region%mesh, region%ice%Hi, p, Hi_divide)
+    found_errors_Hi = ABS( Hi_divide - 2950._dp) > 25._dp
+    IF (par%master .AND. found_errors_Hi) CALL warning('found ice thickness at the divide of {dp_01} m in EISMINT1_A, should be around 2,950 m', dp_01 = Hi_divide)
+
+    ! Basal temperature at the divide should be about 270 K
+    ALLOCATE( Ti_base( region%mesh%vi1:region%mesh%vi2))
+    Ti_base = region%ice%Ti( :,region%mesh%nz)
+    CALL interpolate_to_point_dp_2D( region%mesh, Ti_base, p, Ti_base_divide)
+    DEALLOCATE( Ti_base)
+    found_errors_Ti = ABS( Ti_base_divide - 270._dp) > 1._dp
+    IF (par%master .AND. found_errors_Ti) CALL warning('found basal temperature at the divide of {dp_01} K in EISMINT1_A, should be around 270 K', dp_01 = Ti_base_divide)
+
+    IF (par%master .AND. .NOT. (found_errors_Hi .OR. found_errors_Ti)) CALL happy('validated ice thickness and temperature in EISMINT1_A')
+
+  ! == Write to output
+  ! ==================
+
+    ! Create a NetCDF output file
+    filename = TRIM( C%output_dir) // '/' // TRIM( filename_A)
+    CALL create_new_netcdf_file_for_writing( filename, ncid)
+
+    ! Set up the mesh in the file
+    CALL setup_mesh_in_netcdf_file( filename, ncid, region%mesh)
+
+    ! Add all the fields
+    CALL add_field_mesh_dp_2D_notime( filename, ncid, 'Hi')
+    CALL add_field_mesh_dp_2D_notime( filename, ncid, 'Hb')
+    CALL add_field_mesh_dp_2D_notime( filename, ncid, 'Hs')
+    CALL add_field_mesh_dp_2D_notime( filename, ncid, 'SL')
+    CALL add_field_mesh_dp_3D_notime( filename, ncid, 'Ti')
+
+    ! Write to file
+    CALL write_to_field_multopt_mesh_dp_2D_notime( region%mesh, filename, ncid, 'Hi', region%ice%Hi)
+    CALL write_to_field_multopt_mesh_dp_2D_notime( region%mesh, filename, ncid, 'Hb', region%ice%Hb)
+    CALL write_to_field_multopt_mesh_dp_2D_notime( region%mesh, filename, ncid, 'Hs', region%ice%Hs)
+    CALL write_to_field_multopt_mesh_dp_2D_notime( region%mesh, filename, ncid, 'SL', region%ice%SL)
+    CALL write_to_field_multopt_mesh_dp_3D_notime( region%mesh, filename, ncid, 'Ti', region%ice%Ti)
+
+    ! Close the file
+    CALL close_netcdf_file( ncid)
+
+    ! Add routine to path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE test_EISMINT1_A
+
+  SUBROUTINE set_config_for_EISMINT1
+    ! Set the config for the EISMINT1 experiments
+
+    IMPLICIT NONE
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'set_config_for_EISMINT1'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+  ! == Which model regions to simulate
+  ! ==================================
+
+    C%do_ANT                                = .FALSE.
+
+  ! == The four model regions
+  ! =========================
+
+    ! Antarctica
+    C%lambda_M_ANT                          = 0._dp                            ! [degrees east]  [default:   0.0]   Longitude of the pole of the stereographic projection for the Antarctica domain
+    C%phi_M_ANT                             = -90._dp                          ! [degrees north] [default: -90.0]   Latitude  of the pole of the stereographic projection for the Antarctica domain
+    C%beta_stereo_ANT                       = 71._dp                           ! [degrees]       [default:  71.0]   Standard parallel     of the stereographic projection for the Antarctica domain
+    C%xmin_ANT                              = -750000._dp                      ! [m]             [default: -3040E3] Western  boundary     of the Antarctica domain [m]
+    C%xmax_ANT                              =  750000._dp                      ! [m]             [default:  3040E3] Eastern  boundary     of the Antarctica domain [m]
+    C%ymin_ANT                              = -750000._dp                      ! [m]             [default: -3040E3] Southern boundary     of the Antarctica domain [m]
+    C%ymax_ANT                              =  750000._dp                      ! [m]             [default:  3040E3] Northern boundary     of the Antarctica domain [m]
+
+  ! == Reference geometries (initial, present-day, and GIA equilibrium)
+  ! ===================================================================
+
+    ! Some pre-processing stuff for reference ice geometry
+    C%refgeo_Hi_min                         = 2.0_dp                           ! [m]             [default: 2.0]     Remove ice thinner than this value in the reference ice geometry. Particularly useful for BedMachine Greenland, which somehow covers the entire tundra with half a meter of ice...
+    C%remove_Lake_Vostok                    = .FALSE.                           ! Whether or not to replace subglacial Lake Vostok in Antarctica with ice (recommended to set to TRUE, otherwise it will really slow down your model for the first few hundred years...)
+
+    ! == Initial geometry
+    ! ===================
+
+    C%choice_refgeo_init_ANT                = 'idealised'                      ! Choice of initial geometry for Antarctica   ; can be "idealised", or "read_from_file"
+    ! Idealised geometry when choice_refgeo_init == 'idealised'
+    C%choice_refgeo_init_idealised          = 'flatearth'                      ! Choice of idealised initial geometry; see reference_geometries/calc_idealised_geometry for options
+    C%dx_refgeo_init_idealised              = 50000._dp                        ! Resolution of square grid used for idealised initial geometry
+
+    ! == Present-day geometry
+    ! =======================
+
+    C%choice_refgeo_PD_ANT                  = 'idealised'                      ! Choice of present-day geometry for Antarctica   ; can be "idealised", or "read_from_file"
+    ! Idealised geometry when choice_refgeo_PD == 'idealised'
+    C%choice_refgeo_PD_idealised            = 'flatearth'                      ! Choice of idealised present-day geometry; see reference_geometries/calc_idealised_geometry for options
+    C%dx_refgeo_PD_idealised                = 50000._dp                        ! Resolution of square grid used for idealised present-day geometry
+
+    ! == GIA equilibrium geometry
+    ! ===========================
+
+    C%choice_refgeo_GIAeq_ANT               = 'idealised'                      ! Choice of GIA equilibrium reference geometry for Antarctica   ; can be "idealised", or "read_from_file"
+    ! Idealised geometry when choice_refgeo_GIAeq == 'idealised'
+    C%choice_refgeo_GIAeq_idealised         = 'flatearth'                      ! Choice of idealised GIA equilibrium reference geometry; see reference_geometries/calc_idealised_geometry for options
+    C%dx_refgeo_GIAeq_idealised             = 50000._dp                        ! Resolution of square grid used for idealised GIA equilibrium reference geometry
+
+  ! == Mesh generation
+  ! ==================
+
+    ! How to set up the initial mesh
+    C%choice_initial_mesh_ANT               = 'calc_from_initial_geometry'     ! Options: 'calc_from_initial_geometry', 'read_from_file'
+
+    ! Resolutions for different parts of the ice sheet
+    C%maximum_resolution_uniform            = 50e3_dp                          ! [m]          Maximum resolution for the entire domain
+    C%maximum_resolution_grounded_ice       = 100e3_dp                         ! [m]          Maximum resolution for grounded ice
+    C%maximum_resolution_floating_ice       = 100e3_dp                         ! [m]          Maximum resolution for floating ice
+    C%maximum_resolution_grounding_line     = 100e3_dp                         ! [m]          Maximum resolution for the grounding line
+    C%grounding_line_width                  = 100e3_dp                         ! [m]          Width of the band around the grounding line that should get this resolution
+    C%maximum_resolution_calving_front      = 100e3_dp                         ! [m]          Maximum resolution for the calving front
+    C%calving_front_width                   = 100e3_dp                         ! [m]          Width of the band around the calving front that should get this resolution
+    C%maximum_resolution_ice_front          = 100e3_dp                         ! [m]          Maximum resolution for the ice front
+    C%ice_front_width                       = 100e3_dp                         ! [m]          Width of the band around the ice front that should get this resolution
+    C%maximum_resolution_coastline          = 100e3_dp                         ! [m]          Maximum resolution for the coastline
+    C%coastline_width                       = 100e3_dp                         ! [m]          Width of the band around the coastline that should get this resolution
+
+    ! Regions of interest
+    C%choice_regions_of_interest            = ''                               ! Regions of interest where other (higher) resolutions apply. Separated by double vertical bars "||", e.g. "PineIsland||Thwaites"
+
+    ! Mesh update settings
+    C%dt_mesh_update_min                    = 50._dp                           ! [yr]         Minimum amount of time between mesh updates
+
+    ! Advanced geometry parameters
+    C%do_singlecore_mesh_creation           = .TRUE.                           !              Whether or not to use only a single core for mesh generation (for better reproducibility)
+    C%alpha_min                             = 0.4363_dp                        ! [radians]    Smallest allowed internal triangle angle (recommended value: 25 degrees = 0.4363)
+    C%nit_Lloyds_algorithm                  = 3                                ! [-]          Number of iterations of Lloyds algorithm to be applied after refinement
+    C%mesh_resolution_tolerance             = 1.25_dp                          ! [-]          Factors the target resolution for trangle-size requirement. 1=strict, use >1 to avoid unnecesarily high resolution
+
+    ! Memory
+    C%nC_mem                                = 32                               ! [-]          How many columns of memory should be allocated for connectivity lists
+
+  ! == The scaled vertical coordinate zeta
+  ! ======================================
+
+    C%choice_zeta_grid                      = 'regular'                        ! The type of vertical grid to use; can be "regular", "irregular_log", "old_15_layer_zeta"
+    C%nz                                    = 12                               ! The number of vertical layers to use
+    C%zeta_irregular_log_R                  = 10._dp                           ! Ratio between surface and base layer spacings
+
+  ! == Ice dynamics - velocity
+  ! ==========================
+
+    ! General
+    C%choice_stress_balance_approximation   = 'SIA'                            ! Choice of stress balance approximation: "none" (= no flow, though geometry can still change due to mass balance), "SIA", "SSA", "SIA/SSA", "DIVA", "BPA"
+    C%choice_hybrid_SIASSA_scheme           = 'add'                            ! Choice of scheme for combining SIA and SSA velocities in the hybrid approach
+    C%do_include_SSADIVA_crossterms         = .TRUE.                           ! Whether or not to include the gradients of the effective viscosity (the "cross-terms") in the solution of the SSA/DIVA
+
+    ! Initialisation
+    C%choice_initial_velocity_ANT           = 'zero'
+
+    ! Some parameters for numerically solving the stress balance
+    C%SIA_maximum_diffusivity               = 1E5_dp                           ! Limit the diffusivity in the SIA to this value
+    C%visc_it_norm_dUV_tol                  = 5E-6_dp                          ! Stop criterion for the viscosity iteration: the L2-norm of successive velocity solutions should be smaller than this number
+    C%visc_it_nit                           = 500                              ! Maximum number of effective viscosity iterations
+    C%visc_it_relax                         = 0.4_dp                           ! Relaxation parameter for subsequent viscosity iterations (for improved stability)
+    C%visc_eff_min                          = 1E4_dp                           ! Minimum value for effective viscosity
+    C%vel_max                               = 5000._dp                         ! Velocities are limited to this value
+    C%stress_balance_PETSc_rtol             = 1E-5_dp                          ! PETSc solver - stop criterion, relative difference (iteration stops if rtol OR abstol is reached)
+    C%stress_balance_PETSc_abstol           = 1E-3_dp                          ! PETSc solver - stop criterion, absolute difference
+
+    ! Boundary conditions
+    C%BC_u_west                             = 'infinite'                       ! Boundary conditions for the ice velocity field at the domain border
+    C%BC_u_east                             = 'infinite'                       ! Allowed choices: "infinite", "zero", "periodic_ISMIP-HOM"
+    C%BC_u_south                            = 'infinite'
+    C%BC_u_north                            = 'infinite'
+    C%BC_v_west                             = 'infinite'
+    C%BC_v_east                             = 'infinite'
+    C%BC_v_south                            = 'infinite'
+    C%BC_v_north                            = 'infinite'
+
+  ! == Ice dynamics - sliding
+  ! =========================
+
+    ! General
+    C%choice_sliding_law                    = 'no_sliding'                     ! Choice of sliding law: "no_sliding", "idealised", "Coulomb", "Budd", "Weertman", "Tsai2015", "Schoof2005", "Zoet-Iverson"
+
+  ! == Ice dynamics - ice thickness calculation
+  ! ===========================================
+
+    ! Calculation of dH/dt
+    C%choice_ice_integration_method         = 'semi-implicit'                  ! Choice of ice thickness integration scheme: "none" (i.e. unchanging geometry), "explicit", "semi-implicit"
+    C%dHi_semiimplicit_fs                   = 1.5_dp                           ! Factor for the semi-implicit ice thickness solver (0 = explicit, 0<f<1 = semi-implicit, 1 = implicit, >1 = over-implicit)
+    C%dHi_PETSc_rtol                        = 1E-7_dp                          ! dHi PETSc solver - stop criterion, relative difference (iteration stops if rtol OR abstol is reached)
+    C%dHi_PETSc_abstol                      = 1E-2_dp                          ! dHi PETSc solver - stop criterion, absolute difference
+
+    ! Boundary conditions
+    C%BC_H_west                             = 'zero'                           ! Boundary conditions for ice thickness at the domain boundary
+    C%BC_H_east                             = 'zero'                           ! Allowed choices:  "infinite", "zero", "ISMIP_HOM_F"
+    C%BC_H_south                            = 'zero'
+    C%BC_H_north                            = 'zero'
+
+  ! == Ice dynamics - time stepping
+  ! ===============================
+
+    ! Time stepping
+    C%choice_timestepping                   = 'direct'                             ! Choice of timestepping method: "direct", "pc" (NOTE: 'direct' does not work with DIVA ice dynamcis!)
+    C%dt_ice_max                            = 10.0_dp                          ! [yr] Maximum time step of the ice dynamics model
+    C%dt_ice_min                            = 0.01_dp                          ! [yr] Minimum time step of the ice dynamics model
+    C%dt_ice_startup_phase                  = 0._dp                            ! [yr] Length of time window after start_time and before end_time when dt = dt_min, to ensure smooth restarts
+
+    ! Predictor-corrector ice-thickness update
+    C%pc_epsilon                            = 0.1_dp                           ! Target truncation error in dHi_dt [m/yr] (epsilon in Robinson et al., 2020, Eq. 33)
+    C%pc_k_I                                = 0.2_dp                           ! Exponent k_I in  Robinson et al., 2020, Eq. 33
+    C%pc_k_p                                = 0.2_dp                           ! Exponent k_p in  Robinson et al., 2020, Eq. 33
+    C%pc_eta_min                            = 1E-8_dp                          ! Normalisation term in estimation of the truncation error (Robinson et al., Eq. 32)
+    C%pc_max_time_step_increase             = 1.2_dp                           ! Each new time step is only allowed to be this much larger than the previous one
+
+    ! Initialisation of the predictor-corrector ice-thickness update
+    C%pc_choice_initialise_ANT              = 'zero'
+
+  ! == Ice dynamics - calving
+  ! =========================
+
+    C%choice_calving_law                    = 'none'                           ! Choice of calving law: "none", "threshold_thickness"
+
+  ! == Ice dynamics - stabilisation
+  ! ===============================
+
+    C%choice_mask_noice                     = 'none'                           ! Choice of mask_noice configuration
+
+    ! Partially fixed geometry, useful for initialisation and inversion runs
+    C%fixed_shelf_geometry                  = .FALSE.                          ! Keep geometry of floating ice fixed
+    C%fixed_sheet_geometry                  = .FALSE.                          ! Keep geometry of grounded ice fixed
+    C%fixed_grounding_line                  = .FALSE.                          ! Keep ice thickness at the grounding line fixed
+
+  ! == Basal hydrology
+  ! ==================
+
+    ! Basal hydrology
+    C%choice_basal_hydrology                = 'saturated'                      ! Choice of basal hydrology model: "saturated", "Martin2011"
+
+  ! == Bed roughness
+  ! ==================
+
+    C%choice_bed_roughness                  = 'uniform'                        ! Choice of source for friction coefficients: "uniform", "parameterised", "read_from_file"
+
+  ! == Bed roughness inversion by nudging
+  ! =====================================
+
+    ! General
+    C%do_bed_roughness_nudging              = .FALSE.                          ! Whether or not to budge the basal roughness
+
+  ! == Geothermal heat flux
+  ! =======================
+
+    C%choice_geothermal_heat_flux           = 'uniform'                         ! Choice of geothermal heat flux; can be 'uniform' or 'read_from_file'
+    C%uniform_geothermal_heat_flux          = 1.72E06_dp                        ! Value when choice_geothermal_heat_flux == 'uniform' (1.72E06 J m^-2 yr^-1 according to Sclater et al. (1980))
+
+  ! == Thermodynamics
+  ! =================
+
+    ! Initial temperature profile
+    C%choice_initial_ice_temperature_ANT    = 'linear'
+    ! Thermodynamical model
+    C%choice_thermo_model                   = '3D_heat_equation'               ! Choice of thermodynamical model: "none", "3D_heat_equation"
+    C%dt_thermodynamics                     = 10._dp                           ! [yr] Time step for the thermodynamical model
+    C%Hi_min_thermo                         = 10._dp                           ! [m]  Ice thinner than this is assumed to have a temperature equal to the annual mean surface temperature throughout the vertical column
+    C%choice_ice_heat_capacity              = 'uniform'                        ! Choice of ice heat capacity model: "uniform", "Pounder1965"
+    C%uniform_ice_heat_capacity             = 2009._dp                         ! Uniform ice heat capacity (applied when choice_ice_heat_capacity = "uniform")
+    C%choice_ice_thermal_conductivity       = 'uniform'                        ! Choice of ice heat capacity model: "uniform", "Ritz1987"
+    C%uniform_ice_thermal_conductivity      = 6.626958E7_dp                    ! Uniform ice thermal conductivity (applied when choice_ice_thermal_conductivity = "uniform")
+
+  ! == Rheology and flow law
+  ! =========================
+
+    ! Flow law
+    C%choice_flow_law                       = 'Glen'                           ! Choice of flow law, relating effective viscosity to effective strain rate
+    C%Glens_flow_law_exponent               = 3.0_dp                           ! Exponent in Glen's flow law
+    C%Glens_flow_law_epsilon_sq_0           = 1E-12_dp                         ! Normalisation term so that zero strain rates produce a high but finite viscosity
+
+    ! Rheology
+    C%choice_ice_rheology_Glen              = 'uniform'                        ! Choice of ice rheology model for Glen's flow law: "uniform", "Huybrechts1992", "MISMIP_mod"
+    C%uniform_Glens_flow_factor             = 1E-16_dp                         ! Uniform ice flow factor (applied when choice_ice_rheology_model = "uniform")
+
+    ! Enhancement factors
+    C%m_enh_sheet                           = 1.0_dp                           ! Ice flow enhancement factor for grounded ice
+    C%m_enh_shelf                           = 1.0_dp                           ! Ice flow enhancement factor for floating ice
+
+  ! == Climate
+  ! ==========
+
+    ! Time step
+    C%do_asynchronous_climate               = .TRUE.                           ! Whether or not the climate should be calculated asynchronously from the rest of the model; if so, use dt_climate; if not, calculate it in every time step
+    C%dt_climate                            = 10._dp                           ! [yr] Time step for calculating climate
+
+    ! Choice of climate model
+    C%choice_climate_model_ANT              = 'idealised'
+    C%choice_climate_model_idealised        = 'EISMINT1_A'
+
+  ! == Ocean
+  ! ========
+
+    ! Time step
+    C%do_asynchronous_ocean                 = .FALSE.                          ! Whether or not the ocean should be calculated asynchronously from the rest of the model; if so, use dt_climate; if not, calculate it in every time step
+
+    ! Choice of ocean model
+    C%choice_ocean_model_ANT                = 'none'
+
+  ! == Surface mass balance
+  ! =======================
+
+    ! Time step
+    C%do_asynchronous_SMB                   = .TRUE.                           ! Whether or not the SMB should be calculated asynchronously from the rest of the model; if so, use dt_climate; if not, calculate it in every time step
+    C%dt_SMB                                = 10._dp                           ! [yr] Time step for calculating SMB
+
+    ! Choice of SMB model
+    C%choice_SMB_model_ANT                  = 'idealised'
+    C%choice_SMB_model_idealised            = 'EISMINT1_A'
+
+  ! == Basal mass balance
+  ! =====================
+
+    ! Time step
+    C%do_asynchronous_BMB                   = .FALSE.                          ! Whether or not the BMB should be calculated asynchronously from the rest of the model; if so, use dt_climate; if not, calculate it in every time step
+
+    ! Choice of BMB model
+    C%choice_BMB_model_ANT                  = 'uniform'
+
+    ! "uniform"
+    C%uniform_BMB                           = 0._dp
+
+  ! == Glacial isostatic adjustment
+  ! ===============================
+
+    ! General settings
+    C%choice_GIA_model                      = 'none'
+
+  ! == Sea level
+  ! ============
+
+    C%choice_sealevel_model                 = 'fixed'                         !     Can be "fixed", "prescribed", "eustatic", or "SELEN"
+    C%fixed_sealevel                        = -10000._dp                      ! [m] Fixed sea level value for the "fixed" choice
+
+  ! == Output
+  ! =========
+
+    C%do_create_netcdf_output               = .FALSE.
+
+    ! Add routine to path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE set_config_for_EISMINT1
 
 END MODULE unit_tests_ice

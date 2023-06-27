@@ -1,3 +1,5 @@
+function setup_model_configuration_code
+
 fill_configuration_module
 create_config_unit_tests
 % create_config_Halfar
@@ -451,5 +453,7 @@ for i = 1: length( config)
   fprintf( fid, '%s\n', config{ i});
 end
 fclose( fid);
+
+end
 
 end

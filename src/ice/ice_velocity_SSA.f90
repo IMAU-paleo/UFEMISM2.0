@@ -1381,7 +1381,7 @@ CONTAINS
 
     ! Calculate the effective viscosity eta
     IF (C%choice_flow_law == 'Glen') THEN
-      ! Calculate the effective viscosity according to Glen's flow law
+      ! Calculate the effective viscosity eta according to Glen's flow law
 
       ! Calculate flow factors
       CALL calc_ice_rheology_Glen( mesh, ice)

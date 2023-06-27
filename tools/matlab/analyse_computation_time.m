@@ -1,7 +1,4 @@
 function analyse_computation_time( filename)
-clc
-clear all
-close all
   
 filename = '../../results_unit_tests/resource_tracking.nc';
 

@@ -22,6 +22,7 @@ MODULE thermodynamics_utilities
   USE SMB_model_types                                        , ONLY: type_SMB_model
   USE mesh_operators                                         , ONLY: ddx_a_b_3D, ddy_a_b_3D
   USE math_utilities                                         , ONLY: cross2
+  USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_2D
 
   IMPLICIT NONE
 
@@ -325,13 +326,15 @@ CONTAINS
     ! In/output variables:
     TYPE(type_mesh),                     INTENT(IN)    :: mesh
     TYPE(type_ice_model),                INTENT(IN)    :: ice
-    REAL(dp), DIMENSION(:,:  ),          INTENT(OUT)   :: u_times_dTdxp_upwind, v_times_dTdyp_upwind
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2,mesh%nz),          INTENT(OUT)   :: u_times_dTdxp_upwind, v_times_dTdyp_upwind
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_upwind_heat_flux_derivatives'
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: dTi_dxp_3D_b, dTi_dyp_3D_b
     INTEGER                                            :: vi, k, vti, ti, n1, n2, n3, vib, vic, ti_upwind
     REAL(dp), DIMENSION(2)                             :: u_upwind, ab, ac
+    REAL(dp), DIMENSION(mesh%nTri,mesh%nz)             :: u_3D_b_tot, v_3D_b_tot
+    REAL(dp), DIMENSION(mesh%nTri,mesh%nz)             :: dTi_dxp_3D_b_tot, dTi_dyp_3D_b_tot
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -343,6 +346,12 @@ CONTAINS
     ! Calculate dT/dxp, dT/dyp on the b-grid
     CALL ddx_a_b_3D( mesh, ice%Ti, dTi_dxp_3D_b)
     CALL ddy_a_b_3D( mesh, ice%Ti, dTi_dyp_3D_b)
+
+    ! Gather full velocity fields
+    CALL gather_to_all_dp_2D( ice%u_3D_b  , u_3D_b_tot      )
+    CALL gather_to_all_dp_2D( ice%v_3D_b  , v_3D_b_tot      )
+    CALL gather_to_all_dp_2D( dTi_dxp_3D_b, dTi_dxp_3D_b_tot)
+    CALL gather_to_all_dp_2D( dTi_dyp_3D_b, dTi_dyp_3D_b_tot)
 
     DO vi = mesh%vi1, mesh%vi2
 
@@ -395,8 +404,8 @@ CONTAINS
 
       ! Calculate u * dT/dx, v * dT/dy
       DO k = 1, C%nz
-        u_times_dTdxp_upwind( vi,k) = ice%u_3D_b( ti_upwind,k) * dTi_dxp_3D_b( ti_upwind,k)
-        v_times_dTdyp_upwind( vi,k) = ice%v_3D_b( ti_upwind,k) * dTi_dyp_3D_b( ti_upwind,k)
+        u_times_dTdxp_upwind( vi,k) = u_3D_b_tot( ti_upwind,k) * dTi_dxp_3D_b_tot( ti_upwind,k)
+        v_times_dTdyp_upwind( vi,k) = v_3D_b_tot( ti_upwind,k) * dTi_dyp_3D_b_tot( ti_upwind,k)
       END DO
 
     END DO ! DO vi = mesh%vi1, mesh%vi2

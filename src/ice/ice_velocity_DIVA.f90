@@ -30,7 +30,7 @@ MODULE ice_velocity_DIVA
                                                                      write_to_field_multopt_mesh_dp_3D_b, add_zeta_dimension_to_file
   USE netcdf_input                                           , ONLY: read_field_from_mesh_file_2D_b, read_field_from_mesh_file_3D_b
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_1D
-  USE ice_flow_laws                                          , ONLY: calc_effective_viscosity_Glen_3D_uv_only
+  USE ice_flow_laws                                          , ONLY: calc_effective_viscosity_Glen_3D_uv_only, calc_ice_rheology_Glen
 
   IMPLICIT NONE
 
@@ -1393,7 +1393,7 @@ CONTAINS
 
     ! In/output variables:
     TYPE(type_mesh),                     INTENT(IN)              :: mesh
-    TYPE(type_ice_model),                INTENT(IN)              :: ice
+    TYPE(type_ice_model),                INTENT(INOUT)           :: ice
     TYPE(type_ice_velocity_solver_DIVA), INTENT(INOUT)           :: DIVA
 
     ! Local variables:
@@ -1411,8 +1411,12 @@ CONTAINS
 
     ! Calculate the effective viscosity eta
     IF (C%choice_flow_law == 'Glen') THEN
-      ! Calculate the effective viscosity according to Glen's flow law
+      ! Calculate the effective viscosity eta according to Glen's flow law
 
+      ! Calculate flow factors
+      CALL calc_ice_rheology_Glen( mesh, ice)
+
+      ! Calculate effective viscosity
       DO vi = mesh%vi1, mesh%vi2
       DO k  = 1, mesh%nz
         DIVA%eta_3D_a( vi,k) = calc_effective_viscosity_Glen_3D_uv_only( &

@@ -79,7 +79,7 @@ CONTAINS
       ! Run the ice dynamics model to calculate ice velocities, thinning rates,
       ! and a new next modelled ice thickness.
       IF     (C%choice_timestepping == 'direct') THEN
-        CALL crash('direct timestepping not implemented yet')
+        CALL run_ice_dynamics_model_direct( region, dt_max)
       ELSEIF (C%choice_timestepping == 'pc') THEN
         CALL run_ice_dynamics_model_pc( region, dt_max)
       ELSE
@@ -317,6 +317,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'run_ice_dynamics_model_pc'
+    REAL(dp)                                              :: dt_crit_adv
     REAL(dp), DIMENSION(:    ), ALLOCATABLE               :: Hi_dummy
     INTEGER                                               :: vi
 
@@ -348,6 +349,10 @@ CONTAINS
 
     ! Limit time step to minimum allowed value
     region%ice%pc%dt_np1 = MAX( region%ice%pc%dt_np1, C%dt_ice_min)
+
+    ! Limit time step to critical advective time step
+    CALL calc_critical_timestep_adv( region%mesh, region%ice, dt_crit_adv)
+    region%ice%pc%dt_np1 = MIN( region%ice%pc%dt_np1, dt_crit_adv)
 
     ! Calculate time step ratio
     region%ice%pc%zeta_t = region%ice%pc%dt_np1 / region%ice%pc%dt_n
@@ -436,7 +441,7 @@ CONTAINS
     pc%eta_n = pc%eta_np1
 
     ! Calculate the maximum truncation error eta
-    pc%eta_np1 = MAXVAL( pc%tau_np1)
+    pc%eta_np1 = MAX( C%pc_eta_min, MAXVAL( pc%tau_np1))
     CALL MPI_ALLREDUCE( MPI_IN_PLACE, pc%eta_np1, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
 
     ! Finalise routine path
@@ -687,6 +692,70 @@ CONTAINS
 ! ===== Direct scheme =====
 ! =========================
 
+  SUBROUTINE run_ice_dynamics_model_direct( region, dt_max)
+    ! Calculate a new next modelled ice thickness
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_model_region),                INTENT(INOUT) :: region
+    REAL(dp),                               INTENT(IN)    :: dt_max
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'run_ice_dynamics_model_direct'
+    REAL(dp)                                              :: dt_crit_SIA, dt_crit_adv, dt
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Safety
+    IF (.NOT. (C%choice_stress_balance_approximation == 'SIA' .OR. &
+               C%choice_stress_balance_approximation == 'SSA' .OR. &
+               C%choice_stress_balance_approximation == 'SIA/SSA')) THEN
+      CALL crash('direct timestepping only works for SIA, SSA, or SIA/SSA ice dynamics!')
+    END IF
+
+    ! Store previous ice model state
+    region%ice%t_Hi_prev  = region%ice%t_Hi_next
+    region%ice%Hi_prev    = region%ice%Hi_next
+
+    ! Calculate ice velocities
+    CALL solve_stress_balance( region%mesh, region%ice, region%BMB%BMB)
+
+    ! Calculate time step
+
+    ! Start with the maximum allowed time step
+    dt = dt_max
+
+    ! Limit to the SIA critical time step
+    IF (C%choice_stress_balance_approximation == 'SIA' .OR. &
+        C%choice_stress_balance_approximation == 'SIA/SSA') THEN
+      CALL calc_critical_timestep_SIA( region%mesh, region%ice, dt_crit_SIA)
+      dt = MIN( dt, dt_crit_SIA)
+    END IF
+
+    ! Limit to the advective critical time step
+    IF (C%choice_stress_balance_approximation == 'SSA' .OR. &
+        C%choice_stress_balance_approximation == 'SIA/SSA') THEN
+      CALL calc_critical_timestep_adv( region%mesh, region%ice, dt_crit_adv)
+      dt = MIN( dt, dt_crit_adv)
+    END IF
+
+    ! Limit to the smallest allowed time step
+    dt = MAX( C%dt_ice_min, dt)
+
+    ! Calculate thinning rates and predicted geometry
+    CALL calc_dHi_dt( region%mesh, region%ice%Hi, region%ice%u_vav_b, region%ice%v_vav_b, region%SMB%SMB, region%BMB%BMB, dt, &
+      region%ice%dHi_dt, region%ice%Hi_next)
+
+    ! Set next modelled ice thickness timestamp
+    region%ice%t_Hi_next = region%ice%t_Hi_prev + dt
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE run_ice_dynamics_model_direct
+
   SUBROUTINE calc_critical_timestep_SIA( mesh, ice, dt_crit_SIA)
     ! Calculate the critical time step for advective ice flow (CFL criterion)
 
@@ -699,12 +768,16 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_critical_timestep_SIA'
+    REAL(dp), DIMENSION(mesh%nV)                       :: Hi_tot
     INTEGER                                            :: ti, via, vib, vic
     REAL(dp)                                           :: d_ab, d_bc, d_ca, d_min, Hi, D_SIA, dt
     REAL(dp), PARAMETER                                :: dt_correction_factor = 0.9_dp ! Make actual applied time step a little bit smaller, just to be sure.
 
     ! Add routine to path
     CALL init_routine( routine_name)
+
+    ! Gather global ice thickness
+    CALL gather_to_all_dp_1D( ice%Hi, Hi_tot)
 
     ! Initialise time step with maximum allowed value
     dt_crit_SIA = C%dt_ice_max
@@ -723,17 +796,17 @@ CONTAINS
       d_min = MINVAL([ d_ab, d_bc, d_ca])
 
       ! Find maximum diffusivity in the vertical column
-      D_SIA = MAXVAL( ABS( ice%SIA%D_3D_b( ti,:)))
+      D_SIA = MAX( 1E2_dp, MAXVAL( ABS( ice%SIA%D_3D_b( ti,:))))
 
       ! Calculate critical timestep
-      Hi = MAXVAL( [ice%Hi( via), ice%Hi( vib), ice%Hi( vic)])
-      dt = d_min**2 / (6._dp * Hi * D_SIA)
+      Hi = MAXVAL( [0.1_dp, Hi_tot( via), Hi_tot( vib), Hi_tot( vic)])
+      dt = d_min**2 / (6._dp * Hi * D_SIA) * dt_correction_factor
       dt_crit_SIA = MIN( dt_crit_SIA, dt)
 
     END DO
 
     CALL MPI_ALLREDUCE( MPI_IN_PLACE, dt_crit_SIA, 1, MPI_DOUBLE_PRECISION, MPI_MIN, MPI_COMM_WORLD, ierr)
-    dt_crit_SIA = MIN( C%dt_ice_max, dt_crit_SIA * dt_correction_factor)
+    dt_crit_SIA = MIN( C%dt_ice_max, dt_crit_SIA)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

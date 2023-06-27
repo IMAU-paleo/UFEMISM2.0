@@ -1,8 +1,6 @@
-clc
-clear all
-close all
+function count_lines_of_source_code
 
-main_src_path = '../../src';
+main_src_path = '/Users/berends/Documents/Models/UFEMISM2.0/src';
 
 henk = dir( main_src_path);
 
@@ -55,36 +53,41 @@ R.names = names_new;
 disp(['UFEMISM v2.0 in total contains ' num2str( n_tot) ' lines of code'])
 
 %% plot
-p = pie( R.n, ones( size( R.n)), R.names);
-for i = 1: length( p)
-  if strcmpi( class( p( i)), 'matlab.graphics.primitive.Text')
-    set( p( i), 'fontsize', 24)
+H = pie( R.n, ones( size( R.n)), R.names);
+for i = 1: length( H)
+  if strcmpi( class( H( i)), 'matlab.graphics.primitive.Text')
+    set( H( i), 'fontsize', 24)
   end
 end
 set( gcf,'position',[744   346   827   704],'color','w');
 set( gca,'position',[0.15, 0.1, 0.55, 0.8],'fontsize',24,'ylim',[-1.2,1.4]);
 title( gca,['Total: ' num2str( n_tot)])
 
-function f90_files = find_all_f90_files( henk)
+function f90_files = find_all_f90_files( jan)
 
 f90_files = {};
 
-piet = dir( henk);
+piet = dir( jan);
 
-for i = 1: length( piet)
-  if strcmpi( piet( i).name,'.') || strcmpi( piet( i).name,'..'); continue; end
-  if contains( piet( i).name,'.f90') || contains( piet( i).name,'.F90')
-    f90_files{ end+1} = [henk '/' piet( i).name];
+for p = 1: length( piet)
+  if strcmpi( piet( p).name,'.') || strcmpi( piet( p).name,'..')
+    continue
+  end
+  
+  if contains( piet( p).name,'.f90') || contains( piet( p).name,'.F90')
+    f90_files{ end+1} = [jan '/' piet( p).name];
   end
 end
 
 end
 function n = count_lines( f90_files)
 n = 0;
-for i = 1: length( f90_files)
-  fid = fopen( f90_files{i});
+for fi = 1: length( f90_files)
+  fid = fopen( f90_files{ fi});
   temp = textscan( fid,'%s','delimiter','\n');
   fclose( fid);
   n = n + length( temp{1});
 end
+end
+
 end
