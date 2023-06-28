@@ -1,0 +1,38 @@
+name: Test flakes
+env:
+  os: ubuntu-22.04
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - ready_for_review
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  test:
+    if: github.event.pull_request.draft == false
+    name: ${{ matrix.os }} Flake Test
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ['ubuntu-latest', 'macos-latest']
+
+    steps:
+      - uses: cachix/install-nix-action@v22
+
+      - name: Get nix version
+        run: |
+          nix --version
+
+      - name: Test the build
+        run: |
+          nix build github:IMAU-paleo/UFEMISM2.0/${{github.sha}}?dir=tools/flake
