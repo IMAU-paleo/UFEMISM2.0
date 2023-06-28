@@ -18,7 +18,9 @@ MODULE mesh_remapping
                                                                      add_empty_row_CSR_dist
   USE petsc_basic                                            , ONLY: mat_CSR2petsc, multiply_PETSc_matrix_with_vector_1D, multiply_PETSc_matrix_with_vector_2D, &
                                                                      MatDestroy, MatConvert
-  USE grid_basic                                             , ONLY: type_grid, calc_matrix_operators_grid
+  USE grid_basic                                             , ONLY: type_grid, calc_matrix_operators_grid, gather_gridded_data_to_master_dp_2D, &
+                                                                     distribute_gridded_data_from_master_dp_2D, gather_gridded_data_to_master_dp_3D, &
+                                                                     distribute_gridded_data_from_master_dp_3D
   USE grid_lonlat_basic                                      , ONLY: type_grid_lonlat
   USE mesh_types                                             , ONLY: type_mesh
   USE math_utilities                                         , ONLY: is_in_triangle, lies_on_line_segment, line_integral_xdy, line_integral_mxydx, &
@@ -710,6 +712,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'apply_map_mesh_to_xy_grid_2D'
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: d_grid
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -721,6 +724,36 @@ CONTAINS
 
     ! Perform the mapping operation as a matrix multiplication
     CALL multiply_PETSc_matrix_with_vector_1D( map%M, d_mesh_partial, d_grid_vec_partial)
+
+    ! == Because the remapping operators are sometimes inaccurate at the
+    !     domain boundary, set values in the outermost row of grid cells
+    !    equal to those in the second-outermost row
+
+    IF (par%master) THEN
+      ! Allocate memory for complete gridded data
+      ALLOCATE( d_grid( grid%nx, grid%ny))
+      ! Gather complete gridded data
+      CALL gather_gridded_data_to_master_dp_2D( grid, d_grid_vec_partial, d_grid)
+      ! Set values in the outermost row of grid cells
+      ! equal to those in the second-outermost row
+      d_grid( 1      ,:) = d_grid( 2        ,:)
+      d_grid( grid%nx,:) = d_grid( grid%nx-1,:)
+      d_grid( :,1      ) = d_grid( :,2        )
+      d_grid( :,grid%ny) = d_grid( :,grid%ny-1)
+      ! Distribute complete gridded data back over the processes
+      CALL distribute_gridded_data_from_master_dp_2D( grid, d_grid, d_grid_vec_partial)
+      ! Clean up after yourself
+      DEALLOCATE( d_grid)
+    ELSE ! IF (par%master) THEN
+      ! Allocate zero memory for complete gridded data (only the master needs this)
+      ALLOCATE( d_grid( 0,0))
+      ! Gather complete gridded data
+      CALL gather_gridded_data_to_master_dp_2D( grid, d_grid_vec_partial)
+      ! Distribute complete gridded data back over the processes
+      CALL distribute_gridded_data_from_master_dp_2D( grid, d_grid, d_grid_vec_partial)
+      ! Clean up after yourself
+      DEALLOCATE( d_grid)
+    END IF ! IF (par%master) THEN
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -741,6 +774,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'apply_map_mesh_to_xy_grid_3D'
+    REAL(dp), DIMENSION(:,:,:), ALLOCATABLE            :: d_grid
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -753,6 +787,36 @@ CONTAINS
 
     ! Perform the mapping operation as a matrix multiplication
     CALL multiply_PETSc_matrix_with_vector_2D( map%M, d_mesh_partial, d_grid_vec_partial)
+
+    ! == Because the remapping operators are sometimes inaccurate at the
+    !     domain boundary, set values in the outermost row of grid cells
+    !    equal to those in the second-outermost row
+
+    IF (par%master) THEN
+      ! Allocate memory for complete gridded data
+      ALLOCATE( d_grid( grid%nx, grid%ny, SIZE( d_mesh_partial,2)))
+      ! Gather complete gridded data
+      CALL gather_gridded_data_to_master_dp_3D( grid, d_grid_vec_partial, d_grid)
+      ! Set values in the outermost row of grid cells
+      ! equal to those in the second-outermost row
+      d_grid( 1      ,:,:) = d_grid( 2        ,:,:)
+      d_grid( grid%nx,:,:) = d_grid( grid%nx-1,:,:)
+      d_grid( :,1      ,:) = d_grid( :,2        ,:)
+      d_grid( :,grid%ny,:) = d_grid( :,grid%ny-1,:)
+      ! Distribute complete gridded data back over the processes
+      CALL distribute_gridded_data_from_master_dp_3D( grid, d_grid, d_grid_vec_partial)
+      ! Clean up after yourself
+      DEALLOCATE( d_grid)
+    ELSE ! IF (par%master) THEN
+      ! Allocate zero memory for complete gridded data (only the master needs this)
+      ALLOCATE( d_grid( 0,0,0))
+      ! Gather complete gridded data
+      CALL gather_gridded_data_to_master_dp_3D( grid, d_grid_vec_partial, d_grid)
+      ! Distribute complete gridded data back over the processes
+      CALL distribute_gridded_data_from_master_dp_3D( grid, d_grid, d_grid_vec_partial)
+      ! Clean up after yourself
+      DEALLOCATE( d_grid)
+    END IF ! IF (par%master) THEN
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
