@@ -2264,7 +2264,7 @@ CONTAINS
     CALL generate_filename_XXXXXdotnc( filename_base, BPA%restart_filename)
 
     ! Print to terminal
-    IF (par%master) WRITE(0,'(A)') '   Creating BPA restart file "' // &
+    IF (par%master) WRITE(0,'(A)') '  Creating BPA restart file "' // &
       colour_string( TRIM( BPA%restart_filename), 'light blue') // '"...'
 
     ! Create the NetCDF file

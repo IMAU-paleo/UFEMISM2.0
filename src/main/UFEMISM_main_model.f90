@@ -18,6 +18,7 @@ MODULE UFEMISM_main_model
   USE reference_geometries                                   , ONLY: initialise_reference_geometries_raw, initialise_reference_geometries_on_model_mesh
   USE ice_model_main                                         , ONLY: initialise_ice_dynamics_model, run_ice_dynamics_model, &
                                                                      create_restart_files_ice_model, write_to_restart_files_ice_model
+  USE basal_hydrology                                        , ONLY: run_basal_hydrology_model
   USE thermodynamics_main                                    , ONLY: initialise_thermodynamics_model, run_thermodynamics_model, &
                                                                      create_restart_file_thermo, write_to_restart_file_thermo
   USE climate_main                                           , ONLY: initialise_climate_model, run_climate_model, &
@@ -74,6 +75,9 @@ CONTAINS
 
     ! The main UFEMISM time loop
     main_time_loop: DO WHILE (region%time <= t_end)
+
+      ! Run the subglacial hydrology model
+      CALL run_basal_hydrology_model( region%mesh, region%ice)
 
       ! Run the ice dynamics model to calculate ice geometry at the desired time, and update
       ! velocities, thinning rates, and predicted geometry if necessary

@@ -31,7 +31,8 @@ PROGRAM UFEMISM_program
                                                                      finalise_parallelisation
   USE petsc_basic                                            , ONLY: perr
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string, do_colour_strings, &
-                                                                     initialise_control_and_resource_tracker, print_UFEMISM_start, print_UFEMISM_end
+                                                                     initialise_control_and_resource_tracker, reset_resource_tracker, &
+                                                                     print_UFEMISM_start, print_UFEMISM_end
   USE model_configuration                                    , ONLY: C, initialise_model_configuration
   USE netcdf_resource_tracking                               , ONLY: create_resource_tracking_file, write_to_resource_tracking_file
   USE main_validation                                        , ONLY: run_all_unit_tests
@@ -109,9 +110,29 @@ PROGRAM UFEMISM_program
   IF (C%do_GRL) CALL initialise_model_region( GRL, 'GRL')
   IF (C%do_ANT) CALL initialise_model_region( ANT, 'ANT')
 
-  ! DENK DROM
-  CALL write_to_resource_tracking_file( 0._dp)
+  ! == The coupling time loop
+  ! =========================
 
+  t_coupling = C%start_time_of_run
+
+  DO WHILE (t_coupling < C%end_time_of_run)
+
+    ! Run all model regions forward in time for one coupling interval
+    t_end_models = MIN( C%end_time_of_run, t_coupling + C%dt_coupling)
+
+    IF (C%do_NAM) CALL run_model_region( NAM, t_end_models)
+    IF (C%do_EAS) CALL run_model_region( EAS, t_end_models)
+    IF (C%do_GRL) CALL run_model_region( GRL, t_end_models)
+    IF (C%do_ANT) CALL run_model_region( ANT, t_end_models)
+
+    ! Advance coupling time
+    t_coupling = t_end_models
+
+    ! Write to resource tracking file
+    CALL write_to_resource_tracking_file( t_coupling)
+    CALL reset_resource_tracker
+
+  END DO ! DO WHILE (t_coupling < C%end_time_of_run)
 
 ! ===== FINISH =====
 ! ==================

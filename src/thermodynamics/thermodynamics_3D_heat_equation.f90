@@ -26,6 +26,11 @@ MODULE thermodynamics_3D_heat_equation
                                                                      calc_upwind_heat_flux_derivatives, calc_strain_heating, calc_frictional_heating, &
                                                                      replace_Ti_with_robin_solution
   USE math_utilities                                         , ONLY: tridiagonal_solve
+  USE netcdf_basic                                           , ONLY: create_new_netcdf_file_for_writing, close_netcdf_file, &
+                                                                     open_existing_netcdf_file_for_writing
+  USE netcdf_output                                          , ONLY: generate_filename_XXXXXdotnc, setup_mesh_in_netcdf_file, add_time_dimension_to_file, &
+                                                                     add_zeta_dimension_to_file, add_field_mesh_dp_3D, write_time_to_file, &
+                                                                     write_to_field_multopt_mesh_dp_3D
 
   IMPLICIT NONE
 
@@ -446,5 +451,104 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE solve_1D_heat_equation
+
+  SUBROUTINE write_to_restart_file_thermo_3D_heat_equation( mesh, ice, time)
+    ! Write to the restart NetCDF file for the thermodynamics
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)              :: mesh
+    TYPE(type_ice_model),                INTENT(IN)              :: ice
+    REAL(dp),                            INTENT(IN)              :: time
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'write_to_restart_file_thermo_3D_heat_equation'
+    INTEGER                                                      :: ncid
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! If no NetCDF output should be created, do nothing
+    IF (.NOT. C%do_create_netcdf_output) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
+
+    ! Print to terminal
+    IF (par%master) WRITE(0,'(A)') '   Writing to thermodynamics restart file "' // &
+      colour_string( TRIM( ice%thermo_restart_filename), 'light blue') // '"...'
+
+    ! Open the NetCDF file
+    CALL open_existing_netcdf_file_for_writing( ice%thermo_restart_filename, ncid)
+
+    ! Write the time to the file
+    CALL write_time_to_file( ice%thermo_restart_filename, ncid, time)
+
+    ! Write the velocity fields to the file
+    CALL write_to_field_multopt_mesh_dp_3D( mesh, ice%thermo_restart_filename, ncid, 'Ti', ice%Ti)
+
+    ! Close the file
+    CALL close_netcdf_file( ncid)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE write_to_restart_file_thermo_3D_heat_equation
+
+  SUBROUTINE create_restart_file_thermo_3D_heat_equation( mesh, ice)
+    ! Create a restart NetCDF file for the thermodynamics
+    ! Includes generation of the procedural filename (e.g. "restart_thermo_00001.nc")
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)              :: mesh
+    TYPE(type_ice_model),                INTENT(INOUT)           :: ice
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'create_restart_file_thermo_3D_heat_equation'
+    CHARACTER(LEN=256)                                           :: filename_base
+    INTEGER                                                      :: ncid
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! If no NetCDF output should be created, do nothing
+    IF (.NOT. C%do_create_netcdf_output) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
+
+    ! Set the filename
+    filename_base = TRIM( C%output_dir) // 'restart_thermodynamics'
+    CALL generate_filename_XXXXXdotnc( filename_base, ice%thermo_restart_filename)
+
+    ! Print to terminal
+    IF (par%master) WRITE(0,'(A)') '  Creating thermodynamics restart file "' // &
+      colour_string( TRIM( ice%thermo_restart_filename), 'light blue') // '"...'
+
+    ! Create the NetCDF file
+    CALL create_new_netcdf_file_for_writing( ice%thermo_restart_filename, ncid)
+
+    ! Set up the mesh in the file
+    CALL setup_mesh_in_netcdf_file( ice%thermo_restart_filename, ncid, mesh)
+
+    ! Add a time dimension to the file
+    CALL add_time_dimension_to_file( ice%thermo_restart_filename, ncid)
+
+    ! Add a zeta dimension to the file
+    CALL add_zeta_dimension_to_file( ice%thermo_restart_filename, ncid, mesh%zeta)
+
+    ! Add the temperature field to the file
+    CALL add_field_mesh_dp_3D( ice%thermo_restart_filename, ncid, 'Ti', long_name = 'Englacial temperature', units = 'K')
+
+    ! Close the file
+    CALL close_netcdf_file( ncid)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE create_restart_file_thermo_3D_heat_equation
 
 END MODULE thermodynamics_3D_heat_equation

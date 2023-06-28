@@ -255,6 +255,9 @@ CONTAINS
     ! Take current ice thickness as the initial guess
     Hi_tplusdt = Hi
 
+    ! Apply boundary conditions
+    CALL apply_ice_thickness_BC_matrix( mesh, AA, bb, Hi_tplusdt)
+
     ! Solve for Hi_tplusdt
     CALL solve_matrix_equation_CSR_PETSc( AA, bb, Hi_tplusdt, C%dHi_PETSc_rtol, C%dHi_PETSc_abstol)
 
@@ -373,6 +376,9 @@ CONTAINS
     ! Take current ice thickness as the initial guess
     Hi_tplusdt = Hi
 
+    ! Apply boundary conditions
+    CALL apply_ice_thickness_BC_matrix( mesh, AA, bb, Hi_tplusdt)
+
     ! Solve for Hi_tplusdt
     CALL solve_matrix_equation_CSR_PETSc( AA, bb, Hi_tplusdt, C%dHi_PETSc_rtol, C%dHi_PETSc_abstol)
 
@@ -485,6 +491,148 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE calc_ice_flux_divergence_matrix_upwind
+
+  SUBROUTINE apply_ice_thickness_BC_matrix( mesh, AA, bb, Hi_tplusdt)
+    ! Apply boundary conditions to the ice thickness matrix equation AA * Hi( t+dt) = bb
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh
+    TYPE(type_sparse_matrix_CSR_dp),        INTENT(INOUT) :: AA          ! Stiffness matrix
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(INOUT) :: bb          ! Load vector
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(INOUT) :: Hi_tplusdt  ! Initial guess
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'apply_ice_thickness_BC_matrix'
+    INTEGER                                               :: vi,k1,k2,k,vj
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    DO vi = mesh%vi1, mesh%vi2
+
+      k1 = AA%ptr( vi)
+      k2 = AA%ptr( vi+1) - 1
+
+      IF     (mesh%VBI( vi) == 1 .OR. mesh%VBI( vi) == 2) THEN
+        ! Northern domain border
+
+        SELECT CASE (C%BC_H_north)
+          CASE ('zero')
+            ! Set ice thickness to zero here
+
+            ! Set diagonal element of A to 1, rest of row to 0
+            DO k = k1, k2
+              vj = AA%ind( k)
+              IF (vj == vi) THEN
+                ! Diagonal element
+                AA%val( k) = 1._dp
+              ELSE
+                ! Off-diagonal element
+                AA%val( k) = 0._dp
+              END IF
+            END DO ! DO k = k1, k2
+
+            ! Load vector and initial guess
+            bb( vi) = 0._dp
+            Hi_tplusdt( vi) = 0._dp
+
+          CASE DEFAULT
+            CALL crash('unknown BC_H_north "' // TRIM( C%BC_H_north) // '"')
+        END SELECT
+
+      ELSEIF (mesh%VBI( vi) == 3 .OR. mesh%VBI( vi) == 4) THEN
+        ! Eastern domain border
+
+        SELECT CASE (C%BC_H_east)
+          CASE ('zero')
+            ! Set ice thickness to zero here
+
+            ! Set diagonal element of A to 1, rest of row to 0
+            DO k = k1, k2
+              vj = AA%ind( k)
+              IF (vj == vi) THEN
+                ! Diagonal element
+                AA%val( k) = 1._dp
+              ELSE
+                ! Off-diagonal element
+                AA%val( k) = 0._dp
+              END IF
+            END DO ! DO k = k1, k2
+
+            ! Load vector and initial guess
+            bb( vi) = 0._dp
+            Hi_tplusdt( vi) = 0._dp
+
+          CASE DEFAULT
+            CALL crash('unknown BC_H_east "' // TRIM( C%BC_H_east) // '"')
+        END SELECT
+
+      ELSEIF (mesh%VBI( vi) == 5 .OR. mesh%VBI( vi) == 6) THEN
+        ! Southern domain border
+
+        SELECT CASE (C%BC_H_south)
+          CASE ('zero')
+            ! Set ice thickness to zero here
+
+            ! Set diagonal element of A to 1, rest of row to 0
+            DO k = k1, k2
+              vj = AA%ind( k)
+              IF (vj == vi) THEN
+                ! Diagonal element
+                AA%val( k) = 1._dp
+              ELSE
+                ! Off-diagonal element
+                AA%val( k) = 0._dp
+              END IF
+            END DO ! DO k = k1, k2
+
+            ! Load vector and initial guess
+            bb( vi) = 0._dp
+            Hi_tplusdt( vi) = 0._dp
+
+          CASE DEFAULT
+            CALL crash('BC_H_south "' // TRIM( C%BC_H_south) // '"')
+        END SELECT
+
+      ELSEIF (mesh%VBI( vi) == 7 .OR. mesh%VBI( vi) == 8) THEN
+        ! Western domain border
+
+        SELECT CASE (C%BC_H_west)
+          CASE ('zero')
+            ! Set ice thickness to zero here
+
+            ! Set diagonal element of A to 1, rest of row to 0
+            DO k = k1, k2
+              vj = AA%ind( k)
+              IF (vj == vi) THEN
+                ! Diagonal element
+                AA%val( k) = 1._dp
+              ELSE
+                ! Off-diagonal element
+                AA%val( k) = 0._dp
+              END IF
+            END DO ! DO k = k1, k2
+
+            ! Load vector and initial guess
+            bb( vi) = 0._dp
+            Hi_tplusdt( vi) = 0._dp
+
+          CASE DEFAULT
+            CALL crash('BC_H_west "' // TRIM( C%BC_H_west) // '"')
+        END SELECT
+
+      ELSE
+        ! Free vertex
+      END IF
+
+    END DO ! DO vi = mesh%vi1, mesh%vi2
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE apply_ice_thickness_BC_matrix
 
   SUBROUTINE calc_flux_limited_timestep( mesh, ice, dt_max)
     ! Calculate the largest time step that does not result in more

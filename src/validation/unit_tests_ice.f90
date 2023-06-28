@@ -57,9 +57,9 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Run all ice-dynamics-related unit tests
-!    CALL test_ice_velocities_static_Halfar_dome
-!    CALL test_ISMIP_HOM_all
-!    CALL test_thickness_evolution_Halfar_dome_all
+    CALL test_ice_velocities_static_Halfar_dome
+    CALL test_ISMIP_HOM_all
+    CALL test_thickness_evolution_Halfar_dome_all
     CALL test_EISMINT1_ABC
 
     ! Add routine to path
@@ -497,7 +497,7 @@ CONTAINS
   ! ==================
 
     ! Basal hydrology
-    C%choice_basal_hydrology                = 'saturated'                      ! Choice of basal hydrology model: "saturated", "Martin2011"
+    C%choice_basal_hydrology_model          = 'saturated'                      ! Choice of basal hydrology model: "saturated", "Martin2011"
 
   ! == Bed roughness
   ! ==================
@@ -1425,7 +1425,7 @@ CONTAINS
   ! ==================
 
     ! Basal hydrology
-    C%choice_basal_hydrology                = 'saturated'                      ! Choice of basal hydrology model: "saturated", "Martin2011"
+    C%choice_basal_hydrology_model          = 'saturated'                      ! Choice of basal hydrology model: "saturated", "Martin2011"
 
   ! == Bed roughness
   ! ==================
@@ -1595,6 +1595,10 @@ CONTAINS
 
     ! General Halfar dome config
     CALL set_config_for_transient_Halfar_dome( choice_ice_integration_method)
+
+    ! Don't print the time display, Github Actions doesn't like
+    ! it's log files becoming so big
+    C%do_time_display                       = .FALSE.
 
     ! Duration of simulation
     C%start_time_of_run                     = 0._dp
@@ -1880,7 +1884,7 @@ CONTAINS
   ! ==================
 
     ! Basal hydrology
-    C%choice_basal_hydrology                = 'saturated'                      ! Choice of basal hydrology model: "saturated", "Martin2011"
+    C%choice_basal_hydrology_model          = 'saturated'                      ! Choice of basal hydrology model: "saturated", "Martin2011"
 
   ! == Bed roughness
   ! ==================
@@ -2065,6 +2069,10 @@ CONTAINS
     ! Generate the general EISMINT1 config
     CALL set_config_for_EISMINT1
 
+    ! Don't print the time display, Github Actions doesn't like
+    ! it's log files becoming so big
+    C%do_time_display                       = .FALSE.
+
     ! Set parameters specific for this experiment
     C%start_time_of_run                     = -20000._dp
     C%end_time_of_run                       =      0._dp
@@ -2162,10 +2170,6 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'test_EISMINT1_B'
     TYPE(type_model_region)                                            :: region
     REAL(dp)                                                           :: t_end, dt
-    REAL(dp), DIMENSION(2)                                             :: p
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE                            :: Ti_base
-    REAL(dp)                                                           :: Hi_divide, Ti_base_divide
-    LOGICAL                                                            :: found_errors_Hi, found_errors_Ti
     CHARACTER(LEN=256)                                                 :: filename
     INTEGER                                                            :: ncid
 
@@ -2177,6 +2181,10 @@ CONTAINS
 
     ! Generate the general EISMINT1 config
     CALL set_config_for_EISMINT1
+
+    ! Don't print the time display, Github Actions doesn't like
+    ! it's log files becoming so big
+    C%do_time_display                       = .FALSE.
 
     ! Set parameters specific for this experiment
     C%start_time_of_run                     =      0._dp
@@ -2287,10 +2295,6 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'test_EISMINT1_C'
     TYPE(type_model_region)                                            :: region
     REAL(dp)                                                           :: t_end, dt
-    REAL(dp), DIMENSION(2)                                             :: p
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE                            :: Ti_base
-    REAL(dp)                                                           :: Hi_divide, Ti_base_divide
-    LOGICAL                                                            :: found_errors_Hi, found_errors_Ti
     CHARACTER(LEN=256)                                                 :: filename
     INTEGER                                                            :: ncid
 
@@ -2302,6 +2306,10 @@ CONTAINS
 
     ! Generate the general EISMINT1 config
     CALL set_config_for_EISMINT1
+
+    ! Don't print the time display, Github Actions doesn't like
+    ! it's log files becoming so big
+    C%do_time_display                       = .FALSE.
 
     ! Set parameters specific for this experiment
     C%start_time_of_run                     =      0._dp
@@ -2590,7 +2598,7 @@ CONTAINS
   ! ==================
 
     ! Basal hydrology
-    C%choice_basal_hydrology                = 'saturated'                      ! Choice of basal hydrology model: "saturated", "Martin2011"
+    C%choice_basal_hydrology_model          = 'saturated'                      ! Choice of basal hydrology model: "saturated", "Martin2011"
 
   ! == Bed roughness
   ! ==================

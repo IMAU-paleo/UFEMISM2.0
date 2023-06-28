@@ -393,7 +393,7 @@ MODULE model_configuration
   ! ==================
 
     ! Basal hydrology
-    CHARACTER(LEN=256)  :: choice_basal_hydrology_config                = 'Martin2011'                     ! Choice of basal hydrology model: "saturated", "Martin2011"
+    CHARACTER(LEN=256)  :: choice_basal_hydrology_model_config          = 'Martin2011'                     ! Choice of basal hydrology model: "saturated", "Martin2011"
     REAL(dp)            :: Martin2011_hydro_Hb_min_config               = 0._dp                            ! Martin et al. (2011) basal hydrology model: low-end  Hb  value of bedrock-dependent pore-water pressure
     REAL(dp)            :: Martin2011_hydro_Hb_max_config               = 1000._dp                         ! Martin et al. (2011) basal hydrology model: high-end Hb  value of bedrock-dependent pore-water pressure
 
@@ -1064,7 +1064,7 @@ MODULE model_configuration
   ! ==================
 
     ! Basal hydrology
-    CHARACTER(LEN=256)  :: choice_basal_hydrology
+    CHARACTER(LEN=256)  :: choice_basal_hydrology_model
     REAL(dp)            :: Martin2011_hydro_Hb_min
     REAL(dp)            :: Martin2011_hydro_Hb_max
 
@@ -1755,7 +1755,7 @@ CONTAINS
       fixed_shelf_geometry_config                                 , &
       fixed_sheet_geometry_config                                 , &
       fixed_grounding_line_config                                 , &
-      choice_basal_hydrology_config                               , &
+      choice_basal_hydrology_model_config                         , &
       Martin2011_hydro_Hb_min_config                              , &
       Martin2011_hydro_Hb_max_config                              , &
       choice_bed_roughness_config                                 , &
@@ -2350,7 +2350,7 @@ CONTAINS
   ! ==================
 
     ! Basal hydrology
-    C%choice_basal_hydrology                                 = choice_basal_hydrology_config
+    C%choice_basal_hydrology_model                           = choice_basal_hydrology_model_config
     C%Martin2011_hydro_Hb_min                                = Martin2011_hydro_Hb_min_config
     C%Martin2011_hydro_Hb_max                                = Martin2011_hydro_Hb_max_config
 

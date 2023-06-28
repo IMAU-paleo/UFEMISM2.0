@@ -12,11 +12,13 @@ MODULE ice_velocity_DIVA
   USE mpi_basic                                              , ONLY: par, cerr, ierr, MPI_status, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
-  USE netcdf_debug                                           , ONLY: save_variable_as_netcdf_dp_1D, save_variable_as_netcdf_dp_2D
+  USE netcdf_debug                                           , ONLY: write_PETSc_matrix_to_NetCDF, write_CSR_matrix_to_NetCDF, &
+                                                                     save_variable_as_netcdf_int_1D, save_variable_as_netcdf_int_2D, &
+                                                                     save_variable_as_netcdf_dp_1D , save_variable_as_netcdf_dp_2D
+  USE parameters
   USE petsc_basic                                            , ONLY: solve_matrix_equation_CSR_PETSc
   USE mesh_types                                             , ONLY: type_mesh
   USE ice_model_types                                        , ONLY: type_ice_model, type_ice_velocity_solver_DIVA
-  USE parameters
   USE reallocate_mod                                         , ONLY: reallocate_clean
   USE mesh_operators                                         , ONLY: map_a_b_2D, ddx_a_b_2D, ddy_a_b_2D, ddx_b_a_2D, ddy_b_a_2D, map_b_a_3D, map_a_b_3D
   USE mesh_zeta                                              , ONLY: vertical_average, integrate_from_zeta_is_one_to_zeta_is_zetap
@@ -1998,7 +2000,7 @@ CONTAINS
     CALL generate_filename_XXXXXdotnc( filename_base, DIVA%restart_filename)
 
     ! Print to terminal
-    IF (par%master) WRITE(0,'(A)') '   Creating DIVA restart file "' // &
+    IF (par%master) WRITE(0,'(A)') '  Creating DIVA restart file "' // &
       colour_string( TRIM( DIVA%restart_filename), 'light blue') // '"...'
 
     ! Create the NetCDF file

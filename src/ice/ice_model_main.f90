@@ -26,7 +26,9 @@ MODULE ice_model_main
   USE ice_model_scalars                                      , ONLY: calc_ice_model_scalars
   USE ice_thickness                                          , ONLY: calc_dHi_dt
   USE math_utilities                                         , ONLY: ice_surface_elevation, thickness_above_floatation
-  USE basal_conditions_main                                  , ONLY: initialise_basal_conditions
+  USE geothermal_heat_flux                                   , ONLY: initialise_geothermal_heat_flux
+  USE basal_hydrology                                        , ONLY: initialise_basal_hydrology_model
+  USE bed_roughness                                          , ONLY: initialise_bed_roughness
   USE ice_velocity_main                                      , ONLY: initialise_velocity_solver, solve_stress_balance, remap_velocity_solver, &
                                                                      create_restart_file_ice_velocity, write_to_restart_file_ice_velocity, &
                                                                      map_velocities_from_b_to_c_2D
@@ -274,12 +276,14 @@ CONTAINS
     ! ================
 
     ! Allocate and initialise basal conditions
-    CALL initialise_basal_conditions( mesh, ice)
+    CALL initialise_geothermal_heat_flux(  mesh, ice)
+    CALL initialise_basal_hydrology_model( mesh, ice)
+    CALL initialise_bed_roughness(         mesh, ice, region_name)
 
     ! Velocities
     ! ==========
 
-    ! Initialise data and matrices for the velocity solver(s)
+    ! Initialise data for the chosen velocity solver(s)
     CALL initialise_velocity_solver( mesh, ice, region_name)
 
     ! Time stepping
@@ -729,7 +733,7 @@ CONTAINS
     CALL generate_filename_XXXXXdotnc( filename_base, pc%restart_filename)
 
     ! Print to terminal
-    IF (par%master) WRITE(0,'(A)') '   Creating ice dynamics restart file "' // &
+    IF (par%master) WRITE(0,'(A)') '  Creating ice dynamics restart file "' // &
       colour_string( TRIM( pc%restart_filename), 'light blue') // '"...'
 
     ! Create the NetCDF file
@@ -898,6 +902,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_critical_timestep_adv'
+    REAL(dp), DIMENSION(mesh%nV)                       :: Hi_tot
     REAL(dp), DIMENSION(mesh%ei1:mesh%ei2)             :: u_vav_c, v_vav_c
     REAL(dp), DIMENSION(mesh%nE)                       :: u_vav_c_tot, v_vav_c_tot
     INTEGER                                            :: ei, vi, vj
@@ -906,6 +911,9 @@ CONTAINS
 
     ! Add routine to path
     CALL init_routine( routine_name)
+
+    ! Gather global ice thickness
+    CALL gather_to_all_dp_1D( ice%Hi, Hi_tot)
 
     ! Calculate vertically averaged ice velocities on the edges
     CALL map_velocities_from_b_to_c_2D( mesh, ice%u_vav_b, ice%v_vav_b, u_vav_c, v_vav_c)
@@ -920,10 +928,10 @@ CONTAINS
       ! Only check at ice-covered vertices
       vi = mesh%EV( ei,1)
       vj = mesh%EV( ei,2)
-      IF (ice%Hi( vi) == 0._dp .OR. ice%Hi( vj) == 0._dp) CYCLE
+      IF (Hi_tot( vi) == 0._dp .OR. Hi_tot( vj) == 0._dp) CYCLE
 
       dist = NORM2( mesh%V( vi,:) - mesh%V( vj,:))
-      dt = dist / (ABS( u_vav_c_tot( ei)) + ABS( v_vav_c_tot( ei)))
+      dt = dist / MAX( 0.1_dp, ABS( u_vav_c_tot( ei)) + ABS( v_vav_c_tot( ei)))
       dt_crit_adv = MIN( dt_crit_adv, dt)
 
     END DO

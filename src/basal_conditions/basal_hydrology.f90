@@ -21,8 +21,11 @@ MODULE basal_hydrology
 
 CONTAINS
 
-  SUBROUTINE calc_basal_hydrology( mesh, ice)
-    ! Calculate the pore water pressure and effective basal pressure
+  ! ===== Main routines =====
+  ! =========================
+
+  SUBROUTINE run_basal_hydrology_model( mesh, ice)
+    ! Run the chosen basal hydrology model
 
     IMPLICIT NONE
 
@@ -31,7 +34,7 @@ CONTAINS
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_basal_hydrology'
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_basal_hydrology_model'
     INTEGER                                            :: vi
 
     ! Add routine to path
@@ -40,14 +43,11 @@ CONTAINS
     ! Calculate pore water pressure using the chosen basal hydrology model
     ! ====================================================================
 
-    IF     (C%choice_basal_hydrology == 'saturated') THEN
-      ! Assume all marine till is saturated (i.e. pore water pressure is equal to water pressure at depth everywhere)
-      CALL calc_pore_water_pressure_saturated( mesh, ice)
-    ELSEIF (C%choice_basal_hydrology == 'Martin2011') THEN
+    IF     (C%choice_basal_hydrology_model == 'Martin2011') THEN
       ! The Martin et al. (2011) parameterisation of pore water pressure
       CALL calc_pore_water_pressure_Martin2011( mesh, ice)
     ELSE
-      CALL crash('unknown choice_basal_hydrology "' // TRIM( C%choice_basal_hydrology) // '"!')
+      CALL crash('unknown choice_basal_hydrology_model "' // TRIM( C%choice_basal_hydrology_model) // '"!')
     END IF
 
     ! Calculate overburden and effective pressure
@@ -61,9 +61,9 @@ CONTAINS
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
-  END SUBROUTINE calc_basal_hydrology
+  END SUBROUTINE run_basal_hydrology_model
 
-  SUBROUTINE initialise_basal_hydrology( mesh, ice)
+  SUBROUTINE initialise_basal_hydrology_model( mesh, ice)
     ! Allocation and initialisation
 
     IMPLICIT NONE
@@ -73,56 +73,52 @@ CONTAINS
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_basal_hydrology'
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_basal_hydrology_model'
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! Allocate shared memory
-    IF     (C%choice_basal_hydrology == 'saturated') THEN
-      ALLOCATE( ice%pore_water_pressure( mesh%vi1:mesh%vi2))
-      ALLOCATE( ice%overburden_pressure( mesh%vi1:mesh%vi2))
-      ALLOCATE( ice%effective_pressure(  mesh%vi1:mesh%vi2))
-    ELSEIF (C%choice_basal_hydrology == 'Martin2011') THEN
-      ALLOCATE( ice%pore_water_pressure( mesh%vi1:mesh%vi2))
-      ALLOCATE( ice%overburden_pressure( mesh%vi1:mesh%vi2))
-      ALLOCATE( ice%effective_pressure(  mesh%vi1:mesh%vi2))
+    ! Initialise the chosen basal hydrology model
+    IF     (C%choice_basal_hydrology_model == 'Martin2011') THEN
+      ! No need to do anything
     ELSE
-      CALL crash('unknown choice_basal_hydrology "' // TRIM( C%choice_basal_hydrology) // '"!')
+      CALL crash('unknown choice_basal_hydrology_model "' // TRIM( C%choice_basal_hydrology_model) // '"')
     END IF
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
-  END SUBROUTINE initialise_basal_hydrology
+  END SUBROUTINE initialise_basal_hydrology_model
 
-  SUBROUTINE calc_pore_water_pressure_saturated( mesh, ice)
-    ! Calculate the pore water pressure
-    !
-    ! Assume all till is saturated, i.e. pore water pressure = -rho_w * g * Hb
+  SUBROUTINE remap_basal_hydrology( mesh_old, mesh_new, ice)
+    ! Remap or reallocate all the data fields
 
     IMPLICIT NONE
 
-    ! Input variables:
-    TYPE(type_mesh),                     INTENT(IN)    :: mesh
+    ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh_old
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh_new
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_pore_water_pressure_saturated'
-    INTEGER                                            :: vi
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'remap_basal_hydrology'
+    INTEGER                                            :: int_dummy
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    DO vi = mesh%vi1, mesh%vi2
-      ice%pore_water_pressure( vi) = -seawater_density * grav * (ice%SL( vi) - ice%Hb( vi))
-    END DO
+    ! DENK DROM
+    CALL crash('fixme!')
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
-  END SUBROUTINE calc_pore_water_pressure_saturated
+  END SUBROUTINE remap_basal_hydrology
 
+  ! ==== Different basal hydrology models =====
+  ! ===========================================
+
+  ! == Martin et al. (2011)
   SUBROUTINE calc_pore_water_pressure_Martin2011( mesh, ice)
     ! Calculate the pore water pressure
     !
@@ -156,44 +152,5 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE calc_pore_water_pressure_Martin2011
-
-  SUBROUTINE remap_basal_hydrology( mesh_old, mesh_new, ice)
-    ! Remap or reallocate all the data fields
-
-    IMPLICIT NONE
-
-    ! In/output variables:
-    TYPE(type_mesh),                     INTENT(IN)    :: mesh_old
-    TYPE(type_mesh),                     INTENT(IN)    :: mesh_new
-    TYPE(type_ice_model),                INTENT(INOUT) :: ice
-
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'remap_basal_hydrology'
-    INTEGER                                            :: int_dummy
-
-    ! Add routine to path
-    CALL init_routine( routine_name)
-
-    ! To prevent compiler warnings for unused variables
-    int_dummy = mesh_old%nV
-    int_dummy = mesh_new%nV
-
-    ! Allocate shared memory
-    IF     (C%choice_basal_hydrology == 'saturated') THEN
-      CALL reallocate_clean_dp_1D( ice%pore_water_pressure, mesh_new%nV_loc)
-      CALL reallocate_clean_dp_1D( ice%overburden_pressure, mesh_new%nV_loc)
-      CALL reallocate_clean_dp_1D( ice%effective_pressure              , mesh_new%nV_loc)
-    ELSEIF (C%choice_basal_hydrology == 'Martin2011') THEN
-      CALL reallocate_clean_dp_1D( ice%pore_water_pressure, mesh_new%nV_loc)
-      CALL reallocate_clean_dp_1D( ice%overburden_pressure, mesh_new%nV_loc)
-      CALL reallocate_clean_dp_1D( ice%effective_pressure              , mesh_new%nV_loc)
-    ELSE
-      CALL crash('unknown choice_basal_hydrology "' // TRIM( C%choice_basal_hydrology) // '"!')
-    END IF
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE remap_basal_hydrology
 
 END MODULE basal_hydrology
