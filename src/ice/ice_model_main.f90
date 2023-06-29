@@ -931,13 +931,13 @@ CONTAINS
       IF (Hi_tot( vi) == 0._dp .OR. Hi_tot( vj) == 0._dp) CYCLE
 
       dist = NORM2( mesh%V( vi,:) - mesh%V( vj,:))
-      dt = dist / MAX( 0.1_dp, ABS( u_vav_c_tot( ei)) + ABS( v_vav_c_tot( ei)))
+      dt = dist / MAX( 0.1_dp, ABS( u_vav_c_tot( ei)) + ABS( v_vav_c_tot( ei))) * dt_correction_factor
       dt_crit_adv = MIN( dt_crit_adv, dt)
 
     END DO
 
     CALL MPI_ALLREDUCE( MPI_IN_PLACE, dt_crit_adv, 1, MPI_DOUBLE_PRECISION, MPI_MIN, MPI_COMM_WORLD, ierr)
-    dt_crit_adv = MIN( C%dt_ice_max, dt_crit_adv * dt_correction_factor)
+    dt_crit_adv = MIN( C%dt_ice_max, dt_crit_adv)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

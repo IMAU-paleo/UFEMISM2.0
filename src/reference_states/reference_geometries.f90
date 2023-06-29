@@ -1046,7 +1046,7 @@ CONTAINS
     END IF
 
     Hi = C%refgeo_idealised_MISMIP_mod_Hi_init
-    Hb = 720._dp - 778.5_dp * SQRT( x**2 + y**2)/ 750000._dp
+    Hb = 150._dp - 400._dp * SQRT( x**2 + y**2)/ 750000._dp
     SL = 0._dp
     Hs = ice_surface_elevation( Hi, Hb, SL)
 

@@ -497,7 +497,7 @@ CONTAINS
   ! ==================
 
     ! Basal hydrology
-    C%choice_basal_hydrology_model          = 'saturated'                      ! Choice of basal hydrology model: "saturated", "Martin2011"
+    C%choice_basal_hydrology_model          = 'Martin2011'                     ! Choice of basal hydrology model: "saturated", "Martin2011"
 
   ! == Bed roughness
   ! ==================
@@ -1425,7 +1425,7 @@ CONTAINS
   ! ==================
 
     ! Basal hydrology
-    C%choice_basal_hydrology_model          = 'saturated'                      ! Choice of basal hydrology model: "saturated", "Martin2011"
+    C%choice_basal_hydrology_model          = 'Martin2011'                     ! Choice of basal hydrology model: "saturated", "Martin2011"
 
   ! == Bed roughness
   ! ==================
@@ -1884,7 +1884,7 @@ CONTAINS
   ! ==================
 
     ! Basal hydrology
-    C%choice_basal_hydrology_model          = 'saturated'                      ! Choice of basal hydrology model: "saturated", "Martin2011"
+    C%choice_basal_hydrology_model          = 'Martin2011'                     ! Choice of basal hydrology model: "saturated", "Martin2011"
 
   ! == Bed roughness
   ! ==================
@@ -2598,7 +2598,7 @@ CONTAINS
   ! ==================
 
     ! Basal hydrology
-    C%choice_basal_hydrology_model          = 'saturated'                      ! Choice of basal hydrology model: "saturated", "Martin2011"
+    C%choice_basal_hydrology_model          = 'Martin2011'                     ! Choice of basal hydrology model: "saturated", "Martin2011"
 
   ! == Bed roughness
   ! ==================
