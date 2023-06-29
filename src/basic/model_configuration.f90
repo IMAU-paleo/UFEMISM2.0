@@ -312,7 +312,7 @@ MODULE model_configuration
 
     ! Sub-grid scaling of basal friction
     LOGICAL             :: do_GL_subgrid_friction_config                = .TRUE.                           ! Whether or not to scale basal friction with the sub-grid grounded fraction (needed to get proper GL migration; only turn this off for showing the effect on the MISMIP_mod results!)
-    CHARACTER(LEN=256)  :: choice_subgrid_grounded_fraction_config      = 'bedrock_CDF'                    ! Choice of scheme to calculate the sub-grid grounded fractions: 'trilin', 'bedrock_CDF'
+    CHARACTER(LEN=256)  :: choice_subgrid_grounded_fraction_config      = 'bedrock_CDF'                    ! Choice of scheme to calculate the sub-grid grounded fractions: 'bilin_interp_TAF', 'bedrock_CDF'
     INTEGER             :: subgrid_bedrock_cdf_nbins_config             = 11                               ! Number of bins to be used for sub-grid bedrock cumulative density functions
     REAL(dp)            :: subgrid_friction_exponent_config             = 2._dp                            ! Exponent to which f_grnd should be raised before being used to scale beta
 

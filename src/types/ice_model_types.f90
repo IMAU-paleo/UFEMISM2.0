@@ -216,10 +216,13 @@ MODULE ice_model_types
     INTEGER,  DIMENSION(:    ), ALLOCATABLE :: basin_ID                    ! The drainage basin to which each vertex belongs
 
     ! Area fractions
-    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: bedrock_cdf                 ! Sub-grid bedrock cumulative density functions
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: fraction_gr                 ! [0-1] Grounded area fractions of vertices
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: fraction_gr_b               ! [0-1] Grounded area fractions of triangles
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: fraction_cf                 ! [0-1] Ice-covered area fractions of calving fronts
+
+    ! Sub-grid bedrock cumulative density functions (CDFs)
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: bedrock_cdf                 ! [-] Sub-grid bedrock cumulative density functions on the a-grid (vertices)
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: bedrock_cdf_b               ! [-] Sub-grid bedrock cumulative density functions on the b-grid (triangles)
 
   ! === Terrain-following coordinate zeta gradients ===
   ! ===================================================

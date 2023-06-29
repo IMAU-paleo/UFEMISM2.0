@@ -5,23 +5,29 @@ MODULE ice_model_utilities
 ! ===== Preamble =====
 ! ====================
 
+#include <petsc/finclude/petscksp.h>
+  USE petscksp
   USE mpi
   USE precisions                                             , ONLY: dp
-  USE mpi_basic                                              , ONLY: par, sync, ierr
-  USE control_resources_and_error_messaging                  , ONLY: init_routine, finalise_routine, crash
+  USE mpi_basic                                              , ONLY: par, cerr, ierr, MPI_status, sync
+  USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
-  USE parameters                                             , ONLY: ice_density, seawater_density
+  USE netcdf_debug                                           , ONLY: write_PETSc_matrix_to_NetCDF, write_CSR_matrix_to_NetCDF, &
+                                                                     save_variable_as_netcdf_int_1D, save_variable_as_netcdf_int_2D, &
+                                                                     save_variable_as_netcdf_dp_1D , save_variable_as_netcdf_dp_2D
+  USE parameters
   USE mesh_types                                             , ONLY: type_mesh
   USE ice_model_types                                        , ONLY: type_ice_model
   USE reference_geometries                                   , ONLY: type_reference_geometry
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_logical_1D
-  USE math_utilities                                         , ONLY: is_floating
+  USE math_utilities                                         , ONLY: is_floating, triangle_area
   USE mesh_remapping                                         , ONLY: Atlas, create_map_from_xy_grid_to_mesh
   USE petsc_basic                                            , ONLY: mat_petsc2CSR
   USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp, deallocate_matrix_CSR_dist
   USE grid_basic                                             , ONLY: gather_gridded_data_to_master_dp_2D
   USE mesh_operators                                         , ONLY: ddx_a_a_2D, ddy_a_a_2D, map_a_b_2D, ddx_a_b_2D, ddy_a_b_2D, &
                                                                      ddx_b_a_2D, ddy_b_a_2D
+  USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_1D
 
   IMPLICIT NONE
 
@@ -29,6 +35,9 @@ CONTAINS
 
 ! ===== Subroutines =====
 ! =======================
+
+  ! == Masks
+  ! ========
 
   SUBROUTINE determine_masks( mesh, ice)
     ! Determine the different masks
@@ -185,26 +194,428 @@ CONTAINS
 
   END SUBROUTINE determine_masks
 
+  ! == Sub-grid grounded fractions
+  ! ==============================
+
+  SUBROUTINE calc_grounded_fractions( mesh, ice)
+    ! Calculate the sub-grid grounded-area fractions
+
+    IMPLICIT NONE
+
+    ! In- and output variables
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
+    TYPE(type_ice_model),                INTENT(INOUT) :: ice
+
+    ! Local variables:
+    CHARACTER(len=256), PARAMETER                      :: routine_name = 'calc_grounded_fractions'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Use the specified way of calculating sub-grid grounded fractions
+    IF     (C%choice_subgrid_grounded_fraction == 'bedrock_CDF') THEN
+      CALL calc_grounded_fractions_bedrock_CDF_a( mesh, ice)
+    ELSEIF (C%choice_subgrid_grounded_fraction == 'bilin_interp_TAF') THEN
+      CALL calc_grounded_fractions_bilin_interp_TAF_a( mesh, ice)
+      CALL calc_grounded_fractions_bilin_interp_TAF_b( mesh, ice)
+    ELSE
+      CALL crash('unknown choice_subgrid_grounded_fraction "' // TRIM( C%choice_subgrid_grounded_fraction) // '"')
+    END IF
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE calc_grounded_fractions
+
+  ! From bilinear interpolation of thickness above floatation
+  SUBROUTINE calc_grounded_fractions_bilin_interp_TAF_a( mesh, ice)
+    ! Calculate the sub-grid grounded fractions of the vertices
+    !
+    ! Bilinearly interpolate the thickness above floatation (the CISM/PISM approach)
+
+    IMPLICIT NONE
+
+    ! In- and output variables
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
+    TYPE(type_ice_model),                INTENT(INOUT) :: ice
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_grounded_fractions_bilin_interp_TAF_a'
+    REAL(dp), DIMENSION(mesh%nV)                       :: TAF_tot
+    REAL(dp), DIMENSION(mesh%ti1:mesh%ti2)             :: TAF_b
+    REAL(dp), DIMENSION(mesh%nTri)                     :: TAF_b_tot
+    INTEGER                                            :: vi, ci, vj, iti, iti2, ti1, ti2
+    REAL(dp)                                           :: TAF_max, TAF_min
+    REAL(dp), DIMENSION(2)                             :: va, ccb1, ccb2
+    REAL(dp)                                           :: TAFa, TAFb, TAFc, A_vor, A_tri_tot, A_tri_grnd, A_grnd
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Gather global thickness above floatation
+    CALL gather_to_all_dp_1D( ice%TAF, TAF_tot)
+
+    ! Map thickness-above-floatation to the b-grid
+    CALL map_a_b_2D(  mesh, ice%TAF, TAF_b)
+
+    ! Gather global thickness above floatation on the b-grid
+    CALL gather_to_all_dp_1D( TAF_b, TAF_b_tot)
+
+    DO vi = mesh%vi1, mesh%vi2
+
+      ! Determine maximum and minimum TAF of the local neighbourhood
+      TAF_max = -1E6_dp
+      TAF_min =  1E6_dp
+
+      TAF_max = MAX( TAF_max, TAF_tot( vi))
+      TAF_min = MIN( TAF_min, TAF_tot( vi))
+
+      DO ci = 1, mesh%nC( vi)
+        vj = mesh%C( vi,ci)
+        TAF_max = MAX( TAF_max, TAF_tot( vj))
+        TAF_min = MIN( TAF_min, TAF_tot( vj))
+      END DO
+
+      ! If the entire local neighbourhood is grounded, the answer is trivial
+      IF (TAF_min >= 0._dp) THEN
+        ice%fraction_gr( vi) = 1._dp
+        CYCLE
+      END IF
+
+      ! If the entire local neighbourhood is floating, the answer is trivial
+      IF (TAF_max <= 0._dp) THEN
+        ice%fraction_gr( vi) = 0._dp
+        CYCLE
+      END IF
+
+      ! The local neighbourhood contains both grounded and floating vertices.
+      A_vor  = 0._dp
+      A_grnd = 0._dp
+
+      va   = mesh%V( vi,:)
+      TAFa = TAF_tot( vi)
+
+      DO iti = 1, mesh%niTri( vi)
+
+        iti2 = iti + 1
+        IF (iti == mesh%niTri( vi)) iti2 = 1
+
+        ti1 = mesh%iTri( vi,iti )
+        ti2 = mesh%iTri( vi,iti2)
+
+        ccb1 = mesh%Tricc( ti1,:)
+        ccb2 = mesh%Tricc( ti2,:)
+
+        TAFb = TAF_b_tot( ti1)
+        TAFc = TAF_b_tot( ti2)
+
+        ! Calculate total area of, and grounded area within, this subtriangle
+        CALL calc_grounded_area_triangle( va, ccb1, ccb2, TAFa, TAFb, TAFc, A_tri_tot, A_tri_grnd)
+
+        A_vor  = A_vor  + A_tri_tot
+        A_grnd = A_grnd + A_tri_grnd
+
+      END DO ! DO iati = 1, mesh%niTriAaAc( avi)
+
+      ! Calculate the sub-grid grounded fraction of this Voronoi cell
+      ice%fraction_gr( vi) = A_grnd / A_vor
+      ! Safety
+      ice%fraction_gr( vi) = MIN( 1._dp, MAX( 0._dp, ice%fraction_gr( vi)))
+
+    END DO
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE calc_grounded_fractions_bilin_interp_TAF_a
+
+  SUBROUTINE calc_grounded_fractions_bilin_interp_TAF_b( mesh, ice)
+    ! Calculate the sub-grid grounded fractions of the triangles
+    !
+    ! Bilinearly interpolate the thickness above floatation (the CISM/PISM approach)
+
+    IMPLICIT NONE
+
+    ! In- and output variables
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
+    TYPE(type_ice_model),                INTENT(INOUT) :: ice
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_grounded_fractions_bilin_interp_TAF_b'
+    REAL(dp), DIMENSION(mesh%nV)                       :: TAF_tot
+    INTEGER                                            :: ti, via, vib, vic
+    REAL(dp)                                           :: TAF_max, TAF_min
+    REAL(dp), DIMENSION(2)                             :: va, vb, vc
+    REAL(dp)                                           :: TAFa, TAFb, TAFc, A_tri_tot, A_tri_grnd
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Gather global thickness above floatation
+    CALL gather_to_all_dp_1D( ice%TAF, TAF_tot)
+
+    DO ti = mesh%ti1, mesh%ti2
+
+      ! The indices of the three vertices spanning triangle ti
+      via = mesh%Tri( ti,1)
+      vib = mesh%Tri( ti,2)
+      vic = mesh%Tri( ti,3)
+
+      ! The coordinates of the three vertices spanning triangle ti
+      va   = mesh%V( via,:)
+      vb   = mesh%V( vib,:)
+      vc   = mesh%V( vic,:)
+
+      ! Thickness above floatation at the three corners of the triangle
+      TAFa = TAF_tot( via)
+      TAFb = TAF_tot( vib)
+      TAFc = TAF_tot( vic)
+
+      ! Determine maximum and minimum TAF of the local neighbourhood
+      TAF_max = MAXVAL([ TAFa, TAFb, TAFc])
+      TAF_min = MINVAL([ TAFa, TAFb, TAFc])
+
+      ! If the entire local neighbourhood is grounded, the answer is trivial
+      IF (TAF_min >= 0._dp) THEN
+        ice%fraction_gr_b( ti) = 1._dp
+        CYCLE
+      END IF
+
+      ! If the entire local neighbourhood is floating, the answer is trivial
+      IF (TAF_max <= 0._dp) THEN
+        ice%fraction_gr_b( ti) = 0._dp
+        CYCLE
+      END IF
+
+      ! Calculate total area of, and grounded area within, this subtriangle
+      CALL calc_grounded_area_triangle( va, vb, vc, TAFa, TAFb, TAFc, A_tri_tot, A_tri_grnd)
+
+      ! Calculate the sub-grid grounded fraction of this Voronoi cell
+      ice%fraction_gr_b( ti) = A_tri_grnd / A_tri_tot
+      ! Safety
+      ice%fraction_gr_b( ti) = MIN( 1._dp, MAX( 0._dp, ice%fraction_gr_b( ti)))
+
+    END DO
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE calc_grounded_fractions_bilin_interp_TAF_b
+
+  SUBROUTINE calc_grounded_area_triangle( va, vb, vc, TAFa, TAFb, TAFc, A_tri_tot, A_tri_grnd)
+    ! Calculate the grounded area of the triangle [va,vb,vc], where the thickness-above-floatation is given at all three corners
+
+    IMPLICIT NONE
+
+    ! In- and output variables
+    REAL(dp), DIMENSION(2),              INTENT(IN)    :: va, vb, vc
+    REAL(dp),                            INTENT(IN)    :: TAFa, TAFb, TAFc
+    REAL(dp),                            INTENT(OUT)   :: A_tri_tot, A_tri_grnd
+
+    ! Local variables:
+    REAL(dp)                                           :: A_flt
+
+    ! Determine total area of this subtriangle
+    A_tri_tot = triangle_area( va, vb, vc)
+
+    IF     (TAFa >= 0._dp .AND. TAFb >= 0._dp .AND. TAFc >= 0._dp) THEN
+      ! If all three corners are grounded, the answer is trivial
+      A_tri_grnd = A_tri_tot
+    ELSEIF (TAFa <= 0._dp .AND. TAFb <= 0._dp .AND. TAFc <= 0._dp) THEN
+      ! If all three corners are floating, the answer is trivial
+      A_tri_grnd = 0._dp
+    ELSE
+      ! At least one corner is grounded and at least one corner is floating
+
+      IF     (TAFa >= 0._dp .AND. TAFb <= 0._dp .AND. TAFc <= 0._dp) THEN
+        ! a is grounded, b and c are floating
+        CALL calc_grounded_area_triangle_1grnd_2flt( va, vb, vc, TAFa, TAFb, TAFc, A_tri_grnd)
+      ELSEIF (TAFa <= 0._dp .AND. TAFb >= 0._dp .AND. TAFc <= 0._dp) THEN
+        ! b is grounded, a and c are floating
+        CALL calc_grounded_area_triangle_1grnd_2flt( vb, vc, va, TAFb, TAFc, TAFa, A_tri_grnd)
+      ELSEIF (TAFa <= 0._dp .AND. TAFb <= 0._dp .AND. TAFc >= 0._dp) THEN
+        ! c is grounded, a and b are floating
+        CALL calc_grounded_area_triangle_1grnd_2flt( vc, va, vb, TAFc, TAFa, TAFb, A_tri_grnd)
+      ELSEIF (TAFa <= 0._dp .AND. TAFb >= 0._dp .AND. TAFc >= 0._dp) THEN
+        ! a is floating, b and c are grounded
+        CALL calc_grounded_area_triangle_1flt_2grnd( va, vb, vc, TAFa, TAFb, TAFc, A_flt)
+        A_tri_grnd = A_tri_tot - A_flt
+      ELSEIF (TAFa >= 0._dp .AND. TAFb <= 0._dp .AND. TAFc >= 0._dp) THEN
+        ! b is floating, c and a are grounded
+        CALL calc_grounded_area_triangle_1flt_2grnd( vb, vc, va, TAFb, TAFc, TAFa, A_flt)
+        A_tri_grnd = A_tri_tot - A_flt
+      ELSEIF (TAFa >= 0._dp .AND. TAFb >= 0._dp .AND. TAFc <= 0._dp) THEN
+        ! c is floating, a and b are grounded
+        CALL calc_grounded_area_triangle_1flt_2grnd( vc, va, vb, TAFc, TAFa, TAFb, A_flt)
+        A_tri_grnd = A_tri_tot - A_flt
+      ELSE
+        A_tri_grnd = 0._dp
+        CALL crash('TAF = [{dp_01},{dp_02},{dp_03}]', dp_01 = TAFa, dp_02 = TAFb, dp_03 = TAFc)
+      END IF
+
+    END IF
+
+  END SUBROUTINE calc_grounded_area_triangle
+
+  SUBROUTINE calc_grounded_area_triangle_1grnd_2flt( va, vb, vc, TAFa, TAFb, TAFc, A_tri_grnd)
+    ! Calculate the grounded area of the triangle [va,vb,vc], where vertex a is grounded
+    ! and b and c are floating
+
+    IMPLICIT NONE
+
+    ! In- and output variables
+    REAL(dp), DIMENSION(2),              INTENT(IN)    :: va, vb, vc
+    REAL(dp),                            INTENT(IN)    :: TAFa, TAFb, TAFc
+    REAL(dp),                            INTENT(OUT)   :: A_tri_grnd
+
+    ! Local variables:
+    REAL(dp)                                           :: lambda_ab, lambda_ac
+    REAL(dp), DIMENSION(2)                             :: pab, pac
+
+    lambda_ab = TAFa / (TAFa - TAFb)
+    pab = (va * (1._dp - lambda_ab)) + (vb * lambda_ab)
+
+    lambda_ac = TAFa / (TAFa - TAFc)
+    pac = (va * (1._dp - lambda_ac)) + (vc * lambda_ac)
+
+    A_tri_grnd = triangle_area( va, pab, pac)
+
+  END SUBROUTINE calc_grounded_area_triangle_1grnd_2flt
+
+  SUBROUTINE calc_grounded_area_triangle_1flt_2grnd( va, vb, vc, TAFa, TAFb, TAFc, A_tri_flt)
+    ! Calculate the grounded area of the triangle [va,vb,vc], where vertex a is floating
+    ! and b and c are grounded
+
+    IMPLICIT NONE
+
+    ! In- and output variables
+    REAL(dp), DIMENSION(2),              INTENT(IN)    :: va, vb, vc
+    REAL(dp),                            INTENT(IN)    :: TAFa, TAFb, TAFc
+    REAL(dp),                            INTENT(OUT)   :: A_tri_flt
+
+    ! Local variables:
+    REAL(dp)                                           :: lambda_ab, lambda_ac
+    REAL(dp), DIMENSION(2)                             :: pab, pac
+
+    lambda_ab = TAFa / (TAFa - TAFb)
+    pab = (va * (1._dp - lambda_ab)) + (vb * lambda_ab)
+
+    lambda_ac = TAFa / (TAFa - TAFc)
+    pac = (va * (1._dp - lambda_ac)) + (vc * lambda_ac)
+
+    A_tri_flt = triangle_area( va, pab, pac)
+
+  END SUBROUTINE calc_grounded_area_triangle_1flt_2grnd
+
+  ! From sub-grid bedrock cumulative density functions
+  SUBROUTINE calc_grounded_fractions_bedrock_CDF_a( mesh, ice)
+    ! Calculate the sub-grid grounded fractions of the vertices
+    !
+    ! Use the sub-grid bedrock cumulative density functions (CDFs)
+
+    IMPLICIT NONE
+
+    ! In- and output variables
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
+    TYPE(type_ice_model),                INTENT(INOUT) :: ice
+
+    ! Local variables:
+    CHARACTER(len=256), PARAMETER                      :: routine_name = 'calc_grounded_fractions_bedrock_CDF_a'
+    INTEGER                                            :: vi, il, iu, ti
+    REAL(dp)                                           :: hb_float, wl, wu
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! === On the a-grid ===
+    ! =====================
+
+    DO vi = mesh%vi1, mesh%vi2
+
+      ! Edge vertices
+      IF (mesh%VBI( vi) > 0) THEN
+        ! Either 0 or 1 depending on land mask
+        IF (ice%mask_icefree_land( vi) .OR. ice%mask_grounded_ice( vi)) THEN
+          ice%fraction_gr( vi) = 1._dp
+        ELSE
+          ice%fraction_gr( vi) = 0._dp
+        END IF
+        ! Then skip
+        CYCLE
+      END IF
+
+      ! Compute the bedrock depth at which the current ice thickness and sea level
+      ! will make this point afloat. Account for GIA here so we don't have to do it in
+      ! the computation of the cumulative density function (CDF).
+
+      hb_float = ice%SL( vi) - ice%Hi( vi) * ice_density/seawater_density - ice%dHb( vi)
+
+      ! Get the fraction of bedrock within vertex coverage that is below
+      ! hb_float as a linear interpolation of the numbers in the CDF.
+
+      IF     (hb_float <= ice%bedrock_cdf( vi,1)) THEN
+        ! All sub-grid points are above the floating bedrock elevation
+        ice%fraction_gr( vi) = 1._dp
+      ELSEIF (hb_float >= ice%bedrock_cdf( vi,C%subgrid_bedrock_cdf_nbins)) THEN
+        ! All sub-grid points are below the floating bedrock elevation
+        ice%fraction_gr( vi) = 0._dp
+      ELSE
+
+        ! Find the 2 elements in the CDF surrounding hb_float
+        iu = 1
+        DO WHILE (ice%bedrock_cdf( vi,iu) < hb_float)
+          iu = iu+1
+        END DO
+        il = iu-1
+
+        ! Interpolate the two enveloping bedrock bins to find the grounded fraction
+        wl = (ice%bedrock_cdf( vi,iu) - hb_float) / (ice%bedrock_cdf( vi,iu) - ice%bedrock_cdf( vi,il))
+        wu = 1._dp - wl
+        ice%fraction_gr( vi) = 1._dp - (REAL( il-1,dp) * wl + REAL( iu-1) * wu) / REAL( C%subgrid_bedrock_cdf_nbins-1,dp)
+
+        ! Safety
+        ice%fraction_gr( vi) = MIN( 1._dp, MAX( 0._dp, ice%fraction_gr( vi)))
+
+      END IF
+
+    END DO
+
+    ! === On the b-grid ===
+    ! =====================
+
+    ! Map from the a-grid to the b-grid
+    CALL map_a_b_2D( mesh, ice%fraction_gr, ice%fraction_gr_b)
+
+    ! Safety
+    DO ti = mesh%ti1, mesh%ti2
+      ice%fraction_gr_b( ti) = min( 1._dp, max( 0._dp, ice%fraction_gr_b( ti)))
+    END DO
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE calc_grounded_fractions_bedrock_CDF_a
+
   SUBROUTINE calc_bedrock_CDFs( mesh, refgeo, ice)
     ! Calculate the bedrock cumulative density functions
 
     IMPLICIT NONE
 
     ! In/output variables:
-    TYPE(type_mesh),               INTENT(IN)    :: mesh
-    TYPE(type_reference_geometry), INTENT(IN)    :: refgeo
-    TYPE(type_ice_model),          INTENT(INOUT) :: ice
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
+    TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo
+    TYPE(type_ice_model),                INTENT(INOUT) :: ice
 
     ! Local variables:
-    CHARACTER(len=256), PARAMETER                :: routine_name = 'calc_bedrock_CDFs'
-    TYPE(type_sparse_matrix_CSR_dp)              :: M_map
-    LOGICAL                                      :: found_map, found_empty_page
-    INTEGER                                      :: mi, mi_valid
-    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE      :: Hb_grid_tot
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE      :: hb_list
-    INTEGER                                      :: vi, k, n, i, j
-    INTEGER                                      :: n_grid_cells, ii0, ii1
-    REAL(dp)                                     :: isc, wii0, wii1
+    CHARACTER(len=256), PARAMETER                      :: routine_name = 'calc_bedrock_CDFs'
+    TYPE(type_sparse_matrix_CSR_dp)                    :: M_map
+    LOGICAL                                            :: found_map, found_empty_page
+    INTEGER                                            :: mi, mi_valid
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: Hb_grid_tot
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: Hb_list
+    INTEGER                                            :: vi, k, n, i, j
+    INTEGER                                            :: n_grid_cells, ii0, ii1
+    REAL(dp)                                           :: isc, wii0, wii1
 
     ! === Initialisation ===
     ! ======================
@@ -248,8 +659,8 @@ CONTAINS
     CALL MPI_BCAST( Hb_grid_tot, refgeo%grid_raw%nx * refgeo%grid_raw%ny, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
 
     ! Allocate memory for list of bedrock elevations
-    ALLOCATE( hb_list( refgeo%grid_raw%nx * refgeo%grid_raw%ny ))
-    hb_list = 0._dp
+    ALLOCATE( Hb_list( refgeo%grid_raw%nx * refgeo%grid_raw%ny ))
+    Hb_list = 0._dp
 
     ! Initialise cumulative density function (CDF)
     ice%bedrock_cdf = 0._dp
@@ -260,7 +671,7 @@ CONTAINS
     DO vi = mesh%vi1, mesh%vi2
 
       ! Clear the list
-      hb_list = 0._dp
+      Hb_list = 0._dp
 
       ! Skip vertices at edge of domain
       IF (mesh%VBI( vi) > 0) CYCLE
@@ -275,7 +686,7 @@ CONTAINS
         n = M_map%ind( k)
         i = refgeo%grid_raw%n2ij( n,1)
         j = refgeo%grid_raw%n2ij( n,2)
-        hb_list( n_grid_cells) = Hb_grid_tot( i,j)
+        Hb_list( n_grid_cells) = Hb_grid_tot( i,j)
       END DO
 
       ! Safety
@@ -289,30 +700,30 @@ CONTAINS
       ! === Cumulative density function ===
       ! ===================================
 
-      ! Inefficient but easy sorting of hb_list
+      ! Inefficient but easy sorting of Hb_list
       DO i = 1, n_grid_cells-1
       DO j = i+1, n_grid_cells
-        IF (hb_list( i) > hb_list( j)) THEN
-          hb_list( i) = hb_list( i) + hb_list( j)
-          hb_list( j) = hb_list( i) - hb_list( j)
-          hb_list( i) = hb_list( i) - hb_list( j)
-        end if
+        IF (Hb_list( i) > Hb_list( j)) THEN
+          Hb_list( i) = Hb_list( i) + Hb_list( j)
+          Hb_list( j) = Hb_list( i) - Hb_list( j)
+          Hb_list( i) = Hb_list( i) - Hb_list( j)
+        END IF
       END DO
       END DO
 
       ! Set first (0%) and last bins (100%) of the CDF to the minimum
       ! and maximum bedrock elevations scanned, respectively
-      ice%bedrock_cdf( vi, 1                          ) = hb_list( 1)
-      ice%bedrock_cdf( vi, C%subgrid_bedrock_cdf_nbins) = hb_list( n_grid_cells)
+      ice%bedrock_cdf( vi, 1                          ) = Hb_list( 1)
+      ice%bedrock_cdf( vi, C%subgrid_bedrock_cdf_nbins) = Hb_list( n_grid_cells)
 
       ! Compute the bedrock elevation for each of the other CDF bins
       DO i = 2, C%subgrid_bedrock_cdf_nbins - 1
-        isc  = 1._dp + (REAL( n_grid_cells,dp) - 1._dp) * (REAL( i,dp) - 1._dp) / (C%subgrid_bedrock_cdf_nbins - 1)
-        ii0  = FLOOR( isc)
+        isc  = 1._dp + (REAL( n_grid_cells,dp) - 1._dp) * (REAL( i,dp) - 1._dp) / REAL( C%subgrid_bedrock_cdf_nbins - 1,dp)
+        ii0  = FLOOR(   isc)
         ii1  = CEILING( isc)
         wii0 = REAL( ii1,dp) - isc
         wii1 = 1.0 - wii0
-        ice%bedrock_cdf( vi,i) = wii0 * hb_list( ii0) + wii1 * hb_list( ii1)
+        ice%bedrock_cdf( vi,i) = wii0 * Hb_list( ii0) + wii1 * Hb_list( ii1)
       END DO
 
     END DO
@@ -321,7 +732,7 @@ CONTAINS
     ! ====================
 
     ! Clean up after yourself
-    DEALLOCATE( hb_list)
+    DEALLOCATE( Hb_list)
     DEALLOCATE( Hb_grid_tot)
     CALL deallocate_matrix_CSR_dist( M_map)
 
@@ -330,94 +741,8 @@ CONTAINS
 
   END SUBROUTINE calc_bedrock_CDFs
 
-  subroutine calc_grounded_fractions( mesh, ice)
-    ! Determine the sub-grid grounded-area fractions of all grid cells from a bedrock CDF
-
-    implicit none
-
-    ! In- and output variables
-    type(type_mesh),      intent(in)    :: mesh
-    type(type_ice_model), intent(inout) :: ice
-
-    ! Local variables:
-    character(len=256), parameter       :: routine_name = 'calc_grounded_fractions'
-    integer                             :: vi, il, iu, ti
-    real(dp)                            :: hb_float, wl, wu
-
-    ! Add routine to path
-    call init_routine( routine_name)
-
-    ! === On the a-grid ===
-    ! =====================
-
-    do vi = mesh%vi1, mesh%vi2
-
-      ! Edge vertices
-      if (mesh%VBI( vi) > 0) then
-        ! Either 0 or 1 depending on land mask
-        if (ice%mask_icefree_land( vi) .or. ice%mask_grounded_ice( vi)) then
-          ice%fraction_gr( vi) = 1._dp
-        else
-          ice%fraction_gr( vi) = 0._dp
-        end if
-        ! Then skip
-        cycle
-      end if
-
-      ! Compute the bedrock depth at which the current ice thickness and sea level
-      ! will make this point afloat. Account for GIA here so we don't have to do it in
-      ! the computation of the cumulative density function (CDF).
-
-      hb_float = ice%SL( vi) - ice%Hi( vi) * ice_density/seawater_density - ice%dHb( vi)
-
-      ! Get the fraction of bedrock within vertex coverage that is below
-      ! hb_float as a linear interpolation of the numbers in the CDF.
-
-      if     (hb_float <= minval( ice%bedrock_cdf( vi,:))) then
-        ! All sub-grid points are above the floating bedrock elevation
-        ice%fraction_gr( vi) = 1._dp
-      elseif (hb_float >= maxval( ice%bedrock_cdf( vi,:))) then
-        ! All sub-grid points are below the floating bedrock elevation
-        ice%fraction_gr( vi) = 0._dp
-      else
-        ! Find the 2 elements in the CDF surrounding hb_float
-        iu = 1
-        do while (ice%bedrock_cdf( vi,iu) < hb_float)
-          iu = iu+1
-        end do
-        il = iu-1
-
-        ! Interpolate bedrock to get the weights for both CDF percentages
-        wl = (ice%bedrock_cdf( vi,iu) - hb_float) / (ice%bedrock_cdf( vi,iu)-ice%bedrock_cdf( vi,il))
-        wu = 1._dp - wl
-
-        ! Interpolate between percentages, assuming that there are 11 CDF bins between
-        ! 0% and 100%, at 10% intervals, i.e. element 1 is 0% =(1-1)*10%, element 2 is
-        ! 10% = (2-1)*10%, and so on.
-        ice%fraction_gr( vi) = 1._dp - (10._dp*(il-1)*wl + 10._dp*(iu-1)*wu) / 100._dp
-
-        ! Safety
-        ice%fraction_gr( vi) = min( 1._dp, max( 0._dp, ice%fraction_gr( vi)))
-
-      end if
-
-    end do
-
-    ! === On the b-grid ===
-    ! =====================
-
-    ! Map from the a-grid to the b-grid
-    call map_a_b_2D( mesh, ice%fraction_gr, ice%fraction_gr_b)
-
-    ! Safety
-    do ti = mesh%ti1, mesh%ti2
-      ice%fraction_gr_b( ti) = min( 1._dp, max( 0._dp, ice%fraction_gr_b( ti)))
-    end do
-
-    ! Finalise routine path
-    call finalise_routine( routine_name)
-
-  end subroutine calc_grounded_fractions
+  ! == Zeta gradients
+  ! =================
 
   SUBROUTINE calc_zeta_gradients( mesh, ice)
     ! Calculate all the gradients of zeta, needed to perform the scaled vertical coordinate transformation

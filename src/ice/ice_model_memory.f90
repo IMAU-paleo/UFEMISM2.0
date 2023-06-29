@@ -105,15 +105,20 @@ CONTAINS
     ice%basin_ID                    = 0
 
     ! Area fractions
-    ALLOCATE( ice%bedrock_cdf                 ( mesh%vi1:mesh%vi2, C%subgrid_bedrock_cdf_nbins))  ! Sub-grid bedrock cumulative density functions
     ALLOCATE( ice%fraction_gr                 ( mesh%vi1:mesh%vi2        ))  ! [0-1] Grounded area fractions of vertices
     ALLOCATE( ice%fraction_gr_b               ( mesh%ti1:mesh%ti2        ))  ! [0-1] Grounded area fractions of triangles
     ALLOCATE( ice%fraction_cf                 ( mesh%vi1:mesh%vi2        ))  ! [0-1] Ice-covered area fractions of calving fronts
 
-    ice%bedrock_cdf                 = 0._dp
     ice%fraction_gr                 = 0._dp
     ice%fraction_gr_b               = 0._dp
     ice%fraction_cf                 = 0._dp
+
+    ! Sub-grid bedrock cumulative density functions (CDFs)
+    ALLOCATE( ice%bedrock_cdf                 ( mesh%vi1:mesh%vi2, C%subgrid_bedrock_cdf_nbins))  ! [-] Sub-grid bedrock cumulative density functions on the a-grid (vertices)
+    ALLOCATE( ice%bedrock_cdf_b               ( mesh%ti1:mesh%ti2, C%subgrid_bedrock_cdf_nbins))  ! [-] Sub-grid bedrock cumulative density functions on the b-grid (triangles)
+
+    ice%bedrock_cdf                 = 0._dp
+    ice%bedrock_cdf_b               = 0._dp
 
   ! === Terrain-following coordinate zeta gradients ===
   ! ===================================================
