@@ -312,7 +312,7 @@ MODULE model_configuration
 
     ! Sub-grid scaling of basal friction
     LOGICAL             :: do_GL_subgrid_friction_config                = .TRUE.                           ! Whether or not to scale basal friction with the sub-grid grounded fraction (needed to get proper GL migration; only turn this off for showing the effect on the MISMIP_mod results!)
-    CHARACTER(LEN=256)  :: choice_subgrid_grounded_fraction_config      = 'bedrock_CDF'                    ! Choice of scheme to calculate the sub-grid grounded fractions: 'bilin_interp_TAF', 'bedrock_CDF'
+    CHARACTER(LEN=256)  :: choice_subgrid_grounded_fraction_config      = 'bilin_interp_TAF+bedrock_CDF'   ! Choice of scheme to calculate the sub-grid grounded fractions: 'bilin_interp_TAF', 'bedrock_CDF', 'bilin_interp_TAF+bedrock_CDF'
     INTEGER             :: subgrid_bedrock_cdf_nbins_config             = 11                               ! Number of bins to be used for sub-grid bedrock cumulative density functions
     REAL(dp)            :: subgrid_friction_exponent_config             = 2._dp                            ! Exponent to which f_grnd should be raised before being used to scale beta
 
@@ -324,7 +324,7 @@ MODULE model_configuration
   ! ===========================================
 
     ! Calculation of dH/dt
-    CHARACTER(LEN=256)  :: choice_ice_integration_method_config         = 'explicit'                       ! Choice of ice thickness integration scheme: "none" (i.e. unchanging geometry), "explicit", "semi-implicit"
+    CHARACTER(LEN=256)  :: choice_ice_integration_method_config         = 'semi-implicit'                  ! Choice of ice thickness integration scheme: "none" (i.e. unchanging geometry), "explicit", "semi-implicit"
     REAL(dp)            :: dHi_semiimplicit_fs_config                   = 1.5_dp                           ! Factor for the semi-implicit ice thickness solver (0 = explicit, 0<f<1 = semi-implicit, 1 = implicit, >1 = over-implicit)
     REAL(dp)            :: dHi_PETSc_rtol_config                        = 1E-7_dp                          ! dHi PETSc solver - stop criterion, relative difference (iteration stops if rtol OR abstol is reached)
     REAL(dp)            :: dHi_PETSc_abstol_config                      = 1E-2_dp                          ! dHi PETSc solver - stop criterion, absolute difference
@@ -401,7 +401,7 @@ MODULE model_configuration
   ! ==================
 
     CHARACTER(LEN=256)  :: choice_bed_roughness_config                  = 'uniform'                        ! Choice of source for friction coefficients: "uniform", "parameterised", "read_from_file"
-    CHARACTER(LEN=256)  :: choice_bed_roughness_parameterised_config    = 'Martin2011'                     ! "Martin2011", "SSA_icestream", "MISMIP+", "BIVMIP_A", "BIVMIP_B", "BIVMIP_C"
+    CHARACTER(LEN=256)  :: choice_bed_roughness_parameterised_config    = ''                               ! "Martin2011", "SSA_icestream", "MISMIP+", "BIVMIP_A", "BIVMIP_B", "BIVMIP_C"
     ! Paths to files containing bed roughness fields for the chosen sliding law
     CHARACTER(LEN=256)  :: filename_bed_roughness_NAM_config            = ''
     CHARACTER(LEN=256)  :: filename_bed_roughness_EAS_config            = ''

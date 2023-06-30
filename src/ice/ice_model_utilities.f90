@@ -21,7 +21,7 @@ MODULE ice_model_utilities
   USE reference_geometries                                   , ONLY: type_reference_geometry
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_logical_1D
   USE math_utilities                                         , ONLY: is_floating, triangle_area
-  USE mesh_remapping                                         , ONLY: Atlas, create_map_from_xy_grid_to_mesh
+  USE mesh_remapping                                         , ONLY: Atlas, create_map_from_xy_grid_to_mesh, create_map_from_xy_grid_to_mesh_triangles
   USE petsc_basic                                            , ONLY: mat_petsc2CSR
   USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp, deallocate_matrix_CSR_dist
   USE grid_basic                                             , ONLY: gather_gridded_data_to_master_dp_2D
@@ -208,16 +208,68 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(len=256), PARAMETER                      :: routine_name = 'calc_grounded_fractions'
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)             :: fraction_gr_TAF_a
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)             :: fraction_gr_CDF_a
+    REAL(dp), DIMENSION(mesh%ti1:mesh%ti2)             :: fraction_gr_TAF_b
+    REAL(dp), DIMENSION(mesh%ti1:mesh%ti2)             :: fraction_gr_CDF_b
+    LOGICAL,  DIMENSION(mesh%nV)                       :: mask_floating_ice_tot
+    INTEGER                                            :: ti, via, vib, vic
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
     ! Use the specified way of calculating sub-grid grounded fractions
-    IF     (C%choice_subgrid_grounded_fraction == 'bedrock_CDF') THEN
-      CALL calc_grounded_fractions_bedrock_CDF_a( mesh, ice)
-    ELSEIF (C%choice_subgrid_grounded_fraction == 'bilin_interp_TAF') THEN
-      CALL calc_grounded_fractions_bilin_interp_TAF_a( mesh, ice)
-      CALL calc_grounded_fractions_bilin_interp_TAF_b( mesh, ice)
+    IF     (C%choice_subgrid_grounded_fraction == 'bilin_interp_TAF') THEN
+      ! Bilinearly interpolate the thickness above floatation to calculate the grounded fractions
+
+      CALL calc_grounded_fractions_bilin_interp_TAF_a( mesh, ice, fraction_gr_TAF_a)
+      CALL calc_grounded_fractions_bilin_interp_TAF_b( mesh, ice, fraction_gr_TAF_b)
+
+      ice%fraction_gr   = fraction_gr_TAF_a
+      ice%fraction_gr_b = fraction_gr_TAF_b
+
+    ELSEIF (C%choice_subgrid_grounded_fraction == 'bedrock_CDF') THEN
+      ! Use the sub-grid bedrock cumulative density functions to calculate the grounded fractions
+
+      CALL calc_grounded_fractions_bedrock_CDF_a( mesh, ice, fraction_gr_CDF_a)
+      CALL calc_grounded_fractions_bedrock_CDF_b( mesh, ice, fraction_gr_CDF_a)
+
+      ice%fraction_gr   = fraction_gr_CDF_a
+      ice%fraction_gr_b = fraction_gr_CDF_b
+
+    ELSEIF (C%choice_subgrid_grounded_fraction == 'bilin_interp_TAF+bedrock_CDF') THEN
+      ! Use the TAF method at the grounding line, and the CDF method inland
+
+      CALL calc_grounded_fractions_bilin_interp_TAF_a( mesh, ice, fraction_gr_TAF_a)
+      CALL calc_grounded_fractions_bilin_interp_TAF_b( mesh, ice, fraction_gr_TAF_b)
+
+      CALL calc_grounded_fractions_bedrock_CDF_a( mesh, ice, fraction_gr_CDF_a)
+      CALL calc_grounded_fractions_bedrock_CDF_b( mesh, ice, fraction_gr_CDF_b)
+
+      ! Gather global floating ice mask
+      CALL gather_to_all_logical_1D( ice%mask_floating_ice, mask_floating_ice_tot)
+
+      ! a-grid (vertices): take the smallest value (used for basal melt?)
+      ice%fraction_gr = MIN( fraction_gr_TAF_a, fraction_gr_CDF_a)
+
+      ! b-grid (triangles): take CDF inland, TAF at grounding line (used for basal friction)
+      DO ti = mesh%ti1, mesh%ti2
+
+        ! The three vertices spanning triangle ti
+        via = mesh%Tri( ti,1)
+        vib = mesh%Tri( ti,2)
+        vic = mesh%Tri( ti,3)
+
+        IF (mask_floating_ice_tot( via) .OR. mask_floating_ice_tot( vib) .OR. mask_floating_ice_tot( vic)) THEN
+          ! At least one corner of this triangle is afloat; grounding line
+          ice%fraction_gr_b( ti) = fraction_gr_TAF_b( ti)
+        ELSE
+          ! All three corners of the triangle are grounded: inland
+          ice%fraction_gr_b( ti) = fraction_gr_CDF_b( ti)
+        END IF
+
+      END DO
+
     ELSE
       CALL crash('unknown choice_subgrid_grounded_fraction "' // TRIM( C%choice_subgrid_grounded_fraction) // '"')
     END IF
@@ -228,7 +280,7 @@ CONTAINS
   END SUBROUTINE calc_grounded_fractions
 
   ! From bilinear interpolation of thickness above floatation
-  SUBROUTINE calc_grounded_fractions_bilin_interp_TAF_a( mesh, ice)
+  SUBROUTINE calc_grounded_fractions_bilin_interp_TAF_a( mesh, ice, fraction_gr)
     ! Calculate the sub-grid grounded fractions of the vertices
     !
     ! Bilinearly interpolate the thickness above floatation (the CISM/PISM approach)
@@ -237,7 +289,8 @@ CONTAINS
 
     ! In- and output variables
     TYPE(type_mesh),                     INTENT(IN)    :: mesh
-    TYPE(type_ice_model),                INTENT(INOUT) :: ice
+    TYPE(type_ice_model),                INTENT(IN)    :: ice
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT):: fraction_gr
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_grounded_fractions_bilin_interp_TAF_a'
@@ -278,13 +331,13 @@ CONTAINS
 
       ! If the entire local neighbourhood is grounded, the answer is trivial
       IF (TAF_min >= 0._dp) THEN
-        ice%fraction_gr( vi) = 1._dp
+        fraction_gr( vi) = 1._dp
         CYCLE
       END IF
 
       ! If the entire local neighbourhood is floating, the answer is trivial
       IF (TAF_max <= 0._dp) THEN
-        ice%fraction_gr( vi) = 0._dp
+        fraction_gr( vi) = 0._dp
         CYCLE
       END IF
 
@@ -315,21 +368,19 @@ CONTAINS
         A_vor  = A_vor  + A_tri_tot
         A_grnd = A_grnd + A_tri_grnd
 
-      END DO ! DO iati = 1, mesh%niTriAaAc( avi)
+      END DO ! DO iti = 1, mesh%niTri( vi)
 
       ! Calculate the sub-grid grounded fraction of this Voronoi cell
-      ice%fraction_gr( vi) = A_grnd / A_vor
-      ! Safety
-      ice%fraction_gr( vi) = MIN( 1._dp, MAX( 0._dp, ice%fraction_gr( vi)))
+      fraction_gr( vi) = MIN( 1._dp, MAX( 0._dp, A_grnd / A_vor ))
 
-    END DO
+    END DO ! DO vi = mesh%vi1, mesh%vi2
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE calc_grounded_fractions_bilin_interp_TAF_a
 
-  SUBROUTINE calc_grounded_fractions_bilin_interp_TAF_b( mesh, ice)
+  SUBROUTINE calc_grounded_fractions_bilin_interp_TAF_b( mesh, ice, fraction_gr_b)
     ! Calculate the sub-grid grounded fractions of the triangles
     !
     ! Bilinearly interpolate the thickness above floatation (the CISM/PISM approach)
@@ -338,7 +389,8 @@ CONTAINS
 
     ! In- and output variables
     TYPE(type_mesh),                     INTENT(IN)    :: mesh
-    TYPE(type_ice_model),                INTENT(INOUT) :: ice
+    TYPE(type_ice_model),                INTENT(IN)    :: ice
+    REAL(dp), DIMENSION(mesh%ti1:mesh%ti2), INTENT(OUT):: fraction_gr_b
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_grounded_fractions_bilin_interp_TAF_b'
@@ -377,13 +429,13 @@ CONTAINS
 
       ! If the entire local neighbourhood is grounded, the answer is trivial
       IF (TAF_min >= 0._dp) THEN
-        ice%fraction_gr_b( ti) = 1._dp
+        fraction_gr_b( ti) = 1._dp
         CYCLE
       END IF
 
       ! If the entire local neighbourhood is floating, the answer is trivial
       IF (TAF_max <= 0._dp) THEN
-        ice%fraction_gr_b( ti) = 0._dp
+        fraction_gr_b( ti) = 0._dp
         CYCLE
       END IF
 
@@ -391,11 +443,9 @@ CONTAINS
       CALL calc_grounded_area_triangle( va, vb, vc, TAFa, TAFb, TAFc, A_tri_tot, A_tri_grnd)
 
       ! Calculate the sub-grid grounded fraction of this Voronoi cell
-      ice%fraction_gr_b( ti) = A_tri_grnd / A_tri_tot
-      ! Safety
-      ice%fraction_gr_b( ti) = MIN( 1._dp, MAX( 0._dp, ice%fraction_gr_b( ti)))
+      fraction_gr_b( ti) = MIN( 1._dp, MAX( 0._dp, A_tri_grnd / A_tri_tot ))
 
-    END DO
+    END DO ! DO ti = mesh%ti1, mesh%ti2
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -508,87 +558,99 @@ CONTAINS
   END SUBROUTINE calc_grounded_area_triangle_1flt_2grnd
 
   ! From sub-grid bedrock cumulative density functions
-  SUBROUTINE calc_grounded_fractions_bedrock_CDF_a( mesh, ice)
+  SUBROUTINE calc_grounded_fractions_bedrock_CDF_a( mesh, ice, fraction_gr)
     ! Calculate the sub-grid grounded fractions of the vertices
     !
     ! Use the sub-grid bedrock cumulative density functions (CDFs)
+    !
+    ! This functions tells you for a (configurable) number of bins, which fraction
+    ! of the high-resolution bedrock data inside a Voronoi cell/triangle lies below
+    ! the value of that bin.
+    !
+    ! E.g., suppose we use 5 bins. Suppose that, for a certain vertex, the CDF is:
+    !
+    !   bedrock_CDF( vi,:) = [-1252.0, -1231.6, -1211.5, -1188.5, -1183.4]
+    !
+    ! The value in the first bin indicates the lowest bedrock elevation encountered
+    ! within this Voronoi cell, i.e. 0% of the bedrock is below -1252.0 m. The value
+    ! in the next bin then indicates the next interval, i.e. 25% of the bedrock is
+    ! below -1231.6. And so on until the last, which indicates the highest bedrock
+    ! elevation encountered within this Voronoi cell, i.e. 100% of the bedrock is
+    ! below -1183.4.
+    !
+    ! This can then be used to calculate grounded fractions from ice thicknesses. Suppose
+    ! we have an ice thickness in this Voronoi cell of 1378.2 m. The bedrock elevation
+    ! where this amount of ice would start to float is equal to:
+    !
+    !   Hb_float = -Hi * ice_density / seawater_density = ... = -1220.0 m
+    !
+    ! By looking at the CDF, we can determine that 39.4% of the bedrock in this Voronoi
+    ! cell is below this elevation, yielding a grounded fraction of 60.6%.
+    !
+    ! The bedrock CDF is found by scanning all the high-resolution grid cells (of the
+    ! original ice geometry dataset, e.g. BedMachine) that overlap with the Voronoi cell.
+    ! The bedrock elevations of all these grid cells are listed, and then sorted
+    ! ascendingly. For the example of 5 bins (so intervals of 25%), we'd walk through the
+    ! list of elevations until we've passed 25% of the numbers; the elevation we're at
+    ! by then goes into the second bin. We move forward again until we've passed 50% of
+    ! the numbers; the elevation we're at by that goes into the third bin. Et cetera until
+    ! all the bins are filled. Clever, eh?
 
     IMPLICIT NONE
 
     ! In- and output variables
     TYPE(type_mesh),                     INTENT(IN)    :: mesh
-    TYPE(type_ice_model),                INTENT(INOUT) :: ice
+    TYPE(type_ice_model),                INTENT(IN)    :: ice
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT):: fraction_gr
 
     ! Local variables:
     CHARACTER(len=256), PARAMETER                      :: routine_name = 'calc_grounded_fractions_bedrock_CDF_a'
-    INTEGER                                            :: vi, il, iu, ti
-    REAL(dp)                                           :: hb_float, wl, wu
+    INTEGER                                            :: vi, il, iu
+    REAL(dp)                                           :: Hb_float, wl, wu
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! === On the a-grid ===
-    ! =====================
-
     DO vi = mesh%vi1, mesh%vi2
-
-      ! Edge vertices
-      IF (mesh%VBI( vi) > 0) THEN
-        ! Either 0 or 1 depending on land mask
-        IF (ice%mask_icefree_land( vi) .OR. ice%mask_grounded_ice( vi)) THEN
-          ice%fraction_gr( vi) = 1._dp
-        ELSE
-          ice%fraction_gr( vi) = 0._dp
-        END IF
-        ! Then skip
-        CYCLE
-      END IF
 
       ! Compute the bedrock depth at which the current ice thickness and sea level
       ! will make this point afloat. Account for GIA here so we don't have to do it in
       ! the computation of the cumulative density function (CDF).
 
-      hb_float = ice%SL( vi) - ice%Hi( vi) * ice_density/seawater_density - ice%dHb( vi)
+      Hb_float = ice%SL( vi) - ice%Hi( vi) * ice_density/seawater_density - ice%dHb( vi)
 
       ! Get the fraction of bedrock within vertex coverage that is below
-      ! hb_float as a linear interpolation of the numbers in the CDF.
+      ! Hb_float as a linear interpolation of the numbers in the CDF.
 
-      IF     (hb_float <= ice%bedrock_cdf( vi,1)) THEN
+      IF     (Hb_float <= ice%bedrock_cdf( vi,1)) THEN
         ! All sub-grid points are above the floating bedrock elevation
-        ice%fraction_gr( vi) = 1._dp
-      ELSEIF (hb_float >= ice%bedrock_cdf( vi,C%subgrid_bedrock_cdf_nbins)) THEN
+
+        fraction_gr( vi) = 1._dp
+
+      ELSEIF (Hb_float >= ice%bedrock_cdf( vi,C%subgrid_bedrock_cdf_nbins)) THEN
         ! All sub-grid points are below the floating bedrock elevation
-        ice%fraction_gr( vi) = 0._dp
+
+        fraction_gr( vi) = 0._dp
+
       ELSE
 
-        ! Find the 2 elements in the CDF surrounding hb_float
+        ! Find the 2 elements in the CDF surrounding Hb_float
         iu = 1
-        DO WHILE (ice%bedrock_cdf( vi,iu) < hb_float)
+        DO WHILE (ice%bedrock_cdf( vi,iu) < Hb_float)
           iu = iu+1
         END DO
         il = iu-1
 
         ! Interpolate the two enveloping bedrock bins to find the grounded fraction
-        wl = (ice%bedrock_cdf( vi,iu) - hb_float) / (ice%bedrock_cdf( vi,iu) - ice%bedrock_cdf( vi,il))
+        wl = (ice%bedrock_cdf( vi,iu) - Hb_float) / (ice%bedrock_cdf( vi,iu) - ice%bedrock_cdf( vi,il))
         wu = 1._dp - wl
-        ice%fraction_gr( vi) = 1._dp - (REAL( il-1,dp) * wl + REAL( iu-1) * wu) / REAL( C%subgrid_bedrock_cdf_nbins-1,dp)
+        fraction_gr( vi) = 1._dp - (REAL( il-1,dp) * wl + REAL( iu-1) * wu) / REAL( C%subgrid_bedrock_cdf_nbins-1,dp)
 
         ! Safety
-        ice%fraction_gr( vi) = MIN( 1._dp, MAX( 0._dp, ice%fraction_gr( vi)))
+        fraction_gr( vi) = MIN( 1._dp, MAX( 0._dp, fraction_gr( vi)))
 
       END IF
 
-    END DO
-
-    ! === On the b-grid ===
-    ! =====================
-
-    ! Map from the a-grid to the b-grid
-    CALL map_a_b_2D( mesh, ice%fraction_gr, ice%fraction_gr_b)
-
-    ! Safety
-    DO ti = mesh%ti1, mesh%ti2
-      ice%fraction_gr_b( ti) = min( 1._dp, max( 0._dp, ice%fraction_gr_b( ti)))
     END DO
 
     ! Finalise routine path
@@ -596,8 +658,147 @@ CONTAINS
 
   END SUBROUTINE calc_grounded_fractions_bedrock_CDF_a
 
+  SUBROUTINE calc_grounded_fractions_bedrock_CDF_b( mesh, ice, fraction_gr_b)
+    ! Calculate the sub-grid grounded fractions of the triangles
+    !
+    ! Use the sub-grid bedrock cumulative density functions (CDFs)
+    !
+    ! This functions tells you for a (configurable) number of bins, which fraction
+    ! of the high-resolution bedrock data inside a Voronoi cell/triangle lies below
+    ! the value of that bin.
+    !
+    ! E.g., suppose we use 5 bins. Suppose that, for a certain vertex, the CDF is:
+    !
+    !   bedrock_CDF( vi,:) = [-1252.0, -1231.6, -1211.5, -1188.5, -1183.4]
+    !
+    ! The value in the first bin indicates the lowest bedrock elevation encountered
+    ! within this Voronoi cell, i.e. 0% of the bedrock is below -1252.0 m. The value
+    ! in the next bin then indicates the next interval, i.e. 25% of the bedrock is
+    ! below -1231.6. And so on until the last, which indicates the highest bedrock
+    ! elevation encountered within this Voronoi cell, i.e. 100% of the bedrock is
+    ! below -1183.4.
+    !
+    ! This can then be used to calculate grounded fractions from ice thicknesses. Suppose
+    ! we have an ice thickness in this Voronoi cell of 1378.2 m. The bedrock elevation
+    ! where this amount of ice would start to float is equal to:
+    !
+    !   Hb_float = -Hi * ice_density / seawater_density = ... = -1220.0 m
+    !
+    ! By looking at the CDF, we can determine that 39.4% of the bedrock in this Voronoi
+    ! cell is below this elevation, yielding a grounded fraction of 60.6%.
+    !
+    ! The bedrock CDF is found by scanning all the high-resolution grid cells (of the
+    ! original ice geometry dataset, e.g. BedMachine) that overlap with the Voronoi cell.
+    ! The bedrock elevations of all these grid cells are listed, and then sorted
+    ! ascendingly. For the example of 5 bins (so intervals of 25%), we'd walk through the
+    ! list of elevations until we've passed 25% of the numbers; the elevation we're at
+    ! by then goes into the second bin. We move forward again until we've passed 50% of
+    ! the numbers; the elevation we're at by that goes into the third bin. Et cetera until
+    ! all the bins are filled. Clever, eh?
+
+    IMPLICIT NONE
+
+    ! In- and output variables
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
+    TYPE(type_ice_model),                INTENT(IN)    :: ice
+    REAL(dp), DIMENSION(mesh%ti1:mesh%ti2), INTENT(OUT):: fraction_gr_b
+
+    ! Local variables:
+    CHARACTER(len=256), PARAMETER                      :: routine_name = 'calc_grounded_fractions_bedrock_CDF_b'
+    REAL(dp), DIMENSION(mesh%ti1:mesh%ti2)             :: Hi_b, SL_b, dHb_b
+    INTEGER                                            :: ti, il, iu
+    REAL(dp)                                           :: Hb_float, wl, wu
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Map ice thickness, sea level, and bedrock deformation to the b-grid (triangles)
+    CALL map_a_b_2D( mesh, ice%Hi , Hi_b )
+    CALL map_a_b_2D( mesh, ice%SL , SL_b )
+    CALL map_a_b_2D( mesh, ice%dHb, dHb_b)
+
+    DO ti = mesh%ti1, mesh%ti2
+
+      ! Compute the bedrock depth at which the current ice thickness and sea level
+      ! will make this point afloat. Account for GIA here so we don't have to do it in
+      ! the computation of the cumulative density function (CDF).
+
+      Hb_float = SL_b( ti) - Hi_b( ti) * ice_density/seawater_density - dHb_b( ti)
+
+      ! Get the fraction of bedrock within vertex coverage that is below
+      ! Hb_float as a linear interpolation of the numbers in the CDF.
+
+      IF     (Hb_float <= ice%bedrock_cdf_b( ti,1)) THEN
+        ! All sub-grid points are above the floating bedrock elevation
+
+        fraction_gr_b( ti) = 1._dp
+
+      ELSEIF (Hb_float >= ice%bedrock_cdf_b( ti,C%subgrid_bedrock_cdf_nbins)) THEN
+        ! All sub-grid points are below the floating bedrock elevation
+
+        fraction_gr_b( ti) = 0._dp
+
+      ELSE
+
+        ! Find the 2 elements in the CDF surrounding Hb_float
+        iu = 1
+        DO WHILE (ice%bedrock_cdf_b( ti,iu) < Hb_float)
+          iu = iu+1
+        END DO
+        il = iu-1
+
+        ! Interpolate the two enveloping bedrock bins to find the grounded fraction
+        wl = (ice%bedrock_cdf_b( ti,iu) - Hb_float) / (ice%bedrock_cdf_b( ti,iu) - ice%bedrock_cdf_b( ti,il))
+        wu = 1._dp - wl
+        fraction_gr_b( ti) = 1._dp - (REAL( il-1,dp) * wl + REAL( iu-1) * wu) / REAL( C%subgrid_bedrock_cdf_nbins-1,dp)
+
+        ! Safety
+        fraction_gr_b( ti) = MIN( 1._dp, MAX( 0._dp, fraction_gr_b( ti)))
+
+      END IF
+
+    END DO
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE calc_grounded_fractions_bedrock_CDF_b
+
   SUBROUTINE calc_bedrock_CDFs( mesh, refgeo, ice)
-    ! Calculate the bedrock cumulative density functions
+    ! Calculate the sub-grid bedrock cumulative density functions
+    !
+    ! This functions tells you for a (configurable) number of bins, which fraction
+    ! of the high-resolution bedrock data inside a Voronoi cell/triangle lies below
+    ! the value of that bin.
+    !
+    ! E.g., suppose we use 5 bins. Suppose that, for a certain vertex, the CDF is:
+    !
+    !   bedrock_CDF( vi,:) = [-1252.0, -1231.6, -1211.5, -1188.5, -1183.4]
+    !
+    ! The value in the first bin indicates the lowest bedrock elevation encountered
+    ! within this Voronoi cell, i.e. 0% of the bedrock is below -1252.0 m. The value
+    ! in the next bin then indicates the next interval, i.e. 25% of the bedrock is
+    ! below -1231.6. And so on until the last, which indicates the highest bedrock
+    ! elevation encountered within this Voronoi cell, i.e. 100% of the bedrock is
+    ! below -1183.4.
+    !
+    ! This can then be used to calculate grounded fractions from ice thicknesses. Suppose
+    ! we have an ice thickness in this Voronoi cell of 1378.2 m. The bedrock elevation
+    ! where this amount of ice would start to float is equal to:
+    !
+    !   Hb_float = -Hi * ice_density / seawater_density = ... = -1220.0 m
+    !
+    ! By looking at the CDF, we can determine that 39.4% of the bedrock in this Voronoi
+    ! cell is below this elevation, yielding a grounded fraction of 60.6%.
+    !
+    ! The bedrock CDF is found by scanning all the high-resolution grid cells (of the
+    ! original ice geometry dataset, e.g. BedMachine) that overlap with the Voronoi cell.
+    ! The bedrock elevations of all these grid cells are listed, and then sorted
+    ! ascendingly. For the example of 5 bins (so intervals of 25%), we'd walk through the
+    ! list of elevations until we've passed 25% of the numbers; the elevation we're at
+    ! by then goes into the second bin. We move forward again until we've passed 50% of
+    ! the numbers; the elevation we're at by that goes into the third bin. Et cetera until
+    ! all the bins are filled. Clever, eh?
 
     IMPLICIT NONE
 
@@ -608,6 +809,66 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(len=256), PARAMETER                      :: routine_name = 'calc_bedrock_CDFs'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    IF (par%master) WRITE(0,*) '  Initialising sub-grid bedrock CDFs...'
+
+    ! Calculate CDFs separately on the a-grid (vertices) and the b-grid (triangles)
+    CALL calc_bedrock_CDFs_a( mesh, refgeo, ice)
+    CALL calc_bedrock_CDFs_b( mesh, refgeo, ice)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE calc_bedrock_CDFs
+
+  SUBROUTINE calc_bedrock_CDFs_a( mesh, refgeo, ice)
+    ! Calculate the sub-grid bedrock cumulative density functions on the a-grid (vertices)
+    !
+    ! This functions tells you for a (configurable) number of bins, which fraction
+    ! of the high-resolution bedrock data inside a Voronoi cell/triangle lies below
+    ! the value of that bin.
+    !
+    ! E.g., suppose we use 5 bins. Suppose that, for a certain vertex, the CDF is:
+    !
+    !   bedrock_CDF( vi,:) = [-1252.0, -1231.6, -1211.5, -1188.5, -1183.4]
+    !
+    ! The value in the first bin indicates the lowest bedrock elevation encountered
+    ! within this Voronoi cell, i.e. 0% of the bedrock is below -1252.0 m. The value
+    ! in the next bin then indicates the next interval, i.e. 25% of the bedrock is
+    ! below -1231.6. And so on until the last, which indicates the highest bedrock
+    ! elevation encountered within this Voronoi cell, i.e. 100% of the bedrock is
+    ! below -1183.4.
+    !
+    ! This can then be used to calculate grounded fractions from ice thicknesses. Suppose
+    ! we have an ice thickness in this Voronoi cell of 1378.2 m. The bedrock elevation
+    ! where this amount of ice would start to float is equal to:
+    !
+    !   Hb_float = -Hi * ice_density / seawater_density = ... = -1220.0 m
+    !
+    ! By looking at the CDF, we can determine that 39.4% of the bedrock in this Voronoi
+    ! cell is below this elevation, yielding a grounded fraction of 60.6%.
+    !
+    ! The bedrock CDF is found by scanning all the high-resolution grid cells (of the
+    ! original ice geometry dataset, e.g. BedMachine) that overlap with the Voronoi cell.
+    ! The bedrock elevations of all these grid cells are listed, and then sorted
+    ! ascendingly. For the example of 5 bins (so intervals of 25%), we'd walk through the
+    ! list of elevations until we've passed 25% of the numbers; the elevation we're at
+    ! by then goes into the second bin. We move forward again until we've passed 50% of
+    ! the numbers; the elevation we're at by that goes into the third bin. Et cetera until
+    ! all the bins are filled. Clever, eh?
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
+    TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo
+    TYPE(type_ice_model),                INTENT(INOUT) :: ice
+
+    ! Local variables:
+    CHARACTER(len=256), PARAMETER                      :: routine_name = 'calc_bedrock_CDFs_a'
     TYPE(type_sparse_matrix_CSR_dp)                    :: M_map
     LOGICAL                                            :: found_map, found_empty_page
     INTEGER                                            :: mi, mi_valid
@@ -617,13 +878,8 @@ CONTAINS
     INTEGER                                            :: n_grid_cells, ii0, ii1
     REAL(dp)                                           :: isc, wii0, wii1
 
-    ! === Initialisation ===
-    ! ======================
-
     ! Add routine to path
     CALL init_routine( routine_name)
-
-    IF (par%master) WRITE(0,*) '  Initialising sub-grid grounded-area fractions...'
 
     ! Browse the Atlas to see if an appropriate mapping object already exists.
     found_map = .FALSE.
@@ -665,16 +921,10 @@ CONTAINS
     ! Initialise cumulative density function (CDF)
     ice%bedrock_cdf = 0._dp
 
-    ! === Scan ===
-    ! ============
-
     DO vi = mesh%vi1, mesh%vi2
 
       ! Clear the list
       Hb_list = 0._dp
-
-      ! Skip vertices at edge of domain
-      IF (mesh%VBI( vi) > 0) CYCLE
 
       ! List bedrock elevations from all grid cells overlapping with this vertex's
       ! Voronoi cell (as already determined by the remapping operator)
@@ -690,12 +940,7 @@ CONTAINS
       END DO
 
       ! Safety
-      IF (n_grid_cells == 0) THEN
-        ! Use default mesh value
-        ice%bedrock_cdf( vi,:) = ice%Hb( vi)
-        ! And skip
-        CYCLE
-      END IF
+      IF (n_grid_cells == 0) CALL crash('found no overlapping grid cells!')
 
       ! === Cumulative density function ===
       ! ===================================
@@ -728,8 +973,164 @@ CONTAINS
 
     END DO
 
-    ! === Finalisation ===
-    ! ====================
+    ! Clean up after yourself
+    DEALLOCATE( Hb_list)
+    DEALLOCATE( Hb_grid_tot)
+    CALL deallocate_matrix_CSR_dist( M_map)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE calc_bedrock_CDFs_a
+
+  SUBROUTINE calc_bedrock_CDFs_b( mesh, refgeo, ice)
+    ! Calculate the sub-grid bedrock cumulative density functions on the b-grid (triangles)
+    !
+    ! This functions tells you for a (configurable) number of bins, which fraction
+    ! of the high-resolution bedrock data inside a Voronoi cell/triangle lies below
+    ! the value of that bin.
+    !
+    ! E.g., suppose we use 5 bins. Suppose that, for a certain vertex, the CDF is:
+    !
+    !   bedrock_CDF( vi,:) = [-1252.0, -1231.6, -1211.5, -1188.5, -1183.4]
+    !
+    ! The value in the first bin indicates the lowest bedrock elevation encountered
+    ! within this Voronoi cell, i.e. 0% of the bedrock is below -1252.0 m. The value
+    ! in the next bin then indicates the next interval, i.e. 25% of the bedrock is
+    ! below -1231.6. And so on until the last, which indicates the highest bedrock
+    ! elevation encountered within this Voronoi cell, i.e. 100% of the bedrock is
+    ! below -1183.4.
+    !
+    ! This can then be used to calculate grounded fractions from ice thicknesses. Suppose
+    ! we have an ice thickness in this Voronoi cell of 1378.2 m. The bedrock elevation
+    ! where this amount of ice would start to float is equal to:
+    !
+    !   Hb_float = -Hi * ice_density / seawater_density = ... = -1220.0 m
+    !
+    ! By looking at the CDF, we can determine that 39.4% of the bedrock in this Voronoi
+    ! cell is below this elevation, yielding a grounded fraction of 60.6%.
+    !
+    ! The bedrock CDF is found by scanning all the high-resolution grid cells (of the
+    ! original ice geometry dataset, e.g. BedMachine) that overlap with the Voronoi cell.
+    ! The bedrock elevations of all these grid cells are listed, and then sorted
+    ! ascendingly. For the example of 5 bins (so intervals of 25%), we'd walk through the
+    ! list of elevations until we've passed 25% of the numbers; the elevation we're at
+    ! by then goes into the second bin. We move forward again until we've passed 50% of
+    ! the numbers; the elevation we're at by that goes into the third bin. Et cetera until
+    ! all the bins are filled. Clever, eh?
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
+    TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo
+    TYPE(type_ice_model),                INTENT(INOUT) :: ice
+
+    ! Local variables:
+    CHARACTER(len=256), PARAMETER                      :: routine_name = 'calc_bedrock_CDFs_b'
+    TYPE(type_sparse_matrix_CSR_dp)                    :: M_map
+    LOGICAL                                            :: found_map, found_empty_page
+    INTEGER                                            :: mi, mi_valid
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: Hb_grid_tot
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: Hb_list
+    INTEGER                                            :: ti, k, n, i, j
+    INTEGER                                            :: n_grid_cells, ii0, ii1
+    REAL(dp)                                           :: isc, wii0, wii1
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Browse the Atlas to see if an appropriate mapping object already exists.
+    found_map = .FALSE.
+    DO mi = 1, SIZE( Atlas, 1)
+      IF (Atlas( mi)%name_src == refgeo%grid_raw%name .AND. Atlas( mi)%name_dst == (TRIM( mesh%name) // '_triangles')) THEN
+        found_map = .TRUE.
+        mi_valid  = mi
+        EXIT
+      END IF
+    END DO
+
+    ! If no appropriate mapping object could be found, create one.
+    IF (.NOT. found_map) THEN
+      found_empty_page = .FALSE.
+      DO mi = 1, SIZE( Atlas,1)
+        IF (.NOT. Atlas( mi)%is_in_use) THEN
+          found_empty_page = .TRUE.
+          CALL create_map_from_xy_grid_to_mesh_triangles( refgeo%grid_raw, mesh, Atlas( mi))
+          mi_valid = mi
+          EXIT
+        END IF
+      END DO
+      ! Safety
+      IF (.NOT. found_empty_page) CALL crash('No more room in Atlas - assign more memory!')
+    END IF
+
+    ! Turn map into CSR, so we can use it here
+    CALL mat_petsc2CSR( Atlas( mi_valid)%M, M_map)
+
+    ! Get complete gridded bedrock elevation on all processes
+    ALLOCATE( Hb_grid_tot( refgeo%grid_raw%nx, refgeo%grid_raw%ny))
+    CALL gather_gridded_data_to_master_dp_2D( refgeo%grid_raw, refgeo%Hb_grid_raw, Hb_grid_tot)
+    CALL MPI_BCAST( Hb_grid_tot, refgeo%grid_raw%nx * refgeo%grid_raw%ny, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+
+    ! Allocate memory for list of bedrock elevations
+    ALLOCATE( Hb_list( refgeo%grid_raw%nx * refgeo%grid_raw%ny ))
+    Hb_list = 0._dp
+
+    ! Initialise cumulative density function (CDF)
+    ice%bedrock_cdf_b = 0._dp
+
+    DO ti = mesh%ti1, mesh%ti2
+
+      ! Clear the list
+      Hb_list = 0._dp
+
+      ! List bedrock elevations from all grid cells overlapping with this vertex's
+      ! Voronoi cell (as already determined by the remapping operator)
+      ! ==============================================================
+
+      n_grid_cells = 0
+      DO k = M_map%ptr( ti), M_map%ptr( ti+1)-1
+        n_grid_cells = n_grid_cells + 1
+        n = M_map%ind( k)
+        i = refgeo%grid_raw%n2ij( n,1)
+        j = refgeo%grid_raw%n2ij( n,2)
+        Hb_list( n_grid_cells) = Hb_grid_tot( i,j)
+      END DO
+
+      ! Safety
+      IF (n_grid_cells == 0) CALL crash('found no overlapping grid cells!')
+
+      ! === Cumulative density function ===
+      ! ===================================
+
+      ! Inefficient but easy sorting of Hb_list
+      DO i = 1, n_grid_cells-1
+      DO j = i+1, n_grid_cells
+        IF (Hb_list( i) > Hb_list( j)) THEN
+          Hb_list( i) = Hb_list( i) + Hb_list( j)
+          Hb_list( j) = Hb_list( i) - Hb_list( j)
+          Hb_list( i) = Hb_list( i) - Hb_list( j)
+        END IF
+      END DO
+      END DO
+
+      ! Set first (0%) and last bins (100%) of the CDF to the minimum
+      ! and maximum bedrock elevations scanned, respectively
+      ice%bedrock_cdf_b( ti, 1                          ) = Hb_list( 1)
+      ice%bedrock_cdf_b( ti, C%subgrid_bedrock_cdf_nbins) = Hb_list( n_grid_cells)
+
+      ! Compute the bedrock elevation for each of the other CDF bins
+      DO i = 2, C%subgrid_bedrock_cdf_nbins - 1
+        isc  = 1._dp + (REAL( n_grid_cells,dp) - 1._dp) * (REAL( i,dp) - 1._dp) / REAL( C%subgrid_bedrock_cdf_nbins - 1,dp)
+        ii0  = FLOOR(   isc)
+        ii1  = CEILING( isc)
+        wii0 = REAL( ii1,dp) - isc
+        wii1 = 1.0 - wii0
+        ice%bedrock_cdf_b( ti,i) = wii0 * Hb_list( ii0) + wii1 * Hb_list( ii1)
+      END DO
+
+    END DO
 
     ! Clean up after yourself
     DEALLOCATE( Hb_list)
@@ -739,7 +1140,7 @@ CONTAINS
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
-  END SUBROUTINE calc_bedrock_CDFs
+  END SUBROUTINE calc_bedrock_CDFs_b
 
   ! == Zeta gradients
   ! =================

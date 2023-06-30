@@ -183,6 +183,121 @@ CONTAINS
 
   END SUBROUTINE map_from_xy_grid_to_mesh_3D
 
+  ! From an x/y-grid to a mesh triangles
+  SUBROUTINE map_from_xy_grid_to_mesh_triangles_2D(     grid, mesh, d_grid_vec_partial, d_mesh_partial, method)
+    ! Map a 2-D data field from an x/y-grid to a mesh triangles.
+
+    IMPLICIT NONE
+
+    ! In/output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
+    REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: d_grid_vec_partial
+    REAL(dp), DIMENSION(:    ),          INTENT(OUT)   :: d_mesh_partial
+    CHARACTER(LEN=256), OPTIONAL,        INTENT(IN)    :: method
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'map_from_xy_grid_to_mesh_triangles_2D'
+    INTEGER                                            :: mi, mi_valid
+    LOGICAL                                            :: found_map, found_empty_page
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Browse the Atlas to see if an appropriate mapping object already exists.
+    found_map = .FALSE.
+    DO mi = 1, SIZE( Atlas, 1)
+      IF (Atlas( mi)%name_src == grid%name .AND. Atlas( mi)%name_dst == (TRIM( mesh%name) // '_triangeles')) THEN
+        ! If so specified, look for a mapping object with the correct method
+        IF (PRESENT( method)) THEN
+          IF (Atlas( mi)%method /= method) CYCLE
+        END IF
+        found_map = .TRUE.
+        mi_valid  = mi
+        EXIT
+      END IF
+    END DO
+
+    ! If no appropriate mapping object could be found, create one.
+    IF (.NOT. found_map) THEN
+      found_empty_page = .FALSE.
+      DO mi = 1, SIZE( Atlas,1)
+        IF (.NOT. Atlas( mi)%is_in_use) THEN
+          found_empty_page = .TRUE.
+          CALL create_map_from_xy_grid_to_mesh_triangles( grid, mesh, Atlas( mi))
+          mi_valid = mi
+          EXIT
+        END IF
+      END DO
+      ! Safety
+      IF (.NOT. found_empty_page) CALL crash('No more room in Atlas - assign more memory!')
+    END IF
+
+    ! Apply the appropriate mapping object
+    CALL apply_map_xy_grid_to_mesh_triangles_2D( grid, mesh, Atlas( mi), d_grid_vec_partial, d_mesh_partial)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE map_from_xy_grid_to_mesh_triangles_2D
+
+  SUBROUTINE map_from_xy_grid_to_mesh_triangles_3D(     grid, mesh, d_grid_vec_partial, d_mesh_partial, method)
+    ! Map a 3-D data field from an x/y-grid to a mesh triangles.
+
+    IMPLICIT NONE
+
+    ! In/output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
+    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: d_grid_vec_partial
+    REAL(dp), DIMENSION(:,:  ),          INTENT(OUT)   :: d_mesh_partial
+    CHARACTER(LEN=256), OPTIONAL,        INTENT(IN)    :: method
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'map_from_xy_grid_to_mesh_triangles_3D'
+    INTEGER                                            :: mi, mi_valid
+    LOGICAL                                            :: found_map, found_empty_page
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Browse the Atlas to see if an appropriate mapping object already exists.
+    found_map = .FALSE.
+    DO mi = 1, SIZE( Atlas, 1)
+      IF (Atlas( mi)%name_src == grid%name .AND. Atlas( mi)%name_dst == (TRIM( mesh%name) // '_triangles')) THEN
+        ! If so specified, look for a mapping object with the correct method
+        IF (PRESENT( method)) THEN
+          IF (Atlas( mi)%method /= method) CYCLE
+        END IF
+        found_map = .TRUE.
+        mi_valid  = mi
+        EXIT
+      END IF
+    END DO
+
+    ! If no appropriate mapping object could be found, create one.
+    IF (.NOT. found_map) THEN
+      found_empty_page = .FALSE.
+      DO mi = 1, SIZE( Atlas,1)
+        IF (.NOT. Atlas( mi)%is_in_use) THEN
+          found_empty_page = .TRUE.
+          CALL create_map_from_xy_grid_to_mesh_triangles( grid, mesh, Atlas( mi))
+          mi_valid = mi
+          EXIT
+        END IF
+      END DO
+      ! Safety
+      IF (.NOT. found_empty_page) CALL crash('No more room in Atlas - assign more memory!')
+    END IF
+
+    ! Apply the appropriate mapping object
+    CALL apply_map_xy_grid_to_mesh_triangles_3D( grid, mesh, Atlas( mi), d_grid_vec_partial, d_mesh_partial)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE map_from_xy_grid_to_mesh_triangles_3D
+
   ! From a lon/lat-grid to a mesh
   SUBROUTINE map_from_lonlat_grid_to_mesh_2D( grid, mesh, d_grid_vec_partial, d_mesh_partial, method)
     ! Map a 2-D data field from a lon/lat-grid to a mesh.
@@ -632,6 +747,70 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE apply_map_xy_grid_to_mesh_3D
+
+  ! From an x/y-grid to a mesh
+  SUBROUTINE apply_map_xy_grid_to_mesh_triangles_2D( grid, mesh, map, d_grid_vec_partial, d_mesh_partial)
+    ! Map a 2-D data field from an x/y-grid to a mesh triangles.
+
+    IMPLICIT NONE
+
+    ! In/output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
+    TYPE(type_map),                      INTENT(IN)    :: map
+    REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: d_grid_vec_partial
+    REAL(dp), DIMENSION(:    ),          INTENT(OUT)   :: d_mesh_partial
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'apply_map_xy_grid_to_mesh_triangles_2D'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Safety
+    IF (SIZE( d_mesh_partial,1) /= mesh%nTri_loc .OR. SIZE( d_grid_vec_partial,1) /= grid%n_loc) THEN
+      CALL crash('data fields are the wrong size!')
+    END IF
+
+    ! Perform the mapping operation as a matrix multiplication
+    CALL multiply_PETSc_matrix_with_vector_1D( map%M, d_grid_vec_partial, d_mesh_partial)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE apply_map_xy_grid_to_mesh_triangles_2D
+
+  SUBROUTINE apply_map_xy_grid_to_mesh_triangles_3D( grid, mesh, map, d_grid_vec_partial, d_mesh_partial)
+    ! Map a 3-D data field from an x/y-grid to a mesh triangles.
+
+    IMPLICIT NONE
+
+    ! In/output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
+    TYPE(type_map),                      INTENT(IN)    :: map
+    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: d_grid_vec_partial
+    REAL(dp), DIMENSION(:,:  ),          INTENT(OUT)   :: d_mesh_partial
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'apply_map_xy_grid_to_mesh_triangles_3D'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Safety
+    IF (SIZE( d_mesh_partial,1) /= mesh%nTri_loc .OR. SIZE( d_grid_vec_partial,1) /= grid%n_loc .OR. &
+      SIZE( d_grid_vec_partial,2) /= SIZE( d_mesh_partial,2)) THEN
+      CALL crash('data fields are the wrong size!')
+    END IF
+
+    ! Perform the mapping operation as a matrix multiplication
+    CALL multiply_PETSc_matrix_with_vector_2D( map%M, d_grid_vec_partial, d_mesh_partial)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE apply_map_xy_grid_to_mesh_triangles_3D
 
   ! From a lon/lat-grid to a mesh
   SUBROUTINE apply_map_lonlat_grid_to_mesh_2D( grid, mesh, map, d_grid_vec_partial, d_mesh_partial)
@@ -1218,6 +1397,337 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE create_map_from_xy_grid_to_mesh
+
+  SUBROUTINE create_map_from_xy_grid_to_mesh_triangles( grid, mesh, map)
+    ! Create a new mapping object from an x/y-grid to the triangles of a mesh.
+    !
+    ! By default uses 2nd-order conservative remapping.
+    !
+    ! NOTE: the current implementation is a compromise. For "small" triangles (defined as having an area smaller
+    !       than ten times that of a square grid cell), a 2nd-order conservative remapping operation is calculated
+    !       explicitly, using the line integrals around area of overlap. However, for "large" triangles (defined as
+    !       all the rest), the result is very close to simply averaging over all the overlapping grid cells.
+    !       Explicitly calculating the line integrals around all the grid cells is very slow, so this
+    !       seems like a reasonable compromise.
+
+    IMPLICIT NONE
+
+    ! In/output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
+    TYPE(type_map),                      INTENT(INOUT) :: map
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'create_map_from_xy_grid_to_mesh_triangles'
+    TYPE(PetscErrorCode)                               :: perr
+    LOGICAL                                            :: count_coincidences
+    INTEGER                                            :: nrows, ncols, nrows_loc, ncols_loc, nnz_est, nnz_est_proc, nnz_per_row_max
+    TYPE(type_sparse_matrix_CSR_dp)                    :: A_xdy_b_g_CSR, A_mxydx_b_g_CSR, A_xydy_b_g_CSR
+    INTEGER,  DIMENSION(:    ), ALLOCATABLE            :: mask_do_simple_average
+    INTEGER                                            :: ti
+    INTEGER                                            :: n1, n2, via, vib, vic
+    REAL(dp), DIMENSION(2)                             :: p, q
+    INTEGER                                            :: k, i, j, kk, tj
+    REAL(dp)                                           :: xl, xu, yl, yu
+    REAL(dp), DIMENSION(2)                             :: sw, se, nw, ne
+    INTEGER                                            :: ti_hint
+    REAL(dp)                                           :: xmin, xmax, ymin, ymax
+    INTEGER                                            :: il, iu, jl, ju
+    TYPE(type_single_row_mapping_matrices)             :: single_row_tri, single_row_grid
+    REAL(dp), DIMENSION(2)                             :: pa, pb, pc
+    TYPE(type_sparse_matrix_CSR_dp)                    :: w0_CSR, w1x_CSR, w1y_CSR
+    TYPE(tMat)                                         :: w0    , w1x    , w1y
+    INTEGER                                            :: row, k1, k2, col
+    REAL(dp)                                           :: A_overlap_tot
+    TYPE(tMat)                                         :: grid_M_ddx, grid_M_ddy
+    TYPE(tMat)                                         :: M1, M2
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Safety
+    IF (map%is_in_use) CALL crash('this map is already in use!')
+
+  ! == Initialise map metadata
+  ! ==========================
+
+    map%is_in_use = .TRUE.
+    map%name_src  = grid%name
+    map%name_dst  = TRIM( mesh%name) // '_triangles'
+    map%method    = '2nd_order_conservative'
+
+  ! == Initialise the three matrices using the native UFEMISM CSR-matrix format
+  ! ===========================================================================
+
+    ! Matrix size
+    nrows           = mesh%nTri  ! to
+    nrows_loc       = mesh%nTri_loc
+    ncols           = grid%n     ! from
+    ncols_loc       = grid%n_loc
+    nnz_est         = 4 * MAX( nrows, ncols)
+    nnz_est_proc    = CEILING( REAL( nnz_est, dp) / REAL( par%n, dp))
+    nnz_per_row_max = MAX( 32, MAX( CEILING( 2._dp * MAXVAL( mesh%TriA) / (grid%dx**2)), &
+                                    CEILING( 2._dp * (grid%dx**2) / MINVAL( mesh%TriA))) )
+
+    CALL allocate_matrix_CSR_dist( A_xdy_b_g_CSR  , nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+    CALL allocate_matrix_CSR_dist( A_mxydx_b_g_CSR, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+    CALL allocate_matrix_CSR_dist( A_xydy_b_g_CSR , nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+
+    ! Allocate memory for single row results
+    single_row_tri%n_max = nnz_per_row_max
+    single_row_tri%n     = 0
+    ALLOCATE( single_row_tri%index_left( single_row_tri%n_max))
+    ALLOCATE( single_row_tri%LI_xdy(     single_row_tri%n_max))
+    ALLOCATE( single_row_tri%LI_mxydx(   single_row_tri%n_max))
+    ALLOCATE( single_row_tri%LI_xydy(    single_row_tri%n_max))
+
+    single_row_grid%n_max = nnz_per_row_max
+    single_row_grid%n     = 0
+    ALLOCATE( single_row_grid%index_left( single_row_grid%n_max))
+    ALLOCATE( single_row_grid%LI_xdy(     single_row_grid%n_max))
+    ALLOCATE( single_row_grid%LI_mxydx(   single_row_grid%n_max))
+    ALLOCATE( single_row_grid%LI_xydy(    single_row_grid%n_max))
+
+    ALLOCATE( mask_do_simple_average( mesh%nTri), source = 0)
+
+    ! Calculate line integrals around all triangles
+    DO row = mesh%ti1, mesh%ti2
+
+      ti = mesh%n2ti( row)
+
+      IF (mesh%TriA( ti) < 10._dp * grid%dx**2) THEN
+        ! This triangle is small enough to warrant a proper line integral
+
+        mask_do_simple_average( ti) = 0
+
+        ! Clean up single row results
+        single_row_tri%n          = 0
+        single_row_tri%index_left = 0
+        single_row_tri%LI_xdy     = 0._dp
+        single_row_tri%LI_mxydx   = 0._dp
+        single_row_tri%LI_xydy    = 0._dp
+
+        ! Integrate around the triangle
+        DO n1 = 1, 3
+          n2 = n1 + 1
+          IF (n2 == 4) n2 = 1
+          via = mesh%Tri( ti,n1)
+          vib = mesh%Tri( ti,n2)
+          p = mesh%V( via,:)
+          q = mesh%V( vib,:)
+          count_coincidences = .TRUE.
+          CALL trace_line_grid( grid, p, q, single_row_tri, count_coincidences)
+        END DO
+
+        ! Safety
+        IF (single_row_tri%n == 0) CALL crash('couldnt find any grid cells overlapping with this triangle!')
+
+        ! Next integrate around the grid cells overlapping with this triangle
+        DO k = 1, single_row_tri%n
+
+          ! Clean up single row results
+          single_row_grid%n          = 0
+          single_row_grid%index_left = 0
+          single_row_grid%LI_xdy     = 0._dp
+          single_row_grid%LI_mxydx   = 0._dp
+          single_row_grid%LI_xydy    = 0._dp
+
+          ! The grid cell
+          col = single_row_tri%index_left( k)
+          i   = grid%n2ij( col,1)
+          j   = grid%n2ij( col,2)
+
+          xl = grid%x( i) - grid%dx / 2._dp
+          xu = grid%x( i) + grid%dx / 2._dp
+          yl = grid%y( j) - grid%dx / 2._dp
+          yu = grid%y( j) + grid%dx / 2._dp
+
+          sw = [xl,yl]
+          nw = [xl,yu]
+          se = [xu,yl]
+          ne = [xu,yu]
+
+          ! Integrate around the grid cell
+          ti_hint = ti
+          count_coincidences = .FALSE.
+          CALL trace_line_tri( mesh, sw, se, single_row_grid, count_coincidences, ti_hint)
+          CALL trace_line_tri( mesh, se, ne, single_row_grid, count_coincidences, ti_hint)
+          CALL trace_line_tri( mesh, ne, nw, single_row_grid, count_coincidences, ti_hint)
+          CALL trace_line_tri( mesh, nw, sw, single_row_grid, count_coincidences, ti_hint)
+
+          ! Safety
+          IF (single_row_grid%n == 0) CALL crash('couldnt find any grid cells overlapping with this triangle!')
+
+          ! Add contribution for this particular triangle
+          DO kk = 1, single_row_grid%n
+            tj = single_row_grid%index_left( kk)
+            IF (tj == ti) THEN
+              ! Add contribution to this triangle
+              single_row_tri%LI_xdy(   k) = single_row_tri%LI_xdy(   k) + single_row_grid%LI_xdy(   kk)
+              single_row_tri%LI_mxydx( k) = single_row_tri%LI_mxydx( k) + single_row_grid%LI_mxydx( kk)
+              single_row_tri%LI_xydy(  k) = single_row_tri%LI_xydy(  k) + single_row_grid%LI_xydy(  kk)
+              EXIT
+            END IF
+          END DO ! DO kk = 1, single_row_grid%n
+
+          ! Add entries to the big matrices
+          CALL add_entry_CSR_dist( A_xdy_b_g_CSR  , row, col, single_row_tri%LI_xdy(   k))
+          CALL add_entry_CSR_dist( A_mxydx_b_g_CSR, row, col, single_row_tri%LI_mxydx( k))
+          CALL add_entry_CSR_dist( A_xydy_b_g_CSR , row, col, single_row_tri%LI_xydy(  k))
+
+        END DO ! DO k = 1, single_row_tri%n
+
+      ELSE ! IF (mesh%TriA( ti) < 10._dp * grid%dx**2) THEN
+        ! This triangle is big enough that we can just average over the grid cells it contains
+
+        mask_do_simple_average( ti) = 1
+
+        ! Clean up single row results
+        single_row_tri%n = 0
+
+        ! Find the square of grid cells enveloping this triangle
+        via = mesh%Tri( ti,1)
+        vib = mesh%Tri( ti,2)
+        vic = mesh%Tri( ti,3)
+
+        pa = mesh%V( via,:)
+        pb = mesh%V( vib,:)
+        pc = mesh%V( vic,:)
+
+        xmin = MIN( MIN( pa( 1), pb( 1)), pc( 1))
+        xmax = MAX( MAX( pa( 1), pb( 1)), pc( 1))
+        ymin = MIN( MIN( pa( 2), pb( 2)), pc( 2))
+        ymax = MAX( MAX( pa( 2), pb( 2)), pc( 2))
+
+        il = MAX( 1, MIN( grid%nx, 1 + FLOOR( (xmin - grid%xmin + grid%dx / 2._dp) / grid%dx) ))
+        iu = MAX( 1, MIN( grid%nx, 1 + FLOOR( (xmax - grid%xmin + grid%dx / 2._dp) / grid%dx) ))
+        jl = MAX( 1, MIN( grid%ny, 1 + FLOOR( (ymin - grid%ymin + grid%dx / 2._dp) / grid%dx) ))
+        ju = MAX( 1, MIN( grid%ny, 1 + FLOOR( (ymax - grid%ymin + grid%dx / 2._dp) / grid%dx) ))
+
+        ! Check which of the grid cells in this square lie inside the triangle
+        DO i = il, iu
+        DO j = jl, ju
+
+          col = grid%ij2n( i,j)
+          p   = [grid%x( i), grid%y( j)]
+
+          IF (is_in_triangle( pa, pb, pc, p)) THEN
+            ! This grid cell lies inside the triangle; add it to the single row
+            single_row_tri%n = single_row_tri%n + 1
+            single_row_tri%index_left( single_row_tri%n) = col
+            single_row_tri%LI_xdy(     single_row_tri%n) = grid%dx**2
+            single_row_tri%LI_mxydx(   single_row_tri%n) = grid%x( i) * grid%dx**2
+            single_row_tri%LI_xydy(    single_row_tri%n) = grid%y( j) * grid%dx**2
+          END IF
+
+        END DO
+        END DO
+
+        ! Safety
+        IF (single_row_tri%n == 0) CALL crash('couldnt find any grid cells overlapping with this triangle!')
+
+        ! Add entries to the big matrices
+        DO k = 1, single_row_tri%n
+          col = single_row_tri%index_left( k)
+          CALL add_entry_CSR_dist( A_xdy_b_g_CSR  , ti, col, single_row_tri%LI_xdy(   k))
+          CALL add_entry_CSR_dist( A_mxydx_b_g_CSR, ti, col, single_row_tri%LI_mxydx( k))
+          CALL add_entry_CSR_dist( A_xydy_b_g_CSR , ti, col, single_row_tri%LI_xydy(  k))
+        END DO
+
+      END IF ! IF (mesh%TriA( ti) < 10._dp * grid%dx**2) THEN
+
+    END DO ! DO row = mesh%ti1, mesh%ti2
+
+    ! Clean up after yourself
+    DEALLOCATE( single_row_tri%index_left )
+    DEALLOCATE( single_row_tri%LI_xdy     )
+    DEALLOCATE( single_row_tri%LI_mxydx   )
+    DEALLOCATE( single_row_tri%LI_xydy    )
+
+    DEALLOCATE( single_row_grid%index_left )
+    DEALLOCATE( single_row_grid%LI_xdy     )
+    DEALLOCATE( single_row_grid%LI_mxydx   )
+    DEALLOCATE( single_row_grid%LI_xydy    )
+
+  ! Calculate w0, w1x, w1y for the mesh-to-grid remapping operator
+  ! ==============================================================
+
+    CALL allocate_matrix_CSR_dist( w0_CSR , nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+    CALL allocate_matrix_CSR_dist( w1x_CSR, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+    CALL allocate_matrix_CSR_dist( w1y_CSR, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+
+    DO row = mesh%ti1, mesh%ti2
+
+      ti = mesh%n2ti( row)
+
+      k1 = A_xdy_b_g_CSR%ptr( row  )
+      k2 = A_xdy_b_g_CSR%ptr( row+1) - 1
+
+      A_overlap_tot = SUM( A_xdy_b_g_CSR%val( k1:k2))
+
+      DO k = k1, k2
+        col = A_xdy_b_g_CSR%ind( k)
+        CALL add_entry_CSR_dist( w0_CSR, row, col, A_xdy_b_g_CSR%val( k) / A_overlap_tot)
+      END DO
+
+      IF (mask_do_simple_average( ti) == 0) THEN
+        ! For small triangles, include the gradient terms
+
+        DO k = k1, k2
+          col = A_xdy_b_g_CSR%ind( k)
+          ! Grid cell
+          i = grid%n2ij( col,1)
+          j = grid%n2ij( col,2)
+          CALL add_entry_CSR_dist( w1x_CSR, row, col, (A_mxydx_b_g_CSR%val( k) / A_overlap_tot) - (grid%x( i) * w0_CSR%val( k)))
+          CALL add_entry_CSR_dist( w1y_CSR, row, col, (A_xydy_b_g_CSR%val(  k) / A_overlap_tot) - (grid%y( j) * w0_CSR%val( k)))
+        END DO
+
+      ELSE
+        ! For large triangles, don't include the gradient terms
+
+        CALL add_empty_row_CSR_dist( w1x_CSR, row)
+        CALL add_empty_row_CSR_dist( w1y_CSR, row)
+
+      END IF ! IF (mask_do_simple_average( vi) == 0) THEN
+
+    END DO ! DO row = mesh%ti1, mesh%ti2
+
+    ! Clean up after yourself
+    CALL deallocate_matrix_CSR_dist( A_xdy_b_g_CSR  )
+    CALL deallocate_matrix_CSR_dist( A_mxydx_b_g_CSR)
+    CALL deallocate_matrix_CSR_dist( A_xydy_b_g_CSR )
+
+    ! Convert matrices from Fortran to PETSc types
+    CALL mat_CSR2petsc( w0_CSR , w0 )
+    CALL mat_CSR2petsc( w1x_CSR, w1x)
+    CALL mat_CSR2petsc( w1y_CSR, w1y)
+
+    ! Calculate the remapping matrix
+
+    CALL calc_matrix_operators_grid( grid, grid_M_ddx, grid_M_ddy)
+
+    CALL MatDuplicate( w0, MAT_COPY_VALUES, map%M, perr)
+    CALL MatMatMult( w1x, grid_M_ddx, MAT_INITIAL_MATRIX, PETSC_DEFAULT_REAL, M1, perr)  ! This can be done more efficiently now that the non-zero structure is known...
+    CALL MatMatMult( w1y, grid_M_ddy, MAT_INITIAL_MATRIX, PETSC_DEFAULT_REAL, M2, perr)
+
+    CALL MatDestroy( grid_M_ddx    , perr)
+    CALL MatDestroy( grid_M_ddy    , perr)
+    CALL MatDestroy( w0            , perr)
+    CALL MatDestroy( w1x           , perr)
+    CALL MatDestroy( w1y           , perr)
+
+    CALL MatAXPY( map%M, 1._dp, M1, DIFFERENT_NONZERO_PATTERN, perr)
+    CALL MatAXPY( map%M, 1._dp, M2, DIFFERENT_NONZERO_PATTERN, perr)
+
+    ! Clean up after yourself
+    CALL MatDestroy( M1, perr)
+    CALL MatDestroy( M2, perr)
+    DEALLOCATE( mask_do_simple_average)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE create_map_from_xy_grid_to_mesh_triangles
 
   SUBROUTINE create_map_from_mesh_to_xy_grid( mesh, grid, map)
     ! Create a new mapping object from a mesh to an x/y-grid.
