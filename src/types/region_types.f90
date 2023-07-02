@@ -15,6 +15,7 @@ MODULE region_types
   USE SMB_model_types                                        , ONLY: type_SMB_model
   USE BMB_model_types                                        , ONLY: type_BMB_model
   USE GIA_model_types                                        , ONLY: type_GIA_model
+  USE basal_inversion_types                                  , ONLY: type_basal_inversion
   USE scalar_types                                           , ONLY: type_regional_scalars
 
   IMPLICIT NONE
@@ -56,6 +57,9 @@ MODULE region_types
 
     ! The glacial isostatic adjustment model
     TYPE(type_GIA_model)                    :: GIA
+
+    ! The basal inversion model
+    TYPE(type_basal_inversion)              :: BIV
 
     ! Scalar data
     TYPE(type_regional_scalars)             :: scalars                     ! Scalar data (e.g. total area, volume, mass balance)

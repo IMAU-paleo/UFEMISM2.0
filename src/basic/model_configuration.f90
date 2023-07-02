@@ -431,30 +431,21 @@ MODULE model_configuration
   ! =====================================
 
     ! General
-    LOGICAL             :: do_bed_roughness_nudging_config              = .FALSE.                          ! Whether or not to budge the basal roughness
-    REAL(dp)            :: bed_roughness_nudging_t_start_config         = -9.9E9_dp                        ! Earliest model time when nudging is allowed
-    REAL(dp)            :: bed_roughness_nudging_t_end_config           = +9.9E9_dp                        ! Latest   model time when nudging is allowed
-    CHARACTER(LEN=256)  :: choice_bed_roughness_nudging_method_config   = ''                               ! Choice of bed roughness nudging method
-    REAL(dp)            :: bed_roughness_nudging_dt_config              = 5._dp                            ! Time step for bed roughness updates
-    CHARACTER(LEN=256)  :: filename_inverted_bed_roughness_config       = 'bed_roughness_inv.nc'           ! NetCDF file where the final inverted bed roughness will be saved
+    LOGICAL             :: do_bed_roughness_nudging_config              = .FALSE.                          !           Whether or not to nudge the basal roughness
+    CHARACTER(LEN=256)  :: choice_bed_roughness_nudging_method_config   = ''                               !           Choice of bed roughness nudging method
+    REAL(dp)            :: bed_roughness_nudging_dt_config              = 5._dp                            ! [yr]      Time step for bed roughness updates
+    REAL(dp)            :: bed_roughness_nudging_t_start_config         = -9.9E9_dp                        ! [yr]      Earliest model time when nudging is allowed
+    REAL(dp)            :: bed_roughness_nudging_t_end_config           = +9.9E9_dp                        ! [yr]      Latest   model time when nudging is allowed
+    REAL(dp)            :: generic_bed_roughness_1_min_config           = 0.1_dp                           ! [?]       Smallest allowed value for the first inverted bed roughness field
+    REAL(dp)            :: generic_bed_roughness_1_max_config           = 30._dp                           ! [?]       Largest  allowed value for the first inverted bed roughness field
+    CHARACTER(LEN=256)  :: filename_inverted_bed_roughness_config       = 'bed_roughness_inv.nc'           !           NetCDF file where the final inverted bed roughness fields will be saved
 
-    ! Parameters
-    LOGICAL             :: BIVgeo_Bernales_do_smooth_config             = .FALSE.                          ! If set to TRUE, inverted basal roughness is smoothed
-    REAL(dp)            :: BIVgeo_Bernales_scale_config                 = 10000._dp                        ! Scaling constant for inversion procedure [m]
-    REAL(dp)            :: BIVgeo_Bernales_rsmooth_config               = 500._dp                          ! Smoothing radius for inversion procedure [m]
-    REAL(dp)            :: BIVgeo_Bernales_wsmooth_config               = .01_dp                           ! Weight given to the smoothed roughness (1  = full smoothing applied)
-    REAL(dp)            :: BIVgeo_Bernales_phi_min_config               = 2._dp                            ! Minimum value of phi_fric allowed during inversion
-    REAL(dp)            :: BIVgeo_Bernales_phi_max_config               = 30._dp                           ! Maximum value of phi_fric allowed during inversion
-    REAL(dp)            :: BIVgeo_Bernales_tol_diff_config              = 100._dp                          ! Minimum ice thickness difference [m] that triggers inversion (.OR. &)
-    REAL(dp)            :: BIVgeo_Bernales_tol_frac_config              = 1.0_dp                           ! Minimum ratio between ice thickness difference and reference value that triggers inversion
-    REAL(dp)            :: BIVgeo_Berends2022_tauc_config               = 10._dp                           ! Timescale       in the Berends2022 geometry/velocity-based basal inversion method [yr]
-    REAL(dp)            :: BIVgeo_Berends2022_H0_config                 = 100._dp                          ! First  thickness scale in the Berends2022 geometry/velocity-based basal inversion method [m]
-    REAL(dp)            :: BIVgeo_Berends2022_u0_config                 = 250._dp                          ! First  velocity  scale in the Berends2022 geometry/velocity-based basal inversion method [m/yr]
-    REAL(dp)            :: BIVgeo_Berends2022_Hi_scale_config           = 300._dp                          ! Second thickness scale in the Berends2022 geometry/velocity-based basal inversion method [m]
-    REAL(dp)            :: BIVgeo_Berends2022_u_scale_config            = 3000._dp                         ! Second velocity  scale in the Berends2022 geometry/velocity-based basal inversion method [m/yr]
-    REAL(dp)            :: BIVgeo_Berends2022_phimin_config             = 0.1_dp                           ! Smallest allowed value for the inverted till friction angle phi
-    REAL(dp)            :: BIVgeo_Berends2022_phimax_config             = 30._dp                           ! Largest  allowed value for the inverted till friction angle phi
-    CHARACTER(LEN=256)  :: BIVgeo_target_velocity_filename_config       = ''                               ! NetCDF file where the target velocities are read in the CISM+ and Berends2022 geometry/velocity-based basal inversion methods
+    ! Basal inversion model based on flowline-averaged values of H and dH/dt
+    REAL(dp)            :: bednudge_H_dHdt_flowline_tauc_config         = 10._dp                           ! [yr]      Timescale
+    REAL(dp)            :: bednudge_H_dHdt_flowline_dH0_config          = 100._dp                          ! [m]       Ice thickness error scale
+    REAL(dp)            :: bednudge_H_dHdt_flowline_dHdt0_config        = 250._dp                          ! [m yr^-1] Thinning rate scale
+    REAL(dp)            :: bednudge_H_dHdt_flowline_Hi_scale_config     = 300._dp                          ! [m]       Ice thickness weight scale
+    REAL(dp)            :: bednudge_H_dHdt_flowline_u_scale_config      = 3000._dp                         ! [m yr^-1] Ice velocity  weight scale
 
   ! == Geothermal heat flux
   ! =======================
@@ -1103,29 +1094,20 @@ MODULE model_configuration
 
     ! General
     LOGICAL             :: do_bed_roughness_nudging
-    REAL(dp)            :: bed_roughness_nudging_t_start
-    REAL(dp)            :: bed_roughness_nudging_t_end
     CHARACTER(LEN=256)  :: choice_bed_roughness_nudging_method
     REAL(dp)            :: bed_roughness_nudging_dt
+    REAL(dp)            :: bed_roughness_nudging_t_start
+    REAL(dp)            :: bed_roughness_nudging_t_end
+    REAL(dp)            :: generic_bed_roughness_1_min
+    REAL(dp)            :: generic_bed_roughness_1_max
     CHARACTER(LEN=256)  :: filename_inverted_bed_roughness
 
-    ! Parameters
-    LOGICAL             :: BIVgeo_Bernales_do_smooth
-    REAL(dp)            :: BIVgeo_Bernales_scale
-    REAL(dp)            :: BIVgeo_Bernales_rsmooth
-    REAL(dp)            :: BIVgeo_Bernales_wsmooth
-    REAL(dp)            :: BIVgeo_Bernales_phi_min
-    REAL(dp)            :: BIVgeo_Bernales_phi_max
-    REAL(dp)            :: BIVgeo_Bernales_tol_diff
-    REAL(dp)            :: BIVgeo_Bernales_tol_frac
-    REAL(dp)            :: BIVgeo_Berends2022_tauc
-    REAL(dp)            :: BIVgeo_Berends2022_H0
-    REAL(dp)            :: BIVgeo_Berends2022_u0
-    REAL(dp)            :: BIVgeo_Berends2022_Hi_scale
-    REAL(dp)            :: BIVgeo_Berends2022_u_scale
-    REAL(dp)            :: BIVgeo_Berends2022_phimin
-    REAL(dp)            :: BIVgeo_Berends2022_phimax
-    CHARACTER(LEN=256)  :: BIVgeo_target_velocity_filename
+    ! Basal inversion model based on flowline-averaged values of H and dH/dt
+    REAL(dp)            :: bednudge_H_dHdt_flowline_tauc
+    REAL(dp)            :: bednudge_H_dHdt_flowline_dH0
+    REAL(dp)            :: bednudge_H_dHdt_flowline_dHdt0
+    REAL(dp)            :: bednudge_H_dHdt_flowline_Hi_scale
+    REAL(dp)            :: bednudge_H_dHdt_flowline_u_scale
 
   ! == Geothermal heat flux
   ! =======================
@@ -1781,27 +1763,18 @@ CONTAINS
       Martin2011till_phi_min_config                               , &
       Martin2011till_phi_max_config                               , &
       do_bed_roughness_nudging_config                             , &
-      bed_roughness_nudging_t_start_config                        , &
-      bed_roughness_nudging_t_end_config                          , &
       choice_bed_roughness_nudging_method_config                  , &
       bed_roughness_nudging_dt_config                             , &
+      bed_roughness_nudging_t_start_config                        , &
+      bed_roughness_nudging_t_end_config                          , &
+      generic_bed_roughness_1_min_config                          , &
+      generic_bed_roughness_1_max_config                          , &
       filename_inverted_bed_roughness_config                      , &
-      BIVgeo_Bernales_do_smooth_config                            , &
-      BIVgeo_Bernales_scale_config                                , &
-      BIVgeo_Bernales_rsmooth_config                              , &
-      BIVgeo_Bernales_wsmooth_config                              , &
-      BIVgeo_Bernales_phi_min_config                              , &
-      BIVgeo_Bernales_phi_max_config                              , &
-      BIVgeo_Bernales_tol_diff_config                             , &
-      BIVgeo_Bernales_tol_frac_config                             , &
-      BIVgeo_Berends2022_tauc_config                              , &
-      BIVgeo_Berends2022_H0_config                                , &
-      BIVgeo_Berends2022_u0_config                                , &
-      BIVgeo_Berends2022_Hi_scale_config                          , &
-      BIVgeo_Berends2022_u_scale_config                           , &
-      BIVgeo_Berends2022_phimin_config                            , &
-      BIVgeo_Berends2022_phimax_config                            , &
-      BIVgeo_target_velocity_filename_config                      , &
+      bednudge_H_dHdt_flowline_tauc_config                        , &
+      bednudge_H_dHdt_flowline_dH0_config                         , &
+      bednudge_H_dHdt_flowline_dHdt0_config                       , &
+      bednudge_H_dHdt_flowline_Hi_scale_config                    , &
+      bednudge_H_dHdt_flowline_u_scale_config                     , &
       choice_geothermal_heat_flux_config                          , &
       uniform_geothermal_heat_flux_config                         , &
       filename_geothermal_heat_flux_config                        , &
@@ -2389,29 +2362,20 @@ CONTAINS
 
     ! General
     C%do_bed_roughness_nudging                               = do_bed_roughness_nudging_config
-    C%bed_roughness_nudging_t_start                          = bed_roughness_nudging_t_start_config
-    C%bed_roughness_nudging_t_end                            = bed_roughness_nudging_t_end_config
     C%choice_bed_roughness_nudging_method                    = choice_bed_roughness_nudging_method_config
     C%bed_roughness_nudging_dt                               = bed_roughness_nudging_dt_config
+    C%bed_roughness_nudging_t_start                          = bed_roughness_nudging_t_start_config
+    C%bed_roughness_nudging_t_end                            = bed_roughness_nudging_t_end_config
+    C%generic_bed_roughness_1_min                            = generic_bed_roughness_1_min_config
+    C%generic_bed_roughness_1_max                            = generic_bed_roughness_1_max_config
     C%filename_inverted_bed_roughness                        = filename_inverted_bed_roughness_config
 
-    ! Parameters
-    C%BIVgeo_Bernales_do_smooth                              = BIVgeo_Bernales_do_smooth_config
-    C%BIVgeo_Bernales_scale                                  = BIVgeo_Bernales_scale_config
-    C%BIVgeo_Bernales_rsmooth                                = BIVgeo_Bernales_rsmooth_config
-    C%BIVgeo_Bernales_wsmooth                                = BIVgeo_Bernales_wsmooth_config
-    C%BIVgeo_Bernales_phi_min                                = BIVgeo_Bernales_phi_min_config
-    C%BIVgeo_Bernales_phi_max                                = BIVgeo_Bernales_phi_max_config
-    C%BIVgeo_Bernales_tol_diff                               = BIVgeo_Bernales_tol_diff_config
-    C%BIVgeo_Bernales_tol_frac                               = BIVgeo_Bernales_tol_frac_config
-    C%BIVgeo_Berends2022_tauc                                = BIVgeo_Berends2022_tauc_config
-    C%BIVgeo_Berends2022_H0                                  = BIVgeo_Berends2022_H0_config
-    C%BIVgeo_Berends2022_u0                                  = BIVgeo_Berends2022_u0_config
-    C%BIVgeo_Berends2022_Hi_scale                            = BIVgeo_Berends2022_Hi_scale_config
-    C%BIVgeo_Berends2022_u_scale                             = BIVgeo_Berends2022_u_scale_config
-    C%BIVgeo_Berends2022_phimin                              = BIVgeo_Berends2022_phimin_config
-    C%BIVgeo_Berends2022_phimax                              = BIVgeo_Berends2022_phimax_config
-    C%BIVgeo_target_velocity_filename                        = BIVgeo_target_velocity_filename_config
+    ! Basal inversion model based on flowline-averaged values of H and dH/dt
+    C%bednudge_H_dHdt_flowline_tauc                          = bednudge_H_dHdt_flowline_tauc_config
+    C%bednudge_H_dHdt_flowline_dH0                           = bednudge_H_dHdt_flowline_dH0_config
+    C%bednudge_H_dHdt_flowline_dHdt0                         = bednudge_H_dHdt_flowline_dHdt0_config
+    C%bednudge_H_dHdt_flowline_Hi_scale                      = bednudge_H_dHdt_flowline_Hi_scale_config
+    C%bednudge_H_dHdt_flowline_u_scale                       = bednudge_H_dHdt_flowline_u_scale_config
 
   ! == Geothermal heat flux
   ! =======================

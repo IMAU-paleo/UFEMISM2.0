@@ -84,6 +84,7 @@ UFEMISM_source = \
   types/SMB_model_types.f90 \
   types/BMB_model_types.f90 \
   types/GIA_model_types.f90 \
+  types/basal_inversion_types.f90 \
   types/region_types.f90 \
   \
   mesh/mesh_memory.f90 \
@@ -108,6 +109,8 @@ UFEMISM_source = \
   \
   basal_conditions/geothermal_heat_flux.f90 \
   basal_conditions/basal_hydrology.f90 \
+  basal_conditions/basal_inversion_H_dHdt_flowline.f90 \
+  basal_conditions/basal_inversion_main.f90 \
   basal_conditions/bed_roughness.f90 \
   basal_conditions/sliding_laws.f90 \
   \

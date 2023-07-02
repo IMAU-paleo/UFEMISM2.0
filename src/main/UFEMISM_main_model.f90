@@ -31,6 +31,7 @@ MODULE UFEMISM_main_model
                                                                      create_restart_file_BMB_model, write_to_restart_file_BMB_model
   USE GIA_main                                               , ONLY: initialise_GIA_model, run_GIA_model, &
                                                                      create_restart_file_GIA_model, write_to_restart_file_GIA_model
+  USE basal_inversion_main                                   , ONLY: initialise_basal_inversion, run_basal_inversion
   USE netcdf_basic                                           , ONLY: open_existing_netcdf_file_for_reading, close_netcdf_file
   USE netcdf_input                                           , ONLY: setup_mesh_from_file
   USE mesh_creation                                          , ONLY: create_mesh_from_gridded_geometry, create_mesh_from_meshed_geometry, write_mesh_success
@@ -102,6 +103,9 @@ CONTAINS
       ! Calculate bedrock deformation at the desired time, and update
       ! predicted deformation if necessary
       CALL run_GIA_model( region)
+
+      ! Run the basal inversion model
+      CALL run_basal_inversion( region%mesh, region%ice, region%BIV)
 
       ! Write to the main regional output NetCDF file
       CALL write_to_regional_output_files( region)
@@ -354,6 +358,13 @@ CONTAINS
     ! ========================================
 
     CALL initialise_GIA_model( region%mesh, region%GIA, region%name)
+
+    ! ===== Basal inversion =====
+    ! ===========================
+
+    IF (C%do_bed_roughness_nudging) THEN
+      CALL initialise_basal_inversion( region%mesh, region%ice, region%BIV, region%name)
+    END IF
 
     ! ===== Regional output =====
     ! ===========================
