@@ -86,6 +86,7 @@ CONTAINS
     ALLOCATE( ice%mask_gl_fl                  ( mesh%vi1:mesh%vi2        ))  ! T: floating ice next to grounded ice, F: otherwise
     ALLOCATE( ice%mask_cf_gr                  ( mesh%vi1:mesh%vi2        ))  ! T: grounded ice next to ice-free water (sea or lake), F: otherwise
     ALLOCATE( ice%mask_cf_fl                  ( mesh%vi1:mesh%vi2        ))  ! T: floating ice next to ice-free water (sea or lake), F: otherwise
+    ALLOCATE( ice%mask_noice                  ( mesh%vi1:mesh%vi2        ))  ! T: no ice is allowed here, F: ice is allowed here
     ALLOCATE( ice%mask                        ( mesh%vi1:mesh%vi2        ))  ! Diagnostic, only meant for quick visual inspection in output
     ALLOCATE( ice%basin_ID                    ( mesh%vi1:mesh%vi2        ))  ! The drainage basin to which each vertex belongs
 
@@ -101,6 +102,7 @@ CONTAINS
     ice%mask_gl_fl                  = .FALSE.
     ice%mask_cf_gr                  = .FALSE.
     ice%mask_cf_fl                  = .FALSE.
+    ice%mask_noice                  = .FALSE.
     ice%mask                        = 0
     ice%basin_ID                    = 0
 

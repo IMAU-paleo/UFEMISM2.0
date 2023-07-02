@@ -705,8 +705,9 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(len=256), PARAMETER                      :: routine_name = 'calc_grounded_fractions_bedrock_CDF_b'
+    REAL(dp), DIMENSION(mesh%nV)                       :: TAF_tot
     REAL(dp), DIMENSION(mesh%ti1:mesh%ti2)             :: Hi_b, SL_b, dHb_b
-    INTEGER                                            :: ti, il, iu
+    INTEGER                                            :: ti, via, vib, vic, il, iu
     REAL(dp)                                           :: Hb_float, wl, wu
 
     ! Add routine to path
@@ -717,7 +718,27 @@ CONTAINS
     CALL map_a_b_2D( mesh, ice%SL , SL_b )
     CALL map_a_b_2D( mesh, ice%dHb, dHb_b)
 
+    ! Gather global thickness above floatation
+    CALL gather_to_all_dp_1D( ice%TAF, TAF_tot)
+
     DO ti = mesh%ti1, mesh%ti2
+
+      ! On the domain border, remapping issues make this answer unreliable
+      ! (NOTE: only relevant when there's ice at the domain border, which in
+      !        realistic experiments should never be the case; only happens
+      !        in idealised geometries (e.g. MISMIP+))
+      IF (mesh%TriBI( ti) > 0) THEN
+        ! If any of the three vertices spanning this triangle are grounded, treat it as grounded
+        via = mesh%Tri( ti,1)
+        vib = mesh%Tri( ti,2)
+        vic = mesh%Tri( ti,3)
+        IF (TAF_tot( via) > 0._dp .OR. TAF_tot( vib) > 0._dp .OR. TAF_tot( vic) > 0._dp) THEN
+          fraction_gr_b( ti) = 1._dp
+        ELSE
+          fraction_gr_b( ti) = 0._dp
+        END IF
+        CYCLE
+      END IF
 
       ! Compute the bedrock depth at which the current ice thickness and sea level
       ! will make this point afloat. Account for GIA here so we don't have to do it in
@@ -1311,5 +1332,50 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE calc_zeta_gradients
+
+  ! == No-ice mask
+  ! ==============
+
+  SUBROUTINE calc_mask_noice( mesh, ice)
+    ! Calculate the no-ice mask
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
+    TYPE(type_ice_model),                INTENT(INOUT) :: ice
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_mask_noice'
+    INTEGER                                            :: vi
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    SELECT CASE (C%choice_mask_noice)
+      CASE ('none')
+        ! Ice is (in principle) allowed everywhere
+
+        ice%mask_noice = .FALSE.
+
+      CASE ('MISMIP+')
+        ! Kill all ice when x > 640 km
+
+        DO vi = mesh%vi1, mesh%vi2
+          IF (mesh%V( vi,1) > 640E3_dp) THEN
+            ice%mask_noice( vi) = .TRUE.
+          ELSE
+            ice%mask_noice( vi) = .FALSE.
+          END IF
+        END DO
+
+      CASE DEFAULT
+        CALL crash('unknown choice_mask_noice "' // TRIM( C%choice_mask_noice) // '"')
+    END SELECT
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE calc_mask_noice
 
 END MODULE ice_model_utilities

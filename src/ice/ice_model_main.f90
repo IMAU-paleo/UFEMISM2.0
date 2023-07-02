@@ -22,7 +22,8 @@ MODULE ice_model_main
   USE reference_geometries                                   , ONLY: type_reference_geometry
   USE region_types                                           , ONLY: type_model_region
   USE ice_model_memory                                       , ONLY: allocate_ice_model
-  USE ice_model_utilities                                    , ONLY: determine_masks, calc_bedrock_CDFs, calc_grounded_fractions, calc_zeta_gradients
+  USE ice_model_utilities                                    , ONLY: determine_masks, calc_bedrock_CDFs, calc_grounded_fractions, calc_zeta_gradients, &
+                                                                     calc_mask_noice
   USE ice_model_scalars                                      , ONLY: calc_ice_model_scalars
   USE ice_thickness                                          , ONLY: calc_dHi_dt
   USE math_utilities                                         , ONLY: ice_surface_elevation, thickness_above_floatation
@@ -140,6 +141,9 @@ CONTAINS
 
     ! Update masks
     CALL determine_masks( region%mesh, region%ice)
+
+    ! Calculate the no-ice mask
+    CALL calc_mask_noice( region%mesh, region%ice)
 
     ! NOTE: as calculating the zeta gradients is quite expensive, only do so when necessary,
     !       i.e. when solving the heat equation or the Blatter-Pattyn stress balance
@@ -263,6 +267,9 @@ CONTAINS
     ! Call it twice so also the "prev" versions are set
     CALL determine_masks( mesh, ice)
     CALL determine_masks( mesh, ice)
+
+    ! Calculate the no-ice mask
+    CALL calc_mask_noice( mesh, ice)
 
     ! Sub-grid fractions
     ! ==================
@@ -433,8 +440,8 @@ CONTAINS
     region%ice%pc%dHi_dt_Hi_nm1_u_nm1 = region%ice%dHi_dt
 
     ! Calculate thinning rates for current geometry and velocity
-    CALL calc_dHi_dt( region%mesh, region%ice%Hi_prev, region%ice%u_vav_b, region%ice%v_vav_b, region%SMB%SMB, region%BMB%BMB, region%ice%pc%dt_np1, &
-      region%ice%pc%dHi_dt_Hi_n_u_n, Hi_dummy)
+    CALL calc_dHi_dt( region%mesh, region%ice%Hi_prev, region%ice%u_vav_b, region%ice%v_vav_b, region%SMB%SMB, region%BMB%BMB, &
+      region%ice%mask_noice, region%ice%pc%dt_np1, region%ice%pc%dHi_dt_Hi_n_u_n, Hi_dummy)
 
     ! Calculate predicted ice thickness (Robinson et al., 2020, Eq. 30)
     region%ice%pc%Hi_star_np1 = region%ice%Hi_prev + region%ice%pc%dt_np1 * ((1._dp + region%ice%pc%zeta_t / 2._dp) * &
@@ -464,8 +471,8 @@ CONTAINS
     CALL determine_masks( region%mesh, region%ice)
 
     ! Calculate thinning rates for the predicted ice thickness and updated velocity
-    CALL calc_dHi_dt( region%mesh, region%ice%Hi, region%ice%u_vav_b, region%ice%v_vav_b, region%SMB%SMB, region%BMB%BMB, region%ice%pc%dt_np1, &
-      region%ice%pc%dHi_dt_Hi_star_np1_u_np1, Hi_dummy)
+    CALL calc_dHi_dt( region%mesh, region%ice%Hi, region%ice%u_vav_b, region%ice%v_vav_b, region%SMB%SMB, region%BMB%BMB, &
+      region%ice%mask_noice, region%ice%pc%dt_np1, region%ice%pc%dHi_dt_Hi_star_np1_u_np1, Hi_dummy)
 
     ! Calculate corrected ice thickness (Robinson et al. (2020), Eq. 31)
     region%ice%pc%Hi_np1 = region%ice%Hi_prev + (region%ice%pc%dt_np1 / 2._dp) * (region%ice%pc%dHi_dt_Hi_n_u_n + region%ice%pc%dHi_dt_Hi_star_np1_u_np1)
@@ -822,8 +829,8 @@ CONTAINS
     dt = MAX( C%dt_ice_min, dt)
 
     ! Calculate thinning rates and predicted geometry
-    CALL calc_dHi_dt( region%mesh, region%ice%Hi, region%ice%u_vav_b, region%ice%v_vav_b, region%SMB%SMB, region%BMB%BMB, dt, &
-      region%ice%dHi_dt, region%ice%Hi_next)
+    CALL calc_dHi_dt( region%mesh, region%ice%Hi, region%ice%u_vav_b, region%ice%v_vav_b, region%SMB%SMB, region%BMB%BMB, &
+      region%ice%mask_noice, dt, region%ice%dHi_dt, region%ice%Hi_next)
 
     ! Set next modelled ice thickness timestamp
     region%ice%t_Hi_next = region%ice%t_Hi_prev + dt

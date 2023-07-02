@@ -231,21 +231,6 @@ CONTAINS
     ! Output
     time_of_next_action = MIN( time_of_next_action, region%output_t_next)
 
-!    ! DENK DROM
-!    IF (par%master) THEN
-!      WRITE(0,*) ''
-!      WRITE(0,*) '  Times of next actions at time = ', region%time, ':'
-!      WRITE(0,*) '    ice    :', region%ice%t_Hi_next
-!      WRITE(0,*) '    thermo :', region%ice%t_Ti_next
-!      WRITE(0,*) '    climate:', region%climate%t_next
-!      WRITE(0,*) '    ocean  :', region%ocean%t_next
-!      WRITE(0,*) '    SMB    :', region%SMB%t_next
-!      WRITE(0,*) '    BMB    :', region%BMB%t_next
-!      WRITE(0,*) '    GIA    :', region%GIA%t_next
-!      WRITE(0,*) '    output :', region%output_t_next
-!      WRITE(0,*) ''
-!    END IF
-
   ! == Advance region time
   ! ======================
 

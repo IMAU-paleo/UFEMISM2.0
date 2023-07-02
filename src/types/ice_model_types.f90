@@ -212,6 +212,7 @@ MODULE ice_model_types
     LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_gl_fl                  ! T: floating ice next to grounded ice, F: otherwise
     LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_cf_gr                  ! T: grounded ice next to ice-free water (sea or lake), F: otherwise
     LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_cf_fl                  ! T: floating ice next to ice-free water (sea or lake), F: otherwise
+    LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_noice                  ! T: no ice is allowed here, F: ice is allowed here
     INTEGER,  DIMENSION(:    ), ALLOCATABLE :: mask                        ! Diagnostic, only meant for quick visual inspection in output
     INTEGER,  DIMENSION(:    ), ALLOCATABLE :: basin_ID                    ! The drainage basin to which each vertex belongs
 

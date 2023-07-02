@@ -10,4 +10,6 @@ else
   error('unexpected vector length!')
 end
 
+set( H.Ax,'units','normalized');
+
 end
