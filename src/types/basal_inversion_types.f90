@@ -30,9 +30,6 @@ MODULE basal_inversion_types
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: generic_bed_roughness_1
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: generic_bed_roughness_2
 
-    ! Sub-models
-    TYPE(type_basal_inversion_H_dHdt_flowline) :: flowline_H_dHdt
-
     ! Timestepping
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: generic_bed_roughness_1_prev
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: generic_bed_roughness_2_prev

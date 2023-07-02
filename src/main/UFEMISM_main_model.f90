@@ -105,7 +105,9 @@ CONTAINS
       CALL run_GIA_model( region)
 
       ! Run the basal inversion model
-      CALL run_basal_inversion( region%mesh, region%ice, region%BIV)
+      IF (C%do_bed_roughness_nudging) THEN
+        CALL run_basal_inversion( region)
+      END IF
 
       ! Write to the main regional output NetCDF file
       CALL write_to_regional_output_files( region)
@@ -231,6 +233,11 @@ CONTAINS
 
     ! GIA
     time_of_next_action = MIN( time_of_next_action, region%GIA%t_next)
+
+    ! Basal inversion
+    IF (C%do_bed_roughness_nudging) THEN
+      time_of_next_action = MIN( time_of_next_action, region%BIV%t_next)
+    END IF
 
     ! Output
     time_of_next_action = MIN( time_of_next_action, region%output_t_next)

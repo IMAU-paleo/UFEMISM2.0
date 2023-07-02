@@ -17,7 +17,7 @@ MODULE basal_inversion_main
   USE ice_model_types                                        , ONLY: type_ice_model
   USE basal_inversion_types                                  , ONLY: type_basal_inversion
   USE region_types                                           , ONLY: type_model_region
-  USE basal_inversion_H_dHdt_flowline                        , ONLY: initialise_basal_inversion_H_dHdt_flowline
+  USE basal_inversion_H_dHdt_flowline                        , ONLY: initialise_basal_inversion_H_dHdt_flowline, run_basal_inversion_H_dHdt_flowline
 
   IMPLICIT NONE
 
@@ -58,6 +58,7 @@ CONTAINS
       ! Run the basal inversion model to calculate a new next modelled bed roughness
       SELECT CASE (C%choice_bed_roughness_nudging_method)
         CASE ('H_dHdt_flowline')
+          CALL run_basal_inversion_H_dHdt_flowline( region%mesh, region%ice, region%BIV)
         CASE DEFAULT
           CALL crash('unknown choice_bed_roughness_nudging_method "' // TRIM( C%choice_bed_roughness_nudging_method) // '"!')
       END SELECT
@@ -228,7 +229,7 @@ CONTAINS
 
     SELECT CASE (C%choice_bed_roughness_nudging_method)
       CASE ('H_dHdt_flowline')
-        CALL initialise_basal_inversion_H_dHdt_flowline( mesh, ice, BIV%flowline_H_dHdt, region_name)
+        CALL initialise_basal_inversion_H_dHdt_flowline( mesh, ice, BIV, region_name)
       CASE DEFAULT
         CALL crash('unknown choice_bed_roughness_nudging_method "' // TRIM( C%choice_bed_roughness_nudging_method) // '"')
     END SELECT

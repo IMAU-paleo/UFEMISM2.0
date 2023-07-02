@@ -16,7 +16,7 @@ MODULE basal_inversion_H_dHdt_flowline
   USE parameters
   USE mesh_types                                             , ONLY: type_mesh
   USE ice_model_types                                        , ONLY: type_ice_model
-  USE basal_inversion_types                                  , ONLY: type_basal_inversion_H_dHdt_flowline
+  USE basal_inversion_types                                  , ONLY: type_basal_inversion
 
   IMPLICIT NONE
 
@@ -32,8 +32,8 @@ CONTAINS
 
     ! Input variables:
     TYPE(type_mesh),                     INTENT(IN)    :: mesh
-    TYPE(type_ice_model),                INTENT(INOUT)    :: ice
-    TYPE(type_basal_inversion_H_dHdt_flowline), INTENT(INOUT)   :: BIV
+    TYPE(type_ice_model),                INTENT(IN)    :: ice
+    TYPE(type_basal_inversion),          INTENT(INOUT) :: BIV
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_basal_inversion_H_dHdt_flowline'
@@ -54,7 +54,7 @@ CONTAINS
     ! Input variables:
     TYPE(type_mesh),                     INTENT(IN)    :: mesh
     TYPE(type_ice_model),                INTENT(IN)    :: ice
-    TYPE(type_basal_inversion_H_dHdt_flowline), INTENT(OUT)   :: BIV
+    TYPE(type_basal_inversion),          INTENT(INOUT) :: BIV
     CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
 
     ! Local variables:
