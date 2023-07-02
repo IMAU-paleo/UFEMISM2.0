@@ -121,7 +121,7 @@ CONTAINS
       CALL read_field_from_xy_file_2D( filename, field_name_options, d_grid_vec_partial_from_file, grid = grid_from_file, time_to_read = time_to_read)
 
       ! Allocate memory for data on the model mesh
-      ALLOCATE( d_partial( mesh%nV_loc), source = 0._dp)
+      ALLOCATE( d_partial( mesh%vi1:mesh%vi2), source = 0._dp)
 
       ! Remap data
       CALL map_from_xy_grid_to_mesh_2D( grid_from_file, mesh, d_grid_vec_partial_from_file, d_partial)
@@ -137,7 +137,7 @@ CONTAINS
       CALL read_field_from_lonlat_file_2D( filename, field_name_options, d_grid_lonlat_vec_partial_from_file, grid = grid_lonlat_from_file, time_to_read = time_to_read)
 
       ! Allocate memory for data on the model mesh
-      ALLOCATE( d_partial( mesh%nV_loc), source = 0._dp)
+      ALLOCATE( d_partial( mesh%vi1:mesh%vi2), source = 0._dp)
 
       ! Remap data
       CALL map_from_lonlat_grid_to_mesh_2D( grid_lonlat_from_file, mesh, d_grid_lonlat_vec_partial_from_file, d_partial)
@@ -153,7 +153,7 @@ CONTAINS
       CALL read_field_from_mesh_file_2D( filename, field_name_options, d_mesh_partial_from_file, mesh = mesh_from_file, time_to_read = time_to_read)
 
       ! Allocate memory for data on the model mesh
-      ALLOCATE( d_partial( mesh%nV_loc), source = 0._dp)
+      ALLOCATE( d_partial( mesh%vi1:mesh%vi2), source = 0._dp)
 
       ! Remap data
       CALL map_from_mesh_to_mesh_2D( mesh_from_file, mesh, d_mesh_partial_from_file, d_partial, method = method_mesh2mesh)
@@ -229,7 +229,7 @@ CONTAINS
       CALL read_field_from_xy_file_2D_monthly( filename, field_name_options, d_grid_vec_partial_from_file, grid = grid_from_file, time_to_read = time_to_read)
 
       ! Allocate memory for data on the model mesh
-      ALLOCATE( d_partial( mesh%nV_loc, 12), source = 0._dp)
+      ALLOCATE( d_partial( mesh%vi1:mesh%vi2, 12), source = 0._dp)
 
       ! Remap data
       CALL map_from_xy_grid_to_mesh_3D( grid_from_file, mesh, d_grid_vec_partial_from_file, d_partial)
@@ -245,7 +245,7 @@ CONTAINS
       CALL read_field_from_lonlat_file_2D_monthly( filename, field_name_options, d_grid_lonlat_vec_partial_from_file, grid = grid_lonlat_from_file, time_to_read = time_to_read)
 
       ! Allocate memory for data on the model mesh
-      ALLOCATE( d_partial( mesh%nV_loc, 12), source = 0._dp)
+      ALLOCATE( d_partial( mesh%vi1:mesh%vi2, 12), source = 0._dp)
 
       ! Remap data
       CALL map_from_lonlat_grid_to_mesh_3D( grid_lonlat_from_file, mesh, d_grid_lonlat_vec_partial_from_file, d_partial)
@@ -261,7 +261,7 @@ CONTAINS
       CALL read_field_from_mesh_file_2D_monthly( filename, field_name_options, d_mesh_partial_from_file, mesh = mesh_from_file, time_to_read = time_to_read)
 
       ! Allocate memory for data on the model mesh
-      ALLOCATE( d_partial( mesh%nV_loc, 12), source = 0._dp)
+      ALLOCATE( d_partial( mesh%vi1:mesh%vi2, 12), source = 0._dp)
 
       ! Remap data
       CALL map_from_mesh_to_mesh_3D( mesh_from_file, mesh, d_mesh_partial_from_file, d_partial, method = method_mesh2mesh)
@@ -345,7 +345,7 @@ CONTAINS
         time_to_read = time_to_read, nzeta = nzeta_loc, zeta = zeta_loc)
 
       ! Allocate memory for data on the model mesh
-      ALLOCATE( d_partial( mesh%nV_loc, nzeta_loc), source = 0._dp)
+      ALLOCATE( d_partial( mesh%vi1:mesh%vi2, nzeta_loc), source = 0._dp)
 
       ! Remap data
       CALL map_from_xy_grid_to_mesh_3D( grid_from_file, mesh, d_grid_vec_partial_from_file, d_partial)
@@ -362,7 +362,7 @@ CONTAINS
         time_to_read = time_to_read, nzeta = nzeta_loc, zeta = zeta_loc)
 
       ! Allocate memory for data on the model mesh
-      ALLOCATE( d_partial( mesh%nV_loc, nzeta_loc), source = 0._dp)
+      ALLOCATE( d_partial( mesh%vi1:mesh%vi2, nzeta_loc), source = 0._dp)
 
       ! Remap data
       CALL map_from_lonlat_grid_to_mesh_3D( grid_lonlat_from_file, mesh, d_grid_lonlat_vec_partial_from_file, d_partial)
@@ -379,7 +379,7 @@ CONTAINS
         time_to_read = time_to_read, nzeta = nzeta_loc, zeta = zeta_loc)
 
       ! Allocate memory for data on the model mesh
-      ALLOCATE( d_partial( mesh%nV_loc, nzeta_loc), source = 0._dp)
+      ALLOCATE( d_partial( mesh%vi1:mesh%vi2, nzeta_loc), source = 0._dp)
 
       ! Remap data
       CALL map_from_mesh_to_mesh_3D( mesh_from_file, mesh, d_mesh_partial_from_file, d_partial, method = method_mesh2mesh)

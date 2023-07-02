@@ -218,10 +218,10 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'refine_mesh_line'
     INTEGER                                       :: nl
-    INTEGER                                       :: ti,li,it
+    INTEGER                                       :: ti,li
     REAL(dp), DIMENSION(2)                        :: pp,qq,pp2,qq2,pp_cropped,qq_cropped,dd
     LOGICAL                                       :: is_valid_line
-    INTEGER                                       :: tip, tiq, n, via, vib, vic, tip2, tiq2
+    INTEGER                                       :: tip, tiq, via, vib, vic, tip2, tiq2
     REAL(dp), DIMENSION(2)                        :: va,vb,vc,llis
     LOGICAL                                       :: do_cross, crosses
     INTEGER                                       :: li_min, li_max
@@ -510,7 +510,6 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'refine_mesh_polygon'
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE       :: p_line
-    INTEGER                                       :: ti_in
     INTEGER                                       :: ti, via, vib, vic
     REAL(dp), DIMENSION(2)                        :: va, vb, vc
     LOGICAL                                       :: has_any_overlap
@@ -648,7 +647,7 @@ CONTAINS
     INTEGER                                       :: ti, n, vi, n_vertices_on_border
     INTEGER                                       :: via, vib, vic
     REAL(dp), DIMENSION(2)                        :: va, vb, vc
-    REAL(dp)                                      :: longest_leg, smallest_angle
+    REAL(dp)                                      :: smallest_angle
     LOGICAL                                       :: meets_geometry_criterion
     LOGICAL                                       :: meets_encroachment_criterion
     REAL(dp), DIMENSION(2)                        :: p_new
@@ -747,10 +746,10 @@ CONTAINS
     INTEGER                                       :: nl_tot
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE       :: p_line
     INTEGER                                       :: nl
-    INTEGER                                       :: ti,li,it
+    INTEGER                                       :: ti,li
     REAL(dp), DIMENSION(2)                        :: pp,qq,pp2,qq2,pp_cropped,qq_cropped,dd
     LOGICAL                                       :: is_valid_line
-    INTEGER                                       :: tip, tiq, n, via, vib, vic, tip2, tiq2
+    INTEGER                                       :: tip, tiq, via, vib, vic, tip2, tiq2
     REAL(dp), DIMENSION(2)                        :: va,vb,vc,llis
     LOGICAL                                       :: do_cross, crosses
     INTEGER                                       :: li_min, li_max
@@ -1058,7 +1057,6 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'refine_mesh_polygon_ROI'
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE       :: p_line
-    INTEGER                                       :: ti_in
     INTEGER                                       :: ti, via, vib, vic
     REAL(dp), DIMENSION(2)                        :: va, vb, vc
     LOGICAL                                       :: has_any_overlap
@@ -1390,7 +1388,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'mesh_add_smileyface'
     INTEGER                                       :: i,n
-    REAL(dp)                                      :: alpha_min, r, theta, x0, xw, y0, yw, x, y
+    REAL(dp)                                      :: alpha_min, r, theta, x0, xw, y0, yw
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE       :: line
     REAL(dp), DIMENSION(2)                        :: p
 

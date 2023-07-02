@@ -511,7 +511,6 @@ CONTAINS
     REAL(real64) :: A11, A12, A13, A14, A15, A21, A22, A23, A24, &
          A25, A31, A32, A33, A34, A35, A41, A42, A43, A44, A45,   &
          A51, A52, A53, A54, A55
-    REAL(real64), DIMENSION(5,5) :: COFACTOR
 
     A11=A(1,1); A12=A(1,2); A13=A(1,3); A14=A(1,4); A15=A(1,5)
     A21=A(2,1); A22=A(2,2); A23=A(2,3); A24=A(2,4); A25=A(2,5)

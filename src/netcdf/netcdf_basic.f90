@@ -149,7 +149,6 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'inquire_lonlat_grid'
     INTEGER                                            :: ncid
     INTEGER                                            :: id_dim_lon, id_dim_lat
-    INTEGER                                            :: nlon, nlat
     INTEGER                                            :: id_var_lon, id_var_lat
 
     ! Add routine to path
@@ -4815,9 +4814,13 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'inquire_var'
+    CHARACTER                                          :: dummy1
 
     ! Add routine to path
     CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+
+    ! To prevent "unused variable" compiler warnings
+    dummy1 = filename( 1:1)
 
     IF (par%master) THEN
 

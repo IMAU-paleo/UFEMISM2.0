@@ -22,15 +22,15 @@ MODULE sliding_laws
 CONTAINS
 
   SUBROUTINE calc_basal_friction_coefficient( mesh, ice, u_b, v_b)
-    ! Calculate the basal friction coefficient beta_b using the specified sliding law
+    ! Calculate the effective basal friction coefficient using the specified sliding law
 
     IMPLICIT NONE
 
     ! In- and output variables:
     TYPE(type_mesh),                     INTENT(IN)    :: mesh
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
-    REAL(dp), DIMENSION(:),          INTENT(IN)    :: u_b
-    REAL(dp), DIMENSION(:),          INTENT(IN)    :: v_b
+    REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: u_b
+    REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: v_b
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_basal_friction_coefficient'
@@ -49,7 +49,7 @@ CONTAINS
 
     IF     (C%choice_sliding_law == 'no_sliding') THEN
       ! No sliding allowed (choice of beta is trivial)
-      ice%beta_b = 0._dp
+      ice%basal_friction_coefficient = 0._dp
     ELSEIF (C%choice_sliding_law == 'idealised') THEN
       ! Sliding laws for some idealised experiments
       CALL calc_sliding_law_idealised(   mesh, ice, u_a, v_a)
@@ -75,8 +75,8 @@ CONTAINS
       CALL crash('unknown choice_sliding_law "' // TRIM( C%choice_sliding_law) // '"!')
     END IF
 
-    ! Limit beta_b to improve stability
-    ice%beta_b = MIN( C%slid_beta_max, ice%beta_b)
+    ! Limit basal friction coefficient to improve stability
+    ice%basal_friction_coefficient = MIN( C%slid_beta_max, ice%basal_friction_coefficient)
 
     ! Clean up after yourself
     DEALLOCATE( u_a   )
@@ -112,7 +112,7 @@ CONTAINS
       uabs = SQRT( C%slid_delta_v**2 + u_a( vi)**2 + v_a( vi)**2)
 
       ! Asay-Davis et al. (2016), Eq. 6
-      ice%beta_b( vi) = ice%beta_sq( vi) * uabs ** (1._dp / C%slid_Weertman_m - 1._dp)
+      ice%basal_friction_coefficient( vi) = ice%slid_beta_sq( vi) * uabs ** (1._dp / C%slid_Weertman_m - 1._dp)
 
     END DO
     CALL sync
@@ -142,7 +142,7 @@ CONTAINS
 
     ! Calculate the till yield stress from the till friction angle and the effective pressure
     DO vi = mesh%vi1, mesh%vi2
-      ice%tau_c( vi) = TAN((pi / 180._dp) * ice%phi_fric( vi)) * ice%effective_pressure( vi)
+      ice%till_yield_stress( vi) = TAN((pi / 180._dp) * ice%till_friction_angle( vi)) * ice%effective_pressure( vi)
     END DO
 
     ! Calculate beta
@@ -151,7 +151,7 @@ CONTAINS
       ! Include a normalisation term following Bueler & Brown (2009) to prevent divide-by-zero errors.
       uabs = SQRT( C%slid_delta_v**2 + u_a( vi)**2 + v_a( vi)**2)
 
-      ice%beta_b( vi) = ice%tau_c( vi) / uabs
+      ice%basal_friction_coefficient( vi) = ice%till_yield_stress( vi) / uabs
 
     END DO
 
@@ -180,7 +180,7 @@ CONTAINS
 
     ! Calculate the till yield stress from the till friction angle and the effective pressure
     DO vi = mesh%vi1, mesh%vi2
-      ice%tau_c( vi) = TAN((pi / 180._dp) * ice%phi_fric( vi)) * ice%effective_pressure( vi)
+      ice%till_yield_stress( vi) = TAN((pi / 180._dp) * ice%till_friction_angle( vi)) * ice%effective_pressure( vi)
     END DO
 
     ! Calculate beta
@@ -189,7 +189,7 @@ CONTAINS
       ! Include a normalisation term following Bueler & Brown (2009) to prevent divide-by-zero errors.
       uabs = SQRT( C%slid_delta_v**2 + u_a( vi)**2 + v_a( vi)**2)
 
-      ice%beta_b( vi) = ice%tau_c( vi) * uabs ** (C%slid_Budd_q_plastic - 1._dp) / (C%slid_Budd_u_threshold ** C%slid_Budd_q_plastic)
+      ice%basal_friction_coefficient( vi) = ice%till_yield_stress( vi) * uabs ** (C%slid_Budd_q_plastic - 1._dp) / (C%slid_Budd_u_threshold ** C%slid_Budd_q_plastic)
 
     END DO
 
@@ -231,7 +231,7 @@ CONTAINS
       uabs = SQRT( C%slid_delta_v**2 + u_a( vi)**2 + v_a( vi)**2)
 
       ! Asay-Davis et al. (2016), Eq. 7
-      ice%beta_b( vi) = MIN( ice%alpha_sq( vi) * ice%effective_pressure( vi), ice%beta_sq( vi) * uabs ** (1._dp / C%slid_Weertman_m)) * uabs**(-1._dp)
+      ice%basal_friction_coefficient( vi) = MIN( ice%slid_alpha_sq( vi) * ice%effective_pressure( vi), ice%slid_beta_sq( vi) * uabs ** (1._dp / C%slid_Weertman_m)) * uabs**(-1._dp)
 
     END DO
 
@@ -272,8 +272,8 @@ CONTAINS
       uabs = SQRT( C%slid_delta_v**2 + u_a( vi)**2 + v_a( vi)**2)
 
       ! Asay-Davis et al. (2016), Eq. 11
-      ice%beta_b( vi) = ((ice%beta_sq( vi) * uabs**(1._dp / C%slid_Weertman_m) * ice%alpha_sq( vi) * ice%effective_pressure( vi)) / &
-        ((ice%beta_sq( vi)**C%slid_Weertman_m * uabs + (ice%alpha_sq( vi) * ice%effective_pressure( vi))**C%slid_Weertman_m)**(1._dp / C%slid_Weertman_m))) * uabs**(-1._dp)
+      ice%basal_friction_coefficient( vi) = ((ice%slid_beta_sq( vi) * uabs**(1._dp / C%slid_Weertman_m) * ice%slid_alpha_sq( vi) * ice%effective_pressure( vi)) / &
+        ((ice%slid_beta_sq( vi)**C%slid_Weertman_m * uabs + (ice%slid_alpha_sq( vi) * ice%effective_pressure( vi))**C%slid_Weertman_m)**(1._dp / C%slid_Weertman_m))) * uabs**(-1._dp)
 
     END DO
 
@@ -302,7 +302,7 @@ CONTAINS
 
     ! Calculate the till yield stress from the till friction angle and the effective pressure
     DO vi = mesh%vi1, mesh%vi2
-      ice%tau_c( vi) = TAN((pi / 180._dp) * ice%phi_fric( vi)) * ice%effective_pressure( vi)
+      ice%till_yield_stress( vi) = TAN((pi / 180._dp) * ice%till_friction_angle( vi)) * ice%effective_pressure( vi)
     END DO
 
     ! Calculate beta
@@ -312,7 +312,7 @@ CONTAINS
       uabs = SQRT( C%slid_delta_v**2 + u_a( vi)**2 + v_a( vi)**2)
 
       ! Zoet & Iverson (2020), Eq. (3) (divided by u to give beta = tau_b / u)
-      ice%beta_b( vi) = ice%tau_c( vi) * (uabs**(1._dp / C%slid_ZI_p - 1._dp)) * ((uabs + C%slid_ZI_ut)**(-1._dp / C%slid_ZI_p))
+      ice%basal_friction_coefficient( vi) = ice%till_yield_stress( vi) * (uabs**(1._dp / C%slid_ZI_p - 1._dp)) * ((uabs + C%slid_ZI_ut)**(-1._dp / C%slid_ZI_p))
 
     END DO
 
@@ -333,14 +333,17 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_sliding_law_idealised'
+    REAL(dp)                                           :: dummy1
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    IF     (C%choice_idealised_sliding_law == 'SSA_icestream') THEN
-      ! SSA ice stream (Schoof, 2006)
-      CALL calc_sliding_law_idealised_SSA_icestream( mesh, ice, u_a, v_a)
-    ELSEIF (C%choice_idealised_sliding_law == 'ISMIP-HOM_C') THEN
+    ! To prevent compiler warnings
+    dummy1 = u_a( mesh%vi1)
+    dummy1 = v_a( mesh%vi1)
+
+    ! Use the specified idealised sliding law
+    IF     (C%choice_idealised_sliding_law == 'ISMIP-HOM_C') THEN
       ! ISMIP-HOM experiment C
       CALL calc_sliding_law_idealised_ISMIP_HOM_C( mesh, ice)
     ELSEIF (C%choice_idealised_sliding_law == 'ISMIP-HOM_D') THEN
@@ -360,44 +363,6 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE calc_sliding_law_idealised
-
-  SUBROUTINE calc_sliding_law_idealised_SSA_icestream( mesh, ice, u_a, v_a)
-    ! Sliding laws for some idealised experiments
-    !
-    ! The SSA ice stream experiment (Schoof, 2006) has a Coulomb sliding law,
-    ! but without the effective pressure term. Rather than implementing this
-    ! as an exception in the existing Coulomb sliding law routine, better
-    ! to simply add it as an idealised sliding law.
-
-    IMPLICIT NONE
-
-    ! In- and output variables:
-    TYPE(type_mesh),                     INTENT(IN)    :: mesh
-    TYPE(type_ice_model),                INTENT(INOUT) :: ice
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2),          INTENT(IN)    :: u_a, v_a
-
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_sliding_law_idealised_SSA_icestream'
-    INTEGER                                            :: vi
-    REAL(dp)                                           :: uabs
-
-    ! Add routine to path
-    CALL init_routine( routine_name)
-
-    ! Calculate beta
-    DO vi = mesh%vi1, mesh%vi2
-
-      ! Include a normalisation term following Bueler & Brown (2009) to prevent divide-by-zero errors.
-      uabs = SQRT( C%slid_delta_v**2 + u_a( vi)**2 + v_a( vi)**2)
-
-      ice%beta_b( vi) = ice%tau_c( vi) / uabs
-
-    END DO
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE calc_sliding_law_idealised_SSA_icestream
 
   SUBROUTINE calc_sliding_law_idealised_ISMIP_HOM_C( mesh, ice)
     ! Sliding laws for some idealised experiments
@@ -421,7 +386,7 @@ CONTAINS
     DO vi = mesh%vi1, mesh%vi2
       x = mesh%V( vi,1)
       y = mesh%V( vi,2)
-      ice%beta_b( vi) = 1000._dp + 1000._dp * SIN( 2._dp * pi * x / C%refgeo_idealised_ISMIP_HOM_L) * SIN( 2._dp * pi * y / C%refgeo_idealised_ISMIP_HOM_L)
+      ice%basal_friction_coefficient( vi) = 1000._dp + 1000._dp * SIN( 2._dp * pi * x / C%refgeo_idealised_ISMIP_HOM_L) * SIN( 2._dp * pi * y / C%refgeo_idealised_ISMIP_HOM_L)
     END DO
 
     ! Finalise routine path
@@ -450,7 +415,7 @@ CONTAINS
 
     DO vi = mesh%vi1, mesh%vi2
       x = mesh%V( vi,1)
-      ice%beta_b( vi) = 1000._dp + 1000._dp * SIN( 2._dp * pi * x / C%refgeo_idealised_ISMIP_HOM_L)
+      ice%basal_friction_coefficient( vi) = 1000._dp + 1000._dp * SIN( 2._dp * pi * x / C%refgeo_idealised_ISMIP_HOM_L)
     END DO
 
     ! Finalise routine path
@@ -477,7 +442,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     DO vi = mesh%vi1, mesh%vi2
-      ice%beta_b( vi) = (C%uniform_Glens_flow_factor * 1000._dp)**(-1._dp)
+      ice%basal_friction_coefficient( vi) = (C%uniform_Glens_flow_factor * 1000._dp)**(-1._dp)
     END DO
 
     ! Finalise routine path

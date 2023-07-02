@@ -415,7 +415,7 @@ CONTAINS
 
     ! Local variables:
     INTEGER                                                      :: ti, uv
-    REAL(dp)                                                     :: N, dN_dx, dN_dy, beta_b, tau_dx, tau_dy
+    REAL(dp)                                                     :: N, dN_dx, dN_dy, basal_friction_coefficient, tau_dx, tau_dy
     INTEGER,  DIMENSION(:    ), ALLOCATABLE                      :: single_row_ind
     REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: single_row_ddx_val
     REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: single_row_ddy_val
@@ -430,13 +430,13 @@ CONTAINS
     ti     = mesh%n2tiuv( row_tiuv,1)
     uv     = mesh%n2tiuv( row_tiuv,2)
 
-    ! N, dN/dx, dN/dy, beta_b, tau_dx, and tau_dy on this triangle
-    N      = SSA%N_b(      ti)
-    dN_dx  = SSA%dN_dx_b(  ti)
-    dN_dy  = SSA%dN_dy_b(  ti)
-    beta_b = SSA%beta_b_b( ti)
-    tau_dx = SSA%tau_dx_b( ti)
-    tau_dy = SSA%tau_dy_b( ti)
+    ! N, dN/dx, dN/dy, basal_friction_coefficient_b, tau_dx, and tau_dy on this triangle
+    N                          = SSA%N_b(      ti)
+    dN_dx                      = SSA%dN_dx_b(  ti)
+    dN_dy                      = SSA%dN_dy_b(  ti)
+    basal_friction_coefficient = SSA%basal_friction_coefficient_b( ti)
+    tau_dx                     = SSA%tau_dx_b( ti)
+    tau_dy                     = SSA%tau_dy_b( ti)
 
     ! Allocate memory for single matrix rows
     ALLOCATE( single_row_ind(        mesh%nC_mem*2))
@@ -471,7 +471,7 @@ CONTAINS
              4._dp * dN_dx * single_row_ddx_val(    k) + &  ! 4 dN/dx du/dx
                      N     * single_row_d2dy2_val(  k) + &  !    N    d2u/dy2
                      dN_dy * single_row_ddy_val(    k)      !   dN/dy du/dy
-        IF (tj == ti) Au = Au - beta_b                      ! - beta_b u
+        IF (tj == ti) Au = Au - basal_friction_coefficient  ! - beta_b u
 
         Av = 3._dp * N     * single_row_d2dxdy_val( k) + &  ! 3  N    d2v/dxdy
              2._dp * dN_dx * single_row_ddy_val(    k) + &  ! 2 dN/dx dv/dy
@@ -504,7 +504,7 @@ CONTAINS
              4._dp * dN_dy * single_row_ddy_val(    k) + &  ! 4 dN/dy dv/dy
                      N     * single_row_d2dx2_val(  k) + &  !    N    d2v/dx2
                      dN_dx * single_row_ddx_val(    k)      !   dN/dx dv/dx
-        IF (tj == ti) Av = Av - beta_b                      ! - beta_b v
+        IF (tj == ti) Av = Av - basal_friction_coefficient  ! - beta_b v
 
         Au = 3._dp * N     * single_row_d2dxdy_val( k) + &  ! 3  N    d2u/dxdy
              2._dp * dN_dy * single_row_ddx_val(    k) + &  ! 2 dN/dy du/dx
@@ -584,7 +584,7 @@ CONTAINS
 
     ! Local variables:
     INTEGER                                                      :: ti, uv
-    REAL(dp)                                                     :: N, beta_b, tau_dx, tau_dy
+    REAL(dp)                                                     :: N, basal_friction_coefficient, tau_dx, tau_dy
     INTEGER,  DIMENSION(:    ), ALLOCATABLE                      :: single_row_ind
     REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: single_row_ddx_val
     REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: single_row_ddy_val
@@ -600,10 +600,10 @@ CONTAINS
     uv     = mesh%n2tiuv( row_tiuv,2)
 
     ! N, beta_b, tau_dx, and tau_dy on this triangle
-    N      = SSA%N_b(      ti)
-    beta_b = SSA%beta_b_b( ti)
-    tau_dx = SSA%tau_dx_b( ti)
-    tau_dy = SSA%tau_dy_b( ti)
+    N                          = SSA%N_b(      ti)
+    basal_friction_coefficient = SSA%basal_friction_coefficient_b( ti)
+    tau_dx                     = SSA%tau_dx_b( ti)
+    tau_dy                     = SSA%tau_dy_b( ti)
 
     ! Allocate memory for single matrix rows
     ALLOCATE( single_row_ind(        mesh%nC_mem*2))
@@ -633,11 +633,11 @@ CONTAINS
         !   4 d2u/dx2 + d2u/dy2 + 3 d2v/dxdy - beta_b u / N = -tau_dx / N
 
         ! Combine the mesh operators
-        Au = 4._dp * single_row_d2dx2_val(  k) + &  ! 4 d2u/dx2
-                     single_row_d2dy2_val(  k)      !   d2u/dy2
-        IF (tj == ti) Au = Au - beta_b / N          ! - beta_b u / N
+        Au = 4._dp * single_row_d2dx2_val(  k) + &             ! 4 d2u/dx2
+                     single_row_d2dy2_val(  k)                 !   d2u/dy2
+        IF (tj == ti) Au = Au - basal_friction_coefficient / N ! - beta_b u / N
 
-        Av = 3._dp * single_row_d2dxdy_val( k)      ! 3 d2v/dxdy
+        Av = 3._dp * single_row_d2dxdy_val( k)                 ! 3 d2v/dxdy
 
         ! Add coefficients to the stiffness matrix
         CALL add_entry_CSR_dist( A_CSR, row_tiuv, col_tju, Au)
@@ -661,11 +661,11 @@ CONTAINS
         !   4 d2v/dy2 + d2v/dx2 + 3 d2u/dxdy - beta_b v / N = -tau_dy / N
 
         ! Combine the mesh operators
-        Av = 4._dp * single_row_d2dy2_val(  k) + &  ! 4 d2v/dy2
-                     single_row_d2dx2_val(  k)      !   d2v/dx2
-        IF (tj == ti) Av = Av - beta_b / N          ! - beta_b v / N
+        Av = 4._dp * single_row_d2dy2_val(  k) + &             ! 4 d2v/dy2
+                     single_row_d2dx2_val(  k)                 !   d2v/dx2
+        IF (tj == ti) Av = Av - basal_friction_coefficient / N ! - beta_b v / N
 
-        Au = 3._dp * single_row_d2dxdy_val( k)      ! 3 d2u/dxdy
+        Au = 3._dp * single_row_d2dxdy_val( k)                 ! 3 d2u/dxdy
 
         ! Add coefficients to the stiffness matrix
         CALL add_entry_CSR_dist( A_CSR, row_tiuv, col_tju, Au)
@@ -1432,17 +1432,17 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! Calculate the basal friction coefficient beta_b for the current velocity solution
+    ! Calculate the basal friction coefficient for the current velocity solution
     ! This is where the sliding law is called!
     CALL calc_basal_friction_coefficient( mesh, ice, SSA%u_b, SSA%v_b)
 
-    ! Map basal friction coefficient beta_b to the b-grid
-    CALL map_a_b_2D( mesh, ice%beta_b, SSA%beta_b_b)
+    ! Map the basal friction coefficient to the b-grid
+    CALL map_a_b_2D( mesh, ice%basal_friction_coefficient, SSA%basal_friction_coefficient_b)
 
     ! Apply the sub-grid grounded fraction, and limit the friction coefficient to improve stability
     IF (C%do_GL_subgrid_friction) THEN
       DO ti = mesh%ti1, mesh%ti2
-        SSA%beta_b_b( ti) = SSA%beta_b_b( ti) * ice%fraction_gr_b( ti)**C%subgrid_friction_exponent
+        SSA%basal_friction_coefficient_b( ti) = SSA%basal_friction_coefficient_b( ti) * ice%fraction_gr_b( ti)**C%subgrid_friction_exponent
       END DO
     END IF
 
@@ -1573,11 +1573,15 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_SSA_velocities_from_file'
+    REAL(dp)                                           :: dummy1
     CHARACTER(LEN=256)                                 :: filename
     REAL(dp)                                           :: timeframe
 
     ! Add routine to path
     CALL init_routine( routine_name)
+
+    ! To prevent compiler warnings
+    dummy1 = mesh%xmin
 
     ! Determine the filename and timeframe to read for this model region
     IF     (region_name == 'NAM') THEN
@@ -1657,8 +1661,8 @@ CONTAINS
     SSA%dN_dx_b = 0._dp
     ALLOCATE( SSA%dN_dy_b(      mesh%ti1:mesh%ti2))
     SSA%dN_dy_b = 0._dp
-    ALLOCATE( SSA%beta_b_b(     mesh%ti1:mesh%ti2))                   ! Basal friction coefficient (tau_b = u * beta_b)
-    SSA%beta_b_b = 0._dp
+    ALLOCATE( SSA%basal_friction_coefficient_b( mesh%ti1:mesh%ti2))   ! Basal friction coefficient (basal_shear_stress = u * basal_friction_coefficient)
+    SSA%basal_friction_coefficient_b = 0._dp
     ALLOCATE( SSA%tau_dx_b(     mesh%ti1:mesh%ti2))                   ! Driving stress
     SSA%tau_dx_b = 0._dp
     ALLOCATE( SSA%tau_dy_b(     mesh%ti1:mesh%ti2))

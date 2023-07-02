@@ -914,7 +914,7 @@ CONTAINS
 
     ! Local variables:
     INTEGER                                                      :: ti, k, uv
-    REAL(dp)                                                     :: eta, deta_dx, deta_dy, deta_dz, tau_dx, tau_dy, db_dx, db_dy, dzeta_dz, dzeta, beta_b, Q, R
+    REAL(dp)                                                     :: eta, deta_dx, deta_dy, deta_dz, tau_dx, tau_dy, db_dx, db_dy, dzeta_dz, dzeta, basal_friction_coefficient, Q, R
     INTEGER,  DIMENSION(:    ), ALLOCATABLE                      :: single_row_ind
     REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: single_row_ddx_val
     REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: single_row_ddy_val
@@ -945,17 +945,17 @@ CONTAINS
     END IF
 
     ! eta, deta/dx, deta/dy, deta/dz, tau_dx, and tau_dy on this triangle and layer
-    eta      = BPA%eta_bks(     ti,mesh%nz-1)
-    deta_dx  = BPA%deta_dx_bk(  ti,mesh%nz)
-    deta_dy  = BPA%deta_dy_bk(  ti,mesh%nz)
-    deta_dz  = BPA%deta_dz_bk(  ti,mesh%nz)
-    tau_dx   = BPA%tau_dx_b(    ti  )
-    tau_dy   = BPA%tau_dy_b(    ti  )
-    db_dx    = BPA%db_dx_b(     ti  )
-    db_dy    = BPA%db_dy_b(     ti  )
-    beta_b   = BPA%beta_b_b(    ti  )
-    dzeta_dz = ice%dzeta_dz_bk( ti,mesh%nz)
-    dzeta    = mesh%zeta( mesh%nz) - mesh%zeta( mesh%nz-1)
+    eta                        = BPA%eta_bks(                      ti,mesh%nz-1)
+    deta_dx                    = BPA%deta_dx_bk(                   ti,mesh%nz  )
+    deta_dy                    = BPA%deta_dy_bk(                   ti,mesh%nz  )
+    deta_dz                    = BPA%deta_dz_bk(                   ti,mesh%nz  )
+    tau_dx                     = BPA%tau_dx_b(                     ti          )
+    tau_dy                     = BPA%tau_dy_b(                     ti          )
+    db_dx                      = BPA%db_dx_b(                      ti          )
+    db_dy                      = BPA%db_dy_b(                      ti          )
+    basal_friction_coefficient = BPA%basal_friction_coefficient_b( ti          )
+    dzeta_dz                   = ice%dzeta_dz_bk(                  ti,mesh%nz  )
+    dzeta                      = mesh%zeta( mesh%nz) - mesh%zeta( mesh%nz-1)
 
     ! [9]     Q = eta (dzeta/dz)^2 2 / dzeta^2 = 2 eta / dzeta^2 (dzeta/dz)^2
     Q = 2._dp * eta / dzeta**2 * dzeta_dz**2
@@ -982,7 +982,7 @@ CONTAINS
       cu_d2udx2  =  4._dp * eta
       cu_d2udy2  =          eta
       cu_d2vdxdy =  3._dp * eta
-      cu_uk      = ( R * beta_b / eta) - Q
+      cu_uk      = ( R * basal_friction_coefficient / eta) - Q
       cu_ukm1    = Q
 
     ELSEIF (uv == 2) THEN
@@ -1003,7 +1003,7 @@ CONTAINS
       cv_d2vdy2  =  4._dp * eta
       cv_d2vdx2  =          eta
       cv_d2udxdy =  3._dp * eta
-      cv_vk      = ( R * beta_b / eta) - Q
+      cv_vk      = ( R * basal_friction_coefficient / eta) - Q
       cv_vkm1    = Q
 
     ELSE
@@ -1925,12 +1925,12 @@ CONTAINS
     CALL calc_basal_friction_coefficient( mesh, ice, u_base_b, v_base_b)
 
     ! Map basal friction coefficient beta_b to the b-grid
-    CALL map_a_b_2D( mesh, ice%beta_b, BPA%beta_b_b)
+    CALL map_a_b_2D( mesh, ice%basal_friction_coefficient, BPA%basal_friction_coefficient_b)
 
     ! Apply the sub-grid grounded fraction, and limit the friction coefficient to improve stability
     IF (C%do_GL_subgrid_friction) THEN
       DO ti = mesh%ti1, mesh%ti2
-        BPA%beta_b_b( ti) = BPA%beta_b_b( ti) * ice%fraction_gr_b( ti)**C%subgrid_friction_exponent
+        BPA%basal_friction_coefficient_b( ti) = BPA%basal_friction_coefficient_b( ti) * ice%fraction_gr_b( ti)**C%subgrid_friction_exponent
       END DO
     END IF
 
@@ -2064,11 +2064,15 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_BPA_velocities_from_file'
+    REAL(dp)                                           :: dummy1
     CHARACTER(LEN=256)                                 :: filename
     REAL(dp)                                           :: timeframe
 
     ! Add routine to path
     CALL init_routine( routine_name)
+
+    ! To prevent compiler warnings
+    dummy1 = mesh%xmin
 
     ! Determine the filename and timeframe to read for this model region
     IF     (region_name == 'NAM') THEN
@@ -2164,8 +2168,8 @@ CONTAINS
     BPA%deta_dy_bk = 0._dp
     ALLOCATE( BPA%deta_dz_bk(    mesh%ti1:mesh%ti2,mesh%nz))                   ! Gradients of eta
     BPA%deta_dz_bk = 0._dp
-    ALLOCATE( BPA%beta_b_b(      mesh%ti1:mesh%ti2))                           ! Basal friction coefficient (tau_b = u * beta_b)
-    BPA%beta_b_b = 0._dp
+    ALLOCATE( BPA%basal_friction_coefficient_b(      mesh%ti1:mesh%ti2))       ! Basal friction coefficient (basal_shear_stress = u * basal_friction_coefficient)
+    BPA%basal_friction_coefficient_b = 0._dp
     ALLOCATE( BPA%dh_dx_b(       mesh%ti1:mesh%ti2))                           ! Surface slope
     BPA%dh_dx_b = 0._dp
     ALLOCATE( BPA%dh_dy_b(       mesh%ti1:mesh%ti2))

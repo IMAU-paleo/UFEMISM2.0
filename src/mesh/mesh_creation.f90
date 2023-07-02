@@ -808,9 +808,28 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'create_mesh_from_reduced_geometry_parallelised'
+    REAL(dp) :: dummy1
+    CHARACTER :: dummy2
 
     ! Add routine to path
     CALL init_routine( routine_name)
+
+    ! To prevent compiler warnings
+    dummy2 = region_name( 1:1)
+    dummy2 = name( 1:1)
+    dummy1 = poly_mult_sheet( 1,1)
+    dummy1 = poly_mult_shelf( 1,1)
+    dummy1 = p_line_grounding_line( 1,1)
+    dummy1 = p_line_calving_front( 1,1)
+    dummy1 = p_line_ice_front( 1,1)
+    dummy1 = p_line_coastline( 1,1)
+    dummy1 = xmin
+    dummy1 = xmax
+    dummy1 = ymin
+    dummy1 = ymax
+    dummy1 = lambda_M
+    dummy1 = phi_M
+    dummy1 = beta_stereo
 
     ! DENK DROM
     CALL crash('whoopsiedaisy!')
@@ -944,9 +963,9 @@ CONTAINS
 
       ! Lines: grounding line, calving front, ice front, coastline
       CALL refine_mesh_line_ROI( mesh, p_line_grounding_line, C%ROI_maximum_resolution_grounding_line, C%ROI_grounding_line_width, C%alpha_min, poly_ROI)
-      CALL refine_mesh_line_ROI( mesh, p_line_grounding_line, C%ROI_maximum_resolution_calving_front , C%ROI_calving_front_width , C%alpha_min, poly_ROI)
-      CALL refine_mesh_line_ROI( mesh, p_line_grounding_line, C%ROI_maximum_resolution_ice_front     , C%ROI_ice_front_width     , C%alpha_min, poly_ROI)
-      CALL refine_mesh_line_ROI( mesh, p_line_grounding_line, C%ROI_maximum_resolution_coastline     , C%ROI_coastline_width     , C%alpha_min, poly_ROI)
+      CALL refine_mesh_line_ROI( mesh, p_line_calving_front , C%ROI_maximum_resolution_calving_front , C%ROI_calving_front_width , C%alpha_min, poly_ROI)
+      CALL refine_mesh_line_ROI( mesh, p_line_ice_front     , C%ROI_maximum_resolution_ice_front     , C%ROI_ice_front_width     , C%alpha_min, poly_ROI)
+      CALL refine_mesh_line_ROI( mesh, p_line_coastline     , C%ROI_maximum_resolution_coastline     , C%ROI_coastline_width     , C%alpha_min, poly_ROI)
 
       ! Clean up after yourself
       DEALLOCATE( poly_ROI)
@@ -978,7 +997,6 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'write_mesh_success'
     CHARACTER(LEN=256)                            :: str
-    REAL(dp)                                      :: res_min, res_max
 
     ! Add routine to path
     CALL init_routine( routine_name)

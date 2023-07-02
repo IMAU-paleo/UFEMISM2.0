@@ -45,7 +45,7 @@ MODULE ice_model_types
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: N_b
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dN_dx_b                     ! Gradients of N
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dN_dy_b
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: beta_b_b                    ! Basal friction coefficient (tau_b = u * beta_b)
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: basal_friction_coefficient_b! Basal friction coefficient (tau_b = u * beta_b)
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: tau_dx_b                    ! Driving stress
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: tau_dy_b
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: u_b_prev                    ! Velocity solution from previous viscosity iteration
@@ -89,7 +89,7 @@ MODULE ice_model_types
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: F2_3D_a
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: F1_3D_b
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: F2_3D_b
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: beta_b_b                    ! Basal friction coefficient (tau_b = u * beta_b)
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: basal_friction_coefficient_b! Basal friction coefficient (tau_b = u * beta_b)
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: beta_eff_a                  ! "Effective" friction coefficient (turning the SSA into the DIVA)
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: beta_eff_b
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: tau_bx_b                    ! Basal shear stress
@@ -134,7 +134,7 @@ MODULE ice_model_types
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: deta_dx_bk                  ! Gradients of eta
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: deta_dy_bk
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: deta_dz_bk
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: beta_b_b                    ! Friction coefficient (tau_b = u * beta_b)
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: basal_friction_coefficient_b! Friction coefficient (tau_b = u * beta_b)
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dh_dx_b                     ! Surface slope
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dh_dy_b
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: db_dx_b                     ! Basal slope
@@ -328,28 +328,31 @@ MODULE ice_model_types
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: dw_dy_3D
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: dw_dz_3D
 
-  ! == Basal conditions ==
-  ! ======================
+  ! == Basal hydrology ==
+  ! =====================
 
     ! Basal hydrology
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: pore_water_pressure         ! Basal pore water pressure
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: overburden_pressure         ! Basal overburden pressure
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: effective_pressure          ! Basal effective pressure
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: pore_water_pressure         ! [Pa] Basal pore water pressure
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: overburden_pressure         ! [Pa] Basal overburden pressure
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: effective_pressure          ! [Pa] Basal effective pressure
 
-    ! Basal roughness / friction
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: phi_fric                    ! Till friction angle (degrees)
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: tau_c                       ! Till yield stress tauc   (used when choice_sliding_law = "Coloumb" or "Coulomb_regularised")
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: alpha_sq                    ! Coulomb-law friction coefficient [unitless]         (used when choice_sliding_law =             "Tsai2015", or "Schoof2005")
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: beta_sq                     ! Power-law friction coefficient   [Pa m^−1/3 yr^1/3] (used when choice_sliding_law = "Weertman", "Tsai2015", or "Schoof2005")
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: beta_b                      ! Basal friction (tau_b = u * beta_b)
+  ! == Basal sliding ==
+  ! ===================
 
-    ! Basal sliding
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: friction_coef_1             ! Generic basal friction coefficient 1
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: friction_coef_2             ! Generic basal friction coefficient 2
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: basal_shear_stress          ! Basal shear stress
+    ! Sliding law coefficients
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: till_friction_angle         ! [degrees]          Till friction angle
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: till_yield_stress           ! [Pa]               Till yield stress (used when choice_sliding_law = "Coloumb", "Budd", or "Zoet-Iverson")
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: slid_alpha_sq               ! [-]                Coulomb-law friction coefficient (used when choice_sliding_law = "Tsai2015", or "Schoof2005")
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: slid_beta_sq                ! [Pa m^−1/m yr^1/m] Power-law friction coefficient (used when choice_sliding_law = "Weertman", "Tsai2015", or "Schoof2005")
 
-    ! Geothermal heat
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: geothermal_heat_flux        ! Geothermal heat flux
+    ! Basal friction and shear stress
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: basal_friction_coefficient  ! [Pa yr m^-1]       Basal friction coefficient (basal_shear_stress = u_base * basal_friction_coefficient)
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: basal_shear_stress          ! [Pa]               Basal shear stress
+
+  ! == Geothermal heat ==
+  ! =====================
+
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: geothermal_heat_flux        ! [J m^-2 yr^-1] Geothermal heat flux
 
   ! === Ice thickness time stepping ===
   ! ===================================

@@ -53,25 +53,25 @@ CONTAINS
       ELSEIF (C%choice_sliding_law == 'idealised') THEN
         ! No need to do anything
       ELSEIF (C%choice_sliding_law == 'Weertman') THEN
-        ! Weertman sliding law; bed roughness is described by beta_sq
-        ice%beta_sq = C%slid_Weertman_beta_sq_uniform
+        ! Weertman sliding law; bed roughness is described by slid_beta_sq
+        ice%slid_beta_sq = C%slid_Weertman_beta_sq_uniform
       ELSEIF (C%choice_sliding_law == 'Coulomb') THEN
-        ! Coulomb sliding law; bed roughness is described by phi_fric
-        ice%phi_fric = C%slid_Coulomb_phi_fric_uniform
+        ! Coulomb sliding law; bed roughness is described by till_friction_angle
+        ice%till_friction_angle = C%slid_Coulomb_phi_fric_uniform
       ELSEIF (C%choice_sliding_law == 'Budd') THEN
-        ! Budd-type sliding law; bed roughness is described by phi_fric
-        ice%phi_fric = C%slid_Coulomb_phi_fric_uniform
+        ! Budd-type sliding law; bed roughness is described by till_friction_angle
+        ice%till_friction_angle = C%slid_Coulomb_phi_fric_uniform
       ELSEIF (C%choice_sliding_law == 'Tsai2015') THEN
-        ! Tsai2015 sliding law; bed roughness is described by alpha_sq for the Coulomb part, and beta_sq for the Weertman part
-        ice%alpha_sq = C%slid_Tsai2015_alpha_sq_uniform
-        ice%beta_sq  = C%slid_Tsai2015_beta_sq_uniform
+        ! Tsai2015 sliding law; bed roughness is described by slid_alpha_sq for the Coulomb part, and slid_beta_sq for the Weertman part
+        ice%slid_alpha_sq = C%slid_Tsai2015_alpha_sq_uniform
+        ice%slid_beta_sq  = C%slid_Tsai2015_beta_sq_uniform
       ELSEIF (C%choice_sliding_law == 'Schoof2005') THEN
-        ! Schoof2005 sliding law; bed roughness is described by alpha_sq for the Coulomb part, and beta_sq for the Weertman part
-        ice%alpha_sq = C%slid_Schoof2005_alpha_sq_uniform
-        ice%beta_sq  = C%slid_Schoof2005_beta_sq_uniform
+        ! Schoof2005 sliding law; bed roughness is described by slid_alpha_sq for the Coulomb part, and slid_beta_sq for the Weertman part
+        ice%slid_alpha_sq = C%slid_Schoof2005_alpha_sq_uniform
+        ice%slid_beta_sq  = C%slid_Schoof2005_beta_sq_uniform
       ELSEIF (C%choice_sliding_law == 'Zoet-Iverson') THEN
-        ! Zoet-Iverson sliding law; bed roughness is described by phi_fric
-        ice%phi_fric = C%slid_ZI_phi_fric_uniform
+        ! Zoet-Iverson sliding law; bed roughness is described by till_friction_angle
+        ice%till_friction_angle = C%slid_ZI_phi_fric_uniform
       ELSE
         CALL crash('unknown choice_sliding_law "' // TRIM( C%choice_sliding_law) // '"!')
       END IF
@@ -107,7 +107,6 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'remap_bed_roughness'
-    INTEGER                                            :: int_dummy
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -140,11 +139,9 @@ CONTAINS
     CALL init_routine( routine_name)
 
     IF     (C%choice_bed_roughness_parameterised == 'Martin2011') THEN
-      CALL calc_bed_roughness_Martin2011( mesh, ice)
+      CALL initialise_bed_roughness_Martin2011( mesh, ice)
     ELSEIF (C%choice_bed_roughness_parameterised == 'SSA_icestream') THEN
-      CALL calc_bed_roughness_SSA_icestream( mesh, ice)
-    ELSEIF (C%choice_bed_roughness_parameterised == 'MISMIPplus') THEN
-      CALL calc_bed_roughness_MISMIPplus( mesh, ice)
+      CALL initialise_bed_roughness_SSA_icestream( mesh, ice)
     ELSE
       CALL crash('unknown choice_bed_roughness_parameterised "' // TRIM( C%choice_bed_roughness_parameterised) // '"!')
     END IF
@@ -155,9 +152,8 @@ CONTAINS
   END SUBROUTINE initialise_bed_roughness_parameterised
 
   ! The Martin et al. (2011) till parameterisation
-  SUBROUTINE calc_bed_roughness_Martin2011( mesh, ice)
-    ! Calculate the till friction angle phi_fric and till yield stress tauc,
-    ! using the till model by Martin et al. (2011).
+  SUBROUTINE initialise_bed_roughness_Martin2011( mesh, ice)
+    ! Calculate the till friction angle using the till model by Martin et al. (2011).
     !
     ! Only applicable when choice_sliding_law = "Coulomb", "Budd", or "Zoet-Iverson"
 
@@ -168,7 +164,7 @@ CONTAINS
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_bed_roughness_Martin2011'
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_bed_roughness_Martin2011'
     INTEGER                                            :: vi
     REAL(dp)                                           :: w_Hb
 
@@ -184,17 +180,17 @@ CONTAINS
 
       ! Martin et al. (2011) Eq. 10
       w_Hb = MIN( 1._dp, MAX( 0._dp, (ice%Hb( vi) - C%Martin2011till_phi_Hb_min) / (C%Martin2011till_phi_Hb_max - C%Martin2011till_phi_Hb_min) ))
-      ice%phi_fric( vi) = (1._dp - w_Hb) * C%Martin2011till_phi_min + w_Hb * C%Martin2011till_phi_max
+      ice%till_friction_angle( vi) = (1._dp - w_Hb) * C%Martin2011till_phi_min + w_Hb * C%Martin2011till_phi_max
 
     END DO
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
-  END SUBROUTINE calc_bed_roughness_Martin2011
+  END SUBROUTINE initialise_bed_roughness_Martin2011
 
   ! Idealised cases
-  SUBROUTINE calc_bed_roughness_SSA_icestream( mesh, ice)
+  SUBROUTINE initialise_bed_roughness_SSA_icestream( mesh, ice)
     ! Determine the basal conditions underneath the ice
     !
     ! Idealised case: SSA_icestream (i.e. the Schoof 2006 analytical solution)
@@ -206,71 +202,24 @@ CONTAINS
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_bed_roughness_SSA_icestream'
-    INTEGER                                            :: vii, vi
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_bed_roughness_SSA_icestream'
+    INTEGER                                            :: vi
     REAL(dp)                                           :: y, u
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    DO vii = 1, mesh%nV_loc
-      vi = vii + mesh%vi1 - 1
+    DO vi = mesh%vi1, mesh%vi2
       y = mesh%V( vi,2)
       CALL Schoof2006_icestream( C%uniform_Glens_flow_factor, C%Glens_flow_law_exponent, C%refgeo_idealised_SSA_icestream_Hi, &
         C%refgeo_idealised_SSA_icestream_dhdx, C%refgeo_idealised_SSA_icestream_L, C%refgeo_idealised_SSA_icestream_m, &
-        y, u, ice%tau_c( vii))
+        y, u, ice%till_yield_stress( vi))
     END DO
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
-  END SUBROUTINE calc_bed_roughness_SSA_icestream
-
-  SUBROUTINE calc_bed_roughness_MISMIPplus( mesh, ice)
-    ! Determine the basal conditions underneath the ice
-    !
-    ! Idealised case: MISMIP+ (see Asay-Davis et al., 2016)
-
-    IMPLICIT NONE
-
-    ! Local variables:
-    TYPE(type_mesh),                     INTENT(IN)    :: mesh
-    TYPE(type_ice_model),                INTENT(INOUT) :: ice
-
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_bed_roughness_MISMIPplus'
-    REAL(dp), PARAMETER                                :: MISMIPplus_alpha_sq = 0.5_dp   ! Coulomb-law friction coefficient [unitless];         see Asay-Davis et al., 2016
-    REAL(dp), PARAMETER                                :: MISMIPplus_beta_sq  = 1.0E4_dp ! Power-law friction coefficient   [Pa m^−1/3 yr^1/3]; idem dito
-    INTEGER                                            :: vi
-
-    ! Add routine to path
-    CALL init_routine( routine_name)
-
-    IF     (C%choice_sliding_law == 'Weertman') THEN
-      ! Uniform sliding factor for the MISMIP+ configuration, using the first (Weertman) sliding law option
-
-      ice%beta_sq = MISMIPplus_beta_sq
-
-    ELSEIF (C%choice_sliding_law == 'Tsai2015') THEN
-      ! Uniform sliding factor for the MISMIP+ configuration, using the second (Tsai et al., 2015) sliding law option
-
-      ice%alpha_sq = MISMIPplus_alpha_sq
-      ice%beta_sq  = MISMIPplus_beta_sq
-
-    ELSEIF (C%choice_sliding_law == 'Schoof2005') THEN
-      ! Uniform sliding factor for the MISMIP+ configuration, using the third (Schoof, 2005) sliding law option
-
-      ice%alpha_sq = MISMIPplus_alpha_sq
-      ice%beta_sq  = MISMIPplus_beta_sq
-
-    ELSE
-      CALL crash('only defined when choice_sliding_law = "Weertman", "Tsai2015", or "Schoof2005"!')
-    END IF
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE calc_bed_roughness_MISMIPplus
+  END SUBROUTINE initialise_bed_roughness_SSA_icestream
 
   ! Initialise bed roughness from a file
   SUBROUTINE initialise_bed_roughness_from_file( mesh, ice, region_name)
@@ -313,61 +262,61 @@ CONTAINS
     ELSEIF (C%choice_sliding_law == 'idealised') THEN
       ! No need to do anything
     ELSEIF (C%choice_sliding_law == 'Weertman') THEN
-      ! Weertman sliding law; bed roughness is described by beta_sq
+      ! Weertman sliding law; bed roughness is described by slid_beta_sq
 
       IF (timeframe_bed_roughness == 1E9_dp) THEN
-        CALL read_field_from_file_2D( filename_bed_roughness, 'beta_sq', mesh, ice%beta_sq)
+        CALL read_field_from_file_2D( filename_bed_roughness, 'slid_beta_sq', mesh, ice%slid_beta_sq)
       ELSE
-        CALL read_field_from_file_2D( filename_bed_roughness, 'beta_sq', mesh, ice%beta_sq, timeframe_bed_roughness)
+        CALL read_field_from_file_2D( filename_bed_roughness, 'slid_beta_sq', mesh, ice%slid_beta_sq, timeframe_bed_roughness)
       END IF
 
     ELSEIF (C%choice_sliding_law == 'Coulomb') THEN
-      ! Coulomb sliding law; bed roughness is described by phi_fric
+      ! Coulomb sliding law; bed roughness is described by till_friction_angle
 
       IF (timeframe_bed_roughness == 1E9_dp) THEN
-        CALL read_field_from_file_2D( filename_bed_roughness, 'phi_fric', mesh, ice%phi_fric)
+        CALL read_field_from_file_2D( filename_bed_roughness, 'till_friction_angle', mesh, ice%till_friction_angle)
       ELSE
-        CALL read_field_from_file_2D( filename_bed_roughness, 'phi_fric', mesh, ice%phi_fric, timeframe_bed_roughness)
+        CALL read_field_from_file_2D( filename_bed_roughness, 'till_friction_angle', mesh, ice%till_friction_angle, timeframe_bed_roughness)
       END IF
 
     ELSEIF (C%choice_sliding_law == 'Budd') THEN
-      ! Budd-type sliding law; bed roughness is described by phi_fric
+      ! Budd-type sliding law; bed roughness is described by till_friction_angle
 
       IF (timeframe_bed_roughness == 1E9_dp) THEN
-        CALL read_field_from_file_2D( filename_bed_roughness, 'phi_fric', mesh, ice%phi_fric)
+        CALL read_field_from_file_2D( filename_bed_roughness, 'till_friction_angle', mesh, ice%till_friction_angle)
       ELSE
-        CALL read_field_from_file_2D( filename_bed_roughness, 'phi_fric', mesh, ice%phi_fric, timeframe_bed_roughness)
+        CALL read_field_from_file_2D( filename_bed_roughness, 'till_friction_angle', mesh, ice%till_friction_angle, timeframe_bed_roughness)
       END IF
 
     ELSEIF (C%choice_sliding_law == 'Tsai2015') THEN
-      ! Tsai2015 sliding law; bed roughness is described by alpha_sq for the Coulomb part, and beta_sq for the Weertman part
+      ! Tsai2015 sliding law; bed roughness is described by slid_alpha_sq for the Coulomb part, and slid_beta_sq for the Weertman part
 
       IF (timeframe_bed_roughness == 1E9_dp) THEN
-        CALL read_field_from_file_2D( filename_bed_roughness, 'alpha_sq', mesh, ice%alpha_sq)
-        CALL read_field_from_file_2D( filename_bed_roughness, 'beta_sq' , mesh, ice%beta_sq)
+        CALL read_field_from_file_2D( filename_bed_roughness, 'slid_alpha_sq', mesh, ice%slid_alpha_sq)
+        CALL read_field_from_file_2D( filename_bed_roughness, 'slid_beta_sq' , mesh, ice%slid_beta_sq)
       ELSE
-        CALL read_field_from_file_2D( filename_bed_roughness, 'alpha_sq', mesh, ice%alpha_sq, timeframe_bed_roughness)
-        CALL read_field_from_file_2D( filename_bed_roughness, 'beta_sq' , mesh, ice%beta_sq, timeframe_bed_roughness)
+        CALL read_field_from_file_2D( filename_bed_roughness, 'slid_alpha_sq', mesh, ice%slid_alpha_sq, timeframe_bed_roughness)
+        CALL read_field_from_file_2D( filename_bed_roughness, 'slid_beta_sq' , mesh, ice%slid_beta_sq, timeframe_bed_roughness)
       END IF
 
     ELSEIF (C%choice_sliding_law == 'Schoof2005') THEN
-      ! Schoof2005 sliding law; bed roughness is described by alpha_sq for the Coulomb part, and beta_sq for the Weertman part
+      ! Schoof2005 sliding law; bed roughness is described by slid_alpha_sq for the Coulomb part, and slid_beta_sq for the Weertman part
 
       IF (timeframe_bed_roughness == 1E9_dp) THEN
-        CALL read_field_from_file_2D( filename_bed_roughness, 'alpha_sq', mesh, ice%alpha_sq)
-        CALL read_field_from_file_2D( filename_bed_roughness, 'beta_sq' , mesh, ice%beta_sq)
+        CALL read_field_from_file_2D( filename_bed_roughness, 'slid_alpha_sq', mesh, ice%slid_alpha_sq)
+        CALL read_field_from_file_2D( filename_bed_roughness, 'slid_beta_sq' , mesh, ice%slid_beta_sq)
       ELSE
-        CALL read_field_from_file_2D( filename_bed_roughness, 'alpha_sq', mesh, ice%alpha_sq, timeframe_bed_roughness)
-        CALL read_field_from_file_2D( filename_bed_roughness, 'beta_sq' , mesh, ice%beta_sq, timeframe_bed_roughness)
+        CALL read_field_from_file_2D( filename_bed_roughness, 'slid_alpha_sq', mesh, ice%slid_alpha_sq, timeframe_bed_roughness)
+        CALL read_field_from_file_2D( filename_bed_roughness, 'slid_beta_sq' , mesh, ice%slid_beta_sq, timeframe_bed_roughness)
       END IF
 
     ELSEIF (C%choice_sliding_law == 'Zoet-Iverson') THEN
-      ! Zoet-Iverson sliding law; bed roughness is described by phi_fric
+      ! Zoet-Iverson sliding law; bed roughness is described by till_friction_angle
 
       IF (timeframe_bed_roughness == 1E9_dp) THEN
-        CALL read_field_from_file_2D( filename_bed_roughness, 'phi_fric', mesh, ice%phi_fric)
+        CALL read_field_from_file_2D( filename_bed_roughness, 'till_friction_angle', mesh, ice%till_friction_angle)
       ELSE
-        CALL read_field_from_file_2D( filename_bed_roughness, 'phi_fric', mesh, ice%phi_fric, timeframe_bed_roughness)
+        CALL read_field_from_file_2D( filename_bed_roughness, 'till_friction_angle', mesh, ice%till_friction_angle, timeframe_bed_roughness)
       END IF
 
     ELSE

@@ -154,6 +154,12 @@ CONTAINS
     ! Calculate ice thickness at t+dt
     Hi_tplusdt = MAX( 0._dp, Hi + dHi_dt * dt)
 
+    ! Enfore Hi = 0 where told to do so
+    CALL apply_mask_noice_direct( mesh, mask_noice, Hi_tplusdt)
+
+    ! Recalculate dH/dt, accounting for limit of no negative ice thickness
+    dHi_dt = (Hi_tplusdt - Hi) / dt
+
     ! Clean up after yourself
     CALL deallocate_matrix_CSR_dist( M_divQ)
 
@@ -263,6 +269,9 @@ CONTAINS
 
     ! Solve for Hi_tplusdt
     CALL solve_matrix_equation_CSR_PETSc( AA, bb, Hi_tplusdt, C%dHi_PETSc_rtol, C%dHi_PETSc_abstol)
+
+    ! Enfore Hi = 0 where told to do so
+    CALL apply_mask_noice_direct( mesh, mask_noice, Hi_tplusdt)
 
     ! Calculate dH/dt
     dHi_dt = (Hi_tplusdt - Hi) / dt
@@ -385,6 +394,9 @@ CONTAINS
 
     ! Solve for Hi_tplusdt
     CALL solve_matrix_equation_CSR_PETSc( AA, bb, Hi_tplusdt, C%dHi_PETSc_rtol, C%dHi_PETSc_abstol)
+
+    ! Enfore Hi = 0 where told to do so
+    CALL apply_mask_noice_direct( mesh, mask_noice, Hi_tplusdt)
 
     ! Calculate dH/dt
     dHi_dt = (Hi_tplusdt - Hi) / dt
@@ -735,6 +747,32 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE apply_ice_thickness_BC_matrix
+
+  SUBROUTINE apply_mask_noice_direct( mesh, mask_noice, Hi_tplusdt)
+    ! Enforce Hi = 0 where told to do so
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh
+    LOGICAL,  DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: mask_noice
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(INOUT) :: Hi_tplusdt  ! Initial guess
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'apply_mask_noice_direct'
+    INTEGER                                               :: vi
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    DO vi = mesh%vi1, mesh%vi2
+      IF (mask_noice( vi)) Hi_tplusdt( vi) = 0._dp
+    END DO
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE apply_mask_noice_direct
 
   SUBROUTINE calc_flux_limited_timestep( mesh, ice, dt_max)
     ! Calculate the largest time step that does not result in more

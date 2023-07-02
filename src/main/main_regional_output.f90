@@ -495,10 +495,9 @@ CONTAINS
       CASE ('dw_dz_3D')
         CALL write_to_field_multopt_mesh_dp_3D( region%mesh, filename, ncid, 'dw_dz_3D', region%ice%dw_dz_3D)
 
-    ! == Basal conditions ==
-    ! ======================
+    ! == Basal hydrology ==
+    ! =====================
 
-      ! Basal hydrology
       CASE ('pore_water_pressure')
         CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'pore_water_pressure', region%ice%pore_water_pressure)
       CASE ('overburden_pressure')
@@ -506,27 +505,28 @@ CONTAINS
       CASE ('effective_pressure')
         CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'effective_pressure', region%ice%effective_pressure)
 
-      ! Basal roughness / friction
-      CASE ('phi_fric')
-        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'phi_fric', region%ice%phi_fric)
-      CASE ('tau_c')
-        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'tau_c', region%ice%tau_c)
-      CASE ('alpha_sq')
-        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'alpha_sq', region%ice%alpha_sq)
-      CASE ('beta_sq')
-        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'beta_sq', region%ice%beta_sq)
-      CASE ('beta_b')
-        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'beta_b', region%ice%beta_b)
+    ! == Basal sliding ==
+    ! ===================
 
-      ! Basal sliding
-      CASE ('friction_coef_1')
-        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'friction_coef_1', region%ice%friction_coef_1)
-      CASE ('friction_coef_2')
-        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'friction_coef_2', region%ice%friction_coef_2)
+      ! Sliding law coefficients
+      CASE ('till_friction_angle')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'till_friction_angle', region%ice%till_friction_angle)
+      CASE ('till_yield_stress')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'till_yield_stress', region%ice%till_yield_stress)
+      CASE ('slid_alpha_sq')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'slid_alpha_sq', region%ice%slid_alpha_sq)
+      CASE ('slid_beta_sq')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'slid_beta_sq', region%ice%slid_beta_sq)
+
+      ! Basal friction and shear stress
+      CASE ('basal_friction_coefficient')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'basal_friction_coefficient', region%ice%basal_friction_coefficient)
       CASE ('basal_shear_stress')
         CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'basal_shear_stress', region%ice%basal_shear_stress)
 
-      ! Geothermal heat
+    ! == Geothermal heat ==
+    ! =====================
+
       CASE ('geothermal_heat_flux')
         CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'geothermal_heat_flux', region%ice%geothermal_heat_flux)
 
@@ -875,10 +875,9 @@ CONTAINS
         CALL map_from_mesh_to_xy_grid_3D( region%mesh, region%output_grid, region%ice%dw_dz_3D, d_grid_vec_partial_3D)
         CALL write_to_field_multopt_grid_dp_3D( region%output_grid, filename, ncid, 'dw_dz_3D', d_grid_vec_partial_3D)
 
-    ! == Basal conditions ==
-    ! ======================
+    ! == Basal hydrology ==
+    ! =====================
 
-      ! Basal hydrology
       CASE ('pore_water_pressure')
         CALL map_from_mesh_to_xy_grid_2D( region%mesh, region%output_grid, region%ice%pore_water_pressure, d_grid_vec_partial_2D)
         CALL write_to_field_multopt_grid_dp_2D( region%output_grid, filename, ncid, 'pore_water_pressure', d_grid_vec_partial_2D)
@@ -889,38 +888,37 @@ CONTAINS
         CALL map_from_mesh_to_xy_grid_2D( region%mesh, region%output_grid, region%ice%effective_pressure, d_grid_vec_partial_2D)
         CALL write_to_field_multopt_grid_dp_2D( region%output_grid, filename, ncid, 'effective_pressure', d_grid_vec_partial_2D)
 
-      ! Basal roughness / friction
-      CASE ('phi_fric')
-        CALL map_from_mesh_to_xy_grid_2D( region%mesh, region%output_grid, region%ice%phi_fric, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( region%output_grid, filename, ncid, 'phi_fric', d_grid_vec_partial_2D)
-      CASE ('tau_c')
-        CALL map_from_mesh_to_xy_grid_2D( region%mesh, region%output_grid, region%ice%tau_c, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( region%output_grid, filename, ncid, 'tau_c', d_grid_vec_partial_2D)
-      CASE ('alpha_sq')
-        CALL map_from_mesh_to_xy_grid_2D( region%mesh, region%output_grid, region%ice%alpha_sq, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( region%output_grid, filename, ncid, 'alpha_sq', d_grid_vec_partial_2D)
-      CASE ('beta_sq')
-        CALL map_from_mesh_to_xy_grid_2D( region%mesh, region%output_grid, region%ice%beta_sq, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( region%output_grid, filename, ncid, 'beta_sq', d_grid_vec_partial_2D)
-      CASE ('beta_b')
-        CALL map_from_mesh_to_xy_grid_2D( region%mesh, region%output_grid, region%ice%beta_b, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( region%output_grid, filename, ncid, 'beta_b', d_grid_vec_partial_2D)
+    ! == Basal sliding ==
+    ! ===================
 
-       ! Basal sliding
-      CASE ('friction_coef_1')
-        CALL map_from_mesh_to_xy_grid_2D( region%mesh, region%output_grid, region%ice%friction_coef_1, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( region%output_grid, filename, ncid, 'friction_coef_1', d_grid_vec_partial_2D)
-      CASE ('friction_coef_2')
-        CALL map_from_mesh_to_xy_grid_2D( region%mesh, region%output_grid, region%ice%friction_coef_2, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( region%output_grid, filename, ncid, 'friction_coef_2', d_grid_vec_partial_2D)
+      ! Sliding law coefficients
+      CASE ('till_friction_angle')
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, region%output_grid, region%ice%till_friction_angle, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( region%output_grid, filename, ncid, 'till_friction_angle', d_grid_vec_partial_2D)
+      CASE ('till_yield_stress')
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, region%output_grid, region%ice%till_yield_stress, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( region%output_grid, filename, ncid, 'till_yield_stress', d_grid_vec_partial_2D)
+      CASE ('slid_alpha_sq')
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, region%output_grid, region%ice%slid_alpha_sq, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( region%output_grid, filename, ncid, 'slid_alpha_sq', d_grid_vec_partial_2D)
+      CASE ('slid_beta_sq')
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, region%output_grid, region%ice%slid_beta_sq, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( region%output_grid, filename, ncid, 'slid_beta_sq', d_grid_vec_partial_2D)
+
+      ! Basal friction and shear stress
+      CASE ('basal_friction_coefficient')
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, region%output_grid, region%ice%basal_friction_coefficient, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( region%output_grid, filename, ncid, 'basal_friction_coefficient', d_grid_vec_partial_2D)
       CASE ('basal_shear_stress')
         CALL map_from_mesh_to_xy_grid_2D( region%mesh, region%output_grid, region%ice%basal_shear_stress, d_grid_vec_partial_2D)
         CALL write_to_field_multopt_grid_dp_2D( region%output_grid, filename, ncid, 'basal_shear_stress', d_grid_vec_partial_2D)
 
-      ! Geothermal heat
+    ! == Geothermal heat ==
+    ! =====================
+
       CASE ('geothermal_heat_flux')
-        CALL map_from_mesh_to_xy_grid_2D( region%mesh, region%output_grid, region%ice%geothermal_heat_flux, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( region%output_grid, filename, ncid, 'geothermal_heat_flux', d_grid_vec_partial_2D)
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, region%output_grid, region%ice%pore_water_pressure, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( region%output_grid, filename, ncid, 'pore_water_pressure', d_grid_vec_partial_2D)
 
     ! == Climate ==
     ! =============
@@ -1418,40 +1416,40 @@ CONTAINS
       CASE ('dw_dz_3D')
         CALL add_field_mesh_dp_3D( filename, ncid, 'dw_dz_3D', long_name = '3-D zz strain rate', units = 'yr^-1')
 
-    ! == Basal conditions ==
-    ! ======================
+    ! == Basal hydrology ==
+    ! =====================
 
-      ! Basal hydrology
       CASE ('pore_water_pressure')
-        CALL add_field_mesh_dp_2D( filename, ncid, 'pore_water_pressure', long_name = 'Basal pore water pressure', units = 'Pa')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'pore_water_pressure', long_name = 'Till pore water pressure', units = 'Pa')
       CASE ('overburden_pressure')
-        CALL add_field_mesh_dp_2D( filename, ncid, 'overburden_pressure', long_name = 'Basal overburden pressure', units = 'Pa')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'overburden_pressure', long_name = 'Ice overburden pressure', units = 'Pa')
       CASE ('effective_pressure')
-        CALL add_field_mesh_dp_2D( filename, ncid, 'effective_pressure', long_name = 'Basal effective pressure', units = 'Pa')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'effective_pressure', long_name = 'Effective basal pressure', units = 'Pa')
 
-      ! Basal roughness / friction
-      CASE ('phi_fric')
-        CALL add_field_mesh_dp_2D( filename, ncid, 'phi_fric', long_name = 'Till friction angle', units = 'degrees')
-      CASE ('tau_c')
-        CALL add_field_mesh_dp_2D( filename, ncid, 'tau_c', long_name = 'Till yield stress', units = 'Pa')
-      CASE ('alpha_sq')
-        CALL add_field_mesh_dp_2D( filename, ncid, 'alpha_sq', long_name = 'Coulomb-law friction coefficient')
-      CASE ('beta_sq')
-        CALL add_field_mesh_dp_2D( filename, ncid, 'beta_sq', long_name = 'Power-law friction coefficient', units = 'Pa m^−1/3 yr^1/3')
-      CASE ('beta_b')
-        CALL add_field_mesh_dp_2D( filename, ncid, 'beta_b', long_name = 'Basal friction coefficient', units = 'Pa m^-1 yr')
+    ! == Basal sliding ==
+    ! ===================
 
-      ! Basal sliding
-      CASE ('friction_coef_1')
-        CALL add_field_mesh_dp_2D( filename, ncid, 'friction_coef_1', long_name = 'Generic basal friction coefficient 1')
-      CASE ('friction_coef_2')
-        CALL add_field_mesh_dp_2D( filename, ncid, 'friction_coef_2', long_name = 'Generic basal friction coefficient 2')
+      ! Sliding law coefficients
+      CASE ('till_friction_angle')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'till_friction_angle', long_name = 'Till friction angle', units = 'degrees')
+      CASE ('till_yield_stress')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'till_yield_stress', long_name = 'Till yield stress', units = 'Pa')
+      CASE ('slid_alpha_sq')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'slid_alpha_sq', long_name = 'Coulomb-law friction coefficientn', units = 'dimensionless')
+      CASE ('slid_beta_sq')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'slid_beta_sq', long_name = 'Power-law friction coefficient', units = 'Pa m^−1/m yr^1/m')
+
+      ! Basal friction and shear stress
+      CASE ('basal_friction_coefficient')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'basal_friction_coefficient', long_name = 'Basal friction coefficient', units = 'Pa yr m^-1')
       CASE ('basal_shear_stress')
         CALL add_field_mesh_dp_2D( filename, ncid, 'basal_shear_stress', long_name = 'Basal shear stress', units = 'Pa')
 
-      ! Geothermal heat
+    ! == Geothermal heat ==
+    ! =====================
+
       CASE ('geothermal_heat_flux')
-        CALL add_field_mesh_dp_2D( filename, ncid, 'geothermal_heat_flux', long_name = 'Geothermal heat flux', units = 'J yr^-1 m^-2')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'geothermal_heat_flux', long_name = 'Geothermal heat flux', units = 'J m^-2 yr^-1')
 
     ! == Climate ==
     ! =============
@@ -1727,40 +1725,40 @@ CONTAINS
       CASE ('dw_dz_3D')
         CALL add_field_grid_dp_3D( filename, ncid, 'dw_dz_3D', long_name = '3-D zz strain rate', units = 'yr^-1')
 
-    ! == Basal conditions ==
-    ! ======================
+    ! == Basal hydrology ==
+    ! =====================
 
-      ! Basal hydrology
       CASE ('pore_water_pressure')
-        CALL add_field_grid_dp_2D( filename, ncid, 'pore_water_pressure', long_name = 'Basal pore water pressure', units = 'Pa')
+        CALL add_field_grid_dp_2D( filename, ncid, 'pore_water_pressure', long_name = 'Till pore water pressure', units = 'Pa')
       CASE ('overburden_pressure')
-        CALL add_field_grid_dp_2D( filename, ncid, 'overburden_pressure', long_name = 'Basal overburden pressure', units = 'Pa')
+        CALL add_field_grid_dp_2D( filename, ncid, 'overburden_pressure', long_name = 'Ice overburden pressure', units = 'Pa')
       CASE ('effective_pressure')
-        CALL add_field_grid_dp_2D( filename, ncid, 'effective_pressure', long_name = 'Basal effective pressure', units = 'Pa')
+        CALL add_field_grid_dp_2D( filename, ncid, 'effective_pressure', long_name = 'Effective basal pressure', units = 'Pa')
 
-      ! Basal roughness / friction
-      CASE ('phi_fric')
-        CALL add_field_grid_dp_2D( filename, ncid, 'phi_fric', long_name = 'Till friction angle', units = 'degrees')
-      CASE ('tau_c')
-        CALL add_field_grid_dp_2D( filename, ncid, 'tau_c', long_name = 'Till yield stress', units = 'Pa')
-      CASE ('alpha_sq')
-        CALL add_field_grid_dp_2D( filename, ncid, 'alpha_sq', long_name = 'Coulomb-law friction coefficient')
-      CASE ('beta_sq')
-        CALL add_field_grid_dp_2D( filename, ncid, 'beta_sq', long_name = 'Power-law friction coefficient', units = 'Pa m^−1/3 yr^1/3')
-      CASE ('beta_b')
-        CALL add_field_grid_dp_2D( filename, ncid, 'beta_b', long_name = 'Basal friction coefficient', units = 'Pa m^-1 yr')
+    ! == Basal sliding ==
+    ! ===================
 
-      ! Basal sliding
-      CASE ('friction_coef_1')
-        CALL add_field_grid_dp_2D( filename, ncid, 'friction_coef_1', long_name = 'Generic basal friction coefficient 1')
-      CASE ('friction_coef_2')
-        CALL add_field_grid_dp_2D( filename, ncid, 'friction_coef_2', long_name = 'Generic basal friction coefficient 2')
+      ! Sliding law coefficients
+      CASE ('till_friction_angle')
+        CALL add_field_grid_dp_2D( filename, ncid, 'till_friction_angle', long_name = 'Till friction angle', units = 'degrees')
+      CASE ('till_yield_stress')
+        CALL add_field_grid_dp_2D( filename, ncid, 'till_yield_stress', long_name = 'Till yield stress', units = 'Pa')
+      CASE ('slid_alpha_sq')
+        CALL add_field_grid_dp_2D( filename, ncid, 'slid_alpha_sq', long_name = 'Coulomb-law friction coefficientn', units = 'dimensionless')
+      CASE ('slid_beta_sq')
+        CALL add_field_grid_dp_2D( filename, ncid, 'slid_beta_sq', long_name = 'Power-law friction coefficient', units = 'Pa m^−1/m yr^1/m')
+
+      ! Basal friction and shear stress
+      CASE ('basal_friction_coefficient')
+        CALL add_field_grid_dp_2D( filename, ncid, 'basal_friction_coefficient', long_name = 'Basal friction coefficient', units = 'Pa yr m^-1')
       CASE ('basal_shear_stress')
         CALL add_field_grid_dp_2D( filename, ncid, 'basal_shear_stress', long_name = 'Basal shear stress', units = 'Pa')
 
-      ! Geothermal heat
+    ! == Geothermal heat ==
+    ! =====================
+
       CASE ('geothermal_heat_flux')
-        CALL add_field_grid_dp_2D( filename, ncid, 'geothermal_heat_flux', long_name = 'Geothermal heat flux', units = 'J yr^-1 m^-2')
+        CALL add_field_grid_dp_2D( filename, ncid, 'geothermal_heat_flux', long_name = 'Geothermal heat flux', units = 'J m^-2 yr^-1')
 
     ! == Climate ==
     ! =============

@@ -123,7 +123,7 @@ CONTAINS
     ! Calculate frictional heating
     DO vi = mesh%vi1, mesh%vi2
       IF (ice%mask_grounded_ice( vi)) THEN
-        ice%frictional_heating( vi) = ice%beta_b( vi) * ice%uabs_base( vi)
+        ice%frictional_heating( vi) = ice%basal_friction_coefficient( vi) * ice%uabs_base( vi)
       ELSE
         ice%frictional_heating( vi) = 0._dp
       END IF

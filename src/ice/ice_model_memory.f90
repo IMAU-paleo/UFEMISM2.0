@@ -291,42 +291,43 @@ CONTAINS
     ice%dw_dy_3D                    = 0._dp
     ice%dw_dz_3D                    = 0._dp
 
-  ! == Basal conditions ==
-  ! ======================
+  ! == Basal hydrology ==
+  ! =====================
 
     ! Basal hydrology
-    ALLOCATE( ice%pore_water_pressure         ( mesh%vi1:mesh%vi2        ))  ! Basal pore water pressure
-    ALLOCATE( ice%overburden_pressure         ( mesh%vi1:mesh%vi2        ))  ! Basal overburden pressure
-    ALLOCATE( ice%effective_pressure          ( mesh%vi1:mesh%vi2        ))  ! Basal effective pressure
+    ALLOCATE( ice%pore_water_pressure         ( mesh%vi1:mesh%vi2        ))  ! [Pa] Basal pore water pressure
+    ALLOCATE( ice%overburden_pressure         ( mesh%vi1:mesh%vi2        ))  ! [Pa] Basal overburden pressure
+    ALLOCATE( ice%effective_pressure          ( mesh%vi1:mesh%vi2        ))  ! [Pa] Basal effective pressure
 
     ice%pore_water_pressure         = 0._dp
     ice%overburden_pressure         = 0._dp
     ice%effective_pressure          = 0._dp
 
-    ! Basal roughness / friction
-    ALLOCATE( ice%phi_fric                    ( mesh%vi1:mesh%vi2        ))  ! Till friction angle (degrees)
-    ALLOCATE( ice%tau_c                       ( mesh%vi1:mesh%vi2        ))  ! Till yield stress tauc   (used when choice_sliding_law = "Coloumb" or "Coulomb_regularised")
-    ALLOCATE( ice%alpha_sq                    ( mesh%vi1:mesh%vi2        ))  ! Coulomb-law friction coefficient [unitless]         (used when choice_sliding_law =             "Tsai2015", or "Schoof2005")
-    ALLOCATE( ice%beta_sq                     ( mesh%vi1:mesh%vi2        ))  ! Power-law friction coefficient   [Pa m^−1/3 yr^1/3] (used when choice_sliding_law = "Weertman", "Tsai2015", or "Schoof2005")
-    ALLOCATE( ice%beta_b                      ( mesh%vi1:mesh%vi2        ))  ! Basal friction (tau_b = u * beta_b)
+  ! == Basal sliding ==
+  ! ===================
 
-    ice%phi_fric                    = 0._dp
-    ice%tau_c                       = 0._dp
-    ice%alpha_sq                    = 0._dp
-    ice%beta_sq                     = 0._dp
-    ice%beta_b                      = 0._dp
+    ! Sliding law coefficients
+    ALLOCATE( ice%till_friction_angle         ( mesh%vi1:mesh%vi2        ))  ! [degrees]          Till friction angle (degrees)
+    ALLOCATE( ice%till_yield_stress           ( mesh%vi1:mesh%vi2        ))  ! [Pa]               Till yield stress (used when choice_sliding_law = "Coloumb", "Budd", or "Zoet-Iverson")
+    ALLOCATE( ice%slid_alpha_sq               ( mesh%vi1:mesh%vi2        ))  ! [-]                Coulomb-law friction coefficient (used when choice_sliding_law = "Tsai2015", or "Schoof2005")
+    ALLOCATE( ice%slid_beta_sq                ( mesh%vi1:mesh%vi2        ))  ! [Pa m^−1/m yr^1/m] Power-law friction coefficient (used when choice_sliding_law = "Weertman", "Tsai2015", or "Schoof2005")
 
-    ! Basal sliding
-    ALLOCATE( ice%friction_coef_1             ( mesh%vi1:mesh%vi2        ))  ! Generic basal friction coefficient 1
-    ALLOCATE( ice%friction_coef_2             ( mesh%vi1:mesh%vi2        ))  ! Generic basal friction coefficient 2
-    ALLOCATE( ice%basal_shear_stress          ( mesh%vi1:mesh%vi2        ))  ! Basal shear stress
+    ice%till_friction_angle         = 0._dp
+    ice%till_yield_stress           = 0._dp
+    ice%slid_alpha_sq               = 0._dp
+    ice%slid_beta_sq                = 0._dp
 
-    ice%friction_coef_1             = 0._dp
-    ice%friction_coef_2             = 0._dp
+    ! Basal friction and shear stress
+    ALLOCATE( ice%basal_friction_coefficient  ( mesh%vi1:mesh%vi2        ))  ! [Pa yr m^-1]       Effective basal friction coefficient (basal_shear_stress = u_base * basal_friction_coefficient)
+    ALLOCATE( ice%basal_shear_stress          ( mesh%vi1:mesh%vi2        ))  ! [Pa]               Basal shear stress
+
+    ice%basal_friction_coefficient  = 0._dp
     ice%basal_shear_stress          = 0._dp
 
-    ! Geothermal heat
-    ALLOCATE( ice%geothermal_heat_flux        ( mesh%vi1:mesh%vi2        ))  ! Geothermal heat flux
+  ! == Geothermal heat ==
+  ! =====================
+
+    ALLOCATE( ice%geothermal_heat_flux        ( mesh%vi1:mesh%vi2        ))  ! [J m^-2 yr^-1] Geothermal heat flux
 
     ice%geothermal_heat_flux        = 0._dp
 

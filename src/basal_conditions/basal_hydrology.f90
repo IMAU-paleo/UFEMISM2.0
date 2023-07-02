@@ -74,9 +74,14 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_basal_hydrology_model'
+    REAL(dp)                                           :: dummy1
 
     ! Add routine to path
     CALL init_routine( routine_name)
+
+    ! To prevent compiler warnings
+    dummy1 = mesh%xmin
+    dummy1 = ice%Hi( mesh%vi1)
 
     ! Initialise the chosen basal hydrology model
     IF     (C%choice_basal_hydrology_model == 'Martin2011') THEN
@@ -102,7 +107,6 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'remap_basal_hydrology'
-    INTEGER                                            :: int_dummy
 
     ! Add routine to path
     CALL init_routine( routine_name)

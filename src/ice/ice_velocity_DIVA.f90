@@ -1534,14 +1534,14 @@ CONTAINS
       ! Lipscomb et al., 2019, Eq. 33
 
       DO vi = mesh%vi1, mesh%vi2
-        DIVA%beta_eff_a( vi) = ice%beta_b( vi) / (1._dp + ice%beta_b( vi) * DIVA%F2_3D_a( vi,1))
+        DIVA%beta_eff_a( vi) = ice%basal_friction_coefficient( vi) / (1._dp + ice%basal_friction_coefficient( vi) * DIVA%F2_3D_a( vi,1))
       END DO
 
     END IF ! IF (C%choice_sliding_law == 'no_sliding') THEN
 
     ! Map basal friction coefficient beta_b and effective basal friction coefficient beta_eff to the b-grid
-    CALL map_a_b_2D( mesh, ice%beta_b     , DIVA%beta_b_b  )
-    CALL map_a_b_2D( mesh, DIVA%beta_eff_a, DIVA%beta_eff_b)
+    CALL map_a_b_2D( mesh, ice%basal_friction_coefficient, DIVA%basal_friction_coefficient_b)
+    CALL map_a_b_2D( mesh, DIVA%beta_eff_a               , DIVA%beta_eff_b                  )
 
     ! Apply the sub-grid grounded fraction, and limit the friction coefficient to improve stability
     IF (C%do_GL_subgrid_friction) THEN
@@ -1608,8 +1608,8 @@ CONTAINS
 
       ! Calculate basal velocities (Lipscomb et al., 2019, Eq. 32)
       DO ti = mesh%ti1, mesh%ti2
-        DIVA%u_base_b( ti) = DIVA%u_vav_b( ti) / (1._dp + DIVA%beta_b_b( ti) * DIVA%F2_3D_b( ti,1))
-        DIVA%v_base_b( ti) = DIVA%v_vav_b( ti) / (1._dp + DIVA%beta_b_b( ti) * DIVA%F2_3D_b( ti,1))
+        DIVA%u_base_b( ti) = DIVA%u_vav_b( ti) / (1._dp + DIVA%basal_friction_coefficient_b( ti) * DIVA%F2_3D_b( ti,1))
+        DIVA%v_base_b( ti) = DIVA%v_vav_b( ti) / (1._dp + DIVA%basal_friction_coefficient_b( ti) * DIVA%F2_3D_b( ti,1))
       END DO
 
     END IF ! IF (C%choice_sliding_law == 'no_sliding') THEN
@@ -1651,8 +1651,8 @@ CONTAINS
       DO ti = mesh%ti1, mesh%ti2
       DO k = 1, mesh%nz
         ! Lipscomb et al., 2019, Eq. 29
-        DIVA%u_3D_b( ti,k) = DIVA%u_base_b( ti) * (1._dp + DIVA%beta_b_b( ti) * DIVA%F1_3D_b( ti,k))
-        DIVA%v_3D_b( ti,k) = DIVA%v_base_b( ti) * (1._dp + DIVA%beta_b_b( ti) * DIVA%F1_3D_b( ti,k))
+        DIVA%u_3D_b( ti,k) = DIVA%u_base_b( ti) * (1._dp + DIVA%basal_friction_coefficient_b( ti) * DIVA%F1_3D_b( ti,k))
+        DIVA%v_3D_b( ti,k) = DIVA%v_base_b( ti) * (1._dp + DIVA%basal_friction_coefficient_b( ti) * DIVA%F1_3D_b( ti,k))
       END DO
       END DO
 
@@ -1785,11 +1785,15 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_DIVA_velocities_from_file'
+    REAL(dp)                                           :: dummy1
     CHARACTER(LEN=256)                                 :: filename
     REAL(dp)                                           :: timeframe
 
     ! Add routine to path
     CALL init_routine( routine_name)
+
+    ! To prevent compiler warnings
+    dummy1 = mesh%xmin
 
     ! Determine the filename and timeframe to read for this model region
     IF     (region_name == 'NAM') THEN
@@ -1897,8 +1901,8 @@ CONTAINS
     DIVA%F1_3D_b = 0._dp
     ALLOCATE( DIVA%F2_3D_b(      mesh%ti1:mesh%ti2,mesh%nz))
     DIVA%F2_3D_b = 0._dp
-    ALLOCATE( DIVA%beta_b_b(     mesh%ti1:mesh%ti2))                   ! Basal friction coefficient (tau_b = u * beta_b)
-    DIVA%beta_b_b = 0._dp
+    ALLOCATE( DIVA%basal_friction_coefficient_b(     mesh%ti1:mesh%ti2)) ! Basal friction coefficient (basal_shear_stress = u * basal_friction_coefficient)
+    DIVA%basal_friction_coefficient_b = 0._dp
     ALLOCATE( DIVA%beta_eff_a(   mesh%vi1:mesh%vi2))                   ! "Effective" friction coefficient (turning the SSA into the DIVA)
     DIVA%beta_eff_a = 0._dp
     ALLOCATE( DIVA%beta_eff_b(   mesh%ti1:mesh%ti2))
