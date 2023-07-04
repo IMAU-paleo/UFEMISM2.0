@@ -35,6 +35,9 @@ MODULE region_types
     ! The mesh that all model components define their data on
     TYPE(type_mesh)                         :: mesh
 
+    ! Square grid used for smoothing data
+    TYPE(type_grid)                         :: grid_smooth
+
     ! Reference geometries
     TYPE(type_reference_geometry)           :: refgeo_init
     TYPE(type_reference_geometry)           :: refgeo_PD

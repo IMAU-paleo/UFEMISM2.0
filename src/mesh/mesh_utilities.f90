@@ -15,6 +15,9 @@ MODULE mesh_utilities
   USE math_utilities                                         , ONLY: geometric_center, is_in_triangle, lies_on_line_segment, circumcenter, &
                                                                      line_from_points, line_line_intersection, encroaches_upon, crop_line_to_domain, &
                                                                      triangle_area
+  USE mpi_distributed_memory                                 , ONLY: gather_to_master_int_1D, gather_to_master_dp_1D, &
+                                                                     distribute_from_master_int_1D, distribute_from_master_dp_1D, &
+                                                                     gather_to_all_int_1D, gather_to_all_dp_1D
 
   IMPLICIT NONE
 
@@ -1464,6 +1467,189 @@ CONTAINS
     END DO ! DO i = 1, n
 
   END SUBROUTINE extend_group_single_iteration_c
+
+  SUBROUTINE extrapolate_Gaussian( mesh, mask_partial, d_partial, sigma)
+    ! Extrapolate the data field d into the area designated by the mask,
+    ! using Gaussian extrapolation of sigma
+    !
+    ! Note about the mask:
+    !    2 = data provided
+    !    1 = no data provided, fill allowed
+    !    0 = no fill allowed
+    ! (so basically this routine extrapolates data from the area
+    !  where mask == 2 into the area where mask == 1)
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh
+    INTEGER,  DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: mask_partial
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(INOUT) :: d_partial
+    REAL(dp),                               INTENT(IN)    :: sigma
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'extrapolate_Gaussian'
+    INTEGER,  DIMENSION(mesh%vi1:mesh%vi2)                :: mask_local
+    INTEGER,  DIMENSION(mesh%nV)                          :: mask_tot
+    REAL(dp), DIMENSION(mesh%nV)                          :: d_tot
+    INTEGER                                               :: vi, n_unfilled
+    LOGICAL,  DIMENSION(mesh%vi1:mesh%vi2)                :: do_fill_now
+    LOGICAL                                               :: has_filled_neighbour
+    INTEGER                                               :: ci,vj
+    INTEGER,  DIMENSION(mesh%nV)                          :: map, stack_front, stack_tot
+    INTEGER                                               :: stack_frontN, stack_totN
+    INTEGER                                               :: cj,vk
+    REAL(dp)                                              :: w_sum, d_sum, w
+    INTEGER                                               :: i
+    INTEGER                                               :: it
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Copy mask to local, changeable array
+    mask_local = mask_partial
+
+    ! Gather complete fill mask and data to all processes
+    CALL gather_to_all_int_1D( mask_local, mask_tot)
+    CALL gather_to_all_dp_1D(  d_partial , d_tot   )
+
+    ! Initialise
+    map = 0
+
+    ! Flood-fill style extrapolation: extrapolate using a moving front
+    it = 0
+    DO WHILE (.TRUE.)
+
+      ! Safety
+      it = it + 1
+      IF (it > mesh%nV) CALL crash('got stuck!')
+
+      ! Determine number of unfilled vertices
+      n_unfilled = 0
+      DO vi = mesh%vi1, mesh%vi2
+        IF (mask_tot( vi) == 1) n_unfilled = n_unfilled + 1
+      END DO
+      CALL MPI_ALLREDUCE( MPI_IN_PLACE, n_unfilled, 1, MPI_INTEGER, MPI_SUM, MPI_COMM_WORLD, ierr)
+
+      ! If all eligible vertices have been filled, we're done
+      IF (n_unfilled == 0) EXIT
+
+      ! List the front of vertices that will be filled in this iteration
+      do_fill_now = .FALSE.
+      DO vi = mesh%vi1, mesh%vi2
+        IF (mask_tot( vi) == 1) THEN
+          ! This vertex should be filled eventually
+          has_filled_neighbour = .FALSE.
+          DO ci = 1, mesh%nC( vi)
+            vj = mesh%C( vi,ci)
+            IF (mask_tot( vj) == 2) THEN
+              has_filled_neighbour = .TRUE.
+              EXIT
+            END IF
+          END DO
+          IF (has_filled_neighbour) THEN
+            ! This vertex should be filled now
+            do_fill_now( vi) = .TRUE.
+          END IF
+        END IF ! IF (mask_tot( vi) == 1) THEN
+      END DO ! DO vi = mesh%vi1, mesh%vi2
+
+    ! Fill all vertices in the front
+    ! ==============================
+
+      DO vi = mesh%vi1, mesh%vi2
+        IF (do_fill_now( vi)) THEN
+
+          ! == Find all vertices within a 3-sigma radius of this vertex
+
+          ! Clean up map and stack from the previous call
+          DO i = 1, stack_totN
+            vj = stack_tot( i)
+            map( vj) = 0
+          END DO
+          stack_totN = 0
+
+          ! Initialise the front stack with the current vertex
+          stack_frontN = 1
+          stack_front( 1) = vi
+
+          DO WHILE (stack_frontN > 0)
+
+            ! Remove the last element from the front stack
+            vj = stack_front( stack_frontN)
+            stack_frontN = stack_frontN - 1
+
+            ! Mark it on the map and add it to the total stack
+            map( vj) = 2
+            stack_totN = stack_totN + 1
+            stack_tot( stack_totN) = vj
+
+            ! Add all its unlisted neighbours within 3 sigma of vertex vi to the front stack
+            DO cj = 1, mesh%nC( vj)
+              vk = mesh%C( vj,cj)
+              IF (map( vk) == 0 .AND. NORM2( mesh%V( vk,:) - mesh%V( vi,:)) < 3._dp * sigma) THEN
+                stack_frontN = stack_frontN + 1
+                stack_front( stack_frontN) = vk
+                map( vk) = 1
+              END IF
+            END DO
+
+          END DO ! DO WHILE (stack_frontN > 0)
+
+          ! == Safety - if no vertices lie within the 3-sigma radius,
+          !    just average over all filled neighbours
+
+          IF (stack_totN == 0) THEN
+            DO ci = 1, mesh%nC( vi)
+              vj = mesh%C( vi,ci)
+              stack_totN = stack_totN + 1
+              stack_tot( stack_totN) = vj
+            END DO
+          END IF
+
+          ! == Calculate Gaussian distance-weighted average value of d over these vertices
+
+          w_sum = 0._dp
+          d_sum = 0._dp
+
+          DO i = 1, stack_totN
+            vj = stack_tot( i)
+            w = EXP( -0.5_dp * (NORM2( mesh%V( vi,:) - mesh%V( vj,:)) / sigma)**2)
+            w_sum = w_sum + w
+            d_sum = d_sum + w * d_tot( vj)
+          END DO ! DO i = 1, stack_totN
+
+          d_partial( vi) = d_sum / w_sum
+
+        END IF ! IF (do_fill_now( vi)) THEN
+      END DO ! DO vi = mesh%vi1, mesh%vi2
+
+    ! Mark newly filled vertices in the mask, so they
+    ! can contribute to the next extrapolation iteration
+    ! ==================================================
+
+      DO vi = mesh%vi1, mesh%vi2
+        IF (do_fill_now( vi)) THEN
+          mask_local( vi) = 2
+        END IF ! IF (do_fill_now( vi)) THEN
+      END DO ! DO vi = mesh%vi1, mesh%vi2
+
+    ! Exchange newly filled mask and data between the processes
+    ! =========================================================
+
+      CALL gather_to_all_int_1D( mask_local, mask_tot)
+      CALL gather_to_all_dp_1D(  d_partial , d_tot   )
+
+      ! DENK DROM
+!      IF (it == 2) EXIT
+!      CALL crash('whoopsiedaisy')
+
+    END DO ! DO WHILE (.TRUE.)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE extrapolate_Gaussian
 
 ! == Contours and polygons for mesh generation
 

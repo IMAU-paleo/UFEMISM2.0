@@ -242,6 +242,12 @@ MODULE model_configuration
     INTEGER             :: nit_Lloyds_algorithm_config                  = 3                                ! [-]          Number of iterations of Lloyds algorithm to be applied after refinement
     REAL(dp)            :: mesh_resolution_tolerance_config             = 1.25_dp                          ! [-]          Factors the target resolution for trangle-size requirement. 1=strict, use >1 to avoid unnecesarily high resolution
 
+    ! Square grid used for smoothing
+    REAL(dp)            :: dx_square_grid_smooth_NAM_config             = 5000._dp
+    REAL(dp)            :: dx_square_grid_smooth_EAS_config             = 5000._dp
+    REAL(dp)            :: dx_square_grid_smooth_GRL_config             = 5000._dp
+    REAL(dp)            :: dx_square_grid_smooth_ANT_config             = 5000._dp
+
     ! Memory
     INTEGER             :: nC_mem_config                                = 32                               ! [-]          How many columns of memory should be allocated for connectivity lists
 
@@ -433,19 +439,24 @@ MODULE model_configuration
     ! General
     LOGICAL             :: do_bed_roughness_nudging_config              = .FALSE.                          !           Whether or not to nudge the basal roughness
     CHARACTER(LEN=256)  :: choice_bed_roughness_nudging_method_config   = ''                               !           Choice of bed roughness nudging method
+    CHARACTER(LEN=256)  :: choice_inversion_target_geometry_config      = ''                               !           Which reference geometry to use as the target geometry (can be "init" or "PD")
     REAL(dp)            :: bed_roughness_nudging_dt_config              = 5._dp                            ! [yr]      Time step for bed roughness updates
     REAL(dp)            :: bed_roughness_nudging_t_start_config         = -9.9E9_dp                        ! [yr]      Earliest model time when nudging is allowed
     REAL(dp)            :: bed_roughness_nudging_t_end_config           = +9.9E9_dp                        ! [yr]      Latest   model time when nudging is allowed
-    REAL(dp)            :: generic_bed_roughness_1_min_config           = 0.1_dp                           ! [?]       Smallest allowed value for the first inverted bed roughness field
-    REAL(dp)            :: generic_bed_roughness_1_max_config           = 30._dp                           ! [?]       Largest  allowed value for the first inverted bed roughness field
+    REAL(dp)            :: generic_bed_roughness_1_min_config           = 0.1_dp                           ! [?]       Smallest allowed value for the first  inverted bed roughness field
+    REAL(dp)            :: generic_bed_roughness_1_max_config           = 30._dp                           ! [?]       Largest  allowed value for the first  inverted bed roughness field
+    REAL(dp)            :: generic_bed_roughness_2_min_config           = 0.1_dp                           ! [?]       Smallest allowed value for the second inverted bed roughness field
+    REAL(dp)            :: generic_bed_roughness_2_max_config           = 30._dp                           ! [?]       Largest  allowed value for the second inverted bed roughness field
     CHARACTER(LEN=256)  :: filename_inverted_bed_roughness_config       = 'bed_roughness_inv.nc'           !           NetCDF file where the final inverted bed roughness fields will be saved
 
     ! Basal inversion model based on flowline-averaged values of H and dH/dt
-    REAL(dp)            :: bednudge_H_dHdt_flowline_tauc_config         = 10._dp                           ! [yr]      Timescale
+    REAL(dp)            :: bednudge_H_dHdt_flowline_t_scale_config      = 100._dp                          ! [yr]      Timescale
     REAL(dp)            :: bednudge_H_dHdt_flowline_dH0_config          = 100._dp                          ! [m]       Ice thickness error scale
-    REAL(dp)            :: bednudge_H_dHdt_flowline_dHdt0_config        = 250._dp                          ! [m yr^-1] Thinning rate scale
+    REAL(dp)            :: bednudge_H_dHdt_flowline_dHdt0_config        = 1._dp                            ! [m yr^-1] Thinning rate scale
     REAL(dp)            :: bednudge_H_dHdt_flowline_Hi_scale_config     = 300._dp                          ! [m]       Ice thickness weight scale
     REAL(dp)            :: bednudge_H_dHdt_flowline_u_scale_config      = 3000._dp                         ! [m yr^-1] Ice velocity  weight scale
+    REAL(dp)            :: bednudge_H_dHdt_flowline_r_smooth_config     = 5000._dp                         ! [m]       Radius for Gaussian filter used to smooth dC/dt as regularisation
+    REAL(dp)            :: bednudge_H_dHdt_flowline_w_smooth_config     = 0.5_dp                           ! [-]       Relative contribution of smoothed dC/dt in regularisation
 
   ! == Geothermal heat flux
   ! =======================
@@ -904,6 +915,12 @@ MODULE model_configuration
     INTEGER             :: nit_Lloyds_algorithm
     REAL(dp)            :: mesh_resolution_tolerance
 
+    ! Square grid used for smoothing
+    REAL(dp)            :: dx_square_grid_smooth_NAM
+    REAL(dp)            :: dx_square_grid_smooth_EAS
+    REAL(dp)            :: dx_square_grid_smooth_GRL
+    REAL(dp)            :: dx_square_grid_smooth_ANT
+
     ! Memory
     INTEGER             :: nC_mem
 
@@ -1095,19 +1112,24 @@ MODULE model_configuration
     ! General
     LOGICAL             :: do_bed_roughness_nudging
     CHARACTER(LEN=256)  :: choice_bed_roughness_nudging_method
+    CHARACTER(LEN=256)  :: choice_inversion_target_geometry
     REAL(dp)            :: bed_roughness_nudging_dt
     REAL(dp)            :: bed_roughness_nudging_t_start
     REAL(dp)            :: bed_roughness_nudging_t_end
     REAL(dp)            :: generic_bed_roughness_1_min
     REAL(dp)            :: generic_bed_roughness_1_max
+    REAL(dp)            :: generic_bed_roughness_2_min
+    REAL(dp)            :: generic_bed_roughness_2_max
     CHARACTER(LEN=256)  :: filename_inverted_bed_roughness
 
     ! Basal inversion model based on flowline-averaged values of H and dH/dt
-    REAL(dp)            :: bednudge_H_dHdt_flowline_tauc
+    REAL(dp)            :: bednudge_H_dHdt_flowline_t_scale
     REAL(dp)            :: bednudge_H_dHdt_flowline_dH0
     REAL(dp)            :: bednudge_H_dHdt_flowline_dHdt0
     REAL(dp)            :: bednudge_H_dHdt_flowline_Hi_scale
     REAL(dp)            :: bednudge_H_dHdt_flowline_u_scale
+    REAL(dp)            :: bednudge_H_dHdt_flowline_r_smooth
+    REAL(dp)            :: bednudge_H_dHdt_flowline_w_smooth
 
   ! == Geothermal heat flux
   ! =======================
@@ -1355,6 +1377,7 @@ MODULE model_configuration
     INTEGER             :: type_groundingline_fl
     INTEGER             :: type_calvingfront_gr
     INTEGER             :: type_calvingfront_fl
+    INTEGER             :: type_margin
 
   END TYPE type_config
 
@@ -1648,6 +1671,10 @@ CONTAINS
       alpha_min_config                                            , &
       nit_Lloyds_algorithm_config                                 , &
       mesh_resolution_tolerance_config                            , &
+      dx_square_grid_smooth_NAM_config                            , &
+      dx_square_grid_smooth_EAS_config                            , &
+      dx_square_grid_smooth_GRL_config                            , &
+      dx_square_grid_smooth_ANT_config                            , &
       nC_mem_config                                               , &
       choice_zeta_grid_config                                     , &
       nz_config                                                   , &
@@ -1764,17 +1791,22 @@ CONTAINS
       Martin2011till_phi_max_config                               , &
       do_bed_roughness_nudging_config                             , &
       choice_bed_roughness_nudging_method_config                  , &
+      choice_inversion_target_geometry_config                     , &
       bed_roughness_nudging_dt_config                             , &
       bed_roughness_nudging_t_start_config                        , &
       bed_roughness_nudging_t_end_config                          , &
       generic_bed_roughness_1_min_config                          , &
       generic_bed_roughness_1_max_config                          , &
+      generic_bed_roughness_2_min_config                          , &
+      generic_bed_roughness_2_max_config                          , &
       filename_inverted_bed_roughness_config                      , &
-      bednudge_H_dHdt_flowline_tauc_config                        , &
+      bednudge_H_dHdt_flowline_t_scale_config                     , &
       bednudge_H_dHdt_flowline_dH0_config                         , &
       bednudge_H_dHdt_flowline_dHdt0_config                       , &
       bednudge_H_dHdt_flowline_Hi_scale_config                    , &
       bednudge_H_dHdt_flowline_u_scale_config                     , &
+      bednudge_H_dHdt_flowline_r_smooth_config                    , &
+      bednudge_H_dHdt_flowline_w_smooth_config                    , &
       choice_geothermal_heat_flux_config                          , &
       uniform_geothermal_heat_flux_config                         , &
       filename_geothermal_heat_flux_config                        , &
@@ -2172,6 +2204,12 @@ CONTAINS
     C%nit_Lloyds_algorithm                                   = nit_Lloyds_algorithm_config
     C%mesh_resolution_tolerance                              = mesh_resolution_tolerance_config
 
+    ! Square grid used for smoothing
+    C%dx_square_grid_smooth_NAM                              = dx_square_grid_smooth_NAM_config
+    C%dx_square_grid_smooth_EAS                              = dx_square_grid_smooth_EAS_config
+    C%dx_square_grid_smooth_GRL                              = dx_square_grid_smooth_GRL_config
+    C%dx_square_grid_smooth_ANT                              = dx_square_grid_smooth_ANT_config
+
     ! Memory
     C%nC_mem                                                 = nC_mem_config
 
@@ -2363,19 +2401,24 @@ CONTAINS
     ! General
     C%do_bed_roughness_nudging                               = do_bed_roughness_nudging_config
     C%choice_bed_roughness_nudging_method                    = choice_bed_roughness_nudging_method_config
+    C%choice_inversion_target_geometry                       = choice_inversion_target_geometry_config
     C%bed_roughness_nudging_dt                               = bed_roughness_nudging_dt_config
     C%bed_roughness_nudging_t_start                          = bed_roughness_nudging_t_start_config
     C%bed_roughness_nudging_t_end                            = bed_roughness_nudging_t_end_config
     C%generic_bed_roughness_1_min                            = generic_bed_roughness_1_min_config
     C%generic_bed_roughness_1_max                            = generic_bed_roughness_1_max_config
+    C%generic_bed_roughness_2_min                            = generic_bed_roughness_2_min_config
+    C%generic_bed_roughness_2_max                            = generic_bed_roughness_2_max_config
     C%filename_inverted_bed_roughness                        = filename_inverted_bed_roughness_config
 
     ! Basal inversion model based on flowline-averaged values of H and dH/dt
-    C%bednudge_H_dHdt_flowline_tauc                          = bednudge_H_dHdt_flowline_tauc_config
+    C%bednudge_H_dHdt_flowline_t_scale                       = bednudge_H_dHdt_flowline_t_scale_config
     C%bednudge_H_dHdt_flowline_dH0                           = bednudge_H_dHdt_flowline_dH0_config
     C%bednudge_H_dHdt_flowline_dHdt0                         = bednudge_H_dHdt_flowline_dHdt0_config
     C%bednudge_H_dHdt_flowline_Hi_scale                      = bednudge_H_dHdt_flowline_Hi_scale_config
     C%bednudge_H_dHdt_flowline_u_scale                       = bednudge_H_dHdt_flowline_u_scale_config
+    C%bednudge_H_dHdt_flowline_r_smooth                      = bednudge_H_dHdt_flowline_r_smooth_config
+    C%bednudge_H_dHdt_flowline_w_smooth                      = bednudge_H_dHdt_flowline_w_smooth_config
 
   ! == Geothermal heat flux
   ! =======================
@@ -2620,6 +2663,7 @@ CONTAINS
     C%type_groundingline_fl                    = 6
     C%type_calvingfront_gr                     = 7
     C%type_calvingfront_fl                     = 8
+    C%type_margin                              = 9
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

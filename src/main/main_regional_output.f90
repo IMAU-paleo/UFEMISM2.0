@@ -75,7 +75,15 @@ CONTAINS
     ! Write the time to the file
     CALL write_time_to_file( region%output_filename_mesh, ncid, region%time)
 
-    ! Add all data fields to the file
+    ! Write the default data fields to the file
+    CALL write_to_main_regional_output_file_mesh_field( region, region%output_filename_mesh, ncid, 'Hi')
+    CALL write_to_main_regional_output_file_mesh_field( region, region%output_filename_mesh, ncid, 'Hb')
+    CALL write_to_main_regional_output_file_mesh_field( region, region%output_filename_mesh, ncid, 'Hs')
+    CALL write_to_main_regional_output_file_mesh_field( region, region%output_filename_mesh, ncid, 'SL')
+    CALL write_to_main_regional_output_file_mesh_field( region, region%output_filename_mesh, ncid, 'u_surf')
+    CALL write_to_main_regional_output_file_mesh_field( region, region%output_filename_mesh, ncid, 'v_surf')
+
+    ! Write all user-defined data fields to the file
     CALL write_to_main_regional_output_file_mesh_field( region, region%output_filename_mesh, ncid, C%choice_output_field_01)
     CALL write_to_main_regional_output_file_mesh_field( region, region%output_filename_mesh, ncid, C%choice_output_field_02)
     CALL write_to_main_regional_output_file_mesh_field( region, region%output_filename_mesh, ncid, C%choice_output_field_03)
@@ -165,7 +173,15 @@ CONTAINS
     ! Write the time to the file
     CALL write_time_to_file( region%output_filename_grid, ncid, region%time)
 
-    ! Add all data fields to the file
+    ! Write the default data fields to the file
+    CALL write_to_main_regional_output_file_grid_field( region, region%output_filename_grid, ncid, 'Hi')
+    CALL write_to_main_regional_output_file_grid_field( region, region%output_filename_grid, ncid, 'Hb')
+    CALL write_to_main_regional_output_file_grid_field( region, region%output_filename_grid, ncid, 'Hs')
+    CALL write_to_main_regional_output_file_grid_field( region, region%output_filename_grid, ncid, 'SL')
+    CALL write_to_main_regional_output_file_grid_field( region, region%output_filename_grid, ncid, 'u_surf')
+    CALL write_to_main_regional_output_file_grid_field( region, region%output_filename_grid, ncid, 'v_surf')
+
+    ! Write all user-defined data fields to the file
     CALL write_to_main_regional_output_file_grid_field( region, region%output_filename_grid, ncid, C%choice_output_field_01)
     CALL write_to_main_regional_output_file_grid_field( region, region%output_filename_grid, ncid, C%choice_output_field_02)
     CALL write_to_main_regional_output_file_grid_field( region, region%output_filename_grid, ncid, C%choice_output_field_03)
@@ -234,9 +250,9 @@ CONTAINS
 
     ! In/output variables:
     TYPE(type_model_region)                            , INTENT(IN)    :: region
-    CHARACTER(LEN=256)                                 , INTENT(IN)    :: filename
+    CHARACTER(LEN=*)                                   , INTENT(IN)    :: filename
     INTEGER                                            , INTENT(IN)    :: ncid
-    CHARACTER(LEN=256)                                 , INTENT(IN)    :: choice_output_field
+    CHARACTER(LEN=*)                                   , INTENT(IN)    :: choice_output_field
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'write_to_main_regional_output_file_mesh_field'
@@ -308,6 +324,18 @@ CONTAINS
       CASE ('TAF')
         CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'TAF', region%ice%TAF)
 
+    ! ===== Geometry changes w.r.t. reference =====
+    ! =============================================
+
+      CASE ('dHi')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'dHi', region%ice%dHi)
+      CASE ('dHb')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'dHb', region%ice%dHb)
+      CASE ('dHs')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'dHs', region%ice%dHs)
+      CASE ('dHib')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'dHib', region%ice%dHib)
+
     ! ===== Geometry rates of changes =====
     ! =====================================
 
@@ -331,49 +359,56 @@ CONTAINS
         END WHERE
         CALL write_to_field_multopt_mesh_int_2D( region%mesh, filename, ncid, 'mask_icefree_land', mask_int)
       CASE ('mask_icefree_ocean')
-        WHERE (region%ice%mask_icefree_land .EQV. .TRUE.)
+        WHERE (region%ice%mask_icefree_ocean .EQV. .TRUE.)
           mask_int = 1
         ELSEWHERE
           mask_int = 0
         END WHERE
         CALL write_to_field_multopt_mesh_int_2D( region%mesh, filename, ncid, 'mask_icefree_ocean', mask_int)
       CASE ('mask_grounded_ice')
-        WHERE (region%ice%mask_icefree_land .EQV. .TRUE.)
+        WHERE (region%ice%mask_grounded_ice .EQV. .TRUE.)
           mask_int = 1
         ELSEWHERE
           mask_int = 0
         END WHERE
         CALL write_to_field_multopt_mesh_int_2D( region%mesh, filename, ncid, 'mask_grounded_ice', mask_int)
       CASE ('mask_floating_ice')
-        WHERE (region%ice%mask_icefree_land .EQV. .TRUE.)
+        WHERE (region%ice%mask_floating_ice .EQV. .TRUE.)
           mask_int = 1
         ELSEWHERE
           mask_int = 0
         END WHERE
         CALL write_to_field_multopt_mesh_int_2D( region%mesh, filename, ncid, 'mask_floating_ice', mask_int)
+      CASE ('mask_margin')
+        WHERE (region%ice%mask_margin .EQV. .TRUE.)
+          mask_int = 1
+        ELSEWHERE
+          mask_int = 0
+        END WHERE
+        CALL write_to_field_multopt_mesh_int_2D( region%mesh, filename, ncid, 'mask_margin', mask_int)
       CASE ('mask_gl_gr')
-        WHERE (region%ice%mask_icefree_land .EQV. .TRUE.)
+        WHERE (region%ice%mask_gl_gr .EQV. .TRUE.)
           mask_int = 1
         ELSEWHERE
           mask_int = 0
         END WHERE
         CALL write_to_field_multopt_mesh_int_2D( region%mesh, filename, ncid, 'mask_gl_gr', mask_int)
       CASE ('mask_gl_fl')
-        WHERE (region%ice%mask_icefree_land .EQV. .TRUE.)
+        WHERE (region%ice%mask_gl_fl .EQV. .TRUE.)
           mask_int = 1
         ELSEWHERE
           mask_int = 0
         END WHERE
         CALL write_to_field_multopt_mesh_int_2D( region%mesh, filename, ncid, 'mask_gl_fl', mask_int)
       CASE ('mask_cf_gr')
-        WHERE (region%ice%mask_icefree_land .EQV. .TRUE.)
+        WHERE (region%ice%mask_cf_gr .EQV. .TRUE.)
           mask_int = 1
         ELSEWHERE
           mask_int = 0
         END WHERE
         CALL write_to_field_multopt_mesh_int_2D( region%mesh, filename, ncid, 'mask_cf_gr', mask_int)
       CASE ('mask_cf_fl')
-        WHERE (region%ice%mask_icefree_land .EQV. .TRUE.)
+        WHERE (region%ice%mask_cf_fl .EQV. .TRUE.)
           mask_int = 1
         ELSEWHERE
           mask_int = 0
@@ -587,9 +622,9 @@ CONTAINS
 
     ! In/output variables:
     TYPE(type_model_region)                            , INTENT(IN)    :: region
-    CHARACTER(LEN=256)                                 , INTENT(IN)    :: filename
+    CHARACTER(LEN=*)                                   , INTENT(IN)    :: filename
     INTEGER                                            , INTENT(IN)    :: ncid
-    CHARACTER(LEN=256)                                 , INTENT(IN)    :: choice_output_field
+    CHARACTER(LEN=*)                                   , INTENT(IN)    :: choice_output_field
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'write_to_main_regional_output_file_grid_field'
@@ -726,6 +761,7 @@ CONTAINS
       CASE ('mask_icefree_ocean')
       CASE ('mask_grounded_ice')
       CASE ('mask_floating_ice')
+      CASE ('mask_margin')
       CASE ('mask_gl_gr')
       CASE ('mask_gl_fl')
       CASE ('mask_cf_gr')
@@ -1017,7 +1053,15 @@ CONTAINS
     CALL add_zeta_dimension_to_file(  region%output_filename_mesh, ncid, region%mesh%zeta)
     CALL add_month_dimension_to_file( region%output_filename_mesh, ncid)
 
-    ! Add all data fields to the file
+    ! Add the default data fields to the file
+    CALL create_main_regional_output_file_mesh_field( region%output_filename_mesh, ncid, 'Hi')
+    CALL create_main_regional_output_file_mesh_field( region%output_filename_mesh, ncid, 'Hb')
+    CALL create_main_regional_output_file_mesh_field( region%output_filename_mesh, ncid, 'Hs')
+    CALL create_main_regional_output_file_mesh_field( region%output_filename_mesh, ncid, 'SL')
+    CALL create_main_regional_output_file_mesh_field( region%output_filename_mesh, ncid, 'u_surf')
+    CALL create_main_regional_output_file_mesh_field( region%output_filename_mesh, ncid, 'v_surf')
+
+    ! Add all user-defined data fields to the file
     CALL create_main_regional_output_file_mesh_field( region%output_filename_mesh, ncid, C%choice_output_field_01)
     CALL create_main_regional_output_file_mesh_field( region%output_filename_mesh, ncid, C%choice_output_field_02)
     CALL create_main_regional_output_file_mesh_field( region%output_filename_mesh, ncid, C%choice_output_field_03)
@@ -1115,7 +1159,15 @@ CONTAINS
     CALL add_zeta_dimension_to_file(  region%output_filename_grid, ncid, region%mesh%zeta)
     CALL add_month_dimension_to_file( region%output_filename_grid, ncid)
 
-    ! Add all data fields to the file
+    ! Add the default data fields to the file
+    CALL create_main_regional_output_file_grid_field( region%output_filename_grid, ncid, 'Hi')
+    CALL create_main_regional_output_file_grid_field( region%output_filename_grid, ncid, 'Hb')
+    CALL create_main_regional_output_file_grid_field( region%output_filename_grid, ncid, 'Hs')
+    CALL create_main_regional_output_file_grid_field( region%output_filename_grid, ncid, 'SL')
+    CALL create_main_regional_output_file_grid_field( region%output_filename_grid, ncid, 'u_surf')
+    CALL create_main_regional_output_file_grid_field( region%output_filename_grid, ncid, 'v_surf')
+
+    ! Add all user-defined data fields to the file
     CALL create_main_regional_output_file_grid_field( region%output_filename_grid, ncid, C%choice_output_field_01)
     CALL create_main_regional_output_file_grid_field( region%output_filename_grid, ncid, C%choice_output_field_02)
     CALL create_main_regional_output_file_grid_field( region%output_filename_grid, ncid, C%choice_output_field_03)
@@ -1183,9 +1235,9 @@ CONTAINS
     IMPLICIT NONE
 
     ! In/output variables:
-    CHARACTER(LEN=256)                                 , INTENT(IN)    :: filename
+    CHARACTER(LEN=*)                                   , INTENT(IN)    :: filename
     INTEGER                                            , INTENT(IN)    :: ncid
-    CHARACTER(LEN=256)                                 , INTENT(IN)    :: choice_output_field
+    CHARACTER(LEN=*)                                   , INTENT(IN)    :: choice_output_field
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'create_main_regional_output_file_mesh_field'
@@ -1292,6 +1344,8 @@ CONTAINS
         CALL add_field_mesh_int_2D( filename, ncid, 'mask_grounded_ice', long_name = 'Mask indicating grounded ice')
       CASE ('mask_floating_ice')
         CALL add_field_mesh_int_2D( filename, ncid, 'mask_floating_ice', long_name = 'Mask indicating floating ice')
+      CASE ('mask_margin')
+        CALL add_field_mesh_int_2D( filename, ncid, 'mask_margin', long_name = 'Mask indicating ice next to ice-free')
       CASE ('mask_gl_gr')
         CALL add_field_mesh_int_2D( filename, ncid, 'mask_gl_gr', long_name = 'Mask indicating grounded side of grounding line')
       CASE ('mask_gl_fl')
@@ -1504,9 +1558,9 @@ CONTAINS
     IMPLICIT NONE
 
     ! In/output variables:
-    CHARACTER(LEN=256)                                 , INTENT(IN)    :: filename
+    CHARACTER(LEN=*)                                   , INTENT(IN)    :: filename
     INTEGER                                            , INTENT(IN)    :: ncid
-    CHARACTER(LEN=256)                                 , INTENT(IN)    :: choice_output_field
+    CHARACTER(LEN=*)                                   , INTENT(IN)    :: choice_output_field
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'create_main_regional_output_file_grid_field'
@@ -1606,6 +1660,7 @@ CONTAINS
       CASE ('mask_icefree_ocean')
       CASE ('mask_grounded_ice')
       CASE ('mask_floating_ice')
+      CASE ('mask_margin')
       CASE ('mask_gl_gr')
       CASE ('mask_gl_fl')
       CASE ('mask_cf_gr')

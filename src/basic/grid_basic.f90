@@ -926,6 +926,158 @@ CONTAINS
 
   END SUBROUTINE calc_grid_mask_as_polygon
 
+! == Gaussian smoothing of gridded data
+
+  SUBROUTINE smooth_Gaussian_2D_grid( grid, d_grid_vec_partial, r)
+    ! Apply a Gaussian smoothing filter with sigma = r to the 2D data field d
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    REAL(dp), DIMENSION(:    ),          INTENT(INOUT) :: d_grid_vec_partial
+    REAL(dp),                            INTENT(IN)    :: r      ! Smoothing radius in m
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'smooth_Gaussian_2D_grid'
+    INTEGER                                            :: n
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: d_grid_tot
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: d_grid_tot_smoothed
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: f
+    INTEGER                                            :: i,j,k,ii,jj
+
+    ! Number of cells to extend the data by (3 standard deviations is enough to capture the tails of the normal distribution)
+    n = CEILING( r / grid%dx) * 3
+
+    ! Calculate the 1-D smoothing filter
+    ALLOCATE( f( -n:n))
+    f = 0._dp
+    DO k = -n, n
+      f( k) = EXP( -0.5_dp * (REAL( k,dp) * grid%dx/r)**2)
+    END DO
+    f = f / SUM(f)
+
+    ! Allocate memory
+    ALLOCATE( d_grid_tot(          grid%nx,grid%ny), source = 0._dp)
+    ALLOCATE( d_grid_tot_smoothed( grid%nx,grid%ny), source = 0._dp)
+
+    ! Gather data to the master in grid form
+    CALL gather_gridded_data_to_master_dp_2D( grid, d_grid_vec_partial, d_grid_tot)
+
+    ! Let the master do the actual work
+    IF (par%master) THEN
+
+      ! First smooth in the x-direction
+      d_grid_tot_smoothed = 0._dp
+      DO i = 1, grid%nx
+      DO j = 1, grid%ny
+        DO k = -n, n
+          ii = MAX( 1, MIN( grid%nx, i+k ))
+          d_grid_tot_smoothed( i,j) = d_grid_tot_smoothed( i,j) + d_grid_tot( ii,j) * f( k)
+        END DO
+      END DO
+      END DO
+      d_grid_tot = d_grid_tot_smoothed
+
+      ! Then smooth in the y-direction
+      d_grid_tot_smoothed = 0._dp
+      DO i = 1, grid%nx
+      DO j = 1, grid%ny
+        DO k = -n, n
+          jj = MAX( 1, MIN( grid%ny, j+k ))
+          d_grid_tot_smoothed( i,j) = d_grid_tot_smoothed( i,j) + d_grid_tot( i,jj) * f( k)
+        END DO
+      END DO
+      END DO
+      d_grid_tot = d_grid_tot_smoothed
+
+    END IF ! IF (par%master) THEN
+
+    ! Distributed smoothed data back from the master
+    CALL distribute_gridded_data_from_master_dp_2D( grid, d_grid_tot, d_grid_vec_partial)
+
+    ! Clean up after yourself
+    DEALLOCATE( d_grid_tot)
+    DEALLOCATE( d_grid_tot_smoothed)
+    DEALLOCATE( f)
+
+  END SUBROUTINE smooth_Gaussian_2D_grid
+
+  SUBROUTINE smooth_Gaussian_3D_grid( grid, d_grid_vec_partial, r)
+    ! Apply a Gaussian smoothing filter with sigma = r to the 3D data field d
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    REAL(dp), DIMENSION(:,:  ),          INTENT(INOUT) :: d_grid_vec_partial
+    REAL(dp),                            INTENT(IN)    :: r      ! Smoothing radius in m
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'smooth_Gaussian_3D_grid'
+    INTEGER                                            :: n
+    REAL(dp), DIMENSION(:,:,:), ALLOCATABLE            :: d_grid_tot
+    REAL(dp), DIMENSION(:,:,:), ALLOCATABLE            :: d_grid_tot_smoothed
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: f
+    INTEGER                                            :: i,j,k,ii,jj
+
+    ! Number of cells to extend the data by (3 standard deviations is enough to capture the tails of the normal distribution)
+    n = CEILING( r / grid%dx) * 3
+
+    ! Calculate the 1-D smoothing filter
+    ALLOCATE( f( -n:n))
+    f = 0._dp
+    DO k = -n, n
+      f( k) = EXP( -0.5_dp * (REAL( k,dp) * grid%dx/r)**2)
+    END DO
+    f = f / SUM(f)
+
+    ! Allocate memory
+    ALLOCATE( d_grid_tot(          grid%nx,grid%ny,SIZE( d_grid_vec_partial,2)), source = 0._dp)
+    ALLOCATE( d_grid_tot_smoothed( grid%nx,grid%ny,SIZE( d_grid_vec_partial,2)), source = 0._dp)
+
+    ! Gather data to the master in grid form
+    CALL gather_gridded_data_to_master_dp_3D( grid, d_grid_vec_partial, d_grid_tot)
+
+    ! Let the master do the actual work
+    IF (par%master) THEN
+
+      ! First smooth in the x-direction
+      d_grid_tot_smoothed = 0._dp
+      DO i = 1, grid%nx
+      DO j = 1, grid%ny
+        DO k = -n, n
+          ii = MAX( 1, MIN( grid%nx, i+k ))
+          d_grid_tot_smoothed( i,j,:) = d_grid_tot_smoothed( i,j,:) + d_grid_tot( ii,j,:) * f( k)
+        END DO
+      END DO
+      END DO
+      d_grid_tot = d_grid_tot_smoothed
+
+      ! Then smooth in the y-direction
+      d_grid_tot_smoothed = 0._dp
+      DO i = 1, grid%nx
+      DO j = 1, grid%ny
+        DO k = -n, n
+          jj = MAX( 1, MIN( grid%ny, j+k ))
+          d_grid_tot_smoothed( i,j,:) = d_grid_tot_smoothed( i,j,:) + d_grid_tot( i,jj,:) * f( k)
+        END DO
+      END DO
+      END DO
+      d_grid_tot = d_grid_tot_smoothed
+
+    END IF ! IF (par%master) THEN
+
+    ! Distributed smoothed data back from the master
+    CALL distribute_gridded_data_from_master_dp_3D( grid, d_grid_tot, d_grid_vec_partial)
+
+    ! Clean up after yourself
+    DEALLOCATE( d_grid_tot)
+    DEALLOCATE( d_grid_tot_smoothed)
+    DEALLOCATE( f)
+
+  END SUBROUTINE smooth_Gaussian_3D_grid
+
 ! == Subroutines for manipulating gridded data in distributed memory
 
   SUBROUTINE distribute_gridded_data_from_master_dp_2D( grid, d_grid, d_grid_vec_partial)

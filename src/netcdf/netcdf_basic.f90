@@ -4938,7 +4938,11 @@ CONTAINS
 
     ! Safety: check if a dimension by this name is already present in this file
     CALL inquire_dim( filename, ncid, dim_name, dim_length_present, id_dim)
-    IF (id_dim /= -1) CALL crash('file "' // TRIM( filename) // '" already contains dimension "' // TRIM( dim_name) // '"!')
+    IF (id_dim /= -1) THEN
+      !CALL crash('file "' // TRIM( filename) // '" already contains dimension "' // TRIM( dim_name) // '"!')
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
 
     ! Add the dimension
     IF (par%master) THEN
@@ -4975,7 +4979,11 @@ CONTAINS
 
     ! Safety: check if a variable by this name is already present in this file
     CALL inquire_var( filename, ncid, var_name, id_var)
-    IF (id_var /= -1) CALL crash('file "' // TRIM( filename) // '" already contains variable "' // TRIM( var_name) // '"!')
+    IF (id_var /= -1) THEN
+      !CALL crash('file "' // TRIM( filename) // '" already contains variable "' // TRIM( var_name) // '"!')
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
 
     ! Add the variable
     IF (par%master) THEN

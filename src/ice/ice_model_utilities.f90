@@ -50,6 +50,7 @@ CONTAINS
     ! mask_icefree_ocean_prev ! T: ice-free ocean, F: otherwise (during previous time step)
     ! mask_grounded_ice_prev  ! T: grounded ice  , F: otherwise (during previous time step)
     ! mask_floating_ice_prev  ! T: floating ice  , F: otherwise (during previous time step)
+    ! mask_margin             ! T: ice next to ice-free, F: otherwise
     ! mask_gl_gr              ! T: grounded ice next to floating ice, F: otherwise
     ! mask_gl_fl              ! T: floating ice next to grounded ice, F: otherwise
     ! mask_cf_gr              ! T: grounded ice next to ice-free water (sea or lake), F: otherwise
@@ -94,36 +95,36 @@ CONTAINS
       IF (is_floating( ice%Hi( vi), ice%Hb( vi), ice%SL( vi))) THEN
         ! Ice thickness is below the floatation thickness; either floating ice, or ice-free ocean
 
-        IF (ice%Hi( vi) > 0._dp) THEN
+        IF (ice%Hi( vi) > 0.1_dp) THEN
           ! Floating ice
 
           ice%mask_floating_ice( vi) = .TRUE.
           ice%mask( vi) = C%type_floating_ice
 
-        ELSE ! IF (ice%Hi( vi) > 0._dp) THEN
+        ELSE ! IF (ice%Hi( vi) > 0.1_dp) THEN
           ! Ice-free ocean
 
           ice%mask_icefree_ocean( vi) = .TRUE.
           ice%mask( vi) = C%type_icefree_ocean
 
-        END IF ! IF (ice%Hi( vi) > 0._dp) THEN
+        END IF ! IF (ice%Hi( vi) > 0.1_dp) THEN
 
       ELSE ! IF (is_floating( ice%Hi( vi), ice%Hb( vi), ice%SL( vi))) THEN
         ! Ice thickness is above the floatation thickness; either grounded ice, or ice-free land
 
-        IF (ice%Hi( vi) > 0._dp) THEN
+        IF (ice%Hi( vi) > 0.1_dp) THEN
           ! Grounded ice
 
           ice%mask_grounded_ice( vi) = .TRUE.
           ice%mask( vi) = C%type_grounded_ice
 
-        ELSE ! IF (ice%Hi( vi) > 0._dp) THEN
+        ELSE ! IF (ice%Hi( vi) > 0.1_dp) THEN
           ! Ice-free land
 
           ice%mask_icefree_land( vi) = .TRUE.
           ice%mask( vi) = C%type_icefree_land
 
-        END IF ! IF (ice%Hi( vi) > 0._dp) THEN
+        END IF ! IF (ice%Hi( vi) > 0.1_dp) THEN
 
       END IF ! IF (is_floating( ice%Hi( vi), ice%Hb( vi), ice%SL( vi))) THEN
 
@@ -133,15 +134,30 @@ CONTAINS
     ! ==========================
 
     ! Gather basic masks to all processes
-    CALL gather_to_all_logical_1D( ice%mask_icefree_land, mask_icefree_land_tot)
+    CALL gather_to_all_logical_1D( ice%mask_icefree_land , mask_icefree_land_tot )
+    CALL gather_to_all_logical_1D( ice%mask_icefree_ocean, mask_icefree_ocean_tot)
+    CALL gather_to_all_logical_1D( ice%mask_grounded_ice , mask_grounded_ice_tot )
+    CALL gather_to_all_logical_1D( ice%mask_floating_ice , mask_floating_ice_tot )
 
     ! Initialise transitional masks
-    ice%mask_gl_gr = .FALSE.
-    ice%mask_gl_fl = .FALSE.
-    ice%mask_cf_gr = .FALSE.
-    ice%mask_cf_fl = .FALSE.
+    ice%mask_margin = .FALSE.
+    ice%mask_gl_gr  = .FALSE.
+    ice%mask_gl_fl  = .FALSE.
+    ice%mask_cf_gr  = .FALSE.
+    ice%mask_cf_fl  = .FALSE.
 
     DO vi = mesh%vi1, mesh%vi2
+
+      ! Ice margin
+      IF (mask_grounded_ice_tot( vi) .OR. mask_floating_ice_tot( vi)) THEN
+        DO ci = 1, mesh%nC( vi)
+          vj = mesh%C( vi,ci)
+          IF (.NOT. (mask_grounded_ice_tot( vj) .OR. mask_floating_ice_tot( vj))) THEN
+            ice%mask_margin( vi) = .TRUE.
+            ice%mask( vi) = C%type_margin
+          END IF
+        END DO
+      END IF
 
       ! Grounding line (grounded side)
       IF (mask_grounded_ice_tot( vi)) THEN

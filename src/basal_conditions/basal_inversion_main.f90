@@ -42,6 +42,18 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    ! Only do basal inversion within the specified time window
+    IF (region%time < C%bed_roughness_nudging_t_start) THEN
+      region%BIV%t_next = C%bed_roughness_nudging_t_start
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
+    IF (region%time == C%bed_roughness_nudging_t_end) THEN
+      region%BIV%t_next = C%end_time_of_run
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
+
   ! If the desired time is beyond the time of the next modelled bed roughness,
   ! run the basal inversion model to calculate a new next modelled bed roughness.
   ! =============================================================================
@@ -58,7 +70,17 @@ CONTAINS
       ! Run the basal inversion model to calculate a new next modelled bed roughness
       SELECT CASE (C%choice_bed_roughness_nudging_method)
         CASE ('H_dHdt_flowline')
-          CALL run_basal_inversion_H_dHdt_flowline( region%mesh, region%ice, region%BIV)
+
+          ! Run with the specified target geometry
+          SELECT CASE (C%choice_inversion_target_geometry)
+            CASE ('init')
+              CALL run_basal_inversion_H_dHdt_flowline( region%mesh, region%grid_smooth, region%ice, region%refgeo_init, region%BIV)
+            CASE ('PD')
+              CALL run_basal_inversion_H_dHdt_flowline( region%mesh, region%grid_smooth, region%ice, region%refgeo_PD, region%BIV)
+            CASE DEFAULT
+              CALL crash('unknown choice_inversion_target_geometry "' // TRIM( C%choice_inversion_target_geometry) // '"!')
+          END SELECT
+
         CASE DEFAULT
           CALL crash('unknown choice_bed_roughness_nudging_method "' // TRIM( C%choice_bed_roughness_nudging_method) // '"!')
       END SELECT

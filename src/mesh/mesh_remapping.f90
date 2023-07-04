@@ -20,7 +20,7 @@ MODULE mesh_remapping
                                                                      MatDestroy, MatConvert
   USE grid_basic                                             , ONLY: type_grid, calc_matrix_operators_grid, gather_gridded_data_to_master_dp_2D, &
                                                                      distribute_gridded_data_from_master_dp_2D, gather_gridded_data_to_master_dp_3D, &
-                                                                     distribute_gridded_data_from_master_dp_3D
+                                                                     distribute_gridded_data_from_master_dp_3D, smooth_Gaussian_2D_grid, smooth_Gaussian_3D_grid
   USE grid_lonlat_basic                                      , ONLY: type_grid_lonlat
   USE mesh_types                                             , ONLY: type_mesh
   USE math_utilities                                         , ONLY: is_in_triangle, lies_on_line_segment, line_integral_xdy, line_integral_mxydx, &
@@ -680,6 +680,89 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE map_from_mesh_to_mesh_3D
+
+  ! Smoothing operations on the mesh
+  SUBROUTINE smooth_Gaussian_2D( mesh, grid, d_mesh_partial, r)
+    ! Use 2nd-order conservative remapping to map the 2-D data from the mesh
+    ! to the square grid. Apply the smoothing on the gridded data, then map
+    ! it back to the mesh. The numerical diffusion arising from the two mapping
+    ! operations is not a problem since we're smoothing the data anyway.
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    REAL(dp), DIMENSION(:    ),          INTENT(INOUT) :: d_mesh_partial
+    REAL(dp),                            INTENT(IN)    :: r
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'smooth_Gaussian_2D'
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: d_grid_vec_partial
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Allocate memory
+    ALLOCATE( d_grid_vec_partial( grid%n_loc))
+
+    ! Map data to the grid
+    CALL map_from_mesh_to_xy_grid_2D( mesh, grid, d_mesh_partial, d_grid_vec_partial)
+
+    ! Apply smoothing on the gridded data
+    CALL smooth_Gaussian_2D_grid( grid, d_grid_vec_partial, r)
+
+    ! Map data back to the mesh
+    CALL map_from_xy_grid_to_mesh_2D( grid, mesh, d_grid_vec_partial, d_mesh_partial)
+
+    ! Clean up after yourself
+    DEALLOCATE( d_grid_vec_partial)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE smooth_Gaussian_2D
+
+  SUBROUTINE smooth_Gaussian_3D( mesh, grid, d_mesh_partial, r)
+    ! Use 2nd-order conservative remapping to map the 3-D data from the mesh
+    ! to the square grid. Apply the smoothing on the gridded data, then map
+    ! it back to the mesh. The numerical diffusion arising from the two mapping
+    ! operations is not a problem since we're smoothing the data anyway.
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    REAL(dp), DIMENSION(:,:  ),          INTENT(INOUT) :: d_mesh_partial
+    REAL(dp),                            INTENT(IN)    :: r
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'smooth_Gaussian_3D'
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: d_grid_vec_partial
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Allocate memory
+    ALLOCATE( d_grid_vec_partial( grid%n_loc, SIZE( d_mesh_partial,2)))
+
+    ! Map data to the grid
+    CALL map_from_mesh_to_xy_grid_3D( mesh, grid, d_mesh_partial, d_grid_vec_partial)
+
+    ! Apply smoothing on the gridded data
+    CALL smooth_Gaussian_3D_grid( grid, d_grid_vec_partial, r)
+
+    ! Map data back to the mesh
+    CALL map_from_xy_grid_to_mesh_3D( grid, mesh, d_grid_vec_partial, d_mesh_partial)
+
+    ! Clean up after yourself
+    DEALLOCATE( d_grid_vec_partial)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE smooth_Gaussian_3D
 
 ! == Apply existing mapping objects to remap data between grids
 ! =============================================================

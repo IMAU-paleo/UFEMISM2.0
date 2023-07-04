@@ -274,18 +274,18 @@ CONTAINS
       ! Coulomb sliding law; bed roughness is described by till_friction_angle
 
       IF (timeframe_bed_roughness == 1E9_dp) THEN
-        CALL read_field_from_file_2D( filename_bed_roughness, 'till_friction_angle', mesh, ice%till_friction_angle)
+        CALL read_field_from_file_2D( filename_bed_roughness, 'till_friction_angle||phi_fric', mesh, ice%till_friction_angle)
       ELSE
-        CALL read_field_from_file_2D( filename_bed_roughness, 'till_friction_angle', mesh, ice%till_friction_angle, timeframe_bed_roughness)
+        CALL read_field_from_file_2D( filename_bed_roughness, 'till_friction_angle||phi_fric', mesh, ice%till_friction_angle, timeframe_bed_roughness)
       END IF
 
     ELSEIF (C%choice_sliding_law == 'Budd') THEN
       ! Budd-type sliding law; bed roughness is described by till_friction_angle
 
       IF (timeframe_bed_roughness == 1E9_dp) THEN
-        CALL read_field_from_file_2D( filename_bed_roughness, 'till_friction_angle', mesh, ice%till_friction_angle)
+        CALL read_field_from_file_2D( filename_bed_roughness, 'till_friction_angle||phi_fric', mesh, ice%till_friction_angle)
       ELSE
-        CALL read_field_from_file_2D( filename_bed_roughness, 'till_friction_angle', mesh, ice%till_friction_angle, timeframe_bed_roughness)
+        CALL read_field_from_file_2D( filename_bed_roughness, 'till_friction_angle||phi_fric', mesh, ice%till_friction_angle, timeframe_bed_roughness)
       END IF
 
     ELSEIF (C%choice_sliding_law == 'Tsai2015') THEN
@@ -314,9 +314,9 @@ CONTAINS
       ! Zoet-Iverson sliding law; bed roughness is described by till_friction_angle
 
       IF (timeframe_bed_roughness == 1E9_dp) THEN
-        CALL read_field_from_file_2D( filename_bed_roughness, 'till_friction_angle', mesh, ice%till_friction_angle)
+        CALL read_field_from_file_2D( filename_bed_roughness, 'till_friction_angle||phi_fric', mesh, ice%till_friction_angle)
       ELSE
-        CALL read_field_from_file_2D( filename_bed_roughness, 'till_friction_angle', mesh, ice%till_friction_angle, timeframe_bed_roughness)
+        CALL read_field_from_file_2D( filename_bed_roughness, 'till_friction_angle||phi_fric', mesh, ice%till_friction_angle, timeframe_bed_roughness)
       END IF
 
     ELSE

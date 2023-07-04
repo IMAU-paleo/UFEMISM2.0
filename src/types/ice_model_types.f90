@@ -208,6 +208,7 @@ MODULE ice_model_types
     LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_icefree_ocean_prev     ! T: ice-free ocean, F: otherwise (during previous time step)
     LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_grounded_ice_prev      ! T: grounded ice  , F: otherwise (during previous time step)
     LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_floating_ice_prev      ! T: floating ice  , F: otherwise (during previous time step)
+    LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_margin                 ! T: ice next to ice-free, F: otherwise
     LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_gl_gr                  ! T: grounded ice next to floating ice, F: otherwise
     LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_gl_fl                  ! T: floating ice next to grounded ice, F: otherwise
     LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_cf_gr                  ! T: grounded ice next to ice-free water (sea or lake), F: otherwise

@@ -150,6 +150,43 @@ CONTAINS
 ! ===== Single-variable NetCDF files =====
 ! ========================================
 
+  SUBROUTINE save_variable_as_netcdf_logical_1D( d_partial, field_name)
+    ! Save a single variable to a NetCDF file
+
+    IMPLICIT NONE
+
+    ! Input variables:
+    LOGICAL,  DIMENSION(:    ),      INTENT(IN)        :: d_partial
+    CHARACTER(LEN=*),                INTENT(IN)        :: field_name
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'save_variable_as_netcdf_logical_1D'
+    INTEGER,  DIMENSION(:    ), ALLOCATABLE            :: d_partial_int
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Allocate memory for integer version
+    ALLOCATE( d_partial_int( SIZE( d_partial,1)))
+
+    ! Fill integer version
+    WHERE (d_partial)
+      d_partial_int = 1
+    ELSEWHERE
+      d_partial_int = 0
+    END WHERE
+
+    ! Write integer version to NetCDF
+    CALL save_variable_as_netcdf_int_1D( d_partial_int, field_name)
+
+    ! Clean up after yourself
+    DEALLOCATE( d_partial_int)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE save_variable_as_netcdf_logical_1D
+
   SUBROUTINE save_variable_as_netcdf_int_1D( d_partial, field_name)
     ! Save a single variable to a NetCDF file
 

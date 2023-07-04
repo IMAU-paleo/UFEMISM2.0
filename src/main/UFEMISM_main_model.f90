@@ -267,7 +267,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'initialise_model_region'
     CHARACTER(LEN=256)                                                 :: grid_name
-    REAL(dp)                                                           :: dx_grid_output
+    REAL(dp)                                                           :: dx_grid_smooth, dx_grid_output
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -311,6 +311,28 @@ CONTAINS
 
     ! Remap reference geometries from their raw input grids to the model mesh
     CALL initialise_reference_geometries_on_model_mesh( region%name, region%mesh, region%refgeo_init, region%refgeo_PD, region%refgeo_GIAeq)
+
+    ! ===== Square grid used for smoothing =====
+    ! ==========================================
+
+    ! Determine resolution for this region's output grid
+    IF     (region%name == 'NAM') THEN
+      dx_grid_smooth = C%dx_square_grid_smooth_NAM
+    ELSEIF (region%name == 'EAS') THEN
+      dx_grid_smooth = C%dx_square_grid_smooth_EAS
+    ELSEIF (region%name == 'GRL') THEN
+      dx_grid_smooth = C%dx_square_grid_smooth_GRL
+    ELSEIF (region%name == 'ANT') THEN
+      dx_grid_smooth = C%dx_square_grid_smooth_ANT
+    ELSE
+      CALL crash('unknown region name "' // region%name // '"!')
+    END IF
+
+    ! Create the square output grid
+    grid_name = 'square_grid_smooth_' // region%name
+    CALL setup_square_grid( grid_name, region%mesh%xmin, region%mesh%xmax, region%mesh%ymin, region%mesh%ymax, &
+       dx_grid_smooth, region%grid_smooth, &
+       lambda_M = region%mesh%lambda_M, phi_M = region%mesh%phi_M, beta_stereo = region%mesh%beta_stereo)
 
     ! ===== Ice dynamics =====
     ! ========================

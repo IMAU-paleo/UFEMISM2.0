@@ -82,6 +82,7 @@ CONTAINS
     ALLOCATE( ice%mask_icefree_ocean_prev     ( mesh%vi1:mesh%vi2        ))  ! T: ice-free ocean, F: otherwise (during previous time step)
     ALLOCATE( ice%mask_grounded_ice_prev      ( mesh%vi1:mesh%vi2        ))  ! T: grounded ice  , F: otherwise (during previous time step)
     ALLOCATE( ice%mask_floating_ice_prev      ( mesh%vi1:mesh%vi2        ))  ! T: floating ice  , F: otherwise (during previous time step)
+    ALLOCATE( ice%mask_margin                 ( mesh%vi1:mesh%vi2        ))  ! T: ice next to ice-free, F: otherwise
     ALLOCATE( ice%mask_gl_gr                  ( mesh%vi1:mesh%vi2        ))  ! T: grounded ice next to floating ice, F: otherwise
     ALLOCATE( ice%mask_gl_fl                  ( mesh%vi1:mesh%vi2        ))  ! T: floating ice next to grounded ice, F: otherwise
     ALLOCATE( ice%mask_cf_gr                  ( mesh%vi1:mesh%vi2        ))  ! T: grounded ice next to ice-free water (sea or lake), F: otherwise
