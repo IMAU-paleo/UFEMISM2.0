@@ -15,6 +15,7 @@ MODULE SMB_main
   USE climate_model_types                                    , ONLY: type_climate_model
   USE SMB_model_types                                        , ONLY: type_SMB_model
   USE SMB_idealised                                          , ONLY: initialise_SMB_model_idealised, run_SMB_model_idealised
+  USE SMB_prescribed                                         , ONLY: initialise_SMB_model_prescribed, run_SMB_model_prescribed
 
   IMPLICIT NONE
 
@@ -67,26 +68,30 @@ CONTAINS
     END IF
 
     ! Determine which SMB model to run for this region
-    IF     (region_name == 'NAM') THEN
-      choice_SMB_model = C%choice_SMB_model_NAM
-    ELSEIF (region_name == 'EAS') THEN
-      choice_SMB_model = C%choice_SMB_model_EAS
-    ELSEIF (region_name == 'GRL') THEN
-      choice_SMB_model = C%choice_SMB_model_GRL
-    ELSEIF (region_name == 'ANT') THEN
-      choice_SMB_model = C%choice_SMB_model_ANT
-    ELSE
-      CALL crash('unknown region_name "' // region_name // '"')
-    END IF
+    SELECT CASE (region_name)
+      CASE ('NAM')
+        choice_SMB_model = C%choice_SMB_model_NAM
+      CASE ('EAS')
+        choice_SMB_model = C%choice_SMB_model_EAS
+      CASE ('GRL')
+        choice_SMB_model = C%choice_SMB_model_GRL
+      CASE ('ANT')
+        choice_SMB_model = C%choice_SMB_model_ANT
+      CASE DEFAULT
+        CALL crash('unknown region_name "' // region_name // '"')
+    END SELECT
 
     ! Run the chosen SMB model
-    IF     (choice_SMB_model == 'uniform') THEN
-      SMB%SMB = C%uniform_SMB
-    ELSEIF (choice_SMB_model == 'idealised') THEN
-      CALL run_SMB_model_idealised( mesh, ice, SMB, time)
-    ELSE
-      CALL crash('unknown choice_SMB_model "' // TRIM( choice_SMB_model) // '"')
-    END IF
+    SELECT CASE (choice_SMB_model)
+      CASE ('uniform')
+        SMB%SMB = C%uniform_SMB
+      CASE ('idealised')
+        CALL run_SMB_model_idealised( mesh, ice, SMB, time)
+      CASE ('prescribed')
+        CALL run_SMB_model_prescribed( mesh, ice, SMB, region_name, time)
+      CASE DEFAULT
+        CALL crash('unknown choice_SMB_model "' // TRIM( choice_SMB_model) // '"')
+    END SELECT
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -114,17 +119,18 @@ CONTAINS
     IF (par%master)  WRITE(*,"(A)") '  Initialising surface mass balance model...'
 
     ! Determine which SMB model to initialise for this region
-    IF     (region_name == 'NAM') THEN
-      choice_SMB_model = C%choice_SMB_model_NAM
-    ELSEIF (region_name == 'EAS') THEN
-      choice_SMB_model = C%choice_SMB_model_EAS
-    ELSEIF (region_name == 'GRL') THEN
-      choice_SMB_model = C%choice_SMB_model_GRL
-    ELSEIF (region_name == 'ANT') THEN
-      choice_SMB_model = C%choice_SMB_model_ANT
-    ELSE
-      CALL crash('unknown region_name "' // region_name // '"')
-    END IF
+    SELECT CASE (region_name)
+      CASE ('NAM')
+        choice_SMB_model = C%choice_SMB_model_NAM
+      CASE ('EAS')
+        choice_SMB_model = C%choice_SMB_model_EAS
+      CASE ('GRL')
+        choice_SMB_model = C%choice_SMB_model_GRL
+      CASE ('ANT')
+        choice_SMB_model = C%choice_SMB_model_ANT
+      CASE DEFAULT
+        CALL crash('unknown region_name "' // region_name // '"')
+    END SELECT
 
     ! Allocate memory for main variables
     ALLOCATE( SMB%SMB( mesh%vi1:mesh%vi2))
@@ -134,13 +140,16 @@ CONTAINS
     SMB%t_next = C%start_time_of_run
 
     ! Determine which SMB model to initialise
-    IF     (choice_SMB_model == 'uniform') THEN
-      ! No need to do anything
-    ELSEIF (choice_SMB_model == 'idealised') THEN
-      CALL initialise_SMB_model_idealised( mesh, SMB)
-    ELSE
-      CALL crash('unknown choice_SMB_model "' // TRIM( choice_SMB_model) // '"')
-    END IF
+    SELECT CASE (choice_SMB_model)
+      CASE ('uniform')
+        SMB%SMB = C%uniform_SMB
+      CASE ('idealised')
+        CALL initialise_SMB_model_idealised( mesh, SMB)
+      CASE ('prescribed')
+        CALL initialise_SMB_model_prescribed( mesh, SMB, region_name)
+      CASE DEFAULT
+        CALL crash('unknown choice_SMB_model "' // TRIM( choice_SMB_model) // '"')
+    END SELECT
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -165,27 +174,31 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! Determine which SMB model to initialise for this region
-    IF     (region_name == 'NAM') THEN
-      choice_SMB_model = C%choice_SMB_model_NAM
-    ELSEIF (region_name == 'EAS') THEN
-      choice_SMB_model = C%choice_SMB_model_EAS
-    ELSEIF (region_name == 'GRL') THEN
-      choice_SMB_model = C%choice_SMB_model_GRL
-    ELSEIF (region_name == 'ANT') THEN
-      choice_SMB_model = C%choice_SMB_model_ANT
-    ELSE
-      CALL crash('unknown region_name "' // region_name // '"')
-    END IF
+    ! Determine which SMB model to use for this region
+    SELECT CASE (region_name)
+      CASE ('NAM')
+        choice_SMB_model = C%choice_SMB_model_NAM
+      CASE ('EAS')
+        choice_SMB_model = C%choice_SMB_model_EAS
+      CASE ('GRL')
+        choice_SMB_model = C%choice_SMB_model_GRL
+      CASE ('ANT')
+        choice_SMB_model = C%choice_SMB_model_ANT
+      CASE DEFAULT
+        CALL crash('unknown region_name "' // region_name // '"')
+    END SELECT
 
     ! Write to the restart file of the chosen SMB model
-    IF     (choice_SMB_model == 'uniform') THEN
-      ! No need to do anything
-    ELSEIF (choice_SMB_model == 'idealised') THEN
-      ! No need to do anything
-    ELSE
-      CALL crash('unknown choice_SMB_model "' // TRIM( choice_SMB_model) // '"')
-    END IF
+    SELECT CASE (choice_SMB_model)
+      CASE ('uniform')
+        ! No need to do anything
+      CASE ('idealised')
+        ! No need to do anything
+      CASE ('prescribed')
+        ! No need to do anything
+      CASE DEFAULT
+        CALL crash('unknown choice_SMB_model "' // TRIM( choice_SMB_model) // '"')
+    END SELECT
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -209,27 +222,31 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! Determine which SMB model to initialise for this region
-    IF     (region_name == 'NAM') THEN
-      choice_SMB_model = C%choice_SMB_model_NAM
-    ELSEIF (region_name == 'EAS') THEN
-      choice_SMB_model = C%choice_SMB_model_EAS
-    ELSEIF (region_name == 'GRL') THEN
-      choice_SMB_model = C%choice_SMB_model_GRL
-    ELSEIF (region_name == 'ANT') THEN
-      choice_SMB_model = C%choice_SMB_model_ANT
-    ELSE
-      CALL crash('unknown region_name "' // region_name // '"')
-    END IF
+    ! Determine which SMB model to use for this region
+    SELECT CASE (region_name)
+      CASE ('NAM')
+        choice_SMB_model = C%choice_SMB_model_NAM
+      CASE ('EAS')
+        choice_SMB_model = C%choice_SMB_model_EAS
+      CASE ('GRL')
+        choice_SMB_model = C%choice_SMB_model_GRL
+      CASE ('ANT')
+        choice_SMB_model = C%choice_SMB_model_ANT
+      CASE DEFAULT
+        CALL crash('unknown region_name "' // region_name // '"')
+    END SELECT
 
     ! Create the restart file of the chosen SMB model
-    IF     (choice_SMB_model == 'uniform') THEN
-      ! No need to do anything
-    ELSEIF (choice_SMB_model == 'idealised') THEN
-      ! No need to do anything
-    ELSE
-      CALL crash('unknown choice_SMB_model "' // TRIM( choice_SMB_model) // '"')
-    END IF
+    SELECT CASE (choice_SMB_model)
+      CASE ('uniform')
+        ! No need to do anything
+      CASE ('idealised')
+        ! No need to do anything
+      CASE ('prescribed')
+        ! No need to do anything
+      CASE DEFAULT
+        CALL crash('unknown choice_SMB_model "' // TRIM( choice_SMB_model) // '"')
+    END SELECT
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

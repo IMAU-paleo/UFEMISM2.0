@@ -82,6 +82,7 @@ CONTAINS
     CALL write_to_main_regional_output_file_mesh_field( region, region%output_filename_mesh, ncid, 'SL')
     CALL write_to_main_regional_output_file_mesh_field( region, region%output_filename_mesh, ncid, 'u_surf')
     CALL write_to_main_regional_output_file_mesh_field( region, region%output_filename_mesh, ncid, 'v_surf')
+    CALL write_to_main_regional_output_file_mesh_field( region, region%output_filename_mesh, ncid, 'uabs_surf')
 
     ! Write all user-defined data fields to the file
     CALL write_to_main_regional_output_file_mesh_field( region, region%output_filename_mesh, ncid, C%choice_output_field_01)
@@ -180,6 +181,7 @@ CONTAINS
     CALL write_to_main_regional_output_file_grid_field( region, region%output_filename_grid, ncid, 'SL')
     CALL write_to_main_regional_output_file_grid_field( region, region%output_filename_grid, ncid, 'u_surf')
     CALL write_to_main_regional_output_file_grid_field( region, region%output_filename_grid, ncid, 'v_surf')
+    CALL write_to_main_regional_output_file_grid_field( region, region%output_filename_grid, ncid, 'uabs_surf')
 
     ! Write all user-defined data fields to the file
     CALL write_to_main_regional_output_file_grid_field( region, region%output_filename_grid, ncid, C%choice_output_field_01)
@@ -953,8 +955,8 @@ CONTAINS
     ! =====================
 
       CASE ('geothermal_heat_flux')
-        CALL map_from_mesh_to_xy_grid_2D( region%mesh, region%output_grid, region%ice%pore_water_pressure, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( region%output_grid, filename, ncid, 'pore_water_pressure', d_grid_vec_partial_2D)
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, region%output_grid, region%ice%geothermal_heat_flux, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( region%output_grid, filename, ncid, 'geothermal_heat_flux', d_grid_vec_partial_2D)
 
     ! == Climate ==
     ! =============
@@ -1060,6 +1062,7 @@ CONTAINS
     CALL create_main_regional_output_file_mesh_field( region%output_filename_mesh, ncid, 'SL')
     CALL create_main_regional_output_file_mesh_field( region%output_filename_mesh, ncid, 'u_surf')
     CALL create_main_regional_output_file_mesh_field( region%output_filename_mesh, ncid, 'v_surf')
+    CALL create_main_regional_output_file_mesh_field( region%output_filename_mesh, ncid, 'uabs_surf')
 
     ! Add all user-defined data fields to the file
     CALL create_main_regional_output_file_mesh_field( region%output_filename_mesh, ncid, C%choice_output_field_01)
@@ -1166,6 +1169,7 @@ CONTAINS
     CALL create_main_regional_output_file_grid_field( region%output_filename_grid, ncid, 'SL')
     CALL create_main_regional_output_file_grid_field( region%output_filename_grid, ncid, 'u_surf')
     CALL create_main_regional_output_file_grid_field( region%output_filename_grid, ncid, 'v_surf')
+    CALL create_main_regional_output_file_grid_field( region%output_filename_grid, ncid, 'uabs_surf')
 
     ! Add all user-defined data fields to the file
     CALL create_main_regional_output_file_grid_field( region%output_filename_grid, ncid, C%choice_output_field_01)

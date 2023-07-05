@@ -17,51 +17,64 @@ for i = 1: length( henk)
       n = count_lines( f90_files);
       n_tot = n_tot + n;
       R.n( end+1,1) = n;
-      R.names{ end+1} = strrep( strrep( strrep( strrep( [henk( i).name ': ' num2str( n)], ...
-        'surface_mass_balance','SMB'),...
-        'basal_mass_balance','BMB'),...
-        'glacial_isostatic_adjustment','GIA'),...
-        '_','\_');
+      R.names{ end+1} = henk( i).name;
     end
   end
 end
 
-% Sort by number of lines
-[n_sorted,ind] = sortrows( R.n);
-
-ind2 = [];
-i = 0;
-while ~isempty( ind)
-  i = 1-i;
-  if i==1
-    ind2( end+1) = ind( 1);
-    ind( 1) = [];
-  else
-    ind2( end+1) = ind( end);
-    ind( end) = [];
-  end
-end
-ind = ind2;
-
-R.n     = R.n( ind);
-names_new = {};
-for i = 1: length( R.names)
-  names_new{ end+1} = R.names{ ind( i)};
-end
-R.names = names_new;
-
 disp(['UFEMISM v2.0 in total contains ' num2str( n_tot) ' lines of code'])
 
 %% plot
-H = pie( R.n, ones( size( R.n)), R.names);
-for i = 1: length( H)
-  if strcmpi( class( H( i)), 'matlab.graphics.primitive.Text')
-    set( H( i), 'fontsize', 24)
-  end
+
+% Sort by number of lines
+[~,ind] = sortrows( R.n);
+
+wa = 800;
+ha = 600;
+
+H.Fig = figure('position',[200,200,wa,ha],'color','w');
+H.Ax = axes('parent',H.Fig,'position',[0,0,1,1],'xtick',[],'ytick',[],'xlim',[0,1],'ylim',[-0.1,1.2]);
+
+text( 0.15,1.1, 'Total:'       ,'fontsize',24,'fontweight','bold')
+text( 0.25,1.1, num2str( n_tot),'fontsize',24,'fontweight','bold')
+
+% draw patches
+n_rel_sum = 0;
+colors = lines( length( R.n));
+for i = 1: length( R.n)
+  
+  ii = ind( i);
+  
+  n_rel = R.n( ii) / n_tot;
+  
+  % Patch
+  xmin = 0.05;
+  xmax = 0.15;
+  ymin = n_rel_sum;
+  ymax = n_rel_sum + n_rel;
+  n_rel_sum = n_rel_sum + n_rel;
+  
+  patch('xdata',[xmin,xmax,xmax,xmin],'ydata',[ymin,ymin,ymax,ymax],'facecolor',colors( i,:));
+  
+  % Text
+  x = 0.24;
+  y = (i-1)/(length( R.n)-1);
+  line( 'xdata',[xmax+0.01,x],'ydata',[(ymin+ymax)/2,y],'color',colors( i,:),'linewidth',2)
+  
+  x = 0.25;
+  str = num2str( R.n( ii));
+  text( x,y,str,'fontsize',24,'color',colors( i,:));
+  
+  x = 0.35;
+  f = round( 1000 * R.n( ii) / n_tot) / 10;
+  str = ['(' num2str( f) '%)'];
+  text( x,y,str,'fontsize',24,'color',colors( i,:));
+  
+  x = 0.50;
+  str = strrep( R.names{ ii},'_','\_');
+  text( x,y,str,'fontsize',24,'color',colors( i,:));
+  
 end
-set( gcf,'position',[744   346   827   704],'color','w');
-set( gca,'position',[0.15, 0.1, 0.55, 0.8],'fontsize',24,'ylim',[-1.2,1.4]);
-title( gca,['Total: ' num2str( n_tot)])
 
 function f90_files = find_all_f90_files( jan)
 

@@ -7,10 +7,11 @@ MODULE geothermal_heat_flux
 
   USE precisions                                             , ONLY: dp
   USE mpi_basic                                              , ONLY: par, sync
-  USE control_resources_and_error_messaging                  , ONLY: crash, init_routine, finalise_routine
+  USE control_resources_and_error_messaging                  , ONLY: crash, warning, happy, colour_string, init_routine, finalise_routine
   USE model_configuration                                    , ONLY: C
   USE mesh_types                                             , ONLY: type_mesh
   USE ice_model_types                                        , ONLY: type_ice_model
+  USE netcdf_input                                           , ONLY: read_field_from_file_2D
 
   IMPLICIT NONE
 
@@ -42,7 +43,13 @@ CONTAINS
 
       CASE ('read_from_file')
         ! Spatially variable field
-        CALL crash ('GHF read from file not yet implemented!')
+
+        ! Print to terminal
+        IF (par%master) WRITE(0,*) '  Initialising geothermal heat flux from file "' // &
+          colour_string( TRIM( C%filename_geothermal_heat_flux),'light blue') // '"...'
+
+        ! Read the data from the provided NetCDF file
+        CALL read_field_from_file_2D( C%filename_geothermal_heat_flux, 'hflux', mesh, ice%geothermal_heat_flux)
 
       CASE DEFAULT
         ! Unknown case

@@ -284,13 +284,13 @@ MODULE model_configuration
 
     ! Some parameters for numerically solving the stress balance
     REAL(dp)            :: SIA_maximum_diffusivity_config               = 1E5_dp                           ! Limit the diffusivity in the SIA to this value
-    REAL(dp)            :: visc_it_norm_dUV_tol_config                  = 5E-6_dp                          ! Stop criterion for the viscosity iteration: the L2-norm of successive velocity solutions should be smaller than this number
+    REAL(dp)            :: visc_it_norm_dUV_tol_config                  = 5E-4_dp                          ! Stop criterion for the viscosity iteration: the L2-norm of successive velocity solutions should be smaller than this number
     INTEGER             :: visc_it_nit_config                           = 500                              ! Maximum number of effective viscosity iterations
     REAL(dp)            :: visc_it_relax_config                         = 0.4_dp                           ! Relaxation parameter for subsequent viscosity iterations (for improved stability)
     REAL(dp)            :: visc_eff_min_config                          = 1E4_dp                           ! Minimum value for effective viscosity
     REAL(dp)            :: vel_max_config                               = 5000._dp                         ! Velocities are limited to this value
-    REAL(dp)            :: stress_balance_PETSc_rtol_config             = 1E-5_dp                          ! PETSc solver - stop criterion, relative difference (iteration stops if rtol OR abstol is reached)
-    REAL(dp)            :: stress_balance_PETSc_abstol_config           = 1E-3_dp                          ! PETSc solver - stop criterion, absolute difference
+    REAL(dp)            :: stress_balance_PETSc_rtol_config             = 1E-4_dp                          ! PETSc solver - stop criterion, relative difference (iteration stops if rtol OR abstol is reached)
+    REAL(dp)            :: stress_balance_PETSc_abstol_config           = 1E-1_dp                          ! PETSc solver - stop criterion, absolute difference
 
     ! Boundary conditions
     CHARACTER(LEN=256)  :: BC_u_west_config                             = 'infinite'                       ! Boundary conditions for the ice velocity field at the domain border
@@ -452,10 +452,10 @@ MODULE model_configuration
     ! Basal inversion model based on flowline-averaged values of H and dH/dt
     REAL(dp)            :: bednudge_H_dHdt_flowline_t_scale_config      = 100._dp                          ! [yr]      Timescale
     REAL(dp)            :: bednudge_H_dHdt_flowline_dH0_config          = 100._dp                          ! [m]       Ice thickness error scale
-    REAL(dp)            :: bednudge_H_dHdt_flowline_dHdt0_config        = 1._dp                            ! [m yr^-1] Thinning rate scale
+    REAL(dp)            :: bednudge_H_dHdt_flowline_dHdt0_config        = 0.6_dp                           ! [m yr^-1] Thinning rate scale
     REAL(dp)            :: bednudge_H_dHdt_flowline_Hi_scale_config     = 300._dp                          ! [m]       Ice thickness weight scale
     REAL(dp)            :: bednudge_H_dHdt_flowline_u_scale_config      = 3000._dp                         ! [m yr^-1] Ice velocity  weight scale
-    REAL(dp)            :: bednudge_H_dHdt_flowline_r_smooth_config     = 5000._dp                         ! [m]       Radius for Gaussian filter used to smooth dC/dt as regularisation
+    REAL(dp)            :: bednudge_H_dHdt_flowline_r_smooth_config     = 2500._dp                         ! [m]       Radius for Gaussian filter used to smooth dC/dt as regularisation
     REAL(dp)            :: bednudge_H_dHdt_flowline_w_smooth_config     = 0.5_dp                           ! [-]       Relative contribution of smoothed dC/dt in regularisation
 
   ! == Geothermal heat flux
@@ -558,11 +558,28 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: choice_SMB_model_GRL_config                  = 'uniform'
     CHARACTER(LEN=256)  :: choice_SMB_model_ANT_config                  = 'uniform'
 
+    ! Value to be used for uniform SMB (no regional variants, only used for idealised-geometry experiments)
+    REAL(dp)            :: uniform_SMB_config                           = 0._dp                             ! [m.i.e./yr]
+
     ! Choice of idealised SMB model
     CHARACTER(LEN=256)  :: choice_SMB_model_idealised_config            = ''
 
-    ! "uniform"
-    REAL(dp)            :: uniform_SMB_config                           = 0._dp
+    ! Prescribed SMB forcing
+    CHARACTER(LEN=256)  :: choice_SMB_prescribed_NAM_config             = ''
+    CHARACTER(LEN=256)  :: choice_SMB_prescribed_EAS_config             = ''
+    CHARACTER(LEN=256)  :: choice_SMB_prescribed_GRL_config             = ''
+    CHARACTER(LEN=256)  :: choice_SMB_prescribed_ANT_config             = ''
+
+    ! Files containing prescribed SMB forcing
+    CHARACTER(LEN=256)  :: filename_SMB_prescribed_NAM_config           = ''
+    CHARACTER(LEN=256)  :: filename_SMB_prescribed_EAS_config           = ''
+    CHARACTER(LEN=256)  :: filename_SMB_prescribed_GRL_config           = ''
+    CHARACTER(LEN=256)  :: filename_SMB_prescribed_ANT_config           = ''
+    ! Timeframes for reading prescribed SMB forcing from file (set to 1E9_dp if the file has no time dimension)
+    REAL(dp)            :: timeframe_SMB_prescribed_NAM_config          = 1E9_dp
+    REAL(dp)            :: timeframe_SMB_prescribed_EAS_config          = 1E9_dp
+    REAL(dp)            :: timeframe_SMB_prescribed_GRL_config          = 1E9_dp
+    REAL(dp)            :: timeframe_SMB_prescribed_ANT_config          = 1E9_dp
 
   ! == Basal mass balance
   ! =====================
@@ -1231,11 +1248,28 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: choice_SMB_model_GRL
     CHARACTER(LEN=256)  :: choice_SMB_model_ANT
 
+    ! Value to be used for uniform SMB (no regional variants, only used for idealised-geometry experiments)
+    REAL(dp)            :: uniform_SMB
+
     ! Choice of idealised SMB model
     CHARACTER(LEN=256)  :: choice_SMB_model_idealised
 
-    ! "uniform"
-    REAL(dp)            :: uniform_SMB
+    ! Prescribed SMB forcing
+    CHARACTER(LEN=256)  :: choice_SMB_prescribed_NAM
+    CHARACTER(LEN=256)  :: choice_SMB_prescribed_EAS
+    CHARACTER(LEN=256)  :: choice_SMB_prescribed_GRL
+    CHARACTER(LEN=256)  :: choice_SMB_prescribed_ANT
+
+    ! Files containing prescribed SMB forcing
+    CHARACTER(LEN=256)  :: filename_SMB_prescribed_NAM
+    CHARACTER(LEN=256)  :: filename_SMB_prescribed_EAS
+    CHARACTER(LEN=256)  :: filename_SMB_prescribed_GRL
+    CHARACTER(LEN=256)  :: filename_SMB_prescribed_ANT
+    ! Timeframes for reading prescribed SMB forcing from file (set to 1E9_dp if the file has no time dimension)
+    REAL(dp)            :: timeframe_SMB_prescribed_NAM
+    REAL(dp)            :: timeframe_SMB_prescribed_EAS
+    REAL(dp)            :: timeframe_SMB_prescribed_GRL
+    REAL(dp)            :: timeframe_SMB_prescribed_ANT
 
   ! == Basal mass balance
   ! =====================
@@ -1860,8 +1894,20 @@ CONTAINS
       choice_SMB_model_EAS_config                                 , &
       choice_SMB_model_GRL_config                                 , &
       choice_SMB_model_ANT_config                                 , &
-      choice_SMB_model_idealised_config                           , &
       uniform_SMB_config                                          , &
+      choice_SMB_model_idealised_config                           , &
+      choice_SMB_prescribed_NAM_config                            , &
+      choice_SMB_prescribed_EAS_config                            , &
+      choice_SMB_prescribed_GRL_config                            , &
+      choice_SMB_prescribed_ANT_config                            , &
+      filename_SMB_prescribed_NAM_config                          , &
+      filename_SMB_prescribed_EAS_config                          , &
+      filename_SMB_prescribed_GRL_config                          , &
+      filename_SMB_prescribed_ANT_config                          , &
+      timeframe_SMB_prescribed_NAM_config                         , &
+      timeframe_SMB_prescribed_EAS_config                         , &
+      timeframe_SMB_prescribed_GRL_config                         , &
+      timeframe_SMB_prescribed_ANT_config                         , &
       do_asynchronous_BMB_config                                  , &
       dt_BMB_config                                               , &
       choice_BMB_model_NAM_config                                 , &
@@ -2520,11 +2566,28 @@ CONTAINS
     C%choice_SMB_model_GRL                                   = choice_SMB_model_GRL_config
     C%choice_SMB_model_ANT                                   = choice_SMB_model_ANT_config
 
+    ! Value to be used for uniform SMB (no regional variants, only used for idealised-geometry experiments)
+    C%uniform_SMB                                            = uniform_SMB_config
+
     ! Choice of idealised SMB model
     C%choice_SMB_model_idealised                             = choice_SMB_model_idealised_config
 
-    ! "uniform"
-    C%uniform_SMB                                            = uniform_SMB_config
+    ! Prescribed SMB forcing
+    C%choice_SMB_prescribed_NAM                              = choice_SMB_prescribed_NAM_config
+    C%choice_SMB_prescribed_EAS                              = choice_SMB_prescribed_EAS_config
+    C%choice_SMB_prescribed_GRL                              = choice_SMB_prescribed_GRL_config
+    C%choice_SMB_prescribed_ANT                              = choice_SMB_prescribed_ANT_config
+
+    ! Files containing prescribed SMB forcing
+    C%filename_SMB_prescribed_NAM                            = filename_SMB_prescribed_NAM_config
+    C%filename_SMB_prescribed_EAS                            = filename_SMB_prescribed_EAS_config
+    C%filename_SMB_prescribed_GRL                            = filename_SMB_prescribed_GRL_config
+    C%filename_SMB_prescribed_ANT                            = filename_SMB_prescribed_ANT_config
+    ! Timeframes for reading prescribed SMB forcing from file (set to 1E9_dp if the file has no time dimension)
+    C%timeframe_SMB_prescribed_NAM                           = timeframe_SMB_prescribed_NAM_config
+    C%timeframe_SMB_prescribed_EAS                           = timeframe_SMB_prescribed_EAS_config
+    C%timeframe_SMB_prescribed_GRL                           = timeframe_SMB_prescribed_GRL_config
+    C%timeframe_SMB_prescribed_ANT                           = timeframe_SMB_prescribed_ANT_config
 
   ! == Basal mass balance
   ! =====================
