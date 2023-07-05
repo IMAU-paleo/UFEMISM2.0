@@ -70,8 +70,6 @@ CONTAINS
     ! a regional x/y-grid, or a regional mesh - it matters not, all shall be fine.
     ! The order of dimensions ([x,y] or [y,x], [lon,lat] or [lat,lon]) and direction
     ! (increasing or decreasing) also does not matter any more.
-    !
-    ! NOTE: memory for d_partial is allocated here!
 
     IMPLICIT NONE
 
@@ -79,7 +77,7 @@ CONTAINS
     CHARACTER(LEN=*),                        INTENT(IN)    :: filename
     CHARACTER(LEN=*),                        INTENT(IN)    :: field_name_options
     TYPE(type_mesh),                         INTENT(IN)    :: mesh
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE, INTENT(OUT)   :: d_partial
+    REAL(dp), DIMENSION(:    ),              INTENT(OUT)   :: d_partial
     REAL(dp), OPTIONAL,                      INTENT(IN)    :: time_to_read
 
     ! Local variables:
@@ -120,9 +118,6 @@ CONTAINS
       ! Read grid and gridded data
       CALL read_field_from_xy_file_2D( filename, field_name_options, d_grid_vec_partial_from_file, grid = grid_from_file, time_to_read = time_to_read)
 
-      ! Allocate memory for data on the model mesh
-      ALLOCATE( d_partial( mesh%vi1:mesh%vi2), source = 0._dp)
-
       ! Remap data
       CALL map_from_xy_grid_to_mesh_2D( grid_from_file, mesh, d_grid_vec_partial_from_file, d_partial)
 
@@ -136,9 +131,6 @@ CONTAINS
       ! Read grid and gridded data
       CALL read_field_from_lonlat_file_2D( filename, field_name_options, d_grid_lonlat_vec_partial_from_file, grid = grid_lonlat_from_file, time_to_read = time_to_read)
 
-      ! Allocate memory for data on the model mesh
-      ALLOCATE( d_partial( mesh%vi1:mesh%vi2), source = 0._dp)
-
       ! Remap data
       CALL map_from_lonlat_grid_to_mesh_2D( grid_lonlat_from_file, mesh, d_grid_lonlat_vec_partial_from_file, d_partial)
 
@@ -151,9 +143,6 @@ CONTAINS
 
       ! Read grid and gridded data
       CALL read_field_from_mesh_file_2D( filename, field_name_options, d_mesh_partial_from_file, mesh = mesh_from_file, time_to_read = time_to_read)
-
-      ! Allocate memory for data on the model mesh
-      ALLOCATE( d_partial( mesh%vi1:mesh%vi2), source = 0._dp)
 
       ! Remap data
       CALL map_from_mesh_to_mesh_2D( mesh_from_file, mesh, d_mesh_partial_from_file, d_partial, method = method_mesh2mesh)
@@ -178,8 +167,6 @@ CONTAINS
     ! a regional x/y-grid, or a regional mesh - it matters not, all shall be fine.
     ! The order of dimensions ([x,y] or [y,x], [lon,lat] or [lat,lon]) and direction
     ! (increasing or decreasing) also does not matter any more.
-    !
-    ! NOTE: memory for d_partial is allocated here!
 
     IMPLICIT NONE
 
@@ -187,7 +174,7 @@ CONTAINS
     CHARACTER(LEN=*),                        INTENT(IN)    :: filename
     CHARACTER(LEN=*),                        INTENT(IN)    :: field_name_options
     TYPE(type_mesh),                         INTENT(IN)    :: mesh
-    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE, INTENT(OUT)   :: d_partial
+    REAL(dp), DIMENSION(:,:  ),              INTENT(OUT)   :: d_partial
     REAL(dp), OPTIONAL,                      INTENT(IN)    :: time_to_read
 
     ! Local variables:
@@ -228,9 +215,6 @@ CONTAINS
       ! Read grid and gridded data
       CALL read_field_from_xy_file_2D_monthly( filename, field_name_options, d_grid_vec_partial_from_file, grid = grid_from_file, time_to_read = time_to_read)
 
-      ! Allocate memory for data on the model mesh
-      ALLOCATE( d_partial( mesh%vi1:mesh%vi2, 12), source = 0._dp)
-
       ! Remap data
       CALL map_from_xy_grid_to_mesh_3D( grid_from_file, mesh, d_grid_vec_partial_from_file, d_partial)
 
@@ -244,9 +228,6 @@ CONTAINS
       ! Read grid and gridded data
       CALL read_field_from_lonlat_file_2D_monthly( filename, field_name_options, d_grid_lonlat_vec_partial_from_file, grid = grid_lonlat_from_file, time_to_read = time_to_read)
 
-      ! Allocate memory for data on the model mesh
-      ALLOCATE( d_partial( mesh%vi1:mesh%vi2, 12), source = 0._dp)
-
       ! Remap data
       CALL map_from_lonlat_grid_to_mesh_3D( grid_lonlat_from_file, mesh, d_grid_lonlat_vec_partial_from_file, d_partial)
 
@@ -259,9 +240,6 @@ CONTAINS
 
       ! Read grid and gridded data
       CALL read_field_from_mesh_file_2D_monthly( filename, field_name_options, d_mesh_partial_from_file, mesh = mesh_from_file, time_to_read = time_to_read)
-
-      ! Allocate memory for data on the model mesh
-      ALLOCATE( d_partial( mesh%vi1:mesh%vi2, 12), source = 0._dp)
 
       ! Remap data
       CALL map_from_mesh_to_mesh_3D( mesh_from_file, mesh, d_mesh_partial_from_file, d_partial, method = method_mesh2mesh)
@@ -287,10 +265,7 @@ CONTAINS
     ! The order of dimensions ([x,y] or [y,x], [lon,lat] or [lat,lon]) and direction
     ! (increasing or decreasing) also does not matter any more.
     !
-    ! NOTE: memory for d_partial is allocated here!
-    !
-    ! NOTE: data is returned on the horizontal model mesh, but on the vertical grid
-    !       of the input file!
+    ! NOTE: assumes the vertical grid of the input file is identical to that of the model!
 
     IMPLICIT NONE
 
@@ -298,7 +273,7 @@ CONTAINS
     CHARACTER(LEN=*),                        INTENT(IN)    :: filename
     CHARACTER(LEN=*),                        INTENT(IN)    :: field_name_options
     TYPE(type_mesh),                         INTENT(IN)    :: mesh
-    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE, INTENT(OUT)   :: d_partial
+    REAL(dp), DIMENSION(:,:  ),              INTENT(OUT)   :: d_partial
     REAL(dp), OPTIONAL,                      INTENT(IN)    :: time_to_read
     INTEGER ,                                INTENT(OUT), OPTIONAL :: nzeta
     REAL(dp), DIMENSION(:    ), ALLOCATABLE, INTENT(OUT), OPTIONAL :: zeta
@@ -344,9 +319,6 @@ CONTAINS
       CALL read_field_from_xy_file_3D( filename, field_name_options, d_grid_vec_partial_from_file, grid = grid_from_file, &
         time_to_read = time_to_read, nzeta = nzeta_loc, zeta = zeta_loc)
 
-      ! Allocate memory for data on the model mesh
-      ALLOCATE( d_partial( mesh%vi1:mesh%vi2, nzeta_loc), source = 0._dp)
-
       ! Remap data
       CALL map_from_xy_grid_to_mesh_3D( grid_from_file, mesh, d_grid_vec_partial_from_file, d_partial)
 
@@ -361,9 +333,6 @@ CONTAINS
       CALL read_field_from_lonlat_file_3D( filename, field_name_options, d_grid_lonlat_vec_partial_from_file, grid = grid_lonlat_from_file, &
         time_to_read = time_to_read, nzeta = nzeta_loc, zeta = zeta_loc)
 
-      ! Allocate memory for data on the model mesh
-      ALLOCATE( d_partial( mesh%vi1:mesh%vi2, nzeta_loc), source = 0._dp)
-
       ! Remap data
       CALL map_from_lonlat_grid_to_mesh_3D( grid_lonlat_from_file, mesh, d_grid_lonlat_vec_partial_from_file, d_partial)
 
@@ -377,9 +346,6 @@ CONTAINS
       ! Read grid and gridded data
       CALL read_field_from_mesh_file_3D( filename, field_name_options, d_mesh_partial_from_file, mesh = mesh_from_file, &
         time_to_read = time_to_read, nzeta = nzeta_loc, zeta = zeta_loc)
-
-      ! Allocate memory for data on the model mesh
-      ALLOCATE( d_partial( mesh%vi1:mesh%vi2, nzeta_loc), source = 0._dp)
 
       ! Remap data
       CALL map_from_mesh_to_mesh_3D( mesh_from_file, mesh, d_mesh_partial_from_file, d_partial, method = method_mesh2mesh)

@@ -2719,7 +2719,7 @@ CONTAINS
     END DO
 
     ! TODO, this call is borked and writes where it shouldn't, should be fixed somehow
-    call warning("This routine should be fixed before it is used")
+    IF (par%master) CALL warning('"MatZeroRowsColumns" should be fixed before it is used" (why though, it seems to work fine...)"')
     CALL MatZeroRowsColumns( map%M, n_rows_set_to_zero, rows_set_to_zero, 0._dp, PETSC_NULL_VEC, PETSC_NULL_VEC, perr)
 
     ! Then fill in the values from M_cons_1st_order

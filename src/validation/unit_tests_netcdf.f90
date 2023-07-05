@@ -1173,6 +1173,11 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    ! Allocate memory
+    ALLOCATE( d_from_grid(        mesh%vi1:mesh%vi2))
+    ALLOCATE( d_from_lonlat_grid( mesh%vi1:mesh%vi2))
+    ALLOCATE( d_from_mesh(        mesh%vi1:mesh%vi2))
+
     ! Read data from files
     CALL read_field_from_file_2D( filename_grid       , 'd', mesh, d_from_grid       )
     CALL read_field_from_file_2D( filename_lonlat_grid, 'd', mesh, d_from_lonlat_grid)
@@ -1199,6 +1204,8 @@ CONTAINS
   ! == Validation
   ! =============
 
+    ! No validation so far - if it doesn't crash then it's good enough
+
     found_errors = .FALSE.
 
     ! If no errors occurred, we are happy
@@ -1208,6 +1215,11 @@ CONTAINS
     ELSE
       IF (par%master) CALL warning('found errors in flexible 2-D input routines')
     END IF
+
+    ! Clean up after yourself
+    DEALLOCATE( d_from_grid)
+    DEALLOCATE( d_from_lonlat_grid)
+    DEALLOCATE( d_from_mesh)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -1232,6 +1244,11 @@ CONTAINS
 
     ! Add routine to path
     CALL init_routine( routine_name)
+
+    ! Allocate memory
+    ALLOCATE( d_from_grid(        mesh%vi1:mesh%vi2,12))
+    ALLOCATE( d_from_lonlat_grid( mesh%vi1:mesh%vi2,12))
+    ALLOCATE( d_from_mesh(        mesh%vi1:mesh%vi2,12))
 
     ! Read data from files
     CALL read_field_from_file_2D_monthly( filename_grid       , 'd', mesh, d_from_grid       )
@@ -1260,6 +1277,8 @@ CONTAINS
   ! == Validation
   ! =============
 
+    ! No validation so far - if it doesn't crash then it's good enough
+
     found_errors = .FALSE.
 
     ! If no errors occurred, we are happy
@@ -1269,6 +1288,11 @@ CONTAINS
     ELSE
       IF (par%master) CALL warning('found errors in flexible 2-D monthly input routines')
     END IF
+
+    ! Clean up after yourself
+    DEALLOCATE( d_from_grid)
+    DEALLOCATE( d_from_lonlat_grid)
+    DEALLOCATE( d_from_mesh)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -1295,6 +1319,11 @@ CONTAINS
 
     ! Add routine to path
     CALL init_routine( routine_name)
+
+    ! Allocate memory
+    ALLOCATE( d_from_grid(        mesh%vi1:mesh%vi2,mesh%nz))
+    ALLOCATE( d_from_lonlat_grid( mesh%vi1:mesh%vi2,mesh%nz))
+    ALLOCATE( d_from_mesh(        mesh%vi1:mesh%vi2,mesh%nz))
 
     ! Read data from files
     CALL read_field_from_file_3D( filename_grid       , 'd', mesh, d_from_grid       , nzeta = nzeta, zeta = zeta)
@@ -1323,6 +1352,8 @@ CONTAINS
   ! == Validation
   ! =============
 
+    ! No validation so far - if it doesn't crash then it's good enough
+
     found_errors = .FALSE.
 
     ! If no errors occurred, we are happy
@@ -1332,6 +1363,11 @@ CONTAINS
     ELSE
       IF (par%master) CALL warning('found errors in flexible 3-D input routines')
     END IF
+
+    ! Clean up after yourself
+    DEALLOCATE( d_from_grid)
+    DEALLOCATE( d_from_lonlat_grid)
+    DEALLOCATE( d_from_mesh)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

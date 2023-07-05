@@ -393,6 +393,9 @@ CONTAINS
     C%nit_Lloyds_algorithm                  = 3                                ! [-]          Number of iterations of Lloyds algorithm to be applied after refinement
     C%mesh_resolution_tolerance             = 1.25_dp                          ! [-]          Factors the target resolution for trangle-size requirement. 1=strict, use >1 to avoid unnecesarily high resolution
 
+    ! Square grid used for smoothing
+    C%dx_square_grid_smooth_ANT             = 5000._dp
+
     ! Memory
     C%nC_mem                                = 32                               ! [-]          How many columns of memory should be allocated for connectivity lists
 
@@ -1321,6 +1324,9 @@ CONTAINS
     C%nit_Lloyds_algorithm                  = 3                                ! [-]          Number of iterations of Lloyds algorithm to be applied after refinement
     C%mesh_resolution_tolerance             = 1.25_dp                          ! [-]          Factors the target resolution for trangle-size requirement. 1=strict, use >1 to avoid unnecesarily high resolution
 
+    ! Square grid used for smoothing
+    C%dx_square_grid_smooth_ANT             = L / 20._dp
+
     ! Memory
     C%nC_mem                                = 32                               ! [-]          How many columns of memory should be allocated for connectivity lists
 
@@ -1783,6 +1789,9 @@ CONTAINS
     C%alpha_min                             = 0.4363_dp                        ! [radians]    Smallest allowed internal triangle angle (recommended value: 25 degrees = 0.4363)
     C%nit_Lloyds_algorithm                  = 3                                ! [-]          Number of iterations of Lloyds algorithm to be applied after refinement
     C%mesh_resolution_tolerance             = 1.25_dp                          ! [-]          Factors the target resolution for trangle-size requirement. 1=strict, use >1 to avoid unnecesarily high resolution
+
+    ! Square grid used for smoothing
+    C%dx_square_grid_smooth_ANT             = 5000._dp
 
     ! Memory
     C%nC_mem                                = 32                               ! [-]          How many columns of memory should be allocated for connectivity lists
@@ -2497,6 +2506,9 @@ CONTAINS
     C%alpha_min                             = 0.4363_dp                        ! [radians]    Smallest allowed internal triangle angle (recommended value: 25 degrees = 0.4363)
     C%nit_Lloyds_algorithm                  = 3                                ! [-]          Number of iterations of Lloyds algorithm to be applied after refinement
     C%mesh_resolution_tolerance             = 1.25_dp                          ! [-]          Factors the target resolution for trangle-size requirement. 1=strict, use >1 to avoid unnecesarily high resolution
+
+    ! Square grid used for smoothing
+    C%dx_square_grid_smooth_ANT             = 5000._dp
 
     ! Memory
     C%nC_mem                                = 32                               ! [-]          How many columns of memory should be allocated for connectivity lists

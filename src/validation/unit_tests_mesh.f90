@@ -97,13 +97,13 @@ CONTAINS
     LOGICAL                                            :: found_errors
     CHARACTER(LEN=256)                                 :: filename
     INTEGER                                            :: ncid
-    ! Expected values for the mesh (last updated: 2023-06-05)
-    INTEGER,  PARAMETER                                :: nV_expected     = 6394
-    INTEGER,  PARAMETER                                :: nTri_expected   = 12682
-    INTEGER,  PARAMETER                                :: nE_expected     = 19075
-    REAL(dp), PARAMETER                                :: Amin_expected   = 0.64840E+09_dp
-    REAL(dp), PARAMETER                                :: Amax_expected   = 0.83562E+11_dp
-    REAL(dp), PARAMETER                                :: RA_max_expected = 0.57190E+01_dp
+    ! Expected values for the mesh (last updated: 2023-07-05)
+    INTEGER,  PARAMETER                                :: nV_expected     = 4435
+    INTEGER,  PARAMETER                                :: nTri_expected   = 8765
+    INTEGER,  PARAMETER                                :: nE_expected     = 13199
+    REAL(dp), PARAMETER                                :: Amin_expected   = 0.10398E+10_dp
+    REAL(dp), PARAMETER                                :: Amax_expected   = 0.84217E+11_dp
+    REAL(dp), PARAMETER                                :: RA_max_expected = 0.48151E+01_dp
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -171,27 +171,27 @@ CONTAINS
 
     IF (mesh%nV < NINT( REAL( nV_expected,dp) * 0.9_dp) .OR. mesh%nV > NINT( REAL( nV_expected,dp) * 1.1_dp)) THEN
       found_errors = .TRUE.
-      CALL warning('mesh has unexepcted amount of vertices! Expected {int_01}, found {int_02}', int_01 = nV_expected, int_02 = mesh%nV)
+      IF (par%master) CALL warning('mesh has unexepcted amount of vertices! Expected {int_01}, found {int_02}', int_01 = nV_expected, int_02 = mesh%nV)
     END IF
 
     IF (mesh%nTri < NINT( REAL( nTri_expected,dp) * 0.9_dp) .OR. mesh%nTri > NINT( REAL( nTri_expected,dp) * 1.1_dp)) THEN
       found_errors = .TRUE.
-      CALL warning('mesh has unexepcted amount of triangles! Expected {int_01}, found {int_02}', int_01 = nTri_expected, int_02 = mesh%nTri)
+      IF (par%master) CALL warning('mesh has unexepcted amount of triangles! Expected {int_01}, found {int_02}', int_01 = nTri_expected, int_02 = mesh%nTri)
     END IF
 
     IF (mesh%nE < NINT( REAL( nE_expected,dp) * 0.9_dp) .OR. mesh%nE > NINT( REAL( nE_expected,dp) * 1.1_dp)) THEN
       found_errors = .TRUE.
-      CALL warning('mesh has unexepcted amount of edges! Expected {int_01}, found {int_02}', int_01 = nE_expected, int_02 = mesh%nE)
+      IF (par%master) CALL warning('mesh has unexepcted amount of edges! Expected {int_01}, found {int_02}', int_01 = nE_expected, int_02 = mesh%nE)
     END IF
 
     IF (MINVAL( mesh%A) < Amin_expected * 0.5_dp) THEN
       found_errors = .TRUE.
-      CALL warning('mesh has unexpectedly small vertices! Expected MINVAL( mesh%A) = {dp_01}, found {dp_02}', dp_01 = Amin_expected, dp_02 = MINVAL( mesh%A))
+      IF (par%master) CALL warning('mesh has unexpectedly small vertices! Expected MINVAL( mesh%A) = {dp_01}, found {dp_02}', dp_01 = Amin_expected, dp_02 = MINVAL( mesh%A))
     END IF
 
     IF (MAXVAL( mesh%A) > Amax_expected * 2.0_dp) THEN
       found_errors = .TRUE.
-      CALL warning('mesh has unexpectedly small vertices! Expected MAXVAL( mesh%A) = {dp_01}, found {dp_02}', dp_01 = Amax_expected, dp_02 = MAXVAL( mesh%A))
+      IF (par%master) CALL warning('mesh has unexpectedly small vertices! Expected MAXVAL( mesh%A) = {dp_01}, found {dp_02}', dp_01 = Amax_expected, dp_02 = MAXVAL( mesh%A))
     END IF
 
     RA_max = 0._dp
@@ -204,7 +204,7 @@ CONTAINS
     END DO
     IF (RA_max > RA_max_expected * 2.0_dp)  THEN
       found_errors = .TRUE.
-      CALL warning('mesh has unexpectedly high resolution gradient! Expected RA_max = {dp_01}, found {dp_02}', dp_01 = RA_max_expected, dp_02 = RA_max)
+      IF (par%master) CALL warning('mesh has unexpectedly high resolution gradient! Expected RA_max = {dp_01}, found {dp_02}', dp_01 = RA_max_expected, dp_02 = RA_max)
     END IF
 
     ! If no errors occurred, we are happy
@@ -231,7 +231,7 @@ CONTAINS
   END SUBROUTINE test_mesh_creation_basic_single_core
 
   SUBROUTINE test_mesh_creation_basic_two_cores( mesh)
-    ! Test creation of a very simple mesh without parallelised mesh generation.
+    ! Test creation of a very simple mesh with parallelised mesh generation.
 
     IMPLICIT NONE
 
@@ -256,13 +256,13 @@ CONTAINS
     LOGICAL                                            :: found_errors
     CHARACTER(LEN=256)                                 :: filename
     INTEGER                                            :: ncid
-    ! Expected values for the mesh (last updated: 2023-06-05)
-    INTEGER,  PARAMETER                                :: nV_expected     = 8934
-    INTEGER,  PARAMETER                                :: nTri_expected   = 17737
-    INTEGER,  PARAMETER                                :: nE_expected     = 26670
-    REAL(dp), PARAMETER                                :: Amin_expected   = 0.62425E+09_dp
-    REAL(dp), PARAMETER                                :: Amax_expected   = 0.74116E+11_dp
-    REAL(dp), PARAMETER                                :: RA_max_expected = 0.41585E+01_dp
+    ! Expected values for the mesh (last updated: 2023-07-05)
+    INTEGER,  PARAMETER                                :: nV_expected     = 5873
+    INTEGER,  PARAMETER                                :: nTri_expected   = 11619
+    INTEGER,  PARAMETER                                :: nE_expected     = 17491
+    REAL(dp), PARAMETER                                :: Amin_expected   = 0.11096E+10_dp
+    REAL(dp), PARAMETER                                :: Amax_expected   = 0.74507E+11_dp
+    REAL(dp), PARAMETER                                :: RA_max_expected = 0.34108E+01_dp
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -358,27 +358,27 @@ CONTAINS
 
     IF (mesh%nV < NINT( REAL( nV_expected,dp) * 0.9_dp) .OR. mesh%nV > NINT( REAL( nV_expected,dp) * 1.1_dp)) THEN
       found_errors = .TRUE.
-      CALL warning('mesh has unexepcted amount of vertices! Expected {int_01}, found {int_02}', int_01 = nV_expected, int_02 = mesh%nV)
+      IF (par%master) CALL warning('mesh has unexepcted amount of vertices! Expected {int_01}, found {int_02}', int_01 = nV_expected, int_02 = mesh%nV)
     END IF
 
     IF (mesh%nTri < NINT( REAL( nTri_expected,dp) * 0.9_dp) .OR. mesh%nTri > NINT( REAL( nTri_expected,dp) * 1.1_dp)) THEN
       found_errors = .TRUE.
-      CALL warning('mesh has unexepcted amount of triangles! Expected {int_01}, found {int_02}', int_01 = nTri_expected, int_02 = mesh%nTri)
+      IF (par%master) CALL warning('mesh has unexepcted amount of triangles! Expected {int_01}, found {int_02}', int_01 = nTri_expected, int_02 = mesh%nTri)
     END IF
 
     IF (mesh%nE < NINT( REAL( nE_expected,dp) * 0.9_dp) .OR. mesh%nE > NINT( REAL( nE_expected,dp) * 1.1_dp)) THEN
       found_errors = .TRUE.
-      CALL warning('mesh has unexepcted amount of edges! Expected {int_01}, found {int_02}', int_01 = nE_expected, int_02 = mesh%nE)
+      IF (par%master) CALL warning('mesh has unexepcted amount of edges! Expected {int_01}, found {int_02}', int_01 = nE_expected, int_02 = mesh%nE)
     END IF
 
     IF (MINVAL( mesh%A) < Amin_expected * 0.5_dp) THEN
       found_errors = .TRUE.
-      CALL warning('mesh has unexpectedly small vertices! Expected MINVAL( mesh%A) = {dp_01}, found {dp_02}', dp_01 = Amin_expected, dp_02 = MINVAL( mesh%A))
+      IF (par%master) CALL warning('mesh has unexpectedly small vertices! Expected MINVAL( mesh%A) = {dp_01}, found {dp_02}', dp_01 = Amin_expected, dp_02 = MINVAL( mesh%A))
     END IF
 
     IF (MAXVAL( mesh%A) > Amax_expected * 2.0_dp) THEN
       found_errors = .TRUE.
-      CALL warning('mesh has unexpectedly small vertices! Expected MAXVAL( mesh%A) = {dp_01}, found {dp_02}', dp_01 = Amax_expected, dp_02 = MAXVAL( mesh%A))
+      IF (par%master) CALL warning('mesh has unexpectedly small vertices! Expected MAXVAL( mesh%A) = {dp_01}, found {dp_02}', dp_01 = Amax_expected, dp_02 = MAXVAL( mesh%A))
     END IF
 
     RA_max = 0._dp
@@ -391,7 +391,7 @@ CONTAINS
     END DO
     IF (RA_max > RA_max_expected * 2.0_dp)  THEN
       found_errors = .TRUE.
-      CALL warning('mesh has unexpectedly high resolution gradient! Expected RA_max = {dp_01}, found {dp_02}', dp_01 = RA_max_expected, dp_02 = RA_max)
+      IF (par%master) CALL warning('mesh has unexpectedly high resolution gradient! Expected RA_max = {dp_01}, found {dp_02}', dp_01 = RA_max_expected, dp_02 = RA_max)
     END IF
 
     ! If no errors occurred, we are happy
@@ -415,7 +415,7 @@ CONTAINS
   END SUBROUTINE test_mesh_creation_basic_two_cores
 
   SUBROUTINE test_mesh_creation_basic_two_cores_prime( mesh)
-    ! Test creation of another very simple mesh without parallelised mesh generation.
+    ! Test creation of another very simple mesh with parallelised mesh generation.
 
     IMPLICIT NONE
 
@@ -440,13 +440,13 @@ CONTAINS
     LOGICAL                                            :: found_errors
     CHARACTER(LEN=256)                                 :: filename
     INTEGER                                            :: ncid
-    ! Expected values for the mesh (last updated: 2023-06-05)
-    INTEGER,  PARAMETER                                :: nV_expected     = 4606
-    INTEGER,  PARAMETER                                :: nTri_expected   = 9071
-    INTEGER,  PARAMETER                                :: nE_expected     = 13676
-    REAL(dp), PARAMETER                                :: Amin_expected   = 0.18202E+10_dp
-    REAL(dp), PARAMETER                                :: Amax_expected   = 0.53694E+11_dp
-    REAL(dp), PARAMETER                                :: RA_max_expected = 0.35787E+01_dp
+    ! Expected values for the mesh (last updated: 2023-07-05)
+    INTEGER,  PARAMETER                                :: nV_expected     = 3299
+    INTEGER,  PARAMETER                                :: nTri_expected   = 6460
+    INTEGER,  PARAMETER                                :: nE_expected     = 9758
+    REAL(dp), PARAMETER                                :: Amin_expected   = 0.30736E+10_dp
+    REAL(dp), PARAMETER                                :: Amax_expected   = 0.53848E+11_dp
+    REAL(dp), PARAMETER                                :: RA_max_expected = 0.29651E+01_dp
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -535,27 +535,27 @@ CONTAINS
 
     IF (mesh%nV < NINT( REAL( nV_expected,dp) * 0.9_dp) .OR. mesh%nV > NINT( REAL( nV_expected,dp) * 1.1_dp)) THEN
       found_errors = .TRUE.
-      CALL warning('mesh has unexepcted amount of vertices! Expected {int_01}, found {int_02}', int_01 = nV_expected, int_02 = mesh%nV)
+      IF (par%master) CALL warning('mesh has unexepcted amount of vertices! Expected {int_01}, found {int_02}', int_01 = nV_expected, int_02 = mesh%nV)
     END IF
 
     IF (mesh%nTri < NINT( REAL( nTri_expected,dp) * 0.9_dp) .OR. mesh%nTri > NINT( REAL( nTri_expected,dp) * 1.1_dp)) THEN
       found_errors = .TRUE.
-      CALL warning('mesh has unexepcted amount of triangles! Expected {int_01}, found {int_02}', int_01 = nTri_expected, int_02 = mesh%nTri)
+      IF (par%master) CALL warning('mesh has unexepcted amount of triangles! Expected {int_01}, found {int_02}', int_01 = nTri_expected, int_02 = mesh%nTri)
     END IF
 
     IF (mesh%nE < NINT( REAL( nE_expected,dp) * 0.9_dp) .OR. mesh%nE > NINT( REAL( nE_expected,dp) * 1.1_dp)) THEN
       found_errors = .TRUE.
-      CALL warning('mesh has unexepcted amount of edges! Expected {int_01}, found {int_02}', int_01 = nE_expected, int_02 = mesh%nE)
+      IF (par%master) CALL warning('mesh has unexepcted amount of edges! Expected {int_01}, found {int_02}', int_01 = nE_expected, int_02 = mesh%nE)
     END IF
 
     IF (MINVAL( mesh%A) < Amin_expected * 0.5_dp) THEN
       found_errors = .TRUE.
-      CALL warning('mesh has unexpectedly small vertices! Expected MINVAL( mesh%A) = {dp_01}, found {dp_02}', dp_01 = Amin_expected, dp_02 = MINVAL( mesh%A))
+      IF (par%master) CALL warning('mesh has unexpectedly small vertices! Expected MINVAL( mesh%A) = {dp_01}, found {dp_02}', dp_01 = Amin_expected, dp_02 = MINVAL( mesh%A))
     END IF
 
     IF (MAXVAL( mesh%A) > Amax_expected * 2.0_dp) THEN
       found_errors = .TRUE.
-      CALL warning('mesh has unexpectedly small vertices! Expected MAXVAL( mesh%A) = {dp_01}, found {dp_02}', dp_01 = Amax_expected, dp_02 = MAXVAL( mesh%A))
+      IF (par%master) CALL warning('mesh has unexpectedly small vertices! Expected MAXVAL( mesh%A) = {dp_01}, found {dp_02}', dp_01 = Amax_expected, dp_02 = MAXVAL( mesh%A))
     END IF
 
     RA_max = 0._dp
@@ -568,7 +568,7 @@ CONTAINS
     END DO
     IF (RA_max > RA_max_expected * 2.0_dp)  THEN
       found_errors = .TRUE.
-      CALL warning('mesh has unexpectedly high resolution gradient! Expected RA_max = {dp_01}, found {dp_02}', dp_01 = RA_max_expected, dp_02 = RA_max)
+      IF (par%master) CALL warning('mesh has unexpectedly high resolution gradient! Expected RA_max = {dp_01}, found {dp_02}', dp_01 = RA_max_expected, dp_02 = RA_max)
     END IF
 
     ! If no errors occurred, we are happy
