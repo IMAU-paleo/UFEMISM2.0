@@ -1270,7 +1270,7 @@ CONTAINS
     C%choice_refgeo_init_ANT                = 'idealised'                      ! Choice of initial geometry for Antarctica   ; can be "idealised", or "read_from_file"
     ! Idealised geometry when choice_refgeo_init == 'idealised'
     C%choice_refgeo_init_idealised          = 'Halfar'                         ! Choice of idealised initial geometry; see reference_geometries/calc_idealised_geometry for options
-    C%dx_refgeo_init_idealised              = 5000._dp                         ! Resolution of square grid used for idealised initial geometry
+    C%dx_refgeo_init_idealised              = L / 20._dp                       ! Resolution of square grid used for idealised initial geometry
 
     ! == Present-day geometry
     ! =======================
@@ -1278,7 +1278,7 @@ CONTAINS
     C%choice_refgeo_PD_ANT                  = 'idealised'                      ! Choice of present-day geometry for Antarctica   ; can be "idealised", or "read_from_file"
     ! Idealised geometry when choice_refgeo_PD == 'idealised'
     C%choice_refgeo_PD_idealised            = 'Halfar'                         ! Choice of idealised present-day geometry; see reference_geometries/calc_idealised_geometry for options
-    C%dx_refgeo_PD_idealised                = 5000._dp                         ! Resolution of square grid used for idealised present-day geometry
+    C%dx_refgeo_PD_idealised                = L / 20._dp                       ! Resolution of square grid used for idealised present-day geometry
 
     ! == GIA equilibrium geometry
     ! ===========================
@@ -1286,7 +1286,7 @@ CONTAINS
     C%choice_refgeo_GIAeq_ANT               = 'idealised'                      ! Choice of GIA equilibrium reference geometry for Antarctica   ; can be "idealised", or "read_from_file"
     ! Idealised geometry when choice_refgeo_GIAeq == 'idealised'
     C%choice_refgeo_GIAeq_idealised         = 'Halfar'                         ! Choice of idealised GIA equilibrium reference geometry; see reference_geometries/calc_idealised_geometry for options
-    C%dx_refgeo_GIAeq_idealised             = 5000._dp                         ! Resolution of square grid used for idealised GIA equilibrium reference geometry
+    C%dx_refgeo_GIAeq_idealised             = L / 20._dp                       ! Resolution of square grid used for idealised GIA equilibrium reference geometry
 
     ! == Parameters for idealised geometries
     ! ======================================
