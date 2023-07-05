@@ -38,7 +38,9 @@ MODULE UFEMISM_main_model
   USE mesh_operators                                         , ONLY: calc_all_matrix_operators_mesh
   USE grid_basic                                             , ONLY: setup_square_grid
   USE main_regional_output                                   , ONLY:   create_main_regional_output_file_mesh,   create_main_regional_output_file_grid, &
-                                                                     write_to_main_regional_output_file_mesh, write_to_main_regional_output_file_grid
+                                                                     write_to_main_regional_output_file_mesh, write_to_main_regional_output_file_grid, &
+                                                                     create_main_regional_output_file_grid_ROI, write_to_main_regional_output_file_grid_ROI
+  USE mesh_refinement                                        , ONLY: calc_polygon_Pine_Island_Glacier, calc_polygon_Thwaites_Glacier
 
   IMPLICIT NONE
 
@@ -145,6 +147,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'initialise_model_region'
+    INTEGER                                                            :: i
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -169,6 +172,11 @@ CONTAINS
     ! Write to the main regional output files
     CALL write_to_main_regional_output_file_mesh( region)
     CALL write_to_main_regional_output_file_grid( region)
+
+    ! Write to the region-of-interest output files
+    DO i = 1, region%nROI
+      CALL write_to_main_regional_output_file_grid_ROI( region, region%output_grids_ROI( i), region%output_filenames_grid_ROI( i))
+    END DO
 
     ! Write to the restart files for all the model components
     CALL write_to_restart_files_ice_model   ( region%mesh, region%ice                 , region%time)
@@ -420,6 +428,9 @@ CONTAINS
     ! Create the main regional output files
     CALL create_main_regional_output_file_mesh( region)
     CALL create_main_regional_output_file_grid( region)
+
+    ! Create the main regional output files for the regions of interest
+    CALL setup_ROI_grids_and_output_files( region)
 
     ! Create the restart files for all the model components
     CALL create_restart_files_ice_model   ( region%mesh, region%ice)
@@ -695,6 +706,179 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE setup_first_mesh_from_file
+
+  SUBROUTINE setup_ROI_grids_and_output_files( region)
+    ! Set up the (high-resolution) square grids and output files
+    ! for this model region's Regions of Interest
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_model_region),        INTENT(INOUT) :: region
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'setup_ROI_grids_and_output_files'
+    REAL(dp)                                      :: dx_ROI
+    CHARACTER(LEN=256)                            :: all_names_ROI, name_ROI
+    INTEGER                                       :: i
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE       :: poly_ROI
+    REAL(dp)                                      :: xmin, xmax, ymin, ymax, xmid, ymid, dx, dy
+    CHARACTER(LEN=256)                            :: grid_name
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! If no regions of interest are specified, do nothing
+    IF (C%choice_regions_of_interest == '') THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
+
+    ! Determine the resolution for this region's region-of-interest output files
+    SELECT CASE (region%name)
+      CASE ('NAM')
+        dx_ROI = C%dx_output_grid_ROI_NAM
+      CASE ('EAS')
+        dx_ROI = C%dx_output_grid_ROI_EAS
+      CASE ('GRL')
+        dx_ROI = C%dx_output_grid_ROI_GRL
+      CASE ('ANT')
+        dx_ROI = C%dx_output_grid_ROI_ANT
+      CASE DEFAULT
+        CALL crash('unknown region name "' // TRIM( region%name) // '"!')
+    END SELECT
+
+    ! Initialise
+    region%nROI = 0
+
+    ! Go over all listed regions of interest
+    all_names_ROI = C%choice_regions_of_interest
+
+    DO WHILE (.TRUE.)
+
+      ! Get the first region of interest from the list
+      i = INDEX( all_names_ROI, '||')
+      IF (i == 0) THEN
+        ! There is only one left in the list
+        name_ROI = TRIM( all_names_ROI)
+        all_names_ROI = ''
+      ELSE
+        ! Get the first first one from the list and remove it
+        name_ROI = all_names_ROI( 1:i-1)
+        all_names_ROI = all_names_ROI( i+2:LEN_TRIM( all_names_ROI))
+      END IF
+
+
+      SELECT CASE (region%name)
+        CASE ('NAM')
+          ! North america
+
+          SELECT CASE (name_ROI)
+            CASE ('')
+              ! Don't need to do anything
+              EXIT
+            CASE ('PineIsland')
+              ! Don't need to do anything
+              EXIT
+            CASE ('Thwaites')
+              ! Don't need to do anything
+              EXIT
+            CASE DEFAULT
+              CALL crash('unknown region of interest "' // TRIM( name_ROI) // '"!')
+          END SELECT
+
+        CASE ('EAS')
+          ! Eurasia
+
+          SELECT CASE (name_ROI)
+            CASE ('')
+              ! Don't need to do anything
+              EXIT
+            CASE ('PineIsland')
+              ! Don't need to do anything
+              EXIT
+            CASE ('Thwaites')
+              ! Don't need to do anything
+              EXIT
+            CASE DEFAULT
+              CALL crash('unknown region of interest "' // TRIM( name_ROI) // '"!')
+          END SELECT
+
+        CASE ('GRL')
+          ! Greenland
+
+          SELECT CASE (name_ROI)
+            CASE ('')
+              ! Don't need to do anything
+              EXIT
+            CASE ('PineIsland')
+              ! Don't need to do anything
+              EXIT
+            CASE ('Thwaites')
+              ! Don't need to do anything
+              EXIT
+            CASE DEFAULT
+              CALL crash('unknown region of interest "' // TRIM( name_ROI) // '"!')
+          END SELECT
+
+        CASE ('ANT')
+
+          SELECT CASE (name_ROI)
+            CASE ('')
+              ! Don't need to do anything
+              EXIT
+            CASE ('PineIsland')
+              CALL calc_polygon_Pine_Island_Glacier( poly_ROI)
+            CASE ('Thwaites')
+              CALL calc_polygon_Thwaites_Glacier( poly_ROI)
+            CASE DEFAULT
+              CALL crash('unknown region of interest "' // TRIM( name_ROI) // '"!')
+          END SELECT
+
+        CASE DEFAULT
+          CALL crash('unknown region name "' // region%name // '"!')
+      END SELECT
+
+      ! Add to this region's regions of interest
+      region%nROI = region%nROI + 1
+
+      ! Determine the bounds of this region of interest's square domain
+      xmin = MINVAL( poly_ROI( :,1))
+      xmax = MAXVAL( poly_ROI( :,1))
+      ymin = MINVAL( poly_ROI( :,2))
+      ymax = MAXVAL( poly_ROI( :,2))
+
+      ! Make it 20% in all directions to fully cover the hi-res area
+      xmid = (xmin + xmax) / 2._dp
+      ymid = (ymin + ymax) / 2._dp
+      dx   = xmax - xmid;
+      dy   = ymax - ymid
+      xmin = xmid - dx * 1.2_dp
+      xmax = xmid + dx * 1.2_dp
+      ymin = ymid - dy * 1.2_dp
+      ymax = ymid + dy * 1.2_dp
+
+      ! Set up a square grid for this region of interest
+      grid_name = 'square_grid_output_' // region%name // '_ROI_' // TRIM( name_ROI)
+      CALL setup_square_grid( grid_name, xmin, xmax, ymin, ymax, dx_ROI, region%output_grids_ROI( region%nROI), &
+        region%mesh%lambda_M, region%mesh%phi_M, region%mesh%beta_stereo)
+
+      ! Create an output file for this region of interest
+      region%output_filenames_grid_ROI( region%nROI) = TRIM( C%output_dir) // 'main_output_' // region%name // '_grid_ROI_' // TRIM( name_ROI) // '.nc'
+      CALL create_main_regional_output_file_grid_ROI( region, region%output_grids_ROI( region%nROI), region%output_filenames_grid_ROI( region%nROI))
+
+      ! Clean up after yourself
+      DEALLOCATE( poly_ROI)
+
+      ! If no names are left, we are finished
+      IF (all_names_ROI == '') EXIT
+
+    END DO ! DO WHILE (.TRUE.)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE setup_ROI_grids_and_output_files
 
   ! == Extras
   ! =========

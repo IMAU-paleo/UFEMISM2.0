@@ -73,6 +73,11 @@ MODULE region_types
     CHARACTER(LEN=256)                      :: output_filename_grid        ! Name of NetCDF output file (grid version)
     REAL(dp)                                :: output_t_next               ! Time when we should next write to output
 
+    ! Region-of-interest output
+    INTEGER                                 :: nROI                        ! Number of regions of interest for this model region
+    TYPE(type_grid)   , DIMENSION(100)      :: output_grids_ROI            ! The square grids used for gridded output files for the region of interest
+    CHARACTER(LEN=256), DIMENSION(100)      :: output_filenames_grid_ROI   ! Name of NetCDF output file for the region of interest (grid version)
+
   END TYPE type_model_region
 
 CONTAINS

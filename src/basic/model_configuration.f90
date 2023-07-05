@@ -656,6 +656,10 @@ MODULE model_configuration
     REAL(dp)            :: dx_output_grid_EAS_config                    = 40E3_dp                         ! [m] Horizontal resolution for the square grid used for output for Eurasia
     REAL(dp)            :: dx_output_grid_GRL_config                    = 20E3_dp                         ! [m] Horizontal resolution for the square grid used for output for Greenland
     REAL(dp)            :: dx_output_grid_ANT_config                    = 40E3_dp                         ! [m] Horizontal resolution for the square grid used for output for Antarctica
+    REAL(dp)            :: dx_output_grid_ROI_NAM_config                = 5E3_dp                          ! [m] Horizontal resolution for the square grid used for output for the region of interest for North America
+    REAL(dp)            :: dx_output_grid_ROI_EAS_config                = 5E3_dp                          ! [m] Horizontal resolution for the square grid used for output for the region of interest for Eurasia
+    REAL(dp)            :: dx_output_grid_ROI_GRL_config                = 5E3_dp                          ! [m] Horizontal resolution for the square grid used for output for the region of interest for Greenland
+    REAL(dp)            :: dx_output_grid_ROI_ANT_config                = 5E3_dp                          ! [m] Horizontal resolution for the square grid used for output for the region of interest for Antarctica
 
     ! Which data fields we want to write to the main NetCDF output files
     CHARACTER(LEN=256)  :: choice_output_field_01_config                = 'none'
@@ -1342,6 +1346,10 @@ MODULE model_configuration
     REAL(dp)            :: dx_output_grid_EAS
     REAL(dp)            :: dx_output_grid_GRL
     REAL(dp)            :: dx_output_grid_ANT
+    REAL(dp)            :: dx_output_grid_ROI_NAM
+    REAL(dp)            :: dx_output_grid_ROI_EAS
+    REAL(dp)            :: dx_output_grid_ROI_GRL
+    REAL(dp)            :: dx_output_grid_ROI_ANT
 
     ! Which data fields we want to write to the main NetCDF output files
     CHARACTER(LEN=256)  :: choice_output_field_01
@@ -1946,6 +1954,10 @@ CONTAINS
       dx_output_grid_EAS_config                                   , &
       dx_output_grid_GRL_config                                   , &
       dx_output_grid_ANT_config                                   , &
+      dx_output_grid_ROI_NAM_config                               , &
+      dx_output_grid_ROI_EAS_config                               , &
+      dx_output_grid_ROI_GRL_config                               , &
+      dx_output_grid_ROI_ANT_config                               , &
       choice_output_field_01_config                               , &
       choice_output_field_02_config                               , &
       choice_output_field_03_config                               , &
@@ -2660,6 +2672,10 @@ CONTAINS
     C%dx_output_grid_EAS                                     = dx_output_grid_EAS_config
     C%dx_output_grid_GRL                                     = dx_output_grid_GRL_config
     C%dx_output_grid_ANT                                     = dx_output_grid_ANT_config
+    C%dx_output_grid_ROI_NAM                                 = dx_output_grid_ROI_NAM_config
+    C%dx_output_grid_ROI_EAS                                 = dx_output_grid_ROI_EAS_config
+    C%dx_output_grid_ROI_GRL                                 = dx_output_grid_ROI_GRL_config
+    C%dx_output_grid_ROI_ANT                                 = dx_output_grid_ROI_ANT_config
 
     ! Which data fields we want to write to the main NetCDF output files
     C%choice_output_field_01                                 = choice_output_field_01_config

@@ -892,20 +892,75 @@ CONTAINS
       END IF
 
       ! Calculate the polygon describing the specified region of interest
-      IF     (region_name == 'NAM') THEN
-      ELSEIF (region_name == 'EAS') THEN
-      ELSEIF (region_name == 'GRL') THEN
-      ELSEIF (region_name == 'ANT') THEN
-        IF     (name_ROI == 'PineIsland') THEN
-          CALL calc_polygon_Pine_Island_Glacier( poly_ROI)
-        ELSEIF (name_ROI == 'Thwaites') THEN
-          CALL calc_polygon_Thwaites_Glacier( poly_ROI)
-        ELSE
-          CALL crash('unknown region of interest "' // TRIM( name_ROI) // '"!')
-        END IF
-      ELSE
-        CALL crash('unknown region_name "' // TRIM( region_name) // '"!')
-      END IF
+      SELECT CASE (region_name)
+        CASE ('NAM')
+          ! North america
+
+          SELECT CASE (name_ROI)
+            CASE ('')
+              ! Don't need to do anything
+              EXIT
+            CASE ('PineIsland')
+              ! Don't need to do anything
+              EXIT
+            CASE ('Thwaites')
+              ! Don't need to do anything
+              EXIT
+            CASE DEFAULT
+              CALL crash('unknown region of interest "' // TRIM( name_ROI) // '"!')
+          END SELECT
+
+        CASE ('EAS')
+          ! Eurasia
+
+          SELECT CASE (name_ROI)
+            CASE ('')
+              ! Don't need to do anything
+              EXIT
+            CASE ('PineIsland')
+              ! Don't need to do anything
+              EXIT
+            CASE ('Thwaites')
+              ! Don't need to do anything
+              EXIT
+            CASE DEFAULT
+              CALL crash('unknown region of interest "' // TRIM( name_ROI) // '"!')
+          END SELECT
+
+        CASE ('GRL')
+          ! Greenland
+
+          SELECT CASE (name_ROI)
+            CASE ('')
+              ! Don't need to do anything
+              EXIT
+            CASE ('PineIsland')
+              ! Don't need to do anything
+              EXIT
+            CASE ('Thwaites')
+              ! Don't need to do anything
+              EXIT
+            CASE DEFAULT
+              CALL crash('unknown region of interest "' // TRIM( name_ROI) // '"!')
+          END SELECT
+
+        CASE ('ANT')
+
+          SELECT CASE (name_ROI)
+            CASE ('')
+              ! Don't need to do anything
+              EXIT
+            CASE ('PineIsland')
+              CALL calc_polygon_Pine_Island_Glacier( poly_ROI)
+            CASE ('Thwaites')
+              CALL calc_polygon_Thwaites_Glacier( poly_ROI)
+            CASE DEFAULT
+              CALL crash('unknown region of interest "' // TRIM( name_ROI) // '"!')
+          END SELECT
+
+        CASE DEFAULT
+          CALL crash('unknown region name "' // region_name // '"!')
+      END SELECT
 
       ! Refine the mesh in the specified region of interest
       ! ===================================================
@@ -973,7 +1028,7 @@ CONTAINS
       ! If no names are left, we are finished
       IF (all_names_ROI == '') EXIT
 
-    END DO
+    END DO ! DO WHILE (.TRUE.)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

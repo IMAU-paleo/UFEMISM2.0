@@ -10,6 +10,7 @@ MODULE main_regional_output
   USE mpi_basic                                              , ONLY: par, sync
   USE control_resources_and_error_messaging                  , ONLY: happy, warning, crash, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
+  USE grid_basic                                             , ONLY: type_grid
   USE region_types                                           , ONLY: type_model_region
   USE netcdf_basic                                           , ONLY: create_new_netcdf_file_for_writing, open_existing_netcdf_file_for_writing, close_netcdf_file
   USE netcdf_output                                          , ONLY: generate_filename_XXXXXdotnc, setup_mesh_in_netcdf_file, setup_xy_grid_in_netcdf_file, &
@@ -175,65 +176,65 @@ CONTAINS
     CALL write_time_to_file( region%output_filename_grid, ncid, region%time)
 
     ! Write the default data fields to the file
-    CALL write_to_main_regional_output_file_grid_field( region, region%output_filename_grid, ncid, 'Hi')
-    CALL write_to_main_regional_output_file_grid_field( region, region%output_filename_grid, ncid, 'Hb')
-    CALL write_to_main_regional_output_file_grid_field( region, region%output_filename_grid, ncid, 'Hs')
-    CALL write_to_main_regional_output_file_grid_field( region, region%output_filename_grid, ncid, 'SL')
-    CALL write_to_main_regional_output_file_grid_field( region, region%output_filename_grid, ncid, 'u_surf')
-    CALL write_to_main_regional_output_file_grid_field( region, region%output_filename_grid, ncid, 'v_surf')
-    CALL write_to_main_regional_output_file_grid_field( region, region%output_filename_grid, ncid, 'uabs_surf')
+    CALL write_to_main_regional_output_file_grid_field( region, region%output_grid, region%output_filename_grid, ncid, 'Hi')
+    CALL write_to_main_regional_output_file_grid_field( region, region%output_grid, region%output_filename_grid, ncid, 'Hb')
+    CALL write_to_main_regional_output_file_grid_field( region, region%output_grid, region%output_filename_grid, ncid, 'Hs')
+    CALL write_to_main_regional_output_file_grid_field( region, region%output_grid, region%output_filename_grid, ncid, 'SL')
+    CALL write_to_main_regional_output_file_grid_field( region, region%output_grid, region%output_filename_grid, ncid, 'u_surf')
+    CALL write_to_main_regional_output_file_grid_field( region, region%output_grid, region%output_filename_grid, ncid, 'v_surf')
+    CALL write_to_main_regional_output_file_grid_field( region, region%output_grid, region%output_filename_grid, ncid, 'uabs_surf')
 
     ! Write all user-defined data fields to the file
-    CALL write_to_main_regional_output_file_grid_field( region, region%output_filename_grid, ncid, C%choice_output_field_01)
-    CALL write_to_main_regional_output_file_grid_field( region, region%output_filename_grid, ncid, C%choice_output_field_02)
-    CALL write_to_main_regional_output_file_grid_field( region, region%output_filename_grid, ncid, C%choice_output_field_03)
-    CALL write_to_main_regional_output_file_grid_field( region, region%output_filename_grid, ncid, C%choice_output_field_04)
-    CALL write_to_main_regional_output_file_grid_field( region, region%output_filename_grid, ncid, C%choice_output_field_05)
-    CALL write_to_main_regional_output_file_grid_field( region, region%output_filename_grid, ncid, C%choice_output_field_06)
-    CALL write_to_main_regional_output_file_grid_field( region, region%output_filename_grid, ncid, C%choice_output_field_07)
-    CALL write_to_main_regional_output_file_grid_field( region, region%output_filename_grid, ncid, C%choice_output_field_08)
-    CALL write_to_main_regional_output_file_grid_field( region, region%output_filename_grid, ncid, C%choice_output_field_09)
-    CALL write_to_main_regional_output_file_grid_field( region, region%output_filename_grid, ncid, C%choice_output_field_10)
-    CALL write_to_main_regional_output_file_grid_field( region, region%output_filename_grid, ncid, C%choice_output_field_11)
-    CALL write_to_main_regional_output_file_grid_field( region, region%output_filename_grid, ncid, C%choice_output_field_12)
-    CALL write_to_main_regional_output_file_grid_field( region, region%output_filename_grid, ncid, C%choice_output_field_13)
-    CALL write_to_main_regional_output_file_grid_field( region, region%output_filename_grid, ncid, C%choice_output_field_14)
-    CALL write_to_main_regional_output_file_grid_field( region, region%output_filename_grid, ncid, C%choice_output_field_15)
-    CALL write_to_main_regional_output_file_grid_field( region, region%output_filename_grid, ncid, C%choice_output_field_16)
-    CALL write_to_main_regional_output_file_grid_field( region, region%output_filename_grid, ncid, C%choice_output_field_17)
-    CALL write_to_main_regional_output_file_grid_field( region, region%output_filename_grid, ncid, C%choice_output_field_18)
-    CALL write_to_main_regional_output_file_grid_field( region, region%output_filename_grid, ncid, C%choice_output_field_19)
-    CALL write_to_main_regional_output_file_grid_field( region, region%output_filename_grid, ncid, C%choice_output_field_20)
-    CALL write_to_main_regional_output_file_grid_field( region, region%output_filename_grid, ncid, C%choice_output_field_21)
-    CALL write_to_main_regional_output_file_grid_field( region, region%output_filename_grid, ncid, C%choice_output_field_22)
-    CALL write_to_main_regional_output_file_grid_field( region, region%output_filename_grid, ncid, C%choice_output_field_23)
-    CALL write_to_main_regional_output_file_grid_field( region, region%output_filename_grid, ncid, C%choice_output_field_24)
-    CALL write_to_main_regional_output_file_grid_field( region, region%output_filename_grid, ncid, C%choice_output_field_25)
-    CALL write_to_main_regional_output_file_grid_field( region, region%output_filename_grid, ncid, C%choice_output_field_26)
-    CALL write_to_main_regional_output_file_grid_field( region, region%output_filename_grid, ncid, C%choice_output_field_27)
-    CALL write_to_main_regional_output_file_grid_field( region, region%output_filename_grid, ncid, C%choice_output_field_28)
-    CALL write_to_main_regional_output_file_grid_field( region, region%output_filename_grid, ncid, C%choice_output_field_29)
-    CALL write_to_main_regional_output_file_grid_field( region, region%output_filename_grid, ncid, C%choice_output_field_30)
-    CALL write_to_main_regional_output_file_grid_field( region, region%output_filename_grid, ncid, C%choice_output_field_31)
-    CALL write_to_main_regional_output_file_grid_field( region, region%output_filename_grid, ncid, C%choice_output_field_32)
-    CALL write_to_main_regional_output_file_grid_field( region, region%output_filename_grid, ncid, C%choice_output_field_33)
-    CALL write_to_main_regional_output_file_grid_field( region, region%output_filename_grid, ncid, C%choice_output_field_34)
-    CALL write_to_main_regional_output_file_grid_field( region, region%output_filename_grid, ncid, C%choice_output_field_35)
-    CALL write_to_main_regional_output_file_grid_field( region, region%output_filename_grid, ncid, C%choice_output_field_36)
-    CALL write_to_main_regional_output_file_grid_field( region, region%output_filename_grid, ncid, C%choice_output_field_37)
-    CALL write_to_main_regional_output_file_grid_field( region, region%output_filename_grid, ncid, C%choice_output_field_38)
-    CALL write_to_main_regional_output_file_grid_field( region, region%output_filename_grid, ncid, C%choice_output_field_39)
-    CALL write_to_main_regional_output_file_grid_field( region, region%output_filename_grid, ncid, C%choice_output_field_40)
-    CALL write_to_main_regional_output_file_grid_field( region, region%output_filename_grid, ncid, C%choice_output_field_41)
-    CALL write_to_main_regional_output_file_grid_field( region, region%output_filename_grid, ncid, C%choice_output_field_42)
-    CALL write_to_main_regional_output_file_grid_field( region, region%output_filename_grid, ncid, C%choice_output_field_43)
-    CALL write_to_main_regional_output_file_grid_field( region, region%output_filename_grid, ncid, C%choice_output_field_44)
-    CALL write_to_main_regional_output_file_grid_field( region, region%output_filename_grid, ncid, C%choice_output_field_45)
-    CALL write_to_main_regional_output_file_grid_field( region, region%output_filename_grid, ncid, C%choice_output_field_46)
-    CALL write_to_main_regional_output_file_grid_field( region, region%output_filename_grid, ncid, C%choice_output_field_47)
-    CALL write_to_main_regional_output_file_grid_field( region, region%output_filename_grid, ncid, C%choice_output_field_48)
-    CALL write_to_main_regional_output_file_grid_field( region, region%output_filename_grid, ncid, C%choice_output_field_49)
-    CALL write_to_main_regional_output_file_grid_field( region, region%output_filename_grid, ncid, C%choice_output_field_50)
+    CALL write_to_main_regional_output_file_grid_field( region, region%output_grid, region%output_filename_grid, ncid, C%choice_output_field_01)
+    CALL write_to_main_regional_output_file_grid_field( region, region%output_grid, region%output_filename_grid, ncid, C%choice_output_field_02)
+    CALL write_to_main_regional_output_file_grid_field( region, region%output_grid, region%output_filename_grid, ncid, C%choice_output_field_03)
+    CALL write_to_main_regional_output_file_grid_field( region, region%output_grid, region%output_filename_grid, ncid, C%choice_output_field_04)
+    CALL write_to_main_regional_output_file_grid_field( region, region%output_grid, region%output_filename_grid, ncid, C%choice_output_field_05)
+    CALL write_to_main_regional_output_file_grid_field( region, region%output_grid, region%output_filename_grid, ncid, C%choice_output_field_06)
+    CALL write_to_main_regional_output_file_grid_field( region, region%output_grid, region%output_filename_grid, ncid, C%choice_output_field_07)
+    CALL write_to_main_regional_output_file_grid_field( region, region%output_grid, region%output_filename_grid, ncid, C%choice_output_field_08)
+    CALL write_to_main_regional_output_file_grid_field( region, region%output_grid, region%output_filename_grid, ncid, C%choice_output_field_09)
+    CALL write_to_main_regional_output_file_grid_field( region, region%output_grid, region%output_filename_grid, ncid, C%choice_output_field_10)
+    CALL write_to_main_regional_output_file_grid_field( region, region%output_grid, region%output_filename_grid, ncid, C%choice_output_field_11)
+    CALL write_to_main_regional_output_file_grid_field( region, region%output_grid, region%output_filename_grid, ncid, C%choice_output_field_12)
+    CALL write_to_main_regional_output_file_grid_field( region, region%output_grid, region%output_filename_grid, ncid, C%choice_output_field_13)
+    CALL write_to_main_regional_output_file_grid_field( region, region%output_grid, region%output_filename_grid, ncid, C%choice_output_field_14)
+    CALL write_to_main_regional_output_file_grid_field( region, region%output_grid, region%output_filename_grid, ncid, C%choice_output_field_15)
+    CALL write_to_main_regional_output_file_grid_field( region, region%output_grid, region%output_filename_grid, ncid, C%choice_output_field_16)
+    CALL write_to_main_regional_output_file_grid_field( region, region%output_grid, region%output_filename_grid, ncid, C%choice_output_field_17)
+    CALL write_to_main_regional_output_file_grid_field( region, region%output_grid, region%output_filename_grid, ncid, C%choice_output_field_18)
+    CALL write_to_main_regional_output_file_grid_field( region, region%output_grid, region%output_filename_grid, ncid, C%choice_output_field_19)
+    CALL write_to_main_regional_output_file_grid_field( region, region%output_grid, region%output_filename_grid, ncid, C%choice_output_field_20)
+    CALL write_to_main_regional_output_file_grid_field( region, region%output_grid, region%output_filename_grid, ncid, C%choice_output_field_21)
+    CALL write_to_main_regional_output_file_grid_field( region, region%output_grid, region%output_filename_grid, ncid, C%choice_output_field_22)
+    CALL write_to_main_regional_output_file_grid_field( region, region%output_grid, region%output_filename_grid, ncid, C%choice_output_field_23)
+    CALL write_to_main_regional_output_file_grid_field( region, region%output_grid, region%output_filename_grid, ncid, C%choice_output_field_24)
+    CALL write_to_main_regional_output_file_grid_field( region, region%output_grid, region%output_filename_grid, ncid, C%choice_output_field_25)
+    CALL write_to_main_regional_output_file_grid_field( region, region%output_grid, region%output_filename_grid, ncid, C%choice_output_field_26)
+    CALL write_to_main_regional_output_file_grid_field( region, region%output_grid, region%output_filename_grid, ncid, C%choice_output_field_27)
+    CALL write_to_main_regional_output_file_grid_field( region, region%output_grid, region%output_filename_grid, ncid, C%choice_output_field_28)
+    CALL write_to_main_regional_output_file_grid_field( region, region%output_grid, region%output_filename_grid, ncid, C%choice_output_field_29)
+    CALL write_to_main_regional_output_file_grid_field( region, region%output_grid, region%output_filename_grid, ncid, C%choice_output_field_30)
+    CALL write_to_main_regional_output_file_grid_field( region, region%output_grid, region%output_filename_grid, ncid, C%choice_output_field_31)
+    CALL write_to_main_regional_output_file_grid_field( region, region%output_grid, region%output_filename_grid, ncid, C%choice_output_field_32)
+    CALL write_to_main_regional_output_file_grid_field( region, region%output_grid, region%output_filename_grid, ncid, C%choice_output_field_33)
+    CALL write_to_main_regional_output_file_grid_field( region, region%output_grid, region%output_filename_grid, ncid, C%choice_output_field_34)
+    CALL write_to_main_regional_output_file_grid_field( region, region%output_grid, region%output_filename_grid, ncid, C%choice_output_field_35)
+    CALL write_to_main_regional_output_file_grid_field( region, region%output_grid, region%output_filename_grid, ncid, C%choice_output_field_36)
+    CALL write_to_main_regional_output_file_grid_field( region, region%output_grid, region%output_filename_grid, ncid, C%choice_output_field_37)
+    CALL write_to_main_regional_output_file_grid_field( region, region%output_grid, region%output_filename_grid, ncid, C%choice_output_field_38)
+    CALL write_to_main_regional_output_file_grid_field( region, region%output_grid, region%output_filename_grid, ncid, C%choice_output_field_39)
+    CALL write_to_main_regional_output_file_grid_field( region, region%output_grid, region%output_filename_grid, ncid, C%choice_output_field_40)
+    CALL write_to_main_regional_output_file_grid_field( region, region%output_grid, region%output_filename_grid, ncid, C%choice_output_field_41)
+    CALL write_to_main_regional_output_file_grid_field( region, region%output_grid, region%output_filename_grid, ncid, C%choice_output_field_42)
+    CALL write_to_main_regional_output_file_grid_field( region, region%output_grid, region%output_filename_grid, ncid, C%choice_output_field_43)
+    CALL write_to_main_regional_output_file_grid_field( region, region%output_grid, region%output_filename_grid, ncid, C%choice_output_field_44)
+    CALL write_to_main_regional_output_file_grid_field( region, region%output_grid, region%output_filename_grid, ncid, C%choice_output_field_45)
+    CALL write_to_main_regional_output_file_grid_field( region, region%output_grid, region%output_filename_grid, ncid, C%choice_output_field_46)
+    CALL write_to_main_regional_output_file_grid_field( region, region%output_grid, region%output_filename_grid, ncid, C%choice_output_field_47)
+    CALL write_to_main_regional_output_file_grid_field( region, region%output_grid, region%output_filename_grid, ncid, C%choice_output_field_48)
+    CALL write_to_main_regional_output_file_grid_field( region, region%output_grid, region%output_filename_grid, ncid, C%choice_output_field_49)
+    CALL write_to_main_regional_output_file_grid_field( region, region%output_grid, region%output_filename_grid, ncid, C%choice_output_field_50)
 
     ! Close the file
     CALL close_netcdf_file( ncid)
@@ -242,6 +243,107 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE write_to_main_regional_output_file_grid
+
+  SUBROUTINE write_to_main_regional_output_file_grid_ROI( region, grid, filename)
+    ! Write to the main regional output NetCDF file - grid version
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_model_region)                            , INTENT(IN)    :: region
+    TYPE(type_grid)                                    , INTENT(IN)    :: grid
+    CHARACTER(LEN=256)                                 , INTENT(IN)    :: filename
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'write_to_main_regional_output_file_grid_ROI'
+    INTEGER                                                            :: ncid
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! If no NetCDF output should be created, do nothing
+    IF (.NOT. C%do_create_netcdf_output) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
+
+    ! Print to terminal
+    IF (par%master) WRITE(0,'(A)') '   Writing to grid output file "' // colour_string( TRIM( filename), 'light blue') // '"...'
+
+    ! Open the NetCDF file
+    CALL open_existing_netcdf_file_for_writing( filename, ncid)
+
+    ! Write the time to the file
+    CALL write_time_to_file( filename, ncid, region%time)
+
+    ! Write the default data fields to the file
+    CALL write_to_main_regional_output_file_grid_field( region, grid, filename, ncid, 'Hi')
+    CALL write_to_main_regional_output_file_grid_field( region, grid, filename, ncid, 'Hb')
+    CALL write_to_main_regional_output_file_grid_field( region, grid, filename, ncid, 'Hs')
+    CALL write_to_main_regional_output_file_grid_field( region, grid, filename, ncid, 'SL')
+    CALL write_to_main_regional_output_file_grid_field( region, grid, filename, ncid, 'u_surf')
+    CALL write_to_main_regional_output_file_grid_field( region, grid, filename, ncid, 'v_surf')
+    CALL write_to_main_regional_output_file_grid_field( region, grid, filename, ncid, 'uabs_surf')
+
+    ! Write all user-defined data fields to the file
+    CALL write_to_main_regional_output_file_grid_field( region, grid, filename, ncid, C%choice_output_field_01)
+    CALL write_to_main_regional_output_file_grid_field( region, grid, filename, ncid, C%choice_output_field_02)
+    CALL write_to_main_regional_output_file_grid_field( region, grid, filename, ncid, C%choice_output_field_03)
+    CALL write_to_main_regional_output_file_grid_field( region, grid, filename, ncid, C%choice_output_field_04)
+    CALL write_to_main_regional_output_file_grid_field( region, grid, filename, ncid, C%choice_output_field_05)
+    CALL write_to_main_regional_output_file_grid_field( region, grid, filename, ncid, C%choice_output_field_06)
+    CALL write_to_main_regional_output_file_grid_field( region, grid, filename, ncid, C%choice_output_field_07)
+    CALL write_to_main_regional_output_file_grid_field( region, grid, filename, ncid, C%choice_output_field_08)
+    CALL write_to_main_regional_output_file_grid_field( region, grid, filename, ncid, C%choice_output_field_09)
+    CALL write_to_main_regional_output_file_grid_field( region, grid, filename, ncid, C%choice_output_field_10)
+    CALL write_to_main_regional_output_file_grid_field( region, grid, filename, ncid, C%choice_output_field_11)
+    CALL write_to_main_regional_output_file_grid_field( region, grid, filename, ncid, C%choice_output_field_12)
+    CALL write_to_main_regional_output_file_grid_field( region, grid, filename, ncid, C%choice_output_field_13)
+    CALL write_to_main_regional_output_file_grid_field( region, grid, filename, ncid, C%choice_output_field_14)
+    CALL write_to_main_regional_output_file_grid_field( region, grid, filename, ncid, C%choice_output_field_15)
+    CALL write_to_main_regional_output_file_grid_field( region, grid, filename, ncid, C%choice_output_field_16)
+    CALL write_to_main_regional_output_file_grid_field( region, grid, filename, ncid, C%choice_output_field_17)
+    CALL write_to_main_regional_output_file_grid_field( region, grid, filename, ncid, C%choice_output_field_18)
+    CALL write_to_main_regional_output_file_grid_field( region, grid, filename, ncid, C%choice_output_field_19)
+    CALL write_to_main_regional_output_file_grid_field( region, grid, filename, ncid, C%choice_output_field_20)
+    CALL write_to_main_regional_output_file_grid_field( region, grid, filename, ncid, C%choice_output_field_21)
+    CALL write_to_main_regional_output_file_grid_field( region, grid, filename, ncid, C%choice_output_field_22)
+    CALL write_to_main_regional_output_file_grid_field( region, grid, filename, ncid, C%choice_output_field_23)
+    CALL write_to_main_regional_output_file_grid_field( region, grid, filename, ncid, C%choice_output_field_24)
+    CALL write_to_main_regional_output_file_grid_field( region, grid, filename, ncid, C%choice_output_field_25)
+    CALL write_to_main_regional_output_file_grid_field( region, grid, filename, ncid, C%choice_output_field_26)
+    CALL write_to_main_regional_output_file_grid_field( region, grid, filename, ncid, C%choice_output_field_27)
+    CALL write_to_main_regional_output_file_grid_field( region, grid, filename, ncid, C%choice_output_field_28)
+    CALL write_to_main_regional_output_file_grid_field( region, grid, filename, ncid, C%choice_output_field_29)
+    CALL write_to_main_regional_output_file_grid_field( region, grid, filename, ncid, C%choice_output_field_30)
+    CALL write_to_main_regional_output_file_grid_field( region, grid, filename, ncid, C%choice_output_field_31)
+    CALL write_to_main_regional_output_file_grid_field( region, grid, filename, ncid, C%choice_output_field_32)
+    CALL write_to_main_regional_output_file_grid_field( region, grid, filename, ncid, C%choice_output_field_33)
+    CALL write_to_main_regional_output_file_grid_field( region, grid, filename, ncid, C%choice_output_field_34)
+    CALL write_to_main_regional_output_file_grid_field( region, grid, filename, ncid, C%choice_output_field_35)
+    CALL write_to_main_regional_output_file_grid_field( region, grid, filename, ncid, C%choice_output_field_36)
+    CALL write_to_main_regional_output_file_grid_field( region, grid, filename, ncid, C%choice_output_field_37)
+    CALL write_to_main_regional_output_file_grid_field( region, grid, filename, ncid, C%choice_output_field_38)
+    CALL write_to_main_regional_output_file_grid_field( region, grid, filename, ncid, C%choice_output_field_39)
+    CALL write_to_main_regional_output_file_grid_field( region, grid, filename, ncid, C%choice_output_field_40)
+    CALL write_to_main_regional_output_file_grid_field( region, grid, filename, ncid, C%choice_output_field_41)
+    CALL write_to_main_regional_output_file_grid_field( region, grid, filename, ncid, C%choice_output_field_42)
+    CALL write_to_main_regional_output_file_grid_field( region, grid, filename, ncid, C%choice_output_field_43)
+    CALL write_to_main_regional_output_file_grid_field( region, grid, filename, ncid, C%choice_output_field_44)
+    CALL write_to_main_regional_output_file_grid_field( region, grid, filename, ncid, C%choice_output_field_45)
+    CALL write_to_main_regional_output_file_grid_field( region, grid, filename, ncid, C%choice_output_field_46)
+    CALL write_to_main_regional_output_file_grid_field( region, grid, filename, ncid, C%choice_output_field_47)
+    CALL write_to_main_regional_output_file_grid_field( region, grid, filename, ncid, C%choice_output_field_48)
+    CALL write_to_main_regional_output_file_grid_field( region, grid, filename, ncid, C%choice_output_field_49)
+    CALL write_to_main_regional_output_file_grid_field( region, grid, filename, ncid, C%choice_output_field_50)
+
+    ! Close the file
+    CALL close_netcdf_file( ncid)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE write_to_main_regional_output_file_grid_ROI
 
   SUBROUTINE write_to_main_regional_output_file_mesh_field( region, filename, ncid, choice_output_field)
     ! Write to the main regional output NetCDF file - mesh version
@@ -615,7 +717,7 @@ CONTAINS
 
   END SUBROUTINE write_to_main_regional_output_file_mesh_field
 
-  SUBROUTINE write_to_main_regional_output_file_grid_field( region, filename, ncid, choice_output_field)
+  SUBROUTINE write_to_main_regional_output_file_grid_field( region, grid, filename, ncid, choice_output_field)
     ! Write to the main regional output NetCDF file - grid version
     !
     ! Write a single field to the file
@@ -624,6 +726,7 @@ CONTAINS
 
     ! In/output variables:
     TYPE(type_model_region)                            , INTENT(IN)    :: region
+    TYPE(type_grid)                                    , INTENT(IN)    :: grid
     CHARACTER(LEN=*)                                   , INTENT(IN)    :: filename
     INTEGER                                            , INTENT(IN)    :: ncid
     CHARACTER(LEN=*)                                   , INTENT(IN)    :: choice_output_field
@@ -644,9 +747,9 @@ CONTAINS
     END IF
 
     ! Allocate memory
-    ALLOCATE( d_grid_vec_partial_2D(         region%output_grid%n_loc                ))
-    ALLOCATE( d_grid_vec_partial_2D_monthly( region%output_grid%n_loc, 12            ))
-    ALLOCATE( d_grid_vec_partial_3D(         region%output_grid%n_loc, region%mesh%nz))
+    ALLOCATE( d_grid_vec_partial_2D(         grid%n_loc                ))
+    ALLOCATE( d_grid_vec_partial_2D_monthly( grid%n_loc, 12            ))
+    ALLOCATE( d_grid_vec_partial_3D(         grid%n_loc, region%mesh%nz))
 
     ! Add the specified data field to the file
     SELECT CASE (choice_output_field)
@@ -658,99 +761,99 @@ CONTAINS
 
       ! Initial ice-sheet geometry
       CASE ('Hi_init')
-        CALL map_from_mesh_to_xy_grid_2D( region%mesh, region%output_grid, region%refgeo_init%Hi, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( region%output_grid, filename, ncid, 'Hi_init', d_grid_vec_partial_2D)
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%refgeo_init%Hi, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'Hi_init', d_grid_vec_partial_2D)
       CASE ('Hb_init')
-        CALL map_from_mesh_to_xy_grid_2D( region%mesh, region%output_grid, region%refgeo_init%Hb, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( region%output_grid, filename, ncid, 'Hb_init', d_grid_vec_partial_2D)
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%refgeo_init%Hb, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'Hb_init', d_grid_vec_partial_2D)
       CASE ('Hs_init')
-        CALL map_from_mesh_to_xy_grid_2D( region%mesh, region%output_grid, region%refgeo_init%Hs, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( region%output_grid, filename, ncid, 'Hs_init', d_grid_vec_partial_2D)
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%refgeo_init%Hs, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'Hs_init', d_grid_vec_partial_2D)
       CASE ('SL_init')
-        CALL map_from_mesh_to_xy_grid_2D( region%mesh, region%output_grid, region%refgeo_init%SL, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( region%output_grid, filename, ncid, 'SL_init', d_grid_vec_partial_2D)
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%refgeo_init%SL, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'SL_init', d_grid_vec_partial_2D)
 
       ! Present-day ice-sheet geometry
       CASE ('Hi_PD')
-        CALL map_from_mesh_to_xy_grid_2D( region%mesh, region%output_grid, region%refgeo_PD%Hi, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( region%output_grid, filename, ncid, 'Hi_PD', d_grid_vec_partial_2D)
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%refgeo_PD%Hi, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'Hi_PD', d_grid_vec_partial_2D)
       CASE ('Hb_PD')
-        CALL map_from_mesh_to_xy_grid_2D( region%mesh, region%output_grid, region%refgeo_PD%Hb, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( region%output_grid, filename, ncid, 'Hb_PD', d_grid_vec_partial_2D)
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%refgeo_PD%Hb, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'Hb_PD', d_grid_vec_partial_2D)
       CASE ('Hs_PD')
-        CALL map_from_mesh_to_xy_grid_2D( region%mesh, region%output_grid, region%refgeo_PD%Hs, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( region%output_grid, filename, ncid, 'Hs_PD', d_grid_vec_partial_2D)
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%refgeo_PD%Hs, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'Hs_PD', d_grid_vec_partial_2D)
       CASE ('SL_PD')
-        CALL map_from_mesh_to_xy_grid_2D( region%mesh, region%output_grid, region%refgeo_PD%SL, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( region%output_grid, filename, ncid, 'SL_PD', d_grid_vec_partial_2D)
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%refgeo_PD%SL, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'SL_PD', d_grid_vec_partial_2D)
 
       ! GIA equilibrium ice-sheet geometry
       CASE ('Hi_GIAeq')
-        CALL map_from_mesh_to_xy_grid_2D( region%mesh, region%output_grid, region%refgeo_GIAeq%Hi, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( region%output_grid, filename, ncid, 'Hi_GIAeq', d_grid_vec_partial_2D)
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%refgeo_GIAeq%Hi, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'Hi_GIAeq', d_grid_vec_partial_2D)
       CASE ('Hb_GIAeq')
-        CALL map_from_mesh_to_xy_grid_2D( region%mesh, region%output_grid, region%refgeo_GIAeq%Hb, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( region%output_grid, filename, ncid, 'Hb_GIAeq', d_grid_vec_partial_2D)
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%refgeo_GIAeq%Hb, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'Hb_GIAeq', d_grid_vec_partial_2D)
       CASE ('Hs_GIAeq')
-        CALL map_from_mesh_to_xy_grid_2D( region%mesh, region%output_grid, region%refgeo_GIAeq%Hs, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( region%output_grid, filename, ncid, 'Hs_GIAeq', d_grid_vec_partial_2D)
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%refgeo_GIAeq%Hs, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'Hs_GIAeq', d_grid_vec_partial_2D)
       CASE ('SL_GIAeq')
-        CALL map_from_mesh_to_xy_grid_2D( region%mesh, region%output_grid, region%refgeo_GIAeq%SL, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( region%output_grid, filename, ncid, 'SL_GIAeq', d_grid_vec_partial_2D)
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%refgeo_GIAeq%SL, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'SL_GIAeq', d_grid_vec_partial_2D)
 
     ! ===== Basic ice-sheet geometry =====
     ! ====================================
 
       CASE ('Hi')
-        CALL map_from_mesh_to_xy_grid_2D( region%mesh, region%output_grid, region%ice%Hi, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( region%output_grid, filename, ncid, 'Hi', d_grid_vec_partial_2D)
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%Hi, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'Hi', d_grid_vec_partial_2D)
       CASE ('Hb')
-        CALL map_from_mesh_to_xy_grid_2D( region%mesh, region%output_grid, region%ice%Hb, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( region%output_grid, filename, ncid, 'Hb', d_grid_vec_partial_2D)
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%Hb, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'Hb', d_grid_vec_partial_2D)
       CASE ('Hs')
-        CALL map_from_mesh_to_xy_grid_2D( region%mesh, region%output_grid, region%ice%Hs, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( region%output_grid, filename, ncid, 'Hs', d_grid_vec_partial_2D)
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%Hs, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'Hs', d_grid_vec_partial_2D)
       CASE ('Hib')
-        CALL map_from_mesh_to_xy_grid_2D( region%mesh, region%output_grid, region%ice%Hib, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( region%output_grid, filename, ncid, 'Hib', d_grid_vec_partial_2D)
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%Hib, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'Hib', d_grid_vec_partial_2D)
       CASE ('SL')
-        CALL map_from_mesh_to_xy_grid_2D( region%mesh, region%output_grid, region%ice%SL, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( region%output_grid, filename, ncid, 'SL', d_grid_vec_partial_2D)
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%SL, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'SL', d_grid_vec_partial_2D)
       CASE ('TAF')
-        CALL map_from_mesh_to_xy_grid_2D( region%mesh, region%output_grid, region%ice%TAF, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( region%output_grid, filename, ncid, 'TAF', d_grid_vec_partial_2D)
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%TAF, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'TAF', d_grid_vec_partial_2D)
 
     ! ===== Geometry changes w.r.t. reference =====
     ! =============================================
 
       CASE ('dHi')
-        CALL map_from_mesh_to_xy_grid_2D( region%mesh, region%output_grid, region%ice%dHi, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( region%output_grid, filename, ncid, 'dHi', d_grid_vec_partial_2D)
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%dHi, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'dHi', d_grid_vec_partial_2D)
       CASE ('dHb')
-        CALL map_from_mesh_to_xy_grid_2D( region%mesh, region%output_grid, region%ice%dHb, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( region%output_grid, filename, ncid, 'dHb', d_grid_vec_partial_2D)
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%dHb, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'dHb', d_grid_vec_partial_2D)
       CASE ('dHs')
-        CALL map_from_mesh_to_xy_grid_2D( region%mesh, region%output_grid, region%ice%dHs, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( region%output_grid, filename, ncid, 'dHs', d_grid_vec_partial_2D)
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%dHs, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'dHs', d_grid_vec_partial_2D)
       CASE ('dHib')
-        CALL map_from_mesh_to_xy_grid_2D( region%mesh, region%output_grid, region%ice%dHib, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( region%output_grid, filename, ncid, 'dHib', d_grid_vec_partial_2D)
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%dHib, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'dHib', d_grid_vec_partial_2D)
 
     ! ===== Geometry rates of change =====
     ! ====================================
 
       CASE ('dHi_dt')
-        CALL map_from_mesh_to_xy_grid_2D( region%mesh, region%output_grid, region%ice%dHi_dt, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( region%output_grid, filename, ncid, 'dHi_dt', d_grid_vec_partial_2D)
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%dHi_dt, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'dHi_dt', d_grid_vec_partial_2D)
       CASE ('dHb_dt')
-        CALL map_from_mesh_to_xy_grid_2D( region%mesh, region%output_grid, region%ice%dHb_dt, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( region%output_grid, filename, ncid, 'dHb_dt', d_grid_vec_partial_2D)
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%dHb_dt, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'dHb_dt', d_grid_vec_partial_2D)
       CASE ('dHs_dt')
-        CALL map_from_mesh_to_xy_grid_2D( region%mesh, region%output_grid, region%ice%dHs_dt, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( region%output_grid, filename, ncid, 'dHs_dt', d_grid_vec_partial_2D)
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%dHs_dt, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'dHs_dt', d_grid_vec_partial_2D)
       CASE ('dHib_dt')
-        CALL map_from_mesh_to_xy_grid_2D( region%mesh, region%output_grid, region%ice%dHib_dt, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( region%output_grid, filename, ncid, 'dHib_dt', d_grid_vec_partial_2D)
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%dHib_dt, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'dHib_dt', d_grid_vec_partial_2D)
 
     ! ===== Masks =====
     ! =================
@@ -786,99 +889,99 @@ CONTAINS
     ! ===================================
 
       CASE ('Ti')
-        CALL map_from_mesh_to_xy_grid_3D( region%mesh, region%output_grid, region%ice%Ti, d_grid_vec_partial_3D)
-        CALL write_to_field_multopt_grid_dp_3D( region%output_grid, filename, ncid, 'Ti', d_grid_vec_partial_3D)
+        CALL map_from_mesh_to_xy_grid_3D( region%mesh, grid, region%ice%Ti, d_grid_vec_partial_3D)
+        CALL write_to_field_multopt_grid_dp_3D( grid, filename, ncid, 'Ti', d_grid_vec_partial_3D)
       CASE ('Ti_pmp')
-        CALL map_from_mesh_to_xy_grid_3D( region%mesh, region%output_grid, region%ice%Ti_pmp, d_grid_vec_partial_3D)
-        CALL write_to_field_multopt_grid_dp_3D( region%output_grid, filename, ncid, 'Ti_pmp', d_grid_vec_partial_3D)
+        CALL map_from_mesh_to_xy_grid_3D( region%mesh, grid, region%ice%Ti_pmp, d_grid_vec_partial_3D)
+        CALL write_to_field_multopt_grid_dp_3D( grid, filename, ncid, 'Ti_pmp', d_grid_vec_partial_3D)
       CASE ('Cpi')
-        CALL map_from_mesh_to_xy_grid_3D( region%mesh, region%output_grid, region%ice%Cpi, d_grid_vec_partial_3D)
-        CALL write_to_field_multopt_grid_dp_3D( region%output_grid, filename, ncid, 'Cpi', d_grid_vec_partial_3D)
+        CALL map_from_mesh_to_xy_grid_3D( region%mesh, grid, region%ice%Cpi, d_grid_vec_partial_3D)
+        CALL write_to_field_multopt_grid_dp_3D( grid, filename, ncid, 'Cpi', d_grid_vec_partial_3D)
       CASE ('Ki')
-        CALL map_from_mesh_to_xy_grid_3D( region%mesh, region%output_grid, region%ice%Ki, d_grid_vec_partial_3D)
-        CALL write_to_field_multopt_grid_dp_3D( region%output_grid, filename, ncid, 'Ki', d_grid_vec_partial_3D)
+        CALL map_from_mesh_to_xy_grid_3D( region%mesh, grid, region%ice%Ki, d_grid_vec_partial_3D)
+        CALL write_to_field_multopt_grid_dp_3D( grid, filename, ncid, 'Ki', d_grid_vec_partial_3D)
       CASE ('internal_heating')
-        CALL map_from_mesh_to_xy_grid_3D( region%mesh, region%output_grid, region%ice%internal_heating, d_grid_vec_partial_3D)
-        CALL write_to_field_multopt_grid_dp_3D( region%output_grid, filename, ncid, 'internal_heating', d_grid_vec_partial_3D)
+        CALL map_from_mesh_to_xy_grid_3D( region%mesh, grid, region%ice%internal_heating, d_grid_vec_partial_3D)
+        CALL write_to_field_multopt_grid_dp_3D( grid, filename, ncid, 'internal_heating', d_grid_vec_partial_3D)
       CASE ('frictional_heating')
-        CALL map_from_mesh_to_xy_grid_2D( region%mesh, region%output_grid, region%ice%frictional_heating, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( region%output_grid, filename, ncid, 'frictional_heating', d_grid_vec_partial_2D)
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%frictional_heating, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'frictional_heating', d_grid_vec_partial_2D)
       CASE ('A_flow')
-        CALL map_from_mesh_to_xy_grid_3D( region%mesh, region%output_grid, region%ice%A_flow, d_grid_vec_partial_3D)
-        CALL write_to_field_multopt_grid_dp_3D( region%output_grid, filename, ncid, 'A_flow', d_grid_vec_partial_3D)
+        CALL map_from_mesh_to_xy_grid_3D( region%mesh, grid, region%ice%A_flow, d_grid_vec_partial_3D)
+        CALL write_to_field_multopt_grid_dp_3D( grid, filename, ncid, 'A_flow', d_grid_vec_partial_3D)
 
     ! === Ice velocities ===
     ! ======================
 
       ! 3-D
       CASE ('u_3D')
-        CALL map_from_mesh_to_xy_grid_3D( region%mesh, region%output_grid, region%ice%u_3D, d_grid_vec_partial_3D)
-        CALL write_to_field_multopt_grid_dp_3D( region%output_grid, filename, ncid, 'u_3D', d_grid_vec_partial_3D)
+        CALL map_from_mesh_to_xy_grid_3D( region%mesh, grid, region%ice%u_3D, d_grid_vec_partial_3D)
+        CALL write_to_field_multopt_grid_dp_3D( grid, filename, ncid, 'u_3D', d_grid_vec_partial_3D)
       CASE ('v_3D')
-        CALL map_from_mesh_to_xy_grid_3D( region%mesh, region%output_grid, region%ice%v_3D, d_grid_vec_partial_3D)
-        CALL write_to_field_multopt_grid_dp_3D( region%output_grid, filename, ncid, 'v_3D', d_grid_vec_partial_3D)
+        CALL map_from_mesh_to_xy_grid_3D( region%mesh, grid, region%ice%v_3D, d_grid_vec_partial_3D)
+        CALL write_to_field_multopt_grid_dp_3D( grid, filename, ncid, 'v_3D', d_grid_vec_partial_3D)
       CASE ('u_3D_b')
         ! NOTE: mapping from mesh triangles to square grid is not (yet) available!
       CASE ('v_3D_b')
         ! NOTE: mapping from mesh triangles to square grid is not (yet) available!
       CASE ('w_3D')
-        CALL map_from_mesh_to_xy_grid_3D( region%mesh, region%output_grid, region%ice%w_3D, d_grid_vec_partial_3D)
-        CALL write_to_field_multopt_grid_dp_3D( region%output_grid, filename, ncid, 'w_3D', d_grid_vec_partial_3D)
+        CALL map_from_mesh_to_xy_grid_3D( region%mesh, grid, region%ice%w_3D, d_grid_vec_partial_3D)
+        CALL write_to_field_multopt_grid_dp_3D( grid, filename, ncid, 'w_3D', d_grid_vec_partial_3D)
 
       ! Vertically integrated
       CASE ('u_vav')
-        CALL map_from_mesh_to_xy_grid_2D( region%mesh, region%output_grid, region%ice%u_vav, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( region%output_grid, filename, ncid, 'u_vav', d_grid_vec_partial_2D)
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%u_vav, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'u_vav', d_grid_vec_partial_2D)
       CASE ('v_vav')
-        CALL map_from_mesh_to_xy_grid_2D( region%mesh, region%output_grid, region%ice%v_vav, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( region%output_grid, filename, ncid, 'v_vav', d_grid_vec_partial_2D)
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%v_vav, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'v_vav', d_grid_vec_partial_2D)
       CASE ('u_vav_b')
         ! NOTE: mapping from mesh triangles to square grid is not (yet) available!
       CASE ('v_vav_b')
         ! NOTE: mapping from mesh triangles to square grid is not (yet) available!
       CASE ('uabs_vav')
-        CALL map_from_mesh_to_xy_grid_2D( region%mesh, region%output_grid, region%ice%uabs_vav, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( region%output_grid, filename, ncid, 'uabs_vav', d_grid_vec_partial_2D)
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%uabs_vav, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'uabs_vav', d_grid_vec_partial_2D)
       CASE ('uabs_vav_b')
         ! NOTE: mapping from mesh triangles to square grid is not (yet) available!
 
       ! Surface
       CASE ('u_surf')
-        CALL map_from_mesh_to_xy_grid_2D( region%mesh, region%output_grid, region%ice%u_surf, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( region%output_grid, filename, ncid, 'u_surf', d_grid_vec_partial_2D)
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%u_surf, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'u_surf', d_grid_vec_partial_2D)
       CASE ('v_surf')
-        CALL map_from_mesh_to_xy_grid_2D( region%mesh, region%output_grid, region%ice%v_surf, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( region%output_grid, filename, ncid, 'v_surf', d_grid_vec_partial_2D)
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%v_surf, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'v_surf', d_grid_vec_partial_2D)
       CASE ('u_surf_b')
         ! NOTE: mapping from mesh triangles to square grid is not (yet) available!
       CASE ('v_surf_b')
         ! NOTE: mapping from mesh triangles to square grid is not (yet) available!
       CASE ('w_surf')
-        CALL map_from_mesh_to_xy_grid_2D( region%mesh, region%output_grid, region%ice%w_surf, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( region%output_grid, filename, ncid, 'w_surf', d_grid_vec_partial_2D)
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%w_surf, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'w_surf', d_grid_vec_partial_2D)
       CASE ('uabs_surf')
-        CALL map_from_mesh_to_xy_grid_2D( region%mesh, region%output_grid, region%ice%uabs_surf, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( region%output_grid, filename, ncid, 'uabs_surf', d_grid_vec_partial_2D)
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%uabs_surf, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'uabs_surf', d_grid_vec_partial_2D)
       CASE ('uabs_surf_b')
         ! NOTE: mapping from mesh triangles to square grid is not (yet) available!
 
       ! Base
       CASE ('u_base')
-        CALL map_from_mesh_to_xy_grid_2D( region%mesh, region%output_grid, region%ice%u_base, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( region%output_grid, filename, ncid, 'u_base', d_grid_vec_partial_2D)
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%u_base, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'u_base', d_grid_vec_partial_2D)
       CASE ('v_base')
-        CALL map_from_mesh_to_xy_grid_2D( region%mesh, region%output_grid, region%ice%v_base, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( region%output_grid, filename, ncid, 'v_base', d_grid_vec_partial_2D)
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%v_base, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'v_base', d_grid_vec_partial_2D)
       CASE ('u_base_b')
         ! NOTE: mapping from mesh triangles to square grid is not (yet) available!
       CASE ('v_base_b')
         ! NOTE: mapping from mesh triangles to square grid is not (yet) available!
       CASE ('w_base')
-        CALL map_from_mesh_to_xy_grid_2D( region%mesh, region%output_grid, region%ice%w_base, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( region%output_grid, filename, ncid, 'w_base', d_grid_vec_partial_2D)
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%w_base, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'w_base', d_grid_vec_partial_2D)
       CASE ('uabs_base')
-        CALL map_from_mesh_to_xy_grid_2D( region%mesh, region%output_grid, region%ice%uabs_base, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( region%output_grid, filename, ncid, 'uabs_base', d_grid_vec_partial_2D)
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%uabs_base, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'uabs_base', d_grid_vec_partial_2D)
       CASE ('uabs_base_b')
         ! NOTE: mapping from mesh triangles to square grid is not (yet) available!
 
@@ -886,88 +989,88 @@ CONTAINS
     ! ====================
 
       CASE ('du_dx_3D')
-        CALL map_from_mesh_to_xy_grid_3D( region%mesh, region%output_grid, region%ice%du_dx_3D, d_grid_vec_partial_3D)
-        CALL write_to_field_multopt_grid_dp_3D( region%output_grid, filename, ncid, 'du_dx_3D', d_grid_vec_partial_3D)
+        CALL map_from_mesh_to_xy_grid_3D( region%mesh, grid, region%ice%du_dx_3D, d_grid_vec_partial_3D)
+        CALL write_to_field_multopt_grid_dp_3D( grid, filename, ncid, 'du_dx_3D', d_grid_vec_partial_3D)
       CASE ('du_dy_3D')
-        CALL map_from_mesh_to_xy_grid_3D( region%mesh, region%output_grid, region%ice%du_dy_3D, d_grid_vec_partial_3D)
-        CALL write_to_field_multopt_grid_dp_3D( region%output_grid, filename, ncid, 'du_dy_3D', d_grid_vec_partial_3D)
+        CALL map_from_mesh_to_xy_grid_3D( region%mesh, grid, region%ice%du_dy_3D, d_grid_vec_partial_3D)
+        CALL write_to_field_multopt_grid_dp_3D( grid, filename, ncid, 'du_dy_3D', d_grid_vec_partial_3D)
       CASE ('du_dz_3D')
-        CALL map_from_mesh_to_xy_grid_3D( region%mesh, region%output_grid, region%ice%du_dz_3D, d_grid_vec_partial_3D)
-        CALL write_to_field_multopt_grid_dp_3D( region%output_grid, filename, ncid, 'du_dz_3D', d_grid_vec_partial_3D)
+        CALL map_from_mesh_to_xy_grid_3D( region%mesh, grid, region%ice%du_dz_3D, d_grid_vec_partial_3D)
+        CALL write_to_field_multopt_grid_dp_3D( grid, filename, ncid, 'du_dz_3D', d_grid_vec_partial_3D)
       CASE ('dv_dx_3D')
-        CALL map_from_mesh_to_xy_grid_3D( region%mesh, region%output_grid, region%ice%dv_dx_3D, d_grid_vec_partial_3D)
-        CALL write_to_field_multopt_grid_dp_3D( region%output_grid, filename, ncid, 'dv_dx_3D', d_grid_vec_partial_3D)
+        CALL map_from_mesh_to_xy_grid_3D( region%mesh, grid, region%ice%dv_dx_3D, d_grid_vec_partial_3D)
+        CALL write_to_field_multopt_grid_dp_3D( grid, filename, ncid, 'dv_dx_3D', d_grid_vec_partial_3D)
       CASE ('dv_dy_3D')
-        CALL map_from_mesh_to_xy_grid_3D( region%mesh, region%output_grid, region%ice%dv_dy_3D, d_grid_vec_partial_3D)
-        CALL write_to_field_multopt_grid_dp_3D( region%output_grid, filename, ncid, 'dv_dy_3D', d_grid_vec_partial_3D)
+        CALL map_from_mesh_to_xy_grid_3D( region%mesh, grid, region%ice%dv_dy_3D, d_grid_vec_partial_3D)
+        CALL write_to_field_multopt_grid_dp_3D( grid, filename, ncid, 'dv_dy_3D', d_grid_vec_partial_3D)
       CASE ('dv_dz_3D')
-        CALL map_from_mesh_to_xy_grid_3D( region%mesh, region%output_grid, region%ice%dv_dz_3D, d_grid_vec_partial_3D)
-        CALL write_to_field_multopt_grid_dp_3D( region%output_grid, filename, ncid, 'dv_dz_3D', d_grid_vec_partial_3D)
+        CALL map_from_mesh_to_xy_grid_3D( region%mesh, grid, region%ice%dv_dz_3D, d_grid_vec_partial_3D)
+        CALL write_to_field_multopt_grid_dp_3D( grid, filename, ncid, 'dv_dz_3D', d_grid_vec_partial_3D)
       CASE ('dw_dx_3D')
-        CALL map_from_mesh_to_xy_grid_3D( region%mesh, region%output_grid, region%ice%dw_dx_3D, d_grid_vec_partial_3D)
-        CALL write_to_field_multopt_grid_dp_3D( region%output_grid, filename, ncid, 'dw_dx_3D', d_grid_vec_partial_3D)
+        CALL map_from_mesh_to_xy_grid_3D( region%mesh, grid, region%ice%dw_dx_3D, d_grid_vec_partial_3D)
+        CALL write_to_field_multopt_grid_dp_3D( grid, filename, ncid, 'dw_dx_3D', d_grid_vec_partial_3D)
       CASE ('dw_dy_3D')
-        CALL map_from_mesh_to_xy_grid_3D( region%mesh, region%output_grid, region%ice%dw_dy_3D, d_grid_vec_partial_3D)
-        CALL write_to_field_multopt_grid_dp_3D( region%output_grid, filename, ncid, 'dw_dy_3D', d_grid_vec_partial_3D)
+        CALL map_from_mesh_to_xy_grid_3D( region%mesh, grid, region%ice%dw_dy_3D, d_grid_vec_partial_3D)
+        CALL write_to_field_multopt_grid_dp_3D( grid, filename, ncid, 'dw_dy_3D', d_grid_vec_partial_3D)
       CASE ('dw_dz_3D')
-        CALL map_from_mesh_to_xy_grid_3D( region%mesh, region%output_grid, region%ice%dw_dz_3D, d_grid_vec_partial_3D)
-        CALL write_to_field_multopt_grid_dp_3D( region%output_grid, filename, ncid, 'dw_dz_3D', d_grid_vec_partial_3D)
+        CALL map_from_mesh_to_xy_grid_3D( region%mesh, grid, region%ice%dw_dz_3D, d_grid_vec_partial_3D)
+        CALL write_to_field_multopt_grid_dp_3D( grid, filename, ncid, 'dw_dz_3D', d_grid_vec_partial_3D)
 
     ! == Basal hydrology ==
     ! =====================
 
       CASE ('pore_water_pressure')
-        CALL map_from_mesh_to_xy_grid_2D( region%mesh, region%output_grid, region%ice%pore_water_pressure, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( region%output_grid, filename, ncid, 'pore_water_pressure', d_grid_vec_partial_2D)
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%pore_water_pressure, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'pore_water_pressure', d_grid_vec_partial_2D)
       CASE ('overburden_pressure')
-        CALL map_from_mesh_to_xy_grid_2D( region%mesh, region%output_grid, region%ice%overburden_pressure, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( region%output_grid, filename, ncid, 'overburden_pressure', d_grid_vec_partial_2D)
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%overburden_pressure, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'overburden_pressure', d_grid_vec_partial_2D)
       CASE ('effective_pressure')
-        CALL map_from_mesh_to_xy_grid_2D( region%mesh, region%output_grid, region%ice%effective_pressure, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( region%output_grid, filename, ncid, 'effective_pressure', d_grid_vec_partial_2D)
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%effective_pressure, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'effective_pressure', d_grid_vec_partial_2D)
 
     ! == Basal sliding ==
     ! ===================
 
       ! Sliding law coefficients
       CASE ('till_friction_angle')
-        CALL map_from_mesh_to_xy_grid_2D( region%mesh, region%output_grid, region%ice%till_friction_angle, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( region%output_grid, filename, ncid, 'till_friction_angle', d_grid_vec_partial_2D)
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%till_friction_angle, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'till_friction_angle', d_grid_vec_partial_2D)
       CASE ('till_yield_stress')
-        CALL map_from_mesh_to_xy_grid_2D( region%mesh, region%output_grid, region%ice%till_yield_stress, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( region%output_grid, filename, ncid, 'till_yield_stress', d_grid_vec_partial_2D)
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%till_yield_stress, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'till_yield_stress', d_grid_vec_partial_2D)
       CASE ('slid_alpha_sq')
-        CALL map_from_mesh_to_xy_grid_2D( region%mesh, region%output_grid, region%ice%slid_alpha_sq, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( region%output_grid, filename, ncid, 'slid_alpha_sq', d_grid_vec_partial_2D)
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%slid_alpha_sq, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'slid_alpha_sq', d_grid_vec_partial_2D)
       CASE ('slid_beta_sq')
-        CALL map_from_mesh_to_xy_grid_2D( region%mesh, region%output_grid, region%ice%slid_beta_sq, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( region%output_grid, filename, ncid, 'slid_beta_sq', d_grid_vec_partial_2D)
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%slid_beta_sq, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'slid_beta_sq', d_grid_vec_partial_2D)
 
       ! Basal friction and shear stress
       CASE ('basal_friction_coefficient')
-        CALL map_from_mesh_to_xy_grid_2D( region%mesh, region%output_grid, region%ice%basal_friction_coefficient, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( region%output_grid, filename, ncid, 'basal_friction_coefficient', d_grid_vec_partial_2D)
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%basal_friction_coefficient, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'basal_friction_coefficient', d_grid_vec_partial_2D)
       CASE ('basal_shear_stress')
-        CALL map_from_mesh_to_xy_grid_2D( region%mesh, region%output_grid, region%ice%basal_shear_stress, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( region%output_grid, filename, ncid, 'basal_shear_stress', d_grid_vec_partial_2D)
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%basal_shear_stress, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'basal_shear_stress', d_grid_vec_partial_2D)
 
     ! == Geothermal heat ==
     ! =====================
 
       CASE ('geothermal_heat_flux')
-        CALL map_from_mesh_to_xy_grid_2D( region%mesh, region%output_grid, region%ice%geothermal_heat_flux, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( region%output_grid, filename, ncid, 'geothermal_heat_flux', d_grid_vec_partial_2D)
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%geothermal_heat_flux, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'geothermal_heat_flux', d_grid_vec_partial_2D)
 
     ! == Climate ==
     ! =============
 
       ! Main climate variables
       CASE ('T2m')
-        CALL map_from_mesh_to_xy_grid_3D( region%mesh, region%output_grid, region%climate%T2m, d_grid_vec_partial_2D_monthly)
-        CALL write_to_field_multopt_grid_dp_2D_monthly( region%output_grid, filename, ncid, 'T2m', d_grid_vec_partial_2D_monthly)
+        CALL map_from_mesh_to_xy_grid_3D( region%mesh, grid, region%climate%T2m, d_grid_vec_partial_2D_monthly)
+        CALL write_to_field_multopt_grid_dp_2D_monthly( grid, filename, ncid, 'T2m', d_grid_vec_partial_2D_monthly)
       CASE ('Precip')
-        CALL map_from_mesh_to_xy_grid_3D( region%mesh, region%output_grid, region%climate%Precip, d_grid_vec_partial_2D_monthly)
-        CALL write_to_field_multopt_grid_dp_2D_monthly( region%output_grid, filename, ncid, 'Precip', d_grid_vec_partial_2D_monthly)
+        CALL map_from_mesh_to_xy_grid_3D( region%mesh, grid, region%climate%Precip, d_grid_vec_partial_2D_monthly)
+        CALL write_to_field_multopt_grid_dp_2D_monthly( grid, filename, ncid, 'Precip', d_grid_vec_partial_2D_monthly)
 
     ! == Ocean ==
     ! ==========================
@@ -983,16 +1086,16 @@ CONTAINS
 
       ! Main SMB variables
       CASE ('SMB')
-        CALL map_from_mesh_to_xy_grid_2D( region%mesh, region%output_grid, region%SMB%SMB, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( region%output_grid, filename, ncid, 'SMB', d_grid_vec_partial_2D)
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%SMB%SMB, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'SMB', d_grid_vec_partial_2D)
 
     ! == Basal mass balance ==
     ! ========================
 
       ! Main BMB variables
       CASE ('BMB')
-        CALL map_from_mesh_to_xy_grid_2D( region%mesh, region%output_grid, region%BMB%BMB, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( region%output_grid, filename, ncid, 'BMB', d_grid_vec_partial_2D)
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%BMB, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'BMB', d_grid_vec_partial_2D)
 
     ! ===== End of user-defined output fields =====
     ! =============================================
@@ -1230,6 +1333,112 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE create_main_regional_output_file_grid
+
+  SUBROUTINE create_main_regional_output_file_grid_ROI( region, grid, filename)
+    ! Create the main regional output NetCDF file - grid version
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_model_region)                            , INTENT(IN)    :: region
+    TYPE(type_grid)                                    , INTENT(IN)    :: grid
+    CHARACTER(LEN=256)                                 , INTENT(IN)    :: filename
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'create_main_regional_output_file_grid_ROI'
+    INTEGER                                                            :: ncid
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! If no NetCDF output should be created, do nothing
+    IF (.NOT. C%do_create_netcdf_output) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
+
+    ! Print to terminal
+    IF (par%master) WRITE(0,'(A)') '  Creating ROI output file "' // colour_string( TRIM( filename), 'light blue') // '"...'
+
+    ! Create the NetCDF file
+    CALL create_new_netcdf_file_for_writing( filename, ncid)
+
+    ! Set up the grid in the file
+    CALL setup_xy_grid_in_netcdf_file( filename, ncid, grid)
+
+    ! Add time, zeta, and month dimensions+variables to the file
+    CALL add_time_dimension_to_file(  filename, ncid)
+    CALL add_zeta_dimension_to_file(  filename, ncid, region%mesh%zeta)
+    CALL add_month_dimension_to_file( filename, ncid)
+
+    ! Add the default data fields to the file
+    CALL create_main_regional_output_file_grid_field( filename, ncid, 'Hi')
+    CALL create_main_regional_output_file_grid_field( filename, ncid, 'Hb')
+    CALL create_main_regional_output_file_grid_field( filename, ncid, 'Hs')
+    CALL create_main_regional_output_file_grid_field( filename, ncid, 'SL')
+    CALL create_main_regional_output_file_grid_field( filename, ncid, 'u_surf')
+    CALL create_main_regional_output_file_grid_field( filename, ncid, 'v_surf')
+    CALL create_main_regional_output_file_grid_field( filename, ncid, 'uabs_surf')
+
+    ! Add all user-defined data fields to the file
+    CALL create_main_regional_output_file_grid_field( filename, ncid, C%choice_output_field_01)
+    CALL create_main_regional_output_file_grid_field( filename, ncid, C%choice_output_field_02)
+    CALL create_main_regional_output_file_grid_field( filename, ncid, C%choice_output_field_03)
+    CALL create_main_regional_output_file_grid_field( filename, ncid, C%choice_output_field_04)
+    CALL create_main_regional_output_file_grid_field( filename, ncid, C%choice_output_field_05)
+    CALL create_main_regional_output_file_grid_field( filename, ncid, C%choice_output_field_06)
+    CALL create_main_regional_output_file_grid_field( filename, ncid, C%choice_output_field_07)
+    CALL create_main_regional_output_file_grid_field( filename, ncid, C%choice_output_field_08)
+    CALL create_main_regional_output_file_grid_field( filename, ncid, C%choice_output_field_09)
+    CALL create_main_regional_output_file_grid_field( filename, ncid, C%choice_output_field_10)
+    CALL create_main_regional_output_file_grid_field( filename, ncid, C%choice_output_field_11)
+    CALL create_main_regional_output_file_grid_field( filename, ncid, C%choice_output_field_12)
+    CALL create_main_regional_output_file_grid_field( filename, ncid, C%choice_output_field_13)
+    CALL create_main_regional_output_file_grid_field( filename, ncid, C%choice_output_field_14)
+    CALL create_main_regional_output_file_grid_field( filename, ncid, C%choice_output_field_15)
+    CALL create_main_regional_output_file_grid_field( filename, ncid, C%choice_output_field_16)
+    CALL create_main_regional_output_file_grid_field( filename, ncid, C%choice_output_field_17)
+    CALL create_main_regional_output_file_grid_field( filename, ncid, C%choice_output_field_18)
+    CALL create_main_regional_output_file_grid_field( filename, ncid, C%choice_output_field_19)
+    CALL create_main_regional_output_file_grid_field( filename, ncid, C%choice_output_field_20)
+    CALL create_main_regional_output_file_grid_field( filename, ncid, C%choice_output_field_21)
+    CALL create_main_regional_output_file_grid_field( filename, ncid, C%choice_output_field_22)
+    CALL create_main_regional_output_file_grid_field( filename, ncid, C%choice_output_field_23)
+    CALL create_main_regional_output_file_grid_field( filename, ncid, C%choice_output_field_24)
+    CALL create_main_regional_output_file_grid_field( filename, ncid, C%choice_output_field_25)
+    CALL create_main_regional_output_file_grid_field( filename, ncid, C%choice_output_field_26)
+    CALL create_main_regional_output_file_grid_field( filename, ncid, C%choice_output_field_27)
+    CALL create_main_regional_output_file_grid_field( filename, ncid, C%choice_output_field_28)
+    CALL create_main_regional_output_file_grid_field( filename, ncid, C%choice_output_field_29)
+    CALL create_main_regional_output_file_grid_field( filename, ncid, C%choice_output_field_30)
+    CALL create_main_regional_output_file_grid_field( filename, ncid, C%choice_output_field_31)
+    CALL create_main_regional_output_file_grid_field( filename, ncid, C%choice_output_field_32)
+    CALL create_main_regional_output_file_grid_field( filename, ncid, C%choice_output_field_33)
+    CALL create_main_regional_output_file_grid_field( filename, ncid, C%choice_output_field_34)
+    CALL create_main_regional_output_file_grid_field( filename, ncid, C%choice_output_field_35)
+    CALL create_main_regional_output_file_grid_field( filename, ncid, C%choice_output_field_36)
+    CALL create_main_regional_output_file_grid_field( filename, ncid, C%choice_output_field_37)
+    CALL create_main_regional_output_file_grid_field( filename, ncid, C%choice_output_field_38)
+    CALL create_main_regional_output_file_grid_field( filename, ncid, C%choice_output_field_39)
+    CALL create_main_regional_output_file_grid_field( filename, ncid, C%choice_output_field_40)
+    CALL create_main_regional_output_file_grid_field( filename, ncid, C%choice_output_field_41)
+    CALL create_main_regional_output_file_grid_field( filename, ncid, C%choice_output_field_42)
+    CALL create_main_regional_output_file_grid_field( filename, ncid, C%choice_output_field_43)
+    CALL create_main_regional_output_file_grid_field( filename, ncid, C%choice_output_field_44)
+    CALL create_main_regional_output_file_grid_field( filename, ncid, C%choice_output_field_45)
+    CALL create_main_regional_output_file_grid_field( filename, ncid, C%choice_output_field_46)
+    CALL create_main_regional_output_file_grid_field( filename, ncid, C%choice_output_field_47)
+    CALL create_main_regional_output_file_grid_field( filename, ncid, C%choice_output_field_48)
+    CALL create_main_regional_output_file_grid_field( filename, ncid, C%choice_output_field_49)
+    CALL create_main_regional_output_file_grid_field( filename, ncid, C%choice_output_field_50)
+
+    ! Close the file
+    CALL close_netcdf_file( ncid)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE create_main_regional_output_file_grid_ROI
 
   SUBROUTINE create_main_regional_output_file_mesh_field( filename, ncid, choice_output_field)
     ! Create the main regional output NetCDF file - mesh version
