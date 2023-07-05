@@ -52,7 +52,7 @@ CONTAINS
     ! Vertices lying on the domain border or corners are best treated separately
     IF (mesh%VBI( vi) == 0) THEN
       ! Free vertex
-      CALL calc_Voronoi_cell_free(   mesh, vi, dx, Vor, Vor_vi, Vor_ti, nVor)
+      CALL calc_Voronoi_cell_free(   mesh, vi, Vor, Vor_vi, Vor_ti, nVor)
     ELSE
       ! Border vertex
       CALL calc_Voronoi_cell_border( mesh, vi, dx, Vor, Vor_vi, Vor_ti, nVor)
@@ -60,7 +60,7 @@ CONTAINS
 
   END SUBROUTINE calc_Voronoi_cell
 
-  SUBROUTINE calc_Voronoi_cell_free( mesh, vi, dx, Vor, Vor_vi, Vor_ti, nVor)
+  SUBROUTINE calc_Voronoi_cell_free( mesh, vi, Vor, Vor_vi, Vor_ti, nVor)
     ! Find the points spanning the Voronoi cell of vertex vi of the mesh%
     ! Sorted counted-clockwise, with no double entries.
     !
@@ -74,16 +74,13 @@ CONTAINS
     ! In/output variables:
     TYPE(type_mesh),                     INTENT(IN)    :: mesh
     INTEGER,                             INTENT(IN)    :: vi
-    REAL(dp),                            INTENT(IN)    :: dx
     REAL(dp), DIMENSION(mesh%nC_mem,2),  INTENT(OUT)   :: Vor
     INTEGER,  DIMENSION(mesh%nC_mem  ),  INTENT(OUT)   :: Vor_vi
     INTEGER,  DIMENSION(mesh%nC_mem  ),  INTENT(OUT)   :: Vor_ti
     INTEGER,                             INTENT(OUT)   :: nVor
 
     ! Local variables:
-    INTEGER                                            :: iti,ti,vj,n1,n2,vori,vori_prev,vori_next,vk
-    REAL(dp), DIMENSION(2)                             :: cc,cc_prev,cc_next,cc_prev0,cc_next0,cc1,cc2
-    LOGICAL                                            :: is_valid_line
+    INTEGER                                            :: iti,ti,vj,n1,n2
 
     ! Initialise
     Vor    = 0._dp
@@ -111,55 +108,17 @@ CONTAINS
       ! Safety
       IF (vj == 0) CALL crash('calc_Voronoi_cell_free - couldnt find vertex vj in triangle ti!')
 
+      ! Safety
+      IF (mesh%Tricc( ti,1) < mesh%xmin .OR. mesh%Tricc( ti,1) > mesh%xmax .OR. &
+          mesh%Tricc( ti,2) < mesh%ymin .OR. mesh%Tricc( ti,2) > mesh%ymax) THEN
+        CALL crash('calc_Voronoi_cell_free - found triangle circumcentre outside the mesh domain!')
+      END IF
+
       ! List the new Voronoi cell-spanning point
       nVor = nVor + 1
       Vor(     nVor,:) = mesh%Tricc( ti,:)
       Vor_vi(  nVor  ) = vj
       Vor_ti(  nVor  ) = ti
-
-    END DO
-
-    ! Correct any circumcentres that lie outside of the mesh domain
-    vori = 1
-    DO WHILE (vori < nVor)
-
-      vori_prev = vori - 1
-      IF (vori_prev == 0   ) vori_prev = nVor
-      vori_next = vori + 1
-      IF (vori_next >  nVor) vori_next = 1
-
-      cc      = Vor( vori     ,:)
-      cc_prev = Vor( vori_prev,:)
-      cc_next = Vor( vori_next,:)
-
-      IF (cc( 1) < mesh%xmin .OR. cc( 1) > mesh%xmax .OR. cc( 2) < mesh%ymin .OR. cc( 2) > mesh%ymax) THEN
-        ! This triangle circumcentre is outside of the mesh domain
-
-        ! Find the two points on the domain border that should actually be part
-        ! of the Voronoi cell boundary
-        CALL crop_line_to_domain( cc_prev, cc, mesh%xmin - dx, mesh%xmax + dx, mesh%ymin - dx, mesh%ymax + dx, mesh%tol_dist, cc_prev0, cc1, is_valid_line)
-        CALL crop_line_to_domain( cc_next, cc, mesh%xmin - dx, mesh%xmax + dx, mesh%ymin - dx, mesh%ymax + dx, mesh%tol_dist, cc_next0, cc2, is_valid_line)
-
-        ! The previous and next vertex, and the edge connecting them
-        vj  = Vor_vi(  vori_prev)
-        vk  = Vor_vi(  vori)
-
-        ! Split the invalid Voronoi cell boundary point
-        nVor = nVor + 1
-        Vor(     1:nVor,1) = [Vor(     1:vori-1,1), cc1( 1), cc2( 1), Vor(     vori+1:nVor-1,1)]
-        Vor(     1:nVor,2) = [Vor(     1:vori-1,2), cc1( 2), cc2( 2), Vor(     vori+1:nVor-1,2)]
-        Vor_vi(  1:nVor  ) = [Vor_vi(  1:vori-1  ), 0      , vk     , Vor_vi(  vori+1:nVor-1  )]
-        Vor_ti(  1:nVor  ) = [Vor_ti(  1:vori-1  ), 0      , 0      , Vor_ti(  vori+1:nVor-1  )]
-
-        ! Move to the next to-be-checked point
-        vori = vori + 2
-
-      ELSE
-        ! This triangle circumcentre is inside the mesh domain; move the next one
-
-        vori = vori + 1
-
-      END IF
 
     END DO
 
@@ -187,8 +146,6 @@ CONTAINS
 
     ! Local variables:
     INTEGER                                            :: ci,vj,ti,iti,tj,n,n2
-    REAL(dp), DIMENSION(2)                             :: p,q,pp,qq
-    LOGICAL                                            :: is_valid_line
 
     ! Initialise
     Vor    = 0._dp
@@ -223,6 +180,12 @@ CONTAINS
       ! Safety
       IF (ti == 0) CALL crash('couldnt find triangle right of the line vi-vj!')
 
+      ! Safety
+      IF (mesh%Tricc( ti,1) < mesh%xmin .OR. mesh%Tricc( ti,1) > mesh%xmax .OR. &
+          mesh%Tricc( ti,2) < mesh%ymin .OR. mesh%Tricc( ti,2) > mesh%ymax) THEN
+        CALL crash('calc_Voronoi_cell_free - found triangle circumcentre outside the mesh domain!')
+      END IF
+
       ! List the circumcentre of this triangle
       nVor = nVor + 1
       Vor(     nVor,:) = mesh%Tricc( ti,:)
@@ -231,84 +194,49 @@ CONTAINS
 
     END DO ! DO ci = 2, mesh%nC( vi)
 
-    ! Fix the first point
+  ! == Add the projection of the first Voronoi vertex on the domain boundary as an additional point
 
-    IF (Vor( 1,1) < mesh%xmin - dx .OR. Vor( 1,1) > mesh%xmax + dx .OR. &
-        Vor( 1,2) < mesh%ymin - dx .OR. Vor( 1,2) > mesh%ymax + dx) THEN
-      ! The first circumcentre lies outside the mesh domain; crop it
+    nVor = nVor + 1
+    Vor(     2:nVor,:) = Vor(     1:nVor-1,:)
+    Vor_vi(  2:nVor  ) = Vor_vi(  1:nVor-1  )
+    Vor_ti(  2:nVor  ) = Vor_ti(  1:nVor-1  )
 
-      p = Vor( 1,:)
-      q = Vor( 2,:)
+    Vor_vi( 1) = mesh%C(    vi,1)
+    Vor_ti( 1) = mesh%iTri( vi,1)
 
-      CALL crop_line_to_domain( p, q, mesh%xmin - dx, mesh%xmax + dx, mesh%ymin - dx, mesh%ymax + dx, mesh%tol_dist, pp, qq, is_valid_line)
-
-      Vor(    1,:) = pp
-      Vor_ti( 1  ) = 0
-
-    ELSE
-      ! The first circumcentre lies inside the mesh domain; add its projection
-      ! on the domain boundary as an additional point
-
-      nVor = nVor + 1
-      Vor(     2:nVor,:) = Vor(     1:nVor-1,:)
-      Vor_vi(  2:nVor  ) = Vor_vi(  1:nVor-1  )
-      Vor_ti(  2:nVor  ) = Vor_ti(  1:nVor-1  )
-
-      Vor_vi( 1) = mesh%C(    vi,1)
-      Vor_ti( 1) = mesh%iTri( vi,1)
-
-      IF     (mesh%VBI( vi) == 1 .OR. mesh%VBI( vi) == 2) THEN
-        ! vi is on the northern border, or on the northeast corner; its first neighbour lies on the northern border
-        Vor(    1,:) = [Vor( 2,1), mesh%ymax + dx]
-      ELSEIF (mesh%VBI( vi) == 3 .OR. mesh%VBI( vi) == 4) THEN
-        ! vi is on the eastern border, or on the southeast corner; its first neighbour lies on the eastern border
-        Vor(    1,:) = [mesh%xmax + dx, Vor( 2,2)]
-      ELSEIF (mesh%VBI( vi) == 5 .OR. mesh%VBI( vi) == 6) THEN
-        ! vi is on the southern border, or on the southwest corner; its first neighbour lies on the southern border
-        Vor(    1,:) = [Vor( 2,1), mesh%ymin - dx]
-      ELSEIF (mesh%VBI( vi) == 7 .OR. mesh%VBI( vi) == 8) THEN
-        ! vi is on the western border, or on the northwest corner; its first neighbour lies on the western border
-        Vor(    1,:) = [mesh%xmin - dx, Vor( 2,2)]
-      END IF
-
+    IF     (mesh%VBI( vi) == 1 .OR. mesh%VBI( vi) == 2) THEN
+      ! vi is on the northern border, or on the northeast corner; its first neighbour lies on the northern border
+      Vor(    1,:) = [Vor( 2,1), mesh%ymax + dx]
+    ELSEIF (mesh%VBI( vi) == 3 .OR. mesh%VBI( vi) == 4) THEN
+      ! vi is on the eastern border, or on the southeast corner; its first neighbour lies on the eastern border
+      Vor(    1,:) = [mesh%xmax + dx, Vor( 2,2)]
+    ELSEIF (mesh%VBI( vi) == 5 .OR. mesh%VBI( vi) == 6) THEN
+      ! vi is on the southern border, or on the southwest corner; its first neighbour lies on the southern border
+      Vor(    1,:) = [Vor( 2,1), mesh%ymin - dx]
+    ELSEIF (mesh%VBI( vi) == 7 .OR. mesh%VBI( vi) == 8) THEN
+      ! vi is on the western border, or on the northwest corner; its first neighbour lies on the western border
+      Vor(    1,:) = [mesh%xmin - dx, Vor( 2,2)]
     END IF
 
-    ! Fix the last point
+  ! == Add the projection of the last Voronoi vertex on the domain boundary as an additional point
 
-    IF (Vor( nVor,1) < mesh%xmin - dx .OR. Vor( nVor,1) > mesh%xmax + dx .OR. &
-        Vor( nVor,2) < mesh%ymin - dx .OR. Vor( nVor,2) > mesh%ymax + dx) THEN
-      ! The last circumcentre lies outside the mesh domain; crop it
+    nVor = nVor + 1
 
-      p = Vor( nVor-1,:)
-      q = Vor( nVor  ,:)
+    Vor_vi( nVor) = mesh%C(    vi, mesh%nC( vi))
+    Vor_ti( nVor) = mesh%iTri( vi, mesh%nC( vi))
 
-      CALL crop_line_to_domain( p, q, mesh%xmin - dx, mesh%xmax + dx, mesh%ymin - dx, mesh%ymax + dx, mesh%tol_dist, pp, qq, is_valid_line)
-
-      Vor( nVor,:) = qq
-
-    ELSE
-      ! The last circumcentre lies inside the mes domain; add its projection
-      ! on the domain boundary as an additional point
-
-      nVor = nVor + 1
-
-      Vor_vi( nVor) = mesh%C(    vi, mesh%nC( vi))
-      Vor_ti( nVor) = mesh%iTri( vi, mesh%nC( vi))
-
-      IF     (mesh%VBI( vi) == 2 .OR. mesh%VBI( vi) == 3) THEN
-        ! vi is on the eastern border, or on the northeast corner; its last neighbour lies on the eastern border
-        Vor(    nVor,:) = [mesh%xmax + dx, Vor( nVor-1,2)]
-      ELSEIF (mesh%VBI( vi) == 4 .OR. mesh%VBI( vi) == 5) THEN
-        ! vi is on the southern border, or on the southeast corner; its last neighbour lies on the southern border
-        Vor(    nVor,:) = [Vor( nVor-1,1), mesh%ymin - dx]
-      ELSEIF (mesh%VBI( vi) == 6 .OR. mesh%VBI( vi) == 7) THEN
-        ! vi is on the western border, or on the southwest corner; its last neighbour lies on the western border
-        Vor(    nVor,:) = [mesh%xmin - dx, Vor( nVor-1,2)]
-      ELSEIF (mesh%VBI( vi) == 8 .OR. mesh%VBI( vi) == 1) THEN
-        ! vi is on the northern border, or on the northwest corner; its last neighbour lies on the northern border
-        Vor(    nVor,:) = [Vor( nVor-1,1), mesh%ymax + dx]
-      END IF
-
+    IF     (mesh%VBI( vi) == 2 .OR. mesh%VBI( vi) == 3) THEN
+      ! vi is on the eastern border, or on the northeast corner; its last neighbour lies on the eastern border
+      Vor(    nVor,:) = [mesh%xmax + dx, Vor( nVor-1,2)]
+    ELSEIF (mesh%VBI( vi) == 4 .OR. mesh%VBI( vi) == 5) THEN
+      ! vi is on the southern border, or on the southeast corner; its last neighbour lies on the southern border
+      Vor(    nVor,:) = [Vor( nVor-1,1), mesh%ymin - dx]
+    ELSEIF (mesh%VBI( vi) == 6 .OR. mesh%VBI( vi) == 7) THEN
+      ! vi is on the western border, or on the southwest corner; its last neighbour lies on the western border
+      Vor(    nVor,:) = [mesh%xmin - dx, Vor( nVor-1,2)]
+    ELSEIF (mesh%VBI( vi) == 8 .OR. mesh%VBI( vi) == 1) THEN
+      ! vi is on the northern border, or on the northwest corner; its last neighbour lies on the northern border
+      Vor(    nVor,:) = [Vor( nVor-1,1), mesh%ymax + dx]
     END IF
 
     ! In the case of the four corners, add the corners themselves as well

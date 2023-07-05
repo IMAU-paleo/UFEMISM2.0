@@ -55,6 +55,7 @@ CONTAINS
 
     ! Initialise the refinement stack with all triangles
     mesh%refinement_stackN = 0
+    mesh%refinement_map    = 0
     DO ti = 1, mesh%nTri
       CALL add_triangle_to_refinement_stack_last( mesh, ti)
     END DO
@@ -139,6 +140,8 @@ CONTAINS
     END IF
 
     ! Initialise the refinement stack with the triangle containing the point
+    mesh%refinement_stackN = 0
+    mesh%refinement_map    = 0
     ti_in = 1
     CALL find_containing_triangle( mesh, POI, ti_in)
     CALL add_triangle_to_refinement_stack_last( mesh, ti_in)
@@ -362,6 +365,7 @@ CONTAINS
     ! Update the (now reduced) overlap range for the new triangles.
 
     mesh%refinement_stackN = 0
+    mesh%refinement_map    = 0
 
     ! Mark which triangles need to be refined right now
     DO ti = 1, mesh%nTri
@@ -533,6 +537,7 @@ CONTAINS
 
     ! Initialise the refinement stack with all triangles lying (partly) inside the polygon
     mesh%refinement_stackN = 0
+    mesh%refinement_map    = 0
     has_any_overlap = .FALSE.
     DO ti = 1, mesh%nTri
 
@@ -635,6 +640,8 @@ CONTAINS
     ! As a last step in any mesh refinement, make sure no triangles exist anymore
     ! that encroach on the domain border (i.e. have their circumcenter lying
     ! outside the domain)
+    !
+    ! Only check triangles on the domain border
 
     IMPLICIT NONE
 
@@ -657,6 +664,7 @@ CONTAINS
 
     ! Initialise the refinement stack with all border triangles
     mesh%refinement_stackN = 0
+    mesh%refinement_map    = 0
     DO ti = 1, mesh%nTri
 
       ! Count the number of vertices in this triangle on the domain border
@@ -715,6 +723,16 @@ CONTAINS
 
     END DO ! DO WHILE (refinement_stackN > 0)
 
+    ! Safety - check if there are no more encroaching triangles left
+      meets_encroachment_criterion = .TRUE.
+    DO ti = 1, mesh%nTri
+      IF (mesh%Tricc( ti,1) < mesh%xmin .OR. mesh%Tricc( ti,1) > mesh%xmax .OR. &
+          mesh%Tricc( ti,2) < mesh%ymin .OR. mesh%Tricc( ti,2) > mesh%ymax) THEN
+        meets_encroachment_criterion = .FALSE.
+      END IF
+    END DO
+    IF (.NOT. meets_encroachment_criterion) CALL crash('did not remove all encroaching triangles!')
+
     ! Crop surplus mesh memory
     CALL crop_mesh_primary( mesh)
 
@@ -722,6 +740,97 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE refine_mesh_split_encroaching_triangles
+
+  SUBROUTINE refine_mesh_split_encroaching_triangles_all( mesh, alpha_min)
+    ! As a last step in any mesh refinement, make sure no triangles exist anymore
+    ! that encroach on the domain border (i.e. have their circumcenter lying
+    ! outside the domain)
+    !
+    ! Check all triangles
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),            INTENT(INOUT)     :: mesh          ! The mesh that should be refined
+    REAL(dp),                   INTENT(IN)        :: alpha_min     ! Minimum allowed internal triangle angle
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'refine_mesh_split_encroaching_triangles'
+    INTEGER                                       :: ti
+    INTEGER                                       :: via, vib, vic
+    REAL(dp), DIMENSION(2)                        :: va, vb, vc
+    REAL(dp)                                      :: smallest_angle
+    LOGICAL                                       :: meets_geometry_criterion
+    LOGICAL                                       :: meets_encroachment_criterion
+    REAL(dp), DIMENSION(2)                        :: p_new
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Initialise the refinement stack with all border triangles
+    mesh%refinement_stackN = 0
+    mesh%refinement_map    = 0
+    DO ti = 1, mesh%nTri
+      CALL add_triangle_to_refinement_stack_last( mesh, ti)
+    END DO ! DO ti = 1, mesh%nTri
+
+    ! Keep refining until all triangles match the criterion
+    DO WHILE (mesh%refinement_stackN > 0)
+
+      ! If needed, allocate more memory for the mesh
+      IF (mesh%nV > mesh%nV_mem - 10 .OR. mesh%nTri > mesh%nTri_mem - 10) THEN
+        CALL extend_mesh_primary( mesh, mesh%nV + 1000, mesh%nTri + 2000)
+      END IF
+
+      ! Take the first triangle in the stack
+      ti = mesh%refinement_stack( 1)
+      CALL remove_triangle_from_refinement_stack( mesh, ti)
+
+      ! The three vertices spanning this triangle
+      via = mesh%Tri( ti,1)
+      vib = mesh%Tri( ti,2)
+      vic = mesh%Tri( ti,3)
+      va  = mesh%V( via,:)
+      vb  = mesh%V( vib,:)
+      vc  = mesh%V( vic,:)
+
+      ! Check if it meets the geometry criterion
+      smallest_angle = smallest_triangle_angle( va, vb, vc)
+      meets_geometry_criterion = smallest_angle >= alpha_min
+
+      ! Check if it meets the encroachment criterion
+      meets_encroachment_criterion = .TRUE.
+      IF (mesh%Tricc( ti,1) < mesh%xmin .OR. mesh%Tricc( ti,1) > mesh%xmax .OR. &
+          mesh%Tricc( ti,2) < mesh%ymin .OR. mesh%Tricc( ti,2) > mesh%ymax) THEN
+        meets_encroachment_criterion = .FALSE.
+      END IF
+
+      ! If either of the two criteria is not met, split the triangle
+      IF (.NOT. meets_geometry_criterion .OR. .NOT. meets_encroachment_criterion) THEN
+        ! Split triangle ti at its circumcenter
+        p_new = circumcenter( va, vb, vc)
+        CALL split_triangle( mesh, ti, p_new)
+      END IF
+
+    END DO ! DO WHILE (refinement_stackN > 0)
+
+    ! Safety - check if there are no more encroaching triangles left
+      meets_encroachment_criterion = .TRUE.
+    DO ti = 1, mesh%nTri
+      IF (mesh%Tricc( ti,1) < mesh%xmin .OR. mesh%Tricc( ti,1) > mesh%xmax .OR. &
+          mesh%Tricc( ti,2) < mesh%ymin .OR. mesh%Tricc( ti,2) > mesh%ymax) THEN
+        meets_encroachment_criterion = .FALSE.
+      END IF
+    END DO
+    IF (.NOT. meets_encroachment_criterion) CALL crash('did not remove all encroaching triangles!')
+
+    ! Crop surplus mesh memory
+    CALL crop_mesh_primary( mesh)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE refine_mesh_split_encroaching_triangles_all
 
 ! == Regions of interest
 
@@ -905,6 +1014,7 @@ CONTAINS
     ! Update the (now reduced) overlap range for the new triangles.
 
     mesh%refinement_stackN = 0
+    mesh%refinement_map    = 0
 
     ! Mark which triangles need to be refined right now
     DO ti = 1, mesh%nTri
@@ -1074,6 +1184,7 @@ CONTAINS
 
     ! Initialise the refinement stack with all triangles lying (partly) inside the polygon
     mesh%refinement_stackN = 0
+    mesh%refinement_map    = 0
     has_any_overlap = .FALSE.
     DO ti = 1, mesh%nTri
 
@@ -1226,7 +1337,7 @@ CONTAINS
     END DO
 
     ! Final step to ensure a nice clean mesh
-    CALL refine_mesh_split_encroaching_triangles( mesh, alpha_min)
+    CALL refine_mesh_split_encroaching_triangles_all( mesh, alpha_min)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
