@@ -33,7 +33,7 @@ MODULE unit_tests_mesh
                                                                      calc_grid_mask_as_polygons
   USE grid_lonlat_basic                                      , ONLY: type_grid_lonlat, setup_simple_lonlat_grid, distribute_lonlat_gridded_data_from_master_dp_2D
   USE mesh_remapping                                         , ONLY: map_from_xy_grid_to_mesh_2D, map_from_mesh_to_xy_grid_2D, map_from_lonlat_grid_to_mesh_2D, &
-                                                                     map_from_mesh_to_mesh_2D
+                                                                     map_from_mesh_to_mesh_2D, clear_all_maps_involving_this_mesh
   USE ice_model_types                                        , ONLY: type_ice_model
   USE ice_model_memory                                       , ONLY: allocate_ice_model
   USE ice_model_utilities                                    , ONLY: calc_zeta_gradients
@@ -1506,6 +1506,9 @@ CONTAINS
     ! Close the file
     CALL close_netcdf_file( ncid)
 
+    ! Clean up after yourself
+    CALL clear_all_maps_involving_this_mesh( mesh)
+
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
@@ -1616,6 +1619,9 @@ CONTAINS
 
     ! Close the file
     CALL close_netcdf_file( ncid)
+
+    ! Clean up after yourself
+    CALL clear_all_maps_involving_this_mesh( mesh)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -1735,6 +1741,9 @@ CONTAINS
 
     ! Close the file
     CALL close_netcdf_file( ncid)
+
+    ! Clean up after yourself
+    CALL clear_all_maps_involving_this_mesh( mesh)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -1951,6 +1960,10 @@ CONTAINS
     DEALLOCATE( d21_nn)
     DEALLOCATE( d21_trilin)
     DEALLOCATE( d21_cons)
+
+    ! Clean up after yourself
+    CALL clear_all_maps_involving_this_mesh( mesh1)
+    CALL clear_all_maps_involving_this_mesh( mesh2)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

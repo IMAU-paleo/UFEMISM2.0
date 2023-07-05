@@ -34,6 +34,7 @@ MODULE unit_tests_ice
   USE math_utilities                                         , ONLY: ice_surface_elevation
   USE analytical_solutions                                   , ONLY: Halfar_dome
   USE UFEMISM_main_model                                     , ONLY: initialise_model_region, run_model_region
+  USE mesh_remapping                                         , ONLY: clear_all_maps_involving_this_mesh
 
   IMPLICIT NONE
 
@@ -290,6 +291,8 @@ CONTAINS
     DEALLOCATE( u_3D_b_BPA)
     DEALLOCATE( v_3D_b_BPA)
     DEALLOCATE( w_3D_BPA)
+
+    CALL clear_all_maps_involving_this_mesh( mesh)
 
     ! Add routine to path
     CALL finalise_routine( routine_name)
@@ -934,6 +937,8 @@ CONTAINS
     DEALLOCATE( v_3D_b_BPA)
     DEALLOCATE( w_3D_BPA)
 
+    CALL clear_all_maps_involving_this_mesh( mesh)
+
     ! Add routine to path
     CALL finalise_routine( routine_name)
 
@@ -1219,6 +1224,8 @@ CONTAINS
     DEALLOCATE( u_3D_b_BPA)
     DEALLOCATE( v_3D_b_BPA)
     DEALLOCATE( w_3D_BPA)
+
+    CALL clear_all_maps_involving_this_mesh( mesh)
 
     ! Add routine to path
     CALL finalise_routine( routine_name)
@@ -1685,6 +1692,9 @@ CONTAINS
 
     ! Close the file
     CALL close_netcdf_file( ncid)
+
+    ! Clean up after yourself
+    CALL clear_all_maps_involving_this_mesh( region%mesh)
 
     ! Finalise routine
     CALL finalise_routine( routine_name)
@@ -2162,6 +2172,9 @@ CONTAINS
     ! Close the file
     CALL close_netcdf_file( ncid)
 
+    ! Clean up after yourself
+    CALL clear_all_maps_involving_this_mesh( region%mesh)
+
     ! Add routine to path
     CALL finalise_routine( routine_name)
 
@@ -2287,6 +2300,9 @@ CONTAINS
     ! Close the file
     CALL close_netcdf_file( ncid)
 
+    ! Clean up after yourself
+    CALL clear_all_maps_involving_this_mesh( region%mesh)
+
     ! Add routine to path
     CALL finalise_routine( routine_name)
 
@@ -2411,6 +2427,9 @@ CONTAINS
 
     ! Close the file
     CALL close_netcdf_file( ncid)
+
+    ! Clean up after yourself
+    CALL clear_all_maps_involving_this_mesh( region%mesh)
 
     ! Add routine to path
     CALL finalise_routine( routine_name)

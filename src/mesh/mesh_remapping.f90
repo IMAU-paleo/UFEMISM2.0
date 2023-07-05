@@ -764,6 +764,41 @@ CONTAINS
 
   END SUBROUTINE smooth_Gaussian_3D
 
+  ! Clean up the Atlas after a mesh update
+  SUBROUTINE clear_all_maps_involving_this_mesh( mesh)
+    ! Clear all mapping objects involving a mesh by this name from the Atlas
+
+    IMPLICIT NONE
+
+    ! In/output variables
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'map_from_xy_grid_to_mesh_2D'
+    INTEGER                                            :: mi, perr
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    DO mi = 1, SIZE( Atlas,1)
+      IF (Atlas( mi)%is_in_use .AND. &
+        (Atlas( mi)%name_src == mesh%name .OR. &
+         Atlas( mi)%name_dst == mesh%name .OR. &
+         Atlas( mi)%name_src == (TRIM( mesh%name) // '_triangles') .OR. &
+         Atlas( mi)%name_dst == (TRIM( mesh%name) // '_triangles'))) THEN
+        ! This map involves the current mesh
+        Atlas( mi)%is_in_use = .FALSE.
+        Atlas( mi)%name_src  = ''
+        Atlas( mi)%name_dst  = ''
+        CALL MatDestroy( Atlas( mi)%M, perr)
+      END IF
+    END DO
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE clear_all_maps_involving_this_mesh
+
 ! == Apply existing mapping objects to remap data between grids
 ! =============================================================
 

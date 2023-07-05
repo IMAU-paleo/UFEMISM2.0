@@ -21,6 +21,7 @@ MODULE unit_tests_netcdf
                                                                      mesh_add_UFEMISM_letters
   USE mesh_secondary                                         , ONLY: calc_all_secondary_mesh_data
   USE mesh_operators                                         , ONLY: calc_all_matrix_operators_mesh
+  USE mesh_remapping                                         , ONLY: clear_all_maps_involving_this_mesh
   USE netcdf_basic                                           , ONLY: create_new_netcdf_file_for_writing, open_existing_netcdf_file_for_reading, close_netcdf_file
   USE netcdf_output                                          , ONLY: setup_xy_grid_in_netcdf_file, add_field_grid_dp_2D_notime, add_month_dimension_to_file, &
                                                                      write_to_field_multopt_grid_dp_2D_notime, add_field_grid_dp_2D_monthly_notime, &
@@ -87,6 +88,7 @@ CONTAINS
     CALL test_flexible_input_2D(         mesh2, filename_grid_2D        , filename_lonlat_grid_2D        , filename_mesh_2D        )
     CALL test_flexible_input_2D_monthly( mesh2, filename_grid_2D_monthly, filename_lonlat_grid_2D_monthly, filename_mesh_2D_monthly)
     CALL test_flexible_input_3D(         mesh2, filename_grid_3D        , filename_lonlat_grid_3D        , filename_mesh_3D        )
+    CALL clear_all_maps_involving_this_mesh( mesh2)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
