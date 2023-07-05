@@ -21,7 +21,7 @@ MODULE reference_geometries
   USE analytical_solutions                                   , ONLY: Halfar_dome, Bueler_dome
   USE netcdf_basic                                           , ONLY: inquire_xy_grid, inquire_lonlat_grid, inquire_mesh, open_existing_netcdf_file_for_reading, &
                                                                      inquire_var_multopt, close_netcdf_file
-  USE netcdf_input                                           , ONLY: read_field_from_xy_file_2D, read_field_from_mesh_file_2D
+  USE netcdf_input                                           , ONLY: setup_xy_grid_from_file, read_field_from_xy_file_2D, setup_mesh_from_file, read_field_from_mesh_file_2D
   USE mesh_remapping                                         , ONLY: map_from_xy_grid_to_mesh_2D, map_from_mesh_to_mesh_2D
 
   IMPLICIT NONE
@@ -499,10 +499,10 @@ CONTAINS
     CALL setup_square_grid( name, xmin, xmax, ymin, ymax, dx_refgeo_idealised, refgeo%grid_raw)
 
     ! Allocate memory for partial grid data
-    ALLOCATE( refgeo%Hi_grid_raw( refgeo%grid_raw%n_loc), source = 0._dp)
-    ALLOCATE( refgeo%Hb_grid_raw( refgeo%grid_raw%n_loc), source = 0._dp)
-    ALLOCATE( refgeo%Hs_grid_raw( refgeo%grid_raw%n_loc), source = 0._dp)
-    ALLOCATE( refgeo%SL_grid_raw( refgeo%grid_raw%n_loc), source = 0._dp)
+    ALLOCATE( refgeo%Hi_grid_raw( refgeo%grid_raw%n1: refgeo%grid_raw%n2), source = 0._dp)
+    ALLOCATE( refgeo%Hb_grid_raw( refgeo%grid_raw%n1: refgeo%grid_raw%n2), source = 0._dp)
+    ALLOCATE( refgeo%Hs_grid_raw( refgeo%grid_raw%n1: refgeo%grid_raw%n2), source = 0._dp)
+    ALLOCATE( refgeo%SL_grid_raw( refgeo%grid_raw%n1: refgeo%grid_raw%n2), source = 0._dp)
 
     ! Allocate memory for the full grid data on the master
     IF (par%master) THEN
@@ -579,10 +579,10 @@ CONTAINS
     ! Read the grid'mesh and data from the file
     IF (has_xy_grid) THEN
       ! Read reference ice sheet geometry data from an xy-gridded file
-      CALL initialise_reference_geometry_raw_from_file_grid( refgeo, filename_refgeo, timeframe_refgeo)
+      CALL initialise_reference_geometry_raw_from_file_grid( region_name, refgeo, filename_refgeo, timeframe_refgeo)
     ELSEIF (has_mesh) THEN
       ! Read reference ice sheet geometry data from a meshed file
-      CALL initialise_reference_geometry_raw_from_file_mesh( refgeo, filename_refgeo, timeframe_refgeo)
+      CALL initialise_reference_geometry_raw_from_file_mesh(              refgeo, filename_refgeo, timeframe_refgeo)
     ELSE
       CALL crash('can only read reference geometry from gridded or meshed data files!')
     END IF
@@ -592,7 +592,7 @@ CONTAINS
 
   END SUBROUTINE initialise_reference_geometry_raw_from_file
 
-  SUBROUTINE initialise_reference_geometry_raw_from_file_grid( refgeo, filename_refgeo, timeframe_refgeo)
+  SUBROUTINE initialise_reference_geometry_raw_from_file_grid( region_name, refgeo, filename_refgeo, timeframe_refgeo)
     ! Initialise a reference geometry on the raw grid/mesh for the given set of config choices!
     !
     ! For the case of a (probably) realistic geometry provided through a gridded NetCDF file
@@ -600,6 +600,7 @@ CONTAINS
     IMPLICIT NONE
 
     ! In/output variables:
+    CHARACTER(LEN=3)                                   , INTENT(IN)    :: region_name
     TYPE(type_reference_geometry)                      , INTENT(OUT)   :: refgeo
     CHARACTER(LEN=256)                                 , INTENT(IN)    :: filename_refgeo
     REAL(dp)                                           , INTENT(IN)    :: timeframe_refgeo
@@ -608,9 +609,21 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'initialise_reference_geometry_raw_from_file_grid'
     INTEGER                                                            :: ncid, id_var
     LOGICAL                                                            :: has_SL
+    INTEGER                                                            :: n
 
     ! Add routine to path
     CALL init_routine( routine_name)
+
+    ! Set up the grid from the file
+    CALL open_existing_netcdf_file_for_reading( filename_refgeo, ncid)
+    CALL setup_xy_grid_from_file( filename_refgeo, ncid, refgeo%grid_raw)
+    CALL close_netcdf_file( ncid)
+
+    ! Allocate memory for the raw gridded data
+    ALLOCATE( refgeo%Hi_grid_raw( refgeo%grid_raw%n1:refgeo%grid_raw%n2))
+    ALLOCATE( refgeo%Hb_grid_raw( refgeo%grid_raw%n1:refgeo%grid_raw%n2))
+    ALLOCATE( refgeo%Hs_grid_raw( refgeo%grid_raw%n1:refgeo%grid_raw%n2))
+    ALLOCATE( refgeo%SL_grid_raw( refgeo%grid_raw%n1:refgeo%grid_raw%n2))
 
     ! Check if a sea level variable exists in the file
     CALL open_existing_netcdf_file_for_reading( filename_refgeo, ncid)
@@ -621,7 +634,7 @@ CONTAINS
     IF (timeframe_refgeo /= 1E9_dp) THEN
       ! We need to read a specific time frame
 
-      CALL read_field_from_xy_file_2D( filename_refgeo, 'default_options_Hi', refgeo%Hi_grid_raw, time_to_read = timeframe_refgeo, grid = refgeo%grid_raw)
+      CALL read_field_from_xy_file_2D( filename_refgeo, 'default_options_Hi', refgeo%Hi_grid_raw, time_to_read = timeframe_refgeo)
       CALL read_field_from_xy_file_2D( filename_refgeo, 'default_options_Hb', refgeo%Hb_grid_raw, time_to_read = timeframe_refgeo)
       CALL read_field_from_xy_file_2D( filename_refgeo, 'default_options_Hs', refgeo%Hs_grid_raw, time_to_read = timeframe_refgeo)
 
@@ -629,13 +642,13 @@ CONTAINS
       IF (has_SL) THEN
         CALL read_field_from_xy_file_2D( filename_refgeo, 'default_options_SL', refgeo%SL_grid_raw, time_to_read = timeframe_refgeo)
       ELSE
-        ALLOCATE( refgeo%SL_grid_raw( refgeo%grid_raw%n_loc), source = 0._dp)
+        refgeo%SL_grid_raw = 0._dp
       END IF
 
     ELSE !  IF (timeframe_refgeo /= 1E9_dp) THEN
       ! We need to read data from a time-less NetCDF file
 
-      CALL read_field_from_xy_file_2D( filename_refgeo, 'default_options_Hi', refgeo%Hi_grid_raw, grid = refgeo%grid_raw)
+      CALL read_field_from_xy_file_2D( filename_refgeo, 'default_options_Hi', refgeo%Hi_grid_raw)
       CALL read_field_from_xy_file_2D( filename_refgeo, 'default_options_Hb', refgeo%Hb_grid_raw)
       CALL read_field_from_xy_file_2D( filename_refgeo, 'default_options_Hs', refgeo%Hs_grid_raw)
 
@@ -643,10 +656,30 @@ CONTAINS
       IF (has_SL) THEN
         CALL read_field_from_xy_file_2D( filename_refgeo, 'default_options_SL', refgeo%SL_grid_raw)
       ELSE
-        ALLOCATE( refgeo%SL_grid_raw( refgeo%grid_raw%n_loc), source = 0._dp)
+        refgeo%SL_grid_raw = 0._dp
       END IF
 
     END IF !  IF (timeframe_refgeo /= 1E9_dp) THEN
+
+  ! == Input data clean-up
+  ! ======================
+
+    ! If so specified, remove Lake Vostok from Antarctic geometry
+    IF (region_name == 'ANT' .AND. C%remove_Lake_Vostok) THEN
+      CALL remove_Lake_Vostok( refgeo)
+    END IF
+
+    ! Remove extremely thin ice (especially a problem in BedMachine Greenland)
+    DO n = refgeo%grid_raw%n1, refgeo%grid_raw%n2
+      IF (refgeo%Hi_grid_raw( n) < C%refgeo_Hi_min) THEN
+        refgeo%Hi_grid_raw( n) = 0._dp
+      END IF
+    END DO
+
+    ! Assume ice thickness is now correct everywhere; recalculate surface elevation from that
+    DO n = refgeo%grid_raw%n1, refgeo%grid_raw%n2
+      refgeo%Hs_grid_raw( n) = ice_surface_elevation( refgeo%Hi_grid_raw( n), refgeo%Hb_grid_raw( n), refgeo%SL_grid_raw( n))
+    END DO
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -673,6 +706,17 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    ! Set up the mesh from the file
+    CALL open_existing_netcdf_file_for_reading( filename_refgeo, ncid)
+    CALL setup_mesh_from_file( filename_refgeo, ncid, refgeo%mesh_raw)
+    CALL close_netcdf_file( ncid)
+
+    ! Allocate memory for the raw meshed data
+    ALLOCATE( refgeo%Hi_mesh_raw( refgeo%mesh_raw%vi1:refgeo%mesh_raw%vi2))
+    ALLOCATE( refgeo%Hb_mesh_raw( refgeo%mesh_raw%vi1:refgeo%mesh_raw%vi2))
+    ALLOCATE( refgeo%Hs_mesh_raw( refgeo%mesh_raw%vi1:refgeo%mesh_raw%vi2))
+    ALLOCATE( refgeo%SL_mesh_raw( refgeo%mesh_raw%vi1:refgeo%mesh_raw%vi2))
+
     ! Check if a sea level variable exists in the file
     CALL open_existing_netcdf_file_for_reading( filename_refgeo, ncid)
     CALL inquire_var_multopt( filename_refgeo, ncid, 'default_options_SL', id_var)
@@ -682,7 +726,7 @@ CONTAINS
     IF (timeframe_refgeo /= 1E9_dp) THEN
       ! We need to read a specific time frame
 
-      CALL read_field_from_mesh_file_2D( filename_refgeo, 'default_options_Hi', refgeo%Hi_mesh_raw, time_to_read = timeframe_refgeo, mesh = refgeo%mesh_raw)
+      CALL read_field_from_mesh_file_2D( filename_refgeo, 'default_options_Hi', refgeo%Hi_mesh_raw, time_to_read = timeframe_refgeo)
       CALL read_field_from_mesh_file_2D( filename_refgeo, 'default_options_Hb', refgeo%Hb_mesh_raw, time_to_read = timeframe_refgeo)
       CALL read_field_from_mesh_file_2D( filename_refgeo, 'default_options_Hs', refgeo%Hs_mesh_raw, time_to_read = timeframe_refgeo)
 
@@ -690,13 +734,13 @@ CONTAINS
       IF (has_SL) THEN
         CALL read_field_from_mesh_file_2D( filename_refgeo, 'default_options_SL', refgeo%SL_mesh_raw, time_to_read = timeframe_refgeo)
       ELSE
-        ALLOCATE( refgeo%SL_mesh_raw( refgeo%mesh_raw%nV_loc), source = 0._dp)
+        refgeo%SL_mesh_raw = 0._dp
       END IF
 
     ELSE !  IF (timeframe_refgeo /= 1E9_dp) THEN
       ! We need to read data from a time-less NetCDF file
 
-      CALL read_field_from_mesh_file_2D( filename_refgeo, 'default_options_Hi', refgeo%Hi_mesh_raw, mesh = refgeo%mesh_raw)
+      CALL read_field_from_mesh_file_2D( filename_refgeo, 'default_options_Hi', refgeo%Hi_mesh_raw)
       CALL read_field_from_mesh_file_2D( filename_refgeo, 'default_options_Hb', refgeo%Hb_mesh_raw)
       CALL read_field_from_mesh_file_2D( filename_refgeo, 'default_options_Hs', refgeo%Hs_mesh_raw)
 
@@ -704,7 +748,7 @@ CONTAINS
       IF (has_SL) THEN
         CALL read_field_from_mesh_file_2D( filename_refgeo, 'default_options_SL', refgeo%SL_mesh_raw)
       ELSE
-        ALLOCATE( refgeo%SL_mesh_raw( refgeo%mesh_raw%nV_loc), source = 0._dp)
+        refgeo%SL_mesh_raw = 0._dp
       END IF
 
     END IF !  IF (timeframe_refgeo /= 1E9_dp) THEN
@@ -1268,5 +1312,59 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE calc_idealised_geometry_MISMIPplus
+
+  ! Utilities
+  ! =========
+
+  SUBROUTINE remove_Lake_Vostok( refgeo)
+    ! Remove Lake Vostok from Antarctic input geometry data
+    ! by manually increasing ice thickness so that Hi = Hs - Hb
+    !
+    ! NOTE: since UFEMISM doesn't consider subglacial lakes, Vostok simply shows
+    !       up as a "dip" in the initial geometry. The model will run fine, the dip
+    !       fills up in a few centuries, but it slows down the model for a while and
+    !       it looks ugly, so we just remove it right away.
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_reference_geometry)    , INTENT(INOUT)   :: refgeo
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'remove_Lake_Vostok'
+    REAL(dp), PARAMETER                                :: lake_Vostok_xmin = 1164250.0
+    REAL(dp), PARAMETER                                :: lake_Vostok_xmax = 1514250.0
+    REAL(dp), PARAMETER                                :: lake_Vostok_ymin = -470750.0
+    REAL(dp), PARAMETER                                :: lake_Vostok_ymax = -220750.0
+    INTEGER                                            :: il,iu,jl,ju
+    INTEGER                                            :: n,i,j
+
+    il = 1
+    DO WHILE (refgeo%grid_raw%x( il) < lake_Vostok_xmin)
+      il = il+1
+    END DO
+    iu = refgeo%grid_raw%nx
+    DO WHILE (refgeo%grid_raw%x( iu) > lake_Vostok_xmax)
+      iu = iu-1
+    END DO
+    jl = 1
+    DO WHILE (refgeo%grid_raw%y( jl) < lake_Vostok_ymin)
+      jl = jl+1
+    END DO
+    ju = refgeo%grid_raw%ny
+    DO WHILE (refgeo%grid_raw%y( ju) > lake_Vostok_ymax)
+      ju = ju-1
+    END DO
+
+    DO n = refgeo%grid_raw%n1, refgeo%grid_raw%n2
+      i = refgeo%grid_raw%n2ij( n,1)
+      j = refgeo%grid_raw%n2ij( n,2)
+      IF (i >= il .AND. i <= iu .AND. j >= jl .AND. j <= ju) THEN
+        ! If we assume there's no subglacial water, then the entire column between bed and surface should be ice
+        refgeo%Hi_grid_raw( n) = refgeo%Hs_grid_raw( n) - refgeo%Hb_grid_raw( n)
+      END IF
+    END DO
+
+  END SUBROUTINE remove_Lake_Vostok
 
 END MODULE reference_geometries

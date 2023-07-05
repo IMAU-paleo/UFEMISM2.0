@@ -84,6 +84,7 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'read_field_from_file_2D'
     LOGICAL                                                :: file_exists
     LOGICAL                                                :: has_xy_grid, has_lonlat_grid, has_mesh
+    INTEGER                                                :: ncid
     TYPE(type_grid)                                        :: grid_from_file
     TYPE(type_grid_lonlat)                                 :: grid_lonlat_from_file
     TYPE(type_mesh)                                        :: mesh_from_file
@@ -115,8 +116,16 @@ CONTAINS
     IF (has_xy_grid) THEN
       ! Data is provided on an x/y-grid
 
-      ! Read grid and gridded data
-      CALL read_field_from_xy_file_2D( filename, field_name_options, d_grid_vec_partial_from_file, grid = grid_from_file, time_to_read = time_to_read)
+      ! Set up the grid from the file
+      CALL open_existing_netcdf_file_for_reading( filename, ncid)
+      CALL setup_xy_grid_from_file( filename, ncid, grid_from_file)
+      CALL close_netcdf_file( ncid)
+
+      ! Allocate memory for gridded data
+      ALLOCATE( d_grid_vec_partial_from_file( grid_from_file%n1: grid_from_file%n2))
+
+      ! Read gridded data
+      CALL read_field_from_xy_file_2D( filename, field_name_options, d_grid_vec_partial_from_file, time_to_read = time_to_read)
 
       ! Remap data
       CALL map_from_xy_grid_to_mesh_2D( grid_from_file, mesh, d_grid_vec_partial_from_file, d_partial)
@@ -128,8 +137,16 @@ CONTAINS
     ELSEIF (has_lonlat_grid) THEN
       ! Data is provided on a lon/lat-grid
 
-      ! Read grid and gridded data
-      CALL read_field_from_lonlat_file_2D( filename, field_name_options, d_grid_lonlat_vec_partial_from_file, grid = grid_lonlat_from_file, time_to_read = time_to_read)
+      ! Set up the grid from the file
+      CALL open_existing_netcdf_file_for_reading( filename, ncid)
+      CALL setup_lonlat_grid_from_file( filename, ncid, grid_lonlat_from_file)
+      CALL close_netcdf_file( ncid)
+
+      ! Allocate memory for gridded data
+      ALLOCATE( d_grid_lonlat_vec_partial_from_file( grid_lonlat_from_file%n1: grid_lonlat_from_file%n2))
+
+      ! Read gridded data
+      CALL read_field_from_lonlat_file_2D( filename, field_name_options, d_grid_lonlat_vec_partial_from_file, time_to_read = time_to_read)
 
       ! Remap data
       CALL map_from_lonlat_grid_to_mesh_2D( grid_lonlat_from_file, mesh, d_grid_lonlat_vec_partial_from_file, d_partial)
@@ -141,8 +158,16 @@ CONTAINS
     ELSEIF (has_mesh) THEN
       ! Data is provided on a mesh
 
-      ! Read grid and gridded data
-      CALL read_field_from_mesh_file_2D( filename, field_name_options, d_mesh_partial_from_file, mesh = mesh_from_file, time_to_read = time_to_read)
+      ! Set up the mesh from the file
+      CALL open_existing_netcdf_file_for_reading( filename, ncid)
+      CALL setup_mesh_from_file( filename, ncid, mesh_from_file)
+      CALL close_netcdf_file( ncid)
+
+      ! Allocate memory for gridded data
+      ALLOCATE( d_mesh_partial_from_file( mesh_from_file%vi1: mesh_from_file%vi2))
+
+      ! Read meshed data
+      CALL read_field_from_mesh_file_2D( filename, field_name_options, d_mesh_partial_from_file, time_to_read = time_to_read)
 
       ! Remap data
       CALL map_from_mesh_to_mesh_2D( mesh_from_file, mesh, d_mesh_partial_from_file, d_partial, method = method_mesh2mesh)
@@ -181,6 +206,7 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'read_field_from_file_2D_monthly'
     LOGICAL                                                :: file_exists
     LOGICAL                                                :: has_xy_grid, has_lonlat_grid, has_mesh
+    INTEGER                                                :: ncid
     TYPE(type_grid)                                        :: grid_from_file
     TYPE(type_grid_lonlat)                                 :: grid_lonlat_from_file
     TYPE(type_mesh)                                        :: mesh_from_file
@@ -212,8 +238,16 @@ CONTAINS
     IF (has_xy_grid) THEN
       ! Data is provided on an x/y-grid
 
-      ! Read grid and gridded data
-      CALL read_field_from_xy_file_2D_monthly( filename, field_name_options, d_grid_vec_partial_from_file, grid = grid_from_file, time_to_read = time_to_read)
+      ! Set up the grid from the file
+      CALL open_existing_netcdf_file_for_reading( filename, ncid)
+      CALL setup_xy_grid_from_file( filename, ncid, grid_from_file)
+      CALL close_netcdf_file( ncid)
+
+      ! Allocate memory for gridded data
+      ALLOCATE( d_grid_vec_partial_from_file( grid_from_file%n1: grid_from_file%n2,12))
+
+      ! Read gridded data
+      CALL read_field_from_xy_file_2D_monthly( filename, field_name_options, d_grid_vec_partial_from_file, time_to_read = time_to_read)
 
       ! Remap data
       CALL map_from_xy_grid_to_mesh_3D( grid_from_file, mesh, d_grid_vec_partial_from_file, d_partial)
@@ -225,8 +259,16 @@ CONTAINS
     ELSEIF (has_lonlat_grid) THEN
       ! Data is provided on a lon/lat-grid
 
-      ! Read grid and gridded data
-      CALL read_field_from_lonlat_file_2D_monthly( filename, field_name_options, d_grid_lonlat_vec_partial_from_file, grid = grid_lonlat_from_file, time_to_read = time_to_read)
+      ! Set up the grid from the file
+      CALL open_existing_netcdf_file_for_reading( filename, ncid)
+      CALL setup_lonlat_grid_from_file( filename, ncid, grid_lonlat_from_file)
+      CALL close_netcdf_file( ncid)
+
+      ! Allocate memory for gridded data
+      ALLOCATE( d_grid_lonlat_vec_partial_from_file( grid_lonlat_from_file%n1: grid_lonlat_from_file%n2,12))
+
+      ! Read gridded data
+      CALL read_field_from_lonlat_file_2D_monthly( filename, field_name_options, d_grid_lonlat_vec_partial_from_file, time_to_read = time_to_read)
 
       ! Remap data
       CALL map_from_lonlat_grid_to_mesh_3D( grid_lonlat_from_file, mesh, d_grid_lonlat_vec_partial_from_file, d_partial)
@@ -238,8 +280,16 @@ CONTAINS
     ELSEIF (has_mesh) THEN
       ! Data is provided on a mesh
 
-      ! Read grid and gridded data
-      CALL read_field_from_mesh_file_2D_monthly( filename, field_name_options, d_mesh_partial_from_file, mesh = mesh_from_file, time_to_read = time_to_read)
+      ! Set up the mesh from the file
+      CALL open_existing_netcdf_file_for_reading( filename, ncid)
+      CALL setup_mesh_from_file( filename, ncid, mesh_from_file)
+      CALL close_netcdf_file( ncid)
+
+      ! Allocate memory for gridded data
+      ALLOCATE( d_mesh_partial_from_file( mesh_from_file%vi1: mesh_from_file%vi2,12))
+
+      ! Read meshed data
+      CALL read_field_from_mesh_file_2D_monthly( filename, field_name_options, d_mesh_partial_from_file, time_to_read = time_to_read)
 
       ! Remap data
       CALL map_from_mesh_to_mesh_3D( mesh_from_file, mesh, d_mesh_partial_from_file, d_partial, method = method_mesh2mesh)
@@ -257,7 +307,7 @@ CONTAINS
 
   END SUBROUTINE read_field_from_file_2D_monthly
 
-  SUBROUTINE read_field_from_file_3D( filename, field_name_options, mesh, d_partial, time_to_read, nzeta, zeta)
+  SUBROUTINE read_field_from_file_3D(         filename, field_name_options, mesh, d_partial, time_to_read, nzeta, zeta)
     ! Read a data field from a NetCDF file, and map it to the model mesh.
     !
     ! Ultimate flexibility; the file can provide the data on a global lon/lat-grid,
@@ -282,6 +332,7 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'read_field_from_file_3D'
     LOGICAL                                                :: file_exists
     LOGICAL                                                :: has_xy_grid, has_lonlat_grid, has_mesh
+    INTEGER                                                :: ncid
     TYPE(type_grid)                                        :: grid_from_file
     TYPE(type_grid_lonlat)                                 :: grid_lonlat_from_file
     TYPE(type_mesh)                                        :: mesh_from_file
@@ -315,9 +366,17 @@ CONTAINS
     IF (has_xy_grid) THEN
       ! Data is provided on an x/y-grid
 
-      ! Read grid and gridded data
-      CALL read_field_from_xy_file_3D( filename, field_name_options, d_grid_vec_partial_from_file, grid = grid_from_file, &
-        time_to_read = time_to_read, nzeta = nzeta_loc, zeta = zeta_loc)
+      ! Set up the grid from the file
+      CALL open_existing_netcdf_file_for_reading( filename, ncid)
+      CALL setup_xy_grid_from_file( filename, ncid, grid_from_file)
+      CALL setup_zeta_from_file( filename, ncid, nzeta_loc, zeta_loc)
+      CALL close_netcdf_file( ncid)
+
+      ! Allocate memory for gridded data
+      ALLOCATE( d_grid_vec_partial_from_file( grid_from_file%n1: grid_from_file%n2, nzeta_loc))
+
+      ! Read gridded data
+      CALL read_field_from_xy_file_3D( filename, field_name_options, d_grid_vec_partial_from_file, time_to_read = time_to_read)
 
       ! Remap data
       CALL map_from_xy_grid_to_mesh_3D( grid_from_file, mesh, d_grid_vec_partial_from_file, d_partial)
@@ -329,9 +388,17 @@ CONTAINS
     ELSEIF (has_lonlat_grid) THEN
       ! Data is provided on a lon/lat-grid
 
-      ! Read grid and gridded data
-      CALL read_field_from_lonlat_file_3D( filename, field_name_options, d_grid_lonlat_vec_partial_from_file, grid = grid_lonlat_from_file, &
-        time_to_read = time_to_read, nzeta = nzeta_loc, zeta = zeta_loc)
+      ! Set up the grid from the file
+      CALL open_existing_netcdf_file_for_reading( filename, ncid)
+      CALL setup_lonlat_grid_from_file( filename, ncid, grid_lonlat_from_file)
+      CALL setup_zeta_from_file( filename, ncid, nzeta_loc, zeta_loc)
+      CALL close_netcdf_file( ncid)
+
+      ! Allocate memory for gridded data
+      ALLOCATE( d_grid_lonlat_vec_partial_from_file( grid_lonlat_from_file%n1: grid_lonlat_from_file%n2, nzeta_loc))
+
+      ! Read gridded data
+      CALL read_field_from_lonlat_file_3D( filename, field_name_options, d_grid_lonlat_vec_partial_from_file, time_to_read = time_to_read)
 
       ! Remap data
       CALL map_from_lonlat_grid_to_mesh_3D( grid_lonlat_from_file, mesh, d_grid_lonlat_vec_partial_from_file, d_partial)
@@ -343,9 +410,17 @@ CONTAINS
     ELSEIF (has_mesh) THEN
       ! Data is provided on a mesh
 
-      ! Read grid and gridded data
-      CALL read_field_from_mesh_file_3D( filename, field_name_options, d_mesh_partial_from_file, mesh = mesh_from_file, &
-        time_to_read = time_to_read, nzeta = nzeta_loc, zeta = zeta_loc)
+      ! Set up the mesh from the file
+      CALL open_existing_netcdf_file_for_reading( filename, ncid)
+      CALL setup_mesh_from_file( filename, ncid, mesh_from_file)
+      CALL setup_zeta_from_file( filename, ncid, nzeta_loc, zeta_loc)
+      CALL close_netcdf_file( ncid)
+
+      ! Allocate memory for meshed data
+      ALLOCATE( d_mesh_partial_from_file( mesh_from_file%vi1: mesh_from_file%vi2, nzeta_loc))
+
+      ! Read meshed data
+      CALL read_field_from_mesh_file_3D( filename, field_name_options, d_mesh_partial_from_file, time_to_read = time_to_read)
 
       ! Remap data
       CALL map_from_mesh_to_mesh_3D( mesh_from_file, mesh, d_mesh_partial_from_file, d_partial, method = method_mesh2mesh)
@@ -376,16 +451,17 @@ CONTAINS
   ! ==================================
 
   ! Read data fields from an x/y-grid file
-  SUBROUTINE read_field_from_xy_file_2D(             filename, field_name_options, d_grid_vec_partial, grid, time_to_read)
-    ! Read a 2-D data field from a NetCDF file on an x/y-grid, and optionally return the grid as well.
+  SUBROUTINE read_field_from_xy_file_2D(             filename, field_name_options, d_grid_vec_partial, time_to_read)
+    ! Read a 2-D data field from a NetCDF file on an x/y-grid
+    !
+    ! NOTE: the grid should be read before, and memory allocated for d_grid_vec_partial!
 
     IMPLICIT NONE
 
     ! In/output variables:
     CHARACTER(LEN=*),                        INTENT(IN)    :: filename
     CHARACTER(LEN=*),                        INTENT(IN)    :: field_name_options
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE, INTENT(OUT)   :: d_grid_vec_partial
-    TYPE(type_grid),            OPTIONAL,    INTENT(OUT)   :: grid
+    REAL(dp), DIMENSION(:    ),              INTENT(OUT)   :: d_grid_vec_partial
     REAL(dp),                   OPTIONAL,    INTENT(IN)    :: time_to_read
 
     ! Local variables:
@@ -513,42 +589,29 @@ CONTAINS
   ! == Distribute gridded data from the master to all processes in partial vector form
   ! ==================================================================================
 
-    ! Allocate memory
-    ALLOCATE( d_grid_vec_partial( grid_loc%n_loc))
-
     ! Distribute data
     CALL distribute_gridded_data_from_master_dp_2D( grid_loc, d_grid, d_grid_vec_partial)
 
-    ! Clean up gridded data on the master
-    DEALLOCATE( d_grid)
-
-  ! == If so specified, return the read grid as output
-  ! ==================================================
-
-    IF (PRESENT( grid)) THEN
-      CALL open_existing_netcdf_file_for_reading( filename, ncid)
-      CALL setup_xy_grid_from_file( filename, ncid, grid)
-      CALL close_netcdf_file( ncid)
-    END IF ! IF (PRESENT( grid)) THEN
-
     ! Clean up after yourself
     CALL deallocate_grid( grid_loc)
+    DEALLOCATE( d_grid)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE read_field_from_xy_file_2D
 
-  SUBROUTINE read_field_from_xy_file_2D_monthly(     filename, field_name_options, d_grid_vec_partial, grid, time_to_read)
-    ! Read a 2-D monthly data field from a NetCDF file on an x/y-grid, and optionally return the grid as well.
+  SUBROUTINE read_field_from_xy_file_2D_monthly(     filename, field_name_options, d_grid_vec_partial, time_to_read)
+    ! Read a 2-D monthly data field from a NetCDF file on an x/y-grid
+    !
+    ! NOTE: the grid should be read before, and memory allocated for d_grid_vec_partial!
 
     IMPLICIT NONE
 
     ! In/output variables:
     CHARACTER(LEN=*),                        INTENT(IN)    :: filename
     CHARACTER(LEN=*),                        INTENT(IN)    :: field_name_options
-    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE, INTENT(OUT)   :: d_grid_vec_partial
-    TYPE(type_grid),            OPTIONAL,    INTENT(OUT)   :: grid
+    REAL(dp), DIMENSION(:,:  ),              INTENT(OUT)   :: d_grid_vec_partial
     REAL(dp),                   OPTIONAL,    INTENT(IN)    :: time_to_read
 
     ! Local variables:
@@ -671,25 +734,11 @@ CONTAINS
   ! == Distribute gridded data from the master to all processes in partial vector form
   ! ==================================================================================
 
-    ! Allocate memory
-    ALLOCATE( d_grid_vec_partial( grid_loc%n_loc, 12))
-
     ! Distribute data
     CALL distribute_gridded_data_from_master_dp_3D( grid_loc, d_grid, d_grid_vec_partial)
 
-    ! Clean up gridded data on the master
-    IF (par%master) DEALLOCATE( d_grid)
-
-  ! == If so specified, return the read grid as output
-  ! ==================================================
-
-    IF (PRESENT( grid)) THEN
-      CALL open_existing_netcdf_file_for_reading( filename, ncid)
-      CALL setup_xy_grid_from_file( filename, ncid, grid)
-      CALL close_netcdf_file( ncid)
-    END IF ! IF (PRESENT( grid)) THEN
-
     ! Clean up after yourself
+    IF (par%master) DEALLOCATE( d_grid)
     CALL deallocate_grid( grid_loc)
 
     ! Finalise routine path
@@ -697,19 +746,18 @@ CONTAINS
 
   END SUBROUTINE read_field_from_xy_file_2D_monthly
 
-  SUBROUTINE read_field_from_xy_file_3D(             filename, field_name_options, d_grid_vec_partial, grid, time_to_read, nzeta, zeta)
-    ! Read a 3-D data field from a NetCDF file on an x/y-grid, and optionally return the grid as well.
+  SUBROUTINE read_field_from_xy_file_3D(             filename, field_name_options, d_grid_vec_partial, time_to_read)
+    ! Read a 3-D data field from a NetCDF file on an x/y-grid
+    !
+    ! NOTE: the grid should be read before, and memory allocated for d_grid_vec_partial!
 
     IMPLICIT NONE
 
     ! In/output variables:
     CHARACTER(LEN=*),                        INTENT(IN)    :: filename
     CHARACTER(LEN=*),                        INTENT(IN)    :: field_name_options
-    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE, INTENT(OUT)   :: d_grid_vec_partial
-    TYPE(type_grid),            OPTIONAL,    INTENT(OUT)   :: grid
+    REAL(dp), DIMENSION(:,:  ),              INTENT(OUT)   :: d_grid_vec_partial
     REAL(dp),                   OPTIONAL,    INTENT(IN)    :: time_to_read
-    INTEGER ,                   OPTIONAL,    INTENT(OUT)   :: nzeta
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE, INTENT(OUT), OPTIONAL :: zeta
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'read_field_from_xy_file_3D'
@@ -833,33 +881,11 @@ CONTAINS
   ! == Distribute gridded data from the master to all processes in partial vector form
   ! ==================================================================================
 
-    ! Allocate memory
-    ALLOCATE( d_grid_vec_partial( grid_loc%n_loc, nzeta_loc))
-
     ! Distribute data
     CALL distribute_gridded_data_from_master_dp_3D( grid_loc, d_grid, d_grid_vec_partial)
 
-    ! Clean up gridded data on the master
-    IF (par%master) DEALLOCATE( d_grid)
-
-  ! == If so specified, return the read grid as output
-  ! ==================================================
-
-    IF (PRESENT( grid)) THEN
-      CALL open_existing_netcdf_file_for_reading( filename, ncid)
-      CALL setup_xy_grid_from_file( filename, ncid, grid)
-      CALL close_netcdf_file( ncid)
-    END IF ! IF (PRESENT( grid)) THEN
-
-    IF (PRESENT( nzeta) .OR. PRESENT( zeta)) THEN
-      ! Safety
-      IF (.NOT. PRESENT( nzeta) .OR. .NOT. PRESENT( zeta)) CALL crash('should ask for both nzeta and zeta!')
-      CALL open_existing_netcdf_file_for_reading( filename, ncid)
-      CALL setup_zeta_from_file( filename, ncid, nzeta, zeta)
-      CALL close_netcdf_file( ncid)
-    END IF ! IF (PRESENT( nzeta) .OR. PRESENT( zeta)) THEN
-
     ! Clean up after yourself
+    IF (par%master) DEALLOCATE( d_grid)
     CALL deallocate_grid( grid_loc)
 
     ! Finalise routine path
@@ -868,16 +894,17 @@ CONTAINS
   END SUBROUTINE read_field_from_xy_file_3D
 
   ! Read data fields from an x/y-grid file
-  SUBROUTINE read_field_from_lonlat_file_2D(         filename, field_name_options, d_grid_vec_partial, grid, time_to_read)
-    ! Read a 2-D data field from a NetCDF file on a lon/lat-grid, and optionally return the grid as well.
+  SUBROUTINE read_field_from_lonlat_file_2D(         filename, field_name_options, d_grid_vec_partial, time_to_read)
+    ! Read a 2-D data field from a NetCDF file on a lon/lat-grid
+    !
+    ! NOTE: the grid should be read before, and memory allocated for d_grid_vec_partial!
 
     IMPLICIT NONE
 
     ! In/output variables:
     CHARACTER(LEN=*),                        INTENT(IN)    :: filename
     CHARACTER(LEN=*),                        INTENT(IN)    :: field_name_options
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE, INTENT(OUT)   :: d_grid_vec_partial
-    TYPE(type_grid_lonlat),     OPTIONAL,    INTENT(OUT)   :: grid
+    REAL(dp), DIMENSION(:    ),              INTENT(OUT)   :: d_grid_vec_partial
     REAL(dp),                   OPTIONAL,    INTENT(IN)    :: time_to_read
 
     ! Local variables:
@@ -978,7 +1005,7 @@ CONTAINS
     IF     (londir == 'normal') THEN
       ! No need to do anything
     ELSEIF (londir == 'reverse') THEN
-      CALL flip_1D_dp( grid%lon)
+      CALL flip_1D_dp( grid_loc%lon)
       IF (par%master) CALL flip_2D_x1_dp( d_grid)
     ELSE
       CALL crash('unknown londir = "' // TRIM( londir) // '"!')
@@ -988,7 +1015,7 @@ CONTAINS
     IF     (latdir == 'normal') THEN
       ! No need to do anything
     ELSEIF (latdir == 'reverse') THEN
-      CALL flip_1D_dp( grid%lat)
+      CALL flip_1D_dp( grid_loc%lat)
       IF (par%master) CALL flip_2D_x2_dp( d_grid)
     ELSE
       CALL crash('unknown latdir = "' // TRIM( latdir) // '"!')
@@ -997,25 +1024,13 @@ CONTAINS
   ! == Distribute gridded data from the master to all processes in partial vector form
   ! ==================================================================================
 
-    ! Allocate memory
-    ALLOCATE( d_grid_vec_partial( grid_loc%n_loc))
-
     ! Distribute data
     CALL distribute_lonlat_gridded_data_from_master_dp_2D( grid_loc, d_grid, d_grid_vec_partial)
 
     ! Clean up gridded data on the master
-    IF (par%master) DEALLOCATE( d_grid)
-
-  ! == If so specified, return the read grid as output
-  ! ==================================================
-
-    IF (PRESENT( grid)) THEN
-      CALL open_existing_netcdf_file_for_reading( filename, ncid)
-      CALL setup_lonlat_grid_from_file( filename, ncid, grid)
-      CALL close_netcdf_file( ncid)
-    END IF ! IF (PRESENT( grid)) THEN
 
     ! Clean up after yourself
+    IF (par%master) DEALLOCATE( d_grid)
     CALL deallocate_lonlat_grid( grid_loc)
 
     ! Finalise routine path
@@ -1023,16 +1038,17 @@ CONTAINS
 
   END SUBROUTINE read_field_from_lonlat_file_2D
 
-  SUBROUTINE read_field_from_lonlat_file_2D_monthly( filename, field_name_options, d_grid_vec_partial, grid, time_to_read)
-    ! Read a 2-D monthly data field from a NetCDF file on a lon/lat-grid, and optionally return the grid as well.
+  SUBROUTINE read_field_from_lonlat_file_2D_monthly( filename, field_name_options, d_grid_vec_partial, time_to_read)
+    ! Read a 2-D monthly data field from a NetCDF file on a lon/lat-grid
+    !
+    ! NOTE: the grid should be read before, and memory allocated for d_grid_vec_partial!
 
     IMPLICIT NONE
 
     ! In/output variables:
     CHARACTER(LEN=*),                        INTENT(IN)    :: filename
     CHARACTER(LEN=*),                        INTENT(IN)    :: field_name_options
-    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE, INTENT(OUT)   :: d_grid_vec_partial
-    TYPE(type_grid_lonlat),     OPTIONAL,    INTENT(OUT)   :: grid
+    REAL(dp), DIMENSION(:,:  ),              INTENT(OUT)   :: d_grid_vec_partial
     REAL(dp),                   OPTIONAL,    INTENT(IN)    :: time_to_read
 
     ! Local variables:
@@ -1136,7 +1152,7 @@ CONTAINS
     IF     (londir == 'normal') THEN
       ! No need to do anything
     ELSEIF (londir == 'reverse') THEN
-      CALL flip_1D_dp( grid%lon)
+      CALL flip_1D_dp( grid_loc%lon)
       IF (par%master) CALL flip_3D_x1_dp( d_grid)
     ELSE
       CALL crash('unknown londir = "' // TRIM( londir) // '"!')
@@ -1146,7 +1162,7 @@ CONTAINS
     IF     (latdir == 'normal') THEN
       ! No need to do anything
     ELSEIF (latdir == 'reverse') THEN
-      CALL flip_1D_dp( grid%lat)
+      CALL flip_1D_dp( grid_loc%lat)
       IF (par%master) CALL flip_3D_x2_dp( d_grid)
     ELSE
       CALL crash('unknown latdir = "' // TRIM( latdir) // '"!')
@@ -1155,25 +1171,11 @@ CONTAINS
   ! == Distribute gridded data from the master to all processes in partial vector form
   ! ==================================================================================
 
-    ! Allocate memory
-    ALLOCATE( d_grid_vec_partial( grid_loc%n_loc, 12))
-
     ! Distribute data
     CALL distribute_lonlat_gridded_data_from_master_dp_3D( grid_loc, d_grid, d_grid_vec_partial)
 
-    ! Clean up gridded data on the master
-    IF (par%master) DEALLOCATE( d_grid)
-
-  ! == If so specified, return the read grid as output
-  ! ==================================================
-
-    IF (PRESENT( grid)) THEN
-      CALL open_existing_netcdf_file_for_reading( filename, ncid)
-      CALL setup_lonlat_grid_from_file( filename, ncid, grid)
-      CALL close_netcdf_file( ncid)
-    END IF ! IF (PRESENT( grid)) THEN
-
     ! Clean up after yourself
+    IF (par%master) DEALLOCATE( d_grid)
     CALL deallocate_lonlat_grid( grid_loc)
 
     ! Finalise routine path
@@ -1181,19 +1183,18 @@ CONTAINS
 
   END SUBROUTINE read_field_from_lonlat_file_2D_monthly
 
-  SUBROUTINE read_field_from_lonlat_file_3D(         filename, field_name_options, d_grid_vec_partial, grid, time_to_read, nzeta, zeta)
-    ! Read a 2-D monthly data field from a NetCDF file on a lon/lat-grid, and optionally return the grid as well.
+  SUBROUTINE read_field_from_lonlat_file_3D(         filename, field_name_options, d_grid_vec_partial, time_to_read)
+    ! Read a 2-D monthly data field from a NetCDF file on a lon/lat-grid
+    !
+    ! NOTE: the grid should be read before, and memory allocated for d_grid_vec_partial!
 
     IMPLICIT NONE
 
     ! In/output variables:
     CHARACTER(LEN=*),                        INTENT(IN)    :: filename
     CHARACTER(LEN=*),                        INTENT(IN)    :: field_name_options
-    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE, INTENT(OUT)   :: d_grid_vec_partial
-    TYPE(type_grid_lonlat),     OPTIONAL,    INTENT(OUT)   :: grid
+    REAL(dp), DIMENSION(:,:  ),              INTENT(OUT)   :: d_grid_vec_partial
     REAL(dp),                   OPTIONAL,    INTENT(IN)    :: time_to_read
-    INTEGER ,                   OPTIONAL,    INTENT(OUT)   :: nzeta
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE, INTENT(OUT), OPTIONAL :: zeta
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'read_field_from_lonlat_file_3D'
@@ -1298,7 +1299,7 @@ CONTAINS
     IF     (londir == 'normal') THEN
       ! No need to do anything
     ELSEIF (londir == 'reverse') THEN
-      CALL flip_1D_dp( grid%lon)
+      CALL flip_1D_dp( grid_loc%lon)
       IF (par%master) CALL flip_3D_x1_dp( d_grid)
     ELSE
       CALL crash('unknown londir = "' // TRIM( londir) // '"!')
@@ -1308,7 +1309,7 @@ CONTAINS
     IF     (latdir == 'normal') THEN
       ! No need to do anything
     ELSEIF (latdir == 'reverse') THEN
-      CALL flip_1D_dp( grid%lat)
+      CALL flip_1D_dp( grid_loc%lat)
       IF (par%master) CALL flip_3D_x2_dp( d_grid)
     ELSE
       CALL crash('unknown latdir = "' // TRIM( latdir) // '"!')
@@ -1317,33 +1318,11 @@ CONTAINS
   ! == Distribute gridded data from the master to all processes in partial vector form
   ! ==================================================================================
 
-    ! Allocate memory
-    ALLOCATE( d_grid_vec_partial( grid_loc%n_loc, nzeta_loc))
-
     ! Distribute data
     CALL distribute_lonlat_gridded_data_from_master_dp_3D( grid_loc, d_grid, d_grid_vec_partial)
 
-    ! Clean up gridded data on the master
-    IF (par%master) DEALLOCATE( d_grid)
-
-  ! == If so specified, return the read grid as output
-  ! ==================================================
-
-    IF (PRESENT( grid)) THEN
-      CALL open_existing_netcdf_file_for_reading( filename, ncid)
-      CALL setup_lonlat_grid_from_file( filename, ncid, grid)
-      CALL close_netcdf_file( ncid)
-    END IF ! IF (PRESENT( grid)) THEN
-
-    IF (PRESENT( nzeta) .OR. PRESENT( zeta)) THEN
-      ! Safety
-      IF (.NOT. PRESENT( nzeta) .OR. .NOT. PRESENT( zeta)) CALL crash('should ask for both nzeta and zeta!')
-      CALL open_existing_netcdf_file_for_reading( filename, ncid)
-      CALL setup_zeta_from_file( filename, ncid, nzeta, zeta)
-      CALL close_netcdf_file( ncid)
-    END IF ! IF (PRESENT( nzeta) .OR. PRESENT( zeta)) THEN
-
     ! Clean up after yourself
+    IF (par%master) DEALLOCATE( d_grid)
     CALL deallocate_lonlat_grid( grid_loc)
 
     ! Finalise routine path
@@ -1352,16 +1331,17 @@ CONTAINS
   END SUBROUTINE read_field_from_lonlat_file_3D
 
   ! Read data fields from a mesh file
-  SUBROUTINE read_field_from_mesh_file_2D(           filename, field_name_options, d_mesh_partial, mesh, time_to_read)
-    ! Read a 2-D data field from a NetCDF file on a mesh, and optionally return the mesh as well.
+  SUBROUTINE read_field_from_mesh_file_2D(           filename, field_name_options, d_mesh_partial, time_to_read)
+    ! Read a 2-D data field from a NetCDF file on a mesh
+    !
+    ! NOTE: the mesh should be read before, and memory allocated for d_mesh_partial!
 
     IMPLICIT NONE
 
     ! In/output variables:
     CHARACTER(LEN=*),                        INTENT(IN)    :: filename
     CHARACTER(LEN=*),                        INTENT(IN)    :: field_name_options
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE, INTENT(OUT)   :: d_mesh_partial
-    TYPE(type_mesh),            OPTIONAL,    INTENT(OUT)   :: mesh
+    REAL(dp), DIMENSION(:    ),              INTENT(OUT)   :: d_mesh_partial
     REAL(dp),                   OPTIONAL,    INTENT(IN)    :: time_to_read
 
     ! Local variables:
@@ -1383,7 +1363,7 @@ CONTAINS
     ! Open the NetCDF file
     CALL open_existing_netcdf_file_for_reading( filename, ncid)
 
-    ! Set up the grid from the file
+    ! Set up the mesh from the file
     CALL setup_mesh_from_file( filename, ncid, mesh_loc)
 
     ! Look for the specified variable in the file
@@ -1418,25 +1398,11 @@ CONTAINS
   ! == Distribute gridded data from the master to all processes in partial vector form
   ! ==================================================================================
 
-    ! Allocate memory
-    ALLOCATE( d_mesh_partial( mesh_loc%vi1:mesh_loc%vi2))
-
     ! Distribute data
     CALL distribute_from_master_dp_1D( d_mesh, d_mesh_partial)
 
-    ! Clean up gridded data on the master
-    IF (par%master) DEALLOCATE( d_mesh)
-
-  ! == If so specified, return the read mesh as output
-  ! ==================================================
-
-    IF (PRESENT( mesh)) THEN
-      CALL open_existing_netcdf_file_for_reading( filename, ncid)
-      CALL setup_mesh_from_file( filename, ncid, mesh)
-      CALL close_netcdf_file( ncid)
-    END IF ! IF (PRESENT( grid)) THEN
-
     ! Clean up after yourself
+    IF (par%master) DEALLOCATE( d_mesh)
     CALL deallocate_mesh( mesh_loc)
 
     ! Finalise routine path
@@ -1444,8 +1410,10 @@ CONTAINS
 
   END SUBROUTINE read_field_from_mesh_file_2D
 
-  SUBROUTINE read_field_from_mesh_file_2D_b(         filename, field_name_options, d_mesh_partial, mesh, time_to_read)
-    ! Read a 2-D data field from a NetCDF file on a mesh, and optionally return the mesh as well.
+  SUBROUTINE read_field_from_mesh_file_2D_b(         filename, field_name_options, d_mesh_partial, time_to_read)
+    ! Read a 2-D data field from a NetCDF file on a mesh
+    !
+    ! NOTE: the mesh should be read before, and memory allocated for d_mesh_partial!
     !
     ! Assumes the data is provided on the mesh b-grid
 
@@ -1454,8 +1422,7 @@ CONTAINS
     ! In/output variables:
     CHARACTER(LEN=*),                        INTENT(IN)    :: filename
     CHARACTER(LEN=*),                        INTENT(IN)    :: field_name_options
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE, INTENT(OUT)   :: d_mesh_partial
-    TYPE(type_mesh),            OPTIONAL,    INTENT(OUT)   :: mesh
+    REAL(dp), DIMENSION(:    ),              INTENT(OUT)   :: d_mesh_partial
     REAL(dp),                   OPTIONAL,    INTENT(IN)    :: time_to_read
 
     ! Local variables:
@@ -1477,7 +1444,7 @@ CONTAINS
     ! Open the NetCDF file
     CALL open_existing_netcdf_file_for_reading( filename, ncid)
 
-    ! Set up the grid from the file
+    ! Set up the mesh from the file
     CALL setup_mesh_from_file( filename, ncid, mesh_loc)
 
     ! Look for the specified variable in the file
@@ -1512,25 +1479,11 @@ CONTAINS
   ! == Distribute gridded data from the master to all processes in partial vector form
   ! ==================================================================================
 
-    ! Allocate memory
-    ALLOCATE( d_mesh_partial( mesh_loc%ti1:mesh_loc%ti2))
-
     ! Distribute data
     CALL distribute_from_master_dp_1D( d_mesh, d_mesh_partial)
 
-    ! Clean up gridded data on the master
-    IF (par%master) DEALLOCATE( d_mesh)
-
-  ! == If so specified, return the read mesh as output
-  ! ==================================================
-
-    IF (PRESENT( mesh)) THEN
-      CALL open_existing_netcdf_file_for_reading( filename, ncid)
-      CALL setup_mesh_from_file( filename, ncid, mesh)
-      CALL close_netcdf_file( ncid)
-    END IF ! IF (PRESENT( grid)) THEN
-
     ! Clean up after yourself
+    IF (par%master) DEALLOCATE( d_mesh)
     CALL deallocate_mesh( mesh_loc)
 
     ! Finalise routine path
@@ -1538,16 +1491,17 @@ CONTAINS
 
   END SUBROUTINE read_field_from_mesh_file_2D_b
 
-  SUBROUTINE read_field_from_mesh_file_2D_monthly(   filename, field_name_options, d_mesh_partial, mesh, time_to_read)
-    ! Read a 2-D data monthly field from a NetCDF file on a mesh, and optionally return the mesh as well.
+  SUBROUTINE read_field_from_mesh_file_2D_monthly(   filename, field_name_options, d_mesh_partial, time_to_read)
+    ! Read a 2-D data monthly field from a NetCDF file on a mesh
+    !
+    ! NOTE: the mesh should be read before, and memory allocated for d_mesh_partial!
 
     IMPLICIT NONE
 
     ! In/output variables:
     CHARACTER(LEN=*),                        INTENT(IN)    :: filename
     CHARACTER(LEN=*),                        INTENT(IN)    :: field_name_options
-    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE, INTENT(OUT)   :: d_mesh_partial
-    TYPE(type_mesh),            OPTIONAL,    INTENT(OUT)   :: mesh
+    REAL(dp), DIMENSION(:,:  ),              INTENT(OUT)   :: d_mesh_partial
     REAL(dp),                   OPTIONAL,    INTENT(IN)    :: time_to_read
 
     ! Local variables:
@@ -1569,7 +1523,7 @@ CONTAINS
     ! Open the NetCDF file
     CALL open_existing_netcdf_file_for_reading( filename, ncid)
 
-    ! Set up the grid from the file
+    ! Set up the mesh from the file
     CALL setup_mesh_from_file( filename, ncid, mesh_loc)
 
     ! Look for the specified variable in the file
@@ -1607,25 +1561,11 @@ CONTAINS
   ! == Distribute gridded data from the master to all processes in partial vector form
   ! ==================================================================================
 
-    ! Allocate memory
-    ALLOCATE( d_mesh_partial( mesh_loc%vi1:mesh_loc%vi2, 12))
-
     ! Distribute data
     CALL distribute_from_master_dp_2D( d_mesh, d_mesh_partial)
 
-    ! Clean up gridded data on the master
-    IF (par%master) DEALLOCATE( d_mesh)
-
-  ! == If so specified, return the read mesh as output
-  ! ==================================================
-
-    IF (PRESENT( mesh)) THEN
-      CALL open_existing_netcdf_file_for_reading( filename, ncid)
-      CALL setup_mesh_from_file( filename, ncid, mesh)
-      CALL close_netcdf_file( ncid)
-    END IF ! IF (PRESENT( grid)) THEN
-
     ! Clean up after yourself
+    IF (par%master) DEALLOCATE( d_mesh)
     CALL deallocate_mesh( mesh_loc)
 
     ! Finalise routine path
@@ -1633,19 +1573,18 @@ CONTAINS
 
   END SUBROUTINE read_field_from_mesh_file_2D_monthly
 
-  SUBROUTINE read_field_from_mesh_file_3D(           filename, field_name_options, d_mesh_partial, mesh, time_to_read, nzeta, zeta)
-    ! Read a 2-D data monthly field from a NetCDF file on a mesh, and optionally return the mesh as well.
+  SUBROUTINE read_field_from_mesh_file_3D(           filename, field_name_options, d_mesh_partial, time_to_read)
+    ! Read a 2-D data monthly field from a NetCDF file on a mesh
+    !
+    ! NOTE: the mesh should be read before, and memory allocated for d_mesh_partial!
 
     IMPLICIT NONE
 
     ! In/output variables:
     CHARACTER(LEN=*),                        INTENT(IN)    :: filename
     CHARACTER(LEN=*),                        INTENT(IN)    :: field_name_options
-    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE, INTENT(OUT)   :: d_mesh_partial
-    TYPE(type_mesh),            OPTIONAL,    INTENT(OUT)   :: mesh
+    REAL(dp), DIMENSION(:,:  ),              INTENT(OUT)   :: d_mesh_partial
     REAL(dp),                   OPTIONAL,    INTENT(IN)    :: time_to_read
-    INTEGER ,                   OPTIONAL,    INTENT(OUT)   :: nzeta
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE, INTENT(OUT), OPTIONAL :: zeta
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'read_field_from_mesh_file_3D'
@@ -1668,7 +1607,7 @@ CONTAINS
     ! Open the NetCDF file
     CALL open_existing_netcdf_file_for_reading( filename, ncid)
 
-    ! Set up the grid from the file
+    ! Set up the mesh from the file
     CALL setup_mesh_from_file( filename, ncid, mesh_loc)
 
     ! Set up the vertical coordinate zeta from the file
@@ -1706,33 +1645,11 @@ CONTAINS
   ! == Distribute gridded data from the master to all processes in partial vector form
   ! ==================================================================================
 
-    ! Allocate memory
-    ALLOCATE( d_mesh_partial( mesh_loc%vi1:mesh_loc%vi2, nzeta_loc))
-
     ! Distribute data
     CALL distribute_from_master_dp_2D( d_mesh, d_mesh_partial)
 
-    ! Clean up gridded data on the master
-    IF (par%master) DEALLOCATE( d_mesh)
-
-  ! == If so specified, return the read mesh as output
-  ! ==================================================
-
-    IF (PRESENT( mesh)) THEN
-      CALL open_existing_netcdf_file_for_reading( filename, ncid)
-      CALL setup_mesh_from_file( filename, ncid, mesh)
-      CALL close_netcdf_file( ncid)
-    END IF ! IF (PRESENT( grid)) THEN
-
-    IF (PRESENT( nzeta) .OR. PRESENT( zeta)) THEN
-      ! Safety
-      IF (.NOT. PRESENT( nzeta) .OR. .NOT. PRESENT( zeta)) CALL crash('should ask for both nzeta and zeta!')
-      CALL open_existing_netcdf_file_for_reading( filename, ncid)
-      CALL setup_zeta_from_file( filename, ncid, nzeta, zeta)
-      CALL close_netcdf_file( ncid)
-    END IF ! IF (PRESENT( nzeta) .OR. PRESENT( zeta)) THEN
-
     ! Clean up after yourself
+    IF (par%master) DEALLOCATE( d_mesh)
     CALL deallocate_mesh( mesh_loc)
 
     ! Finalise routine path
@@ -1740,19 +1657,20 @@ CONTAINS
 
   END SUBROUTINE read_field_from_mesh_file_3D
 
-  SUBROUTINE read_field_from_mesh_file_3D_b(         filename, field_name_options, d_mesh_partial, mesh, time_to_read, nzeta, zeta)
-    ! Read a 2-D data monthly field from a NetCDF file on a mesh, and optionally return the mesh as well.
+  SUBROUTINE read_field_from_mesh_file_3D_b(         filename, field_name_options, d_mesh_partial, time_to_read)
+    ! Read a 2-D data monthly field from a NetCDF file on a mesh,
+    !
+    ! NOTE: the mesh should be read before, and memory allocated for d_mesh_partial!
+    !
+    ! Assumes the data is provided on the mesh b-grid
 
     IMPLICIT NONE
 
     ! In/output variables:
     CHARACTER(LEN=*),                        INTENT(IN)    :: filename
     CHARACTER(LEN=*),                        INTENT(IN)    :: field_name_options
-    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE, INTENT(OUT)   :: d_mesh_partial
-    TYPE(type_mesh),            OPTIONAL,    INTENT(OUT)   :: mesh
+    REAL(dp), DIMENSION(:,:  ),              INTENT(OUT)   :: d_mesh_partial
     REAL(dp),                   OPTIONAL,    INTENT(IN)    :: time_to_read
-    INTEGER ,                   OPTIONAL,    INTENT(OUT)   :: nzeta
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE, INTENT(OUT), OPTIONAL :: zeta
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'read_field_from_mesh_file_3D'
@@ -1775,7 +1693,7 @@ CONTAINS
     ! Open the NetCDF file
     CALL open_existing_netcdf_file_for_reading( filename, ncid)
 
-    ! Set up the grid from the file
+    ! Set up the mesh from the file
     CALL setup_mesh_from_file( filename, ncid, mesh_loc)
 
     ! Set up the vertical coordinate zeta from the file
@@ -1813,33 +1731,11 @@ CONTAINS
   ! == Distribute gridded data from the master to all processes in partial vector form
   ! ==================================================================================
 
-    ! Allocate memory
-    ALLOCATE( d_mesh_partial( mesh_loc%ti1:mesh_loc%ti2, nzeta_loc))
-
     ! Distribute data
     CALL distribute_from_master_dp_2D( d_mesh, d_mesh_partial)
 
-    ! Clean up gridded data on the master
-    IF (par%master) DEALLOCATE( d_mesh)
-
-  ! == If so specified, return the read mesh as output
-  ! ==================================================
-
-    IF (PRESENT( mesh)) THEN
-      CALL open_existing_netcdf_file_for_reading( filename, ncid)
-      CALL setup_mesh_from_file( filename, ncid, mesh)
-      CALL close_netcdf_file( ncid)
-    END IF ! IF (PRESENT( grid)) THEN
-
-    IF (PRESENT( nzeta) .OR. PRESENT( zeta)) THEN
-      ! Safety
-      IF (.NOT. PRESENT( nzeta) .OR. .NOT. PRESENT( zeta)) CALL crash('should ask for both nzeta and zeta!')
-      CALL open_existing_netcdf_file_for_reading( filename, ncid)
-      CALL setup_zeta_from_file( filename, ncid, nzeta, zeta)
-      CALL close_netcdf_file( ncid)
-    END IF ! IF (PRESENT( nzeta) .OR. PRESENT( zeta)) THEN
-
     ! Clean up after yourself
+    IF (par%master) DEALLOCATE( d_mesh)
     CALL deallocate_mesh( mesh_loc)
 
     ! Finalise routine path

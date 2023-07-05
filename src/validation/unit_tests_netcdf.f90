@@ -21,7 +21,7 @@ MODULE unit_tests_netcdf
                                                                      mesh_add_UFEMISM_letters
   USE mesh_secondary                                         , ONLY: calc_all_secondary_mesh_data
   USE mesh_operators                                         , ONLY: calc_all_matrix_operators_mesh
-  USE netcdf_basic                                           , ONLY: create_new_netcdf_file_for_writing, close_netcdf_file
+  USE netcdf_basic                                           , ONLY: create_new_netcdf_file_for_writing, open_existing_netcdf_file_for_reading, close_netcdf_file
   USE netcdf_output                                          , ONLY: setup_xy_grid_in_netcdf_file, add_field_grid_dp_2D_notime, add_month_dimension_to_file, &
                                                                      write_to_field_multopt_grid_dp_2D_notime, add_field_grid_dp_2D_monthly_notime, &
                                                                      write_to_field_multopt_grid_dp_2D_monthly_notime, add_zeta_dimension_to_file, &
@@ -34,7 +34,8 @@ MODULE unit_tests_netcdf
                                                                      write_to_field_multopt_mesh_dp_2D_notime, add_field_mesh_dp_2D_monthly_notime, &
                                                                      write_to_field_multopt_mesh_dp_2D_monthly_notime, add_field_mesh_dp_3D_notime, &
                                                                      write_to_field_multopt_mesh_dp_3D_notime
-  USE netcdf_input                                           , ONLY: read_field_from_xy_file_2D, read_field_from_xy_file_2D_monthly, read_field_from_xy_file_3D, &
+  USE netcdf_input                                           , ONLY: setup_xy_grid_from_file, setup_lonlat_grid_from_file, setup_mesh_from_file, &
+                                                                     read_field_from_xy_file_2D, read_field_from_xy_file_2D_monthly, read_field_from_xy_file_3D, &
                                                                      read_field_from_lonlat_file_2D, read_field_from_lonlat_file_2D_monthly, read_field_from_lonlat_file_3D, &
                                                                      read_field_from_mesh_file_2D, read_field_from_mesh_file_2D_monthly, read_field_from_mesh_file_3D, &
                                                                      read_field_from_file_2D, read_field_from_file_2D_monthly, read_field_from_file_3D, &
@@ -115,7 +116,7 @@ CONTAINS
     CHARACTER(LEN=256)                                 :: name
     REAL(dp)                                           :: dx
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: d_grid_vec_partial
-    INTEGER                                            :: n,n_glob,i,j
+    INTEGER                                            :: n,i,j
     REAL(dp)                                           :: x,y,d,ddx,ddy,d2dx2,d2dxdy,d2dy2
     INTEGER                                            :: ncid
     TYPE(type_grid)                                    :: grid_read
@@ -135,11 +136,10 @@ CONTAINS
     CALL setup_square_grid( name, xmin, xmax, ymin, ymax, dx, grid, lambda_M, phi_M, beta_stereo)
 
     ! Generate a simple test data field
-    ALLOCATE( d_grid_vec_partial( grid%n_loc))
-    DO n = 1, grid%n_loc
-      n_glob = grid%n1 + n - 1
-      i = grid%n2ij( n_glob,1)
-      j = grid%n2ij( n_glob,2)
+    ALLOCATE( d_grid_vec_partial( grid%n1:grid%n2))
+    DO n = grid%n1, grid%n2
+      i = grid%n2ij( n,1)
+      j = grid%n2ij( n,2)
       x = grid%x( i)
       y = grid%y( j)
       CALL test_function( x, y, grid%xmin, grid%xmax, grid%ymin, grid%ymax, d, ddx, ddy, d2dx2, d2dxdy, d2dy2)
@@ -163,8 +163,16 @@ CONTAINS
   ! == Test reading grid and gridded data from NetCDF
   ! =================================================
 
-    ! Read grid and data from file
-    CALL read_field_from_xy_file_2D( filename, 'd', d_grid_vec_partial_read, grid = grid_read)
+    ! Set up the grid from the file
+    CALL open_existing_netcdf_file_for_reading( filename, ncid)
+    CALL setup_xy_grid_from_file( filename, ncid, grid_read)
+    CALL close_netcdf_file( ncid)
+
+    ! Allocate memory for read data
+    ALLOCATE( d_grid_vec_partial_read( grid_read%n1:grid_read%n2))
+
+    ! Read data from file
+    CALL read_field_from_xy_file_2D( filename, 'd', d_grid_vec_partial_read)
 
   ! == Validation
   ! =============
@@ -179,7 +187,7 @@ CONTAINS
     END IF
 
     ! Check if the data read from the file is identical to the original
-    DO n = 1, grid%n_loc
+    DO n = grid%n1, grid%n2
       IF (ABS( d_grid_vec_partial_read( n) - d_grid_vec_partial( n)) > &
           ABS(1E-9_dp * MAX(d_grid_vec_partial_read(n), d_grid_vec_partial( n) ))) found_errors = .TRUE.
     END DO
@@ -218,7 +226,7 @@ CONTAINS
     CHARACTER(LEN=256)                                 :: name
     REAL(dp)                                           :: dx
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: d_grid_vec_partial
-    INTEGER                                            :: n,n_glob,i,j,m
+    INTEGER                                            :: n,i,j,m
     REAL(dp)                                           :: x,y,d,ddx,ddy,d2dx2,d2dxdy,d2dy2
     INTEGER                                            :: ncid
     TYPE(type_grid)                                    :: grid_read
@@ -238,11 +246,10 @@ CONTAINS
     CALL setup_square_grid( name, xmin, xmax, ymin, ymax, dx, grid, lambda_M, phi_M, beta_stereo)
 
     ! Generate a simple test data field
-    ALLOCATE( d_grid_vec_partial( grid%n_loc, 12))
-    DO n = 1, grid%n_loc
-      n_glob = grid%n1 + n - 1
-      i = grid%n2ij( n_glob,1)
-      j = grid%n2ij( n_glob,2)
+    ALLOCATE( d_grid_vec_partial( grid%n1:grid%n2, 12))
+    DO n = grid%n1, grid%N2
+      i = grid%n2ij( n,1)
+      j = grid%n2ij( n,2)
       x = grid%x( i)
       y = grid%y( j)
       CALL test_function( x, y, grid%xmin, grid%xmax, grid%ymin, grid%ymax, d, ddx, ddy, d2dx2, d2dxdy, d2dy2)
@@ -269,8 +276,16 @@ CONTAINS
   ! == Test reading grid and gridded data from NetCDF
   ! =================================================
 
-    ! Read grid and data from file
-    CALL read_field_from_xy_file_2D_monthly( filename, 'd', d_grid_vec_partial_read, grid = grid_read)
+    ! Set up the grid from the file
+    CALL open_existing_netcdf_file_for_reading( filename, ncid)
+    CALL setup_xy_grid_from_file( filename, ncid, grid_read)
+    CALL close_netcdf_file( ncid)
+
+    ! Allocate memory for read data
+    ALLOCATE( d_grid_vec_partial_read( grid_read%n1:grid_read%n2,12))
+
+    ! Read data from file
+    CALL read_field_from_xy_file_2D_monthly( filename, 'd', d_grid_vec_partial_read)
 
   ! == Validation
   ! =============
@@ -285,7 +300,7 @@ CONTAINS
     END IF
 
     ! Check if the data read from the file is identical to the original
-    DO n = 1, grid%n_loc
+    DO n = grid%n1, grid%n2
     DO m = 1, 12
       IF (ABS( 1._dp - d_grid_vec_partial_read( n,m) / d_grid_vec_partial( n,m)) > 1E-9_dp) found_errors = .TRUE.
     END DO
@@ -327,7 +342,7 @@ CONTAINS
     INTEGER                                            :: nzeta
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: zeta
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: d_grid_vec_partial
-    INTEGER                                            :: n,n_glob,i,j,k
+    INTEGER                                            :: n,i,j,k
     REAL(dp)                                           :: x,y,d,ddx,ddy,d2dx2,d2dxdy,d2dy2
     INTEGER                                            :: ncid
     TYPE(type_grid)                                    :: grid_read
@@ -356,11 +371,10 @@ CONTAINS
     END DO
 
     ! Generate a simple test data field
-    ALLOCATE( d_grid_vec_partial( grid%n_loc, nzeta))
-    DO n = 1, grid%n_loc
-      n_glob = grid%n1 + n - 1
-      i = grid%n2ij( n_glob,1)
-      j = grid%n2ij( n_glob,2)
+    ALLOCATE( d_grid_vec_partial( grid%n1:grid%n2, nzeta))
+    DO n = grid%n1, grid%n2
+      i = grid%n2ij( n,1)
+      j = grid%n2ij( n,2)
       x = grid%x( i)
       y = grid%y( j)
       CALL test_function( x, y, grid%xmin, grid%xmax, grid%ymin, grid%ymax, d, ddx, ddy, d2dx2, d2dxdy, d2dy2)
@@ -387,8 +401,17 @@ CONTAINS
   ! == Test reading grid and gridded data from NetCDF
   ! =================================================
 
-    ! Read grid and data from file
-    CALL read_field_from_xy_file_3D( filename, 'd', d_grid_vec_partial_read, grid = grid_read, nzeta = nzeta_read, zeta = zeta_read)
+    ! Set up the grid from the file
+    CALL open_existing_netcdf_file_for_reading( filename, ncid)
+    CALL setup_xy_grid_from_file( filename, ncid, grid_read)
+    CALL setup_zeta_from_file( filename, ncid, nzeta_read, zeta_read)
+    CALL close_netcdf_file( ncid)
+
+    ! Allocate memory for read data
+    ALLOCATE( d_grid_vec_partial_read( grid_read%n1:grid_read%n2, nzeta_read))
+
+    ! Read data from file
+    CALL read_field_from_xy_file_3D( filename, 'd', d_grid_vec_partial_read)
 
   ! == Validation
   ! =============
@@ -412,7 +435,7 @@ CONTAINS
     END DO
 
     ! Check if the data read from the file is identical to the original
-    DO n = 1, grid%n_loc
+    DO n = grid%n1, grid%n2
     DO k = 1, MIN( nzeta, nzeta_read)
       IF ( 1._dp - MAX( 0.001_dp, ABS( d_grid_vec_partial_read( n,k))) / MAX( 0.001_dp, ABS( d_grid_vec_partial( n,k))) > 1E-9_dp) THEN
         found_errors = .TRUE.
@@ -449,7 +472,7 @@ CONTAINS
     INTEGER                                            :: nlon, nlat
     TYPE(type_grid_lonlat)                             :: grid
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: d_grid_vec_partial
-    INTEGER                                            :: n,n_glob,i,j
+    INTEGER                                            :: n,i,j
     REAL(dp)                                           :: lon,lat,d
     INTEGER                                            :: ncid
     TYPE(type_grid_lonlat)                             :: grid_read
@@ -470,11 +493,10 @@ CONTAINS
     CALL setup_simple_lonlat_grid( name, nlon, nlat, grid)
 
     ! Generate a simple test data field
-    ALLOCATE( d_grid_vec_partial( grid%n_loc))
-    DO n = 1, grid%n_loc
-      n_glob = grid%n1 + n - 1
-      i = grid%n2ij( n_glob,1)
-      j = grid%n2ij( n_glob,2)
+    ALLOCATE( d_grid_vec_partial( grid%n1:grid%n2))
+    DO n = grid%n1, grid%n2
+      i = grid%n2ij( n,1)
+      j = grid%n2ij( n,2)
       lon = grid%lon( i)
       lat = grid%lat( j)
       CALL test_function_lonlat( lon, lat, d)
@@ -498,8 +520,16 @@ CONTAINS
   ! == Test reading grid and gridded data from NetCDF
   ! =================================================
 
-    ! Read grid and data from file
-    CALL read_field_from_lonlat_file_2D( filename, 'd', d_grid_vec_partial_read, grid = grid_read)
+    ! Set up the grid from the file
+    CALL open_existing_netcdf_file_for_reading( filename, ncid)
+    CALL setup_lonlat_grid_from_file( filename, ncid, grid_read)
+    CALL close_netcdf_file( ncid)
+
+    ! Allocate memory for read data
+    ALLOCATE( d_grid_vec_partial_read( grid_read%n1:grid_read%n2))
+
+    ! Read data from file
+    CALL read_field_from_lonlat_file_2D( filename, 'd', d_grid_vec_partial_read)
 
   ! == Validation
   ! =============
@@ -514,7 +544,7 @@ CONTAINS
     END IF
 
     ! Check if the data read from the file is identical to the original
-    DO n = 1, grid%n_loc
+    DO n = grid%n1, grid%n2
       IF ( 1._dp - MAX( 0.001_dp, ABS( d_grid_vec_partial_read( n))) / MAX( 0.001_dp, ABS( d_grid_vec_partial( n))) > 1E-7_dp) found_errors = .TRUE.
     END DO
 
@@ -545,7 +575,7 @@ CONTAINS
     INTEGER                                            :: nlon, nlat
     TYPE(type_grid_lonlat)                             :: grid
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: d_grid_vec_partial
-    INTEGER                                            :: n,n_glob,i,j,m
+    INTEGER                                            :: n,i,j,m
     REAL(dp)                                           :: lon,lat,d
     INTEGER                                            :: ncid
     TYPE(type_grid_lonlat)                             :: grid_read
@@ -566,11 +596,10 @@ CONTAINS
     CALL setup_simple_lonlat_grid( name, nlon, nlat, grid)
 
     ! Generate a simple test data field
-    ALLOCATE( d_grid_vec_partial( grid%n_loc, 12))
-    DO n = 1, grid%n_loc
-      n_glob = grid%n1 + n - 1
-      i = grid%n2ij( n_glob,1)
-      j = grid%n2ij( n_glob,2)
+    ALLOCATE( d_grid_vec_partial( grid%n1:grid%n2, 12))
+    DO n = grid%n1, grid%n2
+      i = grid%n2ij( n,1)
+      j = grid%n2ij( n,2)
       lon = grid%lon( i)
       lat = grid%lat( j)
       CALL test_function_lonlat( lon, lat, d)
@@ -597,8 +626,16 @@ CONTAINS
   ! == Test reading grid and gridded data from NetCDF
   ! =================================================
 
-    ! Read grid and data from file
-    CALL read_field_from_lonlat_file_2D_monthly( filename, 'd', d_grid_vec_partial_read, grid = grid_read)
+    ! Set up the grid from the file
+    CALL open_existing_netcdf_file_for_reading( filename, ncid)
+    CALL setup_lonlat_grid_from_file( filename, ncid, grid_read)
+    CALL close_netcdf_file( ncid)
+
+    ! Allocate memory for read data
+    ALLOCATE( d_grid_vec_partial_read( grid_read%n1:grid_read%n2,12))
+
+    ! Read data from file
+    CALL read_field_from_lonlat_file_2D_monthly( filename, 'd', d_grid_vec_partial_read)
 
   ! == Validation
   ! =============
@@ -613,7 +650,7 @@ CONTAINS
     END IF
 
     ! Check if the data read from the file is identical to the original
-    DO n = 1, grid%n_loc
+    DO n = grid%n1, grid%n2
     DO m = 1, 12
       IF ( 1._dp - MAX( 0.001_dp, ABS( d_grid_vec_partial_read( n,m))) / MAX( 0.001_dp, ABS( d_grid_vec_partial( n,m))) > 1E-7_dp) found_errors = .TRUE.
     END DO
@@ -648,7 +685,7 @@ CONTAINS
     INTEGER                                            :: nzeta
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: zeta
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: d_grid_vec_partial
-    INTEGER                                            :: n,n_glob,i,j,k
+    INTEGER                                            :: n,i,j,k
     REAL(dp)                                           :: lon,lat,d
     INTEGER                                            :: ncid
     TYPE(type_grid_lonlat)                             :: grid_read
@@ -678,11 +715,10 @@ CONTAINS
     END DO
 
     ! Generate a simple test data field
-    ALLOCATE( d_grid_vec_partial( grid%n_loc, nzeta))
-    DO n = 1, grid%n_loc
-      n_glob = grid%n1 + n - 1
-      i = grid%n2ij( n_glob,1)
-      j = grid%n2ij( n_glob,2)
+    ALLOCATE( d_grid_vec_partial( grid%n1:grid%n2, nzeta))
+    DO n = grid%n1, grid%n2
+      i = grid%n2ij( n,1)
+      j = grid%n2ij( n,2)
       lon = grid%lon( i)
       lat = grid%lat( j)
       CALL test_function_lonlat( lon, lat, d)
@@ -709,8 +745,17 @@ CONTAINS
   ! == Test reading grid and gridded data from NetCDF
   ! =================================================
 
+    ! Set up the grid from the file
+    CALL open_existing_netcdf_file_for_reading( filename, ncid)
+    CALL setup_lonlat_grid_from_file( filename, ncid, grid_read)
+    CALL setup_zeta_from_file( filename, ncid, nzeta_read, zeta_read)
+    CALL close_netcdf_file( ncid)
+
+    ! Allocate memory for read data
+    ALLOCATE( d_grid_vec_partial_read( grid_read%n1:grid_read%n2,nzeta_read))
+
     ! Read grid and data from file
-    CALL read_field_from_lonlat_file_3D( filename, 'd', d_grid_vec_partial_read, grid = grid_read, nzeta = nzeta_read, zeta = zeta_read)
+    CALL read_field_from_lonlat_file_3D( filename, 'd', d_grid_vec_partial_read)
 
   ! == Validation
   ! =============
@@ -731,7 +776,7 @@ CONTAINS
     END DO
 
     ! Check if the data read from the file is identical to the original
-    DO n = 1, grid%n_loc
+    DO n = grid%n1, grid%n2
     DO k = 1, nzeta
       IF ( 1._dp - MAX( 0.001_dp, ABS( d_grid_vec_partial_read( n,k))) / MAX( 0.001_dp, ABS( d_grid_vec_partial( n,k))) > 1E-7_dp) found_errors = .TRUE.
     END DO
@@ -867,11 +912,19 @@ CONTAINS
     ! Close the file
     CALL close_netcdf_file( ncid)
 
-  ! == Test reading grid and gridded data from NetCDF
+  ! == Test reading mesh and meshed data from NetCDF
   ! =================================================
 
+    ! Set up the mesh from the file
+    CALL open_existing_netcdf_file_for_reading( filename, ncid)
+    CALL setup_mesh_from_file( filename, ncid, mesh_read)
+    CALL close_netcdf_file( ncid)
+
+    ! Allocate memory for read data
+    ALLOCATE( d_mesh_partial_read( mesh_read%vi1:mesh_read%vi2))
+
     ! Read grid and data from file
-    CALL read_field_from_mesh_file_2D( filename, 'd', d_mesh_partial_read, mesh = mesh_read)
+    CALL read_field_from_mesh_file_2D( filename, 'd', d_mesh_partial_read)
 
   ! == Validation
   ! =============
@@ -958,8 +1011,16 @@ CONTAINS
   ! == Test reading grid and gridded data from NetCDF
   ! =================================================
 
+    ! Set up the grid from the file
+    CALL open_existing_netcdf_file_for_reading( filename, ncid)
+    CALL setup_mesh_from_file( filename, ncid, mesh_read)
+    CALL close_netcdf_file( ncid)
+
+    ! Allocate memory for read data
+    ALLOCATE( d_mesh_partial_read( mesh_read%vi1:mesh_read%vi2,12))
+
     ! Read grid and data from file
-    CALL read_field_from_mesh_file_2D_monthly( filename, 'd', d_mesh_partial_read, mesh = mesh_read)
+    CALL read_field_from_mesh_file_2D_monthly( filename, 'd', d_mesh_partial_read)
 
   ! == Validation
   ! =============
@@ -1050,8 +1111,17 @@ CONTAINS
   ! == Test reading grid and gridded data from NetCDF
   ! =================================================
 
+    ! Set up the grid from the file
+    CALL open_existing_netcdf_file_for_reading( filename, ncid)
+    CALL setup_mesh_from_file( filename, ncid, mesh_read)
+    CALL setup_zeta_from_file( filename, ncid, nzeta_read, zeta_read)
+    CALL close_netcdf_file( ncid)
+
+    ! Allocate memory for read data
+    ALLOCATE( d_mesh_partial_read( mesh_read%vi1:mesh_read%vi2,mesh%nz))
+
     ! Read grid and data from file
-    CALL read_field_from_mesh_file_3D( filename, 'd', d_mesh_partial_read, mesh = mesh_read, nzeta = nzeta_read, zeta = zeta_read)
+    CALL read_field_from_mesh_file_3D( filename, 'd', d_mesh_partial_read)
 
   ! == Validation
   ! =============
