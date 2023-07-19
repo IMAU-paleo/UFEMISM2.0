@@ -42,11 +42,16 @@ CONTAINS
     CALL run_all_petsc_unit_tests
     CALL run_all_mesh_unit_tests
     CALL run_all_netcdf_unit_tests
-    CALL run_all_ice_unit_tests
 
     ! Add routine to path
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE run_all_unit_tests
+
+  subroutine run_all_benchmarks
+
+    CALL run_all_ice_unit_tests
+
+  end subroutine
 
 END MODULE main_validation
