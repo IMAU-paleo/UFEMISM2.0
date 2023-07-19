@@ -46,6 +46,7 @@ MODULE model_configuration
 
     ! Debugging
     logical             :: do_unit_tests_config                         = .FALSE.                          ! Whether or not to (only) perform the unit tests in the main_validation module
+    logical             :: do_benchmarks_config                         = .FALSE.                          ! Whether or not to (only) perform the benchmarks
     LOGICAL             :: do_check_for_NaN_config                      = .FALSE.                          ! Whether or not fields should be checked for NaN values
     LOGICAL             :: do_time_display_config                       = .TRUE.                           ! Print current model time to screen
 
@@ -740,6 +741,7 @@ MODULE model_configuration
 
     ! Debugging
     logical             :: do_unit_tests
+    logical             :: do_benchmarks
     LOGICAL             :: do_check_for_NaN
     LOGICAL             :: do_time_display
 
@@ -1582,6 +1584,7 @@ CONTAINS
       create_procedural_output_dir_config                         , &
       fixed_output_dir_config                                     , &
       do_unit_tests_config                                        , &
+      do_benchmarks_config                                         , &
       do_check_for_NaN_config                                     , &
       do_time_display_config                                      , &
       start_time_of_run_config                                    , &
@@ -2066,6 +2069,7 @@ CONTAINS
 
     ! Debugging
     C%do_unit_tests                                          = do_unit_tests_config
+    C%do_benchmarks                                          = do_benchmarks_config
     C%do_check_for_NaN                                       = do_check_for_NaN_config
     C%do_time_display                                        = do_time_display_config
 

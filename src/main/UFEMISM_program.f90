@@ -35,7 +35,7 @@ PROGRAM UFEMISM_program
                                                                      print_UFEMISM_start, print_UFEMISM_end
   USE model_configuration                                    , ONLY: C, initialise_model_configuration
   USE netcdf_resource_tracking                               , ONLY: create_resource_tracking_file, write_to_resource_tracking_file
-  USE main_validation                                        , ONLY: run_all_unit_tests
+  USE main_validation                                        , ONLY: run_all_unit_tests, run_all_benchmarks
   USE region_types                                           , ONLY: type_model_region
   USE UFEMISM_main_model                                     , ONLY: initialise_model_region, run_model_region
 
@@ -85,55 +85,46 @@ PROGRAM UFEMISM_program
     CALL write_to_resource_tracking_file( 0._dp)
 
     ! Stop the clock
-    tstop = MPI_WTIME()
-    tcomp = tstop - tstart
 
-    ! Print the UFEMISM end message to the terminal
-    CALL print_UFEMISM_end( tcomp)
+  elseif (c%do_benchmarks) then
+    call run_all_benchmarks
 
-    ! Finalise PETSc and MPI parallelisation
-    CALL sync
-    CALL PetscFinalize( perr)
-    CALL sync
-    CALL finalise_parallelisation
+    CALL write_to_resource_tracking_file( 0._dp)
+  else
 
-    ! Stop the program
-    RETURN
+    ! == Initialise the model regions
+    ! ===============================
 
-  END IF ! IF (C%do_unit_tests) THEN
+    IF (C%do_NAM) CALL initialise_model_region( NAM, 'NAM')
+    IF (C%do_EAS) CALL initialise_model_region( EAS, 'EAS')
+    IF (C%do_GRL) CALL initialise_model_region( GRL, 'GRL')
+    IF (C%do_ANT) CALL initialise_model_region( ANT, 'ANT')
 
-  ! == Initialise the model regions
-  ! ===============================
+    ! == The coupling time loop
+    ! =========================
 
-  IF (C%do_NAM) CALL initialise_model_region( NAM, 'NAM')
-  IF (C%do_EAS) CALL initialise_model_region( EAS, 'EAS')
-  IF (C%do_GRL) CALL initialise_model_region( GRL, 'GRL')
-  IF (C%do_ANT) CALL initialise_model_region( ANT, 'ANT')
+    t_coupling = C%start_time_of_run
 
-  ! == The coupling time loop
-  ! =========================
+    DO WHILE (t_coupling < C%end_time_of_run)
 
-  t_coupling = C%start_time_of_run
+      ! Run all model regions forward in time for one coupling interval
+      t_end_models = MIN( C%end_time_of_run, t_coupling + C%dt_coupling)
 
-  DO WHILE (t_coupling < C%end_time_of_run)
+      IF (C%do_NAM) CALL run_model_region( NAM, t_end_models)
+      IF (C%do_EAS) CALL run_model_region( EAS, t_end_models)
+      IF (C%do_GRL) CALL run_model_region( GRL, t_end_models)
+      IF (C%do_ANT) CALL run_model_region( ANT, t_end_models)
 
-    ! Run all model regions forward in time for one coupling interval
-    t_end_models = MIN( C%end_time_of_run, t_coupling + C%dt_coupling)
+      ! Advance coupling time
+      t_coupling = t_end_models
 
-    IF (C%do_NAM) CALL run_model_region( NAM, t_end_models)
-    IF (C%do_EAS) CALL run_model_region( EAS, t_end_models)
-    IF (C%do_GRL) CALL run_model_region( GRL, t_end_models)
-    IF (C%do_ANT) CALL run_model_region( ANT, t_end_models)
+      ! Write to resource tracking file
+      CALL write_to_resource_tracking_file( t_coupling)
+      CALL reset_resource_tracker
 
-    ! Advance coupling time
-    t_coupling = t_end_models
+    END DO ! DO WHILE (t_coupling < C%end_time_of_run)
 
-    ! Write to resource tracking file
-    CALL write_to_resource_tracking_file( t_coupling)
-    CALL reset_resource_tracker
-
-  END DO ! DO WHILE (t_coupling < C%end_time_of_run)
-
+  end if ! do_unit_test/do_benchmark/run
 ! ===== FINISH =====
 ! ==================
 
@@ -149,5 +140,6 @@ PROGRAM UFEMISM_program
   CALL PetscFinalize( perr)
   CALL sync
   CALL finalise_parallelisation
+
 
 END PROGRAM UFEMISM_program
