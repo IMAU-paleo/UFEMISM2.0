@@ -46,8 +46,8 @@ MODULE UFEMISM_main_model
 
 CONTAINS
 
-! ===== Main routines =====
-! =========================
+! ===== Main routine =====
+! ========================
 
   SUBROUTINE run_model_region( region, t_end)
     ! Integrate this model region forward in time until t_end
@@ -137,6 +137,9 @@ CONTAINS
 
   END SUBROUTINE run_model_region
 
+! ===== Output =====
+! ==================
+
   SUBROUTINE write_to_regional_output_files( region)
     ! Write to all regional output files
 
@@ -192,8 +195,8 @@ CONTAINS
 
   END SUBROUTINE write_to_regional_output_files
 
-  ! == Time stepping
-  ! ================
+! ===== Time stepping =====
+! =========================
 
   SUBROUTINE advance_region_time_to_time_of_next_action( region, t_end)
     ! Advance this region's time to the time of the next "action"
@@ -213,8 +216,8 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-  ! == Find time of next action
-  ! ===========================
+    ! ===== Find time of next action =====
+    ! ====================================
 
     ! Start by setting the time of next action to the end of this coupling interval,
     ! then reduce it over all possible actions to find the first one.
@@ -250,8 +253,8 @@ CONTAINS
     ! Output
     time_of_next_action = MIN( time_of_next_action, region%output_t_next)
 
-  ! == Advance region time
-  ! ======================
+    ! ===== Advance region time =====
+    ! ===============================
 
     region%time = time_of_next_action
 
@@ -260,8 +263,8 @@ CONTAINS
 
   END SUBROUTINE advance_region_time_to_time_of_next_action
 
-  ! == Model initialisation
-  ! =======================
+! ===== Model initialisation =====
+! ================================
 
   SUBROUTINE initialise_model_region( region, region_name)
     ! Initialise this model region
@@ -880,8 +883,8 @@ CONTAINS
 
   END SUBROUTINE setup_ROI_grids_and_output_files
 
-  ! == Extras
-  ! =========
+! ===== Extras =====
+! ==================
 
   SUBROUTINE time_display( region, t_end, dt_av, ndt_av)
     ! Little time display for the screen

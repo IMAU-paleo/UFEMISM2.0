@@ -75,7 +75,9 @@ PROGRAM UFEMISM_program
   ! Create the resource tracking output file
   CALL create_resource_tracking_file
 
-  ! Unit testing
+  ! == Unit testing
+  ! ===============
+
   IF (C%do_unit_tests) THEN
 
     ! Run all unit tests
@@ -84,13 +86,19 @@ PROGRAM UFEMISM_program
     ! Write to resource tracking file
     CALL write_to_resource_tracking_file( 0._dp)
 
-    ! Stop the clock
+  ! == Benchmark testing
+  ! ====================
 
-  elseif (c%do_benchmarks) then
-    call run_all_benchmarks
+  ELSEIF (c%do_benchmarks) THEN
+
+    CALL run_all_benchmarks
 
     CALL write_to_resource_tracking_file( 0._dp)
-  else
+
+  ! == Custom simulation
+  ! ====================
+
+  ELSE
 
     ! == Initialise the model regions
     ! ===============================
@@ -124,7 +132,8 @@ PROGRAM UFEMISM_program
 
     END DO ! DO WHILE (t_coupling < C%end_time_of_run)
 
-  end if ! do_unit_test/do_benchmark/run
+  END IF ! do_unit_test/do_benchmark/run
+
 ! ===== FINISH =====
 ! ==================
 
