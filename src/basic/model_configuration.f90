@@ -576,6 +576,7 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: filename_SMB_prescribed_EAS_config           = ''
     CHARACTER(LEN=256)  :: filename_SMB_prescribed_GRL_config           = ''
     CHARACTER(LEN=256)  :: filename_SMB_prescribed_ANT_config           = ''
+
     ! Timeframes for reading prescribed SMB forcing from file (set to 1E9_dp if the file has no time dimension)
     REAL(dp)            :: timeframe_SMB_prescribed_NAM_config          = 1E9_dp
     REAL(dp)            :: timeframe_SMB_prescribed_EAS_config          = 1E9_dp
