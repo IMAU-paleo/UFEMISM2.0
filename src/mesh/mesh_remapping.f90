@@ -11,13 +11,13 @@ MODULE mesh_remapping
   USE mpi
   USE precisions                                             , ONLY: dp
   USE mpi_basic                                              , ONLY: par, cerr, ierr, MPI_status, sync
-  USE mpi_distributed_memory                                 , ONLY: partition_list
+  USE mpi_distributed_memory                                 , ONLY: partition_list, gather_to_all_dp_1D
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
   USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp, allocate_matrix_CSR_dist, add_entry_CSR_dist, deallocate_matrix_CSR_dist, &
                                                                      add_empty_row_CSR_dist
   USE petsc_basic                                            , ONLY: mat_CSR2petsc, multiply_PETSc_matrix_with_vector_1D, multiply_PETSc_matrix_with_vector_2D, &
-                                                                     MatDestroy, MatConvert
+                                                                     MatDestroy, MatConvert, mat_petsc2CSR
   USE grid_basic                                             , ONLY: type_grid, calc_matrix_operators_grid, gather_gridded_data_to_master_dp_2D, &
                                                                      distribute_gridded_data_from_master_dp_2D, gather_gridded_data_to_master_dp_3D, &
                                                                      distribute_gridded_data_from_master_dp_3D, smooth_Gaussian_2D_grid, smooth_Gaussian_3D_grid
@@ -527,6 +527,65 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE map_from_mesh_to_xy_grid_3D
+
+  SUBROUTINE map_from_mesh_to_xy_grid_2D_minval( mesh, grid, d_mesh_partial, d_grid_vec_partial, method)
+    ! Map a 2-D data field from an x/y-grid to a mesh.
+    !
+    ! For each grid cell, get the minimum value of all overlapping mesh vertices
+
+    IMPLICIT NONE
+
+    ! In/output variables
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: d_mesh_partial
+    REAL(dp), DIMENSION(:    ),          INTENT(OUT)   :: d_grid_vec_partial
+    CHARACTER(LEN=256), OPTIONAL,        INTENT(IN)    :: method
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'map_from_mesh_to_xy_grid_2D_minval'
+    INTEGER                                            :: mi, mi_valid
+    LOGICAL                                            :: found_map, found_empty_page
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Browse the Atlas to see if an appropriate mapping object already exists.
+    found_map = .FALSE.
+    DO mi = 1, SIZE( Atlas, 1)
+      IF (Atlas( mi)%name_src == mesh%name .AND. Atlas( mi)%name_dst == grid%name) THEN
+        ! If so specified, look for a mapping object with the correct method
+        IF (PRESENT( method)) THEN
+          IF (Atlas( mi)%method /= method) CYCLE
+        END IF
+        found_map = .TRUE.
+        mi_valid  = mi
+        EXIT
+      END IF
+    END DO
+
+    ! If no appropriate mapping object could be found, create one.
+    IF (.NOT. found_map) THEN
+      found_empty_page = .FALSE.
+      DO mi = 1, SIZE( Atlas,1)
+        IF (.NOT. Atlas( mi)%is_in_use) THEN
+          found_empty_page = .TRUE.
+          CALL create_map_from_mesh_to_xy_grid( mesh, grid,Atlas( mi))
+          mi_valid = mi
+          EXIT
+        END IF
+      END DO
+      ! Safety
+      IF (.NOT. found_empty_page) CALL crash('No more room in Atlas - assign more memory!')
+    END IF
+
+    ! Apply the appropriate mapping object
+    CALL apply_map_mesh_to_xy_grid_2D_minval( mesh, grid, Atlas( mi), d_mesh_partial, d_grid_vec_partial)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE map_from_mesh_to_xy_grid_2D_minval
 
   ! From a mesh to a mesh
   SUBROUTINE map_from_mesh_to_mesh_2D( mesh_src, mesh_dst, d_src_partial, d_dst_partial, method)
@@ -1120,6 +1179,72 @@ CONTAINS
 
   END SUBROUTINE apply_map_mesh_to_xy_grid_3D
 
+  SUBROUTINE apply_map_mesh_to_xy_grid_2D_minval( mesh, grid, map, d_mesh_partial, d_grid_vec_partial)
+    ! Map a 2-D data field from a mesh to an x/y-grid.
+    !
+    ! For each grid cell, get the minimum value of all overlapping mesh vertices
+
+    IMPLICIT NONE
+
+    ! In/output variables
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh
+    TYPE(type_grid),                        INTENT(IN)    :: grid
+    TYPE(type_map),                         INTENT(IN)    :: map
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: d_mesh_partial
+    REAL(dp), DIMENSION(grid%n1 :grid%n2 ), INTENT(OUT)   :: d_grid_vec_partial
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'apply_map_mesh_to_xy_grid_2D_minval'
+    REAL(dp), DIMENSION(mesh%nV)                          :: d_mesh_tot
+    TYPE(type_sparse_matrix_CSR_dp)                       :: M_CSR
+    INTEGER                                               :: n,k1,k2,k,col,vi
+    REAL(dp)                                              :: d_max, d_min
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Safety
+    IF (SIZE( d_mesh_partial,1) /= mesh%nV_loc .OR. SIZE( d_grid_vec_partial,1) /= grid%n_loc) THEN
+      CALL crash('data fields are the wrong size!')
+    END IF
+
+    ! Gather global mesh data
+    CALL gather_to_all_dp_1D( d_mesh_partial, d_mesh_tot)
+
+    ! Convert mapping matrix from PETSc format to UFEMISM CSR format
+    CALL mat_petsc2CSR( map%M, M_CSR)
+
+    ! Find global maximum value of d
+    d_max = MAXVAL( d_mesh_partial)
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, d_max, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
+
+    ! Map data
+    DO n = grid%n1, grid%n2
+
+      ! Initialise minimum as maximum
+      d_min = d_max
+
+      ! Loop over all mesh vertices that this grid cell overlaps with
+      k1 = M_CSR%ptr( n)
+      k2 = M_CSR%ptr( n+1)-1
+      DO k = k1, k2
+        col = M_CSR%ind( k)
+        ! This matrix row corresponds to this mesh vertex
+        vi = mesh%n2vi( col)
+        ! Update minimum value
+        d_min = MIN( d_min, d_mesh_tot( vi))
+      END DO
+
+      ! Fill into array
+      d_grid_vec_partial( n) = d_min
+
+    END DO ! DO n = grid%n1, grid%n2
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE apply_map_mesh_to_xy_grid_2D_minval
+
   ! From a mesh to a mesh
   SUBROUTINE apply_map_mesh_to_mesh_2D( mesh_src, mesh_dst, map, d_src_partial, d_dst_partial)
     ! Map a 2-D data field from a mesh to a mesh.
@@ -1311,7 +1436,7 @@ CONTAINS
         END DO
 
         ! Safety
-        IF (single_row_Vor%n == 0) CALL crash('couldnt find any grid cells overlapping with this Voronoi cell!')
+        IF (single_row_Vor%n == 0) CALL crash('couldnt find any grid cells overlapping with this small Voronoi cell!')
 
         ! Next integrate around the grid cells overlapping with this Voronoi cell
         DO k = 1, single_row_Vor%n
@@ -1347,7 +1472,7 @@ CONTAINS
           CALL trace_line_Vor( mesh, nw, sw, single_row_grid, count_coincidences, vi_hint)
 
           ! Safety
-          IF (single_row_grid%n == 0) CALL crash('couldnt find any grid cells overlapping with this Voronoi cell!')
+          IF (single_row_grid%n == 0) CALL crash('couldnt find any Voronoi cells overlapping with this grid cell!')
 
           ! Add contribution for this particular triangle
           DO kk = 1, single_row_grid%n
@@ -1409,7 +1534,7 @@ CONTAINS
         END DO
 
         ! Safety
-        IF (single_row_Vor%n == 0) CALL crash('couldnt find any grid cells overlapping with this Voronoi cell!')
+        IF (single_row_Vor%n == 0) CALL crash('couldnt find any grid cells overlapping with this big Voronoi cell!')
 
         ! Add entries to the big matrices
         DO k = 1, single_row_Vor%n
@@ -1638,7 +1763,7 @@ CONTAINS
         END DO
 
         ! Safety
-        IF (single_row_tri%n == 0) CALL crash('couldnt find any grid cells overlapping with this triangle!')
+        IF (single_row_tri%n == 0) CALL crash('couldnt find any grid cells overlapping with this small triangle!')
 
         ! Next integrate around the grid cells overlapping with this triangle
         DO k = 1, single_row_tri%n
@@ -1674,7 +1799,7 @@ CONTAINS
           CALL trace_line_tri( mesh, nw, sw, single_row_grid, count_coincidences, ti_hint)
 
           ! Safety
-          IF (single_row_grid%n == 0) CALL crash('couldnt find any grid cells overlapping with this triangle!')
+          IF (single_row_grid%n == 0) CALL crash('couldnt find any triangles overlapping with this grid cell!')
 
           ! Add contribution for this particular triangle
           DO kk = 1, single_row_grid%n
@@ -1742,7 +1867,7 @@ CONTAINS
         END DO
 
         ! Safety
-        IF (single_row_tri%n == 0) CALL crash('couldnt find any grid cells overlapping with this triangle!')
+        IF (single_row_tri%n == 0) CALL crash('couldnt find any grid cells overlapping with this big triangle!')
 
         ! Add entries to the big matrices
         DO k = 1, single_row_tri%n
@@ -3037,6 +3162,7 @@ CONTAINS
     INTEGER,                             INTENT(INOUT) :: ti_hint
 
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'trace_line_tri'
     REAL(dp), DIMENSION(2)                             :: pp, qq
     LOGICAL                                            :: is_valid_line
     LOGICAL                                            :: finished
@@ -3047,11 +3173,15 @@ CONTAINS
     LOGICAL                                            :: coincides
     REAL(dp)                                           :: LI_xdy, LI_mxydx, LI_xydy
 
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
     ! Crop the line [pq] so that it lies within the mesh domain
     CALL crop_line_to_domain( p, q, mesh%xmin, mesh%xmax, mesh%ymin, mesh%ymax, mesh%tol_dist, pp, qq, is_valid_line)
 
     IF (.NOT. is_valid_line) THEN
       ! [pq] doesn't pass through the mesh domain anywhere
+      CALL finalise_routine( routine_name)
       RETURN
     END IF
 
@@ -3103,6 +3233,9 @@ CONTAINS
       ti_hint = ti_left
 
     END DO ! DO WHILE (.NOT. finished)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
 
   END SUBROUTINE trace_line_tri
 
@@ -3855,6 +3988,7 @@ CONTAINS
     INTEGER,                             INTENT(INOUT) :: vi_hint
 
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'trace_line_Vor'
     REAL(dp), DIMENSION(2)                             :: pp,qq
     LOGICAL                                            :: is_valid_line
     LOGICAL                                            :: finished
@@ -3865,11 +3999,15 @@ CONTAINS
     LOGICAL                                            :: coincides
     REAL(dp)                                           :: LI_xdy, LI_mxydx, LI_xydy
 
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
     ! Crop the line [pq] so that it lies within the mesh domain
     CALL crop_line_to_domain( p, q, mesh%xmin, mesh%xmax, mesh%ymin, mesh%ymax, mesh%tol_dist, pp, qq, is_valid_line)
 
     IF (.NOT.is_valid_line) THEN
       ! [pq] doesn't pass through the mesh domain anywhere
+      CALL finalise_routine( routine_name)
       RETURN
     END IF
 
@@ -3919,6 +4057,9 @@ CONTAINS
       vi_hint = vi_left
 
     END DO ! DO WHILE (.NOT.finished)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
 
   END SUBROUTINE trace_line_Vor
 
@@ -4694,6 +4835,7 @@ CONTAINS
     LOGICAL,                             INTENT(IN)    :: count_coincidences
 
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'trace_line_Vor'
     REAL(dp)                                           :: xmin, xmax, ymin, ymax
     REAL(dp), DIMENSION(2)                             :: pp,qq
     LOGICAL                                            :: is_valid_line
@@ -4705,15 +4847,19 @@ CONTAINS
     LOGICAL                                            :: coincides
     REAL(dp)                                           :: LI_xdy, LI_mxydx, LI_xydy
 
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
     ! Crop the line [pq] so that it lies within the domain
-    xmin = grid%xmin + grid%dx / 2._dp
-    xmax = grid%xmax - grid%dx / 2._dp
-    ymin = grid%ymin + grid%dx / 2._dp
-    ymax = grid%ymax - grid%dx / 2._dp
+    xmin = grid%xmin - grid%dx / 2._dp
+    xmax = grid%xmax + grid%dx / 2._dp
+    ymin = grid%ymin - grid%dx / 2._dp
+    ymax = grid%ymax + grid%dx / 2._dp
     CALL crop_line_to_domain( p, q, xmin, xmax, ymin, ymax, grid%tol_dist, pp, qq, is_valid_line)
 
     IF (.NOT. is_valid_line) THEN
       ! [pq] doesn't pass through the domain anywhere
+      CALL finalise_routine( routine_name)
       RETURN
     END IF
 
@@ -4763,6 +4909,9 @@ CONTAINS
       END IF
 
     END DO ! DO WHILE (.NOT. finished)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
 
   END SUBROUTINE trace_line_grid
 

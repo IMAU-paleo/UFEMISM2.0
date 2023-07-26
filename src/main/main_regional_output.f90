@@ -34,7 +34,7 @@ MODULE main_regional_output
                                                                      write_to_field_multopt_grid_dp_2D, write_to_field_multopt_grid_dp_2D_notime, &
                                                                      write_to_field_multopt_grid_dp_2D_monthly, write_to_field_multopt_grid_dp_2D_monthly_notime, &
                                                                      write_to_field_multopt_grid_dp_3D, write_to_field_multopt_grid_dp_3D_notime
-  USE mesh_remapping                                         , ONLY: map_from_mesh_to_xy_grid_2D, map_from_mesh_to_xy_grid_3D
+  USE mesh_remapping                                         , ONLY: map_from_mesh_to_xy_grid_2D, map_from_mesh_to_xy_grid_3D, map_from_mesh_to_xy_grid_2D_minval
 
   IMPLICIT NONE
 
@@ -378,6 +378,12 @@ CONTAINS
     SELECT CASE (choice_output_field)
       CASE ('none')
         ! Do nothing
+
+    ! ===== Mesh properties =====
+    ! ===========================
+
+      CASE ('resolution')
+        ! Do nothing - this is already part of the regular mesh data; only write this to the square grid output
 
     ! ===== Reference geometries =====
     ! ================================
@@ -733,6 +739,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'write_to_main_regional_output_file_grid_field'
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE                            :: d_mesh_vec_partial_2D
     REAL(dp), DIMENSION(:    ), ALLOCATABLE                            :: d_grid_vec_partial_2D
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                            :: d_grid_vec_partial_2D_monthly
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                            :: d_grid_vec_partial_3D
@@ -747,6 +754,7 @@ CONTAINS
     END IF
 
     ! Allocate memory
+    ALLOCATE( d_mesh_vec_partial_2D(         region%mesh%vi1:region%mesh%vi2         ))
     ALLOCATE( d_grid_vec_partial_2D(         grid%n_loc                ))
     ALLOCATE( d_grid_vec_partial_2D_monthly( grid%n_loc, 12            ))
     ALLOCATE( d_grid_vec_partial_3D(         grid%n_loc, region%mesh%nz))
@@ -756,50 +764,58 @@ CONTAINS
       CASE ('none')
         ! Do nothing
 
+    ! ===== Mesh properties =====
+    ! ===========================
+
+      CASE ('resolution')
+        d_mesh_vec_partial_2D = region%mesh%R( region%mesh%vi1:region%mesh%vi2)
+        CALL map_from_mesh_to_xy_grid_2D_minval( region%mesh, grid, d_mesh_vec_partial_2D, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D_notime( grid, filename, ncid, 'resolution', d_grid_vec_partial_2D)
+
     ! ===== Reference geometries =====
     ! ================================
 
       ! Initial ice-sheet geometry
       CASE ('Hi_init')
         CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%refgeo_init%Hi, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'Hi_init', d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D_notime( grid, filename, ncid, 'Hi_init', d_grid_vec_partial_2D)
       CASE ('Hb_init')
         CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%refgeo_init%Hb, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'Hb_init', d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D_notime( grid, filename, ncid, 'Hb_init', d_grid_vec_partial_2D)
       CASE ('Hs_init')
         CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%refgeo_init%Hs, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'Hs_init', d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D_notime( grid, filename, ncid, 'Hs_init', d_grid_vec_partial_2D)
       CASE ('SL_init')
         CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%refgeo_init%SL, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'SL_init', d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D_notime( grid, filename, ncid, 'SL_init', d_grid_vec_partial_2D)
 
       ! Present-day ice-sheet geometry
       CASE ('Hi_PD')
         CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%refgeo_PD%Hi, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'Hi_PD', d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D_notime( grid, filename, ncid, 'Hi_PD', d_grid_vec_partial_2D)
       CASE ('Hb_PD')
         CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%refgeo_PD%Hb, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'Hb_PD', d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D_notime( grid, filename, ncid, 'Hb_PD', d_grid_vec_partial_2D)
       CASE ('Hs_PD')
         CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%refgeo_PD%Hs, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'Hs_PD', d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D_notime( grid, filename, ncid, 'Hs_PD', d_grid_vec_partial_2D)
       CASE ('SL_PD')
         CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%refgeo_PD%SL, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'SL_PD', d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D_notime( grid, filename, ncid, 'SL_PD', d_grid_vec_partial_2D)
 
       ! GIA equilibrium ice-sheet geometry
       CASE ('Hi_GIAeq')
         CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%refgeo_GIAeq%Hi, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'Hi_GIAeq', d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D_notime( grid, filename, ncid, 'Hi_GIAeq', d_grid_vec_partial_2D)
       CASE ('Hb_GIAeq')
         CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%refgeo_GIAeq%Hb, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'Hb_GIAeq', d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D_notime( grid, filename, ncid, 'Hb_GIAeq', d_grid_vec_partial_2D)
       CASE ('Hs_GIAeq')
         CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%refgeo_GIAeq%Hs, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'Hs_GIAeq', d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D_notime( grid, filename, ncid, 'Hs_GIAeq', d_grid_vec_partial_2D)
       CASE ('SL_GIAeq')
         CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%refgeo_GIAeq%SL, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'SL_GIAeq', d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D_notime( grid, filename, ncid, 'SL_GIAeq', d_grid_vec_partial_2D)
 
     ! ===== Basic ice-sheet geometry =====
     ! ====================================
@@ -1106,6 +1122,7 @@ CONTAINS
     END SELECT
 
     ! Clean up after yourself
+    DEALLOCATE( d_mesh_vec_partial_2D)
     DEALLOCATE( d_grid_vec_partial_2D)
     DEALLOCATE( d_grid_vec_partial_2D_monthly)
     DEALLOCATE( d_grid_vec_partial_3D)
@@ -1469,6 +1486,12 @@ CONTAINS
       CASE ('none')
         ! Do nothing
 
+    ! ===== Mesh properties =====
+    ! ===========================
+
+      CASE ('resolution')
+        ! Do nothing - this is already part of the regular mesh data; only write this to the square grid output
+
     ! ===== Reference geometries =====
     ! ================================
 
@@ -1791,6 +1814,15 @@ CONTAINS
     SELECT CASE (choice_output_field)
       CASE ('none')
         ! Do nothing
+
+    ! ===== Mesh properties =====
+    ! ===========================
+
+      CASE ('resolution')
+        CALL add_field_grid_dp_2D_notime( filename, ncid, 'resolution', long_name = 'Mesh resolution (distance to nearest neighbour)', units = 'm')
+
+    ! ===== Reference geometries =====
+    ! ================================
 
       ! Initial ice-sheet geometry
       CASE ('Hi_init')

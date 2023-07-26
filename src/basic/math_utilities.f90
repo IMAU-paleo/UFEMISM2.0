@@ -1372,435 +1372,296 @@ CONTAINS
     LOGICAL,                             INTENT(OUT)   :: is_valid_line
 
     ! Local variables:
-    REAL(dp), DIMENSION(2)                             :: sw, se, nw, ne, llis
-    INTEGER                                            :: edge_index_p, edge_index_q
-    LOGICAL                                            :: do_cross
-
-    pp = p
-    qq = q
-    is_valid_line = .TRUE.
+    REAL(dp), DIMENSION(2)                             :: sw, se, nw, ne
+    LOGICAL                                            :: p_inside
+    LOGICAL                                            :: p_on_border
+    LOGICAL                                            :: p_outside
+    LOGICAL                                            :: q_inside
+    LOGICAL                                            :: q_on_border
+    LOGICAL                                            :: q_outside
+    LOGICAL                                            :: do_cross_w
+    LOGICAL                                            :: do_cross_e
+    LOGICAL                                            :: do_cross_s
+    LOGICAL                                            :: do_cross_n
+    INTEGER                                            :: n_cross
+    REAL(dp), DIMENSION(2)                             :: llis_w, llis_e, llis_s, llis_n, llis1, llis2
 
     sw = [xmin,ymin]
     se = [xmax,ymin]
     nw = [xmin,ymax]
     ne = [xmax,ymax]
 
-    ! Determine in which quadrants p and q lie
-    ! (same as with edge_index; 1-8 clockwise starting north, 0 means inside
+    ! Determine where p and q are relative to the domain
 
-    IF     (pp(1) >= xmin .AND. pp(1) <= xmax .AND. pp(2) > ymax) THEN
-      ! North
-      edge_index_p = 1
-    ELSEIF (pp(1) > xmax .AND. pp(2) > ymax) THEN
-      ! Northeast
-      edge_index_p = 2
-    ELSEIF (pp(1) > xmax .AND. pp(2) >= ymin .AND. pp(2) <= ymax) THEN
-      ! East
-      edge_index_p = 3
-    ELSEIF (pp(1) > xmax .AND. pp(2) < ymin) THEN
-      ! Southeast
-      edge_index_p = 4
-    ELSEIF (pp(1) >= xmin .AND. pp(1) <= xmax .AND. pp(2) < ymin) THEN
-      ! South
-      edge_index_p = 5
-    ELSEIF (pp(1) < xmin .AND. pp(2) < ymin) THEN
-      ! Southwest
-      edge_index_p = 6
-    ELSEIF (pp(1) < xmin .AND. pp(2) >= ymin .AND. pp(2) <= ymax) THEN
-      ! West
-      edge_index_p = 7
-    ELSEIF (pp(1) < xmin .AND. pp(2) > ymax) THEN
-      ! Northwest
-      edge_index_p = 8
+    p_inside    = .FALSE.
+    p_on_border = .FALSE.
+    p_outside   = .FALSE.
+
+    IF     (p( 1) > xmin .AND. p( 1) < xmax .AND. p( 2) > ymin .AND. p( 2) < ymax) THEN
+      p_inside    = .TRUE.
+    ELSEIF (p (1) < xmin .OR.  p( 1) > xmax .OR.  p( 2) < ymin .OR.  p( 2) > ymax) THEN
+      p_outside   = .TRUE.
     ELSE
-      ! Inside the mesh domain
-      edge_index_p = 0
+      p_on_border = .TRUE.
     END IF
 
-    IF     (qq(1) >= xmin .AND. qq(1) <= xmax .AND. qq(2) > ymax) THEN
-      ! North
-      edge_index_q = 1
-    ELSEIF (qq(1) > xmax .AND. qq(2) > ymax) THEN
-      ! Northeast
-      edge_index_q = 2
-    ELSEIF (qq(1) > xmax .AND. qq(2) >= ymin .AND. qq(2) <= ymax) THEN
-      ! East
-      edge_index_q = 3
-    ELSEIF (qq(1) > xmax .AND. qq(2) < ymin) THEN
-      ! Southeast
-      edge_index_q = 4
-    ELSEIF (qq(1) >= xmin .AND. qq(1) <= xmax .AND. qq(2) < ymin) THEN
-      ! South
-      edge_index_q = 5
-    ELSEIF (qq(1) < xmin .AND. qq(2) < ymin) THEN
-      ! Southwest
-      edge_index_q = 6
-    ELSEIF (qq(1) < xmin .AND. qq(2) >= ymin .AND. qq(2) <= ymax) THEN
-      ! West
-      edge_index_q = 7
-    ELSEIF (qq(1) < xmin .AND. qq(2) > ymax) THEN
-      ! Northwest
-      edge_index_q = 8
+    q_inside    = .FALSE.
+    q_on_border = .FALSE.
+    q_outside   = .FALSE.
+
+    IF     (q( 1) > xmin .AND. q( 1) < xmax .AND. q( 2) > ymin .AND. q( 2) < ymax) THEN
+      q_inside    = .TRUE.
+    ELSEIF (q (1) < xmin .OR.  q( 1) > xmax .OR.  q( 2) < ymin .OR.  q( 2) > ymax) THEN
+      q_outside   = .TRUE.
     ELSE
-      ! Inside the mesh domain
-      edge_index_q = 0
+      q_on_border = .TRUE.
     END IF
 
-    IF (edge_index_p == 0 .AND. edge_index_q == 0) THEN
-      ! Both p and q lie inside the mesh domain
+    ! If both of them lie inside the domain, the solution is trivial
+    IF (p_inside .AND. q_inside) THEN
+      pp = p
+      qq = q
+      is_valid_line = .TRUE.
       RETURN
     END IF
 
-    IF (edge_index_p == 0 .AND. edge_index_q > 0) THEN
-      ! p lies inside the mesh domain, q lies outside
+    ! If both of them lie on the border, the solution is trivial
+    IF (p_on_border .AND. q_on_border) THEN
+      pp = p
+      qq = q
+      is_valid_line = .TRUE.
+      RETURN
+    END IF
 
-      ! Check IF [pq] passes through any of the four corners
-      IF     (lies_on_line_segment( pp, qq, sw, tol_dist)) THEN
-        ! [pq] passes through the southwest corner of the mesh
-        qq = sw
-        RETURN
-      ELSEIF (lies_on_line_segment( pp, qq, se, tol_dist)) THEN
-        ! [pq] passes through the southeast corner of the mesh
-        qq = se
-        RETURN
-      ELSEIF (lies_on_line_segment( pp, qq, nw, tol_dist)) THEN
-        ! [pq] passes through the northwest corner of the mesh
+    ! If one of them lies inside the domain and the other on the border, the solution is trivial
+    IF ((p_inside .AND. q_on_border) .OR. (p_on_border .AND. q_inside)) THEN
+      pp = p
+      qq = q
+      is_valid_line = .TRUE.
+      RETURN
+    END IF
+
+    ! If one of them lies inside and the other outside, there must be a single border crossing
+    IF (p_inside .AND. q_outside) THEN
+      ! p lies inside the domain, q lies outside
+
+      ! Possible pq passes through a corner of the domain?
+      IF     (lies_on_line_segment( p, q, nw, tol_dist)) THEN
+        ! pq passes through the northwest corner
+        pp = p
         qq = nw
+        is_valid_line = .TRUE.
         RETURN
-      ELSEIF (lies_on_line_segment( pp, qq, ne, tol_dist)) THEN
-        ! [pq] passes through the northeast corner of the mesh
+      ELSEIF (lies_on_line_segment( p, q, ne, tol_dist)) THEN
+        ! pq passes through the northeast corner
+        pp = p
         qq = ne
+        is_valid_line = .TRUE.
+        RETURN
+      ELSEIF (lies_on_line_segment( p, q, sw, tol_dist)) THEN
+        ! pq passes through the southwest corner
+        pp = p
+        qq = sw
+        is_valid_line = .TRUE.
+        RETURN
+      ELSEIF (lies_on_line_segment( p, q, se, tol_dist)) THEN
+        ! pq passes through the southeast corner
+        pp = p
+        qq = se
+        is_valid_line = .TRUE.
         RETURN
       END IF
 
-      ! Check IF [pq] crosses any of the four borders
+      ! pq must pass through one of the four borders; determine which one
+      CALL segment_intersection( p, q, sw, nw, llis_w, do_cross_w, tol_dist)
+      CALL segment_intersection( p, q, se, ne, llis_e, do_cross_e, tol_dist)
+      CALL segment_intersection( p, q, sw, se, llis_s, do_cross_s, tol_dist)
+      CALL segment_intersection( p, q, nw, ne, llis_n, do_cross_n, tol_dist)
 
-      ! South
-      CALL segment_intersection( pp, qq, sw, se, llis, do_cross, tol_dist)
-      IF (do_cross) THEN
-        ! [pq] crosses the southern border
-        qq = llis
+      IF     (do_cross_w) THEN
+        ! pq crosses the western border
+        pp = p
+        qq = llis_w
+        is_valid_line = .TRUE.
+        RETURN
+      ELSEIF (do_cross_e) THEN
+        ! pq crosses the eastern border
+        pp = p
+        qq = llis_e
+        is_valid_line = .TRUE.
+        RETURN
+      ELSEIF (do_cross_s) THEN
+        ! pq crosses the southern border
+        pp = p
+        qq = llis_s
+        is_valid_line = .TRUE.
+        RETURN
+      ELSEIF (do_cross_n) THEN
+        ! pq crosses the northern border
+        pp = p
+        qq = llis_n
+        is_valid_line = .TRUE.
         RETURN
       END IF
 
-      ! West
-      CALL segment_intersection( pp, qq, sw, nw, llis, do_cross, tol_dist)
-      IF (do_cross) THEN
-        ! [pq] crosses the western border
-        qq = llis
-        RETURN
-      END IF
+      ! This point should not be reachable!
+      CALL crash('crop_line_to_domain - p lies inside, q lies outside, couldnt find exit point of pq!')
 
-      ! North
-      CALL segment_intersection( pp, qq, nw, ne, llis, do_cross, tol_dist)
-      IF (do_cross) THEN
-        ! [pq] crosses the northern border
-        qq = llis
-        RETURN
-      END IF
+    ELSEIF (p_outside .AND. q_inside) THEN
+      ! p lies outside the domain, q lies inside
 
-      ! East
-      CALL segment_intersection( pp, qq, se, ne, llis, do_cross, tol_dist)
-      IF (do_cross) THEN
-        ! [pq] crosses the eastern border
-        qq = llis
-        RETURN
-      END IF
-
-      ! This point should be unreachable
-      CALL crash('crop_line_to_mesh_domain - reached the unreachable point (p inside, q outside)!')
-
-    END IF ! IF (edge_index_p == 0 .AND. edge_index_q > 0)
-
-    IF (edge_index_q == 0 .AND. edge_index_p > 0) THEN
-      ! q lies inside the mesh domain, p lies outside
-
-      ! Check IF [pq] passes through any of the four corners
-      IF     (lies_on_line_segment( pp, qq, sw, tol_dist)) THEN
-        ! [pq] passes through the southwest corner of the mesh
-        pp = sw
-        RETURN
-      ELSEIF (lies_on_line_segment( pp, qq, se, tol_dist)) THEN
-        ! [pq] passes through the southeast corner of the mesh
-        pp = se
-        RETURN
-      ELSEIF (lies_on_line_segment( pp, qq, nw, tol_dist)) THEN
-        ! [pq] passes through the northwest corner of the mesh
+      ! Possible pq passes through a corner of the domain?
+      IF     (lies_on_line_segment( p, q, nw, tol_dist)) THEN
+        ! pq passes through the northwest corner
         pp = nw
+        qq = q
+        is_valid_line = .TRUE.
         RETURN
-      ELSEIF (lies_on_line_segment( pp, qq, ne, tol_dist)) THEN
-        ! [pq] passes through the northeast corner of the mesh
+      ELSEIF (lies_on_line_segment( p, q, ne, tol_dist)) THEN
+        ! pq passes through the northeast corner
         pp = ne
+        qq = q
+        is_valid_line = .TRUE.
+        RETURN
+      ELSEIF (lies_on_line_segment( p, q, sw, tol_dist)) THEN
+        ! pq passes through the southwest corner
+        pp = sw
+        qq = q
+        is_valid_line = .TRUE.
+        RETURN
+      ELSEIF (lies_on_line_segment( p, q, se, tol_dist)) THEN
+        ! pq passes through the southeast corner
+        pp = se
+        qq = q
+        is_valid_line = .TRUE.
         RETURN
       END IF
 
-      ! Check IF [pq] crosses any of the four borders
+      ! pq must pass through one of the four borders; determine which one
+      CALL segment_intersection( p, q, sw, nw, llis_w, do_cross_w, tol_dist)
+      CALL segment_intersection( p, q, se, ne, llis_e, do_cross_e, tol_dist)
+      CALL segment_intersection( p, q, sw, se, llis_s, do_cross_s, tol_dist)
+      CALL segment_intersection( p, q, nw, ne, llis_n, do_cross_n, tol_dist)
 
-      ! South
-      CALL segment_intersection( pp, qq, sw, se, llis, do_cross, tol_dist)
-      IF (do_cross) THEN
-        ! [pq] crosses the southern border
-        pp = llis
+      IF     (do_cross_w) THEN
+        ! pq crosses the western border
+        pp = llis_w
+        qq = q
+        is_valid_line = .TRUE.
+        RETURN
+      ELSEIF (do_cross_e) THEN
+        ! pq crosses the eastern border
+        pp = llis_e
+        qq = q
+        is_valid_line = .TRUE.
+        RETURN
+      ELSEIF (do_cross_s) THEN
+        ! pq crosses the southern border
+        pp = llis_s
+        qq = q
+        is_valid_line = .TRUE.
+        RETURN
+      ELSEIF (do_cross_n) THEN
+        ! pq crosses the northern border
+        pp = llis_n
+        qq = q
+        is_valid_line = .TRUE.
         RETURN
       END IF
 
-      ! West
-      CALL segment_intersection( pp, qq, sw, nw, llis, do_cross, tol_dist)
-      IF (do_cross) THEN
-        ! [pq] crosses the western border
-        pp = llis
-        RETURN
+      ! This point should not be reachable!
+      CALL crash('crop_line_to_domain - p lies outside, q lies inside, couldnt find exit point of pq!')
+
+    END IF ! IF (p_inside .AND. q_outside) THEN
+
+    ! If both of them lie outside the domain, there might still be a section passing through it
+    IF (p_outside .AND. q_outside) THEN
+
+      ! pq must pass through either none, or two of the four borders; determine which
+      CALL segment_intersection( p, q, sw, nw, llis_w, do_cross_w, tol_dist)
+      CALL segment_intersection( p, q, se, ne, llis_e, do_cross_e, tol_dist)
+      CALL segment_intersection( p, q, sw, se, llis_s, do_cross_s, tol_dist)
+      CALL segment_intersection( p, q, nw, ne, llis_n, do_cross_n, tol_dist)
+
+      n_cross = 0
+
+      IF (do_cross_w) THEN
+        n_cross = n_cross + 1
+        IF (n_cross == 1) THEN
+          llis1 = llis_w
+        ELSE
+          llis2 = llis_w
+        END IF
       END IF
 
-      ! North
-      CALL segment_intersection( pp, qq, nw, ne, llis, do_cross, tol_dist)
-      IF (do_cross) THEN
-        ! [pq] crosses the northern border
-        pp = llis
-        RETURN
+      IF (do_cross_e) THEN
+        n_cross = n_cross + 1
+        IF (n_cross == 1) THEN
+          llis1 = llis_e
+        ELSE
+          llis2 = llis_e
+        END IF
       END IF
 
-      ! East
-      CALL segment_intersection( pp, qq, se, ne, llis, do_cross, tol_dist)
-      IF (do_cross) THEN
-        ! [pq] crosses the eastern border
-        pp = llis
-        RETURN
+      IF (do_cross_s) THEN
+        n_cross = n_cross + 1
+        IF (n_cross == 1) THEN
+          llis1 = llis_s
+        ELSE
+          llis2 = llis_s
+        END IF
       END IF
 
-      ! This point should be unreachable
-      CALL crash('crop_line_to_mesh_domain - reached the unreachable point (q inside, p outside)!')
+      IF (do_cross_n) THEN
+        n_cross = n_cross + 1
+        IF (n_cross == 1) THEN
+          llis1 = llis_n
+        ELSE
+          llis2 = llis_n
+        END IF
+      END IF
 
-    END IF ! IF (edge_index_q == 0 .AND. edge_index_p > 0)
+      IF     (n_cross == 0) THEN
+        ! pq does not pass through the domain at all
+        pp = 0._dp
+        qq = 0._dp
+        is_valid_line = .FALSE.
+        RETURN
+      ELSEIF (n_cross == 2) THEN
+        ! pq passes through the domain; crop it
 
-    ! Both p and q lie outside the mesh domain
+        IF (NORM2( llis1 - p) < NORM2( llis2 - p)) THEN
+          ! the cropped line runs from llis1 to llis2
+          pp = llis1
+          qq = llis2
+          is_valid_line = .TRUE.
+          RETURN
+        ELSE
+          ! the cropped lines runs from llis2 to llis1
+          pp = llis2
+          qq = llis1
+          is_valid_line = .TRUE.
+          RETURN
+        END IF
 
-    IF     (pp(1) < xmin .AND. qq(1) < xmin) THEN
-      ! Both p and q lie west of the western mesh border; [pq] cannot pass through the mesh domain
-      is_valid_line = .FALSE.
-      RETURN
-    ELSEIF (pp(1) > xmax .AND. qq(1) > xmax) THEN
-      ! Both p and q lie east of the eastern mesh border; [pq] cannot pass through the mesh domain
-      is_valid_line = .FALSE.
-      RETURN
-    ELSEIF (pp(2) < ymin .AND. qq(2) < ymin) THEN
-      ! Both p and q lie south of the southern mesh border; [pq] cannot pass through the mesh domain
-      is_valid_line = .FALSE.
-      RETURN
-    ELSEIF (pp(2) > ymax .AND. qq(2) > ymax) THEN
-      ! Both p and q lie north of the northern mesh border; [pq] cannot pass through the mesh domain
+      ELSE
+        ! This should not be possible
+        CALL crash('pq crosses the domain border {int_01} times!', int_01 = n_cross)
+      END IF
+
+    END IF ! IF (p_outside .AND. q_outside) THEN
+
+    ! If one of them lies on the border and another outside, it is possible
+    ! that the line still passes through the domain, but we neglect that possibility for now...
+    IF ((p_on_border .AND. q_outside) .OR. (p_outside .AND. q_on_border)) THEN
+      pp = 0._dp
+      qq = 0._dp
       is_valid_line = .FALSE.
       RETURN
     END IF
 
-    IF (edge_index_p == 1) THEN
-      ! p lies in the northern quadrant
-
-      IF (edge_index_q == 3) THEN
-        ! q lies in the eastern quadrant; check IF [pq] cuts through the northeast corner
-
-        IF (cross2( (ne - qq), (pp - qq)) > 0) THEN
-          ! [pq] cuts through the northeast corner
-          CALL segment_intersection( pp, qq, nw, ne, llis, do_cross, tol_dist)
-          IF (.NOT. do_cross) THEN
-            CALL crash('crop_line_to_mesh_domain - [pq] should intersect nw-ne, but it doesnt!')
-          END IF
-          pp = llis
-          CALL segment_intersection( pp, qq, ne, se, llis, do_cross, tol_dist)
-          IF (.NOT. do_cross) THEN
-            CALL crash('crop_line_to_mesh_domain - [pq] should intersect ne-se, but it doesnt!')
-          END IF
-          qq = llis
-          RETURN
-        ELSE
-          ! [pq] does not pass through the mesh domain
-          is_valid_line = .FALSE.
-          RETURN
-        END IF
-
-      ELSEIF (edge_index_q == 7) THEN
-        ! q lies in the western quadrant; check IF [pq] cuts through the northwest corner
-
-        IF (cross2( (pp - qq), (ne - qq)) > 0) THEN
-          ! [pq] cuts through the northeast corner
-          CALL segment_intersection( pp, qq, nw, ne, llis, do_cross, tol_dist)
-          IF (.NOT. do_cross) THEN
-            CALL crash('crop_line_to_mesh_domain - [pq] should intersect nw-ne, but it doesnt!')
-          END IF
-          pp = llis
-          CALL segment_intersection( pp, qq, nw, sw, llis, do_cross, tol_dist)
-          IF (.NOT. do_cross) THEN
-            CALL crash('crop_line_to_mesh_domain - [pq] should intersect nw-sw, but it doesnt!')
-          END IF
-          qq = llis
-          RETURN
-        ELSE
-          ! [pq] does not pass through the mesh domain
-          is_valid_line = .FALSE.
-          RETURN
-        END IF
-
-      ELSE
-        CALL crash('crop_line_to_mesh_domain - edge_index_p = {int_01}, edge_index_q = {int_02}', int_01 = edge_index_p, int_02 = edge_index_q)
-      END IF
-
-    ELSEIF (edge_index_p == 3) THEN
-      ! p lies in the eastern quadrant
-
-      IF (edge_index_q == 1) THEN
-        ! q lies in the northern quadrant; check IF [pq] cuts through the northeast corner
-
-        IF (cross2( (ne - pp), (qq - pp)) > 0) THEN
-          ! [pq] cuts through the northeast corner
-          CALL segment_intersection( pp, qq, nw, ne, llis, do_cross, tol_dist)
-          IF (.NOT. do_cross) THEN
-            CALL crash('crop_line_to_mesh_domain - [pq] should intersect nw-ne, but it doesnt!')
-          END IF
-          qq = llis
-          CALL segment_intersection( pp, qq, ne, se, llis, do_cross, tol_dist)
-          IF (.NOT. do_cross) THEN
-            CALL crash('crop_line_to_mesh_domain - [pq] should intersect ne-se, but it doesnt!')
-          END IF
-          pp = llis
-          RETURN
-        ELSE
-          ! [pq] does not pass through the mesh domain
-          is_valid_line = .FALSE.
-          RETURN
-        END IF
-
-      ELSEIF (edge_index_q == 5) THEN
-        ! q lies in the southern quadrant; check IF [pq] cuts through the southeast corner
-
-        IF (cross2( (se - qq), (pp - qq)) > 0) THEN
-          ! [pq] cuts through the southeast corner
-          CALL segment_intersection( pp, qq, se, ne, llis, do_cross, tol_dist)
-          IF (.NOT. do_cross) THEN
-            CALL crash('crop_line_to_mesh_domain - [pq] should intersect se-ne, but it doesnt!')
-          END IF
-          pp = llis
-          CALL segment_intersection( pp, qq, sw, se, llis, do_cross, tol_dist)
-          IF (.NOT. do_cross) THEN
-            CALL crash('crop_line_to_mesh_domain - [pq] should intersect sw-se, but it doesnt!')
-          END IF
-          qq = llis
-          RETURN
-        ELSE
-          ! [pq] does not pass through the mesh domain
-          is_valid_line = .FALSE.
-          RETURN
-        END IF
-
-      ELSE
-        CALL crash('crop_line_to_mesh_domain - edge_index_p = {int_01}, edge_index_q = {int_02}', int_01 = edge_index_p, int_02 = edge_index_q)
-      END IF
-
-    ELSEIF (edge_index_p == 5) THEN
-      ! p lies in the southern quadrant
-
-      IF (edge_index_q == 3) THEN
-        ! q lies in the eastern quadrant; check IF [pq] cuts through the southeast corner
-
-        IF (cross2( (se - pp), (qq - pp)) > 0) THEN
-          ! [pq] cuts through the southwest corner
-          CALL segment_intersection( pp, qq, sw, se, llis, do_cross, tol_dist)
-          IF (.NOT. do_cross) THEN
-            CALL crash('crop_line_to_mesh_domain - [pq] should intersect sw-se, but it doesnt!')
-          END IF
-          pp = llis
-          CALL segment_intersection( pp, qq, se, ne, llis, do_cross, tol_dist)
-          IF (.NOT. do_cross) THEN
-            CALL crash('crop_line_to_mesh_domain - [pq] should intersect se-ne, but it doesnt!')
-          END IF
-          qq = llis
-          RETURN
-        ELSE
-          ! [pq] does not pass through the mesh domain
-          is_valid_line = .FALSE.
-          RETURN
-        END IF
-
-      ELSEIF (edge_index_q == 7) THEN
-        ! q lies in the western quadrant; check IF [pq] cuts through the southwest corner
-
-        IF (cross2( (qq - pp), (sw - pp)) > 0) THEN
-          ! [pq] cuts through the southwest corner
-          CALL segment_intersection( pp, qq, sw, se, llis, do_cross, tol_dist)
-          IF (.NOT. do_cross) THEN
-            CALL crash('crop_line_to_mesh_domain - [pq] should intersect sw-se, but it doesnt!')
-          END IF
-          pp = llis
-          CALL segment_intersection( pp, qq, sw, nw, llis, do_cross, tol_dist)
-          IF (.NOT. do_cross) THEN
-            CALL crash('crop_line_to_mesh_domain - [pq] should intersect sw-nw, but it doesnt!')
-          END IF
-          qq = llis
-          RETURN
-        ELSE
-          ! [pq] does not pass through the mesh domain
-          is_valid_line = .FALSE.
-          RETURN
-        END IF
-
-      ELSE
-        CALL crash('crop_line_to_mesh_domain - edge_index_p = {int_01}, edge_index_q = {int_02}', int_01 = edge_index_p, int_02 = edge_index_q)
-      END IF
-
-    ELSEIF (edge_index_p == 7) THEN
-      ! p lies in the western quadrant
-
-      IF (edge_index_q == 5) THEN
-        ! q lies in the southern quadrant; check IF [pq] cuts through the southwest corner
-
-        IF (cross2( (pp - qq), (sw - qq)) > 0) THEN
-          ! [pq] cuts through the southwest corner
-          CALL segment_intersection( pp, qq, sw, se, llis, do_cross, tol_dist)
-          IF (.NOT. do_cross) THEN
-            CALL crash('crop_line_to_mesh_domain - [pq] should intersect sw-se, but it doesnt!')
-          END IF
-          qq = llis
-          CALL segment_intersection( pp, qq, sw, nw, llis, do_cross, tol_dist)
-          IF (.NOT. do_cross) THEN
-            CALL crash('crop_line_to_mesh_domain - [pq] should intersect sw-nw, but it doesnt!')
-          END IF
-          pp = llis
-          RETURN
-        ELSE
-          ! [pq] does not pass through the mesh domain
-          is_valid_line = .FALSE.
-          RETURN
-        END IF
-
-      ELSEIF (edge_index_q == 1) THEN
-        ! q lies in the northern quadrant; check IF [pq] cuts through the northwest corner
-
-        IF (cross2( (qq - pp), (nw - pp)) > 0) THEN
-          ! [pq] cuts through the northwest corner
-          CALL segment_intersection( pp, qq, sw, nw, llis, do_cross, tol_dist)
-          IF (.NOT. do_cross) THEN
-            CALL crash('crop_line_to_mesh_domain - [pq] should intersect sw-nw, but it doesnt!')
-          END IF
-          pp = llis
-          CALL segment_intersection( pp, qq, nw, ne, llis, do_cross, tol_dist)
-          IF (.NOT. do_cross) THEN
-            CALL crash('crop_line_to_mesh_domain - [pq] should intersect nw-ne, but it doesnt!')
-          END IF
-          qq = llis
-          RETURN
-        ELSE
-          ! [pq] does not pass through the mesh domain
-          is_valid_line = .FALSE.
-          RETURN
-        END IF
-
-      ELSE
-        CALL crash('crop_line_to_mesh_domain - edge_index_p = {int_01}, edge_index_q = {int_02}', int_01 = edge_index_p, int_02 = edge_index_q)
-      END IF
-
-    END IF ! IF (edge_index_p == 1)
-
-    ! Don't consider the other options...
-    is_valid_line = .FALSE.
+    ! This point should not be reachable!
+    CALL crash('crop_line_to_domain - reached the unreachable end!')
 
   END SUBROUTINE crop_line_to_domain
 
