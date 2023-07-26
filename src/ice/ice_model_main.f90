@@ -610,7 +610,7 @@ CONTAINS
     IMPLICIT NONE
 
     ! In- and output variables
-    TYPE(type_ice_pc),             INTENT(OUT)   :: pc
+    TYPE(type_ice_pc),             INTENT(INOUT) :: pc
     CHARACTER(LEN=256),            INTENT(IN)    :: filename
     REAL(dp),                      INTENT(IN)    :: timeframe
 
