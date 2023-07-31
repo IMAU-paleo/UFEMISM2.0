@@ -138,6 +138,7 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'calc_dHi_dt_explicit'
     TYPE(type_sparse_matrix_CSR_dp)                       :: M_divQ
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: divQ
+    REAL(dp)                                              :: dt_max
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -151,10 +152,13 @@ CONTAINS
     ! Calculate rate of ice thickness change dHi/dt
     dHi_dt = -divQ + SMB + BMB
 
+    ! Calculate largest time step possible based on flux divergence
+    CALL calc_flux_limited_timestep( mesh, Hi, divQ, dt_max)
+
     ! Calculate ice thickness at t+dt
     Hi_tplusdt = MAX( 0._dp, Hi + dHi_dt * dt)
 
-    ! Enfore Hi = 0 where told to do so
+    ! Enforce Hi = 0 where told to do so
     CALL apply_mask_noice_direct( mesh, mask_noice, Hi_tplusdt)
 
     ! Recalculate dH/dt, accounting for limit of no negative ice thickness
@@ -229,12 +233,20 @@ CONTAINS
     TYPE(type_sparse_matrix_CSR_dp)                       :: AA
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: bb
     INTEGER                                               :: vi, k1, k2, k, vj
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: divQ
+    REAL(dp)                                              :: dt_max
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
     ! Calculate the ice flux divergence matrix M_divQ using an upwind scheme
     CALL calc_ice_flux_divergence_matrix_upwind( mesh, u_vav_b, v_vav_b, M_divQ)
+
+    ! Calculate the ice flux divergence div(Q)
+    CALL multiply_CSR_matrix_with_vector_1D( M_divQ, Hi, divQ)
+
+    ! Calculate largest time step possible based on flux divergence div(Q)
+    CALL calc_flux_limited_timestep( mesh, Hi, divQ, dt_max)
 
     ! Calculate the stiffness matrix A and the load vector b
 
@@ -270,7 +282,7 @@ CONTAINS
     ! Solve for Hi_tplusdt
     CALL solve_matrix_equation_CSR_PETSc( AA, bb, Hi_tplusdt, C%dHi_PETSc_rtol, C%dHi_PETSc_abstol)
 
-    ! Enfore Hi = 0 where told to do so
+    ! Enforce Hi = 0 where told to do so
     CALL apply_mask_noice_direct( mesh, mask_noice, Hi_tplusdt)
 
     ! Calculate dH/dt
@@ -353,12 +365,20 @@ CONTAINS
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: M_divQ_H
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: bb
     INTEGER                                               :: vi, k1, k2, k, vj
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: divQ
+    REAL(dp)                                              :: dt_max
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
     ! Calculate the ice flux divergence matrix M_divQ using an upwind scheme
     CALL calc_ice_flux_divergence_matrix_upwind( mesh, u_vav_b, v_vav_b, M_divQ)
+
+    ! Calculate the ice flux divergence div(Q)
+    CALL multiply_CSR_matrix_with_vector_1D( M_divQ, Hi, divQ)
+
+    ! Calculate largest time step possible based on flux divergence div(Q)
+    CALL calc_flux_limited_timestep( mesh, Hi, divQ, dt_max)
 
     ! Calculate the stiffness matrix A and the load vector b
 
@@ -395,7 +415,7 @@ CONTAINS
     ! Solve for Hi_tplusdt
     CALL solve_matrix_equation_CSR_PETSc( AA, bb, Hi_tplusdt, C%dHi_PETSc_rtol, C%dHi_PETSc_abstol)
 
-    ! Enfore Hi = 0 where told to do so
+    ! Enforce Hi = 0 where told to do so
     CALL apply_mask_noice_direct( mesh, mask_noice, Hi_tplusdt)
 
     ! Calculate dH/dt
@@ -468,7 +488,7 @@ CONTAINS
       ! Initialise
       cM_divQ = 0._dp
 
-      ! Loopover all connections of vertex vi
+      ! Loop over all connections of vertex vi
       DO ci = 1, mesh%nC( vi)
 
         ! Connection ci from vertex vi leads through edge ei to vertex vj
@@ -774,25 +794,50 @@ CONTAINS
 
   END SUBROUTINE apply_mask_noice_direct
 
-  SUBROUTINE calc_flux_limited_timestep( mesh, ice, dt_max)
+  SUBROUTINE calc_flux_limited_timestep( mesh, Hi, divQ, dt_max)
     ! Calculate the largest time step that does not result in more
     ! ice flowing out of a cell than is contained within it.
 
     IMPLICIT NONE
 
     ! In/output variables:
-    TYPE(type_mesh),                     INTENT(IN)    :: mesh
-    TYPE(type_ice_model),                INTENT(IN)    :: ice
-    REAL(dp),                            INTENT(OUT)   :: dt_max
+    TYPE(type_mesh),                        INTENT(IN)  :: mesh
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)  :: Hi
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)  :: divQ
+    REAL(dp),                               INTENT(OUT) :: dt_max
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_flux_limited_timestep'
+    CHARACTER(LEN=256), PARAMETER                       :: routine_name = 'calc_flux_limited_timestep'
+    INTEGER                                             :: vi
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)              :: dt_lim
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! DENK DROM
-    CALL warning('Jorjo! Jorjo! Please fix me!')
+    ! Initialise time step limit
+    dt_max = C%dt_ice_max
+    dt_lim = C%dt_ice_max
+
+    ! Loop over each mesh vertex within this process
+    DO vi = mesh%vi1, mesh%vi2
+      ! If there is ice, and there is mass loss
+      IF (Hi( vi) > 0._dp .AND. divQ( vi) > 0._dp) THEN
+
+        ! Compute time step limit (in yr) based on
+        ! available ice thickness and flux divergence
+        dt_lim( vi) = Hi( vi) / divQ( vi)
+
+        ! Prevent a time step smaller than the absolute minimum
+        dt_lim( vi) = MAX( C%dt_ice_min, dt_lim( vi))
+
+      END IF
+    END DO
+
+    ! Get most strict time step limit for this process
+    dt_max = MINVAL( dt_lim)
+
+    ! Get most strict time step limit among all processes
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, dt_max, 1, MPI_DOUBLE_PRECISION, MPI_MIN, MPI_COMM_WORLD, ierr)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

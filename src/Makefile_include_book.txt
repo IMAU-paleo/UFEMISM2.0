@@ -9,8 +9,8 @@ $(OBJ_PATH)/%.o : %.f90 Makefile_include_book.txt
   NCLIB     = $(shell nc-config --libs)
   NFINC     = $(shell nf-config --fflags)
   NFLIB     = $(shell nf-config --flibs)
-  PETSCINC  = $(shell pkg-config petsc --cflags )
-  PETSCLIB  = $(shell pkg-config petsc --libs )
+  PETSCINC  = $(shell pkg-config petsc --cflags)
+  PETSCLIB  = $(shell pkg-config petsc --libs)
 
 # Basic flags:
   COMPILER_FLAGS_BASIC    = -O3 -Wall -ffree-line-length-none -cpp \
