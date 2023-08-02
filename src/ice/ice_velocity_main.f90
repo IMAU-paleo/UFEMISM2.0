@@ -82,7 +82,7 @@ CONTAINS
     IMPLICIT NONE
 
     ! In/output variables:
-    TYPE(type_mesh),                     INTENT(IN)    :: mesh
+    TYPE(type_mesh),                     INTENT(INOUT) :: mesh
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN) :: BMB
 

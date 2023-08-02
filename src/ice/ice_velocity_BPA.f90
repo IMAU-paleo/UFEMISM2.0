@@ -20,7 +20,7 @@ MODULE ice_velocity_BPA
   USE reallocate_mod                                         , ONLY: reallocate_clean
   USE mesh_operators                                         , ONLY: map_a_b_2D, map_a_b_3D, ddx_a_b_2D, ddy_a_b_2D, ddx_b_a_3D, ddy_b_a_3D, &
                                                                      calc_3D_gradient_bk_ak, calc_3D_gradient_bk_bks, map_ak_bks, map_bks_ak, &
-                                                                     calc_3D_gradient_ak_bk, calc_3D_gradient_bks_bk
+                                                                     calc_3D_gradient_ak_bk, calc_3D_gradient_bks_bk, calc_3D_matrix_operators_mesh
   USE mesh_zeta                                              , ONLY: vertical_average
   USE sliding_laws                                           , ONLY: calc_basal_friction_coefficient
   USE mesh_utilities                                         , ONLY: find_ti_copy_ISMIP_HOM_periodic
@@ -101,7 +101,7 @@ CONTAINS
     IMPLICIT NONE
 
     ! In/output variables:
-    TYPE(type_mesh),                     INTENT(IN)              :: mesh
+    TYPE(type_mesh),                     INTENT(INOUT)           :: mesh
     TYPE(type_ice_model),                INTENT(INOUT)           :: ice
     TYPE(type_ice_velocity_solver_BPA),  INTENT(INOUT)           :: BPA
     INTEGER,  DIMENSION(:,:  ),          INTENT(IN)   , OPTIONAL :: BC_prescr_mask_bk     ! Mask of triangles where velocity is prescribed
@@ -149,6 +149,9 @@ CONTAINS
 
     ! Calculate zeta gradients
     CALL calc_zeta_gradients( mesh, ice)
+
+    ! Calculate 3-D matrix operators for the current ice geometry
+    CALL calc_3D_matrix_operators_mesh( mesh, ice)
 
     ! Calculate the driving stress
     CALL calc_driving_stress( mesh, ice, BPA)
