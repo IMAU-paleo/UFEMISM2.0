@@ -235,7 +235,9 @@ MODULE model_configuration
     REAL(dp)            :: ROI_coastline_width_config                   = 50e3_dp                          ! [m]          Width of the band around the coastline that should get this resolution
 
     ! Mesh update settings
+    LOGICAL             :: allow_mesh_updates_config                    = .TRUE.                           ! [-]          Whether or not mesh updates are allowed
     REAL(dp)            :: dt_mesh_update_min_config                    = 50._dp                           ! [yr]         Minimum amount of time between mesh updates
+    REAL(dp)            :: minimum_mesh_fitness_coefficient_config      = 0.95_dp                          ! [-]          If the mesh fitness coefficient drops below this threshold, trigger a mesh update
 
     ! Advanced geometry parameters
     LOGICAL             :: do_singlecore_mesh_creation_config           = .TRUE.                           !              Whether or not to use only a single core for mesh generation (for better reproducibility)
@@ -931,7 +933,9 @@ MODULE model_configuration
     REAL(dp)            :: ROI_coastline_width
 
     ! Mesh update settings
+    LOGICAL             :: allow_mesh_updates
     REAL(dp)            :: dt_mesh_update_min
+    REAL(dp)            :: minimum_mesh_fitness_coefficient
 
     ! Advanced geometry parameters
     LOGICAL             :: do_singlecore_mesh_creation
@@ -1272,6 +1276,7 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: filename_SMB_prescribed_EAS
     CHARACTER(LEN=256)  :: filename_SMB_prescribed_GRL
     CHARACTER(LEN=256)  :: filename_SMB_prescribed_ANT
+
     ! Timeframes for reading prescribed SMB forcing from file (set to 1E9_dp if the file has no time dimension)
     REAL(dp)            :: timeframe_SMB_prescribed_NAM
     REAL(dp)            :: timeframe_SMB_prescribed_EAS
@@ -1423,6 +1428,7 @@ MODULE model_configuration
     INTEGER             :: type_calvingfront_gr
     INTEGER             :: type_calvingfront_fl
     INTEGER             :: type_margin
+    INTEGER             :: type_coastline
 
   END TYPE type_config
 
@@ -1585,7 +1591,7 @@ CONTAINS
       create_procedural_output_dir_config                         , &
       fixed_output_dir_config                                     , &
       do_unit_tests_config                                        , &
-      do_benchmarks_config                                         , &
+      do_benchmarks_config                                        , &
       do_check_for_NaN_config                                     , &
       do_time_display_config                                      , &
       start_time_of_run_config                                    , &
@@ -1712,7 +1718,9 @@ CONTAINS
       ROI_ice_front_width_config                                  , &
       ROI_maximum_resolution_coastline_config                     , &
       ROI_coastline_width_config                                  , &
+      allow_mesh_updates_config                                   , &
       dt_mesh_update_min_config                                   , &
+      minimum_mesh_fitness_coefficient_config                     , &
       do_singlecore_mesh_creation_config                          , &
       alpha_min_config                                            , &
       nit_Lloyds_algorithm_config                                 , &
@@ -2259,7 +2267,9 @@ CONTAINS
     C%ROI_coastline_width                                    = ROI_coastline_width_config
 
     ! Mesh update settings
+    C%allow_mesh_updates                                     = allow_mesh_updates_config
     C%dt_mesh_update_min                                     = dt_mesh_update_min_config
+    C%minimum_mesh_fitness_coefficient                       = minimum_mesh_fitness_coefficient_config
 
     ! Advanced geometry parameters
     C%do_singlecore_mesh_creation                            = do_singlecore_mesh_creation_config
@@ -2600,6 +2610,7 @@ CONTAINS
     C%filename_SMB_prescribed_EAS                            = filename_SMB_prescribed_EAS_config
     C%filename_SMB_prescribed_GRL                            = filename_SMB_prescribed_GRL_config
     C%filename_SMB_prescribed_ANT                            = filename_SMB_prescribed_ANT_config
+
     ! Timeframes for reading prescribed SMB forcing from file (set to 1E9_dp if the file has no time dimension)
     C%timeframe_SMB_prescribed_NAM                           = timeframe_SMB_prescribed_NAM_config
     C%timeframe_SMB_prescribed_EAS                           = timeframe_SMB_prescribed_EAS_config
@@ -2748,6 +2759,7 @@ CONTAINS
     C%type_calvingfront_gr                     = 7
     C%type_calvingfront_fl                     = 8
     C%type_margin                              = 9
+    C%type_coastline                           = 10
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

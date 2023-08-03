@@ -524,6 +524,13 @@ CONTAINS
           mask_int = 0
         END WHERE
         CALL write_to_field_multopt_mesh_int_2D( region%mesh, filename, ncid, 'mask_cf_fl', mask_int)
+      CASE ('mask_coastline')
+        WHERE (region%ice%mask_coastline .EQV. .TRUE.)
+          mask_int = 1
+        ELSEWHERE
+          mask_int = 0
+        END WHERE
+        CALL write_to_field_multopt_mesh_int_2D( region%mesh, filename, ncid, 'mask_coastline', mask_int)
       CASE ('mask')
         CALL write_to_field_multopt_mesh_int_2D( region%mesh, filename, ncid, 'mask', region%ice%mask)
       CASE ('basin_ID')
@@ -887,6 +894,7 @@ CONTAINS
       CASE ('mask_gl_fl')
       CASE ('mask_cf_gr')
       CASE ('mask_cf_fl')
+      CASE ('mask_coastline')
       CASE ('mask')
       CASE ('basin_ID')
 
@@ -1590,6 +1598,8 @@ CONTAINS
         CALL add_field_mesh_int_2D( filename, ncid, 'mask_cf_gr', long_name = 'Mask indicating grounded calving front')
       CASE ('mask_cf_fl')
         CALL add_field_mesh_int_2D( filename, ncid, 'mask_cf_fl', long_name = 'Mask indicating floating calving front')
+      CASE ('mask_coastline')
+        CALL add_field_mesh_int_2D( filename, ncid, 'mask_coastline', long_name = 'Mask indicating ice-free land next to ice-free ocean')
       CASE ('mask')
         CALL add_field_mesh_int_2D( filename, ncid, 'mask', long_name = 'General mask')
       CASE ('basin_ID')
@@ -1910,6 +1920,7 @@ CONTAINS
       CASE ('mask_gl_fl')
       CASE ('mask_cf_gr')
       CASE ('mask_cf_fl')
+      CASE ('mask_coastline')
       CASE ('mask')
       CASE ('basin_ID')
 

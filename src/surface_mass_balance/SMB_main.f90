@@ -16,6 +16,7 @@ MODULE SMB_main
   USE SMB_model_types                                        , ONLY: type_SMB_model
   USE SMB_idealised                                          , ONLY: initialise_SMB_model_idealised, run_SMB_model_idealised
   USE SMB_prescribed                                         , ONLY: initialise_SMB_model_prescribed, run_SMB_model_prescribed
+  USE reallocate_mod                                         , ONLY: reallocate_bounds
 
   IMPLICIT NONE
 
@@ -252,5 +253,60 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE create_restart_file_SMB_model
+
+  SUBROUTINE remap_SMB_model( mesh_old, mesh_new, SMB, region_name)
+    ! Remap the SMB model
+
+    IMPLICIT NONE
+
+    ! In- and output variables
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh_old
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh_new
+    TYPE(type_SMB_model),                   INTENT(OUT)   :: SMB
+    CHARACTER(LEN=3),                       INTENT(IN)    :: region_name
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'remap_SMB_model'
+    CHARACTER(LEN=256)                                    :: choice_SMB_model
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Print to terminal
+    IF (par%master)  WRITE(*,"(A)") '    Remapping surface mass balance model data to the new mesh...'
+
+    ! Determine which SMB model to initialise for this region
+    SELECT CASE (region_name)
+      CASE ('NAM')
+        choice_SMB_model = C%choice_SMB_model_NAM
+      CASE ('EAS')
+        choice_SMB_model = C%choice_SMB_model_EAS
+      CASE ('GRL')
+        choice_SMB_model = C%choice_SMB_model_GRL
+      CASE ('ANT')
+        choice_SMB_model = C%choice_SMB_model_ANT
+      CASE DEFAULT
+        CALL crash('unknown region_name "' // region_name // '"')
+    END SELECT
+
+    ! Reallocate memory for main variables
+    CALL reallocate_bounds( SMB%SMB, mesh_new%vi1, mesh_new%vi2)
+
+    ! Determine which SMB model to initialise
+    SELECT CASE (choice_SMB_model)
+      CASE ('uniform')
+        ! No need to do anything
+      CASE ('idealised')
+        ! No need to do anything
+      CASE ('prescribed')
+        ! No need to do anything
+      CASE DEFAULT
+        CALL crash('unknown choice_SMB_model "' // TRIM( choice_SMB_model) // '"')
+    END SELECT
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE remap_SMB_model
 
 END MODULE SMB_main

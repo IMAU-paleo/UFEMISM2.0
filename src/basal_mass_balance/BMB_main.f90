@@ -14,6 +14,7 @@ MODULE BMB_main
   USE ice_model_types                                        , ONLY: type_ice_model
   USE ocean_model_types                                      , ONLY: type_ocean_model
   USE BMB_model_types                                        , ONLY: type_BMB_model
+  USE reallocate_mod                                         , ONLY: reallocate_bounds
 
   IMPLICIT NONE
 
@@ -230,5 +231,60 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE create_restart_file_BMB_model
+
+  SUBROUTINE remap_BMB_model( mesh_old, mesh_new, BMB, region_name)
+    ! Remap the BMB model
+
+    IMPLICIT NONE
+
+    ! In- and output variables
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh_old
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh_new
+    TYPE(type_BMB_model),                   INTENT(OUT)   :: BMB
+    CHARACTER(LEN=3),                       INTENT(IN)    :: region_name
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'remap_BMB_model'
+    CHARACTER(LEN=256)                                    :: choice_BMB_model
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Print to terminal
+    IF (par%master)  WRITE(*,"(A)") '    Remapping basal mass balance model data to the new mesh...'
+
+    ! Determine which BMB model to initialise for this region
+    SELECT CASE (region_name)
+      CASE ('NAM')
+        choice_BMB_model = C%choice_BMB_model_NAM
+      CASE ('EAS')
+        choice_BMB_model = C%choice_BMB_model_EAS
+      CASE ('GRL')
+        choice_BMB_model = C%choice_BMB_model_GRL
+      CASE ('ANT')
+        choice_BMB_model = C%choice_BMB_model_ANT
+      CASE DEFAULT
+        CALL crash('unknown region_name "' // region_name // '"')
+    END SELECT
+
+    ! Reallocate memory for main variables
+    CALL reallocate_bounds( BMB%BMB, mesh_new%vi1, mesh_new%vi2)
+
+    ! Determine which BMB model to initialise
+    SELECT CASE (choice_BMB_model)
+      CASE ('uniform')
+        ! No need to do anything
+      CASE ('idealised')
+        ! No need to do anything
+      CASE ('prescribed')
+        ! No need to do anything
+      CASE DEFAULT
+        CALL crash('unknown choice_BMB_model "' // TRIM( choice_BMB_model) // '"')
+    END SELECT
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE remap_BMB_model
 
 END MODULE BMB_main

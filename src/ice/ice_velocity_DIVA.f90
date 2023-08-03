@@ -19,8 +19,7 @@ MODULE ice_velocity_DIVA
   USE petsc_basic                                            , ONLY: solve_matrix_equation_CSR_PETSc
   USE mesh_types                                             , ONLY: type_mesh
   USE ice_model_types                                        , ONLY: type_ice_model, type_ice_velocity_solver_DIVA
-  USE reallocate_mod                                         , ONLY: reallocate_clean
-  USE mesh_operators                                         , ONLY: map_a_b_2D, ddx_a_b_2D, ddy_a_b_2D, ddx_b_a_2D, ddy_b_a_2D, map_b_a_3D, map_a_b_3D
+  USE mesh_operators                                         , ONLY: map_a_b_2D, ddx_a_b_2D, ddy_a_b_2D, ddx_b_a_2D, ddy_b_a_2D, map_b_a_2D, map_b_a_3D, map_a_b_3D
   USE mesh_zeta                                              , ONLY: vertical_average, integrate_from_zeta_is_one_to_zeta_is_zetap
   USE sliding_laws                                           , ONLY: calc_basal_friction_coefficient
   USE mesh_utilities                                         , ONLY: find_ti_copy_ISMIP_HOM_periodic
@@ -33,6 +32,8 @@ MODULE ice_velocity_DIVA
   USE netcdf_input                                           , ONLY: read_field_from_mesh_file_2D_b, read_field_from_mesh_file_3D_b
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_1D
   USE ice_flow_laws                                          , ONLY: calc_effective_viscosity_Glen_3D_uv_only, calc_ice_rheology_Glen
+  USE reallocate_mod                                         , ONLY: reallocate_bounds, reallocate_clean
+  USE mesh_remapping                                         , ONLY: map_from_mesh_to_mesh_with_reallocation_2D, map_from_mesh_to_mesh_with_reallocation_3D
 
   IMPLICIT NONE
 
@@ -227,7 +228,7 @@ CONTAINS
 
   END SUBROUTINE solve_DIVA
 
-  SUBROUTINE remap_DIVA_solver( mesh_old, mesh_new, ice, DIVA)
+  SUBROUTINE remap_DIVA_solver( mesh_old, mesh_new, DIVA)
     ! Remap the DIVA solver
 
     IMPLICIT NONE
@@ -235,17 +236,99 @@ CONTAINS
     ! In/output variables:
     TYPE(type_mesh),                     INTENT(IN)    :: mesh_old
     TYPE(type_mesh),                     INTENT(IN)    :: mesh_new
-    TYPE(type_ice_model),                INTENT(IN)    :: ice
     TYPE(type_ice_velocity_solver_DIVA), INTENT(INOUT) :: DIVA
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'remap_DIVA_solver'
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: u_vav_a
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: v_vav_a
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: tau_bx_a
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: tau_by_a
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: eta_3D_a
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! DENK DROM
-    CALL crash('fixme!')
+  ! Remap the fields that are re-used during the viscosity iteration
+  ! ================================================================
+
+    ! Allocate memory for velocities on the a-grid (vertices)
+    ALLOCATE( u_vav_a ( mesh_old%vi1: mesh_old%vi2             ))
+    ALLOCATE( v_vav_a ( mesh_old%vi1: mesh_old%vi2             ))
+    ALLOCATE( tau_bx_a( mesh_old%vi1: mesh_old%vi2             ))
+    ALLOCATE( tau_by_a( mesh_old%vi1: mesh_old%vi2             ))
+    ALLOCATE( eta_3D_a( mesh_old%vi1: mesh_old%vi2, mesh_old%nz))
+
+    ! Map data from the triangles of the old mesh to the vertices of the old mesh
+    CALL map_b_a_2D( mesh_old, DIVA%u_vav_b , u_vav_a )
+    CALL map_b_a_2D( mesh_old, DIVA%v_vav_b , v_vav_a )
+    CALL map_b_a_2D( mesh_old, DIVA%tau_bx_b, tau_bx_a)
+    CALL map_b_a_2D( mesh_old, DIVA%tau_by_b, tau_by_a)
+    CALL map_b_a_3D( mesh_old, DIVA%eta_3D_b, eta_3D_a)
+
+    ! Remap data from the vertices of the old mesh to the vertices of the new mesh
+    CALL map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, u_vav_a , '2nd_order_conservative')
+    CALL map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, v_vav_a , '2nd_order_conservative')
+    CALL map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, tau_bx_a, '2nd_order_conservative')
+    CALL map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, tau_by_a, '2nd_order_conservative')
+    CALL map_from_mesh_to_mesh_with_reallocation_3D( mesh_old, mesh_new, eta_3D_a, '2nd_order_conservative')
+
+    ! Reallocate memory for the data on the triangles
+    CALL reallocate_bounds( DIVA%u_vav_b                     , mesh_new%ti1, mesh_new%ti2             )
+    CALL reallocate_bounds( DIVA%v_vav_b                     , mesh_new%ti1, mesh_new%ti2             )
+    CALL reallocate_bounds( DIVA%tau_bx_b                    , mesh_new%ti1, mesh_new%ti2             )
+    CALL reallocate_bounds( DIVA%tau_by_b                    , mesh_new%ti1, mesh_new%ti2             )
+    CALL reallocate_bounds( DIVA%eta_3D_b                    , mesh_new%ti1, mesh_new%ti2, mesh_new%nz)
+
+    ! Map data from the vertices of the new mesh to the triangles of the new mesh
+    CALL map_a_b_2D( mesh_new, u_vav_a , DIVA%u_vav_b)
+    CALL map_a_b_2D( mesh_new, v_vav_a , DIVA%v_vav_b)
+    CALL map_a_b_2D( mesh_new, tau_bx_a, DIVA%tau_bx_b)
+    CALL map_a_b_2D( mesh_new, tau_by_a, DIVA%tau_by_b)
+    CALL map_a_b_3D( mesh_new, eta_3D_a, DIVA%eta_3D_b)
+
+    ! Clean up after yourself
+    DEALLOCATE( u_vav_a )
+    DEALLOCATE( v_vav_a )
+    DEALLOCATE( tau_bx_a)
+    DEALLOCATE( tau_by_a)
+    DEALLOCATE( eta_3D_a)
+
+  ! Reallocate everything else
+  ! ==========================
+
+!   CALL reallocate_bounds( DIVA%u_vav_b                     , mesh_new%ti1, mesh_new%ti2             )           ! [m yr^-1] 2-D vertically averaged horizontal ice velocity
+!   CALL reallocate_bounds( DIVA%v_vav_b                     , mesh_new%ti1, mesh_new%ti2             )
+    CALL reallocate_bounds( DIVA%u_base_b                    , mesh_new%ti1, mesh_new%ti2             )           ! [m yr^-1] 2-D horizontal ice velocity at the ice base
+    CALL reallocate_bounds( DIVA%v_base_b                    , mesh_new%ti1, mesh_new%ti2             )
+    CALL reallocate_bounds( DIVA%u_3D_b                      , mesh_new%ti1, mesh_new%ti2, mesh_new%nz)           ! [m yr^-1] 3-D horizontal ice velocity
+    CALL reallocate_bounds( DIVA%v_3D_b                      , mesh_new%ti1, mesh_new%ti2, mesh_new%nz)
+    CALL reallocate_bounds( DIVA%du_dx_a                     , mesh_new%vi1, mesh_new%vi2             )           ! [yr^-1] 2-D horizontal strain rates
+    CALL reallocate_bounds( DIVA%du_dy_a                     , mesh_new%vi1, mesh_new%vi2             )
+    CALL reallocate_bounds( DIVA%dv_dx_a                     , mesh_new%vi1, mesh_new%vi2             )
+    CALL reallocate_bounds( DIVA%dv_dy_a                     , mesh_new%vi1, mesh_new%vi2             )
+    CALL reallocate_bounds( DIVA%du_dz_3D_a                  , mesh_new%vi1, mesh_new%vi2, mesh_new%nz)           ! [yr^-1] 3-D vertical shear strain rates
+    CALL reallocate_bounds( DIVA%dv_dz_3D_a                  , mesh_new%vi1, mesh_new%vi2, mesh_new%nz)
+    CALL reallocate_bounds( DIVA%eta_3D_a                    , mesh_new%vi1, mesh_new%vi2, mesh_new%nz)           ! Effective viscosity
+!   CALL reallocate_bounds( DIVA%eta_3D_b                    , mesh_new%ti1, mesh_new%ti2, mesh_new%nz)
+    CALL reallocate_bounds( DIVA%eta_vav_a                   , mesh_new%vi1, mesh_new%vi2             )
+    CALL reallocate_bounds( DIVA%N_a                         , mesh_new%vi1, mesh_new%vi2             )           ! Product term N = eta * H
+    CALL reallocate_bounds( DIVA%N_b                         , mesh_new%ti1, mesh_new%ti2             )
+    CALL reallocate_bounds( DIVA%dN_dx_b                     , mesh_new%ti1, mesh_new%ti2             )           ! Gradients of N
+    CALL reallocate_bounds( DIVA%dN_dy_b                     , mesh_new%ti1, mesh_new%ti2             )
+    CALL reallocate_bounds( DIVA%F1_3D_a                     , mesh_new%vi1, mesh_new%vi2, mesh_new%nz)           ! F-integrals
+    CALL reallocate_bounds( DIVA%F2_3D_a                     , mesh_new%vi1, mesh_new%vi2, mesh_new%nz)
+    CALL reallocate_bounds( DIVA%F1_3D_b                     , mesh_new%ti1, mesh_new%ti2, mesh_new%nz)
+    CALL reallocate_bounds( DIVA%F2_3D_b                     , mesh_new%ti1, mesh_new%ti2, mesh_new%nz)
+    CALL reallocate_bounds( DIVA%basal_friction_coefficient_b, mesh_new%ti1, mesh_new%ti2             )           ! Basal friction coefficient (basal_shear_stress = u * basal_friction_coefficient)
+    CALL reallocate_bounds( DIVA%beta_eff_a                  , mesh_new%vi1, mesh_new%vi2             )           ! "Effective" friction coefficient (turning the SSA into the DIVA)
+    CALL reallocate_bounds( DIVA%beta_eff_b                  , mesh_new%ti1, mesh_new%ti2             )
+!   CALL reallocate_bounds( DIVA%tau_bx_b                    , mesh_new%ti1, mesh_new%ti2             )           ! Basal shear stress
+!   CALL reallocate_bounds( DIVA%tau_by_b                    , mesh_new%ti1, mesh_new%ti2             )
+    CALL reallocate_bounds( DIVA%tau_dx_b                    , mesh_new%ti1, mesh_new%ti2             )           ! Driving stress
+    CALL reallocate_bounds( DIVA%tau_dy_b                    , mesh_new%ti1, mesh_new%ti2             )
+    CALL reallocate_clean ( DIVA%u_b_prev                    , mesh_new%nTri                          )           ! Velocity solution from previous viscosity iteration
+    CALL reallocate_clean ( DIVA%v_b_prev                    , mesh_new%nTri                          )
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

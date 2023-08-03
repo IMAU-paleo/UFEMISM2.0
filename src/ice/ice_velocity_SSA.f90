@@ -17,8 +17,7 @@ MODULE ice_velocity_SSA
   USE mesh_types                                             , ONLY: type_mesh
   USE ice_model_types                                        , ONLY: type_ice_model, type_ice_velocity_solver_SSA
   USE parameters
-  USE reallocate_mod                                         , ONLY: reallocate_clean
-  USE mesh_operators                                         , ONLY: map_a_b_2D, ddx_a_b_2D, ddy_a_b_2D, ddx_b_a_2D, ddy_b_a_2D
+  USE mesh_operators                                         , ONLY: map_a_b_2D, ddx_a_b_2D, ddy_a_b_2D, ddx_b_a_2D, ddy_b_a_2D, map_b_a_2D
   USE mesh_zeta                                              , ONLY: vertical_average
   USE sliding_laws                                           , ONLY: calc_basal_friction_coefficient
   USE mesh_utilities                                         , ONLY: find_ti_copy_ISMIP_HOM_periodic
@@ -30,6 +29,8 @@ MODULE ice_velocity_SSA
   USE netcdf_input                                           , ONLY: read_field_from_mesh_file_2D_b
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_1D
   USE ice_flow_laws                                          , ONLY: calc_effective_viscosity_Glen_2D, calc_ice_rheology_Glen
+  USE reallocate_mod                                         , ONLY: reallocate_bounds, reallocate_clean
+  USE mesh_remapping                                         , ONLY: map_from_mesh_to_mesh_with_reallocation_2D, map_from_mesh_to_mesh_with_reallocation_3D
 
   IMPLICIT NONE
 
@@ -205,7 +206,7 @@ CONTAINS
 
   END SUBROUTINE solve_SSA
 
-  SUBROUTINE remap_SSA_solver( mesh_old, mesh_new, ice, SSA)
+  SUBROUTINE remap_SSA_solver( mesh_old, mesh_new, SSA)
     ! Remap the SSA solver
 
     IMPLICIT NONE
@@ -213,17 +214,61 @@ CONTAINS
     ! In/output variables:
     TYPE(type_mesh),                     INTENT(IN)    :: mesh_old
     TYPE(type_mesh),                     INTENT(IN)    :: mesh_new
-    TYPE(type_ice_model),                INTENT(IN)    :: ice
     TYPE(type_ice_velocity_solver_SSA),  INTENT(INOUT) :: SSA
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'remap_SSA_solver'
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: u_a
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: v_a
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! DENK DROM
-    CALL crash('fixme!')
+  ! Remap the fields that are re-used during the viscosity iteration
+  ! ================================================================
+
+    ! Allocate memory for velocities on the a-grid (vertices)
+    ALLOCATE( u_a( mesh_old%vi1: mesh_old%vi2))
+    ALLOCATE( v_a( mesh_old%vi1: mesh_old%vi2))
+
+    ! Map velocities from the triangles of the old mesh to the vertices of the old mesh
+    CALL map_b_a_2D( mesh_old, SSA%u_b, u_a)
+    CALL map_b_a_2D( mesh_old, SSA%v_b, v_a)
+
+    ! Remap velocities from the vertices of the old mesh to the vertices of the new mesh
+    CALL map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, u_a, '2nd_order_conservative')
+    CALL map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, v_a, '2nd_order_conservative')
+
+    ! Reallocate memory for the velocities on the triangles
+    CALL reallocate_bounds( SSA%u_b                         , mesh_new%ti1, mesh_new%ti2)
+    CALL reallocate_bounds( SSA%v_b                         , mesh_new%ti1, mesh_new%ti2)
+
+    ! Map velocities from the vertices of the new mesh to the triangles of the new mesh
+    CALL map_a_b_2D( mesh_new, u_a, SSA%u_b)
+    CALL map_a_b_2D( mesh_new, v_a, SSA%v_b)
+
+    ! Clean up after yourself
+    DEALLOCATE( u_a)
+    DEALLOCATE( v_a)
+
+  ! Reallocate everything else
+  ! ==========================
+
+    CALL reallocate_bounds( SSA%A_flow_vav_a                , mesh_new%vi1, mesh_new%vi2)           ! [Pa^-3 y^-1] Vertically averaged Glen's flow law parameter
+    CALL reallocate_bounds( SSA%du_dx_a                     , mesh_new%vi1, mesh_new%vi2)           ! [yr^-1] 2-D horizontal strain rates
+    CALL reallocate_bounds( SSA%du_dy_a                     , mesh_new%vi1, mesh_new%vi2)
+    CALL reallocate_bounds( SSA%dv_dx_a                     , mesh_new%vi1, mesh_new%vi2)
+    CALL reallocate_bounds( SSA%dv_dy_a                     , mesh_new%vi1, mesh_new%vi2)
+    CALL reallocate_bounds( SSA%eta_a                       , mesh_new%vi1, mesh_new%vi2)           ! Effective viscosity
+    CALL reallocate_bounds( SSA%N_a                         , mesh_new%vi1, mesh_new%vi2)           ! Product term N = eta * H
+    CALL reallocate_bounds( SSA%N_b                         , mesh_new%ti1, mesh_new%ti2)
+    CALL reallocate_bounds( SSA%dN_dx_b                     , mesh_new%ti1, mesh_new%ti2)           ! Gradients of N
+    CALL reallocate_bounds( SSA%dN_dy_b                     , mesh_new%ti1, mesh_new%ti2)
+    CALL reallocate_bounds( SSA%basal_friction_coefficient_b, mesh_new%ti1, mesh_new%ti2)           ! Basal friction coefficient (basal_shear_stress = u * basal_friction_coefficient)
+    CALL reallocate_bounds( SSA%tau_dx_b                    , mesh_new%ti1, mesh_new%ti2)           ! Driving stress
+    CALL reallocate_bounds( SSA%tau_dy_b                    , mesh_new%ti1, mesh_new%ti2)
+    CALL reallocate_clean ( SSA%u_b_prev                    , mesh_new%nTri             )           ! Velocity solution from previous viscosity iteration
+    CALL reallocate_clean ( SSA%v_b_prev                    , mesh_new%nTri             )
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

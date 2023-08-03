@@ -194,8 +194,8 @@ CONTAINS
     IMPLICIT NONE
 
     ! In/output variables:
-    TYPE(type_mesh),                     INTENT(INOUT) :: mesh_old
-    TYPE(type_mesh),                     INTENT(INOUT) :: mesh_new
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh_old
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh_new
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
 
     ! Local variables:
@@ -207,16 +207,16 @@ CONTAINS
     IF     (C%choice_stress_balance_approximation == 'none') THEN
       ! No need to do anything
     ELSEIF (C%choice_stress_balance_approximation == 'SIA') THEN
-      CALL remap_SIA_solver(  mesh_old, mesh_new, ice, ice%SIA)
+      CALL remap_SIA_solver(  mesh_old, mesh_new, ice%SIA)
     ELSEIF (C%choice_stress_balance_approximation == 'SSA') THEN
-      CALL remap_SSA_solver(  mesh_old, mesh_new, ice, ice%SSA)
+      CALL remap_SSA_solver(  mesh_old, mesh_new, ice%SSA)
     ELSEIF (C%choice_stress_balance_approximation == 'SIA/SSA') THEN
-      CALL remap_SIA_solver(  mesh_old, mesh_new, ice, ice%SIA)
-      CALL remap_SSA_solver(  mesh_old, mesh_new, ice, ice%SSA)
+      CALL remap_SIA_solver(  mesh_old, mesh_new, ice%SIA)
+      CALL remap_SSA_solver(  mesh_old, mesh_new, ice%SSA)
     ELSEIF (C%choice_stress_balance_approximation == 'DIVA') THEN
-      CALL remap_DIVA_solver( mesh_old, mesh_new, ice, ice%DIVA)
+      CALL remap_DIVA_solver( mesh_old, mesh_new, ice%DIVA)
     ELSEIF (C%choice_stress_balance_approximation == 'BPA') THEN
-      CALL remap_BPA_solver(  mesh_old, mesh_new, ice, ice%BPA)
+      CALL remap_BPA_solver(  mesh_old, mesh_new, ice%BPA)
     ELSE
       CALL crash('unknown choice_stress_balance_approximation "' // TRIM( C%choice_stress_balance_approximation) // '"!')
     END IF

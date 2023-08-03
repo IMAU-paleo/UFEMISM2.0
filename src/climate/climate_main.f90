@@ -14,6 +14,7 @@ MODULE climate_main
   USE ice_model_types                                        , ONLY: type_ice_model
   USE climate_model_types                                    , ONLY: type_climate_model
   USE climate_idealised                                      , ONLY: initialise_climate_model_idealised, run_climate_model_idealised
+  USE reallocate_mod                                         , ONLY: reallocate_bounds
 
   IMPLICIT NONE
 
@@ -235,5 +236,57 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE create_restart_file_climate_model
+
+  SUBROUTINE remap_climate_model( mesh_old, mesh_new, climate, region_name)
+    ! Remap the climate model
+
+    IMPLICIT NONE
+
+    ! In- and output variables
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh_old
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh_new
+    TYPE(type_climate_model),               INTENT(INOUT) :: climate
+    CHARACTER(LEN=3),                       INTENT(IN)    :: region_name
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'remap_climate_model'
+    CHARACTER(LEN=256)                                    :: choice_climate_model
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Print to terminal
+    IF (par%master)  WRITE(*,"(A)") '    Remapping climate model data to the new mesh...'
+
+    ! Determine which climate model to initialise for this region
+    IF     (region_name == 'NAM') THEN
+      choice_climate_model = C%choice_climate_model_NAM
+    ELSEIF (region_name == 'EAS') THEN
+      choice_climate_model = C%choice_climate_model_EAS
+    ELSEIF (region_name == 'GRL') THEN
+      choice_climate_model = C%choice_climate_model_GRL
+    ELSEIF (region_name == 'ANT') THEN
+      choice_climate_model = C%choice_climate_model_ANT
+    ELSE
+      CALL crash('unknown region_name "' // region_name // '"')
+    END IF
+
+    ! Reallocate memory for main variables
+    CALL reallocate_bounds( climate%T2m,    mesh_new%vi1, mesh_new%vi2,12)
+    CALL reallocate_bounds( climate%Precip, mesh_new%vi1, mesh_new%vi2,12)
+
+    ! Determine which climate model to remap
+    IF     (choice_climate_model == 'none') THEN
+      ! No need to do anything
+    ELSEIF (choice_climate_model == 'idealised') THEN
+      ! No need to remap anything here
+    ELSE
+      CALL crash('unknown choice_climate_model "' // TRIM( choice_climate_model) // '"')
+    END IF
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE remap_climate_model
 
 END MODULE climate_main

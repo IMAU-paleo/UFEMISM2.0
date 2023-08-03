@@ -95,30 +95,6 @@ CONTAINS
 
   END SUBROUTINE initialise_basal_hydrology_model
 
-  SUBROUTINE remap_basal_hydrology( mesh_old, mesh_new, ice)
-    ! Remap or reallocate all the data fields
-
-    IMPLICIT NONE
-
-    ! In/output variables:
-    TYPE(type_mesh),                     INTENT(IN)    :: mesh_old
-    TYPE(type_mesh),                     INTENT(IN)    :: mesh_new
-    TYPE(type_ice_model),                INTENT(INOUT) :: ice
-
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'remap_basal_hydrology'
-
-    ! Add routine to path
-    CALL init_routine( routine_name)
-
-    ! DENK DROM
-    CALL crash('fixme!')
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE remap_basal_hydrology
-
   ! ==== Different basal hydrology models =====
   ! ===========================================
 

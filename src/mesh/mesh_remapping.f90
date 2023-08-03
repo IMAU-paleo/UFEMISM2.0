@@ -79,7 +79,7 @@ CONTAINS
     TYPE(type_mesh),                     INTENT(IN)    :: mesh
     REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: d_grid_vec_partial
     REAL(dp), DIMENSION(:    ),          INTENT(OUT)   :: d_mesh_partial
-    CHARACTER(LEN=256), OPTIONAL,        INTENT(IN)    :: method
+    CHARACTER(LEN=*), OPTIONAL,          INTENT(IN)    :: method
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'map_from_xy_grid_to_mesh_2D'
@@ -136,7 +136,7 @@ CONTAINS
     TYPE(type_mesh),                     INTENT(IN)    :: mesh
     REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: d_grid_vec_partial
     REAL(dp), DIMENSION(:,:  ),          INTENT(OUT)   :: d_mesh_partial
-    CHARACTER(LEN=256), OPTIONAL,        INTENT(IN)    :: method
+    CHARACTER(LEN=*), OPTIONAL,          INTENT(IN)    :: method
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'map_from_xy_grid_to_mesh_3D'
@@ -194,7 +194,7 @@ CONTAINS
     TYPE(type_mesh),                     INTENT(IN)    :: mesh
     REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: d_grid_vec_partial
     REAL(dp), DIMENSION(:    ),          INTENT(OUT)   :: d_mesh_partial
-    CHARACTER(LEN=256), OPTIONAL,        INTENT(IN)    :: method
+    CHARACTER(LEN=*), OPTIONAL,          INTENT(IN)    :: method
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'map_from_xy_grid_to_mesh_triangles_2D'
@@ -251,7 +251,7 @@ CONTAINS
     TYPE(type_mesh),                     INTENT(IN)    :: mesh
     REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: d_grid_vec_partial
     REAL(dp), DIMENSION(:,:  ),          INTENT(OUT)   :: d_mesh_partial
-    CHARACTER(LEN=256), OPTIONAL,        INTENT(IN)    :: method
+    CHARACTER(LEN=*), OPTIONAL,          INTENT(IN)    :: method
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'map_from_xy_grid_to_mesh_triangles_3D'
@@ -309,7 +309,7 @@ CONTAINS
     TYPE(type_mesh),                     INTENT(IN)    :: mesh
     REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: d_grid_vec_partial
     REAL(dp), DIMENSION(:    ),          INTENT(OUT)   :: d_mesh_partial
-    CHARACTER(LEN=256), OPTIONAL,        INTENT(IN)    :: method
+    CHARACTER(LEN=*), OPTIONAL,          INTENT(IN)    :: method
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'map_from_lonlat_grid_to_mesh_2D'
@@ -366,7 +366,7 @@ CONTAINS
     TYPE(type_mesh),                     INTENT(IN)    :: mesh
     REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: d_grid_vec_partial
     REAL(dp), DIMENSION(:,:  ),          INTENT(OUT)   :: d_mesh_partial
-    CHARACTER(LEN=256), OPTIONAL,        INTENT(IN)    :: method
+    CHARACTER(LEN=*), OPTIONAL,          INTENT(IN)    :: method
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'map_from_lonlat_grid_to_mesh_3D'
@@ -424,7 +424,7 @@ CONTAINS
     TYPE(type_grid),                     INTENT(IN)    :: grid
     REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: d_mesh_partial
     REAL(dp), DIMENSION(:    ),          INTENT(OUT)   :: d_grid_vec_partial
-    CHARACTER(LEN=256), OPTIONAL,        INTENT(IN)    :: method
+    CHARACTER(LEN=*), OPTIONAL,          INTENT(IN)    :: method
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'map_from_mesh_to_xy_grid_2D'
@@ -481,7 +481,7 @@ CONTAINS
     TYPE(type_grid),                     INTENT(IN)    :: grid
     REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: d_mesh_partial
     REAL(dp), DIMENSION(:,:  ),          INTENT(OUT)   :: d_grid_vec_partial
-    CHARACTER(LEN=256), OPTIONAL,        INTENT(IN)    :: method
+    CHARACTER(LEN=*), OPTIONAL,          INTENT(IN)    :: method
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'map_from_mesh_to_xy_grid_3D'
@@ -540,7 +540,7 @@ CONTAINS
     TYPE(type_grid),                     INTENT(IN)    :: grid
     REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: d_mesh_partial
     REAL(dp), DIMENSION(:    ),          INTENT(OUT)   :: d_grid_vec_partial
-    CHARACTER(LEN=256), OPTIONAL,        INTENT(IN)    :: method
+    CHARACTER(LEN=*), OPTIONAL,          INTENT(IN)    :: method
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'map_from_mesh_to_xy_grid_2D_minval'
@@ -588,17 +588,81 @@ CONTAINS
   END SUBROUTINE map_from_mesh_to_xy_grid_2D_minval
 
   ! From a mesh to a mesh
+  SUBROUTINE map_from_mesh_to_mesh_with_reallocation_2D( mesh_src, mesh_dst, d_partial, method)
+    ! Map a 2-D data field from a mesh to a mesh.
+
+    IMPLICIT NONE
+
+    ! In/output variables
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh_src
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh_dst
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE, INTENT(INOUT) :: d_partial
+    CHARACTER(LEN=*), OPTIONAL,          INTENT(IN)    :: method
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'map_from_mesh_to_mesh_with_reallocation_2D'
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: d_partial_new
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Allocate memory for the remapped data field
+    ALLOCATE( d_partial_new( mesh_dst%vi1: mesh_dst%vi2))
+
+    ! Remap the data
+    CALL map_from_mesh_to_mesh_2D( mesh_src, mesh_dst, d_partial, d_partial_new, method)
+
+    ! Move allocation (and automatically also deallocate old memory, nice little bonus!)
+    CALL MOVE_ALLOC( d_partial_new, d_partial)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE map_from_mesh_to_mesh_with_reallocation_2D
+
+  SUBROUTINE map_from_mesh_to_mesh_with_reallocation_3D( mesh_src, mesh_dst, d_partial, method)
+    ! Map a 2-D data field from a mesh to a mesh.
+
+    IMPLICIT NONE
+
+    ! In/output variables
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh_src
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh_dst
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE, INTENT(INOUT) :: d_partial
+    CHARACTER(LEN=*), OPTIONAL,          INTENT(IN)    :: method
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'map_from_mesh_to_mesh_with_reallocation_3D'
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: d_partial_new
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Allocate memory for the remapped data field
+    ALLOCATE( d_partial_new( mesh_dst%vi1: mesh_dst%vi2, SIZE( d_partial,2)))
+
+    ! Remap the data
+    CALL map_from_mesh_to_mesh_3D( mesh_src, mesh_dst, d_partial, d_partial_new, method)
+
+    ! Move allocation (and automatically also deallocate old memory, nice little bonus!)
+    CALL MOVE_ALLOC( d_partial_new, d_partial)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE map_from_mesh_to_mesh_with_reallocation_3D
+
   SUBROUTINE map_from_mesh_to_mesh_2D( mesh_src, mesh_dst, d_src_partial, d_dst_partial, method)
     ! Map a 2-D data field from a mesh to a mesh.
 
     IMPLICIT NONE
 
     ! In/output variables
-    TYPE(type_mesh),                     INTENT(INOUT) :: mesh_src
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh_src
     TYPE(type_mesh),                     INTENT(IN)    :: mesh_dst
     REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: d_src_partial
     REAL(dp), DIMENSION(:    ),          INTENT(OUT)   :: d_dst_partial
-    CHARACTER(LEN=256), OPTIONAL,        INTENT(IN)    :: method
+    CHARACTER(LEN=*), OPTIONAL,          INTENT(IN)    :: method
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'map_from_mesh_to_mesh_2D'
@@ -670,11 +734,11 @@ CONTAINS
     IMPLICIT NONE
 
     ! In/output variables
-    TYPE(type_mesh),                     INTENT(INOUT) :: mesh_src
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh_src
     TYPE(type_mesh),                     INTENT(IN)    :: mesh_dst
     REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: d_src_partial
     REAL(dp), DIMENSION(:,:  ),          INTENT(OUT)   :: d_dst_partial
-    CHARACTER(LEN=256), OPTIONAL,        INTENT(IN)    :: method
+    CHARACTER(LEN=*), OPTIONAL,          INTENT(IN)    :: method
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'map_from_mesh_to_mesh_3D'
@@ -2702,7 +2766,7 @@ CONTAINS
     IMPLICIT NONE
 
     ! In/output variables
-    TYPE(type_mesh),                     INTENT(INOUT) :: mesh_src
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh_src
     TYPE(type_mesh),                     INTENT(IN)    :: mesh_dst
     TYPE(type_map),                      INTENT(INOUT) :: map
 
@@ -2722,8 +2786,9 @@ CONTAINS
     REAL(dp)                                           :: A_overlap_tot
     TYPE(tMat)                                         :: M_map_a_b, M_ddx_a_b, M_ddy_a_b
     TYPE(tMat)                                         :: M1, M2, M_cons_1st_order
-    INTEGER                                            :: n_rows_set_to_zero
-    INTEGER,  DIMENSION(:    ), ALLOCATABLE            :: rows_set_to_zero
+    LOGICAL,  DIMENSION(:    ), ALLOCATABLE            :: set_to_zero
+    LOGICAL,  DIMENSION(:    ), ALLOCATABLE            :: set_to_1st_order
+    INTEGER                                            :: vi, ci, vj
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -2825,9 +2890,9 @@ CONTAINS
   ! == Calculate the remapping matrices
   ! ===================================
 
-    ! If needed, calculate the matrix operators for this mesh
+    ! Safety
     IF (.NOT. ALLOCATED( mesh_src%vi2n)) THEN
-      CALL calc_all_matrix_operators_mesh( mesh_src)
+      CALL crash('matrix operators for mesh "' // TRIM( mesh_src%name) // '" have not been calculated!')
     END IF
 
     ! Convert matrices to PETSc format
@@ -2854,44 +2919,63 @@ CONTAINS
     CALL MatAXPY( map%M, 1._dp, M1, DIFFERENT_NONZERO_PATTERN, perr)
     CALL MatAXPY( map%M, 1._dp, M2, DIFFERENT_NONZERO_PATTERN, perr)
 
-    ! 2nd-order conservative doesn't work all that well on the domain border,
-    ! but 1st-order seems to work just fine; replace rows for border vertices
-    ! with those from M_cons_1st_order
+    ! 2nd-order conservative doesn't work all that well near the domain border
+    ! For vertices on the border itself, just set the result to zero. For
+    ! vertices next to those, use 1st-order remapping.
 
-    ! First set all rows for border vertices to zero
+    ALLOCATE( set_to_zero(      mesh_dst%nV), source = .FALSE.)
+    ALLOCATE( set_to_1st_order( mesh_dst%nV), source = .FALSE.)
 
-    n_rows_set_to_zero = 0
-    CALL MatGetOwnershipRange( map%M, istart, iend, perr)
-    DO n = istart+1, iend ! +1 because PETSc indexes from 0
-      IF (mesh_dst%VBI( n) > 0) THEN
-        n_rows_set_to_zero = n_rows_set_to_zero + 1
+    DO vi = 1, mesh_dst%nV
+      IF (mesh_dst%VBI( vi) > 0) THEN
+        ! This vertex lies on the border
+        set_to_zero( vi) = .TRUE.
+      ELSE
+        DO ci = 1, mesh_dst%nC( vi)
+          vj = mesh_dst%C( vi,ci)
+          IF (mesh_dst%VBI( vj) > 0) THEN
+            ! This vertex has a neighbour on the border
+            set_to_1st_order( vi) = .TRUE.
+          END IF
+        END DO
       END IF
     END DO
 
-    ALLOCATE( rows_set_to_zero( n_rows_set_to_zero))
-
-    n_rows_set_to_zero = 0
+    ! Set all rows for border vertices to zeros
+    CALL MatGetOwnershipRange( M1, istart, iend, perr)
     DO n = istart+1, iend ! +1 because PETSc indexes from 0
-      IF (mesh_dst%VBI( n) > 0) THEN
-        n_rows_set_to_zero = n_rows_set_to_zero + 1
-        rows_set_to_zero( n_rows_set_to_zero) = n-1
+      CALL MatGetRow( M1, n-1, ncols, cols, vals, perr)
+      IF (set_to_zero( n)) THEN
+        DO k = 1, ncols
+          CALL MatSetValues( map%M, 1, n-1, 1, cols( k), 0._dp, INSERT_VALUES, perr)
+        END DO
       END IF
+      CALL MatRestoreRow( M1, n-1, ncols, cols, vals, perr)
     END DO
 
-    ! TODO, this call is borked and writes where it shouldn't, should be fixed somehow
-    IF (par%master) CALL warning('"MatZeroRowsColumns" should be fixed before it is used" (why though, it seems to work fine...)"')
-    CALL MatZeroRowsColumns( map%M, n_rows_set_to_zero, rows_set_to_zero, 0._dp, PETSC_NULL_VEC, PETSC_NULL_VEC, perr)
+    ! Set all rows for next-to-border vertices to zeros
+    CALL MatGetOwnershipRange( M1, istart, iend, perr)
+    DO n = istart+1, iend ! +1 because PETSc indexes from 0
+      CALL MatGetRow( M1, n-1, ncols, cols, vals, perr)
+      IF (set_to_1st_order( n)) THEN
+        DO k = 1, ncols
+          CALL MatSetValues( map%M, 1, n-1, 1, cols( k), 0._dp, INSERT_VALUES, perr)
+        END DO
+      END IF
+      CALL MatRestoreRow( M1, n-1, ncols, cols, vals, perr)
+    END DO
 
-    ! Then fill in the values from M_cons_1st_order
+    ! Fill in the values from M_cons_1st_order for the next-to-border vertices
     CALL MatGetOwnershipRange( M_cons_1st_order  , istart, iend, perr)
     DO n = istart+1, iend ! +1 because PETSc indexes from 0
       CALL MatGetRow( M_cons_1st_order, n-1, ncols, cols, vals, perr)
-      DO k = 1, ncols
-        CALL MatSetValues( map%M, 1, n-1, 1, cols( k), vals( k), INSERT_VALUES, perr)
-      END DO
+      IF (set_to_1st_order( n)) THEN
+        DO k = 1, ncols
+          CALL MatSetValues( map%M, 1, n-1, 1, cols( k), vals( k), INSERT_VALUES, perr)
+        END DO
+      END IF
       CALL MatRestoreRow( M_cons_1st_order, n-1, ncols, cols, vals, perr)
     END DO
-    CALL sync
 
     CALL MatAssemblyBegin( map%M, MAT_FINAL_ASSEMBLY, perr)
     CALL MatAssemblyEnd(   map%M, MAT_FINAL_ASSEMBLY, perr)
@@ -2905,6 +2989,8 @@ CONTAINS
     CALL MatDestroy( M1              , perr)
     CALL MatDestroy( M2              , perr)
     CALL MatDestroy( M_cons_1st_order, perr)
+    DEALLOCATE( set_to_zero)
+    DEALLOCATE( set_to_1st_order)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

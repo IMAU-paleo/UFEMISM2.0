@@ -54,7 +54,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Print to terminal
-    IF (par%master) WRITE(0,'(A)') '  Mapping reference geometries to model mesh...'
+    IF (par%master) WRITE(0,'(A)') '    Mapping reference geometries to model mesh...'
 
     ! == Initial geometry
     ! ===================

@@ -17,10 +17,10 @@ MODULE ice_velocity_BPA
   USE mesh_types                                             , ONLY: type_mesh
   USE ice_model_types                                        , ONLY: type_ice_model, type_ice_velocity_solver_BPA
   USE parameters
-  USE reallocate_mod                                         , ONLY: reallocate_clean
   USE mesh_operators                                         , ONLY: map_a_b_2D, map_a_b_3D, ddx_a_b_2D, ddy_a_b_2D, ddx_b_a_3D, ddy_b_a_3D, &
                                                                      calc_3D_gradient_bk_ak, calc_3D_gradient_bk_bks, map_ak_bks, map_bks_ak, &
-                                                                     calc_3D_gradient_ak_bk, calc_3D_gradient_bks_bk, calc_3D_matrix_operators_mesh
+                                                                     calc_3D_gradient_ak_bk, calc_3D_gradient_bks_bk, calc_3D_matrix_operators_mesh, &
+                                                                     map_b_a_3D
   USE mesh_zeta                                              , ONLY: vertical_average
   USE sliding_laws                                           , ONLY: calc_basal_friction_coefficient
   USE mesh_utilities                                         , ONLY: find_ti_copy_ISMIP_HOM_periodic
@@ -33,6 +33,8 @@ MODULE ice_velocity_BPA
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_2D
   USE ice_flow_laws                                          , ONLY: calc_effective_viscosity_Glen_3D_uv_only, calc_ice_rheology_Glen
   USE ice_model_utilities                                    , ONLY: calc_zeta_gradients
+  USE reallocate_mod                                         , ONLY: reallocate_bounds, reallocate_clean
+  USE mesh_remapping                                         , ONLY: map_from_mesh_to_mesh_with_reallocation_2D, map_from_mesh_to_mesh_with_reallocation_3D
 
   IMPLICIT NONE
 
@@ -214,7 +216,7 @@ CONTAINS
 
   END SUBROUTINE solve_BPA
 
-  SUBROUTINE remap_BPA_solver( mesh_old, mesh_new, ice, BPA)
+  SUBROUTINE remap_BPA_solver( mesh_old, mesh_new, BPA)
     ! Remap the BPA solver
 
     IMPLICIT NONE
@@ -222,17 +224,73 @@ CONTAINS
     ! In/output variables:
     TYPE(type_mesh),                     INTENT(IN)    :: mesh_old
     TYPE(type_mesh),                     INTENT(IN)    :: mesh_new
-    TYPE(type_ice_model),                INTENT(IN)    :: ice
     TYPE(type_ice_velocity_solver_BPA),  INTENT(INOUT) :: BPA
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'remap_BPA_solver'
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: v_ak
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: u_ak
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! DENK DROM
-    CALL crash('fixme!')
+  ! Remap the fields that are re-used during the viscosity iteration
+  ! ================================================================
+
+    ! Allocate memory for velocities on the a-grid (vertices)
+    ALLOCATE( u_ak( mesh_old%vi1: mesh_old%vi2, mesh_old%nz))
+    ALLOCATE( v_ak( mesh_old%vi1: mesh_old%vi2, mesh_old%nz))
+
+    ! Map velocities from the triangles of the old mesh to the vertices of the old mesh
+    CALL map_b_a_3D( mesh_old, BPA%u_bk, u_ak)
+    CALL map_b_a_3D( mesh_old, BPA%v_bk, v_ak)
+
+    ! Remap velocities from the vertices of the old mesh to the vertices of the new mesh
+    CALL map_from_mesh_to_mesh_with_reallocation_3D( mesh_old, mesh_new, u_ak, '2nd_order_conservative')
+    CALL map_from_mesh_to_mesh_with_reallocation_3D( mesh_old, mesh_new, v_ak, '2nd_order_conservative')
+
+    ! Reallocate memory for the velocities on the triangles
+    CALL reallocate_bounds( BPA%u_bk                        , mesh_new%ti1, mesh_new%ti2, mesh_new%nz)
+    CALL reallocate_bounds( BPA%v_bk                        , mesh_new%ti1, mesh_new%ti2, mesh_new%nz)
+
+    ! Map velocities from the vertices of the new mesh to the triangles of the new mesh
+    CALL map_a_b_3D( mesh_new, u_ak, BPA%u_bk)
+    CALL map_a_b_3D( mesh_new, v_ak, BPA%v_bk)
+
+    ! Clean up after yourself
+    DEALLOCATE( u_ak)
+    DEALLOCATE( v_ak)
+
+  ! Reallocate everything else
+  ! ==========================
+
+    CALL reallocate_bounds( BPA%du_dx_ak                    , mesh_new%vi1 , mesh_new%vi2, mesh_new%nz  )       ! [yr^-1] 2-D horizontal strain rates
+    CALL reallocate_bounds( BPA%du_dy_ak                    , mesh_new%vi1 , mesh_new%vi2, mesh_new%nz  )
+    CALL reallocate_bounds( BPA%du_dz_ak                    , mesh_new%vi1 , mesh_new%vi2, mesh_new%nz  )
+    CALL reallocate_bounds( BPA%dv_dx_ak                    , mesh_new%vi1 , mesh_new%vi2, mesh_new%nz  )       ! [yr^-1] 2-D horizontal strain rates
+    CALL reallocate_bounds( BPA%dv_dy_ak                    , mesh_new%vi1 , mesh_new%vi2, mesh_new%nz  )
+    CALL reallocate_bounds( BPA%dv_dz_ak                    , mesh_new%vi1 , mesh_new%vi2, mesh_new%nz  )
+    CALL reallocate_bounds( BPA%du_dx_bks                   , mesh_new%ti1 , mesh_new%ti2, mesh_new%nz-1)       ! [yr^-1] 2-D horizontal strain rates
+    CALL reallocate_bounds( BPA%du_dy_bks                   , mesh_new%ti1 , mesh_new%ti2, mesh_new%nz-1)
+    CALL reallocate_bounds( BPA%du_dz_bks                   , mesh_new%ti1 , mesh_new%ti2, mesh_new%nz-1)
+    CALL reallocate_bounds( BPA%dv_dx_bks                   , mesh_new%ti1 , mesh_new%ti2, mesh_new%nz-1)       ! [yr^-1] 2-D horizontal strain rates
+    CALL reallocate_bounds( BPA%dv_dy_bks                   , mesh_new%ti1 , mesh_new%ti2, mesh_new%nz-1)
+    CALL reallocate_bounds( BPA%dv_dz_bks                   , mesh_new%ti1 , mesh_new%ti2, mesh_new%nz-1)
+    CALL reallocate_bounds( BPA%eta_ak                      , mesh_new%vi1 , mesh_new%vi2, mesh_new%nz  )       ! Effective viscosity
+    CALL reallocate_bounds( BPA%eta_bks                     , mesh_new%ti1 , mesh_new%ti2, mesh_new%nz-1)
+    CALL reallocate_bounds( BPA%eta_bk                      , mesh_new%ti1 , mesh_new%ti2, mesh_new%nz  )
+    CALL reallocate_bounds( BPA%deta_dx_bk                  , mesh_new%ti1 , mesh_new%ti2, mesh_new%nz  )       ! Gradients of eta
+    CALL reallocate_bounds( BPA%deta_dy_bk                  , mesh_new%ti1 , mesh_new%ti2, mesh_new%nz  )       ! Gradients of eta
+    CALL reallocate_bounds( BPA%deta_dz_bk                  , mesh_new%ti1 , mesh_new%ti2, mesh_new%nz  )       ! Gradients of eta
+    CALL reallocate_bounds( BPA%basal_friction_coefficient_b, mesh_new%ti1 , mesh_new%ti2               )       ! Basal friction coefficient (basal_shear_stress = u * basal_friction_coefficient)
+    CALL reallocate_bounds( BPA%dh_dx_b                     , mesh_new%ti1 , mesh_new%ti2               )       ! Surface slope
+    CALL reallocate_bounds( BPA%dh_dy_b                     , mesh_new%ti1 , mesh_new%ti2               )
+    CALL reallocate_bounds( BPA%db_dx_b                     , mesh_new%ti1 , mesh_new%ti2               )       ! Basal slope
+    CALL reallocate_bounds( BPA%db_dy_b                     , mesh_new%ti1 , mesh_new%ti2               )
+    CALL reallocate_bounds( BPA%tau_dx_b                    , mesh_new%ti1 , mesh_new%ti2               )       ! Driving stress
+    CALL reallocate_bounds( BPA%tau_dy_b                    , mesh_new%ti1 , mesh_new%ti2               )
+    CALL reallocate_clean ( BPA%u_bk_prev                   , mesh_new%nTri              , mesh_new%nz  )       ! Velocity solution from previous viscosity iteration
+    CALL reallocate_clean ( BPA%v_bk_prev                   , mesh_new%nTri              , mesh_new%nz  )
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

@@ -21,6 +21,7 @@ MODULE ice_model_main
   USE ice_model_types                                        , ONLY: type_ice_model, type_ice_pc
   USE reference_geometries                                   , ONLY: type_reference_geometry
   USE region_types                                           , ONLY: type_model_region
+  USE GIA_model_types                                        , ONLY: type_GIA_model
   USE ice_model_memory                                       , ONLY: allocate_ice_model
   USE ice_model_utilities                                    , ONLY: determine_masks, calc_bedrock_CDFs, calc_grounded_fractions, calc_zeta_gradients, &
                                                                      calc_mask_noice
@@ -39,6 +40,8 @@ MODULE ice_model_main
                                                                      add_field_dp_0D, add_field_mesh_dp_2D, write_time_to_file, write_to_field_multopt_mesh_dp_2D, &
                                                                      write_to_field_multopt_dp_0D
   USE netcdf_input                                           , ONLY: read_field_from_file_0D, read_field_from_mesh_file_2D
+  USE reallocate_mod                                         , ONLY: reallocate_bounds
+  USE mesh_remapping                                         , ONLY: map_from_mesh_to_mesh_with_reallocation_2D, map_from_mesh_to_mesh_with_reallocation_3D
 
   IMPLICIT NONE
 
@@ -378,6 +381,341 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE create_restart_files_ice_model
+
+  SUBROUTINE remap_ice_dynamics_model( mesh_old, mesh_new, ice, refgeo_PD, GIA, time, scalars, region_name)
+    ! Remap/reallocate all the data of the ice dynamics model
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh_old
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh_new
+    TYPE(type_ice_model),                   INTENT(INOUT) :: ice
+    TYPE(type_reference_geometry),          INTENT(IN)    :: refgeo_PD
+    TYPE(type_GIA_model),                   INTENT(IN)    :: GIA
+    REAL(dp),                               INTENT(IN)    :: time
+    TYPE(type_regional_scalars),            INTENT(OUT)   :: scalars
+    CHARACTER(LEN=3),                       INTENT(IN)    :: region_name
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'remap_ice_dynamics_model'
+    INTEGER                                               :: vi
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Print to terminal
+    IF (par%master) WRITE(0,'(A)') '    Remapping ice model data to the new mesh...'
+
+! Remap conserved ice model quantities
+! ====================================
+
+  ! === Ice-sheet geometry ===
+  ! ==========================
+
+    ! Use 2nd-order conservative remapping for the ice thickness. Remap
+    ! bedrock from the original high-resolution grid, and add the modelled
+    ! deformation to it (which is smooth).
+
+    CALL map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, ice%Hi, '2nd_order_conservative')
+
+    ! Remapping of Hb has already happened, only need to copy the data
+    ice%Hb = refgeo_PD%Hb
+
+    ! FIXME
+    IF (par%master) CALL warning('GIA model isnt finished yet - need to include dHb in mesh update!')
+
+  ! === Thermodynamics and rheology ===
+  ! ===================================
+
+    ! Use 2nd-order conservative remapping for the ice temperature.
+
+    CALL map_from_mesh_to_mesh_with_reallocation_3D( mesh_old, mesh_new, ice%Ti, '2nd_order_conservative')
+
+! Reallocate memory for all other data fields
+! (list copied from ice_model_memory/allocate_ice_model)
+! ======================================================
+
+  ! === Ice-sheet geometry ===
+  ! ==========================
+
+    ! Basic geometry
+!   CALL reallocate_bounds( ice%Hi                          , mesh_new%vi1, mesh_new%vi2         )  ! [m] Ice thickness
+!   CALL reallocate_bounds( ice%Hb                          , mesh_new%vi1, mesh_new%vi2         )  ! [m] Bedrock elevation (w.r.t. PD sea level)
+    CALL reallocate_bounds( ice%Hs                          , mesh_new%vi1, mesh_new%vi2         )  ! [m] Surface elevation (w.r.t. PD sea level)
+    CALL reallocate_bounds( ice%SL                          , mesh_new%vi1, mesh_new%vi2         )  ! [m] Sea level (geoid) elevation (w.r.t. PD sea level)
+    CALL reallocate_bounds( ice%Hib                         , mesh_new%vi1, mesh_new%vi2         )  ! [m] Ice base elevation (w.r.t. PD sea level)
+    CALL reallocate_bounds( ice%TAF                         , mesh_new%vi1, mesh_new%vi2         )  ! [m] Thickness above flotation
+
+    ! Geometry changes
+    CALL reallocate_bounds( ice%dHi                         , mesh_new%vi1, mesh_new%vi2         )  ! [m] Ice thickness difference (w.r.t. to reference)
+    CALL reallocate_bounds( ice%dHb                         , mesh_new%vi1, mesh_new%vi2         )  ! [m] Bedrock elevation difference (w.r.t. to reference)
+    CALL reallocate_bounds( ice%dHs                         , mesh_new%vi1, mesh_new%vi2         )  ! [m] Surface elevation difference (w.r.t. to reference)
+    CALL reallocate_bounds( ice%dHib                        , mesh_new%vi1, mesh_new%vi2         )  ! [m] Base elevation difference (w.r.t. to reference)
+
+    ! Rates of change
+    CALL reallocate_bounds( ice%dHi_dt                      , mesh_new%vi1, mesh_new%vi2         )  ! [m yr^-1] Ice thickness rate of change
+    CALL reallocate_bounds( ice%dHb_dt                      , mesh_new%vi1, mesh_new%vi2         )  ! [m yr^-1] Bedrock elevation rate of change
+    CALL reallocate_bounds( ice%dHs_dt                      , mesh_new%vi1, mesh_new%vi2         )  ! [m yr^-1] Ice surface elevation rate of change
+    CALL reallocate_bounds( ice%dHib_dt                     , mesh_new%vi1, mesh_new%vi2         )  ! [m yr^-1] Ice base elevation rate of change
+
+    ! Masks
+    CALL reallocate_bounds( ice%mask_icefree_land           , mesh_new%vi1, mesh_new%vi2         )  ! T: ice-free land , F: otherwise
+    CALL reallocate_bounds( ice%mask_icefree_ocean          , mesh_new%vi1, mesh_new%vi2         )  ! T: ice-free ocean, F: otherwise
+    CALL reallocate_bounds( ice%mask_grounded_ice           , mesh_new%vi1, mesh_new%vi2         )  ! T: grounded ice  , F: otherwise
+    CALL reallocate_bounds( ice%mask_floating_ice           , mesh_new%vi1, mesh_new%vi2         )  ! T: floating ice  , F: otherwise
+    CALL reallocate_bounds( ice%mask_icefree_land_prev      , mesh_new%vi1, mesh_new%vi2         )  ! T: ice-free land , F: otherwise (during previous time step)
+    CALL reallocate_bounds( ice%mask_icefree_ocean_prev     , mesh_new%vi1, mesh_new%vi2         )  ! T: ice-free ocean, F: otherwise (during previous time step)
+    CALL reallocate_bounds( ice%mask_grounded_ice_prev      , mesh_new%vi1, mesh_new%vi2         )  ! T: grounded ice  , F: otherwise (during previous time step)
+    CALL reallocate_bounds( ice%mask_floating_ice_prev      , mesh_new%vi1, mesh_new%vi2         )  ! T: floating ice  , F: otherwise (during previous time step)
+    CALL reallocate_bounds( ice%mask_margin                 , mesh_new%vi1, mesh_new%vi2         )  ! T: ice next to ice-free, F: otherwise
+    CALL reallocate_bounds( ice%mask_gl_gr                  , mesh_new%vi1, mesh_new%vi2         )  ! T: grounded ice next to floating ice, F: otherwise
+    CALL reallocate_bounds( ice%mask_gl_fl                  , mesh_new%vi1, mesh_new%vi2         )  ! T: floating ice next to grounded ice, F: otherwise
+    CALL reallocate_bounds( ice%mask_cf_gr                  , mesh_new%vi1, mesh_new%vi2         )  ! T: grounded ice next to ice-free water (sea or lake), F: otherwise
+    CALL reallocate_bounds( ice%mask_cf_fl                  , mesh_new%vi1, mesh_new%vi2         )  ! T: floating ice next to ice-free water (sea or lake), F: otherwise
+    CALL reallocate_bounds( ice%mask_coastline              , mesh_new%vi1, mesh_new%vi2         )  ! T: ice-free land next to ice-free ocean, F: otherwise
+    CALL reallocate_bounds( ice%mask_noice                  , mesh_new%vi1, mesh_new%vi2         )  ! T: no ice is allowed here, F: ice is allowed here
+    CALL reallocate_bounds( ice%mask                        , mesh_new%vi1, mesh_new%vi2         )  ! Diagnostic, only meant for quick visual inspection in output
+    CALL reallocate_bounds( ice%basin_ID                    , mesh_new%vi1, mesh_new%vi2         )  ! The drainage basin to which each vertex belongs
+
+    ! Area fractions
+    CALL reallocate_bounds( ice%fraction_gr                 , mesh_new%vi1, mesh_new%vi2         )  ! [0-1] Grounded area fractions of vertices
+    CALL reallocate_bounds( ice%fraction_gr_b               , mesh_new%ti1, mesh_new%ti2         )  ! [0-1] Grounded area fractions of triangles
+    CALL reallocate_bounds( ice%fraction_cf                 , mesh_new%vi1, mesh_new%vi2         )  ! [0-1] Ice-covered area fractions of calving fronts
+
+    ! Sub-grid bedrock cumulative density functions (CDFs)
+    CALL reallocate_bounds( ice%bedrock_cdf                 , mesh_new%vi1, mesh_new%vi2, C%subgrid_bedrock_cdf_nbins)  ! [-] Sub-grid bedrock cumulative density functions on the a-grid (vertices)
+    CALL reallocate_bounds( ice%bedrock_cdf_b               , mesh_new%ti1, mesh_new%ti2, C%subgrid_bedrock_cdf_nbins)  ! [-] Sub-grid bedrock cumulative density functions on the b-grid (triangles)
+
+  ! === Terrain-following coordinate zeta gradients ===
+  ! ===================================================
+
+    ! Gradients of the terrain-following (i.e. ice-geometry-dependent) vertical coordinate zeta
+
+    ! On the ak-grid (vertices, vertically regular)
+    CALL reallocate_bounds( ice%dzeta_dt_ak                 , mesh_new%vi1, mesh_new%vi2, mesh_new%nz)
+    CALL reallocate_bounds( ice%dzeta_dx_ak                 , mesh_new%vi1, mesh_new%vi2, mesh_new%nz)
+    CALL reallocate_bounds( ice%dzeta_dy_ak                 , mesh_new%vi1, mesh_new%vi2, mesh_new%nz)
+    CALL reallocate_bounds( ice%dzeta_dz_ak                 , mesh_new%vi1, mesh_new%vi2, mesh_new%nz)
+    CALL reallocate_bounds( ice%d2zeta_dx2_ak               , mesh_new%vi1, mesh_new%vi2, mesh_new%nz)
+    CALL reallocate_bounds( ice%d2zeta_dxdy_ak              , mesh_new%vi1, mesh_new%vi2, mesh_new%nz)
+    CALL reallocate_bounds( ice%d2zeta_dy2_ak               , mesh_new%vi1, mesh_new%vi2, mesh_new%nz)
+
+    ! On the bk-grid (triangles, vertically regular)
+    CALL reallocate_bounds( ice%dzeta_dx_bk                 , mesh_new%ti1, mesh_new%ti2, mesh_new%nz)
+    CALL reallocate_bounds( ice%dzeta_dy_bk                 , mesh_new%ti1, mesh_new%ti2, mesh_new%nz)
+    CALL reallocate_bounds( ice%dzeta_dz_bk                 , mesh_new%ti1, mesh_new%ti2, mesh_new%nz)
+    CALL reallocate_bounds( ice%d2zeta_dx2_bk               , mesh_new%ti1, mesh_new%ti2, mesh_new%nz)
+    CALL reallocate_bounds( ice%d2zeta_dxdy_bk              , mesh_new%ti1, mesh_new%ti2, mesh_new%nz)
+    CALL reallocate_bounds( ice%d2zeta_dy2_bk               , mesh_new%ti1, mesh_new%ti2, mesh_new%nz)
+
+    ! On the bks-grid (triangles, vertically staggered)
+    CALL reallocate_bounds( ice%dzeta_dx_bks                , mesh_new%ti1, mesh_new%ti2, mesh_new%nz-1)
+    CALL reallocate_bounds( ice%dzeta_dy_bks                , mesh_new%ti1, mesh_new%ti2, mesh_new%nz-1)
+    CALL reallocate_bounds( ice%dzeta_dz_bks                , mesh_new%ti1, mesh_new%ti2, mesh_new%nz-1)
+    CALL reallocate_bounds( ice%d2zeta_dx2_bks              , mesh_new%ti1, mesh_new%ti2, mesh_new%nz-1)
+    CALL reallocate_bounds( ice%d2zeta_dxdy_bks             , mesh_new%ti1, mesh_new%ti2, mesh_new%nz-1)
+    CALL reallocate_bounds( ice%d2zeta_dy2_bks              , mesh_new%ti1, mesh_new%ti2, mesh_new%nz-1)
+
+  ! === Thermodynamics and rheology ===
+  ! ===================================
+
+    ! Ice temperatures
+!   CALL reallocate_bounds( ice%Ti                          , mesh_new%vi1, mesh_new%vi2, mesh_new%nz)  ! [K] Englacial temperature
+    CALL reallocate_bounds( ice%Ti_pmp                      , mesh_new%vi1, mesh_new%vi2, mesh_new%nz)  ! [K] Pressure melting point temperature
+
+    ! Physical quantities
+    CALL reallocate_bounds( ice%Cpi                         , mesh_new%vi1, mesh_new%vi2, mesh_new%nz)  ! [J kg^-1 K^-1] Specific heat capacity
+    CALL reallocate_bounds( ice%Ki                          , mesh_new%vi1, mesh_new%vi2, mesh_new%nz)  ! [J m^-1 K^-1 yr^-1] Thermal conductivity
+
+    ! Heating
+    CALL reallocate_bounds( ice%internal_heating            , mesh_new%vi1, mesh_new%vi2, mesh_new%nz)  ! [?] Internal heating
+    CALL reallocate_bounds( ice%frictional_heating          , mesh_new%vi1, mesh_new%vi2             )  ! [?] Frictional heating
+
+    ! Glen's flow law factor
+    CALL reallocate_bounds( ice%A_flow                      , mesh_new%vi1, mesh_new%vi2, mesh_new%nz)  ! [Pa^-3 y^-1] Glen's flow law factor
+
+  ! === Ice velocities ===
+  ! ======================
+
+    ! 3-D
+    CALL reallocate_bounds( ice%u_3D                        , mesh_new%vi1, mesh_new%vi2, mesh_new%nz)  ! [m yr^-1] 3-D ice velocity
+    CALL reallocate_bounds( ice%v_3D                        , mesh_new%vi1, mesh_new%vi2, mesh_new%nz)
+    CALL reallocate_bounds( ice%u_3D_b                      , mesh_new%ti1, mesh_new%ti2, mesh_new%nz)
+    CALL reallocate_bounds( ice%v_3D_b                      , mesh_new%ti1, mesh_new%ti2, mesh_new%nz)
+    CALL reallocate_bounds( ice%w_3D                        , mesh_new%vi1, mesh_new%vi2, mesh_new%nz)
+
+    ! Vertically integrated
+    CALL reallocate_bounds( ice%u_vav                       , mesh_new%vi1, mesh_new%vi2         )  ! [m yr^-1] Vertically averaged ice velocity
+    CALL reallocate_bounds( ice%v_vav                       , mesh_new%vi1, mesh_new%vi2         )
+    CALL reallocate_bounds( ice%u_vav_b                     , mesh_new%ti1, mesh_new%ti2         )
+    CALL reallocate_bounds( ice%v_vav_b                     , mesh_new%ti1, mesh_new%ti2         )
+    CALL reallocate_bounds( ice%uabs_vav                    , mesh_new%vi1, mesh_new%vi2         )
+    CALL reallocate_bounds( ice%uabs_vav_b                  , mesh_new%ti1, mesh_new%ti2         )
+
+    ! Surface
+    CALL reallocate_bounds( ice%u_surf                      , mesh_new%vi1, mesh_new%vi2         )  ! [m yr^-1] Ice velocity at the surface
+    CALL reallocate_bounds( ice%v_surf                      , mesh_new%vi1, mesh_new%vi2         )
+    CALL reallocate_bounds( ice%u_surf_b                    , mesh_new%ti1, mesh_new%ti2         )
+    CALL reallocate_bounds( ice%v_surf_b                    , mesh_new%ti1, mesh_new%ti2         )
+    CALL reallocate_bounds( ice%w_surf                      , mesh_new%vi1, mesh_new%vi2         )
+    CALL reallocate_bounds( ice%uabs_surf                   , mesh_new%vi1, mesh_new%vi2         )
+    CALL reallocate_bounds( ice%uabs_surf_b                 , mesh_new%ti1, mesh_new%ti2         )
+
+    ! Basal
+    CALL reallocate_bounds( ice%u_base                      , mesh_new%vi1, mesh_new%vi2         )  ! [m yr^-1] Ice velocity at the base
+    CALL reallocate_bounds( ice%v_base                      , mesh_new%vi1, mesh_new%vi2         )
+    CALL reallocate_bounds( ice%u_base_b                    , mesh_new%ti1, mesh_new%ti2         )
+    CALL reallocate_bounds( ice%v_base_b                    , mesh_new%ti1, mesh_new%ti2         )
+    CALL reallocate_bounds( ice%w_base                      , mesh_new%vi1, mesh_new%vi2         )
+    CALL reallocate_bounds( ice%uabs_base                   , mesh_new%vi1, mesh_new%vi2         )
+    CALL reallocate_bounds( ice%uabs_base_b                 , mesh_new%ti1, mesh_new%ti2         )
+
+  ! == Strain rates ==
+  ! ==================
+
+    CALL reallocate_bounds( ice%du_dx_3D                    , mesh_new%vi1, mesh_new%vi2, mesh_new%nz)  ! [yr^-1]
+    CALL reallocate_bounds( ice%du_dy_3D                    , mesh_new%vi1, mesh_new%vi2, mesh_new%nz)
+    CALL reallocate_bounds( ice%du_dz_3D                    , mesh_new%vi1, mesh_new%vi2, mesh_new%nz)
+    CALL reallocate_bounds( ice%dv_dx_3D                    , mesh_new%vi1, mesh_new%vi2, mesh_new%nz)
+    CALL reallocate_bounds( ice%dv_dy_3D                    , mesh_new%vi1, mesh_new%vi2, mesh_new%nz)
+    CALL reallocate_bounds( ice%dv_dz_3D                    , mesh_new%vi1, mesh_new%vi2, mesh_new%nz)
+    CALL reallocate_bounds( ice%dw_dx_3D                    , mesh_new%vi1, mesh_new%vi2, mesh_new%nz)
+    CALL reallocate_bounds( ice%dw_dy_3D                    , mesh_new%vi1, mesh_new%vi2, mesh_new%nz)
+    CALL reallocate_bounds( ice%dw_dz_3D                    , mesh_new%vi1, mesh_new%vi2, mesh_new%nz)
+
+  ! == Basal hydrology ==
+  ! =====================
+
+    ! Basal hydrology
+    CALL reallocate_bounds( ice%pore_water_pressure         , mesh_new%vi1, mesh_new%vi2         )  ! [Pa] Basal pore water pressure
+    CALL reallocate_bounds( ice%overburden_pressure         , mesh_new%vi1, mesh_new%vi2         )  ! [Pa] Basal overburden pressure
+    CALL reallocate_bounds( ice%effective_pressure          , mesh_new%vi1, mesh_new%vi2         )  ! [Pa] Basal effective pressure
+
+  ! == Basal sliding ==
+  ! ===================
+
+    ! Sliding law coefficients
+    CALL reallocate_bounds( ice%till_friction_angle         , mesh_new%vi1, mesh_new%vi2         )  ! [degrees]          Till friction angle (degrees)
+    CALL reallocate_bounds( ice%till_yield_stress           , mesh_new%vi1, mesh_new%vi2         )  ! [Pa]               Till yield stress (used when choice_sliding_law = "Coloumb", "Budd", or "Zoet-Iverson")
+    CALL reallocate_bounds( ice%slid_alpha_sq               , mesh_new%vi1, mesh_new%vi2         )  ! [-]                Coulomb-law friction coefficient (used when choice_sliding_law = "Tsai2015", or "Schoof2005")
+    CALL reallocate_bounds( ice%slid_beta_sq                , mesh_new%vi1, mesh_new%vi2         )  ! [Pa m^−1/m yr^1/m] Power-law friction coefficient (used when choice_sliding_law = "Weertman", "Tsai2015", or "Schoof2005")
+
+    ! Basal friction and shear stress
+    CALL reallocate_bounds( ice%basal_friction_coefficient  , mesh_new%vi1, mesh_new%vi2         )  ! [Pa yr m^-1]       Effective basal friction coefficient (basal_shear_stress = u_base * basal_friction_coefficient)
+    CALL reallocate_bounds( ice%basal_shear_stress          , mesh_new%vi1, mesh_new%vi2         )  ! [Pa]               Basal shear stress
+
+  ! == Geothermal heat ==
+  ! =====================
+
+    CALL reallocate_bounds( ice%geothermal_heat_flux        , mesh_new%vi1, mesh_new%vi2         )  ! [J m^-2 yr^-1] Geothermal heat flux
+
+  ! === Ice thickness time stepping ===
+  ! ===================================
+
+    ! Predicted model state at next time step
+    CALL reallocate_bounds( ice%Hi_prev                     , mesh_new%vi1, mesh_new%vi2         )  ! [m]  The previous state
+    CALL reallocate_bounds( ice%Hi_next                     , mesh_new%vi1, mesh_new%vi2         )  ! [m]  The next state
+
+  ! === Ice temperature time stepping ===
+  ! =====================================
+
+    ! Predicted model state at next time step
+    CALL reallocate_bounds( ice%Ti_prev                     , mesh_new%vi1, mesh_new%vi2, mesh_new%nz)  ! [m]  The previous state
+    CALL reallocate_bounds( ice%Ti_next                     , mesh_new%vi1, mesh_new%vi2, mesh_new%nz)  ! [m]  The next state
+
+! Re-initialise the rest of the ice dynamics model
+! ================================================
+
+  ! Initialise ice geometry
+  ! =======================
+
+    DO vi = mesh_new%vi1, mesh_new%vi2
+
+      ! Basic geometry
+!     ice%Hi ( vi) = refgeo_init%Hi( vi)
+!     ice%Hb ( vi) = refgeo_init%Hb( vi)
+      ice%Hs ( vi) = ice_surface_elevation( ice%Hi( vi), ice%Hb( vi), ice%SL( vi))
+      ice%Hib( vi) = ice%Hs( vi) - ice%Hi( vi)
+      ice%TAF( vi) = thickness_above_floatation( ice%Hi( vi), ice%Hb( vi), ice%SL( vi))
+
+      ! Differences w.r.t. present-day
+      ice%dHi ( vi)  = ice%Hi ( vi) - refgeo_PD%Hi ( vi)
+      ice%dHb ( vi)  = ice%Hb ( vi) - refgeo_PD%Hb ( vi)
+      ice%dHs ( vi)  = ice%Hs ( vi) - refgeo_PD%Hs ( vi)
+      ice%dHib( vi)  = ice%Hib( vi) - (refgeo_PD%Hs ( vi) - refgeo_PD%Hi( vi))
+
+      ! Rates of change
+      ice%dHi_dt ( vi) = 0._dp
+      ice%dHb_dt ( vi) = 0._dp
+      ice%dHs_dt ( vi) = 0._dp
+      ice%dHib_dt( vi) = 0._dp
+
+    END DO ! DO vi = mesh_new%vi1, mesh_new%vi2
+
+    ! Calculate zeta gradients
+    CALL calc_zeta_gradients( mesh_new, ice)
+
+    ! Model states for ice dynamics model
+    ice%t_Hi_prev = time
+    ice%t_Hi_next = time
+    ice%Hi_prev   = ice%Hi
+    ice%Hi_next   = ice%Hi
+
+  ! Initialise masks
+  ! ================
+
+    ! Call it twice so also the "prev" versions are set
+    CALL determine_masks( mesh_new, ice)
+    CALL determine_masks( mesh_new, ice)
+
+    ! Calculate the no-ice mask
+    CALL calc_mask_noice( mesh_new, ice)
+
+    ! Sub-grid fractions
+    ! ==================
+
+    ! Compute bedrock cumulative density function
+    CALL calc_bedrock_CDFs( mesh_new, refgeo_PD, ice)
+    ! Initialise sub-grid grounded-area fractions
+    CALL calc_grounded_fractions( mesh_new, ice)
+
+  ! Basal conditions
+  ! ================
+
+    ! Allocate and initialise basal conditions
+    CALL initialise_geothermal_heat_flux(  mesh_new, ice)
+    CALL initialise_basal_hydrology_model( mesh_new, ice)
+
+    ! FIXME: something should happen here once we start working on remapping of inverted bed roughness!
+    CALL initialise_bed_roughness(         mesh_new, ice, region_name)
+
+  ! Velocities
+  ! ==========
+
+    ! Remap data for the chosen velocity solver(s)
+    CALL remap_velocity_solver( mesh_old, mesh_new, ice)
+
+  ! Time stepping
+  ! =============
+
+    IF     (C%choice_timestepping == 'direct') THEN
+      ! No need to initialise anything here
+    ELSEIF (C%choice_timestepping == 'pc') THEN
+      CALL remap_pc_scheme( mesh_old, mesh_new, ice%pc)
+    ELSE
+      CALL crash('unknown choice_timestepping "' // TRIM( C%choice_timestepping) // '"!')
+    END IF
+
+  ! Ice-sheet-wide scalars
+  ! ======================
+
+    CALL calc_ice_model_scalars( mesh_new, ice, refgeo_PD, scalars)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE remap_ice_dynamics_model
 
 ! ===== Predictor-corrector scheme =====
 ! ======================================
@@ -772,6 +1110,48 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE create_restart_file_pc_scheme
+
+  SUBROUTINE remap_pc_scheme( mesh_old, mesh_new, pc)
+    ! Reallocate memory for the ice thickness predictor/corrector scheme.
+
+    IMPLICIT NONE
+
+    ! In- and output variables
+    TYPE(type_mesh),               INTENT(IN)    :: mesh_old
+    TYPE(type_mesh),               INTENT(IN)    :: mesh_new
+    TYPE(type_ice_pc),             INTENT(INOUT) :: pc
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                :: routine_name = 'remap_pc_scheme'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Reallocate memory
+    CALL reallocate_bounds( pc%dHi_dt_Hi_nm1_u_nm1     , mesh_new%vi1, mesh_new%vi2)           ! [m/yr] Thinning rates from previous time step
+    CALL reallocate_bounds( pc%dHi_dt_Hi_n_u_n         , mesh_new%vi1, mesh_new%vi2)           ! [m/yr] Thinning rates for current time step with old geometry
+    CALL reallocate_bounds( pc%Hi_star_np1             , mesh_new%vi1, mesh_new%vi2)           ! [m]    Predicted ice thickness
+    CALL reallocate_bounds( pc%dHi_dt_Hi_star_np1_u_np1, mesh_new%vi1, mesh_new%vi2)           ! [m/yr] Thinning rates for predicted ice thickness and updated velocity
+    CALL reallocate_bounds( pc%Hi_np1                  , mesh_new%vi1, mesh_new%vi2)           ! [m]    Corrected ice thickness
+    CALL reallocate_bounds( pc%tau_np1                 , mesh_new%vi1, mesh_new%vi2)           ! [m]    Truncation error
+
+    ! Reinitialise everything from scratch
+    pc%dt_n                     = C%dt_ice_min
+    pc%dt_np1                   = C%dt_ice_min
+    pc%zeta_t                   = 1._dp
+    pc%dHi_dt_Hi_nm1_u_nm1      = 0._dp
+    pc%dHi_dt_Hi_n_u_n          = 0._dp
+    pc%Hi_star_np1              = 0._dp
+    pc%dHi_dt_Hi_star_np1_u_np1 = 0._dp
+    pc%Hi_np1                   = 0._dp
+    pc%tau_np1                  = C%pc_epsilon
+    pc%eta_n                    = C%pc_epsilon
+    pc%eta_np1                  = C%pc_epsilon
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE remap_pc_scheme
 
 ! ===== Direct scheme =====
 ! =========================

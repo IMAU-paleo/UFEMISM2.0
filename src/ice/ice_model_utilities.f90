@@ -55,6 +55,7 @@ CONTAINS
     ! mask_gl_fl              ! T: floating ice next to grounded ice, F: otherwise
     ! mask_cf_gr              ! T: grounded ice next to ice-free water (sea or lake), F: otherwise
     ! mask_cf_fl              ! T: floating ice next to ice-free water (sea or lake), F: otherwise
+    ! mask_coastline          ! T: ice-free land next to ice-free ocean, F: otherwise
 
     IMPLICIT NONE
 
@@ -140,11 +141,12 @@ CONTAINS
     CALL gather_to_all_logical_1D( ice%mask_floating_ice , mask_floating_ice_tot )
 
     ! Initialise transitional masks
-    ice%mask_margin = .FALSE.
-    ice%mask_gl_gr  = .FALSE.
-    ice%mask_gl_fl  = .FALSE.
-    ice%mask_cf_gr  = .FALSE.
-    ice%mask_cf_fl  = .FALSE.
+    ice%mask_margin    = .FALSE.
+    ice%mask_gl_gr     = .FALSE.
+    ice%mask_gl_fl     = .FALSE.
+    ice%mask_cf_gr     = .FALSE.
+    ice%mask_cf_fl     = .FALSE.
+    ice%mask_coastline = .FALSE.
 
     DO vi = mesh%vi1, mesh%vi2
 
@@ -199,6 +201,17 @@ CONTAINS
           IF (mask_icefree_ocean_tot( vj)) THEN
             ice%mask_cf_fl( vi) = .TRUE.
             ice%mask( vi) = C%type_calvingfront_fl
+          END IF
+        END DO
+      END IF
+
+      ! Coastline
+      IF (mask_icefree_land_tot( vi)) THEN
+        DO ci = 1, mesh%nC(vi)
+          vj = mesh%C( vi,ci)
+          IF (mask_icefree_ocean_tot( vj)) THEN
+            ice%mask_coastline( vi) = .TRUE.
+            ice%mask( vi) = C%type_coastline
           END IF
         END DO
       END IF
@@ -849,8 +862,6 @@ CONTAINS
 
     ! Add routine to path
     CALL init_routine( routine_name)
-
-    IF (par%master) WRITE(0,*) '  Initialising sub-grid bedrock CDFs...'
 
     ! Calculate CDFs separately on the a-grid (vertices) and the b-grid (triangles)
     CALL calc_bedrock_CDFs_a( mesh, refgeo, ice)

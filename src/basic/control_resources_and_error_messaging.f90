@@ -713,4 +713,44 @@ CONTAINS
 
   END SUBROUTINE remove_leading_spaces
 
+  SUBROUTINE str2int( str,int,stat)
+    ! Convert a string containing an integer number to an actual integer
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    CHARACTER(LEN=*)                                   , INTENT(IN)    :: str
+    INTEGER                                            , INTENT(OUT)   :: int
+    INTEGER                                            , INTENT(OUT)   :: stat
+
+    READ( str, *, IOSTAT = stat) int
+
+  END SUBROUTINE str2int
+
+  SUBROUTINE int2str( int,str)
+    ! Convert integer to a character string (with leading zeros)
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    INTEGER                                            , INTENT(IN)    :: int
+    CHARACTER(LEN=*)                                   , INTENT(OUT)   :: str
+
+    ! Local variables
+    INTEGER                                                            :: n
+    CHARACTER(LEN=4)                                                   :: fmt
+    INTEGER                                                            :: i
+
+    n = LEN( str)
+
+    WRITE( fmt,'(A,I1,A)') '(I', n, ')'
+
+    WRITE( str,fmt) int
+
+    DO i = 1, n
+      IF (str( i:i) == ' ') str( i:i) = '0'
+    END DO
+
+  END SUBROUTINE int2str
+
 END MODULE control_resources_and_error_messaging

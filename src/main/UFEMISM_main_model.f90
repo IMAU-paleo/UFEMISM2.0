@@ -5,31 +5,34 @@ MODULE UFEMISM_main_model
 ! ===== Preamble =====
 ! ====================
 
-  ! USE mpi
+  USE mpi
   USE precisions                                             , ONLY: dp
-  USE mpi_basic                                              , ONLY: par, sync
-  USE control_resources_and_error_messaging                  , ONLY: happy, warning, crash, init_routine, finalise_routine, colour_string
+  USE mpi_basic                                              , ONLY: par, sync, ierr
+  USE control_resources_and_error_messaging                  , ONLY: happy, warning, crash, init_routine, finalise_routine, colour_string, str2int, int2str, &
+                                                                     insert_val_into_string_dp
   USE model_configuration                                    , ONLY: C
   USE parameters
   USE netcdf_debug                                           , ONLY: write_PETSc_matrix_to_NetCDF, write_CSR_matrix_to_NetCDF, &
                                                                      save_variable_as_netcdf_int_1D, save_variable_as_netcdf_int_2D, &
                                                                      save_variable_as_netcdf_dp_1D , save_variable_as_netcdf_dp_2D
   USE region_types                                           , ONLY: type_model_region
+  USE ice_model_types                                        , ONLY: type_ice_model
+  USE mesh_types                                             , ONLY: type_mesh
   USE reference_geometries                                   , ONLY: initialise_reference_geometries_raw, initialise_reference_geometries_on_model_mesh
-  USE ice_model_main                                         , ONLY: initialise_ice_dynamics_model, run_ice_dynamics_model, &
+  USE ice_model_main                                         , ONLY: initialise_ice_dynamics_model, run_ice_dynamics_model, remap_ice_dynamics_model, &
                                                                      create_restart_files_ice_model, write_to_restart_files_ice_model
   USE basal_hydrology                                        , ONLY: run_basal_hydrology_model
   USE thermodynamics_main                                    , ONLY: initialise_thermodynamics_model, run_thermodynamics_model, &
                                                                      create_restart_file_thermo, write_to_restart_file_thermo
-  USE climate_main                                           , ONLY: initialise_climate_model, run_climate_model, &
+  USE climate_main                                           , ONLY: initialise_climate_model, run_climate_model, remap_climate_model, &
                                                                      create_restart_file_climate_model, write_to_restart_file_climate_model
-  USE ocean_main                                             , ONLY: initialise_ocean_model, run_ocean_model, &
+  USE ocean_main                                             , ONLY: initialise_ocean_model, run_ocean_model, remap_ocean_model, &
                                                                      create_restart_file_ocean_model, write_to_restart_file_ocean_model
-  USE SMB_main                                               , ONLY: initialise_SMB_model, run_SMB_model, &
+  USE SMB_main                                               , ONLY: initialise_SMB_model, run_SMB_model, remap_SMB_model, &
                                                                      create_restart_file_SMB_model, write_to_restart_file_SMB_model
-  USE BMB_main                                               , ONLY: initialise_BMB_model, run_BMB_model, &
+  USE BMB_main                                               , ONLY: initialise_BMB_model, run_BMB_model, remap_BMB_model, &
                                                                      create_restart_file_BMB_model, write_to_restart_file_BMB_model
-  USE GIA_main                                               , ONLY: initialise_GIA_model, run_GIA_model, &
+  USE GIA_main                                               , ONLY: initialise_GIA_model, run_GIA_model, remap_GIA_model, &
                                                                      create_restart_file_GIA_model, write_to_restart_file_GIA_model
   USE basal_inversion_main                                   , ONLY: initialise_basal_inversion, run_basal_inversion
   USE netcdf_basic                                           , ONLY: open_existing_netcdf_file_for_reading, close_netcdf_file
@@ -41,6 +44,13 @@ MODULE UFEMISM_main_model
                                                                      write_to_main_regional_output_file_mesh, write_to_main_regional_output_file_grid, &
                                                                      create_main_regional_output_file_grid_ROI, write_to_main_regional_output_file_grid_ROI
   USE mesh_refinement                                        , ONLY: calc_polygon_Pine_Island_Glacier, calc_polygon_Thwaites_Glacier
+  USE math_utilities                                         , ONLY: longest_triangle_leg
+  USE mpi_distributed_memory                                 , ONLY: gather_to_all_logical_1D
+  USE mesh_remapping                                         , ONLY: clear_all_maps_involving_this_mesh
+  USE mesh_memory                                            , ONLY: deallocate_mesh
+
+  USE netcdf_basic, ONLY: create_new_netcdf_file_for_writing
+  USE netcdf_output, ONLY: setup_mesh_in_netcdf_file
 
   IMPLICIT NONE
 
@@ -62,6 +72,7 @@ CONTAINS
     CHARACTER(LEN=256)                                                 :: routine_name
     INTEGER                                                            :: ndt_av
     REAL(dp)                                                           :: dt_av
+    REAL(dp)                                                           :: mesh_fitness_coefficient
 
     ! Add routine to path
     routine_name = 'run_model('  //  region%name  //  ')'
@@ -78,6 +89,19 @@ CONTAINS
 
     ! The main UFEMISM time loop
     main_time_loop: DO WHILE (region%time <= t_end)
+
+      ! == Mesh update code
+      IF (C%allow_mesh_updates .AND. region%time > region%time_mesh_was_created + C%dt_mesh_update_min) THEN
+
+        ! Calculate the mesh fitness coefficient
+        CALL calc_mesh_fitness_coefficient( region%mesh, region%ice, mesh_fitness_coefficient)
+
+        ! If necessary and allowed, perform a mesh update
+        IF (mesh_fitness_coefficient < C%minimum_mesh_fitness_coefficient) THEN
+          CALL update_mesh( region)
+        END IF
+
+      END IF ! IF (C%allow_mesh_updates) THEN
 
       ! Run the subglacial hydrology model
       CALL run_basal_hydrology_model( region%mesh, region%ice)
@@ -171,6 +195,29 @@ CONTAINS
 
     ! Update time stamp
     region%output_t_next = region%output_t_next + C%dt_output
+
+    ! If needed, create a new set of mesh output files for the current model mesh
+    IF (.NOT. region%output_files_match_current_mesh) THEN
+
+      ! Create the main regional output files
+      CALL create_main_regional_output_file_mesh( region)
+
+      ! Create the restart files for all the model components
+      CALL create_restart_files_ice_model   ( region%mesh, region%ice)
+      CALL create_restart_file_thermo       ( region%mesh, region%ice)
+      CALL create_restart_file_climate_model( region%mesh, region%climate, region%name)
+      CALL create_restart_file_ocean_model  ( region%mesh, region%ocean  , region%name)
+      CALL create_restart_file_SMB_model    ( region%mesh, region%SMB    , region%name)
+      CALL create_restart_file_BMB_model    ( region%mesh, region%BMB    , region%name)
+      CALL create_restart_file_GIA_model    ( region%mesh, region%GIA    , region%name)
+
+      ! Confirm that the current set of mesh output files match the current model mesh
+      ! (set to false whenever a new mesh is created,
+      ! and set to true whenever a new set of output files is created)
+
+      region%output_files_match_current_mesh = .TRUE.
+
+    END IF ! IF (.NOT. region%output_files_match_current_mesh) THEN
 
     ! Write to the main regional output files
     CALL write_to_main_regional_output_file_mesh( region)
@@ -444,12 +491,18 @@ CONTAINS
     CALL create_restart_file_BMB_model    ( region%mesh, region%BMB    , region%name)
     CALL create_restart_file_GIA_model    ( region%mesh, region%GIA    , region%name)
 
-    ! Set output writing time to stat of run, so the initial state will be written to output
+    ! Set output writing time to start of run, so the initial state will be written to output
     IF (C%do_create_netcdf_output) THEN
       region%output_t_next = C%start_time_of_run
     ELSE
       region%output_t_next = C%end_time_of_run
     END IF
+
+    ! Confirm that the current set of mesh output files match the current model mesh
+    ! (set to false whenever a new mesh is created,
+    ! and set to true whenever a new set of output files is created)
+
+    region%output_files_match_current_mesh = .TRUE.
 
     ! ===== Finalisation =====
     ! ========================
@@ -499,8 +552,10 @@ CONTAINS
 
     ! Calculate a new mesh based on the initial ice-sheet geometry, or read an existing mesh from a file
     IF     (choice_initial_mesh == 'calc_from_initial_geometry') THEN
+      region%time_mesh_was_created = C%start_time_of_run
       CALL setup_first_mesh_from_initial_geometry( mesh_name, region)
     ELSEIF (choice_initial_mesh == 'read_from_file') THEN
+      region%time_mesh_was_created = C%start_time_of_run - 2._dp * C%dt_mesh_update_min ! So that we allow a mesh update right at the start
       CALL setup_first_mesh_from_file( mesh_name, region)
     ELSE
       CALL crash('unknown choice_initial_mesh "' // TRIM( choice_initial_mesh) // '"!')
@@ -702,9 +757,6 @@ CONTAINS
     IF (region%mesh%phi_M       /= phi_M      ) CALL crash('expected phi_M       = {dp_01}, found {dp_02}', dp_01 = phi_M      , dp_02 = region%mesh%phi_M      )
     IF (region%mesh%beta_stereo /= beta_stereo) CALL crash('expected beta_stereo = {dp_01}, found {dp_02}', dp_01 = beta_stereo, dp_02 = region%mesh%beta_stereo)
 
-    ! Calculate all matrix operators
-    CALL calc_all_matrix_operators_mesh( region%mesh)
-
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
@@ -882,6 +934,272 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE setup_ROI_grids_and_output_files
+
+! ===== Mesh update =====
+! =======================
+
+  SUBROUTINE update_mesh( region)
+    ! Update the model mesh
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_model_region),                             INTENT(INOUT) :: region
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'update_mesh'
+    REAL(dp)                                                           :: xmin, xmax, ymin, ymax
+    REAL(dp)                                                           :: lambda_M, phi_M, beta_stereo
+    INTEGER                                                            :: n_old, stat, n_new
+    CHARACTER(LEN=5)                                                   :: n_new_str
+    CHARACTER(LEN=256)                                                 :: new_mesh_name
+    TYPE(type_mesh)                                                    :: mesh_new
+    REAL(dp)                                                           :: tstart, tstop
+    CHARACTER(LEN=256)                                                 :: str
+
+    CHARACTER(LEN=256) :: filename
+    INTEGER :: ncid
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! We want to know how long this takes, just to show off...
+    tstart = MPI_WTIME()
+
+    ! Print to screen
+    IF (par%master) WRITE(0,'(A)') ''
+    IF (par%master) WRITE(0,'(A)') '   Creating a new mesh for model region ' // colour_string( region%name,'light blue') // '...'
+
+    ! Determine model domain
+    IF     (region%name == 'NAM') THEN
+      xmin        = C%xmin_NAM
+      xmax        = C%xmax_NAM
+      ymin        = C%ymin_NAM
+      ymax        = C%ymax_NAM
+      lambda_M    = C%lambda_M_NAM
+      phi_M       = C%phi_M_NAM
+      beta_stereo = C%beta_stereo_NAM
+    ELSEIF (region%name == 'EAS') THEN
+      xmin        = C%xmin_EAS
+      xmax        = C%xmax_EAS
+      ymin        = C%ymin_EAS
+      ymax        = C%ymax_EAS
+      lambda_M    = C%lambda_M_EAS
+      phi_M       = C%phi_M_EAS
+      beta_stereo = C%beta_stereo_EAS
+    ELSEIF (region%name == 'GRL') THEN
+      xmin        = C%xmin_GRL
+      xmax        = C%xmax_GRL
+      ymin        = C%ymin_GRL
+      ymax        = C%ymax_GRL
+      lambda_M    = C%lambda_M_GRL
+      phi_M       = C%phi_M_GRL
+      beta_stereo = C%beta_stereo_GRL
+    ELSEIF (region%name == 'ANT') THEN
+      xmin        = C%xmin_ANT
+      xmax        = C%xmax_ANT
+      ymin        = C%ymin_ANT
+      ymax        = C%ymax_ANT
+      lambda_M    = C%lambda_M_ANT
+      phi_M       = C%phi_M_ANT
+      beta_stereo = C%beta_stereo_ANT
+    ELSE
+      CALL crash('unknown region name "' // TRIM( region%name) // '"!')
+    END IF
+
+    ! Create numbered name for the new mesh
+    CALL str2int( region%mesh%name( 16:20), n_old, stat)
+    IF (stat /= 0) CALL crash('couldnt read number of old mesh!')
+    n_new = n_old + 1
+    CALL int2str( n_new, n_new_str)
+    new_mesh_name = 'model_mesh_' // TRIM( region%name) // '_' // n_new_str
+
+    ! Create a mesh from the modelled ice geometry
+    CALL create_mesh_from_meshed_geometry( region%name, new_mesh_name, &
+      region%mesh, &
+      region%ice%Hi, &
+      region%ice%Hb, &
+      region%ice%Hs, &
+      region%ice%SL, &
+      xmin, xmax, ymin, ymax, lambda_M, phi_M, beta_stereo, &
+      mesh_new)
+
+    ! Write the mesh creation success message to the terminal
+    CALL write_mesh_success( mesh_new)
+
+    ! Remap the reference geometries to the new mesh (deallocation of old data happens in there)
+    CALL initialise_reference_geometries_on_model_mesh( region%name, mesh_new, region%refgeo_init, region%refgeo_PD, region%refgeo_GIAeq)
+
+    ! Remap all the model data from the old mesh to the new mesh
+    CALL remap_ice_dynamics_model( region%mesh, mesh_new, region%ice, region%refgeo_PD, region%GIA, region%time, region%scalars, region%name)
+    CALL remap_climate_model(      region%mesh, mesh_new, region%climate, region%name)
+    CALL remap_ocean_model(        region%mesh, mesh_new, region%ocean  , region%name)
+    CALL remap_SMB_model(          region%mesh, mesh_new, region%SMB    , region%name)
+    CALL remap_BMB_model(          region%mesh, mesh_new, region%BMB    , region%name)
+    CALL remap_GIA_model(          region%mesh, mesh_new, region%GIA                 )
+
+    ! Set all model component timers so that they will all be run right after the mesh update
+    region%ice%t_Hi_next  = region%time
+    region%ice%t_Ti_next  = region%time
+    region%climate%t_next = region%time
+    region%ocean%t_next   = region%time
+    region%SMB%t_next     = region%time
+    region%BMB%t_next     = region%time
+    region%GIA%t_next     = region%time
+
+    ! Throw away the mapping operators involving the old mesh
+    CALL clear_all_maps_involving_this_mesh( region%mesh)
+
+    ! Deallocate the old mesh, bind the region%mesh pointers to the new mesh.
+    CALL deallocate_mesh( region%mesh)
+    region%mesh = mesh_new
+    region%time_mesh_was_created = region%time
+
+    ! Confirm that the current set of mesh output files do not match the current model mesh
+    ! (set to false whenever a new mesh is created,
+    ! and set to true whenever a new set of output files is created)
+
+    region%output_files_match_current_mesh = .FALSE.
+
+    ! We want to know how long this takes, just to show off...
+    tstop = MPI_WTIME()
+
+    ! Print to screen
+    str = '   Finished the mesh update in {dp_01} seconds'
+    CALL insert_val_into_string_dp( str, '{dp_01}', tstop-tstart)
+    IF (par%master) WRITE(0,'(A)') str
+
+!    ! DENK DROM
+!    filename = TRIM( C%output_dir) // TRIM( routine_name) // '_output.nc'
+!    CALL create_new_netcdf_file_for_writing( filename, ncid)
+!    CALL setup_mesh_in_netcdf_file( filename, ncid, mesh_new)
+!    CALL close_netcdf_file( ncid)
+!
+!    CALL save_variable_as_netcdf_dp_1D( region%ice%Hi,'Hi')
+!    CALL save_variable_as_netcdf_dp_1D( region%ice%DIVA%u_vav_b,'u_vav_b')
+!
+!    ! DENK DROM
+!    CALL crash('whoopsiedaisy!')
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE update_mesh
+
+  SUBROUTINE calc_mesh_fitness_coefficient( mesh, ice, f)
+    ! Calculate the fitness coefficient of the current mesh, which is defined as the
+    ! fraction of the grounding line that is still covered by a good-resolution mesh
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                                     INTENT(IN)    :: mesh
+    TYPE(type_ice_model),                                INTENT(IN)    :: ice
+    REAL(dp),                                            INTENT(OUT)   :: f
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'calc_mesh_fitness_coefficient'
+    INTEGER                                                            :: vi
+    INTEGER                                                            :: nV_grounding_line_tot, nV_calving_front_tot, nV_ice_front_tot, nV_coastline_tot
+    INTEGER                                                            :: nV_grounding_line_bad, nV_calving_front_bad, nV_ice_front_bad, nV_coastline_bad
+    REAL(dp)                                                           :: f_grounding_line, f_calving_front, f_ice_front, f_coastline
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Initialise
+    nV_grounding_line_tot     = 0
+    nV_calving_front_tot      = 0
+    nV_ice_front_tot          = 0
+    nV_coastline_tot          = 0
+
+    nV_grounding_line_bad     = 0
+    nV_calving_front_bad      = 0
+    nV_ice_front_bad          = 0
+    nV_coastline_bad          = 0
+
+    ! Check resolution criteria
+
+    DO vi = mesh%vi1, mesh%vi2
+
+      ! Check resolution criteria for the different lines
+
+      ! Grounding line
+      IF (ice%mask_gl_gr( vi) .OR. ice%mask_gl_fl( vi)) THEN
+        nV_grounding_line_tot = nV_grounding_line_tot + 1
+        IF (mesh%R( vi) > C%maximum_resolution_grounding_line * C%mesh_resolution_tolerance) THEN
+          nV_grounding_line_bad = nV_grounding_line_bad + 1
+        END IF
+      END IF ! IF (ice%mask_gl_gr( vi) .OR. ice%mask_gl_fl( vi)) THEN
+
+      ! Calving front
+      IF (ice%mask_cf_gr( vi) .OR. ice%mask_cf_fl( vi)) THEN
+        nV_calving_front_tot = nV_calving_front_tot + 1
+        IF (mesh%R( vi) > C%maximum_resolution_calving_front * C%mesh_resolution_tolerance) THEN
+          nV_calving_front_bad = nV_calving_front_bad + 1
+        END IF
+      END IF ! IF (ice%mask_gl_gr( vi) .OR. ice%mask_gl_fl( vi)) THEN
+
+      ! Ice front
+      IF (ice%mask_margin( vi)) THEN
+        nV_ice_front_tot = nV_ice_front_tot + 1
+        IF (mesh%R( vi) > C%maximum_resolution_ice_front * C%mesh_resolution_tolerance) THEN
+          nV_ice_front_bad = nV_ice_front_bad + 1
+        END IF
+      END IF ! IF (ice%mask_gl_gr( vi) .OR. ice%mask_gl_fl( vi)) THEN
+
+      ! Coastline
+      IF (ice%mask_coastline( vi)) THEN
+        nV_coastline_tot = nV_coastline_tot + 1
+        IF (mesh%R( vi) > C%maximum_resolution_coastline * C%mesh_resolution_tolerance) THEN
+          nV_coastline_bad = nV_coastline_bad + 1
+        END IF
+      END IF ! IF (ice%mask_gl_gr( vi) .OR. ice%mask_gl_fl( vi)) THEN
+
+    END DO ! DO vi = mesh%vi1, mesh%vi2
+
+    ! Gather data from all processes
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, nV_grounding_line_tot, 1, MPI_INTEGER, MPI_SUM, MPI_COMM_WORLD, ierr)
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, nV_calving_front_tot , 1, MPI_INTEGER, MPI_SUM, MPI_COMM_WORLD, ierr)
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, nV_ice_front_tot     , 1, MPI_INTEGER, MPI_SUM, MPI_COMM_WORLD, ierr)
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, nV_coastline_tot     , 1, MPI_INTEGER, MPI_SUM, MPI_COMM_WORLD, ierr)
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, nV_grounding_line_bad, 1, MPI_INTEGER, MPI_SUM, MPI_COMM_WORLD, ierr)
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, nV_calving_front_bad , 1, MPI_INTEGER, MPI_SUM, MPI_COMM_WORLD, ierr)
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, nV_ice_front_bad     , 1, MPI_INTEGER, MPI_SUM, MPI_COMM_WORLD, ierr)
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, nV_coastline_bad     , 1, MPI_INTEGER, MPI_SUM, MPI_COMM_WORLD, ierr)
+
+    ! Calculate mesh fitness
+
+    IF (nV_grounding_line_tot > 0) THEN
+      f_grounding_line = 1._dp - REAL( nV_grounding_line_bad,dp) / REAL( nV_grounding_line_tot,dp)
+    ELSE
+      f_grounding_line = 1._dp
+    END IF
+
+    IF (nV_calving_front_tot > 0) THEN
+      f_calving_front = 1._dp - REAL( nV_calving_front_bad,dp) / REAL( nV_calving_front_tot,dp)
+    ELSE
+      f_calving_front = 1._dp
+    END IF
+
+    IF (nV_ice_front_tot > 0) THEN
+      f_ice_front = 1._dp - REAL( nV_ice_front_bad,dp) / REAL( nV_ice_front_tot,dp)
+    ELSE
+      f_ice_front = 1._dp
+    END IF
+
+    IF (nV_coastline_tot > 0) THEN
+      f_coastline = 1._dp - REAL( nV_coastline_bad,dp) / REAL( nV_coastline_tot,dp)
+    ELSE
+      f_coastline = 1._dp
+    END IF
+
+    f = MINVAL( [f_grounding_Line, f_calving_front, f_ice_front, f_coastline])
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE calc_mesh_fitness_coefficient
 
 ! ===== Extras =====
 ! ==================
