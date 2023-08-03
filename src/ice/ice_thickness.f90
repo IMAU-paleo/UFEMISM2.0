@@ -40,7 +40,7 @@ CONTAINS
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: SMB
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: BMB
     LOGICAL,  DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: mask_noice
-    REAL(dp),                               INTENT(IN)    :: dt
+    REAL(dp),                               INTENT(INOUT) :: dt
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)   :: dHi_dt
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)   :: Hi_tplusdt
 
@@ -130,7 +130,7 @@ CONTAINS
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: SMB
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: BMB
     LOGICAL,  DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: mask_noice
-    REAL(dp),                               INTENT(IN)    :: dt
+    REAL(dp),                               INTENT(INOUT) :: dt
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)   :: dHi_dt
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)   :: Hi_tplusdt
 
@@ -154,6 +154,9 @@ CONTAINS
 
     ! Calculate largest time step possible based on flux divergence
     CALL calc_flux_limited_timestep( mesh, Hi, divQ, dt_max)
+
+    ! Constrain dt based on new limit
+    dt = MIN( dt, dt_max)
 
     ! Calculate ice thickness at t+dt
     Hi_tplusdt = MAX( 0._dp, Hi + dHi_dt * dt)
@@ -223,7 +226,7 @@ CONTAINS
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: SMB
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: BMB
     LOGICAL,  DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: mask_noice
-    REAL(dp),                               INTENT(IN)    :: dt
+    REAL(dp),                               INTENT(INOUT) :: dt
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)   :: dHi_dt
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)   :: Hi_tplusdt
 
@@ -247,6 +250,9 @@ CONTAINS
 
     ! Calculate largest time step possible based on flux divergence div(Q)
     CALL calc_flux_limited_timestep( mesh, Hi, divQ, dt_max)
+
+    ! Constrain dt based on new limit
+    dt = MIN( dt, dt_max)
 
     ! Calculate the stiffness matrix A and the load vector b
 
@@ -354,7 +360,7 @@ CONTAINS
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: SMB
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: BMB
     LOGICAL,  DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: mask_noice
-    REAL(dp),                               INTENT(IN)    :: dt
+    REAL(dp),                               INTENT(INOUT) :: dt
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)   :: dHi_dt
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)   :: Hi_tplusdt
 
@@ -379,6 +385,9 @@ CONTAINS
 
     ! Calculate largest time step possible based on flux divergence div(Q)
     CALL calc_flux_limited_timestep( mesh, Hi, divQ, dt_max)
+
+    ! Constrain dt based on new limit
+    dt = MIN( dt, dt_max)
 
     ! Calculate the stiffness matrix A and the load vector b
 
