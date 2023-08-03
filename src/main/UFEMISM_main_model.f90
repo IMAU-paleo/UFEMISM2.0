@@ -957,9 +957,6 @@ CONTAINS
     REAL(dp)                                                           :: tstart, tstop
     CHARACTER(LEN=256)                                                 :: str
 
-    CHARACTER(LEN=256) :: filename
-    INTEGER :: ncid
-
     ! Add routine to path
     CALL init_routine( routine_name)
 
@@ -1068,18 +1065,6 @@ CONTAINS
     str = '   Finished the mesh update in {dp_01} seconds'
     CALL insert_val_into_string_dp( str, '{dp_01}', tstop-tstart)
     IF (par%master) WRITE(0,'(A)') str
-
-!    ! DENK DROM
-!    filename = TRIM( C%output_dir) // TRIM( routine_name) // '_output.nc'
-!    CALL create_new_netcdf_file_for_writing( filename, ncid)
-!    CALL setup_mesh_in_netcdf_file( filename, ncid, mesh_new)
-!    CALL close_netcdf_file( ncid)
-!
-!    CALL save_variable_as_netcdf_dp_1D( region%ice%Hi,'Hi')
-!    CALL save_variable_as_netcdf_dp_1D( region%ice%DIVA%u_vav_b,'u_vav_b')
-!
-!    ! DENK DROM
-!    CALL crash('whoopsiedaisy!')
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

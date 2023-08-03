@@ -117,8 +117,9 @@ CONTAINS
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                      :: BC_prescr_v_bk_applied
     INTEGER                                                      :: viscosity_iteration_i
     LOGICAL                                                      :: has_converged
-    REAL(dp)                                                     :: resid_UV
+    REAL(dp)                                                     :: resid_UV, resid_UV_prev
     REAL(dp)                                                     :: uv_min, uv_max
+    REAL(dp)                                                     :: visc_it_relax_applied
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -158,6 +159,10 @@ CONTAINS
     ! Calculate the driving stress
     CALL calc_driving_stress( mesh, ice, BPA)
 
+    ! Adaptive relaxation parameter for the viscosity iteration
+    resid_UV = 1E9_dp
+    visc_it_relax_applied = C%visc_it_relax
+
     ! The viscosity iteration
     viscosity_iteration_i = 0
     has_converged         = .FALSE.
@@ -180,10 +185,17 @@ CONTAINS
       CALL apply_velocity_limits( mesh, BPA)
 
       ! Reduce the change between velocity solutions
-      CALL relax_viscosity_iterations( mesh, BPA)
+      CALL relax_viscosity_iterations( mesh, BPA, visc_it_relax_applied)
 
       ! Calculate the L2-norm of the two consecutive velocity solutions
+      resid_UV_prev = resid_UV
       CALL calc_visc_iter_UV_resid( mesh, BPA, resid_UV)
+
+      ! If the viscosity iteration diverges, lower the relaxation parameter
+      IF (resid_UV > resid_UV_prev) THEN
+        visc_it_relax_applied = MAX( 0.05_dp, visc_it_relax_applied * 0.9_dp)
+        IF (visc_it_relax_applied == 0.05_dp) CALL crash('viscosity iteration still diverges even with very low relaxation factor!')
+      END IF
 
       ! DENK DROM
       uv_min = MINVAL( BPA%u_bk)
@@ -2002,7 +2014,7 @@ CONTAINS
 
 ! == Some useful tools for improving numerical stability of the viscosity iteration
 
-  SUBROUTINE relax_viscosity_iterations( mesh, BPA)
+  SUBROUTINE relax_viscosity_iterations( mesh, BPA, visc_it_relax)
     ! Reduce the change between velocity solutions
 
     IMPLICIT NONE
@@ -2010,6 +2022,7 @@ CONTAINS
     ! In/output variables:
     TYPE(type_mesh),                     INTENT(IN)              :: mesh
     TYPE(type_ice_velocity_solver_BPA),  INTENT(INOUT)           :: BPA
+    REAL(dp),                            INTENT(IN)              :: visc_it_relax
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'relax_viscosity_iterations'
@@ -2019,8 +2032,8 @@ CONTAINS
     CALL init_routine( routine_name)
 
     DO ti = mesh%ti1, mesh%ti2
-      BPA%u_bk( ti,:) = (C%visc_it_relax * BPA%u_bk( ti,:)) + ((1._dp - C%visc_it_relax) * BPA%u_bk_prev( ti,:))
-      BPA%v_bk( ti,:) = (C%visc_it_relax * BPA%v_bk( ti,:)) + ((1._dp - C%visc_it_relax) * BPA%v_bk_prev( ti,:))
+      BPA%u_bk( ti,:) = (visc_it_relax * BPA%u_bk( ti,:)) + ((1._dp - visc_it_relax) * BPA%u_bk_prev( ti,:))
+      BPA%v_bk( ti,:) = (visc_it_relax * BPA%v_bk( ti,:)) + ((1._dp - visc_it_relax) * BPA%v_bk_prev( ti,:))
     END DO
 
     ! Finalise routine path
