@@ -359,6 +359,7 @@ MODULE model_configuration
     REAL(dp)            :: pc_k_p_config                                = 0.2_dp                           ! Exponent k_p in  Robinson et al., 2020, Eq. 33
     REAL(dp)            :: pc_eta_min_config                            = 1E-8_dp                          ! Normalisation term in estimation of the truncation error (Robinson et al., Eq. 32)
     REAL(dp)            :: pc_max_time_step_increase_config             = 1.2_dp                           ! Each new time step is only allowed to be this much larger than the previous one
+    INTEGER             :: pc_nit_max_config                            = 50                               ! Maximum number of times a PC timestep can be repeated with reduced dt
 
     ! Initialisation of the predictor-corrector ice-thickness update
     CHARACTER(LEN=256)  :: pc_choice_initialise_NAM_config              = 'zero'                           ! How to initialise the p/c scheme: 'zero', 'read_from_file'
@@ -1057,6 +1058,7 @@ MODULE model_configuration
     REAL(dp)            :: pc_k_p
     REAL(dp)            :: pc_eta_min
     REAL(dp)            :: pc_max_time_step_increase
+    INTEGER             :: pc_nit_max
 
     ! Initialisation of the predictor-corrector ice-thickness update
     CHARACTER(LEN=256)  :: pc_choice_initialise_NAM
@@ -1794,6 +1796,7 @@ CONTAINS
       pc_k_p_config                                               , &
       pc_eta_min_config                                           , &
       pc_max_time_step_increase_config                            , &
+      pc_nit_max_config                                           , &
       pc_choice_initialise_NAM_config                             , &
       pc_choice_initialise_EAS_config                             , &
       pc_choice_initialise_GRL_config                             , &
@@ -2391,6 +2394,7 @@ CONTAINS
     C%pc_k_p                                                 = pc_k_p_config
     C%pc_eta_min                                             = pc_eta_min_config
     C%pc_max_time_step_increase                              = pc_max_time_step_increase_config
+    C%pc_nit_max                                             = pc_nit_max_config
 
     ! Initialisation of the predictor-corrector ice-thickness update
     C%pc_choice_initialise_NAM                               = pc_choice_initialise_NAM_config

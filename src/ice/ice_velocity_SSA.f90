@@ -116,6 +116,7 @@ CONTAINS
     REAL(dp)                                                     :: resid_UV, resid_UV_prev
     REAL(dp)                                                     :: uv_min, uv_max
     REAL(dp)                                                     :: visc_it_relax_applied
+    REAL(dp)                                                     :: Glens_flow_law_epsilon_sq_0_applied
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -152,6 +153,7 @@ CONTAINS
     ! Adaptive relaxation parameter for the viscosity iteration
     resid_UV = 1E9_dp
     visc_it_relax_applied = C%visc_it_relax
+    Glens_flow_law_epsilon_sq_0_applied = C%Glens_flow_law_epsilon_sq_0
 
     ! The viscosity iteration
     viscosity_iteration_i = 0
@@ -163,7 +165,7 @@ CONTAINS
       CALL calc_strain_rates( mesh, SSA)
 
       ! Calculate the effective viscosity for the current velocity solution
-      CALL calc_effective_viscosity( mesh, ice, SSA)
+      CALL calc_effective_viscosity( mesh, ice, SSA, Glens_flow_law_epsilon_sq_0_applied)
 
       ! Calculate the basal friction coefficient betab for the current velocity solution
       CALL calc_applied_basal_friction_coefficient( mesh, ice, SSA)
@@ -183,8 +185,10 @@ CONTAINS
 
       ! If the viscosity iteration diverges, lower the relaxation parameter
       IF (resid_UV > resid_UV_prev) THEN
-        visc_it_relax_applied = MAX( 0.05_dp, visc_it_relax_applied * 0.9_dp)
-        IF (visc_it_relax_applied == 0.05_dp) CALL crash('viscosity iteration still diverges even with very low relaxation factor!')
+        visc_it_relax_applied               = visc_it_relax_applied               * 0.9_dp
+        Glens_flow_law_epsilon_sq_0_applied = Glens_flow_law_epsilon_sq_0_applied * 1.2_dp
+        IF (visc_it_relax_applied < 0.05_dp .OR. Glens_flow_law_epsilon_sq_0_applied > 1E-5_dp) &
+          CALL crash('viscosity iteration still diverges even with very low relaxation factor / very high effective strain rate regularisation!')
       END IF
 
       ! DENK DROM
@@ -1414,7 +1418,7 @@ CONTAINS
 
   END SUBROUTINE calc_vertically_averaged_flow_parameter
 
-  SUBROUTINE calc_effective_viscosity( mesh, ice, SSA)
+  SUBROUTINE calc_effective_viscosity( mesh, ice, SSA, Glens_flow_law_epsilon_sq_0_applied)
     ! Calculate the effective viscosity eta, the product term N = eta*H, and the gradients of N
 
     IMPLICIT NONE
@@ -1423,6 +1427,7 @@ CONTAINS
     TYPE(type_mesh),                     INTENT(IN)              :: mesh
     TYPE(type_ice_model),                INTENT(INOUT)           :: ice
     TYPE(type_ice_velocity_solver_SSA),  INTENT(INOUT)           :: SSA
+    REAL(dp),                            INTENT(IN)              :: Glens_flow_law_epsilon_sq_0_applied
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'calc_effective_viscosity'
@@ -1434,7 +1439,7 @@ CONTAINS
 
     ! Calculate maximum allowed effective viscosity, for stability
     A_min = 1E-18_dp
-    eta_max = 0.5_dp * A_min**(-1._dp / C%Glens_flow_law_exponent) * (C%Glens_flow_law_epsilon_sq_0)**((1._dp - C%Glens_flow_law_exponent)/(2._dp*C%Glens_flow_law_exponent))
+    eta_max = 0.5_dp * A_min**(-1._dp / C%Glens_flow_law_exponent) * (Glens_flow_law_epsilon_sq_0_applied)**((1._dp - C%Glens_flow_law_exponent)/(2._dp*C%Glens_flow_law_exponent))
 
     ! Calculate the effective viscosity eta
     IF (C%choice_flow_law == 'Glen') THEN
@@ -1446,7 +1451,8 @@ CONTAINS
 
       ! Calculate effective viscosity
       DO vi = mesh%vi1, mesh%vi2
-        SSA%eta_a( vi) = calc_effective_viscosity_Glen_2D( SSA%du_dx_a( vi), SSA%du_dy_a( vi), SSA%dv_dx_a( vi), SSA%dv_dy_a( vi), SSA%A_flow_vav_a( vi))
+        SSA%eta_a( vi) = calc_effective_viscosity_Glen_2D( Glens_flow_law_epsilon_sq_0_applied, &
+          SSA%du_dx_a( vi), SSA%du_dy_a( vi), SSA%dv_dx_a( vi), SSA%dv_dy_a( vi), SSA%A_flow_vav_a( vi))
       END DO
 
     ELSE

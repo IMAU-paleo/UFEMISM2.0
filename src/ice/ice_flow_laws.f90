@@ -29,7 +29,7 @@ CONTAINS
   ! The flow law itself, relating the effective viscosity to the effective strain rate,
   ! and a (temperature-dependent) "flow factor"
 
-  PURE FUNCTION calc_effective_viscosity_Glen_2D( du_dx, du_dy, dv_dx, dv_dy, A) RESULT( eta)
+  PURE FUNCTION calc_effective_viscosity_Glen_2D( Glens_flow_law_epsilon_sq_0_applied, du_dx, du_dy, dv_dx, dv_dy, A) RESULT( eta)
     ! Calculate the effective viscosity eta as a function of the strain rates du/dx,
     ! du/dy, dv/dx, dv/dy, (so excluding the vertical shear strain rates du/dz, dv/dz,
     ! and the gradients of w), according to Glen's flow law.
@@ -37,6 +37,7 @@ CONTAINS
     IMPLICIT NONE
 
     ! In/output variables:
+    REAL(dp),                                      INTENT(IN)    :: Glens_flow_law_epsilon_sq_0_applied
     REAL(dp),                                      INTENT(IN)    :: du_dx, du_dy, dv_dx, dv_dy
     REAL(dp),                                      INTENT(IN)    :: A
     REAL(dp)                                                     :: eta
@@ -49,14 +50,14 @@ CONTAINS
                  dv_dy**2 + &
                  du_dx * dv_dy + &
                  0.25_dp * (du_dy + dv_dx)**2 + &
-                 C%Glens_flow_law_epsilon_sq_0
+                 Glens_flow_law_epsilon_sq_0_applied
 
     ! Calculate the effective viscosity eta
     eta = 0.5_dp * A**(-1._dp / C%Glens_flow_law_exponent) * (epsilon_sq)**((1._dp - C%Glens_flow_law_exponent)/(2._dp*C%Glens_flow_law_exponent))
 
   END FUNCTION calc_effective_viscosity_Glen_2D
 
-  PURE FUNCTION calc_effective_viscosity_Glen_3D_uv_only( du_dx, du_dy, du_dz, dv_dx, dv_dy, dv_dz, A) RESULT( eta)
+  PURE FUNCTION calc_effective_viscosity_Glen_3D_uv_only( Glens_flow_law_epsilon_sq_0_applied, du_dx, du_dy, du_dz, dv_dx, dv_dy, dv_dz, A) RESULT( eta)
     ! Calculate the effective viscosity eta as a function of the strain rates du/dx,
     ! du/dy, du/dz, dv/dx, dv/dy, dv/dz (so excluding the gradients of w),
     ! according to Glen's flow law.
@@ -64,6 +65,7 @@ CONTAINS
     IMPLICIT NONE
 
     ! In/output variables:
+    REAL(dp),                                      INTENT(IN)    :: Glens_flow_law_epsilon_sq_0_applied
     REAL(dp),                                      INTENT(IN)    :: du_dx, du_dy, du_dz, dv_dx, dv_dy, dv_dz
     REAL(dp),                                      INTENT(IN)    :: A
     REAL(dp)                                                     :: eta
@@ -77,7 +79,7 @@ CONTAINS
                  du_dx * dv_dy + &
                  0.25_dp * (du_dy + dv_dx)**2 + &
                  0.25_dp * (du_dz**2 + dv_dz**2) + &
-                 C%Glens_flow_law_epsilon_sq_0
+                 Glens_flow_law_epsilon_sq_0_applied
 
     ! Calculate the effective viscosity eta
     eta = 0.5_dp * A**(-1._dp / C%Glens_flow_law_exponent) * (epsilon_sq)**((1._dp - C%Glens_flow_law_exponent)/(2._dp*C%Glens_flow_law_exponent))

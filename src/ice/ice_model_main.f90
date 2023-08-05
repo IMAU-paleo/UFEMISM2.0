@@ -419,7 +419,8 @@ CONTAINS
 
     CALL map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, ice%Hi, '2nd_order_conservative')
 
-    ! Remapping of Hb has already happened, only need to copy the data
+    ! Remapping of Hb in the refgeo structure has already happened, only need to copy the data
+    CALL reallocate_bounds( ice%Hb                          , mesh_new%vi1, mesh_new%vi2         )  ! [m] Bedrock elevation (w.r.t. PD sea level)
     ice%Hb = refgeo_PD%Hb
 
     ! FIXME
@@ -732,6 +733,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'run_ice_dynamics_model_pc'
     REAL(dp)                                              :: dt_crit_adv
+    INTEGER                                               :: pc_it
     REAL(dp), DIMENSION(:    ), ALLOCATABLE               :: Hi_dummy
     INTEGER                                               :: vi
 
@@ -768,55 +770,80 @@ CONTAINS
     CALL calc_critical_timestep_adv( region%mesh, region%ice, dt_crit_adv)
     region%ice%pc%dt_np1 = MIN( region%ice%pc%dt_np1, dt_crit_adv)
 
-    ! Calculate time step ratio
-    region%ice%pc%zeta_t = region%ice%pc%dt_np1 / region%ice%pc%dt_n
+  ! == Time step iteration: if, at the end of the PC timestep, the truncation error
+  !    turns out to be too large, run it again with a smaller dt, until the truncation
+  !    decreases to below the specified tolerance
+  ! ==================================================================================
 
-  ! == Predictor step ==
-  ! ====================
+    pc_it = 0
+    iterate_pc_timestep: DO WHILE (pc_it < C%pc_nit_max)
 
-    ! Store thinning rates from previous time step
-    region%ice%pc%dHi_dt_Hi_nm1_u_nm1 = region%ice%dHi_dt
+      pc_it = pc_it + 1
 
-    ! Calculate thinning rates for current geometry and velocity
-    CALL calc_dHi_dt( region%mesh, region%ice%Hi_prev, region%ice%u_vav_b, region%ice%v_vav_b, region%SMB%SMB, region%BMB%BMB, &
-      region%ice%mask_noice, region%ice%pc%dt_np1, region%ice%pc%dHi_dt_Hi_n_u_n, Hi_dummy)
+      ! Calculate time step ratio
+      region%ice%pc%zeta_t = region%ice%pc%dt_np1 / region%ice%pc%dt_n
 
-    ! Calculate predicted ice thickness (Robinson et al., 2020, Eq. 30)
-    region%ice%pc%Hi_star_np1 = region%ice%Hi_prev + region%ice%pc%dt_np1 * ((1._dp + region%ice%pc%zeta_t / 2._dp) * &
-      region%ice%pc%dHi_dt_Hi_n_u_n - (region%ice%pc%zeta_t / 2._dp) * region%ice%pc%dHi_dt_Hi_nm1_u_nm1)
+    ! == Predictor step ==
+    ! ====================
 
-  ! == Update step ==
-  ! =================
+      ! Store thinning rates from previous time step
+      region%ice%pc%dHi_dt_Hi_nm1_u_nm1 = region%ice%dHi_dt
 
-    ! Set model geometry to predicted
-    region%ice%Hi = region%ice%pc%Hi_star_np1
-    DO vi = region%mesh%vi1, region%mesh%vi2
-      region%ice%Hs( vi) = ice_surface_elevation( region%ice%Hi( vi), region%ice%Hb( vi), region%ice%SL( vi))
-    END DO
+      ! Calculate thinning rates for current geometry and velocity
+      CALL calc_dHi_dt( region%mesh, region%ice%Hi_prev, region%ice%u_vav_b, region%ice%v_vav_b, region%SMB%SMB, region%BMB%BMB, &
+        region%ice%mask_noice, region%ice%pc%dt_np1, region%ice%pc%dHi_dt_Hi_n_u_n, Hi_dummy)
 
-    ! Calculate ice velocities for the predicted geometry
-    CALL solve_stress_balance( region%mesh, region%ice, region%BMB%BMB)
+      ! Calculate predicted ice thickness (Robinson et al., 2020, Eq. 30)
+      region%ice%pc%Hi_star_np1 = region%ice%Hi_prev + region%ice%pc%dt_np1 * ((1._dp + region%ice%pc%zeta_t / 2._dp) * &
+        region%ice%pc%dHi_dt_Hi_n_u_n - (region%ice%pc%zeta_t / 2._dp) * region%ice%pc%dHi_dt_Hi_nm1_u_nm1)
 
-  ! == Corrector step ==
-  ! ====================
+    ! == Update step ==
+    ! =================
 
-    ! Set model geometry back to original
-    region%ice%Hi = region%ice%Hi_prev
-    DO vi = region%mesh%vi1, region%mesh%vi2
-      region%ice%Hs( vi) = ice_surface_elevation( region%ice%Hi( vi), region%ice%Hb( vi), region%ice%SL( vi))
-    END DO
-    ! Update masks
-    CALL determine_masks( region%mesh, region%ice)
+      ! Set model geometry to predicted
+      region%ice%Hi = region%ice%pc%Hi_star_np1
+      DO vi = region%mesh%vi1, region%mesh%vi2
+        region%ice%Hs( vi) = ice_surface_elevation( region%ice%Hi( vi), region%ice%Hb( vi), region%ice%SL( vi))
+      END DO
 
-    ! Calculate thinning rates for the predicted ice thickness and updated velocity
-    CALL calc_dHi_dt( region%mesh, region%ice%Hi, region%ice%u_vav_b, region%ice%v_vav_b, region%SMB%SMB, region%BMB%BMB, &
-      region%ice%mask_noice, region%ice%pc%dt_np1, region%ice%pc%dHi_dt_Hi_star_np1_u_np1, Hi_dummy)
+      ! Calculate ice velocities for the predicted geometry
+      CALL solve_stress_balance( region%mesh, region%ice, region%BMB%BMB)
 
-    ! Calculate corrected ice thickness (Robinson et al. (2020), Eq. 31)
-    region%ice%pc%Hi_np1 = region%ice%Hi_prev + (region%ice%pc%dt_np1 / 2._dp) * (region%ice%pc%dHi_dt_Hi_n_u_n + region%ice%pc%dHi_dt_Hi_star_np1_u_np1)
+    ! == Corrector step ==
+    ! ====================
 
-    ! Estimate truncation error
-    CALL calc_pc_truncation_error( region%mesh, region%ice%pc)
+      ! Set model geometry back to original
+      region%ice%Hi = region%ice%Hi_prev
+      DO vi = region%mesh%vi1, region%mesh%vi2
+        region%ice%Hs( vi) = ice_surface_elevation( region%ice%Hi( vi), region%ice%Hb( vi), region%ice%SL( vi))
+      END DO
+      ! Update masks
+      CALL determine_masks( region%mesh, region%ice)
+
+      ! Calculate thinning rates for the predicted ice thickness and updated velocity
+      CALL calc_dHi_dt( region%mesh, region%ice%Hi, region%ice%u_vav_b, region%ice%v_vav_b, region%SMB%SMB, region%BMB%BMB, &
+        region%ice%mask_noice, region%ice%pc%dt_np1, region%ice%pc%dHi_dt_Hi_star_np1_u_np1, Hi_dummy)
+
+      ! Calculate corrected ice thickness (Robinson et al. (2020), Eq. 31)
+      region%ice%pc%Hi_np1 = region%ice%Hi_prev + (region%ice%pc%dt_np1 / 2._dp) * (region%ice%pc%dHi_dt_Hi_n_u_n + region%ice%pc%dHi_dt_Hi_star_np1_u_np1)
+
+      ! Estimate truncation error
+      CALL calc_pc_truncation_error( region%mesh, region%ice%pc)
+
+      ! Check if it is small enough; if so, move on; if not, re-do the PC timestep
+      IF (region%ice%pc%eta_np1 < C%pc_epsilon) THEN
+        EXIT iterate_pc_timestep
+      ELSE
+        !IF (par%master) CALL warning('reducing dt and redoing PC timestep')
+        region%ice%pc%dt_np1 = region%ice%pc%dt_np1 * 0.8_dp
+        ! If the timestep has reached the specified lower limit, stop iterating
+        IF (region%ice%pc%dt_np1 <= C%dt_ice_min) THEN
+          region%ice%pc%dt_np1 = C%dt_ice_min
+          EXIT iterate_pc_timestep
+        END IF
+      END IF
+
+    END DO iterate_pc_timestep
 
     ! Set next modelled ice thickness
     region%ice%t_Hi_next = region%ice%t_Hi_prev + region%ice%pc%dt_np1

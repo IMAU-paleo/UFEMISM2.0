@@ -119,6 +119,9 @@ CONTAINS
     REAL(dp)                                                     :: resid_UV, resid_UV_prev
     REAL(dp)                                                     :: uv_min, uv_max
     REAL(dp)                                                     :: visc_it_relax_applied
+    REAL(dp)                                                     :: Glens_flow_law_epsilon_sq_0_applied
+    CHARACTER(LEN=256) :: filename
+    INTEGER :: ncid
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -159,6 +162,7 @@ CONTAINS
     ! Adaptive relaxation parameter for the viscosity iteration
     resid_UV = 1E9_dp
     visc_it_relax_applied = C%visc_it_relax
+    Glens_flow_law_epsilon_sq_0_applied = C%Glens_flow_law_epsilon_sq_0
 
     ! The viscosity iteration
     viscosity_iteration_i = 0
@@ -173,7 +177,7 @@ CONTAINS
       CALL calc_vertical_shear_strain_rates( mesh, DIVA)
 
       ! Calculate the effective viscosity for the current velocity solution
-      CALL calc_effective_viscosity( mesh, ice, DIVA)
+      CALL calc_effective_viscosity( mesh, ice, DIVA, Glens_flow_law_epsilon_sq_0_applied)
 
       ! Calculate the F-integrals (Lipscomb et al. (2019), Eq. 30)
       CALL calc_F_integrals( mesh, ice, DIVA)
@@ -202,8 +206,27 @@ CONTAINS
 
       ! If the viscosity iteration diverges, lower the relaxation parameter
       IF (resid_UV > resid_UV_prev) THEN
-        visc_it_relax_applied = MAX( 0.05_dp, visc_it_relax_applied * 0.9_dp)
-        IF (visc_it_relax_applied == 0.05_dp) CALL crash('viscosity iteration still diverges even with very low relaxation factor!')
+
+        visc_it_relax_applied               = visc_it_relax_applied               * 0.9_dp
+        Glens_flow_law_epsilon_sq_0_applied = Glens_flow_law_epsilon_sq_0_applied * 1.2_dp
+
+        IF (visc_it_relax_applied < 0.05_dp .OR. Glens_flow_law_epsilon_sq_0_applied > 1E-5_dp) THEN
+
+          filename = TRIM( C%output_dir) // 'DIVA_visc_divergence_crash_mesh.nc'
+          CALL create_new_netcdf_file_for_writing( filename, ncid)
+          CALL setup_mesh_in_netcdf_file( filename, ncid, mesh)
+          CALL close_netcdf_file( ncid)
+
+          CALL save_variable_as_netcdf_dp_1D( ice%Hi,'Hi')
+          CALL save_variable_as_netcdf_dp_1D( ice%Hb,'Hb')
+          CALL save_variable_as_netcdf_dp_1D( ice%Hs,'Hs')
+          CALL save_variable_as_netcdf_dp_1D( DIVA%tau_dx_b,'tau_dx_b')
+          CALL save_variable_as_netcdf_dp_1D( DIVA%tau_dy_b,'tau_dy_b')
+          CALL save_variable_as_netcdf_dp_1D( DIVA%u_vav_b,'u_vav_b')
+          CALL save_variable_as_netcdf_dp_1D( DIVA%v_vav_b,'v_vav_b')
+
+          CALL crash('viscosity iteration still diverges even with very low relaxation factor / very high effective strain rate regularisation!')
+        END IF
       END IF
 
       ! DENK DROM
@@ -1483,7 +1506,7 @@ CONTAINS
 
   END SUBROUTINE calc_vertical_shear_strain_rates
 
-  SUBROUTINE calc_effective_viscosity( mesh, ice, DIVA)
+  SUBROUTINE calc_effective_viscosity( mesh, ice, DIVA, Glens_flow_law_epsilon_sq_0_applied)
     ! Calculate the effective viscosity eta, the product term N = eta*H, and the gradients of N
 
     IMPLICIT NONE
@@ -1492,6 +1515,7 @@ CONTAINS
     TYPE(type_mesh),                     INTENT(IN)              :: mesh
     TYPE(type_ice_model),                INTENT(INOUT)           :: ice
     TYPE(type_ice_velocity_solver_DIVA), INTENT(INOUT)           :: DIVA
+    REAL(dp),                            INTENT(IN)              :: Glens_flow_law_epsilon_sq_0_applied
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'calc_effective_viscosity'
@@ -1504,7 +1528,7 @@ CONTAINS
 
     ! Calculate maximum allowed effective viscosity, for stability
     A_min = 1E-18_dp
-    eta_max = 0.5_dp * A_min**(-1._dp / C%Glens_flow_law_exponent) * (C%Glens_flow_law_epsilon_sq_0)**((1._dp - C%Glens_flow_law_exponent)/(2._dp*C%Glens_flow_law_exponent))
+    eta_max = 0.5_dp * A_min**(-1._dp / C%Glens_flow_law_exponent) * (Glens_flow_law_epsilon_sq_0_applied)**((1._dp - C%Glens_flow_law_exponent)/(2._dp*C%Glens_flow_law_exponent))
 
     ! Calculate the effective viscosity eta
     IF (C%choice_flow_law == 'Glen') THEN
@@ -1517,6 +1541,7 @@ CONTAINS
       DO vi = mesh%vi1, mesh%vi2
       DO k  = 1, mesh%nz
         DIVA%eta_3D_a( vi,k) = calc_effective_viscosity_Glen_3D_uv_only( &
+          Glens_flow_law_epsilon_sq_0_applied, &
           DIVA%du_dx_a( vi), DIVA%du_dy_a( vi), DIVA%du_dz_3D_a( vi,k), &
           DIVA%dv_dx_a( vi), DIVA%dv_dy_a( vi), DIVA%dv_dz_3D_a( vi,k), ice%A_flow( vi,k))
       END DO

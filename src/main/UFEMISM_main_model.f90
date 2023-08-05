@@ -173,7 +173,7 @@ CONTAINS
     TYPE(type_model_region)                            , INTENT(INOUT) :: region
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'initialise_model_region'
+    CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'write_to_regional_output_files'
     INTEGER                                                            :: i
 
     ! Add routine to path
