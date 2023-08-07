@@ -41,7 +41,7 @@ CONTAINS
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: BMB
     LOGICAL,  DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: mask_noice
     REAL(dp),                               INTENT(INOUT) :: dt
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)   :: dHi_dt
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(INOUT) :: dHi_dt
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)   :: Hi_tplusdt
 
     ! Local variables:
@@ -227,7 +227,7 @@ CONTAINS
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: BMB
     LOGICAL,  DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: mask_noice
     REAL(dp),                               INTENT(INOUT) :: dt
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)   :: dHi_dt
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(INOUT) :: dHi_dt
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)   :: Hi_tplusdt
 
     ! Local variables:
@@ -279,8 +279,8 @@ CONTAINS
       bb( vi) = Hi( vi) + MAX( -1._dp * Hi( vi), dt * (SMB( vi) + BMB( vi)))
     END DO ! DO vi = mesh%vi1, mesh%vi2
 
-    ! Take current ice thickness as the initial guess
-    Hi_tplusdt = Hi
+    ! Take the current ice thickness plus the current thinning rate as the initial guess
+    Hi_tplusdt = Hi + dt * dHi_dt
 
     ! Apply boundary conditions
     CALL apply_ice_thickness_BC_matrix( mesh, mask_noice, AA, bb, Hi_tplusdt)
@@ -361,7 +361,7 @@ CONTAINS
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: BMB
     LOGICAL,  DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: mask_noice
     REAL(dp),                               INTENT(INOUT) :: dt
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)   :: dHi_dt
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(INOUT) :: dHi_dt
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)   :: Hi_tplusdt
 
     ! Local variables:
@@ -415,8 +415,8 @@ CONTAINS
       bb( vi) = Hi( vi) - (dt * (1._dp - C%dHi_semiimplicit_fs) * M_divQ_H( vi)) + MAX( -1._dp * Hi( vi), dt * (SMB( vi) + BMB( vi)))
     END DO ! DO vi = mesh%vi1, mesh%vi2
 
-    ! Take current ice thickness as the initial guess
-    Hi_tplusdt = Hi
+    ! Take the current ice thickness plus the current thinning rate as the initial guess
+    Hi_tplusdt = Hi + dt * dHi_dt
 
     ! Apply boundary conditions
     CALL apply_ice_thickness_BC_matrix( mesh, mask_noice, AA, bb, Hi_tplusdt)
@@ -754,6 +754,8 @@ CONTAINS
         ! Set ice thickness to zero here
 
         ! Set diagonal element of A to 1, rest of row to 0
+        k1 = AA%ptr( vi)
+        k2 = AA%ptr( vi+1) - 1
         DO k = k1, k2
           vj = AA%ind( k)
           IF (vj == vi) THEN

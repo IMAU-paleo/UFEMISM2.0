@@ -647,6 +647,12 @@ CONTAINS
       CASE ('dw_dz_3D')
         CALL write_to_field_multopt_mesh_dp_3D( region%mesh, filename, ncid, 'dw_dz_3D', region%ice%dw_dz_3D)
 
+    ! == Ice P/C time stepping ==
+    ! ===========================
+
+      CASE ('pc_truncation_error')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'pc_truncation_error', region%ice%pc%tau_np1)
+
     ! == Basal hydrology ==
     ! =====================
 
@@ -1039,6 +1045,13 @@ CONTAINS
       CASE ('dw_dz_3D')
         CALL map_from_mesh_to_xy_grid_3D( region%mesh, grid, region%ice%dw_dz_3D, d_grid_vec_partial_3D)
         CALL write_to_field_multopt_grid_dp_3D( grid, filename, ncid, 'dw_dz_3D', d_grid_vec_partial_3D)
+
+    ! == Ice P/C time stepping ==
+    ! ===========================
+
+      CASE ('pc_truncation_error')
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%pc%tau_np1, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'pc_truncation_error', d_grid_vec_partial_2D)
 
     ! == Basal hydrology ==
     ! =====================
@@ -1716,6 +1729,12 @@ CONTAINS
       CASE ('dw_dz_3D')
         CALL add_field_mesh_dp_3D( filename, ncid, 'dw_dz_3D', long_name = '3-D zz strain rate', units = 'yr^-1')
 
+    ! == Ice P/C time stepping ==
+    ! ===========================
+
+      CASE ('pc_truncation_error')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'pc_truncation_error', long_name = 'Ice P/C truncation error tau', units = 'm')
+
     ! == Basal hydrology ==
     ! =====================
 
@@ -2035,6 +2054,12 @@ CONTAINS
         CALL add_field_grid_dp_3D( filename, ncid, 'dw_dy_3D', long_name = '3-D zy strain rate', units = 'yr^-1')
       CASE ('dw_dz_3D')
         CALL add_field_grid_dp_3D( filename, ncid, 'dw_dz_3D', long_name = '3-D zz strain rate', units = 'yr^-1')
+
+    ! == Ice P/C time stepping ==
+    ! ===========================
+
+      CASE ('pc_truncation_error')
+        CALL add_field_grid_dp_2D( filename, ncid, 'pc_truncation_error', long_name = 'Ice P/C truncation error tau', units = 'm')
 
     ! == Basal hydrology ==
     ! =====================

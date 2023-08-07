@@ -221,18 +221,11 @@ CONTAINS
     INTEGER,                             INTENT(IN)    :: nnz_extra
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'extend_matrix_CSR_dist'
-
-    ! Add routine to path
-    CALL init_routine( routine_name)
 
     ! Extend memory
     A%nnz_max = A%nnz + nnz_extra
     CALL reallocate( A%ind, A%nnz_max)
     CALL reallocate( A%val, A%nnz_max)
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
 
   END SUBROUTINE extend_matrix_CSR_dist
 

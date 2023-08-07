@@ -121,6 +121,7 @@ CONTAINS
     REAL(dp)                                                     :: uv_min, uv_max
     REAL(dp)                                                     :: visc_it_relax_applied
     REAL(dp)                                                     :: Glens_flow_law_epsilon_sq_0_applied
+    INTEGER                                                      :: nit_diverg_consec
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -161,8 +162,9 @@ CONTAINS
     CALL calc_driving_stress( mesh, ice, BPA)
 
     ! Adaptive relaxation parameter for the viscosity iteration
-    resid_UV = 1E9_dp
-    visc_it_relax_applied = C%visc_it_relax
+    resid_UV                            = 1E9_dp
+    nit_diverg_consec                   = 0
+    visc_it_relax_applied               = C%visc_it_relax
     Glens_flow_law_epsilon_sq_0_applied = C%Glens_flow_law_epsilon_sq_0
 
     ! The viscosity iteration
@@ -195,10 +197,21 @@ CONTAINS
 
       ! If the viscosity iteration diverges, lower the relaxation parameter
       IF (resid_UV > resid_UV_prev) THEN
+        nit_diverg_consec = nit_diverg_consec + 1
+      ELSE
+        nit_diverg_consec = 0
+      END IF
+      IF (nit_diverg_consec > 5) THEN
+        nit_diverg_consec = 0
         visc_it_relax_applied               = visc_it_relax_applied               * 0.9_dp
         Glens_flow_law_epsilon_sq_0_applied = Glens_flow_law_epsilon_sq_0_applied * 1.2_dp
-        IF (visc_it_relax_applied < 0.05_dp .OR. Glens_flow_law_epsilon_sq_0_applied > 1E-5_dp) &
-          CALL crash('viscosity iteration still diverges even with very low relaxation factor / very high effective strain rate regularisation!')
+      END IF
+      IF (visc_it_relax_applied <= 0.05_dp .OR. Glens_flow_law_epsilon_sq_0_applied >= 1E-5_dp) THEN
+        IF (visc_it_relax_applied < 0.05_dp) THEN
+          CALL crash('viscosity iteration still diverges even with very low relaxation factor!')
+        ELSEIF (Glens_flow_law_epsilon_sq_0_applied > 1E-5_dp) THEN
+          CALL crash('viscosity iteration still diverges even with very high effective strain rate regularisation!')
+        END IF
       END IF
 
       ! DENK DROM
@@ -214,11 +227,11 @@ CONTAINS
         has_converged = .TRUE.
       END IF
 
-       ! If we've reached the maximum allowed number of iterations without converging, throw a warning
-       IF (viscosity_iteration_i > C%visc_it_nit) THEN
-         CALL warning('viscosity iteration failed to converge within {int_01} iterations!', int_01 = C%visc_it_nit)
-         EXIT viscosity_iteration
-       END IF
+      ! If we've reached the maximum allowed number of iterations without converging, throw a warning
+      IF (viscosity_iteration_i > C%visc_it_nit) THEN
+        CALL warning('viscosity iteration failed to converge within {int_01} iterations!', int_01 = C%visc_it_nit)
+        EXIT viscosity_iteration
+      END IF
 
     END DO viscosity_iteration
 

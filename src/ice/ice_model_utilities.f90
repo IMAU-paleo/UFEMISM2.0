@@ -1385,6 +1385,17 @@ CONTAINS
 
         ice%mask_noice = .FALSE.
 
+      CASE ('MISMIP_mod')
+        ! Kill all ice when r > 900 km
+
+        DO vi = mesh%vi1, mesh%vi2
+          IF (NORM2( mesh%V( vi,:)) > 900E3_dp) THEN
+            ice%mask_noice( vi) = .TRUE.
+          ELSE
+            ice%mask_noice( vi) = .FALSE.
+          END IF
+        END DO
+
       CASE ('MISMIP+')
         ! Kill all ice when x > 640 km
 

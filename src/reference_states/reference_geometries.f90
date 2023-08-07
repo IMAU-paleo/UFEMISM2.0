@@ -1089,7 +1089,11 @@ CONTAINS
       CALL crash('refgeo_idealised_MISMIP_mod_Hi_init has unrealistic value of {dp_01}!', dp_01 = C%refgeo_idealised_MISMIP_mod_Hi_init)
     END IF
 
-    Hi = C%refgeo_idealised_MISMIP_mod_Hi_init
+    IF (SQRT( x**2 + y**2) > 900E3_dp) THEN
+      Hi = 0._dp
+    ELSE
+      Hi = C%refgeo_idealised_MISMIP_mod_Hi_init
+    END IF
     Hb = 150._dp - 400._dp * SQRT( x**2 + y**2)/ 750000._dp
     SL = 0._dp
     Hs = ice_surface_elevation( Hi, Hb, SL)

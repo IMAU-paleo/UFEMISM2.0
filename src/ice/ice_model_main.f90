@@ -775,6 +775,12 @@ CONTAINS
   !    decreases to below the specified tolerance
   ! ==================================================================================
 
+    ! Store thinning rates from previous time step
+    region%ice%pc%dHi_dt_Hi_nm1_u_nm1 = region%ice%dHi_dt
+
+    ! Store the previous maximum truncation error eta_n
+    region%ice%pc%eta_n = region%ice%pc%eta_np1
+
     pc_it = 0
     iterate_pc_timestep: DO WHILE (pc_it < C%pc_nit_max)
 
@@ -785,9 +791,6 @@ CONTAINS
 
     ! == Predictor step ==
     ! ====================
-
-      ! Store thinning rates from previous time step
-      region%ice%pc%dHi_dt_Hi_nm1_u_nm1 = region%ice%dHi_dt
 
       ! Calculate thinning rates for current geometry and velocity
       CALL calc_dHi_dt( region%mesh, region%ice%Hi_prev, region%ice%u_vav_b, region%ice%v_vav_b, region%SMB%SMB, region%BMB%BMB, &
@@ -828,7 +831,7 @@ CONTAINS
       region%ice%pc%Hi_np1 = region%ice%Hi_prev + (region%ice%pc%dt_np1 / 2._dp) * (region%ice%pc%dHi_dt_Hi_n_u_n + region%ice%pc%dHi_dt_Hi_star_np1_u_np1)
 
       ! Estimate truncation error
-      CALL calc_pc_truncation_error( region%mesh, region%ice%pc)
+      CALL calc_pc_truncation_error( region%mesh, region%ice, region%ice%pc)
 
       ! Check if it is small enough; if so, move on; if not, re-do the PC timestep
       IF (region%ice%pc%eta_np1 < C%pc_epsilon) THEN
@@ -857,13 +860,14 @@ CONTAINS
 
   END SUBROUTINE run_ice_dynamics_model_pc
 
-  SUBROUTINE calc_pc_truncation_error( mesh, pc)
+  SUBROUTINE calc_pc_truncation_error( mesh, ice, pc)
     ! Calculate the truncation error tau in the ice thickness rate of change (Robinson et al., 2020, Eq. 32)
 
     IMPLICIT NONE
 
     ! In- and output variables:
     TYPE(type_mesh),                     INTENT(IN)    :: mesh
+    TYPE(type_ice_model),                INTENT(IN)    :: ice
     TYPE(type_ice_pc),                   INTENT(INOUT) :: pc
 
     ! Local variables:
@@ -878,11 +882,13 @@ CONTAINS
       pc%tau_np1( vi) = pc%zeta_t * ABS( pc%Hi_np1( vi) - pc%Hi_star_np1( vi)) / ((3._dp * pc%zeta_t + 3._dp) * pc%dt_n)
     END DO
 
-    ! Store the previous maximum truncation error eta_n
-    pc%eta_n = pc%eta_np1
-
-    ! Calculate the maximum truncation error eta
-    pc%eta_np1 = MAX( C%pc_eta_min, MAXVAL( pc%tau_np1))
+    ! Calculate the maximum truncation error eta over grounded ice only
+    pc%eta_np1 = C%pc_eta_min
+    DO vi = mesh%vi1, mesh%vi2
+      IF (ice%mask_grounded_ice( vi) .AND. .NOT. ice%mask_gl_gr( vi)) THEN
+        pc%eta_np1 = MAX( pc%eta_np1, pc%tau_np1( vi))
+      END IF
+    END DO
     CALL MPI_ALLREDUCE( MPI_IN_PLACE, pc%eta_np1, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
 
     ! Finalise routine path
