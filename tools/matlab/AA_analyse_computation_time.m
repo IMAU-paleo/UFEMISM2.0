@@ -1,6 +1,6 @@
-function analyse_computation_time( filename)
+function AA_analyse_computation_time
   
-filename = '/Users/berends/Documents/Papers/UFEMISM2.0/MISMIP/results_MISMIP_spinup/resource_tracking.nc';
+filename = '/Users/berends/Documents/Papers/UFEMISM2.0/MISMIP/results_MISMIP_5km_spinup/resource_tracking.nc';
 
 R = read_resource_tracking_file( filename);
 

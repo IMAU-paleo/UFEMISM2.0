@@ -420,11 +420,12 @@ CONTAINS
     CALL map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, ice%Hi, '2nd_order_conservative')
 
     ! Remapping of Hb in the refgeo structure has already happened, only need to copy the data
+    IF (par%master) CALL warning('GIA model isnt finished yet - need to include dHb in mesh update!')
     CALL reallocate_bounds( ice%Hb                          , mesh_new%vi1, mesh_new%vi2         )  ! [m] Bedrock elevation (w.r.t. PD sea level)
     ice%Hb = refgeo_PD%Hb
 
-    ! FIXME
-    IF (par%master) CALL warning('GIA model isnt finished yet - need to include dHb in mesh update!')
+    ! Remap dHi/dt to improve stability of the P/C scheme after mesh updates
+    CALL map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, ice%dHi_dt, '2nd_order_conservative')
 
   ! === Thermodynamics and rheology ===
   ! ===================================
@@ -455,7 +456,7 @@ CONTAINS
     CALL reallocate_bounds( ice%dHib                        , mesh_new%vi1, mesh_new%vi2         )  ! [m] Base elevation difference (w.r.t. to reference)
 
     ! Rates of change
-    CALL reallocate_bounds( ice%dHi_dt                      , mesh_new%vi1, mesh_new%vi2         )  ! [m yr^-1] Ice thickness rate of change
+!   CALL reallocate_bounds( ice%dHi_dt                      , mesh_new%vi1, mesh_new%vi2         )  ! [m yr^-1] Ice thickness rate of change
     CALL reallocate_bounds( ice%dHb_dt                      , mesh_new%vi1, mesh_new%vi2         )  ! [m yr^-1] Bedrock elevation rate of change
     CALL reallocate_bounds( ice%dHs_dt                      , mesh_new%vi1, mesh_new%vi2         )  ! [m yr^-1] Ice surface elevation rate of change
     CALL reallocate_bounds( ice%dHib_dt                     , mesh_new%vi1, mesh_new%vi2         )  ! [m yr^-1] Ice base elevation rate of change

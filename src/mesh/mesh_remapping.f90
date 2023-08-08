@@ -2786,9 +2786,6 @@ CONTAINS
     REAL(dp)                                           :: A_overlap_tot
     TYPE(tMat)                                         :: M_map_a_b, M_ddx_a_b, M_ddy_a_b
     TYPE(tMat)                                         :: M1, M2, M_cons_1st_order
-    LOGICAL,  DIMENSION(:    ), ALLOCATABLE            :: set_to_zero
-    LOGICAL,  DIMENSION(:    ), ALLOCATABLE            :: set_to_1st_order
-    INTEGER                                            :: vi, ci, vj
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -2907,6 +2904,10 @@ CONTAINS
     CALL MatMatMult( w1x, M_ddx_a_b, MAT_INITIAL_MATRIX, PETSC_DEFAULT_REAL, M1, perr)  ! This can be done more efficiently now that the non-zero structure is known...
     CALL MatMatMult( w1y, M_ddy_a_b, MAT_INITIAL_MATRIX, PETSC_DEFAULT_REAL, M2, perr)
 
+    CALL MatConvert( M_cons_1st_order, MATAIJ, MAT_INITIAL_MATRIX, map%M, perr)
+    CALL MatAXPY( map%M, 1._dp, M1, DIFFERENT_NONZERO_PATTERN, perr)
+    CALL MatAXPY( map%M, 1._dp, M2, DIFFERENT_NONZERO_PATTERN, perr)
+
     CALL MatDestroy( w0       , perr)
     CALL MatDestroy( w1x      , perr)
     CALL MatDestroy( w1y      , perr)
@@ -2914,88 +2915,269 @@ CONTAINS
     CALL MatDestroy( M_ddx_a_b, perr)
     CALL MatDestroy( M_ddy_a_b, perr)
 
-
-    CALL MatConvert( M_cons_1st_order, MATAIJ, MAT_INITIAL_MATRIX, map%M, perr)
-    CALL MatAXPY( map%M, 1._dp, M1, DIFFERENT_NONZERO_PATTERN, perr)
-    CALL MatAXPY( map%M, 1._dp, M2, DIFFERENT_NONZERO_PATTERN, perr)
-
-    ! 2nd-order conservative doesn't work all that well near the domain border
-    ! For vertices on the border itself, just set the result to zero. For
-    ! vertices next to those, use 1st-order remapping.
-
-    ALLOCATE( set_to_zero(      mesh_dst%nV), source = .FALSE.)
-    ALLOCATE( set_to_1st_order( mesh_dst%nV), source = .FALSE.)
-
-    DO vi = 1, mesh_dst%nV
-      IF (mesh_dst%VBI( vi) > 0) THEN
-        ! This vertex lies on the border
-        set_to_zero( vi) = .TRUE.
-      ELSE
-        DO ci = 1, mesh_dst%nC( vi)
-          vj = mesh_dst%C( vi,ci)
-          IF (mesh_dst%VBI( vj) > 0) THEN
-            ! This vertex has a neighbour on the border
-            set_to_1st_order( vi) = .TRUE.
-          END IF
-        END DO
-      END IF
-    END DO
-
-    ! Set all rows for border vertices to zeros
-    CALL MatGetOwnershipRange( M1, istart, iend, perr)
-    DO n = istart+1, iend ! +1 because PETSc indexes from 0
-      CALL MatGetRow( M1, n-1, ncols, cols, vals, perr)
-      IF (set_to_zero( n)) THEN
-        DO k = 1, ncols
-          CALL MatSetValues( map%M, 1, n-1, 1, cols( k), 0._dp, INSERT_VALUES, perr)
-        END DO
-      END IF
-      CALL MatRestoreRow( M1, n-1, ncols, cols, vals, perr)
-    END DO
-
-    ! Set all rows for next-to-border vertices to zeros
-    CALL MatGetOwnershipRange( M1, istart, iend, perr)
-    DO n = istart+1, iend ! +1 because PETSc indexes from 0
-      CALL MatGetRow( M1, n-1, ncols, cols, vals, perr)
-      IF (set_to_1st_order( n)) THEN
-        DO k = 1, ncols
-          CALL MatSetValues( map%M, 1, n-1, 1, cols( k), 0._dp, INSERT_VALUES, perr)
-        END DO
-      END IF
-      CALL MatRestoreRow( M1, n-1, ncols, cols, vals, perr)
-    END DO
-
-    ! Fill in the values from M_cons_1st_order for the next-to-border vertices
-    CALL MatGetOwnershipRange( M_cons_1st_order  , istart, iend, perr)
-    DO n = istart+1, iend ! +1 because PETSc indexes from 0
-      CALL MatGetRow( M_cons_1st_order, n-1, ncols, cols, vals, perr)
-      IF (set_to_1st_order( n)) THEN
-        DO k = 1, ncols
-          CALL MatSetValues( map%M, 1, n-1, 1, cols( k), vals( k), INSERT_VALUES, perr)
-        END DO
-      END IF
-      CALL MatRestoreRow( M_cons_1st_order, n-1, ncols, cols, vals, perr)
-    END DO
-
-    CALL MatAssemblyBegin( map%M, MAT_FINAL_ASSEMBLY, perr)
-    CALL MatAssemblyEnd(   map%M, MAT_FINAL_ASSEMBLY, perr)
-
-    ! Clean up after yourself
-    DEALLOCATE( cols   )
-    DEALLOCATE( vals   )
-    DEALLOCATE( w0_row )
-    DEALLOCATE( w1x_row)
-    DEALLOCATE( w1y_row)
     CALL MatDestroy( M1              , perr)
     CALL MatDestroy( M2              , perr)
+
+  ! == Apply some final corrections
+  ! ===============================
+
+    CALL correct_mesh_to_mesh_map( mesh_src, mesh_dst, M_cons_1st_order, map%M)
+
     CALL MatDestroy( M_cons_1st_order, perr)
-    DEALLOCATE( set_to_zero)
-    DEALLOCATE( set_to_1st_order)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE create_map_from_mesh_to_mesh_2nd_order_conservative
+
+  SUBROUTINE correct_mesh_to_mesh_map( mesh_src, mesh_dst, M_cons_1st_order, M_cons_2nd_order)
+    ! Apply some final corrections to the 2nd-order conservative mesh-to-mesh remapping operator:
+    ! - set remapped data to zero on the domain border
+    ! - use direct copying for identical vertices
+
+    IMPLICIT NONE
+
+    ! In/output variables
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh_src
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh_dst
+    TYPE(tMat),                          INTENT(IN)    :: M_cons_1st_order
+    TYPE(tMat),                          INTENT(INOUT) :: M_cons_2nd_order
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'correct_mesh_to_mesh_map'
+    INTEGER                                            :: perr
+    TYPE(type_sparse_matrix_CSR_dp)                    :: M_cons_1st_order_CSR
+    TYPE(type_sparse_matrix_CSR_dp)                    :: M_cons_2nd_order_CSR
+    INTEGER                                            :: i, vi_dst, k1, k2, k
+    INTEGER                                            :: j, vi_src
+    LOGICAL                                            :: do_direct_copy
+    INTEGER                                            :: vi_src_copy
+    LOGICAL                                            :: Voronoi_cells_are_identical
+    REAL(dp), DIMENSION( mesh_src%nC_mem,2)            :: Vor_src   , Vor_dst
+    INTEGER,  DIMENSION( mesh_src%nC_mem  )            :: Vor_src_vi, Vor_dst_vi
+    INTEGER,  DIMENSION( mesh_src%nC_mem  )            :: Vor_src_ti, Vor_dst_ti
+    INTEGER                                            :: nVor_src  , nVor_dst
+    INTEGER                                            :: vori
+    TYPE(type_map)                                     :: map_trilin
+    TYPE(type_sparse_matrix_CSR_dp)                    :: M_trilin_CSR
+    LOGICAL,  DIMENSION( mesh_dst%nV)                  :: isgood_1st_order
+    LOGICAL,  DIMENSION( mesh_dst%nV)                  :: isgood_2nd_order
+    INTEGER                                            :: kk1,kk2,kk
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Convert matrices to CSR format for easier handling
+    CALL mat_petsc2CSR( M_cons_1st_order, M_cons_1st_order_CSR)
+    CALL mat_petsc2CSR( M_cons_2nd_order, M_cons_2nd_order_CSR)
+
+  ! == Set to zero
+  !
+  ! 2nd-order conservative doesn't work all that well on the
+  ! domain border; just set the result to zero there.
+
+    DO i = M_cons_2nd_order_CSR%i1, M_cons_2nd_order_CSR%i2
+
+      k1 = M_cons_2nd_order_CSR%ptr( i)
+      k2 = M_cons_2nd_order_CSR%ptr( i+1) - 1
+
+      vi_dst = mesh_dst%n2vi( i)
+
+      IF (mesh_dst%VBI( vi_dst) > 0) THEN
+        DO k = k1, k2
+          M_cons_2nd_order_CSR%val( k) = 0._dp
+        END DO
+      END IF
+
+    END DO ! DO i = M_cons_2nd_order_CSR%i1, M_cons_2nd_order_CSR%i2
+
+  ! == Direct copying
+  !
+  ! With the new mesh generation code (of UFE2.0), many vertices away from the grounding line
+  ! remain unchanged after a mesh update. The vertex-to-triangle-to-vertex remapping is slightly
+  ! diffusive, so instead we can just copy data directly for those vertices.
+
+    DO i = M_cons_2nd_order_CSR%i1, M_cons_2nd_order_CSR%i2
+
+      k1 = M_cons_2nd_order_CSR%ptr( i)
+      k2 = M_cons_2nd_order_CSR%ptr( i+1) - 1
+
+      vi_dst = mesh_dst%n2vi( i)
+
+      do_direct_copy = .FALSE.
+      vi_src_copy    = 0
+
+      ! Loop over all src vertices contributing to this dst vertex
+      DO k = k1, k2
+
+        j = M_cons_2nd_order_CSR%ind( k)
+        vi_src = mesh_src%n2vi( j)
+
+        IF (NORM2( mesh_dst%V( vi_dst,:) - mesh_src%V( vi_src,:)) < mesh_dst%R( vi_dst) / 1E2_dp) THEN
+          ! These vertices coincide; check if their Voronoi cells are identical
+
+          Voronoi_cells_are_identical = .TRUE.
+
+          CALL calc_Voronoi_cell( mesh_src, vi_src, 0._dp, Vor_src, Vor_src_vi, Vor_src_ti, nVor_src)
+          CALL calc_Voronoi_cell( mesh_dst, vi_dst, 0._dp, Vor_dst, Vor_dst_vi, Vor_dst_ti, nVor_dst)
+
+          IF (nVor_src /= nVor_dst) THEN
+            Voronoi_cells_are_identical = .FALSE.
+          ELSE
+            DO vori = 1, nVor_src
+              IF (NORM2( Vor_src( vori,:) - Vor_dst( vori,:)) > mesh_dst%R( vi_dst) / 1E2_dp) THEN
+                Voronoi_cells_are_identical = .FALSE.
+              END IF
+            END DO
+          END IF
+
+          IF (Voronoi_cells_are_identical) THEN
+            ! These two vertices have identical Voronoi cells; use direct copying
+            do_direct_copy = .TRUE.
+            vi_src_copy    = vi_src
+            EXIT
+          END IF ! IF (Voronoi_cells_are_identical) THEN
+
+        END IF ! IF (NORM2( mesh_dst%V( vi_dst,:) - mesh_src%V( vi_src,:)) < mesh_dst%tol_dist) THEN
+
+      END DO ! DO k = k1, k2
+
+      ! If a source vertex with an identical Voronoi cell to this dst vertex was
+      ! found, copy data from that vertex directly
+      IF (do_direct_copy) THEN
+        ! Loop over all src vertices contributing to this dst vertex; set all
+        ! contributions to zero except the one we're copying (which is set to 1)
+
+        DO k = k1, k2
+
+          j = M_cons_2nd_order_CSR%ind( k)
+          vi_src = mesh_src%n2vi( j)
+
+          IF (vi_src == vi_src_copy) THEN
+            M_cons_2nd_order_CSR%val( k) = 1._dp
+          ELSE
+            M_cons_2nd_order_CSR%val( k) = 0._dp
+          END IF
+
+        END DO ! DO k = k1, k2
+
+      END IF ! IF (do_direct_copy) THEN
+
+    END DO ! DO i = M_cons_2nd_order_CSR%i1, M_cons_2nd_order_CSR%i2
+
+  ! == Remapping errors
+  !
+  ! On very rare occasions, the remapping operator is just wrong, likely due to round-off
+  ! errors in determining if vertices coincide or not. Usually, the 1st-order operator
+  ! is fine. If that one fails too, just replace the answer with trilinear interpolation.
+  !
+  ! Faulty operators can be detected by negative coefficients in the remapping matrix,
+  ! which automatically violate conservation of extreme values.
+
+    ! Calculate the trilinear interpolation operator to serve as a back-up
+    CALL create_map_from_mesh_to_mesh_trilin( mesh_src, mesh_dst, map_trilin)
+    CALL mat_petsc2CSR( map_trilin%M, M_trilin_CSR)
+
+    ! Find faulty operators in the 1st-order conservative remapping operator
+    isgood_1st_order = .TRUE.
+    DO i = M_cons_1st_order_CSR%i1, M_cons_1st_order_CSR%i2
+
+      k1 = M_cons_1st_order_CSR%ptr( i)
+      k2 = M_cons_1st_order_CSR%ptr( i+1) - 1
+
+      vi_dst = mesh_dst%n2vi( i)
+
+      DO k = k1, k2
+        IF (M_cons_1st_order_CSR%val( k) < 0._dp) THEN
+          isgood_1st_order( vi_dst) = .FALSE.
+        END IF
+      END DO
+
+    END DO ! DO i = M_cons_1st_order_CSR%i1, M_cons_1st_order_CSR%i2
+
+    ! Find faulty operators in the 2nd-order conservative remapping operator
+    isgood_2nd_order = .TRUE.
+    DO i = M_cons_2nd_order_CSR%i1, M_cons_2nd_order_CSR%i2
+
+      k1 = M_cons_2nd_order_CSR%ptr( i)
+      k2 = M_cons_2nd_order_CSR%ptr( i+1) - 1
+
+      vi_dst = mesh_dst%n2vi( i)
+
+      DO k = k1, k2
+        IF (M_cons_2nd_order_CSR%val( k) < 0._dp) THEN
+          isgood_2nd_order( vi_dst) = .FALSE.
+        END IF
+      END DO
+
+    END DO ! DO i = M_cons_2nd_order_CSR%i1, M_cons_2nd_order_CSR%i2
+
+    ! Replace faulty operators in the 2nd-order conservative remapping operator
+
+    DO i = M_cons_2nd_order_CSR%i1, M_cons_2nd_order_CSR%i2
+
+      vi_dst = mesh_dst%n2vi( i)
+
+      IF (.NOT. isgood_2nd_order( vi_dst)) THEN
+        ! Replace this faulty operator
+
+        IF (isgood_1st_order( vi_dst)) THEN
+          ! Replace with the 1st-order conservative remapping operator
+
+          ! First set all coefficients of the 2nd-order operator to zero
+          k1 = M_cons_2nd_order_CSR%ptr( i)
+          k2 = M_cons_2nd_order_CSR%ptr( i+1) - 1
+          DO k = k1, k2
+            M_cons_2nd_order_CSR%val( k) = 0._dp
+          END DO
+
+          ! Then copy values from the 1st-order operator
+          kk1 = M_cons_1st_order_CSR%ptr( i)
+          kk2 = M_cons_1st_order_CSR%ptr( i+1) - 1
+          DO kk = kk1, kk2
+            k = kk - kk1 + k1
+            M_cons_2nd_order_CSR%ind( k) = M_cons_1st_order_CSR%ind( kk)
+            M_cons_2nd_order_CSR%val( k) = M_cons_1st_order_CSR%val( kk)
+          END DO
+
+        ELSE ! IF (isgood_1st_order( vi_dst)) THEN
+          ! Replace with the trilinear interpolation operator
+
+          ! First set all coefficients of the 2nd-order operator to zero
+          k1 = M_cons_2nd_order_CSR%ptr( i)
+          k2 = M_cons_2nd_order_CSR%ptr( i+1) - 1
+          DO k = k1, k2
+            M_cons_2nd_order_CSR%val( k) = 0._dp
+          END DO
+
+          ! Then copy values from the trilinear interpolation operator
+          kk1 = M_trilin_CSR%ptr( i)
+          kk2 = M_trilin_CSR%ptr( i+1) - 1
+          DO kk = kk1, kk2
+            k = kk - kk1 + k1
+            M_cons_2nd_order_CSR%ind( k) = M_trilin_CSR%ind( kk)
+            M_cons_2nd_order_CSR%val( k) = M_trilin_CSR%val( kk)
+          END DO
+
+        END IF ! IF (isgood_1st_order( vi_dst)) THEN
+
+      END IF ! IF (.NOT. isgood_2nd_order( vi_dst)) THEN
+
+    END DO ! DO i = M_cons_2nd_order_CSR%i1, M_cons_2nd_order_CSR%i2
+
+    ! Convert back to PETSc format
+    CALL MatDestroy( M_cons_2nd_order, perr)
+    CALL mat_CSR2petsc( M_cons_2nd_order_CSR, M_cons_2nd_order)
+
+    ! Clean up after yourself
+    CALL deallocate_matrix_CSR_dist( M_cons_1st_order_CSR)
+    CALL deallocate_matrix_CSR_dist( M_cons_2nd_order_CSR)
+    CALL deallocate_matrix_CSR_dist( M_trilin_CSR)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE correct_mesh_to_mesh_map
 
 ! == Routines used in creating remapping matrices
 ! ===============================================
