@@ -27,27 +27,29 @@ CONTAINS
 
 ! == The main routines, to be called from the ice dynamics module
 
-  SUBROUTINE calc_dHi_dt( mesh, Hi, u_vav_b, v_vav_b, SMB, BMB, mask_noice, dt, dHi_dt, Hi_tplusdt)
+  SUBROUTINE calc_dHi_dt( mesh, Hi, u_vav_b, v_vav_b, SMB, BMB, mask_noice, dt, dHi_dt, Hi_tplusdt, BC_prescr_mask, BC_prescr_Hi)
     ! Calculate ice thickness at time t+dt
 
     IMPLICIT NONE
 
     ! In/output variables:
-    TYPE(type_mesh),                        INTENT(IN)    :: mesh
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: Hi
-    REAL(dp), DIMENSION(mesh%ti1:mesh%ti2), INTENT(IN)    :: u_vav_b
-    REAL(dp), DIMENSION(mesh%ti1:mesh%ti2), INTENT(IN)    :: v_vav_b
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: SMB
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: BMB
-    LOGICAL,  DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: mask_noice
-    REAL(dp),                               INTENT(INOUT) :: dt
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(INOUT) :: dHi_dt
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)   :: Hi_tplusdt
+    TYPE(type_mesh),                        INTENT(IN)              :: mesh                  ! [-]       The model mesh
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)              :: Hi                    ! [m]       Ice thickness at time t
+    REAL(dp), DIMENSION(mesh%ti1:mesh%ti2), INTENT(IN)              :: u_vav_b               ! [m yr^-1] Vertically averaged ice velocities in the x-direction on the b-grid (triangles)
+    REAL(dp), DIMENSION(mesh%ti1:mesh%ti2), INTENT(IN)              :: v_vav_b               ! [m yr^-1] Vertically averaged ice velocities in the y-direction on the b-grid (triangles)
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)              :: SMB                   ! [m yr^-1] Surface mass balance
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)              :: BMB                   ! [m yr^-1] Basal   mass balance
+    LOGICAL,  DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)              :: mask_noice            ! [-]       Mask of vertices where no ice is allowed
+    REAL(dp),                               INTENT(INOUT)           :: dt                    ! [dt]      Time step
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)             :: dHi_dt                ! [m yr^-1] Ice thickness rate of change
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)             :: Hi_tplusdt            ! [m]       Ice thickness at time t + dt
+    INTEGER,  DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)   , OPTIONAL :: BC_prescr_mask        ! [-]       Mask of vertices where thickness is prescribed
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)   , OPTIONAL :: BC_prescr_Hi          ! [m]       Prescribed thicknesses
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'calc_dHi_dt'
-    INTEGER                                               :: vi
-    LOGICAL                                               :: found_negative_vals
+    CHARACTER(LEN=256), PARAMETER                                   :: routine_name = 'calc_dHi_dt'
+    INTEGER                                                         :: vi
+    LOGICAL                                                         :: found_negative_vals
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -62,11 +64,11 @@ CONTAINS
       RETURN
 
     ELSEIF (C%choice_ice_integration_method == 'explicit') THEN
-      CALL calc_dHi_dt_explicit(     mesh, Hi, u_vav_b, v_vav_b, SMB, BMB, mask_noice, dt, dHi_dt, Hi_tplusdt)
+      CALL calc_dHi_dt_explicit(     mesh, Hi, u_vav_b, v_vav_b, SMB, BMB, mask_noice, dt, dHi_dt, Hi_tplusdt, BC_prescr_mask, BC_prescr_Hi)
     ELSEIF (C%choice_ice_integration_method == 'implicit') THEN
-      CALL calc_dHi_dt_implicit(     mesh, Hi, u_vav_b, v_vav_b, SMB, BMB, mask_noice, dt, dHi_dt, Hi_tplusdt)
+      CALL calc_dHi_dt_implicit(     mesh, Hi, u_vav_b, v_vav_b, SMB, BMB, mask_noice, dt, dHi_dt, Hi_tplusdt, BC_prescr_mask, BC_prescr_Hi)
     ELSEIF (C%choice_ice_integration_method == 'semi-implicit') THEN
-      CALL calc_dHi_dt_semiimplicit( mesh, Hi, u_vav_b, v_vav_b, SMB, BMB, mask_noice, dt, dHi_dt, Hi_tplusdt)
+      CALL calc_dHi_dt_semiimplicit( mesh, Hi, u_vav_b, v_vav_b, SMB, BMB, mask_noice, dt, dHi_dt, Hi_tplusdt, BC_prescr_mask, BC_prescr_Hi)
     ELSE
       CALL crash('unknown choice_ice_integration_method "' // TRIM( C%choice_ice_integration_method) // '"!')
     END IF
@@ -94,7 +96,7 @@ CONTAINS
 
   END SUBROUTINE calc_dHi_dt
 
-  SUBROUTINE calc_dHi_dt_explicit( mesh, Hi, u_vav_b, v_vav_b, SMB, BMB, mask_noice, dt, dHi_dt, Hi_tplusdt)
+  SUBROUTINE calc_dHi_dt_explicit( mesh, Hi, u_vav_b, v_vav_b, SMB, BMB, mask_noice, dt, dHi_dt, Hi_tplusdt, BC_prescr_mask, BC_prescr_Hi)
     ! Calculate ice thickness rates of change (dH/dt)
     !
     ! Use a time-explicit discretisation scheme for the ice fluxes
@@ -123,22 +125,25 @@ CONTAINS
     IMPLICIT NONE
 
     ! In/output variables:
-    TYPE(type_mesh),                        INTENT(IN)    :: mesh
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: Hi
-    REAL(dp), DIMENSION(mesh%ti1:mesh%ti2), INTENT(IN)    :: u_vav_b
-    REAL(dp), DIMENSION(mesh%ti1:mesh%ti2), INTENT(IN)    :: v_vav_b
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: SMB
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: BMB
-    LOGICAL,  DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: mask_noice
-    REAL(dp),                               INTENT(INOUT) :: dt
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)   :: dHi_dt
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)   :: Hi_tplusdt
+    TYPE(type_mesh),                        INTENT(IN)              :: mesh                  ! [-]       The model mesh
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)              :: Hi                    ! [m]       Ice thickness at time t
+    REAL(dp), DIMENSION(mesh%ti1:mesh%ti2), INTENT(IN)              :: u_vav_b               ! [m yr^-1] Vertically averaged ice velocities in the x-direction on the b-grid (triangles)
+    REAL(dp), DIMENSION(mesh%ti1:mesh%ti2), INTENT(IN)              :: v_vav_b               ! [m yr^-1] Vertically averaged ice velocities in the y-direction on the b-grid (triangles)
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)              :: SMB                   ! [m yr^-1] Surface mass balance
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)              :: BMB                   ! [m yr^-1] Basal   mass balance
+    LOGICAL,  DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)              :: mask_noice            ! [-]       Mask of vertices where no ice is allowed
+    REAL(dp),                               INTENT(INOUT)           :: dt                    ! [dt]      Time step
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)             :: dHi_dt                ! [m yr^-1] Ice thickness rate of change
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)             :: Hi_tplusdt            ! [m]       Ice thickness at time t + dt
+    INTEGER,  DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)   , OPTIONAL :: BC_prescr_mask        ! [-]       Mask of vertices where thickness is prescribed
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)   , OPTIONAL :: BC_prescr_Hi          ! [m]       Prescribed thicknesses
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'calc_dHi_dt_explicit'
-    TYPE(type_sparse_matrix_CSR_dp)                       :: M_divQ
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: divQ
-    REAL(dp)                                              :: dt_max
+    CHARACTER(LEN=256), PARAMETER                                   :: routine_name = 'calc_dHi_dt_explicit'
+    TYPE(type_sparse_matrix_CSR_dp)                                 :: M_divQ
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                          :: divQ
+    REAL(dp)                                                        :: dt_max
+    INTEGER                                                         :: vi
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -161,6 +166,19 @@ CONTAINS
     ! Calculate ice thickness at t+dt
     Hi_tplusdt = MAX( 0._dp, Hi + dHi_dt * dt)
 
+    ! Set predicted ice thickness to prescribed values where told to do so
+    IF (PRESENT( BC_prescr_mask) .OR. PRESENT( BC_prescr_Hi)) THEN
+      ! Safety
+      IF (.NOT. (PRESENT( BC_prescr_mask) .AND. PRESENT( BC_prescr_Hi))) THEN
+        CALL crash('need to provide prescribed both Hi and mask!')
+      END IF
+      DO vi = mesh%vi1, mesh%vi2
+        IF (BC_prescr_mask( vi) == 1) THEN
+          Hi_tplusdt( vi) = MAX( 0._dp, BC_prescr_Hi( vi))
+        END IF
+      END DO
+    END IF
+
     ! Enforce Hi = 0 where told to do so
     CALL apply_mask_noice_direct( mesh, mask_noice, Hi_tplusdt)
 
@@ -175,7 +193,7 @@ CONTAINS
 
   END SUBROUTINE calc_dHi_dt_explicit
 
-  SUBROUTINE calc_dHi_dt_implicit( mesh, Hi, u_vav_b, v_vav_b, SMB, BMB, mask_noice, dt, dHi_dt, Hi_tplusdt)
+  SUBROUTINE calc_dHi_dt_implicit( mesh, Hi, u_vav_b, v_vav_b, SMB, BMB, mask_noice, dt, dHi_dt, Hi_tplusdt, BC_prescr_mask, BC_prescr_Hi)
     ! Calculate ice thickness rates of change (dH/dt)
     !
     ! Use a time-implicit discretisation scheme for the ice fluxes
@@ -219,25 +237,27 @@ CONTAINS
     IMPLICIT NONE
 
     ! In/output variables:
-    TYPE(type_mesh),                        INTENT(IN)    :: mesh
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: Hi
-    REAL(dp), DIMENSION(mesh%ti1:mesh%ti2), INTENT(IN)    :: u_vav_b
-    REAL(dp), DIMENSION(mesh%ti1:mesh%ti2), INTENT(IN)    :: v_vav_b
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: SMB
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: BMB
-    LOGICAL,  DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: mask_noice
-    REAL(dp),                               INTENT(INOUT) :: dt
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(INOUT) :: dHi_dt
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)   :: Hi_tplusdt
+    TYPE(type_mesh),                        INTENT(IN)              :: mesh                  ! [-]       The model mesh
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)              :: Hi                    ! [m]       Ice thickness at time t
+    REAL(dp), DIMENSION(mesh%ti1:mesh%ti2), INTENT(IN)              :: u_vav_b               ! [m yr^-1] Vertically averaged ice velocities in the x-direction on the b-grid (triangles)
+    REAL(dp), DIMENSION(mesh%ti1:mesh%ti2), INTENT(IN)              :: v_vav_b               ! [m yr^-1] Vertically averaged ice velocities in the y-direction on the b-grid (triangles)
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)              :: SMB                   ! [m yr^-1] Surface mass balance
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)              :: BMB                   ! [m yr^-1] Basal   mass balance
+    LOGICAL,  DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)              :: mask_noice            ! [-]       Mask of vertices where no ice is allowed
+    REAL(dp),                               INTENT(INOUT)           :: dt                    ! [dt]      Time step
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)             :: dHi_dt                ! [m yr^-1] Ice thickness rate of change
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)             :: Hi_tplusdt            ! [m]       Ice thickness at time t + dt
+    INTEGER,  DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)   , OPTIONAL :: BC_prescr_mask        ! [-]       Mask of vertices where thickness is prescribed
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)   , OPTIONAL :: BC_prescr_Hi          ! [m]       Prescribed thicknesses
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'calc_dHi_dt_implicit'
-    TYPE(type_sparse_matrix_CSR_dp)                       :: M_divQ
-    TYPE(type_sparse_matrix_CSR_dp)                       :: AA
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: bb
-    INTEGER                                               :: vi, k1, k2, k, vj
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: divQ
-    REAL(dp)                                              :: dt_max
+    CHARACTER(LEN=256), PARAMETER                                   :: routine_name = 'calc_dHi_dt_implicit'
+    TYPE(type_sparse_matrix_CSR_dp)                                 :: M_divQ
+    TYPE(type_sparse_matrix_CSR_dp)                                 :: AA
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                          :: bb
+    INTEGER                                                         :: vi, k1, k2, k, vj
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                          :: divQ
+    REAL(dp)                                                        :: dt_max
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -283,7 +303,7 @@ CONTAINS
     Hi_tplusdt = Hi + dt * dHi_dt
 
     ! Apply boundary conditions
-    CALL apply_ice_thickness_BC_matrix( mesh, mask_noice, AA, bb, Hi_tplusdt)
+    CALL apply_ice_thickness_BC_matrix( mesh, mask_noice, AA, bb, Hi_tplusdt, BC_prescr_mask, BC_prescr_Hi)
 
     ! Solve for Hi_tplusdt
     CALL solve_matrix_equation_CSR_PETSc( AA, bb, Hi_tplusdt, C%dHi_PETSc_rtol, C%dHi_PETSc_abstol)
@@ -303,7 +323,7 @@ CONTAINS
 
   END SUBROUTINE calc_dHi_dt_implicit
 
-  SUBROUTINE calc_dHi_dt_semiimplicit( mesh, Hi, u_vav_b, v_vav_b, SMB, BMB, mask_noice, dt, dHi_dt, Hi_tplusdt)
+  SUBROUTINE calc_dHi_dt_semiimplicit( mesh, Hi, u_vav_b, v_vav_b, SMB, BMB, mask_noice, dt, dHi_dt, Hi_tplusdt, BC_prescr_mask, BC_prescr_Hi)
     ! Calculate ice thickness rates of change (dH/dt)
     !
     ! Use a semi-implicit time discretisation scheme for the ice fluxes
@@ -353,26 +373,28 @@ CONTAINS
     IMPLICIT NONE
 
     ! In/output variables:
-    TYPE(type_mesh),                        INTENT(IN)    :: mesh
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: Hi
-    REAL(dp), DIMENSION(mesh%ti1:mesh%ti2), INTENT(IN)    :: u_vav_b
-    REAL(dp), DIMENSION(mesh%ti1:mesh%ti2), INTENT(IN)    :: v_vav_b
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: SMB
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: BMB
-    LOGICAL,  DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: mask_noice
-    REAL(dp),                               INTENT(INOUT) :: dt
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(INOUT) :: dHi_dt
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)   :: Hi_tplusdt
+    TYPE(type_mesh),                        INTENT(IN)              :: mesh                  ! [-]       The model mesh
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)              :: Hi                    ! [m]       Ice thickness at time t
+    REAL(dp), DIMENSION(mesh%ti1:mesh%ti2), INTENT(IN)              :: u_vav_b               ! [m yr^-1] Vertically averaged ice velocities in the x-direction on the b-grid (triangles)
+    REAL(dp), DIMENSION(mesh%ti1:mesh%ti2), INTENT(IN)              :: v_vav_b               ! [m yr^-1] Vertically averaged ice velocities in the y-direction on the b-grid (triangles)
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)              :: SMB                   ! [m yr^-1] Surface mass balance
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)              :: BMB                   ! [m yr^-1] Basal   mass balance
+    LOGICAL,  DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)              :: mask_noice            ! [-]       Mask of vertices where no ice is allowed
+    REAL(dp),                               INTENT(INOUT)           :: dt                    ! [dt]      Time step
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)             :: dHi_dt                ! [m yr^-1] Ice thickness rate of change
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)             :: Hi_tplusdt            ! [m]       Ice thickness at time t + dt
+    INTEGER,  DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)   , OPTIONAL :: BC_prescr_mask        ! [-]       Mask of vertices where thickness is prescribed
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)   , OPTIONAL :: BC_prescr_Hi          ! [m]       Prescribed thicknesses
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'calc_dHi_dt_semiimplicit'
-    TYPE(type_sparse_matrix_CSR_dp)                       :: M_divQ
-    TYPE(type_sparse_matrix_CSR_dp)                       :: AA
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: M_divQ_H
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: bb
-    INTEGER                                               :: vi, k1, k2, k, vj
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: divQ
-    REAL(dp)                                              :: dt_max
+    CHARACTER(LEN=256), PARAMETER                                   :: routine_name = 'calc_dHi_dt_semiimplicit'
+    TYPE(type_sparse_matrix_CSR_dp)                                 :: M_divQ
+    TYPE(type_sparse_matrix_CSR_dp)                                 :: AA
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                          :: M_divQ_H
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                          :: bb
+    INTEGER                                                         :: vi, k1, k2, k, vj
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                          :: divQ
+    REAL(dp)                                                        :: dt_max
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -419,7 +441,7 @@ CONTAINS
     Hi_tplusdt = Hi + dt * dHi_dt
 
     ! Apply boundary conditions
-    CALL apply_ice_thickness_BC_matrix( mesh, mask_noice, AA, bb, Hi_tplusdt)
+    CALL apply_ice_thickness_BC_matrix( mesh, mask_noice, AA, bb, Hi_tplusdt, BC_prescr_mask, BC_prescr_Hi)
 
     ! Solve for Hi_tplusdt
     CALL solve_matrix_equation_CSR_PETSc( AA, bb, Hi_tplusdt, C%dHi_PETSc_rtol, C%dHi_PETSc_abstol)
@@ -537,21 +559,23 @@ CONTAINS
 
   END SUBROUTINE calc_ice_flux_divergence_matrix_upwind
 
-  SUBROUTINE apply_ice_thickness_BC_matrix( mesh, mask_noice, AA, bb, Hi_tplusdt)
+  SUBROUTINE apply_ice_thickness_BC_matrix( mesh, mask_noice, AA, bb, Hi_tplusdt, BC_prescr_mask, BC_prescr_Hi)
     ! Apply boundary conditions to the ice thickness matrix equation AA * Hi( t+dt) = bb
 
     IMPLICIT NONE
 
     ! In/output variables:
-    TYPE(type_mesh),                        INTENT(IN)    :: mesh
-    LOGICAL,  DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: mask_noice
-    TYPE(type_sparse_matrix_CSR_dp),        INTENT(INOUT) :: AA          ! Stiffness matrix
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(INOUT) :: bb          ! Load vector
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(INOUT) :: Hi_tplusdt  ! Initial guess
+    TYPE(type_mesh),                        INTENT(IN)              :: mesh
+    LOGICAL,  DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)              :: mask_noice            ! Mask of vertices where no ice is allowed
+    TYPE(type_sparse_matrix_CSR_dp),        INTENT(INOUT)           :: AA                    ! Stiffness matrix
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(INOUT)           :: bb                    ! Load vector
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(INOUT)           :: Hi_tplusdt            ! Initial guess
+    INTEGER,  DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)   , OPTIONAL :: BC_prescr_mask        ! Mask of vertices where thickness is prescribed
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)   , OPTIONAL :: BC_prescr_Hi          ! Prescribed thicknesses
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'apply_ice_thickness_BC_matrix'
-    INTEGER                                               :: vi,k1,k2,k,vj
+    CHARACTER(LEN=256), PARAMETER                                   :: routine_name = 'apply_ice_thickness_BC_matrix'
+    INTEGER                                                         :: vi,k1,k2,k,vj
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -745,6 +769,41 @@ CONTAINS
       END IF
 
     END DO ! DO vi = mesh%vi1, mesh%vi2
+
+  ! Set predicted ice thickness to prescribed values where told to do so
+  ! ====================================================================
+
+    IF (PRESENT( BC_prescr_mask) .OR. PRESENT( BC_prescr_Hi)) THEN
+      ! Safety
+      IF (.NOT. (PRESENT( BC_prescr_mask) .AND. PRESENT( BC_prescr_Hi))) THEN
+        CALL crash('need to provide prescribed both Hi and mask!')
+      END IF
+
+      DO vi = mesh%vi1, mesh%vi2
+        IF (BC_prescr_mask( vi) == 1) THEN
+
+          ! Set diagonal element of A to 1, rest of row to 0
+          k1 = AA%ptr( vi)
+          k2 = AA%ptr( vi+1) - 1
+          DO k = k1, k2
+            vj = AA%ind( k)
+            IF (vj == vi) THEN
+              ! Diagonal element
+              AA%val( k) = 1._dp
+            ELSE
+              ! Off-diagonal element
+              AA%val( k) = 0._dp
+            END IF
+          END DO ! DO k = k1, k2
+
+          ! Load vector and initial guess
+          bb        ( vi) = BC_prescr_Hi( vi)
+          Hi_tplusdt( vi) = BC_prescr_Hi( vi)
+
+        END IF ! IF (BC_prescr_mask( vi) == 1) THEN
+      END DO ! DO vi = mesh%vi1, mesh%vi2
+
+    END IF ! IF (PRESENT( BC_prescr_mask) .OR. PRESENT( BC_prescr_Hi)) THEN
 
   ! == No-ice mask
   ! ==============
