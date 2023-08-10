@@ -779,7 +779,7 @@ CONTAINS
 
   END SUBROUTINE apply_ice_thickness_BC_matrix
 
-  SUBROUTINE apply_mask_noice_direct( mesh, mask_noice, Hi_tplusdt)
+  SUBROUTINE apply_mask_noice_direct( mesh, mask_noice, Hi)
     ! Enforce Hi = 0 where told to do so
 
     IMPLICIT NONE
@@ -787,7 +787,7 @@ CONTAINS
     ! In/output variables:
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
     LOGICAL,  DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: mask_noice
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(INOUT) :: Hi_tplusdt  ! Initial guess
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(INOUT) :: Hi
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'apply_mask_noice_direct'
@@ -797,7 +797,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     DO vi = mesh%vi1, mesh%vi2
-      IF (mask_noice( vi)) Hi_tplusdt( vi) = 0._dp
+      IF (mask_noice( vi)) Hi( vi) = 0._dp
     END DO
 
     ! Finalise routine path

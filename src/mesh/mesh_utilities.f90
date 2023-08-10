@@ -1404,6 +1404,7 @@ CONTAINS
     !    2 = data provided
     !    1 = no data provided, fill allowed
     !    0 = no fill allowed
+    !
     ! (so basically this routine extrapolates data from the area
     !  where mask == 2 into the area where mask == 1)
 
@@ -1420,19 +1421,31 @@ CONTAINS
     INTEGER,  DIMENSION(mesh%vi1:mesh%vi2)                :: mask_local
     INTEGER,  DIMENSION(mesh%nV)                          :: mask_tot
     REAL(dp), DIMENSION(mesh%nV)                          :: d_tot
-    INTEGER                                               :: vi, n_unfilled
+    INTEGER                                               :: it_floodfill
+    INTEGER                                               :: vi
     LOGICAL,  DIMENSION(mesh%vi1:mesh%vi2)                :: do_fill_now
+    INTEGER                                               :: n_do_fill_now
     LOGICAL                                               :: has_filled_neighbour
     INTEGER                                               :: ci,vj
-    INTEGER,  DIMENSION(mesh%nV)                          :: map, stack_front, stack_tot
-    INTEGER                                               :: stack_frontN, stack_totN
+    INTEGER,  DIMENSION(mesh%nV)                          :: map_neighbourhood_of_vi
+    INTEGER,  DIMENSION(mesh%nV)                          :: stack_front_around_vi
+    INTEGER                                               :: stackN_front_around_vi
+    INTEGER,  DIMENSION(mesh%nV)                          :: stack_neighbourhood_of_vi
+    INTEGER                                               :: stackN_neighbourhood_of_vi
+    INTEGER                                               :: it_floodfill2
     INTEGER                                               :: cj,vk
-    REAL(dp)                                              :: w_sum, d_sum, w
     INTEGER                                               :: i
-    INTEGER                                               :: it
+    REAL(dp)                                              :: wj, w_sum, d_sum, d_av_of_neighbourhood
 
     ! Add routine to path
     CALL init_routine( routine_name)
+
+    ! Initialise
+    map_neighbourhood_of_vi    = 0
+    stack_front_around_vi      = 0
+    stackN_front_around_vi     = 0
+    stack_neighbourhood_of_vi  = 0
+    stackN_neighbourhood_of_vi = 0
 
     ! Copy mask to local, changeable array
     mask_local = mask_partial
@@ -1441,113 +1454,135 @@ CONTAINS
     CALL gather_to_all_int_1D( mask_local, mask_tot)
     CALL gather_to_all_dp_1D(  d_partial , d_tot   )
 
-    ! Initialise
-    map = 0
+  ! == Flood-fill iteration
+  ! =======================
 
-    ! Flood-fill style extrapolation: extrapolate using a moving front
-    it = 0
-    DO WHILE (.TRUE.)
+    it_floodfill = 0
+
+    iterate_floodfill: DO WHILE (.TRUE.)
 
       ! Safety
-      it = it + 1
-      IF (it > mesh%nV) CALL crash('got stuck!')
+      it_floodfill = it_floodfill + 1
+      IF (it_floodfill > mesh%nV) CALL crash('main flood-fill iteration got stuck!')
 
-      ! Determine number of unfilled vertices
-      n_unfilled = 0
-      DO vi = mesh%vi1, mesh%vi2
-        IF (mask_tot( vi) == 1) n_unfilled = n_unfilled + 1
-      END DO
-      CALL MPI_ALLREDUCE( MPI_IN_PLACE, n_unfilled, 1, MPI_INTEGER, MPI_SUM, MPI_COMM_WORLD, ierr)
+    ! == Mark all vertices that should be filled now
+    !    (defined as those that are allowed to be filled,
+    !    and are next to at least one filled vertex).
+    ! ===============================================
 
-      ! If all eligible vertices have been filled, we're done
-      IF (n_unfilled == 0) EXIT
-
-      ! List the front of vertices that will be filled in this iteration
+      n_do_fill_now = 0
       do_fill_now = .FALSE.
+
       DO vi = mesh%vi1, mesh%vi2
         IF (mask_tot( vi) == 1) THEN
-          ! This vertex should be filled eventually
+          ! Vertex vi is allowed to be filled
+
           has_filled_neighbour = .FALSE.
           DO ci = 1, mesh%nC( vi)
             vj = mesh%C( vi,ci)
             IF (mask_tot( vj) == 2) THEN
               has_filled_neighbour = .TRUE.
               EXIT
-            END IF
-          END DO
+            END IF ! IF (mask_tot( vj) == 2) THEN
+          END DO ! DO ci = 1, mesh%nC( vi)
+
           IF (has_filled_neighbour) THEN
-            ! This vertex should be filled now
+            ! Vertex vi is allowed to be filled and has at least one filled neighbour,
+            ! so it should be filled in this flood-fill iteration
             do_fill_now( vi) = .TRUE.
-          END IF
+            n_do_fill_now = n_do_fill_now + 1
+          END IF ! IF (has_filled_neighbour) THEN
+
         END IF ! IF (mask_tot( vi) == 1) THEN
       END DO ! DO vi = mesh%vi1, mesh%vi2
 
-    ! Fill all vertices in the front
-    ! ==============================
+      ! If no vertices can be filled anymore, end the flood-fil iteration
+      CALL MPI_ALLREDUCE( MPI_IN_PLACE, n_do_fill_now, 1, MPI_INTEGER, MPI_SUM, MPI_COMM_WORLD, ierr)
+      IF (n_do_fill_now == 0) EXIT iterate_floodfill
+
+    ! == Fill all vertices that can be filled now
+    ! ===========================================
 
       DO vi = mesh%vi1, mesh%vi2
         IF (do_fill_now( vi)) THEN
+          ! Fill vertex vi
 
-          ! == Find all vertices within a 3-sigma radius of this vertex
+        ! == Find all filled vertices within 3*sigma of vertex vi
+        ! =======================================================
 
-          ! Clean up map and stack from the previous call
-          DO i = 1, stack_totN
-            vj = stack_tot( i)
-            map( vj) = 0
-          END DO
-          stack_totN = 0
+          ! Initialise the front with all filled neighbours of vi
+          stackN_front_around_vi = 0
+          DO ci = 1, mesh%nC( vi)
+            vj = mesh%C( vi,ci)
+            IF (mask_tot( vj) == 2) THEN
+              stackN_front_around_vi = stackN_front_around_vi + 1
+              stack_front_around_vi( stackN_front_around_vi) = vj
+              map_neighbourhood_of_vi( vj) = 1
+            END IF ! IF (mask_tot( vj) == 2) THEN
+          END DO ! DO ci = 1, mesh%nC( vi)
 
-          ! Initialise the front stack with the current vertex
-          stack_frontN = 1
-          stack_front( 1) = vi
+          ! Expand the front outward, flood-fill style
+          it_floodfill2 = 0
+          iterate_floodfill_around_vi: DO WHILE (stackN_front_around_vi > 0)
 
-          DO WHILE (stack_frontN > 0)
+            ! Safety
+            it_floodfill2 = it_floodfill2 + 1
+            IF (it_floodfill2 > mesh%nV) CALL crash('secondary flood-fill iteration got stuck!')
 
-            ! Remove the last element from the front stack
-            vj = stack_front( stack_frontN)
-            stack_frontN = stack_frontN - 1
+            ! Take the last vertex vj from the front stack
+            vj = stack_front_around_vi( stackN_front_around_vi)
+            stackN_front_around_vi = stackN_front_around_vi - 1
 
-            ! Mark it on the map and add it to the total stack
-            map( vj) = 2
-            stack_totN = stack_totN + 1
-            stack_tot( stack_totN) = vj
+            ! Add vj to the neighbourhood list
+            stackN_neighbourhood_of_vi = stackN_neighbourhood_of_vi + 1
+            stack_neighbourhood_of_vi( stackN_neighbourhood_of_vi) = vj
+            map_neighbourhood_of_vi( vj) = 2
 
-            ! Add all its unlisted neighbours within 3 sigma of vertex vi to the front stack
+            ! Add all remaining filled neighbours of vj to the front stack
             DO cj = 1, mesh%nC( vj)
               vk = mesh%C( vj,cj)
-              IF (map( vk) == 0 .AND. NORM2( mesh%V( vk,:) - mesh%V( vi,:)) < 3._dp * sigma) THEN
-                stack_frontN = stack_frontN + 1
-                stack_front( stack_frontN) = vk
-                map( vk) = 1
+              IF (map_neighbourhood_of_vi( vk) == 0 .AND. mask_tot( vk) == 2 .AND. &
+                  NORM2( mesh%V( vi,:) - mesh%V( vk,:)) < (3._dp * sigma)) THEN
+                ! Vertex vk is not yet marked as part of the neighbourhood of vi, not
+                ! yet marked as part of the front stack, is filled, and lies within
+                ! 3*sigma of vertex vi. Add it to the front stack.
+                stackN_front_around_vi = stackN_front_around_vi + 1
+                stack_front_around_vi( stackN_front_around_vi) = vk
+                map_neighbourhood_of_vi( vk) = 1
               END IF
-            END DO
+            END DO ! DO cj = 1, mesh%nC( vj)
 
-          END DO ! DO WHILE (stack_frontN > 0)
+          END DO iterate_floodfill_around_vi
 
-          ! == Safety - if no vertices lie within the 3-sigma radius,
-          !    just average over all filled neighbours
+          ! Safety
+          IF (stackN_neighbourhood_of_vi == 0) CALL crash('couldnt find neighbourhood of vi!')
 
-          IF (stack_totN == 0) THEN
-            DO ci = 1, mesh%nC( vi)
-              vj = mesh%C( vi,ci)
-              stack_totN = stack_totN + 1
-              stack_tot( stack_totN) = vj
-            END DO
-          END IF
+        ! == Extrapolate data to vi
+        ! =========================
 
-          ! == Calculate Gaussian distance-weighted average value of d over these vertices
-
+          ! Calculate Gaussian distance-weighted average of d over the filled neighbourhood of vi
           w_sum = 0._dp
           d_sum = 0._dp
+          DO i = 1, stackN_neighbourhood_of_vi
+            vj = stack_neighbourhood_of_vi( i)
+            wj = EXP( -0.5_dp * (NORM2( mesh%V( vj,:) - mesh%V( vi,:)) / sigma)**2)
+            w_sum = w_sum + wj
+            d_sum = d_sum + wj * d_tot( vj)
+          END DO ! DO i = 1, stackN_neighbourhood_of_vi
+          d_av_of_neighbourhood = d_sum / w_sum
 
-          DO i = 1, stack_totN
-            vj = stack_tot( i)
-            w = EXP( -0.5_dp * (NORM2( mesh%V( vi,:) - mesh%V( vj,:)) / sigma)**2)
-            w_sum = w_sum + w
-            d_sum = d_sum + w * d_tot( vj)
-          END DO ! DO i = 1, stack_totN
+          ! Fill into data field
+          d_partial( vi) = d_av_of_neighbourhood
 
-          d_partial( vi) = d_sum / w_sum
+        ! == Clean up lists for the neighbourhood of vi
+        ! =============================================
+
+          DO i = 1, stackN_neighbourhood_of_vi
+            vj = stack_neighbourhood_of_vi( i)
+            map_neighbourhood_of_vi( vj) = 0
+          END DO ! DO i = 1, stackN_neighbourhood_of_vi
+          stackN_neighbourhood_of_vi = 0
+          stackN_front_around_vi     = 0
 
         END IF ! IF (do_fill_now( vi)) THEN
       END DO ! DO vi = mesh%vi1, mesh%vi2
@@ -1568,11 +1603,7 @@ CONTAINS
       CALL gather_to_all_int_1D( mask_local, mask_tot)
       CALL gather_to_all_dp_1D(  d_partial , d_tot   )
 
-      ! DENK DROM
-!      IF (it == 2) EXIT
-!      CALL crash('whoopsiedaisy')
-
-    END DO ! DO WHILE (.TRUE.)
+    END DO iterate_floodfill
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

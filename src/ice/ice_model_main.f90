@@ -14,7 +14,8 @@ MODULE ice_model_main
   USE model_configuration                                    , ONLY: C
   USE netcdf_debug                                           , ONLY: write_PETSc_matrix_to_NetCDF, write_CSR_matrix_to_NetCDF, &
                                                                      save_variable_as_netcdf_int_1D, save_variable_as_netcdf_int_2D, &
-                                                                     save_variable_as_netcdf_dp_1D , save_variable_as_netcdf_dp_2D
+                                                                     save_variable_as_netcdf_dp_1D , save_variable_as_netcdf_dp_2D, &
+                                                                     save_variable_as_netcdf_logical_1D
   USE parameters
   USE mesh_types                                             , ONLY: type_mesh
   USE scalar_types                                           , ONLY: type_regional_scalars
@@ -26,7 +27,7 @@ MODULE ice_model_main
   USE ice_model_utilities                                    , ONLY: determine_masks, calc_bedrock_CDFs, calc_grounded_fractions, calc_zeta_gradients, &
                                                                      calc_mask_noice
   USE ice_model_scalars                                      , ONLY: calc_ice_model_scalars
-  USE ice_thickness                                          , ONLY: calc_dHi_dt
+  USE ice_thickness                                          , ONLY: calc_dHi_dt, apply_mask_noice_direct
   USE math_utilities                                         , ONLY: ice_surface_elevation, thickness_above_floatation
   USE geothermal_heat_flux                                   , ONLY: initialise_geothermal_heat_flux
   USE basal_hydrology                                        , ONLY: initialise_basal_hydrology_model
@@ -34,14 +35,18 @@ MODULE ice_model_main
   USE ice_velocity_main                                      , ONLY: initialise_velocity_solver, solve_stress_balance, remap_velocity_solver, &
                                                                      create_restart_file_ice_velocity, write_to_restart_file_ice_velocity, &
                                                                      map_velocities_from_b_to_c_2D
-  USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_1D
+  USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_1D, gather_to_all_logical_1D
   USE netcdf_basic                                           , ONLY: create_new_netcdf_file_for_writing, close_netcdf_file, open_existing_netcdf_file_for_writing
   USE netcdf_output                                          , ONLY: generate_filename_XXXXXdotnc, setup_mesh_in_netcdf_file, add_time_dimension_to_file, &
                                                                      add_field_dp_0D, add_field_mesh_dp_2D, write_time_to_file, write_to_field_multopt_mesh_dp_2D, &
                                                                      write_to_field_multopt_dp_0D
   USE netcdf_input                                           , ONLY: read_field_from_file_0D, read_field_from_mesh_file_2D
   USE reallocate_mod                                         , ONLY: reallocate_bounds
-  USE mesh_remapping                                         , ONLY: map_from_mesh_to_mesh_with_reallocation_2D, map_from_mesh_to_mesh_with_reallocation_3D
+  USE mesh_remapping                                         , ONLY: Atlas, map_from_mesh_to_mesh_with_reallocation_2D, map_from_mesh_to_mesh_with_reallocation_3D, &
+                                                                     map_from_mesh_to_mesh_2D
+  USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp
+  USE petsc_basic                                            , ONLY: mat_petsc2CSR
+  USE reallocate_mod                                         , ONLY: reallocate_bounds_dp_1D
 
   IMPLICIT NONE
 
@@ -413,12 +418,13 @@ CONTAINS
   ! === Ice-sheet geometry ===
   ! ==========================
 
-    ! Use 2nd-order conservative remapping for the ice thickness. Remap
-    ! bedrock from the original high-resolution grid, and add the modelled
-    ! deformation to it (which is smooth).
+    ! Remap ice thickness Hi
+    CALL remap_ice_thickness( mesh_old, mesh_new, ice)
 
-    CALL map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, ice%Hi, '2nd_order_conservative')
+    ! No matter how careful we are, sometimes the remapping yields negative ice thicknesses; remove those
+    ice%Hi = MAX( 0._dp, ice%Hi)
 
+    ! Remap bedrock from the original high-resolution grid, and add the (very smooth) modelled deformation to it
     ! Remapping of Hb in the refgeo structure has already happened, only need to copy the data
     IF (par%master) CALL warning('GIA model isnt finished yet - need to include dHb in mesh update!')
     CALL reallocate_bounds( ice%Hb                          , mesh_new%vi1, mesh_new%vi2         )  ! [m] Bedrock elevation (w.r.t. PD sea level)
@@ -667,12 +673,19 @@ CONTAINS
   ! Initialise masks
   ! ================
 
+    ! Calculate the no-ice mask
+    CALL calc_mask_noice( mesh_new, ice)
+
+    ! Remove ice bleed into forbidden areas
+    CALL apply_mask_noice_direct( mesh_new, ice%mask_noice, ice%Hi)
+    CALL apply_mask_noice_direct( mesh_new, ice%mask_noice, ice%dHi_dt)
+
     ! Call it twice so also the "prev" versions are set
     CALL determine_masks( mesh_new, ice)
     CALL determine_masks( mesh_new, ice)
 
-    ! Calculate the no-ice mask
-    CALL calc_mask_noice( mesh_new, ice)
+!    ! Smooth the ice at the calving front to improve model stability
+!    CALL relax_calving_front_after_mesh_update( mesh_new, ice)
 
     ! Sub-grid fractions
     ! ==================
@@ -718,6 +731,102 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE remap_ice_dynamics_model
+
+  SUBROUTINE remap_ice_thickness( mesh_old, mesh_new, ice)
+    ! Remap the ice thickness Hi. Use 2nd-order conservative remapping everywhere, except
+    ! near the calving front; there, for new-mesh vertices that overlap with both old-mesh
+    ! shelf vertices and old-mesh open-ocean vertices, we calculate the new ice thickness
+    ! as the average over only the overlapping old-mesh shelf vertices.
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh_old
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh_new
+    TYPE(type_ice_model),                   INTENT(INOUT) :: ice
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'remap_ice_thickness'
+    REAL(dp), DIMENSION( mesh_old%nV)                     :: Hi_old_tot
+    LOGICAL,  DIMENSION( mesh_old%nV)                     :: mask_floating_ice_tot
+    LOGICAL,  DIMENSION( mesh_old%nV)                     :: mask_icefree_ocean_tot
+    REAL(dp), DIMENSION( mesh_new%vi1:mesh_new%vi2)       :: Hi_new
+    INTEGER                                               :: mi, mi_used
+    LOGICAL                                               :: found_map
+    TYPE(type_sparse_matrix_CSR_dp)                       :: M_CSR
+    INTEGER                                               :: vi_new, k1, k2, k, vi_old
+    INTEGER                                               :: n_shelf, n_open_ocean
+    REAL(dp)                                              :: sum_Hi_shelf
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Gather global ice thickness and masks
+    CALL gather_to_all_dp_1D(      ice%Hi                , Hi_old_tot            )
+    CALL gather_to_all_logical_1D( ice%mask_floating_ice , mask_floating_ice_tot )
+    CALL gather_to_all_logical_1D( ice%mask_icefree_ocean, mask_icefree_ocean_tot)
+
+    ! First, naively remap ice thickness without any restrictions
+    CALL map_from_mesh_to_mesh_2D( mesh_old, mesh_new, ice%Hi, Hi_new, '2nd_order_conservative')
+
+    ! Browse the Atlas to find the map that was used for this
+    found_map = .FALSE.
+    mi_used   = 0
+    DO mi = 1, SIZE( Atlas, 1)
+      IF (Atlas( mi)%name_src == mesh_old%name .AND. Atlas( mi)%name_dst == mesh_new%name &
+          .AND. Atlas( mi)%method == '2nd_order_conservative') THEN
+        found_map = .TRUE.
+        mi_used  = mi
+        EXIT
+      END IF
+    END DO
+    ! Safety
+    IF (.NOT. found_map) CALL crash('couldnt find which map was used')
+
+    ! Convert the mapping matrix to CSR format
+    CALL mat_petsc2CSR( Atlas( mi_used)%M, M_CSR)
+
+    ! For those vertices of the new mesh that overlap with both old-mesh shelf and old-mesh
+    ! open ocean, average only over the contributing old-mesh shelf vertices
+
+    DO vi_new = mesh_new%vi1, mesh_new%vi2
+
+      k1 = M_CSR%ptr( vi_new)
+      k2 = M_CSR%ptr( vi_new+1) - 1
+
+      n_shelf      = 0
+      n_open_ocean = 0
+      sum_Hi_shelf = 0._dp
+
+      DO k = k1, k2
+
+        vi_old = M_CSR%ind( k)
+
+        IF     (mask_floating_ice_tot(  vi_old)) THEN
+          n_shelf      = n_shelf      + 1
+          sum_Hi_shelf = sum_Hi_shelf + Hi_old_tot( vi_old)
+        ELSEIF (mask_icefree_ocean_tot( vi_old)) THEN
+          n_open_ocean = n_open_ocean + 1
+        END IF
+
+      END DO ! DO k = k1, k2
+
+      IF (n_shelf > 0 .AND. n_open_ocean > 0) THEN
+        ! This new-mesh vertex overlaps with both old-mesh shelf vertices,
+        ! and old-mesh open-ocean vertices
+        Hi_new( vi_new) = sum_Hi_shelf / REAL( n_shelf,dp)
+      END IF
+
+    END DO ! DO vi_new = mesh_new%vi1, mesh_new%vi2
+
+    ! Move data to ice%Hi
+    CALL reallocate_bounds_dp_1D( ice%Hi, mesh_new%vi2, mesh_new%vi2)
+    ice%Hi = Hi_new
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE remap_ice_thickness
 
 ! ===== Predictor-corrector scheme =====
 ! ======================================

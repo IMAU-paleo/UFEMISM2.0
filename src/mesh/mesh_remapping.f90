@@ -702,13 +702,16 @@ CONTAINS
         IF (.NOT. Atlas( mi)%is_in_use) THEN
           found_empty_page = .TRUE.
           IF (PRESENT( method)) THEN
-            IF     (method == 'nearest_neighbour') THEN
-              CALL create_map_from_mesh_to_mesh_nearest_neighbour(      mesh_src, mesh_dst, Atlas( mi))
-            ELSEIF (method == 'trilin') THEN
-              CALL create_map_from_mesh_to_mesh_trilin(                 mesh_src, mesh_dst, Atlas( mi))
-            ELSEIF (method == '2nd_order_conservative') THEN
-              CALL create_map_from_mesh_to_mesh_2nd_order_conservative( mesh_src, mesh_dst, Atlas( mi))
-            END IF
+            SELECT CASE (method)
+              CASE ('nearest_neighbour')
+                CALL create_map_from_mesh_to_mesh_nearest_neighbour(      mesh_src, mesh_dst, Atlas( mi))
+              CASE('trilin')
+                CALL create_map_from_mesh_to_mesh_trilin(                 mesh_src, mesh_dst, Atlas( mi))
+              CASE('2nd_order_conservative')
+                CALL create_map_from_mesh_to_mesh_2nd_order_conservative( mesh_src, mesh_dst, Atlas( mi))
+              CASE DEFAULT
+                CALL crash('unknown remapping method "' // TRIM( method) // '"')
+            END SELECT
           ELSE
               CALL create_map_from_mesh_to_mesh_2nd_order_conservative( mesh_src, mesh_dst, Atlas( mi))
           END IF
@@ -778,13 +781,16 @@ CONTAINS
         IF (.NOT. Atlas( mi)%is_in_use) THEN
           found_empty_page = .TRUE.
           IF (PRESENT( method)) THEN
-            IF     (method == 'nearest_neighbour') THEN
-              CALL create_map_from_mesh_to_mesh_nearest_neighbour(      mesh_src, mesh_dst, Atlas( mi))
-            ELSEIF (method == 'trilin') THEN
-              CALL create_map_from_mesh_to_mesh_trilin(                 mesh_src, mesh_dst, Atlas( mi))
-            ELSEIF (method == '2nd_order_conservative') THEN
-              CALL create_map_from_mesh_to_mesh_2nd_order_conservative( mesh_src, mesh_dst, Atlas( mi))
-            END IF
+            SELECT CASE (method)
+              CASE ('nearest_neighbour')
+                CALL create_map_from_mesh_to_mesh_nearest_neighbour(      mesh_src, mesh_dst, Atlas( mi))
+              CASE ('trilin')
+                CALL create_map_from_mesh_to_mesh_trilin(                 mesh_src, mesh_dst, Atlas( mi))
+              CASE ('2nd_order_conservative')
+                CALL create_map_from_mesh_to_mesh_2nd_order_conservative( mesh_src, mesh_dst, Atlas( mi))
+              CASE DEFAULT
+                CALL crash('unknown remapping method "' // TRIM( method) // '"')
+            END SELECT
           ELSE
               CALL create_map_from_mesh_to_mesh_2nd_order_conservative( mesh_src, mesh_dst, Atlas( mi))
           END IF

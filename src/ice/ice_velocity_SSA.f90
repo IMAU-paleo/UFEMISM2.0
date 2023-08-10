@@ -108,6 +108,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'solve_SSA'
+    LOGICAL                                                      :: grounded_ice_exists
     INTEGER,  DIMENSION(:    ), ALLOCATABLE                      :: BC_prescr_mask_b_applied
     REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: BC_prescr_u_b_applied
     REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: BC_prescr_v_b_applied
@@ -123,7 +124,9 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! If there is no grounded ice, or no sliding, no need to solve the SSA
-    IF ((.NOT. ANY( ice%mask_grounded_ice)) .OR. C%choice_sliding_law == 'no_sliding') THEN
+    grounded_ice_exists = ANY( ice%mask_grounded_ice)
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, grounded_ice_exists, 1, MPI_LOGICAL, MPI_LOR, MPI_COMM_WORLD, ierr)
+    IF (.NOT. grounded_ice_exists .OR. C%choice_sliding_law == 'no_sliding') THEN
       SSA%u_b = 0._dp
       SSA%v_b = 0._dp
       CALL finalise_routine( routine_name)
@@ -191,7 +194,7 @@ CONTAINS
       ELSE
         nit_diverg_consec = 0
       END IF
-      IF (nit_diverg_consec > 5) THEN
+      IF (nit_diverg_consec > 2) THEN
         nit_diverg_consec = 0
         visc_it_relax_applied               = visc_it_relax_applied               * 0.9_dp
         Glens_flow_law_epsilon_sq_0_applied = Glens_flow_law_epsilon_sq_0_applied * 1.2_dp

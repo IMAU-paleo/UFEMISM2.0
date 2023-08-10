@@ -14,6 +14,7 @@ function mesh = read_mesh_from_file( filename)
   
   mesh.nV             = size( mesh.V,1);
   mesh.nTri           = size( mesh.Tri,1);
+  mesh.nC_mem         = size( mesh.C,2);
   
   mesh.xmin           = mesh.V( 1,1);
   mesh.xmax           = mesh.V( 2,1);

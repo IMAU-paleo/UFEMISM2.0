@@ -111,6 +111,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'solve_DIVA'
+    LOGICAL                                                      :: grounded_ice_exists
     INTEGER,  DIMENSION(:    ), ALLOCATABLE                      :: BC_prescr_mask_b_applied
     REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: BC_prescr_u_b_applied
     REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: BC_prescr_v_b_applied
@@ -126,7 +127,9 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! If there is no grounded ice, no need (in fact, no way) to solve the DIVA
-    IF (.NOT. ANY( ice%mask_grounded_ice)) THEN
+    grounded_ice_exists = ANY( ice%mask_grounded_ice)
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, grounded_ice_exists, 1, MPI_LOGICAL, MPI_LOR, MPI_COMM_WORLD, ierr)
+    IF (.NOT. grounded_ice_exists) THEN
       DIVA%u_vav_b  = 0._dp
       DIVA%v_vav_b  = 0._dp
       DIVA%u_base_b = 0._dp
@@ -210,7 +213,7 @@ CONTAINS
       ELSE
         nit_diverg_consec = 0
       END IF
-      IF (nit_diverg_consec > 5) THEN
+      IF (nit_diverg_consec > 2) THEN
         nit_diverg_consec = 0
         visc_it_relax_applied               = visc_it_relax_applied               * 0.9_dp
         Glens_flow_law_epsilon_sq_0_applied = Glens_flow_law_epsilon_sq_0_applied * 1.2_dp
@@ -228,7 +231,7 @@ CONTAINS
       uv_max = MAXVAL( DIVA%u_vav_b)
       CALL MPI_ALLREDUCE( MPI_IN_PLACE, uv_min, 1, MPI_DOUBLE_PRECISION, MPI_MIN, MPI_COMM_WORLD, ierr)
       CALL MPI_ALLREDUCE( MPI_IN_PLACE, uv_max, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
-      IF (par%master) WRITE(0,*) '    DIVA - viscosity iteration ', viscosity_iteration_i, ', u = [', uv_min, ' - ', uv_max, '], resid = ', resid_UV
+!      IF (par%master) WRITE(0,*) '    DIVA - viscosity iteration ', viscosity_iteration_i, ', u = [', uv_min, ' - ', uv_max, '], resid = ', resid_UV
 
       ! If the viscosity iteration has converged, or has reached the maximum allowed number of iterations, stop it.
       has_converged = .FALSE.
