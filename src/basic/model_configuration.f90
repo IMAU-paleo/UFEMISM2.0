@@ -238,6 +238,7 @@ MODULE model_configuration
     LOGICAL             :: allow_mesh_updates_config                    = .TRUE.                           ! [-]          Whether or not mesh updates are allowed
     REAL(dp)            :: dt_mesh_update_min_config                    = 50._dp                           ! [yr]         Minimum amount of time between mesh updates
     REAL(dp)            :: minimum_mesh_fitness_coefficient_config      = 0.95_dp                          ! [-]          If the mesh fitness coefficient drops below this threshold, trigger a mesh update
+    LOGICAL             :: do_out_of_time_calving_front_relax_config    = .TRUE.                           !              Whether or not to step out of time and relax the calving front for a few iterations after a mesh update
 
     ! Advanced geometry parameters
     LOGICAL             :: do_singlecore_mesh_creation_config           = .TRUE.                           !              Whether or not to use only a single core for mesh generation (for better reproducibility)
@@ -937,6 +938,7 @@ MODULE model_configuration
     LOGICAL             :: allow_mesh_updates
     REAL(dp)            :: dt_mesh_update_min
     REAL(dp)            :: minimum_mesh_fitness_coefficient
+    LOGICAL             :: do_out_of_time_calving_front_relax
 
     ! Advanced geometry parameters
     LOGICAL             :: do_singlecore_mesh_creation
@@ -1723,6 +1725,7 @@ CONTAINS
       allow_mesh_updates_config                                   , &
       dt_mesh_update_min_config                                   , &
       minimum_mesh_fitness_coefficient_config                     , &
+      do_out_of_time_calving_front_relax_config                   , &
       do_singlecore_mesh_creation_config                          , &
       alpha_min_config                                            , &
       nit_Lloyds_algorithm_config                                 , &
@@ -2273,6 +2276,7 @@ CONTAINS
     C%allow_mesh_updates                                     = allow_mesh_updates_config
     C%dt_mesh_update_min                                     = dt_mesh_update_min_config
     C%minimum_mesh_fitness_coefficient                       = minimum_mesh_fitness_coefficient_config
+    C%do_out_of_time_calving_front_relax                     = do_out_of_time_calving_front_relax_config
 
     ! Advanced geometry parameters
     C%do_singlecore_mesh_creation                            = do_singlecore_mesh_creation_config

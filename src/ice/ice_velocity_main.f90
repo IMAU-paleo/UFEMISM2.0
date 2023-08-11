@@ -76,20 +76,26 @@ CONTAINS
 
   END SUBROUTINE initialise_velocity_solver
 
-  SUBROUTINE solve_stress_balance( mesh, ice, BMB)
+  SUBROUTINE solve_stress_balance( mesh, ice, BMB, BC_prescr_mask_b, BC_prescr_u_b, BC_prescr_v_b, BC_prescr_mask_bk, BC_prescr_u_bk, BC_prescr_v_bk)
     ! Calculate all ice velocities based on the chosen stress balance approximation
 
     IMPLICIT NONE
 
     ! In/output variables:
-    TYPE(type_mesh),                     INTENT(INOUT) :: mesh
-    TYPE(type_ice_model),                INTENT(INOUT) :: ice
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN) :: BMB
+    TYPE(type_mesh),                        INTENT(INOUT)           :: mesh
+    TYPE(type_ice_model),                   INTENT(INOUT)           :: ice
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)              :: BMB
+    ! Prescribed velocities for the SSA/DIVA
+    INTEGER,  DIMENSION(:    ),             INTENT(IN)   , OPTIONAL :: BC_prescr_mask_b      ! Mask of triangles where velocity is prescribed
+    REAL(dp), DIMENSION(:    ),             INTENT(IN)   , OPTIONAL :: BC_prescr_u_b         ! Prescribed velocities in the x-direction
+    REAL(dp), DIMENSION(:    ),             INTENT(IN)   , OPTIONAL :: BC_prescr_v_b         ! Prescribed velocities in the y-direction
+    ! Prescribed velocities for the BPA
+    INTEGER,  DIMENSION(:,:  ),             INTENT(IN)   , OPTIONAL :: BC_prescr_mask_bk     ! Mask of triangles where velocity is prescribed
+    REAL(dp), DIMENSION(:,:  ),             INTENT(IN)   , OPTIONAL :: BC_prescr_u_bk        ! Prescribed velocities in the x-direction
+    REAL(dp), DIMENSION(:,:  ),             INTENT(IN)   , OPTIONAL :: BC_prescr_v_bk        ! Prescribed velocities in the y-direction
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'solve_stress_balance'
-    INTEGER                                            :: vi,ti
-    REAL(dp), DIMENSION(mesh%nz)                       :: u_prof, v_prof
+    CHARACTER(LEN=256), PARAMETER                                   :: routine_name = 'solve_stress_balance'
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -105,33 +111,59 @@ CONTAINS
     ELSEIF (C%choice_stress_balance_approximation == 'SSA') THEN
       ! Calculate velocities according to the Shallow Shelf Approximation
 
-      CALL solve_SSA( mesh, ice, ice%SSA)
+      CALL solve_SSA( mesh, ice, ice%SSA, BC_prescr_mask_b, BC_prescr_u_b, BC_prescr_v_b)
       CALL set_ice_velocities_to_SSA_results( mesh, ice, ice%SSA)
 
     ELSEIF (C%choice_stress_balance_approximation == 'SIA/SSA') THEN
       ! Calculate velocities according to the hybrid SIA/SSA
 
       CALL solve_SIA( mesh, ice, ice%SIA)
-      CALL solve_SSA( mesh, ice, ice%SSA)
+      CALL solve_SSA( mesh, ice, ice%SSA, BC_prescr_mask_b, BC_prescr_u_b, BC_prescr_v_b)
       CALL set_ice_velocities_to_SIASSA_results( mesh, ice, ice%SIA, ice%SSA)
 
     ELSEIF (C%choice_stress_balance_approximation == 'DIVA') THEN
       ! Calculate velocities according to the Depth-Integrated Viscosity Approximation
 
-      CALL solve_DIVA( mesh, ice, ice%DIVA)
+      CALL solve_DIVA( mesh, ice, ice%DIVA, BC_prescr_mask_b, BC_prescr_u_b, BC_prescr_v_b)
       CALL set_ice_velocities_to_DIVA_results( mesh, ice, ice%DIVA)
 
     ELSEIF (C%choice_stress_balance_approximation == 'BPA') THEN
       ! Calculate velocities according to the Depth-Integrated Viscosity Approximation
 
-      CALL solve_BPA( mesh, ice, ice%BPA)
+      CALL solve_BPA( mesh, ice, ice%BPA, BC_prescr_mask_bk, BC_prescr_u_bk, BC_prescr_v_bk)
       CALL set_ice_velocities_to_BPA_results( mesh, ice, ice%BPA)
 
     ELSE
       CALL crash('unknown choice_stress_balance_approximation "' // TRIM( C%choice_stress_balance_approximation) // '"!')
     END IF
 
-  ! == Fill in derived velocity fields (surface, base, vertical average)
+    ! Calculate all secondary ice velocities (surface, base, vertical average)
+    CALL calc_secondary_velocities( mesh, ice)
+
+    ! Calculate vertical velocities
+    CALL calc_vertical_velocities( mesh, ice, BMB)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE solve_stress_balance
+
+  SUBROUTINE calc_secondary_velocities( mesh, ice)
+    ! Calculate all secondary ice velocities (surface, base, vertical average)
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                        INTENT(IN)              :: mesh
+    TYPE(type_ice_model),                   INTENT(INOUT)           :: ice
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                   :: routine_name = 'calc_secondary_velocities'
+    INTEGER                                                         :: vi,ti
+    REAL(dp), DIMENSION(mesh%nz)                                    :: u_prof, v_prof
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
 
     DO ti = mesh%ti1, mesh%ti2
 
@@ -179,14 +211,10 @@ CONTAINS
       ice%uabs_vav(  vi) = SQRT( ice%u_vav(  vi)**2 + ice%v_vav(  vi)**2)
     END DO
 
-  ! == Calculate vertical velocities
-
-    CALL calc_vertical_velocities( mesh, ice, BMB)
-
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
-  END SUBROUTINE solve_stress_balance
+  END SUBROUTINE calc_secondary_velocities
 
   SUBROUTINE remap_velocity_solver( mesh_old, mesh_new, ice)
     ! Remap the velocity solver for the chosen stress balance approximation
@@ -208,18 +236,26 @@ CONTAINS
       ! No need to do anything
     ELSEIF (C%choice_stress_balance_approximation == 'SIA') THEN
       CALL remap_SIA_solver(  mesh_old, mesh_new, ice%SIA)
+      CALL set_ice_velocities_to_SIA_results( mesh_new, ice, ice%SIA)
     ELSEIF (C%choice_stress_balance_approximation == 'SSA') THEN
       CALL remap_SSA_solver(  mesh_old, mesh_new, ice%SSA)
+      CALL set_ice_velocities_to_SSA_results( mesh_new, ice, ice%SSA)
     ELSEIF (C%choice_stress_balance_approximation == 'SIA/SSA') THEN
       CALL remap_SIA_solver(  mesh_old, mesh_new, ice%SIA)
       CALL remap_SSA_solver(  mesh_old, mesh_new, ice%SSA)
+      CALL set_ice_velocities_to_SIASSA_results( mesh_new, ice, ice%SIA, ice%SSA)
     ELSEIF (C%choice_stress_balance_approximation == 'DIVA') THEN
       CALL remap_DIVA_solver( mesh_old, mesh_new, ice%DIVA)
+      CALL set_ice_velocities_to_DIVA_results( mesh_new, ice, ice%DIVA)
     ELSEIF (C%choice_stress_balance_approximation == 'BPA') THEN
       CALL remap_BPA_solver(  mesh_old, mesh_new, ice%BPA)
+      CALL set_ice_velocities_to_BPA_results( mesh_new, ice, ice%BPA)
     ELSE
       CALL crash('unknown choice_stress_balance_approximation "' // TRIM( C%choice_stress_balance_approximation) // '"!')
     END IF
+
+    ! Calculate all secondary ice velocities (surface, base, vertical average)
+    CALL calc_secondary_velocities( mesh_new, ice)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

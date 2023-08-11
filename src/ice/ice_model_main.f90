@@ -22,6 +22,8 @@ MODULE ice_model_main
   USE ice_model_types                                        , ONLY: type_ice_model, type_ice_pc
   USE reference_geometries                                   , ONLY: type_reference_geometry
   USE region_types                                           , ONLY: type_model_region
+  USE SMB_model_types                                        , ONLY: type_SMB_model
+  USE BMB_model_types                                        , ONLY: type_BMB_model
   USE GIA_model_types                                        , ONLY: type_GIA_model
   USE ice_model_memory                                       , ONLY: allocate_ice_model
   USE ice_model_utilities                                    , ONLY: determine_masks, calc_bedrock_CDFs, calc_grounded_fractions, calc_zeta_gradients, &
@@ -35,7 +37,8 @@ MODULE ice_model_main
   USE ice_velocity_main                                      , ONLY: initialise_velocity_solver, solve_stress_balance, remap_velocity_solver, &
                                                                      create_restart_file_ice_velocity, write_to_restart_file_ice_velocity, &
                                                                      map_velocities_from_b_to_c_2D
-  USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_1D, gather_to_all_logical_1D
+  USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_1D, gather_to_all_logical_1D, distribute_from_master_int_1D, &
+                                                                     distribute_from_master_int_2D
   USE netcdf_basic                                           , ONLY: create_new_netcdf_file_for_writing, close_netcdf_file, open_existing_netcdf_file_for_writing
   USE netcdf_output                                          , ONLY: generate_filename_XXXXXdotnc, setup_mesh_in_netcdf_file, add_time_dimension_to_file, &
                                                                      add_field_dp_0D, add_field_mesh_dp_2D, write_time_to_file, write_to_field_multopt_mesh_dp_2D, &
@@ -387,16 +390,18 @@ CONTAINS
 
   END SUBROUTINE create_restart_files_ice_model
 
-  SUBROUTINE remap_ice_dynamics_model( mesh_old, mesh_new, ice, refgeo_PD, GIA, time, scalars, region_name)
+  SUBROUTINE remap_ice_dynamics_model( mesh_old, mesh_new, ice, refgeo_PD, SMB, BMB, GIA, time, scalars, region_name)
     ! Remap/reallocate all the data of the ice dynamics model
 
     IMPLICIT NONE
 
     ! In/output variables:
     TYPE(type_mesh),                        INTENT(IN)    :: mesh_old
-    TYPE(type_mesh),                        INTENT(IN)    :: mesh_new
+    TYPE(type_mesh),                        INTENT(INOUT) :: mesh_new
     TYPE(type_ice_model),                   INTENT(INOUT) :: ice
     TYPE(type_reference_geometry),          INTENT(IN)    :: refgeo_PD
+    TYPE(type_SMB_model),                   INTENT(IN)    :: SMB
+    TYPE(type_BMB_model),                   INTENT(IN)    :: BMB
     TYPE(type_GIA_model),                   INTENT(IN)    :: GIA
     REAL(dp),                               INTENT(IN)    :: time
     TYPE(type_regional_scalars),            INTENT(OUT)   :: scalars
@@ -687,8 +692,8 @@ CONTAINS
 !    ! Smooth the ice at the calving front to improve model stability
 !    CALL relax_calving_front_after_mesh_update( mesh_new, ice)
 
-    ! Sub-grid fractions
-    ! ==================
+  ! Sub-grid fractions
+  ! ==================
 
     ! Compute bedrock cumulative density function
     CALL calc_bedrock_CDFs( mesh_new, refgeo_PD, ice)
@@ -726,6 +731,11 @@ CONTAINS
   ! ======================
 
     CALL calc_ice_model_scalars( mesh_new, ice, refgeo_PD, scalars)
+
+  ! Relax ice geometry around the calving front
+  ! ===========================================
+
+    CALL relax_calving_front( mesh_old, mesh_new, ice, SMB, BMB)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -827,6 +837,291 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE remap_ice_thickness
+
+  SUBROUTINE relax_calving_front( mesh_old, mesh, ice, SMB, BMB)
+    ! Relax ice thickness around the calving front
+    !
+    ! This routine "steps out of time" for a bit (default dt_relax = 2 yr), where it
+    ! lets the ice thickness near the calving front relax for a little bit. To achieve
+    ! this, it uses the BC_prescr_mask optional arguments of the velocity solver and the
+    ! thickness solver to keep velocities and thickness fixed over parts of the domain.
+    ! In this case, it keeps them fixed everywhere except over the open ocean, and the
+    ! first 5 shelf vertices inward from the calving front. This allows the little bumps
+    ! that appear in the ice thickness after remapping, which seriously slow down the
+    ! velocity solution, to relax a little.
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh_old
+    TYPE(type_mesh),                        INTENT(INOUT) :: mesh
+    TYPE(type_ice_model),                   INTENT(INOUT) :: ice
+    TYPE(type_SMB_model),                   INTENT(IN)    :: SMB
+    TYPE(type_BMB_model),                   INTENT(IN)    :: BMB
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'relax_calving_front'
+    LOGICAL,  DIMENSION(mesh%nV)                          :: mask_icefree_ocean_tot
+    LOGICAL,  DIMENSION(mesh%nV)                          :: mask_floating_ice_tot
+    LOGICAL,  DIMENSION(mesh%nV)                          :: mask_cf_fl_tot
+    INTEGER,  DIMENSION(mesh%nV)                          :: BC_prescr_mask_tot
+    INTEGER,  DIMENSION(mesh%nTri)                        :: BC_prescr_mask_b_tot
+    INTEGER,  DIMENSION(mesh%nTri,mesh%nz)                :: BC_prescr_mask_bk_tot
+    INTEGER,  DIMENSION(mesh%vi1:mesh%vi2)                :: BC_prescr_mask
+    INTEGER,  DIMENSION(mesh%ti1:mesh%ti2)                :: BC_prescr_mask_b
+    INTEGER,  DIMENSION(mesh%ti1:mesh%ti2,mesh%nz)        :: BC_prescr_mask_bk
+    INTEGER,  DIMENSION(mesh%nV)                          :: map
+    INTEGER,  DIMENSION(mesh%nV)                          :: stack
+    INTEGER                                               :: stackN
+    INTEGER,  DIMENSION(mesh%nV)                          :: stack2
+    INTEGER                                               :: stack2N
+    INTEGER                                               :: vi
+    INTEGER                                               :: it
+    INTEGER,  PARAMETER                                   :: nV_around_calving_front = 5
+    INTEGER                                               :: i
+    INTEGER                                               :: ci,vj
+    INTEGER                                               :: ti,via, vib, vic
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: BC_prescr_Hi
+    REAL(dp), DIMENSION(mesh%ti1:mesh%ti2)                :: BC_prescr_u_b
+    REAL(dp), DIMENSION(mesh%ti1:mesh%ti2)                :: BC_prescr_v_b
+    REAL(dp), DIMENSION(mesh%ti1:mesh%ti2,mesh%nz)        :: BC_prescr_u_bk
+    REAL(dp), DIMENSION(mesh%ti1:mesh%ti2,mesh%nz)        :: BC_prescr_v_bk
+    REAL(dp), PARAMETER                                   :: dt_relax = 2._dp   ! [yr] Time to relax the ice around the calving front
+    REAL(dp)                                              :: t_pseudo
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: SMB_new
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: BMB_new
+    REAL(dp)                                              :: visc_it_norm_dUV_tol_save
+    INTEGER                                               :: visc_it_nit_save
+    REAL(dp)                                              :: visc_it_relax_save
+    REAL(dp)                                              :: visc_eff_min_save
+    REAL(dp)                                              :: vel_max_save
+    REAL(dp)                                              :: stress_balance_PETSc_rtol_save
+    REAL(dp)                                              :: stress_balance_PETSc_abstol_save
+    REAL(dp)                                              :: Glens_flow_law_epsilon_sq_0_save
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: Hi_tplusdt
+
+    CHARACTER(LEN=256) :: filename
+    INTEGER :: ncid
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+!    ! DENK DROM
+!    filename = TRIM( C%output_dir) // 'mesh.nc'
+!    CALL create_new_netcdf_file_for_writing( filename, ncid)
+!    CALL setup_mesh_in_netcdf_file( filename, ncid, mesh)
+!    CALL close_netcdf_file( ncid)
+!
+!    ! DENK DROM
+!    CALL save_variable_as_netcdf_dp_1D( ice%Hi, 'Hi')
+!    CALL save_variable_as_netcdf_dp_1D( ice%u_vav_b, 'u_vav_b')
+!    CALL save_variable_as_netcdf_dp_1D( ice%v_vav_b, 'v_vav_b')
+
+    ! Gather global masks
+    CALL gather_to_all_logical_1D( ice%mask_icefree_ocean, mask_icefree_ocean_tot)
+    CALL gather_to_all_logical_1D( ice%mask_floating_ice , mask_floating_ice_tot )
+    CALL gather_to_all_logical_1D( ice%mask_cf_fl        , mask_cf_fl_tot        )
+
+  ! == Create the relaxation mask
+  ! =============================
+
+    ! Create a mask over the entire ice-free ocean, and 5 vertices into the shelf
+    ! NOTE: 0 = velocities and dH/dt are solved
+    !       1 = velocities and H are prescribed at remapped values)
+
+    ! Let the master do this (difficult to parallelise)
+    IF (par%master) THEN
+
+      ! Initialise mask
+      BC_prescr_mask_tot   = 1
+
+      ! First mark the open ocean on the mask
+      DO vi = 1, mesh%nV
+        IF (mask_icefree_ocean_tot( vi)) THEN
+          BC_prescr_mask_tot( vi) = 0
+        END IF
+      END DO ! DO vi = 1, mesh%nV
+
+      ! Initialise flood-fill
+      map    = 0
+      stackN = 0
+
+      ! Initialise with the floating calving front
+      DO vi = 1, mesh%nV
+        IF (mask_cf_fl_tot( vi)) THEN
+          map( vi) = 1
+          stackN = stackN + 1
+          stack( stackN) = vi
+        END IF
+      END DO ! DO vi = 1, mesh%nV
+
+      ! Expand into shelf
+      DO it = 1, nV_around_calving_front
+
+        ! Initialise the second stack
+        stack2N = 0
+
+        ! Go over the entire stack
+        DO i = 1, stackN
+
+          ! Take a vertex from the stack
+          vi = stack( i)
+
+          ! Mark it on the mask
+          BC_prescr_mask_tot( vi) = 0
+
+          ! Mark it on the map
+          map( vi) = 2
+
+          ! Add all its un-mapped, floating neighbours to the new stack
+          DO ci = 1, mesh%nC( vi)
+            vj = mesh%C( vi,ci)
+            IF (map( vj) == 0 .AND. mask_floating_ice_tot( vj)) THEN
+              map( vj) = 1
+              stack2N = stack2N + 1
+              stack2( stack2N) = vj
+            END IF
+          END DO !  DO ci = 1, mesh%nC( vi)
+
+        END DO ! DO i = 1, stackN
+
+        ! Cycle the stacks
+        stack( 1:stack2N) = stack2( 1:stack2N)
+        stackN = stack2N
+
+      END DO ! DO it = 1, nV_around_calving_front
+
+      ! Fill in the b-grid masks
+
+      BC_prescr_mask_b_tot  = 0
+      BC_prescr_mask_bk_tot = 0
+
+      DO ti = 1, mesh%nTri
+
+        ! The three vertices spanning triangle ti
+        via = mesh%Tri( ti,1)
+        vib = mesh%Tri( ti,2)
+        vic = mesh%Tri( ti,3)
+
+        ! Only prescribe velocities on triangles where thickness is prescribed on all three corners
+        IF (BC_prescr_mask_tot( via) == 1 .AND. &
+            BC_prescr_mask_tot( vib) == 1 .AND. &
+            BC_prescr_mask_tot( vic) == 1) THEN
+          BC_prescr_mask_b_tot(  ti  ) = 1
+          BC_prescr_mask_bk_tot( ti,:) = 1
+        END IF
+
+      END DO ! DO ti = 1, mesh%nTri
+
+    END IF ! IF (par%master) THEN
+
+    ! Distribute BC masks to all processes
+    CALL distribute_from_master_int_1D( BC_prescr_mask_tot   , BC_prescr_mask   )
+    CALL distribute_from_master_int_1D( BC_prescr_mask_b_tot , BC_prescr_mask_b )
+    CALL distribute_from_master_int_2D( BC_prescr_mask_bk_tot, BC_prescr_mask_bk)
+
+!    ! DENK DROM
+!    CALL save_variable_as_netcdf_int_1D( BC_prescr_mask   , 'BC_prescr_mask'   )
+!    CALL save_variable_as_netcdf_int_1D( BC_prescr_mask_b , 'BC_prescr_mask_b' )
+!    CALL save_variable_as_netcdf_int_2D( BC_prescr_mask_bk, 'BC_prescr_mask_bk')
+
+  ! == Fill in prescribed velocities and thicknesses away from the front
+  ! ====================================================================
+
+    BC_prescr_Hi   = ice%Hi
+    BC_prescr_u_b  = ice%u_vav_b
+    BC_prescr_v_b  = ice%v_vav_b
+    BC_prescr_u_bk = ice%u_3D_b
+    BC_prescr_v_bk = ice%v_3D_b
+
+!    ! DENK DROM
+!    CALL save_variable_as_netcdf_dp_1D( BC_prescr_Hi  , 'BC_prescr_Hi'  )
+!    CALL save_variable_as_netcdf_dp_1D( BC_prescr_u_b , 'BC_prescr_u_b' )
+!    CALL save_variable_as_netcdf_dp_1D( BC_prescr_v_b , 'BC_prescr_v_b' )
+!     CALL save_variable_as_netcdf_dp_2D( BC_prescr_u_bk, 'BC_prescr_u_bk')
+!     CALL save_variable_as_netcdf_dp_2D( BC_prescr_v_bk, 'BC_prescr_v_bk')
+
+  ! == Save proper values of config parameters for the velocity solver
+  ! ==================================================================
+
+    visc_it_norm_dUV_tol_save                  = C%visc_it_norm_dUV_tol
+    visc_it_nit_save                           = C%visc_it_nit
+    visc_it_relax_save                         = C%visc_it_relax
+    visc_eff_min_save                          = C%visc_eff_min
+    vel_max_save                               = C%vel_max
+    stress_balance_PETSc_rtol_save             = C%stress_balance_PETSc_rtol
+    stress_balance_PETSc_abstol_save           = C%stress_balance_PETSc_abstol
+    Glens_flow_law_epsilon_sq_0_save           = C%Glens_flow_law_epsilon_sq_0
+
+  ! == Set temporary, less strict values of config parameters for the velocity solver
+  ! =================================================================================
+
+    C%visc_it_norm_dUV_tol                  = 5E-4_dp                          ! Stop criterion for the viscosity iteration: the L2-norm of successive velocity solutions should be smaller than this number
+    C%visc_it_nit                           = 20                               ! Maximum number of effective viscosity iterations
+    C%visc_it_relax                         = 0.3_dp                           ! Relaxation parameter for subsequent viscosity iterations (for improved stability)
+    C%visc_eff_min                          = 1E5_dp                           ! Minimum value for effective viscosity
+    C%vel_max                               = 5000._dp                         ! Velocities are limited to this value
+    C%stress_balance_PETSc_rtol             = 1E-3_dp                          ! PETSc solver - stop criterion, relative difference (iteration stops if rtol OR abstol is reached)
+    C%stress_balance_PETSc_abstol           = 1E-2_dp                          ! PETSc solver - stop criterion, absolute difference
+    C%Glens_flow_law_epsilon_sq_0           = 1E-6_dp                          ! Normalisation term so that zero strain rates produce a high but finite viscosity
+
+  ! == Remap SMB and BMB to get more stable ice thickness
+  ! =====================================================
+
+    CALL map_from_mesh_to_mesh_2D( mesh_old, mesh, SMB%SMB, SMB_new, '2nd_order_conservative')
+    CALL map_from_mesh_to_mesh_2D( mesh_old, mesh, BMB%BMB, BMB_new, '2nd_order_conservative')
+
+  ! == Relax the ice thickness for a few time steps
+  ! ===============================================
+
+    t_pseudo = 0._dp
+
+    pseudo_time: DO WHILE (t_pseudo < dt_relax)
+
+      ! Update velocity solution around the calving front
+      CALL solve_stress_balance( mesh, ice, BMB_new, BC_prescr_mask_b, BC_prescr_u_b, BC_prescr_v_b, BC_prescr_mask_bk, BC_prescr_u_bk, BC_prescr_v_bk)
+
+      ! Calculate dH/dt around the calving front
+      CALL calc_dHi_dt( mesh, ice%Hi, ice%u_vav_b, ice%v_vav_b, SMB_new, BMB_new, ice%mask_noice, C%dt_ice_min, ice%dHi_dt, Hi_tplusdt, BC_prescr_mask, BC_prescr_Hi)
+
+      ! Update ice thickness and advance pseudo-time
+      ice%Hi = Hi_tplusdt
+      t_pseudo = t_pseudo + C%dt_ice_min
+!      IF (par%master) WRITE(0,*) '    out-of-time calving front relaxation: t_pseudo = ', t_pseudo, ', max( dH/dt) = ', MAXVAL( ABS( ice%dHi_dt))
+
+      ! Update basic geometry
+      DO vi = mesh%vi1, mesh%vi2
+        ice%Hs ( vi) = ice_surface_elevation( ice%Hi( vi), ice%Hb( vi), ice%SL( vi))
+        ice%Hib( vi) = ice%Hs( vi) - ice%Hi( vi)
+        ice%TAF( vi) = thickness_above_floatation( ice%Hi( vi), ice%Hb( vi), ice%SL( vi))
+      END DO
+
+    END DO pseudo_time ! DO WHILE (t_pseudo < dt_relax)
+
+!    ! DENK DROM
+!    CALL save_variable_as_netcdf_dp_1D( ice%Hi     , 'Hi_new')
+!    CALL save_variable_as_netcdf_dp_1D( ice%u_vav_b, 'u_vav_b_new')
+!    CALL save_variable_as_netcdf_dp_1D( ice%v_vav_b, 'v_vav_b_new')
+
+  ! == Reinstate proper values of config parameters for the velocity solver
+  ! =======================================================================
+
+    C%visc_it_norm_dUV_tol                  = visc_it_norm_dUV_tol_save
+    C%visc_it_nit                           = visc_it_nit_save
+    C%visc_it_relax                         = visc_it_relax_save
+    C%visc_eff_min                          = visc_eff_min_save
+    C%vel_max                               = vel_max_save
+    C%stress_balance_PETSc_rtol             = stress_balance_PETSc_rtol_save
+    C%stress_balance_PETSc_abstol           = stress_balance_PETSc_abstol_save
+    C%Glens_flow_law_epsilon_sq_0           = Glens_flow_law_epsilon_sq_0_save
+
+!    ! DENK DROM
+!    CALL crash('whoopsiedaisy!')
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE relax_calving_front
 
 ! ===== Predictor-corrector scheme =====
 ! ======================================

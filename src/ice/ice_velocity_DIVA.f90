@@ -241,7 +241,7 @@ CONTAINS
 
       ! If we've reached the maximum allowed number of iterations without converging, throw a warning
       IF (viscosity_iteration_i > C%visc_it_nit) THEN
-        CALL warning('viscosity iteration failed to converge within {int_01} iterations!', int_01 = C%visc_it_nit)
+        IF (par%master) CALL warning('viscosity iteration failed to converge within {int_01} iterations!', int_01 = C%visc_it_nit)
         EXIT viscosity_iteration
       END IF
 
@@ -277,6 +277,8 @@ CONTAINS
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: tau_bx_a
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: tau_by_a
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: eta_3D_a
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: u_3D_a
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: v_3D_a
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -290,6 +292,8 @@ CONTAINS
     ALLOCATE( tau_bx_a( mesh_old%vi1: mesh_old%vi2             ))
     ALLOCATE( tau_by_a( mesh_old%vi1: mesh_old%vi2             ))
     ALLOCATE( eta_3D_a( mesh_old%vi1: mesh_old%vi2, mesh_old%nz))
+    ALLOCATE( u_3D_a  ( mesh_old%vi1: mesh_old%vi2, mesh_old%nz))
+    ALLOCATE( v_3D_a  ( mesh_old%vi1: mesh_old%vi2, mesh_old%nz))
 
     ! Map data from the triangles of the old mesh to the vertices of the old mesh
     CALL map_b_a_2D( mesh_old, DIVA%u_vav_b , u_vav_a )
@@ -297,6 +301,8 @@ CONTAINS
     CALL map_b_a_2D( mesh_old, DIVA%tau_bx_b, tau_bx_a)
     CALL map_b_a_2D( mesh_old, DIVA%tau_by_b, tau_by_a)
     CALL map_b_a_3D( mesh_old, DIVA%eta_3D_b, eta_3D_a)
+    CALL map_b_a_3D( mesh_old, DIVA%u_3D_b  , u_3D_a  )
+    CALL map_b_a_3D( mesh_old, DIVA%v_3D_b  , v_3D_a  )
 
     ! Remap data from the vertices of the old mesh to the vertices of the new mesh
     CALL map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, u_vav_a , '2nd_order_conservative')
@@ -304,6 +310,8 @@ CONTAINS
     CALL map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, tau_bx_a, '2nd_order_conservative')
     CALL map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, tau_by_a, '2nd_order_conservative')
     CALL map_from_mesh_to_mesh_with_reallocation_3D( mesh_old, mesh_new, eta_3D_a, '2nd_order_conservative')
+    CALL map_from_mesh_to_mesh_with_reallocation_3D( mesh_old, mesh_new, u_3D_a  , '2nd_order_conservative')
+    CALL map_from_mesh_to_mesh_with_reallocation_3D( mesh_old, mesh_new, v_3D_a  , '2nd_order_conservative')
 
     ! Reallocate memory for the data on the triangles
     CALL reallocate_bounds( DIVA%u_vav_b                     , mesh_new%ti1, mesh_new%ti2             )
@@ -311,13 +319,17 @@ CONTAINS
     CALL reallocate_bounds( DIVA%tau_bx_b                    , mesh_new%ti1, mesh_new%ti2             )
     CALL reallocate_bounds( DIVA%tau_by_b                    , mesh_new%ti1, mesh_new%ti2             )
     CALL reallocate_bounds( DIVA%eta_3D_b                    , mesh_new%ti1, mesh_new%ti2, mesh_new%nz)
+    CALL reallocate_bounds( DIVA%u_3D_b                      , mesh_new%ti1, mesh_new%ti2, mesh_new%nz)
+    CALL reallocate_bounds( DIVA%v_3D_b                      , mesh_new%ti1, mesh_new%ti2, mesh_new%nz)
 
     ! Map data from the vertices of the new mesh to the triangles of the new mesh
-    CALL map_a_b_2D( mesh_new, u_vav_a , DIVA%u_vav_b)
-    CALL map_a_b_2D( mesh_new, v_vav_a , DIVA%v_vav_b)
+    CALL map_a_b_2D( mesh_new, u_vav_a , DIVA%u_vav_b )
+    CALL map_a_b_2D( mesh_new, v_vav_a , DIVA%v_vav_b )
     CALL map_a_b_2D( mesh_new, tau_bx_a, DIVA%tau_bx_b)
     CALL map_a_b_2D( mesh_new, tau_by_a, DIVA%tau_by_b)
     CALL map_a_b_3D( mesh_new, eta_3D_a, DIVA%eta_3D_b)
+    CALL map_a_b_3D( mesh_new, u_3D_a  , DIVA%u_3D_b  )
+    CALL map_a_b_3D( mesh_new, v_3D_a  , DIVA%v_3D_b  )
 
     ! Clean up after yourself
     DEALLOCATE( u_vav_a )
@@ -325,6 +337,8 @@ CONTAINS
     DEALLOCATE( tau_bx_a)
     DEALLOCATE( tau_by_a)
     DEALLOCATE( eta_3D_a)
+    DEALLOCATE( u_3D_a  )
+    DEALLOCATE( v_3D_a  )
 
   ! Reallocate everything else
   ! ==========================
@@ -333,8 +347,8 @@ CONTAINS
 !   CALL reallocate_bounds( DIVA%v_vav_b                     , mesh_new%ti1, mesh_new%ti2             )
     CALL reallocate_bounds( DIVA%u_base_b                    , mesh_new%ti1, mesh_new%ti2             )           ! [m yr^-1] 2-D horizontal ice velocity at the ice base
     CALL reallocate_bounds( DIVA%v_base_b                    , mesh_new%ti1, mesh_new%ti2             )
-    CALL reallocate_bounds( DIVA%u_3D_b                      , mesh_new%ti1, mesh_new%ti2, mesh_new%nz)           ! [m yr^-1] 3-D horizontal ice velocity
-    CALL reallocate_bounds( DIVA%v_3D_b                      , mesh_new%ti1, mesh_new%ti2, mesh_new%nz)
+!   CALL reallocate_bounds( DIVA%u_3D_b                      , mesh_new%ti1, mesh_new%ti2, mesh_new%nz)           ! [m yr^-1] 3-D horizontal ice velocity
+!   CALL reallocate_bounds( DIVA%v_3D_b                      , mesh_new%ti1, mesh_new%ti2, mesh_new%nz)
     CALL reallocate_bounds( DIVA%du_dx_a                     , mesh_new%vi1, mesh_new%vi2             )           ! [yr^-1] 2-D horizontal strain rates
     CALL reallocate_bounds( DIVA%du_dy_a                     , mesh_new%vi1, mesh_new%vi2             )
     CALL reallocate_bounds( DIVA%dv_dx_a                     , mesh_new%vi1, mesh_new%vi2             )
