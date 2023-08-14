@@ -28,6 +28,7 @@ MODULE ice_model_utilities
   USE mesh_operators                                         , ONLY: ddx_a_a_2D, ddy_a_a_2D, map_a_b_2D, ddx_a_b_2D, ddy_a_b_2D, &
                                                                      ddx_b_a_2D, ddy_b_a_2D
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_1D
+  USE mesh_utilities                                         , ONLY: calc_Voronoi_cell
 
   IMPLICIT NONE
 
@@ -326,9 +327,9 @@ CONTAINS
     REAL(dp), DIMENSION(mesh%nV)                       :: TAF_tot
     REAL(dp), DIMENSION(mesh%ti1:mesh%ti2)             :: TAF_b
     REAL(dp), DIMENSION(mesh%nTri)                     :: TAF_b_tot
-    INTEGER                                            :: vi, ci, vj, iti, iti2, ti1, ti2
+    INTEGER                                            :: vi, ci, vj, iti1, iti2, ti1, ti2, iti, ti
     REAL(dp)                                           :: TAF_max, TAF_min
-    REAL(dp), DIMENSION(2)                             :: va, ccb1, ccb2
+    REAL(dp), DIMENSION(2)                             :: va, vb, vc
     REAL(dp)                                           :: TAFa, TAFb, TAFc, A_vor, A_tri_tot, A_tri_grnd, A_grnd
 
     ! Add routine to path
@@ -377,27 +378,90 @@ CONTAINS
       va   = mesh%V( vi,:)
       TAFa = TAF_tot( vi)
 
-      DO iti = 1, mesh%niTri( vi)
+      IF (mesh%VBI( vi) == 0) THEN
+        ! Free vertex
 
-        iti2 = iti + 1
-        IF (iti == mesh%niTri( vi)) iti2 = 1
+        DO iti1 = 1, mesh%niTri( vi)
 
-        ti1 = mesh%iTri( vi,iti )
-        ti2 = mesh%iTri( vi,iti2)
+          iti2 = iti1 + 1
+          IF (iti2 == mesh%niTri( vi) + 1) iti2 = 1
 
-        ccb1 = mesh%Tricc( ti1,:)
-        ccb2 = mesh%Tricc( ti2,:)
+          ti1 = mesh%iTri( vi,iti1)
+          ti2 = mesh%iTri( vi,iti2)
 
-        TAFb = TAF_b_tot( ti1)
-        TAFc = TAF_b_tot( ti2)
+          vb = mesh%Tricc( ti1,:)
+          vc = mesh%Tricc( ti2,:)
+
+          TAFb = TAF_b_tot( ti1)
+          TAFc = TAF_b_tot( ti2)
+
+          ! Calculate total area of, and grounded area within, this subtriangle
+          CALL calc_grounded_area_triangle( va, vb, vc, TAFa, TAFb, TAFc, A_tri_tot, A_tri_grnd)
+
+          A_vor  = A_vor  + A_tri_tot
+          A_grnd = A_grnd + A_tri_grnd
+
+        END DO ! DO vori1 = 1, nVor
+
+      ELSE
+        ! Border vertex
+
+        ! First subtriangle
+        vj   = mesh%C( vi,1)
+        vb   = 0.5_dp * (mesh%V(  vi,:) + mesh%V(  vj,:))
+        TAFb = 0.5_dp * (TAF_tot( vi  ) + TAF_tot( vj  ))
+
+        iti  = 1
+        ti   = mesh%iTri( vi,iti)
+        vc   = mesh%Tricc( ti,:)
+        TAFc = TAF_b_tot( ti)
 
         ! Calculate total area of, and grounded area within, this subtriangle
-        CALL calc_grounded_area_triangle( va, ccb1, ccb2, TAFa, TAFb, TAFc, A_tri_tot, A_tri_grnd)
+        CALL calc_grounded_area_triangle( va, vb, vc, TAFa, TAFb, TAFc, A_tri_tot, A_tri_grnd)
 
         A_vor  = A_vor  + A_tri_tot
         A_grnd = A_grnd + A_tri_grnd
 
-      END DO ! DO iti = 1, mesh%niTri( vi)
+        ! Middle subtriangles
+        DO iti1 = 1, mesh%niTri( vi)-1
+
+          iti2 = iti1 + 1
+          IF (iti2 == mesh%niTri( vi) + 1) iti2 = 1
+
+          ti1 = mesh%iTri( vi,iti1)
+          ti2 = mesh%iTri( vi,iti2)
+
+          vb = mesh%Tricc( ti1,:)
+          vc = mesh%Tricc( ti2,:)
+
+          TAFb = TAF_b_tot( ti1)
+          TAFc = TAF_b_tot( ti2)
+
+          ! Calculate total area of, and grounded area within, this subtriangle
+          CALL calc_grounded_area_triangle( va, vb, vc, TAFa, TAFb, TAFc, A_tri_tot, A_tri_grnd)
+
+          A_vor  = A_vor  + A_tri_tot
+          A_grnd = A_grnd + A_tri_grnd
+
+        END DO ! DO vori1 = 1, nVor
+
+        ! Last subtriangle
+        iti  = mesh%niTri( vi)
+        ti   = mesh%iTri( vi,iti)
+        vb   = mesh%Tricc( ti,:)
+        TAFb = TAF_b_tot( ti)
+
+        vj   = mesh%C( vi, mesh%nC( vi))
+        vc   = 0.5_dp * (mesh%V(  vi,:) + mesh%V(  vj,:))
+        TAFc = 0.5_dp * (TAF_tot( vi  ) + TAF_tot( vj  ))
+
+        ! Calculate total area of, and grounded area within, this subtriangle
+        CALL calc_grounded_area_triangle( va, vb, vc, TAFa, TAFb, TAFc, A_tri_tot, A_tri_grnd)
+
+        A_vor  = A_vor  + A_tri_tot
+        A_grnd = A_grnd + A_tri_grnd
+
+      END IF ! IF (mesh%VBI( vi) == 0) THEN
 
       ! Calculate the sub-grid grounded fraction of this Voronoi cell
       fraction_gr( vi) = MIN( 1._dp, MAX( 0._dp, A_grnd / A_vor ))
@@ -493,43 +557,63 @@ CONTAINS
 
     ! Local variables:
     REAL(dp)                                           :: A_flt
+    REAL(dp), PARAMETER                                :: tol = 1E-9_dp
+    REAL(dp)                                           :: TAFa_corr, TAFb_corr, TAFc_corr
 
     ! Determine total area of this subtriangle
     A_tri_tot = triangle_area( va, vb, vc)
 
-    IF     (TAFa >= 0._dp .AND. TAFb >= 0._dp .AND. TAFc >= 0._dp) THEN
+    ! TAF of zero can cause problems, correct for this
+    IF (TAFa >= 0._dp) THEN
+      TAFa_corr = MAX( tol, TAFa)
+    ELSE
+      TAFa_corr = MIN( -tol, TAFa)
+    END IF
+    IF (TAFb >= 0._dp) THEN
+      TAFb_corr = MAX( tol, TAFb)
+    ELSE
+      TAFb_corr = MIN( -tol, TAFb)
+    END IF
+    IF (TAFc >= 0._dp) THEN
+      TAFc_corr = MAX( tol, TAFc)
+    ELSE
+      TAFc_corr = MIN( -tol, TAFc)
+    END IF
+
+
+    IF     (TAFa_corr >= 0._dp .AND. TAFb_corr >= 0._dp .AND. TAFc_corr >= 0._dp) THEN
       ! If all three corners are grounded, the answer is trivial
       A_tri_grnd = A_tri_tot
-    ELSEIF (TAFa <= 0._dp .AND. TAFb <= 0._dp .AND. TAFc <= 0._dp) THEN
+    ELSEIF (TAFa_corr <= 0._dp .AND. TAFb_corr <= 0._dp .AND. TAFc_corr <= 0._dp) THEN
       ! If all three corners are floating, the answer is trivial
       A_tri_grnd = 0._dp
     ELSE
       ! At least one corner is grounded and at least one corner is floating
 
-      IF     (TAFa >= 0._dp .AND. TAFb <= 0._dp .AND. TAFc <= 0._dp) THEN
+      IF     (TAFa_corr >= 0._dp .AND. TAFb_corr <= 0._dp .AND. TAFc_corr <= 0._dp) THEN
         ! a is grounded, b and c are floating
-        CALL calc_grounded_area_triangle_1grnd_2flt( va, vb, vc, TAFa, TAFb, TAFc, A_tri_grnd)
-      ELSEIF (TAFa <= 0._dp .AND. TAFb >= 0._dp .AND. TAFc <= 0._dp) THEN
+        CALL calc_grounded_area_triangle_1grnd_2flt( va, vb, vc, TAFa_corr, TAFb_corr, TAFc_corr, A_tri_grnd)
+      ELSEIF (TAFa_corr <= 0._dp .AND. TAFb_corr >= 0._dp .AND. TAFc_corr <= 0._dp) THEN
         ! b is grounded, a and c are floating
-        CALL calc_grounded_area_triangle_1grnd_2flt( vb, vc, va, TAFb, TAFc, TAFa, A_tri_grnd)
-      ELSEIF (TAFa <= 0._dp .AND. TAFb <= 0._dp .AND. TAFc >= 0._dp) THEN
+        CALL calc_grounded_area_triangle_1grnd_2flt( vb, vc, va, TAFb_corr, TAFc_corr, TAFa_corr, A_tri_grnd)
+      ELSEIF (TAFa_corr <= 0._dp .AND. TAFb_corr <= 0._dp .AND. TAFc_corr >= 0._dp) THEN
         ! c is grounded, a and b are floating
-        CALL calc_grounded_area_triangle_1grnd_2flt( vc, va, vb, TAFc, TAFa, TAFb, A_tri_grnd)
-      ELSEIF (TAFa <= 0._dp .AND. TAFb >= 0._dp .AND. TAFc >= 0._dp) THEN
+        CALL calc_grounded_area_triangle_1grnd_2flt( vc, va, vb, TAFc_corr, TAFa_corr, TAFb_corr, A_tri_grnd)
+      ELSEIF (TAFa_corr <= 0._dp .AND. TAFb_corr >= 0._dp .AND. TAFc_corr >= 0._dp) THEN
         ! a is floating, b and c are grounded
-        CALL calc_grounded_area_triangle_1flt_2grnd( va, vb, vc, TAFa, TAFb, TAFc, A_flt)
+        CALL calc_grounded_area_triangle_1flt_2grnd( va, vb, vc, TAFa_corr, TAFb_corr, TAFc_corr, A_flt)
         A_tri_grnd = A_tri_tot - A_flt
-      ELSEIF (TAFa >= 0._dp .AND. TAFb <= 0._dp .AND. TAFc >= 0._dp) THEN
+      ELSEIF (TAFa_corr >= 0._dp .AND. TAFb_corr <= 0._dp .AND. TAFc_corr >= 0._dp) THEN
         ! b is floating, c and a are grounded
-        CALL calc_grounded_area_triangle_1flt_2grnd( vb, vc, va, TAFb, TAFc, TAFa, A_flt)
+        CALL calc_grounded_area_triangle_1flt_2grnd( vb, vc, va, TAFb_corr, TAFc_corr, TAFa_corr, A_flt)
         A_tri_grnd = A_tri_tot - A_flt
-      ELSEIF (TAFa >= 0._dp .AND. TAFb >= 0._dp .AND. TAFc <= 0._dp) THEN
+      ELSEIF (TAFa_corr >= 0._dp .AND. TAFb_corr >= 0._dp .AND. TAFc_corr <= 0._dp) THEN
         ! c is floating, a and b are grounded
-        CALL calc_grounded_area_triangle_1flt_2grnd( vc, va, vb, TAFc, TAFa, TAFb, A_flt)
+        CALL calc_grounded_area_triangle_1flt_2grnd( vc, va, vb, TAFc_corr, TAFa_corr, TAFb_corr, A_flt)
         A_tri_grnd = A_tri_tot - A_flt
       ELSE
         A_tri_grnd = 0._dp
-        CALL crash('TAF = [{dp_01},{dp_02},{dp_03}]', dp_01 = TAFa, dp_02 = TAFb, dp_03 = TAFc)
+        CALL crash('TAF = [{dp_01},{dp_02},{dp_03}]', dp_01 = TAFa_corr, dp_02 = TAFb_corr, dp_03 = TAFc_corr)
       END IF
 
     END IF

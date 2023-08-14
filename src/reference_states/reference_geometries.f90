@@ -1307,7 +1307,11 @@ CONTAINS
     By = (dc / (1 + EXP(-2._dp*(y - wc)/fc))) + &
          (dc / (1 + EXP( 2._dp*(y + wc)/fc)))
 
-    Hi = C%refgeo_idealised_MISMIPplus_Hi_init
+    IF (x > 640E3_dp) THEN
+      Hi = 0._dp
+    ELSE
+      Hi = C%refgeo_idealised_MISMIPplus_Hi_init
+    END IF
     Hb = MAX( Bx + By, zbdeep)
     SL = 0._dp
     Hs = ice_surface_elevation( Hi, Hb, SL)
