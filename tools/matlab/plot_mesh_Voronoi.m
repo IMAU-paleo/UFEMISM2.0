@@ -38,4 +38,6 @@ H.Ax  = axes('parent',H.Fig,'units','pixels','position',[25,25,wa,ha],'fontsize'
   'xtick',[],'ytick',[],'xlim',[mesh.xmin,mesh.xmax],'ylim',[mesh.ymin,mesh.ymax]);
 H.Patch = patch('vertices',V_Vor,'faces',F_Vor,'facecolor','none');
 
+set( H.Ax,'units','normalized');
+
 end

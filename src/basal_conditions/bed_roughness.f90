@@ -138,13 +138,18 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    IF     (C%choice_bed_roughness_parameterised == 'Martin2011') THEN
-      CALL initialise_bed_roughness_Martin2011( mesh, ice)
-    ELSEIF (C%choice_bed_roughness_parameterised == 'SSA_icestream') THEN
-      CALL initialise_bed_roughness_SSA_icestream( mesh, ice)
-    ELSE
-      CALL crash('unknown choice_bed_roughness_parameterised "' // TRIM( C%choice_bed_roughness_parameterised) // '"!')
-    END IF
+    SELECT CASE (C%choice_bed_roughness_parameterised)
+      CASE ('Martin2011')
+        CALL initialise_bed_roughness_Martin2011( mesh, ice)
+      CASE ('SSA_icestream')
+        CALL initialise_bed_roughness_SSA_icestream( mesh, ice)
+      CASE ('MISMIPplus')
+        CALL initialise_bed_roughness_MISMIPplus( mesh, ice)
+      CASE ('MISMIP+')
+        CALL initialise_bed_roughness_MISMIPplus( mesh, ice)
+      CASE DEFAULT
+        CALL crash('unknown choice_bed_roughness_parameterised "' // TRIM( C%choice_bed_roughness_parameterised) // '"!')
+    END SELECT
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -220,6 +225,52 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE initialise_bed_roughness_SSA_icestream
+
+  SUBROUTINE initialise_bed_roughness_MISMIPplus( mesh, ice)
+    ! Determine the basal conditions underneath the ice
+    !
+    ! Idealised case: MISMIP+ (i.e. just a uniform value)
+
+    IMPLICIT NONE
+
+    ! Input variables:
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
+    TYPE(type_ice_model),                INTENT(INOUT) :: ice
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_bed_roughness_MISMIPplus'
+    REAL(dp), PARAMETER                                :: MISMIPplus_alpha_sq = 0.5_dp   ! Coulomb-law friction coefficient [unitless];         see Asay-Davis et al., 2016
+    REAL(dp), PARAMETER                                :: MISMIPplus_beta_sq  = 1.0E4_dp ! Power-law friction coefficient   [Pa m^−1/3 yr^1/3]; idem dito
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    SELECT CASE (C%choice_sliding_law)
+      CASE ('Weertman')
+        ! Uniform sliding factor for the MISMIP+ configuration, using the first (Weertman) sliding law option
+
+        ice%slid_beta_sq  = MISMIPplus_beta_sq
+
+      CASE ('Tsai2015')
+        ! Uniform sliding factor for the MISMIP+ configuration, using the second (Tsai et al., 2015) sliding law option
+
+        ice%slid_alpha_sq = MISMIPplus_alpha_sq
+        ice%slid_beta_sq  = MISMIPplus_beta_sq
+
+      CASE ('Schoof2005')
+        ! Uniform sliding factor for the MISMIP+ configuration, using the third (Schoof, 2005) sliding law option
+
+        ice%slid_alpha_sq = MISMIPplus_alpha_sq
+        ice%slid_beta_sq  = MISMIPplus_beta_sq
+
+      CASE DEFAULT
+        CALL crash('only defined when choice_sliding_law = "Weertman", "Tsai2015", or "Schoof2005"!')
+    END SELECT
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE initialise_bed_roughness_MISMIPplus
 
   ! Initialise bed roughness from a file
   SUBROUTINE initialise_bed_roughness_from_file( mesh, ice, region_name)

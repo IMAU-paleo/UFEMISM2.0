@@ -295,6 +295,15 @@ CONTAINS
     ice%dw_dy_3D                    = 0._dp
     ice%dw_dz_3D                    = 0._dp
 
+  ! == Ice flow regime ==
+  ! =====================
+
+    ALLOCATE( ice%divQ                        ( mesh%vi1:mesh%vi2        ))  ! [m yr^-1] Horizontal ice flux divergence
+    ALLOCATE( ice%R_shear                     ( mesh%vi1:mesh%vi2        ))  ! [0-1]     uabs_base / uabs_surf (0 = pure vertical shear, viscous flow; 1 = pure sliding, plug flow)
+
+    ice%divQ                        = 0._dp
+    ice%R_shear                     = 0._dp
+
   ! == Basal hydrology ==
   ! =====================
 

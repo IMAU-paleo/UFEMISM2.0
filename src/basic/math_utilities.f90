@@ -100,9 +100,38 @@ CONTAINS
     ! Output variables:
     REAL(dp)                                                           :: TAF    ! [m] Ice thickness above floatation
 
-    TAF = Hi - MAX(0._dp, (SL - Hb) * (seawater_density / ice_density))
+    TAF = Hi - MAX( 0._dp, (SL - Hb) * (seawater_density / ice_density))
 
   END FUNCTION thickness_above_floatation
+
+  FUNCTION Hi_from_Hb_Hs_and_SL( Hb, Hs, SL) RESULT( Hi)
+    ! Calculate Hi from Hb, Hs, and SL
+
+    IMPLICIT NONE
+
+    ! Input variables:
+!   REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE, OPTIONAL, INTENT(INOUT) :: i
+    REAL(dp)                                           , INTENT(IN)    :: Hb     ! [m] Bedrock elevation
+    REAL(dp)                                           , INTENT(IN)    :: Hs     ! [m] Surface elevation
+    REAL(dp)                                           , INTENT(IN)    :: SL     ! [m] Water surface elevation
+
+    ! Output variables:
+    REAL(dp)                                                           :: Hi     ! [m] Ice thickness
+
+    ! Local variables:
+    REAL(dp)                                                           :: Hi_float ! [m] Maximum floating ice thickness
+    REAL(dp)                                                           :: Hs_float ! [m] Surface elevation of maximum floating ice thickness
+
+    Hi_float = MAX( 0._dp, (SL - Hb) * (seawater_density / ice_density))
+    Hs_float = Hb + Hi_float
+
+    IF (Hs > Hs_float) THEN
+      Hi = Hs - Hb
+    ELSE
+      Hi = MIN( Hi_float, (Hs - SL) / (1._dp - (ice_density / seawater_density)) )
+    END IF
+
+  END FUNCTION Hi_from_Hb_Hs_and_SL
 
 ! == The error function
 

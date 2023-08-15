@@ -191,6 +191,7 @@ MODULE model_configuration
     REAL(dp)            :: refgeo_idealised_MISMIP_mod_Hi_init_config   = -1._dp                           ! Suggested value: 100 m
     REAL(dp)            :: refgeo_idealised_ISMIP_HOM_L_config          = 0._dp                            ! Suggested value: 5E3 - 160E3 m
     REAL(dp)            :: refgeo_idealised_MISMIPplus_Hi_init_config   = -1._dp                           ! Suggested value: 100 m
+    LOGICAL             :: refgeo_idealised_MISMIPplus_tune_A_config    = .FALSE.                          ! If so, the uniform flow factor A is tuned to achieve a steady-state mid-stream grounding-line position at x = 450 km
 
   ! == Mesh generation
   ! ==================
@@ -891,6 +892,7 @@ MODULE model_configuration
     REAL(dp)            :: refgeo_idealised_MISMIP_mod_Hi_init
     REAL(dp)            :: refgeo_idealised_ISMIP_HOM_L
     REAL(dp)            :: refgeo_idealised_MISMIPplus_Hi_init
+    LOGICAL             :: refgeo_idealised_MISMIPplus_tune_A
 
   ! == Mesh generation
   ! ==================
@@ -1691,6 +1693,7 @@ CONTAINS
       refgeo_idealised_MISMIP_mod_Hi_init_config                  , &
       refgeo_idealised_ISMIP_HOM_L_config                         , &
       refgeo_idealised_MISMIPplus_Hi_init_config                  , &
+      refgeo_idealised_MISMIPplus_tune_A_config                   , &
       choice_initial_mesh_NAM_config                              , &
       choice_initial_mesh_EAS_config                              , &
       choice_initial_mesh_GRL_config                              , &
@@ -2229,6 +2232,7 @@ CONTAINS
     C%refgeo_idealised_MISMIP_mod_Hi_init                    = refgeo_idealised_MISMIP_mod_Hi_init_config
     C%refgeo_idealised_ISMIP_HOM_L                           = refgeo_idealised_ISMIP_HOM_L_config
     C%refgeo_idealised_MISMIPplus_Hi_init                    = refgeo_idealised_MISMIPplus_Hi_init_config
+    C%refgeo_idealised_MISMIPplus_tune_A                     = refgeo_idealised_MISMIPplus_tune_A_config
 
   ! == Mesh generation
   ! ==================

@@ -865,7 +865,7 @@ CONTAINS
 
     ! If p lies outside the mesh domain, throw an error
     IF (p( 1) < mesh%xmin .OR. p( 1) > mesh%xmax .OR. p( 2) < mesh%ymin .OR. p( 2) > mesh%ymax) THEN
-      CALL crash('p lies outside mesh domain!')
+      CALL crash('find_containing_triangle - p lies outside mesh domain!')
     END IF
 
     ! See if the initial guess is correct.
@@ -985,7 +985,7 @@ CONTAINS
 
       ! If no more non-checked neighbours could be found, terminate and throw an error.
       IF (stackN2 == 0 .AND. .NOT. FoundIt) THEN
-        CALL crash('couldnt find triangle containing p = [{dp_01}, {dp_02}]', dp_01 = p(1), dp_02 = p(2))
+        CALL crash('find_containing_triangle - couldnt find triangle containing p = [{dp_01}, {dp_02}]', dp_01 = p(1), dp_02 = p(2))
       END IF
 
     END DO ! DO WHILE (.NOT. FoundIt)
@@ -1043,7 +1043,7 @@ CONTAINS
     END DO ! DO WHILE (ncycle < mesh%nV)
 
     ! If we reach this point, we didnt find the containing vertex - should not be possible, so throw an error
-    CALL crash('couldnt find closest vertex!')
+    CALL crash('find_containing_vertex - couldnt find closest vertex!')
 
   END SUBROUTINE find_containing_vertex
 
@@ -1218,6 +1218,112 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE average_over_domain
+
+! == Set values of border vertices to mean of interior neighbours
+
+  SUBROUTINE set_border_vertices_to_interior_mean_dp_2D( mesh, d_partial)
+    ! Set values of border vertices to mean of interior neighbours
+    ! Used to fix problems with conservative remapping on the border
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                         INTENT(IN)          :: mesh
+    REAL(dp), DIMENSION( mesh%vi1:mesh%vi2), INTENT(INOUT)       :: d_partial
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'set_border_vertices_to_interior_mean_dp_2D'
+    REAL(dp), DIMENSION( mesh%nV)                                :: d_tot
+    INTEGER                                                      :: vi, ci, vj, n_interior_neighbours
+    REAL(dp)                                                     :: d_sum
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Gather global data field
+    CALL gather_to_all_dp_1D( d_partial, d_tot)
+
+    ! First pass: set values of border vertices to mean of interior neighbours
+    ! ...for those border vertices that actually have interior neighbours.
+
+    DO vi = mesh%vi1, mesh%vi2
+      IF (mesh%VBI( vi) > 0) THEN
+
+        n_interior_neighbours = 0
+        d_sum = 0._dp
+
+        DO ci = 1, mesh%nC( vi)
+          vj = mesh%C( vi,ci)
+          IF (mesh%VBI( vj) == 0) THEN
+            n_interior_neighbours = n_interior_neighbours + 1
+            d_sum = d_sum + d_tot( vj)
+          END IF
+        END DO ! DO ci = 1, mesh%nC( vi)
+
+        IF (n_interior_neighbours > 0) THEN
+          d_partial( vi) = d_sum / REAL( n_interior_neighbours,dp)
+        END IF
+
+      END IF ! IF (mesh%VBI( vi) > 0) THEN
+    END DO ! DO vi = mesh%vi1, mesh%vi2
+
+    ! Second pass: set values of border vertices to mean of all neighbours
+    ! ...for those border vertices that have no interior neighbours.
+
+    DO vi = mesh%vi1, mesh%vi2
+      IF (mesh%VBI( vi) > 0) THEN
+
+        n_interior_neighbours = 0
+        d_sum = 0._dp
+
+        DO ci = 1, mesh%nC( vi)
+          vj = mesh%C( vi,ci)
+          IF (mesh%VBI( vj) == 0) THEN
+            n_interior_neighbours = n_interior_neighbours + 1
+          END IF
+          d_sum = d_sum + d_tot( vj)
+        END DO ! DO ci = 1, mesh%nC( vi)
+
+        IF (n_interior_neighbours == 0) THEN
+          d_partial( vi) = d_sum / REAL( mesh%nC( vi),dp)
+        END IF
+
+      END IF ! IF (mesh%VBI( vi) > 0) THEN
+    END DO ! DO vi = mesh%vi1, mesh%vi2
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE set_border_vertices_to_interior_mean_dp_2D
+
+  SUBROUTINE set_border_vertices_to_interior_mean_dp_3D( mesh, d_partial)
+    ! Set values of border vertices to mean of interior neighbours
+    ! Used to fix problems with conservative remapping on the border
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                         INTENT(IN)          :: mesh
+    REAL(dp), DIMENSION(:,:  ),              INTENT(INOUT)       :: d_partial
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'set_border_vertices_to_interior_mean_dp_3D'
+    REAL(dp), DIMENSION(mesh%nV_loc)                             :: d_partial_2D
+    INTEGER                                                      :: k
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    DO k = 1, SIZE( d_partial,2)
+      d_partial_2D = d_partial( :,k)
+      CALL set_border_vertices_to_interior_mean_dp_2D( mesh, d_partial_2D)
+      d_partial( :,k) = d_partial_2D
+    END DO
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE set_border_vertices_to_interior_mean_dp_3D
 
 ! == Flood-fill operations
 
@@ -1686,7 +1792,11 @@ CONTAINS
         CALL find_shared_Voronoi_boundary( mesh, ei, p, q)
         ! Add this shared boundary as a line segment
         n = n + 1
-        line( n,:) = [p(1), p(2), q(1), q(2)]
+        line( n,:) = [ &
+          MAX( mesh%xmin, MIN( mesh%xmax, p(1) )), &
+          MAX( mesh%ymin, MIN( mesh%ymax, p(2) )), &
+          MAX( mesh%xmin, MIN( mesh%xmax, q(1) )), &
+          MAX( mesh%ymin, MIN( mesh%ymax, q(2) ))]
       END IF
 
     END DO ! DO ei = 1, mesh%nE

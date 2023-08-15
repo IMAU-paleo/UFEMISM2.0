@@ -28,7 +28,7 @@ MODULE ice_model_utilities
   USE mesh_operators                                         , ONLY: ddx_a_a_2D, ddy_a_a_2D, map_a_b_2D, ddx_a_b_2D, ddy_a_b_2D, &
                                                                      ddx_b_a_2D, ddy_b_a_2D
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_1D
-  USE mesh_utilities                                         , ONLY: calc_Voronoi_cell
+  USE mesh_utilities                                         , ONLY: calc_Voronoi_cell, interpolate_to_point_dp_2D
 
   IMPLICIT NONE
 
@@ -1499,5 +1499,57 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE calc_mask_noice
+
+  ! == Trivia
+  ! =========
+
+  SUBROUTINE MISMIPplus_adapt_flow_factor( mesh, ice)
+    ! Automatically adapt the uniform flow factor A to achieve a steady-state mid-stream grounding-line position at x = 450 km in the MISMIP+ experiment
+
+    IMPLICIT NONE
+
+    ! In- and output variables
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
+    TYPE(type_ice_model),                INTENT(IN)    :: ice
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'MISMIPplus_adapt_flow_factor'
+    REAL(dp), DIMENSION(2)                             :: pp,qq
+    REAL(dp)                                           :: TAFp,TAFq,lambda_GL, x_GL
+    REAL(dp)                                           :: A_flow_old, f, A_flow_new
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Safety
+    IF (C%choice_ice_rheology_Glen /= 'uniform') THEN
+      CALL crash('only works in MISMIP+ geometry with a uniform flow factor!')
+    END IF
+
+    ! Determine mid-channel grounding-line position
+    pp = [mesh%xmin, 0._dp]
+    qq = pp
+    TAFp = 1._dp
+    TAFq = 1._dp
+    DO WHILE (TAFp * TAFq > 0._dp)
+      pp   = qq
+      TAFp = TAFq
+      qq = pp + [C%maximum_resolution_grounding_line, 0._dp]
+      CALL interpolate_to_point_dp_2D( mesh, ice%TAF, qq, TAFq)
+    END DO
+
+    lambda_GL = TAFp / (TAFp - TAFq)
+    x_GL = lambda_GL * qq( 1) + (1._dp - lambda_GL) * pp( 1)
+
+    ! Adjust the flow factor
+    f = 2._dp ** ((x_GL - 450E3_dp) / 80000._dp)
+    C%uniform_Glens_flow_factor = C%uniform_Glens_flow_factor * f
+
+    IF (par%master) WRITE(0,*) '    MISMIPplus_adapt_flow_factor: x_GL = ', x_GL/1E3, ' km; changed flow factor to ', C%uniform_Glens_flow_factor
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE MISMIPplus_adapt_flow_factor
 
 END MODULE ice_model_utilities

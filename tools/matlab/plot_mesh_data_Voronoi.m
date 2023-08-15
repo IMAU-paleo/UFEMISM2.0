@@ -49,4 +49,6 @@ pos = get( H.Ax,'position');
 H.Cbar = colorbar( H.Ax,'location','eastoutside');
 set( H.Ax,'position',pos);
 
+set( H.Ax,'units','normalized');
+
 end

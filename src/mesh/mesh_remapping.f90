@@ -26,7 +26,8 @@ MODULE mesh_remapping
   USE math_utilities                                         , ONLY: is_in_triangle, lies_on_line_segment, line_integral_xdy, line_integral_mxydx, &
                                                                      line_integral_xydy, crop_line_to_domain, segment_intersection, triangle_area
   USE mesh_utilities                                         , ONLY: is_in_Voronoi_cell, calc_Voronoi_cell, find_containing_vertex, find_containing_triangle, &
-                                                                     find_shared_Voronoi_boundary, check_if_meshes_are_identical
+                                                                     find_shared_Voronoi_boundary, check_if_meshes_are_identical, set_border_vertices_to_interior_mean_dp_2D, &
+                                                                     set_border_vertices_to_interior_mean_dp_3D
   USE mesh_operators                                         , ONLY: calc_all_matrix_operators_mesh
 
   IMPLICIT NONE
@@ -1342,6 +1343,10 @@ CONTAINS
     ! Perform the mapping operation as a matrix multiplication
     CALL multiply_PETSc_matrix_with_vector_1D( map%M, d_src_partial, d_dst_partial)
 
+    ! Set values of border vertices to mean of interior neighbours
+    ! Used to fix problems with conservative remapping on the border
+    CALL set_border_vertices_to_interior_mean_dp_2D( mesh_dst, d_dst_partial)
+
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
@@ -1373,6 +1378,10 @@ CONTAINS
 
     ! Perform the mapping operation as a matrix multiplication
     CALL multiply_PETSc_matrix_with_vector_2D( map%M, d_src_partial, d_dst_partial)
+
+    ! Set values of border vertices to mean of interior neighbours
+    ! Used to fix problems with conservative remapping on the border
+    CALL set_border_vertices_to_interior_mean_dp_3D( mesh_dst, d_dst_partial)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

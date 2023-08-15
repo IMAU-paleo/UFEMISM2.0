@@ -38,6 +38,7 @@ PROGRAM UFEMISM_program
   USE main_validation                                        , ONLY: run_all_unit_tests, run_all_benchmarks
   USE region_types                                           , ONLY: type_model_region
   USE UFEMISM_main_model                                     , ONLY: initialise_model_region, run_model_region
+  USE ice_model_utilities                                    , ONLY: MISMIPplus_adapt_flow_factor
 
   IMPLICIT NONE
 
@@ -52,6 +53,9 @@ PROGRAM UFEMISM_program
 
   ! Computation time tracking
   REAL(dp)                               :: tstart, tstop, tcomp
+
+  ! Surface elevations for the automated flow factor tuning in MISMIP+
+  REAL(dp)                               :: Hs_prev, Hs_cur
 
 ! ===== START =====
 ! =================
@@ -74,6 +78,9 @@ PROGRAM UFEMISM_program
 
   ! Create the resource tracking output file
   CALL create_resource_tracking_file
+
+  ! Initialise surface elevations for the automated flow factor tuning in MISMIP+
+  Hs_cur = 1._dp
 
   ! == Unit testing
   ! ===============
@@ -125,6 +132,17 @@ PROGRAM UFEMISM_program
 
       ! Advance coupling time
       t_coupling = t_end_models
+
+      ! MISMIP+ flow factor tuning for GL position
+      IF (C%refgeo_idealised_MISMIPplus_tune_A) THEN
+        Hs_prev = Hs_cur
+        Hs_cur  = MAXVAL( ANT%ice%Hs)
+        CALL MPI_ALLREDUCE( MPI_IN_PLACE, Hs_cur, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
+        IF (ABS( 1._dp - Hs_cur / Hs_prev) < 5.0E-3_dp) THEN
+          ! The model has converged to a steady state; adapt the flow factor
+          CALL MISMIPplus_adapt_flow_factor( ANT%mesh, ANT%ice)
+        END IF
+      END IF
 
       ! Write to resource tracking file
       CALL write_to_resource_tracking_file( t_coupling)

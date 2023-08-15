@@ -330,6 +330,12 @@ MODULE ice_model_types
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: dw_dy_3D
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: dw_dz_3D
 
+  ! == Ice flow regime ==
+  ! =====================
+
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: divQ                        ! [m yr^-1] Horizontal ice flux divergence
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: R_shear                     ! [0-1]     uabs_base / uabs_surf (0 = pure vertical shear, viscous flow; 1 = pure sliding, plug flow)
+
   ! == Basal hydrology ==
   ! =====================
 

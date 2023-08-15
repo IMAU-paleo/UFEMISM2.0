@@ -211,6 +211,11 @@ CONTAINS
       ice%uabs_vav(  vi) = SQRT( ice%u_vav(  vi)**2 + ice%v_vav(  vi)**2)
     END DO
 
+    ! Slide/shear ratio
+    DO vi = mesh%vi1, mesh%vi2
+      ice%R_shear( vi) = ice%uabs_base( vi) / ice%uabs_surf( vi)
+    END DO
+
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 

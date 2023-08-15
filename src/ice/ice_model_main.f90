@@ -597,6 +597,12 @@ CONTAINS
     CALL reallocate_bounds( ice%dw_dy_3D                    , mesh_new%vi1, mesh_new%vi2, mesh_new%nz)
     CALL reallocate_bounds( ice%dw_dz_3D                    , mesh_new%vi1, mesh_new%vi2, mesh_new%nz)
 
+  ! == Ice flow regime ==
+  ! =====================
+
+    CALL reallocate_bounds( ice%divQ                        , mesh_new%vi1, mesh_new%vi2         )  ! [m yr^-1] Horizontal ice flux divergence
+    CALL reallocate_bounds( ice%R_shear                     , mesh_new%vi1, mesh_new%vi2         )  ! [0-1]     uabs_base / uabs_surf (0 = pure vertical shear, viscous flow; 1 = pure sliding, plug flow)
+
   ! == Basal hydrology ==
   ! =====================
 
@@ -899,23 +905,13 @@ CONTAINS
     REAL(dp)                                              :: stress_balance_PETSc_abstol_save
     REAL(dp)                                              :: Glens_flow_law_epsilon_sq_0_save
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: Hi_tplusdt
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: divQ
 
     CHARACTER(LEN=256) :: filename
     INTEGER :: ncid
 
     ! Add routine to path
     CALL init_routine( routine_name)
-
-!    ! DENK DROM
-!    filename = TRIM( C%output_dir) // 'mesh.nc'
-!    CALL create_new_netcdf_file_for_writing( filename, ncid)
-!    CALL setup_mesh_in_netcdf_file( filename, ncid, mesh)
-!    CALL close_netcdf_file( ncid)
-!
-!    ! DENK DROM
-!    CALL save_variable_as_netcdf_dp_1D( ice%Hi, 'Hi')
-!    CALL save_variable_as_netcdf_dp_1D( ice%u_vav_b, 'u_vav_b')
-!    CALL save_variable_as_netcdf_dp_1D( ice%v_vav_b, 'v_vav_b')
 
     ! Gather global masks
     CALL gather_to_all_logical_1D( ice%mask_icefree_ocean, mask_icefree_ocean_tot)
@@ -1020,11 +1016,6 @@ CONTAINS
     CALL distribute_from_master_int_1D( BC_prescr_mask_b_tot , BC_prescr_mask_b )
     CALL distribute_from_master_int_2D( BC_prescr_mask_bk_tot, BC_prescr_mask_bk)
 
-!    ! DENK DROM
-!    CALL save_variable_as_netcdf_int_1D( BC_prescr_mask   , 'BC_prescr_mask'   )
-!    CALL save_variable_as_netcdf_int_1D( BC_prescr_mask_b , 'BC_prescr_mask_b' )
-!    CALL save_variable_as_netcdf_int_2D( BC_prescr_mask_bk, 'BC_prescr_mask_bk')
-
   ! == Fill in prescribed velocities and thicknesses away from the front
   ! ====================================================================
 
@@ -1033,13 +1024,6 @@ CONTAINS
     BC_prescr_v_b  = ice%v_vav_b
     BC_prescr_u_bk = ice%u_3D_b
     BC_prescr_v_bk = ice%v_3D_b
-
-!    ! DENK DROM
-!    CALL save_variable_as_netcdf_dp_1D( BC_prescr_Hi  , 'BC_prescr_Hi'  )
-!    CALL save_variable_as_netcdf_dp_1D( BC_prescr_u_b , 'BC_prescr_u_b' )
-!    CALL save_variable_as_netcdf_dp_1D( BC_prescr_v_b , 'BC_prescr_v_b' )
-!     CALL save_variable_as_netcdf_dp_2D( BC_prescr_u_bk, 'BC_prescr_u_bk')
-!     CALL save_variable_as_netcdf_dp_2D( BC_prescr_v_bk, 'BC_prescr_v_bk')
 
   ! == Save proper values of config parameters for the velocity solver
   ! ==================================================================
@@ -1082,12 +1066,12 @@ CONTAINS
       CALL solve_stress_balance( mesh, ice, BMB_new, BC_prescr_mask_b, BC_prescr_u_b, BC_prescr_v_b, BC_prescr_mask_bk, BC_prescr_u_bk, BC_prescr_v_bk)
 
       ! Calculate dH/dt around the calving front
-      CALL calc_dHi_dt( mesh, ice%Hi, ice%u_vav_b, ice%v_vav_b, SMB_new, BMB_new, ice%mask_noice, C%dt_ice_min, ice%dHi_dt, Hi_tplusdt, BC_prescr_mask, BC_prescr_Hi)
+      CALL calc_dHi_dt( mesh, ice%Hi, ice%Hb, ice%SL, ice%u_vav_b, ice%v_vav_b, SMB_new, BMB_new, ice%mask_noice, C%dt_ice_min, &
+        ice%dHi_dt, Hi_tplusdt, divQ, BC_prescr_mask, BC_prescr_Hi)
 
       ! Update ice thickness and advance pseudo-time
       ice%Hi = Hi_tplusdt
       t_pseudo = t_pseudo + C%dt_ice_min
-!      IF (par%master) WRITE(0,*) '    out-of-time calving front relaxation: t_pseudo = ', t_pseudo, ', max( dH/dt) = ', MAXVAL( ABS( ice%dHi_dt))
 
       ! Update basic geometry
       DO vi = mesh%vi1, mesh%vi2
@@ -1097,11 +1081,6 @@ CONTAINS
       END DO
 
     END DO pseudo_time ! DO WHILE (t_pseudo < dt_relax)
-
-!    ! DENK DROM
-!    CALL save_variable_as_netcdf_dp_1D( ice%Hi     , 'Hi_new')
-!    CALL save_variable_as_netcdf_dp_1D( ice%u_vav_b, 'u_vav_b_new')
-!    CALL save_variable_as_netcdf_dp_1D( ice%v_vav_b, 'v_vav_b_new')
 
   ! == Reinstate proper values of config parameters for the velocity solver
   ! =======================================================================
@@ -1114,9 +1093,6 @@ CONTAINS
     C%stress_balance_PETSc_rtol             = stress_balance_PETSc_rtol_save
     C%stress_balance_PETSc_abstol           = stress_balance_PETSc_abstol_save
     C%Glens_flow_law_epsilon_sq_0           = Glens_flow_law_epsilon_sq_0_save
-
-!    ! DENK DROM
-!    CALL crash('whoopsiedaisy!')
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -1198,8 +1174,8 @@ CONTAINS
     ! ====================
 
       ! Calculate thinning rates for current geometry and velocity
-      CALL calc_dHi_dt( region%mesh, region%ice%Hi_prev, region%ice%u_vav_b, region%ice%v_vav_b, region%SMB%SMB, region%BMB%BMB, &
-        region%ice%mask_noice, region%ice%pc%dt_np1, region%ice%pc%dHi_dt_Hi_n_u_n, Hi_dummy)
+      CALL calc_dHi_dt( region%mesh, region%ice%Hi_prev, region%ice%Hb, region%ice%SL, region%ice%u_vav_b, region%ice%v_vav_b, region%SMB%SMB, region%BMB%BMB, &
+        region%ice%mask_noice, region%ice%pc%dt_np1, region%ice%pc%dHi_dt_Hi_n_u_n, Hi_dummy, region%ice%divQ)
 
       ! Calculate predicted ice thickness (Robinson et al., 2020, Eq. 30)
       region%ice%pc%Hi_star_np1 = region%ice%Hi_prev + region%ice%pc%dt_np1 * ((1._dp + region%ice%pc%zeta_t / 2._dp) * &
@@ -1213,6 +1189,10 @@ CONTAINS
       DO vi = region%mesh%vi1, region%mesh%vi2
         region%ice%Hs( vi) = ice_surface_elevation( region%ice%Hi( vi), region%ice%Hb( vi), region%ice%SL( vi))
       END DO
+      ! Update masks
+      CALL determine_masks( region%mesh, region%ice)
+      ! Update sub-grid grounded fractions
+      CALL calc_grounded_fractions( region%mesh, region%ice)
 
       ! Calculate ice velocities for the predicted geometry
       CALL solve_stress_balance( region%mesh, region%ice, region%BMB%BMB)
@@ -1229,8 +1209,8 @@ CONTAINS
       CALL determine_masks( region%mesh, region%ice)
 
       ! Calculate thinning rates for the predicted ice thickness and updated velocity
-      CALL calc_dHi_dt( region%mesh, region%ice%Hi, region%ice%u_vav_b, region%ice%v_vav_b, region%SMB%SMB, region%BMB%BMB, &
-        region%ice%mask_noice, region%ice%pc%dt_np1, region%ice%pc%dHi_dt_Hi_star_np1_u_np1, Hi_dummy)
+      CALL calc_dHi_dt( region%mesh, region%ice%Hi, region%ice%Hb, region%ice%SL, region%ice%u_vav_b, region%ice%v_vav_b, region%SMB%SMB, region%BMB%BMB, &
+        region%ice%mask_noice, region%ice%pc%dt_np1, region%ice%pc%dHi_dt_Hi_star_np1_u_np1, Hi_dummy, region%ice%divQ)
 
       ! Calculate corrected ice thickness (Robinson et al. (2020), Eq. 31)
       region%ice%pc%Hi_np1 = region%ice%Hi_prev + (region%ice%pc%dt_np1 / 2._dp) * (region%ice%pc%dHi_dt_Hi_n_u_n + region%ice%pc%dHi_dt_Hi_star_np1_u_np1)
@@ -1647,8 +1627,8 @@ CONTAINS
     dt = MAX( C%dt_ice_min, dt)
 
     ! Calculate thinning rates and predicted geometry
-    CALL calc_dHi_dt( region%mesh, region%ice%Hi, region%ice%u_vav_b, region%ice%v_vav_b, region%SMB%SMB, region%BMB%BMB, &
-      region%ice%mask_noice, dt, region%ice%dHi_dt, region%ice%Hi_next)
+    CALL calc_dHi_dt( region%mesh, region%ice%Hi, region%ice%Hb, region%ice%SL, region%ice%u_vav_b, region%ice%v_vav_b, region%SMB%SMB, region%BMB%BMB, &
+      region%ice%mask_noice, dt, region%ice%dHi_dt, region%ice%Hi_next, region%ice%divQ)
 
     ! Set next modelled ice thickness timestamp
     region%ice%t_Hi_next = region%ice%t_Hi_prev + dt
