@@ -172,18 +172,20 @@ CONTAINS
 
   END SUBROUTINE run_ice_dynamics_model
 
-  SUBROUTINE initialise_ice_dynamics_model( mesh, ice, refgeo_init, refgeo_PD, scalars, region_name)
+  SUBROUTINE initialise_ice_dynamics_model( mesh, ice, refgeo_init, refgeo_PD, refgeo_GIAeq, GIA, scalars, region_name)
     ! Initialise all data fields of the ice module
 
     IMPLICIT NONE
 
     ! In- and output variables
-    TYPE(type_mesh),               INTENT(IN)    :: mesh
-    TYPE(type_ice_model),          INTENT(INOUT) :: ice
-    TYPE(type_reference_geometry), INTENT(IN)    :: refgeo_init
-    TYPE(type_reference_geometry), INTENT(IN)    :: refgeo_PD
-    TYPE(type_regional_scalars),   INTENT(OUT)   :: scalars
-    CHARACTER(LEN=3),              INTENT(IN)    :: region_name
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh
+    TYPE(type_ice_model),                   INTENT(INOUT) :: ice
+    TYPE(type_reference_geometry),          INTENT(IN)    :: refgeo_init
+    TYPE(type_reference_geometry),          INTENT(IN)    :: refgeo_PD
+    TYPE(type_reference_geometry),          INTENT(IN)    :: refgeo_GIAeq
+    TYPE(type_GIA_model),                   INTENT(IN)    :: GIA
+    TYPE(type_regional_scalars),            INTENT(OUT)   :: scalars
+    CHARACTER(LEN=3),                       INTENT(IN)    :: region_name
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                :: routine_name = 'initialise_ice_dynamics_model'
@@ -240,11 +242,14 @@ CONTAINS
     ! Initialise ice geometry
     ! =======================
 
+    ! DENK DROM
+    IF (par%master) CALL warning(' WARNING: GIA model isnt finished yet - need to include dHb in ice model initialisation')
+
     DO vi = mesh%vi1, mesh%vi2
 
       ! Basic geometry
       ice%Hi ( vi) = refgeo_init%Hi( vi)
-      ice%Hb ( vi) = refgeo_init%Hb( vi)
+      ice%Hb ( vi) = refgeo_GIAeq%Hb( vi)
       ice%Hs ( vi) = ice_surface_elevation( ice%Hi( vi), ice%Hb( vi), ice%SL( vi))
       ice%Hib( vi) = ice%Hs( vi) - ice%Hi( vi)
       ice%TAF( vi) = thickness_above_floatation( ice%Hi( vi), ice%Hb( vi), ice%SL( vi))
