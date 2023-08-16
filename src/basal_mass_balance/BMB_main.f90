@@ -14,6 +14,7 @@ MODULE BMB_main
   USE ice_model_types                                        , ONLY: type_ice_model
   USE ocean_model_types                                      , ONLY: type_ocean_model
   USE BMB_model_types                                        , ONLY: type_BMB_model
+  USE BMB_idealised                                          , ONLY: initialise_BMB_model_idealised, run_BMB_model_idealised
   USE reallocate_mod                                         , ONLY: reallocate_bounds
 
   IMPLICIT NONE
@@ -67,24 +68,28 @@ CONTAINS
     END IF
 
     ! Determine which BMB model to run for this region
-    IF     (region_name == 'NAM') THEN
-      choice_BMB_model = C%choice_BMB_model_NAM
-    ELSEIF (region_name == 'EAS') THEN
-      choice_BMB_model = C%choice_BMB_model_EAS
-    ELSEIF (region_name == 'GRL') THEN
-      choice_BMB_model = C%choice_BMB_model_GRL
-    ELSEIF (region_name == 'ANT') THEN
-      choice_BMB_model = C%choice_BMB_model_ANT
-    ELSE
-      CALL crash('unknown region_name "' // region_name // '"')
-    END IF
+    SELECT CASE (region_name)
+      CASE DEFAULT
+        CALL crash('unknown region_name "' // region_name // '"')
+      CASE ('NAM')
+        choice_BMB_model = C%choice_BMB_model_NAM
+      CASE ('EAS')
+        choice_BMB_model = C%choice_BMB_model_EAS
+      CASE ('GRL')
+        choice_BMB_model = C%choice_BMB_model_GRL
+      CASE ('ANT')
+        choice_BMB_model = C%choice_BMB_model_ANT
+    END SELECT
 
     ! Run the chosen BMB model
-    IF (choice_BMB_model == 'uniform') THEN
-      BMB%BMB = C%uniform_BMB
-    ELSE
-      CALL crash('unknown choice_BMB_model "' // TRIM( choice_BMB_model) // '"')
-    END IF
+    SELECT CASE (choice_BMB_model)
+      CASE DEFAULT
+        CALL crash('unknown choice_BMB_model "' // TRIM( choice_BMB_model) // '"')
+      CASE ('uniform')
+        BMB%BMB = C%uniform_BMB
+      CASE ('idealised')
+        CALL run_BMB_model_idealised( mesh, ice, BMB, time)
+    END SELECT
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -112,17 +117,18 @@ CONTAINS
     IF (par%master)  WRITE(*,"(A)") '  Initialising basal mass balance model...'
 
     ! Determine which BMB model to initialise for this region
-    IF     (region_name == 'NAM') THEN
-      choice_BMB_model = C%choice_BMB_model_NAM
-    ELSEIF (region_name == 'EAS') THEN
-      choice_BMB_model = C%choice_BMB_model_EAS
-    ELSEIF (region_name == 'GRL') THEN
-      choice_BMB_model = C%choice_BMB_model_GRL
-    ELSEIF (region_name == 'ANT') THEN
-      choice_BMB_model = C%choice_BMB_model_ANT
-    ELSE
-      CALL crash('unknown region_name "' // region_name // '"')
-    END IF
+    SELECT CASE (region_name)
+      CASE DEFAULT
+        CALL crash('unknown region_name "' // region_name // '"')
+      CASE ('NAM')
+        choice_BMB_model = C%choice_BMB_model_NAM
+      CASE ('EAS')
+        choice_BMB_model = C%choice_BMB_model_EAS
+      CASE ('GRL')
+        choice_BMB_model = C%choice_BMB_model_GRL
+      CASE ('ANT')
+        choice_BMB_model = C%choice_BMB_model_ANT
+    END SELECT
 
     ! Allocate memory for main variables
     ALLOCATE( BMB%BMB( mesh%vi1:mesh%vi2))
@@ -132,11 +138,14 @@ CONTAINS
     BMB%t_next = C%start_time_of_run
 
     ! Determine which BMB model to initialise
-    IF (choice_BMB_model == 'uniform') THEN
-      ! No need to do anything
-    ELSE
-      CALL crash('unknown choice_BMB_model "' // TRIM( choice_BMB_model) // '"')
-    END IF
+    SELECT CASE (choice_BMB_model)
+      CASE DEFAULT
+        CALL crash('unknown choice_BMB_model "' // TRIM( choice_BMB_model) // '"')
+      CASE ('uniform')
+        ! No need to do anything
+      CASE ('idealised')
+        CALL initialise_BMB_model_idealised( mesh, BMB)
+    END SELECT
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -162,26 +171,28 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Determine which BMB model to initialise for this region
-    IF     (region_name == 'NAM') THEN
-      choice_BMB_model = C%choice_BMB_model_NAM
-    ELSEIF (region_name == 'EAS') THEN
-      choice_BMB_model = C%choice_BMB_model_EAS
-    ELSEIF (region_name == 'GRL') THEN
-      choice_BMB_model = C%choice_BMB_model_GRL
-    ELSEIF (region_name == 'ANT') THEN
-      choice_BMB_model = C%choice_BMB_model_ANT
-    ELSE
-      CALL crash('unknown region_name "' // region_name // '"')
-    END IF
+    SELECT CASE (region_name)
+      CASE DEFAULT
+        CALL crash('unknown region_name "' // region_name // '"')
+      CASE ('NAM')
+        choice_BMB_model = C%choice_BMB_model_NAM
+      CASE ('EAS')
+        choice_BMB_model = C%choice_BMB_model_EAS
+      CASE ('GRL')
+        choice_BMB_model = C%choice_BMB_model_GRL
+      CASE ('ANT')
+        choice_BMB_model = C%choice_BMB_model_ANT
+    END SELECT
 
     ! Write to the restart file of the chosen BMB model
-    IF     (choice_BMB_model == 'uniform') THEN
-      ! No need to do anything
-    ELSEIF (choice_BMB_model == 'idealised') THEN
-      ! No need to do anything
-    ELSE
-      CALL crash('unknown choice_BMB_model "' // TRIM( choice_BMB_model) // '"')
-    END IF
+    SELECT CASE (choice_BMB_model)
+      CASE DEFAULT
+        CALL crash('unknown choice_BMB_model "' // TRIM( choice_BMB_model) // '"')
+      CASE ('uniform')
+        ! No need to do anything
+      CASE ('idealised')
+        ! No need to do anything
+    END SELECT
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -206,26 +217,28 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Determine which BMB model to initialise for this region
-    IF     (region_name == 'NAM') THEN
-      choice_BMB_model = C%choice_BMB_model_NAM
-    ELSEIF (region_name == 'EAS') THEN
-      choice_BMB_model = C%choice_BMB_model_EAS
-    ELSEIF (region_name == 'GRL') THEN
-      choice_BMB_model = C%choice_BMB_model_GRL
-    ELSEIF (region_name == 'ANT') THEN
-      choice_BMB_model = C%choice_BMB_model_ANT
-    ELSE
-      CALL crash('unknown region_name "' // region_name // '"')
-    END IF
+    SELECT CASE (region_name)
+      CASE DEFAULT
+        CALL crash('unknown region_name "' // region_name // '"')
+      CASE ('NAM')
+        choice_BMB_model = C%choice_BMB_model_NAM
+      CASE ('EAS')
+        choice_BMB_model = C%choice_BMB_model_EAS
+      CASE ('GRL')
+        choice_BMB_model = C%choice_BMB_model_GRL
+      CASE ('ANT')
+        choice_BMB_model = C%choice_BMB_model_ANT
+    END SELECT
 
     ! Create the restart file of the chosen BMB model
-    IF     (choice_BMB_model == 'uniform') THEN
-      ! No need to do anything
-    ELSEIF (choice_BMB_model == 'idealised') THEN
-      ! No need to do anything
-    ELSE
-      CALL crash('unknown choice_BMB_model "' // TRIM( choice_BMB_model) // '"')
-    END IF
+    SELECT CASE (choice_BMB_model)
+      CASE DEFAULT
+        CALL crash('unknown choice_BMB_model "' // TRIM( choice_BMB_model) // '"')
+      CASE ('uniform')
+        ! No need to do anything
+      CASE ('idealised')
+        ! No need to do anything
+    END SELECT
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -275,8 +288,6 @@ CONTAINS
       CASE ('uniform')
         ! No need to do anything
       CASE ('idealised')
-        ! No need to do anything
-      CASE ('prescribed')
         ! No need to do anything
       CASE DEFAULT
         CALL crash('unknown choice_BMB_model "' // TRIM( choice_BMB_model) // '"')

@@ -188,8 +188,8 @@ CONTAINS
     CHARACTER(LEN=3),                       INTENT(IN)    :: region_name
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                :: routine_name = 'initialise_ice_dynamics_model'
-    INTEGER                                      :: vi
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'initialise_ice_dynamics_model'
+    INTEGER                                               :: vi
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -243,7 +243,7 @@ CONTAINS
     ! =======================
 
     ! DENK DROM
-    IF (par%master) CALL warning(' WARNING: GIA model isnt finished yet - need to include dHb in ice model initialisation')
+    IF (par%master) CALL warning('GIA model isnt finished yet - need to include dHb in ice model initialisation')
 
     DO vi = mesh%vi1, mesh%vi2
 

@@ -91,7 +91,8 @@ CONTAINS
     main_time_loop: DO WHILE (region%time <= t_end)
 
       ! == Mesh update code
-      IF (C%allow_mesh_updates .AND. region%time > region%time_mesh_was_created + C%dt_mesh_update_min) THEN
+      IF (C%allow_mesh_updates .AND. region%time > region%time_mesh_was_created + C%dt_mesh_update_min &
+        .AND. region%time > C%start_time_of_run) THEN
 
         ! Calculate the mesh fitness coefficient
         CALL calc_mesh_fitness_coefficient( region%mesh, region%ice, mesh_fitness_coefficient)

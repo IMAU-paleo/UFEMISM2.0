@@ -289,13 +289,13 @@ MODULE model_configuration
 
     ! Some parameters for numerically solving the stress balance
     REAL(dp)            :: SIA_maximum_diffusivity_config               = 1E5_dp                           ! Limit the diffusivity in the SIA to this value
-    REAL(dp)            :: visc_it_norm_dUV_tol_config                  = 5E-4_dp                          ! Stop criterion for the viscosity iteration: the L2-norm of successive velocity solutions should be smaller than this number
-    INTEGER             :: visc_it_nit_config                           = 500                              ! Maximum number of effective viscosity iterations
-    REAL(dp)            :: visc_it_relax_config                         = 0.4_dp                           ! Relaxation parameter for subsequent viscosity iterations (for improved stability)
+    REAL(dp)            :: visc_it_norm_dUV_tol_config                  = 5E-5_dp                          ! Stop criterion for the viscosity iteration: the L2-norm of successive velocity solutions should be smaller than this number
+    INTEGER             :: visc_it_nit_config                           = 50                               ! Maximum number of effective viscosity iterations
+    REAL(dp)            :: visc_it_relax_config                         = 0.2_dp                           ! Relaxation parameter for subsequent viscosity iterations (for improved stability)
     REAL(dp)            :: visc_eff_min_config                          = 1E4_dp                           ! Minimum value for effective viscosity
     REAL(dp)            :: vel_max_config                               = 5000._dp                         ! Velocities are limited to this value
-    REAL(dp)            :: stress_balance_PETSc_rtol_config             = 1E-4_dp                          ! PETSc solver - stop criterion, relative difference (iteration stops if rtol OR abstol is reached)
-    REAL(dp)            :: stress_balance_PETSc_abstol_config           = 1E-1_dp                          ! PETSc solver - stop criterion, absolute difference
+    REAL(dp)            :: stress_balance_PETSc_rtol_config             = 1E-7_dp                          ! PETSc solver - stop criterion, relative difference (iteration stops if rtol OR abstol is reached)
+    REAL(dp)            :: stress_balance_PETSc_abstol_config           = 1E-5_dp                          ! PETSc solver - stop criterion, absolute difference
 
     ! Boundary conditions
     CHARACTER(LEN=256)  :: BC_u_west_config                             = 'infinite'                       ! Boundary conditions for the ice velocity field at the domain border
@@ -337,8 +337,8 @@ MODULE model_configuration
     ! Calculation of dH/dt
     CHARACTER(LEN=256)  :: choice_ice_integration_method_config         = 'semi-implicit'                  ! Choice of ice thickness integration scheme: "none" (i.e. unchanging geometry), "explicit", "semi-implicit"
     REAL(dp)            :: dHi_semiimplicit_fs_config                   = 1.5_dp                           ! Factor for the semi-implicit ice thickness solver (0 = explicit, 0<f<1 = semi-implicit, 1 = implicit, >1 = over-implicit)
-    REAL(dp)            :: dHi_PETSc_rtol_config                        = 1E-7_dp                          ! dHi PETSc solver - stop criterion, relative difference (iteration stops if rtol OR abstol is reached)
-    REAL(dp)            :: dHi_PETSc_abstol_config                      = 1E-2_dp                          ! dHi PETSc solver - stop criterion, absolute difference
+    REAL(dp)            :: dHi_PETSc_rtol_config                        = 1E-8_dp                          ! dHi PETSc solver - stop criterion, relative difference (iteration stops if rtol OR abstol is reached)
+    REAL(dp)            :: dHi_PETSc_abstol_config                      = 1E-6_dp                          ! dHi PETSc solver - stop criterion, absolute difference
 
     ! Boundary conditions
     CHARACTER(LEN=256)  :: BC_H_west_config                             = 'zero'                           ! Boundary conditions for ice thickness at the domain boundary
@@ -352,15 +352,15 @@ MODULE model_configuration
     ! Time stepping
     CHARACTER(LEN=256)  :: choice_timestepping_config                   = 'pc'                             ! Choice of timestepping method: "direct", "pc" (NOTE: 'direct' does not work with DIVA ice dynamcis!)
     REAL(dp)            :: dt_ice_max_config                            = 10.0_dp                          ! [yr] Maximum time step of the ice dynamics model
-    REAL(dp)            :: dt_ice_min_config                            = 0.01_dp                          ! [yr] Minimum time step of the ice dynamics model
+    REAL(dp)            :: dt_ice_min_config                            = 0.1_dp                           ! [yr] Minimum time step of the ice dynamics model
     REAL(dp)            :: dt_ice_startup_phase_config                  = 0._dp                            ! [yr] Length of time window after start_time and before end_time when dt = dt_min, to ensure smooth restarts
 
     ! Predictor-corrector ice-thickness update
-    REAL(dp)            :: pc_epsilon_config                            = 0.01_dp                          ! Target truncation error in dHi_dt [m/yr] (epsilon in Robinson et al., 2020, Eq. 33)
+    REAL(dp)            :: pc_epsilon_config                            = 0.005_dp                         ! Target truncation error in dHi_dt [m/yr] (epsilon in Robinson et al., 2020, Eq. 33)
     REAL(dp)            :: pc_k_I_config                                = 0.2_dp                           ! Exponent k_I in  Robinson et al., 2020, Eq. 33
     REAL(dp)            :: pc_k_p_config                                = 0.2_dp                           ! Exponent k_p in  Robinson et al., 2020, Eq. 33
     REAL(dp)            :: pc_eta_min_config                            = 1E-8_dp                          ! Normalisation term in estimation of the truncation error (Robinson et al., Eq. 32)
-    REAL(dp)            :: pc_max_time_step_increase_config             = 1.2_dp                           ! Each new time step is only allowed to be this much larger than the previous one
+    REAL(dp)            :: pc_max_time_step_increase_config             = 1.1_dp                           ! Each new time step is only allowed to be this much larger than the previous one
     INTEGER             :: pc_nit_max_config                            = 50                               ! Maximum number of times a PC timestep can be repeated with reduced dt
 
     ! Initialisation of the predictor-corrector ice-thickness update
@@ -509,7 +509,7 @@ MODULE model_configuration
     ! Flow law
     CHARACTER(LEN=256)  :: choice_flow_law_config                       = 'Glen'                           ! Choice of flow law, relating effective viscosity to effective strain rate
     REAL(dp)            :: Glens_flow_law_exponent_config               = 3.0_dp                           ! Exponent in Glen's flow law
-    REAL(dp)            :: Glens_flow_law_epsilon_sq_0_config           = 1E-12_dp                         ! Normalisation term so that zero strain rates produce a high but finite viscosity
+    REAL(dp)            :: Glens_flow_law_epsilon_sq_0_config           = 1E-8_dp                          ! Normalisation term so that zero strain rates produce a high but finite viscosity
 
     ! Rheology
     CHARACTER(LEN=256)  :: choice_ice_rheology_Glen_config              = 'Huybrechts1992'                 ! Choice of ice rheology model for Glen's flow law: "uniform", "Huybrechts1992", "MISMIP_mod"

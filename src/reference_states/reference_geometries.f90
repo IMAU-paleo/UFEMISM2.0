@@ -8,11 +8,17 @@ MODULE reference_geometries
 ! ===== Preamble =====
 ! ====================
 
+#include <petsc/finclude/petscksp.h>
+  USE petscksp
   USE mpi
   USE precisions                                             , ONLY: dp
   USE mpi_basic                                              , ONLY: par, cerr, ierr, MPI_status, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
+  USE netcdf_debug                                           , ONLY: write_PETSc_matrix_to_NetCDF, write_CSR_matrix_to_NetCDF, &
+                                                                     save_variable_as_netcdf_int_1D, save_variable_as_netcdf_int_2D, &
+                                                                     save_variable_as_netcdf_dp_1D , save_variable_as_netcdf_dp_2D, &
+                                                                     save_variable_as_netcdf_logical_1D
   USE parameters
   USE reference_geometry_types                               , ONLY: type_reference_geometry
   USE mesh_types                                             , ONLY: type_mesh
@@ -72,35 +78,33 @@ CONTAINS
     ALLOCATE( refgeo_init%SL( mesh%vi1:mesh%vi2))
 
     ! Get config choices for this model region
-    IF     (region_name == 'NAM') THEN
-      choice_refgeo           = C%choice_refgeo_init_NAM
-      choice_refgeo_idealised = C%choice_refgeo_init_idealised
-    ELSEIF (region_name == 'EAS') THEN
-      choice_refgeo           = C%choice_refgeo_init_EAS
-      choice_refgeo_idealised = C%choice_refgeo_init_idealised
-    ELSEIF (region_name == 'GRL') THEN
-      choice_refgeo           = C%choice_refgeo_init_GRL
-      choice_refgeo_idealised = C%choice_refgeo_init_idealised
-    ELSEIF (region_name == 'ANT') THEN
-      choice_refgeo           = C%choice_refgeo_init_ANT
-      choice_refgeo_idealised = C%choice_refgeo_init_idealised
-    ELSE
-      CALL crash('unknown region_name "' // TRIM( region_name) // '"!')
-    END IF
+    SELECT CASE (region_name)
+      CASE DEFAULT
+        CALL crash('unknown region_name "' // TRIM( region_name) // '"!')
+      CASE ('NAM')
+        choice_refgeo           = C%choice_refgeo_init_NAM
+        choice_refgeo_idealised = C%choice_refgeo_init_idealised
+      CASE ('EAS')
+        choice_refgeo           = C%choice_refgeo_init_EAS
+        choice_refgeo_idealised = C%choice_refgeo_init_idealised
+      CASE ('GRL')
+        choice_refgeo           = C%choice_refgeo_init_GRL
+        choice_refgeo_idealised = C%choice_refgeo_init_idealised
+      CASE ('ANT')
+        choice_refgeo           = C%choice_refgeo_init_ANT
+        choice_refgeo_idealised = C%choice_refgeo_init_idealised
+    END SELECT
 
-    IF     (choice_refgeo == 'read_from_file') THEN
-      ! For realistic geometries read from a file, remap them to the model mesh
-
-      CALL remap_reference_geometry_to_mesh( mesh, refgeo_init)
-
-    ELSEIF (choice_refgeo == 'idealised') THEN
-      ! For idealised geometries, calculate them directly on the model mesh
-
-      CALL initialise_reference_geometry_idealised( mesh, choice_refgeo_idealised, refgeo_init)
-
-    ELSE
-      CALL crash('unknown choice_refgeo "' // TRIM( choice_refgeo) // '"!')
-    END IF
+    SELECT CASE (choice_refgeo)
+      CASE DEFAULT
+        CALL crash('unknown choice_refgeo "' // TRIM( choice_refgeo) // '"!')
+      CASE ('read_from_file')
+        ! For realistic geometries read from a file, remap them to the model mesh
+        CALL remap_reference_geometry_to_mesh( mesh, refgeo_init)
+      CASE ('idealised')
+        ! For idealised geometries, calculate them directly on the model mesh
+        CALL initialise_reference_geometry_idealised( mesh, choice_refgeo_idealised, refgeo_init)
+    END SELECT
 
     ! == Present-day geometry
     ! =======================
@@ -118,35 +122,33 @@ CONTAINS
     ALLOCATE( refgeo_PD%SL( mesh%vi1:mesh%vi2))
 
     ! Get config choices for this model region
-    IF     (region_name == 'NAM') THEN
-      choice_refgeo           = C%choice_refgeo_PD_NAM
-      choice_refgeo_idealised = C%choice_refgeo_PD_idealised
-    ELSEIF (region_name == 'EAS') THEN
-      choice_refgeo           = C%choice_refgeo_PD_EAS
-      choice_refgeo_idealised = C%choice_refgeo_PD_idealised
-    ELSEIF (region_name == 'GRL') THEN
-      choice_refgeo           = C%choice_refgeo_PD_GRL
-      choice_refgeo_idealised = C%choice_refgeo_PD_idealised
-    ELSEIF (region_name == 'ANT') THEN
-      choice_refgeo           = C%choice_refgeo_PD_ANT
-      choice_refgeo_idealised = C%choice_refgeo_PD_idealised
-    ELSE
-      CALL crash('unknown region_name "' // TRIM( region_name) // '"!')
-    END IF
+    SELECT CASE (region_name)
+      CASE DEFAULT
+        CALL crash('unknown region_name "' // TRIM( region_name) // '"!')
+      CASE ('NAM')
+        choice_refgeo           = C%choice_refgeo_PD_NAM
+        choice_refgeo_idealised = C%choice_refgeo_PD_idealised
+      CASE ('EAS')
+        choice_refgeo           = C%choice_refgeo_PD_EAS
+        choice_refgeo_idealised = C%choice_refgeo_PD_idealised
+      CASE ('GRL')
+        choice_refgeo           = C%choice_refgeo_PD_GRL
+        choice_refgeo_idealised = C%choice_refgeo_PD_idealised
+      CASE ('ANT')
+        choice_refgeo           = C%choice_refgeo_PD_ANT
+        choice_refgeo_idealised = C%choice_refgeo_PD_idealised
+    END SELECT
 
-    IF     (choice_refgeo == 'read_from_file') THEN
-      ! For realistic geometries read from a file, remap them to the model mesh
-
-      CALL remap_reference_geometry_to_mesh( mesh, refgeo_PD)
-
-    ELSEIF (choice_refgeo == 'idealised') THEN
-      ! For idealised geometries, calculate them directly on the model mesh
-
-      CALL initialise_reference_geometry_idealised( mesh, choice_refgeo_idealised, refgeo_PD)
-
-    ELSE
-      CALL crash('unknown choice_refgeo "' // TRIM( choice_refgeo) // '"!')
-    END IF
+    SELECT CASE (choice_refgeo)
+      CASE DEFAULT
+        CALL crash('unknown choice_refgeo "' // TRIM( choice_refgeo) // '"!')
+      CASE ('read_from_file')
+        ! For realistic geometries read from a file, remap them to the model mesh
+        CALL remap_reference_geometry_to_mesh( mesh, refgeo_PD)
+      CASE ('idealised')
+        ! For idealised geometries, calculate them directly on the model mesh
+        CALL initialise_reference_geometry_idealised( mesh, choice_refgeo_idealised, refgeo_PD)
+    END SELECT
 
     ! == GIA equilibrium geometry
     ! ===========================
@@ -164,35 +166,33 @@ CONTAINS
     ALLOCATE( refgeo_GIAeq%SL( mesh%vi1:mesh%vi2))
 
     ! Get config choices for this model region
-    IF     (region_name == 'NAM') THEN
-      choice_refgeo           = C%choice_refgeo_GIAeq_NAM
-      choice_refgeo_idealised = C%choice_refgeo_GIAeq_idealised
-    ELSEIF (region_name == 'EAS') THEN
-      choice_refgeo           = C%choice_refgeo_GIAeq_EAS
-      choice_refgeo_idealised = C%choice_refgeo_GIAeq_idealised
-    ELSEIF (region_name == 'GRL') THEN
-      choice_refgeo           = C%choice_refgeo_GIAeq_GRL
-      choice_refgeo_idealised = C%choice_refgeo_GIAeq_idealised
-    ELSEIF (region_name == 'ANT') THEN
-      choice_refgeo           = C%choice_refgeo_GIAeq_ANT
-      choice_refgeo_idealised = C%choice_refgeo_GIAeq_idealised
-    ELSE
-      CALL crash('unknown region_name "' // TRIM( region_name) // '"!')
-    END IF
+    SELECT CASE (region_name)
+      CASE DEFAULT
+        CALL crash('unknown region_name "' // TRIM( region_name) // '"!')
+      CASE ('NAM')
+        choice_refgeo           = C%choice_refgeo_GIAeq_NAM
+        choice_refgeo_idealised = C%choice_refgeo_GIAeq_idealised
+      CASE ('EAS')
+        choice_refgeo           = C%choice_refgeo_GIAeq_EAS
+        choice_refgeo_idealised = C%choice_refgeo_GIAeq_idealised
+      CASE ('GRL')
+        choice_refgeo           = C%choice_refgeo_GIAeq_GRL
+        choice_refgeo_idealised = C%choice_refgeo_GIAeq_idealised
+      CASE ('ANT')
+        choice_refgeo           = C%choice_refgeo_GIAeq_ANT
+        choice_refgeo_idealised = C%choice_refgeo_GIAeq_idealised
+    END SELECT
 
-    IF     (choice_refgeo == 'read_from_file') THEN
-      ! For realistic geometries read from a file, remap them to the model mesh
-
-      CALL remap_reference_geometry_to_mesh( mesh, refgeo_GIAeq)
-
-    ELSEIF (choice_refgeo == 'idealised') THEN
-      ! For idealised geometries, calculate them directly on the model mesh
-
-      CALL initialise_reference_geometry_idealised( mesh, choice_refgeo_idealised, refgeo_GIAeq)
-
-    ELSE
-      CALL crash('unknown choice_refgeo "' // TRIM( choice_refgeo) // '"!')
-    END IF
+    SELECT CASE (choice_refgeo)
+      CASE DEFAULT
+        CALL crash('unknown choice_refgeo "' // TRIM( choice_refgeo) // '"!')
+      CASE ('read_from_file')
+        ! For realistic geometries read from a file, remap them to the model mesh
+        CALL remap_reference_geometry_to_mesh( mesh, refgeo_GIAeq)
+      CASE ('idealised')
+        ! For idealised geometries, calculate them directly on the model mesh
+        CALL initialise_reference_geometry_idealised( mesh, choice_refgeo_idealised, refgeo_GIAeq)
+    END SELECT
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
