@@ -776,6 +776,7 @@ CONTAINS
     LOGICAL                                               :: found_map
     TYPE(type_sparse_matrix_CSR_dp)                       :: M_CSR
     INTEGER                                               :: vi_new, k1, k2, k, vi_old
+    INTEGER                                               :: n_ice, n_nonice
     INTEGER                                               :: n_shelf, n_open_ocean
     REAL(dp)                                              :: sum_Hi_shelf
 
@@ -807,8 +808,45 @@ CONTAINS
     ! Convert the mapping matrix to CSR format
     CALL mat_petsc2CSR( Atlas( mi_used)%M, M_CSR)
 
-    ! For those vertices of the new mesh that overlap with both old-mesh shelf and old-mesh
-    ! open ocean, average only over the contributing old-mesh shelf vertices
+  ! == For those vertices of the new mesh that overlap with both old-mesh ice and old-mesh
+  !    non-ice, remove very thin remapped ice
+  ! ======================================================================================
+
+    DO vi_new = mesh_new%vi1, mesh_new%vi2
+
+      k1 = M_CSR%ptr( vi_new)
+      k2 = M_CSR%ptr( vi_new+1) - 1
+
+      n_ice    = 0
+      n_nonice = 0
+
+      DO k = k1, k2
+
+        vi_old = M_CSR%ind( k)
+
+        IF     (Hi_old_tot( vi_old) > 1._dp) THEN
+          n_ice = n_ice + 1
+        ELSEIF (Hi_old_tot( vi_old) < 1._dp) THEN
+          n_nonice = n_nonice + 1
+        END IF
+
+      END DO ! DO k = k1, k2
+
+      IF (n_ice > 0 .AND. n_nonice > 0) THEN
+        ! This new-mesh vertex overlaps with both old-mesh ice vertices,
+        ! and old-mesh non-ice vertices
+        IF (Hi_new( vi_new) < 1._dp) THEN
+          ! Remove very thin remapped ice
+
+          Hi_new( vi_new) = 0._dp
+        END IF
+      END IF
+
+    END DO ! DO vi_new = mesh_new%vi1, mesh_new%vi2
+
+  ! == For those vertices of the new mesh that overlap with both old-mesh shelf and old-mesh
+  !    open ocean, average only over the contributing old-mesh shelf vertices
+  ! ======================================================================================
 
     DO vi_new = mesh_new%vi1, mesh_new%vi2
 
@@ -911,9 +949,6 @@ CONTAINS
     REAL(dp)                                              :: Glens_flow_law_epsilon_sq_0_save
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: Hi_tplusdt
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: divQ
-
-    CHARACTER(LEN=256) :: filename
-    INTEGER :: ncid
 
     ! Add routine to path
     CALL init_routine( routine_name)

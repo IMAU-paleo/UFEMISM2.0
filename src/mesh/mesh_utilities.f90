@@ -1761,11 +1761,11 @@ CONTAINS
     d_scaled = d - f
 
     ! Set the mask to optionally skip certain grid cells
-    ALLOCATE( mask_loc( mesh%nV_loc))
+    ALLOCATE( mask_loc( mesh%nV))
     IF (PRESENT( mask)) THEN
       mask_loc = mask
     ELSE
-      mask_loc =  .TRUE.
+      mask_loc = .TRUE.
     END IF
 
     ! Allocate memory for the line segments
@@ -1783,11 +1783,11 @@ CONTAINS
       IF (.NOT. mask_loc( vi) .AND. .NOT. mask_loc( vj)) CYCLE
 
       ! The values of d on these vertices
-      di = d( vi)
-      dj = d( vj)
+      di = d_scaled( vi)
+      dj = d_scaled( vj)
 
       ! If the product is negative, the contour lies in between vi and vj
-      IF (di * dj <= 0._dp) THEN
+      IF (di * dj < 0._dp) THEN
         ! Find the shared Voronoi cell boundary between vi and vj
         CALL find_shared_Voronoi_boundary( mesh, ei, p, q)
         ! Add this shared boundary as a line segment

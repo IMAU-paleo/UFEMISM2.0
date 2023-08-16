@@ -22,9 +22,6 @@ MODULE ice_thickness
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_1D, gather_to_all_logical_1D
   USE math_utilities                                         , ONLY: ice_surface_elevation, Hi_from_Hb_Hs_and_SL
 
-  USE netcdf_basic, ONLY: create_new_netcdf_file_for_writing
-  USE netcdf_output, ONLY: setup_mesh_in_netcdf_file
-
   IMPLICIT NONE
 
 CONTAINS
@@ -1056,21 +1053,17 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! Initialise time step limit
-    dt_max = C%dt_ice_max
+    ! Initialise
     dt_lim = C%dt_ice_max
 
     ! Loop over each mesh vertex within this process
     DO vi = mesh%vi1, mesh%vi2
       ! If there is ice, and there is mass loss
-      IF (Hi( vi) > 0._dp) THEN
+      IF (Hi( vi) > 0._dp .AND. divQ( vi) > 0._dp) THEN
 
         ! Compute time step limit (in yr) based on
         ! available ice thickness and flux divergence
-        dt_lim( vi) = Hi( vi) / MAX( ABS( divQ( vi)), 1E-9_dp)
-
-        ! Prevent a time step smaller than the absolute minimum
-        dt_lim( vi) = MAX( C%dt_ice_min, dt_lim( vi))
+        dt_lim( vi) = Hi( vi) / MAX( divQ( vi), 1E-9_dp)
 
       END IF
     END DO
@@ -1080,6 +1073,9 @@ CONTAINS
 
     ! Get most strict time step limit among all processes
     CALL MPI_ALLREDUCE( MPI_IN_PLACE, dt_max, 1, MPI_DOUBLE_PRECISION, MPI_MIN, MPI_COMM_WORLD, ierr)
+
+    ! Limit to minimum ice model time step
+    dt_max = MAX( C%dt_ice_min, dt_max)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
