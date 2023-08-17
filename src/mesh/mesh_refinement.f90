@@ -86,7 +86,7 @@ CONTAINS
 
       ! Check if it meets the resolution criterion
       longest_leg = longest_triangle_leg( va, vb, vc)
-      meets_resolution_criterion = longest_leg <= res_max
+      meets_resolution_criterion = longest_leg <= res_max * C%mesh_resolution_tolerance
 
       ! If either of the two criteria is not met, split the triangle
       IF (.NOT. meets_geometry_criterion .OR. .NOT. meets_resolution_criterion) THEN

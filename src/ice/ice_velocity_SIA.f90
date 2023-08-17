@@ -16,7 +16,7 @@ MODULE ice_velocity_SIA
   USE mesh_operators                                         , ONLY: map_a_b_2D, map_a_b_3D, ddx_a_a_2D, ddy_a_a_2D, ddx_a_b_2D, ddy_a_b_2D
   USE mesh_zeta                                              , ONLY: integrate_from_zeta_is_one_to_zeta_is_zetap
   USE ice_flow_laws                                          , ONLY: calc_effective_viscosity_Glen_2D, calc_ice_rheology_Glen
-  USE reallocate_mod                                         , ONLY: reallocate_clean
+  USE reallocate_mod                                         , ONLY: reallocate_bounds
 
   IMPLICIT NONE
 
@@ -62,8 +62,6 @@ CONTAINS
 
     ! Add routine to path
     CALL init_routine( routine_name)
-
-    ! Allocate shared memory
 
     ! Solution
     ALLOCATE( SIA%u_3D_b(   mesh%ti1:mesh%ti2, mesh%nz))
@@ -190,7 +188,7 @@ CONTAINS
 
   END SUBROUTINE solve_SIA
 
-  SUBROUTINE remap_SIA_solver( mesh_old, mesh_new, ice, SIA)
+  SUBROUTINE remap_SIA_solver( mesh_old, mesh_new, SIA)
     ! Remap the SIA solver
 
     IMPLICIT NONE
@@ -198,7 +196,6 @@ CONTAINS
     ! In/output variables:
     TYPE(type_mesh),                     INTENT(IN)    :: mesh_old
     TYPE(type_mesh),                     INTENT(IN)    :: mesh_new
-    TYPE(type_ice_model),                INTENT(IN)    :: ice
     TYPE(type_ice_velocity_solver_SIA),  INTENT(INOUT) :: SIA
 
     ! Local variables:
@@ -211,18 +208,15 @@ CONTAINS
     ! To prevent compiler warnings
     dp_dummy = mesh_old%V( 1,1)
     dp_dummy = mesh_new%V( 1,1)
-    dp_dummy = ice%Hi( 1)
 
-    ! Reallocate shared memory
+    ! Solution: reallocate
+    CALL reallocate_bounds( SIA%u_3D_b  , mesh_new%ti1, mesh_new%ti2, mesh_new%nz)
+    CALL reallocate_bounds( SIA%v_3D_b  , mesh_new%ti1, mesh_new%ti2, mesh_new%nz)
+    CALL reallocate_bounds( SIA%du_dz_3D, mesh_new%vi1, mesh_new%vi2, mesh_new%nz)
+    CALL reallocate_bounds( SIA%dv_dz_3D, mesh_new%vi1, mesh_new%vi2, mesh_new%nz)
 
-    ! Solution
-    CALL reallocate_clean( SIA%u_3D_b  , mesh_new%nTri_loc, mesh_new%nz)
-    CALL reallocate_clean( SIA%v_3D_b  , mesh_new%nTri_loc, mesh_new%nz)
-    CALL reallocate_clean( SIA%du_dz_3D, mesh_new%nV_loc  , mesh_new%nz)
-    CALL reallocate_clean( SIA%dv_dz_3D, mesh_new%nV_loc  , mesh_new%nz)
-
-    ! Intermediate data fields
-    CALL reallocate_clean( SIA%D_3D_b  , mesh_new%nTri_loc, mesh_new%nz)
+    ! Intermediate data fields: reallocate
+    CALL reallocate_bounds( SIA%D_3D_b  , mesh_new%ti1, mesh_new%ti2, mesh_new%nz)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

@@ -30,6 +30,7 @@ MODULE netcdf_input
   USE mesh_utilities                                         , ONLY: check_mesh
   USE mesh_secondary                                         , ONLY: calc_all_secondary_mesh_data
   USE mesh_parallel_creation                                 , ONLY: broadcast_mesh
+  USE mesh_operators                                         , ONLY: calc_all_matrix_operators_mesh
   USE mesh_remapping                                         , ONLY: map_from_xy_grid_to_mesh_2D, map_from_lonlat_grid_to_mesh_2D, map_from_mesh_to_mesh_2D, &
                                                                      map_from_xy_grid_to_mesh_3D, map_from_lonlat_grid_to_mesh_3D, map_from_mesh_to_mesh_3D
 
@@ -2037,6 +2038,9 @@ CONTAINS
 
     ! Calculate secondary mesh data
     CALL calc_all_secondary_mesh_data( mesh, mesh%lambda_M, mesh%phi_M, mesh%beta_stereo)
+
+    ! Calculate all matrix operators
+    CALL calc_all_matrix_operators_mesh( mesh)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

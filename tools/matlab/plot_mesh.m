@@ -19,4 +19,6 @@ H.Ax  = axes('parent',H.Fig,'units','pixels','position',[25,25,wa,ha],'fontsize'
 H.Patch = patch('vertices',mesh.V( 1:mesh.nV,:),'faces',mesh.Tri( 1:mesh.nTri,:),...
   'facecolor','none','edgecolor','k');
 
+set( H.Ax,'units','normalized');
+
 end

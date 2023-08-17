@@ -34,6 +34,8 @@ MODULE region_types
 
     ! The mesh that all model components define their data on
     TYPE(type_mesh)                         :: mesh
+    REAL(dp)                                :: time_mesh_was_created
+    LOGICAL                                 :: output_files_match_current_mesh
 
     ! Square grid used for smoothing data
     TYPE(type_grid)                         :: grid_smooth

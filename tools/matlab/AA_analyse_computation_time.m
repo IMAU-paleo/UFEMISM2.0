@@ -1,10 +1,10 @@
-function analyse_computation_time( filename)
+function AA_analyse_computation_time
   
-filename = '../../results_unit_tests/resource_tracking.nc';
+filename = '/Users/berends/Documents/Papers/UFEMISM2.0/MISMIP/results_MISMIP_5km_spinup/resource_tracking.nc';
 
 R = read_resource_tracking_file( filename);
-% save('tempdata.mat','R')
-% load('tempdata.mat')
+
+tcomp_tot_all = R.tcomp_tot;
 
 % Set up GUI
 wa = 1200;
@@ -328,7 +328,8 @@ end
     
     % Calculate relative computation time for all children
     for ci = 1: length( R.children)
-      R.children{ ci}.tcomp_rel = R.children{ ci}.tcomp_tot / R.tcomp_tot;
+      R.children{ ci}.tcomp_rel     = R.children{ ci}.tcomp_tot / R.tcomp_tot;
+      R.children{ ci}.tcomp_rel_all = R.children{ ci}.tcomp_tot / tcomp_tot_all;
     end
     
     % Draw patches and text labels for all children
@@ -348,7 +349,8 @@ end
       % Text labels to the right
       xt = xl + 1;
       yt = (-0.5 + ci)/length(R.children);
-      str = [num2str(round(R.children{ ci}.tcomp_rel*1000)/10) ' % - ' R.children{ ci}.name];
+      str = [num2str( round( R.children{ ci}.tcomp_rel     * 1000)/10) ' % (' ...
+             num2str( round( R.children{ ci}.tcomp_rel_all * 1000)/10) ' %) - ' R.children{ ci}.name];
       R.children{ ci}.text = text(xt,yt,treat_underscore( str),'fontsize',24,'color',colors(ci,:));
       
       yl = yu;

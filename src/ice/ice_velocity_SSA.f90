@@ -17,8 +17,7 @@ MODULE ice_velocity_SSA
   USE mesh_types                                             , ONLY: type_mesh
   USE ice_model_types                                        , ONLY: type_ice_model, type_ice_velocity_solver_SSA
   USE parameters
-  USE reallocate_mod                                         , ONLY: reallocate_clean
-  USE mesh_operators                                         , ONLY: map_a_b_2D, ddx_a_b_2D, ddy_a_b_2D, ddx_b_a_2D, ddy_b_a_2D
+  USE mesh_operators                                         , ONLY: map_a_b_2D, ddx_a_b_2D, ddy_a_b_2D, ddx_b_a_2D, ddy_b_a_2D, map_b_a_2D
   USE mesh_zeta                                              , ONLY: vertical_average
   USE sliding_laws                                           , ONLY: calc_basal_friction_coefficient
   USE mesh_utilities                                         , ONLY: find_ti_copy_ISMIP_HOM_periodic
@@ -30,6 +29,8 @@ MODULE ice_velocity_SSA
   USE netcdf_input                                           , ONLY: read_field_from_mesh_file_2D_b
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_1D
   USE ice_flow_laws                                          , ONLY: calc_effective_viscosity_Glen_2D, calc_ice_rheology_Glen
+  USE reallocate_mod                                         , ONLY: reallocate_bounds, reallocate_clean
+  USE mesh_remapping                                         , ONLY: map_from_mesh_to_mesh_with_reallocation_2D, map_from_mesh_to_mesh_with_reallocation_3D
 
   IMPLICIT NONE
 
@@ -107,19 +108,25 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'solve_SSA'
+    LOGICAL                                                      :: grounded_ice_exists
     INTEGER,  DIMENSION(:    ), ALLOCATABLE                      :: BC_prescr_mask_b_applied
     REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: BC_prescr_u_b_applied
     REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: BC_prescr_v_b_applied
     INTEGER                                                      :: viscosity_iteration_i
     LOGICAL                                                      :: has_converged
-    REAL(dp)                                                     :: resid_UV
+    REAL(dp)                                                     :: resid_UV, resid_UV_prev
     REAL(dp)                                                     :: uv_min, uv_max
+    REAL(dp)                                                     :: visc_it_relax_applied
+    REAL(dp)                                                     :: Glens_flow_law_epsilon_sq_0_applied
+    INTEGER                                                      :: nit_diverg_consec
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
     ! If there is no grounded ice, or no sliding, no need to solve the SSA
-    IF ((.NOT. ANY( ice%mask_grounded_ice)) .OR. C%choice_sliding_law == 'no_sliding') THEN
+    grounded_ice_exists = ANY( ice%mask_grounded_ice)
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, grounded_ice_exists, 1, MPI_LOGICAL, MPI_LOR, MPI_COMM_WORLD, ierr)
+    IF (.NOT. grounded_ice_exists .OR. C%choice_sliding_law == 'no_sliding') THEN
       SSA%u_b = 0._dp
       SSA%v_b = 0._dp
       CALL finalise_routine( routine_name)
@@ -147,6 +154,12 @@ CONTAINS
     ! Calculate the driving stress
     CALL calc_driving_stress( mesh, ice, SSA)
 
+    ! Adaptive relaxation parameter for the viscosity iteration
+    resid_UV                            = 1E9_dp
+    nit_diverg_consec                   = 0
+    visc_it_relax_applied               = C%visc_it_relax
+    Glens_flow_law_epsilon_sq_0_applied = C%Glens_flow_law_epsilon_sq_0
+
     ! The viscosity iteration
     viscosity_iteration_i = 0
     has_converged         = .FALSE.
@@ -157,7 +170,7 @@ CONTAINS
       CALL calc_strain_rates( mesh, SSA)
 
       ! Calculate the effective viscosity for the current velocity solution
-      CALL calc_effective_viscosity( mesh, ice, SSA)
+      CALL calc_effective_viscosity( mesh, ice, SSA, Glens_flow_law_epsilon_sq_0_applied)
 
       ! Calculate the basal friction coefficient betab for the current velocity solution
       CALL calc_applied_basal_friction_coefficient( mesh, ice, SSA)
@@ -169,10 +182,30 @@ CONTAINS
       CALL apply_velocity_limits( mesh, SSA)
 
       ! Reduce the change between velocity solutions
-      CALL relax_viscosity_iterations( mesh, SSA)
+      CALL relax_viscosity_iterations( mesh, SSA, visc_it_relax_applied)
 
       ! Calculate the L2-norm of the two consecutive velocity solutions
+      resid_UV_prev = resid_UV
       CALL calc_visc_iter_UV_resid( mesh, SSA, resid_UV)
+
+      ! If the viscosity iteration diverges, lower the relaxation parameter
+      IF (resid_UV > resid_UV_prev) THEN
+        nit_diverg_consec = nit_diverg_consec + 1
+      ELSE
+        nit_diverg_consec = 0
+      END IF
+      IF (nit_diverg_consec > 2) THEN
+        nit_diverg_consec = 0
+        visc_it_relax_applied               = visc_it_relax_applied               * 0.9_dp
+        Glens_flow_law_epsilon_sq_0_applied = Glens_flow_law_epsilon_sq_0_applied * 1.2_dp
+      END IF
+      IF (visc_it_relax_applied <= 0.05_dp .OR. Glens_flow_law_epsilon_sq_0_applied >= 1E-5_dp) THEN
+        IF (visc_it_relax_applied < 0.05_dp) THEN
+          CALL crash('viscosity iteration still diverges even with very low relaxation factor!')
+        ELSEIF (Glens_flow_law_epsilon_sq_0_applied > 1E-5_dp) THEN
+          CALL crash('viscosity iteration still diverges even with very high effective strain rate regularisation!')
+        END IF
+      END IF
 
       ! DENK DROM
       uv_min = MINVAL( SSA%u_b)
@@ -187,11 +220,11 @@ CONTAINS
         has_converged = .TRUE.
       END IF
 
-       ! If we've reached the maximum allowed number of iterations without converging, throw a warning
-       IF (viscosity_iteration_i > C%visc_it_nit) THEN
-         CALL warning('viscosity iteration failed to converge within {int_01} iterations!', int_01 = C%visc_it_nit)
-         EXIT viscosity_iteration
-       END IF
+      ! If we've reached the maximum allowed number of iterations without converging, throw a warning
+      IF (viscosity_iteration_i > C%visc_it_nit) THEN
+        IF (par%master) CALL warning('viscosity iteration failed to converge within {int_01} iterations!', int_01 = C%visc_it_nit)
+        EXIT viscosity_iteration
+      END IF
 
     END DO viscosity_iteration
 
@@ -205,7 +238,7 @@ CONTAINS
 
   END SUBROUTINE solve_SSA
 
-  SUBROUTINE remap_SSA_solver( mesh_old, mesh_new, ice, SSA)
+  SUBROUTINE remap_SSA_solver( mesh_old, mesh_new, SSA)
     ! Remap the SSA solver
 
     IMPLICIT NONE
@@ -213,17 +246,61 @@ CONTAINS
     ! In/output variables:
     TYPE(type_mesh),                     INTENT(IN)    :: mesh_old
     TYPE(type_mesh),                     INTENT(IN)    :: mesh_new
-    TYPE(type_ice_model),                INTENT(IN)    :: ice
     TYPE(type_ice_velocity_solver_SSA),  INTENT(INOUT) :: SSA
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'remap_SSA_solver'
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: u_a
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: v_a
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! DENK DROM
-    CALL crash('fixme!')
+  ! Remap the fields that are re-used during the viscosity iteration
+  ! ================================================================
+
+    ! Allocate memory for velocities on the a-grid (vertices)
+    ALLOCATE( u_a( mesh_old%vi1: mesh_old%vi2))
+    ALLOCATE( v_a( mesh_old%vi1: mesh_old%vi2))
+
+    ! Map velocities from the triangles of the old mesh to the vertices of the old mesh
+    CALL map_b_a_2D( mesh_old, SSA%u_b, u_a)
+    CALL map_b_a_2D( mesh_old, SSA%v_b, v_a)
+
+    ! Remap velocities from the vertices of the old mesh to the vertices of the new mesh
+    CALL map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, u_a, '2nd_order_conservative')
+    CALL map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, v_a, '2nd_order_conservative')
+
+    ! Reallocate memory for the velocities on the triangles
+    CALL reallocate_bounds( SSA%u_b                         , mesh_new%ti1, mesh_new%ti2)
+    CALL reallocate_bounds( SSA%v_b                         , mesh_new%ti1, mesh_new%ti2)
+
+    ! Map velocities from the vertices of the new mesh to the triangles of the new mesh
+    CALL map_a_b_2D( mesh_new, u_a, SSA%u_b)
+    CALL map_a_b_2D( mesh_new, v_a, SSA%v_b)
+
+    ! Clean up after yourself
+    DEALLOCATE( u_a)
+    DEALLOCATE( v_a)
+
+  ! Reallocate everything else
+  ! ==========================
+
+    CALL reallocate_bounds( SSA%A_flow_vav_a                , mesh_new%vi1, mesh_new%vi2)           ! [Pa^-3 y^-1] Vertically averaged Glen's flow law parameter
+    CALL reallocate_bounds( SSA%du_dx_a                     , mesh_new%vi1, mesh_new%vi2)           ! [yr^-1] 2-D horizontal strain rates
+    CALL reallocate_bounds( SSA%du_dy_a                     , mesh_new%vi1, mesh_new%vi2)
+    CALL reallocate_bounds( SSA%dv_dx_a                     , mesh_new%vi1, mesh_new%vi2)
+    CALL reallocate_bounds( SSA%dv_dy_a                     , mesh_new%vi1, mesh_new%vi2)
+    CALL reallocate_bounds( SSA%eta_a                       , mesh_new%vi1, mesh_new%vi2)           ! Effective viscosity
+    CALL reallocate_bounds( SSA%N_a                         , mesh_new%vi1, mesh_new%vi2)           ! Product term N = eta * H
+    CALL reallocate_bounds( SSA%N_b                         , mesh_new%ti1, mesh_new%ti2)
+    CALL reallocate_bounds( SSA%dN_dx_b                     , mesh_new%ti1, mesh_new%ti2)           ! Gradients of N
+    CALL reallocate_bounds( SSA%dN_dy_b                     , mesh_new%ti1, mesh_new%ti2)
+    CALL reallocate_bounds( SSA%basal_friction_coefficient_b, mesh_new%ti1, mesh_new%ti2)           ! Basal friction coefficient (basal_shear_stress = u * basal_friction_coefficient)
+    CALL reallocate_bounds( SSA%tau_dx_b                    , mesh_new%ti1, mesh_new%ti2)           ! Driving stress
+    CALL reallocate_bounds( SSA%tau_dy_b                    , mesh_new%ti1, mesh_new%ti2)
+    CALL reallocate_clean ( SSA%u_b_prev                    , mesh_new%nTri             )           ! Velocity solution from previous viscosity iteration
+    CALL reallocate_clean ( SSA%v_b_prev                    , mesh_new%nTri             )
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -1357,7 +1434,7 @@ CONTAINS
 
   END SUBROUTINE calc_vertically_averaged_flow_parameter
 
-  SUBROUTINE calc_effective_viscosity( mesh, ice, SSA)
+  SUBROUTINE calc_effective_viscosity( mesh, ice, SSA, Glens_flow_law_epsilon_sq_0_applied)
     ! Calculate the effective viscosity eta, the product term N = eta*H, and the gradients of N
 
     IMPLICIT NONE
@@ -1366,6 +1443,7 @@ CONTAINS
     TYPE(type_mesh),                     INTENT(IN)              :: mesh
     TYPE(type_ice_model),                INTENT(INOUT)           :: ice
     TYPE(type_ice_velocity_solver_SSA),  INTENT(INOUT)           :: SSA
+    REAL(dp),                            INTENT(IN)              :: Glens_flow_law_epsilon_sq_0_applied
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'calc_effective_viscosity'
@@ -1377,7 +1455,7 @@ CONTAINS
 
     ! Calculate maximum allowed effective viscosity, for stability
     A_min = 1E-18_dp
-    eta_max = 0.5_dp * A_min**(-1._dp / C%Glens_flow_law_exponent) * (C%Glens_flow_law_epsilon_sq_0)**((1._dp - C%Glens_flow_law_exponent)/(2._dp*C%Glens_flow_law_exponent))
+    eta_max = 0.5_dp * A_min**(-1._dp / C%Glens_flow_law_exponent) * (Glens_flow_law_epsilon_sq_0_applied)**((1._dp - C%Glens_flow_law_exponent)/(2._dp*C%Glens_flow_law_exponent))
 
     ! Calculate the effective viscosity eta
     IF (C%choice_flow_law == 'Glen') THEN
@@ -1389,7 +1467,8 @@ CONTAINS
 
       ! Calculate effective viscosity
       DO vi = mesh%vi1, mesh%vi2
-        SSA%eta_a( vi) = calc_effective_viscosity_Glen_2D( SSA%du_dx_a( vi), SSA%du_dy_a( vi), SSA%dv_dx_a( vi), SSA%dv_dy_a( vi), SSA%A_flow_vav_a( vi))
+        SSA%eta_a( vi) = calc_effective_viscosity_Glen_2D( Glens_flow_law_epsilon_sq_0_applied, &
+          SSA%du_dx_a( vi), SSA%du_dy_a( vi), SSA%dv_dx_a( vi), SSA%dv_dy_a( vi), SSA%A_flow_vav_a( vi))
       END DO
 
     ELSE
@@ -1453,7 +1532,7 @@ CONTAINS
 
 ! == Some useful tools for improving numerical stability of the viscosity iteration
 
-  SUBROUTINE relax_viscosity_iterations( mesh, SSA)
+  SUBROUTINE relax_viscosity_iterations( mesh, SSA, visc_it_relax)
     ! Reduce the change between velocity solutions
 
     IMPLICIT NONE
@@ -1461,6 +1540,7 @@ CONTAINS
     ! In/output variables:
     TYPE(type_mesh),                     INTENT(IN)              :: mesh
     TYPE(type_ice_velocity_solver_SSA),  INTENT(INOUT)           :: SSA
+    REAL(dp),                            INTENT(IN)              :: visc_it_relax
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'relax_viscosity_iterations'
@@ -1470,8 +1550,8 @@ CONTAINS
     CALL init_routine( routine_name)
 
     DO ti = mesh%ti1, mesh%ti2
-      SSA%u_b( ti) = (C%visc_it_relax * SSA%u_b( ti)) + ((1._dp - C%visc_it_relax) * SSA%u_b_prev( ti))
-      SSA%v_b( ti) = (C%visc_it_relax * SSA%v_b( ti)) + ((1._dp - C%visc_it_relax) * SSA%v_b_prev( ti))
+      SSA%u_b( ti) = (visc_it_relax * SSA%u_b( ti)) + ((1._dp - visc_it_relax) * SSA%u_b_prev( ti))
+      SSA%v_b( ti) = (visc_it_relax * SSA%v_b( ti)) + ((1._dp - visc_it_relax) * SSA%v_b_prev( ti))
     END DO
 
     ! Finalise routine path

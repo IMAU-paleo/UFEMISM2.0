@@ -400,12 +400,11 @@ CONTAINS
     REAL(dp), DIMENSION(:    ), ALLOCATABLE       :: SL_tot
     REAL(dp), DIMENSION(:    ), ALLOCATABLE       :: TAF_tot
     REAL(dp), DIMENSION(:    ), ALLOCATABLE       :: Hb_minus_SL_tot
-    INTEGER                                       :: vi,ci,vj
+    INTEGER                                       :: vi
     LOGICAL,  DIMENSION(:    ), ALLOCATABLE       :: mask_sheet
     LOGICAL,  DIMENSION(:    ), ALLOCATABLE       :: mask_shelf
     LOGICAL,  DIMENSION(:    ), ALLOCATABLE       :: mask_calc_grounding_line
     LOGICAL,  DIMENSION(:    ), ALLOCATABLE       :: mask_calc_calving_front
-    LOGICAL,  DIMENSION(:    ), ALLOCATABLE       :: mask_calc_ice_front
     LOGICAL,  DIMENSION(:    ), ALLOCATABLE       :: mask_calc_coastline
     INTEGER                                       :: n_poly_mult_sheet
     INTEGER                                       :: n_poly_mult_shelf
@@ -461,9 +460,8 @@ CONTAINS
 
       ! Fill in masks for where to calculate lines
       ALLOCATE( mask_calc_grounding_line( mesh%nV), source = .FALSE.)
-      ALLOCATE( mask_calc_calving_front(  mesh%nV), source = .FALSE.)
-      ALLOCATE( mask_calc_ice_front(      mesh%nV), source = .FALSE.)
-      ALLOCATE( mask_calc_coastline(      mesh%nV), source = .FALSE.)
+      ALLOCATE( mask_calc_calving_front ( mesh%nV), source = .FALSE.)
+      ALLOCATE( mask_calc_coastline     ( mesh%nV), source = .FALSE.)
 
       DO vi = 1, mesh%nV
 
@@ -472,43 +470,17 @@ CONTAINS
           mask_calc_grounding_line( vi) = .TRUE.
         END IF
 
-        ! Calving front should only be calculated for ice (both floating and grounded) next to ocean
-        IF (Hi_tot( vi) > 0.1_dp) THEN
-          ! This grid cell has ice
-          DO ci = 1, mesh%nC( vi)
-            vj = mesh%C( vi,ci)
-            IF (Hi_tot( vj) < 0.1_dp .AND. Hb_tot( vj) < SL_tot( vj)) THEN
-              ! This neighbour is open ocean
-              mask_calc_calving_front( vi) = .TRUE.
-            END IF
-          END DO
+        ! Calving front should only be calculated on floating ice
+        IF (TAF_tot( vi) < 0.1_dp .AND. Hi_tot( vi) > 0.1_dp) THEN
+           mask_calc_calving_front( vi) = .TRUE.
         END IF
 
-        ! Ice front is simply ice next to non-ice
-        IF (Hi_tot( vi) > 0.1_dp) THEN
-          ! This grid cell has ice
-          DO ci = 1, mesh%nC( vi)
-            vj = mesh%C( vi,ci)
-            IF (Hi_tot( vj) < 0.1_dp) THEN
-              ! This neighbour is ice-free
-              mask_calc_ice_front( vi) = .TRUE.
-            END IF
-          END DO
+        ! Coastline should only be calculated where there's no ice
+        IF (Hi_tot( vi) < 0.1_dp ) THEN
+           mask_calc_coastline( vi) = .TRUE.
         END IF
 
-        ! Coastline is ice-free land next to open ocean
-        IF (Hi_tot( vi) < 0.1_dp .AND. Hb_tot( vi) > SL_tot( vi)) THEN
-          ! This grid cell is ice-free land
-          DO ci = 1, mesh%nC( vi)
-            vj = mesh%C( vi,ci)
-            IF (Hi_tot( vj) < 0.1_dp .AND. Hb_tot( vj) < SL_tot( vj)) THEN
-              ! This neighbour is open ocean
-              mask_calc_coastline( vi) = .TRUE.
-            END IF
-          END DO
-        END IF
-
-      END DO
+      END DO ! DO vi = 1, mesh%nV
 
       ! Calculate polygons enveloping sheet and shelf
       CALL calc_mesh_mask_as_polygons( mesh, mask_sheet, poly_mult_sheet)
@@ -520,8 +492,8 @@ CONTAINS
 
       ! Calculate lines in line segment format
       CALL calc_mesh_contour_as_line( mesh, TAF_tot        , 0.0_dp, p_line_grounding_line, mask_calc_grounding_line)
-      CALL calc_mesh_contour_as_line( mesh, Hi_tot         , 0.1_dp, p_line_calving_front , mask_calc_calving_front )
-      CALL calc_mesh_contour_as_line( mesh, Hi_tot         , 0.1_dp, p_line_ice_front     , mask_calc_ice_front     )
+      CALL calc_mesh_contour_as_line( mesh, Hi_tot         , 1.0_dp, p_line_calving_front , mask_calc_calving_front )
+      CALL calc_mesh_contour_as_line( mesh, Hi_tot         , 1.0_dp, p_line_ice_front                               )
       CALL calc_mesh_contour_as_line( mesh, Hb_minus_SL_tot, 0.0_dp, p_line_coastline     , mask_calc_coastline     )
 
       ! Get line sizes
@@ -579,7 +551,6 @@ CONTAINS
       DEALLOCATE( mask_shelf)
       DEALLOCATE( mask_calc_grounding_line)
       DEALLOCATE( mask_calc_calving_front)
-      DEALLOCATE( mask_calc_ice_front)
       DEALLOCATE( mask_calc_coastline)
     END IF
 

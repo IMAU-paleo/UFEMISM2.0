@@ -1,4 +1,4 @@
-function setup_model_configuration_code
+function AA_setup_model_configuration_code
 
 fill_configuration_module
 create_config_unit_tests

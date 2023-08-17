@@ -24,6 +24,7 @@ MODULE reallocate_mod
     PROCEDURE :: reallocate_bounds_dp_2D
     PROCEDURE :: reallocate_bounds_int_1D
     PROCEDURE :: reallocate_bounds_int_2D
+    PROCEDURE :: reallocate_bounds_logical_1D
   END INTERFACE
 
   INTERFACE reallocate_clean
@@ -157,6 +158,20 @@ CONTAINS
     CALL MOVE_ALLOC( newarray, array)
 
   END SUBROUTINE reallocate_bounds_int_2D
+
+  SUBROUTINE reallocate_bounds_logical_1D( array,start,stop)
+    ! ALLOCATE, swap pointer (bonus: implicit DEALLOCATE)
+
+    IMPLICIT NONE
+
+    LOGICAL , ALLOCATABLE, DIMENSION(:), INTENT(INOUT)   :: array
+    INTEGER                            , INTENT(IN)      :: start, stop
+    LOGICAL , ALLOCATABLE, DIMENSION(:)                  :: newarray
+
+    ALLOCATE( newarray( start:stop), source = .FALSE.)
+    CALL MOVE_ALLOC( newarray, array)
+
+  END SUBROUTINE reallocate_bounds_logical_1D
 
   SUBROUTINE reallocate_clean_int_1D( d, n1)
     ! Allocate new, clean memory for d

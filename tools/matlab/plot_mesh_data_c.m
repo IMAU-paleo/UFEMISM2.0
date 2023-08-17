@@ -47,4 +47,7 @@ end
 % lastly NaN values
 line('parent',H.Ax,'xdata',mesh.E( isnan(d),1),'ydata',mesh.E( isnan(d),2),'linestyle','none',...
     'marker','x','markerfacecolor','r','markeredgecolor','r','markersize',8);
+
+set( H.Ax,'units','normalized');
+
 end

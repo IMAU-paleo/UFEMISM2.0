@@ -1,4 +1,4 @@
-function count_lines_of_source_code
+function AA_count_lines_of_source_code
 
 main_src_path = '/Users/berends/Documents/Models/UFEMISM2.0/src';
 

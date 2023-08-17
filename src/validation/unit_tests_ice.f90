@@ -35,6 +35,7 @@ MODULE unit_tests_ice
   USE analytical_solutions                                   , ONLY: Halfar_dome
   USE UFEMISM_main_model                                     , ONLY: initialise_model_region, run_model_region
   USE mesh_remapping                                         , ONLY: clear_all_maps_involving_this_mesh
+  USE GIA_modeL_types                                        , ONLY: type_GIA_model
 
   IMPLICIT NONE
 
@@ -83,6 +84,7 @@ CONTAINS
     TYPE(type_ice_model)                                               :: ice
     TYPE(type_regional_scalars)                                        :: scalars
     TYPE(type_reference_geometry)                                      :: refgeo_init, refgeo_PD, refgeo_GIAeq
+    TYPE(type_GIA_model)                                               :: GIA
     CHARACTER(LEN=256)                                                 :: region_name, mesh_name
     REAL(dp), DIMENSION(:    ), ALLOCATABLE                            :: BMB
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                            :: u_3D_b_SIA , v_3D_b_SIA , w_3D_SIA
@@ -131,7 +133,7 @@ CONTAINS
 
     ! Initialise the ice model
     C%choice_stress_balance_approximation = 'SIA'
-    CALL initialise_ice_dynamics_model( mesh, ice, refgeo_init, refgeo_PD, scalars, region_name)
+    CALL initialise_ice_dynamics_model( mesh, ice, refgeo_init, refgeo_PD, refgeo_GIAeq, GIA, scalars, region_name)
 
     ! Also initialise DIVA and BPA solvers
     C%choice_stress_balance_approximation = 'DIVA'
@@ -671,6 +673,7 @@ CONTAINS
     TYPE(type_ice_model)                                               :: ice
     TYPE(type_regional_scalars)                                        :: scalars
     TYPE(type_reference_geometry)                                      :: refgeo_init, refgeo_PD, refgeo_GIAeq
+    TYPE(type_GIA_model)                                               :: GIA
     CHARACTER(LEN=256)                                                 :: region_name, mesh_name
     REAL(dp), DIMENSION(:    ), ALLOCATABLE                            :: BMB
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                            :: u_3D_b_SIASSA, v_3D_b_SIASSA, w_3D_SIASSA
@@ -744,7 +747,7 @@ CONTAINS
 
     ! Initialise the ice model
     C%choice_stress_balance_approximation = 'SIA/SSA'
-    CALL initialise_ice_dynamics_model( mesh, ice, refgeo_init, refgeo_PD, scalars, region_name)
+    CALL initialise_ice_dynamics_model( mesh, ice, refgeo_init, refgeo_PD, refgeo_GIAeq, GIA, scalars, region_name)
 
     ! Also initialise DIVA and BPA solvers
     C%choice_stress_balance_approximation = 'DIVA'
@@ -958,6 +961,7 @@ CONTAINS
     TYPE(type_ice_model)                                               :: ice
     TYPE(type_regional_scalars)                                        :: scalars
     TYPE(type_reference_geometry)                                      :: refgeo_init, refgeo_PD, refgeo_GIAeq
+    TYPE(type_GIA_model)                                               :: GIA
     CHARACTER(LEN=256)                                                 :: region_name, mesh_name
     REAL(dp), DIMENSION(:    ), ALLOCATABLE                            :: BMB
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                            :: u_3D_b_SIASSA, v_3D_b_SIASSA, w_3D_SIASSA
@@ -1032,7 +1036,7 @@ CONTAINS
 
     ! Initialise the ice model
     C%choice_stress_balance_approximation = 'SIA/SSA'
-    CALL initialise_ice_dynamics_model( mesh, ice, refgeo_init, refgeo_PD, scalars, region_name)
+    CALL initialise_ice_dynamics_model( mesh, ice, refgeo_init, refgeo_PD, refgeo_GIAeq, GIA, scalars, region_name)
 
     ! Also initialise DIVA and BPA solvers
     C%choice_stress_balance_approximation = 'DIVA'

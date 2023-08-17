@@ -87,6 +87,7 @@ CONTAINS
     ALLOCATE( ice%mask_gl_fl                  ( mesh%vi1:mesh%vi2        ))  ! T: floating ice next to grounded ice, F: otherwise
     ALLOCATE( ice%mask_cf_gr                  ( mesh%vi1:mesh%vi2        ))  ! T: grounded ice next to ice-free water (sea or lake), F: otherwise
     ALLOCATE( ice%mask_cf_fl                  ( mesh%vi1:mesh%vi2        ))  ! T: floating ice next to ice-free water (sea or lake), F: otherwise
+    ALLOCATE( ice%mask_coastline              ( mesh%vi1:mesh%vi2        ))  ! T: ice-free land next to ice-free ocean, F: otherwise
     ALLOCATE( ice%mask_noice                  ( mesh%vi1:mesh%vi2        ))  ! T: no ice is allowed here, F: ice is allowed here
     ALLOCATE( ice%mask                        ( mesh%vi1:mesh%vi2        ))  ! Diagnostic, only meant for quick visual inspection in output
     ALLOCATE( ice%basin_ID                    ( mesh%vi1:mesh%vi2        ))  ! The drainage basin to which each vertex belongs
@@ -99,10 +100,12 @@ CONTAINS
     ice%mask_icefree_ocean_prev     = .FALSE.
     ice%mask_grounded_ice_prev      = .FALSE.
     ice%mask_floating_ice_prev      = .FALSE.
+    ice%mask_margin                 = .FALSE.
     ice%mask_gl_gr                  = .FALSE.
     ice%mask_gl_fl                  = .FALSE.
     ice%mask_cf_gr                  = .FALSE.
     ice%mask_cf_fl                  = .FALSE.
+    ice%mask_coastline              = .FALSE.
     ice%mask_noice                  = .FALSE.
     ice%mask                        = 0
     ice%basin_ID                    = 0
@@ -291,6 +294,15 @@ CONTAINS
     ice%dw_dx_3D                    = 0._dp
     ice%dw_dy_3D                    = 0._dp
     ice%dw_dz_3D                    = 0._dp
+
+  ! == Ice flow regime ==
+  ! =====================
+
+    ALLOCATE( ice%divQ                        ( mesh%vi1:mesh%vi2        ))  ! [m yr^-1] Horizontal ice flux divergence
+    ALLOCATE( ice%R_shear                     ( mesh%vi1:mesh%vi2        ))  ! [0-1]     uabs_base / uabs_surf (0 = pure vertical shear, viscous flow; 1 = pure sliding, plug flow)
+
+    ice%divQ                        = 0._dp
+    ice%R_shear                     = 0._dp
 
   ! == Basal hydrology ==
   ! =====================

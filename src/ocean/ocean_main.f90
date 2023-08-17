@@ -13,6 +13,7 @@ MODULE ocean_main
   USE mesh_types                                             , ONLY: type_mesh
   USE ice_model_types                                        , ONLY: type_ice_model
   USE ocean_model_types                                      , ONLY: type_ocean_model
+  USE reallocate_mod                                         , ONLY: reallocate_bounds
 
   IMPLICIT NONE
 
@@ -230,5 +231,55 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE create_restart_file_ocean_model
+
+  SUBROUTINE remap_ocean_model( mesh_old, mesh_new, ocean, region_name)
+    ! Remap the ocean model
+
+    IMPLICIT NONE
+
+    ! In- and output variables
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh_old
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh_new
+    TYPE(type_ocean_model),                 INTENT(INOUT) :: ocean
+    CHARACTER(LEN=3),                       INTENT(IN)    :: region_name
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'remap_ocean_model'
+    CHARACTER(LEN=256)                                    :: choice_ocean_model
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Print to terminal
+    IF (par%master)  WRITE(*,"(A)") '    Remapping ocean model data to the new mesh...'
+
+    ! Determine which ocean model to initialise for this region
+    IF     (region_name == 'NAM') THEN
+      choice_ocean_model = C%choice_ocean_model_NAM
+    ELSEIF (region_name == 'EAS') THEN
+      choice_ocean_model = C%choice_ocean_model_EAS
+    ELSEIF (region_name == 'GRL') THEN
+      choice_ocean_model = C%choice_ocean_model_GRL
+    ELSEIF (region_name == 'ANT') THEN
+      choice_ocean_model = C%choice_ocean_model_ANT
+    ELSE
+      CALL crash('unknown region_name "' // region_name // '"')
+    END IF
+
+    ! Reallocate memory for main variables
+    CALL reallocate_bounds( ocean%T, mesh_new%vi1, mesh_new%vi2,12)
+    CALL reallocate_bounds( ocean%S, mesh_new%vi1, mesh_new%vi2,12)
+
+    ! Determine which ocean model to remap
+    IF     (choice_ocean_model == 'none') THEN
+      ! No need to do anything
+    ELSE
+      CALL crash('unknown choice_ocean_model "' // TRIM( choice_ocean_model) // '"')
+    END IF
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE remap_ocean_model
 
 END MODULE ocean_main

@@ -19,8 +19,7 @@ MODULE ice_velocity_DIVA
   USE petsc_basic                                            , ONLY: solve_matrix_equation_CSR_PETSc
   USE mesh_types                                             , ONLY: type_mesh
   USE ice_model_types                                        , ONLY: type_ice_model, type_ice_velocity_solver_DIVA
-  USE reallocate_mod                                         , ONLY: reallocate_clean
-  USE mesh_operators                                         , ONLY: map_a_b_2D, ddx_a_b_2D, ddy_a_b_2D, ddx_b_a_2D, ddy_b_a_2D, map_b_a_3D, map_a_b_3D
+  USE mesh_operators                                         , ONLY: map_a_b_2D, ddx_a_b_2D, ddy_a_b_2D, ddx_b_a_2D, ddy_b_a_2D, map_b_a_2D, map_b_a_3D, map_a_b_3D
   USE mesh_zeta                                              , ONLY: vertical_average, integrate_from_zeta_is_one_to_zeta_is_zetap
   USE sliding_laws                                           , ONLY: calc_basal_friction_coefficient
   USE mesh_utilities                                         , ONLY: find_ti_copy_ISMIP_HOM_periodic
@@ -33,6 +32,8 @@ MODULE ice_velocity_DIVA
   USE netcdf_input                                           , ONLY: read_field_from_mesh_file_2D_b, read_field_from_mesh_file_3D_b
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_1D
   USE ice_flow_laws                                          , ONLY: calc_effective_viscosity_Glen_3D_uv_only, calc_ice_rheology_Glen
+  USE reallocate_mod                                         , ONLY: reallocate_bounds, reallocate_clean
+  USE mesh_remapping                                         , ONLY: map_from_mesh_to_mesh_with_reallocation_2D, map_from_mesh_to_mesh_with_reallocation_3D
 
   IMPLICIT NONE
 
@@ -110,19 +111,25 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'solve_DIVA'
+    LOGICAL                                                      :: grounded_ice_exists
     INTEGER,  DIMENSION(:    ), ALLOCATABLE                      :: BC_prescr_mask_b_applied
     REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: BC_prescr_u_b_applied
     REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: BC_prescr_v_b_applied
     INTEGER                                                      :: viscosity_iteration_i
     LOGICAL                                                      :: has_converged
-    REAL(dp)                                                     :: resid_UV
+    REAL(dp)                                                     :: resid_UV, resid_UV_prev
     REAL(dp)                                                     :: uv_min, uv_max
+    REAL(dp)                                                     :: visc_it_relax_applied
+    REAL(dp)                                                     :: Glens_flow_law_epsilon_sq_0_applied
+    INTEGER                                                      :: nit_diverg_consec
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
     ! If there is no grounded ice, no need (in fact, no way) to solve the DIVA
-    IF (.NOT. ANY( ice%mask_grounded_ice)) THEN
+    grounded_ice_exists = ANY( ice%mask_grounded_ice)
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, grounded_ice_exists, 1, MPI_LOGICAL, MPI_LOR, MPI_COMM_WORLD, ierr)
+    IF (.NOT. grounded_ice_exists) THEN
       DIVA%u_vav_b  = 0._dp
       DIVA%v_vav_b  = 0._dp
       DIVA%u_base_b = 0._dp
@@ -154,6 +161,12 @@ CONTAINS
     ! Calculate the driving stress
     CALL calc_driving_stress( mesh, ice, DIVA)
 
+    ! Adaptive relaxation parameter for the viscosity iteration
+    resid_UV                            = 1E9_dp
+    nit_diverg_consec                   = 0
+    visc_it_relax_applied               = C%visc_it_relax
+    Glens_flow_law_epsilon_sq_0_applied = C%Glens_flow_law_epsilon_sq_0
+
     ! The viscosity iteration
     viscosity_iteration_i = 0
     has_converged         = .FALSE.
@@ -167,7 +180,7 @@ CONTAINS
       CALL calc_vertical_shear_strain_rates( mesh, DIVA)
 
       ! Calculate the effective viscosity for the current velocity solution
-      CALL calc_effective_viscosity( mesh, ice, DIVA)
+      CALL calc_effective_viscosity( mesh, ice, DIVA, Glens_flow_law_epsilon_sq_0_applied)
 
       ! Calculate the F-integrals (Lipscomb et al. (2019), Eq. 30)
       CALL calc_F_integrals( mesh, ice, DIVA)
@@ -182,7 +195,7 @@ CONTAINS
       CALL apply_velocity_limits( mesh, DIVA)
 
       ! Reduce the change between velocity solutions
-      CALL relax_viscosity_iterations( mesh, DIVA)
+      CALL relax_viscosity_iterations( mesh, DIVA, visc_it_relax_applied)
 
       ! Calculate basal velocities
       CALL calc_basal_velocities( mesh, DIVA)
@@ -191,7 +204,27 @@ CONTAINS
       CALL calc_basal_shear_stress( mesh, DIVA)
 
       ! Calculate the L2-norm of the two consecutive velocity solutions
+      resid_UV_prev = resid_UV
       CALL calc_visc_iter_UV_resid( mesh, DIVA, resid_UV)
+
+      ! If the viscosity iteration diverges, lower the relaxation parameter
+      IF (resid_UV > resid_UV_prev) THEN
+        nit_diverg_consec = nit_diverg_consec + 1
+      ELSE
+        nit_diverg_consec = 0
+      END IF
+      IF (nit_diverg_consec > 2) THEN
+        nit_diverg_consec = 0
+        visc_it_relax_applied               = visc_it_relax_applied               * 0.9_dp
+        Glens_flow_law_epsilon_sq_0_applied = Glens_flow_law_epsilon_sq_0_applied * 1.2_dp
+      END IF
+      IF (visc_it_relax_applied <= 0.05_dp .OR. Glens_flow_law_epsilon_sq_0_applied >= 1E-5_dp) THEN
+        IF (visc_it_relax_applied < 0.05_dp) THEN
+          CALL crash('viscosity iteration still diverges even with very low relaxation factor!')
+        ELSEIF (Glens_flow_law_epsilon_sq_0_applied > 1E-5_dp) THEN
+          CALL crash('viscosity iteration still diverges even with very high effective strain rate regularisation!')
+        END IF
+      END IF
 
       ! DENK DROM
       uv_min = MINVAL( DIVA%u_vav_b)
@@ -206,11 +239,11 @@ CONTAINS
         has_converged = .TRUE.
       END IF
 
-       ! If we've reached the maximum allowed number of iterations without converging, throw a warning
-       IF (viscosity_iteration_i > C%visc_it_nit) THEN
-         CALL warning('viscosity iteration failed to converge within {int_01} iterations!', int_01 = C%visc_it_nit)
-         EXIT viscosity_iteration
-       END IF
+      ! If we've reached the maximum allowed number of iterations without converging, throw a warning
+      IF (viscosity_iteration_i > C%visc_it_nit) THEN
+        IF (par%master) CALL warning('viscosity iteration failed to converge within {int_01} iterations!', int_01 = C%visc_it_nit)
+        EXIT viscosity_iteration
+      END IF
 
     END DO viscosity_iteration
 
@@ -227,7 +260,7 @@ CONTAINS
 
   END SUBROUTINE solve_DIVA
 
-  SUBROUTINE remap_DIVA_solver( mesh_old, mesh_new, ice, DIVA)
+  SUBROUTINE remap_DIVA_solver( mesh_old, mesh_new, DIVA)
     ! Remap the DIVA solver
 
     IMPLICIT NONE
@@ -235,17 +268,113 @@ CONTAINS
     ! In/output variables:
     TYPE(type_mesh),                     INTENT(IN)    :: mesh_old
     TYPE(type_mesh),                     INTENT(IN)    :: mesh_new
-    TYPE(type_ice_model),                INTENT(IN)    :: ice
     TYPE(type_ice_velocity_solver_DIVA), INTENT(INOUT) :: DIVA
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'remap_DIVA_solver'
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: u_vav_a
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: v_vav_a
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: tau_bx_a
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: tau_by_a
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: eta_3D_a
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: u_3D_a
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: v_3D_a
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! DENK DROM
-    CALL crash('fixme!')
+  ! Remap the fields that are re-used during the viscosity iteration
+  ! ================================================================
+
+    ! Allocate memory for velocities on the a-grid (vertices)
+    ALLOCATE( u_vav_a ( mesh_old%vi1: mesh_old%vi2             ))
+    ALLOCATE( v_vav_a ( mesh_old%vi1: mesh_old%vi2             ))
+    ALLOCATE( tau_bx_a( mesh_old%vi1: mesh_old%vi2             ))
+    ALLOCATE( tau_by_a( mesh_old%vi1: mesh_old%vi2             ))
+    ALLOCATE( eta_3D_a( mesh_old%vi1: mesh_old%vi2, mesh_old%nz))
+    ALLOCATE( u_3D_a  ( mesh_old%vi1: mesh_old%vi2, mesh_old%nz))
+    ALLOCATE( v_3D_a  ( mesh_old%vi1: mesh_old%vi2, mesh_old%nz))
+
+    ! Map data from the triangles of the old mesh to the vertices of the old mesh
+    CALL map_b_a_2D( mesh_old, DIVA%u_vav_b , u_vav_a )
+    CALL map_b_a_2D( mesh_old, DIVA%v_vav_b , v_vav_a )
+    CALL map_b_a_2D( mesh_old, DIVA%tau_bx_b, tau_bx_a)
+    CALL map_b_a_2D( mesh_old, DIVA%tau_by_b, tau_by_a)
+    CALL map_b_a_3D( mesh_old, DIVA%eta_3D_b, eta_3D_a)
+    CALL map_b_a_3D( mesh_old, DIVA%u_3D_b  , u_3D_a  )
+    CALL map_b_a_3D( mesh_old, DIVA%v_3D_b  , v_3D_a  )
+
+    ! Remap data from the vertices of the old mesh to the vertices of the new mesh
+    CALL map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, u_vav_a , '2nd_order_conservative')
+    CALL map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, v_vav_a , '2nd_order_conservative')
+    CALL map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, tau_bx_a, '2nd_order_conservative')
+    CALL map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, tau_by_a, '2nd_order_conservative')
+    CALL map_from_mesh_to_mesh_with_reallocation_3D( mesh_old, mesh_new, eta_3D_a, '2nd_order_conservative')
+    CALL map_from_mesh_to_mesh_with_reallocation_3D( mesh_old, mesh_new, u_3D_a  , '2nd_order_conservative')
+    CALL map_from_mesh_to_mesh_with_reallocation_3D( mesh_old, mesh_new, v_3D_a  , '2nd_order_conservative')
+
+    ! Reallocate memory for the data on the triangles
+    CALL reallocate_bounds( DIVA%u_vav_b                     , mesh_new%ti1, mesh_new%ti2             )
+    CALL reallocate_bounds( DIVA%v_vav_b                     , mesh_new%ti1, mesh_new%ti2             )
+    CALL reallocate_bounds( DIVA%tau_bx_b                    , mesh_new%ti1, mesh_new%ti2             )
+    CALL reallocate_bounds( DIVA%tau_by_b                    , mesh_new%ti1, mesh_new%ti2             )
+    CALL reallocate_bounds( DIVA%eta_3D_b                    , mesh_new%ti1, mesh_new%ti2, mesh_new%nz)
+    CALL reallocate_bounds( DIVA%u_3D_b                      , mesh_new%ti1, mesh_new%ti2, mesh_new%nz)
+    CALL reallocate_bounds( DIVA%v_3D_b                      , mesh_new%ti1, mesh_new%ti2, mesh_new%nz)
+
+    ! Map data from the vertices of the new mesh to the triangles of the new mesh
+    CALL map_a_b_2D( mesh_new, u_vav_a , DIVA%u_vav_b )
+    CALL map_a_b_2D( mesh_new, v_vav_a , DIVA%v_vav_b )
+    CALL map_a_b_2D( mesh_new, tau_bx_a, DIVA%tau_bx_b)
+    CALL map_a_b_2D( mesh_new, tau_by_a, DIVA%tau_by_b)
+    CALL map_a_b_3D( mesh_new, eta_3D_a, DIVA%eta_3D_b)
+    CALL map_a_b_3D( mesh_new, u_3D_a  , DIVA%u_3D_b  )
+    CALL map_a_b_3D( mesh_new, v_3D_a  , DIVA%v_3D_b  )
+
+    ! Clean up after yourself
+    DEALLOCATE( u_vav_a )
+    DEALLOCATE( v_vav_a )
+    DEALLOCATE( tau_bx_a)
+    DEALLOCATE( tau_by_a)
+    DEALLOCATE( eta_3D_a)
+    DEALLOCATE( u_3D_a  )
+    DEALLOCATE( v_3D_a  )
+
+  ! Reallocate everything else
+  ! ==========================
+
+!   CALL reallocate_bounds( DIVA%u_vav_b                     , mesh_new%ti1, mesh_new%ti2             )           ! [m yr^-1] 2-D vertically averaged horizontal ice velocity
+!   CALL reallocate_bounds( DIVA%v_vav_b                     , mesh_new%ti1, mesh_new%ti2             )
+    CALL reallocate_bounds( DIVA%u_base_b                    , mesh_new%ti1, mesh_new%ti2             )           ! [m yr^-1] 2-D horizontal ice velocity at the ice base
+    CALL reallocate_bounds( DIVA%v_base_b                    , mesh_new%ti1, mesh_new%ti2             )
+!   CALL reallocate_bounds( DIVA%u_3D_b                      , mesh_new%ti1, mesh_new%ti2, mesh_new%nz)           ! [m yr^-1] 3-D horizontal ice velocity
+!   CALL reallocate_bounds( DIVA%v_3D_b                      , mesh_new%ti1, mesh_new%ti2, mesh_new%nz)
+    CALL reallocate_bounds( DIVA%du_dx_a                     , mesh_new%vi1, mesh_new%vi2             )           ! [yr^-1] 2-D horizontal strain rates
+    CALL reallocate_bounds( DIVA%du_dy_a                     , mesh_new%vi1, mesh_new%vi2             )
+    CALL reallocate_bounds( DIVA%dv_dx_a                     , mesh_new%vi1, mesh_new%vi2             )
+    CALL reallocate_bounds( DIVA%dv_dy_a                     , mesh_new%vi1, mesh_new%vi2             )
+    CALL reallocate_bounds( DIVA%du_dz_3D_a                  , mesh_new%vi1, mesh_new%vi2, mesh_new%nz)           ! [yr^-1] 3-D vertical shear strain rates
+    CALL reallocate_bounds( DIVA%dv_dz_3D_a                  , mesh_new%vi1, mesh_new%vi2, mesh_new%nz)
+    CALL reallocate_bounds( DIVA%eta_3D_a                    , mesh_new%vi1, mesh_new%vi2, mesh_new%nz)           ! Effective viscosity
+!   CALL reallocate_bounds( DIVA%eta_3D_b                    , mesh_new%ti1, mesh_new%ti2, mesh_new%nz)
+    CALL reallocate_bounds( DIVA%eta_vav_a                   , mesh_new%vi1, mesh_new%vi2             )
+    CALL reallocate_bounds( DIVA%N_a                         , mesh_new%vi1, mesh_new%vi2             )           ! Product term N = eta * H
+    CALL reallocate_bounds( DIVA%N_b                         , mesh_new%ti1, mesh_new%ti2             )
+    CALL reallocate_bounds( DIVA%dN_dx_b                     , mesh_new%ti1, mesh_new%ti2             )           ! Gradients of N
+    CALL reallocate_bounds( DIVA%dN_dy_b                     , mesh_new%ti1, mesh_new%ti2             )
+    CALL reallocate_bounds( DIVA%F1_3D_a                     , mesh_new%vi1, mesh_new%vi2, mesh_new%nz)           ! F-integrals
+    CALL reallocate_bounds( DIVA%F2_3D_a                     , mesh_new%vi1, mesh_new%vi2, mesh_new%nz)
+    CALL reallocate_bounds( DIVA%F1_3D_b                     , mesh_new%ti1, mesh_new%ti2, mesh_new%nz)
+    CALL reallocate_bounds( DIVA%F2_3D_b                     , mesh_new%ti1, mesh_new%ti2, mesh_new%nz)
+    CALL reallocate_bounds( DIVA%basal_friction_coefficient_b, mesh_new%ti1, mesh_new%ti2             )           ! Basal friction coefficient (basal_shear_stress = u * basal_friction_coefficient)
+    CALL reallocate_bounds( DIVA%beta_eff_a                  , mesh_new%vi1, mesh_new%vi2             )           ! "Effective" friction coefficient (turning the SSA into the DIVA)
+    CALL reallocate_bounds( DIVA%beta_eff_b                  , mesh_new%ti1, mesh_new%ti2             )
+!   CALL reallocate_bounds( DIVA%tau_bx_b                    , mesh_new%ti1, mesh_new%ti2             )           ! Basal shear stress
+!   CALL reallocate_bounds( DIVA%tau_by_b                    , mesh_new%ti1, mesh_new%ti2             )
+    CALL reallocate_bounds( DIVA%tau_dx_b                    , mesh_new%ti1, mesh_new%ti2             )           ! Driving stress
+    CALL reallocate_bounds( DIVA%tau_dy_b                    , mesh_new%ti1, mesh_new%ti2             )
+    CALL reallocate_clean ( DIVA%u_b_prev                    , mesh_new%nTri                          )           ! Velocity solution from previous viscosity iteration
+    CALL reallocate_clean ( DIVA%v_b_prev                    , mesh_new%nTri                          )
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -1388,7 +1517,7 @@ CONTAINS
 
   END SUBROUTINE calc_vertical_shear_strain_rates
 
-  SUBROUTINE calc_effective_viscosity( mesh, ice, DIVA)
+  SUBROUTINE calc_effective_viscosity( mesh, ice, DIVA, Glens_flow_law_epsilon_sq_0_applied)
     ! Calculate the effective viscosity eta, the product term N = eta*H, and the gradients of N
 
     IMPLICIT NONE
@@ -1397,6 +1526,7 @@ CONTAINS
     TYPE(type_mesh),                     INTENT(IN)              :: mesh
     TYPE(type_ice_model),                INTENT(INOUT)           :: ice
     TYPE(type_ice_velocity_solver_DIVA), INTENT(INOUT)           :: DIVA
+    REAL(dp),                            INTENT(IN)              :: Glens_flow_law_epsilon_sq_0_applied
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'calc_effective_viscosity'
@@ -1409,7 +1539,7 @@ CONTAINS
 
     ! Calculate maximum allowed effective viscosity, for stability
     A_min = 1E-18_dp
-    eta_max = 0.5_dp * A_min**(-1._dp / C%Glens_flow_law_exponent) * (C%Glens_flow_law_epsilon_sq_0)**((1._dp - C%Glens_flow_law_exponent)/(2._dp*C%Glens_flow_law_exponent))
+    eta_max = 0.5_dp * A_min**(-1._dp / C%Glens_flow_law_exponent) * (Glens_flow_law_epsilon_sq_0_applied)**((1._dp - C%Glens_flow_law_exponent)/(2._dp*C%Glens_flow_law_exponent))
 
     ! Calculate the effective viscosity eta
     IF (C%choice_flow_law == 'Glen') THEN
@@ -1422,6 +1552,7 @@ CONTAINS
       DO vi = mesh%vi1, mesh%vi2
       DO k  = 1, mesh%nz
         DIVA%eta_3D_a( vi,k) = calc_effective_viscosity_Glen_3D_uv_only( &
+          Glens_flow_law_epsilon_sq_0_applied, &
           DIVA%du_dx_a( vi), DIVA%du_dy_a( vi), DIVA%du_dz_3D_a( vi,k), &
           DIVA%dv_dx_a( vi), DIVA%dv_dy_a( vi), DIVA%dv_dz_3D_a( vi,k), ice%A_flow( vi,k))
       END DO
@@ -1665,7 +1796,7 @@ CONTAINS
 
 ! == Some useful tools for improving numerical stability of the viscosity iteration
 
-  SUBROUTINE relax_viscosity_iterations( mesh, DIVA)
+  SUBROUTINE relax_viscosity_iterations( mesh, DIVA, visc_it_relax)
     ! Reduce the change between velocity solutions
 
     IMPLICIT NONE
@@ -1673,6 +1804,7 @@ CONTAINS
     ! In/output variables:
     TYPE(type_mesh),                     INTENT(IN)              :: mesh
     TYPE(type_ice_velocity_solver_DIVA), INTENT(INOUT)           :: DIVA
+    REAL(dp),                            INTENT(IN)              :: visc_it_relax
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'relax_viscosity_iterations'
@@ -1682,8 +1814,8 @@ CONTAINS
     CALL init_routine( routine_name)
 
     DO ti = mesh%ti1, mesh%ti2
-      DIVA%u_vav_b( ti) = (C%visc_it_relax * DIVA%u_vav_b( ti)) + ((1._dp - C%visc_it_relax) * DIVA%u_b_prev( ti))
-      DIVA%v_vav_b( ti) = (C%visc_it_relax * DIVA%v_vav_b( ti)) + ((1._dp - C%visc_it_relax) * DIVA%v_b_prev( ti))
+      DIVA%u_vav_b( ti) = (visc_it_relax * DIVA%u_vav_b( ti)) + ((1._dp - visc_it_relax) * DIVA%u_b_prev( ti))
+      DIVA%v_vav_b( ti) = (visc_it_relax * DIVA%v_vav_b( ti)) + ((1._dp - visc_it_relax) * DIVA%v_b_prev( ti))
     END DO
 
     ! Finalise routine path

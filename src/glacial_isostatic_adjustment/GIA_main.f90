@@ -15,6 +15,7 @@ MODULE GIA_main
   USE GIA_model_types                                        , ONLY: type_GIA_model
   USE region_types                                           , ONLY: type_model_region
   USE grid_basic                                             , ONLY: setup_square_grid
+  USE reallocate_mod                                         , ONLY: reallocate_bounds
 
   IMPLICIT NONE
 
@@ -213,5 +214,45 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE create_restart_file_GIA_model
+
+  SUBROUTINE remap_GIA_model( mesh_old, mesh_new, GIA)
+    ! Remap the GIA model
+
+    IMPLICIT NONE
+
+    ! In- and output variables
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh_old
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh_new
+    TYPE(type_GIA_model),                   INTENT(OUT)   :: GIA
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'remap_GIA_model'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Print to terminal
+    IF (par%master)  WRITE(*,"(A)") '    Remapping GIA model data to the new mesh...'
+
+    ! Reallocate memory for main variables
+
+    ! In: relative surface load
+    CALL reallocate_bounds( GIA%relative_surface_load_mesh, mesh_new%vi1, mesh_new%vi2)
+    CALL reallocate_bounds( GIA%dHb_prev                  , mesh_new%vi1, mesh_new%vi2)
+    CALL reallocate_bounds( GIA%dHb_next                  , mesh_new%vi1, mesh_new%vi2)
+
+    ! Determine which GIA model to remap
+    IF     (C%choice_GIA_model == 'none') THEN
+      ! No need to do anything
+    ELSEIF (C%choice_GIA_model == 'ELRA') THEN
+      CALL crash('fixme!')
+    ELSE
+      CALL crash('unknown choice_GIA_model "' // TRIM( C%choice_GIA_model) // '"')
+    END IF
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE remap_GIA_model
 
 END MODULE GIA_main

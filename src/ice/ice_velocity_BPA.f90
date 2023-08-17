@@ -17,10 +17,10 @@ MODULE ice_velocity_BPA
   USE mesh_types                                             , ONLY: type_mesh
   USE ice_model_types                                        , ONLY: type_ice_model, type_ice_velocity_solver_BPA
   USE parameters
-  USE reallocate_mod                                         , ONLY: reallocate_clean
   USE mesh_operators                                         , ONLY: map_a_b_2D, map_a_b_3D, ddx_a_b_2D, ddy_a_b_2D, ddx_b_a_3D, ddy_b_a_3D, &
                                                                      calc_3D_gradient_bk_ak, calc_3D_gradient_bk_bks, map_ak_bks, map_bks_ak, &
-                                                                     calc_3D_gradient_ak_bk, calc_3D_gradient_bks_bk, calc_3D_matrix_operators_mesh
+                                                                     calc_3D_gradient_ak_bk, calc_3D_gradient_bks_bk, calc_3D_matrix_operators_mesh, &
+                                                                     map_b_a_3D
   USE mesh_zeta                                              , ONLY: vertical_average
   USE sliding_laws                                           , ONLY: calc_basal_friction_coefficient
   USE mesh_utilities                                         , ONLY: find_ti_copy_ISMIP_HOM_periodic
@@ -33,6 +33,8 @@ MODULE ice_velocity_BPA
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_2D
   USE ice_flow_laws                                          , ONLY: calc_effective_viscosity_Glen_3D_uv_only, calc_ice_rheology_Glen
   USE ice_model_utilities                                    , ONLY: calc_zeta_gradients
+  USE reallocate_mod                                         , ONLY: reallocate_bounds, reallocate_clean
+  USE mesh_remapping                                         , ONLY: map_from_mesh_to_mesh_with_reallocation_2D, map_from_mesh_to_mesh_with_reallocation_3D
 
   IMPLICIT NONE
 
@@ -110,19 +112,25 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'solve_BPA'
+    LOGICAL                                                      :: grounded_ice_exists
     INTEGER,  DIMENSION(:,:  ), ALLOCATABLE                      :: BC_prescr_mask_bk_applied
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                      :: BC_prescr_u_bk_applied
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                      :: BC_prescr_v_bk_applied
     INTEGER                                                      :: viscosity_iteration_i
     LOGICAL                                                      :: has_converged
-    REAL(dp)                                                     :: resid_UV
+    REAL(dp)                                                     :: resid_UV, resid_UV_prev
     REAL(dp)                                                     :: uv_min, uv_max
+    REAL(dp)                                                     :: visc_it_relax_applied
+    REAL(dp)                                                     :: Glens_flow_law_epsilon_sq_0_applied
+    INTEGER                                                      :: nit_diverg_consec
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
     ! If there is no grounded ice, or no sliding, no need to solve the BPA
-    IF (.NOT. ANY( ice%mask_grounded_ice)) THEN
+    grounded_ice_exists = ANY( ice%mask_grounded_ice)
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, grounded_ice_exists, 1, MPI_LOGICAL, MPI_LOR, MPI_COMM_WORLD, ierr)
+    IF (.NOT. grounded_ice_exists) THEN
       BPA%u_bk = 0._dp
       BPA%v_bk = 0._dp
       CALL finalise_routine( routine_name)
@@ -156,6 +164,12 @@ CONTAINS
     ! Calculate the driving stress
     CALL calc_driving_stress( mesh, ice, BPA)
 
+    ! Adaptive relaxation parameter for the viscosity iteration
+    resid_UV                            = 1E9_dp
+    nit_diverg_consec                   = 0
+    visc_it_relax_applied               = C%visc_it_relax
+    Glens_flow_law_epsilon_sq_0_applied = C%Glens_flow_law_epsilon_sq_0
+
     ! The viscosity iteration
     viscosity_iteration_i = 0
     has_converged         = .FALSE.
@@ -166,7 +180,7 @@ CONTAINS
       CALL calc_strain_rates( mesh, BPA)
 
       ! Calculate the effective viscosity for the current velocity solution
-      CALL calc_effective_viscosity( mesh, ice, BPA)
+      CALL calc_effective_viscosity( mesh, ice, BPA, Glens_flow_law_epsilon_sq_0_applied)
 
       ! Calculate the basal friction coefficient betab for the current velocity solution
       CALL calc_applied_basal_friction_coefficient( mesh, ice, BPA)
@@ -178,10 +192,30 @@ CONTAINS
       CALL apply_velocity_limits( mesh, BPA)
 
       ! Reduce the change between velocity solutions
-      CALL relax_viscosity_iterations( mesh, BPA)
+      CALL relax_viscosity_iterations( mesh, BPA, visc_it_relax_applied)
 
       ! Calculate the L2-norm of the two consecutive velocity solutions
+      resid_UV_prev = resid_UV
       CALL calc_visc_iter_UV_resid( mesh, BPA, resid_UV)
+
+      ! If the viscosity iteration diverges, lower the relaxation parameter
+      IF (resid_UV > resid_UV_prev) THEN
+        nit_diverg_consec = nit_diverg_consec + 1
+      ELSE
+        nit_diverg_consec = 0
+      END IF
+      IF (nit_diverg_consec > 2) THEN
+        nit_diverg_consec = 0
+        visc_it_relax_applied               = visc_it_relax_applied               * 0.9_dp
+        Glens_flow_law_epsilon_sq_0_applied = Glens_flow_law_epsilon_sq_0_applied * 1.2_dp
+      END IF
+      IF (visc_it_relax_applied <= 0.05_dp .OR. Glens_flow_law_epsilon_sq_0_applied >= 1E-5_dp) THEN
+        IF (visc_it_relax_applied < 0.05_dp) THEN
+          CALL crash('viscosity iteration still diverges even with very low relaxation factor!')
+        ELSEIF (Glens_flow_law_epsilon_sq_0_applied > 1E-5_dp) THEN
+          CALL crash('viscosity iteration still diverges even with very high effective strain rate regularisation!')
+        END IF
+      END IF
 
       ! DENK DROM
       uv_min = MINVAL( BPA%u_bk)
@@ -196,11 +230,11 @@ CONTAINS
         has_converged = .TRUE.
       END IF
 
-       ! If we've reached the maximum allowed number of iterations without converging, throw a warning
-       IF (viscosity_iteration_i > C%visc_it_nit) THEN
-         CALL warning('viscosity iteration failed to converge within {int_01} iterations!', int_01 = C%visc_it_nit)
-         EXIT viscosity_iteration
-       END IF
+      ! If we've reached the maximum allowed number of iterations without converging, throw a warning
+      IF (viscosity_iteration_i > C%visc_it_nit) THEN
+        IF (par%master) CALL warning('viscosity iteration failed to converge within {int_01} iterations!', int_01 = C%visc_it_nit)
+        EXIT viscosity_iteration
+      END IF
 
     END DO viscosity_iteration
 
@@ -214,7 +248,7 @@ CONTAINS
 
   END SUBROUTINE solve_BPA
 
-  SUBROUTINE remap_BPA_solver( mesh_old, mesh_new, ice, BPA)
+  SUBROUTINE remap_BPA_solver( mesh_old, mesh_new, BPA)
     ! Remap the BPA solver
 
     IMPLICIT NONE
@@ -222,17 +256,73 @@ CONTAINS
     ! In/output variables:
     TYPE(type_mesh),                     INTENT(IN)    :: mesh_old
     TYPE(type_mesh),                     INTENT(IN)    :: mesh_new
-    TYPE(type_ice_model),                INTENT(IN)    :: ice
     TYPE(type_ice_velocity_solver_BPA),  INTENT(INOUT) :: BPA
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'remap_BPA_solver'
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: v_ak
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: u_ak
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! DENK DROM
-    CALL crash('fixme!')
+  ! Remap the fields that are re-used during the viscosity iteration
+  ! ================================================================
+
+    ! Allocate memory for velocities on the a-grid (vertices)
+    ALLOCATE( u_ak( mesh_old%vi1: mesh_old%vi2, mesh_old%nz))
+    ALLOCATE( v_ak( mesh_old%vi1: mesh_old%vi2, mesh_old%nz))
+
+    ! Map velocities from the triangles of the old mesh to the vertices of the old mesh
+    CALL map_b_a_3D( mesh_old, BPA%u_bk, u_ak)
+    CALL map_b_a_3D( mesh_old, BPA%v_bk, v_ak)
+
+    ! Remap velocities from the vertices of the old mesh to the vertices of the new mesh
+    CALL map_from_mesh_to_mesh_with_reallocation_3D( mesh_old, mesh_new, u_ak, '2nd_order_conservative')
+    CALL map_from_mesh_to_mesh_with_reallocation_3D( mesh_old, mesh_new, v_ak, '2nd_order_conservative')
+
+    ! Reallocate memory for the velocities on the triangles
+    CALL reallocate_bounds( BPA%u_bk                        , mesh_new%ti1, mesh_new%ti2, mesh_new%nz)
+    CALL reallocate_bounds( BPA%v_bk                        , mesh_new%ti1, mesh_new%ti2, mesh_new%nz)
+
+    ! Map velocities from the vertices of the new mesh to the triangles of the new mesh
+    CALL map_a_b_3D( mesh_new, u_ak, BPA%u_bk)
+    CALL map_a_b_3D( mesh_new, v_ak, BPA%v_bk)
+
+    ! Clean up after yourself
+    DEALLOCATE( u_ak)
+    DEALLOCATE( v_ak)
+
+  ! Reallocate everything else
+  ! ==========================
+
+    CALL reallocate_bounds( BPA%du_dx_ak                    , mesh_new%vi1 , mesh_new%vi2, mesh_new%nz  )       ! [yr^-1] 2-D horizontal strain rates
+    CALL reallocate_bounds( BPA%du_dy_ak                    , mesh_new%vi1 , mesh_new%vi2, mesh_new%nz  )
+    CALL reallocate_bounds( BPA%du_dz_ak                    , mesh_new%vi1 , mesh_new%vi2, mesh_new%nz  )
+    CALL reallocate_bounds( BPA%dv_dx_ak                    , mesh_new%vi1 , mesh_new%vi2, mesh_new%nz  )       ! [yr^-1] 2-D horizontal strain rates
+    CALL reallocate_bounds( BPA%dv_dy_ak                    , mesh_new%vi1 , mesh_new%vi2, mesh_new%nz  )
+    CALL reallocate_bounds( BPA%dv_dz_ak                    , mesh_new%vi1 , mesh_new%vi2, mesh_new%nz  )
+    CALL reallocate_bounds( BPA%du_dx_bks                   , mesh_new%ti1 , mesh_new%ti2, mesh_new%nz-1)       ! [yr^-1] 2-D horizontal strain rates
+    CALL reallocate_bounds( BPA%du_dy_bks                   , mesh_new%ti1 , mesh_new%ti2, mesh_new%nz-1)
+    CALL reallocate_bounds( BPA%du_dz_bks                   , mesh_new%ti1 , mesh_new%ti2, mesh_new%nz-1)
+    CALL reallocate_bounds( BPA%dv_dx_bks                   , mesh_new%ti1 , mesh_new%ti2, mesh_new%nz-1)       ! [yr^-1] 2-D horizontal strain rates
+    CALL reallocate_bounds( BPA%dv_dy_bks                   , mesh_new%ti1 , mesh_new%ti2, mesh_new%nz-1)
+    CALL reallocate_bounds( BPA%dv_dz_bks                   , mesh_new%ti1 , mesh_new%ti2, mesh_new%nz-1)
+    CALL reallocate_bounds( BPA%eta_ak                      , mesh_new%vi1 , mesh_new%vi2, mesh_new%nz  )       ! Effective viscosity
+    CALL reallocate_bounds( BPA%eta_bks                     , mesh_new%ti1 , mesh_new%ti2, mesh_new%nz-1)
+    CALL reallocate_bounds( BPA%eta_bk                      , mesh_new%ti1 , mesh_new%ti2, mesh_new%nz  )
+    CALL reallocate_bounds( BPA%deta_dx_bk                  , mesh_new%ti1 , mesh_new%ti2, mesh_new%nz  )       ! Gradients of eta
+    CALL reallocate_bounds( BPA%deta_dy_bk                  , mesh_new%ti1 , mesh_new%ti2, mesh_new%nz  )       ! Gradients of eta
+    CALL reallocate_bounds( BPA%deta_dz_bk                  , mesh_new%ti1 , mesh_new%ti2, mesh_new%nz  )       ! Gradients of eta
+    CALL reallocate_bounds( BPA%basal_friction_coefficient_b, mesh_new%ti1 , mesh_new%ti2               )       ! Basal friction coefficient (basal_shear_stress = u * basal_friction_coefficient)
+    CALL reallocate_bounds( BPA%dh_dx_b                     , mesh_new%ti1 , mesh_new%ti2               )       ! Surface slope
+    CALL reallocate_bounds( BPA%dh_dy_b                     , mesh_new%ti1 , mesh_new%ti2               )
+    CALL reallocate_bounds( BPA%db_dx_b                     , mesh_new%ti1 , mesh_new%ti2               )       ! Basal slope
+    CALL reallocate_bounds( BPA%db_dy_b                     , mesh_new%ti1 , mesh_new%ti2               )
+    CALL reallocate_bounds( BPA%tau_dx_b                    , mesh_new%ti1 , mesh_new%ti2               )       ! Driving stress
+    CALL reallocate_bounds( BPA%tau_dy_b                    , mesh_new%ti1 , mesh_new%ti2               )
+    CALL reallocate_clean ( BPA%u_bk_prev                   , mesh_new%nTri              , mesh_new%nz  )       ! Velocity solution from previous viscosity iteration
+    CALL reallocate_clean ( BPA%v_bk_prev                   , mesh_new%nTri              , mesh_new%nz  )
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -1763,7 +1853,7 @@ CONTAINS
 
   END SUBROUTINE calc_strain_rates
 
-  SUBROUTINE calc_effective_viscosity( mesh, ice, BPA)
+  SUBROUTINE calc_effective_viscosity( mesh, ice, BPA, Glens_flow_law_epsilon_sq_0_applied)
     ! Calculate the effective viscosity eta, the product term N = eta*H, and the gradients of N
     !
     ! The effective viscosity eta is calculated separately on both the ak-grid (vertices, regular vertical)
@@ -1777,6 +1867,7 @@ CONTAINS
     TYPE(type_mesh),                     INTENT(IN)              :: mesh
     TYPE(type_ice_model),                INTENT(INOUT)           :: ice
     TYPE(type_ice_velocity_solver_BPA),  INTENT(INOUT)           :: BPA
+    REAL(dp),                            INTENT(IN)              :: Glens_flow_law_epsilon_sq_0_applied
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'calc_effective_viscosity'
@@ -1791,7 +1882,7 @@ CONTAINS
 
     ! Calculate maximum allowed effective viscosity, for stability
     A_min = 1E-18_dp
-    eta_max = 0.5_dp * A_min**(-1._dp / C%Glens_flow_law_exponent) * (C%Glens_flow_law_epsilon_sq_0)**((1._dp - C%Glens_flow_law_exponent)/(2._dp*C%Glens_flow_law_exponent))
+    eta_max = 0.5_dp * A_min**(-1._dp / C%Glens_flow_law_exponent) * (Glens_flow_law_epsilon_sq_0_applied)**((1._dp - C%Glens_flow_law_exponent)/(2._dp*C%Glens_flow_law_exponent))
 
     ! Allocate memory
     ALLOCATE( A_flow_bks( mesh%ti1:mesh%ti2, mesh%nz-1))
@@ -1808,7 +1899,7 @@ CONTAINS
       ! Calculate effective viscosity
       DO vi = mesh%vi1, mesh%vi2
       DO k  = 1, mesh%nz
-        BPA%eta_ak( vi,k) = calc_effective_viscosity_Glen_3D_uv_only( &
+        BPA%eta_ak( vi,k) = calc_effective_viscosity_Glen_3D_uv_only( Glens_flow_law_epsilon_sq_0_applied, &
           BPA%du_dx_ak( vi,k), BPA%du_dy_ak( vi,k), BPA%du_dz_ak( vi,k), &
           BPA%dv_dx_ak( vi,k), BPA%dv_dy_ak( vi,k), BPA%dv_dz_ak( vi,k), ice%A_flow( vi,k))
       END DO
@@ -1833,7 +1924,7 @@ CONTAINS
       ! Calculate effective viscosity
       DO ti = mesh%ti1, mesh%ti2
       DO ks  = 1, mesh%nz-1
-        BPA%eta_bks( ti,ks) = calc_effective_viscosity_Glen_3D_uv_only( &
+        BPA%eta_bks( ti,ks) = calc_effective_viscosity_Glen_3D_uv_only( C%Glens_flow_law_epsilon_sq_0, &
           BPA%du_dx_bks( ti,ks), BPA%du_dy_bks( ti,ks), BPA%du_dz_bks( ti,ks), &
           BPA%dv_dx_bks( ti,ks), BPA%dv_dy_bks( ti,ks), BPA%dv_dz_bks( ti,ks), A_flow_bks( ti,ks))
       END DO
@@ -1944,7 +2035,7 @@ CONTAINS
 
 ! == Some useful tools for improving numerical stability of the viscosity iteration
 
-  SUBROUTINE relax_viscosity_iterations( mesh, BPA)
+  SUBROUTINE relax_viscosity_iterations( mesh, BPA, visc_it_relax)
     ! Reduce the change between velocity solutions
 
     IMPLICIT NONE
@@ -1952,6 +2043,7 @@ CONTAINS
     ! In/output variables:
     TYPE(type_mesh),                     INTENT(IN)              :: mesh
     TYPE(type_ice_velocity_solver_BPA),  INTENT(INOUT)           :: BPA
+    REAL(dp),                            INTENT(IN)              :: visc_it_relax
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'relax_viscosity_iterations'
@@ -1961,8 +2053,8 @@ CONTAINS
     CALL init_routine( routine_name)
 
     DO ti = mesh%ti1, mesh%ti2
-      BPA%u_bk( ti,:) = (C%visc_it_relax * BPA%u_bk( ti,:)) + ((1._dp - C%visc_it_relax) * BPA%u_bk_prev( ti,:))
-      BPA%v_bk( ti,:) = (C%visc_it_relax * BPA%v_bk( ti,:)) + ((1._dp - C%visc_it_relax) * BPA%v_bk_prev( ti,:))
+      BPA%u_bk( ti,:) = (visc_it_relax * BPA%u_bk( ti,:)) + ((1._dp - visc_it_relax) * BPA%u_bk_prev( ti,:))
+      BPA%v_bk( ti,:) = (visc_it_relax * BPA%v_bk( ti,:)) + ((1._dp - visc_it_relax) * BPA%v_bk_prev( ti,:))
     END DO
 
     ! Finalise routine path

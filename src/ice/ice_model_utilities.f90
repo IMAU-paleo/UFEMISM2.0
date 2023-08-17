@@ -28,6 +28,7 @@ MODULE ice_model_utilities
   USE mesh_operators                                         , ONLY: ddx_a_a_2D, ddy_a_a_2D, map_a_b_2D, ddx_a_b_2D, ddy_a_b_2D, &
                                                                      ddx_b_a_2D, ddy_b_a_2D
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_1D
+  USE mesh_utilities                                         , ONLY: calc_Voronoi_cell, interpolate_to_point_dp_2D
 
   IMPLICIT NONE
 
@@ -55,6 +56,7 @@ CONTAINS
     ! mask_gl_fl              ! T: floating ice next to grounded ice, F: otherwise
     ! mask_cf_gr              ! T: grounded ice next to ice-free water (sea or lake), F: otherwise
     ! mask_cf_fl              ! T: floating ice next to ice-free water (sea or lake), F: otherwise
+    ! mask_coastline          ! T: ice-free land next to ice-free ocean, F: otherwise
 
     IMPLICIT NONE
 
@@ -140,11 +142,12 @@ CONTAINS
     CALL gather_to_all_logical_1D( ice%mask_floating_ice , mask_floating_ice_tot )
 
     ! Initialise transitional masks
-    ice%mask_margin = .FALSE.
-    ice%mask_gl_gr  = .FALSE.
-    ice%mask_gl_fl  = .FALSE.
-    ice%mask_cf_gr  = .FALSE.
-    ice%mask_cf_fl  = .FALSE.
+    ice%mask_margin    = .FALSE.
+    ice%mask_gl_gr     = .FALSE.
+    ice%mask_gl_fl     = .FALSE.
+    ice%mask_cf_gr     = .FALSE.
+    ice%mask_cf_fl     = .FALSE.
+    ice%mask_coastline = .FALSE.
 
     DO vi = mesh%vi1, mesh%vi2
 
@@ -199,6 +202,17 @@ CONTAINS
           IF (mask_icefree_ocean_tot( vj)) THEN
             ice%mask_cf_fl( vi) = .TRUE.
             ice%mask( vi) = C%type_calvingfront_fl
+          END IF
+        END DO
+      END IF
+
+      ! Coastline
+      IF (mask_icefree_land_tot( vi)) THEN
+        DO ci = 1, mesh%nC(vi)
+          vj = mesh%C( vi,ci)
+          IF (mask_icefree_ocean_tot( vj)) THEN
+            ice%mask_coastline( vi) = .TRUE.
+            ice%mask( vi) = C%type_coastline
           END IF
         END DO
       END IF
@@ -313,9 +327,9 @@ CONTAINS
     REAL(dp), DIMENSION(mesh%nV)                       :: TAF_tot
     REAL(dp), DIMENSION(mesh%ti1:mesh%ti2)             :: TAF_b
     REAL(dp), DIMENSION(mesh%nTri)                     :: TAF_b_tot
-    INTEGER                                            :: vi, ci, vj, iti, iti2, ti1, ti2
+    INTEGER                                            :: vi, ci, vj, iti1, iti2, ti1, ti2, iti, ti
     REAL(dp)                                           :: TAF_max, TAF_min
-    REAL(dp), DIMENSION(2)                             :: va, ccb1, ccb2
+    REAL(dp), DIMENSION(2)                             :: va, vb, vc
     REAL(dp)                                           :: TAFa, TAFb, TAFc, A_vor, A_tri_tot, A_tri_grnd, A_grnd
 
     ! Add routine to path
@@ -364,27 +378,90 @@ CONTAINS
       va   = mesh%V( vi,:)
       TAFa = TAF_tot( vi)
 
-      DO iti = 1, mesh%niTri( vi)
+      IF (mesh%VBI( vi) == 0) THEN
+        ! Free vertex
 
-        iti2 = iti + 1
-        IF (iti == mesh%niTri( vi)) iti2 = 1
+        DO iti1 = 1, mesh%niTri( vi)
 
-        ti1 = mesh%iTri( vi,iti )
-        ti2 = mesh%iTri( vi,iti2)
+          iti2 = iti1 + 1
+          IF (iti2 == mesh%niTri( vi) + 1) iti2 = 1
 
-        ccb1 = mesh%Tricc( ti1,:)
-        ccb2 = mesh%Tricc( ti2,:)
+          ti1 = mesh%iTri( vi,iti1)
+          ti2 = mesh%iTri( vi,iti2)
 
-        TAFb = TAF_b_tot( ti1)
-        TAFc = TAF_b_tot( ti2)
+          vb = mesh%Tricc( ti1,:)
+          vc = mesh%Tricc( ti2,:)
+
+          TAFb = TAF_b_tot( ti1)
+          TAFc = TAF_b_tot( ti2)
+
+          ! Calculate total area of, and grounded area within, this subtriangle
+          CALL calc_grounded_area_triangle( va, vb, vc, TAFa, TAFb, TAFc, A_tri_tot, A_tri_grnd)
+
+          A_vor  = A_vor  + A_tri_tot
+          A_grnd = A_grnd + A_tri_grnd
+
+        END DO ! DO vori1 = 1, nVor
+
+      ELSE
+        ! Border vertex
+
+        ! First subtriangle
+        vj   = mesh%C( vi,1)
+        vb   = 0.5_dp * (mesh%V(  vi,:) + mesh%V(  vj,:))
+        TAFb = 0.5_dp * (TAF_tot( vi  ) + TAF_tot( vj  ))
+
+        iti  = 1
+        ti   = mesh%iTri( vi,iti)
+        vc   = mesh%Tricc( ti,:)
+        TAFc = TAF_b_tot( ti)
 
         ! Calculate total area of, and grounded area within, this subtriangle
-        CALL calc_grounded_area_triangle( va, ccb1, ccb2, TAFa, TAFb, TAFc, A_tri_tot, A_tri_grnd)
+        CALL calc_grounded_area_triangle( va, vb, vc, TAFa, TAFb, TAFc, A_tri_tot, A_tri_grnd)
 
         A_vor  = A_vor  + A_tri_tot
         A_grnd = A_grnd + A_tri_grnd
 
-      END DO ! DO iti = 1, mesh%niTri( vi)
+        ! Middle subtriangles
+        DO iti1 = 1, mesh%niTri( vi)-1
+
+          iti2 = iti1 + 1
+          IF (iti2 == mesh%niTri( vi) + 1) iti2 = 1
+
+          ti1 = mesh%iTri( vi,iti1)
+          ti2 = mesh%iTri( vi,iti2)
+
+          vb = mesh%Tricc( ti1,:)
+          vc = mesh%Tricc( ti2,:)
+
+          TAFb = TAF_b_tot( ti1)
+          TAFc = TAF_b_tot( ti2)
+
+          ! Calculate total area of, and grounded area within, this subtriangle
+          CALL calc_grounded_area_triangle( va, vb, vc, TAFa, TAFb, TAFc, A_tri_tot, A_tri_grnd)
+
+          A_vor  = A_vor  + A_tri_tot
+          A_grnd = A_grnd + A_tri_grnd
+
+        END DO ! DO vori1 = 1, nVor
+
+        ! Last subtriangle
+        iti  = mesh%niTri( vi)
+        ti   = mesh%iTri( vi,iti)
+        vb   = mesh%Tricc( ti,:)
+        TAFb = TAF_b_tot( ti)
+
+        vj   = mesh%C( vi, mesh%nC( vi))
+        vc   = 0.5_dp * (mesh%V(  vi,:) + mesh%V(  vj,:))
+        TAFc = 0.5_dp * (TAF_tot( vi  ) + TAF_tot( vj  ))
+
+        ! Calculate total area of, and grounded area within, this subtriangle
+        CALL calc_grounded_area_triangle( va, vb, vc, TAFa, TAFb, TAFc, A_tri_tot, A_tri_grnd)
+
+        A_vor  = A_vor  + A_tri_tot
+        A_grnd = A_grnd + A_tri_grnd
+
+      END IF ! IF (mesh%VBI( vi) == 0) THEN
 
       ! Calculate the sub-grid grounded fraction of this Voronoi cell
       fraction_gr( vi) = MIN( 1._dp, MAX( 0._dp, A_grnd / A_vor ))
@@ -480,43 +557,63 @@ CONTAINS
 
     ! Local variables:
     REAL(dp)                                           :: A_flt
+    REAL(dp), PARAMETER                                :: tol = 1E-9_dp
+    REAL(dp)                                           :: TAFa_corr, TAFb_corr, TAFc_corr
 
     ! Determine total area of this subtriangle
     A_tri_tot = triangle_area( va, vb, vc)
 
-    IF     (TAFa >= 0._dp .AND. TAFb >= 0._dp .AND. TAFc >= 0._dp) THEN
+    ! TAF of zero can cause problems, correct for this
+    IF (TAFa >= 0._dp) THEN
+      TAFa_corr = MAX( tol, TAFa)
+    ELSE
+      TAFa_corr = MIN( -tol, TAFa)
+    END IF
+    IF (TAFb >= 0._dp) THEN
+      TAFb_corr = MAX( tol, TAFb)
+    ELSE
+      TAFb_corr = MIN( -tol, TAFb)
+    END IF
+    IF (TAFc >= 0._dp) THEN
+      TAFc_corr = MAX( tol, TAFc)
+    ELSE
+      TAFc_corr = MIN( -tol, TAFc)
+    END IF
+
+
+    IF     (TAFa_corr >= 0._dp .AND. TAFb_corr >= 0._dp .AND. TAFc_corr >= 0._dp) THEN
       ! If all three corners are grounded, the answer is trivial
       A_tri_grnd = A_tri_tot
-    ELSEIF (TAFa <= 0._dp .AND. TAFb <= 0._dp .AND. TAFc <= 0._dp) THEN
+    ELSEIF (TAFa_corr <= 0._dp .AND. TAFb_corr <= 0._dp .AND. TAFc_corr <= 0._dp) THEN
       ! If all three corners are floating, the answer is trivial
       A_tri_grnd = 0._dp
     ELSE
       ! At least one corner is grounded and at least one corner is floating
 
-      IF     (TAFa >= 0._dp .AND. TAFb <= 0._dp .AND. TAFc <= 0._dp) THEN
+      IF     (TAFa_corr >= 0._dp .AND. TAFb_corr <= 0._dp .AND. TAFc_corr <= 0._dp) THEN
         ! a is grounded, b and c are floating
-        CALL calc_grounded_area_triangle_1grnd_2flt( va, vb, vc, TAFa, TAFb, TAFc, A_tri_grnd)
-      ELSEIF (TAFa <= 0._dp .AND. TAFb >= 0._dp .AND. TAFc <= 0._dp) THEN
+        CALL calc_grounded_area_triangle_1grnd_2flt( va, vb, vc, TAFa_corr, TAFb_corr, TAFc_corr, A_tri_grnd)
+      ELSEIF (TAFa_corr <= 0._dp .AND. TAFb_corr >= 0._dp .AND. TAFc_corr <= 0._dp) THEN
         ! b is grounded, a and c are floating
-        CALL calc_grounded_area_triangle_1grnd_2flt( vb, vc, va, TAFb, TAFc, TAFa, A_tri_grnd)
-      ELSEIF (TAFa <= 0._dp .AND. TAFb <= 0._dp .AND. TAFc >= 0._dp) THEN
+        CALL calc_grounded_area_triangle_1grnd_2flt( vb, vc, va, TAFb_corr, TAFc_corr, TAFa_corr, A_tri_grnd)
+      ELSEIF (TAFa_corr <= 0._dp .AND. TAFb_corr <= 0._dp .AND. TAFc_corr >= 0._dp) THEN
         ! c is grounded, a and b are floating
-        CALL calc_grounded_area_triangle_1grnd_2flt( vc, va, vb, TAFc, TAFa, TAFb, A_tri_grnd)
-      ELSEIF (TAFa <= 0._dp .AND. TAFb >= 0._dp .AND. TAFc >= 0._dp) THEN
+        CALL calc_grounded_area_triangle_1grnd_2flt( vc, va, vb, TAFc_corr, TAFa_corr, TAFb_corr, A_tri_grnd)
+      ELSEIF (TAFa_corr <= 0._dp .AND. TAFb_corr >= 0._dp .AND. TAFc_corr >= 0._dp) THEN
         ! a is floating, b and c are grounded
-        CALL calc_grounded_area_triangle_1flt_2grnd( va, vb, vc, TAFa, TAFb, TAFc, A_flt)
+        CALL calc_grounded_area_triangle_1flt_2grnd( va, vb, vc, TAFa_corr, TAFb_corr, TAFc_corr, A_flt)
         A_tri_grnd = A_tri_tot - A_flt
-      ELSEIF (TAFa >= 0._dp .AND. TAFb <= 0._dp .AND. TAFc >= 0._dp) THEN
+      ELSEIF (TAFa_corr >= 0._dp .AND. TAFb_corr <= 0._dp .AND. TAFc_corr >= 0._dp) THEN
         ! b is floating, c and a are grounded
-        CALL calc_grounded_area_triangle_1flt_2grnd( vb, vc, va, TAFb, TAFc, TAFa, A_flt)
+        CALL calc_grounded_area_triangle_1flt_2grnd( vb, vc, va, TAFb_corr, TAFc_corr, TAFa_corr, A_flt)
         A_tri_grnd = A_tri_tot - A_flt
-      ELSEIF (TAFa >= 0._dp .AND. TAFb >= 0._dp .AND. TAFc <= 0._dp) THEN
+      ELSEIF (TAFa_corr >= 0._dp .AND. TAFb_corr >= 0._dp .AND. TAFc_corr <= 0._dp) THEN
         ! c is floating, a and b are grounded
-        CALL calc_grounded_area_triangle_1flt_2grnd( vc, va, vb, TAFc, TAFa, TAFb, A_flt)
+        CALL calc_grounded_area_triangle_1flt_2grnd( vc, va, vb, TAFc_corr, TAFa_corr, TAFb_corr, A_flt)
         A_tri_grnd = A_tri_tot - A_flt
       ELSE
         A_tri_grnd = 0._dp
-        CALL crash('TAF = [{dp_01},{dp_02},{dp_03}]', dp_01 = TAFa, dp_02 = TAFb, dp_03 = TAFc)
+        CALL crash('TAF = [{dp_01},{dp_02},{dp_03}]', dp_01 = TAFa_corr, dp_02 = TAFb_corr, dp_03 = TAFc_corr)
       END IF
 
     END IF
@@ -849,8 +946,6 @@ CONTAINS
 
     ! Add routine to path
     CALL init_routine( routine_name)
-
-    IF (par%master) WRITE(0,*) '  Initialising sub-grid bedrock CDFs...'
 
     ! Calculate CDFs separately on the a-grid (vertices) and the b-grid (triangles)
     CALL calc_bedrock_CDFs_a( mesh, refgeo, ice)
@@ -1374,6 +1469,17 @@ CONTAINS
 
         ice%mask_noice = .FALSE.
 
+      CASE ('MISMIP_mod')
+        ! Kill all ice when r > 900 km
+
+        DO vi = mesh%vi1, mesh%vi2
+          IF (NORM2( mesh%V( vi,:)) > 900E3_dp) THEN
+            ice%mask_noice( vi) = .TRUE.
+          ELSE
+            ice%mask_noice( vi) = .FALSE.
+          END IF
+        END DO
+
       CASE ('MISMIP+')
         ! Kill all ice when x > 640 km
 
@@ -1393,5 +1499,57 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE calc_mask_noice
+
+  ! == Trivia
+  ! =========
+
+  SUBROUTINE MISMIPplus_adapt_flow_factor( mesh, ice)
+    ! Automatically adapt the uniform flow factor A to achieve a steady-state mid-stream grounding-line position at x = 450 km in the MISMIP+ experiment
+
+    IMPLICIT NONE
+
+    ! In- and output variables
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
+    TYPE(type_ice_model),                INTENT(IN)    :: ice
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'MISMIPplus_adapt_flow_factor'
+    REAL(dp), DIMENSION(2)                             :: pp,qq
+    REAL(dp)                                           :: TAFp,TAFq,lambda_GL, x_GL
+    REAL(dp)                                           :: A_flow_old, f, A_flow_new
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Safety
+    IF (C%choice_ice_rheology_Glen /= 'uniform') THEN
+      CALL crash('only works in MISMIP+ geometry with a uniform flow factor!')
+    END IF
+
+    ! Determine mid-channel grounding-line position
+    pp = [mesh%xmin, 0._dp]
+    qq = pp
+    TAFp = 1._dp
+    TAFq = 1._dp
+    DO WHILE (TAFp * TAFq > 0._dp)
+      pp   = qq
+      TAFp = TAFq
+      qq = pp + [C%maximum_resolution_grounding_line, 0._dp]
+      CALL interpolate_to_point_dp_2D( mesh, ice%TAF, qq, TAFq)
+    END DO
+
+    lambda_GL = TAFp / (TAFp - TAFq)
+    x_GL = lambda_GL * qq( 1) + (1._dp - lambda_GL) * pp( 1)
+
+    ! Adjust the flow factor
+    f = 2._dp ** ((x_GL - 450E3_dp) / 80000._dp)
+    C%uniform_Glens_flow_factor = C%uniform_Glens_flow_factor * f
+
+    IF (par%master) WRITE(0,*) '    MISMIPplus_adapt_flow_factor: x_GL = ', x_GL/1E3, ' km; changed flow factor to ', C%uniform_Glens_flow_factor
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE MISMIPplus_adapt_flow_factor
 
 END MODULE ice_model_utilities
