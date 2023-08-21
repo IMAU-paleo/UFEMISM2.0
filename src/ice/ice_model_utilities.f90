@@ -1447,14 +1447,15 @@ CONTAINS
   ! == No-ice mask
   ! ==============
 
-  SUBROUTINE calc_mask_noice( mesh, mask_noice)
+  SUBROUTINE calc_mask_noice( mesh, ice, refgeo_PD)
     ! Calculate the no-ice mask
 
     IMPLICIT NONE
 
     ! In/output variables:
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
-    LOGICAL,  DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)   :: mask_noice
+    TYPE(type_ice_model),                   INTENT(INOUT) :: ice
+    TYPE(type_reference_geometry),          INTENT(IN)    :: refgeo_PD
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'calc_mask_noice'
@@ -1463,20 +1464,28 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    ! Initialise
+    ! ==========
+
+    ice%mask_noice = .FALSE.
+
+    ! Domain-specific cases (mutually exclusive)
+    ! ==========================================
+
     SELECT CASE (C%choice_mask_noice)
       CASE ('none')
         ! Ice is (in principle) allowed everywhere
 
-        mask_noice = .FALSE.
+        ice%mask_noice = .FALSE.
 
       CASE ('MISMIP_mod')
         ! Kill all ice when r > 900 km
 
         DO vi = mesh%vi1, mesh%vi2
           IF (NORM2( mesh%V( vi,:)) > 900E3_dp) THEN
-            mask_noice( vi) = .TRUE.
+            ice%mask_noice( vi) = .TRUE.
           ELSE
-            mask_noice( vi) = .FALSE.
+            ice%mask_noice( vi) = .FALSE.
           END IF
         END DO
 
@@ -1485,15 +1494,45 @@ CONTAINS
 
         DO vi = mesh%vi1, mesh%vi2
           IF (mesh%V( vi,1) > 640E3_dp) THEN
-            mask_noice( vi) = .TRUE.
+            ice%mask_noice( vi) = .TRUE.
           ELSE
-            mask_noice( vi) = .FALSE.
+            ice%mask_noice( vi) = .FALSE.
           END IF
         END DO
 
       CASE DEFAULT
         CALL crash('unknown choice_mask_noice "' // TRIM( C%choice_mask_noice) // '"')
     END SELECT
+
+    ! General cases (added on top)
+    ! ============================
+
+    ! If so specified, remove all floating ice
+    IF (C%do_remove_shelves) THEN
+      DO vi = mesh%vi1, mesh%vi2
+        IF (is_floating( ice%Hi( vi), ice%Hb( vi), ice%SL( vi))) THEN
+          ice%mask_noice( vi) = .TRUE.
+        END IF
+      END DO
+    END IF
+
+    ! If so specified, remove all floating ice beyond the present-day calving front
+    IF (C%remove_shelves_larger_than_PD) THEN
+      DO vi = mesh%vi1, mesh%vi2
+        IF (refgeo_PD%Hi( vi) == 0._dp .AND. refgeo_PD%Hb( vi) < 0._dp) THEN
+          ice%mask_noice( vi) = .TRUE.
+        END IF
+      END DO
+    END IF
+
+    ! If so specified, remove all floating ice crossing the continental shelf edge
+    IF (C%continental_shelf_calving) THEN
+      DO vi = mesh%vi1, mesh%vi2
+        IF (refgeo_PD%Hi( vi) == 0._dp .AND. refgeo_PD%Hb( vi) < C%continental_shelf_min_height) then
+          ice%mask_noice( vi) = .TRUE.
+        END IF
+      END DO
+    END IF
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

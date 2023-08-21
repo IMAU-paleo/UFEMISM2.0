@@ -154,7 +154,7 @@ CONTAINS
     CALL determine_masks( region%mesh, region%ice)
 
     ! Calculate the no-ice mask
-    CALL calc_mask_noice( region%mesh, region%ice%mask_noice)
+    CALL calc_mask_noice( region%mesh, region%ice, region%refgeo_PD)
 
     ! NOTE: as calculating the zeta gradients is quite expensive, only do so when necessary,
     !       i.e. when solving the heat equation or the Blatter-Pattyn stress balance
@@ -253,7 +253,7 @@ CONTAINS
     END DO ! DO vi = mesh%vi1, mesh%vi2
 
     ! Calculate the no-ice mask
-    CALL calc_mask_noice( mesh, ice%mask_noice)
+    CALL calc_mask_noice( mesh, ice, refgeo_PD)
 
     ! Apply boundary conditions at the domain border
     CALL apply_ice_thickness_BC_explicit( mesh, ice%mask_noice, ice%Hb, ice%SL, ice%Hi)
@@ -689,7 +689,7 @@ CONTAINS
   ! ================
 
     ! Calculate the no-ice mask
-    CALL calc_mask_noice( mesh_new, ice%mask_noice)
+    CALL calc_mask_noice( mesh_new, ice, refgeo_PD)
 
     ! Remove ice bleed into forbidden areas
     CALL apply_mask_noice_direct( mesh_new, ice%mask_noice, ice%Hi)
@@ -824,7 +824,7 @@ CONTAINS
     END DO ! DO vi = mesh_new%vi1, mesh_new%vi2
 
     ! Apply boundary conditions at the domain border
-    CALL calc_mask_noice( mesh_new, mask_noice_new)
+    CALL calc_mask_noice( mesh_new, ice, refgeo_PD)
     CALL apply_ice_thickness_BC_explicit( mesh_new, mask_noice_new, ice%Hb, ice%SL, Hi_new)
 
   ! == Corrections
