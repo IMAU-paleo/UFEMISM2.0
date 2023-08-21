@@ -468,8 +468,8 @@ MODULE model_configuration
   ! =======================
 
     CHARACTER(LEN=256)  :: choice_geothermal_heat_flux_config           = 'uniform'                         ! Choice of geothermal heat flux; can be 'uniform' or 'read_from_file'
-    REAL(dp)            :: uniform_geothermal_heat_flux_config          = 1.72E06_dp                        ! Value when choice_geothermal_heat_flux == 'uniform' (1.72E06 J m^-2 yr^-1 according to Sclater et al. (1980))
-    CHARACTER(LEN=256)  :: filename_geothermal_heat_flux_config         = 'data/GHF/geothermal_heatflux_ShapiroRitzwoller2004_global_1x1_deg.nc'
+    REAL(dp)            :: uniform_geothermal_heat_flux_config          = 1.72E06_dp                        ! [J m^-2 yr^-1] Value when choice_geothermal_heat_flux == 'uniform' (1.72E06 J m^-2 yr^-1 according to Sclater et al. (1980))
+    CHARACTER(LEN=256)  :: filename_geothermal_heat_flux_config         = ''                                ! Expected units: J m^-2 s^-1 (conversion done internally). External GHF data file.
 
   ! == Thermodynamics
   ! =================
@@ -534,6 +534,15 @@ MODULE model_configuration
 
     ! Choice of idealised climate model
     CHARACTER(LEN=256)  :: choice_climate_model_idealised_config        = ''
+
+    ! Choice of realistic climate model
+    CHARACTER(LEN=256)  :: choice_climate_model_realistic_config        = ''
+
+    ! Paths to files containing fields for realistic climates
+    CHARACTER(LEN=256)  :: filename_climate_snapshot_NAM_config         = ''
+    CHARACTER(LEN=256)  :: filename_climate_snapshot_EAS_config         = ''
+    CHARACTER(LEN=256)  :: filename_climate_snapshot_GRL_config         = ''
+    CHARACTER(LEN=256)  :: filename_climate_snapshot_ANT_config         = ''
 
   ! == Ocean
   ! ========
@@ -1236,6 +1245,15 @@ MODULE model_configuration
     ! Choice of idealised climate model
     CHARACTER(LEN=256)  :: choice_climate_model_idealised
 
+    ! Choice of realistic climate model
+    CHARACTER(LEN=256)  :: choice_climate_model_realistic
+
+    ! Paths to files containing fields for realistic climates
+    CHARACTER(LEN=256)  :: filename_climate_snapshot_NAM
+    CHARACTER(LEN=256)  :: filename_climate_snapshot_EAS
+    CHARACTER(LEN=256)  :: filename_climate_snapshot_GRL
+    CHARACTER(LEN=256)  :: filename_climate_snapshot_ANT
+
   ! == Ocean
   ! ========
 
@@ -1910,6 +1928,11 @@ CONTAINS
       choice_climate_model_GRL_config                             , &
       choice_climate_model_ANT_config                             , &
       choice_climate_model_idealised_config                       , &
+      choice_climate_model_realistic_config                       , &
+      filename_climate_snapshot_NAM_config                        , &
+      filename_climate_snapshot_EAS_config                        , &
+      filename_climate_snapshot_GRL_config                        , &
+      filename_climate_snapshot_ANT_config                        , &
       do_asynchronous_ocean_config                                , &
       dt_ocean_config                                             , &
       choice_ocean_model_NAM_config                               , &
@@ -2575,6 +2598,15 @@ CONTAINS
 
     ! Choice of idealised climate model
     C%choice_climate_model_idealised                         = choice_climate_model_idealised_config
+
+    ! Choice of realistic climate model
+    C%choice_climate_model_realistic                         = choice_climate_model_realistic_config
+
+    ! Paths to files containing fields for realistic climates
+    C%filename_climate_snapshot_NAM                          = filename_climate_snapshot_NAM_config
+    C%filename_climate_snapshot_EAS                          = filename_climate_snapshot_EAS_config
+    C%filename_climate_snapshot_GRL                          = filename_climate_snapshot_GRL_config
+    C%filename_climate_snapshot_ANT                          = filename_climate_snapshot_ANT_config
 
   ! == Ocean
   ! ========

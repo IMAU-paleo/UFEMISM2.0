@@ -131,6 +131,7 @@ UFEMISM_source = \
   thermodynamics/thermodynamics_main.f90 \
   \
   climate/climate_idealised.f90 \
+  climate/climate_realistic.f90 \
   climate/climate_main.f90 \
   \
   ocean/ocean_main.f90 \

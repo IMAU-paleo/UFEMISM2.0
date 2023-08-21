@@ -14,6 +14,7 @@ MODULE climate_main
   USE ice_model_types                                        , ONLY: type_ice_model
   USE climate_model_types                                    , ONLY: type_climate_model
   USE climate_idealised                                      , ONLY: initialise_climate_model_idealised, run_climate_model_idealised
+  USE climate_realistic                                      , ONLY: initialise_climate_model_realistic, run_climate_model_realistic
   USE reallocate_mod                                         , ONLY: reallocate_bounds
 
   IMPLICIT NONE
@@ -83,6 +84,8 @@ CONTAINS
       ! No need to do anything
     ELSEIF (choice_climate_model == 'idealised') THEN
       CALL run_climate_model_idealised( mesh, ice, climate, time)
+    ELSEIF (choice_climate_model == 'realistic') THEN
+      CALL run_climate_model_realistic( mesh, ice, climate, time)
     ELSE
       CALL crash('unknown choice_climate_model "' // TRIM( choice_climate_model) // '"')
     END IF
@@ -139,6 +142,8 @@ CONTAINS
       ! No need to do anything
     ELSEIF (choice_climate_model == 'idealised') THEN
       CALL initialise_climate_model_idealised( mesh, climate)
+    ELSEIF (choice_climate_model == 'realistic') THEN
+      CALL initialise_climate_model_realistic( mesh, climate, region_name)
     ELSE
       CALL crash('unknown choice_climate_model "' // TRIM( choice_climate_model) // '"')
     END IF
@@ -184,6 +189,8 @@ CONTAINS
       ! No need to do anything
     ELSEIF (choice_climate_model == 'idealised') THEN
       ! No need to do anything
+    ELSEIF (choice_climate_model == 'realistic') THEN
+      ! No need to do anything
     ELSE
       CALL crash('unknown choice_climate_model "' // TRIM( choice_climate_model) // '"')
     END IF
@@ -227,6 +234,8 @@ CONTAINS
     IF     (choice_climate_model == 'none') THEN
       ! No need to do anything
     ELSEIF (choice_climate_model == 'idealised') THEN
+      ! No need to do anything
+    ELSEIF (choice_climate_model == 'realistic') THEN
       ! No need to do anything
     ELSE
       CALL crash('unknown choice_climate_model "' // TRIM( choice_climate_model) // '"')
