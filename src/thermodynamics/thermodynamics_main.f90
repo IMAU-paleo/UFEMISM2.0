@@ -358,7 +358,7 @@ CONTAINS
 
     ! Initialise with the Robin solution
     DO vi = mesh%vi1, mesh%vi2
-      CALL replace_Ti_with_robin_solution( mesh, ice, climate, SMB, ice%Ti, vi)
+      CALL replace_Ti_with_robin_solution( mesh, ice, climate, SMB, vi)
     END DO
 
     ! Finalise routine path

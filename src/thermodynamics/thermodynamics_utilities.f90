@@ -235,7 +235,7 @@ CONTAINS
 
   END SUBROUTINE calc_pressure_melting_point
 
-  SUBROUTINE replace_Ti_with_robin_solution( mesh, ice, climate, SMB, Ti, vi)
+  SUBROUTINE replace_Ti_with_robin_solution( mesh, ice, climate, SMB, vi)
     ! This function calculates for one horizontal grid point the temperature profiles
     ! using the surface temperature and the geothermal heat flux as boundary conditions.
     ! See Robin solution in: Cuffey & Paterson 2010, 4th ed, chapter 9, eq. (9.13) - (9.22).
@@ -244,10 +244,9 @@ CONTAINS
 
     ! In/output variables:
     TYPE(type_mesh),                     INTENT(IN)    :: mesh
-    TYPE(type_ice_model),                INTENT(IN)    :: ice
+    TYPE(type_ice_model),                INTENT(INOUT) :: ice
     TYPE(type_climate_model),            INTENT(IN)    :: climate
     TYPE(type_SMB_model),                INTENT(IN)    :: SMB
-    REAL(dp), DIMENSION(:,:  ),          INTENT(INOUT) :: Ti
     INTEGER,                             INTENT(IN)    :: vi
 
     ! Local variables:
@@ -286,13 +285,13 @@ CONTAINS
             distance_above_bed = (1._dp - mesh%zeta( k)) * ice%Hi( vi)
             erf1 = erf( distance_above_bed / thermal_length_scale)
             erf2 = erf( ice%Hi( vi) / thermal_length_scale)
-            Ti( vi,k) = Ts + SQRT(pi) / 2._dp * thermal_length_scale * bottom_temperature_gradient_Robin * (erf1 - erf2)
+            ice%Ti( vi,k) = Ts + SQRT(pi) / 2._dp * thermal_length_scale * bottom_temperature_gradient_Robin * (erf1 - erf2)
           END DO
 
         ELSE ! IF (SMB%SMB( vi) > 0._dp) THEN
 
           ! Ablation area: use linear temperature profile from Ts to (offset below) T_pmp
-          Ti( vi,:) = Ts + ((T0 - Clausius_Clapeyron_gradient * ice%Hi( vi)) - Ts) * mesh%zeta
+          ice%Ti( vi,:) = Ts + ((T0 - Clausius_Clapeyron_gradient * ice%Hi( vi)) - Ts) * mesh%zeta
 
         END IF ! IF (SMB%SMB( vi) > 0._dp) THEN
 
@@ -300,20 +299,20 @@ CONTAINS
         ! This vertex has more than 1m of floating ice
         ! Set a linear profile between T_surf and Ti_pmp_base
 
-        Ti( vi,:) = Ts + mesh%zeta * (ice%Ti_pmp( vi,mesh%nz) - Ts)
+        ice%Ti( vi,:) = Ts + mesh%zeta * (ice%Ti_pmp( vi,mesh%nz) - Ts)
 
       END IF ! IF (ice%mask_grounded_ice( vi)) THEN
 
     ELSE ! IF (ice%Hi( vi) > C%Hi_min_thermo) THEN
       ! No (significant) ice present; set temperature to annual mean surface temperature
 
-      Ti( vi,:) = Ts
+      ice%Ti( vi,:) = Ts
 
     END IF ! IF (ice%Hi( vi) > C%Hi_min_thermo) THEN
 
     ! Safety: limit temperatures to the pressure melting point
     DO k = 1, mesh%nz
-      Ti( vi,k) = MIN( Ti( vi,k), ice%Ti_pmp( vi,k))
+      ice%Ti( vi,k) = MIN( ice%Ti( vi,k), ice%Ti_pmp( vi,k))
     END DO
 
   END SUBROUTINE replace_Ti_with_robin_solution
