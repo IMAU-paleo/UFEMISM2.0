@@ -235,7 +235,7 @@ CONTAINS
 
   END SUBROUTINE calc_pressure_melting_point
 
-  SUBROUTINE replace_Ti_with_robin_solution( mesh, ice, climate, SMB, vi)
+  SUBROUTINE replace_Ti_with_robin_solution( mesh, ice, climate, SMB, Ti, vi)
     ! This function calculates for one horizontal grid point the temperature profiles
     ! using the surface temperature and the geothermal heat flux as boundary conditions.
     ! See Robin solution in: Cuffey & Paterson 2010, 4th ed, chapter 9, eq. (9.13) - (9.22).
@@ -243,27 +243,28 @@ CONTAINS
     IMPLICIT NONE
 
     ! In/output variables:
-    TYPE(type_mesh),                     INTENT(IN)    :: mesh
-    TYPE(type_ice_model),                INTENT(INOUT) :: ice
-    TYPE(type_climate_model),            INTENT(IN)    :: climate
-    TYPE(type_SMB_model),                INTENT(IN)    :: SMB
-    INTEGER,                             INTENT(IN)    :: vi
+    TYPE(type_mesh),                                INTENT(IN)    :: mesh
+    TYPE(type_ice_model),                           INTENT(INOUT) :: ice
+    TYPE(type_climate_model),                       INTENT(IN)    :: climate
+    TYPE(type_SMB_model),                           INTENT(IN)    :: SMB
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2,mesh%nz), INTENT(INOUT) :: Ti
+    INTEGER,                                        INTENT(IN)    :: vi
 
     ! Local variables:
-    INTEGER                                            :: k
-    REAL(dp)                                           :: Ts
-    REAL(dp)                                           :: thermal_length_scale
-    REAL(dp)                                           :: distance_above_bed
-    REAL(dp)                                           :: erf1
-    REAL(dp)                                           :: erf2
+    INTEGER                                                       :: k
+    REAL(dp)                                                      :: Ts
+    REAL(dp)                                                      :: thermal_length_scale
+    REAL(dp)                                                      :: distance_above_bed
+    REAL(dp)                                                      :: erf1
+    REAL(dp)                                                      :: erf2
 
-    REAL(dp)                                           :: thermal_conductivity_Robin
-    REAL(dp)                                           :: thermal_diffusivity_Robin
-    REAL(dp)                                           :: bottom_temperature_gradient_Robin
+    REAL(dp)                                                      :: thermal_conductivity_Robin
+    REAL(dp)                                                      :: thermal_diffusivity_Robin
+    REAL(dp)                                                      :: bottom_temperature_gradient_Robin
 
-    REAL(dp), PARAMETER                                :: kappa_0_ice_conductivity     = 9.828_dp                     ! The linear constant in the thermal conductivity of ice [J m^-1 K^-1 s^-1], see equation (12.6), Ritz (1987), Cuffey & Paterson (2010, p. 400), Zwinger (2007)
-    REAL(dp), PARAMETER                                :: kappa_e_ice_conductivity     = 0.0057_dp                    ! The exponent constant in the thermal conductivity of ice [K^-1], see equation (12.6), Ritz (1987), Cuffey & Paterson (2010, p. 400), Zwinger (2007)
-    REAL(dp), PARAMETER                                :: c_0_specific_heat            = 2127.5_dp                    ! The constant in the specific heat capacity of ice [J kg^-1 K^-1], see equation (12.5), Zwinger (2007), Cuffey & Paterson (2010, p. 400)
+    REAL(dp), PARAMETER                                           :: kappa_0_ice_conductivity     = 9.828_dp          ! The linear constant in the thermal conductivity of ice [J m^-1 K^-1 s^-1], see equation (12.6), Ritz (1987), Cuffey & Paterson (2010, p. 400), Zwinger (2007)
+    REAL(dp), PARAMETER                                           :: kappa_e_ice_conductivity     = 0.0057_dp         ! The exponent constant in the thermal conductivity of ice [K^-1], see equation (12.6), Ritz (1987), Cuffey & Paterson (2010, p. 400), Zwinger (2007)
+    REAL(dp), PARAMETER                                           :: c_0_specific_heat            = 2127.5_dp         ! The constant in the specific heat capacity of ice [J kg^-1 K^-1], see equation (12.5), Zwinger (2007), Cuffey & Paterson (2010, p. 400)
 
     thermal_conductivity_Robin        = kappa_0_ice_conductivity * sec_per_year * EXP(-kappa_e_ice_conductivity * T0) ! Thermal conductivity            [J m^-1 K^-1 y^-1]
     thermal_diffusivity_Robin         = thermal_conductivity_Robin / (ice_density * c_0_specific_heat)                ! Thermal diffusivity             [m^2 y^-1]
@@ -285,13 +286,13 @@ CONTAINS
             distance_above_bed = (1._dp - mesh%zeta( k)) * ice%Hi( vi)
             erf1 = erf( distance_above_bed / thermal_length_scale)
             erf2 = erf( ice%Hi( vi) / thermal_length_scale)
-            ice%Ti( vi,k) = Ts + SQRT(pi) / 2._dp * thermal_length_scale * bottom_temperature_gradient_Robin * (erf1 - erf2)
+            Ti( vi,k) = Ts + SQRT(pi) / 2._dp * thermal_length_scale * bottom_temperature_gradient_Robin * (erf1 - erf2)
           END DO
 
         ELSE ! IF (SMB%SMB( vi) > 0._dp) THEN
 
           ! Ablation area: use linear temperature profile from Ts to (offset below) T_pmp
-          ice%Ti( vi,:) = Ts + ((T0 - Clausius_Clapeyron_gradient * ice%Hi( vi)) - Ts) * mesh%zeta
+          Ti( vi,:) = Ts + ((T0 - Clausius_Clapeyron_gradient * ice%Hi( vi)) - Ts) * mesh%zeta
 
         END IF ! IF (SMB%SMB( vi) > 0._dp) THEN
 
@@ -299,20 +300,20 @@ CONTAINS
         ! This vertex has more than 1m of floating ice
         ! Set a linear profile between T_surf and Ti_pmp_base
 
-        ice%Ti( vi,:) = Ts + mesh%zeta * (ice%Ti_pmp( vi,mesh%nz) - Ts)
+        Ti( vi,:) = Ts + mesh%zeta * (ice%Ti_pmp( vi,mesh%nz) - Ts)
 
       END IF ! IF (ice%mask_grounded_ice( vi)) THEN
 
     ELSE ! IF (ice%Hi( vi) > C%Hi_min_thermo) THEN
       ! No (significant) ice present; set temperature to annual mean surface temperature
 
-      ice%Ti( vi,:) = Ts
+      Ti( vi,:) = Ts
 
     END IF ! IF (ice%Hi( vi) > C%Hi_min_thermo) THEN
 
     ! Safety: limit temperatures to the pressure melting point
     DO k = 1, mesh%nz
-      ice%Ti( vi,k) = MIN( ice%Ti( vi,k), ice%Ti_pmp( vi,k))
+      Ti( vi,k) = MIN( Ti( vi,k), ice%Ti_pmp( vi,k))
     END DO
 
   END SUBROUTINE replace_Ti_with_robin_solution
@@ -323,17 +324,17 @@ CONTAINS
     IMPLICIT NONE
 
     ! In/output variables:
-    TYPE(type_mesh),                     INTENT(IN)    :: mesh
-    TYPE(type_ice_model),                INTENT(IN)    :: ice
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2,mesh%nz),          INTENT(OUT)   :: u_times_dTdxp_upwind, v_times_dTdyp_upwind
+    TYPE(type_mesh),                                INTENT(IN)  :: mesh
+    TYPE(type_ice_model),                           INTENT(IN)  :: ice
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2,mesh%nz), INTENT(OUT) :: u_times_dTdxp_upwind, v_times_dTdyp_upwind
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_upwind_heat_flux_derivatives'
-    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: dTi_dxp_3D_b, dTi_dyp_3D_b
-    INTEGER                                            :: vi, k, vti, ti, n1, n2, n3, vib, vic, ti_upwind
-    REAL(dp), DIMENSION(2)                             :: u_upwind, ab, ac
-    REAL(dp), DIMENSION(mesh%nTri,mesh%nz)             :: u_3D_b_tot, v_3D_b_tot
-    REAL(dp), DIMENSION(mesh%nTri,mesh%nz)             :: dTi_dxp_3D_b_tot, dTi_dyp_3D_b_tot
+    CHARACTER(LEN=256), PARAMETER                               :: routine_name = 'calc_upwind_heat_flux_derivatives'
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                     :: dTi_dxp_3D_b, dTi_dyp_3D_b
+    INTEGER                                                     :: vi, k, vti, ti, n1, n2, n3, vib, vic, ti_upwind
+    REAL(dp), DIMENSION(2)                                      :: u_upwind, ab, ac
+    REAL(dp), DIMENSION(mesh%nTri,mesh%nz)                      :: u_3D_b_tot, v_3D_b_tot
+    REAL(dp), DIMENSION(mesh%nTri,mesh%nz)                      :: dTi_dxp_3D_b_tot, dTi_dyp_3D_b_tot
 
     ! Add routine to path
     CALL init_routine( routine_name)
