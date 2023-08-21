@@ -12,6 +12,7 @@ MODULE geothermal_heat_flux
   USE mesh_types                                             , ONLY: type_mesh
   USE ice_model_types                                        , ONLY: type_ice_model
   USE netcdf_input                                           , ONLY: read_field_from_file_2D
+  USE parameters                                             , ONLY: sec_per_year
 
   IMPLICIT NONE
 
@@ -48,8 +49,11 @@ CONTAINS
         IF (par%master) WRITE(0,*) '  Initialising geothermal heat flux from file "' // &
           colour_string( TRIM( C%filename_geothermal_heat_flux),'light blue') // '"...'
 
-        ! Read the data from the provided NetCDF file
+        ! Read the data from the provided NetCDF file [W m^-2]
         CALL read_field_from_file_2D( C%filename_geothermal_heat_flux, 'hflux', mesh, ice%geothermal_heat_flux)
+
+        ! Convert from J s^-1 m^-2 to J yr^-1 m^-2
+        ice%geothermal_heat_flux( mesh%vi1:mesh%vi2) = ice%geothermal_heat_flux( mesh%vi1:mesh%vi2) * sec_per_year
 
       CASE DEFAULT
         ! Unknown case
