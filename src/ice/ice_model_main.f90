@@ -29,8 +29,8 @@ MODULE ice_model_main
   USE ice_model_utilities                                    , ONLY: determine_masks, calc_bedrock_CDFs, calc_grounded_fractions, calc_zeta_gradients, &
                                                                      calc_mask_noice
   USE ice_model_scalars                                      , ONLY: calc_ice_model_scalars
-  USE ice_thickness                                          , ONLY: calc_dHi_dt, apply_mask_noice_direct
-  USE math_utilities                                         , ONLY: ice_surface_elevation, thickness_above_floatation
+  USE ice_thickness                                          , ONLY: calc_dHi_dt, apply_mask_noice_direct, apply_ice_thickness_BC_explicit
+  USE math_utilities                                         , ONLY: ice_surface_elevation, thickness_above_floatation, Hi_from_Hb_Hs_and_SL
   USE geothermal_heat_flux                                   , ONLY: initialise_geothermal_heat_flux
   USE basal_hydrology                                        , ONLY: initialise_basal_hydrology_model
   USE bed_roughness                                          , ONLY: initialise_bed_roughness
@@ -154,7 +154,7 @@ CONTAINS
     CALL determine_masks( region%mesh, region%ice)
 
     ! Calculate the no-ice mask
-    CALL calc_mask_noice( region%mesh, region%ice)
+    CALL calc_mask_noice( region%mesh, region%ice%mask_noice)
 
     ! NOTE: as calculating the zeta gradients is quite expensive, only do so when necessary,
     !       i.e. when solving the heat equation or the Blatter-Pattyn stress balance
@@ -245,11 +245,22 @@ CONTAINS
     ! DENK DROM
     IF (par%master) CALL warning('GIA model isnt finished yet - need to include dHb in ice model initialisation')
 
+    ! Basic geometry
+    DO vi = mesh%vi1, mesh%vi2
+      ice%Hb( vi) = refgeo_GIAeq%Hb( vi)
+      ice%Hs( vi) = refgeo_init%Hs ( vi)
+      ice%Hi( vi) = Hi_from_Hb_Hs_and_SL( ice%Hb( vi), ice%Hs( vi), ice%SL( vi))
+    END DO ! DO vi = mesh%vi1, mesh%vi2
+
+    ! Calculate the no-ice mask
+    CALL calc_mask_noice( mesh, ice%mask_noice)
+
+    ! Apply boundary conditions at the domain border
+    CALL apply_ice_thickness_BC_explicit( mesh, ice%mask_noice, ice%Hb, ice%SL, ice%Hi)
+
     DO vi = mesh%vi1, mesh%vi2
 
-      ! Basic geometry
-      ice%Hi ( vi) = refgeo_init%Hi( vi)
-      ice%Hb ( vi) = refgeo_GIAeq%Hb( vi)
+      ! Derived geometry
       ice%Hs ( vi) = ice_surface_elevation( ice%Hi( vi), ice%Hb( vi), ice%SL( vi))
       ice%Hib( vi) = ice%Hs( vi) - ice%Hi( vi)
       ice%TAF( vi) = thickness_above_floatation( ice%Hi( vi), ice%Hb( vi), ice%SL( vi))
@@ -283,9 +294,6 @@ CONTAINS
     ! Call it twice so also the "prev" versions are set
     CALL determine_masks( mesh, ice)
     CALL determine_masks( mesh, ice)
-
-    ! Calculate the no-ice mask
-    CALL calc_mask_noice( mesh, ice)
 
     ! Sub-grid fractions
     ! ==================
@@ -428,17 +436,8 @@ CONTAINS
   ! === Ice-sheet geometry ===
   ! ==========================
 
-    ! Remap ice thickness Hi
-    CALL remap_ice_thickness( mesh_old, mesh_new, ice)
-
-    ! No matter how careful we are, sometimes the remapping yields negative ice thicknesses; remove those
-    ice%Hi = MAX( 0._dp, ice%Hi)
-
-    ! Remap bedrock from the original high-resolution grid, and add the (very smooth) modelled deformation to it
-    ! Remapping of Hb in the refgeo structure has already happened, only need to copy the data
-    IF (par%master) CALL warning('GIA model isnt finished yet - need to include dHb in mesh update!')
-    CALL reallocate_bounds( ice%Hb                          , mesh_new%vi1, mesh_new%vi2         )  ! [m] Bedrock elevation (w.r.t. PD sea level)
-    ice%Hb = refgeo_PD%Hb
+    ! Remap basic ice geometry Hi,Hb,Hs,SL
+    CALL remap_basic_ice_geometry( mesh_old, mesh_new, refgeo_PD, GIA, ice)
 
     ! Remap dHi/dt to improve stability of the P/C scheme after mesh updates
     CALL map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, ice%dHi_dt, '2nd_order_conservative')
@@ -460,8 +459,8 @@ CONTAINS
     ! Basic geometry
 !   CALL reallocate_bounds( ice%Hi                          , mesh_new%vi1, mesh_new%vi2         )  ! [m] Ice thickness
 !   CALL reallocate_bounds( ice%Hb                          , mesh_new%vi1, mesh_new%vi2         )  ! [m] Bedrock elevation (w.r.t. PD sea level)
-    CALL reallocate_bounds( ice%Hs                          , mesh_new%vi1, mesh_new%vi2         )  ! [m] Surface elevation (w.r.t. PD sea level)
-    CALL reallocate_bounds( ice%SL                          , mesh_new%vi1, mesh_new%vi2         )  ! [m] Sea level (geoid) elevation (w.r.t. PD sea level)
+!   CALL reallocate_bounds( ice%Hs                          , mesh_new%vi1, mesh_new%vi2         )  ! [m] Surface elevation (w.r.t. PD sea level)
+!   CALL reallocate_bounds( ice%SL                          , mesh_new%vi1, mesh_new%vi2         )  ! [m] Sea level (geoid) elevation (w.r.t. PD sea level)
     CALL reallocate_bounds( ice%Hib                         , mesh_new%vi1, mesh_new%vi2         )  ! [m] Ice base elevation (w.r.t. PD sea level)
     CALL reallocate_bounds( ice%TAF                         , mesh_new%vi1, mesh_new%vi2         )  ! [m] Thickness above flotation
 
@@ -690,7 +689,7 @@ CONTAINS
   ! ================
 
     ! Calculate the no-ice mask
-    CALL calc_mask_noice( mesh_new, ice)
+    CALL calc_mask_noice( mesh_new, ice%mask_noice)
 
     ! Remove ice bleed into forbidden areas
     CALL apply_mask_noice_direct( mesh_new, ice%mask_noice, ice%Hi)
@@ -753,25 +752,26 @@ CONTAINS
 
   END SUBROUTINE remap_ice_dynamics_model
 
-  SUBROUTINE remap_ice_thickness( mesh_old, mesh_new, ice)
-    ! Remap the ice thickness Hi. Use 2nd-order conservative remapping everywhere, except
-    ! near the calving front; there, for new-mesh vertices that overlap with both old-mesh
-    ! shelf vertices and old-mesh open-ocean vertices, we calculate the new ice thickness
-    ! as the average over only the overlapping old-mesh shelf vertices.
+  SUBROUTINE remap_basic_ice_geometry( mesh_old, mesh_new, refgeo_PD, GIA, ice)
+    ! Remap the basic ice geometry Hi,Hb,Hs,SL.
 
     IMPLICIT NONE
 
     ! In/output variables:
     TYPE(type_mesh),                        INTENT(IN)    :: mesh_old
     TYPE(type_mesh),                        INTENT(IN)    :: mesh_new
+    TYPE(type_reference_geometry),          INTENT(IN)    :: refgeo_PD
+    TYPE(type_GIA_model),                   INTENT(IN)    :: GIA
     TYPE(type_ice_model),                   INTENT(INOUT) :: ice
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'remap_ice_thickness'
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'remap_basic_ice_geometry'
     REAL(dp), DIMENSION( mesh_old%nV)                     :: Hi_old_tot
     LOGICAL,  DIMENSION( mesh_old%nV)                     :: mask_floating_ice_tot
     LOGICAL,  DIMENSION( mesh_old%nV)                     :: mask_icefree_ocean_tot
     REAL(dp), DIMENSION( mesh_new%vi1:mesh_new%vi2)       :: Hi_new
+    REAL(dp), DIMENSION( mesh_new%vi1:mesh_new%vi2)       :: Hs_new
+    INTEGER                                               :: vi
     INTEGER                                               :: mi, mi_used
     LOGICAL                                               :: found_map
     TYPE(type_sparse_matrix_CSR_dp)                       :: M_CSR
@@ -779,19 +779,58 @@ CONTAINS
     INTEGER                                               :: n_ice, n_nonice
     INTEGER                                               :: n_shelf, n_open_ocean
     REAL(dp)                                              :: sum_Hi_shelf
+    LOGICAL,  DIMENSION( mesh_new%vi1:mesh_new%vi2)       :: mask_noice_new
 
     ! Add routine to path
     CALL init_routine( routine_name)
+
+  ! == Basic: remap surface elevation Hs from the old mesh, remap bedrock elevation Hb
+  !    from its (presumably high-resolution) source grid, define remapped ice thickness
+  !    as the difference between the two. As surface elevation is typically much smoother
+  !    then ice thickness, remapping works much better.
+  ! =====================================================================================
+
+    ! Remap bedrock from the original high-resolution grid, and add the (very smooth) modelled deformation to it
+    ! Remapping of Hb in the refgeo structure has already happened, only need to copy the data
+    IF (par%master) CALL warning('GIA model isnt finished yet - need to include dHb in mesh update!')
+    CALL reallocate_bounds( ice%Hb, mesh_new%vi1, mesh_new%vi2)  ! [m] Bedrock elevation (w.r.t. PD sea level)
+    ice%Hb = refgeo_PD%Hb
+
+    ! Remap sea level
+    IF (par%master) CALL warning('sea  model isnt finished yet - need to include dSL in mesh update!')
+    CALL reallocate_bounds( ice%SL, mesh_new%vi1, mesh_new%vi2)  ! [m] Sea level (geoid) elevation (w.r.t. PD sea level)
+    ice%SL = 0._dp
 
     ! Gather global ice thickness and masks
     CALL gather_to_all_dp_1D(      ice%Hi                , Hi_old_tot            )
     CALL gather_to_all_logical_1D( ice%mask_floating_ice , mask_floating_ice_tot )
     CALL gather_to_all_logical_1D( ice%mask_icefree_ocean, mask_icefree_ocean_tot)
 
-    ! First, naively remap ice thickness without any restrictions
+    ! First, naively remap ice thickness and surface elevation without any restrictions
     CALL map_from_mesh_to_mesh_2D( mesh_old, mesh_new, ice%Hi, Hi_new, '2nd_order_conservative')
+    CALL map_from_mesh_to_mesh_2D( mesh_old, mesh_new, ice%Hs, Hs_new, '2nd_order_conservative')
 
-    ! Browse the Atlas to find the map that was used for this
+    ! Calculate remapped ice thickness as the difference between new bedrock and remapped surface elevation
+    DO vi = mesh_new%vi1, mesh_new%vi2
+      IF (Hi_new( vi) > 0._dp) THEN
+        IF (Hs_new( vi) <= ice%Hb( vi)) THEN
+          Hi_new( vi) = 0._dp
+        ELSE
+          Hi_new( vi) = Hi_from_Hb_Hs_and_SL( ice%Hb( vi), Hs_new( vi), ice%SL( vi))
+        END IF
+      ELSE
+        Hi_new( vi) = 0._dp
+      END IF
+    END DO ! DO vi = mesh_new%vi1, mesh_new%vi2
+
+    ! Apply boundary conditions at the domain border
+    CALL calc_mask_noice( mesh_new, mask_noice_new)
+    CALL apply_ice_thickness_BC_explicit( mesh_new, mask_noice_new, ice%Hb, ice%SL, Hi_new)
+
+  ! == Corrections
+  ! ==============
+
+    ! Browse the Atlas to find the map between mesh_old and mesh_new
     found_map = .FALSE.
     mi_used   = 0
     DO mi = 1, SIZE( Atlas, 1)
@@ -878,14 +917,20 @@ CONTAINS
 
     END DO ! DO vi_new = mesh_new%vi1, mesh_new%vi2
 
-    ! Move data to ice%Hi
-    CALL reallocate_bounds_dp_1D( ice%Hi, mesh_new%vi2, mesh_new%vi2)
+    ! Recalculate Hs
+    CALL reallocate_bounds_dp_1D( ice%Hs, mesh_new%vi1, mesh_new%vi2)
+    DO vi = mesh_new%vi1, mesh_new%vi2
+      ice%Hs( vi) = ice_surface_elevation( Hi_new( vi), ice%Hb( vi), ice%SL( vi))
+    END DO
+
+    ! Move Hi_new to ice%Hi
+    CALL reallocate_bounds_dp_1D( ice%Hi, mesh_new%vi1, mesh_new%vi2)
     ice%Hi = Hi_new
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
-  END SUBROUTINE remap_ice_thickness
+  END SUBROUTINE remap_basic_ice_geometry
 
   SUBROUTINE relax_calving_front( mesh_old, mesh, ice, SMB, BMB)
     ! Relax ice thickness around the calving front

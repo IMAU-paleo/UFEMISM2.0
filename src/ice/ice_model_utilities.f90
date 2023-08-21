@@ -1447,18 +1447,18 @@ CONTAINS
   ! == No-ice mask
   ! ==============
 
-  SUBROUTINE calc_mask_noice( mesh, ice)
+  SUBROUTINE calc_mask_noice( mesh, mask_noice)
     ! Calculate the no-ice mask
 
     IMPLICIT NONE
 
     ! In/output variables:
-    TYPE(type_mesh),                     INTENT(IN)    :: mesh
-    TYPE(type_ice_model),                INTENT(INOUT) :: ice
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh
+    LOGICAL,  DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)   :: mask_noice
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_mask_noice'
-    INTEGER                                            :: vi
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'calc_mask_noice'
+    INTEGER                                               :: vi
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -1467,16 +1467,16 @@ CONTAINS
       CASE ('none')
         ! Ice is (in principle) allowed everywhere
 
-        ice%mask_noice = .FALSE.
+        mask_noice = .FALSE.
 
       CASE ('MISMIP_mod')
         ! Kill all ice when r > 900 km
 
         DO vi = mesh%vi1, mesh%vi2
           IF (NORM2( mesh%V( vi,:)) > 900E3_dp) THEN
-            ice%mask_noice( vi) = .TRUE.
+            mask_noice( vi) = .TRUE.
           ELSE
-            ice%mask_noice( vi) = .FALSE.
+            mask_noice( vi) = .FALSE.
           END IF
         END DO
 
@@ -1485,9 +1485,9 @@ CONTAINS
 
         DO vi = mesh%vi1, mesh%vi2
           IF (mesh%V( vi,1) > 640E3_dp) THEN
-            ice%mask_noice( vi) = .TRUE.
+            mask_noice( vi) = .TRUE.
           ELSE
-            ice%mask_noice( vi) = .FALSE.
+            mask_noice( vi) = .FALSE.
           END IF
         END DO
 
