@@ -1439,6 +1439,35 @@ CONTAINS
       END DO
     END DO
 
+    ! Deallocate
+   !deALLOCATE( Hi_a        )
+    deALLOCATE( dHi_dx_a    )
+    deALLOCATE( dHi_dy_a    )
+    deALLOCATE( d2Hi_dx2_a  )
+    deALLOCATE( d2Hi_dxdy_a )
+    deALLOCATE( d2Hi_dy2_a  )
+
+    deALLOCATE( Hi_b        )
+    deALLOCATE( dHi_dx_b    )
+    deALLOCATE( dHi_dy_b    )
+    deALLOCATE( d2Hi_dx2_b  )
+    deALLOCATE( d2Hi_dxdy_b )
+    deALLOCATE( d2Hi_dy2_b  )
+
+   !deALLOCATE( Hs_a        )
+    deALLOCATE( dHs_dx_a    )
+    deALLOCATE( dHs_dy_a    )
+    deALLOCATE( d2Hs_dx2_a  )
+    deALLOCATE( d2Hs_dxdy_a )
+    deALLOCATE( d2Hs_dy2_a  )
+
+    deALLOCATE( Hs_b        )
+    deALLOCATE( dHs_dx_b    )
+    deALLOCATE( dHs_dy_b    )
+    deALLOCATE( d2Hs_dx2_b  )
+    deALLOCATE( d2Hs_dxdy_b )
+    deALLOCATE( d2Hs_dy2_b  )
+
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
