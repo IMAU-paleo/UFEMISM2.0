@@ -77,22 +77,22 @@ CONTAINS
     IF (par%master)  WRITE(*,"(A)") '   Initialising realistic climate model "' // &
       colour_string( TRIM( C%choice_climate_model_realistic),'light blue') // '"...'
 
-    ! Determine which climate model to initialise for this region
-    IF     (region_name == 'NAM') THEN
-      filename_climate_snapshot = C%filename_climate_snapshot_NAM
-    ELSEIF (region_name == 'EAS') THEN
-      filename_climate_snapshot = C%filename_climate_snapshot_EAS
-    ELSEIF (region_name == 'GRL') THEN
-      filename_climate_snapshot = C%filename_climate_snapshot_GRL
-    ELSEIF (region_name == 'ANT') THEN
-      filename_climate_snapshot = C%filename_climate_snapshot_ANT
-    ELSE
-      CALL crash('unknown region_name "' // region_name // '"')
-    END IF
-
     ! Run the chosen realistic climate model
     IF (C%choice_climate_model_realistic == 'snapshot') THEN
       ! Read single-time data from external file
+
+      ! Determine which climate model to initialise for this region
+      IF     (region_name == 'NAM') THEN
+        filename_climate_snapshot = C%filename_climate_snapshot_NAM
+      ELSEIF (region_name == 'EAS') THEN
+        filename_climate_snapshot = C%filename_climate_snapshot_EAS
+      ELSEIF (region_name == 'GRL') THEN
+        filename_climate_snapshot = C%filename_climate_snapshot_GRL
+      ELSEIF (region_name == 'ANT') THEN
+        filename_climate_snapshot = C%filename_climate_snapshot_ANT
+      ELSE
+        CALL crash('unknown region_name "' // region_name // '"')
+      END IF
 
       CALL read_field_from_file_2D_monthly( filename_climate_snapshot, 'T2m', mesh, climate%T2m)
       CALL read_field_from_file_2D_monthly( filename_climate_snapshot, 'Precip', mesh, climate%Precip)
