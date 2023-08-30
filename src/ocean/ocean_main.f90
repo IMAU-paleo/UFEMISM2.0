@@ -242,6 +242,7 @@ CONTAINS
 
     ! ! Write the velocity fields to the file
     CALL write_to_field_multopt_mesh_dp_3D_ocean( mesh, ocean%restart_filename, ncid, 'T', ocean%T)
+    CALL write_to_field_multopt_mesh_dp_3D_ocean( mesh, ocean%restart_filename, ncid, 'S', ocean%S)
 
     ! Close the file
     CALL close_netcdf_file( ncid)
