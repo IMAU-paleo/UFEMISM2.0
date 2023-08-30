@@ -16,6 +16,9 @@ MODULE climate_main
   USE climate_idealised                                      , ONLY: initialise_climate_model_idealised, run_climate_model_idealised
   USE climate_realistic                                      , ONLY: initialise_climate_model_realistic, run_climate_model_realistic
   USE reallocate_mod                                         , ONLY: reallocate_bounds
+  USE netcdf_basic                                           , ONLY: create_new_netcdf_file_for_writing, close_netcdf_file, open_existing_netcdf_file_for_writing
+  USE netcdf_output                                          , ONLY: generate_filename_XXXXXdotnc, setup_mesh_in_netcdf_file, add_time_dimension_to_file, &
+                                                                     add_field_mesh_dp_2D_monthly, add_month_dimension_to_file, write_time_to_file, write_to_field_multopt_mesh_dp_2D_monthly
 
   IMPLICIT NONE
 
@@ -190,7 +193,7 @@ CONTAINS
     ELSEIF (choice_climate_model == 'idealised') THEN
       ! No need to do anything
     ELSEIF (choice_climate_model == 'realistic') THEN
-      ! No need to do anything
+      CALL write_to_restart_file_climate_model_region( mesh, climate, region_name, time)
     ELSE
       CALL crash('unknown choice_climate_model "' // TRIM( choice_climate_model) // '"')
     END IF
@@ -199,6 +202,52 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE write_to_restart_file_climate_model
+
+  SUBROUTINE write_to_restart_file_climate_model_region( mesh, climate, region_name, time)
+    ! Write to the restart NetCDF file for the climate model
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),          INTENT(IN) :: mesh
+    TYPE(type_climate_model), INTENT(IN) :: climate
+    CHARACTER(LEN=3),         INTENT(IN) :: region_name
+    REAL(dp),                 INTENT(IN) :: time
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER        :: routine_name = 'write_to_restart_file_climate_model_region'
+    INTEGER                              :: ncid
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! If no NetCDF output should be created, do nothing
+    IF (.NOT. C%do_create_netcdf_output) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
+
+    ! Print to terminal
+    IF (par%master) WRITE(0,'(A)') '   Writing to climate restart file "' // &
+      colour_string( TRIM( climate%restart_filename), 'light blue') // '"...'
+
+    ! Open the NetCDF file
+    CALL open_existing_netcdf_file_for_writing( climate%restart_filename, ncid)
+
+    ! Write the time to the file
+    CALL write_time_to_file( climate%restart_filename, ncid, time)
+
+    ! ! Write the velocity fields to the file
+    CALL write_to_field_multopt_mesh_dp_2D_monthly( mesh, climate%restart_filename, ncid, 'T2m',    climate%T2m)
+    CALL write_to_field_multopt_mesh_dp_2D_monthly( mesh, climate%restart_filename, ncid, 'Precip', climate%Precip)
+
+    ! Close the file
+    CALL close_netcdf_file( ncid)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE write_to_restart_file_climate_model_region
 
   SUBROUTINE create_restart_file_climate_model( mesh, climate, region_name)
     ! Create the restart file for the climate model
@@ -236,7 +285,7 @@ CONTAINS
     ELSEIF (choice_climate_model == 'idealised') THEN
       ! No need to do anything
     ELSEIF (choice_climate_model == 'realistic') THEN
-      ! No need to do anything
+      CALL create_restart_file_climate_model_region( mesh, climate, region_name)
     ELSE
       CALL crash('unknown choice_climate_model "' // TRIM( choice_climate_model) // '"')
     END IF
@@ -245,6 +294,63 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE create_restart_file_climate_model
+
+  SUBROUTINE create_restart_file_climate_model_region( mesh, climate, region_name)
+    ! Create a restart NetCDF file for the climate submodel
+    ! Includes generation of the procedural filename (e.g. "restart_climate_00001.nc")
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),          INTENT(IN)    :: mesh
+    TYPE(type_climate_model), INTENT(INOUT) :: climate
+    CHARACTER(LEN=3),         INTENT(IN)    :: region_name
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER           :: routine_name = 'create_restart_file_climate_model_region'
+    CHARACTER(LEN=256)                      :: filename_base
+    INTEGER                                 :: ncid
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! If no NetCDF output should be created, do nothing
+    IF (.NOT. C%do_create_netcdf_output) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
+
+    ! Set the filename
+    filename_base = TRIM( C%output_dir) // 'restart_climate_' // region_name
+    CALL generate_filename_XXXXXdotnc( filename_base, climate%restart_filename)
+
+    ! Print to terminal
+    IF (par%master) WRITE(0,'(A)') '  Creating climate model restart file "' // &
+      colour_string( TRIM( climate%restart_filename), 'light blue') // '"...'
+
+    ! Create the NetCDF file
+    CALL create_new_netcdf_file_for_writing( climate%restart_filename, ncid)
+
+    ! Set up the mesh in the file
+    CALL setup_mesh_in_netcdf_file( climate%restart_filename, ncid, mesh)
+
+    ! Add a time dimension to the file
+    CALL add_time_dimension_to_file( climate%restart_filename, ncid)
+
+    ! Add a depth dimension to the file
+    CALL add_month_dimension_to_file( climate%restart_filename, ncid)
+
+    ! Add the data fields to the file
+    CALL add_field_mesh_dp_2D_monthly( climate%restart_filename, ncid, 'T2m',    long_name = 'Near-surface air temperatures', units = 'degrees C')
+    CALL add_field_mesh_dp_2D_monthly( climate%restart_filename, ncid, 'Precip', long_name = 'Precipitation rates', units = 'm/yr')
+
+    ! Close the file
+    CALL close_netcdf_file( ncid)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE create_restart_file_climate_model_region
 
   SUBROUTINE remap_climate_model( mesh_old, mesh_new, climate, region_name)
     ! Remap the climate model
@@ -289,6 +395,8 @@ CONTAINS
       ! No need to do anything
     ELSEIF (choice_climate_model == 'idealised') THEN
       ! No need to remap anything here
+    ELSEIF (choice_climate_model == 'realistic') THEN
+      CALL crash('Remapping after mesh update not implemented yet for realistic climate')
     ELSE
       CALL crash('unknown choice_climate_model "' // TRIM( choice_climate_model) // '"')
     END IF
