@@ -815,19 +815,19 @@ CONTAINS
     IMPLICIT NONE
 
     ! Input variables:
-    TYPE(type_mesh),          INTENT(IN)  :: mesh
-    REAL(dp), DIMENSION(:  ), INTENT(IN)  :: vert_src
-    REAL(dp), DIMENSION(:  ), INTENT(IN)  :: vert_dst
-    REAL(dp), DIMENSION(:,:), INTENT(IN)  :: d_src_partial
-    REAL(dp), DIMENSION(:,:), INTENT(OUT) :: d_dst_partial
+    TYPE(type_mesh),                                       INTENT(IN)  :: mesh
+    REAL(dp), DIMENSION(:),                                INTENT(IN)  :: vert_src
+    REAL(dp), DIMENSION(:),                                INTENT(IN)  :: vert_dst
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2,SIZE(vert_src)), INTENT(IN)  :: d_src_partial
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2,SIZE(vert_dst)), INTENT(OUT) :: d_dst_partial
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER         :: routine_name = 'map_from_vertical_to_vertical_2D_ocean'
-    INTEGER                               :: vi,k
-    INTEGER, DIMENSION(:), ALLOCATABLE    :: z_mask_old, z_mask_new, mask_fill
-    REAL(dp)                              :: z_floor
-    REAL(dp)                              :: NaN
-    REAL(dp), PARAMETER                   :: sigma = 4e4
+    CHARACTER(LEN=256), PARAMETER      :: routine_name = 'map_from_vertical_to_vertical_2D_ocean'
+    INTEGER                            :: vi,k
+    INTEGER, DIMENSION(:), ALLOCATABLE :: z_mask_old, z_mask_new, mask_fill
+    REAL(dp)                           :: z_floor
+    REAL(dp)                           :: NaN
+    REAL(dp), PARAMETER                :: sigma = 4e4
 
     ! Add routine to path
     CALL init_routine( routine_name)

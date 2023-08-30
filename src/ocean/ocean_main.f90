@@ -397,6 +397,8 @@ CONTAINS
       ! No need to do anything
     ELSEIF (choice_ocean_model == 'idealised') THEN
       ! No need to do anything
+    ELSEIF (choice_ocean_model == 'realistic') THEN
+      CALL crash('Remapping after mesh update not implemented yet for realistic ocean')
     ELSE
       CALL crash('unknown choice_ocean_model "' // TRIM( choice_ocean_model) // '"')
     END IF
