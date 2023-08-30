@@ -14,6 +14,11 @@ MODULE ocean_main
   USE ice_model_types                                        , ONLY: type_ice_model
   USE ocean_model_types                                      , ONLY: type_ocean_model
   USE reallocate_mod                                         , ONLY: reallocate_bounds
+  USE ocean_utilities                                        , ONLY: initialise_ocean_vertical_grid
+  USE ocean_realistic                                        , ONLY: initialise_ocean_model_realistic, run_ocean_model_realistic
+  USE netcdf_basic                                           , ONLY: create_new_netcdf_file_for_writing, close_netcdf_file, open_existing_netcdf_file_for_writing
+  USE netcdf_output                                          , ONLY: generate_filename_XXXXXdotnc, setup_mesh_in_netcdf_file, add_time_dimension_to_file, &
+                                                                     add_field_mesh_dp_3D_ocean, add_depth_dimension_to_file, write_time_to_file, write_to_field_multopt_mesh_dp_3D_ocean
 
   IMPLICIT NONE
 
@@ -80,6 +85,10 @@ CONTAINS
     ! Run the chosen ocean model
     IF (choice_ocean_model == 'none') THEN
       ! No need to do anything
+    ELSEIF (choice_ocean_model == 'idealised') THEN
+      CALL crash('No idealised options implemented yet')
+    ELSEIF (choice_ocean_model == 'realistic') THEN
+      CALL run_ocean_model_realistic( mesh, ice, ocean)
     ELSE
       CALL crash('unknown choice_ocean_model "' // TRIM( choice_ocean_model) // '"')
     END IF
@@ -122,9 +131,12 @@ CONTAINS
       CALL crash('unknown region_name "' // region_name // '"')
     END IF
 
+    ! Initialise vertical grid: C%z_ocean and C%nz_ocean
+    CALL initialise_ocean_vertical_grid
+
     ! Allocate memory for main variables
-    ALLOCATE( ocean%T( mesh%vi1:mesh%vi2,12))
-    ALLOCATE( ocean%S( mesh%vi1:mesh%vi2,12))
+    ALLOCATE( ocean%T( mesh%vi1:mesh%vi2,C%nz_ocean))
+    ALLOCATE( ocean%S( mesh%vi1:mesh%vi2,C%nz_ocean))
     ocean%T = 0._dp
     ocean%S = 0._dp
 
@@ -132,8 +144,12 @@ CONTAINS
     ocean%t_next = C%start_time_of_run
 
     ! Determine which ocean model to initialise
-    IF (choice_ocean_model == 'none') THEN
+    IF     (choice_ocean_model == 'none') THEN
       ! No need to do anything
+    ELSEIF (choice_ocean_model == 'idealised') THEN
+      CALL crash('No idealised options implemented yet')
+    ELSEIF (choice_ocean_model == 'realistic') THEN
+      CALL initialise_ocean_model_realistic( mesh, ocean, region_name)
     ELSE
       CALL crash('unknown choice_ocean_model "' // TRIM( choice_ocean_model) // '"')
     END IF
@@ -179,6 +195,8 @@ CONTAINS
       ! No need to do anything
     ELSEIF (choice_ocean_model == 'idealised') THEN
       ! No need to do anything
+    ELSEIF (choice_ocean_model == 'realistic') THEN
+      CALL write_to_restart_file_ocean_model_region( mesh, ocean, region_name, time)
     ELSE
       CALL crash('unknown choice_ocean_model "' // TRIM( choice_ocean_model) // '"')
     END IF
@@ -187,6 +205,51 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE write_to_restart_file_ocean_model
+
+  SUBROUTINE write_to_restart_file_ocean_model_region( mesh, ocean, region_name, time)
+    ! Write to the restart NetCDF file for the ocean model
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),        INTENT(IN)    :: mesh
+    TYPE(type_ocean_model), INTENT(IN)    :: ocean
+    CHARACTER(LEN=3),       INTENT(IN)    :: region_name
+    REAL(dp),               INTENT(IN)    :: time
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER         :: routine_name = 'write_to_restart_file_ocean_model_region'
+    INTEGER                               :: ncid
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! If no NetCDF output should be created, do nothing
+    IF (.NOT. C%do_create_netcdf_output) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
+
+    ! Print to terminal
+    IF (par%master) WRITE(0,'(A)') '   Writing to ocean restart file "' // &
+      colour_string( TRIM( ocean%restart_filename), 'light blue') // '"...'
+
+    ! Open the NetCDF file
+    CALL open_existing_netcdf_file_for_writing( ocean%restart_filename, ncid)
+
+    ! Write the time to the file
+    CALL write_time_to_file( ocean%restart_filename, ncid, time)
+
+    ! ! Write the velocity fields to the file
+    CALL write_to_field_multopt_mesh_dp_3D_ocean( mesh, ocean%restart_filename, ncid, 'T', ocean%T)
+
+    ! Close the file
+    CALL close_netcdf_file( ncid)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE write_to_restart_file_ocean_model_region
 
   SUBROUTINE create_restart_file_ocean_model( mesh, ocean, region_name)
     ! Create the restart file for the ocean model
@@ -223,6 +286,8 @@ CONTAINS
       ! No need to do anything
     ELSEIF (choice_ocean_model == 'idealised') THEN
       ! No need to do anything
+    ELSEIF (choice_ocean_model == 'realistic') THEN
+      CALL create_restart_file_ocean_model_region( mesh, ocean, region_name)
     ELSE
       CALL crash('unknown choice_ocean_model "' // TRIM( choice_ocean_model) // '"')
     END IF
@@ -231,6 +296,63 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE create_restart_file_ocean_model
+
+  SUBROUTINE create_restart_file_ocean_model_region( mesh, ocean, region_name)
+    ! Create a restart NetCDF file for the ocean submodel
+    ! Includes generation of the procedural filename (e.g. "restart_ocean_00001.nc")
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),        INTENT(IN)    :: mesh
+    TYPE(type_ocean_model), INTENT(INOUT) :: ocean
+    CHARACTER(LEN=3),       INTENT(IN)    :: region_name
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER         :: routine_name = 'create_restart_file_ocean_model_region'
+    CHARACTER(LEN=256)                    :: filename_base
+    INTEGER                               :: ncid
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! If no NetCDF output should be created, do nothing
+    IF (.NOT. C%do_create_netcdf_output) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
+
+    ! Set the filename
+    filename_base = TRIM( C%output_dir) // 'restart_ocean_' // region_name
+    CALL generate_filename_XXXXXdotnc( filename_base, ocean%restart_filename)
+
+    ! Print to terminal
+    IF (par%master) WRITE(0,'(A)') '  Creating ocean model restart file "' // &
+      colour_string( TRIM( ocean%restart_filename), 'light blue') // '"...'
+
+    ! Create the NetCDF file
+    CALL create_new_netcdf_file_for_writing( ocean%restart_filename, ncid)
+
+    ! Set up the mesh in the file
+    CALL setup_mesh_in_netcdf_file( ocean%restart_filename, ncid, mesh)
+
+    ! Add a time dimension to the file
+    CALL add_time_dimension_to_file( ocean%restart_filename, ncid)
+
+    ! Add a depth dimension to the file
+    CALL add_depth_dimension_to_file( ocean%restart_filename, ncid, C%z_ocean)
+
+    ! Add the data fields to the file
+    CALL add_field_mesh_dp_3D_ocean( ocean%restart_filename, ncid, 'T' , long_name = 'Ocean temperatures', units = 'degrees C')
+    CALL add_field_mesh_dp_3D_ocean( ocean%restart_filename, ncid, 'S' , long_name = 'Ocean salinity', units = 'PSU')
+
+    ! Close the file
+    CALL close_netcdf_file( ncid)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE create_restart_file_ocean_model_region
 
   SUBROUTINE remap_ocean_model( mesh_old, mesh_new, ocean, region_name)
     ! Remap the ocean model
@@ -272,6 +394,8 @@ CONTAINS
 
     ! Determine which ocean model to remap
     IF     (choice_ocean_model == 'none') THEN
+      ! No need to do anything
+    ELSEIF (choice_ocean_model == 'idealised') THEN
       ! No need to do anything
     ELSE
       CALL crash('unknown choice_ocean_model "' // TRIM( choice_ocean_model) // '"')

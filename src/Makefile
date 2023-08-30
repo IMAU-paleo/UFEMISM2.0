@@ -9,11 +9,8 @@
 # Include settings from (uncommented) file below:
 
 include Makefile_include_local.txt
-#include Makefile_include_mac.txt
 #include Makefile_include_nix.txt
-#include Makefile_include_gemini.txt
 #include Makefile_include_snellius.txt
-#include Makefile_include_book.txt
 
 # The OBJ_PATH and the MOD_PATH are defined as:
 OBJ_PATH = object-files
@@ -100,9 +97,9 @@ UFEMISM_source = \
   mesh/mesh_creation.f90 \
   \
   netcdf/netcdf_basic.f90 \
+  netcdf/netcdf_debug.f90 \
   netcdf/netcdf_input.f90 \
   netcdf/netcdf_output.f90 \
-  netcdf/netcdf_debug.f90 \
   netcdf/netcdf_resource_tracking.f90 \
   \
   reference_states/reference_geometries.f90 \
@@ -134,6 +131,8 @@ UFEMISM_source = \
   climate/climate_realistic.f90 \
   climate/climate_main.f90 \
   \
+  ocean/ocean_utilities.f90 \
+  ocean/ocean_realistic.f90 \
   ocean/ocean_main.f90 \
   \
   surface_mass_balance/SMB_idealised.f90 \
