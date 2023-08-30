@@ -19,7 +19,8 @@ MODULE ocean_model_types
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: T                           ! [degrees Celsius] Temperature
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: S                           ! [PSU]             Salinity
 
-    ! Sub-models
+    ! Metadata
+    CHARACTER(LEN=256)                      :: restart_filename            ! Name for generated restart file
 
     ! Timestepping
     REAL(dp)                                :: t_next

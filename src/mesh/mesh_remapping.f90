@@ -27,7 +27,7 @@ MODULE mesh_remapping
                                                                      line_integral_xydy, crop_line_to_domain, segment_intersection, triangle_area
   USE mesh_utilities                                         , ONLY: is_in_Voronoi_cell, calc_Voronoi_cell, find_containing_vertex, find_containing_triangle, &
                                                                      find_shared_Voronoi_boundary, check_if_meshes_are_identical, set_border_vertices_to_interior_mean_dp_2D, &
-                                                                     set_border_vertices_to_interior_mean_dp_3D
+                                                                     set_border_vertices_to_interior_mean_dp_3D, extrapolate_Gaussian
   USE mesh_operators                                         , ONLY: calc_all_matrix_operators_mesh
 
   IMPLICIT NONE
@@ -62,9 +62,6 @@ MODULE mesh_remapping
   TYPE(type_map), DIMENSION(1000) :: Atlas
 
 CONTAINS
-
-! ===== Subroutines =====
-! =======================
 
 ! == High-level functions
 ! =======================
@@ -810,6 +807,117 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE map_from_mesh_to_mesh_3D
+
+  ! From a vertical grid to another within the same mesh
+  SUBROUTINE map_from_vertical_to_vertical_2D_ocean( mesh, vert_src, vert_dst, d_src_partial, d_dst_partial)
+    ! Map mesh data between vertical grids
+
+    IMPLICIT NONE
+
+    ! Input variables:
+    TYPE(type_mesh),          INTENT(IN)  :: mesh
+    REAL(dp), DIMENSION(:  ), INTENT(IN)  :: vert_src
+    REAL(dp), DIMENSION(:  ), INTENT(IN)  :: vert_dst
+    REAL(dp), DIMENSION(:,:), INTENT(IN)  :: d_src_partial
+    REAL(dp), DIMENSION(:,:), INTENT(OUT) :: d_dst_partial
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER         :: routine_name = 'map_from_vertical_to_vertical_2D_ocean'
+    INTEGER                               :: vi,k
+    INTEGER, DIMENSION(:), ALLOCATABLE    :: z_mask_old, z_mask_new, mask_fill
+    REAL(dp)                              :: z_floor
+    REAL(dp)                              :: NaN
+    REAL(dp), PARAMETER                   :: sigma = 4e4
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Initialise
+    NaN = -0.1234_dp
+
+    ! Allocate mask for valid points in a data column
+    ALLOCATE( z_mask_old( SIZE( vert_src)))
+    ALLOCATE( z_mask_new( SIZE( vert_dst)))
+
+    DO vi = mesh%vi1, mesh%vi2
+
+      ! Determine local depth of the ocean floor, fill in both data masks
+      IF (d_src_partial( vi, SIZE( vert_src)) == &
+          d_src_partial( vi, SIZE( vert_src))) THEN
+
+        ! Ocean floor lies below the vertical limit of the provided data
+        z_mask_old = 1
+        z_floor = vert_src( SIZE( vert_src)) + (vert_src( 2) - vert_src( 1))
+
+      ELSEIF (d_src_partial( vi,1) /= d_src_partial( vi,1)) THEN
+
+        ! This grid cell isn't ocean at all
+        z_mask_old = 0
+        z_floor    = 0._dp
+        NaN = d_src_partial( vi,1)
+
+      ELSE
+
+        z_mask_old = 1
+        k = SIZE( vert_src)
+
+        DO WHILE (d_src_partial( vi,k) /= d_src_partial( vi,k))
+          z_mask_old( k) = 0
+          z_floor = vert_src( k)
+          k = k - 1
+          NaN = d_src_partial( vi,k)
+        END DO
+
+      END IF
+
+      z_mask_new = 0
+
+      DO k = 1, SIZE(vert_dst)
+        IF (vert_dst( k) < z_floor) THEN
+          z_mask_new = 1
+        END IF
+      END DO
+
+      ! Regrid vertical column
+      CALL remap_cons_2nd_order_1D( vert_src, z_mask_old, d_src_partial( vi,:), &
+                                    vert_dst, z_mask_new, d_dst_partial( vi,:))
+
+      ! Fill masked values with NaN
+      DO k = 1, SIZE( vert_dst)
+        IF (z_mask_new( k) == 0) THEN
+          d_dst_partial( vi,k) = NaN
+        END IF
+      END DO
+
+    END DO
+
+    ! Allocate mask for extrapolation
+    ALLOCATE( mask_fill( mesh%vi1:mesh%vi2))
+
+    ! Extrapolate into NaN areas independently for each layer
+    DO k = 1, SIZE(vert_dst)
+      ! Initialise assuming there's valid data everywhere
+      mask_fill = 2
+      ! Check this mesh layer for NaNs
+      DO vi = mesh%vi1, mesh%vi2
+        IF (d_dst_partial( vi,k) /= d_dst_partial( vi,k)) THEN
+          ! If NaN, allow extrapolation here
+          mask_fill( vi) = 1
+        END IF
+      END DO
+      ! Fill NaN vertices within this layer
+      CALL extrapolate_Gaussian( mesh, mask_fill, d_dst_partial(:,k), sigma)
+    END DO
+
+    ! Clean up after yourself
+    DEALLOCATE( z_mask_old)
+    DEALLOCATE( z_mask_new)
+    DEALLOCATE( mask_fill)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE map_from_vertical_to_vertical_2D_ocean
 
   ! Smoothing operations on the mesh
   SUBROUTINE smooth_Gaussian_2D( mesh, grid, d_mesh_partial, r)
@@ -6432,5 +6540,169 @@ CONTAINS
     DEALLOCATE( LI_xydy_temp   )
 
   END SUBROUTINE extend_single_row_memory
+
+  ! Remapping of a 1-D variable (2nd-order conservative)
+  SUBROUTINE remap_cons_2nd_order_1D( z_src, mask_src, d_src, z_dst, mask_dst, d_dst)
+    ! 2nd-order conservative remapping of a 1-D variable
+    !
+    ! Used to remap ocean data from the provided vertical grid to the UFEMISM ocean vertical grid
+    !
+    ! Both z_src and z_dst can be irregular.
+    !
+    ! Both the src and dst data have a mask, with 0 indicating grid points where no data is defined.
+    !
+    ! This subroutine is serial, as it will be applied to single grid cells when remapping 3-D data fields,
+    !   with the parallelisation being done by distributing the 2-D grid cells over the processes.
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: z_src
+    INTEGER,  DIMENSION(:    ),          INTENT(IN)    :: mask_src
+    REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: d_src
+    REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: z_dst
+    INTEGER,  DIMENSION(:    ),          INTENT(IN)    :: mask_dst
+    REAL(dp), DIMENSION(:    ),          INTENT(OUT)   :: d_dst
+
+    ! Local variables:
+    LOGICAL                                            :: all_are_masked
+    INTEGER                                            :: nz_src, nz_dst
+    INTEGER                                            :: k
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: ddz_src
+    INTEGER                                            :: k_src, k_dst
+    REAL(dp)                                           :: zl_src, zu_src, zl_dst, zu_dst, z_lo, z_hi, z, d
+    REAL(dp)                                           :: dz_overlap, dz_overlap_tot, d_int, d_int_tot
+    REAL(dp)                                           :: dist_to_dst, dist_to_dst_min, max_dist
+    INTEGER                                            :: k_src_nearest_to_dst
+
+    ! Initialise
+    d_dst = 0._dp
+
+    ! Sizes
+    nz_src = SIZE( z_src,1)
+    nz_dst = SIZE( z_dst,1)
+
+    ! Maximum distance on combined grids
+    max_dist = MAXVAL([ ABS( z_src( nz_src) - z_src( 1)), &
+                        ABS( z_dst( nz_dst) - z_dst( 1)), &
+                        ABS( z_src( nz_src) - z_dst( 1)), &
+                        ABS( z_dst( nz_dst) - z_src( 1))])
+
+    ! Exception for when the entire src field is masked
+    all_are_masked = .TRUE.
+    DO k = 1, nz_src
+      IF (mask_src( k) == 1) all_are_masked = .FALSE.
+    END DO
+    IF (all_are_masked) RETURN
+
+    ! Exception for when the entire dst field is masked
+    all_are_masked = .TRUE.
+    DO k = 1, nz_dst
+      IF (mask_dst( k) == 1) all_are_masked = .FALSE.
+    END DO
+    IF (all_are_masked) RETURN
+
+    ! Calculate derivative d_src/dz (one-sided differencing at the boundary, central differencing everywhere else)
+    ALLOCATE( ddz_src( nz_src))
+    DO k = 2, nz_src-1
+      ddz_src( k    ) = (d_src( k+1   ) - d_src( k-1     )) / (z_src( k+1   ) - z_src( k-1     ))
+    END DO
+    ddz_src(  1     ) = (d_src( 2     ) - d_src( 1       )) / (z_src( 2     ) - z_src( 1       ))
+    ddz_src(  nz_src) = (d_src( nz_src) - d_src( nz_src-1)) / (z_src( nz_src) - z_src( nz_src-1))
+
+    ! Perform conservative remapping by finding regions of overlap
+    ! between source and destination grid cells
+
+    DO k_dst = 1, nz_dst
+
+      ! Skip masked grid cells
+      IF (mask_dst( k_dst) == 0) THEN
+        d_dst( k_dst) = 0._dp
+        CYCLE
+      END IF
+
+      ! Find z range covered by this dst grid cell
+      IF (k_dst > 1) THEN
+        zl_dst = 0.5_dp * (z_dst( k_dst - 1) + z_dst( k_dst))
+      ELSE
+        zl_dst = z_dst( 1) - 0.5_dp * (z_dst( 2) - z_dst( 1))
+      END IF
+      IF (k_dst < nz_dst) THEN
+        zu_dst = 0.5_dp * (z_dst( k_dst + 1) + z_dst( k_dst))
+      ELSE
+        zu_dst = z_dst( nz_dst) + 0.5_dp * (z_dst( nz_dst) - z_dst( nz_dst-1))
+      END IF
+
+      ! Find all overlapping src grid cells
+      d_int_tot      = 0._dp
+      dz_overlap_tot = 0._dp
+      DO k_src = 1, nz_src
+
+        ! Skip masked grid cells
+        IF (mask_src( k_src) == 0) CYCLE
+
+        ! Find z range covered by this src grid cell
+        IF (k_src > 1) THEN
+          zl_src = 0.5_dp * (z_src( k_src - 1) + z_src( k_src))
+        ELSE
+          zl_src = z_src( 1) - 0.5_dp * (z_src( 2) - z_src( 1))
+        END IF
+        IF (k_src < nz_src) THEN
+          zu_src = 0.5_dp * (z_src( k_src + 1) + z_src( k_src))
+        ELSE
+          zu_src = z_src( nz_src) + 0.5_dp * (z_src( nz_src) - z_src( nz_src-1))
+        END IF
+
+        ! Find region of overlap
+        z_lo = MAX( zl_src, zl_dst)
+        z_hi = MIN( zu_src, zu_dst)
+        dz_overlap = MAX( 0._dp, z_hi - z_lo)
+
+        ! Calculate integral over region of overlap and add to sum
+        IF (dz_overlap > 0._dp) THEN
+          z = 0.5_dp * (z_lo + z_hi)
+          d = d_src( k_src) + ddz_src( k_src) * (z - z_src( k_src))
+          d_int = d * dz_overlap
+
+          d_int_tot      = d_int_tot      + d_int
+          dz_overlap_tot = dz_overlap_tot + dz_overlap
+        END IF
+
+      END DO ! DO k_src = 1, nz_src
+
+      IF (dz_overlap_tot > 0._dp) THEN
+        ! Calculate dst value
+        d_dst( k_dst) = d_int_tot / dz_overlap_tot
+      ELSE
+        ! Exception for when no overlapping src grid cells were found; use nearest-neighbour extrapolation
+
+        k_src_nearest_to_dst = 0._dp
+        dist_to_dst_min      = max_dist
+        DO k_src = 1, nz_src
+          IF (mask_src( k_src) == 1) THEN
+            dist_to_dst = ABS( z_src( k_src) - z_dst( k_dst))
+            IF (dist_to_dst < dist_to_dst_min) THEN
+              dist_to_dst_min      = dist_to_dst
+              k_src_nearest_to_dst = k_src
+            END IF
+          END IF
+        END DO
+
+        ! Safety
+        IF (k_src_nearest_to_dst == 0) THEN
+          WRITE(0,*) '  remap_cons_2nd_order_1D - ERROR: couldnt find nearest neighbour on source grid!'
+          CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+        END IF
+
+        d_dst( k_dst) = d_src( k_src_nearest_to_dst)
+
+      END IF ! IF (dz_overlap_tot > 0._dp) THEN
+
+    END DO ! DO k_dst = 1, nz_dst
+
+    ! Clean up after yourself
+    DEALLOCATE( ddz_src)
+
+  END SUBROUTINE remap_cons_2nd_order_1D
 
 END MODULE mesh_remapping

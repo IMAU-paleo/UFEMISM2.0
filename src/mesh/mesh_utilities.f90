@@ -194,7 +194,7 @@ CONTAINS
 
     END DO ! DO ci = 2, mesh%nC( vi)
 
-  ! == Add the projection of the first Voronoi vertex on the domain boundary as an additional point
+    ! == Add the projection of the first Voronoi vertex on the domain boundary as an additional point
 
     nVor = nVor + 1
     Vor(     2:nVor,:) = Vor(     1:nVor-1,:)
@@ -218,7 +218,7 @@ CONTAINS
       Vor(    1,:) = [mesh%xmin - dx, Vor( 2,2)]
     END IF
 
-  ! == Add the projection of the last Voronoi vertex on the domain boundary as an additional point
+    ! == Add the projection of the last Voronoi vertex on the domain boundary as an additional point
 
     nVor = nVor + 1
 
@@ -876,8 +876,8 @@ CONTAINS
 
     ! If not, start with a linear search.
 
-  ! == Linear search ==
-  ! ===================
+    ! == Linear search ==
+    ! ===================
 
     ncycle = 0
     t_prev = ti_in
@@ -926,8 +926,8 @@ CONTAINS
 
     ! It's not. Perform a flood-fill style outward search.
 
-  ! == Flood-fill search ==
-  ! =======================
+    ! == Flood-fill search ==
+    ! =======================
 
     ALLOCATE( map(    mesh%nTri), source = 0)
     ALLOCATE( stack1( mesh%nTri), source = 0)
@@ -1560,8 +1560,8 @@ CONTAINS
     CALL gather_to_all_int_1D( mask_local, mask_tot)
     CALL gather_to_all_dp_1D(  d_partial , d_tot   )
 
-  ! == Flood-fill iteration
-  ! =======================
+    ! == Flood-fill iteration
+    ! =======================
 
     it_floodfill = 0
 
