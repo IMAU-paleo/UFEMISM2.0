@@ -158,8 +158,8 @@ CONTAINS
 
     ! NOTE: as calculating the zeta gradients is quite expensive, only do so when necessary,
     !       i.e. when solving the heat equation or the Blatter-Pattyn stress balance
-!    ! Calculate zeta gradients
-!    CALL calc_zeta_gradients( region%mesh, region%ice)
+    ! ! Calculate zeta gradients
+    ! CALL calc_zeta_gradients( region%mesh, region%ice)
 
     ! Calculate sub-grid grounded-area fractions
     CALL calc_grounded_fractions( region%mesh, region%ice)
@@ -195,7 +195,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     IF (par%master) THEN
-      WRITE(*,"(A)") '  Initialising ice dynamics model...'
+      WRITE(*,"(A)") '   Initialising ice dynamics model...'
     END IF
     CALL sync
 
@@ -1581,7 +1581,7 @@ CONTAINS
     CALL generate_filename_XXXXXdotnc( filename_base, pc%restart_filename)
 
     ! Print to terminal
-    IF (par%master) WRITE(0,'(A)') '  Creating ice dynamics restart file "' // &
+    IF (par%master) WRITE(0,'(A)') '   Creating ice dynamics restart file "' // &
       colour_string( TRIM( pc%restart_filename), 'light blue') // '"...'
 
     ! Create the NetCDF file

@@ -1201,7 +1201,7 @@ CONTAINS
     CALL generate_filename_XXXXXdotnc( filename_base, region%output_filename_mesh)
 
     ! Print to terminal
-    IF (par%master) WRITE(0,'(A)') '  Creating mesh output file "' // colour_string( TRIM( region%output_filename_mesh), 'light blue') // '"...'
+    IF (par%master) WRITE(0,'(A)') '   Creating mesh output file "' // colour_string( TRIM( region%output_filename_mesh), 'light blue') // '"...'
 
     ! Create the NetCDF file
     CALL create_new_netcdf_file_for_writing( region%output_filename_mesh, ncid)
@@ -1308,7 +1308,7 @@ CONTAINS
     region%output_filename_grid = TRIM( C%output_dir) // 'main_output_' // region%name // '_grid.nc'
 
     ! Print to terminal
-    IF (par%master) WRITE(0,'(A)') '  Creating grid output file "' // colour_string( TRIM( region%output_filename_grid), 'light blue') // '"...'
+    IF (par%master) WRITE(0,'(A)') '   Creating grid output file "' // colour_string( TRIM( region%output_filename_grid), 'light blue') // '"...'
 
     ! Create the NetCDF file
     CALL create_new_netcdf_file_for_writing( region%output_filename_grid, ncid)
@@ -1414,7 +1414,7 @@ CONTAINS
     END IF
 
     ! Print to terminal
-    IF (par%master) WRITE(0,'(A)') '  Creating ROI output file "' // colour_string( TRIM( filename), 'light blue') // '"...'
+    IF (par%master) WRITE(0,'(A)') '   Creating ROI output file "' // colour_string( TRIM( filename), 'light blue') // '"...'
 
     ! Create the NetCDF file
     CALL create_new_netcdf_file_for_writing( filename, ncid)

@@ -117,7 +117,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Print to terminal
-    IF (par%master)  WRITE(*,"(A)") '  Initialising surface mass balance model...'
+    IF (par%master)  WRITE(*,"(A)") '   Initialising surface mass balance model...'
 
     ! Determine which SMB model to initialise for this region
     SELECT CASE (region_name)
@@ -299,7 +299,7 @@ CONTAINS
       CASE ('idealised')
         ! No need to do anything
       CASE ('prescribed')
-        ! No need to do anything
+        CALL crash('Remapping after mesh update not implemented yet for prescribed SMB')
       CASE DEFAULT
         CALL crash('unknown choice_SMB_model "' // TRIM( choice_SMB_model) // '"')
     END SELECT

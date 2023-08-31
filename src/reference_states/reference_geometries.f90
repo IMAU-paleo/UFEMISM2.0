@@ -60,7 +60,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Print to terminal
-    IF (par%master) WRITE(0,'(A)') '    Mapping reference geometries to model mesh...'
+    IF (par%master) WRITE(0,'(A)') '     Mapping reference geometries to model mesh...'
 
     ! == Initial geometry
     ! ===================
@@ -562,7 +562,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Print to screen
-    IF (par%master) WRITE(0,'(A)') '  Initialising ' // TRIM( refgeo_name) // ' geometry for model region ' // &
+    IF (par%master) WRITE(0,'(A)') '   Initialising ' // TRIM( refgeo_name) // ' geometry for model region ' // &
       colour_string( region_name,'light blue') // ' from file "' // colour_string( TRIM( filename_refgeo),'light blue') // '"...'
 
 

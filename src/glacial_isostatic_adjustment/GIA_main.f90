@@ -112,7 +112,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Print to terminal
-    IF (par%master)  WRITE(*,"(A)") '  Initialising GIA model...'
+    IF (par%master)  WRITE(*,"(A)") '   Initialising GIA model...'
 
     ! Create the square grid for the GIA model
     grid_name = 'square_grid_GIA_' // region_name

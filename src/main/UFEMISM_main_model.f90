@@ -80,7 +80,7 @@ CONTAINS
 
     IF (par%master) WRITE(0,*) ''
     IF (par%master) WRITE (0,'(A,A,A,A,A,F9.3,A,F9.3,A)') &
-      '  Running model region ', colour_string( region%name, 'light blue'), ' (', colour_string( TRIM( region%long_name), 'light blue'), &
+      ' Running model region ', colour_string( region%name, 'light blue'), ' (', colour_string( TRIM( region%long_name), 'light blue'), &
       ') from t = ', region%time/1000._dp, ' to t = ', t_end/1000._dp, ' kyr'
 
     ! Initialise average ice-dynamical time step
@@ -145,15 +145,22 @@ CONTAINS
       ! Keep track of the average ice-dynamical time step and print it to the terminal
       ndt_av = ndt_av + 1
       dt_av  = dt_av  + (region%ice%t_Hi_next - region%ice%t_Hi_prev)
-      IF (par%master .AND. C%do_time_display) CALL time_display( region, t_end, dt_av, ndt_av)
+      IF (par%master .AND. C%do_time_display) THEN
+        CALL time_display( region, t_end, dt_av, ndt_av)
+      END IF
 
       ! If we've reached the end of this coupling interval, stop
       IF (region%time == t_end) EXIT main_time_loop
 
     END DO main_time_loop ! DO WHILE (region%time <= t_end)
 
-    ! Write the final model state to output
+
     IF (region%time == C%end_time_of_run) THEN
+      ! Give all processes time to catch up
+      CALL sync
+      ! Congrats, you made it
+      IF (par%master) WRITE(0,'(A)') ' Finalising regional simulation...'
+      ! Write the final model state to output
       CALL write_to_regional_output_files( region)
     END IF
 
@@ -514,6 +521,9 @@ CONTAINS
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
+    ! DENK DROM
+    ! CALL write_to_regional_output_files( region)
+
   END SUBROUTINE initialise_model_region
 
   SUBROUTINE setup_first_mesh( region)
@@ -533,7 +543,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Print to screen
-    IF (par%master) WRITE(0,'(A)') '  Setting up the first mesh for model region ' // colour_string( region%name,'light blue') // '...'
+    IF (par%master) WRITE(0,'(A)') '   Setting up the first mesh for model region ' // colour_string( region%name,'light blue') // '...'
 
     ! Get settings from config
     IF     (region%name == 'NAM') THEN
@@ -588,7 +598,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Print to screen
-    IF (par%master) WRITE(0,'(A)') '   Creating mesh from initial geometry...'
+    IF (par%master) WRITE(0,'(A)') '     Creating mesh from initial geometry...'
 
     ! Determine model domain
     IF     (region%name == 'NAM') THEN
@@ -1223,7 +1233,7 @@ CONTAINS
             "   t = " // TRIM( r_time) // " kyr - dt_av = " // TRIM( r_step) // " yr"
     END IF
     IF (region%time == region%output_t_next) THEN
-      r_adv = "no"
+      r_adv = "yes"
       WRITE( *,"(A)", ADVANCE = TRIM( r_adv)) REPEAT( c_backspace,999)
     END IF
 

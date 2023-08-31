@@ -73,7 +73,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Print to terminal
-    IF (par%master)  WRITE(*,"(A)") '   Initialising realistic ocean model "' // &
+    IF (par%master)  WRITE(*,"(A)") '     Initialising realistic ocean model "' // &
       colour_string( TRIM( C%choice_ocean_model_realistic),'light blue') // '"...'
 
     ! Run the chosen realistic ocean model
@@ -93,6 +93,7 @@ CONTAINS
         CALL crash('unknown region_name "' // region_name // '"')
       END IF
 
+      ! Fill in  main variables
       CALL read_field_from_file_3D_ocean( filename_ocean_snapshot, field_name_options_T_ocean, mesh, ocean%T)
       CALL read_field_from_file_3D_ocean( filename_ocean_snapshot, field_name_options_S_ocean, mesh, ocean%S)
 

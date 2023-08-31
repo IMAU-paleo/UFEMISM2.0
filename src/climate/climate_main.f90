@@ -116,7 +116,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Print to terminal
-    IF (par%master)  WRITE(*,"(A)") '  Initialising climate model...'
+    IF (par%master)  WRITE(*,"(A)") '   Initialising climate model...'
 
     ! Determine which climate model to initialise for this region
     IF     (region_name == 'NAM') THEN
@@ -325,7 +325,7 @@ CONTAINS
     CALL generate_filename_XXXXXdotnc( filename_base, climate%restart_filename)
 
     ! Print to terminal
-    IF (par%master) WRITE(0,'(A)') '  Creating climate model restart file "' // &
+    IF (par%master) WRITE(0,'(A)') '   Creating climate model restart file "' // &
       colour_string( TRIM( climate%restart_filename), 'light blue') // '"...'
 
     ! Create the NetCDF file

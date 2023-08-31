@@ -1027,7 +1027,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    str = '   Set up ' // colour_string( TRIM( mesh%name),'light blue') // ' with {int_01} vertices and {int_02} triangles' // &
+    str = '     Set up ' // colour_string( TRIM( mesh%name),'light blue') // ' with {int_01} vertices and {int_02} triangles' // &
       ', with a resolution of {dp_01} to {dp_02} m'
     CALL insert_val_into_string_int( str, '{int_01}', mesh%nV)
     CALL insert_val_into_string_int( str, '{int_02}', mesh%nTri)

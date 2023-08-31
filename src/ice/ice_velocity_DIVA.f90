@@ -2136,7 +2136,7 @@ CONTAINS
     CALL generate_filename_XXXXXdotnc( filename_base, DIVA%restart_filename)
 
     ! Print to terminal
-    IF (par%master) WRITE(0,'(A)') '  Creating DIVA restart file "' // &
+    IF (par%master) WRITE(0,'(A)') '   Creating DIVA restart file "' // &
       colour_string( TRIM( DIVA%restart_filename), 'light blue') // '"...'
 
     ! Create the NetCDF file
