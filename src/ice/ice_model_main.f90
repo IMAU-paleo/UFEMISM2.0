@@ -120,6 +120,12 @@ CONTAINS
       region%ice%Hi( vi) = wt_prev * region%ice%Hi_prev( vi) + wt_next * region%ice%Hi_next( vi)
     END DO
 
+    ! Calculate the no-ice mask
+    CALL calc_mask_noice( region%mesh, region%ice, region%refgeo_PD)
+
+    ! Apply no-ice mask
+    CALL apply_mask_noice_direct( region%mesh, region%ice%mask_noice, region%ice%Hi)
+
     ! Calculate all other ice geometry quantities
     ! ===========================================
 
@@ -152,9 +158,6 @@ CONTAINS
 
     ! Update masks
     CALL determine_masks( region%mesh, region%ice)
-
-    ! Calculate the no-ice mask
-    CALL calc_mask_noice( region%mesh, region%ice, region%refgeo_PD)
 
     ! NOTE: as calculating the zeta gradients is quite expensive, only do so when necessary,
     !       i.e. when solving the heat equation or the Blatter-Pattyn stress balance
@@ -254,6 +257,9 @@ CONTAINS
 
     ! Calculate the no-ice mask
     CALL calc_mask_noice( mesh, ice, refgeo_PD)
+
+    ! Apply no-ice mask
+    CALL apply_mask_noice_direct( mesh, ice%mask_noice, ice%Hi)
 
     ! Apply boundary conditions at the domain border
     CALL apply_ice_thickness_BC_explicit( mesh, ice%mask_noice, ice%Hb, ice%SL, ice%Hi)

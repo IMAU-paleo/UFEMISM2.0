@@ -97,7 +97,7 @@ CONTAINS
       IF (is_floating( ice%Hi( vi), ice%Hb( vi), ice%SL( vi))) THEN
         ! Ice thickness is below the floatation thickness; either floating ice, or ice-free ocean
 
-        IF (ice%Hi( vi) > 0.1_dp) THEN
+        IF (ice%Hi( vi) > 0._dp) THEN
           ! Floating ice
 
           ice%mask_floating_ice( vi) = .TRUE.
@@ -114,7 +114,7 @@ CONTAINS
       ELSE ! IF (is_floating( ice%Hi( vi), ice%Hb( vi), ice%SL( vi))) THEN
         ! Ice thickness is above the floatation thickness; either grounded ice, or ice-free land
 
-        IF (ice%Hi( vi) > 0.1_dp) THEN
+        IF (ice%Hi( vi) > 0._dp) THEN
           ! Grounded ice
 
           ice%mask_grounded_ice( vi) = .TRUE.
@@ -1506,6 +1506,13 @@ CONTAINS
 
     ! General cases (added on top)
     ! ============================
+
+    ! If so specified, remove very thin ice
+    DO vi = mesh%vi1, mesh%vi2
+      IF (ice%Hi( vi) < C%Hi_min) THEN
+        ice%mask_noice( vi) = .TRUE.
+      END IF
+    END DO
 
     ! If so specified, remove all floating ice
     IF (C%do_remove_shelves) THEN

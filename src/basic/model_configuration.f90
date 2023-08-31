@@ -395,6 +395,7 @@ MODULE model_configuration
   ! ===============================
 
     CHARACTER(LEN=256)  :: choice_mask_noice_config                     = 'none'                           ! Choice of mask_noice configuration
+    REAL(dp)            :: Hi_min_config                                = 0._dp                            ! [m] Minimum ice thickness: thinner ice gets temporarily added to the no-ice mask and eventually removed
 
     ! Partially fixed geometry, useful for initialisation and inversion runs
     LOGICAL             :: fixed_shelf_geometry_config                  = .FALSE.                          ! Keep geometry of floating ice fixed
@@ -1124,6 +1125,7 @@ MODULE model_configuration
   ! ===============================
 
     CHARACTER(LEN=256)  :: choice_mask_noice
+    REAL(dp)            :: Hi_min
 
     ! Partially fixed geometry, useful for initialisation and inversion runs
     LOGICAL             :: fixed_shelf_geometry
@@ -1884,6 +1886,7 @@ CONTAINS
       continental_shelf_calving_config                            , &
       continental_shelf_min_height_config                         , &
       choice_mask_noice_config                                    , &
+      Hi_min_config                                               , &
       fixed_shelf_geometry_config                                 , &
       fixed_sheet_geometry_config                                 , &
       fixed_grounding_line_config                                 , &
@@ -2510,6 +2513,7 @@ CONTAINS
   ! ===============================
 
     C%choice_mask_noice                                      = choice_mask_noice_config
+    C%Hi_min                                                 = Hi_min_config
 
     ! Partially fixed geometry, useful for initialisation and inversion runs
     C%fixed_shelf_geometry                                   = fixed_shelf_geometry_config
