@@ -14,11 +14,12 @@ MODULE ocean_main
   USE ice_model_types                                        , ONLY: type_ice_model
   USE ocean_model_types                                      , ONLY: type_ocean_model
   USE reallocate_mod                                         , ONLY: reallocate_bounds
-  USE ocean_utilities                                        , ONLY: initialise_ocean_vertical_grid
+  USE ocean_utilities                                        , ONLY: initialise_ocean_vertical_grid, calc_ocean_temperature_at_shelf_base, calc_ocean_freezing_point_at_shelf_base
   USE ocean_realistic                                        , ONLY: initialise_ocean_model_realistic, run_ocean_model_realistic
   USE netcdf_basic                                           , ONLY: create_new_netcdf_file_for_writing, close_netcdf_file, open_existing_netcdf_file_for_writing
   USE netcdf_output                                          , ONLY: generate_filename_XXXXXdotnc, setup_mesh_in_netcdf_file, add_time_dimension_to_file, &
                                                                      add_field_mesh_dp_3D_ocean, add_depth_dimension_to_file, write_time_to_file, write_to_field_multopt_mesh_dp_3D_ocean
+  USE netcdf_debug                                           , ONLY: save_variable_as_netcdf_dp_2D, save_variable_as_netcdf_dp_1D
 
   IMPLICIT NONE
 
@@ -93,6 +94,10 @@ CONTAINS
       CALL crash('unknown choice_ocean_model "' // TRIM( choice_ocean_model) // '"')
     END IF
 
+    ! Compute secondary variables
+    CALL calc_ocean_temperature_at_shelf_base(    mesh, ice, ocean)
+    CALL calc_ocean_freezing_point_at_shelf_base( mesh, ice, ocean)
+
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
@@ -116,7 +121,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Print to terminal
-    IF (par%master)  WRITE(*,"(A)") '  Initialising ocean model...'
+    IF (par%master)  WRITE(*,"(A)") '   Initialising ocean model...'
 
     ! Determine which ocean model to initialise for this region
     IF     (region_name == 'NAM') THEN
@@ -139,6 +144,12 @@ CONTAINS
     ALLOCATE( ocean%S( mesh%vi1:mesh%vi2,C%nz_ocean))
     ocean%T = 0._dp
     ocean%S = 0._dp
+
+    ! Allocate memory for secondary variables
+    ALLOCATE( ocean%T_draft(          mesh%vi1:mesh%vi2))
+    ALLOCATE( ocean%T_freezing_point( mesh%vi1:mesh%vi2))
+    ocean%T_draft          = 0._dp
+    ocean%T_freezing_point = 0._dp
 
     ! Set time of next calculation to start time
     ocean%t_next = C%start_time_of_run
@@ -328,7 +339,7 @@ CONTAINS
     CALL generate_filename_XXXXXdotnc( filename_base, ocean%restart_filename)
 
     ! Print to terminal
-    IF (par%master) WRITE(0,'(A)') '  Creating ocean model restart file "' // &
+    IF (par%master) WRITE(0,'(A)') '   Creating ocean model restart file "' // &
       colour_string( TRIM( ocean%restart_filename), 'light blue') // '"...'
 
     ! Create the NetCDF file

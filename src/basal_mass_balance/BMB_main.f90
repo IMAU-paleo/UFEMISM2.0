@@ -15,6 +15,7 @@ MODULE BMB_main
   USE ocean_model_types                                      , ONLY: type_ocean_model
   USE BMB_model_types                                        , ONLY: type_BMB_model
   USE BMB_idealised                                          , ONLY: initialise_BMB_model_idealised, run_BMB_model_idealised
+  USE BMB_parameterised                                      , ONLY: initialise_BMB_model_parameterised, run_BMB_model_parameterised
   USE reallocate_mod                                         , ONLY: reallocate_bounds
 
   IMPLICIT NONE
@@ -69,8 +70,6 @@ CONTAINS
 
     ! Determine which BMB model to run for this region
     SELECT CASE (region_name)
-      CASE DEFAULT
-        CALL crash('unknown region_name "' // region_name // '"')
       CASE ('NAM')
         choice_BMB_model = C%choice_BMB_model_NAM
       CASE ('EAS')
@@ -79,16 +78,20 @@ CONTAINS
         choice_BMB_model = C%choice_BMB_model_GRL
       CASE ('ANT')
         choice_BMB_model = C%choice_BMB_model_ANT
+      CASE DEFAULT
+        CALL crash('unknown region_name "' // region_name // '"')
     END SELECT
 
     ! Run the chosen BMB model
     SELECT CASE (choice_BMB_model)
-      CASE DEFAULT
-        CALL crash('unknown choice_BMB_model "' // TRIM( choice_BMB_model) // '"')
       CASE ('uniform')
         BMB%BMB = C%uniform_BMB
       CASE ('idealised')
         CALL run_BMB_model_idealised( mesh, ice, BMB, time)
+      CASE ('parameterised')
+        CALL run_BMB_model_parameterised( mesh, ice, ocean, BMB)
+      CASE DEFAULT
+        CALL crash('unknown choice_BMB_model "' // TRIM( choice_BMB_model) // '"')
     END SELECT
 
     ! Finalise routine path
@@ -114,12 +117,10 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Print to terminal
-    IF (par%master)  WRITE(*,"(A)") '  Initialising basal mass balance model...'
+    IF (par%master)  WRITE(*,"(A)") '   Initialising basal mass balance model...'
 
     ! Determine which BMB model to initialise for this region
     SELECT CASE (region_name)
-      CASE DEFAULT
-        CALL crash('unknown region_name "' // region_name // '"')
       CASE ('NAM')
         choice_BMB_model = C%choice_BMB_model_NAM
       CASE ('EAS')
@@ -128,6 +129,8 @@ CONTAINS
         choice_BMB_model = C%choice_BMB_model_GRL
       CASE ('ANT')
         choice_BMB_model = C%choice_BMB_model_ANT
+      CASE DEFAULT
+        CALL crash('unknown region_name "' // region_name // '"')
     END SELECT
 
     ! Allocate memory for main variables
@@ -139,12 +142,14 @@ CONTAINS
 
     ! Determine which BMB model to initialise
     SELECT CASE (choice_BMB_model)
-      CASE DEFAULT
-        CALL crash('unknown choice_BMB_model "' // TRIM( choice_BMB_model) // '"')
       CASE ('uniform')
         ! No need to do anything
       CASE ('idealised')
         CALL initialise_BMB_model_idealised( mesh, BMB)
+      CASE ('parameterised')
+        CALL initialise_BMB_model_parameterised( mesh, BMB)
+      CASE DEFAULT
+        CALL crash('unknown choice_BMB_model "' // TRIM( choice_BMB_model) // '"')
     END SELECT
 
     ! Finalise routine path
@@ -172,8 +177,6 @@ CONTAINS
 
     ! Determine which BMB model to initialise for this region
     SELECT CASE (region_name)
-      CASE DEFAULT
-        CALL crash('unknown region_name "' // region_name // '"')
       CASE ('NAM')
         choice_BMB_model = C%choice_BMB_model_NAM
       CASE ('EAS')
@@ -182,16 +185,20 @@ CONTAINS
         choice_BMB_model = C%choice_BMB_model_GRL
       CASE ('ANT')
         choice_BMB_model = C%choice_BMB_model_ANT
+      CASE DEFAULT
+        CALL crash('unknown region_name "' // region_name // '"')
     END SELECT
 
     ! Write to the restart file of the chosen BMB model
     SELECT CASE (choice_BMB_model)
-      CASE DEFAULT
-        CALL crash('unknown choice_BMB_model "' // TRIM( choice_BMB_model) // '"')
       CASE ('uniform')
         ! No need to do anything
       CASE ('idealised')
         ! No need to do anything
+      CASE ('parameterised')
+        ! No need to do anything
+      CASE DEFAULT
+        CALL crash('unknown choice_BMB_model "' // TRIM( choice_BMB_model) // '"')
     END SELECT
 
     ! Finalise routine path
@@ -218,8 +225,6 @@ CONTAINS
 
     ! Determine which BMB model to initialise for this region
     SELECT CASE (region_name)
-      CASE DEFAULT
-        CALL crash('unknown region_name "' // region_name // '"')
       CASE ('NAM')
         choice_BMB_model = C%choice_BMB_model_NAM
       CASE ('EAS')
@@ -228,16 +233,20 @@ CONTAINS
         choice_BMB_model = C%choice_BMB_model_GRL
       CASE ('ANT')
         choice_BMB_model = C%choice_BMB_model_ANT
+      CASE DEFAULT
+        CALL crash('unknown region_name "' // region_name // '"')
     END SELECT
 
     ! Create the restart file of the chosen BMB model
     SELECT CASE (choice_BMB_model)
-      CASE DEFAULT
-        CALL crash('unknown choice_BMB_model "' // TRIM( choice_BMB_model) // '"')
       CASE ('uniform')
         ! No need to do anything
       CASE ('idealised')
         ! No need to do anything
+      CASE ('parameterised')
+        ! No need to do anything
+      CASE DEFAULT
+        CALL crash('unknown choice_BMB_model "' // TRIM( choice_BMB_model) // '"')
     END SELECT
 
     ! Finalise routine path
@@ -289,6 +298,8 @@ CONTAINS
         ! No need to do anything
       CASE ('idealised')
         ! No need to do anything
+      CASE ('parameterised')
+        CALL crash('Remapping after mesh update not implemented yet for parameterised BMB')
       CASE DEFAULT
         CALL crash('unknown choice_BMB_model "' // TRIM( choice_BMB_model) // '"')
     END SELECT

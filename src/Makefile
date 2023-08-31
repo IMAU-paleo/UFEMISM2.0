@@ -140,6 +140,7 @@ UFEMISM_source = \
   surface_mass_balance/SMB_main.f90 \
   \
   basal_mass_balance/BMB_idealised.f90 \
+  basal_mass_balance/BMB_parameterised.f90 \
   basal_mass_balance/BMB_main.f90 \
   \
   glacial_isostatic_adjustment/GIA_main.f90 \

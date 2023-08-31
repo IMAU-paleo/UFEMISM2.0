@@ -626,8 +626,14 @@ MODULE model_configuration
     ! Choice of idealised BMB model
     CHARACTER(LEN=256)  :: choice_BMB_model_idealised_config            = ''
 
+    ! Choice of parameterised BMB model
+    CHARACTER(LEN=256)  :: choice_BMB_model_parameterised_config        = ''
+
     ! "uniform"
     REAL(dp)            :: uniform_BMB_config                           = 0._dp
+
+    ! "parameterised"
+    REAL(dp)            :: BMB_Favier2019_gamma_config                  = 99.32E-5
 
   ! == Glacial isostatic adjustment
   ! ===============================
@@ -1353,8 +1359,14 @@ MODULE model_configuration
     ! Choice of idealised BMB model
     CHARACTER(LEN=256)  :: choice_BMB_model_idealised
 
+    ! Choice of parameterised BMB model
+    CHARACTER(LEN=256)  :: choice_BMB_model_parameterised
+
     ! "uniform"
     REAL(dp)            :: uniform_BMB
+
+    ! "parameterised"
+    REAL(dp)            :: BMB_Favier2019_gamma
 
   ! == Glacial isostatic adjustment
   ! ===============================
@@ -2004,7 +2016,9 @@ CONTAINS
       choice_BMB_model_GRL_config                                 , &
       choice_BMB_model_ANT_config                                 , &
       choice_BMB_model_idealised_config                           , &
+      choice_BMB_model_parameterised_config                       , &
       uniform_BMB_config                                          , &
+      BMB_Favier2019_gamma_config                                 , &
       choice_GIA_model_config                                     , &
       dt_GIA_config                                               , &
       dx_GIA_config                                               , &
@@ -2727,8 +2741,14 @@ CONTAINS
     ! Choice of idealised BMB model
     C%choice_BMB_model_idealised                             = choice_BMB_model_idealised_config
 
+    ! Choice of parameterised BMB model
+    C%choice_BMB_model_parameterised                         = choice_BMB_model_parameterised_config
+
     ! "uniform"
     C%uniform_BMB                                            = uniform_BMB_config
+
+    ! "parameterised"
+    C%BMB_Favier2019_gamma                                   = BMB_Favier2019_gamma_config
 
   ! == Glacial isostatic adjustment
   ! ===============================

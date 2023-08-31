@@ -19,6 +19,11 @@ MODULE ocean_model_types
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: T                           ! [degrees Celsius] Temperature
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: S                           ! [PSU]             Salinity
 
+    ! Secondary data fields
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: T_draft                     ! [degrees Celsius] Temperature at ice base
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: T_freezing_point            ! [degrees Celsius] Pressure freezing point of water
+
+
     ! Metadata
     CHARACTER(LEN=256)                      :: restart_filename            ! Name for generated restart file
 
