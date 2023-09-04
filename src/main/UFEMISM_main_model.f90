@@ -18,6 +18,7 @@ MODULE UFEMISM_main_model
   USE region_types                                           , ONLY: type_model_region
   USE ice_model_types                                        , ONLY: type_ice_model
   USE mesh_types                                             , ONLY: type_mesh
+  USE reference_geometry_types                               , ONLY: type_reference_geometry
   USE reference_geometries                                   , ONLY: initialise_reference_geometries_raw, initialise_reference_geometries_on_model_mesh
   USE ice_model_main                                         , ONLY: initialise_ice_dynamics_model, run_ice_dynamics_model, remap_ice_dynamics_model, &
                                                                      create_restart_files_ice_model, write_to_restart_files_ice_model
@@ -125,7 +126,7 @@ CONTAINS
       CALL run_SMB_model( region%mesh, region%ice, region%climate, region%SMB, region%name, region%time)
 
       ! Calculate the basal mass balance
-      CALL run_BMB_model( region%mesh, region%ice, region%ocean, region%BMB, region%name, region%time)
+      CALL run_BMB_model( region%mesh, region%ice, region%ocean, region%refgeo_PD, region%BMB, region%name, region%time)
 
       ! Calculate bedrock deformation at the desired time, and update
       ! predicted deformation if necessary
@@ -429,10 +430,10 @@ CONTAINS
     ! =======================================================
 
     ! Run the models
-    CALL run_climate_model( region%mesh, region%ice,                 region%climate, region%name, C%start_time_of_run)
-    CALL run_ocean_model(   region%mesh, region%ice,                 region%ocean  , region%name, C%start_time_of_run)
-    CALL run_SMB_model(     region%mesh, region%ice, region%climate, region%SMB    , region%name, C%start_time_of_run)
-    CALL run_BMB_model(     region%mesh, region%ice, region%ocean  , region%BMB    , region%name, C%start_time_of_run)
+    CALL run_climate_model( region%mesh, region%ice, region%climate, region%name, C%start_time_of_run)
+    CALL run_ocean_model( region%mesh, region%ice, region%ocean, region%name, C%start_time_of_run)
+    CALL run_SMB_model( region%mesh, region%ice, region%climate, region%SMB, region%name, C%start_time_of_run)
+    CALL run_BMB_model( region%mesh, region%ice, region%ocean, region%refgeo_PD, region%BMB, region%name, C%start_time_of_run)
 
     ! Reset the timers
     region%climate%t_next = C%start_time_of_run
