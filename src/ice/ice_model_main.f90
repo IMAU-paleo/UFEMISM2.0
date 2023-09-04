@@ -304,8 +304,11 @@ CONTAINS
     ! Sub-grid fractions
     ! ==================
 
-    ! Compute bedrock cumulative density function
-    CALL calc_bedrock_CDFs( mesh, refgeo_PD, ice)
+    IF (C%choice_subgrid_grounded_fraction == 'bedrock_CDF' .OR. &
+        C%choice_subgrid_grounded_fraction == 'bilin_interp_TAF+bedrock_CDF') THEN
+      ! Compute bedrock cumulative density function
+      CALL calc_bedrock_CDFs( mesh, refgeo_PD, ice)
+    END IF
     ! Initialise sub-grid grounded-area fractions
     CALL calc_grounded_fractions( mesh, ice)
 
@@ -1313,7 +1316,7 @@ CONTAINS
       IF (region%ice%pc%eta_np1 < C%pc_epsilon) THEN
         EXIT iterate_pc_timestep
       ELSE
-        !IF (par%master) CALL warning('reducing dt and redoing PC timestep')
+        ! IF (par%master) CALL warning('reducing dt and redoing PC timestep')
         region%ice%pc%dt_np1 = region%ice%pc%dt_np1 * 0.8_dp
         ! If the timestep has reached the specified lower limit, stop iterating
         IF (region%ice%pc%dt_np1 <= C%dt_ice_min) THEN
