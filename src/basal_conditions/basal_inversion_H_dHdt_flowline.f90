@@ -48,7 +48,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_basal_inversion_H_dHdt_flowline'
-    INTEGER,  DIMENSION(:    ), ALLOCATABLE            :: mask, mask_filled
+    INTEGER,  DIMENSION(:    ), ALLOCATABLE            :: mask
     REAL(dp), DIMENSION(mesh%nV)                       :: Hi_tot
     REAL(dp), DIMENSION(mesh%nV)                       :: Hs_tot
     REAL(dp), DIMENSION(mesh%nV)                       :: Hs_target_tot
@@ -83,13 +83,13 @@ CONTAINS
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: dHs_dx, dHs_dy, abs_grad_Hs
     REAL(dp)                                           :: fg_exp_mod
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: dC1_dt_smoothed, dC2_dt_smoothed
+    REAL(dp)                                           :: misfit
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
     ! Allocate memory
     ALLOCATE( mask(            mesh%vi1:mesh%vi2), source = 0      )
-    ALLOCATE( mask_filled(     mesh%vi1:mesh%vi2), source = 0      )
     ALLOCATE( trace_up(        mesh%nV, 2       ), source = 0._dp  )
     ALLOCATE( trace_down(      mesh%nV, 2       ), source = 0._dp  )
     ALLOCATE( s_up(            mesh%nV          ), source = 0._dp  )
@@ -133,11 +133,21 @@ CONTAINS
       ! updated by inversion or by extrapolation
 
       ! Only perform the inversion on fully grounded vertices
-      IF (ice%mask_grounded_ice( vi) .AND. &
-        .NOT. (ice%mask_margin( vi) .OR. ice%mask_gl_gr( vi) .OR. ice%mask_cf_gr( vi))) THEN
+      ! IF (ice%mask_grounded_ice( vi) .AND. &
+      !   .NOT. (ice%mask_margin( vi) .OR. ice%mask_gl_gr( vi) .OR. ice%mask_cf_gr( vi))) THEN
+      if (ice%fraction_gr( vi) == 1._dp) then
 
         ! Perform the inversion here
         mask( vi) = 2
+
+        ! Surface elevation misfit
+        misfit = ice%Hs( vi) - refgeo%Hs( vi)
+
+        ! Is it improving already?
+        IF (ice%dHs_dt( vi)*misfit < 0._dp) THEN
+          ! Yes, so leave this vertex alone
+          CYCLE
+        END IF
 
       ELSE
 
@@ -390,13 +400,13 @@ CONTAINS
     CALL smooth_Gaussian_2D( mesh, grid_smooth, dC1_dt_smoothed, C%bednudge_H_dHdt_flowline_r_smooth)
     CALL smooth_Gaussian_2D( mesh, grid_smooth, dC2_dt_smoothed, C%bednudge_H_dHdt_flowline_r_smooth)
 
-    ! Final bed roughness field
-    ! =========================
-
     DO vi = mesh%vi1, mesh%vi2
       dC1_dt( vi) = (1._dp - C%bednudge_H_dHdt_flowline_w_smooth) * dC1_dt( vi) + C%bednudge_H_dHdt_flowline_w_smooth * dC1_dt_smoothed( vi)
       dC2_dt( vi) = (1._dp - C%bednudge_H_dHdt_flowline_w_smooth) * dC2_dt( vi) + C%bednudge_H_dHdt_flowline_w_smooth * dC2_dt_smoothed( vi)
     END DO ! DO vi = mesh%vi1, mesh%vi2
+
+    ! Final bed roughness field
+    ! =========================
 
     ! Calculate predicted bed roughness at t+dt
     BIV%generic_bed_roughness_1_next = MAX( C%generic_bed_roughness_1_min, MIN( C%generic_bed_roughness_1_max, &
@@ -406,7 +416,6 @@ CONTAINS
 
     ! Clean up after yourself
     DEALLOCATE( mask           )
-    DEALLOCATE( mask_filled    )
     DEALLOCATE( trace_up       )
     DEALLOCATE( trace_down     )
     DEALLOCATE( s_up           )
@@ -491,6 +500,7 @@ CONTAINS
     REAL(dp)                                           :: dist, w, w_tot
     REAL(dp)                                           :: u_pt, v_pt, uabs_pt
     REAL(dp), DIMENSION(2)                             :: u_hat_pt
+    REAL(dp)                                           :: dist_prev
 
     ! Safety - if there's no ice, we can't do a trace
     vi = 1
@@ -506,6 +516,9 @@ CONTAINS
     T  = 0._dp
     n  = 0
     pt = p
+
+    ! Safety
+    dist_prev = 0._dp
 
     DO WHILE (.TRUE.)
 
@@ -544,11 +557,22 @@ CONTAINS
       ! Add current position to the traces
       n = n + 1
       ! Safety
-      IF (n > SIZE( T,1)) CALL crash('upstream flowline tracer got stuck!')
+      IF (n > SIZE( T,1)) THEN
+        ! DO iti = 1, MIN( SIZE(T,1), 1000)
+        !   print*, T(iti,1), ',', T(iti,2)
+        ! END DO
+        CALL crash('upstream flowline tracer got stuck!')
+      END IF
       T( n,:) = pt
+
+      ! Save previous distance-to-origin
+      dist_prev = NORM2( pt - p)
 
       ! Move the tracer upstream by a distance of one local resolution
       pt = pt - u_hat_pt * mesh%R( vi)
+
+      ! If the new distance-to-origin is shorter than the previous one, end the trace
+      IF (NORM2( pt - p) < dist_prev) EXIT
 
       ! If the new tracer location is outside the domain, end the trace
       IF (pt( 1) <= mesh%xmin .OR. pt( 2) >= mesh%xmax .OR. &
@@ -588,6 +612,7 @@ CONTAINS
     REAL(dp)                                           :: dist, w, w_tot
     REAL(dp)                                           :: u_pt, v_pt, uabs_pt
     REAL(dp), DIMENSION(2)                             :: u_hat_pt
+    REAL(dp)                                           :: dist_prev
 
     ! Safety - if there's no ice, we can't do a trace
     vi = 1
@@ -603,6 +628,9 @@ CONTAINS
     T  = 0._dp
     n  = 0
     pt = p
+
+    ! Safety
+    dist_prev = 0._dp
 
     DO WHILE (.TRUE.)
 
@@ -646,11 +674,22 @@ CONTAINS
       ! Add current position to the traces
       n = n + 1
       ! Safety
-      IF (n > SIZE( T,1)) CALL crash('upstream flowline tracer got stuck!')
+      IF (n > SIZE( T,1)) THEN
+        ! DO iti = 1, MIN( SIZE(T,1), 1000)
+        !   print*, T(iti,1), ',', T(iti,2)
+        ! END DO
+        CALL crash('downstream flowline tracer got stuck!')
+      END IF
       T( n,:) = pt
+
+      ! Save previous distance-to-origin
+      dist_prev = NORM2( pt - p)
 
       ! Move the tracer downstream by a distance of one local resolution
       pt = pt + u_hat_pt * mesh%R( vi)
+
+      ! If the new distance-to-origin is shorter than the previous one, end the trace
+      IF (NORM2( pt - p) < dist_prev) EXIT
 
       ! If the new tracer location is outside the domain, end the trace
       IF (pt( 1) <= mesh%xmin .OR. pt( 2) >= mesh%xmax .OR. &
