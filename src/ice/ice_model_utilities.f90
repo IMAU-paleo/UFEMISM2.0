@@ -1514,6 +1514,15 @@ CONTAINS
       END IF
     END DO
 
+    ! If so specified, remove all floating ice beyond the present-day calving front
+    IF (C%remove_ice_absent_at_PD) THEN
+      DO vi = mesh%vi1, mesh%vi2
+        IF (refgeo_PD%Hi( vi) == 0._dp) THEN
+          ice%mask_noice( vi) = .TRUE.
+        END IF
+      END DO
+    END IF
+
     ! If so specified, remove all floating ice
     IF (C%do_remove_shelves) THEN
       DO vi = mesh%vi1, mesh%vi2
