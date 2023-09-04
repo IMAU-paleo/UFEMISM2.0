@@ -135,7 +135,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_sliding_law_Coulomb'
     INTEGER                                            :: vi
-    REAL(dp)                                           :: uabs
+    REAL(dp)                                           :: uabs, beta_min
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -295,14 +295,24 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_sliding_law_ZoetIverson'
     INTEGER                                            :: vi
-    REAL(dp)                                           :: uabs
+    REAL(dp)                                           :: uabs, beta_min, Ti_hom, w_temp, c_fric
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    ! DENK DROM
     ! Calculate the till yield stress from the till friction angle and the effective pressure
     DO vi = mesh%vi1, mesh%vi2
-      ice%till_yield_stress( vi) = TAN((pi / 180._dp) * ice%till_friction_angle( vi)) * ice%effective_pressure( vi)
+      ! Compute basal temperature w.r.t. pressure melting point (positive)
+      Ti_hom = MAX( 0._dp, ice%Ti_pmp( vi,C%nz) - ice%Ti( vi,C%nz))
+      ! Compute a [0 1] weight based on Ti_hom, ignoring the first X degrees
+      ! and decreasing linearly for the next X degrees
+      w_temp = MIN( 1._dp, MAX( 0._dp, (Ti_hom-20._dp) / 10._dp))
+      ! Use the weight to scale a [0 1] friction coefficient. Idea is
+      ! that the bigger Ti_hom is, the less effect the angle will have.
+      c_fric = w_temp + (1._dp - w_temp) * TAN((pi / 180._dp) * ice%till_friction_angle( vi))
+      ! Get the till yield stress
+      ice%till_yield_stress( vi) =  c_fric * ice%effective_pressure( vi)
     END DO
 
     ! Calculate beta
@@ -313,6 +323,14 @@ CONTAINS
 
       ! Zoet & Iverson (2020), Eq. (3) (divided by u to give beta = tau_b / u)
       ice%basal_friction_coefficient( vi) = ice%till_yield_stress( vi) * (uabs**(1._dp / C%slid_ZI_p - 1._dp)) * ((uabs + C%slid_ZI_ut)**(-1._dp / C%slid_ZI_p))
+
+      ! DENK DROM
+      ! Multiply config-reference minimum beta by a number between 0 and 1,
+      ! depending on how much thinner than a config-reference threshold
+      ! the current model thickness is. If thicker, no limit is applied.
+      beta_min = 1000._dp * MIN( 1._dp, MAX( 0._dp, 1._dp - ice%Hi( vi) / 200._dp))
+      ! Apply dynamic minimum limit to beta
+      ice%basal_friction_coefficient( vi) = MAX( ice%basal_friction_coefficient( vi), beta_min )
 
     END DO
 
