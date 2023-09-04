@@ -553,6 +553,8 @@ CONTAINS
         CALL write_to_field_multopt_mesh_dp_3D( region%mesh, filename, ncid, 'Ti', region%ice%Ti)
       CASE ('Ti_pmp')
         CALL write_to_field_multopt_mesh_dp_3D( region%mesh, filename, ncid, 'Ti_pmp', region%ice%Ti_pmp)
+      CASE ('Ti_hom')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'Ti_hom', MIN( 0._dp, region%ice%Ti(:,C%nz) - region%ice%Ti_pmp(:,C%nz)))
       CASE ('Cpi')
         CALL write_to_field_multopt_mesh_dp_3D( region%mesh, filename, ncid, 'Cpi', region%ice%Cpi)
       CASE ('Ki')
@@ -932,6 +934,9 @@ CONTAINS
       CASE ('Ti_pmp')
         CALL map_from_mesh_to_xy_grid_3D( region%mesh, grid, region%ice%Ti_pmp, d_grid_vec_partial_3D)
         CALL write_to_field_multopt_grid_dp_3D( grid, filename, ncid, 'Ti_pmp', d_grid_vec_partial_3D)
+      CASE ('Ti_hom')
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, MIN( 0._dp, region%ice%Ti(:,C%nz) - region%ice%Ti_pmp(:,C%nz)), d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'Ti_hom', d_grid_vec_partial_2D)
       CASE ('Cpi')
         CALL map_from_mesh_to_xy_grid_3D( region%mesh, grid, region%ice%Cpi, d_grid_vec_partial_3D)
         CALL write_to_field_multopt_grid_dp_3D( grid, filename, ncid, 'Cpi', d_grid_vec_partial_3D)
@@ -1640,11 +1645,11 @@ CONTAINS
     ! ==========================
 
       CASE ('fraction_gr')
-        CALL add_field_mesh_dp_2D( filename, ncid, 'fraction_gr', long_name = 'Grounded area fractions of vertices')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'fraction_gr', long_name = 'Grounded area fractions of vertices', units = '-')
       CASE ('fraction_gr_b')
-        CALL add_field_mesh_dp_2D_b( filename, ncid, 'fraction_gr_b', long_name = 'Grounded area fractions of triangles')
+        CALL add_field_mesh_dp_2D_b( filename, ncid, 'fraction_gr_b', long_name = 'Grounded area fractions of triangles', units = '-')
       CASE ('fraction_cf')
-        CALL add_field_mesh_dp_2D( filename, ncid, 'fraction_gr', long_name = 'Ice-covered area fractions of calving fronts')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'fraction_cf', long_name = 'Ice-covered area fractions of calving fronts', units = '-')
 
     ! === Thermodynamics and rheology ===
     ! ===================================
@@ -1653,6 +1658,8 @@ CONTAINS
         CALL add_field_mesh_dp_3D( filename, ncid, 'Ti', long_name = 'Englacial temperature', units = 'K')
       CASE ('Ti_pmp')
         CALL add_field_mesh_dp_3D( filename, ncid, 'Ti_pmp', long_name = 'Pressure melting point temperature', units = 'K')
+      CASE ('Ti_hom')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'Ti_hom', long_name = 'Temperature at base w.r.t. pressure melting point', units = 'K')
       CASE ('Cpi')
         CALL add_field_mesh_dp_3D( filename, ncid, 'Cpi', long_name = 'Specific heat capacity', units = 'J kg^-1 K^-1')
       CASE ('Ki')
@@ -1806,7 +1813,7 @@ CONTAINS
         CALL add_field_mesh_dp_2D_monthly( filename, ncid, 'Precip', long_name = 'Monthly total precipitation', units = 'm.w.e.')
 
     ! == Ocean ==
-    ! ==========================
+    ! ===========
 
       ! Main ocean variables
       CASE ('T_ocean')
@@ -1987,6 +1994,8 @@ CONTAINS
         CALL add_field_grid_dp_3D( filename, ncid, 'Ti', long_name = 'Englacial temperature', units = 'K')
       CASE ('Ti_pmp')
         CALL add_field_grid_dp_3D( filename, ncid, 'Ti_pmp', long_name = 'Pressure melting point temperature', units = 'K')
+      CASE ('Ti_hom')
+        CALL add_field_grid_dp_2D( filename, ncid, 'Ti_hom', long_name = 'Temperature at base w.r.t. pressure melting point', units = 'K')
       CASE ('Cpi')
         CALL add_field_grid_dp_3D( filename, ncid, 'Cpi', long_name = 'Specific heat capacity', units = 'J kg^-1 K^-1')
       CASE ('Ki')
