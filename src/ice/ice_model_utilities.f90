@@ -1319,7 +1319,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Allocate shared memory
-   !ALLOCATE( Hi_a(        mesh%vi1:mesh%vi2))
+    ! ALLOCATE( Hi_a(        mesh%vi1:mesh%vi2))
     ALLOCATE( dHi_dx_a(    mesh%vi1:mesh%vi2))
     ALLOCATE( dHi_dy_a(    mesh%vi1:mesh%vi2))
     ALLOCATE( d2Hi_dx2_a(  mesh%vi1:mesh%vi2))
@@ -1438,6 +1438,35 @@ CONTAINS
 
       END DO
     END DO
+
+    ! Clean after yourself
+    ! DEALLOCATE( Hi_a)
+    DEALLOCATE( dHi_dx_a)
+    DEALLOCATE( dHi_dy_a)
+    DEALLOCATE( d2Hi_dx2_a)
+    DEALLOCATE( d2Hi_dxdy_a)
+    DEALLOCATE( d2Hi_dy2_a)
+
+    DEALLOCATE( Hi_b)
+    DEALLOCATE( dHi_dx_b)
+    DEALLOCATE( dHi_dy_b)
+    DEALLOCATE( d2Hi_dx2_b)
+    DEALLOCATE( d2Hi_dxdy_b)
+    DEALLOCATE( d2Hi_dy2_b)
+
+    ! DEALLOCATE( Hs_a)
+    DEALLOCATE( dHs_dx_a)
+    DEALLOCATE( dHs_dy_a)
+    DEALLOCATE( d2Hs_dx2_a)
+    DEALLOCATE( d2Hs_dxdy_a)
+    DEALLOCATE( d2Hs_dy2_a)
+
+    DEALLOCATE( Hs_b)
+    DEALLOCATE( dHs_dx_b)
+    DEALLOCATE( dHs_dy_b)
+    DEALLOCATE( d2Hs_dx2_b)
+    DEALLOCATE( d2Hs_dxdy_b)
+    DEALLOCATE( d2Hs_dy2_b)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
