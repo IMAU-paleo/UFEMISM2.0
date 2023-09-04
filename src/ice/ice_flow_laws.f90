@@ -135,11 +135,25 @@ CONTAINS
 
     ! Apply the flow enhancement factors
     DO vi = mesh%vi1, mesh%vi2
-      IF     (ice%mask_grounded_ice( vi)) THEN
-        ice%A_flow( vi,:) = ice%A_flow( vi,:) * C%m_enh_sheet
-      ELSEIF (ice%mask_floating_ice( vi)) THEN
-        ice%A_flow( vi,:) = ice%A_flow( vi,:) * C%m_enh_shelf
+
+      IF (C%choice_enhancement_factor_transition == 'separate') THEN
+
+        ! Totally separate values for grounded and floating areas
+        IF     (ice%mask_grounded_ice( vi)) THEN
+          ice%A_flow( vi,:) = ice%A_flow( vi,:) * C%m_enh_sheet
+        ELSEIF (ice%mask_floating_ice( vi)) THEN
+          ice%A_flow( vi,:) = ice%A_flow( vi,:) * C%m_enh_shelf
+        END IF
+
+      ELSEIF (C%choice_enhancement_factor_transition == 'interp') THEN
+
+        ! Interpolation between grounded and floating values depending on grounded fraction
+        ice%A_flow( vi,:) = ice%A_flow( vi,:) * (ice%fraction_gr( vi) * C%m_enh_sheet + (1._dp-ice%fraction_gr( vi)) * C%m_enh_shelf)
+
+      ELSE
+        CALL crash('unknown choice_enhancement_factor_transition "' // TRIM( C%choice_enhancement_factor_transition) // '"!')
       END IF
+
     END DO
 
     ! Finalise routine path

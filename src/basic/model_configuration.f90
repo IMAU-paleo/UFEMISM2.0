@@ -518,6 +518,7 @@ MODULE model_configuration
     REAL(dp)            :: uniform_Glens_flow_factor_config             = 1E-16_dp                         ! Uniform ice flow factor (applied when choice_ice_rheology_model_config = "uniform")
 
     ! Enhancement factors
+    CHARACTER(LEN=256)  :: choice_enhancement_factor_transition_config  = 'separate'                       ! Choice of treatment of enhancement factors at transition zones: "separate", "interp"
     REAL(dp)            :: m_enh_sheet_config                           = 1.0_dp                           ! Ice flow enhancement factor for grounded ice
     REAL(dp)            :: m_enh_shelf_config                           = 1.0_dp                           ! Ice flow enhancement factor for floating ice
 
@@ -1249,6 +1250,7 @@ MODULE model_configuration
     REAL(dp)            :: uniform_Glens_flow_factor
 
     ! Enhancement factors
+    CHARACTER(LEN=256)  :: choice_enhancement_factor_transition
     REAL(dp)            :: m_enh_sheet
     REAL(dp)            :: m_enh_shelf
 
@@ -1967,6 +1969,7 @@ CONTAINS
       Glens_flow_law_epsilon_sq_0_config                          , &
       choice_ice_rheology_Glen_config                             , &
       uniform_Glens_flow_factor_config                            , &
+      choice_enhancement_factor_transition_config                 , &
       m_enh_sheet_config                                          , &
       m_enh_shelf_config                                          , &
       do_asynchronous_climate_config                              , &
@@ -2639,6 +2642,7 @@ CONTAINS
     C%uniform_Glens_flow_factor                              = uniform_Glens_flow_factor_config
 
     ! Enhancement factors
+    C%choice_enhancement_factor_transition                   = choice_enhancement_factor_transition_config
     C%m_enh_sheet                                            = m_enh_sheet_config
     C%m_enh_shelf                                            = m_enh_shelf_config
 
