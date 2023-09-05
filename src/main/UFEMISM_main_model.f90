@@ -1204,7 +1204,7 @@ CONTAINS
   SUBROUTINE time_display( region, t_end, dt_av, ndt_av)
     ! Little time display for the screen
 
-    USE, INTRINSIC :: ISO_C_BINDING, ONLY: c_backspace
+    USE, INTRINSIC :: ISO_C_BINDING, ONLY: c_carriage_return
 
     IMPLICIT NONE
 
@@ -1224,18 +1224,18 @@ CONTAINS
       r_adv = "no"
       WRITE( r_time,"(F8.3)") MIN( region%time,t_end) / 1000._dp
       WRITE( r_step,"(F6.3)") MAX( dt_ice, C%dt_ice_min)
-      WRITE( *     ,"(A)", ADVANCE = TRIM( r_adv)) REPEAT( c_backspace,999) // &
+      WRITE( *     ,"(A)", ADVANCE = TRIM( r_adv)) c_carriage_return // &
               "   t = " // TRIM( r_time) // " kyr - dt = " // TRIM( r_step) // " yr"
     ELSE
       r_adv = "yes"
       WRITE( r_time,"(F8.3)") MIN( region%time,t_end) / 1000._dp
       WRITE( r_step,"(F6.3)") dt_av / REAL( ndt_av,dp)
-      WRITE( *     ,"(A)", ADVANCE = TRIM( r_adv)) REPEAT( c_backspace,999) // &
+      WRITE( *     ,"(A)", ADVANCE = TRIM( r_adv)) c_carriage_return // &
             "   t = " // TRIM( r_time) // " kyr - dt_av = " // TRIM( r_step) // " yr"
     END IF
     IF (region%time == region%output_t_next) THEN
       r_adv = "yes"
-      WRITE( *,"(A)", ADVANCE = TRIM( r_adv)) REPEAT( c_backspace,999)
+      WRITE( *,"(A)", ADVANCE = TRIM( r_adv)) c_carriage_return
     END IF
 
   END SUBROUTINE time_display

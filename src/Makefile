@@ -48,10 +48,10 @@ $(OBJ_PATH) $(MOD_PATH):
 
 # Pattern rules for creating object files from *.f90 (fortran 90) source files
 $(OBJ_PATH)/%.o : */%.f90 Makefile | $(OBJ_PATH) $(MOD_PATH)
-	$(F90) $(F90FLAGS) $(F90DEFINITIONS) -J${MOD_PATH} -fbackslash -c -o $@ $<
+	$(F90) $(F90FLAGS) $(F90DEFINITIONS) -J${MOD_PATH} -c -o $@ $<
 
 $(OBJ_PATH)/%.o : %.f90 Makefile | $(OBJ_PATH) $(MOD_PATH)
-	$(F90) $(F90FLAGS) $(F90DEFINITIONS) -J${MOD_PATH} -fbackslash -c -o $@ $<
+	$(F90) $(F90FLAGS) $(F90DEFINITIONS) -J${MOD_PATH} -c -o $@ $<
 
 
 # List of object files

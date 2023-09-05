@@ -42,14 +42,14 @@ MODULE petsc_basic
 #endif
 #endif
 interface
-    SUBROUTINE MatConvert( mat, newtype, reuse, M, err)
-      import
-      TYPE(tmat) :: mat, M
-      character(4) :: newtype
-      integer :: reuse
-      INTEGER    :: err
-    END SUBROUTINE
-  end interface
+  SUBROUTINE MatConvert( mat, newtype, reuse, M, err)
+    import
+    TYPE(tmat) :: mat, M
+    character(*) :: newtype
+    integer :: reuse
+    INTEGER    :: err
+  END SUBROUTINE
+end interface
 CONTAINS
 
 ! == Solve a square CSR matrix equation with PETSc
