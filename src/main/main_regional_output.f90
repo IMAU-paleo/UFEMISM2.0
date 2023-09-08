@@ -554,7 +554,7 @@ CONTAINS
       CASE ('Ti_pmp')
         CALL write_to_field_multopt_mesh_dp_3D( region%mesh, filename, ncid, 'Ti_pmp', region%ice%Ti_pmp)
       CASE ('Ti_hom')
-        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'Ti_hom', MIN( 0._dp, region%ice%Ti(:,C%nz) - region%ice%Ti_pmp(:,C%nz)))
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'Ti_hom', region%ice%Ti_hom)
       CASE ('Cpi')
         CALL write_to_field_multopt_mesh_dp_3D( region%mesh, filename, ncid, 'Cpi', region%ice%Cpi)
       CASE ('Ki')
@@ -672,6 +672,8 @@ CONTAINS
         CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'overburden_pressure', region%ice%overburden_pressure)
       CASE ('effective_pressure')
         CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'effective_pressure', region%ice%effective_pressure)
+      CASE ('pore_water_likelihood')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'pore_water_likelihood', region%ice%pore_water_likelihood)
 
     ! == Basal sliding ==
     ! ===================
@@ -935,7 +937,7 @@ CONTAINS
         CALL map_from_mesh_to_xy_grid_3D( region%mesh, grid, region%ice%Ti_pmp, d_grid_vec_partial_3D)
         CALL write_to_field_multopt_grid_dp_3D( grid, filename, ncid, 'Ti_pmp', d_grid_vec_partial_3D)
       CASE ('Ti_hom')
-        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, MIN( 0._dp, region%ice%Ti(:,C%nz) - region%ice%Ti_pmp(:,C%nz)), d_grid_vec_partial_2D)
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%Ti_hom, d_grid_vec_partial_2D)
         CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'Ti_hom', d_grid_vec_partial_2D)
       CASE ('Cpi')
         CALL map_from_mesh_to_xy_grid_3D( region%mesh, grid, region%ice%Cpi, d_grid_vec_partial_3D)
@@ -1088,6 +1090,9 @@ CONTAINS
       CASE ('effective_pressure')
         CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%effective_pressure, d_grid_vec_partial_2D)
         CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'effective_pressure', d_grid_vec_partial_2D)
+      CASE ('pore_water_likelihood')
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%pore_water_likelihood, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'pore_water_likelihood', d_grid_vec_partial_2D)
 
     ! == Basal sliding ==
     ! ===================
@@ -1639,17 +1644,17 @@ CONTAINS
       CASE ('mask')
         CALL add_field_mesh_int_2D( filename, ncid, 'mask', long_name = 'General mask')
       CASE ('basin_ID')
-        CALL add_field_mesh_int_2D( filename, ncid, 'basin_ID', long_name = 'Drainage basin ID')
+        CALL add_field_mesh_int_2D( filename, ncid, 'basin_ID', long_name = 'Drainage basin ID', units = 'ID code')
 
     ! ===== Area fractions =====
     ! ==========================
 
       CASE ('fraction_gr')
-        CALL add_field_mesh_dp_2D( filename, ncid, 'fraction_gr', long_name = 'Grounded area fractions of vertices', units = '-')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'fraction_gr', long_name = 'Grounded area fractions of vertices', units = '0-1')
       CASE ('fraction_gr_b')
-        CALL add_field_mesh_dp_2D_b( filename, ncid, 'fraction_gr_b', long_name = 'Grounded area fractions of triangles', units = '-')
+        CALL add_field_mesh_dp_2D_b( filename, ncid, 'fraction_gr_b', long_name = 'Grounded area fractions of triangles', units = '0-1')
       CASE ('fraction_cf')
-        CALL add_field_mesh_dp_2D( filename, ncid, 'fraction_cf', long_name = 'Ice-covered area fractions of calving fronts', units = '-')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'fraction_cf', long_name = 'Ice-covered area fractions of calving fronts', units = '0-1')
 
     ! === Thermodynamics and rheology ===
     ! ===================================
@@ -1777,6 +1782,8 @@ CONTAINS
         CALL add_field_mesh_dp_2D( filename, ncid, 'overburden_pressure', long_name = 'Ice overburden pressure', units = 'Pa')
       CASE ('effective_pressure')
         CALL add_field_mesh_dp_2D( filename, ncid, 'effective_pressure', long_name = 'Effective basal pressure', units = 'Pa')
+      CASE ('pore_water_likelihood')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'pore_water_likelihood', long_name = 'Till pore water pore_water_likelihood', units = '0-1')
 
     ! == Basal sliding ==
     ! ===================
@@ -2113,6 +2120,8 @@ CONTAINS
         CALL add_field_grid_dp_2D( filename, ncid, 'overburden_pressure', long_name = 'Ice overburden pressure', units = 'Pa')
       CASE ('effective_pressure')
         CALL add_field_grid_dp_2D( filename, ncid, 'effective_pressure', long_name = 'Effective basal pressure', units = 'Pa')
+      CASE ('pore_water_likelihood')
+        CALL add_field_grid_dp_2D( filename, ncid, 'pore_water_likelihood', long_name = 'Till pore water likelihood', units = '0-1')
 
     ! == Basal sliding ==
     ! ===================

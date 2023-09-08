@@ -26,7 +26,7 @@ MODULE thermodynamics_main
   USE netcdf_input                                           , ONLY: read_field_from_file_3D
   USE thermodynamics_3D_heat_equation                        , ONLY: solve_3D_heat_equation, create_restart_file_thermo_3D_heat_equation, &
                                                                      write_to_restart_file_thermo_3D_heat_equation
-  USE thermodynamics_utilities                               , ONLY: calc_pressure_melting_point, replace_Ti_with_robin_solution
+  USE thermodynamics_utilities                               , ONLY: calc_pressure_melting_point, replace_Ti_with_robin_solution, calc_homologous_temperature
 
   IMPLICIT NONE
 
@@ -92,6 +92,12 @@ CONTAINS
     DO vi = region%mesh%vi1, region%mesh%vi2
       region%ice%Ti( vi,:) = wt_prev * region%ice%Ti_prev( vi,:) + wt_next * region%ice%Ti_next( vi,:)
     END DO
+
+    ! Calculate Ti_pmp
+    CALL calc_pressure_melting_point( region%mesh, region%ice)
+
+    ! Calculate Ti_hom
+    CALL calc_homologous_temperature( region%mesh, region%ice)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -282,6 +288,12 @@ CONTAINS
       ice%Ti( vi,:) = uniform_initial_ice_temperature
     END DO
 
+    ! Calculate Ti_pmp
+    CALL calc_pressure_melting_point( mesh, ice)
+
+    ! Calculate Ti_hom
+    CALL calc_homologous_temperature( mesh, ice)
+
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
@@ -325,6 +337,12 @@ CONTAINS
 
     END DO
 
+    ! Calculate Ti_pmp
+    CALL calc_pressure_melting_point( mesh, ice)
+
+    ! Calculate Ti_hom
+    CALL calc_homologous_temperature( mesh, ice)
+
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
@@ -360,6 +378,9 @@ CONTAINS
     DO vi = mesh%vi1, mesh%vi2
       CALL replace_Ti_with_robin_solution( mesh, ice, climate, SMB, ice%Ti, vi)
     END DO
+
+    ! Calculate Ti_hom
+    CALL calc_homologous_temperature( mesh, ice)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -436,6 +457,12 @@ CONTAINS
 
     ! The zetas match; hurray!
     ice%Ti = Ti_read
+
+    ! Calculate Ti_pmp
+    CALL calc_pressure_melting_point( mesh, ice)
+
+    ! Calculate Ti_hom
+    CALL calc_homologous_temperature( mesh, ice)
 
     ! Clean up after yourself
     DEALLOCATE( zeta_read)

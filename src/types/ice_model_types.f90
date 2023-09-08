@@ -263,6 +263,7 @@ MODULE ice_model_types
     ! Ice temperatures
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: Ti                          ! [K] Englacial temperature
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: Ti_pmp                      ! [K] Pressure melting point temperature
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: Ti_hom                      ! [K] Basal temperature w.r.t. pressure melting point
 
     ! Physical quantities
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: Cpi                         ! [J kg^-1 K^-1] Specific heat capacity
@@ -340,9 +341,10 @@ MODULE ice_model_types
   ! =====================
 
     ! Basal hydrology
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: pore_water_pressure         ! [Pa] Basal pore water pressure
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: overburden_pressure         ! [Pa] Basal overburden pressure
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: effective_pressure          ! [Pa] Basal effective pressure
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: pore_water_pressure         ! [Pa]  Basal pore water pressure
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: overburden_pressure         ! [Pa]  Basal overburden pressure
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: effective_pressure          ! [Pa]  Basal effective pressure
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: pore_water_likelihood       ! [0-1] Basal pore water likelihood
 
   ! == Basal sliding ==
   ! ===================

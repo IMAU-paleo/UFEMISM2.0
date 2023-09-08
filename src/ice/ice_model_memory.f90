@@ -184,9 +184,11 @@ CONTAINS
     ! Ice temperatures
     ALLOCATE( ice%Ti                          ( mesh%vi1:mesh%vi2,mesh%nz))  ! [K] Englacial temperature
     ALLOCATE( ice%Ti_pmp                      ( mesh%vi1:mesh%vi2,mesh%nz))  ! [K] Pressure melting point temperature
+    ALLOCATE( ice%Ti_hom                      ( mesh%vi1:mesh%vi2        ))  ! [K] Basal temperature w.r.t. pressure melting point
 
     ice%Ti                          = 0._dp
     ice%Ti_pmp                      = 0._dp
+    ice%Ti_hom                      = 0._dp
 
     ! Physical quantities
     ALLOCATE( ice%Cpi                         ( mesh%vi1:mesh%vi2,mesh%nz))  ! [J kg^-1 K^-1] Specific heat capacity
@@ -308,13 +310,15 @@ CONTAINS
   ! =====================
 
     ! Basal hydrology
-    ALLOCATE( ice%pore_water_pressure         ( mesh%vi1:mesh%vi2        ))  ! [Pa] Basal pore water pressure
-    ALLOCATE( ice%overburden_pressure         ( mesh%vi1:mesh%vi2        ))  ! [Pa] Basal overburden pressure
-    ALLOCATE( ice%effective_pressure          ( mesh%vi1:mesh%vi2        ))  ! [Pa] Basal effective pressure
+    ALLOCATE( ice%pore_water_pressure         ( mesh%vi1:mesh%vi2        ))  ! [Pa]  Basal pore water pressure
+    ALLOCATE( ice%overburden_pressure         ( mesh%vi1:mesh%vi2        ))  ! [Pa]  Basal overburden pressure
+    ALLOCATE( ice%effective_pressure          ( mesh%vi1:mesh%vi2        ))  ! [Pa]  Basal effective pressure
+    ALLOCATE( ice%pore_water_likelihood       ( mesh%vi1:mesh%vi2        ))  ! [0-1] Basal pore water likelihood
 
     ice%pore_water_pressure         = 0._dp
     ice%overburden_pressure         = 0._dp
     ice%effective_pressure          = 0._dp
+    ice%pore_water_likelihood       = 0._dp
 
   ! == Basal sliding ==
   ! ===================

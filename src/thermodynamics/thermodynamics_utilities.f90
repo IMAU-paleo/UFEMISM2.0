@@ -235,6 +235,31 @@ CONTAINS
 
   END SUBROUTINE calc_pressure_melting_point
 
+  SUBROUTINE calc_homologous_temperature( mesh, ice)
+    ! Calculate the pressure melting point of the ice according to Huybrechts (1992)
+
+    IMPLICIT NONE
+
+    ! In/output variables
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
+    TYPE(type_ice_model),                INTENT(INOUT) :: ice
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_homologous_temperature'
+    INTEGER                                            :: vi
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    DO vi = mesh%vi1, mesh%vi2
+      ice%Ti_hom( vi) = MIN( 0._dp, ice%Ti( vi,C%nz) - ice%Ti_pmp( vi,C%nz))
+    END DO
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE calc_homologous_temperature
+
   SUBROUTINE replace_Ti_with_robin_solution( mesh, ice, climate, SMB, Ti, vi)
     ! This function calculates for one horizontal grid point the temperature profiles
     ! using the surface temperature and the geothermal heat flux as boundary conditions.
