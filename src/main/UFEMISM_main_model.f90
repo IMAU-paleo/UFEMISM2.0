@@ -43,7 +43,8 @@ MODULE UFEMISM_main_model
   USE grid_basic                                             , ONLY: setup_square_grid
   USE main_regional_output                                   , ONLY:   create_main_regional_output_file_mesh,   create_main_regional_output_file_grid, &
                                                                      write_to_main_regional_output_file_mesh, write_to_main_regional_output_file_grid, &
-                                                                     create_main_regional_output_file_grid_ROI, write_to_main_regional_output_file_grid_ROI
+                                                                     create_main_regional_output_file_grid_ROI, write_to_main_regional_output_file_grid_ROI, &
+                                                                     create_scalar_regional_output_file, write_to_scalar_regional_output_file
   USE mesh_refinement                                        , ONLY: calc_polygon_Pine_Island_Glacier, calc_polygon_Thwaites_Glacier
   USE math_utilities                                         , ONLY: longest_triangle_leg
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_logical_1D
@@ -245,6 +246,9 @@ CONTAINS
     CALL write_to_restart_file_SMB_model    ( region%mesh, region%SMB    , region%name, region%time)
     CALL write_to_restart_file_BMB_model    ( region%mesh, region%BMB    , region%name, region%time)
     CALL write_to_restart_file_GIA_model    ( region%mesh, region%GIA    , region%name, region%time)
+
+    ! Write to scalar regional output file
+    CALL write_to_scalar_regional_output_file( region)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -499,6 +503,9 @@ CONTAINS
     CALL create_restart_file_SMB_model    ( region%mesh, region%SMB    , region%name)
     CALL create_restart_file_BMB_model    ( region%mesh, region%BMB    , region%name)
     CALL create_restart_file_GIA_model    ( region%mesh, region%GIA    , region%name)
+
+    ! Create the scalar regional output file
+    CALL create_scalar_regional_output_file( region)
 
     ! Set output writing time to start of run, so the initial state will be written to output
     IF (C%do_create_netcdf_output) THEN

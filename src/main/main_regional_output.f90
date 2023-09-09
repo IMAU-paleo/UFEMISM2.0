@@ -25,6 +25,7 @@ MODULE main_regional_output
                                                                      add_field_grid_dp_2D, add_field_grid_dp_2D_notime, &
                                                                      add_field_grid_dp_3D, add_field_grid_dp_3D_notime, &
                                                                      add_field_grid_dp_2D_monthly, add_field_grid_dp_2D_monthly_notime, &
+                                                                     add_field_dp_0D, &
                                                                      write_to_field_multopt_mesh_int_2D, write_to_field_multopt_mesh_int_2D_notime, &
                                                                      write_to_field_multopt_mesh_dp_2D, write_to_field_multopt_mesh_dp_2D_notime, &
                                                                      write_to_field_multopt_mesh_dp_2D_monthly, write_to_field_multopt_mesh_dp_2D_monthly_notime, &
@@ -33,7 +34,8 @@ MODULE main_regional_output
                                                                      write_to_field_multopt_mesh_dp_3D_b, write_to_field_multopt_mesh_dp_3D_b_notime, &
                                                                      write_to_field_multopt_grid_dp_2D, write_to_field_multopt_grid_dp_2D_notime, &
                                                                      write_to_field_multopt_grid_dp_2D_monthly, write_to_field_multopt_grid_dp_2D_monthly_notime, &
-                                                                     write_to_field_multopt_grid_dp_3D, write_to_field_multopt_grid_dp_3D_notime
+                                                                     write_to_field_multopt_grid_dp_3D, write_to_field_multopt_grid_dp_3D_notime, &
+                                                                     write_to_field_multopt_dp_0D
   USE mesh_remapping                                         , ONLY: map_from_mesh_to_xy_grid_2D, map_from_mesh_to_xy_grid_3D, map_from_mesh_to_xy_grid_2D_minval
 
   IMPLICIT NONE
@@ -1181,6 +1183,52 @@ CONTAINS
 
   END SUBROUTINE write_to_main_regional_output_file_grid_field
 
+  SUBROUTINE write_to_scalar_regional_output_file( region)
+    ! Write to the scalar regional output NetCDF file
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_model_region)                            , INTENT(IN)    :: region
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'write_to_scalar_regional_output_file'
+    INTEGER                                                            :: ncid
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! If no NetCDF output should be created, do nothing
+    IF (.NOT. C%do_create_netcdf_output) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
+
+    ! Print to terminal
+    IF (par%master) WRITE(0,'(A)') '   Writing to scalar output file "' // colour_string( TRIM( region%output_filename_scalar), 'light blue') // '"...'
+
+    ! Open the NetCDF file
+    CALL open_existing_netcdf_file_for_writing( region%output_filename_scalar, ncid)
+
+    ! Write the time to the file
+    CALL write_time_to_file( region%output_filename_scalar, ncid, region%time)
+
+    ! Write the default data fields to the file
+    CALL write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'ice_area',         region%scalars%ice_area)
+    CALL write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'ice_volume',       region%scalars%ice_volume)
+    CALL write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'ice_volume_af',    region%scalars%ice_volume_af)
+    CALL write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'ice_area_PD',      region%scalars%ice_area_PD)
+    CALL write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'ice_volume_PD',    region%scalars%ice_volume_PD)
+    CALL write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'ice_volume_af_PD', region%scalars%ice_volume_af_PD)
+
+    ! Close the file
+    CALL close_netcdf_file( ncid)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE write_to_scalar_regional_output_file
+
   ! == Create main regional output files
   ! ====================================
 
@@ -2192,5 +2240,124 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE create_main_regional_output_file_grid_field
+
+  SUBROUTINE create_scalar_regional_output_file( region)
+    ! Create the scalar regional output NetCDF file
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_model_region)                            , INTENT(INOUT) :: region
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'create_scalar_regional_output_file'
+    CHARACTER(LEN=256)                                                 :: filename_base
+    INTEGER                                                            :: ncid
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! If no NetCDF output should be created, do nothing
+    IF (.NOT. C%do_create_netcdf_output) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
+
+    ! Set the filename
+    filename_base = TRIM( C%output_dir) // 'scalar_output_' // region%name
+    CALL generate_filename_XXXXXdotnc( filename_base, region%output_filename_scalar)
+
+    ! Print to terminal
+    IF (par%master) WRITE(0,'(A)') '   Creating scalar output file "' // colour_string( TRIM( region%output_filename_scalar), 'light blue') // '"...'
+
+    ! Create the NetCDF file
+    CALL create_new_netcdf_file_for_writing( region%output_filename_scalar, ncid)
+
+    ! Add time, zeta, and month dimensions+variables to the file
+    CALL add_time_dimension_to_file(  region%output_filename_scalar, ncid)
+
+    ! Add the default data fields to the file
+    CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'ice_area')
+    CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'ice_volume')
+    CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'ice_volume_af')
+
+    CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'ice_area_PD')
+    CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'ice_volume_PD')
+    CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'ice_volume_af_PD')
+
+
+    ! Close the file
+    CALL close_netcdf_file( ncid)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE create_scalar_regional_output_file
+
+  SUBROUTINE create_scalar_regional_output_file_field( filename, ncid, choice_output_field)
+    ! Create the main regional output NetCDF file - mesh version
+    !
+    ! Add a single field to the file
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    CHARACTER(LEN=*)                                   , INTENT(IN)    :: filename
+    INTEGER                                            , INTENT(IN)    :: ncid
+    CHARACTER(LEN=*)                                   , INTENT(IN)    :: choice_output_field
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'create_scalar_regional_output_file_field'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! If no NetCDF output should be created, do nothing
+    IF (.NOT. C%do_create_netcdf_output) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
+
+    ! Add the specified data field to the file
+    SELECT CASE (choice_output_field)
+      CASE ('none')
+        ! Do nothing
+
+      ! Total ice sheet area
+      CASE ('ice_area')
+        CALL add_field_dp_0D( filename, ncid, 'ice_area', long_name = 'Total ice area', units = 'm^2')
+
+        ! Total ice sheet volume in metres of sea level equivalent
+      CASE ('ice_volume')
+        CALL add_field_dp_0D( filename, ncid, 'ice_volume', long_name = 'Total ice volume', units = 'm s.l.e.')
+
+      ! Total ice sheet volume above floatation in metres of sea level equivalent
+      CASE ('ice_volume_af')
+        CALL add_field_dp_0D( filename, ncid, 'ice_volume_af', long_name = 'Total ice volume above floatation', units = 'm s.l.e.')
+
+      ! Total ice sheet area for present-day
+      CASE ('ice_area_PD')
+        CALL add_field_dp_0D( filename, ncid, 'ice_area_PD', long_name = 'Total ice area for present-day', units = 'm^2')
+
+        ! Total ice sheet volume in metres of sea level equivalent for present-day
+      CASE ('ice_volume_PD')
+        CALL add_field_dp_0D( filename, ncid, 'ice_volume_PD', long_name = 'Total ice volume for present-day', units = 'm s.l.e.')
+
+      ! Total ice sheet volume above floatation in metres of sea level equivalent for present-day
+      CASE ('ice_volume_af_PD')
+        CALL add_field_dp_0D( filename, ncid, 'ice_volume_af_PD', long_name = 'Total ice volume above floatation for present-day', units = 'm s.l.e.')
+
+    ! ===== End of user-defined output fields =====
+    ! =============================================
+
+      CASE DEFAULT
+        ! Unknown case
+        CALL crash('unknown choice_output_field "' // TRIM( choice_output_field) // '"!')
+    END SELECT
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE create_scalar_regional_output_file_field
 
 END MODULE main_regional_output

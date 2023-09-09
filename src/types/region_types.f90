@@ -73,6 +73,7 @@ MODULE region_types
     TYPE(type_grid)                         :: output_grid                 ! The square grid used for gridded output files
     CHARACTER(LEN=256)                      :: output_filename_mesh        ! Name of NetCDF output file (mesh version)
     CHARACTER(LEN=256)                      :: output_filename_grid        ! Name of NetCDF output file (grid version)
+    CHARACTER(LEN=256)                      :: output_filename_scalar      ! Name of NetCDF output file (grid version)
     REAL(dp)                                :: output_t_next               ! Time when we should next write to output
 
     ! Region-of-interest output
