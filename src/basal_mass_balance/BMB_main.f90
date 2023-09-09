@@ -19,6 +19,7 @@ MODULE BMB_main
   USE BMB_parameterised                                      , ONLY: initialise_BMB_model_parameterised, run_BMB_model_parameterised
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   USE math_utilities                                         , ONLY: is_floating
+  USE mesh_utilities                                         , ONLY: extrapolate_Gaussian
 
   IMPLICIT NONE
 
@@ -339,16 +340,46 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_BMB_model_inverted'
     INTEGER                                            :: vi
+    INTEGER,  DIMENSION(:    ), ALLOCATABLE            :: mask
     REAL(dp)                                           :: misfit
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    ! Allocate memory
+    ALLOCATE( mask( mesh%vi1:mesh%vi2))
+
+    ! Initialise mask
+    mask = 0
+
     DO vi = mesh%vi1, mesh%vi2
 
-      IF (ice%fraction_gr( vi) == 1._dp .AND. .NOT. is_floating( refgeo%Hi( vi), refgeo%Hb( vi), 0._dp)) THEN
+      ! Skip ice-free ocean and calving fronts
+      IF (ice%mask_icefree_ocean( vi) .OR. ice%mask_cf_fl( vi)) THEN
+        ! Extrapolate here
+        mask( vi) = 1
+        ! Go to next vertex
         CYCLE
       END IF
+
+      ! Skip grounded ice locations, unless the vertex is a grounding line or it is floating at present-day
+      IF (ice%mask_grounded_ice( vi) .AND. .NOT. ice%mask_gl_gr( vi) .AND. .NOT. is_floating( refgeo%Hi( vi), refgeo%Hb( vi), 0._dp)) THEN
+        ! Ignore during extrapolation
+        mask( vi) = 0
+        ! Go to next vertex
+        CYCLE
+      END IF
+
+      ! Skip ice-free land
+      IF (ice%mask_icefree_land( vi)) THEN
+        ! Ignore during extrapolation
+        mask( vi) = 0
+        ! Go to next vertex
+        CYCLE
+      END IF
+
+      ! Congrats, at this point you are a valid inversion point
+      mask( vi) = 2
 
       ! Ice thickness misfit
       misfit = ice%Hi( vi) - refgeo%Hi( vi)
@@ -359,11 +390,20 @@ CONTAINS
         CYCLE
       END IF
 
+      ! Compute and apply adjustment
       BMB%BMB( vi) =  BMB%BMB( vi) - 1.0_dp * TAN( MIN( 1.0_dp, MAX( -1.0_dp, misfit/5E2_dp)))
+
+      ! Limit new values so they don't gonna do nothin crazy
       BMB%BMB( vi) = MIN( BMB%BMB( vi),   20._dp)
       BMB%BMB( vi) = MAX( BMB%BMB( vi), -200._dp)
 
     END DO
+
+    ! Perform the extrapolation - mask: 2 -> use as seed; 1 -> extrapolate; 0 -> ignore
+    CALL extrapolate_Gaussian( mesh, mask, BMB%BMB, 5e3_dp)
+
+    ! Clean up after yourself
+    DEALLOCATE( mask)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
