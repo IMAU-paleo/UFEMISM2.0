@@ -303,28 +303,28 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Allocate memory
-    ALLOCATE( mask( mesh%vi1:mesh%vi2), source = 0)
+    ALLOCATE( mask( mesh%vi1:mesh%vi2))
+
+    ! Initialise extrapolation mask
+    mask = 0
 
     ! Calculate the till yield stress from the till friction angle and the effective pressure
     DO vi = mesh%vi1, mesh%vi2
 
-      ! DENK DROM
       ! Compute the final till yield stress
-      ice%till_yield_stress( vi) = ice%effective_pressure( vi)! * TAN((pi / 180._dp) * ice%till_friction_angle( vi))
+      ice%till_yield_stress( vi) = ice%effective_pressure( vi) * TAN((pi / 180._dp) * ice%till_friction_angle( vi))
 
       ! Prepare mask for extrapolation over ice-free land
       IF (ice%mask_grounded_ice( vi)) THEN
         mask( vi) = 2
       ELSEIF (ice%mask_icefree_land( vi)) THEN
         mask( vi) = 1
-      ELSE
-        mask( vi) = 0
       END IF
 
     END DO
 
     ! Extrapolate over ice-free land
-    CALL extrapolate_Gaussian( mesh, mask, ice%till_yield_stress, 1.0e4_dp)
+    CALL extrapolate_Gaussian( mesh, mask, ice%till_yield_stress, C%porenudge_H_dHdt_flowline_r_smooth)
 
     ! Calculate beta
     DO vi = mesh%vi1, mesh%vi2
