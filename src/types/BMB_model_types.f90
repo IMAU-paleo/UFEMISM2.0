@@ -18,7 +18,8 @@ MODULE BMB_model_types
     ! Main data fields
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: BMB                         ! [m.i.e./yr] Basal mass balance
 
-    ! Sub-models
+    ! Metadata
+    CHARACTER(LEN=256)                      :: restart_filename            ! Name for generated restart file
 
     ! Timestepping
     REAL(dp)                                :: t_next
