@@ -20,6 +20,9 @@ MODULE BMB_main
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   USE math_utilities                                         , ONLY: is_floating
   USE mesh_utilities                                         , ONLY: extrapolate_Gaussian
+  USE netcdf_basic                                           , ONLY: create_new_netcdf_file_for_writing, close_netcdf_file, open_existing_netcdf_file_for_writing
+  USE netcdf_output                                          , ONLY: generate_filename_XXXXXdotnc, setup_mesh_in_netcdf_file, add_time_dimension_to_file, &
+                                                                     add_field_mesh_dp_2D, write_to_field_multopt_mesh_dp_2D, write_time_to_file, write_to_field_multopt_mesh_dp_3D_ocean
 
   IMPLICIT NONE
 
@@ -206,7 +209,7 @@ CONTAINS
       CASE ('parameterised')
         ! No need to do anything
       CASE ('inverted')
-        ! No need to do anything
+        CALL write_to_restart_file_BMB_model_region( mesh, BMB, region_name, time)
       CASE DEFAULT
         CALL crash('unknown choice_BMB_model "' // TRIM( choice_BMB_model) // '"')
     END SELECT
@@ -215,6 +218,51 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE write_to_restart_file_BMB_model
+
+  SUBROUTINE write_to_restart_file_BMB_model_region( mesh, BMB, region_name, time)
+    ! Write to the restart NetCDF file for the BMB model
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),          INTENT(IN) :: mesh
+    TYPE(type_BMB_model),     INTENT(IN) :: BMB
+    CHARACTER(LEN=3),         INTENT(IN) :: region_name
+    REAL(dp),                 INTENT(IN) :: time
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER        :: routine_name = 'write_to_restart_file_BMB_model_region'
+    INTEGER                              :: ncid
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! If no NetCDF output should be created, do nothing
+    IF (.NOT. C%do_create_netcdf_output) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
+
+    ! Print to terminal
+    IF (par%master) WRITE(0,'(A)') '   Writing to BMB restart file "' // &
+      colour_string( TRIM( BMB%restart_filename), 'light blue') // '"...'
+
+    ! Open the NetCDF file
+    CALL open_existing_netcdf_file_for_writing( BMB%restart_filename, ncid)
+
+    ! Write the time to the file
+    CALL write_time_to_file( BMB%restart_filename, ncid, time)
+
+    ! ! Write the velocity fields to the file
+    CALL write_to_field_multopt_mesh_dp_2D( mesh, BMB%restart_filename, ncid, 'BMB', BMB%BMB)
+
+    ! Close the file
+    CALL close_netcdf_file( ncid)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE write_to_restart_file_BMB_model_region
 
   SUBROUTINE create_restart_file_BMB_model( mesh, BMB, region_name)
     ! Create the restart file for the BMB model
@@ -256,7 +304,7 @@ CONTAINS
       CASE ('parameterised')
         ! No need to do anything
       CASE ('inverted')
-        ! No need to do anything
+        CALL create_restart_file_BMB_model_region( mesh, BMB, region_name)
       CASE DEFAULT
         CALL crash('unknown choice_BMB_model "' // TRIM( choice_BMB_model) // '"')
     END SELECT
@@ -265,6 +313,59 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE create_restart_file_BMB_model
+
+  SUBROUTINE create_restart_file_BMB_model_region( mesh, BMB, region_name)
+    ! Create a restart NetCDF file for the BMB submodel
+    ! Includes generation of the procedural filename (e.g. "restart_BMB_00001.nc")
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),          INTENT(IN)    :: mesh
+    TYPE(type_BMB_model),     INTENT(INOUT) :: BMB
+    CHARACTER(LEN=3),         INTENT(IN)    :: region_name
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER           :: routine_name = 'create_restart_file_BMB_model_region'
+    CHARACTER(LEN=256)                      :: filename_base
+    INTEGER                                 :: ncid
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! If no NetCDF output should be created, do nothing
+    IF (.NOT. C%do_create_netcdf_output) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
+
+    ! Set the filename
+    filename_base = TRIM( C%output_dir) // 'restart_BMB_' // region_name
+    CALL generate_filename_XXXXXdotnc( filename_base, BMB%restart_filename)
+
+    ! Print to terminal
+    IF (par%master) WRITE(0,'(A)') '   Creating BMB model restart file "' // &
+      colour_string( TRIM( BMB%restart_filename), 'light blue') // '"...'
+
+    ! Create the NetCDF file
+    CALL create_new_netcdf_file_for_writing( BMB%restart_filename, ncid)
+
+    ! Set up the mesh in the file
+    CALL setup_mesh_in_netcdf_file( BMB%restart_filename, ncid, mesh)
+
+    ! Add a time dimension to the file
+    CALL add_time_dimension_to_file( BMB%restart_filename, ncid)
+
+    ! Add the data fields to the file
+    CALL add_field_mesh_dp_2D( BMB%restart_filename, ncid, 'BMB', long_name = 'Basal mass balance', units = 'm/yr')
+
+    ! Close the file
+    CALL close_netcdf_file( ncid)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE create_restart_file_BMB_model_region
 
   SUBROUTINE remap_BMB_model( mesh_old, mesh_new, BMB, region_name)
     ! Remap the BMB model
