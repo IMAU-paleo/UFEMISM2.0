@@ -75,8 +75,8 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-  ! === Basic masks ===
-  ! ===================
+    ! === Basic masks ===
+    ! ===================
 
     ! Store previous basic masks
     ice%mask_icefree_land_prev  = ice%mask_icefree_land
@@ -262,7 +262,7 @@ CONTAINS
       ! Use the sub-grid bedrock cumulative density functions to calculate the grounded fractions
 
       CALL calc_grounded_fractions_bedrock_CDF_a( mesh, ice, fraction_gr_CDF_a)
-      CALL calc_grounded_fractions_bedrock_CDF_b( mesh, ice, fraction_gr_CDF_a)
+      CALL calc_grounded_fractions_bedrock_CDF_b( mesh, ice, fraction_gr_CDF_b)
 
       ice%fraction_gr   = fraction_gr_CDF_a
       ice%fraction_gr_b = fraction_gr_CDF_b
@@ -947,6 +947,11 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    IF (par%master) THEN
+      WRITE(*,"(A)") '     Calculating the sub-grid bedrock cumulative density functions...'
+    END IF
+    CALL sync
+
     ! Calculate CDFs separately on the a-grid (vertices) and the b-grid (triangles)
     CALL calc_bedrock_CDFs_a( mesh, refgeo, ice)
     CALL calc_bedrock_CDFs_b( mesh, refgeo, ice)
@@ -1288,7 +1293,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_zeta_gradients'
-!    REAL(dp), DIMENSION(:    ), POINTER                :: Hi_a
+    ! REAL(dp), DIMENSION(:    ), POINTER                :: Hi_a
     REAL(dp), DIMENSION(:    ), POINTER                :: dHi_dx_a
     REAL(dp), DIMENSION(:    ), POINTER                :: dHi_dy_a
     REAL(dp), DIMENSION(:    ), POINTER                :: d2Hi_dx2_a
@@ -1301,7 +1306,7 @@ CONTAINS
     REAL(dp), DIMENSION(:    ), POINTER                :: d2Hi_dxdy_b
     REAL(dp), DIMENSION(:    ), POINTER                :: d2Hi_dy2_b
     REAL(dp), DIMENSION(:    ), POINTER                :: Hs_b
-!    REAL(dp), DIMENSION(:    ), POINTER                :: Hs_a
+    ! REAL(dp), DIMENSION(:    ), POINTER                :: Hs_a
     REAL(dp), DIMENSION(:    ), POINTER                :: dHs_dx_a
     REAL(dp), DIMENSION(:    ), POINTER                :: dHs_dy_a
     REAL(dp), DIMENSION(:    ), POINTER                :: d2Hs_dx2_a
@@ -1333,7 +1338,7 @@ CONTAINS
     ALLOCATE( d2Hi_dxdy_b( mesh%ti1:mesh%ti2))
     ALLOCATE( d2Hi_dy2_b(  mesh%ti1:mesh%ti2))
 
-   !ALLOCATE( Hs_a(        mesh%vi1:mesh%vi2))
+    ! ALLOCATE( Hs_a(        mesh%vi1:mesh%vi2))
     ALLOCATE( dHs_dx_a(    mesh%vi1:mesh%vi2))
     ALLOCATE( dHs_dy_a(    mesh%vi1:mesh%vi2))
     ALLOCATE( d2Hs_dx2_a(  mesh%vi1:mesh%vi2))
@@ -1347,9 +1352,9 @@ CONTAINS
     ALLOCATE( d2Hs_dxdy_b( mesh%ti1:mesh%ti2))
     ALLOCATE( d2Hs_dy2_b(  mesh%ti1:mesh%ti2))
 
-  ! Calculate gradients of Hi and Hs on both grids
+    ! Calculate gradients of Hi and Hs on both grids
 
-    !CALL map_a_a_2D( mesh, ice%Hi_a, Hi_a       )
+    ! CALL map_a_a_2D( mesh, ice%Hi_a, Hi_a       )
     CALL ddx_a_a_2D( mesh, ice%Hi  , dHi_dx_a   )
     CALL ddy_a_a_2D( mesh, ice%Hi  , dHi_dy_a   )
     CALL map_a_b_2D( mesh, ice%Hi  , Hi_b       )
@@ -1362,7 +1367,7 @@ CONTAINS
     CALL ddy_a_b_2D( mesh, dHi_dx_a, d2Hi_dxdy_b)
     CALL ddy_a_b_2D( mesh, dHi_dy_a, d2Hi_dy2_b )
 
-    !CALL map_a_a_2D( mesh, ice%Hs_a, Hs_a       )
+    ! CALL map_a_a_2D( mesh, ice%Hs_a, Hs_a       )
     CALL ddx_a_a_2D( mesh, ice%Hs  , dHs_dx_a   )
     CALL ddy_a_a_2D( mesh, ice%Hs  , dHs_dy_a   )
     CALL map_a_b_2D( mesh, ice%Hs  , Hs_b       )
@@ -1542,6 +1547,15 @@ CONTAINS
         ice%mask_noice( vi) = .TRUE.
       END IF
     END DO
+
+    ! If so specified, remove thin floating ice
+    IF (C%choice_calving_law == 'threshold_thickness') THEN
+      DO vi = mesh%vi1, mesh%vi2
+        IF (is_floating( ice%Hi( vi), ice%Hb( vi), ice%SL( vi)) .AND. ice%Hi( vi) < C%calving_threshold_thickness_shelf) THEN
+          ice%mask_noice( vi) = .TRUE.
+        END IF
+      END DO
+    END IF
 
     ! If so specified, remove all floating ice beyond the present-day calving front
     IF (C%remove_ice_absent_at_PD) THEN
