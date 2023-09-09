@@ -518,8 +518,8 @@ CONTAINS
     CALL gather_to_all_dp_1D( u_vav_c, u_vav_c_tot)
     CALL gather_to_all_dp_1D( v_vav_c, v_vav_c_tot)
 
-  ! == Initialise the matrix using the native UFEMISM CSR-matrix format
-  ! ===================================================================
+    ! == Initialise the matrix using the native UFEMISM CSR-matrix format
+    ! ===================================================================
 
     ! Matrix size
     ncols           = mesh%nV      ! from
@@ -530,8 +530,8 @@ CONTAINS
 
     CALL allocate_matrix_CSR_dist( M_divQ, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
 
-  ! == Calculate coefficients
-  ! =========================
+    ! == Calculate coefficients
+    ! =========================
 
     DO vi = mesh%vi1, mesh%vi2
 
@@ -612,9 +612,9 @@ CONTAINS
     CALL gather_to_all_dp_1D(      Hs_tplusdt, Hs_tplusdt_tot)
     CALL gather_to_all_logical_1D( mask_noice, mask_noice_tot)
 
-  ! == First pass: set values of border vertices to mean of interior neighbours
-  !    ...for those border vertices that actually have interior neighbours.
-  ! ===========================================================================
+    ! == First pass: set values of border vertices to mean of interior neighbours
+    !    ...for those border vertices that actually have interior neighbours.
+    ! ===========================================================================
 
     DO vi = mesh%vi1, mesh%vi2
 
@@ -666,9 +666,9 @@ CONTAINS
 
     END DO ! DO vi = mesh%vi1, mesh%vi2
 
-  ! == Second pass: set values of border vertices to mean of all neighbours
-  !    ...for those border vertices that have no interior neighbours.
-  ! =======================================================================
+    ! == Second pass: set values of border vertices to mean of all neighbours
+    !    ...for those border vertices that have no interior neighbours.
+    ! =======================================================================
 
     ! Gather global data fields again
     CALL gather_to_all_dp_1D( Hs_tplusdt, Hs_tplusdt_tot)
@@ -749,8 +749,8 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-  ! == Boundary conditions at the domain border
-  ! ===========================================
+    ! == Boundary conditions at the domain border
+    ! ===========================================
 
     DO vi = mesh%vi1, mesh%vi2
 
@@ -939,8 +939,8 @@ CONTAINS
 
     END DO ! DO vi = mesh%vi1, mesh%vi2
 
-  ! Set predicted ice thickness to prescribed values where told to do so
-  ! ====================================================================
+    ! Set predicted ice thickness to prescribed values where told to do so
+    ! ====================================================================
 
     IF (PRESENT( BC_prescr_mask) .OR. PRESENT( BC_prescr_Hi)) THEN
       ! Safety
@@ -974,8 +974,8 @@ CONTAINS
 
     END IF ! IF (PRESENT( BC_prescr_mask) .OR. PRESENT( BC_prescr_Hi)) THEN
 
-  ! == No-ice mask
-  ! ==============
+    ! == No-ice mask
+    ! ==============
 
     DO vi = mesh%vi1, mesh%vi2
       IF (mask_noice( vi)) THEN
