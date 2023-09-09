@@ -370,9 +370,6 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'set_ice_velocities_to_SIASSA_results'
     INTEGER                                            :: ti,vi
     REAL(dp)                                           :: w_sia_u, w_sia_v
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: dHs_dx_a, dHs_dx_b
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: dHs_dy_a, dHs_dy_b
-
     ! Add routine to path
     CALL init_routine( routine_name)
 
@@ -403,50 +400,20 @@ CONTAINS
     ELSEIF (C%choice_hybrid_SIASSA_scheme == 'add_SIA_reduced') THEN
       ! u = (weight * u_SIA) + u_SSA
 
-      ! Allocate shared memory
-      ALLOCATE( dHs_dx_b( mesh%ti1:mesh%ti2))
-      ALLOCATE( dHs_dy_b( mesh%ti1:mesh%ti2))
-
-      ! Calculate dHs/dx, and dHs/dy on the b-grid
-      CALL ddx_a_b_2D( mesh, ice%Hs, dHs_dx_b)
-      CALL ddy_a_b_2D( mesh, ice%Hs, dHs_dy_b)
-
       ! Velocities
       DO ti = mesh%ti1, mesh%ti2
-        ! Initialise weights
-        w_sia_u = 1._dp
-        w_sia_v = 1._dp
         ! Compute the SIA fraction that will be added to the SSA solution
         w_sia_u = 1._dp - (2.0_dp/pi) * ATAN( (ABS(SSA%u_b( ti))**2.0_dp) / (30._dp**2.0_dp) )
         w_sia_v = 1._dp - (2.0_dp/pi) * ATAN( (ABS(SSA%v_b( ti))**2.0_dp) / (30._dp**2.0_dp) )
-        ! Prevent SIA contribution over steep slopes
-        if (abs(dHs_dx_b( ti)) >= 5e-3_dp) w_sia_u = 0._dp
-        if (abs(dHs_dy_b( ti)) >= 5e-3_dp) w_sia_v = 0._dp
         ! Add SIA fraction to SSA solution
         ice%u_3D_b( ti,:) = w_sia_u * SIA%u_3D_b( ti,:) + SSA%u_b( ti)
         ice%v_3D_b( ti,:) = w_sia_v * SIA%v_3D_b( ti,:) + SSA%v_b( ti)
       END DO
 
-      ! Allocate shared memory
-      ALLOCATE( dHs_dx_a( mesh%vi1:mesh%vi2))
-      ALLOCATE( dHs_dy_a( mesh%vi1:mesh%vi2))
-
-      ! Calculate dHs/dx, and dHs/dy on the b-grid
-      CALL ddx_a_a_2D( mesh, ice%Hs, dHs_dx_a)
-      CALL ddy_a_a_2D( mesh, ice%Hs, dHs_dy_a)
-
       ! Strain rates
       DO vi = mesh%vi1, mesh%vi2
-        if (abs(dHs_dx_a( vi)) >= 5e-3_dp) then
-          ice%du_dz_3D( vi,:) = 0._dp
-        else
-          ice%du_dz_3D( vi,:) = SIA%du_dz_3D( vi,:)
-        end if
-        if (abs(dHs_dy_a( vi)) >= 5e-3_dp) then
-          ice%dv_dz_3D( vi,:) = 0._dp
-        else
-          ice%dv_dz_3D( vi,:) = SIA%dv_dz_3D( vi,:)
-        end if
+        ice%du_dz_3D( vi,:) = SIA%du_dz_3D( vi,:)
+        ice%dv_dz_3D( vi,:) = SIA%dv_dz_3D( vi,:)
         ice%du_dx_3D( vi,:) = SSA%du_dx_a(  vi  )
         ice%du_dy_3D( vi,:) = SSA%du_dy_a(  vi  )
         ice%dv_dx_3D( vi,:) = SSA%dv_dx_a(  vi  )
@@ -457,12 +424,6 @@ CONTAINS
       ice%dw_dx_3D = 0._dp
       ice%dw_dy_3D = 0._dp
       ice%dw_dz_3D = 0._dp
-
-      ! Clean up after yourself
-      DEALLOCATE( dHs_dx_a)
-      DEALLOCATE( dHs_dy_a)
-      DEALLOCATE( dHs_dx_b)
-      DEALLOCATE( dHs_dy_b)
 
     ELSE
       CALL crash('unknown choice_hybrid_SIASSA_scheme_config "' // TRIM( C%choice_hybrid_SIASSA_scheme) // '"!')
