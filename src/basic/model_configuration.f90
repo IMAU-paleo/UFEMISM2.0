@@ -424,7 +424,7 @@ MODULE model_configuration
     REAL(dp)            :: pore_water_fraction_max_config               = 0.9999_dp                        ! [?]       Largest  allowed value for the first  inverted pore water pressure field
     CHARACTER(LEN=256)  :: filename_inverted_pore_water_config          = 'pore_water_inv.nc'              !           NetCDF file where the final inverted pore water fields will be saved
 
-    ! Basal hydrology inversion model based on flowline-averaged values of H and dH/dt
+    ! Basal hydrology inversion model based on local and flowline-averaged values of H and dH/dt
     REAL(dp)            :: porenudge_H_dHdt_flowline_t_scale_config     = 150._dp                          ! [yr]      Timescale
     REAL(dp)            :: porenudge_H_dHdt_flowline_dH0_config         = 200._dp                          ! [m]       Ice thickness error scale
     REAL(dp)            :: porenudge_H_dHdt_flowline_dHdt0_config       = 0.7_dp                           ! [m yr^-1] Thinning rate scale
