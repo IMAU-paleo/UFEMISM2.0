@@ -67,11 +67,13 @@ CONTAINS
     ALLOCATE( ice%dHb_dt                      ( mesh%vi1:mesh%vi2        ))  ! [m yr^-1] Bedrock elevation rate of change
     ALLOCATE( ice%dHs_dt                      ( mesh%vi1:mesh%vi2        ))  ! [m yr^-1] Ice surface elevation rate of change
     ALLOCATE( ice%dHib_dt                     ( mesh%vi1:mesh%vi2        ))  ! [m yr^-1] Ice base elevation rate of change
+    ALLOCATE( ice%dHi_dt_predicted            ( mesh%vi1:mesh%vi2        ))  ! [m yr^-1] Ice thickness rate of change before any modifications
 
     ice%dHi_dt                      = 0._dp
     ice%dHb_dt                      = 0._dp
     ice%dHs_dt                      = 0._dp
     ice%dHib_dt                     = 0._dp
+    ice%dHi_dt_predicted            = 0._dp
 
     ! Masks
     ALLOCATE( ice%mask_icefree_land           ( mesh%vi1:mesh%vi2        ))  ! T: ice-free land , F: otherwise
@@ -314,11 +316,13 @@ CONTAINS
     ALLOCATE( ice%overburden_pressure         ( mesh%vi1:mesh%vi2        ))  ! [Pa]  Basal overburden pressure
     ALLOCATE( ice%effective_pressure          ( mesh%vi1:mesh%vi2        ))  ! [Pa]  Basal effective pressure
     ALLOCATE( ice%pore_water_likelihood       ( mesh%vi1:mesh%vi2        ))  ! [0-1] Basal pore water likelihood
+    ALLOCATE( ice%pore_water_fraction         ( mesh%vi1:mesh%vi2        ))  ! [0-1] Fraction of overburden pressure reduced by pore water pressure
 
     ice%pore_water_pressure         = 0._dp
     ice%overburden_pressure         = 0._dp
     ice%effective_pressure          = 0._dp
     ice%pore_water_likelihood       = 0._dp
+    ice%pore_water_fraction         = 0._dp
 
   ! == Basal sliding ==
   ! ===================

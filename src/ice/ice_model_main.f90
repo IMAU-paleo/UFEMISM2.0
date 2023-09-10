@@ -245,8 +245,8 @@ CONTAINS
     ! Initialise ice geometry
     ! =======================
 
-    ! DENK DROM
-    IF (par%master) CALL warning('GIA model isnt finished yet - need to include dHb in ice model initialisation')
+    ! ! DENK DROM
+    ! IF (par%master) CALL warning('GIA model isnt finished yet - need to include dHb in ice model initialisation')
 
     ! Basic geometry
     DO vi = mesh%vi1, mesh%vi2
@@ -439,11 +439,11 @@ CONTAINS
     ! Print to terminal
     IF (par%master) WRITE(0,'(A)') '    Remapping ice model data to the new mesh...'
 
-! Remap conserved ice model quantities
-! ====================================
+    ! Remap conserved ice model quantities
+    ! ====================================
 
-  ! === Ice-sheet geometry ===
-  ! ==========================
+    ! === Ice-sheet geometry ===
+    ! ==========================
 
     ! Remap basic ice geometry Hi,Hb,Hs,SL
     CALL remap_basic_ice_geometry( mesh_old, mesh_new, refgeo_PD, GIA, ice)
@@ -451,25 +451,25 @@ CONTAINS
     ! Remap dHi/dt to improve stability of the P/C scheme after mesh updates
     CALL map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, ice%dHi_dt, '2nd_order_conservative')
 
-  ! === Thermodynamics and rheology ===
-  ! ===================================
+    ! === Thermodynamics and rheology ===
+    ! ===================================
 
     ! Use 2nd-order conservative remapping for the ice temperature.
 
     CALL map_from_mesh_to_mesh_with_reallocation_3D( mesh_old, mesh_new, ice%Ti, '2nd_order_conservative')
 
-! Reallocate memory for all other data fields
-! (list copied from ice_model_memory/allocate_ice_model)
-! ======================================================
+    ! Reallocate memory for all other data fields
+    ! (list copied from ice_model_memory/allocate_ice_model)
+    ! ======================================================
 
-  ! === Ice-sheet geometry ===
-  ! ==========================
+    ! === Ice-sheet geometry ===
+    ! ==========================
 
     ! Basic geometry
-!   CALL reallocate_bounds( ice%Hi                          , mesh_new%vi1, mesh_new%vi2         )  ! [m] Ice thickness
-!   CALL reallocate_bounds( ice%Hb                          , mesh_new%vi1, mesh_new%vi2         )  ! [m] Bedrock elevation (w.r.t. PD sea level)
-!   CALL reallocate_bounds( ice%Hs                          , mesh_new%vi1, mesh_new%vi2         )  ! [m] Surface elevation (w.r.t. PD sea level)
-!   CALL reallocate_bounds( ice%SL                          , mesh_new%vi1, mesh_new%vi2         )  ! [m] Sea level (geoid) elevation (w.r.t. PD sea level)
+    ! CALL reallocate_bounds( ice%Hi                          , mesh_new%vi1, mesh_new%vi2         )  ! [m] Ice thickness
+    ! CALL reallocate_bounds( ice%Hb                          , mesh_new%vi1, mesh_new%vi2         )  ! [m] Bedrock elevation (w.r.t. PD sea level)
+    ! CALL reallocate_bounds( ice%Hs                          , mesh_new%vi1, mesh_new%vi2         )  ! [m] Surface elevation (w.r.t. PD sea level)
+    ! CALL reallocate_bounds( ice%SL                          , mesh_new%vi1, mesh_new%vi2         )  ! [m] Sea level (geoid) elevation (w.r.t. PD sea level)
     CALL reallocate_bounds( ice%Hib                         , mesh_new%vi1, mesh_new%vi2         )  ! [m] Ice base elevation (w.r.t. PD sea level)
     CALL reallocate_bounds( ice%TAF                         , mesh_new%vi1, mesh_new%vi2         )  ! [m] Thickness above flotation
 
@@ -480,7 +480,7 @@ CONTAINS
     CALL reallocate_bounds( ice%dHib                        , mesh_new%vi1, mesh_new%vi2         )  ! [m] Base elevation difference (w.r.t. to reference)
 
     ! Rates of change
-!   CALL reallocate_bounds( ice%dHi_dt                      , mesh_new%vi1, mesh_new%vi2         )  ! [m yr^-1] Ice thickness rate of change
+    ! CALL reallocate_bounds( ice%dHi_dt                      , mesh_new%vi1, mesh_new%vi2         )  ! [m yr^-1] Ice thickness rate of change
     CALL reallocate_bounds( ice%dHb_dt                      , mesh_new%vi1, mesh_new%vi2         )  ! [m yr^-1] Bedrock elevation rate of change
     CALL reallocate_bounds( ice%dHs_dt                      , mesh_new%vi1, mesh_new%vi2         )  ! [m yr^-1] Ice surface elevation rate of change
     CALL reallocate_bounds( ice%dHib_dt                     , mesh_new%vi1, mesh_new%vi2         )  ! [m yr^-1] Ice base elevation rate of change
@@ -513,8 +513,8 @@ CONTAINS
     CALL reallocate_bounds( ice%bedrock_cdf                 , mesh_new%vi1, mesh_new%vi2, C%subgrid_bedrock_cdf_nbins)  ! [-] Sub-grid bedrock cumulative density functions on the a-grid (vertices)
     CALL reallocate_bounds( ice%bedrock_cdf_b               , mesh_new%ti1, mesh_new%ti2, C%subgrid_bedrock_cdf_nbins)  ! [-] Sub-grid bedrock cumulative density functions on the b-grid (triangles)
 
-  ! === Terrain-following coordinate zeta gradients ===
-  ! ===================================================
+    ! === Terrain-following coordinate zeta gradients ===
+    ! ===================================================
 
     ! Gradients of the terrain-following (i.e. ice-geometry-dependent) vertical coordinate zeta
 
@@ -543,12 +543,13 @@ CONTAINS
     CALL reallocate_bounds( ice%d2zeta_dxdy_bks             , mesh_new%ti1, mesh_new%ti2, mesh_new%nz-1)
     CALL reallocate_bounds( ice%d2zeta_dy2_bks              , mesh_new%ti1, mesh_new%ti2, mesh_new%nz-1)
 
-  ! === Thermodynamics and rheology ===
-  ! ===================================
+    ! === Thermodynamics and rheology ===
+    ! ===================================
 
     ! Ice temperatures
-!   CALL reallocate_bounds( ice%Ti                          , mesh_new%vi1, mesh_new%vi2, mesh_new%nz)  ! [K] Englacial temperature
+    ! CALL reallocate_bounds( ice%Ti                          , mesh_new%vi1, mesh_new%vi2, mesh_new%nz)  ! [K] Englacial temperature
     CALL reallocate_bounds( ice%Ti_pmp                      , mesh_new%vi1, mesh_new%vi2, mesh_new%nz)  ! [K] Pressure melting point temperature
+    CALL reallocate_bounds( ice%Ti_hom                      , mesh_new%vi1, mesh_new%vi2             )  ! [K] Basal temperature w.r.t. pressure melting point
 
     ! Physical quantities
     CALL reallocate_bounds( ice%Cpi                         , mesh_new%vi1, mesh_new%vi2, mesh_new%nz)  ! [J kg^-1 K^-1] Specific heat capacity
@@ -561,8 +562,8 @@ CONTAINS
     ! Glen's flow law factor
     CALL reallocate_bounds( ice%A_flow                      , mesh_new%vi1, mesh_new%vi2, mesh_new%nz)  ! [Pa^-3 y^-1] Glen's flow law factor
 
-  ! === Ice velocities ===
-  ! ======================
+    ! === Ice velocities ===
+    ! ======================
 
     ! 3-D
     CALL reallocate_bounds( ice%u_3D                        , mesh_new%vi1, mesh_new%vi2, mesh_new%nz)  ! [m yr^-1] 3-D ice velocity
@@ -597,8 +598,8 @@ CONTAINS
     CALL reallocate_bounds( ice%uabs_base                   , mesh_new%vi1, mesh_new%vi2         )
     CALL reallocate_bounds( ice%uabs_base_b                 , mesh_new%ti1, mesh_new%ti2         )
 
-  ! == Strain rates ==
-  ! ==================
+    ! == Strain rates ==
+    ! ==================
 
     CALL reallocate_bounds( ice%du_dx_3D                    , mesh_new%vi1, mesh_new%vi2, mesh_new%nz)  ! [yr^-1]
     CALL reallocate_bounds( ice%du_dy_3D                    , mesh_new%vi1, mesh_new%vi2, mesh_new%nz)
@@ -610,22 +611,24 @@ CONTAINS
     CALL reallocate_bounds( ice%dw_dy_3D                    , mesh_new%vi1, mesh_new%vi2, mesh_new%nz)
     CALL reallocate_bounds( ice%dw_dz_3D                    , mesh_new%vi1, mesh_new%vi2, mesh_new%nz)
 
-  ! == Ice flow regime ==
-  ! =====================
+    ! == Ice flow regime ==
+    ! =====================
 
     CALL reallocate_bounds( ice%divQ                        , mesh_new%vi1, mesh_new%vi2         )  ! [m yr^-1] Horizontal ice flux divergence
     CALL reallocate_bounds( ice%R_shear                     , mesh_new%vi1, mesh_new%vi2         )  ! [0-1]     uabs_base / uabs_surf (0 = pure vertical shear, viscous flow; 1 = pure sliding, plug flow)
 
-  ! == Basal hydrology ==
-  ! =====================
+    ! == Basal hydrology ==
+    ! =====================
 
     ! Basal hydrology
-    CALL reallocate_bounds( ice%pore_water_pressure         , mesh_new%vi1, mesh_new%vi2         )  ! [Pa] Basal pore water pressure
-    CALL reallocate_bounds( ice%overburden_pressure         , mesh_new%vi1, mesh_new%vi2         )  ! [Pa] Basal overburden pressure
-    CALL reallocate_bounds( ice%effective_pressure          , mesh_new%vi1, mesh_new%vi2         )  ! [Pa] Basal effective pressure
+    CALL reallocate_bounds( ice%pore_water_pressure         , mesh_new%vi1, mesh_new%vi2         )  ! [Pa]  Basal pore water pressure
+    CALL reallocate_bounds( ice%overburden_pressure         , mesh_new%vi1, mesh_new%vi2         )  ! [Pa]  Basal overburden pressure
+    CALL reallocate_bounds( ice%effective_pressure          , mesh_new%vi1, mesh_new%vi2         )  ! [Pa]  Basal effective pressure
+    CALL reallocate_bounds( ice%pore_water_likelihood       , mesh_new%vi1, mesh_new%vi2         )  ! [0-1] Basal pore water likelihood
+    CALL reallocate_bounds( ice%pore_water_fraction         , mesh_new%vi1, mesh_new%vi2         )  ! [0-1] Fraction of overburden pressure reduced by pore water pressure
 
-  ! == Basal sliding ==
-  ! ===================
+    ! == Basal sliding ==
+    ! ===================
 
     ! Sliding law coefficients
     CALL reallocate_bounds( ice%till_friction_angle         , mesh_new%vi1, mesh_new%vi2         )  ! [degrees]          Till friction angle (degrees)
@@ -637,36 +640,36 @@ CONTAINS
     CALL reallocate_bounds( ice%basal_friction_coefficient  , mesh_new%vi1, mesh_new%vi2         )  ! [Pa yr m^-1]       Effective basal friction coefficient (basal_shear_stress = u_base * basal_friction_coefficient)
     CALL reallocate_bounds( ice%basal_shear_stress          , mesh_new%vi1, mesh_new%vi2         )  ! [Pa]               Basal shear stress
 
-  ! == Geothermal heat ==
-  ! =====================
+    ! == Geothermal heat ==
+    ! =====================
 
     CALL reallocate_bounds( ice%geothermal_heat_flux        , mesh_new%vi1, mesh_new%vi2         )  ! [J m^-2 yr^-1] Geothermal heat flux
 
-  ! === Ice thickness time stepping ===
-  ! ===================================
+    ! === Ice thickness time stepping ===
+    ! ===================================
 
     ! Predicted model state at next time step
     CALL reallocate_bounds( ice%Hi_prev                     , mesh_new%vi1, mesh_new%vi2         )  ! [m]  The previous state
     CALL reallocate_bounds( ice%Hi_next                     , mesh_new%vi1, mesh_new%vi2         )  ! [m]  The next state
 
-  ! === Ice temperature time stepping ===
-  ! =====================================
+    ! === Ice temperature time stepping ===
+    ! =====================================
 
     ! Predicted model state at next time step
     CALL reallocate_bounds( ice%Ti_prev                     , mesh_new%vi1, mesh_new%vi2, mesh_new%nz)  ! [m]  The previous state
     CALL reallocate_bounds( ice%Ti_next                     , mesh_new%vi1, mesh_new%vi2, mesh_new%nz)  ! [m]  The next state
 
-! Re-initialise the rest of the ice dynamics model
-! ================================================
+    ! Re-initialise the rest of the ice dynamics model
+    ! ================================================
 
-  ! Initialise ice geometry
-  ! =======================
+    ! Initialise ice geometry
+    ! =======================
 
     DO vi = mesh_new%vi1, mesh_new%vi2
 
       ! Basic geometry
-!     ice%Hi ( vi) = refgeo_init%Hi( vi)
-!     ice%Hb ( vi) = refgeo_init%Hb( vi)
+      ! ice%Hi ( vi) = refgeo_init%Hi( vi)
+      ! ice%Hb ( vi) = refgeo_init%Hb( vi)
       ice%Hs ( vi) = ice_surface_elevation( ice%Hi( vi), ice%Hb( vi), ice%SL( vi))
       ice%Hib( vi) = ice%Hs( vi) - ice%Hi( vi)
       ice%TAF( vi) = thickness_above_floatation( ice%Hi( vi), ice%Hb( vi), ice%SL( vi))
@@ -694,8 +697,8 @@ CONTAINS
     ice%Hi_prev   = ice%Hi
     ice%Hi_next   = ice%Hi
 
-  ! Initialise masks
-  ! ================
+    ! Initialise masks
+    ! ================
 
     ! Calculate the no-ice mask
     CALL calc_mask_noice( mesh_new, ice, refgeo_PD)
@@ -708,19 +711,19 @@ CONTAINS
     CALL determine_masks( mesh_new, ice)
     CALL determine_masks( mesh_new, ice)
 
-!    ! Smooth the ice at the calving front to improve model stability
-!    CALL relax_calving_front_after_mesh_update( mesh_new, ice)
+    ! ! Smooth the ice at the calving front to improve model stability
+    ! CALL relax_calving_front_after_mesh_update( mesh_new, ice)
 
-  ! Sub-grid fractions
-  ! ==================
+    ! Sub-grid fractions
+    ! ==================
 
     ! Compute bedrock cumulative density function
     CALL calc_bedrock_CDFs( mesh_new, refgeo_PD, ice)
     ! Initialise sub-grid grounded-area fractions
     CALL calc_grounded_fractions( mesh_new, ice)
 
-  ! Basal conditions
-  ! ================
+    ! Basal conditions
+    ! ================
 
     ! Allocate and initialise basal conditions
     CALL initialise_geothermal_heat_flux(  mesh_new, ice)
@@ -729,14 +732,14 @@ CONTAINS
     ! FIXME: something should happen here once we start working on remapping of inverted bed roughness!
     CALL initialise_bed_roughness(         mesh_new, ice, region_name)
 
-  ! Velocities
-  ! ==========
+    ! Velocities
+    ! ==========
 
     ! Remap data for the chosen velocity solver(s)
     CALL remap_velocity_solver( mesh_old, mesh_new, ice)
 
-  ! Time stepping
-  ! =============
+    ! Time stepping
+    ! =============
 
     IF     (C%choice_timestepping == 'direct') THEN
       ! No need to initialise anything here
@@ -746,13 +749,13 @@ CONTAINS
       CALL crash('unknown choice_timestepping "' // TRIM( C%choice_timestepping) // '"!')
     END IF
 
-  ! Ice-sheet-wide scalars
-  ! ======================
+    ! Ice-sheet-wide scalars
+    ! ======================
 
     CALL calc_ice_model_scalars( mesh_new, ice, refgeo_PD, scalars)
 
-  ! Relax ice geometry around the calving front
-  ! ===========================================
+    ! Relax ice geometry around the calving front
+    ! ===========================================
 
     CALL relax_calving_front( mesh_old, mesh_new, ice, SMB, BMB)
 
@@ -793,11 +796,11 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-  ! == Basic: remap surface elevation Hs from the old mesh, remap bedrock elevation Hb
-  !    from its (presumably high-resolution) source grid, define remapped ice thickness
-  !    as the difference between the two. As surface elevation is typically much smoother
-  !    then ice thickness, remapping works much better.
-  ! =====================================================================================
+    ! == Basic: remap surface elevation Hs from the old mesh, remap bedrock elevation Hb
+    !    from its (presumably high-resolution) source grid, define remapped ice thickness
+    !    as the difference between the two. As surface elevation is typically much smoother
+    !    then ice thickness, remapping works much better.
+    ! =====================================================================================
 
     ! Remap bedrock from the original high-resolution grid, and add the (very smooth) modelled deformation to it
     ! Remapping of Hb in the refgeo structure has already happened, only need to copy the data
@@ -836,8 +839,8 @@ CONTAINS
     CALL calc_mask_noice( mesh_new, ice, refgeo_PD)
     CALL apply_ice_thickness_BC_explicit( mesh_new, mask_noice_new, ice%Hb, ice%SL, Hi_new)
 
-  ! == Corrections
-  ! ==============
+    ! == Corrections
+    ! ==============
 
     ! Browse the Atlas to find the map between mesh_old and mesh_new
     found_map = .FALSE.
@@ -856,9 +859,9 @@ CONTAINS
     ! Convert the mapping matrix to CSR format
     CALL mat_petsc2CSR( Atlas( mi_used)%M, M_CSR)
 
-  ! == For those vertices of the new mesh that overlap with both old-mesh ice and old-mesh
-  !    non-ice, remove very thin remapped ice
-  ! ======================================================================================
+    ! == For those vertices of the new mesh that overlap with both old-mesh ice and old-mesh
+    !    non-ice, remove very thin remapped ice
+    ! ======================================================================================
 
     DO vi_new = mesh_new%vi1, mesh_new%vi2
 
@@ -892,9 +895,9 @@ CONTAINS
 
     END DO ! DO vi_new = mesh_new%vi1, mesh_new%vi2
 
-  ! == For those vertices of the new mesh that overlap with both old-mesh shelf and old-mesh
-  !    open ocean, average only over the contributing old-mesh shelf vertices
-  ! ======================================================================================
+    ! == For those vertices of the new mesh that overlap with both old-mesh shelf and old-mesh
+    !    open ocean, average only over the contributing old-mesh shelf vertices
+    ! ======================================================================================
 
     DO vi_new = mesh_new%vi1, mesh_new%vi2
 
@@ -1012,8 +1015,8 @@ CONTAINS
     CALL gather_to_all_logical_1D( ice%mask_floating_ice , mask_floating_ice_tot )
     CALL gather_to_all_logical_1D( ice%mask_cf_fl        , mask_cf_fl_tot        )
 
-  ! == Create the relaxation mask
-  ! =============================
+    ! == Create the relaxation mask
+    ! =============================
 
     ! Create a mask over the entire ice-free ocean, and 5 vertices into the shelf
     ! NOTE: 0 = velocities and dH/dt are solved
@@ -1110,8 +1113,8 @@ CONTAINS
     CALL distribute_from_master_int_1D( BC_prescr_mask_b_tot , BC_prescr_mask_b )
     CALL distribute_from_master_int_2D( BC_prescr_mask_bk_tot, BC_prescr_mask_bk)
 
-  ! == Fill in prescribed velocities and thicknesses away from the front
-  ! ====================================================================
+    ! == Fill in prescribed velocities and thicknesses away from the front
+    ! ====================================================================
 
     BC_prescr_Hi   = ice%Hi
     BC_prescr_u_b  = ice%u_vav_b
@@ -1119,8 +1122,8 @@ CONTAINS
     BC_prescr_u_bk = ice%u_3D_b
     BC_prescr_v_bk = ice%v_3D_b
 
-  ! == Save proper values of config parameters for the velocity solver
-  ! ==================================================================
+    ! == Save proper values of config parameters for the velocity solver
+    ! ==================================================================
 
     visc_it_norm_dUV_tol_save                  = C%visc_it_norm_dUV_tol
     visc_it_nit_save                           = C%visc_it_nit
@@ -1131,8 +1134,8 @@ CONTAINS
     stress_balance_PETSc_abstol_save           = C%stress_balance_PETSc_abstol
     Glens_flow_law_epsilon_sq_0_save           = C%Glens_flow_law_epsilon_sq_0
 
-  ! == Set temporary, less strict values of config parameters for the velocity solver
-  ! =================================================================================
+    ! == Set temporary, less strict values of config parameters for the velocity solver
+    ! =================================================================================
 
     C%visc_it_norm_dUV_tol                  = 5E-4_dp                          ! Stop criterion for the viscosity iteration: the L2-norm of successive velocity solutions should be smaller than this number
     C%visc_it_nit                           = 20                               ! Maximum number of effective viscosity iterations
@@ -1143,14 +1146,14 @@ CONTAINS
     C%stress_balance_PETSc_abstol           = 1E-2_dp                          ! PETSc solver - stop criterion, absolute difference
     C%Glens_flow_law_epsilon_sq_0           = 1E-6_dp                          ! Normalisation term so that zero strain rates produce a high but finite viscosity
 
-  ! == Remap SMB and BMB to get more stable ice thickness
-  ! =====================================================
+    ! == Remap SMB and BMB to get more stable ice thickness
+    ! =====================================================
 
     CALL map_from_mesh_to_mesh_2D( mesh_old, mesh, SMB%SMB, SMB_new, '2nd_order_conservative')
     CALL map_from_mesh_to_mesh_2D( mesh_old, mesh, BMB%BMB, BMB_new, '2nd_order_conservative')
 
-  ! == Relax the ice thickness for a few time steps
-  ! ===============================================
+    ! == Relax the ice thickness for a few time steps
+    ! ===============================================
 
     t_pseudo = 0._dp
 
@@ -1176,8 +1179,8 @@ CONTAINS
 
     END DO pseudo_time ! DO WHILE (t_pseudo < dt_relax)
 
-  ! == Reinstate proper values of config parameters for the velocity solver
-  ! =======================================================================
+    ! == Reinstate proper values of config parameters for the velocity solver
+    ! =======================================================================
 
     C%visc_it_norm_dUV_tol                  = visc_it_norm_dUV_tol_save
     C%visc_it_nit                           = visc_it_nit_save
@@ -1211,6 +1214,7 @@ CONTAINS
     INTEGER                                               :: pc_it
     REAL(dp), DIMENSION(:    ), ALLOCATABLE               :: Hi_dummy
     INTEGER                                               :: vi
+    REAL(dp)                                              :: dh_limit_up, dh_limit_down
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -1222,8 +1226,8 @@ CONTAINS
     region%ice%t_Hi_prev  = region%ice%t_Hi_next
     region%ice%Hi_prev    = region%ice%Hi_next
 
-  ! == Calculate time step ==
-  ! =========================
+    ! == Calculate time step ==
+    ! =========================
 
     ! Store previous time step
     region%ice%pc%dt_n = region%ice%pc%dt_np1
@@ -1245,10 +1249,10 @@ CONTAINS
     CALL calc_critical_timestep_adv( region%mesh, region%ice, dt_crit_adv)
     region%ice%pc%dt_np1 = MIN( region%ice%pc%dt_np1, dt_crit_adv)
 
-  ! == Time step iteration: if, at the end of the PC timestep, the truncation error
-  !    turns out to be too large, run it again with a smaller dt, until the truncation
-  !    decreases to below the specified tolerance
-  ! ==================================================================================
+    ! == Time step iteration: if, at the end of the PC timestep, the truncation error
+    !    turns out to be too large, run it again with a smaller dt, until the truncation
+    !    decreases to below the specified tolerance
+    ! ==================================================================================
 
     ! Store thinning rates from previous time step
     region%ice%pc%dHi_dt_Hi_nm1_u_nm1 = region%ice%dHi_dt
@@ -1264,8 +1268,8 @@ CONTAINS
       ! Calculate time step ratio
       region%ice%pc%zeta_t = region%ice%pc%dt_np1 / region%ice%pc%dt_n
 
-    ! == Predictor step ==
-    ! ====================
+      ! == Predictor step ==
+      ! ====================
 
       ! Calculate thinning rates for current geometry and velocity
       CALL calc_dHi_dt( region%mesh, region%ice%Hi_prev, region%ice%Hb, region%ice%SL, region%ice%u_vav_b, region%ice%v_vav_b, region%SMB%SMB, region%BMB%BMB, &
@@ -1275,8 +1279,25 @@ CONTAINS
       region%ice%pc%Hi_star_np1 = region%ice%Hi_prev + region%ice%pc%dt_np1 * ((1._dp + region%ice%pc%zeta_t / 2._dp) * &
         region%ice%pc%dHi_dt_Hi_n_u_n - (region%ice%pc%zeta_t / 2._dp) * region%ice%pc%dHi_dt_Hi_nm1_u_nm1)
 
-    ! == Update step ==
-    ! =================
+      ! ! DENK DROM
+      ! ! Fix some shit
+      ! do vi = region%mesh%vi1, region%mesh%vi2
+      !   if (region%ice%mask_gl_gr( vi)) then
+      !     region%ice%pc%Hi_star_np1( vi) = region%ice%Hi_prev( vi)
+      !   elseif (region%ice%mask_gl_fl( vi)) then
+      !     region%ice%pc%Hi_star_np1( vi) = region%ice%Hi_prev( vi)
+      !   elseif (region%ice%mask_floating_ice( vi)) then
+      !     region%ice%pc%Hi_star_np1( vi) = region%ice%Hi_prev( vi)
+      !   else
+      !     dh_limit_up   = region%refgeo_PD%Hi( vi) + 100._dp * exp(region%ice%Ti_hom( vi)/3._dp)
+      !     dh_limit_down = region%refgeo_PD%Hi( vi) - 100._dp
+      !     region%ice%pc%Hi_star_np1( vi) = min( region%ice%pc%Hi_star_np1( vi), dh_limit_up  )
+      !     region%ice%pc%Hi_star_np1( vi) = max( region%ice%pc%Hi_star_np1( vi), dh_limit_down)
+      !   end if
+      ! end do
+
+      ! == Update step ==
+      ! =================
 
       ! Set model geometry to predicted
       region%ice%Hi = region%ice%pc%Hi_star_np1
@@ -1291,8 +1312,8 @@ CONTAINS
       ! Calculate ice velocities for the predicted geometry
       CALL solve_stress_balance( region%mesh, region%ice, region%BMB%BMB)
 
-    ! == Corrector step ==
-    ! ====================
+      ! == Corrector step ==
+      ! ====================
 
       ! Set model geometry back to original
       region%ice%Hi = region%ice%Hi_prev
@@ -1308,6 +1329,26 @@ CONTAINS
 
       ! Calculate corrected ice thickness (Robinson et al. (2020), Eq. 31)
       region%ice%pc%Hi_np1 = region%ice%Hi_prev + (region%ice%pc%dt_np1 / 2._dp) * (region%ice%pc%dHi_dt_Hi_n_u_n + region%ice%pc%dHi_dt_Hi_star_np1_u_np1)
+
+      ! Save the "true" dynamical dH/dt for future reference
+      region%ice%dHi_dt_predicted = (region%ice%pc%Hi_np1 - region%ice%Hi_prev) / region%ice%pc%dt_np1
+
+      ! ! DENK DROM
+      ! ! Fix some shit
+      ! do vi = region%mesh%vi1, region%mesh%vi2
+      !   if (region%ice%mask_gl_gr( vi)) then
+      !     region%ice%pc%Hi_np1( vi) = region%ice%Hi_prev( vi)
+      !   elseif (region%ice%mask_gl_fl( vi)) then
+      !     region%ice%pc%Hi_np1( vi) = region%ice%Hi_prev( vi)
+      !   elseif (region%ice%mask_floating_ice( vi)) then
+      !     region%ice%pc%Hi_np1( vi) = region%ice%Hi_prev( vi)
+      !   else
+      !     dh_limit_up   = region%refgeo_PD%Hi( vi) + 100._dp * exp(region%ice%Ti_hom( vi)/3._dp)
+      !     dh_limit_down = region%refgeo_PD%Hi( vi) - 100._dp
+      !     region%ice%pc%Hi_np1( vi) = min( region%ice%pc%Hi_np1( vi), dh_limit_up  )
+      !     region%ice%pc%Hi_np1( vi) = max( region%ice%pc%Hi_np1( vi), dh_limit_down)
+      !   end if
+      ! end do
 
       ! Estimate truncation error
       CALL calc_pc_truncation_error( region%mesh, region%ice, region%ice%pc)
@@ -1364,7 +1405,7 @@ CONTAINS
     ! Calculate the maximum truncation error eta over grounded ice only
     pc%eta_np1 = C%pc_eta_min
     DO vi = mesh%vi1, mesh%vi2
-      IF (ice%mask_grounded_ice( vi) .AND. .NOT. ice%mask_gl_gr( vi)) THEN
+      IF (ice%mask_grounded_ice( vi) .AND. .NOT. ice%mask_gl_gr( vi) .AND. ice%fraction_gr( vi) == 1._dp) THEN
         pc%eta_np1 = MAX( pc%eta_np1, pc%tau_np1( vi))
       END IF
     END DO
@@ -1680,6 +1721,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'run_ice_dynamics_model_direct'
     REAL(dp)                                              :: dt_crit_SIA, dt_crit_adv, dt
+    INTEGER                                               :: vi
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -1723,6 +1765,9 @@ CONTAINS
     ! Calculate thinning rates and predicted geometry
     CALL calc_dHi_dt( region%mesh, region%ice%Hi, region%ice%Hb, region%ice%SL, region%ice%u_vav_b, region%ice%v_vav_b, region%SMB%SMB, region%BMB%BMB, &
       region%ice%mask_noice, dt, region%ice%dHi_dt, region%ice%Hi_next, region%ice%divQ)
+
+    ! Save the "true" dynamical dH/dt for future reference
+    region%ice%dHi_dt_predicted = region%ice%dHi_dt
 
     ! Set next modelled ice thickness timestamp
     region%ice%t_Hi_next = region%ice%t_Hi_prev + dt

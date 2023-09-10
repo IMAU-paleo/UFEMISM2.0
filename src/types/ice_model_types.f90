@@ -198,6 +198,7 @@ MODULE ice_model_types
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHb_dt                      ! [m yr^-1] Bedrock elevation rate of change
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHs_dt                      ! [m yr^-1] Ice surface elevation rate of change
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHib_dt                     ! [m yr^-1] Ice base elevation rate of change
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHi_dt_predicted            ! [m yr^-1] Ice thickness rate of change before any modifications
 
     ! Masks
     LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_icefree_land           ! T: ice-free land , F: otherwise
@@ -345,6 +346,7 @@ MODULE ice_model_types
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: overburden_pressure         ! [Pa]  Basal overburden pressure
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: effective_pressure          ! [Pa]  Basal effective pressure
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: pore_water_likelihood       ! [0-1] Basal pore water likelihood
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: pore_water_fraction         ! [0-1] Fraction of overburden pressure reduced by pore water pressure
 
   ! == Basal sliding ==
   ! ===================

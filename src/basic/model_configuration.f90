@@ -411,6 +411,29 @@ MODULE model_configuration
     REAL(dp)            :: Martin2011_hydro_Hb_min_config               = 0._dp                            ! Martin et al. (2011) basal hydrology model: low-end  Hb  value of bedrock-dependent pore-water pressure
     REAL(dp)            :: Martin2011_hydro_Hb_max_config               = 1000._dp                         ! Martin et al. (2011) basal hydrology model: high-end Hb  value of bedrock-dependent pore-water pressure
 
+  ! == Basal hydrology inversion by nudging
+  ! =======================================
+
+    ! General
+    LOGICAL             :: do_pore_water_nudging_config                 = .FALSE.                          !           Whether or not to nudge the pore water pressure
+    CHARACTER(LEN=256)  :: choice_pore_water_nudging_method_config      = 'local'                          !           Choice of pore water nudging method: "local", "flowline"
+    REAL(dp)            :: pore_water_nudging_dt_config                 = 5._dp                            ! [yr]      Time step for pore water updates
+    REAL(dp)            :: pore_water_nudging_t_start_config            = -9.9E9_dp                        ! [yr]      Earliest model time when nudging is allowed
+    REAL(dp)            :: pore_water_nudging_t_end_config              = +9.9E9_dp                        ! [yr]      Latest   model time when nudging is allowed
+    REAL(dp)            :: pore_water_fraction_min_config               = 0._dp                            ! [?]       Smallest allowed value for the first  inverted pore water pressure field
+    REAL(dp)            :: pore_water_fraction_max_config               = 0.9999_dp                        ! [?]       Largest  allowed value for the first  inverted pore water pressure field
+    CHARACTER(LEN=256)  :: filename_inverted_pore_water_config          = 'pore_water_inv.nc'              !           NetCDF file where the final inverted pore water fields will be saved
+
+    ! Basal hydrology inversion model based on flowline-averaged values of H and dH/dt
+    REAL(dp)            :: porenudge_H_dHdt_flowline_t_scale_config     = 150._dp                          ! [yr]      Timescale
+    REAL(dp)            :: porenudge_H_dHdt_flowline_dH0_config         = 200._dp                          ! [m]       Ice thickness error scale
+    REAL(dp)            :: porenudge_H_dHdt_flowline_dHdt0_config       = 0.7_dp                           ! [m yr^-1] Thinning rate scale
+    REAL(dp)            :: porenudge_H_dHdt_flowline_Hi_scale_config    = 100._dp                          ! [m]       Ice thickness weight scale
+    REAL(dp)            :: porenudge_H_dHdt_flowline_u_scale_config     = 1000._dp                         ! [m yr^-1] Ice velocity  weight scale
+    REAL(dp)            :: porenudge_H_dHdt_flowline_r_smooth_config    = 5000._dp                         ! [m]       Radius for Gaussian filter used to smooth dC/dt as regularisation
+    REAL(dp)            :: porenudge_H_dHdt_flowline_w_smooth_config    = 0.0_dp                           ! [-]       Relative contribution of smoothed dC/dt in regularisation
+    REAL(dp)            :: porenudge_H_dHdt_flowline_dist_max_config    = 1000.0_dp                        ! [km]      Max total distance the trace is allowed to move before ending it
+
   ! == Bed roughness
   ! ==================
 
@@ -1142,6 +1165,29 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: choice_basal_hydrology_model
     REAL(dp)            :: Martin2011_hydro_Hb_min
     REAL(dp)            :: Martin2011_hydro_Hb_max
+
+  ! == Pore water inversion by nudging
+  ! =====================================
+
+    ! General
+    LOGICAL             :: do_pore_water_nudging
+    CHARACTER(LEN=256)  :: choice_pore_water_nudging_method
+    REAL(dp)            :: pore_water_nudging_dt
+    REAL(dp)            :: pore_water_nudging_t_start
+    REAL(dp)            :: pore_water_nudging_t_end
+    REAL(dp)            :: pore_water_fraction_min
+    REAL(dp)            :: pore_water_fraction_max
+    CHARACTER(LEN=256)  :: filename_inverted_pore_water
+
+    ! Basal inversion model based on flowline-averaged values of H and dH/dt
+    REAL(dp)            :: porenudge_H_dHdt_flowline_t_scale
+    REAL(dp)            :: porenudge_H_dHdt_flowline_dH0
+    REAL(dp)            :: porenudge_H_dHdt_flowline_dHdt0
+    REAL(dp)            :: porenudge_H_dHdt_flowline_Hi_scale
+    REAL(dp)            :: porenudge_H_dHdt_flowline_u_scale
+    REAL(dp)            :: porenudge_H_dHdt_flowline_r_smooth
+    REAL(dp)            :: porenudge_H_dHdt_flowline_w_smooth
+    REAL(dp)            :: porenudge_H_dHdt_flowline_dist_max
 
   ! == Bed roughness
   ! ==================
@@ -1898,6 +1944,22 @@ CONTAINS
       choice_basal_hydrology_model_config                         , &
       Martin2011_hydro_Hb_min_config                              , &
       Martin2011_hydro_Hb_max_config                              , &
+      do_pore_water_nudging_config                                , &
+      choice_pore_water_nudging_method_config                     , &
+      pore_water_nudging_dt_config                                , &
+      pore_water_nudging_t_start_config                           , &
+      pore_water_nudging_t_end_config                             , &
+      pore_water_fraction_min_config                              , &
+      pore_water_fraction_max_config                              , &
+      filename_inverted_pore_water_config                         , &
+      porenudge_H_dHdt_flowline_t_scale_config                    , &
+      porenudge_H_dHdt_flowline_dH0_config                        , &
+      porenudge_H_dHdt_flowline_dHdt0_config                      , &
+      porenudge_H_dHdt_flowline_Hi_scale_config                   , &
+      porenudge_H_dHdt_flowline_u_scale_config                    , &
+      porenudge_H_dHdt_flowline_r_smooth_config                   , &
+      porenudge_H_dHdt_flowline_w_smooth_config                   , &
+      porenudge_H_dHdt_flowline_dist_max_config                   , &
       choice_bed_roughness_config                                 , &
       choice_bed_roughness_parameterised_config                   , &
       filename_bed_roughness_NAM_config                           , &
@@ -2534,6 +2596,29 @@ CONTAINS
     C%choice_basal_hydrology_model                           = choice_basal_hydrology_model_config
     C%Martin2011_hydro_Hb_min                                = Martin2011_hydro_Hb_min_config
     C%Martin2011_hydro_Hb_max                                = Martin2011_hydro_Hb_max_config
+
+  ! == Pore water inversion by nudging
+  ! ==================================
+
+    ! General
+    C%do_pore_water_nudging                                  = do_pore_water_nudging_config
+    C%choice_pore_water_nudging_method                       = choice_pore_water_nudging_method_config
+    C%pore_water_nudging_dt                                  = pore_water_nudging_dt_config
+    C%pore_water_nudging_t_start                             = pore_water_nudging_t_start_config
+    C%pore_water_nudging_t_end                               = pore_water_nudging_t_end_config
+    C%pore_water_fraction_min                                = pore_water_fraction_min_config
+    C%pore_water_fraction_max                                = pore_water_fraction_max_config
+    C%filename_inverted_pore_water                           = filename_inverted_pore_water_config
+
+    ! Basal inversion model based on flowline-averaged values of H and dH/dt
+    C%porenudge_H_dHdt_flowline_t_scale                       = porenudge_H_dHdt_flowline_t_scale_config
+    C%porenudge_H_dHdt_flowline_dH0                           = porenudge_H_dHdt_flowline_dH0_config
+    C%porenudge_H_dHdt_flowline_dHdt0                         = porenudge_H_dHdt_flowline_dHdt0_config
+    C%porenudge_H_dHdt_flowline_Hi_scale                      = porenudge_H_dHdt_flowline_Hi_scale_config
+    C%porenudge_H_dHdt_flowline_u_scale                       = porenudge_H_dHdt_flowline_u_scale_config
+    C%porenudge_H_dHdt_flowline_r_smooth                      = porenudge_H_dHdt_flowline_r_smooth_config
+    C%porenudge_H_dHdt_flowline_w_smooth                      = porenudge_H_dHdt_flowline_w_smooth_config
+    C%porenudge_H_dHdt_flowline_dist_max                      = porenudge_H_dHdt_flowline_dist_max_config
 
   ! == Bed roughness
   ! ==================

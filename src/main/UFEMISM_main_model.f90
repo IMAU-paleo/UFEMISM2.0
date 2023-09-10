@@ -22,7 +22,7 @@ MODULE UFEMISM_main_model
   USE reference_geometries                                   , ONLY: initialise_reference_geometries_raw, initialise_reference_geometries_on_model_mesh
   USE ice_model_main                                         , ONLY: initialise_ice_dynamics_model, run_ice_dynamics_model, remap_ice_dynamics_model, &
                                                                      create_restart_files_ice_model, write_to_restart_files_ice_model
-  USE basal_hydrology                                        , ONLY: run_basal_hydrology_model
+  USE basal_hydrology                                        , ONLY: run_basal_hydrology_model, initialise_pore_water_fraction_inversion
   USE thermodynamics_main                                    , ONLY: initialise_thermodynamics_model, run_thermodynamics_model, &
                                                                      create_restart_file_thermo, write_to_restart_file_thermo
   USE climate_main                                           , ONLY: initialise_climate_model, run_climate_model, remap_climate_model, &
@@ -107,7 +107,7 @@ CONTAINS
       END IF ! IF (C%allow_mesh_updates) THEN
 
       ! Run the subglacial hydrology model
-      CALL run_basal_hydrology_model( region%mesh, region%ice)
+      CALL run_basal_hydrology_model( region%mesh, region%grid_smooth, region%ice, region%refgeo_PD, region%HIV, region%time)
 
       ! Run the ice dynamics model to calculate ice geometry at the desired time, and update
       ! velocities, thinning rates, and predicted geometry if necessary
@@ -160,7 +160,7 @@ CONTAINS
     IF (region%time == C%end_time_of_run) THEN
       ! Give all processes time to catch up
       CALL sync
-      ! Congrats, you made it
+      ! Congrats, you've made it
       IF (par%master) WRITE(0,'(A)') ' Finalising regional simulation...'
       ! Write the final model state to output
       CALL write_to_regional_output_files( region)
@@ -308,6 +308,11 @@ CONTAINS
     ! Basal inversion
     IF (C%do_bed_roughness_nudging) THEN
       time_of_next_action = MIN( time_of_next_action, region%BIV%t_next)
+    END IF
+
+    ! Hydrology inversion
+    IF (C%do_pore_water_nudging) THEN
+      time_of_next_action = MIN( time_of_next_action, region%HIV%t_next)
     END IF
 
     ! Output
@@ -464,6 +469,10 @@ CONTAINS
 
     IF (C%do_bed_roughness_nudging) THEN
       CALL initialise_basal_inversion( region%mesh, region%ice, region%BIV, region%name)
+    END IF
+
+    IF (C%do_pore_water_nudging) THEN
+      CALL initialise_pore_water_fraction_inversion( region%mesh, region%ice, region%HIV, region%name)
     END IF
 
     ! ===== Regional output =====

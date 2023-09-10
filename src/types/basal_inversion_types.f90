@@ -12,6 +12,9 @@ MODULE basal_inversion_types
 ! ===== Types =====
 ! =================
 
+  ! == Bed roughness
+  ! ================
+
   TYPE type_basal_inversion_H_dHdt_flowline
     ! The basal inversion model based on flowline-averaged values of H and dH/dt
 
@@ -24,7 +27,7 @@ MODULE basal_inversion_types
   END TYPE type_basal_inversion_H_dHdt_flowline
 
   TYPE type_basal_inversion
-    ! The main basal inversion model
+    ! The main basal roughness inversion model
 
     ! Main data fields
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: generic_bed_roughness_1
@@ -38,6 +41,19 @@ MODULE basal_inversion_types
     REAL(dp)                                :: t_prev, t_next
 
   END TYPE type_basal_inversion
+
+  ! == Pore water pressure
+  ! ======================
+
+  TYPE type_hydrology_inversion
+    ! The main basal hydrology inversion model
+
+    ! Timestepping
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: pore_water_fraction_prev
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: pore_water_fraction_next
+    REAL(dp)                                :: t_prev, t_next
+
+  END TYPE type_hydrology_inversion
 
 CONTAINS
 
