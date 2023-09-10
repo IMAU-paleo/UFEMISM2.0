@@ -14,15 +14,10 @@ MODULE basal_inversion_main
   USE model_configuration                                    , ONLY: C
   USE parameters
   USE mesh_types                                             , ONLY: type_mesh
-  USE grid_basic                                             , ONLY: type_grid
   USE ice_model_types                                        , ONLY: type_ice_model
-  USE reference_geometry_types                               , ONLY: type_reference_geometry
   USE basal_inversion_types                                  , ONLY: type_basal_inversion
   USE region_types                                           , ONLY: type_model_region
   USE basal_inversion_H_dHdt_flowline                        , ONLY: initialise_basal_inversion_H_dHdt_flowline, run_basal_inversion_H_dHdt_flowline
-  USE mesh_utilities                                         , ONLY: extrapolate_Gaussian
-  USE mesh_remapping                                         , ONLY: smooth_Gaussian_2D
-  USE mesh_operators                                         , ONLY: ddx_a_a_2D, ddy_a_a_2D
 
   IMPLICIT NONE
 
@@ -82,18 +77,6 @@ CONTAINS
               CALL run_basal_inversion_H_dHdt_flowline( region%mesh, region%grid_smooth, region%ice, region%refgeo_init, region%BIV)
             CASE ('PD')
               CALL run_basal_inversion_H_dHdt_flowline( region%mesh, region%grid_smooth, region%ice, region%refgeo_PD, region%BIV)
-            CASE DEFAULT
-              CALL crash('unknown choice_inversion_target_geometry "' // TRIM( C%choice_inversion_target_geometry) // '"!')
-          END SELECT
-
-        CASE ('Pien2023')
-
-          ! Run with the specified target geometry
-          SELECT CASE (C%choice_inversion_target_geometry)
-            CASE ('init')
-              CALL run_basal_inversion_Pien2023( region%mesh, region%grid_smooth, region%ice, region%refgeo_init, region%BIV)
-            CASE ('PD')
-              CALL run_basal_inversion_Pien2023( region%mesh, region%grid_smooth, region%ice, region%refgeo_PD, region%BIV)
             CASE DEFAULT
               CALL crash('unknown choice_inversion_target_geometry "' // TRIM( C%choice_inversion_target_geometry) // '"!')
           END SELECT
@@ -269,8 +252,6 @@ CONTAINS
     SELECT CASE (C%choice_bed_roughness_nudging_method)
       CASE ('H_dHdt_flowline')
         CALL initialise_basal_inversion_H_dHdt_flowline( mesh, ice, BIV, region_name)
-      CASE ('Pien2023')
-        CALL initialise_basal_inversion_Pien2023( mesh, ice, BIV, region_name)
       CASE DEFAULT
         CALL crash('unknown choice_bed_roughness_nudging_method "' // TRIM( C%choice_bed_roughness_nudging_method) // '"')
     END SELECT
@@ -279,205 +260,5 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE initialise_basal_inversion
-
-  !===
-
-  SUBROUTINE run_basal_inversion_Pien2023( mesh, grid_smooth, ice, refgeo, BIV)
-    ! Run the basal inversion model based on Pien2023
-
-    IMPLICIT NONE
-
-    ! Input variables:
-    TYPE(type_mesh),                     INTENT(IN)    :: mesh
-    TYPE(type_grid),                     INTENT(IN)    :: grid_smooth
-    TYPE(type_ice_model),                INTENT(IN)    :: ice
-    TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo
-    TYPE(type_basal_inversion),          INTENT(INOUT) :: BIV
-
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_basal_inversion_Pien2023'
-    INTEGER,  DIMENSION(:    ), ALLOCATABLE            :: mask
-    INTEGER                                            :: vi
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: dC1_dt, dC2_dt
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: dC1_dt_smoothed, dC2_dt_smoothed
-    REAL(dp)                                           :: misfit, reg_1st, reg_2nd, BIVgeo_Pien2023_H0, BIVgeo_Pien2023_tau, beta_min
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: dHs_dx, dHs_dy, abs_grad_Hs
-    REAL(dp)                                           :: fg_exp_mod
-
-    ! Add routine to path
-    CALL init_routine( routine_name)
-
-    ! Allocate memory
-    ALLOCATE( mask(            mesh%vi1:mesh%vi2), source = 0      )
-    ALLOCATE( dC1_dt(          mesh%vi1:mesh%vi2), source = 0._dp  )
-    ALLOCATE( dC2_dt(          mesh%vi1:mesh%vi2), source = 0._dp  )
-    ALLOCATE( dC1_dt_smoothed( mesh%vi1:mesh%vi2), source = 0._dp  )
-    ALLOCATE( dC2_dt_smoothed( mesh%vi1:mesh%vi2), source = 0._dp  )
-    ALLOCATE( dHs_dx(          mesh%vi1:mesh%vi2), source = 0._dp  )
-    ALLOCATE( dHs_dy(          mesh%vi1:mesh%vi2), source = 0._dp  )
-    ALLOCATE( abs_grad_Hs(     mesh%vi1:mesh%vi2), source = 0._dp  )
-
-  ! == Calculate bed roughness rates of changes
-  ! ===========================================
-
-    DO vi = mesh%vi1, mesh%vi2
-
-      ! Determine whether bed roughness should be
-      ! updated by inversion or by extrapolation
-
-      ! Only perform the inversion on fully grounded vertices
-      IF ( ice%fraction_gr( vi) == 1._dp) THEN
-
-        ! Perform the inversion here
-        mask( vi) = 2
-
-        ! Surface elevation misfit
-        misfit = ice%Hi( vi) - refgeo%Hi( vi)
-
-        ! Is it improving already?
-        IF (ice%dHi_dt( vi)*misfit < 0._dp) THEN
-          ! Yes, so leave this vertex alone
-          CYCLE
-        END IF
-
-      ELSE
-
-        ! Extrapolate here
-        mask( vi) = 1
-        CYCLE
-
-      END IF
-
-      ! == Regularisation
-      ! =================
-
-      BIVgeo_Pien2023_H0  = 200._dp
-      BIVgeo_Pien2023_tau = 500._dp
-
-      ! First regularisation term
-      reg_1st = misfit / BIVgeo_Pien2023_H0 / BIVgeo_Pien2023_tau
-
-      ! Second regularisation term
-      reg_2nd = ice%dHi_dt( vi) * 2._dp / BIVgeo_Pien2023_H0
-
-      ! == Prevent over adjustment
-      ! ==========================
-
-      beta_min = 1000._dp * MIN( 1._dp, MAX( 0._dp, 1._dp - ice%Hi( vi) / 200._dp))
-
-      IF ((reg_1st + reg_2nd) > 0._dp .AND. ice%basal_friction_coefficient( vi) <= beta_min) THEN
-        ! It's okay, we'll get'em next time
-        CYCLE
-      END IF
-
-      ! Calculate bed roughness rates of change
-      ! =======================================
-
-      dC1_dt( vi) = -1._dp * BIV%generic_bed_roughness_1( vi) * (reg_1st + reg_2nd)
-      dC2_dt( vi) = -1._dp * BIV%generic_bed_roughness_2( vi) * (reg_1st + reg_2nd)
-
-    END DO ! DO vi = mesh%vi1, mesh%vi2
-
-  ! == Extrapolated inverted roughness rates of change to the whole domain
-  ! ======================================================================
-
-    ! Perform the extrapolation - mask: 2 -> use as seed; 1 -> extrapolate; 0 -> ignore
-    CALL extrapolate_Gaussian( mesh, mask, dC1_dt, C%bednudge_H_dHdt_flowline_r_smooth)
-    CALL extrapolate_Gaussian( mesh, mask, dC2_dt, C%bednudge_H_dHdt_flowline_r_smooth)
-
-    ! Regularise tricky extrapolated areas
-
-    ! Calculate surface slopes
-    CALL ddx_a_a_2D( mesh, ice%Hs, dHs_dx)
-    CALL ddy_a_a_2D( mesh, ice%Hs, dHs_dy)
-
-    ! Calculate absolute surface gradient
-    abs_grad_Hs = SQRT( dHs_dx**2 + dHs_dy**2)
-
-    ! Scale (reduce) bed roughness rate of change for partially grounded, steep-sloped areas
-    DO vi = mesh%vi1, mesh%vi2
-
-      ! Ice margin and grounding lines
-      IF (ice%mask_grounded_ice( vi)) THEN
-
-        ! Strengthen the effect of grounded fractions for steep slopes
-        fg_exp_mod = MIN( 1.0_dp, MAX( 0._dp, MAX( 0._dp, abs_grad_Hs( vi) - 0.02_dp) / (0.06_dp - 0.02_dp) ))
-
-        ! Scale based on grounded fraction
-        dC1_dt( vi) = dC1_dt( vi) * ice%fraction_gr( vi) ** (1._dp + fg_exp_mod)
-        dC2_dt( vi) = dC2_dt( vi) * ice%fraction_gr( vi) ** (1._dp + fg_exp_mod)
-
-      END IF
-
-    END DO
-
-    ! Smoothing
-    ! =========
-
-    dC1_dt_smoothed = dC1_dt
-    dC2_dt_smoothed = dC2_dt
-
-    ! Smooth the local variable
-    CALL smooth_Gaussian_2D( mesh, grid_smooth, dC1_dt_smoothed, C%bednudge_H_dHdt_flowline_r_smooth)
-    CALL smooth_Gaussian_2D( mesh, grid_smooth, dC2_dt_smoothed, C%bednudge_H_dHdt_flowline_r_smooth)
-
-    DO vi = mesh%vi1, mesh%vi2
-      dC1_dt( vi) = (1._dp - C%bednudge_H_dHdt_flowline_w_smooth) * dC1_dt( vi) + C%bednudge_H_dHdt_flowline_w_smooth * dC1_dt_smoothed( vi)
-      dC2_dt( vi) = (1._dp - C%bednudge_H_dHdt_flowline_w_smooth) * dC2_dt( vi) + C%bednudge_H_dHdt_flowline_w_smooth * dC2_dt_smoothed( vi)
-    END DO ! DO vi = mesh%vi1, mesh%vi2
-
-    ! Final bed roughness field
-    ! =========================
-
-    ! Calculate predicted bed roughness at t+dt
-    BIV%generic_bed_roughness_1_next = MAX( C%generic_bed_roughness_1_min, MIN( C%generic_bed_roughness_1_max, &
-      BIV%generic_bed_roughness_1_prev + C%bed_roughness_nudging_dt * dC1_dt ))
-    BIV%generic_bed_roughness_2_next = MAX( C%generic_bed_roughness_2_min, MIN( C%generic_bed_roughness_2_max, &
-      BIV%generic_bed_roughness_2_prev + C%bed_roughness_nudging_dt * dC2_dt ))
-
-    ! Clean up after yourself
-    DEALLOCATE( mask           )
-    DEALLOCATE( dC1_dt         )
-    DEALLOCATE( dC2_dt         )
-    DEALLOCATE( dC1_dt_smoothed)
-    DEALLOCATE( dC2_dt_smoothed)
-    DEALLOCATE( dHs_dx         )
-    DEALLOCATE( dHs_dy         )
-    DEALLOCATE( abs_grad_Hs    )
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE run_basal_inversion_Pien2023
-
-  SUBROUTINE initialise_basal_inversion_Pien2023( mesh, ice, BIV, region_name)
-    ! Initialise the basal inversion model based on Pien2023
-
-    IMPLICIT NONE
-
-    ! Input variables:
-    TYPE(type_mesh),                     INTENT(IN)    :: mesh
-    TYPE(type_ice_model),                INTENT(IN)    :: ice
-    TYPE(type_basal_inversion),          INTENT(INOUT) :: BIV
-    CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
-
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_basal_inversion_Pien2023'
-    REAL(dp)                                           :: dummy_dp
-    CHARACTER                                          :: dummy_char
-
-    ! Add routine to path
-    CALL init_routine( routine_name)
-
-    ! To prevent compiler warnings
-    dummy_dp = mesh%xmin
-    dummy_dp = ice%Hi( mesh%vi1)
-    dummy_dp = BIV%generic_bed_roughness_1( mesh%vi1)
-    dummy_char = region_name( 1:1)
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE initialise_basal_inversion_Pien2023
 
 END MODULE basal_inversion_main
