@@ -1213,7 +1213,7 @@ CONTAINS
     REAL(dp)                                              :: dt_crit_adv
     INTEGER                                               :: pc_it
     REAL(dp), DIMENSION(:    ), ALLOCATABLE               :: Hi_dummy
-    INTEGER                                               :: vi
+    INTEGER                                               :: vi, n_guilty, n_tot
     REAL(dp)                                              :: dh_limit_up, dh_limit_down
 
     ! Add routine to path
@@ -1247,6 +1247,7 @@ CONTAINS
 
     ! Limit time step to critical advective time step
     CALL calc_critical_timestep_adv( region%mesh, region%ice, dt_crit_adv)
+
     region%ice%pc%dt_np1 = MIN( region%ice%pc%dt_np1, dt_crit_adv)
 
     ! == Time step iteration: if, at the end of the PC timestep, the truncation error
@@ -1350,12 +1351,55 @@ CONTAINS
         end if
       end do
 
+      ! == Truncation error ==
+      ! ======================
+
       ! Estimate truncation error
       CALL calc_pc_truncation_error( region%mesh, region%ice, region%ice%pc)
 
-      ! Check if it is small enough; if so, move on; if not, re-do the PC timestep
+      ! == Error assessment ==
+      ! ======================
+
+      ! Initialise errorful vertex count
+      n_tot = 0
+      n_guilty = 0
+
+      DO vi = region%mesh%vi1, region%mesh%vi2
+        ! Only consider fully grounded vertices
+        IF (region%ice%fraction_gr( vi) == 1._dp) THEN
+          ! Add to total vertex count
+          n_tot = n_tot + 1
+          ! If this vertex's error is larger than tolerance
+          IF (region%ice%pc%tau_np1( vi) > C%pc_epsilon) THEN
+            ! Add to guilty vertex count
+            n_guilty = n_guilty + 1
+            ! IF (par%master) print*, vi, region%ice%pc%tau_np1( vi)
+          END IF
+        END IF
+      END DO
+
+      ! Add up findings from each process domain
+      CALL MPI_ALLREDUCE( MPI_IN_PLACE, n_tot,    1, MPI_INTEGER, MPI_SUM, MPI_COMM_WORLD, ierr)
+      CALL MPI_ALLREDUCE( MPI_IN_PLACE, n_guilty, 1, MPI_INTEGER, MPI_SUM, MPI_COMM_WORLD, ierr)
+
+      ! Safety
+      IF (n_tot == 0) n_tot = 1
+
+      ! IF (par%master .AND. n_guilty > 0) print*, ''
+      ! IF (par%master .AND. n_guilty > 0) print*, '[pc] pc_guilts (%):', 100._dp * REAL(n_guilty,dp)/REAL(n_tot,dp)
+
+      ! Check if it is small enough; if so, move on
       IF (region%ice%pc%eta_np1 < C%pc_epsilon) THEN
         EXIT iterate_pc_timestep
+
+      ! If not, check whether that occurs in a significant amount of vertices; if not,
+      ! set the truncation error to almost the tolerance (to allow for growth) and move on
+      ELSEIF (100._dp * REAL( n_guilty,dp) / REAL(n_tot,dp) < C%pc_guilty_max) THEN
+        ! IF (par%master) CALL warning('a few vertices are changing rapidly; less than C%pc_guilty_max % tho, so keep going')
+        region%ice%pc%eta_np1 = .95_dp * C%pc_epsilon
+        EXIT iterate_pc_timestep
+
+      ! if not, re-do the PC timestep
       ELSE
         ! IF (par%master) CALL warning('reducing dt and redoing PC timestep')
         region%ice%pc%dt_np1 = region%ice%pc%dt_np1 * 0.8_dp
