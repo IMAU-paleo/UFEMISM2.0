@@ -78,6 +78,7 @@ MODULE region_types
     CHARACTER(LEN=256)                      :: output_filename_grid        ! Name of NetCDF output file (grid version)
     CHARACTER(LEN=256)                      :: output_filename_scalar      ! Name of NetCDF output file (grid version)
     REAL(dp)                                :: output_t_next               ! Time when we should next write to output
+    REAL(dp)                                :: output_restart_t_next       ! Time when we should next write to output
 
     ! Region-of-interest output
     INTEGER                                 :: nROI                        ! Number of regions of interest for this model region

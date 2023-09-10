@@ -678,20 +678,20 @@ MODULE model_configuration
   ! == SELEN
   ! ========
 
-    LOGICAL             :: SELEN_run_at_t_start_config                  = .FALSE.                          ! Whether or not to run SELEN in the first coupling loop (needed for some benchmark experiments)
-    INTEGER             :: SELEN_n_TDOF_iterations_config               = 1                                ! Number of Time-Dependent Ocean Function iterations
-    INTEGER             :: SELEN_n_recursion_iterations_config          = 1                                ! Number of recursion iterations
-    LOGICAL             :: SELEN_use_rotational_feedback_config         = .FALSE.                          ! If TRUE, rotational feedback is included
-    INTEGER             :: SELEN_n_harmonics_config                     = 128                              ! Maximum number of harmonic degrees
-    LOGICAL             :: SELEN_display_progress_config                = .FALSE.                          ! Whether or not to display the progress of the big loops to the screen (doesn't work on Cartesius!)
+    LOGICAL             :: SELEN_run_at_t_start_config                  = .FALSE.                         ! Whether or not to run SELEN in the first coupling loop (needed for some benchmark experiments)
+    INTEGER             :: SELEN_n_TDOF_iterations_config               = 1                               ! Number of Time-Dependent Ocean Function iterations
+    INTEGER             :: SELEN_n_recursion_iterations_config          = 1                               ! Number of recursion iterations
+    LOGICAL             :: SELEN_use_rotational_feedback_config         = .FALSE.                         ! If TRUE, rotational feedback is included
+    INTEGER             :: SELEN_n_harmonics_config                     = 128                             ! Maximum number of harmonic degrees
+    LOGICAL             :: SELEN_display_progress_config                = .FALSE.                         ! Whether or not to display the progress of the big loops to the screen (doesn't work on Cartesius!)
 
-    CHARACTER(LEN=256)  :: SELEN_dir_config                             = 'data/SELEN'                     ! Directory where SELEN initial files and spherical harmonics are stored
-    CHARACTER(LEN=256)  :: SELEN_global_topo_filename_config            = 'SELEN_global_topography.nc'     ! Filename for the SELEN global topography file (located in SELEN_dir)
-    CHARACTER(LEN=256)  :: SELEN_TABOO_init_filename_config             = 'SELEN_TABOO_initial_file.dat'   ! Filename for the TABOO initial file           (idem                )
-    CHARACTER(LEN=256)  :: SELEN_LMJ_VALUES_filename_config             = 'SELEN_lmj_values.bin'           ! Filename for the LJ and MJ values file        (idem                )
+    CHARACTER(LEN=256)  :: SELEN_dir_config                             = 'data/SELEN'                    ! Directory where SELEN initial files and spherical harmonics are stored
+    CHARACTER(LEN=256)  :: SELEN_global_topo_filename_config            = 'SELEN_global_topography.nc'    ! Filename for the SELEN global topography file (located in SELEN_dir)
+    CHARACTER(LEN=256)  :: SELEN_TABOO_init_filename_config             = 'SELEN_TABOO_initial_file.dat'  ! Filename for the TABOO initial file           (idem                )
+    CHARACTER(LEN=256)  :: SELEN_LMJ_VALUES_filename_config             = 'SELEN_lmj_values.bin'          ! Filename for the LJ and MJ values file        (idem                )
 
-    INTEGER                  :: SELEN_irreg_time_n_config               = 15                               ! Number of entries in the irregular moving time window
-    REAL(dp), DIMENSION(50)  :: SELEN_irreg_time_window_config          = &                                ! Values of entries in the irregular moving time window
+    INTEGER                  :: SELEN_irreg_time_n_config               = 15                              ! Number of entries in the irregular moving time window
+    REAL(dp), DIMENSION(50)  :: SELEN_irreg_time_window_config          = &                               ! Values of entries in the irregular moving time window
    (/20._dp, 20._dp, 20._dp, 5._dp, 5._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, &
       0._dp,  0._dp,  0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, &
       0._dp,  0._dp,  0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, &
@@ -713,6 +713,7 @@ MODULE model_configuration
     ! Basic settings
     LOGICAL             :: do_create_netcdf_output_config               = .TRUE.                          !     Whether or not NetCDF output files should be created at all
     REAL(dp)            :: dt_output_config                             = 1000._dp                        !     Time step for writing output
+    REAL(dp)            :: dt_output_restart_config                     = 1000._dp                        !     Time step for writing restart output
     REAL(dp)            :: dx_output_grid_NAM_config                    = 40E3_dp                         ! [m] Horizontal resolution for the square grid used for output for North America
     REAL(dp)            :: dx_output_grid_EAS_config                    = 40E3_dp                         ! [m] Horizontal resolution for the square grid used for output for Eurasia
     REAL(dp)            :: dx_output_grid_GRL_config                    = 20E3_dp                         ! [m] Horizontal resolution for the square grid used for output for Greenland
@@ -1468,6 +1469,7 @@ MODULE model_configuration
     ! Basic settings
     LOGICAL             :: do_create_netcdf_output
     REAL(dp)            :: dt_output
+    REAL(dp)            :: dt_output_restart
     REAL(dp)            :: dx_output_grid_NAM
     REAL(dp)            :: dx_output_grid_EAS
     REAL(dp)            :: dx_output_grid_GRL
@@ -2116,6 +2118,7 @@ CONTAINS
       SELEN_TABOO_RCMB_config                                     , &
       do_create_netcdf_output_config                              , &
       dt_output_config                                            , &
+      dt_output_restart_config                                    , &
       dx_output_grid_NAM_config                                   , &
       dx_output_grid_EAS_config                                   , &
       dx_output_grid_GRL_config                                   , &
@@ -2895,6 +2898,7 @@ CONTAINS
     ! Basic settings
     C%do_create_netcdf_output                                = do_create_netcdf_output_config
     C%dt_output                                              = dt_output_config
+    C%dt_output_restart                                      = dt_output_restart_config
     C%dx_output_grid_NAM                                     = dx_output_grid_NAM_config
     C%dx_output_grid_EAS                                     = dx_output_grid_EAS_config
     C%dx_output_grid_GRL                                     = dx_output_grid_GRL_config

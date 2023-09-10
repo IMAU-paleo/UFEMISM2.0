@@ -185,26 +185,43 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'write_to_regional_output_files'
     INTEGER                                                            :: i
+    REAL(dp)                                                           :: t_closest
+    LOGICAL                                                            :: do_output_main, do_output_restart
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    IF     (region%time < region%output_t_next) THEN
+    ! Determine time of next output event
+    t_closest = MIN( region%output_t_next, region%output_restart_t_next)
+
+    ! Determine actions
+    IF     (region%time < t_closest) THEN
       ! It is not yet time to write to output
       CALL finalise_routine( routine_name)
       RETURN
-    ELSEIF (region%time > region%output_t_next) THEN
+    ELSEIF (region%time > t_closest) THEN
       ! This should not be possible
       CALL crash('overshot the output time step')
-    ELSEIF (region%time == region%output_t_next) THEN
+    ELSEIF (region%time == t_closest) THEN
       ! It is time to write to output!
     ELSE
       ! region%time is NaN?
       CALL crash('region%time is apparently NaN')
     END IF
 
-    ! Update time stamp
-    region%output_t_next = region%output_t_next + C%dt_output
+    ! Determine type of next output event
+    do_output_main = .FALSE.
+    do_output_restart = .FALSE.
+
+    ! Update time stamps
+    IF (region%time == region%output_t_next) THEN
+      region%output_t_next = region%output_t_next + C%dt_output
+      do_output_main = .TRUE.
+    END IF
+    IF (region%time == region%output_restart_t_next) THEN
+      region%output_restart_t_next = region%output_restart_t_next + C%dt_output_restart
+      do_output_restart = .TRUE.
+    END IF
 
     ! If needed, create a new set of mesh output files for the current model mesh
     IF (.NOT. region%output_files_match_current_mesh) THEN
@@ -229,26 +246,30 @@ CONTAINS
 
     END IF ! IF (.NOT. region%output_files_match_current_mesh) THEN
 
-    ! Write to the main regional output files
-    CALL write_to_main_regional_output_file_mesh( region)
-    CALL write_to_main_regional_output_file_grid( region)
+    IF (do_output_main) THEN
+      ! Write to the main regional output files
+      CALL write_to_main_regional_output_file_mesh( region)
+      CALL write_to_main_regional_output_file_grid( region)
 
-    ! Write to the region-of-interest output files
-    DO i = 1, region%nROI
-      CALL write_to_main_regional_output_file_grid_ROI( region, region%output_grids_ROI( i), region%output_filenames_grid_ROI( i))
-    END DO
+      ! Write to the region-of-interest output files
+      DO i = 1, region%nROI
+        CALL write_to_main_regional_output_file_grid_ROI( region, region%output_grids_ROI( i), region%output_filenames_grid_ROI( i))
+      END DO
 
-    ! Write to the restart files for all the model components
-    CALL write_to_restart_files_ice_model   ( region%mesh, region%ice                 , region%time)
-    CALL write_to_restart_file_thermo       ( region%mesh, region%ice                 , region%time)
-    CALL write_to_restart_file_climate_model( region%mesh, region%climate, region%name, region%time)
-    CALL write_to_restart_file_ocean_model  ( region%mesh, region%ocean  , region%name, region%time)
-    CALL write_to_restart_file_SMB_model    ( region%mesh, region%SMB    , region%name, region%time)
-    CALL write_to_restart_file_BMB_model    ( region%mesh, region%BMB    , region%name, region%time)
-    CALL write_to_restart_file_GIA_model    ( region%mesh, region%GIA    , region%name, region%time)
+      ! Write to scalar regional output file
+      CALL write_to_scalar_regional_output_file( region)
+    END IF
 
-    ! Write to scalar regional output file
-    CALL write_to_scalar_regional_output_file( region)
+    IF (do_output_restart) THEN
+      ! Write to the restart files for all the model components
+      CALL write_to_restart_files_ice_model   ( region%mesh, region%ice                 , region%time)
+      CALL write_to_restart_file_thermo       ( region%mesh, region%ice                 , region%time)
+      CALL write_to_restart_file_climate_model( region%mesh, region%climate, region%name, region%time)
+      CALL write_to_restart_file_ocean_model  ( region%mesh, region%ocean  , region%name, region%time)
+      CALL write_to_restart_file_SMB_model    ( region%mesh, region%SMB    , region%name, region%time)
+      CALL write_to_restart_file_BMB_model    ( region%mesh, region%BMB    , region%name, region%time)
+      CALL write_to_restart_file_GIA_model    ( region%mesh, region%GIA    , region%name, region%time)
+    END IF
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -317,6 +338,7 @@ CONTAINS
 
     ! Output
     time_of_next_action = MIN( time_of_next_action, region%output_t_next)
+    time_of_next_action = MIN( time_of_next_action, region%output_restart_t_next)
 
     ! ===== Advance region time =====
     ! ===============================
@@ -519,8 +541,10 @@ CONTAINS
     ! Set output writing time to start of run, so the initial state will be written to output
     IF (C%do_create_netcdf_output) THEN
       region%output_t_next = C%start_time_of_run
+      region%output_restart_t_next = C%start_time_of_run
     ELSE
       region%output_t_next = C%end_time_of_run
+      region%output_restart_t_next = C%end_time_of_run
     END IF
 
     ! Confirm that the current set of mesh output files match the current model mesh
@@ -1249,7 +1273,7 @@ CONTAINS
       WRITE( *     ,"(A)", ADVANCE = TRIM( r_adv)) c_carriage_return // &
             "   t = " // TRIM( r_time) // " kyr - dt_av = " // TRIM( r_step) // " yr"
     END IF
-    IF (region%time == region%output_t_next) THEN
+    IF (region%time == region%output_t_next .OR. region%time == region%output_restart_t_next) THEN
       r_adv = "yes"
       WRITE( *,"(A)", ADVANCE = TRIM( r_adv)) c_carriage_return
     END IF
