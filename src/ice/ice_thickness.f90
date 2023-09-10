@@ -1058,8 +1058,8 @@ CONTAINS
 
     ! Loop over each mesh vertex within this process
     DO vi = mesh%vi1, mesh%vi2
-      ! If there is ice, and there is mass loss
-      IF (Hi( vi) > 0._dp .AND. divQ( vi) > 0._dp) THEN
+      ! If there is [non-negligible] ice, and there is mass loss
+      IF (Hi( vi) >= 10._dp .AND. divQ( vi) > 0._dp) THEN
 
         ! Compute time step limit (in yr) based on
         ! available ice thickness and flux divergence
