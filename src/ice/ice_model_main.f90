@@ -1864,6 +1864,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_critical_timestep_adv'
     REAL(dp), DIMENSION(mesh%nV)                       :: Hi_tot
+    LOGICAL,  DIMENSION(mesh%nV)                       :: mask_floating_ice_tot
     REAL(dp), DIMENSION(mesh%ei1:mesh%ei2)             :: u_vav_c, v_vav_c
     REAL(dp), DIMENSION(mesh%nE)                       :: u_vav_c_tot, v_vav_c_tot
     INTEGER                                            :: ei, vi, vj
@@ -1875,6 +1876,8 @@ CONTAINS
 
     ! Gather global ice thickness
     CALL gather_to_all_dp_1D( ice%Hi, Hi_tot)
+
+    CALL gather_to_all_logical_1D( ice%mask_floating_ice, mask_floating_ice_tot)
 
     ! Calculate vertically averaged ice velocities on the edges
     CALL map_velocities_from_b_to_c_2D( mesh, ice%u_vav_b, ice%v_vav_b, u_vav_c, v_vav_c)
@@ -1890,6 +1893,11 @@ CONTAINS
       vi = mesh%EV( ei,1)
       vj = mesh%EV( ei,2)
       IF (Hi_tot( vi) == 0._dp .OR. Hi_tot( vj) == 0._dp) CYCLE
+
+      IF (C%do_grounded_only_adv_dt) THEN
+        ! Only check grounded vertices
+        IF (mask_floating_ice_tot( vi) .OR. mask_floating_ice_tot( vj)) CYCLE
+      END IF
 
       dist = NORM2( mesh%V( vi,:) - mesh%V( vj,:))
       dt = dist / MAX( 0.1_dp, ABS( u_vav_c_tot( ei)) + ABS( v_vav_c_tot( ei))) * dt_correction_factor

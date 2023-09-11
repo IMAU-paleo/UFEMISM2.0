@@ -354,6 +354,7 @@ MODULE model_configuration
     REAL(dp)            :: dt_ice_max_config                            = 10.0_dp                          ! [yr] Maximum time step of the ice dynamics model
     REAL(dp)            :: dt_ice_min_config                            = 0.1_dp                           ! [yr] Minimum time step of the ice dynamics model
     REAL(dp)            :: dt_ice_startup_phase_config                  = 0._dp                            ! [yr] Length of time window after start_time and before end_time when dt = dt_min, to ensure smooth restarts
+    LOGICAL             :: do_grounded_only_adv_dt_config               = .FALSE.                          ! If .TRUE., only grounded ice is used in the computation of the advective time step limit (CFL condition)
 
     ! Predictor-corrector ice-thickness update
     REAL(dp)            :: pc_epsilon_config                            = 0.005_dp                         ! [m/yr] Target truncation error in dHi_dt (epsilon in Robinson et al., 2020, Eq. 33)
@@ -1132,6 +1133,7 @@ MODULE model_configuration
     REAL(dp)            :: dt_ice_max
     REAL(dp)            :: dt_ice_min
     REAL(dp)            :: dt_ice_startup_phase
+    LOGICAL             :: do_grounded_only_adv_dt
 
     ! Predictor-corrector ice-thickness update
     REAL(dp)            :: pc_epsilon
@@ -1955,6 +1957,7 @@ CONTAINS
       dt_ice_max_config                                           , &
       dt_ice_min_config                                           , &
       dt_ice_startup_phase_config                                 , &
+      do_grounded_only_adv_dt_config                              , &
       pc_epsilon_config                                           , &
       pc_k_I_config                                               , &
       pc_k_p_config                                               , &
@@ -2605,6 +2608,7 @@ CONTAINS
     C%dt_ice_max                                             = dt_ice_max_config
     C%dt_ice_min                                             = dt_ice_min_config
     C%dt_ice_startup_phase                                   = dt_ice_startup_phase_config
+    C%do_grounded_only_adv_dt                                = do_grounded_only_adv_dt_config
 
     ! Predictor-corrector ice-thickness update
     C%pc_epsilon                                             = pc_epsilon_config
