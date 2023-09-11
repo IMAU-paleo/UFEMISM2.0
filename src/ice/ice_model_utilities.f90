@@ -1598,6 +1598,192 @@ CONTAINS
 
   END SUBROUTINE calc_mask_noice
 
+  ! == Ice thickness modification
+  ! =============================
+
+  SUBROUTINE alter_ice_thickness( mesh, ice, Hi_old, Hi_new, Hi_ref, time)
+    ! Modify the predicted ice thickness in some sneaky way
+
+    IMPLICIT NONE
+
+    ! In- and output variables:
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh
+    TYPE(type_ice_model),                   INTENT(IN)    :: ice
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: Hi_old
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(INOUT) :: Hi_new
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: Hi_ref
+    REAL(dp),                               INTENT(IN)    :: time
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'alter_ice_thickness'
+    INTEGER                                               :: vi
+    REAL(dp)                                              :: decay_start, decay_end
+    REAL(dp)                                              :: fixiness, limitness
+    REAL(dp), DIMENSION(:), ALLOCATABLE                   :: modiness_up, modiness_down
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Allocate limitness modifer
+    ALLOCATE( modiness_up  ( mesh%vi1:mesh%vi2))
+    ALLOCATE( modiness_down( mesh%vi1:mesh%vi2))
+
+    ! === Fixiness ===
+    ! ================
+
+    ! Intial value
+    fixiness = 1._dp
+
+    ! Make sure that the start and end times make sense
+    decay_start = C%fixiness_t_start
+    decay_end   = C%fixiness_t_end
+
+    ! Compute decaying fixiness
+    IF (decay_start >= decay_end) THEN
+      ! Fix interval makes no sense: ignore fixiness
+      fixiness = 0._dp
+    ELSEIF (time <= decay_start) THEN
+      ! Before fix interval: check chosen option
+      IF (C%do_fixiness_before_start) THEN
+        fixiness = 1._dp
+      ELSE
+        fixiness = 0._dp
+      END IF
+    ELSEIF (time >= decay_end) THEN
+      ! After fix interval: remove any fix/delay
+      fixiness = 0._dp
+    ELSE
+      ! We're within the fix interval: fixiness decreases with time
+      fixiness = 1._dp - (time - decay_start) / (decay_end - decay_start)
+    END IF
+
+    ! Just in case
+    fixiness = MIN( 1._dp, MAX( 0._dp, fixiness))
+
+    ! === Limitness ===
+    ! =================
+
+    ! Intial value
+    limitness = 1._dp
+
+    ! Make sure that the start and end times make sense
+    decay_start = C%limitness_t_start
+    decay_end   = C%limitness_t_end
+
+    ! Compute decaying limitness
+    IF (decay_start >= decay_end) THEN
+      ! Limit interval makes no sense: ignore limitness
+      limitness = 0._dp
+    ELSEIF (time <= decay_start) THEN
+      ! Before limit interval: check chosen option
+      IF (C%do_limitness_before_start) THEN
+        limitness = 1._dp
+      ELSE
+        limitness = 0._dp
+      END IF
+    ELSEIF (time >= decay_end) THEN
+      ! After limit interval: remove any limits
+      limitness = 0._dp
+    ELSE
+      ! Limitness decreases with time
+      limitness = 1._dp - (time - decay_start) / (decay_end - decay_start)
+    END IF
+
+    ! Just in case
+    limitness = MIN( 1._dp, MAX( 0._dp, limitness))
+
+    ! === Modifier ===
+    ! ================
+
+    ! Intial value
+    modiness_up   = 1._dp
+    modiness_down = 1._dp
+
+    IF (C%limitness_H_modifier == 'none') THEN
+      modiness_up   = 1._dp
+      modiness_down = 1._dp
+    ELSEIF (C%limitness_H_modifier == 'Ti_hom') THEN
+      modiness_up   = exp(ice%Ti_hom/3._dp)
+      modiness_down = exp(ice%Ti_hom/3._dp)
+    ELSEIF (C%limitness_H_modifier == 'Ti_hom_up') THEN
+      modiness_up   = exp(ice%Ti_hom/3._dp)
+      modiness_down = 1._dp
+    ELSEIF (C%limitness_H_modifier == 'Ti_hom_down') THEN
+      modiness_up   = 1._dp
+      modiness_down = exp(ice%Ti_hom/3._dp)
+    ELSE
+      CALL crash('unknown modiness_H_choice "' // TRIM( C%limitness_H_modifier) // '"')
+    END IF
+
+    ! === Fix, delay, limit ====
+    ! ==========================
+
+    DO vi = mesh%vi1, mesh%vi2
+
+      IF (ice%mask_gl_gr( vi)) THEN
+        ! Apply fixiness
+        Hi_new( vi) = Hi_old( vi) * C%fixiness_H_gl_gr * fixiness + Hi_new( vi) * (1._dp - C%fixiness_H_gl_gr * fixiness)
+        ! Apply limitness
+        Hi_new( vi) = MIN( Hi_new( vi), Hi_ref( vi) + C%limitness_H_gl_gr * modiness_up(   vi))
+        Hi_new( vi) = MAX( Hi_new( vi), Hi_ref( vi) - C%limitness_H_gl_gr * modiness_down( vi))
+        ! Go to next vertex
+        CYCLE
+      END IF
+
+      IF (ice%mask_gl_fl( vi)) THEN
+        ! Apply fixiness
+        Hi_new( vi) = Hi_old( vi) * C%fixiness_H_gl_fl * fixiness + Hi_new( vi) * (1._dp - C%fixiness_H_gl_fl * fixiness)
+        ! Apply limitness
+        Hi_new( vi) = MIN( Hi_new( vi), Hi_ref( vi) + C%limitness_H_gl_fl * modiness_up(   vi))
+        Hi_new( vi) = MAX( Hi_new( vi), Hi_ref( vi) - C%limitness_H_gl_fl * modiness_down( vi))
+        ! Go to next vertex
+        CYCLE
+      END IF
+
+      IF (ice%mask_grounded_ice( vi)) THEN
+        ! Apply fixiness
+        Hi_new( vi) = Hi_old( vi) * C%fixiness_H_grounded * fixiness + Hi_new( vi) * (1._dp - C%fixiness_H_grounded * fixiness)
+        ! Apply limitness
+        Hi_new( vi) = MIN( Hi_new( vi), Hi_ref( vi) + C%limitness_H_grounded * modiness_up(   vi))
+        Hi_new( vi) = MAX( Hi_new( vi), Hi_ref( vi) - C%limitness_H_grounded * modiness_down( vi))
+        ! Go to next vertex
+        CYCLE
+      END IF
+
+      IF (ice%mask_floating_ice( vi)) THEN
+        ! Apply fixiness
+        Hi_new( vi) = Hi_old( vi) * C%fixiness_H_floating * fixiness + Hi_new( vi) * (1._dp - C%fixiness_H_floating * fixiness)
+        ! Apply limitness
+        Hi_new( vi) = MIN( Hi_new( vi), Hi_ref( vi) + C%limitness_H_floating * modiness_up(   vi))
+        Hi_new( vi) = MAX( Hi_new( vi), Hi_ref( vi) - C%limitness_H_floating * modiness_down( vi))
+        ! Go to next vertex
+        CYCLE
+      END IF
+
+      ! Else, ice-free vertices
+      IF (ice%mask_icefree_land( vi) .OR. ice%mask_icefree_ocean( vi)) THEN
+        ! Apply fixiness
+        IF (C%fixiness_H_icefree) Hi_new( vi) = 0._dp
+        ! Apply limitness
+        Hi_new( vi) = MIN( Hi_new( vi), Hi_ref( vi) + C%limitness_H_icefree * modiness_up( vi))
+        ! Go to next vertex
+        CYCLE
+      END IF
+
+      ! If we reached this point, vertex is neither grounded, floating, nor ice free. That's a problem
+      CALL crash('vertex neither grounded, floating, nor ice-free?')
+
+    END DO
+
+    ! Clean after yourself
+    DEALLOCATE( modiness_up  )
+    DEALLOCATE( modiness_down)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE alter_ice_thickness
+
   ! == Trivia
   ! =========
 

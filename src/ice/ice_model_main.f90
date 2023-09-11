@@ -27,7 +27,7 @@ MODULE ice_model_main
   USE GIA_model_types                                        , ONLY: type_GIA_model
   USE ice_model_memory                                       , ONLY: allocate_ice_model
   USE ice_model_utilities                                    , ONLY: determine_masks, calc_bedrock_CDFs, calc_grounded_fractions, calc_zeta_gradients, &
-                                                                     calc_mask_noice
+                                                                     calc_mask_noice, alter_ice_thickness
   USE ice_model_scalars                                      , ONLY: calc_ice_model_scalars
   USE ice_thickness                                          , ONLY: calc_dHi_dt, apply_mask_noice_direct, apply_ice_thickness_BC_explicit
   USE math_utilities                                         , ONLY: ice_surface_elevation, thickness_above_floatation, Hi_from_Hb_Hs_and_SL
@@ -1280,22 +1280,7 @@ CONTAINS
       region%ice%pc%Hi_star_np1 = region%ice%Hi_prev + region%ice%pc%dt_np1 * ((1._dp + region%ice%pc%zeta_t / 2._dp) * &
         region%ice%pc%dHi_dt_Hi_n_u_n - (region%ice%pc%zeta_t / 2._dp) * region%ice%pc%dHi_dt_Hi_nm1_u_nm1)
 
-      ! DENK DROM
-      ! Fix some shit
-      do vi = region%mesh%vi1, region%mesh%vi2
-        if (region%ice%mask_gl_gr( vi)) then
-          region%ice%pc%Hi_star_np1( vi) = region%ice%Hi_prev( vi)
-        elseif (region%ice%mask_gl_fl( vi)) then
-          region%ice%pc%Hi_star_np1( vi) = region%ice%Hi_prev( vi)
-        elseif (region%ice%mask_floating_ice( vi)) then
-          region%ice%pc%Hi_star_np1( vi) = region%ice%Hi_prev( vi)
-        else
-          dh_limit_up   = region%refgeo_PD%Hi( vi) + 100._dp * exp(region%ice%Ti_hom( vi)/3._dp)
-          dh_limit_down = region%refgeo_PD%Hi( vi) - 100._dp
-          region%ice%pc%Hi_star_np1( vi) = min( region%ice%pc%Hi_star_np1( vi), dh_limit_up  )
-          region%ice%pc%Hi_star_np1( vi) = max( region%ice%pc%Hi_star_np1( vi), dh_limit_down)
-        end if
-      end do
+      CALL alter_ice_thickness( region%mesh, region%ice, region%ice%Hi_prev, region%ice%pc%Hi_star_np1, region%refgeo_PD%Hi, region%time)
 
       ! == Update step ==
       ! =================
@@ -1334,22 +1319,7 @@ CONTAINS
       ! Save the "true" dynamical dH/dt for future reference
       region%ice%dHi_dt_predicted = (region%ice%pc%Hi_np1 - region%ice%Hi_prev) / region%ice%pc%dt_np1
 
-      ! DENK DROM
-      ! Fix some shit
-      do vi = region%mesh%vi1, region%mesh%vi2
-        if (region%ice%mask_gl_gr( vi)) then
-          region%ice%pc%Hi_np1( vi) = region%ice%Hi_prev( vi)
-        elseif (region%ice%mask_gl_fl( vi)) then
-          region%ice%pc%Hi_np1( vi) = region%ice%Hi_prev( vi)
-        elseif (region%ice%mask_floating_ice( vi)) then
-          region%ice%pc%Hi_np1( vi) = region%ice%Hi_prev( vi)
-        else
-          dh_limit_up   = region%refgeo_PD%Hi( vi) + 100._dp * exp(region%ice%Ti_hom( vi)/3._dp)
-          dh_limit_down = region%refgeo_PD%Hi( vi) - 100._dp
-          region%ice%pc%Hi_np1( vi) = min( region%ice%pc%Hi_np1( vi), dh_limit_up  )
-          region%ice%pc%Hi_np1( vi) = max( region%ice%pc%Hi_np1( vi), dh_limit_down)
-        end if
-      end do
+      CALL alter_ice_thickness( region%mesh, region%ice, region%ice%Hi_prev, region%ice%pc%Hi_np1, region%refgeo_PD%Hi, region%time)
 
       ! == Truncation error ==
       ! ======================
@@ -1809,6 +1779,9 @@ CONTAINS
     ! Calculate thinning rates and predicted geometry
     CALL calc_dHi_dt( region%mesh, region%ice%Hi, region%ice%Hb, region%ice%SL, region%ice%u_vav_b, region%ice%v_vav_b, region%SMB%SMB, region%BMB%BMB, &
       region%ice%mask_noice, dt, region%ice%dHi_dt, region%ice%Hi_next, region%ice%divQ)
+
+    ! Modify predicted ice thickness if desired
+    CALL alter_ice_thickness( region%mesh, region%ice, region%ice%Hi_prev, region%ice%Hi_next, region%refgeo_PD%Hi, region%time)
 
     ! Save the "true" dynamical dH/dt for future reference
     region%ice%dHi_dt_predicted = region%ice%dHi_dt
