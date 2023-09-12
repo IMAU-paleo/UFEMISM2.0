@@ -346,6 +346,22 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: BC_H_south_config                            = 'zero'
     CHARACTER(LEN=256)  :: BC_H_north_config                            = 'zero'
 
+    ! Target dHi_dt
+    LOGICAL             :: do_target_dHi_dt_config                      = .FALSE.                          ! Whether or not to use a target dHi_dt field from an external file to alter the modelled one
+    REAL(dp)            :: target_dHi_dt_t_end_config                   = -9.9E9_dp                        ! End   time of target dHi_dt application
+
+    ! Files containing a target dHi_dt for inversions
+    CHARACTER(LEN=256)  :: filename_dHi_dt_prescribed_NAM_config        = ''
+    CHARACTER(LEN=256)  :: filename_dHi_dt_prescribed_EAS_config        = ''
+    CHARACTER(LEN=256)  :: filename_dHi_dt_prescribed_GRL_config        = ''
+    CHARACTER(LEN=256)  :: filename_dHi_dt_prescribed_ANT_config        = ''
+
+    ! Timeframes for reading target dHi_dt from file (set to 1E9_dp if the file has no time dimension)
+    REAL(dp)            :: timeframe_dHi_dt_prescribed_NAM_config       = 1E9_dp
+    REAL(dp)            :: timeframe_dHi_dt_prescribed_EAS_config       = 1E9_dp
+    REAL(dp)            :: timeframe_dHi_dt_prescribed_GRL_config       = 1E9_dp
+    REAL(dp)            :: timeframe_dHi_dt_prescribed_ANT_config       = 1E9_dp
+
   ! == Ice dynamics - time stepping
   ! ===============================
 
@@ -1125,6 +1141,22 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: BC_H_east
     CHARACTER(LEN=256)  :: BC_H_south
     CHARACTER(LEN=256)  :: BC_H_north
+
+    ! Target dHi_dt
+    LOGICAL             :: do_target_dHi_dt
+    REAL(dp)            :: target_dHi_dt_t_end
+
+    ! Files containing a target dHi_dt for inversions
+    CHARACTER(LEN=256)  :: filename_dHi_dt_prescribed_NAM
+    CHARACTER(LEN=256)  :: filename_dHi_dt_prescribed_EAS
+    CHARACTER(LEN=256)  :: filename_dHi_dt_prescribed_GRL
+    CHARACTER(LEN=256)  :: filename_dHi_dt_prescribed_ANT
+
+    ! Timeframes for reading target dHi_dt from file (set to 1E9_dp if the file has no time dimension)
+    REAL(dp)            :: timeframe_dHi_dt_prescribed_NAM
+    REAL(dp)            :: timeframe_dHi_dt_prescribed_EAS
+    REAL(dp)            :: timeframe_dHi_dt_prescribed_GRL
+    REAL(dp)            :: timeframe_dHi_dt_prescribed_ANT
 
   ! == Ice dynamics - time stepping
   ! ===============================
@@ -1955,6 +1987,16 @@ CONTAINS
       BC_H_east_config                                            , &
       BC_H_south_config                                           , &
       BC_H_north_config                                           , &
+      do_target_dHi_dt_config                                     , &
+      target_dHi_dt_t_end_config                                  , &
+      filename_dHi_dt_prescribed_NAM_config                       , &
+      filename_dHi_dt_prescribed_EAS_config                       , &
+      filename_dHi_dt_prescribed_GRL_config                       , &
+      filename_dHi_dt_prescribed_ANT_config                       , &
+      timeframe_dHi_dt_prescribed_NAM_config                      , &
+      timeframe_dHi_dt_prescribed_EAS_config                      , &
+      timeframe_dHi_dt_prescribed_GRL_config                      , &
+      timeframe_dHi_dt_prescribed_ANT_config                      , &
       choice_timestepping_config                                  , &
       dt_ice_max_config                                           , &
       dt_ice_min_config                                           , &
@@ -2602,6 +2644,22 @@ CONTAINS
     C%BC_H_east                                              = BC_H_east_config
     C%BC_H_south                                             = BC_H_south_config
     C%BC_H_north                                             = BC_H_north_config
+
+    ! Target dHi_dt
+    C%do_target_dHi_dt                                       = do_target_dHi_dt_config
+    C%target_dHi_dt_t_end                                    = target_dHi_dt_t_end_config
+
+    ! Files containing a target dHi_dt for inversions
+    C%filename_dHi_dt_prescribed_NAM                         = filename_dHi_dt_prescribed_NAM_config
+    C%filename_dHi_dt_prescribed_EAS                         = filename_dHi_dt_prescribed_EAS_config
+    C%filename_dHi_dt_prescribed_GRL                         = filename_dHi_dt_prescribed_GRL_config
+    C%filename_dHi_dt_prescribed_ANT                         = filename_dHi_dt_prescribed_ANT_config
+
+    ! Timeframes for reading target dHi_dt from file (set to 1E9_dp if the file has no time dimension)
+    C%timeframe_dHi_dt_prescribed_NAM                        = timeframe_dHi_dt_prescribed_NAM_config
+    C%timeframe_dHi_dt_prescribed_EAS                        = timeframe_dHi_dt_prescribed_EAS_config
+    C%timeframe_dHi_dt_prescribed_GRL                        = timeframe_dHi_dt_prescribed_GRL_config
+    C%timeframe_dHi_dt_prescribed_ANT                        = timeframe_dHi_dt_prescribed_ANT_config
 
   ! == Ice dynamics - time stepping
   ! ===============================

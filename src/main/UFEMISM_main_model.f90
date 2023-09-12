@@ -346,6 +346,13 @@ CONTAINS
       time_of_next_action = MIN( time_of_next_action, region%HIV%t_next)
     END IF
 
+    ! Target dHi_dt: make sure we don't overshoot its turnoff time
+    IF (C%do_target_dHi_dt) THEN
+      IF (C%target_dHi_dt_t_end > region%time) THEN
+        time_of_next_action = MIN( time_of_next_action, C%target_dHi_dt_t_end)
+      END IF
+    END IF
+
     ! Output
     time_of_next_action = MIN( time_of_next_action, region%output_t_next)
     time_of_next_action = MIN( time_of_next_action, region%output_restart_t_next)

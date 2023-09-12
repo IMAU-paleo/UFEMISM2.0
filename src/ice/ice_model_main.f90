@@ -29,7 +29,7 @@ MODULE ice_model_main
   USE ice_model_utilities                                    , ONLY: determine_masks, calc_bedrock_CDFs, calc_grounded_fractions, calc_zeta_gradients, &
                                                                      calc_mask_noice, alter_ice_thickness
   USE ice_model_scalars                                      , ONLY: calc_ice_model_scalars
-  USE ice_thickness                                          , ONLY: calc_dHi_dt, apply_mask_noice_direct, apply_ice_thickness_BC_explicit
+  USE ice_thickness                                          , ONLY: calc_dHi_dt, apply_mask_noice_direct, apply_ice_thickness_BC_explicit, initialise_dHi_dt_target
   USE math_utilities                                         , ONLY: ice_surface_elevation, thickness_above_floatation, Hi_from_Hb_Hs_and_SL
   USE geothermal_heat_flux                                   , ONLY: initialise_geothermal_heat_flux
   USE basal_hydrology                                        , ONLY: initialise_basal_hydrology_model
@@ -75,6 +75,10 @@ CONTAINS
 
     ! Add routine to path
     CALL init_routine( routine_name)
+
+    IF (region%time >= C%target_dHi_dt_t_end) THEN
+      region%ice%dHi_dt_target = 0._dp
+    END IF
 
     ! If the desired time is beyond the time of the next modelled ice thickness,
     ! run the ice dynamics model to calculate ice velocities, thinning rates,
@@ -253,7 +257,7 @@ CONTAINS
       ice%Hb( vi) = refgeo_GIAeq%Hb( vi)
       ice%Hs( vi) = refgeo_init%Hs ( vi)
       ice%Hi( vi) = Hi_from_Hb_Hs_and_SL( ice%Hb( vi), ice%Hs( vi), ice%SL( vi))
-    END DO ! DO vi = mesh%vi1, mesh%vi2
+    END DO
 
     ! Calculate the no-ice mask
     CALL calc_mask_noice( mesh, ice, refgeo_PD)
@@ -287,6 +291,13 @@ CONTAINS
 
     ! Calculate zeta gradients
     CALL calc_zeta_gradients( mesh, ice)
+
+    ! Load target dHi_dt for inversions
+    IF (C%do_target_dHi_dt) THEN
+      CALL initialise_dHi_dt_target(mesh, ice, region_name)
+    ELSE
+      ice%dHi_dt_target = 0._dp
+    END IF
 
     ! Model states for ice dynamics model
     ice%t_Hi_prev = C%start_time_of_run
@@ -450,6 +461,8 @@ CONTAINS
 
     ! Remap dHi/dt to improve stability of the P/C scheme after mesh updates
     CALL map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, ice%dHi_dt, '2nd_order_conservative')
+    ! Same for the predicted one
+    CALL map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, ice%dHi_dt_predicted, '2nd_order_conservative')
 
     ! === Thermodynamics and rheology ===
     ! ===================================
@@ -484,6 +497,8 @@ CONTAINS
     CALL reallocate_bounds( ice%dHb_dt                      , mesh_new%vi1, mesh_new%vi2         )  ! [m yr^-1] Bedrock elevation rate of change
     CALL reallocate_bounds( ice%dHs_dt                      , mesh_new%vi1, mesh_new%vi2         )  ! [m yr^-1] Ice surface elevation rate of change
     CALL reallocate_bounds( ice%dHib_dt                     , mesh_new%vi1, mesh_new%vi2         )  ! [m yr^-1] Ice base elevation rate of change
+    CALL reallocate_bounds( ice%dHi_dt_predicted            , mesh_new%vi1, mesh_new%vi2         )  ! [m yr^-1] Ice thickness rate of change before any modifications
+    CALL reallocate_bounds( ice%dHi_dt_target               , mesh_new%vi1, mesh_new%vi2         )  ! [m yr^-1] Target ice thickness rate of change for inversions
 
     ! Masks
     CALL reallocate_bounds( ice%mask_icefree_land           , mesh_new%vi1, mesh_new%vi2         )  ! T: ice-free land , F: otherwise
@@ -691,6 +706,13 @@ CONTAINS
     ! Calculate zeta gradients
     CALL calc_zeta_gradients( mesh_new, ice)
 
+    ! Load target dHi_dt for inversions
+    IF (C%do_target_dHi_dt) THEN
+      CALL initialise_dHi_dt_target(mesh_new, ice, region_name)
+    ELSE
+      ice%dHi_dt_target = 0._dp
+    END IF
+
     ! Model states for ice dynamics model
     ice%t_Hi_prev = time
     ice%t_Hi_next = time
@@ -717,8 +739,11 @@ CONTAINS
     ! Sub-grid fractions
     ! ==================
 
-    ! Compute bedrock cumulative density function
-    CALL calc_bedrock_CDFs( mesh_new, refgeo_PD, ice)
+    IF (C%choice_subgrid_grounded_fraction == 'bedrock_CDF' .OR. &
+        C%choice_subgrid_grounded_fraction == 'bilin_interp_TAF+bedrock_CDF') THEN
+      ! Compute bedrock cumulative density function
+      CALL calc_bedrock_CDFs( mesh_new, refgeo_PD, ice)
+    END IF
     ! Initialise sub-grid grounded-area fractions
     CALL calc_grounded_fractions( mesh_new, ice)
 
@@ -996,6 +1021,7 @@ CONTAINS
     REAL(dp)                                              :: t_pseudo
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: SMB_new
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: BMB_new
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: dHi_dt_target_new
     REAL(dp)                                              :: visc_it_norm_dUV_tol_save
     INTEGER                                               :: visc_it_nit_save
     REAL(dp)                                              :: visc_it_relax_save
@@ -1152,6 +1178,11 @@ CONTAINS
     CALL map_from_mesh_to_mesh_2D( mesh_old, mesh, SMB%SMB, SMB_new, '2nd_order_conservative')
     CALL map_from_mesh_to_mesh_2D( mesh_old, mesh, BMB%BMB, BMB_new, '2nd_order_conservative')
 
+    ! == Remap target dHi_dt to get things consistent
+    ! ===============================================
+
+    CALL map_from_mesh_to_mesh_2D( mesh_old, mesh, ice%dHi_dt_target, dHi_dt_target_new, '2nd_order_conservative')
+
     ! == Relax the ice thickness for a few time steps
     ! ===============================================
 
@@ -1164,7 +1195,7 @@ CONTAINS
 
       ! Calculate dH/dt around the calving front
       CALL calc_dHi_dt( mesh, ice%Hi, ice%Hb, ice%SL, ice%u_vav_b, ice%v_vav_b, SMB_new, BMB_new, ice%mask_noice, C%dt_ice_min, &
-        ice%dHi_dt, Hi_tplusdt, divQ, BC_prescr_mask, BC_prescr_Hi)
+        ice%dHi_dt, Hi_tplusdt, divQ, dHi_dt_target_new, BC_prescr_mask, BC_prescr_Hi)
 
       ! Update ice thickness and advance pseudo-time
       ice%Hi = Hi_tplusdt
@@ -1274,7 +1305,7 @@ CONTAINS
 
       ! Calculate thinning rates for current geometry and velocity
       CALL calc_dHi_dt( region%mesh, region%ice%Hi_prev, region%ice%Hb, region%ice%SL, region%ice%u_vav_b, region%ice%v_vav_b, region%SMB%SMB, region%BMB%BMB, &
-        region%ice%mask_noice, region%ice%pc%dt_np1, region%ice%pc%dHi_dt_Hi_n_u_n, Hi_dummy, region%ice%divQ)
+        region%ice%mask_noice, region%ice%pc%dt_np1, region%ice%pc%dHi_dt_Hi_n_u_n, Hi_dummy, region%ice%divQ, region%ice%dHi_dt_target)
 
       ! Calculate predicted ice thickness (Robinson et al., 2020, Eq. 30)
       region%ice%pc%Hi_star_np1 = region%ice%Hi_prev + region%ice%pc%dt_np1 * ((1._dp + region%ice%pc%zeta_t / 2._dp) * &
@@ -1311,7 +1342,7 @@ CONTAINS
 
       ! Calculate thinning rates for the predicted ice thickness and updated velocity
       CALL calc_dHi_dt( region%mesh, region%ice%Hi, region%ice%Hb, region%ice%SL, region%ice%u_vav_b, region%ice%v_vav_b, region%SMB%SMB, region%BMB%BMB, &
-        region%ice%mask_noice, region%ice%pc%dt_np1, region%ice%pc%dHi_dt_Hi_star_np1_u_np1, Hi_dummy, region%ice%divQ)
+        region%ice%mask_noice, region%ice%pc%dt_np1, region%ice%pc%dHi_dt_Hi_star_np1_u_np1, Hi_dummy, region%ice%divQ, region%ice%dHi_dt_target)
 
       ! Calculate corrected ice thickness (Robinson et al. (2020), Eq. 31)
       region%ice%pc%Hi_np1 = region%ice%Hi_prev + (region%ice%pc%dt_np1 / 2._dp) * (region%ice%pc%dHi_dt_Hi_n_u_n + region%ice%pc%dHi_dt_Hi_star_np1_u_np1)
@@ -1778,7 +1809,7 @@ CONTAINS
 
     ! Calculate thinning rates and predicted geometry
     CALL calc_dHi_dt( region%mesh, region%ice%Hi, region%ice%Hb, region%ice%SL, region%ice%u_vav_b, region%ice%v_vav_b, region%SMB%SMB, region%BMB%BMB, &
-      region%ice%mask_noice, dt, region%ice%dHi_dt, region%ice%Hi_next, region%ice%divQ)
+      region%ice%mask_noice, dt, region%ice%dHi_dt, region%ice%Hi_next, region%ice%divQ, region%ice%dHi_dt_target)
 
     ! Modify predicted ice thickness if desired
     CALL alter_ice_thickness( region%mesh, region%ice, region%ice%Hi_prev, region%ice%Hi_next, region%refgeo_PD%Hi, dt, region%time)

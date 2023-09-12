@@ -22,6 +22,7 @@ MODULE ice_thickness
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_1D, gather_to_all_logical_1D
   USE math_utilities                                         , ONLY: ice_surface_elevation, Hi_from_Hb_Hs_and_SL
   USE math_utilities                                         , ONLY: is_floating
+  USE netcdf_input                                           , ONLY: read_field_from_file_2D
 
   IMPLICIT NONE
 
@@ -29,7 +30,7 @@ CONTAINS
 
 ! == The main routines, to be called from the ice dynamics module
 
-  SUBROUTINE calc_dHi_dt( mesh, Hi, Hb, SL, u_vav_b, v_vav_b, SMB, BMB, mask_noice, dt, dHi_dt, Hi_tplusdt, divQ, BC_prescr_mask, BC_prescr_Hi)
+  SUBROUTINE calc_dHi_dt( mesh, Hi, Hb, SL, u_vav_b, v_vav_b, SMB, BMB, mask_noice, dt, dHi_dt, Hi_tplusdt, divQ, dHi_dt_target, BC_prescr_mask, BC_prescr_Hi)
     ! Calculate ice thickness at time t+dt
 
     IMPLICIT NONE
@@ -48,6 +49,7 @@ CONTAINS
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)             :: dHi_dt                ! [m yr^-1] Ice thickness rate of change
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)             :: Hi_tplusdt            ! [m]       Ice thickness at time t + dt
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)             :: divQ                  ! [m yr^-1] Horizontal ice flux divergence
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)              :: dHi_dt_target         ! [m yr^-1] Target ice thickness rate of change
     INTEGER,  DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)   , OPTIONAL :: BC_prescr_mask        ! [-]       Mask of vertices where thickness is prescribed
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)   , OPTIONAL :: BC_prescr_Hi          ! [m]       Prescribed thicknesses
 
@@ -69,11 +71,11 @@ CONTAINS
       RETURN
 
     ELSEIF (C%choice_ice_integration_method == 'explicit') THEN
-      CALL calc_dHi_dt_explicit(     mesh, Hi, Hb, SL, u_vav_b, v_vav_b, SMB, BMB, mask_noice, dt, dHi_dt, Hi_tplusdt, divQ, BC_prescr_mask, BC_prescr_Hi)
+      CALL calc_dHi_dt_explicit(     mesh, Hi, Hb, SL, u_vav_b, v_vav_b, SMB, BMB, mask_noice, dt, dHi_dt, Hi_tplusdt, divQ, dHi_dt_target, BC_prescr_mask, BC_prescr_Hi)
     ELSEIF (C%choice_ice_integration_method == 'implicit') THEN
-      CALL calc_dHi_dt_implicit(     mesh, Hi, Hb, SL, u_vav_b, v_vav_b, SMB, BMB, mask_noice, dt, dHi_dt, Hi_tplusdt, divQ, BC_prescr_mask, BC_prescr_Hi)
+      CALL calc_dHi_dt_implicit(     mesh, Hi, Hb, SL, u_vav_b, v_vav_b, SMB, BMB, mask_noice, dt, dHi_dt, Hi_tplusdt, divQ, dHi_dt_target, BC_prescr_mask, BC_prescr_Hi)
     ELSEIF (C%choice_ice_integration_method == 'semi-implicit') THEN
-      CALL calc_dHi_dt_semiimplicit( mesh, Hi, Hb, SL, u_vav_b, v_vav_b, SMB, BMB, mask_noice, dt, dHi_dt, Hi_tplusdt, divQ, BC_prescr_mask, BC_prescr_Hi)
+      CALL calc_dHi_dt_semiimplicit( mesh, Hi, Hb, SL, u_vav_b, v_vav_b, SMB, BMB, mask_noice, dt, dHi_dt, Hi_tplusdt, divQ, dHi_dt_target, BC_prescr_mask, BC_prescr_Hi)
     ELSE
       CALL crash('unknown choice_ice_integration_method "' // TRIM( C%choice_ice_integration_method) // '"!')
     END IF
@@ -101,7 +103,7 @@ CONTAINS
 
   END SUBROUTINE calc_dHi_dt
 
-  SUBROUTINE calc_dHi_dt_explicit( mesh, Hi, Hb, SL, u_vav_b, v_vav_b, SMB, BMB, mask_noice, dt, dHi_dt, Hi_tplusdt, divQ, BC_prescr_mask, BC_prescr_Hi)
+  SUBROUTINE calc_dHi_dt_explicit( mesh, Hi, Hb, SL, u_vav_b, v_vav_b, SMB, BMB, mask_noice, dt, dHi_dt, Hi_tplusdt, divQ, dHi_dt_target, BC_prescr_mask, BC_prescr_Hi)
     ! Calculate ice thickness rates of change (dH/dt)
     !
     ! Use a time-explicit discretisation scheme for the ice fluxes
@@ -143,6 +145,7 @@ CONTAINS
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)             :: dHi_dt                ! [m yr^-1] Ice thickness rate of change
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)             :: Hi_tplusdt            ! [m]       Ice thickness at time t + dt
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)             :: divQ                  ! [m yr^-1] Horizontal ice flux divergence
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)              :: dHi_dt_target         ! [m yr^-1] Target ice thickness rate of change
     INTEGER,  DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)   , OPTIONAL :: BC_prescr_mask        ! [-]       Mask of vertices where thickness is prescribed
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)   , OPTIONAL :: BC_prescr_Hi          ! [m]       Prescribed thicknesses
 
@@ -162,7 +165,7 @@ CONTAINS
     CALL multiply_CSR_matrix_with_vector_1D( M_divQ, Hi, divQ)
 
     ! Calculate rate of ice thickness change dHi/dt
-    dHi_dt = -divQ + SMB + BMB
+    dHi_dt = -divQ + SMB + BMB - dHi_dt_target
 
     ! Calculate largest time step possible based on flux divergence
     CALL calc_flux_limited_timestep( mesh, Hi, Hb, SL, divQ, dt_max)
@@ -203,7 +206,7 @@ CONTAINS
 
   END SUBROUTINE calc_dHi_dt_explicit
 
-  SUBROUTINE calc_dHi_dt_implicit( mesh, Hi, Hb, SL, u_vav_b, v_vav_b, SMB, BMB, mask_noice, dt, dHi_dt, Hi_tplusdt, divQ, BC_prescr_mask, BC_prescr_Hi)
+  SUBROUTINE calc_dHi_dt_implicit( mesh, Hi, Hb, SL, u_vav_b, v_vav_b, SMB, BMB, mask_noice, dt, dHi_dt, Hi_tplusdt, divQ, dHi_dt_target, BC_prescr_mask, BC_prescr_Hi)
     ! Calculate ice thickness rates of change (dH/dt)
     !
     ! Use a time-implicit discretisation scheme for the ice fluxes
@@ -260,6 +263,7 @@ CONTAINS
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)             :: dHi_dt                ! [m yr^-1] Ice thickness rate of change
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)             :: Hi_tplusdt            ! [m]       Ice thickness at time t + dt
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)             :: divQ                  ! [m yr^-1] Horizontal ice flux divergence
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)              :: dHi_dt_target         ! [m yr^-1] Target ice thickness rate of change
     INTEGER,  DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)   , OPTIONAL :: BC_prescr_mask        ! [-]       Mask of vertices where thickness is prescribed
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)   , OPTIONAL :: BC_prescr_Hi          ! [m]       Prescribed thicknesses
 
@@ -308,7 +312,7 @@ CONTAINS
 
     ! Load vector
     DO vi = mesh%vi1, mesh%vi2
-      bb( vi) = Hi( vi) + MAX( -1._dp * Hi( vi), dt * (SMB( vi) + BMB( vi)))
+      bb( vi) = Hi( vi) + MAX( -1._dp * Hi( vi), dt * (SMB( vi) + BMB( vi) - dHi_dt_target( vi)))
     END DO ! DO vi = mesh%vi1, mesh%vi2
 
     ! Take the current ice thickness plus the current thinning rate as the initial guess
@@ -338,7 +342,7 @@ CONTAINS
 
   END SUBROUTINE calc_dHi_dt_implicit
 
-  SUBROUTINE calc_dHi_dt_semiimplicit( mesh, Hi, Hb, SL, u_vav_b, v_vav_b, SMB, BMB, mask_noice, dt, dHi_dt, Hi_tplusdt, divQ, BC_prescr_mask, BC_prescr_Hi)
+  SUBROUTINE calc_dHi_dt_semiimplicit( mesh, Hi, Hb, SL, u_vav_b, v_vav_b, SMB, BMB, mask_noice, dt, dHi_dt, Hi_tplusdt, divQ, dHi_dt_target, BC_prescr_mask, BC_prescr_Hi)
     ! Calculate ice thickness rates of change (dH/dt)
     !
     ! Use a semi-implicit time discretisation scheme for the ice fluxes
@@ -401,6 +405,7 @@ CONTAINS
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)             :: dHi_dt                ! [m yr^-1] Ice thickness rate of change
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)             :: Hi_tplusdt            ! [m]       Ice thickness at time t + dt
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)             :: divQ                  ! [m yr^-1] Horizontal ice flux divergence
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)              :: dHi_dt_target         ! [m yr^-1] Target ice thickness rate of change
     INTEGER,  DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)   , OPTIONAL :: BC_prescr_mask        ! [-]       Mask of vertices where thickness is prescribed
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)   , OPTIONAL :: BC_prescr_Hi          ! [m]       Prescribed thicknesses
 
@@ -451,7 +456,7 @@ CONTAINS
     ! Load vector
     CALL multiply_CSR_matrix_with_vector_1D( M_divQ, Hi, M_divQ_H)
     DO vi = mesh%vi1, mesh%vi2
-      bb( vi) = Hi( vi) - (dt * (1._dp - C%dHi_semiimplicit_fs) * M_divQ_H( vi)) + MAX( -1._dp * Hi( vi), dt * (SMB( vi) + BMB( vi)))
+      bb( vi) = Hi( vi) - (dt * (1._dp - C%dHi_semiimplicit_fs) * M_divQ_H( vi)) + MAX( -1._dp * Hi( vi), dt * (SMB( vi) + BMB( vi) - dHi_dt_target( vi)))
     END DO ! DO vi = mesh%vi1, mesh%vi2
 
     ! Take the current ice thickness plus the current thinning rate as the initial guess
@@ -1084,5 +1089,60 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE calc_flux_limited_timestep
+
+! == Target dHi_dt initialisation
+
+  SUBROUTINE initialise_dHi_dt_target( mesh, ice, region_name)
+    ! Prescribe a target dHi_dt from a file without a time dimension
+
+    IMPLICIT NONE
+
+    ! In- and output variables
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh
+    TYPE(type_ice_model),                   INTENT(INOUT) :: ice
+    CHARACTER(LEN=3),                       INTENT(IN)    :: region_name
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'initialise_dHi_dt_target'
+    CHARACTER(LEN=256)                                    :: filename_dHi_dt_prescribed
+    REAL(dp)                                              :: timeframe_dHi_dt_prescribed
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Determine filename for this model region
+    SELECT CASE (region_name)
+      CASE ('NAM')
+        filename_dHi_dt_prescribed  = C%filename_dHi_dt_prescribed_NAM
+        timeframe_dHi_dt_prescribed = C%timeframe_dHi_dt_prescribed_NAM
+      CASE ('EAS')
+        filename_dHi_dt_prescribed  = C%filename_dHi_dt_prescribed_EAS
+        timeframe_dHi_dt_prescribed = C%timeframe_dHi_dt_prescribed_EAS
+      CASE ('GRL')
+        filename_dHi_dt_prescribed  = C%filename_dHi_dt_prescribed_GRL
+        timeframe_dHi_dt_prescribed = C%timeframe_dHi_dt_prescribed_GRL
+      CASE ('ANT')
+        filename_dHi_dt_prescribed  = C%filename_dHi_dt_prescribed_ANT
+        timeframe_dHi_dt_prescribed = C%timeframe_dHi_dt_prescribed_ANT
+      CASE DEFAULT
+        CALL crash('unknown region_name "' // TRIM( region_name) // '"!')
+    END SELECT
+
+    ! Print to terminal
+    IF (par%master)  WRITE(*,"(A)") '     Initialising target dHi_dt from file "' // colour_string( TRIM( filename_dHi_dt_prescribed),'light blue') // '"...'
+
+    ! Read dHi_dt from file
+    IF (timeframe_dHi_dt_prescribed == 1E9_dp) THEN
+      ! Assume the file has no time dimension
+      CALL read_field_from_file_2D( filename_dHi_dt_prescribed, 'dHdt||dHi_dt', mesh, ice%dHi_dt_target)
+    ELSE
+      ! Assume the file has a time dimension, and read the specified timeframe
+      CALL read_field_from_file_2D( filename_dHi_dt_prescribed, 'dHdt||dHi_dt', mesh, ice%dHi_dt_target, time_to_read = timeframe_dHi_dt_prescribed)
+    END IF
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE initialise_dHi_dt_target
 
 END MODULE ice_thickness
