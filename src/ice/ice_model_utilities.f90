@@ -1619,9 +1619,9 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'alter_ice_thickness'
     INTEGER                                               :: vi
     REAL(dp)                                              :: decay_start, decay_end
-    REAL(dp)                                              :: fixiness, limitness
-    REAL(dp), DIMENSION(:), ALLOCATABLE                   :: Hi_save
+    REAL(dp)                                              :: fixiness, limitness, fix_H_applied, limit_H_applied
     REAL(dp), DIMENSION(:), ALLOCATABLE                   :: modiness_up, modiness_down
+    REAL(dp), DIMENSION(:), ALLOCATABLE                   :: Hi_save
     REAL(dp)                                              :: floating_area, calving_area, mass_lost
 
     ! Add routine to path
@@ -1727,58 +1727,44 @@ CONTAINS
 
     DO vi = mesh%vi1, mesh%vi2
 
-      IF (ice%mask_gl_gr( vi)) THEN
-        ! Apply fixiness
-        Hi_new( vi) = Hi_old( vi) * C%fixiness_H_gl_gr * fixiness + Hi_new( vi) * (1._dp - C%fixiness_H_gl_gr * fixiness)
-        ! Apply limitness
-        Hi_new( vi) = MIN( Hi_new( vi), Hi_ref( vi) + C%limitness_H_gl_gr * modiness_up(   vi))
-        Hi_new( vi) = MAX( Hi_new( vi), Hi_ref( vi) - C%limitness_H_gl_gr * modiness_down( vi))
-        ! Go to next vertex
-        CYCLE
+      ! Initialise
+      fix_H_applied   = 0._dp
+      limit_H_applied = 0._dp
+
+      IF (    ice%mask_gl_gr( vi)) THEN
+        fix_H_applied   = C%fixiness_H_gl_gr * fixiness
+        limit_H_applied = C%limitness_H_gl_gr * limitness
+
+      ELSEIF (ice%mask_gl_fl( vi)) THEN
+        fix_H_applied   = C%fixiness_H_gl_fl * fixiness
+        limit_H_applied = C%limitness_H_gl_fl * limitness
+
+      ELSEIF (ice%mask_grounded_ice( vi)) THEN
+        fix_H_applied   = C%fixiness_H_grounded * fixiness
+        limit_H_applied = C%limitness_H_grounded * limitness
+
+      ELSEIF (ice%mask_floating_ice( vi)) THEN
+        fix_H_applied   = C%fixiness_H_floating * fixiness
+        limit_H_applied = C%limitness_H_floating * limitness
+
+      ELSEIF (ice%mask_icefree_land( vi)) THEN
+        IF (C%fixiness_H_icefree) fix_H_applied = 1._dp
+        limit_H_applied = C%limitness_H_grounded * limitness
+
+      ELSEIF (ice%mask_icefree_ocean( vi)) THEN
+        IF (C%fixiness_H_icefree) fix_H_applied = 1._dp
+        limit_H_applied = C%limitness_H_floating * limitness
+      ELSE
+        ! If we reached this point, vertex is neither grounded, floating, nor ice free. That's a problem
+        CALL crash('vertex neither grounded, floating, nor ice-free?')
       END IF
 
-      IF (ice%mask_gl_fl( vi)) THEN
-        ! Apply fixiness
-        Hi_new( vi) = Hi_old( vi) * C%fixiness_H_gl_fl * fixiness + Hi_new( vi) * (1._dp - C%fixiness_H_gl_fl * fixiness)
-        ! Apply limitness
-        Hi_new( vi) = MIN( Hi_new( vi), Hi_ref( vi) + C%limitness_H_gl_fl * modiness_up(   vi))
-        Hi_new( vi) = MAX( Hi_new( vi), Hi_ref( vi) - C%limitness_H_gl_fl * modiness_down( vi))
-        ! Go to next vertex
-        CYCLE
-      END IF
+      ! Apply fixiness
+      Hi_new( vi) = Hi_old( vi) * fix_H_applied + Hi_new( vi) * (1._dp - fix_H_applied)
 
-      IF (ice%mask_grounded_ice( vi)) THEN
-        ! Apply fixiness
-        Hi_new( vi) = Hi_old( vi) * C%fixiness_H_grounded * fixiness + Hi_new( vi) * (1._dp - C%fixiness_H_grounded * fixiness)
-        ! Apply limitness
-        Hi_new( vi) = MIN( Hi_new( vi), Hi_ref( vi) + C%limitness_H_grounded * modiness_up(   vi))
-        Hi_new( vi) = MAX( Hi_new( vi), Hi_ref( vi) - C%limitness_H_grounded * modiness_down( vi))
-        ! Go to next vertex
-        CYCLE
-      END IF
-
-      IF (ice%mask_floating_ice( vi)) THEN
-        ! Apply fixiness
-        Hi_new( vi) = Hi_old( vi) * C%fixiness_H_floating * fixiness + Hi_new( vi) * (1._dp - C%fixiness_H_floating * fixiness)
-        ! Apply limitness
-        Hi_new( vi) = MIN( Hi_new( vi), Hi_ref( vi) + C%limitness_H_floating * modiness_up(   vi))
-        Hi_new( vi) = MAX( Hi_new( vi), Hi_ref( vi) - C%limitness_H_floating * modiness_down( vi))
-        ! Go to next vertex
-        CYCLE
-      END IF
-
-      ! Else, ice-free vertices
-      IF (ice%mask_icefree_land( vi) .OR. ice%mask_icefree_ocean( vi)) THEN
-        ! Apply fixiness
-        IF (C%fixiness_H_icefree) Hi_new( vi) = 0._dp
-        ! Apply limitness
-        Hi_new( vi) = MIN( Hi_new( vi), Hi_ref( vi) + C%limitness_H_icefree * modiness_up( vi))
-        ! Go to next vertex
-        CYCLE
-      END IF
-
-      ! If we reached this point, vertex is neither grounded, floating, nor ice free. That's a problem
-      CALL crash('vertex neither grounded, floating, nor ice-free?')
+      ! Apply limitness
+      Hi_new( vi) = MIN( Hi_new( vi), Hi_ref( vi) + limit_H_applied * modiness_up(   vi) + (1._dp - limitness) * (Hi_new( vi) - Hi_ref( vi)) )
+      Hi_new( vi) = MAX( Hi_new( vi), Hi_ref( vi) - limit_H_applied * modiness_down( vi) - (1._dp - limitness) * (Hi_ref( vi) - Hi_new( vi)) )
 
     END DO
 
