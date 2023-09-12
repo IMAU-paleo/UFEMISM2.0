@@ -164,6 +164,7 @@ CONTAINS
       IF (par%master) WRITE(0,'(A)') ' Finalising regional simulation...'
       ! Write the final model state to output
       CALL write_to_regional_output_files( region)
+
     END IF
 
     ! Finalise routine path
@@ -186,13 +187,13 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'write_to_regional_output_files'
     INTEGER                                                            :: i
     REAL(dp)                                                           :: t_closest
-    LOGICAL                                                            :: do_output_main, do_output_restart
+    LOGICAL                                                            :: do_output_main, do_output_restart, do_output_grid
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
     ! Determine time of next output event
-    t_closest = MIN( region%output_t_next, region%output_restart_t_next)
+    t_closest = MIN( region%output_t_next, region%output_restart_t_next, region%output_grid_t_next)
 
     ! Determine actions
     IF     (region%time < t_closest) THEN
@@ -210,8 +211,9 @@ CONTAINS
     END IF
 
     ! Determine type of next output event
-    do_output_main = .FALSE.
+    do_output_main    = .FALSE.
     do_output_restart = .FALSE.
+    do_output_grid    = .FALSE.
 
     ! Update time stamps
     IF (region%time == region%output_t_next) THEN
@@ -221,6 +223,10 @@ CONTAINS
     IF (region%time == region%output_restart_t_next) THEN
       region%output_restart_t_next = region%output_restart_t_next + C%dt_output_restart
       do_output_restart = .TRUE.
+    END IF
+    IF (region%time == region%output_grid_t_next) THEN
+      region%output_grid_t_next = region%output_grid_t_next + C%dt_output_grid
+      do_output_grid = .TRUE.
     END IF
 
     ! If needed, create a new set of mesh output files for the current model mesh
@@ -249,7 +255,6 @@ CONTAINS
     IF (do_output_main) THEN
       ! Write to the main regional output files
       CALL write_to_main_regional_output_file_mesh( region)
-      CALL write_to_main_regional_output_file_grid( region)
 
       ! Write to the region-of-interest output files
       DO i = 1, region%nROI
@@ -269,6 +274,11 @@ CONTAINS
       CALL write_to_restart_file_SMB_model    ( region%mesh, region%SMB    , region%name, region%time)
       CALL write_to_restart_file_BMB_model    ( region%mesh, region%BMB    , region%name, region%time)
       CALL write_to_restart_file_GIA_model    ( region%mesh, region%GIA    , region%name, region%time)
+    END IF
+
+    IF (do_output_grid) THEN
+      ! Write to the gridded regional output file
+      CALL write_to_main_regional_output_file_grid( region)
     END IF
 
     ! Finalise routine path
@@ -339,6 +349,7 @@ CONTAINS
     ! Output
     time_of_next_action = MIN( time_of_next_action, region%output_t_next)
     time_of_next_action = MIN( time_of_next_action, region%output_restart_t_next)
+    time_of_next_action = MIN( time_of_next_action, region%output_grid_t_next)
 
     ! ===== Advance region time =====
     ! ===============================
@@ -542,9 +553,11 @@ CONTAINS
     IF (C%do_create_netcdf_output) THEN
       region%output_t_next = C%start_time_of_run
       region%output_restart_t_next = C%start_time_of_run
+      region%output_grid_t_next = C%start_time_of_run
     ELSE
       region%output_t_next = C%end_time_of_run
       region%output_restart_t_next = C%end_time_of_run
+      region%output_grid_t_next = C%end_time_of_run
     END IF
 
     ! Confirm that the current set of mesh output files match the current model mesh
@@ -561,9 +574,6 @@ CONTAINS
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
-
-    ! DENK DROM
-    ! CALL write_to_regional_output_files( region)
 
   END SUBROUTINE initialise_model_region
 
@@ -1273,7 +1283,9 @@ CONTAINS
       WRITE( *     ,"(A)", ADVANCE = TRIM( r_adv)) c_carriage_return // &
             "   t = " // TRIM( r_time) // " kyr - dt_av = " // TRIM( r_step) // " yr"
     END IF
-    IF (region%time == region%output_t_next .OR. region%time == region%output_restart_t_next) THEN
+    IF (region%time == region%output_t_next .OR. &
+        region%time == region%output_restart_t_next .OR. &
+        region%time == region%output_grid_t_next) THEN
       r_adv = "yes"
       WRITE( *,"(A)", ADVANCE = TRIM( r_adv)) c_carriage_return
     END IF

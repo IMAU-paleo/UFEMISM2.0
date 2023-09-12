@@ -737,6 +737,7 @@ MODULE model_configuration
     LOGICAL             :: do_create_netcdf_output_config               = .TRUE.                          !     Whether or not NetCDF output files should be created at all
     REAL(dp)            :: dt_output_config                             = 1000._dp                        !     Time step for writing output
     REAL(dp)            :: dt_output_restart_config                     = 1000._dp                        !     Time step for writing restart output
+    REAL(dp)            :: dt_output_grid_config                        = 1000._dp                        !     Time step for writing gridded output
     REAL(dp)            :: dx_output_grid_NAM_config                    = 40E3_dp                         ! [m] Horizontal resolution for the square grid used for output for North America
     REAL(dp)            :: dx_output_grid_EAS_config                    = 40E3_dp                         ! [m] Horizontal resolution for the square grid used for output for Eurasia
     REAL(dp)            :: dx_output_grid_GRL_config                    = 20E3_dp                         ! [m] Horizontal resolution for the square grid used for output for Greenland
@@ -1516,6 +1517,7 @@ MODULE model_configuration
     LOGICAL             :: do_create_netcdf_output
     REAL(dp)            :: dt_output
     REAL(dp)            :: dt_output_restart
+    REAL(dp)            :: dt_output_grid
     REAL(dp)            :: dx_output_grid_NAM
     REAL(dp)            :: dx_output_grid_EAS
     REAL(dp)            :: dx_output_grid_GRL
@@ -2184,6 +2186,7 @@ CONTAINS
       do_create_netcdf_output_config                              , &
       dt_output_config                                            , &
       dt_output_restart_config                                    , &
+      dt_output_grid_config                                       , &
       dx_output_grid_NAM_config                                   , &
       dx_output_grid_EAS_config                                   , &
       dx_output_grid_GRL_config                                   , &
@@ -2987,6 +2990,7 @@ CONTAINS
     C%do_create_netcdf_output                                = do_create_netcdf_output_config
     C%dt_output                                              = dt_output_config
     C%dt_output_restart                                      = dt_output_restart_config
+    C%dt_output_grid                                         = dt_output_grid_config
     C%dx_output_grid_NAM                                     = dx_output_grid_NAM_config
     C%dx_output_grid_EAS                                     = dx_output_grid_EAS_config
     C%dx_output_grid_GRL                                     = dx_output_grid_GRL_config
