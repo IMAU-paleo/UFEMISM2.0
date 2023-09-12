@@ -1280,7 +1280,7 @@ CONTAINS
       region%ice%pc%Hi_star_np1 = region%ice%Hi_prev + region%ice%pc%dt_np1 * ((1._dp + region%ice%pc%zeta_t / 2._dp) * &
         region%ice%pc%dHi_dt_Hi_n_u_n - (region%ice%pc%zeta_t / 2._dp) * region%ice%pc%dHi_dt_Hi_nm1_u_nm1)
 
-      CALL alter_ice_thickness( region%mesh, region%ice, region%ice%Hi_prev, region%ice%pc%Hi_star_np1, region%refgeo_PD%Hi, region%time)
+      CALL alter_ice_thickness( region%mesh, region%ice, region%ice%Hi_prev, region%ice%pc%Hi_star_np1, region%refgeo_PD%Hi, region%ice%pc%dt_np1, region%time)
 
       ! == Update step ==
       ! =================
@@ -1319,7 +1319,7 @@ CONTAINS
       ! Save the "true" dynamical dH/dt for future reference
       region%ice%dHi_dt_predicted = (region%ice%pc%Hi_np1 - region%ice%Hi_prev) / region%ice%pc%dt_np1
 
-      CALL alter_ice_thickness( region%mesh, region%ice, region%ice%Hi_prev, region%ice%pc%Hi_np1, region%refgeo_PD%Hi, region%time)
+      CALL alter_ice_thickness( region%mesh, region%ice, region%ice%Hi_prev, region%ice%pc%Hi_np1, region%refgeo_PD%Hi, region%ice%pc%dt_np1, region%time)
 
       ! == Truncation error ==
       ! ======================
@@ -1781,7 +1781,7 @@ CONTAINS
       region%ice%mask_noice, dt, region%ice%dHi_dt, region%ice%Hi_next, region%ice%divQ)
 
     ! Modify predicted ice thickness if desired
-    CALL alter_ice_thickness( region%mesh, region%ice, region%ice%Hi_prev, region%ice%Hi_next, region%refgeo_PD%Hi, region%time)
+    CALL alter_ice_thickness( region%mesh, region%ice, region%ice%Hi_prev, region%ice%Hi_next, region%refgeo_PD%Hi, dt, region%time)
 
     ! Save the "true" dynamical dH/dt for future reference
     region%ice%dHi_dt_predicted = region%ice%dHi_dt

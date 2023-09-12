@@ -1601,17 +1601,18 @@ CONTAINS
   ! == Ice thickness modification
   ! =============================
 
-  SUBROUTINE alter_ice_thickness( mesh, ice, Hi_old, Hi_new, Hi_ref, time)
+  SUBROUTINE alter_ice_thickness( mesh, ice, Hi_old, Hi_new, Hi_ref, dt, time)
     ! Modify the predicted ice thickness in some sneaky way
 
     IMPLICIT NONE
 
     ! In- and output variables:
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
-    TYPE(type_ice_model),                   INTENT(IN)    :: ice
+    TYPE(type_ice_model),                   INTENT(INOUT) :: ice
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: Hi_old
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(INOUT) :: Hi_new
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: Hi_ref
+    REAL(dp),                               INTENT(IN)    :: dt
     REAL(dp),                               INTENT(IN)    :: time
 
     ! Local variables:
@@ -1619,14 +1620,20 @@ CONTAINS
     INTEGER                                               :: vi
     REAL(dp)                                              :: decay_start, decay_end
     REAL(dp)                                              :: fixiness, limitness
+    REAL(dp), DIMENSION(:), ALLOCATABLE                   :: Hi_save
     REAL(dp), DIMENSION(:), ALLOCATABLE                   :: modiness_up, modiness_down
+    REAL(dp)                                              :: floating_area, calving_area, mass_lost
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! Allocate limitness modifer
+    ! Allocate
+    ALLOCATE( Hi_save      ( mesh%vi1:mesh%vi2))
     ALLOCATE( modiness_up  ( mesh%vi1:mesh%vi2))
     ALLOCATE( modiness_down( mesh%vi1:mesh%vi2))
+
+    ! Save predicted ice thickness for future reference
+    Hi_save = Hi_new
 
     ! === Fixiness ===
     ! ================
@@ -1715,8 +1722,8 @@ CONTAINS
       CALL crash('unknown modiness_H_choice "' // TRIM( C%limitness_H_modifier) // '"')
     END IF
 
-    ! === Fix, delay, limit ====
-    ! ==========================
+    ! === Fix, delay, limit ===
+    ! =========================
 
     DO vi = mesh%vi1, mesh%vi2
 
@@ -1775,7 +1782,63 @@ CONTAINS
 
     END DO
 
+    ! === Conservation of mass ===
+    ! ============================
+
+    ! Initialise
+    mass_lost     = 0._dp
+    floating_area = 0._dp
+    calving_area  = 0._dp
+
+    ! Compute total grounded mass that should have stayed grounded
+    DO vi = mesh%vi1, mesh%vi2
+
+      ! If ice-free land vertex
+      IF (ice%mask_icefree_land( vi)) THEN
+        ! Add residual volume to total
+        mass_lost = mass_lost + (Hi_save( vi) - Hi_new( vi)) * mesh%A( vi)
+
+      ! If grounded vertex
+      ELSEIF (ice%mask_grounded_ice( vi)) THEN
+        ! Add residual volume to total
+        mass_lost = mass_lost + (Hi_save( vi) - Hi_new( vi)) * mesh%A( vi)
+
+      ! If floating vertex
+      ELSEIF (ice%mask_floating_ice( vi)) THEN
+        ! Add vertex area to total
+        floating_area = floating_area + mesh%A( vi)
+
+      ! If would-be advanced calving front vertex
+      ELSEIF (ice%mask_icefree_ocean( vi) .AND. Hi_save( vi) > 0._dp) THEN
+        ! Add vertex area to total
+        calving_area = calving_area + mesh%A( vi)
+      END IF
+
+    END DO
+
+    ! Add up findings from each process domain
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, mass_lost,     1, MPI_INTEGER, MPI_SUM, MPI_COMM_WORLD, ierr)
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, floating_area, 1, MPI_INTEGER, MPI_SUM, MPI_COMM_WORLD, ierr)
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, calving_area,  1, MPI_INTEGER, MPI_SUM, MPI_COMM_WORLD, ierr)
+
+    ! DENK DROM
+    ! ! Redistribute lost mass over floating (50%) and would-be calving (50%) areas. If mass_lost is
+    ! ! positive, that means that that amount of mass should have stayed on ground, never reaching
+    ! ! the ice shelves and therefore reducing thicknening -> reduce thickening to compensate.
+    ! DO vi = mesh%vi1, mesh%vi2
+    !   ! If floating
+    !   IF (ice%mask_floating_ice( vi)) THEN
+    !     ! Correct predicted dHi_dt to account for lost mass
+    !     ice%dHi_dt_predicted( vi) = ice%dHi_dt_predicted( vi) - .5_dp*mass_lost/floating_area/dt
+    !   ! If would-be advanced calving front vertex
+    !   ELSEIF (ice%mask_icefree_ocean( vi) .AND. Hi_save( vi) > 0._dp) THEN
+    !     ! Correct predicted dHi_dt to account for lost mass
+    !     ice%dHi_dt_predicted( vi) = ice%dHi_dt_predicted( vi) - .5_dp*mass_lost/calving_area/dt
+    !   END IF
+    ! END DO
+
     ! Clean after yourself
+    DEALLOCATE( Hi_save      )
     DEALLOCATE( modiness_up  )
     DEALLOCATE( modiness_down)
 
