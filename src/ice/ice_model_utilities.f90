@@ -1748,11 +1748,11 @@ CONTAINS
         limit_H_applied = C%limitness_H_floating * limitness
 
       ELSEIF (ice%mask_icefree_land( vi)) THEN
-        IF (C%fixiness_H_icefree) fix_H_applied = 1._dp
+        IF (C%fixiness_H_freeland) fix_H_applied = 1._dp
         limit_H_applied = C%limitness_H_grounded * limitness
 
       ELSEIF (ice%mask_icefree_ocean( vi)) THEN
-        IF (C%fixiness_H_icefree) fix_H_applied = 1._dp
+        IF (C%fixiness_H_freeocean) fix_H_applied = 1._dp
         limit_H_applied = C%limitness_H_floating * limitness
       ELSE
         ! If we reached this point, vertex is neither grounded, floating, nor ice free. That's a problem

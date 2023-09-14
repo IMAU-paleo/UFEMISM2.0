@@ -496,11 +496,6 @@ CONTAINS
 
     C%choice_mask_noice                     = 'none'                           ! Choice of mask_noice configuration
 
-    ! Partially fixed geometry, useful for initialisation and inversion runs
-    C%fixed_shelf_geometry                  = .FALSE.                          ! Keep geometry of floating ice fixed
-    C%fixed_sheet_geometry                  = .FALSE.                          ! Keep geometry of grounded ice fixed
-    C%fixed_grounding_line                  = .FALSE.                          ! Keep ice thickness at the grounding line fixed
-
   ! == Basal hydrology
   ! ==================
 
@@ -1433,11 +1428,6 @@ CONTAINS
 
     C%choice_mask_noice                     = 'none'                           ! Choice of mask_noice configuration
 
-    ! Partially fixed geometry, useful for initialisation and inversion runs
-    C%fixed_shelf_geometry                  = .FALSE.                          ! Keep geometry of floating ice fixed
-    C%fixed_sheet_geometry                  = .FALSE.                          ! Keep geometry of grounded ice fixed
-    C%fixed_grounding_line                  = .FALSE.                          ! Keep ice thickness at the grounding line fixed
-
   ! == Basal hydrology
   ! ==================
 
@@ -1897,11 +1887,6 @@ CONTAINS
   ! ===============================
 
     C%choice_mask_noice                     = 'none'                           ! Choice of mask_noice configuration
-
-    ! Partially fixed geometry, useful for initialisation and inversion runs
-    C%fixed_shelf_geometry                  = .FALSE.                          ! Keep geometry of floating ice fixed
-    C%fixed_sheet_geometry                  = .FALSE.                          ! Keep geometry of grounded ice fixed
-    C%fixed_grounding_line                  = .FALSE.                          ! Keep ice thickness at the grounding line fixed
 
   ! == Basal hydrology
   ! ==================
@@ -2623,11 +2608,6 @@ CONTAINS
   ! ===============================
 
     C%choice_mask_noice                     = 'none'                           ! Choice of mask_noice configuration
-
-    ! Partially fixed geometry, useful for initialisation and inversion runs
-    C%fixed_shelf_geometry                  = .FALSE.                          ! Keep geometry of floating ice fixed
-    C%fixed_sheet_geometry                  = .FALSE.                          ! Keep geometry of grounded ice fixed
-    C%fixed_grounding_line                  = .FALSE.                          ! Keep ice thickness at the grounding line fixed
 
   ! == Basal hydrology
   ! ==================

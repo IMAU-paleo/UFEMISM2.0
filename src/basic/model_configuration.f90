@@ -416,11 +416,6 @@ MODULE model_configuration
     REAL(dp)            :: Hi_min_config                                = 0._dp                            ! [m] Minimum ice thickness: thinner ice gets temporarily added to the no-ice mask and eventually removed
     LOGICAL             :: remove_ice_absent_at_PD_config               = .FALSE.                          ! If set to TRUE, all ice not present in PD data is always instantly removed
 
-    ! Partially fixed geometry, useful for initialisation and inversion runs
-    LOGICAL             :: fixed_shelf_geometry_config                  = .FALSE.                          ! Keep geometry of floating ice fixed
-    LOGICAL             :: fixed_sheet_geometry_config                  = .FALSE.                          ! Keep geometry of grounded ice fixed
-    LOGICAL             :: fixed_grounding_line_config                  = .FALSE.                          ! Keep ice thickness at the grounding line fixed
-
     ! Fix/delay ice thickness evolution
     LOGICAL             :: do_fixiness_before_start_config              = .FALSE.                          ! Whether or not to apply fixiness values before fixiness_t_start
     REAL(dp)            :: fixiness_t_start_config                      = +9.9E9_dp                        ! Start time of linear transition between fixed/delayed and free evolution
@@ -429,7 +424,8 @@ MODULE model_configuration
     REAL(dp)            :: fixiness_H_gl_fl_config                      = 0._dp                            ! Fix (1), release (0), or delay grunding line (floating side) ice geometry evolution
     REAL(dp)            :: fixiness_H_grounded_config                   = 0._dp                            ! Fix (1), release (0), or delay grounded ice geometry evolution
     REAL(dp)            :: fixiness_H_floating_config                   = 0._dp                            ! Fix (1), release (0), or delay floating ice geometry evolution
-    LOGICAL             :: fixiness_H_icefree_config                    = .FALSE.                          ! Fix (.TRUE.) ice-free vertices between fixiness_t_start and fixiness_t_end
+    LOGICAL             :: fixiness_H_freeland_config                   = .FALSE.                          ! Fix (.TRUE.) ice-free vertices between fixiness_t_start and fixiness_t_end
+    LOGICAL             :: fixiness_H_freeocean_config                  = .FALSE.                          ! Fix (.TRUE.) ice-free vertices between fixiness_t_start and fixiness_t_end
 
     ! Limit ice thickness evolution
     LOGICAL             :: do_limitness_before_start_config             = .FALSE.                          ! Whether or not to apply limitness values before limitness_t_start
@@ -439,7 +435,6 @@ MODULE model_configuration
     REAL(dp)            :: limitness_H_gl_fl_config                     = +9.9E9_dp                        ! Maximum departure from PD ice thickness allowed at peak limitness
     REAL(dp)            :: limitness_H_grounded_config                  = +9.9E9_dp                        ! Maximum departure from PD ice thickness allowed at peak limitness
     REAL(dp)            :: limitness_H_floating_config                  = +9.9E9_dp                        ! Maximum departure from PD ice thickness allowed at peak limitness
-    REAL(dp)            :: limitness_H_icefree_config                   = +9.9E9_dp                        ! Maximum departure from PD ice thickness allowed at peak limitness
     CHARACTER(LEN=256)  :: limitness_H_modifier_config                  = 'none'                           ! Dynamic modifier of limitness: "none", "Ti_hom"
 
   ! == Basal hydrology
@@ -1212,11 +1207,6 @@ MODULE model_configuration
     REAL(dp)            :: Hi_min
     LOGICAL             :: remove_ice_absent_at_PD
 
-    ! Partially fixed geometry, useful for initialisation and inversion runs
-    LOGICAL             :: fixed_shelf_geometry
-    LOGICAL             :: fixed_sheet_geometry
-    LOGICAL             :: fixed_grounding_line
-
     ! Fix/delay ice thickness evolution
     LOGICAL             :: do_fixiness_before_start
     REAL(dp)            :: fixiness_t_start
@@ -1225,7 +1215,8 @@ MODULE model_configuration
     REAL(dp)            :: fixiness_H_gl_fl
     REAL(dp)            :: fixiness_H_grounded
     REAL(dp)            :: fixiness_H_floating
-    LOGICAL             :: fixiness_H_icefree
+    LOGICAL             :: fixiness_H_freeland
+    LOGICAL             :: fixiness_H_freeocean
 
     ! Limit ice thickness evolution
     LOGICAL             :: do_limitness_before_start
@@ -1235,7 +1226,6 @@ MODULE model_configuration
     REAL(dp)            :: limitness_H_gl_fl
     REAL(dp)            :: limitness_H_grounded
     REAL(dp)            :: limitness_H_floating
-    REAL(dp)            :: limitness_H_icefree
     CHARACTER(LEN=256)  :: limitness_H_modifier
 
   ! == Basal hydrology
@@ -2032,9 +2022,6 @@ CONTAINS
       choice_mask_noice_config                                    , &
       Hi_min_config                                               , &
       remove_ice_absent_at_PD_config                              , &
-      fixed_shelf_geometry_config                                 , &
-      fixed_sheet_geometry_config                                 , &
-      fixed_grounding_line_config                                 , &
       do_fixiness_before_start_config                             , &
       fixiness_t_start_config                                     , &
       fixiness_t_end_config                                       , &
@@ -2042,7 +2029,8 @@ CONTAINS
       fixiness_H_gl_fl_config                                     , &
       fixiness_H_grounded_config                                  , &
       fixiness_H_floating_config                                  , &
-      fixiness_H_icefree_config                                   , &
+      fixiness_H_freeland_config                                  , &
+      fixiness_H_freeocean_config                                 , &
       do_limitness_before_start_config                            , &
       limitness_t_start_config                                    , &
       limitness_t_end_config                                      , &
@@ -2050,7 +2038,6 @@ CONTAINS
       limitness_H_gl_fl_config                                    , &
       limitness_H_grounded_config                                 , &
       limitness_H_floating_config                                 , &
-      limitness_H_icefree_config                                  , &
       limitness_H_modifier_config                                 , &
       choice_basal_hydrology_model_config                         , &
       Martin2011_hydro_Hb_min_config                              , &
@@ -2715,11 +2702,6 @@ CONTAINS
     C%Hi_min                                                 = Hi_min_config
     C%remove_ice_absent_at_PD                                = remove_ice_absent_at_PD_config
 
-    ! Partially fixed geometry, useful for initialisation and inversion runs
-    C%fixed_shelf_geometry                                   = fixed_shelf_geometry_config
-    C%fixed_sheet_geometry                                   = fixed_sheet_geometry_config
-    C%fixed_grounding_line                                   = fixed_grounding_line_config
-
     ! Fix/delay ice thickness evolution
     C%do_fixiness_before_start                               = do_fixiness_before_start_config
     C%fixiness_t_start                                       = fixiness_t_start_config
@@ -2728,7 +2710,8 @@ CONTAINS
     C%fixiness_H_gl_fl                                       = fixiness_H_gl_fl_config
     C%fixiness_H_grounded                                    = fixiness_H_grounded_config
     C%fixiness_H_floating                                    = fixiness_H_floating_config
-    C%fixiness_H_icefree                                     = fixiness_H_icefree_config
+    C%fixiness_H_freeland                                    = fixiness_H_freeland_config
+    C%fixiness_H_freeocean                                   = fixiness_H_freeocean_config
 
     ! Limit ice thickness evolution
     C%do_limitness_before_start                              = do_limitness_before_start_config
@@ -2738,7 +2721,6 @@ CONTAINS
     C%limitness_H_gl_fl                                      = limitness_H_gl_fl_config
     C%limitness_H_grounded                                   = limitness_H_grounded_config
     C%limitness_H_floating                                   = limitness_H_floating_config
-    C%limitness_H_icefree                                    = limitness_H_icefree_config
     C%limitness_H_modifier                                   = limitness_H_modifier_config
 
   ! == Basal hydrology
