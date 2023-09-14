@@ -22,6 +22,7 @@ MODULE netcdf_output
                                                                      flip_1D_dp, flip_2D_x1_dp, flip_2D_x2_dp, flip_3D_x1_dp, flip_3D_x2_dp, flip_3D_x3_dp, &
                                                                      inverse_oblique_sg_projection
   USE mesh_types                                             , ONLY: type_mesh
+  USE ice_model_types                                        , ONLY: type_ice_model
   USE mpi_distributed_memory                                 , ONLY: gather_to_master_int_1D, gather_to_master_int_2D, gather_to_master_dp_1D, &
                                                                      gather_to_master_dp_2D
 
@@ -2832,6 +2833,50 @@ CONTAINS
 
   END SUBROUTINE setup_mesh_in_netcdf_file
 
+  ! Set up mesh and meshed variables
+  SUBROUTINE setup_CDF_in_netcdf_file( filename, ncid, ice)
+    ! Set up a bedrock CDF in an existing NetCDF file
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
+    INTEGER,                             INTENT(INOUT) :: ncid
+    TYPE(type_ice_model),                INTENT(IN)    :: ice
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'setup_CDF_in_netcdf_file'
+
+    INTEGER                                            :: id_dim_vi, id_dim_ti, id_dim_bin, dummy
+    INTEGER                                            :: id_var_cdf, id_var_cdf_b
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Create CDF bin dimension
+    CALL create_dimension( filename, ncid, 'bin', C%subgrid_bedrock_cdf_nbins, id_dim_bin)
+
+    ! Inquire mesh dimensions
+    CALL inquire_dim_multopt( filename, ncid, field_name_options_dim_nV,   id_dim_vi)
+    CALL inquire_dim_multopt( filename, ncid, field_name_options_dim_nTri, id_dim_ti)
+
+    ! Vertex data
+    CALL create_variable( filename, ncid, 'bedrock_cdf', NF90_DOUBLE, (/ id_dim_vi, id_dim_bin /), id_var_cdf)
+    CALL add_attribute_char( filename, ncid, id_var_cdf, 'long_name', 'Bedrock CDF of vertices')
+    CALL add_attribute_char( filename, ncid, id_var_cdf, 'units'    , '%'                 )
+    CALL write_var_master_dp_2D( filename, ncid, id_var_cdf, ice%bedrock_cdf)
+
+    ! Triangle data
+    CALL create_variable( filename, ncid, 'bedrock_cdf_b', NF90_DOUBLE, (/ id_dim_ti, id_dim_bin /), id_var_cdf_b)
+    CALL add_attribute_char( filename, ncid, id_var_cdf_b, 'long_name', 'Bedrock CDF of triangles')
+    CALL add_attribute_char( filename, ncid, id_var_cdf_b, 'units', '%')
+    CALL write_var_master_dp_2D( filename, ncid, id_var_cdf_b, ice%bedrock_cdf_b)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE setup_CDF_in_netcdf_file
+
   SUBROUTINE add_field_mesh_int_2D(                      filename, ncid, var_name, long_name, units)
     ! Add a 2-D variable to an existing NetCDF file with a mesh
 
@@ -3694,6 +3739,40 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE add_depth_dimension_to_file
+
+  SUBROUTINE add_cdf_dimension_to_file( filename, ncid)
+    ! Add a bin dimension and a CDF to an existing NetCDF file
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
+    INTEGER,                             INTENT(IN)    :: ncid
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'add_cdf_dimension_to_file'
+    INTEGER                                            :: id_dim_bins
+    INTEGER                                            :: id_var_cdf, k
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Create month dimension
+    CALL create_dimension( filename, ncid, 'bin', C%subgrid_bedrock_cdf_nbins, id_dim_bins)
+
+    ! Create month variable
+    CALL create_variable(  filename, ncid, 'bin', NF90_INT, (/ id_dim_bins /), id_var_cdf)
+    CALL add_attribute_char( filename, ncid, id_var_cdf, 'long_name', 'CDF bin')
+    CALL add_attribute_char( filename, ncid, id_var_cdf, 'units', 'Bin Nr.')
+    CALL add_attribute_char( filename, ncid, id_var_cdf, 'description', 'Each of the bins that form the bedrock CDF')
+
+    ! Write month variable
+    CALL write_var_master_int_1D( filename, ncid, id_var_cdf, (/ (k, k = 1, C%subgrid_bedrock_cdf_nbins) /) )
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE add_cdf_dimension_to_file
 
   ! Add scalar variables
   SUBROUTINE add_field_dp_0D( filename, ncid, var_name, long_name, units)

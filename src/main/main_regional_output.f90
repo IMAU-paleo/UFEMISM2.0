@@ -13,7 +13,7 @@ MODULE main_regional_output
   USE grid_basic                                             , ONLY: type_grid
   USE region_types                                           , ONLY: type_model_region
   USE netcdf_basic                                           , ONLY: create_new_netcdf_file_for_writing, open_existing_netcdf_file_for_writing, close_netcdf_file
-  USE netcdf_output                                          , ONLY: generate_filename_XXXXXdotnc, setup_mesh_in_netcdf_file, setup_xy_grid_in_netcdf_file, &
+  USE netcdf_output                                          , ONLY: generate_filename_XXXXXdotnc, setup_mesh_in_netcdf_file, setup_xy_grid_in_netcdf_file, setup_CDF_in_netcdf_file, &
                                                                      add_time_dimension_to_file, add_zeta_dimension_to_file, add_month_dimension_to_file, &
                                                                      write_time_to_file, &
                                                                      add_field_mesh_int_2D, add_field_mesh_int_2D_notime, &
@@ -461,6 +461,8 @@ CONTAINS
         CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'dHib_dt', region%ice%dHib_dt)
       CASE ('dHi_dt_predicted')
         CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'dHi_dt_predicted', region%ice%dHi_dt_predicted)
+      CASE ('dHi_dt_target')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'dHi_dt_target', region%ice%dHi_dt_target)
 
     ! ===== Masks =====
     ! =================
@@ -904,6 +906,9 @@ CONTAINS
       CASE ('dHi_dt_predicted')
         CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%dHi_dt_predicted, d_grid_vec_partial_2D)
         CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'dHi_dt_predicted', d_grid_vec_partial_2D)
+      CASE ('dHi_dt_target')
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%dHi_dt_target, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'dHi_dt_target', d_grid_vec_partial_2D)
 
     ! ===== Masks =====
     ! =================
@@ -1276,6 +1281,11 @@ CONTAINS
 
     ! Set up the mesh in the file
     CALL setup_mesh_in_netcdf_file( region%output_filename_mesh, ncid, region%mesh)
+
+    IF (C%choice_subgrid_grounded_fraction == 'bedrock_CDF' .OR. C%choice_subgrid_grounded_fraction == 'bilin_interp_TAF+bedrock_CDF') THEN
+      ! Set up bedrock CDF in the file
+      CALL setup_CDF_in_netcdf_file( region%output_filename_mesh, ncid, region%ice)
+    END IF
 
     ! Add time, zeta, and month dimensions+variables to the file
     CALL add_time_dimension_to_file(  region%output_filename_mesh, ncid)
@@ -1673,6 +1683,8 @@ CONTAINS
         CALL add_field_mesh_dp_2D( filename, ncid, 'dHib_dt', long_name = 'Ice base elevation rate of change', units = 'm yr^-1')
       CASE ('dHi_dt_predicted')
         CALL add_field_mesh_dp_2D( filename, ncid, 'dHi_dt_predicted', long_name = 'Ice thickness rate of change before any modifications', units = 'm yr^-1')
+      CASE ('dHi_dt_target')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'dHi_dt_target', long_name = 'Target ice thickness rate of change during model calibration', units = 'm yr^-1')
 
     ! ===== Masks =====
     ! =================
@@ -2026,6 +2038,8 @@ CONTAINS
         CALL add_field_grid_dp_2D( filename, ncid, 'dHib_dt', long_name = 'Ice base elevation rate of change', units = 'm yr^-1')
       CASE ('dHi_dt_predicted')
         CALL add_field_grid_dp_2D( filename, ncid, 'dHi_dt_predicted', long_name = 'Ice thickness rate of change before any modifications', units = 'm yr^-1')
+      CASE ('dHi_dt_target')
+        CALL add_field_grid_dp_2D( filename, ncid, 'dHi_dt_target', long_name = 'Target ice thickness rate of change during model calibration', units = 'm yr^-1')
 
     ! ===== Masks =====
     ! =================

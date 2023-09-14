@@ -2284,6 +2284,136 @@ CONTAINS
 
   END SUBROUTINE read_field_from_mesh_file_3D_ocean
 
+  SUBROUTINE read_field_from_mesh_file_3D_CDF(           filename, field_name_options, d_mesh_partial, time_to_read)
+    ! Read a 2-D data monthly field from a NetCDF file on a mesh
+    !
+    ! NOTE: the mesh should be read before, and memory allocated for d_mesh_partial!
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    CHARACTER(LEN=*),                        INTENT(IN)    :: filename
+    CHARACTER(LEN=*),                        INTENT(IN)    :: field_name_options
+    REAL(dp), DIMENSION(:,:  ),              INTENT(OUT)   :: d_mesh_partial
+    REAL(dp),                   OPTIONAL,    INTENT(IN)    :: time_to_read
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'read_field_from_mesh_file_3D_CDF'
+    INTEGER                                                :: ncid
+    INTEGER                                                :: id_dim_vi, id_var, id_dim_bins, nbins_loc, nV_loc
+    CHARACTER(LEN=256)                                     :: var_name
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                :: d_mesh
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! == Read grid and data from file
+    ! ===============================
+
+    ! Open the NetCDF file
+    CALL open_existing_netcdf_file_for_reading( filename, ncid)
+
+    ! Get number of mesh vertices
+    CALL inquire_dim_multopt( filename, ncid, field_name_options_dim_nV, id_dim_vi, dim_length = nV_loc)
+
+    ! Check that number of bins in file match the ones in the config file
+    CALL inquire_dim_multopt( filename, ncid, 'bin', id_dim_bins, dim_length = nbins_loc)
+    IF (nbins_loc /= C%subgrid_bedrock_cdf_nbins) THEN
+      CALL crash('number of CDF bins in external file ({int_01}) does not match subgrid_bedrock_cdf_nbins in config file!', int_01 = nbins_loc)
+    END IF
+
+    ! Look for the specified variable in the file
+    CALL inquire_var_multopt( filename, ncid, field_name_options, id_var, var_name = var_name)
+    IF (id_var == -1) CALL crash('couldnt find any of the options "' // TRIM( field_name_options) // '" in file "' // TRIM( filename)  // '"!')
+
+    ! Allocate memory
+    IF (par%master) ALLOCATE( d_mesh( nV_loc, C%subgrid_bedrock_cdf_nbins))
+
+    ! Read data from file
+    CALL read_var_master_dp_2D( filename, ncid, id_var, d_mesh)
+
+    ! Close the NetCDF file
+    CALL close_netcdf_file( ncid)
+
+    ! == Distribute gridded data from the master to all processes in partial vector form
+    ! ==================================================================================
+
+    ! Distribute data
+    CALL distribute_from_master_dp_2D( d_mesh, d_mesh_partial)
+
+    ! Clean up after yourself
+    IF (par%master) DEALLOCATE( d_mesh)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE read_field_from_mesh_file_3D_CDF
+
+  SUBROUTINE read_field_from_mesh_file_3D_b_CDF(           filename, field_name_options, d_mesh_partial, time_to_read)
+    ! Read a 2-D data monthly field from a NetCDF file on a mesh
+    !
+    ! NOTE: the mesh should be read before, and memory allocated for d_mesh_partial!
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    CHARACTER(LEN=*),                        INTENT(IN)    :: filename
+    CHARACTER(LEN=*),                        INTENT(IN)    :: field_name_options
+    REAL(dp), DIMENSION(:,:  ),              INTENT(OUT)   :: d_mesh_partial
+    REAL(dp),                   OPTIONAL,    INTENT(IN)    :: time_to_read
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'read_field_from_mesh_file_3D_b_CDF'
+    INTEGER                                                :: ncid
+    INTEGER                                                :: id_dim_ti, id_var, id_dim_bins, nbins_loc, nTri_loc
+    CHARACTER(LEN=256)                                     :: var_name
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                :: d_mesh
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! == Read grid and data from file
+    ! ===============================
+
+    ! Open the NetCDF file
+    CALL open_existing_netcdf_file_for_reading( filename, ncid)
+
+    ! Get number of mesh vertices
+    CALL inquire_dim_multopt( filename, ncid, field_name_options_dim_nTri, id_dim_ti, dim_length = nTri_loc)
+
+    ! Check that number of bins in file match the ones in the config file
+    CALL inquire_dim_multopt( filename, ncid, 'bin', id_dim_bins, dim_length = nbins_loc)
+    IF (nbins_loc /= C%subgrid_bedrock_cdf_nbins) THEN
+      CALL crash('number of CDF bins in external file ({int_01}) does not match subgrid_bedrock_cdf_nbins in config file!', int_01 = nbins_loc)
+    END IF
+
+    ! Look for the specified variable in the file
+    CALL inquire_var_multopt( filename, ncid, field_name_options, id_var, var_name = var_name)
+    IF (id_var == -1) CALL crash('couldnt find any of the options "' // TRIM( field_name_options) // '" in file "' // TRIM( filename)  // '"!')
+
+    ! Allocate memory
+    IF (par%master) ALLOCATE( d_mesh( nTri_loc, C%subgrid_bedrock_cdf_nbins))
+
+    ! Read data from file
+    CALL read_var_master_dp_2D( filename, ncid, id_var, d_mesh)
+
+    ! Close the NetCDF file
+    CALL close_netcdf_file( ncid)
+
+    ! == Distribute gridded data from the master to all processes in partial vector form
+    ! ==================================================================================
+
+    ! Distribute data
+    CALL distribute_from_master_dp_2D( d_mesh, d_mesh_partial)
+
+    ! Clean up after yourself
+    IF (par%master) DEALLOCATE( d_mesh)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE read_field_from_mesh_file_3D_b_CDF
+
   ! Read 0-D data from a file
   SUBROUTINE read_field_from_file_0D(                filename, field_name_options, d, time_to_read)
     ! Read a 0-D data field from a NetCDF file

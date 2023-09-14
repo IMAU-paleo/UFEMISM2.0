@@ -29,6 +29,7 @@ MODULE ice_model_utilities
                                                                      ddx_b_a_2D, ddy_b_a_2D
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_1D
   USE mesh_utilities                                         , ONLY: calc_Voronoi_cell, interpolate_to_point_dp_2D
+  USE netcdf_input                                           , ONLY: read_field_from_mesh_file_3D_CDF, read_field_from_mesh_file_3D_b_CDF
 
   IMPLICIT NONE
 
@@ -947,8 +948,15 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    IF (.NOT. C%choice_subgrid_grounded_fraction == 'bedrock_CDF' .AND. &
+        .NOT. C%choice_subgrid_grounded_fraction == 'bilin_interp_TAF+bedrock_CDF') THEN
+      ! Finalise routine path
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
+
     IF (par%master) THEN
-      WRITE(*,"(A)") '     Calculating the sub-grid bedrock cumulative density functions...'
+      WRITE(*,"(A)") '       Calculating bedrock CDFs from initial geometry...'
     END IF
     CALL sync
 
@@ -1279,6 +1287,98 @@ CONTAINS
 
   END SUBROUTINE calc_bedrock_CDFs_b
 
+  SUBROUTINE initialise_bedrock_CDFs( mesh, refgeo, ice, region_name)
+    ! Initialise the sub-grid bedrock cumulative density functions
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
+    TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo
+    TYPE(type_ice_model),                INTENT(INOUT) :: ice
+    CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
+
+    ! Local variables:
+    CHARACTER(len=256), PARAMETER                      :: routine_name = 'initialise_bedrock_CDFs'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    IF (.NOT. C%choice_subgrid_grounded_fraction == 'bedrock_CDF' .AND. &
+        .NOT. C%choice_subgrid_grounded_fraction == 'bilin_interp_TAF+bedrock_CDF') THEN
+      ! Finalise routine path
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
+
+    IF (par%master) THEN
+      WRITE(*,"(A)") '     Initialising the sub-grid bedrock cumulative density functions...'
+    END IF
+    CALL sync
+
+    IF (C%do_read_bedrock_cdf_from_file) THEN
+      ! Read them from the corresponding mesh file
+      CALL initialise_bedrock_CDFs_from_file( mesh, ice, region_name)
+    ELSE
+      ! Compute them from scratch
+      CALL calc_bedrock_CDFs( mesh, refgeo, ice)
+    END IF
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE initialise_bedrock_CDFs
+
+  SUBROUTINE initialise_bedrock_CDFs_from_file( mesh, ice, region_name)
+    ! Initialise the velocities for the DIVA solver from an external NetCDF file
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
+    TYPE(type_ice_model),                INTENT(INOUT) :: ice
+    CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_bedrock_CDFs_from_file'
+    CHARACTER(LEN=256)                                 :: filename, check
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Determine the filename to read for this model region
+    IF     (region_name == 'NAM') THEN
+      filename  = C%filename_initial_mesh_NAM
+      check = C%choice_initial_mesh_NAM
+    ELSEIF (region_name == 'EAS') THEN
+      filename  = C%filename_initial_mesh_EAS
+      check = C%choice_initial_mesh_EAS
+    ELSEIF (region_name == 'GRL') THEN
+      filename  = C%filename_initial_mesh_GRL
+      check = C%choice_initial_mesh_GRL
+    ELSEIF (region_name == 'ANT') THEN
+      filename  = C%filename_initial_mesh_ANT
+      check = C%choice_initial_mesh_ANT
+    ELSE
+      CALL crash('unknown model region "' // region_name // '"!')
+    END IF
+
+    ! Write to terminal
+    IF (par%master) WRITE(0,*) '       Reading CDF functions from file "' // colour_string( TRIM( filename),'light blue') // '"...'
+
+    IF (.NOT. check == 'read_from_file') THEN
+      CALL crash('The initial mesh was not read from a file. Reading a bedrock CDF this way makes no sense!')
+    END IF
+
+    ! Read meshed data
+    CALL read_field_from_mesh_file_3D_CDF(   filename, 'bedrock_cdf',   ice%bedrock_cdf   )
+    CALL read_field_from_mesh_file_3D_b_CDF( filename, 'bedrock_cdf_b', ice%bedrock_cdf_b )
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE initialise_bedrock_CDFs_from_file
+
   ! == Zeta gradients
   ! =================
 
@@ -1557,7 +1657,7 @@ CONTAINS
       END DO
     END IF
 
-    ! If so specified, remove all floating ice beyond the present-day calving front
+    ! DENK DROM
     IF (C%remove_ice_absent_at_PD) THEN
       DO vi = mesh%vi1, mesh%vi2
         IF (refgeo_PD%Hi( vi) == 0._dp) THEN
@@ -1748,11 +1848,11 @@ CONTAINS
         limit_H_applied = C%limitness_H_floating * limitness
 
       ELSEIF (ice%mask_icefree_land( vi)) THEN
-        IF (C%fixiness_H_freeland) fix_H_applied = 1._dp
+        IF (C%fixiness_H_freeland .AND. fixiness > 0._dp) fix_H_applied = 1._dp
         limit_H_applied = C%limitness_H_grounded * limitness
 
       ELSEIF (ice%mask_icefree_ocean( vi)) THEN
-        IF (C%fixiness_H_freeocean) fix_H_applied = 1._dp
+        IF (C%fixiness_H_freeocean .AND. fixiness > 0._dp) fix_H_applied = 1._dp
         limit_H_applied = C%limitness_H_floating * limitness
       ELSE
         ! If we reached this point, vertex is neither grounded, floating, nor ice free. That's a problem
