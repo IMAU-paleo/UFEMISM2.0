@@ -389,7 +389,8 @@ CONTAINS
       ! updated by inversion or by extrapolation
 
       ! Only perform the inversion on fully grounded vertices
-      IF (ice%mask_grounded_ice( vi) .AND. (.NOT. ice%mask_gl_gr( vi))) THEN
+      ! IF (ice%mask_grounded_ice( vi) .AND. (.NOT. ice%mask_gl_gr( vi))) THEN
+      IF (ice%mask_grounded_ice( vi)) THEN
 
         ! Perform the inversion here
         mask( vi) = 2
@@ -435,7 +436,7 @@ CONTAINS
       IF (n_up < 3 .OR. n_down < 3) THEN
 
         ! Compute likelihood of local subglacial water
-        ice%pore_water_likelihood( vi) = EXP(ice%Ti_hom( vi)/20._dp)
+        ice%pore_water_likelihood( vi) = EXP(ice%Ti_hom( vi)/3._dp)
 
         ! Compute new adjustment for pore water fraction
         I_tot( vi) = ice%pore_water_likelihood( vi) * (misfit / C%porenudge_H_dHdt_flowline_dH0 + &
@@ -639,7 +640,7 @@ CONTAINS
       ! =============================================
 
       ! Compute likelihood of subglacial water
-      ice%pore_water_likelihood( vi) = EXP(Ti_hom_av_up( vi)/20._dp)
+      ice%pore_water_likelihood( vi) = EXP(Ti_hom_av_up( vi)/3._dp)
 
       ! Compute new adjustment for pore water fraction
       I_tot( vi) = ice%pore_water_likelihood( vi) * ((deltaHi_av_up( vi)                      ) / C%porenudge_H_dHdt_flowline_dH0 + &
@@ -713,9 +714,12 @@ CONTAINS
     ! ===============================
 
     DO vi = mesh%vi1, mesh%vi2
-        HIV%pore_water_fraction_next( vi) = 1._dp - pore_dryness( vi)
-        HIV%pore_water_fraction_next( vi) = MIN( HIV%pore_water_fraction_next( vi), C%pore_water_fraction_max)
-        HIV%pore_water_fraction_next( vi) = MAX( HIV%pore_water_fraction_next( vi), C%pore_water_fraction_min)
+      HIV%pore_water_fraction_next( vi) = 1._dp - pore_dryness( vi)
+      IF (.NOT. ice%mask_grounded_ice( vi)) THEN
+        HIV%pore_water_fraction_next( vi) = MAX(HIV%pore_water_fraction_next( vi), 1._dp - ice%fraction_gr( vi)**3._dp)
+      END IF
+      HIV%pore_water_fraction_next( vi) = MIN( HIV%pore_water_fraction_next( vi), C%pore_water_fraction_max)
+      HIV%pore_water_fraction_next( vi) = MAX( HIV%pore_water_fraction_next( vi), C%pore_water_fraction_min)
     END DO
 
     ! Clean up after yourself
