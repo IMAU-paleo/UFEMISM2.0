@@ -98,7 +98,7 @@ CONTAINS
       CASE ('parameterised')
         CALL run_BMB_model_parameterised( mesh, ice, ocean, BMB)
       CASE ('inverted')
-        CALL run_BMB_model_inverted( mesh, ice, refgeo, BMB, time)
+        CALL run_BMB_model_inverted( mesh, ice, BMB, time)
       CASE DEFAULT
         CALL crash('unknown choice_BMB_model "' // TRIM( choice_BMB_model) // '"')
     END SELECT
@@ -424,7 +424,7 @@ CONTAINS
 
   END SUBROUTINE remap_BMB_model
 
-  SUBROUTINE run_BMB_model_inverted( mesh, ice, refgeo, BMB, time)
+  SUBROUTINE run_BMB_model_inverted( mesh, ice, BMB, time)
     ! Calculate the basal mass balance
     !
     ! Use a parameterised BMB scheme
@@ -434,7 +434,6 @@ CONTAINS
     ! In/output variables:
     TYPE(type_mesh),                     INTENT(IN)    :: mesh
     TYPE(type_ice_model),                INTENT(IN)    :: ice
-    TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo
     TYPE(type_BMB_model),                INTENT(INOUT) :: BMB
     REAL(dp),                            INTENT(IN)    :: time
 
@@ -442,66 +441,38 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_BMB_model_inverted'
     INTEGER                                            :: vi
     INTEGER,  DIMENSION(:    ), ALLOCATABLE            :: mask
-    REAL(dp)                                           :: misfit
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
     ! Allocate memory
-    ALLOCATE( mask( mesh%vi1:mesh%vi2))
+    ALLOCATE( mask( mesh%vi1:mesh%vi2), source = 0)
 
-    ! Initialise mask
-    mask = 0
+    ! BMB was inverted during the computation of dHi_dt for floating ice
+    ! so simply extrapolate it from floating-side grounding line to
+    ! grunded-side grounding line
 
     DO vi = mesh%vi1, mesh%vi2
 
-      ! Skip ice-free ocean and calving fronts
-      IF (ice%mask_icefree_ocean( vi) .OR. ice%mask_cf_fl( vi)) THEN
-        ! Extrapolate here
+      IF (ice%mask_gl_fl( vi)) THEN
+        mask( vi) = 2
+      ELSEIF (ice%mask_gl_gr( vi)) THEN
         mask( vi) = 1
-        ! Go to next vertex
-        CYCLE
-      END IF
-
-      ! Skip grounded ice locations, unless the vertex is a grounding line or it is floating at present-day
-      IF (ice%mask_grounded_ice( vi) .AND. .NOT. ice%mask_gl_gr( vi) .AND. .NOT. is_floating( refgeo%Hi( vi), refgeo%Hb( vi), 0._dp)) THEN
-        ! Ignore during extrapolation
+      ELSE
         mask( vi) = 0
-        ! Go to next vertex
-        CYCLE
       END IF
-
-      ! Skip ice-free land
-      IF (ice%mask_icefree_land( vi)) THEN
-        ! Ignore during extrapolation
-        mask( vi) = 0
-        ! Go to next vertex
-        CYCLE
-      END IF
-
-      ! Congrats, at this point you are a valid inversion point
-      mask( vi) = 2
-
-      ! Ice thickness misfit
-      misfit = ice%Hi( vi) - refgeo%Hi( vi)
-
-      ! Is it improving already?
-      IF (ice%dHi_dt( vi)*misfit < 0._dp) THEN
-        ! Yes, so leave this vertex alone
-        CYCLE
-      END IF
-
-      ! Compute and apply adjustment
-      BMB%BMB( vi) =  BMB%BMB( vi) - 1.0_dp * TAN( MIN( 1.0_dp, MAX( -1.0_dp, misfit/5E2_dp)))
-
-      ! Limit new values so they don't gonna do nothin crazy
-      BMB%BMB( vi) = MIN( BMB%BMB( vi),   20._dp)
-      BMB%BMB( vi) = MAX( BMB%BMB( vi), -200._dp)
 
     END DO
 
     ! Perform the extrapolation - mask: 2 -> use as seed; 1 -> extrapolate; 0 -> ignore
-    CALL extrapolate_Gaussian( mesh, mask, BMB%BMB, 5e3_dp)
+    CALL extrapolate_Gaussian( mesh, mask, BMB%BMB, 25000._dp)
+
+    ! Now multiply the extrapolated values by each vertex's grounded fraction
+    DO vi = mesh%vi1, mesh%vi2
+      IF (ice%mask_gl_gr( vi)) THEN
+        BMB%BMB( vi) = BMB%BMB( vi) * (1._dp - ice%fraction_gr( vi))
+      END IF
+    END DO
 
     ! Clean up after yourself
     DEALLOCATE( mask)
