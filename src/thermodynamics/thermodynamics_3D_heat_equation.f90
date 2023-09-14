@@ -134,13 +134,6 @@ CONTAINS
       Q_base_grnd( vi) = ice%frictional_heating( vi) + ice%geothermal_heat_flux( vi)
     END DO
 
-    ! DENK DROM
-    ! Account for semi-grounded vertices
-    DO vi = mesh%vi1, mesh%vi2
-      T_base_float( vi) = (1._dp - ice%fraction_gr( vi)) * T_base_float( vi) + ice%fraction_gr( vi) * Q_base_grnd( vi)
-      Q_base_grnd( vi)  = (1._dp - ice%fraction_gr( vi)) * T_base_float( vi) + ice%fraction_gr( vi) * Q_base_grnd( vi)
-    END DO
-
     ! Solve the heat equation for all vertices
     is_unstable = 0
     n_unstable  = 0
