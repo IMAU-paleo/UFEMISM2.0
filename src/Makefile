@@ -116,7 +116,6 @@ UFEMISM_source = \
   basal_mass_balance/BMB_main.f90 \
   \
   ice/ice_model_memory.f90 \
-  ice/ice_model_scalars.f90 \
   ice/ice_model_utilities.f90 \
   ice/ice_flow_laws.f90 \
   ice/ice_velocity_SIA.f90 \
@@ -125,6 +124,7 @@ UFEMISM_source = \
   ice/ice_velocity_BPA.f90 \
   ice/ice_velocity_main.f90 \
   ice/ice_thickness.f90 \
+  ice/ice_model_scalars.f90 \
   ice/ice_model_main.f90 \
   \
   thermodynamics/thermodynamics_utilities.f90 \

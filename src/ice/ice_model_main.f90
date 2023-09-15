@@ -18,7 +18,6 @@ MODULE ice_model_main
                                                                      save_variable_as_netcdf_logical_1D
   USE parameters
   USE mesh_types                                             , ONLY: type_mesh
-  USE scalar_types                                           , ONLY: type_regional_scalars
   USE ice_model_types                                        , ONLY: type_ice_model, type_ice_pc
   USE reference_geometries                                   , ONLY: type_reference_geometry
   USE region_types                                           , ONLY: type_model_region
@@ -28,7 +27,6 @@ MODULE ice_model_main
   USE ice_model_memory                                       , ONLY: allocate_ice_model
   USE ice_model_utilities                                    , ONLY: determine_masks, calc_bedrock_CDFs, calc_grounded_fractions, calc_zeta_gradients, &
                                                                      calc_mask_noice, alter_ice_thickness, initialise_bedrock_CDFs
-  USE ice_model_scalars                                      , ONLY: calc_ice_model_scalars
   USE ice_thickness                                          , ONLY: calc_dHi_dt, apply_mask_noice_direct, apply_ice_thickness_BC_explicit, initialise_dHi_dt_target
   USE math_utilities                                         , ONLY: ice_surface_elevation, thickness_above_floatation, Hi_from_Hb_Hs_and_SL, is_floating
   USE geothermal_heat_flux                                   , ONLY: initialise_geothermal_heat_flux
@@ -172,15 +170,12 @@ CONTAINS
     ! Calculate sub-grid grounded-area fractions
     CALL calc_grounded_fractions( region%mesh, region%ice)
 
-    ! Calculate ice-sheet integrated values (total volume, area, etc.)
-    CALL calc_ice_model_scalars( region%mesh, region%ice, region%refgeo_PD, region%scalars)
-
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE run_ice_dynamics_model
 
-  SUBROUTINE initialise_ice_dynamics_model( mesh, ice, refgeo_init, refgeo_PD, refgeo_GIAeq, GIA, scalars, region_name)
+  SUBROUTINE initialise_ice_dynamics_model( mesh, ice, refgeo_init, refgeo_PD, refgeo_GIAeq, GIA, region_name)
     ! Initialise all data fields of the ice module
 
     IMPLICIT NONE
@@ -192,7 +187,6 @@ CONTAINS
     TYPE(type_reference_geometry),          INTENT(IN)    :: refgeo_PD
     TYPE(type_reference_geometry),          INTENT(IN)    :: refgeo_GIAeq
     TYPE(type_GIA_model),                   INTENT(IN)    :: GIA
-    TYPE(type_regional_scalars),            INTENT(OUT)   :: scalars
     CHARACTER(LEN=3),                       INTENT(IN)    :: region_name
 
     ! Local variables:
@@ -346,11 +340,6 @@ CONTAINS
       CALL crash('unknown choice_timestepping "' // TRIM( C%choice_timestepping) // '"!')
     END IF
 
-    ! Ice-sheet-wide scalars
-    ! ======================
-
-    CALL calc_ice_model_scalars( mesh, ice, refgeo_PD, scalars)
-
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
@@ -421,7 +410,7 @@ CONTAINS
 
   END SUBROUTINE create_restart_files_ice_model
 
-  SUBROUTINE remap_ice_dynamics_model( mesh_old, mesh_new, ice, refgeo_PD, SMB, BMB, GIA, time, scalars, region_name)
+  SUBROUTINE remap_ice_dynamics_model( mesh_old, mesh_new, ice, refgeo_PD, SMB, BMB, GIA, time, region_name)
     ! Remap/reallocate all the data of the ice dynamics model
 
     IMPLICIT NONE
@@ -435,7 +424,6 @@ CONTAINS
     TYPE(type_BMB_model),                   INTENT(IN)    :: BMB
     TYPE(type_GIA_model),                   INTENT(IN)    :: GIA
     REAL(dp),                               INTENT(IN)    :: time
-    TYPE(type_regional_scalars),            INTENT(OUT)   :: scalars
     CHARACTER(LEN=3),                       INTENT(IN)    :: region_name
 
     ! Local variables:
@@ -771,11 +759,6 @@ CONTAINS
     ELSE
       CALL crash('unknown choice_timestepping "' // TRIM( C%choice_timestepping) // '"!')
     END IF
-
-    ! Ice-sheet-wide scalars
-    ! ======================
-
-    CALL calc_ice_model_scalars( mesh_new, ice, refgeo_PD, scalars)
 
     ! Relax ice geometry around the calving front
     ! ===========================================

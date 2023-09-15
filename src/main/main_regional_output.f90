@@ -1241,6 +1241,12 @@ CONTAINS
     CALL write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'ice_volume_PD',    region%scalars%ice_volume_PD)
     CALL write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'ice_volume_af_PD', region%scalars%ice_volume_af_PD)
 
+    CALL write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'SMB_total',        region%scalars%SMB_total)
+    CALL write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'BMB_total',        region%scalars%BMB_total)
+    CALL write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'gl_flux',          region%scalars%gl_flux)
+    CALL write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'cf_flux',          region%scalars%cf_flux)
+    CALL write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'out_flux',         region%scalars%out_flux)
+
     ! Close the file
     CALL close_netcdf_file( ncid)
 
@@ -2326,6 +2332,11 @@ CONTAINS
     CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'ice_volume_PD')
     CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'ice_volume_af_PD')
 
+    CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'SMB_total')
+    CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'BMB_total')
+    CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'gl_flux')
+    CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'cf_flux')
+    CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'out_flux')
 
     ! Close the file
     CALL close_netcdf_file( ncid)
@@ -2387,6 +2398,26 @@ CONTAINS
       ! Total ice sheet volume above floatation in metres of sea level equivalent for present-day
       CASE ('ice_volume_af_PD')
         CALL add_field_dp_0D( filename, ncid, 'ice_volume_af_PD', long_name = 'Total ice volume above floatation for present-day', units = 'm s.l.e.')
+
+      ! Total SMB integrated over the entire ice sheet/shelf area
+      CASE ('SMB_total')
+        CALL add_field_dp_0D( filename, ncid, 'SMB_total', long_name = 'Area-integrated SMB', units = 'Gt yr^-1')
+
+      ! Total BMB integrated over the entire ice sheet/shelf area
+      CASE ('BMB_total')
+        CALL add_field_dp_0D( filename, ncid, 'BMB_total', long_name = 'Area-integrated BMB', units = 'Gt yr^-1')
+
+      ! Total flux through the grounding line
+      CASE ('gl_flux')
+        CALL add_field_dp_0D( filename, ncid, 'gl_flux', long_name = 'Total lateral grounding line flux', units = 'Gt yr^-1')
+
+      ! Total flux through grounded and floating calving fronts
+      CASE ('cf_flux')
+        CALL add_field_dp_0D( filename, ncid, 'cf_flux', long_name = 'Total lateral calving front flux', units = 'Gt yr^-1')
+
+      ! Total flux exiting the ice sheet/shelves
+      CASE ('out_flux')
+        CALL add_field_dp_0D( filename, ncid, 'out_flux', long_name = 'Total lateral flux exiting the ice sheet/shelves', units = 'Gt yr^-1')
 
     ! ===== End of user-defined output fields =====
     ! =============================================

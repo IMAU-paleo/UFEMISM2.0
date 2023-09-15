@@ -50,6 +50,7 @@ MODULE UFEMISM_main_model
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_logical_1D
   USE mesh_remapping                                         , ONLY: clear_all_maps_involving_this_mesh
   USE mesh_memory                                            , ONLY: deallocate_mesh
+  USE ice_model_scalars                                      , ONLY: calc_ice_model_scalars
 
   USE netcdf_basic, ONLY: create_new_netcdf_file_for_writing
   USE netcdf_output, ONLY: setup_mesh_in_netcdf_file
@@ -137,6 +138,9 @@ CONTAINS
       IF (C%do_bed_roughness_nudging) THEN
         CALL run_basal_inversion( region)
       END IF
+
+      ! Calculate ice-sheet integrated values (total volume, area, etc.)
+      CALL calc_ice_model_scalars( region%mesh, region%ice, region%SMB, region%BMB, region%refgeo_PD, region%scalars)
 
       ! Write to the main regional output NetCDF file
       CALL write_to_regional_output_files( region)
@@ -453,7 +457,7 @@ CONTAINS
     ! ===== Ice dynamics =====
     ! ========================
 
-    CALL initialise_ice_dynamics_model( region%mesh, region%ice, region%refgeo_init, region%refgeo_PD, region%refgeo_GIAeq, region%GIA, region%scalars, region%name)
+    CALL initialise_ice_dynamics_model( region%mesh, region%ice, region%refgeo_init, region%refgeo_PD, region%refgeo_GIAeq, region%GIA, region%name)
 
     ! ===== Climate =====
     ! ===================
@@ -514,6 +518,12 @@ CONTAINS
     IF (C%do_pore_water_nudging) THEN
       CALL initialise_pore_water_fraction_inversion( region%mesh, region%ice, region%HIV, region%name)
     END IF
+
+    ! ===== Integrated scalars =====
+    ! ==============================
+
+    ! Calculate ice-sheet integrated values (total volume, area, etc.)
+    CALL calc_ice_model_scalars( region%mesh, region%ice, region%SMB, region%BMB, region%refgeo_PD, region%scalars)
 
     ! ===== Regional output =====
     ! ===========================
@@ -1097,7 +1107,7 @@ CONTAINS
     CALL initialise_reference_geometries_on_model_mesh( region%name, mesh_new, region%refgeo_init, region%refgeo_PD, region%refgeo_GIAeq)
 
     ! Remap all the model data from the old mesh to the new mesh
-    CALL remap_ice_dynamics_model( region%mesh, mesh_new, region%ice, region%refgeo_PD, region%SMB, region%BMB, region%GIA, region%time, region%scalars, region%name)
+    CALL remap_ice_dynamics_model( region%mesh, mesh_new, region%ice, region%refgeo_PD, region%SMB, region%BMB, region%GIA, region%time, region%name)
     CALL remap_climate_model(      region%mesh, mesh_new, region%climate, region%name)
     CALL remap_ocean_model(        region%mesh, mesh_new, region%ocean  , region%name)
     CALL remap_SMB_model(          region%mesh, mesh_new, region%SMB    , region%name)
