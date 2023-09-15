@@ -678,6 +678,9 @@ MODULE model_configuration
     LOGICAL             :: do_asynchronous_BMB_config                   = .TRUE.                           ! Whether or not the BMB should be calculated asynchronously from the rest of the model; if so, use dt_climate; if not, calculate it in every time step
     REAL(dp)            :: dt_BMB_config                                = 10._dp                           ! [yr] Time step for calculating BMB
 
+    ! Grounding line treatment
+    LOGICAL             :: do_subgrid_BMB_at_grounding_line_config      = .FALSE.                          ! Whether or not to apply basal melt rates under a partially floating grounding line
+
     ! Choice of BMB model
     CHARACTER(LEN=256)  :: choice_BMB_model_NAM_config                  = 'uniform'
     CHARACTER(LEN=256)  :: choice_BMB_model_EAS_config                  = 'uniform'
@@ -1474,6 +1477,9 @@ MODULE model_configuration
     LOGICAL             :: do_asynchronous_BMB
     REAL(dp)            :: dt_BMB
 
+    ! Grounding line treatment
+    LOGICAL             :: do_subgrid_BMB_at_grounding_line
+
     ! Choice of BMB model
     CHARACTER(LEN=256)  :: choice_BMB_model_NAM
     CHARACTER(LEN=256)  :: choice_BMB_model_EAS
@@ -2183,6 +2189,7 @@ CONTAINS
       timeframe_SMB_prescribed_ANT_config                         , &
       do_asynchronous_BMB_config                                  , &
       dt_BMB_config                                               , &
+      do_subgrid_BMB_at_grounding_line_config                     , &
       choice_BMB_model_NAM_config                                 , &
       choice_BMB_model_EAS_config                                 , &
       choice_BMB_model_GRL_config                                 , &
@@ -2966,6 +2973,9 @@ CONTAINS
     ! Time step
     C%do_asynchronous_BMB                                    = do_asynchronous_BMB_config
     C%dt_BMB                                                 = dt_BMB_config
+
+    ! Grounding line treatment
+    C%do_subgrid_BMB_at_grounding_line                       = do_subgrid_BMB_at_grounding_line_config
 
     ! Choice of BMB model
     C%choice_BMB_model_NAM                                   = choice_BMB_model_NAM_config

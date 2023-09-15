@@ -14,6 +14,7 @@ MODULE BMB_main
   USE ice_model_types                                        , ONLY: type_ice_model
   USE ocean_model_types                                      , ONLY: type_ocean_model
   USE reference_geometry_types                               , ONLY: type_reference_geometry
+  USE SMB_model_types                                        , ONLY: type_SMB_model
   USE BMB_model_types                                        , ONLY: type_BMB_model
   USE BMB_idealised                                          , ONLY: initialise_BMB_model_idealised, run_BMB_model_idealised
   USE BMB_parameterised                                      , ONLY: initialise_BMB_model_parameterised, run_BMB_model_parameterised
@@ -31,7 +32,7 @@ CONTAINS
 ! ===== Main routines =====
 ! =========================
 
-  SUBROUTINE run_BMB_model( mesh, ice, ocean, refgeo, BMB, region_name, time)
+  SUBROUTINE run_BMB_model( mesh, ice, ocean, refgeo, SMB, BMB, region_name, time)
     ! Calculate the basal mass balance
 
     IMPLICIT NONE
@@ -41,6 +42,7 @@ CONTAINS
     TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_ocean_model),                 INTENT(IN)    :: ocean
     TYPE(type_reference_geometry),          INTENT(IN)    :: refgeo
+    TYPE(type_SMB_model),                   INTENT(IN)    :: SMB
     TYPE(type_BMB_model),                   INTENT(INOUT) :: BMB
     CHARACTER(LEN=3),                       INTENT(IN)    :: region_name
     REAL(dp),                               INTENT(IN)    :: time
@@ -98,7 +100,7 @@ CONTAINS
       CASE ('parameterised')
         CALL run_BMB_model_parameterised( mesh, ice, ocean, BMB)
       CASE ('inverted')
-        CALL run_BMB_model_inverted( mesh, ice, BMB, time)
+        CALL run_BMB_model_inverted( mesh, ice, SMB, BMB, time)
       CASE DEFAULT
         CALL crash('unknown choice_BMB_model "' // TRIM( choice_BMB_model) // '"')
     END SELECT
@@ -424,7 +426,7 @@ CONTAINS
 
   END SUBROUTINE remap_BMB_model
 
-  SUBROUTINE run_BMB_model_inverted( mesh, ice, BMB, time)
+  SUBROUTINE run_BMB_model_inverted( mesh, ice, SMB, BMB, time)
     ! Calculate the basal mass balance
     !
     ! Use a parameterised BMB scheme
@@ -434,6 +436,7 @@ CONTAINS
     ! In/output variables:
     TYPE(type_mesh),                     INTENT(IN)    :: mesh
     TYPE(type_ice_model),                INTENT(IN)    :: ice
+    TYPE(type_SMB_model),                INTENT(IN)    :: SMB
     TYPE(type_BMB_model),                INTENT(INOUT) :: BMB
     REAL(dp),                            INTENT(IN)    :: time
 
@@ -445,6 +448,27 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    ! Compute inverted basal melt rates
+    ! =================================
+
+    BMB%BMB = 0._dp
+    DO vi = mesh%vi1, mesh%vi2
+      IF (is_floating( ice%Hi( vi), ice%Hb( vi), ice%SL( vi))) THEN
+        ! For ice shelves, use divQ and SMB to get an "inversion"
+        ! of equilibrium BMB.
+        BMB%BMB( vi) = ice%divQ( vi) - SMB%SMB( vi) + MIN( 0._dp, ice%dHi_dt_target( vi))
+      END IF
+    END DO
+
+    ! Extrapolate into partially floating grounding line vertices
+    ! ===========================================================
+
+    ! If not desired, exit
+    IF (.NOT. C%do_subgrid_BMB_at_grounding_line) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
+
     ! Allocate memory
     ALLOCATE( mask( mesh%vi1:mesh%vi2), source = 0)
 
@@ -453,7 +477,6 @@ CONTAINS
     ! grunded-side grounding line
 
     DO vi = mesh%vi1, mesh%vi2
-
       IF (ice%mask_gl_fl( vi)) THEN
         mask( vi) = 2
       ELSEIF (ice%mask_gl_gr( vi)) THEN
@@ -461,7 +484,6 @@ CONTAINS
       ELSE
         mask( vi) = 0
       END IF
-
     END DO
 
     ! Perform the extrapolation - mask: 2 -> use as seed; 1 -> extrapolate; 0 -> ignore
@@ -470,7 +492,10 @@ CONTAINS
     ! Now multiply the extrapolated values by each vertex's grounded fraction
     DO vi = mesh%vi1, mesh%vi2
       IF (ice%mask_gl_gr( vi)) THEN
+        ! Subgrid basal melt rate
         BMB%BMB( vi) = BMB%BMB( vi) * (1._dp - ice%fraction_gr( vi))
+        ! Limit it to only melt (refreezing is tricky)
+        BMB%BMB( vi) = MAX( BMB%BMB( vi), 0._dp)
       END IF
     END DO
 

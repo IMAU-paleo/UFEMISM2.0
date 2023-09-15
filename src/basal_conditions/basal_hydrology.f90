@@ -389,8 +389,8 @@ CONTAINS
       ! updated by inversion or by extrapolation
 
       ! Only perform the inversion on fully grounded vertices
-      ! IF (ice%mask_grounded_ice( vi) .AND. (.NOT. ice%mask_gl_gr( vi))) THEN
-      IF (ice%mask_grounded_ice( vi)) THEN
+      IF (ice%mask_grounded_ice( vi) .AND. (.NOT. ice%mask_gl_gr( vi))) THEN
+      ! IF (ice%mask_grounded_ice( vi)) THEN
 
         ! Perform the inversion here
         mask( vi) = 2

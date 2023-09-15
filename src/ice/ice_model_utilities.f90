@@ -1364,7 +1364,7 @@ CONTAINS
     END IF
 
     ! Write to terminal
-    IF (par%master) WRITE(0,*) '       Reading CDF functions from file "' // colour_string( TRIM( filename),'light blue') // '"...'
+    IF (par%master) WRITE(0,*) '      Reading CDF functions from file "' // colour_string( TRIM( filename),'light blue') // '"...'
 
     IF (.NOT. check == 'read_from_file') THEN
       CALL crash('The initial mesh was not read from a file. Reading a bedrock CDF this way makes no sense!')
