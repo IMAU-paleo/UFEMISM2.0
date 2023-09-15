@@ -86,7 +86,12 @@ CONTAINS
       BMB%BMB( vi) =  -1._dp * sec_per_year * C%BMB_Favier2019_gamma * SIGN(dT,1._dp) * (seawater_density * cp_ocean * dT / (ice_density * L_fusion))**2._dp
 
       ! Apply grounded fractions
-      BMB%BMB( vi) = (1._dp - ice%fraction_gr( vi)) * BMB%BMB( vi)
+      IF (ice%mask_gl_gr( vi) .AND. ice%Hib(vi) < ice%SL(vi)) THEN
+        ! Subgrid basal melt rate
+        BMB%BMB( vi) = (1._dp - ice%fraction_gr( vi)) * BMB%BMB( vi)
+        ! Limit it to only melt (refreezing is tricky)
+        BMB%BMB( vi) = MAX( BMB%BMB( vi), 0._dp)
+      END IF
 
     END DO
 

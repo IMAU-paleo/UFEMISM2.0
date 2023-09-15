@@ -147,8 +147,14 @@ CONTAINS
 
       ELSEIF (C%choice_enhancement_factor_transition == 'interp') THEN
 
-        ! Interpolation between grounded and floating values depending on grounded fraction
-        ice%A_flow( vi,:) = ice%A_flow( vi,:) * (ice%fraction_gr( vi) * C%m_enh_sheet + (1._dp-ice%fraction_gr( vi)) * C%m_enh_shelf)
+        IF(ice%Hi( vi) > 0._dp .AND. ice%Hib( vi) < ice%SL( vi)) THEN
+          ! Interpolation between grounded and floating values depending on grounded fraction
+          ice%A_flow( vi,:) = ice%A_flow( vi,:) * (ice%fraction_gr( vi) * C%m_enh_sheet + (1._dp-ice%fraction_gr( vi)) * C%m_enh_shelf)
+        ELSEIF( ice%mask_grounded_ice( vi)) THEN
+          ice%A_flow( vi,:) = ice%A_flow( vi,:) * C%m_enh_sheet
+        ELSEIF (ice%mask_floating_ice( vi)) THEN
+          ice%A_flow( vi,:) = ice%A_flow( vi,:) * C%m_enh_shelf
+        END IF
 
       ELSE
         CALL crash('unknown choice_enhancement_factor_transition "' // TRIM( C%choice_enhancement_factor_transition) // '"!')

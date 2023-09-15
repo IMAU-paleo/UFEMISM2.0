@@ -717,6 +717,10 @@ CONTAINS
       HIV%pore_water_fraction_next( vi) = 1._dp - pore_dryness( vi)
       IF (.NOT. ice%mask_grounded_ice( vi)) THEN
         HIV%pore_water_fraction_next( vi) = MAX(HIV%pore_water_fraction_next( vi), 1._dp - ice%fraction_gr( vi)**2._dp)
+      ELSEIF (ice%mask_gl_gr( vi) .AND. ice%Hib( vi) < ice%SL( vi)) THEN
+        HIV%pore_water_fraction_next( vi) = MAX(HIV%pore_water_fraction_next( vi), 1._dp - ice%fraction_gr( vi)**1._dp)
+      ELSEIF (ice%mask_cf_gr( vi) .AND. ice%Hib( vi) < ice%SL( vi)) THEN
+        HIV%pore_water_fraction_next( vi) = MAX(HIV%pore_water_fraction_next( vi), 1._dp - ice%fraction_gr( vi)**1._dp)
       END IF
       HIV%pore_water_fraction_next( vi) = MIN( HIV%pore_water_fraction_next( vi), C%pore_water_fraction_max)
       HIV%pore_water_fraction_next( vi) = MAX( HIV%pore_water_fraction_next( vi), C%pore_water_fraction_min)

@@ -491,9 +491,9 @@ CONTAINS
 
     ! Now multiply the extrapolated values by each vertex's grounded fraction
     DO vi = mesh%vi1, mesh%vi2
-      IF (ice%mask_gl_gr( vi)) THEN
+      IF (ice%mask_gl_gr( vi) .AND. ice%Hib(vi) < ice%SL(vi)) THEN
         ! Subgrid basal melt rate
-        BMB%BMB( vi) = BMB%BMB( vi) * (1._dp - ice%fraction_gr( vi))
+        BMB%BMB( vi) = (1._dp - ice%fraction_gr( vi)) * BMB%BMB( vi)
         ! Limit it to only melt (refreezing is tricky)
         BMB%BMB( vi) = MAX( BMB%BMB( vi), 0._dp)
       END IF
