@@ -186,7 +186,7 @@ CONTAINS
 
     END DO
 
-  ! == Calculate velocities on the a-grid (needed to calculate the vertical velocity w, and for writing to output)
+    ! == Calculate velocities on the a-grid (needed to calculate the vertical velocity w, and for writing to output)
 
     ! 3-D
     CALL map_b_a_3D( mesh, ice%u_3D_b  , ice%u_3D  )
@@ -763,9 +763,20 @@ CONTAINS
       !       at the ice base, that means that a positive BMB means a positive
       !       value of w
 
-      ice%w_3D( vi,C%nz) = (ice%u_3D( vi,C%nz) * dHib_dx( vi)) + &
-                           (ice%v_3D( vi,C%nz) * dHib_dy( vi)) + &
-                            dHib_dt( vi) + BMB( vi)
+      IF (ice%mask_floating_ice( vi)) THEN
+
+        ice%w_3D( vi,C%nz) = (ice%u_3D( vi,C%nz) * dHib_dx( vi)) + &
+                             (ice%v_3D( vi,C%nz) * dHib_dy( vi)) + &
+                              dHib_dt( vi) + MIN( 0._dp, BMB( vi))
+
+      ELSE
+
+        ice%w_3D( vi,C%nz) = (ice%u_3D( vi,C%nz) * dHib_dx( vi)) + &
+                             (ice%v_3D( vi,C%nz) * dHib_dy( vi)) + &
+                              dHib_dt( vi)
+
+      END IF
+
 
       ! Exception for very thin ice / ice margin: assume horizontal stretching
       ! is negligible, so that w( z) = w( z = b)
