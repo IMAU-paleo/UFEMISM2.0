@@ -167,8 +167,8 @@ CONTAINS
     ! Calculate rate of ice thickness change dHi/dt
     dHi_dt = -divQ + SMB + BMB - dHi_dt_target
 
-    ! Calculate largest time step possible based on flux divergence
-    CALL calc_flux_limited_timestep( mesh, Hi, Hb, SL, divQ, dt_max)
+    ! Calculate largest time step possible based on dHi_dt
+    CALL calc_flux_limited_timestep( mesh, Hi, Hb, SL, dHi_dt, dt_max)
 
     ! Constrain dt based on new limit
     dt = MIN( dt, dt_max)
@@ -284,8 +284,11 @@ CONTAINS
     ! Calculate the ice flux divergence div(Q)
     CALL multiply_CSR_matrix_with_vector_1D( M_divQ, Hi, divQ)
 
-    ! Calculate largest time step possible based on flux divergence div(Q)
-    CALL calc_flux_limited_timestep( mesh, Hi, Hb, SL, divQ, dt_max)
+    ! Calculate an estimate of the rate of ice thickness change dHi/dt
+    dHi_dt = -divQ + SMB + BMB - dHi_dt_target
+
+    ! Calculate largest time step possible based on that estimate
+    CALL calc_flux_limited_timestep( mesh, Hi, Hb, SL, dHi_dt, dt_max)
 
     ! Constrain dt based on new limit
     dt = MIN( dt, dt_max)
@@ -427,8 +430,11 @@ CONTAINS
     ! Calculate the ice flux divergence div(Q)
     CALL multiply_CSR_matrix_with_vector_1D( M_divQ, Hi, divQ)
 
-    ! Calculate largest time step possible based on flux divergence div(Q)
-    CALL calc_flux_limited_timestep( mesh, Hi, Hb, SL, divQ, dt_max)
+    ! Calculate an estimate of the rate of ice thickness change dHi/dt
+    dHi_dt = -divQ + SMB + BMB - dHi_dt_target
+
+    ! Calculate largest time step possible based on that estimate
+    CALL calc_flux_limited_timestep( mesh, Hi, Hb, SL, dHi_dt, dt_max)
 
     ! Constrain dt based on new limit
     dt = MIN( dt, dt_max)
@@ -1039,7 +1045,7 @@ CONTAINS
 
   END SUBROUTINE apply_mask_noice_direct
 
-  SUBROUTINE calc_flux_limited_timestep( mesh, Hi, Hb, SL, divQ, dt_max)
+  SUBROUTINE calc_flux_limited_timestep( mesh, Hi, Hb, SL, dHi_dt, dt_max)
     ! Calculate the largest time step that does not result in more
     ! ice flowing out of a cell than is contained within it.
 
@@ -1050,7 +1056,7 @@ CONTAINS
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)  :: Hi
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)  :: Hb
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)  :: SL
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)  :: divQ
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)  :: dHi_dt
     REAL(dp),                               INTENT(OUT) :: dt_max
 
     ! Local variables:
@@ -1067,11 +1073,11 @@ CONTAINS
     ! Loop over each mesh vertex within this process
     DO vi = mesh%vi1, mesh%vi2
       ! If there is [non-negligible grounded] ice, and there is mass loss
-      IF (.NOT. is_floating( Hi( vi), Hb( vi), SL( vi)) .AND. Hi( vi) >= 10._dp .AND. divQ( vi) > 0._dp) THEN
+      IF (.NOT. is_floating( Hi( vi), Hb( vi), SL( vi)) .AND. Hi( vi) >= 10._dp .AND. dHi_dt( vi) < 0._dp) THEN
 
         ! Compute time step limit (in yr) based on
         ! available ice thickness and flux divergence
-        dt_lim( vi) = Hi( vi) / MAX( divQ( vi), 1E-9_dp)
+        dt_lim( vi) = Hi( vi) / MAX( dHi_dt( vi), 1E-9_dp)
 
       END IF
     END DO
