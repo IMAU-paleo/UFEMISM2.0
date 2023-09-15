@@ -436,11 +436,11 @@ CONTAINS
       IF (n_up < 3 .OR. n_down < 3) THEN
 
         ! Compute likelihood of local subglacial water
-        ice%pore_water_likelihood( vi) = EXP(ice%Ti_hom( vi)/3._dp)
+        ice%pore_water_likelihood( vi) = EXP(ice%Ti_hom( vi)/10._dp)
 
         ! Compute new adjustment for pore water fraction
         I_tot( vi) = ice%pore_water_likelihood( vi) * (misfit / C%porenudge_H_dHdt_flowline_dH0 + &
-                                                       2._dp * (ice%dHi_dt_predicted( vi)) / C%porenudge_H_dHdt_flowline_dHdt0)
+                                                       2._dp * (ice%dHi_dt( vi)) / C%porenudge_H_dHdt_flowline_dHdt0)
 
         ! Compute a rate of adjustment
         dC1_dt( vi) = -1._dp * (I_tot( vi) * pore_dryness( vi)) / C%porenudge_H_dHdt_flowline_t_scale
@@ -640,7 +640,7 @@ CONTAINS
       ! =============================================
 
       ! Compute likelihood of subglacial water
-      ice%pore_water_likelihood( vi) = EXP(Ti_hom_av_up( vi)/3._dp)
+      ice%pore_water_likelihood( vi) = EXP(Ti_hom_av_up( vi)/10._dp)
 
       ! Compute new adjustment for pore water fraction
       I_tot( vi) = ice%pore_water_likelihood( vi) * ((deltaHi_av_up( vi)                      ) / C%porenudge_H_dHdt_flowline_dH0 + &
@@ -716,7 +716,7 @@ CONTAINS
     DO vi = mesh%vi1, mesh%vi2
       HIV%pore_water_fraction_next( vi) = 1._dp - pore_dryness( vi)
       IF (.NOT. ice%mask_grounded_ice( vi)) THEN
-        HIV%pore_water_fraction_next( vi) = MAX(HIV%pore_water_fraction_next( vi), 1._dp - ice%fraction_gr( vi)**3._dp)
+        HIV%pore_water_fraction_next( vi) = MAX(HIV%pore_water_fraction_next( vi), 1._dp - ice%fraction_gr( vi)**2._dp)
       END IF
       HIV%pore_water_fraction_next( vi) = MIN( HIV%pore_water_fraction_next( vi), C%pore_water_fraction_max)
       HIV%pore_water_fraction_next( vi) = MAX( HIV%pore_water_fraction_next( vi), C%pore_water_fraction_min)

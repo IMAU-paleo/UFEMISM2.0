@@ -27,10 +27,10 @@ MODULE ice_model_main
   USE GIA_model_types                                        , ONLY: type_GIA_model
   USE ice_model_memory                                       , ONLY: allocate_ice_model
   USE ice_model_utilities                                    , ONLY: determine_masks, calc_bedrock_CDFs, calc_grounded_fractions, calc_zeta_gradients, &
-                                                                     calc_mask_noice, alter_ice_thickness
+                                                                     calc_mask_noice, alter_ice_thickness, initialise_bedrock_CDFs
   USE ice_model_scalars                                      , ONLY: calc_ice_model_scalars
   USE ice_thickness                                          , ONLY: calc_dHi_dt, apply_mask_noice_direct, apply_ice_thickness_BC_explicit, initialise_dHi_dt_target
-  USE math_utilities                                         , ONLY: ice_surface_elevation, thickness_above_floatation, Hi_from_Hb_Hs_and_SL
+  USE math_utilities                                         , ONLY: ice_surface_elevation, thickness_above_floatation, Hi_from_Hb_Hs_and_SL, is_floating
   USE geothermal_heat_flux                                   , ONLY: initialise_geothermal_heat_flux
   USE basal_hydrology                                        , ONLY: initialise_basal_hydrology_model
   USE bed_roughness                                          , ONLY: initialise_bed_roughness
@@ -46,10 +46,11 @@ MODULE ice_model_main
   USE netcdf_input                                           , ONLY: read_field_from_file_0D, read_field_from_mesh_file_2D
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   USE mesh_remapping                                         , ONLY: Atlas, map_from_mesh_to_mesh_with_reallocation_2D, map_from_mesh_to_mesh_with_reallocation_3D, &
-                                                                     map_from_mesh_to_mesh_2D
+                                                                     map_from_mesh_to_mesh_2D, smooth_Gaussian_2D
   USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp
   USE petsc_basic                                            , ONLY: mat_petsc2CSR
   USE reallocate_mod                                         , ONLY: reallocate_bounds_dp_1D
+  USE BMB_main                                               , ONLY: run_BMB_model
 
   IMPLICIT NONE
 
@@ -165,8 +166,8 @@ CONTAINS
 
     ! NOTE: as calculating the zeta gradients is quite expensive, only do so when necessary,
     !       i.e. when solving the heat equation or the Blatter-Pattyn stress balance
-    ! ! Calculate zeta gradients
-    ! CALL calc_zeta_gradients( region%mesh, region%ice)
+    ! Calculate zeta gradients
+    CALL calc_zeta_gradients( region%mesh, region%ice)
 
     ! Calculate sub-grid grounded-area fractions
     CALL calc_grounded_fractions( region%mesh, region%ice)
@@ -315,11 +316,8 @@ CONTAINS
     ! Sub-grid fractions
     ! ==================
 
-    IF (C%choice_subgrid_grounded_fraction == 'bedrock_CDF' .OR. &
-        C%choice_subgrid_grounded_fraction == 'bilin_interp_TAF+bedrock_CDF') THEN
-      ! Compute bedrock cumulative density function
-      CALL calc_bedrock_CDFs( mesh, refgeo_PD, ice)
-    END IF
+    ! Initialise bedrock cumulative density functions
+    CALL initialise_bedrock_CDFs( mesh, refgeo_PD, ice, region_name)
     ! Initialise sub-grid grounded-area fractions
     CALL calc_grounded_fractions( mesh, ice)
 
@@ -1305,26 +1303,67 @@ CONTAINS
 
       ! Calculate thinning rates for current geometry and velocity
       CALL calc_dHi_dt( region%mesh, region%ice%Hi_prev, region%ice%Hb, region%ice%SL, region%ice%u_vav_b, region%ice%v_vav_b, region%SMB%SMB, region%BMB%BMB, &
-        region%ice%mask_noice, region%ice%pc%dt_np1, region%ice%pc%dHi_dt_Hi_n_u_n, Hi_dummy, region%ice%divQ, region%ice%dHi_dt_target)
+                        region%ice%mask_noice, region%ice%pc%dt_np1, region%ice%pc%dHi_dt_Hi_n_u_n, Hi_dummy, region%ice%divQ, region%ice%dHi_dt_target)
+
+      ! Save "raw" thinning rates from predictor step for future reference
+      region%ice%dHi_dt_predicted = region%ice%pc%dHi_dt_Hi_n_u_n
+
+      ! DENK DROM
+      DO vi = region%mesh%vi1, region%mesh%vi2
+        IF (is_floating( region%ice%Hi( vi), region%ice%Hb( vi), region%ice%SL( vi))) THEN
+          ! For ice shelves, use divQ and SMB to get an "inversion" of equilibrium BMB.
+          region%BMB%BMB( vi) = region%ice%divQ( vi) - region%SMB%SMB( vi) + MIN( 0._dp, region%ice%dHi_dt_target( vi))
+          ! Adjust rate of ice thickness change dHi/dt to compensate the change
+          region%ice%pc%dHi_dt_Hi_n_u_n( vi) = 0._dp
+        ELSE
+          region%BMB%BMB = 0._dp
+        END IF
+      END DO
+
+      ! Pre-estimate ice thickness
+      region%ice%pc%Hi_star_np1 = region%ice%Hi_prev + region%ice%pc%dt_np1 * region%ice%pc%dHi_dt_Hi_n_u_n
+
+      ! Modify the predicted ice thickness if desired
+      CALL alter_ice_thickness( region%mesh, region%ice, region%ice%Hi_prev, region%ice%pc%Hi_star_np1, region%refgeo_PD%Hi, region%ice%pc%dt_np1, region%time)
+
+      ! Recompute thinning rates to account for modification
+      region%ice%pc%dHi_dt_Hi_n_u_n  = (region%ice%pc%Hi_star_np1 - region%ice%Hi_prev) / region%ice%pc%dt_np1
 
       ! Calculate predicted ice thickness (Robinson et al., 2020, Eq. 30)
       region%ice%pc%Hi_star_np1 = region%ice%Hi_prev + region%ice%pc%dt_np1 * ((1._dp + region%ice%pc%zeta_t / 2._dp) * &
         region%ice%pc%dHi_dt_Hi_n_u_n - (region%ice%pc%zeta_t / 2._dp) * region%ice%pc%dHi_dt_Hi_nm1_u_nm1)
 
-      CALL alter_ice_thickness( region%mesh, region%ice, region%ice%Hi_prev, region%ice%pc%Hi_star_np1, region%refgeo_PD%Hi, region%ice%pc%dt_np1, region%time)
-
       ! == Update step ==
       ! =================
 
       ! Set model geometry to predicted
-      region%ice%Hi = region%ice%pc%Hi_star_np1
       DO vi = region%mesh%vi1, region%mesh%vi2
-        region%ice%Hs( vi) = ice_surface_elevation( region%ice%Hi( vi), region%ice%Hb( vi), region%ice%SL( vi))
+        ! Basic geometry
+        region%ice%Hi ( vi) = region%ice%pc%Hi_star_np1( vi)
+        region%ice%Hs ( vi) = ice_surface_elevation( region%ice%Hi( vi), region%ice%Hb( vi), region%ice%SL( vi))
+        region%ice%Hib( vi) = region%ice%Hs(  vi) - region%ice%Hi( vi)
+
+        ! Rates of change
+        region%ice%dHi_dt( vi) = (region%ice%Hi( vi) - region%ice%Hi_prev( vi)) / region%ice%pc%dt_np1
       END DO
+
+      ! Calculate the no-ice mask
+      CALL calc_mask_noice( region%mesh, region%ice, region%refgeo_PD)
+
+      ! Apply no-ice mask
+      CALL apply_mask_noice_direct( region%mesh, region%ice%mask_noice, region%ice%Hi)
+
       ! Update masks
       CALL determine_masks( region%mesh, region%ice)
+
+      ! ! Calculate zeta gradients
+      ! CALL calc_zeta_gradients( region%mesh, region%ice)
+
       ! Update sub-grid grounded fractions
       CALL calc_grounded_fractions( region%mesh, region%ice)
+
+      ! Calculate the basal mass balance
+      CALL run_BMB_model( region%mesh, region%ice, region%ocean, region%refgeo_PD, region%SMB, region%BMB, region%name, region%time)
 
       ! Calculate ice velocities for the predicted geometry
       CALL solve_stress_balance( region%mesh, region%ice, region%BMB%BMB)
@@ -1333,24 +1372,89 @@ CONTAINS
       ! ====================
 
       ! Set model geometry back to original
-      region%ice%Hi = region%ice%Hi_prev
       DO vi = region%mesh%vi1, region%mesh%vi2
-        region%ice%Hs( vi) = ice_surface_elevation( region%ice%Hi( vi), region%ice%Hb( vi), region%ice%SL( vi))
+        region%ice%Hi(  vi) = region%ice%Hi_prev( vi)
+        region%ice%Hs(  vi) = ice_surface_elevation( region%ice%Hi( vi), region%ice%Hb( vi), region%ice%SL( vi))
+        region%ice%Hib( vi) = region%ice%Hs(  vi) - region%ice%Hi( vi)
       END DO
+
       ! Update masks
       CALL determine_masks( region%mesh, region%ice)
 
-      ! Calculate thinning rates for the predicted ice thickness and updated velocity
+      ! Update sub-grid grounded fractions
+      CALL calc_grounded_fractions( region%mesh, region%ice)
+
+      ! Calculate thinning rates for the current ice thickness and predicted velocity
       CALL calc_dHi_dt( region%mesh, region%ice%Hi, region%ice%Hb, region%ice%SL, region%ice%u_vav_b, region%ice%v_vav_b, region%SMB%SMB, region%BMB%BMB, &
-        region%ice%mask_noice, region%ice%pc%dt_np1, region%ice%pc%dHi_dt_Hi_star_np1_u_np1, Hi_dummy, region%ice%divQ, region%ice%dHi_dt_target)
+                        region%ice%mask_noice, region%ice%pc%dt_np1, region%ice%pc%dHi_dt_Hi_star_np1_u_np1, Hi_dummy, region%ice%divQ, region%ice%dHi_dt_target)
+
+      ! Add "raw" thinning rates from corrector step to the predictor step ones
+      region%ice%dHi_dt_predicted = region%ice%dHi_dt_predicted + region%ice%pc%dHi_dt_Hi_star_np1_u_np1
+
+      ! DENK DROM
+      DO vi = region%mesh%vi1, region%mesh%vi2
+        IF (is_floating( region%ice%Hi( vi), region%ice%Hb( vi), region%ice%SL( vi))) THEN
+          ! For ice shelves, use divQ and SMB to get an "inversion" of equilibrium BMB.
+          region%BMB%BMB( vi) = region%ice%divQ( vi) - region%SMB%SMB( vi) + MIN( 0._dp, region%ice%dHi_dt_target( vi))
+          ! Adjust rate of ice thickness change dHi/dt to compensate the change
+          region%ice%pc%dHi_dt_Hi_star_np1_u_np1( vi) = 0._dp
+        ELSE
+          region%BMB%BMB = 0._dp
+        END IF
+      END DO
+
+      ! ! Compute secondary thinning rates
+      ! DO vi = region%mesh%vi1, region%mesh%vi2
+      !   region%ice%dHi_dt_predicted( vi) = 0._dp
+      !   ! Floating ice and ice-free ocean
+      !   IF (is_floating( region%ice%Hi( vi), region%ice%Hb( vi), region%ice%SL( vi))) THEN
+      !     ! Compute "raw" thinning rates free of any ice thickness modifications, without thickening target rates
+      !     region%ice%dHi_dt_predicted( vi) = -region%ice%divQ( vi) + region%SMB%SMB( vi) + region%BMB%BMB( vi) - MIN( 0._dp, region%ice%dHi_dt_target( vi))
+      !   ! Grounded ice and ice-free land
+      !   ELSE
+      !     ! Compute "raw" thinning rates free of any ice thickness modifications
+      !     region%ice%dHi_dt_predicted( vi) = -region%ice%divQ( vi) + region%SMB%SMB( vi) + region%BMB%BMB( vi) - region%ice%dHi_dt_target( vi)
+      !   END IF
+      ! END DO
+
+      ! ! Restore to original SMB
+      ! region%SMB%SMB = region%SMB%SMB + region%ice%dHi_dt_residual
+
+      ! DO vi = region%mesh%vi1, region%mesh%vi2
+      !   region%ice%dHi_dt_residual(  vi) = 0._dp
+      !   ! Floating ice and ice-free ocean
+      !   IF (region%ice%mask_grounded_ice( vi) .AND. .NOT. region%ice%mask_gl_gr( vi) .AND. .NOT. region%ice%mask_cf_gr( vi)) THEN
+      !     ! Compute residual thinning rates in areas where nothing can be done to remove them
+      !     IF (.NOT. region%ice%mask_margin( vi) .AND. region%ice%pore_water_fraction( vi) == 0._dp .AND. region%ice%divQ( vi) >= 0._dp) THEN
+      !       ! Thinning area with maximum friction
+      !       region%ice%dHi_dt_residual( vi) = MIN( 0._dp, region%ice%dHi_dt_predicted( vi))
+      !     END IF
+      !     IF (.NOT. region%ice%mask_cf_gr( vi) .AND. region%ice%Hi( vi) < C%Hi_min .AND. region%ice%divQ( vi) <= 0._dp) THEN
+      !       ! Thickening area that should remain free
+      !       region%ice%dHi_dt_residual( vi) = MAX( 0._dp, region%ice%dHi_dt_predicted( vi))
+      !     END IF
+      !   END IF
+      !   IF (region%ice%dHi_dt_residual( vi) < -2.0_dp) region%ice%dHi_dt_residual( vi) = 0._dp
+      ! END DO
+
+      ! ! Correct SMB based on residuals
+      ! ! CALL smooth_Gaussian_2D( region%mesh, region%grid_smooth, region%ice%dHi_dt_residual, 5000._dp)
+      ! region%SMB%SMB = region%SMB%SMB - region%ice%dHi_dt_residual
+
+      ! Pre-estimate ice thickness
+      region%ice%pc%Hi_np1 = region%ice%Hi_prev + region%ice%pc%dt_np1 * region%ice%pc%dHi_dt_Hi_star_np1_u_np1
+
+      ! Modify the predicted ice thickness if desired
+      CALL alter_ice_thickness( region%mesh, region%ice, region%ice%Hi_prev, region%ice%pc%Hi_np1, region%refgeo_PD%Hi, region%ice%pc%dt_np1, region%time)
+
+      ! Recompute thinning rates to account for modification
+      region%ice%pc%dHi_dt_Hi_star_np1_u_np1  = (region%ice%pc%Hi_np1 - region%ice%Hi_prev) / region%ice%pc%dt_np1
 
       ! Calculate corrected ice thickness (Robinson et al. (2020), Eq. 31)
       region%ice%pc%Hi_np1 = region%ice%Hi_prev + (region%ice%pc%dt_np1 / 2._dp) * (region%ice%pc%dHi_dt_Hi_n_u_n + region%ice%pc%dHi_dt_Hi_star_np1_u_np1)
 
-      ! Save the "true" dynamical dH/dt for future reference
-      region%ice%dHi_dt_predicted = (region%ice%pc%Hi_np1 - region%ice%Hi_prev) / region%ice%pc%dt_np1
-
-      CALL alter_ice_thickness( region%mesh, region%ice, region%ice%Hi_prev, region%ice%pc%Hi_np1, region%refgeo_PD%Hi, region%ice%pc%dt_np1, region%time)
+      ! Divide both original thinning rates (corrector and predictor steps) by two to get the equivalent "raw" field
+      region%ice%dHi_dt_predicted = region%ice%dHi_dt_predicted / 2._dp
 
       ! == Truncation error ==
       ! ======================
@@ -1396,13 +1500,13 @@ CONTAINS
       ! If not, check whether that occurs in a significant amount of vertices; if not,
       ! set the truncation error to almost the tolerance (to allow for growth) and move on
       ELSEIF (100._dp * REAL( n_guilty,dp) / REAL(n_tot,dp) < C%pc_guilty_max) THEN
-        ! IF (par%master) CALL warning('a few vertices are changing rapidly; less than C%pc_guilty_max % tho, so keep going')
+        IF (par%master) CALL warning('a few vertices are changing rapidly; less than C%pc_guilty_max % tho, so keep going')
         region%ice%pc%eta_np1 = .95_dp * C%pc_epsilon
         EXIT iterate_pc_timestep
 
       ! if not, re-do the PC timestep
       ELSE
-        ! IF (par%master) CALL warning('reducing dt and redoing PC timestep')
+        IF (par%master) CALL warning('reducing dt and redoing PC timestep')
         region%ice%pc%dt_np1 = region%ice%pc%dt_np1 * 0.8_dp
         ! If the timestep has reached the specified lower limit, stop iterating
         IF (region%ice%pc%dt_np1 <= C%dt_ice_min) THEN
@@ -1809,13 +1913,13 @@ CONTAINS
 
     ! Calculate thinning rates and predicted geometry
     CALL calc_dHi_dt( region%mesh, region%ice%Hi, region%ice%Hb, region%ice%SL, region%ice%u_vav_b, region%ice%v_vav_b, region%SMB%SMB, region%BMB%BMB, &
-      region%ice%mask_noice, dt, region%ice%dHi_dt, region%ice%Hi_next, region%ice%divQ, region%ice%dHi_dt_target)
-
-    ! Modify predicted ice thickness if desired
-    CALL alter_ice_thickness( region%mesh, region%ice, region%ice%Hi_prev, region%ice%Hi_next, region%refgeo_PD%Hi, dt, region%time)
+                      region%ice%mask_noice, dt, region%ice%dHi_dt, region%ice%Hi_next, region%ice%divQ, region%ice%dHi_dt_target)
 
     ! Save the "true" dynamical dH/dt for future reference
     region%ice%dHi_dt_predicted = region%ice%dHi_dt
+
+    ! Modify predicted ice thickness if desired
+    CALL alter_ice_thickness( region%mesh, region%ice, region%ice%Hi_prev, region%ice%Hi_next, region%refgeo_PD%Hi, dt, region%time)
 
     ! Set next modelled ice thickness timestamp
     region%ice%t_Hi_next = region%ice%t_Hi_prev + dt
