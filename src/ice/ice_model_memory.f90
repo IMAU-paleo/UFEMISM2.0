@@ -69,6 +69,7 @@ CONTAINS
     ALLOCATE( ice%dHib_dt                     ( mesh%vi1:mesh%vi2        ))  ! [m yr^-1] Ice base elevation rate of change
     ALLOCATE( ice%dHi_dt_predicted            ( mesh%vi1:mesh%vi2        ))  ! [m yr^-1] Ice thickness rate of change before any modifications
     ALLOCATE( ice%dHi_dt_target               ( mesh%vi1:mesh%vi2        ))  ! [m yr^-1] Target ice thickness rate of change for inversions
+    ALLOCATE( ice%dHi_dt_residual             ( mesh%vi1:mesh%vi2        ))  ! [m yr^-1] Residual ice thickness rate of change for inversions
 
     ice%dHi_dt                      = 0._dp
     ice%dHb_dt                      = 0._dp
@@ -76,6 +77,7 @@ CONTAINS
     ice%dHib_dt                     = 0._dp
     ice%dHi_dt_predicted            = 0._dp
     ice%dHi_dt_target               = 0._dp
+    ice%dHi_dt_residual             = 0._dp
 
     ! Masks
     ALLOCATE( ice%mask_icefree_land           ( mesh%vi1:mesh%vi2        ))  ! T: ice-free land , F: otherwise

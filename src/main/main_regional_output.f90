@@ -463,6 +463,8 @@ CONTAINS
         CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'dHi_dt_predicted', region%ice%dHi_dt_predicted)
       CASE ('dHi_dt_target')
         CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'dHi_dt_target', region%ice%dHi_dt_target)
+      CASE ('dHi_dt_residual')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'dHi_dt_residual', region%ice%dHi_dt_residual)
 
     ! ===== Masks =====
     ! =================
@@ -909,6 +911,9 @@ CONTAINS
       CASE ('dHi_dt_target')
         CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%dHi_dt_target, d_grid_vec_partial_2D)
         CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'dHi_dt_target', d_grid_vec_partial_2D)
+      CASE ('dHi_dt_residual')
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%dHi_dt_residual, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'dHi_dt_residual', d_grid_vec_partial_2D)
 
     ! ===== Masks =====
     ! =================
@@ -1685,6 +1690,8 @@ CONTAINS
         CALL add_field_mesh_dp_2D( filename, ncid, 'dHi_dt_predicted', long_name = 'Ice thickness rate of change before any modifications', units = 'm yr^-1')
       CASE ('dHi_dt_target')
         CALL add_field_mesh_dp_2D( filename, ncid, 'dHi_dt_target', long_name = 'Target ice thickness rate of change during model calibration', units = 'm yr^-1')
+      CASE ('dHi_dt_residual')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'dHi_dt_residual', long_name = 'Residual ice thickness rate of change during model calibration', units = 'm yr^-1')
 
     ! ===== Masks =====
     ! =================
@@ -2040,6 +2047,8 @@ CONTAINS
         CALL add_field_grid_dp_2D( filename, ncid, 'dHi_dt_predicted', long_name = 'Ice thickness rate of change before any modifications', units = 'm yr^-1')
       CASE ('dHi_dt_target')
         CALL add_field_grid_dp_2D( filename, ncid, 'dHi_dt_target', long_name = 'Target ice thickness rate of change during model calibration', units = 'm yr^-1')
+      CASE ('dHi_dt_residual')
+        CALL add_field_grid_dp_2D( filename, ncid, 'dHi_dt_residual', long_name = 'Residual ice thickness rate of change during model calibration', units = 'm yr^-1')
 
     ! ===== Masks =====
     ! =================
