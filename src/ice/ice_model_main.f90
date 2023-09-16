@@ -1295,7 +1295,7 @@ CONTAINS
       DO vi = region%mesh%vi1, region%mesh%vi2
         IF (is_floating( region%ice%Hi( vi), region%ice%Hb( vi), region%ice%SL( vi))) THEN
           ! For ice shelves, use divQ and SMB to get an "inversion" of equilibrium BMB.
-          region%BMB%BMB( vi) = region%ice%divQ( vi) - region%SMB%SMB( vi) + MIN( 0._dp, region%ice%dHi_dt_target( vi))
+          region%BMB%BMB( vi) = region%ice%divQ( vi) - region%SMB%SMB( vi) + region%ice%dHi_dt_target( vi)
           ! Adjust rate of ice thickness change dHi/dt to compensate the change
           region%ice%pc%dHi_dt_Hi_n_u_n( vi) = 0._dp
         ELSE
@@ -1378,7 +1378,7 @@ CONTAINS
       DO vi = region%mesh%vi1, region%mesh%vi2
         IF (is_floating( region%ice%Hi( vi), region%ice%Hb( vi), region%ice%SL( vi))) THEN
           ! For ice shelves, use divQ and SMB to get an "inversion" of equilibrium BMB.
-          region%BMB%BMB( vi) = region%ice%divQ( vi) - region%SMB%SMB( vi) + MIN( 0._dp, region%ice%dHi_dt_target( vi))
+          region%BMB%BMB( vi) = region%ice%divQ( vi) - region%SMB%SMB( vi) + region%ice%dHi_dt_target( vi)
           ! Adjust rate of ice thickness change dHi/dt to compensate the change
           region%ice%pc%dHi_dt_Hi_star_np1_u_np1( vi) = 0._dp
         ELSE

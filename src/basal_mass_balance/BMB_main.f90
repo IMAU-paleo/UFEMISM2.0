@@ -456,7 +456,7 @@ CONTAINS
       IF (is_floating( ice%Hi( vi), ice%Hb( vi), ice%SL( vi))) THEN
         ! For ice shelves, use divQ and SMB to get an "inversion"
         ! of equilibrium BMB.
-        BMB%BMB( vi) = ice%divQ( vi) - SMB%SMB( vi) + MIN( 0._dp, ice%dHi_dt_target( vi))
+        BMB%BMB( vi) = ice%divQ( vi) - SMB%SMB( vi) + ice%dHi_dt_target( vi)
       END IF
     END DO
 
@@ -479,7 +479,7 @@ CONTAINS
     DO vi = mesh%vi1, mesh%vi2
       IF (ice%mask_gl_fl( vi)) THEN
         mask( vi) = 2
-      ELSEIF (ice%mask_gl_gr( vi)) THEN
+      ELSEIF (ice%mask_gl_gr( vi) .AND. ice%Hib( vi) < ice%SL( vi)) THEN
         mask( vi) = 1
       ELSE
         mask( vi) = 0
@@ -491,7 +491,7 @@ CONTAINS
 
     ! Now multiply the extrapolated values by each vertex's grounded fraction
     DO vi = mesh%vi1, mesh%vi2
-      IF (ice%mask_gl_gr( vi) .AND. ice%Hib(vi) < ice%SL(vi)) THEN
+      IF (ice%mask_gl_gr( vi) .AND. ice%Hib( vi) < ice%SL( vi)) THEN
         ! Subgrid basal melt rate
         BMB%BMB( vi) = (1._dp - ice%fraction_gr( vi)) * BMB%BMB( vi)
         ! Limit it to only melt (refreezing is tricky)
