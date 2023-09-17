@@ -1245,7 +1245,8 @@ CONTAINS
     CALL write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'BMB_total',        region%scalars%BMB_total)
     CALL write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'gl_flux',          region%scalars%gl_flux)
     CALL write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'cf_flux',          region%scalars%cf_flux)
-    CALL write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'out_flux',         region%scalars%out_flux)
+    CALL write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'margin_flux',      region%scalars%margin_flux)
+    CALL write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'AMB_total',        region%scalars%AMB_total)
 
     ! Close the file
     CALL close_netcdf_file( ncid)
@@ -2336,7 +2337,8 @@ CONTAINS
     CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'BMB_total')
     CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'gl_flux')
     CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'cf_flux')
-    CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'out_flux')
+    CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'margin_flux')
+    CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'AMB_total')
 
     ! Close the file
     CALL close_netcdf_file( ncid)
@@ -2416,8 +2418,12 @@ CONTAINS
         CALL add_field_dp_0D( filename, ncid, 'cf_flux', long_name = 'Total lateral calving front flux', units = 'Gt yr^-1')
 
       ! Total flux exiting the ice sheet/shelves
-      CASE ('out_flux')
-        CALL add_field_dp_0D( filename, ncid, 'out_flux', long_name = 'Total lateral flux exiting the ice sheet/shelves', units = 'Gt yr^-1')
+      CASE ('margin_flux')
+        CALL add_field_dp_0D( filename, ncid, 'margin_flux', long_name = 'Total lateral flux exiting the ice margin', units = 'Gt yr^-1')
+
+      ! Total additional mass balance integrated over the entire ice sheet/shelf area
+      CASE ('AMB_total')
+        CALL add_field_dp_0D( filename, ncid, 'AMB_total', long_name = 'Area-integrated additional MB from other sources', units = 'Gt yr^-1')
 
     ! ===== End of user-defined output fields =====
     ! =============================================

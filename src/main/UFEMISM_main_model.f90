@@ -168,7 +168,6 @@ CONTAINS
       IF (par%master) WRITE(0,'(A)') ' Finalising regional simulation...'
       ! Write the final model state to output
       CALL write_to_regional_output_files( region)
-
     END IF
 
     ! Finalise routine path

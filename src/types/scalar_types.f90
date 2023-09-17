@@ -29,7 +29,8 @@ module scalar_types
     real(dp)   :: BMB_total                ! [Gt yr^-1] Area-integrated basal mass balance
     real(dp)   :: gl_flux                  ! [Gt yr^-1] Total flux through the grounding line
     real(dp)   :: cf_flux                  ! [Gt yr^-1] Total flux through the calving front
-    real(dp)   :: out_flux                 ! [Gt yr^-1] Total flux exiting the ice sheet/shelves
+    real(dp)   :: margin_flux              ! [Gt yr^-1] Total flux exiting the ice margin
+    real(dp)   :: AMB_total                ! [Gt yr^-1] Area-integrated additional mass balance from other sources
 
     ! Integrated mass balance
     real(dp)   :: int_T2m                  ! [K]        Mean near-surface air temperatures

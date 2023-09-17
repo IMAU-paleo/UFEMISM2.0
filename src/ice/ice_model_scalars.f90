@@ -220,32 +220,53 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
+    ! === Surface and basal mass balance ===
+    ! ======================================
+
     ! Initialise
     scalars%SMB_total = 0._dp
     scalars%BMB_total = 0._dp
 
-    ! === Surface and basal mass balance ===
-    ! ======================================
-
-    ! Calculate ice area and volume for each process
+    ! Calculate SMB and BMB for each process
     do vi = mesh%vi1, mesh%vi2
-
       if (ice%mask_grounded_ice( vi) .or. ice%mask_floating_ice( vi)) then
         scalars%SMB_total = scalars%SMB_total + SMB%SMB( vi) * mesh%A( vi) * 1.0E-09_dp ! [Gt/yr]
         scalars%BMB_total = scalars%BMB_total + BMB%BMB( vi) * mesh%A( vi) * 1.0E-09_dp ! [Gt/yr]
       end if
-
     end do
+
+    ! Add together values from each process
+    call MPI_ALLREDUCE( MPI_IN_PLACE, scalars%SMB_total, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+    call MPI_ALLREDUCE( MPI_IN_PLACE, scalars%BMB_total, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
 
     ! === Transitional fluxes ===
     ! ===========================
 
+    ! Compute lateral fluxes for transition zones: grounding line, calving fronts, margins
     call calc_ice_transitional_fluxes( mesh, ice, scalars)
 
     ! Add together values from each process
     call MPI_ALLREDUCE( MPI_IN_PLACE, scalars%gl_flux,  1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
     call MPI_ALLREDUCE( MPI_IN_PLACE, scalars%cf_flux,  1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
-    call MPI_ALLREDUCE( MPI_IN_PLACE, scalars%out_flux, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+    call MPI_ALLREDUCE( MPI_IN_PLACE, scalars%margin_flux, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+
+    ! === Additional mass input/output ===
+    ! ====================================
+
+    ! Initialise
+    scalars%AMB_total = 0._dp
+
+    ! Calculate ice area and volume for each process
+    do vi = mesh%vi1, mesh%vi2
+      if (ice%mask_grounded_ice( vi) .or. ice%mask_floating_ice( vi)) then
+        ! Add opposite of target thinning rates
+        scalars%AMB_total = scalars%AMB_total - ice%dHi_dt_target( vi) * mesh%A( vi) * 1.0E-09_dp ! [Gt/yr]
+        ! DENK DROM : Add here other sources if implemented in the future
+      end if
+    end do
+
+    ! Add together values from each process
+    call MPI_ALLREDUCE( MPI_IN_PLACE, scalars%AMB_total, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
 
     ! === Finalisation ===
     ! ====================
@@ -294,9 +315,9 @@ contains
     ! =================
 
     ! Initialise
-    scalars%gl_flux  = 0._dp
-    scalars%cf_flux  = 0._dp
-    scalars%out_flux = 0._dp
+    scalars%gl_flux     = 0._dp
+    scalars%cf_flux     = 0._dp
+    scalars%margin_flux = 0._dp
 
     do vi = mesh%vi1, mesh%vi2
 
@@ -329,14 +350,14 @@ contains
 
         ! Calculate the flux: if u_perp > 0, that means that this mass is
         ! flowing out from our transitional vertex. If so, add it its (negative) total.
-        if (ice%mask_gl_gr( vi)) then
+        if (ice%mask_gl_gr( vi) .and. ice%mask_floating_ice( vj)) then
           scalars%gl_flux  = scalars%gl_flux  - L_c * max( 0._dp, u_perp) * ice%Hi( vi) * 1.0E-09_dp ! [Gt/yr]
         end if
-        if (ice%mask_cf_gr( vi) .or. ice%mask_cf_fl( vi)) THEN
+        if ((ice%mask_cf_gr( vi) .or. ice%mask_cf_fl( vi))  .and. ice%mask_icefree_ocean( vj)) THEN
           scalars%cf_flux  = scalars%cf_flux  - L_c * max( 0._dp, u_perp) * ice%Hi( vi) * 1.0E-09_dp ! [Gt/yr]
         end if
-        if (ice%mask_margin( vi)) then
-          scalars%out_flux = scalars%out_flux - L_c * max( 0._dp, u_perp) * ice%Hi( vi) * 1.0E-09_dp ! [Gt/yr]
+        if (ice%mask_margin( vi) .and. (ice%mask_icefree_ocean( vj) .or. ice%mask_icefree_land( vj))) then
+          scalars%margin_flux = scalars%margin_flux - L_c * max( 0._dp, u_perp) * ice%Hi( vi) * 1.0E-09_dp ! [Gt/yr]
         end if
 
       end do ! do ci = 1, mesh%nC( vi)
