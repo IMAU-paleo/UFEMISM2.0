@@ -640,6 +640,8 @@ MODULE model_configuration
     ! Time step
     LOGICAL             :: do_asynchronous_SMB_config                   = .TRUE.                           ! Whether or not the SMB should be calculated asynchronously from the rest of the model; if so, use dt_climate; if not, calculate it in every time step
     REAL(dp)            :: dt_SMB_config                                = 10._dp                           ! [yr] Time step for calculating SMB
+    LOGICAL             :: do_corrections_SMB_config                    = .FALSE.                          ! Whether or not a SMB correction should be calculated from different sources, e.g. dHi_dt residuals at the end of inversions
+
 
     ! Choice of SMB model
     CHARACTER(LEN=256)  :: choice_SMB_model_NAM_config                  = 'uniform'
@@ -1439,6 +1441,7 @@ MODULE model_configuration
     ! Time step
     LOGICAL             :: do_asynchronous_SMB
     REAL(dp)            :: dt_SMB
+    LOGICAL             :: do_corrections_SMB
 
     ! Choice of SMB model
     CHARACTER(LEN=256)  :: choice_SMB_model_NAM
@@ -2169,6 +2172,7 @@ CONTAINS
       filename_ocean_snapshot_ANT_config                          , &
       do_asynchronous_SMB_config                                  , &
       dt_SMB_config                                               , &
+      do_corrections_SMB_config                                   , &
       choice_SMB_model_NAM_config                                 , &
       choice_SMB_model_EAS_config                                 , &
       choice_SMB_model_GRL_config                                 , &
@@ -2936,6 +2940,7 @@ CONTAINS
     ! Time step
     C%do_asynchronous_SMB                                    = do_asynchronous_SMB_config
     C%dt_SMB                                                 = dt_SMB_config
+    C%do_corrections_SMB                                     = do_corrections_SMB_config
 
     ! Choice of SMB model
     C%choice_SMB_model_NAM                                   = choice_SMB_model_NAM_config

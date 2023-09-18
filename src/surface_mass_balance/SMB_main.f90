@@ -137,6 +137,12 @@ CONTAINS
     ALLOCATE( SMB%SMB( mesh%vi1:mesh%vi2))
     SMB%SMB = 0._dp
 
+    IF (C%do_corrections_SMB) THEN
+      ! Allocate memory for main variables
+      ALLOCATE( SMB%SMB_correction( mesh%vi1:mesh%vi2))
+      SMB%SMB_correction = 0._dp
+    END IF
+
     ! Set time of next calculation to start time
     SMB%t_next = C%start_time_of_run
 
