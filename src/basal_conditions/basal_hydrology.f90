@@ -327,10 +327,9 @@ CONTAINS
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: I_tot, R
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: dC1_dt, dC2_dt
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: dHs_dx, dHs_dy, abs_grad_Hs
-    REAL(dp)                                           :: fg_exp_mod, bf_exp_mod, basal_fric, hs_exp_mod, hi_exp_mod
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: dC1_dt_smoothed, dC2_dt_smoothed
     REAL(dp)                                           :: misfit
-    REAL(dp)                                           :: is_nice, is_thick, is_hot
+    REAL(dp)                                           :: fg_exp_mod, bf_exp_mod, hs_exp_mod, hi_exp_mod, land_boost, ocean_boost
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: dC1_dt_smoothed, dC2_dt_smoothed
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -367,7 +366,7 @@ CONTAINS
     ! Gather ice model data from all processes
     CALL gather_to_all_dp_1D(      ice%Hi               , Hi_tot               )
     CALL gather_to_all_dp_1D(      refgeo%Hi            , Hi_target_tot        )
-    CALL gather_to_all_dp_1D(      ice%dHi_dt_predicted , dHi_dt_tot           )
+    CALL gather_to_all_dp_1D(      ice%dHi_dt           , dHi_dt_tot           )
     CALL gather_to_all_dp_1D(      ice%Ti_hom           , Ti_hom_tot           )
     CALL gather_to_all_dp_1D(      ice%u_vav_b          , u_b_tot              )
     CALL gather_to_all_dp_1D(      ice%v_vav_b          , v_b_tot              )
@@ -669,16 +668,13 @@ CONTAINS
         ! Steep slopes
         hs_exp_mod = MIN( 1.0_dp, MAX( 0._dp, MAX( 0._dp, abs_grad_Hs( vi) - 0.003_dp) / (0.01_dp - 0.003_dp) ))
 
-        ! Slippery regions
-        bf_exp_mod = 1._dp - MAX( 0._dp, MIN( 1._dp, ice%basal_friction_coefficient( vi) / 10000._dp ))
-
         ! Ice thickness
         hi_exp_mod = MIN( 1.0_dp, MAX( 0._dp, ice%Hi( vi)/1000._dp))
 
         ! Prevent over-increase of sliding over partially grounded, steep-sloped areas
         IF (dC1_dt( vi) < 0._dp) THEN
           ! Scale based on friction-slope-slide-thickness modifiers
-          dC1_dt( vi) = dC1_dt( vi) * (1._dp - .333_dp * (fg_exp_mod + bf_exp_mod + hs_exp_mod)) * hi_exp_mod
+          dC1_dt( vi) = dC1_dt( vi) * (1._dp - .5_dp * (fg_exp_mod + hs_exp_mod)) * hi_exp_mod
         END IF
 
     END DO
@@ -714,16 +710,37 @@ CONTAINS
     ! ===============================
 
     DO vi = mesh%vi1, mesh%vi2
+
+      ! Get it back from pore_dryness
       HIV%pore_water_fraction_next( vi) = 1._dp - pore_dryness( vi)
+
+      ! Steep slopes
+      hs_exp_mod = MIN( 1.0_dp, MAX( 0._dp, MAX( 0._dp, abs_grad_Hs( vi) - 0.003_dp) / (0.01_dp - 0.003_dp) ))
+
+      ! Ice thickness
+      hi_exp_mod = MIN( 1.0_dp, MAX( 0._dp, ice%Hi( vi)/1000._dp))
+
+      ! Final modifies for marginal grounded areas
+      land_boost  = (1._dp - ice%fraction_gr( vi)**1._dp) * (1._dp - hs_exp_mod) * hi_exp_mod
+      ! Final modifies for floating areas
+      ocean_boost = (1._dp - ice%fraction_gr( vi)**2._dp) * (1._dp - hs_exp_mod)
+
+      ! Increase it for vertices in contact with the ocean
       IF (.NOT. ice%mask_grounded_ice( vi)) THEN
-        HIV%pore_water_fraction_next( vi) = MAX(HIV%pore_water_fraction_next( vi), 1._dp - ice%fraction_gr( vi)**2._dp)
+        ! Floating ice
+        HIV%pore_water_fraction_next( vi) = MAX(HIV%pore_water_fraction_next( vi), ocean_boost)
       ELSEIF (ice%mask_gl_gr( vi) .AND. ice%Hib( vi) < ice%SL( vi)) THEN
-        HIV%pore_water_fraction_next( vi) = MAX(HIV%pore_water_fraction_next( vi), 1._dp - ice%fraction_gr( vi)**1._dp)
+        ! Grounding line below sea level
+        HIV%pore_water_fraction_next( vi) = MAX(HIV%pore_water_fraction_next( vi), land_boost)
       ELSEIF (ice%mask_cf_gr( vi) .AND. ice%Hib( vi) < ice%SL( vi)) THEN
-        HIV%pore_water_fraction_next( vi) = MAX(HIV%pore_water_fraction_next( vi), 1._dp - ice%fraction_gr( vi)**1._dp)
+        ! Grounded calving front below sea level
+        HIV%pore_water_fraction_next( vi) = MAX(HIV%pore_water_fraction_next( vi), land_boost)
       END IF
+
+      ! Limit values to prescribed limits
       HIV%pore_water_fraction_next( vi) = MIN( HIV%pore_water_fraction_next( vi), C%pore_water_fraction_max)
       HIV%pore_water_fraction_next( vi) = MAX( HIV%pore_water_fraction_next( vi), C%pore_water_fraction_min)
+
     END DO
 
     ! Clean up after yourself
