@@ -1719,7 +1719,7 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'alter_ice_thickness'
     INTEGER                                               :: vi
     REAL(dp)                                              :: decay_start, decay_end
-    REAL(dp)                                              :: fixiness, limitness, fix_H_applied, limit_H_applied
+    REAL(dp)                                              :: fixiness, limitness, modiness, fix_H_applied, limit_H_applied
     REAL(dp), DIMENSION(:), ALLOCATABLE                   :: modiness_up, modiness_down
     REAL(dp), DIMENSION(:), ALLOCATABLE                   :: Hi_save
     REAL(dp)                                              :: floating_area, calving_area, mass_lost
@@ -1803,21 +1803,22 @@ CONTAINS
     ! ================
 
     ! Intial value
-    modiness_up   = 1._dp
-    modiness_down = 1._dp
+    modiness      = 1._dp
+    modiness_up   = 0._dp
+    modiness_down = 0._dp
 
     IF (C%limitness_H_modifier == 'none') THEN
-      modiness_up   = 1._dp
-      modiness_down = 1._dp
+      modiness_up   = 0._dp
+      modiness_down = 0._dp
     ELSEIF (C%limitness_H_modifier == 'Ti_hom') THEN
-      modiness_up   = exp(ice%Ti_hom/3._dp)
-      modiness_down = exp(ice%Ti_hom/3._dp)
+      modiness_up   = (1._dp - exp(ice%Ti_hom/3._dp)) * modiness
+      modiness_down = (1._dp - exp(ice%Ti_hom/3._dp)) * modiness
     ELSEIF (C%limitness_H_modifier == 'Ti_hom_up') THEN
-      modiness_up   = exp(ice%Ti_hom/3._dp)
-      modiness_down = 1._dp
+      modiness_up   = (1._dp - exp(ice%Ti_hom/10._dp)) * modiness
+      modiness_down = 0._dp
     ELSEIF (C%limitness_H_modifier == 'Ti_hom_down') THEN
-      modiness_up   = 1._dp
-      modiness_down = exp(ice%Ti_hom/3._dp)
+      modiness_up   = 0._dp
+      modiness_down = (1._dp - exp(ice%Ti_hom/3._dp)) * modiness
     ELSE
       CALL crash('unknown modiness_H_choice "' // TRIM( C%limitness_H_modifier) // '"')
     END IF
@@ -1863,8 +1864,12 @@ CONTAINS
       Hi_new( vi) = Hi_old( vi) * fix_H_applied + Hi_new( vi) * (1._dp - fix_H_applied)
 
       ! Apply limitness
-      Hi_new( vi) = MIN( Hi_new( vi), Hi_ref( vi) + limit_H_applied * modiness_up(   vi) + (1._dp - limitness) * (Hi_new( vi) - Hi_ref( vi)) )
-      Hi_new( vi) = MAX( Hi_new( vi), Hi_ref( vi) - limit_H_applied * modiness_down( vi) - (1._dp - limitness) * (Hi_ref( vi) - Hi_new( vi)) )
+      Hi_new( vi) = MIN( Hi_new( vi), Hi_ref( vi) + limit_H_applied + (1._dp - limitness) * (Hi_new( vi) - Hi_ref( vi)) )
+      Hi_new( vi) = MAX( Hi_new( vi), Hi_ref( vi) - limit_H_applied - (1._dp - limitness) * (Hi_ref( vi) - Hi_new( vi)) )
+
+      ! Apply modiness
+      Hi_new( vi) = MIN( Hi_new( vi), Hi_ref( vi) + (1._dp - modiness_up(   vi)) * (Hi_new( vi) - Hi_ref( vi)) )
+      Hi_new( vi) = MAX( Hi_new( vi), Hi_ref( vi) - (1._dp - modiness_down( vi)) * (Hi_ref( vi) - Hi_new( vi)) )
 
     END DO
 

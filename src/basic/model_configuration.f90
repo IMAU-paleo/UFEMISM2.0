@@ -436,7 +436,7 @@ MODULE model_configuration
     REAL(dp)            :: limitness_H_gl_fl_config                     = +9.9E9_dp                        ! Maximum departure from PD ice thickness allowed at peak limitness
     REAL(dp)            :: limitness_H_grounded_config                  = +9.9E9_dp                        ! Maximum departure from PD ice thickness allowed at peak limitness
     REAL(dp)            :: limitness_H_floating_config                  = +9.9E9_dp                        ! Maximum departure from PD ice thickness allowed at peak limitness
-    CHARACTER(LEN=256)  :: limitness_H_modifier_config                  = 'none'                           ! Dynamic modifier of limitness: "none", "Ti_hom"
+    CHARACTER(LEN=256)  :: limitness_H_modifier_config                  = 'none'                           ! Dynamic "modiness" limitness-like term: "none", "Ti_hom", "Ti_hom_up", "Ti_hom_down"
 
   ! == Basal hydrology
   ! ==================
