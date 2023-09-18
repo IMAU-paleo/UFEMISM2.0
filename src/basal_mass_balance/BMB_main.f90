@@ -453,7 +453,8 @@ CONTAINS
 
     BMB%BMB = 0._dp
     DO vi = mesh%vi1, mesh%vi2
-      IF (is_floating( ice%Hi( vi), ice%Hb( vi), ice%SL( vi))) THEN
+      ! IF (is_floating( ice%Hi( vi), ice%Hb( vi), ice%SL( vi))) THEN
+      IF (ice%mask_floating_ice( vi) .OR. ice%mask_gl_gr( vi) .OR. ice%mask_cf_gr( vi)) THEN
         ! For ice shelves, use divQ and SMB to get an "inversion"
         ! of equilibrium BMB.
         BMB%BMB( vi) = ice%divQ( vi) - SMB%SMB( vi) + ice%dHi_dt_target( vi)
