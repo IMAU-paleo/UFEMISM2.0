@@ -261,6 +261,8 @@ contains
       if (ice%mask_grounded_ice( vi) .or. ice%mask_floating_ice( vi)) then
         ! Add opposite of target thinning rates
         scalars%AMB_total = scalars%AMB_total - ice%dHi_dt_target( vi) * mesh%A( vi) * 1.0E-09_dp ! [Gt/yr]
+        ! Account for modified thickness evolution (fixed/delayed/limited)
+        scalars%AMB_total = scalars%AMB_total - ice%dHi_dt_residual( vi) * mesh%A( vi) * 1.0E-09_dp ! [Gt/yr]
         ! DENK DROM : Add here other sources if implemented in the future
       end if
     end do
