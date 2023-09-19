@@ -270,6 +270,7 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: choice_stress_balance_approximation_config   = 'DIVA'                           ! Choice of stress balance approximation: "none" (= no flow, though geometry can still change due to mass balance), "SIA", "SSA", "SIA/SSA", "DIVA", "BPA"
     CHARACTER(LEN=256)  :: choice_hybrid_SIASSA_scheme_config           = 'add'                            ! Choice of scheme for combining SIA and SSA velocities in the hybrid approach
     LOGICAL             :: do_include_SSADIVA_crossterms_config         = .TRUE.                           ! Whether or not to include the gradients of the effective viscosity (the "cross-terms") in the solution of the SSA/DIVA
+    CHARACTER(LEN=256)  :: choice_hybrid_DIVA_BPA_mask_config           = ''                               ! How to determine where to solve the DIVA and where the BPA in the hybrid DIVA/BPA
 
     ! Initialisation
     CHARACTER(LEN=256)  :: choice_initial_velocity_NAM_config           = 'zero'                           ! Can be 'zero', 'read_from_file'
@@ -971,6 +972,7 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: choice_stress_balance_approximation
     CHARACTER(LEN=256)  :: choice_hybrid_SIASSA_scheme
     LOGICAL             :: do_include_SSADIVA_crossterms
+    CHARACTER(LEN=256)  :: choice_hybrid_DIVA_BPA_mask
 
     ! Initialisation
     CHARACTER(LEN=256)  :: choice_initial_velocity_NAM
@@ -1744,6 +1746,7 @@ CONTAINS
       choice_stress_balance_approximation_config                  , &
       choice_hybrid_SIASSA_scheme_config                          , &
       do_include_SSADIVA_crossterms_config                        , &
+      choice_hybrid_DIVA_BPA_mask_config                          , &
       choice_initial_velocity_NAM_config                          , &
       choice_initial_velocity_EAS_config                          , &
       choice_initial_velocity_GRL_config                          , &
@@ -2311,6 +2314,7 @@ CONTAINS
     C%choice_stress_balance_approximation                    = choice_stress_balance_approximation_config
     C%choice_hybrid_SIASSA_scheme                            = choice_hybrid_SIASSA_scheme_config
     C%do_include_SSADIVA_crossterms                          = do_include_SSADIVA_crossterms_config
+    C%choice_hybrid_DIVA_BPA_mask                            = choice_hybrid_DIVA_BPA_mask_config
 
     ! Initialisation
     C%choice_initial_velocity_NAM                            = choice_initial_velocity_NAM_config

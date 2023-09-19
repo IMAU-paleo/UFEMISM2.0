@@ -94,7 +94,7 @@ CONTAINS
   END SUBROUTINE initialise_SSA_solver
 
   SUBROUTINE solve_SSA( mesh, ice, SSA, BC_prescr_mask_b, BC_prescr_u_b, BC_prescr_v_b)
-    ! Calculate ice velocities by solving the Shallow Ice Approximation
+    ! Calculate ice velocities by solving the Shallow Shelf Approximation
 
     IMPLICIT NONE
 

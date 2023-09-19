@@ -16,7 +16,8 @@ MODULE mesh_creation
   USE mesh_utilities                                         , ONLY: update_triangle_circumcenter, calc_mesh_contour_as_line, calc_mesh_mask_as_polygons
   USE mesh_refinement                                        , ONLY: refine_mesh_uniform, refine_mesh_line, Lloyds_algorithm_single_iteration, &
                                                                      refine_mesh_polygon, refine_mesh_line_ROI, refine_mesh_polygon_ROI, &
-                                                                     calc_polygon_Pine_Island_Glacier, calc_polygon_Thwaites_Glacier
+                                                                     calc_polygon_Pine_Island_Glacier, calc_polygon_Thwaites_Glacier, &
+                                                                     calc_polygon_Tijn_test_ISMIP_HOM_A
   USe mesh_parallel_creation                                 , ONLY: broadcast_mesh
   USE mesh_secondary                                         , ONLY: calc_all_secondary_mesh_data
   USE mesh_operators                                         , ONLY: calc_all_matrix_operators_mesh
@@ -925,6 +926,8 @@ CONTAINS
               CALL calc_polygon_Pine_Island_Glacier( poly_ROI)
             CASE ('Thwaites')
               CALL calc_polygon_Thwaites_Glacier( poly_ROI)
+            CASE ('Tijn_test_ISMIP_HOM_A')
+              CALL calc_polygon_Tijn_test_ISMIP_HOM_A( poly_ROI)
             CASE DEFAULT
               CALL crash('unknown region of interest "' // TRIM( name_ROI) // '"!')
           END SELECT

@@ -43,7 +43,8 @@ MODULE UFEMISM_main_model
   USE main_regional_output                                   , ONLY:   create_main_regional_output_file_mesh,   create_main_regional_output_file_grid, &
                                                                      write_to_main_regional_output_file_mesh, write_to_main_regional_output_file_grid, &
                                                                      create_main_regional_output_file_grid_ROI, write_to_main_regional_output_file_grid_ROI
-  USE mesh_refinement                                        , ONLY: calc_polygon_Pine_Island_Glacier, calc_polygon_Thwaites_Glacier
+  USE mesh_refinement                                        , ONLY: calc_polygon_Pine_Island_Glacier, calc_polygon_Thwaites_Glacier, &
+                                                                     calc_polygon_Tijn_test_ISMIP_HOM_A
   USE math_utilities                                         , ONLY: longest_triangle_leg
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_logical_1D
   USE mesh_remapping                                         , ONLY: clear_all_maps_involving_this_mesh
@@ -887,6 +888,8 @@ CONTAINS
               CALL calc_polygon_Pine_Island_Glacier( poly_ROI)
             CASE ('Thwaites')
               CALL calc_polygon_Thwaites_Glacier( poly_ROI)
+            CASE ('Tijn_test_ISMIP_HOM_A')
+              CALL calc_polygon_Tijn_test_ISMIP_HOM_A( poly_ROI)
             CASE DEFAULT
               CALL crash('unknown region of interest "' // TRIM( name_ROI) // '"!')
           END SELECT

@@ -98,7 +98,7 @@ CONTAINS
   END SUBROUTINE initialise_BPA_solver
 
   SUBROUTINE solve_BPA( mesh, ice, BPA, BC_prescr_mask_bk, BC_prescr_u_bk, BC_prescr_v_bk)
-    ! Calculate ice velocities by solving the Shallow Ice Approximation
+    ! Calculate ice velocities by solving the Blatter-Pattyn Approximation
 
     IMPLICIT NONE
 
@@ -260,8 +260,8 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'remap_BPA_solver'
-    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: v_ak
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: u_ak
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: v_ak
 
     ! Add routine to path
     CALL init_routine( routine_name)

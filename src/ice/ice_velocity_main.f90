@@ -15,7 +15,7 @@ MODULE ice_velocity_main
   USE petsc_basic                                            , ONLY: solve_matrix_equation_CSR_PETSc
   USE mesh_types                                             , ONLY: type_mesh
   USE ice_model_types                                        , ONLY: type_ice_model, type_ice_velocity_solver_SIA, type_ice_velocity_solver_SSA, &
-                                                                     type_ice_velocity_solver_DIVA, type_ice_velocity_solver_BPA
+                                                                     type_ice_velocity_solver_DIVA, type_ice_velocity_solver_BPA, type_ice_velocity_solver_hybrid
   USE parameters
   USE reallocate_mod                                         , ONLY: reallocate_clean
   USE mesh_operators                                         , ONLY: map_b_a_2D, map_b_a_3D, ddx_a_a_2D, ddy_a_a_2D
@@ -23,6 +23,7 @@ MODULE ice_velocity_main
   USE ice_velocity_SSA                                       , ONLY: initialise_SSA_solver , solve_SSA , remap_SSA_solver , create_restart_file_SSA , write_to_restart_file_SSA
   USE ice_velocity_DIVA                                      , ONLY: initialise_DIVA_solver, solve_DIVA, remap_DIVA_solver, create_restart_file_DIVA, write_to_restart_file_DIVA
   USE ice_velocity_BPA                                       , ONLY: initialise_BPA_solver , solve_BPA , remap_BPA_solver , create_restart_file_BPA , write_to_restart_file_BPA
+  USE ice_velocity_hybrid_DIVA_BPA                           , ONLY: initialise_hybrid_DIVA_BPA_solver, solve_hybrid_DIVA_BPA, remap_hybrid_DIVA_BPA_solver
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_1D, gather_to_all_dp_2D
   USE mesh_zeta                                              , ONLY: vertical_average
 
@@ -54,29 +55,32 @@ CONTAINS
                      ' stress balance approximation...'
     END IF
 
-    IF     (C%choice_stress_balance_approximation == 'none') THEN
-      ! No need to do anything
-    ELSEIF (C%choice_stress_balance_approximation == 'SIA') THEN
-      CALL initialise_SIA_solver(  mesh, ice%SIA)
-    ELSEIF (C%choice_stress_balance_approximation == 'SSA') THEN
-      CALL initialise_SSA_solver(  mesh, ice%SSA, region_name)
-    ELSEIF (C%choice_stress_balance_approximation == 'SIA/SSA') THEN
-      CALL initialise_SIA_solver(  mesh, ice%SIA)
-      CALL initialise_SSA_solver(  mesh, ice%SSA, region_name)
-    ELSEIF (C%choice_stress_balance_approximation == 'DIVA') THEN
-      CALL initialise_DIVA_solver( mesh, ice%DIVA, region_name)
-    ELSEIF (C%choice_stress_balance_approximation == 'BPA') THEN
-      CALL initialise_BPA_solver(  mesh, ice%BPA, region_name)
-    ELSE
-      CALL crash('unknown choice_stress_balance_approximation "' // TRIM( C%choice_stress_balance_approximation) // '"!')
-    END IF
+    SELECT CASE (C%choice_stress_balance_approximation)
+      CASE DEFAULT
+        CALL crash('unknown choice_stress_balance_approximation "' // TRIM( C%choice_stress_balance_approximation) // '"!')
+      CASE ('none')
+        ! No need to do anything
+      CASE ('SIA')
+        CALL initialise_SIA_solver            ( mesh, ice%SIA                )
+      CASE ('SSA')
+        CALL initialise_SSA_solver            ( mesh, ice%SSA   , region_name)
+      CASE ('SIA/SSA')
+        CALL initialise_SIA_solver            ( mesh, ice%SIA                )
+        CALL initialise_SSA_solver            ( mesh, ice%SSA   , region_name)
+      CASE ('DIVA')
+        CALL initialise_DIVA_solver           ( mesh, ice%DIVA  , region_name)
+      CASE ('BPA')
+        CALL initialise_BPA_solver            ( mesh, ice%BPA   , region_name)
+      CASE ('hybrid DIVA/BPA')
+        CALL initialise_hybrid_DIVA_BPA_solver( mesh, ice%hybrid, region_name)
+    END SELECT
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE initialise_velocity_solver
 
-  SUBROUTINE solve_stress_balance( mesh, ice, BMB, BC_prescr_mask_b, BC_prescr_u_b, BC_prescr_v_b, BC_prescr_mask_bk, BC_prescr_u_bk, BC_prescr_v_bk)
+  SUBROUTINE solve_stress_balance( mesh, ice, BMB, region_name, BC_prescr_mask_b, BC_prescr_u_b, BC_prescr_v_b, BC_prescr_mask_bk, BC_prescr_u_bk, BC_prescr_v_bk)
     ! Calculate all ice velocities based on the chosen stress balance approximation
 
     IMPLICIT NONE
@@ -85,6 +89,7 @@ CONTAINS
     TYPE(type_mesh),                        INTENT(INOUT)           :: mesh
     TYPE(type_ice_model),                   INTENT(INOUT)           :: ice
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)              :: BMB
+    CHARACTER(LEN=3),                       INTENT(IN)              :: region_name
     ! Prescribed velocities for the SSA/DIVA
     INTEGER,  DIMENSION(:    ),             INTENT(IN)   , OPTIONAL :: BC_prescr_mask_b      ! Mask of triangles where velocity is prescribed
     REAL(dp), DIMENSION(:    ),             INTENT(IN)   , OPTIONAL :: BC_prescr_u_b         ! Prescribed velocities in the x-direction
@@ -100,42 +105,52 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    IF     (C%choice_stress_balance_approximation == 'none') THEN
-      ! No need to do anything
-    ELSEIF (C%choice_stress_balance_approximation == 'SIA') THEN
-      ! Calculate velocities according to the Shallow Ice Approximation
+    SELECT CASE (C%choice_stress_balance_approximation)
 
-      CALL solve_SIA( mesh, ice, ice%SIA)
-      CALL set_ice_velocities_to_SIA_results( mesh, ice, ice%SIA)
+      CASE DEFAULT
+        CALL crash('unknown choice_stress_balance_approximation "' // TRIM( C%choice_stress_balance_approximation) // '"!')
 
-    ELSEIF (C%choice_stress_balance_approximation == 'SSA') THEN
-      ! Calculate velocities according to the Shallow Shelf Approximation
+      CASE ('none')
+        ! No need to do anything
 
-      CALL solve_SSA( mesh, ice, ice%SSA, BC_prescr_mask_b, BC_prescr_u_b, BC_prescr_v_b)
-      CALL set_ice_velocities_to_SSA_results( mesh, ice, ice%SSA)
+      CASE ('SIA')
+        ! Calculate velocities according to the Shallow Ice Approximation
 
-    ELSEIF (C%choice_stress_balance_approximation == 'SIA/SSA') THEN
-      ! Calculate velocities according to the hybrid SIA/SSA
+        CALL solve_SIA( mesh, ice, ice%SIA)
+        CALL set_ice_velocities_to_SIA_results( mesh, ice, ice%SIA)
 
-      CALL solve_SIA( mesh, ice, ice%SIA)
-      CALL solve_SSA( mesh, ice, ice%SSA, BC_prescr_mask_b, BC_prescr_u_b, BC_prescr_v_b)
-      CALL set_ice_velocities_to_SIASSA_results( mesh, ice, ice%SIA, ice%SSA)
+      CASE ('SSA')
+        ! Calculate velocities according to the Shallow Shelf Approximation
 
-    ELSEIF (C%choice_stress_balance_approximation == 'DIVA') THEN
-      ! Calculate velocities according to the Depth-Integrated Viscosity Approximation
+        CALL solve_SSA( mesh, ice, ice%SSA, BC_prescr_mask_b, BC_prescr_u_b, BC_prescr_v_b)
+        CALL set_ice_velocities_to_SSA_results( mesh, ice, ice%SSA)
 
-      CALL solve_DIVA( mesh, ice, ice%DIVA, BC_prescr_mask_b, BC_prescr_u_b, BC_prescr_v_b)
-      CALL set_ice_velocities_to_DIVA_results( mesh, ice, ice%DIVA)
+      CASE ('SIA/SSA')
+        ! Calculate velocities according to the hybrid SIA/SSA
 
-    ELSEIF (C%choice_stress_balance_approximation == 'BPA') THEN
-      ! Calculate velocities according to the Depth-Integrated Viscosity Approximation
+        CALL solve_SIA( mesh, ice, ice%SIA)
+        CALL solve_SSA( mesh, ice, ice%SSA, BC_prescr_mask_b, BC_prescr_u_b, BC_prescr_v_b)
+        CALL set_ice_velocities_to_SIASSA_results( mesh, ice, ice%SIA, ice%SSA)
 
-      CALL solve_BPA( mesh, ice, ice%BPA, BC_prescr_mask_bk, BC_prescr_u_bk, BC_prescr_v_bk)
-      CALL set_ice_velocities_to_BPA_results( mesh, ice, ice%BPA)
+      CASE ('DIVA')
+        ! Calculate velocities according to the Depth-Integrated Viscosity Approximation
 
-    ELSE
-      CALL crash('unknown choice_stress_balance_approximation "' // TRIM( C%choice_stress_balance_approximation) // '"!')
-    END IF
+        CALL solve_DIVA( mesh, ice, ice%DIVA, BC_prescr_mask_b, BC_prescr_u_b, BC_prescr_v_b)
+        CALL set_ice_velocities_to_DIVA_results( mesh, ice, ice%DIVA)
+
+      CASE ('BPA')
+        ! Calculate velocities according to the Blatter-Pattyn Approximation
+
+        CALL solve_BPA( mesh, ice, ice%BPA, BC_prescr_mask_bk, BC_prescr_u_bk, BC_prescr_v_bk)
+        CALL set_ice_velocities_to_BPA_results( mesh, ice, ice%BPA)
+
+      CASE ('hybrid DIVA/BPA')
+        ! Calculate velocities according to the hybrid DIVA/BPA
+
+        CALL solve_hybrid_DIVA_BPA( mesh, ice, ice%hybrid, region_name, BC_prescr_mask_b, BC_prescr_u_b, BC_prescr_v_b)
+        CALL set_ice_velocities_to_hybrid_DIVA_BPA_results( mesh, ice, ice%hybrid)
+
+    END SELECT
 
     ! Calculate all secondary ice velocities (surface, base, vertical average)
     CALL calc_secondary_velocities( mesh, ice)
@@ -237,27 +252,46 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    IF     (C%choice_stress_balance_approximation == 'none') THEN
+    SELECT CASE (C%choice_stress_balance_approximation)
+
+      CASE DEFAULT
+        CALL crash('unknown choice_stress_balance_approximation "' // TRIM( C%choice_stress_balance_approximation) // '"!')
+
+      CASE ('none')
       ! No need to do anything
-    ELSEIF (C%choice_stress_balance_approximation == 'SIA') THEN
-      CALL remap_SIA_solver(  mesh_old, mesh_new, ice%SIA)
-      CALL set_ice_velocities_to_SIA_results( mesh_new, ice, ice%SIA)
-    ELSEIF (C%choice_stress_balance_approximation == 'SSA') THEN
-      CALL remap_SSA_solver(  mesh_old, mesh_new, ice%SSA)
-      CALL set_ice_velocities_to_SSA_results( mesh_new, ice, ice%SSA)
-    ELSEIF (C%choice_stress_balance_approximation == 'SIA/SSA') THEN
-      CALL remap_SIA_solver(  mesh_old, mesh_new, ice%SIA)
-      CALL remap_SSA_solver(  mesh_old, mesh_new, ice%SSA)
-      CALL set_ice_velocities_to_SIASSA_results( mesh_new, ice, ice%SIA, ice%SSA)
-    ELSEIF (C%choice_stress_balance_approximation == 'DIVA') THEN
-      CALL remap_DIVA_solver( mesh_old, mesh_new, ice%DIVA)
-      CALL set_ice_velocities_to_DIVA_results( mesh_new, ice, ice%DIVA)
-    ELSEIF (C%choice_stress_balance_approximation == 'BPA') THEN
-      CALL remap_BPA_solver(  mesh_old, mesh_new, ice%BPA)
-      CALL set_ice_velocities_to_BPA_results( mesh_new, ice, ice%BPA)
-    ELSE
-      CALL crash('unknown choice_stress_balance_approximation "' // TRIM( C%choice_stress_balance_approximation) // '"!')
-    END IF
+
+      CASE ('SIA')
+
+        CALL remap_SIA_solver(  mesh_old, mesh_new, ice%SIA)
+        CALL set_ice_velocities_to_SIA_results( mesh_new, ice, ice%SIA)
+
+      CASE ('SSA')
+
+        CALL remap_SSA_solver(  mesh_old, mesh_new, ice%SSA)
+        CALL set_ice_velocities_to_SSA_results( mesh_new, ice, ice%SSA)
+
+      CASE ('SIA/SSA')
+
+        CALL remap_SIA_solver(  mesh_old, mesh_new, ice%SIA)
+        CALL remap_SSA_solver(  mesh_old, mesh_new, ice%SSA)
+        CALL set_ice_velocities_to_SIASSA_results( mesh_new, ice, ice%SIA, ice%SSA)
+
+      CASE ('DIVA')
+
+        CALL remap_DIVA_solver( mesh_old, mesh_new, ice%DIVA)
+        CALL set_ice_velocities_to_DIVA_results( mesh_new, ice, ice%DIVA)
+
+      CASE ('BPA')
+
+        CALL remap_BPA_solver(  mesh_old, mesh_new, ice%BPA)
+        CALL set_ice_velocities_to_BPA_results( mesh_new, ice, ice%BPA)
+
+      CASE ('hybrid DIVA/BPA')
+
+        CALL remap_hybrid_DIVA_BPA_solver(  mesh_old, mesh_new, ice%hybrid)
+        CALL set_ice_velocities_to_hybrid_DIVA_BPA_results( mesh_new, ice, ice%hybrid)
+
+    END SELECT
 
     ! Calculate all secondary ice velocities (surface, base, vertical average)
     CALL calc_secondary_velocities( mesh_new, ice)
@@ -492,6 +526,50 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE set_ice_velocities_to_BPA_results
+
+  SUBROUTINE set_ice_velocities_to_hybrid_DIVA_BPA_results( mesh, ice, hybrid)
+    ! Set applied ice model velocities and strain rates to hybrid DIVA/BPA results
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh
+    TYPE(type_ice_model),                   INTENT(INOUT) :: ice
+    TYPE(type_ice_velocity_solver_hybrid),  INTENT(IN)    :: hybrid
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'set_ice_velocities_to_hybrid_DIVA_BPA_results'
+    INTEGER                                            :: ti,vi
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Velocities
+    DO ti = mesh%ti1, mesh%ti2
+      ice%u_3D_b( ti,:) = hybrid%u_bk( ti,:)
+      ice%v_3D_b( ti,:) = hybrid%v_bk( ti,:)
+    END DO
+
+    ! Strain rates
+    DO vi = mesh%vi1, mesh%vi2
+      ice%du_dx_3D( vi,:) = hybrid%BPA%du_dx_ak( vi,:)
+      ice%du_dy_3D( vi,:) = hybrid%BPA%du_dy_ak( vi,:)
+      ice%du_dz_3D( vi,:) = hybrid%BPA%du_dz_ak( vi,:)
+      ice%dv_dx_3D( vi,:) = hybrid%BPA%dv_dx_ak( vi,:)
+      ice%dv_dy_3D( vi,:) = hybrid%BPA%dv_dy_ak( vi,:)
+      ice%dv_dz_3D( vi,:) = hybrid%BPA%dv_dz_ak( vi,:)
+    END DO
+
+    ! In the hybrid DIVA/BPA, gradients of w are neglected
+    ice%dw_dx_3D = 0._dp
+    ice%dw_dy_3D = 0._dp
+    ice%dw_dz_3D = 0._dp
+    CALL sync
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE set_ice_velocities_to_hybrid_DIVA_BPA_results
 
 ! == Calculate velocities on the c-grid for solving the ice thickness equation
 
@@ -825,19 +903,24 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    IF     (C%choice_stress_balance_approximation == 'SIA') THEN
-      ! The SIA doesn't have a restart file
-    ELSEIF (C%choice_stress_balance_approximation == 'SSA') THEN
-      CALL write_to_restart_file_SSA( mesh, ice%SSA, time)
-    ELSEIF (C%choice_stress_balance_approximation == 'SIA/SSA') THEN
-      CALL write_to_restart_file_SSA( mesh, ice%SSA, time)
-    ELSEIF (C%choice_stress_balance_approximation == 'DIVA') THEN
-      CALL write_to_restart_file_DIVA( mesh, ice%DIVA, time)
-    ELSEIF (C%choice_stress_balance_approximation == 'BPA') THEN
-      CALL write_to_restart_file_BPA( mesh, ice%BPA, time)
-    ELSE
-      CALL crash('unknown choice_stress_balance_approximation "' // TRIM( C%choice_stress_balance_approximation) // '"!')
-    END IF
+    SELECT CASE (C%choice_stress_balance_approximation)
+      CASE DEFAULT
+        CALL crash('unknown choice_stress_balance_approximation "' // TRIM( C%choice_stress_balance_approximation) // '"!')
+      CASE ('none')
+        ! No need to do anything
+      CASE ('SIA')
+        ! The SIA doesn't have a restart file
+      CASE ('SSA')
+        CALL write_to_restart_file_SSA( mesh, ice%SSA, time)
+      CASE ('SIA/SSA')
+        CALL write_to_restart_file_SSA( mesh, ice%SSA, time)
+      CASE ('DIVA')
+        CALL write_to_restart_file_DIVA( mesh, ice%DIVA, time)
+      CASE ('BPA')
+        CALL write_to_restart_file_BPA( mesh, ice%BPA, time)
+      CASE ('hybrid DIVA/BPA')
+        CALL warning('the hybrid DIVA/BPA does not have a restart file yet!')
+    END SELECT
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -859,19 +942,24 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    IF     (C%choice_stress_balance_approximation == 'SIA') THEN
-      ! The SIA doesn't have a restart file
-    ELSEIF (C%choice_stress_balance_approximation == 'SSA') THEN
+    SELECT CASE (C%choice_stress_balance_approximation)
+      CASE DEFAULT
+        CALL crash('unknown choice_stress_balance_approximation "' // TRIM( C%choice_stress_balance_approximation) // '"!')
+      CASE ('none')
+        ! No need to do anything
+      CASE ('SIA')
+        ! The SIA doesn't have a restart file
+      CASE ('SSA')
       CALL create_restart_file_SSA( mesh, ice%SSA)
-    ELSEIF (C%choice_stress_balance_approximation == 'SIA/SSA') THEN
+      CASE ('SIA/SSA')
       CALL create_restart_file_SSA( mesh, ice%SSA)
-    ELSEIF (C%choice_stress_balance_approximation == 'DIVA') THEN
+      CASE ('DIVA')
       CALL create_restart_file_DIVA( mesh, ice%DIVA)
-    ELSEIF (C%choice_stress_balance_approximation == 'BPA') THEN
+      CASE ('BPA')
       CALL create_restart_file_BPA( mesh, ice%BPA)
-    ELSE
-      CALL crash('unknown choice_stress_balance_approximation "' // TRIM( C%choice_stress_balance_approximation) // '"!')
-    END IF
+      CASE ('hybrid DIVA/BPA')
+        CALL warning('the hybrid DIVA/BPA does not have a restart file yet!')
+    END SELECT
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
