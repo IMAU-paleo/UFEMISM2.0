@@ -1581,7 +1581,7 @@ CONTAINS
   ! == No-ice mask
   ! ==============
 
-  SUBROUTINE calc_mask_noice( mesh, ice, refgeo_PD)
+  SUBROUTINE calc_mask_noice( mesh, ice)
     ! Calculate the no-ice mask
 
     IMPLICIT NONE
@@ -1589,7 +1589,6 @@ CONTAINS
     ! In/output variables:
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
     TYPE(type_ice_model),                   INTENT(INOUT) :: ice
-    TYPE(type_reference_geometry),          INTENT(IN)    :: refgeo_PD
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'calc_mask_noice'
@@ -1638,61 +1637,6 @@ CONTAINS
         CALL crash('unknown choice_mask_noice "' // TRIM( C%choice_mask_noice) // '"')
     END SELECT
 
-    ! General cases (added on top)
-    ! ============================
-
-    ! If so specified, remove very thin ice
-    DO vi = mesh%vi1, mesh%vi2
-      IF (ice%Hi( vi) < C%Hi_min) THEN
-        ice%mask_noice( vi) = .TRUE.
-      END IF
-    END DO
-
-    ! If so specified, remove thin floating ice
-    IF (C%choice_calving_law == 'threshold_thickness') THEN
-      DO vi = mesh%vi1, mesh%vi2
-        IF (is_floating( ice%Hi( vi), ice%Hb( vi), ice%SL( vi)) .AND. ice%Hi( vi) < C%calving_threshold_thickness_shelf) THEN
-          ice%mask_noice( vi) = .TRUE.
-        END IF
-      END DO
-    END IF
-
-    ! DENK DROM
-    IF (C%remove_ice_absent_at_PD) THEN
-      DO vi = mesh%vi1, mesh%vi2
-        IF (refgeo_PD%Hi( vi) == 0._dp) THEN
-          ice%mask_noice( vi) = .TRUE.
-        END IF
-      END DO
-    END IF
-
-    ! If so specified, remove all floating ice
-    IF (C%do_remove_shelves) THEN
-      DO vi = mesh%vi1, mesh%vi2
-        IF (is_floating( ice%Hi( vi), ice%Hb( vi), ice%SL( vi))) THEN
-          ice%mask_noice( vi) = .TRUE.
-        END IF
-      END DO
-    END IF
-
-    ! If so specified, remove all floating ice beyond the present-day calving front
-    IF (C%remove_shelves_larger_than_PD) THEN
-      DO vi = mesh%vi1, mesh%vi2
-        IF (refgeo_PD%Hi( vi) == 0._dp .AND. refgeo_PD%Hb( vi) < 0._dp) THEN
-          ice%mask_noice( vi) = .TRUE.
-        END IF
-      END DO
-    END IF
-
-    ! If so specified, remove all floating ice crossing the continental shelf edge
-    IF (C%continental_shelf_calving) THEN
-      DO vi = mesh%vi1, mesh%vi2
-        IF (refgeo_PD%Hi( vi) == 0._dp .AND. refgeo_PD%Hb( vi) < C%continental_shelf_min_height) then
-          ice%mask_noice( vi) = .TRUE.
-        END IF
-      END DO
-    END IF
-
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
@@ -1701,18 +1645,17 @@ CONTAINS
   ! == Ice thickness modification
   ! =============================
 
-  SUBROUTINE alter_ice_thickness( mesh, ice, Hi_old, Hi_new, Hi_ref, dt, time)
+  SUBROUTINE alter_ice_thickness( mesh, ice, Hi_old, Hi_new, refgeo, time)
     ! Modify the predicted ice thickness in some sneaky way
 
     IMPLICIT NONE
 
     ! In- and output variables:
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
-    TYPE(type_ice_model),                   INTENT(INOUT) :: ice
+    TYPE(type_ice_model),                   INTENT(IN)    :: ice
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: Hi_old
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(INOUT) :: Hi_new
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: Hi_ref
-    REAL(dp),                               INTENT(IN)    :: dt
+    TYPE(type_reference_geometry),          INTENT(IN)    :: refgeo
     REAL(dp),                               INTENT(IN)    :: time
 
     ! Local variables:
@@ -1734,6 +1677,61 @@ CONTAINS
 
     ! Save predicted ice thickness for future reference
     Hi_save = Hi_new
+
+    ! General cases
+    ! =============
+
+    ! If so specified, remove very thin ice
+    DO vi = mesh%vi1, mesh%vi2
+      IF (Hi_new( vi) < C%Hi_min) THEN
+        Hi_new( vi) = 0._dp
+      END IF
+    END DO
+
+    ! If so specified, remove thin floating ice
+    IF (C%choice_calving_law == 'threshold_thickness') THEN
+      DO vi = mesh%vi1, mesh%vi2
+        IF (is_floating( Hi_new( vi), ice%Hb( vi), ice%SL( vi)) .AND. Hi_new( vi) < C%calving_threshold_thickness_shelf) THEN
+          Hi_new( vi) = 0._dp
+        END IF
+      END DO
+    END IF
+
+    ! DENK DROM
+    IF (C%remove_ice_absent_at_PD) THEN
+      DO vi = mesh%vi1, mesh%vi2
+        IF (refgeo%Hi( vi) == 0._dp) THEN
+          Hi_new( vi) = 0._dp
+        END IF
+      END DO
+    END IF
+
+    ! If so specified, remove all floating ice
+    IF (C%do_remove_shelves) THEN
+      DO vi = mesh%vi1, mesh%vi2
+        IF (is_floating( Hi_new( vi), ice%Hb( vi), ice%SL( vi))) THEN
+          Hi_new( vi) = 0._dp
+        END IF
+      END DO
+    END IF
+
+    ! If so specified, remove all floating ice beyond the present-day calving front
+    IF (C%remove_shelves_larger_than_PD) THEN
+      DO vi = mesh%vi1, mesh%vi2
+        IF (refgeo%Hi( vi) == 0._dp .AND. refgeo%Hb( vi) < 0._dp) THEN
+          Hi_new( vi) = 0._dp
+        END IF
+      END DO
+    END IF
+
+    ! If so specified, remove all floating ice crossing the continental shelf edge
+    IF (C%continental_shelf_calving) THEN
+      DO vi = mesh%vi1, mesh%vi2
+        IF (refgeo%Hi( vi) == 0._dp .AND. refgeo%Hb( vi) < C%continental_shelf_min_height) then
+          Hi_new( vi) = 0._dp
+        END IF
+      END DO
+    END IF
 
     ! === Fixiness ===
     ! ================
@@ -1803,24 +1801,24 @@ CONTAINS
     ! ================
 
     ! Intial value
-    modiness      = 1._dp
+    modiness      = 1._dp ! DENK DROM : Add smooth decrease to 0 in the future
     modiness_up   = 0._dp
     modiness_down = 0._dp
 
-    IF (C%limitness_H_modifier == 'none') THEN
+    IF (C%modiness_H_style == 'none') THEN
       modiness_up   = 0._dp
       modiness_down = 0._dp
-    ELSEIF (C%limitness_H_modifier == 'Ti_hom') THEN
-      modiness_up   = (1._dp - exp(ice%Ti_hom/3._dp)) * modiness
-      modiness_down = (1._dp - exp(ice%Ti_hom/3._dp)) * modiness
-    ELSEIF (C%limitness_H_modifier == 'Ti_hom_up') THEN
-      modiness_up   = (1._dp - exp(ice%Ti_hom/10._dp)) * modiness
+    ELSEIF (C%modiness_H_style == 'Ti_hom') THEN
+      modiness_up   = (1._dp - exp(ice%Ti_hom/C%modiness_T_hom_ref)) * modiness
+      modiness_down = (1._dp - exp(ice%Ti_hom/C%modiness_T_hom_ref)) * modiness
+    ELSEIF (C%modiness_H_style == 'Ti_hom_up') THEN
+      modiness_up   = (1._dp - exp(ice%Ti_hom/C%modiness_T_hom_ref)) * modiness
       modiness_down = 0._dp
-    ELSEIF (C%limitness_H_modifier == 'Ti_hom_down') THEN
+    ELSEIF (C%modiness_H_style == 'Ti_hom_down') THEN
       modiness_up   = 0._dp
-      modiness_down = (1._dp - exp(ice%Ti_hom/3._dp)) * modiness
+      modiness_down = (1._dp - exp(ice%Ti_hom/C%modiness_T_hom_ref)) * modiness
     ELSE
-      CALL crash('unknown modiness_H_choice "' // TRIM( C%limitness_H_modifier) // '"')
+      CALL crash('unknown modiness_H_choice "' // TRIM( C%modiness_H_style) // '"')
     END IF
 
     ! === Fix, delay, limit ===
@@ -1864,69 +1862,10 @@ CONTAINS
       Hi_new( vi) = Hi_old( vi) * fix_H_applied + Hi_new( vi) * (1._dp - fix_H_applied)
 
       ! Apply limitness
-      Hi_new( vi) = MIN( Hi_new( vi), Hi_ref( vi) + limit_H_applied + (1._dp - limitness) * (Hi_new( vi) - Hi_ref( vi)) )
-      Hi_new( vi) = MAX( Hi_new( vi), Hi_ref( vi) - limit_H_applied - (1._dp - limitness) * (Hi_ref( vi) - Hi_new( vi)) )
-
-      ! Apply modiness
-      Hi_new( vi) = MIN( Hi_new( vi), Hi_ref( vi) + (1._dp - modiness_up(   vi)) * (Hi_new( vi) - Hi_ref( vi)) )
-      Hi_new( vi) = MAX( Hi_new( vi), Hi_ref( vi) - (1._dp - modiness_down( vi)) * (Hi_ref( vi) - Hi_new( vi)) )
+      Hi_new( vi) = MIN( Hi_new( vi), refgeo%Hi( vi) + limit_H_applied*(1._dp - modiness_up(   vi)) + (1._dp - limitness)*(Hi_new( vi) - refgeo%Hi( vi)) )
+      Hi_new( vi) = MAX( Hi_new( vi), refgeo%Hi( vi) - limit_H_applied*(1._dp - modiness_down( vi)) - (1._dp - limitness)*(refgeo%Hi( vi) - Hi_new( vi)) )
 
     END DO
-
-    ! === Conservation of mass ===
-    ! ============================
-
-    ! Initialise
-    mass_lost     = 0._dp
-    floating_area = 0._dp
-    calving_area  = 0._dp
-
-    ! Compute total grounded mass that should have stayed grounded
-    DO vi = mesh%vi1, mesh%vi2
-
-      ! If ice-free land vertex
-      IF (ice%mask_icefree_land( vi)) THEN
-        ! Add residual volume to total
-        mass_lost = mass_lost + (Hi_save( vi) - Hi_new( vi)) * mesh%A( vi)
-
-      ! If grounded vertex
-      ELSEIF (ice%mask_grounded_ice( vi)) THEN
-        ! Add residual volume to total
-        mass_lost = mass_lost + (Hi_save( vi) - Hi_new( vi)) * mesh%A( vi)
-
-      ! If floating vertex
-      ELSEIF (ice%mask_floating_ice( vi)) THEN
-        ! Add vertex area to total
-        floating_area = floating_area + mesh%A( vi)
-
-      ! If would-be advanced calving front vertex
-      ELSEIF (ice%mask_icefree_ocean( vi) .AND. Hi_save( vi) > 0._dp) THEN
-        ! Add vertex area to total
-        calving_area = calving_area + mesh%A( vi)
-      END IF
-
-    END DO
-
-    ! Add up findings from each process domain
-    CALL MPI_ALLREDUCE( MPI_IN_PLACE, mass_lost,     1, MPI_INTEGER, MPI_SUM, MPI_COMM_WORLD, ierr)
-    CALL MPI_ALLREDUCE( MPI_IN_PLACE, floating_area, 1, MPI_INTEGER, MPI_SUM, MPI_COMM_WORLD, ierr)
-    CALL MPI_ALLREDUCE( MPI_IN_PLACE, calving_area,  1, MPI_INTEGER, MPI_SUM, MPI_COMM_WORLD, ierr)
-
-    ! DENK DROM
-    ! ! Redistribute lost mass over floating (50%) and would-be calving (50%) areas. If mass_lost is
-    ! ! positive, that means that that amount of mass should have stayed on ground, never reaching
-    ! ! the ice shelves and therefore reducing thicknening -> reduce thickening to compensate.
-    ! DO vi = mesh%vi1, mesh%vi2
-    !   ! If floating
-    !   IF (ice%mask_floating_ice( vi)) THEN
-    !     ! Correct predicted dHi_dt to account for lost mass
-    !     ice%dHi_dt_predicted( vi) = ice%dHi_dt_predicted( vi) - .5_dp*mass_lost/floating_area/dt
-    !   ! If would-be advanced calving front vertex
-    !   ELSEIF (ice%mask_icefree_ocean( vi) .AND. Hi_save( vi) > 0._dp) THEN
-    !     ! Correct predicted dHi_dt to account for lost mass
-    !     ice%dHi_dt_predicted( vi) = ice%dHi_dt_predicted( vi) - .5_dp*mass_lost/calving_area/dt
-    !   END IF
-    ! END DO
 
     ! Clean after yourself
     DEALLOCATE( Hi_save      )

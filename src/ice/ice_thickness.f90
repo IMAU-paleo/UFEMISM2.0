@@ -30,7 +30,7 @@ CONTAINS
 
 ! == The main routines, to be called from the ice dynamics module
 
-  SUBROUTINE calc_dHi_dt( mesh, Hi, Hb, SL, u_vav_b, v_vav_b, SMB, BMB, mask_noice, dt, dHi_dt, Hi_tplusdt, divQ, dHi_dt_target, BC_prescr_mask, BC_prescr_Hi)
+  SUBROUTINE calc_dHi_dt( mesh, Hi, Hb, SL, u_vav_b, v_vav_b, SMB, BMB, mask_noice, dt, dHi_dt, Hi_tplusdt, divQ, dHi_dt_target, dHi_dt_residual, BC_prescr_mask, BC_prescr_Hi)
     ! Calculate ice thickness at time t+dt
 
     IMPLICIT NONE
@@ -50,6 +50,7 @@ CONTAINS
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)             :: Hi_tplusdt            ! [m]       Ice thickness at time t + dt
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)             :: divQ                  ! [m yr^-1] Horizontal ice flux divergence
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)              :: dHi_dt_target         ! [m yr^-1] Target ice thickness rate of change
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(INOUT)           :: dHi_dt_residual       ! [m yr^-1] Residual ice thickness rate of change
     INTEGER,  DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)   , OPTIONAL :: BC_prescr_mask        ! [-]       Mask of vertices where thickness is prescribed
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)   , OPTIONAL :: BC_prescr_Hi          ! [m]       Prescribed thicknesses
 
@@ -61,6 +62,9 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    ! Initialise tracker for residual (imposed) mass changes
+    dHi_dt_residual = 0._dp
+
     ! Calculate Hi( t+dt) with the specified time discretisation scheme
     IF     (C%choice_ice_integration_method == 'none') THEN
       ! Unchanging ice geometry
@@ -71,11 +75,11 @@ CONTAINS
       RETURN
 
     ELSEIF (C%choice_ice_integration_method == 'explicit') THEN
-      CALL calc_dHi_dt_explicit(     mesh, Hi, Hb, SL, u_vav_b, v_vav_b, SMB, BMB, mask_noice, dt, dHi_dt, Hi_tplusdt, divQ, dHi_dt_target, BC_prescr_mask, BC_prescr_Hi)
+      CALL calc_dHi_dt_explicit(     mesh, Hi, Hb, SL, u_vav_b, v_vav_b, SMB, BMB, mask_noice, dt, dHi_dt, Hi_tplusdt, divQ, dHi_dt_target, dHi_dt_residual, BC_prescr_mask, BC_prescr_Hi)
     ELSEIF (C%choice_ice_integration_method == 'implicit') THEN
-      CALL calc_dHi_dt_implicit(     mesh, Hi, Hb, SL, u_vav_b, v_vav_b, SMB, BMB, mask_noice, dt, dHi_dt, Hi_tplusdt, divQ, dHi_dt_target, BC_prescr_mask, BC_prescr_Hi)
+      CALL calc_dHi_dt_implicit(     mesh, Hi, Hb, SL, u_vav_b, v_vav_b, SMB, BMB, mask_noice, dt, dHi_dt, Hi_tplusdt, divQ, dHi_dt_target, dHi_dt_residual, BC_prescr_mask, BC_prescr_Hi)
     ELSEIF (C%choice_ice_integration_method == 'semi-implicit') THEN
-      CALL calc_dHi_dt_semiimplicit( mesh, Hi, Hb, SL, u_vav_b, v_vav_b, SMB, BMB, mask_noice, dt, dHi_dt, Hi_tplusdt, divQ, dHi_dt_target, BC_prescr_mask, BC_prescr_Hi)
+      CALL calc_dHi_dt_semiimplicit( mesh, Hi, Hb, SL, u_vav_b, v_vav_b, SMB, BMB, mask_noice, dt, dHi_dt, Hi_tplusdt, divQ, dHi_dt_target, dHi_dt_residual, BC_prescr_mask, BC_prescr_Hi)
     ELSE
       CALL crash('unknown choice_ice_integration_method "' // TRIM( C%choice_ice_integration_method) // '"!')
     END IF
@@ -95,6 +99,9 @@ CONTAINS
       CALL warning('encountered negative values for Hi_tplusdt - time step too large?')
     END IF
 
+    ! Add difference between original and applied dHi_dt to residual tracker
+    dHi_dt_residual = dHi_dt_residual + (dHi_dt - (Hi_tplusdt - Hi) / dt)
+
     ! Recalculate dH/dt with adjusted values of H
     dHi_dt = (Hi_tplusdt - Hi) / dt
 
@@ -103,7 +110,7 @@ CONTAINS
 
   END SUBROUTINE calc_dHi_dt
 
-  SUBROUTINE calc_dHi_dt_explicit( mesh, Hi, Hb, SL, u_vav_b, v_vav_b, SMB, BMB, mask_noice, dt, dHi_dt, Hi_tplusdt, divQ, dHi_dt_target, BC_prescr_mask, BC_prescr_Hi)
+  SUBROUTINE calc_dHi_dt_explicit( mesh, Hi, Hb, SL, u_vav_b, v_vav_b, SMB, BMB, mask_noice, dt, dHi_dt, Hi_tplusdt, divQ, dHi_dt_target, dHi_dt_residual, BC_prescr_mask, BC_prescr_Hi)
     ! Calculate ice thickness rates of change (dH/dt)
     !
     ! Use a time-explicit discretisation scheme for the ice fluxes
@@ -146,6 +153,7 @@ CONTAINS
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)             :: Hi_tplusdt            ! [m]       Ice thickness at time t + dt
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)             :: divQ                  ! [m yr^-1] Horizontal ice flux divergence
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)              :: dHi_dt_target         ! [m yr^-1] Target ice thickness rate of change
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(INOUT)           :: dHi_dt_residual       ! [m yr^-1] Residual ice thickness rate of change
     INTEGER,  DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)   , OPTIONAL :: BC_prescr_mask        ! [-]       Mask of vertices where thickness is prescribed
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)   , OPTIONAL :: BC_prescr_Hi          ! [m]       Prescribed thicknesses
 
@@ -195,6 +203,9 @@ CONTAINS
     ! Enforce Hi = 0 where told to do so
     CALL apply_mask_noice_direct( mesh, mask_noice, Hi_tplusdt)
 
+    ! Add difference between original and applied dHi_dt to residual tracker
+    dHi_dt_residual = dHi_dt_residual + (dHi_dt - (Hi_tplusdt - Hi) / dt)
+
     ! Recalculate dH/dt, accounting for limit of no negative ice thickness
     dHi_dt = (Hi_tplusdt - Hi) / dt
 
@@ -206,7 +217,7 @@ CONTAINS
 
   END SUBROUTINE calc_dHi_dt_explicit
 
-  SUBROUTINE calc_dHi_dt_implicit( mesh, Hi, Hb, SL, u_vav_b, v_vav_b, SMB, BMB, mask_noice, dt, dHi_dt, Hi_tplusdt, divQ, dHi_dt_target, BC_prescr_mask, BC_prescr_Hi)
+  SUBROUTINE calc_dHi_dt_implicit( mesh, Hi, Hb, SL, u_vav_b, v_vav_b, SMB, BMB, mask_noice, dt, dHi_dt, Hi_tplusdt, divQ, dHi_dt_target, dHi_dt_residual, BC_prescr_mask, BC_prescr_Hi)
     ! Calculate ice thickness rates of change (dH/dt)
     !
     ! Use a time-implicit discretisation scheme for the ice fluxes
@@ -264,6 +275,7 @@ CONTAINS
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)             :: Hi_tplusdt            ! [m]       Ice thickness at time t + dt
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)             :: divQ                  ! [m yr^-1] Horizontal ice flux divergence
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)              :: dHi_dt_target         ! [m yr^-1] Target ice thickness rate of change
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(INOUT)           :: dHi_dt_residual       ! [m yr^-1] Residual ice thickness rate of change
     INTEGER,  DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)   , OPTIONAL :: BC_prescr_mask        ! [-]       Mask of vertices where thickness is prescribed
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)   , OPTIONAL :: BC_prescr_Hi          ! [m]       Prescribed thicknesses
 
@@ -274,6 +286,7 @@ CONTAINS
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                          :: bb
     INTEGER                                                         :: vi, k1, k2, k, vj
     REAL(dp)                                                        :: dt_max
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                          :: dHi_dt_dummy
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -285,10 +298,10 @@ CONTAINS
     CALL multiply_CSR_matrix_with_vector_1D( M_divQ, Hi, divQ)
 
     ! Calculate an estimate of the rate of ice thickness change dHi/dt
-    dHi_dt = -divQ + SMB + BMB - dHi_dt_target
+    dHi_dt_dummy = -divQ + SMB + BMB - dHi_dt_target
 
     ! Calculate largest time step possible based on that estimate
-    CALL calc_flux_limited_timestep( mesh, Hi, Hb, SL, dHi_dt, dt_max)
+    CALL calc_flux_limited_timestep( mesh, Hi, Hb, SL, dHi_dt_dummy, dt_max)
 
     ! Constrain dt based on new limit
     dt = MIN( dt, dt_max)
@@ -327,6 +340,9 @@ CONTAINS
     ! Solve for Hi_tplusdt
     CALL solve_matrix_equation_CSR_PETSc( AA, bb, Hi_tplusdt, C%dHi_PETSc_rtol, C%dHi_PETSc_abstol)
 
+    ! Save computed dHi_dt before enforced mass changes
+    dHi_dt_dummy = (Hi_tplusdt - Hi) / dt
+
     ! Enforce Hi = 0 where told to do so
     CALL apply_mask_noice_direct( mesh, mask_noice, Hi_tplusdt)
 
@@ -335,6 +351,9 @@ CONTAINS
 
     ! Calculate dH/dt
     dHi_dt = (Hi_tplusdt - Hi) / dt
+
+    ! Add difference between original and applied dHi_dt to residual tracker
+    dHi_dt_residual = dHi_dt_residual + dHi_dt_dummy - dHi_dt
 
     ! Clean up after yourself
     CALL deallocate_matrix_CSR_dist( M_divQ)
@@ -345,7 +364,7 @@ CONTAINS
 
   END SUBROUTINE calc_dHi_dt_implicit
 
-  SUBROUTINE calc_dHi_dt_semiimplicit( mesh, Hi, Hb, SL, u_vav_b, v_vav_b, SMB, BMB, mask_noice, dt, dHi_dt, Hi_tplusdt, divQ, dHi_dt_target, BC_prescr_mask, BC_prescr_Hi)
+  SUBROUTINE calc_dHi_dt_semiimplicit( mesh, Hi, Hb, SL, u_vav_b, v_vav_b, SMB, BMB, mask_noice, dt, dHi_dt, Hi_tplusdt, divQ, dHi_dt_target, dHi_dt_residual, BC_prescr_mask, BC_prescr_Hi)
     ! Calculate ice thickness rates of change (dH/dt)
     !
     ! Use a semi-implicit time discretisation scheme for the ice fluxes
@@ -409,6 +428,7 @@ CONTAINS
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)             :: Hi_tplusdt            ! [m]       Ice thickness at time t + dt
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)             :: divQ                  ! [m yr^-1] Horizontal ice flux divergence
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)              :: dHi_dt_target         ! [m yr^-1] Target ice thickness rate of change
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(INOUT)           :: dHi_dt_residual       ! [m yr^-1] Residual ice thickness rate of change
     INTEGER,  DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)   , OPTIONAL :: BC_prescr_mask        ! [-]       Mask of vertices where thickness is prescribed
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)   , OPTIONAL :: BC_prescr_Hi          ! [m]       Prescribed thicknesses
 
@@ -420,6 +440,7 @@ CONTAINS
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                          :: bb
     INTEGER                                                         :: vi, k1, k2, k, vj
     REAL(dp)                                                        :: dt_max
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                          :: dHi_dt_dummy
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -431,7 +452,7 @@ CONTAINS
     CALL multiply_CSR_matrix_with_vector_1D( M_divQ, Hi, divQ)
 
     ! Calculate an estimate of the rate of ice thickness change dHi/dt
-    dHi_dt = -divQ + SMB + BMB - dHi_dt_target
+    dHi_dt_dummy = -divQ + SMB + BMB - dHi_dt_target
 
     ! Calculate largest time step possible based on that estimate
     CALL calc_flux_limited_timestep( mesh, Hi, Hb, SL, dHi_dt, dt_max)
@@ -474,6 +495,9 @@ CONTAINS
     ! Solve for Hi_tplusdt
     CALL solve_matrix_equation_CSR_PETSc( AA, bb, Hi_tplusdt, C%dHi_PETSc_rtol, C%dHi_PETSc_abstol)
 
+    ! Save computed dHi_dt before enforced mass changes
+    dHi_dt_dummy = (Hi_tplusdt - Hi) / dt
+
     ! Enforce Hi = 0 where told to do so
     CALL apply_mask_noice_direct( mesh, mask_noice, Hi_tplusdt)
 
@@ -482,6 +506,9 @@ CONTAINS
 
     ! Calculate dH/dt
     dHi_dt = (Hi_tplusdt - Hi) / dt
+
+    ! Add difference between original and applied dHi_dt to residual tracker
+    dHi_dt_residual = dHi_dt_residual + dHi_dt_dummy - dHi_dt
 
     ! Clean up after yourself
     CALL deallocate_matrix_CSR_dist( M_divQ)

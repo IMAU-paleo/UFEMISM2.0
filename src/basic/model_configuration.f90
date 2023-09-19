@@ -436,7 +436,8 @@ MODULE model_configuration
     REAL(dp)            :: limitness_H_gl_fl_config                     = +9.9E9_dp                        ! Maximum departure from PD ice thickness allowed at peak limitness
     REAL(dp)            :: limitness_H_grounded_config                  = +9.9E9_dp                        ! Maximum departure from PD ice thickness allowed at peak limitness
     REAL(dp)            :: limitness_H_floating_config                  = +9.9E9_dp                        ! Maximum departure from PD ice thickness allowed at peak limitness
-    CHARACTER(LEN=256)  :: limitness_H_modifier_config                  = 'none'                           ! Dynamic "modiness" limitness-like term: "none", "Ti_hom", "Ti_hom_up", "Ti_hom_down"
+    CHARACTER(LEN=256)  :: modiness_H_style_config                      = 'none'                           ! Dynamic "modiness" limitness-like term: "none", "Ti_hom", "Ti_hom_up", "Ti_hom_down"
+    REAL(dp)            :: modiness_T_hom_ref_config                    = 20._dp                           ! Reference Ti_hom for the modiness cold exponential style
 
   ! == Basal hydrology
   ! ==================
@@ -641,6 +642,8 @@ MODULE model_configuration
     LOGICAL             :: do_asynchronous_SMB_config                   = .TRUE.                           ! Whether or not the SMB should be calculated asynchronously from the rest of the model; if so, use dt_climate; if not, calculate it in every time step
     REAL(dp)            :: dt_SMB_config                                = 10._dp                           ! [yr] Time step for calculating SMB
     LOGICAL             :: do_corrections_SMB_config                    = .FALSE.                          ! Whether or not a SMB correction should be calculated from different sources, e.g. dHi_dt residuals at the end of inversions
+    REAL(dp)            :: SMB_residual_absorb_t_start_config           = +9.9E9_dp                        ! [yr] Start time for assimilation of residuals as part of the SMB corrections
+    REAL(dp)            :: SMB_residual_absorb_t_end_config             = +9.9E9_dp                        ! [yr] End   time for assimilation of residuals as part of the SMB corrections
 
 
     ! Choice of SMB model
@@ -679,6 +682,8 @@ MODULE model_configuration
     ! Time step
     LOGICAL             :: do_asynchronous_BMB_config                   = .TRUE.                           ! Whether or not the BMB should be calculated asynchronously from the rest of the model; if so, use dt_climate; if not, calculate it in every time step
     REAL(dp)            :: dt_BMB_config                                = 10._dp                           ! [yr] Time step for calculating BMB
+    REAL(dp)            :: BMB_inversion_t_start_config                 = +9.9E9_dp                        ! [yr] Start time for BMB inversion based on computed thinning rates in marine areas
+    REAL(dp)            :: BMB_inversion_t_end_config                   = +9.9E9_dp                        ! [yr] End   time for BMB inversion based on computed thinning rates in marine areas
 
     ! Grounding line treatment
     LOGICAL             :: do_subgrid_BMB_at_grounding_line_config      = .FALSE.                          ! Whether or not to apply basal melt rates under a partially floating grounding line
@@ -1233,7 +1238,8 @@ MODULE model_configuration
     REAL(dp)            :: limitness_H_gl_fl
     REAL(dp)            :: limitness_H_grounded
     REAL(dp)            :: limitness_H_floating
-    CHARACTER(LEN=256)  :: limitness_H_modifier
+    CHARACTER(LEN=256)  :: modiness_H_style
+    REAL(dp)            :: modiness_T_hom_ref
 
   ! == Basal hydrology
   ! ==================
@@ -1442,6 +1448,8 @@ MODULE model_configuration
     LOGICAL             :: do_asynchronous_SMB
     REAL(dp)            :: dt_SMB
     LOGICAL             :: do_corrections_SMB
+    REAL(dp)            :: SMB_residual_absorb_t_start
+    REAL(dp)            :: SMB_residual_absorb_t_end
 
     ! Choice of SMB model
     CHARACTER(LEN=256)  :: choice_SMB_model_NAM
@@ -1479,6 +1487,8 @@ MODULE model_configuration
     ! Time step
     LOGICAL             :: do_asynchronous_BMB
     REAL(dp)            :: dt_BMB
+    REAL(dp)            :: BMB_inversion_t_start
+    REAL(dp)            :: BMB_inversion_t_end
 
     ! Grounding line treatment
     LOGICAL             :: do_subgrid_BMB_at_grounding_line
@@ -2050,7 +2060,8 @@ CONTAINS
       limitness_H_gl_fl_config                                    , &
       limitness_H_grounded_config                                 , &
       limitness_H_floating_config                                 , &
-      limitness_H_modifier_config                                 , &
+      modiness_H_style_config                                     , &
+      modiness_T_hom_ref_config                                   , &
       choice_basal_hydrology_model_config                         , &
       Martin2011_hydro_Hb_min_config                              , &
       Martin2011_hydro_Hb_max_config                              , &
@@ -2173,6 +2184,8 @@ CONTAINS
       do_asynchronous_SMB_config                                  , &
       dt_SMB_config                                               , &
       do_corrections_SMB_config                                   , &
+      SMB_residual_absorb_t_start_config                          , &
+      SMB_residual_absorb_t_end_config                            , &
       choice_SMB_model_NAM_config                                 , &
       choice_SMB_model_EAS_config                                 , &
       choice_SMB_model_GRL_config                                 , &
@@ -2193,6 +2206,8 @@ CONTAINS
       timeframe_SMB_prescribed_ANT_config                         , &
       do_asynchronous_BMB_config                                  , &
       dt_BMB_config                                               , &
+      BMB_inversion_t_start_config                                , &
+      BMB_inversion_t_end_config                                  , &
       do_subgrid_BMB_at_grounding_line_config                     , &
       choice_BMB_model_NAM_config                                 , &
       choice_BMB_model_EAS_config                                 , &
@@ -2736,7 +2751,8 @@ CONTAINS
     C%limitness_H_gl_fl                                      = limitness_H_gl_fl_config
     C%limitness_H_grounded                                   = limitness_H_grounded_config
     C%limitness_H_floating                                   = limitness_H_floating_config
-    C%limitness_H_modifier                                   = limitness_H_modifier_config
+    C%modiness_H_style                                       = modiness_H_style_config
+    C%modiness_T_hom_ref                                     = modiness_T_hom_ref_config
 
   ! == Basal hydrology
   ! ==================
@@ -2941,6 +2957,8 @@ CONTAINS
     C%do_asynchronous_SMB                                    = do_asynchronous_SMB_config
     C%dt_SMB                                                 = dt_SMB_config
     C%do_corrections_SMB                                     = do_corrections_SMB_config
+    C%SMB_residual_absorb_t_start                            = SMB_residual_absorb_t_start_config
+    C%SMB_residual_absorb_t_end                              = SMB_residual_absorb_t_end_config
 
     ! Choice of SMB model
     C%choice_SMB_model_NAM                                   = choice_SMB_model_NAM_config
@@ -2978,6 +2996,8 @@ CONTAINS
     ! Time step
     C%do_asynchronous_BMB                                    = do_asynchronous_BMB_config
     C%dt_BMB                                                 = dt_BMB_config
+    C%BMB_inversion_t_start                                  = BMB_inversion_t_start_config
+    C%BMB_inversion_t_end                                    = BMB_inversion_t_end_config
 
     ! Grounding line treatment
     C%do_subgrid_BMB_at_grounding_line                       = do_subgrid_BMB_at_grounding_line_config
