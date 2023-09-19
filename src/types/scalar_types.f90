@@ -26,11 +26,25 @@ module scalar_types
 
     ! Integrated fluxes
     real(dp)   :: SMB_total                ! [Gt yr^-1] Area-integrated surface mass balance
+    real(dp)   :: SMB_gr                   ! [Gt yr^-1] Area-integrated surface mass balance over grounded ice
+    real(dp)   :: SMB_fl                   ! [Gt yr^-1] Area-integrated surface mass balance over floating ice
+    real(dp)   :: SMB_land                 ! [Gt yr^-1] Area-integrated surface mass balance over ice-free land
+    real(dp)   :: SMB_ocean                ! [Gt yr^-1] Area-integrated surface mass balance over ice-free ocean
     real(dp)   :: BMB_total                ! [Gt yr^-1] Area-integrated basal mass balance
-    real(dp)   :: gl_flux                  ! [Gt yr^-1] Total flux through the grounding line
-    real(dp)   :: cf_flux                  ! [Gt yr^-1] Total flux through the calving front
-    real(dp)   :: margin_flux              ! [Gt yr^-1] Total flux exiting the ice margin
+    real(dp)   :: BMB_gr                   ! [Gt yr^-1] Area-integrated basal mass balance over grounded ice
+    real(dp)   :: BMB_fl                   ! [Gt yr^-1] Area-integrated basal mass balance over floating ice
+    real(dp)   :: BMB_land                 ! [Gt yr^-1] Area-integrated basal mass balance over ice-free land
+    real(dp)   :: BMB_ocean                ! [Gt yr^-1] Area-integrated basal mass balance over ice-free ocean
     real(dp)   :: AMB_total                ! [Gt yr^-1] Area-integrated additional mass balance from other sources
+    real(dp)   :: AMB_gr                   ! [Gt yr^-1] Area-integrated additional mass balance from other sources over grounded ice
+    real(dp)   :: AMB_fl                   ! [Gt yr^-1] Area-integrated additional mass balance from other sources over floating ice
+    real(dp)   :: AMB_land                 ! [Gt yr^-1] Area-integrated additional mass balance from other sources over ice-free land
+    real(dp)   :: AMB_ocean                ! [Gt yr^-1] Area-integrated additional mass balance from other sources over ice-free ocean
+    real(dp)   :: gl_flux                  ! [Gt yr^-1] Total flux through grounding lines
+    real(dp)   :: cf_gr_flux               ! [Gt yr^-1] Total flux through grounded calving fronts
+    real(dp)   :: cf_fl_flux               ! [Gt yr^-1] Total flux through floating calving fronts
+    real(dp)   :: margin_land_flux         ! [Gt yr^-1] Total flux exiting grounded ice margins
+    real(dp)   :: margin_ocean_flux        ! [Gt yr^-1] Total flux exiting marine ice margins
 
     ! Integrated mass balance
     real(dp)   :: int_T2m                  ! [K]        Mean near-surface air temperatures

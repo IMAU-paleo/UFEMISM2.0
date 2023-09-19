@@ -213,6 +213,7 @@ contains
     ! Local variables:
     character(len=256), parameter            :: routine_name = 'calc_icesheet_integrated_fluxes'
     integer                                  :: vi
+    real(dp)                                 :: total_amb
 
     ! === Initialisation ===
     ! ======================
@@ -225,19 +226,61 @@ contains
 
     ! Initialise
     scalars%SMB_total = 0._dp
+    scalars%SMB_gr    = 0._dp
+    scalars%SMB_fl    = 0._dp
+    scalars%SMB_land  = 0._dp
+    scalars%SMB_ocean = 0._dp
     scalars%BMB_total = 0._dp
+    scalars%BMB_gr    = 0._dp
+    scalars%BMB_fl    = 0._dp
+    scalars%BMB_land  = 0._dp
+    scalars%BMB_ocean = 0._dp
 
     ! Calculate SMB and BMB for each process
     do vi = mesh%vi1, mesh%vi2
-      if (ice%mask_grounded_ice( vi) .or. ice%mask_floating_ice( vi)) then
-        scalars%SMB_total = scalars%SMB_total + SMB%SMB( vi) * mesh%A( vi) * 1.0E-09_dp ! [Gt/yr]
-        scalars%BMB_total = scalars%BMB_total + BMB%BMB( vi) * mesh%A( vi) * 1.0E-09_dp ! [Gt/yr]
+
+      ! Over whole domain
+      scalars%SMB_total = scalars%SMB_total + SMB%SMB( vi) * mesh%A( vi) * 1.0E-09_dp ! [Gt/yr]
+      scalars%BMB_total = scalars%BMB_total + BMB%BMB( vi) * mesh%A( vi) * 1.0E-09_dp ! [Gt/yr]
+
+      ! Over grounded ice
+      if (ice%mask_grounded_ice( vi)) then
+        scalars%SMB_gr = scalars%SMB_gr + SMB%SMB( vi) * mesh%A( vi) * 1.0E-09_dp ! [Gt/yr]
+        scalars%BMB_gr = scalars%BMB_gr + BMB%BMB( vi) * mesh%A( vi) * 1.0E-09_dp ! [Gt/yr]
       end if
+
+      ! Over floating ice
+      if (ice%mask_floating_ice( vi)) then
+        scalars%SMB_fl = scalars%SMB_fl + SMB%SMB( vi) * mesh%A( vi) * 1.0E-09_dp ! [Gt/yr]
+        scalars%BMB_fl = scalars%BMB_fl + BMB%BMB( vi) * mesh%A( vi) * 1.0E-09_dp ! [Gt/yr]
+      end if
+
+      ! Over ice-free land
+      if (ice%mask_icefree_land( vi)) then
+        scalars%SMB_land = scalars%SMB_land + SMB%SMB( vi) * mesh%A( vi) * 1.0E-09_dp ! [Gt/yr]
+        scalars%BMB_land = scalars%BMB_land + BMB%BMB( vi) * mesh%A( vi) * 1.0E-09_dp ! [Gt/yr]
+      end if
+
+      ! Over ice-free ocean
+      if (ice%mask_icefree_ocean( vi)) then
+        scalars%SMB_ocean = scalars%SMB_ocean + SMB%SMB( vi) * mesh%A( vi) * 1.0E-09_dp ! [Gt/yr]
+        scalars%BMB_ocean = scalars%BMB_ocean + BMB%BMB( vi) * mesh%A( vi) * 1.0E-09_dp ! [Gt/yr]
+      end if
+
     end do
 
     ! Add together values from each process
     call MPI_ALLREDUCE( MPI_IN_PLACE, scalars%SMB_total, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+    call MPI_ALLREDUCE( MPI_IN_PLACE, scalars%SMB_gr,    1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+    call MPI_ALLREDUCE( MPI_IN_PLACE, scalars%SMB_fl,    1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+    call MPI_ALLREDUCE( MPI_IN_PLACE, scalars%SMB_land,  1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+    call MPI_ALLREDUCE( MPI_IN_PLACE, scalars%SMB_ocean, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+
     call MPI_ALLREDUCE( MPI_IN_PLACE, scalars%BMB_total, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+    call MPI_ALLREDUCE( MPI_IN_PLACE, scalars%BMB_gr,    1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+    call MPI_ALLREDUCE( MPI_IN_PLACE, scalars%BMB_fl,    1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+    call MPI_ALLREDUCE( MPI_IN_PLACE, scalars%BMB_land,  1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+    call MPI_ALLREDUCE( MPI_IN_PLACE, scalars%BMB_ocean, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
 
     ! === Transitional fluxes ===
     ! ===========================
@@ -246,29 +289,58 @@ contains
     call calc_ice_transitional_fluxes( mesh, ice, scalars)
 
     ! Add together values from each process
-    call MPI_ALLREDUCE( MPI_IN_PLACE, scalars%gl_flux,  1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
-    call MPI_ALLREDUCE( MPI_IN_PLACE, scalars%cf_flux,  1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
-    call MPI_ALLREDUCE( MPI_IN_PLACE, scalars%margin_flux, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+    call MPI_ALLREDUCE( MPI_IN_PLACE, scalars%gl_flux,           1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+    call MPI_ALLREDUCE( MPI_IN_PLACE, scalars%cf_gr_flux,        1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+    call MPI_ALLREDUCE( MPI_IN_PLACE, scalars%cf_fl_flux,        1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+    call MPI_ALLREDUCE( MPI_IN_PLACE, scalars%margin_land_flux,  1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+    call MPI_ALLREDUCE( MPI_IN_PLACE, scalars%margin_ocean_flux, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
 
     ! === Additional mass input/output ===
     ! ====================================
 
     ! Initialise
     scalars%AMB_total = 0._dp
+    scalars%AMB_gr    = 0._dp
+    scalars%AMB_fl    = 0._dp
+    scalars%AMB_land  = 0._dp
+    scalars%AMB_ocean = 0._dp
 
     ! Calculate ice area and volume for each process
     do vi = mesh%vi1, mesh%vi2
-      if (ice%mask_grounded_ice( vi) .or. ice%mask_floating_ice( vi)) then
-        ! Add opposite of target thinning rates
-        scalars%AMB_total = scalars%AMB_total - ice%dHi_dt_target( vi) * mesh%A( vi) * 1.0E-09_dp ! [Gt/yr]
-        ! Account for modified thickness evolution (fixed/delayed/limited)
-        scalars%AMB_total = scalars%AMB_total - ice%dHi_dt_residual( vi) * mesh%A( vi) * 1.0E-09_dp ! [Gt/yr]
-        ! DENK DROM : Add here other sources if implemented in the future
+
+      ! DENK DROM : Add here other sources if implemented in the future
+      total_amb = - ice%dHi_dt_target( vi) - ice%dHi_dt_residual( vi)
+
+      scalars%AMB_total = scalars%AMB_total + total_amb * mesh%A( vi) * 1.0E-09_dp ! [Gt/yr]
+
+      ! Over grounded ice
+      if (ice%mask_grounded_ice( vi)) then
+        scalars%AMB_gr = scalars%AMB_gr + total_amb * mesh%A( vi) * 1.0E-09_dp ! [Gt/yr]
       end if
+
+      ! Over floating ice
+      if (ice%mask_floating_ice( vi)) then
+        scalars%AMB_fl = scalars%AMB_fl + total_amb * mesh%A( vi) * 1.0E-09_dp ! [Gt/yr]
+      end if
+
+      ! Over ice-free land
+      if (ice%mask_icefree_land( vi)) then
+        scalars%AMB_land = scalars%AMB_land + total_amb * mesh%A( vi) * 1.0E-09_dp ! [Gt/yr]
+      end if
+
+      ! Over ice-free ocean
+      if (ice%mask_icefree_ocean( vi)) then
+        scalars%AMB_ocean = scalars%AMB_ocean + total_amb * mesh%A( vi) * 1.0E-09_dp ! [Gt/yr]
+      end if
+
     end do
 
     ! Add together values from each process
     call MPI_ALLREDUCE( MPI_IN_PLACE, scalars%AMB_total, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+    call MPI_ALLREDUCE( MPI_IN_PLACE, scalars%AMB_gr,    1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+    call MPI_ALLREDUCE( MPI_IN_PLACE, scalars%AMB_fl,    1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+    call MPI_ALLREDUCE( MPI_IN_PLACE, scalars%AMB_land,  1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+    call MPI_ALLREDUCE( MPI_IN_PLACE, scalars%AMB_ocean, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
 
     ! === Finalisation ===
     ! ====================
@@ -317,9 +389,11 @@ contains
     ! =================
 
     ! Initialise
-    scalars%gl_flux     = 0._dp
-    scalars%cf_flux     = 0._dp
-    scalars%margin_flux = 0._dp
+    scalars%gl_flux           = 0._dp
+    scalars%cf_gr_flux        = 0._dp
+    scalars%cf_fl_flux        = 0._dp
+    scalars%margin_land_flux  = 0._dp
+    scalars%margin_ocean_flux = 0._dp
 
     do vi = mesh%vi1, mesh%vi2
 
@@ -355,11 +429,17 @@ contains
         if (ice%mask_gl_gr( vi) .and. ice%mask_floating_ice( vj)) then
           scalars%gl_flux  = scalars%gl_flux  - L_c * max( 0._dp, u_perp) * ice%Hi( vi) * 1.0E-09_dp ! [Gt/yr]
         end if
-        if ((ice%mask_cf_gr( vi) .or. ice%mask_cf_fl( vi))  .and. ice%mask_icefree_ocean( vj)) THEN
-          scalars%cf_flux  = scalars%cf_flux  - L_c * max( 0._dp, u_perp) * ice%Hi( vi) * 1.0E-09_dp ! [Gt/yr]
+        if (ice%mask_cf_gr( vi)  .and. ice%mask_icefree_ocean( vj)) THEN
+          scalars%cf_gr_flux  = scalars%cf_gr_flux  - L_c * max( 0._dp, u_perp) * ice%Hi( vi) * 1.0E-09_dp ! [Gt/yr]
         end if
-        if (ice%mask_margin( vi) .and. (ice%mask_icefree_ocean( vj) .or. ice%mask_icefree_land( vj))) then
-          scalars%margin_flux = scalars%margin_flux - L_c * max( 0._dp, u_perp) * ice%Hi( vi) * 1.0E-09_dp ! [Gt/yr]
+        if (ice%mask_cf_fl( vi)  .and. ice%mask_icefree_ocean( vj)) THEN
+          scalars%cf_fl_flux  = scalars%cf_fl_flux  - L_c * max( 0._dp, u_perp) * ice%Hi( vi) * 1.0E-09_dp ! [Gt/yr]
+        end if
+        if (ice%mask_margin( vi) .and. ice%mask_icefree_land( vj)) then
+          scalars%margin_land_flux = scalars%margin_land_flux - L_c * max( 0._dp, u_perp) * ice%Hi( vi) * 1.0E-09_dp ! [Gt/yr]
+        end if
+        if (ice%mask_margin( vi) .and. ice%mask_icefree_ocean( vj)) then
+          scalars%margin_ocean_flux = scalars%margin_ocean_flux - L_c * max( 0._dp, u_perp) * ice%Hi( vi) * 1.0E-09_dp ! [Gt/yr]
         end if
 
       end do ! do ci = 1, mesh%nC( vi)
