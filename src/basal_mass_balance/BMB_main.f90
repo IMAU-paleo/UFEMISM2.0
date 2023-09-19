@@ -448,21 +448,8 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! Compute inverted basal melt rates
-    ! =================================
-
-    BMB%BMB = 0._dp
-    DO vi = mesh%vi1, mesh%vi2
-      ! IF (is_floating( ice%Hi( vi), ice%Hb( vi), ice%SL( vi))) THEN
-      IF (ice%mask_floating_ice( vi) .OR. ice%mask_gl_gr( vi) .OR. ice%mask_cf_gr( vi)) THEN
-        ! For ice shelves, use divQ and SMB to get an "inversion"
-        ! of equilibrium BMB.
-        BMB%BMB( vi) = ice%divQ( vi) - SMB%SMB( vi) + ice%dHi_dt_target( vi)
-      END IF
-    END DO
-
-    ! Extrapolate into partially floating grounding line vertices
-    ! ===========================================================
+    ! Extrapolate inverted BMB into partially floating grounding line vertices
+    ! ========================================================================
 
     ! If not desired, exit
     IF (.NOT. C%do_subgrid_BMB_at_grounding_line) THEN
