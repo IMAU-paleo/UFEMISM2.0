@@ -5096,10 +5096,10 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Crop the line [pq] so that it lies within the domain
-    xmin = grid%xmin - grid%dx / 2._dp
-    xmax = grid%xmax + grid%dx / 2._dp
-    ymin = grid%ymin - grid%dx / 2._dp
-    ymax = grid%ymax + grid%dx / 2._dp
+    xmin = grid%xmin !- grid%dx / 2._dp
+    xmax = grid%xmax !+ grid%dx / 2._dp
+    ymin = grid%ymin !- grid%dx / 2._dp
+    ymax = grid%ymax !+ grid%dx / 2._dp
     CALL crop_line_to_domain( p, q, xmin, xmax, ymin, ymax, grid%tol_dist, pp, qq, is_valid_line)
 
     IF (.NOT. is_valid_line) THEN
@@ -5120,18 +5120,20 @@ CONTAINS
     DO WHILE (.NOT. finished)
 
       ! Find the point p_next where [pq] crosses into the next Voronoi cell
-      IF     (aij_in(  1) > 0) THEN
+      IF     (aij_in(  1) > 0 .OR. aij_in(  2) > 0) THEN
         ! p lies inside a-grid cell aij_in
         CALL trace_line_grid_a(  grid, pp, qq, aij_in, bij_on, cxij_on, cyij_on, p_next, n_left, coincides, finished)
-      ELSEIF (bij_on(  1) > 0) THEN
+      ELSEIF (bij_on(  1) > 0 .OR. bij_on(  2) > 0) THEN
         ! p lies on b-grid point bij_on
         CALL trace_line_grid_b(  grid, pp, qq, aij_in, bij_on, cxij_on, cyij_on, p_next, n_left, coincides, finished)
-      ELSEIF (cxij_on( 1) > 0) THEN
+      ELSEIF (cxij_on( 1) > 0 .OR. cxij_on( 2) > 0) THEN
         ! p lies on cx-grid edge cxij_on
         CALL trace_line_grid_cx( grid, pp, qq, aij_in, bij_on, cxij_on, cyij_on, p_next, n_left, coincides, finished)
-      ELSEIF (cyij_on( 1) > 0) THEN
+      ELSEIF (cyij_on( 1) > 0 .OR. cyij_on( 2) > 0) THEN
         ! p lies on cy-grid edge cyij_on
         CALL trace_line_grid_cy( grid, pp, qq, aij_in, bij_on, cxij_on, cyij_on, p_next, n_left, coincides, finished)
+      ELSE
+        CALL crash('found no coincidence indicators!')
       END IF
 
       ! Calculate the three line integrals
@@ -5258,7 +5260,9 @@ CONTAINS
     REAL(dp), DIMENSION(2)                             :: llis
 
     ! Safety
-    IF (aij_in(1) == 0 .OR. bij_on(1) > 0 .OR. cxij_on(1) > 0 .OR. cyij_on(1) > 0) THEN
+    IF ((aij_in( 1) == 0 .AND. aij_in( 2) == 0) .OR. cxij_on( 1) > 0 .OR. cxij_on( 2) > 0 .OR. &
+        bij_on( 1) > 0 .OR. bij_on( 2) > 0 .OR. cyij_on( 1) > 0 .OR. cyij_on( 2) > 0) THEN
+      WRITE(0,*) 'aij_in = ', aij_in, ', bij_on = ', bij_on, ', cxij_on = ', cxij_on, ', cyij_on = ', cyij_on
       CALL crash('trace_line_grid_a - coincidence indicators dont make sense!')
     END IF
 
@@ -5435,7 +5439,9 @@ CONTAINS
     REAL(dp), DIMENSION(2)                             :: llis
 
     ! Safety
-    IF (aij_in(1) > 0 .OR. bij_on(1) == 0 .OR. cxij_on(1) > 0 .OR. cyij_on(1) > 0) THEN
+    IF (aij_in( 1) > 0 .OR. aij_in( 2) > 0 .OR. cxij_on( 1) > 0 .OR. cxij_on( 2) > 0 .OR. &
+        (bij_on( 1) == 0 .AND. bij_on( 2) == 0) .OR. cyij_on( 1) > 0 .OR. cyij_on( 2) > 0) THEN
+      WRITE(0,*) 'aij_in = ', aij_in, ', bij_on = ', bij_on, ', cxij_on = ', cxij_on, ', cyij_on = ', cyij_on
       CALL crash('trace_line_grid_b - coincidence indicators dont make sense!')
     END IF
 
@@ -5783,7 +5789,9 @@ CONTAINS
     REAL(dp), DIMENSION(2)                             :: llis
 
     ! Safety
-    IF (aij_in(1) > 0 .OR. bij_on(1) > 0 .OR. cxij_on(1) == 0 .OR. cyij_on(1) > 0) THEN
+    IF (aij_in( 1) > 0 .OR. aij_in( 2) > 0 .OR. (cxij_on( 1) == 0 .AND. cxij_on( 2) == 0) .OR. &
+        bij_on( 1) > 0 .OR. bij_on( 2) > 0 .OR. cyij_on( 1) > 0 .OR. cyij_on( 2) > 0) THEN
+      WRITE(0,*) 'aij_in = ', aij_in, ', bij_on = ', bij_on, ', cxij_on = ', cxij_on, ', cyij_on = ', cyij_on
       CALL crash('trace_line_grid_cx - coincidence indicators dont make sense!')
     END IF
 
@@ -6067,7 +6075,9 @@ CONTAINS
     REAL(dp), DIMENSION(2)                             :: llis
 
     ! Safety
-    IF (aij_in(1) > 0 .OR. bij_on(1) > 0 .OR. cxij_on(1) > 0 .OR. cyij_on(1) == 0) THEN
+    IF (aij_in( 1) > 0 .OR. aij_in( 2) > 0 .OR. cxij_on( 1) > 0 .OR. cxij_on( 2) > 0 .OR. &
+        bij_on( 1) > 0 .OR. bij_on( 2) > 0 .OR. (cyij_on( 1) == 0 .AND. cyij_on( 2) == 0)) THEN
+      WRITE(0,*) 'aij_in = ', aij_in, ', bij_on = ', bij_on, ', cxij_on = ', cxij_on, ', cyij_on = ', cyij_on
       CALL crash('trace_line_grid_cy - coincidence indicators dont make sense!')
     END IF
 
