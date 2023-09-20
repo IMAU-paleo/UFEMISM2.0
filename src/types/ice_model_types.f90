@@ -157,6 +157,8 @@ MODULE ice_model_types
     ! Data fields needed to solve the hybrid DIVA/BPA
 
     ! Solution
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: u_vav_b                     ! Vertically averaged horizontal ice velocity [m yr^-1]
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: v_vav_b
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: u_bk                        ! 3-D horizontal ice velocity [m yr^-1]
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: v_bk
 
@@ -169,15 +171,6 @@ MODULE ice_model_types
     LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_BPA_b                  ! T: solve the BPA  here, F: otherwise
     LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_3D_from_DIVA_b         ! T: calculate 3-D velocities from the vertically averaged DIVA solution here, F: otherwise
     LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_vav_from_BPA_b         ! T: calculate vertically averaged velocities from the 3-D BPA  solution here, F: otherwise
-
-    ! Translation tables
-    INTEGER                                 :: neq
-    INTEGER,  DIMENSION(:,:  ), ALLOCATABLE :: tiuv2nh                     ! For every 2-D triangle       and velocity component, the hybrid row index it corresponds to (if any)
-    INTEGER,  DIMENSION(:,:,:), ALLOCATABLE :: tikuv2nh                    ! For every 3-D triangle-layer and velocity component, the hybrid row index it corresponds to (if any)
-    INTEGER,  DIMENSION(:,:  ), ALLOCATABLE :: nh2tiuv_tikuv               ! For every hybrid row, the 2-D triangle / 3-D triangle-layer and velocity component it corresponds to
-
-    ! Combined solution
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: uv_combi                    ! Combined velocity solution
 
     ! Intermediate data fields
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: u_bk_prev                   ! Previous velocity solution
