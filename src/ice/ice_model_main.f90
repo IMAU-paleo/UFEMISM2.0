@@ -1291,22 +1291,20 @@ CONTAINS
       ! == Update step ==
       ! =================
 
+      region%ice%Hi = region%ice%pc%Hi_star_np1
+
+      ! Make sure the predicted thickness didn't go to hell
+      CALL alter_ice_thickness( region%mesh, region%ice, region%ice%Hi_prev, region%ice%Hi, region%refgeo_PD, region%time)
+
       ! Set model geometry to predicted
       DO vi = region%mesh%vi1, region%mesh%vi2
         ! Basic geometry
-        region%ice%Hi ( vi) = region%ice%pc%Hi_star_np1( vi)
         region%ice%Hs ( vi) = ice_surface_elevation( region%ice%Hi( vi), region%ice%Hb( vi), region%ice%SL( vi))
         region%ice%Hib( vi) = region%ice%Hs(  vi) - region%ice%Hi( vi)
 
         ! Rates of change
         region%ice%dHi_dt( vi) = (region%ice%Hi( vi) - region%ice%Hi_prev( vi)) / region%ice%pc%dt_np1
       END DO
-
-      ! Calculate the no-ice mask
-      CALL calc_mask_noice( region%mesh, region%ice)
-
-      ! Apply no-ice mask
-      CALL apply_mask_noice_direct( region%mesh, region%ice%mask_noice, region%ice%Hi)
 
       ! Update masks
       CALL determine_masks( region%mesh, region%ice)
