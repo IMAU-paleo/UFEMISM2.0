@@ -380,13 +380,10 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    ! Calculate vertically averaged ice velocities on the edges
+    ! Calculate vertically averaged ice velocities on the triangle edges
     call map_velocities_from_b_to_c_2D( mesh, ice%u_vav_b, ice%v_vav_b, u_vav_c, v_vav_c)
     call gather_to_all_dp_1D( u_vav_c, u_vav_c_tot)
     call gather_to_all_dp_1D( v_vav_c, v_vav_c_tot)
-
-    ! == Calculate flux
-    ! =================
 
     ! Initialise
     scalars%gl_flux           = 0._dp
@@ -396,12 +393,6 @@ contains
     scalars%margin_ocean_flux = 0._dp
 
     do vi = mesh%vi1, mesh%vi2
-
-      if (.not. ice%mask_gl_gr(  vi) .and. &
-          .not. ice%mask_cf_gr(  vi) .and. &
-          .not. ice%mask_margin( vi)) then
-        cycle
-      end if
 
       ! Loop over all connections of vertex vi
       do ci = 1, mesh%nC( vi)
@@ -426,18 +417,37 @@ contains
 
         ! Calculate the flux: if u_perp > 0, that means that this mass is
         ! flowing out from our transitional vertex. If so, add it its (negative) total.
-        if (ice%mask_gl_gr( vi) .and. ice%mask_floating_ice( vj)) then
-          scalars%gl_flux  = scalars%gl_flux  - L_c * max( 0._dp, u_perp) * ice%Hi( vi) * 1.0E-09_dp ! [Gt/yr]
+        ! A negative velocity u_perp < 0 means that the ice is flowing _into_ this
+        ! transitional zone. That might happen if there is an ice shelf flowing into
+        ! grounded ice. Account for that as well to get a perfect mass tracking.
+        ! For the other zones, u_perp < 0 would come from an area with no ice, so
+        ! that case adds 0 anyway. Thus, only consider positive velocities.
+
+        ! Grounding line (grounded side)
+        if (ice%mask_grounded_ice( vi) .and. ice%mask_floating_ice( vj)) then
+          if (u_perp > 0._dp) then
+            scalars%gl_flux = scalars%gl_flux - L_c * u_perp * ice%Hi( vi) * 1.0E-09_dp ! [Gt/yr]
+          else
+            scalars%gl_flux = scalars%gl_flux - L_c * u_perp * ice%Hi( vj) * 1.0E-09_dp ! [Gt/yr]
+          end if
         end if
-        if (ice%mask_cf_gr( vi)  .and. ice%mask_icefree_ocean( vj)) THEN
-          scalars%cf_gr_flux  = scalars%cf_gr_flux  - L_c * max( 0._dp, u_perp) * ice%Hi( vi) * 1.0E-09_dp ! [Gt/yr]
+
+        ! Grounded marine front
+        if (ice%mask_cf_gr( vi) .and. ice%mask_icefree_ocean( vj)) THEN
+          scalars%cf_gr_flux = scalars%cf_gr_flux - L_c * max( 0._dp, u_perp) * ice%Hi( vi) * 1.0E-09_dp ! [Gt/yr]
         end if
-        if (ice%mask_cf_fl( vi)  .and. ice%mask_icefree_ocean( vj)) THEN
-          scalars%cf_fl_flux  = scalars%cf_fl_flux  - L_c * max( 0._dp, u_perp) * ice%Hi( vi) * 1.0E-09_dp ! [Gt/yr]
+
+        ! Floating calving front
+        if (ice%mask_cf_fl( vi) .and. ice%mask_icefree_ocean( vj)) THEN
+          scalars%cf_fl_flux = scalars%cf_fl_flux - L_c * max( 0._dp, u_perp) * ice%Hi( vi) * 1.0E-09_dp ! [Gt/yr]
         end if
+
+        ! Land-terminating ice (grounded or floating)
         if (ice%mask_margin( vi) .and. ice%mask_icefree_land( vj)) then
           scalars%margin_land_flux = scalars%margin_land_flux - L_c * max( 0._dp, u_perp) * ice%Hi( vi) * 1.0E-09_dp ! [Gt/yr]
         end if
+
+        ! Marine-terminating ice (grounded or floating)
         if (ice%mask_margin( vi) .and. ice%mask_icefree_ocean( vj)) then
           scalars%margin_ocean_flux = scalars%margin_ocean_flux - L_c * max( 0._dp, u_perp) * ice%Hi( vi) * 1.0E-09_dp ! [Gt/yr]
         end if
