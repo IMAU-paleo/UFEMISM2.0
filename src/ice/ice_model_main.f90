@@ -281,13 +281,6 @@ CONTAINS
     ! Calculate zeta gradients
     CALL calc_zeta_gradients( mesh, ice)
 
-    ! Load target dHi_dt for inversions
-    IF (C%do_target_dHi_dt) THEN
-      CALL initialise_dHi_dt_target(mesh, ice, region_name)
-    ELSE
-      ice%dHi_dt_target = 0._dp
-    END IF
-
     ! Model states for ice dynamics model
     ice%t_Hi_prev = C%start_time_of_run
     ice%t_Hi_next = C%start_time_of_run
@@ -300,6 +293,21 @@ CONTAINS
     ! Call it twice so also the "prev" versions are set
     CALL determine_masks( mesh, ice)
     CALL determine_masks( mesh, ice)
+
+    ! Target thinning rates
+    ! =====================
+
+    ! Load target dHi_dt for inversions
+    IF (C%do_target_dHi_dt) THEN
+      CALL initialise_dHi_dt_target(mesh, ice, region_name)
+    ELSE
+      ice%dHi_dt_target = 0._dp
+    END IF
+
+    ! ! DENK DROM
+    ! DO vi = mesh%vi1, mesh%vi2
+    !   IF (.NOT. ice%mask_grounded_ice( vi)) ice%dHi_dt_target( vi) = 0._dp
+    ! END DO
 
     ! Sub-grid fractions
     ! ==================
@@ -1390,13 +1398,13 @@ CONTAINS
       ! If not, check whether that occurs in a significant amount of vertices; if not,
       ! set the truncation error to almost the tolerance (to allow for growth) and move on
       ELSEIF (100._dp * REAL( n_guilty,dp) / REAL(n_tot,dp) < C%pc_guilty_max) THEN
-        IF (par%master) CALL warning('a few vertices are changing rapidly; less than C%pc_guilty_max = {dp_01}% tho, so keep going', dp_01 = C%pc_guilty_max)
+        IF (par%master) CALL warning('{dp_01}% of vertices are changing rapidly, ignoring for now', dp_01 = 100._dp * REAL( n_guilty,dp) / REAL(n_tot,dp))
         region%ice%pc%eta_np1 = .95_dp * C%pc_epsilon
         EXIT iterate_pc_timestep
 
       ! if not, re-do the PC timestep
       ELSE
-        IF (par%master) CALL warning('reducing dt and redoing PC timestep ({dp_01}% guilty)', dp_01 = 100._dp * REAL( n_guilty,dp) / REAL(n_tot,dp))
+        IF (par%master) CALL warning('{dp_01}% of vertices are changing rapidly, reducing dt and redoing PC timestep', dp_01 = 100._dp * REAL( n_guilty,dp) / REAL(n_tot,dp))
         region%ice%pc%dt_np1 = region%ice%pc%dt_np1 * 0.8_dp
         ! If the timestep has reached the specified lower limit, stop iterating
         IF (region%ice%pc%dt_np1 <= C%dt_ice_min) THEN
@@ -1463,8 +1471,9 @@ CONTAINS
 
       DO vi = region%mesh%vi1, region%mesh%vi2
 
-        ! If interior grounded point
-        IF (region%ice%mask_grounded_ice( vi) .AND. &
+        ! If interior grounded point or ice-free land
+        IF (.NOT. region%ice%mask_icefree_ocean( vi) .AND. &
+            .NOT. region%ice%mask_floating_ice( vi) .AND. &
             .NOT. region%ice%mask_gl_gr( vi) .AND. &
             .NOT. region%ice%mask_cf_gr( vi)) THEN
 
