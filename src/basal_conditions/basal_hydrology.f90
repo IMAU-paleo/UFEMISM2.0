@@ -397,6 +397,14 @@ CONTAINS
         ! Surface elevation misfit
         misfit = ice%Hi( vi) - refgeo%Hi( vi)
 
+      ELSEIF (ice%mask_icefree_land( vi)) THEN
+
+        ! Assume no water here
+        ice%pore_water_likelihood( vi) = 0._dp
+        ! And ignore this vertex
+        mask( vi) = 0
+        CYCLE
+
       ELSE
 
         ! Give non-fully grounded ice a default value (irrelevant)
@@ -435,7 +443,7 @@ CONTAINS
       IF (n_up < 3 .OR. n_down < 3) THEN
 
         ! Compute likelihood of local subglacial water
-        ice%pore_water_likelihood( vi) = EXP(ice%Ti_hom( vi)/10._dp)
+        ice%pore_water_likelihood( vi) = EXP(ice%Ti_hom( vi)/20._dp)
 
         ! Compute new adjustment for pore water fraction
         I_tot( vi) = ice%pore_water_likelihood( vi) * (misfit / C%porenudge_H_dHdt_flowline_dH0 + &
@@ -639,7 +647,7 @@ CONTAINS
       ! =============================================
 
       ! Compute likelihood of subglacial water
-      ice%pore_water_likelihood( vi) = EXP(Ti_hom_av_up( vi)/10._dp)
+      ice%pore_water_likelihood( vi) = EXP(Ti_hom_av_up( vi)/20._dp)
 
       ! Compute new adjustment for pore water fraction
       I_tot( vi) = ice%pore_water_likelihood( vi) * ((deltaHi_av_up( vi)                      ) / C%porenudge_H_dHdt_flowline_dH0 + &
@@ -679,8 +687,8 @@ CONTAINS
 
     END DO
 
-    ! Extrapolate over floating areas
-    ! ===============================
+    ! Extrapolate over non-inverted areas
+    ! ===================================
 
     ! Perform the extrapolation - mask: 2 -> use as seed; 1 -> extrapolate; 0 -> ignore
     CALL extrapolate_Gaussian( mesh, mask, dC1_dt, C%porenudge_H_dHdt_flowline_r_smooth)
@@ -721,20 +729,26 @@ CONTAINS
       hi_exp_mod = MIN( 1.0_dp, MAX( 0._dp, ice%Hi( vi)/1000._dp))
 
       ! Final modifies for marginal grounded areas
-      land_boost  = (1._dp - ice%fraction_gr( vi)**1._dp) * (1._dp - hs_exp_mod) * hi_exp_mod
+      land_boost  = 0._dp!(1._dp - ice%fraction_gr( vi)**1._dp) * (1._dp - hs_exp_mod) * hi_exp_mod
       ! Final modifies for floating areas
       ocean_boost = (1._dp - ice%fraction_gr( vi)**2._dp) * (1._dp - hs_exp_mod)
 
       ! Increase it for vertices in contact with the ocean
-      IF (.NOT. ice%mask_grounded_ice( vi)) THEN
+      IF ((ice%mask_gl_gr( vi) .OR. ice%mask_cf_gr( vi)) .AND. ice%Hib( vi) < ice%SL( vi)) THEN
+        ! Grounding line or calving front below sea level
+        HIV%pore_water_fraction_next( vi) = MAX(HIV%pore_water_fraction_next( vi), land_boost)
+
+      ELSEIF (ice%mask_floating_ice( vi)) THEN
         ! Floating ice
         HIV%pore_water_fraction_next( vi) = MAX(HIV%pore_water_fraction_next( vi), ocean_boost)
-      ELSEIF (ice%mask_gl_gr( vi) .AND. ice%Hib( vi) < ice%SL( vi)) THEN
-        ! Grounding line below sea level
-        HIV%pore_water_fraction_next( vi) = MAX(HIV%pore_water_fraction_next( vi), land_boost)
-      ELSEIF (ice%mask_cf_gr( vi) .AND. ice%Hib( vi) < ice%SL( vi)) THEN
-        ! Grounded calving front below sea level
-        HIV%pore_water_fraction_next( vi) = MAX(HIV%pore_water_fraction_next( vi), land_boost)
+
+      ELSEIF (ice%mask_icefree_ocean( vi)) THEN
+        ! Ice-free ocean
+        HIV%pore_water_fraction_next( vi) = 1._dp
+
+      ELSEIF (ice%mask_icefree_land( vi)) THEN
+        ! Ice-free land
+        HIV%pore_water_fraction_next( vi) = 0._dp
       END IF
 
       ! Limit values to prescribed limits
