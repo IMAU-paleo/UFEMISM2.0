@@ -100,10 +100,13 @@ CONTAINS
       CASE ('parameterised')
         CALL run_BMB_model_parameterised( mesh, ice, ocean, BMB)
       CASE ('inverted')
-        CALL run_BMB_model_inverted( mesh, ice, SMB, BMB, time)
+        ! No need to do anything
       CASE DEFAULT
         CALL crash('unknown choice_BMB_model "' // TRIM( choice_BMB_model) // '"')
     END SELECT
+
+    ! Extrapolate BMB
+    CALL extrapolate_BMB_inland( mesh, ice, BMB)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -426,27 +429,114 @@ CONTAINS
 
   END SUBROUTINE remap_BMB_model
 
-  SUBROUTINE run_BMB_model_inverted( mesh, ice, SMB, BMB, time)
+! ===== Utilities =====
+! =====================
+
+  SUBROUTINE BMB_inversion( mesh, ice, SMB, BMB, dHi_dt_predicted, Hi_predicted, time, region_name)
     ! Calculate the basal mass balance
     !
-    ! Use a parameterised BMB scheme
+    ! Use an inversion based on the computed dHi_dt
 
     IMPLICIT NONE
 
     ! In/output variables:
-    TYPE(type_mesh),                     INTENT(IN)    :: mesh
-    TYPE(type_ice_model),                INTENT(IN)    :: ice
-    TYPE(type_SMB_model),                INTENT(IN)    :: SMB
-    TYPE(type_BMB_model),                INTENT(INOUT) :: BMB
-    REAL(dp),                            INTENT(IN)    :: time
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh
+    TYPE(type_ice_model),                   INTENT(IN)    :: ice
+    TYPE(type_SMB_model),                   INTENT(IN)    :: SMB
+    TYPE(type_BMB_model),                   INTENT(INOUT) :: BMB
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(INOUT) :: dHi_dt_predicted
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(INOUT) :: Hi_predicted
+    REAL(dp),                               INTENT(IN)    :: time
+    CHARACTER(LEN=3)                                      :: region_name
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_BMB_model_inverted'
-    INTEGER                                            :: vi
-    INTEGER,  DIMENSION(:    ), ALLOCATABLE            :: mask
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'BMB_inversion'
+    INTEGER                                               :: vi
+    CHARACTER(LEN=256)                                    :: choice_BMB_model
 
     ! Add routine to path
     CALL init_routine( routine_name)
+
+    ! Determine filename for this model region
+    SELECT CASE (region_name)
+      CASE ('NAM')
+        choice_BMB_model  = C%choice_BMB_model_NAM
+      CASE ('EAS')
+        choice_BMB_model  = C%choice_BMB_model_EAS
+      CASE ('GRL')
+        choice_BMB_model  = C%choice_BMB_model_GRL
+      CASE ('ANT')
+        choice_BMB_model  = C%choice_BMB_model_ANT
+      CASE DEFAULT
+        CALL crash('unknown region_name "' // TRIM( region_name) // '"!')
+    END SELECT
+
+    ! Invert ocean BMB based on the full dHi_dt at each time step
+    IF (choice_BMB_model == 'inverted' .AND. &
+        time >= C%BMB_inversion_t_start .AND. &
+        time <= C%BMB_inversion_t_end) THEN
+
+      DO vi = mesh%vi1, mesh%vi2
+
+          IF (ice%mask_floating_ice( vi) .OR. &
+              ice%mask_gl_gr( vi) .OR. &
+              ice%mask_cf_gr( vi)) THEN
+
+            ! For these areas, use dHi_dt to get an "inversion" of equilibrium BMB.
+            BMB%BMB( vi) = BMB%BMB( vi) - dHi_dt_predicted( vi)
+
+            ! Adjust rate of ice thickness change dHi/dt to compensate the change
+            dHi_dt_predicted( vi) = 0._dp
+
+            ! Adjust corrected ice thickness to compensate the change
+            Hi_predicted( vi) = ice%Hi_prev( vi)
+
+          ELSEIF (ice%mask_icefree_ocean( vi)) THEN
+
+            ! For open ocean, asume that all SMB melts
+            BMB%BMB( vi) = -SMB%SMB( vi)
+
+            ! Adjust rate of ice thickness change dHi/dt to compensate the change
+            dHi_dt_predicted( vi) = 0._dp
+
+            ! Adjust corrected ice thickness to compensate the change
+            Hi_predicted( vi) = ice%Hi_prev( vi)
+
+          ELSE
+            ! Not a place where basal melt operates
+            BMB%BMB( vi) = 0._dp
+          END IF
+
+      END DO
+    END IF
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE BMB_inversion
+
+  SUBROUTINE extrapolate_BMB_inland( mesh, ice, BMB)
+    ! Extrapolate basal rates into partially floating margin vertices
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),      INTENT(IN)    :: mesh
+    TYPE(type_ice_model), INTENT(IN)    :: ice
+    TYPE(type_BMB_model), INTENT(INOUT) :: BMB
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER       :: routine_name = 'extrapolate_BMB_inland'
+    INTEGER                             :: vi
+    INTEGER, DIMENSION(:), ALLOCATABLE  :: mask
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Fill new floating vertices with values from surrounding ones
+    ! ============================================================
+
+    ! TBD
 
     ! Extrapolate inverted BMB into partially floating grounding line vertices
     ! ========================================================================
@@ -460,8 +550,7 @@ CONTAINS
     ! Allocate memory
     ALLOCATE( mask( mesh%vi1:mesh%vi2), source = 0)
 
-    ! BMB was inverted during the computation of dHi_dt for floating ice
-    ! so simply extrapolate it from floating-side grounding line to
+    ! Extrapolate BMB from floating-side grounding line to
     ! grunded-side grounding line
 
     DO vi = mesh%vi1, mesh%vi2
@@ -475,7 +564,7 @@ CONTAINS
     END DO
 
     ! Perform the extrapolation - mask: 2 -> use as seed; 1 -> extrapolate; 0 -> ignore
-    CALL extrapolate_Gaussian( mesh, mask, BMB%BMB, 25000._dp)
+    CALL extrapolate_Gaussian( mesh, mask, BMB%BMB, 20000._dp)
 
     ! Now multiply the extrapolated values by each vertex's grounded fraction
     DO vi = mesh%vi1, mesh%vi2
@@ -493,6 +582,6 @@ CONTAINS
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
-  END SUBROUTINE run_BMB_model_inverted
+  END SUBROUTINE extrapolate_BMB_inland
 
 END MODULE BMB_main
