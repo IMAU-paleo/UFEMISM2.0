@@ -311,15 +311,18 @@ CONTAINS
     ! Calculate the till yield stress from the till friction angle and the effective pressure
     DO vi = mesh%vi1, mesh%vi2
 
-      ! Compute the final till yield stress
-      ice%till_yield_stress( vi) = ice%effective_pressure( vi) * TAN((pi / 180._dp) * ice%till_friction_angle( vi))
-
       ! Prepare mask for extrapolation over ice-free land
-      IF (ice%mask_grounded_ice( vi)) THEN
+      IF (ice%mask_grounded_ice( vi) .AND. .NOT. ice%mask_gl_gr( vi)) THEN
         mask( vi) = 2
       ELSEIF (ice%mask_icefree_land( vi)) THEN
         mask( vi) = 1
+        CYCLE
+      ELSE
+        mask( vi) = 0
       END IF
+
+      ! Compute the final till yield stress
+      ice%till_yield_stress( vi) = ice%effective_pressure( vi) * TAN((pi / 180._dp) * ice%till_friction_angle( vi))
 
     END DO
 
