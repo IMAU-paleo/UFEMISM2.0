@@ -68,7 +68,7 @@ contains
 
     ! Compute area- and transitional-lines-integrated fluxes
     call calc_icesheet_integrated_fluxes( mesh, ice, SMB, BMB, scalars)
-    
+
     ! Finalise routine path
     call finalise_routine( routine_name)
 
