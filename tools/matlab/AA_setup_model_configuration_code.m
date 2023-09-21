@@ -376,6 +376,17 @@ for i = 1: length( param_block)
   
 end
 
+% Remove trailing whitespaces
+for i = 1: length( config_file)
+  str = config_file{ i};
+  if ~isempty( str)
+    while strcmpi( str( end),' ')
+      str = str( 1:end-1);
+    end
+  end
+  config_file{ i} = str;
+end
+
 %% Write to new file
 fid = fopen( filename_out,'w');
 fprintf( fid,'%s\n\n','&CONFIG');
@@ -384,74 +395,6 @@ for i = 1: length( config_file)
 end
 fprintf( fid,'%s\n','');
 fprintf( fid,'%s\n','/');
-fclose( fid);
-
-end
-function create_config_Halfar
-
-filename_in  = '../../config-files/unit_tests.cfg';
-filename_out = '../../config-files/benchmarks_Halfar.cfg';
-
-%% Read unit tests config file
-
-fid = fopen( filename_in,'r');
-config_clean = textscan( fid,'%s','delimiter','\n','whitespace','');
-config_clean = config_clean{1};
-fclose( fid);
-
-%% Adapt to Halfar dome settings
-
-config = config_clean;
-
-for i = 1: length( config)
-  
-  % Read line from the clean config
-  str = config{ i};
-  
-  str2 = '';
-  
-  %% Set config parameters
-  
-  % Don't do the unit tests
-  if contains( str,'do_unit_tests_config')
-    str2 = '    do_unit_tests_config = .FALSE.';
-  end
-  
-  % Set the output folder
-  if contains( str,'create_procedural_output_dir_config')
-    str2 = '    create_procedural_output_dir_config = .FALSE.';
-  end
-  if contains( str,'fixed_output_dir_config')
-    str2 = '    fixed_output_dir_config = ''results_benchmark_Halfar''';
-  end
-  
-  % Set simulation time
-  if contains( str,'start_time_of_run_config')
-    str2 = '    start_time_of_run_config = 0.0';
-  end
-  if contains( str,'end_time_of_run_config')
-    str2 = '    end_time_of_run_config = 10000.0';
-  end
-  
-  %% Add to structure
-  
-  % Append note
-  if ~isempty( str2)
-    henk = dbstack;
-    fun_name = [henk(2).name '/' henk(1).name];
-    str = [str2 ' ! VALUE SET BY MATLAB SCRIPT "' upper( fun_name) '"'];
-  end
-  
-  % Add to the type block
-  config{ i} = str;
-  
-end
-
-%% Write to new file
-fid = fopen( filename_out,'w');
-for i = 1: length( config)
-  fprintf( fid, '%s\n', config{ i});
-end
 fclose( fid);
 
 end

@@ -765,7 +765,7 @@ CONTAINS
     ! Relax ice geometry around the calving front
     ! ===========================================
 
-    CALL relax_calving_front( mesh_old, mesh_new, ice, SMB, BMB)
+    CALL relax_calving_front( mesh_old, mesh_new, ice, SMB, BMB, region_name)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -952,7 +952,7 @@ CONTAINS
 
   END SUBROUTINE remap_basic_ice_geometry
 
-  SUBROUTINE relax_calving_front( mesh_old, mesh, ice, SMB, BMB)
+  SUBROUTINE relax_calving_front( mesh_old, mesh, ice, SMB, BMB, region_name)
     ! Relax ice thickness around the calving front
     !
     ! This routine "steps out of time" for a bit (default dt_relax = 2 yr), where it
@@ -972,6 +972,7 @@ CONTAINS
     TYPE(type_ice_model),                   INTENT(INOUT) :: ice
     TYPE(type_SMB_model),                   INTENT(IN)    :: SMB
     TYPE(type_BMB_model),                   INTENT(IN)    :: BMB
+    CHARACTER(LEN=3),                       INTENT(IN)    :: region_name
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'relax_calving_front'
@@ -1175,7 +1176,7 @@ CONTAINS
     pseudo_time: DO WHILE (t_pseudo < dt_relax)
 
       ! Update velocity solution around the calving front
-      CALL solve_stress_balance( mesh, ice, BMB_new, BC_prescr_mask_b, BC_prescr_u_b, BC_prescr_v_b, BC_prescr_mask_bk, BC_prescr_u_bk, BC_prescr_v_bk)
+      CALL solve_stress_balance( mesh, ice, BMB_new, region_name, BC_prescr_mask_b, BC_prescr_u_b, BC_prescr_v_b, BC_prescr_mask_bk, BC_prescr_u_bk, BC_prescr_v_bk)
 
       ! Calculate dH/dt around the calving front
       CALL calc_dHi_dt( mesh, ice%Hi, ice%Hb, ice%SL, ice%u_vav_b, ice%v_vav_b, SMB_new, BMB_new, ice%mask_noice, C%dt_ice_min, &
@@ -1329,7 +1330,7 @@ CONTAINS
       ! CALL run_BMB_model( region%mesh, region%ice, region%ocean, region%refgeo_PD, region%SMB, region%BMB, region%name, region%time)
 
       ! Calculate ice velocities for the predicted geometry
-      CALL solve_stress_balance( region%mesh, region%ice, region%BMB%BMB)
+      CALL solve_stress_balance( region%mesh, region%ice, region%BMB%BMB, region%name)
 
       ! == Corrector step ==
       ! ====================
@@ -1873,7 +1874,7 @@ CONTAINS
     region%ice%Hi_prev    = region%ice%Hi_next
 
     ! Calculate ice velocities
-    CALL solve_stress_balance( region%mesh, region%ice, region%BMB%BMB)
+    CALL solve_stress_balance( region%mesh, region%ice, region%BMB%BMB, region%name)
 
     ! Calculate time step
 

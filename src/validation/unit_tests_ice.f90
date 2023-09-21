@@ -166,7 +166,7 @@ CONTAINS
     ! SIA
     IF (par%master) WRITE(0,*) '   Calculating ice velocities for the Halfar dome with the ' // colour_string( 'SIA','light blue') // '...'
     C%choice_stress_balance_approximation = 'SIA'
-    CALL solve_stress_balance( mesh, ice, BMB)
+    CALL solve_stress_balance( mesh, ice, BMB, region_name)
     u_3D_b_SIA = ice%u_3D_b
     v_3D_b_SIA = ice%v_3D_b
     w_3D_SIA   = ice%w_3D
@@ -174,7 +174,7 @@ CONTAINS
     ! DIVA
     IF (par%master) WRITE(0,*) '   Calculating ice velocities for the Halfar dome with the ' // colour_string( 'DIVA','light blue') // '...'
     C%choice_stress_balance_approximation = 'DIVA'
-    CALL solve_stress_balance( mesh, ice, BMB)
+    CALL solve_stress_balance( mesh, ice, BMB, region_name)
     u_3D_b_DIVA = ice%u_3D_b
     v_3D_b_DIVA = ice%v_3D_b
     w_3D_DIVA  = ice%w_3D
@@ -182,7 +182,7 @@ CONTAINS
     ! BPA
     IF (par%master) WRITE(0,*) '   Calculating ice velocities for the Halfar dome with the ' // colour_string( 'BPA','light blue') // '...'
     C%choice_stress_balance_approximation = 'BPA'
-    CALL solve_stress_balance( mesh, ice, BMB)
+    CALL solve_stress_balance( mesh, ice, BMB, region_name)
     u_3D_b_BPA = ice%u_3D_b
     v_3D_b_BPA = ice%v_3D_b
     w_3D_BPA   = ice%w_3D
@@ -774,7 +774,7 @@ CONTAINS
     ! SIA/SSA
     IF (par%master) WRITE(0,*) '  Calculating ice velocities for ISMIP-HOM A with the ' // colour_string( 'SIA/SSA','light blue') // '...'
     C%choice_stress_balance_approximation = 'SIA/SSA'
-    CALL solve_stress_balance( mesh, ice, BMB)
+    CALL solve_stress_balance( mesh, ice, BMB, region_name)
     u_3D_b_SIASSA = ice%u_3D_b
     v_3D_b_SIASSA = ice%v_3D_b
     w_3D_SIASSA   = ice%w_3D
@@ -782,7 +782,7 @@ CONTAINS
     ! DIVA
     IF (par%master) WRITE(0,*) '  Calculating ice velocities for ISMIP-HOM A with the ' // colour_string( 'DIVA','light blue') // '...'
     C%choice_stress_balance_approximation = 'DIVA'
-    CALL solve_stress_balance( mesh, ice, BMB)
+    CALL solve_stress_balance( mesh, ice, BMB, region_name)
     u_3D_b_DIVA = ice%u_3D_b
     v_3D_b_DIVA = ice%v_3D_b
     w_3D_DIVA   = ice%w_3D
@@ -790,7 +790,7 @@ CONTAINS
     ! BPA
     IF (par%master) WRITE(0,*) '  Calculating ice velocities for ISMIP-HOM A with the ' // colour_string( 'BPA','light blue') // '...'
     C%choice_stress_balance_approximation = 'BPA'
-    CALL solve_stress_balance( mesh, ice, BMB)
+    CALL solve_stress_balance( mesh, ice, BMB, region_name)
     u_3D_b_BPA = ice%u_3D_b
     v_3D_b_BPA = ice%v_3D_b
     w_3D_BPA   = ice%w_3D
@@ -1062,7 +1062,7 @@ CONTAINS
     ! SIA/SSA
     IF (par%master) WRITE(0,*) '  Calculating ice velocities for ISMIP-HOM C with the ' // colour_string( 'SIA/SSA','light blue') // '...'
     C%choice_stress_balance_approximation = 'SIA/SSA'
-    CALL solve_stress_balance( mesh, ice, BMB)
+    CALL solve_stress_balance( mesh, ice, BMB, region_name)
     u_3D_b_SIASSA = ice%u_3D_b
     v_3D_b_SIASSA = ice%v_3D_b
     w_3D_SIASSA   = ice%w_3D
@@ -1070,7 +1070,7 @@ CONTAINS
     ! DIVA
     IF (par%master) WRITE(0,*) '  Calculating ice velocities for ISMIP-HOM C with the ' // colour_string( 'DIVA','light blue') // '...'
     C%choice_stress_balance_approximation = 'DIVA'
-    CALL solve_stress_balance( mesh, ice, BMB)
+    CALL solve_stress_balance( mesh, ice, BMB, region_name)
     u_3D_b_DIVA = ice%u_3D_b
     v_3D_b_DIVA = ice%v_3D_b
     w_3D_DIVA   = ice%w_3D
@@ -1078,7 +1078,7 @@ CONTAINS
     ! BPA
     IF (par%master) WRITE(0,*) '  Calculating ice velocities for ISMIP-HOM C with the ' // colour_string( 'BPA','light blue') // '...'
     C%choice_stress_balance_approximation = 'BPA'
-    CALL solve_stress_balance( mesh, ice, BMB)
+    CALL solve_stress_balance( mesh, ice, BMB, region_name)
     u_3D_b_BPA = ice%u_3D_b
     v_3D_b_BPA = ice%v_3D_b
     w_3D_BPA   = ice%w_3D

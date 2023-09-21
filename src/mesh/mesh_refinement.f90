@@ -871,6 +871,13 @@ CONTAINS
     CALL init_routine( routine_name)
 
     nl_tot = SIZE( p_line_tot,1)
+
+    ! If no line is provided, do nothing
+    IF (nl_tot == 0) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
+
     ! Safety
     IF (SIZE( p_line_tot,2) /= 4) CALL crash('line must be an n-by-4 array!')
 
@@ -1483,6 +1490,33 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE calc_polygon_Thwaites_Glacier
+
+  SUBROUTINE calc_polygon_Tijn_test_ISMIP_HOM_A( poly)
+    ! Return a polygon enveloping the central square of the
+    ! ISMIP-HOM Experiment A domain
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE, INTENT(OUT)   :: poly
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'calc_polygon_Tijn_test_ISMIP_HOM_A'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ALLOCATE( poly( 4,2))
+
+    poly(  1,:) = [-0.5_dp, -0.5_dp] * C%refgeo_idealised_ISMIP_HOM_L
+    poly(  2,:) = [ 0.5_dp, -0.5_dp] * C%refgeo_idealised_ISMIP_HOM_L
+    poly(  3,:) = [ 0.5_dp,  0.5_dp] * C%refgeo_idealised_ISMIP_HOM_L
+    poly(  4,:) = [-0.5_dp,  0.5_dp] * C%refgeo_idealised_ISMIP_HOM_L
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE calc_polygon_Tijn_test_ISMIP_HOM_A
 
 ! == Some fun and useful tools
 

@@ -153,6 +153,38 @@ MODULE ice_model_types
 
   END TYPE type_ice_velocity_solver_BPA
 
+  TYPE type_ice_velocity_solver_hybrid
+    ! Data fields needed to solve the hybrid DIVA/BPA
+
+    ! Solution
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: u_vav_b                     ! Vertically averaged horizontal ice velocity [m yr^-1]
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: v_vav_b
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: u_bk                        ! 3-D horizontal ice velocity [m yr^-1]
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: v_bk
+
+    ! DIVA and BPA solvers
+    TYPE(type_ice_velocity_solver_DIVA)     :: DIVA                        ! Depth-Integrated Viscosity Approximation
+    TYPE(type_ice_velocity_solver_BPA)      :: BPA                         ! Blatter-Pattyn Approximation
+
+    ! Solving masks
+    LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_DIVA_b                 ! T: solve the DIVA here, F: otherwise
+    LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_BPA_b                  ! T: solve the BPA  here, F: otherwise
+    LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_3D_from_DIVA_b         ! T: calculate 3-D velocities from the vertically averaged DIVA solution here, F: otherwise
+    LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_vav_from_BPA_b         ! T: calculate vertically averaged velocities from the 3-D BPA  solution here, F: otherwise
+
+    ! Intermediate data fields
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: u_bk_prev                   ! Previous velocity solution
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: v_bk_prev
+
+    ! Parameters for the iterative solver used to solve the matrix equation representing the linearised SSA
+    REAL(dp)                                :: PETSc_rtol
+    REAL(dp)                                :: PETSc_abstol
+
+    ! Restart file
+    CHARACTER(LEN=256)                      :: restart_filename
+
+  END TYPE type_ice_velocity_solver_hybrid
+
   TYPE type_ice_pc
     ! Data fields needed for the predictor/corrector time-stepping scheme
 
@@ -287,6 +319,7 @@ MODULE ice_model_types
     TYPE(type_ice_velocity_solver_SSA)      :: SSA                         ! Shallow Shelf Approximation
     TYPE(type_ice_velocity_solver_DIVA)     :: DIVA                        ! Depth-Integrated Viscosity Approximation
     TYPE(type_ice_velocity_solver_BPA)      :: BPA                         ! Blatter-Pattyn Approximation
+    TYPE(type_ice_velocity_solver_hybrid)   :: hybrid                      ! Hybrid DIVA/BPA
 
     ! 3-D
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: u_3D                        ! [m yr^-1] 3-D ice velocity
