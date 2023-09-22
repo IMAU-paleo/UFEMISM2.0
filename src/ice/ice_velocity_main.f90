@@ -851,7 +851,7 @@ CONTAINS
 
         ice%w_3D( vi,C%nz) = (ice%u_3D( vi,C%nz) * dHib_dx( vi)) + &
                              (ice%v_3D( vi,C%nz) * dHib_dy( vi)) + &
-                              dHib_dt( vi)
+                              dHib_dt( vi) + MIN( 0._dp, BMB( vi))
 
       END IF
 
