@@ -728,10 +728,10 @@ CONTAINS
       ! Ice thickness
       hi_exp_mod = MIN( 1.0_dp, MAX( 0._dp, ice%Hi( vi)/1000._dp))
 
-      ! Final modifies for marginal grounded areas
+      ! Final modifiers for marginal grounded areas
       land_boost  = 0._dp!(1._dp - ice%fraction_gr( vi)**1._dp) * (1._dp - hs_exp_mod) * hi_exp_mod
-      ! Final modifies for floating areas
-      ocean_boost = (1._dp - ice%fraction_gr( vi)**2._dp) * (1._dp - hs_exp_mod)
+      ! Final modifiers for floating areas
+      ocean_boost = (1._dp - ice%fraction_gr( vi)**1._dp) * (1._dp - hs_exp_mod)
 
       ! Increase it for vertices in contact with the ocean
       IF ((ice%mask_gl_gr( vi) .OR. ice%mask_cf_gr( vi)) .AND. ice%Hib( vi) < ice%SL( vi)) THEN

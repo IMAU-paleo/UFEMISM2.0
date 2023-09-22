@@ -478,9 +478,11 @@ CONTAINS
 
       DO vi = mesh%vi1, mesh%vi2
 
-          IF (ice%mask_floating_ice( vi) .OR. &
-              ice%mask_gl_gr( vi) .OR. &
-              ice%mask_cf_gr( vi)) THEN
+          ! IF (ice%mask_floating_ice( vi) .OR. &
+          !     ice%mask_gl_gr( vi) .OR. &
+          !     ice%mask_cf_gr( vi)) THEN
+
+          IF (ice%mask_floating_ice( vi)) THEN
 
             ! For these areas, use dHi_dt to get an "inversion" of equilibrium BMB.
             BMB%BMB( vi) = BMB%BMB( vi) - dHi_dt_predicted( vi)
