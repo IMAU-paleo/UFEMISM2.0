@@ -17,7 +17,7 @@ module ice_model_scalars
   use BMB_model_types                                        , ONLY: type_BMB_model
   use reference_geometries                                   , ONLY: type_reference_geometry
   USE ice_velocity_main                                      , ONLY: map_velocities_from_b_to_c_2D
-  USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_1D
+  USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_1D, gather_to_all_logical_1D
 
   implicit none
 
@@ -373,6 +373,10 @@ contains
     character(len=256), parameter              :: routine_name = 'calc_ice_transitional_fluxes'
     real(dp), dimension(mesh%ei1:mesh%ei2)     :: u_vav_c, v_vav_c
     real(dp), dimension(mesh%nE)               :: u_vav_c_tot, v_vav_c_tot
+    real(dp), dimension(mesh%nV)               :: Hi_tot
+    logical,  dimension(mesh%nV)               :: mask_floating_ice_tot
+    logical,  dimension(mesh%nV)               :: mask_icefree_land_tot
+    logical,  dimension(mesh%nV)               :: mask_icefree_ocean_tot
     integer                                    :: vi, ci, ei, vj
     real(dp)                                   :: A_i, L_c
     real(dp)                                   :: D_x, D_y, D, u_perp
@@ -384,6 +388,14 @@ contains
     call map_velocities_from_b_to_c_2D( mesh, ice%u_vav_b, ice%v_vav_b, u_vav_c, v_vav_c)
     call gather_to_all_dp_1D( u_vav_c, u_vav_c_tot)
     call gather_to_all_dp_1D( v_vav_c, v_vav_c_tot)
+
+    ! Gather ice thickness from all processes
+    call gather_to_all_dp_1D( ice%Hi, Hi_tot)
+
+    ! Gather basic masks to all processes
+    call gather_to_all_logical_1D( ice%mask_floating_ice , mask_floating_ice_tot )
+    call gather_to_all_logical_1D( ice%mask_icefree_land , mask_icefree_land_tot )
+    call gather_to_all_logical_1D( ice%mask_icefree_ocean, mask_icefree_ocean_tot)
 
     ! Initialise
     scalars%gl_flux           = 0._dp
@@ -424,32 +436,32 @@ contains
         ! that case adds 0 anyway. Thus, only consider positive velocities.
 
         ! Grounding line (grounded side)
-        if (ice%mask_grounded_ice( vi) .and. ice%mask_floating_ice( vj)) then
+        if (ice%mask_grounded_ice( vi) .and. mask_floating_ice_tot( vj)) then
           if (u_perp > 0._dp) then
-            scalars%gl_flux = scalars%gl_flux - L_c * u_perp * ice%Hi( vi) * 1.0E-09_dp ! [Gt/yr]
+            scalars%gl_flux = scalars%gl_flux - L_c * u_perp * Hi_tot( vi) * 1.0E-09_dp ! [Gt/yr]
           else
-            scalars%gl_flux = scalars%gl_flux - L_c * u_perp * ice%Hi( vj) * 1.0E-09_dp ! [Gt/yr]
+            scalars%gl_flux = scalars%gl_flux - L_c * u_perp * Hi_tot( vj) * 1.0E-09_dp ! [Gt/yr]
           end if
         end if
 
         ! Grounded marine front
-        if (ice%mask_cf_gr( vi) .and. ice%mask_icefree_ocean( vj)) THEN
-          scalars%cf_gr_flux = scalars%cf_gr_flux - L_c * max( 0._dp, u_perp) * ice%Hi( vi) * 1.0E-09_dp ! [Gt/yr]
+        if (ice%mask_cf_gr( vi) .and. mask_icefree_ocean_tot( vj)) THEN
+          scalars%cf_gr_flux = scalars%cf_gr_flux - L_c * max( 0._dp, u_perp) * Hi_tot( vi) * 1.0E-09_dp ! [Gt/yr]
         end if
 
         ! Floating calving front
-        if (ice%mask_cf_fl( vi) .and. ice%mask_icefree_ocean( vj)) THEN
-          scalars%cf_fl_flux = scalars%cf_fl_flux - L_c * max( 0._dp, u_perp) * ice%Hi( vi) * 1.0E-09_dp ! [Gt/yr]
+        if (ice%mask_cf_fl( vi) .and. mask_icefree_ocean_tot( vj)) THEN
+          scalars%cf_fl_flux = scalars%cf_fl_flux - L_c * max( 0._dp, u_perp) * Hi_tot( vi) * 1.0E-09_dp ! [Gt/yr]
         end if
 
         ! Land-terminating ice (grounded or floating)
-        if (ice%mask_margin( vi) .and. ice%mask_icefree_land( vj)) then
-          scalars%margin_land_flux = scalars%margin_land_flux - L_c * max( 0._dp, u_perp) * ice%Hi( vi) * 1.0E-09_dp ! [Gt/yr]
+        if (ice%mask_margin( vi) .and. mask_icefree_land_tot( vj)) then
+          scalars%margin_land_flux = scalars%margin_land_flux - L_c * max( 0._dp, u_perp) * Hi_tot( vi) * 1.0E-09_dp ! [Gt/yr]
         end if
 
         ! Marine-terminating ice (grounded or floating)
-        if (ice%mask_margin( vi) .and. ice%mask_icefree_ocean( vj)) then
-          scalars%margin_ocean_flux = scalars%margin_ocean_flux - L_c * max( 0._dp, u_perp) * ice%Hi( vi) * 1.0E-09_dp ! [Gt/yr]
+        if (ice%mask_margin( vi) .and. mask_icefree_ocean_tot( vj)) then
+          scalars%margin_ocean_flux = scalars%margin_ocean_flux - L_c * max( 0._dp, u_perp) * Hi_tot( vi) * 1.0E-09_dp ! [Gt/yr]
         end if
 
       end do ! do ci = 1, mesh%nC( vi)
