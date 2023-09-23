@@ -35,6 +35,9 @@ module scalar_types
     real(dp)   :: BMB_fl                   ! [Gt yr^-1] Area-integrated basal mass balance over floating ice
     real(dp)   :: BMB_land                 ! [Gt yr^-1] Area-integrated basal mass balance over ice-free land
     real(dp)   :: BMB_ocean                ! [Gt yr^-1] Area-integrated basal mass balance over ice-free ocean
+    real(dp)   :: LMB_total                ! [Gt yr^-1] Area-integrated lateral mass balance
+    real(dp)   :: LMB_gr                   ! [Gt yr^-1] Area-integrated lateral mass balance over grounded ice
+    real(dp)   :: LMB_fl                   ! [Gt yr^-1] Area-integrated lateral mass balance over floating ice
     real(dp)   :: AMB_total                ! [Gt yr^-1] Area-integrated additional mass balance from other sources
     real(dp)   :: AMB_gr                   ! [Gt yr^-1] Area-integrated additional mass balance from other sources over grounded ice
     real(dp)   :: AMB_fl                   ! [Gt yr^-1] Area-integrated additional mass balance from other sources over floating ice

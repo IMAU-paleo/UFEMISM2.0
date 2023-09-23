@@ -33,6 +33,7 @@ MODULE UFEMISM_main_model
                                                                      create_restart_file_SMB_model, write_to_restart_file_SMB_model
   USE BMB_main                                               , ONLY: initialise_BMB_model, run_BMB_model, remap_BMB_model, &
                                                                      create_restart_file_BMB_model, write_to_restart_file_BMB_model
+  USE LMB_main                                               , ONLY: initialise_LMB_model, run_LMB_model, remap_LMB_model
   USE GIA_main                                               , ONLY: initialise_GIA_model, run_GIA_model, remap_GIA_model, &
                                                                      create_restart_file_GIA_model, write_to_restart_file_GIA_model
   USE basal_inversion_main                                   , ONLY: initialise_basal_inversion, run_basal_inversion
@@ -131,6 +132,9 @@ CONTAINS
       ! Calculate the basal mass balance
       CALL run_BMB_model( region%mesh, region%ice, region%ocean, region%refgeo_PD, region%SMB, region%BMB, region%name, region%time)
 
+      ! Calculate the lateral mass balance
+      CALL run_LMB_model( region%mesh, region%ice, region%LMB, region%name, region%time)
+
       ! Calculate bedrock deformation at the desired time, and update
       ! predicted deformation if necessary
       CALL run_GIA_model( region)
@@ -141,7 +145,7 @@ CONTAINS
       END IF
 
       ! Calculate ice-sheet integrated values (total volume, area, etc.)
-      CALL calc_ice_model_scalars( region%mesh, region%ice, region%SMB, region%BMB, region%refgeo_PD, region%scalars)
+      CALL calc_ice_model_scalars( region%mesh, region%ice, region%SMB, region%BMB, region%LMB, region%refgeo_PD, region%scalars)
 
       ! Write to the main regional output NetCDF file
       CALL write_to_regional_output_files( region)
@@ -337,6 +341,9 @@ CONTAINS
     ! BMB
     time_of_next_action = MIN( time_of_next_action, region%BMB%t_next)
 
+    ! LMB
+    time_of_next_action = MIN( time_of_next_action, region%LMB%t_next)
+
     ! GIA
     time_of_next_action = MIN( time_of_next_action, region%GIA%t_next)
 
@@ -479,20 +486,27 @@ CONTAINS
 
     CALL initialise_BMB_model( region%mesh, region%BMB, region%name)
 
-    ! ===== Run the climate, ocean, SMB, and BMB models =====
-    ! =======================================================
+    ! ===== Lateral mass balance =====
+    ! ================================
+
+    CALL initialise_LMB_model( region%mesh, region%LMB, region%name)
+
+    ! ===== Run the climate, ocean, SMB, BMB, and LMB models =====
+    ! ============================================================
 
     ! Run the models
     CALL run_climate_model( region%mesh, region%ice, region%climate, region%name, C%start_time_of_run)
     CALL run_ocean_model( region%mesh, region%ice, region%ocean, region%name, C%start_time_of_run)
     CALL run_SMB_model( region%mesh, region%ice, region%climate, region%SMB, region%name, C%start_time_of_run)
     CALL run_BMB_model( region%mesh, region%ice, region%ocean, region%refgeo_PD, region%SMB, region%BMB, region%name, C%start_time_of_run)
+    CALL run_LMB_model( region%mesh, region%ice, region%LMB, region%name, region%time)
 
     ! Reset the timers
     region%climate%t_next = C%start_time_of_run
     region%ocean%t_next   = C%start_time_of_run
     region%SMB%t_next     = C%start_time_of_run
     region%BMB%t_next     = C%start_time_of_run
+    region%LMB%t_next     = C%start_time_of_run
 
     ! ===== Thermodynamics =====
     ! ==========================
@@ -528,7 +542,7 @@ CONTAINS
     ! ==============================
 
     ! Calculate ice-sheet integrated values (total volume, area, etc.)
-    CALL calc_ice_model_scalars( region%mesh, region%ice, region%SMB, region%BMB, region%refgeo_PD, region%scalars)
+    CALL calc_ice_model_scalars( region%mesh, region%ice, region%SMB, region%BMB, region%LMB, region%refgeo_PD, region%scalars)
 
     ! ===== Regional output =====
     ! ===========================
@@ -1114,11 +1128,12 @@ CONTAINS
     CALL initialise_reference_geometries_on_model_mesh( region%name, mesh_new, region%refgeo_init, region%refgeo_PD, region%refgeo_GIAeq)
 
     ! Remap all the model data from the old mesh to the new mesh
-    CALL remap_ice_dynamics_model( region%mesh, mesh_new, region%ice, region%refgeo_PD, region%SMB, region%BMB, region%GIA, region%time, region%name)
+    CALL remap_ice_dynamics_model( region%mesh, mesh_new, region%ice, region%refgeo_PD, region%SMB, region%BMB, region%LMB, region%GIA, region%time, region%name)
     CALL remap_climate_model(      region%mesh, mesh_new, region%climate, region%name)
     CALL remap_ocean_model(        region%mesh, mesh_new, region%ocean  , region%name)
     CALL remap_SMB_model(          region%mesh, mesh_new, region%SMB    , region%name)
     CALL remap_BMB_model(          region%mesh, mesh_new, region%BMB    , region%name)
+    CALL remap_LMB_model(          region%mesh, mesh_new, region%LMB    , region%name)
     CALL remap_GIA_model(          region%mesh, mesh_new, region%GIA                 )
 
     ! Set all model component timers so that they will all be run right after the mesh update
@@ -1128,6 +1143,7 @@ CONTAINS
     region%ocean%t_next   = region%time
     region%SMB%t_next     = region%time
     region%BMB%t_next     = region%time
+    region%LMB%t_next     = region%time
     region%GIA%t_next     = region%time
 
     ! Throw away the mapping operators involving the old mesh

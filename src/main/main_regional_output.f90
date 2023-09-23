@@ -742,6 +742,13 @@ CONTAINS
       CASE ('BMB')
         CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'BMB', region%BMB%BMB)
 
+    ! == Lateral mass balance ==
+    ! ==========================
+
+      ! Main LMB variables
+      CASE ('LMB')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'LMB', region%LMB%LMB)
+
     ! ===== End of user-defined output fields =====
     ! =============================================
 
@@ -1184,6 +1191,14 @@ CONTAINS
         CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%BMB, d_grid_vec_partial_2D)
         CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'BMB', d_grid_vec_partial_2D)
 
+    ! == Lateral mass balance ==
+    ! ==========================
+
+      ! Main LMB variables
+      CASE ('LMB')
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%LMB%LMB, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'LMB', d_grid_vec_partial_2D)
+
     ! ===== End of user-defined output fields =====
     ! =============================================
 
@@ -1252,6 +1267,10 @@ CONTAINS
     CALL write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'BMB_fl',            region%scalars%BMB_fl)
     CALL write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'BMB_land',          region%scalars%BMB_land)
     CALL write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'BMB_ocean',         region%scalars%BMB_ocean)
+
+    CALL write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'LMB_total',         region%scalars%LMB_total)
+    CALL write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'LMB_gr',            region%scalars%LMB_gr)
+    CALL write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'LMB_fl',            region%scalars%LMB_fl)
 
     CALL write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'AMB_total',         region%scalars%AMB_total)
     CALL write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'AMB_gr',            region%scalars%AMB_gr)
@@ -1947,6 +1966,13 @@ CONTAINS
       CASE ('BMB')
         CALL add_field_mesh_dp_2D( filename, ncid, 'BMB', long_name = 'Basal mass balance', units = 'm yr^-1')
 
+    ! == Lateral mass balance ==
+    ! ==========================
+
+      ! Main LMB variables
+      CASE ('LMB')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'LMB', long_name = 'Lateral mass balance', units = 'm yr^-1')
+
     ! ===== End of user-defined output fields =====
     ! =============================================
 
@@ -2293,6 +2319,13 @@ CONTAINS
       CASE ('BMB')
         CALL add_field_grid_dp_2D( filename, ncid, 'BMB', long_name = 'Basal mass balance', units = 'm yr^-1')
 
+    ! == Lateral mass balance ==
+    ! ==========================
+
+      ! Main LMB variables
+      CASE ('LMB')
+        CALL add_field_grid_dp_2D( filename, ncid, 'LMB', long_name = 'Lateral mass balance', units = 'm yr^-1')
+
     ! ===== End of user-defined output fields =====
     ! =============================================
 
@@ -2361,6 +2394,10 @@ CONTAINS
     CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'BMB_fl')
     CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'BMB_land')
     CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'BMB_ocean')
+
+    CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'LMB_total')
+    CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'LMB_gr')
+    CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'LMB_fl')
 
     CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'AMB_total')
     CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'AMB_gr')
@@ -2474,6 +2511,18 @@ CONTAINS
       ! Total BMB integrated over the entire ice-free ocean area
       CASE ('BMB_ocean')
         CALL add_field_dp_0D( filename, ncid, 'BMB_ocean', long_name = 'Area-integrated ice-free ocean BMB', units = 'Gt yr^-1')
+
+      ! Total LMB integrated over the entire domain
+      CASE ('LMB_total')
+        CALL add_field_dp_0D( filename, ncid, 'LMB_total', long_name = 'Area-integrated total LMB', units = 'Gt yr^-1')
+
+      ! Total LMB integrated over the entire ice sheet area
+      CASE ('LMB_gr')
+        CALL add_field_dp_0D( filename, ncid, 'LMB_gr', long_name = 'Area-integrated ice sheet LMB', units = 'Gt yr^-1')
+
+      ! Total LMB integrated over the entire ice shelf area
+      CASE ('LMB_fl')
+        CALL add_field_dp_0D( filename, ncid, 'LMB_fl', long_name = 'Area-integrated ice shelf LMB', units = 'Gt yr^-1')
 
       ! Total additional MB from other sources integrated over the entire domain
       CASE ('AMB_total')

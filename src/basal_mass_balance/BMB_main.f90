@@ -432,7 +432,7 @@ CONTAINS
 ! ===== Utilities =====
 ! =====================
 
-  SUBROUTINE BMB_inversion( mesh, ice, SMB, BMB, dHi_dt_predicted, Hi_predicted, time, region_name)
+  SUBROUTINE BMB_inversion( mesh, ice, SMB, BMB, dHi_dt_predicted, Hi_predicted, dt, time, region_name)
     ! Calculate the basal mass balance
     !
     ! Use an inversion based on the computed dHi_dt
@@ -446,6 +446,7 @@ CONTAINS
     TYPE(type_BMB_model),                   INTENT(INOUT) :: BMB
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(INOUT) :: dHi_dt_predicted
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(INOUT) :: Hi_predicted
+    REAL(dp),                               INTENT(IN)    :: dt
     REAL(dp),                               INTENT(IN)    :: time
     CHARACTER(LEN=3)                                      :: region_name
 
@@ -453,6 +454,7 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'BMB_inversion'
     INTEGER                                               :: vi
     CHARACTER(LEN=256)                                    :: choice_BMB_model
+    REAL(dp)                                              :: BMB_change
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -472,45 +474,59 @@ CONTAINS
     END SELECT
 
     ! Invert ocean BMB based on the full dHi_dt at each time step
-    IF (choice_BMB_model == 'inverted' .AND. &
-        time >= C%BMB_inversion_t_start .AND. &
-        time <= C%BMB_inversion_t_end) THEN
-
-      DO vi = mesh%vi1, mesh%vi2
-
-          ! IF (ice%mask_floating_ice( vi) .OR. &
-          !     ice%mask_gl_gr( vi) .OR. &
-          !     ice%mask_cf_gr( vi)) THEN
-
-          IF (ice%mask_floating_ice( vi)) THEN
-
-            ! For these areas, use dHi_dt to get an "inversion" of equilibrium BMB.
-            BMB%BMB( vi) = BMB%BMB( vi) - dHi_dt_predicted( vi)
-
-            ! Adjust rate of ice thickness change dHi/dt to compensate the change
-            dHi_dt_predicted( vi) = 0._dp
-
-            ! Adjust corrected ice thickness to compensate the change
-            Hi_predicted( vi) = ice%Hi_prev( vi)
-
-          ELSEIF (ice%mask_icefree_ocean( vi)) THEN
-
-            ! For open ocean, asume that all SMB melts
-            BMB%BMB( vi) = -SMB%SMB( vi)
-
-            ! Adjust rate of ice thickness change dHi/dt to compensate the change
-            dHi_dt_predicted( vi) = 0._dp
-
-            ! Adjust corrected ice thickness to compensate the change
-            Hi_predicted( vi) = ice%Hi_prev( vi)
-
-          ELSE
-            ! Not a place where basal melt operates
-            BMB%BMB( vi) = 0._dp
-          END IF
-
-      END DO
+    IF (.NOT. choice_BMB_model == 'inverted' .OR. &
+        time < C%BMB_inversion_t_start .OR. &
+        time > C%BMB_inversion_t_end) THEN
+      ! Finalise routine path
+      CALL finalise_routine( routine_name)
+      RETURN
     END IF
+
+    DO vi = mesh%vi1, mesh%vi2
+
+      ! IF (ice%mask_gl_gr( vi) .OR. &
+      !     ice%mask_cf_gr( vi)) THEN
+
+      ! For these areas, use dHi_dt to get an "inversion" of equilibrium BMB.
+      IF (ice%mask_cf_fl( vi)) THEN
+
+        ! BMB will absorb all remaining change after calving did its thing
+        BMB%BMB( vi) = BMB%BMB( vi) - dHi_dt_predicted( vi)
+
+        ! Adjust rate of ice thickness change dHi/dt to compensate the change
+        dHi_dt_predicted( vi) = 0._dp
+
+        ! Adjust corrected ice thickness to compensate the change
+        Hi_predicted( vi) = ice%Hi_prev( vi)
+
+      ELSEIF (ice%mask_floating_ice( vi)) THEN
+
+        ! Basal melt will account for all change here
+        BMB%BMB( vi) = BMB%BMB( vi) - dHi_dt_predicted( vi)
+
+        ! Adjust rate of ice thickness change dHi/dt to compensate the change
+        dHi_dt_predicted( vi) = 0._dp
+
+        ! Adjust corrected ice thickness to compensate the change
+        Hi_predicted( vi) = ice%Hi_prev( vi)
+
+      ELSEIF (ice%mask_icefree_ocean( vi)) THEN
+
+        ! For open ocean, asume that all SMB melts
+        BMB%BMB( vi) = -SMB%SMB( vi)
+
+        ! Adjust rate of ice thickness change dHi/dt to compensate the change
+        dHi_dt_predicted( vi) = 0._dp
+
+        ! Adjust corrected ice thickness to compensate the change
+        Hi_predicted( vi) = ice%Hi_prev( vi)
+
+      ELSE
+        ! Not a place where basal melt operates
+        BMB%BMB( vi) = 0._dp
+      END IF
+
+    END DO ! vi = mesh%vi1, mesh%vi2
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

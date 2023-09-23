@@ -23,6 +23,7 @@ MODULE ice_model_main
   USE region_types                                           , ONLY: type_model_region
   USE SMB_model_types                                        , ONLY: type_SMB_model
   USE BMB_model_types                                        , ONLY: type_BMB_model
+  USE LMB_model_types                                        , ONLY: type_LMB_model
   USE GIA_model_types                                        , ONLY: type_GIA_model
   USE ice_model_memory                                       , ONLY: allocate_ice_model
   USE ice_model_utilities                                    , ONLY: determine_masks, calc_bedrock_CDFs, calc_grounded_fractions, calc_zeta_gradients, &
@@ -48,8 +49,9 @@ MODULE ice_model_main
   USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp
   USE petsc_basic                                            , ONLY: mat_petsc2CSR
   USE reallocate_mod                                         , ONLY: reallocate_bounds_dp_1D
-  USE BMB_main                                               , ONLY: run_BMB_model, BMB_inversion
   USE SMB_main                                               , ONLY: SMB_adjustment
+  USE BMB_main                                               , ONLY: run_BMB_model, BMB_inversion
+  USE LMB_main                                               , ONLY: LMB_inversion
 
   IMPLICIT NONE
 
@@ -413,7 +415,7 @@ CONTAINS
 
   END SUBROUTINE create_restart_files_ice_model
 
-  SUBROUTINE remap_ice_dynamics_model( mesh_old, mesh_new, ice, refgeo_PD, SMB, BMB, GIA, time, region_name)
+  SUBROUTINE remap_ice_dynamics_model( mesh_old, mesh_new, ice, refgeo_PD, SMB, BMB, LMB, GIA, time, region_name)
     ! Remap/reallocate all the data of the ice dynamics model
 
     IMPLICIT NONE
@@ -425,6 +427,7 @@ CONTAINS
     TYPE(type_reference_geometry),          INTENT(IN)    :: refgeo_PD
     TYPE(type_SMB_model),                   INTENT(IN)    :: SMB
     TYPE(type_BMB_model),                   INTENT(IN)    :: BMB
+    TYPE(type_LMB_model),                   INTENT(IN)    :: LMB
     TYPE(type_GIA_model),                   INTENT(IN)    :: GIA
     REAL(dp),                               INTENT(IN)    :: time
     CHARACTER(LEN=3),                       INTENT(IN)    :: region_name
@@ -766,7 +769,7 @@ CONTAINS
     ! Relax ice geometry around the calving front
     ! ===========================================
 
-    CALL relax_calving_front( mesh_old, mesh_new, ice, SMB, BMB, region_name)
+    CALL relax_calving_front( mesh_old, mesh_new, ice, SMB, BMB, LMB, region_name)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -953,7 +956,7 @@ CONTAINS
 
   END SUBROUTINE remap_basic_ice_geometry
 
-  SUBROUTINE relax_calving_front( mesh_old, mesh, ice, SMB, BMB, region_name)
+  SUBROUTINE relax_calving_front( mesh_old, mesh, ice, SMB, BMB, LMB, region_name)
     ! Relax ice thickness around the calving front
     !
     ! This routine "steps out of time" for a bit (default dt_relax = 2 yr), where it
@@ -973,6 +976,7 @@ CONTAINS
     TYPE(type_ice_model),                   INTENT(INOUT) :: ice
     TYPE(type_SMB_model),                   INTENT(IN)    :: SMB
     TYPE(type_BMB_model),                   INTENT(IN)    :: BMB
+    TYPE(type_LMB_model),                   INTENT(IN)    :: LMB
     CHARACTER(LEN=3),                       INTENT(IN)    :: region_name
 
     ! Local variables:
@@ -1006,6 +1010,7 @@ CONTAINS
     REAL(dp)                                              :: t_pseudo
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: SMB_new
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: BMB_new
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: LMB_new
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: dHi_dt_target_new
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: dHi_dt_residual_dummy
     REAL(dp)                                              :: visc_it_norm_dUV_tol_save
@@ -1158,11 +1163,12 @@ CONTAINS
     C%stress_balance_PETSc_abstol           = 1E-2_dp                          ! PETSc solver - stop criterion, absolute difference
     C%Glens_flow_law_epsilon_sq_0           = 1E-6_dp                          ! Normalisation term so that zero strain rates produce a high but finite viscosity
 
-    ! == Remap SMB and BMB to get more stable ice thickness
-    ! =====================================================
+    ! == Remap SMB, BMB, and LMB to get more stable ice thickness
+    ! ===========================================================
 
     CALL map_from_mesh_to_mesh_2D( mesh_old, mesh, SMB%SMB, SMB_new, '2nd_order_conservative')
     CALL map_from_mesh_to_mesh_2D( mesh_old, mesh, BMB%BMB, BMB_new, '2nd_order_conservative')
+    CALL map_from_mesh_to_mesh_2D( mesh_old, mesh, LMB%LMB, LMB_new, '2nd_order_conservative')
 
     ! == Remap target dHi_dt to get things consistent
     ! ===============================================
@@ -1180,7 +1186,7 @@ CONTAINS
       CALL solve_stress_balance( mesh, ice, BMB_new, region_name, BC_prescr_mask_b, BC_prescr_u_b, BC_prescr_v_b, BC_prescr_mask_bk, BC_prescr_u_bk, BC_prescr_v_bk)
 
       ! Calculate dH/dt around the calving front
-      CALL calc_dHi_dt( mesh, ice%Hi, ice%Hb, ice%SL, ice%u_vav_b, ice%v_vav_b, SMB_new, BMB_new, ice%mask_noice, C%dt_ice_min, &
+      CALL calc_dHi_dt( mesh, ice%Hi, ice%Hb, ice%SL, ice%u_vav_b, ice%v_vav_b, SMB_new, BMB_new, LMB_new, ice%mask_noice, C%dt_ice_min, &
         ice%dHi_dt, Hi_tplusdt, divQ, dHi_dt_target_new, dHi_dt_residual_dummy, BC_prescr_mask, BC_prescr_Hi)
 
       ! Update ice thickness and advance pseudo-time
@@ -1288,12 +1294,13 @@ CONTAINS
       ! ====================
 
       ! Calculate thinning rates for current geometry and velocity
-      CALL calc_dHi_dt( region%mesh, region%ice%Hi_prev, region%ice%Hb, region%ice%SL, region%ice%u_vav_b, region%ice%v_vav_b, region%SMB%SMB, region%BMB%BMB, &
+      CALL calc_dHi_dt( region%mesh, region%ice%Hi_prev, region%ice%Hb, region%ice%SL, region%ice%u_vav_b, region%ice%v_vav_b, region%SMB%SMB, region%BMB%BMB, region%LMB%LMB, &
                         region%ice%mask_noice, region%ice%pc%dt_np1, region%ice%pc%dHi_dt_Hi_n_u_n, Hi_dummy, region%ice%divQ, region%ice%dHi_dt_target, region%ice%dHi_dt_residual)
 
-      ! If so desired, invert/adjust vertical fluxes to get an equilibrium state
-      CALL BMB_inversion(  region%mesh, region%ice, region%SMB, region%BMB, region%ice%pc%dHi_dt_Hi_n_u_n, Hi_dummy, region%time, region%name)
-      CALL SMB_adjustment( region%mesh, region%ice, region%SMB,             region%ice%pc%dHi_dt_Hi_n_u_n, Hi_dummy, region%time)
+      ! If so desired, invert/adjust fluxes to get an equilibrium state
+      CALL LMB_inversion(  region%mesh, region%ice, region%SMB,             region%LMB, region%ice%pc%dHi_dt_Hi_n_u_n, Hi_dummy, region%ice%pc%dt_np1, region%time, region%name)
+      CALL BMB_inversion(  region%mesh, region%ice, region%SMB, region%BMB,             region%ice%pc%dHi_dt_Hi_n_u_n, Hi_dummy, region%ice%pc%dt_np1, region%time, region%name)
+      CALL SMB_adjustment( region%mesh, region%ice, region%SMB,                         region%ice%pc%dHi_dt_Hi_n_u_n, Hi_dummy,                       region%time)
 
       ! Calculate predicted ice thickness (Robinson et al., 2020, Eq. 30)
       region%ice%pc%Hi_star_np1 = region%ice%Hi_prev + region%ice%pc%dt_np1 * ((1._dp + region%ice%pc%zeta_t / 2._dp) * &
@@ -1352,12 +1359,13 @@ CONTAINS
       CALL calc_grounded_fractions( region%mesh, region%ice)
 
       ! Calculate thinning rates for the current ice thickness and predicted velocity
-      CALL calc_dHi_dt( region%mesh, region%ice%Hi, region%ice%Hb, region%ice%SL, region%ice%u_vav_b, region%ice%v_vav_b, region%SMB%SMB, region%BMB%BMB, &
+      CALL calc_dHi_dt( region%mesh, region%ice%Hi, region%ice%Hb, region%ice%SL, region%ice%u_vav_b, region%ice%v_vav_b, region%SMB%SMB, region%BMB%BMB, region%LMB%LMB, &
                         region%ice%mask_noice, region%ice%pc%dt_np1, region%ice%pc%dHi_dt_Hi_star_np1_u_np1, Hi_dummy, region%ice%divQ, region%ice%dHi_dt_target, region%ice%dHi_dt_residual)
 
-      ! If so desired, invert/adjust vertical fluxes to get an equilibrium state
-      CALL BMB_inversion(  region%mesh, region%ice, region%SMB, region%BMB, region%ice%pc%dHi_dt_Hi_star_np1_u_np1, Hi_dummy, region%time, region%name)
-      CALL SMB_adjustment( region%mesh, region%ice, region%SMB,             region%ice%pc%dHi_dt_Hi_star_np1_u_np1, Hi_dummy, region%time)
+      ! If so desired, invert/adjust fluxes to get an equilibrium state
+      CALL LMB_inversion(  region%mesh, region%ice, region%SMB,             region%LMB, region%ice%pc%dHi_dt_Hi_star_np1_u_np1, Hi_dummy, region%ice%pc%dt_np1, region%time, region%name)
+      CALL BMB_inversion(  region%mesh, region%ice, region%SMB, region%BMB,             region%ice%pc%dHi_dt_Hi_star_np1_u_np1, Hi_dummy, region%ice%pc%dt_np1, region%time, region%name)
+      CALL SMB_adjustment( region%mesh, region%ice, region%SMB,                         region%ice%pc%dHi_dt_Hi_star_np1_u_np1, Hi_dummy,                       region%time)
 
       ! Calculate corrected ice thickness (Robinson et al. (2020), Eq. 31)
       region%ice%pc%Hi_np1 = region%ice%Hi_prev + (region%ice%pc%dt_np1 / 2._dp) * (region%ice%pc%dHi_dt_Hi_n_u_n + region%ice%pc%dHi_dt_Hi_star_np1_u_np1)
@@ -1835,12 +1843,13 @@ CONTAINS
     dt = MAX( C%dt_ice_min, dt)
 
     ! Calculate thinning rates and predicted geometry
-    CALL calc_dHi_dt( region%mesh, region%ice%Hi, region%ice%Hb, region%ice%SL, region%ice%u_vav_b, region%ice%v_vav_b, region%SMB%SMB, region%BMB%BMB, &
+    CALL calc_dHi_dt( region%mesh, region%ice%Hi, region%ice%Hb, region%ice%SL, region%ice%u_vav_b, region%ice%v_vav_b, region%SMB%SMB, region%BMB%BMB, region%LMB%LMB, &
                       region%ice%mask_noice, dt, region%ice%dHi_dt, region%ice%Hi_next, region%ice%divQ, region%ice%dHi_dt_target, region%ice%dHi_dt_residual)
 
-    ! If so desired, invert/adjust vertical fluxes to get an equilibrium state
-    CALL BMB_inversion(  region%mesh, region%ice, region%SMB, region%BMB, region%ice%dHi_dt, region%ice%Hi_next, region%time, region%name)
-    CALL SMB_adjustment( region%mesh, region%ice, region%SMB,             region%ice%dHi_dt, region%ice%Hi_next, region%time)
+    ! If so desired, invert/adjust fluxes to get an equilibrium state
+    CALL LMB_inversion(  region%mesh, region%ice, region%SMB,             region%LMB, region%ice%dHi_dt, region%ice%Hi_next, dt, region%time, region%name)
+    CALL BMB_inversion(  region%mesh, region%ice, region%SMB, region%BMB,             region%ice%dHi_dt, region%ice%Hi_next, dt, region%time, region%name)
+    CALL SMB_adjustment( region%mesh, region%ice, region%SMB,                         region%ice%dHi_dt, region%ice%Hi_next,     region%time)
 
     ! Save the "true" dynamical dH/dt for future reference
     region%ice%dHi_dt_predicted = region%ice%dHi_dt

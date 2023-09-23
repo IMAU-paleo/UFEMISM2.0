@@ -707,6 +707,23 @@ MODULE model_configuration
     ! "parameterised"
     REAL(dp)            :: BMB_Favier2019_gamma_config                  = 99.32E-5
 
+  ! == Lateral mass balance
+  ! =======================
+
+    ! Time step
+    REAL(dp)            :: dt_LMB_config                                = 10._dp                           ! [yr] Time step for calculating LMB [not implemented yet]
+    REAL(dp)            :: LMB_inversion_t_start_config                 = +9.9E9_dp                        ! [yr] Start time for LMB inversion based on computed thinning rates in frontal areas
+    REAL(dp)            :: LMB_inversion_t_end_config                   = +9.9E9_dp                        ! [yr] End   time for LMB inversion based on computed thinning rates in frontal areas
+
+    ! Choice of LMB model
+    CHARACTER(LEN=256)  :: choice_LMB_model_NAM_config                  = 'uniform'
+    CHARACTER(LEN=256)  :: choice_LMB_model_EAS_config                  = 'uniform'
+    CHARACTER(LEN=256)  :: choice_LMB_model_GRL_config                  = 'uniform'
+    CHARACTER(LEN=256)  :: choice_LMB_model_ANT_config                  = 'uniform'
+
+    ! "uniform"
+    REAL(dp)            :: uniform_LMB_config                           = 0._dp
+
   ! == Glacial isostatic adjustment
   ! ===============================
 
@@ -1513,6 +1530,23 @@ MODULE model_configuration
     ! "parameterised"
     REAL(dp)            :: BMB_Favier2019_gamma
 
+  ! == Lateral mass balance
+  ! =======================
+
+    ! Time step
+    REAL(dp)            :: dt_LMB
+    REAL(dp)            :: LMB_inversion_t_start
+    REAL(dp)            :: LMB_inversion_t_end
+
+    ! Choice of BMB model
+    CHARACTER(LEN=256)  :: choice_LMB_model_NAM
+    CHARACTER(LEN=256)  :: choice_LMB_model_EAS
+    CHARACTER(LEN=256)  :: choice_LMB_model_GRL
+    CHARACTER(LEN=256)  :: choice_LMB_model_ANT
+
+    ! "uniform"
+    REAL(dp)            :: uniform_LMB
+
   ! == Glacial isostatic adjustment
   ! ===============================
 
@@ -2220,6 +2254,14 @@ CONTAINS
       choice_BMB_model_parameterised_config                       , &
       uniform_BMB_config                                          , &
       BMB_Favier2019_gamma_config                                 , &
+      dt_LMB_config                                               , &
+      LMB_inversion_t_start_config                                , &
+      LMB_inversion_t_end_config                                  , &
+      choice_LMB_model_NAM_config                                 , &
+      choice_LMB_model_EAS_config                                 , &
+      choice_LMB_model_GRL_config                                 , &
+      choice_LMB_model_ANT_config                                 , &
+      uniform_LMB_config                                          , &
       choice_GIA_model_config                                     , &
       dt_GIA_config                                               , &
       dx_GIA_config                                               , &
@@ -3023,6 +3065,23 @@ CONTAINS
 
     ! "parameterised"
     C%BMB_Favier2019_gamma                                   = BMB_Favier2019_gamma_config
+
+  ! == Lateral mass balance
+  ! =======================
+
+    ! Time step
+    C%dt_LMB                                                 = dt_LMB_config
+    C%LMB_inversion_t_start                                  = LMB_inversion_t_start_config
+    C%LMB_inversion_t_end                                    = LMB_inversion_t_end_config
+
+    ! Choice of BMB model
+    C%choice_LMB_model_NAM                                   = choice_LMB_model_NAM_config
+    C%choice_LMB_model_EAS                                   = choice_LMB_model_EAS_config
+    C%choice_LMB_model_GRL                                   = choice_LMB_model_GRL_config
+    C%choice_LMB_model_ANT                                   = choice_LMB_model_ANT_config
+
+    ! "uniform"
+    C%uniform_LMB                                            = uniform_LMB_config
 
   ! == Glacial isostatic adjustment
   ! ===============================

@@ -342,8 +342,8 @@ CONTAINS
 
     ! Correct land SMB based on remaining dHi_dt at the end of an inversion for a better equilibrium.
     IF (.NOT. C%do_corrections_SMB .OR. &
-        time <= C%SMB_residual_absorb_t_start .OR. &
-        time >= C%SMB_residual_absorb_t_end) THEN
+        time < C%SMB_residual_absorb_t_start .OR. &
+        time > C%SMB_residual_absorb_t_end) THEN
 
       ! Finalise routine path
       CALL finalise_routine( routine_name)
@@ -357,7 +357,7 @@ CONTAINS
           .NOT. ice%mask_gl_gr( vi) .AND. &
           .NOT. ice%mask_cf_gr( vi)) THEN
 
-        ! For grounded ice, use dHi_dt to get an "inversion" of equilibrium BMB.
+        ! For grounded ice, use dHi_dt to get an "inversion" of equilibrium SMB.
         SMB%SMB( vi) = SMB%SMB( vi) - dHi_dt_predicted( vi)
 
         ! Adjust rate of ice thickness change dHi/dt to compensate the change

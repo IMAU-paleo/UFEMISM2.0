@@ -15,6 +15,7 @@ module ice_model_scalars
   use ice_model_types                                        , ONLY: type_ice_model
   use SMB_model_types                                        , ONLY: type_SMB_model
   use BMB_model_types                                        , ONLY: type_BMB_model
+  use LMB_model_types                                        , ONLY: type_LMB_model
   use reference_geometries                                   , ONLY: type_reference_geometry
   USE ice_velocity_main                                      , ONLY: map_velocities_from_b_to_c_2D
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_1D, gather_to_all_logical_1D
@@ -26,7 +27,7 @@ contains
 ! ===== Main routines =====
 ! =========================
 
-  subroutine calc_ice_model_scalars( mesh, ice, SMB, BMB, refgeo_PD, scalars)
+  subroutine calc_ice_model_scalars( mesh, ice, SMB, BMB, LMB, refgeo_PD, scalars)
     ! Determine regional ice-sheet-wide scalar quantities
 
     implicit none
@@ -36,6 +37,7 @@ contains
     type(type_ice_model),          intent(in)    :: ice
     type(type_SMB_model),          intent(in)    :: SMB
     type(type_BMB_model),          intent(in)    :: BMB
+    type(type_LMB_model),          intent(in)    :: LMB
     type(type_reference_geometry), intent(in)    :: refgeo_PD
     type(type_regional_scalars),   intent(out)   :: scalars
 
@@ -67,7 +69,7 @@ contains
     ! =========================
 
     ! Compute area- and transitional-lines-integrated fluxes
-    call calc_icesheet_integrated_fluxes( mesh, ice, SMB, BMB, scalars)
+    call calc_icesheet_integrated_fluxes( mesh, ice, SMB, BMB, LMB, scalars)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -198,8 +200,8 @@ contains
 ! =====
 ! =====
 
-  subroutine calc_icesheet_integrated_fluxes( mesh, ice, SMB, BMB, scalars)
-    ! Calculate total regional SMB, BMB, etc.
+  subroutine calc_icesheet_integrated_fluxes( mesh, ice, SMB, BMB, LMB, scalars)
+    ! Calculate total regional SMB, BMB, LMB, etc.
 
     implicit none
 
@@ -208,6 +210,7 @@ contains
     type(type_ice_model),        intent(in)  :: ice
     type(type_SMB_model),        intent(in)  :: SMB
     type(type_BMB_model),        intent(in)  :: BMB
+    type(type_LMB_model),        intent(in)  :: LMB
     type(type_regional_scalars), intent(out) :: scalars
 
     ! Local variables:
@@ -235,6 +238,9 @@ contains
     scalars%BMB_fl    = 0._dp
     scalars%BMB_land  = 0._dp
     scalars%BMB_ocean = 0._dp
+    scalars%LMB_total = 0._dp
+    scalars%LMB_gr    = 0._dp
+    scalars%LMB_fl    = 0._dp
 
     ! Calculate SMB and BMB for each process
     do vi = mesh%vi1, mesh%vi2
@@ -242,17 +248,20 @@ contains
       ! Over whole domain
       scalars%SMB_total = scalars%SMB_total + SMB%SMB( vi) * mesh%A( vi) * 1.0E-09_dp ! [Gt/yr]
       scalars%BMB_total = scalars%BMB_total + BMB%BMB( vi) * mesh%A( vi) * 1.0E-09_dp ! [Gt/yr]
+      scalars%LMB_total = scalars%LMB_total + LMB%LMB( vi) * mesh%A( vi) * 1.0E-09_dp ! [Gt/yr]
 
       ! Over grounded ice
       if (ice%mask_grounded_ice( vi)) then
         scalars%SMB_gr = scalars%SMB_gr + SMB%SMB( vi) * mesh%A( vi) * 1.0E-09_dp ! [Gt/yr]
         scalars%BMB_gr = scalars%BMB_gr + BMB%BMB( vi) * mesh%A( vi) * 1.0E-09_dp ! [Gt/yr]
+        scalars%LMB_gr = scalars%LMB_gr + LMB%LMB( vi) * mesh%A( vi) * 1.0E-09_dp ! [Gt/yr]
       end if
 
       ! Over floating ice
       if (ice%mask_floating_ice( vi)) then
         scalars%SMB_fl = scalars%SMB_fl + SMB%SMB( vi) * mesh%A( vi) * 1.0E-09_dp ! [Gt/yr]
         scalars%BMB_fl = scalars%BMB_fl + BMB%BMB( vi) * mesh%A( vi) * 1.0E-09_dp ! [Gt/yr]
+        scalars%LMB_fl = scalars%LMB_fl + LMB%LMB( vi) * mesh%A( vi) * 1.0E-09_dp ! [Gt/yr]
       end if
 
       ! Over ice-free land
@@ -281,6 +290,10 @@ contains
     call MPI_ALLREDUCE( MPI_IN_PLACE, scalars%BMB_fl,    1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
     call MPI_ALLREDUCE( MPI_IN_PLACE, scalars%BMB_land,  1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
     call MPI_ALLREDUCE( MPI_IN_PLACE, scalars%BMB_ocean, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+
+    call MPI_ALLREDUCE( MPI_IN_PLACE, scalars%LMB_total, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+    call MPI_ALLREDUCE( MPI_IN_PLACE, scalars%LMB_gr,    1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+    call MPI_ALLREDUCE( MPI_IN_PLACE, scalars%LMB_fl,    1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
 
     ! === Transitional fluxes ===
     ! ===========================
