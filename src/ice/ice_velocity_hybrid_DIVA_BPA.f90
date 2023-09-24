@@ -274,11 +274,11 @@ CONTAINS
       END IF
 
       ! DENK DROM
-      uv_min = MINVAL( hybrid%u_bk)
-      uv_max = MAXVAL( hybrid%u_bk)
-      CALL MPI_ALLREDUCE( MPI_IN_PLACE, uv_min, 1, MPI_DOUBLE_PRECISION, MPI_MIN, MPI_COMM_WORLD, ierr)
-      CALL MPI_ALLREDUCE( MPI_IN_PLACE, uv_max, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
-      IF (par%master) WRITE(0,*) '    hybrid DIVA/BPA - viscosity iteration ', viscosity_iteration_i, ', u = [', uv_min, ' - ', uv_max, '], resid = ', resid_UV
+!      uv_min = MINVAL( hybrid%u_bk)
+!      uv_max = MAXVAL( hybrid%u_bk)
+!      CALL MPI_ALLREDUCE( MPI_IN_PLACE, uv_min, 1, MPI_DOUBLE_PRECISION, MPI_MIN, MPI_COMM_WORLD, ierr)
+!      CALL MPI_ALLREDUCE( MPI_IN_PLACE, uv_max, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
+!      IF (par%master) WRITE(0,*) '    hybrid DIVA/BPA - viscosity iteration ', viscosity_iteration_i, ', u = [', uv_min, ' - ', uv_max, '], resid = ', resid_UV
 
       ! If the viscosity iteration has converged, or has reached the maximum allowed number of iterations, stop it.
       has_converged = .FALSE.
@@ -608,7 +608,7 @@ CONTAINS
     ncols_loc       = neq_loc
     nrows           = neq      ! to
     nrows_loc       = neq_loc
-    nnz_est_proc    = mesh%M2_ddx_b_b%nnz * 4
+    nnz_est_proc    = CEILING( 1.1_dp * REAL( A_DIVA%nnz + A_BPA%nnz, dp))
 
     CALL allocate_matrix_CSR_dist( A_combi, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
 
