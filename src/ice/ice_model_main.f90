@@ -28,7 +28,8 @@ MODULE ice_model_main
   USE ice_model_memory                                       , ONLY: allocate_ice_model
   USE ice_model_utilities                                    , ONLY: determine_masks, calc_bedrock_CDFs, calc_grounded_fractions, calc_zeta_gradients, &
                                                                      calc_mask_noice, alter_ice_thickness, initialise_bedrock_CDFs
-  USE ice_thickness                                          , ONLY: calc_dHi_dt, apply_mask_noice_direct, apply_ice_thickness_BC_explicit, initialise_dHi_dt_target
+  USE ice_thickness                                          , ONLY: calc_dHi_dt, apply_mask_noice_direct, apply_ice_thickness_BC_explicit, &
+                                                                     calc_effective_thickness, initialise_dHi_dt_target
   USE math_utilities                                         , ONLY: ice_surface_elevation, thickness_above_floatation, Hi_from_Hb_Hs_and_SL, is_floating
   USE geothermal_heat_flux                                   , ONLY: initialise_geothermal_heat_flux
   USE basal_hydrology                                        , ONLY: initialise_basal_hydrology_model
@@ -158,6 +159,9 @@ CONTAINS
 
     ! Update masks
     CALL determine_masks( region%mesh, region%ice)
+
+    ! Calculate new effective thickness
+    CALL calc_effective_thickness( region%mesh, region%ice, region%ice%Hi)
 
     ! NOTE: as calculating the zeta gradients is quite expensive, only do so when necessary,
     !       i.e. when solving the heat equation or the Blatter-Pattyn stress balance
@@ -477,6 +481,7 @@ CONTAINS
     ! CALL reallocate_bounds( ice%SL                          , mesh_new%vi1, mesh_new%vi2         )  ! [m] Sea level (geoid) elevation (w.r.t. PD sea level)
     CALL reallocate_bounds( ice%Hib                         , mesh_new%vi1, mesh_new%vi2         )  ! [m] Ice base elevation (w.r.t. PD sea level)
     CALL reallocate_bounds( ice%TAF                         , mesh_new%vi1, mesh_new%vi2         )  ! [m] Thickness above flotation
+    CALL reallocate_bounds( ice%Hi_eff                      , mesh_new%vi1, mesh_new%vi2         )  ! [m] Effective ice thickness
 
     ! Geometry changes
     CALL reallocate_bounds( ice%dHi                         , mesh_new%vi1, mesh_new%vi2         )  ! [m] Ice thickness difference (w.r.t. to reference)
@@ -514,7 +519,7 @@ CONTAINS
     ! Area fractions
     CALL reallocate_bounds( ice%fraction_gr                 , mesh_new%vi1, mesh_new%vi2         )  ! [0-1] Grounded area fractions of vertices
     CALL reallocate_bounds( ice%fraction_gr_b               , mesh_new%ti1, mesh_new%ti2         )  ! [0-1] Grounded area fractions of triangles
-    CALL reallocate_bounds( ice%fraction_cf                 , mesh_new%vi1, mesh_new%vi2         )  ! [0-1] Ice-covered area fractions of calving fronts
+    CALL reallocate_bounds( ice%fraction_margin             , mesh_new%vi1, mesh_new%vi2         )  ! [0-1] Ice-covered area fractions of ice margins
 
     ! Sub-grid bedrock cumulative density functions (CDFs)
     CALL reallocate_bounds( ice%bedrock_cdf                 , mesh_new%vi1, mesh_new%vi2, C%subgrid_bedrock_cdf_nbins)  ! [-] Sub-grid bedrock cumulative density functions on the a-grid (vertices)
@@ -727,6 +732,12 @@ CONTAINS
 
     ! ! Smooth the ice at the calving front to improve model stability
     ! CALL relax_calving_front_after_mesh_update( mesh_new, ice)
+
+    ! Effective ice thickness
+    ! =======================
+
+    ! Calculate new effective thickness
+    CALL calc_effective_thickness( mesh_new, ice, ice%Hi)
 
     ! Sub-grid fractions
     ! ==================
@@ -1186,7 +1197,7 @@ CONTAINS
       CALL solve_stress_balance( mesh, ice, BMB_new, region_name, BC_prescr_mask_b, BC_prescr_u_b, BC_prescr_v_b, BC_prescr_mask_bk, BC_prescr_u_bk, BC_prescr_v_bk)
 
       ! Calculate dH/dt around the calving front
-      CALL calc_dHi_dt( mesh, ice%Hi, ice%Hb, ice%SL, ice%u_vav_b, ice%v_vav_b, SMB_new, BMB_new, LMB_new, ice%mask_noice, C%dt_ice_min, &
+      CALL calc_dHi_dt( mesh, ice%Hi, ice%Hb, ice%SL, ice%u_vav_b, ice%v_vav_b, SMB_new, BMB_new, LMB_new, ice%fraction_margin, ice%mask_noice, C%dt_ice_min, &
         ice%dHi_dt, Hi_tplusdt, divQ, dHi_dt_target_new, dHi_dt_residual_dummy, BC_prescr_mask, BC_prescr_Hi)
 
       ! Update ice thickness and advance pseudo-time
@@ -1294,7 +1305,7 @@ CONTAINS
       ! ====================
 
       ! Calculate thinning rates for current geometry and velocity
-      CALL calc_dHi_dt( region%mesh, region%ice%Hi_prev, region%ice%Hb, region%ice%SL, region%ice%u_vav_b, region%ice%v_vav_b, region%SMB%SMB, region%BMB%BMB, region%LMB%LMB, &
+      CALL calc_dHi_dt( region%mesh, region%ice%Hi, region%ice%Hb, region%ice%SL, region%ice%u_vav_b, region%ice%v_vav_b, region%SMB%SMB, region%BMB%BMB, region%LMB%LMB, region%ice%fraction_margin, &
                         region%ice%mask_noice, region%ice%pc%dt_np1, region%ice%pc%dHi_dt_Hi_n_u_n, Hi_dummy, region%ice%divQ, region%ice%dHi_dt_target, region%ice%dHi_dt_residual)
 
       ! If so desired, invert/adjust fluxes to get an equilibrium state
@@ -1358,8 +1369,11 @@ CONTAINS
       ! Update sub-grid grounded fractions
       CALL calc_grounded_fractions( region%mesh, region%ice)
 
+      ! Update effective ice thickness
+      CALL calc_effective_thickness( region%mesh, region%ice, region%ice%Hi)
+
       ! Calculate thinning rates for the current ice thickness and predicted velocity
-      CALL calc_dHi_dt( region%mesh, region%ice%Hi, region%ice%Hb, region%ice%SL, region%ice%u_vav_b, region%ice%v_vav_b, region%SMB%SMB, region%BMB%BMB, region%LMB%LMB, &
+      CALL calc_dHi_dt( region%mesh, region%ice%Hi, region%ice%Hb, region%ice%SL, region%ice%u_vav_b, region%ice%v_vav_b, region%SMB%SMB, region%BMB%BMB, region%LMB%LMB, region%ice%fraction_margin, &
                         region%ice%mask_noice, region%ice%pc%dt_np1, region%ice%pc%dHi_dt_Hi_star_np1_u_np1, Hi_dummy, region%ice%divQ, region%ice%dHi_dt_target, region%ice%dHi_dt_residual)
 
       ! If so desired, invert/adjust fluxes to get an equilibrium state
@@ -1843,7 +1857,7 @@ CONTAINS
     dt = MAX( C%dt_ice_min, dt)
 
     ! Calculate thinning rates and predicted geometry
-    CALL calc_dHi_dt( region%mesh, region%ice%Hi, region%ice%Hb, region%ice%SL, region%ice%u_vav_b, region%ice%v_vav_b, region%SMB%SMB, region%BMB%BMB, region%LMB%LMB, &
+    CALL calc_dHi_dt( region%mesh, region%ice%Hi, region%ice%Hb, region%ice%SL, region%ice%u_vav_b, region%ice%v_vav_b, region%SMB%SMB, region%BMB%BMB, region%LMB%LMB, region%ice%fraction_margin, &
                       region%ice%mask_noice, dt, region%ice%dHi_dt, region%ice%Hi_next, region%ice%divQ, region%ice%dHi_dt_target, region%ice%dHi_dt_residual)
 
     ! If so desired, invert/adjust fluxes to get an equilibrium state

@@ -387,6 +387,7 @@ contains
     real(dp), dimension(mesh%ei1:mesh%ei2)     :: u_vav_c, v_vav_c
     real(dp), dimension(mesh%nE)               :: u_vav_c_tot, v_vav_c_tot
     real(dp), dimension(mesh%nV)               :: Hi_tot
+    real(dp), dimension(mesh%nV)               :: fraction_margin_tot
     logical,  dimension(mesh%nV)               :: mask_floating_ice_tot
     logical,  dimension(mesh%nV)               :: mask_icefree_land_tot
     logical,  dimension(mesh%nV)               :: mask_icefree_ocean_tot
@@ -404,6 +405,7 @@ contains
 
     ! Gather ice thickness from all processes
     call gather_to_all_dp_1D( ice%Hi, Hi_tot)
+    call gather_to_all_dp_1D( ice%fraction_margin, fraction_margin_tot)
 
     ! Gather basic masks to all processes
     call gather_to_all_logical_1D( ice%mask_floating_ice , mask_floating_ice_tot )
@@ -450,30 +452,30 @@ contains
 
         ! Grounding line (grounded side)
         if (ice%mask_grounded_ice( vi) .and. mask_floating_ice_tot( vj)) then
-          if (u_perp > 0._dp) then
+          if (fraction_margin_tot( vi) >= 1._dp .and. u_perp > 0._dp) then
             scalars%gl_flux = scalars%gl_flux - L_c * u_perp * Hi_tot( vi) * 1.0E-09_dp ! [Gt/yr]
-          else
+          elseif (fraction_margin_tot( vj) >= 1._dp .and. u_perp < 0._dp) then
             scalars%gl_flux = scalars%gl_flux - L_c * u_perp * Hi_tot( vj) * 1.0E-09_dp ! [Gt/yr]
           end if
         end if
 
         ! Grounded marine front
-        if (ice%mask_cf_gr( vi) .and. mask_icefree_ocean_tot( vj)) THEN
+        if (fraction_margin_tot( vi) >= 1._dp .and. ice%mask_cf_gr( vi) .and. mask_icefree_ocean_tot( vj)) THEN
           scalars%cf_gr_flux = scalars%cf_gr_flux - L_c * max( 0._dp, u_perp) * Hi_tot( vi) * 1.0E-09_dp ! [Gt/yr]
         end if
 
         ! Floating calving front
-        if (ice%mask_cf_fl( vi) .and. mask_icefree_ocean_tot( vj)) THEN
+        if (fraction_margin_tot( vi) >= 1._dp .and. ice%mask_cf_fl( vi) .and. mask_icefree_ocean_tot( vj)) THEN
           scalars%cf_fl_flux = scalars%cf_fl_flux - L_c * max( 0._dp, u_perp) * Hi_tot( vi) * 1.0E-09_dp ! [Gt/yr]
         end if
 
         ! Land-terminating ice (grounded or floating)
-        if (ice%mask_margin( vi) .and. mask_icefree_land_tot( vj)) then
+        if (fraction_margin_tot( vi) >= 1._dp .and. ice%mask_margin( vi) .and. mask_icefree_land_tot( vj)) then
           scalars%margin_land_flux = scalars%margin_land_flux - L_c * max( 0._dp, u_perp) * Hi_tot( vi) * 1.0E-09_dp ! [Gt/yr]
         end if
 
         ! Marine-terminating ice (grounded or floating)
-        if (ice%mask_margin( vi) .and. mask_icefree_ocean_tot( vj)) then
+        if (fraction_margin_tot( vi) >= 1._dp .and. ice%mask_margin( vi) .and. mask_icefree_ocean_tot( vj)) then
           scalars%margin_ocean_flux = scalars%margin_ocean_flux - L_c * max( 0._dp, u_perp) * Hi_tot( vi) * 1.0E-09_dp ! [Gt/yr]
         end if
 

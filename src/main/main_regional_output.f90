@@ -387,6 +387,12 @@ CONTAINS
       CASE ('resolution')
         ! Do nothing - this is already part of the regular mesh data; only write this to the square grid output
 
+    ! ===== Effective ice thickness ======
+    ! ====================================
+
+      CASE ('Hi_eff')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'Hi_eff', region%ice%Hi_eff)
+
     ! ===== Reference geometries =====
     ! ================================
 
@@ -551,8 +557,8 @@ CONTAINS
         CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'fraction_gr', region%ice%fraction_gr)
       CASE ('fraction_gr_b')
         CALL write_to_field_multopt_mesh_dp_2D_b( region%mesh, filename, ncid, 'fraction_gr_b', region%ice%fraction_gr_b)
-      CASE ('fraction_cf')
-        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'fraction_cf', region%ice%fraction_cf)
+      CASE ('fraction_margin')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'fraction_margin', region%ice%fraction_margin)
 
     ! === Thermodynamics and rheology ===
     ! ===================================
@@ -814,6 +820,13 @@ CONTAINS
         CALL map_from_mesh_to_xy_grid_2D_minval( region%mesh, grid, d_mesh_vec_partial_2D, d_grid_vec_partial_2D)
         CALL write_to_field_multopt_grid_dp_2D_notime( grid, filename, ncid, 'resolution', d_grid_vec_partial_2D)
 
+    ! ===== Effective ice thickness ======
+    ! ====================================
+
+      CASE ('Hi_eff')
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%Hi_eff, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'Hi_eff', d_grid_vec_partial_2D)
+
     ! ===== Reference geometries =====
     ! ================================
 
@@ -951,7 +964,7 @@ CONTAINS
 
       CASE ('fraction_gr')
       CASE ('fraction_gr_b')
-      CASE ('fraction_cf')
+      CASE ('fraction_margin')
 
     ! === Thermodynamics and rheology ===
     ! ===================================
@@ -1657,6 +1670,12 @@ CONTAINS
       CASE ('resolution')
         ! Do nothing - this is already part of the regular mesh data; only write this to the square grid output
 
+    ! ===== Effective ice thickness ======
+    ! ====================================
+
+      CASE ('Hi_eff')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'Hi_eff', long_name = 'Effective ice thickness', units = 'm')
+
     ! ===== Reference geometries =====
     ! ================================
 
@@ -1775,8 +1794,8 @@ CONTAINS
         CALL add_field_mesh_dp_2D( filename, ncid, 'fraction_gr', long_name = 'Grounded area fractions of vertices', units = '0-1')
       CASE ('fraction_gr_b')
         CALL add_field_mesh_dp_2D_b( filename, ncid, 'fraction_gr_b', long_name = 'Grounded area fractions of triangles', units = '0-1')
-      CASE ('fraction_cf')
-        CALL add_field_mesh_dp_2D( filename, ncid, 'fraction_cf', long_name = 'Ice-covered area fractions of calving fronts', units = '0-1')
+      CASE ('fraction_margin')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'fraction_margin', long_name = 'Ice-covered area fractions of ice margins', units = '0-1')
 
     ! === Thermodynamics and rheology ===
     ! ===================================
@@ -2021,6 +2040,12 @@ CONTAINS
       CASE ('resolution')
         CALL add_field_grid_dp_2D_notime( filename, ncid, 'resolution', long_name = 'Mesh resolution (distance to nearest neighbour)', units = 'm')
 
+    ! ===== Effective ice thickness =====
+    ! ===================================
+
+      CASE ('Hi_eff')
+        CALL add_field_grid_dp_2D( filename, ncid, 'Hi_eff', long_name = 'Effective ice thickness', units = 'm')
+
     ! ===== Reference geometries =====
     ! ================================
 
@@ -2129,7 +2154,7 @@ CONTAINS
 
       CASE ('fraction_gr')
       CASE ('fraction_gr_b')
-      CASE ('fraction_cf')
+      CASE ('fraction_margin')
 
     ! === Thermodynamics and rheology ===
     ! ===================================

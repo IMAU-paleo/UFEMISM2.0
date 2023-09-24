@@ -43,6 +43,7 @@ CONTAINS
     ALLOCATE( ice%SL                          ( mesh%vi1:mesh%vi2        ))  ! [m] Sea level (geoid) elevation (w.r.t. PD sea level)
     ALLOCATE( ice%Hib                         ( mesh%vi1:mesh%vi2        ))  ! [m] Ice base elevation (w.r.t. PD sea level)
     ALLOCATE( ice%TAF                         ( mesh%vi1:mesh%vi2        ))  ! [m] Thickness above flotation
+    ALLOCATE( ice%Hi_eff                      ( mesh%vi1:mesh%vi2        ))  ! [m] Thickness above flotation
 
     ice%Hi                          = 0._dp
     ice%Hb                          = 0._dp
@@ -50,6 +51,7 @@ CONTAINS
     ice%SL                          = 0._dp
     ice%Hib                         = 0._dp
     ice%TAF                         = 0._dp
+    ice%Hi_eff                      = 0._dp
 
     ! Geometry changes
     ALLOCATE( ice%dHi                         ( mesh%vi1:mesh%vi2        ))  ! [m] Ice thickness difference (w.r.t. to reference)
@@ -119,11 +121,11 @@ CONTAINS
     ! Area fractions
     ALLOCATE( ice%fraction_gr                 ( mesh%vi1:mesh%vi2        ))  ! [0-1] Grounded area fractions of vertices
     ALLOCATE( ice%fraction_gr_b               ( mesh%ti1:mesh%ti2        ))  ! [0-1] Grounded area fractions of triangles
-    ALLOCATE( ice%fraction_cf                 ( mesh%vi1:mesh%vi2        ))  ! [0-1] Ice-covered area fractions of calving fronts
+    ALLOCATE( ice%fraction_margin             ( mesh%vi1:mesh%vi2        ))  ! [0-1] Ice-covered area fractions of calving fronts
 
     ice%fraction_gr                 = 0._dp
     ice%fraction_gr_b               = 0._dp
-    ice%fraction_cf                 = 0._dp
+    ice%fraction_margin             = 0._dp
 
     ! Sub-grid bedrock cumulative density functions (CDFs)
     ALLOCATE( ice%bedrock_cdf                 ( mesh%vi1:mesh%vi2, C%subgrid_bedrock_cdf_nbins))  ! [-] Sub-grid bedrock cumulative density functions on the a-grid (vertices)

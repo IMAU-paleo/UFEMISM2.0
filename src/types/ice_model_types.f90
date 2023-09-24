@@ -218,6 +218,7 @@ MODULE ice_model_types
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: SL                          ! [m] Sea level (geoid) elevation (w.r.t. PD sea level)
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: Hib                         ! [m] Ice base elevation (w.r.t. PD sea level)
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: TAF                         ! [m] Thickness above flotation
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: Hi_eff                      ! [m] Effective thickness of ice margins
 
     ! Geometry changes
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHi                         ! [m] Ice thickness difference (w.r.t. to reference)
@@ -256,7 +257,7 @@ MODULE ice_model_types
     ! Area fractions
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: fraction_gr                 ! [0-1] Grounded area fractions of vertices
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: fraction_gr_b               ! [0-1] Grounded area fractions of triangles
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: fraction_cf                 ! [0-1] Ice-covered area fractions of calving fronts
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: fraction_margin             ! [0-1] Ice-covered area fractions of ice margins
 
     ! Sub-grid bedrock cumulative density functions (CDFs)
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: bedrock_cdf                 ! [-] Sub-grid bedrock cumulative density functions on the a-grid (vertices)

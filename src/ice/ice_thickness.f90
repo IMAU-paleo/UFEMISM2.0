@@ -30,7 +30,7 @@ CONTAINS
 
 ! == The main routines, to be called from the ice dynamics module
 
-  SUBROUTINE calc_dHi_dt( mesh, Hi, Hb, SL, u_vav_b, v_vav_b, SMB, BMB, LMB, mask_noice, dt, dHi_dt, Hi_tplusdt, divQ, dHi_dt_target, dHi_dt_residual, BC_prescr_mask, BC_prescr_Hi)
+  SUBROUTINE calc_dHi_dt( mesh, Hi, Hb, SL, u_vav_b, v_vav_b, SMB, BMB, LMB, fraction_margin, mask_noice, dt, dHi_dt, Hi_tplusdt, divQ, dHi_dt_target, dHi_dt_residual, BC_prescr_mask, BC_prescr_Hi)
     ! Calculate ice thickness at time t+dt
 
     IMPLICIT NONE
@@ -45,6 +45,7 @@ CONTAINS
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)              :: SMB                   ! [m yr^-1] Surface mass balance
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)              :: BMB                   ! [m yr^-1] Basal   mass balance
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)              :: LMB                   ! [m yr^-1] Lateral mass balance
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)              :: fraction_margin       ! [0-1]     Sub-grid ice-filled fraction
     LOGICAL,  DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)              :: mask_noice            ! [-]       Mask of vertices where no ice is allowed
     REAL(dp),                               INTENT(INOUT)           :: dt                    ! [dt]      Time step
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)             :: dHi_dt                ! [m yr^-1] Ice thickness rate of change
@@ -76,11 +77,11 @@ CONTAINS
       RETURN
 
     ELSEIF (C%choice_ice_integration_method == 'explicit') THEN
-      CALL calc_dHi_dt_explicit(     mesh, Hi, Hb, SL, u_vav_b, v_vav_b, SMB, BMB, LMB, mask_noice, dt, dHi_dt, Hi_tplusdt, divQ, dHi_dt_target, dHi_dt_residual, BC_prescr_mask, BC_prescr_Hi)
+      CALL calc_dHi_dt_explicit(     mesh, Hi, Hb, SL, u_vav_b, v_vav_b, SMB, BMB, LMB, fraction_margin, mask_noice, dt, dHi_dt, Hi_tplusdt, divQ, dHi_dt_target, dHi_dt_residual, BC_prescr_mask, BC_prescr_Hi)
     ELSEIF (C%choice_ice_integration_method == 'implicit') THEN
-      CALL calc_dHi_dt_implicit(     mesh, Hi, Hb, SL, u_vav_b, v_vav_b, SMB, BMB, LMB, mask_noice, dt, dHi_dt, Hi_tplusdt, divQ, dHi_dt_target, dHi_dt_residual, BC_prescr_mask, BC_prescr_Hi)
+      CALL calc_dHi_dt_implicit(     mesh, Hi, Hb, SL, u_vav_b, v_vav_b, SMB, BMB, LMB, fraction_margin, mask_noice, dt, dHi_dt, Hi_tplusdt, divQ, dHi_dt_target, dHi_dt_residual, BC_prescr_mask, BC_prescr_Hi)
     ELSEIF (C%choice_ice_integration_method == 'semi-implicit') THEN
-      CALL calc_dHi_dt_semiimplicit( mesh, Hi, Hb, SL, u_vav_b, v_vav_b, SMB, BMB, LMB, mask_noice, dt, dHi_dt, Hi_tplusdt, divQ, dHi_dt_target, dHi_dt_residual, BC_prescr_mask, BC_prescr_Hi)
+      CALL calc_dHi_dt_semiimplicit( mesh, Hi, Hb, SL, u_vav_b, v_vav_b, SMB, BMB, LMB, fraction_margin, mask_noice, dt, dHi_dt, Hi_tplusdt, divQ, dHi_dt_target, dHi_dt_residual, BC_prescr_mask, BC_prescr_Hi)
     ELSE
       CALL crash('unknown choice_ice_integration_method "' // TRIM( C%choice_ice_integration_method) // '"!')
     END IF
@@ -111,7 +112,7 @@ CONTAINS
 
   END SUBROUTINE calc_dHi_dt
 
-  SUBROUTINE calc_dHi_dt_explicit( mesh, Hi, Hb, SL, u_vav_b, v_vav_b, SMB, BMB, LMB, mask_noice, dt, dHi_dt, Hi_tplusdt, divQ, dHi_dt_target, dHi_dt_residual, BC_prescr_mask, BC_prescr_Hi)
+  SUBROUTINE calc_dHi_dt_explicit( mesh, Hi, Hb, SL, u_vav_b, v_vav_b, SMB, BMB, LMB, fraction_margin, mask_noice, dt, dHi_dt, Hi_tplusdt, divQ, dHi_dt_target, dHi_dt_residual, BC_prescr_mask, BC_prescr_Hi)
     ! Calculate ice thickness rates of change (dH/dt)
     !
     ! Use a time-explicit discretisation scheme for the ice fluxes
@@ -149,6 +150,7 @@ CONTAINS
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)              :: SMB                   ! [m yr^-1] Surface mass balance
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)              :: BMB                   ! [m yr^-1] Basal   mass balance
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)              :: LMB                   ! [m yr^-1] Lateral mass balance
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)              :: fraction_margin       ! [0-1]     Sub-grid ice-filled fraction
     LOGICAL,  DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)              :: mask_noice            ! [-]       Mask of vertices where no ice is allowed
     REAL(dp),                               INTENT(INOUT)           :: dt                    ! [dt]      Time step
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)             :: dHi_dt                ! [m yr^-1] Ice thickness rate of change
@@ -169,7 +171,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Calculate the ice flux divergence matrix M_divQ using an upwind scheme
-    CALL calc_ice_flux_divergence_matrix_upwind( mesh, u_vav_b, v_vav_b, M_divQ)
+    CALL calc_ice_flux_divergence_matrix_upwind( mesh, u_vav_b, v_vav_b, fraction_margin, M_divQ)
 
     ! Calculate the ice flux divergence div(Q)
     CALL multiply_CSR_matrix_with_vector_1D( M_divQ, Hi, divQ)
@@ -219,7 +221,7 @@ CONTAINS
 
   END SUBROUTINE calc_dHi_dt_explicit
 
-  SUBROUTINE calc_dHi_dt_implicit( mesh, Hi, Hb, SL, u_vav_b, v_vav_b, SMB, BMB, LMB, mask_noice, dt, dHi_dt, Hi_tplusdt, divQ, dHi_dt_target, dHi_dt_residual, BC_prescr_mask, BC_prescr_Hi)
+  SUBROUTINE calc_dHi_dt_implicit( mesh, Hi, Hb, SL, u_vav_b, v_vav_b, SMB, BMB, LMB, fraction_margin, mask_noice, dt, dHi_dt, Hi_tplusdt, divQ, dHi_dt_target, dHi_dt_residual, BC_prescr_mask, BC_prescr_Hi)
     ! Calculate ice thickness rates of change (dH/dt)
     !
     ! Use a time-implicit discretisation scheme for the ice fluxes
@@ -272,6 +274,7 @@ CONTAINS
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)              :: SMB                   ! [m yr^-1] Surface mass balance
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)              :: BMB                   ! [m yr^-1] Basal   mass balance
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)              :: LMB                   ! [m yr^-1] Lateral mass balance
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)              :: fraction_margin       ! [0-1]     Sub-grid ice-filled fraction
     LOGICAL,  DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)              :: mask_noice            ! [-]       Mask of vertices where no ice is allowed
     REAL(dp),                               INTENT(INOUT)           :: dt                    ! [dt]      Time step
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)             :: dHi_dt                ! [m yr^-1] Ice thickness rate of change
@@ -295,7 +298,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Calculate the ice flux divergence matrix M_divQ using an upwind scheme
-    CALL calc_ice_flux_divergence_matrix_upwind( mesh, u_vav_b, v_vav_b, M_divQ)
+    CALL calc_ice_flux_divergence_matrix_upwind( mesh, u_vav_b, v_vav_b, fraction_margin, M_divQ)
 
     ! Calculate the ice flux divergence div(Q)
     CALL multiply_CSR_matrix_with_vector_1D( M_divQ, Hi, divQ)
@@ -367,7 +370,7 @@ CONTAINS
 
   END SUBROUTINE calc_dHi_dt_implicit
 
-  SUBROUTINE calc_dHi_dt_semiimplicit( mesh, Hi, Hb, SL, u_vav_b, v_vav_b, SMB, BMB, LMB, mask_noice, dt, dHi_dt, Hi_tplusdt, divQ, dHi_dt_target, dHi_dt_residual, BC_prescr_mask, BC_prescr_Hi)
+  SUBROUTINE calc_dHi_dt_semiimplicit( mesh, Hi, Hb, SL, u_vav_b, v_vav_b, SMB, BMB, LMB, fraction_margin, mask_noice, dt, dHi_dt, Hi_tplusdt, divQ, dHi_dt_target, dHi_dt_residual, BC_prescr_mask, BC_prescr_Hi)
     ! Calculate ice thickness rates of change (dH/dt)
     !
     ! Use a semi-implicit time discretisation scheme for the ice fluxes
@@ -426,6 +429,7 @@ CONTAINS
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)              :: SMB                   ! [m yr^-1] Surface mass balance
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)              :: BMB                   ! [m yr^-1] Basal   mass balance
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)              :: LMB                   ! [m yr^-1] Lateral mass balance
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)              :: fraction_margin       ! [0-1]     Sub-grid ice-filled fraction
     LOGICAL,  DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)              :: mask_noice            ! [-]       Mask of vertices where no ice is allowed
     REAL(dp),                               INTENT(INOUT)           :: dt                    ! [dt]      Time step
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)             :: dHi_dt                ! [m yr^-1] Ice thickness rate of change
@@ -450,7 +454,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Calculate the ice flux divergence matrix M_divQ using an upwind scheme
-    CALL calc_ice_flux_divergence_matrix_upwind( mesh, u_vav_b, v_vav_b, M_divQ)
+    CALL calc_ice_flux_divergence_matrix_upwind( mesh, u_vav_b, v_vav_b, fraction_margin, M_divQ)
 
     ! Calculate the ice flux divergence div(Q)
     CALL multiply_CSR_matrix_with_vector_1D( M_divQ, Hi, divQ)
@@ -523,7 +527,7 @@ CONTAINS
 
   END SUBROUTINE calc_dHi_dt_semiimplicit
 
-  SUBROUTINE calc_ice_flux_divergence_matrix_upwind( mesh, u_vav_b, v_vav_b, M_divQ)
+  SUBROUTINE calc_ice_flux_divergence_matrix_upwind( mesh, u_vav_b, v_vav_b, fraction_margin, M_divQ)
     ! Calculate the ice flux divergence matrix M_divQ using an upwind scheme
     !
     ! The vertically averaged ice flux divergence represents the net ice volume (which,
@@ -541,12 +545,14 @@ CONTAINS
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
     REAL(dp), DIMENSION(mesh%ti1:mesh%ti1), INTENT(IN)    :: u_vav_b
     REAL(dp), DIMENSION(mesh%ti1:mesh%ti1), INTENT(IN)    :: v_vav_b
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: fraction_margin
     TYPE(type_sparse_matrix_CSR_dp),        INTENT(OUT)   :: M_divQ
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'calc_ice_flux_divergence_matrix_upwind'
     REAL(dp), DIMENSION(mesh%ei1:mesh%ei2)                :: u_vav_c, v_vav_c
     REAL(dp), DIMENSION(mesh%nE)                          :: u_vav_c_tot, v_vav_c_tot
+    REAL(dp), DIMENSION(mesh%nV)                          :: fraction_margin_tot
     INTEGER                                               :: ncols, ncols_loc, nrows, nrows_loc, nnz_est_proc
     INTEGER                                               :: vi, ci, ei, vj
     REAL(dp)                                              :: A_i, L_c
@@ -560,6 +566,7 @@ CONTAINS
     CALL map_velocities_from_b_to_c_2D( mesh, u_vav_b, v_vav_b, u_vav_c, v_vav_c)
     CALL gather_to_all_dp_1D( u_vav_c, u_vav_c_tot)
     CALL gather_to_all_dp_1D( v_vav_c, v_vav_c_tot)
+    CALL gather_to_all_dp_1D( fraction_margin, fraction_margin_tot)
 
     ! == Initialise the matrix using the native UFEMISM CSR-matrix format
     ! ===================================================================
@@ -602,8 +609,21 @@ CONTAINS
         u_perp = u_vav_c_tot( ei) * D_x/D + v_vav_c_tot( ei) * D_y/D
 
         ! Calculate matrix coefficients
-        cM_divQ( 0 ) = cM_divQ( 0) + L_c * MAX( 0._dp, u_perp) / A_i
-        cM_divQ( ci) =               L_c * MIN( 0._dp, u_perp) / A_i
+        ! =============================
+
+        ! u_perp > 0: flow is exiting this vertex into vertex vj
+        IF (fraction_margin_tot( vi) >= 1._dp) THEN
+          cM_divQ( 0) = cM_divQ( 0) + L_c * MAX( 0._dp, u_perp) / A_i
+        ELSE
+          ! If this vertex is not completely covering its assigned area, then don't let ice out of it yet.
+        END IF
+
+        ! u_perp < 0: flow is entering this vertex from vertex vj
+        IF (fraction_margin_tot( vj) >= 1._dp) THEN
+          cM_divQ( ci) = L_c * MIN( 0._dp, u_perp) / A_i
+        ELSE
+          ! If that vertex is not completely covering its assigned area, then don't let ice out of it yet.
+        END IF
 
       END DO ! DO ci = 1, mesh%nC( vi)
 
@@ -1127,7 +1147,122 @@ CONTAINS
 
   END SUBROUTINE calc_flux_limited_timestep
 
+! == Effective ice thickness
+! ==========================
+
+  subroutine calc_effective_thickness( mesh, ice, Hi)
+    ! Determine the ice-filled fraction and effective ice thickness of floating margin pixels
+
+    implicit none
+
+    ! In- and output variables
+    type(type_mesh),      intent(in)                      :: mesh
+    type(type_ice_model), intent(inout)                   :: ice
+    real(dp), dimension(mesh%vi1:mesh%vi2), intent(in)    :: Hi
+
+    ! Local variables:
+    character(len=256), parameter                         :: routine_name = 'calc_effective_thickness'
+    integer                                               :: vi, ci, vc
+    real(dp)                                              :: Hi_neighbour_max
+    real(dp), dimension(mesh%nV)                          :: Hi_tot
+    logical,  dimension(mesh%nV)                          :: mask_margin_tot, mask_floating_ice_tot, mask_grounded_ice_tot
+
+    ! == Initialisation
+    ! =================
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Collect Hi from all processes
+    call gather_to_all_dp_1D( Hi, Hi_tot)
+    call gather_to_all_logical_1D( ice%mask_floating_ice, mask_floating_ice_tot)
+    call gather_to_all_logical_1D( ice%mask_grounded_ice, mask_grounded_ice_tot)
+
+    ! Initialise values
+    do vi = mesh%vi1, mesh%vi2
+      if (Hi_tot( vi) > 0._dp) then
+        ice%fraction_margin( vi) = 1._dp
+        ice%Hi_eff( vi) = Hi_tot( vi)
+      else
+        ice%fraction_margin( vi) = 0._dp
+        ice%Hi_eff( vi) = 0._dp
+      end if
+    end do
+
+    ! == Detect margins
+    ! =================
+
+    ! Initialise
+    mask_margin_tot = .false.
+
+    do vi = mesh%vi1, mesh%vi2
+      do ci = 1, mesh%nC( vi)
+        vc = mesh%C( vi,ci)
+        if (Hi_tot( vi) > 0._dp .and. Hi_tot( vc) == 0._dp) then
+          mask_margin_tot( vi) = .true.
+        end if
+      end do
+    end do
+
+    ! === Compute ===
+    ! ===============
+
+    do vi = mesh%vi1, mesh%vi2
+
+      ! Only check margin vertices
+      if (.not. mask_margin_tot( vi)) then
+        ! Simply use initialised values
+        cycle
+      end if
+
+      ! === Max neighbour thickness ===
+      ! ===============================
+
+      ! Find the max ice thickness among non-margin neighbours
+      Hi_neighbour_max = 0._dp
+      do ci = 1, mesh%nC( vi)
+        vc = mesh%C( vi,ci)
+
+        ! Ignore margin neighbours
+        if (mask_margin_tot( vc)) then
+          cycle
+        end if
+
+        ! Floating margins check for floating neighbours
+        if (mask_floating_ice_tot( vi) .and. mask_floating_ice_tot( vc)) then
+          Hi_neighbour_max = max( Hi_neighbour_max, Hi_tot( vc))
+        end if
+
+        ! ! Grounded margins check for grounded neighbours
+        ! if (mask_grounded_ice_tot( vi) .and. mask_grounded_ice_tot( vc)) then
+        !   Hi_neighbour_max = max( Hi_neighbour_max, Hi_tot( vc))
+        ! end if
+
+      end do
+
+      ! === Effective ice thickness ===
+      ! ===============================
+
+      ! Only apply if the thickest non-margin neighbour is thicker than
+      ! this vertex. Otherwise, simply use initialised values.
+      if (Hi_neighbour_max > Hi_tot( vi)) then
+        ! Calculate sub-grid ice-filled fraction
+        ice%Hi_eff( vi) = Hi_neighbour_max
+        ice%fraction_margin( vi) = Hi_tot( vi) / ice%Hi_eff( vi)
+      end if
+
+    end do
+
+    ! === Finalisation ===
+    ! ====================
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine calc_effective_thickness
+
 ! == Target dHi_dt initialisation
+! ===============================
 
   SUBROUTINE initialise_dHi_dt_target( mesh, ice, region_name)
     ! Prescribe a target dHi_dt from a file without a time dimension
