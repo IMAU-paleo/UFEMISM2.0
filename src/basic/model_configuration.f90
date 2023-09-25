@@ -270,7 +270,17 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: choice_stress_balance_approximation_config   = 'DIVA'                           ! Choice of stress balance approximation: "none" (= no flow, though geometry can still change due to mass balance), "SIA", "SSA", "SIA/SSA", "DIVA", "BPA"
     CHARACTER(LEN=256)  :: choice_hybrid_SIASSA_scheme_config           = 'add'                            ! Choice of scheme for combining SIA and SSA velocities in the hybrid approach
     LOGICAL             :: do_include_SSADIVA_crossterms_config         = .TRUE.                           ! Whether or not to include the gradients of the effective viscosity (the "cross-terms") in the solution of the SSA/DIVA
-    CHARACTER(LEN=256)  :: choice_hybrid_DIVA_BPA_mask_config           = ''                               ! How to determine where to solve the DIVA and where the BPA in the hybrid DIVA/BPA
+
+    ! Hybrid DIVA/BPA
+    CHARACTER(LEN=256)  :: choice_hybrid_DIVA_BPA_mask_NAM_config       = ''                               ! How to determine where to solve the DIVA and where the BPA in the hybrid DIVA/BPA for North America
+    CHARACTER(LEN=256)  :: choice_hybrid_DIVA_BPA_mask_EAS_config       = ''                               ! How to determine where to solve the DIVA and where the BPA in the hybrid DIVA/BPA for Eurasia
+    CHARACTER(LEN=256)  :: choice_hybrid_DIVA_BPA_mask_GRL_config       = ''                               ! How to determine where to solve the DIVA and where the BPA in the hybrid DIVA/BPA for Greenland
+    CHARACTER(LEN=256)  :: choice_hybrid_DIVA_BPA_mask_ANT_config       = ''                               ! How to determine where to solve the DIVA and where the BPA in the hybrid DIVA/BPA for Antarctica
+
+    CHARACTER(LEN=256)  :: filename_hybrid_DIVA_BPA_mask_NAM_config     = ''                               ! Path to a file containing a mask that describes where to solve the DIVA and where the BPA in the hybrid DIVA/BPA for North America
+    CHARACTER(LEN=256)  :: filename_hybrid_DIVA_BPA_mask_EAS_config     = ''                               ! Path to a file containing a mask that describes where to solve the DIVA and where the BPA in the hybrid DIVA/BPA for Eurasia
+    CHARACTER(LEN=256)  :: filename_hybrid_DIVA_BPA_mask_GRL_config     = ''                               ! Path to a file containing a mask that describes where to solve the DIVA and where the BPA in the hybrid DIVA/BPA for Greenland
+    CHARACTER(LEN=256)  :: filename_hybrid_DIVA_BPA_mask_ANT_config     = ''                               ! Path to a file containing a mask that describes where to solve the DIVA and where the BPA in the hybrid DIVA/BPA for Antarctica
 
     ! Initialisation
     CHARACTER(LEN=256)  :: choice_initial_velocity_NAM_config           = 'zero'                           ! Can be 'zero', 'read_from_file'
@@ -972,7 +982,17 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: choice_stress_balance_approximation
     CHARACTER(LEN=256)  :: choice_hybrid_SIASSA_scheme
     LOGICAL             :: do_include_SSADIVA_crossterms
-    CHARACTER(LEN=256)  :: choice_hybrid_DIVA_BPA_mask
+
+    ! Hybrid DIVA/BPA
+    CHARACTER(LEN=256)  :: choice_hybrid_DIVA_BPA_mask_NAM
+    CHARACTER(LEN=256)  :: choice_hybrid_DIVA_BPA_mask_EAS
+    CHARACTER(LEN=256)  :: choice_hybrid_DIVA_BPA_mask_GRL
+    CHARACTER(LEN=256)  :: choice_hybrid_DIVA_BPA_mask_ANT
+
+    CHARACTER(LEN=256)  :: filename_hybrid_DIVA_BPA_mask_NAM
+    CHARACTER(LEN=256)  :: filename_hybrid_DIVA_BPA_mask_EAS
+    CHARACTER(LEN=256)  :: filename_hybrid_DIVA_BPA_mask_GRL
+    CHARACTER(LEN=256)  :: filename_hybrid_DIVA_BPA_mask_ANT
 
     ! Initialisation
     CHARACTER(LEN=256)  :: choice_initial_velocity_NAM
@@ -1746,7 +1766,14 @@ CONTAINS
       choice_stress_balance_approximation_config                  , &
       choice_hybrid_SIASSA_scheme_config                          , &
       do_include_SSADIVA_crossterms_config                        , &
-      choice_hybrid_DIVA_BPA_mask_config                          , &
+      choice_hybrid_DIVA_BPA_mask_NAM_config                      , &
+      choice_hybrid_DIVA_BPA_mask_EAS_config                      , &
+      choice_hybrid_DIVA_BPA_mask_GRL_config                      , &
+      choice_hybrid_DIVA_BPA_mask_ANT_config                      , &
+      filename_hybrid_DIVA_BPA_mask_NAM_config                    , &
+      filename_hybrid_DIVA_BPA_mask_EAS_config                    , &
+      filename_hybrid_DIVA_BPA_mask_GRL_config                    , &
+      filename_hybrid_DIVA_BPA_mask_ANT_config                    , &
       choice_initial_velocity_NAM_config                          , &
       choice_initial_velocity_EAS_config                          , &
       choice_initial_velocity_GRL_config                          , &
@@ -2314,7 +2341,17 @@ CONTAINS
     C%choice_stress_balance_approximation                    = choice_stress_balance_approximation_config
     C%choice_hybrid_SIASSA_scheme                            = choice_hybrid_SIASSA_scheme_config
     C%do_include_SSADIVA_crossterms                          = do_include_SSADIVA_crossterms_config
-    C%choice_hybrid_DIVA_BPA_mask                            = choice_hybrid_DIVA_BPA_mask_config
+
+    ! Hybrid DIVA/BPA
+    C%choice_hybrid_DIVA_BPA_mask_NAM                        = choice_hybrid_DIVA_BPA_mask_NAM_config
+    C%choice_hybrid_DIVA_BPA_mask_EAS                        = choice_hybrid_DIVA_BPA_mask_EAS_config
+    C%choice_hybrid_DIVA_BPA_mask_GRL                        = choice_hybrid_DIVA_BPA_mask_GRL_config
+    C%choice_hybrid_DIVA_BPA_mask_ANT                        = choice_hybrid_DIVA_BPA_mask_ANT_config
+
+    C%filename_hybrid_DIVA_BPA_mask_NAM                      = filename_hybrid_DIVA_BPA_mask_NAM_config
+    C%filename_hybrid_DIVA_BPA_mask_EAS                      = filename_hybrid_DIVA_BPA_mask_EAS_config
+    C%filename_hybrid_DIVA_BPA_mask_GRL                      = filename_hybrid_DIVA_BPA_mask_GRL_config
+    C%filename_hybrid_DIVA_BPA_mask_ANT                      = filename_hybrid_DIVA_BPA_mask_ANT_config
 
     ! Initialisation
     C%choice_initial_velocity_NAM                            = choice_initial_velocity_NAM_config

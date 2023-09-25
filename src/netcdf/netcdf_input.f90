@@ -17,14 +17,17 @@ MODULE netcdf_input
   USE mpi_basic                                              , ONLY: par, cerr, ierr, MPI_status, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
-  USE mpi_distributed_memory                                 , ONLY: distribute_from_master_dp_1D, distribute_from_master_dp_2D
+  USE mpi_distributed_memory                                 , ONLY: distribute_from_master_dp_1D , distribute_from_master_dp_2D, &
+                                                                     distribute_from_master_int_1D, distribute_from_master_int_2D
   USE grid_basic                                             , ONLY: type_grid, calc_secondary_grid_data, deallocate_grid, &
+                                                                     distribute_gridded_data_from_master_int_2D, distribute_gridded_data_from_master_int_3D, &
                                                                      distribute_gridded_data_from_master_dp_2D, distribute_gridded_data_from_master_dp_3D
   USE grid_lonlat_basic                                      , ONLY: type_grid_lonlat, calc_lonlat_field_to_vector_form_translation_tables, &
                                                                      distribute_lonlat_gridded_data_from_master_dp_2D, deallocate_lonlat_grid, &
                                                                      distribute_lonlat_gridded_data_from_master_dp_3D
   USE math_utilities                                         , ONLY: permute_2D_int, permute_2D_dp, permute_3D_int, permute_3D_dp, &
-                                                                     flip_1D_dp, flip_2D_x1_dp, flip_2D_x2_dp, flip_3D_x1_dp, flip_3D_x2_dp, flip_3D_x3_dp
+                                                                     flip_1D_int, flip_2D_x1_int, flip_2D_x2_int, flip_3D_x1_int, flip_3D_x2_int, flip_3D_x3_int, &
+                                                                     flip_1D_dp , flip_2D_x1_dp , flip_2D_x2_dp , flip_3D_x1_dp , flip_3D_x2_dp , flip_3D_x3_dp
   USE mesh_types                                             , ONLY: type_mesh
   USE mesh_memory                                            , ONLY: allocate_mesh_primary, deallocate_mesh
   USE mesh_utilities                                         , ONLY: check_mesh
@@ -601,6 +604,156 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE read_field_from_xy_file_2D
+
+  SUBROUTINE read_field_from_xy_file_2D_int(         filename, field_name_options, d_grid_vec_partial, time_to_read)
+    ! Read a 2-D data field from a NetCDF file on an x/y-grid
+    !
+    ! NOTE: the grid should be read before, and memory allocated for d_grid_vec_partial!
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    CHARACTER(LEN=*),                        INTENT(IN)    :: filename
+    CHARACTER(LEN=*),                        INTENT(IN)    :: field_name_options
+    INTEGER,  DIMENSION(:    ),              INTENT(OUT)   :: d_grid_vec_partial
+    REAL(dp),                   OPTIONAL,    INTENT(IN)    :: time_to_read
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'read_field_from_xy_file_2D_int'
+    INTEGER                                                :: ncid
+    TYPE(type_grid)                                        :: grid_loc
+    INTEGER                                                :: id_var
+    CHARACTER(LEN=256)                                     :: var_name
+    CHARACTER(LEN=256)                                     :: indexing, xdir, ydir
+    INTEGER,  DIMENSION(:,:  ), ALLOCATABLE                :: d_grid
+    INTEGER,  DIMENSION(:,:,:), ALLOCATABLE                :: d_grid_with_time
+    INTEGER                                                :: ti
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+  ! == Read grid and data from file
+  ! ===============================
+
+    ! Open the NetCDF file
+    CALL open_existing_netcdf_file_for_reading( filename, ncid)
+
+    ! Set up the grid from the file
+    CALL setup_xy_grid_from_file( filename, ncid, grid_loc)
+
+    ! Look for the specified variable in the file
+    CALL inquire_var_multopt( filename, ncid, field_name_options, id_var, var_name = var_name)
+    IF (id_var == -1) CALL crash('couldnt find any of the options "' // TRIM( field_name_options) // '" in file "' // TRIM( filename)  // '"!')
+
+    ! Check if the variable has the required dimensions
+    CALL check_xy_grid_field_int_2D( filename, ncid, var_name, should_have_time = PRESENT( time_to_read))
+
+    ! Determine indexing and dimension directions
+    CALL determine_xy_indexing( filename, ncid, var_name, indexing, xdir, ydir)
+
+    IF     (indexing == 'xy') THEN
+
+      ! Allocate memory
+      if (par%master) then
+        ALLOCATE( d_grid( grid_loc%nx, grid_loc%ny))
+      else
+        allocate( d_grid( 0,0))
+      end if
+
+      ! Read data from file
+      IF (.NOT. PRESENT( time_to_read)) THEN
+        CALL read_var_master_int_2D( filename, ncid, id_var, d_grid)
+      ELSE
+        ! Allocate memory
+        IF (par%master) ALLOCATE( d_grid_with_time( grid_loc%nx, grid_loc%ny, 1))
+        ! Find out which timeframe to read
+        CALL find_timeframe( filename, ncid, time_to_read, ti)
+        ! Read data
+        CALL read_var_master_int_3D( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, ti /), count = (/ grid_loc%nx, grid_loc%ny, 1 /) )
+        ! Copy to output memory
+        IF (par%master) d_grid = d_grid_with_time( :,:,1)
+        ! Clean up after yourself
+        IF (par%master) DEALLOCATE( d_grid_with_time)
+      END IF
+
+    ELSEIF (indexing == 'yx') THEN
+
+      ! Allocate memory
+      if (par%master) then
+        ALLOCATE( d_grid( grid_loc%ny, grid_loc%nx))
+      else
+        allocate( d_grid( 0,0))
+      end if
+
+      ! Read data from file
+      IF (.NOT. PRESENT( time_to_read)) THEN
+        CALL read_var_master_int_2D( filename, ncid, id_var, d_grid)
+      ELSE
+        ! Allocate memory
+        IF (par%master) ALLOCATE( d_grid_with_time( grid_loc%ny, grid_loc%nx, 1))
+        ! Find out which timeframe to read
+        CALL find_timeframe( filename, ncid, time_to_read, ti)
+        ! Read data
+        CALL read_var_master_int_3D( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, ti /), count = (/ grid_loc%ny, grid_loc%nx, 1 /) )
+        ! Copy to output memory
+        IF (par%master) d_grid = d_grid_with_time( :,:,1)
+        ! Clean up after yourself
+        IF (par%master) DEALLOCATE( d_grid_with_time)
+      END IF
+
+    ELSE
+      CALL crash('unknown indexing = "' // TRIM( indexing) // '"!')
+    END IF
+
+    ! Close the NetCDF file
+    CALL close_netcdf_file( ncid)
+
+  ! == Perform necessary corrections to the gridded data
+  ! ====================================================
+
+    ! Indexing
+    IF     (indexing == 'xy') THEN
+      ! No need to do anything
+    ELSEIF (indexing == 'yx') THEN
+      IF (par%master) CALL permute_2D_int( d_grid, map = [2,1])
+    ELSE
+      CALL crash('unknown indexing = "' // TRIM( indexing) // '"!')
+    END IF
+
+    ! xdir
+    IF     (xdir == 'normal') THEN
+      ! No need to do anything
+    ELSEIF (xdir == 'reverse') THEN
+      CALL flip_1D_dp( grid_loc%x)
+      IF (par%master) CALL flip_2D_x1_int( d_grid)
+    ELSE
+      CALL crash('unknown xdir = "' // TRIM( xdir) // '"!')
+    END IF
+
+    ! ydir
+    IF     (ydir == 'normal') THEN
+      ! No need to do anything
+    ELSEIF (ydir == 'reverse') THEN
+      CALL flip_1D_dp( grid_loc%y)
+      IF (par%master) CALL flip_2D_x2_int( d_grid)
+    ELSE
+      CALL crash('unknown ydir = "' // TRIM( ydir) // '"!')
+    END IF
+
+  ! == Distribute gridded data from the master to all processes in partial vector form
+  ! ==================================================================================
+
+    ! Distribute data
+    CALL distribute_gridded_data_from_master_int_2D( grid_loc, d_grid, d_grid_vec_partial)
+
+    ! Clean up after yourself
+    CALL deallocate_grid( grid_loc)
+    DEALLOCATE( d_grid)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE read_field_from_xy_file_2D_int
 
   SUBROUTINE read_field_from_xy_file_2D_monthly(     filename, field_name_options, d_grid_vec_partial, time_to_read)
     ! Read a 2-D monthly data field from a NetCDF file on an x/y-grid
