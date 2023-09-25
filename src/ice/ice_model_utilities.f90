@@ -19,6 +19,9 @@ MODULE ice_model_utilities
   USE mesh_types                                             , ONLY: type_mesh
   USE ice_model_types                                        , ONLY: type_ice_model
   USE reference_geometries                                   , ONLY: type_reference_geometry
+  USE SMB_model_types                                        , ONLY: type_SMB_model
+  USE BMB_model_types                                        , ONLY: type_BMB_model
+  USE LMB_model_types                                        , ONLY: type_LMB_model
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_logical_1D
   USE math_utilities                                         , ONLY: is_floating, triangle_area
   USE mesh_remapping                                         , ONLY: Atlas, create_map_from_xy_grid_to_mesh, create_map_from_xy_grid_to_mesh_triangles
@@ -28,7 +31,7 @@ MODULE ice_model_utilities
   USE mesh_operators                                         , ONLY: ddx_a_a_2D, ddy_a_a_2D, map_a_b_2D, ddx_a_b_2D, ddy_a_b_2D, &
                                                                      ddx_b_a_2D, ddy_b_a_2D
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_1D
-  USE mesh_utilities                                         , ONLY: calc_Voronoi_cell, interpolate_to_point_dp_2D
+  USE mesh_utilities                                         , ONLY: calc_Voronoi_cell, interpolate_to_point_dp_2D, extrapolate_Gaussian
   USE netcdf_input                                           , ONLY: read_field_from_mesh_file_3D_CDF, read_field_from_mesh_file_3D_b_CDF
 
   IMPLICIT NONE
@@ -1876,6 +1879,211 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE alter_ice_thickness
+
+  SUBROUTINE MB_inversion( mesh, ice, SMB, BMB, LMB, dHi_dt_predicted, Hi_predicted, dt, time, region_name)
+    ! Calculate the basal mass balance
+    !
+    ! Use an inversion based on the computed dHi_dt
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh
+    TYPE(type_ice_model),                   INTENT(IN)    :: ice
+    TYPE(type_SMB_model),                   INTENT(IN)    :: SMB
+    TYPE(type_BMB_model),                   INTENT(INOUT) :: BMB
+    TYPE(type_LMB_model),                   INTENT(INOUT) :: LMB
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(INOUT) :: dHi_dt_predicted
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(INOUT) :: Hi_predicted
+    REAL(dp),                               INTENT(IN)    :: dt
+    REAL(dp),                               INTENT(IN)    :: time
+    CHARACTER(LEN=3)                                      :: region_name
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'MB_inversion'
+    INTEGER                                               :: vi
+    CHARACTER(LEN=256)                                    :: choice_BMB_model, choice_LMB_model
+    LOGICAL                                               :: do_BMB_inversion, do_LMB_inversion
+    INTEGER,  DIMENSION(mesh%vi1:mesh%vi2)                :: mask
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: previous_field
+    REAL(dp)                                              :: value_change
+
+
+    ! == Initialisation
+    ! =================
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Determine filename for this model region
+    SELECT CASE (region_name)
+      CASE ('NAM')
+        choice_BMB_model  = C%choice_BMB_model_NAM
+        choice_LMB_model  = C%choice_LMB_model_NAM
+      CASE ('EAS')
+        choice_BMB_model  = C%choice_BMB_model_EAS
+        choice_LMB_model  = C%choice_LMB_model_EAS
+      CASE ('GRL')
+        choice_BMB_model  = C%choice_BMB_model_GRL
+        choice_LMB_model  = C%choice_LMB_model_GRL
+      CASE ('ANT')
+        choice_BMB_model  = C%choice_BMB_model_ANT
+        choice_LMB_model  = C%choice_LMB_model_ANT
+      CASE DEFAULT
+        CALL crash('unknown region_name "' // TRIM( region_name) // '"!')
+    END SELECT
+
+    do_BMB_inversion = .FALSE.
+    do_LMB_inversion = .FALSE.
+
+    ! Check whether we want a BMB inversion
+    IF (choice_BMB_model == 'inverted' .AND. &
+        time >= C%BMB_inversion_t_start .AND. &
+        time <= C%BMB_inversion_t_end) THEN
+      do_BMB_inversion = .TRUE.
+    END IF
+
+    ! Check whether we want a LMB inversion
+    IF (choice_LMB_model == 'inverted' .AND. &
+        time >= C%LMB_inversion_t_start .AND. &
+        time <= C%LMB_inversion_t_end) THEN
+      do_LMB_inversion = .TRUE.
+    END IF
+
+    ! == BMB: first pass
+    ! ==================
+
+    ! Store previous values
+    previous_field = BMB%BMB
+
+    ! Initialise extrapolation mask
+    mask = 0
+
+    DO vi = mesh%vi1, mesh%vi2
+
+      IF (.NOT. do_BMB_inversion) CYCLE
+
+      ! For these areas, use dHi_dt to get an "inversion" of equilibrium BMB.
+      IF (ice%mask_cf_fl( vi)) THEN
+
+        mask( vi) = 1
+
+      ELSEIF (ice%mask_floating_ice( vi)) THEN
+
+        ! Basal melt will account for all change here
+        BMB%BMB( vi) = BMB%BMB( vi) - dHi_dt_predicted( vi)
+
+        ! Adjust rate of ice thickness change dHi/dt to compensate the change
+        dHi_dt_predicted( vi) = 0._dp
+
+        ! Adjust corrected ice thickness to compensate the change
+        Hi_predicted( vi) = ice%Hi_prev( vi)
+
+        mask( vi) = 2
+
+      ELSEIF (ice%mask_icefree_ocean( vi)) THEN
+
+        ! For open ocean, asume that all SMB melts
+        BMB%BMB( vi) = -SMB%SMB( vi)
+
+        ! Compute change of value
+        value_change = BMB%BMB( vi) - previous_field( vi)
+
+        ! Adjust rate of ice thickness change dHi/dt to compensate the change
+        dHi_dt_predicted( vi) = dHi_dt_predicted( vi) + value_change
+
+        ! Adjust corrected ice thickness to compensate the change
+        Hi_predicted( vi) = ice%Hi_prev( vi) + dHi_dt_predicted( vi) * dt
+
+        mask( vi) = 0
+
+      ELSE
+        ! Not a place where basal melt operates
+        BMB%BMB( vi) = 0._dp
+        mask( vi) = 0
+      END IF
+
+    END DO
+
+    ! == Extrapolate into calving fronts
+    ! ==================================
+
+    ! Perform the extrapolation - mask: 2 -> use as seed; 1 -> extrapolate; 0 -> ignore
+    CALL extrapolate_Gaussian( mesh, mask, BMB%BMB, 16000._dp)
+
+    DO vi = mesh%vi1, mesh%vi2
+      IF (ice%mask_cf_fl( vi)) THEN
+
+        IF (.NOT. do_BMB_inversion) CYCLE
+
+        ! Compute change after extrapolation
+        value_change = BMB%BMB( vi) - previous_field( vi)
+
+        ! Adjust rate of ice thickness change dHi/dt to compensate the change
+        dHi_dt_predicted( vi) = dHi_dt_predicted( vi) + value_change
+
+        ! Adjust new ice thickness to compensate the change
+        Hi_predicted( vi) = ice%Hi_prev( vi) + dHi_dt_predicted( vi) * dt
+
+      END IF
+    END DO
+
+    ! == LMB: remaining positive dHi_dt
+    ! =================================
+
+    ! Store pre-adjustment values
+    previous_field = LMB%LMB
+
+    DO vi = mesh%vi1, mesh%vi2
+
+      IF (.NOT. do_LMB_inversion) CYCLE
+
+      ! For these areas, use dHi_dt to get an "inversion" of equilibrium LMB.
+      IF (ice%mask_cf_fl( vi) .OR. ice%mask_cf_gr( vi) .OR. ice%mask_icefree_ocean( vi)) THEN
+
+        ! Assume that calving accounts for all remaining mass loss here (after first BMB pass)
+        LMB%LMB( vi) = MIN( 0._dp, LMB%LMB( vi) - dHi_dt_predicted( vi))
+
+        ! Compute actual change in LMB
+        value_change = LMB%LMB( vi) - previous_field( vi)
+
+        ! Adjust rate of ice thickness change dHi/dt to compensate the change
+        dHi_dt_predicted( vi) = dHi_dt_predicted( vi) + value_change
+
+        ! Adjust new ice thickness to compensate the change
+        Hi_predicted( vi) = ice%Hi_prev( vi) + dHi_dt_predicted( vi) * dt
+
+      ELSE
+        ! Not a place where lateral melt operates
+        LMB%LMB( vi) = 0._dp
+      END IF
+
+    END DO ! vi = mesh%vi1, mesh%vi2
+
+    ! == BMB: final pass
+    ! ==================
+
+    DO vi = mesh%vi1, mesh%vi2
+      IF (ice%mask_cf_fl( vi)) THEN
+
+        IF (.NOT. do_BMB_inversion) CYCLE
+
+        ! BMB will absorb all remaining change after calving did its thing
+        BMB%BMB( vi) = BMB%BMB( vi) - dHi_dt_predicted( vi)
+
+        ! Adjust rate of ice thickness change dHi/dt to compensate the change
+        dHi_dt_predicted( vi) = 0._dp
+
+        ! Adjust corrected ice thickness to compensate the change
+        Hi_predicted( vi) = ice%Hi_prev( vi)
+
+      END IF
+    END DO
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE MB_inversion
 
   ! == Trivia
   ! =========

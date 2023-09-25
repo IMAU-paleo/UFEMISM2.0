@@ -27,7 +27,7 @@ MODULE ice_model_main
   USE GIA_model_types                                        , ONLY: type_GIA_model
   USE ice_model_memory                                       , ONLY: allocate_ice_model
   USE ice_model_utilities                                    , ONLY: determine_masks, calc_bedrock_CDFs, calc_grounded_fractions, calc_zeta_gradients, &
-                                                                     calc_mask_noice, alter_ice_thickness, initialise_bedrock_CDFs
+                                                                     calc_mask_noice, alter_ice_thickness, initialise_bedrock_CDFs, MB_inversion
   USE ice_thickness                                          , ONLY: calc_dHi_dt, apply_mask_noice_direct, apply_ice_thickness_BC_explicit, &
                                                                      calc_effective_thickness, initialise_dHi_dt_target
   USE math_utilities                                         , ONLY: ice_surface_elevation, thickness_above_floatation, Hi_from_Hb_Hs_and_SL, is_floating
@@ -51,8 +51,7 @@ MODULE ice_model_main
   USE petsc_basic                                            , ONLY: mat_petsc2CSR
   USE reallocate_mod                                         , ONLY: reallocate_bounds_dp_1D
   USE SMB_main                                               , ONLY: SMB_adjustment
-  USE BMB_main                                               , ONLY: run_BMB_model, BMB_inversion
-  USE LMB_main                                               , ONLY: LMB_inversion
+  USE BMB_main                                               , ONLY: run_BMB_model
 
   IMPLICIT NONE
 
@@ -1309,8 +1308,7 @@ CONTAINS
                         region%ice%mask_noice, region%ice%pc%dt_np1, region%ice%pc%dHi_dt_Hi_n_u_n, Hi_dummy, region%ice%divQ, region%ice%dHi_dt_target, region%ice%dHi_dt_residual)
 
       ! If so desired, invert/adjust fluxes to get an equilibrium state
-      CALL LMB_inversion(  region%mesh, region%ice, region%SMB,             region%LMB, region%ice%pc%dHi_dt_Hi_n_u_n, Hi_dummy, region%ice%pc%dt_np1, region%time, region%name)
-      CALL BMB_inversion(  region%mesh, region%ice, region%SMB, region%BMB,             region%ice%pc%dHi_dt_Hi_n_u_n, Hi_dummy, region%ice%pc%dt_np1, region%time, region%name)
+      CALL MB_inversion(   region%mesh, region%ice, region%SMB, region%BMB, region%LMB, region%ice%pc%dHi_dt_Hi_n_u_n, Hi_dummy, region%ice%pc%dt_np1, region%time, region%name)
       CALL SMB_adjustment( region%mesh, region%ice, region%SMB,                         region%ice%pc%dHi_dt_Hi_n_u_n, Hi_dummy,                       region%time)
 
       ! Calculate predicted ice thickness (Robinson et al., 2020, Eq. 30)
@@ -1377,8 +1375,7 @@ CONTAINS
                         region%ice%mask_noice, region%ice%pc%dt_np1, region%ice%pc%dHi_dt_Hi_star_np1_u_np1, Hi_dummy, region%ice%divQ, region%ice%dHi_dt_target, region%ice%dHi_dt_residual)
 
       ! If so desired, invert/adjust fluxes to get an equilibrium state
-      CALL LMB_inversion(  region%mesh, region%ice, region%SMB,             region%LMB, region%ice%pc%dHi_dt_Hi_star_np1_u_np1, Hi_dummy, region%ice%pc%dt_np1, region%time, region%name)
-      CALL BMB_inversion(  region%mesh, region%ice, region%SMB, region%BMB,             region%ice%pc%dHi_dt_Hi_star_np1_u_np1, Hi_dummy, region%ice%pc%dt_np1, region%time, region%name)
+      CALL MB_inversion(   region%mesh, region%ice, region%SMB, region%BMB, region%LMB, region%ice%pc%dHi_dt_Hi_star_np1_u_np1, Hi_dummy, region%ice%pc%dt_np1, region%time, region%name)
       CALL SMB_adjustment( region%mesh, region%ice, region%SMB,                         region%ice%pc%dHi_dt_Hi_star_np1_u_np1, Hi_dummy,                       region%time)
 
       ! Calculate corrected ice thickness (Robinson et al. (2020), Eq. 31)
@@ -1861,8 +1858,7 @@ CONTAINS
                       region%ice%mask_noice, dt, region%ice%dHi_dt, region%ice%Hi_next, region%ice%divQ, region%ice%dHi_dt_target, region%ice%dHi_dt_residual)
 
     ! If so desired, invert/adjust fluxes to get an equilibrium state
-    CALL LMB_inversion(  region%mesh, region%ice, region%SMB,             region%LMB, region%ice%dHi_dt, region%ice%Hi_next, dt, region%time, region%name)
-    CALL BMB_inversion(  region%mesh, region%ice, region%SMB, region%BMB,             region%ice%dHi_dt, region%ice%Hi_next, dt, region%time, region%name)
+    CALL MB_inversion(   region%mesh, region%ice, region%SMB, region%BMB, region%LMB, region%ice%dHi_dt, region%ice%Hi_next, dt, region%time, region%name)
     CALL SMB_adjustment( region%mesh, region%ice, region%SMB,                         region%ice%dHi_dt, region%ice%Hi_next,     region%time)
 
     ! Save the "true" dynamical dH/dt for future reference

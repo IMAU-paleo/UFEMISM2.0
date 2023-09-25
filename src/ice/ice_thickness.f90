@@ -641,6 +641,9 @@ CONTAINS
 
   END SUBROUTINE calc_ice_flux_divergence_matrix_upwind
 
+  ! == Boundary conditions
+  ! ======================
+
   SUBROUTINE apply_ice_thickness_BC_explicit( mesh, mask_noice, Hb, SL, Hi_tplusdt)
     ! Apply boundary conditions to the ice thickness on the domain border directly
 
@@ -1095,6 +1098,9 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE apply_mask_noice_direct
+
+  ! == Time step
+  ! ============
 
   SUBROUTINE calc_flux_limited_timestep( mesh, Hi, Hb, SL, dHi_dt, dt_max)
     ! Calculate the largest time step that does not result in more
