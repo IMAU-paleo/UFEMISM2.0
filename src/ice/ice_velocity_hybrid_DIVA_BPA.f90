@@ -33,11 +33,14 @@ MODULE ice_velocity_hybrid_DIVA_BPA
   USE mesh_operators                                         , ONLY: calc_3D_matrix_operators_mesh, map_a_b_2D, map_b_a_2D, map_b_a_3D, map_a_b_3D
   USE mesh_refinement                                        , ONLY: calc_polygon_Pine_Island_Glacier, calc_polygon_Thwaites_Glacier, &
                                                                      calc_polygon_Tijn_test_ISMIP_HOM_A
-  USE math_utilities                                         , ONLY: is_in_polygon
+  USE math_utilities                                         , ONLY: is_in_polygon, is_in_polygons
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_logical_1D
   USE ice_model_utilities                                    , ONLY: calc_zeta_gradients
   USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp, allocate_matrix_CSR_dist, add_entry_CSR_dist, read_single_row_CSR_dist, &
                                                                      deallocate_matrix_CSR_dist, add_empty_row_CSR_dist
+  USE grid_basic                                             , ONLY: type_grid, gather_gridded_data_to_master_int_2D, calc_grid_mask_as_polygons
+  USE netcdf_basic                                           , ONLY: open_existing_netcdf_file_for_reading, close_netcdf_file
+  USE netcdf_input                                           , ONLY: setup_xy_grid_from_file, read_field_from_xy_file_2D_int
 
   IMPLICIT NONE
 
@@ -274,11 +277,11 @@ CONTAINS
       END IF
 
       ! DENK DROM
-      uv_min = MINVAL( hybrid%u_bk)
-      uv_max = MAXVAL( hybrid%u_bk)
-      CALL MPI_ALLREDUCE( MPI_IN_PLACE, uv_min, 1, MPI_DOUBLE_PRECISION, MPI_MIN, MPI_COMM_WORLD, ierr)
-      CALL MPI_ALLREDUCE( MPI_IN_PLACE, uv_max, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
-      IF (par%master) WRITE(0,*) '    hybrid DIVA/BPA - viscosity iteration ', viscosity_iteration_i, ', u = [', uv_min, ' - ', uv_max, '], resid = ', resid_UV
+!      uv_min = MINVAL( hybrid%u_bk)
+!      uv_max = MAXVAL( hybrid%u_bk)
+!      CALL MPI_ALLREDUCE( MPI_IN_PLACE, uv_min, 1, MPI_DOUBLE_PRECISION, MPI_MIN, MPI_COMM_WORLD, ierr)
+!      CALL MPI_ALLREDUCE( MPI_IN_PLACE, uv_max, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
+!      IF (par%master) WRITE(0,*) '    hybrid DIVA/BPA - viscosity iteration ', viscosity_iteration_i, ', u = [', uv_min, ' - ', uv_max, '], resid = ', resid_UV
 
       ! If the viscosity iteration has converged, or has reached the maximum allowed number of iterations, stop it.
       has_converged = .FALSE.
@@ -389,6 +392,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                                  :: routine_name = 'calc_hybrid_solver_masks_basic'
+    CHARACTER(LEN=256)                                             :: choice_hybrid_DIVA_BPA_mask
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -397,11 +401,27 @@ CONTAINS
     hybrid%mask_BPA_b  = .FALSE.
     hybrid%mask_DIVA_b = .FALSE.
 
-    SELECT CASE (C%choice_hybrid_DIVA_BPA_mask)
+    ! Determine filename for this model region
+    SELECT CASE (region_name)
       CASE DEFAULT
-        CALL crash('unknown choice_hybrid_DIVA_BPA_mask "' // TRIM( C%choice_hybrid_DIVA_BPA_mask) // '"!')
+        CALL crash('unknown region name "' // TRIM( region_name) // '"!')
+      CASE ('NAM')
+        choice_hybrid_DIVA_BPA_mask = C%choice_hybrid_DIVA_BPA_mask_NAM
+      CASE ('EAS')
+        choice_hybrid_DIVA_BPA_mask = C%choice_hybrid_DIVA_BPA_mask_EAS
+      CASE ('GRL')
+        choice_hybrid_DIVA_BPA_mask = C%choice_hybrid_DIVA_BPA_mask_GRL
+      CASE ('ANT')
+        choice_hybrid_DIVA_BPA_mask = C%choice_hybrid_DIVA_BPA_mask_ANT
+    END SELECT
+
+    SELECT CASE (choice_hybrid_DIVA_BPA_mask)
+      CASE DEFAULT
+        CALL crash('unknown choice_hybrid_DIVA_BPA_mask "' // TRIM( choice_hybrid_DIVA_BPA_mask) // '"!')
       CASE ('ROI')
         CALL calc_hybrid_solver_masks_basic_ROI( mesh, ice, hybrid, region_name)
+      CASE ('read_from_file')
+        CALL calc_hybrid_solver_masks_basic_read_from_file( mesh, ice, hybrid, region_name)
     END SELECT
 
     ! Finalise routine path
@@ -548,6 +568,97 @@ CONTAINS
 
   END SUBROUTINE calc_hybrid_solver_masks_basic_ROI
 
+  SUBROUTINE calc_hybrid_solver_masks_basic_read_from_file( mesh, ice, hybrid, region_name)
+    ! Calculate the solving masks for the hybrid solver
+    !
+    ! Read the mask that determines where to solve the DIVA and where to solve the BPA from an external NetCDF file
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                       INTENT(IN)              :: mesh
+    TYPE(type_ice_model),                  INTENT(IN)              :: ice
+    TYPE(type_ice_velocity_solver_hybrid), INTENT(INOUT)           :: hybrid
+    CHARACTER(LEN=3),                      INTENT(IN)              :: region_name
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                  :: routine_name = 'calc_hybrid_solver_masks_basic_read_from_file'
+    CHARACTER(LEN=256)                                             :: filename_hybrid_DIVA_BPA_mask
+    INTEGER                                                        :: ncid
+    TYPE(type_grid)                                                :: grid
+    INTEGER,  DIMENSION(:    ), ALLOCATABLE                        :: mask_int_grid_vec_partial
+    INTEGER,  DIMENSION(:,:  ), ALLOCATABLE                        :: mask_int_grid
+    LOGICAL,  DIMENSION(:,:  ), ALLOCATABLE                        :: mask_grid
+    INTEGER                                                        :: i,j
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                        :: poly_mult
+    INTEGER                                                        :: ti
+    REAL(dp), DIMENSION(2)                                         :: p
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Determine filename for this model region
+    SELECT CASE (region_name)
+      CASE DEFAULT
+        CALL crash('unknown region name "' // TRIM( region_name) // '"!')
+      CASE ('NAM')
+        filename_hybrid_DIVA_BPA_mask = C%filename_hybrid_DIVA_BPA_mask_NAM
+      CASE ('EAS')
+        filename_hybrid_DIVA_BPA_mask = C%filename_hybrid_DIVA_BPA_mask_EAS
+      CASE ('GRL')
+        filename_hybrid_DIVA_BPA_mask = C%filename_hybrid_DIVA_BPA_mask_GRL
+      CASE ('ANT')
+        filename_hybrid_DIVA_BPA_mask = C%filename_hybrid_DIVA_BPA_mask_ANT
+    END SELECT
+
+    ! Read grid from file
+    CALL open_existing_netcdf_file_for_reading( filename_hybrid_DIVA_BPA_mask, ncid)
+    CALL setup_xy_grid_from_file( filename_hybrid_DIVA_BPA_mask, ncid, grid)
+    CALL close_netcdf_file( ncid)
+
+    ! Read gridded mask from file
+    ALLOCATE( mask_int_grid_vec_partial( grid%n1: grid%n2))
+    CALL read_field_from_xy_file_2D_int( filename_hybrid_DIVA_BPA_mask, 'mask_BPA', mask_int_grid_vec_partial)
+
+    ! Gather partial gridded data to the Master and broadcast the total field to all processes
+    ALLOCATE( mask_int_grid( grid%nx, grid%ny))
+    CALL gather_gridded_data_to_master_int_2D( grid, mask_int_grid_vec_partial, mask_int_grid)
+    CALL MPI_BCAST( mask_int_grid, grid%nx * grid%ny, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
+
+    ! Calculate logical mask (assumes data from file is integer 0 for FALSE and integer 1 for TRUE)
+    ALLOCATE( mask_grid( grid%nx, grid%ny), source = .FALSE.)
+    DO i = 1, grid%nx
+    DO j = 1, grid%ny
+      IF (mask_int_grid( i,j) == 1) mask_grid( i,j) = .TRUE.
+    END DO
+    END DO
+
+    ! Calculate contour from gridded mask
+    CALL calc_grid_mask_as_polygons( grid, mask_grid, poly_mult)
+
+    ! Determine BPA solving masks on the mesh
+    DO ti = mesh%ti1, mesh%ti2
+      p = mesh%TriGC( ti,:)
+      IF (is_in_polygons( poly_mult, p)) THEN
+        hybrid%mask_BPA_b(  ti) = .TRUE.
+        hybrid%mask_DIVA_b( ti) = .FALSE.
+      ELSE
+        hybrid%mask_BPA_b(  ti) = .FALSE.
+        hybrid%mask_DIVA_b( ti) = .TRUE.
+      END IF
+    END DO
+
+    ! Clean up after yourself
+    DEALLOCATE( mask_int_grid_vec_partial)
+    DEALLOCATE( mask_int_grid)
+    DEALLOCATE( mask_grid)
+    DEALLOCATE( poly_mult)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE calc_hybrid_solver_masks_basic_read_from_file
+
 ! == Assemble and solve the linearised BPA
 
   SUBROUTINE solve_hybrid_DIVA_BPA_linearised( mesh, ice, hybrid, BC_prescr_mask_b, BC_prescr_u_b, BC_prescr_v_b)
@@ -608,7 +719,7 @@ CONTAINS
     ncols_loc       = neq_loc
     nrows           = neq      ! to
     nrows_loc       = neq_loc
-    nnz_est_proc    = mesh%M2_ddx_b_b%nnz * 4
+    nnz_est_proc    = CEILING( 1.1_dp * REAL( A_DIVA%nnz + A_BPA%nnz, dp))
 
     CALL allocate_matrix_CSR_dist( A_combi, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
 

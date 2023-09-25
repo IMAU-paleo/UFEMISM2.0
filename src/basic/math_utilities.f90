@@ -1092,6 +1092,53 @@ CONTAINS
 
   END SUBROUTINE segment_intersection
 
+  PURE FUNCTION is_in_polygons( poly_mult, p) RESULT( isso)
+    ! Check if p is inside any of the polygons in poly_mult
+
+    IMPLICIT NONE
+
+    ! Input variables:
+!   REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE, OPTIONAL, INTENT(INOUT) :: i
+    REAL(dp), DIMENSION(:,:    )                       , INTENT(IN)    :: poly_mult
+    REAL(dp), DIMENSION(2)                             , INTENT(IN)    :: p
+
+    ! Output variables:
+    LOGICAL                                                            :: isso
+
+    ! Local variables:
+    INTEGER                                                            :: n1,n2,nn
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                            :: poly
+    LOGICAL                                                            :: isso_single
+
+    isso = .FALSE.
+
+    n1 = 1
+    n2 = 0
+
+    DO WHILE (n2 < SIZE( poly_mult,1))
+
+      ! Copy a single polygon from poly_mult
+      nn = NINT( poly_mult( n1,1))
+      n2 = n1 + nn
+      ALLOCATE( poly( nn,2))
+      poly = poly_mult( n1+1:n2,:)
+      n1 = n2+1
+
+      ! Check if p is inside this single polygon
+      isso_single = is_in_polygon( poly, p)
+
+      ! Clean up after yourself
+      DEALLOCATE( poly)
+
+      IF (isso_single) THEN
+        isso = .TRUE.
+        EXIT
+      END IF
+
+    END DO ! DO WHILE (n2 < SIZE( poly_mult,1))
+
+  END FUNCTION is_in_polygons
+
   PURE FUNCTION is_in_polygon( Vpoly, p) RESULT( isso)
     ! Use the ray-casting algorithm to check if the point p = [px,py]
     ! lies inside the polygon spanned by poly = [x1,y1; x2,y2; ...; xn,yn]
@@ -2572,6 +2619,37 @@ CONTAINS
 
   END SUBROUTINE permute_3D_dp
 
+  SUBROUTINE flip_1D_int( d)
+    ! Flip a 1-D array
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    INTEGER,  DIMENSION(:    ),          INTENT(INOUT) :: d
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'flip_1D_int'
+    INTEGER                                            :: i,nx,iopp
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    nx = SIZE( d,1)
+
+    ! Flip the data
+    DO i = 1, nx
+      iopp = nx + 1 - i
+      IF (iopp <= i) EXIT         ! [a  ] [b  ]
+      d( i   ) = d( i) + d( iopp) ! [a+b] [b  ]
+      d( iopp) = d( i) - d( iopp) ! [a+b] [a  ]
+      d( i   ) = d( i) - d( iopp) ! [b  ] [a  ]
+    END DO
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE flip_1D_int
+
   SUBROUTINE flip_1D_dp( d)
     ! Flip a 1-D array
 
@@ -2602,6 +2680,38 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE flip_1D_dp
+
+  SUBROUTINE flip_2D_x1_int( d)
+    ! Flip a 2-D array along the first dimension
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    INTEGER,  DIMENSION(:,:  ),          INTENT(INOUT) :: d
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'flip_2D_x1_int'
+    INTEGER                                            :: i,n1,n2,iopp
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    n1 = SIZE( d,1)
+    n2 = SIZE( d,2)
+
+    ! Flip the data
+    DO i = 1, n1
+      iopp = n1 + 1 - i
+      IF (iopp <= i) EXIT               ! [a  ] [b  ]
+      d( i   ,:) = d( i,:) + d( iopp,:) ! [a+b] [b  ]
+      d( iopp,:) = d( i,:) - d( iopp,:) ! [a+b] [a  ]
+      d( i   ,:) = d( i,:) - d( iopp,:) ! [b  ] [a  ]
+    END DO
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE flip_2D_x1_int
 
   SUBROUTINE flip_2D_x1_dp( d)
     ! Flip a 2-D array along the first dimension
@@ -2635,6 +2745,38 @@ CONTAINS
 
   END SUBROUTINE flip_2D_x1_dp
 
+  SUBROUTINE flip_2D_x2_int( d)
+    ! Flip a 2-D array along the second dimension
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    INTEGER,  DIMENSION(:,:  ),          INTENT(INOUT) :: d
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'flip_2D_x2_int'
+    INTEGER                                            :: j,n1,n2,jopp
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    n1 = SIZE( d,1)
+    n2 = SIZE( d,2)
+
+    ! Flip the data
+    DO j = 1, n2
+      jopp = n2 + 1 - j
+      IF (jopp <= j) EXIT               ! [a  ] [b  ]
+      d( :,j   ) = d( :,j) + d( :,jopp) ! [a+b] [b  ]
+      d( :,jopp) = d( :,j) - d( :,jopp) ! [a+b] [a  ]
+      d( :,j   ) = d( :,j) - d( :,jopp) ! [b  ] [a  ]
+    END DO
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE flip_2D_x2_int
+
   SUBROUTINE flip_2D_x2_dp( d)
     ! Flip a 2-D array along the second dimension
 
@@ -2666,6 +2808,39 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE flip_2D_x2_dp
+
+  SUBROUTINE flip_3D_x1_int( d)
+    ! Flip a 3-D array along the first dimension
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    INTEGER,  DIMENSION(:,:,:),          INTENT(INOUT) :: d
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'flip_3D_x1_int'
+    INTEGER                                            :: i,n1,n2,n3,iopp
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    n1 = SIZE( d,1)
+    n2 = SIZE( d,2)
+    n3 = SIZE( d,3)
+
+    ! Flip the data
+    DO i = 1, n1
+      iopp = n1 + 1 - i
+      IF (iopp <= i) EXIT                     ! [a  ] [b  ]
+      d( i   ,:,:) = d( i,:,:) + d( iopp,:,:) ! [a+b] [b  ]
+      d( iopp,:,:) = d( i,:,:) - d( iopp,:,:) ! [a+b] [a  ]
+      d( i   ,:,:) = d( i,:,:) - d( iopp,:,:) ! [b  ] [a  ]
+    END DO
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE flip_3D_x1_int
 
   SUBROUTINE flip_3D_x1_dp( d)
     ! Flip a 3-D array along the first dimension
@@ -2700,6 +2875,39 @@ CONTAINS
 
   END SUBROUTINE flip_3D_x1_dp
 
+  SUBROUTINE flip_3D_x2_int( d)
+    ! Flip a 3-D array along the second dimension
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    INTEGER,  DIMENSION(:,:,:),          INTENT(INOUT) :: d
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'flip_3D_x2_int'
+    INTEGER                                            :: j,n1,n2,n3,jopp
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    n1 = SIZE( d,1)
+    n2 = SIZE( d,2)
+    n3 = SIZE( d,3)
+
+    ! Flip the data
+    DO j = 1, n2
+      jopp = n2 + 1 - j
+      IF (jopp <= j) EXIT                     ! [a  ] [b  ]
+      d( :,j   ,:) = d( :,j,:) + d( :,jopp,:) ! [a+b] [b  ]
+      d( :,jopp,:) = d( :,j,:) - d( :,jopp,:) ! [a+b] [a  ]
+      d( :,j   ,:) = d( :,j,:) - d( :,jopp,:) ! [b  ] [a  ]
+    END DO
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE flip_3D_x2_int
+
   SUBROUTINE flip_3D_x2_dp( d)
     ! Flip a 3-D array along the second dimension
 
@@ -2732,6 +2940,39 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE flip_3D_x2_dp
+
+  SUBROUTINE flip_3D_x3_int( d)
+    ! Flip a 3-D array along the third dimension
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    INTEGER,  DIMENSION(:,:,:),          INTENT(INOUT) :: d
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'flip_3D_x3_int'
+    INTEGER                                            :: k,n1,n2,n3,kopp
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    n1 = SIZE( d,1)
+    n2 = SIZE( d,2)
+    n3 = SIZE( d,3)
+
+    ! Flip the data
+    DO k = 1, n3
+      kopp = n3 + 1 - k
+      IF (kopp <= k) EXIT                     ! [a  ] [b  ]
+      d( :,:,k   ) = d( :,:,k) + d( :,:,kopp) ! [a+b] [b  ]
+      d( :,:,kopp) = d( :,:,k) - d( :,:,kopp) ! [a+b] [a  ]
+      d( :,:,k   ) = d( :,:,k) - d( :,:,kopp) ! [b  ] [a  ]
+    END DO
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE flip_3D_x3_int
 
   SUBROUTINE flip_3D_x3_dp( d)
     ! Flip a 3-D array along the third dimension
