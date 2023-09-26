@@ -91,8 +91,11 @@ CONTAINS
     DO vi = mesh%vi1, mesh%vi2
       IF (Hi_tplusdt( vi) < 0._dp) THEN
         ! Implicit solvers sometimes give VERY small negative numbers (e.g. -2e-189),
-        ! only throw a warning if things get properly negative
-        IF (Hi_tplusdt( vi) < -0.1_dp) found_negative_vals = .TRUE.
+        ! only throw a warning if things get properly negative. Also, ignore negative
+        ! values over ice-free points (identified here by an ice-covered fraction of 0),
+        ! which can experience negative mass balance, but for which it is (of course)
+        ! not possible to find a dt that prevents a negative ice thickness.
+        IF (Hi_tplusdt( vi) < -0.1_dp .AND. fraction_margin( vi) > 0._dp) found_negative_vals = .TRUE.
         ! Limit to zero
         Hi_tplusdt( vi) = 0._dp
       END IF
@@ -334,8 +337,13 @@ CONTAINS
 
     ! Load vector
     DO vi = mesh%vi1, mesh%vi2
-      bb( vi) = Hi( vi) + MAX( -1._dp * Hi( vi), dt * (SMB( vi) + BMB( vi) + LMB( vi) - dHi_dt_target( vi)))
-    END DO ! DO vi = mesh%vi1, mesh%vi2
+      ! Compute uncapped load vector, with full-force fluxes, allowing for negative ice thickness
+      bb( vi) = Hi( vi) + dt * (SMB( vi) + BMB( vi) + LMB( vi) - dHi_dt_target( vi))
+      ! Compute the "unused" flux, that which exceeds the flux needed to remove all mass
+      dHi_dt_residual( vi) = dHi_dt_residual( vi) + (bb( vi) - MAX( divQ( vi) * dt, bb( vi))) / dt
+      ! Cap the load vector to avoid negative ice thickness
+      bb( vi) = MAX( divQ( vi) * dt, bb( vi))
+    END DO
 
     ! Take the current ice thickness plus the current thinning rate as the initial guess
     Hi_tplusdt = Hi + dt * dHi_dt
@@ -444,7 +452,6 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                                   :: routine_name = 'calc_dHi_dt_semiimplicit'
     TYPE(type_sparse_matrix_CSR_dp)                                 :: M_divQ
     TYPE(type_sparse_matrix_CSR_dp)                                 :: AA
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                          :: M_divQ_H
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                          :: bb
     INTEGER                                                         :: vi, k1, k2, k, vj
     REAL(dp)                                                        :: dt_max
@@ -463,7 +470,7 @@ CONTAINS
     dHi_dt_dummy = -divQ + SMB + BMB + LMB - dHi_dt_target
 
     ! Calculate largest time step possible based on that estimate
-    CALL calc_flux_limited_timestep( mesh, Hi, Hb, SL, dHi_dt, dt_max)
+    CALL calc_flux_limited_timestep( mesh, Hi, Hb, SL, dHi_dt_dummy, dt_max)
 
     ! Constrain dt based on new limit
     dt = MIN( dt, dt_max)
@@ -489,10 +496,14 @@ CONTAINS
     END DO ! DO vi = mesh%vi1, mesh%vi2
 
     ! Load vector
-    CALL multiply_CSR_matrix_with_vector_1D( M_divQ, Hi, M_divQ_H)
     DO vi = mesh%vi1, mesh%vi2
-      bb( vi) = Hi( vi) - (dt * (1._dp - C%dHi_semiimplicit_fs) * M_divQ_H( vi)) + MAX( -1._dp * Hi( vi), dt * (SMB( vi) + BMB( vi) + LMB( vi) - dHi_dt_target( vi)))
-    END DO ! DO vi = mesh%vi1, mesh%vi2
+      ! Compute uncapped load vector, with full-force fluxes, allowing for negative ice thickness
+      bb( vi) = Hi( vi) + dt * (-divQ( vi) * (1._dp - C%dHi_semiimplicit_fs) + SMB( vi) + BMB( vi) + LMB( vi) - dHi_dt_target( vi))
+      ! Compute the "unused" flux, that which exceeds the flux needed to remove all mass
+      dHi_dt_residual( vi) = dHi_dt_residual( vi) + (bb( vi) - MAX( divQ( vi) * C%dHi_semiimplicit_fs * dt, bb( vi))) / dt
+      ! Cap the load vector to avoid negative ice thickness
+      bb( vi) = MAX( divQ( vi) * C%dHi_semiimplicit_fs * dt, bb( vi))
+    END DO
 
     ! Take the current ice thickness plus the current thinning rate as the initial guess
     Hi_tplusdt = Hi + dt * dHi_dt
