@@ -1981,9 +1981,25 @@ CONTAINS
 
         mask( vi) = 2
 
+      ELSEIF (ice%mask_gl_gr( vi)) THEN
+
+        ! For grounding lines, BMB accounts for melt
+        BMB%BMB( vi) = MIN( 0._dp, BMB%BMB( vi) - dHi_dt_predicted( vi))
+
+        ! Compute change of value
+        value_change = BMB%BMB( vi) - previous_field( vi)
+
+        ! Adjust rate of ice thickness change dHi/dt to compensate the change
+        dHi_dt_predicted( vi) = dHi_dt_predicted( vi) + value_change
+
+        ! Adjust corrected ice thickness to compensate the change
+        Hi_predicted( vi) = ice%Hi_prev( vi) + dHi_dt_predicted( vi) * dt
+
+        mask( vi) = 0
+
       ELSEIF (ice%mask_icefree_ocean( vi)) THEN
 
-        ! For open ocean, asume that all SMB melts
+        ! For open ocean, assume that all SMB melts
         BMB%BMB( vi) = -SMB%SMB( vi)
 
         ! Compute change of value
