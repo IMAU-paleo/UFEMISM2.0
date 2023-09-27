@@ -17,6 +17,10 @@ MODULE BMB_model_types
 
     ! Main data fields
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: BMB                         ! [m.i.e./yr] Basal mass balance
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: BMB_ref                     ! [m.i.e./yr] Reference basal mass balance (e.g. inverted or prescribed)
+    LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_floating_ice           ! T: floating vertex, F: otherwise
+    LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_gl_fl                  ! T: floating grounding line vertex, F: otherwise
+    LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_gl_gr                  ! T: grounded grounding line vertex, F: otherwise
 
     ! Metadata
     CHARACTER(LEN=256)                      :: restart_filename            ! Name for generated restart file

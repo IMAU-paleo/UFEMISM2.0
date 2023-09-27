@@ -484,7 +484,7 @@ CONTAINS
     ! ===== Basal mass balance =====
     ! ==============================
 
-    CALL initialise_BMB_model( region%mesh, region%BMB, region%name)
+    CALL initialise_BMB_model( region%mesh, region%ice, region%BMB, region%name)
 
     ! ===== Lateral mass balance =====
     ! ================================
@@ -1129,12 +1129,12 @@ CONTAINS
 
     ! Remap all the model data from the old mesh to the new mesh
     CALL remap_ice_dynamics_model( region%mesh, mesh_new, region%ice, region%refgeo_PD, region%SMB, region%BMB, region%LMB, region%GIA, region%time, region%name)
-    CALL remap_climate_model(      region%mesh, mesh_new, region%climate, region%name)
-    CALL remap_ocean_model(        region%mesh, mesh_new, region%ocean  , region%name)
-    CALL remap_SMB_model(          region%mesh, mesh_new, region%SMB    , region%name)
-    CALL remap_BMB_model(          region%mesh, mesh_new, region%BMB    , region%name)
-    CALL remap_LMB_model(          region%mesh, mesh_new, region%LMB    , region%name)
-    CALL remap_GIA_model(          region%mesh, mesh_new, region%GIA                 )
+    CALL remap_climate_model(      region%mesh, mesh_new,             region%climate, region%name)
+    CALL remap_ocean_model(        region%mesh, mesh_new,             region%ocean  , region%name)
+    CALL remap_SMB_model(          region%mesh, mesh_new,             region%SMB    , region%name)
+    CALL remap_BMB_model(          region%mesh, mesh_new, region%ice, region%BMB    , region%name)
+    CALL remap_LMB_model(          region%mesh, mesh_new,             region%LMB    , region%name)
+    CALL remap_GIA_model(          region%mesh, mesh_new,             region%GIA                 )
 
     ! Set all model component timers so that they will all be run right after the mesh update
     region%ice%t_Hi_next  = region%time

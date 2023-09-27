@@ -1602,7 +1602,7 @@ CONTAINS
         END IF ! IF (mask_tot( vi) == 1) THEN
       END DO ! DO vi = mesh%vi1, mesh%vi2
 
-      ! If no vertices can be filled anymore, end the flood-fil iteration
+      ! If no vertices can be filled anymore, end the flood-fill iteration
       CALL MPI_ALLREDUCE( MPI_IN_PLACE, n_do_fill_now, 1, MPI_INTEGER, MPI_SUM, MPI_COMM_WORLD, ierr)
       IF (n_do_fill_now == 0) EXIT iterate_floodfill
 
