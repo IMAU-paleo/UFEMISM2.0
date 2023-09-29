@@ -309,11 +309,6 @@ CONTAINS
       ice%dHi_dt_target = 0._dp
     END IF
 
-    ! ! DENK DROM
-    ! DO vi = mesh%vi1, mesh%vi2
-    !   IF (.NOT. ice%mask_grounded_ice( vi)) ice%dHi_dt_target( vi) = 0._dp
-    ! END DO
-
     ! Sub-grid fractions
     ! ==================
 

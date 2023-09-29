@@ -360,7 +360,8 @@ MODULE model_configuration
 
     ! Target dHi_dt
     LOGICAL             :: do_target_dHi_dt_config                      = .FALSE.                          ! Whether or not to use a target dHi_dt field from an external file to alter the modelled one
-    REAL(dp)            :: target_dHi_dt_t_end_config                   = -9.9E9_dp                        ! End   time of target dHi_dt application
+    LOGICAL             :: do_limit_target_dHi_dt_to_SMB_config         = .FALSE.                          ! Whether or not to limit a target dHi_dt field to available SMB in that area, so it does not melt all ice there
+    REAL(dp)            :: target_dHi_dt_t_end_config                   = -9.9E9_dp                        ! End time of target dHi_dt application
 
     ! Files containing a target dHi_dt for inversions
     CHARACTER(LEN=256)  :: filename_dHi_dt_prescribed_NAM_config        = ''
@@ -1193,6 +1194,7 @@ MODULE model_configuration
 
     ! Target dHi_dt
     LOGICAL             :: do_target_dHi_dt
+    LOGICAL             :: do_limit_target_dHi_dt_to_SMB
     REAL(dp)            :: target_dHi_dt_t_end
 
     ! Files containing a target dHi_dt for inversions
@@ -2070,6 +2072,7 @@ CONTAINS
       BC_H_south_config                                           , &
       BC_H_north_config                                           , &
       do_target_dHi_dt_config                                     , &
+      do_limit_target_dHi_dt_to_SMB_config                        , &
       target_dHi_dt_t_end_config                                  , &
       filename_dHi_dt_prescribed_NAM_config                       , &
       filename_dHi_dt_prescribed_EAS_config                       , &
@@ -2754,6 +2757,7 @@ CONTAINS
 
     ! Target dHi_dt
     C%do_target_dHi_dt                                       = do_target_dHi_dt_config
+    C%do_limit_target_dHi_dt_to_SMB                          = do_limit_target_dHi_dt_to_SMB_config
     C%target_dHi_dt_t_end                                    = target_dHi_dt_t_end_config
 
     ! Files containing a target dHi_dt for inversions

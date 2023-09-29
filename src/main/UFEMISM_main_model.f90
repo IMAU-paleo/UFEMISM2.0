@@ -1349,19 +1349,22 @@ CONTAINS
 
     IF (par%master) WRITE(0,'(A)') '   Implementing regional corrections...'
 
-    ! == Target dHi_dt
-    ! ================
-
-    ! DENK DROM : Limit target dH/dt to available SMB
-    region%ice%dHi_dt_target = MIN (region%ice%dHi_dt_target, region%SMB%SMB)
-
     ! === SMB over ice-free land ===
     ! ==============================
 
+    ! Remove positive SMB over ice-free land once
     IF (C%do_SMB_removal_icefree_land) THEN
       DO vi = region%mesh%vi1, region%mesh%vi2
-        IF (region%ice%mask_icefree_land( vi)) region%SMB%SMB( vi) = 0._dp
+        IF (region%ice%mask_icefree_land( vi)) region%SMB%SMB( vi) = MIN( region%SMB%SMB( vi), 0._dp)
       END DO
+    END IF
+
+    ! == Target dHi_dt
+    ! ================
+
+    ! Limit target dH/dt to available SMB
+    IF (C%do_target_dHi_dt .AND. C%do_limit_target_dHi_dt_to_SMB) THEN
+      region%ice%dHi_dt_target = MIN( region%ice%dHi_dt_target, region%SMB%SMB)
     END IF
 
     ! Finalise routine path
