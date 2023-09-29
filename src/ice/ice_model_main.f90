@@ -450,8 +450,6 @@ CONTAINS
 
     ! Remap dHi/dt to improve stability of the P/C scheme after mesh updates
     CALL map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, ice%dHi_dt, '2nd_order_conservative')
-    ! Same for the predicted one
-    CALL map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, ice%dHi_dt_predicted, '2nd_order_conservative')
 
     ! === Thermodynamics and rheology ===
     ! ===================================
@@ -487,7 +485,7 @@ CONTAINS
     CALL reallocate_bounds( ice%dHb_dt                      , mesh_new%vi1, mesh_new%vi2         )  ! [m yr^-1] Bedrock elevation rate of change
     CALL reallocate_bounds( ice%dHs_dt                      , mesh_new%vi1, mesh_new%vi2         )  ! [m yr^-1] Ice surface elevation rate of change
     CALL reallocate_bounds( ice%dHib_dt                     , mesh_new%vi1, mesh_new%vi2         )  ! [m yr^-1] Ice base elevation rate of change
-    CALL reallocate_bounds( ice%dHi_dt_predicted            , mesh_new%vi1, mesh_new%vi2         )  ! [m yr^-1] Ice thickness rate of change before any modifications
+    CALL reallocate_bounds( ice%dHi_dt_raw                  , mesh_new%vi1, mesh_new%vi2         )  ! [m yr^-1] Ice thickness rate of change before any modifications
     CALL reallocate_bounds( ice%dHi_dt_target               , mesh_new%vi1, mesh_new%vi2         )  ! [m yr^-1] Target ice thickness rate of change for inversions
 
     ! Masks
@@ -1239,13 +1237,16 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'run_ice_dynamics_model_pc'
     REAL(dp)                                              :: dt_crit_adv
     INTEGER                                               :: pc_it
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE               :: Hi_dummy
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE               :: Hi_dummy, SMB_dummy, BMB_dummy, LMB_dummy
     INTEGER                                               :: vi, n_guilty, n_tot
     ! Add routine to path
     CALL init_routine( routine_name)
 
     ! Allocate memory
-    ALLOCATE( Hi_dummy( region%mesh%vi1:region%mesh%vi2))
+    ALLOCATE( Hi_dummy(  region%mesh%vi1:region%mesh%vi2))
+    ALLOCATE( SMB_dummy( region%mesh%vi1:region%mesh%vi2))
+    ALLOCATE( BMB_dummy( region%mesh%vi1:region%mesh%vi2))
+    ALLOCATE( LMB_dummy( region%mesh%vi1:region%mesh%vi2))
 
     ! Store previous ice model state
     region%ice%t_Hi_prev  = region%ice%t_Hi_next
@@ -1301,21 +1302,31 @@ CONTAINS
       CALL calc_dHi_dt( region%mesh, region%ice%Hi, region%ice%Hb, region%ice%SL, region%ice%u_vav_b, region%ice%v_vav_b, region%SMB%SMB, region%BMB%BMB, region%LMB%LMB, region%ice%fraction_margin, &
                         region%ice%mask_noice, region%ice%pc%dt_np1, region%ice%pc%dHi_dt_Hi_n_u_n, Hi_dummy, region%ice%divQ, region%ice%dHi_dt_target, region%ice%dHi_dt_residual)
 
+      SMB_dummy = region%SMB%SMB
+      BMB_dummy = region%BMB%BMB
+      LMB_dummy = region%LMB%LMB
+
       ! If so desired, invert/adjust mass balance fluxes to get an equilibrium state
-      CALL MB_inversion(   region%mesh, region%ice, region%SMB, region%BMB, region%LMB, region%ice%pc%dHi_dt_Hi_n_u_n, Hi_dummy, region%ice%pc%dt_np1, region%time, region%name)
+      CALL MB_inversion( region%mesh, region%ice, SMB_dummy, BMB_dummy, LMB_dummy, region%ice%pc%dHi_dt_Hi_n_u_n, Hi_dummy, region%ice%pc%dt_np1, region%time, region%name)
 
       ! Calculate predicted ice thickness (Robinson et al., 2020, Eq. 30)
       region%ice%pc%Hi_star_np1 = region%ice%Hi_prev + region%ice%pc%dt_np1 * ((1._dp + region%ice%pc%zeta_t / 2._dp) * &
         region%ice%pc%dHi_dt_Hi_n_u_n - (region%ice%pc%zeta_t / 2._dp) * region%ice%pc%dHi_dt_Hi_nm1_u_nm1)
+
+      ! Make sure the predicted thickness didn't go to hell
+      CALL alter_ice_thickness( region%mesh, region%ice, region%ice%Hi_prev, region%ice%pc%Hi_star_np1, region%refgeo_PD, region%time)
+
+      ! Adjust the predicted dHi_dt to compensate for thickness modifications
+      ! This is just Robinson et al., 2020, Eq 30 above rearranged to retrieve
+      ! an updated dHi_dt_Hi_n_u_n from the modified Hi_star_np1. If no ice
+      ! thickness modifications were applied, then there will be not change.
+      region%ice%pc%dHi_dt_Hi_n_u_n = ((region%ice%pc%Hi_star_np1 - region%ice%Hi_prev) / region%ice%pc%dt_np1 + (region%ice%pc%zeta_t / 2._dp) * region%ice%pc%dHi_dt_Hi_nm1_u_nm1) / (1._dp + region%ice%pc%zeta_t / 2._dp)
 
       ! == Update step ==
       ! =================
 
       ! Set model geometry to predicted
       region%ice%Hi = region%ice%pc%Hi_star_np1
-
-      ! Make sure the predicted thickness didn't go to hell
-      CALL alter_ice_thickness( region%mesh, region%ice, region%ice%Hi_prev, region%ice%Hi, region%refgeo_PD, region%time)
 
       ! Set thinning rates to predicted
       region%ice%dHi_dt = (region%ice%Hi - region%ice%Hi_prev) / region%ice%pc%dt_np1
@@ -1368,10 +1379,27 @@ CONTAINS
                         region%ice%mask_noice, region%ice%pc%dt_np1, region%ice%pc%dHi_dt_Hi_star_np1_u_np1, Hi_dummy, region%ice%divQ, region%ice%dHi_dt_target, region%ice%dHi_dt_residual)
 
       ! If so desired, invert/adjust mass balance fluxes to get an equilibrium state
-      CALL MB_inversion(   region%mesh, region%ice, region%SMB, region%BMB, region%LMB, region%ice%pc%dHi_dt_Hi_star_np1_u_np1, Hi_dummy, region%ice%pc%dt_np1, region%time, region%name)
+      CALL MB_inversion( region%mesh, region%ice, region%SMB%SMB, region%BMB%BMB, region%LMB%LMB, region%ice%pc%dHi_dt_Hi_star_np1_u_np1, Hi_dummy, region%ice%pc%dt_np1, region%time, region%name)
 
       ! Calculate corrected ice thickness (Robinson et al. (2020), Eq. 31)
       region%ice%pc%Hi_np1 = region%ice%Hi_prev + (region%ice%pc%dt_np1 / 2._dp) * (region%ice%pc%dHi_dt_Hi_n_u_n + region%ice%pc%dHi_dt_Hi_star_np1_u_np1)
+
+      ! Save "raw" thinning rates, as applied after the corrector step
+      region%ice%dHi_dt_raw = (region%ice%pc%Hi_np1 - region%ice%Hi_prev) / region%ice%pc%dt_np1
+
+      ! Modify the predicted ice thickness if desired
+      CALL alter_ice_thickness( region%mesh, region%ice, region%ice%Hi_prev, region%ice%pc%Hi_np1, region%refgeo_PD, region%time)
+
+      ! Adjust the predicted dHi_dt to compensate for thickness modifications
+      ! This is just Robinson et al., 2020, Eq 31 above rearranged to retrieve
+      ! an updated dHi_dt_Hi_star_np1_u_np1 from the modified Hi_np1. If no ice
+      ! thickness modifications were applied, then there will be not change.
+      region%ice%pc%dHi_dt_Hi_star_np1_u_np1 = (region%ice%pc%Hi_np1 - region%ice%Hi_prev) / (region%ice%pc%dt_np1 / 2._dp) - region%ice%pc%dHi_dt_Hi_n_u_n
+
+      ! Add difference between raw and applied dHi_dt to residual tracker
+      region%ice%dHi_dt_residual = region%ice%dHi_dt_residual + &   ! Previous value
+                                   region%ice%dHi_dt_raw - &        ! Plus raw change
+                                   (region%ice%pc%Hi_np1 - region%ice%Hi_prev) / region%ice%pc%dt_np1  ! Minus applied change
 
       ! == Truncation error ==
       ! ======================
@@ -1434,20 +1462,6 @@ CONTAINS
 
     END DO iterate_pc_timestep
 
-    ! == Ice thickness modifications
-    ! ==============================
-
-    ! Save "raw" thinning rates, as applied after the corrector step
-    region%ice%dHi_dt_predicted = (region%ice%pc%Hi_np1 - region%ice%Hi_prev) / region%ice%pc%dt_np1
-
-    ! Modify the predicted ice thickness if desired
-    CALL alter_ice_thickness( region%mesh, region%ice, region%ice%Hi_prev, region%ice%pc%Hi_np1, region%refgeo_PD, region%time)
-
-    ! Add difference between raw and applied dHi_dt to residual tracker
-    region%ice%dHi_dt_residual = region%ice%dHi_dt_residual + &   ! Previous value
-                                 region%ice%dHi_dt_predicted - &  ! Plus predicted change
-                                 (region%ice%pc%Hi_np1 - region%ice%Hi_prev) / region%ice%pc%dt_np1  ! Minus applied change
-
     ! == Final quantities
     ! ===================
 
@@ -1456,7 +1470,10 @@ CONTAINS
     region%ice%Hi_next   = region%ice%pc%Hi_np1
 
     ! Clean up after yourself
-    DEALLOCATE( Hi_dummy)
+    DEALLOCATE( Hi_dummy )
+    DEALLOCATE( SMB_dummy)
+    DEALLOCATE( BMB_dummy)
+    DEALLOCATE( LMB_dummy)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -1850,16 +1867,16 @@ CONTAINS
                       region%ice%mask_noice, dt, region%ice%dHi_dt, region%ice%Hi_next, region%ice%divQ, region%ice%dHi_dt_target, region%ice%dHi_dt_residual)
 
     ! If so desired, invert/adjust mass balance fluxes to get an equilibrium state
-    CALL MB_inversion(   region%mesh, region%ice, region%SMB, region%BMB, region%LMB, region%ice%dHi_dt, region%ice%Hi_next, dt, region%time, region%name)
+    CALL MB_inversion( region%mesh, region%ice, region%SMB%SMB, region%BMB%BMB, region%LMB%LMB, region%ice%dHi_dt, region%ice%Hi_next, dt, region%time, region%name)
 
-    ! Save the "true" dynamical dH/dt for future reference
-    region%ice%dHi_dt_predicted = region%ice%dHi_dt
+    ! Save the "raw" dynamical dH/dt before any alterations
+    region%ice%dHi_dt_raw = region%ice%dHi_dt
 
     ! Modify predicted ice thickness if desired
     CALL alter_ice_thickness( region%mesh, region%ice, region%ice%Hi_prev, region%ice%Hi_next, region%refgeo_PD, region%time)
 
     ! Compute residual between the "raw" and final thinning rates
-    region%ice%dHi_dt_residual = region%ice%dHi_dt_residual + ( region%ice%dHi_dt_predicted - (region%ice%Hi_next - region%ice%Hi_prev) / dt )
+    region%ice%dHi_dt_residual = region%ice%dHi_dt_residual + ( region%ice%dHi_dt_raw - (region%ice%Hi_next - region%ice%Hi_prev) / dt )
 
     ! Set next modelled ice thickness timestamp
     region%ice%t_Hi_next = region%ice%t_Hi_prev + dt

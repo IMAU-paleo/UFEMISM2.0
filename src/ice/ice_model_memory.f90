@@ -69,7 +69,7 @@ CONTAINS
     ALLOCATE( ice%dHb_dt                      ( mesh%vi1:mesh%vi2        ))  ! [m yr^-1] Bedrock elevation rate of change
     ALLOCATE( ice%dHs_dt                      ( mesh%vi1:mesh%vi2        ))  ! [m yr^-1] Ice surface elevation rate of change
     ALLOCATE( ice%dHib_dt                     ( mesh%vi1:mesh%vi2        ))  ! [m yr^-1] Ice base elevation rate of change
-    ALLOCATE( ice%dHi_dt_predicted            ( mesh%vi1:mesh%vi2        ))  ! [m yr^-1] Ice thickness rate of change before any modifications
+    ALLOCATE( ice%dHi_dt_raw                  ( mesh%vi1:mesh%vi2        ))  ! [m yr^-1] Ice thickness rate of change before any modifications
     ALLOCATE( ice%dHi_dt_target               ( mesh%vi1:mesh%vi2        ))  ! [m yr^-1] Target ice thickness rate of change for inversions
     ALLOCATE( ice%dHi_dt_residual             ( mesh%vi1:mesh%vi2        ))  ! [m yr^-1] Residual ice thickness rate of change for inversions
 
@@ -77,7 +77,7 @@ CONTAINS
     ice%dHb_dt                      = 0._dp
     ice%dHs_dt                      = 0._dp
     ice%dHib_dt                     = 0._dp
-    ice%dHi_dt_predicted            = 0._dp
+    ice%dHi_dt_raw                  = 0._dp
     ice%dHi_dt_target               = 0._dp
     ice%dHi_dt_residual             = 0._dp
 
