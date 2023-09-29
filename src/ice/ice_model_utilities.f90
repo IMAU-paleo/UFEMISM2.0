@@ -1798,28 +1798,48 @@ CONTAINS
     END IF
 
     ! Just in case
-    limitness = MIN( 1._dp, MAX( 0._dp, limitness))
+    limitness = MIN( 1._dp, MAX( 0._dp, limitness**2._dp))
 
     ! === Modifier ===
     ! ================
 
     ! Intial value
-    modiness      = 1._dp ! DENK DROM : Add smooth decrease to 0 in the future
+    modiness      = limitness! 1._dp ! DENK DROM : Add smooth decrease to 0 in the future
     modiness_up   = 0._dp
     modiness_down = 0._dp
 
     IF (C%modiness_H_style == 'none') THEN
       modiness_up   = 0._dp
       modiness_down = 0._dp
+
     ELSEIF (C%modiness_H_style == 'Ti_hom') THEN
       modiness_up   = (1._dp - exp(ice%Ti_hom/C%modiness_T_hom_ref)) * modiness
       modiness_down = (1._dp - exp(ice%Ti_hom/C%modiness_T_hom_ref)) * modiness
+
     ELSEIF (C%modiness_H_style == 'Ti_hom_up') THEN
       modiness_up   = (1._dp - exp(ice%Ti_hom/C%modiness_T_hom_ref)) * modiness
       modiness_down = 0._dp
+
     ELSEIF (C%modiness_H_style == 'Ti_hom_down') THEN
       modiness_up   = 0._dp
       modiness_down = (1._dp - exp(ice%Ti_hom/C%modiness_T_hom_ref)) * modiness
+
+    ELSEIF (C%modiness_H_style == 'no_thick_inland') THEN
+      DO vi = mesh%vi1, mesh%vi2
+        IF (ice%mask_grounded_ice( vi) .AND. .NOT. ice%mask_gl_gr( vi)) THEN
+          modiness_up( vi) = modiness
+        END IF
+      END DO
+      modiness_down = 0._dp
+
+    ELSEIF (C%modiness_H_style == 'no_thin_inland') THEN
+      DO vi = mesh%vi1, mesh%vi2
+        IF (ice%mask_grounded_ice( vi) .AND. .NOT. ice%mask_gl_gr( vi)) THEN
+          modiness_down( vi) = modiness
+        END IF
+      END DO
+      modiness_up = 0._dp
+
     ELSE
       CALL crash('unknown modiness_H_choice "' // TRIM( C%modiness_H_style) // '"')
     END IF
@@ -1865,8 +1885,12 @@ CONTAINS
       Hi_new( vi) = Hi_old( vi) * fix_H_applied + Hi_new( vi) * (1._dp - fix_H_applied)
 
       ! Apply limitness
-      Hi_new( vi) = MIN( Hi_new( vi), refgeo%Hi( vi) + limit_H_applied*(1._dp - modiness_up(   vi)) + (1._dp - limitness)*(Hi_new( vi) - refgeo%Hi( vi)) )
-      Hi_new( vi) = MAX( Hi_new( vi), refgeo%Hi( vi) - limit_H_applied*(1._dp - modiness_down( vi)) - (1._dp - limitness)*(refgeo%Hi( vi) - Hi_new( vi)) )
+      Hi_new( vi) = MIN( Hi_new( vi), refgeo%Hi( vi) + limit_H_applied + (1._dp - limitness) * (Hi_new( vi) - refgeo%Hi( vi)) )
+      Hi_new( vi) = MAX( Hi_new( vi), refgeo%Hi( vi) - limit_H_applied - (1._dp - limitness) * (refgeo%Hi( vi) - Hi_new( vi)) )
+
+      ! Apply modiness
+      Hi_new( vi) = MIN( Hi_new( vi), refgeo%Hi( vi) + (1._dp - modiness_up(   vi)) * (Hi_new( vi) - refgeo%Hi( vi)) )
+      Hi_new( vi) = MAX( Hi_new( vi), refgeo%Hi( vi) - (1._dp - modiness_down( vi)) * (refgeo%Hi( vi) - Hi_new( vi)) )
 
     END DO
 
@@ -1890,7 +1914,7 @@ CONTAINS
     ! In/output variables:
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
     TYPE(type_ice_model),                   INTENT(IN)    :: ice
-    TYPE(type_SMB_model),                   INTENT(IN)    :: SMB
+    TYPE(type_SMB_model),                   INTENT(INOUT) :: SMB
     TYPE(type_BMB_model),                   INTENT(INOUT) :: BMB
     TYPE(type_LMB_model),                   INTENT(INOUT) :: LMB
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(INOUT) :: dHi_dt_predicted
@@ -1903,7 +1927,7 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'MB_inversion'
     INTEGER                                               :: vi
     CHARACTER(LEN=256)                                    :: choice_BMB_model, choice_LMB_model
-    LOGICAL                                               :: do_BMB_inversion, do_LMB_inversion
+    LOGICAL                                               :: do_BMB_inversion, do_LMB_inversion, do_SMB_inversion
     INTEGER,  DIMENSION(mesh%vi1:mesh%vi2)                :: mask
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: previous_field
     REAL(dp)                                              :: value_change
@@ -1935,6 +1959,7 @@ CONTAINS
 
     do_BMB_inversion = .FALSE.
     do_LMB_inversion = .FALSE.
+    do_SMB_inversion = .FALSE.
 
     ! Check whether we want a BMB inversion
     IF (choice_BMB_model == 'inverted' .AND. &
@@ -1948,6 +1973,13 @@ CONTAINS
         time >= C%LMB_inversion_t_start .AND. &
         time <= C%LMB_inversion_t_end) THEN
       do_LMB_inversion = .TRUE.
+    END IF
+
+    ! Check whether we want a SMB adjustment
+    IF (C%do_SMB_residual_absorb .AND. &
+        time >= C%SMB_residual_absorb_t_start .AND. &
+        time <= C%SMB_residual_absorb_t_start) THEN
+      do_SMB_inversion = .TRUE.
     END IF
 
     ! == BMB: first pass
@@ -2094,6 +2126,27 @@ CONTAINS
         Hi_predicted( vi) = ice%Hi_prev( vi)
 
       END IF
+    END DO
+
+    ! == SMB: absorb remaining change
+    ! ===============================
+
+    ! Store pre-adjustment values
+    previous_field = SMB%SMB
+
+    DO vi = mesh%vi1, mesh%vi2
+
+      IF (.NOT. do_SMB_inversion) CYCLE
+
+      ! For grounded ice, use dHi_dt to get an "inversion" of equilibrium SMB.
+      SMB%SMB( vi) = SMB%SMB( vi) - dHi_dt_predicted( vi)
+
+      ! Adjust rate of ice thickness change dHi/dt to compensate the change
+      dHi_dt_predicted( vi) = 0._dp
+
+      ! Adjust corrected ice thickness to compensate the change
+      Hi_predicted( vi) = ice%Hi_prev( vi)
+
     END DO
 
     ! Finalise routine path

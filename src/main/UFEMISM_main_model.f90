@@ -1343,42 +1343,24 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER          :: routine_name = 'apply_regional_corrections'
     INTEGER                                :: vi
-    REAL(dp)                               :: is_hot, is_thick, is_nice
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! === SMB ===
-    ! ===========
+    IF (par%master) WRITE(0,'(A)') '   Implementing regional corrections...'
 
-    IF (C%do_corrections_SMB) THEN
+    ! == Target dHi_dt
+    ! ================
 
-      IF (par%master) WRITE(0,'(A)') '   Implementing SMB mountain corrections...'
+    ! DENK DROM : Limit target dH/dt to available SMB
+    region%ice%dHi_dt_target = MIN (region%ice%dHi_dt_target, region%SMB%SMB)
 
+    ! === SMB over ice-free land ===
+    ! ==============================
+
+    IF (C%do_SMB_removal_icefree_land) THEN
       DO vi = region%mesh%vi1, region%mesh%vi2
-
-        ! Skip vertices with a bedrock below sea level
-        IF (region%ice%Hb( vi) < region%ice%SL( vi)) THEN
-          CYCLE
-        END IF
-
-        ! Check how thick the ice is here
-        is_thick = 1._dp - MIN( 1._dp, 100._dp/(region%ice%Hi( vi) + .1_dp) )
-        ! Check how cold the ice base is here
-        is_hot   = MIN( 1._dp, EXP( region%ice%Ti_hom( vi) + 10._dp) )
-        ! Thin and cold-based is likely a mountainous region
-        is_nice  = 1._dp - (1._dp-is_thick) * (1._dp-is_hot)
-
-        IF (C%remove_ice_absent_at_PD .AND. region%ice%Hi( vi) == 0._dp) THEN
-          ! Set (positive, see below) SMB to 0 in PD ice-free regions
-          is_nice = 0._dp
-        END IF
-
-        ! Reduce the SMB in those areas: the colder and thinner, the dryer
-        IF (region%SMB%SMB( vi) > 0._dp) THEN
-          region%SMB%SMB( vi) = region%SMB%SMB( vi) * is_nice
-        END IF
-
+        IF (region%ice%mask_icefree_land( vi)) region%SMB%SMB( vi) = 0._dp
       END DO
     END IF
 

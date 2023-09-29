@@ -137,12 +137,6 @@ CONTAINS
     ALLOCATE( SMB%SMB( mesh%vi1:mesh%vi2))
     SMB%SMB = 0._dp
 
-    IF (C%do_corrections_SMB) THEN
-      ! Allocate memory for main variables
-      ALLOCATE( SMB%SMB_correction( mesh%vi1:mesh%vi2))
-      SMB%SMB_correction = 0._dp
-    END IF
-
     ! Set time of next calculation to start time
     SMB%t_next = C%start_time_of_run
 
@@ -314,72 +308,5 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE remap_SMB_model
-
-! ===== Utilities =====
-! =====================
-
-  SUBROUTINE SMB_adjustment( mesh, ice, SMB, dHi_dt_predicted, Hi_predicted, dt, time)
-    ! Calculate the basal mass balance
-    !
-    ! Use an inversion based on the computed dHi_dt
-
-    IMPLICIT NONE
-
-    ! In/output variables:
-    TYPE(type_mesh),                        INTENT(IN)    :: mesh
-    TYPE(type_ice_model),                   INTENT(IN)    :: ice
-    TYPE(type_SMB_model),                   INTENT(INOUT) :: SMB
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(INOUT) :: dHi_dt_predicted
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(INOUT) :: Hi_predicted
-    REAL(dp),                               INTENT(IN)    :: dt
-    REAL(dp),                               INTENT(IN)    :: time
-
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'SMB_adjustment'
-    INTEGER                                               :: vi
-    REAL(dp)                                              :: previous_value, value_change
-
-    ! Add routine to path
-    CALL init_routine( routine_name)
-
-    ! Correct land SMB based on remaining dHi_dt at the end of an inversion for a better equilibrium.
-    IF (.NOT. C%do_corrections_SMB .OR. &
-        time < C%SMB_residual_absorb_t_start .OR. &
-        time > C%SMB_residual_absorb_t_end) THEN
-
-      ! Finalise routine path
-      CALL finalise_routine( routine_name)
-      RETURN
-    END IF
-
-    DO vi = mesh%vi1, mesh%vi2
-      ! If interior grounded point or ice-free land
-      IF (.NOT. ice%mask_icefree_ocean( vi) .AND. &
-          .NOT. ice%mask_floating_ice( vi) .AND. &
-          .NOT. ice%mask_gl_gr( vi) .AND. &
-          .NOT. ice%mask_cf_gr( vi)) THEN
-
-        ! Store previous value
-        previous_value = SMB%SMB( vi)
-
-        ! For grounded ice, use dHi_dt to get an "inversion" of equilibrium SMB.
-        SMB%SMB( vi) = SMB%SMB( vi) - dHi_dt_predicted( vi)
-
-        ! Compute change of value
-        value_change = SMB%SMB( vi) - previous_value
-
-        ! Adjust rate of ice thickness change dHi/dt to compensate the change
-        dHi_dt_predicted( vi) = dHi_dt_predicted( vi) + value_change
-
-        ! Adjust corrected ice thickness to compensate the change
-        Hi_predicted( vi) = ice%Hi_prev( vi) + dHi_dt_predicted( vi) * dt
-
-      END IF
-    END DO ! vi = mesh%vi1, mesh%vi2
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE SMB_adjustment
 
 END MODULE SMB_main

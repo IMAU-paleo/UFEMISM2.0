@@ -50,7 +50,6 @@ MODULE ice_model_main
   USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp
   USE petsc_basic                                            , ONLY: mat_petsc2CSR
   USE reallocate_mod                                         , ONLY: reallocate_bounds_dp_1D
-  USE SMB_main                                               , ONLY: SMB_adjustment
   USE BMB_main                                               , ONLY: run_BMB_model
 
   IMPLICIT NONE
@@ -1307,9 +1306,8 @@ CONTAINS
       CALL calc_dHi_dt( region%mesh, region%ice%Hi, region%ice%Hb, region%ice%SL, region%ice%u_vav_b, region%ice%v_vav_b, region%SMB%SMB, region%BMB%BMB, region%LMB%LMB, region%ice%fraction_margin, &
                         region%ice%mask_noice, region%ice%pc%dt_np1, region%ice%pc%dHi_dt_Hi_n_u_n, Hi_dummy, region%ice%divQ, region%ice%dHi_dt_target, region%ice%dHi_dt_residual)
 
-      ! If so desired, invert/adjust fluxes to get an equilibrium state
+      ! If so desired, invert/adjust mass balance fluxes to get an equilibrium state
       CALL MB_inversion(   region%mesh, region%ice, region%SMB, region%BMB, region%LMB, region%ice%pc%dHi_dt_Hi_n_u_n, Hi_dummy, region%ice%pc%dt_np1, region%time, region%name)
-      CALL SMB_adjustment( region%mesh, region%ice, region%SMB,                         region%ice%pc%dHi_dt_Hi_n_u_n, Hi_dummy, region%ice%pc%dt_np1, region%time)
 
       ! Calculate predicted ice thickness (Robinson et al., 2020, Eq. 30)
       region%ice%pc%Hi_star_np1 = region%ice%Hi_prev + region%ice%pc%dt_np1 * ((1._dp + region%ice%pc%zeta_t / 2._dp) * &
@@ -1374,9 +1372,8 @@ CONTAINS
       CALL calc_dHi_dt( region%mesh, region%ice%Hi, region%ice%Hb, region%ice%SL, region%ice%u_vav_b, region%ice%v_vav_b, region%SMB%SMB, region%BMB%BMB, region%LMB%LMB, region%ice%fraction_margin, &
                         region%ice%mask_noice, region%ice%pc%dt_np1, region%ice%pc%dHi_dt_Hi_star_np1_u_np1, Hi_dummy, region%ice%divQ, region%ice%dHi_dt_target, region%ice%dHi_dt_residual)
 
-      ! If so desired, invert/adjust fluxes to get an equilibrium state
+      ! If so desired, invert/adjust mass balance fluxes to get an equilibrium state
       CALL MB_inversion(   region%mesh, region%ice, region%SMB, region%BMB, region%LMB, region%ice%pc%dHi_dt_Hi_star_np1_u_np1, Hi_dummy, region%ice%pc%dt_np1, region%time, region%name)
-      CALL SMB_adjustment( region%mesh, region%ice, region%SMB,                         region%ice%pc%dHi_dt_Hi_star_np1_u_np1, Hi_dummy, region%ice%pc%dt_np1, region%time)
 
       ! Calculate corrected ice thickness (Robinson et al. (2020), Eq. 31)
       region%ice%pc%Hi_np1 = region%ice%Hi_prev + (region%ice%pc%dt_np1 / 2._dp) * (region%ice%pc%dHi_dt_Hi_n_u_n + region%ice%pc%dHi_dt_Hi_star_np1_u_np1)
@@ -1425,7 +1422,7 @@ CONTAINS
       ! If not, check whether that occurs in a significant amount of vertices; if not,
       ! set the truncation error to almost the tolerance (to allow for growth) and move on
       ELSEIF (100._dp * REAL( n_guilty,dp) / REAL(n_tot,dp) < C%pc_guilty_max) THEN
-        IF (par%master) CALL warning('{dp_01}% of vertices are changing rapidly, ignoring for now', dp_01 = 100._dp * REAL( n_guilty,dp) / REAL(n_tot,dp))
+        ! IF (par%master) CALL warning('{dp_01}% of vertices are changing rapidly, ignoring for now', dp_01 = 100._dp * REAL( n_guilty,dp) / REAL(n_tot,dp))
         region%ice%pc%eta_np1 = .95_dp * C%pc_epsilon
         EXIT iterate_pc_timestep
 
@@ -1857,9 +1854,8 @@ CONTAINS
     CALL calc_dHi_dt( region%mesh, region%ice%Hi, region%ice%Hb, region%ice%SL, region%ice%u_vav_b, region%ice%v_vav_b, region%SMB%SMB, region%BMB%BMB, region%LMB%LMB, region%ice%fraction_margin, &
                       region%ice%mask_noice, dt, region%ice%dHi_dt, region%ice%Hi_next, region%ice%divQ, region%ice%dHi_dt_target, region%ice%dHi_dt_residual)
 
-    ! If so desired, invert/adjust fluxes to get an equilibrium state
+    ! If so desired, invert/adjust mass balance fluxes to get an equilibrium state
     CALL MB_inversion(   region%mesh, region%ice, region%SMB, region%BMB, region%LMB, region%ice%dHi_dt, region%ice%Hi_next, dt, region%time, region%name)
-    CALL SMB_adjustment( region%mesh, region%ice, region%SMB,                         region%ice%dHi_dt, region%ice%Hi_next, dt, region%time)
 
     ! Save the "true" dynamical dH/dt for future reference
     region%ice%dHi_dt_predicted = region%ice%dHi_dt

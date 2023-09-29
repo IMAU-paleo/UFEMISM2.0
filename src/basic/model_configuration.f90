@@ -652,9 +652,12 @@ MODULE model_configuration
     ! Time step
     LOGICAL             :: do_asynchronous_SMB_config                   = .TRUE.                           ! Whether or not the SMB should be calculated asynchronously from the rest of the model; if so, use dt_climate; if not, calculate it in every time step
     REAL(dp)            :: dt_SMB_config                                = 10._dp                           ! [yr] Time step for calculating SMB
-    LOGICAL             :: do_corrections_SMB_config                    = .FALSE.                          ! Whether or not a SMB correction should be calculated from different sources, e.g. dHi_dt residuals at the end of inversions
-    REAL(dp)            :: SMB_residual_absorb_t_start_config           = +9.9E9_dp                        ! [yr] Start time for assimilation of residuals as part of the SMB corrections
-    REAL(dp)            :: SMB_residual_absorb_t_end_config             = +9.9E9_dp                        ! [yr] End   time for assimilation of residuals as part of the SMB corrections
+
+    ! SMB adjustments
+    LOGICAL             :: do_SMB_removal_icefree_land_config           = .FALSE.                          ! Whether or not to remove any positive SMB over ice-free land once during model initialisation
+    LOGICAL             :: do_SMB_residual_absorb_config                = .FALSE.                          ! Whether or not to let SMB absorb "residual" dHi_dt at the end of inversions
+    REAL(dp)            :: SMB_residual_absorb_t_start_config           = +9.9E9_dp                        ! [yr] Start time for assimilation of residuals
+    REAL(dp)            :: SMB_residual_absorb_t_end_config             = +9.9E9_dp                        ! [yr] End   time for assimilation of residuals
 
 
     ! Choice of SMB model
@@ -1486,7 +1489,10 @@ MODULE model_configuration
     ! Time step
     LOGICAL             :: do_asynchronous_SMB
     REAL(dp)            :: dt_SMB
-    LOGICAL             :: do_corrections_SMB
+
+    ! SMB adjustments
+    LOGICAL             :: do_SMB_removal_icefree_land
+    LOGICAL             :: do_SMB_residual_absorb
     REAL(dp)            :: SMB_residual_absorb_t_start
     REAL(dp)            :: SMB_residual_absorb_t_end
 
@@ -2247,7 +2253,8 @@ CONTAINS
       filename_ocean_snapshot_ANT_config                          , &
       do_asynchronous_SMB_config                                  , &
       dt_SMB_config                                               , &
-      do_corrections_SMB_config                                   , &
+      do_SMB_removal_icefree_land_config                          , &
+      do_SMB_residual_absorb_config                               , &
       SMB_residual_absorb_t_start_config                          , &
       SMB_residual_absorb_t_end_config                            , &
       choice_SMB_model_NAM_config                                 , &
@@ -3039,7 +3046,10 @@ CONTAINS
     ! Time step
     C%do_asynchronous_SMB                                    = do_asynchronous_SMB_config
     C%dt_SMB                                                 = dt_SMB_config
-    C%do_corrections_SMB                                     = do_corrections_SMB_config
+
+    ! SMB adjustments
+    C%do_SMB_removal_icefree_land                            = do_SMB_removal_icefree_land_config
+    C%do_SMB_residual_absorb                                 = do_SMB_residual_absorb_config
     C%SMB_residual_absorb_t_start                            = SMB_residual_absorb_t_start_config
     C%SMB_residual_absorb_t_end                              = SMB_residual_absorb_t_end_config
 
