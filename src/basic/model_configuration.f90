@@ -429,6 +429,11 @@ MODULE model_configuration
     REAL(dp)            :: Hi_min_config                                = 0._dp                            ! [m] Minimum ice thickness: thinner ice gets temporarily added to the no-ice mask and eventually removed
     LOGICAL             :: remove_ice_absent_at_PD_config               = .FALSE.                          ! If set to TRUE, all ice not present in PD data is always instantly removed
 
+    ! Mask conservation
+    LOGICAL             :: do_protect_grounded_mask_config              = .FALSE.                          ! If set to TRUE, grounded ice will not be allowed to cross the floatation threshold and will stay minimally grounded.
+    REAL(dp)            :: protect_grounded_mask_t_end_config           = -9.9E9_dp                        ! End time of grounded mask protection. After this time, it will be allowed to thin and become afloat
+
+
     ! Fix/delay ice thickness evolution
     LOGICAL             :: do_fixiness_before_start_config              = .FALSE.                          ! Whether or not to apply fixiness values before fixiness_t_start
     REAL(dp)            :: fixiness_t_start_config                      = +9.9E9_dp                        ! Start time of linear transition between fixed/delayed and free evolution
@@ -1262,6 +1267,10 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: choice_mask_noice
     REAL(dp)            :: Hi_min
     LOGICAL             :: remove_ice_absent_at_PD
+
+    ! Mask conservation
+    LOGICAL             :: do_protect_grounded_mask
+    REAL(dp)            :: protect_grounded_mask_t_end
 
     ! Fix/delay ice thickness evolution
     LOGICAL             :: do_fixiness_before_start
@@ -2117,6 +2126,8 @@ CONTAINS
       choice_mask_noice_config                                    , &
       Hi_min_config                                               , &
       remove_ice_absent_at_PD_config                              , &
+      do_protect_grounded_mask_config                             , &
+      protect_grounded_mask_t_end_config                          , &
       do_fixiness_before_start_config                             , &
       fixiness_t_start_config                                     , &
       fixiness_t_end_config                                       , &
@@ -2825,6 +2836,10 @@ CONTAINS
     C%choice_mask_noice                                      = choice_mask_noice_config
     C%Hi_min                                                 = Hi_min_config
     C%remove_ice_absent_at_PD                                = remove_ice_absent_at_PD_config
+
+    ! Mask conservation
+    C%do_protect_grounded_mask                               = do_protect_grounded_mask_config
+    C%protect_grounded_mask_t_end                            = protect_grounded_mask_t_end_config
 
     ! Fix/delay ice thickness evolution
     C%do_fixiness_before_start                               = do_fixiness_before_start_config

@@ -1681,6 +1681,18 @@ CONTAINS
     ! Save predicted ice thickness for future reference
     Hi_save = Hi_new
 
+    ! == Mask conservation
+    ! ====================
+
+    ! If desired, don't let grounded ice cross the floatation threshold
+    IF (C%do_protect_grounded_mask .AND. time <= C%protect_grounded_mask_t_end) THEN
+      DO vi = mesh%vi1, mesh%vi2
+        IF (ice%mask_grounded_ice( vi)) THEN
+          Hi_new( vi) = MAX( Hi_new( vi), (ice%SL( vi) - ice%Hb( vi)) * seawater_density/ice_density + .1_dp)
+        END IF
+      END DO
+    END IF
+
     ! General cases
     ! =============
 
