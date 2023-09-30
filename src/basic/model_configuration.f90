@@ -427,6 +427,7 @@ MODULE model_configuration
 
     CHARACTER(LEN=256)  :: choice_mask_noice_config                     = 'none'                           ! Choice of mask_noice configuration
     REAL(dp)            :: Hi_min_config                                = 0._dp                            ! [m] Minimum ice thickness: thinner ice gets temporarily added to the no-ice mask and eventually removed
+    REAL(dp)            :: Hi_thin_config                               = 0._dp                            ! [m] Thin-ice thickness threshold: thinner ice is considered dynamically unreliable (e.g. over steep slopes)
     LOGICAL             :: remove_ice_absent_at_PD_config               = .FALSE.                          ! If set to TRUE, all ice not present in PD data is always instantly removed
 
     ! Mask conservation
@@ -1266,6 +1267,7 @@ MODULE model_configuration
 
     CHARACTER(LEN=256)  :: choice_mask_noice
     REAL(dp)            :: Hi_min
+    REAL(dp)            :: Hi_thin
     LOGICAL             :: remove_ice_absent_at_PD
 
     ! Mask conservation
@@ -2125,6 +2127,7 @@ CONTAINS
       continental_shelf_min_height_config                         , &
       choice_mask_noice_config                                    , &
       Hi_min_config                                               , &
+      Hi_thin_config                                              , &
       remove_ice_absent_at_PD_config                              , &
       do_protect_grounded_mask_config                             , &
       protect_grounded_mask_t_end_config                          , &
@@ -2835,6 +2838,7 @@ CONTAINS
 
     C%choice_mask_noice                                      = choice_mask_noice_config
     C%Hi_min                                                 = Hi_min_config
+    C%Hi_thin                                                = Hi_thin_config
     C%remove_ice_absent_at_PD                                = remove_ice_absent_at_PD_config
 
     ! Mask conservation

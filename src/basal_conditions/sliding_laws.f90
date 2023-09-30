@@ -311,14 +311,16 @@ CONTAINS
     ! Calculate the till yield stress from the till friction angle and the effective pressure
     DO vi = mesh%vi1, mesh%vi2
 
-      ! Prepare mask for extrapolation over ice-free land
-      IF (ice%mask_grounded_ice( vi) .AND. .NOT. ice%mask_gl_gr( vi)) THEN
-        mask( vi) = 2
-      ELSEIF (ice%mask_icefree_land( vi)) THEN
-        mask( vi) = 1
-        CYCLE
-      ELSE
+      ! Prepare mask for extrapolation
+      IF (ice%mask_floating_ice( vi) .OR. ice%mask_icefree_ocean( vi)) THEN
+        ! Ignore during extrapolation
         mask( vi) = 0
+      ELSEIF(ice%Hi( vi) <= C%Hi_thin) THEN
+        ! Extrapolate over ice-free land and very thin grounded ice
+        mask( vi) = 1
+      ELSEIF (ice%mask_grounded_ice( vi)) THEN
+        ! Use as seed during extrapolation
+        mask( vi) = 2
       END IF
 
       ! Compute the final till yield stress
@@ -326,8 +328,22 @@ CONTAINS
 
     END DO
 
-    ! Extrapolate over ice-free land
+    ! DENK DROM: implement this in other sliding laws
+    ! Extrapolate over ice-free land and very thin grounded ice
     CALL extrapolate_Gaussian( mesh, mask, ice%till_yield_stress, C%porenudge_H_dHdt_flowline_r_smooth)
+
+    ! Safety in case the extrapolation over ice-free land and very thin ice above failed
+    ! Use a minimum till yield stress for these areas based on the thin-ice threshold
+    DO vi = mesh%vi1, mesh%vi2
+      ! Skip non-grounded vertices
+      IF (ice%mask_floating_ice( vi) .OR. ice%mask_icefree_ocean( vi)) THEN
+        CYCLE
+      END IF
+      ! If ice-free land or very thin grounded ice
+      IF (ice%Hi( vi) <= C%Hi_thin) THEN
+        ice%till_yield_stress( vi) = MAX( ice%till_yield_stress( vi), ice_density * grav * C%Hi_thin)
+      END IF
+    END DO
 
     ! Calculate beta
     DO vi = mesh%vi1, mesh%vi2
