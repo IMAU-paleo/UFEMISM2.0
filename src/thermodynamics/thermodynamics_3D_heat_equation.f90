@@ -176,7 +176,7 @@ CONTAINS
         DO it_it_dt = 1, 2**(it_dt-1)
 
           ! Solve the heat equation in the vertical column
-          IF     (ice%mask_grounded_ice( vi)) THEN
+          IF     (ice%mask_grounded_ice( vi) .AND. .NOT. ice%mask_gl_gr( vi)) THEN
             ! Grounded ice: use Q_base_grnd as boundary condition
 
             CALL solve_1D_heat_equation( mesh, icecol_Ti, icecol_u, icecol_v, icecol_w, &
@@ -184,7 +184,7 @@ CONTAINS
               icecol_Ti_pmp, icecol_Ki, icecol_Cpi, icecol_dzeta_dx, icecol_dzeta_dy, icecol_dzeta_dz, icecol_dzeta_dt, &
               icecol_Phi, dt_applied, icecol_Ti_tplusdt, Q_base_grnd = Q_base_grnd( vi))
 
-          ELSEIF (ice%mask_floating_ice( vi)) THEN
+          ELSEIF (ice%mask_floating_ice( vi) .OR. ice%mask_gl_gr( vi)) THEN
             ! Floating ice: use T_base_float as boundary condition
 
             CALL solve_1D_heat_equation( mesh, icecol_Ti, icecol_u, icecol_v, icecol_w, &
