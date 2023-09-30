@@ -292,7 +292,6 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'pore_water_fraction_inversion'
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: pore_dryness
-    INTEGER,  DIMENSION(:    ), ALLOCATABLE            :: mask
     REAL(dp), DIMENSION(mesh%nV)                       :: Hi_tot
     REAL(dp), DIMENSION(mesh%nV)                       :: Hi_target_tot
     REAL(dp), DIMENSION(mesh%nV)                       :: dHi_dt_tot
@@ -301,9 +300,11 @@ CONTAINS
     REAL(dp), DIMENSION(mesh%nTri)                     :: v_b_tot
     LOGICAL,  DIMENSION(mesh%nV)                       :: mask_grounded_ice_tot
     LOGICAL,  DIMENSION(mesh%nV)                       :: mask_gl_gr_tot
+    LOGICAL,  DIMENSION(mesh%nV)                       :: mask_cf_gr_tot
     LOGICAL,  DIMENSION(mesh%nV)                       :: mask_margin_tot
     REAL(dp), DIMENSION(mesh%nV)                       :: fraction_gr_tot
-    INTEGER                                            :: vi
+    REAL(dp), DIMENSION(mesh%nV)                       :: pore_water_fraction_next_tot
+    INTEGER                                            :: vi,ci,vc
     REAL(dp), DIMENSION(2)                             :: p
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: trace_up, trace_down
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: s_up, s_down
@@ -324,19 +325,18 @@ CONTAINS
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: deltaHi_av_up, deltaHi_av_down
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: dHi_dt_av_up, dHi_dt_av_down
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: Ti_hom_av_up, Ti_hom_av_down
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: I_tot, R
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: dC1_dt, dC2_dt
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: I_tot
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: dC1_dt
+    INTEGER,  DIMENSION(:    ), ALLOCATABLE            :: mask
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: dHs_dx, dHs_dy, abs_grad_Hs
     REAL(dp)                                           :: misfit
-    REAL(dp)                                           :: fg_exp_mod, bf_exp_mod, hs_exp_mod, hi_exp_mod, land_boost, ocean_boost
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: dC1_dt_smoothed, dC2_dt_smoothed
-
+    REAL(dp)                                           :: fg_exp_mod, bf_exp_mod, hs_exp_mod, hi_exp_mod, max_neighbour, max_shelf_size
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: dC1_dt_smoothed
     ! Add routine to path
     CALL init_routine( routine_name)
 
     ! Allocate memory
     ALLOCATE( pore_dryness(    mesh%vi1:mesh%vi2), source = 0._dp  )
-    ALLOCATE( mask(            mesh%vi1:mesh%vi2), source = 0      )
     ALLOCATE( trace_up(        mesh%nV, 2       ), source = 0._dp  )
     ALLOCATE( trace_down(      mesh%nV, 2       ), source = 0._dp  )
     ALLOCATE( s_up(            mesh%nV          ), source = 0._dp  )
@@ -353,15 +353,13 @@ CONTAINS
     ALLOCATE( dHi_dt_av_down(  mesh%vi1:mesh%vi2), source = 0._dp  )
     ALLOCATE( Ti_hom_av_up(    mesh%vi1:mesh%vi2), source = 0._dp  )
     ALLOCATE( Ti_hom_av_down(  mesh%vi1:mesh%vi2), source = 0._dp  )
-    ALLOCATE( R(               mesh%vi1:mesh%vi2), source = 0._dp  )
     ALLOCATE( I_tot(           mesh%vi1:mesh%vi2), source = 0._dp  )
     ALLOCATE( dC1_dt(          mesh%vi1:mesh%vi2), source = 0._dp  )
-    ALLOCATE( dC2_dt(          mesh%vi1:mesh%vi2), source = 0._dp  )
+    ALLOCATE( mask(            mesh%vi1:mesh%vi2), source = 0      )
     ALLOCATE( dHs_dx(          mesh%vi1:mesh%vi2), source = 0._dp  )
     ALLOCATE( dHs_dy(          mesh%vi1:mesh%vi2), source = 0._dp  )
     ALLOCATE( abs_grad_Hs(     mesh%vi1:mesh%vi2), source = 0._dp  )
     ALLOCATE( dC1_dt_smoothed( mesh%vi1:mesh%vi2), source = 0._dp  )
-    ALLOCATE( dC2_dt_smoothed( mesh%vi1:mesh%vi2), source = 0._dp  )
 
     ! Gather ice model data from all processes
     CALL gather_to_all_dp_1D(      ice%Hi               , Hi_tot               )
@@ -372,6 +370,7 @@ CONTAINS
     CALL gather_to_all_dp_1D(      ice%v_vav_b          , v_b_tot              )
     CALL gather_to_all_logical_1D( ice%mask_grounded_ice, mask_grounded_ice_tot)
     CALL gather_to_all_logical_1D( ice%mask_gl_gr       , mask_gl_gr_tot       )
+    CALL gather_to_all_logical_1D( ice%mask_cf_gr       , mask_cf_gr_tot       )
     CALL gather_to_all_logical_1D( ice%mask_margin      , mask_margin_tot      )
     CALL gather_to_all_dp_1D(      ice%fraction_gr      , fraction_gr_tot      )
 
@@ -384,36 +383,21 @@ CONTAINS
 
     DO vi = mesh%vi1, mesh%vi2
 
-      ! Determine whether pore water fraction should be
-      ! updated by inversion or by extrapolation
+      ! Surface elevation misfit
+      misfit = ice%Hi( vi) - refgeo%Hi( vi)
+
+      ! Only perform the inversion on evolving vertices
+      IF (ABS(ice%dHi_dt( vi)) <= 1._dp .AND. ABS(misfit) <= 10._dp) THEN
+        ! Skip this vertex
+        CYCLE
+      END IF
 
       ! Only perform the inversion on fully grounded vertices
-      IF (ice%mask_grounded_ice( vi) .AND. (.NOT. ice%mask_gl_gr( vi))) THEN
-      ! IF (ice%mask_grounded_ice( vi)) THEN
-
-        ! Perform the inversion here
-        mask( vi) = 2
-
-        ! Surface elevation misfit
-        misfit = ice%Hi( vi) - refgeo%Hi( vi)
-
-      ELSEIF (ice%mask_icefree_land( vi)) THEN
-
-        ! Assume no water here
-        ice%pore_water_likelihood( vi) = 0._dp
-        ! And ignore this vertex
-        mask( vi) = 0
-        CYCLE
-
-      ELSE
-
+      IF ( .NOT. ice%mask_grounded_ice( vi) .OR. ice%mask_gl_gr( vi)) THEN
         ! Give non-fully grounded ice a default value (irrelevant)
-        ice%pore_water_likelihood( vi) = 1._dp
-
-        ! Extrapolate here
-        mask( vi) = 1
+        ice%pore_water_likelihood( vi) = 0._dp
+        ! Skip this vertex
         CYCLE
-
       END IF
 
       ! Trace both halves of the flowline
@@ -670,28 +654,19 @@ CONTAINS
 
     DO vi = mesh%vi1, mesh%vi2
 
-        ! Grounded fractions
-        fg_exp_mod = 1._dp - ice%fraction_gr( vi)**C%subgrid_friction_exponent
+      ! Grounded fractions
+      fg_exp_mod = 1._dp - ice%fraction_gr( vi)**C%subgrid_friction_exponent
 
-        ! Steep slopes
-        hs_exp_mod = MIN( 1.0_dp, MAX( 0._dp, MAX( 0._dp, abs_grad_Hs( vi) - 0.003_dp) / (0.01_dp - 0.003_dp) ))
+      ! Steep slopes
+      hs_exp_mod = MIN( 1.0_dp, MAX( 0._dp, MAX( 0._dp, abs_grad_Hs( vi) - 0.003_dp) / (0.01_dp - 0.003_dp) ))
 
-        ! Ice thickness
-        hi_exp_mod = MIN( 1.0_dp, MAX( 0._dp, ice%Hi( vi)/1000._dp))
-
-        ! Prevent over-increase of sliding over partially grounded, steep-sloped areas
-        IF (dC1_dt( vi) < 0._dp) THEN
-          ! Scale based on friction-slope-slide-thickness modifiers
-          dC1_dt( vi) = dC1_dt( vi) * (1._dp - .5_dp * (fg_exp_mod + hs_exp_mod)) * hi_exp_mod
-        END IF
+      ! Prevent over-increase of sliding over partially grounded, steep-sloped areas
+      IF (dC1_dt( vi) < 0._dp) THEN
+        ! Scale based on friction-slope-slide-thickness modifiers
+        dC1_dt( vi) = dC1_dt( vi) * (1._dp - .5_dp * (fg_exp_mod + hs_exp_mod))
+      END IF
 
     END DO
-
-    ! Extrapolate over non-inverted areas
-    ! ===================================
-
-    ! Perform the extrapolation - mask: 2 -> use as seed; 1 -> extrapolate; 0 -> ignore
-    CALL extrapolate_Gaussian( mesh, mask, dC1_dt, C%porenudge_H_dHdt_flowline_r_smooth)
 
     ! Smoothing
     ! =========
@@ -714,41 +689,150 @@ CONTAINS
 
     pore_dryness = pore_dryness + dC1_dt * C%pore_water_nudging_dt
 
-    ! Final pore water fraction field
-    ! ===============================
+    ! New pore water fraction field
+    ! =============================
+
+    ! Get pore_water_fraction back from pore_dryness
+    HIV%pore_water_fraction_next = 1._dp - pore_dryness
+
+    ! Gather ice model data from all processes
+    CALL gather_to_all_dp_1D( HIV%pore_water_fraction_next, pore_water_fraction_next_tot)
+
+    ! Margins: grounded side of grounding line
+    ! ========================================
 
     DO vi = mesh%vi1, mesh%vi2
 
-      ! Get it back from pore_dryness
-      HIV%pore_water_fraction_next( vi) = 1._dp - pore_dryness( vi)
+      ! Skip if not grounded grounding line
+      IF (.NOT. mask_gl_gr_tot( vi)) CYCLE
 
-      ! Steep slopes
-      hs_exp_mod = MIN( 1.0_dp, MAX( 0._dp, MAX( 0._dp, abs_grad_Hs( vi) - 0.003_dp) / (0.01_dp - 0.003_dp) ))
+      ! Initialise maximum neighbour
+      max_neighbour = pore_water_fraction_next_tot( vi)
 
-      ! Ice thickness
-      hi_exp_mod = MIN( 1.0_dp, MAX( 0._dp, ice%Hi( vi)/1000._dp))
+      ! Check interior grounded vertices for greater values
+      DO ci = 1, mesh%nC( vi)
+        vc = mesh%C( vi, ci)
+        IF (mask_grounded_ice_tot( vc) .AND. .NOT. mask_gl_gr_tot( vc) .AND. .NOT. mask_cf_gr_tot( vc)) THEN
+          max_neighbour = MAX( max_neighbour, pore_water_fraction_next_tot( vc))
+        END IF
+      END DO
 
-      ! Final modifiers for marginal grounded areas
-      land_boost  = 0._dp!(1._dp - ice%fraction_gr( vi)**1._dp) * (1._dp - hs_exp_mod) * hi_exp_mod
-      ! Final modifiers for floating areas
-      ocean_boost = (1._dp - ice%fraction_gr( vi)**1._dp) * (1._dp - hs_exp_mod)
+      ! Use maximum value, if any
+      HIV%pore_water_fraction_next( vi) = max_neighbour
 
-      ! Increase it for vertices in contact with the ocean
-      IF ((ice%mask_gl_gr( vi) .OR. ice%mask_cf_gr( vi)) .AND. ice%Hib( vi) < ice%SL( vi)) THEN
-        ! Grounding line or calving front below sea level
-        HIV%pore_water_fraction_next( vi) = MAX(HIV%pore_water_fraction_next( vi), land_boost)
+    END DO
 
+    ! Margins: grounded calving fronts
+    ! ================================
+
+    DO vi = mesh%vi1, mesh%vi2
+
+      ! Skip if not grounded calving front
+      IF (.NOT. mask_cf_gr_tot( vi)) CYCLE
+
+      ! Initialise maximum neighbour
+      max_neighbour = pore_water_fraction_next_tot( vi)
+
+      ! Check interior grounded vertices for greater values
+      DO ci = 1, mesh%nC( vi)
+        vc = mesh%C( vi, ci)
+        IF (mask_grounded_ice_tot( vc) .AND. .NOT. mask_cf_gr_tot( vc) .AND. .NOT. mask_gl_gr_tot( vc)) THEN
+          max_neighbour = MAX( max_neighbour, pore_water_fraction_next_tot( vc))
+        END IF
+      END DO
+
+      ! Use maximum value, if any
+      HIV%pore_water_fraction_next( vi) = max_neighbour
+
+    END DO
+
+    ! Margins: floating side of grounding line
+    ! ========================================
+
+    DO vi = mesh%vi1, mesh%vi2
+
+      ! Skip if not floating grounding line
+      IF (.NOT. ice%mask_gl_fl( vi)) CYCLE
+
+      ! Initialise maximum neighbour
+      max_neighbour = pore_water_fraction_next_tot( vi)
+
+      ! Check grounded grounding lines for greater values
+      DO ci = 1, mesh%nC( vi)
+        vc = mesh%C( vi, ci)
+        IF (mask_gl_gr_tot( vc)) THEN
+          max_neighbour = MAX( max_neighbour, pore_water_fraction_next_tot( vc))
+        END IF
+      END DO
+
+      ! Use maximum value, if any
+      HIV%pore_water_fraction_next( vi) = max_neighbour
+
+    END DO
+
+    ! Extrapolate: floating ice
+    ! =========================
+
+    ! Initialise extrapolation mask
+    mask = 0
+
+    ! Initialise maximum floating size. The maximum size among
+    ! all valid floating vertices will be used as the search radius
+    ! in the extrapolation later.
+    max_shelf_size = MINVAL(mesh%R)
+
+    DO vi = mesh%vi1, mesh%vi2
+      IF (ice%mask_gl_gr( vi) .OR. ice%mask_gl_fl( vi)) THEN
+        ! Grounding line: use as seed
+        mask( vi) = 2
       ELSEIF (ice%mask_floating_ice( vi)) THEN
-        ! Floating ice
-        HIV%pore_water_fraction_next( vi) = MAX(HIV%pore_water_fraction_next( vi), ocean_boost)
+        ! Ice shelf: extrapolate here
+        mask( vi) = 1
+        ! Check if this vertex has a lower resolution
+        max_shelf_size = MAX( max_shelf_size, mesh%R( vi))
+      END IF
+    END DO
 
-      ELSEIF (ice%mask_icefree_ocean( vi)) THEN
-        ! Ice-free ocean
+    ! Perform the extrapolation - mask: 2 -> use as seed; 1 -> extrapolate; 0 -> ignore
+    CALL extrapolate_Gaussian( mesh, mask, HIV%pore_water_fraction_next, max_shelf_size)
+
+    ! Extrapolate: ice-free land
+    ! ==========================
+
+    ! Initialise extrapolation mask
+    mask = 0
+
+    ! Initialise maximum land size. The maximum size among
+    ! all valid ice-free land vertices will be used as the search radius
+    ! in the extrapolation later.
+    max_shelf_size = MINVAL(mesh%R)
+
+    DO vi = mesh%vi1, mesh%vi2
+      IF (ice%mask_grounded_ice( vi)) THEN
+        ! Grounded ice: use as seed
+        mask( vi) = 2
+      ELSEIF (ice%mask_icefree_land( vi)) THEN
+        ! Ice-free land: extrapolate here
+        mask( vi) = 1
+        ! Check if this vertex has a lower resolution
+        max_shelf_size = MAX( max_shelf_size, mesh%R( vi))
+      END IF
+    END DO
+
+    ! Perform the extrapolation - mask: 2 -> use as seed; 1 -> extrapolate; 0 -> ignore
+    CALL extrapolate_Gaussian( mesh, mask, HIV%pore_water_fraction_next, max_shelf_size)
+
+    ! Partially floating vertices
+    ! ===========================
+
+    DO vi = mesh%vi1, mesh%vi2
+
+      IF (ice%mask_grounded_ice( vi) .OR. ice%mask_icefree_land( vi)) THEN
+        HIV%pore_water_fraction_next( vi) = MAX( HIV%pore_water_fraction_next( vi), 1._dp - ice%fraction_gr( vi)**1._dp)
+
+      ELSEIF (ice%mask_floating_ice( vi) .OR. ice%mask_icefree_ocean( vi)) THEN
         HIV%pore_water_fraction_next( vi) = 1._dp
 
-      ELSEIF (ice%mask_icefree_land( vi)) THEN
-        ! Ice-free land
-        HIV%pore_water_fraction_next( vi) = 0._dp
       END IF
 
       ! Limit values to prescribed limits
@@ -759,7 +843,6 @@ CONTAINS
 
     ! Clean up after yourself
     DEALLOCATE( pore_dryness   )
-    DEALLOCATE( mask           )
     DEALLOCATE( trace_up       )
     DEALLOCATE( trace_down     )
     DEALLOCATE( s_up           )
@@ -776,15 +859,13 @@ CONTAINS
     DEALLOCATE( dHi_dt_av_down )
     DEALLOCATE( Ti_hom_av_up   )
     DEALLOCATE( Ti_hom_av_down )
-    DEALLOCATE( R              )
     DEALLOCATE( I_tot          )
     DEALLOCATE( dC1_dt         )
-    DEALLOCATE( dC2_dt         )
+    DEALLOCATE( mask           )
     DEALLOCATE( dHs_dx         )
     DEALLOCATE( dHs_dy         )
     DEALLOCATE( abs_grad_Hs    )
     DEALLOCATE( dC1_dt_smoothed)
-    DEALLOCATE( dC2_dt_smoothed)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
