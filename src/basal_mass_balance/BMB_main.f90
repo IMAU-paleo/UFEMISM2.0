@@ -588,10 +588,6 @@ CONTAINS
       ELSEIF (ice%mask_floating_ice( vi) .OR. (ice%mask_icefree_ocean( vi) .AND. BMB%mask_floating_ice( vi))) THEN
         BMB%BMB( vi) = BMB_floating_ice( vi)
 
-      ! Original grounded-side grounding line: apply full value
-      ELSEIF (ice%mask_gl_gr( vi) .AND. BMB%mask_gl_gr( vi)) THEN
-        BMB%BMB( vi) = BMB_gl_gr( vi)
-
       ! Grounded-side grounding lines, or previously iced inverted ones
       ELSEIF (ice%mask_gl_gr( vi) .OR. (ice%mask_icefree_ocean( vi) .AND. BMB%mask_gl_gr( vi))) THEN
         IF (BMB%mask_gl_gr( vi)) THEN
@@ -601,6 +597,11 @@ CONTAINS
           ! New grounded-side grounding line: scale value based on floating fraction
           BMB%BMB( vi) = BMB_gl_gr( vi) * (1._dp - ice%fraction_gr( vi))
         END IF
+
+      ! Original ice-free ocean
+      ELSEIF (ice%mask_icefree_ocean( vi)) THEN
+        ! Use inverted value directly
+        BMB%BMB( vi) = BMB%BMB_ref( vi)
 
       ! Not a place where we want BMB
       ELSE
