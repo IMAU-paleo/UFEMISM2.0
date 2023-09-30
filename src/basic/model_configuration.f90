@@ -1867,10 +1867,11 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'read_config_file'
-    CHARACTER(LEN=256), PARAMETER                      :: namelist_filename = 'config_namelist_temp.txt'
+    CHARACTER(LEN=256)                                 :: namelist_filename
     INTEGER, PARAMETER                                 :: config_unit    = 1337
     INTEGER, PARAMETER                                 :: namelist_unit  = 1338
     INTEGER                                            :: ios
+    INTEGER                                            :: i
 
     ! The NAMELIST that's used to read the external config file.
     NAMELIST /CONFIG/&
@@ -2403,6 +2404,15 @@ CONTAINS
 
     ! Add routine to path
     CALL init_routine( routine_name)
+
+    ! Generate CONFIG namelist filename
+    namelist_filename = config_filename
+    i = INDEX( namelist_filename,'/')
+    DO WHILE (i > 0)
+      namelist_filename = namelist_filename( i+1: LEN_TRIM( namelist_filename))
+      i = INDEX( namelist_filename,'/')
+    END DO
+    namelist_filename = 'namelist_' // TRIM( namelist_filename)
 
     ! Write the CONFIG namelist to a temporary file
     OPEN(  UNIT = namelist_unit, FILE = TRIM( namelist_filename))
