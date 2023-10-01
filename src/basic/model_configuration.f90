@@ -577,6 +577,7 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: choice_thermo_model_config                   = '3D_heat_equation'               ! Choice of thermodynamical model: "none", "3D_heat_equation"
     REAL(dp)            :: dt_thermodynamics_config                     = 1._dp                            ! [yr] Time step for the thermodynamical model
     REAL(dp)            :: Hi_min_thermo_config                         = 10._dp                           ! [m]  Ice thinner than this is assumed to have a temperature equal to the annual mean surface temperature throughout the vertical column
+    CHARACTER(LEN=256)  :: choice_GL_temperature_BC_config              = 'grounded'                       ! Choice of basal boundary condition at grounding lines: 'grounded', 'subgrid', 'pmp'
     CHARACTER(LEN=256)  :: choice_ice_heat_capacity_config              = 'Pounder1965'                    ! Choice of ice heat capacity model: "uniform", "Pounder1965"
     REAL(dp)            :: uniform_ice_heat_capacity_config             = 2009._dp                         ! Uniform ice heat capacity (applied when choice_ice_heat_capacity_config = "uniform")
     CHARACTER(LEN=256)  :: choice_ice_thermal_conductivity_config       = 'Ritz1987'                       ! Choice of ice heat capacity model: "uniform", "Ritz1987"
@@ -1416,6 +1417,7 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: choice_thermo_model
     REAL(dp)            :: dt_thermodynamics
     REAL(dp)            :: Hi_min_thermo
+    CHARACTER(LEN=256)  :: choice_GL_temperature_BC
     CHARACTER(LEN=256)  :: choice_ice_heat_capacity
     REAL(dp)            :: uniform_ice_heat_capacity
     CHARACTER(LEN=256)  :: choice_ice_thermal_conductivity
@@ -2231,6 +2233,7 @@ CONTAINS
       choice_thermo_model_config                                  , &
       dt_thermodynamics_config                                    , &
       Hi_min_thermo_config                                        , &
+      choice_GL_temperature_BC_config                             , &
       choice_ice_heat_capacity_config                             , &
       uniform_ice_heat_capacity_config                            , &
       choice_ice_thermal_conductivity_config                      , &
@@ -2997,6 +3000,7 @@ CONTAINS
     C%choice_thermo_model                                    = choice_thermo_model_config
     C%dt_thermodynamics                                      = dt_thermodynamics_config
     C%Hi_min_thermo                                          = Hi_min_thermo_config
+    C%choice_GL_temperature_BC                               = choice_GL_temperature_BC_config
     C%choice_ice_heat_capacity                               = choice_ice_heat_capacity_config
     C%uniform_ice_heat_capacity                              = uniform_ice_heat_capacity_config
     C%choice_ice_thermal_conductivity                        = choice_ice_thermal_conductivity_config
