@@ -1729,13 +1729,13 @@ CONTAINS
     ! =============================================
 
       CASE ('dHi')
-        CALL add_field_mesh_dp_2D( filename, ncid, 'dHi', long_name = 'Ice thickness difference (w.r.t. to reference)', units = 'm')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'dHi', long_name = 'Ice thickness difference w.r.t. reference', units = 'm')
       CASE ('dHb')
-        CALL add_field_mesh_dp_2D( filename, ncid, 'dHb', long_name = 'Bedrock elevation difference (w.r.t. to reference)', units = 'm')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'dHb', long_name = 'Bedrock elevation difference w.r.t. reference', units = 'm')
       CASE ('dHs')
-        CALL add_field_mesh_dp_2D( filename, ncid, 'dHs', long_name = 'Surface elevation difference (w.r.t. to reference)', units = 'm')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'dHs', long_name = 'Surface elevation difference w.r.t. reference', units = 'm')
       CASE ('dHib')
-        CALL add_field_mesh_dp_2D( filename, ncid, 'dHib', long_name = 'Ice base elevation difference (w.r.t. to reference)', units = 'm')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'dHib', long_name = 'Ice base elevation difference w.r.t. reference', units = 'm')
 
     ! ===== Geometry rates of change =====
     ! ====================================
@@ -2099,13 +2099,13 @@ CONTAINS
     ! =============================================
 
       CASE ('dHi')
-        CALL add_field_grid_dp_2D( filename, ncid, 'dHi', long_name = 'Ice thickness difference (w.r.t. to reference)', units = 'm')
+        CALL add_field_grid_dp_2D( filename, ncid, 'dHi', long_name = 'Ice thickness difference w.r.t. reference', units = 'm')
       CASE ('dHb')
-        CALL add_field_grid_dp_2D( filename, ncid, 'dHb', long_name = 'Bedrock elevation difference (w.r.t. to reference)', units = 'm')
+        CALL add_field_grid_dp_2D( filename, ncid, 'dHb', long_name = 'Bedrock elevation difference w.r.t. reference', units = 'm')
       CASE ('dHs')
-        CALL add_field_grid_dp_2D( filename, ncid, 'dHs', long_name = 'Surface elevation difference (w.r.t. to reference)', units = 'm')
+        CALL add_field_grid_dp_2D( filename, ncid, 'dHs', long_name = 'Surface elevation difference w.r.t. reference', units = 'm')
       CASE ('dHib')
-        CALL add_field_grid_dp_2D( filename, ncid, 'dHib', long_name = 'Ice base elevation difference (w.r.t. to reference)', units = 'm')
+        CALL add_field_grid_dp_2D( filename, ncid, 'dHib', long_name = 'Ice base elevation difference w.r.t. reference', units = 'm')
 
     ! ===== Geometry rates of change =====
     ! ====================================

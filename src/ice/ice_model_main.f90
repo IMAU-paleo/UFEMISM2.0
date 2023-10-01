@@ -475,10 +475,10 @@ CONTAINS
     CALL reallocate_bounds( ice%Hi_eff                      , mesh_new%vi1, mesh_new%vi2         )  ! [m] Effective ice thickness
 
     ! Geometry changes
-    CALL reallocate_bounds( ice%dHi                         , mesh_new%vi1, mesh_new%vi2         )  ! [m] Ice thickness difference (w.r.t. to reference)
-    CALL reallocate_bounds( ice%dHb                         , mesh_new%vi1, mesh_new%vi2         )  ! [m] Bedrock elevation difference (w.r.t. to reference)
-    CALL reallocate_bounds( ice%dHs                         , mesh_new%vi1, mesh_new%vi2         )  ! [m] Surface elevation difference (w.r.t. to reference)
-    CALL reallocate_bounds( ice%dHib                        , mesh_new%vi1, mesh_new%vi2         )  ! [m] Base elevation difference (w.r.t. to reference)
+    CALL reallocate_bounds( ice%dHi                         , mesh_new%vi1, mesh_new%vi2         )  ! [m] Ice thickness difference (w.r.t. reference)
+    CALL reallocate_bounds( ice%dHb                         , mesh_new%vi1, mesh_new%vi2         )  ! [m] Bedrock elevation difference (w.r.t. reference)
+    CALL reallocate_bounds( ice%dHs                         , mesh_new%vi1, mesh_new%vi2         )  ! [m] Surface elevation difference (w.r.t. reference)
+    CALL reallocate_bounds( ice%dHib                        , mesh_new%vi1, mesh_new%vi2         )  ! [m] Base elevation difference (w.r.t. reference)
 
     ! Rates of change
     ! CALL reallocate_bounds( ice%dHi_dt                      , mesh_new%vi1, mesh_new%vi2         )  ! [m yr^-1] Ice thickness rate of change

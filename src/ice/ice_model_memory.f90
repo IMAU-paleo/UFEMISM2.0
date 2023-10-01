@@ -54,10 +54,10 @@ CONTAINS
     ice%Hi_eff                      = 0._dp
 
     ! Geometry changes
-    ALLOCATE( ice%dHi                         ( mesh%vi1:mesh%vi2        ))  ! [m] Ice thickness difference (w.r.t. to reference)
-    ALLOCATE( ice%dHb                         ( mesh%vi1:mesh%vi2        ))  ! [m] Bedrock elevation difference (w.r.t. to reference)
-    ALLOCATE( ice%dHs                         ( mesh%vi1:mesh%vi2        ))  ! [m] Surface elevation difference (w.r.t. to reference)
-    ALLOCATE( ice%dHib                        ( mesh%vi1:mesh%vi2        ))  ! [m] Base elevation difference (w.r.t. to reference)
+    ALLOCATE( ice%dHi                         ( mesh%vi1:mesh%vi2        ))  ! [m] Ice thickness difference (w.r.t. reference)
+    ALLOCATE( ice%dHb                         ( mesh%vi1:mesh%vi2        ))  ! [m] Bedrock elevation difference (w.r.t. reference)
+    ALLOCATE( ice%dHs                         ( mesh%vi1:mesh%vi2        ))  ! [m] Surface elevation difference (w.r.t. reference)
+    ALLOCATE( ice%dHib                        ( mesh%vi1:mesh%vi2        ))  ! [m] Base elevation difference (w.r.t. reference)
 
     ice%dHi                         = 0._dp
     ice%dHb                         = 0._dp
