@@ -141,7 +141,7 @@ CONTAINS
     DO vi = mesh%vi1, mesh%vi2
 
       ! For very thin ice, just let the profile equal the surface temperature
-      IF (ice%Hi( vi) < C%Hi_min_thermo) THEN
+      IF (ice%Hi_eff( vi) < C%Hi_min_thermo) THEN
         is_unstable( vi) = 0
         Ti_tplusdt( vi,:) = T_surf_annual( vi)
         CYCLE
@@ -228,7 +228,7 @@ CONTAINS
               icecol_Phi, dt_applied, icecol_Ti_tplusdt, T_base_float = T_base_float( vi))
 
           ELSE
-            CALL crash('Hi > Hi_min_thermo, but mask_grounded_ice and mask_floating_ice are both .false.')
+            CALL crash('Hi_eff > Hi_min_thermo, but mask_grounded_ice and mask_floating_ice are both .false.')
           END IF
 
           ! Update temperature solution for next semi-time-step
@@ -277,6 +277,7 @@ CONTAINS
       ! An unacceptably large number of grid cells was unstable; throw an error.
 
       CALL save_variable_as_netcdf_dp_1D(  ice%Hi                  , 'Hi'                  )
+      CALL save_variable_as_netcdf_dp_1D(  ice%Hi_eff              , 'Hi_eff'              )
       CALL save_variable_as_netcdf_dp_1D(  ice%Hb                  , 'Hb'                  )
       CALL save_variable_as_netcdf_dp_1D(  ice%SL                  , 'SL'                  )
       CALL save_variable_as_netcdf_dp_2D(  ice%dzeta_dx_ak         , 'dzeta_dx_ak'         )

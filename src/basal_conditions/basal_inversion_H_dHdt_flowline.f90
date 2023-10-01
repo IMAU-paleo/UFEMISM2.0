@@ -133,9 +133,8 @@ CONTAINS
       ! updated by inversion or by extrapolation
 
       ! Only perform the inversion on fully grounded vertices
-      ! IF (ice%mask_grounded_ice( vi) .AND. &
-      !   .NOT. (ice%mask_margin( vi) .OR. ice%mask_gl_gr( vi) .OR. ice%mask_cf_gr( vi))) THEN
-      if (ice%fraction_gr( vi) == 1._dp) then
+      IF (ice%mask_grounded_ice( vi) .AND. &
+        .NOT. (ice%mask_margin( vi) .OR. ice%mask_gl_gr( vi) .OR. ice%mask_cf_gr( vi))) THEN
 
         ! Perform the inversion here
         mask( vi) = 2
