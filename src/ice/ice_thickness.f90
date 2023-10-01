@@ -1250,10 +1250,10 @@ CONTAINS
           Hi_neighbour_max = max( Hi_neighbour_max, Hi_tot( vc))
         end if
 
-        ! ! Grounded margins check for grounded neighbours
-        ! if (mask_grounded_ice_tot( vi) .and. mask_grounded_ice_tot( vc)) then
-        !   Hi_neighbour_max = max( Hi_neighbour_max, Hi_tot( vc))
-        ! end if
+        ! Grounded margins check for grounded neighbours
+        if (mask_grounded_ice_tot( vi) .and. mask_grounded_ice_tot( vc)) then
+          Hi_neighbour_max = max( Hi_neighbour_max, Hi_tot( vc))
+        end if
 
       end do
 

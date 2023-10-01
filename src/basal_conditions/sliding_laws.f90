@@ -315,7 +315,7 @@ CONTAINS
       IF (ice%mask_floating_ice( vi) .OR. ice%mask_icefree_ocean( vi)) THEN
         ! Ignore during extrapolation
         mask( vi) = 0
-      ELSEIF(ice%Hi( vi) <= C%Hi_thin) THEN
+      ELSEIF(ice%Hi_eff( vi) <= C%Hi_thin) THEN
         ! Extrapolate over ice-free land and very thin grounded ice
         mask( vi) = 1
       ELSEIF (ice%mask_grounded_ice( vi)) THEN
@@ -340,7 +340,7 @@ CONTAINS
         CYCLE
       END IF
       ! If ice-free land or very thin grounded ice
-      IF (ice%Hi( vi) <= C%Hi_thin) THEN
+      IF (ice%Hi_eff( vi) <= C%Hi_thin) THEN
         ice%till_yield_stress( vi) = MAX( ice%till_yield_stress( vi), ice_density * grav * C%Hi_thin)
       END IF
     END DO

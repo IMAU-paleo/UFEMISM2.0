@@ -69,7 +69,7 @@ CONTAINS
     ! ===========================================
 
     DO vi = mesh%vi1, mesh%vi2
-      ice%overburden_pressure( vi) = ice_density * grav * ice%Hi( vi)
+      ice%overburden_pressure( vi) = ice_density * grav * ice%Hi_eff( vi)
       ice%effective_pressure(  vi) = MAX( 0._dp, ice%overburden_pressure( vi) - ice%pore_water_pressure( vi))
     END DO
 
@@ -140,7 +140,7 @@ CONTAINS
       ice%pore_water_fraction( vi) = MIN( 1._dp, MAX( 0._dp, 1._dp - (ice%Hb( vi) - ice%SL( vi) - C%Martin2011_hydro_Hb_min) / (C%Martin2011_hydro_Hb_max - C%Martin2011_hydro_Hb_min) ))
 
       ! Pore water pressure (Martin et al., 2011, Eq. 11)
-      ice%pore_water_pressure( vi) = 0.96_dp * ice_density * grav * ice%Hi( vi) * ice%pore_water_fraction( vi)
+      ice%pore_water_pressure( vi) = 0.96_dp * ice_density * grav * ice%Hi_eff( vi) * ice%pore_water_fraction( vi)
 
     END DO
 
@@ -226,7 +226,7 @@ CONTAINS
     ! =====================================
 
     DO vi = mesh%vi1, mesh%vi2
-      ice%pore_water_pressure( vi) = ice%pore_water_fraction(vi) * ice_density * grav * ice%Hi( vi)
+      ice%pore_water_pressure( vi) = ice%pore_water_fraction(vi) * ice_density * grav * ice%Hi_eff( vi)
     END DO
 
     ! Finalise routine path

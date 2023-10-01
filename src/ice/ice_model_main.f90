@@ -299,6 +299,15 @@ CONTAINS
     CALL determine_masks( mesh, ice)
     CALL determine_masks( mesh, ice)
 
+    ! Effective ice thickness
+    ! =======================
+
+    ! DENK DROM : once everything is computed based on Hi_eff, this call
+    ! should be moved up to right before the computation of the derived
+    ! geometry which will require having the masks already computed somehow
+    ! (calc_effective_thickness uses masks at the moment).
+    CALL calc_effective_thickness( mesh, ice, ice%Hi)
+
     ! Target thinning rates
     ! =====================
 
