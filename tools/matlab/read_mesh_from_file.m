@@ -16,10 +16,10 @@ function mesh = read_mesh_from_file( filename)
   mesh.nTri           = size( mesh.Tri,1);
   mesh.nC_mem         = size( mesh.C,2);
   
-  mesh.xmin           = mesh.V( 1,1);
-  mesh.xmax           = mesh.V( 2,1);
-  mesh.ymin           = mesh.V( 2,2);
-  mesh.ymax           = mesh.V( 3,2);
+  mesh.xmin           = min( mesh.V( :,1));
+  mesh.xmax           = max( mesh.V( :,1));
+  mesh.ymin           = min( mesh.V( :,2));
+  mesh.ymax           = max( mesh.V( :,2));
   
   mesh.E              = ncread(filename,'E');
   mesh.VE             = ncread(filename,'VE');

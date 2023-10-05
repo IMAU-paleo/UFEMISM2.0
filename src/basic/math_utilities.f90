@@ -1031,6 +1031,58 @@ CONTAINS
 
   END FUNCTION solve_Axb_2_by_2
 
+! == Sorting
+
+  SUBROUTINE quick_n_dirty_sort( f, ii)
+    ! Inefficient but simple sorting algorithm
+    ! Sort f ascending and return list of new indices
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    REAL(dp), DIMENSION(:    ),          INTENT(INOUT) :: f
+    INTEGER,  DIMENSION(:    ),          INTENT(INOUT) :: ii
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'quick_n_dirty_sort'
+    INTEGER                                            :: n,i,j
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Number of elements
+    n = SIZE( f,1)
+
+    ! Initialise current indices
+    DO i = 1, n
+      ii( i) = i
+    END DO
+
+    ! Sort
+    DO i = 1, n-1
+      DO j = i+1, n
+        IF (f( i) > f( j)) THEN
+
+          ! Now: f( i) = a, f( j) = b
+          f(  j) = f(  j) + f(  i)
+          ii( j) = ii( j) + ii( i)
+          ! Now: f( i) = a, f( j) = a+b
+          f(  i) = f(  j) - f(  i)
+          ii( i) = ii( j) - ii( i)
+          ! Now: f( i) = b, f( j) = a+b
+          f(  j) = f(  j) - f(  i)
+          ii( j) = ii( j) - ii( i)
+          ! Now: f( i) = b, f( j) = a
+
+        END IF
+      END DO
+    END DO
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE quick_n_dirty_sort
+
 ! == Some basic geometry
 
   PURE FUNCTION cross2( a,b) RESULT( z)
