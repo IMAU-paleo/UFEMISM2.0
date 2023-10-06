@@ -676,6 +676,8 @@ CONTAINS
 
       CASE ('pc_truncation_error')
         CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'pc_truncation_error', region%ice%pc%tau_np1)
+      CASE ('pc_untolerated_events')
+        CALL write_to_field_multopt_mesh_int_2D( region%mesh, filename, ncid, 'pc_untolerated_events', region%ice%pc%tau_n_guilty)
 
     ! == Basal hydrology ==
     ! =====================
@@ -1116,6 +1118,8 @@ CONTAINS
       CASE ('pc_truncation_error')
         CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%pc%tau_np1, d_grid_vec_partial_2D)
         CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'pc_truncation_error', d_grid_vec_partial_2D)
+      CASE ('pc_untolerated_events')
+        ! DENK DROM : Not gridable
 
     ! == Basal hydrology ==
     ! =====================
@@ -1913,6 +1917,8 @@ CONTAINS
 
       CASE ('pc_truncation_error')
         CALL add_field_mesh_dp_2D( filename, ncid, 'pc_truncation_error', long_name = 'Ice P/C truncation error tau', units = 'm')
+      CASE ('pc_untolerated_events')
+        CALL add_field_mesh_int_2D( filename, ncid, 'pc_untolerated_events', long_name = 'Ice P/C number of events above error tolerance', units = '-')
 
     ! == Basal hydrology ==
     ! =====================
@@ -2272,6 +2278,8 @@ CONTAINS
 
       CASE ('pc_truncation_error')
         CALL add_field_grid_dp_2D( filename, ncid, 'pc_truncation_error', long_name = 'Ice P/C truncation error tau', units = 'm')
+      CASE ('pc_untolerated_events')
+        ! DENK DROM : not gridable
 
     ! == Basal hydrology ==
     ! =====================

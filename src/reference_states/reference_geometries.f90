@@ -23,7 +23,7 @@ MODULE reference_geometries
   USE reference_geometry_types                               , ONLY: type_reference_geometry
   USE mesh_types                                             , ONLY: type_mesh
   USE grid_basic                                             , ONLY: type_grid, setup_square_grid, distribute_gridded_data_from_master_dp_2D
-  USE math_utilities                                         , ONLY: ice_surface_elevation
+  USE math_utilities                                         , ONLY: ice_surface_elevation, oblique_sg_projection
   USE analytical_solutions                                   , ONLY: Halfar_dome, Bueler_dome
   USE netcdf_basic                                           , ONLY: inquire_xy_grid, inquire_lonlat_grid, inquire_mesh, open_existing_netcdf_file_for_reading, &
                                                                      inquire_var_multopt, close_netcdf_file
@@ -667,6 +667,11 @@ CONTAINS
     ! If so specified, remove Lake Vostok from Antarctic geometry
     IF (region_name == 'ANT' .AND. C%remove_Lake_Vostok) THEN
       CALL remove_Lake_Vostok( refgeo)
+    END IF
+
+    ! If so specified, remove Ellesmere Island from Greenland geometry
+    IF (region_name == 'GRL' .AND. C%choice_mask_noice == 'remove_Ellesmere') THEN
+      CALL remove_Ellesmere( refgeo)
     END IF
 
     ! Remove extremely thin ice (especially a problem in BedMachine Greenland)
@@ -1374,5 +1379,60 @@ CONTAINS
     END DO
 
   END SUBROUTINE remove_Lake_Vostok
+
+  subroutine remove_Ellesmere( refgeo)
+    ! Remove ice from the Ellesmere Island, which shows up in the Greenland domain
+
+    implicit none
+
+    ! In- and output variables
+    type(type_reference_geometry), intent(inout) :: refgeo
+
+    ! Local variables:
+    character(LEN=256), parameter                :: routine_name = 'remove_Ellesmere'
+    integer                                      :: i,j,n
+    real(dp), dimension(2)                       :: pa_latlon, pb_latlon
+    real(dp)                                     :: xa,ya,xb,yb
+    real(dp), dimension(2)                       :: pa, pb
+    real(dp)                                     :: yl_ab
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! The two endpoints in lat,lon
+    pa_latlon = [76.74_dp, -74.79_dp]
+    pb_latlon = [82.19_dp, -60.00_dp]
+
+    ! The two endpoints in x,y
+    ! DENK DROM : this assumes that GRL input data use the standard projection. Had to do
+    ! this since the projection parameters are not currently read in when loading the data.
+    call oblique_sg_projection( pa_latlon(2), pa_latlon(1), C%lambda_M_GRL, C%phi_M_GRL, C%beta_stereo_GRL, xa, ya)
+    call oblique_sg_projection( pb_latlon(2), pb_latlon(1), C%lambda_M_GRL, C%phi_M_GRL, C%beta_stereo_GRL, xb, yb)
+
+    pa = [xa,ya]
+    pb = [xb,yb]
+
+    do n = refgeo%grid_raw%n1, refgeo%grid_raw%n2
+      i = refgeo%grid_raw%n2ij( n,1)
+      j = refgeo%grid_raw%n2ij( n,2)
+
+      ! Draw a line that separates Ellesmere from Greenland
+      yl_ab = pa(2) + (refgeo%grid_raw%x(i) - pa(1))*(pb(2)-pa(2))/(pb(1)-pa(1))
+
+      ! If grid cell is above the line, remove ice from it and
+      ! actually sink the damn thing so it does not show up in
+      ! the mesh when using a high-res based on coastlines.
+      if (refgeo%grid_raw%y(j) > pa(2) .and. refgeo%grid_raw%y(j) > yl_ab .and. refgeo%grid_raw%x(i) < pb(1)) then
+        refgeo%Hi_grid_raw( n) = 0._dp
+        refgeo%Hb_grid_raw( n) = min( refgeo%Hb_grid_raw( n), -.1_dp)
+        refgeo%Hs_grid_raw( n) = 0._dp
+      end if
+
+    end do
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine remove_Ellesmere
 
 END MODULE reference_geometries

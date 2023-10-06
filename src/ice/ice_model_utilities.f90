@@ -20,7 +20,7 @@ MODULE ice_model_utilities
   USE ice_model_types                                        , ONLY: type_ice_model
   USE reference_geometries                                   , ONLY: type_reference_geometry
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_logical_1D
-  USE math_utilities                                         , ONLY: is_floating, triangle_area
+  USE math_utilities                                         , ONLY: is_floating, triangle_area, oblique_sg_projection
   USE mesh_remapping                                         , ONLY: Atlas, create_map_from_xy_grid_to_mesh, create_map_from_xy_grid_to_mesh_triangles
   USE petsc_basic                                            , ONLY: mat_petsc2CSR
   USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp, deallocate_matrix_CSR_dist
@@ -1379,6 +1379,123 @@ CONTAINS
 
   END SUBROUTINE initialise_bedrock_CDFs_from_file
 
+  ! == Effective ice thickness
+! ==========================
+
+  subroutine calc_effective_thickness( mesh, ice, Hi, Hi_eff, fraction_margin)
+    ! Determine the ice-filled fraction and effective ice thickness of floating margin pixels
+
+    implicit none
+
+    ! In- and output variables
+    type(type_mesh),      intent(in)                      :: mesh
+    type(type_ice_model), intent(in)                      :: ice
+    real(dp), dimension(mesh%vi1:mesh%vi2), intent(in)    :: Hi
+    real(dp), dimension(mesh%vi1:mesh%vi2), intent(inout) :: Hi_eff
+    real(dp), dimension(mesh%vi1:mesh%vi2), intent(inout) :: fraction_margin
+
+    ! Local variables:
+    character(len=256), parameter                         :: routine_name = 'calc_effective_thickness'
+    integer                                               :: vi, ci, vc
+    real(dp)                                              :: Hi_neighbour_max
+    real(dp), dimension(mesh%nV)                          :: Hi_tot
+    logical,  dimension(mesh%nV)                          :: mask_margin_tot, mask_floating_ice_tot, mask_grounded_ice_tot
+
+    ! == Initialisation
+    ! =================
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Collect Hi from all processes
+    call gather_to_all_dp_1D( Hi, Hi_tot)
+    call gather_to_all_logical_1D( ice%mask_floating_ice, mask_floating_ice_tot)
+    call gather_to_all_logical_1D( ice%mask_grounded_ice, mask_grounded_ice_tot)
+
+    ! Initialise values
+    do vi = mesh%vi1, mesh%vi2
+      if (Hi_tot( vi) > 0._dp) then
+        fraction_margin( vi) = 1._dp
+        Hi_eff( vi) = Hi_tot( vi)
+      else
+        fraction_margin( vi) = 0._dp
+        Hi_eff( vi) = 0._dp
+      end if
+    end do
+
+    ! == Detect margins
+    ! =================
+
+    ! Initialise
+    mask_margin_tot = .false.
+
+    do vi = mesh%vi1, mesh%vi2
+      do ci = 1, mesh%nC( vi)
+        vc = mesh%C( vi,ci)
+        if (Hi_tot( vi) > 0._dp .and. Hi_tot( vc) == 0._dp) then
+          mask_margin_tot( vi) = .true.
+        end if
+      end do
+    end do
+
+    ! === Compute ===
+    ! ===============
+
+    do vi = mesh%vi1, mesh%vi2
+
+      ! Only check margin vertices
+      if (.not. mask_margin_tot( vi)) then
+        ! Simply use initialised values
+        cycle
+      end if
+
+      ! === Max neighbour thickness ===
+      ! ===============================
+
+      ! Find the max ice thickness among non-margin neighbours
+      Hi_neighbour_max = 0._dp
+      do ci = 1, mesh%nC( vi)
+        vc = mesh%C( vi,ci)
+
+        ! Ignore margin neighbours
+        if (mask_margin_tot( vc)) then
+          cycle
+        end if
+
+        ! Floating margins check for floating neighbours
+        if (mask_floating_ice_tot( vi) .and. mask_floating_ice_tot( vc)) then
+          Hi_neighbour_max = max( Hi_neighbour_max, Hi_tot( vc))
+        end if
+
+        ! DENK DROM : Concept not really applicable to grounded fronts
+        ! ! Grounded margins check for grounded neighbours
+        ! if (mask_grounded_ice_tot( vi) .and. mask_grounded_ice_tot( vc)) then
+        !   Hi_neighbour_max = max( Hi_neighbour_max, Hi_tot( vc))
+        ! end if
+
+      end do
+
+      ! === Effective ice thickness ===
+      ! ===============================
+
+      ! Only apply if the thickest non-margin neighbour is thicker than
+      ! this vertex. Otherwise, simply use initialised values.
+      if (Hi_neighbour_max > Hi_tot( vi)) then
+        ! Calculate sub-grid ice-filled fraction
+        Hi_eff( vi) = Hi_neighbour_max
+        fraction_margin( vi) = Hi_tot( vi) / Hi_eff( vi)
+      end if
+
+    end do
+
+    ! === Finalisation ===
+    ! ====================
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine calc_effective_thickness
+
   ! == Zeta gradients
   ! =================
 
@@ -1633,6 +1750,11 @@ CONTAINS
           END IF
         END DO
 
+      CASE ('remove_Ellesmere')
+        ! Prevent ice growth in the Ellesmere Island part of the Greenland domain
+
+        CALL calc_mask_noice_remove_Ellesmere( mesh, ice%mask_noice)
+
       CASE DEFAULT
         CALL crash('unknown choice_mask_noice "' // TRIM( C%choice_mask_noice) // '"')
     END SELECT
@@ -1641,6 +1763,49 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE calc_mask_noice
+
+  subroutine calc_mask_noice_remove_Ellesmere( mesh, mask_noice)
+    ! Prevent ice growth in the Ellesmere Island part of the Greenland domain
+
+    implicit none
+
+    ! In- and output variables
+    type(type_mesh),                        intent(in)    :: mesh
+    logical,  dimension(mesh%vi1:mesh%vi2), intent(inout) :: mask_noice
+
+    ! Local variables:
+    character(len=256), parameter                         :: routine_name = 'calc_mask_noice_remove_Ellesmere'
+    integer                                               :: vi
+    real(dp), dimension(2)                                :: pa_latlon, pb_latlon, pa, pb
+    real(dp)                                              :: xa, ya, xb, yb, yl_ab
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! The two endpoints in lat,lon
+    pa_latlon = [76.74_dp, -74.79_dp]
+    pb_latlon = [82.19_dp, -60.00_dp]
+
+    ! The two endpoints in x,y
+    call oblique_sg_projection( pa_latlon(2), pa_latlon(1), mesh%lambda_M, mesh%phi_M, mesh%beta_stereo, xa, ya)
+    call oblique_sg_projection( pb_latlon(2), pb_latlon(1), mesh%lambda_M, mesh%phi_M, mesh%beta_stereo, xb, yb)
+
+    pa = [xa,ya]
+    pb = [xb,yb]
+
+    do vi = mesh%vi1, mesh%vi2
+      yl_ab = pa(2) + (mesh%V( vi,1) - pa(1)) * (pb(2)-pa(2)) / (pb(1)-pa(1))
+      if (mesh%V( vi,2) > pa(2) .and. mesh%V( vi,2) > yl_ab .and. mesh%V( vi,1) < pb(1)) then
+        mask_noice( vi) = .true.
+      else
+        mask_noice( vi) = .false.
+      end if
+    end do
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine calc_mask_noice_remove_Ellesmere
 
   ! == Ice thickness modification
   ! =============================
@@ -1663,20 +1828,18 @@ CONTAINS
     INTEGER                                               :: vi
     REAL(dp)                                              :: decay_start, decay_end
     REAL(dp)                                              :: fixiness, limitness, fix_H_applied, limit_H_applied
-    REAL(dp), DIMENSION(:), ALLOCATABLE                   :: modiness_up, modiness_down
-    REAL(dp), DIMENSION(:), ALLOCATABLE                   :: Hi_save
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: modiness_up, modiness_down
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: Hi_save, Hi_eff_new, fraction_margin_new
     REAL(dp)                                              :: floating_area, calving_area, mass_lost
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! Allocate
-    ALLOCATE( Hi_save      ( mesh%vi1:mesh%vi2))
-    ALLOCATE( modiness_up  ( mesh%vi1:mesh%vi2))
-    ALLOCATE( modiness_down( mesh%vi1:mesh%vi2))
-
     ! Save predicted ice thickness for future reference
     Hi_save = Hi_new
+
+    ! Calculate would-be effective thickness
+    CALL calc_effective_thickness( mesh, ice, Hi_new, Hi_eff_new, fraction_margin_new)
 
     ! == Mask conservation
     ! ====================
@@ -1695,7 +1858,7 @@ CONTAINS
 
     ! If so specified, remove very thin ice
     DO vi = mesh%vi1, mesh%vi2
-      IF (Hi_new( vi) < C%Hi_min) THEN
+      IF (Hi_eff_new( vi) < C%Hi_min) THEN
         Hi_new( vi) = 0._dp
       END IF
     END DO
@@ -1703,7 +1866,7 @@ CONTAINS
     ! If so specified, remove thin floating ice
     IF (C%choice_calving_law == 'threshold_thickness') THEN
       DO vi = mesh%vi1, mesh%vi2
-        IF (is_floating( Hi_new( vi), ice%Hb( vi), ice%SL( vi)) .AND. Hi_new( vi) < C%calving_threshold_thickness_shelf) THEN
+        IF (is_floating( Hi_eff_new( vi), ice%Hb( vi), ice%SL( vi)) .AND. Hi_new( vi) < C%calving_threshold_thickness_shelf) THEN
           Hi_new( vi) = 0._dp
         END IF
       END DO
@@ -1721,7 +1884,7 @@ CONTAINS
     ! If so specified, remove all floating ice
     IF (C%do_remove_shelves) THEN
       DO vi = mesh%vi1, mesh%vi2
-        IF (is_floating( Hi_new( vi), ice%Hb( vi), ice%SL( vi))) THEN
+        IF (is_floating( Hi_eff_new( vi), ice%Hb( vi), ice%SL( vi))) THEN
           Hi_new( vi) = 0._dp
         END IF
       END DO
@@ -1904,11 +2067,6 @@ CONTAINS
                                                      - (1._dp - limitness         ) * (refgeo%Hi( vi) - Hi_new( vi)) )
 
     END DO
-
-    ! Clean after yourself
-    DEALLOCATE( Hi_save      )
-    DEALLOCATE( modiness_up  )
-    DEALLOCATE( modiness_down)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

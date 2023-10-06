@@ -455,7 +455,7 @@ CONTAINS
       CALL crash('unknown region name "' // region%name // '"!')
     END IF
 
-    ! Create the square output grid
+    ! Create the square smooth grid
     grid_name = 'square_grid_smooth_' // region%name
     CALL setup_square_grid( grid_name, region%mesh%xmin, region%mesh%xmax, region%mesh%ymin, region%mesh%ymax, &
        dx_grid_smooth, region%grid_smooth, &

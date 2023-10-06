@@ -197,6 +197,7 @@ MODULE ice_model_types
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHi_dt_Hi_star_np1_u_np1     ! [m/yr] Thinning rates for predicted ice thickness and updated velocity
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: Hi_np1                       ! [m]    Corrected ice thickness
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: tau_np1                      ! [m]    Truncation error
+    INTEGER,  DIMENSION(:    ), ALLOCATABLE :: tau_n_guilty                 ! [-]    Number of PC iterations where vertex had truncation errors above the tolerance
     REAL(dp)                                :: eta_n                        ! [m]    Previous maximum truncation error
     REAL(dp)                                :: eta_np1                      ! [m]    Current  maximum truncation error
 

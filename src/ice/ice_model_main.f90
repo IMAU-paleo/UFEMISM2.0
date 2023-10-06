@@ -27,9 +27,9 @@ MODULE ice_model_main
   USE GIA_model_types                                        , ONLY: type_GIA_model
   USE ice_model_memory                                       , ONLY: allocate_ice_model
   USE ice_model_utilities                                    , ONLY: determine_masks, calc_bedrock_CDFs, calc_grounded_fractions, calc_zeta_gradients, &
-                                                                     calc_mask_noice, alter_ice_thickness, initialise_bedrock_CDFs, MB_inversion
+                                                                     calc_mask_noice, alter_ice_thickness, initialise_bedrock_CDFs, MB_inversion, calc_effective_thickness
   USE ice_thickness                                          , ONLY: calc_dHi_dt, apply_mask_noice_direct, apply_ice_thickness_BC_explicit, &
-                                                                     calc_effective_thickness, initialise_dHi_dt_target
+                                                                     initialise_dHi_dt_target
   USE math_utilities                                         , ONLY: ice_surface_elevation, thickness_above_floatation, Hi_from_Hb_Hs_and_SL, is_floating
   USE geothermal_heat_flux                                   , ONLY: initialise_geothermal_heat_flux
   USE basal_hydrology                                        , ONLY: initialise_basal_hydrology_model
@@ -159,7 +159,7 @@ CONTAINS
     CALL determine_masks( region%mesh, region%ice)
 
     ! Calculate new effective thickness
-    CALL calc_effective_thickness( region%mesh, region%ice, region%ice%Hi)
+    CALL calc_effective_thickness( region%mesh, region%ice, region%ice%Hi, region%ice%Hi_eff, region%ice%fraction_margin)
 
     ! NOTE: as calculating the zeta gradients is quite expensive, only do so when necessary,
     !       i.e. when solving the heat equation or the Blatter-Pattyn stress balance
@@ -306,7 +306,7 @@ CONTAINS
     ! should be moved up to right before the computation of the derived
     ! geometry which will require having the masks already computed somehow
     ! (calc_effective_thickness uses masks at the moment).
-    CALL calc_effective_thickness( mesh, ice, ice%Hi)
+    CALL calc_effective_thickness( mesh, ice, ice%Hi, ice%Hi_eff, ice%fraction_margin)
 
     ! Target thinning rates
     ! =====================
@@ -737,7 +737,7 @@ CONTAINS
     ! =======================
 
     ! Calculate new effective thickness
-    CALL calc_effective_thickness( mesh_new, ice, ice%Hi)
+    CALL calc_effective_thickness( mesh_new, ice, ice%Hi, ice%Hi_eff, ice%fraction_margin)
 
     ! Sub-grid fractions
     ! ==================
@@ -1381,7 +1381,7 @@ CONTAINS
       CALL calc_grounded_fractions( region%mesh, region%ice)
 
       ! Update effective ice thickness
-      CALL calc_effective_thickness( region%mesh, region%ice, region%ice%Hi)
+      CALL calc_effective_thickness( region%mesh, region%ice, region%ice%Hi, region%ice%Hi_eff, region%ice%fraction_margin)
 
       ! Calculate thinning rates for the current ice thickness and predicted velocity
       CALL calc_dHi_dt( region%mesh, region%ice%Hi, region%ice%Hb, region%ice%SL, region%ice%u_vav_b, region%ice%v_vav_b, region%SMB%SMB, region%BMB%BMB, region%LMB%LMB, region%ice%fraction_margin, &
@@ -1430,8 +1430,10 @@ CONTAINS
           n_tot = n_tot + 1
           ! If this vertex's error is larger than tolerance
           IF (region%ice%pc%tau_np1( vi) > C%pc_epsilon) THEN
-            ! Add to guilty vertex count
+            ! Add to total guilty vertex count
             n_guilty = n_guilty + 1
+            ! Add to this vertex's guilty record
+            region%ice%pc%tau_n_guilty( vi) = region%ice%pc%tau_n_guilty( vi) + 1
             ! IF (par%master) print*, vi, region%ice%pc%tau_np1( vi)
           END IF
         END IF
@@ -1460,7 +1462,7 @@ CONTAINS
 
       ! if not, re-do the PC timestep
       ELSE
-        IF (par%master) CALL warning('{dp_01}% of vertices are changing rapidly, reducing dt and redoing PC timestep', dp_01 = 100._dp * REAL( n_guilty,dp) / REAL(n_tot,dp))
+        IF (par%master) CALL warning('{dp_01}% of vertices ({int_01}) are changing rapidly, reducing dt and redoing PC timestep', dp_01 = 100._dp * REAL( n_guilty,dp) / REAL(n_tot,dp), int_01 = n_guilty)
         region%ice%pc%dt_np1 = region%ice%pc%dt_np1 * 0.8_dp
         ! If the timestep has reached the specified lower limit, stop iterating
         IF (region%ice%pc%dt_np1 <= C%dt_ice_min) THEN
@@ -1553,6 +1555,7 @@ CONTAINS
     ALLOCATE( pc%dHi_dt_Hi_star_np1_u_np1( mesh%vi1:mesh%vi2))           ! [m/yr] Thinning rates for predicted ice thickness and updated velocity
     ALLOCATE( pc%Hi_np1(                   mesh%vi1:mesh%vi2))           ! [m]    Corrected ice thickness
     ALLOCATE( pc%tau_np1(                  mesh%vi1:mesh%vi2))           ! [m]    Truncation error
+    ALLOCATE( pc%tau_n_guilty(             mesh%vi1:mesh%vi2))           ! [-]    Number of PC iterations where vertex had truncation errors above the tolerance
 
     ! Initialise
     ! ==========
@@ -1591,6 +1594,7 @@ CONTAINS
       pc%tau_np1                  = C%pc_epsilon
       pc%eta_n                    = C%pc_epsilon
       pc%eta_np1                  = C%pc_epsilon
+      pc%tau_n_guilty             = 0
 
     ELSEIF (pc_choice_initialise == 'read_from_file') THEN
       ! Initialise from a (restart) file
