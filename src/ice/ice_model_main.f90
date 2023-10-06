@@ -77,6 +77,9 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    ! If the current model time is at or beyond the point
+    ! when the target dH/dt should be removed from the
+    ! continuity equation, set its field to 0
     IF (region%time >= C%target_dHi_dt_t_end) THEN
       region%ice%dHi_dt_target = 0._dp
     END IF
@@ -1311,18 +1314,19 @@ CONTAINS
       CALL calc_dHi_dt( region%mesh, region%ice%Hi, region%ice%Hb, region%ice%SL, region%ice%u_vav_b, region%ice%v_vav_b, region%SMB%SMB, region%BMB%BMB, region%LMB%LMB, region%ice%fraction_margin, &
                         region%ice%mask_noice, region%ice%pc%dt_np1, region%ice%pc%dHi_dt_Hi_n_u_n, Hi_dummy, region%ice%divQ, region%ice%dHi_dt_target, region%ice%dHi_dt_residual)
 
+      ! Assign dummy inversion MB fields for the treatment of predicted dH/dt
       SMB_dummy = region%SMB%SMB
       BMB_dummy = region%BMB%BMB
       LMB_dummy = region%LMB%LMB
 
-      ! If so desired, invert/adjust mass balance fluxes to get an equilibrium state
+      ! If so desired, alter the computed dH/dt by adjusting dummy mass balance fluxes to get an equilibrium state
       CALL MB_inversion( region%mesh, region%ice, SMB_dummy, BMB_dummy, LMB_dummy, region%ice%pc%dHi_dt_Hi_n_u_n, Hi_dummy, region%ice%pc%dt_np1, region%time, region%name)
 
       ! Calculate predicted ice thickness (Robinson et al., 2020, Eq. 30)
       region%ice%pc%Hi_star_np1 = region%ice%Hi_prev + region%ice%pc%dt_np1 * ((1._dp + region%ice%pc%zeta_t / 2._dp) * &
         region%ice%pc%dHi_dt_Hi_n_u_n - (region%ice%pc%zeta_t / 2._dp) * region%ice%pc%dHi_dt_Hi_nm1_u_nm1)
 
-      ! Make sure the predicted thickness didn't go to hell
+      ! If so desired, modify the predicted ice thickness field based on user-defined settings
       CALL alter_ice_thickness( region%mesh, region%ice, region%ice%Hi_prev, region%ice%pc%Hi_star_np1, region%refgeo_PD, region%time)
 
       ! Adjust the predicted dHi_dt to compensate for thickness modifications
@@ -1387,7 +1391,7 @@ CONTAINS
       CALL calc_dHi_dt( region%mesh, region%ice%Hi, region%ice%Hb, region%ice%SL, region%ice%u_vav_b, region%ice%v_vav_b, region%SMB%SMB, region%BMB%BMB, region%LMB%LMB, region%ice%fraction_margin, &
                         region%ice%mask_noice, region%ice%pc%dt_np1, region%ice%pc%dHi_dt_Hi_star_np1_u_np1, Hi_dummy, region%ice%divQ, region%ice%dHi_dt_target, region%ice%dHi_dt_residual)
 
-      ! If so desired, invert/adjust mass balance fluxes to get an equilibrium state
+      ! If so desired, alter the computed dH/dt by adjusting dummy mass balance fluxes to get an equilibrium state
       CALL MB_inversion( region%mesh, region%ice, region%SMB%SMB, region%BMB%BMB, region%LMB%LMB, region%ice%pc%dHi_dt_Hi_star_np1_u_np1, Hi_dummy, region%ice%pc%dt_np1, region%time, region%name)
 
       ! Calculate corrected ice thickness (Robinson et al. (2020), Eq. 31)
@@ -1396,7 +1400,7 @@ CONTAINS
       ! Save "raw" thinning rates, as applied after the corrector step
       region%ice%dHi_dt_raw = (region%ice%pc%Hi_np1 - region%ice%Hi_prev) / region%ice%pc%dt_np1
 
-      ! Modify the predicted ice thickness if desired
+      ! If so desired, modify the corrected ice thickness field based on user-defined settings
       CALL alter_ice_thickness( region%mesh, region%ice, region%ice%Hi_prev, region%ice%pc%Hi_np1, region%refgeo_PD, region%time)
 
       ! Adjust the predicted dHi_dt to compensate for thickness modifications
@@ -1419,23 +1423,22 @@ CONTAINS
       ! == Error assessment ==
       ! ======================
 
-      ! Initialise errorful vertex count
+      ! Initialise unstable vertex count
       n_tot = 0
       n_guilty = 0
 
+      ! Determine number of unstable vertices
       DO vi = region%mesh%vi1, region%mesh%vi2
         ! Only consider fully grounded vertices
-        IF (region%ice%fraction_gr( vi) == 1._dp) THEN
-          ! Add to total vertex count
-          n_tot = n_tot + 1
-          ! If this vertex's error is larger than tolerance
-          IF (region%ice%pc%tau_np1( vi) > C%pc_epsilon) THEN
-            ! Add to total guilty vertex count
-            n_guilty = n_guilty + 1
-            ! Add to this vertex's guilty record
-            region%ice%pc%tau_n_guilty( vi) = region%ice%pc%tau_n_guilty( vi) + 1
-            ! IF (par%master) print*, vi, region%ice%pc%tau_np1( vi)
-          END IF
+        IF (region%ice%fraction_gr( vi) < 1._dp) CYCLE
+        ! If so, add to total vertex count
+        n_tot = n_tot + 1
+        ! If this vertex's error is larger than tolerance
+        IF (region%ice%pc%tau_np1( vi) > C%pc_epsilon) THEN
+          ! Add to total guilty vertex count
+          n_guilty = n_guilty + 1
+          ! Add to this vertex's guilty record
+          region%ice%pc%tau_n_guilty( vi) = region%ice%pc%tau_n_guilty( vi) + 1
         END IF
       END DO
 
@@ -1446,10 +1449,7 @@ CONTAINS
       ! Safety
       IF (n_tot == 0) n_tot = 1
 
-      ! IF (par%master .AND. n_guilty > 0) print*, ''
-      ! IF (par%master .AND. n_guilty > 0) print*, '[pc] pc_guilts (%):', 100._dp * REAL(n_guilty,dp)/REAL(n_tot,dp)
-
-      ! Check if it is small enough; if so, move on
+      ! Check if largest truncation error is small enough; if so, move on
       IF (region%ice%pc%eta_np1 < C%pc_epsilon) THEN
         EXIT iterate_pc_timestep
 
@@ -1460,7 +1460,7 @@ CONTAINS
         region%ice%pc%eta_np1 = .95_dp * C%pc_epsilon
         EXIT iterate_pc_timestep
 
-      ! if not, re-do the PC timestep
+      ! If not, re-do the PC timestep
       ELSE
         IF (par%master) CALL warning('{dp_01}% of vertices ({int_01}) are changing rapidly, reducing dt and redoing PC timestep', dp_01 = 100._dp * REAL( n_guilty,dp) / REAL(n_tot,dp), int_01 = n_guilty)
         region%ice%pc%dt_np1 = region%ice%pc%dt_np1 * 0.8_dp

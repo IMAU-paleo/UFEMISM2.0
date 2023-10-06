@@ -200,7 +200,7 @@ CONTAINS
       HIV%t_prev = HIV%t_next
       HIV%t_next = HIV%t_prev + C%pore_water_nudging_dt
 
-      call pore_water_fraction_inversion( mesh, grid_smooth, ice, refgeo, HIV)
+      call pore_water_fraction_inversion( mesh, grid_smooth, ice, refgeo, HIV, time)
 
     ELSEIF (time > HIV%t_next) THEN
       ! This should not be possible
@@ -275,7 +275,7 @@ CONTAINS
   ! == Inversion methods
   ! ====================
 
-  SUBROUTINE pore_water_fraction_inversion( mesh, grid_smooth, ice, refgeo, HIV)
+  SUBROUTINE pore_water_fraction_inversion( mesh, grid_smooth, ice, refgeo, HIV, time)
     ! Invert the pore water fraction
     !
     ! Use the flowline approach to track potential for hydro stuff
@@ -288,6 +288,7 @@ CONTAINS
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
     TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo
     TYPE(type_hydrology_inversion),      INTENT(INOUT) :: HIV
+    REAL(dp),                            INTENT(IN)    :: time
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'pore_water_fraction_inversion'
@@ -330,8 +331,9 @@ CONTAINS
     INTEGER,  DIMENSION(:    ), ALLOCATABLE            :: mask
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: dHs_dx, dHs_dy, abs_grad_Hs
     REAL(dp)                                           :: misfit
-    REAL(dp)                                           :: fg_exp_mod, bf_exp_mod, hs_exp_mod, hi_exp_mod, max_neighbour, max_shelf_size
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: dC1_dt_smoothed
+    REAL(dp)                                           :: fg_exp_mod, bf_exp_mod, hs_exp_mod, hi_exp_mod, max_neighbour, max_vertex_size, unstable_vertex
+    REAL(dp)                                           :: t_scale, porenudge_H_dHdt_flowline_t_scale, porenudge_H_dHdt_flowline_dHdt0, porenudge_H_dHdt_flowline_dH0
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: dC1_dt_smoothed, unstable_vertex_smoothed
     ! Add routine to path
     CALL init_routine( routine_name)
 
@@ -360,6 +362,7 @@ CONTAINS
     ALLOCATE( dHs_dy(          mesh%vi1:mesh%vi2), source = 0._dp  )
     ALLOCATE( abs_grad_Hs(     mesh%vi1:mesh%vi2), source = 0._dp  )
     ALLOCATE( dC1_dt_smoothed( mesh%vi1:mesh%vi2), source = 0._dp  )
+    ALLOCATE( unstable_vertex_smoothed( mesh%vi1:mesh%vi2), source = 0._dp  )
 
     ! Gather ice model data from all processes
     CALL gather_to_all_dp_1D(      ice%Hi               , Hi_tot               )
@@ -374,12 +377,33 @@ CONTAINS
     CALL gather_to_all_logical_1D( ice%mask_margin      , mask_margin_tot      )
     CALL gather_to_all_dp_1D(      ice%fraction_gr      , fraction_gr_tot      )
 
-    ! == Calculate pore water rates of changes
-    ! ========================================
+    ! == Reducing power
+    ! =================
+
+    porenudge_H_dHdt_flowline_t_scale = C%porenudge_H_dHdt_flowline_t_scale
+    porenudge_H_dHdt_flowline_dHdt0   = C%porenudge_H_dHdt_flowline_dHdt0
+    porenudge_H_dHdt_flowline_dH0     = C%porenudge_H_dHdt_flowline_dH0
+
+    ! Increase time length scale if so desired
+    ! Compute how much time has passed since start of equilibrium stage
+    t_scale = (time - 1.0E4_dp) / (C%pore_water_nudging_t_end - 1.0E4_dp)
+    ! Limit t_scale to [0 1]
+    t_scale = max( 0._dp, min( t_scale, 1._dp))
+    ! Curve t_scale a bit
+    t_scale = t_scale ** 1._dp
+
+    porenudge_H_dHdt_flowline_t_scale = t_scale * 2._dp * C%porenudge_H_dHdt_flowline_t_scale + (1._dp - t_scale) * C%porenudge_H_dHdt_flowline_t_scale
+    ! porenudge_H_dHdt_flowline_dH0     = t_scale * 2._dp * C%porenudge_H_dHdt_flowline_dH0     + (1._dp - t_scale) * C%porenudge_H_dHdt_flowline_dH0
+
+    ! == Calculate pore water rates of change
+    ! =======================================
 
     ! Use the supplement of pore water fraction,
     ! as it scales better during the inversion
     pore_dryness = (1._dp - HIV%pore_water_fraction_prev)
+
+    ! Initialise extrapolation mask
+    mask = 0
 
     DO vi = mesh%vi1, mesh%vi2
 
@@ -393,12 +417,28 @@ CONTAINS
       END IF
 
       ! Only perform the inversion on fully grounded vertices
-      IF ( .NOT. ice%mask_grounded_ice( vi) .OR. ice%mask_gl_gr( vi)) THEN
+      IF ( ice%mask_gl_gr( vi) .OR. ice%mask_cf_gr( vi)) THEN
         ! Give non-fully grounded ice a default value (irrelevant)
         ice%pore_water_likelihood( vi) = 0._dp
+        ! Extrapolate here later
+        mask( vi) = 1
         ! Skip this vertex
         CYCLE
       END IF
+
+      ! Skip inversion over ice-free and floating areas
+      IF ( ice%mask_floating_ice( vi) .OR. ice%mask_icefree_land( vi) .OR. ice%mask_icefree_ocean( vi)) THEN
+        ! Give non-fully grounded ice a default value (irrelevant)
+        ice%pore_water_likelihood( vi) = 0._dp
+        ! Ignore during extrapolation
+        mask( vi) = 0
+        ! Skip this vertex
+        CYCLE
+      END IF
+
+      ! At this point, this is a valid inversion point
+      ! so use it as seed for the first extrapolation later
+      mask( vi) = 2
 
       ! Trace both halves of the flowline
       ! =================================
@@ -406,12 +446,26 @@ CONTAINS
       ! The point p
       p = [mesh%V( vi,1), mesh%V( vi,2)]
 
-      ! Check whether we want a local- of flowline-type of inversion
+      ! Check whether we want a local-, flowline-, or mixed-type inversion
       IF (    C%choice_pore_water_nudging_method == 'flowline') THEN
 
         ! Trace both halves of the flowline
         CALL trace_flowline_upstream(   mesh,      Hi_tot, u_b_tot, v_b_tot, p, trace_up  , n_up  )
         CALL trace_flowline_downstream( mesh, ice, Hi_tot, u_b_tot, v_b_tot, p, trace_down, n_down)
+
+      ELSEIF (C%choice_pore_water_nudging_method == 'mixed') THEN
+
+        IF (misfit < 0._dp) THEN
+          ! If misfit is negative, trace upstream half of the flowline
+          CALL trace_flowline_upstream( mesh, Hi_tot, u_b_tot, v_b_tot, p, trace_up, n_up)
+          ! Downstream half is not used, so assign dummy values to save time
+          trace_down = trace_up
+          n_down = n_up
+        ELSE
+          ! Set these values so the check below always fails for positive misfits
+          n_up   = 0
+          n_down = 0
+        END IF
 
       ELSEIF (C%choice_pore_water_nudging_method == 'local') THEN
 
@@ -430,11 +484,11 @@ CONTAINS
         ice%pore_water_likelihood( vi) = EXP(ice%Ti_hom( vi)/20._dp)
 
         ! Compute new adjustment for pore water fraction
-        I_tot( vi) = ice%pore_water_likelihood( vi) * (misfit / C%porenudge_H_dHdt_flowline_dH0 + &
-                                                       2._dp * (ice%dHi_dt( vi)) / C%porenudge_H_dHdt_flowline_dHdt0)
+        I_tot( vi) = ice%pore_water_likelihood( vi) * (misfit / porenudge_H_dHdt_flowline_dH0 + &
+                                                       2._dp * (ice%dHi_dt( vi)) / porenudge_H_dHdt_flowline_dHdt0)
 
         ! Compute a rate of adjustment
-        dC1_dt( vi) = -1._dp * (I_tot( vi) * pore_dryness( vi)) / C%porenudge_H_dHdt_flowline_t_scale
+        dC1_dt( vi) = -1._dp * (I_tot( vi) * pore_dryness( vi)) / porenudge_H_dHdt_flowline_t_scale
 
         ! We are done here, so go to next vertex
         CYCLE
@@ -497,7 +551,6 @@ CONTAINS
         dHi_dt_up(  k) = dHi_dt_mod
         Ti_hom_up(  k) = Ti_hom_mod
 
-
       END DO !  DO k = 1, n_up
 
       deltaHi_down = 0._dp
@@ -506,6 +559,9 @@ CONTAINS
       ti           = mesh%iTri( vi,1)
 
       DO k = 1, n_down
+
+        ! Skip downstream flowline when using the "mixed" method
+        IF (C%choice_pore_water_nudging_method == 'mixed') CYCLE
 
         ! The point along the flowline
         pt = trace_down( k,:)
@@ -594,6 +650,9 @@ CONTAINS
 
       DO k = 2, n_down
 
+        ! Skip downstream flowline when using the "mixed" method
+        IF (C%choice_pore_water_nudging_method == 'mixed') CYCLE
+
         ! Distance of both points
         s1 = s_down( k-1)
         s2 = s_down( k  )
@@ -623,9 +682,15 @@ CONTAINS
 
       END DO ! DO k = 2, n_down
 
-      deltaHi_av_down( vi) = int_w_deltaHi_down / int_w_down
-      dHi_dt_av_down(  vi) = int_w_dHi_dt_down  / int_w_down
-      Ti_hom_av_down(  vi) = int_w_Ti_hom_down  / int_w_down
+      IF (C%choice_pore_water_nudging_method == 'mixed') THEN
+        deltaHi_av_down( vi) = 0._dp
+        dHi_dt_av_down(  vi) = 0._dp
+        Ti_hom_av_down(  vi) = 0._dp
+      ELSE
+        deltaHi_av_down( vi) = int_w_deltaHi_down / int_w_down
+        dHi_dt_av_down(  vi) = int_w_dHi_dt_down  / int_w_down
+        Ti_hom_av_down(  vi) = int_w_Ti_hom_down  / int_w_down
+      END IF
 
       ! Calculate pore water fraction rates of change
       ! =============================================
@@ -633,12 +698,29 @@ CONTAINS
       ! Compute likelihood of subglacial water
       ice%pore_water_likelihood( vi) = EXP(Ti_hom_av_up( vi)/20._dp)
 
-      ! Compute new adjustment for pore water fraction
-      I_tot( vi) = ice%pore_water_likelihood( vi) * ((deltaHi_av_up( vi)                      ) / C%porenudge_H_dHdt_flowline_dH0 + &
-                                                     (dHi_dt_av_up(  vi) + dHi_dt_av_down( vi)) / C%porenudge_H_dHdt_flowline_dHdt0)
+      ! Check whether we want a local-, flowline-, or mixed-type inversion
+      IF (    C%choice_pore_water_nudging_method == 'flowline') THEN
+
+        ! Compute new adjustment for pore water fraction based on up and down flowlines
+        I_tot( vi) = ice%pore_water_likelihood( vi) * ((deltaHi_av_up( vi)                      ) / porenudge_H_dHdt_flowline_dH0 + &
+                                                       (dHi_dt_av_up(  vi) + dHi_dt_av_down( vi)) / porenudge_H_dHdt_flowline_dHdt0)
+
+      ELSEIF (C%choice_pore_water_nudging_method == 'mixed') THEN
+
+        ! Compute new adjustment for pore water fraction over too-thin regions based on upstream flowline
+        I_tot( vi) = ice%pore_water_likelihood( vi) * ((deltaHi_av_up( vi)) / porenudge_H_dHdt_flowline_dH0 + &
+                                                       2._dp * (dHi_dt_av_up(  vi)) / porenudge_H_dHdt_flowline_dHdt0)
+
+      ELSEIF (C%choice_pore_water_nudging_method == 'local') THEN
+
+        ! Nothing to do here, as this point will not be reached in this method
+
+      ELSE
+        CALL crash('unknown choice_pore_water_nudging_method "' // TRIM( C%choice_pore_water_nudging_method) // '"!')
+      END IF
 
       ! Compute a rate of adjustment
-      dC1_dt( vi) = -1._dp * (I_tot( vi) * pore_dryness( vi)) / C%porenudge_H_dHdt_flowline_t_scale
+      dC1_dt( vi) = -1._dp * (I_tot( vi) * pore_dryness( vi)) / porenudge_H_dHdt_flowline_t_scale
 
     END DO ! vi = mesh%vi1, mesh%vi2
 
@@ -660,10 +742,12 @@ CONTAINS
       ! Steep slopes
       hs_exp_mod = MIN( 1.0_dp, MAX( 0._dp, MAX( 0._dp, abs_grad_Hs( vi) - 0.003_dp) / (0.01_dp - 0.003_dp) ))
 
+      hi_exp_mod = MIN( 1.0_dp, MAX( 0._dp, ice%Hi( vi) / 200._dp ))
+
       ! Prevent over-increase of sliding over partially grounded, steep-sloped areas
       IF (dC1_dt( vi) < 0._dp) THEN
         ! Scale based on friction-slope-slide-thickness modifiers
-        dC1_dt( vi) = dC1_dt( vi) * (1._dp - .5_dp * (fg_exp_mod + hs_exp_mod))
+        dC1_dt( vi) = dC1_dt( vi) * (1._dp - .5_dp * (fg_exp_mod + hs_exp_mod)) * hi_exp_mod
       END IF
 
     END DO
@@ -684,8 +768,8 @@ CONTAINS
 
     END IF
 
-    ! New pore dryness field
-    ! ======================
+    ! Inverted pore dryness field
+    ! ===========================
 
     pore_dryness = pore_dryness + dC1_dt * C%pore_water_nudging_dt
 
@@ -695,16 +779,40 @@ CONTAINS
     ! Get pore_water_fraction back from pore_dryness
     HIV%pore_water_fraction_next = 1._dp - pore_dryness
 
+    ! Extrapolations
+    ! ==============
+
+    ! First extrapolation into non-inverted grounded areas: simply take
+    ! the inverted values and extend them onto those locations.
+
+    ! Initialise maximum vertex size. The maximum size among all target
+    ! vertices will be used as the search radius during the extrapolation.
+    max_vertex_size = MINVAL(mesh%R)
+
+    DO vi = mesh%vi1, mesh%vi2
+      IF (mask( vi) == 1) THEN
+        ! Check if this vertex has a lower resolution. If so, use it as
+        ! the new extrapolation radius to make sure that its neighbours
+        ! can be reached during the extrapolation.
+        max_vertex_size = MAX( max_vertex_size, mesh%R( vi))
+      END IF
+    END DO
+
+    ! Perform the extrapolation - mask: 2 -> use as seed; 1 -> extrapolate; 0 -> ignore
+    CALL extrapolate_Gaussian( mesh, mask, HIV%pore_water_fraction_next, max_vertex_size)
+
     ! Gather ice model data from all processes
     CALL gather_to_all_dp_1D( HIV%pore_water_fraction_next, pore_water_fraction_next_tot)
 
-    ! Margins: grounded side of grounding line
-    ! ========================================
+    ! Now, check at the grounded margins and floating side of the
+    ! grounding lines for the highest pore water fractions among
+    ! inverted neighbours, to make sure that the ice flows smoothly
 
+    ! Grounded margins
     DO vi = mesh%vi1, mesh%vi2
 
-      ! Skip if not grounded grounding line
-      IF (.NOT. mask_gl_gr_tot( vi)) CYCLE
+      ! Skip if not grounded margin
+      IF (.NOT. (mask_cf_gr_tot( vi) .OR. mask_gl_gr_tot( vi) .OR. mask_margin_tot( vi))) CYCLE
 
       ! Initialise maximum neighbour
       max_neighbour = pore_water_fraction_next_tot( vi)
@@ -712,31 +820,7 @@ CONTAINS
       ! Check interior grounded vertices for greater values
       DO ci = 1, mesh%nC( vi)
         vc = mesh%C( vi, ci)
-        IF (mask_grounded_ice_tot( vc) .AND. .NOT. mask_gl_gr_tot( vc) .AND. .NOT. mask_cf_gr_tot( vc)) THEN
-          max_neighbour = MAX( max_neighbour, pore_water_fraction_next_tot( vc))
-        END IF
-      END DO
-
-      ! Use maximum value, if any
-      HIV%pore_water_fraction_next( vi) = max_neighbour
-
-    END DO
-
-    ! Margins: grounded calving fronts
-    ! ================================
-
-    DO vi = mesh%vi1, mesh%vi2
-
-      ! Skip if not grounded calving front
-      IF (.NOT. mask_cf_gr_tot( vi)) CYCLE
-
-      ! Initialise maximum neighbour
-      max_neighbour = pore_water_fraction_next_tot( vi)
-
-      ! Check interior grounded vertices for greater values
-      DO ci = 1, mesh%nC( vi)
-        vc = mesh%C( vi, ci)
-        IF (mask_grounded_ice_tot( vc) .AND. .NOT. mask_cf_gr_tot( vc) .AND. .NOT. mask_gl_gr_tot( vc)) THEN
+        IF (mask_grounded_ice_tot( vc) .AND. .NOT. mask_cf_gr_tot( vc) .AND. .NOT. mask_gl_gr_tot( vc) .AND. .NOT. mask_margin_tot( vc)) THEN
           max_neighbour = MAX( max_neighbour, pore_water_fraction_next_tot( vc))
         END IF
       END DO
@@ -747,8 +831,6 @@ CONTAINS
     END DO
 
     ! Margins: floating side of grounding line
-    ! ========================================
-
     DO vi = mesh%vi1, mesh%vi2
 
       ! Skip if not floating grounding line
@@ -770,76 +852,97 @@ CONTAINS
 
     END DO
 
-    ! Extrapolate: floating ice
-    ! =========================
-
-    ! Initialise extrapolation mask
-    mask = 0
-
-    ! Initialise maximum floating size. The maximum size among
-    ! all valid floating vertices will be used as the search radius
-    ! in the extrapolation later.
-    max_shelf_size = MINVAL(mesh%R)
-
+    ! Margins: land next to grounded front
     DO vi = mesh%vi1, mesh%vi2
-      IF (ice%mask_gl_gr( vi) .OR. ice%mask_gl_fl( vi)) THEN
-        ! Grounding line: use as seed
-        mask( vi) = 2
-      ELSEIF (ice%mask_floating_ice( vi)) THEN
-        ! Ice shelf: extrapolate here
-        mask( vi) = 1
-        ! Check if this vertex has a lower resolution
-        max_shelf_size = MAX( max_shelf_size, mesh%R( vi))
-      END IF
+
+      ! Skip if not ice-free land
+      IF (.NOT. ice%mask_icefree_land( vi)) CYCLE
+
+      ! Initialise maximum neighbour
+      max_neighbour = pore_water_fraction_next_tot( vi)
+
+      ! Check grounded grounding lines for greater values
+      DO ci = 1, mesh%nC( vi)
+        vc = mesh%C( vi, ci)
+        IF (mask_margin_tot( vc)) THEN
+          max_neighbour = MAX( max_neighbour, pore_water_fraction_next_tot( vc))
+        END IF
+      END DO
+
+      ! Use maximum value, if any
+      HIV%pore_water_fraction_next( vi) = max_neighbour
+
     END DO
-
-    ! Perform the extrapolation - mask: 2 -> use as seed; 1 -> extrapolate; 0 -> ignore
-    CALL extrapolate_Gaussian( mesh, mask, HIV%pore_water_fraction_next, max_shelf_size)
-
-    ! Extrapolate: ice-free land
-    ! ==========================
-
-    ! Initialise extrapolation mask
-    mask = 0
-
-    ! Initialise maximum land size. The maximum size among
-    ! all valid ice-free land vertices will be used as the search radius
-    ! in the extrapolation later.
-    max_shelf_size = MINVAL(mesh%R)
-
-    DO vi = mesh%vi1, mesh%vi2
-      IF (ice%mask_grounded_ice( vi)) THEN
-        ! Grounded ice: use as seed
-        mask( vi) = 2
-      ELSEIF (ice%mask_icefree_land( vi)) THEN
-        ! Ice-free land: extrapolate here
-        mask( vi) = 1
-        ! Check if this vertex has a lower resolution
-        max_shelf_size = MAX( max_shelf_size, mesh%R( vi))
-      END IF
-    END DO
-
-    ! Perform the extrapolation - mask: 2 -> use as seed; 1 -> extrapolate; 0 -> ignore
-    CALL extrapolate_Gaussian( mesh, mask, HIV%pore_water_fraction_next, max_shelf_size)
 
     ! Partially floating vertices
     ! ===========================
 
+    ! Maximise the pore water fraction based on subgrid area fractions
     DO vi = mesh%vi1, mesh%vi2
 
-      IF (ice%mask_grounded_ice( vi) .OR. ice%mask_icefree_land( vi)) THEN
+      IF (ice%Hb( vi) < ice%SL( vi) .AND. (ice%mask_grounded_ice( vi) .OR. ice%mask_icefree_land( vi))) THEN
         HIV%pore_water_fraction_next( vi) = MAX( HIV%pore_water_fraction_next( vi), 1._dp - ice%fraction_gr( vi)**1._dp)
 
-      ELSEIF (ice%mask_floating_ice( vi) .OR. ice%mask_icefree_ocean( vi)) THEN
-        HIV%pore_water_fraction_next( vi) = 1._dp
+        ! Limit values to prescribed limits
+        HIV%pore_water_fraction_next( vi) = MIN( HIV%pore_water_fraction_next( vi), C%pore_water_fraction_max)
+        HIV%pore_water_fraction_next( vi) = MAX( HIV%pore_water_fraction_next( vi), C%pore_water_fraction_min)
 
+      ELSEIF (ice%mask_floating_ice( vi) .OR. ice%mask_icefree_ocean( vi)) THEN
+        HIV%pore_water_fraction_next( vi) = MAX( HIV%pore_water_fraction_next( vi), 1._dp - ice%fraction_gr( vi)**2._dp)
       END IF
 
-      ! Limit values to prescribed limits
-      HIV%pore_water_fraction_next( vi) = MIN( HIV%pore_water_fraction_next( vi), C%pore_water_fraction_max)
-      HIV%pore_water_fraction_next( vi) = MAX( HIV%pore_water_fraction_next( vi), C%pore_water_fraction_min)
+      ! Limit values to hard limit
+      HIV%pore_water_fraction_next( vi) = MIN( HIV%pore_water_fraction_next( vi), 1._dp)
+      HIV%pore_water_fraction_next( vi) = MAX( HIV%pore_water_fraction_next( vi), 0._dp)
 
     END DO
+
+    ! Prevent fast change over unstable points
+    ! ========================================
+
+    ! This step takes the number of times each vertex has caused a
+    ! reduction in the time step during the computation of the new
+    ! ice thickness within the predictor-corrector method. The more
+    ! times the pixel has triggered this reduction, the less its
+    ! inverted pore water fraction field is allowed to evolve.
+    ! However, this can prevent a recovery from an overshoot that
+    ! caused too much basal sliding. Therefore, allow for increases
+    ! of the basal friction over these problematic regions.
+
+    ! Smooth the instability field
+    unstable_vertex_smoothed = 1._dp - EXP( REAL( MIN( 0, -ice%pc%tau_n_guilty + 0), dp) / 1._dp)
+    CALL smooth_Gaussian_2D( mesh, grid_smooth, unstable_vertex_smoothed, 40000._dp)
+
+    ! Merge the smoothed and original instability fields: the guiltier
+    ! the vertex, the stronger the original field dominates there.
+    DO vi = mesh%vi1, mesh%vi2
+      ! Original value
+      unstable_vertex = 1._dp - EXP( REAL( MIN( 0, -ice%pc%tau_n_guilty( vi) + 0), dp) / 1._dp)
+      ! Final smoothed field: a weighed average between the original and preliminary smoothed fields
+      unstable_vertex_smoothed( vi) = (1._dp - unstable_vertex) * unstable_vertex_smoothed( vi) + unstable_vertex * unstable_vertex
+    END DO
+
+    ! Allow for some level of change even in the guiltiest of cases
+    unstable_vertex_smoothed = MIN( 0.5_dp, MAX( 0._dp, unstable_vertex_smoothed))
+
+    ! Only apply the reduction of adjustments in areas
+    ! where sliding is expected to increase.
+    DO vi = mesh%vi1, mesh%vi2
+      IF (HIV%pore_water_fraction_next( vi) > HIV%pore_water_fraction_prev( vi)) THEN
+        HIV%pore_water_fraction_next( vi) = (1._dp - unstable_vertex_smoothed( vi)) * HIV%pore_water_fraction_next( vi) + &
+                                                     unstable_vertex_smoothed( vi)  * HIV%pore_water_fraction_prev( vi)
+      END IF
+    END DO
+
+    ! Limit final pore_water_fraction_next values to hard limit
+    HIV%pore_water_fraction_next = MIN( HIV%pore_water_fraction_next, 1._dp)
+    HIV%pore_water_fraction_next = MAX( HIV%pore_water_fraction_next, 0._dp)
+
+    ! DENK DROM : save smoothed field in a host variable for later inspection
+    ice%pore_water_likelihood = unstable_vertex_smoothed
+
+    ! Finalise
+    ! ========
 
     ! Clean up after yourself
     DEALLOCATE( pore_dryness   )
@@ -866,6 +969,7 @@ CONTAINS
     DEALLOCATE( dHs_dy         )
     DEALLOCATE( abs_grad_Hs    )
     DEALLOCATE( dC1_dt_smoothed)
+    DEALLOCATE( unstable_vertex_smoothed)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

@@ -1333,7 +1333,9 @@ CONTAINS
   END SUBROUTINE time_display
 
   SUBROUTINE apply_regional_corrections( region)
-    ! Update the model mesh
+    ! Apply some regional modifications to a few fields which
+    ! require other fields that are usually initialised later
+    ! than the field of interest.
 
     IMPLICIT NONE
 
@@ -1352,7 +1354,7 @@ CONTAINS
     ! === SMB over ice-free land ===
     ! ==============================
 
-    ! Remove positive SMB over ice-free land once
+    ! If so desierd, remove positive SMB over ice-free land
     IF (C%do_SMB_removal_icefree_land) THEN
       DO vi = region%mesh%vi1, region%mesh%vi2
         IF (region%ice%mask_icefree_land( vi)) region%SMB%SMB( vi) = MIN( region%SMB%SMB( vi), 0._dp)
@@ -1362,7 +1364,7 @@ CONTAINS
     ! == Target dHi_dt
     ! ================
 
-    ! Limit target dH/dt to available SMB
+    ! If so desired, limit target dH/dt to available SMB
     IF (C%do_target_dHi_dt .AND. C%do_limit_target_dHi_dt_to_SMB) THEN
       region%ice%dHi_dt_target = MIN( region%ice%dHi_dt_target, region%SMB%SMB)
     END IF
