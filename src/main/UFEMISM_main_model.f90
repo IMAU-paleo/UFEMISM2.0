@@ -22,7 +22,7 @@ MODULE UFEMISM_main_model
   USE reference_geometries                                   , ONLY: initialise_reference_geometries_raw, initialise_reference_geometries_on_model_mesh
   USE ice_model_main                                         , ONLY: initialise_ice_dynamics_model, run_ice_dynamics_model, remap_ice_dynamics_model, &
                                                                      create_restart_files_ice_model, write_to_restart_files_ice_model
-  USE basal_hydrology                                        , ONLY: run_basal_hydrology_model, initialise_pore_water_fraction_inversion
+  USE basal_hydrology                                        , ONLY: run_basal_hydrology_model, initialise_pore_water_fraction_inversion, run_pore_water_fraction_inversion
   USE thermodynamics_main                                    , ONLY: initialise_thermodynamics_model, run_thermodynamics_model, &
                                                                      create_restart_file_thermo, write_to_restart_file_thermo
   USE climate_main                                           , ONLY: initialise_climate_model, run_climate_model, remap_climate_model, &
@@ -47,7 +47,9 @@ MODULE UFEMISM_main_model
                                                                      create_main_regional_output_file_grid_ROI, write_to_main_regional_output_file_grid_ROI, &
                                                                      create_scalar_regional_output_file, write_to_scalar_regional_output_file
   USE mesh_refinement                                        , ONLY: calc_polygon_Pine_Island_Glacier, calc_polygon_Thwaites_Glacier, &
-                                                                     calc_polygon_Tijn_test_ISMIP_HOM_A
+                                                                     calc_polygon_Amery_ice_shelf, calc_polygon_Riiser_Larsen_ice_shelf, &
+                                                                     calc_polygon_Siple_Coast, calc_polygon_Patagonia, &
+                                                                     calc_polygon_Narsarsuaq, calc_polygon_Tijn_test_ISMIP_HOM_A
   USE math_utilities                                         , ONLY: longest_triangle_leg
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_logical_1D
   USE mesh_remapping                                         , ONLY: clear_all_maps_involving_this_mesh
@@ -96,8 +98,9 @@ CONTAINS
     main_time_loop: DO WHILE (region%time <= t_end)
 
       ! == Mesh update code
-      IF (C%allow_mesh_updates .AND. region%time > region%time_mesh_was_created + C%dt_mesh_update_min &
-        .AND. region%time > C%start_time_of_run) THEN
+      IF (C%allow_mesh_updates .AND. &
+          region%time > region%time_mesh_was_created + C%dt_mesh_update_min .AND. &
+          region%time > C%start_time_of_run) THEN
 
         ! Calculate the mesh fitness coefficient
         CALL calc_mesh_fitness_coefficient( region%mesh, region%ice, mesh_fitness_coefficient)
@@ -142,6 +145,11 @@ CONTAINS
       ! Run the basal inversion model
       IF (C%do_bed_roughness_nudging) THEN
         CALL run_basal_inversion( region)
+      END IF
+
+      ! Run the pore water fraction inversion model
+      IF (C%do_pore_water_nudging) THEN
+        CALL run_pore_water_fraction_inversion( region%mesh, region%grid_smooth, region%ice, region%refgeo_PD, region%HIV, region%time)
       END IF
 
       ! Calculate ice-sheet integrated values (total volume, area, etc.)
@@ -909,6 +917,9 @@ CONTAINS
 
     DO WHILE (.TRUE.)
 
+      ! == Parse list of input ROIs
+      ! ===========================
+
       ! Get the first region of interest from the list
       i = INDEX( all_names_ROI, '||')
       IF (i == 0) THEN
@@ -921,73 +932,78 @@ CONTAINS
         all_names_ROI = all_names_ROI( i+2:LEN_TRIM( all_names_ROI))
       END IF
 
+      ! == Check validity of requested ROIs
+      ! ===================================
 
+      ! Check if current region is indeed defined in the model
+      SELECT CASE (name_ROI)
+        CASE ('')
+         ! No region requested: don't need to do anything
+         EXIT
+        CASE ('PineIsland','Thwaites','Amery','RiiserLarsen','SipleCoast', & ! Antarctica
+              'Narsarsuaq', &                                                ! Greenland
+              'Patagonia', &                                                 ! Patagonia
+              'Tijn_test_ISMIP_HOM_A')                                       ! Idealised
+          ! List of known regions of interest: these pass the test
+        CASE DEFAULT
+          ! Region not found
+          CALL crash('unknown region of interest "' // TRIM( name_ROI) // '"!')
+      END SELECT
+
+      ! == Calculate ROIs
+      ! =================
+
+      ! Calculate the polygon describing the specified region of interest
       SELECT CASE (region%name)
         CASE ('NAM')
           ! North america
 
           SELECT CASE (name_ROI)
-            CASE ('')
-              ! Don't need to do anything
-              EXIT
-            CASE ('PineIsland')
-              ! Don't need to do anything
-              EXIT
-            CASE ('Thwaites')
-              ! Don't need to do anything
-              EXIT
             CASE DEFAULT
-              CALL crash('unknown region of interest "' // TRIM( name_ROI) // '"!')
+              ! Requested area not in this model domain; skip
+              CYCLE
           END SELECT
 
         CASE ('EAS')
           ! Eurasia
 
           SELECT CASE (name_ROI)
-            CASE ('')
-              ! Don't need to do anything
-              EXIT
-            CASE ('PineIsland')
-              ! Don't need to do anything
-              EXIT
-            CASE ('Thwaites')
-              ! Don't need to do anything
-              EXIT
             CASE DEFAULT
-              CALL crash('unknown region of interest "' // TRIM( name_ROI) // '"!')
+              ! Requested area not in this model domain; skip
+              CYCLE
           END SELECT
 
         CASE ('GRL')
           ! Greenland
 
           SELECT CASE (name_ROI)
-            CASE ('')
-              ! Don't need to do anything
-              EXIT
-            CASE ('PineIsland')
-              ! Don't need to do anything
-              EXIT
-            CASE ('Thwaites')
-              ! Don't need to do anything
-              EXIT
+            CASE ('Narsarsuaq')
+              CALL calc_polygon_Narsarsuaq( poly_ROI)
             CASE DEFAULT
-              CALL crash('unknown region of interest "' // TRIM( name_ROI) // '"!')
+              ! Requested area not in this model domain; skip
+              CYCLE
           END SELECT
 
         CASE ('ANT')
 
           SELECT CASE (name_ROI)
-            CASE ('')
-              ! Don't need to do anything
-              EXIT
             CASE ('PineIsland')
               CALL calc_polygon_Pine_Island_Glacier( poly_ROI)
             CASE ('Thwaites')
               CALL calc_polygon_Thwaites_Glacier( poly_ROI)
+            CASE ('Amery')
+              CALL calc_polygon_Amery_ice_shelf( poly_ROI)
+            CASE ('RiiserLarsen')
+              CALL calc_polygon_Riiser_Larsen_ice_shelf( poly_ROI)
+            CASE ('SipleCoast')
+              CALL calc_polygon_Siple_Coast( poly_ROI)
+            CASE ('Patagonia')
+              CALL calc_polygon_Patagonia( poly_ROI)
             CASE ('Tijn_test_ISMIP_HOM_A')
               CALL calc_polygon_Tijn_test_ISMIP_HOM_A( poly_ROI)
             CASE DEFAULT
-              CALL crash('unknown region of interest "' // TRIM( name_ROI) // '"!')
+              ! Requested area not in this model domain; skip
+              CYCLE
           END SELECT
 
         CASE DEFAULT
