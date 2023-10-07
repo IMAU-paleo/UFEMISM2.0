@@ -22,8 +22,8 @@ MODULE reference_geometries
   USE parameters
   USE reference_geometry_types                               , ONLY: type_reference_geometry
   USE mesh_types                                             , ONLY: type_mesh
-  USE grid_basic                                             , ONLY: type_grid, setup_square_grid, distribute_gridded_data_from_master_dp_2D
-  USE math_utilities                                         , ONLY: ice_surface_elevation, oblique_sg_projection
+  USE grid_basic                                             , ONLY: type_grid, setup_square_grid, distribute_gridded_data_from_master_dp_2D, smooth_Gaussian_2D_grid
+  USE math_utilities                                         , ONLY: ice_surface_elevation, oblique_sg_projection, is_floating
   USE analytical_solutions                                   , ONLY: Halfar_dome, Bueler_dome
   USE netcdf_basic                                           , ONLY: inquire_xy_grid, inquire_lonlat_grid, inquire_mesh, open_existing_netcdf_file_for_reading, &
                                                                      inquire_var_multopt, close_netcdf_file
@@ -661,8 +661,11 @@ CONTAINS
 
     END IF !  IF (timeframe_refgeo /= 1E9_dp) THEN
 
-  ! == Input data clean-up
-  ! ======================
+    ! == Input data clean-up
+    ! ======================
+
+    ! If so desired, smooth the bedrock geometry
+    CALL smooth_model_geometry( refgeo)
 
     ! If so specified, remove Lake Vostok from Antarctic geometry
     IF (region_name == 'ANT' .AND. C%remove_Lake_Vostok) THEN
@@ -1328,6 +1331,67 @@ CONTAINS
 
   ! Utilities
   ! =========
+
+  SUBROUTINE smooth_model_geometry( refgeo)
+    ! Apply some light smoothing to the initial geometry to improve numerical stability
+
+    IMPLICIT NONE
+
+    ! Input variables:
+    TYPE(type_reference_geometry), INTENT(INOUT)               :: refgeo
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                              :: routine_name = 'smooth_model_geometry'
+    INTEGER                                                    :: n
+    REAL(dp), DIMENSION(refgeo%grid_raw%n1:refgeo%grid_raw%n2) :: Hb_old
+    REAL(dp)                                                   :: r_smooth, dHb
+    LOGICAL                                                    :: is_grounded
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    IF (.NOT. C%do_smooth_geometry .OR. C%r_smooth_geometry == 0._dp) THEN
+      ! Finalise routine path
+      CALL finalise_routine( routine_name)
+      ! Exit routine
+      RETURN
+    END IF
+
+    ! Store the unsmoothed bed topography so we can determine the smoothing anomaly later
+    Hb_old = refgeo%Hb_grid_raw
+
+    ! Geometry smoothing radius (in m)
+    r_smooth = refgeo%grid_raw%dx * C%r_smooth_geometry
+
+    ! Apply smoothing to the bed topography
+    CALL smooth_Gaussian_2D_grid( refgeo%grid_raw, refgeo%Hb_grid_raw, r_smooth)
+
+    ! Correct smoothed geometry if necessary
+    DO n = refgeo%grid_raw%n1, refgeo%grid_raw%n2
+
+      ! Calculate the smoothing anomaly
+      dHb = refgeo%Hb_grid_raw( n) - Hb_old( n)
+
+      is_grounded = .NOT. is_floating( refgeo%Hi_grid_raw( n), refgeo%Hb_grid_raw( n), refgeo%SL_grid_raw( n))
+
+      IF (is_grounded .AND. refgeo%Hi_grid_raw( n) > 0._dp) THEN
+
+        ! Correct the ice thickness so the ice surface remains unchanged (only relevant for grounded ice)
+        refgeo%Hi_grid_raw( n) = refgeo%Hi_grid_raw( n) - dHb
+
+        ! Don't allow negative ice thickness
+        refgeo%Hi_grid_raw( n) = MAX( 0._dp, refgeo%Hi_grid_raw( n))
+
+      END IF
+
+      ! Correct the surface elevation if necessary
+      refgeo%Hs_grid_raw( n) = refgeo%Hi_grid_raw( n) + MAX( refgeo%SL_grid_raw( n) - ice_density / seawater_density * refgeo%Hi_grid_raw( n), refgeo%Hb_grid_raw( n))
+
+    END DO
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE smooth_model_geometry
 
   SUBROUTINE remove_Lake_Vostok( refgeo)
     ! Remove Lake Vostok from Antarctic input geometry data
