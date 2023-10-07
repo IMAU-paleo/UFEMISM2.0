@@ -464,7 +464,7 @@ MODULE model_configuration
   ! ==================
 
     ! Basal hydrology
-    CHARACTER(LEN=256)  :: choice_basal_hydrology_model_config          = 'Martin2011'                     ! Choice of basal hydrology model: "saturated", "Martin2011"
+    CHARACTER(LEN=256)  :: choice_basal_hydrology_model_config          = 'Martin2011'                     ! Choice of basal hydrology model: "none", "Martin2011", "inversion"
     REAL(dp)            :: Martin2011_hydro_Hb_min_config               = 0._dp                            ! Martin et al. (2011) basal hydrology model: low-end  Hb  value of bedrock-dependent pore-water pressure
     REAL(dp)            :: Martin2011_hydro_Hb_max_config               = 1000._dp                         ! Martin et al. (2011) basal hydrology model: high-end Hb  value of bedrock-dependent pore-water pressure
 

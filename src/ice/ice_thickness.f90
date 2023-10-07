@@ -92,10 +92,11 @@ CONTAINS
       IF (Hi_tplusdt( vi) < 0._dp) THEN
         ! Implicit solvers sometimes give VERY small negative numbers (e.g. -2e-189),
         ! only throw a warning if things get properly negative. Also, ignore negative
-        ! values over ice-free points (identified here by an ice-covered fraction of 0),
+        ! values over ice-free points (identified here by an ice-covered fraction of ~0),
         ! which can experience negative mass balance, but for which it is (of course)
         ! not possible to find a dt that prevents a negative ice thickness.
-        IF (Hi_tplusdt( vi) < -0.1_dp .AND. fraction_margin( vi) > 0._dp) found_negative_vals = .TRUE.
+
+        IF (Hi_tplusdt( vi) < -0.1_dp .AND. fraction_margin( vi) >= .1_dp) found_negative_vals = .TRUE.
         ! Limit to zero
         Hi_tplusdt( vi) = 0._dp
       END IF
@@ -1140,8 +1141,8 @@ CONTAINS
 
     ! Loop over each mesh vertex within this process
     DO vi = mesh%vi1, mesh%vi2
-      ! If there is [non-negligible grounded] ice, and there is mass loss
-      IF (.NOT. is_floating( Hi( vi), Hb( vi), SL( vi)) .AND. Hi( vi) >= 10._dp .AND. dHi_dt( vi) < 0._dp) THEN
+      ! If there is [non-negligible] ice, and there is mass loss
+      IF (Hi( vi) > C%Hi_min .AND. dHi_dt( vi) < 0._dp) THEN
 
         ! Compute time step limit (in yr) based on
         ! available ice thickness and flux divergence

@@ -55,12 +55,15 @@ CONTAINS
     ! Calculate pore water pressure using the chosen basal hydrology model
     ! ====================================================================
 
-    IF     (C%choice_basal_hydrology_model == 'Martin2011') THEN
+    IF     (C%choice_basal_hydrology_model == 'none') THEN
+      ! No hydrology whatsoever
+      ice%pore_water_pressure = 0._dp
+    ELSEIF (C%choice_basal_hydrology_model == 'Martin2011') THEN
       ! The Martin et al. (2011) parameterisation of pore water pressure
       CALL calc_pore_water_pressure_Martin2011( mesh, ice)
     ELSEIF (C%choice_basal_hydrology_model == 'inversion') THEN
       ! Inversion of pore water pressure
-      CALL run_pore_water_fraction_inversion( mesh, grid_smooth, ice, refgeo, HIV, time)
+      CALL calc_pore_water_pressure_inversion( mesh, ice)
     ELSE
       CALL crash('unknown choice_basal_hydrology_model "' // TRIM( C%choice_basal_hydrology_model) // '"!')
     END IF
@@ -99,7 +102,9 @@ CONTAINS
     dummy1 = ice%Hi( mesh%vi1)
 
     ! Initialise the chosen basal hydrology model
-    IF     (C%choice_basal_hydrology_model == 'Martin2011') THEN
+    IF     (C%choice_basal_hydrology_model == 'none') THEN
+      ! No need to do anything
+    ELSEIF (C%choice_basal_hydrology_model == 'Martin2011') THEN
       ! No need to do anything
     ELSEIF (C%choice_basal_hydrology_model == 'inversion') THEN
       ! No need to do anything
@@ -148,6 +153,37 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE calc_pore_water_pressure_Martin2011
+
+  ! == Inverted values
+  SUBROUTINE calc_pore_water_pressure_inversion( mesh, ice)
+    ! Calculate the pore water pressure
+    !
+    ! Use the inverted values of pore water fraction
+
+    IMPLICIT NONE
+
+    ! Input variables:
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
+    TYPE(type_ice_model),                INTENT(INOUT) :: ice
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_pore_water_pressure_inversion'
+    INTEGER                                            :: vi
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Compute effective pore water pressure
+    ! =====================================
+
+    DO vi = mesh%vi1, mesh%vi2
+      ice%pore_water_pressure( vi) = ice%pore_water_fraction(vi) * ice_density * grav * ice%Hi_eff( vi)
+    END DO
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE calc_pore_water_pressure_inversion
 
 ! ===== Inversion =====
 ! =====================
@@ -220,13 +256,6 @@ CONTAINS
     ! Interpolate modelled pore water fraction to desired time
     DO vi = mesh%vi1, mesh%vi2
       ice%pore_water_fraction( vi) = wt_prev * HIV%pore_water_fraction_prev( vi) + wt_next * HIV%pore_water_fraction_next( vi)
-    END DO
-
-    ! Compute effective pore water pressure
-    ! =====================================
-
-    DO vi = mesh%vi1, mesh%vi2
-      ice%pore_water_pressure( vi) = ice%pore_water_fraction(vi) * ice_density * grav * ice%Hi_eff( vi)
     END DO
 
     ! Finalise routine path
@@ -909,37 +938,41 @@ CONTAINS
     ! caused too much basal sliding. Therefore, allow for increases
     ! of the basal friction over these problematic regions.
 
-    ! Smooth the instability field
-    unstable_vertex_smoothed = 1._dp - EXP( REAL( MIN( 0, -ice%pc%tau_n_guilty + 0), dp) / 1._dp)
-    CALL smooth_Gaussian_2D( mesh, grid_smooth, unstable_vertex_smoothed, 40000._dp)
+    IF (C%choice_timestepping == 'pc') THEN
 
-    ! Merge the smoothed and original instability fields: the guiltier
-    ! the vertex, the stronger the original field dominates there.
-    DO vi = mesh%vi1, mesh%vi2
-      ! Original value
-      unstable_vertex = 1._dp - EXP( REAL( MIN( 0, -ice%pc%tau_n_guilty( vi) + 0), dp) / 1._dp)
-      ! Final smoothed field: a weighed average between the original and preliminary smoothed fields
-      unstable_vertex_smoothed( vi) = (1._dp - unstable_vertex) * unstable_vertex_smoothed( vi) + unstable_vertex * unstable_vertex
-    END DO
+      ! Smooth the instability field
+      unstable_vertex_smoothed = 1._dp - EXP( REAL( MIN( 0, -ice%pc%tau_n_guilty + 0), dp) / 1._dp)
+      CALL smooth_Gaussian_2D( mesh, grid_smooth, unstable_vertex_smoothed, 40000._dp)
 
-    ! Allow for some level of change even in the guiltiest of cases
-    unstable_vertex_smoothed = MIN( 0.5_dp, MAX( 0._dp, unstable_vertex_smoothed))
+      ! Merge the smoothed and original instability fields: the guiltier
+      ! the vertex, the stronger the original field dominates there.
+      DO vi = mesh%vi1, mesh%vi2
+        ! Original value
+        unstable_vertex = 1._dp - EXP( REAL( MIN( 0, -ice%pc%tau_n_guilty( vi) + 0), dp) / 1._dp)
+        ! Final smoothed field: a weighed average between the original and preliminary smoothed fields
+        unstable_vertex_smoothed( vi) = (1._dp - unstable_vertex) * unstable_vertex_smoothed( vi) + unstable_vertex * unstable_vertex
+      END DO
 
-    ! Only apply the reduction of adjustments in areas
-    ! where sliding is expected to increase.
-    DO vi = mesh%vi1, mesh%vi2
-      IF (HIV%pore_water_fraction_next( vi) > HIV%pore_water_fraction_prev( vi)) THEN
-        HIV%pore_water_fraction_next( vi) = (1._dp - unstable_vertex_smoothed( vi)) * HIV%pore_water_fraction_next( vi) + &
-                                                     unstable_vertex_smoothed( vi)  * HIV%pore_water_fraction_prev( vi)
-      END IF
-    END DO
+      ! Allow for some level of change even in the guiltiest of cases
+      unstable_vertex_smoothed = MIN( 0.5_dp, MAX( 0._dp, unstable_vertex_smoothed))
 
-    ! Limit final pore_water_fraction_next values to hard limit
-    HIV%pore_water_fraction_next = MIN( HIV%pore_water_fraction_next, 1._dp)
-    HIV%pore_water_fraction_next = MAX( HIV%pore_water_fraction_next, 0._dp)
+      ! Only apply the reduction of adjustments in areas
+      ! where sliding is expected to increase.
+      DO vi = mesh%vi1, mesh%vi2
+        IF (HIV%pore_water_fraction_next( vi) > HIV%pore_water_fraction_prev( vi)) THEN
+          HIV%pore_water_fraction_next( vi) = (1._dp - unstable_vertex_smoothed( vi)) * HIV%pore_water_fraction_next( vi) + &
+                                                       unstable_vertex_smoothed( vi)  * HIV%pore_water_fraction_prev( vi)
+        END IF
+      END DO
 
-    ! DENK DROM : save smoothed field in a host variable for later inspection
-    ice%pore_water_likelihood = unstable_vertex_smoothed
+      ! Limit final pore_water_fraction_next values to hard limit
+      HIV%pore_water_fraction_next = MIN( HIV%pore_water_fraction_next, 1._dp)
+      HIV%pore_water_fraction_next = MAX( HIV%pore_water_fraction_next, 0._dp)
+
+      ! DENK DROM : save smoothed field in a host variable for later inspection
+      ice%pore_water_likelihood = unstable_vertex_smoothed
+
+    END IF
 
     ! Finalise
     ! ========
