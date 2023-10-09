@@ -1317,7 +1317,7 @@ CONTAINS
       LMB_dummy = region%LMB%LMB
 
       ! If so desired, alter the computed dH/dt by adjusting dummy mass balance fluxes to get an equilibrium state
-      CALL MB_inversion( region%mesh, region%ice, SMB_dummy, BMB_dummy, LMB_dummy, region%ice%pc%dHi_dt_Hi_n_u_n, Hi_dummy, region%ice%pc%dt_np1, region%time, region%name)
+      CALL MB_inversion( region%mesh, region%ice, region%refgeo_PD, SMB_dummy, BMB_dummy, LMB_dummy, region%ice%pc%dHi_dt_Hi_n_u_n, Hi_dummy, region%ice%pc%dt_np1, region%time, region%name)
 
       ! Calculate predicted ice thickness (Robinson et al., 2020, Eq. 30)
       region%ice%pc%Hi_star_np1 = region%ice%Hi_prev + region%ice%pc%dt_np1 * ((1._dp + region%ice%pc%zeta_t / 2._dp) * &
@@ -1389,7 +1389,7 @@ CONTAINS
                         region%ice%mask_noice, region%ice%pc%dt_np1, region%ice%pc%dHi_dt_Hi_star_np1_u_np1, Hi_dummy, region%ice%divQ, region%ice%dHi_dt_target, region%ice%dHi_dt_residual)
 
       ! If so desired, alter the computed dH/dt by adjusting dummy mass balance fluxes to get an equilibrium state
-      CALL MB_inversion( region%mesh, region%ice, region%SMB%SMB, region%BMB%BMB, region%LMB%LMB, region%ice%pc%dHi_dt_Hi_star_np1_u_np1, Hi_dummy, region%ice%pc%dt_np1, region%time, region%name)
+      CALL MB_inversion( region%mesh, region%ice, region%refgeo_PD, region%SMB%SMB, region%BMB%BMB, region%LMB%LMB, region%ice%pc%dHi_dt_Hi_star_np1_u_np1, Hi_dummy, region%ice%pc%dt_np1, region%time, region%name)
 
       ! Calculate corrected ice thickness (Robinson et al. (2020), Eq. 31)
       region%ice%pc%Hi_np1 = region%ice%Hi_prev + (region%ice%pc%dt_np1 / 2._dp) * (region%ice%pc%dHi_dt_Hi_n_u_n + region%ice%pc%dHi_dt_Hi_star_np1_u_np1)
@@ -1459,7 +1459,7 @@ CONTAINS
 
       ! If not, re-do the PC timestep
       ELSE
-        IF (par%master) CALL warning('{dp_01}% of vertices ({int_01}) are changing rapidly, reducing dt and redoing PC timestep', dp_01 = 100._dp * REAL( n_guilty,dp) / REAL(n_tot,dp), int_01 = n_guilty)
+        IF (par%master) CALL warning('{dp_01}% of vertices ({int_01}) are changing rapidly (eta = {dp_02}), reducing dt and redoing PC timestep', dp_01 = 100._dp * REAL( n_guilty,dp) / REAL(n_tot,dp), int_01 = n_guilty, dp_02 = region%ice%pc%eta_np1)
         region%ice%pc%dt_np1 = region%ice%pc%dt_np1 * 0.8_dp
         ! If the timestep has reached the specified lower limit, stop iterating
         IF (region%ice%pc%dt_np1 <= C%dt_ice_min) THEN
@@ -1591,7 +1591,6 @@ CONTAINS
       pc%tau_np1                  = C%pc_epsilon
       pc%eta_n                    = C%pc_epsilon
       pc%eta_np1                  = C%pc_epsilon
-      pc%tau_n_guilty             = 0
 
     ELSEIF (pc_choice_initialise == 'read_from_file') THEN
       ! Initialise from a (restart) file
@@ -1599,6 +1598,9 @@ CONTAINS
     ELSE
       CALL crash('unknown pc_choice_initialise "' // TRIM( pc_choice_initialise) // '"!')
     END IF
+
+    ! Initialise the event counter for errors above tolerance
+    pc%tau_n_guilty = 0
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -1624,7 +1626,7 @@ CONTAINS
     ! Write to terminal
     IF (par%master) WRITE(0,*) '   Initialising ice thickness predictor/corrector scheme from file "' // colour_string( TRIM( filename),'light blue') // '"...'
 
-    ! Read velocities from the file
+    ! Read values from the file
     IF (timeframe == 1E9_dp) THEN
       ! Assume the file has no time dimension
       CALL read_field_from_file_0D(      filename, 'dt_n'                    , pc%dt_n                    )
@@ -1797,6 +1799,7 @@ CONTAINS
     CALL reallocate_bounds( pc%dHi_dt_Hi_star_np1_u_np1, mesh_new%vi1, mesh_new%vi2)           ! [m/yr] Thinning rates for predicted ice thickness and updated velocity
     CALL reallocate_bounds( pc%Hi_np1                  , mesh_new%vi1, mesh_new%vi2)           ! [m]    Corrected ice thickness
     CALL reallocate_bounds( pc%tau_np1                 , mesh_new%vi1, mesh_new%vi2)           ! [m]    Truncation error
+    CALL reallocate_bounds( pc%tau_n_guilty            , mesh_new%vi1, mesh_new%vi2)           ! [-]    Number of events above error tolerance
 
     ! Reinitialise everything from scratch
     pc%dt_n                     = C%dt_ice_min
@@ -1808,6 +1811,7 @@ CONTAINS
     pc%dHi_dt_Hi_star_np1_u_np1 = 0._dp
     pc%Hi_np1                   = 0._dp
     pc%tau_np1                  = C%pc_epsilon
+    pc%tau_n_guilty             = 0
     pc%eta_n                    = C%pc_epsilon
     pc%eta_np1                  = C%pc_epsilon
 
@@ -1877,7 +1881,7 @@ CONTAINS
                       region%ice%mask_noice, dt, region%ice%dHi_dt, region%ice%Hi_next, region%ice%divQ, region%ice%dHi_dt_target, region%ice%dHi_dt_residual)
 
     ! If so desired, invert/adjust mass balance fluxes to get an equilibrium state
-    CALL MB_inversion( region%mesh, region%ice, region%SMB%SMB, region%BMB%BMB, region%LMB%LMB, region%ice%dHi_dt, region%ice%Hi_next, dt, region%time, region%name)
+    CALL MB_inversion( region%mesh, region%ice, region%refgeo_PD, region%SMB%SMB, region%BMB%BMB, region%LMB%LMB, region%ice%dHi_dt, region%ice%Hi_next, dt, region%time, region%name)
 
     ! Save the "raw" dynamical dH/dt before any alterations
     region%ice%dHi_dt_raw = region%ice%dHi_dt

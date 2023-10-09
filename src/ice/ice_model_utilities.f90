@@ -2073,7 +2073,7 @@ CONTAINS
 
   END SUBROUTINE alter_ice_thickness
 
-  SUBROUTINE MB_inversion( mesh, ice, SMB, BMB, LMB, dHi_dt_predicted, Hi_predicted, dt, time, region_name)
+  SUBROUTINE MB_inversion( mesh, ice, refgeo, SMB, BMB, LMB, dHi_dt_predicted, Hi_predicted, dt, time, region_name)
     ! Calculate the basal mass balance
     !
     ! Use an inversion based on the computed dHi_dt
@@ -2083,6 +2083,7 @@ CONTAINS
     ! In/output variables:
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
     TYPE(type_ice_model),                   INTENT(IN)    :: ice
+    TYPE(type_reference_geometry),          INTENT(IN)    :: refgeo
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(INOUT) :: SMB
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(INOUT) :: BMB
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(INOUT) :: LMB
@@ -2096,7 +2097,7 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'MB_inversion'
     INTEGER                                               :: vi
     CHARACTER(LEN=256)                                    :: choice_BMB_model, choice_LMB_model
-    LOGICAL                                               :: do_BMB_inversion, do_LMB_inversion, do_SMB_inversion
+    LOGICAL                                               :: do_BMB_inversion, do_LMB_inversion, do_SMB_inversion, do_SMB_absorb
     INTEGER,  DIMENSION(mesh%vi1:mesh%vi2)                :: mask
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: previous_field
     REAL(dp)                                              :: value_change
@@ -2129,6 +2130,7 @@ CONTAINS
     do_BMB_inversion = .FALSE.
     do_LMB_inversion = .FALSE.
     do_SMB_inversion = .FALSE.
+    do_SMB_absorb    = .FALSE.
 
     ! Check whether we want a BMB inversion
     IF (choice_BMB_model == 'inverted' .AND. &
@@ -2144,11 +2146,15 @@ CONTAINS
       do_LMB_inversion = .TRUE.
     END IF
 
+    IF (C%do_SMB_removal_icefree_land) THEN
+      do_SMB_inversion = .TRUE.
+    END IF
+
     ! Check whether we want a SMB adjustment
     IF (C%do_SMB_residual_absorb .AND. &
         time >= C%SMB_residual_absorb_t_start .AND. &
         time <= C%SMB_residual_absorb_t_end) THEN
-      do_SMB_inversion = .TRUE.
+      do_SMB_absorb = .TRUE.
     END IF
 
     ! == BMB: first pass
@@ -2162,6 +2168,7 @@ CONTAINS
 
     DO vi = mesh%vi1, mesh%vi2
 
+      ! Skip if not desired
       IF (.NOT. do_BMB_inversion) CYCLE
 
       ! For these areas, use dHi_dt to get an "inversion" of equilibrium BMB.
@@ -2201,7 +2208,7 @@ CONTAINS
       ELSEIF (ice%mask_icefree_ocean( vi)) THEN
 
         ! For open ocean, assume that all SMB melts
-        BMB( vi) = -SMB( vi)
+        BMB( vi) = MIN( 0._dp, -SMB( vi))
 
         ! Compute change of value
         value_change = BMB( vi) - previous_field( vi)
@@ -2231,6 +2238,7 @@ CONTAINS
     DO vi = mesh%vi1, mesh%vi2
       IF (ice%mask_cf_fl( vi)) THEN
 
+        ! Skip if not desired
         IF (.NOT. do_BMB_inversion) CYCLE
 
         ! Compute change after extrapolation
@@ -2253,6 +2261,7 @@ CONTAINS
 
     DO vi = mesh%vi1, mesh%vi2
 
+      ! Skip if not desired
       IF (.NOT. do_LMB_inversion) CYCLE
 
       ! For these areas, use dHi_dt to get an "inversion" of equilibrium LMB.
@@ -2283,6 +2292,7 @@ CONTAINS
     DO vi = mesh%vi1, mesh%vi2
       IF (ice%mask_cf_fl( vi)) THEN
 
+        ! Skip if not desired
         IF (.NOT. do_BMB_inversion) CYCLE
 
         ! BMB will absorb all remaining change after calving did its thing
@@ -2297,6 +2307,31 @@ CONTAINS
       END IF
     END DO
 
+    ! == SMB: reference ice-free land areas
+    ! =====================================
+
+    ! Store pre-adjustment values
+    previous_field = SMB
+
+    DO vi = mesh%vi1, mesh%vi2
+
+      ! Skip if not desired
+      IF (.NOT. do_SMB_inversion) CYCLE
+
+      ! Skip other areas
+      IF (refgeo%Hb( vi) < refgeo%SL( vi) .OR. refgeo%Hi( vi) > 0._dp) CYCLE
+
+      ! For reference ice-free land, use dHi_dt to get an "inversion" of equilibrium SMB.
+      SMB( vi) = MIN( 0._dp, ice%divQ( vi))
+
+      ! Adjust rate of ice thickness change dHi/dt to compensate the change
+      dHi_dt_predicted( vi) = 0._dp
+
+      ! Adjust corrected ice thickness to compensate the change
+      Hi_predicted( vi) = ice%Hi_prev( vi)
+
+    END DO
+
     ! == SMB: absorb remaining change
     ! ===============================
 
@@ -2305,7 +2340,7 @@ CONTAINS
 
     DO vi = mesh%vi1, mesh%vi2
 
-      IF (.NOT. do_SMB_inversion) CYCLE
+      IF (.NOT. do_SMB_absorb) CYCLE
 
       ! For grounded ice, use dHi_dt to get an "inversion" of equilibrium SMB.
       SMB( vi) = SMB( vi) - dHi_dt_predicted( vi)
