@@ -50,6 +50,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'run_BMB_model'
     CHARACTER(LEN=256)                                    :: choice_BMB_model
+    INTEGER                                               :: vi
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -94,7 +95,12 @@ CONTAINS
     ! Run the chosen BMB model
     SELECT CASE (choice_BMB_model)
       CASE ('uniform')
-        BMB%BMB = C%uniform_BMB
+        BMB%BMB = 0._dp
+        DO vi = mesh%vi1, mesh%vi2
+          IF (ice%mask_floating_ice( vi) .OR. ice%mask_icefree_ocean( vi) .OR. ice%mask_gl_gr( vi)) THEN
+            BMB%BMB( vi) = C%uniform_BMB
+          END IF
+        END DO
       CASE ('idealised')
         CALL run_BMB_model_idealised( mesh, ice, BMB, time)
       CASE ('parameterised')
