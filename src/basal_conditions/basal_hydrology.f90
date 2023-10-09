@@ -42,7 +42,7 @@ CONTAINS
     TYPE(type_grid),                     INTENT(IN)    :: grid_smooth
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
     TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo
-    TYPE(type_hydrology_inversion),      INTENT(INOUT) :: HIV
+    TYPE(type_hydrology_inversion),      INTENT(IN)    :: HIV
     REAL(dp),                            INTENT(IN)    :: time
 
     ! Local variables:
@@ -56,14 +56,14 @@ CONTAINS
     ! ====================================================================
 
     IF     (C%choice_basal_hydrology_model == 'none') THEN
-      ! No hydrology whatsoever
-      ice%pore_water_pressure = 0._dp
+      ! No pore water pressure
+      CALL calc_pore_water_pressure_none( mesh, ice)
     ELSEIF (C%choice_basal_hydrology_model == 'Martin2011') THEN
       ! The Martin et al. (2011) parameterisation of pore water pressure
       CALL calc_pore_water_pressure_Martin2011( mesh, ice)
     ELSEIF (C%choice_basal_hydrology_model == 'inversion') THEN
       ! Inversion of pore water pressure
-      CALL calc_pore_water_pressure_inversion( mesh, ice)
+      CALL calc_pore_water_pressure_inversion( mesh, ice, HIV)
     ELSE
       CALL crash('unknown choice_basal_hydrology_model "' // TRIM( C%choice_basal_hydrology_model) // '"!')
     END IF
@@ -120,6 +120,51 @@ CONTAINS
 ! ===== Different basal hydrology models =====
 ! ===========================================
 
+  ! == No subglacial hydrology
+  SUBROUTINE calc_pore_water_pressure_none( mesh, ice)
+    ! Calculate the pore water pressure
+    !
+    ! Use the parameterisation from Martin et al. (2011)
+
+    IMPLICIT NONE
+
+    ! Input variables:
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
+    TYPE(type_ice_model),                INTENT(INOUT) :: ice
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_pore_water_pressure_none'
+    INTEGER                                            :: vi
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Compute effective pore water pressure
+    ! =====================================
+
+    ! Retrieve inverted field
+    ice%pore_water_fraction = 0._dp
+
+    ! Scale pore water fraction based on grounded area fractions
+    DO vi = mesh%vi1, mesh%vi2
+      IF (ice%mask_grounded_ice( vi) .OR. ice%mask_gl_fl( vi)) THEN
+        ice%pore_water_fraction(vi) = 1._dp - ice%fraction_gr( vi) + ice%fraction_gr( vi) * ice%pore_water_fraction( vi)
+      ELSEIF (ice%mask_floating_ice( vi) .OR. ice%mask_icefree_ocean( vi)) THEN
+        ice%pore_water_fraction(vi) = 1._dp
+      END IF
+    END DO
+
+    DO vi = mesh%vi1, mesh%vi2
+      ! Compute pore water pressure based on the pore water fraction as
+      ! the fraction of the overburden pressure supported by basal water
+      ice%pore_water_pressure( vi) = ice%pore_water_fraction(vi) * ice_density * grav * ice%Hi_eff( vi)
+    END DO
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE calc_pore_water_pressure_none
+
   ! == Martin et al. (2011)
   SUBROUTINE calc_pore_water_pressure_Martin2011( mesh, ice)
     ! Calculate the pore water pressure
@@ -155,7 +200,7 @@ CONTAINS
   END SUBROUTINE calc_pore_water_pressure_Martin2011
 
   ! == Inverted values
-  SUBROUTINE calc_pore_water_pressure_inversion( mesh, ice)
+  SUBROUTINE calc_pore_water_pressure_inversion( mesh, ice, HIV)
     ! Calculate the pore water pressure
     !
     ! Use the inverted values of pore water fraction
@@ -165,6 +210,7 @@ CONTAINS
     ! Input variables:
     TYPE(type_mesh),                     INTENT(IN)    :: mesh
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
+    TYPE(type_hydrology_inversion),      INTENT(IN)    :: HIV
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_pore_water_pressure_inversion'
@@ -176,7 +222,21 @@ CONTAINS
     ! Compute effective pore water pressure
     ! =====================================
 
+    ! Retrieve inverted field
+    ice%pore_water_fraction = HIV%pore_water_fraction_app
+
+    ! Scale pore water fraction based on grounded area fractions
     DO vi = mesh%vi1, mesh%vi2
+      IF (ice%mask_grounded_ice( vi) .OR. ice%mask_gl_fl( vi)) THEN
+        ice%pore_water_fraction(vi) = 1._dp - ice%fraction_gr( vi) + ice%fraction_gr( vi) * ice%pore_water_fraction( vi)
+      ELSEIF (ice%mask_floating_ice( vi) .OR. ice%mask_icefree_ocean( vi)) THEN
+        ice%pore_water_fraction(vi) = 1._dp
+      END IF
+    END DO
+
+    DO vi = mesh%vi1, mesh%vi2
+      ! Compute pore water pressure based on the pore water fraction as
+      ! the fraction of the overburden pressure supported by basal water
       ice%pore_water_pressure( vi) = ice%pore_water_fraction(vi) * ice_density * grav * ice%Hi_eff( vi)
     END DO
 
@@ -255,7 +315,7 @@ CONTAINS
 
     ! Interpolate modelled pore water fraction to desired time
     DO vi = mesh%vi1, mesh%vi2
-      ice%pore_water_fraction( vi) = wt_prev * HIV%pore_water_fraction_prev( vi) + wt_next * HIV%pore_water_fraction_next( vi)
+      HIV%pore_water_fraction_app( vi) = wt_prev * HIV%pore_water_fraction_prev( vi) + wt_next * HIV%pore_water_fraction_next( vi)
     END DO
 
     ! Finalise routine path
@@ -288,9 +348,11 @@ CONTAINS
 
     ALLOCATE( HIV%pore_water_fraction_prev( mesh%vi1:mesh%vi2))
     ALLOCATE( HIV%pore_water_fraction_next( mesh%vi1:mesh%vi2))
+    ALLOCATE( HIV%pore_water_fraction_app(  mesh%vi1:mesh%vi2))
 
     HIV%pore_water_fraction_prev = 0._dp
     HIV%pore_water_fraction_next = 0._dp
+    HIV%pore_water_fraction_app  = 0._dp
 
     ! Timeframes
     HIV%t_prev   = C%start_time_of_run
@@ -357,7 +419,6 @@ CONTAINS
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: Ti_hom_av_up, Ti_hom_av_down
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: I_tot
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: dC1_dt
-    INTEGER,  DIMENSION(:    ), ALLOCATABLE            :: mask
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: dHs_dx, dHs_dy, abs_grad_Hs
     REAL(dp)                                           :: misfit
     REAL(dp)                                           :: fg_exp_mod, bf_exp_mod, hs_exp_mod, hi_exp_mod, max_neighbour, max_vertex_size, unstable_vertex
@@ -386,7 +447,6 @@ CONTAINS
     ALLOCATE( Ti_hom_av_down(  mesh%vi1:mesh%vi2), source = 0._dp  )
     ALLOCATE( I_tot(           mesh%vi1:mesh%vi2), source = 0._dp  )
     ALLOCATE( dC1_dt(          mesh%vi1:mesh%vi2), source = 0._dp  )
-    ALLOCATE( mask(            mesh%vi1:mesh%vi2), source = 0      )
     ALLOCATE( dHs_dx(          mesh%vi1:mesh%vi2), source = 0._dp  )
     ALLOCATE( dHs_dy(          mesh%vi1:mesh%vi2), source = 0._dp  )
     ALLOCATE( abs_grad_Hs(     mesh%vi1:mesh%vi2), source = 0._dp  )
@@ -422,7 +482,6 @@ CONTAINS
     t_scale = t_scale ** 1._dp
 
     porenudge_H_dHdt_flowline_t_scale = t_scale * 2._dp * C%porenudge_H_dHdt_flowline_t_scale + (1._dp - t_scale) * C%porenudge_H_dHdt_flowline_t_scale
-    ! porenudge_H_dHdt_flowline_dH0     = t_scale * 2._dp * C%porenudge_H_dHdt_flowline_dH0     + (1._dp - t_scale) * C%porenudge_H_dHdt_flowline_dH0
 
     ! == Calculate pore water rates of change
     ! =======================================
@@ -430,9 +489,6 @@ CONTAINS
     ! Use the supplement of pore water fraction,
     ! as it scales better during the inversion
     pore_dryness = (1._dp - HIV%pore_water_fraction_prev)
-
-    ! Initialise extrapolation mask
-    mask = 0
 
     DO vi = mesh%vi1, mesh%vi2
 
@@ -446,28 +502,12 @@ CONTAINS
       END IF
 
       ! Only perform the inversion on fully grounded vertices
-      IF ( ice%mask_gl_gr( vi) .OR. ice%mask_cf_gr( vi)) THEN
+      IF ( .NOT. ice%mask_grounded_ice( vi) .OR. ice%mask_gl_gr( vi) .OR. ice%mask_cf_gr( vi) .OR. ice%mask_margin( vi)) THEN
         ! Give non-fully grounded ice a default value (irrelevant)
         ice%pore_water_likelihood( vi) = 0._dp
-        ! Extrapolate here later
-        mask( vi) = 1
         ! Skip this vertex
         CYCLE
       END IF
-
-      ! Skip inversion over ice-free and floating areas
-      IF ( ice%mask_floating_ice( vi) .OR. ice%mask_icefree_land( vi) .OR. ice%mask_icefree_ocean( vi)) THEN
-        ! Give non-fully grounded ice a default value (irrelevant)
-        ice%pore_water_likelihood( vi) = 0._dp
-        ! Ignore during extrapolation
-        mask( vi) = 0
-        ! Skip this vertex
-        CYCLE
-      END IF
-
-      ! At this point, this is a valid inversion point
-      ! so use it as seed for the first extrapolation later
-      mask( vi) = 2
 
       ! Trace both halves of the flowline
       ! =================================
@@ -808,124 +848,6 @@ CONTAINS
     ! Get pore_water_fraction back from pore_dryness
     HIV%pore_water_fraction_next = 1._dp - pore_dryness
 
-    ! Extrapolations
-    ! ==============
-
-    ! First extrapolation into non-inverted grounded areas: simply take
-    ! the inverted values and extend them onto those locations.
-
-    ! Initialise maximum vertex size. The maximum size among all target
-    ! vertices will be used as the search radius during the extrapolation.
-    max_vertex_size = MINVAL(mesh%R)
-
-    DO vi = mesh%vi1, mesh%vi2
-      IF (mask( vi) == 1) THEN
-        ! Check if this vertex has a lower resolution. If so, use it as
-        ! the new extrapolation radius to make sure that its neighbours
-        ! can be reached during the extrapolation.
-        max_vertex_size = MAX( max_vertex_size, mesh%R( vi))
-      END IF
-    END DO
-
-    ! Perform the extrapolation - mask: 2 -> use as seed; 1 -> extrapolate; 0 -> ignore
-    CALL extrapolate_Gaussian( mesh, mask, HIV%pore_water_fraction_next, max_vertex_size)
-
-    ! Gather ice model data from all processes
-    CALL gather_to_all_dp_1D( HIV%pore_water_fraction_next, pore_water_fraction_next_tot)
-
-    ! Now, check at the grounded margins and floating side of the
-    ! grounding lines for the highest pore water fractions among
-    ! inverted neighbours, to make sure that the ice flows smoothly
-
-    ! Grounded margins
-    DO vi = mesh%vi1, mesh%vi2
-
-      ! Skip if not grounded margin
-      IF (.NOT. (mask_cf_gr_tot( vi) .OR. mask_gl_gr_tot( vi) .OR. mask_margin_tot( vi))) CYCLE
-
-      ! Initialise maximum neighbour
-      max_neighbour = pore_water_fraction_next_tot( vi)
-
-      ! Check interior grounded vertices for greater values
-      DO ci = 1, mesh%nC( vi)
-        vc = mesh%C( vi, ci)
-        IF (mask_grounded_ice_tot( vc) .AND. .NOT. mask_cf_gr_tot( vc) .AND. .NOT. mask_gl_gr_tot( vc) .AND. .NOT. mask_margin_tot( vc)) THEN
-          max_neighbour = MAX( max_neighbour, pore_water_fraction_next_tot( vc))
-        END IF
-      END DO
-
-      ! Use maximum value, if any
-      HIV%pore_water_fraction_next( vi) = max_neighbour
-
-    END DO
-
-    ! Margins: floating side of grounding line
-    DO vi = mesh%vi1, mesh%vi2
-
-      ! Skip if not floating grounding line
-      IF (.NOT. ice%mask_gl_fl( vi)) CYCLE
-
-      ! Initialise maximum neighbour
-      max_neighbour = pore_water_fraction_next_tot( vi)
-
-      ! Check grounded grounding lines for greater values
-      DO ci = 1, mesh%nC( vi)
-        vc = mesh%C( vi, ci)
-        IF (mask_gl_gr_tot( vc)) THEN
-          max_neighbour = MAX( max_neighbour, pore_water_fraction_next_tot( vc))
-        END IF
-      END DO
-
-      ! Use maximum value, if any
-      HIV%pore_water_fraction_next( vi) = max_neighbour
-
-    END DO
-
-    ! Margins: land next to grounded front
-    DO vi = mesh%vi1, mesh%vi2
-
-      ! Skip if not ice-free land
-      IF (.NOT. ice%mask_icefree_land( vi)) CYCLE
-
-      ! Initialise maximum neighbour
-      max_neighbour = pore_water_fraction_next_tot( vi)
-
-      ! Check grounded grounding lines for greater values
-      DO ci = 1, mesh%nC( vi)
-        vc = mesh%C( vi, ci)
-        IF (mask_margin_tot( vc)) THEN
-          max_neighbour = MAX( max_neighbour, pore_water_fraction_next_tot( vc))
-        END IF
-      END DO
-
-      ! Use maximum value, if any
-      HIV%pore_water_fraction_next( vi) = max_neighbour
-
-    END DO
-
-    ! Partially floating vertices
-    ! ===========================
-
-    ! Maximise the pore water fraction based on subgrid area fractions
-    DO vi = mesh%vi1, mesh%vi2
-
-      IF (ice%Hb( vi) < ice%SL( vi) .AND. (ice%mask_grounded_ice( vi) .OR. ice%mask_icefree_land( vi))) THEN
-        HIV%pore_water_fraction_next( vi) = MAX( HIV%pore_water_fraction_next( vi), 1._dp - ice%fraction_gr( vi)**1._dp)
-
-        ! Limit values to prescribed limits
-        HIV%pore_water_fraction_next( vi) = MIN( HIV%pore_water_fraction_next( vi), C%pore_water_fraction_max)
-        HIV%pore_water_fraction_next( vi) = MAX( HIV%pore_water_fraction_next( vi), C%pore_water_fraction_min)
-
-      ELSEIF (ice%mask_floating_ice( vi) .OR. ice%mask_icefree_ocean( vi)) THEN
-        HIV%pore_water_fraction_next( vi) = MAX( HIV%pore_water_fraction_next( vi), 1._dp - ice%fraction_gr( vi)**2._dp)
-      END IF
-
-      ! Limit values to hard limit
-      HIV%pore_water_fraction_next( vi) = MIN( HIV%pore_water_fraction_next( vi), 1._dp)
-      HIV%pore_water_fraction_next( vi) = MAX( HIV%pore_water_fraction_next( vi), 0._dp)
-
-    END DO
-
     ! Prevent fast change over unstable points
     ! ========================================
 
@@ -974,6 +896,114 @@ CONTAINS
 
     END IF
 
+    ! Extend onto neighbour vertices
+    ! ==============================
+
+    ! Gather ice model data from all processes
+    CALL gather_to_all_dp_1D( HIV%pore_water_fraction_next, pore_water_fraction_next_tot)
+
+    ! First, check at the grounded margins for the highest
+    ! pore water fraction among inverted neighbours, to make
+    ! sure that the ice flows smoothly
+
+    ! Grounded margins
+    DO vi = mesh%vi1, mesh%vi2
+
+      ! Skip if not grounded margin
+      IF (.NOT. (mask_cf_gr_tot( vi) .OR. mask_gl_gr_tot( vi) .OR. mask_margin_tot( vi))) CYCLE
+
+      ! Initialise maximum neighbour
+      max_neighbour = 0._dp
+
+      ! Check interior grounded vertices for greater values
+      DO ci = 1, mesh%nC( vi)
+        vc = mesh%C( vi, ci)
+        IF (mask_grounded_ice_tot( vc) .AND. .NOT. mask_cf_gr_tot( vc) .AND. .NOT. mask_gl_gr_tot( vc) .AND. .NOT. mask_margin_tot( vc)) THEN
+          max_neighbour = MAX( max_neighbour, pore_water_fraction_next_tot( vc))
+        END IF
+      END DO
+
+      ! Use maximum value among neighbours, if any
+      HIV%pore_water_fraction_next( vi) = max_neighbour
+
+    END DO
+
+    ! Then, check at the floating side of the grounding
+    ! line for the highest pore water fraction among
+    ! grounded grounding line neighbours
+
+    ! Margins: floating side of grounding line
+    DO vi = mesh%vi1, mesh%vi2
+
+      ! Skip if not floating grounding line
+      IF (.NOT. ice%mask_gl_fl( vi)) CYCLE
+
+      ! Initialise maximum neighbour
+      max_neighbour = 0._dp
+
+      ! Check grounded grounding lines for greater values
+      DO ci = 1, mesh%nC( vi)
+        vc = mesh%C( vi, ci)
+        IF (mask_gl_gr_tot( vc)) THEN
+          max_neighbour = MAX( max_neighbour, pore_water_fraction_next_tot( vc))
+        END IF
+      END DO
+
+      ! Use maximum value among neighbours, if any
+      HIV%pore_water_fraction_next( vi) = max_neighbour
+
+    END DO
+
+    ! Finally, do the same for ice-free land next
+    ! to grounded ice, to ensure a smooth transition
+
+    ! Margins: land next to grounded front
+    DO vi = mesh%vi1, mesh%vi2
+
+      ! Skip if not ice-free land
+      IF (.NOT. ice%mask_icefree_land( vi)) CYCLE
+
+      ! Initialise maximum neighbour
+      max_neighbour = 0._dp
+
+      ! Check grounded grounding lines for greater values
+      DO ci = 1, mesh%nC( vi)
+        vc = mesh%C( vi, ci)
+        IF (mask_margin_tot( vc)) THEN
+          max_neighbour = MAX( max_neighbour, pore_water_fraction_next_tot( vc))
+        END IF
+      END DO
+
+      ! Use maximum value among neighbours, if any
+      HIV%pore_water_fraction_next( vi) = max_neighbour
+
+    END DO
+
+    ! Limit inverted values
+    ! =====================
+
+    ! Limit values to prescribed limits
+    DO vi = mesh%vi1, mesh%vi2
+      HIV%pore_water_fraction_next( vi) = MIN( HIV%pore_water_fraction_next( vi), C%pore_water_fraction_max)
+      HIV%pore_water_fraction_next( vi) = MAX( HIV%pore_water_fraction_next( vi), C%pore_water_fraction_min)
+    END DO
+
+    ! ! Partially floating vertices
+    ! ! ===========================
+
+    ! ! Maximise the pore water fraction based on subgrid area fractions
+    ! DO vi = mesh%vi1, mesh%vi2
+
+    !   IF (ice%Hb( vi) < ice%SL( vi) .AND. (ice%mask_grounded_ice( vi) .OR. ice%mask_icefree_land( vi))) THEN
+    !     HIV%pore_water_fraction_next( vi) = MAX( HIV%pore_water_fraction_next( vi), 1._dp - ice%fraction_gr( vi)**1._dp)
+
+    !   ELSEIF (ice%mask_floating_ice( vi) .OR. ice%mask_icefree_ocean( vi)) THEN
+    !     HIV%pore_water_fraction_next( vi) = MAX( HIV%pore_water_fraction_next( vi), 1._dp - ice%fraction_gr( vi)**2._dp)
+
+    !   END IF
+
+    ! END DO
+
     ! Finalise
     ! ========
 
@@ -997,7 +1027,6 @@ CONTAINS
     DEALLOCATE( Ti_hom_av_down )
     DEALLOCATE( I_tot          )
     DEALLOCATE( dC1_dt         )
-    DEALLOCATE( mask           )
     DEALLOCATE( dHs_dx         )
     DEALLOCATE( dHs_dy         )
     DEALLOCATE( abs_grad_Hs    )

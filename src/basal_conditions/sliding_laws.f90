@@ -17,6 +17,7 @@ MODULE sliding_laws
   USE parameters
   USE mesh_operators                                         , ONLY: map_b_a_2D
   USE mesh_utilities                                         , ONLY: extrapolate_Gaussian
+  USE mpi_distributed_memory                                 , ONLY: gather_to_all_logical_1D, gather_to_all_dp_1D
 
   IMPLICIT NONE
 
@@ -295,10 +296,11 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'calc_sliding_law_ZoetIverson'
-    INTEGER                                               :: vi
-    REAL(dp)                                              :: uabs
-    INTEGER,  DIMENSION(mesh%vi1:mesh%vi2)                :: mask
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: till_yield_stress_extrapolated
+    INTEGER                                               :: vi, ci, vc
+    REAL(dp)                                              :: uabs, min_neighbour
+    LOGICAL,  DIMENSION(mesh%nV)                          :: mask_grounded_ice_tot
+    REAL(dp), DIMENSION(mesh%nV)                          :: till_yield_stress_tot
+    LOGICAL                                               :: found_grounded_neighbour
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -311,42 +313,34 @@ CONTAINS
       ice%till_yield_stress( vi) = ice%effective_pressure( vi) * TAN((pi / 180._dp) * ice%till_friction_angle( vi))
     END DO
 
-    ! == Extrapolate over too-thin grounded areas
-    ! ===========================================
+    ! == Extend till yield stress over ice-free land neighbours
+    ! =========================================================
+
+    CALL gather_to_all_logical_1D( ice%mask_grounded_ice, mask_grounded_ice_tot)
+    CALL gather_to_all_dp_1D(      ice%till_yield_stress, till_yield_stress_tot)
 
     ! DENK DROM: implement this in other sliding laws
-    ! DENK DROM: lakes (if implemented) would be overwritten as well
-
-    ! Initialise extrapolation mask
-    mask = 0
-
-    ! Calculate extrapolation mask
     DO vi = mesh%vi1, mesh%vi2
-      ! Prepare mask for extrapolation
-      IF (ice%mask_floating_ice( vi) .OR. ice%mask_icefree_ocean( vi)) THEN
-        ! Ignore during extrapolation
-        mask( vi) = 0
-      ELSEIF(ice%Hi( vi) <= C%Hi_thin) THEN
-        ! Extrapolate over ice-free land and very thin grounded ice
-        mask( vi) = 1
-      ELSEIF (ice%mask_grounded_ice( vi)) THEN
-        ! Use as seed during extrapolation
-        mask( vi) = 2
-      END IF
-    END DO
 
-    ! Copy till yield stress field so we do not
-    ! lose its info after the extrapolation
-    till_yield_stress_extrapolated = ice%till_yield_stress
+      ! Skip if not ice-free land
+      IF (.NOT. ice%mask_icefree_land( vi)) CYCLE
 
-    ! Extrapolate over ice-free land and very thin grounded ice
-    CALL extrapolate_Gaussian( mesh, mask, till_yield_stress_extrapolated, C%porenudge_H_dHdt_flowline_r_smooth)
+      ! Initialise with default values and assume a till yield
+      ! stress equivalent to a column of ice of 100 metres
+      ! with no hydrology and maximum bed roughness.
+      min_neighbour = 100._dp * ice_density * grav
 
-    ! Final till yield stress will be the maximum value between the original
-    ! and extrapolated values. This also covers the case where the the
-    ! extrapolation failed (e.g. when no close neighbours are available).
-    DO vi = mesh%vi1, mesh%vi2
-      ice%till_yield_stress( vi) = MAX( ice%till_yield_stress( vi), till_yield_stress_extrapolated( vi))
+      ! Check grounded neighbours
+      DO ci = 1, mesh%nC( vi)
+        vc = mesh%C( vi, ci)
+        IF (mask_grounded_ice_tot( vc)) THEN
+          min_neighbour = MIN( min_neighbour, till_yield_stress_tot( vc))
+        END IF
+      END DO
+
+      ! Use minimum value among neighbours, if any
+      ice%till_yield_stress( vi) = min_neighbour
+
     END DO
 
     ! == Basal friction field
