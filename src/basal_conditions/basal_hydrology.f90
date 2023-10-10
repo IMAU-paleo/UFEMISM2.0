@@ -988,22 +988,6 @@ CONTAINS
       HIV%pore_water_fraction_next( vi) = MAX( HIV%pore_water_fraction_next( vi), C%pore_water_fraction_min)
     END DO
 
-    ! ! Partially floating vertices
-    ! ! ===========================
-
-    ! ! Maximise the pore water fraction based on subgrid area fractions
-    ! DO vi = mesh%vi1, mesh%vi2
-
-    !   IF (ice%Hb( vi) < ice%SL( vi) .AND. (ice%mask_grounded_ice( vi) .OR. ice%mask_icefree_land( vi))) THEN
-    !     HIV%pore_water_fraction_next( vi) = MAX( HIV%pore_water_fraction_next( vi), 1._dp - ice%fraction_gr( vi)**1._dp)
-
-    !   ELSEIF (ice%mask_floating_ice( vi) .OR. ice%mask_icefree_ocean( vi)) THEN
-    !     HIV%pore_water_fraction_next( vi) = MAX( HIV%pore_water_fraction_next( vi), 1._dp - ice%fraction_gr( vi)**2._dp)
-
-    !   END IF
-
-    ! END DO
-
     ! Finalise
     ! ========
 

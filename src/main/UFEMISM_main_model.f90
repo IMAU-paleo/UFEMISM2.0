@@ -1372,7 +1372,7 @@ CONTAINS
     ! === SMB over ice-free land ===
     ! ==============================
 
-    ! If so desierd, remove positive SMB over ice-free land
+    ! If so desired, remove positive SMB over ice-free land
     IF (C%do_SMB_removal_icefree_land) THEN
       DO vi = region%mesh%vi1, region%mesh%vi2
         IF (region%ice%mask_icefree_land( vi)) region%SMB%SMB( vi) = MIN( region%SMB%SMB( vi), 0._dp)
