@@ -1632,6 +1632,37 @@ CONTAINS
 
   END SUBROUTINE calc_polygon_Siple_Coast
 
+  SUBROUTINE calc_polygon_Larsen_ice_shelf( poly)
+    ! Return a polygon enveloping the Larsen C ice shelf area
+    !
+    ! (based on manual analysis of the Rignot velocity data,
+    ! not meant for basin-integrated SMB stuff or such, but accurate
+    ! enough to do region-specific mesh refinement)
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE, INTENT(OUT)   :: poly
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'calc_polygon_Larsen_ice_shelf'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ALLOCATE( poly( 5,2))
+
+    poly(  1,:) = [-2.3962e6_dp, 0.8370e6_dp]
+    poly(  2,:) = [-1.9819e6_dp, 0.8482e6_dp]
+    poly(  3,:) = [-1.8363e6_dp, 1.0721e6_dp]
+    poly(  4,:) = [-2.4857e6_dp, 1.6880e6_dp]
+    poly(  5,:) = [-2.6985e6_dp, 1.3968e6_dp]
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE calc_polygon_Larsen_ice_shelf
+
   SUBROUTINE calc_polygon_Patagonia( poly)
     ! Return a polygon enveloping the region where the former
     ! Patagonian ice sheet peaked during the last glacial maximum

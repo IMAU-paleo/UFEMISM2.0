@@ -48,7 +48,7 @@ MODULE UFEMISM_main_model
                                                                      create_scalar_regional_output_file, write_to_scalar_regional_output_file
   USE mesh_refinement                                        , ONLY: calc_polygon_Pine_Island_Glacier, calc_polygon_Thwaites_Glacier, &
                                                                      calc_polygon_Amery_ice_shelf, calc_polygon_Riiser_Larsen_ice_shelf, &
-                                                                     calc_polygon_Siple_Coast, calc_polygon_Patagonia, &
+                                                                     calc_polygon_Siple_Coast, calc_polygon_Patagonia, calc_polygon_Larsen_ice_shelf, &
                                                                      calc_polygon_Narsarsuaq, calc_polygon_Tijn_test_ISMIP_HOM_A
   USE math_utilities                                         , ONLY: longest_triangle_leg
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_logical_1D
@@ -940,10 +940,10 @@ CONTAINS
         CASE ('')
          ! No region requested: don't need to do anything
          EXIT
-        CASE ('PineIsland','Thwaites','Amery','RiiserLarsen','SipleCoast', & ! Antarctica
-              'Narsarsuaq', &                                                ! Greenland
-              'Patagonia', &                                                 ! Patagonia
-              'Tijn_test_ISMIP_HOM_A')                                       ! Idealised
+        CASE ('PineIsland','Thwaites','Amery','RiiserLarsen','SipleCoast','LarsenC', & ! Antarctica
+              'Narsarsuaq', &                                                          ! Greenland
+              'Patagonia', &                                                           ! Patagonia
+              'Tijn_test_ISMIP_HOM_A')                                                 ! Idealised
           ! List of known regions of interest: these pass the test
         CASE DEFAULT
           ! Region not found
@@ -997,6 +997,8 @@ CONTAINS
               CALL calc_polygon_Riiser_Larsen_ice_shelf( poly_ROI)
             CASE ('SipleCoast')
               CALL calc_polygon_Siple_Coast( poly_ROI)
+            CASE ('LarsenC')
+              CALL calc_polygon_Larsen_ice_shelf( poly_ROI)
             CASE ('Patagonia')
               CALL calc_polygon_Patagonia( poly_ROI)
             CASE ('Tijn_test_ISMIP_HOM_A')
