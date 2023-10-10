@@ -14,7 +14,7 @@ MODULE mesh_refinement
   USE reallocate_mod                                         , ONLY: reallocate
   USE math_utilities                                         , ONLY: segment_intersection, is_in_triangle, longest_triangle_leg, smallest_triangle_angle, &
                                                                      circumcenter, lies_on_line_segment, crop_line_to_domain, geometric_center, is_in_polygon, &
-                                                                     cross2
+                                                                     cross2, quick_n_dirty_sort
   USE mesh_types                                             , ONLY: type_mesh
   USE mesh_memory                                            , ONLY: extend_mesh_primary, crop_mesh_primary
   USE mesh_utilities                                         , ONLY: update_triangle_circumcenter, find_containing_triangle, add_triangle_to_refinement_stack_last, &
@@ -1350,6 +1350,237 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE Lloyds_algorithm_single_iteration
+
+! == Enforce contiguous process domains
+
+  SUBROUTINE enforce_contiguous_process_domains( mesh)
+    ! Shuffle vertices, triangles, and edges so that the vertices owned by each process form
+    ! a contiguous domain with short borders, to minimise the data volumes for halo exchanges.
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),            INTENT(INOUT)     :: mesh
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'enforce_contiguous_process_domains'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Shuffle vertices
+    CALL enforce_contiguous_process_domains_vertices( mesh)
+
+    ! Shuffle triangles
+    CALL enforce_contiguous_process_domains_triangles( mesh)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE enforce_contiguous_process_domains
+
+  SUBROUTINE enforce_contiguous_process_domains_vertices( mesh)
+    ! Shuffle vertices so that the vertices owned by each process form
+    ! a contiguous domain with short borders, to minimise the data volumes for halo exchanges.
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),            INTENT(INOUT)     :: mesh
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'enforce_contiguous_process_domains_vertices'
+    REAL(dp), DIMENSION(mesh%nV)                  :: xx
+    INTEGER,  DIMENSION(mesh%nV)                  :: vi_new2vi_old, vi_old2vi_new
+    INTEGER                                       :: vi_old, vi_new
+    REAL(dp), DIMENSION(mesh%nV,2)                :: V_old
+    INTEGER,  DIMENSION(mesh%nV)                  :: nC_old
+    INTEGER,  DIMENSION(mesh%nV,mesh%nC_mem)      :: C_old
+    INTEGER,  DIMENSION(mesh%nV)                  :: niTri_old
+    INTEGER,  DIMENSION(mesh%nV,mesh%nC_mem)      :: iTri_old
+    INTEGER,  DIMENSION(mesh%nV)                  :: VBI_old
+    INTEGER                                       :: ci,ti,n,vj_old,vj_new
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Sort vertices by x-coordinate
+    xx = mesh%V( :,1)
+    CALL quick_n_dirty_sort( xx, vi_new2vi_old)
+
+    ! Calculate translation table in the opposite direction
+    DO vi_new = 1, mesh%nV
+      vi_old = vi_new2vi_old( vi_new)
+      vi_old2vi_new( vi_old) = vi_new
+    END DO
+
+    ! Shuffle vertex data: V, nC, C, niTri, iTri, VBI
+    ! ===============================================
+
+    V_old     = mesh%V
+    nC_old    = mesh%nC
+    C_old     = mesh%C
+    niTri_old = mesh%niTri
+    iTri_old  = mesh%iTri
+    VBI_old   = mesh%VBI
+
+    mesh%V     = 0._dp
+    mesh%nC    = 0
+    mesh%C     = 0
+    mesh%niTri = 0
+    mesh%iTri  = 0
+    mesh%VBI   = 0
+
+    DO vi_new = 1, mesh%nV
+
+      ! This new vertex corresponds to this old vertex
+      vi_old = vi_new2vi_old( vi_new)
+
+      ! V
+      mesh%V( vi_new,:) = V_old( vi_old,:)
+
+      ! nC
+      mesh%nC( vi_new) = nC_old( vi_old)
+
+      ! C
+      DO ci = 1, mesh%nC( vi_new)
+        vj_old = C_old( vi_old,ci)
+        vj_new = vi_old2vi_new( vj_old)
+        mesh%C( vi_new,ci) = vj_new
+      END DO
+
+      ! niTri
+      mesh%niTri( vi_new) = niTri_old( vi_old)
+
+      ! iTri
+      mesh%iTri( vi_new,:) = iTri_old( vi_old,:)
+
+      ! VBI
+      mesh%VBI( vi_new) = VBI_old( vi_old)
+
+    END DO
+
+    ! Shuffle triangle data: Tri
+    ! ==========================
+
+    DO ti = 1, mesh%nTri
+      DO n = 1, 3
+        vi_old = mesh%Tri( ti,n)
+        vi_new = vi_old2vi_new( vi_old)
+        mesh%Tri( ti,n) = vi_new
+      END DO
+    END DO
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE enforce_contiguous_process_domains_vertices
+
+  SUBROUTINE enforce_contiguous_process_domains_triangles( mesh)
+    ! Shuffle triangles so that the triangles owned by each process form
+    ! a contiguous domain with short borders, to minimise the data volumes for halo exchanges.
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),            INTENT(INOUT)     :: mesh
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'enforce_contiguous_process_domains_triangles'
+    REAL(dp), DIMENSION(mesh%nTri)                :: xx
+    INTEGER                                       :: ti,via,vib,vic
+    REAL(dp), DIMENSION(2)                        :: va,vb,vc,gc
+    INTEGER,  DIMENSION(mesh%nTri)                :: ti_new2ti_old, ti_old2ti_new
+    INTEGER                                       :: ti_old, ti_new
+    INTEGER,  DIMENSION(mesh%nV,mesh%nC_mem)      :: iTri_old
+    INTEGER,  DIMENSION(mesh%nTri,3)              :: Tri_old
+    INTEGER,  DIMENSION(mesh%nTri,3)              :: TriC_old
+    REAL(dp), DIMENSION(mesh%nTri,2)              :: Tricc_old
+    INTEGER                                       :: vi,iti,n,tj_old,tj_new
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Calculate triangle geometric centres
+    DO ti = 1, mesh%nTri
+
+      via = mesh%Tri( ti,1)
+      vib = mesh%Tri( ti,2)
+      vic = mesh%Tri( ti,3)
+
+      va = mesh%V( via,:)
+      vb = mesh%V( vib,:)
+      vc = mesh%V( vic,:)
+
+      gc = geometric_center( va, vb, vc)
+
+      xx( ti) = gc( 1)
+
+    END DO
+
+    ! Sort triangles by x-coordinate
+    CALL quick_n_dirty_sort( xx, ti_new2ti_old)
+
+    ! Calculate translation table in the opposite direction
+    DO ti_new = 1, mesh%nTri
+      ti_old = ti_new2ti_old( ti_new)
+      ti_old2ti_new( ti_old) = ti_new
+    END DO
+
+    ! Shuffle vertex data: iTri
+    ! =========================
+
+    iTri_old  = mesh%iTri
+
+    mesh%iTri  = 0
+
+    DO vi = 1, mesh%nV
+      DO iti = 1, mesh%niTri( vi)
+        ti_old = iTri_old( vi,iti)
+        ti_new = ti_old2ti_new( ti_old)
+        mesh%iTri( vi,iti) = ti_new
+      END DO
+    END DO
+
+    ! Shuffle triangle data: Tri, TriC, Tricc
+    ! =======================================
+
+    Tri_old   = mesh%Tri
+    TriC_old  = mesh%TriC
+    Tricc_old = mesh%Tricc
+
+    mesh%Tri   = 0
+    mesh%TriC  = 0
+    mesh%Tricc = 0._dp
+
+    DO ti_new = 1, mesh%nTri
+
+      ! This new triangle corresponds to this old triangle
+      ti_old = ti_new2ti_old( ti_new)
+
+      ! Tri
+      mesh%Tri( ti_new,:) = Tri_old( ti_old,:)
+
+      ! TriC
+      DO n = 1, 3
+        tj_old = TriC_old( ti_old,n)
+        IF (tj_old == 0) THEN
+          tj_new = 0
+        ELSE
+          tj_new = ti_old2ti_new( tj_old)
+        END IF
+        mesh%TriC( ti_new,n) = tj_new
+      END DO
+
+      ! Tricc
+      mesh%Tricc( ti_new,:) = Tricc_old( ti_old,:)
+
+    END DO
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE enforce_contiguous_process_domains_triangles
 
 ! == Polygons describing specific regions
 

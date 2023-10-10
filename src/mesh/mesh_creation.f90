@@ -19,7 +19,8 @@ MODULE mesh_creation
                                                                      calc_polygon_Pine_Island_Glacier, calc_polygon_Thwaites_Glacier, &
                                                                      calc_polygon_Amery_ice_shelf, calc_polygon_Riiser_Larsen_ice_shelf, &
                                                                      calc_polygon_Siple_Coast, calc_polygon_Patagonia, calc_polygon_Larsen_ice_shelf, &
-                                                                     calc_polygon_Narsarsuaq, calc_polygon_Tijn_test_ISMIP_HOM_A
+                                                                     calc_polygon_Narsarsuaq, calc_polygon_Tijn_test_ISMIP_HOM_A, &
+                                                                     enforce_contiguous_process_domains
   USe mesh_parallel_creation                                 , ONLY: broadcast_mesh
   USE mesh_secondary                                         , ONLY: calc_all_secondary_mesh_data
   USE mesh_operators                                         , ONLY: calc_all_matrix_operators_mesh
@@ -738,6 +739,11 @@ CONTAINS
       DO i = 1, C%nit_Lloyds_algorithm
         CALL Lloyds_algorithm_single_iteration( mesh, C%alpha_min)
       END DO
+
+    ! == Enforce contiguous process domains
+    ! =====================================
+
+      CALL enforce_contiguous_process_domains( mesh)
 
     END IF ! IF (par%master) THEN
 
