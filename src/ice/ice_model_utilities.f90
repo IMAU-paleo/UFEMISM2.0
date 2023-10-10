@@ -20,7 +20,7 @@ MODULE ice_model_utilities
   USE ice_model_types                                        , ONLY: type_ice_model
   USE reference_geometries                                   , ONLY: type_reference_geometry
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_logical_1D
-  USE math_utilities                                         , ONLY: is_floating, triangle_area, oblique_sg_projection
+  USE math_utilities                                         , ONLY: is_floating, triangle_area, oblique_sg_projection, is_in_polygon
   USE mesh_remapping                                         , ONLY: Atlas, create_map_from_xy_grid_to_mesh, create_map_from_xy_grid_to_mesh_triangles
   USE petsc_basic                                            , ONLY: mat_petsc2CSR
   USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp, deallocate_matrix_CSR_dist
@@ -30,6 +30,7 @@ MODULE ice_model_utilities
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_1D
   USE mesh_utilities                                         , ONLY: calc_Voronoi_cell, interpolate_to_point_dp_2D, extrapolate_Gaussian
   USE netcdf_input                                           , ONLY: read_field_from_mesh_file_3D_CDF, read_field_from_mesh_file_3D_b_CDF
+  USE mesh_refinement                                        , ONLY: calc_polygon_Patagonia
 
   IMPLICIT NONE
 
@@ -2101,10 +2102,20 @@ CONTAINS
     INTEGER,  DIMENSION(mesh%vi1:mesh%vi2)                :: mask
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: previous_field
     REAL(dp)                                              :: value_change
-
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE               :: poly_ROI
+    REAL(dp), DIMENSION(2)                                :: p
 
     ! == Initialisation
     ! =================
+
+    IF (C%choice_regions_of_interest == 'Patagonia') THEN
+      ! Compute polygon for reconstruction
+      CALL calc_polygon_Patagonia( poly_ROI)
+    ELSE
+      ALLOCATE( poly_ROI(1,2))
+      poly_ROI(1,1) = 0._dp
+      poly_ROI(1,2) = 0._dp
+    END IF
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -2167,6 +2178,12 @@ CONTAINS
     mask = 0
 
     DO vi = mesh%vi1, mesh%vi2
+
+      ! Get x and y coordinates of this vertex
+      p = mesh%V( vi,:)
+
+      ! Skip vertices within reconstruction polygon
+      IF (is_in_polygon(poly_ROI, p)) CYCLE
 
       ! Skip if not desired
       IF (.NOT. do_BMB_inversion) CYCLE
@@ -2238,6 +2255,12 @@ CONTAINS
     DO vi = mesh%vi1, mesh%vi2
       IF (ice%mask_cf_fl( vi)) THEN
 
+        ! Get x and y coordinates of this vertex
+        p = mesh%V( vi,:)
+
+        ! Skip vertices within reconstruction polygon
+        IF (is_in_polygon(poly_ROI, p)) CYCLE
+
         ! Skip if not desired
         IF (.NOT. do_BMB_inversion) CYCLE
 
@@ -2260,6 +2283,12 @@ CONTAINS
     previous_field = LMB
 
     DO vi = mesh%vi1, mesh%vi2
+
+      ! Get x and y coordinates of this vertex
+      p = mesh%V( vi,:)
+
+      ! Skip vertices within reconstruction polygon
+      IF (is_in_polygon(poly_ROI, p)) CYCLE
 
       ! Skip if not desired
       IF (.NOT. do_LMB_inversion) CYCLE
@@ -2292,6 +2321,12 @@ CONTAINS
     DO vi = mesh%vi1, mesh%vi2
       IF (ice%mask_cf_fl( vi)) THEN
 
+        ! Get x and y coordinates of this vertex
+        p = mesh%V( vi,:)
+
+        ! Skip vertices within reconstruction polygon
+        IF (is_in_polygon(poly_ROI, p)) CYCLE
+
         ! Skip if not desired
         IF (.NOT. do_BMB_inversion) CYCLE
 
@@ -2314,6 +2349,12 @@ CONTAINS
     previous_field = SMB
 
     DO vi = mesh%vi1, mesh%vi2
+
+      ! Get x and y coordinates of this vertex
+      p = mesh%V( vi,:)
+
+      ! Skip vertices within reconstruction polygon
+      IF (is_in_polygon(poly_ROI, p)) CYCLE
 
       ! Skip if not desired
       IF (.NOT. do_SMB_inversion) CYCLE
@@ -2340,6 +2381,12 @@ CONTAINS
 
     DO vi = mesh%vi1, mesh%vi2
 
+      ! Get x and y coordinates of this vertex
+      p = mesh%V( vi,:)
+
+      ! Skip vertices within reconstruction polygon
+      IF (is_in_polygon(poly_ROI, p)) CYCLE
+
       IF (.NOT. do_SMB_absorb) CYCLE
 
       ! For grounded ice, use dHi_dt to get an "inversion" of equilibrium SMB.
@@ -2352,6 +2399,9 @@ CONTAINS
       Hi_predicted( vi) = ice%Hi_prev( vi)
 
     END DO
+
+    ! Clean up after yourself
+    DEALLOCATE( poly_ROI)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
