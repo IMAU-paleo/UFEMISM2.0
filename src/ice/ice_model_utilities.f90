@@ -31,16 +31,14 @@ MODULE ice_model_utilities
   USE mesh_utilities                                         , ONLY: calc_Voronoi_cell, interpolate_to_point_dp_2D, extrapolate_Gaussian
   USE netcdf_input                                           , ONLY: read_field_from_mesh_file_3D_CDF, read_field_from_mesh_file_3D_b_CDF
   USE mesh_refinement                                        , ONLY: calc_polygon_Patagonia
+  USE netcdf_input                                           , ONLY: read_field_from_file_2D
 
   IMPLICIT NONE
 
 CONTAINS
 
-! ===== Subroutines =====
-! =======================
-
-  ! == Masks
-  ! ========
+! == Masks
+! ========
 
   SUBROUTINE determine_masks( mesh, ice)
     ! Determine the different masks
@@ -226,8 +224,8 @@ CONTAINS
 
   END SUBROUTINE determine_masks
 
-  ! == Sub-grid grounded fractions
-  ! ==============================
+! == Sub-grid grounded fractions
+! ==============================
 
   SUBROUTINE calc_grounded_fractions( mesh, ice)
     ! Calculate the sub-grid grounded-area fractions
@@ -1380,7 +1378,7 @@ CONTAINS
 
   END SUBROUTINE initialise_bedrock_CDFs_from_file
 
-  ! == Effective ice thickness
+! == Effective ice thickness
 ! ==========================
 
   subroutine calc_effective_thickness( mesh, ice, Hi, Hi_eff, fraction_margin)
@@ -1497,8 +1495,8 @@ CONTAINS
 
   end subroutine calc_effective_thickness
 
-  ! == Zeta gradients
-  ! =================
+! == Zeta gradients
+! =================
 
   SUBROUTINE calc_zeta_gradients( mesh, ice)
     ! Calculate all the gradients of zeta, needed to perform the scaled vertical coordinate transformation
@@ -1696,8 +1694,8 @@ CONTAINS
 
   END SUBROUTINE calc_zeta_gradients
 
-  ! == No-ice mask
-  ! ==============
+! == No-ice mask
+! ==============
 
   SUBROUTINE calc_mask_noice( mesh, ice)
     ! Calculate the no-ice mask
@@ -1808,8 +1806,8 @@ CONTAINS
 
   end subroutine calc_mask_noice_remove_Ellesmere
 
-  ! == Ice thickness modification
-  ! =============================
+! == Ice thickness modification
+! =============================
 
   SUBROUTINE alter_ice_thickness( mesh, ice, Hi_old, Hi_new, refgeo, time)
     ! Modify the predicted ice thickness in some sneaky way
@@ -2408,8 +2406,8 @@ CONTAINS
 
   END SUBROUTINE MB_inversion
 
-  ! == Trivia
-  ! =========
+! == Trivia
+! =========
 
   SUBROUTINE MISMIPplus_adapt_flow_factor( mesh, ice)
     ! Automatically adapt the uniform flow factor A to achieve a steady-state mid-stream grounding-line position at x = 450 km in the MISMIP+ experiment
@@ -2459,5 +2457,113 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE MISMIPplus_adapt_flow_factor
+
+! == Target dHi_dt initialisation
+! ===============================
+
+  SUBROUTINE initialise_dHi_dt_target( mesh, ice, region_name)
+    ! Prescribe a target dHi_dt from a file without a time dimension
+
+    IMPLICIT NONE
+
+    ! In- and output variables
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh
+    TYPE(type_ice_model),                   INTENT(INOUT) :: ice
+    CHARACTER(LEN=3),                       INTENT(IN)    :: region_name
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'initialise_dHi_dt_target'
+    CHARACTER(LEN=256)                                    :: filename_dHi_dt_target
+    REAL(dp)                                              :: timeframe_dHi_dt_target
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Determine filename for this model region
+    SELECT CASE (region_name)
+      CASE ('NAM')
+        filename_dHi_dt_target  = C%filename_dHi_dt_target_NAM
+        timeframe_dHi_dt_target = C%timeframe_dHi_dt_target_NAM
+      CASE ('EAS')
+        filename_dHi_dt_target  = C%filename_dHi_dt_target_EAS
+        timeframe_dHi_dt_target = C%timeframe_dHi_dt_target_EAS
+      CASE ('GRL')
+        filename_dHi_dt_target  = C%filename_dHi_dt_target_GRL
+        timeframe_dHi_dt_target = C%timeframe_dHi_dt_target_GRL
+      CASE ('ANT')
+        filename_dHi_dt_target  = C%filename_dHi_dt_target_ANT
+        timeframe_dHi_dt_target = C%timeframe_dHi_dt_target_ANT
+      CASE DEFAULT
+        CALL crash('unknown region_name "' // TRIM( region_name) // '"!')
+    END SELECT
+
+    ! Print to terminal
+    IF (par%master)  WRITE(*,"(A)") '     Initialising target ice rates of change from file "' // colour_string( TRIM( filename_dHi_dt_target),'light blue') // '"...'
+
+    ! Read dHi_dt from file
+    IF (timeframe_dHi_dt_target == 1E9_dp) THEN
+      ! Assume the file has no time dimension
+      CALL read_field_from_file_2D( filename_dHi_dt_target, 'dHdt||dHi_dt', mesh, ice%dHi_dt_target)
+    ELSE
+      ! Assume the file has a time dimension, and read the specified timeframe
+      CALL read_field_from_file_2D( filename_dHi_dt_target, 'dHdt||dHi_dt', mesh, ice%dHi_dt_target, time_to_read = timeframe_dHi_dt_target)
+    END IF
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE initialise_dHi_dt_target
+
+! == Target uabs_surf initialisation
+! ==================================
+
+  SUBROUTINE initialise_uabs_surf_target( mesh, ice, region_name)
+    ! Initialise surface ice velocity data from an external NetCDF file
+
+    IMPLICIT NONE
+
+    ! Input variables:
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
+    TYPE(type_ice_model),                INTENT(INOUT) :: ice
+    CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_uabs_surf_target'
+    CHARACTER(LEN=256)                                 :: filename_uabs_surf_target
+    REAL(dp)                                           :: timeframe_uabs_surf_target
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Determine filename and timeframe for this model region
+    IF     (region_name == 'NAM') THEN
+      filename_uabs_surf_target  = C%filename_uabs_surf_target_NAM
+      timeframe_uabs_surf_target = C%timeframe_uabs_surf_target_NAM
+    ELSEIF (region_name == 'EAS') THEN
+      filename_uabs_surf_target  = C%filename_uabs_surf_target_EAS
+      timeframe_uabs_surf_target = C%timeframe_uabs_surf_target_EAS
+    ELSEIF (region_name == 'GRL') THEN
+      filename_uabs_surf_target  = C%filename_uabs_surf_target_GRL
+      timeframe_uabs_surf_target = C%timeframe_uabs_surf_target_GRL
+    ELSEIF (region_name == 'ANT') THEN
+      filename_uabs_surf_target  = C%filename_uabs_surf_target_ANT
+      timeframe_uabs_surf_target = C%timeframe_uabs_surf_target_ANT
+    ELSE
+      CALL crash('unknown region_name "' // TRIM( region_name) // '"!')
+    END IF
+
+    ! Print to terminal
+    IF (par%master)  WRITE(*,"(A)") '     Initialising target surface ice speed from file "' // colour_string( TRIM( filename_uabs_surf_target),'light blue') // '"...'
+
+    IF (timeframe_uabs_surf_target == 1E9_dp) THEN
+      CALL read_field_from_file_2D( filename_uabs_surf_target, 'uabs_surf', mesh, ice%uabs_surf_target)
+    ELSE
+      CALL read_field_from_file_2D( filename_uabs_surf_target, 'uabs_surf', mesh, ice%uabs_surf_target, timeframe_uabs_surf_target)
+    END IF
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE initialise_uabs_surf_target
 
 END MODULE ice_model_utilities

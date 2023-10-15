@@ -22,7 +22,6 @@ MODULE ice_thickness
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_1D, gather_to_all_logical_1D
   USE math_utilities                                         , ONLY: ice_surface_elevation, Hi_from_Hb_Hs_and_SL
   USE math_utilities                                         , ONLY: is_floating
-  USE netcdf_input                                           , ONLY: read_field_from_file_2D
 
   IMPLICIT NONE
 
@@ -92,11 +91,11 @@ CONTAINS
       IF (Hi_tplusdt( vi) < 0._dp) THEN
         ! Implicit solvers sometimes give VERY small negative numbers (e.g. -2e-189),
         ! only throw a warning if things get properly negative. Also, ignore negative
-        ! values over ice-free points (identified here by an ice-covered fraction of ~0),
-        ! which can experience negative mass balance, but for which it is (of course)
-        ! not possible to find a dt that prevents a negative ice thickness.
+        ! values over ice-free points and very thin ice, which can experience negative
+        ! mass balance, but for which it is not feasible to find a dt that prevents a
+        ! negative ice thickness.
 
-        IF (Hi_tplusdt( vi) < -0.1_dp .AND. fraction_margin( vi) >= .1_dp) found_negative_vals = .TRUE.
+        IF (Hi_tplusdt( vi) < -0.1_dp .AND. Hi( vi) > C%Hi_min) found_negative_vals = .TRUE.
         ! Limit to zero
         Hi_tplusdt( vi) = 0._dp
       END IF
@@ -1164,61 +1163,5 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE calc_flux_limited_timestep
-
-! == Target dHi_dt initialisation
-! ===============================
-
-  SUBROUTINE initialise_dHi_dt_target( mesh, ice, region_name)
-    ! Prescribe a target dHi_dt from a file without a time dimension
-
-    IMPLICIT NONE
-
-    ! In- and output variables
-    TYPE(type_mesh),                        INTENT(IN)    :: mesh
-    TYPE(type_ice_model),                   INTENT(INOUT) :: ice
-    CHARACTER(LEN=3),                       INTENT(IN)    :: region_name
-
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'initialise_dHi_dt_target'
-    CHARACTER(LEN=256)                                    :: filename_dHi_dt_prescribed
-    REAL(dp)                                              :: timeframe_dHi_dt_prescribed
-
-    ! Add routine to path
-    CALL init_routine( routine_name)
-
-    ! Determine filename for this model region
-    SELECT CASE (region_name)
-      CASE ('NAM')
-        filename_dHi_dt_prescribed  = C%filename_dHi_dt_prescribed_NAM
-        timeframe_dHi_dt_prescribed = C%timeframe_dHi_dt_prescribed_NAM
-      CASE ('EAS')
-        filename_dHi_dt_prescribed  = C%filename_dHi_dt_prescribed_EAS
-        timeframe_dHi_dt_prescribed = C%timeframe_dHi_dt_prescribed_EAS
-      CASE ('GRL')
-        filename_dHi_dt_prescribed  = C%filename_dHi_dt_prescribed_GRL
-        timeframe_dHi_dt_prescribed = C%timeframe_dHi_dt_prescribed_GRL
-      CASE ('ANT')
-        filename_dHi_dt_prescribed  = C%filename_dHi_dt_prescribed_ANT
-        timeframe_dHi_dt_prescribed = C%timeframe_dHi_dt_prescribed_ANT
-      CASE DEFAULT
-        CALL crash('unknown region_name "' // TRIM( region_name) // '"!')
-    END SELECT
-
-    ! Print to terminal
-    IF (par%master)  WRITE(*,"(A)") '     Initialising target dHi_dt from file "' // colour_string( TRIM( filename_dHi_dt_prescribed),'light blue') // '"...'
-
-    ! Read dHi_dt from file
-    IF (timeframe_dHi_dt_prescribed == 1E9_dp) THEN
-      ! Assume the file has no time dimension
-      CALL read_field_from_file_2D( filename_dHi_dt_prescribed, 'dHdt||dHi_dt', mesh, ice%dHi_dt_target)
-    ELSE
-      ! Assume the file has a time dimension, and read the specified timeframe
-      CALL read_field_from_file_2D( filename_dHi_dt_prescribed, 'dHdt||dHi_dt', mesh, ice%dHi_dt_target, time_to_read = timeframe_dHi_dt_prescribed)
-    END IF
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE initialise_dHi_dt_target
 
 END MODULE ice_thickness
