@@ -1894,6 +1894,44 @@ CONTAINS
 
   END SUBROUTINE calc_polygon_Larsen_ice_shelf
 
+  SUBROUTINE calc_polygon_Transantarctic_Mountains( poly)
+    ! Return a polygon enveloping the Transantarctic Mountains
+    !
+    ! (based on manual analysis of the Rignot velocity data,
+    ! not meant for basin-integrated SMB stuff or such, but accurate
+    ! enough to do region-specific mesh refinement)
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE, INTENT(OUT)   :: poly
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'calc_polygon_Transantarctic_Mountains'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ALLOCATE( poly( 12,2))
+
+    poly(  1,:) = [ 0.2911e6_dp, -1.3464e6_dp]
+    poly(  2,:) = [ 0.5487e6_dp, -1.2233e6_dp]
+    poly(  3,:) = [ 0.6158e6_dp, -1.1225e6_dp]
+    poly(  4,:) = [ 0.5934e6_dp, -0.7978e6_dp]
+    poly(  5,:) = [ 0.3695e6_dp, -0.5067e6_dp]
+    poly(  6,:) = [ 0.1680e6_dp, -0.3387e6_dp]
+    poly(  7,:) = [-0.1792e6_dp, -0.1708e6_dp]
+    poly(  8,:) = [-0.4143e6_dp, -0.1484e6_dp]
+    poly(  9,:) = [-0.4591e6_dp, -0.3947e6_dp]
+    poly( 10,:) = [ 0.0672e6_dp, -0.7306e6_dp]
+    poly( 11,:) = [ 0.2127e6_dp, -0.8762e6_dp]
+    poly( 12,:) = [ 0.3359e6_dp, -1.0217e6_dp]
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE calc_polygon_Transantarctic_Mountains
+
   SUBROUTINE calc_polygon_Patagonia( poly)
     ! Return a polygon enveloping the region where the former
     ! Patagonian ice sheet peaked during the last glacial maximum

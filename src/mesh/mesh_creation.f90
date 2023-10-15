@@ -19,7 +19,8 @@ MODULE mesh_creation
                                                                      calc_polygon_Pine_Island_Glacier, calc_polygon_Thwaites_Glacier, &
                                                                      calc_polygon_Amery_ice_shelf, calc_polygon_Riiser_Larsen_ice_shelf, &
                                                                      calc_polygon_Siple_Coast, calc_polygon_Patagonia, calc_polygon_Larsen_ice_shelf, &
-                                                                     calc_polygon_Narsarsuaq, calc_polygon_Tijn_test_ISMIP_HOM_A, &
+                                                                     calc_polygon_Transantarctic_Mountains, calc_polygon_Narsarsuaq, &
+                                                                     calc_polygon_Tijn_test_ISMIP_HOM_A, &
                                                                      enforce_contiguous_process_domains
   USe mesh_parallel_creation                                 , ONLY: broadcast_mesh
   USE mesh_secondary                                         , ONLY: calc_all_secondary_mesh_data
@@ -882,10 +883,10 @@ CONTAINS
         CASE ('')
          ! No region requested: don't need to do anything
          EXIT
-        CASE ('PineIsland','Thwaites','Amery','RiiserLarsen','SipleCoast', 'LarsenC', & ! Antarctica
-              'Narsarsuaq', &                                                           ! Greenland
-              'Patagonia', &                                                            ! Patagonia
-              'Tijn_test_ISMIP_HOM_A')                                                  ! Idealised
+        CASE ('PineIsland','Thwaites','Amery','RiiserLarsen','SipleCoast', 'LarsenC','TransMounts', & ! Antarctica
+              'Narsarsuaq', &                                                                         ! Greenland
+              'Patagonia', &                                                                          ! Patagonia
+              'Tijn_test_ISMIP_HOM_A')                                                                ! Idealised
           ! List of known regions of interest: these pass the test
         CASE DEFAULT
           ! Region not found
@@ -941,6 +942,8 @@ CONTAINS
               CALL calc_polygon_Siple_Coast( poly_ROI)
             CASE ('LarsenC')
               CALL calc_polygon_Larsen_ice_shelf( poly_ROI)
+            CASE ('TransMounts')
+              CALL calc_polygon_Transantarctic_Mountains( poly_ROI)
             CASE ('Patagonia')
               CALL calc_polygon_Patagonia( poly_ROI)
             CASE ('Tijn_test_ISMIP_HOM_A')
