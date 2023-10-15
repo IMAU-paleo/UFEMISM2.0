@@ -301,16 +301,60 @@ CONTAINS
     LOGICAL,  DIMENSION(mesh%nV)                          :: mask_grounded_ice_tot
     REAL(dp), DIMENSION(mesh%nV)                          :: till_yield_stress_tot
     LOGICAL                                               :: found_grounded_neighbour
+    REAL(dp)                                              :: weight_gr, exponent_gr
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! == Default field
+    ! DENK DROM: implement all this in other sliding laws
+
+    ! == Bed roughness
     ! ================
 
-    ! Calculate the till yield stress from the till friction angle and the effective pressure
     DO vi = mesh%vi1, mesh%vi2
-      ice%till_yield_stress( vi) = ice%effective_pressure( vi) * TAN((pi / 180._dp) * ice%till_friction_angle( vi))
+
+      ! Initialise grounded area fraction weight
+      weight_gr = 1._dp
+
+      ! Compute exponent for this vertex's weight
+      exponent_gr = MAX( LOG10( MAX( 1._dp, ice%Hi( vi))) - 1._dp, 0._dp)
+
+      ! Compute a weight based on the grounded area fractions
+      IF (ice%mask_gl_gr( vi)) THEN
+        weight_gr = ice%fraction_gr( vi)**exponent_gr
+
+      ELSEIF (ice%mask_cf_gr( vi)) THEN
+        weight_gr = ice%fraction_gr( vi)**exponent_gr
+
+      ELSEIF (ice%mask_gl_fl( vi)) THEN
+        weight_gr = ice%fraction_gr( vi)**exponent_gr
+
+      ELSEIF (ice%mask_grounded_ice( vi)) THEN
+        weight_gr = ice%fraction_gr( vi)**exponent_gr
+
+      ELSEIF (ice%mask_floating_ice( vi)) THEN
+        weight_gr = 0._dp
+
+      ELSEIF (ice%mask_icefree_ocean( vi)) THEN
+        weight_gr = 0._dp
+
+      END IF
+
+      ! Just in case
+      weight_gr = MIN( 1._dp, MAX( 0._dp, weight_gr))
+
+      ! Compute till friction angle accounting for grounded area fractions
+      ice%bed_roughness( vi) = TAN((pi / 180._dp) * ice%till_friction_angle( vi) * weight_gr)
+
+    END DO
+
+    ! == Till yield stress
+    ! ====================
+
+    ! Calculate the till yield stress from the effective pressure and bed roughness,
+    ! which itself depends on the tangent of the till friction angle
+    DO vi = mesh%vi1, mesh%vi2
+      ice%till_yield_stress( vi) = ice%effective_pressure( vi) * ice%bed_roughness( vi)
     END DO
 
     ! == Extend till yield stress over ice-free land neighbours
@@ -319,27 +363,35 @@ CONTAINS
     CALL gather_to_all_logical_1D( ice%mask_grounded_ice, mask_grounded_ice_tot)
     CALL gather_to_all_dp_1D(      ice%till_yield_stress, till_yield_stress_tot)
 
-    ! DENK DROM: implement this in other sliding laws
     DO vi = mesh%vi1, mesh%vi2
 
       ! Skip if not ice-free land
       IF (.NOT. ice%mask_icefree_land( vi)) CYCLE
 
+      ! Initialise
+      found_grounded_neighbour = .FALSE.
+
       ! Initialise with default values and assume a till yield
-      ! stress equivalent to a column of ice of 100 metres
+      ! stress equivalent to a column of ice of 1000 metres
       ! with no hydrology and maximum bed roughness.
-      min_neighbour = 100._dp * ice_density * grav
+      min_neighbour = 1000._dp * ice_density * grav
 
       ! Check grounded neighbours
       DO ci = 1, mesh%nC( vi)
         vc = mesh%C( vi, ci)
         IF (mask_grounded_ice_tot( vc)) THEN
           min_neighbour = MIN( min_neighbour, till_yield_stress_tot( vc))
+          found_grounded_neighbour = .TRUE.
         END IF
       END DO
 
-      ! Use minimum value among neighbours, if any
-      ice%till_yield_stress( vi) = min_neighbour
+      IF (found_grounded_neighbour) THEN
+        ! Use the minimum value among neighbours
+        ice%till_yield_stress( vi) = min_neighbour
+      ELSE
+        ! Use a default minimum value to avoid 0 friction
+        ice%till_yield_stress( vi) = C%Hi_min * ice_density * grav
+      END IF
 
     END DO
 
@@ -490,6 +542,5 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE calc_sliding_law_idealised_ISMIP_HOM_F
-
 
 END MODULE sliding_laws

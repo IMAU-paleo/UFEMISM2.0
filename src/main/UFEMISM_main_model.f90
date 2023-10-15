@@ -21,8 +21,9 @@ MODULE UFEMISM_main_model
   USE reference_geometry_types                               , ONLY: type_reference_geometry
   USE reference_geometries                                   , ONLY: initialise_reference_geometries_raw, initialise_reference_geometries_on_model_mesh
   USE ice_model_main                                         , ONLY: initialise_ice_dynamics_model, run_ice_dynamics_model, remap_ice_dynamics_model, &
-                                                                     create_restart_files_ice_model, write_to_restart_files_ice_model
+                                                                     create_restart_files_ice_model, write_to_restart_files_ice_model, apply_geometry_relaxation
   USE basal_hydrology                                        , ONLY: run_basal_hydrology_model, initialise_pore_water_fraction_inversion, run_pore_water_fraction_inversion
+  USE bed_roughness                                          , ONLY: run_bed_roughness_model
   USE thermodynamics_main                                    , ONLY: initialise_thermodynamics_model, run_thermodynamics_model, &
                                                                      create_restart_file_thermo, write_to_restart_file_thermo
   USE climate_main                                           , ONLY: initialise_climate_model, run_climate_model, remap_climate_model, &
@@ -49,7 +50,8 @@ MODULE UFEMISM_main_model
   USE mesh_refinement                                        , ONLY: calc_polygon_Pine_Island_Glacier, calc_polygon_Thwaites_Glacier, &
                                                                      calc_polygon_Amery_ice_shelf, calc_polygon_Riiser_Larsen_ice_shelf, &
                                                                      calc_polygon_Siple_Coast, calc_polygon_Patagonia, calc_polygon_Larsen_ice_shelf, &
-                                                                     calc_polygon_Narsarsuaq, calc_polygon_Tijn_test_ISMIP_HOM_A
+                                                                     calc_polygon_Transantarctic_Mountains, calc_polygon_Narsarsuaq, &
+                                                                     calc_polygon_Tijn_test_ISMIP_HOM_A
   USE math_utilities                                         , ONLY: longest_triangle_leg
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_logical_1D
   USE mesh_remapping                                         , ONLY: clear_all_maps_involving_this_mesh
@@ -114,6 +116,9 @@ CONTAINS
 
       ! Run the subglacial hydrology model
       CALL run_basal_hydrology_model( region%mesh, region%grid_smooth, region%ice, region%refgeo_PD, region%HIV, region%time)
+
+      ! Run the bed roughness model
+      CALL run_bed_roughness_model( region%mesh, region%grid_smooth, region%ice, region%refgeo_PD, region%BIV, region%time)
 
       ! Run the ice dynamics model to calculate ice geometry at the desired time, and update
       ! velocities, thinning rates, and predicted geometry if necessary
@@ -545,6 +550,7 @@ CONTAINS
     ! =======================
 
     CALL apply_regional_corrections( region)
+    CALL apply_geometry_relaxation( region)
 
     ! ===== Integrated scalars =====
     ! ==============================
@@ -940,10 +946,10 @@ CONTAINS
         CASE ('')
          ! No region requested: don't need to do anything
          EXIT
-        CASE ('PineIsland','Thwaites','Amery','RiiserLarsen','SipleCoast','LarsenC', & ! Antarctica
-              'Narsarsuaq', &                                                          ! Greenland
-              'Patagonia', &                                                           ! Patagonia
-              'Tijn_test_ISMIP_HOM_A')                                                 ! Idealised
+        CASE ('PineIsland','Thwaites','Amery','RiiserLarsen','SipleCoast','LarsenC','TransMounts', & ! Antarctica
+              'Narsarsuaq', &                                                                        ! Greenland
+              'Patagonia', &                                                                         ! Patagonia
+              'Tijn_test_ISMIP_HOM_A')                                                               ! Idealised
           ! List of known regions of interest: these pass the test
         CASE DEFAULT
           ! Region not found
@@ -999,6 +1005,8 @@ CONTAINS
               CALL calc_polygon_Siple_Coast( poly_ROI)
             CASE ('LarsenC')
               CALL calc_polygon_Larsen_ice_shelf( poly_ROI)
+            CASE ('TransMounts')
+              CALL calc_polygon_Transantarctic_Mountains( poly_ROI)
             CASE ('Patagonia')
               CALL calc_polygon_Patagonia( poly_ROI)
             CASE ('Tijn_test_ISMIP_HOM_A')

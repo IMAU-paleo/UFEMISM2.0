@@ -1252,6 +1252,170 @@ CONTAINS
 
   END SUBROUTINE relax_calving_front
 
+  SUBROUTINE apply_geometry_relaxation( region)
+    ! Relax the initial geometry by running the ice dynamics model
+    ! for a certain time without any mass balance terms, inversions
+    ! or imposed alterations to the evolution of ice thickness
+
+    USE, INTRINSIC :: ISO_C_BINDING, ONLY: c_carriage_return
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_model_region),                INTENT(INOUT) :: region
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'apply_geometry_relaxation'
+    INTEGER                                               :: vi
+    REAL(dp)                                              :: t_pseudo, t_step
+    REAL(dp), DIMENSION(region%mesh%vi1:region%mesh%vi2)  :: SMB_dummy, BMB_dummy, LMB_dummy, dHi_dt_target_dummy
+    CHARACTER(LEN=256)                                    :: t_years, r_time, r_step, r_adv, t_format
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Print to terminal
+    IF (par%master .AND. C%do_time_display .AND. C%geometry_relaxation_t_years > 0._dp) THEN
+
+      IF (C%geometry_relaxation_t_years <= 999._dp .AND. &
+          C%geometry_relaxation_t_years >=   1._dp) THEN
+        write(*,"(A,F6.2,A)") '   Stepping out of time to relax geometry for ', C%geometry_relaxation_t_years, ' pseudo years...'
+      ELSE
+        write(*,"(A)") '   Stepping out of time to relax geometry...'
+      END IF
+
+      ! Initialise and display pseudo time
+      t_pseudo = 0._dp
+      write( r_time,"(F7.3)") t_pseudo
+      write( r_step,"(F5.3)") C%geometry_relaxation_t_years / 100._dp
+      write( *,"(A)", ADVANCE = TRIM( 'no')) c_carriage_return // &
+                                             "     t_pseudo = " // TRIM( r_time) // &
+                                             " yr - dt = " // TRIM( r_step) // " yr"
+    END IF
+
+    DO WHILE (t_pseudo < C%geometry_relaxation_t_years)
+
+      ! Default time step: set so the relaxation takes 100 iterations
+      t_step = C%geometry_relaxation_t_years / 100._dp
+      ! But prevent time step larger than maximum allowed
+      t_step = MIN( t_step, C%dt_ice_max)
+
+      ! Ignore any mass balance terms
+      SMB_dummy = 0._dp
+      BMB_dummy = 0._dp
+      LMB_dummy = 0._dp
+
+      ! Ignore any target thinning rates
+      dHi_dt_target_dummy = 0._dp
+
+      region%ice%effective_pressure= MAX( 0._dp, ice_density * grav * region%ice%Hi_eff) * region%ice%fraction_gr
+
+      ! Calculate ice velocities for the predicted geometry
+      CALL solve_stress_balance( region%mesh, region%ice, BMB_dummy, region%name)
+
+      ! Calculate thinning rates for current geometry and velocity
+      CALL calc_dHi_dt( region%mesh, region%ice%Hi, region%ice%Hb, region%ice%SL, region%ice%u_vav_b, region%ice%v_vav_b, SMB_dummy, BMB_dummy, LMB_dummy, region%ice%fraction_margin, &
+                        region%ice%mask_noice, t_step, region%ice%dHi_dt, region%ice%Hi, region%ice%divQ, dHi_dt_target_dummy, region%ice%dHi_dt_residual)
+
+      DO vi = region%mesh%vi1, region%mesh%vi2
+        ! Don't let grounded ice cross the floatation threshold
+        ! IF (region%ice%mask_grounded_ice( vi)) THEN
+        !   region%ice%Hi( vi) = MAX( region%ice%Hi( vi), (region%ice%SL( vi) - region%ice%Hb( vi)) * seawater_density/ice_density + .1_dp)
+        ! END IF
+        ! Remove very thin ice
+        IF (region%ice%Hi( vi) < C%Hi_min) THEN
+          region%ice%Hi( vi) = 0._dp
+        END IF
+        ! Remove ice absent at PD
+        IF (region%refgeo_PD%Hi( vi) == 0._dp) THEN
+          region%ice%Hi( vi) = 0._dp
+        END IF
+        ! Remove ice shelves beyond the PD margins
+        IF (region%refgeo_PD%Hi( vi) == 0._dp .AND. region%refgeo_PD%Hb( vi) < 0._dp) THEN
+          region%ice%Hi( vi) = 0._dp
+        END IF
+      END DO
+
+      ! Calculate all other ice geometry quantities
+      ! ===========================================
+
+      DO vi = region%mesh%vi1, region%mesh%vi2
+
+        ! Basic geometry
+        region%ice%Hs ( vi) = ice_surface_elevation( region%ice%Hi( vi), region%ice%Hb( vi), region%ice%SL( vi))
+        region%ice%Hib( vi) = region%ice%Hs( vi) - region%ice%Hi( vi)
+        region%ice%TAF( vi) = thickness_above_floatation( region%ice%Hi( vi), region%ice%Hb( vi), region%ice%SL( vi))
+
+        IF (region%ice%TAF( vi) > 0._dp) THEN
+          ! Grounded ice
+          region%ice%dHs_dt ( vi) = region%ice%dHb_dt( vi) + region%ice%dHi_dt( vi)
+          region%ice%dHib_dt( vi) = region%ice%dHb_dt( vi)
+        ELSE
+          ! Floating ice
+          region%ice%dHs_dt ( vi) = region%ice%dHi_dt( vi) * (1._dp - ice_density / seawater_density)
+          region%ice%dHib_dt( vi) = region%ice%dHi_dt( vi) *          ice_density / seawater_density
+        END IF
+
+      END DO
+
+      ! Update masks
+      CALL determine_masks( region%mesh, region%ice)
+
+      ! Calculate new effective thickness
+      CALL calc_effective_thickness( region%mesh, region%ice, region%ice%Hi, region%ice%Hi_eff, region%ice%fraction_margin)
+
+      ! NOTE: as calculating the zeta gradients is quite expensive, only do so when necessary,
+      !       i.e. when solving the heat equation or the Blatter-Pattyn stress balance
+      ! Calculate zeta gradients
+      CALL calc_zeta_gradients( region%mesh, region%ice)
+
+      ! Calculate sub-grid grounded-area fractions
+      CALL calc_grounded_fractions( region%mesh, region%ice)
+
+      ! Reference geometry
+      ! ==================
+
+      region%refgeo_PD%Hi  = region%ice%Hi
+      region%refgeo_PD%Hs  = region%ice%Hs
+      region%refgeo_PD%Hb  = region%ice%Hb
+
+      ! Differences w.r.t. present-day
+      region%ice%dHi  = 0._dp
+      region%ice%dHb  = 0._dp
+      region%ice%dHs  = 0._dp
+      region%ice%dHib = 0._dp
+
+      ! Re-initialise previous and next Hi states
+      region%ice%Hi_prev = region%ice%Hi
+      region%ice%Hi_next = region%ice%Hi
+
+      ! Advance pesudo time
+      ! ===================
+
+      t_pseudo = t_pseudo + t_step
+
+      ! Time display
+      IF (par%master .AND. C%do_time_display) THEN
+        ! Carriage return flag
+        r_adv = "no"
+        IF (t_pseudo >= C%geometry_relaxation_t_years) r_adv = "yes"
+        ! Current pseudo time
+        write( r_time,"(F7.3)") MIN( t_pseudo,C%geometry_relaxation_t_years)
+        ! Current time step
+        write( r_step,"(F5.3)") t_step
+        ! Time display message
+        write( *,"(A)", ADVANCE = TRIM( r_adv)) c_carriage_return // &
+                                                "     t_pseudo = " // TRIM( r_time) // &
+                                                " yr - dt = " // TRIM( r_step) // " yr"
+      END IF
+
+    END DO
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE apply_geometry_relaxation
+
 ! ===== Predictor-corrector scheme =====
 ! ======================================
 
@@ -2040,169 +2204,5 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE calc_critical_timestep_adv
-
-  SUBROUTINE apply_geometry_relaxation( region)
-    ! Relax the initial geometry by running the ice dynamics model
-    ! for a certain time without any mass balance terms, inversions
-    ! or imposed alterations to the evolution of ice thickness
-
-    USE, INTRINSIC :: ISO_C_BINDING, ONLY: c_carriage_return
-
-    IMPLICIT NONE
-
-    ! In/output variables:
-    TYPE(type_model_region),                INTENT(INOUT) :: region
-
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'apply_geometry_relaxation'
-    INTEGER                                               :: vi
-    REAL(dp)                                              :: t_pseudo, t_step
-    REAL(dp), DIMENSION(region%mesh%vi1:region%mesh%vi2)  :: SMB_dummy, BMB_dummy, LMB_dummy, dHi_dt_target_dummy
-    CHARACTER(LEN=256)                                    :: t_years, r_time, r_step, r_adv, t_format
-
-    ! Add routine to path
-    CALL init_routine( routine_name)
-
-    ! Print to terminal
-    IF (par%master .AND. C%do_time_display .AND. C%geometry_relaxation_t_years > 0._dp) THEN
-
-      IF (C%geometry_relaxation_t_years <= 999._dp .AND. &
-          C%geometry_relaxation_t_years >=   1._dp) THEN
-        write(*,"(A,F5.2,A)") '   Stepping out of time to relaxing geometry for ', C%geometry_relaxation_t_years, ' pseudo years...'
-      ELSE
-        write(*,"(A)") '   Stepping out of time to relax geometry...'
-      END IF
-
-      ! Initialise and display pseudo time
-      t_pseudo = 0._dp
-      write( r_time,"(F7.3)") t_pseudo
-      write( r_step,"(F5.3)") C%geometry_relaxation_t_years / 100._dp
-      write( *,"(A)", ADVANCE = TRIM( 'no')) c_carriage_return // &
-                                             "     t_pseudo = " // TRIM( r_time) // &
-                                             " yr - dt = " // TRIM( r_step) // " yr"
-    END IF
-
-    DO WHILE (t_pseudo < C%geometry_relaxation_t_years)
-
-      ! Default time step: set so the relaxation takes 100 iterations
-      t_step = C%geometry_relaxation_t_years / 100._dp
-      ! But prevent time step larger than maximum allowed
-      t_step = MIN( t_step, C%dt_ice_max)
-
-      ! Ignore any mass balance terms
-      SMB_dummy = 0._dp
-      BMB_dummy = 0._dp
-      LMB_dummy = 0._dp
-
-      ! Ignore any target thinning rates
-      dHi_dt_target_dummy = 0._dp
-
-      region%ice%effective_pressure= MAX( 0._dp, ice_density * grav * region%ice%Hi_eff) * region%ice%fraction_gr
-
-      ! Calculate ice velocities for the predicted geometry
-      CALL solve_stress_balance( region%mesh, region%ice, BMB_dummy, region%name)
-
-      ! Calculate thinning rates for current geometry and velocity
-      CALL calc_dHi_dt( region%mesh, region%ice%Hi, region%ice%Hb, region%ice%SL, region%ice%u_vav_b, region%ice%v_vav_b, SMB_dummy, BMB_dummy, LMB_dummy, region%ice%fraction_margin, &
-                        region%ice%mask_noice, t_step, region%ice%dHi_dt, region%ice%Hi, region%ice%divQ, dHi_dt_target_dummy, region%ice%dHi_dt_residual)
-
-      DO vi = region%mesh%vi1, region%mesh%vi2
-        ! Don't let grounded ice cross the floatation threshold
-        ! IF (region%ice%mask_grounded_ice( vi)) THEN
-        !   region%ice%Hi( vi) = MAX( region%ice%Hi( vi), (region%ice%SL( vi) - region%ice%Hb( vi)) * seawater_density/ice_density + .1_dp)
-        ! END IF
-        ! Remove very thin ice
-        IF (region%ice%Hi( vi) < C%Hi_min) THEN
-          region%ice%Hi( vi) = 0._dp
-        END IF
-        ! Remove ice absent at PD
-        IF (region%refgeo_PD%Hi( vi) == 0._dp) THEN
-          region%ice%Hi( vi) = 0._dp
-        END IF
-        ! Remove ice shelves beyond the PD margins
-        IF (region%refgeo_PD%Hi( vi) == 0._dp .AND. region%refgeo_PD%Hb( vi) < 0._dp) THEN
-          region%ice%Hi( vi) = 0._dp
-        END IF
-      END DO
-
-      ! Calculate all other ice geometry quantities
-      ! ===========================================
-
-      DO vi = region%mesh%vi1, region%mesh%vi2
-
-        ! Basic geometry
-        region%ice%Hs ( vi) = ice_surface_elevation( region%ice%Hi( vi), region%ice%Hb( vi), region%ice%SL( vi))
-        region%ice%Hib( vi) = region%ice%Hs( vi) - region%ice%Hi( vi)
-        region%ice%TAF( vi) = thickness_above_floatation( region%ice%Hi( vi), region%ice%Hb( vi), region%ice%SL( vi))
-
-        IF (region%ice%TAF( vi) > 0._dp) THEN
-          ! Grounded ice
-          region%ice%dHs_dt ( vi) = region%ice%dHb_dt( vi) + region%ice%dHi_dt( vi)
-          region%ice%dHib_dt( vi) = region%ice%dHb_dt( vi)
-        ELSE
-          ! Floating ice
-          region%ice%dHs_dt ( vi) = region%ice%dHi_dt( vi) * (1._dp - ice_density / seawater_density)
-          region%ice%dHib_dt( vi) = region%ice%dHi_dt( vi) *          ice_density / seawater_density
-        END IF
-
-      END DO
-
-      ! Update masks
-      CALL determine_masks( region%mesh, region%ice)
-
-      ! Calculate new effective thickness
-      CALL calc_effective_thickness( region%mesh, region%ice, region%ice%Hi, region%ice%Hi_eff, region%ice%fraction_margin)
-
-      ! NOTE: as calculating the zeta gradients is quite expensive, only do so when necessary,
-      !       i.e. when solving the heat equation or the Blatter-Pattyn stress balance
-      ! Calculate zeta gradients
-      CALL calc_zeta_gradients( region%mesh, region%ice)
-
-      ! Calculate sub-grid grounded-area fractions
-      CALL calc_grounded_fractions( region%mesh, region%ice)
-
-      ! Reference geometry
-      ! ==================
-
-      region%refgeo_PD%Hi  = region%ice%Hi
-      region%refgeo_PD%Hs  = region%ice%Hs
-      region%refgeo_PD%Hb  = region%ice%Hb
-
-      ! Differences w.r.t. present-day
-      region%ice%dHi  = 0._dp
-      region%ice%dHb  = 0._dp
-      region%ice%dHs  = 0._dp
-      region%ice%dHib = 0._dp
-
-      ! Re-initialise previous and next Hi states
-      region%ice%Hi_prev = region%ice%Hi
-      region%ice%Hi_next = region%ice%Hi
-
-      ! Advance pesudo time
-      ! ===================
-
-      t_pseudo = t_pseudo + t_step
-
-      ! Time display
-      IF (par%master .AND. C%do_time_display) THEN
-        ! Carriage return flag
-        r_adv = "no"
-        IF (t_pseudo >= C%geometry_relaxation_t_years) r_adv = "yes"
-        ! Current pseudo time
-        write( r_time,"(F7.3)") MIN( t_pseudo,C%geometry_relaxation_t_years)
-        ! Current time step
-        write( r_step,"(F5.3)") t_step
-        ! Time display message
-        write( *,"(A)", ADVANCE = TRIM( r_adv)) c_carriage_return // &
-                                                "     t_pseudo = " // TRIM( r_time) // &
-                                                " yr - dt = " // TRIM( r_step) // " yr"
-      END IF
-
-    END DO
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE apply_geometry_relaxation
 
 END MODULE ice_model_main

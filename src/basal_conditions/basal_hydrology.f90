@@ -117,7 +117,7 @@ CONTAINS
 
   END SUBROUTINE initialise_basal_hydrology_model
 
-! ===== Different basal hydrology models =====
+! ===== Different basal hydrology models ====
 ! ===========================================
 
   ! == No subglacial hydrology
@@ -135,6 +135,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_pore_water_pressure_none'
     INTEGER                                            :: vi
+    REAL(dp)                                           :: weight_gr
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -147,11 +148,31 @@ CONTAINS
 
     ! Scale pore water fraction based on grounded area fractions
     DO vi = mesh%vi1, mesh%vi2
-      IF (ice%mask_grounded_ice( vi) .OR. ice%mask_gl_fl( vi)) THEN
-        ice%pore_water_fraction(vi) = 1._dp - ice%fraction_gr( vi) + ice%fraction_gr( vi) * ice%pore_water_fraction( vi)
-      ELSEIF (ice%mask_floating_ice( vi) .OR. ice%mask_icefree_ocean( vi)) THEN
-        ice%pore_water_fraction(vi) = 1._dp
+
+      ! Default value
+      weight_gr = 1._dp
+
+      IF (ice%mask_icefree_land( vi)) THEN
+        weight_gr = ice%fraction_gr( vi)**0._dp
+
+      ELSEIF (ice%mask_grounded_ice( vi)) THEN
+        weight_gr = ice%fraction_gr( vi)**1._dp
+
+      ELSEIF (ice%mask_gl_fl( vi)) THEN
+        weight_gr = ice%fraction_gr( vi)**2._dp
+
+      ELSEIF (ice%mask_floating_ice( vi)) THEN
+        weight_gr = ice%fraction_gr( vi)**3._dp
+
+      ELSEIF (ice%mask_icefree_ocean( vi)) THEN
+        weight_gr = ice%fraction_gr( vi)**4._dp
       END IF
+
+      ! Just in case
+      weight_gr = MIN( 1._dp, MAX( 0._dp, weight_gr))
+
+      ice%pore_water_fraction(vi) = 1._dp - weight_gr + weight_gr * ice%pore_water_fraction( vi)
+
     END DO
 
     DO vi = mesh%vi1, mesh%vi2
@@ -215,6 +236,13 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_pore_water_pressure_inversion'
     INTEGER                                            :: vi
+    REAL(dp)                                           :: weight_gr, exponent_gr, ocean_entrainment
+    REAL(dp), DIMENSION(mesh%nV)                       :: pore_water_fraction_tot
+    LOGICAL,  DIMENSION(mesh%nV)                       :: mask_inverted_point_tot
+    REAL(dp), DIMENSION(mesh%nTri)                     :: u_b_tot
+    REAL(dp), DIMENSION(mesh%nTri)                     :: v_b_tot
+    REAL(dp), DIMENSION(2)                             :: p
+    LOGICAL                                            :: found_source
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -225,14 +253,92 @@ CONTAINS
     ! Retrieve inverted field
     ice%pore_water_fraction = HIV%pore_water_fraction_app
 
-    ! Scale pore water fraction based on grounded area fractions
+    ! Gather inversion data, inversion mask, and horizontal velocities from all processes
+    CALL gather_to_all_dp_1D(      ice%pore_water_fraction, pore_water_fraction_tot)
+    CALL gather_to_all_logical_1D( HIV%mask_inverted_point, mask_inverted_point_tot)
+    CALL gather_to_all_dp_1D(      ice%u_vav_b            , u_b_tot                )
+    CALL gather_to_all_dp_1D(      ice%v_vav_b            , v_b_tot                )
+
+    ! Extrapolate non-inverted areas using closest upstream inverted value
     DO vi = mesh%vi1, mesh%vi2
-      IF (ice%mask_grounded_ice( vi) .OR. ice%mask_gl_fl( vi)) THEN
-        ice%pore_water_fraction(vi) = 1._dp - ice%fraction_gr( vi) + ice%fraction_gr( vi) * ice%pore_water_fraction( vi)
-      ELSEIF (ice%mask_floating_ice( vi) .OR. ice%mask_icefree_ocean( vi)) THEN
-        ice%pore_water_fraction(vi) = 1._dp
+
+      ! Skip original inverted points
+      IF (HIV%mask_inverted_point( vi)) CYCLE
+
+      ! Get x an y coordinates of this non-inverted vertex
+      p = [mesh%V( vi,1), mesh%V( vi,2)]
+
+      ! Extrpolate value from the closest upstream inverted vertex
+      CALL extrapolate_flowline_upstream( mesh, ice, mask_inverted_point_tot, pore_water_fraction_tot, u_b_tot, v_b_tot, p, found_source)
+
+      ! Check if an inverted value was found upstream
+      IF (found_source) THEN
+        ! If so, use that value for this vertex
+        ice%pore_water_fraction( vi) = pore_water_fraction_tot( vi)
+        ! And add it to the temporal mask of valid
+        ! source values to speed up the process
+        ! mask_inverted_point_tot( vi) = .TRUE.
       END IF
+
     END DO
+
+    ! Ocean entrainment
+    ! =================
+
+    DO vi = mesh%vi1, mesh%vi2
+
+        ! Initialise grounded area fraction weight
+        weight_gr = 1._dp
+
+        ! Compute exponent for this vertex's weight based on ice thickness
+        exponent_gr = MAX( LOG10( MAX( 1._dp, ice%Hi( vi))) - 1._dp, 0._dp)
+
+        ! Compute a weight based on the grounded area fractions
+        IF (ice%mask_gl_gr( vi)) THEN
+          weight_gr = ice%fraction_gr( vi)**exponent_gr
+
+        ELSEIF (ice%mask_cf_gr( vi)) THEN
+          weight_gr = ice%fraction_gr( vi)**exponent_gr
+
+        ELSEIF (ice%mask_gl_fl( vi)) THEN
+          weight_gr = ice%fraction_gr( vi)**exponent_gr
+
+        ELSEIF (ice%mask_grounded_ice( vi)) THEN
+          weight_gr = ice%fraction_gr( vi)**exponent_gr
+
+        ELSEIF (ice%mask_floating_ice( vi)) THEN
+          weight_gr = 0._dp
+
+        ELSEIF (ice%mask_icefree_ocean( vi)) THEN
+          weight_gr = 0._dp
+
+        END IF
+
+        ! Just in case
+        weight_gr = MIN( 1._dp, MAX( 0._dp, weight_gr))
+
+        ! Compute entrainment factor based on bathymetry
+        ocean_entrainment = 1._dp - (ice%Hb( vi) - ice%SL( vi) + 500._dp) / 500._dp
+        ! Limit ocean entrainment factor to a [0-1] range
+        ocean_entrainment = MIN( 1._dp, MAX( 0._dp, ocean_entrainment))
+
+        ! Compute weighed average between pore water fraction and ocean entrainment
+        ice%pore_water_fraction( vi) = (1._dp - weight_gr) * ocean_entrainment + weight_gr * ice%pore_water_fraction( vi)
+
+    END DO
+
+    ! Limit final pore water fraction
+    ! ===============================
+
+    ! DO vi = mesh%vi1, mesh%vi2
+    !   IF (ice%mask_grounded_ice( vi) .OR. ice%mask_gl_fl( vi)) THEN
+    !     ice%pore_water_fraction(vi) = MIN( ice%pore_water_fraction(vi), C%pore_water_fraction_max)
+    !     ice%pore_water_fraction(vi) = MAX( ice%pore_water_fraction(vi), C%pore_water_fraction_min)
+    !   END IF
+    ! END DO
+
+    ! Compute pore water pressure
+    ! ===========================
 
     DO vi = mesh%vi1, mesh%vi2
       ! Compute pore water pressure based on the pore water fraction as
@@ -303,7 +409,7 @@ CONTAINS
       CALL crash('overshot the hydrology inversion time step')
     ELSE
       ! We're within the current HIV prediction window
-    END IF ! IF (region%time == region%HIV%t_next) THEN
+    END IF
 
     ! Interpolate between previous and next modelled pore
     ! water fraction to find its value at the desired time
@@ -349,10 +455,12 @@ CONTAINS
     ALLOCATE( HIV%pore_water_fraction_prev( mesh%vi1:mesh%vi2))
     ALLOCATE( HIV%pore_water_fraction_next( mesh%vi1:mesh%vi2))
     ALLOCATE( HIV%pore_water_fraction_app(  mesh%vi1:mesh%vi2))
+    ALLOCATE( HIV%mask_inverted_point(      mesh%vi1:mesh%vi2))
 
     HIV%pore_water_fraction_prev = 0._dp
     HIV%pore_water_fraction_next = 0._dp
     HIV%pore_water_fraction_app  = 0._dp
+    HIV%mask_inverted_point  = .FALSE.
 
     ! Timeframes
     HIV%t_prev   = C%start_time_of_run
@@ -387,6 +495,8 @@ CONTAINS
     REAL(dp), DIMENSION(mesh%nV)                       :: Hi_tot
     REAL(dp), DIMENSION(mesh%nV)                       :: Hi_target_tot
     REAL(dp), DIMENSION(mesh%nV)                       :: dHi_dt_tot
+    REAL(dp), DIMENSION(mesh%nV)                       :: U_tot
+    REAL(dp), DIMENSION(mesh%nV)                       :: U_target_tot
     REAL(dp), DIMENSION(mesh%nV)                       :: Ti_hom_tot
     REAL(dp), DIMENSION(mesh%nTri)                     :: u_b_tot
     REAL(dp), DIMENSION(mesh%nTri)                     :: v_b_tot
@@ -402,6 +512,7 @@ CONTAINS
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: s_up, s_down
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: deltaHi_up, deltaHi_down
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: dHi_dt_up, dHi_dt_down
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: deltaU_up, deltaU_down
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: Ti_hom_up, Ti_hom_down
     INTEGER                                            :: n_up,n_down
     INTEGER                                            :: k
@@ -410,53 +521,61 @@ CONTAINS
     REAL(dp), DIMENSION(2)                             :: pa, pb, pc
     REAL(dp)                                           :: Atri_abp, Atri_bcp, Atri_cap, Atri_tot
     REAL(dp)                                           :: wa, wb, wc
-    REAL(dp)                                           :: Hi_mod, Hi_target, dHi_dt_mod, Ti_hom_mod
-    REAL(dp)                                           :: s1, s2, w1, w2, deltaHi1, deltaHi2, dHi_dt1, dHi_dt2, Ti_hom1, Ti_hom2, w_av, deltaHi_av, dHi_dt_av, Ti_hom_av, ds
-    REAL(dp)                                           :: int_w_deltaHi_up, int_w_dHi_dt_up, int_w_Ti_hom_up, int_w_up
-    REAL(dp)                                           :: int_w_deltaHi_down, int_w_dHi_dt_down, int_w_Ti_hom_down, int_w_down
+    REAL(dp)                                           :: Hi_mod, Hi_target, dHi_dt_mod, U_mod, U_target, Ti_hom_mod
+    REAL(dp)                                           :: s1, s2, w1, w2, deltaHi1, deltaHi2, dHi_dt1, dHi_dt2, deltaU1, deltaU2, Ti_hom1, Ti_hom2, w_av, deltaHi_av, dHi_dt_av, deltaU_av, Ti_hom_av, ds
+    REAL(dp)                                           :: int_w_deltaHi_up,   int_w_dHi_dt_up,   int_w_deltaU_up,   int_w_Ti_hom_up,   int_w_up
+    REAL(dp)                                           :: int_w_deltaHi_down, int_w_dHi_dt_down, int_w_deltaU_down, int_w_Ti_hom_down, int_w_down
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: deltaHi_av_up, deltaHi_av_down
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: dHi_dt_av_up, dHi_dt_av_down
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: deltaU_av_up, deltaU_av_down
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: Ti_hom_av_up, Ti_hom_av_down
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: I_tot
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: dC1_dt
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: dHs_dx, dHs_dy, abs_grad_Hs
-    REAL(dp)                                           :: misfit
+    REAL(dp)                                           :: Hi_misfit, uabs_surf_misfit
     REAL(dp)                                           :: fg_exp_mod, bf_exp_mod, hs_exp_mod, hi_exp_mod, max_neighbour, max_vertex_size, unstable_vertex
-    REAL(dp)                                           :: t_scale, porenudge_H_dHdt_flowline_t_scale, porenudge_H_dHdt_flowline_dHdt0, porenudge_H_dHdt_flowline_dH0
+    REAL(dp)                                           :: t_scale, porenudge_H_dHdt_flowline_t_scale, porenudge_H_dHdt_flowline_dHdt0, porenudge_H_dHdt_flowline_dH0, porenudge_H_dHdt_flowline_dU0
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: dC1_dt_smoothed, unstable_vertex_smoothed
+    LOGICAL                                            :: found_grounded_neighbour
     ! Add routine to path
     CALL init_routine( routine_name)
 
     ! Allocate memory
-    ALLOCATE( pore_dryness(    mesh%vi1:mesh%vi2), source = 0._dp  )
-    ALLOCATE( trace_up(        mesh%nV, 2       ), source = 0._dp  )
-    ALLOCATE( trace_down(      mesh%nV, 2       ), source = 0._dp  )
-    ALLOCATE( s_up(            mesh%nV          ), source = 0._dp  )
-    ALLOCATE( s_down(          mesh%nV          ), source = 0._dp  )
-    ALLOCATE( deltaHi_up(      mesh%nV          ), source = 0._dp  )
-    ALLOCATE( deltaHi_down(    mesh%nV          ), source = 0._dp  )
-    ALLOCATE( dHi_dt_up(       mesh%nV          ), source = 0._dp  )
-    ALLOCATE( dHi_dt_down(     mesh%nV          ), source = 0._dp  )
-    ALLOCATE( Ti_hom_up(       mesh%nV          ), source = 0._dp  )
-    ALLOCATE( Ti_hom_down(     mesh%nV          ), source = 0._dp  )
-    ALLOCATE( deltaHi_av_up(   mesh%vi1:mesh%vi2), source = 0._dp  )
-    ALLOCATE( deltaHi_av_down( mesh%vi1:mesh%vi2), source = 0._dp  )
-    ALLOCATE( dHi_dt_av_up(    mesh%vi1:mesh%vi2), source = 0._dp  )
-    ALLOCATE( dHi_dt_av_down(  mesh%vi1:mesh%vi2), source = 0._dp  )
-    ALLOCATE( Ti_hom_av_up(    mesh%vi1:mesh%vi2), source = 0._dp  )
-    ALLOCATE( Ti_hom_av_down(  mesh%vi1:mesh%vi2), source = 0._dp  )
-    ALLOCATE( I_tot(           mesh%vi1:mesh%vi2), source = 0._dp  )
-    ALLOCATE( dC1_dt(          mesh%vi1:mesh%vi2), source = 0._dp  )
-    ALLOCATE( dHs_dx(          mesh%vi1:mesh%vi2), source = 0._dp  )
-    ALLOCATE( dHs_dy(          mesh%vi1:mesh%vi2), source = 0._dp  )
-    ALLOCATE( abs_grad_Hs(     mesh%vi1:mesh%vi2), source = 0._dp  )
-    ALLOCATE( dC1_dt_smoothed( mesh%vi1:mesh%vi2), source = 0._dp  )
-    ALLOCATE( unstable_vertex_smoothed( mesh%vi1:mesh%vi2), source = 0._dp  )
+    ALLOCATE( pore_dryness(             mesh%vi1:mesh%vi2), source = 0._dp )
+    ALLOCATE( trace_up(                 mesh%nV, 2       ), source = 0._dp )
+    ALLOCATE( trace_down(               mesh%nV, 2       ), source = 0._dp )
+    ALLOCATE( s_up(                     mesh%nV          ), source = 0._dp )
+    ALLOCATE( s_down(                   mesh%nV          ), source = 0._dp )
+    ALLOCATE( deltaHi_up(               mesh%nV          ), source = 0._dp )
+    ALLOCATE( deltaHi_down(             mesh%nV          ), source = 0._dp )
+    ALLOCATE( dHi_dt_up(                mesh%nV          ), source = 0._dp )
+    ALLOCATE( dHi_dt_down(              mesh%nV          ), source = 0._dp )
+    ALLOCATE( deltaU_up(                mesh%nV          ), source = 0._dp )
+    ALLOCATE( deltaU_down(              mesh%nV          ), source = 0._dp )
+    ALLOCATE( Ti_hom_up(                mesh%nV          ), source = 0._dp )
+    ALLOCATE( Ti_hom_down(              mesh%nV          ), source = 0._dp )
+    ALLOCATE( deltaHi_av_up(            mesh%vi1:mesh%vi2), source = 0._dp )
+    ALLOCATE( deltaHi_av_down(          mesh%vi1:mesh%vi2), source = 0._dp )
+    ALLOCATE( dHi_dt_av_up(             mesh%vi1:mesh%vi2), source = 0._dp )
+    ALLOCATE( dHi_dt_av_down(           mesh%vi1:mesh%vi2), source = 0._dp )
+    ALLOCATE( deltaU_av_up(             mesh%vi1:mesh%vi2), source = 0._dp )
+    ALLOCATE( deltaU_av_down(           mesh%vi1:mesh%vi2), source = 0._dp )
+    ALLOCATE( Ti_hom_av_up(             mesh%vi1:mesh%vi2), source = 0._dp )
+    ALLOCATE( Ti_hom_av_down(           mesh%vi1:mesh%vi2), source = 0._dp )
+    ALLOCATE( I_tot(                    mesh%vi1:mesh%vi2), source = 0._dp )
+    ALLOCATE( dC1_dt(                   mesh%vi1:mesh%vi2), source = 0._dp )
+    ALLOCATE( dHs_dx(                   mesh%vi1:mesh%vi2), source = 0._dp )
+    ALLOCATE( dHs_dy(                   mesh%vi1:mesh%vi2), source = 0._dp )
+    ALLOCATE( abs_grad_Hs(              mesh%vi1:mesh%vi2), source = 0._dp )
+    ALLOCATE( dC1_dt_smoothed(          mesh%vi1:mesh%vi2), source = 0._dp )
+    ALLOCATE( unstable_vertex_smoothed( mesh%vi1:mesh%vi2), source = 0._dp )
 
     ! Gather ice model data from all processes
     CALL gather_to_all_dp_1D(      ice%Hi               , Hi_tot               )
     CALL gather_to_all_dp_1D(      refgeo%Hi            , Hi_target_tot        )
     CALL gather_to_all_dp_1D(      ice%dHi_dt           , dHi_dt_tot           )
+    CALL gather_to_all_dp_1D(      ice%uabs_surf        , U_tot                )
+    CALL gather_to_all_dp_1D(      ice%uabs_surf_target , U_target_tot         )
     CALL gather_to_all_dp_1D(      ice%Ti_hom           , Ti_hom_tot           )
     CALL gather_to_all_dp_1D(      ice%u_vav_b          , u_b_tot              )
     CALL gather_to_all_dp_1D(      ice%v_vav_b          , v_b_tot              )
@@ -472,6 +591,7 @@ CONTAINS
     porenudge_H_dHdt_flowline_t_scale = C%porenudge_H_dHdt_flowline_t_scale
     porenudge_H_dHdt_flowline_dHdt0   = C%porenudge_H_dHdt_flowline_dHdt0
     porenudge_H_dHdt_flowline_dH0     = C%porenudge_H_dHdt_flowline_dH0
+    porenudge_H_dHdt_flowline_dU0     = C%porenudge_H_dHdt_flowline_dU0
 
     ! Increase time length scale if so desired
     ! Compute how much time has passed since start of equilibrium stage
@@ -490,15 +610,19 @@ CONTAINS
     ! as it scales better during the inversion
     pore_dryness = (1._dp - HIV%pore_water_fraction_prev)
 
+    ! Initialise mask of inverted values
+    HIV%mask_inverted_point = .FALSE.
+
     DO vi = mesh%vi1, mesh%vi2
 
-      ! Surface elevation misfit
-      misfit = ice%Hi( vi) - refgeo%Hi( vi)
+      ! Ice thickness misfit
+      Hi_misfit = ice%Hi( vi) - refgeo%Hi( vi)
 
-      ! Only perform the inversion on evolving vertices
-      IF (ABS(ice%dHi_dt( vi)) <= 1._dp .AND. ABS(misfit) <= 10._dp) THEN
-        ! Skip this vertex
-        CYCLE
+      ! Surface velocity misfit
+      IF (C%do_target_uabs_surf .AND. ice%uabs_surf_target( vi) > 0._dp) THEN
+        uabs_surf_misfit = ice%uabs_surf_target( vi) - ice%uabs_surf( vi)
+      ELSE
+        uabs_surf_misfit = 0._dp
       END IF
 
       ! Only perform the inversion on fully grounded vertices
@@ -507,6 +631,21 @@ CONTAINS
         ice%pore_water_likelihood( vi) = 0._dp
         ! Skip this vertex
         CYCLE
+      END IF
+
+      ! At this point, this is a valid inversion vertex
+      HIV%mask_inverted_point( vi) = .TRUE.
+
+      ! Skip non-evolving and already fit-enough vertices
+      IF (ABS(ice%dHi_dt( vi)) <= 1._dp .AND. ABS(Hi_misfit) <= 10._dp) THEN
+        ! Skip this vertex
+        CYCLE
+      END IF
+
+      ! Check if velocity misfit is worth it
+      IF (ABS(uabs_surf_misfit) < 10._dp) THEN
+        ! Ignore this level of misfit
+        uabs_surf_misfit = 0._dp
       END IF
 
       ! Trace both halves of the flowline
@@ -524,7 +663,7 @@ CONTAINS
 
       ELSEIF (C%choice_pore_water_nudging_method == 'mixed') THEN
 
-        IF (misfit < 0._dp) THEN
+        IF (Hi_misfit < 0._dp) THEN
           ! If misfit is negative, trace upstream half of the flowline
           CALL trace_flowline_upstream( mesh, Hi_tot, u_b_tot, v_b_tot, p, trace_up, n_up)
           ! Downstream half is not used, so assign dummy values to save time
@@ -553,8 +692,9 @@ CONTAINS
         ice%pore_water_likelihood( vi) = EXP(ice%Ti_hom( vi)/20._dp)
 
         ! Compute new adjustment for pore water fraction
-        I_tot( vi) = ice%pore_water_likelihood( vi) * (misfit / porenudge_H_dHdt_flowline_dH0 + &
-                                                       2._dp * (ice%dHi_dt( vi)) / porenudge_H_dHdt_flowline_dHdt0)
+        I_tot( vi) = ice%pore_water_likelihood( vi) * (Hi_misfit / porenudge_H_dHdt_flowline_dH0 + &
+                                                       2._dp * (ice%dHi_dt( vi)) / porenudge_H_dHdt_flowline_dHdt0 + &
+                                                       uabs_surf_misfit / porenudge_H_dHdt_flowline_dU0)
 
         ! Compute a rate of adjustment
         dC1_dt( vi) = -1._dp * (I_tot( vi) * pore_dryness( vi)) / porenudge_H_dHdt_flowline_t_scale
@@ -580,6 +720,7 @@ CONTAINS
 
       deltaHi_up = 0._dp
       dHi_dt_up  = 0._dp
+      deltaU_up  = 0._dp
       Ti_hom_up  = 0._dp
       ti         = mesh%iTri( vi,1)
 
@@ -614,16 +755,30 @@ CONTAINS
         Hi_mod     = Hi_tot(        via) * wa + Hi_tot(        vib) * wb + Hi_tot(        vic) * wc
         Hi_target  = Hi_target_tot( via) * wa + Hi_target_tot( vib) * wb + Hi_target_tot( vic) * wc
         dHi_dt_mod = dHi_dt_tot(    via) * wa + dHi_dt_tot(    vib) * wb + dHi_dt_tot(    vic) * wc
+        U_mod      = U_tot (        via) * wa + U_tot(         vib) * wb + U_tot(         vic) * wc
+        U_target   = U_target_tot(  via) * wa + U_target_tot(  vib) * wb + U_target_tot(  vic) * wc
         Ti_hom_mod = Ti_hom_tot(    via) * wa + Ti_hom_tot(    vib) * wb + Ti_hom_tot(    vic) * wc
 
         deltaHi_up( k) = Hi_mod - Hi_target
         dHi_dt_up(  k) = dHi_dt_mod
+        deltaU_up( k) = U_mod - U_target
         Ti_hom_up(  k) = Ti_hom_mod
+
+        ! Ignore invalid target values
+        IF (U_target <= 0._dp .OR. U_target_tot( via) <= 0._dp .OR. U_target_tot( vib) <= 0._dp .OR. U_target_tot( vic) <= 0._dp) THEN
+          deltaU_up( k) = 0._dp
+        END IF
+
+        ! Ignore small misfits
+        IF (ABS(deltaU_up( k)) < 10._dp) THEN
+          deltaU_up( k) = 0._dp
+        END IF
 
       END DO !  DO k = 1, n_up
 
       deltaHi_down = 0._dp
       dHi_dt_down  = 0._dp
+      deltaU_down  = 0._dp
       Ti_hom_down  = 0._dp
       ti           = mesh%iTri( vi,1)
 
@@ -661,11 +816,24 @@ CONTAINS
         Hi_mod     = Hi_tot(        via) * wa + Hi_tot(        vib) * wb + Hi_tot(        vic) * wc
         Hi_target  = Hi_target_tot( via) * wa + Hi_target_tot( vib) * wb + Hi_target_tot( vic) * wc
         dHi_dt_mod = dHi_dt_tot(    via) * wa + dHi_dt_tot(    vib) * wb + dHi_dt_tot(    vic) * wc
+        U_mod      = U_tot(         via) * wa + U_tot(         vib) * wb + U_tot(         vic) * wc
+        U_target   = U_target_tot(  via) * wa + U_target_tot(  vib) * wb + U_target_tot(  vic) * wc
         Ti_hom_mod = Ti_hom_tot(    via) * wa + Ti_hom_tot(    vib) * wb + Ti_hom_tot(    vic) * wc
 
         deltaHi_down( k) = Hi_mod - Hi_target
         dHi_dt_down(  k) = dHi_dt_mod
+        deltaU_down(  k) = U_mod - U_target
         Ti_hom_down(  k) = Ti_hom_mod
+
+        ! Ignore invalid target values
+        IF (U_target <= 0._dp .OR. U_target_tot( via) <= 0._dp .OR. U_target_tot( vib) <= 0._dp .OR. U_target_tot( vic) <= 0._dp) THEN
+          deltaU_down( k) = 0._dp
+        END IF
+
+        ! Ignore small misfits
+        IF (ABS(deltaU_down( k)) < 10._dp) THEN
+          deltaU_down( k) = 0._dp
+        END IF
 
       END DO !  DO k = 1, n_down
 
@@ -674,6 +842,7 @@ CONTAINS
 
       int_w_deltaHi_up = 0._dp
       int_w_dHi_dt_up  = 0._dp
+      int_w_deltaU_up  = 0._dp
       int_w_Ti_hom_up  = 0._dp
       int_w_up         = 0._dp
 
@@ -696,6 +865,9 @@ CONTAINS
         dHi_dt1    = dHi_dt_up(  k-1)
         dHi_dt2    = dHi_dt_up(  k)
         dHi_dt_av  = (dHi_dt1 + dHi_dt2) / 2._dp
+        deltaU1    = deltaU_up( k-1)
+        deltaU2    = deltaU_up( k)
+        deltaU_av  = (deltaU1 + deltaU2) / 2._dp
         Ti_hom1    = Ti_hom_up(  k-1)
         Ti_hom2    = Ti_hom_up(  k)
         Ti_hom_av  = (Ti_hom1 + Ti_hom2) / 2._dp
@@ -703,6 +875,7 @@ CONTAINS
         ! Add to integrals
         int_w_deltaHi_up = int_w_deltaHi_up + (w_av * deltaHi_av * ds)
         int_w_dHi_dt_up  = int_w_dHi_dt_up  + (w_av * dHi_dt_av  * ds)
+        int_w_deltaU_up  = int_w_deltaU_up  + (w_av * deltaU_av  * ds)
         int_w_Ti_hom_up  = int_w_Ti_hom_up  + (w_av * Ti_hom_av  * ds)
         int_w_up         = int_w_up         + (w_av              * ds)
 
@@ -710,10 +883,12 @@ CONTAINS
 
       deltaHi_av_up( vi) = int_w_deltaHi_up / int_w_up
       dHi_dt_av_up(  vi) = int_w_dHi_dt_up  / int_w_up
+      deltaU_av_up(  vi) = int_w_deltaU_up  / int_w_up
       Ti_hom_av_up(  vi) = int_w_Ti_hom_up  / int_w_up
 
       int_w_deltaHi_down = 0._dp
       int_w_dHi_dt_down  = 0._dp
+      int_w_deltaU_down  = 0._dp
       int_w_Ti_hom_down  = 0._dp
       int_w_down         = 0._dp
 
@@ -739,6 +914,9 @@ CONTAINS
         dHi_dt1    = dHi_dt_down(  k-1)
         dHi_dt2    = dHi_dt_down(  k)
         dHi_dt_av  = (dHi_dt1 + dHi_dt2) / 2._dp
+        deltaU1    = deltaU_down( k-1)
+        deltaU2    = deltaU_down( k)
+        deltaU_av  = (deltaU1 + deltaU2) / 2._dp
         Ti_hom1    = Ti_hom_down(  k-1)
         Ti_hom2    = Ti_hom_down(  k)
         Ti_hom_av  = (Ti_hom1 + Ti_hom2) / 2._dp
@@ -746,6 +924,7 @@ CONTAINS
         ! Add to integrals
         int_w_deltaHi_down = int_w_deltaHi_down + (w_av * deltaHi_av * ds)
         int_w_dHi_dt_down  = int_w_dHi_dt_down  + (w_av * dHi_dt_av  * ds)
+        int_w_deltaU_down  = int_w_deltaU_down  + (w_av * deltaU_av  * ds)
         int_w_Ti_hom_down  = int_w_Ti_hom_down  + (w_av * Ti_hom_av  * ds)
         int_w_down         = int_w_down         + (w_av              * ds)
 
@@ -754,10 +933,12 @@ CONTAINS
       IF (C%choice_pore_water_nudging_method == 'mixed') THEN
         deltaHi_av_down( vi) = 0._dp
         dHi_dt_av_down(  vi) = 0._dp
+        deltaU_av_down(  vi) = 0._dp
         Ti_hom_av_down(  vi) = 0._dp
       ELSE
         deltaHi_av_down( vi) = int_w_deltaHi_down / int_w_down
         dHi_dt_av_down(  vi) = int_w_dHi_dt_down  / int_w_down
+        deltaU_av_down(  vi) = int_w_deltaU_down  / int_w_down
         Ti_hom_av_down(  vi) = int_w_Ti_hom_down  / int_w_down
       END IF
 
@@ -772,13 +953,15 @@ CONTAINS
 
         ! Compute new adjustment for pore water fraction based on up and down flowlines
         I_tot( vi) = ice%pore_water_likelihood( vi) * ((deltaHi_av_up( vi)                      ) / porenudge_H_dHdt_flowline_dH0 + &
-                                                       (dHi_dt_av_up(  vi) + dHi_dt_av_down( vi)) / porenudge_H_dHdt_flowline_dHdt0)
+                                                       (dHi_dt_av_up(  vi) + dHi_dt_av_down( vi)) / porenudge_H_dHdt_flowline_dHdt0 + &
+                                                       (deltaU_av_up(  vi)                      ) / porenudge_H_dHdt_flowline_dU0)
 
       ELSEIF (C%choice_pore_water_nudging_method == 'mixed') THEN
 
         ! Compute new adjustment for pore water fraction over too-thin regions based on upstream flowline
-        I_tot( vi) = ice%pore_water_likelihood( vi) * ((deltaHi_av_up( vi)) / porenudge_H_dHdt_flowline_dH0 + &
-                                                       2._dp * (dHi_dt_av_up(  vi)) / porenudge_H_dHdt_flowline_dHdt0)
+        I_tot( vi) = ice%pore_water_likelihood( vi) * ((deltaHi_av_up( vi)       ) / porenudge_H_dHdt_flowline_dH0 + &
+                                                       (2._dp * dHi_dt_av_up( vi)) / porenudge_H_dHdt_flowline_dHdt0 + &
+                                                       (deltaU_av_up(  vi)       ) / porenudge_H_dHdt_flowline_dU0)
 
       ELSEIF (C%choice_pore_water_nudging_method == 'local') THEN
 
@@ -806,8 +989,7 @@ CONTAINS
     DO vi = mesh%vi1, mesh%vi2
 
       ! Grounded fractions
-      fg_exp_mod = 1._dp - ice%fraction_gr( vi)**C%subgrid_friction_exponent
-
+      fg_exp_mod = 1._dp - ice%fraction_gr( vi)
       ! Steep slopes
       hs_exp_mod = MIN( 1.0_dp, MAX( 0._dp, MAX( 0._dp, abs_grad_Hs( vi) - 0.003_dp) / (0.01_dp - 0.003_dp) ))
 
@@ -891,9 +1073,6 @@ CONTAINS
       HIV%pore_water_fraction_next = MIN( HIV%pore_water_fraction_next, 1._dp)
       HIV%pore_water_fraction_next = MAX( HIV%pore_water_fraction_next, 0._dp)
 
-      ! DENK DROM : save smoothed field in a host variable for later inspection
-      ice%pore_water_likelihood = unstable_vertex_smoothed
-
     END IF
 
     ! Extend onto neighbour vertices
@@ -913,6 +1092,7 @@ CONTAINS
       IF (.NOT. (mask_cf_gr_tot( vi) .OR. mask_gl_gr_tot( vi) .OR. mask_margin_tot( vi))) CYCLE
 
       ! Initialise maximum neighbour
+      found_grounded_neighbour = .FALSE.
       max_neighbour = 0._dp
 
       ! Check interior grounded vertices for greater values
@@ -920,11 +1100,24 @@ CONTAINS
         vc = mesh%C( vi, ci)
         IF (mask_grounded_ice_tot( vc) .AND. .NOT. mask_cf_gr_tot( vc) .AND. .NOT. mask_gl_gr_tot( vc) .AND. .NOT. mask_margin_tot( vc)) THEN
           max_neighbour = MAX( max_neighbour, pore_water_fraction_next_tot( vc))
+          found_grounded_neighbour = .TRUE.
         END IF
       END DO
 
-      ! Use maximum value among neighbours, if any
-      HIV%pore_water_fraction_next( vi) = max_neighbour
+      IF (found_grounded_neighbour) THEN
+        ! Use maximum value among neighbours, if any
+        HIV%pore_water_fraction_next( vi) = max_neighbour
+      ELSE
+        IF (ice%Hib( vi) < ice%SL( vi)) THEN
+          ! Use max value if fully floating, min value if fully grounded
+          HIV%pore_water_fraction_next( vi) = ice%fraction_gr( vi)
+          ! Consider this vertex a valid inversion point
+          HIV%mask_inverted_point( vi) = .TRUE.
+        ELSE
+          ! Assume no hydrology
+          HIV%pore_water_fraction_next( vi) = 0._dp
+        END IF
+      END IF
 
     END DO
 
@@ -939,6 +1132,7 @@ CONTAINS
       IF (.NOT. ice%mask_gl_fl( vi)) CYCLE
 
       ! Initialise maximum neighbour
+      found_grounded_neighbour = .FALSE.
       max_neighbour = 0._dp
 
       ! Check grounded grounding lines for greater values
@@ -946,15 +1140,23 @@ CONTAINS
         vc = mesh%C( vi, ci)
         IF (mask_gl_gr_tot( vc)) THEN
           max_neighbour = MAX( max_neighbour, pore_water_fraction_next_tot( vc))
+          found_grounded_neighbour = .TRUE.
         END IF
       END DO
 
-      ! Use maximum value among neighbours, if any
-      HIV%pore_water_fraction_next( vi) = max_neighbour
+      IF (found_grounded_neighbour) THEN
+        ! Use maximum value among neighbours, if any
+        HIV%pore_water_fraction_next( vi) = max_neighbour
+        ! Consider this vertex a valid inversion point
+        HIV%mask_inverted_point( vi) = .TRUE.
+      ELSE
+        ! Use maximum value
+        HIV%pore_water_fraction_next( vi) = 1._dp
+      END IF
 
     END DO
 
-    ! Finally, do the same for ice-free land next
+    ! Then, do the same for ice-free land next
     ! to grounded ice, to ensure a smooth transition
 
     ! Margins: land next to grounded front
@@ -964,6 +1166,7 @@ CONTAINS
       IF (.NOT. ice%mask_icefree_land( vi)) CYCLE
 
       ! Initialise maximum neighbour
+      found_grounded_neighbour = .FALSE.
       max_neighbour = 0._dp
 
       ! Check grounded grounding lines for greater values
@@ -971,13 +1174,39 @@ CONTAINS
         vc = mesh%C( vi, ci)
         IF (mask_margin_tot( vc)) THEN
           max_neighbour = MAX( max_neighbour, pore_water_fraction_next_tot( vc))
+          found_grounded_neighbour = .TRUE.
         END IF
       END DO
 
-      ! Use maximum value among neighbours, if any
-      HIV%pore_water_fraction_next( vi) = max_neighbour
+      IF (found_grounded_neighbour) THEN
+        ! Use maximum value among neighbours, if any
+        HIV%pore_water_fraction_next( vi) = max_neighbour
+        ! Consider this vertex a valid inversion point
+        HIV%mask_inverted_point( vi) = .TRUE.
+      ELSE
+        ! Assume no hydrology
+        HIV%pore_water_fraction_next( vi) = 0._dp
+      END IF
 
     END DO
+
+    ! ! Finally, assign maximum values for interior
+    ! ! ice shelf and ice-free ocean vertices
+
+    ! ! Interior shelves and ocean
+    ! DO vi = mesh%vi1, mesh%vi2
+
+    !   IF (ice%mask_floating_ice( vi) .OR. ice%mask_icefree_ocean( vi)) THEN
+
+    !     ! Skip floating side of grounding line
+    !     IF (ice%mask_gl_fl( vi)) CYCLE
+
+    !     ! Use maximum value
+    !     HIV%pore_water_fraction_next( vi) = 1._dp
+
+    !   END IF
+
+    ! END DO
 
     ! Limit inverted values
     ! =====================
@@ -987,6 +1216,15 @@ CONTAINS
       HIV%pore_water_fraction_next( vi) = MIN( HIV%pore_water_fraction_next( vi), C%pore_water_fraction_max)
       HIV%pore_water_fraction_next( vi) = MAX( HIV%pore_water_fraction_next( vi), C%pore_water_fraction_min)
     END DO
+
+    ! ! DENK DROM : save smoothed field in a host variable for later inspection
+    ! ice%pore_water_likelihood = unstable_vertex_smoothed
+
+    ! ! DENK DROM
+    ! ice%pore_water_likelihood = 0._dp
+    ! DO vi = mesh%vi1, mesh%vi2
+    !   IF (HIV%mask_inverted_point( vi)) ice%pore_water_likelihood( vi) = 1._dp
+    ! END DO
 
     ! Finalise
     ! ========
@@ -1001,12 +1239,16 @@ CONTAINS
     DEALLOCATE( deltaHi_down   )
     DEALLOCATE( dHi_dt_up      )
     DEALLOCATE( dHi_dt_down    )
+    DEALLOCATE( deltaU_up      )
+    DEALLOCATE( deltaU_down    )
     DEALLOCATE( Ti_hom_up      )
     DEALLOCATE( Ti_hom_down    )
     DEALLOCATE( deltaHi_av_up  )
     DEALLOCATE( deltaHi_av_down)
     DEALLOCATE( dHi_dt_av_up   )
     DEALLOCATE( dHi_dt_av_down )
+    DEALLOCATE( deltaU_av_up   )
+    DEALLOCATE( deltaU_av_down )
     DEALLOCATE( Ti_hom_av_up   )
     DEALLOCATE( Ti_hom_av_down )
     DEALLOCATE( I_tot          )
@@ -1272,5 +1514,130 @@ CONTAINS
     END IF
 
   END SUBROUTINE trace_flowline_downstream
+
+  SUBROUTINE extrapolate_flowline_upstream( mesh, ice, d_mask_tot, d_values_tot, u_b_tot, v_b_tot, p, found_source)
+    ! Extrapolate an inverted field based on its values upstream of
+    ! the point of interest based on its flowline, computed based on
+    ! the 2-D velocity field u_b,v_b.
+
+    IMPLICIT NONE
+
+    ! Input variables:
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh                ! Mesh data
+    TYPE(type_ice_model),                INTENT(IN)    :: ice                 ! Ice model structure
+    LOGICAL,  DIMENSION(mesh%nV),        INTENT(IN)    :: d_mask_tot          ! Inversion mask: 1=inverted; 0=not-inverted
+    REAL(dp), DIMENSION(mesh%nV),        INTENT(INOUT) :: d_values_tot        ! Inversion data: the field you want to extrapolate
+    REAL(dp), DIMENSION(mesh%nTri),      INTENT(IN)    :: u_b_tot, v_b_tot    ! The u and v velocity fields
+    REAL(dp), DIMENSION(2),              INTENT(IN)    :: p                   ! Your point of interest, i.e. where you want to extrapolate
+    LOGICAL,                             INTENT(OUT)   :: found_source        ! Flag: 1=successful extrapolation; 0=failed extrapolation
+
+    ! Local variables:
+    REAL(dp), DIMENSION(2)                             :: pt                  ! Current location of tracer
+    INTEGER                                            :: vi, vp, iti, ti, n  ! Some indices
+    REAL(dp)                                           :: dist, w, w_tot      ! For the interpolation of velocities at point pt
+    REAL(dp)                                           :: u_pt, v_pt, uabs_pt ! Interpolated velocities at point pt
+    REAL(dp), DIMENSION(2)                             :: u_hat_pt            ! Direction of the velocity vector at point pt
+    REAL(dp)                                           :: dist_prev, dist_tot ! Safety: total travelled distance of tracer
+
+    ! If the vertex vp containing this point is part of the
+    ! original inverted field, no need to extrapolate there
+    vp = 1
+    CALL find_containing_vertex( mesh, p, vp)
+    IF (d_mask_tot( vp)) THEN
+      RETURN
+    END IF
+
+    ! Initialise
+    n  = 0  ! Number of tracer movements
+    pt = p  ! Current point of the tracer
+    vi = vp ! Current vertex containing the tracer
+
+    ! Initialise flag for successful extrapolation
+    found_source = .FALSE.
+
+    ! Safety
+    dist_prev = 0._dp ! Current distance from origin
+    dist_tot  = 0._dp ! Total distance travelled by tracer
+
+    DO WHILE (.TRUE.)
+
+      ! Check if tracer reached its destination
+      ! =======================================
+
+      ! Find the vertex vi currently containing the new tracer position
+      CALL find_containing_vertex( mesh, pt, vi)
+
+      ! If the current vertex is an inverted point,
+      ! use it as the value for our origin vertex,
+      ! mark it as a successfully extrapolated point,
+      ! and exit
+      IF (d_mask_tot( vi)) THEN
+        d_values_tot( vp) = d_values_tot( vi)
+        found_source = .TRUE.
+        RETURN
+      END IF
+
+      ! If not, move the tracer upstream
+      ! ================================
+
+      ! Interpolate between the surrounding triangles
+      ! to find the velocities at the tracer's location
+      w_tot = 0._dp
+      u_pt  = 0._dp
+      v_pt  = 0._dp
+
+      DO iti = 1, mesh%niTri( vi)
+        ti = mesh%iTri( vi,iti)
+        dist = NORM2( mesh%TriGC( ti,:) - pt)
+        w = 1._dp / dist**2
+        w_tot = w_tot + w
+        u_pt  = u_pt  + w * u_b_tot( ti)
+        v_pt  = v_pt  + w * v_b_tot( ti)
+      END DO
+
+      u_pt = u_pt / w_tot
+      v_pt = v_pt / w_tot
+
+      ! Calculate absolute velocity at the tracer's location
+      uabs_pt = SQRT( u_pt**2 + v_pt**2)
+
+      ! If we've reached the ice divide (defined as the place where
+      ! we find velocities below 0.01 m/yr), end the trace. This also
+      ! prevents the tracer from getting stuck in place when the
+      ! local velocity field is zero.
+      IF (uabs_pt < .01_dp) EXIT
+
+      ! Calculate the normalised velocity vector at the tracer's location
+      u_hat_pt = [u_pt / uabs_pt, v_pt / uabs_pt]
+
+      ! Add to counter of tracer movements
+      n = n + 1
+      ! Safety
+      IF (n > SIZE( mesh%V,1)) THEN
+        CALL crash('upstream flowline tracer got stuck!')
+      END IF
+
+      ! Save previous distance-to-origin
+      dist_prev = NORM2( pt - p)
+
+      ! Move the tracer upstream by a distance of 1/2 local resolution
+      pt = pt - u_hat_pt * .5_dp * mesh%R( vi)
+
+      ! Add moved distance to total
+      dist_tot  = dist_tot + NORM2( pt - p)
+
+      ! If the new distance-to-origin is shorter than the previous one, end the trace
+      IF (NORM2( pt - p) < dist_prev) EXIT
+
+      ! If the total distance-to-origin is larger than a chosen limit, end the trace
+      IF (dist_tot > C%porenudge_H_dHdt_flowline_dist_max * 1e3_dp) EXIT
+
+      ! If the new tracer location is outside the domain, end the trace
+      IF (pt( 1) <= mesh%xmin .OR. pt( 2) >= mesh%xmax .OR. &
+          pt( 2) <= mesh%ymin .OR. pt( 2) >= mesh%ymax) EXIT
+
+    END DO ! DO WHILE (.TRUE.)
+
+  END SUBROUTINE extrapolate_flowline_upstream
 
 END MODULE basal_hydrology
