@@ -52,6 +52,7 @@ MODULE basal_inversion_types
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: pore_water_fraction_prev
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: pore_water_fraction_next
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: pore_water_fraction_app
+    LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_inverted_point
     REAL(dp)                                :: t_prev, t_next
 
   END TYPE type_hydrology_inversion

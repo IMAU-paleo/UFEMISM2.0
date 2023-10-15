@@ -361,22 +361,40 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: BC_H_south_config                            = 'zero'
     CHARACTER(LEN=256)  :: BC_H_north_config                            = 'zero'
 
+  ! == Ice dynamics - target quantities
+  ! ===================================
+
     ! Target dHi_dt
     LOGICAL             :: do_target_dHi_dt_config                      = .FALSE.                          ! Whether or not to use a target dHi_dt field from an external file to alter the modelled one
     LOGICAL             :: do_limit_target_dHi_dt_to_SMB_config         = .FALSE.                          ! Whether or not to limit a target dHi_dt field to available SMB in that area, so it does not melt all ice there
     REAL(dp)            :: target_dHi_dt_t_end_config                   = -9.9E9_dp                        ! End time of target dHi_dt application
 
     ! Files containing a target dHi_dt for inversions
-    CHARACTER(LEN=256)  :: filename_dHi_dt_prescribed_NAM_config        = ''
-    CHARACTER(LEN=256)  :: filename_dHi_dt_prescribed_EAS_config        = ''
-    CHARACTER(LEN=256)  :: filename_dHi_dt_prescribed_GRL_config        = ''
-    CHARACTER(LEN=256)  :: filename_dHi_dt_prescribed_ANT_config        = ''
+    CHARACTER(LEN=256)  :: filename_dHi_dt_target_NAM_config            = ''
+    CHARACTER(LEN=256)  :: filename_dHi_dt_target_EAS_config            = ''
+    CHARACTER(LEN=256)  :: filename_dHi_dt_target_GRL_config            = ''
+    CHARACTER(LEN=256)  :: filename_dHi_dt_target_ANT_config            = ''
 
     ! Timeframes for reading target dHi_dt from file (set to 1E9_dp if the file has no time dimension)
-    REAL(dp)            :: timeframe_dHi_dt_prescribed_NAM_config       = 1E9_dp
-    REAL(dp)            :: timeframe_dHi_dt_prescribed_EAS_config       = 1E9_dp
-    REAL(dp)            :: timeframe_dHi_dt_prescribed_GRL_config       = 1E9_dp
-    REAL(dp)            :: timeframe_dHi_dt_prescribed_ANT_config       = 1E9_dp
+    REAL(dp)            :: timeframe_dHi_dt_target_NAM_config           = 1E9_dp
+    REAL(dp)            :: timeframe_dHi_dt_target_EAS_config           = 1E9_dp
+    REAL(dp)            :: timeframe_dHi_dt_target_GRL_config           = 1E9_dp
+    REAL(dp)            :: timeframe_dHi_dt_target_ANT_config           = 1E9_dp
+
+    ! Target surface ice speed
+    LOGICAL             :: do_target_uabs_surf_config                   = .FALSE.                          ! Whether or not to use a target uabs_surf field from an external file as a target during inversions
+
+    ! Files containing a target uabs_surf for inversions
+    CHARACTER(LEN=256)  :: filename_uabs_surf_target_NAM_config         = ''
+    CHARACTER(LEN=256)  :: filename_uabs_surf_target_EAS_config         = ''
+    CHARACTER(LEN=256)  :: filename_uabs_surf_target_GRL_config         = ''
+    CHARACTER(LEN=256)  :: filename_uabs_surf_target_ANT_config         = ''
+
+    ! Timeframes for reading target uabs_surf from file (set to 1E9_dp if the file has no time dimension)
+    REAL(dp)            :: timeframe_uabs_surf_target_NAM_config        = 1E9_dp
+    REAL(dp)            :: timeframe_uabs_surf_target_EAS_config        = 1E9_dp
+    REAL(dp)            :: timeframe_uabs_surf_target_GRL_config        = 1E9_dp
+    REAL(dp)            :: timeframe_uabs_surf_target_ANT_config        = 1E9_dp
 
   ! == Ice dynamics - time stepping
   ! ===============================
@@ -433,8 +451,11 @@ MODULE model_configuration
     REAL(dp)            :: Hi_thin_config                               = 0._dp                            ! [m] Thin-ice thickness threshold: thinner ice is considered dynamically unreliable (e.g. over steep slopes)
     LOGICAL             :: remove_ice_absent_at_PD_config               = .FALSE.                          ! If set to TRUE, all ice not present in PD data is always instantly removed
 
+    ! Geometry relaxation
+    REAL(dp)            :: geometry_relaxation_t_years_config           = 0.0                              ! [yr] Amount of years (out-of-time) during which the geometry will relax: no mass balance, thickness alterations, inversions, or target thinning rates will be applied during this time
+
     ! Mask conservation
-    LOGICAL             :: do_protect_grounded_mask_config              = .FALSE.                          ! If set to TRUE, grounded ice will not be allowed to cross the floatation threshold and will stay minimally grounded.
+    LOGICAL             :: do_protect_grounded_mask_config              = .FALSE.                          ! If set to TRUE, grounded ice will not be allowed to cross the floatation threshold and will stay minimally grounded
     REAL(dp)            :: protect_grounded_mask_t_end_config           = -9.9E9_dp                        ! End time of grounded mask protection. After this time, it will be allowed to thin and become afloat
 
 
@@ -485,6 +506,7 @@ MODULE model_configuration
     REAL(dp)            :: porenudge_H_dHdt_flowline_t_scale_config     = 150._dp                          ! [yr]      Timescale
     REAL(dp)            :: porenudge_H_dHdt_flowline_dH0_config         = 200._dp                          ! [m]       Ice thickness error scale
     REAL(dp)            :: porenudge_H_dHdt_flowline_dHdt0_config       = 0.7_dp                           ! [m yr^-1] Thinning rate scale
+    REAL(dp)            :: porenudge_H_dHdt_flowline_dU0_config         = 200._dp                          ! [m yr^-1] Surface speed error scale
     REAL(dp)            :: porenudge_H_dHdt_flowline_Hi_scale_config    = 100._dp                          ! [m]       Ice thickness weight scale
     REAL(dp)            :: porenudge_H_dHdt_flowline_u_scale_config     = 1000._dp                         ! [m yr^-1] Ice velocity  weight scale
     REAL(dp)            :: porenudge_H_dHdt_flowline_r_smooth_config    = 5000._dp                         ! [m]       Radius for Gaussian filter used to smooth dC/dt as regularisation
@@ -1204,22 +1226,40 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: BC_H_south
     CHARACTER(LEN=256)  :: BC_H_north
 
+  ! == Ice dynamics - target quantities
+  ! ===================================
+
     ! Target dHi_dt
     LOGICAL             :: do_target_dHi_dt
     LOGICAL             :: do_limit_target_dHi_dt_to_SMB
     REAL(dp)            :: target_dHi_dt_t_end
 
     ! Files containing a target dHi_dt for inversions
-    CHARACTER(LEN=256)  :: filename_dHi_dt_prescribed_NAM
-    CHARACTER(LEN=256)  :: filename_dHi_dt_prescribed_EAS
-    CHARACTER(LEN=256)  :: filename_dHi_dt_prescribed_GRL
-    CHARACTER(LEN=256)  :: filename_dHi_dt_prescribed_ANT
+    CHARACTER(LEN=256)  :: filename_dHi_dt_target_NAM
+    CHARACTER(LEN=256)  :: filename_dHi_dt_target_EAS
+    CHARACTER(LEN=256)  :: filename_dHi_dt_target_GRL
+    CHARACTER(LEN=256)  :: filename_dHi_dt_target_ANT
 
     ! Timeframes for reading target dHi_dt from file (set to 1E9_dp if the file has no time dimension)
-    REAL(dp)            :: timeframe_dHi_dt_prescribed_NAM
-    REAL(dp)            :: timeframe_dHi_dt_prescribed_EAS
-    REAL(dp)            :: timeframe_dHi_dt_prescribed_GRL
-    REAL(dp)            :: timeframe_dHi_dt_prescribed_ANT
+    REAL(dp)            :: timeframe_dHi_dt_target_NAM
+    REAL(dp)            :: timeframe_dHi_dt_target_EAS
+    REAL(dp)            :: timeframe_dHi_dt_target_GRL
+    REAL(dp)            :: timeframe_dHi_dt_target_ANT
+
+    ! Target uabs_surf
+    LOGICAL             :: do_target_uabs_surf
+
+    ! Files containing a target uabs_surf for inversions
+    CHARACTER(LEN=256)  :: filename_uabs_surf_target_NAM
+    CHARACTER(LEN=256)  :: filename_uabs_surf_target_EAS
+    CHARACTER(LEN=256)  :: filename_uabs_surf_target_GRL
+    CHARACTER(LEN=256)  :: filename_uabs_surf_target_ANT
+
+    ! Timeframes for reading target uabs_surf from file (set to 1E9_dp if the file has no time dimension)
+    REAL(dp)            :: timeframe_uabs_surf_target_NAM
+    REAL(dp)            :: timeframe_uabs_surf_target_EAS
+    REAL(dp)            :: timeframe_uabs_surf_target_GRL
+    REAL(dp)            :: timeframe_uabs_surf_target_ANT
 
   ! == Ice dynamics - time stepping
   ! ===============================
@@ -1276,6 +1316,9 @@ MODULE model_configuration
     REAL(dp)            :: Hi_thin
     LOGICAL             :: remove_ice_absent_at_PD
 
+    ! Geometry relaxation
+    REAL(dp)            :: geometry_relaxation_t_years
+
     ! Mask conservation
     LOGICAL             :: do_protect_grounded_mask
     REAL(dp)            :: protect_grounded_mask_t_end
@@ -1327,6 +1370,7 @@ MODULE model_configuration
     REAL(dp)            :: porenudge_H_dHdt_flowline_t_scale
     REAL(dp)            :: porenudge_H_dHdt_flowline_dH0
     REAL(dp)            :: porenudge_H_dHdt_flowline_dHdt0
+    REAL(dp)            :: porenudge_H_dHdt_flowline_dU0
     REAL(dp)            :: porenudge_H_dHdt_flowline_Hi_scale
     REAL(dp)            :: porenudge_H_dHdt_flowline_u_scale
     REAL(dp)            :: porenudge_H_dHdt_flowline_r_smooth
@@ -2095,14 +2139,23 @@ CONTAINS
       do_target_dHi_dt_config                                     , &
       do_limit_target_dHi_dt_to_SMB_config                        , &
       target_dHi_dt_t_end_config                                  , &
-      filename_dHi_dt_prescribed_NAM_config                       , &
-      filename_dHi_dt_prescribed_EAS_config                       , &
-      filename_dHi_dt_prescribed_GRL_config                       , &
-      filename_dHi_dt_prescribed_ANT_config                       , &
-      timeframe_dHi_dt_prescribed_NAM_config                      , &
-      timeframe_dHi_dt_prescribed_EAS_config                      , &
-      timeframe_dHi_dt_prescribed_GRL_config                      , &
-      timeframe_dHi_dt_prescribed_ANT_config                      , &
+      filename_dHi_dt_target_NAM_config                           , &
+      filename_dHi_dt_target_EAS_config                           , &
+      filename_dHi_dt_target_GRL_config                           , &
+      filename_dHi_dt_target_ANT_config                           , &
+      timeframe_dHi_dt_target_NAM_config                          , &
+      timeframe_dHi_dt_target_EAS_config                          , &
+      timeframe_dHi_dt_target_GRL_config                          , &
+      timeframe_dHi_dt_target_ANT_config                          , &
+      do_target_uabs_surf_config                                  , &
+      filename_uabs_surf_target_NAM_config                        , &
+      filename_uabs_surf_target_EAS_config                        , &
+      filename_uabs_surf_target_GRL_config                        , &
+      filename_uabs_surf_target_ANT_config                        , &
+      timeframe_uabs_surf_target_NAM_config                       , &
+      timeframe_uabs_surf_target_EAS_config                       , &
+      timeframe_uabs_surf_target_GRL_config                       , &
+      timeframe_uabs_surf_target_ANT_config                       , &
       choice_timestepping_config                                  , &
       dt_ice_max_config                                           , &
       dt_ice_min_config                                           , &
@@ -2139,6 +2192,7 @@ CONTAINS
       Hi_min_config                                               , &
       Hi_thin_config                                              , &
       remove_ice_absent_at_PD_config                              , &
+      geometry_relaxation_t_years_config                          , &
       do_protect_grounded_mask_config                             , &
       protect_grounded_mask_t_end_config                          , &
       do_fixiness_before_start_config                             , &
@@ -2173,6 +2227,7 @@ CONTAINS
       porenudge_H_dHdt_flowline_t_scale_config                    , &
       porenudge_H_dHdt_flowline_dH0_config                        , &
       porenudge_H_dHdt_flowline_dHdt0_config                      , &
+      porenudge_H_dHdt_flowline_dU0_config                        , &
       porenudge_H_dHdt_flowline_Hi_scale_config                   , &
       porenudge_H_dHdt_flowline_u_scale_config                    , &
       porenudge_H_dHdt_flowline_r_smooth_config                   , &
@@ -2791,22 +2846,40 @@ CONTAINS
     C%BC_H_south                                             = BC_H_south_config
     C%BC_H_north                                             = BC_H_north_config
 
+  ! == Ice dynamics - target quantities
+  ! ===================================
+
     ! Target dHi_dt
     C%do_target_dHi_dt                                       = do_target_dHi_dt_config
     C%do_limit_target_dHi_dt_to_SMB                          = do_limit_target_dHi_dt_to_SMB_config
     C%target_dHi_dt_t_end                                    = target_dHi_dt_t_end_config
 
     ! Files containing a target dHi_dt for inversions
-    C%filename_dHi_dt_prescribed_NAM                         = filename_dHi_dt_prescribed_NAM_config
-    C%filename_dHi_dt_prescribed_EAS                         = filename_dHi_dt_prescribed_EAS_config
-    C%filename_dHi_dt_prescribed_GRL                         = filename_dHi_dt_prescribed_GRL_config
-    C%filename_dHi_dt_prescribed_ANT                         = filename_dHi_dt_prescribed_ANT_config
+    C%filename_dHi_dt_target_NAM                             = filename_dHi_dt_target_NAM_config
+    C%filename_dHi_dt_target_EAS                             = filename_dHi_dt_target_EAS_config
+    C%filename_dHi_dt_target_GRL                             = filename_dHi_dt_target_GRL_config
+    C%filename_dHi_dt_target_ANT                             = filename_dHi_dt_target_ANT_config
 
     ! Timeframes for reading target dHi_dt from file (set to 1E9_dp if the file has no time dimension)
-    C%timeframe_dHi_dt_prescribed_NAM                        = timeframe_dHi_dt_prescribed_NAM_config
-    C%timeframe_dHi_dt_prescribed_EAS                        = timeframe_dHi_dt_prescribed_EAS_config
-    C%timeframe_dHi_dt_prescribed_GRL                        = timeframe_dHi_dt_prescribed_GRL_config
-    C%timeframe_dHi_dt_prescribed_ANT                        = timeframe_dHi_dt_prescribed_ANT_config
+    C%timeframe_dHi_dt_target_NAM                            = timeframe_dHi_dt_target_NAM_config
+    C%timeframe_dHi_dt_target_EAS                            = timeframe_dHi_dt_target_EAS_config
+    C%timeframe_dHi_dt_target_GRL                            = timeframe_dHi_dt_target_GRL_config
+    C%timeframe_dHi_dt_target_ANT                            = timeframe_dHi_dt_target_ANT_config
+
+    ! Target uabs_surf
+    C%do_target_uabs_surf                                    = do_target_uabs_surf_config
+
+    ! Files containing a target dHi_dt for inversions
+    C%filename_uabs_surf_target_NAM                          = filename_uabs_surf_target_NAM_config
+    C%filename_uabs_surf_target_EAS                          = filename_uabs_surf_target_EAS_config
+    C%filename_uabs_surf_target_GRL                          = filename_uabs_surf_target_GRL_config
+    C%filename_uabs_surf_target_ANT                          = filename_uabs_surf_target_ANT_config
+
+    ! Timeframes for reading target dHi_dt from file (set to 1E9_dp if the file has no time dimension)
+    C%timeframe_uabs_surf_target_NAM                         = timeframe_uabs_surf_target_NAM_config
+    C%timeframe_uabs_surf_target_EAS                         = timeframe_uabs_surf_target_EAS_config
+    C%timeframe_uabs_surf_target_GRL                         = timeframe_uabs_surf_target_GRL_config
+    C%timeframe_uabs_surf_target_ANT                         = timeframe_uabs_surf_target_ANT_config
 
   ! == Ice dynamics - time stepping
   ! ===============================
@@ -2863,6 +2936,9 @@ CONTAINS
     C%Hi_thin                                                = Hi_thin_config
     C%remove_ice_absent_at_PD                                = remove_ice_absent_at_PD_config
 
+    ! Geometry relaxation
+    C%geometry_relaxation_t_years                            = geometry_relaxation_t_years_config
+
     ! Mask conservation
     C%do_protect_grounded_mask                               = do_protect_grounded_mask_config
     C%protect_grounded_mask_t_end                            = protect_grounded_mask_t_end_config
@@ -2914,6 +2990,7 @@ CONTAINS
     C%porenudge_H_dHdt_flowline_t_scale                       = porenudge_H_dHdt_flowline_t_scale_config
     C%porenudge_H_dHdt_flowline_dH0                           = porenudge_H_dHdt_flowline_dH0_config
     C%porenudge_H_dHdt_flowline_dHdt0                         = porenudge_H_dHdt_flowline_dHdt0_config
+    C%porenudge_H_dHdt_flowline_dU0                           = porenudge_H_dHdt_flowline_dU0_config
     C%porenudge_H_dHdt_flowline_Hi_scale                      = porenudge_H_dHdt_flowline_Hi_scale_config
     C%porenudge_H_dHdt_flowline_u_scale                       = porenudge_H_dHdt_flowline_u_scale_config
     C%porenudge_H_dHdt_flowline_r_smooth                      = porenudge_H_dHdt_flowline_r_smooth_config

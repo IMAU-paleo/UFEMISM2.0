@@ -69,17 +69,22 @@ CONTAINS
     ALLOCATE( ice%dHb_dt                      ( mesh%vi1:mesh%vi2        ))  ! [m yr^-1] Bedrock elevation rate of change
     ALLOCATE( ice%dHs_dt                      ( mesh%vi1:mesh%vi2        ))  ! [m yr^-1] Ice surface elevation rate of change
     ALLOCATE( ice%dHib_dt                     ( mesh%vi1:mesh%vi2        ))  ! [m yr^-1] Ice base elevation rate of change
-    ALLOCATE( ice%dHi_dt_raw                  ( mesh%vi1:mesh%vi2        ))  ! [m yr^-1] Ice thickness rate of change before any modifications
-    ALLOCATE( ice%dHi_dt_target               ( mesh%vi1:mesh%vi2        ))  ! [m yr^-1] Target ice thickness rate of change for inversions
-    ALLOCATE( ice%dHi_dt_residual             ( mesh%vi1:mesh%vi2        ))  ! [m yr^-1] Residual ice thickness rate of change for inversions
+    ALLOCATE( ice%dHi_dt_raw                  ( mesh%vi1:mesh%vi2        ))  ! [m yr^-1] Ice thickness rate of change before any imposed modifications
+    ALLOCATE( ice%dHi_dt_residual             ( mesh%vi1:mesh%vi2        ))  ! [m yr^-1] Residual ice thickness rate of change after imposed modifications
 
     ice%dHi_dt                      = 0._dp
     ice%dHb_dt                      = 0._dp
     ice%dHs_dt                      = 0._dp
     ice%dHib_dt                     = 0._dp
     ice%dHi_dt_raw                  = 0._dp
-    ice%dHi_dt_target               = 0._dp
     ice%dHi_dt_residual             = 0._dp
+
+    ! Target quantities
+    ALLOCATE( ice%dHi_dt_target               ( mesh%vi1:mesh%vi2        ))  ! [m yr^-1] Target ice thickness rate of change for inversions
+    ALLOCATE( ice%uabs_surf_target            ( mesh%vi1:mesh%vi2        ))  ! [m yr^-1] Target ice surface speed for inversions
+
+    ice%dHi_dt_target               = 0._dp
+    ice%uabs_surf_target            = 0._dp
 
     ! Masks
     ALLOCATE( ice%mask_icefree_land           ( mesh%vi1:mesh%vi2        ))  ! T: ice-free land , F: otherwise
@@ -335,11 +340,13 @@ CONTAINS
 
     ! Sliding law coefficients
     ALLOCATE( ice%till_friction_angle         ( mesh%vi1:mesh%vi2        ))  ! [degrees]          Till friction angle (degrees)
+    ALLOCATE( ice%bed_roughness               ( mesh%vi1:mesh%vi2        ))  ! [0-1]              Bed roughness fraction
     ALLOCATE( ice%till_yield_stress           ( mesh%vi1:mesh%vi2        ))  ! [Pa]               Till yield stress (used when choice_sliding_law = "Coloumb", "Budd", or "Zoet-Iverson")
     ALLOCATE( ice%slid_alpha_sq               ( mesh%vi1:mesh%vi2        ))  ! [-]                Coulomb-law friction coefficient (used when choice_sliding_law = "Tsai2015", or "Schoof2005")
     ALLOCATE( ice%slid_beta_sq                ( mesh%vi1:mesh%vi2        ))  ! [Pa m^−1/m yr^1/m] Power-law friction coefficient (used when choice_sliding_law = "Weertman", "Tsai2015", or "Schoof2005")
 
     ice%till_friction_angle         = 0._dp
+    ice%bed_roughness               = 0._dp
     ice%till_yield_stress           = 0._dp
     ice%slid_alpha_sq               = 0._dp
     ice%slid_beta_sq                = 0._dp

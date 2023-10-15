@@ -467,10 +467,16 @@ CONTAINS
         CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'dHib_dt', region%ice%dHib_dt)
       CASE ('dHi_dt_raw')
         CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'dHi_dt_raw', region%ice%dHi_dt_raw)
-      CASE ('dHi_dt_target')
-        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'dHi_dt_target', region%ice%dHi_dt_target)
       CASE ('dHi_dt_residual')
         CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'dHi_dt_residual', region%ice%dHi_dt_residual)
+
+    ! ===== Target quantities =====
+    ! =============================
+
+      CASE ('dHi_dt_target')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'dHi_dt_target', region%ice%dHi_dt_target)
+      CASE ('uabs_surf_target')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'uabs_surf_target', region%ice%uabs_surf_target)
 
     ! ===== Masks =====
     ! =================
@@ -699,6 +705,8 @@ CONTAINS
       ! Sliding law coefficients
       CASE ('till_friction_angle')
         CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'till_friction_angle', region%ice%till_friction_angle)
+      CASE ('bed_roughness')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'bed_roughness', region%ice%bed_roughness)
       CASE ('till_yield_stress')
         CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'till_yield_stress', region%ice%till_yield_stress)
       CASE ('slid_alpha_sq')
@@ -930,12 +938,20 @@ CONTAINS
       CASE ('dHi_dt_raw')
         CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%dHi_dt_raw, d_grid_vec_partial_2D)
         CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'dHi_dt_raw', d_grid_vec_partial_2D)
-      CASE ('dHi_dt_target')
-        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%dHi_dt_target, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'dHi_dt_target', d_grid_vec_partial_2D)
       CASE ('dHi_dt_residual')
         CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%dHi_dt_residual, d_grid_vec_partial_2D)
         CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'dHi_dt_residual', d_grid_vec_partial_2D)
+
+    ! ===== Target quantities =====
+    ! =============================
+
+      CASE ('dHi_dt_target')
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%dHi_dt_target, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'dHi_dt_target', d_grid_vec_partial_2D)
+
+      CASE ('uabs_surf_target')
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%uabs_surf_target, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'uabs_surf_target', d_grid_vec_partial_2D)
 
     ! ===== Masks =====
     ! =================
@@ -1147,6 +1163,9 @@ CONTAINS
       CASE ('till_friction_angle')
         CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%till_friction_angle, d_grid_vec_partial_2D)
         CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'till_friction_angle', d_grid_vec_partial_2D)
+      CASE ('bed_roughness')
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%bed_roughness, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'bed_roughness', d_grid_vec_partial_2D)
       CASE ('till_yield_stress')
         CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%till_yield_stress, d_grid_vec_partial_2D)
         CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'till_yield_stress', d_grid_vec_partial_2D)
@@ -1754,10 +1773,16 @@ CONTAINS
         CALL add_field_mesh_dp_2D( filename, ncid, 'dHib_dt', long_name = 'Ice base elevation rate of change', units = 'm yr^-1')
       CASE ('dHi_dt_raw')
         CALL add_field_mesh_dp_2D( filename, ncid, 'dHi_dt_raw', long_name = 'Ice thickness rate of change before any modifications', units = 'm yr^-1')
-      CASE ('dHi_dt_target')
-        CALL add_field_mesh_dp_2D( filename, ncid, 'dHi_dt_target', long_name = 'Target ice thickness rate of change during model calibration', units = 'm yr^-1')
       CASE ('dHi_dt_residual')
         CALL add_field_mesh_dp_2D( filename, ncid, 'dHi_dt_residual', long_name = 'Residual ice thickness rate of change during model calibration', units = 'm yr^-1')
+
+    ! ===== Target quantities =====
+    ! =============================
+
+      CASE ('dHi_dt_target')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'dHi_dt_target', long_name = 'Target ice thickness rate of change during model calibration', units = 'm yr^-1')
+      CASE ('uabs_surf_target')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'uabs_surf_target', long_name = 'Target ice surface speed during model calibration', units = 'm yr^-1')
 
     ! ===== Masks =====
     ! =================
@@ -1940,6 +1965,8 @@ CONTAINS
       ! Sliding law coefficients
       CASE ('till_friction_angle')
         CALL add_field_mesh_dp_2D( filename, ncid, 'till_friction_angle', long_name = 'Till friction angle', units = 'degrees')
+      CASE ('bed_roughness')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'bed_roughness', long_name = 'Bed roughness', units = '0-1')
       CASE ('till_yield_stress')
         CALL add_field_mesh_dp_2D( filename, ncid, 'till_yield_stress', long_name = 'Till yield stress', units = 'Pa')
       CASE ('slid_alpha_sq')
@@ -2126,10 +2153,16 @@ CONTAINS
         CALL add_field_grid_dp_2D( filename, ncid, 'dHib_dt', long_name = 'Ice base elevation rate of change', units = 'm yr^-1')
       CASE ('dHi_dt_raw')
         CALL add_field_grid_dp_2D( filename, ncid, 'dHi_dt_raw', long_name = 'Ice thickness rate of change before any modifications', units = 'm yr^-1')
-      CASE ('dHi_dt_target')
-        CALL add_field_grid_dp_2D( filename, ncid, 'dHi_dt_target', long_name = 'Target ice thickness rate of change during model calibration', units = 'm yr^-1')
       CASE ('dHi_dt_residual')
         CALL add_field_grid_dp_2D( filename, ncid, 'dHi_dt_residual', long_name = 'Residual ice thickness rate of change during model calibration', units = 'm yr^-1')
+
+    ! ===== Target quantities =====
+    ! =============================
+
+      CASE ('dHi_dt_target')
+        CALL add_field_grid_dp_2D( filename, ncid, 'dHi_dt_target', long_name = 'Target ice thickness rate of change during model calibration', units = 'm yr^-1')
+      CASE ('uabs_surf_target')
+        CALL add_field_grid_dp_2D( filename, ncid, 'uabs_surf_target', long_name = 'Target ice surface speed during model calibration', units = 'm yr^-1')
 
     ! ===== Masks =====
     ! =================
@@ -2301,6 +2334,8 @@ CONTAINS
       ! Sliding law coefficients
       CASE ('till_friction_angle')
         CALL add_field_grid_dp_2D( filename, ncid, 'till_friction_angle', long_name = 'Till friction angle', units = 'degrees')
+      CASE ('bed_roughness')
+        CALL add_field_grid_dp_2D( filename, ncid, 'bed_roughness', long_name = 'Bed roughness', units = '0-1')
       CASE ('till_yield_stress')
         CALL add_field_grid_dp_2D( filename, ncid, 'till_yield_stress', long_name = 'Till yield stress', units = 'Pa')
       CASE ('slid_alpha_sq')

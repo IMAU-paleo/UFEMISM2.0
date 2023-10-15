@@ -233,8 +233,11 @@ MODULE ice_model_types
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHs_dt                      ! [m yr^-1] Ice surface elevation rate of change
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHib_dt                     ! [m yr^-1] Ice base elevation rate of change
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHi_dt_raw                  ! [m yr^-1] Ice thickness rate of change before any ice thickness modifications
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHi_dt_target               ! [m yr^-1] Target ice thickness rate of change for inversions
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHi_dt_residual             ! [m yr^-1] Residual ice thickness rate of change for inversions
+
+    ! Target quantities
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHi_dt_target               ! [m yr^-1] Target ice thickness rate of change for inversions
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: uabs_surf_target            ! [m yr^-1] Target ice surface speed for inversions
 
     ! Masks
     LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_icefree_land           ! T: ice-free land , F: otherwise
@@ -390,6 +393,7 @@ MODULE ice_model_types
 
     ! Sliding law coefficients
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: till_friction_angle         ! [degrees]          Till friction angle
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: bed_roughness               ! [0-1]              Bed roughness fraction
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: till_yield_stress           ! [Pa]               Till yield stress (used when choice_sliding_law = "Coloumb", "Budd", or "Zoet-Iverson")
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: slid_alpha_sq               ! [-]                Coulomb-law friction coefficient (used when choice_sliding_law = "Tsai2015", or "Schoof2005")
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: slid_beta_sq                ! [Pa m^−1/m yr^1/m] Power-law friction coefficient (used when choice_sliding_law = "Weertman", "Tsai2015", or "Schoof2005")
