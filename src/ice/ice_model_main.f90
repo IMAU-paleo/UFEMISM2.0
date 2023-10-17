@@ -1268,6 +1268,7 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'apply_geometry_relaxation'
     INTEGER                                               :: vi
     REAL(dp)                                              :: t_pseudo, t_step
+    REAL(dp)                                              :: visc_it_norm_dUV_tol_config
     REAL(dp), DIMENSION(region%mesh%vi1:region%mesh%vi2)  :: SMB_dummy, BMB_dummy, LMB_dummy, dHi_dt_target_dummy
     CHARACTER(LEN=256)                                    :: t_years, r_time, r_step, r_adv, t_format
 
@@ -1294,6 +1295,16 @@ CONTAINS
     END IF
 
     DO WHILE (t_pseudo < C%geometry_relaxation_t_years)
+
+      ! Save user-defined viscosity-iteration tolerance to recover it later
+      visc_it_norm_dUV_tol_config = C%visc_it_norm_dUV_tol
+
+      ! Set viscosity-iteration to a high enough value, which will allow the
+      ! stress balance solver to move forward when given rough initial conditions
+      ! NOTE: this is relevant mostly during the first time steps only, since
+      ! after a short while the rough surface gradients relax enough to allow
+      ! for smaller and smaller residuals during the viscosity iterations
+      C%visc_it_norm_dUV_tol = 1._dp
 
       ! Default time step: set so the relaxation takes 100 iterations
       t_step = C%geometry_relaxation_t_years / 100._dp
@@ -1410,6 +1421,9 @@ CONTAINS
       END IF
 
     END DO
+
+    ! Retrieve user-defined viscosity-iteration tolerance
+    C%visc_it_norm_dUV_tol = visc_it_norm_dUV_tol_config
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

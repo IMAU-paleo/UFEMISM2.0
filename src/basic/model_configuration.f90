@@ -452,7 +452,7 @@ MODULE model_configuration
     LOGICAL             :: remove_ice_absent_at_PD_config               = .FALSE.                          ! If set to TRUE, all ice not present in PD data is always instantly removed
 
     ! Geometry relaxation
-    REAL(dp)            :: geometry_relaxation_t_years_config           = 0.0                              ! [yr] Amount of years (out-of-time) during which the geometry will relax: no mass balance, thickness alterations, inversions, or target thinning rates will be applied during this time
+    REAL(dp)            :: geometry_relaxation_t_years_config           = 0.0                              ! [yr] Amount of years (out-of-time) during which the geometry will relaxed during initialisation: no mass balance, thickness alterations, inversions, or target thinning rates will be applied during this time
 
     ! Mask conservation
     LOGICAL             :: do_protect_grounded_mask_config              = .FALSE.                          ! If set to TRUE, grounded ice will not be allowed to cross the floatation threshold and will stay minimally grounded
