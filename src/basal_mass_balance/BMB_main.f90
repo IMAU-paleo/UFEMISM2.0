@@ -111,9 +111,6 @@ CONTAINS
         CALL crash('unknown choice_BMB_model "' // TRIM( choice_BMB_model) // '"')
     END SELECT
 
-    ! Extrapolate BMB
-    CALL extrapolate_BMB_inland( mesh, ice, BMB)
-
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
@@ -614,74 +611,5 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE run_BMB_model_inverted
-
-  SUBROUTINE extrapolate_BMB_inland( mesh, ice, BMB)
-    ! Extrapolate basal rates into partially floating margin vertices
-
-    IMPLICIT NONE
-
-    ! In/output variables:
-    TYPE(type_mesh),      INTENT(IN)    :: mesh
-    TYPE(type_ice_model), INTENT(IN)    :: ice
-    TYPE(type_BMB_model), INTENT(INOUT) :: BMB
-
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER       :: routine_name = 'extrapolate_BMB_inland'
-    INTEGER                             :: vi
-    INTEGER, DIMENSION(:), ALLOCATABLE  :: mask
-
-    ! Add routine to path
-    CALL init_routine( routine_name)
-
-    ! Fill new floating vertices with values from surrounding ones
-    ! ============================================================
-
-    ! TBD
-
-    ! Extrapolate inverted BMB into partially floating grounding line vertices
-    ! ========================================================================
-
-    ! If not desired, exit
-    IF (.NOT. C%do_subgrid_BMB_at_grounding_line) THEN
-      CALL finalise_routine( routine_name)
-      RETURN
-    END IF
-
-    ! Allocate memory
-    ALLOCATE( mask( mesh%vi1:mesh%vi2), source = 0)
-
-    ! Extrapolate BMB from floating-side grounding line to
-    ! grunded-side grounding line
-
-    DO vi = mesh%vi1, mesh%vi2
-      IF (ice%mask_gl_fl( vi)) THEN
-        mask( vi) = 2
-      ELSEIF (ice%mask_gl_gr( vi) .AND. ice%Hib( vi) < ice%SL( vi)) THEN
-        mask( vi) = 1
-      ELSE
-        mask( vi) = 0
-      END IF
-    END DO
-
-    ! Perform the extrapolation - mask: 2 -> use as seed; 1 -> extrapolate; 0 -> ignore
-    CALL extrapolate_Gaussian( mesh, mask, BMB%BMB, 20000._dp)
-
-    ! Now multiply the extrapolated values by each vertex's grounded fraction
-    DO vi = mesh%vi1, mesh%vi2
-      IF (ice%mask_gl_gr( vi) .AND. ice%Hib( vi) < ice%SL( vi)) THEN
-        ! Subgrid basal melt rate
-        BMB%BMB( vi) = (1._dp - ice%fraction_gr( vi)) * BMB%BMB( vi)
-        ! Limit it to only melt (refreezing is tricky)
-        BMB%BMB( vi) = MAX( BMB%BMB( vi), 0._dp)
-      END IF
-    END DO
-
-    ! Clean up after yourself
-    DEALLOCATE( mask)
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE extrapolate_BMB_inland
 
 END MODULE BMB_main

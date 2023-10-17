@@ -247,8 +247,8 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! Compute effective pore water pressure
-    ! =====================================
+    ! Pore water fraction
+    ! ===================
 
     ! Retrieve inverted field
     ice%pore_water_fraction = HIV%pore_water_fraction_app
@@ -265,19 +265,16 @@ CONTAINS
       ! Skip original inverted points
       IF (HIV%mask_inverted_point( vi)) CYCLE
 
-      ! Get x an y coordinates of this non-inverted vertex
+      ! Get x and y coordinates of this non-inverted vertex
       p = [mesh%V( vi,1), mesh%V( vi,2)]
 
       ! Extrpolate value from the closest upstream inverted vertex
-      CALL extrapolate_flowline_upstream( mesh, ice, mask_inverted_point_tot, pore_water_fraction_tot, u_b_tot, v_b_tot, p, found_source)
+      CALL extrapolate_from_upstream( mesh, ice, mask_inverted_point_tot, pore_water_fraction_tot, u_b_tot, v_b_tot, p, found_source)
 
       ! Check if an inverted value was found upstream
       IF (found_source) THEN
         ! If so, use that value for this vertex
         ice%pore_water_fraction( vi) = pore_water_fraction_tot( vi)
-        ! And add it to the temporal mask of valid
-        ! source values to speed up the process
-        ! mask_inverted_point_tot( vi) = .TRUE.
       END IF
 
     END DO
@@ -287,55 +284,66 @@ CONTAINS
 
     DO vi = mesh%vi1, mesh%vi2
 
-        ! Initialise grounded area fraction weight
+      ! Initialise grounded area fraction weight
+      weight_gr = 1._dp
+
+      ! Compute exponent for this vertex's weight based on ice thickness
+      exponent_gr = MAX( .1_dp, LOG10( MAX( 1._dp, ice%Hi( vi))) - 2._dp)
+
+      ! Compute a weight based on the grounded area fractions
+      IF (ice%mask_gl_gr( vi)) THEN
+        weight_gr = ice%fraction_gr( vi)**exponent_gr
+
+      ELSEIF (ice%mask_cf_gr( vi)) THEN
+        weight_gr = ice%fraction_gr( vi)**exponent_gr
+
+      ELSEIF (ice%mask_gl_fl( vi)) THEN
+        weight_gr = ice%fraction_gr( vi)**exponent_gr
+
+      ELSEIF (ice%mask_grounded_ice( vi)) THEN
         weight_gr = 1._dp
 
-        ! Compute exponent for this vertex's weight based on ice thickness
-        exponent_gr = MAX( LOG10( MAX( 1._dp, ice%Hi( vi))) - 1._dp, 0._dp)
+      ELSEIF (ice%mask_floating_ice( vi)) THEN
+        weight_gr = 0._dp
 
-        ! Compute a weight based on the grounded area fractions
-        IF (ice%mask_gl_gr( vi)) THEN
-          weight_gr = ice%fraction_gr( vi)**exponent_gr
+      ELSEIF (ice%mask_icefree_ocean( vi)) THEN
+        weight_gr = 0._dp
 
-        ELSEIF (ice%mask_cf_gr( vi)) THEN
-          weight_gr = ice%fraction_gr( vi)**exponent_gr
+      END IF
 
-        ELSEIF (ice%mask_gl_fl( vi)) THEN
-          weight_gr = ice%fraction_gr( vi)**exponent_gr
+      ! Just in case
+      weight_gr = MIN( 1._dp, MAX( 0._dp, weight_gr))
 
-        ELSEIF (ice%mask_grounded_ice( vi)) THEN
-          weight_gr = ice%fraction_gr( vi)**exponent_gr
+      ! Compute entrainment factor based on bathymetry
+      IF (ice%mask_grounded_ice( vi)) THEN
+        ocean_entrainment = 1._dp! - (ice%Hb( vi) - ice%SL( vi) + 500._dp) / 500._dp
+      ELSE
+        ocean_entrainment = 1._dp
+      END IF
 
-        ELSEIF (ice%mask_floating_ice( vi)) THEN
-          weight_gr = 0._dp
+      ! Limit ocean entrainment factor to a [0-1] range
+      ocean_entrainment = MIN( 1._dp, MAX( 0._dp, ocean_entrainment))
 
-        ELSEIF (ice%mask_icefree_ocean( vi)) THEN
-          weight_gr = 0._dp
-
-        END IF
-
-        ! Just in case
-        weight_gr = MIN( 1._dp, MAX( 0._dp, weight_gr))
-
-        ! Compute entrainment factor based on bathymetry
-        ocean_entrainment = 1._dp - (ice%Hb( vi) - ice%SL( vi) + 500._dp) / 500._dp
-        ! Limit ocean entrainment factor to a [0-1] range
-        ocean_entrainment = MIN( 1._dp, MAX( 0._dp, ocean_entrainment))
-
-        ! Compute weighed average between pore water fraction and ocean entrainment
-        ice%pore_water_fraction( vi) = (1._dp - weight_gr) * ocean_entrainment + weight_gr * ice%pore_water_fraction( vi)
+      ! Add ocean entrainment to inverted pore water fraction through a weighed average
+      ice%pore_water_fraction( vi) = weight_gr * ice%pore_water_fraction( vi) + (1._dp - weight_gr) * ocean_entrainment
 
     END DO
 
-    ! Limit final pore water fraction
-    ! ===============================
+    ! Final pore water fraction
+    ! =========================
 
-    ! DO vi = mesh%vi1, mesh%vi2
-    !   IF (ice%mask_grounded_ice( vi) .OR. ice%mask_gl_fl( vi)) THEN
-    !     ice%pore_water_fraction(vi) = MIN( ice%pore_water_fraction(vi), C%pore_water_fraction_max)
-    !     ice%pore_water_fraction(vi) = MAX( ice%pore_water_fraction(vi), C%pore_water_fraction_min)
-    !   END IF
-    ! END DO
+    ! Limit final pore water fraction field to a valid range
+    DO vi = mesh%vi1, mesh%vi2
+
+      IF (ice%mask_grounded_ice( vi) .OR. ice%mask_icefree_land( vi)) THEN
+        ! Grounded vertices
+        ice%pore_water_fraction(vi) = MIN( ice%pore_water_fraction(vi), C%pore_water_fraction_max)
+        ice%pore_water_fraction(vi) = MAX( ice%pore_water_fraction(vi), C%pore_water_fraction_min)
+      ELSE
+        ! Floating vertices
+        ice%pore_water_fraction( vi) = MIN( 1._dp, MAX( 0._dp, ice%pore_water_fraction( vi)))
+      END IF
+    END DO
 
     ! Compute pore water pressure
     ! ===========================
@@ -533,7 +541,7 @@ CONTAINS
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: dC1_dt
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: dHs_dx, dHs_dy, abs_grad_Hs
     REAL(dp)                                           :: Hi_misfit, uabs_surf_misfit
-    REAL(dp)                                           :: fg_exp_mod, bf_exp_mod, hs_exp_mod, hi_exp_mod, max_neighbour, max_vertex_size, unstable_vertex
+    REAL(dp)                                           :: fg_exp_mod, bf_exp_mod, hs_exp_mod, hi_exp_mod, max_neighbour, max_vertex_size, unstable_vertex, exponent_gr
     REAL(dp)                                           :: t_scale, porenudge_H_dHdt_flowline_t_scale, porenudge_H_dHdt_flowline_dHdt0, porenudge_H_dHdt_flowline_dH0, porenudge_H_dHdt_flowline_dU0
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: dC1_dt_smoothed, unstable_vertex_smoothed
     LOGICAL                                            :: found_grounded_neighbour
@@ -689,7 +697,7 @@ CONTAINS
       IF (n_up < 3 .OR. n_down < 3) THEN
 
         ! Compute likelihood of local subglacial water
-        ice%pore_water_likelihood( vi) = EXP(ice%Ti_hom( vi)/20._dp)
+        ice%pore_water_likelihood( vi) = EXP(ice%Ti_hom( vi)/3._dp)
 
         ! Compute new adjustment for pore water fraction
         I_tot( vi) = ice%pore_water_likelihood( vi) * (Hi_misfit / porenudge_H_dHdt_flowline_dH0 + &
@@ -946,7 +954,7 @@ CONTAINS
       ! =============================================
 
       ! Compute likelihood of subglacial water
-      ice%pore_water_likelihood( vi) = EXP(Ti_hom_av_up( vi)/20._dp)
+      ice%pore_water_likelihood( vi) = EXP(Ti_hom_av_up( vi)/3._dp)
 
       ! Check whether we want a local-, flowline-, or mixed-type inversion
       IF (    C%choice_pore_water_nudging_method == 'flowline') THEN
@@ -1107,12 +1115,13 @@ CONTAINS
       IF (found_grounded_neighbour) THEN
         ! Use maximum value among neighbours, if any
         HIV%pore_water_fraction_next( vi) = max_neighbour
+        HIV%mask_inverted_point( vi) = .TRUE.
       ELSE
         IF (ice%Hib( vi) < ice%SL( vi)) THEN
-          ! Use max value if fully floating, min value if fully grounded
-          HIV%pore_water_fraction_next( vi) = ice%fraction_gr( vi)
-          ! Consider this vertex a valid inversion point
-          HIV%mask_inverted_point( vi) = .TRUE.
+          ! Compute exponent for this vertex's weight based on ice thickness
+          exponent_gr = MAX( .1_dp, LOG10( MAX( 1._dp, ice%Hi( vi))) - 2._dp)
+          ! Get estimated pore water fraction based on grounded area fraction
+          HIV%pore_water_fraction_next( vi) = 1._dp - ice%fraction_gr( vi)**exponent_gr
         ELSE
           ! Assume no hydrology
           HIV%pore_water_fraction_next( vi) = 0._dp
@@ -1150,8 +1159,10 @@ CONTAINS
         ! Consider this vertex a valid inversion point
         HIV%mask_inverted_point( vi) = .TRUE.
       ELSE
-        ! Use maximum value
-        HIV%pore_water_fraction_next( vi) = 1._dp
+        ! Compute exponent for this vertex's weight based on ice thickness
+        exponent_gr = MAX( .1_dp, LOG10( MAX( 1._dp, ice%Hi( vi))) - 2._dp)
+        ! Get estimated pore water fraction based on grounded area fraction
+        HIV%pore_water_fraction_next( vi) = 1._dp - ice%fraction_gr( vi)**exponent_gr
       END IF
 
     END DO
@@ -1190,23 +1201,30 @@ CONTAINS
 
     END DO
 
-    ! ! Finally, assign maximum values for interior
-    ! ! ice shelf and ice-free ocean vertices
+    ! Finally, assign maximum values for interior ice
+    ! shelf and ice-free ocean vertices. However, do
+    ! not mark it as a valid inverted vertex, since
+    ! this one should be overwritten later by the
+    ! flowline extrapolation and ocean entrainment
+    ! to account for the possibility of it not being
+    ! floating in the future. If that extrapolation
+    ! fails, then this value will be used though, so
+    ! keep that in mind.
 
-    ! ! Interior shelves and ocean
-    ! DO vi = mesh%vi1, mesh%vi2
+    ! Interior shelves and ocean
+    DO vi = mesh%vi1, mesh%vi2
 
-    !   IF (ice%mask_floating_ice( vi) .OR. ice%mask_icefree_ocean( vi)) THEN
+      IF (ice%mask_floating_ice( vi) .OR. ice%mask_icefree_ocean( vi)) THEN
 
-    !     ! Skip floating side of grounding line
-    !     IF (ice%mask_gl_fl( vi)) CYCLE
+        ! Skip floating side of grounding line
+        IF (ice%mask_gl_fl( vi)) CYCLE
 
-    !     ! Use maximum value
-    !     HIV%pore_water_fraction_next( vi) = 1._dp
+        ! Use maximum value
+        HIV%pore_water_fraction_next( vi) = 1._dp
 
-    !   END IF
+      END IF
 
-    ! END DO
+    END DO
 
     ! Limit inverted values
     ! =====================
@@ -1515,7 +1533,7 @@ CONTAINS
 
   END SUBROUTINE trace_flowline_downstream
 
-  SUBROUTINE extrapolate_flowline_upstream( mesh, ice, d_mask_tot, d_values_tot, u_b_tot, v_b_tot, p, found_source)
+  SUBROUTINE extrapolate_from_upstream( mesh, ice, d_mask_tot, d_values_tot, u_b_tot, v_b_tot, p, found_source)
     ! Extrapolate an inverted field based on its values upstream of
     ! the point of interest based on its flowline, computed based on
     ! the 2-D velocity field u_b,v_b.
@@ -1638,6 +1656,6 @@ CONTAINS
 
     END DO ! DO WHILE (.TRUE.)
 
-  END SUBROUTINE extrapolate_flowline_upstream
+  END SUBROUTINE extrapolate_from_upstream
 
 END MODULE basal_hydrology

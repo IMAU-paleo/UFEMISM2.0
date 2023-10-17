@@ -316,8 +316,8 @@ CONTAINS
       ! Initialise grounded area fraction weight
       weight_gr = 1._dp
 
-      ! Compute exponent for this vertex's weight
-      exponent_gr = MAX( LOG10( MAX( 1._dp, ice%Hi( vi))) - 1._dp, 0._dp)
+      ! Compute exponent for this vertex's weight based on ice thickness
+      exponent_gr = MAX( .1_dp, LOG10( MAX( 1._dp, ice%Hi( vi))) - 2._dp)
 
       ! Compute a weight based on the grounded area fractions
       IF (ice%mask_gl_gr( vi)) THEN
@@ -330,7 +330,7 @@ CONTAINS
         weight_gr = ice%fraction_gr( vi)**exponent_gr
 
       ELSEIF (ice%mask_grounded_ice( vi)) THEN
-        weight_gr = ice%fraction_gr( vi)**exponent_gr
+        weight_gr = 1._dp
 
       ELSEIF (ice%mask_floating_ice( vi)) THEN
         weight_gr = 0._dp
@@ -344,7 +344,7 @@ CONTAINS
       weight_gr = MIN( 1._dp, MAX( 0._dp, weight_gr))
 
       ! Compute till friction angle accounting for grounded area fractions
-      ice%bed_roughness( vi) = TAN((pi / 180._dp) * ice%till_friction_angle( vi) * weight_gr)
+      ice%bed_roughness( vi) = TAN((pi / 180._dp) * ice%till_friction_angle( vi)) * weight_gr
 
     END DO
 
