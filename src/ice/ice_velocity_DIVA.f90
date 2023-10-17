@@ -1678,11 +1678,7 @@ CONTAINS
     IF (C%do_GL_subgrid_friction) THEN
       ! On the b-grid
       DO ti = mesh%ti1, mesh%ti2
-        DIVA%beta_eff_b( ti) = DIVA%beta_eff_b( ti) * ice%fraction_gr_b( ti)**C%subgrid_friction_exponent
-      END DO
-      ! On the a-grid (not relevant here, just for output)
-      DO vi = mesh%vi1, mesh%vi2
-        ice%basal_friction_coefficient( vi) = ice%basal_friction_coefficient( vi) * ice%fraction_gr( vi)**C%subgrid_friction_exponent
+        DIVA%beta_eff_b( ti) = DIVA%beta_eff_b( ti) * ice%fraction_gr_b( ti)**C%subgrid_friction_exponent_on_B_grid
       END DO
     END IF
 

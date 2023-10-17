@@ -340,7 +340,8 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: choice_subgrid_grounded_fraction_config      = 'bilin_interp_TAF+bedrock_CDF'   ! Choice of scheme to calculate the sub-grid grounded fractions: 'bilin_interp_TAF', 'bedrock_CDF', 'bilin_interp_TAF+bedrock_CDF'
     LOGICAL             :: do_read_bedrock_cdf_from_file_config         = .FALSE.                          ! Whether or not to read the bedrock CDF from the initial mesh file. Requires choice_initial_mesh_XXX_config =  'read_from_file'!
     INTEGER             :: subgrid_bedrock_cdf_nbins_config             = 11                               ! Number of bins to be used for sub-grid bedrock cumulative density functions
-    REAL(dp)            :: subgrid_friction_exponent_config             = 2._dp                            ! Exponent to which f_grnd should be raised before being used to scale beta
+    LOGICAL             :: do_subgrid_friction_on_A_grid_config         = .FALSE.                          ! Whether or not to apply a preliminary scaling to basal hydrology and bed roughness on the A grid, before the final scaling of beta on the b grid. The exponent of this scaling is computed based on ice thickness.
+    REAL(dp)            :: subgrid_friction_exponent_on_B_grid_config   = 2._dp                            ! Exponent to which f_grnd should be raised before being used to scale the final value of beta on the B grid
 
     ! Stability
     REAL(dp)            :: slid_beta_max_config                         = 1E20_dp                          ! Maximum value for basal friction coefficient
@@ -1205,7 +1206,8 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: choice_subgrid_grounded_fraction
     LOGICAL             :: do_read_bedrock_cdf_from_file
     INTEGER             :: subgrid_bedrock_cdf_nbins
-    REAL(dp)            :: subgrid_friction_exponent
+    LOGICAL             :: do_subgrid_friction_on_A_grid
+    REAL(dp)            :: subgrid_friction_exponent_on_B_grid
 
     ! Stability
     REAL(dp)            :: slid_beta_max
@@ -2125,7 +2127,8 @@ CONTAINS
       choice_subgrid_grounded_fraction_config                     , &
       do_read_bedrock_cdf_from_file_config                        , &
       subgrid_bedrock_cdf_nbins_config                            , &
-      subgrid_friction_exponent_config                            , &
+      do_subgrid_friction_on_A_grid_config                        , &
+      subgrid_friction_exponent_on_B_grid_config                  , &
       slid_beta_max_config                                        , &
       slid_delta_v_config                                         , &
       choice_ice_integration_method_config                        , &
@@ -2825,7 +2828,8 @@ CONTAINS
     C%choice_subgrid_grounded_fraction                       = choice_subgrid_grounded_fraction_config
     C%do_read_bedrock_cdf_from_file                          = do_read_bedrock_cdf_from_file_config
     C%subgrid_bedrock_cdf_nbins                              = subgrid_bedrock_cdf_nbins_config
-    C%subgrid_friction_exponent                              = subgrid_friction_exponent_config
+    C%do_subgrid_friction_on_A_grid                          = do_subgrid_friction_on_A_grid_config
+    C%subgrid_friction_exponent_on_B_grid                    = subgrid_friction_exponent_on_B_grid_config
 
     ! Stability
     C%slid_beta_max                                          = slid_beta_max_config

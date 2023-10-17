@@ -143,41 +143,15 @@ CONTAINS
     ! Compute effective pore water pressure
     ! =====================================
 
-    ! Retrieve inverted field
+    ! Initialise with no sub-glacial hydrology
     ice%pore_water_fraction = 0._dp
 
     ! Scale pore water fraction based on grounded area fractions
+    CALL apply_grounded_fractions_to_pore_water_fraction( mesh, ice)
+
+    ! Compute pore water pressure based on the pore water fraction as
+    ! the fraction of the overburden pressure supported by basal water
     DO vi = mesh%vi1, mesh%vi2
-
-      ! Default value
-      weight_gr = 1._dp
-
-      IF (ice%mask_icefree_land( vi)) THEN
-        weight_gr = ice%fraction_gr( vi)**0._dp
-
-      ELSEIF (ice%mask_grounded_ice( vi)) THEN
-        weight_gr = ice%fraction_gr( vi)**1._dp
-
-      ELSEIF (ice%mask_gl_fl( vi)) THEN
-        weight_gr = ice%fraction_gr( vi)**2._dp
-
-      ELSEIF (ice%mask_floating_ice( vi)) THEN
-        weight_gr = ice%fraction_gr( vi)**3._dp
-
-      ELSEIF (ice%mask_icefree_ocean( vi)) THEN
-        weight_gr = ice%fraction_gr( vi)**4._dp
-      END IF
-
-      ! Just in case
-      weight_gr = MIN( 1._dp, MAX( 0._dp, weight_gr))
-
-      ice%pore_water_fraction(vi) = 1._dp - weight_gr + weight_gr * ice%pore_water_fraction( vi)
-
-    END DO
-
-    DO vi = mesh%vi1, mesh%vi2
-      ! Compute pore water pressure based on the pore water fraction as
-      ! the fraction of the overburden pressure supported by basal water
       ice%pore_water_pressure( vi) = ice%pore_water_fraction(vi) * ice_density * grav * ice%Hi_eff( vi)
     END DO
 
@@ -247,103 +221,15 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! Pore water fraction
-    ! ===================
+    ! Extrapolate inverted pore water fraction
+    ! ========================================
 
-    ! Retrieve inverted field
-    ice%pore_water_fraction = HIV%pore_water_fraction_app
+    CALL apply_extrapolation_to_pore_water_fraction( mesh, ice, HIV)
 
-    ! Gather inversion data, inversion mask, and horizontal velocities from all processes
-    CALL gather_to_all_dp_1D(      ice%pore_water_fraction, pore_water_fraction_tot)
-    CALL gather_to_all_logical_1D( HIV%mask_inverted_point, mask_inverted_point_tot)
-    CALL gather_to_all_dp_1D(      ice%u_vav_b            , u_b_tot                )
-    CALL gather_to_all_dp_1D(      ice%v_vav_b            , v_b_tot                )
+    ! Apply ocean entrainment
+    ! =======================
 
-    ! Extrapolate non-inverted areas using closest upstream inverted value
-    DO vi = mesh%vi1, mesh%vi2
-
-      ! Skip original inverted points
-      IF (HIV%mask_inverted_point( vi)) CYCLE
-
-      ! Get x and y coordinates of this non-inverted vertex
-      p = [mesh%V( vi,1), mesh%V( vi,2)]
-
-      ! Extrpolate value from the closest upstream inverted vertex
-      CALL extrapolate_from_upstream( mesh, ice, mask_inverted_point_tot, pore_water_fraction_tot, u_b_tot, v_b_tot, p, found_source)
-
-      ! Check if an inverted value was found upstream
-      IF (found_source) THEN
-        ! If so, use that value for this vertex
-        ice%pore_water_fraction( vi) = pore_water_fraction_tot( vi)
-      END IF
-
-    END DO
-
-    ! Ocean entrainment
-    ! =================
-
-    DO vi = mesh%vi1, mesh%vi2
-
-      ! Initialise grounded area fraction weight
-      weight_gr = 1._dp
-
-      ! Compute exponent for this vertex's weight based on ice thickness
-      exponent_gr = MAX( .1_dp, LOG10( MAX( 1._dp, ice%Hi( vi))) - 2._dp)
-
-      ! Compute a weight based on the grounded area fractions
-      IF (ice%mask_gl_gr( vi)) THEN
-        weight_gr = ice%fraction_gr( vi)**exponent_gr
-
-      ELSEIF (ice%mask_cf_gr( vi)) THEN
-        weight_gr = ice%fraction_gr( vi)**exponent_gr
-
-      ELSEIF (ice%mask_gl_fl( vi)) THEN
-        weight_gr = ice%fraction_gr( vi)**exponent_gr
-
-      ELSEIF (ice%mask_grounded_ice( vi)) THEN
-        weight_gr = 1._dp
-
-      ELSEIF (ice%mask_floating_ice( vi)) THEN
-        weight_gr = 0._dp
-
-      ELSEIF (ice%mask_icefree_ocean( vi)) THEN
-        weight_gr = 0._dp
-
-      END IF
-
-      ! Just in case
-      weight_gr = MIN( 1._dp, MAX( 0._dp, weight_gr))
-
-      ! Compute entrainment factor based on bathymetry
-      IF (ice%mask_grounded_ice( vi)) THEN
-        ocean_entrainment = 1._dp! - (ice%Hb( vi) - ice%SL( vi) + 500._dp) / 500._dp
-      ELSE
-        ocean_entrainment = 1._dp
-      END IF
-
-      ! Limit ocean entrainment factor to a [0-1] range
-      ocean_entrainment = MIN( 1._dp, MAX( 0._dp, ocean_entrainment))
-
-      ! Add ocean entrainment to inverted pore water fraction through a weighed average
-      ice%pore_water_fraction( vi) = weight_gr * ice%pore_water_fraction( vi) + (1._dp - weight_gr) * ocean_entrainment
-
-    END DO
-
-    ! Final pore water fraction
-    ! =========================
-
-    ! Limit final pore water fraction field to a valid range
-    DO vi = mesh%vi1, mesh%vi2
-
-      IF (ice%mask_grounded_ice( vi) .OR. ice%mask_icefree_land( vi)) THEN
-        ! Grounded vertices
-        ice%pore_water_fraction(vi) = MIN( ice%pore_water_fraction(vi), C%pore_water_fraction_max)
-        ice%pore_water_fraction(vi) = MAX( ice%pore_water_fraction(vi), C%pore_water_fraction_min)
-      ELSE
-        ! Floating vertices
-        ice%pore_water_fraction( vi) = MIN( 1._dp, MAX( 0._dp, ice%pore_water_fraction( vi)))
-      END IF
-    END DO
+    CALL apply_grounded_fractions_to_pore_water_fraction( mesh, ice)
 
     ! Compute pore water pressure
     ! ===========================
@@ -1282,8 +1168,277 @@ CONTAINS
 
   END SUBROUTINE pore_water_fraction_inversion
 
-  ! == Flowline tracing
-  ! ===================
+! ===== Utilities =====
+! =====================
+
+  SUBROUTINE apply_extrapolation_to_pore_water_fraction( mesh, ice, HIV)
+    ! Extrapolate inverted pore water fraction using a flowline approach
+
+    IMPLICIT NONE
+
+    ! Input variables:
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
+    TYPE(type_ice_model),                INTENT(INOUT) :: ice
+    TYPE(type_hydrology_inversion),      INTENT(IN)    :: HIV
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'apply_extrapolation_to_pore_water_fraction'
+    INTEGER                                            :: vi
+    REAL(dp)                                           :: weight_gr, exponent_gr, ocean_entrainment
+    REAL(dp), DIMENSION(mesh%nV)                       :: pore_water_fraction_tot
+    LOGICAL,  DIMENSION(mesh%nV)                       :: mask_inverted_point_tot
+    REAL(dp), DIMENSION(mesh%nTri)                     :: u_b_tot
+    REAL(dp), DIMENSION(mesh%nTri)                     :: v_b_tot
+    REAL(dp), DIMENSION(2)                             :: p
+    LOGICAL                                            :: found_source
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Retrieve inverted field
+    ice%pore_water_fraction = HIV%pore_water_fraction_app
+
+    ! Gather inversion data, inversion mask, and horizontal velocities from all processes
+    CALL gather_to_all_dp_1D(      ice%pore_water_fraction, pore_water_fraction_tot)
+    CALL gather_to_all_logical_1D( HIV%mask_inverted_point, mask_inverted_point_tot)
+    CALL gather_to_all_dp_1D(      ice%u_vav_b            , u_b_tot                )
+    CALL gather_to_all_dp_1D(      ice%v_vav_b            , v_b_tot                )
+
+    ! Extrapolate non-inverted areas using closest upstream inverted value
+    DO vi = mesh%vi1, mesh%vi2
+
+      ! Skip original inverted points
+      IF (HIV%mask_inverted_point( vi)) CYCLE
+
+      ! Get x and y coordinates of this non-inverted vertex
+      p = [mesh%V( vi,1), mesh%V( vi,2)]
+
+      ! Extrpolate value from the closest upstream inverted vertex
+      CALL extrapolate_from_upstream( mesh, ice, mask_inverted_point_tot, pore_water_fraction_tot, u_b_tot, v_b_tot, p, found_source)
+
+      ! Check if an inverted value was found upstream
+      IF (found_source) THEN
+        ! If so, use that value for this vertex
+        ice%pore_water_fraction( vi) = pore_water_fraction_tot( vi)
+      END IF
+
+    END DO
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE apply_extrapolation_to_pore_water_fraction
+
+  SUBROUTINE apply_grounded_fractions_to_pore_water_fraction( mesh, ice)
+    ! Calculate the pore water pressure
+    !
+    ! Use the inverted values of pore water fraction
+
+    IMPLICIT NONE
+
+    ! Input variables:
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
+    TYPE(type_ice_model),                INTENT(INOUT) :: ice
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'apply_grounded_fractions_to_pore_water_fraction'
+    INTEGER                                            :: vi
+    REAL(dp)                                           :: weight_gr, exponent_gr, ocean_entrainment
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Check if this is actually wanted
+    IF (.NOT. C%do_subgrid_friction_on_A_grid) THEN
+      ! Finalise routine path
+      CALL finalise_routine( routine_name)
+      ! And exit
+      RETURN
+    END IF
+
+    DO vi = mesh%vi1, mesh%vi2
+
+      ! Initialise grounded area fraction weight
+      weight_gr = 1._dp
+
+      ! Compute exponent for this vertex's weight based on ice thickness
+      exponent_gr = MAX( .1_dp, LOG10( MAX( 1._dp, ice%Hi( vi))) - 2._dp)
+
+      ! Compute a weight based on the grounded area fractions
+      IF (ice%mask_gl_gr( vi)) THEN
+        weight_gr = ice%fraction_gr( vi)**exponent_gr
+
+      ELSEIF (ice%mask_cf_gr( vi)) THEN
+        weight_gr = ice%fraction_gr( vi)**exponent_gr
+
+      ELSEIF (ice%mask_gl_fl( vi)) THEN
+        weight_gr = ice%fraction_gr( vi)**exponent_gr
+
+      ELSEIF (ice%mask_grounded_ice( vi)) THEN
+        weight_gr = 1._dp
+
+      ELSEIF (ice%mask_floating_ice( vi)) THEN
+        weight_gr = 0._dp
+
+      ELSEIF (ice%mask_icefree_ocean( vi)) THEN
+        weight_gr = 0._dp
+
+      END IF
+
+      ! Just in case
+      weight_gr = MIN( 1._dp, MAX( 0._dp, weight_gr))
+
+      ! DENK DROM : Test whether bathymetry is actually needed / helps with stability
+      ! Compute entrainment factor based on bathymetry
+      ocean_entrainment = 1._dp! - (ice%Hb( vi) - ice%SL( vi) + 500._dp) / 500._dp
+
+      ! Limit ocean entrainment factor to a [0-1] range
+      ocean_entrainment = MIN( 1._dp, MAX( 0._dp, ocean_entrainment))
+
+      ! Add ocean entrainment to inverted pore water fraction through a weighed average
+      ice%pore_water_fraction( vi) = weight_gr * ice%pore_water_fraction( vi) + (1._dp - weight_gr) * ocean_entrainment
+
+      ! Limit final pore water fraction field to a valid range
+      IF (ice%mask_grounded_ice( vi) .OR. ice%mask_icefree_land( vi)) THEN
+        ! Grounded vertices
+        ice%pore_water_fraction(vi) = MIN( ice%pore_water_fraction(vi), C%pore_water_fraction_max)
+        ice%pore_water_fraction(vi) = MAX( ice%pore_water_fraction(vi), C%pore_water_fraction_min)
+      ELSE
+        ! Floating vertices
+        ice%pore_water_fraction( vi) = MIN( 1._dp, MAX( 0._dp, ice%pore_water_fraction( vi)))
+      END IF
+
+    END DO
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE apply_grounded_fractions_to_pore_water_fraction
+
+  SUBROUTINE extrapolate_from_upstream( mesh, ice, d_mask_tot, d_values_tot, u_b_tot, v_b_tot, p, found_source)
+    ! Extrapolate an inverted field based on its values upstream of
+    ! the point of interest based on its flowline, computed based on
+    ! the 2-D velocity field u_b,v_b.
+
+    IMPLICIT NONE
+
+    ! Input variables:
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh                ! Mesh data
+    TYPE(type_ice_model),                INTENT(IN)    :: ice                 ! Ice model structure
+    LOGICAL,  DIMENSION(mesh%nV),        INTENT(IN)    :: d_mask_tot          ! Inversion mask: 1=inverted; 0=not-inverted
+    REAL(dp), DIMENSION(mesh%nV),        INTENT(INOUT) :: d_values_tot        ! Inversion data: the field you want to extrapolate
+    REAL(dp), DIMENSION(mesh%nTri),      INTENT(IN)    :: u_b_tot, v_b_tot    ! The u and v velocity fields
+    REAL(dp), DIMENSION(2),              INTENT(IN)    :: p                   ! Your point of interest, i.e. where you want to extrapolate
+    LOGICAL,                             INTENT(OUT)   :: found_source        ! Flag: 1=successful extrapolation; 0=failed extrapolation
+
+    ! Local variables:
+    REAL(dp), DIMENSION(2)                             :: pt                  ! Current location of tracer
+    INTEGER                                            :: vi, vp, iti, ti, n  ! Some indices
+    REAL(dp)                                           :: dist, w, w_tot      ! For the interpolation of velocities at point pt
+    REAL(dp)                                           :: u_pt, v_pt, uabs_pt ! Interpolated velocities at point pt
+    REAL(dp), DIMENSION(2)                             :: u_hat_pt            ! Direction of the velocity vector at point pt
+    REAL(dp)                                           :: dist_prev, dist_tot ! Safety: total travelled distance of tracer
+
+    ! If the vertex vp containing this point is part of the
+    ! original inverted field, no need to extrapolate there
+    vp = 1
+    CALL find_containing_vertex( mesh, p, vp)
+    IF (d_mask_tot( vp)) THEN
+      RETURN
+    END IF
+
+    ! Initialise
+    n  = 0  ! Number of tracer movements
+    pt = p  ! Current point of the tracer
+    vi = vp ! Current vertex containing the tracer
+
+    ! Initialise flag for successful extrapolation
+    found_source = .FALSE.
+
+    ! Safety
+    dist_prev = 0._dp ! Current distance from origin
+    dist_tot  = 0._dp ! Total distance travelled by tracer
+
+    DO WHILE (.TRUE.)
+
+      ! Check if tracer reached its destination
+      ! =======================================
+
+      ! Find the vertex vi currently containing the new tracer position
+      CALL find_containing_vertex( mesh, pt, vi)
+
+      ! If the current vertex is an inverted point,
+      ! use it as the value for our origin vertex,
+      ! mark it as a successfully extrapolated point,
+      ! and exit
+      IF (d_mask_tot( vi)) THEN
+        d_values_tot( vp) = d_values_tot( vi)
+        found_source = .TRUE.
+        RETURN
+      END IF
+
+      ! If not, move the tracer upstream
+      ! ================================
+
+      ! Interpolate between the surrounding triangles
+      ! to find the velocities at the tracer's location
+      w_tot = 0._dp
+      u_pt  = 0._dp
+      v_pt  = 0._dp
+
+      DO iti = 1, mesh%niTri( vi)
+        ti = mesh%iTri( vi,iti)
+        dist = NORM2( mesh%TriGC( ti,:) - pt)
+        w = 1._dp / dist**2
+        w_tot = w_tot + w
+        u_pt  = u_pt  + w * u_b_tot( ti)
+        v_pt  = v_pt  + w * v_b_tot( ti)
+      END DO
+
+      u_pt = u_pt / w_tot
+      v_pt = v_pt / w_tot
+
+      ! Calculate absolute velocity at the tracer's location
+      uabs_pt = SQRT( u_pt**2 + v_pt**2)
+
+      ! If we've reached the ice divide (defined as the place where
+      ! we find velocities below 0.01 m/yr), end the trace. This also
+      ! prevents the tracer from getting stuck in place when the
+      ! local velocity field is zero.
+      IF (uabs_pt < .01_dp) EXIT
+
+      ! Calculate the normalised velocity vector at the tracer's location
+      u_hat_pt = [u_pt / uabs_pt, v_pt / uabs_pt]
+
+      ! Add to counter of tracer movements
+      n = n + 1
+      ! Safety
+      IF (n > SIZE( mesh%V,1)) THEN
+        CALL crash('upstream flowline tracer got stuck!')
+      END IF
+
+      ! Save previous distance-to-origin
+      dist_prev = NORM2( pt - p)
+
+      ! Move the tracer upstream by a distance of 1/2 local resolution
+      pt = pt - u_hat_pt * .5_dp * mesh%R( vi)
+
+      ! Add moved distance to total
+      dist_tot  = dist_tot + NORM2( pt - p)
+
+      ! If the new distance-to-origin is shorter than the previous one, end the trace
+      IF (NORM2( pt - p) < dist_prev) EXIT
+
+      ! If the total distance-to-origin is larger than a chosen limit, end the trace
+      IF (dist_tot > C%porenudge_H_dHdt_flowline_dist_max * 1e3_dp) EXIT
+
+      ! If the new tracer location is outside the domain, end the trace
+      IF (pt( 1) <= mesh%xmin .OR. pt( 2) >= mesh%xmax .OR. &
+          pt( 2) <= mesh%ymin .OR. pt( 2) >= mesh%ymax) EXIT
+
+    END DO ! DO WHILE (.TRUE.)
+
+  END SUBROUTINE extrapolate_from_upstream
 
   SUBROUTINE trace_flowline_upstream( mesh, Hi_tot, u_b_tot, v_b_tot, p, T, n)
     ! Trace the flowline passing through point p upstream through
@@ -1532,130 +1687,5 @@ CONTAINS
     END IF
 
   END SUBROUTINE trace_flowline_downstream
-
-  SUBROUTINE extrapolate_from_upstream( mesh, ice, d_mask_tot, d_values_tot, u_b_tot, v_b_tot, p, found_source)
-    ! Extrapolate an inverted field based on its values upstream of
-    ! the point of interest based on its flowline, computed based on
-    ! the 2-D velocity field u_b,v_b.
-
-    IMPLICIT NONE
-
-    ! Input variables:
-    TYPE(type_mesh),                     INTENT(IN)    :: mesh                ! Mesh data
-    TYPE(type_ice_model),                INTENT(IN)    :: ice                 ! Ice model structure
-    LOGICAL,  DIMENSION(mesh%nV),        INTENT(IN)    :: d_mask_tot          ! Inversion mask: 1=inverted; 0=not-inverted
-    REAL(dp), DIMENSION(mesh%nV),        INTENT(INOUT) :: d_values_tot        ! Inversion data: the field you want to extrapolate
-    REAL(dp), DIMENSION(mesh%nTri),      INTENT(IN)    :: u_b_tot, v_b_tot    ! The u and v velocity fields
-    REAL(dp), DIMENSION(2),              INTENT(IN)    :: p                   ! Your point of interest, i.e. where you want to extrapolate
-    LOGICAL,                             INTENT(OUT)   :: found_source        ! Flag: 1=successful extrapolation; 0=failed extrapolation
-
-    ! Local variables:
-    REAL(dp), DIMENSION(2)                             :: pt                  ! Current location of tracer
-    INTEGER                                            :: vi, vp, iti, ti, n  ! Some indices
-    REAL(dp)                                           :: dist, w, w_tot      ! For the interpolation of velocities at point pt
-    REAL(dp)                                           :: u_pt, v_pt, uabs_pt ! Interpolated velocities at point pt
-    REAL(dp), DIMENSION(2)                             :: u_hat_pt            ! Direction of the velocity vector at point pt
-    REAL(dp)                                           :: dist_prev, dist_tot ! Safety: total travelled distance of tracer
-
-    ! If the vertex vp containing this point is part of the
-    ! original inverted field, no need to extrapolate there
-    vp = 1
-    CALL find_containing_vertex( mesh, p, vp)
-    IF (d_mask_tot( vp)) THEN
-      RETURN
-    END IF
-
-    ! Initialise
-    n  = 0  ! Number of tracer movements
-    pt = p  ! Current point of the tracer
-    vi = vp ! Current vertex containing the tracer
-
-    ! Initialise flag for successful extrapolation
-    found_source = .FALSE.
-
-    ! Safety
-    dist_prev = 0._dp ! Current distance from origin
-    dist_tot  = 0._dp ! Total distance travelled by tracer
-
-    DO WHILE (.TRUE.)
-
-      ! Check if tracer reached its destination
-      ! =======================================
-
-      ! Find the vertex vi currently containing the new tracer position
-      CALL find_containing_vertex( mesh, pt, vi)
-
-      ! If the current vertex is an inverted point,
-      ! use it as the value for our origin vertex,
-      ! mark it as a successfully extrapolated point,
-      ! and exit
-      IF (d_mask_tot( vi)) THEN
-        d_values_tot( vp) = d_values_tot( vi)
-        found_source = .TRUE.
-        RETURN
-      END IF
-
-      ! If not, move the tracer upstream
-      ! ================================
-
-      ! Interpolate between the surrounding triangles
-      ! to find the velocities at the tracer's location
-      w_tot = 0._dp
-      u_pt  = 0._dp
-      v_pt  = 0._dp
-
-      DO iti = 1, mesh%niTri( vi)
-        ti = mesh%iTri( vi,iti)
-        dist = NORM2( mesh%TriGC( ti,:) - pt)
-        w = 1._dp / dist**2
-        w_tot = w_tot + w
-        u_pt  = u_pt  + w * u_b_tot( ti)
-        v_pt  = v_pt  + w * v_b_tot( ti)
-      END DO
-
-      u_pt = u_pt / w_tot
-      v_pt = v_pt / w_tot
-
-      ! Calculate absolute velocity at the tracer's location
-      uabs_pt = SQRT( u_pt**2 + v_pt**2)
-
-      ! If we've reached the ice divide (defined as the place where
-      ! we find velocities below 0.01 m/yr), end the trace. This also
-      ! prevents the tracer from getting stuck in place when the
-      ! local velocity field is zero.
-      IF (uabs_pt < .01_dp) EXIT
-
-      ! Calculate the normalised velocity vector at the tracer's location
-      u_hat_pt = [u_pt / uabs_pt, v_pt / uabs_pt]
-
-      ! Add to counter of tracer movements
-      n = n + 1
-      ! Safety
-      IF (n > SIZE( mesh%V,1)) THEN
-        CALL crash('upstream flowline tracer got stuck!')
-      END IF
-
-      ! Save previous distance-to-origin
-      dist_prev = NORM2( pt - p)
-
-      ! Move the tracer upstream by a distance of 1/2 local resolution
-      pt = pt - u_hat_pt * .5_dp * mesh%R( vi)
-
-      ! Add moved distance to total
-      dist_tot  = dist_tot + NORM2( pt - p)
-
-      ! If the new distance-to-origin is shorter than the previous one, end the trace
-      IF (NORM2( pt - p) < dist_prev) EXIT
-
-      ! If the total distance-to-origin is larger than a chosen limit, end the trace
-      IF (dist_tot > C%porenudge_H_dHdt_flowline_dist_max * 1e3_dp) EXIT
-
-      ! If the new tracer location is outside the domain, end the trace
-      IF (pt( 1) <= mesh%xmin .OR. pt( 2) >= mesh%xmax .OR. &
-          pt( 2) <= mesh%ymin .OR. pt( 2) >= mesh%ymax) EXIT
-
-    END DO ! DO WHILE (.TRUE.)
-
-  END SUBROUTINE extrapolate_from_upstream
 
 END MODULE basal_hydrology
