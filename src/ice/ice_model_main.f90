@@ -51,6 +51,7 @@ MODULE ice_model_main
   USE petsc_basic                                            , ONLY: mat_petsc2CSR
   USE reallocate_mod                                         , ONLY: reallocate_bounds_dp_1D
   USE BMB_main                                               , ONLY: run_BMB_model
+  USE mesh_operators                                         , ONLY: ddx_a_a_2D, ddy_a_a_2D
 
   IMPLICIT NONE
 
@@ -73,6 +74,7 @@ CONTAINS
     REAL(dp)                                              :: wt_prev, wt_next
     INTEGER                                               :: vi
     REAL(dp)                                              :: dt_max
+    REAL(dp), DIMENSION(region%mesh%vi1:region%mesh%vi2)  :: dHs_dx, dHs_dy
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -164,6 +166,11 @@ CONTAINS
     ! Calculate new effective thickness
     CALL calc_effective_thickness( region%mesh, region%ice, region%ice%Hi, region%ice%Hi_eff, region%ice%fraction_margin)
 
+    ! Calculate absolute surface gradient
+    CALL ddx_a_a_2D( region%mesh, region%ice%Hs, dHs_dx)
+    CALL ddy_a_a_2D( region%mesh, region%ice%Hs, dHs_dy)
+    region%ice%Hs_slope = SQRT( dHs_dx**2 + dHs_dy**2)
+
     ! NOTE: as calculating the zeta gradients is quite expensive, only do so when necessary,
     !       i.e. when solving the heat equation or the Blatter-Pattyn stress balance
     ! Calculate zeta gradients
@@ -194,6 +201,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'initialise_ice_dynamics_model'
     INTEGER                                               :: vi
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: dHs_dx, dHs_dy
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -307,6 +315,14 @@ CONTAINS
 
     ! Compute effective thickness at calving fronts
     CALL calc_effective_thickness( mesh, ice, ice%Hi, ice%Hi_eff, ice%fraction_margin)
+
+    ! Surface gradients
+    ! =================
+
+    ! Calculate absolute surface gradient
+    CALL ddx_a_a_2D( mesh, ice%Hs, dHs_dx)
+    CALL ddy_a_a_2D( mesh, ice%Hs, dHs_dy)
+    ice%Hs_slope = SQRT( dHs_dx**2 + dHs_dy**2)
 
     ! Target thinning rates
     ! =====================
@@ -451,6 +467,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'remap_ice_dynamics_model'
     INTEGER                                               :: vi
+    REAL(dp), DIMENSION(mesh_new%vi1:mesh_new%vi2)        :: dHs_dx, dHs_dy
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -492,6 +509,7 @@ CONTAINS
     CALL reallocate_bounds( ice%Hib                         , mesh_new%vi1, mesh_new%vi2         )  ! [m] Ice base elevation (w.r.t. PD sea level)
     CALL reallocate_bounds( ice%TAF                         , mesh_new%vi1, mesh_new%vi2         )  ! [m] Thickness above flotation
     CALL reallocate_bounds( ice%Hi_eff                      , mesh_new%vi1, mesh_new%vi2         )  ! [m] Effective ice thickness
+    CALL reallocate_bounds( ice%Hs_slope                    , mesh_new%vi1, mesh_new%vi2         )  ! [-] Absolute surface gradients
 
     ! Geometry changes
     CALL reallocate_bounds( ice%dHi                         , mesh_new%vi1, mesh_new%vi2         )  ! [m] Ice thickness difference (w.r.t. reference)
@@ -760,6 +778,14 @@ CONTAINS
 
     ! Calculate new effective thickness
     CALL calc_effective_thickness( mesh_new, ice, ice%Hi, ice%Hi_eff, ice%fraction_margin)
+
+    ! Surface gradients
+    ! =================
+
+    ! Calculate absolute surface gradient
+    CALL ddx_a_a_2D( mesh_new, ice%Hs, dHs_dx)
+    CALL ddy_a_a_2D( mesh_new, ice%Hs, dHs_dy)
+    ice%Hs_slope = SQRT( dHs_dx**2 + dHs_dy**2)
 
     ! Sub-grid fractions
     ! ==================

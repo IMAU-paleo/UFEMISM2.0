@@ -387,12 +387,6 @@ CONTAINS
       CASE ('resolution')
         ! Do nothing - this is already part of the regular mesh data; only write this to the square grid output
 
-    ! ===== Effective ice thickness ======
-    ! ====================================
-
-      CASE ('Hi_eff')
-        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'Hi_eff', region%ice%Hi_eff)
-
     ! ===== Reference geometries =====
     ! ================================
 
@@ -441,6 +435,10 @@ CONTAINS
         CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'SL', region%ice%SL)
       CASE ('TAF')
         CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'TAF', region%ice%TAF)
+      CASE ('Hi_eff')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'Hi_eff', region%ice%Hi_eff)
+      CASE ('Hs_slope')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'Hs_slope', region%ice%Hs_slope)
 
     ! ===== Geometry changes w.r.t. reference =====
     ! =============================================
@@ -830,13 +828,6 @@ CONTAINS
         CALL map_from_mesh_to_xy_grid_2D_minval( region%mesh, grid, d_mesh_vec_partial_2D, d_grid_vec_partial_2D)
         CALL write_to_field_multopt_grid_dp_2D_notime( grid, filename, ncid, 'resolution', d_grid_vec_partial_2D)
 
-    ! ===== Effective ice thickness ======
-    ! ====================================
-
-      CASE ('Hi_eff')
-        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%Hi_eff, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'Hi_eff', d_grid_vec_partial_2D)
-
     ! ===== Reference geometries =====
     ! ================================
 
@@ -903,6 +894,12 @@ CONTAINS
       CASE ('TAF')
         CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%TAF, d_grid_vec_partial_2D)
         CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'TAF', d_grid_vec_partial_2D)
+      CASE ('Hi_eff')
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%Hi_eff, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'Hi_eff', d_grid_vec_partial_2D)
+      CASE ('Hs_slope')
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%Hs_slope, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'Hs_slope', d_grid_vec_partial_2D)
 
     ! ===== Geometry changes w.r.t. reference =====
     ! =============================================
@@ -1693,12 +1690,6 @@ CONTAINS
       CASE ('resolution')
         ! Do nothing - this is already part of the regular mesh data; only write this to the square grid output
 
-    ! ===== Effective ice thickness ======
-    ! ====================================
-
-      CASE ('Hi_eff')
-        CALL add_field_mesh_dp_2D( filename, ncid, 'Hi_eff', long_name = 'Effective ice thickness', units = 'm')
-
     ! ===== Reference geometries =====
     ! ================================
 
@@ -1747,6 +1738,10 @@ CONTAINS
         CALL add_field_mesh_dp_2D( filename, ncid, 'SL', long_name = 'Geoid elevation', units = 'm w.r.t. PD sea level')
       CASE ('TAF')
         CALL add_field_mesh_dp_2D( filename, ncid, 'TAF', long_name = 'Thickness above floatation', units = 'm')
+      CASE ('Hi_eff')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'Hi_eff', long_name = 'Effective ice thickness', units = 'm')
+      CASE ('Hs_slope')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'Hs_slope', long_name = 'Absolute surface gradient', units = '-')
 
     ! ===== Geometry changes w.r.t. reference =====
     ! =============================================
@@ -2073,12 +2068,6 @@ CONTAINS
       CASE ('resolution')
         CALL add_field_grid_dp_2D_notime( filename, ncid, 'resolution', long_name = 'Mesh resolution (distance to nearest neighbour)', units = 'm')
 
-    ! ===== Effective ice thickness =====
-    ! ===================================
-
-      CASE ('Hi_eff')
-        CALL add_field_grid_dp_2D( filename, ncid, 'Hi_eff', long_name = 'Effective ice thickness', units = 'm')
-
     ! ===== Reference geometries =====
     ! ================================
 
@@ -2127,6 +2116,10 @@ CONTAINS
         CALL add_field_grid_dp_2D( filename, ncid, 'SL', long_name = 'Geoid elevation', units = 'm w.r.t. PD sea level')
       CASE ('TAF')
         CALL add_field_grid_dp_2D( filename, ncid, 'TAF', long_name = 'Thickness above floatation', units = 'm')
+      CASE ('Hi_eff')
+        CALL add_field_grid_dp_2D( filename, ncid, 'Hi_eff', long_name = 'Effective ice thickness', units = 'm')
+      CASE ('Hs_slope')
+        CALL add_field_grid_dp_2D( filename, ncid, 'Hs_slope', long_name = 'Absolute surface gradient', units = '-')
 
     ! ===== Geometry changes w.r.t. reference =====
     ! =============================================

@@ -44,6 +44,7 @@ CONTAINS
     ALLOCATE( ice%Hib                         ( mesh%vi1:mesh%vi2        ))  ! [m] Ice base elevation (w.r.t. PD sea level)
     ALLOCATE( ice%TAF                         ( mesh%vi1:mesh%vi2        ))  ! [m] Thickness above flotation
     ALLOCATE( ice%Hi_eff                      ( mesh%vi1:mesh%vi2        ))  ! [m] Thickness above flotation
+    ALLOCATE( ice%Hs_slope                    ( mesh%vi1:mesh%vi2        ))  ! [-] Absolute surface gradient
 
     ice%Hi                          = 0._dp
     ice%Hb                          = 0._dp
@@ -52,6 +53,7 @@ CONTAINS
     ice%Hib                         = 0._dp
     ice%TAF                         = 0._dp
     ice%Hi_eff                      = 0._dp
+    ice%Hs_slope                    = 0._dp
 
     ! Geometry changes
     ALLOCATE( ice%dHi                         ( mesh%vi1:mesh%vi2        ))  ! [m] Ice thickness difference (w.r.t. reference)

@@ -567,7 +567,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'apply_grounded_fractions_to_bed_roughness'
     INTEGER                                               :: vi
-    REAL(dp)                                              :: weight_gr, exponent_gr
+    REAL(dp)                                              :: weight_gr, exponent_hi, exponent_hs, exponent_gr
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -586,7 +586,11 @@ CONTAINS
       weight_gr = 1._dp
 
       ! Compute exponent for this vertex's weight based on ice thickness
-      exponent_gr = MAX( .1_dp, LOG10( MAX( 1._dp, ice%Hi( vi))) - 2._dp)
+      exponent_hi = LOG10( MAX( 1._dp, ice%Hi( vi)))
+      ! Compute exponent for this vertex's weight based on surface gradients
+      exponent_hs = ice%Hs_slope( vi) / 0.005_dp
+      ! Compute final exponent for this vertex's weight
+      exponent_gr = MAX( 0._dp, exponent_hi - exponent_hs)
 
       ! Compute a weight based on the grounded area fractions
       IF (ice%mask_gl_gr( vi)) THEN

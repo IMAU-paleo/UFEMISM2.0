@@ -23,7 +23,6 @@ MODULE basal_hydrology
   USE math_utilities                                         , ONLY: triangle_area, is_floating
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_1D, gather_to_all_logical_1D
   USE mesh_remapping                                         , ONLY: smooth_Gaussian_2D
-  USE mesh_operators                                         , ONLY: ddx_a_a_2D, ddy_a_a_2D
 
   IMPLICIT NONE
 
@@ -425,7 +424,6 @@ CONTAINS
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: Ti_hom_av_up, Ti_hom_av_down
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: I_tot
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: dC1_dt
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: dHs_dx, dHs_dy, abs_grad_Hs
     REAL(dp)                                           :: Hi_misfit, uabs_surf_misfit
     REAL(dp)                                           :: fg_exp_mod, bf_exp_mod, hs_exp_mod, hi_exp_mod, max_neighbour, max_vertex_size, unstable_vertex, exponent_gr
     REAL(dp)                                           :: t_scale, porenudge_H_dHdt_flowline_t_scale, porenudge_H_dHdt_flowline_dHdt0, porenudge_H_dHdt_flowline_dH0, porenudge_H_dHdt_flowline_dU0
@@ -458,9 +456,6 @@ CONTAINS
     ALLOCATE( Ti_hom_av_down(           mesh%vi1:mesh%vi2), source = 0._dp )
     ALLOCATE( I_tot(                    mesh%vi1:mesh%vi2), source = 0._dp )
     ALLOCATE( dC1_dt(                   mesh%vi1:mesh%vi2), source = 0._dp )
-    ALLOCATE( dHs_dx(                   mesh%vi1:mesh%vi2), source = 0._dp )
-    ALLOCATE( dHs_dy(                   mesh%vi1:mesh%vi2), source = 0._dp )
-    ALLOCATE( abs_grad_Hs(              mesh%vi1:mesh%vi2), source = 0._dp )
     ALLOCATE( dC1_dt_smoothed(          mesh%vi1:mesh%vi2), source = 0._dp )
     ALLOCATE( unstable_vertex_smoothed( mesh%vi1:mesh%vi2), source = 0._dp )
 
@@ -873,19 +868,12 @@ CONTAINS
     ! Regularise tricky areas
     ! =======================
 
-    ! Calculate surface slopes
-    CALL ddx_a_a_2D( mesh, ice%Hs, dHs_dx)
-    CALL ddy_a_a_2D( mesh, ice%Hs, dHs_dy)
-
-    ! Calculate absolute surface gradient
-    abs_grad_Hs = SQRT( dHs_dx**2 + dHs_dy**2)
-
     DO vi = mesh%vi1, mesh%vi2
 
       ! Grounded fractions
       fg_exp_mod = 1._dp - ice%fraction_gr( vi)
       ! Steep slopes
-      hs_exp_mod = MIN( 1.0_dp, MAX( 0._dp, MAX( 0._dp, abs_grad_Hs( vi) - 0.003_dp) / (0.01_dp - 0.003_dp) ))
+      hs_exp_mod = MIN( 1.0_dp, MAX( 0._dp, MAX( 0._dp, ice%Hs_slope( vi) - 0.003_dp) / (0.01_dp - 0.003_dp) ))
 
       hi_exp_mod = MIN( 1.0_dp, MAX( 0._dp, ice%Hi( vi) / 200._dp ))
 
@@ -1157,9 +1145,6 @@ CONTAINS
     DEALLOCATE( Ti_hom_av_down )
     DEALLOCATE( I_tot          )
     DEALLOCATE( dC1_dt         )
-    DEALLOCATE( dHs_dx         )
-    DEALLOCATE( dHs_dy         )
-    DEALLOCATE( abs_grad_Hs    )
     DEALLOCATE( dC1_dt_smoothed)
     DEALLOCATE( unstable_vertex_smoothed)
 
@@ -1243,7 +1228,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'apply_grounded_fractions_to_pore_water_fraction'
     INTEGER                                            :: vi
-    REAL(dp)                                           :: weight_gr, exponent_gr, ocean_entrainment
+    REAL(dp)                                           :: weight_gr, exponent_hi, exponent_hs, exponent_gr, ocean_entrainment
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -1262,7 +1247,11 @@ CONTAINS
       weight_gr = 1._dp
 
       ! Compute exponent for this vertex's weight based on ice thickness
-      exponent_gr = MAX( .1_dp, LOG10( MAX( 1._dp, ice%Hi( vi))) - 2._dp)
+      exponent_hi = LOG10( MAX( 1._dp, ice%Hi( vi)))
+      ! Compute exponent for this vertex's weight based on ice gradients
+      exponent_hs = ice%Hs_slope( vi) / 0.005_dp
+      ! Compute final exponent for this vertex's weight
+      exponent_gr = MAX( 0._dp, exponent_hi - exponent_hs)
 
       ! Compute a weight based on the grounded area fractions
       IF (ice%mask_gl_gr( vi)) THEN

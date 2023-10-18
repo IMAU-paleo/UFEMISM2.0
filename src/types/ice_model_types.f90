@@ -220,6 +220,7 @@ MODULE ice_model_types
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: Hib                         ! [m] Ice base elevation (w.r.t. PD sea level)
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: TAF                         ! [m] Thickness above flotation
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: Hi_eff                      ! [m] Effective thickness of ice margins
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: Hs_slope                    ! [-] Absolute surface gradient
 
     ! Geometry changes
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHi                         ! [m] Ice thickness difference (w.r.t. reference)
