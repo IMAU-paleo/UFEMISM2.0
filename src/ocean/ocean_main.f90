@@ -401,8 +401,12 @@ CONTAINS
     END IF
 
     ! Reallocate memory for main variables
-    CALL reallocate_bounds( ocean%T, mesh_new%vi1, mesh_new%vi2,12)
-    CALL reallocate_bounds( ocean%S, mesh_new%vi1, mesh_new%vi2,12)
+    CALL reallocate_bounds( ocean%T, mesh_new%vi1, mesh_new%vi2, C%nz_ocean)
+    CALL reallocate_bounds( ocean%S, mesh_new%vi1, mesh_new%vi2, C%nz_ocean)
+
+    ! Reallocate memory for secondary variables
+    CALL reallocate_bounds( ocean%T_draft,          mesh_new%vi1, mesh_new%vi2)
+    CALL reallocate_bounds( ocean%T_freezing_point, mesh_new%vi1, mesh_new%vi2)
 
     ! Determine which ocean model to remap
     IF     (choice_ocean_model == 'none') THEN

@@ -1070,7 +1070,6 @@ CONTAINS
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: SMB_new
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: BMB_new
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: LMB_new
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: dHi_dt_target_new
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: dHi_dt_residual_dummy
     REAL(dp)                                              :: visc_it_norm_dUV_tol_save
     INTEGER                                               :: visc_it_nit_save
@@ -1229,11 +1228,6 @@ CONTAINS
     CALL map_from_mesh_to_mesh_2D( mesh_old, mesh, BMB%BMB, BMB_new, '2nd_order_conservative')
     CALL map_from_mesh_to_mesh_2D( mesh_old, mesh, LMB%LMB, LMB_new, '2nd_order_conservative')
 
-    ! == Remap target dHi_dt to get things consistent
-    ! ===============================================
-
-    CALL map_from_mesh_to_mesh_2D( mesh_old, mesh, ice%dHi_dt_target, dHi_dt_target_new, '2nd_order_conservative')
-
     ! == Relax the ice thickness for a few time steps
     ! ===============================================
 
@@ -1246,7 +1240,7 @@ CONTAINS
 
       ! Calculate dH/dt around the calving front
       CALL calc_dHi_dt( mesh, ice%Hi, ice%Hb, ice%SL, ice%u_vav_b, ice%v_vav_b, SMB_new, BMB_new, LMB_new, ice%fraction_margin, ice%mask_noice, C%dt_ice_min, &
-        ice%dHi_dt, Hi_tplusdt, divQ, dHi_dt_target_new, dHi_dt_residual_dummy, BC_prescr_mask, BC_prescr_Hi)
+        ice%dHi_dt, Hi_tplusdt, divQ, ice%dHi_dt_target, dHi_dt_residual_dummy, BC_prescr_mask, BC_prescr_Hi)
 
       ! Update ice thickness and advance pseudo-time
       ice%Hi = Hi_tplusdt
@@ -1446,10 +1440,10 @@ CONTAINS
                                                 " yr - dt = " // TRIM( r_step) // " yr"
       END IF
 
-    END DO
+      ! Retrieve user-defined viscosity-iteration tolerance
+      C%visc_it_norm_dUV_tol = visc_it_norm_dUV_tol_config
 
-    ! Retrieve user-defined viscosity-iteration tolerance
-    C%visc_it_norm_dUV_tol = visc_it_norm_dUV_tol_config
+    END DO
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
