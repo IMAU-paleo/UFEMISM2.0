@@ -500,27 +500,30 @@ CONTAINS
 
   END SUBROUTINE refine_mesh_line
 
-  SUBROUTINE refine_mesh_polygon( mesh, poly, res_max, alpha_min)
+  SUBROUTINE refine_mesh_polygon( mesh, poly, res_max, alpha_min, poly_mult_not)
     ! Refine a mesh based on a 2-D polygon criterion
 
     IMPLICIT NONE
 
     ! In/output variables:
-    TYPE(type_mesh),            INTENT(INOUT)     :: mesh          ! The mesh that should be refined
-    REAL(dp), DIMENSION(:,:),   INTENT(IN)        :: poly          ! Polygon of interest
-    REAL(dp),                   INTENT(IN)        :: res_max       ! Maximum allowed resolution for triangles crossed by any of these line segments
-    REAL(dp),                   INTENT(IN)        :: alpha_min     ! Minimum allowed internal triangle angle
+    TYPE(type_mesh),                    INTENT(INOUT) :: mesh           ! The mesh that should be refined
+    REAL(dp), DIMENSION(:,:),           INTENT(IN)    :: poly           ! Polygon of interest
+    REAL(dp),                           INTENT(IN)    :: res_max        ! Maximum allowed resolution for triangles crossed by any of these line segments
+    REAL(dp),                           INTENT(IN)    :: alpha_min      ! Minimum allowed internal triangle angle
+    REAL(dp), DIMENSION(:,:), OPTIONAL, INTENT(IN)    :: poly_mult_not  ! Exclude triangles overlapping with these set of polygons
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'refine_mesh_polygon'
-    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE       :: p_line
-    INTEGER                                       :: ti, via, vib, vic
-    REAL(dp), DIMENSION(2)                        :: va, vb, vc
-    LOGICAL                                       :: has_any_overlap
-    REAL(dp)                                      :: longest_leg, smallest_angle
-    LOGICAL                                       :: meets_resolution_criterion
-    LOGICAL                                       :: meets_geometry_criterion
-    REAL(dp), DIMENSION(2)                        :: p_new
+    CHARACTER(LEN=256), PARAMETER                     :: routine_name = 'refine_mesh_polygon'
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE           :: p_line
+    INTEGER                                           :: ti, via, vib, vic
+    REAL(dp), DIMENSION(2)                            :: va, vb, vc
+    LOGICAL                                           :: has_any_overlap, is_in_poly_not
+    REAL(dp)                                          :: longest_leg, smallest_angle
+    LOGICAL                                           :: meets_resolution_criterion
+    LOGICAL                                           :: meets_geometry_criterion
+    REAL(dp), DIMENSION(2)                            :: p_new
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE           :: poly_not
+    INTEGER                                           :: n1,nn,n2
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -549,10 +552,43 @@ CONTAINS
       vb  = mesh%V( vib,:)
       vc  = mesh%V( vic,:)
 
+      ! Check that none of the vertices lie within the
+      ! secondary do-not-refine-here polygons
+      n1 = 1
+      n2 = 0
+      is_in_poly_not = .FALSE.
+
+      DO WHILE (PRESENT(poly_mult_not) .AND. n2 < SIZE( poly_mult_not,1))
+
+        ! Copy a single polygon from poly_mult
+        nn = NINT( poly_mult_not( n1,1))
+        n2 = n1 + nn
+        ALLOCATE( poly_not( nn,2))
+        poly_not = poly_mult_not( n1+1:n2,:)
+        n1 = n2+1
+
+        IF (is_in_polygon( poly_not, va) .AND. &
+            is_in_polygon( poly_not, vb) .AND. &
+            is_in_polygon( poly_not, vc)) THEN
+          ! Triangle lies within the no-remesh zone
+          is_in_poly_not = .TRUE.
+        END IF
+
+        ! Clean up after yourself
+        DEALLOCATE( poly_not)
+
+        ! If we already know, stop checking
+        IF (is_in_poly_not) EXIT
+
+      END DO ! DO WHILE (n2 < SIZE( poly_mult_not,1))
+
+      ! Triangle overlaps with the no-remesh zone, so skip it
+      IF (is_in_poly_not) CYCLE
+
       ! If this triangle lies (partly) inside the polygon, mark it for refinement
       IF (is_in_polygon( poly, va) .OR. &
           is_in_polygon( poly, vb) .OR. &
-          is_in_polygon( poly, vc)) THEN
+          is_in_polygon( poly, vc) ) THEN
         has_any_overlap = .TRUE.
         CALL add_triangle_to_refinement_stack_last( mesh, ti)
       END IF
