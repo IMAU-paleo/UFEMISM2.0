@@ -1192,7 +1192,7 @@ CONTAINS
 
   END SUBROUTINE refine_mesh_line_ROI
 
-  SUBROUTINE refine_mesh_polygon_ROI( mesh, poly, res_max, alpha_min, poly_ROI)
+  SUBROUTINE refine_mesh_polygon_ROI( mesh, poly, res_max, alpha_min, poly_ROI, poly_mult_not)
     ! Refine a mesh based on a 2-D polygon criterion
     !
     ! Only consider triangles lying inside the region of interest
@@ -1201,22 +1201,25 @@ CONTAINS
     IMPLICIT NONE
 
     ! In/output variables:
-    TYPE(type_mesh),            INTENT(INOUT)     :: mesh          ! The mesh that should be refined
-    REAL(dp), DIMENSION(:,:),   INTENT(IN)        :: poly          ! Polygon of interest
-    REAL(dp),                   INTENT(IN)        :: res_max       ! Maximum allowed resolution for triangles crossed by any of these line segments
-    REAL(dp),                   INTENT(IN)        :: alpha_min     ! Minimum allowed internal triangle angle
-    REAL(dp), DIMENSION(:,:  ), INTENT(IN)        :: poly_ROI      ! Polygon describing the region of interest
+    TYPE(type_mesh),                    INTENT(INOUT) :: mesh          ! The mesh that should be refined
+    REAL(dp), DIMENSION(:,:),           INTENT(IN)    :: poly          ! Polygon of interest
+    REAL(dp),                           INTENT(IN)    :: res_max       ! Maximum allowed resolution for triangles crossed by any of these line segments
+    REAL(dp),                           INTENT(IN)    :: alpha_min     ! Minimum allowed internal triangle angle
+    REAL(dp), DIMENSION(:,:  ),         INTENT(IN)    :: poly_ROI      ! Polygon describing the region of interest
+    REAL(dp), DIMENSION(:,:), OPTIONAL, INTENT(IN)    :: poly_mult_not  ! Exclude triangles overlapping with these set of polygons
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'refine_mesh_polygon_ROI'
-    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE       :: p_line
-    INTEGER                                       :: ti, via, vib, vic
-    REAL(dp), DIMENSION(2)                        :: va, vb, vc
-    LOGICAL                                       :: has_any_overlap
-    REAL(dp)                                      :: longest_leg, smallest_angle
-    LOGICAL                                       :: meets_resolution_criterion
-    LOGICAL                                       :: meets_geometry_criterion
-    REAL(dp), DIMENSION(2)                        :: p_new
+    CHARACTER(LEN=256), PARAMETER                     :: routine_name = 'refine_mesh_polygon_ROI'
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE           :: p_line
+    INTEGER                                           :: ti, via, vib, vic
+    REAL(dp), DIMENSION(2)                            :: va, vb, vc
+    LOGICAL                                           :: has_any_overlap, is_in_poly_not
+    REAL(dp)                                          :: longest_leg, smallest_angle
+    LOGICAL                                           :: meets_resolution_criterion
+    LOGICAL                                           :: meets_geometry_criterion
+    REAL(dp), DIMENSION(2)                            :: p_new
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE           :: poly_not
+    INTEGER                                           :: n1,nn,n2
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -1238,6 +1241,39 @@ CONTAINS
       va  = mesh%V( via,:)
       vb  = mesh%V( vib,:)
       vc  = mesh%V( vic,:)
+
+      ! Check that none of the vertices lie within the
+      ! secondary do-not-refine-here polygons
+      n1 = 1
+      n2 = 0
+      is_in_poly_not = .FALSE.
+
+      DO WHILE (PRESENT(poly_mult_not) .AND. n2 < SIZE( poly_mult_not,1))
+
+        ! Copy a single polygon from poly_mult
+        nn = NINT( poly_mult_not( n1,1))
+        n2 = n1 + nn
+        ALLOCATE( poly_not( nn,2))
+        poly_not = poly_mult_not( n1+1:n2,:)
+        n1 = n2+1
+
+        IF (is_in_polygon( poly_not, va) .AND. &
+            is_in_polygon( poly_not, vb) .AND. &
+            is_in_polygon( poly_not, vc)) THEN
+          ! Triangle lies within the no-remesh zone
+          is_in_poly_not = .TRUE.
+        END IF
+
+        ! Clean up after yourself
+        DEALLOCATE( poly_not)
+
+        ! If we already know, stop checking
+        IF (is_in_poly_not) EXIT
+
+      END DO ! DO WHILE (n2 < SIZE( poly_mult_not,1))
+
+      ! Triangle overlaps with the no-remesh zone, so skip it
+      IF (is_in_poly_not) CYCLE
 
       ! If this triangle lies (partly) inside the polygon, mark it for refinement
       IF ((is_in_polygon( poly    , va) .OR. is_in_polygon( poly    , vb) .OR. is_in_polygon( poly    , vc)) .AND. &
@@ -2211,6 +2247,33 @@ CONTAINS
 
   END SUBROUTINE calc_polygon_Tijn_test_ISMIP_HOM_A
 
+  SUBROUTINE calc_polygon_CalvMIP_quarter( poly)
+    ! Return a polygon enveloping one of the radially
+    ! symmetrical quarters of the domain
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE, INTENT(OUT)   :: poly
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'calc_polygon_CalvMIP_quarter'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ALLOCATE( poly( 4,2))
+
+    poly(  1,:) = [  0.0_dp,    0.0_dp]
+    poly(  2,:) = [  0.0_dp,   8.e5_dp]
+    poly(  3,:) = [ 8.e5_dp,   8.e5_dp]
+    poly(  4,:) = [ 8.e5_dp,     0._dp]
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE calc_polygon_CalvMIP_quarter
+
 ! == Some fun and useful tools
 
   SUBROUTINE mesh_add_smileyface( mesh, res, width)
@@ -2350,5 +2413,124 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE mesh_add_UFEMISM_letters
+
+  SUBROUTINE refine_CalvMIP_shelf_donut( mesh, res, width)
+    ! Say hi to Jim. Because we nice.
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),            INTENT(INOUT)     :: mesh
+    REAL(dp),                   INTENT(IN)        :: res
+    REAL(dp),                   INTENT(IN)        :: width
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'refine_CalvMIP_shelf_donut'
+    REAL(dp)                                      :: alpha_min
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE       :: line
+    INTEGER                                       :: i,n
+    REAL(dp)                                      :: x0, xw, y0, yw, r, theta
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    alpha_min = 25._dp * pi / 180._dp
+
+    x0 = (mesh%xmax + mesh%xmin) / 2._dp
+    xw = (mesh%xmax - mesh%xmin) / 2._dp
+    y0 = (mesh%ymax + mesh%ymin) / 2._dp
+    yw = (mesh%ymax - mesh%ymin) / 2._dp
+
+    ! Calving front - circle
+    n = 50
+    r = (750._dp - 50._dp)/800._dp
+    ALLOCATE( line( n,4))
+    DO i = 1, n
+      theta = 2._dp * pi * REAL( i-1,dp) / REAL( n-1,dp)
+      line( i,1:2) = [x0 + r * xw * COS( theta), y0 + yw * r * SIN( theta)]
+      theta = 2._dp * pi * REAL( i  ,dp) / REAL( n-1,dp)
+      line( i,3:4) = [x0 + r * xw * COS( theta), y0 + yw * r * SIN( theta)]
+    END DO
+    CALL refine_mesh_line( mesh, line, res, width, alpha_min)
+    DEALLOCATE( line)
+
+    ! Say hi to Jim
+    ! CALL mesh_add_Jim_greeting( mesh, 5000._dp, 1000._dp)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE refine_CalvMIP_shelf_donut
+
+  SUBROUTINE mesh_add_Jim_greeting( mesh, res, width)
+    ! Say hi to Jim. Because we nice.
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),            INTENT(INOUT)     :: mesh
+    REAL(dp),                   INTENT(IN)        :: res
+    REAL(dp),                   INTENT(IN)        :: width
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'mesh_add_Jim_greeting'
+    REAL(dp)                                      :: alpha_min
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE       :: line
+    INTEGER                                       :: i,n
+    REAL(dp)                                      :: x0, xw, y0, yw, r, theta
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    alpha_min = 25._dp * pi / 180._dp
+
+    x0 = (mesh%xmax + mesh%xmin) / 2._dp
+    xw = (mesh%xmax - mesh%xmin) / 2._dp
+    y0 = (mesh%ymax + mesh%ymin) / 2._dp
+    yw = (mesh%ymax - mesh%ymin) / 2._dp
+
+    ! HI JIM letters - normalised coordinates (mesh domain [-1,1,-1,1])
+    n = 12
+    ALLOCATE( line( n,4), source = 0._dp)
+
+    ! H
+    line(  1,:) = [-0.14_dp,  0.20_dp, -0.14_dp, -0.00_dp]
+    line(  2,:) = [-0.14_dp,  0.10_dp, -0.04_dp,  0.10_dp]
+    line(  3,:) = [-0.04_dp,  0.20_dp, -0.04_dp, -0.00_dp]
+
+    ! I
+    line(  4,:) = [+0.06_dp,  0.20_dp, +0.06_dp, -0.00_dp]
+
+    ! J
+    line(  5,:) = [-0.28_dp, -0.10_dp, -0.08_dp, -0.10_dp]
+    line(  6,:) = [-0.17_dp, -0.10_dp, -0.17_dp, -0.30_dp]
+    line(  7,:) = [-0.27_dp, -0.30_dp, -0.17_dp, -0.30_dp]
+
+    ! I
+    line(  8,:) = [-0.03_dp, -0.10_dp, -0.03_dp, -0.30_dp]
+
+    ! M
+    line(  9,:) = [+0.07_dp, -0.10_dp, +0.07_dp, -0.30_dp]
+    line( 10,:) = [+0.07_dp, -0.10_dp, +0.15_dp, -0.20_dp]
+    line( 11,:) = [+0.15_dp, -0.20_dp, +0.24_dp, -0.10_dp]
+    line( 12,:) = [+0.24_dp, -0.10_dp, +0.24_dp, -0.30_dp]
+
+    ! Scale to actual mesh domain
+    DO i = 1, n
+      line( i,1) = x0 + xw * line( i,1)
+      line( i,2) = y0 + yw * line( i,2)
+      line( i,3) = x0 + xw * line( i,3)
+      line( i,4) = y0 + yw * line( i,4)
+    END DO
+
+    CALL refine_mesh_line( mesh, line, res, width, alpha_min)
+
+    ! Clean up after yourself
+    DEALLOCATE( line)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE mesh_add_Jim_greeting
 
 END MODULE mesh_refinement

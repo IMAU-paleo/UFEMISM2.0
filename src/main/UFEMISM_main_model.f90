@@ -44,7 +44,7 @@ MODULE UFEMISM_main_model
   USE mesh_creation                                          , ONLY: create_mesh_from_gridded_geometry, create_mesh_from_meshed_geometry, write_mesh_success
   USE mesh_operators                                         , ONLY: calc_all_matrix_operators_mesh
   USE grid_basic                                             , ONLY: setup_square_grid
-  USE main_regional_output                                   , ONLY:   create_main_regional_output_file_mesh,   create_main_regional_output_file_grid, &
+  USE main_regional_output                                   , ONLY: create_main_regional_output_file_mesh,   create_main_regional_output_file_grid, &
                                                                      write_to_main_regional_output_file_mesh, write_to_main_regional_output_file_grid, &
                                                                      create_main_regional_output_file_grid_ROI, write_to_main_regional_output_file_grid_ROI, &
                                                                      create_scalar_regional_output_file, write_to_scalar_regional_output_file
@@ -955,7 +955,7 @@ CONTAINS
         CASE ('PineIsland','Thwaites','Amery','RiiserLarsen','SipleCoast','LarsenC','TransMounts', & ! Antarctica
               'Narsarsuaq', &                                                                        ! Greenland
               'Patagonia', &                                                                         ! Patagonia
-              'Tijn_test_ISMIP_HOM_A')                                                               ! Idealised
+              'Tijn_test_ISMIP_HOM_A','CalvMIP_quarter')                                             ! Idealised
           ! List of known regions of interest: these pass the test
         CASE DEFAULT
           ! Region not found
@@ -1017,6 +1017,9 @@ CONTAINS
               CALL calc_polygon_Patagonia( poly_ROI)
             CASE ('Tijn_test_ISMIP_HOM_A')
               CALL calc_polygon_Tijn_test_ISMIP_HOM_A( poly_ROI)
+            CASE ('CalvMIP_quarter')
+              ! Not interesting; skip
+              CYCLE
             CASE DEFAULT
               ! Requested area not in this model domain; skip
               CYCLE

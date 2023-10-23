@@ -844,6 +844,10 @@ CONTAINS
     ELSEIF (choice_refgeo_idealised == 'MISMIP+' .OR. &
             choice_refgeo_idealised == 'MISMIPplus') THEN
       CALL calc_idealised_geometry_MISMIPplus( x, y, Hi, Hb, Hs, SL)
+    ELSEIF (choice_refgeo_idealised == 'calvmip_circular') THEN
+      CALL calc_idealised_geometry_CalvMIP_circular( x, y, Hi, Hb, Hs, SL)
+    ELSEIF (choice_refgeo_idealised == 'calvmip_Thule') THEN
+      CALL calc_idealised_geometry_CalvMIP_Thule( x, y, Hi, Hb, Hs, SL)
     ELSE
       CALL crash('unknown choice_refgeo_idealised "' // TRIM( choice_refgeo_idealised) // '"!')
     END IF
@@ -1328,6 +1332,86 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE calc_idealised_geometry_MISMIPplus
+
+  SUBROUTINE calc_idealised_geometry_CalvMIP_circular( x, y, Hi, Hb, Hs, SL)
+    ! Calculate an idealised geometry
+    !
+    ! The MISMIpplus fjord geometry
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    REAL(dp),                       INTENT(IN)    :: x,y             ! [m] Coordinates
+    REAL(dp),                       INTENT(OUT)   :: Hi              ! [m] Ice thickness
+    REAL(dp),                       INTENT(OUT)   :: Hb              ! [m] Bedrock elevation
+    REAL(dp),                       INTENT(OUT)   :: Hs              ! [m] Surface elevation
+    REAL(dp),                       INTENT(OUT)   :: SL              ! [m] Sea level
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'calc_idealised_geometry_CalvMIP_circular'
+    REAL(dp), PARAMETER                           :: R  = 800E3_dp
+    REAL(dp), PARAMETER                           :: Bc = 900._dp
+    REAL(dp), PARAMETER                           :: Bl = -2000._dp
+    REAL(dp), PARAMETER                           :: Ba = 1100._dp
+    REAL(dp), PARAMETER                           :: rc = 0._dp
+    REAL(dp)                                      :: radius, theta
+
+    ! Add routine to path
+    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+
+    radius = SQRT(x**2 + y**2)
+    theta  = ATAN2(y,x);
+
+    Hi = 0._dp
+    Hb = Bc - (Bc-Bl)*(radius-rc)**2 / (R-rc)**2
+    SL = 0._dp
+    Hs = ice_surface_elevation( Hi, Hb, SL)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE calc_idealised_geometry_CalvMIP_circular
+
+  SUBROUTINE calc_idealised_geometry_CalvMIP_Thule( x, y, Hi, Hb, Hs, SL)
+    ! Calculate an idealised geometry
+    !
+    ! The MISMIpplus fjord geometry
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    REAL(dp),                       INTENT(IN)    :: x,y             ! [m] Coordinates
+    REAL(dp),                       INTENT(OUT)   :: Hi              ! [m] Ice thickness
+    REAL(dp),                       INTENT(OUT)   :: Hb              ! [m] Bedrock elevation
+    REAL(dp),                       INTENT(OUT)   :: Hs              ! [m] Surface elevation
+    REAL(dp),                       INTENT(OUT)   :: SL              ! [m] Sea level
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'calc_idealised_geometry_CalvMIP_Thule'
+    REAL(dp), PARAMETER                           :: R  = 800E3_dp
+    REAL(dp), PARAMETER                           :: Bc = 900._dp
+    REAL(dp), PARAMETER                           :: Bl = -2000._dp
+    REAL(dp), PARAMETER                           :: Ba = 1100._dp
+    REAL(dp), PARAMETER                           :: rc = 0._dp
+    REAL(dp)                                      :: radius, theta, l, a
+
+    ! Add routine to path
+    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+
+    radius = SQRT(x**2 + y**2)
+    theta  = ATAN2(y,x);
+    l = R - COS( 2._dp * theta) * R / 2._dp
+    a = Bc - (Bc-Bl)*(radius-rc)**2 / (R-rc)**2
+
+    Hi = 0._dp
+    Hb = Ba * COS( 3._dp * pi * radius / l) + a
+    SL = 0._dp
+    Hs = ice_surface_elevation( Hi, Hb, SL)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE calc_idealised_geometry_CalvMIP_Thule
 
   ! Utilities
   ! =========

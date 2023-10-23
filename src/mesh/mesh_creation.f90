@@ -20,7 +20,8 @@ MODULE mesh_creation
                                                                      calc_polygon_Amery_ice_shelf, calc_polygon_Riiser_Larsen_ice_shelf, &
                                                                      calc_polygon_Siple_Coast, calc_polygon_Patagonia, calc_polygon_Larsen_ice_shelf, &
                                                                      calc_polygon_Transantarctic_Mountains, calc_polygon_Narsarsuaq, &
-                                                                     calc_polygon_Tijn_test_ISMIP_HOM_A, enforce_contiguous_process_domains
+                                                                     calc_polygon_Tijn_test_ISMIP_HOM_A, calc_polygon_CalvMIP_quarter, &
+                                                                     enforce_contiguous_process_domains, refine_CalvMIP_shelf_donut
   USe mesh_parallel_creation                                 , ONLY: broadcast_mesh
   USE mesh_secondary                                         , ONLY: calc_all_secondary_mesh_data
   USE mesh_operators                                         , ONLY: calc_all_matrix_operators_mesh
@@ -887,7 +888,7 @@ CONTAINS
         CASE ('PineIsland','Thwaites','Amery','RiiserLarsen','SipleCoast', 'LarsenC','TransMounts', & ! Antarctica
               'Narsarsuaq', &                                                                         ! Greenland
               'Patagonia', &                                                                          ! Patagonia
-              'Tijn_test_ISMIP_HOM_A')                                                                ! Idealised
+              'Tijn_test_ISMIP_HOM_A','CalvMIP_quarter')                                              ! Idealised
           ! List of known regions of interest: these pass the test
         CASE DEFAULT
           ! Region not found
@@ -949,6 +950,8 @@ CONTAINS
               CALL calc_polygon_Patagonia( poly_ROI)
             CASE ('Tijn_test_ISMIP_HOM_A')
               CALL calc_polygon_Tijn_test_ISMIP_HOM_A( poly_ROI)
+            CASE ('CalvMIP_quarter')
+              CALL calc_polygon_CalvMIP_quarter( poly_ROI)
             CASE DEFAULT
               ! Requested area not in this model domain; skip
               CYCLE
@@ -1004,8 +1007,10 @@ CONTAINS
         poly = poly_mult_shelf( n1+1:n2,:)
         n1 = n2+1
 
-        ! Refine mesh over this single polygon
-        CALL refine_mesh_polygon_ROI( mesh, poly, C%ROI_maximum_resolution_floating_ice, C%alpha_min, poly_ROI)
+        ! Refine mesh over this single polygon. Use the ice sheet polygon set as a
+        ! "no-refinement" zone to avoid extreme cases where the ice shelf polygon
+        ! encompases the ice sheet one (e.g. in the domains of CalvMIP)
+        CALL refine_mesh_polygon_ROI( mesh, poly, C%ROI_maximum_resolution_floating_ice, C%alpha_min, poly_ROI, poly_mult_sheet)
 
         ! Clean up after yourself
         DEALLOCATE( poly)
