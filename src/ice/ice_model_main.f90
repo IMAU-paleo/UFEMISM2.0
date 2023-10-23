@@ -1526,12 +1526,15 @@ CONTAINS
       ! == Predictor step ==
       ! ====================
 
+      ! ! Invert a lateral mass balance field that keeps the calving fronts in equilibrium
+      ! CALL LMB_inversion( region, region%ice%pc%dt_np1)
+
       ! Calculate thinning rates for current geometry and velocity
       CALL calc_dHi_dt( region%mesh, region%ice%Hi, region%ice%Hb, region%ice%SL, region%ice%u_vav_b, region%ice%v_vav_b, region%SMB%SMB, region%BMB%BMB, region%LMB%LMB, region%AMB%AMB, region%ice%fraction_margin, &
                         region%ice%mask_noice, region%ice%pc%dt_np1, region%ice%pc%dHi_dt_Hi_n_u_n, Hi_dummy, region%ice%divQ, region%ice%dHi_dt_target)
 
       ! If so desired, alter the computed dH/dt by adjusting dummy mass balance fluxes to get an equilibrium state
-      CALL MB_inversion( region%mesh, region%ice, region%refgeo_PD, region%SMB, region%BMB, region%LMB, region%AMB, dHi_dt_dummy, Hi_dummy, region%ice%pc%dt_np1, region%time, region%name)
+      CALL MB_inversion( region%mesh, region%ice, region%refgeo_PD, region%SMB, region%BMB, region%LMB, region%AMB, region%ice%pc%dHi_dt_Hi_n_u_n, Hi_dummy, region%ice%pc%dt_np1, region%time, region%name)
 
       ! Calculate predicted ice thickness (Robinson et al., 2020, Eq. 30)
       region%ice%pc%Hi_star_np1 = region%ice%Hi_prev + region%ice%pc%dt_np1 * ((1._dp + region%ice%pc%zeta_t / 2._dp) * &
@@ -1597,6 +1600,9 @@ CONTAINS
 
       ! Update effective ice thickness
       CALL calc_effective_thickness( region%mesh, region%ice, region%ice%Hi, region%ice%Hi_eff, region%ice%fraction_margin)
+
+      ! ! Invert a lateral mass balance field that keeps the calving fronts in equilibrium
+      ! CALL LMB_inversion( region, region%ice%pc%dt_np1)
 
       ! Calculate thinning rates for the current ice thickness and predicted velocity
       CALL calc_dHi_dt( region%mesh, region%ice%Hi, region%ice%Hb, region%ice%SL, region%ice%u_vav_b, region%ice%v_vav_b, region%SMB%SMB, region%BMB%BMB, region%LMB%LMB, region%AMB%AMB, region%ice%fraction_margin, &
@@ -2310,14 +2316,14 @@ CONTAINS
       ! Skip vertices where LMB does not operate
       IF (.NOT. region%ice%mask_cf_fl( vi) .AND. .NOT. region%ice%mask_icefree_ocean( vi)) CYCLE
 
-      IF (region%time > 10000._dp) THEN
+      calving_rate = 0._dp
+
+      IF (C%choice_refgeo_PD_ANT == 'idealised' .AND. region%time > 10000._dp) THEN
         IF (C%choice_refgeo_init_idealised == 'calvmip_circular') THEN
           calving_rate = -300._dp * SIN(2._dp * pi * region%time / 1000._dp)
         ELSEIF (C%choice_refgeo_init_idealised == 'calvmip_Thule') THEN
           calving_rate = -750._dp * SIN(2._dp * pi * region%time / 1000._dp)
         END IF
-      ELSE
-        calving_rate = 0._dp
       END IF
 
       IF (region%ice%uabs_vav( vi) > 0._dp) THEN

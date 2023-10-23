@@ -491,6 +491,9 @@ CONTAINS
     IF (time >= C%BMB_inversion_t_start .AND. &
         time <= C%BMB_inversion_t_end) THEN
 
+      ! Write inverted BMB to main field
+      BMB%BMB = BMB%BMB_inv
+
       ! Save the current BMB field
       BMB%BMB_ref = BMB%BMB
 

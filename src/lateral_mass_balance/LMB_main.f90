@@ -73,7 +73,7 @@ CONTAINS
           END IF
         END DO
       CASE ('inverted')
-        ! No need to do anything
+        LMB%LMB = LMB%LMB_inv
       CASE DEFAULT
         CALL crash('unknown choice_LMB_model "' // TRIM( choice_LMB_model) // '"')
     END SELECT
