@@ -723,7 +723,11 @@ CONTAINS
           ! Refine mesh over this single polygon. Use the ice sheet polygon set as a
           ! "no-refinement" zone to avoid extreme cases where the ice shelf polygon
           ! encompases the ice sheet one (e.g. in the circular domain of CalvMIP)
-          CALL refine_mesh_polygon( mesh, poly, C%maximum_resolution_floating_ice, C%alpha_min, poly_mult_sheet)
+          IF (C%choice_refgeo_PD_ANT == 'idealised') THEN
+            CALL refine_mesh_polygon( mesh, poly, C%maximum_resolution_floating_ice, C%alpha_min, poly_mult_sheet)
+          ELSE
+            CALL refine_mesh_polygon( mesh, poly, C%maximum_resolution_floating_ice, C%alpha_min)
+          END IF
 
           ! Clean up after yourself
           DEALLOCATE( poly)
@@ -735,6 +739,15 @@ CONTAINS
 
       CALL refine_mesh_in_regions_of_interest( region_name, poly_mult_sheet, poly_mult_shelf, &
         p_line_grounding_line, p_line_calving_front, p_line_ice_front, p_line_coastline, mesh)
+
+    ! == Special cases
+    ! ================
+
+      IF (C%choice_refgeo_PD_ANT == 'idealised' .AND. C%choice_refgeo_init_idealised == 'calvmip_circular') THEN
+        CALL refine_CalvMIP_shelf_donut( mesh, C%maximum_resolution_grounding_line*2._dp, 70000._dp)
+      ELSEIF (C%choice_refgeo_PD_ANT == 'idealised' .AND. C%choice_refgeo_init_idealised == 'calvmip_Thule') THEN
+        CALL refine_CalvMIP_shelf_donut( mesh, C%maximum_resolution_grounding_line*2._dp, 50000._dp)
+      END IF
 
     ! == Smooth the mesh
     ! ==================
@@ -1010,7 +1023,11 @@ CONTAINS
         ! Refine mesh over this single polygon. Use the ice sheet polygon set as a
         ! "no-refinement" zone to avoid extreme cases where the ice shelf polygon
         ! encompases the ice sheet one (e.g. in the domains of CalvMIP)
-        CALL refine_mesh_polygon_ROI( mesh, poly, C%ROI_maximum_resolution_floating_ice, C%alpha_min, poly_ROI, poly_mult_sheet)
+        IF (C%choice_refgeo_PD_ANT == 'idealised') THEN
+          CALL refine_mesh_polygon_ROI( mesh, poly, C%ROI_maximum_resolution_floating_ice, C%alpha_min, poly_ROI, poly_mult_sheet)
+        ELSE
+          CALL refine_mesh_polygon_ROI( mesh, poly, C%ROI_maximum_resolution_floating_ice, C%alpha_min, poly_ROI)
+        END IF
 
         ! Clean up after yourself
         DEALLOCATE( poly)
