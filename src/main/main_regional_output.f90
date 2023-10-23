@@ -763,6 +763,13 @@ CONTAINS
       CASE ('LMB')
         CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'LMB', region%LMB%LMB)
 
+    ! == Artificial mass balance ==
+    ! =============================
+
+      ! Main AMB variables
+      CASE ('AMB')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'AMB', region%AMB%AMB)
+
     ! ===== End of user-defined output fields =====
     ! =============================================
 
@@ -1231,6 +1238,14 @@ CONTAINS
       CASE ('LMB')
         CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%LMB%LMB, d_grid_vec_partial_2D)
         CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'LMB', d_grid_vec_partial_2D)
+
+    ! == Artificial mass balance ==
+    ! =============================
+
+      ! Main AMB variables
+      CASE ('AMB')
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%AMB%AMB, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'AMB', d_grid_vec_partial_2D)
 
     ! ===== End of user-defined output fields =====
     ! =============================================
@@ -2020,6 +2035,13 @@ CONTAINS
       CASE ('LMB')
         CALL add_field_mesh_dp_2D( filename, ncid, 'LMB', long_name = 'Lateral mass balance', units = 'm yr^-1')
 
+    ! == Artificial mass balance ==
+    ! =============================
+
+      ! Main AMB variables
+      CASE ('AMB')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'AMB', long_name = 'Artificial mass balance', units = 'm yr^-1')
+
     ! ===== End of user-defined output fields =====
     ! =============================================
 
@@ -2386,6 +2408,13 @@ CONTAINS
       ! Main LMB variables
       CASE ('LMB')
         CALL add_field_grid_dp_2D( filename, ncid, 'LMB', long_name = 'Lateral mass balance', units = 'm yr^-1')
+
+    ! == Artificial mass balance ==
+    ! =============================
+
+      ! Main AMB variables
+      CASE ('AMB')
+        CALL add_field_grid_dp_2D( filename, ncid, 'AMB', long_name = 'Artificial mass balance', units = 'm yr^-1')
 
     ! ===== End of user-defined output fields =====
     ! =============================================

@@ -35,6 +35,7 @@ MODULE UFEMISM_main_model
   USE BMB_main                                               , ONLY: initialise_BMB_model, run_BMB_model, remap_BMB_model, &
                                                                      create_restart_file_BMB_model, write_to_restart_file_BMB_model
   USE LMB_main                                               , ONLY: initialise_LMB_model, run_LMB_model, remap_LMB_model
+  USE AMB_main                                               , ONLY: initialise_AMB_model, remap_AMB_model
   USE GIA_main                                               , ONLY: initialise_GIA_model, run_GIA_model, remap_GIA_model, &
                                                                      create_restart_file_GIA_model, write_to_restart_file_GIA_model
   USE basal_inversion_main                                   , ONLY: initialise_basal_inversion, run_basal_inversion
@@ -504,6 +505,11 @@ CONTAINS
 
     CALL initialise_LMB_model( region%mesh, region%LMB, region%name)
 
+    ! ===== Artificial mass balance =====
+    ! ===================================
+
+    CALL initialise_AMB_model( region%mesh, region%AMB)
+
     ! ===== Run the climate, ocean, SMB, BMB, and LMB models =====
     ! ============================================================
 
@@ -550,7 +556,7 @@ CONTAINS
     ! =======================
 
     CALL apply_regional_corrections( region)
-    CALL apply_geometry_relaxation( region)
+    CALL apply_geometry_relaxation(  region)
 
     ! ===== Integrated scalars =====
     ! ==============================
@@ -1154,12 +1160,13 @@ CONTAINS
     CALL initialise_reference_geometries_on_model_mesh( region%name, mesh_new, region%refgeo_init, region%refgeo_PD, region%refgeo_GIAeq)
 
     ! Remap all the model data from the old mesh to the new mesh
-    CALL remap_ice_dynamics_model( region%mesh, mesh_new, region%ice, region%refgeo_PD, region%SMB, region%BMB, region%LMB, region%GIA, region%time, region%name)
+    CALL remap_ice_dynamics_model( region%mesh, mesh_new, region%ice, region%refgeo_PD, region%SMB, region%BMB, region%LMB, region%AMB, region%GIA, region%time, region%name)
     CALL remap_climate_model(      region%mesh, mesh_new,             region%climate, region%name)
     CALL remap_ocean_model(        region%mesh, mesh_new,             region%ocean  , region%name)
     CALL remap_SMB_model(          region%mesh, mesh_new,             region%SMB    , region%name)
     CALL remap_BMB_model(          region%mesh, mesh_new, region%ice, region%BMB    , region%name)
     CALL remap_LMB_model(          region%mesh, mesh_new,             region%LMB    , region%name)
+    CALL remap_AMB_model(          region%mesh, mesh_new,             region%AMB                 )
     CALL remap_GIA_model(          region%mesh, mesh_new,             region%GIA                 )
 
     ! Set all model component timers so that they will all be run right after the mesh update

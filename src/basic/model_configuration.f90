@@ -730,6 +730,9 @@ MODULE model_configuration
     ! Time step
     LOGICAL             :: do_asynchronous_BMB_config                   = .TRUE.                           ! Whether or not the BMB should be calculated asynchronously from the rest of the model; if so, use dt_climate; if not, calculate it in every time step
     REAL(dp)            :: dt_BMB_config                                = 10._dp                           ! [yr] Time step for calculating BMB
+
+    ! Inversion
+    LOGICAL             :: do_BMB_inversion_config                      = .FALSE.                          ! Whether or not the BMB should be inverted to keep whatever geometry the floating areas have at any given moment
     REAL(dp)            :: BMB_inversion_t_start_config                 = +9.9E9_dp                        ! [yr] Start time for BMB inversion based on computed thinning rates in marine areas
     REAL(dp)            :: BMB_inversion_t_end_config                   = +9.9E9_dp                        ! [yr] End   time for BMB inversion based on computed thinning rates in marine areas
 
@@ -759,6 +762,9 @@ MODULE model_configuration
 
     ! Time step
     REAL(dp)            :: dt_LMB_config                                = 10._dp                           ! [yr] Time step for calculating LMB [not implemented yet]
+
+    ! Inversion
+    LOGICAL             :: do_LMB_inversion_config                      = .FALSE.                          ! Whether or not the LMB should be inverted to keep whatever geometry the calving front areas have at any given moment
     REAL(dp)            :: LMB_inversion_t_start_config                 = +9.9E9_dp                        ! [yr] Start time for LMB inversion based on computed thinning rates in frontal areas
     REAL(dp)            :: LMB_inversion_t_end_config                   = +9.9E9_dp                        ! [yr] End   time for LMB inversion based on computed thinning rates in frontal areas
 
@@ -1598,6 +1604,9 @@ MODULE model_configuration
     ! Time step
     LOGICAL             :: do_asynchronous_BMB
     REAL(dp)            :: dt_BMB
+
+    ! Inversion
+    LOGICAL             :: do_BMB_inversion
     REAL(dp)            :: BMB_inversion_t_start
     REAL(dp)            :: BMB_inversion_t_end
 
@@ -1627,6 +1636,9 @@ MODULE model_configuration
 
     ! Time step
     REAL(dp)            :: dt_LMB
+
+    ! Inversion
+    LOGICAL             :: do_LMB_inversion
     REAL(dp)            :: LMB_inversion_t_start
     REAL(dp)            :: LMB_inversion_t_end
 
@@ -2363,6 +2375,7 @@ CONTAINS
       timeframe_SMB_prescribed_ANT_config                         , &
       do_asynchronous_BMB_config                                  , &
       dt_BMB_config                                               , &
+      do_BMB_inversion_config                                     , &
       BMB_inversion_t_start_config                                , &
       BMB_inversion_t_end_config                                  , &
       do_subgrid_BMB_at_grounding_line_config                     , &
@@ -2375,6 +2388,7 @@ CONTAINS
       uniform_BMB_config                                          , &
       BMB_Favier2019_gamma_config                                 , &
       dt_LMB_config                                               , &
+      do_LMB_inversion_config                                     , &
       LMB_inversion_t_start_config                                , &
       LMB_inversion_t_end_config                                  , &
       choice_LMB_model_NAM_config                                 , &
@@ -3216,6 +3230,9 @@ CONTAINS
     ! Time step
     C%do_asynchronous_BMB                                    = do_asynchronous_BMB_config
     C%dt_BMB                                                 = dt_BMB_config
+
+    ! Inversion
+    C%do_BMB_inversion                                       = do_BMB_inversion_config
     C%BMB_inversion_t_start                                  = BMB_inversion_t_start_config
     C%BMB_inversion_t_end                                    = BMB_inversion_t_end_config
 
@@ -3245,6 +3262,9 @@ CONTAINS
 
     ! Time step
     C%dt_LMB                                                 = dt_LMB_config
+
+    ! Inversion
+    C%do_LMB_inversion                                       = do_LMB_inversion_config
     C%LMB_inversion_t_start                                  = LMB_inversion_t_start_config
     C%LMB_inversion_t_end                                    = LMB_inversion_t_end_config
 

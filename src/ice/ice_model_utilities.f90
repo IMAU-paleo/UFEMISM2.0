@@ -19,6 +19,10 @@ MODULE ice_model_utilities
   USE mesh_types                                             , ONLY: type_mesh
   USE ice_model_types                                        , ONLY: type_ice_model
   USE reference_geometries                                   , ONLY: type_reference_geometry
+  USE SMB_model_types                                        , ONLY: type_SMB_model
+  USE BMB_model_types                                        , ONLY: type_BMB_model
+  USE LMB_model_types                                        , ONLY: type_LMB_model
+  USE AMB_model_types                                        , ONLY: type_AMB_model
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_logical_1D
   USE math_utilities                                         , ONLY: is_floating, triangle_area, oblique_sg_projection, is_in_polygon
   USE mesh_remapping                                         , ONLY: Atlas, create_map_from_xy_grid_to_mesh, create_map_from_xy_grid_to_mesh_triangles
@@ -1397,8 +1401,9 @@ CONTAINS
     character(len=256), parameter                         :: routine_name = 'calc_effective_thickness'
     integer                                               :: vi, ci, vc
     real(dp)                                              :: Hi_neighbour_max
-    real(dp), dimension(mesh%nV)                          :: Hi_tot
-    logical,  dimension(mesh%nV)                          :: mask_margin_tot, mask_floating_ice_tot, mask_grounded_ice_tot
+    real(dp), dimension(mesh%nV)                          :: Hi_tot, Hb_tot, SL_tot
+    logical,  dimension(mesh%vi1:mesh%vi2)                :: mask_margin, mask_floating
+    logical,  dimension(mesh%nV)                          :: mask_margin_tot, mask_floating_tot
 
     ! == Initialisation
     ! =================
@@ -1407,34 +1412,63 @@ CONTAINS
     call init_routine( routine_name)
 
     ! Collect Hi from all processes
-    call gather_to_all_dp_1D( Hi, Hi_tot)
-    call gather_to_all_logical_1D( ice%mask_floating_ice, mask_floating_ice_tot)
-    call gather_to_all_logical_1D( ice%mask_grounded_ice, mask_grounded_ice_tot)
+    call gather_to_all_dp_1D( Hi,     Hi_tot)
+    call gather_to_all_dp_1D( ice%Hb, Hb_tot)
+    call gather_to_all_dp_1D( ice%SL, SL_tot)
 
-    ! Initialise values
-    do vi = mesh%vi1, mesh%vi2
-      if (Hi_tot( vi) > 0._dp) then
-        fraction_margin( vi) = 1._dp
-        Hi_eff( vi) = Hi_tot( vi)
-      else
-        fraction_margin( vi) = 0._dp
-        Hi_eff( vi) = 0._dp
-      end if
-    end do
-
-    ! == Detect margins
-    ! =================
+    ! == Margin mask
+    ! ==============
 
     ! Initialise
-    mask_margin_tot = .false.
+    mask_margin = .false.
 
     do vi = mesh%vi1, mesh%vi2
       do ci = 1, mesh%nC( vi)
         vc = mesh%C( vi,ci)
         if (Hi_tot( vi) > 0._dp .and. Hi_tot( vc) == 0._dp) then
-          mask_margin_tot( vi) = .true.
+          mask_margin( vi) = .true.
         end if
       end do
+    end do
+
+    ! Gather mask values from all processes
+    call gather_to_all_logical_1D( mask_margin, mask_margin_tot)
+
+    ! == Floating mask
+    ! ================
+
+    ! Initialise
+    mask_floating = .false.
+
+    do vi = mesh%vi1, mesh%vi2
+      if (is_floating( Hi_tot( vi), ice%Hb( vi), ice%SL( vi))) then
+        mask_floating( vi) = .true.
+      end if
+    end do
+
+    ! Gather mask values from all processes
+    call gather_to_all_logical_1D( mask_floating, mask_floating_tot)
+
+    ! == Default values
+    ! =================
+
+    ! Initialise values
+    do vi = mesh%vi1, mesh%vi2
+      ! Grounded regions: ice-free land and grounded ice
+      ! NOTE: important to let ice-free land have a non-zero
+      ! margin fraction to let it get SMB in the ice thickness equation
+      if (.NOT. mask_floating( vi)) then
+        fraction_margin( vi) = 1._dp
+        Hi_eff( vi) = Hi_tot( vi)
+      ! Old and new floating regions
+      elseif (Hi_tot( vi) > 0._dp) then
+        fraction_margin( vi) = 1._dp
+        Hi_eff( vi) = Hi_tot( vi)
+      ! New ice-free ocean regions
+      else
+        fraction_margin( vi) = 0._dp
+        Hi_eff( vi) = 0._dp
+      end if
     end do
 
     ! === Compute ===
@@ -1453,6 +1487,7 @@ CONTAINS
 
       ! Find the max ice thickness among non-margin neighbours
       Hi_neighbour_max = 0._dp
+
       do ci = 1, mesh%nC( vi)
         vc = mesh%C( vi,ci)
 
@@ -1461,16 +1496,10 @@ CONTAINS
           cycle
         end if
 
-        ! Floating margins check for floating neighbours
-        if (mask_floating_ice_tot( vi) .and. mask_floating_ice_tot( vc)) then
+        ! Floating margins check for neighbours
+        if (mask_floating( vi)) then
           Hi_neighbour_max = max( Hi_neighbour_max, Hi_tot( vc))
         end if
-
-        ! DENK DROM : Concept not really applicable to grounded fronts
-        ! ! Grounded margins check for grounded neighbours
-        ! if (mask_grounded_ice_tot( vi) .and. mask_grounded_ice_tot( vc)) then
-        !   Hi_neighbour_max = max( Hi_neighbour_max, Hi_tot( vc))
-        ! end if
 
       end do
 
@@ -2072,7 +2101,7 @@ CONTAINS
 
   END SUBROUTINE alter_ice_thickness
 
-  SUBROUTINE MB_inversion( mesh, ice, refgeo, SMB, BMB, LMB, dHi_dt_predicted, Hi_predicted, dt, time, region_name)
+  SUBROUTINE MB_inversion( mesh, ice, refgeo, SMB, BMB, LMB, AMB, dHi_dt_predicted, Hi_predicted, dt, time, region_name)
     ! Calculate the basal mass balance
     !
     ! Use an inversion based on the computed dHi_dt
@@ -2083,9 +2112,10 @@ CONTAINS
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
     TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_reference_geometry),          INTENT(IN)    :: refgeo
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(INOUT) :: SMB
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(INOUT) :: BMB
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(INOUT) :: LMB
+    TYPE(type_SMB_model),                   INTENT(INOUT) :: SMB
+    TYPE(type_BMB_model),                   INTENT(INOUT) :: BMB
+    TYPE(type_LMB_model),                   INTENT(INOUT) :: LMB
+    TYPE(type_AMB_model),                   INTENT(INOUT) :: AMB
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(INOUT) :: dHi_dt_predicted
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(INOUT) :: Hi_predicted
     REAL(dp),                               INTENT(IN)    :: dt
@@ -2095,7 +2125,6 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'MB_inversion'
     INTEGER                                               :: vi
-    CHARACTER(LEN=256)                                    :: choice_BMB_model, choice_LMB_model
     LOGICAL                                               :: do_BMB_inversion, do_LMB_inversion, do_SMB_inversion, do_SMB_absorb
     INTEGER,  DIMENSION(mesh%vi1:mesh%vi2)                :: mask
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: previous_field
@@ -2110,6 +2139,7 @@ CONTAINS
       ! Compute polygon for reconstruction
       CALL calc_polygon_Patagonia( poly_ROI)
     ELSE
+      ! Create a dummy polygon
       ALLOCATE( poly_ROI(1,2))
       poly_ROI(1,1) = 0._dp
       poly_ROI(1,2) = 0._dp
@@ -2118,38 +2148,20 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! Determine filename for this model region
-    SELECT CASE (region_name)
-      CASE ('NAM')
-        choice_BMB_model  = C%choice_BMB_model_NAM
-        choice_LMB_model  = C%choice_LMB_model_NAM
-      CASE ('EAS')
-        choice_BMB_model  = C%choice_BMB_model_EAS
-        choice_LMB_model  = C%choice_LMB_model_EAS
-      CASE ('GRL')
-        choice_BMB_model  = C%choice_BMB_model_GRL
-        choice_LMB_model  = C%choice_LMB_model_GRL
-      CASE ('ANT')
-        choice_BMB_model  = C%choice_BMB_model_ANT
-        choice_LMB_model  = C%choice_LMB_model_ANT
-      CASE DEFAULT
-        CALL crash('unknown region_name "' // TRIM( region_name) // '"!')
-    END SELECT
-
     do_BMB_inversion = .FALSE.
     do_LMB_inversion = .FALSE.
     do_SMB_inversion = .FALSE.
     do_SMB_absorb    = .FALSE.
 
     ! Check whether we want a BMB inversion
-    IF (choice_BMB_model == 'inverted' .AND. &
+    IF (C%do_BMB_inversion .AND. &
         time >= C%BMB_inversion_t_start .AND. &
         time <= C%BMB_inversion_t_end) THEN
       do_BMB_inversion = .TRUE.
     END IF
 
     ! Check whether we want a LMB inversion
-    IF (choice_LMB_model == 'inverted' .AND. &
+    IF (C%do_LMB_inversion .AND. &
         time >= C%LMB_inversion_t_start .AND. &
         time <= C%LMB_inversion_t_end) THEN
       do_LMB_inversion = .TRUE.
@@ -2170,7 +2182,7 @@ CONTAINS
     ! ==================
 
     ! Store previous values
-    previous_field = BMB
+    previous_field = BMB%BMB_inv
 
     ! Initialise extrapolation mask
     mask = 0
@@ -2186,15 +2198,16 @@ CONTAINS
       ! Skip if not desired
       IF (.NOT. do_BMB_inversion) CYCLE
 
-      ! For these areas, use dHi_dt to get an "inversion" of equilibrium BMB.
+      ! Floating calving fronts
       IF (ice%mask_cf_fl( vi)) THEN
 
+        ! Just mark for eventual extrapolation
         mask( vi) = 1
 
       ELSEIF (ice%mask_floating_ice( vi)) THEN
 
         ! Basal melt will account for all change here
-        BMB( vi) = BMB( vi) - dHi_dt_predicted( vi)
+        BMB%BMB_inv( vi) = BMB%BMB( vi) - dHi_dt_predicted( vi)
 
         ! Adjust rate of ice thickness change dHi/dt to compensate the change
         dHi_dt_predicted( vi) = 0._dp
@@ -2202,43 +2215,33 @@ CONTAINS
         ! Adjust corrected ice thickness to compensate the change
         Hi_predicted( vi) = ice%Hi_prev( vi)
 
+        ! Use this vertex as seed during extrapolation
         mask( vi) = 2
 
       ELSEIF (ice%mask_gl_gr( vi)) THEN
 
         ! For grounding lines, BMB accounts for melt
-        BMB( vi) = MIN( 0._dp, BMB( vi) - dHi_dt_predicted( vi))
+        IF (dHi_dt_predicted( vi) >= 0._dp) THEN
 
-        ! Compute change of value
-        value_change = BMB( vi) - previous_field( vi)
+          ! Basal melt will account for all change here
+          BMB%BMB_inv( vi) = BMB%BMB( vi) - dHi_dt_predicted( vi)
+          ! Adjust rate of ice thickness change dHi/dt to compensate the change
+          dHi_dt_predicted( vi) = 0._dp
+          ! Adjust corrected ice thickness to compensate the change
+          Hi_predicted( vi) = ice%Hi_prev( vi)
 
-        ! Adjust rate of ice thickness change dHi/dt to compensate the change
-        dHi_dt_predicted( vi) = dHi_dt_predicted( vi) + value_change
+        ELSE
+          ! Remove basal melt, but do not add refreezing
+          BMB%BMB_inv( vi) = 0._dp
+        END IF
 
-        ! Adjust corrected ice thickness to compensate the change
-        Hi_predicted( vi) = ice%Hi_prev( vi) + dHi_dt_predicted( vi) * dt
-
-        mask( vi) = 0
-
-      ELSEIF (ice%mask_icefree_ocean( vi)) THEN
-
-        ! For open ocean, assume that all SMB melts
-        BMB( vi) = MIN( 0._dp, -SMB( vi))
-
-        ! Compute change of value
-        value_change = BMB( vi) - previous_field( vi)
-
-        ! Adjust rate of ice thickness change dHi/dt to compensate the change
-        dHi_dt_predicted( vi) = dHi_dt_predicted( vi) + value_change
-
-        ! Adjust corrected ice thickness to compensate the change
-        Hi_predicted( vi) = ice%Hi_prev( vi) + dHi_dt_predicted( vi) * dt
-
+        ! Ignore this vertex during extrapolation
         mask( vi) = 0
 
       ELSE
         ! Not a place where basal melt operates
-        BMB( vi) = 0._dp
+        BMB%BMB_inv( vi) = 0._dp
+        ! Ignore this vertex during extrapolation
         mask( vi) = 0
       END IF
 
@@ -2248,7 +2251,7 @@ CONTAINS
     ! ==================================
 
     ! Perform the extrapolation - mask: 2 -> use as seed; 1 -> extrapolate; 0 -> ignore
-    CALL extrapolate_Gaussian( mesh, mask, BMB, 16000._dp)
+    CALL extrapolate_Gaussian( mesh, mask, BMB%BMB_inv, 16000._dp)
 
     DO vi = mesh%vi1, mesh%vi2
       IF (ice%mask_cf_fl( vi)) THEN
@@ -2263,7 +2266,7 @@ CONTAINS
         IF (.NOT. do_BMB_inversion) CYCLE
 
         ! Compute change after extrapolation
-        value_change = BMB( vi) - previous_field( vi)
+        value_change = BMB%BMB_inv( vi) - previous_field( vi)
 
         ! Adjust rate of ice thickness change dHi/dt to compensate the change
         dHi_dt_predicted( vi) = dHi_dt_predicted( vi) + value_change
@@ -2276,9 +2279,6 @@ CONTAINS
 
     ! == LMB: remaining positive dHi_dt
     ! =================================
-
-    ! Store pre-adjustment values
-    previous_field = LMB
 
     DO vi = mesh%vi1, mesh%vi2
 
@@ -2294,57 +2294,59 @@ CONTAINS
       ! For these areas, use dHi_dt to get an "inversion" of equilibrium LMB.
       IF (ice%mask_cf_fl( vi) .OR. ice%mask_cf_gr( vi) .OR. ice%mask_icefree_ocean( vi)) THEN
 
-        ! Assume that calving accounts for all remaining mass loss here (after first BMB pass)
-        LMB( vi) = MIN( 0._dp, LMB( vi) - dHi_dt_predicted( vi))
+        IF (dHi_dt_predicted( vi) >= 0._dp .AND. ice%fraction_margin( vi) < 1._dp) THEN
 
-        ! Compute actual change in LMB
-        value_change = LMB( vi) - previous_field( vi)
+          ! Assume that calving accounts for all remaining mass loss here (after first BMB pass)
+          LMB%LMB_inv( vi) = LMB%LMB( vi) - dHi_dt_predicted( vi)
+          ! Adjust rate of ice thickness change dHi/dt to compensate the change
+          dHi_dt_predicted( vi) = 0._dp
+          ! Adjust corrected ice thickness to compensate the change
+          Hi_predicted( vi) = ice%Hi_prev( vi)
 
-        ! Adjust rate of ice thickness change dHi/dt to compensate the change
-        dHi_dt_predicted( vi) = dHi_dt_predicted( vi) + value_change
-
-        ! Adjust new ice thickness to compensate the change
-        Hi_predicted( vi) = ice%Hi_prev( vi) + dHi_dt_predicted( vi) * dt
+        ELSE
+          ! Remove lateral melt, but do not add mass
+          LMB%LMB_inv( vi) = 0._dp
+        END IF
 
       ELSE
         ! Not a place where lateral melt operates
-        LMB( vi) = 0._dp
+        LMB%LMB_inv( vi) = 0._dp
       END IF
 
     END DO ! vi = mesh%vi1, mesh%vi2
 
-    ! == BMB: final pass
-    ! ==================
+    ! ! == BMB: final pass
+    ! ! ==================
 
-    DO vi = mesh%vi1, mesh%vi2
-      IF (ice%mask_cf_fl( vi)) THEN
+    ! DO vi = mesh%vi1, mesh%vi2
+    !   IF (ice%mask_cf_fl( vi)) THEN
 
-        ! Get x and y coordinates of this vertex
-        p = mesh%V( vi,:)
+    !     ! Get x and y coordinates of this vertex
+    !     p = mesh%V( vi,:)
 
-        ! Skip vertices within reconstruction polygon
-        IF (is_in_polygon(poly_ROI, p)) CYCLE
+    !     ! Skip vertices within reconstruction polygon
+    !     IF (is_in_polygon(poly_ROI, p)) CYCLE
 
-        ! Skip if not desired
-        IF (.NOT. do_BMB_inversion) CYCLE
+    !     ! Skip if not desired
+    !     IF (.NOT. do_BMB_inversion) CYCLE
 
-        ! BMB will absorb all remaining change after calving did its thing
-        BMB( vi) = BMB( vi) - dHi_dt_predicted( vi)
+    !     ! BMB will absorb all remaining change after calving did its thing
+    !     BMB%BMB( vi) = BMB%BMB( vi) - dHi_dt_predicted( vi)
 
-        ! Adjust rate of ice thickness change dHi/dt to compensate the change
-        dHi_dt_predicted( vi) = 0._dp
+    !     ! Adjust rate of ice thickness change dHi/dt to compensate the change
+    !     dHi_dt_predicted( vi) = 0._dp
 
-        ! Adjust corrected ice thickness to compensate the change
-        Hi_predicted( vi) = ice%Hi_prev( vi)
+    !     ! Adjust corrected ice thickness to compensate the change
+    !     Hi_predicted( vi) = ice%Hi_prev( vi)
 
-      END IF
-    END DO
+    !   END IF
+    ! END DO
 
     ! == SMB: reference ice-free land areas
     ! =====================================
 
     ! Store pre-adjustment values
-    previous_field = SMB
+    previous_field = SMB%SMB
 
     DO vi = mesh%vi1, mesh%vi2
 
@@ -2361,7 +2363,7 @@ CONTAINS
       IF (refgeo%Hb( vi) < refgeo%SL( vi) .OR. refgeo%Hi( vi) > 0._dp) CYCLE
 
       ! For reference ice-free land, use dHi_dt to get an "inversion" of equilibrium SMB.
-      SMB( vi) = MIN( 0._dp, ice%divQ( vi))
+      SMB%SMB( vi) = MIN( 0._dp, ice%divQ( vi))
 
       ! Adjust rate of ice thickness change dHi/dt to compensate the change
       dHi_dt_predicted( vi) = 0._dp
@@ -2375,7 +2377,7 @@ CONTAINS
     ! ===============================
 
     ! Store pre-adjustment values
-    previous_field = SMB
+    previous_field = SMB%SMB
 
     DO vi = mesh%vi1, mesh%vi2
 
@@ -2388,7 +2390,7 @@ CONTAINS
       IF (.NOT. do_SMB_absorb) CYCLE
 
       ! For grounded ice, use dHi_dt to get an "inversion" of equilibrium SMB.
-      SMB( vi) = SMB( vi) - dHi_dt_predicted( vi)
+      SMB%SMB( vi) = SMB%SMB( vi) - dHi_dt_predicted( vi)
 
       ! Adjust rate of ice thickness change dHi/dt to compensate the change
       dHi_dt_predicted( vi) = 0._dp
@@ -2397,6 +2399,9 @@ CONTAINS
       Hi_predicted( vi) = ice%Hi_prev( vi)
 
     END DO
+
+    ! == Assign main fields
+    ! =====================
 
     ! Clean up after yourself
     DEALLOCATE( poly_ROI)

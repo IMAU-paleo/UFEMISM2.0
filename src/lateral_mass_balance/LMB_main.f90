@@ -121,6 +121,10 @@ CONTAINS
     ALLOCATE( LMB%LMB( mesh%vi1:mesh%vi2))
     LMB%LMB = 0._dp
 
+    ! Allocate inverted LMB
+    ALLOCATE( LMB%LMB_inv( mesh%vi1:mesh%vi2))
+    LMB%LMB_inv = 0._dp
+
     ! Set time of next calculation to start time
     LMB%t_next = C%start_time_of_run
 
@@ -177,12 +181,15 @@ CONTAINS
     ! Reallocate memory for main variables
     CALL reallocate_bounds( LMB%LMB, mesh_new%vi1, mesh_new%vi2)
 
+    ! Reallocate memory for inverted variables
+    CALL reallocate_bounds( LMB%LMB_inv, mesh_new%vi1, mesh_new%vi2)
+
     ! Determine which LMB model to initialise
     SELECT CASE (choice_LMB_model)
       CASE ('uniform')
         ! No need to do anything
       CASE ('inverted')
-        CALL crash('Remapping after mesh update not implemented yet for parameterised LMB')
+        ! No need to do anything
       CASE DEFAULT
         CALL crash('unknown choice_LMB_model "' // TRIM( choice_LMB_model) // '"')
     END SELECT

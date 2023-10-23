@@ -81,6 +81,7 @@ UFEMISM_source = \
   types/SMB_model_types.f90 \
   types/BMB_model_types.f90 \
   types/LMB_model_types.f90 \
+  types/AMB_model_types.f90 \
   types/GIA_model_types.f90 \
   types/basal_inversion_types.f90 \
   types/region_types.f90 \
@@ -121,6 +122,8 @@ UFEMISM_source = \
   basal_mass_balance/BMB_main.f90 \
   \
   lateral_mass_balance/LMB_main.f90 \
+  \
+  artificial_mass_balance/AMB_main.f90 \
   \
   ice/ice_model_memory.f90 \
   ice/ice_model_utilities.f90 \

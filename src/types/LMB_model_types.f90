@@ -17,6 +17,7 @@ MODULE LMB_model_types
 
     ! Main data fields
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: LMB                         ! [m.i.e./yr] Lateral mass balance
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: LMB_inv                     ! [m.i.e./yr] Inverted lateral mass balance
 
     ! Metadata
     CHARACTER(LEN=256)                      :: restart_filename            ! Name for generated restart file

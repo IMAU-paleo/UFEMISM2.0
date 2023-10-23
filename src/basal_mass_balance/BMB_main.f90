@@ -155,6 +155,10 @@ CONTAINS
     ALLOCATE( BMB%BMB( mesh%vi1:mesh%vi2))
     BMB%BMB = 0._dp
 
+    ! Allocate inverted BMB
+    ALLOCATE( BMB%BMB_inv( mesh%vi1:mesh%vi2))
+    BMB%BMB_inv = 0._dp
+
     ! Allocate reference BMB
     ALLOCATE( BMB%BMB_ref( mesh%vi1:mesh%vi2))
     BMB%BMB_ref = 0._dp
@@ -274,7 +278,7 @@ CONTAINS
     ! Write the time to the file
     CALL write_time_to_file( BMB%restart_filename, ncid, time)
 
-    ! ! Write the velocity fields to the file
+    ! ! Write the BMB fields to the file
     CALL write_to_field_multopt_mesh_dp_2D( mesh, BMB%restart_filename, ncid, 'BMB', BMB%BMB)
 
     ! Close the file
@@ -426,6 +430,7 @@ CONTAINS
 
     ! Reallocate memory for main variables
     CALL reallocate_bounds( BMB%BMB, mesh_new%vi1, mesh_new%vi2)
+    CALL reallocate_bounds( BMB%BMB_inv, mesh_new%vi1, mesh_new%vi2)
     CALL reallocate_bounds( BMB%BMB_ref, mesh_new%vi1, mesh_new%vi2)
 
     ! Reallocate memory for cavity mask
@@ -447,7 +452,7 @@ CONTAINS
       CASE ('parameterised')
         CALL crash('Remapping after mesh update not implemented yet for parameterised BMB')
       CASE ('inverted')
-        CALL crash('Remapping after mesh update not implemented yet for parameterised BMB')
+        ! No need to do anything
       CASE DEFAULT
         CALL crash('unknown choice_BMB_model "' // TRIM( choice_BMB_model) // '"')
     END SELECT
