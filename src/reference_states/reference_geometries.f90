@@ -667,14 +667,19 @@ CONTAINS
     ! If so desired, smooth the bedrock geometry
     CALL smooth_model_geometry( refgeo)
 
-    ! If so specified, remove Lake Vostok from Antarctic geometry
+    ! If so specified, remove Lake Vostok from the Antarctic geometry
     IF (region_name == 'ANT' .AND. C%remove_Lake_Vostok) THEN
       CALL remove_Lake_Vostok( refgeo)
     END IF
 
-    ! If so specified, remove Ellesmere Island from Greenland geometry
+    ! If so specified, remove Ellesmere Island from the Greenland geometry
     IF (region_name == 'GRL' .AND. C%choice_mask_noice == 'remove_Ellesmere') THEN
       CALL remove_Ellesmere( refgeo)
+    END IF
+
+    ! Remove a few islands from the Antarctic geometry
+    IF (region_name == 'ANT' .AND. C%choice_refgeo_PD_ANT /= 'idealised') THEN
+      CALL remove_tiny_islands( refgeo)
     END IF
 
     ! Remove extremely thin ice (especially a problem in BedMachine Greenland)
@@ -1582,5 +1587,75 @@ CONTAINS
     call finalise_routine( routine_name)
 
   end subroutine remove_Ellesmere
+
+  subroutine remove_tiny_islands( refgeo)
+    ! Remove tiny islands from the Antarctic domain, so they do not
+    ! cause unnecessary vertices there during mesh creation.
+
+    implicit none
+
+    ! In- and output variables
+    type(type_reference_geometry), intent(inout) :: refgeo
+
+    ! Local variables:
+    character(LEN=256), parameter                :: routine_name = 'remove_tiny_islands'
+    integer                                      :: i,j,n
+    real(dp)                                     :: x1, x2, y1, y2
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Near tip of the peninsula
+    ! =========================
+
+    x1 = -2.5819e6_dp
+    x2 = -2.0156e6_dp
+    y1 = +2.1377e6_dp
+    y2 = +2.5708e6_dp
+
+    do n = refgeo%grid_raw%n1, refgeo%grid_raw%n2
+      i = refgeo%grid_raw%n2ij( n,1)
+      j = refgeo%grid_raw%n2ij( n,2)
+
+      ! If grid cell is within the lines, remove ice from it and
+      ! actually sink the damn thing so it does not show up in
+      ! the mesh when using high-res.
+      if (refgeo%grid_raw%x(i) >=  min( x1,x2) .and. refgeo%grid_raw%x(i) <=  max( x1,x2) .and. &
+          refgeo%grid_raw%y(j) >=  min( y1,y2) .and. refgeo%grid_raw%y(j) <=  max( y1,y2)) then
+        refgeo%Hi_grid_raw( n) = 0._dp
+        refgeo%Hb_grid_raw( n) = min( refgeo%Hb_grid_raw( n), -.1_dp)
+        refgeo%Hs_grid_raw( n) = 0._dp
+      end if
+
+    end do
+
+    ! The other ones
+    ! ==============
+
+    x1 = +0.4942e6_dp
+    x2 = +0.9384e6_dp
+    y1 = -2.6485e6_dp
+    y2 = -2.2932e6_dp
+
+    do n = refgeo%grid_raw%n1, refgeo%grid_raw%n2
+      i = refgeo%grid_raw%n2ij( n,1)
+      j = refgeo%grid_raw%n2ij( n,2)
+
+      ! If grid cell is within the lines, remove ice from it and
+      ! actually sink the damn thing so it does not show up in
+      ! the mesh when using high-res.
+      if (refgeo%grid_raw%x(i) >=  min( x1,x2) .and. refgeo%grid_raw%x(i) <=  max( x1,x2) .and. &
+          refgeo%grid_raw%y(j) >=  min( y1,y2) .and. refgeo%grid_raw%y(j) <=  max( y1,y2)) then
+        refgeo%Hi_grid_raw( n) = 0._dp
+        refgeo%Hb_grid_raw( n) = min( refgeo%Hb_grid_raw( n), -.1_dp)
+        refgeo%Hs_grid_raw( n) = 0._dp
+      end if
+
+    end do
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine remove_tiny_islands
 
 END MODULE reference_geometries
