@@ -19,9 +19,11 @@ MODULE mesh_creation
                                                                      calc_polygon_Pine_Island_Glacier, calc_polygon_Thwaites_Glacier, &
                                                                      calc_polygon_Amery_ice_shelf, calc_polygon_Riiser_Larsen_ice_shelf, &
                                                                      calc_polygon_Siple_Coast, calc_polygon_Patagonia, calc_polygon_Larsen_ice_shelf, &
-                                                                     calc_polygon_Transantarctic_Mountains, calc_polygon_Narsarsuaq, &
-                                                                     calc_polygon_Tijn_test_ISMIP_HOM_A, calc_polygon_CalvMIP_quarter, &
-                                                                     enforce_contiguous_process_domains, refine_CalvMIP_shelf_donut
+                                                                     calc_polygon_Transantarctic_Mountains, calc_polygon_DotsonCrosson_ice_shelf, &
+                                                                     calc_polygon_Narsarsuaq, calc_polygon_Nuuk, &
+                                                                     calc_polygon_Jakobshavn, calc_polygon_NGIS, calc_polygon_Tijn_test_ISMIP_HOM_A, &
+                                                                     calc_polygon_CalvMIP_quarter, refine_CalvMIP_shelf_donut, &
+                                                                     enforce_contiguous_process_domains
   USe mesh_parallel_creation                                 , ONLY: broadcast_mesh
   USE mesh_secondary                                         , ONLY: calc_all_secondary_mesh_data
   USE mesh_operators                                         , ONLY: calc_all_matrix_operators_mesh
@@ -898,10 +900,10 @@ CONTAINS
         CASE ('')
          ! No region requested: don't need to do anything
          EXIT
-        CASE ('PineIsland','Thwaites','Amery','RiiserLarsen','SipleCoast', 'LarsenC','TransMounts', & ! Antarctica
-              'Narsarsuaq', &                                                                         ! Greenland
-              'Patagonia', &                                                                          ! Patagonia
-              'Tijn_test_ISMIP_HOM_A','CalvMIP_quarter')                                              ! Idealised
+        CASE ('PineIsland','Thwaites','Amery','RiiserLarsen','SipleCoast', 'LarsenC','TransMounts','DotsonCrosson', & ! Antarctica
+              'Narsarsuaq','Nuuk','Jakobshavn','NGIS', &                                                              ! Greenland
+              'Patagonia', &                                                                                          ! Patagonia
+              'Tijn_test_ISMIP_HOM_A','CalvMIP_quarter')                                                              ! Idealised
           ! List of known regions of interest: these pass the test
         CASE DEFAULT
           ! Region not found
@@ -937,6 +939,12 @@ CONTAINS
           SELECT CASE (name_ROI)
             CASE ('Narsarsuaq')
               CALL calc_polygon_Narsarsuaq( poly_ROI)
+            CASE ('Nuuk')
+              CALL calc_polygon_Nuuk( poly_ROI)
+            CASE ('Jakobshavn')
+              CALL calc_polygon_Jakobshavn( poly_ROI)
+            CASE ('NGIS')
+              CALL calc_polygon_NGIS( poly_ROI)
             CASE DEFAULT
               ! Requested area not in this model domain; skip
               CYCLE
@@ -959,6 +967,8 @@ CONTAINS
               CALL calc_polygon_Larsen_ice_shelf( poly_ROI)
             CASE ('TransMounts')
               CALL calc_polygon_Transantarctic_Mountains( poly_ROI)
+            CASE ('DotsonCrosson')
+              CALL calc_polygon_DotsonCrosson_ice_shelf( poly_ROI)
             CASE ('Patagonia')
               CALL calc_polygon_Patagonia( poly_ROI)
             CASE ('Tijn_test_ISMIP_HOM_A')

@@ -209,13 +209,6 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_pore_water_pressure_inversion'
     INTEGER                                            :: vi
-    REAL(dp)                                           :: weight_gr, exponent_gr, ocean_entrainment
-    REAL(dp), DIMENSION(mesh%nV)                       :: pore_water_fraction_tot
-    LOGICAL,  DIMENSION(mesh%nV)                       :: mask_inverted_point_tot
-    REAL(dp), DIMENSION(mesh%nTri)                     :: u_b_tot
-    REAL(dp), DIMENSION(mesh%nTri)                     :: v_b_tot
-    REAL(dp), DIMENSION(2)                             :: p
-    LOGICAL                                            :: found_source
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -223,7 +216,7 @@ CONTAINS
     ! Extrapolate inverted pore water fraction
     ! ========================================
 
-    CALL apply_extrapolation_to_pore_water_fraction( mesh, ice, HIV)
+    ! CALL apply_extrapolation_to_pore_water_fraction( mesh, ice, HIV)
 
     ! Apply ocean entrainment
     ! =======================
@@ -1194,6 +1187,12 @@ CONTAINS
 
       ! Skip original inverted points
       IF (HIV%mask_inverted_point( vi)) CYCLE
+
+      ! Skip ice-free ocean points
+      IF (ice%mask_icefree_ocean( vi)) CYCLE
+
+      ! Skip ice shelf points away from the grounding line
+      IF (ice%mask_floating_ice( vi) .AND. .NOT. ice%mask_gl_fl( vi)) CYCLE
 
       ! Get x and y coordinates of this non-inverted vertex
       p = [mesh%V( vi,1), mesh%V( vi,2)]

@@ -180,7 +180,7 @@ CONTAINS
     CALL multiply_CSR_matrix_with_vector_1D( M_divQ, Hi, divQ)
 
     ! Calculate rate of ice thickness change dHi/dt
-    dHi_dt = -divQ + SMB + BMB + LMB - dHi_dt_target
+    dHi_dt = -divQ + fraction_margin * (SMB + BMB - dHi_dt_target) + LMB
 
     ! Store this value in the artificial mass balance field
     AMB = dHi_dt

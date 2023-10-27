@@ -2004,6 +2004,46 @@ CONTAINS
 
   END SUBROUTINE calc_polygon_Transantarctic_Mountains
 
+  SUBROUTINE calc_polygon_DotsonCrosson_ice_shelf( poly)
+    ! Return a polygon enveloping the Dotson-Crosson ice shelf area
+    !
+    ! (based on manual analysis of the Rignot velocity data,
+    ! not meant for basin-integrated SMB stuff or such, but accurate
+    ! enough to do region-specific mesh refinement)
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE, INTENT(OUT)   :: poly
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'calc_polygon_DotsonCrosson_ice_shelf'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ALLOCATE( poly( 14,2))
+
+    poly(  1,:) = [-1.5260e6_dp, -0.5303e6_dp]
+    poly(  2,:) = [-1.4997e6_dp, -0.5339e6_dp]
+    poly(  3,:) = [-1.4156e6_dp, -0.5703e6_dp]
+    poly(  4,:) = [-1.3637e6_dp, -0.6060e6_dp]
+    poly(  5,:) = [-1.4103e6_dp, -0.6627e6_dp]
+    poly(  6,:) = [-1.3691e6_dp, -0.7253e6_dp]
+    poly(  7,:) = [-1.4210e6_dp, -0.7212e6_dp]
+    poly(  8,:) = [-1.4789e6_dp, -0.7021e6_dp]
+    poly(  9,:) = [-1.5176e6_dp, -0.6949e6_dp]
+    poly( 10,:) = [-1.5689e6_dp, -0.7074e6_dp]
+    poly( 11,:) = [-1.6011e6_dp, -0.6955e6_dp]
+    poly( 12,:) = [-1.6148e6_dp, -0.6013e6_dp]
+    poly( 13,:) = [-1.5862e6_dp, -0.5488e6_dp]
+    poly( 14,:) = [-1.5457e6_dp, -0.5219e6_dp]
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE calc_polygon_DotsonCrosson_ice_shelf
+
   SUBROUTINE calc_polygon_Patagonia( poly)
     ! Return a polygon enveloping the region where the former
     ! Patagonian ice sheet peaked during the last glacial maximum
@@ -2219,6 +2259,119 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE calc_polygon_Narsarsuaq
+
+  SUBROUTINE calc_polygon_Nuuk( poly)
+    ! Return a polygon enveloping the Nuuk area in Southwest Greenland
+    !
+    ! (based on manual analysis of a nice figure I once saw,
+    ! not meant for basin-integrated SMB stuff or such, but accurate
+    ! enough to do region-specific mesh refinement)
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE, INTENT(OUT)   :: poly
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'calc_polygon_Nuuk'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ALLOCATE( poly( 8,2))
+
+    poly(  1,:) = [ -0.3411e6, -2.7256e6]
+    poly(  2,:) = [ -0.2326e6, -2.6803e6]
+    poly(  3,:) = [ -0.1396e6, -2.6743e6]
+    poly(  4,:) = [ -0.0955e6, -2.7781e6]
+    poly(  5,:) = [ -0.1193e6, -2.9044e6]
+    poly(  6,:) = [ -0.2219e6, -2.9271e6]
+    poly(  7,:) = [ -0.3184e6, -2.9199e6]
+    poly(  8,:) = [ -0.3578e6, -2.8210e6]
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE calc_polygon_Nuuk
+
+  SUBROUTINE calc_polygon_Jakobshavn( poly)
+    ! Return a polygon enveloping the Jakobshavn area in West Greenland
+    !
+    ! (based on manual analysis of a nice figure I once saw,
+    ! not meant for basin-integrated SMB stuff or such, but accurate
+    ! enough to do region-specific mesh refinement)
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE, INTENT(OUT)   :: poly
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'calc_polygon_Jakobshavn'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ALLOCATE( poly( 7,2))
+
+    poly(  1,:) = [ -0.3003e6, -2.2592e6]
+    poly(  2,:) = [ -0.2908e6, -2.1644e6]
+    poly(  3,:) = [ -0.2114e6, -2.1430e6]
+    poly(  4,:) = [ -0.1046e6, -2.1679e6]
+    poly(  5,:) = [ -0.0833e6, -2.2901e6]
+    poly(  6,:) = [ -0.1212e6, -2.3778e6]
+    poly(  7,:) = [ -0.2624e6, -2.3731e6]
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE calc_polygon_Jakobshavn
+
+  SUBROUTINE calc_polygon_NGIS( poly)
+    ! Return a polygon enveloping the Northern Greenland ice stream
+    !
+    ! (based on manual analysis of a nice figure I once saw,
+    ! not meant for basin-integrated SMB stuff or such, but accurate
+    ! enough to do region-specific mesh refinement)
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE, INTENT(OUT)   :: poly
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'calc_polygon_NGIS'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ALLOCATE( poly( 20,2))
+
+    poly(  1,:) = [0.5064e6_dp, -0.9936e6_dp]
+    poly(  2,:) = [0.4467e6_dp, -1.0000e6_dp]
+    poly(  3,:) = [0.3999e6_dp, -1.0469e6_dp]
+    poly(  4,:) = [0.2805e6_dp, -1.0959e6_dp]
+    poly(  5,:) = [0.2699e6_dp, -1.1322e6_dp]
+    poly(  6,:) = [0.3338e6_dp, -1.1556e6_dp]
+    poly(  7,:) = [0.3658e6_dp, -1.1471e6_dp]
+    poly(  8,:) = [0.3295e6_dp, -1.2068e6_dp]
+    poly(  9,:) = [0.2869e6_dp, -1.3261e6_dp]
+    poly( 10,:) = [0.2208e6_dp, -1.4625e6_dp]
+    poly( 11,:) = [0.2017e6_dp, -1.6308e6_dp]
+    poly( 12,:) = [0.3295e6_dp, -1.5072e6_dp]
+    poly( 13,:) = [0.5022e6_dp, -1.3453e6_dp]
+    poly( 14,:) = [0.5362e6_dp, -1.3900e6_dp]
+    poly( 15,:) = [0.5703e6_dp, -1.3794e6_dp]
+    poly( 16,:) = [0.5938e6_dp, -1.3261e6_dp]
+    poly( 17,:) = [0.5320e6_dp, -1.2004e6_dp]
+    poly( 18,:) = [0.5576e6_dp, -1.1812e6_dp]
+    poly( 19,:) = [0.5533e6_dp, -1.1045e6_dp]
+    poly( 20,:) = [0.5405e6_dp, -1.0469e6_dp]
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE calc_polygon_NGIS
 
   SUBROUTINE calc_polygon_Tijn_test_ISMIP_HOM_A( poly)
     ! Return a polygon enveloping the central square of the
