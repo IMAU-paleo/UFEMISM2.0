@@ -2373,6 +2373,42 @@ CONTAINS
 
   END SUBROUTINE calc_polygon_NGIS
 
+  SUBROUTINE calc_polygon_Qaanaaq( poly)
+    ! Return a polygon enveloping the Qaanaaq area in Northwest Greenland
+    !
+    ! (based on manual analysis of a nice figure I once saw,
+    ! not meant for basin-integrated SMB stuff or such, but accurate
+    ! enough to do region-specific mesh refinement)
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE, INTENT(OUT)   :: poly
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'calc_polygon_Qaanaaq'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ALLOCATE( poly( 10,2))
+
+    poly(  1,:) = [ -0.5994e6, -1.1429e6]
+    poly(  2,:) = [ -0.4913e6, -1.1981e6]
+    poly(  3,:) = [ -0.4315e6, -1.2119e6]
+    poly(  4,:) = [ -0.2681e6, -1.3132e6]
+    poly(  5,:) = [ -0.4062e6, -1.3500e6]
+    poly(  6,:) = [ -0.4683e6, -1.3523e6]
+    poly(  7,:) = [ -0.6201e6, -1.3270e6]
+    poly(  8,:) = [ -0.6270e6, -1.2579e6]
+    poly(  9,:) = [ -0.5764e6, -1.2395e6]
+    poly( 10,:) = [ -0.6063e6, -1.1751e6]
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE calc_polygon_Qaanaaq
+
   SUBROUTINE calc_polygon_Tijn_test_ISMIP_HOM_A( poly)
     ! Return a polygon enveloping the central square of the
     ! ISMIP-HOM Experiment A domain

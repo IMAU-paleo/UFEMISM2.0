@@ -23,6 +23,7 @@ MODULE basal_hydrology
   USE math_utilities                                         , ONLY: triangle_area, is_floating
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_1D, gather_to_all_logical_1D
   USE mesh_remapping                                         , ONLY: smooth_Gaussian_2D
+  USE netcdf_debug                                           , ONLY: save_variable_as_netcdf_dp_1D, save_variable_as_netcdf_dp_2D
 
   IMPLICIT NONE
 
@@ -216,7 +217,7 @@ CONTAINS
     ! Extrapolate inverted pore water fraction
     ! ========================================
 
-    ! CALL apply_extrapolation_to_pore_water_fraction( mesh, ice, HIV)
+    CALL apply_extrapolation_to_pore_water_fraction( mesh, ice, HIV)
 
     ! Apply ocean entrainment
     ! =======================

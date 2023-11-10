@@ -20,8 +20,8 @@ MODULE mesh_creation
                                                                      calc_polygon_Amery_ice_shelf, calc_polygon_Riiser_Larsen_ice_shelf, &
                                                                      calc_polygon_Siple_Coast, calc_polygon_Patagonia, calc_polygon_Larsen_ice_shelf, &
                                                                      calc_polygon_Transantarctic_Mountains, calc_polygon_DotsonCrosson_ice_shelf, &
-                                                                     calc_polygon_Narsarsuaq, calc_polygon_Nuuk, &
-                                                                     calc_polygon_Jakobshavn, calc_polygon_NGIS, calc_polygon_Tijn_test_ISMIP_HOM_A, &
+                                                                     calc_polygon_Narsarsuaq, calc_polygon_Nuuk, calc_polygon_Jakobshavn, &
+                                                                     calc_polygon_NGIS, calc_polygon_Qaanaaq, calc_polygon_Tijn_test_ISMIP_HOM_A, &
                                                                      calc_polygon_CalvMIP_quarter, refine_CalvMIP_shelf_donut, &
                                                                      enforce_contiguous_process_domains
   USe mesh_parallel_creation                                 , ONLY: broadcast_mesh
@@ -745,9 +745,10 @@ CONTAINS
     ! == Special cases
     ! ================
 
-      IF (C%choice_refgeo_PD_ANT == 'idealised' .AND. C%choice_refgeo_init_idealised == 'calvmip_circular') THEN
+      ! DENK DROM : Not very elegant; remove this later and generalise it
+      IF (C%do_ANT .AND. C%choice_refgeo_PD_ANT == 'idealised' .AND. C%choice_refgeo_init_idealised == 'calvmip_circular') THEN
         CALL refine_CalvMIP_shelf_donut( mesh, C%maximum_resolution_grounding_line*2._dp, 70000._dp)
-      ELSEIF (C%choice_refgeo_PD_ANT == 'idealised' .AND. C%choice_refgeo_init_idealised == 'calvmip_Thule') THEN
+      ELSEIF (C%do_ANT .AND. C%choice_refgeo_PD_ANT == 'idealised' .AND. C%choice_refgeo_init_idealised == 'calvmip_Thule') THEN
         CALL refine_CalvMIP_shelf_donut( mesh, C%maximum_resolution_grounding_line*2._dp, 50000._dp)
       END IF
 
@@ -901,7 +902,7 @@ CONTAINS
          ! No region requested: don't need to do anything
          EXIT
         CASE ('PineIsland','Thwaites','Amery','RiiserLarsen','SipleCoast', 'LarsenC','TransMounts','DotsonCrosson', & ! Antarctica
-              'Narsarsuaq','Nuuk','Jakobshavn','NGIS', &                                                              ! Greenland
+              'Narsarsuaq','Nuuk','Jakobshavn','NGIS','Qaanaaq', &                                                    ! Greenland
               'Patagonia', &                                                                                          ! Patagonia
               'Tijn_test_ISMIP_HOM_A','CalvMIP_quarter')                                                              ! Idealised
           ! List of known regions of interest: these pass the test
@@ -945,6 +946,8 @@ CONTAINS
               CALL calc_polygon_Jakobshavn( poly_ROI)
             CASE ('NGIS')
               CALL calc_polygon_NGIS( poly_ROI)
+            CASE ('Qaanaaq')
+              CALL calc_polygon_Qaanaaq( poly_ROI)
             CASE DEFAULT
               ! Requested area not in this model domain; skip
               CYCLE

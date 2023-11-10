@@ -52,7 +52,7 @@ MODULE UFEMISM_main_model
                                                                      calc_polygon_Amery_ice_shelf, calc_polygon_Riiser_Larsen_ice_shelf, &
                                                                      calc_polygon_Siple_Coast, calc_polygon_Patagonia, calc_polygon_Larsen_ice_shelf, &
                                                                      calc_polygon_Transantarctic_Mountains, calc_polygon_DotsonCrosson_ice_shelf, calc_polygon_Narsarsuaq, &
-                                                                     calc_polygon_Nuuk, calc_polygon_Jakobshavn, calc_polygon_NGIS, calc_polygon_Tijn_test_ISMIP_HOM_A
+                                                                     calc_polygon_Nuuk, calc_polygon_Jakobshavn, calc_polygon_NGIS, calc_polygon_Qaanaaq, calc_polygon_Tijn_test_ISMIP_HOM_A
   USE math_utilities                                         , ONLY: longest_triangle_leg
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_logical_1D
   USE mesh_remapping                                         , ONLY: clear_all_maps_involving_this_mesh
@@ -953,7 +953,7 @@ CONTAINS
          ! No region requested: don't need to do anything
          EXIT
         CASE ('PineIsland','Thwaites','Amery','RiiserLarsen','SipleCoast','LarsenC','TransMounts','DotsonCrosson', & ! Antarctica
-              'Narsarsuaq','Nuuk','Jakobshavn','NGIS', &                                                             ! Greenland
+              'Narsarsuaq','Nuuk','Jakobshavn','NGIS','Qaanaaq', &                                                   ! Greenland
               'Patagonia', &                                                                                         ! Patagonia
               'Tijn_test_ISMIP_HOM_A','CalvMIP_quarter')                                                             ! Idealised
           ! List of known regions of interest: these pass the test
@@ -997,6 +997,8 @@ CONTAINS
               CALL calc_polygon_Jakobshavn( poly_ROI)
             CASE ('NGIS')
               CALL calc_polygon_NGIS( poly_ROI)
+            CASE ('Qaanaaq')
+              CALL calc_polygon_Qaanaaq( poly_ROI)
             CASE DEFAULT
               ! Requested area not in this model domain; skip
               CYCLE
