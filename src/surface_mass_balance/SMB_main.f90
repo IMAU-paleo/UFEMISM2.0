@@ -312,7 +312,7 @@ CONTAINS
       CASE ('idealised')
         ! No need to do anything
       CASE ('prescribed')
-        CALL crash('Remapping after mesh update not implemented yet for prescribed SMB')
+        CALL initialise_SMB_model_prescribed( mesh_new, SMB, region_name)
       CASE ('reconstructed')
         CALL crash('Remapping after mesh update not implemented yet for reconstructed SMB')
       CASE DEFAULT

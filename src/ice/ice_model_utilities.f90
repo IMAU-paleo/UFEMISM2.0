@@ -1391,19 +1391,19 @@ CONTAINS
     implicit none
 
     ! In- and output variables
-    type(type_mesh),      intent(in)                      :: mesh
-    type(type_ice_model), intent(in)                      :: ice
-    real(dp), dimension(mesh%vi1:mesh%vi2), intent(in)    :: Hi
-    real(dp), dimension(mesh%vi1:mesh%vi2), intent(inout) :: Hi_eff
-    real(dp), dimension(mesh%vi1:mesh%vi2), intent(inout) :: fraction_margin
+    type(type_mesh),      intent(in)                    :: mesh
+    type(type_ice_model), intent(in)                    :: ice
+    real(dp), dimension(mesh%vi1:mesh%vi2), intent(in)  :: Hi
+    real(dp), dimension(mesh%vi1:mesh%vi2), intent(out) :: Hi_eff
+    real(dp), dimension(mesh%vi1:mesh%vi2), intent(out) :: fraction_margin
 
     ! Local variables:
-    character(len=256), parameter                         :: routine_name = 'calc_effective_thickness'
-    integer                                               :: vi, ci, vc
-    real(dp)                                              :: Hi_neighbour_max
-    real(dp), dimension(mesh%nV)                          :: Hi_tot, Hb_tot, SL_tot
-    logical,  dimension(mesh%vi1:mesh%vi2)                :: mask_margin, mask_floating
-    logical,  dimension(mesh%nV)                          :: mask_margin_tot, mask_floating_tot
+    character(len=256), parameter                       :: routine_name = 'calc_effective_thickness'
+    integer                                             :: vi, ci, vc
+    real(dp)                                            :: Hi_neighbour_max
+    real(dp), dimension(mesh%nV)                        :: Hi_tot, Hb_tot, SL_tot
+    logical,  dimension(mesh%vi1:mesh%vi2)              :: mask_margin, mask_floating
+    logical,  dimension(mesh%nV)                        :: mask_margin_tot, mask_floating_tot
 
     ! == Initialisation
     ! =================
@@ -1511,7 +1511,7 @@ CONTAINS
       if (Hi_neighbour_max > Hi_tot( vi)) then
         ! Calculate sub-grid ice-filled fraction
         Hi_eff( vi) = Hi_neighbour_max
-        fraction_margin( vi) = Hi_tot( vi) / Hi_eff( vi)
+        fraction_margin( vi) = Hi_tot( vi) / Hi_neighbour_max
       end if
 
     end do

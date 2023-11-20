@@ -396,7 +396,7 @@ CONTAINS
     ELSEIF (choice_climate_model == 'idealised') THEN
       ! No need to remap anything here
     ELSEIF (choice_climate_model == 'realistic') THEN
-      CALL crash('Remapping after mesh update not implemented yet for realistic climate')
+      CALL initialise_climate_model_realistic( mesh_new, climate, region_name)
     ELSE
       CALL crash('unknown choice_climate_model "' // TRIM( choice_climate_model) // '"')
     END IF

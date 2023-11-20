@@ -469,8 +469,9 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'remap_ice_dynamics_model'
-    INTEGER                                               :: vi
+    INTEGER                                               :: vi,k
     REAL(dp), DIMENSION(mesh_new%vi1:mesh_new%vi2)        :: dHs_dx, dHs_dy
+    REAL(dp)                                              :: Ti_min
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -493,9 +494,25 @@ CONTAINS
     ! === Thermodynamics and rheology ===
     ! ===================================
 
-    ! Use 2nd-order conservative remapping for the ice temperature.
+    ! Save minimum temperature from the entire Ti field, so we can
+    ! replace any 0s that pop up after the remapping with that.
+    ! Otherwise, divisions by 0 might occur during the computation
+    ! of the ice flow factor A.
+    Ti_min = minval(ice%Ti)
 
+    ! Use 2nd-order conservative remapping for the ice temperature.
     CALL map_from_mesh_to_mesh_with_reallocation_3D( mesh_old, mesh_new, ice%Ti, '2nd_order_conservative')
+
+    ! Make sure that no values are smaller than the original minimum
+    ice%Ti = MAX( ice%Ti, Ti_min)
+
+    ! Predicted model state at next time step
+    CALL reallocate_bounds( ice%Ti_prev, mesh_new%vi1, mesh_new%vi2, mesh_new%nz)  ! [K]  The previous state
+    CALL reallocate_bounds( ice%Ti_next, mesh_new%vi1, mesh_new%vi2, mesh_new%nz)  ! [K]  The next state
+
+    ! Re-initialise
+    ice%Ti_prev = ice%Ti
+    ice%Ti_next = ice%Ti
 
     ! Reallocate memory for all other data fields
     ! (list copied from ice_model_memory/allocate_ice_model)
@@ -699,13 +716,6 @@ CONTAINS
     ! Predicted model state at next time step
     CALL reallocate_bounds( ice%Hi_prev                     , mesh_new%vi1, mesh_new%vi2         )  ! [m]  The previous state
     CALL reallocate_bounds( ice%Hi_next                     , mesh_new%vi1, mesh_new%vi2         )  ! [m]  The next state
-
-    ! === Ice temperature time stepping ===
-    ! =====================================
-
-    ! Predicted model state at next time step
-    CALL reallocate_bounds( ice%Ti_prev                     , mesh_new%vi1, mesh_new%vi2, mesh_new%nz)  ! [m]  The previous state
-    CALL reallocate_bounds( ice%Ti_next                     , mesh_new%vi1, mesh_new%vi2, mesh_new%nz)  ! [m]  The next state
 
     ! Re-initialise the rest of the ice dynamics model
     ! ================================================
@@ -1487,6 +1497,7 @@ CONTAINS
     INTEGER                                               :: pc_it
     REAL(dp), DIMENSION(region%mesh%vi1:region%mesh%vi2)  :: Hi_dummy, dHi_dt_dummy, LMB_dummy, AMB_dummy
     INTEGER                                               :: vi, n_guilty, n_tot
+
     ! Add routine to path
     CALL init_routine( routine_name)
 
