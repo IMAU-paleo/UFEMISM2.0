@@ -59,9 +59,6 @@ MODULE UFEMISM_main_model
   USE mesh_memory                                            , ONLY: deallocate_mesh
   USE ice_model_scalars                                      , ONLY: calc_ice_model_scalars
 
-  USE netcdf_basic, ONLY: create_new_netcdf_file_for_writing
-  USE netcdf_output, ONLY: setup_mesh_in_netcdf_file
-
   IMPLICIT NONE
 
 CONTAINS
@@ -530,9 +527,8 @@ CONTAINS
     ! ===== Thermodynamics =====
     ! ==========================
 
-    ! NOTE: must be initialised after the climate, ocean, SMB, and BMB have been initialised
-    !       AND run at least once, so appropriate values for surface temperature, etc. are
-    !       available.
+    ! NOTE: must be initialised after the climate, ocean, SMB, and BMB have been initialised,
+    !       (some of) which are needed to set up the first englacial ice temperature field.
 
     CALL initialise_thermodynamics_model( region)
 
@@ -1381,7 +1377,7 @@ CONTAINS
   SUBROUTINE apply_regional_corrections( region)
     ! Apply some regional modifications to a few fields which
     ! require other fields that are usually initialised later
-    ! than the field of interest.
+    ! than the fields of interest.
 
     IMPLICIT NONE
 
@@ -1410,9 +1406,15 @@ CONTAINS
     ! == Target dHi_dt
     ! ================
 
-    ! If so desired, limit target dH/dt to available SMB
+    ! If so desired, limit target dH/dt to available SMB. If the target dH/dt is positive,
+    ! it will remove ice during the spinup; we don't want it removing more ice than the SMB
+    ! is providing, to avoid friction inversions going crazy to keep the ice in place.
     IF (C%do_target_dHi_dt .AND. C%do_limit_target_dHi_dt_to_SMB) THEN
-      region%ice%dHi_dt_target = MIN( region%ice%dHi_dt_target, region%SMB%SMB)
+      DO vi = region%mesh%vi1, region%mesh%vi2
+        IF (region%ice%dHi_dt_target( vi) > 0._dp) THEN
+          region%ice%dHi_dt_target( vi) = MAX( 0._dp, MIN( region%ice%dHi_dt_target( vi), region%SMB%SMB( vi)))
+        END IF
+      END DO
     END IF
 
     ! Finalise routine path
