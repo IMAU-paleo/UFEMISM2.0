@@ -2423,11 +2423,13 @@ CONTAINS
     ! Initialise
     region%BMB%BMB = 0._dp
 
-    ! Compute total LMB
+    ! Compute total BMB
     DO vi = region%mesh%vi1, region%mesh%vi2
 
-      ! Skip vertices where LMB does not operate
-      IF (.NOT. region%ice%mask_gl_gr( vi) .AND. .NOT. region%ice%mask_floating_ice( vi)) CYCLE
+      ! Skip vertices where BMB does not operate
+      IF (.NOT. region%ice%mask_gl_gr( vi) .AND. &
+          .NOT. region%ice%mask_floating_ice( vi) .AND. &
+          .NOT. region%ice%mask_cf_fl( vi)) CYCLE
 
       ! Final BMB field
       region%BMB%BMB( vi) = region%BMB%BMB_inv( vi)
@@ -2597,7 +2599,9 @@ CONTAINS
     DO vi = region%mesh%vi1, region%mesh%vi2
 
       ! Skip vertices where LMB does not operate
-      IF (.NOT. region%ice%mask_cf_fl( vi) .AND. .NOT. region%ice%mask_icefree_ocean( vi)) CYCLE
+      IF (.NOT. region%ice%mask_cf_fl( vi) .AND. &
+          .NOT. region%ice%mask_cf_gr( vi) .AND. &
+          .NOT. region%ice%mask_icefree_ocean( vi)) CYCLE
 
       ! Final LMB field: now _this_ one should never be positive
       region%LMB%LMB( vi) = MIN( 0._dp, region%LMB%LMB_inv( vi) + LMB_trans( vi))
