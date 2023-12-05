@@ -7,7 +7,7 @@ MODULE mpi_distributed_memory
 
   USE mpi
   USE precisions                                             , ONLY: dp
-  USE mpi_basic                                              , ONLY: par, cerr, ierr, MPI_status, sync
+  USE mpi_basic                                              , ONLY: par, cerr, ierr, recv_status, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
 
   IMPLICIT NONE
@@ -131,7 +131,7 @@ CONTAINS
       IF (par%i == i) THEN
         CALL MPI_SEND( n2, 1, MPI_INTEGER, 0, 0, MPI_COMM_WORLD, ierr)
       ELSEIF (par%master) THEN
-        CALL MPI_RECV( n2_proc, 1, MPI_INTEGER, i, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_status, ierr)
+        CALL MPI_RECV( n2_proc, 1, MPI_INTEGER, i, MPI_ANY_TAG, MPI_COMM_WORLD, recv_status, ierr)
         IF (n2_proc /= n2) CALL crash('n2 = {int_01} on master, but {int_02} on process {int_03}!', int_01 = n2, int_02 = n2_proc, int_03 = i)
       END IF
     END DO
@@ -236,7 +236,7 @@ CONTAINS
       IF (par%i == i) THEN
         CALL MPI_SEND( n2, 1, MPI_INTEGER, 0, 0, MPI_COMM_WORLD, ierr)
       ELSEIF (par%master) THEN
-        CALL MPI_RECV( n2_proc, 1, MPI_INTEGER, i, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_status, ierr)
+        CALL MPI_RECV( n2_proc, 1, MPI_INTEGER, i, MPI_ANY_TAG, MPI_COMM_WORLD, recv_status, ierr)
         IF (n2_proc /= n2) CALL crash('n2 = {int_01} on master, but {int_02} on process {int_03}!', int_01 = n2, int_02 = n2_proc, int_03 = i)
       END IF
     END DO
@@ -385,7 +385,7 @@ CONTAINS
       IF (par%i == i) THEN
         CALL MPI_SEND( n2, 1, MPI_INTEGER, 0, 0, MPI_COMM_WORLD, ierr)
       ELSEIF (par%master) THEN
-        CALL MPI_RECV( n2_proc, 1, MPI_INTEGER, i, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_status, ierr)
+        CALL MPI_RECV( n2_proc, 1, MPI_INTEGER, i, MPI_ANY_TAG, MPI_COMM_WORLD, recv_status, ierr)
         IF (n2_proc /= n2) CALL crash('n2 = {int_01} on master, but {int_02} on process {int_03}!', int_01 = n2, int_02 = n2_proc, int_03 = i)
       END IF
     END DO
@@ -487,7 +487,7 @@ CONTAINS
       IF (par%i == i) THEN
         CALL MPI_SEND( n2, 1, MPI_INTEGER, 0, 0, MPI_COMM_WORLD, ierr)
       ELSEIF (par%master) THEN
-        CALL MPI_RECV( n2_proc, 1, MPI_INTEGER, i, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_status, ierr)
+        CALL MPI_RECV( n2_proc, 1, MPI_INTEGER, i, MPI_ANY_TAG, MPI_COMM_WORLD, recv_status, ierr)
         IF (n2_proc /= n2) CALL crash('n2 = {int_01} on master, but {int_02} on process {int_03}!', int_01 = n2, int_02 = n2_proc, int_03 = i)
       END IF
     END DO
@@ -594,7 +594,7 @@ CONTAINS
       IF (par%i == i) THEN
         CALL MPI_SEND( n2, 1, MPI_INTEGER, 0, 0, MPI_COMM_WORLD, ierr)
       ELSEIF (par%master) THEN
-        CALL MPI_RECV( n2_proc, 1, MPI_INTEGER, i, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_status, ierr)
+        CALL MPI_RECV( n2_proc, 1, MPI_INTEGER, i, MPI_ANY_TAG, MPI_COMM_WORLD, recv_status, ierr)
         IF (n2_proc /= n2) CALL crash('n2 = {int_01} on master, but {int_02} on process {int_03}!', int_01 = n2, int_02 = n2_proc, int_03 = i)
       END IF
     END DO
@@ -691,7 +691,7 @@ CONTAINS
       IF (par%i == i) THEN
         CALL MPI_SEND( n2, 1, MPI_INTEGER, 0, 0, MPI_COMM_WORLD, ierr)
       ELSEIF (par%master) THEN
-        CALL MPI_RECV( n2_proc, 1, MPI_INTEGER, i, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_status, ierr)
+        CALL MPI_RECV( n2_proc, 1, MPI_INTEGER, i, MPI_ANY_TAG, MPI_COMM_WORLD, recv_status, ierr)
         IF (n2_proc /= n2) CALL crash('n2 = {int_01} on master, but {int_02} on process {int_03}!', int_01 = n2, int_02 = n2_proc, int_03 = i)
       END IF
     END DO

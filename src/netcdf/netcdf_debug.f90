@@ -9,7 +9,7 @@ MODULE netcdf_debug
   USE petscksp
   USE mpi
   USE precisions                                             , ONLY: dp
-  USE mpi_basic                                              , ONLY: par, cerr, ierr, MPI_status, sync
+  USE mpi_basic                                              , ONLY: par, cerr, ierr, recv_status, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
   USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp, deallocate_matrix_CSR_dist, gather_CSR_dist_to_master

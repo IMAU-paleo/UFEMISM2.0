@@ -627,6 +627,9 @@ CONTAINS
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
+    ! CALL write_to_main_regional_output_file_mesh( region)
+    ! stop ':)'
+
   END SUBROUTINE initialise_model_region
 
   SUBROUTINE setup_first_mesh( region)

@@ -27,7 +27,7 @@ PROGRAM UFEMISM_program
   USE petscksp
   USE mpi
   USE precisions                                             , ONLY: dp
-  USE mpi_basic                                              , ONLY: par, cerr, ierr, MPI_status, sync, initialise_parallelisation, &
+  USE mpi_basic                                              , ONLY: par, cerr, ierr, recv_status, sync, initialise_parallelisation, &
                                                                      finalise_parallelisation
   USE petsc_basic                                            , ONLY: perr
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string, do_colour_strings, &

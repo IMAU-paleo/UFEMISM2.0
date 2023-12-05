@@ -25,7 +25,7 @@ MODULE model_configuration
 
   USE mpi
   USE precisions                                             , ONLY: dp
-  USE mpi_basic                                              , ONLY: par, cerr, ierr, MPI_status, sync
+  USE mpi_basic                                              , ONLY: par, cerr, ierr, recv_status, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string, &
                                                                      capitalise_string, remove_leading_spaces
 

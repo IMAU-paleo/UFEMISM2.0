@@ -7,7 +7,7 @@ MODULE unit_tests_mpi
 
   USE mpi
   USE precisions                                             , ONLY: dp
-  USE mpi_basic                                              , ONLY: par, cerr, ierr, MPI_status, sync
+  USE mpi_basic                                              , ONLY: par, cerr, ierr, recv_status, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_int_1D, gather_to_all_int_2D, gather_to_all_dp_1D, gather_to_all_dp_2D, &

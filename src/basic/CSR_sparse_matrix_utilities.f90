@@ -7,7 +7,7 @@ MODULE CSR_sparse_matrix_utilities
 
   USE mpi
   USE precisions                                             , ONLY: dp
-  USE mpi_basic                                              , ONLY: par, cerr, ierr, MPI_status, sync
+  USE mpi_basic                                              , ONLY: par, cerr, ierr, recv_status, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE parameters
   USE reallocate_mod                                         , ONLY: reallocate
@@ -354,16 +354,16 @@ CONTAINS
       ELSEIF (par%master) THEN
 
         ! Receive matrix metadata from process
-        CALL MPI_RECV( A_proc%m      , 1, MPI_INTEGER, p, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_status, ierr)
-        CALL MPI_RECV( A_proc%m_loc  , 1, MPI_INTEGER, p, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_status, ierr)
-        CALL MPI_RECV( A_proc%i1     , 1, MPI_INTEGER, p, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_status, ierr)
-        CALL MPI_RECV( A_proc%i2     , 1, MPI_INTEGER, p, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_status, ierr)
-        CALL MPI_RECV( A_proc%n      , 1, MPI_INTEGER, p, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_status, ierr)
-        CALL MPI_RECV( A_proc%n_loc  , 1, MPI_INTEGER, p, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_status, ierr)
-        CALL MPI_RECV( A_proc%j1     , 1, MPI_INTEGER, p, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_status, ierr)
-        CALL MPI_RECV( A_proc%j2     , 1, MPI_INTEGER, p, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_status, ierr)
-        CALL MPI_RECV( A_proc%nnz    , 1, MPI_INTEGER, p, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_status, ierr)
-        CALL MPI_RECV( A_proc%nnz_max, 1, MPI_INTEGER, p, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_status, ierr)
+        CALL MPI_RECV( A_proc%m      , 1, MPI_INTEGER, p, MPI_ANY_TAG, MPI_COMM_WORLD, recv_status, ierr)
+        CALL MPI_RECV( A_proc%m_loc  , 1, MPI_INTEGER, p, MPI_ANY_TAG, MPI_COMM_WORLD, recv_status, ierr)
+        CALL MPI_RECV( A_proc%i1     , 1, MPI_INTEGER, p, MPI_ANY_TAG, MPI_COMM_WORLD, recv_status, ierr)
+        CALL MPI_RECV( A_proc%i2     , 1, MPI_INTEGER, p, MPI_ANY_TAG, MPI_COMM_WORLD, recv_status, ierr)
+        CALL MPI_RECV( A_proc%n      , 1, MPI_INTEGER, p, MPI_ANY_TAG, MPI_COMM_WORLD, recv_status, ierr)
+        CALL MPI_RECV( A_proc%n_loc  , 1, MPI_INTEGER, p, MPI_ANY_TAG, MPI_COMM_WORLD, recv_status, ierr)
+        CALL MPI_RECV( A_proc%j1     , 1, MPI_INTEGER, p, MPI_ANY_TAG, MPI_COMM_WORLD, recv_status, ierr)
+        CALL MPI_RECV( A_proc%j2     , 1, MPI_INTEGER, p, MPI_ANY_TAG, MPI_COMM_WORLD, recv_status, ierr)
+        CALL MPI_RECV( A_proc%nnz    , 1, MPI_INTEGER, p, MPI_ANY_TAG, MPI_COMM_WORLD, recv_status, ierr)
+        CALL MPI_RECV( A_proc%nnz_max, 1, MPI_INTEGER, p, MPI_ANY_TAG, MPI_COMM_WORLD, recv_status, ierr)
 
         ! Allocate memory
         ALLOCATE( A_proc%ptr( A_proc%i1: A_proc%i2+1), source = 0    )
@@ -371,9 +371,9 @@ CONTAINS
         ALLOCATE( A_proc%val( A_proc%nnz_max), source = 0._dp)
 
         ! Receive matrix data from process
-        CALL MPI_RECV( A_proc%ptr, A_proc%m_loc+1, MPI_INTEGER         , p, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_status, ierr)
-        CALL MPI_RECV( A_proc%ind, A_proc%nnz_max, MPI_INTEGER         , p, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_status, ierr)
-        CALL MPI_RECV( A_proc%val, A_proc%nnz_max, MPI_DOUBLE_PRECISION, p, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_status, ierr)
+        CALL MPI_RECV( A_proc%ptr, A_proc%m_loc+1, MPI_INTEGER         , p, MPI_ANY_TAG, MPI_COMM_WORLD, recv_status, ierr)
+        CALL MPI_RECV( A_proc%ind, A_proc%nnz_max, MPI_INTEGER         , p, MPI_ANY_TAG, MPI_COMM_WORLD, recv_status, ierr)
+        CALL MPI_RECV( A_proc%val, A_proc%nnz_max, MPI_DOUBLE_PRECISION, p, MPI_ANY_TAG, MPI_COMM_WORLD, recv_status, ierr)
 
         ! Write to total matrix
         DO row = A_proc%i1, A_proc%i2
