@@ -1170,7 +1170,7 @@ CONTAINS
              cv_d2vdy2  * single_row_d2dy2_val(  n) + &
              cv_d2vdx2  * single_row_d2dx2_val(  n)
         IF (tj == ti .AND. kk == k  ) Av = Av + cv_vk
-        IF (tj == ti .AND. kk == k+1) Av = Av + cv_vkm1
+        IF (tj == ti .AND. kk == k-1) Av = Av + cv_vkm1
 
         Au = cv_dudx    * single_row_ddx_val(    n) + &
              cv_dudy    * single_row_ddy_val(    n) + &
