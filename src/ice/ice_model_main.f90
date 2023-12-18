@@ -564,7 +564,7 @@ CONTAINS
     CALL reallocate_bounds( ice%mask_cf_gr                  , mesh_new%vi1, mesh_new%vi2         )  ! T: grounded ice next to ice-free water (sea or lake), F: otherwise
     CALL reallocate_bounds( ice%mask_cf_fl                  , mesh_new%vi1, mesh_new%vi2         )  ! T: floating ice next to ice-free water (sea or lake), F: otherwise
     CALL reallocate_bounds( ice%mask_coastline              , mesh_new%vi1, mesh_new%vi2         )  ! T: ice-free land next to ice-free ocean, F: otherwise
-    CALL reallocate_bounds( ice%mask_noice                  , mesh_new%vi1, mesh_new%vi2         )  ! T: no ice is allowed here, F: ice is allowed here
+    ! CALL reallocate_bounds( ice%mask_noice                  , mesh_new%vi1, mesh_new%vi2         )  ! T: no ice is allowed here, F: ice is allowed here
     CALL reallocate_bounds( ice%mask                        , mesh_new%vi1, mesh_new%vi2         )  ! Diagnostic, only meant for quick visual inspection in output
     CALL reallocate_bounds( ice%basin_ID                    , mesh_new%vi1, mesh_new%vi2         )  ! The drainage basin to which each vertex belongs
 
@@ -875,7 +875,6 @@ CONTAINS
     INTEGER                                               :: n_ice, n_nonice
     INTEGER                                               :: n_shelf, n_open_ocean
     REAL(dp)                                              :: sum_Hi_shelf
-    LOGICAL,  DIMENSION( mesh_new%vi1:mesh_new%vi2)       :: mask_noice_new
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -919,9 +918,13 @@ CONTAINS
       END IF
     END DO ! DO vi = mesh_new%vi1, mesh_new%vi2
 
+    ! Reallocate no-ice mask
+    ! T: no ice is allowed here, F: ice is allowed here
+    CALL reallocate_bounds( ice%mask_noice, mesh_new%vi1, mesh_new%vi2)
+
     ! Apply boundary conditions at the domain border
     CALL calc_mask_noice( mesh_new, ice)
-    CALL apply_ice_thickness_BC_explicit( mesh_new, mask_noice_new, ice%Hb, ice%SL, Hi_new)
+    CALL apply_ice_thickness_BC_explicit( mesh_new, ice%mask_noice, ice%Hb, ice%SL, Hi_new)
 
     ! == Corrections
     ! ==============
