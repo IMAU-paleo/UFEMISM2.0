@@ -36,4 +36,4 @@ $(OBJ_PATH)/%.o : %.f90 Makefile_include_local.txt
 # -ld_classic : Force Command Line Tools v15 on Mac to behave like v14, which supports -commons linker option
 #               Otherwise the error "ld: unknown options: -commons" is triggered after updating to CLTv15
 #               This might get patched in future versions of mpifort, so test without it later
-  LDFLAGS                 = ${PETSCLIB} ${NCLIB} ${NFLIB} -g #-ld_classic
+  LDFLAGS                 = ${PETSCLIB} ${NCLIB} ${NFLIB} -g -llapack -lblas # -ld_classic
