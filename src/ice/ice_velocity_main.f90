@@ -9,7 +9,7 @@ MODULE ice_velocity_main
   USE petscksp
   USE mpi
   USE precisions                                             , ONLY: dp
-  USE mpi_basic                                              , ONLY: par, cerr, ierr, MPI_status, sync
+  USE mpi_basic                                              , ONLY: par, cerr, ierr, recv_status, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
   USE petsc_basic                                            , ONLY: solve_matrix_equation_CSR_PETSc
@@ -18,7 +18,7 @@ MODULE ice_velocity_main
                                                                      type_ice_velocity_solver_DIVA, type_ice_velocity_solver_BPA, type_ice_velocity_solver_hybrid
   USE parameters
   USE reallocate_mod                                         , ONLY: reallocate_clean
-  USE mesh_operators                                         , ONLY: map_b_a_2D, map_b_a_3D, ddx_a_a_2D, ddy_a_a_2D
+  USE mesh_operators                                         , ONLY: map_b_a_2D, map_b_a_3D, ddx_a_a_2D, ddy_a_a_2D, ddx_a_b_2D, ddy_a_b_2D
   USE ice_velocity_SIA                                       , ONLY: initialise_SIA_solver , solve_SIA , remap_SIA_solver
   USE ice_velocity_SSA                                       , ONLY: initialise_SSA_solver , solve_SSA , remap_SSA_solver , create_restart_file_SSA , write_to_restart_file_SSA
   USE ice_velocity_DIVA                                      , ONLY: initialise_DIVA_solver, solve_DIVA, remap_DIVA_solver, create_restart_file_DIVA, write_to_restart_file_DIVA
@@ -201,7 +201,7 @@ CONTAINS
 
     END DO
 
-  ! == Calculate velocities on the a-grid (needed to calculate the vertical velocity w, and for writing to output)
+    ! == Calculate velocities on the a-grid (needed to calculate the vertical velocity w, and for writing to output)
 
     ! 3-D
     CALL map_b_a_3D( mesh, ice%u_3D_b  , ice%u_3D  )
@@ -403,7 +403,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'set_ice_velocities_to_SIASSA_results'
     INTEGER                                            :: ti,vi
-
+    REAL(dp)                                           :: w_sia_u, w_sia_v
     ! Add routine to path
     CALL init_routine( routine_name)
 
@@ -414,6 +414,34 @@ CONTAINS
       DO ti = mesh%ti1, mesh%ti2
         ice%u_3D_b( ti,:) = SIA%u_3D_b( ti,:) + SSA%u_b( ti)
         ice%v_3D_b( ti,:) = SIA%v_3D_b( ti,:) + SSA%v_b( ti)
+      END DO
+
+      ! Strain rates
+      DO vi = mesh%vi1, mesh%vi2
+        ice%du_dz_3D( vi,:) = SIA%du_dz_3D( vi,:)
+        ice%dv_dz_3D( vi,:) = SIA%dv_dz_3D( vi,:)
+        ice%du_dx_3D( vi,:) = SSA%du_dx_a(  vi  )
+        ice%du_dy_3D( vi,:) = SSA%du_dy_a(  vi  )
+        ice%dv_dx_3D( vi,:) = SSA%dv_dx_a(  vi  )
+        ice%dv_dy_3D( vi,:) = SSA%dv_dy_a(  vi  )
+      END DO
+
+      ! In the hybrid SIA/SSA, gradients of w are neglected
+      ice%dw_dx_3D = 0._dp
+      ice%dw_dy_3D = 0._dp
+      ice%dw_dz_3D = 0._dp
+
+    ELSEIF (C%choice_hybrid_SIASSA_scheme == 'add_SIA_reduced') THEN
+      ! u = (weight * u_SIA) + u_SSA
+
+      ! Velocities
+      DO ti = mesh%ti1, mesh%ti2
+        ! Compute the SIA fraction that will be added to the SSA solution
+        w_sia_u = 1._dp - (2.0_dp/pi) * ATAN( (ABS(SSA%u_b( ti))**2.0_dp) / (30._dp**2.0_dp) )
+        w_sia_v = 1._dp - (2.0_dp/pi) * ATAN( (ABS(SSA%v_b( ti))**2.0_dp) / (30._dp**2.0_dp) )
+        ! Add SIA fraction to SSA solution
+        ice%u_3D_b( ti,:) = w_sia_u * SIA%u_3D_b( ti,:) + SSA%u_b( ti)
+        ice%v_3D_b( ti,:) = w_sia_v * SIA%v_3D_b( ti,:) + SSA%v_b( ti)
       END DO
 
       ! Strain rates
@@ -813,9 +841,20 @@ CONTAINS
       !       at the ice base, that means that a positive BMB means a positive
       !       value of w
 
-      ice%w_3D( vi,C%nz) = (ice%u_3D( vi,C%nz) * dHib_dx( vi)) + &
-                           (ice%v_3D( vi,C%nz) * dHib_dy( vi)) + &
-                            dHib_dt( vi) + BMB( vi)
+      IF (ice%mask_floating_ice( vi)) THEN
+
+        ice%w_3D( vi,C%nz) = (ice%u_3D( vi,C%nz) * dHib_dx( vi)) + &
+                             (ice%v_3D( vi,C%nz) * dHib_dy( vi)) + &
+                              dHib_dt( vi) + MIN( 0._dp, BMB( vi))
+
+      ELSE
+
+        ice%w_3D( vi,C%nz) = (ice%u_3D( vi,C%nz) * dHib_dx( vi)) + &
+                             (ice%v_3D( vi,C%nz) * dHib_dy( vi)) + &
+                              dHib_dt( vi) + MIN( 0._dp, BMB( vi))
+
+      END IF
+
 
       ! Exception for very thin ice / ice margin: assume horizontal stretching
       ! is negligible, so that w( z) = w( z = b)

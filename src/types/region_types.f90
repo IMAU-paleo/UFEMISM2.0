@@ -14,8 +14,10 @@ MODULE region_types
   USE ocean_model_types                                      , ONLY: type_ocean_model
   USE SMB_model_types                                        , ONLY: type_SMB_model
   USE BMB_model_types                                        , ONLY: type_BMB_model
+  USE LMB_model_types                                        , ONLY: type_LMB_model
+  USE AMB_model_types                                        , ONLY: type_AMB_model
   USE GIA_model_types                                        , ONLY: type_GIA_model
-  USE basal_inversion_types                                  , ONLY: type_basal_inversion
+  USE basal_inversion_types                                  , ONLY: type_basal_inversion, type_hydrology_inversion
   USE scalar_types                                           , ONLY: type_regional_scalars
 
   IMPLICIT NONE
@@ -60,11 +62,20 @@ MODULE region_types
     ! The basal mass balance model
     TYPE(type_BMB_model)                    :: BMB
 
+    ! The lateral mass balance model
+    TYPE(type_LMB_model)                    :: LMB
+
+    ! The artificial mass balance model
+    TYPE(type_AMB_model)                    :: AMB
+
     ! The glacial isostatic adjustment model
     TYPE(type_GIA_model)                    :: GIA
 
-    ! The basal inversion model
+    ! The basal roughness inversion model
     TYPE(type_basal_inversion)              :: BIV
+
+    ! The basal hydrology inversion model
+    TYPE(type_hydrology_inversion)          :: HIV
 
     ! Scalar data
     TYPE(type_regional_scalars)             :: scalars                     ! Scalar data (e.g. total area, volume, mass balance)
@@ -73,7 +84,10 @@ MODULE region_types
     TYPE(type_grid)                         :: output_grid                 ! The square grid used for gridded output files
     CHARACTER(LEN=256)                      :: output_filename_mesh        ! Name of NetCDF output file (mesh version)
     CHARACTER(LEN=256)                      :: output_filename_grid        ! Name of NetCDF output file (grid version)
-    REAL(dp)                                :: output_t_next               ! Time when we should next write to output
+    CHARACTER(LEN=256)                      :: output_filename_scalar      ! Name of NetCDF output file (grid version)
+    REAL(dp)                                :: output_t_next               ! Time when we should next write to main output
+    REAL(dp)                                :: output_restart_t_next       ! Time when we should next write to restart output
+    REAL(dp)                                :: output_grid_t_next          ! Time when we should next write to gridded output
 
     ! Region-of-interest output
     INTEGER                                 :: nROI                        ! Number of regions of interest for this model region

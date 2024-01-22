@@ -197,6 +197,7 @@ MODULE ice_model_types
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHi_dt_Hi_star_np1_u_np1     ! [m/yr] Thinning rates for predicted ice thickness and updated velocity
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: Hi_np1                       ! [m]    Corrected ice thickness
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: tau_np1                      ! [m]    Truncation error
+    INTEGER,  DIMENSION(:    ), ALLOCATABLE :: tau_n_guilty                 ! [-]    Number of PC iterations where vertex had truncation errors above the tolerance
     REAL(dp)                                :: eta_n                        ! [m]    Previous maximum truncation error
     REAL(dp)                                :: eta_np1                      ! [m]    Current  maximum truncation error
 
@@ -218,18 +219,26 @@ MODULE ice_model_types
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: SL                          ! [m] Sea level (geoid) elevation (w.r.t. PD sea level)
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: Hib                         ! [m] Ice base elevation (w.r.t. PD sea level)
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: TAF                         ! [m] Thickness above flotation
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: Hi_eff                      ! [m] Effective thickness of ice margins
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: Hs_slope                    ! [-] Absolute surface gradient
 
     ! Geometry changes
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHi                         ! [m] Ice thickness difference (w.r.t. to reference)
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHb                         ! [m] Bedrock elevation difference (w.r.t. to reference)
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHs                         ! [m] Surface elevation difference (w.r.t. to reference)
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHib                        ! [m] Base elevation difference (w.r.t. to reference)
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHi                         ! [m] Ice thickness difference (w.r.t. reference)
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHb                         ! [m] Bedrock elevation difference (w.r.t. reference)
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHs                         ! [m] Surface elevation difference (w.r.t. reference)
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHib                        ! [m] Base elevation difference (w.r.t. reference)
 
     ! Rates of change
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHi_dt                      ! [m yr^-1] Ice thickness rate of change
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHb_dt                      ! [m yr^-1] Bedrock elevation rate of change
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHs_dt                      ! [m yr^-1] Ice surface elevation rate of change
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHib_dt                     ! [m yr^-1] Ice base elevation rate of change
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHi_dt_raw                  ! [m yr^-1] Ice thickness rate of change before any ice thickness modifications
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHi_dt_residual             ! [m yr^-1] Residual ice thickness rate of change for inversions
+
+    ! Target quantities
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHi_dt_target               ! [m yr^-1] Target ice thickness rate of change for inversions
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: uabs_surf_target            ! [m yr^-1] Target ice surface speed for inversions
 
     ! Masks
     LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_icefree_land           ! T: ice-free land , F: otherwise
@@ -253,7 +262,7 @@ MODULE ice_model_types
     ! Area fractions
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: fraction_gr                 ! [0-1] Grounded area fractions of vertices
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: fraction_gr_b               ! [0-1] Grounded area fractions of triangles
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: fraction_cf                 ! [0-1] Ice-covered area fractions of calving fronts
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: fraction_margin             ! [0-1] Ice-covered area fractions of ice margins
 
     ! Sub-grid bedrock cumulative density functions (CDFs)
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: bedrock_cdf                 ! [-] Sub-grid bedrock cumulative density functions on the a-grid (vertices)
@@ -295,6 +304,7 @@ MODULE ice_model_types
     ! Ice temperatures
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: Ti                          ! [K] Englacial temperature
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: Ti_pmp                      ! [K] Pressure melting point temperature
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: Ti_hom                      ! [K] Basal temperature w.r.t. pressure melting point
 
     ! Physical quantities
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: Cpi                         ! [J kg^-1 K^-1] Specific heat capacity
@@ -373,15 +383,18 @@ MODULE ice_model_types
   ! =====================
 
     ! Basal hydrology
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: pore_water_pressure         ! [Pa] Basal pore water pressure
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: overburden_pressure         ! [Pa] Basal overburden pressure
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: effective_pressure          ! [Pa] Basal effective pressure
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: pore_water_pressure         ! [Pa]  Basal pore water pressure
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: overburden_pressure         ! [Pa]  Basal overburden pressure
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: effective_pressure          ! [Pa]  Basal effective pressure
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: pore_water_likelihood       ! [0-1] Basal pore water likelihood
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: pore_water_fraction         ! [0-1] Fraction of overburden pressure reduced by pore water pressure
 
   ! == Basal sliding ==
   ! ===================
 
     ! Sliding law coefficients
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: till_friction_angle         ! [degrees]          Till friction angle
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: bed_roughness               ! [0-1]              Bed roughness fraction
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: till_yield_stress           ! [Pa]               Till yield stress (used when choice_sliding_law = "Coloumb", "Budd", or "Zoet-Iverson")
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: slid_alpha_sq               ! [-]                Coulomb-law friction coefficient (used when choice_sliding_law = "Tsai2015", or "Schoof2005")
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: slid_beta_sq                ! [Pa m^−1/m yr^1/m] Power-law friction coefficient (used when choice_sliding_law = "Weertman", "Tsai2015", or "Schoof2005")

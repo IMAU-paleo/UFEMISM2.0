@@ -9,7 +9,7 @@ MODULE thermodynamics_3D_heat_equation
   USE petscksp
   USE mpi
   USE precisions                                             , ONLY: dp
-  USE mpi_basic                                              , ONLY: par, cerr, ierr, MPI_status, sync
+  USE mpi_basic                                              , ONLY: par, cerr, ierr, recv_status, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
   USE netcdf_debug                                           , ONLY: write_PETSc_matrix_to_NetCDF, write_CSR_matrix_to_NetCDF, &
@@ -85,6 +85,7 @@ CONTAINS
     REAL(dp), DIMENSION( C%nz)                         :: icecol_dzeta_dt             !   "         "    "  time-derivative of the scaled coordinate zeta [yr^-1]
     REAL(dp), DIMENSION( C%nz)                         :: icecol_Phi                  !   "         "    "  internal heat production                      [J kg^1 yr^1]
     REAL(dp), DIMENSION( C%nz)                         :: icecol_Ti_tplusdt           ! Vertical profile of ice temperature at time t + dt                [K]
+    REAL(dp), DIMENSION( C%nz)                         :: icecol_Ti_tplusdt_gl_fl     ! Vertical profile of ice temperature at time t + dt (floating GL)  [K]
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -140,7 +141,7 @@ CONTAINS
     DO vi = mesh%vi1, mesh%vi2
 
       ! For very thin ice, just let the profile equal the surface temperature
-      IF (ice%Hi( vi) < C%Hi_min_thermo) THEN
+      IF (ice%Hi_eff( vi) < C%Hi_min_thermo) THEN
         is_unstable( vi) = 0
         Ti_tplusdt( vi,:) = T_surf_annual( vi)
         CYCLE
@@ -176,7 +177,41 @@ CONTAINS
         DO it_it_dt = 1, 2**(it_dt-1)
 
           ! Solve the heat equation in the vertical column
-          IF     (ice%mask_grounded_ice( vi)) THEN
+          IF (ice%mask_gl_gr( vi)) THEN
+            ! Grounding line: use some combination of the solutions using Q_base_grnd and T_base_float as boundary conditions
+
+            ! Fully grounded solution (default: immediately assigned to final solution)
+            CALL solve_1D_heat_equation( mesh, icecol_Ti, icecol_u, icecol_v, icecol_w, &
+              icecol_u_times_dTdxp_upwind, icecol_v_times_dTdyp_upwind, T_surf_annual( vi), &
+              icecol_Ti_pmp, icecol_Ki, icecol_Cpi, icecol_dzeta_dx, icecol_dzeta_dy, icecol_dzeta_dz, icecol_dzeta_dt, &
+              icecol_Phi, dt_applied, icecol_Ti_tplusdt, Q_base_grnd = Q_base_grnd( vi))
+
+            IF (C%choice_GL_temperature_BC == 'subgrid' .OR. C%choice_GL_temperature_BC == 'pmp') THEN
+              ! Fully floating solution: assumes base is at the pressure melting point
+              CALL solve_1D_heat_equation( mesh, icecol_Ti, icecol_u, icecol_v, icecol_w, &
+                icecol_u_times_dTdxp_upwind, icecol_v_times_dTdyp_upwind, T_surf_annual( vi), &
+                icecol_Ti_pmp, icecol_Ki, icecol_Cpi, icecol_dzeta_dx, icecol_dzeta_dy, icecol_dzeta_dz, icecol_dzeta_dt, &
+                icecol_Phi, dt_applied, icecol_Ti_tplusdt_gl_fl, T_base_float = T_base_float( vi))
+            ELSE
+              ! Safety: just copy the profile from the default, fully grounded solution
+              icecol_Ti_tplusdt_gl_fl = icecol_Ti_tplusdt
+            END IF
+
+              ! Combine both solutions
+              SELECT CASE (C%choice_GL_temperature_BC)
+                CASE ('grounded')
+                  ! Use solution that assumes a fully grounded ice column (already assigned)
+                CASE ('subgrid')
+                  ! Interpolate grounded and floating solutions based on grounded fraction
+                  icecol_Ti_tplusdt = ice%fraction_gr( vi) * icecol_Ti_tplusdt + (1._dp - ice%fraction_gr( vi)) * icecol_Ti_tplusdt_gl_fl
+                CASE ('pmp')
+                  ! Use solution that assumes ice base is at pressure melting point
+                  icecol_Ti_tplusdt = icecol_Ti_tplusdt_gl_fl
+                CASE DEFAULT
+                  CALL crash('unknown choice_GL_temperature_BC "' // TRIM( C%choice_GL_temperature_BC) // '"!')
+              END SELECT
+
+          ELSEIF (ice%mask_grounded_ice( vi)) THEN
             ! Grounded ice: use Q_base_grnd as boundary condition
 
             CALL solve_1D_heat_equation( mesh, icecol_Ti, icecol_u, icecol_v, icecol_w, &
@@ -193,7 +228,7 @@ CONTAINS
               icecol_Phi, dt_applied, icecol_Ti_tplusdt, T_base_float = T_base_float( vi))
 
           ELSE
-            CALL crash('Hi > Hi_min_thermo, but mask_grounded_ice and mask_floating_ice are both .false.')
+            CALL crash('Hi_eff > Hi_min_thermo, but mask_grounded_ice and mask_floating_ice are both .false.')
           END IF
 
           ! Update temperature solution for next semi-time-step
@@ -242,6 +277,7 @@ CONTAINS
       ! An unacceptably large number of grid cells was unstable; throw an error.
 
       CALL save_variable_as_netcdf_dp_1D(  ice%Hi                  , 'Hi'                  )
+      CALL save_variable_as_netcdf_dp_1D(  ice%Hi_eff              , 'Hi_eff'              )
       CALL save_variable_as_netcdf_dp_1D(  ice%Hb                  , 'Hb'                  )
       CALL save_variable_as_netcdf_dp_1D(  ice%SL                  , 'SL'                  )
       CALL save_variable_as_netcdf_dp_2D(  ice%dzeta_dx_ak         , 'dzeta_dx_ak'         )
@@ -525,7 +561,7 @@ CONTAINS
     CALL generate_filename_XXXXXdotnc( filename_base, ice%thermo_restart_filename)
 
     ! Print to terminal
-    IF (par%master) WRITE(0,'(A)') '  Creating thermodynamics restart file "' // &
+    IF (par%master) WRITE(0,'(A)') '   Creating thermodynamics restart file "' // &
       colour_string( TRIM( ice%thermo_restart_filename), 'light blue') // '"...'
 
     ! Create the NetCDF file

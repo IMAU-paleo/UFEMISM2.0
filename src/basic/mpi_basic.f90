@@ -12,8 +12,8 @@ MODULE mpi_basic
 ! ===== Global variables =====
 ! ============================
 
-  INTEGER :: cerr, ierr                    ! Error flags for MPI routines
-  INTEGER :: MPI_status( MPI_STATUS_SIZE)  ! Status flag for MPI_RECV
+  INTEGER :: cerr, ierr                     ! Error flags for MPI routines
+  INTEGER :: recv_status( MPI_STATUS_SIZE)  ! Status flag for MPI_RECV
 
   TYPE parallel_info
 

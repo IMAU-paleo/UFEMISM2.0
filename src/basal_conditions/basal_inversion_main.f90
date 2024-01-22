@@ -9,7 +9,7 @@ MODULE basal_inversion_main
   USE petscksp
   USE mpi
   USE precisions                                             , ONLY: dp
-  USE mpi_basic                                              , ONLY: par, cerr, ierr, MPI_status, sync
+  USE mpi_basic                                              , ONLY: par, cerr, ierr, recv_status, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
   USE parameters
@@ -54,9 +54,9 @@ CONTAINS
       RETURN
     END IF
 
-  ! If the desired time is beyond the time of the next modelled bed roughness,
-  ! run the basal inversion model to calculate a new next modelled bed roughness.
-  ! =============================================================================
+    ! If the desired time is beyond the time of the next modelled bed roughness,
+    ! run the basal inversion model to calculate a new next modelled bed roughness.
+    ! =============================================================================
 
     IF (region%time == region%BIV%t_next) THEN
       ! Need to calculate new predicted bed roughness
@@ -92,9 +92,9 @@ CONTAINS
       ! We're within the current BIV prediction window
     END IF ! IF (region%time == region%BIV%t_next) THEN
 
-  ! Interpolate between previous and next modelled bed roughness
-  ! to find the bed roughness at the desired time
-  ! =================================================================
+    ! Interpolate between previous and next modelled bed roughness
+    ! to find the bed roughness at the desired time
+    ! =================================================================
 
     ! Calculate time interpolation weights
     wt_prev = (region%BIV%t_next - region%time) / (region%BIV%t_next - region%BIV%t_prev)
@@ -106,8 +106,8 @@ CONTAINS
       region%BIV%generic_bed_roughness_2( vi) = wt_prev * region%BIV%generic_bed_roughness_2_prev( vi) + wt_next * region%BIV%generic_bed_roughness_2_next( vi)
     END DO
 
-  ! Update sliding law-specific bed roughness
-  ! =========================================
+    ! Update sliding law-specific bed roughness
+    ! =========================================
 
     SELECT CASE (C%choice_sliding_law)
       CASE ('no_sliding')
@@ -163,8 +163,8 @@ CONTAINS
     ! Print to terminal
     IF (par%master) WRITE(0,*) ' Initialising basal inversion model "' // colour_string( TRIM( C%choice_bed_roughness_nudging_method),'light blue') // '"...'
 
-  ! Allocate memory for main variables
-  ! ==================================
+    ! Allocate memory for main variables
+    ! ==================================
 
     ALLOCATE( BIV%generic_bed_roughness_1( mesh%vi1:mesh%vi2))
     ALLOCATE( BIV%generic_bed_roughness_2( mesh%vi1:mesh%vi2))
@@ -186,8 +186,8 @@ CONTAINS
     BIV%t_prev   = C%start_time_of_run
     BIV%t_next   = C%start_time_of_run
 
-  ! Get sliding law-specific bed roughness
-  ! ======================================
+    ! Get sliding law-specific bed roughness
+    ! ======================================
 
     SELECT CASE (C%choice_sliding_law)
       CASE ('no_sliding')
@@ -246,8 +246,8 @@ CONTAINS
         CALL crash('unknown choice_sliding_law "' // TRIM( C%choice_sliding_law) // '"!')
     END SELECT
 
-  ! Initialise chosen basal inversion model
-  ! =======================================
+    ! Initialise chosen basal inversion model
+    ! =======================================
 
     SELECT CASE (C%choice_bed_roughness_nudging_method)
       CASE ('H_dHdt_flowline')

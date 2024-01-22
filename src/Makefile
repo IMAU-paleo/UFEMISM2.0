@@ -9,11 +9,8 @@
 # Include settings from (uncommented) file below:
 
 include Makefile_include_local.txt
-#include Makefile_include_mac.txt
 #include Makefile_include_nix.txt
-#include Makefile_include_gemini.txt
 #include Makefile_include_snellius.txt
-#include Makefile_include_book.txt
 
 # The OBJ_PATH and the MOD_PATH are defined as:
 OBJ_PATH = object-files
@@ -83,6 +80,8 @@ UFEMISM_source = \
   types/ocean_model_types.f90 \
   types/SMB_model_types.f90 \
   types/BMB_model_types.f90 \
+  types/LMB_model_types.f90 \
+  types/AMB_model_types.f90 \
   types/GIA_model_types.f90 \
   types/basal_inversion_types.f90 \
   types/region_types.f90 \
@@ -100,9 +99,9 @@ UFEMISM_source = \
   mesh/mesh_creation.f90 \
   \
   netcdf/netcdf_basic.f90 \
+  netcdf/netcdf_debug.f90 \
   netcdf/netcdf_input.f90 \
   netcdf/netcdf_output.f90 \
-  netcdf/netcdf_debug.f90 \
   netcdf/netcdf_resource_tracking.f90 \
   \
   reference_states/reference_geometries.f90 \
@@ -114,8 +113,19 @@ UFEMISM_source = \
   basal_conditions/bed_roughness.f90 \
   basal_conditions/sliding_laws.f90 \
   \
+  surface_mass_balance/SMB_idealised.f90 \
+  surface_mass_balance/SMB_prescribed.f90 \
+  surface_mass_balance/SMB_main.f90 \
+  \
+  basal_mass_balance/BMB_idealised.f90 \
+  basal_mass_balance/BMB_parameterised.f90 \
+  basal_mass_balance/BMB_main.f90 \
+  \
+  lateral_mass_balance/LMB_main.f90 \
+  \
+  artificial_mass_balance/AMB_main.f90 \
+  \
   ice/ice_model_memory.f90 \
-  ice/ice_model_scalars.f90 \
   ice/ice_model_utilities.f90 \
   ice/ice_flow_laws.f90 \
   ice/ice_velocity_SIA.f90 \
@@ -125,6 +135,7 @@ UFEMISM_source = \
   ice/ice_velocity_hybrid_DIVA_BPA.f90 \
   ice/ice_velocity_main.f90 \
   ice/ice_thickness.f90 \
+  ice/ice_model_scalars.f90 \
   ice/ice_model_main.f90 \
   \
   thermodynamics/thermodynamics_utilities.f90 \
@@ -132,16 +143,12 @@ UFEMISM_source = \
   thermodynamics/thermodynamics_main.f90 \
   \
   climate/climate_idealised.f90 \
+  climate/climate_realistic.f90 \
   climate/climate_main.f90 \
   \
+  ocean/ocean_utilities.f90 \
+  ocean/ocean_realistic.f90 \
   ocean/ocean_main.f90 \
-  \
-  surface_mass_balance/SMB_idealised.f90 \
-  surface_mass_balance/SMB_prescribed.f90 \
-  surface_mass_balance/SMB_main.f90 \
-  \
-  basal_mass_balance/BMB_idealised.f90 \
-  basal_mass_balance/BMB_main.f90 \
   \
   glacial_isostatic_adjustment/GIA_main.f90 \
   \

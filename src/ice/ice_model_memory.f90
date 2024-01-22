@@ -43,6 +43,8 @@ CONTAINS
     ALLOCATE( ice%SL                          ( mesh%vi1:mesh%vi2        ))  ! [m] Sea level (geoid) elevation (w.r.t. PD sea level)
     ALLOCATE( ice%Hib                         ( mesh%vi1:mesh%vi2        ))  ! [m] Ice base elevation (w.r.t. PD sea level)
     ALLOCATE( ice%TAF                         ( mesh%vi1:mesh%vi2        ))  ! [m] Thickness above flotation
+    ALLOCATE( ice%Hi_eff                      ( mesh%vi1:mesh%vi2        ))  ! [m] Thickness above flotation
+    ALLOCATE( ice%Hs_slope                    ( mesh%vi1:mesh%vi2        ))  ! [-] Absolute surface gradient
 
     ice%Hi                          = 0._dp
     ice%Hb                          = 0._dp
@@ -50,12 +52,14 @@ CONTAINS
     ice%SL                          = 0._dp
     ice%Hib                         = 0._dp
     ice%TAF                         = 0._dp
+    ice%Hi_eff                      = 0._dp
+    ice%Hs_slope                    = 0._dp
 
     ! Geometry changes
-    ALLOCATE( ice%dHi                         ( mesh%vi1:mesh%vi2        ))  ! [m] Ice thickness difference (w.r.t. to reference)
-    ALLOCATE( ice%dHb                         ( mesh%vi1:mesh%vi2        ))  ! [m] Bedrock elevation difference (w.r.t. to reference)
-    ALLOCATE( ice%dHs                         ( mesh%vi1:mesh%vi2        ))  ! [m] Surface elevation difference (w.r.t. to reference)
-    ALLOCATE( ice%dHib                        ( mesh%vi1:mesh%vi2        ))  ! [m] Base elevation difference (w.r.t. to reference)
+    ALLOCATE( ice%dHi                         ( mesh%vi1:mesh%vi2        ))  ! [m] Ice thickness difference (w.r.t. reference)
+    ALLOCATE( ice%dHb                         ( mesh%vi1:mesh%vi2        ))  ! [m] Bedrock elevation difference (w.r.t. reference)
+    ALLOCATE( ice%dHs                         ( mesh%vi1:mesh%vi2        ))  ! [m] Surface elevation difference (w.r.t. reference)
+    ALLOCATE( ice%dHib                        ( mesh%vi1:mesh%vi2        ))  ! [m] Base elevation difference (w.r.t. reference)
 
     ice%dHi                         = 0._dp
     ice%dHb                         = 0._dp
@@ -67,11 +71,22 @@ CONTAINS
     ALLOCATE( ice%dHb_dt                      ( mesh%vi1:mesh%vi2        ))  ! [m yr^-1] Bedrock elevation rate of change
     ALLOCATE( ice%dHs_dt                      ( mesh%vi1:mesh%vi2        ))  ! [m yr^-1] Ice surface elevation rate of change
     ALLOCATE( ice%dHib_dt                     ( mesh%vi1:mesh%vi2        ))  ! [m yr^-1] Ice base elevation rate of change
+    ALLOCATE( ice%dHi_dt_raw                  ( mesh%vi1:mesh%vi2        ))  ! [m yr^-1] Ice thickness rate of change before any imposed modifications
+    ALLOCATE( ice%dHi_dt_residual             ( mesh%vi1:mesh%vi2        ))  ! [m yr^-1] Residual ice thickness rate of change after imposed modifications
 
     ice%dHi_dt                      = 0._dp
     ice%dHb_dt                      = 0._dp
     ice%dHs_dt                      = 0._dp
     ice%dHib_dt                     = 0._dp
+    ice%dHi_dt_raw                  = 0._dp
+    ice%dHi_dt_residual             = 0._dp
+
+    ! Target quantities
+    ALLOCATE( ice%dHi_dt_target               ( mesh%vi1:mesh%vi2        ))  ! [m yr^-1] Target ice thickness rate of change for inversions
+    ALLOCATE( ice%uabs_surf_target            ( mesh%vi1:mesh%vi2        ))  ! [m yr^-1] Target ice surface speed for inversions
+
+    ice%dHi_dt_target               = 0._dp
+    ice%uabs_surf_target            = 0._dp
 
     ! Masks
     ALLOCATE( ice%mask_icefree_land           ( mesh%vi1:mesh%vi2        ))  ! T: ice-free land , F: otherwise
@@ -113,11 +128,11 @@ CONTAINS
     ! Area fractions
     ALLOCATE( ice%fraction_gr                 ( mesh%vi1:mesh%vi2        ))  ! [0-1] Grounded area fractions of vertices
     ALLOCATE( ice%fraction_gr_b               ( mesh%ti1:mesh%ti2        ))  ! [0-1] Grounded area fractions of triangles
-    ALLOCATE( ice%fraction_cf                 ( mesh%vi1:mesh%vi2        ))  ! [0-1] Ice-covered area fractions of calving fronts
+    ALLOCATE( ice%fraction_margin             ( mesh%vi1:mesh%vi2        ))  ! [0-1] Ice-covered area fractions of calving fronts
 
     ice%fraction_gr                 = 0._dp
     ice%fraction_gr_b               = 0._dp
-    ice%fraction_cf                 = 0._dp
+    ice%fraction_margin             = 0._dp
 
     ! Sub-grid bedrock cumulative density functions (CDFs)
     ALLOCATE( ice%bedrock_cdf                 ( mesh%vi1:mesh%vi2, C%subgrid_bedrock_cdf_nbins))  ! [-] Sub-grid bedrock cumulative density functions on the a-grid (vertices)
@@ -184,9 +199,11 @@ CONTAINS
     ! Ice temperatures
     ALLOCATE( ice%Ti                          ( mesh%vi1:mesh%vi2,mesh%nz))  ! [K] Englacial temperature
     ALLOCATE( ice%Ti_pmp                      ( mesh%vi1:mesh%vi2,mesh%nz))  ! [K] Pressure melting point temperature
+    ALLOCATE( ice%Ti_hom                      ( mesh%vi1:mesh%vi2        ))  ! [K] Basal temperature w.r.t. pressure melting point
 
     ice%Ti                          = 0._dp
     ice%Ti_pmp                      = 0._dp
+    ice%Ti_hom                      = 0._dp
 
     ! Physical quantities
     ALLOCATE( ice%Cpi                         ( mesh%vi1:mesh%vi2,mesh%nz))  ! [J kg^-1 K^-1] Specific heat capacity
@@ -308,24 +325,30 @@ CONTAINS
   ! =====================
 
     ! Basal hydrology
-    ALLOCATE( ice%pore_water_pressure         ( mesh%vi1:mesh%vi2        ))  ! [Pa] Basal pore water pressure
-    ALLOCATE( ice%overburden_pressure         ( mesh%vi1:mesh%vi2        ))  ! [Pa] Basal overburden pressure
-    ALLOCATE( ice%effective_pressure          ( mesh%vi1:mesh%vi2        ))  ! [Pa] Basal effective pressure
+    ALLOCATE( ice%pore_water_pressure         ( mesh%vi1:mesh%vi2        ))  ! [Pa]  Basal pore water pressure
+    ALLOCATE( ice%overburden_pressure         ( mesh%vi1:mesh%vi2        ))  ! [Pa]  Basal overburden pressure
+    ALLOCATE( ice%effective_pressure          ( mesh%vi1:mesh%vi2        ))  ! [Pa]  Basal effective pressure
+    ALLOCATE( ice%pore_water_likelihood       ( mesh%vi1:mesh%vi2        ))  ! [0-1] Basal pore water likelihood
+    ALLOCATE( ice%pore_water_fraction         ( mesh%vi1:mesh%vi2        ))  ! [0-1] Fraction of overburden pressure reduced by pore water pressure
 
     ice%pore_water_pressure         = 0._dp
     ice%overburden_pressure         = 0._dp
     ice%effective_pressure          = 0._dp
+    ice%pore_water_likelihood       = 0._dp
+    ice%pore_water_fraction         = 0._dp
 
   ! == Basal sliding ==
   ! ===================
 
     ! Sliding law coefficients
     ALLOCATE( ice%till_friction_angle         ( mesh%vi1:mesh%vi2        ))  ! [degrees]          Till friction angle (degrees)
+    ALLOCATE( ice%bed_roughness               ( mesh%vi1:mesh%vi2        ))  ! [0-1]              Bed roughness fraction
     ALLOCATE( ice%till_yield_stress           ( mesh%vi1:mesh%vi2        ))  ! [Pa]               Till yield stress (used when choice_sliding_law = "Coloumb", "Budd", or "Zoet-Iverson")
     ALLOCATE( ice%slid_alpha_sq               ( mesh%vi1:mesh%vi2        ))  ! [-]                Coulomb-law friction coefficient (used when choice_sliding_law = "Tsai2015", or "Schoof2005")
     ALLOCATE( ice%slid_beta_sq                ( mesh%vi1:mesh%vi2        ))  ! [Pa m^−1/m yr^1/m] Power-law friction coefficient (used when choice_sliding_law = "Weertman", "Tsai2015", or "Schoof2005")
 
     ice%till_friction_angle         = 0._dp
+    ice%bed_roughness               = 0._dp
     ice%till_yield_stress           = 0._dp
     ice%slid_alpha_sq               = 0._dp
     ice%slid_beta_sq                = 0._dp

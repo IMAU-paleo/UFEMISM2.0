@@ -7,7 +7,7 @@ MODULE mesh_parallel_creation
 
   USE mpi
   USE precisions                                             , ONLY: dp
-  USE mpi_basic                                              , ONLY: par, cerr, ierr, MPI_status, sync
+  USE mpi_basic                                              , ONLY: par, cerr, ierr, recv_status, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
   USE parameters
@@ -209,11 +209,11 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Receive mesh size
-    CALL MPI_RECV( nV_mem       , 1                          , MPI_INTEGER         , p_from, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_status, ierr)
-    CALL MPI_RECV( nTri_mem     , 1                          , MPI_INTEGER         , p_from, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_status, ierr)
-    CALL MPI_RECV( nC_mem       , 1                          , MPI_INTEGER         , p_from, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_status, ierr)
-    CALL MPI_RECV( nV           , 1                          , MPI_INTEGER         , p_from, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_status, ierr)
-    CALL MPI_RECV( nTri         , 1                          , MPI_INTEGER         , p_from, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_status, ierr)
+    CALL MPI_RECV( nV_mem       , 1                          , MPI_INTEGER         , p_from, MPI_ANY_TAG, MPI_COMM_WORLD, recv_status, ierr)
+    CALL MPI_RECV( nTri_mem     , 1                          , MPI_INTEGER         , p_from, MPI_ANY_TAG, MPI_COMM_WORLD, recv_status, ierr)
+    CALL MPI_RECV( nC_mem       , 1                          , MPI_INTEGER         , p_from, MPI_ANY_TAG, MPI_COMM_WORLD, recv_status, ierr)
+    CALL MPI_RECV( nV           , 1                          , MPI_INTEGER         , p_from, MPI_ANY_TAG, MPI_COMM_WORLD, recv_status, ierr)
+    CALL MPI_RECV( nTri         , 1                          , MPI_INTEGER         , p_from, MPI_ANY_TAG, MPI_COMM_WORLD, recv_status, ierr)
 
     ! Allocate memory for mesh
     mesh_name = 'mesh_recv'
@@ -223,23 +223,23 @@ CONTAINS
     mesh%nTri = nTri
 
     ! Receive mesh metadata
-    CALL MPI_RECV( mesh%xmin    , 1                          , MPI_DOUBLE_PRECISION, p_from, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_status, ierr)
-    CALL MPI_RECV( mesh%xmax    , 1                          , MPI_DOUBLE_PRECISION, p_from, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_status, ierr)
-    CALL MPI_RECV( mesh%ymin    , 1                          , MPI_DOUBLE_PRECISION, p_from, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_status, ierr)
-    CALL MPI_RECV( mesh%ymax    , 1                          , MPI_DOUBLE_PRECISION, p_from, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_status, ierr)
+    CALL MPI_RECV( mesh%xmin    , 1                          , MPI_DOUBLE_PRECISION, p_from, MPI_ANY_TAG, MPI_COMM_WORLD, recv_status, ierr)
+    CALL MPI_RECV( mesh%xmax    , 1                          , MPI_DOUBLE_PRECISION, p_from, MPI_ANY_TAG, MPI_COMM_WORLD, recv_status, ierr)
+    CALL MPI_RECV( mesh%ymin    , 1                          , MPI_DOUBLE_PRECISION, p_from, MPI_ANY_TAG, MPI_COMM_WORLD, recv_status, ierr)
+    CALL MPI_RECV( mesh%ymax    , 1                          , MPI_DOUBLE_PRECISION, p_from, MPI_ANY_TAG, MPI_COMM_WORLD, recv_status, ierr)
 
     ! Receive vertex data
-    CALL MPI_RECV( mesh%V       , mesh%nV_mem   * 2          , MPI_DOUBLE_PRECISION, p_from, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_status, ierr)
-    CALL MPI_RECV( mesh%nC      , mesh%nV_mem                , MPI_INTEGER         , p_from, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_status, ierr)
-    CALL MPI_RECV( mesh%C       , mesh%nV_mem   * mesh%nC_mem, MPI_INTEGER         , p_from, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_status, ierr)
-    CALL MPI_RECV( mesh%niTri   , mesh%nV_mem                , MPI_INTEGER         , p_from, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_status, ierr)
-    CALL MPI_RECV( mesh%iTri    , mesh%nV_mem   * mesh%nC_mem, MPI_INTEGER         , p_from, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_status, ierr)
-    CALL MPI_RECV( mesh%VBI     , mesh%nV_mem                , MPI_INTEGER         , p_from, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_status, ierr)
+    CALL MPI_RECV( mesh%V       , mesh%nV_mem   * 2          , MPI_DOUBLE_PRECISION, p_from, MPI_ANY_TAG, MPI_COMM_WORLD, recv_status, ierr)
+    CALL MPI_RECV( mesh%nC      , mesh%nV_mem                , MPI_INTEGER         , p_from, MPI_ANY_TAG, MPI_COMM_WORLD, recv_status, ierr)
+    CALL MPI_RECV( mesh%C       , mesh%nV_mem   * mesh%nC_mem, MPI_INTEGER         , p_from, MPI_ANY_TAG, MPI_COMM_WORLD, recv_status, ierr)
+    CALL MPI_RECV( mesh%niTri   , mesh%nV_mem                , MPI_INTEGER         , p_from, MPI_ANY_TAG, MPI_COMM_WORLD, recv_status, ierr)
+    CALL MPI_RECV( mesh%iTri    , mesh%nV_mem   * mesh%nC_mem, MPI_INTEGER         , p_from, MPI_ANY_TAG, MPI_COMM_WORLD, recv_status, ierr)
+    CALL MPI_RECV( mesh%VBI     , mesh%nV_mem                , MPI_INTEGER         , p_from, MPI_ANY_TAG, MPI_COMM_WORLD, recv_status, ierr)
 
     ! Receive triangle data
-    CALL MPI_RECV( mesh%Tri     , mesh%nTri_mem * 3          , MPI_INTEGER         , p_from, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_status, ierr)
-    CALL MPI_RECV( mesh%TriC    , mesh%nTri_mem * 3          , MPI_INTEGER         , p_from, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_status, ierr)
-    CALL MPI_RECV( mesh%Tricc   , mesh%nTri_mem * 2          , MPI_DOUBLE_PRECISION, p_from, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_status, ierr)
+    CALL MPI_RECV( mesh%Tri     , mesh%nTri_mem * 3          , MPI_INTEGER         , p_from, MPI_ANY_TAG, MPI_COMM_WORLD, recv_status, ierr)
+    CALL MPI_RECV( mesh%TriC    , mesh%nTri_mem * 3          , MPI_INTEGER         , p_from, MPI_ANY_TAG, MPI_COMM_WORLD, recv_status, ierr)
+    CALL MPI_RECV( mesh%Tricc   , mesh%nTri_mem * 2          , MPI_DOUBLE_PRECISION, p_from, MPI_ANY_TAG, MPI_COMM_WORLD, recv_status, ierr)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -1065,12 +1065,12 @@ CONTAINS
 
       IF     (par%i == p_left) THEN
         xmax_left = mesh%xmax
-        CALL MPI_SEND( xmax_left , 1, MPI_DOUBLE_PRECISION, p_right, 0          , MPI_COMM_WORLD            , ierr)
-        CALL MPI_RECV( xmin_right, 1, MPI_DOUBLE_PRECISION, p_right, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_status, ierr)
+        CALL MPI_SEND( xmax_left , 1, MPI_DOUBLE_PRECISION, p_right, 0          , MPI_COMM_WORLD             , ierr)
+        CALL MPI_RECV( xmin_right, 1, MPI_DOUBLE_PRECISION, p_right, MPI_ANY_TAG, MPI_COMM_WORLD, recv_status, ierr)
       ELSEIF (par%i == p_right) THEN
         xmin_right = mesh%xmin
-        CALL MPI_RECV( xmax_left , 1, MPI_DOUBLE_PRECISION, p_left , MPI_ANY_TAG, MPI_COMM_WORLD, MPI_status, ierr)
-        CALL MPI_SEND( xmin_right, 1, MPI_DOUBLE_PRECISION, p_left , 0          , MPI_COMM_WORLD            , ierr)
+        CALL MPI_RECV( xmax_left , 1, MPI_DOUBLE_PRECISION, p_left , MPI_ANY_TAG, MPI_COMM_WORLD, recv_status, ierr)
+        CALL MPI_SEND( xmin_right, 1, MPI_DOUBLE_PRECISION, p_left , 0          , MPI_COMM_WORLD             , ierr)
       END IF
 
       IF (xmax_left /= xmin_right) CALL crash('eastern border of left submesh doesnt coincide with western border of right submesh!')
@@ -1080,12 +1080,12 @@ CONTAINS
 
       IF     (par%i == p_left) THEN
         ymax_left = mesh%ymax
-        CALL MPI_SEND( ymax_left , 1, MPI_DOUBLE_PRECISION, p_right, 0          , MPI_COMM_WORLD            , ierr)
-        CALL MPI_RECV( ymin_right, 1, MPI_DOUBLE_PRECISION, p_right, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_status, ierr)
+        CALL MPI_SEND( ymax_left , 1, MPI_DOUBLE_PRECISION, p_right, 0          , MPI_COMM_WORLD             , ierr)
+        CALL MPI_RECV( ymin_right, 1, MPI_DOUBLE_PRECISION, p_right, MPI_ANY_TAG, MPI_COMM_WORLD, recv_status, ierr)
       ELSEIF (par%i == p_right) THEN
         ymin_right = mesh%ymin
-        CALL MPI_RECV( ymax_left , 1, MPI_DOUBLE_PRECISION, p_left , MPI_ANY_TAG, MPI_COMM_WORLD, MPI_status, ierr)
-        CALL MPI_SEND( ymin_right, 1, MPI_DOUBLE_PRECISION, p_left , 0          , MPI_COMM_WORLD            , ierr)
+        CALL MPI_RECV( ymax_left , 1, MPI_DOUBLE_PRECISION, p_left , MPI_ANY_TAG, MPI_COMM_WORLD, recv_status, ierr)
+        CALL MPI_SEND( ymin_right, 1, MPI_DOUBLE_PRECISION, p_left , 0          , MPI_COMM_WORLD             , ierr)
       END IF
 
       IF (ymax_left /= ymin_right) CALL crash('northern border of left submesh doesnt coincide with southern border of right submesh!')
@@ -1097,12 +1097,12 @@ CONTAINS
     ! List and exchange total number of vertices
     IF     (par%i == p_left) THEN
       nV_self = mesh%nV
-      CALL MPI_SEND( nV_self , 1, MPI_INTEGER, p_right, 0          , MPI_COMM_WORLD            , ierr)
-      CALL MPI_RECV( nV_other, 1, MPI_INTEGER, p_right, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_status, ierr)
+      CALL MPI_SEND( nV_self , 1, MPI_INTEGER, p_right, 0          , MPI_COMM_WORLD             , ierr)
+      CALL MPI_RECV( nV_other, 1, MPI_INTEGER, p_right, MPI_ANY_TAG, MPI_COMM_WORLD, recv_status, ierr)
     ELSEIF (par%i == p_right) THEN
       nV_self = mesh%nV
-      CALL MPI_RECV( nV_other, 1, MPI_INTEGER, p_left , MPI_ANY_TAG, MPI_COMM_WORLD, MPI_status, ierr)
-      CALL MPI_SEND( nV_self , 1, MPI_INTEGER, p_left , 0          , MPI_COMM_WORLD            , ierr)
+      CALL MPI_RECV( nV_other, 1, MPI_INTEGER, p_left , MPI_ANY_TAG, MPI_COMM_WORLD, recv_status, ierr)
+      CALL MPI_SEND( nV_self , 1, MPI_INTEGER, p_left , 0          , MPI_COMM_WORLD             , ierr)
     END IF
 
     ! Allocate memory for indices of border vertices
@@ -1126,11 +1126,11 @@ CONTAINS
 
     ! Exchange number of border vertices
     IF     (par%i == p_left) THEN
-      CALL MPI_SEND( nvi_border_self , 1, MPI_INTEGER, p_right, 0          , MPI_COMM_WORLD            , ierr)
-      CALL MPI_RECV( nvi_border_other, 1, MPI_INTEGER, p_right, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_status, ierr)
+      CALL MPI_SEND( nvi_border_self , 1, MPI_INTEGER, p_right, 0          , MPI_COMM_WORLD             , ierr)
+      CALL MPI_RECV( nvi_border_other, 1, MPI_INTEGER, p_right, MPI_ANY_TAG, MPI_COMM_WORLD, recv_status, ierr)
     ELSEIF (par%i == p_right) THEN
-      CALL MPI_RECV( nvi_border_other, 1, MPI_INTEGER, p_left , MPI_ANY_TAG, MPI_COMM_WORLD, MPI_status, ierr)
-      CALL MPI_SEND( nvi_border_self , 1, MPI_INTEGER, p_left , 0          , MPI_COMM_WORLD            , ierr)
+      CALL MPI_RECV( nvi_border_other, 1, MPI_INTEGER, p_left , MPI_ANY_TAG, MPI_COMM_WORLD, recv_status, ierr)
+      CALL MPI_SEND( nvi_border_self , 1, MPI_INTEGER, p_left , 0          , MPI_COMM_WORLD             , ierr)
     END IF
 
     ! Allocate memory for coordinates of border vertices
@@ -1145,11 +1145,11 @@ CONTAINS
 
     ! Exchange coordinates of border vertices
     IF     (par%i == p_left) THEN
-      CALL MPI_SEND(   V_border_self , 2*nvi_border_self , MPI_DOUBLE_PRECISION, p_right, 0          , MPI_COMM_WORLD            , ierr)
-      CALL MPI_RECV(   V_border_other, 2*nvi_border_other, MPI_DOUBLE_PRECISION, p_right, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_status, ierr)
+      CALL MPI_SEND(   V_border_self , 2*nvi_border_self , MPI_DOUBLE_PRECISION, p_right, 0          , MPI_COMM_WORLD             , ierr)
+      CALL MPI_RECV(   V_border_other, 2*nvi_border_other, MPI_DOUBLE_PRECISION, p_right, MPI_ANY_TAG, MPI_COMM_WORLD, recv_status, ierr)
     ELSEIF (par%i == p_right) THEN
-      CALL MPI_RECV(   V_border_other, 2*nvi_border_other, MPI_DOUBLE_PRECISION, p_left , MPI_ANY_TAG, MPI_COMM_WORLD, MPI_status, ierr)
-      CALL MPI_SEND(   V_border_self , 2*nvi_border_self , MPI_DOUBLE_PRECISION, p_left , 0          , MPI_COMM_WORLD            , ierr)
+      CALL MPI_RECV(   V_border_other, 2*nvi_border_other, MPI_DOUBLE_PRECISION, p_left , MPI_ANY_TAG, MPI_COMM_WORLD, recv_status, ierr)
+      CALL MPI_SEND(   V_border_self , 2*nvi_border_self , MPI_DOUBLE_PRECISION, p_left , 0          , MPI_COMM_WORLD             , ierr)
     END IF
 
     ! Align meshes

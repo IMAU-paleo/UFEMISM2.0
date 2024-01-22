@@ -14,7 +14,7 @@ MODULE netcdf_input
 
   USE mpi
   USE precisions                                             , ONLY: dp
-  USE mpi_basic                                              , ONLY: par, cerr, ierr, MPI_status, sync
+  USE mpi_basic                                              , ONLY: par, cerr, ierr, recv_status, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
   USE mpi_distributed_memory                                 , ONLY: distribute_from_master_dp_1D , distribute_from_master_dp_2D, &
@@ -35,11 +35,12 @@ MODULE netcdf_input
   USE mesh_parallel_creation                                 , ONLY: broadcast_mesh
   USE mesh_operators                                         , ONLY: calc_all_matrix_operators_mesh
   USE mesh_remapping                                         , ONLY: map_from_xy_grid_to_mesh_2D, map_from_lonlat_grid_to_mesh_2D, map_from_mesh_to_mesh_2D, &
-                                                                     map_from_xy_grid_to_mesh_3D, map_from_lonlat_grid_to_mesh_3D, map_from_mesh_to_mesh_3D
+                                                                     map_from_xy_grid_to_mesh_3D, map_from_lonlat_grid_to_mesh_3D, map_from_mesh_to_mesh_3D, &
+                                                                     map_from_vertical_to_vertical_2D_ocean
 
-  USE netcdf      , ONLY: NF90_MAX_VAR_DIMS
-  USE netcdf_basic, ONLY: nerr, field_name_options_x, field_name_options_y, field_name_options_zeta, &
-                          field_name_options_lon, field_name_options_lat, field_name_options_time, field_name_options_month, &
+  USE netcdf                                                 , ONLY: NF90_MAX_VAR_DIMS
+  USE netcdf_basic                                           , ONLY: nerr, field_name_options_x, field_name_options_y, field_name_options_zeta, &
+                          field_name_options_lon, field_name_options_lat, field_name_options_time, field_name_options_month, field_name_options_depth, &
                           field_name_options_dim_nV, field_name_options_dim_nTri, field_name_options_dim_nC_mem, &
                           field_name_options_dim_nE, field_name_options_dim_two, field_name_options_dim_three, &
                           field_name_options_dim_four, field_name_options_V, field_name_options_Tri, field_name_options_nC, &
@@ -53,11 +54,12 @@ MODULE netcdf_input
                           inquire_dim_multopt, inquire_var_multopt, check_time, inquire_var_info, &
                           read_var_master_int_0D, read_var_master_int_1D, read_var_master_int_2D, read_var_master_int_3D, read_var_master_int_4D, &
                           read_var_master_dp_0D , read_var_master_dp_1D , read_var_master_dp_2D , read_var_master_dp_3D , read_var_master_dp_4D, &
-                          check_x, check_y, check_lon, check_lat, check_mesh_dimensions, check_zeta, check_month, find_timeframe, &
-                          check_xy_grid_field_int_2D, check_xy_grid_field_dp_2D, check_xy_grid_field_dp_2D_monthly, check_xy_grid_field_dp_3D, &
-                          check_lonlat_grid_field_int_2D, check_lonlat_grid_field_dp_2D, check_lonlat_grid_field_dp_2D_monthly, check_lonlat_grid_field_dp_3D, &
-                          check_mesh_field_int_2D, check_mesh_field_dp_2D, check_mesh_field_dp_2D_b, check_mesh_field_dp_2D_monthly, check_mesh_field_dp_3D, &
+                          check_x, check_y, check_lon, check_lat, check_mesh_dimensions, check_zeta, check_month, check_depth, find_timeframe, &
+                          check_xy_grid_field_int_2D, check_xy_grid_field_dp_2D, check_xy_grid_field_dp_2D_monthly, check_xy_grid_field_dp_3D, check_xy_grid_field_dp_3D_ocean, &
+                          check_lonlat_grid_field_int_2D, check_lonlat_grid_field_dp_2D, check_lonlat_grid_field_dp_2D_monthly, check_lonlat_grid_field_dp_3D, check_lonlat_grid_field_dp_3D_ocean, &
+                          check_mesh_field_int_2D, check_mesh_field_dp_2D, check_mesh_field_dp_2D_b, check_mesh_field_dp_2D_monthly, check_mesh_field_dp_3D, check_mesh_field_dp_3D_ocean, &
                           check_mesh_field_dp_3D_b, inquire_xy_grid, inquire_lonlat_grid, inquire_mesh
+  USE netcdf_debug                                           , ONLY: save_variable_as_netcdf_dp_2D
 
   IMPLICIT NONE
 
@@ -451,6 +453,166 @@ CONTAINS
 
   END SUBROUTINE read_field_from_file_3D
 
+  SUBROUTINE read_field_from_file_3D_ocean(   filename, field_name_options, mesh, d_partial, time_to_read, ndepth, depth)
+    ! Read a data field from a NetCDF file, and map it to the model mesh.
+    !
+    ! Ultimate flexibility; the file can provide the data on a global lon/lat-grid,
+    ! a regional x/y-grid, or a regional mesh - it matters not, all shall be fine.
+    ! The order of dimensions ([x,y] or [y,x], [lon,lat] or [lat,lon]) and direction
+    ! (increasing or decreasing) also does not matter any more.
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    CHARACTER(LEN=*),                        INTENT(IN)    :: filename
+    CHARACTER(LEN=*),                        INTENT(IN)    :: field_name_options
+    TYPE(type_mesh),                         INTENT(IN)    :: mesh
+    REAL(dp), DIMENSION(:,:  ),              INTENT(OUT)   :: d_partial
+    REAL(dp), OPTIONAL,                      INTENT(IN)    :: time_to_read
+    INTEGER ,                                INTENT(OUT), OPTIONAL :: ndepth
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE, INTENT(OUT), OPTIONAL :: depth
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'read_field_from_file_3D_ocean'
+    LOGICAL                                                :: file_exists
+    LOGICAL                                                :: has_xy_grid, has_lonlat_grid, has_mesh
+    INTEGER                                                :: ncid
+    TYPE(type_grid)                                        :: grid_from_file
+    TYPE(type_grid_lonlat)                                 :: grid_lonlat_from_file
+    TYPE(type_mesh)                                        :: mesh_from_file
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                :: d_grid_vec_partial_from_file
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                :: d_grid_lonlat_vec_partial_from_file
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                :: d_mesh_partial_from_file
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                :: d_partial_raw_layers
+    CHARACTER(LEN=256), PARAMETER                          :: method_mesh2mesh = '2nd_order_conservative'
+    INTEGER                                                :: ndepth_loc
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE                :: depth_loc
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Check if this file actually exists
+    INQUIRE( EXIST = file_exists, FILE = TRIM( filename))
+    IF (.NOT. file_exists) THEN
+      CALL crash('file "' // TRIM( filename) // '" not found!')
+    END IF
+
+    ! Find out on what kind of grid the file is defined
+    CALL inquire_xy_grid(     filename, has_xy_grid    )
+    CALL inquire_lonlat_grid( filename, has_lonlat_grid)
+    CALL inquire_mesh(        filename, has_mesh       )
+
+    ! Files with more than one grid are not recognised
+    IF (has_xy_grid     .AND. has_lonlat_grid) CALL crash('file "' // TRIM( filename) // '" contains both an x/y-grid and a lon/lat-grid!')
+    IF (has_xy_grid     .AND. has_mesh       ) CALL crash('file "' // TRIM( filename) // '" contains both an x/y-grid and a mesh!')
+    IF (has_lonlat_grid .AND. has_mesh       ) CALL crash('file "' // TRIM( filename) // '" contains both a lon/lat-grid and a mesh!')
+
+    ! Choose the appropriate subroutine
+    IF (has_xy_grid) THEN
+      ! Data is provided on an x/y-grid
+
+      ! Set up the grid from the file
+      CALL open_existing_netcdf_file_for_reading( filename, ncid)
+      CALL setup_xy_grid_from_file( filename, ncid, grid_from_file)
+      CALL setup_depth_from_file( filename, ncid, ndepth_loc, depth_loc)
+      CALL close_netcdf_file( ncid)
+
+      ! Allocate memory for gridded data
+      ALLOCATE( d_grid_vec_partial_from_file( grid_from_file%n1: grid_from_file%n2, ndepth_loc))
+
+      ! Read gridded data
+      CALL read_field_from_xy_file_3D_ocean( filename, field_name_options, d_grid_vec_partial_from_file, time_to_read = time_to_read)
+
+      ! Allocate memory for meshed data using all data layers
+      ALLOCATE( d_partial_raw_layers( mesh%vi1:mesh%vi2, ndepth_loc))
+
+      ! Remap data horizontally
+      CALL map_from_xy_grid_to_mesh_3D( grid_from_file, mesh, d_grid_vec_partial_from_file, d_partial_raw_layers)
+
+      ! Remap data vertically
+      CALL map_from_vertical_to_vertical_2D_ocean( mesh, depth_loc, C%z_ocean, d_partial_raw_layers, d_partial)
+
+      ! Clean up after yourself
+      CALL deallocate_grid( grid_from_file)
+      DEALLOCATE( d_grid_vec_partial_from_file)
+      DEALLOCATE( d_partial_raw_layers)
+
+    ELSEIF (has_lonlat_grid) THEN
+      ! Data is provided on a lon/lat-grid
+
+      ! Set up the grid from the file
+      CALL open_existing_netcdf_file_for_reading( filename, ncid)
+      CALL setup_lonlat_grid_from_file( filename, ncid, grid_lonlat_from_file)
+      CALL setup_depth_from_file( filename, ncid, ndepth_loc, depth_loc)
+      CALL close_netcdf_file( ncid)
+
+      ! Allocate memory for gridded data
+      ALLOCATE( d_grid_lonlat_vec_partial_from_file( grid_lonlat_from_file%n1: grid_lonlat_from_file%n2, ndepth_loc))
+
+      ! Read gridded data
+      CALL read_field_from_lonlat_file_3D_ocean( filename, field_name_options, d_grid_lonlat_vec_partial_from_file, time_to_read = time_to_read)
+
+      ! Allocate memory for meshed data using all data layers
+      ALLOCATE( d_partial_raw_layers( mesh%vi1:mesh%vi2, ndepth_loc))
+
+      ! Remap data horizontally
+      CALL map_from_lonlat_grid_to_mesh_3D( grid_lonlat_from_file, mesh, d_grid_lonlat_vec_partial_from_file, d_partial_raw_layers)
+
+      ! Remap data vertically
+      CALL map_from_vertical_to_vertical_2D_ocean( mesh, depth_loc, C%z_ocean, d_partial_raw_layers, d_partial)
+
+      ! Clean up after yourself
+      CALL deallocate_lonlat_grid( grid_lonlat_from_file)
+      DEALLOCATE( d_grid_lonlat_vec_partial_from_file)
+      DEALLOCATE( d_partial_raw_layers)
+
+    ELSEIF (has_mesh) THEN
+      ! Data is provided on a mesh
+
+      ! Set up the mesh from the file
+      CALL open_existing_netcdf_file_for_reading( filename, ncid)
+      CALL setup_mesh_from_file( filename, ncid, mesh_from_file)
+      CALL setup_depth_from_file( filename, ncid, ndepth_loc, depth_loc)
+      CALL close_netcdf_file( ncid)
+
+      ! Allocate memory for meshed data
+      ALLOCATE( d_mesh_partial_from_file( mesh_from_file%vi1: mesh_from_file%vi2, ndepth_loc))
+
+      ! Read meshed data
+      CALL read_field_from_mesh_file_3D_ocean( filename, field_name_options, d_mesh_partial_from_file, time_to_read = time_to_read)
+
+      ! Allocate memory for meshed data using all data layers
+      ALLOCATE( d_partial_raw_layers( mesh%vi1:mesh%vi2, ndepth_loc))
+
+      ! Remap data horizontally
+      CALL map_from_mesh_to_mesh_3D( mesh_from_file, mesh, d_mesh_partial_from_file, d_partial_raw_layers, method = method_mesh2mesh)
+
+      ! Remap data vertically
+      CALL map_from_vertical_to_vertical_2D_ocean( mesh, depth_loc, C%z_ocean, d_partial_raw_layers, d_partial)
+
+      ! Clean up after yourself
+      CALL deallocate_mesh( mesh_from_file)
+      DEALLOCATE( d_mesh_partial_from_file)
+      DEALLOCATE( d_partial_raw_layers)
+
+    ELSE
+      CALL crash('file "' // TRIM( filename) // '" does not contain a recognised x/y-grid, lon/lat-grid, or mesh!')
+    END IF
+
+    ! If so specified, return the depth read from file as output
+    IF (PRESENT( ndepth) .OR. PRESENT( depth)) THEN
+      ! Safety
+      IF (.NOT. PRESENT( ndepth) .OR. .NOT. PRESENT( depth)) CALL crash('should ask for both ndepth and depth!')
+      ndepth = ndepth_loc
+      ALLOCATE( depth( ndepth))
+      depth = depth_loc
+    END IF
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE read_field_from_file_3D_ocean
+
   ! ===== Medium-level functions =====
   ! ==================================
 
@@ -482,8 +644,8 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-  ! == Read grid and data from file
-  ! ===============================
+    ! == Read grid and data from file
+    ! ===============================
 
     ! Open the NetCDF file
     CALL open_existing_netcdf_file_for_reading( filename, ncid)
@@ -558,8 +720,8 @@ CONTAINS
     ! Close the NetCDF file
     CALL close_netcdf_file( ncid)
 
-  ! == Perform necessary corrections to the gridded data
-  ! ====================================================
+    ! == Perform necessary corrections to the gridded data
+    ! ====================================================
 
     ! Indexing
     IF     (indexing == 'xy') THEN
@@ -590,8 +752,8 @@ CONTAINS
       CALL crash('unknown ydir = "' // TRIM( ydir) // '"!')
     END IF
 
-  ! == Distribute gridded data from the master to all processes in partial vector form
-  ! ==================================================================================
+    ! == Distribute gridded data from the master to all processes in partial vector form
+    ! ==================================================================================
 
     ! Distribute data
     CALL distribute_gridded_data_from_master_dp_2D( grid_loc, d_grid, d_grid_vec_partial)
@@ -782,8 +944,8 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-  ! == Read grid and data from file
-  ! ===============================
+    ! == Read grid and data from file
+    ! ===============================
 
     ! Open the NetCDF file
     CALL open_existing_netcdf_file_for_reading( filename, ncid)
@@ -853,8 +1015,8 @@ CONTAINS
     ! Close the NetCDF file
     CALL close_netcdf_file( ncid)
 
-  ! == Perform necessary corrections to the gridded data
-  ! ====================================================
+    ! == Perform necessary corrections to the gridded data
+    ! ====================================================
 
     ! Indexing
     IF     (indexing == 'xy') THEN
@@ -885,8 +1047,8 @@ CONTAINS
       CALL crash('unknown ydir = "' // TRIM( ydir) // '"!')
     END IF
 
-  ! == Distribute gridded data from the master to all processes in partial vector form
-  ! ==================================================================================
+    ! == Distribute gridded data from the master to all processes in partial vector form
+    ! ==================================================================================
 
     ! Distribute data
     CALL distribute_gridded_data_from_master_dp_3D( grid_loc, d_grid, d_grid_vec_partial)
@@ -929,8 +1091,8 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-  ! == Read grid and data from file
-  ! ===============================
+    ! == Read grid and data from file
+    ! ===============================
 
     ! Open the NetCDF file
     CALL open_existing_netcdf_file_for_reading( filename, ncid)
@@ -1000,8 +1162,8 @@ CONTAINS
     ! Close the NetCDF file
     CALL close_netcdf_file( ncid)
 
-  ! == Perform necessary corrections to the gridded data
-  ! ====================================================
+    ! == Perform necessary corrections to the gridded data
+    ! ====================================================
 
     ! Indexing
     IF     (indexing == 'xy') THEN
@@ -1032,8 +1194,8 @@ CONTAINS
       CALL crash('unknown ydir = "' // TRIM( ydir) // '"!')
     END IF
 
-  ! == Distribute gridded data from the master to all processes in partial vector form
-  ! ==================================================================================
+    ! == Distribute gridded data from the master to all processes in partial vector form
+    ! ==================================================================================
 
     ! Distribute data
     CALL distribute_gridded_data_from_master_dp_3D( grid_loc, d_grid, d_grid_vec_partial)
@@ -1046,6 +1208,153 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE read_field_from_xy_file_3D
+
+  SUBROUTINE read_field_from_xy_file_3D_ocean(       filename, field_name_options, d_grid_vec_partial, time_to_read)
+    ! Read a 3-D data field from a NetCDF file on an x/y-grid
+    !
+    ! NOTE: the grid should be read before, and memory allocated for d_grid_vec_partial!
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    CHARACTER(LEN=*),                        INTENT(IN)    :: filename
+    CHARACTER(LEN=*),                        INTENT(IN)    :: field_name_options
+    REAL(dp), DIMENSION(:,:  ),              INTENT(OUT)   :: d_grid_vec_partial
+    REAL(dp),                   OPTIONAL,    INTENT(IN)    :: time_to_read
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'read_field_from_xy_file_3D_ocean'
+    INTEGER                                                :: ncid
+    TYPE(type_grid)                                        :: grid_loc
+    INTEGER                                                :: ndepth_loc
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE                :: depth_loc
+    INTEGER                                                :: id_var
+    CHARACTER(LEN=256)                                     :: var_name
+    CHARACTER(LEN=256)                                     :: indexing, xdir, ydir
+    REAL(dp), DIMENSION(:,:,:  ), ALLOCATABLE              :: d_grid
+    REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE              :: d_grid_with_time
+    INTEGER                                                :: ti
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! == Read grid and data from file
+    ! ===============================
+
+    ! Open the NetCDF file
+    CALL open_existing_netcdf_file_for_reading( filename, ncid)
+
+    ! Set up the grid from the file
+    CALL setup_xy_grid_from_file( filename, ncid, grid_loc)
+
+    ! Set up the vertical coordinate depth from the file
+    CALL setup_depth_from_file( filename, ncid, ndepth_loc, depth_loc)
+
+    ! Look for the specified variable in the file
+    CALL inquire_var_multopt( filename, ncid, field_name_options, id_var, var_name = var_name)
+    IF (id_var == -1) CALL crash('couldnt find any of the options "' // TRIM( field_name_options) // '" in file "' // TRIM( filename)  // '"!')
+
+    ! Check if the variable has the required dimensions
+    CALL check_xy_grid_field_dp_3D_ocean( filename, ncid, var_name, should_have_time = PRESENT( time_to_read))
+
+    ! Determine indexing and dimension directions
+    CALL determine_xy_indexing( filename, ncid, var_name, indexing, xdir, ydir)
+
+    IF     (indexing == 'xy') THEN
+
+      ! Allocate memory
+      IF (par%master) ALLOCATE( d_grid( grid_loc%nx, grid_loc%ny, ndepth_loc))
+
+      ! Read data from file
+      IF (.NOT. PRESENT( time_to_read)) THEN
+        CALL read_var_master_dp_3D( filename, ncid, id_var, d_grid)
+      ELSE
+        ! Allocate memory
+        IF (par%master) ALLOCATE( d_grid_with_time( grid_loc%nx, grid_loc%ny, ndepth_loc, 1))
+        ! Find out which timeframe to read
+        CALL find_timeframe( filename, ncid, time_to_read, ti)
+        ! Read data
+        CALL read_var_master_dp_4D( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid_loc%nx, grid_loc%ny, ndepth_loc, 1 /) )
+        ! Copy to output memory
+        IF (par%master) d_grid = d_grid_with_time( :,:,:,1)
+        ! Clean up after yourself
+        IF (par%master) DEALLOCATE( d_grid_with_time)
+      END IF
+
+    ELSEIF (indexing == 'yx') THEN
+
+      ! Allocate memory
+      IF (par%master) ALLOCATE( d_grid( grid_loc%ny, grid_loc%nx, ndepth_loc))
+
+      ! Read data from file
+      IF (.NOT. PRESENT( time_to_read)) THEN
+        CALL read_var_master_dp_3D( filename, ncid, id_var, d_grid)
+      ELSE
+        ! Allocate memory
+        IF (par%master) ALLOCATE( d_grid_with_time( grid_loc%ny, grid_loc%nx, ndepth_loc, 1))
+        ! Find out which timeframe to read
+        CALL find_timeframe( filename, ncid, time_to_read, ti)
+        ! Read data
+        CALL read_var_master_dp_4D( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid_loc%ny, grid_loc%nx, ndepth_loc, 1 /) )
+        ! Copy to output memory
+        IF (par%master) d_grid = d_grid_with_time( :,:,:,1)
+        ! Clean up after yourself
+        IF (par%master) DEALLOCATE( d_grid_with_time)
+      END IF
+
+    ELSE
+      CALL crash('unknown indexing = "' // TRIM( indexing) // '"!')
+    END IF
+
+    ! Close the NetCDF file
+    CALL close_netcdf_file( ncid)
+
+    ! == Perform necessary corrections to the gridded data
+    ! ====================================================
+
+    ! Indexing
+    IF     (indexing == 'xy') THEN
+      ! No need to do anything
+    ELSEIF (indexing == 'yx') THEN
+      IF (par%master) CALL permute_3D_dp( d_grid, map = [2,1,3])
+    ELSE
+      CALL crash('unknown indexing = "' // TRIM( indexing) // '"!')
+    END IF
+
+    ! xdir
+    IF     (xdir == 'normal') THEN
+      ! No need to do anything
+    ELSEIF (xdir == 'reverse') THEN
+      CALL flip_1D_dp( grid_loc%x)
+      IF (par%master) CALL flip_3D_x1_dp( d_grid)
+    ELSE
+      CALL crash('unknown xdir = "' // TRIM( xdir) // '"!')
+    END IF
+
+    ! ydir
+    IF     (ydir == 'normal') THEN
+      ! No need to do anything
+    ELSEIF (ydir == 'reverse') THEN
+      CALL flip_1D_dp( grid_loc%y)
+      IF (par%master) CALL flip_3D_x2_dp( d_grid)
+    ELSE
+      CALL crash('unknown ydir = "' // TRIM( ydir) // '"!')
+    END IF
+
+    ! == Distribute gridded data from the master to all processes in partial vector form
+    ! ==================================================================================
+
+    ! Distribute data
+    CALL distribute_gridded_data_from_master_dp_3D( grid_loc, d_grid, d_grid_vec_partial)
+
+    ! Clean up after yourself
+    IF (par%master) DEALLOCATE( d_grid)
+    CALL deallocate_grid( grid_loc)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE read_field_from_xy_file_3D_ocean
 
   ! Read data fields from an x/y-grid file
   SUBROUTINE read_field_from_lonlat_file_2D(         filename, field_name_options, d_grid_vec_partial, time_to_read)
@@ -1075,8 +1384,8 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-  ! == Read grid and data from file
-  ! ===============================
+    ! == Read grid and data from file
+    ! ===============================
 
     ! Open the NetCDF file
     CALL open_existing_netcdf_file_for_reading( filename, ncid)
@@ -1143,8 +1452,8 @@ CONTAINS
     ! Close the NetCDF file
     CALL close_netcdf_file( ncid)
 
-  ! == Perform necessary corrections to the gridded data
-  ! ====================================================
+    ! == Perform necessary corrections to the gridded data
+    ! ====================================================
 
     ! Indexing
     IF     (indexing == 'lonlat') THEN
@@ -1175,8 +1484,8 @@ CONTAINS
       CALL crash('unknown latdir = "' // TRIM( latdir) // '"!')
     END IF
 
-  ! == Distribute gridded data from the master to all processes in partial vector form
-  ! ==================================================================================
+    ! == Distribute gridded data from the master to all processes in partial vector form
+    ! ==================================================================================
 
     ! Distribute data
     CALL distribute_lonlat_gridded_data_from_master_dp_2D( grid_loc, d_grid, d_grid_vec_partial)
@@ -1219,8 +1528,8 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-  ! == Read grid and data from file
-  ! ===============================
+    ! == Read grid and data from file
+    ! ===============================
 
     ! Open the NetCDF file
     CALL open_existing_netcdf_file_for_reading( filename, ncid)
@@ -1290,8 +1599,8 @@ CONTAINS
     ! Close the NetCDF file
     CALL close_netcdf_file( ncid)
 
-  ! == Perform necessary corrections to the gridded data
-  ! ====================================================
+    ! == Perform necessary corrections to the gridded data
+    ! ====================================================
 
     ! Indexing
     IF     (indexing == 'lonlat') THEN
@@ -1322,8 +1631,8 @@ CONTAINS
       CALL crash('unknown latdir = "' // TRIM( latdir) // '"!')
     END IF
 
-  ! == Distribute gridded data from the master to all processes in partial vector form
-  ! ==================================================================================
+    ! == Distribute gridded data from the master to all processes in partial vector form
+    ! ==================================================================================
 
     ! Distribute data
     CALL distribute_lonlat_gridded_data_from_master_dp_3D( grid_loc, d_grid, d_grid_vec_partial)
@@ -1366,8 +1675,8 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-  ! == Read grid and data from file
-  ! ===============================
+    ! == Read grid and data from file
+    ! ===============================
 
     ! Open the NetCDF file
     CALL open_existing_netcdf_file_for_reading( filename, ncid)
@@ -1437,8 +1746,8 @@ CONTAINS
     ! Close the NetCDF file
     CALL close_netcdf_file( ncid)
 
-  ! == Perform necessary corrections to the gridded data
-  ! ====================================================
+    ! == Perform necessary corrections to the gridded data
+    ! ====================================================
 
     ! Indexing
     IF     (indexing == 'lonlat') THEN
@@ -1469,8 +1778,8 @@ CONTAINS
       CALL crash('unknown latdir = "' // TRIM( latdir) // '"!')
     END IF
 
-  ! == Distribute gridded data from the master to all processes in partial vector form
-  ! ==================================================================================
+    ! == Distribute gridded data from the master to all processes in partial vector form
+    ! ==================================================================================
 
     ! Distribute data
     CALL distribute_lonlat_gridded_data_from_master_dp_3D( grid_loc, d_grid, d_grid_vec_partial)
@@ -1483,6 +1792,153 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE read_field_from_lonlat_file_3D
+
+  SUBROUTINE read_field_from_lonlat_file_3D_ocean(   filename, field_name_options, d_grid_vec_partial, time_to_read)
+    ! Read a 2-D monthly data field from a NetCDF file on a lon/lat-grid
+    !
+    ! NOTE: the grid should be read before, and memory allocated for d_grid_vec_partial!
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    CHARACTER(LEN=*),                        INTENT(IN)    :: filename
+    CHARACTER(LEN=*),                        INTENT(IN)    :: field_name_options
+    REAL(dp), DIMENSION(:,:  ),              INTENT(OUT)   :: d_grid_vec_partial
+    REAL(dp),                   OPTIONAL,    INTENT(IN)    :: time_to_read
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'read_field_from_lonlat_file_3D_ocean'
+    INTEGER                                                :: ncid
+    TYPE(type_grid_lonlat)                                 :: grid_loc
+    INTEGER                                                :: ndepth_loc
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE                :: depth_loc
+    INTEGER                                                :: id_var
+    CHARACTER(LEN=256)                                     :: var_name
+    CHARACTER(LEN=256)                                     :: indexing, londir, latdir
+    REAL(dp), DIMENSION(:,:,:  ), ALLOCATABLE              :: d_grid
+    REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE              :: d_grid_with_time
+    INTEGER                                                :: ti
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! == Read grid and data from file
+    ! ===============================
+
+    ! Open the NetCDF file
+    CALL open_existing_netcdf_file_for_reading( filename, ncid)
+
+    ! Set up the grid from the file
+    CALL setup_lonlat_grid_from_file( filename, ncid, grid_loc)
+
+    ! Set up the vertical coordinate depth from the file
+    CALL setup_depth_from_file( filename, ncid, ndepth_loc, depth_loc)
+
+    ! Look for the specified variable in the file
+    CALL inquire_var_multopt( filename, ncid, field_name_options, id_var, var_name = var_name)
+    IF (id_var == -1) CALL crash('couldnt find any of the options "' // TRIM( field_name_options) // '" in file "' // TRIM( filename)  // '"!')
+
+    ! Check if the variable has the required dimensions
+    CALL check_lonlat_grid_field_dp_3D_ocean( filename, ncid, var_name, should_have_time = PRESENT( time_to_read))
+
+    ! Determine indexing and dimension directions
+    CALL determine_lonlat_indexing( filename, ncid, var_name, indexing, londir, latdir)
+
+    IF     (indexing == 'lonlat') THEN
+
+      ! Allocate memory
+      IF (par%master) ALLOCATE( d_grid( grid_loc%nlon, grid_loc%nlat, ndepth_loc))
+
+      ! Read data from file
+      IF (.NOT. PRESENT( time_to_read)) THEN
+        CALL read_var_master_dp_3D( filename, ncid, id_var, d_grid)
+      ELSE
+        ! Allocate memory
+        IF (par%master) ALLOCATE( d_grid_with_time( grid_loc%nlon, grid_loc%nlat, ndepth_loc, 1))
+        ! Find out which timeframe to read
+        CALL find_timeframe( filename, ncid, time_to_read, ti)
+        ! Read data
+        CALL read_var_master_dp_4D( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid_loc%nlon, grid_loc%nlat, ndepth_loc, 1 /) )
+        ! Copy to output memory
+        IF (par%master) d_grid = d_grid_with_time( :,:,:,1)
+        ! Clean up after yourself
+        IF (par%master) DEALLOCATE( d_grid_with_time)
+      END IF
+
+    ELSEIF (indexing == 'latlon') THEN
+
+      ! Allocate memory
+      IF (par%master) ALLOCATE( d_grid( grid_loc%nlat, grid_loc%nlon, ndepth_loc))
+
+      ! Read data from file
+      IF (.NOT. PRESENT( time_to_read)) THEN
+        CALL read_var_master_dp_3D( filename, ncid, id_var, d_grid)
+      ELSE
+        ! Allocate memory
+        IF (par%master) ALLOCATE( d_grid_with_time( grid_loc%nlat, grid_loc%nlon, ndepth_loc, 1))
+        ! Find out which timeframe to read
+        CALL find_timeframe( filename, ncid, time_to_read, ti)
+        ! Read data
+        CALL read_var_master_dp_4D( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid_loc%nlat, grid_loc%nlon, ndepth_loc, 1 /) )
+        ! Copy to output memory
+        IF (par%master) d_grid = d_grid_with_time( :,:,:,1)
+        ! Clean up after yourself
+        IF (par%master) DEALLOCATE( d_grid_with_time)
+      END IF
+
+    ELSE
+      CALL crash('unknown indexing = "' // TRIM( indexing) // '"!')
+    END IF
+
+    ! Close the NetCDF file
+    CALL close_netcdf_file( ncid)
+
+    ! == Perform necessary corrections to the gridded data
+    ! ====================================================
+
+    ! Indexing
+    IF     (indexing == 'lonlat') THEN
+      ! No need to do anything
+    ELSEIF (indexing == 'latlon') THEN
+      IF (par%master) CALL permute_3D_dp( d_grid, map = [2,1,3])
+    ELSE
+      CALL crash('unknown indexing = "' // TRIM( indexing) // '"!')
+    END IF
+
+    ! londir
+    IF     (londir == 'normal') THEN
+      ! No need to do anything
+    ELSEIF (londir == 'reverse') THEN
+      CALL flip_1D_dp( grid_loc%lon)
+      IF (par%master) CALL flip_3D_x1_dp( d_grid)
+    ELSE
+      CALL crash('unknown londir = "' // TRIM( londir) // '"!')
+    END IF
+
+    ! latdir
+    IF     (latdir == 'normal') THEN
+      ! No need to do anything
+    ELSEIF (latdir == 'reverse') THEN
+      CALL flip_1D_dp( grid_loc%lat)
+      IF (par%master) CALL flip_3D_x2_dp( d_grid)
+    ELSE
+      CALL crash('unknown latdir = "' // TRIM( latdir) // '"!')
+    END IF
+
+    ! == Distribute gridded data from the master to all processes in partial vector form
+    ! ==================================================================================
+
+    ! Distribute data
+    CALL distribute_lonlat_gridded_data_from_master_dp_3D( grid_loc, d_grid, d_grid_vec_partial)
+
+    ! Clean up after yourself
+    IF (par%master) DEALLOCATE( d_grid)
+    CALL deallocate_lonlat_grid( grid_loc)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE read_field_from_lonlat_file_3D_ocean
 
   ! Read data fields from a mesh file
   SUBROUTINE read_field_from_mesh_file_2D(           filename, field_name_options, d_mesh_partial, time_to_read)
@@ -1511,8 +1967,8 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-  ! == Read grid and data from file
-  ! ===============================
+    ! == Read grid and data from file
+    ! ===============================
 
     ! Open the NetCDF file
     CALL open_existing_netcdf_file_for_reading( filename, ncid)
@@ -1549,8 +2005,8 @@ CONTAINS
     ! Close the NetCDF file
     CALL close_netcdf_file( ncid)
 
-  ! == Distribute gridded data from the master to all processes in partial vector form
-  ! ==================================================================================
+    ! == Distribute gridded data from the master to all processes in partial vector form
+    ! ==================================================================================
 
     ! Distribute data
     CALL distribute_from_master_dp_1D( d_mesh, d_mesh_partial)
@@ -1592,8 +2048,8 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-  ! == Read grid and data from file
-  ! ===============================
+    ! == Read grid and data from file
+    ! ===============================
 
     ! Open the NetCDF file
     CALL open_existing_netcdf_file_for_reading( filename, ncid)
@@ -1630,8 +2086,8 @@ CONTAINS
     ! Close the NetCDF file
     CALL close_netcdf_file( ncid)
 
-  ! == Distribute gridded data from the master to all processes in partial vector form
-  ! ==================================================================================
+    ! == Distribute gridded data from the master to all processes in partial vector form
+    ! ==================================================================================
 
     ! Distribute data
     CALL distribute_from_master_dp_1D( d_mesh, d_mesh_partial)
@@ -1671,8 +2127,8 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-  ! == Read grid and data from file
-  ! ===============================
+    ! == Read grid and data from file
+    ! ===============================
 
     ! Open the NetCDF file
     CALL open_existing_netcdf_file_for_reading( filename, ncid)
@@ -1712,8 +2168,8 @@ CONTAINS
     ! Close the NetCDF file
     CALL close_netcdf_file( ncid)
 
-  ! == Distribute gridded data from the master to all processes in partial vector form
-  ! ==================================================================================
+    ! == Distribute gridded data from the master to all processes in partial vector form
+    ! ==================================================================================
 
     ! Distribute data
     CALL distribute_from_master_dp_2D( d_mesh, d_mesh_partial)
@@ -1755,8 +2211,8 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-  ! == Read grid and data from file
-  ! ===============================
+    ! == Read grid and data from file
+    ! ===============================
 
     ! Open the NetCDF file
     CALL open_existing_netcdf_file_for_reading( filename, ncid)
@@ -1796,8 +2252,8 @@ CONTAINS
     ! Close the NetCDF file
     CALL close_netcdf_file( ncid)
 
-  ! == Distribute gridded data from the master to all processes in partial vector form
-  ! ==================================================================================
+    ! == Distribute gridded data from the master to all processes in partial vector form
+    ! ==================================================================================
 
     ! Distribute data
     CALL distribute_from_master_dp_2D( d_mesh, d_mesh_partial)
@@ -1841,8 +2297,8 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-  ! == Read grid and data from file
-  ! ===============================
+    ! == Read grid and data from file
+    ! ===============================
 
     ! Open the NetCDF file
     CALL open_existing_netcdf_file_for_reading( filename, ncid)
@@ -1882,8 +2338,8 @@ CONTAINS
     ! Close the NetCDF file
     CALL close_netcdf_file( ncid)
 
-  ! == Distribute gridded data from the master to all processes in partial vector form
-  ! ==================================================================================
+    ! == Distribute gridded data from the master to all processes in partial vector form
+    ! ==================================================================================
 
     ! Distribute data
     CALL distribute_from_master_dp_2D( d_mesh, d_mesh_partial)
@@ -1896,6 +2352,220 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE read_field_from_mesh_file_3D_b
+
+  SUBROUTINE read_field_from_mesh_file_3D_ocean(     filename, field_name_options, d_mesh_partial, time_to_read)
+    ! Read a 2-D data monthly field from a NetCDF file on a mesh
+    !
+    ! NOTE: the mesh should be read before, and memory allocated for d_mesh_partial!
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    CHARACTER(LEN=*),                        INTENT(IN)    :: filename
+    CHARACTER(LEN=*),                        INTENT(IN)    :: field_name_options
+    REAL(dp), DIMENSION(:,:  ),              INTENT(OUT)   :: d_mesh_partial
+    REAL(dp),                   OPTIONAL,    INTENT(IN)    :: time_to_read
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'read_field_from_mesh_file_3D_ocean'
+    INTEGER                                                :: ncid
+    TYPE(type_mesh)                                        :: mesh_loc
+    INTEGER                                                :: ndepth_loc
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE                :: depth_loc
+    INTEGER                                                :: id_var
+    CHARACTER(LEN=256)                                     :: var_name
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                :: d_mesh
+    REAL(dp), DIMENSION(:,:,:), ALLOCATABLE                :: d_mesh_with_time
+    INTEGER                                                :: ti
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! == Read grid and data from file
+    ! ===============================
+
+    ! Open the NetCDF file
+    CALL open_existing_netcdf_file_for_reading( filename, ncid)
+
+    ! Set up the mesh from the file
+    CALL setup_mesh_from_file( filename, ncid, mesh_loc)
+
+    ! Set up the vertical coordinate depth from the file
+    CALL setup_depth_from_file( filename, ncid, ndepth_loc, depth_loc)
+
+    ! Look for the specified variable in the file
+    CALL inquire_var_multopt( filename, ncid, field_name_options, id_var, var_name = var_name)
+    IF (id_var == -1) CALL crash('couldnt find any of the options "' // TRIM( field_name_options) // '" in file "' // TRIM( filename)  // '"!')
+
+    ! Check if the variable has the required dimensions
+    CALL check_mesh_field_dp_3D_ocean( filename, ncid, var_name, should_have_time = PRESENT( time_to_read))
+
+    ! Allocate memory
+    IF (par%master) ALLOCATE( d_mesh( mesh_loc%nV, ndepth_loc))
+
+    ! Read data from file
+    IF (.NOT. PRESENT( time_to_read)) THEN
+      CALL read_var_master_dp_2D( filename, ncid, id_var, d_mesh)
+    ELSE
+      ! Allocate memory
+      IF (par%master) ALLOCATE( d_mesh_with_time( mesh_loc%nV, ndepth_loc, 1))
+      ! Find out which timeframe to read
+      CALL find_timeframe( filename, ncid, time_to_read, ti)
+      ! Read data
+      CALL read_var_master_dp_3D( filename, ncid, id_var, d_mesh_with_time, start = (/ 1, 1, ti /), count = (/ mesh_loc%nV, ndepth_loc, 1 /) )
+      ! Copy to output memory
+      IF (par%master) d_mesh = d_mesh_with_time( :,:,1)
+      ! Clean up after yourself
+      IF (par%master) DEALLOCATE( d_mesh_with_time)
+    END IF
+
+    ! Close the NetCDF file
+    CALL close_netcdf_file( ncid)
+
+    ! == Distribute gridded data from the master to all processes in partial vector form
+    ! ==================================================================================
+
+    ! Distribute data
+    CALL distribute_from_master_dp_2D( d_mesh, d_mesh_partial)
+
+    ! Clean up after yourself
+    IF (par%master) DEALLOCATE( d_mesh)
+    CALL deallocate_mesh( mesh_loc)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE read_field_from_mesh_file_3D_ocean
+
+  SUBROUTINE read_field_from_mesh_file_3D_CDF(           filename, field_name_options, d_mesh_partial, time_to_read)
+    ! Read a 2-D data monthly field from a NetCDF file on a mesh
+    !
+    ! NOTE: the mesh should be read before, and memory allocated for d_mesh_partial!
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    CHARACTER(LEN=*),                        INTENT(IN)    :: filename
+    CHARACTER(LEN=*),                        INTENT(IN)    :: field_name_options
+    REAL(dp), DIMENSION(:,:  ),              INTENT(OUT)   :: d_mesh_partial
+    REAL(dp),                   OPTIONAL,    INTENT(IN)    :: time_to_read
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'read_field_from_mesh_file_3D_CDF'
+    INTEGER                                                :: ncid
+    INTEGER                                                :: id_dim_vi, id_var, id_dim_bins, nbins_loc, nV_loc
+    CHARACTER(LEN=256)                                     :: var_name
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                :: d_mesh
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! == Read grid and data from file
+    ! ===============================
+
+    ! Open the NetCDF file
+    CALL open_existing_netcdf_file_for_reading( filename, ncid)
+
+    ! Get number of mesh vertices
+    CALL inquire_dim_multopt( filename, ncid, field_name_options_dim_nV, id_dim_vi, dim_length = nV_loc)
+
+    ! Check that number of bins in file match the ones in the config file
+    CALL inquire_dim_multopt( filename, ncid, 'bin', id_dim_bins, dim_length = nbins_loc)
+    IF (nbins_loc /= C%subgrid_bedrock_cdf_nbins) THEN
+      CALL crash('number of CDF bins in external file ({int_01}) does not match subgrid_bedrock_cdf_nbins in config file!', int_01 = nbins_loc)
+    END IF
+
+    ! Look for the specified variable in the file
+    CALL inquire_var_multopt( filename, ncid, field_name_options, id_var, var_name = var_name)
+    IF (id_var == -1) CALL crash('couldnt find any of the options "' // TRIM( field_name_options) // '" in file "' // TRIM( filename)  // '"!')
+
+    ! Allocate memory
+    IF (par%master) ALLOCATE( d_mesh( nV_loc, C%subgrid_bedrock_cdf_nbins))
+
+    ! Read data from file
+    CALL read_var_master_dp_2D( filename, ncid, id_var, d_mesh)
+
+    ! Close the NetCDF file
+    CALL close_netcdf_file( ncid)
+
+    ! == Distribute gridded data from the master to all processes in partial vector form
+    ! ==================================================================================
+
+    ! Distribute data
+    CALL distribute_from_master_dp_2D( d_mesh, d_mesh_partial)
+
+    ! Clean up after yourself
+    IF (par%master) DEALLOCATE( d_mesh)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE read_field_from_mesh_file_3D_CDF
+
+  SUBROUTINE read_field_from_mesh_file_3D_b_CDF(           filename, field_name_options, d_mesh_partial, time_to_read)
+    ! Read a 2-D data monthly field from a NetCDF file on a mesh
+    !
+    ! NOTE: the mesh should be read before, and memory allocated for d_mesh_partial!
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    CHARACTER(LEN=*),                        INTENT(IN)    :: filename
+    CHARACTER(LEN=*),                        INTENT(IN)    :: field_name_options
+    REAL(dp), DIMENSION(:,:  ),              INTENT(OUT)   :: d_mesh_partial
+    REAL(dp),                   OPTIONAL,    INTENT(IN)    :: time_to_read
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'read_field_from_mesh_file_3D_b_CDF'
+    INTEGER                                                :: ncid
+    INTEGER                                                :: id_dim_ti, id_var, id_dim_bins, nbins_loc, nTri_loc
+    CHARACTER(LEN=256)                                     :: var_name
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                :: d_mesh
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! == Read grid and data from file
+    ! ===============================
+
+    ! Open the NetCDF file
+    CALL open_existing_netcdf_file_for_reading( filename, ncid)
+
+    ! Get number of mesh vertices
+    CALL inquire_dim_multopt( filename, ncid, field_name_options_dim_nTri, id_dim_ti, dim_length = nTri_loc)
+
+    ! Check that number of bins in file match the ones in the config file
+    CALL inquire_dim_multopt( filename, ncid, 'bin', id_dim_bins, dim_length = nbins_loc)
+    IF (nbins_loc /= C%subgrid_bedrock_cdf_nbins) THEN
+      CALL crash('number of CDF bins in external file ({int_01}) does not match subgrid_bedrock_cdf_nbins in config file!', int_01 = nbins_loc)
+    END IF
+
+    ! Look for the specified variable in the file
+    CALL inquire_var_multopt( filename, ncid, field_name_options, id_var, var_name = var_name)
+    IF (id_var == -1) CALL crash('couldnt find any of the options "' // TRIM( field_name_options) // '" in file "' // TRIM( filename)  // '"!')
+
+    ! Allocate memory
+    IF (par%master) ALLOCATE( d_mesh( nTri_loc, C%subgrid_bedrock_cdf_nbins))
+
+    ! Read data from file
+    CALL read_var_master_dp_2D( filename, ncid, id_var, d_mesh)
+
+    ! Close the NetCDF file
+    CALL close_netcdf_file( ncid)
+
+    ! == Distribute gridded data from the master to all processes in partial vector form
+    ! ==================================================================================
+
+    ! Distribute data
+    CALL distribute_from_master_dp_2D( d_mesh, d_mesh_partial)
+
+    ! Clean up after yourself
+    IF (par%master) DEALLOCATE( d_mesh)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE read_field_from_mesh_file_3D_b_CDF
 
   ! Read 0-D data from a file
   SUBROUTINE read_field_from_file_0D(                filename, field_name_options, d, time_to_read)
@@ -2131,8 +2801,8 @@ CONTAINS
       mesh%nTri = mesh%nTri_mem
     END IF
 
-  ! == Inquire mesh variables
-  ! =========================
+    ! == Inquire mesh variables
+    ! =========================
 
     ! Metadata
     CALL inquire_var_multopt( filename, ncid, 'xmin'                           , id_var_xmin          )
@@ -2157,8 +2827,8 @@ CONTAINS
     CALL inquire_var_multopt( filename, ncid, field_name_options_Tricc         , id_var_Tricc         )
     CALL inquire_var_multopt( filename, ncid, field_name_options_TriC          , id_var_TriC          )
 
-  ! == Read mesh data
-  ! =================
+    ! == Read mesh data
+    ! =================
 
     ! Metadata
     CALL read_var_master_dp_0D(  filename, ncid, id_var_xmin          , mesh%xmin          )
@@ -2240,6 +2910,47 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE setup_zeta_from_file
+
+  SUBROUTINE setup_depth_from_file(       filename, ncid, ndepth, depth)
+    ! Set up a zeta coordinate from a NetCDF file
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
+    INTEGER,                             INTENT(IN)    :: ncid
+    INTEGER,                             INTENT(OUT)   :: ndepth
+    REAL(dp), DIMENSION(:), ALLOCATABLE, INTENT(OUT)   ::  depth
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'setup_depth_from_file'
+    INTEGER                                            :: id_dim_depth, id_var_depth
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Check depth dimension and variable for validity
+    CALL check_depth( filename, ncid)
+
+    ! Inquire depth dimension
+    CALL inquire_dim_multopt( filename, ncid, field_name_options_depth, id_dim_depth, dim_length = ndepth)
+
+    ! Inquire depth variable
+    CALL inquire_var_multopt( filename, ncid, field_name_options_depth, id_var_depth)
+
+    ! Allocate memory
+    ALLOCATE( depth( ndepth))
+
+    ! Read depth from file
+    CALL read_var_master_dp_1D( filename, ncid, id_var_depth, depth)
+
+    ! Broadcast depth from master to all other processes
+    CALL MPI_BCAST( depth, ndepth, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE setup_depth_from_file
 
   ! ===== Determine indexing and dimension directions =====
   ! =======================================================

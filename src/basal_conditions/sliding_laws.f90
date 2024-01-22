@@ -9,17 +9,22 @@ MODULE sliding_laws
   USE petscksp
   USE mpi
   USE precisions                                             , ONLY: dp
-  USE mpi_basic                                              , ONLY: par, cerr, ierr, MPI_status, sync
+  USE mpi_basic                                              , ONLY: par, cerr, ierr, recv_status, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
   USE mesh_types                                             , ONLY: type_mesh
   USE ice_model_types                                        , ONLY: type_ice_model
   USE parameters
   USE mesh_operators                                         , ONLY: map_b_a_2D
+  USE mesh_utilities                                         , ONLY: extrapolate_Gaussian
+  USE mpi_distributed_memory                                 , ONLY: gather_to_all_logical_1D, gather_to_all_dp_1D
 
   IMPLICIT NONE
 
 CONTAINS
+
+! == Main routine
+! ===============
 
   SUBROUTINE calc_basal_friction_coefficient( mesh, ice, u_b, v_b)
     ! Calculate the effective basal friction coefficient using the specified sliding law
@@ -87,23 +92,38 @@ CONTAINS
 
   END SUBROUTINE calc_basal_friction_coefficient
 
+! == Different sliding laws
+! =========================
+
   SUBROUTINE calc_sliding_law_Weertman( mesh, ice, u_a, v_a)
     ! Weertman-type ("power law") sliding law
 
     IMPLICIT NONE
 
     ! In- and output variables:
-    TYPE(type_mesh),                     INTENT(IN)    :: mesh
-    TYPE(type_ice_model),                INTENT(INOUT) :: ice
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2),          INTENT(IN)    :: u_a, v_a
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh
+    TYPE(type_ice_model),                   INTENT(INOUT) :: ice
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: u_a, v_a
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_sliding_law_Weertman'
-    INTEGER                                            :: vi
-    REAL(dp)                                           :: uabs
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'calc_sliding_law_Weertman'
+    INTEGER                                               :: vi
+    REAL(dp)                                              :: uabs
 
     ! Add routine to path
     CALL init_routine( routine_name)
+
+    ! == Bed roughness
+    ! ================
+
+    ! Assume that bed roughness is represented by the slid_beta_sq field
+    ice%bed_roughness = ice%slid_beta_sq
+
+    ! Scale bed roughness based on grounded area fractions
+    CALL apply_grounded_fractions_to_bed_roughness( mesh, ice)
+
+    ! == Basal friction field
+    ! =======================
 
     ! Calculate beta
     DO vi = mesh%vi1, mesh%vi2
@@ -111,8 +131,8 @@ CONTAINS
       ! Include a normalisation term following Bueler & Brown (2009) to prevent divide-by-zero errors.
       uabs = SQRT( C%slid_delta_v**2 + u_a( vi)**2 + v_a( vi)**2)
 
-      ! Asay-Davis et al. (2016), Eq. 6
-      ice%basal_friction_coefficient( vi) = ice%slid_beta_sq( vi) * uabs ** (1._dp / C%slid_Weertman_m - 1._dp)
+      ! Asay-Davis et al. (2016), Eq. 6; replacing slid_beta_sq by the bed roughness field from above
+      ice%basal_friction_coefficient( vi) = ice%bed_roughness( vi) * uabs ** (1._dp / C%slid_Weertman_m - 1._dp)
 
     END DO
     CALL sync
@@ -128,22 +148,40 @@ CONTAINS
     IMPLICIT NONE
 
     ! In- and output variables:
-    TYPE(type_mesh),                     INTENT(IN)    :: mesh
-    TYPE(type_ice_model),                INTENT(INOUT) :: ice
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2),          INTENT(IN)    :: u_a, v_a
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh
+    TYPE(type_ice_model),                   INTENT(INOUT) :: ice
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: u_a, v_a
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_sliding_law_Coulomb'
-    INTEGER                                            :: vi
-    REAL(dp)                                           :: uabs
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'calc_sliding_law_Coulomb'
+    INTEGER                                               :: vi
+    REAL(dp)                                              :: uabs
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! Calculate the till yield stress from the till friction angle and the effective pressure
-    DO vi = mesh%vi1, mesh%vi2
-      ice%till_yield_stress( vi) = TAN((pi / 180._dp) * ice%till_friction_angle( vi)) * ice%effective_pressure( vi)
-    END DO
+    ! == Bed roughness
+    ! ================
+
+    ! Compute bed roughness based on till friction angle
+    ice%bed_roughness = TAN((pi / 180._dp) * ice%till_friction_angle)
+
+    ! Scale bed roughness based on grounded area fractions
+    CALL apply_grounded_fractions_to_bed_roughness( mesh, ice)
+
+    ! == Till yield stress
+    ! ====================
+
+    ! Calculate the till yield stress from the effective pressure and bed roughness
+    ice%till_yield_stress = ice%effective_pressure * ice%bed_roughness
+
+    ! == Extend till yield stress over ice-free land neighbours
+    ! =========================================================
+
+    CALL extend_till_yield_stress_to_neighbours( mesh, ice)
+
+    ! == Basal friction field
+    ! =======================
 
     ! Calculate beta
     DO vi = mesh%vi1, mesh%vi2
@@ -166,22 +204,40 @@ CONTAINS
     IMPLICIT NONE
 
     ! In- and output variables:
-    TYPE(type_mesh),                     INTENT(IN)    :: mesh
-    TYPE(type_ice_model),                INTENT(INOUT) :: ice
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2),          INTENT(IN)    :: u_a, v_a
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh
+    TYPE(type_ice_model),                   INTENT(INOUT) :: ice
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: u_a, v_a
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_sliding_law_Budd'
-    INTEGER                                            :: vi
-    REAL(dp)                                           :: uabs
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'calc_sliding_law_Budd'
+    INTEGER                                               :: vi
+    REAL(dp)                                              :: uabs
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! Calculate the till yield stress from the till friction angle and the effective pressure
-    DO vi = mesh%vi1, mesh%vi2
-      ice%till_yield_stress( vi) = TAN((pi / 180._dp) * ice%till_friction_angle( vi)) * ice%effective_pressure( vi)
-    END DO
+    ! == Bed roughness
+    ! ================
+
+    ! Compute bed roughness based on till friction angle
+    ice%bed_roughness = TAN((pi / 180._dp) * ice%till_friction_angle)
+
+    ! Scale bed roughness based on grounded area fractions
+    CALL apply_grounded_fractions_to_bed_roughness( mesh, ice)
+
+    ! == Till yield stress
+    ! ====================
+
+    ! Calculate the till yield stress from the effective pressure and bed roughness
+    ice%till_yield_stress = ice%effective_pressure * ice%bed_roughness
+
+    ! == Extend till yield stress over ice-free land neighbours
+    ! =========================================================
+
+    CALL extend_till_yield_stress_to_neighbours( mesh, ice)
+
+    ! == Basal friction field
+    ! =======================
 
     ! Calculate beta
     DO vi = mesh%vi1, mesh%vi2
@@ -212,17 +268,29 @@ CONTAINS
     IMPLICIT NONE
 
     ! In- and output variables:
-    TYPE(type_mesh),                     INTENT(IN)    :: mesh
-    TYPE(type_ice_model),                INTENT(INOUT) :: ice
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2),          INTENT(IN)    :: u_a, v_a
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh
+    TYPE(type_ice_model),                   INTENT(INOUT) :: ice
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: u_a, v_a
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_sliding_law_Tsai2015'
-    INTEGER                                            :: vi
-    REAL(dp)                                           :: uabs
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'calc_sliding_law_Tsai2015'
+    INTEGER                                               :: vi
+    REAL(dp)                                              :: uabs
 
     ! Add routine to path
     CALL init_routine( routine_name)
+
+    ! == Bed roughness
+    ! ================
+
+    ! Assume that bed roughness is represented by the slid_beta_sq field
+    ice%bed_roughness = ice%slid_beta_sq
+
+    ! Scale bed roughness based on grounded area fractions
+    CALL apply_grounded_fractions_to_bed_roughness( mesh, ice)
+
+    ! == Basal friction field
+    ! =======================
 
     ! Calculate beta
     DO vi = mesh%vi1, mesh%vi2
@@ -230,8 +298,8 @@ CONTAINS
       ! Include a normalisation term following Bueler & Brown (2009) to prevent divide-by-zero errors.
       uabs = SQRT( C%slid_delta_v**2 + u_a( vi)**2 + v_a( vi)**2)
 
-      ! Asay-Davis et al. (2016), Eq. 7
-      ice%basal_friction_coefficient( vi) = MIN( ice%slid_alpha_sq( vi) * ice%effective_pressure( vi), ice%slid_beta_sq( vi) * uabs ** (1._dp / C%slid_Weertman_m)) * uabs**(-1._dp)
+      ! Asay-Davis et al. (2016), Eq. 7; replacing slid_beta_sq by the bed roughness field from above
+      ice%basal_friction_coefficient( vi) = MIN( ice%slid_alpha_sq( vi) * ice%effective_pressure( vi), ice%bed_roughness( vi) * uabs ** (1._dp / C%slid_Weertman_m)) * uabs**(-1._dp)
 
     END DO
 
@@ -253,17 +321,29 @@ CONTAINS
     IMPLICIT NONE
 
     ! In- and output variables:
-    TYPE(type_mesh),                     INTENT(IN)    :: mesh
-    TYPE(type_ice_model),                INTENT(INOUT) :: ice
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2),          INTENT(IN)    :: u_a, v_a
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh
+    TYPE(type_ice_model),                   INTENT(INOUT) :: ice
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: u_a, v_a
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_sliding_law_Schoof2005'
-    INTEGER                                            :: vi
-    REAL(dp)                                           :: uabs
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'calc_sliding_law_Schoof2005'
+    INTEGER                                               :: vi
+    REAL(dp)                                              :: uabs
 
     ! Add routine to path
     CALL init_routine( routine_name)
+
+    ! == Bed roughness
+    ! ================
+
+    ! Assume that bed roughness is represented by the slid_beta_sq field
+    ice%bed_roughness = ice%slid_beta_sq
+
+    ! Scale bed roughness based on grounded area fractions
+    CALL apply_grounded_fractions_to_bed_roughness( mesh, ice)
+
+    ! == Basal friction field
+    ! =======================
 
     ! Calculate beta
     DO vi = mesh%vi1, mesh%vi2
@@ -271,9 +351,9 @@ CONTAINS
       ! Include a normalisation term following Bueler & Brown (2009) to prevent divide-by-zero errors.
       uabs = SQRT( C%slid_delta_v**2 + u_a( vi)**2 + v_a( vi)**2)
 
-      ! Asay-Davis et al. (2016), Eq. 11
-      ice%basal_friction_coefficient( vi) = ((ice%slid_beta_sq( vi) * uabs**(1._dp / C%slid_Weertman_m) * ice%slid_alpha_sq( vi) * ice%effective_pressure( vi)) / &
-        ((ice%slid_beta_sq( vi)**C%slid_Weertman_m * uabs + (ice%slid_alpha_sq( vi) * ice%effective_pressure( vi))**C%slid_Weertman_m)**(1._dp / C%slid_Weertman_m))) * uabs**(-1._dp)
+      ! Asay-Davis et al. (2016), Eq. 11; replacing slid_beta_sq by the bed roughness field from above
+      ice%basal_friction_coefficient( vi) = ((ice%bed_roughness( vi) * uabs**(1._dp / C%slid_Weertman_m) * ice%slid_alpha_sq( vi) * ice%effective_pressure( vi)) / &
+        ((ice%bed_roughness( vi)**C%slid_Weertman_m * uabs + (ice%slid_alpha_sq( vi) * ice%effective_pressure( vi))**C%slid_Weertman_m)**(1._dp / C%slid_Weertman_m))) * uabs**(-1._dp)
 
     END DO
 
@@ -288,22 +368,44 @@ CONTAINS
     IMPLICIT NONE
 
     ! In- and output variables:
-    TYPE(type_mesh),                     INTENT(IN)    :: mesh
-    TYPE(type_ice_model),                INTENT(INOUT) :: ice
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2),          INTENT(IN)    :: u_a, v_a
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh
+    TYPE(type_ice_model),                   INTENT(INOUT) :: ice
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: u_a, v_a
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_sliding_law_ZoetIverson'
-    INTEGER                                            :: vi
-    REAL(dp)                                           :: uabs
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'calc_sliding_law_ZoetIverson'
+    INTEGER                                               :: vi, ci, vc
+    REAL(dp)                                              :: uabs, min_neighbour
+    LOGICAL,  DIMENSION(mesh%nV)                          :: mask_grounded_ice_tot
+    REAL(dp), DIMENSION(mesh%nV)                          :: till_yield_stress_tot
+    LOGICAL                                               :: found_grounded_neighbour
+    REAL(dp)                                              :: weight_gr, exponent_gr
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! Calculate the till yield stress from the till friction angle and the effective pressure
-    DO vi = mesh%vi1, mesh%vi2
-      ice%till_yield_stress( vi) = TAN((pi / 180._dp) * ice%till_friction_angle( vi)) * ice%effective_pressure( vi)
-    END DO
+    ! == Bed roughness
+    ! ================
+
+    ! Compute bed roughness based on till friction angle
+    ice%bed_roughness = TAN((pi / 180._dp) * ice%till_friction_angle)
+
+    ! Scale bed roughness based on grounded area fractions
+    CALL apply_grounded_fractions_to_bed_roughness( mesh, ice)
+
+    ! == Till yield stress
+    ! ====================
+
+    ! Calculate the till yield stress from the effective pressure and bed roughness
+    ice%till_yield_stress = ice%effective_pressure * ice%bed_roughness
+
+    ! == Extend till yield stress over ice-free land neighbours
+    ! =========================================================
+
+    CALL extend_till_yield_stress_to_neighbours( mesh, ice)
+
+    ! == Basal friction field
+    ! =======================
 
     ! Calculate beta
     DO vi = mesh%vi1, mesh%vi2
@@ -327,13 +429,13 @@ CONTAINS
     IMPLICIT NONE
 
     ! In- and output variables:
-    TYPE(type_mesh),                     INTENT(IN)    :: mesh
-    TYPE(type_ice_model),                INTENT(INOUT) :: ice
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2),          INTENT(IN)    :: u_a, v_a
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh
+    TYPE(type_ice_model),                   INTENT(INOUT) :: ice
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: u_a, v_a
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_sliding_law_idealised'
-    REAL(dp)                                           :: dummy1
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'calc_sliding_law_idealised'
+    REAL(dp)                                              :: dummy1
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -450,5 +552,139 @@ CONTAINS
 
   END SUBROUTINE calc_sliding_law_idealised_ISMIP_HOM_F
 
+! == Utilities
+! ============
+
+  SUBROUTINE apply_grounded_fractions_to_bed_roughness( mesh, ice)
+    ! Scale bed roughness based on grounded area fractions
+
+    IMPLICIT NONE
+
+    ! In- and output variables:
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh
+    TYPE(type_ice_model),                   INTENT(INOUT) :: ice
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'apply_grounded_fractions_to_bed_roughness'
+    INTEGER                                               :: vi
+    REAL(dp)                                              :: weight_gr, exponent_hi, exponent_hs, exponent_gr
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Check if this is actually wanted
+    IF (.NOT. C%do_subgrid_friction_on_A_grid) THEN
+      ! Finalise routine path
+      CALL finalise_routine( routine_name)
+      ! And exit
+      RETURN
+    END IF
+
+    DO vi = mesh%vi1, mesh%vi2
+
+      ! Initialise grounded area fraction weight
+      weight_gr = 1._dp
+
+      ! Compute exponent for this vertex's weight based on ice thickness
+      exponent_hi = LOG10( MAX( 1._dp, ice%Hi( vi)))
+      ! Compute exponent for this vertex's weight based on surface gradients
+      exponent_hs = ice%Hs_slope( vi) / 0.005_dp
+      ! Compute final exponent for this vertex's weight
+      exponent_gr = MAX( 0._dp, exponent_hi - exponent_hs)
+
+      ! Compute a weight based on the grounded area fractions
+      IF (ice%mask_gl_gr( vi)) THEN
+        weight_gr = ice%fraction_gr( vi)**exponent_gr
+
+      ELSEIF (ice%mask_cf_gr( vi)) THEN
+        weight_gr = ice%fraction_gr( vi)**exponent_gr
+
+      ELSEIF (ice%mask_gl_fl( vi)) THEN
+        weight_gr = ice%fraction_gr( vi)**exponent_gr
+
+      ELSEIF (ice%mask_grounded_ice( vi)) THEN
+        weight_gr = 1._dp
+
+      ELSEIF (ice%mask_floating_ice( vi)) THEN
+        weight_gr = 0._dp
+
+      ELSEIF (ice%mask_icefree_ocean( vi)) THEN
+        weight_gr = 0._dp
+
+      END IF
+
+      ! Just in case
+      weight_gr = MIN( 1._dp, MAX( 0._dp, weight_gr))
+
+      ! Compute till friction angle accounting for grounded area fractions
+      ice%bed_roughness( vi) = ice%bed_roughness(vi) * weight_gr
+
+    END DO
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE apply_grounded_fractions_to_bed_roughness
+
+  SUBROUTINE extend_till_yield_stress_to_neighbours( mesh, ice)
+    ! Extend till yield stress over ice-free land neighbours
+
+    IMPLICIT NONE
+
+    ! In- and output variables:
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh
+    TYPE(type_ice_model),                   INTENT(INOUT) :: ice
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'extend_till_yield_stress_to_neighbours'
+    INTEGER                                               :: vi, ci, vc
+    REAL(dp)                                              :: min_neighbour
+    LOGICAL,  DIMENSION(mesh%nV)                          :: mask_grounded_ice_tot
+    REAL(dp), DIMENSION(mesh%nV)                          :: till_yield_stress_tot
+    LOGICAL                                               :: found_grounded_neighbour
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Gather data from all processes
+    CALL gather_to_all_logical_1D( ice%mask_grounded_ice, mask_grounded_ice_tot)
+    CALL gather_to_all_dp_1D(      ice%till_yield_stress, till_yield_stress_tot)
+
+    DO vi = mesh%vi1, mesh%vi2
+
+      ! Skip if not ice-free land
+      IF (.NOT. ice%mask_icefree_land( vi)) CYCLE
+
+      ! Initialise
+      found_grounded_neighbour = .FALSE.
+
+      ! Initialise with default values and assume a till yield
+      ! stress equivalent to a column of ice of 1000 metres
+      ! with no hydrology and maximum bed roughness.
+      min_neighbour = 1000._dp * ice_density * grav
+
+      ! Check grounded neighbours
+      DO ci = 1, mesh%nC( vi)
+        vc = mesh%C( vi, ci)
+        IF (mask_grounded_ice_tot( vc)) THEN
+          min_neighbour = MIN( min_neighbour, till_yield_stress_tot( vc))
+          found_grounded_neighbour = .TRUE.
+        END IF
+      END DO
+
+      IF (found_grounded_neighbour) THEN
+        ! Use the minimum value among neighbours
+        ice%till_yield_stress( vi) = min_neighbour
+      ELSE
+        ! Use a default minimum value to avoid 0 friction
+        ice%till_yield_stress( vi) = C%Hi_min * ice_density * grav
+      END IF
+
+    END DO
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE extend_till_yield_stress_to_neighbours
 
 END MODULE sliding_laws

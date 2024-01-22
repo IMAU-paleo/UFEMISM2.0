@@ -18,10 +18,12 @@ MODULE UFEMISM_main_model
   USE region_types                                           , ONLY: type_model_region
   USE ice_model_types                                        , ONLY: type_ice_model
   USE mesh_types                                             , ONLY: type_mesh
+  USE reference_geometry_types                               , ONLY: type_reference_geometry
   USE reference_geometries                                   , ONLY: initialise_reference_geometries_raw, initialise_reference_geometries_on_model_mesh
   USE ice_model_main                                         , ONLY: initialise_ice_dynamics_model, run_ice_dynamics_model, remap_ice_dynamics_model, &
-                                                                     create_restart_files_ice_model, write_to_restart_files_ice_model
-  USE basal_hydrology                                        , ONLY: run_basal_hydrology_model
+                                                                     create_restart_files_ice_model, write_to_restart_files_ice_model, apply_geometry_relaxation
+  USE basal_hydrology                                        , ONLY: run_basal_hydrology_model, initialise_pore_water_fraction_inversion, run_pore_water_fraction_inversion
+  USE bed_roughness                                          , ONLY: run_bed_roughness_model
   USE thermodynamics_main                                    , ONLY: initialise_thermodynamics_model, run_thermodynamics_model, &
                                                                      create_restart_file_thermo, write_to_restart_file_thermo
   USE climate_main                                           , ONLY: initialise_climate_model, run_climate_model, remap_climate_model, &
@@ -32,6 +34,8 @@ MODULE UFEMISM_main_model
                                                                      create_restart_file_SMB_model, write_to_restart_file_SMB_model
   USE BMB_main                                               , ONLY: initialise_BMB_model, run_BMB_model, remap_BMB_model, &
                                                                      create_restart_file_BMB_model, write_to_restart_file_BMB_model
+  USE LMB_main                                               , ONLY: initialise_LMB_model, run_LMB_model, remap_LMB_model
+  USE AMB_main                                               , ONLY: initialise_AMB_model, remap_AMB_model
   USE GIA_main                                               , ONLY: initialise_GIA_model, run_GIA_model, remap_GIA_model, &
                                                                      create_restart_file_GIA_model, write_to_restart_file_GIA_model
   USE basal_inversion_main                                   , ONLY: initialise_basal_inversion, run_basal_inversion
@@ -40,18 +44,20 @@ MODULE UFEMISM_main_model
   USE mesh_creation                                          , ONLY: create_mesh_from_gridded_geometry, create_mesh_from_meshed_geometry, write_mesh_success
   USE mesh_operators                                         , ONLY: calc_all_matrix_operators_mesh
   USE grid_basic                                             , ONLY: setup_square_grid
-  USE main_regional_output                                   , ONLY:   create_main_regional_output_file_mesh,   create_main_regional_output_file_grid, &
+  USE main_regional_output                                   , ONLY: create_main_regional_output_file_mesh,   create_main_regional_output_file_grid, &
                                                                      write_to_main_regional_output_file_mesh, write_to_main_regional_output_file_grid, &
-                                                                     create_main_regional_output_file_grid_ROI, write_to_main_regional_output_file_grid_ROI
+                                                                     create_main_regional_output_file_grid_ROI, write_to_main_regional_output_file_grid_ROI, &
+                                                                     create_scalar_regional_output_file, write_to_scalar_regional_output_file
   USE mesh_refinement                                        , ONLY: calc_polygon_Pine_Island_Glacier, calc_polygon_Thwaites_Glacier, &
-                                                                     calc_polygon_Tijn_test_ISMIP_HOM_A
+                                                                     calc_polygon_Amery_ice_shelf, calc_polygon_Riiser_Larsen_ice_shelf, &
+                                                                     calc_polygon_Siple_Coast, calc_polygon_Patagonia, calc_polygon_Larsen_ice_shelf, &
+                                                                     calc_polygon_Transantarctic_Mountains, calc_polygon_DotsonCrosson_ice_shelf, calc_polygon_Narsarsuaq, &
+                                                                     calc_polygon_Nuuk, calc_polygon_Jakobshavn, calc_polygon_NGIS, calc_polygon_Qaanaaq, calc_polygon_Tijn_test_ISMIP_HOM_A
   USE math_utilities                                         , ONLY: longest_triangle_leg
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_logical_1D
   USE mesh_remapping                                         , ONLY: clear_all_maps_involving_this_mesh
   USE mesh_memory                                            , ONLY: deallocate_mesh
-
-  USE netcdf_basic, ONLY: create_new_netcdf_file_for_writing
-  USE netcdf_output, ONLY: setup_mesh_in_netcdf_file
+  USE ice_model_scalars                                      , ONLY: calc_ice_model_scalars
 
   IMPLICIT NONE
 
@@ -81,7 +87,7 @@ CONTAINS
 
     IF (par%master) WRITE(0,*) ''
     IF (par%master) WRITE (0,'(A,A,A,A,A,F9.3,A,F9.3,A)') &
-      '  Running model region ', colour_string( region%name, 'light blue'), ' (', colour_string( TRIM( region%long_name), 'light blue'), &
+      ' Running model region ', colour_string( region%name, 'light blue'), ' (', colour_string( TRIM( region%long_name), 'light blue'), &
       ') from t = ', region%time/1000._dp, ' to t = ', t_end/1000._dp, ' kyr'
 
     ! Initialise average ice-dynamical time step
@@ -92,8 +98,9 @@ CONTAINS
     main_time_loop: DO WHILE (region%time <= t_end)
 
       ! == Mesh update code
-      IF (C%allow_mesh_updates .AND. region%time > region%time_mesh_was_created + C%dt_mesh_update_min &
-        .AND. region%time > C%start_time_of_run) THEN
+      IF (C%allow_mesh_updates .AND. &
+          region%time > region%time_mesh_was_created + C%dt_mesh_update_min .AND. &
+          region%time > C%start_time_of_run) THEN
 
         ! Calculate the mesh fitness coefficient
         CALL calc_mesh_fitness_coefficient( region%mesh, region%ice, mesh_fitness_coefficient)
@@ -106,7 +113,10 @@ CONTAINS
       END IF ! IF (C%allow_mesh_updates) THEN
 
       ! Run the subglacial hydrology model
-      CALL run_basal_hydrology_model( region%mesh, region%ice)
+      CALL run_basal_hydrology_model( region%mesh, region%grid_smooth, region%ice, region%refgeo_PD, region%HIV, region%time)
+
+      ! Run the bed roughness model
+      CALL run_bed_roughness_model( region%mesh, region%grid_smooth, region%ice, region%refgeo_PD, region%BIV, region%time)
 
       ! Run the ice dynamics model to calculate ice geometry at the desired time, and update
       ! velocities, thinning rates, and predicted geometry if necessary
@@ -123,10 +133,13 @@ CONTAINS
       CALL run_ocean_model( region%mesh, region%ice, region%ocean, region%name, region%time)
 
       ! Calculate the surface mass balance
-      CALL run_SMB_model( region%mesh, region%ice, region%climate, region%SMB, region%name, region%time)
+      CALL run_SMB_model( region%mesh, region%grid_smooth, region%ice, region%climate, region%SMB, region%name, region%time)
 
       ! Calculate the basal mass balance
-      CALL run_BMB_model( region%mesh, region%ice, region%ocean, region%BMB, region%name, region%time)
+      CALL run_BMB_model( region%mesh, region%ice, region%ocean, region%refgeo_PD, region%SMB, region%BMB, region%name, region%time)
+
+      ! Calculate the lateral mass balance
+      CALL run_LMB_model( region%mesh, region%ice, region%LMB, region%name, region%time)
 
       ! Calculate bedrock deformation at the desired time, and update
       ! predicted deformation if necessary
@@ -137,6 +150,14 @@ CONTAINS
         CALL run_basal_inversion( region)
       END IF
 
+      ! Run the pore water fraction inversion model
+      IF (C%do_pore_water_nudging) THEN
+        CALL run_pore_water_fraction_inversion( region%mesh, region%grid_smooth, region%ice, region%refgeo_PD, region%HIV, region%time)
+      END IF
+
+      ! Calculate ice-sheet integrated values (total volume, area, etc.)
+      CALL calc_ice_model_scalars( region%mesh, region%ice, region%SMB, region%BMB, region%LMB, region%refgeo_PD, region%scalars)
+
       ! Write to the main regional output NetCDF file
       CALL write_to_regional_output_files( region)
 
@@ -146,15 +167,22 @@ CONTAINS
       ! Keep track of the average ice-dynamical time step and print it to the terminal
       ndt_av = ndt_av + 1
       dt_av  = dt_av  + (region%ice%t_Hi_next - region%ice%t_Hi_prev)
-      IF (par%master .AND. C%do_time_display) CALL time_display( region, t_end, dt_av, ndt_av)
+      IF (par%master .AND. C%do_time_display) THEN
+        CALL time_display( region, t_end, dt_av, ndt_av)
+      END IF
 
       ! If we've reached the end of this coupling interval, stop
       IF (region%time == t_end) EXIT main_time_loop
 
     END DO main_time_loop ! DO WHILE (region%time <= t_end)
 
-    ! Write the final model state to output
+
     IF (region%time == C%end_time_of_run) THEN
+      ! Give all processes time to catch up
+      CALL sync
+      ! Congrats, you've made it
+      IF (par%master) WRITE(0,'(A)') ' Finalising regional simulation...'
+      ! Write the final model state to output
       CALL write_to_regional_output_files( region)
     END IF
 
@@ -177,26 +205,48 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'write_to_regional_output_files'
     INTEGER                                                            :: i
+    REAL(dp)                                                           :: t_closest
+    LOGICAL                                                            :: do_output_main, do_output_restart, do_output_grid
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    IF     (region%time < region%output_t_next) THEN
+    ! Determine time of next output event
+    t_closest = MIN( region%output_t_next, region%output_restart_t_next, region%output_grid_t_next)
+
+    ! Determine actions
+    IF     (region%time < t_closest) THEN
       ! It is not yet time to write to output
       CALL finalise_routine( routine_name)
       RETURN
-    ELSEIF (region%time > region%output_t_next) THEN
+    ELSEIF (region%time > t_closest) THEN
       ! This should not be possible
       CALL crash('overshot the output time step')
-    ELSEIF (region%time == region%output_t_next) THEN
+    ELSEIF (region%time == t_closest) THEN
       ! It is time to write to output!
     ELSE
       ! region%time is NaN?
       CALL crash('region%time is apparently NaN')
     END IF
 
-    ! Update time stamp
-    region%output_t_next = region%output_t_next + C%dt_output
+    ! Determine type of next output event
+    do_output_main    = .FALSE.
+    do_output_restart = .FALSE.
+    do_output_grid    = .FALSE.
+
+    ! Update time stamps
+    IF (region%time == region%output_t_next) THEN
+      region%output_t_next = region%output_t_next + C%dt_output
+      do_output_main = .TRUE.
+    END IF
+    IF (region%time == region%output_restart_t_next) THEN
+      region%output_restart_t_next = region%output_restart_t_next + C%dt_output_restart
+      do_output_restart = .TRUE.
+    END IF
+    IF (region%time == region%output_grid_t_next) THEN
+      region%output_grid_t_next = region%output_grid_t_next + C%dt_output_grid
+      do_output_grid = .TRUE.
+    END IF
 
     ! If needed, create a new set of mesh output files for the current model mesh
     IF (.NOT. region%output_files_match_current_mesh) THEN
@@ -221,23 +271,34 @@ CONTAINS
 
     END IF ! IF (.NOT. region%output_files_match_current_mesh) THEN
 
-    ! Write to the main regional output files
-    CALL write_to_main_regional_output_file_mesh( region)
-    CALL write_to_main_regional_output_file_grid( region)
+    IF (do_output_main) THEN
+      ! Write to the main regional output files
+      CALL write_to_main_regional_output_file_mesh( region)
 
-    ! Write to the region-of-interest output files
-    DO i = 1, region%nROI
-      CALL write_to_main_regional_output_file_grid_ROI( region, region%output_grids_ROI( i), region%output_filenames_grid_ROI( i))
-    END DO
+      ! Write to the region-of-interest output files
+      DO i = 1, region%nROI
+        CALL write_to_main_regional_output_file_grid_ROI( region, region%output_grids_ROI( i), region%output_filenames_grid_ROI( i))
+      END DO
 
-    ! Write to the restart files for all the model components
-    CALL write_to_restart_files_ice_model   ( region%mesh, region%ice                 , region%time)
-    CALL write_to_restart_file_thermo       ( region%mesh, region%ice                 , region%time)
-    CALL write_to_restart_file_climate_model( region%mesh, region%climate, region%name, region%time)
-    CALL write_to_restart_file_ocean_model  ( region%mesh, region%ocean  , region%name, region%time)
-    CALL write_to_restart_file_SMB_model    ( region%mesh, region%SMB    , region%name, region%time)
-    CALL write_to_restart_file_BMB_model    ( region%mesh, region%BMB    , region%name, region%time)
-    CALL write_to_restart_file_GIA_model    ( region%mesh, region%GIA    , region%name, region%time)
+      ! Write to scalar regional output file
+      CALL write_to_scalar_regional_output_file( region)
+    END IF
+
+    IF (do_output_restart) THEN
+      ! Write to the restart files for all the model components
+      CALL write_to_restart_files_ice_model   ( region%mesh, region%ice                 , region%time)
+      CALL write_to_restart_file_thermo       ( region%mesh, region%ice                 , region%time)
+      CALL write_to_restart_file_climate_model( region%mesh, region%climate, region%name, region%time)
+      CALL write_to_restart_file_ocean_model  ( region%mesh, region%ocean  , region%name, region%time)
+      CALL write_to_restart_file_SMB_model    ( region%mesh, region%SMB    , region%name, region%time)
+      CALL write_to_restart_file_BMB_model    ( region%mesh, region%BMB    , region%name, region%time)
+      CALL write_to_restart_file_GIA_model    ( region%mesh, region%GIA    , region%name, region%time)
+    END IF
+
+    IF (do_output_grid) THEN
+      ! Write to the gridded regional output file
+      CALL write_to_main_regional_output_file_grid( region)
+    END IF
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -291,6 +352,9 @@ CONTAINS
     ! BMB
     time_of_next_action = MIN( time_of_next_action, region%BMB%t_next)
 
+    ! LMB
+    time_of_next_action = MIN( time_of_next_action, region%LMB%t_next)
+
     ! GIA
     time_of_next_action = MIN( time_of_next_action, region%GIA%t_next)
 
@@ -299,8 +363,22 @@ CONTAINS
       time_of_next_action = MIN( time_of_next_action, region%BIV%t_next)
     END IF
 
+    ! Hydrology inversion
+    IF (C%do_pore_water_nudging) THEN
+      time_of_next_action = MIN( time_of_next_action, region%HIV%t_next)
+    END IF
+
+    ! Target dHi_dt: make sure we don't overshoot its turnoff time
+    IF (C%do_target_dHi_dt) THEN
+      IF (C%target_dHi_dt_t_end > region%time) THEN
+        time_of_next_action = MIN( time_of_next_action, C%target_dHi_dt_t_end)
+      END IF
+    END IF
+
     ! Output
     time_of_next_action = MIN( time_of_next_action, region%output_t_next)
+    time_of_next_action = MIN( time_of_next_action, region%output_restart_t_next)
+    time_of_next_action = MIN( time_of_next_action, region%output_grid_t_next)
 
     ! ===== Advance region time =====
     ! ===============================
@@ -388,7 +466,7 @@ CONTAINS
       CALL crash('unknown region name "' // region%name // '"!')
     END IF
 
-    ! Create the square output grid
+    ! Create the square smooth grid
     grid_name = 'square_grid_smooth_' // region%name
     CALL setup_square_grid( grid_name, region%mesh%xmin, region%mesh%xmax, region%mesh%ymin, region%mesh%ymax, &
        dx_grid_smooth, region%grid_smooth, &
@@ -397,7 +475,7 @@ CONTAINS
     ! ===== Ice dynamics =====
     ! ========================
 
-    CALL initialise_ice_dynamics_model( region%mesh, region%ice, region%refgeo_init, region%refgeo_PD, region%refgeo_GIAeq, region%GIA, region%scalars, region%name)
+    CALL initialise_ice_dynamics_model( region%mesh, region%ice, region%refgeo_init, region%refgeo_PD, region%refgeo_GIAeq, region%GIA, region%name)
 
     ! ===== Climate =====
     ! ===================
@@ -417,29 +495,40 @@ CONTAINS
     ! ===== Basal mass balance =====
     ! ==============================
 
-    CALL initialise_BMB_model( region%mesh, region%BMB, region%name)
+    CALL initialise_BMB_model( region%mesh, region%ice, region%BMB, region%name)
 
-    ! ===== Run the climate, ocean, SMB, and BMB models =====
-    ! =======================================================
+    ! ===== Lateral mass balance =====
+    ! ================================
+
+    CALL initialise_LMB_model( region%mesh, region%LMB, region%name)
+
+    ! ===== Artificial mass balance =====
+    ! ===================================
+
+    CALL initialise_AMB_model( region%mesh, region%AMB)
+
+    ! ===== Run the climate, ocean, SMB, BMB, and LMB models =====
+    ! ============================================================
 
     ! Run the models
-    CALL run_climate_model( region%mesh, region%ice,                 region%climate, region%name, C%start_time_of_run)
-    CALL run_ocean_model(   region%mesh, region%ice,                 region%ocean  , region%name, C%start_time_of_run)
-    CALL run_SMB_model(     region%mesh, region%ice, region%climate, region%SMB    , region%name, C%start_time_of_run)
-    CALL run_BMB_model(     region%mesh, region%ice, region%ocean  , region%BMB    , region%name, C%start_time_of_run)
+    CALL run_climate_model( region%mesh, region%ice, region%climate, region%name, C%start_time_of_run)
+    CALL run_ocean_model( region%mesh, region%ice, region%ocean, region%name, C%start_time_of_run)
+    CALL run_SMB_model( region%mesh, region%grid_smooth, region%ice, region%climate, region%SMB, region%name, C%start_time_of_run)
+    CALL run_BMB_model( region%mesh, region%ice, region%ocean, region%refgeo_PD, region%SMB, region%BMB, region%name, C%start_time_of_run)
+    CALL run_LMB_model( region%mesh, region%ice, region%LMB, region%name, region%time)
 
     ! Reset the timers
     region%climate%t_next = C%start_time_of_run
     region%ocean%t_next   = C%start_time_of_run
     region%SMB%t_next     = C%start_time_of_run
     region%BMB%t_next     = C%start_time_of_run
+    region%LMB%t_next     = C%start_time_of_run
 
     ! ===== Thermodynamics =====
     ! ==========================
 
-    ! NOTE: must be initialised after the climate, ocean, SMB, and BMB have been initialised
-    !       AND run at least once, so appropriate values for surface temperature, etc. are
-    !       available.
+    ! NOTE: must be initialised after the climate, ocean, SMB, and BMB have been initialised,
+    !       (some of) which are needed to set up the first englacial ice temperature field.
 
     CALL initialise_thermodynamics_model( region)
 
@@ -454,6 +543,22 @@ CONTAINS
     IF (C%do_bed_roughness_nudging) THEN
       CALL initialise_basal_inversion( region%mesh, region%ice, region%BIV, region%name)
     END IF
+
+    IF (C%do_pore_water_nudging) THEN
+      CALL initialise_pore_water_fraction_inversion( region%mesh, region%ice, region%HIV, region%name)
+    END IF
+
+    ! ===== Corrections =====
+    ! =======================
+
+    CALL apply_regional_corrections( region)
+    CALL apply_geometry_relaxation(  region)
+
+    ! ===== Integrated scalars =====
+    ! ==============================
+
+    ! Calculate ice-sheet integrated values (total volume, area, etc.)
+    CALL calc_ice_model_scalars( region%mesh, region%ice, region%SMB, region%BMB, region%LMB, region%refgeo_PD, region%scalars)
 
     ! ===== Regional output =====
     ! ===========================
@@ -493,11 +598,18 @@ CONTAINS
     CALL create_restart_file_BMB_model    ( region%mesh, region%BMB    , region%name)
     CALL create_restart_file_GIA_model    ( region%mesh, region%GIA    , region%name)
 
+    ! Create the scalar regional output file
+    CALL create_scalar_regional_output_file( region)
+
     ! Set output writing time to start of run, so the initial state will be written to output
     IF (C%do_create_netcdf_output) THEN
       region%output_t_next = C%start_time_of_run
+      region%output_restart_t_next = C%start_time_of_run
+      region%output_grid_t_next = C%start_time_of_run
     ELSE
       region%output_t_next = C%end_time_of_run
+      region%output_restart_t_next = C%end_time_of_run
+      region%output_grid_t_next = C%end_time_of_run
     END IF
 
     ! Confirm that the current set of mesh output files match the current model mesh
@@ -514,6 +626,9 @@ CONTAINS
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
+
+    ! CALL write_to_main_regional_output_file_mesh( region)
+    ! stop ':)'
 
   END SUBROUTINE initialise_model_region
 
@@ -534,7 +649,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Print to screen
-    IF (par%master) WRITE(0,'(A)') '  Setting up the first mesh for model region ' // colour_string( region%name,'light blue') // '...'
+    IF (par%master) WRITE(0,'(A)') '   Setting up the first mesh for model region ' // colour_string( region%name,'light blue') // '...'
 
     ! Get settings from config
     IF     (region%name == 'NAM') THEN
@@ -589,7 +704,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Print to screen
-    IF (par%master) WRITE(0,'(A)') '   Creating mesh from initial geometry...'
+    IF (par%master) WRITE(0,'(A)') '     Creating mesh from initial geometry...'
 
     ! Determine model domain
     IF     (region%name == 'NAM') THEN
@@ -813,6 +928,9 @@ CONTAINS
 
     DO WHILE (.TRUE.)
 
+      ! == Parse list of input ROIs
+      ! ===========================
+
       ! Get the first region of interest from the list
       i = INDEX( all_names_ROI, '||')
       IF (i == 0) THEN
@@ -825,73 +943,95 @@ CONTAINS
         all_names_ROI = all_names_ROI( i+2:LEN_TRIM( all_names_ROI))
       END IF
 
+      ! == Check validity of requested ROIs
+      ! ===================================
 
+      ! Check if current region is indeed defined in the model
+      SELECT CASE (name_ROI)
+        CASE ('')
+         ! No region requested: don't need to do anything
+         EXIT
+        CASE ('PineIsland','Thwaites','Amery','RiiserLarsen','SipleCoast','LarsenC','TransMounts','DotsonCrosson', & ! Antarctica
+              'Narsarsuaq','Nuuk','Jakobshavn','NGIS','Qaanaaq', &                                                   ! Greenland
+              'Patagonia', &                                                                                         ! Patagonia
+              'Tijn_test_ISMIP_HOM_A','CalvMIP_quarter')                                                             ! Idealised
+          ! List of known regions of interest: these pass the test
+        CASE DEFAULT
+          ! Region not found
+          CALL crash('unknown region of interest "' // TRIM( name_ROI) // '"!')
+      END SELECT
+
+      ! == Calculate ROIs
+      ! =================
+
+      ! Calculate the polygon describing the specified region of interest
       SELECT CASE (region%name)
         CASE ('NAM')
           ! North america
 
           SELECT CASE (name_ROI)
-            CASE ('')
-              ! Don't need to do anything
-              EXIT
-            CASE ('PineIsland')
-              ! Don't need to do anything
-              EXIT
-            CASE ('Thwaites')
-              ! Don't need to do anything
-              EXIT
             CASE DEFAULT
-              CALL crash('unknown region of interest "' // TRIM( name_ROI) // '"!')
+              ! Requested area not in this model domain; skip
+              CYCLE
           END SELECT
 
         CASE ('EAS')
           ! Eurasia
 
           SELECT CASE (name_ROI)
-            CASE ('')
-              ! Don't need to do anything
-              EXIT
-            CASE ('PineIsland')
-              ! Don't need to do anything
-              EXIT
-            CASE ('Thwaites')
-              ! Don't need to do anything
-              EXIT
             CASE DEFAULT
-              CALL crash('unknown region of interest "' // TRIM( name_ROI) // '"!')
+              ! Requested area not in this model domain; skip
+              CYCLE
           END SELECT
 
         CASE ('GRL')
           ! Greenland
 
           SELECT CASE (name_ROI)
-            CASE ('')
-              ! Don't need to do anything
-              EXIT
-            CASE ('PineIsland')
-              ! Don't need to do anything
-              EXIT
-            CASE ('Thwaites')
-              ! Don't need to do anything
-              EXIT
+            CASE ('Narsarsuaq')
+              CALL calc_polygon_Narsarsuaq( poly_ROI)
+            CASE ('Nuuk')
+              CALL calc_polygon_Nuuk( poly_ROI)
+            CASE ('Jakobshavn')
+              CALL calc_polygon_Jakobshavn( poly_ROI)
+            CASE ('NGIS')
+              CALL calc_polygon_NGIS( poly_ROI)
+            CASE ('Qaanaaq')
+              CALL calc_polygon_Qaanaaq( poly_ROI)
             CASE DEFAULT
-              CALL crash('unknown region of interest "' // TRIM( name_ROI) // '"!')
+              ! Requested area not in this model domain; skip
+              CYCLE
           END SELECT
 
         CASE ('ANT')
 
           SELECT CASE (name_ROI)
-            CASE ('')
-              ! Don't need to do anything
-              EXIT
             CASE ('PineIsland')
               CALL calc_polygon_Pine_Island_Glacier( poly_ROI)
             CASE ('Thwaites')
               CALL calc_polygon_Thwaites_Glacier( poly_ROI)
+            CASE ('Amery')
+              CALL calc_polygon_Amery_ice_shelf( poly_ROI)
+            CASE ('RiiserLarsen')
+              CALL calc_polygon_Riiser_Larsen_ice_shelf( poly_ROI)
+            CASE ('SipleCoast')
+              CALL calc_polygon_Siple_Coast( poly_ROI)
+            CASE ('LarsenC')
+              CALL calc_polygon_Larsen_ice_shelf( poly_ROI)
+            CASE ('TransMounts')
+              CALL calc_polygon_Transantarctic_Mountains( poly_ROI)
+            CASE ('DotsonCrosson')
+              CALL calc_polygon_DotsonCrosson_ice_shelf( poly_ROI)
+            CASE ('Patagonia')
+              CALL calc_polygon_Patagonia( poly_ROI)
             CASE ('Tijn_test_ISMIP_HOM_A')
               CALL calc_polygon_Tijn_test_ISMIP_HOM_A( poly_ROI)
+            CASE ('CalvMIP_quarter')
+              ! Not interesting; skip
+              CYCLE
             CASE DEFAULT
-              CALL crash('unknown region of interest "' // TRIM( name_ROI) // '"!')
+              ! Requested area not in this model domain; skip
+              CYCLE
           END SELECT
 
         CASE DEFAULT
@@ -1032,12 +1172,14 @@ CONTAINS
     CALL initialise_reference_geometries_on_model_mesh( region%name, mesh_new, region%refgeo_init, region%refgeo_PD, region%refgeo_GIAeq)
 
     ! Remap all the model data from the old mesh to the new mesh
-    CALL remap_ice_dynamics_model( region%mesh, mesh_new, region%ice, region%refgeo_PD, region%SMB, region%BMB, region%GIA, region%time, region%scalars, region%name)
-    CALL remap_climate_model(      region%mesh, mesh_new, region%climate, region%name)
-    CALL remap_ocean_model(        region%mesh, mesh_new, region%ocean  , region%name)
-    CALL remap_SMB_model(          region%mesh, mesh_new, region%SMB    , region%name)
-    CALL remap_BMB_model(          region%mesh, mesh_new, region%BMB    , region%name)
-    CALL remap_GIA_model(          region%mesh, mesh_new, region%GIA                 )
+    CALL remap_ice_dynamics_model( region%mesh, mesh_new, region%ice, region%refgeo_PD, region%SMB, region%BMB, region%LMB, region%AMB, region%GIA, region%time, region%name)
+    CALL remap_climate_model(      region%mesh, mesh_new,             region%climate, region%name)
+    CALL remap_ocean_model(        region%mesh, mesh_new,             region%ocean  , region%name)
+    CALL remap_SMB_model(          region%mesh, mesh_new,             region%SMB    , region%name)
+    CALL remap_BMB_model(          region%mesh, mesh_new, region%ice, region%BMB    , region%name)
+    CALL remap_LMB_model(          region%mesh, mesh_new,             region%LMB    , region%name)
+    CALL remap_AMB_model(          region%mesh, mesh_new,             region%AMB                 )
+    CALL remap_GIA_model(          region%mesh, mesh_new,             region%GIA                 )
 
     ! Set all model component timers so that they will all be run right after the mesh update
     region%ice%t_Hi_next  = region%time
@@ -1046,6 +1188,7 @@ CONTAINS
     region%ocean%t_next   = region%time
     region%SMB%t_next     = region%time
     region%BMB%t_next     = region%time
+    region%LMB%t_next     = region%time
     region%GIA%t_next     = region%time
 
     ! Throw away the mapping operators involving the old mesh
@@ -1225,11 +1368,61 @@ CONTAINS
       WRITE( *     ,"(A)", ADVANCE = TRIM( r_adv)) c_carriage_return // &
             "   t = " // TRIM( r_time) // " kyr - dt_av = " // TRIM( r_step) // " yr"
     END IF
-    IF (region%time == region%output_t_next) THEN
-      r_adv = "no"
+    IF (region%time == region%output_t_next .OR. &
+        region%time == region%output_restart_t_next .OR. &
+        region%time == region%output_grid_t_next) THEN
+      r_adv = "yes"
       WRITE( *,"(A)", ADVANCE = TRIM( r_adv)) c_carriage_return
     END IF
 
   END SUBROUTINE time_display
+
+  SUBROUTINE apply_regional_corrections( region)
+    ! Apply some regional modifications to a few fields which
+    ! require other fields that are usually initialised later
+    ! than the fields of interest.
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_model_region), INTENT(INOUT) :: region
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER          :: routine_name = 'apply_regional_corrections'
+    INTEGER                                :: vi
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    IF (par%master) WRITE(0,'(A)') '   Implementing regional corrections...'
+
+    ! === SMB over ice-free land ===
+    ! ==============================
+
+    ! If so desired, remove positive SMB over ice-free land
+    IF (C%do_SMB_removal_icefree_land) THEN
+      DO vi = region%mesh%vi1, region%mesh%vi2
+        IF (region%ice%mask_icefree_land( vi)) region%SMB%SMB( vi) = MIN( region%SMB%SMB( vi), 0._dp)
+      END DO
+    END IF
+
+    ! == Target dHi_dt
+    ! ================
+
+    ! If so desired, limit target dH/dt to available SMB. If the target dH/dt is positive,
+    ! it will remove ice during the spinup; we don't want it removing more ice than the SMB
+    ! is providing, to avoid friction inversions going crazy to keep the ice in place.
+    IF (C%do_target_dHi_dt .AND. C%do_limit_target_dHi_dt_to_SMB) THEN
+      DO vi = region%mesh%vi1, region%mesh%vi2
+        IF (region%ice%dHi_dt_target( vi) > 0._dp) THEN
+          region%ice%dHi_dt_target( vi) = MAX( 0._dp, MIN( region%ice%dHi_dt_target( vi), region%SMB%SMB( vi)))
+        END IF
+      END DO
+    END IF
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE apply_regional_corrections
 
 END MODULE UFEMISM_main_model

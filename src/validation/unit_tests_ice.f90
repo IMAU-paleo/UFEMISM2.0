@@ -7,7 +7,7 @@ MODULE unit_tests_ice
 
   USE mpi
   USE precisions                                             , ONLY: dp
-  USE mpi_basic                                              , ONLY: par, cerr, ierr, MPI_status, sync
+  USE mpi_basic                                              , ONLY: par, cerr, ierr, recv_status, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
   USE parameters
@@ -16,7 +16,6 @@ MODULE unit_tests_ice
                                                                      save_variable_as_netcdf_dp_1D , save_variable_as_netcdf_dp_2D
   USE mesh_types                                             , ONLY: type_mesh
   USE ice_model_types                                        , ONLY: type_ice_model
-  USE scalar_types                                           , ONLY: type_regional_scalars
   USE reference_geometries                                   , ONLY: type_reference_geometry, initialise_reference_geometries_raw, initialise_reference_geometries_on_model_mesh
   USE region_types                                           , ONLY: type_model_region
   USE mesh_creation                                          , ONLY: create_mesh_from_gridded_geometry, write_mesh_success
@@ -82,7 +81,6 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'test_ice_velocities_static_Halfar_dome'
     TYPE(type_mesh)                                                    :: mesh
     TYPE(type_ice_model)                                               :: ice
-    TYPE(type_regional_scalars)                                        :: scalars
     TYPE(type_reference_geometry)                                      :: refgeo_init, refgeo_PD, refgeo_GIAeq
     TYPE(type_GIA_model)                                               :: GIA
     CHARACTER(LEN=256)                                                 :: region_name, mesh_name
@@ -133,7 +131,7 @@ CONTAINS
 
     ! Initialise the ice model
     C%choice_stress_balance_approximation = 'SIA'
-    CALL initialise_ice_dynamics_model( mesh, ice, refgeo_init, refgeo_PD, refgeo_GIAeq, GIA, scalars, region_name)
+    CALL initialise_ice_dynamics_model( mesh, ice, refgeo_init, refgeo_PD, refgeo_GIAeq, GIA, region_name)
 
     ! Also initialise DIVA and BPA solvers
     C%choice_stress_balance_approximation = 'DIVA'
@@ -496,11 +494,6 @@ CONTAINS
 
     C%choice_mask_noice                     = 'none'                           ! Choice of mask_noice configuration
 
-    ! Partially fixed geometry, useful for initialisation and inversion runs
-    C%fixed_shelf_geometry                  = .FALSE.                          ! Keep geometry of floating ice fixed
-    C%fixed_sheet_geometry                  = .FALSE.                          ! Keep geometry of grounded ice fixed
-    C%fixed_grounding_line                  = .FALSE.                          ! Keep ice thickness at the grounding line fixed
-
   ! == Basal hydrology
   ! ==================
 
@@ -671,7 +664,6 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'test_ISMIP_HOM_A'
     TYPE(type_mesh)                                                    :: mesh
     TYPE(type_ice_model)                                               :: ice
-    TYPE(type_regional_scalars)                                        :: scalars
     TYPE(type_reference_geometry)                                      :: refgeo_init, refgeo_PD, refgeo_GIAeq
     TYPE(type_GIA_model)                                               :: GIA
     CHARACTER(LEN=256)                                                 :: region_name, mesh_name
@@ -747,7 +739,7 @@ CONTAINS
 
     ! Initialise the ice model
     C%choice_stress_balance_approximation = 'SIA/SSA'
-    CALL initialise_ice_dynamics_model( mesh, ice, refgeo_init, refgeo_PD, refgeo_GIAeq, GIA, scalars, region_name)
+    CALL initialise_ice_dynamics_model( mesh, ice, refgeo_init, refgeo_PD, refgeo_GIAeq, GIA, region_name)
 
     ! Also initialise DIVA and BPA solvers
     C%choice_stress_balance_approximation = 'DIVA'
@@ -959,7 +951,6 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'test_ISMIP_HOM_C'
     TYPE(type_mesh)                                                    :: mesh
     TYPE(type_ice_model)                                               :: ice
-    TYPE(type_regional_scalars)                                        :: scalars
     TYPE(type_reference_geometry)                                      :: refgeo_init, refgeo_PD, refgeo_GIAeq
     TYPE(type_GIA_model)                                               :: GIA
     CHARACTER(LEN=256)                                                 :: region_name, mesh_name
@@ -1036,7 +1027,7 @@ CONTAINS
 
     ! Initialise the ice model
     C%choice_stress_balance_approximation = 'SIA/SSA'
-    CALL initialise_ice_dynamics_model( mesh, ice, refgeo_init, refgeo_PD, refgeo_GIAeq, GIA, scalars, region_name)
+    CALL initialise_ice_dynamics_model( mesh, ice, refgeo_init, refgeo_PD, refgeo_GIAeq, GIA, region_name)
 
     ! Also initialise DIVA and BPA solvers
     C%choice_stress_balance_approximation = 'DIVA'
@@ -1432,11 +1423,6 @@ CONTAINS
   ! ===============================
 
     C%choice_mask_noice                     = 'none'                           ! Choice of mask_noice configuration
-
-    ! Partially fixed geometry, useful for initialisation and inversion runs
-    C%fixed_shelf_geometry                  = .FALSE.                          ! Keep geometry of floating ice fixed
-    C%fixed_sheet_geometry                  = .FALSE.                          ! Keep geometry of grounded ice fixed
-    C%fixed_grounding_line                  = .FALSE.                          ! Keep ice thickness at the grounding line fixed
 
   ! == Basal hydrology
   ! ==================
@@ -1897,11 +1883,6 @@ CONTAINS
   ! ===============================
 
     C%choice_mask_noice                     = 'none'                           ! Choice of mask_noice configuration
-
-    ! Partially fixed geometry, useful for initialisation and inversion runs
-    C%fixed_shelf_geometry                  = .FALSE.                          ! Keep geometry of floating ice fixed
-    C%fixed_sheet_geometry                  = .FALSE.                          ! Keep geometry of grounded ice fixed
-    C%fixed_grounding_line                  = .FALSE.                          ! Keep ice thickness at the grounding line fixed
 
   ! == Basal hydrology
   ! ==================
@@ -2623,11 +2604,6 @@ CONTAINS
   ! ===============================
 
     C%choice_mask_noice                     = 'none'                           ! Choice of mask_noice configuration
-
-    ! Partially fixed geometry, useful for initialisation and inversion runs
-    C%fixed_shelf_geometry                  = .FALSE.                          ! Keep geometry of floating ice fixed
-    C%fixed_sheet_geometry                  = .FALSE.                          ! Keep geometry of grounded ice fixed
-    C%fixed_grounding_line                  = .FALSE.                          ! Keep ice thickness at the grounding line fixed
 
   ! == Basal hydrology
   ! ==================

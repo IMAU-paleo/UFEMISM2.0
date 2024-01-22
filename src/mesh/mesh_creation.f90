@@ -7,7 +7,7 @@ MODULE mesh_creation
 
   USE mpi
   USE precisions                                             , ONLY: dp
-  USE mpi_basic                                              , ONLY: par, cerr, ierr, MPI_status, sync
+  USE mpi_basic                                              , ONLY: par, cerr, ierr, recv_status, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
   USE parameters
@@ -17,7 +17,13 @@ MODULE mesh_creation
   USE mesh_refinement                                        , ONLY: refine_mesh_uniform, refine_mesh_line, Lloyds_algorithm_single_iteration, &
                                                                      refine_mesh_polygon, refine_mesh_line_ROI, refine_mesh_polygon_ROI, &
                                                                      calc_polygon_Pine_Island_Glacier, calc_polygon_Thwaites_Glacier, &
-                                                                     calc_polygon_Tijn_test_ISMIP_HOM_A
+                                                                     calc_polygon_Amery_ice_shelf, calc_polygon_Riiser_Larsen_ice_shelf, &
+                                                                     calc_polygon_Siple_Coast, calc_polygon_Patagonia, calc_polygon_Larsen_ice_shelf, &
+                                                                     calc_polygon_Transantarctic_Mountains, calc_polygon_DotsonCrosson_ice_shelf, &
+                                                                     calc_polygon_Narsarsuaq, calc_polygon_Nuuk, calc_polygon_Jakobshavn, &
+                                                                     calc_polygon_NGIS, calc_polygon_Qaanaaq, calc_polygon_Tijn_test_ISMIP_HOM_A, &
+                                                                     calc_polygon_CalvMIP_quarter, refine_CalvMIP_shelf_donut, &
+                                                                     enforce_contiguous_process_domains
   USe mesh_parallel_creation                                 , ONLY: broadcast_mesh
   USE mesh_secondary                                         , ONLY: calc_all_secondary_mesh_data
   USE mesh_operators                                         , ONLY: calc_all_matrix_operators_mesh
@@ -716,8 +722,14 @@ CONTAINS
           poly = poly_mult_shelf( n1+1:n2,:)
           n1 = n2+1
 
-          ! Refine mesh over this single polygon
-          CALL refine_mesh_polygon( mesh, poly, C%maximum_resolution_floating_ice, C%alpha_min)
+          ! Refine mesh over this single polygon. Use the ice sheet polygon set as a
+          ! "no-refinement" zone to avoid extreme cases where the ice shelf polygon
+          ! encompases the ice sheet one (e.g. in the circular domain of CalvMIP)
+          IF (C%choice_refgeo_PD_ANT == 'idealised') THEN
+            CALL refine_mesh_polygon( mesh, poly, C%maximum_resolution_floating_ice, C%alpha_min, poly_mult_sheet)
+          ELSE
+            CALL refine_mesh_polygon( mesh, poly, C%maximum_resolution_floating_ice, C%alpha_min)
+          END IF
 
           ! Clean up after yourself
           DEALLOCATE( poly)
@@ -730,12 +742,27 @@ CONTAINS
       CALL refine_mesh_in_regions_of_interest( region_name, poly_mult_sheet, poly_mult_shelf, &
         p_line_grounding_line, p_line_calving_front, p_line_ice_front, p_line_coastline, mesh)
 
+    ! == Special cases
+    ! ================
+
+      ! DENK DROM : Not very elegant; remove this later and generalise it
+      IF (C%do_ANT .AND. C%choice_refgeo_PD_ANT == 'idealised' .AND. C%choice_refgeo_init_idealised == 'calvmip_circular') THEN
+        CALL refine_CalvMIP_shelf_donut( mesh, C%maximum_resolution_grounding_line*2._dp, 70000._dp)
+      ELSEIF (C%do_ANT .AND. C%choice_refgeo_PD_ANT == 'idealised' .AND. C%choice_refgeo_init_idealised == 'calvmip_Thule') THEN
+        CALL refine_CalvMIP_shelf_donut( mesh, C%maximum_resolution_grounding_line*2._dp, 50000._dp)
+      END IF
+
     ! == Smooth the mesh
     ! ==================
 
       DO i = 1, C%nit_Lloyds_algorithm
         CALL Lloyds_algorithm_single_iteration( mesh, C%alpha_min)
       END DO
+
+    ! == Enforce contiguous process domains
+    ! =====================================
+
+      CALL enforce_contiguous_process_domains( mesh)
 
     END IF ! IF (par%master) THEN
 
@@ -851,6 +878,9 @@ CONTAINS
 
     DO WHILE (.TRUE.)
 
+      ! == Parse list of input ROIs
+      ! ===========================
+
       ! Get the first region of interest from the list
       i = INDEX( all_names_ROI, '||')
       IF (i == 0) THEN
@@ -863,73 +893,94 @@ CONTAINS
         all_names_ROI = all_names_ROI( i+2:LEN_TRIM( all_names_ROI))
       END IF
 
+      ! == Check validity of requested ROIs
+      ! ===================================
+
+      ! Check if current region is indeed defined in the model
+      SELECT CASE (name_ROI)
+        CASE ('')
+         ! No region requested: don't need to do anything
+         EXIT
+        CASE ('PineIsland','Thwaites','Amery','RiiserLarsen','SipleCoast', 'LarsenC','TransMounts','DotsonCrosson', & ! Antarctica
+              'Narsarsuaq','Nuuk','Jakobshavn','NGIS','Qaanaaq', &                                                    ! Greenland
+              'Patagonia', &                                                                                          ! Patagonia
+              'Tijn_test_ISMIP_HOM_A','CalvMIP_quarter')                                                              ! Idealised
+          ! List of known regions of interest: these pass the test
+        CASE DEFAULT
+          ! Region not found
+          CALL crash('unknown region of interest "' // TRIM( name_ROI) // '"!')
+      END SELECT
+
+      ! == Calculate ROIs
+      ! =================
+
       ! Calculate the polygon describing the specified region of interest
       SELECT CASE (region_name)
         CASE ('NAM')
           ! North america
 
           SELECT CASE (name_ROI)
-            CASE ('')
-              ! Don't need to do anything
-              EXIT
-            CASE ('PineIsland')
-              ! Don't need to do anything
-              EXIT
-            CASE ('Thwaites')
-              ! Don't need to do anything
-              EXIT
             CASE DEFAULT
-              CALL crash('unknown region of interest "' // TRIM( name_ROI) // '"!')
+              ! Requested area not in this model domain; skip
+              CYCLE
           END SELECT
 
         CASE ('EAS')
           ! Eurasia
 
           SELECT CASE (name_ROI)
-            CASE ('')
-              ! Don't need to do anything
-              EXIT
-            CASE ('PineIsland')
-              ! Don't need to do anything
-              EXIT
-            CASE ('Thwaites')
-              ! Don't need to do anything
-              EXIT
             CASE DEFAULT
-              CALL crash('unknown region of interest "' // TRIM( name_ROI) // '"!')
+              ! Requested area not in this model domain; skip
+              CYCLE
           END SELECT
 
         CASE ('GRL')
           ! Greenland
 
           SELECT CASE (name_ROI)
-            CASE ('')
-              ! Don't need to do anything
-              EXIT
-            CASE ('PineIsland')
-              ! Don't need to do anything
-              EXIT
-            CASE ('Thwaites')
-              ! Don't need to do anything
-              EXIT
+            CASE ('Narsarsuaq')
+              CALL calc_polygon_Narsarsuaq( poly_ROI)
+            CASE ('Nuuk')
+              CALL calc_polygon_Nuuk( poly_ROI)
+            CASE ('Jakobshavn')
+              CALL calc_polygon_Jakobshavn( poly_ROI)
+            CASE ('NGIS')
+              CALL calc_polygon_NGIS( poly_ROI)
+            CASE ('Qaanaaq')
+              CALL calc_polygon_Qaanaaq( poly_ROI)
             CASE DEFAULT
-              CALL crash('unknown region of interest "' // TRIM( name_ROI) // '"!')
+              ! Requested area not in this model domain; skip
+              CYCLE
           END SELECT
 
         CASE ('ANT')
 
           SELECT CASE (name_ROI)
-            CASE ('')
-              ! Don't need to do anything
-              EXIT
             CASE ('PineIsland')
               CALL calc_polygon_Pine_Island_Glacier( poly_ROI)
             CASE ('Thwaites')
               CALL calc_polygon_Thwaites_Glacier( poly_ROI)
+            CASE ('Amery')
+              CALL calc_polygon_Amery_ice_shelf( poly_ROI)
+            CASE ('RiiserLarsen')
+              CALL calc_polygon_Riiser_Larsen_ice_shelf( poly_ROI)
+            CASE ('SipleCoast')
+              CALL calc_polygon_Siple_Coast( poly_ROI)
+            CASE ('LarsenC')
+              CALL calc_polygon_Larsen_ice_shelf( poly_ROI)
+            CASE ('TransMounts')
+              CALL calc_polygon_Transantarctic_Mountains( poly_ROI)
+            CASE ('DotsonCrosson')
+              CALL calc_polygon_DotsonCrosson_ice_shelf( poly_ROI)
+            CASE ('Patagonia')
+              CALL calc_polygon_Patagonia( poly_ROI)
             CASE ('Tijn_test_ISMIP_HOM_A')
               CALL calc_polygon_Tijn_test_ISMIP_HOM_A( poly_ROI)
+            CASE ('CalvMIP_quarter')
+              CALL calc_polygon_CalvMIP_quarter( poly_ROI)
             CASE DEFAULT
-              CALL crash('unknown region of interest "' // TRIM( name_ROI) // '"!')
+              ! Requested area not in this model domain; skip
+              CYCLE
           END SELECT
 
         CASE DEFAULT
@@ -982,8 +1033,14 @@ CONTAINS
         poly = poly_mult_shelf( n1+1:n2,:)
         n1 = n2+1
 
-        ! Refine mesh over this single polygon
-        CALL refine_mesh_polygon_ROI( mesh, poly, C%ROI_maximum_resolution_floating_ice, C%alpha_min, poly_ROI)
+        ! Refine mesh over this single polygon. Use the ice sheet polygon set as a
+        ! "no-refinement" zone to avoid extreme cases where the ice shelf polygon
+        ! encompases the ice sheet one (e.g. in the domains of CalvMIP)
+        IF (C%choice_refgeo_PD_ANT == 'idealised') THEN
+          CALL refine_mesh_polygon_ROI( mesh, poly, C%ROI_maximum_resolution_floating_ice, C%alpha_min, poly_ROI, poly_mult_sheet)
+        ELSE
+          CALL refine_mesh_polygon_ROI( mesh, poly, C%ROI_maximum_resolution_floating_ice, C%alpha_min, poly_ROI)
+        END IF
 
         ! Clean up after yourself
         DEALLOCATE( poly)
@@ -1030,7 +1087,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    str = '   Set up ' // colour_string( TRIM( mesh%name),'light blue') // ' with {int_01} vertices and {int_02} triangles' // &
+    str = '     Set up ' // colour_string( TRIM( mesh%name),'light blue') // ' with {int_01} vertices and {int_02} triangles' // &
       ', with a resolution of {dp_01} to {dp_02} m'
     CALL insert_val_into_string_int( str, '{int_01}', mesh%nV)
     CALL insert_val_into_string_int( str, '{int_02}', mesh%nTri)

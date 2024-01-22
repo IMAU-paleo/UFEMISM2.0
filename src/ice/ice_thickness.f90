@@ -9,7 +9,7 @@ MODULE ice_thickness
   USE petscksp
   USE mpi
   USE precisions                                             , ONLY: dp
-  USE mpi_basic                                              , ONLY: par, cerr, ierr, MPI_status, sync
+  USE mpi_basic                                              , ONLY: par, cerr, ierr, recv_status, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
   USE netcdf_debug                                           , ONLY: save_variable_as_netcdf_dp_1D, write_CSR_matrix_to_NetCDF
@@ -21,6 +21,7 @@ MODULE ice_thickness
   USE petsc_basic                                            , ONLY: multiply_CSR_matrix_with_vector_1D, solve_matrix_equation_CSR_PETSc
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_1D, gather_to_all_logical_1D
   USE math_utilities                                         , ONLY: ice_surface_elevation, Hi_from_Hb_Hs_and_SL
+  USE math_utilities                                         , ONLY: is_floating
 
   IMPLICIT NONE
 
@@ -28,7 +29,7 @@ CONTAINS
 
 ! == The main routines, to be called from the ice dynamics module
 
-  SUBROUTINE calc_dHi_dt( mesh, Hi, Hb, SL, u_vav_b, v_vav_b, SMB, BMB, mask_noice, dt, dHi_dt, Hi_tplusdt, divQ, BC_prescr_mask, BC_prescr_Hi)
+  SUBROUTINE calc_dHi_dt( mesh, Hi, Hb, SL, u_vav_b, v_vav_b, SMB, BMB, LMB, AMB, fraction_margin, mask_noice, dt, dHi_dt, Hi_tplusdt, divQ, dHi_dt_target, BC_prescr_mask, BC_prescr_Hi)
     ! Calculate ice thickness at time t+dt
 
     IMPLICIT NONE
@@ -42,11 +43,15 @@ CONTAINS
     REAL(dp), DIMENSION(mesh%ti1:mesh%ti2), INTENT(IN)              :: v_vav_b               ! [m yr^-1] Vertically averaged ice velocities in the y-direction on the b-grid (triangles)
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)              :: SMB                   ! [m yr^-1] Surface mass balance
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)              :: BMB                   ! [m yr^-1] Basal   mass balance
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)              :: LMB                   ! [m yr^-1] Lateral mass balance
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(INOUT)           :: AMB                   ! [m yr^-1] Artificial mass balance
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)              :: fraction_margin       ! [0-1]     Sub-grid ice-filled fraction
     LOGICAL,  DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)              :: mask_noice            ! [-]       Mask of vertices where no ice is allowed
     REAL(dp),                               INTENT(INOUT)           :: dt                    ! [dt]      Time step
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)             :: dHi_dt                ! [m yr^-1] Ice thickness rate of change
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)             :: Hi_tplusdt            ! [m]       Ice thickness at time t + dt
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)             :: divQ                  ! [m yr^-1] Horizontal ice flux divergence
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)              :: dHi_dt_target         ! [m yr^-1] Target ice thickness rate of change
     INTEGER,  DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)   , OPTIONAL :: BC_prescr_mask        ! [-]       Mask of vertices where thickness is prescribed
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)   , OPTIONAL :: BC_prescr_Hi          ! [m]       Prescribed thicknesses
 
@@ -58,6 +63,9 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    ! Reset artificial mass balance
+    AMB = 0._dp
+
     ! Calculate Hi( t+dt) with the specified time discretisation scheme
     IF     (C%choice_ice_integration_method == 'none') THEN
       ! Unchanging ice geometry
@@ -68,11 +76,11 @@ CONTAINS
       RETURN
 
     ELSEIF (C%choice_ice_integration_method == 'explicit') THEN
-      CALL calc_dHi_dt_explicit(     mesh, Hi, Hb, SL, u_vav_b, v_vav_b, SMB, BMB, mask_noice, dt, dHi_dt, Hi_tplusdt, divQ, BC_prescr_mask, BC_prescr_Hi)
+      CALL calc_dHi_dt_explicit(     mesh, Hi, Hb, SL, u_vav_b, v_vav_b, SMB, BMB, LMB, AMB, fraction_margin, mask_noice, dt, dHi_dt, Hi_tplusdt, divQ, dHi_dt_target, BC_prescr_mask, BC_prescr_Hi)
     ELSEIF (C%choice_ice_integration_method == 'implicit') THEN
-      CALL calc_dHi_dt_implicit(     mesh, Hi, Hb, SL, u_vav_b, v_vav_b, SMB, BMB, mask_noice, dt, dHi_dt, Hi_tplusdt, divQ, BC_prescr_mask, BC_prescr_Hi)
+      CALL calc_dHi_dt_implicit(     mesh, Hi, Hb, SL, u_vav_b, v_vav_b, SMB, BMB, LMB, AMB, fraction_margin, mask_noice, dt, dHi_dt, Hi_tplusdt, divQ, dHi_dt_target, BC_prescr_mask, BC_prescr_Hi)
     ELSEIF (C%choice_ice_integration_method == 'semi-implicit') THEN
-      CALL calc_dHi_dt_semiimplicit( mesh, Hi, Hb, SL, u_vav_b, v_vav_b, SMB, BMB, mask_noice, dt, dHi_dt, Hi_tplusdt, divQ, BC_prescr_mask, BC_prescr_Hi)
+      CALL calc_dHi_dt_semiimplicit( mesh, Hi, Hb, SL, u_vav_b, v_vav_b, SMB, BMB, LMB, AMB, fraction_margin, mask_noice, dt, dHi_dt, Hi_tplusdt, divQ, dHi_dt_target, BC_prescr_mask, BC_prescr_Hi)
     ELSE
       CALL crash('unknown choice_ice_integration_method "' // TRIM( C%choice_ice_integration_method) // '"!')
     END IF
@@ -82,8 +90,12 @@ CONTAINS
     DO vi = mesh%vi1, mesh%vi2
       IF (Hi_tplusdt( vi) < 0._dp) THEN
         ! Implicit solvers sometimes give VERY small negative numbers (e.g. -2e-189),
-        ! only throw a warning if things get properly negative
-        IF (Hi_tplusdt( vi) < -0.1_dp) found_negative_vals = .TRUE.
+        ! only throw a warning if things get properly negative. Also, ignore negative
+        ! values over ice-free points and very thin ice, which can experience negative
+        ! mass balance, but for which it is not feasible to find a dt that prevents a
+        ! negative ice thickness.
+
+        IF (Hi_tplusdt( vi) < -0.1_dp .AND. Hi( vi) > C%Hi_min) found_negative_vals = .TRUE.
         ! Limit to zero
         Hi_tplusdt( vi) = 0._dp
       END IF
@@ -91,6 +103,9 @@ CONTAINS
     IF (found_negative_vals) THEN
       CALL warning('encountered negative values for Hi_tplusdt - time step too large?')
     END IF
+
+    ! Add difference between corrected and uncorrected dHi_dt to residual tracker
+    AMB = AMB + (Hi_tplusdt - Hi) / dt - dHi_dt
 
     ! Recalculate dH/dt with adjusted values of H
     dHi_dt = (Hi_tplusdt - Hi) / dt
@@ -100,7 +115,7 @@ CONTAINS
 
   END SUBROUTINE calc_dHi_dt
 
-  SUBROUTINE calc_dHi_dt_explicit( mesh, Hi, Hb, SL, u_vav_b, v_vav_b, SMB, BMB, mask_noice, dt, dHi_dt, Hi_tplusdt, divQ, BC_prescr_mask, BC_prescr_Hi)
+  SUBROUTINE calc_dHi_dt_explicit( mesh, Hi, Hb, SL, u_vav_b, v_vav_b, SMB, BMB, LMB, AMB, fraction_margin, mask_noice, dt, dHi_dt, Hi_tplusdt, divQ, dHi_dt_target, BC_prescr_mask, BC_prescr_Hi)
     ! Calculate ice thickness rates of change (dH/dt)
     !
     ! Use a time-explicit discretisation scheme for the ice fluxes
@@ -137,11 +152,15 @@ CONTAINS
     REAL(dp), DIMENSION(mesh%ti1:mesh%ti2), INTENT(IN)              :: v_vav_b               ! [m yr^-1] Vertically averaged ice velocities in the y-direction on the b-grid (triangles)
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)              :: SMB                   ! [m yr^-1] Surface mass balance
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)              :: BMB                   ! [m yr^-1] Basal   mass balance
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)              :: LMB                   ! [m yr^-1] Lateral mass balance
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(INOUT)           :: AMB                   ! [m yr^-1] Artificial mass balance
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)              :: fraction_margin       ! [0-1]     Sub-grid ice-filled fraction
     LOGICAL,  DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)              :: mask_noice            ! [-]       Mask of vertices where no ice is allowed
     REAL(dp),                               INTENT(INOUT)           :: dt                    ! [dt]      Time step
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)             :: dHi_dt                ! [m yr^-1] Ice thickness rate of change
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)             :: Hi_tplusdt            ! [m]       Ice thickness at time t + dt
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)             :: divQ                  ! [m yr^-1] Horizontal ice flux divergence
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)              :: dHi_dt_target         ! [m yr^-1] Target ice thickness rate of change
     INTEGER,  DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)   , OPTIONAL :: BC_prescr_mask        ! [-]       Mask of vertices where thickness is prescribed
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)   , OPTIONAL :: BC_prescr_Hi          ! [m]       Prescribed thicknesses
 
@@ -155,16 +174,19 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Calculate the ice flux divergence matrix M_divQ using an upwind scheme
-    CALL calc_ice_flux_divergence_matrix_upwind( mesh, u_vav_b, v_vav_b, M_divQ)
+    CALL calc_ice_flux_divergence_matrix_upwind( mesh, u_vav_b, v_vav_b, fraction_margin, M_divQ)
 
     ! Calculate the ice flux divergence div(Q)
     CALL multiply_CSR_matrix_with_vector_1D( M_divQ, Hi, divQ)
 
     ! Calculate rate of ice thickness change dHi/dt
-    dHi_dt = -divQ + SMB + BMB
+    dHi_dt = -divQ + fraction_margin * (SMB + BMB - dHi_dt_target) + LMB
 
-    ! Calculate largest time step possible based on flux divergence
-    CALL calc_flux_limited_timestep( mesh, Hi, divQ, dt_max)
+    ! Store this value in the artificial mass balance field
+    AMB = dHi_dt
+
+    ! Calculate largest time step possible based on dHi_dt
+    CALL calc_flux_limited_timestep( mesh, Hi, Hb, SL, dHi_dt, dt_max)
 
     ! Constrain dt based on new limit
     dt = MIN( dt, dt_max)
@@ -194,6 +216,13 @@ CONTAINS
     ! Recalculate dH/dt, accounting for limit of no negative ice thickness
     dHi_dt = (Hi_tplusdt - Hi) / dt
 
+    ! Remove the final dH/dt field, which now includes some
+    ! artificial ice modifications, from the original field
+    ! stored in the AMB field. Any residuals will represent
+    ! the component of the original dH/dt that was removed.
+    ! The negative of this we call artificial mass balance.
+    AMB = dHi_dt - AMB
+
     ! Clean up after yourself
     CALL deallocate_matrix_CSR_dist( M_divQ)
 
@@ -202,7 +231,7 @@ CONTAINS
 
   END SUBROUTINE calc_dHi_dt_explicit
 
-  SUBROUTINE calc_dHi_dt_implicit( mesh, Hi, Hb, SL, u_vav_b, v_vav_b, SMB, BMB, mask_noice, dt, dHi_dt, Hi_tplusdt, divQ, BC_prescr_mask, BC_prescr_Hi)
+  SUBROUTINE calc_dHi_dt_implicit( mesh, Hi, Hb, SL, u_vav_b, v_vav_b, SMB, BMB, LMB, AMB, fraction_margin, mask_noice, dt, dHi_dt, Hi_tplusdt, divQ, dHi_dt_target, BC_prescr_mask, BC_prescr_Hi)
     ! Calculate ice thickness rates of change (dH/dt)
     !
     ! Use a time-implicit discretisation scheme for the ice fluxes
@@ -254,11 +283,15 @@ CONTAINS
     REAL(dp), DIMENSION(mesh%ti1:mesh%ti2), INTENT(IN)              :: v_vav_b               ! [m yr^-1] Vertically averaged ice velocities in the y-direction on the b-grid (triangles)
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)              :: SMB                   ! [m yr^-1] Surface mass balance
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)              :: BMB                   ! [m yr^-1] Basal   mass balance
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)              :: LMB                   ! [m yr^-1] Lateral mass balance
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(INOUT)           :: AMB                   ! [m yr^-1] Artificial mass balance
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)              :: fraction_margin       ! [0-1]     Sub-grid ice-filled fraction
     LOGICAL,  DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)              :: mask_noice            ! [-]       Mask of vertices where no ice is allowed
     REAL(dp),                               INTENT(INOUT)           :: dt                    ! [dt]      Time step
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)             :: dHi_dt                ! [m yr^-1] Ice thickness rate of change
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)             :: Hi_tplusdt            ! [m]       Ice thickness at time t + dt
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)             :: divQ                  ! [m yr^-1] Horizontal ice flux divergence
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)              :: dHi_dt_target         ! [m yr^-1] Target ice thickness rate of change
     INTEGER,  DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)   , OPTIONAL :: BC_prescr_mask        ! [-]       Mask of vertices where thickness is prescribed
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)   , OPTIONAL :: BC_prescr_Hi          ! [m]       Prescribed thicknesses
 
@@ -269,18 +302,22 @@ CONTAINS
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                          :: bb
     INTEGER                                                         :: vi, k1, k2, k, vj
     REAL(dp)                                                        :: dt_max
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                          :: dHi_dt_dummy
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
     ! Calculate the ice flux divergence matrix M_divQ using an upwind scheme
-    CALL calc_ice_flux_divergence_matrix_upwind( mesh, u_vav_b, v_vav_b, M_divQ)
+    CALL calc_ice_flux_divergence_matrix_upwind( mesh, u_vav_b, v_vav_b, fraction_margin, M_divQ)
 
     ! Calculate the ice flux divergence div(Q)
     CALL multiply_CSR_matrix_with_vector_1D( M_divQ, Hi, divQ)
 
-    ! Calculate largest time step possible based on flux divergence div(Q)
-    CALL calc_flux_limited_timestep( mesh, Hi, divQ, dt_max)
+    ! Calculate an estimate of the rate of ice thickness change dHi/dt
+    dHi_dt_dummy = -divQ + SMB + BMB + LMB - dHi_dt_target
+
+    ! Calculate largest time step possible based on that estimate
+    CALL calc_flux_limited_timestep( mesh, Hi, Hb, SL, dHi_dt_dummy, dt_max)
 
     ! Constrain dt based on new limit
     dt = MIN( dt, dt_max)
@@ -307,8 +344,8 @@ CONTAINS
 
     ! Load vector
     DO vi = mesh%vi1, mesh%vi2
-      bb( vi) = Hi( vi) + MAX( -1._dp * Hi( vi), dt * (SMB( vi) + BMB( vi)))
-    END DO ! DO vi = mesh%vi1, mesh%vi2
+      bb( vi) = Hi( vi) + MAX( -1._dp * Hi( vi), dt * (SMB( vi) + BMB( vi) + LMB( vi) - dHi_dt_target( vi)))
+    END DO
 
     ! Take the current ice thickness plus the current thinning rate as the initial guess
     Hi_tplusdt = Hi + dt * dHi_dt
@@ -319,6 +356,9 @@ CONTAINS
     ! Solve for Hi_tplusdt
     CALL solve_matrix_equation_CSR_PETSc( AA, bb, Hi_tplusdt, C%dHi_PETSc_rtol, C%dHi_PETSc_abstol)
 
+    ! Store the corresponding dH/dt in the artificial mass balance field
+    AMB = (Hi_tplusdt - Hi) / dt
+
     ! Enforce Hi = 0 where told to do so
     CALL apply_mask_noice_direct( mesh, mask_noice, Hi_tplusdt)
 
@@ -327,6 +367,13 @@ CONTAINS
 
     ! Calculate dH/dt
     dHi_dt = (Hi_tplusdt - Hi) / dt
+
+    ! Remove the final dH/dt field, which now includes some
+    ! artificial ice modifications, from the original field
+    ! stored in the AMB field. Any residuals will represent
+    ! the component of the original dH/dt that was removed.
+    ! The negative of this we call artificial mass balance.
+    AMB = dHi_dt - AMB
 
     ! Clean up after yourself
     CALL deallocate_matrix_CSR_dist( M_divQ)
@@ -337,7 +384,7 @@ CONTAINS
 
   END SUBROUTINE calc_dHi_dt_implicit
 
-  SUBROUTINE calc_dHi_dt_semiimplicit( mesh, Hi, Hb, SL, u_vav_b, v_vav_b, SMB, BMB, mask_noice, dt, dHi_dt, Hi_tplusdt, divQ, BC_prescr_mask, BC_prescr_Hi)
+  SUBROUTINE calc_dHi_dt_semiimplicit( mesh, Hi, Hb, SL, u_vav_b, v_vav_b, SMB, BMB, LMB, AMB, fraction_margin, mask_noice, dt, dHi_dt, Hi_tplusdt, divQ, dHi_dt_target, BC_prescr_mask, BC_prescr_Hi)
     ! Calculate ice thickness rates of change (dH/dt)
     !
     ! Use a semi-implicit time discretisation scheme for the ice fluxes
@@ -395,11 +442,15 @@ CONTAINS
     REAL(dp), DIMENSION(mesh%ti1:mesh%ti2), INTENT(IN)              :: v_vav_b               ! [m yr^-1] Vertically averaged ice velocities in the y-direction on the b-grid (triangles)
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)              :: SMB                   ! [m yr^-1] Surface mass balance
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)              :: BMB                   ! [m yr^-1] Basal   mass balance
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)              :: LMB                   ! [m yr^-1] Lateral mass balance
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(INOUT)           :: AMB                   ! [m yr^-1] Artificial mass balance
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)              :: fraction_margin       ! [0-1]     Sub-grid ice-filled fraction
     LOGICAL,  DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)              :: mask_noice            ! [-]       Mask of vertices where no ice is allowed
     REAL(dp),                               INTENT(INOUT)           :: dt                    ! [dt]      Time step
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)             :: dHi_dt                ! [m yr^-1] Ice thickness rate of change
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)             :: Hi_tplusdt            ! [m]       Ice thickness at time t + dt
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)             :: divQ                  ! [m yr^-1] Horizontal ice flux divergence
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)              :: dHi_dt_target         ! [m yr^-1] Target ice thickness rate of change
     INTEGER,  DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)   , OPTIONAL :: BC_prescr_mask        ! [-]       Mask of vertices where thickness is prescribed
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)   , OPTIONAL :: BC_prescr_Hi          ! [m]       Prescribed thicknesses
 
@@ -407,22 +458,25 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                                   :: routine_name = 'calc_dHi_dt_semiimplicit'
     TYPE(type_sparse_matrix_CSR_dp)                                 :: M_divQ
     TYPE(type_sparse_matrix_CSR_dp)                                 :: AA
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                          :: M_divQ_H
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                          :: bb
     INTEGER                                                         :: vi, k1, k2, k, vj
     REAL(dp)                                                        :: dt_max
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                          :: dHi_dt_dummy
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
     ! Calculate the ice flux divergence matrix M_divQ using an upwind scheme
-    CALL calc_ice_flux_divergence_matrix_upwind( mesh, u_vav_b, v_vav_b, M_divQ)
+    CALL calc_ice_flux_divergence_matrix_upwind( mesh, u_vav_b, v_vav_b, fraction_margin, M_divQ)
 
     ! Calculate the ice flux divergence div(Q)
     CALL multiply_CSR_matrix_with_vector_1D( M_divQ, Hi, divQ)
 
-    ! Calculate largest time step possible based on flux divergence div(Q)
-    CALL calc_flux_limited_timestep( mesh, Hi, divQ, dt_max)
+    ! Calculate an estimate of the rate of ice thickness change dHi/dt
+    dHi_dt_dummy = -divQ + SMB + BMB + LMB - dHi_dt_target
+
+    ! Calculate largest time step possible based on that estimate
+    CALL calc_flux_limited_timestep( mesh, Hi, Hb, SL, dHi_dt_dummy, dt_max)
 
     ! Constrain dt based on new limit
     dt = MIN( dt, dt_max)
@@ -448,10 +502,9 @@ CONTAINS
     END DO ! DO vi = mesh%vi1, mesh%vi2
 
     ! Load vector
-    CALL multiply_CSR_matrix_with_vector_1D( M_divQ, Hi, M_divQ_H)
     DO vi = mesh%vi1, mesh%vi2
-      bb( vi) = Hi( vi) - (dt * (1._dp - C%dHi_semiimplicit_fs) * M_divQ_H( vi)) + MAX( -1._dp * Hi( vi), dt * (SMB( vi) + BMB( vi)))
-    END DO ! DO vi = mesh%vi1, mesh%vi2
+      bb( vi) = Hi( vi) - (dt * (1._dp - C%dHi_semiimplicit_fs) * divQ( vi)) + MAX( -1._dp * Hi( vi), dt * (SMB( vi) + BMB( vi) + LMB( vi) - dHi_dt_target( vi)))
+    END DO
 
     ! Take the current ice thickness plus the current thinning rate as the initial guess
     Hi_tplusdt = Hi + dt * dHi_dt
@@ -462,6 +515,9 @@ CONTAINS
     ! Solve for Hi_tplusdt
     CALL solve_matrix_equation_CSR_PETSc( AA, bb, Hi_tplusdt, C%dHi_PETSc_rtol, C%dHi_PETSc_abstol)
 
+    ! Store the corresponding dH/dt in the artificial mass balance field
+    AMB = (Hi_tplusdt - Hi) / dt
+
     ! Enforce Hi = 0 where told to do so
     CALL apply_mask_noice_direct( mesh, mask_noice, Hi_tplusdt)
 
@@ -470,6 +526,13 @@ CONTAINS
 
     ! Calculate dH/dt
     dHi_dt = (Hi_tplusdt - Hi) / dt
+
+    ! Remove the final dH/dt field, which now includes some
+    ! artificial ice modifications, from the original field
+    ! stored in the AMB field. Any residuals will represent
+    ! the component of the original dH/dt that was removed.
+    ! The negative of this we call artificial mass balance.
+    AMB = dHi_dt - AMB
 
     ! Clean up after yourself
     CALL deallocate_matrix_CSR_dist( M_divQ)
@@ -480,7 +543,7 @@ CONTAINS
 
   END SUBROUTINE calc_dHi_dt_semiimplicit
 
-  SUBROUTINE calc_ice_flux_divergence_matrix_upwind( mesh, u_vav_b, v_vav_b, M_divQ)
+  SUBROUTINE calc_ice_flux_divergence_matrix_upwind( mesh, u_vav_b, v_vav_b, fraction_margin, M_divQ)
     ! Calculate the ice flux divergence matrix M_divQ using an upwind scheme
     !
     ! The vertically averaged ice flux divergence represents the net ice volume (which,
@@ -498,12 +561,14 @@ CONTAINS
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
     REAL(dp), DIMENSION(mesh%ti1:mesh%ti1), INTENT(IN)    :: u_vav_b
     REAL(dp), DIMENSION(mesh%ti1:mesh%ti1), INTENT(IN)    :: v_vav_b
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: fraction_margin
     TYPE(type_sparse_matrix_CSR_dp),        INTENT(OUT)   :: M_divQ
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'calc_ice_flux_divergence_matrix_upwind'
     REAL(dp), DIMENSION(mesh%ei1:mesh%ei2)                :: u_vav_c, v_vav_c
     REAL(dp), DIMENSION(mesh%nE)                          :: u_vav_c_tot, v_vav_c_tot
+    REAL(dp), DIMENSION(mesh%nV)                          :: fraction_margin_tot
     INTEGER                                               :: ncols, ncols_loc, nrows, nrows_loc, nnz_est_proc
     INTEGER                                               :: vi, ci, ei, vj
     REAL(dp)                                              :: A_i, L_c
@@ -517,9 +582,10 @@ CONTAINS
     CALL map_velocities_from_b_to_c_2D( mesh, u_vav_b, v_vav_b, u_vav_c, v_vav_c)
     CALL gather_to_all_dp_1D( u_vav_c, u_vav_c_tot)
     CALL gather_to_all_dp_1D( v_vav_c, v_vav_c_tot)
+    CALL gather_to_all_dp_1D( fraction_margin, fraction_margin_tot)
 
-  ! == Initialise the matrix using the native UFEMISM CSR-matrix format
-  ! ===================================================================
+    ! == Initialise the matrix using the native UFEMISM CSR-matrix format
+    ! ===================================================================
 
     ! Matrix size
     ncols           = mesh%nV      ! from
@@ -530,8 +596,8 @@ CONTAINS
 
     CALL allocate_matrix_CSR_dist( M_divQ, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
 
-  ! == Calculate coefficients
-  ! =========================
+    ! == Calculate coefficients
+    ! =========================
 
     DO vi = mesh%vi1, mesh%vi2
 
@@ -559,8 +625,21 @@ CONTAINS
         u_perp = u_vav_c_tot( ei) * D_x/D + v_vav_c_tot( ei) * D_y/D
 
         ! Calculate matrix coefficients
-        cM_divQ( 0 ) = cM_divQ( 0) + L_c * MAX( 0._dp, u_perp) / A_i
-        cM_divQ( ci) =               L_c * MIN( 0._dp, u_perp) / A_i
+        ! =============================
+
+        ! u_perp > 0: flow is exiting this vertex into vertex vj
+        IF (fraction_margin_tot( vi) >= 1._dp) THEN
+          cM_divQ( 0) = cM_divQ( 0) + L_c * MAX( 0._dp, u_perp) / A_i
+        ELSE
+          ! If this vertex is not completely covering its assigned area, then don't let ice out of it yet.
+        END IF
+
+        ! u_perp < 0: flow is entering this vertex from vertex vj
+        IF (fraction_margin_tot( vj) >= 1._dp) THEN
+          cM_divQ( ci) = L_c * MIN( 0._dp, u_perp) / A_i
+        ELSE
+          ! If that vertex is not completely covering its assigned area, then don't let ice out of it yet.
+        END IF
 
       END DO ! DO ci = 1, mesh%nC( vi)
 
@@ -577,6 +656,9 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE calc_ice_flux_divergence_matrix_upwind
+
+  ! == Boundary conditions
+  ! ======================
 
   SUBROUTINE apply_ice_thickness_BC_explicit( mesh, mask_noice, Hb, SL, Hi_tplusdt)
     ! Apply boundary conditions to the ice thickness on the domain border directly
@@ -612,9 +694,9 @@ CONTAINS
     CALL gather_to_all_dp_1D(      Hs_tplusdt, Hs_tplusdt_tot)
     CALL gather_to_all_logical_1D( mask_noice, mask_noice_tot)
 
-  ! == First pass: set values of border vertices to mean of interior neighbours
-  !    ...for those border vertices that actually have interior neighbours.
-  ! ===========================================================================
+    ! == First pass: set values of border vertices to mean of interior neighbours
+    !    ...for those border vertices that actually have interior neighbours.
+    ! ===========================================================================
 
     DO vi = mesh%vi1, mesh%vi2
 
@@ -666,9 +748,9 @@ CONTAINS
 
     END DO ! DO vi = mesh%vi1, mesh%vi2
 
-  ! == Second pass: set values of border vertices to mean of all neighbours
-  !    ...for those border vertices that have no interior neighbours.
-  ! =======================================================================
+    ! == Second pass: set values of border vertices to mean of all neighbours
+    !    ...for those border vertices that have no interior neighbours.
+    ! =======================================================================
 
     ! Gather global data fields again
     CALL gather_to_all_dp_1D( Hs_tplusdt, Hs_tplusdt_tot)
@@ -749,8 +831,8 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-  ! == Boundary conditions at the domain border
-  ! ===========================================
+    ! == Boundary conditions at the domain border
+    ! ===========================================
 
     DO vi = mesh%vi1, mesh%vi2
 
@@ -939,8 +1021,8 @@ CONTAINS
 
     END DO ! DO vi = mesh%vi1, mesh%vi2
 
-  ! Set predicted ice thickness to prescribed values where told to do so
-  ! ====================================================================
+    ! Set predicted ice thickness to prescribed values where told to do so
+    ! ====================================================================
 
     IF (PRESENT( BC_prescr_mask) .OR. PRESENT( BC_prescr_Hi)) THEN
       ! Safety
@@ -974,8 +1056,8 @@ CONTAINS
 
     END IF ! IF (PRESENT( BC_prescr_mask) .OR. PRESENT( BC_prescr_Hi)) THEN
 
-  ! == No-ice mask
-  ! ==============
+    ! == No-ice mask
+    ! ==============
 
     DO vi = mesh%vi1, mesh%vi2
       IF (mask_noice( vi)) THEN
@@ -1033,7 +1115,10 @@ CONTAINS
 
   END SUBROUTINE apply_mask_noice_direct
 
-  SUBROUTINE calc_flux_limited_timestep( mesh, Hi, divQ, dt_max)
+  ! == Time step
+  ! ============
+
+  SUBROUTINE calc_flux_limited_timestep( mesh, Hi, Hb, SL, dHi_dt, dt_max)
     ! Calculate the largest time step that does not result in more
     ! ice flowing out of a cell than is contained within it.
 
@@ -1042,7 +1127,9 @@ CONTAINS
     ! In/output variables:
     TYPE(type_mesh),                        INTENT(IN)  :: mesh
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)  :: Hi
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)  :: divQ
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)  :: Hb
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)  :: SL
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)  :: dHi_dt
     REAL(dp),                               INTENT(OUT) :: dt_max
 
     ! Local variables:
@@ -1058,12 +1145,12 @@ CONTAINS
 
     ! Loop over each mesh vertex within this process
     DO vi = mesh%vi1, mesh%vi2
-      ! If there is ice, and there is mass loss
-      IF (Hi( vi) > 0._dp .AND. divQ( vi) > 0._dp) THEN
+      ! If there is [non-negligible] ice, and there is mass loss
+      IF (Hi( vi) > C%Hi_min .AND. dHi_dt( vi) < 0._dp) THEN
 
         ! Compute time step limit (in yr) based on
         ! available ice thickness and flux divergence
-        dt_lim( vi) = Hi( vi) / MAX( divQ( vi), 1E-9_dp)
+        dt_lim( vi) = Hi( vi) / MAX( dHi_dt( vi), 1E-9_dp)
 
       END IF
     END DO

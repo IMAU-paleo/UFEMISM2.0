@@ -9,7 +9,7 @@ MODULE ice_velocity_BPA
   USE petscksp
   USE mpi
   USE precisions                                             , ONLY: dp
-  USE mpi_basic                                              , ONLY: par, cerr, ierr, MPI_status, sync
+  USE mpi_basic                                              , ONLY: par, cerr, ierr, recv_status, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
   USE netcdf_debug                                           , ONLY: save_variable_as_netcdf_dp_1D, save_variable_as_netcdf_dp_2D
@@ -1170,7 +1170,7 @@ CONTAINS
              cv_d2vdy2  * single_row_d2dy2_val(  n) + &
              cv_d2vdx2  * single_row_d2dx2_val(  n)
         IF (tj == ti .AND. kk == k  ) Av = Av + cv_vk
-        IF (tj == ti .AND. kk == k+1) Av = Av + cv_vkm1
+        IF (tj == ti .AND. kk == k-1) Av = Av + cv_vkm1
 
         Au = cv_dudx    * single_row_ddx_val(    n) + &
              cv_dudy    * single_row_ddy_val(    n) + &
@@ -2024,7 +2024,7 @@ CONTAINS
     ! Apply the sub-grid grounded fraction, and limit the friction coefficient to improve stability
     IF (C%do_GL_subgrid_friction) THEN
       DO ti = mesh%ti1, mesh%ti2
-        BPA%basal_friction_coefficient_b( ti) = BPA%basal_friction_coefficient_b( ti) * ice%fraction_gr_b( ti)**C%subgrid_friction_exponent
+        BPA%basal_friction_coefficient_b( ti) = BPA%basal_friction_coefficient_b( ti) * ice%fraction_gr_b( ti)**C%subgrid_friction_exponent_on_B_grid
       END DO
     END IF
 
@@ -2363,7 +2363,7 @@ CONTAINS
     CALL generate_filename_XXXXXdotnc( filename_base, BPA%restart_filename)
 
     ! Print to terminal
-    IF (par%master) WRITE(0,'(A)') '  Creating BPA restart file "' // &
+    IF (par%master) WRITE(0,'(A)') '   Creating BPA restart file "' // &
       colour_string( TRIM( BPA%restart_filename), 'light blue') // '"...'
 
     ! Create the NetCDF file

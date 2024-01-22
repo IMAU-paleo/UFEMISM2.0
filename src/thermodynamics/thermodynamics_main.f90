@@ -9,7 +9,7 @@ MODULE thermodynamics_main
   USE petscksp
   USE mpi
   USE precisions                                             , ONLY: dp
-  USE mpi_basic                                              , ONLY: par, cerr, ierr, MPI_status, sync
+  USE mpi_basic                                              , ONLY: par, cerr, ierr, recv_status, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
   USE netcdf_debug                                           , ONLY: write_PETSc_matrix_to_NetCDF, write_CSR_matrix_to_NetCDF, &
@@ -26,7 +26,7 @@ MODULE thermodynamics_main
   USE netcdf_input                                           , ONLY: read_field_from_file_3D
   USE thermodynamics_3D_heat_equation                        , ONLY: solve_3D_heat_equation, create_restart_file_thermo_3D_heat_equation, &
                                                                      write_to_restart_file_thermo_3D_heat_equation
-  USE thermodynamics_utilities                               , ONLY: calc_pressure_melting_point, replace_Ti_with_robin_solution
+  USE thermodynamics_utilities                               , ONLY: calc_pressure_melting_point, replace_Ti_with_robin_solution, calc_homologous_temperature
 
   IMPLICIT NONE
 
@@ -92,6 +92,12 @@ CONTAINS
     DO vi = region%mesh%vi1, region%mesh%vi2
       region%ice%Ti( vi,:) = wt_prev * region%ice%Ti_prev( vi,:) + wt_next * region%ice%Ti_next( vi,:)
     END DO
+
+    ! Calculate Ti_pmp
+    CALL calc_pressure_melting_point( region%mesh, region%ice)
+
+    ! Calculate Ti_hom
+    CALL calc_homologous_temperature( region%mesh, region%ice)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -263,7 +269,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Print to terminal
-    IF (par%master) WRITE (0,*) ' Initialising ice temperatures with a uniform value...'
+    IF (par%master) WRITE (0,*) '  Initialising ice temperatures with a uniform value...'
 
     ! Determine choice of initial uniform ice temperatures for this model region
     IF     (region_name == 'NAM') THEN
@@ -281,6 +287,12 @@ CONTAINS
     DO vi = mesh%vi1, mesh%vi2
       ice%Ti( vi,:) = uniform_initial_ice_temperature
     END DO
+
+    ! Calculate Ti_pmp
+    CALL calc_pressure_melting_point( mesh, ice)
+
+    ! Calculate Ti_hom
+    CALL calc_homologous_temperature( mesh, ice)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -308,12 +320,12 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Print to terminal
-    IF (par%master) WRITE (0,*) ' Initialising ice temperatures with a linear profile...'
+    IF (par%master) WRITE (0,*) '  Initialising ice temperatures with a linear profile...'
 
     DO vi = mesh%vi1, mesh%vi2
 
       T_surf_annual = MIN( T0, SUM( climate%T2m( vi,:)) / REAL( SIZE( climate%T2m( vi,:),1),dp))
-      T_PMP_base    = T0 - Clausius_Clapeyron_gradient * ice%Hi( vi)
+      T_PMP_base    = T0 - Clausius_Clapeyron_gradient * ice%Hi_eff( vi)
 
       IF (ice%Hi( vi) > 0._dp) THEN
         DO k = 1, mesh%nz
@@ -324,6 +336,12 @@ CONTAINS
       END IF
 
     END DO
+
+    ! Calculate Ti_pmp
+    CALL calc_pressure_melting_point( mesh, ice)
+
+    ! Calculate Ti_hom
+    CALL calc_homologous_temperature( mesh, ice)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -351,7 +369,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Print to terminal
-    IF (par%master) WRITE (0,*) ' Initialising ice temperatures with the Robin solution...'
+    IF (par%master) WRITE (0,*) '  Initialising ice temperatures with the Robin solution...'
 
     ! Calculate Ti_pmp
     CALL calc_pressure_melting_point( mesh, ice)
@@ -360,6 +378,9 @@ CONTAINS
     DO vi = mesh%vi1, mesh%vi2
       CALL replace_Ti_with_robin_solution( mesh, ice, climate, SMB, ice%Ti, vi)
     END DO
+
+    ! Calculate Ti_hom
+    CALL calc_homologous_temperature( mesh, ice)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -408,7 +429,7 @@ CONTAINS
     END IF
 
     ! Print to terminal
-    IF (par%master) WRITE (0,*) ' Initialising ice temperatures from file "' // &
+    IF (par%master) WRITE (0,*) '  Initialising ice temperatures from file "' // &
       colour_string( TRIM( filename_initial_ice_temperature), 'light blue') // '"...'
 
     ! Read data
@@ -436,6 +457,12 @@ CONTAINS
 
     ! The zetas match; hurray!
     ice%Ti = Ti_read
+
+    ! Calculate Ti_pmp
+    CALL calc_pressure_melting_point( mesh, ice)
+
+    ! Calculate Ti_hom
+    CALL calc_homologous_temperature( mesh, ice)
 
     ! Clean up after yourself
     DEALLOCATE( zeta_read)

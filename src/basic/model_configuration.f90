@@ -25,7 +25,7 @@ MODULE model_configuration
 
   USE mpi
   USE precisions                                             , ONLY: dp
-  USE mpi_basic                                              , ONLY: par, cerr, ierr, MPI_status, sync
+  USE mpi_basic                                              , ONLY: par, cerr, ierr, recv_status, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string, &
                                                                      capitalise_string, remove_leading_spaces
 
@@ -109,7 +109,10 @@ MODULE model_configuration
 
     ! Some pre-processing stuff for reference ice geometry
     REAL(dp)            :: refgeo_Hi_min_config                         = 2.0_dp                           ! [m]             [default: 2.0]     Remove ice thinner than this value in the reference ice geometry. Particularly useful for BedMachine Greenland, which somehow covers the entire tundra with half a meter of ice...
+    LOGICAL             :: do_smooth_geometry_config                    = .FALSE.                          ! Whether or not to smooth the reference bedrock
+    REAL(dp)            :: r_smooth_geometry_config                     = 0.5_dp                           ! Geometry smoothing radius (in number of reference grid cells)
     LOGICAL             :: remove_Lake_Vostok_config                    = .TRUE.                           ! Whether or not to replace subglacial Lake Vostok in Antarctica with ice (recommended to set to TRUE, otherwise it will really slow down your model for the first few hundred years...)
+
 
     ! == Initial geometry
     ! ===================
@@ -335,8 +338,10 @@ MODULE model_configuration
     ! Sub-grid scaling of basal friction
     LOGICAL             :: do_GL_subgrid_friction_config                = .TRUE.                           ! Whether or not to scale basal friction with the sub-grid grounded fraction (needed to get proper GL migration; only turn this off for showing the effect on the MISMIP_mod results!)
     CHARACTER(LEN=256)  :: choice_subgrid_grounded_fraction_config      = 'bilin_interp_TAF+bedrock_CDF'   ! Choice of scheme to calculate the sub-grid grounded fractions: 'bilin_interp_TAF', 'bedrock_CDF', 'bilin_interp_TAF+bedrock_CDF'
+    LOGICAL             :: do_read_bedrock_cdf_from_file_config         = .FALSE.                          ! Whether or not to read the bedrock CDF from the initial mesh file. Requires choice_initial_mesh_XXX_config =  'read_from_file'!
     INTEGER             :: subgrid_bedrock_cdf_nbins_config             = 11                               ! Number of bins to be used for sub-grid bedrock cumulative density functions
-    REAL(dp)            :: subgrid_friction_exponent_config             = 2._dp                            ! Exponent to which f_grnd should be raised before being used to scale beta
+    LOGICAL             :: do_subgrid_friction_on_A_grid_config         = .FALSE.                          ! Whether or not to apply a preliminary scaling to basal hydrology and bed roughness on the A grid, before the final scaling of beta on the b grid. The exponent of this scaling is computed based on ice thickness.
+    REAL(dp)            :: subgrid_friction_exponent_on_B_grid_config   = 2._dp                            ! Exponent to which f_grnd should be raised before being used to scale the final value of beta on the B grid
 
     ! Stability
     REAL(dp)            :: slid_beta_max_config                         = 1E20_dp                          ! Maximum value for basal friction coefficient
@@ -357,6 +362,41 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: BC_H_south_config                            = 'zero'
     CHARACTER(LEN=256)  :: BC_H_north_config                            = 'zero'
 
+  ! == Ice dynamics - target quantities
+  ! ===================================
+
+    ! Target dHi_dt
+    LOGICAL             :: do_target_dHi_dt_config                      = .FALSE.                          ! Whether or not to use a target dHi_dt field from an external file to alter the modelled one
+    LOGICAL             :: do_limit_target_dHi_dt_to_SMB_config         = .FALSE.                          ! Whether or not to limit a target dHi_dt field to available SMB in that area, so it does not melt all ice there
+    REAL(dp)            :: target_dHi_dt_t_end_config                   = -9.9E9_dp                        ! End time of target dHi_dt application
+
+    ! Files containing a target dHi_dt for inversions
+    CHARACTER(LEN=256)  :: filename_dHi_dt_target_NAM_config            = ''
+    CHARACTER(LEN=256)  :: filename_dHi_dt_target_EAS_config            = ''
+    CHARACTER(LEN=256)  :: filename_dHi_dt_target_GRL_config            = ''
+    CHARACTER(LEN=256)  :: filename_dHi_dt_target_ANT_config            = ''
+
+    ! Timeframes for reading target dHi_dt from file (set to 1E9_dp if the file has no time dimension)
+    REAL(dp)            :: timeframe_dHi_dt_target_NAM_config           = 1E9_dp
+    REAL(dp)            :: timeframe_dHi_dt_target_EAS_config           = 1E9_dp
+    REAL(dp)            :: timeframe_dHi_dt_target_GRL_config           = 1E9_dp
+    REAL(dp)            :: timeframe_dHi_dt_target_ANT_config           = 1E9_dp
+
+    ! Target surface ice speed
+    LOGICAL             :: do_target_uabs_surf_config                   = .FALSE.                          ! Whether or not to use a target uabs_surf field from an external file as a target during inversions
+
+    ! Files containing a target uabs_surf for inversions
+    CHARACTER(LEN=256)  :: filename_uabs_surf_target_NAM_config         = ''
+    CHARACTER(LEN=256)  :: filename_uabs_surf_target_EAS_config         = ''
+    CHARACTER(LEN=256)  :: filename_uabs_surf_target_GRL_config         = ''
+    CHARACTER(LEN=256)  :: filename_uabs_surf_target_ANT_config         = ''
+
+    ! Timeframes for reading target uabs_surf from file (set to 1E9_dp if the file has no time dimension)
+    REAL(dp)            :: timeframe_uabs_surf_target_NAM_config        = 1E9_dp
+    REAL(dp)            :: timeframe_uabs_surf_target_EAS_config        = 1E9_dp
+    REAL(dp)            :: timeframe_uabs_surf_target_GRL_config        = 1E9_dp
+    REAL(dp)            :: timeframe_uabs_surf_target_ANT_config        = 1E9_dp
+
   ! == Ice dynamics - time stepping
   ! ===============================
 
@@ -365,14 +405,16 @@ MODULE model_configuration
     REAL(dp)            :: dt_ice_max_config                            = 10.0_dp                          ! [yr] Maximum time step of the ice dynamics model
     REAL(dp)            :: dt_ice_min_config                            = 0.1_dp                           ! [yr] Minimum time step of the ice dynamics model
     REAL(dp)            :: dt_ice_startup_phase_config                  = 0._dp                            ! [yr] Length of time window after start_time and before end_time when dt = dt_min, to ensure smooth restarts
+    LOGICAL             :: do_grounded_only_adv_dt_config               = .FALSE.                          ! If .TRUE., only grounded ice is used in the computation of the advective time step limit (CFL condition)
 
     ! Predictor-corrector ice-thickness update
-    REAL(dp)            :: pc_epsilon_config                            = 0.005_dp                         ! Target truncation error in dHi_dt [m/yr] (epsilon in Robinson et al., 2020, Eq. 33)
+    REAL(dp)            :: pc_epsilon_config                            = 0.005_dp                         ! [m/yr] Target truncation error in dHi_dt (epsilon in Robinson et al., 2020, Eq. 33)
     REAL(dp)            :: pc_k_I_config                                = 0.2_dp                           ! Exponent k_I in  Robinson et al., 2020, Eq. 33
     REAL(dp)            :: pc_k_p_config                                = 0.2_dp                           ! Exponent k_p in  Robinson et al., 2020, Eq. 33
     REAL(dp)            :: pc_eta_min_config                            = 1E-8_dp                          ! Normalisation term in estimation of the truncation error (Robinson et al., Eq. 32)
     REAL(dp)            :: pc_max_time_step_increase_config             = 1.1_dp                           ! Each new time step is only allowed to be this much larger than the previous one
     INTEGER             :: pc_nit_max_config                            = 50                               ! Maximum number of times a PC timestep can be repeated with reduced dt
+    REAL(dp)            :: pc_guilty_max_config                         = 0.00_dp                          ! [%] Maximum percentage of grounded vertices allowed to have a truncation error larger than the tolerance pc_epsilon
 
     ! Initialisation of the predictor-corrector ice-thickness update
     CHARACTER(LEN=256)  :: pc_choice_initialise_NAM_config              = 'zero'                           ! How to initialise the p/c scheme: 'zero', 'read_from_file'
@@ -406,19 +448,71 @@ MODULE model_configuration
   ! ===============================
 
     CHARACTER(LEN=256)  :: choice_mask_noice_config                     = 'none'                           ! Choice of mask_noice configuration
+    REAL(dp)            :: Hi_min_config                                = 0._dp                            ! [m] Minimum ice thickness: thinner ice gets temporarily added to the no-ice mask and eventually removed
+    REAL(dp)            :: Hi_thin_config                               = 0._dp                            ! [m] Thin-ice thickness threshold: thinner ice is considered dynamically unreliable (e.g. over steep slopes)
+    LOGICAL             :: remove_ice_absent_at_PD_config               = .FALSE.                          ! If set to TRUE, all ice not present in PD data is always instantly removed
 
-    ! Partially fixed geometry, useful for initialisation and inversion runs
-    LOGICAL             :: fixed_shelf_geometry_config                  = .FALSE.                          ! Keep geometry of floating ice fixed
-    LOGICAL             :: fixed_sheet_geometry_config                  = .FALSE.                          ! Keep geometry of grounded ice fixed
-    LOGICAL             :: fixed_grounding_line_config                  = .FALSE.                          ! Keep ice thickness at the grounding line fixed
+    ! Geometry relaxation
+    REAL(dp)            :: geometry_relaxation_t_years_config           = 0.0                              ! [yr] Amount of years (out-of-time) during which the geometry will relaxed during initialisation: no mass balance, thickness alterations, inversions, or target thinning rates will be applied during this time
+
+    ! Mask conservation
+    LOGICAL             :: do_protect_grounded_mask_config              = .FALSE.                          ! If set to TRUE, grounded ice will not be allowed to cross the floatation threshold and will stay minimally grounded
+    REAL(dp)            :: protect_grounded_mask_t_end_config           = -9.9E9_dp                        ! End time of grounded mask protection. After this time, it will be allowed to thin and become afloat
+
+
+    ! Fix/delay ice thickness evolution
+    LOGICAL             :: do_fixiness_before_start_config              = .FALSE.                          ! Whether or not to apply fixiness values before fixiness_t_start
+    REAL(dp)            :: fixiness_t_start_config                      = +9.9E9_dp                        ! Start time of linear transition between fixed/delayed and free evolution
+    REAL(dp)            :: fixiness_t_end_config                        = +9.9E9_dp                        ! End   time of linear transition between fixed/delayed and free evolution
+    REAL(dp)            :: fixiness_H_gl_gr_config                      = 0._dp                            ! Fix (1), release (0), or delay grunding line (grounded side) ice geometry evolution
+    REAL(dp)            :: fixiness_H_gl_fl_config                      = 0._dp                            ! Fix (1), release (0), or delay grunding line (floating side) ice geometry evolution
+    REAL(dp)            :: fixiness_H_grounded_config                   = 0._dp                            ! Fix (1), release (0), or delay grounded ice geometry evolution
+    REAL(dp)            :: fixiness_H_floating_config                   = 0._dp                            ! Fix (1), release (0), or delay floating ice geometry evolution
+    LOGICAL             :: fixiness_H_freeland_config                   = .FALSE.                          ! Fix (.TRUE.) ice-free vertices between fixiness_t_start and fixiness_t_end
+    LOGICAL             :: fixiness_H_freeocean_config                  = .FALSE.                          ! Fix (.TRUE.) ice-free vertices between fixiness_t_start and fixiness_t_end
+
+    ! Limit ice thickness evolution
+    LOGICAL             :: do_limitness_before_start_config             = .FALSE.                          ! Whether or not to apply limitness values before limitness_t_start
+    REAL(dp)            :: limitness_t_start_config                     = +9.9E9_dp                        ! Start time of linear transition between limited and free evolution
+    REAL(dp)            :: limitness_t_end_config                       = +9.9E9_dp                        ! End   time of linear transition between limited and free evolution
+    REAL(dp)            :: limitness_H_gl_gr_config                     = +9.9E9_dp                        ! Maximum departure from PD ice thickness allowed at peak limitness
+    REAL(dp)            :: limitness_H_gl_fl_config                     = +9.9E9_dp                        ! Maximum departure from PD ice thickness allowed at peak limitness
+    REAL(dp)            :: limitness_H_grounded_config                  = +9.9E9_dp                        ! Maximum departure from PD ice thickness allowed at peak limitness
+    REAL(dp)            :: limitness_H_floating_config                  = +9.9E9_dp                        ! Maximum departure from PD ice thickness allowed at peak limitness
+    CHARACTER(LEN=256)  :: modiness_H_style_config                      = 'none'                           ! Dynamic "modiness" limitness-like term: "none", "Ti_hom", "Ti_hom_up", "Ti_hom_down"
+    REAL(dp)            :: modiness_T_hom_ref_config                    = 20._dp                           ! Reference Ti_hom for the modiness cold exponential style
 
   ! == Basal hydrology
   ! ==================
 
     ! Basal hydrology
-    CHARACTER(LEN=256)  :: choice_basal_hydrology_model_config          = 'Martin2011'                     ! Choice of basal hydrology model: "saturated", "Martin2011"
+    CHARACTER(LEN=256)  :: choice_basal_hydrology_model_config          = 'Martin2011'                     ! Choice of basal hydrology model: "none", "Martin2011", "inversion"
     REAL(dp)            :: Martin2011_hydro_Hb_min_config               = 0._dp                            ! Martin et al. (2011) basal hydrology model: low-end  Hb  value of bedrock-dependent pore-water pressure
     REAL(dp)            :: Martin2011_hydro_Hb_max_config               = 1000._dp                         ! Martin et al. (2011) basal hydrology model: high-end Hb  value of bedrock-dependent pore-water pressure
+
+  ! == Basal hydrology inversion by nudging
+  ! =======================================
+
+    ! General
+    LOGICAL             :: do_pore_water_nudging_config                 = .FALSE.                          !           Whether or not to nudge the pore water pressure
+    CHARACTER(LEN=256)  :: choice_pore_water_nudging_method_config      = 'local'                          !           Choice of pore water nudging method: "local", "flowline"
+    REAL(dp)            :: pore_water_nudging_dt_config                 = 5._dp                            ! [yr]      Time step for pore water updates
+    REAL(dp)            :: pore_water_nudging_t_start_config            = -9.9E9_dp                        ! [yr]      Earliest model time when nudging is allowed
+    REAL(dp)            :: pore_water_nudging_t_end_config              = +9.9E9_dp                        ! [yr]      Latest   model time when nudging is allowed
+    REAL(dp)            :: pore_water_fraction_min_config               = 0._dp                            ! [?]       Smallest allowed value for the first  inverted pore water pressure field
+    REAL(dp)            :: pore_water_fraction_max_config               = 0.9999_dp                        ! [?]       Largest  allowed value for the first  inverted pore water pressure field
+    CHARACTER(LEN=256)  :: filename_inverted_pore_water_config          = 'pore_water_inv.nc'              !           NetCDF file where the final inverted pore water fields will be saved
+
+    ! Basal hydrology inversion model based on local and flowline-averaged values of H and dH/dt
+    REAL(dp)            :: porenudge_H_dHdt_flowline_t_scale_config     = 150._dp                          ! [yr]      Timescale
+    REAL(dp)            :: porenudge_H_dHdt_flowline_dH0_config         = 200._dp                          ! [m]       Ice thickness error scale
+    REAL(dp)            :: porenudge_H_dHdt_flowline_dHdt0_config       = 0.7_dp                           ! [m yr^-1] Thinning rate scale
+    REAL(dp)            :: porenudge_H_dHdt_flowline_dU0_config         = 200._dp                          ! [m yr^-1] Surface speed error scale
+    REAL(dp)            :: porenudge_H_dHdt_flowline_Hi_scale_config    = 100._dp                          ! [m]       Ice thickness weight scale
+    REAL(dp)            :: porenudge_H_dHdt_flowline_u_scale_config     = 1000._dp                         ! [m yr^-1] Ice velocity  weight scale
+    REAL(dp)            :: porenudge_H_dHdt_flowline_r_smooth_config    = 5000._dp                         ! [m]       Radius for Gaussian filter used to smooth dC/dt as regularisation
+    REAL(dp)            :: porenudge_H_dHdt_flowline_w_smooth_config    = 0.0_dp                           ! [-]       Relative contribution of smoothed dC/dt in regularisation
+    REAL(dp)            :: porenudge_H_dHdt_flowline_dist_max_config    = 1000.0_dp                        ! [km]      Max total distance the trace is allowed to move before ending it
 
   ! == Bed roughness
   ! ==================
@@ -479,8 +573,8 @@ MODULE model_configuration
   ! =======================
 
     CHARACTER(LEN=256)  :: choice_geothermal_heat_flux_config           = 'uniform'                         ! Choice of geothermal heat flux; can be 'uniform' or 'read_from_file'
-    REAL(dp)            :: uniform_geothermal_heat_flux_config          = 1.72E06_dp                        ! Value when choice_geothermal_heat_flux == 'uniform' (1.72E06 J m^-2 yr^-1 according to Sclater et al. (1980))
-    CHARACTER(LEN=256)  :: filename_geothermal_heat_flux_config         = 'data/GHF/geothermal_heatflux_ShapiroRitzwoller2004_global_1x1_deg.nc'
+    REAL(dp)            :: uniform_geothermal_heat_flux_config          = 1.72E06_dp                        ! [J m^-2 yr^-1] Value when choice_geothermal_heat_flux == 'uniform' (1.72E06 J m^-2 yr^-1 according to Sclater et al. (1980))
+    CHARACTER(LEN=256)  :: filename_geothermal_heat_flux_config         = ''                                ! Expected units: J m^-2 s^-1 (conversion done internally). External GHF data file.
 
   ! == Thermodynamics
   ! =================
@@ -509,6 +603,7 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: choice_thermo_model_config                   = '3D_heat_equation'               ! Choice of thermodynamical model: "none", "3D_heat_equation"
     REAL(dp)            :: dt_thermodynamics_config                     = 1._dp                            ! [yr] Time step for the thermodynamical model
     REAL(dp)            :: Hi_min_thermo_config                         = 10._dp                           ! [m]  Ice thinner than this is assumed to have a temperature equal to the annual mean surface temperature throughout the vertical column
+    CHARACTER(LEN=256)  :: choice_GL_temperature_BC_config              = 'grounded'                       ! Choice of basal boundary condition at grounding lines: 'grounded', 'subgrid', 'pmp'
     CHARACTER(LEN=256)  :: choice_ice_heat_capacity_config              = 'Pounder1965'                    ! Choice of ice heat capacity model: "uniform", "Pounder1965"
     REAL(dp)            :: uniform_ice_heat_capacity_config             = 2009._dp                         ! Uniform ice heat capacity (applied when choice_ice_heat_capacity_config = "uniform")
     CHARACTER(LEN=256)  :: choice_ice_thermal_conductivity_config       = 'Ritz1987'                       ! Choice of ice heat capacity model: "uniform", "Ritz1987"
@@ -527,6 +622,7 @@ MODULE model_configuration
     REAL(dp)            :: uniform_Glens_flow_factor_config             = 1E-16_dp                         ! Uniform ice flow factor (applied when choice_ice_rheology_model_config = "uniform")
 
     ! Enhancement factors
+    CHARACTER(LEN=256)  :: choice_enhancement_factor_transition_config  = 'separate'                       ! Choice of treatment of enhancement factors at transition zones: "separate", "interp"
     REAL(dp)            :: m_enh_sheet_config                           = 1.0_dp                           ! Ice flow enhancement factor for grounded ice
     REAL(dp)            :: m_enh_shelf_config                           = 1.0_dp                           ! Ice flow enhancement factor for floating ice
 
@@ -546,12 +642,25 @@ MODULE model_configuration
     ! Choice of idealised climate model
     CHARACTER(LEN=256)  :: choice_climate_model_idealised_config        = ''
 
+    ! Choice of realistic climate model
+    CHARACTER(LEN=256)  :: choice_climate_model_realistic_config        = ''
+
+    ! Paths to files containing fields for realistic climates
+    CHARACTER(LEN=256)  :: filename_climate_snapshot_NAM_config         = ''
+    CHARACTER(LEN=256)  :: filename_climate_snapshot_EAS_config         = ''
+    CHARACTER(LEN=256)  :: filename_climate_snapshot_GRL_config         = ''
+    CHARACTER(LEN=256)  :: filename_climate_snapshot_ANT_config         = ''
+
   ! == Ocean
   ! ========
 
     ! Time step
     LOGICAL             :: do_asynchronous_ocean_config                 = .TRUE.                           ! Whether or not the ocean should be calculated asynchronously from the rest of the model; if so, use dt_climate; if not, calculate it in every time step
     REAL(dp)            :: dt_ocean_config                              = 10._dp                           ! [yr] Time step for calculating ocean
+
+    ! Vertical grid
+    REAL(dp)            :: ocean_vertical_grid_max_depth_config         = 1500._dp                         ! Maximum depth of the ocean submodel
+    REAL(dp)            :: ocean_vertical_grid_dz_config                = 100._dp                          ! Vertical distance between ocean layers
 
     ! Choice of ocean model
     CHARACTER(LEN=256)  :: choice_ocean_model_NAM_config                = 'none'
@@ -562,12 +671,28 @@ MODULE model_configuration
     ! Choice of idealised ocean model
     CHARACTER(LEN=256)  :: choice_ocean_model_idealised_config          = ''
 
+    ! Choice of realistic ocean model
+    CHARACTER(LEN=256)  :: choice_ocean_model_realistic_config          = ''
+
+    ! Paths to files containing fields for realistic ocean
+    CHARACTER(LEN=256)  :: filename_ocean_snapshot_NAM_config           = ''
+    CHARACTER(LEN=256)  :: filename_ocean_snapshot_EAS_config           = ''
+    CHARACTER(LEN=256)  :: filename_ocean_snapshot_GRL_config           = ''
+    CHARACTER(LEN=256)  :: filename_ocean_snapshot_ANT_config           = ''
+
   ! == Surface mass balance
   ! =======================
 
     ! Time step
     LOGICAL             :: do_asynchronous_SMB_config                   = .TRUE.                           ! Whether or not the SMB should be calculated asynchronously from the rest of the model; if so, use dt_climate; if not, calculate it in every time step
     REAL(dp)            :: dt_SMB_config                                = 10._dp                           ! [yr] Time step for calculating SMB
+
+    ! SMB adjustments
+    LOGICAL             :: do_SMB_removal_icefree_land_config           = .FALSE.                          ! Whether or not to remove any positive SMB over ice-free land once during model initialisation
+    LOGICAL             :: do_SMB_residual_absorb_config                = .FALSE.                          ! Whether or not to let SMB absorb "residual" dHi_dt at the end of inversions
+    REAL(dp)            :: SMB_residual_absorb_t_start_config           = +9.9E9_dp                        ! [yr] Start time for assimilation of residuals
+    REAL(dp)            :: SMB_residual_absorb_t_end_config             = +9.9E9_dp                        ! [yr] End   time for assimilation of residuals
+
 
     ! Choice of SMB model
     CHARACTER(LEN=256)  :: choice_SMB_model_NAM_config                  = 'uniform'
@@ -606,6 +731,14 @@ MODULE model_configuration
     LOGICAL             :: do_asynchronous_BMB_config                   = .TRUE.                           ! Whether or not the BMB should be calculated asynchronously from the rest of the model; if so, use dt_climate; if not, calculate it in every time step
     REAL(dp)            :: dt_BMB_config                                = 10._dp                           ! [yr] Time step for calculating BMB
 
+    ! Inversion
+    LOGICAL             :: do_BMB_inversion_config                      = .FALSE.                          ! Whether or not the BMB should be inverted to keep whatever geometry the floating areas have at any given moment
+    REAL(dp)            :: BMB_inversion_t_start_config                 = +9.9E9_dp                        ! [yr] Start time for BMB inversion based on computed thinning rates in marine areas
+    REAL(dp)            :: BMB_inversion_t_end_config                   = +9.9E9_dp                        ! [yr] End   time for BMB inversion based on computed thinning rates in marine areas
+
+    ! Grounding line treatment
+    LOGICAL             :: do_subgrid_BMB_at_grounding_line_config      = .FALSE.                          ! Whether or not to apply basal melt rates under a partially floating grounding line
+
     ! Choice of BMB model
     CHARACTER(LEN=256)  :: choice_BMB_model_NAM_config                  = 'uniform'
     CHARACTER(LEN=256)  :: choice_BMB_model_EAS_config                  = 'uniform'
@@ -615,8 +748,34 @@ MODULE model_configuration
     ! Choice of idealised BMB model
     CHARACTER(LEN=256)  :: choice_BMB_model_idealised_config            = ''
 
+    ! Choice of parameterised BMB model
+    CHARACTER(LEN=256)  :: choice_BMB_model_parameterised_config        = ''
+
     ! "uniform"
     REAL(dp)            :: uniform_BMB_config                           = 0._dp
+
+    ! "parameterised"
+    REAL(dp)            :: BMB_Favier2019_gamma_config                  = 99.32E-5
+
+  ! == Lateral mass balance
+  ! =======================
+
+    ! Time step
+    REAL(dp)            :: dt_LMB_config                                = 10._dp                           ! [yr] Time step for calculating LMB [not implemented yet]
+
+    ! Inversion
+    LOGICAL             :: do_LMB_inversion_config                      = .FALSE.                          ! Whether or not the LMB should be inverted to keep whatever geometry the calving front areas have at any given moment
+    REAL(dp)            :: LMB_inversion_t_start_config                 = +9.9E9_dp                        ! [yr] Start time for LMB inversion based on computed thinning rates in frontal areas
+    REAL(dp)            :: LMB_inversion_t_end_config                   = +9.9E9_dp                        ! [yr] End   time for LMB inversion based on computed thinning rates in frontal areas
+
+    ! Choice of LMB model
+    CHARACTER(LEN=256)  :: choice_LMB_model_NAM_config                  = 'uniform'
+    CHARACTER(LEN=256)  :: choice_LMB_model_EAS_config                  = 'uniform'
+    CHARACTER(LEN=256)  :: choice_LMB_model_GRL_config                  = 'uniform'
+    CHARACTER(LEN=256)  :: choice_LMB_model_ANT_config                  = 'uniform'
+
+    ! "uniform"
+    REAL(dp)            :: uniform_LMB_config                           = 0._dp
 
   ! == Glacial isostatic adjustment
   ! ===============================
@@ -635,20 +794,20 @@ MODULE model_configuration
   ! == SELEN
   ! ========
 
-    LOGICAL             :: SELEN_run_at_t_start_config                  = .FALSE.                          ! Whether or not to run SELEN in the first coupling loop (needed for some benchmark experiments)
-    INTEGER             :: SELEN_n_TDOF_iterations_config               = 1                                ! Number of Time-Dependent Ocean Function iterations
-    INTEGER             :: SELEN_n_recursion_iterations_config          = 1                                ! Number of recursion iterations
-    LOGICAL             :: SELEN_use_rotational_feedback_config         = .FALSE.                          ! If TRUE, rotational feedback is included
-    INTEGER             :: SELEN_n_harmonics_config                     = 128                              ! Maximum number of harmonic degrees
-    LOGICAL             :: SELEN_display_progress_config                = .FALSE.                          ! Whether or not to display the progress of the big loops to the screen (doesn't work on Cartesius!)
+    LOGICAL             :: SELEN_run_at_t_start_config                  = .FALSE.                         ! Whether or not to run SELEN in the first coupling loop (needed for some benchmark experiments)
+    INTEGER             :: SELEN_n_TDOF_iterations_config               = 1                               ! Number of Time-Dependent Ocean Function iterations
+    INTEGER             :: SELEN_n_recursion_iterations_config          = 1                               ! Number of recursion iterations
+    LOGICAL             :: SELEN_use_rotational_feedback_config         = .FALSE.                         ! If TRUE, rotational feedback is included
+    INTEGER             :: SELEN_n_harmonics_config                     = 128                             ! Maximum number of harmonic degrees
+    LOGICAL             :: SELEN_display_progress_config                = .FALSE.                         ! Whether or not to display the progress of the big loops to the screen (doesn't work on Cartesius!)
 
-    CHARACTER(LEN=256)  :: SELEN_dir_config                             = 'data/SELEN'                     ! Directory where SELEN initial files and spherical harmonics are stored
-    CHARACTER(LEN=256)  :: SELEN_global_topo_filename_config            = 'SELEN_global_topography.nc'     ! Filename for the SELEN global topography file (located in SELEN_dir)
-    CHARACTER(LEN=256)  :: SELEN_TABOO_init_filename_config             = 'SELEN_TABOO_initial_file.dat'   ! Filename for the TABOO initial file           (idem                )
-    CHARACTER(LEN=256)  :: SELEN_LMJ_VALUES_filename_config             = 'SELEN_lmj_values.bin'           ! Filename for the LJ and MJ values file        (idem                )
+    CHARACTER(LEN=256)  :: SELEN_dir_config                             = 'data/SELEN'                    ! Directory where SELEN initial files and spherical harmonics are stored
+    CHARACTER(LEN=256)  :: SELEN_global_topo_filename_config            = 'SELEN_global_topography.nc'    ! Filename for the SELEN global topography file (located in SELEN_dir)
+    CHARACTER(LEN=256)  :: SELEN_TABOO_init_filename_config             = 'SELEN_TABOO_initial_file.dat'  ! Filename for the TABOO initial file           (idem                )
+    CHARACTER(LEN=256)  :: SELEN_LMJ_VALUES_filename_config             = 'SELEN_lmj_values.bin'          ! Filename for the LJ and MJ values file        (idem                )
 
-    INTEGER                  :: SELEN_irreg_time_n_config               = 15                               ! Number of entries in the irregular moving time window
-    REAL(dp), DIMENSION(50)  :: SELEN_irreg_time_window_config          = &                                ! Values of entries in the irregular moving time window
+    INTEGER                  :: SELEN_irreg_time_n_config               = 15                              ! Number of entries in the irregular moving time window
+    REAL(dp), DIMENSION(50)  :: SELEN_irreg_time_window_config          = &                               ! Values of entries in the irregular moving time window
    (/20._dp, 20._dp, 20._dp, 5._dp, 5._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, &
       0._dp,  0._dp,  0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, &
       0._dp,  0._dp,  0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, &
@@ -670,6 +829,8 @@ MODULE model_configuration
     ! Basic settings
     LOGICAL             :: do_create_netcdf_output_config               = .TRUE.                          !     Whether or not NetCDF output files should be created at all
     REAL(dp)            :: dt_output_config                             = 1000._dp                        !     Time step for writing output
+    REAL(dp)            :: dt_output_restart_config                     = 1000._dp                        !     Time step for writing restart output
+    REAL(dp)            :: dt_output_grid_config                        = 1000._dp                        !     Time step for writing gridded output
     REAL(dp)            :: dx_output_grid_NAM_config                    = 40E3_dp                         ! [m] Horizontal resolution for the square grid used for output for North America
     REAL(dp)            :: dx_output_grid_EAS_config                    = 40E3_dp                         ! [m] Horizontal resolution for the square grid used for output for Eurasia
     REAL(dp)            :: dx_output_grid_GRL_config                    = 20E3_dp                         ! [m] Horizontal resolution for the square grid used for output for Greenland
@@ -821,6 +982,8 @@ MODULE model_configuration
 
     ! Some pre-processing stuff for reference ice geometry
     REAL(dp)            :: refgeo_Hi_min
+    LOGICAL             :: do_smooth_geometry
+    REAL(dp)            :: r_smooth_geometry
     LOGICAL             :: remove_Lake_Vostok
 
     ! == Initial geometry
@@ -1047,8 +1210,10 @@ MODULE model_configuration
     ! Sub-grid scaling of basal friction
     LOGICAL             :: do_GL_subgrid_friction
     CHARACTER(LEN=256)  :: choice_subgrid_grounded_fraction
+    LOGICAL             :: do_read_bedrock_cdf_from_file
     INTEGER             :: subgrid_bedrock_cdf_nbins
-    REAL(dp)            :: subgrid_friction_exponent
+    LOGICAL             :: do_subgrid_friction_on_A_grid
+    REAL(dp)            :: subgrid_friction_exponent_on_B_grid
 
     ! Stability
     REAL(dp)            :: slid_beta_max
@@ -1069,6 +1234,41 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: BC_H_south
     CHARACTER(LEN=256)  :: BC_H_north
 
+  ! == Ice dynamics - target quantities
+  ! ===================================
+
+    ! Target dHi_dt
+    LOGICAL             :: do_target_dHi_dt
+    LOGICAL             :: do_limit_target_dHi_dt_to_SMB
+    REAL(dp)            :: target_dHi_dt_t_end
+
+    ! Files containing a target dHi_dt for inversions
+    CHARACTER(LEN=256)  :: filename_dHi_dt_target_NAM
+    CHARACTER(LEN=256)  :: filename_dHi_dt_target_EAS
+    CHARACTER(LEN=256)  :: filename_dHi_dt_target_GRL
+    CHARACTER(LEN=256)  :: filename_dHi_dt_target_ANT
+
+    ! Timeframes for reading target dHi_dt from file (set to 1E9_dp if the file has no time dimension)
+    REAL(dp)            :: timeframe_dHi_dt_target_NAM
+    REAL(dp)            :: timeframe_dHi_dt_target_EAS
+    REAL(dp)            :: timeframe_dHi_dt_target_GRL
+    REAL(dp)            :: timeframe_dHi_dt_target_ANT
+
+    ! Target uabs_surf
+    LOGICAL             :: do_target_uabs_surf
+
+    ! Files containing a target uabs_surf for inversions
+    CHARACTER(LEN=256)  :: filename_uabs_surf_target_NAM
+    CHARACTER(LEN=256)  :: filename_uabs_surf_target_EAS
+    CHARACTER(LEN=256)  :: filename_uabs_surf_target_GRL
+    CHARACTER(LEN=256)  :: filename_uabs_surf_target_ANT
+
+    ! Timeframes for reading target uabs_surf from file (set to 1E9_dp if the file has no time dimension)
+    REAL(dp)            :: timeframe_uabs_surf_target_NAM
+    REAL(dp)            :: timeframe_uabs_surf_target_EAS
+    REAL(dp)            :: timeframe_uabs_surf_target_GRL
+    REAL(dp)            :: timeframe_uabs_surf_target_ANT
+
   ! == Ice dynamics - time stepping
   ! ===============================
 
@@ -1077,6 +1277,7 @@ MODULE model_configuration
     REAL(dp)            :: dt_ice_max
     REAL(dp)            :: dt_ice_min
     REAL(dp)            :: dt_ice_startup_phase
+    LOGICAL             :: do_grounded_only_adv_dt
 
     ! Predictor-corrector ice-thickness update
     REAL(dp)            :: pc_epsilon
@@ -1085,6 +1286,7 @@ MODULE model_configuration
     REAL(dp)            :: pc_eta_min
     REAL(dp)            :: pc_max_time_step_increase
     INTEGER             :: pc_nit_max
+    REAL(dp)            :: pc_guilty_max
 
     ! Initialisation of the predictor-corrector ice-thickness update
     CHARACTER(LEN=256)  :: pc_choice_initialise_NAM
@@ -1118,11 +1320,38 @@ MODULE model_configuration
   ! ===============================
 
     CHARACTER(LEN=256)  :: choice_mask_noice
+    REAL(dp)            :: Hi_min
+    REAL(dp)            :: Hi_thin
+    LOGICAL             :: remove_ice_absent_at_PD
 
-    ! Partially fixed geometry, useful for initialisation and inversion runs
-    LOGICAL             :: fixed_shelf_geometry
-    LOGICAL             :: fixed_sheet_geometry
-    LOGICAL             :: fixed_grounding_line
+    ! Geometry relaxation
+    REAL(dp)            :: geometry_relaxation_t_years
+
+    ! Mask conservation
+    LOGICAL             :: do_protect_grounded_mask
+    REAL(dp)            :: protect_grounded_mask_t_end
+
+    ! Fix/delay ice thickness evolution
+    LOGICAL             :: do_fixiness_before_start
+    REAL(dp)            :: fixiness_t_start
+    REAL(dp)            :: fixiness_t_end
+    REAL(dp)            :: fixiness_H_gl_gr
+    REAL(dp)            :: fixiness_H_gl_fl
+    REAL(dp)            :: fixiness_H_grounded
+    REAL(dp)            :: fixiness_H_floating
+    LOGICAL             :: fixiness_H_freeland
+    LOGICAL             :: fixiness_H_freeocean
+
+    ! Limit ice thickness evolution
+    LOGICAL             :: do_limitness_before_start
+    REAL(dp)            :: limitness_t_start
+    REAL(dp)            :: limitness_t_end
+    REAL(dp)            :: limitness_H_gl_gr
+    REAL(dp)            :: limitness_H_gl_fl
+    REAL(dp)            :: limitness_H_grounded
+    REAL(dp)            :: limitness_H_floating
+    CHARACTER(LEN=256)  :: modiness_H_style
+    REAL(dp)            :: modiness_T_hom_ref
 
   ! == Basal hydrology
   ! ==================
@@ -1131,6 +1360,30 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: choice_basal_hydrology_model
     REAL(dp)            :: Martin2011_hydro_Hb_min
     REAL(dp)            :: Martin2011_hydro_Hb_max
+
+  ! == Pore water inversion by nudging
+  ! =====================================
+
+    ! General
+    LOGICAL             :: do_pore_water_nudging
+    CHARACTER(LEN=256)  :: choice_pore_water_nudging_method
+    REAL(dp)            :: pore_water_nudging_dt
+    REAL(dp)            :: pore_water_nudging_t_start
+    REAL(dp)            :: pore_water_nudging_t_end
+    REAL(dp)            :: pore_water_fraction_min
+    REAL(dp)            :: pore_water_fraction_max
+    CHARACTER(LEN=256)  :: filename_inverted_pore_water
+
+    ! Basal inversion model based on flowline-averaged values of H and dH/dt
+    REAL(dp)            :: porenudge_H_dHdt_flowline_t_scale
+    REAL(dp)            :: porenudge_H_dHdt_flowline_dH0
+    REAL(dp)            :: porenudge_H_dHdt_flowline_dHdt0
+    REAL(dp)            :: porenudge_H_dHdt_flowline_dU0
+    REAL(dp)            :: porenudge_H_dHdt_flowline_Hi_scale
+    REAL(dp)            :: porenudge_H_dHdt_flowline_u_scale
+    REAL(dp)            :: porenudge_H_dHdt_flowline_r_smooth
+    REAL(dp)            :: porenudge_H_dHdt_flowline_w_smooth
+    REAL(dp)            :: porenudge_H_dHdt_flowline_dist_max
 
   ! == Bed roughness
   ! ==================
@@ -1221,6 +1474,7 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: choice_thermo_model
     REAL(dp)            :: dt_thermodynamics
     REAL(dp)            :: Hi_min_thermo
+    CHARACTER(LEN=256)  :: choice_GL_temperature_BC
     CHARACTER(LEN=256)  :: choice_ice_heat_capacity
     REAL(dp)            :: uniform_ice_heat_capacity
     CHARACTER(LEN=256)  :: choice_ice_thermal_conductivity
@@ -1239,6 +1493,7 @@ MODULE model_configuration
     REAL(dp)            :: uniform_Glens_flow_factor
 
     ! Enhancement factors
+    CHARACTER(LEN=256)  :: choice_enhancement_factor_transition
     REAL(dp)            :: m_enh_sheet
     REAL(dp)            :: m_enh_shelf
 
@@ -1258,12 +1513,25 @@ MODULE model_configuration
     ! Choice of idealised climate model
     CHARACTER(LEN=256)  :: choice_climate_model_idealised
 
+    ! Choice of realistic climate model
+    CHARACTER(LEN=256)  :: choice_climate_model_realistic
+
+    ! Paths to files containing fields for realistic climates
+    CHARACTER(LEN=256)  :: filename_climate_snapshot_NAM
+    CHARACTER(LEN=256)  :: filename_climate_snapshot_EAS
+    CHARACTER(LEN=256)  :: filename_climate_snapshot_GRL
+    CHARACTER(LEN=256)  :: filename_climate_snapshot_ANT
+
   ! == Ocean
   ! ========
 
     ! Time step
     LOGICAL             :: do_asynchronous_ocean
     REAL(dp)            :: dt_ocean
+
+    ! Vertical grid
+    REAL(dp)            :: ocean_vertical_grid_max_depth
+    REAL(dp)            :: ocean_vertical_grid_dz
 
     ! Choice of ocean model
     CHARACTER(LEN=256)  :: choice_ocean_model_NAM
@@ -1274,12 +1542,31 @@ MODULE model_configuration
     ! Choice of idealised ocean model
     CHARACTER(LEN=256)  :: choice_ocean_model_idealised
 
+    ! Choice of realistic ocean model
+    CHARACTER(LEN=256)  :: choice_ocean_model_realistic
+
+    ! Paths to files containing fields for realistic ocean
+    CHARACTER(LEN=256)  :: filename_ocean_snapshot_NAM
+    CHARACTER(LEN=256)  :: filename_ocean_snapshot_EAS
+    CHARACTER(LEN=256)  :: filename_ocean_snapshot_GRL
+    CHARACTER(LEN=256)  :: filename_ocean_snapshot_ANT
+
+    ! Generated by the model
+    INTEGER                             :: nz_ocean ! Number of ocean layers
+    REAL(dp), DIMENSION(:), ALLOCATABLE :: z_ocean  ! Depths of ocean layers
+
   ! == Surface mass balance
   ! =======================
 
     ! Time step
     LOGICAL             :: do_asynchronous_SMB
     REAL(dp)            :: dt_SMB
+
+    ! SMB adjustments
+    LOGICAL             :: do_SMB_removal_icefree_land
+    LOGICAL             :: do_SMB_residual_absorb
+    REAL(dp)            :: SMB_residual_absorb_t_start
+    REAL(dp)            :: SMB_residual_absorb_t_end
 
     ! Choice of SMB model
     CHARACTER(LEN=256)  :: choice_SMB_model_NAM
@@ -1318,6 +1605,14 @@ MODULE model_configuration
     LOGICAL             :: do_asynchronous_BMB
     REAL(dp)            :: dt_BMB
 
+    ! Inversion
+    LOGICAL             :: do_BMB_inversion
+    REAL(dp)            :: BMB_inversion_t_start
+    REAL(dp)            :: BMB_inversion_t_end
+
+    ! Grounding line treatment
+    LOGICAL             :: do_subgrid_BMB_at_grounding_line
+
     ! Choice of BMB model
     CHARACTER(LEN=256)  :: choice_BMB_model_NAM
     CHARACTER(LEN=256)  :: choice_BMB_model_EAS
@@ -1327,8 +1622,34 @@ MODULE model_configuration
     ! Choice of idealised BMB model
     CHARACTER(LEN=256)  :: choice_BMB_model_idealised
 
+    ! Choice of parameterised BMB model
+    CHARACTER(LEN=256)  :: choice_BMB_model_parameterised
+
     ! "uniform"
     REAL(dp)            :: uniform_BMB
+
+    ! "parameterised"
+    REAL(dp)            :: BMB_Favier2019_gamma
+
+  ! == Lateral mass balance
+  ! =======================
+
+    ! Time step
+    REAL(dp)            :: dt_LMB
+
+    ! Inversion
+    LOGICAL             :: do_LMB_inversion
+    REAL(dp)            :: LMB_inversion_t_start
+    REAL(dp)            :: LMB_inversion_t_end
+
+    ! Choice of BMB model
+    CHARACTER(LEN=256)  :: choice_LMB_model_NAM
+    CHARACTER(LEN=256)  :: choice_LMB_model_EAS
+    CHARACTER(LEN=256)  :: choice_LMB_model_GRL
+    CHARACTER(LEN=256)  :: choice_LMB_model_ANT
+
+    ! "uniform"
+    REAL(dp)            :: uniform_LMB
 
   ! == Glacial isostatic adjustment
   ! ===============================
@@ -1378,6 +1699,8 @@ MODULE model_configuration
     ! Basic settings
     LOGICAL             :: do_create_netcdf_output
     REAL(dp)            :: dt_output
+    REAL(dp)            :: dt_output_restart
+    REAL(dp)            :: dt_output_grid
     REAL(dp)            :: dx_output_grid_NAM
     REAL(dp)            :: dx_output_grid_EAS
     REAL(dp)            :: dx_output_grid_GRL
@@ -1609,10 +1932,11 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'read_config_file'
-    CHARACTER(LEN=256), PARAMETER                      :: namelist_filename = 'config_namelist_temp.txt'
+    CHARACTER(LEN=256)                                 :: namelist_filename
     INTEGER, PARAMETER                                 :: config_unit    = 1337
     INTEGER, PARAMETER                                 :: namelist_unit  = 1338
     INTEGER                                            :: ios
+    INTEGER                                            :: i
 
     ! The NAMELIST that's used to read the external config file.
     NAMELIST /CONFIG/&
@@ -1658,6 +1982,8 @@ CONTAINS
       ymin_ANT_config                                             , &
       ymax_ANT_config                                             , &
       refgeo_Hi_min_config                                        , &
+      do_smooth_geometry_config                                   , &
+      r_smooth_geometry_config                                    , &
       remove_Lake_Vostok_config                                   , &
       choice_refgeo_init_NAM_config                               , &
       choice_refgeo_init_EAS_config                               , &
@@ -1811,8 +2137,10 @@ CONTAINS
       slid_ZI_ut_config                                           , &
       do_GL_subgrid_friction_config                               , &
       choice_subgrid_grounded_fraction_config                     , &
+      do_read_bedrock_cdf_from_file_config                        , &
       subgrid_bedrock_cdf_nbins_config                            , &
-      subgrid_friction_exponent_config                            , &
+      do_subgrid_friction_on_A_grid_config                        , &
+      subgrid_friction_exponent_on_B_grid_config                  , &
       slid_beta_max_config                                        , &
       slid_delta_v_config                                         , &
       choice_ice_integration_method_config                        , &
@@ -1823,16 +2151,38 @@ CONTAINS
       BC_H_east_config                                            , &
       BC_H_south_config                                           , &
       BC_H_north_config                                           , &
+      do_target_dHi_dt_config                                     , &
+      do_limit_target_dHi_dt_to_SMB_config                        , &
+      target_dHi_dt_t_end_config                                  , &
+      filename_dHi_dt_target_NAM_config                           , &
+      filename_dHi_dt_target_EAS_config                           , &
+      filename_dHi_dt_target_GRL_config                           , &
+      filename_dHi_dt_target_ANT_config                           , &
+      timeframe_dHi_dt_target_NAM_config                          , &
+      timeframe_dHi_dt_target_EAS_config                          , &
+      timeframe_dHi_dt_target_GRL_config                          , &
+      timeframe_dHi_dt_target_ANT_config                          , &
+      do_target_uabs_surf_config                                  , &
+      filename_uabs_surf_target_NAM_config                        , &
+      filename_uabs_surf_target_EAS_config                        , &
+      filename_uabs_surf_target_GRL_config                        , &
+      filename_uabs_surf_target_ANT_config                        , &
+      timeframe_uabs_surf_target_NAM_config                       , &
+      timeframe_uabs_surf_target_EAS_config                       , &
+      timeframe_uabs_surf_target_GRL_config                       , &
+      timeframe_uabs_surf_target_ANT_config                       , &
       choice_timestepping_config                                  , &
       dt_ice_max_config                                           , &
       dt_ice_min_config                                           , &
       dt_ice_startup_phase_config                                 , &
+      do_grounded_only_adv_dt_config                              , &
       pc_epsilon_config                                           , &
       pc_k_I_config                                               , &
       pc_k_p_config                                               , &
       pc_eta_min_config                                           , &
       pc_max_time_step_increase_config                            , &
       pc_nit_max_config                                           , &
+      pc_guilty_max_config                                        , &
       pc_choice_initialise_NAM_config                             , &
       pc_choice_initialise_EAS_config                             , &
       pc_choice_initialise_GRL_config                             , &
@@ -1854,12 +2204,50 @@ CONTAINS
       continental_shelf_calving_config                            , &
       continental_shelf_min_height_config                         , &
       choice_mask_noice_config                                    , &
-      fixed_shelf_geometry_config                                 , &
-      fixed_sheet_geometry_config                                 , &
-      fixed_grounding_line_config                                 , &
+      Hi_min_config                                               , &
+      Hi_thin_config                                              , &
+      remove_ice_absent_at_PD_config                              , &
+      geometry_relaxation_t_years_config                          , &
+      do_protect_grounded_mask_config                             , &
+      protect_grounded_mask_t_end_config                          , &
+      do_fixiness_before_start_config                             , &
+      fixiness_t_start_config                                     , &
+      fixiness_t_end_config                                       , &
+      fixiness_H_gl_gr_config                                     , &
+      fixiness_H_gl_fl_config                                     , &
+      fixiness_H_grounded_config                                  , &
+      fixiness_H_floating_config                                  , &
+      fixiness_H_freeland_config                                  , &
+      fixiness_H_freeocean_config                                 , &
+      do_limitness_before_start_config                            , &
+      limitness_t_start_config                                    , &
+      limitness_t_end_config                                      , &
+      limitness_H_gl_gr_config                                    , &
+      limitness_H_gl_fl_config                                    , &
+      limitness_H_grounded_config                                 , &
+      limitness_H_floating_config                                 , &
+      modiness_H_style_config                                     , &
+      modiness_T_hom_ref_config                                   , &
       choice_basal_hydrology_model_config                         , &
       Martin2011_hydro_Hb_min_config                              , &
       Martin2011_hydro_Hb_max_config                              , &
+      do_pore_water_nudging_config                                , &
+      choice_pore_water_nudging_method_config                     , &
+      pore_water_nudging_dt_config                                , &
+      pore_water_nudging_t_start_config                           , &
+      pore_water_nudging_t_end_config                             , &
+      pore_water_fraction_min_config                              , &
+      pore_water_fraction_max_config                              , &
+      filename_inverted_pore_water_config                         , &
+      porenudge_H_dHdt_flowline_t_scale_config                    , &
+      porenudge_H_dHdt_flowline_dH0_config                        , &
+      porenudge_H_dHdt_flowline_dHdt0_config                      , &
+      porenudge_H_dHdt_flowline_dU0_config                        , &
+      porenudge_H_dHdt_flowline_Hi_scale_config                   , &
+      porenudge_H_dHdt_flowline_u_scale_config                    , &
+      porenudge_H_dHdt_flowline_r_smooth_config                   , &
+      porenudge_H_dHdt_flowline_w_smooth_config                   , &
+      porenudge_H_dHdt_flowline_dist_max_config                   , &
       choice_bed_roughness_config                                 , &
       choice_bed_roughness_parameterised_config                   , &
       filename_bed_roughness_NAM_config                           , &
@@ -1922,6 +2310,7 @@ CONTAINS
       choice_thermo_model_config                                  , &
       dt_thermodynamics_config                                    , &
       Hi_min_thermo_config                                        , &
+      choice_GL_temperature_BC_config                             , &
       choice_ice_heat_capacity_config                             , &
       uniform_ice_heat_capacity_config                            , &
       choice_ice_thermal_conductivity_config                      , &
@@ -1931,6 +2320,7 @@ CONTAINS
       Glens_flow_law_epsilon_sq_0_config                          , &
       choice_ice_rheology_Glen_config                             , &
       uniform_Glens_flow_factor_config                            , &
+      choice_enhancement_factor_transition_config                 , &
       m_enh_sheet_config                                          , &
       m_enh_shelf_config                                          , &
       do_asynchronous_climate_config                              , &
@@ -1940,15 +2330,31 @@ CONTAINS
       choice_climate_model_GRL_config                             , &
       choice_climate_model_ANT_config                             , &
       choice_climate_model_idealised_config                       , &
+      choice_climate_model_realistic_config                       , &
+      filename_climate_snapshot_NAM_config                        , &
+      filename_climate_snapshot_EAS_config                        , &
+      filename_climate_snapshot_GRL_config                        , &
+      filename_climate_snapshot_ANT_config                        , &
       do_asynchronous_ocean_config                                , &
       dt_ocean_config                                             , &
+      ocean_vertical_grid_max_depth_config                        , &
+      ocean_vertical_grid_dz_config                               , &
       choice_ocean_model_NAM_config                               , &
       choice_ocean_model_EAS_config                               , &
       choice_ocean_model_GRL_config                               , &
       choice_ocean_model_ANT_config                               , &
       choice_ocean_model_idealised_config                         , &
+      choice_ocean_model_realistic_config                         , &
+      filename_ocean_snapshot_NAM_config                          , &
+      filename_ocean_snapshot_EAS_config                          , &
+      filename_ocean_snapshot_GRL_config                          , &
+      filename_ocean_snapshot_ANT_config                          , &
       do_asynchronous_SMB_config                                  , &
       dt_SMB_config                                               , &
+      do_SMB_removal_icefree_land_config                          , &
+      do_SMB_residual_absorb_config                               , &
+      SMB_residual_absorb_t_start_config                          , &
+      SMB_residual_absorb_t_end_config                            , &
       choice_SMB_model_NAM_config                                 , &
       choice_SMB_model_EAS_config                                 , &
       choice_SMB_model_GRL_config                                 , &
@@ -1969,12 +2375,27 @@ CONTAINS
       timeframe_SMB_prescribed_ANT_config                         , &
       do_asynchronous_BMB_config                                  , &
       dt_BMB_config                                               , &
+      do_BMB_inversion_config                                     , &
+      BMB_inversion_t_start_config                                , &
+      BMB_inversion_t_end_config                                  , &
+      do_subgrid_BMB_at_grounding_line_config                     , &
       choice_BMB_model_NAM_config                                 , &
       choice_BMB_model_EAS_config                                 , &
       choice_BMB_model_GRL_config                                 , &
       choice_BMB_model_ANT_config                                 , &
       choice_BMB_model_idealised_config                           , &
+      choice_BMB_model_parameterised_config                       , &
       uniform_BMB_config                                          , &
+      BMB_Favier2019_gamma_config                                 , &
+      dt_LMB_config                                               , &
+      do_LMB_inversion_config                                     , &
+      LMB_inversion_t_start_config                                , &
+      LMB_inversion_t_end_config                                  , &
+      choice_LMB_model_NAM_config                                 , &
+      choice_LMB_model_EAS_config                                 , &
+      choice_LMB_model_GRL_config                                 , &
+      choice_LMB_model_ANT_config                                 , &
+      uniform_LMB_config                                          , &
       choice_GIA_model_config                                     , &
       dt_GIA_config                                               , &
       dx_GIA_config                                               , &
@@ -2001,6 +2422,8 @@ CONTAINS
       SELEN_TABOO_RCMB_config                                     , &
       do_create_netcdf_output_config                              , &
       dt_output_config                                            , &
+      dt_output_restart_config                                    , &
+      dt_output_grid_config                                       , &
       dx_output_grid_NAM_config                                   , &
       dx_output_grid_EAS_config                                   , &
       dx_output_grid_GRL_config                                   , &
@@ -2063,6 +2486,15 @@ CONTAINS
 
     ! Add routine to path
     CALL init_routine( routine_name)
+
+    ! Generate CONFIG namelist filename
+    namelist_filename = config_filename
+    i = INDEX( namelist_filename,'/')
+    DO WHILE (i > 0)
+      namelist_filename = namelist_filename( i+1: LEN_TRIM( namelist_filename))
+      i = INDEX( namelist_filename,'/')
+    END DO
+    namelist_filename = 'namelist_' // TRIM( namelist_filename)
 
     ! Write the CONFIG namelist to a temporary file
     OPEN(  UNIT = namelist_unit, FILE = TRIM( namelist_filename))
@@ -2180,6 +2612,8 @@ CONTAINS
 
     ! Some pre-processing stuff for reference ice geometry
     C%refgeo_Hi_min                                          = refgeo_Hi_min_config
+    C%do_smooth_geometry                                     = do_smooth_geometry_config
+    C%r_smooth_geometry                                      = r_smooth_geometry_config
     C%remove_Lake_Vostok                                     = remove_Lake_Vostok_config
 
     ! == Initial geometry
@@ -2406,8 +2840,10 @@ CONTAINS
     ! Sub-grid scaling of basal friction
     C%do_GL_subgrid_friction                                 = do_GL_subgrid_friction_config
     C%choice_subgrid_grounded_fraction                       = choice_subgrid_grounded_fraction_config
+    C%do_read_bedrock_cdf_from_file                          = do_read_bedrock_cdf_from_file_config
     C%subgrid_bedrock_cdf_nbins                              = subgrid_bedrock_cdf_nbins_config
-    C%subgrid_friction_exponent                              = subgrid_friction_exponent_config
+    C%do_subgrid_friction_on_A_grid                          = do_subgrid_friction_on_A_grid_config
+    C%subgrid_friction_exponent_on_B_grid                    = subgrid_friction_exponent_on_B_grid_config
 
     ! Stability
     C%slid_beta_max                                          = slid_beta_max_config
@@ -2428,6 +2864,41 @@ CONTAINS
     C%BC_H_south                                             = BC_H_south_config
     C%BC_H_north                                             = BC_H_north_config
 
+  ! == Ice dynamics - target quantities
+  ! ===================================
+
+    ! Target dHi_dt
+    C%do_target_dHi_dt                                       = do_target_dHi_dt_config
+    C%do_limit_target_dHi_dt_to_SMB                          = do_limit_target_dHi_dt_to_SMB_config
+    C%target_dHi_dt_t_end                                    = target_dHi_dt_t_end_config
+
+    ! Files containing a target dHi_dt for inversions
+    C%filename_dHi_dt_target_NAM                             = filename_dHi_dt_target_NAM_config
+    C%filename_dHi_dt_target_EAS                             = filename_dHi_dt_target_EAS_config
+    C%filename_dHi_dt_target_GRL                             = filename_dHi_dt_target_GRL_config
+    C%filename_dHi_dt_target_ANT                             = filename_dHi_dt_target_ANT_config
+
+    ! Timeframes for reading target dHi_dt from file (set to 1E9_dp if the file has no time dimension)
+    C%timeframe_dHi_dt_target_NAM                            = timeframe_dHi_dt_target_NAM_config
+    C%timeframe_dHi_dt_target_EAS                            = timeframe_dHi_dt_target_EAS_config
+    C%timeframe_dHi_dt_target_GRL                            = timeframe_dHi_dt_target_GRL_config
+    C%timeframe_dHi_dt_target_ANT                            = timeframe_dHi_dt_target_ANT_config
+
+    ! Target uabs_surf
+    C%do_target_uabs_surf                                    = do_target_uabs_surf_config
+
+    ! Files containing a target dHi_dt for inversions
+    C%filename_uabs_surf_target_NAM                          = filename_uabs_surf_target_NAM_config
+    C%filename_uabs_surf_target_EAS                          = filename_uabs_surf_target_EAS_config
+    C%filename_uabs_surf_target_GRL                          = filename_uabs_surf_target_GRL_config
+    C%filename_uabs_surf_target_ANT                          = filename_uabs_surf_target_ANT_config
+
+    ! Timeframes for reading target dHi_dt from file (set to 1E9_dp if the file has no time dimension)
+    C%timeframe_uabs_surf_target_NAM                         = timeframe_uabs_surf_target_NAM_config
+    C%timeframe_uabs_surf_target_EAS                         = timeframe_uabs_surf_target_EAS_config
+    C%timeframe_uabs_surf_target_GRL                         = timeframe_uabs_surf_target_GRL_config
+    C%timeframe_uabs_surf_target_ANT                         = timeframe_uabs_surf_target_ANT_config
+
   ! == Ice dynamics - time stepping
   ! ===============================
 
@@ -2436,6 +2907,7 @@ CONTAINS
     C%dt_ice_max                                             = dt_ice_max_config
     C%dt_ice_min                                             = dt_ice_min_config
     C%dt_ice_startup_phase                                   = dt_ice_startup_phase_config
+    C%do_grounded_only_adv_dt                                = do_grounded_only_adv_dt_config
 
     ! Predictor-corrector ice-thickness update
     C%pc_epsilon                                             = pc_epsilon_config
@@ -2444,6 +2916,7 @@ CONTAINS
     C%pc_eta_min                                             = pc_eta_min_config
     C%pc_max_time_step_increase                              = pc_max_time_step_increase_config
     C%pc_nit_max                                             = pc_nit_max_config
+    C%pc_guilty_max                                          = pc_guilty_max_config
 
     ! Initialisation of the predictor-corrector ice-thickness update
     C%pc_choice_initialise_NAM                               = pc_choice_initialise_NAM_config
@@ -2477,11 +2950,38 @@ CONTAINS
   ! ===============================
 
     C%choice_mask_noice                                      = choice_mask_noice_config
+    C%Hi_min                                                 = Hi_min_config
+    C%Hi_thin                                                = Hi_thin_config
+    C%remove_ice_absent_at_PD                                = remove_ice_absent_at_PD_config
 
-    ! Partially fixed geometry, useful for initialisation and inversion runs
-    C%fixed_shelf_geometry                                   = fixed_shelf_geometry_config
-    C%fixed_sheet_geometry                                   = fixed_sheet_geometry_config
-    C%fixed_grounding_line                                   = fixed_grounding_line_config
+    ! Geometry relaxation
+    C%geometry_relaxation_t_years                            = geometry_relaxation_t_years_config
+
+    ! Mask conservation
+    C%do_protect_grounded_mask                               = do_protect_grounded_mask_config
+    C%protect_grounded_mask_t_end                            = protect_grounded_mask_t_end_config
+
+    ! Fix/delay ice thickness evolution
+    C%do_fixiness_before_start                               = do_fixiness_before_start_config
+    C%fixiness_t_start                                       = fixiness_t_start_config
+    C%fixiness_t_end                                         = fixiness_t_end_config
+    C%fixiness_H_gl_gr                                       = fixiness_H_gl_gr_config
+    C%fixiness_H_gl_fl                                       = fixiness_H_gl_fl_config
+    C%fixiness_H_grounded                                    = fixiness_H_grounded_config
+    C%fixiness_H_floating                                    = fixiness_H_floating_config
+    C%fixiness_H_freeland                                    = fixiness_H_freeland_config
+    C%fixiness_H_freeocean                                   = fixiness_H_freeocean_config
+
+    ! Limit ice thickness evolution
+    C%do_limitness_before_start                              = do_limitness_before_start_config
+    C%limitness_t_start                                      = limitness_t_start_config
+    C%limitness_t_end                                        = limitness_t_end_config
+    C%limitness_H_gl_gr                                      = limitness_H_gl_gr_config
+    C%limitness_H_gl_fl                                      = limitness_H_gl_fl_config
+    C%limitness_H_grounded                                   = limitness_H_grounded_config
+    C%limitness_H_floating                                   = limitness_H_floating_config
+    C%modiness_H_style                                       = modiness_H_style_config
+    C%modiness_T_hom_ref                                     = modiness_T_hom_ref_config
 
   ! == Basal hydrology
   ! ==================
@@ -2490,6 +2990,30 @@ CONTAINS
     C%choice_basal_hydrology_model                           = choice_basal_hydrology_model_config
     C%Martin2011_hydro_Hb_min                                = Martin2011_hydro_Hb_min_config
     C%Martin2011_hydro_Hb_max                                = Martin2011_hydro_Hb_max_config
+
+  ! == Pore water inversion by nudging
+  ! ==================================
+
+    ! General
+    C%do_pore_water_nudging                                  = do_pore_water_nudging_config
+    C%choice_pore_water_nudging_method                       = choice_pore_water_nudging_method_config
+    C%pore_water_nudging_dt                                  = pore_water_nudging_dt_config
+    C%pore_water_nudging_t_start                             = pore_water_nudging_t_start_config
+    C%pore_water_nudging_t_end                               = pore_water_nudging_t_end_config
+    C%pore_water_fraction_min                                = pore_water_fraction_min_config
+    C%pore_water_fraction_max                                = pore_water_fraction_max_config
+    C%filename_inverted_pore_water                           = filename_inverted_pore_water_config
+
+    ! Basal inversion model based on flowline-averaged values of H and dH/dt
+    C%porenudge_H_dHdt_flowline_t_scale                       = porenudge_H_dHdt_flowline_t_scale_config
+    C%porenudge_H_dHdt_flowline_dH0                           = porenudge_H_dHdt_flowline_dH0_config
+    C%porenudge_H_dHdt_flowline_dHdt0                         = porenudge_H_dHdt_flowline_dHdt0_config
+    C%porenudge_H_dHdt_flowline_dU0                           = porenudge_H_dHdt_flowline_dU0_config
+    C%porenudge_H_dHdt_flowline_Hi_scale                      = porenudge_H_dHdt_flowline_Hi_scale_config
+    C%porenudge_H_dHdt_flowline_u_scale                       = porenudge_H_dHdt_flowline_u_scale_config
+    C%porenudge_H_dHdt_flowline_r_smooth                      = porenudge_H_dHdt_flowline_r_smooth_config
+    C%porenudge_H_dHdt_flowline_w_smooth                      = porenudge_H_dHdt_flowline_w_smooth_config
+    C%porenudge_H_dHdt_flowline_dist_max                      = porenudge_H_dHdt_flowline_dist_max_config
 
   ! == Bed roughness
   ! ==================
@@ -2580,6 +3104,7 @@ CONTAINS
     C%choice_thermo_model                                    = choice_thermo_model_config
     C%dt_thermodynamics                                      = dt_thermodynamics_config
     C%Hi_min_thermo                                          = Hi_min_thermo_config
+    C%choice_GL_temperature_BC                               = choice_GL_temperature_BC_config
     C%choice_ice_heat_capacity                               = choice_ice_heat_capacity_config
     C%uniform_ice_heat_capacity                              = uniform_ice_heat_capacity_config
     C%choice_ice_thermal_conductivity                        = choice_ice_thermal_conductivity_config
@@ -2598,6 +3123,7 @@ CONTAINS
     C%uniform_Glens_flow_factor                              = uniform_Glens_flow_factor_config
 
     ! Enhancement factors
+    C%choice_enhancement_factor_transition                   = choice_enhancement_factor_transition_config
     C%m_enh_sheet                                            = m_enh_sheet_config
     C%m_enh_shelf                                            = m_enh_shelf_config
 
@@ -2617,12 +3143,25 @@ CONTAINS
     ! Choice of idealised climate model
     C%choice_climate_model_idealised                         = choice_climate_model_idealised_config
 
+    ! Choice of realistic climate model
+    C%choice_climate_model_realistic                         = choice_climate_model_realistic_config
+
+    ! Paths to files containing fields for realistic climates
+    C%filename_climate_snapshot_NAM                          = filename_climate_snapshot_NAM_config
+    C%filename_climate_snapshot_EAS                          = filename_climate_snapshot_EAS_config
+    C%filename_climate_snapshot_GRL                          = filename_climate_snapshot_GRL_config
+    C%filename_climate_snapshot_ANT                          = filename_climate_snapshot_ANT_config
+
   ! == Ocean
   ! ========
 
     ! Time step
     C%do_asynchronous_ocean                                  = do_asynchronous_ocean_config
     C%dt_ocean                                               = dt_ocean_config
+
+    ! Vertical grid
+    C%ocean_vertical_grid_max_depth                          = ocean_vertical_grid_max_depth_config
+    C%ocean_vertical_grid_dz                                 = ocean_vertical_grid_dz_config
 
     ! Choice of ocean model
     C%choice_ocean_model_NAM                                 = choice_ocean_model_NAM_config
@@ -2633,12 +3172,27 @@ CONTAINS
     ! Choice of idealised ocean model
     C%choice_ocean_model_idealised                           = choice_ocean_model_idealised_config
 
+    ! Choice of realistic ocean model
+    C%choice_ocean_model_realistic                           = choice_ocean_model_realistic_config
+
+    ! Paths to files containing fields for realistic oceans
+    C%filename_ocean_snapshot_NAM                            = filename_ocean_snapshot_NAM_config
+    C%filename_ocean_snapshot_EAS                            = filename_ocean_snapshot_EAS_config
+    C%filename_ocean_snapshot_GRL                            = filename_ocean_snapshot_GRL_config
+    C%filename_ocean_snapshot_ANT                            = filename_ocean_snapshot_ANT_config
+
   ! == Surface mass balance
   ! =======================
 
     ! Time step
     C%do_asynchronous_SMB                                    = do_asynchronous_SMB_config
     C%dt_SMB                                                 = dt_SMB_config
+
+    ! SMB adjustments
+    C%do_SMB_removal_icefree_land                            = do_SMB_removal_icefree_land_config
+    C%do_SMB_residual_absorb                                 = do_SMB_residual_absorb_config
+    C%SMB_residual_absorb_t_start                            = SMB_residual_absorb_t_start_config
+    C%SMB_residual_absorb_t_end                              = SMB_residual_absorb_t_end_config
 
     ! Choice of SMB model
     C%choice_SMB_model_NAM                                   = choice_SMB_model_NAM_config
@@ -2677,6 +3231,14 @@ CONTAINS
     C%do_asynchronous_BMB                                    = do_asynchronous_BMB_config
     C%dt_BMB                                                 = dt_BMB_config
 
+    ! Inversion
+    C%do_BMB_inversion                                       = do_BMB_inversion_config
+    C%BMB_inversion_t_start                                  = BMB_inversion_t_start_config
+    C%BMB_inversion_t_end                                    = BMB_inversion_t_end_config
+
+    ! Grounding line treatment
+    C%do_subgrid_BMB_at_grounding_line                       = do_subgrid_BMB_at_grounding_line_config
+
     ! Choice of BMB model
     C%choice_BMB_model_NAM                                   = choice_BMB_model_NAM_config
     C%choice_BMB_model_EAS                                   = choice_BMB_model_EAS_config
@@ -2686,8 +3248,34 @@ CONTAINS
     ! Choice of idealised BMB model
     C%choice_BMB_model_idealised                             = choice_BMB_model_idealised_config
 
+    ! Choice of parameterised BMB model
+    C%choice_BMB_model_parameterised                         = choice_BMB_model_parameterised_config
+
     ! "uniform"
     C%uniform_BMB                                            = uniform_BMB_config
+
+    ! "parameterised"
+    C%BMB_Favier2019_gamma                                   = BMB_Favier2019_gamma_config
+
+  ! == Lateral mass balance
+  ! =======================
+
+    ! Time step
+    C%dt_LMB                                                 = dt_LMB_config
+
+    ! Inversion
+    C%do_LMB_inversion                                       = do_LMB_inversion_config
+    C%LMB_inversion_t_start                                  = LMB_inversion_t_start_config
+    C%LMB_inversion_t_end                                    = LMB_inversion_t_end_config
+
+    ! Choice of BMB model
+    C%choice_LMB_model_NAM                                   = choice_LMB_model_NAM_config
+    C%choice_LMB_model_EAS                                   = choice_LMB_model_EAS_config
+    C%choice_LMB_model_GRL                                   = choice_LMB_model_GRL_config
+    C%choice_LMB_model_ANT                                   = choice_LMB_model_ANT_config
+
+    ! "uniform"
+    C%uniform_LMB                                            = uniform_LMB_config
 
   ! == Glacial isostatic adjustment
   ! ===============================
@@ -2737,6 +3325,8 @@ CONTAINS
     ! Basic settings
     C%do_create_netcdf_output                                = do_create_netcdf_output_config
     C%dt_output                                              = dt_output_config
+    C%dt_output_restart                                      = dt_output_restart_config
+    C%dt_output_grid                                         = dt_output_grid_config
     C%dx_output_grid_NAM                                     = dx_output_grid_NAM_config
     C%dx_output_grid_EAS                                     = dx_output_grid_EAS_config
     C%dx_output_grid_GRL                                     = dx_output_grid_GRL_config

@@ -9,7 +9,7 @@ MODULE ice_model_utilities
   USE petscksp
   USE mpi
   USE precisions                                             , ONLY: dp
-  USE mpi_basic                                              , ONLY: par, cerr, ierr, MPI_status, sync
+  USE mpi_basic                                              , ONLY: par, cerr, ierr, recv_status, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
   USE netcdf_debug                                           , ONLY: write_PETSc_matrix_to_NetCDF, write_CSR_matrix_to_NetCDF, &
@@ -19,8 +19,12 @@ MODULE ice_model_utilities
   USE mesh_types                                             , ONLY: type_mesh
   USE ice_model_types                                        , ONLY: type_ice_model
   USE reference_geometries                                   , ONLY: type_reference_geometry
+  USE SMB_model_types                                        , ONLY: type_SMB_model
+  USE BMB_model_types                                        , ONLY: type_BMB_model
+  USE LMB_model_types                                        , ONLY: type_LMB_model
+  USE AMB_model_types                                        , ONLY: type_AMB_model
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_logical_1D
-  USE math_utilities                                         , ONLY: is_floating, triangle_area
+  USE math_utilities                                         , ONLY: is_floating, triangle_area, oblique_sg_projection, is_in_polygon
   USE mesh_remapping                                         , ONLY: Atlas, create_map_from_xy_grid_to_mesh, create_map_from_xy_grid_to_mesh_triangles
   USE petsc_basic                                            , ONLY: mat_petsc2CSR
   USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp, deallocate_matrix_CSR_dist
@@ -28,17 +32,17 @@ MODULE ice_model_utilities
   USE mesh_operators                                         , ONLY: ddx_a_a_2D, ddy_a_a_2D, map_a_b_2D, ddx_a_b_2D, ddy_a_b_2D, &
                                                                      ddx_b_a_2D, ddy_b_a_2D
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_1D
-  USE mesh_utilities                                         , ONLY: calc_Voronoi_cell, interpolate_to_point_dp_2D
+  USE mesh_utilities                                         , ONLY: calc_Voronoi_cell, interpolate_to_point_dp_2D, extrapolate_Gaussian
+  USE netcdf_input                                           , ONLY: read_field_from_mesh_file_3D_CDF, read_field_from_mesh_file_3D_b_CDF
+  USE mesh_refinement                                        , ONLY: calc_polygon_Patagonia
+  USE netcdf_input                                           , ONLY: read_field_from_file_2D
 
   IMPLICIT NONE
 
 CONTAINS
 
-! ===== Subroutines =====
-! =======================
-
-  ! == Masks
-  ! ========
+! == Masks
+! ========
 
   SUBROUTINE determine_masks( mesh, ice)
     ! Determine the different masks
@@ -75,8 +79,8 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-  ! === Basic masks ===
-  ! ===================
+    ! === Basic masks ===
+    ! ===================
 
     ! Store previous basic masks
     ice%mask_icefree_land_prev  = ice%mask_icefree_land
@@ -97,7 +101,7 @@ CONTAINS
       IF (is_floating( ice%Hi( vi), ice%Hb( vi), ice%SL( vi))) THEN
         ! Ice thickness is below the floatation thickness; either floating ice, or ice-free ocean
 
-        IF (ice%Hi( vi) > 0.1_dp) THEN
+        IF (ice%Hi( vi) > 0._dp) THEN
           ! Floating ice
 
           ice%mask_floating_ice( vi) = .TRUE.
@@ -114,7 +118,7 @@ CONTAINS
       ELSE ! IF (is_floating( ice%Hi( vi), ice%Hb( vi), ice%SL( vi))) THEN
         ! Ice thickness is above the floatation thickness; either grounded ice, or ice-free land
 
-        IF (ice%Hi( vi) > 0.1_dp) THEN
+        IF (ice%Hi( vi) > 0._dp) THEN
           ! Grounded ice
 
           ice%mask_grounded_ice( vi) = .TRUE.
@@ -224,8 +228,8 @@ CONTAINS
 
   END SUBROUTINE determine_masks
 
-  ! == Sub-grid grounded fractions
-  ! ==============================
+! == Sub-grid grounded fractions
+! ==============================
 
   SUBROUTINE calc_grounded_fractions( mesh, ice)
     ! Calculate the sub-grid grounded-area fractions
@@ -262,7 +266,7 @@ CONTAINS
       ! Use the sub-grid bedrock cumulative density functions to calculate the grounded fractions
 
       CALL calc_grounded_fractions_bedrock_CDF_a( mesh, ice, fraction_gr_CDF_a)
-      CALL calc_grounded_fractions_bedrock_CDF_b( mesh, ice, fraction_gr_CDF_a)
+      CALL calc_grounded_fractions_bedrock_CDF_b( mesh, ice, fraction_gr_CDF_b)
 
       ice%fraction_gr   = fraction_gr_CDF_a
       ice%fraction_gr_b = fraction_gr_CDF_b
@@ -947,6 +951,18 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    IF (.NOT. C%choice_subgrid_grounded_fraction == 'bedrock_CDF' .AND. &
+        .NOT. C%choice_subgrid_grounded_fraction == 'bilin_interp_TAF+bedrock_CDF') THEN
+      ! Finalise routine path
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
+
+    IF (par%master) THEN
+      WRITE(*,"(A)") '       Calculating bedrock CDFs from initial geometry...'
+    END IF
+    CALL sync
+
     ! Calculate CDFs separately on the a-grid (vertices) and the b-grid (triangles)
     CALL calc_bedrock_CDFs_a( mesh, refgeo, ice)
     CALL calc_bedrock_CDFs_b( mesh, refgeo, ice)
@@ -1274,8 +1290,242 @@ CONTAINS
 
   END SUBROUTINE calc_bedrock_CDFs_b
 
-  ! == Zeta gradients
-  ! =================
+  SUBROUTINE initialise_bedrock_CDFs( mesh, refgeo, ice, region_name)
+    ! Initialise the sub-grid bedrock cumulative density functions
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
+    TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo
+    TYPE(type_ice_model),                INTENT(INOUT) :: ice
+    CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
+
+    ! Local variables:
+    CHARACTER(len=256), PARAMETER                      :: routine_name = 'initialise_bedrock_CDFs'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    IF (.NOT. C%choice_subgrid_grounded_fraction == 'bedrock_CDF' .AND. &
+        .NOT. C%choice_subgrid_grounded_fraction == 'bilin_interp_TAF+bedrock_CDF') THEN
+      ! Finalise routine path
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
+
+    IF (par%master) THEN
+      WRITE(*,"(A)") '     Initialising the sub-grid bedrock cumulative density functions...'
+    END IF
+    CALL sync
+
+    IF (C%do_read_bedrock_cdf_from_file) THEN
+      ! Read them from the corresponding mesh file
+      CALL initialise_bedrock_CDFs_from_file( mesh, ice, region_name)
+    ELSE
+      ! Compute them from scratch
+      CALL calc_bedrock_CDFs( mesh, refgeo, ice)
+    END IF
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE initialise_bedrock_CDFs
+
+  SUBROUTINE initialise_bedrock_CDFs_from_file( mesh, ice, region_name)
+    ! Initialise the velocities for the DIVA solver from an external NetCDF file
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
+    TYPE(type_ice_model),                INTENT(INOUT) :: ice
+    CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_bedrock_CDFs_from_file'
+    CHARACTER(LEN=256)                                 :: filename, check
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Determine the filename to read for this model region
+    IF     (region_name == 'NAM') THEN
+      filename  = C%filename_initial_mesh_NAM
+      check = C%choice_initial_mesh_NAM
+    ELSEIF (region_name == 'EAS') THEN
+      filename  = C%filename_initial_mesh_EAS
+      check = C%choice_initial_mesh_EAS
+    ELSEIF (region_name == 'GRL') THEN
+      filename  = C%filename_initial_mesh_GRL
+      check = C%choice_initial_mesh_GRL
+    ELSEIF (region_name == 'ANT') THEN
+      filename  = C%filename_initial_mesh_ANT
+      check = C%choice_initial_mesh_ANT
+    ELSE
+      CALL crash('unknown model region "' // region_name // '"!')
+    END IF
+
+    ! Write to terminal
+    IF (par%master) WRITE(0,*) '      Reading CDF functions from file "' // colour_string( TRIM( filename),'light blue') // '"...'
+
+    IF (.NOT. check == 'read_from_file') THEN
+      CALL crash('The initial mesh was not read from a file. Reading a bedrock CDF this way makes no sense!')
+    END IF
+
+    ! Read meshed data
+    CALL read_field_from_mesh_file_3D_CDF(   filename, 'bedrock_cdf',   ice%bedrock_cdf   )
+    CALL read_field_from_mesh_file_3D_b_CDF( filename, 'bedrock_cdf_b', ice%bedrock_cdf_b )
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE initialise_bedrock_CDFs_from_file
+
+! == Effective ice thickness
+! ==========================
+
+  subroutine calc_effective_thickness( mesh, ice, Hi, Hi_eff, fraction_margin)
+    ! Determine the ice-filled fraction and effective ice thickness of floating margin pixels
+
+    implicit none
+
+    ! In- and output variables
+    type(type_mesh),      intent(in)                    :: mesh
+    type(type_ice_model), intent(in)                    :: ice
+    real(dp), dimension(mesh%vi1:mesh%vi2), intent(in)  :: Hi
+    real(dp), dimension(mesh%vi1:mesh%vi2), intent(out) :: Hi_eff
+    real(dp), dimension(mesh%vi1:mesh%vi2), intent(out) :: fraction_margin
+
+    ! Local variables:
+    character(len=256), parameter                       :: routine_name = 'calc_effective_thickness'
+    integer                                             :: vi, ci, vc
+    real(dp)                                            :: Hi_neighbour_max
+    real(dp), dimension(mesh%nV)                        :: Hi_tot, Hb_tot, SL_tot
+    logical,  dimension(mesh%vi1:mesh%vi2)              :: mask_margin, mask_floating
+    logical,  dimension(mesh%nV)                        :: mask_margin_tot, mask_floating_tot
+
+    ! == Initialisation
+    ! =================
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Collect Hi from all processes
+    call gather_to_all_dp_1D( Hi,     Hi_tot)
+    call gather_to_all_dp_1D( ice%Hb, Hb_tot)
+    call gather_to_all_dp_1D( ice%SL, SL_tot)
+
+    ! == Margin mask
+    ! ==============
+
+    ! Initialise
+    mask_margin = .false.
+
+    do vi = mesh%vi1, mesh%vi2
+      do ci = 1, mesh%nC( vi)
+        vc = mesh%C( vi,ci)
+        if (Hi_tot( vi) > 0._dp .and. Hi_tot( vc) == 0._dp) then
+          mask_margin( vi) = .true.
+        end if
+      end do
+    end do
+
+    ! Gather mask values from all processes
+    call gather_to_all_logical_1D( mask_margin, mask_margin_tot)
+
+    ! == Floating mask
+    ! ================
+
+    ! Initialise
+    mask_floating = .false.
+
+    do vi = mesh%vi1, mesh%vi2
+      if (is_floating( Hi_tot( vi), ice%Hb( vi), ice%SL( vi))) then
+        mask_floating( vi) = .true.
+      end if
+    end do
+
+    ! Gather mask values from all processes
+    call gather_to_all_logical_1D( mask_floating, mask_floating_tot)
+
+    ! == Default values
+    ! =================
+
+    ! Initialise values
+    do vi = mesh%vi1, mesh%vi2
+      ! Grounded regions: ice-free land and grounded ice
+      ! NOTE: important to let ice-free land have a non-zero
+      ! margin fraction to let it get SMB in the ice thickness equation
+      if (.NOT. mask_floating( vi)) then
+        fraction_margin( vi) = 1._dp
+        Hi_eff( vi) = Hi_tot( vi)
+      ! Old and new floating regions
+      elseif (Hi_tot( vi) > 0._dp) then
+        fraction_margin( vi) = 1._dp
+        Hi_eff( vi) = Hi_tot( vi)
+      ! New ice-free ocean regions
+      else
+        fraction_margin( vi) = 0._dp
+        Hi_eff( vi) = 0._dp
+      end if
+    end do
+
+    ! === Compute ===
+    ! ===============
+
+    do vi = mesh%vi1, mesh%vi2
+
+      ! Only check margin vertices
+      if (.not. mask_margin_tot( vi)) then
+        ! Simply use initialised values
+        cycle
+      end if
+
+      ! === Max neighbour thickness ===
+      ! ===============================
+
+      ! Find the max ice thickness among non-margin neighbours
+      Hi_neighbour_max = 0._dp
+
+      do ci = 1, mesh%nC( vi)
+        vc = mesh%C( vi,ci)
+
+        ! Ignore margin neighbours
+        if (mask_margin_tot( vc)) then
+          cycle
+        end if
+
+        ! Floating margins check for neighbours
+        if (mask_floating( vi)) then
+          Hi_neighbour_max = max( Hi_neighbour_max, Hi_tot( vc))
+        end if
+
+      end do
+
+      ! === Effective ice thickness ===
+      ! ===============================
+
+      ! Only apply if the thickest non-margin neighbour is thicker than
+      ! this vertex. Otherwise, simply use initialised values.
+      if (Hi_neighbour_max > Hi_tot( vi)) then
+        ! Calculate sub-grid ice-filled fraction
+        Hi_eff( vi) = Hi_neighbour_max
+        fraction_margin( vi) = Hi_tot( vi) / Hi_neighbour_max
+      end if
+
+    end do
+
+    ! === Finalisation ===
+    ! ====================
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine calc_effective_thickness
+
+! == Zeta gradients
+! =================
 
   SUBROUTINE calc_zeta_gradients( mesh, ice)
     ! Calculate all the gradients of zeta, needed to perform the scaled vertical coordinate transformation
@@ -1288,7 +1538,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_zeta_gradients'
-!    REAL(dp), DIMENSION(:    ), POINTER                :: Hi_a
+    ! REAL(dp), DIMENSION(:    ), POINTER                :: Hi_a
     REAL(dp), DIMENSION(:    ), POINTER                :: dHi_dx_a
     REAL(dp), DIMENSION(:    ), POINTER                :: dHi_dy_a
     REAL(dp), DIMENSION(:    ), POINTER                :: d2Hi_dx2_a
@@ -1301,7 +1551,7 @@ CONTAINS
     REAL(dp), DIMENSION(:    ), POINTER                :: d2Hi_dxdy_b
     REAL(dp), DIMENSION(:    ), POINTER                :: d2Hi_dy2_b
     REAL(dp), DIMENSION(:    ), POINTER                :: Hs_b
-!    REAL(dp), DIMENSION(:    ), POINTER                :: Hs_a
+    ! REAL(dp), DIMENSION(:    ), POINTER                :: Hs_a
     REAL(dp), DIMENSION(:    ), POINTER                :: dHs_dx_a
     REAL(dp), DIMENSION(:    ), POINTER                :: dHs_dy_a
     REAL(dp), DIMENSION(:    ), POINTER                :: d2Hs_dx2_a
@@ -1319,7 +1569,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Allocate shared memory
-   !ALLOCATE( Hi_a(        mesh%vi1:mesh%vi2))
+    ! ALLOCATE( Hi_a(        mesh%vi1:mesh%vi2))
     ALLOCATE( dHi_dx_a(    mesh%vi1:mesh%vi2))
     ALLOCATE( dHi_dy_a(    mesh%vi1:mesh%vi2))
     ALLOCATE( d2Hi_dx2_a(  mesh%vi1:mesh%vi2))
@@ -1333,7 +1583,7 @@ CONTAINS
     ALLOCATE( d2Hi_dxdy_b( mesh%ti1:mesh%ti2))
     ALLOCATE( d2Hi_dy2_b(  mesh%ti1:mesh%ti2))
 
-   !ALLOCATE( Hs_a(        mesh%vi1:mesh%vi2))
+    ! ALLOCATE( Hs_a(        mesh%vi1:mesh%vi2))
     ALLOCATE( dHs_dx_a(    mesh%vi1:mesh%vi2))
     ALLOCATE( dHs_dy_a(    mesh%vi1:mesh%vi2))
     ALLOCATE( d2Hs_dx2_a(  mesh%vi1:mesh%vi2))
@@ -1347,9 +1597,9 @@ CONTAINS
     ALLOCATE( d2Hs_dxdy_b( mesh%ti1:mesh%ti2))
     ALLOCATE( d2Hs_dy2_b(  mesh%ti1:mesh%ti2))
 
-  ! Calculate gradients of Hi and Hs on both grids
+    ! Calculate gradients of Hi and Hs on both grids
 
-    !CALL map_a_a_2D( mesh, ice%Hi_a, Hi_a       )
+    ! CALL map_a_a_2D( mesh, ice%Hi_a, Hi_a       )
     CALL ddx_a_a_2D( mesh, ice%Hi  , dHi_dx_a   )
     CALL ddy_a_a_2D( mesh, ice%Hi  , dHi_dy_a   )
     CALL map_a_b_2D( mesh, ice%Hi  , Hi_b       )
@@ -1362,7 +1612,7 @@ CONTAINS
     CALL ddy_a_b_2D( mesh, dHi_dx_a, d2Hi_dxdy_b)
     CALL ddy_a_b_2D( mesh, dHi_dy_a, d2Hi_dy2_b )
 
-    !CALL map_a_a_2D( mesh, ice%Hs_a, Hs_a       )
+    ! CALL map_a_a_2D( mesh, ice%Hs_a, Hs_a       )
     CALL ddx_a_a_2D( mesh, ice%Hs  , dHs_dx_a   )
     CALL ddy_a_a_2D( mesh, ice%Hs  , dHs_dy_a   )
     CALL map_a_b_2D( mesh, ice%Hs  , Hs_b       )
@@ -1439,51 +1689,51 @@ CONTAINS
       END DO
     END DO
 
-    ! Deallocate
-   !deALLOCATE( Hi_a        )
-    deALLOCATE( dHi_dx_a    )
-    deALLOCATE( dHi_dy_a    )
-    deALLOCATE( d2Hi_dx2_a  )
-    deALLOCATE( d2Hi_dxdy_a )
-    deALLOCATE( d2Hi_dy2_a  )
+    ! Clean after yourself
+    ! DEALLOCATE( Hi_a        )
+    DEALLOCATE( dHi_dx_a    )
+    DEALLOCATE( dHi_dy_a    )
+    DEALLOCATE( d2Hi_dx2_a  )
+    DEALLOCATE( d2Hi_dxdy_a )
+    DEALLOCATE( d2Hi_dy2_a  )
 
-    deALLOCATE( Hi_b        )
-    deALLOCATE( dHi_dx_b    )
-    deALLOCATE( dHi_dy_b    )
-    deALLOCATE( d2Hi_dx2_b  )
-    deALLOCATE( d2Hi_dxdy_b )
-    deALLOCATE( d2Hi_dy2_b  )
+    DEALLOCATE( Hi_b        )
+    DEALLOCATE( dHi_dx_b    )
+    DEALLOCATE( dHi_dy_b    )
+    DEALLOCATE( d2Hi_dx2_b  )
+    DEALLOCATE( d2Hi_dxdy_b )
+    DEALLOCATE( d2Hi_dy2_b  )
 
-   !deALLOCATE( Hs_a        )
-    deALLOCATE( dHs_dx_a    )
-    deALLOCATE( dHs_dy_a    )
-    deALLOCATE( d2Hs_dx2_a  )
-    deALLOCATE( d2Hs_dxdy_a )
-    deALLOCATE( d2Hs_dy2_a  )
+    ! DEALLOCATE( Hs_a        )
+    DEALLOCATE( dHs_dx_a    )
+    DEALLOCATE( dHs_dy_a    )
+    DEALLOCATE( d2Hs_dx2_a  )
+    DEALLOCATE( d2Hs_dxdy_a )
+    DEALLOCATE( d2Hs_dy2_a  )
 
-    deALLOCATE( Hs_b        )
-    deALLOCATE( dHs_dx_b    )
-    deALLOCATE( dHs_dy_b    )
-    deALLOCATE( d2Hs_dx2_b  )
-    deALLOCATE( d2Hs_dxdy_b )
-    deALLOCATE( d2Hs_dy2_b  )
+    DEALLOCATE( Hs_b        )
+    DEALLOCATE( dHs_dx_b    )
+    DEALLOCATE( dHs_dy_b    )
+    DEALLOCATE( d2Hs_dx2_b  )
+    DEALLOCATE( d2Hs_dxdy_b )
+    DEALLOCATE( d2Hs_dy2_b  )
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE calc_zeta_gradients
 
-  ! == No-ice mask
-  ! ==============
+! == No-ice mask
+! ==============
 
-  SUBROUTINE calc_mask_noice( mesh, mask_noice)
+  SUBROUTINE calc_mask_noice( mesh, ice)
     ! Calculate the no-ice mask
 
     IMPLICIT NONE
 
     ! In/output variables:
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
-    LOGICAL,  DIMENSION(mesh%vi1:mesh%vi2), INTENT(OUT)   :: mask_noice
+    TYPE(type_ice_model),                   INTENT(INOUT) :: ice
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'calc_mask_noice'
@@ -1492,20 +1742,28 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    ! Initialise
+    ! ==========
+
+    ice%mask_noice = .FALSE.
+
+    ! Domain-specific cases (mutually exclusive)
+    ! ==========================================
+
     SELECT CASE (C%choice_mask_noice)
       CASE ('none')
         ! Ice is (in principle) allowed everywhere
 
-        mask_noice = .FALSE.
+        ice%mask_noice = .FALSE.
 
       CASE ('MISMIP_mod')
         ! Kill all ice when r > 900 km
 
         DO vi = mesh%vi1, mesh%vi2
           IF (NORM2( mesh%V( vi,:)) > 900E3_dp) THEN
-            mask_noice( vi) = .TRUE.
+            ice%mask_noice( vi) = .TRUE.
           ELSE
-            mask_noice( vi) = .FALSE.
+            ice%mask_noice( vi) = .FALSE.
           END IF
         END DO
 
@@ -1514,11 +1772,16 @@ CONTAINS
 
         DO vi = mesh%vi1, mesh%vi2
           IF (mesh%V( vi,1) > 640E3_dp) THEN
-            mask_noice( vi) = .TRUE.
+            ice%mask_noice( vi) = .TRUE.
           ELSE
-            mask_noice( vi) = .FALSE.
+            ice%mask_noice( vi) = .FALSE.
           END IF
         END DO
+
+      CASE ('remove_Ellesmere')
+        ! Prevent ice growth in the Ellesmere Island part of the Greenland domain
+
+        CALL calc_mask_noice_remove_Ellesmere( mesh, ice%mask_noice)
 
       CASE DEFAULT
         CALL crash('unknown choice_mask_noice "' // TRIM( C%choice_mask_noice) // '"')
@@ -1529,8 +1792,627 @@ CONTAINS
 
   END SUBROUTINE calc_mask_noice
 
-  ! == Trivia
-  ! =========
+  subroutine calc_mask_noice_remove_Ellesmere( mesh, mask_noice)
+    ! Prevent ice growth in the Ellesmere Island part of the Greenland domain
+
+    implicit none
+
+    ! In- and output variables
+    type(type_mesh),                        intent(in)    :: mesh
+    logical,  dimension(mesh%vi1:mesh%vi2), intent(inout) :: mask_noice
+
+    ! Local variables:
+    character(len=256), parameter                         :: routine_name = 'calc_mask_noice_remove_Ellesmere'
+    integer                                               :: vi
+    real(dp), dimension(2)                                :: pa_latlon, pb_latlon, pa, pb
+    real(dp)                                              :: xa, ya, xb, yb, yl_ab
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! The two endpoints in lat,lon
+    pa_latlon = [76.74_dp, -74.79_dp]
+    pb_latlon = [82.19_dp, -60.00_dp]
+
+    ! The two endpoints in x,y
+    call oblique_sg_projection( pa_latlon(2), pa_latlon(1), mesh%lambda_M, mesh%phi_M, mesh%beta_stereo, xa, ya)
+    call oblique_sg_projection( pb_latlon(2), pb_latlon(1), mesh%lambda_M, mesh%phi_M, mesh%beta_stereo, xb, yb)
+
+    pa = [xa,ya]
+    pb = [xb,yb]
+
+    do vi = mesh%vi1, mesh%vi2
+      yl_ab = pa(2) + (mesh%V( vi,1) - pa(1)) * (pb(2)-pa(2)) / (pb(1)-pa(1))
+      if (mesh%V( vi,2) > pa(2) .and. mesh%V( vi,2) > yl_ab .and. mesh%V( vi,1) < pb(1)) then
+        mask_noice( vi) = .true.
+      else
+        mask_noice( vi) = .false.
+      end if
+    end do
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine calc_mask_noice_remove_Ellesmere
+
+! == Ice thickness modification
+! =============================
+
+  SUBROUTINE alter_ice_thickness( mesh, ice, Hi_old, Hi_new, refgeo, time)
+    ! Modify the predicted ice thickness in some sneaky way
+
+    IMPLICIT NONE
+
+    ! In- and output variables:
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh
+    TYPE(type_ice_model),                   INTENT(IN)    :: ice
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: Hi_old
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(INOUT) :: Hi_new
+    TYPE(type_reference_geometry),          INTENT(IN)    :: refgeo
+    REAL(dp),                               INTENT(IN)    :: time
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'alter_ice_thickness'
+    INTEGER                                               :: vi
+    REAL(dp)                                              :: decay_start, decay_end
+    REAL(dp)                                              :: fixiness, limitness, fix_H_applied, limit_H_applied
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: modiness_up, modiness_down
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: Hi_save, Hi_eff_new, fraction_margin_new
+    REAL(dp)                                              :: floating_area, calving_area, mass_lost
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Save predicted ice thickness for future reference
+    Hi_save = Hi_new
+
+    ! Calculate would-be effective thickness
+    CALL calc_effective_thickness( mesh, ice, Hi_new, Hi_eff_new, fraction_margin_new)
+
+    ! == Mask conservation
+    ! ====================
+
+    ! If desired, don't let grounded ice cross the floatation threshold
+    IF (C%do_protect_grounded_mask .AND. time <= C%protect_grounded_mask_t_end) THEN
+      DO vi = mesh%vi1, mesh%vi2
+        IF (ice%mask_grounded_ice( vi)) THEN
+          Hi_new( vi) = MAX( Hi_new( vi), (ice%SL( vi) - ice%Hb( vi)) * seawater_density/ice_density + .1_dp)
+        END IF
+      END DO
+    END IF
+
+    ! General cases
+    ! =============
+
+    ! If so specified, remove very thin ice
+    DO vi = mesh%vi1, mesh%vi2
+      IF (Hi_eff_new( vi) < C%Hi_min) THEN
+        Hi_new( vi) = 0._dp
+      END IF
+    END DO
+
+    ! If so specified, remove thin floating ice
+    IF (C%choice_calving_law == 'threshold_thickness') THEN
+      DO vi = mesh%vi1, mesh%vi2
+        IF (is_floating( Hi_eff_new( vi), ice%Hb( vi), ice%SL( vi)) .AND. Hi_new( vi) < C%calving_threshold_thickness_shelf) THEN
+          Hi_new( vi) = 0._dp
+        END IF
+      END DO
+    END IF
+
+    ! DENK DROM
+    IF (C%remove_ice_absent_at_PD) THEN
+      DO vi = mesh%vi1, mesh%vi2
+        IF (refgeo%Hi( vi) == 0._dp) THEN
+          Hi_new( vi) = 0._dp
+        END IF
+      END DO
+    END IF
+
+    ! If so specified, remove all floating ice
+    IF (C%do_remove_shelves) THEN
+      DO vi = mesh%vi1, mesh%vi2
+        IF (is_floating( Hi_eff_new( vi), ice%Hb( vi), ice%SL( vi))) THEN
+          Hi_new( vi) = 0._dp
+        END IF
+      END DO
+    END IF
+
+    ! If so specified, remove all floating ice beyond the present-day calving front
+    IF (C%remove_shelves_larger_than_PD) THEN
+      DO vi = mesh%vi1, mesh%vi2
+        IF (refgeo%Hi( vi) == 0._dp .AND. refgeo%Hb( vi) < 0._dp) THEN
+          Hi_new( vi) = 0._dp
+        END IF
+      END DO
+    END IF
+
+    ! If so specified, remove all floating ice crossing the continental shelf edge
+    IF (C%continental_shelf_calving) THEN
+      DO vi = mesh%vi1, mesh%vi2
+        IF (refgeo%Hi( vi) == 0._dp .AND. refgeo%Hb( vi) < C%continental_shelf_min_height) then
+          Hi_new( vi) = 0._dp
+        END IF
+      END DO
+    END IF
+
+    ! === Fixiness ===
+    ! ================
+
+    ! Intial value
+    fixiness = 1._dp
+
+    ! Make sure that the start and end times make sense
+    decay_start = C%fixiness_t_start
+    decay_end   = C%fixiness_t_end
+
+    ! Compute decaying fixiness
+    IF (decay_start >= decay_end) THEN
+      ! Fix interval makes no sense: ignore fixiness
+      fixiness = 0._dp
+    ELSEIF (time <= decay_start) THEN
+      ! Before fix interval: check chosen option
+      IF (C%do_fixiness_before_start) THEN
+        fixiness = 1._dp
+      ELSE
+        fixiness = 0._dp
+      END IF
+    ELSEIF (time >= decay_end) THEN
+      ! After fix interval: remove any fix/delay
+      fixiness = 0._dp
+    ELSE
+      ! We're within the fix interval: fixiness decreases with time
+      fixiness = 1._dp - (time - decay_start) / (decay_end - decay_start)
+    END IF
+
+    ! Just in case
+    fixiness = MIN( 1._dp, MAX( 0._dp, fixiness))
+
+    ! === Limitness ===
+    ! =================
+
+    ! Intial value
+    limitness = 1._dp
+
+    ! Make sure that the start and end times make sense
+    decay_start = C%limitness_t_start
+    decay_end   = C%limitness_t_end
+
+    ! Compute decaying limitness
+    IF (decay_start >= decay_end) THEN
+      ! Limit interval makes no sense: ignore limitness
+      limitness = 0._dp
+    ELSEIF (time <= decay_start) THEN
+      ! Before limit interval: check chosen option
+      IF (C%do_limitness_before_start) THEN
+        limitness = 1._dp
+      ELSE
+        limitness = 0._dp
+      END IF
+    ELSEIF (time >= decay_end) THEN
+      ! After limit interval: remove any limits
+      limitness = 0._dp
+    ELSE
+      ! Limitness decreases with time
+      limitness = 1._dp - (time - decay_start) / (decay_end - decay_start)
+    END IF
+
+    ! Just in case
+    limitness = MIN( 1._dp, MAX( 0._dp, limitness))
+
+    ! === Modifier ===
+    ! ================
+
+    ! Intial value
+    modiness_up   = 0._dp
+    modiness_down = 0._dp
+
+    IF (C%modiness_H_style == 'none') THEN
+      modiness_up   = 0._dp
+      modiness_down = 0._dp
+
+    ELSEIF (C%modiness_H_style == 'Ti_hom') THEN
+      modiness_up   = 1._dp - exp(ice%Ti_hom/C%modiness_T_hom_ref)
+      modiness_down = 1._dp - exp(ice%Ti_hom/C%modiness_T_hom_ref)
+
+    ELSEIF (C%modiness_H_style == 'Ti_hom_up') THEN
+      modiness_up   = 1._dp - exp(ice%Ti_hom/C%modiness_T_hom_ref)
+      modiness_down = 0._dp
+
+    ELSEIF (C%modiness_H_style == 'Ti_hom_down') THEN
+      modiness_up   = 0._dp
+      modiness_down = 1._dp - exp(ice%Ti_hom/C%modiness_T_hom_ref)
+
+    ELSEIF (C%modiness_H_style == 'no_thick_inland') THEN
+      DO vi = mesh%vi1, mesh%vi2
+        IF (ice%mask_grounded_ice( vi) .AND. .NOT. ice%mask_gl_gr( vi)) THEN
+          modiness_up( vi) = 1._dp
+        END IF
+      END DO
+      modiness_down = 0._dp
+
+    ELSEIF (C%modiness_H_style == 'no_thin_inland') THEN
+      DO vi = mesh%vi1, mesh%vi2
+        IF (ice%mask_grounded_ice( vi) .AND. .NOT. ice%mask_gl_gr( vi)) THEN
+          modiness_down( vi) = 1._dp
+        END IF
+      END DO
+      modiness_up = 0._dp
+
+    ELSE
+      CALL crash('unknown modiness_H_choice "' // TRIM( C%modiness_H_style) // '"')
+    END IF
+
+    ! Just in case
+    modiness_up   = MIN( 1._dp, MAX( 0._dp, modiness_up  ))
+    modiness_down = MIN( 1._dp, MAX( 0._dp, modiness_down))
+
+    ! === Fix, delay, limit ===
+    ! =========================
+
+    DO vi = mesh%vi1, mesh%vi2
+
+      ! Initialise
+      fix_H_applied   = 0._dp
+      limit_H_applied = 0._dp
+
+      IF (    ice%mask_gl_gr( vi)) THEN
+        fix_H_applied   = C%fixiness_H_gl_gr * fixiness
+        limit_H_applied = C%limitness_H_gl_gr * limitness
+
+      ELSEIF (ice%mask_gl_fl( vi)) THEN
+        fix_H_applied   = C%fixiness_H_gl_fl * fixiness
+        limit_H_applied = C%limitness_H_gl_fl * limitness
+
+      ELSEIF (ice%mask_grounded_ice( vi)) THEN
+        fix_H_applied   = C%fixiness_H_grounded * fixiness
+        limit_H_applied = C%limitness_H_grounded * limitness
+
+      ELSEIF (ice%mask_floating_ice( vi)) THEN
+        fix_H_applied   = C%fixiness_H_floating * fixiness
+        limit_H_applied = C%limitness_H_floating * limitness
+
+      ELSEIF (ice%mask_icefree_land( vi)) THEN
+        IF (C%fixiness_H_freeland .AND. fixiness > 0._dp) fix_H_applied = 1._dp
+        limit_H_applied = C%limitness_H_grounded * limitness
+
+      ELSEIF (ice%mask_icefree_ocean( vi)) THEN
+        IF (C%fixiness_H_freeocean .AND. fixiness > 0._dp) fix_H_applied = 1._dp
+        limit_H_applied = C%limitness_H_floating * limitness
+      ELSE
+        ! If we reached this point, vertex is neither grounded, floating, nor ice free. That's a problem
+        CALL crash('vertex neither grounded, floating, nor ice-free?')
+      END IF
+
+      ! Apply fixiness
+      Hi_new( vi) = Hi_old( vi) * fix_H_applied + Hi_new( vi) * (1._dp - fix_H_applied)
+
+      ! Apply limitness
+      Hi_new( vi) = MIN( Hi_new( vi), refgeo%Hi( vi) + (1._dp - modiness_up(   vi)) * limit_H_applied &
+                                                     + (1._dp - limitness         ) * (Hi_new( vi) - refgeo%Hi( vi)) )
+
+      Hi_new( vi) = MAX( Hi_new( vi), refgeo%Hi( vi) - (1._dp - modiness_down( vi)) * limit_H_applied &
+                                                     - (1._dp - limitness         ) * (refgeo%Hi( vi) - Hi_new( vi)) )
+
+    END DO
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE alter_ice_thickness
+
+  SUBROUTINE MB_inversion( mesh, ice, refgeo, SMB, BMB, LMB, AMB, dHi_dt_predicted, Hi_predicted, dt, time, region_name)
+    ! Calculate the basal mass balance
+    !
+    ! Use an inversion based on the computed dHi_dt
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh
+    TYPE(type_ice_model),                   INTENT(IN)    :: ice
+    TYPE(type_reference_geometry),          INTENT(IN)    :: refgeo
+    TYPE(type_SMB_model),                   INTENT(INOUT) :: SMB
+    TYPE(type_BMB_model),                   INTENT(INOUT) :: BMB
+    TYPE(type_LMB_model),                   INTENT(INOUT) :: LMB
+    TYPE(type_AMB_model),                   INTENT(INOUT) :: AMB
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(INOUT) :: dHi_dt_predicted
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(INOUT) :: Hi_predicted
+    REAL(dp),                               INTENT(IN)    :: dt
+    REAL(dp),                               INTENT(IN)    :: time
+    CHARACTER(LEN=3)                                      :: region_name
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'MB_inversion'
+    INTEGER                                               :: vi
+    LOGICAL                                               :: do_BMB_inversion, do_LMB_inversion, do_SMB_inversion, do_SMB_absorb
+    INTEGER,  DIMENSION(mesh%vi1:mesh%vi2)                :: mask
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: previous_field
+    REAL(dp)                                              :: value_change
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE               :: poly_ROI
+    REAL(dp), DIMENSION(2)                                :: p
+
+    ! == Initialisation
+    ! =================
+
+    IF (C%choice_regions_of_interest == 'Patagonia') THEN
+      ! Compute polygon for reconstruction
+      CALL calc_polygon_Patagonia( poly_ROI)
+    ELSE
+      ! Create a dummy polygon
+      ALLOCATE( poly_ROI(1,2))
+      poly_ROI(1,1) = 0._dp
+      poly_ROI(1,2) = 0._dp
+    END IF
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    do_BMB_inversion = .FALSE.
+    do_LMB_inversion = .FALSE.
+    do_SMB_inversion = .FALSE.
+    do_SMB_absorb    = .FALSE.
+
+    ! Check whether we want a BMB inversion
+    IF (C%do_BMB_inversion .AND. &
+        time >= C%BMB_inversion_t_start .AND. &
+        time <= C%BMB_inversion_t_end) THEN
+      do_BMB_inversion = .TRUE.
+    END IF
+
+    ! Check whether we want a LMB inversion
+    IF (C%do_LMB_inversion .AND. &
+        time >= C%LMB_inversion_t_start .AND. &
+        time <= C%LMB_inversion_t_end) THEN
+      do_LMB_inversion = .TRUE.
+    END IF
+
+    IF (C%do_SMB_removal_icefree_land) THEN
+      do_SMB_inversion = .TRUE.
+    END IF
+
+    ! Check whether we want a SMB adjustment
+    IF (C%do_SMB_residual_absorb .AND. &
+        time >= C%SMB_residual_absorb_t_start .AND. &
+        time <= C%SMB_residual_absorb_t_end) THEN
+      do_SMB_absorb = .TRUE.
+    END IF
+
+    ! == BMB: first pass
+    ! ==================
+
+    ! Store previous values
+    previous_field = BMB%BMB_inv
+
+    ! Initialise extrapolation mask
+    mask = 0
+
+    DO vi = mesh%vi1, mesh%vi2
+
+      ! Get x and y coordinates of this vertex
+      p = mesh%V( vi,:)
+
+      ! Skip vertices within reconstruction polygon
+      IF (is_in_polygon(poly_ROI, p)) CYCLE
+
+      ! Skip if not desired
+      IF (.NOT. do_BMB_inversion) CYCLE
+
+      ! Floating calving fronts
+      IF (ice%mask_cf_fl( vi)) THEN
+
+        ! Just mark for eventual extrapolation
+        mask( vi) = 1
+
+      ELSEIF (ice%mask_floating_ice( vi)) THEN
+
+        ! Basal melt will account for all change here
+        BMB%BMB_inv( vi) = BMB%BMB( vi) - dHi_dt_predicted( vi)
+
+        ! Adjust rate of ice thickness change dHi/dt to compensate the change
+        dHi_dt_predicted( vi) = 0._dp
+
+        ! Adjust corrected ice thickness to compensate the change
+        Hi_predicted( vi) = ice%Hi_prev( vi)
+
+        ! Use this vertex as seed during extrapolation
+        mask( vi) = 2
+
+      ELSEIF (ice%mask_gl_gr( vi)) THEN
+
+        ! For grounding lines, BMB accounts for melt
+        IF (dHi_dt_predicted( vi) >= 0._dp) THEN
+
+          ! Basal melt will account for all change here
+          BMB%BMB_inv( vi) = BMB%BMB( vi) - dHi_dt_predicted( vi)
+          ! Adjust rate of ice thickness change dHi/dt to compensate the change
+          dHi_dt_predicted( vi) = 0._dp
+          ! Adjust corrected ice thickness to compensate the change
+          Hi_predicted( vi) = ice%Hi_prev( vi)
+
+        ELSE
+          ! Remove basal melt, but do not add refreezing
+          BMB%BMB_inv( vi) = 0._dp
+        END IF
+
+        ! Ignore this vertex during extrapolation
+        mask( vi) = 0
+
+      ELSE
+        ! Not a place where basal melt operates
+        BMB%BMB_inv( vi) = 0._dp
+        ! Ignore this vertex during extrapolation
+        mask( vi) = 0
+      END IF
+
+    END DO
+
+    ! == Extrapolate into calving fronts
+    ! ==================================
+
+    ! Perform the extrapolation - mask: 2 -> use as seed; 1 -> extrapolate; 0 -> ignore
+    CALL extrapolate_Gaussian( mesh, mask, BMB%BMB_inv, 16000._dp)
+
+    DO vi = mesh%vi1, mesh%vi2
+      IF (ice%mask_cf_fl( vi)) THEN
+
+        ! Get x and y coordinates of this vertex
+        p = mesh%V( vi,:)
+
+        ! Skip vertices within reconstruction polygon
+        IF (is_in_polygon(poly_ROI, p)) CYCLE
+
+        ! Skip if not desired
+        IF (.NOT. do_BMB_inversion) CYCLE
+
+        ! Compute change after extrapolation
+        value_change = BMB%BMB_inv( vi) - previous_field( vi)
+
+        ! Adjust rate of ice thickness change dHi/dt to compensate the change
+        dHi_dt_predicted( vi) = dHi_dt_predicted( vi) + value_change
+
+        ! Adjust new ice thickness to compensate the change
+        Hi_predicted( vi) = ice%Hi_prev( vi) + dHi_dt_predicted( vi) * dt
+
+      END IF
+    END DO
+
+    ! == LMB: remaining positive dHi_dt
+    ! =================================
+
+    DO vi = mesh%vi1, mesh%vi2
+
+      ! Get x and y coordinates of this vertex
+      p = mesh%V( vi,:)
+
+      ! Skip vertices within reconstruction polygon
+      IF (is_in_polygon(poly_ROI, p)) CYCLE
+
+      ! Skip if not desired
+      IF (.NOT. do_LMB_inversion) CYCLE
+
+      ! For these areas, use dHi_dt to get an "inversion" of equilibrium LMB.
+      IF (ice%mask_cf_fl( vi) .OR. ice%mask_cf_gr( vi) .OR. ice%mask_icefree_ocean( vi)) THEN
+
+        IF (dHi_dt_predicted( vi) >= 0._dp .AND. ice%fraction_margin( vi) < 1._dp) THEN
+
+          ! Assume that calving accounts for all remaining mass loss here (after first BMB pass)
+          LMB%LMB_inv( vi) = LMB%LMB( vi) - dHi_dt_predicted( vi)
+          ! Adjust rate of ice thickness change dHi/dt to compensate the change
+          dHi_dt_predicted( vi) = 0._dp
+          ! Adjust corrected ice thickness to compensate the change
+          Hi_predicted( vi) = ice%Hi_prev( vi)
+
+        ELSE
+          ! Remove lateral melt, but do not add mass
+          LMB%LMB_inv( vi) = 0._dp
+        END IF
+
+      ELSE
+        ! Not a place where lateral melt operates
+        LMB%LMB_inv( vi) = 0._dp
+      END IF
+
+    END DO ! vi = mesh%vi1, mesh%vi2
+
+    ! ! == BMB: final pass
+    ! ! ==================
+
+    ! DO vi = mesh%vi1, mesh%vi2
+    !   IF (ice%mask_cf_fl( vi)) THEN
+
+    !     ! Get x and y coordinates of this vertex
+    !     p = mesh%V( vi,:)
+
+    !     ! Skip vertices within reconstruction polygon
+    !     IF (is_in_polygon(poly_ROI, p)) CYCLE
+
+    !     ! Skip if not desired
+    !     IF (.NOT. do_BMB_inversion) CYCLE
+
+    !     ! BMB will absorb all remaining change after calving did its thing
+    !     BMB%BMB( vi) = BMB%BMB( vi) - dHi_dt_predicted( vi)
+
+    !     ! Adjust rate of ice thickness change dHi/dt to compensate the change
+    !     dHi_dt_predicted( vi) = 0._dp
+
+    !     ! Adjust corrected ice thickness to compensate the change
+    !     Hi_predicted( vi) = ice%Hi_prev( vi)
+
+    !   END IF
+    ! END DO
+
+    ! == SMB: reference ice-free land areas
+    ! =====================================
+
+    ! Store pre-adjustment values
+    previous_field = SMB%SMB
+
+    DO vi = mesh%vi1, mesh%vi2
+
+      ! Get x and y coordinates of this vertex
+      p = mesh%V( vi,:)
+
+      ! Skip vertices within reconstruction polygon
+      IF (is_in_polygon(poly_ROI, p)) CYCLE
+
+      ! Skip if not desired
+      IF (.NOT. do_SMB_inversion) CYCLE
+
+      ! Skip other areas
+      IF (refgeo%Hb( vi) < refgeo%SL( vi) .OR. refgeo%Hi( vi) > 0._dp) CYCLE
+
+      ! For reference ice-free land, use dHi_dt to get an "inversion" of equilibrium SMB.
+      SMB%SMB( vi) = MIN( 0._dp, ice%divQ( vi))
+
+      ! Adjust rate of ice thickness change dHi/dt to compensate the change
+      dHi_dt_predicted( vi) = 0._dp
+
+      ! Adjust corrected ice thickness to compensate the change
+      Hi_predicted( vi) = ice%Hi_prev( vi)
+
+    END DO
+
+    ! == SMB: absorb remaining change
+    ! ===============================
+
+    ! Store pre-adjustment values
+    previous_field = SMB%SMB
+
+    DO vi = mesh%vi1, mesh%vi2
+
+      ! Get x and y coordinates of this vertex
+      p = mesh%V( vi,:)
+
+      ! Skip vertices within reconstruction polygon
+      IF (is_in_polygon(poly_ROI, p)) CYCLE
+
+      IF (.NOT. do_SMB_absorb) CYCLE
+
+      ! For grounded ice, use dHi_dt to get an "inversion" of equilibrium SMB.
+      SMB%SMB( vi) = SMB%SMB( vi) - dHi_dt_predicted( vi)
+
+      ! Adjust rate of ice thickness change dHi/dt to compensate the change
+      dHi_dt_predicted( vi) = 0._dp
+
+      ! Adjust corrected ice thickness to compensate the change
+      Hi_predicted( vi) = ice%Hi_prev( vi)
+
+    END DO
+
+    ! == Assign main fields
+    ! =====================
+
+    ! Clean up after yourself
+    DEALLOCATE( poly_ROI)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE MB_inversion
+
+! == Trivia
+! =========
 
   SUBROUTINE MISMIPplus_adapt_flow_factor( mesh, ice)
     ! Automatically adapt the uniform flow factor A to achieve a steady-state mid-stream grounding-line position at x = 450 km in the MISMIP+ experiment
@@ -1580,5 +2462,113 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE MISMIPplus_adapt_flow_factor
+
+! == Target dHi_dt initialisation
+! ===============================
+
+  SUBROUTINE initialise_dHi_dt_target( mesh, ice, region_name)
+    ! Prescribe a target dHi_dt from a file without a time dimension
+
+    IMPLICIT NONE
+
+    ! In- and output variables
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh
+    TYPE(type_ice_model),                   INTENT(INOUT) :: ice
+    CHARACTER(LEN=3),                       INTENT(IN)    :: region_name
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'initialise_dHi_dt_target'
+    CHARACTER(LEN=256)                                    :: filename_dHi_dt_target
+    REAL(dp)                                              :: timeframe_dHi_dt_target
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Determine filename for this model region
+    SELECT CASE (region_name)
+      CASE ('NAM')
+        filename_dHi_dt_target  = C%filename_dHi_dt_target_NAM
+        timeframe_dHi_dt_target = C%timeframe_dHi_dt_target_NAM
+      CASE ('EAS')
+        filename_dHi_dt_target  = C%filename_dHi_dt_target_EAS
+        timeframe_dHi_dt_target = C%timeframe_dHi_dt_target_EAS
+      CASE ('GRL')
+        filename_dHi_dt_target  = C%filename_dHi_dt_target_GRL
+        timeframe_dHi_dt_target = C%timeframe_dHi_dt_target_GRL
+      CASE ('ANT')
+        filename_dHi_dt_target  = C%filename_dHi_dt_target_ANT
+        timeframe_dHi_dt_target = C%timeframe_dHi_dt_target_ANT
+      CASE DEFAULT
+        CALL crash('unknown region_name "' // TRIM( region_name) // '"!')
+    END SELECT
+
+    ! Print to terminal
+    IF (par%master)  WRITE(*,"(A)") '     Initialising target ice rates of change from file "' // colour_string( TRIM( filename_dHi_dt_target),'light blue') // '"...'
+
+    ! Read dHi_dt from file
+    IF (timeframe_dHi_dt_target == 1E9_dp) THEN
+      ! Assume the file has no time dimension
+      CALL read_field_from_file_2D( filename_dHi_dt_target, 'dHdt||dHi_dt', mesh, ice%dHi_dt_target)
+    ELSE
+      ! Assume the file has a time dimension, and read the specified timeframe
+      CALL read_field_from_file_2D( filename_dHi_dt_target, 'dHdt||dHi_dt', mesh, ice%dHi_dt_target, time_to_read = timeframe_dHi_dt_target)
+    END IF
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE initialise_dHi_dt_target
+
+! == Target uabs_surf initialisation
+! ==================================
+
+  SUBROUTINE initialise_uabs_surf_target( mesh, ice, region_name)
+    ! Initialise surface ice velocity data from an external NetCDF file
+
+    IMPLICIT NONE
+
+    ! Input variables:
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
+    TYPE(type_ice_model),                INTENT(INOUT) :: ice
+    CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_uabs_surf_target'
+    CHARACTER(LEN=256)                                 :: filename_uabs_surf_target
+    REAL(dp)                                           :: timeframe_uabs_surf_target
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Determine filename and timeframe for this model region
+    IF     (region_name == 'NAM') THEN
+      filename_uabs_surf_target  = C%filename_uabs_surf_target_NAM
+      timeframe_uabs_surf_target = C%timeframe_uabs_surf_target_NAM
+    ELSEIF (region_name == 'EAS') THEN
+      filename_uabs_surf_target  = C%filename_uabs_surf_target_EAS
+      timeframe_uabs_surf_target = C%timeframe_uabs_surf_target_EAS
+    ELSEIF (region_name == 'GRL') THEN
+      filename_uabs_surf_target  = C%filename_uabs_surf_target_GRL
+      timeframe_uabs_surf_target = C%timeframe_uabs_surf_target_GRL
+    ELSEIF (region_name == 'ANT') THEN
+      filename_uabs_surf_target  = C%filename_uabs_surf_target_ANT
+      timeframe_uabs_surf_target = C%timeframe_uabs_surf_target_ANT
+    ELSE
+      CALL crash('unknown region_name "' // TRIM( region_name) // '"!')
+    END IF
+
+    ! Print to terminal
+    IF (par%master)  WRITE(*,"(A)") '     Initialising target surface ice speed from file "' // colour_string( TRIM( filename_uabs_surf_target),'light blue') // '"...'
+
+    IF (timeframe_uabs_surf_target == 1E9_dp) THEN
+      CALL read_field_from_file_2D( filename_uabs_surf_target, 'uabs_surf', mesh, ice%uabs_surf_target)
+    ELSE
+      CALL read_field_from_file_2D( filename_uabs_surf_target, 'uabs_surf', mesh, ice%uabs_surf_target, timeframe_uabs_surf_target)
+    END IF
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE initialise_uabs_surf_target
 
 END MODULE ice_model_utilities

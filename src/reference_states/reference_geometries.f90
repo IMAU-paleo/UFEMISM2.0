@@ -12,7 +12,7 @@ MODULE reference_geometries
   USE petscksp
   USE mpi
   USE precisions                                             , ONLY: dp
-  USE mpi_basic                                              , ONLY: par, cerr, ierr, MPI_status, sync
+  USE mpi_basic                                              , ONLY: par, cerr, ierr, recv_status, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
   USE netcdf_debug                                           , ONLY: write_PETSc_matrix_to_NetCDF, write_CSR_matrix_to_NetCDF, &
@@ -22,8 +22,8 @@ MODULE reference_geometries
   USE parameters
   USE reference_geometry_types                               , ONLY: type_reference_geometry
   USE mesh_types                                             , ONLY: type_mesh
-  USE grid_basic                                             , ONLY: type_grid, setup_square_grid, distribute_gridded_data_from_master_dp_2D
-  USE math_utilities                                         , ONLY: ice_surface_elevation
+  USE grid_basic                                             , ONLY: type_grid, setup_square_grid, distribute_gridded_data_from_master_dp_2D, smooth_Gaussian_2D_grid
+  USE math_utilities                                         , ONLY: ice_surface_elevation, oblique_sg_projection, is_floating
   USE analytical_solutions                                   , ONLY: Halfar_dome, Bueler_dome
   USE netcdf_basic                                           , ONLY: inquire_xy_grid, inquire_lonlat_grid, inquire_mesh, open_existing_netcdf_file_for_reading, &
                                                                      inquire_var_multopt, close_netcdf_file
@@ -60,7 +60,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Print to terminal
-    IF (par%master) WRITE(0,'(A)') '    Mapping reference geometries to model mesh...'
+    IF (par%master) WRITE(0,'(A)') '     Mapping reference geometries to model mesh...'
 
     ! == Initial geometry
     ! ===================
@@ -562,7 +562,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Print to screen
-    IF (par%master) WRITE(0,'(A)') '  Initialising ' // TRIM( refgeo_name) // ' geometry for model region ' // &
+    IF (par%master) WRITE(0,'(A)') '   Initialising ' // TRIM( refgeo_name) // ' geometry for model region ' // &
       colour_string( region_name,'light blue') // ' from file "' // colour_string( TRIM( filename_refgeo),'light blue') // '"...'
 
 
@@ -661,12 +661,25 @@ CONTAINS
 
     END IF !  IF (timeframe_refgeo /= 1E9_dp) THEN
 
-  ! == Input data clean-up
-  ! ======================
+    ! == Input data clean-up
+    ! ======================
 
-    ! If so specified, remove Lake Vostok from Antarctic geometry
+    ! If so desired, smooth the bedrock geometry
+    CALL smooth_model_geometry( refgeo)
+
+    ! If so specified, remove Lake Vostok from the Antarctic geometry
     IF (region_name == 'ANT' .AND. C%remove_Lake_Vostok) THEN
       CALL remove_Lake_Vostok( refgeo)
+    END IF
+
+    ! If so specified, remove Ellesmere Island from the Greenland geometry
+    IF (region_name == 'GRL' .AND. C%choice_mask_noice == 'remove_Ellesmere') THEN
+      CALL remove_Ellesmere( refgeo)
+    END IF
+
+    ! Remove a few islands from the Antarctic geometry
+    IF (region_name == 'ANT' .AND. C%choice_refgeo_PD_ANT /= 'idealised') THEN
+      CALL remove_tiny_islands( refgeo)
     END IF
 
     ! Remove extremely thin ice (especially a problem in BedMachine Greenland)
@@ -836,6 +849,10 @@ CONTAINS
     ELSEIF (choice_refgeo_idealised == 'MISMIP+' .OR. &
             choice_refgeo_idealised == 'MISMIPplus') THEN
       CALL calc_idealised_geometry_MISMIPplus( x, y, Hi, Hb, Hs, SL)
+    ELSEIF (choice_refgeo_idealised == 'calvmip_circular') THEN
+      CALL calc_idealised_geometry_CalvMIP_circular( x, y, Hi, Hb, Hs, SL)
+    ELSEIF (choice_refgeo_idealised == 'calvmip_Thule') THEN
+      CALL calc_idealised_geometry_CalvMIP_Thule( x, y, Hi, Hb, Hs, SL)
     ELSE
       CALL crash('unknown choice_refgeo_idealised "' // TRIM( choice_refgeo_idealised) // '"!')
     END IF
@@ -1321,8 +1338,149 @@ CONTAINS
 
   END SUBROUTINE calc_idealised_geometry_MISMIPplus
 
+  SUBROUTINE calc_idealised_geometry_CalvMIP_circular( x, y, Hi, Hb, Hs, SL)
+    ! Calculate an idealised geometry
+    !
+    ! The MISMIpplus fjord geometry
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    REAL(dp),                       INTENT(IN)    :: x,y             ! [m] Coordinates
+    REAL(dp),                       INTENT(OUT)   :: Hi              ! [m] Ice thickness
+    REAL(dp),                       INTENT(OUT)   :: Hb              ! [m] Bedrock elevation
+    REAL(dp),                       INTENT(OUT)   :: Hs              ! [m] Surface elevation
+    REAL(dp),                       INTENT(OUT)   :: SL              ! [m] Sea level
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'calc_idealised_geometry_CalvMIP_circular'
+    REAL(dp), PARAMETER                           :: R  = 800E3_dp
+    REAL(dp), PARAMETER                           :: Bc = 900._dp
+    REAL(dp), PARAMETER                           :: Bl = -2000._dp
+    REAL(dp), PARAMETER                           :: Ba = 1100._dp
+    REAL(dp), PARAMETER                           :: rc = 0._dp
+    REAL(dp)                                      :: radius, theta
+
+    ! Add routine to path
+    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+
+    radius = SQRT(x**2 + y**2)
+    theta  = ATAN2(y,x);
+
+    Hi = 0._dp
+    Hb = Bc - (Bc-Bl)*(radius-rc)**2 / (R-rc)**2
+    SL = 0._dp
+    Hs = ice_surface_elevation( Hi, Hb, SL)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE calc_idealised_geometry_CalvMIP_circular
+
+  SUBROUTINE calc_idealised_geometry_CalvMIP_Thule( x, y, Hi, Hb, Hs, SL)
+    ! Calculate an idealised geometry
+    !
+    ! The MISMIpplus fjord geometry
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    REAL(dp),                       INTENT(IN)    :: x,y             ! [m] Coordinates
+    REAL(dp),                       INTENT(OUT)   :: Hi              ! [m] Ice thickness
+    REAL(dp),                       INTENT(OUT)   :: Hb              ! [m] Bedrock elevation
+    REAL(dp),                       INTENT(OUT)   :: Hs              ! [m] Surface elevation
+    REAL(dp),                       INTENT(OUT)   :: SL              ! [m] Sea level
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'calc_idealised_geometry_CalvMIP_Thule'
+    REAL(dp), PARAMETER                           :: R  = 800E3_dp
+    REAL(dp), PARAMETER                           :: Bc = 900._dp
+    REAL(dp), PARAMETER                           :: Bl = -2000._dp
+    REAL(dp), PARAMETER                           :: Ba = 1100._dp
+    REAL(dp), PARAMETER                           :: rc = 0._dp
+    REAL(dp)                                      :: radius, theta, l, a
+
+    ! Add routine to path
+    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+
+    radius = SQRT(x**2 + y**2)
+    theta  = ATAN2(y,x);
+    l = R - COS( 2._dp * theta) * R / 2._dp
+    a = Bc - (Bc-Bl)*(radius-rc)**2 / (R-rc)**2
+
+    Hi = 0._dp
+    Hb = Ba * COS( 3._dp * pi * radius / l) + a
+    SL = 0._dp
+    Hs = ice_surface_elevation( Hi, Hb, SL)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE calc_idealised_geometry_CalvMIP_Thule
+
   ! Utilities
   ! =========
+
+  SUBROUTINE smooth_model_geometry( refgeo)
+    ! Apply some light smoothing to the initial geometry to improve numerical stability
+
+    IMPLICIT NONE
+
+    ! Input variables:
+    TYPE(type_reference_geometry), INTENT(INOUT)               :: refgeo
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                              :: routine_name = 'smooth_model_geometry'
+    INTEGER                                                    :: n
+    REAL(dp), DIMENSION(refgeo%grid_raw%n1:refgeo%grid_raw%n2) :: Hb_old
+    REAL(dp)                                                   :: r_smooth, dHb
+    LOGICAL                                                    :: is_grounded
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    IF (.NOT. C%do_smooth_geometry .OR. C%r_smooth_geometry == 0._dp) THEN
+      ! Finalise routine path
+      CALL finalise_routine( routine_name)
+      ! Exit routine
+      RETURN
+    END IF
+
+    ! Store the unsmoothed bed topography so we can determine the smoothing anomaly later
+    Hb_old = refgeo%Hb_grid_raw
+
+    ! Geometry smoothing radius (in m)
+    r_smooth = refgeo%grid_raw%dx * C%r_smooth_geometry
+
+    ! Apply smoothing to the bed topography
+    CALL smooth_Gaussian_2D_grid( refgeo%grid_raw, refgeo%Hb_grid_raw, r_smooth)
+
+    ! Correct smoothed geometry if necessary
+    DO n = refgeo%grid_raw%n1, refgeo%grid_raw%n2
+
+      ! Calculate the smoothing anomaly
+      dHb = refgeo%Hb_grid_raw( n) - Hb_old( n)
+
+      is_grounded = .NOT. is_floating( refgeo%Hi_grid_raw( n), refgeo%Hb_grid_raw( n), refgeo%SL_grid_raw( n))
+
+      IF (is_grounded .AND. refgeo%Hi_grid_raw( n) > 0._dp) THEN
+
+        ! Correct the ice thickness so the ice surface remains unchanged (only relevant for grounded ice)
+        refgeo%Hi_grid_raw( n) = refgeo%Hi_grid_raw( n) - dHb
+
+        ! Don't allow negative ice thickness
+        refgeo%Hi_grid_raw( n) = MAX( 0._dp, refgeo%Hi_grid_raw( n))
+
+      END IF
+
+      ! Correct the surface elevation if necessary
+      refgeo%Hs_grid_raw( n) = refgeo%Hi_grid_raw( n) + MAX( refgeo%SL_grid_raw( n) - ice_density / seawater_density * refgeo%Hi_grid_raw( n), refgeo%Hb_grid_raw( n))
+
+    END DO
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE smooth_model_geometry
 
   SUBROUTINE remove_Lake_Vostok( refgeo)
     ! Remove Lake Vostok from Antarctic input geometry data
@@ -1374,5 +1532,130 @@ CONTAINS
     END DO
 
   END SUBROUTINE remove_Lake_Vostok
+
+  subroutine remove_Ellesmere( refgeo)
+    ! Remove ice from the Ellesmere Island, which shows up in the Greenland domain
+
+    implicit none
+
+    ! In- and output variables
+    type(type_reference_geometry), intent(inout) :: refgeo
+
+    ! Local variables:
+    character(LEN=256), parameter                :: routine_name = 'remove_Ellesmere'
+    integer                                      :: i,j,n
+    real(dp), dimension(2)                       :: pa_latlon, pb_latlon
+    real(dp)                                     :: xa,ya,xb,yb
+    real(dp), dimension(2)                       :: pa, pb
+    real(dp)                                     :: yl_ab
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! The two endpoints in lat,lon
+    pa_latlon = [76.74_dp, -74.79_dp]
+    pb_latlon = [82.19_dp, -60.00_dp]
+
+    ! The two endpoints in x,y
+    ! DENK DROM : this assumes that GRL input data use the standard projection. Had to do
+    ! this since the projection parameters are not currently read in when loading the data.
+    call oblique_sg_projection( pa_latlon(2), pa_latlon(1), C%lambda_M_GRL, C%phi_M_GRL, C%beta_stereo_GRL, xa, ya)
+    call oblique_sg_projection( pb_latlon(2), pb_latlon(1), C%lambda_M_GRL, C%phi_M_GRL, C%beta_stereo_GRL, xb, yb)
+
+    pa = [xa,ya]
+    pb = [xb,yb]
+
+    do n = refgeo%grid_raw%n1, refgeo%grid_raw%n2
+      i = refgeo%grid_raw%n2ij( n,1)
+      j = refgeo%grid_raw%n2ij( n,2)
+
+      ! Draw a line that separates Ellesmere from Greenland
+      yl_ab = pa(2) + (refgeo%grid_raw%x(i) - pa(1))*(pb(2)-pa(2))/(pb(1)-pa(1))
+
+      ! If grid cell is above the line, remove ice from it and
+      ! actually sink the damn thing so it does not show up in
+      ! the mesh when using a high-res based on coastlines.
+      if (refgeo%grid_raw%y(j) > pa(2) .and. refgeo%grid_raw%y(j) > yl_ab .and. refgeo%grid_raw%x(i) < pb(1)) then
+        refgeo%Hi_grid_raw( n) = 0._dp
+        refgeo%Hb_grid_raw( n) = min( refgeo%Hb_grid_raw( n), -.1_dp)
+        refgeo%Hs_grid_raw( n) = 0._dp
+      end if
+
+    end do
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine remove_Ellesmere
+
+  subroutine remove_tiny_islands( refgeo)
+    ! Remove tiny islands from the Antarctic domain, so they do not
+    ! cause unnecessary vertices there during mesh creation.
+
+    implicit none
+
+    ! In- and output variables
+    type(type_reference_geometry), intent(inout) :: refgeo
+
+    ! Local variables:
+    character(LEN=256), parameter                :: routine_name = 'remove_tiny_islands'
+    integer                                      :: i,j,n
+    real(dp)                                     :: x1, x2, y1, y2
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Near tip of the peninsula
+    ! =========================
+
+    x1 = -2.5819e6_dp
+    x2 = -2.0156e6_dp
+    y1 = +2.1377e6_dp
+    y2 = +2.5708e6_dp
+
+    do n = refgeo%grid_raw%n1, refgeo%grid_raw%n2
+      i = refgeo%grid_raw%n2ij( n,1)
+      j = refgeo%grid_raw%n2ij( n,2)
+
+      ! If grid cell is within the lines, remove ice from it and
+      ! actually sink the damn thing so it does not show up in
+      ! the mesh when using high-res.
+      if (refgeo%grid_raw%x(i) >=  min( x1,x2) .and. refgeo%grid_raw%x(i) <=  max( x1,x2) .and. &
+          refgeo%grid_raw%y(j) >=  min( y1,y2) .and. refgeo%grid_raw%y(j) <=  max( y1,y2)) then
+        refgeo%Hi_grid_raw( n) = 0._dp
+        refgeo%Hb_grid_raw( n) = min( refgeo%Hb_grid_raw( n), -.1_dp)
+        refgeo%Hs_grid_raw( n) = 0._dp
+      end if
+
+    end do
+
+    ! The other ones
+    ! ==============
+
+    x1 = +0.4942e6_dp
+    x2 = +0.9384e6_dp
+    y1 = -2.6485e6_dp
+    y2 = -2.2932e6_dp
+
+    do n = refgeo%grid_raw%n1, refgeo%grid_raw%n2
+      i = refgeo%grid_raw%n2ij( n,1)
+      j = refgeo%grid_raw%n2ij( n,2)
+
+      ! If grid cell is within the lines, remove ice from it and
+      ! actually sink the damn thing so it does not show up in
+      ! the mesh when using high-res.
+      if (refgeo%grid_raw%x(i) >=  min( x1,x2) .and. refgeo%grid_raw%x(i) <=  max( x1,x2) .and. &
+          refgeo%grid_raw%y(j) >=  min( y1,y2) .and. refgeo%grid_raw%y(j) <=  max( y1,y2)) then
+        refgeo%Hi_grid_raw( n) = 0._dp
+        refgeo%Hb_grid_raw( n) = min( refgeo%Hb_grid_raw( n), -.1_dp)
+        refgeo%Hs_grid_raw( n) = 0._dp
+      end if
+
+    end do
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine remove_tiny_islands
 
 END MODULE reference_geometries

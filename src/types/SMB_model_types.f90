@@ -19,6 +19,7 @@ MODULE SMB_model_types
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: SMB                         ! [m.i.e./yr] Surface mass balance
 
     ! Sub-models
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: SMB_correction              ! [m.i.e./yr] Surface mass balance
 
     ! Timestepping
     REAL(dp)                                :: t_next

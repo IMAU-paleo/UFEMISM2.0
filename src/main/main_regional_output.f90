@@ -13,7 +13,7 @@ MODULE main_regional_output
   USE grid_basic                                             , ONLY: type_grid
   USE region_types                                           , ONLY: type_model_region
   USE netcdf_basic                                           , ONLY: create_new_netcdf_file_for_writing, open_existing_netcdf_file_for_writing, close_netcdf_file
-  USE netcdf_output                                          , ONLY: generate_filename_XXXXXdotnc, setup_mesh_in_netcdf_file, setup_xy_grid_in_netcdf_file, &
+  USE netcdf_output                                          , ONLY: generate_filename_XXXXXdotnc, setup_mesh_in_netcdf_file, setup_xy_grid_in_netcdf_file, setup_CDF_in_netcdf_file, &
                                                                      add_time_dimension_to_file, add_zeta_dimension_to_file, add_month_dimension_to_file, &
                                                                      write_time_to_file, &
                                                                      add_field_mesh_int_2D, add_field_mesh_int_2D_notime, &
@@ -25,6 +25,7 @@ MODULE main_regional_output
                                                                      add_field_grid_dp_2D, add_field_grid_dp_2D_notime, &
                                                                      add_field_grid_dp_3D, add_field_grid_dp_3D_notime, &
                                                                      add_field_grid_dp_2D_monthly, add_field_grid_dp_2D_monthly_notime, &
+                                                                     add_field_dp_0D, &
                                                                      write_to_field_multopt_mesh_int_2D, write_to_field_multopt_mesh_int_2D_notime, &
                                                                      write_to_field_multopt_mesh_dp_2D, write_to_field_multopt_mesh_dp_2D_notime, &
                                                                      write_to_field_multopt_mesh_dp_2D_monthly, write_to_field_multopt_mesh_dp_2D_monthly_notime, &
@@ -33,7 +34,8 @@ MODULE main_regional_output
                                                                      write_to_field_multopt_mesh_dp_3D_b, write_to_field_multopt_mesh_dp_3D_b_notime, &
                                                                      write_to_field_multopt_grid_dp_2D, write_to_field_multopt_grid_dp_2D_notime, &
                                                                      write_to_field_multopt_grid_dp_2D_monthly, write_to_field_multopt_grid_dp_2D_monthly_notime, &
-                                                                     write_to_field_multopt_grid_dp_3D, write_to_field_multopt_grid_dp_3D_notime
+                                                                     write_to_field_multopt_grid_dp_3D, write_to_field_multopt_grid_dp_3D_notime, &
+                                                                     write_to_field_multopt_dp_0D
   USE mesh_remapping                                         , ONLY: map_from_mesh_to_xy_grid_2D, map_from_mesh_to_xy_grid_3D, map_from_mesh_to_xy_grid_2D_minval
 
   IMPLICIT NONE
@@ -433,6 +435,10 @@ CONTAINS
         CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'SL', region%ice%SL)
       CASE ('TAF')
         CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'TAF', region%ice%TAF)
+      CASE ('Hi_eff')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'Hi_eff', region%ice%Hi_eff)
+      CASE ('Hs_slope')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'Hs_slope', region%ice%Hs_slope)
 
     ! ===== Geometry changes w.r.t. reference =====
     ! =============================================
@@ -457,6 +463,18 @@ CONTAINS
         CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'dHs_dt', region%ice%dHs_dt)
       CASE ('dHib_dt')
         CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'dHib_dt', region%ice%dHib_dt)
+      CASE ('dHi_dt_raw')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'dHi_dt_raw', region%ice%dHi_dt_raw)
+      CASE ('dHi_dt_residual')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'dHi_dt_residual', region%ice%dHi_dt_residual)
+
+    ! ===== Target quantities =====
+    ! =============================
+
+      CASE ('dHi_dt_target')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'dHi_dt_target', region%ice%dHi_dt_target)
+      CASE ('uabs_surf_target')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'uabs_surf_target', region%ice%uabs_surf_target)
 
     ! ===== Masks =====
     ! =================
@@ -543,8 +561,8 @@ CONTAINS
         CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'fraction_gr', region%ice%fraction_gr)
       CASE ('fraction_gr_b')
         CALL write_to_field_multopt_mesh_dp_2D_b( region%mesh, filename, ncid, 'fraction_gr_b', region%ice%fraction_gr_b)
-      CASE ('fraction_cf')
-        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'fraction_cf', region%ice%fraction_cf)
+      CASE ('fraction_margin')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'fraction_margin', region%ice%fraction_margin)
 
     ! === Thermodynamics and rheology ===
     ! ===================================
@@ -553,6 +571,8 @@ CONTAINS
         CALL write_to_field_multopt_mesh_dp_3D( region%mesh, filename, ncid, 'Ti', region%ice%Ti)
       CASE ('Ti_pmp')
         CALL write_to_field_multopt_mesh_dp_3D( region%mesh, filename, ncid, 'Ti_pmp', region%ice%Ti_pmp)
+      CASE ('Ti_hom')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'Ti_hom', region%ice%Ti_hom)
       CASE ('Cpi')
         CALL write_to_field_multopt_mesh_dp_3D( region%mesh, filename, ncid, 'Cpi', region%ice%Cpi)
       CASE ('Ki')
@@ -660,6 +680,8 @@ CONTAINS
 
       CASE ('pc_truncation_error')
         CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'pc_truncation_error', region%ice%pc%tau_np1)
+      CASE ('pc_untolerated_events')
+        CALL write_to_field_multopt_mesh_int_2D( region%mesh, filename, ncid, 'pc_untolerated_events', region%ice%pc%tau_n_guilty)
 
     ! == Basal hydrology ==
     ! =====================
@@ -670,6 +692,10 @@ CONTAINS
         CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'overburden_pressure', region%ice%overburden_pressure)
       CASE ('effective_pressure')
         CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'effective_pressure', region%ice%effective_pressure)
+      CASE ('pore_water_likelihood')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'pore_water_likelihood', region%ice%pore_water_likelihood)
+      CASE ('pore_water_fraction')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'pore_water_fraction', region%ice%pore_water_fraction)
 
     ! == Basal sliding ==
     ! ===================
@@ -677,6 +703,8 @@ CONTAINS
       ! Sliding law coefficients
       CASE ('till_friction_angle')
         CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'till_friction_angle', region%ice%till_friction_angle)
+      CASE ('bed_roughness')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'bed_roughness', region%ice%bed_roughness)
       CASE ('till_yield_stress')
         CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'till_yield_stress', region%ice%till_yield_stress)
       CASE ('slid_alpha_sq')
@@ -706,7 +734,7 @@ CONTAINS
         CALL write_to_field_multopt_mesh_dp_2D_monthly( region%mesh, filename, ncid, 'Precip', region%climate%Precip)
 
     ! == Ocean ==
-    ! ==========================
+    ! ===========
 
       ! Main ocean variables
       CASE ('T_ocean')
@@ -727,6 +755,20 @@ CONTAINS
       ! Main BMB variables
       CASE ('BMB')
         CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'BMB', region%BMB%BMB)
+
+    ! == Lateral mass balance ==
+    ! ==========================
+
+      ! Main LMB variables
+      CASE ('LMB')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'LMB', region%LMB%LMB)
+
+    ! == Artificial mass balance ==
+    ! =============================
+
+      ! Main AMB variables
+      CASE ('AMB')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'AMB', region%AMB%AMB)
 
     ! ===== End of user-defined output fields =====
     ! =============================================
@@ -859,6 +901,12 @@ CONTAINS
       CASE ('TAF')
         CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%TAF, d_grid_vec_partial_2D)
         CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'TAF', d_grid_vec_partial_2D)
+      CASE ('Hi_eff')
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%Hi_eff, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'Hi_eff', d_grid_vec_partial_2D)
+      CASE ('Hs_slope')
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%Hs_slope, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'Hs_slope', d_grid_vec_partial_2D)
 
     ! ===== Geometry changes w.r.t. reference =====
     ! =============================================
@@ -891,6 +939,23 @@ CONTAINS
       CASE ('dHib_dt')
         CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%dHib_dt, d_grid_vec_partial_2D)
         CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'dHib_dt', d_grid_vec_partial_2D)
+      CASE ('dHi_dt_raw')
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%dHi_dt_raw, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'dHi_dt_raw', d_grid_vec_partial_2D)
+      CASE ('dHi_dt_residual')
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%dHi_dt_residual, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'dHi_dt_residual', d_grid_vec_partial_2D)
+
+    ! ===== Target quantities =====
+    ! =============================
+
+      CASE ('dHi_dt_target')
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%dHi_dt_target, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'dHi_dt_target', d_grid_vec_partial_2D)
+
+      CASE ('uabs_surf_target')
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%uabs_surf_target, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'uabs_surf_target', d_grid_vec_partial_2D)
 
     ! ===== Masks =====
     ! =================
@@ -921,7 +986,7 @@ CONTAINS
 
       CASE ('fraction_gr')
       CASE ('fraction_gr_b')
-      CASE ('fraction_cf')
+      CASE ('fraction_margin')
 
     ! === Thermodynamics and rheology ===
     ! ===================================
@@ -932,6 +997,9 @@ CONTAINS
       CASE ('Ti_pmp')
         CALL map_from_mesh_to_xy_grid_3D( region%mesh, grid, region%ice%Ti_pmp, d_grid_vec_partial_3D)
         CALL write_to_field_multopt_grid_dp_3D( grid, filename, ncid, 'Ti_pmp', d_grid_vec_partial_3D)
+      CASE ('Ti_hom')
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%Ti_hom, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'Ti_hom', d_grid_vec_partial_2D)
       CASE ('Cpi')
         CALL map_from_mesh_to_xy_grid_3D( region%mesh, grid, region%ice%Cpi, d_grid_vec_partial_3D)
         CALL write_to_field_multopt_grid_dp_3D( grid, filename, ncid, 'Cpi', d_grid_vec_partial_3D)
@@ -1070,6 +1138,8 @@ CONTAINS
       CASE ('pc_truncation_error')
         CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%pc%tau_np1, d_grid_vec_partial_2D)
         CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'pc_truncation_error', d_grid_vec_partial_2D)
+      CASE ('pc_untolerated_events')
+        ! DENK DROM : Not gridable
 
     ! == Basal hydrology ==
     ! =====================
@@ -1083,6 +1153,12 @@ CONTAINS
       CASE ('effective_pressure')
         CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%effective_pressure, d_grid_vec_partial_2D)
         CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'effective_pressure', d_grid_vec_partial_2D)
+      CASE ('pore_water_likelihood')
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%pore_water_likelihood, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'pore_water_likelihood', d_grid_vec_partial_2D)
+      CASE ('pore_water_fraction')
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%pore_water_fraction, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'pore_water_fraction', d_grid_vec_partial_2D)
 
     ! == Basal sliding ==
     ! ===================
@@ -1091,6 +1167,9 @@ CONTAINS
       CASE ('till_friction_angle')
         CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%till_friction_angle, d_grid_vec_partial_2D)
         CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'till_friction_angle', d_grid_vec_partial_2D)
+      CASE ('bed_roughness')
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%bed_roughness, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'bed_roughness', d_grid_vec_partial_2D)
       CASE ('till_yield_stress')
         CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%till_yield_stress, d_grid_vec_partial_2D)
         CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'till_yield_stress', d_grid_vec_partial_2D)
@@ -1152,6 +1231,22 @@ CONTAINS
         CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%BMB, d_grid_vec_partial_2D)
         CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'BMB', d_grid_vec_partial_2D)
 
+    ! == Lateral mass balance ==
+    ! ==========================
+
+      ! Main LMB variables
+      CASE ('LMB')
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%LMB%LMB, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'LMB', d_grid_vec_partial_2D)
+
+    ! == Artificial mass balance ==
+    ! =============================
+
+      ! Main AMB variables
+      CASE ('AMB')
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%AMB%AMB, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'AMB', d_grid_vec_partial_2D)
+
     ! ===== End of user-defined output fields =====
     ! =============================================
 
@@ -1170,6 +1265,80 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE write_to_main_regional_output_file_grid_field
+
+  SUBROUTINE write_to_scalar_regional_output_file( region)
+    ! Write to the scalar regional output NetCDF file
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_model_region)                            , INTENT(IN)    :: region
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'write_to_scalar_regional_output_file'
+    INTEGER                                                            :: ncid
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! If no NetCDF output should be created, do nothing
+    IF (.NOT. C%do_create_netcdf_output) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
+
+    ! Print to terminal
+    IF (par%master) WRITE(0,'(A)') '   Writing to scalar output file "' // colour_string( TRIM( region%output_filename_scalar), 'light blue') // '"...'
+
+    ! Open the NetCDF file
+    CALL open_existing_netcdf_file_for_writing( region%output_filename_scalar, ncid)
+
+    ! Write the time to the file
+    CALL write_time_to_file( region%output_filename_scalar, ncid, region%time)
+
+    ! Write the default data fields to the file
+    CALL write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'ice_area',          region%scalars%ice_area)
+    CALL write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'ice_volume',        region%scalars%ice_volume)
+    CALL write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'ice_volume_af',     region%scalars%ice_volume_af)
+    CALL write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'ice_area_PD',       region%scalars%ice_area_PD)
+    CALL write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'ice_volume_PD',     region%scalars%ice_volume_PD)
+    CALL write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'ice_volume_af_PD',  region%scalars%ice_volume_af_PD)
+
+    CALL write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'SMB_total',         region%scalars%SMB_total)
+    CALL write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'SMB_gr',            region%scalars%SMB_gr)
+    CALL write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'SMB_fl',            region%scalars%SMB_fl)
+    CALL write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'SMB_land',          region%scalars%SMB_land)
+    CALL write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'SMB_ocean',         region%scalars%SMB_ocean)
+
+    CALL write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'BMB_total',         region%scalars%BMB_total)
+    CALL write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'BMB_gr',            region%scalars%BMB_gr)
+    CALL write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'BMB_fl',            region%scalars%BMB_fl)
+    CALL write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'BMB_land',          region%scalars%BMB_land)
+    CALL write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'BMB_ocean',         region%scalars%BMB_ocean)
+
+    CALL write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'LMB_total',         region%scalars%LMB_total)
+    CALL write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'LMB_gr',            region%scalars%LMB_gr)
+    CALL write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'LMB_fl',            region%scalars%LMB_fl)
+
+    CALL write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'AMB_total',         region%scalars%AMB_total)
+    CALL write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'AMB_gr',            region%scalars%AMB_gr)
+    CALL write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'AMB_fl',            region%scalars%AMB_fl)
+    CALL write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'AMB_land',          region%scalars%AMB_land)
+    CALL write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'AMB_ocean',         region%scalars%AMB_ocean)
+
+    CALL write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'gl_flux',           region%scalars%gl_flux)
+    CALL write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'cf_gr_flux',        region%scalars%cf_gr_flux)
+    CALL write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'cf_fl_flux',        region%scalars%cf_fl_flux)
+    CALL write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'margin_land_flux',  region%scalars%margin_land_flux)
+    CALL write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'margin_ocean_flux', region%scalars%margin_ocean_flux)
+
+    ! Close the file
+    CALL close_netcdf_file( ncid)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE write_to_scalar_regional_output_file
 
   ! == Create main regional output files
   ! ====================================
@@ -1201,13 +1370,18 @@ CONTAINS
     CALL generate_filename_XXXXXdotnc( filename_base, region%output_filename_mesh)
 
     ! Print to terminal
-    IF (par%master) WRITE(0,'(A)') '  Creating mesh output file "' // colour_string( TRIM( region%output_filename_mesh), 'light blue') // '"...'
+    IF (par%master) WRITE(0,'(A)') '   Creating mesh output file "' // colour_string( TRIM( region%output_filename_mesh), 'light blue') // '"...'
 
     ! Create the NetCDF file
     CALL create_new_netcdf_file_for_writing( region%output_filename_mesh, ncid)
 
     ! Set up the mesh in the file
     CALL setup_mesh_in_netcdf_file( region%output_filename_mesh, ncid, region%mesh)
+
+    IF (C%choice_subgrid_grounded_fraction == 'bedrock_CDF' .OR. C%choice_subgrid_grounded_fraction == 'bilin_interp_TAF+bedrock_CDF') THEN
+      ! Set up bedrock CDF in the file
+      CALL setup_CDF_in_netcdf_file( region%output_filename_mesh, ncid, region%ice)
+    END IF
 
     ! Add time, zeta, and month dimensions+variables to the file
     CALL add_time_dimension_to_file(  region%output_filename_mesh, ncid)
@@ -1308,7 +1482,7 @@ CONTAINS
     region%output_filename_grid = TRIM( C%output_dir) // 'main_output_' // region%name // '_grid.nc'
 
     ! Print to terminal
-    IF (par%master) WRITE(0,'(A)') '  Creating grid output file "' // colour_string( TRIM( region%output_filename_grid), 'light blue') // '"...'
+    IF (par%master) WRITE(0,'(A)') '   Creating grid output file "' // colour_string( TRIM( region%output_filename_grid), 'light blue') // '"...'
 
     ! Create the NetCDF file
     CALL create_new_netcdf_file_for_writing( region%output_filename_grid, ncid)
@@ -1414,7 +1588,7 @@ CONTAINS
     END IF
 
     ! Print to terminal
-    IF (par%master) WRITE(0,'(A)') '  Creating ROI output file "' // colour_string( TRIM( filename), 'light blue') // '"...'
+    IF (par%master) WRITE(0,'(A)') '   Creating ROI output file "' // colour_string( TRIM( filename), 'light blue') // '"...'
 
     ! Create the NetCDF file
     CALL create_new_netcdf_file_for_writing( filename, ncid)
@@ -1579,18 +1753,22 @@ CONTAINS
         CALL add_field_mesh_dp_2D( filename, ncid, 'SL', long_name = 'Geoid elevation', units = 'm w.r.t. PD sea level')
       CASE ('TAF')
         CALL add_field_mesh_dp_2D( filename, ncid, 'TAF', long_name = 'Thickness above floatation', units = 'm')
+      CASE ('Hi_eff')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'Hi_eff', long_name = 'Effective ice thickness', units = 'm')
+      CASE ('Hs_slope')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'Hs_slope', long_name = 'Absolute surface gradient', units = '-')
 
     ! ===== Geometry changes w.r.t. reference =====
     ! =============================================
 
       CASE ('dHi')
-        CALL add_field_mesh_dp_2D( filename, ncid, 'dHi', long_name = 'Ice thickness difference (w.r.t. to reference)', units = 'm')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'dHi', long_name = 'Ice thickness difference w.r.t. reference', units = 'm')
       CASE ('dHb')
-        CALL add_field_mesh_dp_2D( filename, ncid, 'dHb', long_name = 'Bedrock elevation difference (w.r.t. to reference)', units = 'm')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'dHb', long_name = 'Bedrock elevation difference w.r.t. reference', units = 'm')
       CASE ('dHs')
-        CALL add_field_mesh_dp_2D( filename, ncid, 'dHs', long_name = 'Surface elevation difference (w.r.t. to reference)', units = 'm')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'dHs', long_name = 'Surface elevation difference w.r.t. reference', units = 'm')
       CASE ('dHib')
-        CALL add_field_mesh_dp_2D( filename, ncid, 'dHib', long_name = 'Ice base elevation difference (w.r.t. to reference)', units = 'm')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'dHib', long_name = 'Ice base elevation difference w.r.t. reference', units = 'm')
 
     ! ===== Geometry rates of change =====
     ! ====================================
@@ -1603,6 +1781,18 @@ CONTAINS
         CALL add_field_mesh_dp_2D( filename, ncid, 'dHs_dt', long_name = 'Surface elevation rate of change', units = 'm yr^-1')
       CASE ('dHib_dt')
         CALL add_field_mesh_dp_2D( filename, ncid, 'dHib_dt', long_name = 'Ice base elevation rate of change', units = 'm yr^-1')
+      CASE ('dHi_dt_raw')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'dHi_dt_raw', long_name = 'Ice thickness rate of change before any modifications', units = 'm yr^-1')
+      CASE ('dHi_dt_residual')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'dHi_dt_residual', long_name = 'Residual ice thickness rate of change during model calibration', units = 'm yr^-1')
+
+    ! ===== Target quantities =====
+    ! =============================
+
+      CASE ('dHi_dt_target')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'dHi_dt_target', long_name = 'Target ice thickness rate of change during model calibration', units = 'm yr^-1')
+      CASE ('uabs_surf_target')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'uabs_surf_target', long_name = 'Target ice surface speed during model calibration', units = 'm yr^-1')
 
     ! ===== Masks =====
     ! =================
@@ -1634,17 +1824,17 @@ CONTAINS
       CASE ('mask')
         CALL add_field_mesh_int_2D( filename, ncid, 'mask', long_name = 'General mask')
       CASE ('basin_ID')
-        CALL add_field_mesh_int_2D( filename, ncid, 'basin_ID', long_name = 'Drainage basin ID')
+        CALL add_field_mesh_int_2D( filename, ncid, 'basin_ID', long_name = 'Drainage basin ID', units = 'ID code')
 
     ! ===== Area fractions =====
     ! ==========================
 
       CASE ('fraction_gr')
-        CALL add_field_mesh_dp_2D( filename, ncid, 'fraction_gr', long_name = 'Grounded area fractions of vertices')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'fraction_gr', long_name = 'Grounded area fractions of vertices', units = '0-1')
       CASE ('fraction_gr_b')
-        CALL add_field_mesh_dp_2D_b( filename, ncid, 'fraction_gr_b', long_name = 'Grounded area fractions of triangles')
-      CASE ('fraction_cf')
-        CALL add_field_mesh_dp_2D( filename, ncid, 'fraction_gr', long_name = 'Ice-covered area fractions of calving fronts')
+        CALL add_field_mesh_dp_2D_b( filename, ncid, 'fraction_gr_b', long_name = 'Grounded area fractions of triangles', units = '0-1')
+      CASE ('fraction_margin')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'fraction_margin', long_name = 'Ice-covered area fractions of ice margins', units = '0-1')
 
     ! === Thermodynamics and rheology ===
     ! ===================================
@@ -1653,6 +1843,8 @@ CONTAINS
         CALL add_field_mesh_dp_3D( filename, ncid, 'Ti', long_name = 'Englacial temperature', units = 'K')
       CASE ('Ti_pmp')
         CALL add_field_mesh_dp_3D( filename, ncid, 'Ti_pmp', long_name = 'Pressure melting point temperature', units = 'K')
+      CASE ('Ti_hom')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'Ti_hom', long_name = 'Temperature at base w.r.t. pressure melting point', units = 'K')
       CASE ('Cpi')
         CALL add_field_mesh_dp_3D( filename, ncid, 'Cpi', long_name = 'Specific heat capacity', units = 'J kg^-1 K^-1')
       CASE ('Ki')
@@ -1760,6 +1952,8 @@ CONTAINS
 
       CASE ('pc_truncation_error')
         CALL add_field_mesh_dp_2D( filename, ncid, 'pc_truncation_error', long_name = 'Ice P/C truncation error tau', units = 'm')
+      CASE ('pc_untolerated_events')
+        CALL add_field_mesh_int_2D( filename, ncid, 'pc_untolerated_events', long_name = 'Ice P/C number of events above error tolerance', units = '-')
 
     ! == Basal hydrology ==
     ! =====================
@@ -1770,6 +1964,10 @@ CONTAINS
         CALL add_field_mesh_dp_2D( filename, ncid, 'overburden_pressure', long_name = 'Ice overburden pressure', units = 'Pa')
       CASE ('effective_pressure')
         CALL add_field_mesh_dp_2D( filename, ncid, 'effective_pressure', long_name = 'Effective basal pressure', units = 'Pa')
+      CASE ('pore_water_likelihood')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'pore_water_likelihood', long_name = 'Till pore water likelihood', units = '0-1')
+      CASE ('pore_water_fraction')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'pore_water_fraction', long_name = 'Fraction of overburden pressure reduced by pore water ', units = '0-1')
 
     ! == Basal sliding ==
     ! ===================
@@ -1777,6 +1975,8 @@ CONTAINS
       ! Sliding law coefficients
       CASE ('till_friction_angle')
         CALL add_field_mesh_dp_2D( filename, ncid, 'till_friction_angle', long_name = 'Till friction angle', units = 'degrees')
+      CASE ('bed_roughness')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'bed_roughness', long_name = 'Bed roughness', units = '0-1')
       CASE ('till_yield_stress')
         CALL add_field_mesh_dp_2D( filename, ncid, 'till_yield_stress', long_name = 'Till yield stress', units = 'Pa')
       CASE ('slid_alpha_sq')
@@ -1806,7 +2006,7 @@ CONTAINS
         CALL add_field_mesh_dp_2D_monthly( filename, ncid, 'Precip', long_name = 'Monthly total precipitation', units = 'm.w.e.')
 
     ! == Ocean ==
-    ! ==========================
+    ! ===========
 
       ! Main ocean variables
       CASE ('T_ocean')
@@ -1827,6 +2027,20 @@ CONTAINS
       ! Main BMB variables
       CASE ('BMB')
         CALL add_field_mesh_dp_2D( filename, ncid, 'BMB', long_name = 'Basal mass balance', units = 'm yr^-1')
+
+    ! == Lateral mass balance ==
+    ! ==========================
+
+      ! Main LMB variables
+      CASE ('LMB')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'LMB', long_name = 'Lateral mass balance', units = 'm yr^-1')
+
+    ! == Artificial mass balance ==
+    ! =============================
+
+      ! Main AMB variables
+      CASE ('AMB')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'AMB', long_name = 'Artificial mass balance', units = 'm yr^-1')
 
     ! ===== End of user-defined output fields =====
     ! =============================================
@@ -1924,18 +2138,22 @@ CONTAINS
         CALL add_field_grid_dp_2D( filename, ncid, 'SL', long_name = 'Geoid elevation', units = 'm w.r.t. PD sea level')
       CASE ('TAF')
         CALL add_field_grid_dp_2D( filename, ncid, 'TAF', long_name = 'Thickness above floatation', units = 'm')
+      CASE ('Hi_eff')
+        CALL add_field_grid_dp_2D( filename, ncid, 'Hi_eff', long_name = 'Effective ice thickness', units = 'm')
+      CASE ('Hs_slope')
+        CALL add_field_grid_dp_2D( filename, ncid, 'Hs_slope', long_name = 'Absolute surface gradient', units = '-')
 
     ! ===== Geometry changes w.r.t. reference =====
     ! =============================================
 
       CASE ('dHi')
-        CALL add_field_grid_dp_2D( filename, ncid, 'dHi', long_name = 'Ice thickness difference (w.r.t. to reference)', units = 'm')
+        CALL add_field_grid_dp_2D( filename, ncid, 'dHi', long_name = 'Ice thickness difference w.r.t. reference', units = 'm')
       CASE ('dHb')
-        CALL add_field_grid_dp_2D( filename, ncid, 'dHb', long_name = 'Bedrock elevation difference (w.r.t. to reference)', units = 'm')
+        CALL add_field_grid_dp_2D( filename, ncid, 'dHb', long_name = 'Bedrock elevation difference w.r.t. reference', units = 'm')
       CASE ('dHs')
-        CALL add_field_grid_dp_2D( filename, ncid, 'dHs', long_name = 'Surface elevation difference (w.r.t. to reference)', units = 'm')
+        CALL add_field_grid_dp_2D( filename, ncid, 'dHs', long_name = 'Surface elevation difference w.r.t. reference', units = 'm')
       CASE ('dHib')
-        CALL add_field_grid_dp_2D( filename, ncid, 'dHib', long_name = 'Ice base elevation difference (w.r.t. to reference)', units = 'm')
+        CALL add_field_grid_dp_2D( filename, ncid, 'dHib', long_name = 'Ice base elevation difference w.r.t. reference', units = 'm')
 
     ! ===== Geometry rates of change =====
     ! ====================================
@@ -1948,6 +2166,18 @@ CONTAINS
         CALL add_field_grid_dp_2D( filename, ncid, 'dHs_dt', long_name = 'Surface elevation rate of change', units = 'm yr^-1')
       CASE ('dHib_dt')
         CALL add_field_grid_dp_2D( filename, ncid, 'dHib_dt', long_name = 'Ice base elevation rate of change', units = 'm yr^-1')
+      CASE ('dHi_dt_raw')
+        CALL add_field_grid_dp_2D( filename, ncid, 'dHi_dt_raw', long_name = 'Ice thickness rate of change before any modifications', units = 'm yr^-1')
+      CASE ('dHi_dt_residual')
+        CALL add_field_grid_dp_2D( filename, ncid, 'dHi_dt_residual', long_name = 'Residual ice thickness rate of change during model calibration', units = 'm yr^-1')
+
+    ! ===== Target quantities =====
+    ! =============================
+
+      CASE ('dHi_dt_target')
+        CALL add_field_grid_dp_2D( filename, ncid, 'dHi_dt_target', long_name = 'Target ice thickness rate of change during model calibration', units = 'm yr^-1')
+      CASE ('uabs_surf_target')
+        CALL add_field_grid_dp_2D( filename, ncid, 'uabs_surf_target', long_name = 'Target ice surface speed during model calibration', units = 'm yr^-1')
 
     ! ===== Masks =====
     ! =================
@@ -1978,7 +2208,7 @@ CONTAINS
 
       CASE ('fraction_gr')
       CASE ('fraction_gr_b')
-      CASE ('fraction_cf')
+      CASE ('fraction_margin')
 
     ! === Thermodynamics and rheology ===
     ! ===================================
@@ -1987,6 +2217,8 @@ CONTAINS
         CALL add_field_grid_dp_3D( filename, ncid, 'Ti', long_name = 'Englacial temperature', units = 'K')
       CASE ('Ti_pmp')
         CALL add_field_grid_dp_3D( filename, ncid, 'Ti_pmp', long_name = 'Pressure melting point temperature', units = 'K')
+      CASE ('Ti_hom')
+        CALL add_field_grid_dp_2D( filename, ncid, 'Ti_hom', long_name = 'Temperature at base w.r.t. pressure melting point', units = 'K')
       CASE ('Cpi')
         CALL add_field_grid_dp_3D( filename, ncid, 'Cpi', long_name = 'Specific heat capacity', units = 'J kg^-1 K^-1')
       CASE ('Ki')
@@ -2094,6 +2326,8 @@ CONTAINS
 
       CASE ('pc_truncation_error')
         CALL add_field_grid_dp_2D( filename, ncid, 'pc_truncation_error', long_name = 'Ice P/C truncation error tau', units = 'm')
+      CASE ('pc_untolerated_events')
+        ! DENK DROM : not gridable
 
     ! == Basal hydrology ==
     ! =====================
@@ -2104,6 +2338,10 @@ CONTAINS
         CALL add_field_grid_dp_2D( filename, ncid, 'overburden_pressure', long_name = 'Ice overburden pressure', units = 'Pa')
       CASE ('effective_pressure')
         CALL add_field_grid_dp_2D( filename, ncid, 'effective_pressure', long_name = 'Effective basal pressure', units = 'Pa')
+      CASE ('pore_water_likelihood')
+        CALL add_field_grid_dp_2D( filename, ncid, 'pore_water_likelihood', long_name = 'Till pore water likelihood', units = '0-1')
+      CASE ('pore_water_fraction')
+        CALL add_field_grid_dp_2D( filename, ncid, 'pore_water_fraction', long_name = 'Fraction of overburden pressure reduced by pore water', units = '0-1')
 
     ! == Basal sliding ==
     ! ===================
@@ -2111,6 +2349,8 @@ CONTAINS
       ! Sliding law coefficients
       CASE ('till_friction_angle')
         CALL add_field_grid_dp_2D( filename, ncid, 'till_friction_angle', long_name = 'Till friction angle', units = 'degrees')
+      CASE ('bed_roughness')
+        CALL add_field_grid_dp_2D( filename, ncid, 'bed_roughness', long_name = 'Bed roughness', units = '0-1')
       CASE ('till_yield_stress')
         CALL add_field_grid_dp_2D( filename, ncid, 'till_yield_stress', long_name = 'Till yield stress', units = 'Pa')
       CASE ('slid_alpha_sq')
@@ -2162,6 +2402,20 @@ CONTAINS
       CASE ('BMB')
         CALL add_field_grid_dp_2D( filename, ncid, 'BMB', long_name = 'Basal mass balance', units = 'm yr^-1')
 
+    ! == Lateral mass balance ==
+    ! ==========================
+
+      ! Main LMB variables
+      CASE ('LMB')
+        CALL add_field_grid_dp_2D( filename, ncid, 'LMB', long_name = 'Lateral mass balance', units = 'm yr^-1')
+
+    ! == Artificial mass balance ==
+    ! =============================
+
+      ! Main AMB variables
+      CASE ('AMB')
+        CALL add_field_grid_dp_2D( filename, ncid, 'AMB', long_name = 'Artificial mass balance', units = 'm yr^-1')
+
     ! ===== End of user-defined output fields =====
     ! =============================================
 
@@ -2174,5 +2428,243 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE create_main_regional_output_file_grid_field
+
+  SUBROUTINE create_scalar_regional_output_file( region)
+    ! Create the scalar regional output NetCDF file
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_model_region)                            , INTENT(INOUT) :: region
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'create_scalar_regional_output_file'
+    CHARACTER(LEN=256)                                                 :: filename_base
+    INTEGER                                                            :: ncid
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! If no NetCDF output should be created, do nothing
+    IF (.NOT. C%do_create_netcdf_output) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
+
+    ! Set the filename
+    filename_base = TRIM( C%output_dir) // 'scalar_output_' // region%name
+    CALL generate_filename_XXXXXdotnc( filename_base, region%output_filename_scalar)
+
+    ! Print to terminal
+    IF (par%master) WRITE(0,'(A)') '   Creating scalar output file "' // colour_string( TRIM( region%output_filename_scalar), 'light blue') // '"...'
+
+    ! Create the NetCDF file
+    CALL create_new_netcdf_file_for_writing( region%output_filename_scalar, ncid)
+
+    ! Add time, zeta, and month dimensions+variables to the file
+    CALL add_time_dimension_to_file(  region%output_filename_scalar, ncid)
+
+    ! Add the default data fields to the file
+    CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'ice_area')
+    CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'ice_volume')
+    CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'ice_volume_af')
+
+    CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'ice_area_PD')
+    CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'ice_volume_PD')
+    CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'ice_volume_af_PD')
+
+    CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'SMB_total')
+    CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'SMB_gr')
+    CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'SMB_fl')
+    CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'SMB_land')
+    CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'SMB_ocean')
+
+    CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'BMB_total')
+    CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'BMB_gr')
+    CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'BMB_fl')
+    CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'BMB_land')
+    CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'BMB_ocean')
+
+    CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'LMB_total')
+    CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'LMB_gr')
+    CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'LMB_fl')
+
+    CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'AMB_total')
+    CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'AMB_gr')
+    CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'AMB_fl')
+    CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'AMB_land')
+    CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'AMB_ocean')
+
+    CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'gl_flux')
+    CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'cf_gr_flux')
+    CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'cf_fl_flux')
+    CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'margin_land_flux')
+    CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'margin_ocean_flux')
+
+    ! Close the file
+    CALL close_netcdf_file( ncid)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE create_scalar_regional_output_file
+
+  SUBROUTINE create_scalar_regional_output_file_field( filename, ncid, choice_output_field)
+    ! Create the main regional output NetCDF file - mesh version
+    !
+    ! Add a single field to the file
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    CHARACTER(LEN=*)                                   , INTENT(IN)    :: filename
+    INTEGER                                            , INTENT(IN)    :: ncid
+    CHARACTER(LEN=*)                                   , INTENT(IN)    :: choice_output_field
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'create_scalar_regional_output_file_field'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! If no NetCDF output should be created, do nothing
+    IF (.NOT. C%do_create_netcdf_output) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
+
+    ! Add the specified data field to the file
+    SELECT CASE (choice_output_field)
+      CASE ('none')
+        ! Do nothing
+
+      ! Total ice sheet area
+      CASE ('ice_area')
+        CALL add_field_dp_0D( filename, ncid, 'ice_area', long_name = 'Total ice area', units = 'm^2')
+
+        ! Total ice sheet volume in metres of sea level equivalent
+      CASE ('ice_volume')
+        CALL add_field_dp_0D( filename, ncid, 'ice_volume', long_name = 'Total ice volume', units = 'm s.l.e.')
+
+      ! Total ice sheet volume above floatation in metres of sea level equivalent
+      CASE ('ice_volume_af')
+        CALL add_field_dp_0D( filename, ncid, 'ice_volume_af', long_name = 'Total ice volume above floatation', units = 'm s.l.e.')
+
+      ! Total ice sheet area for present-day
+      CASE ('ice_area_PD')
+        CALL add_field_dp_0D( filename, ncid, 'ice_area_PD', long_name = 'Total ice area for present-day', units = 'm^2')
+
+        ! Total ice sheet volume in metres of sea level equivalent for present-day
+      CASE ('ice_volume_PD')
+        CALL add_field_dp_0D( filename, ncid, 'ice_volume_PD', long_name = 'Total ice volume for present-day', units = 'm s.l.e.')
+
+      ! Total ice sheet volume above floatation in metres of sea level equivalent for present-day
+      CASE ('ice_volume_af_PD')
+        CALL add_field_dp_0D( filename, ncid, 'ice_volume_af_PD', long_name = 'Total ice volume above floatation for present-day', units = 'm s.l.e.')
+
+      ! Total SMB integrated over the entire domain
+      CASE ('SMB_total')
+        CALL add_field_dp_0D( filename, ncid, 'SMB_total', long_name = 'Area-integrated total SMB', units = 'Gt yr^-1')
+
+      ! Total SMB integrated over the entire ice sheet area
+      CASE ('SMB_gr')
+        CALL add_field_dp_0D( filename, ncid, 'SMB_gr', long_name = 'Area-integrated ice sheet SMB', units = 'Gt yr^-1')
+
+      ! Total SMB integrated over the entire ice shelf area
+      CASE ('SMB_fl')
+        CALL add_field_dp_0D( filename, ncid, 'SMB_fl', long_name = 'Area-integrated ice shelf SMB', units = 'Gt yr^-1')
+
+      ! Total SMB integrated over the entire ice-free land area
+      CASE ('SMB_land')
+        CALL add_field_dp_0D( filename, ncid, 'SMB_land', long_name = 'Area-integrated ice-free land SMB', units = 'Gt yr^-1')
+
+      ! Total SMB integrated over the entire ice-free ocean area
+      CASE ('SMB_ocean')
+        CALL add_field_dp_0D( filename, ncid, 'SMB_ocean', long_name = 'Area-integrated ice-free ocean SMB', units = 'Gt yr^-1')
+
+      ! Total BMB integrated over the entire domain
+      CASE ('BMB_total')
+        CALL add_field_dp_0D( filename, ncid, 'BMB_total', long_name = 'Area-integrated total BMB', units = 'Gt yr^-1')
+
+      ! Total BMB integrated over the entire ice sheet area
+      CASE ('BMB_gr')
+        CALL add_field_dp_0D( filename, ncid, 'BMB_gr', long_name = 'Area-integrated ice sheet BMB', units = 'Gt yr^-1')
+
+      ! Total BMB integrated over the entire ice shelf area
+      CASE ('BMB_fl')
+        CALL add_field_dp_0D( filename, ncid, 'BMB_fl', long_name = 'Area-integrated ice shelf BMB', units = 'Gt yr^-1')
+
+      ! Total BMB integrated over the entire ice-free land area
+      CASE ('BMB_land')
+        CALL add_field_dp_0D( filename, ncid, 'BMB_land', long_name = 'Area-integrated ice-free land BMB', units = 'Gt yr^-1')
+
+      ! Total BMB integrated over the entire ice-free ocean area
+      CASE ('BMB_ocean')
+        CALL add_field_dp_0D( filename, ncid, 'BMB_ocean', long_name = 'Area-integrated ice-free ocean BMB', units = 'Gt yr^-1')
+
+      ! Total LMB integrated over the entire domain
+      CASE ('LMB_total')
+        CALL add_field_dp_0D( filename, ncid, 'LMB_total', long_name = 'Area-integrated total LMB', units = 'Gt yr^-1')
+
+      ! Total LMB integrated over the entire ice sheet area
+      CASE ('LMB_gr')
+        CALL add_field_dp_0D( filename, ncid, 'LMB_gr', long_name = 'Area-integrated ice sheet LMB', units = 'Gt yr^-1')
+
+      ! Total LMB integrated over the entire ice shelf area
+      CASE ('LMB_fl')
+        CALL add_field_dp_0D( filename, ncid, 'LMB_fl', long_name = 'Area-integrated ice shelf LMB', units = 'Gt yr^-1')
+
+      ! Total additional MB from other sources integrated over the entire domain
+      CASE ('AMB_total')
+        CALL add_field_dp_0D( filename, ncid, 'AMB_total', long_name = 'Area-integrated total additional MB from other sources', units = 'Gt yr^-1')
+
+      ! Total additional MB from other sources integrated over the entire ice sheet area
+      CASE ('AMB_gr')
+        CALL add_field_dp_0D( filename, ncid, 'AMB_gr', long_name = 'Area-integrated ice sheet additional MB from other sources', units = 'Gt yr^-1')
+
+      ! Total additional MB from other sources integrated over the entire ice shelf area
+      CASE ('AMB_fl')
+        CALL add_field_dp_0D( filename, ncid, 'AMB_fl', long_name = 'Area-integrated ice shelf additional MB from other sources', units = 'Gt yr^-1')
+
+      ! Total additional MB from other sources integrated over the entire ice-free land area
+      CASE ('AMB_land')
+        CALL add_field_dp_0D( filename, ncid, 'AMB_land', long_name = 'Area-integrated ice-free land additional MB from other sources', units = 'Gt yr^-1')
+
+      ! Total additional MB from other sources integrated over the entire ice-free ocean area
+      CASE ('AMB_ocean')
+        CALL add_field_dp_0D( filename, ncid, 'AMB_ocean', long_name = 'Area-integrated ice-free ocean additional MB from other sources', units = 'Gt yr^-1')
+
+      ! Total flux through the grounding line
+      CASE ('gl_flux')
+        CALL add_field_dp_0D( filename, ncid, 'gl_flux', long_name = 'Total lateral grounding line flux', units = 'Gt yr^-1')
+
+      ! Total flux through grounded calving fronts
+      CASE ('cf_gr_flux')
+        CALL add_field_dp_0D( filename, ncid, 'cf_gr_flux', long_name = 'Total lateral grounded calving front flux', units = 'Gt yr^-1')
+
+      ! Total flux through floating calving fronts
+      CASE ('cf_fl_flux')
+        CALL add_field_dp_0D( filename, ncid, 'cf_fl_flux', long_name = 'Total lateral floating calving front flux', units = 'Gt yr^-1')
+
+      ! Total flux exiting ice margins into grounded areas
+      CASE ('margin_land_flux')
+        CALL add_field_dp_0D( filename, ncid, 'margin_land_flux', long_name = 'Total lateral flux exiting the ice margin into ground', units = 'Gt yr^-1')
+
+      ! Total flux exiting ice margins into marine areas
+      CASE ('margin_ocean_flux')
+        CALL add_field_dp_0D( filename, ncid, 'margin_ocean_flux', long_name = 'Total lateral flux exiting the ice margin into water', units = 'Gt yr^-1')
+
+    ! ===== End of user-defined output fields =====
+    ! =============================================
+
+      CASE DEFAULT
+        ! Unknown case
+        CALL crash('unknown choice_output_field "' // TRIM( choice_output_field) // '"!')
+    END SELECT
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE create_scalar_regional_output_file_field
 
 END MODULE main_regional_output

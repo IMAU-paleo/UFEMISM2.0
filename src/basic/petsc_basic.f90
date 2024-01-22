@@ -8,7 +8,7 @@ MODULE petsc_basic
   USE petscksp
   USE mpi
   USE precisions                                             , ONLY: dp
-  USE mpi_basic                                              , ONLY: par, cerr, ierr, MPI_status, sync
+  USE mpi_basic                                              , ONLY: par, cerr, ierr, recv_status, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE parameters
   USE reallocate_mod                                         , ONLY: reallocate
@@ -143,7 +143,7 @@ CONTAINS
   ! =============
 
     ! Solve the linear system
-    CALL KSPSolve( KSP_solver, b, x, perr)
+    CALL solve_matrix_equation_PETSc_KSPSolve( KSP_solver, b, x)
 
     ! Find out how many iterations it took
     CALL KSPGetIterationNumber( KSP_solver, its, perr)
@@ -161,6 +161,33 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE solve_matrix_equation_PETSc
+
+  SUBROUTINE solve_matrix_equation_PETSc_KSPSolve( KSP_solver, b, x)
+    ! Solve the matrix equation using a Krylov solver from PETSc
+    !
+    ! Wrapper for KSPSolve, so we can determine how much computation is spent
+    ! on that relative to the initialisation and format conversion stuff.
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(tKSP),                          INTENT(INOUT) :: KSP_solver
+    TYPE(tVec),                          INTENT(INOUT) :: b
+    TYPE(tVec),                          INTENT(INOUT) :: x
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'solve_matrix_equation_PETSc_KSPSolve'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Solve the linear system
+    CALL KSPSolve( KSP_solver, b, x, perr)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE solve_matrix_equation_PETSc_KSPSolve
 
 ! == Conversion between 1-D Fortran double-precision arrays and PETSc parallel vectors
   SUBROUTINE vec_double2petsc( xx, x)

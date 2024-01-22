@@ -19,7 +19,8 @@ MODULE climate_model_types
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: T2m                         ! [K]      Monthly 2-m air temperature
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: Precip                      ! [m.w.e.] Monthly precipitation
 
-    ! Sub-models
+    ! Metadata
+    CHARACTER(LEN=256)                      :: restart_filename            ! Name for generated restart file
 
     ! Timestepping
     REAL(dp)                                :: t_next
