@@ -22,7 +22,7 @@ CONTAINS
 ! ===== Main routines =====
 ! =========================
 
-  SUBROUTINE run_BMB_model_laddie( mesh, ice, BMB, time)
+  SUBROUTINE run_BMB_model_laddie( mesh, BMB)
     ! Calculate the basal mass balance
     !
     ! Call the external LADDIE model
@@ -31,42 +31,33 @@ CONTAINS
 
     ! In/output variables:
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
-    TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_BMB_model),                   INTENT(INOUT) :: BMB
-    REAL(dp),                               INTENT(IN)    :: time
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'run_BMB_model_laddie'
     CHARACTER(LEN=256)                                    :: filename_BMB_laddie_runtime
-    REAL(dp), DIMENSION(:,:), POINTER                     :: BMB_LADDIE
+    ! CHARACTER(LEN=256)                                    :: filename_BMB_laddie_config
+    ! REAL(dp), DIMENSION(:,:), POINTER                     :: BMB_LADDIE
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! Determine filename for this model region
-    SELECT CASE (region_name)
-      CASE ('NAM')
-        filename_BMB_laddie_runtime  = C%filename_BMB_laddie_runtime_NAM
-      CASE ('EAS')
-        filename_BMB_laddie_runtime  = C%filename_BMB_laddie_runtime_EAS
-      CASE ('GRL')
-        filename_BMB_laddie_runtime  = C%filename_BMB_laddie_runtime_GRL
-      CASE ('ANT')
-        filename_BMB_laddie_runtime  = C%filename_BMB_laddie_runtime_ANT
-      CASE DEFAULT
-        CALL crash('unknown region_name "' // TRIM( region_name) // '"!')
-    END SELECT
-
     ! Here, run LADDIE
 
     ! Read BMB from file
-    CALL read_field_from_file_2D( filename_BMB_laddie_runtime, 'BMB', mesh, BMB%BMB)
+    CALL read_field_from_file_2D( C%filename_BMB_laddie_runtime, 'BMB', mesh, BMB%BMB)
+
+    ! Convert to m.i.e./yr
+    BMB%BMB = 31557600._dp * BMB%BMB / 918._dp
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
 
   END SUBROUTINE
 
 
 
-  SUBROUTINE initialise_BMB_model_laddie( mesh, ice, BMB, time)
+  SUBROUTINE initialise_BMB_model_laddie( mesh, BMB)
     ! Initialise the BMB model
     !
     ! Call the external LADDIE model
@@ -75,38 +66,28 @@ CONTAINS
 
     ! In/output variables:
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
-    TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_BMB_model),                   INTENT(INOUT) :: BMB
-    REAL(dp),                               INTENT(IN)    :: time
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'initialise_BMB_model_laddie'
     CHARACTER(LEN=256)                                    :: filename_BMB_laddie_initial
-    REAL(dp), DIMENSION(:,:), POINTER                     :: BMB_LADDIE
+    ! REAL(dp), DIMENSION(:,:), POINTER                     :: BMB_LADDIE
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! Determine filename for this model region
-    SELECT CASE (region_name)
-      CASE ('NAM')
-        filename_BMB_laddie_initial  = C%filename_BMB_laddie_initial_NAM
-      CASE ('EAS')
-        filename_BMB_laddie_initial  = C%filename_BMB_laddie_initial_EAS
-      CASE ('GRL')
-        filename_BMB_laddie_initial  = C%filename_BMB_laddie_initial_GRL
-      CASE ('ANT')
-        filename_BMB_laddie_initial  = C%filename_BMB_laddie_initial_ANT
-      CASE DEFAULT
-        CALL crash('unknown region_name "' // TRIM( region_name) // '"!')
-    END SELECT
-
     ! Here, run LADDIE
 
     ! Read BMB from file
-    CALL read_field_from_file_2D( filename_BMB_laddie_initial, 'BMB', mesh, BMB%BMB)
+    CALL read_field_from_file_2D( C%filename_BMB_laddie_initial, 'BMB', mesh, BMB%BMB)
+
+    ! Convert to m.i.e./yr
+    BMB%BMB = 31557600._dp * BMB%BMB / 918._dp
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
 
   END SUBROUTINE
 
 
-END MODULE BMB_idealised
+END MODULE BMB_laddie

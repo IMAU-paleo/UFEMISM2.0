@@ -757,6 +757,12 @@ MODULE model_configuration
     ! "parameterised"
     REAL(dp)            :: BMB_Favier2019_gamma_config                  = 99.32E-5
 
+    ! "laddie"
+    ! CHARACTER(LEN=256)  :: filename_BMB_laddie_config                   = ''
+    CHARACTER(LEN=256)  :: filename_BMB_laddie_initial                  = ''
+    CHARACTER(LEN=256)  :: filename_BMB_laddie_runtime                  = ''
+
+
   ! == Lateral mass balance
   ! =======================
 
@@ -1631,6 +1637,10 @@ MODULE model_configuration
     ! "parameterised"
     REAL(dp)            :: BMB_Favier2019_gamma
 
+    ! "laddie"
+    CHARACTER(LEN=256)  :: filename_BMB_laddie_initial
+    CHARACTER(LEN=256)  :: filename_BMB_laddie_runtime
+
   ! == Lateral mass balance
   ! =======================
 
@@ -2387,6 +2397,8 @@ CONTAINS
       choice_BMB_model_parameterised_config                       , &
       uniform_BMB_config                                          , &
       BMB_Favier2019_gamma_config                                 , &
+      filename_BMB_laddie_initial                                 , &
+      filename_BMB_laddie_runtime                                 , &
       dt_LMB_config                                               , &
       do_LMB_inversion_config                                     , &
       LMB_inversion_t_start_config                                , &
@@ -3256,6 +3268,10 @@ CONTAINS
 
     ! "parameterised"
     C%BMB_Favier2019_gamma                                   = BMB_Favier2019_gamma_config
+
+    ! "laddie"
+    C%filename_BMB_laddie_initial                            = filename_BMB_laddie_initial
+    C%filename_BMB_laddie_runtime                            = filename_BMB_laddie_runtime
 
   ! == Lateral mass balance
   ! =======================

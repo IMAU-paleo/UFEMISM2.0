@@ -109,7 +109,7 @@ CONTAINS
       CASE ('inverted')
         CALL run_BMB_model_inverted( mesh, ice, BMB, time)
       CASE ('laddie')
-        CALL run_BMB_model_laddie( mesh, ice, BMB, time)
+        CALL run_BMB_model_laddie( mesh, BMB)
       CASE DEFAULT
         CALL crash('unknown choice_BMB_model "' // TRIM( choice_BMB_model) // '"')
     END SELECT
@@ -240,6 +240,8 @@ CONTAINS
         ! No need to do anything
       CASE ('inverted')
         CALL write_to_restart_file_BMB_model_region( mesh, BMB, region_name, time)
+      CASE ('laddie')
+        ! No need to do anything
       CASE DEFAULT
         CALL crash('unknown choice_BMB_model "' // TRIM( choice_BMB_model) // '"')
     END SELECT
@@ -335,6 +337,8 @@ CONTAINS
         ! No need to do anything
       CASE ('inverted')
         CALL create_restart_file_BMB_model_region( mesh, BMB, region_name)
+      CASE ('laddie')
+        ! No need to do anything
       CASE DEFAULT
         CALL crash('unknown choice_BMB_model "' // TRIM( choice_BMB_model) // '"')
     END SELECT
@@ -457,6 +461,8 @@ CONTAINS
       CASE ('parameterised')
         CALL crash('Remapping after mesh update not implemented yet for parameterised BMB')
       CASE ('inverted')
+        ! No need to do anything
+      CASE ('laddie')
         ! No need to do anything
       CASE DEFAULT
         CALL crash('unknown choice_BMB_model "' // TRIM( choice_BMB_model) // '"')
