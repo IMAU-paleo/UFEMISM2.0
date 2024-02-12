@@ -75,7 +75,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Initialise
-    BMB%BMB = 0._dp
+    BMB%BMB_shelf = 0._dp
 
     DO vi = mesh%vi1, mesh%vi2
       IF (ice%mask_floating_ice( vi)) THEN
@@ -84,7 +84,7 @@ CONTAINS
         cavity_thickness = MAX( 0._dp, zd - ice%Hb( vi))
 
         ! Cornford et al. (2020), Eq. 7
-        BMB%BMB( vi) = -0.2_dp * TANH( cavity_thickness / 75._dp) * MAX( -100._dp - zd, 0._dp)
+        BMB%BMB_shelf( vi) = -0.2_dp * TANH( cavity_thickness / 75._dp) * MAX( -100._dp - zd, 0._dp)
 
       END IF ! IF (ice%mask_floating_ice( vi)) THEN
     END DO ! DO vi = mesh%vi1, mesh%vi2

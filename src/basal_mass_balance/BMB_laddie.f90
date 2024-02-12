@@ -67,16 +67,15 @@ CONTAINS
       END DO ! End sleep loop
 
       IF (found_laddie_file) THEN
-        CALL read_field_from_file_2D( C%filename_BMB_laddie_runtime, 'BMB', mesh, BMB%BMB)
+        CALL read_field_from_file_2D( C%filename_BMB_laddie_runtime, 'BMBext', mesh, BMB%BMB_shelf)
       END IF
 
-      ! Remove laddie file
       IF (par%master) THEN
         CALL system('rm output/MISMIPplus_5km_laddie/laddieready')
-      END IF 
+      END IF
 
       ! Convert to m.i.e./yr
-      BMB%BMB = 31557600._dp * BMB%BMB / 918._dp
+      BMB%BMB_shelf = 31557600._dp * BMB%BMB_shelf / 918._dp
 
     END IF
 
@@ -128,7 +127,7 @@ CONTAINS
     END DO ! End sleep loop
 
     IF (found_laddie_file) THEN
-      CALL read_field_from_file_2D( C%filename_BMB_laddie_runtime, 'BMB', mesh, BMB%BMB)
+      CALL read_field_from_file_2D( C%filename_BMB_laddie_initial, 'BMBext', mesh, BMB%BMB_shelf)
     END IF
 
     ! Remove laddie file
@@ -137,11 +136,8 @@ CONTAINS
     END IF 
     CALL sync
 
-    ! Read BMB from file
-    CALL read_field_from_file_2D( C%filename_BMB_laddie_initial, 'BMB', mesh, BMB%BMB)
-
     ! Convert to m.i.e./yr
-    BMB%BMB = 31557600._dp * BMB%BMB / 918._dp
+    BMB%BMB_shelf = 31557600._dp * BMB%BMB_shelf / 918._dp
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

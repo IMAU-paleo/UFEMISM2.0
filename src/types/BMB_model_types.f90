@@ -19,6 +19,7 @@ MODULE BMB_model_types
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: BMB                         ! [m.i.e./yr] Basal mass balance
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: BMB_inv                     ! [m.i.e./yr] Inverted basal mass balance
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: BMB_ref                     ! [m.i.e./yr] Reference basal mass balance (e.g. inverted or prescribed)
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: BMB_shelf                   ! [m.i.e./yr] Basal mass balance of floating ice, extrapolated below grounded ice   
     LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_floating_ice           ! T: floating vertex, F: otherwise
     LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_gl_fl                  ! T: floating grounding line vertex, F: otherwise
     LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_gl_gr                  ! T: grounded grounding line vertex, F: otherwise
