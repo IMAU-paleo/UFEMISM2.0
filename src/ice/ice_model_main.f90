@@ -841,7 +841,7 @@ CONTAINS
     ! Relax ice geometry around the calving front
     ! ===========================================
 
-    CALL relax_calving_front( mesh_old, mesh_new, ice, SMB, BMB, LMB, AMB, region_name)
+    ! CALL relax_calving_front( mesh_old, mesh_new, ice, SMB, BMB, LMB, AMB, region_name)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
