@@ -22,3 +22,4 @@ slurm-*.out
 
 # Ignore depend file
 .depend
+src/Makefile_include_erwin_macos.txt
