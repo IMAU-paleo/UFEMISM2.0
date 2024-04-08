@@ -36,7 +36,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'run_BMB_model_laddie'
-    CHARACTER(LEN=256)                                    :: filename_BMB_laddie_runtime
+    CHARACTER(LEN=256)                                    :: filename_BMB_laddie_output
     LOGICAL                                               :: found_laddie_file
 
     ! Add routine to path
@@ -46,8 +46,9 @@ CONTAINS
 
       ! Run LADDIE
       IF (par%master) THEN
-        !CALL system('echo hello '// output_dir_IMAUICE)
-        CALL system('./run_laddie_runtime.sh')
+        ! CALL system('echo hello '// output_dir_IMAUICE)
+        ! CALL system('./erun_laddie_runtime.sh')
+        CALL system('srun --ntasks=1 --cpus-per-task=1 --cpu-bind=verbose python3 src/runladdie.py config-files/laddie/config_MISMIPplus_1km_runtime.toml &')
       END IF 
       CALL sync
 
@@ -60,18 +61,18 @@ CONTAINS
         END IF 
         CALL sync
 
-        INQUIRE( EXIST = found_laddie_file, FILE = 'output/MISMIPplus_5km_laddie/laddieready')
+        INQUIRE( EXIST = found_laddie_file, FILE = 'output/MISplus_1km_laddie/laddieready')
   
         CALL SLEEP(1)
   
       END DO ! End sleep loop
 
       IF (found_laddie_file) THEN
-        CALL read_field_from_file_2D( C%filename_BMB_laddie_runtime, 'BMBext', mesh, BMB%BMB_shelf)
+        CALL read_field_from_file_2D( C%filename_BMB_laddie_output, 'BMBext', mesh, BMB%BMB_shelf)
       END IF
 
       IF (par%master) THEN
-        CALL system('rm output/MISMIPplus_5km_laddie/laddieready')
+        CALL system('rm output/MISplus_1km_laddie/laddieready')
       END IF
 
       ! Convert to m.i.e./yr
@@ -99,15 +100,19 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'initialise_BMB_model_laddie'
-    CHARACTER(LEN=256)                                    :: filename_BMB_laddie_initial
+    CHARACTER(LEN=256)                                    :: filename_BMB_laddie_output
     LOGICAL                                               :: found_laddie_file
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    CALL sync
+
     ! Run LADDIE
     IF (par%master) THEN
-      CALL system('./run_laddie_spinup.sh')
+      CALL system('echo startladdie')
+      ! CALL system('./erun_laddie_spinup.sh')
+      CALL system('srun --ntasks=1 --cpus-per-task=1 --cpu-bind=verbose python3 src/runladdie.py config-files/laddie/config_MISMIPplus_1km_spinup.toml &')
     END IF 
     CALL sync
 
@@ -120,19 +125,19 @@ CONTAINS
       END IF 
       CALL sync
 
-      INQUIRE( EXIST = found_laddie_file, FILE = 'output/MISMIPplus_5km_laddie/laddieready')
+      INQUIRE( EXIST = found_laddie_file, FILE = 'output/MISplus_1km_laddie/laddieready')
 
       CALL SLEEP(1)
 
     END DO ! End sleep loop
 
     IF (found_laddie_file) THEN
-      CALL read_field_from_file_2D( C%filename_BMB_laddie_initial, 'BMBext', mesh, BMB%BMB_shelf)
+      CALL read_field_from_file_2D( C%filename_BMB_laddie_output, 'BMBext', mesh, BMB%BMB_shelf)
     END IF
 
     ! Remove laddie file
     IF (par%master) THEN
-      CALL system('rm output/MISMIPplus_5km_laddie/laddieready')
+      CALL system('rm output/MISplus_1km_laddie/laddieready')
     END IF 
     CALL sync
 

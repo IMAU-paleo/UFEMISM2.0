@@ -9,7 +9,7 @@
 # Include settings from (uncommented) file below:
 
 #include Makefile_include_local.txt
-include Makefile_include_erwin_macos.txt
+include Makefile_include_ecmwf.txt
 #include Makefile_include_nix.txt
 #include Makefile_include_snellius.txt
 

@@ -759,9 +759,17 @@ MODULE model_configuration
     REAL(dp)            :: BMB_Favier2019_gamma_config                  = 99.32E-5
 
     ! "laddie"
-    ! CHARACTER(LEN=256)  :: filename_BMB_laddie_config                   = ''
-    CHARACTER(LEN=256)  :: filename_BMB_laddie_initial                  = ''
-    CHARACTER(LEN=256)  :: filename_BMB_laddie_runtime                  = ''
+    CHARACTER(LEN=256)  :: dir_BMB_laddie_coupling_config              = ''                               ! Path to directory with laddie executable template run_laddie_template.sh and laddie_configtemplate_XXX.toml
+    CHARACTER(LEN=256)  :: dir_BMB_laddie_model_config                 = ''                               ! Path to laddie directory
+
+    CHARACTER(LEN=256)  :: filename_BMB_laddie_output_config           = ''                               ! File name of basal melt provided by LADDIE
+    CHARACTER(LEN=256)  :: filename_BMB_laddie_configfile_config       = ''                               ! Configfile name of this laddie run
+    CHARACTER(LEN=256)  :: filename_BMB_laddie_configtemplate_config   = ''                               ! Template for configfile
+
+    CHARACTER(LEN=256)  :: choice_BMB_laddie_system_config             = ''                               ! System on which the model is running: 'local_mac' or 'slurm_HPC'
+    CHARACTER(LEN=256)  :: choice_BMB_laddie_run_days_coupled_config   = ''                               ! Number of days to run laddie during coupled run
+    CHARACTER(LEN=256)  :: choice_BMB_laddie_run_days_spinup_config    = ''                               ! Number of days to run laddie during spinup
+    CHARACTER(LEN=256)  :: choice_BMB_laddie_T1_config                 = ''                               ! T1 in laddie config, temperature at depth, values used in FJ P1: [Warm: '1.5', MEDIUM: '0.0', COLD: '-1.9']
 
 
   ! == Lateral mass balance
@@ -1640,8 +1648,18 @@ MODULE model_configuration
     REAL(dp)            :: BMB_Favier2019_gamma
 
     ! "laddie"
-    CHARACTER(LEN=256)  :: filename_BMB_laddie_initial
-    CHARACTER(LEN=256)  :: filename_BMB_laddie_runtime
+    CHARACTER(LEN=256)  :: dir_BMB_laddie_coupling
+    CHARACTER(LEN=256)  :: dir_BMB_laddie_model
+
+    CHARACTER(LEN=256)  :: filename_BMB_laddie_output
+    CHARACTER(LEN=256)  :: filename_BMB_laddie_configfile
+    CHARACTER(LEN=256)  :: filename_BMB_laddie_configtemplate
+
+    CHARACTER(LEN=256)  :: choice_BMB_laddie_system
+    CHARACTER(LEN=256)  :: choice_BMB_laddie_run_days_coupled
+    CHARACTER(LEN=256)  :: choice_BMB_laddie_run_days_spinup
+    CHARACTER(LEN=256)  :: choice_BMB_laddie_T1
+
 
   ! == Lateral mass balance
   ! =======================
@@ -2400,8 +2418,15 @@ CONTAINS
       choice_BMB_model_parameterised_config                       , &
       uniform_BMB_config                                          , &
       BMB_Favier2019_gamma_config                                 , &
-      filename_BMB_laddie_initial                                 , &
-      filename_BMB_laddie_runtime                                 , &
+      dir_BMB_laddie_coupling_config                              , &
+      dir_BMB_laddie_model_config                                 , &
+      filename_BMB_laddie_output_config                           , &
+      filename_BMB_laddie_configfile_config                       , &
+      filename_BMB_laddie_configtemplate_config                   , &
+      choice_BMB_laddie_system_config                             , &
+      choice_BMB_laddie_run_days_coupled_config                   , &
+      choice_BMB_laddie_run_days_spinup_config                    , &
+      choice_BMB_laddie_T1_config                                 , &
       dt_LMB_config                                               , &
       do_LMB_inversion_config                                     , &
       LMB_inversion_t_start_config                                , &
@@ -3274,8 +3299,15 @@ CONTAINS
     C%BMB_Favier2019_gamma                                   = BMB_Favier2019_gamma_config
 
     ! "laddie"
-    C%filename_BMB_laddie_initial                            = filename_BMB_laddie_initial
-    C%filename_BMB_laddie_runtime                            = filename_BMB_laddie_runtime
+    C%dir_BMB_laddie_coupling                                = dir_BMB_laddie_coupling_config
+    C%dir_BMB_laddie_model                                   = dir_BMB_laddie_model_config
+    C%filename_BMB_laddie_output                             = filename_BMB_laddie_output_config
+    C%filename_BMB_laddie_configfile                         = filename_BMB_laddie_configfile_config 
+    C%filename_BMB_laddie_configtemplate                     = filename_BMB_laddie_configtemplate_config
+    C%choice_BMB_laddie_system                               = choice_BMB_laddie_system_config
+    C%choice_BMB_laddie_run_days_coupled                     = choice_BMB_laddie_run_days_coupled_config
+    C%choice_BMB_laddie_run_days_spinup                      = choice_BMB_laddie_run_days_spinup_config
+    C%choice_BMB_laddie_T1                                   = choice_BMB_laddie_T1_config
 
   ! == Lateral mass balance
   ! =======================
