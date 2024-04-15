@@ -765,6 +765,7 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: filename_BMB_laddie_output_config           = ''                               ! File name of basal melt provided by LADDIE
     CHARACTER(LEN=256)  :: filename_BMB_laddie_configfile_config       = ''                               ! Configfile name of this laddie run
     CHARACTER(LEN=256)  :: filename_BMB_laddie_configtemplate_config   = ''                               ! Template for configfile
+    CHARACTER(LEN=256)  :: filename_BMB_laddie_initgeometry_config     = ''                               ! File name of init geometry
 
     CHARACTER(LEN=256)  :: choice_BMB_laddie_system_config             = ''                               ! System on which the model is running: 'local_mac' or 'slurm_HPC'
     CHARACTER(LEN=256)  :: choice_BMB_laddie_run_days_coupled_config   = ''                               ! Number of days to run laddie during coupled run
@@ -1654,6 +1655,7 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: filename_BMB_laddie_output
     CHARACTER(LEN=256)  :: filename_BMB_laddie_configfile
     CHARACTER(LEN=256)  :: filename_BMB_laddie_configtemplate
+    CHARACTER(LEN=256)  :: filename_BMB_laddie_initgeometry
 
     CHARACTER(LEN=256)  :: choice_BMB_laddie_system
     CHARACTER(LEN=256)  :: choice_BMB_laddie_run_days_coupled
@@ -2423,6 +2425,7 @@ CONTAINS
       filename_BMB_laddie_output_config                           , &
       filename_BMB_laddie_configfile_config                       , &
       filename_BMB_laddie_configtemplate_config                   , &
+      filename_BMB_laddie_initgeometry_config                     , &
       choice_BMB_laddie_system_config                             , &
       choice_BMB_laddie_run_days_coupled_config                   , &
       choice_BMB_laddie_run_days_spinup_config                    , &
@@ -3304,6 +3307,7 @@ CONTAINS
     C%filename_BMB_laddie_output                             = filename_BMB_laddie_output_config
     C%filename_BMB_laddie_configfile                         = filename_BMB_laddie_configfile_config 
     C%filename_BMB_laddie_configtemplate                     = filename_BMB_laddie_configtemplate_config
+    C%filename_BMB_laddie_initgeometry                       = filename_BMB_laddie_initgeometry_config
     C%choice_BMB_laddie_system                               = choice_BMB_laddie_system_config
     C%choice_BMB_laddie_run_days_coupled                     = choice_BMB_laddie_run_days_coupled_config
     C%choice_BMB_laddie_run_days_spinup                      = choice_BMB_laddie_run_days_spinup_config
