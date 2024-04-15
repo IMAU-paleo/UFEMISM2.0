@@ -56,6 +56,20 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    ! Determine which BMB model to run for this region
+    SELECT CASE (region_name)
+      CASE ('NAM')
+        choice_BMB_model = C%choice_BMB_model_NAM
+      CASE ('EAS')
+        choice_BMB_model = C%choice_BMB_model_EAS
+      CASE ('GRL')
+        choice_BMB_model = C%choice_BMB_model_GRL
+      CASE ('ANT')
+        choice_BMB_model = C%choice_BMB_model_ANT
+      CASE DEFAULT
+        CALL crash('unknown region_name "' // region_name // '"')
+    END SELECT
+
     ! Check if we need to calculate a new BMB
     IF (C%do_asynchronous_BMB) THEN
       ! Asynchronous coupling: do not calculate a new BMB in
@@ -72,7 +86,12 @@ CONTAINS
         ! It is not yet time to calculate a new BMB
 
         ! Apply subgrid scheme of old BMB to new mask
-        CALL apply_BMB_subgrid_scheme( mesh, ice, BMB)
+        SELECT CASE (choice_BMB_model)
+          CASE ('inverted')
+            ! No need to do anything
+          CASE DEFAULT
+            CALL apply_BMB_subgrid_scheme( mesh, ice, BMB)
+        END SELECT
 
         CALL finalise_routine( routine_name)
         RETURN
@@ -82,20 +101,6 @@ CONTAINS
       ! Synchronous coupling: calculate a new BMB in every model loop
       BMB%t_next = time + C%dt_BMB
     END IF
-
-    ! Determine which BMB model to run for this region
-    SELECT CASE (region_name)
-      CASE ('NAM')
-        choice_BMB_model = C%choice_BMB_model_NAM
-      CASE ('EAS')
-        choice_BMB_model = C%choice_BMB_model_EAS
-      CASE ('GRL')
-        choice_BMB_model = C%choice_BMB_model_GRL
-      CASE ('ANT')
-        choice_BMB_model = C%choice_BMB_model_ANT
-      CASE DEFAULT
-        CALL crash('unknown region_name "' // region_name // '"')
-    END SELECT
 
     ! Run the chosen BMB model
     SELECT CASE (choice_BMB_model)
@@ -118,8 +123,13 @@ CONTAINS
         CALL crash('unknown choice_BMB_model "' // TRIM( choice_BMB_model) // '"')
     END SELECT
 
-    ! Apply subgrid scheme
-    CALL apply_BMB_subgrid_scheme( mesh, ice, BMB)
+    ! Apply subgrid scheme of old BMB to new mask
+    SELECT CASE (choice_BMB_model)
+      CASE ('inverted')
+        ! No need to do anything
+      CASE DEFAULT
+        CALL apply_BMB_subgrid_scheme( mesh, ice, BMB)
+    END SELECT
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
