@@ -1,7 +1,7 @@
 # Test the "Set up Matlab" Action
 
 name: test-setup-matlab
-run-name: ${{ github.actor }} ": test the Setup Matlab action"
+run-name: ${{ github.actor }} - test the Setup Matlab action
 on: workflow_dispatch
 
 jobs:
