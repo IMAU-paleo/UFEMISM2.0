@@ -20,6 +20,10 @@ jobs:
         run: |
           nix build github:IMAU-paleo/UFEMISM2.0/${{github.sha}}?dir=tools/flake
 
+      - name: Check what we have
+        run: |
+          ls -a
+
       - name: Install MATLAB
         uses: matlab-actions/setup-matlab@v2.2.0
 
@@ -28,7 +32,7 @@ jobs:
         with:
           command: disp('Hello world!')
       
-      - name: Compile UFEMISM
-        run: |
-          cd src
-          make clean
+   #   - name: Compile UFEMISM
+   #     run: |
+   #       cd src
+   #       make clean
