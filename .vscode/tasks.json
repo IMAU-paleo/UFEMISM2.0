@@ -1,0 +1,20 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "type": "shell",
+      "label": "compile_all",
+      "command": "./compile_all_mac.csh",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "type": "shell",
+      "label": "compile_clean",
+      "command": "./compile_clean_mac.csh",
+    }
+  ]
+}
