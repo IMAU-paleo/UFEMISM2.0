@@ -5,7 +5,7 @@ run-name: ${{ github.actor }} - UFEMISM Test Suite (full)
 on: workflow_dispatch
 
 jobs:
-  setup-matlab:
+  setup:
     runs-on: ubuntu-latest
     steps:
 
@@ -27,4 +27,8 @@ jobs:
         uses: matlab-actions/run-command@v2
         with:
           command: disp('Hello world!')
-            
+      
+      - name: Compile UFEMISM
+        run: |
+          cd src
+          make clean
