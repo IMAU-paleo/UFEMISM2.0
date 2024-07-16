@@ -1,0 +1,12 @@
+# Test the "Set up Matlab" Action
+
+name: test-setup-matlab
+run-name: ${{ github.actor }} is testing the Setup Matlab action
+on: workflow_dispatch
+
+jobs:
+  setup-matlab:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: matlab-actions/setup-matlab@v2.2.0
+            
