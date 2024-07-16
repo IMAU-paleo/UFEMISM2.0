@@ -9,6 +9,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
 
+      - name: Checkout UFEMISM repository
+        uses: actions/checkout@v4
+
       - name: Install nix
         uses: cachix/install-nix-action@v22
 
