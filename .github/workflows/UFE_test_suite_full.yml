@@ -22,7 +22,7 @@ jobs:
 
       - name: Check what we have
         run: |
-          ls -a; ls result
+          ls -a; ls result; ls result/bin
 
       - name: Install MATLAB
         uses: matlab-actions/setup-matlab@v2.2.0
