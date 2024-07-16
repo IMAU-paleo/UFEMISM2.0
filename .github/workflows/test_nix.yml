@@ -11,9 +11,9 @@ on:
       - reopened
       - synchronize
       - ready_for_review
-  push:
-    branches:
-      - main
+  #push:
+  #  branches:
+  #    - main
   workflow_dispatch:
 
 jobs:
