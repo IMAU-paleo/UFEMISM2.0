@@ -23,13 +23,14 @@ jobs:
       - name: Checkout UFEMISM repository
         uses: actions/checkout@v4
 
+      - name: Check what we checked out
+        run: |
+          ls -a
+
       - name: Save UFEMISM build to cache
         uses: actions/cache/save@v3
         with:
-          path: |
-            src
-            templates
-            tools #'result'
+          path: 'src'
           key: UFEMISM_build
 
   run-unit-tests:
@@ -40,15 +41,13 @@ jobs:
       - name: Restore UFEMISM build from cache
         uses: actions/cache/restore@v3
         with:
-          path: result
+          path: 'src'
           key: UFEMISM_build
 
       - name: Check if we have it
         run: |
           ls -a
-          ls result
-          ls result/result
-          #ls result/bin
+          ls src
 
     #  - name: Checkout UFEMISM repository
     #    uses: actions/checkout@v4
