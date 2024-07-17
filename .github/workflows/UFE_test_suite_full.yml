@@ -9,21 +9,27 @@ jobs:
     runs-on: ubuntu-latest
     steps:
 
-      - name: Install nix
-        uses: cachix/install-nix-action@v22
+    #  - name: Install nix
+    #    uses: cachix/install-nix-action@v22
 
-      - name: Get nix version
-        run: |
-          nix --version
+    #  - name: Get nix version
+    #    run: |
+    #      nix --version
 
-      - name: Build UFEMISM with nix
-        run: |
-          nix build github:IMAU-paleo/UFEMISM2.0/${{github.sha}}?dir=tools/flake
+    #  - name: Build UFEMISM with nix
+    #    run: |
+    #      nix build github:IMAU-paleo/UFEMISM2.0/${{github.sha}}?dir=tools/flake
+
+      - name: Checkout UFEMISM repository
+        uses: actions/checkout@v4
 
       - name: Save UFEMISM build to cache
         uses: actions/cache/save@v3
         with:
-          path: 'result'
+          path: |
+            src
+            templates
+            tools #'result'
           key: UFEMISM_build
 
   run-unit-tests:
@@ -40,8 +46,8 @@ jobs:
       - name: Check if we have it
         run: |
           ls -a
-          ls result
-          ls result/bin
+          #ls result
+          #ls result/bin
 
     #  - name: Checkout UFEMISM repository
     #    uses: actions/checkout@v4
