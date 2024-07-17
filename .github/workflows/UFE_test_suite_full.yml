@@ -46,7 +46,7 @@ jobs:
       - name: Check if we have it
         run: |
           ls -a
-          #ls result
+          ls result
           #ls result/bin
 
     #  - name: Checkout UFEMISM repository
