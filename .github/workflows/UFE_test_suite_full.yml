@@ -25,6 +25,7 @@ jobs:
 
       - name: Check what we checked out
         run: |
+          pwd
           ls -a
 
       - uses: actions/cache/save@v3
