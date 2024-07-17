@@ -9,9 +9,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
 
-      - name: Checkout UFEMISM repository
-        uses: actions/checkout@v4
-
       - name: Install nix
         uses: cachix/install-nix-action@v22
 
@@ -23,36 +20,36 @@ jobs:
         run: |
           nix build github:IMAU-paleo/UFEMISM2.0/${{github.sha}}?dir=tools/flake
 
-   #   - name: Check what we have
-   #     run: |
-   #       ls -a; ls result; ls result/bin
-
-      - name: Install MATLAB
-        uses: matlab-actions/setup-matlab@v2.2.0
-
-   #   - name: Run MATLAB test script
-   #     uses: matlab-actions/run-command@v2
-   #     with:
-   #       command: disp('Hello world!')
-      
-   #   - name: Compile UFEMISM
-   #     run: |
-   #       cd src
-   #       make clean
+      - name: Save UFEMISM build to cache
+        uses: actions/cache/save@v3
+        with:
+          path: result
+          key: UFEMISM_build
 
   run-unit-tests:
     needs: setup
     runs-on: ubuntu-latest
     steps:
 
-      - name: Another MATLAB test
-        uses: matlab-actions/run-command@v2
+      - name: Restore UFEMISM build from cache
+        uses: actions/cache/restore@v3
         with:
-          command: disp('Hello world!')
+          path: result
+          key: UFEMISM_build
 
-    #  - name: 'Upload Artifact'
-    #    uses: actions/upload-artifact@v4
+      - name: Check if we have it
+        run: |
+          ls -a
+          ls result
+          ls result/bin
+
+    #  - name: Checkout UFEMISM repository
+    #    uses: actions/checkout@v4
+
+    #  - name: Install MATLAB
+    #    uses: matlab-actions/setup-matlab@v2.2.0
+
+    #  - name: Another MATLAB test
+    #    uses: matlab-actions/run-command@v2
     #    with:
-    #      name: my-artifact
-    #      path: my_file.txt
-    #      retention-days: 5
+    #      command: disp('Hello world!')
