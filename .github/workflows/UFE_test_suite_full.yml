@@ -23,7 +23,7 @@ jobs:
       - name: Save UFEMISM build to cache
         uses: actions/cache/save@v3
         with:
-          path: result
+          path: 'result'
           key: UFEMISM_build
 
   run-unit-tests:
