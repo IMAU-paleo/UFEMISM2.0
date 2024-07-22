@@ -35,9 +35,9 @@ jobs:
           key: UFEMISM_nix_packages
 
       - name: Build UFEMISM with nix
+        if: steps.cache_UFEMISM_nix_packages.outputs.cache-hit != 'true'
         run: |
           nix build github:IMAU-paleo/UFEMISM2.0/${{github.sha}}?dir=tools/flake
-        if: steps.cache_UFEMISM_nix_packages.outputs.cache-hit != 'true'
 
   compile_UFEMISM:
     needs: setup_packages
