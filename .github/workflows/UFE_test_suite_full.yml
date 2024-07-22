@@ -13,6 +13,10 @@ jobs:
         run: |
           echo Hello world!
 
+      - name: Install packages with homebrew
+        run: |
+          brew install gcc
+
     #  - name: Install nix
     #    uses: cachix/install-nix-action@v22
 
