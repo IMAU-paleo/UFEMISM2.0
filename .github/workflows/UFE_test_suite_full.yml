@@ -16,9 +16,9 @@ jobs:
     #    run: |
     #      nix --version
 
-      - name: Build UFEMISM with nix
-        run: |
-          nix build github:IMAU-paleo/UFEMISM2.0/${{github.sha}}?dir=tools/flake
+    #  - name: Build UFEMISM with nix
+    #    run: |
+    #      nix build github:IMAU-paleo/UFEMISM2.0/${{github.sha}}?dir=tools/flake
 
     #  - name: Checkout UFEMISM repository
     #    uses: actions/checkout@v4
