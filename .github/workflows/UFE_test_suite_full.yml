@@ -9,67 +9,45 @@ jobs:
     runs-on: ubuntu-latest
     steps:
 
-    #  - name: Install nix
-    #    uses: cachix/install-nix-action@v22
+      - name: Install nix
+        uses: cachix/install-nix-action@v22
 
     #  - name: Get nix version
     #    run: |
     #      nix --version
 
-    #  - name: Build UFEMISM with nix
-    #    run: |
-    #      nix build github:IMAU-paleo/UFEMISM2.0/${{github.sha}}?dir=tools/flake
-
-      - name: Checkout UFEMISM repository
-        uses: actions/checkout@v4
-
-      - name: Check what we checked out
+      - name: Build UFEMISM with nix
         run: |
-          pwd
-          ls -a
-
-      - name: testerdetest
-        run: |
-          echo ${{github.workspace}}/src
-          echo ~/src
-          ls -a ${{github.workspace}}
-          ls -a ~
-
-    #  - uses: actions/cache/save@v3
-    #    id: cache
-    #    with:
-    #      path: ${{github.workspace}}/src
-    #      key: UFEMISM_build
-
-      - uses: actions/cache@v2
-        id: cache-tijn  # give it a name for checking the cache hit-or-not
-        with:
-          path: ${{github.workspace}}/src  # what we cache: the folder
-          key: Tijns_cache_test
-
-  run-unit-tests:
-    needs: setup
-    runs-on: ubuntu-latest
-    steps:
-
-   #   - uses: actions/cache/restore@v3
-   #     id: restore-cache
-   #     with:
-   #       key: UFEMISM_build
-
-      - uses: actions/cache@v2
-        id: cache-tijn  # give it a name for checking the cache hit-or-not
-        with:
-          path: ${{github.workspace}}/src  # what we cache: the folder
-          key: Tijns_cache_test
-
-      - name: Check if we have it
-        run: |
-          ls -a
-          ls src
+          nix build github:IMAU-paleo/UFEMISM2.0/${{github.sha}}?dir=tools/flake
 
     #  - name: Checkout UFEMISM repository
     #    uses: actions/checkout@v4
+
+      - name: testerdetest
+        run: |
+          echo ~/src
+          ls -a ~
+
+#      - uses: actions/cache@v2
+#        id: cache-tijn  # give it a name for checking the cache hit-or-not
+#        with:
+#          path: ${{github.workspace}}/src  # what we cache: the folder
+#          key: Tijns_cache_test
+
+#  run-unit-tests:
+#    needs: setup
+#    runs-on: ubuntu-latest
+#    steps:
+#
+#      - uses: actions/cache@v2
+#        id: cache-tijn  # give it a name for checking the cache hit-or-not
+#        with:
+#          path: ${{github.workspace}}/src  # what we cache: the folder
+#          key: Tijns_cache_test
+#
+#      - name: Check if we have it
+#        run: |
+#          ls -a
 
     #  - name: Install MATLAB
     #    uses: matlab-actions/setup-matlab@v2.2.0
