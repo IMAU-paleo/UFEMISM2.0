@@ -34,6 +34,12 @@ jobs:
           ls -a /nix
           echo ls -a /nix/store
           ls -a /nix/store
+            
+      - uses: actions/cache/save@v3
+        id: cache
+        with:
+          path: /nix/store
+          key: UFEMISM_nix_packages
           
     #  - if: ${{ steps.cache_UFEMISM_nix_packages.outputs.cache-hit != 'true' }}
     #    name: Cache miss! Download and build UFEMISM nix packages
