@@ -16,18 +16,21 @@ jobs:
     #    run: |
     #      nix --version
 
-    #  - name: Build UFEMISM with nix
-    #    run: |
-    #      nix build github:IMAU-paleo/UFEMISM2.0/${{github.sha}}?dir=tools/flake
+      - name: Build UFEMISM with nix
+        run: |
+          nix build github:IMAU-paleo/UFEMISM2.0/${{github.sha}}?dir=tools/flake
 
     #  - name: Checkout UFEMISM repository
     #    uses: actions/checkout@v4
 
       - name: testerdetest
         run: |
-          echo ~
+          echo ls -a ~
           ls -a ~
+          echo ls -a /nix
           ls -a /nix
+          echo ls -a /nix/store
+          ls -a /nix/store
 
 #      - uses: actions/cache@v2
 #        id: cache-tijn  # give it a name for checking the cache hit-or-not
