@@ -13,6 +13,11 @@ jobs:
         run: |
           echo Hello world!
 
+      - name: Check the Cellar
+        run: |
+          echo ls -a /opt/homebrew/Cellar
+          ls -a /opt/homebrew/Cellar
+          
       - name: Install packages with homebrew
         run: |
           #brew install gcc     # Not needed on GitHub server, already installed
@@ -22,12 +27,10 @@ jobs:
           brew install netcdf
           brew install netcdf-fortran
 
-      - name: testerdetest
+      - name: Check the Cellar again
         run: |
-          echo ls -a
-          ls -a
-          echo ls -a ~
-          ls -a ~
+          echo ls -a /opt/homebrew/Cellar
+          ls -a /opt/homebrew/Cellar
 
     #  - name: Install nix
     #    uses: cachix/install-nix-action@v22
@@ -79,6 +82,11 @@ jobs:
       - name: Step 0
         run: |
           echo Hello world!
+
+      - name: Check the Cellar
+        run: |
+          echo ls -a /opt/homebrew/Cellar
+          ls -a /opt/homebrew/Cellar
 
  #     - name: Install nix
  #       uses: cachix/install-nix-action@v22
