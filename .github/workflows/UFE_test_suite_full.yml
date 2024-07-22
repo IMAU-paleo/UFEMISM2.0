@@ -11,6 +11,10 @@ jobs:
 
       - name: Install nix
         uses: cachix/install-nix-action@v22
+          
+      - name: Build UFEMISM with nix
+        run: |
+          nix build github:IMAU-paleo/UFEMISM2.0/${{github.sha}}?dir=tools/flake
 
     #  - name: Get nix version
     #    run: |
@@ -19,31 +23,31 @@ jobs:
     #  - name: Checkout UFEMISM repository
     #    uses: actions/checkout@v4
 
-    #  - name: testerdetest
+      - name: testerdetest
+        run: |
+          echo ls -a
+          ls -a
+          echo ls -a result
+          ls -a result
+          echo ls -a result/bin
+          ls -a result/bin
+
+    #  - uses: actions/cache@v2
+    #    id: cache_UFEMISM_nix_packages
+    #    with:
+    #      path: /nix/store
+    #      key: UFEMISM_nix_packages
+          
+    #  - if: ${{ steps.cache_UFEMISM_nix_packages.outputs.cache-hit != 'true' }}
+    #    name: Cache miss! Download and build UFEMISM nix packages
     #    run: |
-    #      echo ls -a ~
-    #      ls -a ~
-    #      echo ls -a /nix
-    #      ls -a /nix
+    #      nix build github:IMAU-paleo/UFEMISM2.0/${{github.sha}}?dir=tools/flake
+          
+    #  - if: ${{ steps.cache_UFEMISM_nix_packages.outputs.cache-hit == 'true' }}
+    #    name: Cache hit! Load UFEMISM nix packages from cache.
+    #    run: |
     #      echo ls -a /nix/store
     #      ls -a /nix/store
-
-      - uses: actions/cache@v2
-        id: cache_UFEMISM_nix_packages
-        with:
-          path: /nix/store
-          key: UFEMISM_nix_packages
-          
-      - if: ${{ steps.cache_UFEMISM_nix_packages.outputs.cache-hit != 'true' }}
-        name: Cache miss! Download and build UFEMISM nix packages
-        run: |
-          nix build github:IMAU-paleo/UFEMISM2.0/${{github.sha}}?dir=tools/flake
-          
-      - if: ${{ steps.cache_UFEMISM_nix_packages.outputs.cache-hit == 'true' }}
-        name: Cache hit! Load UFEMISM nix packages from cache.
-        run: |
-          echo ls -a /nix/store
-          ls -a /nix/store
 
 #  compile_UFEMISM:
 #    needs: setup_packages
