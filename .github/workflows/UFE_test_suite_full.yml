@@ -11,14 +11,17 @@ jobs:
 
       - name: Install nix
         uses: cachix/install-nix-action@v22
+
+      - uses: actions/cache@v2
+        id: cache_UFEMISM_program
+        with:
+          path: result
+          key: UFEMISM_program
           
-      - name: Build UFEMISM with nix
+      - if: ${{ steps.cache_UFEMISM_program.outputs.cache-hit != 'true' }}
+        name: Build UFEMISM with nix
         run: |
           nix build github:IMAU-paleo/UFEMISM2.0/${{github.sha}}?dir=tools/flake
-
-    #  - name: Get nix version
-    #    run: |
-    #      nix --version
 
     #  - name: Checkout UFEMISM repository
     #    uses: actions/checkout@v4
@@ -31,12 +34,6 @@ jobs:
           ls -a result
           echo ls -a result/bin
           ls -a result/bin
-
-    #  - uses: actions/cache@v2
-    #    id: cache_UFEMISM_nix_packages
-    #    with:
-    #      path: /nix/store
-    #      key: UFEMISM_nix_packages
           
     #  - if: ${{ steps.cache_UFEMISM_nix_packages.outputs.cache-hit != 'true' }}
     #    name: Cache miss! Download and build UFEMISM nix packages
