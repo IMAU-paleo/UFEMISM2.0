@@ -15,7 +15,11 @@ jobs:
 
       - name: Install packages with homebrew
         run: |
-          brew install gcc
+          #brew install gcc     # Not needed on GitHub server, already installed
+          brew install open-mpi
+          brew install petsc
+          brew install netcdf
+          brew install netcdf-fortran
 
     #  - name: Install nix
     #    uses: cachix/install-nix-action@v22
