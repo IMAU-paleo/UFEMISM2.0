@@ -28,6 +28,9 @@ jobs:
           pwd
           ls -a
 
+      - name: testerdetest
+        run: ${{github.workspace}}/src
+
       - uses: actions/cache/save@v3
         id: cache
         with:
