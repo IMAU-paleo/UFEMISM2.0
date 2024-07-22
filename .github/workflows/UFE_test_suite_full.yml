@@ -59,6 +59,13 @@ jobs:
  #     - name: Install nix
  #       uses: cachix/install-nix-action@v22
 
+      - name: idee
+        run: |
+          echo mkdir nix
+          mkdir /nix
+          echo mkdir nix/store
+          mkdir /nix/store
+
       - uses: actions/cache/restore@v3
         id: restore_cache
         with:
