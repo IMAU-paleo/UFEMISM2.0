@@ -32,6 +32,8 @@ jobs:
           ls -a
           echo ls -a result
           ls -a result
+          echo ls -a result/result
+          ls -a result/result
           echo ls -a result/bin
           ls -a result/bin
           echo ls -a result/bin
