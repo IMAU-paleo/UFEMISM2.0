@@ -29,7 +29,9 @@ jobs:
           ls -a
 
       - name: testerdetest
-        run: echo ${{github.workspace}}/src
+        run: |
+          echo ${{github.workspace}}/src
+          echo ~/src
 
       - uses: actions/cache/save@v3
         id: cache
