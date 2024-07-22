@@ -18,9 +18,9 @@ jobs:
     #      path: ${{ github.workspace }}/result
     #      key: UFEMISM_program
           
-      - name: Build UFEMISM with nix
-        run: |
-          nix build github:IMAU-paleo/UFEMISM2.0/${{github.sha}}?dir=tools/flake
+    #  - name: Build UFEMISM with nix
+    #    run: |
+    #      nix build github:IMAU-paleo/UFEMISM2.0/${{github.sha}}?dir=tools/flake
 
     #  - name: Checkout UFEMISM repository
     #    uses: actions/checkout@v4
@@ -62,6 +62,7 @@ jobs:
       - uses: actions/cache/restore@v3
         id: restore_cache
         with:
+          path: /nix/store
           key: UFEMISM_nix_packages
 
   #    - uses: actions/cache@v2
