@@ -32,6 +32,8 @@ jobs:
         run: |
           echo ${{github.workspace}}/src
           echo ~/src
+          ls -a ${{github.workspace}}/src
+          ls -a ~/src
 
       - uses: actions/cache/save@v3
         id: cache
