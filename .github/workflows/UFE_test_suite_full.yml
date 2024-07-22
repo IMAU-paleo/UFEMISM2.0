@@ -6,7 +6,7 @@ on: workflow_dispatch
 
 jobs:
   setup_packages:
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     steps:
 
       - name: Step 0
@@ -61,7 +61,7 @@ jobs:
 
   compile_UFEMISM:
     needs: setup_packages
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     steps:
 
       - name: Step 0
