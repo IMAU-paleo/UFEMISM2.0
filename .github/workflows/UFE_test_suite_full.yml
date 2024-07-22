@@ -8,54 +8,25 @@ jobs:
   setup_packages:
     runs-on: macos-latest
     steps:
-
-      - name: Step 0
-        run: |
-          echo Hello world!
-
-      - name: Check the Cellar
-        run: |
-          echo ls -a /opt/homebrew/Cellar
-          ls -a /opt/homebrew/Cellar
           
-      - name: Install packages with homebrew
+      - name: Install packages with Homebrew
         run: |
-          #brew install gcc     # Not needed on GitHub server, already installed
+          #brew install gcc        # Not needed on GitHub server, already installed
           brew install open-mpi
           brew install petsc
           brew unlink hdf5-mpi     # To fix the following conflict: "hdf5-mpi: because hdf5-mpi is a variant of hdf5, one can only use one or the other"
           brew install netcdf
           brew install netcdf-fortran
 
-      - name: Check the Cellar again
+      - name: Checkout UFEMISM repository
+        uses: actions/checkout@v4
+
+      - name: Compile UFEMISM
         run: |
-          echo ls -a /opt/homebrew/Cellar
-          ls -a /opt/homebrew/Cellar
-
-    #  - name: Install nix
-    #    uses: cachix/install-nix-action@v22
-
-    #  - uses: actions/cache@v2
-    #    id: cache_UFEMISM_program
-    #    with:
-    #      path: ${{ github.workspace }}/result
-    #      key: UFEMISM_program
-          
-    #  - name: Build UFEMISM with nix
-    #    run: |
-    #      nix build github:IMAU-paleo/UFEMISM2.0/${{github.sha}}?dir=tools/flake
-
-    #  - name: Checkout UFEMISM repository
-    #    uses: actions/checkout@v4
-
-    #  - name: testerdetest
-    #    run: |
-    #      echo ls -a
-    #      ls -a
-    #      echo ls -a /nix
-    #      ls -a /nix
-    #      echo ls -a /nix/store
-    #      ls -a /nix/store
+          echo ls -a
+          ls -a
+          echo ls -a templates
+          ls -a templates
             
     #  - uses: actions/cache/save@v3
     #    id: cache
