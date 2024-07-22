@@ -59,12 +59,17 @@ jobs:
  #     - name: Install nix
  #       uses: cachix/install-nix-action@v22
 
-      - uses: actions/cache@v2
-        id: cache_UFEMISM_nix_packages
+      - uses: actions/cache/restore@v3
+        id: restore_cache
         with:
-          path: /nix/store
           key: UFEMISM_nix_packages
-        #  continue-on-error: true
+
+  #    - uses: actions/cache@v2
+  #      id: cache_UFEMISM_nix_packages
+  #      with:
+  #        path: /nix/store
+  #        key: UFEMISM_nix_packages
+  #      #  continue-on-error: true
 
       - name: check if cache loaded succesfully
         run: |
