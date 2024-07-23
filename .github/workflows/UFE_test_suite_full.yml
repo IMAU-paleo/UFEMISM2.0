@@ -21,8 +21,15 @@ jobs:
       - name: Checkout UFEMISM repository
         uses: actions/checkout@v4
 
+      - name: Check the Cellar
+        run: |
+          echo ls -a /opt/homebrew/Cellar
+          ls -a /opt/homebrew/Cellar
+
       - name: Compile UFEMISM
         run: |
+          echo apropos fort
+          apropos fort
           gfortran --version
           ./compile_all_mac.csh
             
