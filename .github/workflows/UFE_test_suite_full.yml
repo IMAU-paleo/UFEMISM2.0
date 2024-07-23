@@ -25,10 +25,18 @@ jobs:
         run: |
           echo ls -a /opt/homebrew/Cellar
           ls -a /opt/homebrew/Cellar
+          echo ls -a /opt/homebrew/Cellar/gcc
+          ls -a /opt/homebrew/Cellar/gcc
+          echo cat ~/.bash_profile
+          cat ~/.bash_profile
 
-      - name: Compile UFEMISM
-        run: |
-          ls -a ~
+   #   - name: Add gfortran to PATH
+   #     run: |
+   #       echo "export PATH="your-dir:$PATH"" >> ~/.inputrc
+
+   #   - name: Compile UFEMISM
+   #     run: |
+   #       ls -a ~
     #      gfortran --version
     #      ./compile_all_mac.csh
             
