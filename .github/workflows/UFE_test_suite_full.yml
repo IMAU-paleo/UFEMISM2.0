@@ -42,7 +42,7 @@ jobs:
 
       - name: Add gfortran to PATH
         run: |
-          echo -e "\nexport PATH="/opt/homebrew/Cellar/gcc/14.1.0_2:$PATH"" >> ~/.bash_profile
+          echo -e '\nexport PATH="/opt/homebrew/Cellar/gcc/14.1.0_2:$PATH"' >> ~/.bash_profile
 
       - name: Testerdetest2
         run: |
