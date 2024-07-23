@@ -32,6 +32,8 @@ jobs:
           ls -a /opt/homebrew/Cellar/gcc
           echo ls -a /opt/homebrew/Cellar/gcc/14.1.0_2
           ls -a /opt/homebrew/Cellar/gcc/14.1.0_2
+          echo ls -a ~
+          ls -a ~
 
       - name: Testerdetest2
         run: |
