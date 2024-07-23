@@ -31,4 +31,4 @@ abstract: >-
   Version 2.0 of the Utrecht Finite Volume Ice-Sheet Model
   (UFEMISM) which can be used for long paleoglaciological
   applications 
-license: Apache-2.0
+license: GPL-3.0
