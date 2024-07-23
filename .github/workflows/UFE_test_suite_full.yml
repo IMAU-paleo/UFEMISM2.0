@@ -8,6 +8,11 @@ jobs:
   setup_packages:
     runs-on: macos-latest
     steps:
+
+      - name: Check the Cellar before installing everything
+        run: |
+          echo ls -a /opt/homebrew/Cellar
+          ls -a /opt/homebrew/Cellar
           
       - name: Install packages with Homebrew   # Packages end up in /opt/homebrew/Cellar
         run: |
@@ -17,13 +22,18 @@ jobs:
           brew unlink hdf5-mpi                 # To fix the following conflict: "hdf5-mpi: because hdf5-mpi is a variant of hdf5, one can only use one or the other"
           brew install netcdf
           brew install netcdf-fortran
+
+      - name: Check the Cellar after installing everything
+        run: |
+          echo ls -a /opt/homebrew/Cellar
+          ls -a /opt/homebrew/Cellar
             
-      - name: Cache packages
-        uses: actions/cache/save@v3
-        id: UFEMISM_brew_packages
-        with:
-          path: /opt/homebrew/Cellar
-          key: UFEMISM_brew_packages
+   #   - name: Cache packages
+   #     uses: actions/cache/save@v3
+   #     id: UFEMISM_brew_packages
+   #     with:
+   #       path: /opt/homebrew/Cellar
+   #       key: UFEMISM_brew_packages
           
     #  - if: ${{ steps.cache_UFEMISM_nix_packages.outputs.cache-hit != 'true' }}
     #    name: Cache miss! Download and build UFEMISM nix packages
