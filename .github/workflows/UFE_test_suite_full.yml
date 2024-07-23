@@ -9,67 +9,21 @@ jobs:
     runs-on: macos-latest
     steps:
           
-      - name: Install packages with Homebrew
+      - name: Install packages with Homebrew   # Packages end up in /opt/homebrew/Cellar
         run: |
-          #brew install gcc        # Not needed on GitHub server, already installed
+          #brew install gcc                    # Not needed on GitHub server, already installed
           brew install open-mpi
           brew install petsc
-          brew unlink hdf5-mpi     # To fix the following conflict: "hdf5-mpi: because hdf5-mpi is a variant of hdf5, one can only use one or the other"
+          brew unlink hdf5-mpi                 # To fix the following conflict: "hdf5-mpi: because hdf5-mpi is a variant of hdf5, one can only use one or the other"
           brew install netcdf
           brew install netcdf-fortran
-
-      - name: Set up Fortran compiler          # See: https://github.com/marketplace/actions/setup-fortran
-        uses: fortran-lang/setup-fortran@v1
-        id: setup-fortran
-        with:
-          compiler: gcc
-          version: 13
-
-      - name: Verify compiler setup
-        run: gfortran --version
-
-      - name: Checkout UFEMISM repository
-        uses: actions/checkout@v4
-
-#      - name: Check the Cellar
-#        run: |
-#          echo ls -a /opt/homebrew/Cellar
-#          ls -a /opt/homebrew/Cellar
-
-#      - name: Testerdetest
-#        run: |
-#          echo ls -a /opt/homebrew/Cellar/gcc
-#          ls -a /opt/homebrew/Cellar/gcc
-#          echo ls -a /opt/homebrew/Cellar/gcc/14.1.0_2
-#          ls -a /opt/homebrew/Cellar/gcc/14.1.0_2
-#          echo ls -a ~
-#          ls -a ~
-
-#      - name: Testerdetest2
-#        run: |
-#          echo cat ~/.bash_profile
-#          cat ~/.bash_profile
-#
-#      - name: Add gfortran to path
-#        run: |
-#          echo -e '\nexport PATH="/opt/homebrew/Cellar/gcc/14.1.0_2:$PATH"' >> ~/.bash_profile
-#
-#      - name: Testerdetest2
-#        run: |
-#          echo cat ~/.bash_profile
-#          cat ~/.bash_profile
-#
-#      - name: Reload bash profile to apply path changes
-#        run: source ~/.bash_profile
-
-      - name: Compile UFEMISM
-        run: ./compile_all_mac.csh
             
-    #  - uses: actions/cache/save@v3
-    #    id: cache
-    #    with:
-    #      path: /nix/store
-    #      key: UFEMISM_nix_packages
+      - name: Cache packages
+        uses: actions/cache/save@v3
+        id: UFEMISM_brew_packages
+        with:
+          path: /opt/homebrew/Cellar
+          key: UFEMISM_brew_packages
           
     #  - if: ${{ steps.cache_UFEMISM_nix_packages.outputs.cache-hit != 'true' }}
     #    name: Cache miss! Download and build UFEMISM nix packages
@@ -96,8 +50,21 @@ jobs:
           echo ls -a /opt/homebrew/Cellar
           ls -a /opt/homebrew/Cellar
 
- #     - name: Install nix
- #       uses: cachix/install-nix-action@v22
+    #  - name: Set up Fortran compiler          # See: https://github.com/marketplace/actions/setup-fortran
+    #    uses: fortran-lang/setup-fortran@v1
+    #    id: setup-fortran
+    #    with:
+    #      compiler: gcc
+    #      version: 13
+
+    #  - name: Verify compiler setup
+    #    run: gfortran --version
+
+    #  - name: Checkout UFEMISM repository
+    #    uses: actions/checkout@v4
+
+    #  - name: Compile UFEMISM
+    #    run: ./compile_all_mac.csh
 
   #    - uses: actions/cache/restore@v3
   #      id: restore_cache
@@ -111,11 +78,6 @@ jobs:
   #        path: /nix/store
   #        key: UFEMISM_nix_packages
   #      #  continue-on-error: true
-
-   #   - name: check if cache loaded succesfully
-   #     run: |
-   #       echo ls -a /nix/store
-   #       ls -a /nix/store
 
     #  - name: Install MATLAB
     #    uses: matlab-actions/setup-matlab@v2.2.0
