@@ -18,6 +18,18 @@ jobs:
           brew install netcdf
           brew install netcdf-fortran
 
+      - name: Set up Fortran compiler
+        uses: fortran-lang/setup-fortran@v1
+        id: setup-fortran
+        with:
+          compiler: gcc
+          version: 13
+
+      - name: Set Fortran compiler environment variables
+        run: |
+          ${{ env.FC }} ... # environment vars FC, CC, and CXX are set
+          ${{ steps.setup-fortran.outputs.fc }} ... # outputs work too
+
       - name: Checkout UFEMISM repository
         uses: actions/checkout@v4
 
@@ -35,22 +47,22 @@ jobs:
 #          echo ls -a ~
 #          ls -a ~
 
-      - name: Testerdetest2
-        run: |
-          echo cat ~/.bash_profile
-          cat ~/.bash_profile
-
-      - name: Add gfortran to path
-        run: |
-          echo -e '\nexport PATH="/opt/homebrew/Cellar/gcc/14.1.0_2:$PATH"' >> ~/.bash_profile
-
-      - name: Testerdetest2
-        run: |
-          echo cat ~/.bash_profile
-          cat ~/.bash_profile
-
-      - name: Reload bash profile to apply path changes
-        run: source ~/.bash_profile
+#      - name: Testerdetest2
+#        run: |
+#          echo cat ~/.bash_profile
+#          cat ~/.bash_profile
+#
+#      - name: Add gfortran to path
+#        run: |
+#          echo -e '\nexport PATH="/opt/homebrew/Cellar/gcc/14.1.0_2:$PATH"' >> ~/.bash_profile
+#
+#      - name: Testerdetest2
+#        run: |
+#          echo cat ~/.bash_profile
+#          cat ~/.bash_profile
+#
+#      - name: Reload bash profile to apply path changes
+#        run: source ~/.bash_profile
 
       - name: Compile UFEMISM
         run: |
