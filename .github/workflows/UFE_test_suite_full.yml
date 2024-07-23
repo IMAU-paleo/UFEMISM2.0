@@ -25,8 +25,16 @@ jobs:
         run: |
           echo ls -a /opt/homebrew/Cellar
           ls -a /opt/homebrew/Cellar
+
+      - name: Testerdetest
+        run: |
           echo ls -a /opt/homebrew/Cellar/gcc
           ls -a /opt/homebrew/Cellar/gcc
+          echo ls -a /opt/homebrew/Cellar/gcc/14.1.0_2
+          ls -a /opt/homebrew/Cellar/gcc/14.1.0_2
+
+      - name: Testerdetest2
+        run: |
           echo cat ~/.bash_profile
           cat ~/.bash_profile
 
