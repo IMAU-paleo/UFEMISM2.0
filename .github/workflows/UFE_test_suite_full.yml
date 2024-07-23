@@ -30,6 +30,7 @@ jobs:
         run: |
           echo apropos fort
           apropos fort
+          echo beep
           gfortran --version
           ./compile_all_mac.csh
             
