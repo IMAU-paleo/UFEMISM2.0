@@ -89,7 +89,11 @@ jobs:
           path: results_unit_tests
 
       - name: Test
-        run: ls -a
+        run: |
+          echo ls -a
+          ls -a
+          echo ls -a results_unit_tests
+          ls -a results_unit_tests
 
     #  - name: Install MATLAB
     #    uses: matlab-actions/setup-matlab@v2.2.0
