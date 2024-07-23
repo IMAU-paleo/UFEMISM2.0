@@ -40,7 +40,7 @@ jobs:
           echo cat ~/.bash_profile
           cat ~/.bash_profile
 
-      - name: Add gfortran to PATH
+      - name: Add gfortran to path
         run: |
           echo -e '\nexport PATH="/opt/homebrew/Cellar/gcc/14.1.0_2:$PATH"' >> ~/.bash_profile
 
@@ -48,6 +48,9 @@ jobs:
         run: |
           echo cat ~/.bash_profile
           cat ~/.bash_profile
+
+      - name: Reload bash profile to apply path changes
+        run: source ~/.bash_profile
 
    #   - name: Compile UFEMISM
    #     run: |
