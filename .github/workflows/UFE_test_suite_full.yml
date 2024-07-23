@@ -25,6 +25,9 @@ jobs:
           compiler: gcc
           version: 13
 
+      - name: Verify compiler setup
+        run: gfortran --version
+
       - name: Checkout UFEMISM repository
         uses: actions/checkout@v4
 
@@ -60,9 +63,7 @@ jobs:
 #        run: source ~/.bash_profile
 
       - name: Compile UFEMISM
-        run: |
-          gfortran --version
-    #      ./compile_all_mac.csh
+        run: ./compile_all_mac.csh
             
     #  - uses: actions/cache/save@v3
     #    id: cache
