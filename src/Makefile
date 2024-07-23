@@ -63,6 +63,7 @@ UFEMISM_source = \
   basic/mpi_basic.f90 \
   basic/reallocate_mod.f90 \
   basic/control_resources_and_error_messaging.f90 \
+  basic/assertions.f90 \
   basic/model_configuration.f90 \
   basic/mpi_distributed_memory.f90 \
   basic/math_utilities.f90 \
