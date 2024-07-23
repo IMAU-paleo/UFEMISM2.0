@@ -52,10 +52,9 @@ jobs:
       - name: Reload bash profile to apply path changes
         run: source ~/.bash_profile
 
-   #   - name: Compile UFEMISM
-   #     run: |
-   #       ls -a ~
-    #      gfortran --version
+      - name: Compile UFEMISM
+        run: |
+          gfortran --version
     #      ./compile_all_mac.csh
             
     #  - uses: actions/cache/save@v3
