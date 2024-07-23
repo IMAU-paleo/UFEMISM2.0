@@ -28,11 +28,9 @@ jobs:
 
       - name: Compile UFEMISM
         run: |
-          echo apropos fort
-          apropos fort
-          echo beep
-          gfortran --version
-          ./compile_all_mac.csh
+          ls -a ~
+    #      gfortran --version
+    #      ./compile_all_mac.csh
             
     #  - uses: actions/cache/save@v3
     #    id: cache
