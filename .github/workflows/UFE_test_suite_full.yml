@@ -23,7 +23,6 @@ jobs:
 
       - name: Compile UFEMISM
         run: |
-          which gfortran
           gfortran --version
           ./compile_all_mac.csh
             
