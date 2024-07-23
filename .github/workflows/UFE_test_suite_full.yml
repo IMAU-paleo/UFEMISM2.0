@@ -11,7 +11,7 @@ jobs:
           
       - name: Install packages with Homebrew
         run: |
-          #brew install gcc        # Not needed on GitHub server, already installed
+          brew reinstall gcc        # Not needed on GitHub server, already installed
           brew install open-mpi
           brew install petsc
           brew unlink hdf5-mpi     # To fix the following conflict: "hdf5-mpi: because hdf5-mpi is a variant of hdf5, one can only use one or the other"
