@@ -5,14 +5,9 @@ run-name: ${{ github.actor }} - UFEMISM Test Suite (full)
 on: workflow_dispatch
 
 jobs:
-  setup_packages:
+  compile_UFEMISM:
     runs-on: macos-latest
     steps:
-
-      - name: Check the Cellar before installing everything
-        run: |
-          echo ls -a /opt/homebrew/Cellar
-          ls -a /opt/homebrew/Cellar
           
       - name: Install packages with Homebrew   # Packages end up in /opt/homebrew/Cellar
         run: |
@@ -23,31 +18,31 @@ jobs:
           brew install netcdf
           brew install netcdf-fortran
 
-      - name: Check the Cellar after installing everything
-        run: |
-          echo ls -a /opt/homebrew/Cellar
-          ls -a /opt/homebrew/Cellar
-            
-   #   - name: Cache packages
-   #     uses: actions/cache/save@v3
-   #     id: UFEMISM_brew_packages
-   #     with:
-   #       path: /opt/homebrew/Cellar
-   #       key: UFEMISM_brew_packages
-          
-    #  - if: ${{ steps.cache_UFEMISM_nix_packages.outputs.cache-hit != 'true' }}
-    #    name: Cache miss! Download and build UFEMISM nix packages
-    #    run: |
-    #      nix build github:IMAU-paleo/UFEMISM2.0/${{github.sha}}?dir=tools/flake
-          
-    #  - if: ${{ steps.cache_UFEMISM_nix_packages.outputs.cache-hit == 'true' }}
-    #    name: Cache hit! Load UFEMISM nix packages from cache.
-    #    run: |
-    #      echo ls -a /nix/store
-    #      ls -a /nix/store
+      - name: Set up Fortran compiler          # See: https://github.com/marketplace/actions/setup-fortran
+        uses: fortran-lang/setup-fortran@v1
+        id: setup-fortran
+        with:
+          compiler: gcc
+          version: 13
 
-  compile_UFEMISM:
-    needs: setup_packages
+      - name: Verify compiler setup
+        run: gfortran --version
+
+      - name: Checkout UFEMISM repository
+        uses: actions/checkout@v4
+
+      - name: Compile UFEMISM
+        run: ./compile_all_mac.csh
+            
+      - name: Cache UFEMISM program
+        uses: actions/cache/save@v3
+        id: UFEMISM_program_cache_save
+        with:
+          path: UFEMISM_program
+          key: UFEMISM_program
+
+  run_unit_tests:
+    needs: compile_UFEMISM
     runs-on: macos-latest
     steps:
 
@@ -55,39 +50,12 @@ jobs:
         run: |
           echo Hello world!
 
-      - name: Check the Cellar
-        run: |
-          echo ls -a /opt/homebrew/Cellar
-          ls -a /opt/homebrew/Cellar
-
-    #  - name: Set up Fortran compiler          # See: https://github.com/marketplace/actions/setup-fortran
-    #    uses: fortran-lang/setup-fortran@v1
-    #    id: setup-fortran
-    #    with:
-    #      compiler: gcc
-    #      version: 13
-
-    #  - name: Verify compiler setup
-    #    run: gfortran --version
-
-    #  - name: Checkout UFEMISM repository
-    #    uses: actions/checkout@v4
-
-    #  - name: Compile UFEMISM
-    #    run: ./compile_all_mac.csh
-
-  #    - uses: actions/cache/restore@v3
-  #      id: restore_cache
-  #      with:
-  #        path: /nix/store
-  #        key: UFEMISM_nix_packages
-
-  #    - uses: actions/cache@v2
-  #      id: cache_UFEMISM_nix_packages
-  #      with:
-  #        path: /nix/store
-  #        key: UFEMISM_nix_packages
-  #      #  continue-on-error: true
+      - name: Restore UFEMISM program from cache
+        uses: actions/cache/restore@v3
+        id: UFEMISM_program_cache_restore
+        with:
+          path: UFEMISM_program
+          key: UFEMISM_program
 
     #  - name: Install MATLAB
     #    uses: matlab-actions/setup-matlab@v2.2.0
