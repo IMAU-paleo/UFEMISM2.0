@@ -11,7 +11,7 @@ jobs:
           
       - name: Install packages with Homebrew
         run: |
-          brew reinstall gcc        # Not needed on GitHub server, already installed
+          #brew install gcc        # Not needed on GitHub server, already installed
           brew install open-mpi
           brew install petsc
           brew unlink hdf5-mpi     # To fix the following conflict: "hdf5-mpi: because hdf5-mpi is a variant of hdf5, one can only use one or the other"
@@ -21,28 +21,33 @@ jobs:
       - name: Checkout UFEMISM repository
         uses: actions/checkout@v4
 
-      - name: Check the Cellar
-        run: |
-          echo ls -a /opt/homebrew/Cellar
-          ls -a /opt/homebrew/Cellar
+#      - name: Check the Cellar
+#        run: |
+#          echo ls -a /opt/homebrew/Cellar
+#          ls -a /opt/homebrew/Cellar
 
-      - name: Testerdetest
-        run: |
-          echo ls -a /opt/homebrew/Cellar/gcc
-          ls -a /opt/homebrew/Cellar/gcc
-          echo ls -a /opt/homebrew/Cellar/gcc/14.1.0_2
-          ls -a /opt/homebrew/Cellar/gcc/14.1.0_2
-          echo ls -a ~
-          ls -a ~
+#      - name: Testerdetest
+#        run: |
+#          echo ls -a /opt/homebrew/Cellar/gcc
+#          ls -a /opt/homebrew/Cellar/gcc
+#          echo ls -a /opt/homebrew/Cellar/gcc/14.1.0_2
+#          ls -a /opt/homebrew/Cellar/gcc/14.1.0_2
+#          echo ls -a ~
+#          ls -a ~
 
       - name: Testerdetest2
         run: |
           echo cat ~/.bash_profile
           cat ~/.bash_profile
 
-   #   - name: Add gfortran to PATH
-   #     run: |
-   #       echo "export PATH="your-dir:$PATH"" >> ~/.inputrc
+      - name: Add gfortran to PATH
+        run: |
+          echo "export PATH="/opt/homebrew/Cellar/gcc/14.1.0_2:$PATH"" >> ~/.bash_profile
+
+      - name: Testerdetest2
+        run: |
+          echo cat ~/.bash_profile
+          cat ~/.bash_profile
 
    #   - name: Compile UFEMISM
    #     run: |
