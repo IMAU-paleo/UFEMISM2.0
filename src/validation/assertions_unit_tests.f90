@@ -2945,11 +2945,15 @@ end subroutine test_tol_dp_4D_array
   end subroutine process_test_result_assertion
 
   !> Process the result of a unit test
-  subroutine process_test_result_unit_test( test_result, message)
+  subroutine process_test_result_unit_test( test_result, test_name)
+    use unit_tests_output, only: write_unit_test_result
+
     ! In/output variables:
     logical,          intent(in   ) :: test_result
-    character(len=*), intent(in   ) :: message
+    character(len=*), intent(in   ) :: test_name
     ! Local variables:
+
+    call write_unit_test_result( test_result, test_name)
 
   end subroutine process_test_result_unit_test
 
