@@ -1,1 +1,3 @@
-disp('hoera!')
+function hieperdepiep(hoera)
+disp(hoera)
+end
