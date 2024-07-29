@@ -486,7 +486,7 @@ contains
   ! ===== 0-D =====
   ! ===============
 
-  !> Test if (all elements of) a == b
+  !> Test if a == b
   subroutine test_eq_int_0D( a, b, test_mode, message)
     ! In/output variables:
     integer,          intent(in   ) :: a
@@ -1702,7 +1702,7 @@ end subroutine test_tol_int_4D_array
   ! ===== 0-D =====
   ! ===============
 
-  !> Test if (all elements of) a == b
+  !> Test if a == b
   subroutine test_eq_dp_0D( a, b, test_mode, message)
     ! In/output variables:
     real(dp),         intent(in   ) :: a

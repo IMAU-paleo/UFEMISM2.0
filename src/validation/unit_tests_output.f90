@@ -28,28 +28,28 @@ contains
     character(len=512)  :: msg
 
     if (test_result .eqv. .true.) then
-      str_file     = 'unit test passed: '
-      str_terminal = colour_string( 'unit test passed: ', 'green')
+      str_file     = 'Unit test passed:'
+      str_terminal = colour_string( 'Unit test passed:', 'green')
     else
-      str_file     = 'unit test failed: '
-      str_terminal = colour_string( 'unit test failed: ', 'red')
+      str_file     = 'Unit test failed:'
+      str_terminal = colour_string( 'Unit test failed:', 'red')
     end if
 
-    str_file     = trim( str_file)     // trim( test_name)
-    str_terminal = trim( str_terminal) // trim( test_name)
+    str_file     = trim( str_file)     // ' ' // trim( test_name)
+    str_terminal = trim( str_terminal) // ' ' // trim( test_name)
 
     if (par%master) then
 
       ! Write to terminal
-      write(0,*) str_terminal
+      write(0,*) trim( str_terminal)
 
       ! Write to file
-      open(newunit = io_unit_test_file, file = filename_unit_tests_output, status = "old", action = "write", &
+      open(newunit = io_unit_test_file, file = filename_unit_tests_output, status = "old", action = "write", position = "append", &
         iostat = stat, iomsg = msg)
       if (stat /= 0) then
         call crash('Could not open unit test output file, error message "' // trim(msg) // '"')
       end if
-      write(io_unit_test_file,*) str_file
+      write(io_unit_test_file,*) trim( str_file)
       close(io_unit_test_file)
 
     end if
