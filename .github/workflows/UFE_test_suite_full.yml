@@ -90,10 +90,8 @@ jobs:
 
       - name: testerdetest
         run: |
-          echo ls -a /Users/runner/hostedtoolcache
-          ls -a /Users/runner/hostedtoolcache
-          echo ls -a ~
-          ls -a ~
+          echo ls -a ~/hostedtoolcache
+          ls -a ~/hostedtoolcache
 
 #      - name: Restore MATLAB installation from cache
 #        uses: actions/cache/restore@v3
