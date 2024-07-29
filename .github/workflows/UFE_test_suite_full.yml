@@ -79,9 +79,9 @@ jobs:
     runs-on: macos-latest
     steps:
 
-#      - name: Checkout UFEMISM repository
-#        uses: actions/checkout@v4
-#
+      - name: Checkout UFEMISM repository
+        uses: actions/checkout@v4
+
 #      - name: Download unit test results as artifacts
 #        uses: actions/download-artifact@v4
 #        with:
