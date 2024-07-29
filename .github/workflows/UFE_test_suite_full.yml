@@ -5,88 +5,88 @@ run-name: ${{ github.actor }} - UFEMISM Test Suite (full)
 on: workflow_dispatch
 
 jobs:
-#  compile_UFEMISM:
-#    runs-on: macos-latest
-#    steps:
-#          
-#      - name: Install packages with Homebrew   # Packages end up in /opt/homebrew/Cellar
-#        run: |
-#          #brew install gcc                    # Not needed on GitHub server, already installed
-#          brew install open-mpi
-#          brew install petsc
-#          brew unlink hdf5-mpi                 # To fix the following conflict: "hdf5-mpi: because hdf5-mpi is a variant of hdf5, one can only use one or the other"
-#          brew install netcdf
-#          brew install netcdf-fortran
-#
-#      - name: Set up Fortran compiler          # See: https://github.com/marketplace/actions/setup-fortran
-#        uses: fortran-lang/setup-fortran@v1
-#        id: setup-fortran
-#        with:
-#          compiler: gcc
-#          version: 13
-#
-#      - name: Verify compiler setup
-#        run: gfortran --version
-#
-#      - name: Checkout UFEMISM repository
-#        uses: actions/checkout@v4
-#
-#      - name: Compile UFEMISM
-#        run: ./compile_all_mac.csh
-#            
-#      - name: Cache UFEMISM program
-#        uses: actions/cache/save@v3
-#        id: UFEMISM_program_cache_save
-#        with:
-#          path: UFEMISM_program
-#          key: UFEMISM_program
-#
-#  run_unit_tests:
-#    needs: compile_UFEMISM
-#    runs-on: macos-latest
-#    steps:
-#          
-#      - name: Install packages with Homebrew   # Packages end up in /opt/homebrew/Cellar
-#        run: |
-#          #brew install gcc                    # Not needed on GitHub server, already installed
-#          brew install open-mpi
-#          brew install petsc
-#          brew unlink hdf5-mpi                 # To fix the following conflict: "hdf5-mpi: because hdf5-mpi is a variant of hdf5, one can only use one or the other"
-#          brew install netcdf
-#          brew install netcdf-fortran
-#
-#      - name: Checkout UFEMISM repository
-#        uses: actions/checkout@v4
-#
-#      - name: Restore UFEMISM program from cache
-#        uses: actions/cache/restore@v3
-#        id: UFEMISM_program_cache_restore
-#        with:
-#          path: UFEMISM_program
-#          key: UFEMISM_program
-#
-#      - name: Run unit tests
-#        run: mpiexec  -n 2  UFEMISM_program  unit_tests
-#
-#      - name: Upload output as artifacts
-#        uses: actions/upload-artifact@v4.3.4
-#        with:
-#          name: results_unit_tests
-#          path: results_unit_tests
-#
+  compile_UFEMISM:
+    runs-on: macos-latest
+    steps:
+          
+      - name: Install packages with Homebrew   # Packages end up in /opt/homebrew/Cellar
+        run: |
+          #brew install gcc                    # Not needed on GitHub server, already installed
+          brew install open-mpi
+          brew install petsc
+          brew unlink hdf5-mpi                 # To fix the following conflict: "hdf5-mpi: because hdf5-mpi is a variant of hdf5, one can only use one or the other"
+          brew install netcdf
+          brew install netcdf-fortran
+
+      - name: Set up Fortran compiler          # See: https://github.com/marketplace/actions/setup-fortran
+        uses: fortran-lang/setup-fortran@v1
+        id: setup-fortran
+        with:
+          compiler: gcc
+          version: 13
+
+      - name: Verify compiler setup
+        run: gfortran --version
+
+      - name: Checkout UFEMISM repository
+        uses: actions/checkout@v4
+
+      - name: Compile UFEMISM
+        run: ./compile_all_mac.csh
+            
+      - name: Cache UFEMISM program
+        uses: actions/cache/save@v3
+        id: UFEMISM_program_cache_save
+        with:
+          path: UFEMISM_program
+          key: UFEMISM_program
+
+  run_unit_tests:
+    needs: compile_UFEMISM
+    runs-on: macos-latest
+    steps:
+          
+      - name: Install packages with Homebrew   # Packages end up in /opt/homebrew/Cellar
+        run: |
+          #brew install gcc                    # Not needed on GitHub server, already installed
+          brew install open-mpi
+          brew install petsc
+          brew unlink hdf5-mpi                 # To fix the following conflict: "hdf5-mpi: because hdf5-mpi is a variant of hdf5, one can only use one or the other"
+          brew install netcdf
+          brew install netcdf-fortran
+
+      - name: Checkout UFEMISM repository
+        uses: actions/checkout@v4
+
+      - name: Restore UFEMISM program from cache
+        uses: actions/cache/restore@v3
+        id: UFEMISM_program_cache_restore
+        with:
+          path: UFEMISM_program
+          key: UFEMISM_program
+
+      - name: Run unit tests
+        run: mpiexec  -n 2  UFEMISM_program  unit_tests
+
+      - name: Upload output as artifacts
+        uses: actions/upload-artifact@v4.3.4
+        with:
+          name: results_unit_tests
+          path: results_unit_tests
+
   analyse_unit_test_results:
-#    needs: run_unit_tests
+    needs: run_unit_tests
     runs-on: macos-latest
     steps:
 
       - name: Checkout UFEMISM repository
         uses: actions/checkout@v4
 
-#      - name: Download unit test results as artifacts
-#        uses: actions/download-artifact@v4
-#        with:
-#          name: results_unit_tests
-#          path: results_unit_tests
+      - name: Download unit test results as artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: results_unit_tests
+          path: results_unit_tests
 
       - name: Install MATLAB
         uses: matlab-actions/setup-matlab@v2.2.0
@@ -99,10 +99,10 @@ jobs:
       - name: Analyse unit tests results
         uses: matlab-actions/run-command@v2
         with:
-          command: addpath('automated_testing'), hieperdepiep('${{github.workspace}}/automated_testing')
+          command: addpath('automated_testing'), analyse_unit_test_results('${{github.workspace}}/automated_testing')
 
-#      - name: Upload test report as artifact
-#        uses: actions/upload-artifact@v4.3.4
-#        with:
-#          name: unit_tests_report
-#          path: results_unit_tests/unit_tests_report.html
+      - name: Upload test report as artifact
+        uses: actions/upload-artifact@v4.3.4
+        with:
+          name: unit_tests_report
+          path: results_unit_tests/unit_tests_report.html
