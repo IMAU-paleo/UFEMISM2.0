@@ -66,7 +66,7 @@ jobs:
           key: UFEMISM_program
 
       - name: Run unit tests
-        run: mpiexec  -n 2  UFEMISM_program  config-files/unit_tests.cfg
+        run: mpiexec  -n 2  UFEMISM_program  unit_tests
 
       - name: Upload output as artifacts
         uses: actions/upload-artifact@v4.3.4
@@ -91,7 +91,7 @@ jobs:
       - name: Install MATLAB
         uses: matlab-actions/setup-matlab@v2.2.0
 
-      - name: Short MATLAB test
+      - name: Analyse unit tests results
         uses: matlab-actions/run-command@v2
         with:
-          command: disp('Hello world!')
+          command: automated_testing/analyse_unit_tests_results
