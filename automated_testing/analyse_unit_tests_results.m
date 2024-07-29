@@ -1,9 +1,9 @@
-function analyse_unit_tests_results
+function analyse_unit_tests_results(foldername)
 % Process the UFEMISM unit tests results into a nice, semi-interactive html report.
 
 disp('Analysing unit test results...')
 
-foldername = '../results_unit_tests';
+% foldername = '../results_unit_tests';
 filename = [foldername '/unit_tests_output.txt'];
 
 R = read_unit_tests_structure( filename);
