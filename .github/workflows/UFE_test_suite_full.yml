@@ -101,4 +101,4 @@ jobs:
       - name: Analyse unit tests results
         uses: matlab-actions/run-command@v2
         with:
-          command: hieperdepiep
+          command: pwd
