@@ -96,7 +96,7 @@ jobs:
         with:
           command: disp('Hello world!')
 
-#      - name: Analyse unit tests results
-#        uses: matlab-actions/run-command@v2
-#        with:
-#          command: addpath('automated_testing'), hieperdepiep
+      - name: Analyse unit tests results
+        uses: matlab-actions/run-command@v2
+        with:
+          command: addpath('automated_testing'), hieperdepiep
