@@ -99,7 +99,7 @@ jobs:
       - name: Analyse unit tests results
         uses: matlab-actions/run-command@v2
         with:
-          command: addpath('automated_testing'), hieperdepiep('Hoera!')
+          command: addpath('automated_testing'), hieperdepiep(${{github.workspace}})
 
 #      - name: Upload test report as artifact
 #        uses: actions/upload-artifact@v4.3.4
