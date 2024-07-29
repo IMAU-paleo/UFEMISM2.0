@@ -91,14 +91,7 @@ jobs:
       - name: Install MATLAB
         uses: matlab-actions/setup-matlab@v2.2.0
 
-      - name: Move to folder
-        run: |
-          echo cd automated_testing
-          cd automated_testing
-          echo ls -a
-          ls -a
-
       - name: Analyse unit tests results
         uses: matlab-actions/run-command@v2
         with:
-          command: pwd
+          command: addpath('automated_testing'), hieperdepiep
