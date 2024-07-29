@@ -75,7 +75,7 @@ jobs:
           path: results_unit_tests
 
   analyse_unit_test_results:
-    #needs: run_unit_tests
+    needs: run_unit_tests
     runs-on: macos-latest
     steps:
 
