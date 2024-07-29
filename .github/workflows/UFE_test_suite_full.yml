@@ -79,29 +79,30 @@ jobs:
     runs-on: macos-latest
     steps:
 
-#      - name: Checkout UFEMISM repository
-#        uses: actions/checkout@v4
+      - name: Checkout UFEMISM repository
+        uses: actions/checkout@v4
 
-#      - name: Download unit test results as artifacts
-#        uses: actions/download-artifact@v4
-#        with:
-#          name: results_unit_tests
-#          path: results_unit_tests
+      - name: Download unit test results as artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: results_unit_tests
+          path: results_unit_tests
 
       - name: testerdetest
         run: |
           echo ls -a ~/hostedtoolcache
           ls -a ~/hostedtoolcache
 
-#      - name: Restore MATLAB installation from cache
-#        uses: actions/cache/restore@v3
-#        id: UFEMISM_program_cache_restore
-#        with:
-#          path: UFEMISM_program
-#          key: UFEMISM_program
+      - name: Restore MATLAB installation from cache
+        uses: actions/cache@v3
+        id: MATLAB_installation_cache
+        with:
+          path: ~/hostedtoolcache/MATLAB
+          key: MATLAB_installation
 
-#      - name: Install MATLAB
-#        uses: matlab-actions/setup-matlab@v2.2.0
+      - if: ${{ steps.MATLAB_installation_cache.outputs.cache-hit != 'true' }}
+        name: Install MATLAB
+        uses: matlab-actions/setup-matlab@v2.2.0
 
 #      - name: Analyse unit tests results
 #        uses: matlab-actions/run-command@v2
