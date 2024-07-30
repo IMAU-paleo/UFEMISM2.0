@@ -15,6 +15,10 @@ module unit_tests_mpi
 
   implicit none
 
+  private
+
+  public :: unit_tests_mpi_distributed_memory_main
+
 contains
 
   subroutine unit_tests_mpi_distributed_memory_main( test_name_parent)
@@ -417,7 +421,7 @@ contains
 
     ! Local variables:
     character(len=1024), parameter      :: routine_name = 'test_gather_to_all_dp_1D'
-    character(len=1024), parameter      :: test_name_local = 'int_1D'
+    character(len=1024), parameter      :: test_name_local = 'dp_1D'
     character(len=1024)                 :: test_name
     real(dp), dimension(:), allocatable :: aa, bb, cc
 
@@ -468,7 +472,7 @@ contains
 
     ! Local variables:
     character(len=1024), parameter        :: routine_name = 'test_gather_to_all_dp_2D'
-    character(len=1024), parameter        :: test_name_local = 'int_2D'
+    character(len=1024), parameter        :: test_name_local = 'dp_2D'
     character(len=1024)                   :: test_name
     real(dp), dimension(:,:), allocatable :: aa, bb, cc
 
