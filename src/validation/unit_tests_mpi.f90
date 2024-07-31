@@ -171,8 +171,6 @@ contains
     ! Gather data
     CALL gather_to_master_int_2D( aa, bb)
 
-    bb(1,1) = 0
-
     ! Check results
     if (par%master) call test_eq( bb, cc, UNIT_TEST, test_name)
 

@@ -24,7 +24,12 @@ for i = 1: length( temp)
 end
 
 if ~all_unit_tests_passed
-  error('Not all unit tests were passed')
+  disp('')
+  disp('===================================================')
+  disp('===== ERROR - not all unit tests were passed! =====')
+  disp('===================================================')
+  disp('')
+  error('')
 end
 
 end
