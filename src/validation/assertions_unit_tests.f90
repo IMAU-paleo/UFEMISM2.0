@@ -154,6 +154,7 @@ module assertions_unit_tests
     procedure test_tol_dp_2D_scalar, test_tol_dp_2D_array
     procedure test_tol_dp_3D_scalar, test_tol_dp_3D_array
     procedure test_tol_dp_4D_scalar, test_tol_dp_4D_array
+    procedure test_tol_CSR
   end interface test_tol
 
 contains
@@ -592,8 +593,8 @@ contains
     ! Local variables:
     logical :: test_result
 
-    ! First test that b2 >= b1
-    call test_ge( b2, b1, test_mode, message)
+    ! First assert that b2 >= b1
+    call test_ge( b2, b1, ASSERTION, message)
 
     test_result = a >= b1 .and. a <= b2
 
@@ -611,8 +612,8 @@ contains
     ! Local variables:
     logical :: test_result
 
-    ! First test that tol >= 0
-    call test_ge( tol, 0, test_mode, message)
+    ! First assert that tol >= 0
+    call test_ge( tol, 0, ASSERTION, message)
 
     test_result = a >= (b - tol) .and. a <= (b + tol)
 
@@ -732,8 +733,8 @@ contains
     ! Local variables:
     logical :: test_result
 
-    ! First test that b2 >= b1
-    call test_ge( b2, b1, test_mode, message)
+    ! First assert that b2 >= b1
+    call test_ge( b2, b1, ASSERTION, message)
 
     test_result = all(a >= b1 .and. a <= b2)
 
@@ -751,8 +752,8 @@ contains
     ! Local variables:
     logical :: test_result
 
-    ! First test that tol >= 0
-    call test_ge( tol, 0, test_mode, message)
+    ! First assert that tol >= 0
+    call test_ge( tol, 0, ASSERTION, message)
 
     test_result = all(a >= (b - tol) .and. a <= (b + tol))
 
@@ -862,8 +863,8 @@ subroutine test_ge_le_int_1D_array( a, b1, b2, test_mode, message)
   ! Local variables:
   logical :: test_result
 
-  ! First test that b2 >= b1
-  call test_ge( b2, b1, test_mode, message)
+  ! First assert that b2 >= b1
+  call test_ge( b2, b1, ASSERTION, message)
 
   test_result = all(a >= b1 .and. a <= b2)
 
@@ -881,8 +882,8 @@ subroutine test_tol_int_1D_array( a, b, tol, test_mode, message)
   ! Local variables:
   logical :: test_result
 
-  ! First test that tol >= 0
-  call test_ge( tol, 0, test_mode, message)
+  ! First assert that tol >= 0
+  call test_ge( tol, 0, ASSERTION, message)
 
   test_result = all(a >= (b - tol) .and. a <= (b + tol))
 
@@ -1002,8 +1003,8 @@ subroutine test_ge_le_int_2D_scalar( a, b1, b2, test_mode, message)
   ! Local variables:
   logical :: test_result
 
-  ! First test that b2 >= b1
-  call test_ge( b2, b1, test_mode, message)
+  ! First assert that b2 >= b1
+  call test_ge( b2, b1, ASSERTION, message)
 
   test_result = all(a >= b1 .and. a <= b2)
 
@@ -1021,8 +1022,8 @@ subroutine test_tol_int_2D_scalar( a, b, tol, test_mode, message)
   ! Local variables:
   logical :: test_result
 
-  ! First test that tol >= 0
-  call test_ge( tol, 0, test_mode, message)
+  ! First assert that tol >= 0
+  call test_ge( tol, 0, ASSERTION, message)
 
   test_result = all(a >= (b - tol) .and. a <= (b + tol))
 
@@ -1132,8 +1133,8 @@ subroutine test_ge_le_int_2D_array( a, b1, b2, test_mode, message)
   ! Local variables:
   logical :: test_result
 
-  ! First test that b2 >= b1
-  call test_ge( b2, b1, test_mode, message)
+  ! First assert that b2 >= b1
+  call test_ge( b2, b1, ASSERTION, message)
 
   test_result = all(a >= b1 .and. a <= b2)
 
@@ -1151,8 +1152,8 @@ subroutine test_tol_int_2D_array( a, b, tol, test_mode, message)
   ! Local variables:
   logical :: test_result
 
-  ! First test that tol >= 0
-  call test_ge( tol, 0, test_mode, message)
+  ! First assert that tol >= 0
+  call test_ge( tol, 0, ASSERTION, message)
 
   test_result = all(a >= (b - tol) .and. a <= (b + tol))
 
@@ -1272,8 +1273,8 @@ subroutine test_ge_le_int_3D_scalar( a, b1, b2, test_mode, message)
   ! Local variables:
   logical :: test_result
 
-  ! First test that b2 >= b1
-  call test_ge( b2, b1, test_mode, message)
+  ! First assert that b2 >= b1
+  call test_ge( b2, b1, ASSERTION, message)
 
   test_result = all(a >= b1 .and. a <= b2)
 
@@ -1291,8 +1292,8 @@ subroutine test_tol_int_3D_scalar( a, b, tol, test_mode, message)
   ! Local variables:
   logical :: test_result
 
-  ! First test that tol >= 0
-  call test_ge( tol, 0, test_mode, message)
+  ! First assert that tol >= 0
+  call test_ge( tol, 0, ASSERTION, message)
 
   test_result = all(a >= (b - tol) .and. a <= (b + tol))
 
@@ -1402,8 +1403,8 @@ subroutine test_ge_le_int_3D_array( a, b1, b2, test_mode, message)
   ! Local variables:
   logical :: test_result
 
-  ! First test that b2 >= b1
-  call test_ge( b2, b1, test_mode, message)
+  ! First assert that b2 >= b1
+  call test_ge( b2, b1, ASSERTION, message)
 
   test_result = all(a >= b1 .and. a <= b2)
 
@@ -1421,8 +1422,8 @@ subroutine test_tol_int_3D_array( a, b, tol, test_mode, message)
   ! Local variables:
   logical :: test_result
 
-  ! First test that tol >= 0
-  call test_ge( tol, 0, test_mode, message)
+  ! First assert that tol >= 0
+  call test_ge( tol, 0, ASSERTION, message)
 
   test_result = all(a >= (b - tol) .and. a <= (b + tol))
 
@@ -1542,8 +1543,8 @@ subroutine test_ge_le_int_4D_scalar( a, b1, b2, test_mode, message)
   ! Local variables:
   logical :: test_result
 
-  ! First test that b2 >= b1
-  call test_ge( b2, b1, test_mode, message)
+  ! First assert that b2 >= b1
+  call test_ge( b2, b1, ASSERTION, message)
 
   test_result = all(a >= b1 .and. a <= b2)
 
@@ -1561,8 +1562,8 @@ subroutine test_tol_int_4D_scalar( a, b, tol, test_mode, message)
   ! Local variables:
   logical :: test_result
 
-  ! First test that tol >= 0
-  call test_ge( tol, 0, test_mode, message)
+  ! First assert that tol >= 0
+  call test_ge( tol, 0, ASSERTION, message)
 
   test_result = all(a >= (b - tol) .and. a <= (b + tol))
 
@@ -1672,8 +1673,8 @@ subroutine test_ge_le_int_4D_array( a, b1, b2, test_mode, message)
   ! Local variables:
   logical :: test_result
 
-  ! First test that b2 >= b1
-  call test_ge( b2, b1, test_mode, message)
+  ! First assert that b2 >= b1
+  call test_ge( b2, b1, ASSERTION, message)
 
   test_result = all(a >= b1 .and. a <= b2)
 
@@ -1691,8 +1692,8 @@ subroutine test_tol_int_4D_array( a, b, tol, test_mode, message)
   ! Local variables:
   logical :: test_result
 
-  ! First test that tol >= 0
-  call test_ge( tol, 0, test_mode, message)
+  ! First assert that tol >= 0
+  call test_ge( tol, 0, ASSERTION, message)
 
   test_result = all(a >= (b - tol) .and. a <= (b + tol))
 
@@ -1812,8 +1813,8 @@ end subroutine test_tol_int_4D_array
     ! Local variables:
     logical :: test_result
 
-    ! First test that b2 >= b1
-    call test_ge( b2, b1, test_mode, message)
+    ! First assert that b2 >= b1
+    call test_ge( b2, b1, ASSERTION, message)
 
     test_result = a >= b1 .and. a <= b2
 
@@ -1831,8 +1832,8 @@ end subroutine test_tol_int_4D_array
     ! Local variables:
     logical :: test_result
 
-    ! First test that tol >= 0
-    call test_ge( tol, 0._dp, test_mode, message)
+    ! First assert that tol >= 0
+    call test_ge( tol, 0._dp, ASSERTION, message)
 
     test_result = a >= (b - tol) .and. a <= (b + tol)
 
@@ -1952,8 +1953,8 @@ end subroutine test_tol_int_4D_array
     ! Local variables:
     logical :: test_result
 
-    ! First test that b2 >= b1
-    call test_ge( b2, b1, test_mode, message)
+    ! First assert that b2 >= b1
+    call test_ge( b2, b1, ASSERTION, message)
 
     test_result = all(a >= b1 .and. a <= b2)
 
@@ -1971,8 +1972,8 @@ end subroutine test_tol_int_4D_array
     ! Local variables:
     logical :: test_result
 
-    ! First test that tol >= 0
-    call test_ge( tol, 0._dp, test_mode, message)
+    ! First assert that tol >= 0
+    call test_ge( tol, 0._dp, ASSERTION, message)
 
     test_result = all(a >= (b - tol) .and. a <= (b + tol))
 
@@ -2082,8 +2083,8 @@ subroutine test_ge_le_dp_1D_array( a, b1, b2, test_mode, message)
   ! Local variables:
   logical :: test_result
 
-  ! First test that b2 >= b1
-  call test_ge( b2, b1, test_mode, message)
+  ! First assert that b2 >= b1
+  call test_ge( b2, b1, ASSERTION, message)
 
   test_result = all(a >= b1 .and. a <= b2)
 
@@ -2101,8 +2102,8 @@ subroutine test_tol_dp_1D_array( a, b, tol, test_mode, message)
   ! Local variables:
   logical :: test_result
 
-  ! First test that tol >= 0
-  call test_ge( tol, 0._dp, test_mode, message)
+  ! First assert that tol >= 0
+  call test_ge( tol, 0._dp, ASSERTION, message)
 
   test_result = all(a >= (b - tol) .and. a <= (b + tol))
 
@@ -2222,8 +2223,8 @@ subroutine test_ge_le_dp_2D_scalar( a, b1, b2, test_mode, message)
   ! Local variables:
   logical :: test_result
 
-  ! First test that b2 >= b1
-  call test_ge( b2, b1, test_mode, message)
+  ! First assert that b2 >= b1
+  call test_ge( b2, b1, ASSERTION, message)
 
   test_result = all(a >= b1 .and. a <= b2)
 
@@ -2241,8 +2242,8 @@ subroutine test_tol_dp_2D_scalar( a, b, tol, test_mode, message)
   ! Local variables:
   logical :: test_result
 
-  ! First test that tol >= 0
-  call test_ge( tol, 0._dp, test_mode, message)
+  ! First assert that tol >= 0
+  call test_ge( tol, 0._dp, ASSERTION, message)
 
   test_result = all(a >= (b - tol) .and. a <= (b + tol))
 
@@ -2352,8 +2353,8 @@ subroutine test_ge_le_dp_2D_array( a, b1, b2, test_mode, message)
   ! Local variables:
   logical :: test_result
 
-  ! First test that b2 >= b1
-  call test_ge( b2, b1, test_mode, message)
+  ! First assert that b2 >= b1
+  call test_ge( b2, b1, ASSERTION, message)
 
   test_result = all(a >= b1 .and. a <= b2)
 
@@ -2371,8 +2372,8 @@ subroutine test_tol_dp_2D_array( a, b, tol, test_mode, message)
   ! Local variables:
   logical :: test_result
 
-  ! First test that tol >= 0
-  call test_ge( tol, 0._dp, test_mode, message)
+  ! First assert that tol >= 0
+  call test_ge( tol, 0._dp, ASSERTION, message)
 
   test_result = all(a >= (b - tol) .and. a <= (b + tol))
 
@@ -2492,8 +2493,8 @@ subroutine test_ge_le_dp_3D_scalar( a, b1, b2, test_mode, message)
   ! Local variables:
   logical :: test_result
 
-  ! First test that b2 >= b1
-  call test_ge( b2, b1, test_mode, message)
+  ! First assert that b2 >= b1
+  call test_ge( b2, b1, ASSERTION, message)
 
   test_result = all(a >= b1 .and. a <= b2)
 
@@ -2511,8 +2512,8 @@ subroutine test_tol_dp_3D_scalar( a, b, tol, test_mode, message)
   ! Local variables:
   logical :: test_result
 
-  ! First test that tol >= 0
-  call test_ge( tol, 0._dp, test_mode, message)
+  ! First assert that tol >= 0
+  call test_ge( tol, 0._dp, ASSERTION, message)
 
   test_result = all(a >= (b - tol) .and. a <= (b + tol))
 
@@ -2622,8 +2623,8 @@ subroutine test_ge_le_dp_3D_array( a, b1, b2, test_mode, message)
   ! Local variables:
   logical :: test_result
 
-  ! First test that b2 >= b1
-  call test_ge( b2, b1, test_mode, message)
+  ! First assert that b2 >= b1
+  call test_ge( b2, b1, ASSERTION, message)
 
   test_result = all(a >= b1 .and. a <= b2)
 
@@ -2641,8 +2642,8 @@ subroutine test_tol_dp_3D_array( a, b, tol, test_mode, message)
   ! Local variables:
   logical :: test_result
 
-  ! First test that tol >= 0
-  call test_ge( tol, 0._dp, test_mode, message)
+  ! First assert that tol >= 0
+  call test_ge( tol, 0._dp, ASSERTION, message)
 
   test_result = all(a >= (b - tol) .and. a <= (b + tol))
 
@@ -2762,8 +2763,8 @@ subroutine test_ge_le_dp_4D_scalar( a, b1, b2, test_mode, message)
   ! Local variables:
   logical :: test_result
 
-  ! First test that b2 >= b1
-  call test_ge( b2, b1, test_mode, message)
+  ! First assert that b2 >= b1
+  call test_ge( b2, b1, ASSERTION, message)
 
   test_result = all(a >= b1 .and. a <= b2)
 
@@ -2781,8 +2782,8 @@ subroutine test_tol_dp_4D_scalar( a, b, tol, test_mode, message)
   ! Local variables:
   logical :: test_result
 
-  ! First test that tol >= 0
-  call test_ge( tol, 0._dp, test_mode, message)
+  ! First assert that tol >= 0
+  call test_ge( tol, 0._dp, ASSERTION, message)
 
   test_result = all(a >= (b - tol) .and. a <= (b + tol))
 
@@ -2892,8 +2893,8 @@ subroutine test_ge_le_dp_4D_array( a, b1, b2, test_mode, message)
   ! Local variables:
   logical :: test_result
 
-  ! First test that b2 >= b1
-  call test_ge( b2, b1, test_mode, message)
+  ! First assert that b2 >= b1
+  call test_ge( b2, b1, ASSERTION, message)
 
   test_result = all(a >= b1 .and. a <= b2)
 
@@ -2911,14 +2912,60 @@ subroutine test_tol_dp_4D_array( a, b, tol, test_mode, message)
   ! Local variables:
   logical :: test_result
 
-  ! First test that tol >= 0
-  call test_ge( tol, 0._dp, test_mode, message)
+  ! First assert that tol >= 0
+  call test_ge( tol, 0._dp, ASSERTION, message)
 
   test_result = all(a >= (b - tol) .and. a <= (b + tol))
 
   call process_test_result( test_mode, test_result, message)
 
 end subroutine test_tol_dp_4D_array
+
+! ===== Sparse matrices =====
+! ===========================
+
+subroutine test_tol_CSR( a, b, tol, test_mode, message)
+  use CSR_sparse_matrix_type, only: type_sparse_matrix_CSR_dp
+  ! In/output variables:
+  type(type_sparse_matrix_CSR_dp), intent(in   ) :: a, b
+  real(dp),                        intent(in   ) :: tol
+  integer,                         intent(in   ) :: test_mode
+  character(len=*),                intent(in   ) :: message
+  ! Local variables:
+  logical :: test_result
+
+  ! First assert that tol >= 0
+  call test_ge( tol, 0._dp, ASSERTION, message)
+
+  test_result = .true.
+
+  test_result = test_result .and. a%m     == b%m
+  test_result = test_result .and. a%m_loc == b%m_loc
+  test_result = test_result .and. a%n     == b%n
+  test_result = test_result .and. a%n_loc == b%n_loc
+  test_result = test_result .and. a%nnz   == b%nnz
+
+  if (size(a%ptr) == size(b%ptr)) then
+    test_result = test_result .and. all(a%ptr == b%ptr)
+  else
+    test_result = .false.
+  end if
+
+  if (size(a%ptr) == size(b%ptr)) then
+    test_result = test_result .and. all(a%ind == b%ind)
+  else
+    test_result = .false.
+  end if
+
+  if (size(a%val) == size(b%val)) then
+    test_result = test_result .and. all(a%val >= b%val - tol) .and. all(a%val <= b%val + tol)
+  else
+    test_result = .false.
+  end if
+
+  call process_test_result( test_mode, test_result, message)
+
+end subroutine test_tol_CSR
 
 ! ===== Process test results =====
 ! ================================
