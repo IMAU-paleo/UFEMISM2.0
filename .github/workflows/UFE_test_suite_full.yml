@@ -91,13 +91,23 @@ jobs:
       - name: Install MATLAB
         uses: matlab-actions/setup-matlab@v2.2.0
 
+      - name: Add automated testing folder to MATLAB path
+        uses: matlab-actions/run-command@v2
+        with:
+          command: addpath('automated_testing')
+
       - name: Analyse unit tests results
         uses: matlab-actions/run-command@v2
         with:
-          command: addpath('automated_testing'), analyse_unit_tests_results('${{github.workspace}}/results_unit_tests')
+          command: analyse_unit_tests_results('${{github.workspace}}/results_unit_tests')
 
       - name: Upload test report as artifact
         uses: actions/upload-artifact@v4.3.4
         with:
           name: unit_tests_report
           path: results_unit_tests/unit_tests_report.html
+
+      - name: Verify unit tests results
+        uses: matlab-actions/run-command@v2
+        with:
+          command: verify_unit_tests_results('${{github.workspace}}/results_unit_tests')
