@@ -63,7 +63,6 @@ contains
     character(len=1024), parameter          :: test_name_local = 'multiply_CSR_matrix_with_vector_1D'
     character(len=1024)                     :: test_name
     type(type_sparse_matrix_CSR_dp)         :: AA
-    type(tMat)                              :: A
     real(dp), dimension(:    ), allocatable :: xx, yy, yy_correct
 
     ! Add routine to call stack
@@ -286,7 +285,6 @@ contains
     type(type_sparse_matrix_CSR_dp) :: AA, AA2
     type(tMat)                      :: A
     logical                         :: found_errors
-    integer                         :: i,k1,k2,k
 
     ! Add routine to call stack
     call init_routine( routine_name)
@@ -361,14 +359,7 @@ contains
     call mat_petsc2CSR( A , AA2)
 
     ! Check results
-    call test_eq ( AA%m    , AA2%m             , UNIT_TEST, trim(test_name) // '_m')
-    call test_eq ( AA%m_loc, AA2%m_loc         , UNIT_TEST, trim(test_name) // '_m_loc')
-    call test_eq ( AA%n    , AA2%n             , UNIT_TEST, trim(test_name) // '_n')
-    call test_eq ( AA%n_loc, AA2%n_loc         , UNIT_TEST, trim(test_name) // '_n_loc')
-    call test_eq ( AA%nnz  , AA2%nnz           , UNIT_TEST, trim(test_name) // '_nnz')
-    call test_eq ( AA%ptr  , AA2%ptr           , UNIT_TEST, trim(test_name) // '_ptr')
-    call test_eq ( AA%ind  , AA2%ind           , UNIT_TEST, trim(test_name) // '_ind')
-    call test_tol( AA%val  , AA2%val  , 1e-5_dp, UNIT_TEST, trim(test_name) // '_val')
+    call test_tol ( AA, AA2, 1e-12_dp, UNIT_TEST, test_name)
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)

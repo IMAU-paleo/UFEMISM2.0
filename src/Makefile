@@ -64,6 +64,7 @@ UFEMISM_source = \
   basic/reallocate_mod.f90 \
   basic/control_resources_and_error_messaging.f90 \
   basic/model_configuration.f90 \
+  basic/CSR_sparse_matrix_type.f90 \
   validation/unit_tests_output.f90 \
   validation/assertions_unit_tests.f90 \
   basic/mpi_distributed_memory.f90 \
