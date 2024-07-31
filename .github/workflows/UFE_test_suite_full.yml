@@ -91,11 +91,6 @@ jobs:
       - name: Install MATLAB
         uses: matlab-actions/setup-matlab@v2.2.0
 
-      - name: Small MATLAB test
-        uses: matlab-actions/run-command@v2
-        with:
-          command: disp('Hello world!')
-
       - name: Analyse unit tests results
         uses: matlab-actions/run-command@v2
         with:
