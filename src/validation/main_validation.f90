@@ -1,57 +1,48 @@
-MODULE main_validation
+module main_validation
 
   ! The main validation module
 
 ! ===== Preamble =====
 ! ====================
 
-  USE mpi
-  USE precisions                                             , ONLY: dp
-  USE mpi_basic                                              , ONLY: par, cerr, ierr, recv_status, sync
-  USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
-  USE model_configuration                                    , ONLY: C
-  USE unit_tests_mpi                                         , ONLY: run_all_mpi_distributed_memory_unit_tests
-  USE unit_tests_petsc                                       , ONLY: run_all_petsc_unit_tests
-  USE unit_tests_mesh                                        , ONLY: run_all_mesh_unit_tests
-  USE unit_tests_netcdf                                      , ONLY: run_all_netcdf_unit_tests
-  USE unit_tests_ice                                         , ONLY: run_all_ice_unit_tests
+  use mpi
+  use precisions                                             , only: dp
+  use mpi_basic                                              , only: par, cerr, ierr, recv_status, sync
+  use control_resources_and_error_messaging                  , only: warning, crash, happy, init_routine, finalise_routine, colour_string
+  use model_configuration                                    , only: C
+  use unit_tests_output                                      , only: create_unit_tests_output_folder, create_unit_tests_output_file
+  use unit_tests_mpi                                         , only: unit_tests_mpi_distributed_memory_main
+  use unit_tests_petsc                                       , only: run_all_petsc_unit_tests
+  use unit_tests_mesh                                        , only: run_all_mesh_unit_tests
+  use unit_tests_netcdf                                      , only: run_all_netcdf_unit_tests
+  use unit_tests_ice                                         , only: run_all_ice_unit_tests
 
-  IMPLICIT NONE
+  implicit none
 
-! ===== Global variables =====
-! ============================
+contains
 
-CONTAINS
-
-! ===== Subroutines =====
-! =======================
-
-  SUBROUTINE run_all_unit_tests
-    ! Run all unit tests
-
-    IMPLICIT NONE
+  subroutine run_all_unit_tests
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'run_all_unit_tests'
+    character(len=256), parameter :: routine_name = 'run_all_unit_tests'
+    character(len=256), parameter :: test_name = 'all'
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
+
+    ! Create an output folder and output file
+    call create_unit_tests_output_folder
+    call create_unit_tests_output_file
 
     ! Run all unit tests
-    CALL run_all_mpi_distributed_memory_unit_tests
-    CALL run_all_petsc_unit_tests
-    CALL run_all_mesh_unit_tests
-    CALL run_all_netcdf_unit_tests
+    call unit_tests_mpi_distributed_memory_main( test_name)
+!    call run_all_petsc_unit_tests
+!    call run_all_mesh_unit_tests
+!    call run_all_netcdf_unit_tests
 
-    ! Add routine to path
-    CALL finalise_routine( routine_name)
+    ! Finalise routine path
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE run_all_unit_tests
+  end subroutine run_all_unit_tests
 
-  subroutine run_all_benchmarks
-
-    CALL run_all_ice_unit_tests
-
-  end subroutine
-
-END MODULE main_validation
+end module main_validation

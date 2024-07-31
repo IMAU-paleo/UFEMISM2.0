@@ -35,7 +35,7 @@ PROGRAM UFEMISM_program
                                                                      print_UFEMISM_start, print_UFEMISM_end
   USE model_configuration                                    , ONLY: C, initialise_model_configuration
   USE netcdf_resource_tracking                               , ONLY: create_resource_tracking_file, write_to_resource_tracking_file
-  USE main_validation                                        , ONLY: run_all_unit_tests, run_all_benchmarks
+  USE main_validation                                        , ONLY: run_all_unit_tests
   USE region_types                                           , ONLY: type_model_region
   USE UFEMISM_main_model                                     , ONLY: initialise_model_region, run_model_region
   USE ice_model_utilities                                    , ONLY: MISMIPplus_adapt_flow_factor
@@ -57,6 +57,9 @@ PROGRAM UFEMISM_program
   ! Surface elevations for the automated flow factor tuning in MISMIP+
   REAL(dp)                               :: Hs_prev, Hs_cur
 
+  ! Input argument
+  character(len=1024)                    :: input_argument
+
 ! ===== START =====
 ! =================
 
@@ -73,39 +76,35 @@ PROGRAM UFEMISM_program
   ! Initialise the control and resource tracker
   CALL initialise_control_and_resource_tracker
 
-  ! Initialise the main model configuration
-  CALL initialise_model_configuration
+  ! Check input argument for special cases (unit tests, component tests)
+  if (par%master) then
+    if (iargc() == 1) then
+      call getarg( 1, input_argument)
+    else
+      call crash('UFEMISM requires a single argument, being the path to the config file, e.g. "mpi_exec  -n 2  UFEMISM_program  config-files/config_test"')
+    end if
+  end if
+  call MPI_BCAST( input_argument, len(input_argument), MPI_CHAR, 0, MPI_COMM_WORLD, ierr)
 
-  ! Create the resource tracking output file
-  CALL create_resource_tracking_file
+  ! Special cases
+  if (input_argument == 'unit_tests') then
 
-  ! Initialise surface elevations for the automated flow factor tuning in MISMIP+
-  Hs_cur = 1._dp
+    call run_all_unit_tests
 
-  ! == Unit testing
-  ! ===============
+  elseif (input_argument == 'component tests') then
 
-  IF (C%do_unit_tests) THEN
+    call crash('component tests arent ready yet!')
 
-    ! Run all unit tests
-    CALL run_all_unit_tests
+  else ! An actual model simulation
 
-    ! Write to resource tracking file
-    CALL write_to_resource_tracking_file( 0._dp)
+    ! Initialise the main model configuration
+    CALL initialise_model_configuration
 
-  ! == Benchmark testing
-  ! ====================
+    ! Create the resource tracking output file
+    CALL create_resource_tracking_file
 
-  ELSEIF (c%do_benchmarks) THEN
-
-    CALL run_all_benchmarks
-
-    CALL write_to_resource_tracking_file( 0._dp)
-
-  ! == Custom simulation
-  ! ====================
-
-  ELSE
+    ! Initialise surface elevations for the automated flow factor tuning in MISMIP+
+    Hs_cur = 1._dp
 
     ! == Initialise the model regions
     ! ===============================

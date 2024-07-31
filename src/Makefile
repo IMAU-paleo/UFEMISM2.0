@@ -16,11 +16,11 @@ include Makefile_include_local.txt
 OBJ_PATH = object-files
 MOD_PATH = module-files
 
-# Compile with SELEN: anything else than yes (no quotes) will skip all
-# SELEN-related stuff both in the Makefile and in the model code
-DO_SELEN = no
-ifeq ($(DO_SELEN),yes)
-  F90DEFINITIONS += -DDO_SELEN
+# Compile with assertions: anything else than yes (no quotes) will
+# result in the model being compiled without assertions
+DO_ASSERTIONS = yes
+ifeq ($(DO_ASSERTIONS),yes)
+  F90DEFINITIONS += -DDO_ASSERTIONS
 endif
 
 # ========================================
@@ -64,6 +64,8 @@ UFEMISM_source = \
   basic/reallocate_mod.f90 \
   basic/control_resources_and_error_messaging.f90 \
   basic/model_configuration.f90 \
+  validation/unit_tests_output.f90 \
+  validation/assertions_unit_tests.f90 \
   basic/mpi_distributed_memory.f90 \
   basic/math_utilities.f90 \
   basic/analytical_solutions.f90 \

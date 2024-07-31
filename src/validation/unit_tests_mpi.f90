@@ -1,582 +1,759 @@
-MODULE unit_tests_mpi
+module unit_tests_mpi
 
   ! Unit tests for different MPI routines
 
-! ===== Preamble =====
-! ====================
-
-  USE mpi
-  USE precisions                                             , ONLY: dp
-  USE mpi_basic                                              , ONLY: par, cerr, ierr, recv_status, sync
-  USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
-  USE model_configuration                                    , ONLY: C
-  USE mpi_distributed_memory                                 , ONLY: gather_to_all_int_1D, gather_to_all_int_2D, gather_to_all_dp_1D, gather_to_all_dp_2D, &
+  use mpi
+  use precisions                                             , only: dp
+  use mpi_basic                                              , only: par, cerr, ierr, recv_status, sync
+  use control_resources_and_error_messaging                  , only: warning, crash, happy, init_routine, finalise_routine, colour_string
+  use model_configuration                                    , only: C
+  use mpi_distributed_memory                                 , only: gather_to_all_int_1D, gather_to_all_int_2D, gather_to_all_dp_1D, gather_to_all_dp_2D, &
                                                                      gather_to_master_int_1D, gather_to_master_int_2D, gather_to_master_dp_1D, &
                                                                      gather_to_master_dp_2D, distribute_from_master_int_1D, distribute_from_master_int_2D, &
                                                                      distribute_from_master_dp_1D, distribute_from_master_dp_2D
+  use assertions_unit_tests, only: ASSERTION, UNIT_TEST, test_eqv, test_neqv, test_eq, test_neq, test_gt, test_lt, test_ge, test_le, test_ge_le, test_tol
 
-  IMPLICIT NONE
+  implicit none
 
-! ===== Global variables =====
-! ============================
+  private
 
-CONTAINS
+  public :: unit_tests_mpi_distributed_memory_main
 
-! ===== Subroutines =====
-! =======================
+contains
 
-  SUBROUTINE run_all_mpi_distributed_memory_unit_tests
+  subroutine unit_tests_mpi_distributed_memory_main( test_name_parent)
     ! Run all unit tests for the MPI distributed memory subroutines
 
-    IMPLICIT NONE
+    ! In/output variables:
+    character(len=*), intent(in) :: test_name_parent
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'run_all_mpi_distributed_memory_unit_tests'
+    character(len=1024), parameter :: routine_name = 'unit_tests_mpi_distributed_memory_main'
+    character(len=1024), parameter :: test_name_local = 'mpi_distributed_memory'
+    character(len=1024)            :: test_name
 
-    ! Add routine to path
-    CALL init_routine( routine_name)
+    ! Add routine to call stack
+    call init_routine( routine_name)
+
+    ! Add test name to list
+    test_name = trim( test_name_parent) // '/' // trim( test_name_local)
 
     ! Run all unit tests for the MPI distributed memory subroutines
-    CALL test_gather_to_master
-    CALL test_gather_to_all
-    CALL test_distribute_from_master
+    call test_gather_to_master( test_name)
+    call test_gather_to_all( test_name)
+    call test_distribute_from_master( test_name)
 
-    ! Add routine to path
-    CALL finalise_routine( routine_name)
+    ! Remove routine from call stack
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE run_all_mpi_distributed_memory_unit_tests
+  end subroutine unit_tests_mpi_distributed_memory_main
 
-  SUBROUTINE test_gather_to_master
+  ! ===== Gather to master =====
+  ! ============================
+
+  subroutine test_gather_to_master( test_name_parent)
     ! Test the gather_to_master_TYPE_DIM subroutines
 
-    IMPLICIT NONE
+    ! In/output variables:
+    character(len=*), intent(in) :: test_name_parent
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'test_gather_to_master'
-    INTEGER,  DIMENSION(:      ), ALLOCATABLE                          :: int_1D_01, int_1D_02, int_1D_03
-    INTEGER,  DIMENSION(:,:    ), ALLOCATABLE                          :: int_2D_01, int_2D_02, int_2D_03
-    REAL(dp), DIMENSION(:      ), ALLOCATABLE                          :: dp_1D_01, dp_1D_02, dp_1D_03
-    REAL(dp), DIMENSION(:,:    ), ALLOCATABLE                          :: dp_2D_01, dp_2D_02, dp_2D_03
-    LOGICAL                                                            :: found_errors
+    character(len=1024), parameter  :: routine_name = 'test_gather_to_master'
+    character(len=1024), parameter :: test_name_local = 'gather_to_master'
+    character(len=1024)            :: test_name
 
-    ! Add routine to path
-    CALL init_routine( routine_name)
+    ! Add routine to call stack
+    call init_routine( routine_name)
+
+    ! Add test name to list
+    test_name = trim( test_name_parent) // '/' // trim( test_name_local)
+
+    call test_gather_to_master_int_1D( test_name)
+    call test_gather_to_master_int_2D( test_name)
+    call test_gather_to_master_dp_1D(  test_name)
+    call test_gather_to_master_dp_2D(  test_name)
+
+    ! Remove routine from call stack
+    call finalise_routine( routine_name)
+
+  end subroutine test_gather_to_master
+
+  subroutine test_gather_to_master_int_1D( test_name_parent)
+
+    ! In/output variables:
+    character(len=*), intent(in) :: test_name_parent
+
+    ! Local variables:
+    character(len=1024),parameter       :: routine_name = 'test_gather_to_master_int_1D'
+    character(len=1024), parameter      :: test_name_local = 'int_1D'
+    character(len=1024)                 :: test_name
+    integer,  dimension(:), allocatable :: aa, bb, cc
+
+    ! Add routine to call stack
+    call init_routine( routine_name)
+
+    ! Add test name to list
+    test_name = trim( test_name_parent) // '/' // trim( test_name_local)
 
     ! Safety - should be run on two cores
-    IF (par%n /= 2) CALL crash('should be run on two cores')
-    IF (par%i > 1) THEN
-      CALL finalise_routine( routine_name)
-      RETURN
-    END IF
+    call test_eq( par%n, 2, ASSERTION, 'should be run on two cores')
 
-    found_errors = .FALSE.
-
-  ! == int_1D
-
-    ! Allocate memory
-    IF     (par%i == 0) THEN
-      ALLOCATE( int_1D_01( 2), source = 0)
-      ALLOCATE( int_1D_02( 7), source = 0)
-      ALLOCATE( int_1D_03( 7), source = 0)
-    ELSEIF (par%i == 1) THEN
-      ALLOCATE( int_1D_01( 5), source = 0)
-      ALLOCATE( int_1D_02( 7), source = 0)
-      ALLOCATE( int_1D_03( 7), source = 0)
-    END IF
+    if (par%i == 0) then
+      allocate( aa( 2))
+      allocate( bb( 7))
+      allocate( cc( 7))
+    elseif (par%i == 1) then
+      allocate( aa( 5))
+      allocate( bb( 7))
+      allocate( cc( 7))
+    end if
 
     ! Fill test data
-    int_1D_03 = [1, 2, 3, 4, 5, 6, 7]
+    cc = [1, 2, 3, 4, 5, 6, 7]
 
-    IF     (par%i == 0) THEN
-      int_1D_01 = int_1D_03( 1:2)
-    ELSEIF (par%i == 1) THEN
-      int_1D_01 = int_1D_03( 3:7)
-    END IF
+    if (par%i == 0) then
+      aa = cc( 1:2)
+    elseif (par%i == 1) then
+      aa = cc( 3:7)
+    end if
 
     ! Gather data
-    CALL gather_to_master_int_1D( int_1D_01, int_1D_02)
+    call gather_to_master_int_1D( aa, bb)
 
     ! Check results
-    IF (par%master) found_errors = found_errors .OR. ANY( int_1D_02 /= int_1D_03)
+    if (par%master) call test_eq( bb, cc, UNIT_TEST, test_name)
 
-    ! Clean up after yourself
-    DEALLOCATE( int_1D_01)
-    DEALLOCATE( int_1D_02)
-    DEALLOCATE( int_1D_03)
+    ! Remove routine from call stack
+    call finalise_routine( routine_name)
 
-  ! == int_2D
+  end subroutine test_gather_to_master_int_1D
 
-    ! Allocate memory
-    IF     (par%i == 0) THEN
-      ALLOCATE( int_2D_01( 2,2), source = 0)
-      ALLOCATE( int_2D_02( 7,2), source = 0)
-      ALLOCATE( int_2D_03( 7,2), source = 0)
-    ELSEIF (par%i == 1) THEN
-      ALLOCATE( int_2D_01( 5,2), source = 0)
-      ALLOCATE( int_2D_02( 7,2), source = 0)
-      ALLOCATE( int_2D_03( 7,2), source = 0)
-    END IF
+  subroutine test_gather_to_master_int_2D( test_name_parent)
+
+    ! In/output variables:
+    character(len=*), intent(in) :: test_name_parent
+
+    ! Local variables:
+    character(len=1024),parameter        :: routine_name = 'test_gather_to_master_int_2D'
+    character(len=1024), parameter       :: test_name_local = 'int_2D'
+    character(len=1024)                  :: test_name
+    integer, dimension(:,:), allocatable :: aa, bb, cc
+
+    ! Add routine to call stack
+    call init_routine( routine_name)
+
+    ! Add test name to list
+    test_name = trim( test_name_parent) // '/' // trim( test_name_local)
+
+    ! Safety - should be run on two cores
+    call test_eq( par%n, 2, ASSERTION, 'should be run on two cores')
+
+    if (par%i == 0) then
+      allocate( aa( 2,2))
+      allocate( bb( 7,2))
+      allocate( cc( 7,2))
+    elseif (par%i == 1) then
+      allocate( aa( 5,2))
+      allocate( bb( 7,2))
+      allocate( cc( 7,2))
+    end if
 
     ! Fill test data
-    int_2D_03(:,1) = [ 1,  2,  3,  4,  5,  6,  7]
-    int_2D_03(:,2) = [ 8,  9, 10, 11, 12, 13, 14]
+    cc(:,1) = [ 1,  2,  3,  4,  5,  6,  7]
+    cc(:,2) = [ 8,  9, 10, 11, 12, 13, 14]
 
-    IF     (par%i == 0) THEN
-      int_2D_01 = int_2D_03( 1:2,:)
-    ELSEIF (par%i == 1) THEN
-      int_2D_01 = int_2D_03( 3:7,:)
-    END IF
+    if (par%i == 0) then
+      aa = cc( 1:2,:)
+    elseif (par%i == 1) then
+      aa = cc( 3:7,:)
+    end if
 
     ! Gather data
-    CALL gather_to_master_int_2D( int_2D_01, int_2D_02)
+    CALL gather_to_master_int_2D( aa, bb)
 
     ! Check results
-    IF (par%master) found_errors = found_errors .OR. ANY( int_2D_02 /= int_2D_03)
+    if (par%master) call test_eq( bb, cc, UNIT_TEST, test_name)
 
-    ! Clean up after yourself
-    DEALLOCATE( int_2D_01)
-    DEALLOCATE( int_2D_02)
-    DEALLOCATE( int_2D_03)
+    ! Remove routine from call stack
+    call finalise_routine( routine_name)
 
-  ! == dp_1D
+  end subroutine test_gather_to_master_int_2D
 
-    ! Allocate memory
-    IF     (par%i == 0) THEN
-      ALLOCATE( dp_1D_01( 2), source = 0._dp)
-      ALLOCATE( dp_1D_02( 7), source = 0._dp)
-      ALLOCATE( dp_1D_03( 7), source = 0._dp)
-    ELSEIF (par%i == 1) THEN
-      ALLOCATE( dp_1D_01( 5), source = 0._dp)
-      ALLOCATE( dp_1D_02( 7), source = 0._dp)
-      ALLOCATE( dp_1D_03( 7), source = 0._dp)
-    END IF
+  subroutine test_gather_to_master_dp_1D( test_name_parent)
+
+    ! In/output variables:
+    character(len=*), intent(in) :: test_name_parent
+
+    ! Local variables:
+    character(len=1024),parameter       :: routine_name = 'test_gather_to_master_dp_1D'
+    character(len=1024), parameter      :: test_name_local = 'dp_1D'
+    character(len=1024)                 :: test_name
+    real(dp), dimension(:), allocatable :: aa, bb, cc
+
+    ! Add routine to call stack
+    call init_routine( routine_name)
+
+    ! Add test name to list
+    test_name = trim( test_name_parent) // '/' // trim( test_name_local)
+
+    ! Safety - should be run on two cores
+    call test_eq( par%n, 2, ASSERTION, 'should be run on two cores')
+
+    if (par%i == 0) then
+      allocate( aa( 2))
+      allocate( bb( 7))
+      allocate( cc( 7))
+    elseif (par%i == 1) then
+      allocate( aa( 5))
+      allocate( bb( 7))
+      allocate( cc( 7))
+    end if
 
     ! Fill test data
-    dp_1D_03 = [1._dp, 2._dp, 3._dp, 4._dp, 5._dp, 6._dp, 7._dp]
+    cc = [1._dp, 2._dp, 3._dp, 4._dp, 5._dp, 6._dp, 7._dp]
 
-    IF     (par%i == 0) THEN
-      dp_1D_01 = dp_1D_03( 1:2)
-    ELSEIF (par%i == 1) THEN
-      dp_1D_01 = dp_1D_03( 3:7)
-    END IF
+    if (par%i == 0) then
+      aa = cc( 1:2)
+    elseif (par%i == 1) then
+      aa = cc( 3:7)
+    end if
 
     ! Gather data
-    CALL gather_to_master_dp_1D( dp_1D_01, dp_1D_02)
+    call gather_to_master_dp_1D( aa, bb)
 
     ! Check results
-    IF (par%master) found_errors = found_errors .OR. ANY( dp_1D_02 /= dp_1D_03)
+    if (par%master) call test_eq( bb, cc, UNIT_TEST, test_name)
 
-    ! Clean up after yourself
-    DEALLOCATE( dp_1D_01)
-    DEALLOCATE( dp_1D_02)
-    DEALLOCATE( dp_1D_03)
+    ! Remove routine from call stack
+    call finalise_routine( routine_name)
 
-  ! == dp_2D
+  end subroutine test_gather_to_master_dp_1D
 
-    ! Allocate memory
-    IF     (par%i == 0) THEN
-      ALLOCATE( dp_2D_01( 2,2), source = 0._dp)
-      ALLOCATE( dp_2D_02( 7,2), source = 0._dp)
-      ALLOCATE( dp_2D_03( 7,2), source = 0._dp)
-    ELSEIF (par%i == 1) THEN
-      ALLOCATE( dp_2D_01( 5,2), source = 0._dp)
-      ALLOCATE( dp_2D_02( 7,2), source = 0._dp)
-      ALLOCATE( dp_2D_03( 7,2), source = 0._dp)
-    END IF
+  subroutine test_gather_to_master_dp_2D( test_name_parent)
+
+    ! In/output variables:
+    character(len=*), intent(in) :: test_name_parent
+
+    ! Local variables:
+    character(len=1024),parameter          :: routine_name = 'test_gather_to_master_dp_2D'
+    character(len=1024), parameter         :: test_name_local = 'dp_2D'
+    character(len=1024)                    :: test_name
+    real(dp),  dimension(:,:), allocatable :: aa, bb, cc
+
+    ! Add routine to call stack
+    call init_routine( routine_name)
+
+    ! Add test name to list
+    test_name = trim( test_name_parent) // '/' // trim( test_name_local)
+
+    ! Safety - should be run on two cores
+    call test_eq( par%n, 2, ASSERTION, 'should be run on two cores')
+
+    if (par%i == 0) then
+      allocate( aa( 2,2))
+      allocate( bb( 7,2))
+      allocate( cc( 7,2))
+    elseif (par%i == 1) then
+      allocate( aa( 5,2))
+      allocate( bb( 7,2))
+      allocate( cc( 7,2))
+    end if
 
     ! Fill test data
-    dp_2D_03(:,1) = [ 1._dp,  2._dp,  3._dp,  4._dp,  5._dp,  6._dp,  7._dp]
-    dp_2D_03(:,2) = [ 8._dp,  9._dp, 10._dp, 11._dp, 12._dp, 13._dp, 14._dp]
+    cc(:,1) = [ 1._dp,  2._dp,  3._dp,  4._dp,  5._dp,  6._dp,  7._dp]
+    cc(:,2) = [ 8._dp,  9._dp, 10._dp, 11._dp, 12._dp, 13._dp, 14._dp]
 
-    IF     (par%i == 0) THEN
-      dp_2D_01 = dp_2D_03( 1:2,:)
-    ELSEIF (par%i == 1) THEN
-      dp_2D_01 = dp_2D_03( 3:7,:)
-    END IF
+    if (par%i == 0) then
+      aa = cc( 1:2,:)
+    elseif (par%i == 1) then
+      aa = cc( 3:7,:)
+    end if
 
     ! Gather data
-    CALL gather_to_master_dp_2D( dp_2D_01, dp_2D_02)
+    CALL gather_to_master_dp_2D( aa, bb)
 
     ! Check results
-    IF (par%master) found_errors = found_errors .OR. ANY( dp_2D_02 /= dp_2D_03)
+    if (par%master) call test_eq( bb, cc, UNIT_TEST, test_name)
 
-    ! Clean up after yourself
-    DEALLOCATE( dp_2D_01)
-    DEALLOCATE( dp_2D_02)
-    DEALLOCATE( dp_2D_03)
+    ! Remove routine from call stack
+    call finalise_routine( routine_name)
 
-  ! == Validation
-  ! =============
+  end subroutine test_gather_to_master_dp_2D
 
-    ! If no errors occurred, we are happy
-    CALL MPI_ALLREDUCE( MPI_IN_PLACE, found_errors, 1, MPI_LOGICAL, MPI_LOR, MPI_COMM_WORLD, ierr)
-    IF (.NOT. found_errors) THEN
-      IF (par%master) CALL happy('validated all gather_to_master routines')
-    ELSE
-      IF (par%master) CALL warning('found errors in gather_to_master routines')
-    END IF
+  ! ===== Gather to all =====
+  ! =========================
 
-    ! Add routine to path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE test_gather_to_master
-
-  SUBROUTINE test_gather_to_all
+  subroutine test_gather_to_all( test_name_parent)
     ! Test the gather_to_all_TYPE_DIM subroutines
 
-    IMPLICIT NONE
+    ! In/output variables:
+    character(len=*), intent(in) :: test_name_parent
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'test_gather_to_all_int_1D'
-    INTEGER,  DIMENSION(:      ), ALLOCATABLE                          :: int_1D_01, int_1D_02, int_1D_03
-    INTEGER,  DIMENSION(:,:    ), ALLOCATABLE                          :: int_2D_01, int_2D_02, int_2D_03
-    REAL(dp), DIMENSION(:      ), ALLOCATABLE                          :: dp_1D_01, dp_1D_02, dp_1D_03
-    REAL(dp), DIMENSION(:,:    ), ALLOCATABLE                          :: dp_2D_01, dp_2D_02, dp_2D_03
-    LOGICAL                                                            :: found_errors
+    character(len=1024), parameter  :: routine_name = 'test_gather_to_all'
+    character(len=1024), parameter :: test_name_local = 'gather_to_all'
+    character(len=1024)            :: test_name
+
+    ! Add routine to call stack
+    call init_routine( routine_name)
+
+    ! Add test name to list
+    test_name = trim( test_name_parent) // '/' // trim( test_name_local)
+
+    call test_gather_to_all_int_1D( test_name)
+    call test_gather_to_all_int_2D( test_name)
+    call test_gather_to_all_dp_1D(  test_name)
+    call test_gather_to_all_dp_2D(  test_name)
+
+    ! Remove routine from call stack
+    call finalise_routine( routine_name)
+
+  end subroutine test_gather_to_all
+
+  subroutine test_gather_to_all_int_1D( test_name_parent)
+    ! Test the gather_to_all_TYPE_DIM subroutines
+
+    ! In/output variables:
+    character(len=*), intent(in) :: test_name_parent
+
+    ! Local variables:
+    character(len=1024), parameter     :: routine_name = 'test_gather_to_all_int_1D'
+    character(len=1024), parameter     :: test_name_local = 'int_1D'
+    character(len=1024)                :: test_name
+    integer, dimension(:), allocatable :: aa, bb, cc
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    ! Add test name to list
+    test_name = trim( test_name_parent) // '/' // trim( test_name_local)
+
     ! Safety - should be run on two cores
-    IF (par%n /= 2) CALL crash('should be run on two cores')
-    IF (par%i > 1) THEN
-      CALL finalise_routine( routine_name)
-      RETURN
-    END IF
+    call test_eq( par%n, 2, ASSERTION, 'should be run on two cores')
 
-    found_errors = .FALSE.
-
-  ! == int_1D
-
-    ! Allocate memory
-    IF     (par%i == 0) THEN
-      ALLOCATE( int_1D_01( 2), source = 0)
-      ALLOCATE( int_1D_02( 7), source = 0)
-      ALLOCATE( int_1D_03( 7), source = 0)
-    ELSEIF (par%i == 1) THEN
-      ALLOCATE( int_1D_01( 5), source = 0)
-      ALLOCATE( int_1D_02( 7), source = 0)
-      ALLOCATE( int_1D_03( 7), source = 0)
-    END IF
+    if (par%i == 0) then
+      allocate( aa( 2))
+      allocate( bb( 7))
+      allocate( cc( 7))
+    elseif (par%i == 1) then
+      allocate( aa( 5))
+      allocate( bb( 7))
+      allocate( cc( 7))
+    end if
 
     ! Fill test data
-    int_1D_03 = [1, 2, 3, 4, 5, 6, 7]
+    cc = [1, 2, 3, 4, 5, 6, 7]
 
-    IF     (par%i == 0) THEN
-      int_1D_01 = int_1D_03( 1:2)
-    ELSEIF (par%i == 1) THEN
-      int_1D_01 = int_1D_03( 3:7)
-    END IF
-
-    ! Gather data
-    CALL gather_to_all_int_1D( int_1D_01, int_1D_02)
-
-    ! Check results
-    found_errors = found_errors .OR. ANY( int_1D_02 /= int_1D_03)
-
-    ! Clean up after yourself
-    DEALLOCATE( int_1D_01)
-    DEALLOCATE( int_1D_02)
-    DEALLOCATE( int_1D_03)
-
-  ! == int_2D
-
-    ! Allocate memory
-    IF     (par%i == 0) THEN
-      ALLOCATE( int_2D_01( 2,2), source = 0)
-      ALLOCATE( int_2D_02( 7,2), source = 0)
-      ALLOCATE( int_2D_03( 7,2), source = 0)
-    ELSEIF (par%i == 1) THEN
-      ALLOCATE( int_2D_01( 5,2), source = 0)
-      ALLOCATE( int_2D_02( 7,2), source = 0)
-      ALLOCATE( int_2D_03( 7,2), source = 0)
-    END IF
-
-    ! Fill test data
-    int_2D_03(:,1) = [ 1,  2,  3,  4,  5,  6,  7]
-    int_2D_03(:,2) = [ 8,  9, 10, 11, 12, 13, 14]
-
-    IF     (par%i == 0) THEN
-      int_2D_01 = int_2D_03( 1:2,:)
-    ELSEIF (par%i == 1) THEN
-      int_2D_01 = int_2D_03( 3:7,:)
-    END IF
+    if (par%i == 0) then
+      aa = cc( 1:2)
+    elseif (par%i == 1) then
+      aa = cc( 3:7)
+    end if
 
     ! Gather data
-    CALL gather_to_all_int_2D( int_2D_01, int_2D_02)
+    CALL gather_to_all_int_1D( aa, bb)
 
     ! Check results
-    found_errors = found_errors .OR. ANY( int_2D_02 /= int_2D_03)
+    call test_eq( bb, cc, UNIT_TEST, test_name)
 
-    ! Clean up after yourself
-    DEALLOCATE( int_2D_01)
-    DEALLOCATE( int_2D_02)
-    DEALLOCATE( int_2D_03)
+    ! Remove routine from call stack
+    call finalise_routine( routine_name)
 
-  ! == dp_1D
+  end subroutine test_gather_to_all_int_1D
 
-    ! Allocate memory
-    IF     (par%i == 0) THEN
-      ALLOCATE( dp_1D_01( 2), source = 0._dp)
-      ALLOCATE( dp_1D_02( 7), source = 0._dp)
-      ALLOCATE( dp_1D_03( 7), source = 0._dp)
-    ELSEIF (par%i == 1) THEN
-      ALLOCATE( dp_1D_01( 5), source = 0._dp)
-      ALLOCATE( dp_1D_02( 7), source = 0._dp)
-      ALLOCATE( dp_1D_03( 7), source = 0._dp)
-    END IF
+  subroutine test_gather_to_all_int_2D( test_name_parent)
+    ! Test the gather_to_all_TYPE_DIM subroutines
 
-    ! Fill test data
-    dp_1D_03 = [1._dp, 2._dp, 3._dp, 4._dp, 5._dp, 6._dp, 7._dp]
+    ! In/output variables:
+    character(len=*), intent(in) :: test_name_parent
 
-    IF     (par%i == 0) THEN
-      dp_1D_01 = dp_1D_03( 1:2)
-    ELSEIF (par%i == 1) THEN
-      dp_1D_01 = dp_1D_03( 3:7)
-    END IF
-
-    ! Gather data
-    CALL gather_to_all_dp_1D( dp_1D_01, dp_1D_02)
-
-    ! Check results
-    found_errors = found_errors .OR. ANY( dp_1D_02 /= dp_1D_03)
-
-    ! Clean up after yourself
-    DEALLOCATE( dp_1D_01)
-    DEALLOCATE( dp_1D_02)
-    DEALLOCATE( dp_1D_03)
-
-  ! == dp_2D
-
-    ! Allocate memory
-    IF     (par%i == 0) THEN
-      ALLOCATE( dp_2D_01( 2,2), source = 0._dp)
-      ALLOCATE( dp_2D_02( 7,2), source = 0._dp)
-      ALLOCATE( dp_2D_03( 7,2), source = 0._dp)
-    ELSEIF (par%i == 1) THEN
-      ALLOCATE( dp_2D_01( 5,2), source = 0._dp)
-      ALLOCATE( dp_2D_02( 7,2), source = 0._dp)
-      ALLOCATE( dp_2D_03( 7,2), source = 0._dp)
-    END IF
-
-    ! Fill test data
-    dp_2D_03(:,1) = [ 1._dp,  2._dp,  3._dp,  4._dp,  5._dp,  6._dp,  7._dp]
-    dp_2D_03(:,2) = [ 8._dp,  9._dp, 10._dp, 11._dp, 12._dp, 13._dp, 14._dp]
-
-    IF     (par%i == 0) THEN
-      dp_2D_01 = dp_2D_03( 1:2,:)
-    ELSEIF (par%i == 1) THEN
-      dp_2D_01 = dp_2D_03( 3:7,:)
-    END IF
-
-    ! Gather data
-    CALL gather_to_all_dp_2D( dp_2D_01, dp_2D_02)
-
-    ! Check results
-    found_errors = found_errors .OR. ANY( dp_2D_02 /= dp_2D_03)
-
-    ! Clean up after yourself
-    DEALLOCATE( dp_2D_01)
-    DEALLOCATE( dp_2D_02)
-    DEALLOCATE( dp_2D_03)
-
-  ! == Validation
-  ! =============
-
-    ! If no errors occurred, we are happy
-    CALL MPI_ALLREDUCE( MPI_IN_PLACE, found_errors, 1, MPI_LOGICAL, MPI_LOR, MPI_COMM_WORLD, ierr)
-    IF (.NOT. found_errors) THEN
-      IF (par%master) CALL happy('validated all gather_to_all routines')
-    ELSE
-      IF (par%master) CALL warning('found errors in gather_to_all routines')
-    END IF
+    ! Local variables:
+    character(len=1024), parameter       :: routine_name = 'test_gather_to_all_int_2D'
+    character(len=1024), parameter       :: test_name_local = 'int_2D'
+    character(len=1024)                  :: test_name
+    integer, dimension(:,:), allocatable :: aa, bb, cc
 
     ! Add routine to path
-    CALL finalise_routine( routine_name)
+    CALL init_routine( routine_name)
 
-  END SUBROUTINE test_gather_to_all
+    ! Add test name to list
+    test_name = trim( test_name_parent) // '/' // trim( test_name_local)
 
-  SUBROUTINE test_distribute_from_master
+    ! Safety - should be run on two cores
+    call test_eq( par%n, 2, ASSERTION, 'should be run on two cores')
+
+    if (par%i == 0) then
+      allocate( aa( 2,2))
+      allocate( bb( 7,2))
+      allocate( cc( 7,2))
+    elseif (par%i == 1) then
+      allocate( aa( 5,2))
+      allocate( bb( 7,2))
+      allocate( cc( 7,2))
+    end if
+
+    ! Fill test data
+    cc(:,1) = [1, 2,  3,  4,  5,  6,  7]
+    cc(:,1) = [8, 9, 10, 11, 12, 13, 14]
+
+    if (par%i == 0) then
+      aa = cc( 1:2,:)
+    elseif (par%i == 1) then
+      aa = cc( 3:7,:)
+    end if
+
+    ! Gather data
+    CALL gather_to_all_int_2D( aa, bb)
+
+    ! Check results
+    call test_eq( bb, cc, UNIT_TEST, test_name)
+
+    ! Remove routine from call stack
+    call finalise_routine( routine_name)
+
+  end subroutine test_gather_to_all_int_2D
+
+  subroutine test_gather_to_all_dp_1D( test_name_parent)
+    ! Test the gather_to_all_TYPE_DIM subroutines
+
+    ! In/output variables:
+    character(len=*), intent(in) :: test_name_parent
+
+    ! Local variables:
+    character(len=1024), parameter      :: routine_name = 'test_gather_to_all_dp_1D'
+    character(len=1024), parameter      :: test_name_local = 'dp_1D'
+    character(len=1024)                 :: test_name
+    real(dp), dimension(:), allocatable :: aa, bb, cc
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Add test name to list
+    test_name = trim( test_name_parent) // '/' // trim( test_name_local)
+
+    ! Safety - should be run on two cores
+    call test_eq( par%n, 2, ASSERTION, 'should be run on two cores')
+
+    if (par%i == 0) then
+      allocate( aa( 2))
+      allocate( bb( 7))
+      allocate( cc( 7))
+    elseif (par%i == 1) then
+      allocate( aa( 5))
+      allocate( bb( 7))
+      allocate( cc( 7))
+    end if
+
+    ! Fill test data
+    cc = [1._dp, 2._dp, 3._dp, 4._dp, 5._dp, 6._dp, 7._dp]
+
+    if (par%i == 0) then
+      aa = cc( 1:2)
+    elseif (par%i == 1) then
+      aa = cc( 3:7)
+    end if
+
+    ! Gather data
+    CALL gather_to_all_dp_1D( aa, bb)
+
+    ! Check results
+    call test_eq( bb, cc, UNIT_TEST, test_name)
+
+    ! Remove routine from call stack
+    call finalise_routine( routine_name)
+
+  end subroutine test_gather_to_all_dp_1D
+
+  subroutine test_gather_to_all_dp_2D( test_name_parent)
+    ! Test the gather_to_all_TYPE_DIM subroutines
+
+    ! In/output variables:
+    character(len=*), intent(in) :: test_name_parent
+
+    ! Local variables:
+    character(len=1024), parameter        :: routine_name = 'test_gather_to_all_dp_2D'
+    character(len=1024), parameter        :: test_name_local = 'dp_2D'
+    character(len=1024)                   :: test_name
+    real(dp), dimension(:,:), allocatable :: aa, bb, cc
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Add test name to list
+    test_name = trim( test_name_parent) // '/' // trim( test_name_local)
+
+    ! Safety - should be run on two cores
+    call test_eq( par%n, 2, ASSERTION, 'should be run on two cores')
+
+    if (par%i == 0) then
+      allocate( aa( 2,2))
+      allocate( bb( 7,2))
+      allocate( cc( 7,2))
+    elseif (par%i == 1) then
+      allocate( aa( 5,2))
+      allocate( bb( 7,2))
+      allocate( cc( 7,2))
+    end if
+
+    ! Fill test data
+    cc(:,1) = [1._dp, 2._dp,  3._dp,  4._dp,  5._dp,  6._dp,  7._dp]
+    cc(:,1) = [8._dp, 9._dp, 10._dp, 11._dp, 12._dp, 13._dp, 14._dp]
+
+    if (par%i == 0) then
+      aa = cc( 1:2,:)
+    elseif (par%i == 1) then
+      aa = cc( 3:7,:)
+    end if
+
+    ! Gather data
+    CALL gather_to_all_dp_2D( aa, bb)
+
+    ! Check results
+    call test_eq( bb, cc, UNIT_TEST, test_name)
+
+    ! Remove routine from call stack
+    call finalise_routine( routine_name)
+
+  end subroutine test_gather_to_all_dp_2D
+
+  ! ===== Distribute from master =====
+  ! ==================================
+
+  subroutine test_distribute_from_master( test_name_parent)
     ! Test the distribute_from_master_TYPE_DIM subroutines
 
-    IMPLICIT NONE
+    ! In/output variables:
+    character(len=*), intent(in) :: test_name_parent
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'test_distribute_from_master'
-    INTEGER,  DIMENSION(:      ), ALLOCATABLE                          :: int_1D_01, int_1D_02, int_1D_03
-    INTEGER,  DIMENSION(:,:    ), ALLOCATABLE                          :: int_2D_01, int_2D_02, int_2D_03
-    REAL(dp), DIMENSION(:      ), ALLOCATABLE                          :: dp_1D_01, dp_1D_02, dp_1D_03
-    REAL(dp), DIMENSION(:,:    ), ALLOCATABLE                          :: dp_2D_01, dp_2D_02, dp_2D_03
-    LOGICAL                                                            :: found_errors
+    character(len=1024), parameter  :: routine_name = 'test_distribute_from_master'
+    character(len=1024), parameter :: test_name_local = 'distribute_from_master'
+    character(len=1024)            :: test_name
 
-    ! Add routine to path
-    CALL init_routine( routine_name)
+    ! Add routine to call stack
+    call init_routine( routine_name)
+
+    ! Add test name to list
+    test_name = trim( test_name_parent) // '/' // trim( test_name_local)
+
+    call test_distribute_from_master_int_1D( test_name)
+    call test_distribute_from_master_int_2D( test_name)
+    call test_distribute_from_master_dp_1D( test_name)
+    call test_distribute_from_master_dp_2D( test_name)
+
+    ! Remove routine from call stack
+    call finalise_routine( routine_name)
+
+  end subroutine test_distribute_from_master
+
+  subroutine test_distribute_from_master_int_1D( test_name_parent)
+
+    ! In/output variables:
+    character(len=*), intent(in) :: test_name_parent
+
+    ! Local variables:
+    character(len=1024), parameter     :: routine_name = 'test_distribute_from_master_int_1D'
+    character(len=1024), parameter     :: test_name_local = 'int_1D'
+    character(len=1024)                :: test_name
+    integer, dimension(:), allocatable :: aa, bb, cc
+
+    ! Add routine to call stack
+    call init_routine( routine_name)
+
+    ! Add test name to list
+    test_name = trim( test_name_parent) // '/' // trim( test_name_local)
 
     ! Safety - should be run on two cores
-    IF (par%n /= 2) CALL crash('should be run on two cores')
-    IF (par%i > 1) THEN
-      CALL finalise_routine( routine_name)
-      RETURN
-    END IF
+    call test_eq( par%n, 2, ASSERTION, 'should be run on two cores')
 
-    found_errors = .FALSE.
-
-  ! == int_1D
-
-    ! Allocate memory
-    IF     (par%i == 0) THEN
-      ALLOCATE( int_1D_01( 7), source = 0)
-      ALLOCATE( int_1D_02( 2), source = 0)
-      ALLOCATE( int_1D_03( 7), source = 0)
-    ELSEIF (par%i == 1) THEN
-      ALLOCATE( int_1D_01( 7), source = 0)
-      ALLOCATE( int_1D_02( 5), source = 0)
-      ALLOCATE( int_1D_03( 7), source = 0)
-    END IF
+    if (par%i == 0) then
+      allocate( aa( 7))
+      allocate( bb( 2))
+      allocate( cc( 7))
+    elseif (par%i == 1) then
+      allocate( aa( 7))
+      allocate( bb( 5))
+      allocate( cc( 7))
+    end if
 
     ! Fill test data
-    int_1D_03 = [1, 2, 3, 4, 5, 6, 7]
+    cc = [1, 2, 3, 4, 5, 6, 7]
 
-    IF     (par%i == 0) THEN
-      int_1D_01 = int_1D_03
-    END IF
+    if (par%master) then
+      aa = cc
+    end if
 
-    ! Gather data
-    CALL distribute_from_master_int_1D( int_1D_01, int_1D_02)
+    ! Distribute data
+    call distribute_from_master_int_1D( aa, bb)
 
     ! Check results
-    IF (par%i == 0) THEN
-      found_errors = found_errors .OR. ANY( int_1D_02( 1:2) /= int_1D_03( 1:2))
-    ELSEIF (par%i == 1) THEN
-      found_errors = found_errors .OR. ANY( int_1D_02( 1:5) /= int_1D_03( 3:7))
-    END IF
+    if (par%master) then
+      call test_eq(bb( 1:2), cc( 1:2), UNIT_TEST, test_name)
+    elseif (par%i == 1) then
+      call test_eq(bb( 1:5), cc( 3:7), UNIT_TEST, test_name)
+    end if
 
-    ! Clean up after yourself
-    DEALLOCATE( int_1D_01)
-    DEALLOCATE( int_1D_02)
-    DEALLOCATE( int_1D_03)
+    ! Remove routine from call stack
+    call finalise_routine( routine_name)
 
-  ! == int_2D
+  end subroutine test_distribute_from_master_int_1D
 
-    ! Allocate memory
-    IF     (par%i == 0) THEN
-      ALLOCATE( int_2D_01( 7,2), source = 0)
-      ALLOCATE( int_2D_02( 2,2), source = 0)
-      ALLOCATE( int_2D_03( 7,2), source = 0)
-    ELSEIF (par%i == 1) THEN
-      ALLOCATE( int_2D_01( 7,2), source = 0)
-      ALLOCATE( int_2D_02( 5,2), source = 0)
-      ALLOCATE( int_2D_03( 7,2), source = 0)
-    END IF
+  subroutine test_distribute_from_master_int_2D( test_name_parent)
+
+    ! In/output variables:
+    character(len=*), intent(in) :: test_name_parent
+
+    ! Local variables:
+    character(len=1024), parameter       :: routine_name = 'test_distribute_from_master_int_2D'
+    character(len=1024), parameter       :: test_name_local = 'int_2D'
+    character(len=1024)                  :: test_name
+    integer, dimension(:,:), allocatable :: aa, bb, cc
+
+    ! Add routine to call stack
+    call init_routine( routine_name)
+
+    ! Add test name to list
+    test_name = trim( test_name_parent) // '/' // trim( test_name_local)
+
+    ! Safety - should be run on two cores
+    call test_eq( par%n, 2, ASSERTION, 'should be run on two cores')
+
+    if (par%i == 0) then
+      allocate( aa( 7,2))
+      allocate( bb( 2,2))
+      allocate( cc( 7,2))
+    elseif (par%i == 1) then
+      allocate( aa( 7,2))
+      allocate( bb( 5,2))
+      allocate( cc( 7,2))
+    end if
 
     ! Fill test data
-    int_2D_03( :,1) = [ 1,  2,  3,  4,  5,  6,  7]
-    int_2D_03( :,2) = [ 8,  9, 10, 11, 12, 13, 14]
+    cc(:,1) = [1, 2, 3 , 4 , 5 , 6 , 7 ]
+    cc(:,2) = [8, 9, 10, 11, 12, 13, 14]
 
-    IF     (par%i == 0) THEN
-      int_2D_01 = int_2D_03
-    END IF
+    if (par%master) then
+      aa = cc
+    end if
 
-    ! Gather data
-    CALL distribute_from_master_int_2D( int_2D_01, int_2D_02)
+    ! Distribute data
+    call distribute_from_master_int_2D( aa, bb)
 
     ! Check results
-    IF (par%i == 0) THEN
-      found_errors = found_errors .OR. ANY( int_2D_02( 1:2,:) /= int_2D_03( 1:2,:))
-    ELSEIF (par%i == 1) THEN
-      found_errors = found_errors .OR. ANY( int_2D_02( 1:5,:) /= int_2D_03( 3:7,:))
-    END IF
+    if (par%master) then
+      call test_eq(bb( 1:2,:), cc( 1:2,:), UNIT_TEST, test_name)
+    elseif (par%i == 1) then
+      call test_eq(bb( 1:5,:), cc( 3:7,:), UNIT_TEST, test_name)
+    end if
 
-    ! Clean up after yourself
-    DEALLOCATE( int_2D_01)
-    DEALLOCATE( int_2D_02)
-    DEALLOCATE( int_2D_03)
+    ! Remove routine from call stack
+    call finalise_routine( routine_name)
 
-  ! == dp_1D
+  end subroutine test_distribute_from_master_int_2D
 
-    ! Allocate memory
-    IF     (par%i == 0) THEN
-      ALLOCATE( dp_1D_01( 7), source = 0._dp)
-      ALLOCATE( dp_1D_02( 2), source = 0._dp)
-      ALLOCATE( dp_1D_03( 7), source = 0._dp)
-    ELSEIF (par%i == 1) THEN
-      ALLOCATE( dp_1D_01( 7), source = 0._dp)
-      ALLOCATE( dp_1D_02( 5), source = 0._dp)
-      ALLOCATE( dp_1D_03( 7), source = 0._dp)
-    END IF
+  subroutine test_distribute_from_master_dp_1D( test_name_parent)
+
+    ! In/output variables:
+    character(len=*), intent(in) :: test_name_parent
+
+    ! Local variables:
+    character(len=1024), parameter      :: routine_name = 'test_distribute_from_master_dp_1D'
+    character(len=1024), parameter      :: test_name_local = 'dp_1D'
+    character(len=1024)                 :: test_name
+    real(dp), dimension(:), allocatable :: aa, bb, cc
+
+    ! Add routine to call stack
+    call init_routine( routine_name)
+
+    ! Add test name to list
+    test_name = trim( test_name_parent) // '/' // trim( test_name_local)
+
+    ! Safety - should be run on two cores
+    call test_eq( par%n, 2, ASSERTION, 'should be run on two cores')
+
+    if (par%i == 0) then
+      allocate( aa( 7))
+      allocate( bb( 2))
+      allocate( cc( 7))
+    elseif (par%i == 1) then
+      allocate( aa( 7))
+      allocate( bb( 5))
+      allocate( cc( 7))
+    end if
 
     ! Fill test data
-    dp_1D_03 = [1._dp, 2._dp, 3._dp, 4._dp, 5._dp, 6._dp, 7._dp]
+    cc = [1._dp, 2._dp, 3._dp, 4._dp, 5._dp, 6._dp, 7._dp]
 
-    IF     (par%i == 0) THEN
-      dp_1D_01 = dp_1D_03
-    END IF
+    if (par%master) then
+      aa = cc
+    end if
 
-    ! Gather data
-    CALL distribute_from_master_dp_1D( dp_1D_01, dp_1D_02)
+    ! Distribute data
+    call distribute_from_master_dp_1D( aa, bb)
 
     ! Check results
-    IF (par%i == 0) THEN
-      found_errors = found_errors .OR. ANY( dp_1D_02( 1:2) /= dp_1D_03( 1:2))
-    ELSEIF (par%i == 1) THEN
-      found_errors = found_errors .OR. ANY( dp_1D_02( 1:5) /= dp_1D_03( 3:7))
-    END IF
+    if (par%master) then
+      call test_eq(bb( 1:2), cc( 1:2), UNIT_TEST, test_name)
+    elseif (par%i == 1) then
+      call test_eq(bb( 1:5), cc( 3:7), UNIT_TEST, test_name)
+    end if
 
-    ! Clean up after yourself
-    DEALLOCATE( dp_1D_01)
-    DEALLOCATE( dp_1D_02)
-    DEALLOCATE( dp_1D_03)
+    ! Remove routine from call stack
+    call finalise_routine( routine_name)
 
-  ! == dp_2D
+  end subroutine test_distribute_from_master_dp_1D
 
-    ! Allocate memory
-    IF     (par%i == 0) THEN
-      ALLOCATE( dp_2D_01( 7,2), source = 0._dp)
-      ALLOCATE( dp_2D_02( 2,2), source = 0._dp)
-      ALLOCATE( dp_2D_03( 7,2), source = 0._dp)
-    ELSEIF (par%i == 1) THEN
-      ALLOCATE( dp_2D_01( 7,2), source = 0._dp)
-      ALLOCATE( dp_2D_02( 5,2), source = 0._dp)
-      ALLOCATE( dp_2D_03( 7,2), source = 0._dp)
-    END IF
+  subroutine test_distribute_from_master_dp_2D( test_name_parent)
+
+    ! In/output variables:
+    character(len=*), intent(in) :: test_name_parent
+
+    ! Local variables:
+    character(len=1024), parameter        :: routine_name = 'test_distribute_from_master_dp_2D'
+    character(len=1024), parameter        :: test_name_local = 'dp_2D'
+    character(len=1024)                   :: test_name
+    real(dp), dimension(:,:), allocatable :: aa, bb, cc
+
+    ! Add routine to call stack
+    call init_routine( routine_name)
+
+    ! Add test name to list
+    test_name = trim( test_name_parent) // '/' // trim( test_name_local)
+
+    ! Safety - should be run on two cores
+    call test_eq( par%n, 2, ASSERTION, 'should be run on two cores')
+
+    if (par%i == 0) then
+      allocate( aa( 7,2))
+      allocate( bb( 2,2))
+      allocate( cc( 7,2))
+    elseif (par%i == 1) then
+      allocate( aa( 7,2))
+      allocate( bb( 5,2))
+      allocate( cc( 7,2))
+    end if
 
     ! Fill test data
-    dp_2D_03( :,1) = [ 1._dp,  2._dp,  3._dp,  4._dp,  5._dp,  6._dp,  7._dp]
-    dp_2D_03( :,2) = [ 8._dp,  9._dp, 10._dp, 11._dp, 12._dp, 13._dp, 14._dp]
+    cc(:,1) = [1._dp, 2._dp,  3._dp,  4._dp,  5._dp,  6._dp,  7._dp]
+    cc(:,2) = [8._dp, 9._dp, 10._dp, 11._dp, 12._dp, 13._dp, 14._dp]
 
-    IF     (par%i == 0) THEN
-      dp_2D_01 = dp_2D_03
-    END IF
+    if (par%master) then
+      aa = cc
+    end if
 
-    ! Gather data
-    CALL distribute_from_master_dp_2D( dp_2D_01, dp_2D_02)
+    ! Distribute data
+    call distribute_from_master_dp_2D( aa, bb)
 
     ! Check results
-    IF (par%i == 0) THEN
-      found_errors = found_errors .OR. ANY( dp_2D_02( 1:2,:) /= dp_2D_03( 1:2,:))
-    ELSEIF (par%i == 1) THEN
-      found_errors = found_errors .OR. ANY( dp_2D_02( 1:5,:) /= dp_2D_03( 3:7,:))
-    END IF
+    if (par%master) then
+      call test_eq(bb( 1:2,:), cc( 1:2,:), UNIT_TEST, test_name)
+    elseif (par%i == 1) then
+      call test_eq(bb( 1:5,:), cc( 3:7,:), UNIT_TEST, test_name)
+    end if
 
-    ! Clean up after yourself
-    DEALLOCATE( dp_2D_01)
-    DEALLOCATE( dp_2D_02)
-    DEALLOCATE( dp_2D_03)
+    ! Remove routine from call stack
+    call finalise_routine( routine_name)
 
-  ! == Validation
-  ! =============
+  end subroutine test_distribute_from_master_dp_2D
 
-    ! If no errors occurred, we are happy
-    CALL MPI_ALLREDUCE( MPI_IN_PLACE, found_errors, 1, MPI_LOGICAL, MPI_LOR, MPI_COMM_WORLD, ierr)
-    IF (.NOT. found_errors) THEN
-      IF (par%master) CALL happy('validated all distribute_from_master routines')
-    ELSE
-      IF (par%master) CALL warning('found errors in distribute_from_master routines')
-    END IF
-
-    ! Add routine to path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE test_distribute_from_master
-
-END MODULE unit_tests_mpi
+end module unit_tests_mpi
