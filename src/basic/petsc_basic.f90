@@ -12,7 +12,7 @@ MODULE petsc_basic
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE parameters
   USE reallocate_mod                                         , ONLY: reallocate
-  USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp, allocate_matrix_CSR_dist, add_entry_CSR_dist, deallocate_matrix_CSR_dist
+  USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp, allocate_matrix_CSR_dist, add_entry_CSR_dist, deallocate_matrix_CSR_dist, crop_matrix_CSR_dist
   USE mpi_distributed_memory                                 , ONLY: partition_list, gather_to_all_dp_1D
 
   IMPLICIT NONE
@@ -381,6 +381,9 @@ CONTAINS
       END DO
       CALL MatRestoreRow( A, row_glob-1, ncols, cols, vals, perr)
     END DO
+
+    ! Crop memory
+    call crop_matrix_CSR_dist( AA)
 
     ! Clean up after yourself
     DEALLOCATE( nnz_row_loc)

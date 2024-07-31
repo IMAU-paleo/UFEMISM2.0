@@ -871,10 +871,11 @@ subroutine test_ge_le_int_1D_array( a, b1, b2, test_mode, message)
 
 end subroutine test_ge_le_int_1D_array
 
-!> Test if a(:) >= (b(:) - tol(:)) && a(:) <= (b(:) + tol(:))
+!> Test if a(:) >= (b(:) - tol) && a(:) <= (b(:) + tol)
 subroutine test_tol_int_1D_array( a, b, tol, test_mode, message)
   ! In/output variables:
-  integer,          dimension(:), intent(in   ) :: a, b, tol
+  integer,          dimension(:), intent(in   ) :: a, b
+  integer,                        intent(in   ) :: tol
   integer,                        intent(in   ) :: test_mode
   character(len=*),               intent(in   ) :: message
   ! Local variables:
@@ -1140,10 +1141,11 @@ subroutine test_ge_le_int_2D_array( a, b1, b2, test_mode, message)
 
 end subroutine test_ge_le_int_2D_array
 
-!> Test if a(:,:) >= (b(:,:) - tol(:,:)) && a(:,:) <= (b(:,:) + tol(:,:))
+!> Test if a(:,:) >= (b(:,:) - tol) && a(:,:) <= (b(:,:) + tol)
 subroutine test_tol_int_2D_array( a, b, tol, test_mode, message)
   ! In/output variables:
-  integer,          dimension(:,:), intent(in   ) :: a, b, tol
+  integer,          dimension(:,:), intent(in   ) :: a, b
+  integer,                          intent(in   ) :: tol
   integer,                          intent(in   ) :: test_mode
   character(len=*),                 intent(in   ) :: message
   ! Local variables:
@@ -1409,10 +1411,11 @@ subroutine test_ge_le_int_3D_array( a, b1, b2, test_mode, message)
 
 end subroutine test_ge_le_int_3D_array
 
-!> Test if a(:,:,:) >= (b(:,:,:) - tol(:,:,:)) && a(:,:,:) <= (b(:,:,:) + tol(:,:,:))
+!> Test if a(:,:,:) >= (b(:,:,:) - tol) && a(:,:,:) <= (b(:,:,:) + tol)
 subroutine test_tol_int_3D_array( a, b, tol, test_mode, message)
   ! In/output variables:
-  integer,          dimension(:,:,:), intent(in   ) :: a, b, tol
+  integer,          dimension(:,:,:), intent(in   ) :: a, b
+  integer,                            intent(in   ) :: tol
   integer,                            intent(in   ) :: test_mode
   character(len=*),                   intent(in   ) :: message
   ! Local variables:
@@ -1678,10 +1681,11 @@ subroutine test_ge_le_int_4D_array( a, b1, b2, test_mode, message)
 
 end subroutine test_ge_le_int_4D_array
 
-!> Test if a(:,:,:,:) >= (b(:,:,:,:) - tol(:,:,:,:)) && a(:,:,:,:) <= (b(:,:,:,:) + tol(:,:,:,:))
+!> Test if a(:,:,:,:) >= (b(:,:,:,:) - tol) && a(:,:,:,:) <= (b(:,:,:,:) + tol)
 subroutine test_tol_int_4D_array( a, b, tol, test_mode, message)
   ! In/output variables:
-  integer,          dimension(:,:,:,:), intent(in   ) :: a, b, tol
+  integer,          dimension(:,:,:,:), intent(in   ) :: a, b
+  integer,                              intent(in   ) :: tol
   integer,                              intent(in   ) :: test_mode
   character(len=*),                     intent(in   ) :: message
   ! Local variables:
@@ -2087,10 +2091,11 @@ subroutine test_ge_le_dp_1D_array( a, b1, b2, test_mode, message)
 
 end subroutine test_ge_le_dp_1D_array
 
-!> Test if a(:) >= (b(:) - tol(:)) && a(:) <= (b(:) + tol(:))
+!> Test if a(:) >= (b(:) - tol) && a(:) <= (b(:) + tol)
 subroutine test_tol_dp_1D_array( a, b, tol, test_mode, message)
   ! In/output variables:
-  real(dp),         dimension(:), intent(in   ) :: a, b, tol
+  real(dp),         dimension(:), intent(in   ) :: a, b
+  real(dp),                       intent(in   ) :: tol
   integer,                        intent(in   ) :: test_mode
   character(len=*),               intent(in   ) :: message
   ! Local variables:
@@ -2356,10 +2361,11 @@ subroutine test_ge_le_dp_2D_array( a, b1, b2, test_mode, message)
 
 end subroutine test_ge_le_dp_2D_array
 
-!> Test if a(:,:) >= (b(:,:) - tol(:,:)) && a(:,:) <= (b(:,:) + tol(:,:))
+!> Test if a(:,:) >= (b(:,:) - tol) && a(:,:) <= (b(:,:) + tol)
 subroutine test_tol_dp_2D_array( a, b, tol, test_mode, message)
   ! In/output variables:
-  real(dp),         dimension(:,:), intent(in   ) :: a, b, tol
+  real(dp),         dimension(:,:), intent(in   ) :: a, b
+  real(dp),                         intent(in   ) :: tol
   integer,                          intent(in   ) :: test_mode
   character(len=*),                 intent(in   ) :: message
   ! Local variables:
@@ -2625,10 +2631,11 @@ subroutine test_ge_le_dp_3D_array( a, b1, b2, test_mode, message)
 
 end subroutine test_ge_le_dp_3D_array
 
-!> Test if a(:,:,:) >= (b(:,:,:) - tol(:,:,:)) && a(:,:,:) <= (b(:,:,:) + tol(:,:,:))
+!> Test if a(:,:,:) >= (b(:,:,:) - tol) && a(:,:,:) <= (b(:,:,:) + tol)
 subroutine test_tol_dp_3D_array( a, b, tol, test_mode, message)
   ! In/output variables:
-  real(dp),         dimension(:,:,:), intent(in   ) :: a, b, tol
+  real(dp),         dimension(:,:,:), intent(in   ) :: a, b
+  real(dp),                           intent(in   ) :: tol
   integer,                            intent(in   ) :: test_mode
   character(len=*),                   intent(in   ) :: message
   ! Local variables:
@@ -2894,10 +2901,11 @@ subroutine test_ge_le_dp_4D_array( a, b1, b2, test_mode, message)
 
 end subroutine test_ge_le_dp_4D_array
 
-!> Test if a(:,:,:,:) >= (b(:,:,:,:) - tol(:,:,:,:)) && a(:,:,:,:) <= (b(:,:,:,:) + tol(:,:,:,:))
+!> Test if a(:,:,:,:) >= (b(:,:,:,:) - tol) && a(:,:,:,:) <= (b(:,:,:,:) + tol)
 subroutine test_tol_dp_4D_array( a, b, tol, test_mode, message)
   ! In/output variables:
-  real(dp),         dimension(:,:,:,:), intent(in   ) :: a, b, tol
+  real(dp),         dimension(:,:,:,:), intent(in   ) :: a, b
+  real(dp),                             intent(in   ) :: tol
   integer,                              intent(in   ) :: test_mode
   character(len=*),                     intent(in   ) :: message
   ! Local variables:
