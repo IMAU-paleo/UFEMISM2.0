@@ -34,18 +34,18 @@ jobs:
       - name: Compile UFEMISM
         run: ./compile_all_mac.csh
             
-#      - name: Cache UFEMISM program            # TijnB: caching is quite slow, and not optimal here since
-#        uses: actions/cache/save@v3            # we assume the model code will be changed whenever this workflow
-#        id: UFEMISM_program_cache_save         # is run, so we need to recompile the code anyway.
-#        with:                                  # So: use artifacts instead!
-#          path: UFEMISM_program
-#          key: UFEMISM_program
-
-      - name: Upload compiled UFEMISM program as artifact
-        uses: actions/upload-artifact@v4.3.4
-        with:
-          name: UFEMISM_program
+      - name: Cache UFEMISM program            # TijnB: caching is quite slow, and not optimal here since
+        uses: actions/cache/save@v3            # we assume the model code will be changed whenever this workflow
+        id: UFEMISM_program_cache_save         # is run, so we need to recompile the code anyway.
+        with:                                  # So: use artifacts instead!
           path: UFEMISM_program
+          key: UFEMISM_program
+
+#      - name: Upload compiled UFEMISM program as artifact
+#        uses: actions/upload-artifact@v4.3.4
+#        with:
+#          name: UFEMISM_program
+#          path: UFEMISM_program
 
   run_unit_tests:
     needs: compile_UFEMISM
@@ -64,18 +64,18 @@ jobs:
       - name: Checkout UFEMISM repository
         uses: actions/checkout@v4
 
-#      - name: Restore UFEMISM program from cache    # TijnB: caching is quite slow, and not optimal here since
-#        uses: actions/cache/restore@v3              # we assume the model code will be changed whenever this workflow
-#        id: UFEMISM_program_cache_restore           # is run, so we need to recompile the code anyway.
-#        with:                                       # So: use artifacts instead!
-#          path: UFEMISM_program
-#          key: UFEMISM_program
-
-      - name: Download compiled UFEMISM program as artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: UFEMISM_program
+      - name: Restore UFEMISM program from cache    # TijnB: caching is quite slow, and not optimal here since
+        uses: actions/cache/restore@v3              # we assume the model code will be changed whenever this workflow
+        id: UFEMISM_program_cache_restore           # is run, so we need to recompile the code anyway.
+        with:                                       # So: use artifacts instead!
           path: UFEMISM_program
+          key: UFEMISM_program
+
+#      - name: Download compiled UFEMISM program as artifact
+#        uses: actions/download-artifact@v4
+#        with:
+#          name: UFEMISM_program
+#          path: UFEMISM_program
 
       - name: Run unit tests
         run: mpiexec  -n 2  UFEMISM_program  unit_tests
