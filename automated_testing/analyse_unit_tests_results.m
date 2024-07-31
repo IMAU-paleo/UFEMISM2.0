@@ -3,7 +3,7 @@ function analyse_unit_tests_results(foldername)
 
 disp('Analysing unit test results...')
 
-foldername = '../results_unit_tests';
+% foldername = '../results_unit_tests';
 filename = [foldername '/unit_tests_output.txt'];
 
 R = read_unit_tests_structure( filename);
