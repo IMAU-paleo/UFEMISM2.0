@@ -738,6 +738,7 @@ MODULE model_configuration
 
     ! Grounding line treatment
     LOGICAL             :: do_subgrid_BMB_at_grounding_line_config      = .FALSE.                          ! Whether or not to apply basal melt rates under a partially floating grounding line
+    CHARACTER(LEN=256)  :: choice_BMB_subgrid_config                    = ''                               ! Choice of sub-grid BMB scheme: "FCMP", "PMP", "NMP" (following Leguy et al., 2021)
 
     ! Choice of BMB model
     CHARACTER(LEN=256)  :: choice_BMB_model_NAM_config                  = 'uniform'
@@ -1612,6 +1613,7 @@ MODULE model_configuration
 
     ! Grounding line treatment
     LOGICAL             :: do_subgrid_BMB_at_grounding_line
+    CHARACTER(LEN=256)  :: choice_BMB_subgrid
 
     ! Choice of BMB model
     CHARACTER(LEN=256)  :: choice_BMB_model_NAM
@@ -2379,6 +2381,7 @@ CONTAINS
       BMB_inversion_t_start_config                                , &
       BMB_inversion_t_end_config                                  , &
       do_subgrid_BMB_at_grounding_line_config                     , &
+      choice_BMB_subgrid_config                                   , &
       choice_BMB_model_NAM_config                                 , &
       choice_BMB_model_EAS_config                                 , &
       choice_BMB_model_GRL_config                                 , &
@@ -3238,6 +3241,7 @@ CONTAINS
 
     ! Grounding line treatment
     C%do_subgrid_BMB_at_grounding_line                       = do_subgrid_BMB_at_grounding_line_config
+    C%choice_BMB_subgrid                                     = choice_BMB_subgrid_config
 
     ! Choice of BMB model
     C%choice_BMB_model_NAM                                   = choice_BMB_model_NAM_config

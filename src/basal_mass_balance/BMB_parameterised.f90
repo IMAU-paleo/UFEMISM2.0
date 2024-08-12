@@ -74,7 +74,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Initialise
-    BMB%BMB = 0._dp
+    BMB%BMB_shelf = 0._dp
 
     DO vi = mesh%vi1, mesh%vi2
 
@@ -83,14 +83,14 @@ CONTAINS
 
       ! Favier et al. (2019), Eq. 4
       ! Altered to allow for negative basal melt (i.e. refreezing) when dT < 0
-      BMB%BMB( vi) =  -1._dp * sec_per_year * C%BMB_Favier2019_gamma * SIGN(dT,1._dp) * (seawater_density * cp_ocean * dT / (ice_density * L_fusion))**2._dp
+      BMB%BMB_shelf( vi) =  -1._dp * sec_per_year * C%BMB_Favier2019_gamma * SIGN(dT,1._dp) * (seawater_density * cp_ocean * dT / (ice_density * L_fusion))**2._dp
 
       ! Apply grounded fractions
       IF (ice%mask_gl_gr( vi) .AND. ice%Hib(vi) < ice%SL(vi)) THEN
         ! Subgrid basal melt rate
-        BMB%BMB( vi) = (1._dp - ice%fraction_gr( vi)) * BMB%BMB( vi)
+        ! BMB%BMB_shelf( vi) = (1._dp - ice%fraction_gr( vi)) * BMB%BMB_shelf( vi)
         ! Limit it to only melt (refreezing is tricky)
-        BMB%BMB( vi) = MAX( BMB%BMB( vi), 0._dp)
+        BMB%BMB_shelf( vi) = MAX( BMB%BMB_shelf( vi), 0._dp)
       END IF
 
     END DO
