@@ -194,7 +194,7 @@ CONTAINS
       CASE ('uniform')
         ! No need to do anything
       CASE ('prescribed')
-        CALL initialise_BMB_model_prescribed( mesh, SMB, region_name)
+        CALL initialise_BMB_model_prescribed( mesh, BMB, region_name)
       CASE ('idealised')
         CALL initialise_BMB_model_idealised( mesh, BMB)
       CASE ('parameterised')
