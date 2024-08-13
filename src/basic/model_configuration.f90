@@ -746,6 +746,24 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: choice_BMB_model_GRL_config                  = 'uniform'
     CHARACTER(LEN=256)  :: choice_BMB_model_ANT_config                  = 'uniform'
 
+    ! Prescribed BMB forcing
+    CHARACTER(LEN=256)  :: choice_BMB_prescribed_NAM_config             = ''
+    CHARACTER(LEN=256)  :: choice_BMB_prescribed_EAS_config             = ''
+    CHARACTER(LEN=256)  :: choice_BMB_prescribed_GRL_config             = ''
+    CHARACTER(LEN=256)  :: choice_BMB_prescribed_ANT_config             = ''
+
+    ! Files containing prescribed BMB forcing
+    CHARACTER(LEN=256)  :: filename_BMB_prescribed_NAM_config           = ''
+    CHARACTER(LEN=256)  :: filename_BMB_prescribed_EAS_config           = ''
+    CHARACTER(LEN=256)  :: filename_BMB_prescribed_GRL_config           = ''
+    CHARACTER(LEN=256)  :: filename_BMB_prescribed_ANT_config           = ''
+
+    ! Timeframes for reading prescribed BMB forcing from file (set to 1E9_dp if the file has no time dimension)
+    REAL(dp)            :: timeframe_BMB_prescribed_NAM_config          = 1E9_dp
+    REAL(dp)            :: timeframe_BMB_prescribed_EAS_config          = 1E9_dp
+    REAL(dp)            :: timeframe_BMB_prescribed_GRL_config          = 1E9_dp
+    REAL(dp)            :: timeframe_BMB_prescribed_ANT_config          = 1E9_dp
+
     ! Choice of idealised BMB model
     CHARACTER(LEN=256)  :: choice_BMB_model_idealised_config            = ''
 
@@ -1621,6 +1639,24 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: choice_BMB_model_GRL
     CHARACTER(LEN=256)  :: choice_BMB_model_ANT
 
+    ! Prescribed BMB forcing
+    CHARACTER(LEN=256)  :: choice_BMB_prescribed_NAM
+    CHARACTER(LEN=256)  :: choice_BMB_prescribed_EAS
+    CHARACTER(LEN=256)  :: choice_BMB_prescribed_GRL
+    CHARACTER(LEN=256)  :: choice_BMB_prescribed_ANT
+
+    ! Files containing prescribed BMB forcing
+    CHARACTER(LEN=256)  :: filename_BMB_prescribed_NAM
+    CHARACTER(LEN=256)  :: filename_BMB_prescribed_EAS
+    CHARACTER(LEN=256)  :: filename_BMB_prescribed_GRL
+    CHARACTER(LEN=256)  :: filename_BMB_prescribed_ANT
+
+    ! Timeframes for reading prescribed BMB forcing from file (set to 1E9_dp if the file has no time dimension)
+    REAL(dp)            :: timeframe_BMB_prescribed_NAM
+    REAL(dp)            :: timeframe_BMB_prescribed_EAS
+    REAL(dp)            :: timeframe_BMB_prescribed_GRL
+    REAL(dp)            :: timeframe_BMB_prescribed_ANT
+
     ! Choice of idealised BMB model
     CHARACTER(LEN=256)  :: choice_BMB_model_idealised
 
@@ -2386,6 +2422,18 @@ CONTAINS
       choice_BMB_model_EAS_config                                 , &
       choice_BMB_model_GRL_config                                 , &
       choice_BMB_model_ANT_config                                 , &
+      choice_BMB_prescribed_NAM_config                            , &
+      choice_BMB_prescribed_EAS_config                            , &
+      choice_BMB_prescribed_GRL_config                            , &
+      choice_BMB_prescribed_ANT_config                            , &
+      filename_BMB_prescribed_NAM_config                          , &
+      filename_BMB_prescribed_EAS_config                          , &
+      filename_BMB_prescribed_GRL_config                          , &
+      filename_BMB_prescribed_ANT_config                          , &
+      timeframe_BMB_prescribed_NAM_config                         , &
+      timeframe_BMB_prescribed_EAS_config                         , &
+      timeframe_BMB_prescribed_GRL_config                         , &
+      timeframe_BMB_prescribed_ANT_config                         , &
       choice_BMB_model_idealised_config                           , &
       choice_BMB_model_parameterised_config                       , &
       uniform_BMB_config                                          , &
@@ -3248,6 +3296,24 @@ CONTAINS
     C%choice_BMB_model_EAS                                   = choice_BMB_model_EAS_config
     C%choice_BMB_model_GRL                                   = choice_BMB_model_GRL_config
     C%choice_BMB_model_ANT                                   = choice_BMB_model_ANT_config
+
+    ! Prescribed BMB forcing
+    C%choice_BMB_prescribed_NAM                              = choice_BMB_prescribed_NAM_config
+    C%choice_BMB_prescribed_EAS                              = choice_BMB_prescribed_EAS_config
+    C%choice_BMB_prescribed_GRL                              = choice_BMB_prescribed_GRL_config
+    C%choice_BMB_prescribed_ANT                              = choice_BMB_prescribed_ANT_config
+
+    ! Files containing prescribed BMB forcing
+    C%filename_BMB_prescribed_NAM                            = filename_BMB_prescribed_NAM_config
+    C%filename_BMB_prescribed_EAS                            = filename_BMB_prescribed_EAS_config
+    C%filename_BMB_prescribed_GRL                            = filename_BMB_prescribed_GRL_config
+    C%filename_BMB_prescribed_ANT                            = filename_BMB_prescribed_ANT_config
+
+    ! Timeframes for reading prescribed BMB forcing from file (set to 1E9_dp if the file has no time dimension)
+    C%timeframe_BMB_prescribed_NAM                           = timeframe_BMB_prescribed_NAM_config
+    C%timeframe_BMB_prescribed_EAS                           = timeframe_BMB_prescribed_EAS_config
+    C%timeframe_BMB_prescribed_GRL                           = timeframe_BMB_prescribed_GRL_config
+    C%timeframe_BMB_prescribed_ANT                           = timeframe_BMB_prescribed_ANT_config
 
     ! Choice of idealised BMB model
     C%choice_BMB_model_idealised                             = choice_BMB_model_idealised_config

@@ -17,6 +17,7 @@ MODULE BMB_main
   USE SMB_model_types                                        , ONLY: type_SMB_model
   USE BMB_model_types                                        , ONLY: type_BMB_model
   USE BMB_idealised                                          , ONLY: initialise_BMB_model_idealised, run_BMB_model_idealised
+  USE BMB_prescribed                                         , ONLY: initialise_BMB_model_prescribed, run_BMB_model_prescribed
   USE BMB_parameterised                                      , ONLY: initialise_BMB_model_parameterised, run_BMB_model_parameterised
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   USE math_utilities                                         , ONLY: is_floating
@@ -101,6 +102,8 @@ CONTAINS
             BMB%BMB_shelf( vi) = C%uniform_BMB
           END IF
         END DO
+      CASE ('prescribed')
+        CALL run_BMB_model_prescribed( mesh, ice, BMB, region_name, time)
       CASE ('idealised')
         CALL run_BMB_model_idealised( mesh, ice, BMB, time)
       CASE ('parameterised')
@@ -190,6 +193,8 @@ CONTAINS
     SELECT CASE (choice_BMB_model)
       CASE ('uniform')
         ! No need to do anything
+      CASE ('prescribed')
+        CALL initialise_BMB_model_prescribed( mesh, SMB, region_name)
       CASE ('idealised')
         CALL initialise_BMB_model_idealised( mesh, BMB)
       CASE ('parameterised')
@@ -240,6 +245,8 @@ CONTAINS
     ! Write to the restart file of the chosen BMB model
     SELECT CASE (choice_BMB_model)
       CASE ('uniform')
+        ! No need to do anything
+      CASE ('prescribed')
         ! No need to do anything
       CASE ('idealised')
         ! No need to do anything
@@ -335,6 +342,8 @@ CONTAINS
     ! Create the restart file of the chosen BMB model
     SELECT CASE (choice_BMB_model)
       CASE ('uniform')
+        ! No need to do anything
+      CASE ('prescribed')
         ! No need to do anything
       CASE ('idealised')
         ! No need to do anything
@@ -460,6 +469,8 @@ CONTAINS
     SELECT CASE (choice_BMB_model)
       CASE ('uniform')
         ! No need to do anything
+      CASE ('prescribed')
+        CALL initialise_BMB_model_prescribed( mesh_new, BMB, region_name)
       CASE ('idealised')
         ! No need to do anything
       CASE ('parameterised')
