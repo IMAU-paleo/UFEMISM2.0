@@ -486,9 +486,19 @@ MODULE model_configuration
   ! ==================
 
     ! Basal hydrology
-    CHARACTER(LEN=256)  :: choice_basal_hydrology_model_config          = 'Martin2011'                     ! Choice of basal hydrology model: "none", "Martin2011", "inversion"
+    CHARACTER(LEN=256)  :: choice_basal_hydrology_model_config          = 'Martin2011'                     ! Choice of basal hydrology model: "none", "Martin2011", "inversion", "read_from_file"
     REAL(dp)            :: Martin2011_hydro_Hb_min_config               = 0._dp                            ! Martin et al. (2011) basal hydrology model: low-end  Hb  value of bedrock-dependent pore-water pressure
     REAL(dp)            :: Martin2011_hydro_Hb_max_config               = 1000._dp                         ! Martin et al. (2011) basal hydrology model: high-end Hb  value of bedrock-dependent pore-water pressure
+    
+    ! Pore water fraction from file
+    CHARACTER(LEN=256)  :: filename_pore_water_NAM_config               = ''
+    CHARACTER(LEN=256)  :: filename_pore_water_EAS_config               = ''
+    CHARACTER(LEN=256)  :: filename_pore_water_GRL_config               = ''
+    CHARACTER(LEN=256)  :: filename_pore_water_ANT_config               = ''
+    REAL(dp)            :: timeframe_pore_water_NAM_config              = 1E9_dp                           ! Can be different from C%start_time_of_run, be careful though!
+    REAL(dp)            :: timeframe_pore_water_EAS_config              = 1E9_dp
+    REAL(dp)            :: timeframe_pore_water_GRL_config              = 1E9_dp
+    REAL(dp)            :: timeframe_pore_water_ANT_config              = 1E9_dp
 
   ! == Basal hydrology inversion by nudging
   ! =======================================
@@ -1380,6 +1390,16 @@ MODULE model_configuration
     REAL(dp)            :: Martin2011_hydro_Hb_min
     REAL(dp)            :: Martin2011_hydro_Hb_max
 
+    ! Pore water faction from file
+    CHARACTER(LEN=256)  :: filename_pore_water_NAM
+    CHARACTER(LEN=256)  :: filename_pore_water_EAS
+    CHARACTER(LEN=256)  :: filename_pore_water_GRL
+    CHARACTER(LEN=256)  :: filename_pore_water_ANT
+    REAL(dp)            :: timeframe_pore_water_NAM
+    REAL(dp)            :: timeframe_pore_water_EAS
+    REAL(dp)            :: timeframe_pore_water_GRL
+    REAL(dp)            :: timeframe_pore_water_ANT
+
   ! == Pore water inversion by nudging
   ! =====================================
 
@@ -2269,6 +2289,14 @@ CONTAINS
       choice_basal_hydrology_model_config                         , &
       Martin2011_hydro_Hb_min_config                              , &
       Martin2011_hydro_Hb_max_config                              , &
+      filename_pore_water_NAM_config                              , &
+      filename_pore_water_EAS_config                              , &
+      filename_pore_water_GRL_config                              , &
+      filename_pore_water_ANT_config                              , &
+      timeframe_pore_water_NAM_config                             , &
+      timeframe_pore_water_EAS_config                             , &
+      timeframe_pore_water_GRL_config                             , &
+      timeframe_pore_water_ANT_config                             , &
       do_pore_water_nudging_config                                , &
       choice_pore_water_nudging_method_config                     , &
       pore_water_nudging_dt_config                                , &
@@ -3041,6 +3069,16 @@ CONTAINS
     C%choice_basal_hydrology_model                           = choice_basal_hydrology_model_config
     C%Martin2011_hydro_Hb_min                                = Martin2011_hydro_Hb_min_config
     C%Martin2011_hydro_Hb_max                                = Martin2011_hydro_Hb_max_config
+    
+    ! Pore water fraction from file
+    C%filename_pore_water_NAM                                = filename_pore_water_NAM_config
+    C%filename_pore_water_EAS                                = filename_pore_water_EAS_config
+    C%filename_pore_water_GRL                                = filename_pore_water_GRL_config
+    C%filename_pore_water_ANT                                = filename_pore_water_ANT_config
+    C%timeframe_pore_water_NAM                               = timeframe_pore_water_NAM_config
+    C%timeframe_pore_water_EAS                               = timeframe_pore_water_EAS_config
+    C%timeframe_pore_water_GRL                               = timeframe_pore_water_GRL_config
+    C%timeframe_pore_water_ANT                               = timeframe_pore_water_ANT_config
 
   ! == Pore water inversion by nudging
   ! ==================================
