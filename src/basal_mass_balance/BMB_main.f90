@@ -102,24 +102,20 @@ CONTAINS
             BMB%BMB_shelf( vi) = C%uniform_BMB
           END IF
         END DO
+        CALL apply_BMB_subgrid_scheme( mesh, ice, BMB)
       CASE ('prescribed')
         CALL run_BMB_model_prescribed( mesh, ice, BMB, region_name, time)
+        CALL apply_BMB_subgrid_scheme( mesh, ice, BMB)
       CASE ('idealised')
         CALL run_BMB_model_idealised( mesh, ice, BMB, time)
+        CALL apply_BMB_subgrid_scheme( mesh, ice, BMB)
       CASE ('parameterised')
         CALL run_BMB_model_parameterised( mesh, ice, ocean, BMB)
+        CALL apply_BMB_subgrid_scheme( mesh, ice, BMB)
       CASE ('inverted')
         CALL run_BMB_model_inverted( mesh, ice, BMB, time)
       CASE DEFAULT
         CALL crash('unknown choice_BMB_model "' // TRIM( choice_BMB_model) // '"')
-    END SELECT
-
-    ! Apply BMB subgrid scheme if required
-    SELECT CASE (choice_BMB_model)
-      CASE ('inverted')
-        ! No need to do anything
-      CASE DEFAULT
-        CALL apply_BMB_subgrid_scheme( mesh, ice, BMB)
     END SELECT
 
     ! Finalise routine path
@@ -668,7 +664,7 @@ CONTAINS
 
     ! Note: apply extrapolation_FCMP_to_PMP to non-laddie BMB models before applying sub-grid schemes
 
-    BMB%BMB = 0._dp
+    ! BMB%BMB = 0._dp
 
     DO vi = mesh%vi1, mesh%vi2
       ! Different sub-grid schemes for sub-shelf melt

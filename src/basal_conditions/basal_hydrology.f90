@@ -1735,7 +1735,7 @@ CONTAINS
       CALL read_field_from_file_2D( filename_pore_water, 'pore_water_fraction', mesh, ice%pore_water_fraction, time_to_read = timeframe_pore_water)
     END IF
 
-    CALL calc_pore_water_pressure_none( mesh, ice)
+    CALL calc_pore_water_pressure_from_file( mesh, ice)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
