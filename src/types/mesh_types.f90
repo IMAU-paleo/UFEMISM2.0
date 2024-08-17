@@ -2,18 +2,10 @@ MODULE mesh_types
 
   ! The different data types used in the mesh modules
 
-! ===== Preamble =====
-! ====================
-
-#include <petsc/finclude/petscksp.h>
-  USE petscksp
   USE precisions                                             , ONLY: dp
   USE CSR_sparse_matrix_type                                 , ONLY: type_sparse_matrix_CSR_dp
 
   IMPLICIT NONE
-
-! ===== Global variables =====
-! ============================
 
   TYPE type_mesh
     ! The unstructured triangular mesh.
@@ -236,8 +228,5 @@ MODULE mesh_types
   END TYPE type_mesh
 
 CONTAINS
-
-! ===== Subroutines ======
-! ========================
 
 END MODULE mesh_types

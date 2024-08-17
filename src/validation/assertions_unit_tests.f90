@@ -19,6 +19,7 @@ module assertions_unit_tests
   use assertions_unit_tests_CSR
   use assertions_unit_tests_grid
   use assertions_unit_tests_grid_lonlat
+  use assertions_unit_tests_mesh
 
   implicit none
 
@@ -178,6 +179,7 @@ end interface test_neqv
     procedure test_tol_CSR
     procedure test_tol_grid
     procedure test_tol_grid_lonlat
+    procedure test_tol_mesh
   end interface test_tol
 
 contains
