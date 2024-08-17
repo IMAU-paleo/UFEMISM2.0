@@ -81,8 +81,18 @@ UFEMISM_source = \
   basic/reallocate_mod.f90 \
   basic/control_resources_and_error_messaging.f90 \
   basic/model_configuration.f90 \
-  validation/unit_tests_output.f90 \
+  \
+  validation/assertions_unit_tests_output.f90 \
+  validation/assertions_unit_tests_basic.f90 \
+  validation/assertions_unit_tests_logical.f90 \
+  validation/assertions_unit_tests_int.f90 \
+  validation/assertions_unit_tests_dp.f90 \
+  validation/assertions_unit_tests_CSR.f90 \
+  validation/assertions_unit_tests_grid.f90 \
+  validation/assertions_unit_tests_grid_lonlat.f90 \
+  validation/assertions_unit_tests_mesh.f90 \
   validation/assertions_unit_tests.f90 \
+  \
   basic/mpi_distributed_memory.f90 \
   basic/math_utilities.f90 \
   basic/analytical_solutions.f90 \
