@@ -59,22 +59,9 @@ $(OBJ_PATH)/%.o : %.f90 Makefile | $(OBJ_PATH) $(MOD_PATH)
 UFEMISM_source = \
   \
   basic/precisions.f90 \
-  basic/parameters.f90 \
-  basic/mpi_basic.f90 \
-  basic/reallocate_mod.f90 \
-  basic/control_resources_and_error_messaging.f90 \
-  basic/model_configuration.f90 \
-  basic/CSR_sparse_matrix_type.f90 \
-  validation/unit_tests_output.f90 \
-  validation/assertions_unit_tests.f90 \
-  basic/mpi_distributed_memory.f90 \
-  basic/math_utilities.f90 \
-  basic/analytical_solutions.f90 \
-  basic/CSR_sparse_matrix_utilities.f90 \
-  basic/petsc_basic.f90 \
-  basic/grid_basic.f90 \
-  basic/grid_lonlat_basic.f90 \
   \
+  types/CSR_sparse_matrix_type.f90 \
+  types/grid_types.f90 \
   types/mesh_types.f90 \
   types/reference_geometry_types.f90 \
   types/scalar_types.f90 \
@@ -88,6 +75,21 @@ UFEMISM_source = \
   types/GIA_model_types.f90 \
   types/basal_inversion_types.f90 \
   types/region_types.f90 \
+  \
+  basic/parameters.f90 \
+  basic/mpi_basic.f90 \
+  basic/reallocate_mod.f90 \
+  basic/control_resources_and_error_messaging.f90 \
+  basic/model_configuration.f90 \
+  validation/unit_tests_output.f90 \
+  validation/assertions_unit_tests.f90 \
+  basic/mpi_distributed_memory.f90 \
+  basic/math_utilities.f90 \
+  basic/analytical_solutions.f90 \
+  basic/CSR_sparse_matrix_utilities.f90 \
+  basic/petsc_basic.f90 \
+  basic/grid_basic.f90 \
+  basic/grid_lonlat_basic.f90 \
   \
   mesh/mesh_memory.f90 \
   mesh/mesh_utilities.f90 \

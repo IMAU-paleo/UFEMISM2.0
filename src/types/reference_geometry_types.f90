@@ -6,7 +6,7 @@ MODULE reference_geometry_types
 ! ====================
 
   USE precisions                                             , ONLY: dp
-  USE grid_basic                                             , ONLY: type_grid
+  USE grid_types                                             , ONLY: type_grid
   USE mesh_types                                             , ONLY: type_mesh
 
   IMPLICIT NONE

@@ -1,14 +1,8 @@
 MODULE grid_lonlat_basic
 
-  ! Data types and subroutines for working with simple lon/lat-grids
-
-! ===== Preamble =====
-! ====================
-
-#include <petsc/finclude/petscksp.h>
-  USE petscksp
-  USE mpi
+  ! Functions for working with simple lon/lat-grids
   USE precisions                                             , ONLY: dp
+  use grid_types                                             , only: type_grid_lonlat
   USE mpi_basic                                              , ONLY: par, cerr, ierr, recv_status, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE parameters
@@ -21,39 +15,7 @@ MODULE grid_lonlat_basic
 
   IMPLICIT NONE
 
-! ===== Global variables =====
-! ============================
-
-  TYPE type_grid_lonlat
-    ! A lon/lat grid
-
-    ! Basic properties
-    CHARACTER(LEN=256)                      :: name                          !           A nice name tag
-    INTEGER                                 :: nlon                          !           Number of grid cells in the longitude direction
-    INTEGER                                 :: nlat                          !           Number of grid cells in the latitude direction
-    INTEGER                                 :: n                             !           Total number of grid cells (= nx * ny)
-    REAL(dp)                                :: dlon                          ! [degrees] Resolution in the longitude direction
-    REAL(dp)                                :: dlat                          ! [degrees] Resolution in the latitude direction
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: lon                           ! [degrees east ] Longitude of each grid point
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: lat                           ! [degrees north] Latitude  of each grid point
-    REAL(dp)                                :: lonmin                        ! [degrees east ] Lon/lat range covered by the grid
-    REAL(dp)                                :: lonmax                        ! [degrees east ]
-    REAL(dp)                                :: latmin                        ! [degrees north]
-    REAL(dp)                                :: latmax                        ! [degrees north]
-
-    ! Remapping data
-    REAL(dp)                                :: tol_dist                      ! [m]       Horizontal distance tolerance; points closer together than this are assumed to be identical (typically set to a billionth of linear domain size)
-    INTEGER,  DIMENSION(:,:  ), ALLOCATABLE :: ij2n, n2ij                    !           Conversion tables for grid-form vs. vector-form data
-
-    ! Parallelisation
-    INTEGER                                 :: n1,n2,n_loc                   ! Matrix rows owned by each process
-
-  END TYPE type_grid_lonlat
-
 CONTAINS
-
-! ===== Subroutines ======
-! ========================
 
 ! == Basic square grid functionality
 

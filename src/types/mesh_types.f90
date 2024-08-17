@@ -8,8 +8,7 @@ MODULE mesh_types
 #include <petsc/finclude/petscksp.h>
   USE petscksp
   USE precisions                                             , ONLY: dp
-  USE model_configuration                                    , ONLY: C
-  USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp
+  USE CSR_sparse_matrix_type                                 , ONLY: type_sparse_matrix_CSR_dp
 
   IMPLICIT NONE
 
