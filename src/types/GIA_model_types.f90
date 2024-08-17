@@ -6,7 +6,7 @@ MODULE GIA_model_types
 ! ====================
 
   USE precisions                                             , ONLY: dp
-  USE grid_basic                                             , ONLY: type_grid
+  USE grid_types                                             , ONLY: type_grid
 
   IMPLICIT NONE
 

@@ -1,14 +1,12 @@
 MODULE grid_basic
 
-  ! Data types and subroutines for working with simple square grids
-
-! ===== Preamble =====
-! ====================
+  ! Functions for working with simple square x/y-grids
 
 #include <petsc/finclude/petscksp.h>
   USE petscksp
   USE mpi
   USE precisions                                             , ONLY: dp
+  use grid_types                                             , only: type_grid
   USE mpi_basic                                              , ONLY: par, cerr, ierr, recv_status, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE parameters
@@ -21,40 +19,6 @@ MODULE grid_basic
                                                                      deallocate_matrix_CSR_dist
 
   IMPLICIT NONE
-
-! ===== Global variables =====
-! ============================
-
-  TYPE type_grid
-    ! A square grid
-
-    ! Basic properties
-    CHARACTER(LEN=256)                      :: name                          !           A nice name tag
-    INTEGER                                 :: nx                            !           Number of grid cells in the x-direction
-    INTEGER                                 :: ny                            !           Number of grid cells in the x-direction
-    INTEGER                                 :: n                             !           Total number of grid cells (= nx * ny)
-    REAL(dp)                                :: dx                            ! [m]       Resolution (square grid, so dy = dx)
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: x                             ! [m]       x-coordinates
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: y                             ! [m]       y-coordinates
-    REAL(dp)                                :: xmin                          ! [m]       x and y range of the square covered by the grid
-    REAL(dp)                                :: xmax                          ! [m]
-    REAL(dp)                                :: ymin                          ! [m]
-    REAL(dp)                                :: ymax                          ! [m]
-
-    ! Remapping data
-    REAL(dp)                                :: tol_dist                      ! [m]       Horizontal distance tolerance; points closer together than this are assumed to be identical (typically set to a billionth of linear domain size)
-    INTEGER,  DIMENSION(:,:  ), ALLOCATABLE :: ij2n, n2ij                    !           Conversion table for grid-form vs. vector-form data
-
-    ! Lon/lat-coordinates
-    REAL(dp)                                :: lambda_M
-    REAL(dp)                                :: phi_M
-    REAL(dp)                                :: beta_stereo
-    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: lon, lat
-
-    ! Parallelisation
-    INTEGER                                 :: n1,n2,n_loc                   ! Matrix rows owned by each process
-
-  END TYPE type_grid
 
 CONTAINS
 
