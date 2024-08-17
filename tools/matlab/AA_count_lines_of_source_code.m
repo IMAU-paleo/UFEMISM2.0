@@ -1,6 +1,6 @@
 function AA_count_lines_of_source_code
 
-main_src_path = '/Users/berends/Documents/Models/UFEMISM2.0/src';
+main_src_path = '/Users/Beren017/Documents/GitHub/UFEMISM2.0/src';
 
 henk = dir( main_src_path);
 

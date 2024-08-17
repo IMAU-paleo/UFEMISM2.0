@@ -8,12 +8,17 @@ module assertions_unit_tests
   ! ASSERTION or UNIT_TEST (which can be imported from thsi module). ASSERTION will
   ! crash the model if the test fails; UNIT_TEST will not crash the model, but will
   ! write the test result (both pass and fail) to output.
+  !
+  ! test_tol is also defined for several derived types, including CSR-type matrices,\
+  ! x/y-grids, lon/lat-grids, and meshes
 
   use assertions_unit_tests_basic, only: ASSERTION, UNIT_TEST, process_test_result
   use assertions_unit_tests_logical
   use assertions_unit_tests_int
   use assertions_unit_tests_dp
   use assertions_unit_tests_CSR
+  use assertions_unit_tests_grid
+  use assertions_unit_tests_grid_lonlat
 
   implicit none
 
@@ -45,11 +50,13 @@ end interface test_neqv
 
   !> Test if a == b
   interface test_eq
+    ! Integer
     procedure test_eq_int_0D
     procedure test_eq_int_1D_scalar, test_eq_int_1D_array
     procedure test_eq_int_2D_scalar, test_eq_int_2D_array
     procedure test_eq_int_3D_scalar, test_eq_int_3D_array
     procedure test_eq_int_4D_scalar, test_eq_int_4D_array
+    ! Double precision
     procedure test_eq_dp_0D
     procedure test_eq_dp_1D_scalar, test_eq_dp_1D_array
     procedure test_eq_dp_2D_scalar, test_eq_dp_2D_array
@@ -59,11 +66,13 @@ end interface test_neqv
 
   !> Test if a /= b
   interface test_neq
+  ! Integer
     procedure test_neq_int_0D
     procedure test_neq_int_1D_scalar, test_neq_int_1D_array
     procedure test_neq_int_2D_scalar, test_neq_int_2D_array
     procedure test_neq_int_3D_scalar, test_neq_int_3D_array
     procedure test_neq_int_4D_scalar, test_neq_int_4D_array
+    ! Double precision
     procedure test_neq_dp_0D
     procedure test_neq_dp_1D_scalar, test_neq_dp_1D_array
     procedure test_neq_dp_2D_scalar, test_neq_dp_2D_array
@@ -73,11 +82,13 @@ end interface test_neqv
 
   !> Test if a > b
   interface test_gt
+  ! Integer
     procedure test_gt_int_0D
     procedure test_gt_int_1D_scalar, test_gt_int_1D_array
     procedure test_gt_int_2D_scalar, test_gt_int_2D_array
     procedure test_gt_int_3D_scalar, test_gt_int_3D_array
     procedure test_gt_int_4D_scalar, test_gt_int_4D_array
+    ! Double precision
     procedure test_gt_dp_0D
     procedure test_gt_dp_1D_scalar, test_gt_dp_1D_array
     procedure test_gt_dp_2D_scalar, test_gt_dp_2D_array
@@ -87,11 +98,13 @@ end interface test_neqv
 
   !> Test if a < b
   interface test_lt
+  ! Integer
     procedure test_lt_int_0D
     procedure test_lt_int_1D_scalar, test_lt_int_1D_array
     procedure test_lt_int_2D_scalar, test_lt_int_2D_array
     procedure test_lt_int_3D_scalar, test_lt_int_3D_array
     procedure test_lt_int_4D_scalar, test_lt_int_4D_array
+    ! Double precision
     procedure test_lt_dp_0D
     procedure test_lt_dp_1D_scalar, test_lt_dp_1D_array
     procedure test_lt_dp_2D_scalar, test_lt_dp_2D_array
@@ -101,11 +114,13 @@ end interface test_neqv
 
   !> Test if a >= b
   interface test_ge
+  ! Integer
     procedure test_ge_int_0D
     procedure test_ge_int_1D_scalar, test_ge_int_1D_array
     procedure test_ge_int_2D_scalar, test_ge_int_2D_array
     procedure test_ge_int_3D_scalar, test_ge_int_3D_array
     procedure test_ge_int_4D_scalar, test_ge_int_4D_array
+    ! Double precision
     procedure test_ge_dp_0D
     procedure test_ge_dp_1D_scalar, test_ge_dp_1D_array
     procedure test_ge_dp_2D_scalar, test_ge_dp_2D_array
@@ -115,11 +130,13 @@ end interface test_neqv
 
   !> Test if a <= b
   interface test_le
+  ! Integer
     procedure test_le_int_0D
     procedure test_le_int_1D_scalar, test_le_int_1D_array
     procedure test_le_int_2D_scalar, test_le_int_2D_array
     procedure test_le_int_3D_scalar, test_le_int_3D_array
     procedure test_le_int_4D_scalar, test_le_int_4D_array
+    ! Double precision
     procedure test_le_dp_0D
     procedure test_le_dp_1D_scalar, test_le_dp_1D_array
     procedure test_le_dp_2D_scalar, test_le_dp_2D_array
@@ -129,11 +146,13 @@ end interface test_neqv
 
   !> Test if a >= b1 && a <= b2
   interface test_ge_le
+  ! Integer
     procedure test_ge_le_int_0D
     procedure test_ge_le_int_1D_scalar, test_ge_le_int_1D_array
     procedure test_ge_le_int_2D_scalar, test_ge_le_int_2D_array
     procedure test_ge_le_int_3D_scalar, test_ge_le_int_3D_array
     procedure test_ge_le_int_4D_scalar, test_ge_le_int_4D_array
+    ! Double precision
     procedure test_ge_le_dp_0D
     procedure test_ge_le_dp_1D_scalar, test_ge_le_dp_1D_array
     procedure test_ge_le_dp_2D_scalar, test_ge_le_dp_2D_array
@@ -143,17 +162,22 @@ end interface test_neqv
 
   !> Test if a >= (b - tol) && a <= (b + tol)
   interface test_tol
+  ! Integer
     procedure test_tol_int_0D
     procedure test_tol_int_1D_scalar, test_tol_int_1D_array
     procedure test_tol_int_2D_scalar, test_tol_int_2D_array
     procedure test_tol_int_3D_scalar, test_tol_int_3D_array
     procedure test_tol_int_4D_scalar, test_tol_int_4D_array
+    ! Double precision
     procedure test_tol_dp_0D
     procedure test_tol_dp_1D_scalar, test_tol_dp_1D_array
     procedure test_tol_dp_2D_scalar, test_tol_dp_2D_array
     procedure test_tol_dp_3D_scalar, test_tol_dp_3D_array
     procedure test_tol_dp_4D_scalar, test_tol_dp_4D_array
+    ! Derived types
     procedure test_tol_CSR
+    procedure test_tol_grid
+    procedure test_tol_grid_lonlat
   end interface test_tol
 
 contains
