@@ -29,7 +29,7 @@ contains
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'unit_tests_mpi_distributed_memory_main'
-    character(len=1024), parameter :: test_name_local = 'mpi_distributed_memory'
+    character(len=1024), parameter :: test_name_local = 'mpi'
     character(len=1024)            :: test_name
 
     ! Add routine to call stack
