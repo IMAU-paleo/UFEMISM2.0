@@ -1171,4 +1171,31 @@ subroutine test_tol_int_4D_array( a, b, tol, test_mode, message)
 
 end subroutine test_tol_int_4D_array
 
+! ===== Permutations =====
+! ========================
+
+!> Test if a(:) == b(:) for any cyclical permutation of a(:)
+!> (used e.g. for comparing triangle-vertex lists between meshes)
+subroutine test_eq_permute_int_1D( a, b, test_mode, message)
+  ! In/output variables:
+  integer,          dimension(:), intent(in   ) :: a, b
+  integer,                        intent(in   ) :: test_mode
+  character(len=*),               intent(in   ) :: message
+  ! Local variables:
+  logical :: test_result
+  integer :: i
+  integer, dimension(size(a)) :: a_
+
+  test_result = .false.
+
+  a_ = a
+  do i = 1, size( a)
+    a_ = [a_(size(a)), a_(1:size(a)-1)]
+    test_result = test_result .or. all( a_ == b)
+  end do
+
+  call process_test_result( test_mode, test_result, message)
+
+end subroutine test_eq_permute_int_1D
+
 end module assertions_unit_tests_int

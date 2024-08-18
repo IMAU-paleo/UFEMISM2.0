@@ -28,7 +28,7 @@ CONTAINS
 
     ! In/output variables:
     TYPE(type_mesh),                 INTENT(INOUT)     :: mesh
-    CHARACTER(LEN=256),              INTENT(IN)        :: name
+    CHARACTER(LEN=*),                INTENT(IN)        :: name
     INTEGER,                         INTENT(IN)        :: nV_mem, nTri_mem, nC_mem
 
     ! Local variables:
@@ -37,7 +37,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    mesh%name     = name
+    mesh%name     = trim(name)
     mesh%nV_mem   = nV_mem
     mesh%nTri_mem = nTri_mem
     mesh%nC_mem   = nC_mem

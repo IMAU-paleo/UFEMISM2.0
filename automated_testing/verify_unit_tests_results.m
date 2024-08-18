@@ -3,7 +3,7 @@ function verify_unit_tests_results(foldername)
 % If not, throw an error (which, when done in a GitHub Workflow,
 % will cause the job to fail, so the merge cannot be completed).
 
-disp('Verifyhing unit test results...')
+disp('Verifying unit test results...')
 
 % foldername = '../results_unit_tests';
 filename = [foldername '/unit_tests_output.txt'];

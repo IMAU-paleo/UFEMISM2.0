@@ -26,7 +26,7 @@ module assertions_unit_tests
   private
 
   public :: ASSERTION, UNIT_TEST
-  public :: test_eqv, test_neqv, test_eq, test_neq, test_gt, test_lt, test_ge, test_le, test_ge_le, test_tol
+  public :: test_eqv, test_neqv, test_eq, test_neq, test_gt, test_lt, test_ge, test_le, test_ge_le, test_tol, test_eq_permute
 
   ! Generic interfaces to specific test routines
   ! ============================================
@@ -181,6 +181,12 @@ end interface test_neqv
     procedure test_tol_grid_lonlat
     procedure test_tol_mesh
   end interface test_tol
+
+  !> Test if a(:) == b(:) for any cyclical permutation of a(:)
+  !> (used e.g. for comparing triangle-vertex lists between meshes)
+  interface test_eq_permute
+    procedure test_eq_permute_int_1D
+  end interface test_eq_permute
 
 contains
 
