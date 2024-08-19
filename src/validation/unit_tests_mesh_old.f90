@@ -1,4 +1,4 @@
-module unit_tests_mesh
+module unit_tests_mesh_old
 
   ! Unit tests for different mesh creation / discretisation stuff.
 
@@ -66,9 +66,9 @@ contains
     test_name = trim( test_name_parent) // '/' // trim( test_name_local)
 
     ! Run all mesh creation unit tests
-    call test_mesh_creation_basic_single_core    ( test_name)
-    call test_mesh_creation_basic_two_cores      ( test_name)
-    call test_mesh_creation_basic_two_cores_prime( test_name)
+    call test_mesh_creation_basic_single_core
+    call test_mesh_creation_basic_two_cores ( mesh)
+    call test_mesh_creation_basic_two_cores_prime( mesh2)
 !    call test_mesh_operators_basic(                mesh)
 !    call test_mesh_operators_3D(                   mesh)
 !    call test_remapping_grid2mesh(                 mesh)
@@ -2060,4 +2060,4 @@ contains
 
   end subroutine test_function_3D
 
-end module unit_tests_mesh
+end module unit_tests_mesh_old

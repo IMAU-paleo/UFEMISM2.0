@@ -5,12 +5,13 @@ module assertions_unit_tests_mesh
   use assertions_unit_tests_basic, only: ASSERTION, UNIT_TEST, process_test_result
   use precisions, only: dp
   use mesh_types, only: type_mesh
+  use mesh_is_self_consistent, only: is_self_consistent
 
   implicit none
 
   private
 
-  public :: test_tol_mesh
+  public :: test_tol_mesh, test_mesh_is_self_consistent
 
 contains
 
@@ -68,5 +69,19 @@ contains
     call process_test_result( test_mode, test_result, message)
 
   end subroutine test_tol_mesh
+
+  subroutine test_mesh_is_self_consistent( mesh, test_mode, message)
+    ! In/output variables:
+    type(type_mesh),  intent(in   ) :: mesh
+    integer,          intent(in   ) :: test_mode
+    character(len=*), intent(in   ) :: message
+    ! Local variables:
+    logical :: test_result
+
+    test_result = is_self_consistent( mesh)
+
+    call process_test_result( test_mode, test_result, message)
+
+  end subroutine test_mesh_is_self_consistent
 
 end module assertions_unit_tests_mesh

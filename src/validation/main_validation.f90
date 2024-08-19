@@ -16,6 +16,7 @@ module main_validation
   use unit_tests_mesh                                        , only: unit_tests_mesh_main
   use unit_tests_netcdf                                      , only: run_all_netcdf_unit_tests
   use unit_tests_ice                                         , only: run_all_ice_unit_tests
+  use unit_tests_mesh_old, only: unit_tests_mesh_creation_main
 
   implicit none
 
@@ -37,7 +38,8 @@ contains
     ! Run all unit tests
     call unit_tests_mpi_distributed_memory_main( test_name)
     call unit_tests_petsc_main                 ( test_name)
-    call unit_tests_mesh_main                  ( test_name)
+    !call unit_tests_mesh_main                  ( test_name)
+    call unit_tests_mesh_creation_main( test_name)
 !    call run_all_netcdf_unit_tests
 
     ! Finalise routine path
