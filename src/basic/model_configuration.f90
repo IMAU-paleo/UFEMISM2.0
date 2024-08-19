@@ -489,12 +489,18 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: choice_basal_hydrology_model_config          = 'Martin2011'                     ! Choice of basal hydrology model: "none", "Martin2011", "inversion", "read_from_file"
     REAL(dp)            :: Martin2011_hydro_Hb_min_config               = 0._dp                            ! Martin et al. (2011) basal hydrology model: low-end  Hb  value of bedrock-dependent pore-water pressure
     REAL(dp)            :: Martin2011_hydro_Hb_max_config               = 1000._dp                         ! Martin et al. (2011) basal hydrology model: high-end Hb  value of bedrock-dependent pore-water pressure
-    
-    ! Pore water fraction from file
+            
+    ! Initialisation of the pore water fraction
+    CHARACTER(LEN=256)  :: pore_water_choice_initialise_NAM_config      = 'zero'                           ! How to initialise the pore water fraction: 'zero', 'read_from_file'
+    CHARACTER(LEN=256)  :: pore_water_choice_initialise_EAS_config      = 'zero'
+    CHARACTER(LEN=256)  :: pore_water_choice_initialise_GRL_config      = 'zero'
+    CHARACTER(LEN=256)  :: pore_water_choice_initialise_ANT_config      = 'zero'
+    ! Paths to files containing pore water fraction fields
     CHARACTER(LEN=256)  :: filename_pore_water_NAM_config               = ''
     CHARACTER(LEN=256)  :: filename_pore_water_EAS_config               = ''
     CHARACTER(LEN=256)  :: filename_pore_water_GRL_config               = ''
     CHARACTER(LEN=256)  :: filename_pore_water_ANT_config               = ''
+    ! Timeframes to read from the pore water file (set to 1E9    if the file has no time dimension)
     REAL(dp)            :: timeframe_pore_water_NAM_config              = 1E9_dp                           ! Can be different from C%start_time_of_run, be careful though!
     REAL(dp)            :: timeframe_pore_water_EAS_config              = 1E9_dp
     REAL(dp)            :: timeframe_pore_water_GRL_config              = 1E9_dp
@@ -1390,11 +1396,17 @@ MODULE model_configuration
     REAL(dp)            :: Martin2011_hydro_Hb_min
     REAL(dp)            :: Martin2011_hydro_Hb_max
 
-    ! Pore water faction from file
+    ! Initialisation of the pore water fraction
+    CHARACTER(LEN=256)  :: pore_water_choice_initialise_NAM
+    CHARACTER(LEN=256)  :: pore_water_choice_initialise_EAS
+    CHARACTER(LEN=256)  :: pore_water_choice_initialise_GRL
+    CHARACTER(LEN=256)  :: pore_water_choice_initialise_ANT
+    ! Paths to files containing pore water fraction fields
     CHARACTER(LEN=256)  :: filename_pore_water_NAM
     CHARACTER(LEN=256)  :: filename_pore_water_EAS
     CHARACTER(LEN=256)  :: filename_pore_water_GRL
     CHARACTER(LEN=256)  :: filename_pore_water_ANT
+    ! Timeframes to read from the pore water file (set to 1E9    if the file has no time dimension)
     REAL(dp)            :: timeframe_pore_water_NAM
     REAL(dp)            :: timeframe_pore_water_EAS
     REAL(dp)            :: timeframe_pore_water_GRL
@@ -2289,6 +2301,10 @@ CONTAINS
       choice_basal_hydrology_model_config                         , &
       Martin2011_hydro_Hb_min_config                              , &
       Martin2011_hydro_Hb_max_config                              , &
+      pore_water_choice_initialise_NAM_config                     , &
+      pore_water_choice_initialise_EAS_config                     , &
+      pore_water_choice_initialise_GRL_config                     , &
+      pore_water_choice_initialise_ANT_config                     , &
       filename_pore_water_NAM_config                              , &
       filename_pore_water_EAS_config                              , &
       filename_pore_water_GRL_config                              , &
@@ -3070,11 +3086,17 @@ CONTAINS
     C%Martin2011_hydro_Hb_min                                = Martin2011_hydro_Hb_min_config
     C%Martin2011_hydro_Hb_max                                = Martin2011_hydro_Hb_max_config
     
-    ! Pore water fraction from file
+    ! Initialisation of the pore water fraction
+    C%pore_water_choice_initialise_NAM                       = pore_water_choice_initialise_NAM_config
+    C%pore_water_choice_initialise_EAS                       = pore_water_choice_initialise_EAS_config
+    C%pore_water_choice_initialise_GRL                       = pore_water_choice_initialise_GRL_config
+    C%pore_water_choice_initialise_ANT                       = pore_water_choice_initialise_ANT_config
+    ! Paths to files containing pore water fraction fields
     C%filename_pore_water_NAM                                = filename_pore_water_NAM_config
     C%filename_pore_water_EAS                                = filename_pore_water_EAS_config
     C%filename_pore_water_GRL                                = filename_pore_water_GRL_config
     C%filename_pore_water_ANT                                = filename_pore_water_ANT_config
+    ! Timeframes to read from the pore water file (set to 1E9    if the file has no time dimension
     C%timeframe_pore_water_NAM                               = timeframe_pore_water_NAM_config
     C%timeframe_pore_water_EAS                               = timeframe_pore_water_EAS_config
     C%timeframe_pore_water_GRL                               = timeframe_pore_water_GRL_config

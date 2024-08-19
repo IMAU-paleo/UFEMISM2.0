@@ -98,6 +98,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_basal_hydrology_model'
     REAL(dp)                                           :: dummy1
+    CHARACTER(LEN=256)                                 :: pore_water_choice_initialise
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -106,14 +107,24 @@ CONTAINS
     dummy1 = mesh%xmin
     dummy1 = ice%Hi( mesh%vi1)
 
+    ! Determine choice of initial ice temperatures for this model region
+    IF     (region_name == 'NAM') THEN
+      pore_water_choice_initialise = C%pore_water_choice_initialise_NAM
+    ELSEIF (region_name == 'EAS') THEN
+      pore_water_choice_initialise = C%pore_water_choice_initialise_EAS
+    ELSEIF (region_name == 'GRL') THEN
+      pore_water_choice_initialise = C%pore_water_choice_initialise_GRL
+    ELSEIF (region_name == 'ANT') THEN
+      pore_water_choice_initialise = C%pore_water_choice_initialise_ANT
+    ELSE
+      CALL crash('unknown region_name "' // region_name // '"')
+    END IF
+
     ! Initialise the chosen basal hydrology model
-    IF     (C%choice_basal_hydrology_model == 'none') THEN
-      ! No need to do anything
-    ELSEIF (C%choice_basal_hydrology_model == 'Martin2011') THEN
-      ! No need to do anything
-    ELSEIF (C%choice_basal_hydrology_model == 'inversion') THEN
-      ! No need to do anything
-    ELSEIF (C%choice_basal_hydrology_model == 'read_from_file') THEN
+    IF     (pore_water_choice_initialise == 'zero') THEN
+      ! Set values to zero
+      ice%pore_water_fraction = 0._dp
+    ELSEIF (pore_water_choice_initialise == 'read_from_file') THEN
       ! Read pore water fraction from file
       CALL initialise_pore_water_from_file( mesh, ice, region_name)
     ELSE
@@ -150,9 +161,6 @@ CONTAINS
 
     ! Compute effective pore water pressure
     ! =====================================
-
-    ! Initialise with no sub-glacial hydrology
-    ice%pore_water_fraction = 0._dp
 
     ! Scale pore water fraction based on grounded area fractions
     CALL apply_grounded_fractions_to_pore_water_fraction( mesh, ice)
@@ -352,9 +360,9 @@ CONTAINS
     ALLOCATE( HIV%pore_water_fraction_app(  mesh%vi1:mesh%vi2))
     ALLOCATE( HIV%mask_inverted_point(      mesh%vi1:mesh%vi2))
 
-    HIV%pore_water_fraction_prev = 0._dp
-    HIV%pore_water_fraction_next = 0._dp
-    HIV%pore_water_fraction_app  = 0._dp
+    HIV%pore_water_fraction_prev = ice%pore_water_fraction
+    HIV%pore_water_fraction_next = ice%pore_water_fraction
+    HIV%pore_water_fraction_app  = ice%pore_water_fraction
     HIV%mask_inverted_point  = .FALSE.
 
     ! Timeframes
