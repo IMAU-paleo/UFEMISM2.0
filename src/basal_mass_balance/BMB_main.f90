@@ -56,29 +56,6 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! Check if we need to calculate a new BMB
-    IF (C%do_asynchronous_BMB) THEN
-      ! Asynchronous coupling: do not calculate a new BMB in
-      ! every model loop, but only at its own separate time step
-
-      ! Check if this is the next BMB time step
-      IF (time == BMB%t_next) THEN
-        ! Go on to calculate a new BMB
-        BMB%t_next = time + C%dt_BMB
-      ELSEIF (time > BMB%t_next) THEN
-        ! This should not be possible
-        CALL crash('overshot the BMB time step')
-      ELSE
-        ! It is not yet time to calculate a new BMB
-        CALL finalise_routine( routine_name)
-        RETURN
-      END IF
-
-    ELSE ! IF (C%do_asynchronous_BMB) THEN
-      ! Synchronous coupling: calculate a new BMB in every model loop
-      BMB%t_next = time + C%dt_BMB
-    END IF
-
     ! Determine which BMB model to run for this region
     SELECT CASE (region_name)
       CASE ('NAM')
@@ -93,6 +70,38 @@ CONTAINS
         CALL crash('unknown region_name "' // region_name // '"')
     END SELECT
 
+    ! Check if we need to calculate a new BMB
+    IF (C%do_asynchronous_BMB) THEN
+      ! Asynchronous coupling: do not calculate a new BMB in
+      ! every model loop, but only at its own separate time step
+
+      ! Check if this is the next BMB time step
+      IF (time == BMB%t_next) THEN
+        ! Go on to calculate a new BMB
+        BMB%t_next = time + C%dt_BMB
+      ELSEIF (time > BMB%t_next) THEN
+        ! This should not be possible
+        CALL crash('overshot the BMB time step')
+      ELSE
+        ! It is not yet time to calculate a new BMB
+
+        ! Apply subgrid scheme of old BMB to new mask
+        SELECT CASE (choice_BMB_model)
+          CASE ('inverted')
+            ! No need to do anything
+          CASE DEFAULT
+            CALL apply_BMB_subgrid_scheme( mesh, ice, BMB)
+        END SELECT
+
+        CALL finalise_routine( routine_name)
+        RETURN
+      END IF
+
+    ELSE ! IF (C%do_asynchronous_BMB) THEN
+      ! Synchronous coupling: calculate a new BMB in every model loop
+      BMB%t_next = time + C%dt_BMB
+    END IF
+
     ! Run the chosen BMB model
     SELECT CASE (choice_BMB_model)
       CASE ('uniform')
@@ -102,20 +111,24 @@ CONTAINS
             BMB%BMB_shelf( vi) = C%uniform_BMB
           END IF
         END DO
-        CALL apply_BMB_subgrid_scheme( mesh, ice, BMB)
       CASE ('prescribed')
         CALL run_BMB_model_prescribed( mesh, ice, BMB, region_name, time)
-        CALL apply_BMB_subgrid_scheme( mesh, ice, BMB)
       CASE ('idealised')
         CALL run_BMB_model_idealised( mesh, ice, BMB, time)
-        CALL apply_BMB_subgrid_scheme( mesh, ice, BMB)
       CASE ('parameterised')
         CALL run_BMB_model_parameterised( mesh, ice, ocean, BMB)
-        CALL apply_BMB_subgrid_scheme( mesh, ice, BMB)
       CASE ('inverted')
         CALL run_BMB_model_inverted( mesh, ice, BMB, time)
       CASE DEFAULT
         CALL crash('unknown choice_BMB_model "' // TRIM( choice_BMB_model) // '"')
+    END SELECT
+
+    ! Apply subgrid scheme of old BMB to new mask
+    SELECT CASE (choice_BMB_model)
+      CASE ('inverted')
+        ! No need to do anything
+      CASE DEFAULT
+        CALL apply_BMB_subgrid_scheme( mesh, ice, BMB)
     END SELECT
 
     ! Finalise routine path
@@ -664,7 +677,7 @@ CONTAINS
 
     ! Note: apply extrapolation_FCMP_to_PMP to non-laddie BMB models before applying sub-grid schemes
 
-    ! BMB%BMB = 0._dp
+    BMB%BMB = 0._dp
 
     DO vi = mesh%vi1, mesh%vi2
       ! Different sub-grid schemes for sub-shelf melt
@@ -674,7 +687,7 @@ CONTAINS
           IF (ice%mask_floating_ice( vi)) BMB%BMB( vi) = BMB%BMB_shelf( vi)
         ELSEIF (C%choice_BMB_subgrid == 'PMP') THEN
           ! Apply PMP scheme
-          BMB%BMB( vi) = (1._dp - ice%fraction_gr( vi)) * BMB%BMB_shelf( vi)
+          IF (ice%mask_floating_ice( vi) .OR. ice%mask_gl_gr( vi)) BMB%BMB( vi) = (1._dp - ice%fraction_gr( vi)) * BMB%BMB_shelf( vi)
         ELSE
           CALL crash('unknown choice_BMB_subgrid "' // TRIM(C%choice_BMB_subgrid) // '"!')
         END IF
