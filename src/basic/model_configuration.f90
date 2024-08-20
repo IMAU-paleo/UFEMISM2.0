@@ -1879,6 +1879,28 @@ CONTAINS
 
   END SUBROUTINE initialise_model_configuration
 
+  SUBROUTINE initialise_model_configuration_unit_tests
+    ! Initialise the model configuration
+
+    ! In/output variables:
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER :: routine_name = 'initialise_model_configuration_unit_tests'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    IF (par%master) WRITE(0,'(A)') ''
+    IF (par%master) WRITE(0,'(A)') ' Running UFEMISM unit tests...'
+
+    ! Copy values from the XXX_config variables to the config structure
+    CALL copy_config_variables_to_struct
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE initialise_model_configuration_unit_tests
+
   SUBROUTINE initialise_config_from_file( config_filename)
     ! Initialise a config structure from an external config text file
 

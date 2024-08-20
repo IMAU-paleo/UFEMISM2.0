@@ -21,7 +21,7 @@ create_unit_tests_report_html( R, filename_html);
     temp = textscan(fid,'%s','delimiter','\n'); temp = temp{1};
     fclose(fid);
 
-    R.all = [];
+    R.UFEMISM = [];
     
     for i = 1: length( temp)
       R = process_line( R, temp{i});
@@ -119,7 +119,7 @@ create_unit_tests_report_html( R, filename_html);
     fprintf(fid,'<div class="container">\n');
     fprintf(fid,'<h1>UFEMISM unit tests report</h1>\n');
 
-    process_unit_tests_tree( R.all, fid, 0);
+    process_unit_tests_tree( R.UFEMISM, fid, 0);
 
     fprintf(fid,'</div>\n');
     fprintf(fid,'\n');

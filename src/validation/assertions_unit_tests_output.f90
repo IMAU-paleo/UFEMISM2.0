@@ -60,10 +60,10 @@ contains
   subroutine create_unit_tests_output_file
 
     ! Local variables:
-    character(len=256), parameter :: routine_name = 'create_unit_tests_output_folder'
-    integer                       :: io_unit_test_file
-    integer                       :: stat
-    character(len=512)            :: msg
+    character(len=1024), parameter :: routine_name = 'create_unit_tests_output_folder'
+    integer                        :: io_unit_test_file
+    integer                        :: stat
+    character(len=512)             :: msg
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -90,8 +90,9 @@ contains
   subroutine create_unit_tests_output_folder
 
     ! Local variables:
-    character(len=256), parameter :: routine_name = 'create_unit_tests_output_folder'
-    logical                       :: ex
+    character(len=1024), parameter :: routine_name = 'create_unit_tests_output_folder'
+    logical                        :: ex
+    character(len=1024)            :: cwd
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -111,8 +112,10 @@ contains
       CALL system('mkdir ' // trim( C%output_dir))
 
       ! Tell the user where it is
+      call getcwd( cwd)
       write(0,'(A)') ''
-      write(0,'(A)') ' Output directory: ' // colour_string( trim( C%output_dir), 'light blue')
+      write(0,'(A)') ' Output directory: ' // colour_string( trim(cwd)//'/'//trim( C%output_dir), 'light blue')
+      write(0,'(A)') ''
 
     end if
     call sync
