@@ -174,8 +174,9 @@ UFEMISM_source = \
   \
   validation/unit_tests_mpi.f90 \
   validation/unit_tests_petsc.f90 \
+  validation/unit_tests_mesh_Delaunay.f90 \
+  validation/unit_tests_mesh_refinement.f90 \
   validation/unit_tests_mesh.f90 \
-  validation/unit_tests_mesh_old.f90 \
   validation/unit_tests_netcdf.f90 \
   validation/unit_tests_ice.f90 \
   validation/main_validation.f90 \

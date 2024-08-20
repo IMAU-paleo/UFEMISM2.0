@@ -4,6 +4,7 @@ module mesh_is_self_consistent
 
   use precisions, only: dp
   use mesh_types, only: type_mesh
+  use control_resources_and_error_messaging, only: warning
 
   implicit none
 
@@ -29,7 +30,8 @@ function is_self_consistent( mesh) result( res)
   res = res .and. is_self_consistent_niTri( mesh)
   res = res .and. is_self_consistent_iTri( mesh)
   res = res .and. is_self_consistent_shared_triangles( mesh)
-  res = res .and. is_self_consistent_border( mesh)
+  res = res .and. is_self_consistent_border_VBI( mesh)
+  res = res .and. is_self_consistent_border_V( mesh)
   res = res .and. is_self_consistent_Tri_iTri( mesh)
   res = res .and. is_self_consistent_Tri_C( mesh)
   res = res .and. is_self_consistent_triangle_duplicates( mesh)
@@ -50,6 +52,10 @@ function is_self_consistent_vertex_locations( mesh) result( res)
     all( mesh%V(:,2) >= mesh%ymin) .and. &
     all( mesh%V(:,2) <= mesh%xmax)
 
+  if (.not. res) then
+    call warning('Mesh inconsistency: found vertices outside the mesh domain')
+  end if
+
 end function is_self_consistent_vertex_locations
 
 !> Check if any vertices are duplicate (i.e. coincide within the tolerance distance)
@@ -67,6 +73,10 @@ function is_self_consistent_vertex_duplicates( mesh) result( res)
       res = res .and. .not. hypot( mesh%V(vi,1) - mesh%V(vj,1), mesh%V(vi,2) - mesh%V(vj,2)) <= mesh%tol_dist
     end do
   end do
+
+  if (.not. res) then
+    call warning('Mesh inconsistency: found duplicate vertices')
+  end if
 
 end function is_self_consistent_vertex_duplicates
 
@@ -88,6 +98,10 @@ function is_self_consistent_nC( mesh) result( res)
       res = res .and. mesh%C( vi,ci) == 0
     end do
   end do
+
+  if (.not. res) then
+    call warning('Mesh inconsistency: nC does not match number of entries in C')
+  end if
 
 end function is_self_consistent_nC
 
@@ -117,6 +131,10 @@ function is_self_consistent_C( mesh) result( res)
     end do
   end do
 
+  if (.not. res) then
+    call warning('Mesh inconsistency: some vertices list neighbours in C that do not list a return connection')
+  end if
+
 end function is_self_consistent_C
 
 !> Check if niTri matches the number of entries in iTri
@@ -137,6 +155,10 @@ function is_self_consistent_niTri( mesh) result( res)
       res = res .and. mesh%iTri( vi,iti) == 0
     end do
   end do
+
+  if (.not. res) then
+    call warning('Mesh inconsistency: niTri does not match number of entries in iTri')
+  end if
 
 end function is_self_consistent_niTri
 
@@ -166,6 +188,10 @@ function is_self_consistent_iTri( mesh) result( res)
     end do
   end do
 
+  if (.not. res) then
+    call warning('Mesh inconsistency: some vertices list triangles in iTri that do not list a return connection')
+  end if
+
 end function is_self_consistent_iTri
 
 !> Check if connected vertices share the expected number of triangles
@@ -192,21 +218,27 @@ function is_self_consistent_shared_triangles( mesh) result( res)
           end if
         end do
       end do
-      ! If vi and vj both lie on the border, they should share 1 triangle; otherwise, 2.
-      if (mesh%VBI( vi) > 0 .and. mesh%VBI( vj) > 0) then
+      ! If vi and vj both lie on the same border, they should share 1 triangle; otherwise, 2.
+      if (is_border_edge( mesh,vi,vj)) then
         ! Both vi and vj lie on the border
         res = res .and. (n_shared == 1)
+        if (n_shared /= 1) write(0,*) 'whaa'
       else
         ! Either vi or vj lies in the interior
         res = res .and. (n_shared == 2)
+        if (n_shared /= 2) write(0,*) 'whoo'
       end if
     end do
   end do
 
+  if (.not. res) then
+    call warning('Mesh inconsistency: connected vertices have an incorrect number of shared triangles')
+  end if
+
 end function is_self_consistent_shared_triangles
 
-!> Check for some stuff specific to border vertices
-function is_self_consistent_border( mesh) result( res)
+!> Check border indices of connected border vertices
+function is_self_consistent_border_VBI( mesh) result( res)
 
   ! In/output variables:
   type(type_mesh), intent( in) :: mesh
@@ -253,6 +285,23 @@ function is_self_consistent_border( mesh) result( res)
     end if
 
   end do
+
+  if (.not. res) then
+    call warning('Mesh inconsistency: connected border vertices have incorrect border indices')
+  end if
+
+end function is_self_consistent_border_VBI
+
+!> Check locations of border vertices
+function is_self_consistent_border_V( mesh) result( res)
+
+  ! In/output variables:
+  type(type_mesh), intent( in) :: mesh
+  logical                      :: res
+  ! Local variables:
+  integer :: vi
+
+  res = .true.
 
   ! Check if border vertices really lie on the border
   do vi = 1, mesh%nV
@@ -314,7 +363,11 @@ function is_self_consistent_border( mesh) result( res)
     end select
   end do
 
-end function is_self_consistent_border
+  if (.not. res) then
+    call warning('Mesh inconsistency: border vertices do not lie on the border')
+  end if
+
+end function is_self_consistent_border_V
 
 !> Check if vertices listed in Tri list those triangles in iTri
 function is_self_consistent_Tri_iTri( mesh) result( res)
@@ -341,6 +394,10 @@ function is_self_consistent_Tri_iTri( mesh) result( res)
       res = res .and. found_it
     end do
   end do
+
+  if (.not. res) then
+    call warning('Mesh inconsistency: vertices listed in Tri do not list those triangles in iTri')
+  end if
 
 end function is_self_consistent_Tri_iTri
 
@@ -373,6 +430,10 @@ function is_self_consistent_Tri_C( mesh) result( res)
     end do
   end do
 
+  if (.not. res) then
+    call warning('Mesh inconsistency: vertices listed in Tri are not connected')
+  end if
+
 end function is_self_consistent_Tri_C
 
 !> Check if any triangles are duplicate (i.e. consist of the same three vertices)
@@ -395,6 +456,10 @@ function is_self_consistent_triangle_duplicates( mesh) result( res)
       res = res .and. n_match >= 0 .and. n_match <= 2
     end do
   end do
+
+  if (.not. res) then
+    call warning('Mesh inconsistency: found duplicate triangles')
+  end if
 
 end function is_self_consistent_triangle_duplicates
 
@@ -425,6 +490,81 @@ function is_self_consistent_TriC( mesh) result( res)
     end do
   end do
 
+  if (.not. res) then
+    call warning('Mesh inconsistency: triangles list neighbours in TriC that do not list a return connection')
+  end if
+
 end function is_self_consistent_TriC
+
+!> Check if the edge between two vertices is a border edge
+function is_border_edge( mesh, vi, vj) result(res)
+
+  ! In/output variables:
+  type(type_mesh), intent(in) :: mesh
+  integer,         intent(in) :: vi, vj
+  logical                     :: res
+
+  res = .false.
+
+  if (mesh%VBI( vi) == 0 .or. mesh%VBI( vj) == 0) then
+    ! At least one of the vertices is an interior vertex; trivial answer
+    return
+  end if
+
+  if (mesh%VBI( vi) == 1) then
+    if (mesh%VBI( vj) == 8 .or. &
+        mesh%VBI( vj) == 1 .or. &
+        mesh%VBI( vj) == 2) then
+      res = .true.
+    end if
+  elseif (mesh%VBI( vi) == 2) then
+    if (mesh%VBI( vj) == 8 .or. &
+        mesh%VBI( vj) == 1 .or. &
+        mesh%VBI( vj) == 3 .or. &
+        mesh%VBI( vj) == 4) then
+      res = .true.
+    end if
+  elseif (mesh%VBI( vi) == 3) then
+    if (mesh%VBI( vj) == 2 .or. &
+        mesh%VBI( vj) == 3 .or. &
+        mesh%VBI( vj) == 4) then
+      res = .true.
+    end if
+  elseif (mesh%VBI( vi) == 4) then
+    if (mesh%VBI( vj) == 2 .or. &
+        mesh%VBI( vj) == 3 .or. &
+        mesh%VBI( vj) == 5 .or. &
+        mesh%VBI( vj) == 6) then
+      res = .true.
+    end if
+  elseif (mesh%VBI( vi) == 5) then
+    if (mesh%VBI( vj) == 4 .or. &
+        mesh%VBI( vj) == 5 .or. &
+        mesh%VBI( vj) == 6) then
+      res = .true.
+    end if
+  elseif (mesh%VBI( vi) == 6) then
+    if (mesh%VBI( vj) == 4 .or. &
+        mesh%VBI( vj) == 5 .or. &
+        mesh%VBI( vj) == 7 .or. &
+        mesh%VBI( vj) == 8) then
+      res = .true.
+    end if
+  elseif (mesh%VBI( vi) == 7) then
+    if (mesh%VBI( vj) == 6 .or. &
+        mesh%VBI( vj) == 7 .or. &
+        mesh%VBI( vj) == 8) then
+      res = .true.
+    end if
+  elseif (mesh%VBI( vi) == 8) then
+    if (mesh%VBI( vj) == 6 .or. &
+        mesh%VBI( vj) == 7 .or. &
+        mesh%VBI( vj) == 1 .or. &
+        mesh%VBI( vj) == 2) then
+      res = .true.
+    end if
+  end if
+
+end function is_border_edge
 
 end module mesh_is_self_consistent
