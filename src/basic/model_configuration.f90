@@ -1890,9 +1890,6 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    IF (par%master) WRITE(0,'(A)') ''
-    IF (par%master) WRITE(0,'(A)') ' Running UFEMISM unit tests...'
-
     ! Copy values from the XXX_config variables to the config structure
     CALL copy_config_variables_to_struct
 

@@ -35,10 +35,11 @@ PROGRAM UFEMISM_program
                                                                      print_UFEMISM_start, print_UFEMISM_end
   USE model_configuration                                    , ONLY: C, initialise_model_configuration, initialise_model_configuration_unit_tests
   USE netcdf_resource_tracking                               , ONLY: create_resource_tracking_file, write_to_resource_tracking_file
-  USE main_validation                                        , ONLY: run_all_unit_tests
   USE region_types                                           , ONLY: type_model_region
   USE UFEMISM_main_model                                     , ONLY: initialise_model_region, run_model_region
   USE ice_model_utilities                                    , ONLY: MISMIPplus_adapt_flow_factor
+  USE unit_tests                                             , ONLY: run_all_unit_tests
+  USE component_tests                                        , ONLY: run_all_component_tests
 
   IMPLICIT NONE
 
@@ -88,15 +89,11 @@ PROGRAM UFEMISM_program
 
   ! Special cases
   if (input_argument == 'unit_tests') then
-
     call initialise_model_configuration_unit_tests
-
     call run_all_unit_tests
-
-  elseif (input_argument == 'component tests') then
-
-    call crash('component tests arent ready yet!')
-
+  elseif (input_argument == 'component_tests') then
+    call initialise_model_configuration_unit_tests
+    call run_all_component_tests
   else ! An actual model simulation
 
     ! Initialise the main model configuration
