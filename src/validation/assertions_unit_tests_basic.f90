@@ -1,6 +1,7 @@
 module assertions_unit_tests_basic
 
   use control_resources_and_error_messaging, only: crash
+  use assertions_unit_tests_output, only: write_unit_test_result
 
   implicit none
 
@@ -48,7 +49,6 @@ contains
 
     !> Process the result of a unit test
     subroutine process_test_result_unit_test( test_result, test_name)
-      use unit_tests_output, only: write_unit_test_result
 
       ! In/output variables:
       logical,          intent(in   ) :: test_result

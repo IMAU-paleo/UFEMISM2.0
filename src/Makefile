@@ -179,7 +179,10 @@ UFEMISM_source = \
   validation/unit_tests_mesh.f90 \
   validation/unit_tests_netcdf.f90 \
   validation/unit_tests_ice.f90 \
-  validation/main_validation.f90 \
+  validation/unit_tests.f90 \
+  \
+  validation/component_tests_create_test_meshes.f90 \
+  validation/component_tests.f90 \
   \
   main/UFEMISM_program.f90
 

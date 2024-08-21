@@ -1,4 +1,4 @@
-module unit_tests_output
+module assertions_unit_tests_output
 
   use mpi_basic, only: par, sync
   use control_resources_and_error_messaging, only: crash, init_routine, finalise_routine, colour_string
@@ -125,4 +125,4 @@ contains
 
   end subroutine create_unit_tests_output_folder
 
-end module unit_tests_output
+end module assertions_unit_tests_output
