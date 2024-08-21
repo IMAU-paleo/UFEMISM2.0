@@ -98,7 +98,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_basal_hydrology_model'
     REAL(dp)                                           :: dummy1
-    CHARACTER(LEN=256)                                 :: pore_water_choice_initialise
+    CHARACTER(LEN=256)                                 :: pore_water_fraction_choice_initialise
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -109,24 +109,24 @@ CONTAINS
 
     ! Determine choice of initial ice temperatures for this model region
     IF     (region_name == 'NAM') THEN
-      pore_water_choice_initialise = C%pore_water_choice_initialise_NAM
+      pore_water_fraction_choice_initialise = C%pore_water_fraction_choice_initialise_NAM
     ELSEIF (region_name == 'EAS') THEN
-      pore_water_choice_initialise = C%pore_water_choice_initialise_EAS
+      pore_water_fraction_choice_initialise = C%pore_water_fraction_choice_initialise_EAS
     ELSEIF (region_name == 'GRL') THEN
-      pore_water_choice_initialise = C%pore_water_choice_initialise_GRL
+      pore_water_fraction_choice_initialise = C%pore_water_fraction_choice_initialise_GRL
     ELSEIF (region_name == 'ANT') THEN
-      pore_water_choice_initialise = C%pore_water_choice_initialise_ANT
+      pore_water_fraction_choice_initialise = C%pore_water_fraction_choice_initialise_ANT
     ELSE
       CALL crash('unknown region_name "' // region_name // '"')
     END IF
 
     ! Initialise the chosen basal hydrology model
-    IF     (pore_water_choice_initialise == 'zero') THEN
+    IF     (pore_water_fraction_choice_initialise == 'zero') THEN
       ! Set values to zero
       ice%pore_water_fraction = 0._dp
-    ELSEIF (pore_water_choice_initialise == 'read_from_file') THEN
+    ELSEIF (pore_water_fraction_choice_initialise == 'read_from_file') THEN
       ! Read pore water fraction from file
-      CALL initialise_pore_water_from_file( mesh, ice, region_name)
+      CALL initialise_pore_water_fraction_from_file( mesh, ice, region_name)
     ELSE
       CALL crash('unknown choice_basal_hydrology_model "' // TRIM( C%choice_basal_hydrology_model) // '"')
     END IF
@@ -1693,7 +1693,7 @@ CONTAINS
 
   END SUBROUTINE trace_flowline_downstream
 
-  SUBROUTINE initialise_pore_water_from_file( mesh, ice, region_name)
+  SUBROUTINE initialise_pore_water_fraction_from_file( mesh, ice, region_name)
     ! Initialise the pore water fraction from file
     !
     ! pore water only, no time
@@ -1706,9 +1706,9 @@ CONTAINS
     CHARACTER(LEN=3),                       INTENT(IN)    :: region_name
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'initialise_pore_water_from_file'
-    CHARACTER(LEN=256)                                    :: filename_pore_water
-    REAL(dp)                                              :: timeframe_pore_water
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'initialise_pore_water_fraction_from_file'
+    CHARACTER(LEN=256)                                    :: filename_pore_water_fraction
+    REAL(dp)                                              :: timeframe_pore_water_fraction
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -1716,31 +1716,31 @@ CONTAINS
     ! Determine filename for this model region
     SELECT CASE (region_name)
       CASE ('NAM')
-        filename_pore_water  = C%filename_pore_water_NAM
-        timeframe_pore_water = C%timeframe_pore_water_NAM
+        filename_pore_water_fraction  = C%filename_pore_water_fraction_NAM
+        timeframe_pore_water_fraction = C%timeframe_pore_water_fraction_NAM
       CASE ('EAS')
-        filename_pore_water  = C%filename_pore_water_EAS
-        timeframe_pore_water = C%timeframe_pore_water_EAS
+        filename_pore_water_fraction  = C%filename_pore_water_fraction_EAS
+        timeframe_pore_water_fraction = C%timeframe_pore_water_fraction_EAS
       CASE ('GRL')
-        filename_pore_water  = C%filename_pore_water_GRL
-        timeframe_pore_water = C%timeframe_pore_water_GRL
+        filename_pore_water_fraction  = C%filename_pore_water_fraction_GRL
+        timeframe_pore_water_fraction = C%timeframe_pore_water_fraction_GRL
       CASE ('ANT')
-        filename_pore_water  = C%filename_pore_water_ANT
-        timeframe_pore_water = C%timeframe_pore_water_ANT
+        filename_pore_water_fraction  = C%filename_pore_water_fraction_ANT
+        timeframe_pore_water_fraction = C%timeframe_pore_water_fraction_ANT
       CASE DEFAULT
         CALL crash('unknown region_name "' // TRIM( region_name) // '"!')
     END SELECT
 
     ! Print to terminal
-    IF (par%master)  WRITE(*,"(A)") '   Initialising pore water fraction from file "' // colour_string( TRIM( filename_pore_water),'light blue') // '"...'
+    IF (par%master)  WRITE(*,"(A)") '   Initialising pore water fraction from file "' // colour_string( TRIM(filename_pore_water_fraction),'light blue') // '"...'
 
     ! Read pore water fraction from file
-    IF (timeframe_pore_water == 1E9_dp) THEN
+    IF (timeframe_pore_water_fraction == 1E9_dp) THEN
       ! Assume the file has no time dimension
-    CALL read_field_from_file_2D( filename_pore_water, 'pore_water_fraction', mesh, ice%pore_water_fraction)
+      CALL read_field_from_file_2D( filename_pore_water_fraction, 'pore_water_fraction', mesh, ice%pore_water_fraction)
     ELSE
       ! Assume the file has a time dimension, and read the specified timeframe
-      CALL read_field_from_file_2D( filename_pore_water, 'pore_water_fraction', mesh, ice%pore_water_fraction, time_to_read = timeframe_pore_water)
+      CALL read_field_from_file_2D( filename_pore_water_fraction, 'pore_water_fraction', mesh, ice%pore_water_fraction, time_to_read = timeframe_pore_water_fraction)
     END IF
 
     CALL calc_pore_water_pressure_from_file( mesh, ice)
@@ -1748,7 +1748,7 @@ CONTAINS
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
-  END SUBROUTINE initialise_pore_water_from_file
+  END SUBROUTINE initialise_pore_water_fraction_from_file
 
   ! == Pore water fraction from file
   SUBROUTINE calc_pore_water_pressure_from_file( mesh, ice)
