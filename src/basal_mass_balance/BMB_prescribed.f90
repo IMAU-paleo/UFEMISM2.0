@@ -2,6 +2,13 @@ MODULE BMB_prescribed
 
   ! Prescribed BMB forcing
 
+  ! Prescribed BMB forcing. Read in a fixed 2D field of BMB values. At each time step, the applied BMB is determined by the chosen
+  ! subgrid melt scheme. So in case of FCMP, for example, BMB_gr will be zero throughout the run.
+  !
+  ! If the BMB model = 'prescribed_fixed', the subgrid melt schem is only applied during initialisation. Hence, the integrated
+  ! metric BMB_total will be constant throughout the run, regardless of GL migration or calving. GL advance will lead to nonzero
+  ! BMB_gr, which may be useful to maintain the GL position. 
+
 ! ===== Preamble =====
 ! ====================
 
@@ -25,8 +32,6 @@ CONTAINS
 
   SUBROUTINE run_BMB_model_prescribed( mesh, ice, BMB, region_name, time)
     ! Calculate the basal mass balance
-    !
-    ! Prescribed BMB forcing
 
     IMPLICIT NONE
 
@@ -207,7 +212,7 @@ CONTAINS
     ! Read BMB from file
     IF (timeframe_BMB_prescribed == 1E9_dp) THEN
       ! Assume the file has no time dimension
-    CALL read_field_from_file_2D( filename_BMB_prescribed, 'BMB||basal_mass_balance||', mesh, BMB%BMB_shelf)
+      CALL read_field_from_file_2D( filename_BMB_prescribed, 'BMB||basal_mass_balance||', mesh, BMB%BMB_shelf)
     ELSE
       ! Assume the file has a time dimension, and read the specified timeframe
       CALL read_field_from_file_2D( filename_BMB_prescribed, 'BMB||basal_mass_balance||', mesh, BMB%BMB_shelf, time_to_read = timeframe_BMB_prescribed)

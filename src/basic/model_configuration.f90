@@ -753,8 +753,8 @@ MODULE model_configuration
     REAL(dp)            :: BMB_inversion_t_end_config                   = +9.9E9_dp                        ! [yr] End   time for BMB inversion based on computed thinning rates in marine areas
 
     ! Grounding line treatment
-    LOGICAL             :: do_subgrid_BMB_at_grounding_line_config      = .FALSE.                          ! Whether or not to apply basal melt rates under a partially floating grounding line
-    CHARACTER(LEN=256)  :: choice_BMB_subgrid_config                    = ''                               ! Choice of sub-grid BMB scheme: "FCMP", "PMP", "NMP" (following Leguy et al., 2021)
+    LOGICAL             :: do_subgrid_BMB_at_grounding_line_config      = .FALSE.                          ! Whether or not to apply basal melt rates under a partially floating grounding line; if so, use choice_BMB_subgrid; if not, apply "NMP"
+    CHARACTER(LEN=256)  :: choice_BMB_subgrid_config                    = ''                               ! Choice of sub-grid BMB scheme: "FCMP", "PMP" (following Leguy et al., 2021)
 
     ! Choice of BMB model
     CHARACTER(LEN=256)  :: choice_BMB_model_NAM_config                  = 'uniform'
