@@ -89,6 +89,8 @@ CONTAINS
         SELECT CASE (choice_BMB_model)
           CASE ('inverted')
             ! No need to do anything
+          CASE ('prescribed_fixed')
+            ! No need to do anything
           CASE DEFAULT
             CALL apply_BMB_subgrid_scheme( mesh, ice, BMB)
         END SELECT
@@ -113,6 +115,8 @@ CONTAINS
         END DO
       CASE ('prescribed')
         CALL run_BMB_model_prescribed( mesh, ice, BMB, region_name, time)
+      CASE ('prescribed_fixed')
+        ! No need to do anything
       CASE ('idealised')
         CALL run_BMB_model_idealised( mesh, ice, BMB, time)
       CASE ('parameterised')
@@ -126,6 +130,8 @@ CONTAINS
     ! Apply subgrid scheme of old BMB to new mask
     SELECT CASE (choice_BMB_model)
       CASE ('inverted')
+        ! No need to do anything
+      CASE ('prescribed_fixed')
         ! No need to do anything
       CASE DEFAULT
         CALL apply_BMB_subgrid_scheme( mesh, ice, BMB)
@@ -204,6 +210,9 @@ CONTAINS
         ! No need to do anything
       CASE ('prescribed')
         CALL initialise_BMB_model_prescribed( mesh, BMB, region_name)
+      CASE ('prescribed_fixed')
+        CALL initialise_BMB_model_prescribed( mesh, BMB, region_name)
+        CALL apply_BMB_subgrid_scheme( mesh, ice, BMB)
       CASE ('idealised')
         CALL initialise_BMB_model_idealised( mesh, BMB)
       CASE ('parameterised')
@@ -256,6 +265,8 @@ CONTAINS
       CASE ('uniform')
         ! No need to do anything
       CASE ('prescribed')
+        ! No need to do anything
+      CASE ('prescribed_fixed')
         ! No need to do anything
       CASE ('idealised')
         ! No need to do anything
@@ -353,6 +364,8 @@ CONTAINS
       CASE ('uniform')
         ! No need to do anything
       CASE ('prescribed')
+        ! No need to do anything
+      CASE ('prescribed_fixed')
         ! No need to do anything
       CASE ('idealised')
         ! No need to do anything
@@ -480,6 +493,9 @@ CONTAINS
         ! No need to do anything
       CASE ('prescribed')
         CALL initialise_BMB_model_prescribed( mesh_new, BMB, region_name)
+      CASE ('prescribed_fixed')
+        CALL initialise_BMB_model_prescribed( mesh_new, BMB, region_name)
+        CALL apply_BMB_subgrid_scheme( mesh_new, ice, BMB)
       CASE ('idealised')
         ! No need to do anything
       CASE ('parameterised')
