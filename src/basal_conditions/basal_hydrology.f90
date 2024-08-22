@@ -1752,7 +1752,7 @@ CONTAINS
 
   ! == Pore water fraction from file
   SUBROUTINE calc_pore_water_pressure_from_file( mesh, ice)
-    ! Calculate the pore water pressure
+    ! Calculate the pore water pressure from a prescribed pore water fraction, read from file
     !
     ! Use the parameterisation from Martin et al. (2011)
 
