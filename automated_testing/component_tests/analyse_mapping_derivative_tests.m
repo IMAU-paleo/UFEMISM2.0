@@ -1,10 +1,5 @@
 function analyse_mapping_derivative_tests( foldername)
 
-clc
-clear all
-close all
-foldername = '../../results_component_tests/discretisation/mapping_derivatives/';
-
 do_print = false;
 
 addpath('../../tools/matlab/')
