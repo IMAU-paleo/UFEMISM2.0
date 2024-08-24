@@ -1,6 +1,8 @@
 function analyse_mapping_derivative_tests( foldername)
 
-do_print = false;
+% foldername = '../../results_component_tests/discretisation/mapping_derivatives/';
+
+do_print = true;
 
 addpath('../../tools/matlab/')
 
