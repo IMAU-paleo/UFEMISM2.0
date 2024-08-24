@@ -15,7 +15,7 @@ jobs:
 
       - name: beep
         run: |
-          echo github.ref = ${{ github.ref }}
+          echo github.ref_name = ${{ github.ref_name }}, github.run_id = ${{ github.run_id }}
           
       - name: Install packages with Homebrew   # Packages end up in /opt/homebrew/Cellar
         run: |
