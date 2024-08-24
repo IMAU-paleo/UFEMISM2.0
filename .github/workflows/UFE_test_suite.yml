@@ -12,10 +12,6 @@ jobs:
   compile_UFEMISM:
     runs-on: macos-latest
     steps:
-
-      - name: beep
-        run: |
-          echo github.ref_name = ${{ github.ref_name }}, github.run_id = ${{ github.run_id }}
           
       - name: Install packages with Homebrew   # Packages end up in /opt/homebrew/Cellar
         run: |
@@ -49,12 +45,6 @@ jobs:
           path: UFEMISM_program
           key: UFEMISM_program_${{ github.ref_name }}_${{ github.run_id }}
 
-#      - name: Upload compiled UFEMISM program as artifact
-#        uses: actions/upload-artifact@v4.3.4
-#        with:
-#          name: UFEMISM_program
-#          path: UFEMISM_program
-
   run_unit_tests:
     needs: compile_UFEMISM
     runs-on: macos-latest
@@ -78,12 +68,6 @@ jobs:
         with:                                       # So: use artifacts instead!
           path: UFEMISM_program
           key: UFEMISM_program_${{ github.ref_name }}_${{ github.run_id }}
-
-#      - name: Download compiled UFEMISM program as artifact
-#        uses: actions/download-artifact@v4
-#        with:
-#          name: UFEMISM_program
-#          path: UFEMISM_program
 
       - name: Run unit tests
         run: mpiexec  -n 2  UFEMISM_program  unit_tests
@@ -151,12 +135,6 @@ jobs:
           path: UFEMISM_program
           key: UFEMISM_program_${{ github.ref_name }}_${{ github.run_id }}
 
-#      - name: Download compiled UFEMISM program as artifact
-#        uses: actions/download-artifact@v4
-#        with:
-#          name: UFEMISM_program
-#          path: UFEMISM_program
-
       - name: Run component tests
         run: mpiexec  -n 2  UFEMISM_program  component_tests
 
@@ -165,3 +143,33 @@ jobs:
         with:
           name: results_component_tests
           path: results_component_tests
+
+  analyse_component_test_results:
+    needs: run_component_tests
+    runs-on: macos-latest
+    steps:
+
+      - name: Checkout UFEMISM repository
+        uses: actions/checkout@v4
+
+      - name: Download component test results as artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: results_component_tests
+          path: results_component_tests
+
+      - name: Install MATLAB
+        uses: matlab-actions/setup-matlab@v2.2.0
+
+      - name: Analyse component tests results
+        uses: matlab-actions/run-command@v2
+        with:
+          command: addpath('automated_testing/component_tests'), analyse_mapping_derivative_tests('${{github.workspace}}/results_component_tests')
+
+      - name: Upload test results as artifact
+        uses: actions/upload-artifact@v4.3.4
+        with:
+          name: unit_tests_report
+          path: |
+            results_component_tests/discretisation/mapping_derivatives/map_deriv_analysis.txt
+            results_component_tests/discretisation/mapping_derivatives/*.png
