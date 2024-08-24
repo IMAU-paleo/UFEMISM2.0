@@ -13,8 +13,9 @@ jobs:
     runs-on: macos-latest
     steps:
 
-      - run: |
-        echo 'github.ref = {{github.ref}}
+      - name: beep
+        run: |
+          echo github.ref = ${{ github.ref }}
           
       - name: Install packages with Homebrew   # Packages end up in /opt/homebrew/Cellar
         run: |
