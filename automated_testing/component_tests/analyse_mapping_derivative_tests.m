@@ -16,7 +16,7 @@ fprintf( fid, '%s\n', '=========================================================
 fclose( fid);
 
 % List all the test results
-filenames = dir( foldername);
+filenames = dir( foldername)
 i = 1;
 while i <= length( filenames)
   if  contains( filenames(i).name, 'results_map_deriv_tests_') && ...
