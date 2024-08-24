@@ -47,7 +47,7 @@ jobs:
         id: UFEMISM_program_cache_save         # is run, so we need to recompile the code anyway.
         with:                                  # So: use artifacts instead!
           path: UFEMISM_program
-          key: UFEMISM_program
+          key: UFEMISM_program_${{ github.ref_name }}_${{ github.run_id }}
 
 #      - name: Upload compiled UFEMISM program as artifact
 #        uses: actions/upload-artifact@v4.3.4
@@ -77,7 +77,7 @@ jobs:
         id: UFEMISM_program_cache_restore           # is run, so we need to recompile the code anyway.
         with:                                       # So: use artifacts instead!
           path: UFEMISM_program
-          key: UFEMISM_program
+          key: UFEMISM_program_${{ github.ref_name }}_${{ github.run_id }}
 
 #      - name: Download compiled UFEMISM program as artifact
 #        uses: actions/download-artifact@v4
@@ -149,7 +149,7 @@ jobs:
         id: UFEMISM_program_cache_restore           # is run, so we need to recompile the code anyway.
         with:                                       # So: use artifacts instead!
           path: UFEMISM_program
-          key: UFEMISM_program
+          key: UFEMISM_program_${{ github.ref_name }}_${{ github.run_id }}
 
 #      - name: Download compiled UFEMISM program as artifact
 #        uses: actions/download-artifact@v4
