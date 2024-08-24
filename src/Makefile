@@ -182,6 +182,8 @@ UFEMISM_source = \
   validation/unit_tests.f90 \
   \
   validation/component_tests_create_test_meshes.f90 \
+  validation/component_tests_discretisation_mapping_derivatives.f90 \
+  validation/component_tests_discretisation.f90 \
   validation/component_tests.f90 \
   \
   main/UFEMISM_program.f90
