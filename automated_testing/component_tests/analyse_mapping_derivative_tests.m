@@ -6,6 +6,9 @@ do_print = true;
 
 % Create text file with the analysis results
 filename_analysis = [foldername '/map_deriv_analysis.txt'];
+
+disp(['Creating analysis file "' filename_analysis '"...'])
+
 fid = fopen( filename_analysis, 'w');
 fprintf( fid, '%s\n', '===============================================================');
 fprintf( fid, '%s\n', '===== Analysis of the mapping/derivatives component tests =====');
