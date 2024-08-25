@@ -5,7 +5,7 @@ function analyse_mapping_derivative_tests( foldername)
 
 addpath('tools/matlab/')
 
-do_print = true;
+do_print = false;
 
 % Create text file with the analysis results
 filename_analysis = [foldername '/map_deriv_analysis.txt'];
