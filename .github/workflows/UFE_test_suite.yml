@@ -165,7 +165,7 @@ jobs:
       - name: Analyse component tests results
         uses: matlab-actions/run-command@v2
         with:
-          command: addpath('automated_testing/component_tests'), analyse_mapping_derivative_tests('${{github.workspace}}/results_component_tests')
+          command: addpath('automated_testing/component_tests'), analyse_mapping_derivative_tests('results_component_tests/discretisation/mapping_derivatives/')
 
       - name: Upload test results as artifact
         uses: actions/upload-artifact@v4.3.4
