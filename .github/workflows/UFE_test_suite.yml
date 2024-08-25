@@ -112,7 +112,7 @@ jobs:
           command: addpath('automated_testing/unit_tests'), verify_unit_tests_results('${{github.workspace}}/results_unit_tests')
 
   run_component_tests:
-    needs: analyse_unit_test_results
+    needs: compile_UFEMISM
     runs-on: macos-latest
     steps:
 
