@@ -105,9 +105,14 @@ UFEMISM_source = \
   \
   mesh/mesh_memory.f90 \
   mesh/mesh_utilities.f90 \
+  mesh/mesh_ROI_polygons.f90 \
   mesh/mesh_Delaunay.f90 \
   mesh/mesh_edges.f90 \
-  mesh/mesh_refinement.f90 \
+  mesh/mesh_refinement_basic.f90 \
+  mesh/mesh_refinement_basic_ROI.f90 \
+  mesh/mesh_refinement_fun.f90 \
+  mesh/mesh_contiguous_domains.f90 \
+  mesh/mesh_Lloyds_algorithm.f90 \
   mesh/mesh_parallel_creation.f90 \
   mesh/mesh_zeta.f90 \
   mesh/mesh_operators.f90 \

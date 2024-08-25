@@ -10,7 +10,7 @@ module unit_tests_mesh_refinement
   use mesh_types, only: type_mesh
   use mesh_memory, only: allocate_mesh_primary
   use mesh_creation, only: initialise_dummy_mesh
-  use mesh_refinement, only: refine_mesh_uniform, refine_mesh_point, refine_mesh_line, refine_mesh_polygon
+  use mesh_refinement_basic, only: refine_mesh_uniform, refine_mesh_point, refine_mesh_line, refine_mesh_polygon
   use mesh_utilities, only: find_containing_triangle, write_mesh_to_text_file
   use math_utilities, only: longest_triangle_leg, is_in_polygon
 

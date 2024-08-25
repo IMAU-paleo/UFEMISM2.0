@@ -17,8 +17,9 @@ MODULE unit_tests_netcdf
   USE mesh_memory                                            , ONLY: allocate_mesh_primary, deallocate_mesh
   USE mesh_utilities                                         , ONLY: check_mesh, check_if_meshes_are_identical
   USE mesh_creation                                          , ONLY: initialise_dummy_mesh
-  USE mesh_refinement                                        , ONLY: refine_mesh_uniform, Lloyds_algorithm_single_iteration, mesh_add_smileyface, &
-                                                                     mesh_add_UFEMISM_letters
+  USE mesh_refinement_basic, only: refine_mesh_uniform
+  use mesh_refinement_fun, only: mesh_add_smileyface, mesh_add_UFEMISM_letters
+  use mesh_Lloyds_algorithm, only: Lloyds_algorithm_single_iteration
   USE mesh_secondary                                         , ONLY: calc_all_secondary_mesh_data
   USE mesh_operators                                         , ONLY: calc_all_matrix_operators_mesh
   USE mesh_remapping                                         , ONLY: clear_all_maps_involving_this_mesh
