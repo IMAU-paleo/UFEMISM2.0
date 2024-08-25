@@ -14,16 +14,10 @@ MODULE mesh_creation
   USE mesh_types                                             , ONLY: type_mesh
   USE mesh_memory                                            , ONLY: allocate_mesh_primary
   USE mesh_utilities                                         , ONLY: update_triangle_circumcenter, calc_mesh_contour_as_line, calc_mesh_mask_as_polygons
-  USE mesh_refinement                                        , ONLY: refine_mesh_uniform, refine_mesh_line, Lloyds_algorithm_single_iteration, &
-                                                                     refine_mesh_polygon, refine_mesh_line_ROI, refine_mesh_polygon_ROI, &
-                                                                     calc_polygon_Pine_Island_Glacier, calc_polygon_Thwaites_Glacier, &
-                                                                     calc_polygon_Amery_ice_shelf, calc_polygon_Riiser_Larsen_ice_shelf, &
-                                                                     calc_polygon_Siple_Coast, calc_polygon_Patagonia, calc_polygon_Larsen_ice_shelf, &
-                                                                     calc_polygon_Transantarctic_Mountains, calc_polygon_DotsonCrosson_ice_shelf, &
-                                                                     calc_polygon_Narsarsuaq, calc_polygon_Nuuk, calc_polygon_Jakobshavn, &
-                                                                     calc_polygon_NGIS, calc_polygon_Qaanaaq, calc_polygon_Tijn_test_ISMIP_HOM_A, &
-                                                                     calc_polygon_CalvMIP_quarter, refine_CalvMIP_shelf_donut, &
-                                                                     enforce_contiguous_process_domains
+  use mesh_refinement_basic, only: refine_mesh_uniform, refine_mesh_point, refine_mesh_line, refine_mesh_polygon
+  use mesh_refinement_basic_ROI, only: refine_mesh_line_ROI, refine_mesh_polygon_ROI
+  use mesh_contiguous_domains, only: enforce_contiguous_process_domains
+  use mesh_ROI_polygons
   USe mesh_parallel_creation                                 , ONLY: broadcast_mesh
   USE mesh_secondary                                         , ONLY: calc_all_secondary_mesh_data
   USE mesh_operators                                         , ONLY: calc_all_matrix_operators_mesh
@@ -31,6 +25,8 @@ MODULE mesh_creation
                                                                      calc_grid_mask_as_polygons
   USE math_utilities                                         , ONLY: thickness_above_floatation
   USE mpi_distributed_memory                                 , ONLY: gather_to_master_dp_1D
+  use mesh_refinement_fun, only: refine_CalvMIP_shelf_donut
+  use mesh_Lloyds_algorithm, only: Lloyds_algorithm_single_iteration
 
   IMPLICIT NONE
 

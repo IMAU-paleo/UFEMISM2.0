@@ -18,7 +18,7 @@ MODULE SMB_main
   USE SMB_idealised                                          , ONLY: initialise_SMB_model_idealised, run_SMB_model_idealised
   USE SMB_prescribed                                         , ONLY: initialise_SMB_model_prescribed, run_SMB_model_prescribed
   USE reallocate_mod                                         , ONLY: reallocate_bounds
-  USE mesh_refinement                                        , ONLY: calc_polygon_Patagonia
+  use mesh_ROI_polygons, only: calc_polygon_Patagonia
   USE math_utilities                                         , ONLY: is_in_polygon
   USE mesh_remapping                                         , ONLY: smooth_Gaussian_2D
 

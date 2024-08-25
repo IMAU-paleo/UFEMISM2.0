@@ -31,8 +31,7 @@ MODULE ice_velocity_hybrid_DIVA_BPA
                                                                      calc_BPA_stiffness_matrix_row_BC_south, calc_BPA_stiffness_matrix_row_BC_north, &
                                                                      calc_BPA_stiffness_matrix_row_BC_base, calc_BPA_stiffness_matrix_row_BC_surf
   USE mesh_operators                                         , ONLY: calc_3D_matrix_operators_mesh, map_a_b_2D, map_b_a_2D, map_b_a_3D, map_a_b_3D
-  USE mesh_refinement                                        , ONLY: calc_polygon_Pine_Island_Glacier, calc_polygon_Thwaites_Glacier, &
-                                                                     calc_polygon_Tijn_test_ISMIP_HOM_A
+  use mesh_ROI_polygons
   USE math_utilities                                         , ONLY: is_in_polygon, is_in_polygons
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_logical_1D
   USE ice_model_utilities                                    , ONLY: calc_zeta_gradients

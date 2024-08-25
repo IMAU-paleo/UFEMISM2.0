@@ -48,11 +48,7 @@ MODULE UFEMISM_main_model
                                                                      write_to_main_regional_output_file_mesh, write_to_main_regional_output_file_grid, &
                                                                      create_main_regional_output_file_grid_ROI, write_to_main_regional_output_file_grid_ROI, &
                                                                      create_scalar_regional_output_file, write_to_scalar_regional_output_file
-  USE mesh_refinement                                        , ONLY: calc_polygon_Pine_Island_Glacier, calc_polygon_Thwaites_Glacier, &
-                                                                     calc_polygon_Amery_ice_shelf, calc_polygon_Riiser_Larsen_ice_shelf, &
-                                                                     calc_polygon_Siple_Coast, calc_polygon_Patagonia, calc_polygon_Larsen_ice_shelf, &
-                                                                     calc_polygon_Transantarctic_Mountains, calc_polygon_DotsonCrosson_ice_shelf, calc_polygon_Narsarsuaq, &
-                                                                     calc_polygon_Nuuk, calc_polygon_Jakobshavn, calc_polygon_NGIS, calc_polygon_Qaanaaq, calc_polygon_Tijn_test_ISMIP_HOM_A
+  use mesh_ROI_polygons
   USE math_utilities                                         , ONLY: longest_triangle_leg
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_logical_1D
   USE mesh_remapping                                         , ONLY: clear_all_maps_involving_this_mesh
