@@ -2,6 +2,8 @@ function analyse_mapping_derivative_tests( foldername)
 
 % foldername = '../../results_component_tests/discretisation/mapping_derivatives/';
 
+addpath('../../tools/matlab/')
+
 do_print = true;
 
 % Create text file with the analysis results
