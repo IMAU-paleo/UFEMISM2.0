@@ -12,6 +12,7 @@ module component_tests_create_test_meshes
   use mesh_memory, only: allocate_mesh_primary
   use mesh_creation, only: initialise_dummy_mesh
   use mesh_refinement_basic, only: refine_mesh_uniform, refine_mesh_polygon
+  use mesh_refinement_fun, only: mesh_add_smileyface, mesh_add_UFEMISM_letters
   use mesh_Lloyds_algorithm, only: Lloyds_algorithm_single_iteration
   use mesh_secondary, only: calc_all_secondary_mesh_data
   use mesh_operators, only: calc_all_matrix_operators_mesh, calc_3D_matrix_operators_mesh, calc_3D_gradient_bk_bk
@@ -245,12 +246,17 @@ contains
         foldername_test_meshes, filename_test_meshes_list)
     end do
 
+    ! Create test mesh with some fun elements
+    call create_test_mesh_fun( xmin, xmax, ymin, ymax, lambda_M, phi_M, beta_stereo, &
+      20e3_dp, alpha_min, nit_Lloyds_algorithm, domain_name, &
+      foldername_test_meshes, filename_test_meshes_list)
+
     ! Remove routine from call stack
     call finalise_routine( routine_name)
 
   end subroutine create_all_test_meshes_Antarctica
 
-  !> Create a test mesh covering the unit square with a uniform resolution
+  !> Create a test mesh with a uniform resolution
   subroutine create_test_mesh_uniform( xmin, xmax, ymin, ymax, lambda_M, phi_M, beta_stereo, &
     res_max, alpha_min, nit_Lloyds_algorithm, domain_name, foldername_test_meshes, filename_test_meshes_list)
 
@@ -329,7 +335,7 @@ contains
 
   end subroutine create_test_mesh_uniform
 
-  !> Create a test mesh covering the unit square with a resolution gradient
+  !> Create a test mesh with a resolution gradient
   subroutine create_test_mesh_gradient( xmin, xmax, ymin, ymax, lambda_M, phi_M, beta_stereo, &
     res_min, res_max, alpha_min, nit_Lloyds_algorithm, orientation, domain_name, &
     foldername_test_meshes, filename_test_meshes_list)
@@ -445,5 +451,89 @@ contains
     call finalise_routine( routine_name)
 
   end subroutine create_test_mesh_gradient
+
+  !> Create a test mesh with a smileyface and the UFEMISM lettesr
+  subroutine create_test_mesh_fun( xmin, xmax, ymin, ymax, lambda_M, phi_M, beta_stereo, &
+    res_max, alpha_min, nit_Lloyds_algorithm, domain_name, foldername_test_meshes, filename_test_meshes_list)
+
+    ! In/output variables:
+    real(dp),         intent(in) :: xmin, xmax, ymin, ymax
+    real(dp),         intent(in) :: lambda_M, phi_M, beta_stereo
+    real(dp),         intent(in) :: res_max
+    real(dp),         intent(in) :: alpha_min
+    integer,          intent(in) :: nit_Lloyds_algorithm
+    character(len=*), intent(in) :: domain_name
+    character(len=*), intent(in) :: foldername_test_meshes
+    character(len=*), intent(in) :: filename_test_meshes_list
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'create_test_mesh_fun'
+    type(type_mesh)                :: mesh
+    character(len=14)              :: res_max_str
+    character(len=3)               :: nit_Lloyds_algorithm_str
+    character(len=1024)            :: mesh_name
+    integer                        :: it_Lloyds_algorithm
+    integer                        :: ncid
+    character(len=1024)            :: filename
+    integer                        :: io_filename_test_meshes_list, stat
+    character(len=1024)            :: msg
+
+    ! Add routine to call stack
+    call init_routine( routine_name)
+
+    write( res_max_str             ,'(es14.4)') res_max
+    write( nit_Lloyds_algorithm_str,'(i3)')     nit_Lloyds_algorithm
+    mesh_name = 'comp_test_mesh_'//trim(domain_name)//'_fun_'//trim(adjustl(res_max_str))//'_m'//&
+      '_nit_Lloyd_'//trim(adjustl(nit_Lloyds_algorithm_str))
+
+    ! Allocate memory
+    call allocate_mesh_primary( mesh, trim(mesh_name), 1000, 2000, 32)
+
+    ! Initialise the dummy mesh
+    call initialise_dummy_mesh( mesh, xmin, xmax, ymin, ymax)
+
+    ! Refine the mesh around the smileyface
+    call mesh_add_smileyface( mesh, res_max, res_max)
+    call test_mesh_is_self_consistent( mesh, ASSERTION, &
+      trim(mesh_name)//': self_consistency (after mesh_add_smileyface)')
+
+    ! Refine the mesh around the UFEMISM letters
+    call mesh_add_UFEMISM_letters( mesh, res_max, res_max)
+    call test_mesh_is_self_consistent( mesh, ASSERTION, &
+      trim(mesh_name)//': self_consistency (after mesh_add_UFEMISM_letters)')
+
+    ! Smooth the mesh
+    do it_Lloyds_algorithm = 1, nit_Lloyds_algorithm
+      call Lloyds_algorithm_single_iteration( mesh, alpha_min)
+      call test_mesh_is_self_consistent( mesh, ASSERTION, &
+        trim(mesh_name)//': self_consistency (after Lloyds_algorithm_single_iteration)')
+    end do
+
+    ! Calculate secondary geometry data (needed in order to be able to write to NetCDF)
+    call calc_all_secondary_mesh_data( mesh, lambda_M, phi_M, beta_stereo)
+
+    ! Write to NetCDF file
+    filename = trim( foldername_test_meshes)//'/'//trim( mesh_name)//'.nc'
+    call create_new_netcdf_file_for_writing( filename, ncid)
+    call setup_mesh_in_netcdf_file( filename, ncid, mesh)
+    call close_netcdf_file( ncid)
+
+    ! Add name of mesh to list file
+    if (par%master) then
+      open(newunit = io_filename_test_meshes_list, file = filename_test_meshes_list, &
+        status = "old", action = "write", position = "append", iostat = stat, iomsg = msg)
+      if (stat /= 0) then
+        call crash('Could not open text file listing the filenames of the test meshes, error message "' // trim(msg) // '"')
+      end if
+      write(io_filename_test_meshes_list,*) trim(mesh_name)
+      close(io_filename_test_meshes_list)
+    end if
+
+    if (par%master) write(0,*) '    Created test mesh ', colour_string( trim( mesh_name), 'light blue')
+
+    ! Remove routine from call stack
+    call finalise_routine( routine_name)
+
+  end subroutine create_test_mesh_fun
 
 end module component_tests_create_test_meshes
