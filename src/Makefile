@@ -82,8 +82,6 @@ UFEMISM_source = \
   basic/control_resources_and_error_messaging.f90 \
   basic/model_configuration.f90 \
   \
-  mesh/mesh_is_self_consistent.f90 \
-  \
   validation/assertions_unit_tests_output.f90 \
   validation/assertions_unit_tests_basic.f90 \
   validation/assertions_unit_tests_logical.f90 \
