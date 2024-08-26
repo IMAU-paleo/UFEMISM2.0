@@ -15,9 +15,9 @@ module mesh_contiguous_domains
 
 contains
 
+  !> Shuffle vertices and triangles so that the vertices/triangles owned by each process form
+  !> a contiguous domain with short borders, to minimise the data volumes for halo exchanges.
   subroutine enforce_contiguous_process_domains( mesh)
-    ! Shuffle vertices, triangles, and edges so that the vertices owned by each process form
-    ! a contiguous domain with short borders, to minimise the data volumes for halo exchanges.
 
     ! In/output variables:
     type(type_mesh),            intent(inout)     :: mesh
@@ -39,9 +39,9 @@ contains
 
   end subroutine enforce_contiguous_process_domains
 
+  !> Shuffle vertices so that the vertices owned by each process form
+  !> a contiguous domain with short borders, to minimise the data volumes for halo exchanges.
   subroutine enforce_contiguous_process_domains_vertices( mesh)
-    ! Shuffle vertices so that the vertices owned by each process form
-    ! a contiguous domain with short borders, to minimise the data volumes for halo exchanges.
 
     ! In/output variables:
     type(type_mesh),            intent(inout)     :: mesh
@@ -134,9 +134,9 @@ contains
 
   end subroutine enforce_contiguous_process_domains_vertices
 
+  !> Shuffle triangles so that the triangles owned by each process form
+  !> a contiguous domain with short borders, to minimise the data volumes for halo exchanges.
   subroutine enforce_contiguous_process_domains_triangles( mesh)
-    ! Shuffle triangles so that the triangles owned by each process form
-    ! a contiguous domain with short borders, to minimise the data volumes for halo exchanges.
 
     ! In/output variables:
     type(type_mesh),            intent(inout)     :: mesh

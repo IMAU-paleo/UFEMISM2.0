@@ -1487,6 +1487,53 @@ CONTAINS
 
   END FUNCTION smallest_triangle_angle
 
+  !> Calculate the largest internal angle of the triangle [p,q,r]
+  pure function largest_triangle_angle( p, q, r) result( alpha)
+
+    ! In/output variables:
+    real(dp), dimension(2), intent(in) :: p, q, r
+    real(dp)                           :: alpha
+
+    ! Local variables:
+    real(dp), dimension(2)             :: pq, qr, rp
+    real(dp)                           :: ap, aq, ar
+
+    ! Triangle legs
+    pq = p-q
+    qr = q-r
+    rp = r-p
+
+    ! Internal angles
+    ap = acos(-(rp( 1) * pq( 1) + rp( 2) * pq( 2)) / (norm2( rp) * norm2( pq)))
+    aq = acos(-(pq( 1) * qr( 1) + pq( 2) * qr( 2)) / (norm2( pq) * norm2( qr)))
+    ar = acos(-(rp( 1) * qr( 1) + rp( 2) * qr( 2)) / (norm2( rp) * norm2( qr)))
+
+    ! Largest internal angle
+    alpha = max( max( ap, aq), ar)
+
+  end function largest_triangle_angle
+
+  !> Calculate the equiangular skewness of a triangle
+  pure function equiangular_skewness( p, q, r) result( skewness)
+    ! See: https://en.wikipedia.org/wiki/Types_of_mesh#Equiangular_skew
+
+    ! In/output variables:
+    real(dp), dimension(2), intent(in) :: p, q, r
+    real(dp)                           :: skewness
+
+    ! Local variables:
+    real(dp) :: theta_e, theta_max, theta_min
+
+    theta_e = 60._dp * pi / 180._dp
+
+    theta_max = largest_triangle_angle ( p, q, r)
+    theta_min = smallest_triangle_angle( p, q, r)
+
+    skewness = max( (theta_max - theta_e  ) / (pi / 2._dp - theta_e), &
+                    (theta_e   - theta_min) /               theta_e)
+
+    end function equiangular_skewness
+
   SUBROUTINE crop_line_to_domain( p, q, xmin, xmax, ymin, ymax, tol_dist, pp, qq, is_valid_line)
     ! Crop the line [pq] so that it lies within the specified domain;
     ! if [pq] doesn't pass through the domain at all, return is_valid_line = .FALSE.
