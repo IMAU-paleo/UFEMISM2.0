@@ -359,7 +359,7 @@ CONTAINS
 
     ! Allocate and initialise basal conditions
     CALL initialise_geothermal_heat_flux(  mesh, ice)
-    CALL initialise_basal_hydrology_model( mesh, ice)
+    CALL initialise_basal_hydrology_model( mesh, ice, region_name)
     CALL initialise_bed_roughness(         mesh, ice, region_name)
 
     ! Velocities
@@ -816,7 +816,7 @@ CONTAINS
 
     ! Allocate and initialise basal conditions
     CALL initialise_geothermal_heat_flux(  mesh_new, ice)
-    CALL initialise_basal_hydrology_model( mesh_new, ice)
+    CALL initialise_basal_hydrology_model( mesh_new, ice, region_name)
 
     ! FIXME: something should happen here once we start working on remapping of inverted bed roughness!
     CALL initialise_bed_roughness(         mesh_new, ice, region_name)

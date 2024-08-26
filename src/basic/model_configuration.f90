@@ -486,9 +486,25 @@ MODULE model_configuration
   ! ==================
 
     ! Basal hydrology
-    CHARACTER(LEN=256)  :: choice_basal_hydrology_model_config          = 'Martin2011'                     ! Choice of basal hydrology model: "none", "Martin2011", "inversion"
+    CHARACTER(LEN=256)  :: choice_basal_hydrology_model_config          = 'Martin2011'                     ! Choice of basal hydrology model: "none", "Martin2011", "inversion", "read_from_file"
     REAL(dp)            :: Martin2011_hydro_Hb_min_config               = 0._dp                            ! Martin et al. (2011) basal hydrology model: low-end  Hb  value of bedrock-dependent pore-water pressure
     REAL(dp)            :: Martin2011_hydro_Hb_max_config               = 1000._dp                         ! Martin et al. (2011) basal hydrology model: high-end Hb  value of bedrock-dependent pore-water pressure
+            
+    ! Initialisation of the pore water fraction
+    CHARACTER(LEN=256)  :: pore_water_fraction_choice_initialise_NAM_config = 'zero'                       ! How to initialise the pore water fraction: 'zero', 'read_from_file'
+    CHARACTER(LEN=256)  :: pore_water_fraction_choice_initialise_EAS_config = 'zero'
+    CHARACTER(LEN=256)  :: pore_water_fraction_choice_initialise_GRL_config = 'zero'
+    CHARACTER(LEN=256)  :: pore_water_fraction_choice_initialise_ANT_config = 'zero'
+    ! Paths to files containing pore water fraction fields
+    CHARACTER(LEN=256)  :: filename_pore_water_fraction_NAM_config      = ''
+    CHARACTER(LEN=256)  :: filename_pore_water_fraction_EAS_config      = ''
+    CHARACTER(LEN=256)  :: filename_pore_water_fraction_GRL_config      = ''
+    CHARACTER(LEN=256)  :: filename_pore_water_fraction_ANT_config      = ''
+    ! Timeframes to read from the pore water fraction file (set to 1E9    if the file has no time dimension)
+    REAL(dp)            :: timeframe_pore_water_fraction_NAM_config     = 1E9_dp                           ! Can be different from C%start_time_of_run, be careful though!
+    REAL(dp)            :: timeframe_pore_water_fraction_EAS_config     = 1E9_dp
+    REAL(dp)            :: timeframe_pore_water_fraction_GRL_config     = 1E9_dp
+    REAL(dp)            :: timeframe_pore_water_fraction_ANT_config     = 1E9_dp
 
   ! == Basal hydrology inversion by nudging
   ! =======================================
@@ -737,13 +753,32 @@ MODULE model_configuration
     REAL(dp)            :: BMB_inversion_t_end_config                   = +9.9E9_dp                        ! [yr] End   time for BMB inversion based on computed thinning rates in marine areas
 
     ! Grounding line treatment
-    LOGICAL             :: do_subgrid_BMB_at_grounding_line_config      = .FALSE.                          ! Whether or not to apply basal melt rates under a partially floating grounding line
+    LOGICAL             :: do_subgrid_BMB_at_grounding_line_config      = .FALSE.                          ! Whether or not to apply basal melt rates under a partially floating grounding line; if so, use choice_BMB_subgrid; if not, apply "NMP"
+    CHARACTER(LEN=256)  :: choice_BMB_subgrid_config                    = ''                               ! Choice of sub-grid BMB scheme: "FCMP", "PMP" (following Leguy et al., 2021)
 
     ! Choice of BMB model
     CHARACTER(LEN=256)  :: choice_BMB_model_NAM_config                  = 'uniform'
     CHARACTER(LEN=256)  :: choice_BMB_model_EAS_config                  = 'uniform'
     CHARACTER(LEN=256)  :: choice_BMB_model_GRL_config                  = 'uniform'
     CHARACTER(LEN=256)  :: choice_BMB_model_ANT_config                  = 'uniform'
+
+    ! Prescribed BMB forcing
+    CHARACTER(LEN=256)  :: choice_BMB_prescribed_NAM_config             = ''
+    CHARACTER(LEN=256)  :: choice_BMB_prescribed_EAS_config             = ''
+    CHARACTER(LEN=256)  :: choice_BMB_prescribed_GRL_config             = ''
+    CHARACTER(LEN=256)  :: choice_BMB_prescribed_ANT_config             = ''
+
+    ! Files containing prescribed BMB forcing
+    CHARACTER(LEN=256)  :: filename_BMB_prescribed_NAM_config           = ''
+    CHARACTER(LEN=256)  :: filename_BMB_prescribed_EAS_config           = ''
+    CHARACTER(LEN=256)  :: filename_BMB_prescribed_GRL_config           = ''
+    CHARACTER(LEN=256)  :: filename_BMB_prescribed_ANT_config           = ''
+
+    ! Timeframes for reading prescribed BMB forcing from file (set to 1E9_dp if the file has no time dimension)
+    REAL(dp)            :: timeframe_BMB_prescribed_NAM_config          = 1E9_dp
+    REAL(dp)            :: timeframe_BMB_prescribed_EAS_config          = 1E9_dp
+    REAL(dp)            :: timeframe_BMB_prescribed_GRL_config          = 1E9_dp
+    REAL(dp)            :: timeframe_BMB_prescribed_ANT_config          = 1E9_dp
 
     ! Choice of idealised BMB model
     CHARACTER(LEN=256)  :: choice_BMB_model_idealised_config            = ''
@@ -1361,6 +1396,22 @@ MODULE model_configuration
     REAL(dp)            :: Martin2011_hydro_Hb_min
     REAL(dp)            :: Martin2011_hydro_Hb_max
 
+    ! Initialisation of the pore water fraction
+    CHARACTER(LEN=256)  :: pore_water_fraction_choice_initialise_NAM
+    CHARACTER(LEN=256)  :: pore_water_fraction_choice_initialise_EAS
+    CHARACTER(LEN=256)  :: pore_water_fraction_choice_initialise_GRL
+    CHARACTER(LEN=256)  :: pore_water_fraction_choice_initialise_ANT
+    ! Paths to files containing pore water fraction fields
+    CHARACTER(LEN=256)  :: filename_pore_water_fraction_NAM
+    CHARACTER(LEN=256)  :: filename_pore_water_fraction_EAS
+    CHARACTER(LEN=256)  :: filename_pore_water_fraction_GRL
+    CHARACTER(LEN=256)  :: filename_pore_water_fraction_ANT
+    ! Timeframes to read from the pore water fraction file (set to 1E9    if the file has no time dimension)
+    REAL(dp)            :: timeframe_pore_water_fraction_NAM
+    REAL(dp)            :: timeframe_pore_water_fraction_EAS
+    REAL(dp)            :: timeframe_pore_water_fraction_GRL
+    REAL(dp)            :: timeframe_pore_water_fraction_ANT
+
   ! == Pore water inversion by nudging
   ! =====================================
 
@@ -1612,12 +1663,31 @@ MODULE model_configuration
 
     ! Grounding line treatment
     LOGICAL             :: do_subgrid_BMB_at_grounding_line
+    CHARACTER(LEN=256)  :: choice_BMB_subgrid
 
     ! Choice of BMB model
     CHARACTER(LEN=256)  :: choice_BMB_model_NAM
     CHARACTER(LEN=256)  :: choice_BMB_model_EAS
     CHARACTER(LEN=256)  :: choice_BMB_model_GRL
     CHARACTER(LEN=256)  :: choice_BMB_model_ANT
+
+    ! Prescribed BMB forcing
+    CHARACTER(LEN=256)  :: choice_BMB_prescribed_NAM
+    CHARACTER(LEN=256)  :: choice_BMB_prescribed_EAS
+    CHARACTER(LEN=256)  :: choice_BMB_prescribed_GRL
+    CHARACTER(LEN=256)  :: choice_BMB_prescribed_ANT
+
+    ! Files containing prescribed BMB forcing
+    CHARACTER(LEN=256)  :: filename_BMB_prescribed_NAM
+    CHARACTER(LEN=256)  :: filename_BMB_prescribed_EAS
+    CHARACTER(LEN=256)  :: filename_BMB_prescribed_GRL
+    CHARACTER(LEN=256)  :: filename_BMB_prescribed_ANT
+
+    ! Timeframes for reading prescribed BMB forcing from file (set to 1E9_dp if the file has no time dimension)
+    REAL(dp)            :: timeframe_BMB_prescribed_NAM
+    REAL(dp)            :: timeframe_BMB_prescribed_EAS
+    REAL(dp)            :: timeframe_BMB_prescribed_GRL
+    REAL(dp)            :: timeframe_BMB_prescribed_ANT
 
     ! Choice of idealised BMB model
     CHARACTER(LEN=256)  :: choice_BMB_model_idealised
@@ -2250,6 +2320,18 @@ CONTAINS
       choice_basal_hydrology_model_config                         , &
       Martin2011_hydro_Hb_min_config                              , &
       Martin2011_hydro_Hb_max_config                              , &
+      pore_water_fraction_choice_initialise_NAM_config            , &
+      pore_water_fraction_choice_initialise_EAS_config            , &
+      pore_water_fraction_choice_initialise_GRL_config            , &
+      pore_water_fraction_choice_initialise_ANT_config            , &
+      filename_pore_water_fraction_NAM_config                     , &
+      filename_pore_water_fraction_EAS_config                     , &
+      filename_pore_water_fraction_GRL_config                     , &
+      filename_pore_water_fraction_ANT_config                     , &
+      timeframe_pore_water_fraction_NAM_config                    , &
+      timeframe_pore_water_fraction_EAS_config                    , &
+      timeframe_pore_water_fraction_GRL_config                    , &
+      timeframe_pore_water_fraction_ANT_config                    , &
       do_pore_water_nudging_config                                , &
       choice_pore_water_nudging_method_config                     , &
       pore_water_nudging_dt_config                                , &
@@ -2398,10 +2480,23 @@ CONTAINS
       BMB_inversion_t_start_config                                , &
       BMB_inversion_t_end_config                                  , &
       do_subgrid_BMB_at_grounding_line_config                     , &
+      choice_BMB_subgrid_config                                   , &
       choice_BMB_model_NAM_config                                 , &
       choice_BMB_model_EAS_config                                 , &
       choice_BMB_model_GRL_config                                 , &
       choice_BMB_model_ANT_config                                 , &
+      choice_BMB_prescribed_NAM_config                            , &
+      choice_BMB_prescribed_EAS_config                            , &
+      choice_BMB_prescribed_GRL_config                            , &
+      choice_BMB_prescribed_ANT_config                            , &
+      filename_BMB_prescribed_NAM_config                          , &
+      filename_BMB_prescribed_EAS_config                          , &
+      filename_BMB_prescribed_GRL_config                          , &
+      filename_BMB_prescribed_ANT_config                          , &
+      timeframe_BMB_prescribed_NAM_config                         , &
+      timeframe_BMB_prescribed_EAS_config                         , &
+      timeframe_BMB_prescribed_GRL_config                         , &
+      timeframe_BMB_prescribed_ANT_config                         , &
       choice_BMB_model_idealised_config                           , &
       choice_BMB_model_parameterised_config                       , &
       uniform_BMB_config                                          , &
@@ -3009,6 +3104,22 @@ CONTAINS
     C%choice_basal_hydrology_model                           = choice_basal_hydrology_model_config
     C%Martin2011_hydro_Hb_min                                = Martin2011_hydro_Hb_min_config
     C%Martin2011_hydro_Hb_max                                = Martin2011_hydro_Hb_max_config
+    
+    ! Initialisation of the pore water fraction
+    C%pore_water_fraction_choice_initialise_NAM              = pore_water_fraction_choice_initialise_NAM_config
+    C%pore_water_fraction_choice_initialise_EAS              = pore_water_fraction_choice_initialise_EAS_config
+    C%pore_water_fraction_choice_initialise_GRL              = pore_water_fraction_choice_initialise_GRL_config
+    C%pore_water_fraction_choice_initialise_ANT              = pore_water_fraction_choice_initialise_ANT_config
+    ! Paths to files containing pore water fraction fields
+    C%filename_pore_water_fraction_NAM                       = filename_pore_water_fraction_NAM_config
+    C%filename_pore_water_fraction_EAS                       = filename_pore_water_fraction_EAS_config
+    C%filename_pore_water_fraction_GRL                       = filename_pore_water_fraction_GRL_config
+    C%filename_pore_water_fraction_ANT                       = filename_pore_water_fraction_ANT_config
+    ! Timeframes to read from the pore water file (set to 1E9    if the file has no time dimension
+    C%timeframe_pore_water_fraction_NAM                      = timeframe_pore_water_fraction_NAM_config
+    C%timeframe_pore_water_fraction_EAS                      = timeframe_pore_water_fraction_EAS_config
+    C%timeframe_pore_water_fraction_GRL                      = timeframe_pore_water_fraction_GRL_config
+    C%timeframe_pore_water_fraction_ANT                      = timeframe_pore_water_fraction_ANT_config
 
   ! == Pore water inversion by nudging
   ! ==================================
@@ -3257,12 +3368,31 @@ CONTAINS
 
     ! Grounding line treatment
     C%do_subgrid_BMB_at_grounding_line                       = do_subgrid_BMB_at_grounding_line_config
+    C%choice_BMB_subgrid                                     = choice_BMB_subgrid_config
 
     ! Choice of BMB model
     C%choice_BMB_model_NAM                                   = choice_BMB_model_NAM_config
     C%choice_BMB_model_EAS                                   = choice_BMB_model_EAS_config
     C%choice_BMB_model_GRL                                   = choice_BMB_model_GRL_config
     C%choice_BMB_model_ANT                                   = choice_BMB_model_ANT_config
+
+    ! Prescribed BMB forcing
+    C%choice_BMB_prescribed_NAM                              = choice_BMB_prescribed_NAM_config
+    C%choice_BMB_prescribed_EAS                              = choice_BMB_prescribed_EAS_config
+    C%choice_BMB_prescribed_GRL                              = choice_BMB_prescribed_GRL_config
+    C%choice_BMB_prescribed_ANT                              = choice_BMB_prescribed_ANT_config
+
+    ! Files containing prescribed BMB forcing
+    C%filename_BMB_prescribed_NAM                            = filename_BMB_prescribed_NAM_config
+    C%filename_BMB_prescribed_EAS                            = filename_BMB_prescribed_EAS_config
+    C%filename_BMB_prescribed_GRL                            = filename_BMB_prescribed_GRL_config
+    C%filename_BMB_prescribed_ANT                            = filename_BMB_prescribed_ANT_config
+
+    ! Timeframes for reading prescribed BMB forcing from file (set to 1E9_dp if the file has no time dimension)
+    C%timeframe_BMB_prescribed_NAM                           = timeframe_BMB_prescribed_NAM_config
+    C%timeframe_BMB_prescribed_EAS                           = timeframe_BMB_prescribed_EAS_config
+    C%timeframe_BMB_prescribed_GRL                           = timeframe_BMB_prescribed_GRL_config
+    C%timeframe_BMB_prescribed_ANT                           = timeframe_BMB_prescribed_ANT_config
 
     ! Choice of idealised BMB model
     C%choice_BMB_model_idealised                             = choice_BMB_model_idealised_config
