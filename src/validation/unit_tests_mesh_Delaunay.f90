@@ -9,7 +9,7 @@ module unit_tests_mesh_Delaunay
   use assertions_unit_tests
   use mesh_types, only: type_mesh
   use mesh_memory, only: allocate_mesh_primary
-  use mesh_creation, only: initialise_dummy_mesh
+  use mesh_dummy_meshes, only: initialise_dummy_mesh_5
   use mesh_Delaunay, only: split_triangle, split_edge, split_border_edge, move_vertex
 
   implicit none
@@ -70,7 +70,7 @@ contains
     call allocate_mesh_primary( mesh, trim(test_name)//'_mesh', 100, 200, 32)
 
     ! Initialise dummy mesh
-    call initialise_dummy_mesh( mesh, -1._dp, 1._dp, -1._dp, 1._dp)
+    call initialise_dummy_mesh_5( mesh, -1._dp, 1._dp, -1._dp, 1._dp)
 
     ! Split the southern triangle
     p_new = [0._dp, -1._dp]
@@ -114,7 +114,7 @@ contains
     call allocate_mesh_primary( mesh, trim(test_name)//'_mesh', 100, 200, 32)
 
     ! Initialise dummy mesh
-    call initialise_dummy_mesh( mesh, -1._dp, 1._dp, -1._dp, 1._dp)
+    call initialise_dummy_mesh_5( mesh, -1._dp, 1._dp, -1._dp, 1._dp)
 
     ! Split the southwestern edge
     p_new = (mesh%V(1,:) + mesh%V(5,:)) / 2._dp
@@ -158,7 +158,7 @@ contains
     call allocate_mesh_primary( mesh, trim(test_name)//'_mesh', 100, 200, 32)
 
     ! Initialise dummy mesh
-    call initialise_dummy_mesh( mesh, -1._dp, 1._dp, -1._dp, 1._dp)
+    call initialise_dummy_mesh_5( mesh, -1._dp, 1._dp, -1._dp, 1._dp)
 
     ! Split the southern border edge
     p_new = (mesh%V(1,:) + mesh%V(2,:)) / 2._dp
@@ -202,7 +202,7 @@ contains
     call allocate_mesh_primary( mesh, trim(test_name)//'_mesh', 100, 200, 32)
 
     ! Initialise dummy mesh
-    call initialise_dummy_mesh( mesh, -1._dp, 1._dp, -1._dp, 1._dp)
+    call initialise_dummy_mesh_5( mesh, -1._dp, 1._dp, -1._dp, 1._dp)
 
     ! Move the central vertex
     p_new = [(mesh%xmax - mesh%xmin) / 53._dp, (mesh%ymax - mesh%ymin) / 43.2_dp]

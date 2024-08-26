@@ -10,7 +10,7 @@ module component_tests_create_test_meshes
   use assertions_unit_tests, only: ASSERTION, test_mesh_is_self_consistent
   use mesh_types, only: type_mesh
   use mesh_memory, only: allocate_mesh_primary
-  use mesh_creation, only: initialise_dummy_mesh
+  use mesh_dummy_meshes, only: initialise_dummy_mesh_5
   use mesh_refinement_basic, only: refine_mesh_uniform, refine_mesh_polygon
   use mesh_refinement_fun, only: mesh_add_smileyface, mesh_add_UFEMISM_letters
   use mesh_Lloyds_algorithm, only: Lloyds_algorithm_single_iteration
@@ -294,7 +294,7 @@ contains
     call allocate_mesh_primary( mesh, trim(mesh_name), 1000, 2000, 32)
 
     ! Initialise the dummy mesh
-    call initialise_dummy_mesh( mesh, xmin, xmax, ymin, ymax)
+    call initialise_dummy_mesh_5( mesh, xmin, xmax, ymin, ymax)
 
     ! Refine the mesh
     call refine_mesh_uniform( mesh, res_max, alpha_min)
@@ -379,7 +379,7 @@ contains
     call allocate_mesh_primary( mesh, trim(mesh_name), 1000, 2000, 32)
 
     ! Initialise the dummy mesh
-    call initialise_dummy_mesh( mesh, xmin, xmax, ymin, ymax)
+    call initialise_dummy_mesh_5( mesh, xmin, xmax, ymin, ymax)
 
     ! Refine the mesh
     n = 15
@@ -490,7 +490,7 @@ contains
     call allocate_mesh_primary( mesh, trim(mesh_name), 1000, 2000, 32)
 
     ! Initialise the dummy mesh
-    call initialise_dummy_mesh( mesh, xmin, xmax, ymin, ymax)
+    call initialise_dummy_mesh_5( mesh, xmin, xmax, ymin, ymax)
 
     ! Refine the mesh around the smileyface
     call mesh_add_smileyface( mesh, res_max, res_max)
