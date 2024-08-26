@@ -12,8 +12,12 @@ module unit_tests_mesh_refinement
   use mesh_dummy_meshes, only: initialise_dummy_mesh_5
   use mesh_refinement_basic, only: refine_mesh_uniform, refine_mesh_point, refine_mesh_line, refine_mesh_polygon
   use mesh_refinement_basic_ROI, only: refine_mesh_line_ROI, refine_mesh_polygon_ROI
-  use mesh_utilities, only: find_containing_triangle
+  use mesh_utilities, only: find_containing_triangle, calc_smallest_internal_angle_mesh, calc_mean_skewness
   use math_utilities, only: longest_triangle_leg, is_in_polygon
+  use mesh_Lloyds_algorithm, only: Lloyds_algorithm_single_iteration
+  use mesh_contiguous_domains, only: enforce_contiguous_process_domains
+  use mesh_secondary, only: calc_triangle_geometric_centres
+  use mpi_basic, only: par
 
   implicit none
 
@@ -46,6 +50,8 @@ contains
     call test_refine_mesh_polygon    ( test_name)
     call test_refine_mesh_line_ROI   ( test_name)
     call test_refine_mesh_polygon_ROI( test_name)
+    call test_Lloyds_algorithm       ( test_name)
+    call test_contiguous_domains     ( test_name)
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)
@@ -69,6 +75,7 @@ contains
     real(dp), parameter            :: ymax =  1._dp
     real(dp), parameter            :: res_max = 0.05_dp
     real(dp), parameter            :: alpha_min = 0.4363_dp
+    real(dp)                       :: smallest_internal_angle
     integer                        :: vi,ci,vj
     real(dp)                       :: dist, dist_min, dist_max
 
@@ -90,6 +97,10 @@ contains
 
     ! Check if the mesh is still self-consistent
     call test_mesh_is_self_consistent( mesh, UNIT_TEST, trim(test_name)//'/mesh_self_consistency')
+
+    ! Check if the smallest internal angle is indeed larger than alpha_min
+    call calc_smallest_internal_angle_mesh( mesh, smallest_internal_angle)
+    call test_ge( smallest_internal_angle, alpha_min, UNIT_TEST, trim(test_name)//'/smallest_internal_angle')
 
     ! Check if the resolution* is indeed uniformly below, but not too far below, the specified tolerance
     ! *defined here as the nearest-neighbour distance
@@ -131,6 +142,7 @@ contains
     real(dp), dimension(2), parameter :: POI =  [0.23_dp, -0.129_dp]
     real(dp), parameter               :: res_max = 0.05_dp
     real(dp), parameter               :: alpha_min = 0.4363_dp
+    real(dp)                          :: smallest_internal_angle
     integer                           :: ti
     real(dp), dimension(2)            :: p, q, r
     real(dp)                          :: longest_leg
@@ -153,6 +165,10 @@ contains
 
     ! Check if the mesh is still self-consistent
     call test_mesh_is_self_consistent( mesh, UNIT_TEST, trim(test_name)//'/mesh_self_consistency')
+
+    ! Check if the smallest internal angle is indeed larger than alpha_min
+    call calc_smallest_internal_angle_mesh( mesh, smallest_internal_angle)
+    call test_ge( smallest_internal_angle, alpha_min, UNIT_TEST, trim(test_name)//'/smallest_internal_angle')
 
     ! Check if the resolution* at the POI is indeed below, but not too far below, the specified tolerance
     ! *defined here as the longest leg of the triangle containing the POI
@@ -190,6 +206,7 @@ contains
     real(dp), parameter            :: res_max = 0.05_dp
     real(dp)                       :: width = 0.03_dp
     real(dp), parameter            :: alpha_min = 0.4363_dp
+    real(dp)                       :: smallest_internal_angle
     integer                        :: n,i
     real(dp), dimension(2)         :: pp
     integer                        :: ti
@@ -216,6 +233,10 @@ contains
 
     ! Check if the mesh is still self-consistent
     call test_mesh_is_self_consistent( mesh, UNIT_TEST, trim(test_name)//'/mesh_self_consistency')
+
+    ! Check if the smallest internal angle is indeed larger than alpha_min
+    call calc_smallest_internal_angle_mesh( mesh, smallest_internal_angle)
+    call test_ge( smallest_internal_angle, alpha_min, UNIT_TEST, trim(test_name)//'/smallest_internal_angle')
 
     ! Check if the resolution* along the line is indeed below, but not too far below, the specified tolerance
     ! *defined here as the longest leg of the triangle containing the POI
@@ -260,6 +281,7 @@ contains
     real(dp), dimension(5,2)       :: poly
     real(dp), parameter            :: res_max = 0.05_dp
     real(dp), parameter            :: alpha_min = 0.4363_dp
+    real(dp)                       :: smallest_internal_angle
     integer                        :: n,i,j
     real(dp), dimension(2)         :: pp
     integer                        :: ti
@@ -289,6 +311,10 @@ contains
 
     ! Check if the mesh is still self-consistent
     call test_mesh_is_self_consistent( mesh, UNIT_TEST, trim(test_name)//'/mesh_self_consistency')
+
+    ! Check if the smallest internal angle is indeed larger than alpha_min
+    call calc_smallest_internal_angle_mesh( mesh, smallest_internal_angle)
+    call test_ge( smallest_internal_angle, alpha_min, UNIT_TEST, trim(test_name)//'/smallest_internal_angle')
 
     ! Check if the resolution* inside the polygon is indeed below, but not too far below, the specified tolerance
     ! *defined here as the longest leg of the triangles
@@ -340,6 +366,7 @@ contains
     real(dp), parameter                   :: res_max = 0.05_dp
     real(dp)                              :: width
     real(dp), parameter                   :: alpha_min = 0.4363_dp
+    real(dp)                              :: smallest_internal_angle
     integer                               :: n,i
     integer                               :: ti
     real(dp), dimension(2)                :: p, q, r
@@ -383,6 +410,10 @@ contains
 
     ! Check if the mesh is still self-consistent
     call test_mesh_is_self_consistent( mesh, UNIT_TEST, trim(test_name)//'/mesh_self_consistency')
+
+    ! Check if the smallest internal angle is indeed larger than alpha_min
+    call calc_smallest_internal_angle_mesh( mesh, smallest_internal_angle)
+    call test_ge( smallest_internal_angle, alpha_min, UNIT_TEST, trim(test_name)//'/smallest_internal_angle')
 
     ! Check if the resolution* along the part of the line
     ! outside of the ROI is indeed below the specified tolerance,
@@ -436,6 +467,7 @@ contains
     real(dp), dimension(4,2)       :: poly_ROI
     real(dp), parameter            :: res_max = 0.05_dp
     real(dp), parameter            :: alpha_min = 0.4363_dp
+    real(dp)                       :: smallest_internal_angle
     integer                        :: n,i,j
     real(dp), dimension(2)         :: pp
     integer                        :: ti
@@ -473,6 +505,10 @@ contains
     ! Check if the mesh is still self-consistent
     call test_mesh_is_self_consistent( mesh, UNIT_TEST, trim(test_name)//'/mesh_self_consistency')
 
+    ! Check if the smallest internal angle is indeed larger than alpha_min
+    call calc_smallest_internal_angle_mesh( mesh, smallest_internal_angle)
+    call test_ge( smallest_internal_angle, alpha_min, UNIT_TEST, trim(test_name)//'/smallest_internal_angle')
+
     ! Check if the resolution* inside the polygon is indeed below, but not too far below, the specified tolerance
     ! *defined here as the longest leg of the triangles
 
@@ -505,5 +541,140 @@ contains
     call finalise_routine( routine_name)
 
   end subroutine test_refine_mesh_polygon_ROI
+
+  subroutine test_Lloyds_algorithm( test_name_parent)
+    ! Test the Lloyds_algorithm_single_iteration subroutine
+
+    ! In/output variables:
+    character(len=*), intent(in) :: test_name_parent
+
+    ! Local variables:
+    character(len=1024), parameter    :: routine_name = 'test_Lloyds_algorithm'
+    character(len=1024), parameter    :: test_name_local = 'test_Lloyds_algorithm'
+    character(len=1024)               :: test_name
+    type(type_mesh)                   :: mesh
+    real(dp), parameter               :: xmin = -1._dp
+    real(dp), parameter               :: xmax =  1._dp
+    real(dp), parameter               :: ymin = -1._dp
+    real(dp), parameter               :: ymax =  1._dp
+    real(dp), dimension(2), parameter :: POI =  [0._dp, 0._dp]
+    real(dp), parameter               :: res_max = 0.02_dp
+    real(dp), parameter               :: alpha_min = 0.4363_dp
+    real(dp)                          :: smallest_internal_angle
+    integer,  parameter               :: nit_Lloyds_algorithm = 5
+    integer                           :: it_Lloyds_algorithm
+    character(len=3)                  :: it_Lloyds_algorithm_str
+    real(dp)                          :: mean_skewness, mean_skewness_prev
+
+    ! Add routine to call stack
+    call init_routine( routine_name)
+
+    ! Add test name to list
+    test_name = trim( test_name_parent) // '/' // trim( test_name_local)
+
+    ! Allocate memory
+    call allocate_mesh_primary( mesh, trim(test_name)//'_mesh', 1000, 2000, 32)
+
+    ! Initialise dummy mesh
+    call initialise_dummy_mesh_5( mesh, xmin, xmax, ymin, ymax)
+
+    ! Refine the mesh around a point, to generate strong resolution gradients
+    C%mesh_resolution_tolerance = 1._dp
+    call refine_mesh_point( mesh, POI, res_max, alpha_min)
+
+    ! Check if the refined mesh is self-consistent
+    call test_mesh_is_self_consistent( mesh, UNIT_TEST, trim(test_name)//'/mesh_self_consistency_before')
+
+    ! Check if the smallest internal angle is indeed larger than alpha_min
+    call calc_smallest_internal_angle_mesh( mesh, smallest_internal_angle)
+    call test_ge( smallest_internal_angle, alpha_min, UNIT_TEST, trim(test_name)//'/smallest_internal_angle_before')
+
+    ! Apply a few iterations of Lloyds algorithm, and check if the mean skewness does indeed decrease
+
+    call calc_mean_skewness( mesh, mean_skewness)
+
+    do it_Lloyds_algorithm = 1, nit_Lloyds_algorithm
+
+      write( it_Lloyds_algorithm_str,'(i3)') it_Lloyds_algorithm
+
+      call Lloyds_algorithm_single_iteration( mesh, alpha_min)
+
+      call test_mesh_is_self_consistent( mesh, UNIT_TEST, &
+        trim(test_name)//'/mesh_self_consistency_it_'//trim(adjustl(it_Lloyds_algorithm_str)))
+
+      mean_skewness_prev = mean_skewness
+      call calc_mean_skewness( mesh, mean_skewness)
+      call test_le( mean_skewness, mean_skewness_prev, UNIT_TEST, &
+        trim(test_name)//'/mean_skewness_it_'//trim(adjustl(it_Lloyds_algorithm_str)))
+
+    end do
+
+    ! Remove routine from call stack
+    call finalise_routine( routine_name)
+
+  end subroutine test_Lloyds_algorithm
+
+  subroutine test_contiguous_domains( test_name_parent)
+    ! Test the enforce_contiguous_process_domains subroutine
+
+    ! In/output variables:
+    character(len=*), intent(in) :: test_name_parent
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'test_contiguous_domains'
+    character(len=1024), parameter :: test_name_local = 'contiguous_domains'
+    character(len=1024)            :: test_name
+    type(type_mesh)                :: mesh
+    real(dp), parameter            :: xmin = -1._dp
+    real(dp), parameter            :: xmax =  1._dp
+    real(dp), parameter            :: ymin = -1._dp
+    real(dp), parameter            :: ymax =  1._dp
+    real(dp), parameter            :: res_max = 0.05_dp
+    real(dp), parameter            :: alpha_min = 0.4363_dp
+    logical                        :: vertices_are_sorted, triangles_are_sorted
+    integer                        :: vi, ti
+
+    ! Add routine to call stack
+    call init_routine( routine_name)
+
+    ! Add test name to list
+    test_name = trim( test_name_parent) // '/' // trim( test_name_local)
+
+    ! Allocate memory
+    call allocate_mesh_primary( mesh, trim(test_name)//'_mesh', 1000, 2000, 32)
+
+    ! Initialise dummy mesh
+    call initialise_dummy_mesh_5( mesh, xmin, xmax, ymin, ymax)
+
+    ! Refine the mesh
+    C%mesh_resolution_tolerance = 1._dp
+    call refine_mesh_uniform( mesh, res_max, alpha_min)
+
+    ! Reorder the vertices and triangles to enforce contiguous process domains
+    call enforce_contiguous_process_domains( mesh)
+
+    ! Calculate triangle geometric centres (needed to see if they are sorted)
+    call calc_triangle_geometric_centres( mesh)
+
+    ! Check if the mesh is still self-consistent
+    call test_mesh_is_self_consistent( mesh, UNIT_TEST, trim(test_name)//'/mesh_self_consistency')
+
+    ! Check if the vertices and triangles really have been reordered properly
+    vertices_are_sorted = .true.
+    do vi = 2, mesh%nV
+      vertices_are_sorted = vertices_are_sorted .and. mesh%V( vi,1) >= mesh%V( vi-1,1) - mesh%tol_dist
+    end do
+    call test_eqv( vertices_are_sorted, .true., UNIT_TEST, trim(test_name)//'/vertices_are_sorted')
+
+    triangles_are_sorted = .true.
+    do ti = 2, mesh%nTri
+      triangles_are_sorted = triangles_are_sorted .and. mesh%Trigc( ti,1) >= mesh%Trigc( ti-1,1) - mesh%tol_dist
+    end do
+    call test_eqv( triangles_are_sorted, .true., UNIT_TEST, trim(test_name)//'/triangles_are_sorted')
+
+    ! Remove routine from call stack
+    call finalise_routine( routine_name)
+
+  end subroutine test_contiguous_domains
 
 end module unit_tests_mesh_refinement

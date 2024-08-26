@@ -14,7 +14,7 @@ MODULE mesh_utilities
   USE mesh_types                                             , ONLY: type_mesh
   USE math_utilities                                         , ONLY: geometric_center, is_in_triangle, lies_on_line_segment, circumcenter, &
                                                                      line_from_points, line_line_intersection, encroaches_upon, crop_line_to_domain, &
-                                                                     triangle_area
+                                                                     triangle_area, smallest_triangle_angle, equiangular_skewness
   USE mpi_distributed_memory                                 , ONLY: gather_to_master_int_1D, gather_to_master_dp_1D, &
                                                                      distribute_from_master_int_1D, distribute_from_master_dp_1D, &
                                                                      gather_to_all_int_1D, gather_to_all_dp_1D
@@ -761,6 +761,51 @@ CONTAINS
     mesh%Tricc( ti,:) = cc
 
   END SUBROUTINE update_triangle_circumcenter
+
+  !> Calculate the smallest internal angle of all the triangles of a mesh
+  subroutine calc_smallest_internal_angle_mesh( mesh, alpha)
+    ! NOTE: not parallelised!
+
+    ! In/output variables:
+    type(type_mesh), intent(in ) :: mesh
+    real(dp),        intent(out) :: alpha
+
+    ! Local variables:
+    integer                :: ti
+    real(dp), dimension(2) :: p,q,r
+
+    alpha = 0._dp
+    do ti = 1, mesh%nTri
+      p = mesh%V( mesh%Tri( ti,1),:)
+      q = mesh%V( mesh%Tri( ti,2),:)
+      r = mesh%V( mesh%Tri( ti,3),:)
+      alpha = max( alpha, smallest_triangle_angle( p, q, r))
+    end do
+
+  end subroutine calc_smallest_internal_angle_mesh
+
+  !> Calculate the mean skewness of a mesh
+  subroutine calc_mean_skewness( mesh, mean_skewness)
+    ! Based on the equiangular skewness of the triangles
+    ! NOTE: not parallelised!
+
+    ! In/output variables:
+    type(type_mesh), intent(in ) :: mesh
+    real(dp),        intent(out) :: mean_skewness
+
+    ! Local variables:
+    integer                :: ti
+    real(dp), dimension(2) :: p,q,r
+
+    mean_skewness = 0._dp
+    do ti = 1, mesh%nTri
+      p = mesh%V( mesh%Tri( ti,1),:)
+      q = mesh%V( mesh%Tri( ti,2),:)
+      r = mesh%V( mesh%Tri( ti,3),:)
+      mean_skewness = mean_skewness + equiangular_skewness( p, q, r) / real( mesh%nTri,dp)
+    end do
+
+  end subroutine calc_mean_skewness
 
 ! == Tools for handling the triangle refinement stack
 
