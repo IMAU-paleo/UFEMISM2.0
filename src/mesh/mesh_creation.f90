@@ -27,8 +27,13 @@ MODULE mesh_creation
   USE mpi_distributed_memory                                 , ONLY: gather_to_master_dp_1D
   use mesh_refinement_fun, only: refine_CalvMIP_shelf_donut
   use mesh_Lloyds_algorithm, only: Lloyds_algorithm_single_iteration
+  use mesh_dummy_meshes, only: initialise_dummy_mesh_5
 
   IMPLICIT NONE
+
+  private
+
+  public :: create_mesh_from_gridded_geometry, create_mesh_from_meshed_geometry, write_mesh_success
 
 CONTAINS
 
@@ -647,11 +652,11 @@ CONTAINS
       CALL allocate_mesh_primary( mesh, name, 1000, 2000, C%nC_mem)
 
       ! Initialise the dummy mesh
-      CALL initialise_dummy_mesh( mesh, xmin, xmax, ymin, ymax)
+      CALL initialise_dummy_mesh_5( mesh, xmin, xmax, ymin, ymax)
 
-    ! == Refine to a uniform resolution; iteratively reduce this,
-    ! == and smooth the mesh in between to get a nice, high-quality mesh
-    ! ==================================================================
+      ! == Refine to a uniform resolution; iteratively reduce this,
+      ! == and smooth the mesh in between to get a nice, high-quality mesh
+      ! ==================================================================
 
       res_max_uniform_applied = MAX( xmax-xmin, ymax-ymin)
 
@@ -668,8 +673,8 @@ CONTAINS
 
       END DO ! DO WHILE (.TRUE.)
 
-    ! == Refine along the ice geometry lines (grounding line, calving front, etc.)
-    ! ============================================================================
+      ! == Refine along the ice geometry lines (grounding line, calving front, etc.)
+      ! ============================================================================
 
       ! Refine the mesh along the ice geometry lines
       CALL refine_mesh_line( mesh, p_line_grounding_line, C%maximum_resolution_grounding_line, C%grounding_line_width, C%alpha_min)
@@ -677,8 +682,8 @@ CONTAINS
       CALL refine_mesh_line( mesh, p_line_ice_front     , C%maximum_resolution_ice_front     , C%ice_front_width     , C%alpha_min)
       CALL refine_mesh_line( mesh, p_line_coastline     , C%maximum_resolution_coastline     , C%coastline_width     , C%alpha_min)
 
-    ! == Refine along the ice geometry areas (sheet, shelf, etc.)
-    ! ===========================================================
+      ! == Refine along the ice geometry areas (sheet, shelf, etc.)
+      ! ===========================================================
 
         ! Ice sheet
         ! =========
@@ -732,14 +737,14 @@ CONTAINS
 
         END DO ! DO WHILE (n2 < SIZE( poly_mult_sheet,1))
 
-    ! == Refine in regions of interest
-    ! ================================
+      ! == Refine in regions of interest
+      ! ================================
 
       CALL refine_mesh_in_regions_of_interest( region_name, poly_mult_sheet, poly_mult_shelf, &
         p_line_grounding_line, p_line_calving_front, p_line_ice_front, p_line_coastline, mesh)
 
-    ! == Special cases
-    ! ================
+      ! == Special cases
+      ! ================
 
       ! DENK DROM : Not very elegant; remove this later and generalise it
       IF (C%do_ANT .AND. C%choice_refgeo_PD_ANT == 'idealised' .AND. C%choice_refgeo_init_idealised == 'calvmip_circular') THEN
@@ -748,15 +753,15 @@ CONTAINS
         CALL refine_CalvMIP_shelf_donut( mesh, C%maximum_resolution_grounding_line*2._dp, 50000._dp)
       END IF
 
-    ! == Smooth the mesh
-    ! ==================
+      ! == Smooth the mesh
+      ! ==================
 
       DO i = 1, C%nit_Lloyds_algorithm
         CALL Lloyds_algorithm_single_iteration( mesh, C%alpha_min)
       END DO
 
-    ! == Enforce contiguous process domains
-    ! =====================================
+      ! == Enforce contiguous process domains
+      ! =====================================
 
       CALL enforce_contiguous_process_domains( mesh)
 
@@ -765,8 +770,8 @@ CONTAINS
     ! Broadcast the Master's mesh
     CALL broadcast_mesh( mesh)
 
-  ! == Calculate secondary geometry data
-  ! ====================================
+    ! == Calculate secondary geometry data
+    ! ====================================
 
     ! Calculate all secondary geometry data
     CALL calc_all_secondary_mesh_data( mesh, lambda_M, phi_M, beta_stereo)
@@ -1096,112 +1101,5 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE write_mesh_success
-
-  ! Initialise the five-vertex dummy mesh
-  SUBROUTINE initialise_dummy_mesh( mesh, xmin, xmax, ymin, ymax)
-    ! Initialises a 5-vertex, 4-triangle "dummy"  mesh:
-    !
-    !   v4 - - - - - - - - v3   V          nC     C             niTri   iTri          edge_index
-    !   | \              / |    -1 -1      3      2  5  4        2      1  4            6
-    !   |  \            /  |     1 -1      3      3  5  1        2      2  1            4
-    !   |   \    t3    /   |     1  1      3      4  5  2        2      3  2            2
-    !   |    \        /    |    -1  1      3      1  5  3        2      4  3            8
-    !   |     \      /     |     0  0      4      1  2  3  4     4      1  2  3  4      0
-    !   |      \    /      |
-    !   |       \  /       |    Tri           TriC
-    !   |  t4    v5    t2  |    1  2  5      2  4  0
-    !   |       /  \       |    2  3  5      3  1  0
-    !   |      /    \      |    3  4  5      4  2  0
-    !   |     /      \     |    4  1  5      1  3  0
-    !   |    /        \    |
-    !   |   /    t1    \   |
-    !   |  /            \  |
-    !   | /              \ |
-    !   v1 - - - - - - - - v2
-    !
-    ! NOTE: memory must already be allocated for the mesh before calling this routine
-
-    IMPLICIT NONE
-
-    ! In/output variables:
-    TYPE(type_mesh),            INTENT(INOUT)     :: mesh
-    REAL(dp),                   INTENT(IN)        :: xmin, xmax, ymin, ymax
-
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'initialise_dummy_mesh'
-    REAL(dp), PARAMETER                           :: tol = 1E-9_dp
-
-    ! Add routine to path
-    CALL init_routine( routine_name)
-
-    ! Meta properties
-    mesh%xmin         = xmin    ! Boundaries of the square domain.
-    mesh%xmax         = xmax
-    mesh%ymin         = ymin
-    mesh%ymax         = ymax
-
-    ! Horizontal distance of tolerance. Used for several small routines - points that lie within
-    ! this distance of each other (vertices, triangle circumcenters, etc.) are treated as identical.
-    mesh%tol_dist     = ((mesh%xmax - mesh%xmin) + (mesh%ymax - mesh%ymin)) * tol / 2._dp
-
-    mesh%nV           = 5
-
-    mesh%V            = 0._dp
-    mesh%V( 1,:)      = [xmin, ymin]
-    mesh%V( 2,:)      = [xmax, ymin]
-    mesh%V( 3,:)      = [xmax, ymax]
-    mesh%V( 4,:)      = [xmin, ymax]
-    ! Make sure the central vertex is slightly off-centre, to prevent trivial Delaunay criteria
-    ! in the early stages of mesh refinement (i.e. 4 or more vertices being cocircular), which
-    ! can lead to different meshes depending on processor/compiler/phase of the moon.
-    mesh%V( 5,:)      = [(xmin+xmax)/2._dp + (xmax-xmin)*pi*1e-3_dp, (ymin+ymax)/2._dp + (ymax-ymin)*pi*2.1e-3_dp]
-
-    mesh%VBI          = 0
-    mesh%VBI(1:5)     = [6, 4, 2, 8, 0]
-
-    mesh%nC           = 0
-    mesh%nC( 1:5)     = [3, 3, 3, 3, 4]
-
-    mesh%C            = 0
-    mesh%C( 1,1:4)    = [2, 5, 4, 0]
-    mesh%C( 2,1:4)    = [3, 5, 1, 0]
-    mesh%C( 3,1:4)    = [4, 5, 2, 0]
-    mesh%C( 4,1:4)    = [1, 5, 3, 0]
-    mesh%C( 5,1:4)    = [1, 2, 3, 4]
-
-    mesh%niTri        = 0
-    mesh%niTri( 1:5)  = [2, 2, 2, 2, 4]
-
-    mesh%iTri         = 0
-    mesh%iTri( 1,1:4) = [1, 4, 0, 0]
-    mesh%iTri( 2,1:4) = [2, 1, 0, 0]
-    mesh%iTri( 3,1:4) = [3, 2, 0, 0]
-    mesh%iTri( 4,1:4) = [4, 3, 0, 0]
-    mesh%iTri( 5,1:4) = [1, 2, 3, 4]
-
-    mesh%nTri         = 4
-
-    mesh%Tri          = 0
-    mesh%Tri( 1,:)    = [1, 2, 5]
-    mesh%Tri( 2,:)    = [2, 3, 5]
-    mesh%Tri( 3,:)    = [3, 4, 5]
-    mesh%Tri( 4,:)    = [4, 1, 5]
-
-    mesh%TriC         = 0
-    mesh%TriC( 1,:)   = [2, 4, 0]
-    mesh%TriC( 2,:)   = [3, 1, 0]
-    mesh%TriC( 3,:)   = [4, 2, 0]
-    mesh%TriC( 4,:)   = [1, 3, 0]
-
-    mesh%TriCC = 0._dp
-    CALL update_triangle_circumcenter( mesh, 1)
-    CALL update_triangle_circumcenter( mesh, 2)
-    CALL update_triangle_circumcenter( mesh, 3)
-    CALL update_triangle_circumcenter( mesh, 4)
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE initialise_dummy_mesh
 
 END MODULE mesh_creation

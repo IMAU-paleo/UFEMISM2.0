@@ -103,6 +103,7 @@ UFEMISM_source = \
   \
   mesh/mesh_memory.f90 \
   mesh/mesh_utilities.f90 \
+  mesh/mesh_dummy_meshes.f90 \
   mesh/mesh_ROI_polygons.f90 \
   mesh/mesh_Delaunay.f90 \
   mesh/mesh_edges.f90 \

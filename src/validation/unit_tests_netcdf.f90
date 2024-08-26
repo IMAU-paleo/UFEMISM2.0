@@ -16,7 +16,7 @@ MODULE unit_tests_netcdf
   USE mesh_types                                             , ONLY: type_mesh
   USE mesh_memory                                            , ONLY: allocate_mesh_primary, deallocate_mesh
   USE mesh_utilities                                         , ONLY: check_mesh, check_if_meshes_are_identical
-  USE mesh_creation                                          , ONLY: initialise_dummy_mesh
+  USE mesh_dummy_meshes                                      , ONLY: initialise_dummy_mesh_5
   USE mesh_refinement_basic, only: refine_mesh_uniform
   use mesh_refinement_fun, only: mesh_add_smileyface, mesh_add_UFEMISM_letters
   use mesh_Lloyds_algorithm, only: Lloyds_algorithm_single_iteration
@@ -832,7 +832,7 @@ CONTAINS
     CALL allocate_mesh_primary( mesh, name, 1000, 2000, 32)
 
     ! Initialise the dummy mesh
-    CALL initialise_dummy_mesh( mesh, xmin, xmax, ymin, ymax)
+    CALL initialise_dummy_mesh_5( mesh, xmin, xmax, ymin, ymax)
 
     ! Refine the mesh with a uniform 400 km resolution
     alpha_min = 25._dp * pi / 180._dp
@@ -1198,7 +1198,7 @@ CONTAINS
     CALL allocate_mesh_primary( mesh, name, 1000, 2000, 32)
 
     ! Initialise the dummy mesh
-    CALL initialise_dummy_mesh( mesh, xmin, xmax, ymin, ymax)
+    CALL initialise_dummy_mesh_5( mesh, xmin, xmax, ymin, ymax)
 
     ! Refine the mesh with a uniform 400 km resolution
     alpha_min = 25._dp * pi / 180._dp

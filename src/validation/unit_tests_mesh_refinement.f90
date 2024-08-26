@@ -9,7 +9,7 @@ module unit_tests_mesh_refinement
   use assertions_unit_tests
   use mesh_types, only: type_mesh
   use mesh_memory, only: allocate_mesh_primary
-  use mesh_creation, only: initialise_dummy_mesh
+  use mesh_dummy_meshes, only: initialise_dummy_mesh_5
   use mesh_refinement_basic, only: refine_mesh_uniform, refine_mesh_point, refine_mesh_line, refine_mesh_polygon
   use mesh_utilities, only: find_containing_triangle, write_mesh_to_text_file
   use math_utilities, only: longest_triangle_leg, is_in_polygon
@@ -79,7 +79,7 @@ contains
     call allocate_mesh_primary( mesh, trim(test_name)//'_mesh', 1000, 2000, 32)
 
     ! Initialise dummy mesh
-    call initialise_dummy_mesh( mesh, xmin, xmax, ymin, ymax)
+    call initialise_dummy_mesh_5( mesh, xmin, xmax, ymin, ymax)
 
     ! Refine the mesh
     C%mesh_resolution_tolerance = 1._dp
@@ -142,7 +142,7 @@ contains
     call allocate_mesh_primary( mesh, trim(test_name)//'_mesh', 1000, 2000, 32)
 
     ! Initialise dummy mesh
-    call initialise_dummy_mesh( mesh, xmin, xmax, ymin, ymax)
+    call initialise_dummy_mesh_5( mesh, xmin, xmax, ymin, ymax)
 
     ! Refine the mesh
     C%mesh_resolution_tolerance = 1._dp
@@ -203,7 +203,7 @@ contains
     call allocate_mesh_primary( mesh, trim(test_name)//'_mesh', 1000, 2000, 32)
 
     ! Initialise dummy mesh
-    call initialise_dummy_mesh( mesh, xmin, xmax, ymin, ymax)
+    call initialise_dummy_mesh_5( mesh, xmin, xmax, ymin, ymax)
 
     ! Refine the mesh
     C%mesh_resolution_tolerance = 1._dp
@@ -273,7 +273,7 @@ contains
     call allocate_mesh_primary( mesh, trim(test_name)//'_mesh', 1000, 2000, 32)
 
     ! Initialise dummy mesh
-    call initialise_dummy_mesh( mesh, xmin, xmax, ymin, ymax)
+    call initialise_dummy_mesh_5( mesh, xmin, xmax, ymin, ymax)
 
     ! Refine the mesh
     C%mesh_resolution_tolerance = 1._dp
