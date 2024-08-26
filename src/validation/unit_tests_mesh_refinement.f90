@@ -11,7 +11,8 @@ module unit_tests_mesh_refinement
   use mesh_memory, only: allocate_mesh_primary
   use mesh_dummy_meshes, only: initialise_dummy_mesh_5
   use mesh_refinement_basic, only: refine_mesh_uniform, refine_mesh_point, refine_mesh_line, refine_mesh_polygon
-  use mesh_utilities, only: find_containing_triangle, write_mesh_to_text_file
+  use mesh_refinement_basic_ROI, only: refine_mesh_line_ROI, refine_mesh_polygon_ROI
+  use mesh_utilities, only: find_containing_triangle
   use math_utilities, only: longest_triangle_leg, is_in_polygon
 
   implicit none
@@ -39,10 +40,12 @@ contains
     ! Add test name to list
     test_name = trim( test_name_parent) // '/' // trim( test_name_local)
 
-    call test_refine_mesh_uniform( test_name)
-    call test_refine_mesh_point  ( test_name)
-    call test_refine_mesh_line   ( test_name)
-    call test_refine_mesh_polygon( test_name)
+    call test_refine_mesh_uniform    ( test_name)
+    call test_refine_mesh_point      ( test_name)
+    call test_refine_mesh_line       ( test_name)
+    call test_refine_mesh_polygon    ( test_name)
+    call test_refine_mesh_line_ROI   ( test_name)
+    call test_refine_mesh_polygon_ROI( test_name)
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)
@@ -102,8 +105,8 @@ contains
       end do
     end do
 
-    call test_gt( dist_min, res_max / 5._dp, UNIT_TEST, trim(test_name)//'/minimum_resolution')
-    call test_lt( dist_max, res_max, UNIT_TEST, trim(test_name)//'/maximum_resolution')
+    call test_ge( dist_min, res_max / 5._dp, UNIT_TEST, trim(test_name)//'/minimum_resolution')
+    call test_le( dist_max, res_max, UNIT_TEST, trim(test_name)//'/maximum_resolution')
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)
@@ -161,7 +164,7 @@ contains
     r = mesh%V( mesh%Tri( ti,3),:)
     longest_leg = longest_triangle_leg( p, q, r)
 
-    call test_lt( longest_leg, res_max, UNIT_TEST, trim(test_name)//'/maximum_resolution')
+    call test_le( longest_leg, res_max, UNIT_TEST, trim(test_name)//'/maximum_resolution')
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)
@@ -232,7 +235,7 @@ contains
       longest_leg = max( longest_leg, longest_triangle_leg( p, q, r))
     end do
 
-    call test_lt( longest_leg, res_max, UNIT_TEST, trim(test_name)//'/maximum_resolution')
+    call test_le( longest_leg, res_max, UNIT_TEST, trim(test_name)//'/maximum_resolution')
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)
@@ -307,13 +310,200 @@ contains
     end do
     end do
 
-    call test_lt( longest_leg, res_max, UNIT_TEST, trim(test_name)//'/maximum_resolution')
-
-    call write_mesh_to_text_file( mesh, trim(C%output_dir)//'/test_mesh.txt')
+    call test_le( longest_leg, res_max, UNIT_TEST, trim(test_name)//'/maximum_resolution')
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)
 
   end subroutine test_refine_mesh_polygon
+
+  subroutine test_refine_mesh_line_ROI( test_name_parent)
+    ! Test the refine_mesh_line_ROI subroutine
+
+    ! In/output variables:
+    character(len=*), intent(in) :: test_name_parent
+
+    ! Local variables:
+    character(len=1024), parameter        :: routine_name = 'test_refine_mesh_line_ROI'
+    character(len=1024), parameter        :: test_name_local = 'refine_mesh_line_ROI'
+    character(len=1024)                   :: test_name
+    type(type_mesh)                       :: mesh
+    real(dp), parameter                   :: xmin = -1._dp
+    real(dp), parameter                   :: xmax =  1._dp
+    real(dp), parameter                   :: ymin = -1._dp
+    real(dp), parameter                   :: ymax =  1._dp
+    real(dp), dimension(:,:), allocatable :: p_line
+    integer                               :: n_line
+    real(dp), dimension(2)                :: p_start, p_end, pp, qq
+    real(dp)                              :: w1, w2
+    real(dp), dimension(4,2)              :: poly_ROI
+    real(dp), parameter                   :: res_max = 0.05_dp
+    real(dp)                              :: width
+    real(dp), parameter                   :: alpha_min = 0.4363_dp
+    integer                               :: n,i
+    integer                               :: ti
+    real(dp), dimension(2)                :: p, q, r
+    real(dp)                              :: longest_leg_in, longest_leg_out
+
+    ! Add routine to call stack
+    call init_routine( routine_name)
+
+    ! Add test name to list
+    test_name = trim( test_name_parent) // '/' // trim( test_name_local)
+
+    ! Allocate memory
+    call allocate_mesh_primary( mesh, trim(test_name)//'_mesh', 1000, 2000, 32)
+
+    ! Initialise dummy mesh
+    call initialise_dummy_mesh_5( mesh, xmin, xmax, ymin, ymax)
+
+    ! Refine the mesh
+    C%mesh_resolution_tolerance = 1._dp
+
+    n_line = 100
+    allocate( p_line(n_line,4))
+    p_start = [-0.5_dp, 0._dp]
+    p_end   = [ 0.5_dp, 0._dp]
+    do i = 1, n_line
+      w1 = real( i-1,dp) / real( n_line,dp)
+      w2 = real( i  ,dp) / real( n_line,dp)
+      pp = (1._dp - w1) * p_start + w1 * p_end
+      qq = (1._dp - w2) * p_start + w2 * p_end
+      p_line( i,:) = [pp(1), pp(2), qq(1), qq(2)]
+    end do
+
+    poly_ROI( 1,:) = [0._dp, -1._dp]
+    poly_ROI( 2,:) = [1._dp, -1._dp]
+    poly_ROI( 3,:) = [1._dp,  1._dp]
+    poly_ROI( 4,:) = [0._dp,  1._dp]
+
+    width = res_max / 2._dp
+
+    call refine_mesh_line_ROI( mesh, p_line, res_max, width, alpha_min, poly_ROI)
+
+    ! Check if the mesh is still self-consistent
+    call test_mesh_is_self_consistent( mesh, UNIT_TEST, trim(test_name)//'/mesh_self_consistency')
+
+    ! Check if the resolution* along the part of the line
+    ! outside of the ROI is indeed below the specified tolerance,
+    ! and the part of the line outside of the ROI is indeed
+    ! above it.
+
+    n = 100
+    ti = 1
+    longest_leg_in  = 0._dp
+    longest_leg_out = 0._dp
+    do i = 1, n
+      ! Walk along the line in small steps
+      pp = [p_line(1,1) + (p_line(1,3) - p_line(1,1)) * (real(i-1,dp) / real(n-1,dp)), &
+            p_line(1,2) + (p_line(1,4) - p_line(1,2)) * (real(i-1,dp) / real(n-1,dp))]
+      ! Find the longest triangle leg along the line
+      call find_containing_triangle( mesh, pp, ti)
+      p = mesh%V( mesh%Tri( ti,1),:)
+      q = mesh%V( mesh%Tri( ti,2),:)
+      r = mesh%V( mesh%Tri( ti,3),:)
+      if (is_in_polygon( poly_ROI, pp)) then
+        longest_leg_in = max( longest_leg_in, longest_triangle_leg( p, q, r))
+      else
+        longest_leg_out = max( longest_leg_out, longest_triangle_leg( p, q, r))
+      end if
+    end do
+
+    call test_le( longest_leg_in , res_max, UNIT_TEST, trim(test_name)//'/maximum_resolution_in')
+    call test_ge( longest_leg_out, res_max, UNIT_TEST, trim(test_name)//'/maximum_resolution_out')
+
+    ! Remove routine from call stack
+    call finalise_routine( routine_name)
+
+  end subroutine test_refine_mesh_line_ROI
+
+  subroutine test_refine_mesh_polygon_ROI( test_name_parent)
+    ! Test the refine_mesh_polygon_ROI subroutine
+
+    ! In/output variables:
+    character(len=*), intent(in) :: test_name_parent
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'test_refine_mesh_polygon_ROI'
+    character(len=1024), parameter :: test_name_local = 'refine_mesh_polygon_ROI'
+    character(len=1024)            :: test_name
+    type(type_mesh)                :: mesh
+    real(dp), parameter            :: xmin = -1._dp
+    real(dp), parameter            :: xmax =  1._dp
+    real(dp), parameter            :: ymin = -1._dp
+    real(dp), parameter            :: ymax =  1._dp
+    real(dp), dimension(5,2)       :: poly
+    real(dp), dimension(4,2)       :: poly_ROI
+    real(dp), parameter            :: res_max = 0.05_dp
+    real(dp), parameter            :: alpha_min = 0.4363_dp
+    integer                        :: n,i,j
+    real(dp), dimension(2)         :: pp
+    integer                        :: ti
+    real(dp), dimension(2)         :: p, q, r
+    real(dp)                       :: longest_leg_in, longest_leg_out
+
+    ! Add routine to call stack
+    call init_routine( routine_name)
+
+    ! Add test name to list
+    test_name = trim( test_name_parent) // '/' // trim( test_name_local)
+
+    ! Allocate memory
+    call allocate_mesh_primary( mesh, trim(test_name)//'_mesh', 1000, 2000, 32)
+
+    ! Initialise dummy mesh
+    call initialise_dummy_mesh_5( mesh, xmin, xmax, ymin, ymax)
+
+    ! Refine the mesh
+    C%mesh_resolution_tolerance = 1._dp
+
+    poly( 1,:) = [-0.43_dp, -0.129_dp]
+    poly( 2,:) = [0.27_dp, -0.45_dp]
+    poly( 3,:) = [0.67_dp, 0.16_dp]
+    poly( 4,:) = [0.54_dp, 0.27_dp]
+    poly( 5,:) = [-0.02_dp, 0.1_dp]
+
+    poly_ROI( 1,:) = [0._dp, -1._dp]
+    poly_ROI( 2,:) = [1._dp, -1._dp]
+    poly_ROI( 3,:) = [1._dp,  1._dp]
+    poly_ROI( 4,:) = [0._dp,  1._dp]
+
+    call refine_mesh_polygon_ROI( mesh, poly, res_max, alpha_min, poly_ROI)
+
+    ! Check if the mesh is still self-consistent
+    call test_mesh_is_self_consistent( mesh, UNIT_TEST, trim(test_name)//'/mesh_self_consistency')
+
+    ! Check if the resolution* inside the polygon is indeed below, but not too far below, the specified tolerance
+    ! *defined here as the longest leg of the triangles
+
+    n = 100
+    ti = 1
+    longest_leg_in  = 0._dp
+    longest_leg_out = 0._dp
+    do i = 1, n
+    do j = 1, n
+      pp = [mesh%xmin + (mesh%xmax - mesh%xmin) * (real(i-1,dp) / real(n-1,dp)), &
+            mesh%ymin + (mesh%ymax - mesh%ymin) * (real(j-1,dp) / real(n-1,dp))]
+      if (is_in_polygon( poly, pp)) then
+        call find_containing_triangle( mesh, pp, ti)
+        p = mesh%V( mesh%Tri( ti,1),:)
+        q = mesh%V( mesh%Tri( ti,2),:)
+        r = mesh%V( mesh%Tri( ti,3),:)
+        if (is_in_polygon( poly_ROI, pp)) then
+          longest_leg_in = max( longest_leg_in, longest_triangle_leg( p, q, r))
+        else
+          longest_leg_out = max( longest_leg_out, longest_triangle_leg( p, q, r))
+        end if
+      end if
+    end do
+    end do
+
+    call test_le( longest_leg_in , res_max, UNIT_TEST, trim(test_name)//'/maximum_resolution_in')
+    call test_ge( longest_leg_out, res_max, UNIT_TEST, trim(test_name)//'/maximum_resolution_out')
+
+    ! Remove routine from call stack
+    call finalise_routine( routine_name)
+
+  end subroutine test_refine_mesh_polygon_ROI
 
 end module unit_tests_mesh_refinement

@@ -537,7 +537,7 @@ subroutine refine_mesh_polygon( mesh, poly, res_max, alpha_min, poly_mult_not)
     n2 = 0
     is_in_poly_not = .false.
 
-    do while (PRESENT(poly_mult_not) .and. n2 < size( poly_mult_not,1))
+    do while (present(poly_mult_not) .and. n2 < size( poly_mult_not,1))
 
       ! Copy a single polygon from poly_mult
       nn = NinT( poly_mult_not( n1,1))
@@ -766,7 +766,7 @@ subroutine refine_mesh_split_encroaching_triangles_all( mesh, alpha_min)
   real(dp),                   intent(in)        :: alpha_min     ! Minimum allowed internal triangle angle
 
   ! Local variables:
-  character(len=256), parameter                 :: routine_name = 'refine_mesh_split_encroaching_triangles'
+  character(len=256), parameter                 :: routine_name = 'refine_mesh_split_encroaching_triangles_all'
   integer                                       :: ti
   integer                                       :: via, vib, vic
   real(dp), dimension(2)                        :: va, vb, vc
