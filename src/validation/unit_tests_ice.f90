@@ -33,7 +33,7 @@ MODULE unit_tests_ice
   USE math_utilities                                         , ONLY: ice_surface_elevation
   USE analytical_solutions                                   , ONLY: Halfar_dome
   USE UFEMISM_main_model                                     , ONLY: initialise_model_region, run_model_region
-  USE mesh_remapping                                         , ONLY: clear_all_maps_involving_this_mesh
+  USE mesh_remapping_apply_maps                              , ONLY: clear_all_maps_involving_this_mesh
   USE GIA_modeL_types                                        , ONLY: type_GIA_model
 
   IMPLICIT NONE

@@ -22,7 +22,7 @@ MODULE unit_tests_netcdf
   use mesh_Lloyds_algorithm, only: Lloyds_algorithm_single_iteration
   USE mesh_secondary                                         , ONLY: calc_all_secondary_mesh_data
   USE mesh_operators                                         , ONLY: calc_all_matrix_operators_mesh
-  USE mesh_remapping                                         , ONLY: clear_all_maps_involving_this_mesh
+  USE mesh_remapping_apply_maps                              , ONLY: clear_all_maps_involving_this_mesh
   USE netcdf_basic                                           , ONLY: create_new_netcdf_file_for_writing, open_existing_netcdf_file_for_reading, close_netcdf_file
   USE netcdf_output                                          , ONLY: setup_xy_grid_in_netcdf_file, add_field_grid_dp_2D_notime, add_month_dimension_to_file, &
                                                                      write_to_field_multopt_grid_dp_2D_notime, add_field_grid_dp_2D_monthly_notime, &
