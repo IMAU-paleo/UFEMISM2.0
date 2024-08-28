@@ -94,6 +94,8 @@ jobs:
 
       - name: Install MATLAB
         uses: matlab-actions/setup-matlab@v2.2.0
+        with:
+          cache: true
 
       - name: Analyse unit tests results
         uses: matlab-actions/run-command@v2
@@ -160,6 +162,8 @@ jobs:
 
       - name: Install MATLAB
         uses: matlab-actions/setup-matlab@v2.2.0
+        with:
+          cache: true
 
       - name: Analyse component tests results
         uses: matlab-actions/run-command@v2
