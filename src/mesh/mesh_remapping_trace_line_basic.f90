@@ -1,5 +1,7 @@
 module mesh_remapping_trace_line_basic
 
+  ! Some very basic functionality for the line tracing algorithms
+
   use precisions, only: dp
   use remapping_types, only: type_single_row_mapping_matrices
 

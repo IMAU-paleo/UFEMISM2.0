@@ -120,6 +120,8 @@ UFEMISM_source = \
   mesh/mesh_remapping_trace_line_grid.f90 \
   mesh/mesh_remapping_trace_line_triangles.f90 \
   mesh/mesh_remapping_trace_line_Voronoi_cells.f90 \
+  mesh/mesh_remapping_create_map_grid_mesh.f90 \
+  mesh/mesh_remapping_create_map_gridlonlat_mesh.f90 \
   mesh/mesh_remapping.f90 \
   mesh/mesh_secondary.f90 \
   mesh/mesh_creation.f90 \
