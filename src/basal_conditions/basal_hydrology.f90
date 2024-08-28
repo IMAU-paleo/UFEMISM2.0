@@ -22,7 +22,7 @@ MODULE basal_hydrology
   USE mesh_utilities                                         , ONLY: find_containing_vertex, find_containing_triangle, extrapolate_Gaussian
   USE math_utilities                                         , ONLY: triangle_area, is_floating
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_1D, gather_to_all_logical_1D
-  USE mesh_remapping                                         , ONLY: smooth_Gaussian_2D
+  USE mesh_data_smoothing                                    , ONLY: smooth_Gaussian_2D
   USE netcdf_debug                                           , ONLY: save_variable_as_netcdf_dp_1D, save_variable_as_netcdf_dp_2D
   USE netcdf_input                                           , ONLY: read_field_from_file_2D
 

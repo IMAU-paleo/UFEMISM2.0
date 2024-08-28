@@ -27,7 +27,7 @@ MODULE basal_inversion_H_dHdt_flowline
   USE math_utilities                                         , ONLY: triangle_area
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_1D, gather_to_all_logical_1D
   USE mesh_operators                                         , ONLY: ddx_a_a_2D, ddy_a_a_2D
-  USE mesh_remapping                                         , ONLY: smooth_Gaussian_2D
+  USE mesh_data_smoothing                                    , ONLY: smooth_Gaussian_2D
 
 
   IMPLICIT NONE
