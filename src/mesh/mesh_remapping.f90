@@ -29,32 +29,9 @@ module mesh_remapping
                                                                      find_shared_Voronoi_boundary, check_if_meshes_are_identical, set_border_vertices_to_interior_mean_dp_2D, &
                                                                      set_border_vertices_to_interior_mean_dp_3D, extrapolate_Gaussian
   use mesh_operators                                         , only: calc_all_matrix_operators_mesh
+  use remapping_types, only: type_map, type_single_row_mapping_matrices
 
   implicit none
-
-! ===== Derived types =====
-! =========================
-
-  type type_map
-    ! A mapping object
-
-    logical                                 :: is_in_use = .false.           ! Flag that indicates whether this map is in use
-    character(len=256)                      :: name_src  = ''                ! Name of the source grid
-    character(len=256)                      :: name_dst  = ''                ! Name of the destination grid
-    character(len=256)                      :: method    = ''                ! Remapping method (nearest-neighbour, bilinear, 2-nd order conservative, etc.)
-    type(tMat)                              :: M                             ! The actual operator matrix
-
-  end type type_map
-
-  type type_single_row_mapping_matrices
-    ! Results from integrating around the border of a single grid cell
-
-    integer                                 :: n_max
-    integer                                 :: n
-    integer,  dimension(:    ), allocatable :: index_left
-    real(dp), dimension(:    ), allocatable :: LI_xdy, LI_mxydx, LI_xydy
-
-  end type type_single_row_mapping_matrices
 
   ! The Atlas: the complete collection of all mapping objects.
   ! ==========================================================

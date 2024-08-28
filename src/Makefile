@@ -63,6 +63,7 @@ UFEMISM_source = \
   types/CSR_sparse_matrix_type.f90 \
   types/grid_types.f90 \
   types/mesh_types.f90 \
+  types/remapping_types.f90 \
   types/reference_geometry_types.f90 \
   types/scalar_types.f90 \
   types/ice_model_types.f90 \
