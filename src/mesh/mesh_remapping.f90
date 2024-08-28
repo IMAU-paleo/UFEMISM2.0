@@ -1552,16 +1552,16 @@ CONTAINS
     ! Safety
     IF (map%is_in_use) CALL crash('this map is already in use!')
 
-  ! == Initialise map metadata
-  ! ==========================
+    ! == Initialise map metadata
+    ! ==========================
 
     map%is_in_use = .TRUE.
     map%name_src  = grid%name
     map%name_dst  = mesh%name
     map%method    = '2nd_order_conservative'
 
-  ! == Initialise the three matrices using the native UFEMISM CSR-matrix format
-  ! ===========================================================================
+    ! == Initialise the three matrices using the native UFEMISM CSR-matrix format
+    ! ===========================================================================
 
     ! Matrix size
     nrows           = mesh%nV  ! to
@@ -1747,8 +1747,8 @@ CONTAINS
     DEALLOCATE( single_row_grid%LI_mxydx   )
     DEALLOCATE( single_row_grid%LI_xydy    )
 
-  ! Calculate w0, w1x, w1y for the mesh-to-grid remapping operator
-  ! ==============================================================
+    ! Calculate w0, w1x, w1y for the mesh-to-grid remapping operator
+    ! ==============================================================
 
     CALL allocate_matrix_CSR_dist( w0_CSR , nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
     CALL allocate_matrix_CSR_dist( w1x_CSR, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
@@ -1878,16 +1878,16 @@ CONTAINS
     ! Safety
     IF (map%is_in_use) CALL crash('this map is already in use!')
 
-  ! == Initialise map metadata
-  ! ==========================
+    ! == Initialise map metadata
+    ! ==========================
 
     map%is_in_use = .TRUE.
     map%name_src  = grid%name
     map%name_dst  = TRIM( mesh%name) // '_triangles'
     map%method    = '2nd_order_conservative'
 
-  ! == Initialise the three matrices using the native UFEMISM CSR-matrix format
-  ! ===========================================================================
+    ! == Initialise the three matrices using the native UFEMISM CSR-matrix format
+    ! ===========================================================================
 
     ! Matrix size
     nrows           = mesh%nTri  ! to
@@ -2079,8 +2079,8 @@ CONTAINS
     DEALLOCATE( single_row_grid%LI_mxydx   )
     DEALLOCATE( single_row_grid%LI_xydy    )
 
-  ! Calculate w0, w1x, w1y for the mesh-to-grid remapping operator
-  ! ==============================================================
+    ! Calculate w0, w1x, w1y for the mesh-to-grid remapping operator
+    ! ==============================================================
 
     CALL allocate_matrix_CSR_dist( w0_CSR , nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
     CALL allocate_matrix_CSR_dist( w1x_CSR, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
@@ -2215,16 +2215,16 @@ CONTAINS
     ! Safety
     IF (map%is_in_use) CALL crash('this map is already in use!')
 
-  ! == Initialise map metadata
-  ! ==========================
+    ! == Initialise map metadata
+    ! ==========================
 
     map%is_in_use = .TRUE.
     map%name_src  = mesh%name
     map%name_dst  = grid%name
     map%method    = '2nd_order_conservative'
 
-  ! == Find all grid cells that overlap with small triangles
-  ! ========================================================
+    ! == Find all grid cells that overlap with small triangles
+    ! ========================================================
 
     ALLOCATE( overlaps_with_small_triangle( grid%nx, grid%ny), source = 0)
     ALLOCATE( containing_triangle(          grid%nx, grid%ny), source = 0)
@@ -2335,8 +2335,8 @@ CONTAINS
     END DO
     CALL sync
 
-  ! == Integrate around all grid cells that overlap with small triangles
-  ! ====================================================================
+    ! == Integrate around all grid cells that overlap with small triangles
+    ! ====================================================================
 
     ! Initialise the three matrices using the native UFEMISM CSR-matrix format
 
@@ -2520,8 +2520,8 @@ CONTAINS
     DEALLOCATE( single_row_Tri%LI_mxydx   )
     DEALLOCATE( single_row_Tri%LI_xydy    )
 
-  ! Calculate w0, w1x, w1y for the mesh-to-grid remapping operator
-  ! ==============================================================
+    ! Calculate w0, w1x, w1y for the mesh-to-grid remapping operator
+    ! ==============================================================
 
     CALL allocate_matrix_CSR_dist( w0_CSR , nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
     CALL allocate_matrix_CSR_dist( w1x_CSR, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
@@ -2555,8 +2555,8 @@ CONTAINS
     CALL mat_CSR2petsc( w1x_CSR, w1x)
     CALL mat_CSR2petsc( w1y_CSR, w1y)
 
-  ! Calculate the remapping matrix
-  ! ==============================
+    ! Calculate the remapping matrix
+    ! ==============================
 
     ! Convert matrices to PETSc format
     CALL mat_CSR2petsc( mesh%M_map_a_b, M_map_a_b)
@@ -2580,8 +2580,8 @@ CONTAINS
     CALL MatDestroy( M1            , perr)
     CALL MatDestroy( M2            , perr)
 
-  ! Safety: check if all grid cells get values
-  ! ==========================================
+    ! Safety: check if all grid cells get values
+    ! ==========================================
 
     ALLOCATE( cols_row( nnz_per_row_max))
     ALLOCATE( vals_row( nnz_per_row_max))
@@ -2636,16 +2636,16 @@ CONTAINS
     ! Safety
     IF (map%is_in_use) CALL crash('this map is already in use!')
 
-  ! == Initialise map metadata
-  ! ==========================
+    ! == Initialise map metadata
+    ! ==========================
 
     map%is_in_use = .TRUE.
     map%name_src  = grid%name
     map%name_dst  = mesh%name
     map%method    = 'bilin'
 
-  ! == Initialise the mapping matrix using the native UFEMISM CSR-matrix format
-  ! ===========================================================================
+    ! == Initialise the mapping matrix using the native UFEMISM CSR-matrix format
+    ! ===========================================================================
 
     ! Matrix size
     nrows           = mesh%nV  ! to
@@ -2731,16 +2731,16 @@ CONTAINS
     ! Safety
     IF (map%is_in_use) CALL crash('this map is already in use!')
 
-  ! == Initialise map metadata
-  ! ==========================
+    ! == Initialise map metadata
+    ! ==========================
 
     map%is_in_use = .TRUE.
     map%name_src  = mesh_src%name
     map%name_dst  = mesh_dst%name
     map%method    = 'nearest_neighbour'
 
-  ! == Initialise the matrix using the native UFEMISM CSR-matrix format
-  ! ===================================================================
+    ! == Initialise the matrix using the native UFEMISM CSR-matrix format
+    ! ===================================================================
 
     ! Matrix size
     nrows           = mesh_dst%nV   ! to
@@ -2809,16 +2809,16 @@ CONTAINS
     ! Safety
     IF (map%is_in_use) CALL crash('this map is already in use!')
 
-  ! == Initialise map metadata
-  ! ==========================
+    ! == Initialise map metadata
+    ! ==========================
 
     map%is_in_use = .TRUE.
     map%name_src  = mesh_src%name
     map%name_dst  = mesh_dst%name
     map%method    = 'trilin'
 
-  ! == Initialise the matrix using the native UFEMISM CSR-matrix format
-  ! ===================================================================
+    ! == Initialise the matrix using the native UFEMISM CSR-matrix format
+    ! ===================================================================
 
     ! Matrix size
     nrows           = mesh_dst%nV   ! to
@@ -2916,8 +2916,8 @@ CONTAINS
     ! Safety
     IF (map%is_in_use) CALL crash('this map is already in use!')
 
-  ! == Initialise map metadata
-  ! ==========================
+    ! == Initialise map metadata
+    ! ==========================
 
     map%is_in_use = .TRUE.
     map%name_src  = mesh_src%name
@@ -3007,8 +3007,8 @@ CONTAINS
     CALL MatDestroy( B_mxydx_a_b, perr)
     CALL MatDestroy( B_xydy_a_b , perr)
 
-  ! == Calculate the remapping matrices
-  ! ===================================
+    ! == Calculate the remapping matrices
+    ! ===================================
 
     ! Safety
     IF (.NOT. ALLOCATED( mesh_src%vi2n)) THEN
@@ -3041,8 +3041,8 @@ CONTAINS
     CALL MatDestroy( M1              , perr)
     CALL MatDestroy( M2              , perr)
 
-  ! == Apply some final corrections
-  ! ===============================
+    ! == Apply some final corrections
+    ! ===============================
 
     CALL correct_mesh_to_mesh_map( mesh_src, mesh_dst, M_cons_1st_order, map%M)
 
@@ -3094,10 +3094,10 @@ CONTAINS
     CALL mat_petsc2CSR( M_cons_1st_order, M_cons_1st_order_CSR)
     CALL mat_petsc2CSR( M_cons_2nd_order, M_cons_2nd_order_CSR)
 
-  ! == Set to zero
-  !
-  ! 2nd-order conservative doesn't work all that well on the
-  ! domain border; just set the result to zero there.
+    ! == Set to zero
+    !
+    ! 2nd-order conservative doesn't work all that well on the
+    ! domain border; just set the result to zero there.
 
     DO i = M_cons_2nd_order_CSR%i1, M_cons_2nd_order_CSR%i2
 
@@ -3114,11 +3114,11 @@ CONTAINS
 
     END DO ! DO i = M_cons_2nd_order_CSR%i1, M_cons_2nd_order_CSR%i2
 
-  ! == Direct copying
-  !
-  ! With the new mesh generation code (of UFE2.0), many vertices away from the grounding line
-  ! remain unchanged after a mesh update. The vertex-to-triangle-to-vertex remapping is slightly
-  ! diffusive, so instead we can just copy data directly for those vertices.
+    ! == Direct copying
+    !
+    ! With the new mesh generation code (of UFE2.0), many vertices away from the grounding line
+    ! remain unchanged after a mesh update. The vertex-to-triangle-to-vertex remapping is slightly
+    ! diffusive, so instead we can just copy data directly for those vertices.
 
     DO i = M_cons_2nd_order_CSR%i1, M_cons_2nd_order_CSR%i2
 
@@ -3188,14 +3188,14 @@ CONTAINS
 
     END DO ! DO i = M_cons_2nd_order_CSR%i1, M_cons_2nd_order_CSR%i2
 
-  ! == Remapping errors
-  !
-  ! On very rare occasions, the remapping operator is just wrong, likely due to round-off
-  ! errors in determining if vertices coincide or not. Usually, the 1st-order operator
-  ! is fine. If that one fails too, just replace the answer with trilinear interpolation.
-  !
-  ! Faulty operators can be detected by negative coefficients in the remapping matrix,
-  ! which automatically violate conservation of extreme values.
+    ! == Remapping errors
+    !
+    ! On very rare occasions, the remapping operator is just wrong, likely due to round-off
+    ! errors in determining if vertices coincide or not. Usually, the 1st-order operator
+    ! is fine. If that one fails too, just replace the answer with trilinear interpolation.
+    !
+    ! Faulty operators can be detected by negative coefficients in the remapping matrix,
+    ! which automatically violate conservation of extreme values.
 
     ! Calculate the trilinear interpolation operator to serve as a back-up
     CALL create_map_from_mesh_to_mesh_trilin( mesh_src, mesh_dst, map_trilin)
@@ -3330,8 +3330,8 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-  ! == Initialise the three matrices using the native UFEMISM CSR-matrix format
-  ! ===========================================================================
+    ! == Initialise the three matrices using the native UFEMISM CSR-matrix format
+    ! ===========================================================================
 
     ! Matrix sise
     nrows           = mesh_tri%nTri  ! to
@@ -3355,8 +3355,8 @@ CONTAINS
     ALLOCATE( single_row%LI_mxydx(   single_row%n_max))
     ALLOCATE( single_row%LI_xydy(    single_row%n_max))
 
-  ! == Trace all the line segments to fill the matrices
-  ! ===================================================
+    ! == Trace all the line segments to fill the matrices
+    ! ===================================================
 
     vi_hint = 1
 
@@ -3449,11 +3449,11 @@ CONTAINS
     INTEGER                                            :: nVor
     REAL(dp), DIMENSION(2)                             :: p, q
 
-
     ! Add routine to path
     CALL init_routine( routine_name)
-  ! == Initialise the three matrices using the native UFEMISM CSR-matrix format
-  ! ===========================================================================
+
+    ! == Initialise the three matrices using the native UFEMISM CSR-matrix format
+    ! ===========================================================================
 
     ! Matrix sise
     nrows           = mesh_Vor%nV    ! to
@@ -3477,8 +3477,8 @@ CONTAINS
     ALLOCATE( single_row%LI_mxydx(   single_row%n_max))
     ALLOCATE( single_row%LI_xydy(    single_row%n_max))
 
-  ! == Trace all the line segments to fill the matrices
-  ! ===================================================
+    ! == Trace all the line segments to fill the matrices
+    ! ===================================================
 
     ti_hint = 1
 
@@ -4366,8 +4366,8 @@ CONTAINS
 
   ! Line tracing algorithm through mesh Voronoi cells
   SUBROUTINE trace_line_Vor( mesh, p, q, single_row, count_coincidences, vi_hint)
-  ! Trace the line [pq] through the Voronoi cells of the mesh and calculate
-  ! the three line integrals for the line segments inside the different Voronoi cells
+    ! Trace the line [pq] through the Voronoi cells of the mesh and calculate
+    ! the three line integrals for the line segments inside the different Voronoi cells
 
     IMPLICIT NONE
 
