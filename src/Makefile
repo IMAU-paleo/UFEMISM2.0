@@ -116,6 +116,10 @@ UFEMISM_source = \
   mesh/mesh_parallel_creation.f90 \
   mesh/mesh_zeta.f90 \
   mesh/mesh_operators.f90 \
+  mesh/mesh_remapping_trace_line_basic.f90 \
+  mesh/mesh_remapping_trace_line_grid.f90 \
+  mesh/mesh_remapping_trace_line_triangles.f90 \
+  mesh/mesh_remapping_trace_line_Voronoi_cells.f90 \
   mesh/mesh_remapping.f90 \
   mesh/mesh_secondary.f90 \
   mesh/mesh_creation.f90 \
