@@ -17,6 +17,7 @@ MODULE BMB_main
   USE SMB_model_types                                        , ONLY: type_SMB_model
   USE BMB_model_types                                        , ONLY: type_BMB_model
   USE BMB_idealised                                          , ONLY: initialise_BMB_model_idealised, run_BMB_model_idealised
+  USE BMB_prescribed                                         , ONLY: initialise_BMB_model_prescribed, run_BMB_model_prescribed
   USE BMB_parameterised                                      , ONLY: initialise_BMB_model_parameterised, run_BMB_model_parameterised
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   USE math_utilities                                         , ONLY: is_floating
@@ -55,29 +56,6 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! Check if we need to calculate a new BMB
-    IF (C%do_asynchronous_BMB) THEN
-      ! Asynchronous coupling: do not calculate a new BMB in
-      ! every model loop, but only at its own separate time step
-
-      ! Check if this is the next BMB time step
-      IF (time == BMB%t_next) THEN
-        ! Go on to calculate a new BMB
-        BMB%t_next = time + C%dt_BMB
-      ELSEIF (time > BMB%t_next) THEN
-        ! This should not be possible
-        CALL crash('overshot the BMB time step')
-      ELSE
-        ! It is not yet time to calculate a new BMB
-        CALL finalise_routine( routine_name)
-        RETURN
-      END IF
-
-    ELSE ! IF (C%do_asynchronous_BMB) THEN
-      ! Synchronous coupling: calculate a new BMB in every model loop
-      BMB%t_next = time + C%dt_BMB
-    END IF
-
     ! Determine which BMB model to run for this region
     SELECT CASE (region_name)
       CASE ('NAM')
@@ -92,15 +70,53 @@ CONTAINS
         CALL crash('unknown region_name "' // region_name // '"')
     END SELECT
 
+    ! Check if we need to calculate a new BMB
+    IF (C%do_asynchronous_BMB) THEN
+      ! Asynchronous coupling: do not calculate a new BMB in
+      ! every model loop, but only at its own separate time step
+
+      ! Check if this is the next BMB time step
+      IF (time == BMB%t_next) THEN
+        ! Go on to calculate a new BMB
+        BMB%t_next = time + C%dt_BMB
+      ELSEIF (time > BMB%t_next) THEN
+        ! This should not be possible
+        CALL crash('overshot the BMB time step')
+      ELSE
+        ! It is not yet time to calculate a new BMB
+
+        ! Apply subgrid scheme of old BMB to new mask
+        SELECT CASE (choice_BMB_model)
+          CASE ('inverted')
+            ! No need to do anything
+          CASE ('prescribed_fixed')
+            ! No need to do anything
+          CASE DEFAULT
+            CALL apply_BMB_subgrid_scheme( mesh, ice, BMB)
+        END SELECT
+
+        CALL finalise_routine( routine_name)
+        RETURN
+      END IF
+
+    ELSE ! IF (C%do_asynchronous_BMB) THEN
+      ! Synchronous coupling: calculate a new BMB in every model loop
+      BMB%t_next = time + C%dt_BMB
+    END IF
+
     ! Run the chosen BMB model
     SELECT CASE (choice_BMB_model)
       CASE ('uniform')
-        BMB%BMB = 0._dp
+        BMB%BMB_shelf = 0._dp
         DO vi = mesh%vi1, mesh%vi2
           IF (ice%mask_floating_ice( vi) .OR. ice%mask_icefree_ocean( vi) .OR. ice%mask_gl_gr( vi)) THEN
-            BMB%BMB( vi) = C%uniform_BMB
+            BMB%BMB_shelf( vi) = C%uniform_BMB
           END IF
         END DO
+      CASE ('prescribed')
+        CALL run_BMB_model_prescribed( mesh, ice, BMB, region_name, time)
+      CASE ('prescribed_fixed')
+        ! No need to do anything
       CASE ('idealised')
         CALL run_BMB_model_idealised( mesh, ice, BMB, time)
       CASE ('parameterised')
@@ -109,6 +125,16 @@ CONTAINS
         CALL run_BMB_model_inverted( mesh, ice, BMB, time)
       CASE DEFAULT
         CALL crash('unknown choice_BMB_model "' // TRIM( choice_BMB_model) // '"')
+    END SELECT
+
+    ! Apply subgrid scheme of old BMB to new mask
+    SELECT CASE (choice_BMB_model)
+      CASE ('inverted')
+        ! No need to do anything
+      CASE ('prescribed_fixed')
+        ! No need to do anything
+      CASE DEFAULT
+        CALL apply_BMB_subgrid_scheme( mesh, ice, BMB)
     END SELECT
 
     ! Finalise routine path
@@ -155,6 +181,10 @@ CONTAINS
     ALLOCATE( BMB%BMB( mesh%vi1:mesh%vi2))
     BMB%BMB = 0._dp
 
+    ! Allocate shelf BMB
+    ALLOCATE( BMB%BMB_shelf( mesh%vi1:mesh%vi2))
+    BMB%BMB_shelf = 0._dp
+
     ! Allocate inverted BMB
     ALLOCATE( BMB%BMB_inv( mesh%vi1:mesh%vi2))
     BMB%BMB_inv = 0._dp
@@ -178,6 +208,11 @@ CONTAINS
     SELECT CASE (choice_BMB_model)
       CASE ('uniform')
         ! No need to do anything
+      CASE ('prescribed')
+        CALL initialise_BMB_model_prescribed( mesh, BMB, region_name)
+      CASE ('prescribed_fixed')
+        CALL initialise_BMB_model_prescribed( mesh, BMB, region_name)
+        CALL apply_BMB_subgrid_scheme( mesh, ice, BMB)
       CASE ('idealised')
         CALL initialise_BMB_model_idealised( mesh, BMB)
       CASE ('parameterised')
@@ -228,6 +263,10 @@ CONTAINS
     ! Write to the restart file of the chosen BMB model
     SELECT CASE (choice_BMB_model)
       CASE ('uniform')
+        ! No need to do anything
+      CASE ('prescribed')
+        ! No need to do anything
+      CASE ('prescribed_fixed')
         ! No need to do anything
       CASE ('idealised')
         ! No need to do anything
@@ -323,6 +362,10 @@ CONTAINS
     ! Create the restart file of the chosen BMB model
     SELECT CASE (choice_BMB_model)
       CASE ('uniform')
+        ! No need to do anything
+      CASE ('prescribed')
+        ! No need to do anything
+      CASE ('prescribed_fixed')
         ! No need to do anything
       CASE ('idealised')
         ! No need to do anything
@@ -430,6 +473,7 @@ CONTAINS
 
     ! Reallocate memory for main variables
     CALL reallocate_bounds( BMB%BMB, mesh_new%vi1, mesh_new%vi2)
+    CALL reallocate_bounds( BMB%BMB_shelf, mesh_new%vi1, mesh_new%vi2)
     CALL reallocate_bounds( BMB%BMB_inv, mesh_new%vi1, mesh_new%vi2)
     CALL reallocate_bounds( BMB%BMB_ref, mesh_new%vi1, mesh_new%vi2)
 
@@ -447,6 +491,11 @@ CONTAINS
     SELECT CASE (choice_BMB_model)
       CASE ('uniform')
         ! No need to do anything
+      CASE ('prescribed')
+        CALL initialise_BMB_model_prescribed( mesh_new, BMB, region_name)
+      CASE ('prescribed_fixed')
+        CALL initialise_BMB_model_prescribed( mesh_new, BMB, region_name)
+        CALL apply_BMB_subgrid_scheme( mesh_new, ice, BMB)
       CASE ('idealised')
         ! No need to do anything
       CASE ('parameterised')
@@ -622,5 +671,52 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE run_BMB_model_inverted
+
+  SUBROUTINE apply_BMB_subgrid_scheme( mesh, ice, BMB)
+    ! Apply selected scheme for sub-grid shelf melt
+    ! (see Leguy et al. 2021 for explanations of the three schemes)
+
+    IMPLICIT NONE
+
+    ! In- and output variables
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh
+    TYPE(type_ice_model),                   INTENT(IN)    :: ice
+    TYPE(type_BMB_model),                   INTENT(INOUT)   :: BMB
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'apply_BMB_subgrid_scheme'
+    CHARACTER(LEN=256)                                    :: choice_BMB_subgrid
+    INTEGER                                               :: vi
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Note: apply extrapolation_FCMP_to_PMP to non-laddie BMB models before applying sub-grid schemes
+
+    BMB%BMB = 0._dp
+
+    DO vi = mesh%vi1, mesh%vi2
+      ! Different sub-grid schemes for sub-shelf melt
+      IF (C%do_subgrid_BMB_at_grounding_line) THEN
+        IF     (C%choice_BMB_subgrid == 'FCMP') THEN
+          ! Apply FCMP scheme
+          IF (ice%mask_floating_ice( vi)) BMB%BMB( vi) = BMB%BMB_shelf( vi)
+        ELSEIF (C%choice_BMB_subgrid == 'PMP') THEN
+          ! Apply PMP scheme
+          IF (ice%mask_floating_ice( vi) .OR. ice%mask_gl_gr( vi)) BMB%BMB( vi) = (1._dp - ice%fraction_gr( vi)) * BMB%BMB_shelf( vi)
+        ELSE
+          CALL crash('unknown choice_BMB_subgrid "' // TRIM(C%choice_BMB_subgrid) // '"!')
+        END IF
+      ELSE
+        ! Apply NMP scheme
+        IF (ice%fraction_gr( vi) == 0._dp) BMB%BMB( vi) = BMB%BMB_shelf( vi)
+      END IF
+    END DO
+    CALL sync
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE apply_BMB_subgrid_scheme
 
 END MODULE BMB_main
