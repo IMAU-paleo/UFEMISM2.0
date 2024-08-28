@@ -123,6 +123,7 @@ UFEMISM_source = \
   mesh/mesh_remapping_create_map_grid_mesh.f90 \
   mesh/mesh_remapping_create_map_gridlonlat_mesh.f90 \
   mesh/mesh_remapping_create_map_mesh_mesh.f90 \
+  mesh/mesh_remapping_apply_maps.f90 \
   mesh/mesh_remapping.f90 \
   mesh/mesh_secondary.f90 \
   mesh/mesh_creation.f90 \

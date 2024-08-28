@@ -13,7 +13,7 @@ module mesh_remapping_create_map_mesh_mesh
     add_empty_row_CSR_dist, add_entry_CSR_dist, deallocate_matrix_CSR_dist
   use math_utilities, only: triangle_area
   use mesh_utilities, only: calc_Voronoi_cell, find_containing_triangle, find_containing_vertex
-  use petsc_basic, only: mat_CSR2petsc, mat_petsc2CSR, MatDestroy, MatConvert
+  use petsc_basic, only: mat_CSR2petsc, mat_petsc2CSR, MatConvert
   use mesh_remapping_trace_line_triangles, only: trace_line_tri
   use mesh_remapping_trace_line_Voronoi_cells, only: trace_line_Vor
 
