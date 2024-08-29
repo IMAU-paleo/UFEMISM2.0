@@ -9,7 +9,6 @@ module component_tests_discretisation_mapping_derivatives
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash, colour_string
   use mpi_basic, only: par, sync
   use mesh_types, only: type_mesh
-  use component_tests_create_test_meshes, only: read_list_of_test_mesh_filenames
   use netcdf_basic, only: open_existing_netcdf_file_for_reading, close_netcdf_file, create_new_netcdf_file_for_writing
   use netcdf_input, only: setup_mesh_from_file
   use petsc_basic, only: multiply_CSR_matrix_with_vector_1D
@@ -34,19 +33,17 @@ module component_tests_discretisation_mapping_derivatives
 contains
 
   !> Run all mapping/derivative tests.
-  subroutine run_all_map_deriv_tests( foldername_test_meshes, filename_test_meshes_list, foldername_discretisation)
+  subroutine run_all_map_deriv_tests( foldername_discretisation, test_mesh_filenames)
 
     ! In/output variables:
-    character(len=*), intent(in) :: foldername_test_meshes
-    character(len=*), intent(in) :: filename_test_meshes_list
-    character(len=*), intent(in) :: foldername_discretisation
+    character(len=*),               intent(in) :: foldername_discretisation
+    character(len=*), dimension(:), intent(in) :: test_mesh_filenames
 
     ! Local variables:
-    character(len=1024), parameter                 :: routine_name = 'run_all_map_deriv_tests'
-    character(len=1024)                            :: foldername_map_deriv
-    character(len=1024), dimension(:), allocatable :: test_mesh_filenames
-    character(len=1024)                            :: test_mesh_filename
-    integer                                        :: i
+    character(len=1024), parameter :: routine_name = 'run_all_map_deriv_tests'
+    character(len=1024)            :: foldername_map_deriv
+    character(len=1024)            :: test_mesh_filename
+    integer                        :: i
 
     ! Add routine to call stack
     call init_routine( routine_name)
@@ -56,11 +53,9 @@ contains
 
     call create_map_deriv_tests_output_folder( foldername_discretisation, foldername_map_deriv)
 
-    call read_list_of_test_mesh_filenames( filename_test_meshes_list, test_mesh_filenames)
-
     do i = 1, size(test_mesh_filenames)
       test_mesh_filename = trim(test_mesh_filenames( i))
-      call run_all_map_deriv_tests_on_mesh( foldername_map_deriv, foldername_test_meshes, test_mesh_filename)
+      call run_all_map_deriv_tests_on_mesh( foldername_map_deriv, test_mesh_filename)
     end do
 
     ! Remove routine from call stack
@@ -105,12 +100,10 @@ contains
   end subroutine create_map_deriv_tests_output_folder
 
   !> Run all the mapping/derivative tests on a particular mesh
-  subroutine run_all_map_deriv_tests_on_mesh( foldername_discretisation, &
-    foldername_test_meshes, test_mesh_filename)
+  subroutine run_all_map_deriv_tests_on_mesh( foldername_discretisation, test_mesh_filename)
 
     ! In/output variables:
     character(len=*), intent(in) :: foldername_discretisation
-    character(len=*), intent(in) :: foldername_test_meshes
     character(len=*), intent(in) :: test_mesh_filename
 
     ! Local variables:
@@ -127,7 +120,7 @@ contains
       colour_string(trim(test_mesh_filename),'light blue'), '...'
 
     ! Set up the mesh from the file (includes calculating secondary geometry data and matrix operators)
-    call open_existing_netcdf_file_for_reading( trim(foldername_test_meshes)//'/'//trim(test_mesh_filename), ncid)
+    call open_existing_netcdf_file_for_reading( trim(test_mesh_filename), ncid)
     call setup_mesh_from_file( test_mesh_filename, ncid, mesh)
     call close_netcdf_file( ncid)
 
@@ -481,14 +474,19 @@ contains
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'write_map_deriv_test_results_to_file'
     integer                        :: ncid
+    character(len=1024)            :: mesh_name
     character(len=1024)            :: filename
+    integer                        :: i
 
     ! Add routine to call stack
     call init_routine( routine_name)
 
     ! Create a file and write the mesh to it
+    mesh_name = test_mesh_filename( 1:len_trim( test_mesh_filename)-3)
+    i = index( mesh_name, '/', back = .true.)
+    mesh_name = mesh_name( i+1:len_trim( mesh_name))
     filename = trim(foldername_discretisation) // '/results_map_deriv_tests_' // &
-      test_mesh_filename( 1:len_trim( test_mesh_filename)-3) // '_' // trim( function_name) // '.nc'
+      trim( mesh_name) // '_' // trim( function_name) // '.nc'
     call create_new_netcdf_file_for_writing( filename, ncid)
     call setup_mesh_in_netcdf_file( filename, ncid, mesh)
 

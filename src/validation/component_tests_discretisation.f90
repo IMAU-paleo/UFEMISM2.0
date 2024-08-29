@@ -18,15 +18,14 @@ module component_tests_discretisation
 contains
 
   !> Run all discretisation component tests.
-  subroutine run_all_discretisation_component_tests( foldername_test_meshes, filename_test_meshes_list)
+  subroutine run_all_discretisation_component_tests( test_mesh_filenames)
 
     ! In/output variables:
-    character(len=*), intent(in) :: foldername_test_meshes
-    character(len=*), intent(in) :: filename_test_meshes_list
+    character(len=*), dimension(:), intent(in) :: test_mesh_filenames
 
     ! Local variables:
-    character(len=1024), parameter                 :: routine_name = 'run_all_discretisation_component_tests'
-    character(len=1024)                            :: foldername_discretisation
+    character(len=1024), parameter :: routine_name = 'run_all_discretisation_component_tests'
+    character(len=1024)            :: foldername_discretisation
 
     ! Add routine to call stack
     call init_routine( routine_name)
@@ -36,7 +35,7 @@ contains
 
     call create_discretisation_component_tests_output_folder( foldername_discretisation)
 
-    call run_all_map_deriv_tests( foldername_test_meshes, filename_test_meshes_list, foldername_discretisation)
+    call run_all_map_deriv_tests( foldername_discretisation, test_mesh_filenames)
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)
