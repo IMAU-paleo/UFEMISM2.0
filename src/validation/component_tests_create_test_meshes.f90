@@ -9,6 +9,8 @@ module component_tests_create_test_meshes
   use model_configuration, only: C
   use assertions_unit_tests, only: ASSERTION, test_mesh_is_self_consistent
   use mesh_types, only: type_mesh
+  use grid_types, only: type_grid
+  use grid_basic, only: setup_square_grid
   use mesh_memory, only: allocate_mesh_primary
   use mesh_dummy_meshes, only: initialise_dummy_mesh_5
   use mesh_refinement_basic, only: refine_mesh_uniform, refine_mesh_polygon
@@ -21,57 +23,57 @@ module component_tests_create_test_meshes
     add_field_mesh_dp_2D_c_notime, write_to_field_multopt_mesh_dp_2D_notime, write_to_field_multopt_mesh_dp_2D_b_notime, &
     write_to_field_multopt_mesh_dp_2D_c_notime, setup_xy_grid_in_netcdf_file, add_field_grid_dp_2D_notime, &
     write_to_field_multopt_grid_dp_2D_notime, add_zeta_dimension_to_file, add_field_mesh_dp_3D_b_notime, &
-    write_to_field_multopt_mesh_dp_3D_notime, write_to_field_multopt_mesh_dp_3D_b_notime
+    write_to_field_multopt_mesh_dp_3D_notime, write_to_field_multopt_mesh_dp_3D_b_notime, &
+    setup_xy_grid_in_netcdf_file
 
   implicit none
 
   private
 
-  public :: create_all_test_meshes, read_list_of_test_mesh_filenames
+  public :: create_all_test_meshes_and_grids
 
 contains
 
   !> Create the suite of test meshes for the component tests.
-  subroutine create_all_test_meshes( foldername_test_meshes, filename_test_meshes_list)
+  subroutine create_all_test_meshes_and_grids( test_mesh_filenames, test_grid_filenames)
 
     ! In/output variables:
-    character(len=*), intent(out) :: foldername_test_meshes
-    character(len=*), intent(out) :: filename_test_meshes_list
+    character(len=*), dimension(:), allocatable, intent(out) :: test_mesh_filenames
+    character(len=*), dimension(:), allocatable, intent(out) :: test_grid_filenames
 
     ! Local variables:
-    character(len=1024), parameter :: routine_name = 'create_all_test_meshes'
+    character(len=1024), parameter :: routine_name = 'create_all_test_meshes_and_grids'
+    character(len=1024)            :: foldername_test_meshes
 
     ! Add routine to call stack
     call init_routine( routine_name)
 
-    if (par%master) write(0,*) '  Creating suite of test meshes for component tests...'
+    if (par%master) write(0,*) '  Creating suite of test meshes and grids for component tests...'
     if (par%master) write(0,*) ''
 
     ! Create output folder within the component tests folder to store the meshes
-    call create_component_tests_mesh_output_folder( foldername_test_meshes, filename_test_meshes_list)
+    call create_component_tests_mesh_output_folder( foldername_test_meshes)
 
-    ! Create all the test meshes for the Antarctica domain
-    call create_all_test_meshes_Antarctica( foldername_test_meshes, filename_test_meshes_list)
+    ! Create all the test meshes and grids for the Antarctica domain
+    call create_all_test_meshes_and_grids_Antarctica( foldername_test_meshes, &
+      test_mesh_filenames, test_grid_filenames)
 
     if (par%master) write(0,*) ''
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)
 
-  end subroutine create_all_test_meshes
+  end subroutine create_all_test_meshes_and_grids
 
   !> Create the output folder for the mesh component tests
-  subroutine create_component_tests_mesh_output_folder( foldername_test_meshes, filename_test_meshes_list)
+  subroutine create_component_tests_mesh_output_folder( foldername_test_meshes)
 
     ! In/output variables:
     character(len=*), intent(out) :: foldername_test_meshes
-    character(len=*), intent(out) :: filename_test_meshes_list
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'create_component_tests_mesh_output_folder'
     logical                        :: ex
-    integer                        :: io_filename_test_meshes_list, stat
-    character(len=1024)            :: msg
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -89,186 +91,183 @@ contains
       ! Create the directory
       call system('mkdir ' // trim( foldername_test_meshes))
 
-      ! Create the text file listing the filenames of the test meshes
-      filename_test_meshes_list = trim(foldername_test_meshes) // '/list_of_test_meshes.txt'
-      ! Create file
-      open(newunit = io_filename_test_meshes_list, file = filename_test_meshes_list, &
-        status = "new", action = "write", iostat = stat, iomsg = msg)
-      if (stat /= 0) then
-        call crash('Could not create text file listing the filenames of the test meshes, error message "' // trim(msg) // '"')
-      end if
-      close(io_filename_test_meshes_list)
-
     end if
     call MPI_BCAST( foldername_test_meshes,    len(foldername_test_meshes   ), MPI_CHAR, 0, MPI_COMM_WORLD, ierr)
-    call MPI_BCAST( filename_test_meshes_list, len(filename_test_meshes_list), MPI_CHAR, 0, MPI_COMM_WORLD, ierr)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
 
   end subroutine create_component_tests_mesh_output_folder
 
-  ! Read the list of test mesh filenames from the text file
-  subroutine read_list_of_test_mesh_filenames( filename_test_meshes_list, test_mesh_filenames)
+  !> Create all the test meshes and grids for the Antarctica domain
+  subroutine create_all_test_meshes_and_grids_Antarctica( foldername_test_meshes, &
+    test_mesh_filenames, test_grid_filenames)
 
     ! In/output variables:
-    character(len=*),                               intent(in ) :: filename_test_meshes_list
-    character(len=1024), dimension(:), allocatable, intent(out) :: test_mesh_filenames
-    integer             :: i, io_filename_test_meshes_list, stat
-    character(len=1024) :: msg
-    integer             :: number_of_meshes
-    character(len=1024) :: mesh_name
+    character(len=*),                            intent(in)  :: foldername_test_meshes
+    character(len=*), dimension(:), allocatable, intent(out) :: test_mesh_filenames
+    character(len=*), dimension(:), allocatable, intent(out) :: test_grid_filenames
 
     ! Local variables:
-
-    do i = 0, par%n-1
-      if (i == par%i) then
-
-        ! Determine number of test meshes
-        ! ===============================
-
-        ! Open text file listing the filenames of the test meshes
-        open(newunit = io_filename_test_meshes_list, file = filename_test_meshes_list, &
-          status = "old", action = "read", iostat = stat, iomsg = msg)
-        if (stat /= 0) then
-          call crash('Could not create text file listing the filenames of the test meshes, error message "' // trim(msg) // '"')
-        end if
-
-        number_of_meshes = 0
-        do while (.true.)
-          read(unit = io_filename_test_meshes_list, fmt = '(a)', &
-            iostat = stat) mesh_name
-          if (stat == 0) then
-            number_of_meshes = number_of_meshes + 1
-          else
-            exit
-          end if
-        end do
-
-        ! Close text file listing the filenames of the test meshes
-        close(io_filename_test_meshes_list)
-
-        ! Allocate memory for list of filenames
-        ! =====================================
-
-        allocate( test_mesh_filenames( number_of_meshes))
-
-        ! Read the file again, this time actually saving the mesh names
-        ! =============================================================
-
-        ! Open text file listing the filenames of the test meshes
-        open(newunit = io_filename_test_meshes_list, file = filename_test_meshes_list, &
-        status = "old", action = "read", iostat = stat, iomsg = msg)
-      if (stat /= 0) then
-        call crash('Could not create text file listing the filenames of the test meshes, error message "' // trim(msg) // '"')
-      end if
-
-      number_of_meshes = 0
-      do while (.true.)
-        read(unit = io_filename_test_meshes_list, fmt = '(a)', &
-          iostat = stat) mesh_name
-        if (stat == 0) then
-          number_of_meshes = number_of_meshes + 1
-          test_mesh_filenames( number_of_meshes) = trim(adjustl(mesh_name))//'.nc'
-        else
-          exit
-        end if
-      end do
-
-      ! Close text file listing the filenames of the test meshes
-      close(io_filename_test_meshes_list)
-
-      end if
-      call sync
-    end do
-
-  end subroutine read_list_of_test_mesh_filenames
-
-  !> Create all the test meshes for the Antarctica domain
-  subroutine create_all_test_meshes_Antarctica( foldername_test_meshes, filename_test_meshes_list)
-
-    ! In/output variables:
-    character(len=*), intent(in) :: foldername_test_meshes
-    character(len=*), intent(in) :: filename_test_meshes_list
-
-    ! Local variables:
-    character(len=1024), parameter      :: routine_name = 'create_all_test_meshes_Antarctica'
-    character(len=1024), parameter      :: domain_name = 'Ant'
-    real(dp), parameter                 :: xmin                  = -3040E3_dp
-    real(dp), parameter                 :: xmax                  =  3040E3_dp
-    real(dp), parameter                 :: ymin                  = -3040E3_dp
-    real(dp), parameter                 :: ymax                  =  3040E3_dp
-    real(dp), parameter                 :: lambda_M              = 0._dp
-    real(dp), parameter                 :: phi_M                 = -90._dp
-    real(dp), parameter                 :: beta_stereo           = 71._dp
-    real(dp), parameter                 :: alpha_min             = 0.4363_dp
-    integer, parameter                  :: nit_Lloyds_algorithm  = 2
-
-    real(dp)                            :: res_min               = 400e3_dp
-    real(dp)                            :: res_max               = 75e3_dp
-    integer, dimension(4), parameter    :: nits_Lloyds_algorithm = [4,6,8,10]
-    real(dp), dimension(6), parameter   :: uniform_resolutions   = [400e3_dp, 300e3_dp, 200e3_dp, 150e3_dp, 100e3_dp, 75e3_dp]
-    real(dp), parameter                 :: uniform_resolution    = 150e3_dp
-
-    ! real(dp)                            :: res_min               = 800e3_dp
-    ! real(dp)                            :: res_max               = 400e3_dp
-    ! integer, dimension(2), parameter    :: nits_Lloyds_algorithm = [4,6]
-    ! real(dp), dimension(3), parameter   :: uniform_resolutions   = [800e3_dp, 600e3_dp, 400e3_dp]
-    ! real(dp), parameter                 :: uniform_resolution    = 400e3_dp
-
-    integer                             :: i
-    character(len=1)                    :: orientation
+    character(len=1024), parameter :: routine_name = 'create_all_test_meshes_Antarctica'
+    character(len=1024), parameter :: domain_name = 'Ant'
+    real(dp), parameter            :: xmin                  = -3040E3_dp
+    real(dp), parameter            :: xmax                  =  3040E3_dp
+    real(dp), parameter            :: ymin                  = -3040E3_dp
+    real(dp), parameter            :: ymax                  =  3040E3_dp
+    real(dp), parameter            :: lambda_M              = 0._dp
+    real(dp), parameter            :: phi_M                 = -90._dp
+    real(dp), parameter            :: beta_stereo           = 71._dp
 
     ! Add routine to call stack
     call init_routine( routine_name)
 
-    ! Create a set of test meshes covering the unit square with a uniform resolution
-    do i = 1, size( uniform_resolutions)
-      call create_test_mesh_uniform( xmin, xmax, ymin, ymax, lambda_M, phi_M, beta_stereo, &
-        uniform_resolutions( i), alpha_min, nit_Lloyds_algorithm, domain_name, &
-        foldername_test_meshes, filename_test_meshes_list)
-    end do
+    call create_all_test_meshes( foldername_test_meshes, test_mesh_filenames, &
+      domain_name, xmin, xmax, ymin, ymax, lambda_M, phi_M, beta_stereo)
 
-    ! Create a set of test meshes covering the unit square with a resolution gradient
-    orientation          = 'x'
-    call create_test_mesh_gradient( xmin, xmax, ymin, ymax, lambda_M, phi_M, beta_stereo, &
-      res_min, res_max, alpha_min, nit_Lloyds_algorithm, orientation, domain_name, &
-      foldername_test_meshes, filename_test_meshes_list)
-    orientation          = 'y'
-    call create_test_mesh_gradient( xmin, xmax, ymin, ymax, lambda_M, phi_M, beta_stereo, &
-      res_min, res_max, alpha_min, nit_Lloyds_algorithm, orientation, domain_name, &
-      foldername_test_meshes, filename_test_meshes_list)
-
-    ! Create a set of otherwise identical test meshes with increasing smoothness
-    do i = 1, size( nits_Lloyds_algorithm)
-      call create_test_mesh_uniform( xmin, xmax, ymin, ymax, lambda_M, phi_M, beta_stereo, &
-        uniform_resolution, alpha_min, nits_Lloyds_algorithm( i), domain_name, &
-        foldername_test_meshes, filename_test_meshes_list)
-    end do
-
-    ! Create test mesh with some fun elements
-    call create_test_mesh_fun( xmin, xmax, ymin, ymax, lambda_M, phi_M, beta_stereo, &
-      20e3_dp, alpha_min, nit_Lloyds_algorithm, domain_name, &
-      foldername_test_meshes, filename_test_meshes_list)
+    call create_all_test_grids( foldername_test_meshes, test_grid_filenames, &
+      domain_name, xmin, xmax, ymin, ymax, lambda_M, phi_M, beta_stereo)
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)
 
-  end subroutine create_all_test_meshes_Antarctica
+  end subroutine create_all_test_meshes_and_grids_Antarctica
 
-  !> Create a test mesh with a uniform resolution
-  subroutine create_test_mesh_uniform( xmin, xmax, ymin, ymax, lambda_M, phi_M, beta_stereo, &
-    res_max, alpha_min, nit_Lloyds_algorithm, domain_name, foldername_test_meshes, filename_test_meshes_list)
+  !> Create all the test meshes for any particular domain
+  subroutine create_all_test_meshes( foldername_test_meshes, test_mesh_filenames, &
+    domain_name, xmin, xmax, ymin, ymax, lambda_M, phi_M, beta_stereo)
 
     ! In/output variables:
-    real(dp),         intent(in) :: xmin, xmax, ymin, ymax
-    real(dp),         intent(in) :: lambda_M, phi_M, beta_stereo
-    real(dp),         intent(in) :: res_max
-    real(dp),         intent(in) :: alpha_min
-    integer,          intent(in) :: nit_Lloyds_algorithm
-    character(len=*), intent(in) :: domain_name
-    character(len=*), intent(in) :: foldername_test_meshes
-    character(len=*), intent(in) :: filename_test_meshes_list
+    character(len=*),                            intent(in)  :: foldername_test_meshes
+    character(len=*), dimension(:), allocatable, intent(out) :: test_mesh_filenames
+    character(len=*),                            intent(in)  :: domain_name
+    real(dp),                                    intent(in)  :: xmin, xmax, ymin, ymax
+    real(dp),                                    intent(in)  :: lambda_M, phi_M, beta_stereo
+
+    ! Local variables:
+    character(len=1024), parameter    :: routine_name = 'create_all_test_meshes'
+    real(dp), parameter               :: alpha_min             = 0.4363_dp
+    integer, parameter                :: nit_Lloyds_algorithm  = 2
+
+    ! real(dp)                          :: res_min               = 400e3_dp
+    ! real(dp)                          :: res_max               = 75e3_dp
+    ! integer, dimension(4), parameter  :: nits_Lloyds_algorithm = [4,6,8,10]
+    ! real(dp), dimension(6), parameter :: uniform_resolutions   = [400e3_dp, 300e3_dp, 200e3_dp, 150e3_dp, 100e3_dp, 75e3_dp]
+    ! real(dp), parameter               :: uniform_resolution    = 150e3_dp
+
+    real(dp)                          :: res_min               = 800e3_dp
+    real(dp)                          :: res_max               = 400e3_dp
+    integer, dimension(2), parameter  :: nits_Lloyds_algorithm = [4,6]
+    real(dp), dimension(3), parameter :: uniform_resolutions   = [800e3_dp, 600e3_dp, 400e3_dp]
+    real(dp), parameter               :: uniform_resolution    = 400e3_dp
+
+    integer                           :: i
+    character(len=1)                  :: orientation
+
+    ! Add routine to call stack
+    call init_routine( routine_name)
+
+    ! Create a set of test meshes with a uniform resolution
+    do i = 1, size( uniform_resolutions)
+      call create_test_mesh_uniform( foldername_test_meshes, test_mesh_filenames, &
+        domain_name, xmin, xmax, ymin, ymax, lambda_M, phi_M, beta_stereo, &
+        uniform_resolutions( i), alpha_min, nit_Lloyds_algorithm)
+    end do
+
+    ! Create a set of test meshes with a resolution gradient
+    orientation          = 'x'
+    call create_test_mesh_gradient( foldername_test_meshes, test_mesh_filenames, &
+      domain_name, xmin, xmax, ymin, ymax, lambda_M, phi_M, beta_stereo, &
+      res_min, res_max, alpha_min, nit_Lloyds_algorithm, orientation)
+    orientation          = 'y'
+    call create_test_mesh_gradient( foldername_test_meshes, test_mesh_filenames, &
+      domain_name, xmin, xmax, ymin, ymax, lambda_M, phi_M, beta_stereo, &
+      res_min, res_max, alpha_min, nit_Lloyds_algorithm, orientation)
+
+    ! Create a set of otherwise identical test meshes with increasing smoothness
+    do i = 1, size( nits_Lloyds_algorithm)
+      call create_test_mesh_uniform( foldername_test_meshes, test_mesh_filenames, &
+        domain_name, xmin, xmax, ymin, ymax, lambda_M, phi_M, beta_stereo, &
+        uniform_resolution, alpha_min, nits_Lloyds_algorithm( i))
+    end do
+
+    ! Create a test mesh with some fun elements
+    call create_test_mesh_fun( foldername_test_meshes, test_mesh_filenames, &
+      domain_name, xmin, xmax, ymin, ymax, lambda_M, phi_M, beta_stereo, &
+      uniform_resolution / 5._dp, alpha_min, nit_Lloyds_algorithm)
+
+    ! Remove routine from call stack
+    call finalise_routine( routine_name)
+
+  end subroutine create_all_test_meshes
+
+  !> Create all the test grids for any particular domain
+  subroutine create_all_test_grids( foldername_test_meshes, test_grid_filenames, &
+    domain_name, xmin, xmax, ymin, ymax, lambda_M, phi_M, beta_stereo)
+
+    ! In/output variables:
+    character(len=*),                            intent(in)    :: foldername_test_meshes
+    character(len=*), dimension(:), allocatable, intent(inout) :: test_grid_filenames
+    character(len=*),                            intent(in)    :: domain_name
+    real(dp),                                    intent(in)    :: xmin, xmax, ymin, ymax
+    real(dp),                                    intent(in)    :: lambda_M, phi_M, beta_stereo
+
+    ! Local variables:
+    character(len=1024), parameter    :: routine_name = 'create_all_test_grids'
+    real(dp), dimension(5), parameter :: resolutions = [128e3_dp, 64e3_dp, 32e3_dp, 16e3_dp, 8e3_dp]
+    integer                           :: i
+    real(dp)                          :: resolution
+    character(len=1024)               :: resolution_str
+    character(len=1024)               :: grid_name
+    type(type_grid)                   :: grid
+    character(len=1024)               :: filename
+    integer                           :: ncid
+
+    ! Add routine to call stack
+    call init_routine( routine_name)
+
+    ! Create a set of test grids covering the unit square with a uniform resolution
+    do i = 1, size( resolutions)
+
+      resolution = resolutions( i)
+      write( resolution_str,'(es14.4)') resolution
+
+      grid_name = 'grid_'//trim(domain_name)//'_'//trim(adjustl(resolution_str))//'_m'
+      call setup_square_grid( grid_name, xmin, xmax, ymin, ymax, resolution, &
+        grid, lambda_M = lambda_M, phi_M = phi_M, beta_stereo = beta_stereo)
+
+      ! Write to NetCDF file
+      filename = trim( foldername_test_meshes)//'/'//trim( grid_name)//'.nc'
+      call create_new_netcdf_file_for_writing( filename, ncid)
+      call setup_xy_grid_in_netcdf_file( filename, ncid, grid)
+      call close_netcdf_file( ncid)
+
+      ! Add it to the list of test grids
+      call add_filename_to_list_of_filenames( test_grid_filenames, filename)
+
+      if (par%master) write(0,*) '    Created test grid ', colour_string( trim( grid_name), 'light blue')
+
+    end do
+
+    ! Remove routine from call stack
+    call finalise_routine( routine_name)
+
+  end subroutine create_all_test_grids
+
+  !> Create a test mesh with a uniform resolution
+  subroutine create_test_mesh_uniform( foldername_test_meshes, test_mesh_filenames, &
+    domain_name, xmin, xmax, ymin, ymax, lambda_M, phi_M, beta_stereo, &
+    res_max, alpha_min, nit_Lloyds_algorithm)
+
+    ! In/output variables:
+    character(len=*),                            intent(in)    :: foldername_test_meshes
+    character(len=*), dimension(:), allocatable, intent(inout) :: test_mesh_filenames
+    character(len=*),                            intent(in)    :: domain_name
+    real(dp),                                    intent(in)    :: xmin, xmax, ymin, ymax
+    real(dp),                                    intent(in)    :: lambda_M, phi_M, beta_stereo
+    real(dp),                                    intent(in)    :: res_max
+    real(dp),                                    intent(in)    :: alpha_min
+    integer,                                     intent(in)    :: nit_Lloyds_algorithm
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'create_test_mesh_uniform'
@@ -279,8 +278,6 @@ contains
     integer                        :: it_Lloyds_algorithm
     integer                        :: ncid
     character(len=1024)            :: filename
-    integer                        :: io_filename_test_meshes_list, stat
-    character(len=1024)            :: msg
 
     ! Add routine to call stack
     call init_routine( routine_name)
@@ -317,16 +314,8 @@ contains
     call setup_mesh_in_netcdf_file( filename, ncid, mesh)
     call close_netcdf_file( ncid)
 
-    ! Add name of mesh to list file
-    if (par%master) then
-      open(newunit = io_filename_test_meshes_list, file = filename_test_meshes_list, &
-        status = "old", action = "write", position = "append", iostat = stat, iomsg = msg)
-      if (stat /= 0) then
-        call crash('Could not open text file listing the filenames of the test meshes, error message "' // trim(msg) // '"')
-      end if
-      write(io_filename_test_meshes_list,*) trim(mesh_name)
-      close(io_filename_test_meshes_list)
-    end if
+    ! Add it to the list of test meshes
+    call add_filename_to_list_of_filenames( test_mesh_filenames, filename)
 
     if (par%master) write(0,*) '    Created test mesh ', colour_string( trim( mesh_name), 'light blue')
 
@@ -336,21 +325,21 @@ contains
   end subroutine create_test_mesh_uniform
 
   !> Create a test mesh with a resolution gradient
-  subroutine create_test_mesh_gradient( xmin, xmax, ymin, ymax, lambda_M, phi_M, beta_stereo, &
-    res_min, res_max, alpha_min, nit_Lloyds_algorithm, orientation, domain_name, &
-    foldername_test_meshes, filename_test_meshes_list)
+  subroutine create_test_mesh_gradient( foldername_test_meshes, test_mesh_filenames, &
+    domain_name, xmin, xmax, ymin, ymax, lambda_M, phi_M, beta_stereo, &
+    res_min, res_max, alpha_min, nit_Lloyds_algorithm, orientation)
 
     ! In/output variables:
-    real(dp),         intent(in) :: xmin, xmax, ymin, ymax
-    real(dp),         intent(in) :: lambda_M, phi_M, beta_stereo
-    real(dp),         intent(in) :: res_min
-    real(dp),         intent(in) :: res_max
-    real(dp),         intent(in) :: alpha_min
-    integer,          intent(in) :: nit_Lloyds_algorithm
-    character(len=*), intent(in) :: orientation
-    character(len=*), intent(in) :: domain_name
-    character(len=*), intent(in) :: foldername_test_meshes
-    character(len=*), intent(in) :: filename_test_meshes_list
+    character(len=*),                            intent(in)    :: foldername_test_meshes
+    character(len=*), dimension(:), allocatable, intent(inout) :: test_mesh_filenames
+    character(len=*),                            intent(in)    :: domain_name
+    real(dp),                                    intent(in)    :: xmin, xmax, ymin, ymax
+    real(dp),                                    intent(in)    :: lambda_M, phi_M, beta_stereo
+    real(dp),                                    intent(in)    :: res_min
+    real(dp),                                    intent(in)    :: res_max
+    real(dp),                                    intent(in)    :: alpha_min
+    integer,                                     intent(in)    :: nit_Lloyds_algorithm
+    character(len=*),                            intent(in)    :: orientation
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'create_test_mesh_unit_square_gradient'
@@ -364,8 +353,6 @@ contains
     integer                        :: it_Lloyds_algorithm
     integer                        :: ncid
     character(len=1024)            :: filename
-    integer                        :: io_filename_test_meshes_list, stat
-    character(len=1024)            :: msg
 
     ! Add routine to call stack
     call init_routine( routine_name)
@@ -434,16 +421,8 @@ contains
     call setup_mesh_in_netcdf_file( filename, ncid, mesh)
     call close_netcdf_file( ncid)
 
-    ! Add name of mesh to list file
-    if (par%master) then
-      open(newunit = io_filename_test_meshes_list, file = filename_test_meshes_list, &
-        status = "old", action = "write", position = "append", iostat = stat, iomsg = msg)
-      if (stat /= 0) then
-        call crash('Could not open text file listing the filenames of the test meshes, error message "' // trim(msg) // '"')
-      end if
-      write(io_filename_test_meshes_list,*) trim(mesh_name)
-      close(io_filename_test_meshes_list)
-    end if
+    ! Add it to the list of test meshes
+    call add_filename_to_list_of_filenames( test_mesh_filenames, filename)
 
     if (par%master) write(0,*) '    Created test mesh ', colour_string( trim( mesh_name), 'light blue')
 
@@ -453,18 +432,19 @@ contains
   end subroutine create_test_mesh_gradient
 
   !> Create a test mesh with a smileyface and the UFEMISM lettesr
-  subroutine create_test_mesh_fun( xmin, xmax, ymin, ymax, lambda_M, phi_M, beta_stereo, &
-    res_max, alpha_min, nit_Lloyds_algorithm, domain_name, foldername_test_meshes, filename_test_meshes_list)
+  subroutine create_test_mesh_fun( foldername_test_meshes, test_mesh_filenames, &
+    domain_name, xmin, xmax, ymin, ymax, lambda_M, phi_M, beta_stereo, &
+    res_max, alpha_min, nit_Lloyds_algorithm)
 
     ! In/output variables:
-    real(dp),         intent(in) :: xmin, xmax, ymin, ymax
-    real(dp),         intent(in) :: lambda_M, phi_M, beta_stereo
-    real(dp),         intent(in) :: res_max
-    real(dp),         intent(in) :: alpha_min
-    integer,          intent(in) :: nit_Lloyds_algorithm
-    character(len=*), intent(in) :: domain_name
-    character(len=*), intent(in) :: foldername_test_meshes
-    character(len=*), intent(in) :: filename_test_meshes_list
+    character(len=*),                            intent(in)    :: foldername_test_meshes
+    character(len=*), dimension(:), allocatable, intent(inout) :: test_mesh_filenames
+    character(len=*),                            intent(in)    :: domain_name
+    real(dp),                                    intent(in)    :: xmin, xmax, ymin, ymax
+    real(dp),                                    intent(in)    :: lambda_M, phi_M, beta_stereo
+    real(dp),                                    intent(in)    :: res_max
+    real(dp),                                    intent(in)    :: alpha_min
+    integer,                                     intent(in)    :: nit_Lloyds_algorithm
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'create_test_mesh_fun'
@@ -475,8 +455,6 @@ contains
     integer                        :: it_Lloyds_algorithm
     integer                        :: ncid
     character(len=1024)            :: filename
-    integer                        :: io_filename_test_meshes_list, stat
-    character(len=1024)            :: msg
 
     ! Add routine to call stack
     call init_routine( routine_name)
@@ -518,16 +496,8 @@ contains
     call setup_mesh_in_netcdf_file( filename, ncid, mesh)
     call close_netcdf_file( ncid)
 
-    ! Add name of mesh to list file
-    if (par%master) then
-      open(newunit = io_filename_test_meshes_list, file = filename_test_meshes_list, &
-        status = "old", action = "write", position = "append", iostat = stat, iomsg = msg)
-      if (stat /= 0) then
-        call crash('Could not open text file listing the filenames of the test meshes, error message "' // trim(msg) // '"')
-      end if
-      write(io_filename_test_meshes_list,*) trim(mesh_name)
-      close(io_filename_test_meshes_list)
-    end if
+    ! Add it to the list of test meshes
+    call add_filename_to_list_of_filenames( test_mesh_filenames, filename)
 
     if (par%master) write(0,*) '    Created test mesh ', colour_string( trim( mesh_name), 'light blue')
 
@@ -535,5 +505,29 @@ contains
     call finalise_routine( routine_name)
 
   end subroutine create_test_mesh_fun
+
+  !> Add a filename to an allocatable list of filenames
+  subroutine add_filename_to_list_of_filenames( list_of_filenames, filename)
+
+    ! In/output variables:
+    character(len=1024), dimension(:), allocatable, intent(inout) :: list_of_filenames
+    character(len=1024),                            intent(in)    :: filename
+
+    ! Local variables:
+    character(len=1024), dimension(:), allocatable :: list_of_filenames_temp
+
+    if (.not. allocated( list_of_filenames)) then
+      allocate( list_of_filenames( 1))
+      list_of_filenames( 1) = trim( adjustl( filename))
+    else
+      ! allocate( list_of_filenames_temp( size( list_of_filenames)))
+      list_of_filenames_temp = list_of_filenames
+      deallocate( list_of_filenames)
+      allocate( list_of_filenames( size( list_of_filenames_temp)+1))
+      list_of_filenames( 1:size( list_of_filenames_temp)  ) = list_of_filenames_temp
+      list_of_filenames(   size( list_of_filenames_temp)+1) = trim( adjustl( filename))
+    end if
+
+  end subroutine add_filename_to_list_of_filenames
 
 end module component_tests_create_test_meshes

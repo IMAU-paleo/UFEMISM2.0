@@ -7,7 +7,7 @@ module component_tests
   use mpi_basic                                              , only: par, cerr, ierr, recv_status, sync
   use control_resources_and_error_messaging                  , only: warning, crash, happy, init_routine, finalise_routine, colour_string
   use model_configuration                                    , only: C
-  use component_tests_create_test_meshes                     , only: create_all_test_meshes
+  use component_tests_create_test_meshes                     , only: create_all_test_meshes_and_grids
   use component_tests_discretisation                         , only: run_all_discretisation_component_tests
 
   implicit none
@@ -21,9 +21,9 @@ contains
   subroutine run_all_component_tests
 
     ! Local variables:
-    character(len=1024), parameter :: routine_name = 'run_all_component_tests'
-    character(len=1024)            :: foldername_test_meshes
-    character(len=1024)            :: filename_test_meshes_list
+    character(len=1024), parameter                 :: routine_name = 'run_all_component_tests'
+    character(len=1024), dimension(:), allocatable :: test_mesh_filenames
+    character(len=1024), dimension(:), allocatable :: test_grid_filenames
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -32,8 +32,8 @@ contains
     if (par%master) write(0,'(a)') ' Running UFEMISM component tests...'
 
     call create_component_tests_output_folder
-    call create_all_test_meshes                ( foldername_test_meshes, filename_test_meshes_list)
-    call run_all_discretisation_component_tests( foldername_test_meshes, filename_test_meshes_list)
+    call create_all_test_meshes_and_grids( test_mesh_filenames, test_grid_filenames)
+    call run_all_discretisation_component_tests( test_mesh_filenames)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
