@@ -58,6 +58,8 @@ contains
       call run_all_map_deriv_tests_on_mesh( foldername_map_deriv, test_mesh_filename)
     end do
 
+    if (par%master) write(0,*) ''
+
     ! Remove routine from call stack
     call finalise_routine( routine_name)
 
@@ -117,7 +119,8 @@ contains
     call init_routine( routine_name)
 
     if (par%master) write(0,*) '      Running mapping/derivative tests on mesh ', &
-      colour_string(trim(test_mesh_filename),'light blue'), '...'
+      colour_string(trim(test_mesh_filename( index( test_mesh_filename,'/',back=.true.)+1:&
+      len_trim( test_mesh_filename))),'light blue'), '...'
 
     ! Set up the mesh from the file (includes calculating secondary geometry data and matrix operators)
     call open_existing_netcdf_file_for_reading( trim(test_mesh_filename), ncid)
