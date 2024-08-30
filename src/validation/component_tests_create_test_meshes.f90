@@ -78,7 +78,7 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    foldername_test_meshes = trim(C%output_dir) // '/mesh'
+    foldername_test_meshes = trim(C%output_dir) // '/test_meshes_and_grids'
 
     if (par%master) then
 
@@ -149,17 +149,17 @@ contains
     real(dp), parameter               :: alpha_min             = 0.4363_dp
     integer, parameter                :: nit_Lloyds_algorithm  = 2
 
-    ! real(dp)                          :: res_min               = 400e3_dp
-    ! real(dp)                          :: res_max               = 75e3_dp
-    ! integer, dimension(4), parameter  :: nits_Lloyds_algorithm = [4,6,8,10]
-    ! real(dp), dimension(6), parameter :: uniform_resolutions   = [400e3_dp, 300e3_dp, 200e3_dp, 150e3_dp, 100e3_dp, 75e3_dp]
-    ! real(dp), parameter               :: uniform_resolution    = 150e3_dp
+    real(dp)                          :: res_min               = 400e3_dp
+    real(dp)                          :: res_max               = 75e3_dp
+    integer, dimension(4), parameter  :: nits_Lloyds_algorithm = [4,6,8,10]
+    real(dp), dimension(6), parameter :: uniform_resolutions   = [400e3_dp, 300e3_dp, 200e3_dp, 150e3_dp, 100e3_dp, 75e3_dp]
+    real(dp), parameter               :: uniform_resolution    = 150e3_dp
 
-    real(dp)                          :: res_min               = 800e3_dp
-    real(dp)                          :: res_max               = 400e3_dp
-    integer, dimension(2), parameter  :: nits_Lloyds_algorithm = [4,6]
-    real(dp), dimension(3), parameter :: uniform_resolutions   = [800e3_dp, 600e3_dp, 400e3_dp]
-    real(dp), parameter               :: uniform_resolution    = 400e3_dp
+    ! real(dp)                          :: res_min               = 800e3_dp
+    ! real(dp)                          :: res_max               = 400e3_dp
+    ! integer, dimension(2), parameter  :: nits_Lloyds_algorithm = [4,6]
+    ! real(dp), dimension(3), parameter :: uniform_resolutions   = [800e3_dp, 600e3_dp, 400e3_dp]
+    ! real(dp), parameter               :: uniform_resolution    = 400e3_dp
 
     integer                           :: i
     character(len=1)                  :: orientation
