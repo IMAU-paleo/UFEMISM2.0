@@ -1,11 +1,4 @@
-function analyse_mapping_derivative_tests( foldername)
-
-% foldername = '../../results_component_tests/discretisation/mapping_derivatives/';
-% addpath('../../tools/matlab/')
-
-addpath('tools/matlab/')
-
-do_print = false;
+function analyse_mapping_derivative_tests( foldername, do_print)
 
 % Create text file with the analysis results
 filename_analysis = [foldername '/map_deriv_analysis.txt'];
