@@ -3,12 +3,13 @@ module component_tests
   ! All the component tests.
 
   use mpi
-  use precisions                                             , only: dp
-  use mpi_basic                                              , only: par, cerr, ierr, recv_status, sync
-  use control_resources_and_error_messaging                  , only: warning, crash, happy, init_routine, finalise_routine, colour_string
-  use model_configuration                                    , only: C
-  use component_tests_create_test_meshes                     , only: create_all_test_meshes_and_grids
-  use component_tests_discretisation                         , only: run_all_discretisation_component_tests
+  use precisions, only: dp
+  use mpi_basic, only: par, cerr, ierr, recv_status, sync
+  use control_resources_and_error_messaging, only: warning, crash, happy, init_routine, finalise_routine, colour_string
+  use model_configuration, only: C
+  use component_tests_create_test_meshes, only: create_all_test_meshes_and_grids
+  use component_tests_discretisation, only: run_all_discretisation_component_tests
+  use component_tests_remapping, only: run_all_remapping_component_tests
 
   implicit none
 
@@ -34,6 +35,7 @@ contains
     call create_component_tests_output_folder
     call create_all_test_meshes_and_grids( test_mesh_filenames, test_grid_filenames)
     call run_all_discretisation_component_tests( test_mesh_filenames)
+    call run_all_remapping_component_tests( test_mesh_filenames, test_grid_filenames)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
