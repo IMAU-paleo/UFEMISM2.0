@@ -1,21 +1,14 @@
-function analyse_remapping_tests( foldername)
-
-foldername = '../../results_component_tests/remapping/';
-addpath('../../tools/matlab/')
-
-% addpath('tools/matlab/')
-
-do_print = true;
+function analyse_remapping_tests_grid_to_mesh( foldername, do_print)
 
 % Create text file with the analysis results
-filename_analysis = [foldername '/remapping_analysis.txt'];
+filename_analysis = [foldername '/remapping_analysis_grid_to_mesh.txt'];
 
 disp(['Creating analysis file "' filename_analysis '"...'])
 
 fid = fopen( filename_analysis, 'w');
-fprintf( fid, '%s\n', '=====================================================');
-fprintf( fid, '%s\n', '===== Analysis of the remapping component tests =====');
-fprintf( fid, '%s\n', '=====================================================');
+fprintf( fid, '%s\n', '==================================================================');
+fprintf( fid, '%s\n', '===== Analysis of the grid-to-mesh remapping component tests =====');
+fprintf( fid, '%s\n', '==================================================================');
 fclose( fid);
 
 % List all the test results
@@ -40,7 +33,7 @@ function analyse_remapping_test( foldername, filename)
 
   disp(['Analysing ' filename '...']);
 
-  filename_full = [foldername filename];
+  filename_full = [foldername '/' filename];
 
   % Read test results
   grid.x    = ncread(filename_full,'x');
@@ -101,18 +94,21 @@ end
   
 function write_errors_to_text_file( filename, grid, d_grid_ex, mesh, d_mesh, d_mesh_ex)
 
+  int_grid = sum( d_grid_ex(:)) * grid.dx^2;
+  int_mesh = sum( d_mesh .* mesh.A);
+
   fid = fopen( filename_analysis,'a');
   fprintf( fid, '%s\n', '');
   fprintf( fid, '%s\n', strrep( filename, '.nc', ''));
-  fprintf( fid, '%s %12.8e\n', '  min( d_grid_ex)          = ', min( d_grid_ex(:)));
-  fprintf( fid, '%s %12.8e\n', '  max( d_grid_ex)          = ', max( d_grid_ex(:)));
-  fprintf( fid, '%s %12.8e\n', '  int( d_grid_ex)          = ', sum( d_grid_ex(:)) * grid.dx^2);
-  fprintf( fid, '%s %12.8e\n', '  min( d_mesh)             = ', min( d_mesh));
-  fprintf( fid, '%s %12.8e\n', '  max( d_mesh)             = ', max( d_mesh));
-  fprintf( fid, '%s %12.8e\n', '  int( d_mesh)             = ', sum( d_mesh .* mesh.A));
-  fprintf( fid, '%s %12.8e\n', '  max( d_mesh - d_mesh_ex) = ', max( d_mesh - d_mesh_ex));
-  fprintf( fid, '%s %12.8e\n', '  RMS( d_mesh - d_mesh_ex) = ', sqrt( mean( (d_mesh - d_mesh_ex).^2 )));
-  fprintf( fid, '%s %12.8e\n', '  global conservation error = ', );
+  fprintf( fid, '%s %12.8e\n', '  min( d_grid_ex)           = ', min( d_grid_ex(:)));
+  fprintf( fid, '%s %12.8e\n', '  max( d_grid_ex)           = ', max( d_grid_ex(:)));
+  fprintf( fid, '%s %12.8e\n', '  int( d_grid_ex)           = ', int_grid);
+  fprintf( fid, '%s %12.8e\n', '  min( d_mesh)              = ', min( d_mesh));
+  fprintf( fid, '%s %12.8e\n', '  max( d_mesh)              = ', max( d_mesh));
+  fprintf( fid, '%s %12.8e\n', '  int( d_mesh)              = ', int_mesh);
+  fprintf( fid, '%s %12.8e\n', '  max( d_mesh - d_mesh_ex)  = ', max( d_mesh - d_mesh_ex));
+  fprintf( fid, '%s %12.8e\n', '  RMS( d_mesh - d_mesh_ex)  = ', sqrt( mean( (d_mesh - d_mesh_ex).^2 )));
+  fprintf( fid, '%s %12.8e\n', '  global conservation error = ', (int_mesh - int_grid) / int_grid);
   fclose( fid);
 
 end

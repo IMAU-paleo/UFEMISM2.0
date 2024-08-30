@@ -189,6 +189,9 @@ UFEMISM_source = \
   validation/component_tests_create_test_meshes.f90 \
   validation/component_tests_discretisation_mapping_derivatives.f90 \
   validation/component_tests_discretisation.f90 \
+  validation/component_tests_remapping_basic.f90 \
+  validation/component_tests_remapping_grid_to_mesh.f90 \
+  validation/component_tests_remapping_mesh_to_grid.f90 \
   validation/component_tests_remapping.f90 \
   validation/component_tests.f90 \
   \
