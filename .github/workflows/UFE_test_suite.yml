@@ -168,12 +168,10 @@ jobs:
       - name: Analyse component tests results
         uses: matlab-actions/run-command@v2
         with:
-          command: addpath('automated_testing/component_tests'), analyse_mapping_derivative_tests('results_component_tests/discretisation/mapping_derivatives/')
+          command: addpath('automated_testing/component_tests'), analyse_component_tests('results_component_tests')
 
       - name: Upload test results as artifact
         uses: actions/upload-artifact@v4.3.4
         with:
-          name: component_tests_report
-          path: |
-            results_component_tests/discretisation/mapping_derivatives/map_deriv_analysis.txt
-            results_component_tests/discretisation/mapping_derivatives/*.png
+          name: results_component_tests_with_analysis
+          path: results_component_tests
