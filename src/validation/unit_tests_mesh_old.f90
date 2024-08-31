@@ -69,12 +69,12 @@ contains
     call test_mesh_creation_basic_single_core
     call test_mesh_creation_basic_two_cores ( mesh)
     call test_mesh_creation_basic_two_cores_prime( mesh2)
-!    call test_mesh_operators_basic(                mesh)
-!    call test_mesh_operators_3D(                   mesh)
-!    call test_remapping_grid2mesh(                 mesh)
-!    call test_remapping_mesh2grid(                 mesh)
-!    call test_remapping_lonlat2mesh(               mesh)
-!    call test_remapping_mesh2mesh(                 mesh, mesh2)
+    !    call test_mesh_operators_basic(                mesh)
+    !    call test_mesh_operators_3D(                   mesh)
+    !    call test_remapping_grid2mesh(                 mesh)
+    !    call test_remapping_mesh2grid(                 mesh)
+    !    call test_remapping_lonlat2mesh(               mesh)
+    !    call test_remapping_mesh2mesh(                 mesh, mesh2)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -116,8 +116,8 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-  ! == Create a nice mesh, with a smileyface and the UFEMISM letters
-  ! ================================================================
+    ! == Create a nice mesh, with a smileyface and the UFEMISM letters
+    ! ================================================================
 
     tcomp = 0._dp
 
@@ -172,8 +172,8 @@ contains
     ! Calculate all matrix operators
     call calc_all_matrix_operators_mesh( mesh)
 
-  ! == Validation
-  ! =============
+    ! == Validation
+    ! =============
 
     found_errors = .FALSE.
 
@@ -275,8 +275,8 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-  ! == Create a nice mesh on each process, with a smileyface and the UFEMISM letters
-  ! ================================================================================
+    ! == Create a nice mesh on each process, with a smileyface and the UFEMISM letters
+    ! ================================================================================
 
     tcomp = 0._dp
 
@@ -330,8 +330,8 @@ contains
     tcomp = tcomp + MPI_WTIME() - tstart
     call check_mesh( mesh)
 
-  ! == Merge the two meshes
-  ! =======================
+    ! == Merge the two meshes
+    ! =======================
 
     ! Merge submeshes
     tstart = MPI_WTIME()
@@ -359,8 +359,8 @@ contains
     ! Calculate all matrix operators
     call calc_all_matrix_operators_mesh( mesh)
 
-  ! == Validation
-  ! =============
+    ! == Validation
+    ! =============
 
     found_errors = .FALSE.
 
@@ -459,8 +459,8 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-  ! == Create a nice mesh on each process, with a smileyface and the UFEMISM letters
-  ! ================================================================================
+    ! == Create a nice mesh on each process, with a smileyface and the UFEMISM letters
+    ! ================================================================================
 
     tcomp = 0._dp
 
@@ -507,8 +507,8 @@ contains
     tcomp = tcomp + MPI_WTIME() - tstart
     call check_mesh( mesh)
 
-  ! == Merge the two meshes
-  ! =======================
+    ! == Merge the two meshes
+    ! =======================
 
     ! Merge submeshes
     tstart = MPI_WTIME()
@@ -536,8 +536,8 @@ contains
     ! Calculate all matrix operators
     call calc_all_matrix_operators_mesh( mesh)
 
-  ! == Validation
-  ! =============
+    ! == Validation
+    ! =============
 
     found_errors = .FALSE.
 
@@ -641,8 +641,8 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-  ! == Validate all matrix operators
-  ! ================================
+    ! == Validate all matrix operators
+    ! ================================
 
     ! Allocate distributed memory
     ALLOCATE( d_a_ex(      mesh%vi1:mesh%vi2), source = 0._dp)
@@ -773,8 +773,8 @@ contains
     call multiply_CSR_matrix_with_vector_1D( mesh%M2_d2dxdy_b_b, d_b_ex, d2dxdy_b_b)
     call multiply_CSR_matrix_with_vector_1D( mesh%M2_d2dy2_b_b , d_b_ex, d2dy2_b_b )
 
-  ! == Validation
-  ! =============
+    ! == Validation
+    ! =============
 
     found_errors = .FALSE.
 
@@ -1430,15 +1430,15 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-  ! == Set up a square grid
-  ! =======================
+    ! == Set up a square grid
+    ! =======================
 
     name = 'test_grid'
     dx   = 32E3_dp
     call setup_square_grid( name, mesh%xmin, mesh%xmax, mesh%ymin, mesh%ymax, dx, grid, lambda_M = mesh%lambda_M, phi_M = mesh%phi_M, beta_stereo = mesh%beta_stereo)
 
-  ! == Calculate, apply, and validate grid-to-mesh remapping operator
-  ! =================================================================
+    ! == Calculate, apply, and validate grid-to-mesh remapping operator
+    ! =================================================================
 
     found_errors = .FALSE.
 
@@ -1487,8 +1487,8 @@ contains
 
     IF (maxerr > 0.6E-1_dp) found_errors = .TRUE.
 
-  ! == Validation
-  ! =============
+    ! == Validation
+    ! =============
 
     ! If no errors occurred, we are happy
     call MPI_ALLREDUCE( MPI_IN_PLACE, found_errors, 1, MPI_logical, MPI_LOR, MPI_COMM_WORLD, ierr)
@@ -1548,15 +1548,15 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-  ! == Set up a square grid
-  ! =======================
+    ! == Set up a square grid
+    ! =======================
 
     name = 'test_grid'
     dx   = 32E3_dp
     call setup_square_grid( name, mesh%xmin, mesh%xmax, mesh%ymin, mesh%ymax, dx, grid, lambda_M = mesh%lambda_M, phi_M = mesh%phi_M, beta_stereo = mesh%beta_stereo)
 
-  ! == Calculate, apply, and validate grid-to-mesh remapping operator
-  ! =================================================================
+    ! == Calculate, apply, and validate grid-to-mesh remapping operator
+    ! =================================================================
 
     found_errors = .FALSE.
 
@@ -1601,8 +1601,8 @@ contains
 
     IF (maxerr > 0.6E-1_dp) found_errors = .TRUE.
 
-  ! == Validation
-  ! =============
+    ! == Validation
+    ! =============
 
     ! If no errors occurred, we are happy
     call MPI_ALLREDUCE( MPI_IN_PLACE, found_errors, 1, MPI_logical, MPI_LOR, MPI_COMM_WORLD, ierr)
@@ -1664,8 +1664,8 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-  ! == Set up a square grid
-  ! =======================
+    ! == Set up a square grid
+    ! =======================
 
     ! Set up a lon/lat-grid
     name = 'test_lonlat_grid'
@@ -1673,8 +1673,8 @@ contains
     nlat = 180
     call setup_simple_lonlat_grid( name, nlon, nlat, grid)
 
-  ! == Calculate, apply, and validate grid-to-mesh remapping operator
-  ! =================================================================
+    ! == Calculate, apply, and validate grid-to-mesh remapping operator
+    ! =================================================================
 
     found_errors = .FALSE.
 
@@ -1723,8 +1723,8 @@ contains
 
     IF (maxerr > 0.5E-4_dp) found_errors = .TRUE.
 
-  ! == Validation
-  ! =============
+    ! == Validation
+    ! =============
 
     ! If no errors occurred, we are happy
     call MPI_ALLREDUCE( MPI_IN_PLACE, found_errors, 1, MPI_logical, MPI_LOR, MPI_COMM_WORLD, ierr)
@@ -1808,8 +1808,8 @@ contains
       d2_ex( vi) = d
     end DO
 
-  ! == Remap data
-  ! =============
+    ! == Remap data
+    ! =============
 
     method = 'nearest_neighbour'
     call map_from_mesh_to_mesh_2D( mesh1, mesh2, d1_ex, d12_nn, method)
@@ -1823,8 +1823,8 @@ contains
     call map_from_mesh_to_mesh_2D( mesh1, mesh2, d1_ex, d12_cons, method)
     call map_from_mesh_to_mesh_2D( mesh2, mesh1, d2_ex, d21_cons, method)
 
-  ! == Validation
-  ! =============
+    ! == Validation
+    ! =============
 
     found_errors = .FALSE.
 

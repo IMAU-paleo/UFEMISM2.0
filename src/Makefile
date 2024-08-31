@@ -63,6 +63,7 @@ UFEMISM_source = \
   types/CSR_sparse_matrix_type.f90 \
   types/grid_types.f90 \
   types/mesh_types.f90 \
+  types/remapping_types.f90 \
   types/reference_geometry_types.f90 \
   types/scalar_types.f90 \
   types/ice_model_types.f90 \
@@ -115,7 +116,16 @@ UFEMISM_source = \
   mesh/mesh_parallel_creation.f90 \
   mesh/mesh_zeta.f90 \
   mesh/mesh_operators.f90 \
+  mesh/mesh_remapping_trace_line_basic.f90 \
+  mesh/mesh_remapping_trace_line_grid.f90 \
+  mesh/mesh_remapping_trace_line_triangles.f90 \
+  mesh/mesh_remapping_trace_line_Voronoi_cells.f90 \
+  mesh/mesh_remapping_create_map_grid_mesh.f90 \
+  mesh/mesh_remapping_create_map_gridlonlat_mesh.f90 \
+  mesh/mesh_remapping_create_map_mesh_mesh.f90 \
+  mesh/mesh_remapping_apply_maps.f90 \
   mesh/mesh_remapping.f90 \
+  mesh/mesh_data_smoothing.f90 \
   mesh/mesh_secondary.f90 \
   mesh/mesh_creation.f90 \
   \

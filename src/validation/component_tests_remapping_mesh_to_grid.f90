@@ -13,7 +13,8 @@ module component_tests_remapping_mesh_to_grid
   use netcdf_basic, only: open_existing_netcdf_file_for_reading, close_netcdf_file, create_new_netcdf_file_for_writing
   use netcdf_input, only: setup_mesh_from_file, setup_xy_grid_from_file
   use grid_basic, only: distribute_gridded_data_from_master_dp_2D
-  use mesh_remapping, only: clear_all_maps_involving_this_mesh, map_from_mesh_to_xy_grid_2D
+  use mesh_remapping_apply_maps, only: clear_all_maps_involving_this_mesh
+  use mesh_remapping, only: map_from_mesh_to_xy_grid_2D
   use analytical_solutions, only: Halfar_dome
   use netcdf_output, only: setup_mesh_in_netcdf_file, setup_xy_grid_in_netcdf_file, add_field_mesh_dp_2D_notime, &
     write_to_field_multopt_mesh_dp_2D_notime, add_field_grid_dp_2D_notime, write_to_field_multopt_grid_dp_2D_notime
@@ -44,6 +45,9 @@ contains
     ! Add routine to call stack
     call init_routine( routine_name)
 
+    if (par%master) write(0,*) '    Running mesh-to-grid remapping component tests...'
+    if (par%master) write(0,*) ''
+
     call create_mesh_to_grid_remapping_output_folder( foldername_remapping, foldername_mesh_to_grid)
 
     do i_mesh = 1, size( test_mesh_filenames)
@@ -53,6 +57,8 @@ contains
         call run_mesh_to_grid_remapping_tests_on_mesh_grid_combo( foldername_mesh_to_grid, filename_mesh, filename_grid)
       end do
     end do
+
+    if (par%master) write(0,*) ''
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)
@@ -120,52 +126,9 @@ contains
     filename = trim( foldername_mesh_to_grid) // '/results_remapping_' // &
       mesh_name( 1:len_trim(mesh_name)) // '_TO_' // grid_name( 1:len_trim(grid_name)) // '.nc'
 
-    if (par%master) write(0,*) '    Running mesh-to-grid remapping tests on mesh-grid combination:'
-    if (par%master) write(0,*) '      mesh: ', colour_string( trim( mesh_name),'light blue')
-    if (par%master) write(0,*) '      grid: ', colour_string( trim( grid_name),'light blue')
-
-    ! ! DENK DROM
-    ! if ((grid_name == 'grid_Ant_6.4000E+04_m' .and. &
-    !      mesh_name == 'comp_test_mesh_Ant_uniform_2.0000E+05_m_nit_Lloyd_2') .or. &
-    !     (grid_name == 'grid_Ant_6.4000E+04_m' .and. &
-    !      mesh_name == 'comp_test_mesh_Ant_uniform_1.5000E+05_m_nit_Lloyd_2') .or. &
-    !     (grid_name == 'grid_Ant_3.2000E+04_m' .and. &
-    !      mesh_name == 'comp_test_mesh_Ant_uniform_1.5000E+05_m_nit_Lloyd_2') .or. &
-    !     (grid_name == 'grid_Ant_6.4000E+04_m' .and. &
-    !      mesh_name == 'comp_test_mesh_Ant_uniform_1.0000E+05_m_nit_Lloyd_2') .or. &
-    !     (grid_name == 'grid_Ant_6.4000E+04_m' .and. &
-    !      mesh_name == 'comp_test_mesh_Ant_uniform_7.5000E+04_m_nit_Lloyd_2') .or. &
-    !     (grid_name == 'grid_Ant_1.6000E+04_m' .and. &
-    !      mesh_name == 'comp_test_mesh_Ant_uniform_7.5000E+04_m_nit_Lloyd_2') .or. &
-    !     (grid_name == 'grid_Ant_6.4000E+04_m' .and. &
-    !      mesh_name == 'comp_test_mesh_Ant_gradient_4.0000E+05-7.5000E+04_m_x') .or. &
-    !     (grid_name == 'grid_Ant_1.6000E+04_m' .and. &
-    !      mesh_name == 'comp_test_mesh_Ant_gradient_4.0000E+05-7.5000E+04_m_x') .or. &
-    !     (grid_name == 'grid_Ant_6.4000E+04_m' .and. &
-    !      mesh_name == 'comp_test_mesh_Ant_gradient_4.0000E+05-7.5000E+04_m_y') .or. &
-    !     (grid_name == 'grid_Ant_1.6000E+04_m' .and. &
-    !      mesh_name == 'comp_test_mesh_Ant_gradient_4.0000E+05-7.5000E+04_m_y') .or. &
-    !     (grid_name == 'grid_Ant_6.4000E+04_m' .and. &
-    !      mesh_name == 'comp_test_mesh_Ant_uniform_1.5000E+05_m_nit_Lloyd_4') .or. &
-    !     (grid_name == 'grid_Ant_3.2000E+04_m' .and. &
-    !      mesh_name == 'comp_test_mesh_Ant_uniform_1.5000E+05_m_nit_Lloyd_4') .or. &
-    !     (grid_name == 'grid_Ant_6.4000E+04_m' .and. &
-    !      mesh_name == 'comp_test_mesh_Ant_uniform_1.5000E+05_m_nit_Lloyd_6') .or. &
-    !     (grid_name == 'grid_Ant_3.2000E+04_m' .and. &
-    !      mesh_name == 'comp_test_mesh_Ant_uniform_1.5000E+05_m_nit_Lloyd_6') .or. &
-    !     (grid_name == 'grid_Ant_6.4000E+04_m' .and. &
-    !      mesh_name == 'comp_test_mesh_Ant_uniform_1.5000E+05_m_nit_Lloyd_8') .or. &
-    !     (grid_name == 'grid_Ant_3.2000E+04_m' .and. &
-    !      mesh_name == 'comp_test_mesh_Ant_uniform_1.5000E+05_m_nit_Lloyd_8') .or. &
-    !     (grid_name == 'grid_Ant_6.4000E+04_m' .and. &
-    !      mesh_name == 'comp_test_mesh_Ant_uniform_1.5000E+05_m_nit_Lloyd_10') .or. &
-    !     (grid_name == 'grid_Ant_3.2000E+04_m' .and. &
-    !      mesh_name == 'comp_test_mesh_Ant_uniform_1.5000E+05_m_nit_Lloyd_10')) then
-    !   if (par%master) call warning('skipping this one as it fails due to an unknown remapping bug!')
-    !   call finalise_routine( routine_name)
-    !   return
-    ! end if
-
+    if (par%master) write(0,*) '      Running mesh-to-grid remapping tests on mesh-grid combination:'
+    if (par%master) write(0,*) '        mesh: ', colour_string( trim( mesh_name),'light blue')
+    if (par%master) write(0,*) '        grid: ', colour_string( trim( grid_name),'light blue')
     ! Set up the mesh and the grid from the provided files
     call open_existing_netcdf_file_for_reading( filename_mesh, ncid)
     call setup_mesh_from_file( filename_mesh, ncid, mesh)
