@@ -20,3 +20,7 @@ jobs:
       - name: Write some stuff to one of the dummy text files
         run: |
           echo 'Hello text file!' > automated_testing/scoreboard/dummy.txt
+
+      - name: Stage changes for commit
+        run: |
+          git add automated_testing/scoreboard/dummy.txt
