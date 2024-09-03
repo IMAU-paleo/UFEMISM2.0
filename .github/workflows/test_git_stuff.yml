@@ -16,3 +16,7 @@ jobs:
 
       - name: Checkout UFEMISM repository
         uses: actions/checkout@v4
+
+      - name: Create dummy file
+        run: |
+          touch automated_testing/scoreboard/dummy.txt
