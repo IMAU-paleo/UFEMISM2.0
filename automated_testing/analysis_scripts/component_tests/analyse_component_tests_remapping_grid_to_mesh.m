@@ -1,21 +1,11 @@
-function analyse_remapping_tests_grid_to_mesh( foldername, do_print)
-
-% Create text file with the analysis results
-filename_analysis = [foldername '/remapping_analysis_grid_to_mesh.txt'];
-
-disp(['Creating analysis file "' filename_analysis '"...'])
-
-fid = fopen( filename_analysis, 'w');
-fprintf( fid, '%s\n', '==================================================================');
-fprintf( fid, '%s\n', '===== Analysis of the grid-to-mesh remapping component tests =====');
-fprintf( fid, '%s\n', '==================================================================');
-fclose( fid);
+function analyse_component_tests_remapping_grid_to_mesh( foldername, do_print_figures)
+% Analyse the results of all the grid-to-mesh remapping component tests
 
 % List all the test results
 filenames = dir( foldername);
 i = 1;
 while i <= length( filenames)
-  if  contains( filenames(i).name, 'results_remapping_') && ...
+  if  contains( filenames(i).name, 'res_') && ...
       contains( filenames(i).name, '.nc')
     i = i+1;
   else
@@ -48,7 +38,7 @@ function analyse_remapping_test( foldername, filename)
   clim = [-1,1] * 200;
 
   % Plot error
-  if do_print
+  if do_print_figures
 
     wa = 300;
     ha = wa;
@@ -88,29 +78,35 @@ function analyse_remapping_test( foldername, filename)
 
   end
 
-  write_errors_to_text_file( filename, grid, d_grid_ex, mesh, d_mesh, d_mesh_ex);
+  write_to_scoreboard( filename, grid, d_grid_ex, mesh, d_mesh_ex, d_mesh)
   
 end
-  
-function write_errors_to_text_file( filename, grid, d_grid_ex, mesh, d_mesh, d_mesh_ex)
 
-  int_grid = sum( d_grid_ex(:)) * grid.dx^2;
+function write_to_scoreboard( filename, grid, d_grid_ex, mesh, d_mesh_ex, d_mesh)
+
+  % Set up a scoreboard results structure
+  test_name = ['remapping_grid_to_mesh_' filename(5:end-3)];
+  res = initialise_test_results( test_name, 'remapping/grid_to_mesh');
+
+  % Calculate cost functions
+  rmse = sqrt( mean( (d_mesh - d_mesh_ex).^2));
+
+  bounds_max = max( 0, max( d_mesh(:)) - max( d_grid_ex(:)));
+  bounds_min = max( 0, min( d_grid_ex(:)) - min( d_mesh(:)));
+
   int_mesh = sum( d_mesh .* mesh.A);
+  int_grid = sum( d_grid_ex(:)) * grid.dx^2;
+  int_err = abs( 1 - int_mesh / int_grid);
 
-  fid = fopen( filename_analysis,'a');
-  fprintf( fid, '%s\n', '');
-  fprintf( fid, '%s\n', strrep( filename, '.nc', ''));
-  fprintf( fid, '%s %12.8e\n', '  min( d_grid_ex)           = ', min( d_grid_ex(:)));
-  fprintf( fid, '%s %12.8e\n', '  max( d_grid_ex)           = ', max( d_grid_ex(:)));
-  fprintf( fid, '%s %12.8e\n', '  int( d_grid_ex)           = ', int_grid);
-  fprintf( fid, '%s %12.8e\n', '  min( d_mesh)              = ', min( d_mesh));
-  fprintf( fid, '%s %12.8e\n', '  max( d_mesh)              = ', max( d_mesh));
-  fprintf( fid, '%s %12.8e\n', '  int( d_mesh)              = ', int_mesh);
-  fprintf( fid, '%s %12.8e\n', '  max( d_mesh - d_mesh_ex)  = ', max( d_mesh - d_mesh_ex));
-  fprintf( fid, '%s %12.8e\n', '  RMS( d_mesh - d_mesh_ex)  = ', sqrt( mean( (d_mesh - d_mesh_ex).^2 )));
-  fprintf( fid, '%s %12.8e\n', '  global conservation error = ', (int_mesh - int_grid) / int_grid);
-  fclose( fid);
+  % Add cost functions to results structure
+  res = add_result_to_test_results( res, 'rmse'       , 'sqrt( mean( (d_mesh - d_mesh_ex).^2))'        , rmse);
+  res = add_result_to_test_results( res, 'bounds_max' , 'max( 0, max( d_mesh(:)) - max( d_grid_ex(:)))', bounds_max);
+  res = add_result_to_test_results( res, 'bounds_min' , 'max( 0, min( d_grid_ex(:)) - min( d_mesh(:)))', bounds_min);
+  res = add_result_to_test_results( res, 'int_err'    , 'abs( 1 - int_mesh / int_grid)'                , int_err);
+
+  % Write to scoreboard file
+  write_test_results_to_scoreboard_file( res, 'scoreboard');
 
 end
-
+  
 end

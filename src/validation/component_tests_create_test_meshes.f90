@@ -149,17 +149,17 @@ contains
     real(dp), parameter               :: alpha_min             = 0.4363_dp
     integer, parameter                :: nit_Lloyds_algorithm  = 2
 
-    real(dp)                          :: res_min               = 400e3_dp
-    real(dp)                          :: res_max               = 75e3_dp
-    integer, dimension(4), parameter  :: nits_Lloyds_algorithm = [4,6,8,10]
-    real(dp), dimension(6), parameter :: uniform_resolutions   = [400e3_dp, 300e3_dp, 200e3_dp, 150e3_dp, 100e3_dp, 75e3_dp]
-    real(dp), parameter               :: uniform_resolution    = 150e3_dp
+    ! real(dp)                          :: res_min               = 400e3_dp
+    ! real(dp)                          :: res_max               = 75e3_dp
+    ! integer, dimension(4), parameter  :: nits_Lloyds_algorithm = [4,6,8,10]
+    ! real(dp), dimension(6), parameter :: uniform_resolutions   = [400e3_dp, 300e3_dp, 200e3_dp, 150e3_dp, 100e3_dp, 75e3_dp]
+    ! real(dp), parameter               :: uniform_resolution    = 150e3_dp
 
-    ! real(dp)                          :: res_min               = 800e3_dp
-    ! real(dp)                          :: res_max               = 400e3_dp
-    ! integer, dimension(2), parameter  :: nits_Lloyds_algorithm = [4,6]
-    ! real(dp), dimension(3), parameter :: uniform_resolutions   = [800e3_dp, 600e3_dp, 400e3_dp]
-    ! real(dp), parameter               :: uniform_resolution    = 400e3_dp
+    real(dp)                          :: res_min               = 800e3_dp
+    real(dp)                          :: res_max               = 400e3_dp
+    integer, dimension(2), parameter  :: nits_Lloyds_algorithm = [4,6]
+    real(dp), dimension(3), parameter :: uniform_resolutions   = [800e3_dp, 600e3_dp, 400e3_dp]
+    real(dp), parameter               :: uniform_resolution    = 400e3_dp
 
     integer                           :: i
     character(len=1)                  :: orientation
@@ -284,7 +284,7 @@ contains
 
     write( res_max_str             ,'(es14.4)') res_max
     write( nit_Lloyds_algorithm_str,'(i3)')     nit_Lloyds_algorithm
-    mesh_name = 'comp_test_mesh_'//trim(domain_name)//'_uniform_'//trim(adjustl(res_max_str))//'_m'//&
+    mesh_name = 'mesh_'//trim(domain_name)//'_uniform_'//trim(adjustl(res_max_str))//'_m'//&
       '_nit_Lloyd_'//trim(adjustl(nit_Lloyds_algorithm_str))
 
     ! Allocate memory
@@ -359,7 +359,7 @@ contains
 
     write( res_min_str,'(es14.4)') res_min
     write( res_max_str,'(es14.4)') res_max
-    mesh_name = 'comp_test_mesh_'//trim(domain_name)//'_gradient_'//trim(adjustl(res_min_str))//&
+    mesh_name = 'mesh_'//trim(domain_name)//'_gradient_'//trim(adjustl(res_min_str))//&
       '-'//trim(adjustl(res_max_str))//'_m_'//orientation
 
     ! Allocate memory
@@ -461,7 +461,7 @@ contains
 
     write( res_max_str             ,'(es14.4)') res_max
     write( nit_Lloyds_algorithm_str,'(i3)')     nit_Lloyds_algorithm
-    mesh_name = 'comp_test_mesh_'//trim(domain_name)//'_fun_'//trim(adjustl(res_max_str))//'_m'//&
+    mesh_name = 'mesh_'//trim(domain_name)//'_fun_'//trim(adjustl(res_max_str))//'_m'//&
       '_nit_Lloyd_'//trim(adjustl(nit_Lloyds_algorithm_str))
 
     ! Allocate memory

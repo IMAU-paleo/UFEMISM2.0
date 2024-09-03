@@ -488,7 +488,7 @@ contains
     mesh_name = test_mesh_filename( 1:len_trim( test_mesh_filename)-3)
     i = index( mesh_name, '/', back = .true.)
     mesh_name = mesh_name( i+1:len_trim( mesh_name))
-    filename = trim(foldername_discretisation) // '/results_map_deriv_tests_' // &
+    filename = trim(foldername_discretisation) // '/res_' // &
       trim( mesh_name) // '_' // trim( function_name) // '.nc'
     call create_new_netcdf_file_for_writing( filename, ncid)
     call setup_mesh_in_netcdf_file( filename, ncid, mesh)

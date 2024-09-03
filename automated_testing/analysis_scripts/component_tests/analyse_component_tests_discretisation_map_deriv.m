@@ -1,21 +1,12 @@
-function analyse_mapping_derivative_tests( foldername, do_print)
-
-% Create text file with the analysis results
-filename_analysis = [foldername '/map_deriv_analysis.txt'];
-
-disp(['Creating analysis file "' filename_analysis '"...'])
-
-fid = fopen( filename_analysis, 'w');
-fprintf( fid, '%s\n', '===============================================================');
-fprintf( fid, '%s\n', '===== Analysis of the mapping/derivatives component tests =====');
-fprintf( fid, '%s\n', '===============================================================');
-fclose( fid);
+function analyse_component_tests_discretisation_map_deriv( foldername, do_print_figures)
+% Analyse the results of all the mapping/derivative discretisation
+% component tests
 
 % List all the test results
 filenames = dir( foldername);
 i = 1;
 while i <= length( filenames)
-  if  contains( filenames(i).name, 'results_map_deriv_tests_') && ...
+  if  contains( filenames(i).name, 'res_') && ...
       contains( filenames(i).name, '.nc')
     i = i+1;
   else
@@ -24,28 +15,23 @@ while i <= length( filenames)
 end
 
 for fi = 1: length( filenames)
-  analyse_mapping_derivatives_tests_mesh_function( foldername, filenames( fi).name)
+  analyse_component_test_discretisation_map_deriv( foldername, filenames( fi).name)
 end
 
-function analyse_mapping_derivatives_tests_mesh_function( foldername, filename)
+function analyse_component_test_discretisation_map_deriv( foldername, filename)
   % Analyse the results of the complete set of mapping/derivative component
   % tests for a single mesh and a single test function
 
   disp(['Analysing ' filename '...'])
   
-  [H_map, err_max_map] = analyse_mapping_derivatives_tests_mesh_function_map(  [foldername '/' filename]);
+  [H_map, max_errs_map] = analyse_mapping_derivatives_tests_mesh_function_map(  [foldername '/' filename]);
+  [H_ddx, max_errs_ddx] = analyse_mapping_derivatives_tests_mesh_function_ddxy( [foldername '/' filename],'ddx');
+  [H_ddy, max_errs_ddy] = analyse_mapping_derivatives_tests_mesh_function_ddxy( [foldername '/' filename],'ddy');
+  [H_2nd, max_errs_2nd] = analyse_mapping_derivatives_tests_mesh_function_2nd(  [foldername '/' filename]);
   
-  [H_ddx, err_max_ddx] = analyse_mapping_derivatives_tests_mesh_function_ddxy( [foldername '/' filename],'ddx');
-  
-  [H_ddy, err_max_ddy] = analyse_mapping_derivatives_tests_mesh_function_ddxy( [foldername '/' filename],'ddy');
-  
-  [H_2nd, err_max_ddx_2nd, err_max_ddy_2nd, err_max_d2dx2_2nd, err_max_d2dxdy_2nd, err_max_d2dy2_2nd] = ...
-    analyse_mapping_derivatives_tests_mesh_function_2nd( [foldername '/' filename]);
-  
-  write_errors_to_text_file( filename, err_max_map, err_max_ddx, err_max_ddy, ...
-    err_max_ddx_2nd, err_max_ddy_2nd, err_max_d2dx2_2nd, err_max_d2dxdy_2nd, err_max_d2dy2_2nd);
+  write_to_scoreboard( filename, max_errs_map, max_errs_ddx, max_errs_ddy, max_errs_2nd);
 
-  if do_print
+  if do_print_figures
     filename_map_png = strrep( filename, '.nc', '_map.png');
     filename_ddx_png = strrep( filename, '.nc', '_ddx.png');
     filename_ddy_png = strrep( filename, '.nc', '_ddy.png');
@@ -64,25 +50,64 @@ function analyse_mapping_derivatives_tests_mesh_function( foldername, filename)
   
 end
   
-function write_errors_to_text_file( filename, err_max_map, err_max_ddx, err_max_ddy, ...
-    err_max_ddx_2nd, err_max_ddy_2nd, err_max_d2dx2_2nd, err_max_d2dxdy_2nd, err_max_d2dy2_2nd)
+function write_to_scoreboard( filename, max_errs_map, max_errs_ddx, max_errs_ddy, max_errs_2nd)
 
-  fid = fopen( filename_analysis,'a');
-  fprintf( fid, '%s\n', '');
-  fprintf( fid, '%s\n', strrep( filename, '.nc', ''));
-  fprintf( fid, '%s %12.8e\n', '  err_max_map        = ', err_max_map);
-  fprintf( fid, '%s %12.8e\n', '  err_max_ddx        = ', err_max_ddx);
-  fprintf( fid, '%s %12.8e\n', '  err_max_ddy        = ', err_max_ddy);
-  fprintf( fid, '%s %12.8e\n', '  err_max_ddx_2nd    = ', err_max_ddx_2nd);
-  fprintf( fid, '%s %12.8e\n', '  err_max_ddy_2nd    = ', err_max_ddy_2nd);
-  fprintf( fid, '%s %12.8e\n', '  err_max_d2dx2_2nd  = ', err_max_d2dx2_2nd);
-  fprintf( fid, '%s %12.8e\n', '  err_max_d2dxdy_2nd = ', err_max_d2dxdy_2nd);
-  fprintf( fid, '%s %12.8e\n', '  err_max_d2dy2_2nd  = ', err_max_d2dy2_2nd);
-  fclose( fid);
+  % Set up a scoreboard results structure
+  test_name = ['discretisation_map_deriv_' filename(5:end-3)];
+  res = initialise_test_results( test_name, 'discretisation/mapping_and_derivatives');
+
+  % Map
+  % res = add_result_to_test_results( res, 'max_err_map_a_a', 'log( abs( d_a_a - d_a_ex) ./ max( abs( d_a_ex))) / log( 10)', max_errs_map.a_a);
+  res = add_result_to_test_results( res, 'max_err_map_a_b', 'log( abs( d_a_b - d_b_ex) ./ max( abs( d_b_ex))) / log( 10)', max_errs_map.a_b);
+  res = add_result_to_test_results( res, 'max_err_map_a_c', 'log( abs( d_a_c - d_c_ex) ./ max( abs( d_c_ex))) / log( 10)', max_errs_map.a_c);
+
+  res = add_result_to_test_results( res, 'max_err_map_b_a', 'log( abs( d_b_a - d_a_ex) ./ max( abs( d_a_ex))) / log( 10)', max_errs_map.b_a);
+  % res = add_result_to_test_results( res, 'max_err_map_b_b', 'log( abs( d_b_b - d_b_ex) ./ max( abs( d_b_ex))) / log( 10)', max_errs_map.b_b);
+  res = add_result_to_test_results( res, 'max_err_map_b_c', 'log( abs( d_b_c - d_c_ex) ./ max( abs( d_c_ex))) / log( 10)', max_errs_map.b_c);
+
+  res = add_result_to_test_results( res, 'max_err_map_c_a', 'log( abs( d_c_a - d_a_ex) ./ max( abs( d_a_ex))) / log( 10)', max_errs_map.c_a);
+  res = add_result_to_test_results( res, 'max_err_map_c_b', 'log( abs( d_c_b - d_b_ex) ./ max( abs( d_b_ex))) / log( 10)', max_errs_map.c_b);
+  % res = add_result_to_test_results( res, 'max_err_map_c_c', 'log( abs( d_c_c - d_c_ex) ./ max( abs( d_c_ex))) / log( 10)', max_errs_map.c_c);
+
+  % d/dx
+  res = add_result_to_test_results( res, 'max_err_ddx_a_a', 'log( abs( ddx_a_a - ddx_a_ex) ./ max( abs( ddx_a_ex))) / log( 10)', max_errs_ddx.a_a);
+  res = add_result_to_test_results( res, 'max_err_ddx_a_b', 'log( abs( ddx_a_b - ddx_b_ex) ./ max( abs( ddx_b_ex))) / log( 10)', max_errs_ddx.a_b);
+  res = add_result_to_test_results( res, 'max_err_ddx_a_c', 'log( abs( ddx_a_c - ddx_c_ex) ./ max( abs( ddx_c_ex))) / log( 10)', max_errs_ddx.a_c);
+
+  res = add_result_to_test_results( res, 'max_err_ddx_b_a', 'log( abs( ddx_b_a - ddx_a_ex) ./ max( abs( ddx_a_ex))) / log( 10)', max_errs_ddx.b_a);
+  res = add_result_to_test_results( res, 'max_err_ddx_b_b', 'log( abs( ddx_b_b - ddx_b_ex) ./ max( abs( ddx_b_ex))) / log( 10)', max_errs_ddx.b_b);
+  res = add_result_to_test_results( res, 'max_err_ddx_b_c', 'log( abs( ddx_b_c - ddx_c_ex) ./ max( abs( ddx_c_ex))) / log( 10)', max_errs_ddx.b_c);
+
+  res = add_result_to_test_results( res, 'max_err_ddx_c_a', 'log( abs( ddx_c_a - ddx_a_ex) ./ max( abs( ddx_a_ex))) / log( 10)', max_errs_ddx.c_a);
+  res = add_result_to_test_results( res, 'max_err_ddx_c_b', 'log( abs( ddx_c_b - ddx_b_ex) ./ max( abs( ddx_b_ex))) / log( 10)', max_errs_ddx.c_b);
+  res = add_result_to_test_results( res, 'max_err_ddx_c_c', 'log( abs( ddx_c_c - ddx_c_ex) ./ max( abs( ddx_c_ex))) / log( 10)', max_errs_ddx.c_c);
+
+  % d/dy
+  res = add_result_to_test_results( res, 'max_err_ddy_a_a', 'log( abs( ddy_a_a - ddy_a_ex) ./ max( abs( ddy_a_ex))) / log( 10)', max_errs_ddy.a_a);
+  res = add_result_to_test_results( res, 'max_err_ddy_a_b', 'log( abs( ddy_a_b - ddy_b_ex) ./ max( abs( ddy_b_ex))) / log( 10)', max_errs_ddy.a_b);
+  res = add_result_to_test_results( res, 'max_err_ddy_a_c', 'log( abs( ddy_a_c - ddy_c_ex) ./ max( abs( ddy_c_ex))) / log( 10)', max_errs_ddy.a_c);
+
+  res = add_result_to_test_results( res, 'max_err_ddy_b_a', 'log( abs( ddy_b_a - ddy_a_ex) ./ max( abs( ddy_a_ex))) / log( 10)', max_errs_ddy.b_a);
+  res = add_result_to_test_results( res, 'max_err_ddy_b_b', 'log( abs( ddy_b_b - ddy_b_ex) ./ max( abs( ddy_b_ex))) / log( 10)', max_errs_ddy.b_b);
+  res = add_result_to_test_results( res, 'max_err_ddy_b_c', 'log( abs( ddy_b_c - ddy_c_ex) ./ max( abs( ddy_c_ex))) / log( 10)', max_errs_ddy.b_c);
+
+  res = add_result_to_test_results( res, 'max_err_ddy_c_a', 'log( abs( ddy_c_a - ddy_a_ex) ./ max( abs( ddy_a_ex))) / log( 10)', max_errs_ddy.c_a);
+  res = add_result_to_test_results( res, 'max_err_ddy_c_b', 'log( abs( ddy_c_b - ddy_b_ex) ./ max( abs( ddy_b_ex))) / log( 10)', max_errs_ddy.c_b);
+  res = add_result_to_test_results( res, 'max_err_ddy_c_c', 'log( abs( ddy_c_c - ddy_c_ex) ./ max( abs( ddy_c_ex))) / log( 10)', max_errs_ddy.c_c);
+
+  % 2nd order
+  res = add_result_to_test_results( res, 'max_err_ddx_b_b_2nd'   , 'log( abs( ddx_b_b_2nd    - ddx_b_ex   ) ./ max( abs( ddx_b_ex   ))) / log( 10)', max_errs_2nd.ddx);
+  res = add_result_to_test_results( res, 'max_err_ddy_b_b_2nd'  ,  'log( abs( ddy_b_b_2nd    - ddy_b_ex   ) ./ max( abs( ddy_b_ex   ))) / log( 10)', max_errs_2nd.ddy);
+  res = add_result_to_test_results( res, 'max_err_d2dx2_b_b_2nd' , 'log( abs( d2dx2_b_b_2nd  - d2dx2_b_ex ) ./ max( abs( d2dx2_b_ex ))) / log( 10)', max_errs_2nd.d2dx2);
+  res = add_result_to_test_results( res, 'max_err_d2dxdy_b_b_2nd', 'log( abs( d2dxdy_b_b_2nd - d2dxdy_b_ex) ./ max( abs( d2dxdy_b_ex))) / log( 10)', max_errs_2nd.d2dxdy);
+  res = add_result_to_test_results( res, 'max_err_d2dy2_b_b_2nd' , 'log( abs( d2dy2_b_b_2nd  - d2dy2_b_ex ) ./ max( abs( d2dy2_b_ex ))) / log( 10)', max_errs_2nd.d2dy2);
+
+  % Write to scoreboard file
+  write_test_results_to_scoreboard_file( res, 'scoreboard');
 
 end
 
-function [H, err_max] = analyse_mapping_derivatives_tests_mesh_function_map( filename)
+function [H, max_errs] = analyse_mapping_derivatives_tests_mesh_function_map( filename)
 
   H = [];
 
@@ -90,7 +115,7 @@ function [H, err_max] = analyse_mapping_derivatives_tests_mesh_function_map( fil
   mesh = read_mesh_from_file( filename);
   
   %% Set up the plot
-  if do_print
+  if do_print_figures
 
     wa = 150;
     ha = 150;
@@ -173,12 +198,25 @@ function [H, err_max] = analyse_mapping_derivatives_tests_mesh_function_map( fil
   err_c_b = calc_log10_discretisation_error( d_b_ex, d_c_b);
   % err_c_c = calc_log_discretisation_error( d_c_ex, d_c_c);
 
+  % Calculate maxima for output
+  % errs.a_a = max( err_a_a( mesh.VBI   == 0));
+  max_errs.a_b = max( err_a_b( mesh.TriBI == 0));
+  max_errs.a_c = max( err_a_c( mesh.EBI   == 0));
+
+  max_errs.b_a = max( err_b_a( mesh.VBI   == 0));
+  % errs.b_b = max( err_b_b( mesh.TriBI == 0));
+  max_errs.b_c = max( err_b_c( mesh.EBI   == 0));
+
+  max_errs.c_a = max( err_c_a( mesh.VBI   == 0));
+  max_errs.c_b = max( err_c_b( mesh.TriBI == 0));
+  % errs.c_c = max( err_c_c( mesh.EBI   == 0));
+
   %% Calculate ranges
 
-  % Calculate range for data
+  % Calculate color range for data
   clim = calc_color_limits( d_a_ex);
 
-  % Calculate range for errors
+  % Calculate color range for errors
   err_min = min([ ...
     % min( err_a_a( err_a_a > -Inf & mesh.VBI   == 0))
     min( err_a_b( err_a_b > -Inf & mesh.TriBI == 0))
@@ -205,7 +243,7 @@ function [H, err_max] = analyse_mapping_derivatives_tests_mesh_function_map( fil
 
   %% Plot data and errors
   
-  if do_print
+  if do_print_figures
 
     plot_mesh_data_a( H.Ax{ 1,1}, mesh, d_a_ex, clim);
     % plot_mesh_data_a( H.Ax{ 1,2}, mesh, d_a_a, clim);
@@ -258,12 +296,8 @@ function [H, err_max] = analyse_mapping_derivatives_tests_mesh_function_map( fil
 
   end
 
-  %% Convert maximum error back from logarithm
-  err_max = 10^err_max;
-
 end
-
-function [H, err_max] = analyse_mapping_derivatives_tests_mesh_function_ddxy( filename, ddxy)
+function [H, max_errs] = analyse_mapping_derivatives_tests_mesh_function_ddxy( filename, ddxy)
 
   H = [];
 
@@ -271,7 +305,7 @@ function [H, err_max] = analyse_mapping_derivatives_tests_mesh_function_ddxy( fi
   mesh = read_mesh_from_file( filename);
   
   %% Set up the plot
-  if do_print
+  if do_print_figures
 
     wa = 150;
     ha = 150;
@@ -354,6 +388,19 @@ function [H, err_max] = analyse_mapping_derivatives_tests_mesh_function_ddxy( fi
   err_c_b = calc_log10_discretisation_error( d_b_ex, d_c_b);
   err_c_c = calc_log10_discretisation_error( d_c_ex, d_c_c);
 
+  % Calculate maxima for output
+  max_errs.a_a = max( err_a_a( mesh.VBI   == 0));
+  max_errs.a_b = max( err_a_b( mesh.TriBI == 0));
+  max_errs.a_c = max( err_a_c( mesh.EBI   == 0));
+
+  max_errs.b_a = max( err_b_a( mesh.VBI   == 0));
+  max_errs.b_b = max( err_b_b( mesh.TriBI == 0));
+  max_errs.b_c = max( err_b_c( mesh.EBI   == 0));
+
+  max_errs.c_a = max( err_c_a( mesh.VBI   == 0));
+  max_errs.c_b = max( err_c_b( mesh.TriBI == 0));
+  max_errs.c_c = max( err_c_c( mesh.EBI   == 0));
+
   %% Calculate ranges
 
   % Calculate range for data
@@ -386,7 +433,7 @@ function [H, err_max] = analyse_mapping_derivatives_tests_mesh_function_ddxy( fi
 
   %% Plot data and errors
   
-  if do_print
+  if do_print_figures
 
     plot_mesh_data_a( H.Ax{ 1,1}, mesh, d_a_ex, clim);
     plot_mesh_data_a( H.Ax{ 1,2}, mesh, d_a_a, clim);
@@ -439,13 +486,8 @@ function [H, err_max] = analyse_mapping_derivatives_tests_mesh_function_ddxy( fi
 
   end
 
-  %% Convert maximum error back from logarithm
-  err_max = 10^err_max;
-
 end
-
-function [H, err_ddx_max, err_ddy_max, err_d2dx2_max, err_d2dxdy_max, err_d2dy2_max] = ...
-    analyse_mapping_derivatives_tests_mesh_function_2nd( filename)
+function [H, max_errs] = analyse_mapping_derivatives_tests_mesh_function_2nd( filename)
 
   H = [];
 
@@ -453,7 +495,7 @@ function [H, err_ddx_max, err_ddy_max, err_d2dx2_max, err_d2dxdy_max, err_d2dy2_
   mesh = read_mesh_from_file( filename);
   
   %% Set up the plot
-  if do_print
+  if do_print_figures
 
     wa = 150;
     ha = 150;
@@ -511,6 +553,13 @@ function [H, err_ddx_max, err_ddy_max, err_d2dx2_max, err_d2dxdy_max, err_d2dy2_
   err_d2dxdy_b_b_2nd = calc_log10_discretisation_error( d2dxdy_b_ex, d2dxdy_b_b_2nd);
   err_d2dy2_b_b_2nd  = calc_log10_discretisation_error( d2dy2_b_ex , d2dy2_b_b_2nd);
 
+  % Calculate maxima for output
+  max_errs.ddx    = max( err_ddx_b_b_2nd(    mesh.TriBI == 0));
+  max_errs.ddy    = max( err_ddy_b_b_2nd(    mesh.TriBI == 0));
+  max_errs.d2dx2  = max( err_d2dx2_b_b_2nd(  mesh.TriBI == 0));
+  max_errs.d2dxdy = max( err_d2dxdy_b_b_2nd( mesh.TriBI == 0));
+  max_errs.d2dy2  = max( err_d2dy2_b_b_2nd(  mesh.TriBI == 0));
+
   %% Calculate ranges
 
   % Calculate range for data
@@ -527,15 +576,9 @@ function [H, err_ddx_max, err_ddy_max, err_d2dx2_max, err_d2dxdy_max, err_d2dy2_
   clim_d2dxdy_err = calc_color_limits( err_d2dxdy_b_b_2nd( err_d2dxdy_b_b_2nd > -Inf & mesh.TriBI == 0));
   clim_d2dy2_err  = calc_color_limits( err_d2dy2_b_b_2nd(  err_d2dy2_b_b_2nd  > -Inf & mesh.TriBI == 0));
 
-  err_ddx_max    = clim_ddx_err(    2);
-  err_ddy_max    = clim_ddy_err(    2);
-  err_d2dx2_max  = clim_d2dx2_err(  2);
-  err_d2dxdy_max = clim_d2dxdy_err( 2);
-  err_d2dy2_max  = clim_d2dy2_err(  2);
-
   %% Plot data and errors
   
-  if do_print
+  if do_print_figures
 
     plot_mesh_data_b( H.Ax{ 1,1}, mesh, ddx_b_ex   , clim_ddx);
     plot_mesh_data_b( H.Ax{ 1,2}, mesh, ddy_b_ex   , clim_ddy);
@@ -585,13 +628,6 @@ function [H, err_ddx_max, err_ddy_max, err_d2dx2_max, err_d2dxdy_max, err_d2dy2_
 
   end
 
-  %% Convert maximum error back from logarithm
-  err_ddx_max    = 10^err_ddx_max;
-  err_ddy_max    = 10^err_ddy_max;
-  err_d2dx2_max  = 10^err_d2dx2_max;
-  err_d2dxdy_max = 10^err_d2dxdy_max;
-  err_d2dy2_max  = 10^err_d2dy2_max;
-
 end
 
 function clim = calc_color_limits( d)
@@ -618,7 +654,7 @@ function clim = calc_color_limits( d)
 end
 
 function err = calc_log10_discretisation_error( d_ex, d_disc)
-  if (max( d_ex) == 0)
+  if (max( abs( d_ex)) == 0)
     err = log( abs( d_disc - d_ex)) / log( 10);
   else
     err = log( abs( d_disc - d_ex) ./ max( abs( d_ex))) / log( 10);
