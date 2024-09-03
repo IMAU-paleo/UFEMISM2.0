@@ -1,1 +1,1 @@
-beep
+Hello text file!
