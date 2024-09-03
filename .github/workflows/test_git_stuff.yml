@@ -17,6 +17,6 @@ jobs:
       - name: Checkout UFEMISM repository
         uses: actions/checkout@v4
 
-      - name: Create dummy file
+      - name: Write some stuff to one of the dummy text files
         run: |
-          touch automated_testing/scoreboard/dummy.txt
+          echo 'Hello text file!' > automated_testing/scoreboard/dummy.txt
