@@ -173,8 +173,8 @@ jobs:
         uses: matlab-actions/run-command@v2
         with:
           command: |
-            addpath('automated_testing')
-            analyse_component_and_integrated_tests('results_component_tests')
+            addpath('automated_testing/analysis_scripts/component_tests')
+            analyse_component_tests('results_component_tests')
 
       - name: Upload component test figures as artifact
         uses: actions/upload-artifact@v4.3.4
