@@ -100,7 +100,9 @@ jobs:
       - name: Analyse unit tests results
         uses: matlab-actions/run-command@v2
         with:
-          command: addpath('automated_testing/unit_tests'), analyse_unit_tests_results('${{github.workspace}}/results_unit_tests')
+          command: |
+            addpath('automated_testing/analysis_scripts/unit_tests')
+            analyse_unit_tests_results('${{github.workspace}}/results_unit_tests')
 
       - name: Upload test report as artifact
         uses: actions/upload-artifact@v4.3.4
@@ -111,7 +113,9 @@ jobs:
       - name: Verify unit tests results
         uses: matlab-actions/run-command@v2
         with:
-          command: addpath('automated_testing/unit_tests'), verify_unit_tests_results('${{github.workspace}}/results_unit_tests')
+          command: |
+            addpath('automated_testing/analysis_scripts/unit_tests')
+            verify_unit_tests_results('${{github.workspace}}/results_unit_tests')
 
   run_component_tests:
     needs: analyse_unit_test_results
