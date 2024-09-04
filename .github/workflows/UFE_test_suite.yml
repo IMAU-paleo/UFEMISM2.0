@@ -168,10 +168,12 @@ jobs:
       - name: Analyse component tests results
         uses: matlab-actions/run-command@v2
         with:
-          command: addpath('automated_testing/component_tests'), analyse_component_tests('results_component_tests')
+          command: |
+            addpath('automated_testing')
+            analyse_component_and_integrated_tests('results_component_tests')
 
-      - name: Upload test results as artifact
+      - name: Upload component test figures as artifact
         uses: actions/upload-artifact@v4.3.4
         with:
-          name: results_component_tests_with_analysis
-          path: results_component_tests
+          name: component_test_figures
+          path: automated_testing/figures
