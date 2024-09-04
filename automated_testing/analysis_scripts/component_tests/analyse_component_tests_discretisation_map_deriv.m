@@ -1,4 +1,4 @@
-function analyse_component_tests_discretisation_map_deriv( foldername, do_print_figures)
+function analyse_component_tests_discretisation_map_deriv( foldername, foldername_automated_testing, do_print_figures)
 % Analyse the results of all the mapping/derivative discretisation
 % component tests
 
@@ -37,10 +37,10 @@ function analyse_component_test_discretisation_map_deriv( foldername, filename)
     filename_ddy_png = strrep( filename, '.nc', '_ddy.png');
     filename_2nd_png = strrep( filename, '.nc', '_2nd.png');
   
-    print( H_map.Fig, [foldername '/' filename_map_png], '-dpng');
-    print( H_ddx.Fig, [foldername '/' filename_ddx_png], '-dpng');
-    print( H_ddy.Fig, [foldername '/' filename_ddy_png], '-dpng');
-    print( H_2nd.Fig, [foldername '/' filename_2nd_png], '-dpng');
+    print( H_map.Fig, [foldername_automated_testing '/figures/' filename_map_png], '-dpng');
+    print( H_ddx.Fig, [foldername_automated_testing '/figures/' filename_ddx_png], '-dpng');
+    print( H_ddy.Fig, [foldername_automated_testing '/figures/' filename_ddy_png], '-dpng');
+    print( H_2nd.Fig, [foldername_automated_testing '/figures/' filename_2nd_png], '-dpng');
   
     close( H_map.Fig)
     close( H_ddx.Fig)

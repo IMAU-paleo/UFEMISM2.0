@@ -1,7 +1,6 @@
-function analyse_component_tests_remapping_mesh_to_grid( foldername, do_print_figures)
+function analyse_component_tests_remapping_mesh_to_grid( foldername, foldername_automated_testing, do_print_figures)
 % Analyse the results of all the mesh-to-grid remapping component tests
 
-% Create text file with
 % List all the test results
 filenames = dir( foldername);
 i = 1;
@@ -74,7 +73,7 @@ function analyse_remapping_test( foldername, filename)
     set( H.Cbaraxes,'clim',clim);
 
     filename_png = strrep( filename, '.nc', '.png');
-    print( H.Fig, [foldername '/' filename_png], '-dpng');
+    print( H.Fig, [foldername_automated_testing '/figures/' filename_png], '-dpng');
     close( H.Fig)
 
   end
