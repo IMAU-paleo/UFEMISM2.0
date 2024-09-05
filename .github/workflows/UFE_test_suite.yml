@@ -175,6 +175,7 @@ jobs:
           command: |
             addpath('automated_testing/analysis_scripts/component_tests')
             analyse_component_tests('results_component_tests')
+          startup-options: -singleCompThread
 
       - name: Upload component test figures as artifact
         uses: actions/upload-artifact@v4.3.4
