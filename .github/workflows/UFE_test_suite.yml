@@ -175,7 +175,15 @@ jobs:
           command: |
             addpath('automated_testing/analysis_scripts/component_tests')
             analyse_component_tests('results_component_tests')
-          startup-options: -singleCompThread
+
+      - name: Commit updated scoreboard files
+        # See https://github.com/marketplace/actions/add-commit
+        uses: EndBug/add-and-commit@v9 # You can change this to use a specific version.
+        with:
+          add: automated_testing/scoreboard/scoreboard_*.txt
+          author_name: ${{ github.actor }} (from UFEMISM test suite workflow)
+          message: 'Update scoreboard files (from UFEMISM test suite workflow by ${{ github.actor }})'
+          push: true
 
       - name: Upload component test figures as artifact
         uses: actions/upload-artifact@v4.3.4
