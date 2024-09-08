@@ -1,0 +1,150 @@
+<test>
+  category       : discretisation/mapping_and_derivatives
+  git hash string: 480f43bc5f10efe19f5d0f981977e9e3fee10205
+  date, time     : 08-Sep-2024 18:52:16
+  <result>
+    name         : max_err_map_a_b
+    description  : log( abs( d_a_b - d_b_ex) ./ max( abs( d_b_ex))) / log( 10)
+    cost function:    -1.5431e+01
+  </result>
+  <result>
+    name         : max_err_map_a_c
+    description  : log( abs( d_a_c - d_c_ex) ./ max( abs( d_c_ex))) / log( 10)
+    cost function:    -1.5441e+01
+  </result>
+  <result>
+    name         : max_err_map_b_a
+    description  : log( abs( d_b_a - d_a_ex) ./ max( abs( d_a_ex))) / log( 10)
+    cost function:    -1.5750e+01
+  </result>
+  <result>
+    name         : max_err_map_b_c
+    description  : log( abs( d_b_c - d_c_ex) ./ max( abs( d_c_ex))) / log( 10)
+    cost function:    -1.5265e+01
+  </result>
+  <result>
+    name         : max_err_map_c_a
+    description  : log( abs( d_c_a - d_a_ex) ./ max( abs( d_a_ex))) / log( 10)
+    cost function:    -1.5449e+01
+  </result>
+  <result>
+    name         : max_err_map_c_b
+    description  : log( abs( d_c_b - d_b_ex) ./ max( abs( d_b_ex))) / log( 10)
+    cost function:    -1.5556e+01
+  </result>
+  <result>
+    name         : max_err_ddx_a_a
+    description  : log( abs( ddx_a_a - ddx_a_ex) ./ max( abs( ddx_a_ex))) / log( 10)
+    cost function:    -1.4563e+01
+  </result>
+  <result>
+    name         : max_err_ddx_a_b
+    description  : log( abs( ddx_a_b - ddx_b_ex) ./ max( abs( ddx_b_ex))) / log( 10)
+    cost function:    -1.3874e+01
+  </result>
+  <result>
+    name         : max_err_ddx_a_c
+    description  : log( abs( ddx_a_c - ddx_c_ex) ./ max( abs( ddx_c_ex))) / log( 10)
+    cost function:    -1.4008e+01
+  </result>
+  <result>
+    name         : max_err_ddx_b_a
+    description  : log( abs( ddx_b_a - ddx_a_ex) ./ max( abs( ddx_a_ex))) / log( 10)
+    cost function:    -1.4121e+01
+  </result>
+  <result>
+    name         : max_err_ddx_b_b
+    description  : log( abs( ddx_b_b - ddx_b_ex) ./ max( abs( ddx_b_ex))) / log( 10)
+    cost function:    -1.4275e+01
+  </result>
+  <result>
+    name         : max_err_ddx_b_c
+    description  : log( abs( ddx_b_c - ddx_c_ex) ./ max( abs( ddx_c_ex))) / log( 10)
+    cost function:    -1.3335e+01
+  </result>
+  <result>
+    name         : max_err_ddx_c_a
+    description  : log( abs( ddx_c_a - ddx_a_ex) ./ max( abs( ddx_a_ex))) / log( 10)
+    cost function:    -1.4302e+01
+  </result>
+  <result>
+    name         : max_err_ddx_c_b
+    description  : log( abs( ddx_c_b - ddx_b_ex) ./ max( abs( ddx_b_ex))) / log( 10)
+    cost function:    -1.3587e+01
+  </result>
+  <result>
+    name         : max_err_ddx_c_c
+    description  : log( abs( ddx_c_c - ddx_c_ex) ./ max( abs( ddx_c_ex))) / log( 10)
+    cost function:    -1.4103e+01
+  </result>
+  <result>
+    name         : max_err_ddy_a_a
+    description  : log( abs( ddy_a_a - ddy_a_ex) ./ max( abs( ddy_a_ex))) / log( 10)
+    cost function:    -1.4714e+01
+  </result>
+  <result>
+    name         : max_err_ddy_a_b
+    description  : log( abs( ddy_a_b - ddy_b_ex) ./ max( abs( ddy_b_ex))) / log( 10)
+    cost function:    -1.4237e+01
+  </result>
+  <result>
+    name         : max_err_ddy_a_c
+    description  : log( abs( ddy_a_c - ddy_c_ex) ./ max( abs( ddy_c_ex))) / log( 10)
+    cost function:    -1.4270e+01
+  </result>
+  <result>
+    name         : max_err_ddy_b_a
+    description  : log( abs( ddy_b_a - ddy_a_ex) ./ max( abs( ddy_a_ex))) / log( 10)
+    cost function:    -1.4346e+01
+  </result>
+  <result>
+    name         : max_err_ddy_b_b
+    description  : log( abs( ddy_b_b - ddy_b_ex) ./ max( abs( ddy_b_ex))) / log( 10)
+    cost function:    -1.4307e+01
+  </result>
+  <result>
+    name         : max_err_ddy_b_c
+    description  : log( abs( ddy_b_c - ddy_c_ex) ./ max( abs( ddy_c_ex))) / log( 10)
+    cost function:    -1.3162e+01
+  </result>
+  <result>
+    name         : max_err_ddy_c_a
+    description  : log( abs( ddy_c_a - ddy_a_ex) ./ max( abs( ddy_a_ex))) / log( 10)
+    cost function:    -1.4390e+01
+  </result>
+  <result>
+    name         : max_err_ddy_c_b
+    description  : log( abs( ddy_c_b - ddy_b_ex) ./ max( abs( ddy_b_ex))) / log( 10)
+    cost function:    -1.4056e+01
+  </result>
+  <result>
+    name         : max_err_ddy_c_c
+    description  : log( abs( ddy_c_c - ddy_c_ex) ./ max( abs( ddy_c_ex))) / log( 10)
+    cost function:    -1.4270e+01
+  </result>
+  <result>
+    name         : max_err_ddx_b_b_2nd
+    description  : log( abs( ddx_b_b_2nd    - ddx_b_ex   ) ./ max( abs( ddx_b_ex   ))) / log( 10)
+    cost function:    -1.3980e+01
+  </result>
+  <result>
+    name         : max_err_ddy_b_b_2nd
+    description  : log( abs( ddy_b_b_2nd    - ddy_b_ex   ) ./ max( abs( ddy_b_ex   ))) / log( 10)
+    cost function:    -1.4438e+01
+  </result>
+  <result>
+    name         : max_err_d2dx2_b_b_2nd
+    description  : log( abs( d2dx2_b_b_2nd  - d2dx2_b_ex ) ./ max( abs( d2dx2_b_ex ))) / log( 10)
+    cost function:    -2.5588e+01
+  </result>
+  <result>
+    name         : max_err_d2dxdy_b_b_2nd
+    description  : log( abs( d2dxdy_b_b_2nd - d2dxdy_b_ex) ./ max( abs( d2dxdy_b_ex))) / log( 10)
+    cost function:    -2.5947e+01
+  </result>
+  <result>
+    name         : max_err_d2dy2_b_b_2nd
+    description  : log( abs( d2dy2_b_b_2nd  - d2dy2_b_ex ) ./ max( abs( d2dy2_b_ex ))) / log( 10)
+    cost function:    -2.5536e+01
+  </result>
+</test>
