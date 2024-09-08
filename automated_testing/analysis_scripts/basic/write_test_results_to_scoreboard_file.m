@@ -3,41 +3,35 @@ function write_test_results_to_scoreboard_file( res, foldername_scoreboard)
 % component/integrated test to the corresponding scoreboard file
 % (and create that file if it doesn't exist yet)
 
+filename = [foldername_scoreboard '/scoreboard_' res.name '.txt'];
+
 % Remove earlier entry for the current commit if it exists
-remove_earlier_entry_for_this_commit( res, foldername_scoreboard)
+remove_earlier_entry_for_this_commit( res, filename)
 
-% DENK DROM
-fid = fopen('testfile.txt','w');
-fprintf( fid,'%s\n','Beep');
-fclose(fid);
+% Open the (new) scoreboard file
+fid = fopen( filename,'a');
 
-% % Open the (new) scoreboard file
-% filename = [foldername_scoreboard '/scoreboard_' res.name '.txt'];
-% fid = fopen( filename,'a');
-% 
-% % Write the test results to the scoreboard
-% fprintf( fid, '%s\n', '<test>');
-% fprintf( fid, '%s%s\n', '  category       : ', res.category);
-% fprintf( fid, '%s%s\n', '  git hash string: ', res.git_hash_string);
-% fprintf( fid, '%s%s\n', '  date, time     : ', res.date_and_time);
-% 
-% for ri = 1: length( res.results)
-%   fprintf( fid, '%s\n'      , '  <result>');
-%   fprintf( fid, '%s%s\n'    , '    name         : ', res.results( ri).name);
-%   fprintf( fid, '%s%s\n'    , '    description  : ', res.results( ri).description);
-%   fprintf( fid, '%s%14.4e\n', '    cost function: ', res.results( ri).cost_function);
-%   fprintf( fid, '%s\n'      , '  </result>');
-% end
-% 
-% fprintf( fid, '%s\n', '</test>');
-% 
-% % Close the scoreboard file
-% fclose( fid);
+% Write the test results to the scoreboard
+fprintf( fid, '%s\n', '<test>');
+fprintf( fid, '%s%s\n', '  category       : ', res.category);
+fprintf( fid, '%s%s\n', '  git hash string: ', res.git_hash_string);
+fprintf( fid, '%s%s\n', '  date, time     : ', res.date_and_time);
 
-  function remove_earlier_entry_for_this_commit( res, foldername_scoreboard)
+for ri = 1: length( res.results)
+  fprintf( fid, '%s\n'      , '  <result>');
+  fprintf( fid, '%s%s\n'    , '    name         : ', res.results( ri).name);
+  fprintf( fid, '%s%s\n'    , '    description  : ', res.results( ri).description);
+  fprintf( fid, '%s%14.4e\n', '    cost function: ', res.results( ri).cost_function);
+  fprintf( fid, '%s\n'      , '  </result>');
+end
+
+fprintf( fid, '%s\n', '</test>');
+
+% Close the scoreboard file
+fclose( fid);
+
+  function remove_earlier_entry_for_this_commit( res, filename)
     % Remove earlier entry for the current commit if it exists
-
-    filename = [foldername_scoreboard '/scoreboard_' res.name '.txt'];
 
     if ~exist( filename,'file')
       % No scoreboard file exists yet)

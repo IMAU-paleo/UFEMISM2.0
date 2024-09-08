@@ -103,7 +103,7 @@ function write_to_scoreboard( filename, max_errs_map, max_errs_ddx, max_errs_ddy
   res = add_result_to_test_results( res, 'max_err_d2dy2_b_b_2nd' , 'log( abs( d2dy2_b_b_2nd  - d2dy2_b_ex ) ./ max( abs( d2dy2_b_ex ))) / log( 10)', max_errs_2nd.d2dy2);
 
   % Write to scoreboard file
-  write_test_results_to_scoreboard_file( res, 'scoreboard');
+  write_test_results_to_scoreboard_file( res, [foldername_automated_testing '/scoreboard']);
 
 end
 
