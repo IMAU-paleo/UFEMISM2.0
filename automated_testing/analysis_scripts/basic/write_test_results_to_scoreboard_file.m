@@ -6,12 +6,14 @@ function write_test_results_to_scoreboard_file( res, foldername_scoreboard)
 % Remove earlier entry for the current commit if it exists
 remove_earlier_entry_for_this_commit( res, foldername_scoreboard)
 
-% Open the (new) scoreboard file
-filename_scoreboardfile = [foldername_scoreboard '/scoreboard_' res.name '.txt']
-fid_scoreboardfile = fopen( filename_scoreboardfile,'w');
+% DENK DROM
+fid = fopen('testfile.txt','w');
+fprintf( fid,'%s\n','Beep');
+fclose(fid);
 
-% % DENK DROM
-% fid = 1;
+% % Open the (new) scoreboard file
+% filename = [foldername_scoreboard '/scoreboard_' res.name '.txt'];
+% fid = fopen( filename,'a');
 % 
 % % Write the test results to the scoreboard
 % fprintf( fid, '%s\n', '<test>');
@@ -28,9 +30,9 @@ fid_scoreboardfile = fopen( filename_scoreboardfile,'w');
 % end
 % 
 % fprintf( fid, '%s\n', '</test>');
-
-% Close the scoreboard file
-fclose( fid_scoreboardfile);
+% 
+% % Close the scoreboard file
+% fclose( fid);
 
   function remove_earlier_entry_for_this_commit( res, foldername_scoreboard)
     % Remove earlier entry for the current commit if it exists
