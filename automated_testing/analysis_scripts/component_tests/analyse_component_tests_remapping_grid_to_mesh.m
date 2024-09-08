@@ -105,7 +105,7 @@ function write_to_scoreboard( filename, grid, d_grid_ex, mesh, d_mesh_ex, d_mesh
   res = add_result_to_test_results( res, 'int_err'    , 'abs( 1 - int_mesh / int_grid)'                , int_err);
 
   % Write to scoreboard file
-  write_test_results_to_scoreboard_file( res, 'scoreboard');
+  write_test_results_to_scoreboard_file( res, [foldername_automated_testing '/scoreboard']);
 
 end
   
