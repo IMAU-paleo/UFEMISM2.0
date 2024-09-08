@@ -7,8 +7,8 @@ function write_test_results_to_scoreboard_file( res, foldername_scoreboard)
 remove_earlier_entry_for_this_commit( res, foldername_scoreboard)
 
 % Open the (new) scoreboard file
-filename_scoreboardfile = [foldername_scoreboard '/scoreboard_' strrep( res.name, '.', 'p') '.txt']
-fid_scoreboardfile = fopen( filename_scoreboardfile,'a');
+filename_scoreboardfile = [foldername_scoreboard '/scoreboard_' res.name '.txt']
+fid_scoreboardfile = fopen( filename_scoreboardfile,'w');
 
 % % DENK DROM
 % fid = 1;
