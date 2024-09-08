@@ -8,8 +8,8 @@ remove_earlier_entry_for_this_commit( res, foldername_scoreboard)
 
 % Open the (new) scoreboard file
 filename = [foldername_scoreboard '/scoreboard_' res.name '.txt'];
-fid = fopen( filename,'a');
-
+% fid = fopen( filename,'a');
+% 
 % % Write the test results to the scoreboard
 % fprintf( fid, '%s\n', '<test>');
 % fprintf( fid, '%s%s\n', '  category       : ', res.category);
@@ -25,9 +25,9 @@ fid = fopen( filename,'a');
 % end
 % 
 % fprintf( fid, '%s\n', '</test>');
-
-% Close the scoreboard file
-fclose( fid);
+% 
+% % Close the scoreboard file
+% fclose( fid);
 
   function remove_earlier_entry_for_this_commit( res, foldername_scoreboard)
     % Remove earlier entry for the current commit if it exists
