@@ -10,21 +10,21 @@ remove_earlier_entry_for_this_commit( res, foldername_scoreboard)
 filename = [foldername_scoreboard '/scoreboard_' res.name '.txt'];
 fid = fopen( filename,'a');
 
-% Write the test results to the scoreboard
-fprintf( fid, '%s\n', '<test>');
-fprintf( fid, '%s%s\n', '  category       : ', res.category);
-fprintf( fid, '%s%s\n', '  git hash string: ', res.git_hash_string);
-fprintf( fid, '%s%s\n', '  date, time     : ', res.date_and_time);
-
-for ri = 1: length( res.results)
-  fprintf( fid, '%s\n'      , '  <result>');
-  fprintf( fid, '%s%s\n'    , '    name         : ', res.results( ri).name);
-  fprintf( fid, '%s%s\n'    , '    description  : ', res.results( ri).description);
-  fprintf( fid, '%s%14.4e\n', '    cost function: ', res.results( ri).cost_function);
-  fprintf( fid, '%s\n'      , '  </result>');
-end
-
-fprintf( fid, '%s\n', '</test>');
+% % Write the test results to the scoreboard
+% fprintf( fid, '%s\n', '<test>');
+% fprintf( fid, '%s%s\n', '  category       : ', res.category);
+% fprintf( fid, '%s%s\n', '  git hash string: ', res.git_hash_string);
+% fprintf( fid, '%s%s\n', '  date, time     : ', res.date_and_time);
+% 
+% for ri = 1: length( res.results)
+%   fprintf( fid, '%s\n'      , '  <result>');
+%   fprintf( fid, '%s%s\n'    , '    name         : ', res.results( ri).name);
+%   fprintf( fid, '%s%s\n'    , '    description  : ', res.results( ri).description);
+%   fprintf( fid, '%s%14.4e\n', '    cost function: ', res.results( ri).cost_function);
+%   fprintf( fid, '%s\n'      , '  </result>');
+% end
+% 
+% fprintf( fid, '%s\n', '</test>');
 
 % Close the scoreboard file
 fclose( fid);
