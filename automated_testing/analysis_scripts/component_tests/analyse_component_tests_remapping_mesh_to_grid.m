@@ -89,7 +89,7 @@ function write_to_scoreboard( filename, mesh, d_mesh_ex, grid, d_grid_ex, d_grid
   res = initialise_test_results( test_name, 'remapping/mesh_to_grid');
 
   % Calculate cost functions
-  rmse = sqrt( mean( (d_grid - d_grid_ex).^2));
+  rmse = sqrt( mean( (d_grid(:) - d_grid_ex(:)).^2));
 
   bounds_max = max( 0, max( d_grid(:)) - max( d_mesh_ex(:)));
   bounds_min = max( 0, min( d_mesh_ex(:)) - min( d_grid(:)));
