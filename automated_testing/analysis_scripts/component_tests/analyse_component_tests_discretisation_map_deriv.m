@@ -57,50 +57,50 @@ function write_to_scoreboard( filename, max_errs_map, max_errs_ddx, max_errs_ddy
   res = initialise_test_results( test_name, 'discretisation/mapping_and_derivatives');
 
   % Map
-  % res = add_result_to_test_results( res, 'max_err_map_a_a', 'log( abs( d_a_a - d_a_ex) ./ max( abs( d_a_ex))) / log( 10)', max_errs_map.a_a);
-  res = add_result_to_test_results( res, 'max_err_map_a_b', 'log( abs( d_a_b - d_b_ex) ./ max( abs( d_b_ex))) / log( 10)', max_errs_map.a_b);
-  res = add_result_to_test_results( res, 'max_err_map_a_c', 'log( abs( d_a_c - d_c_ex) ./ max( abs( d_c_ex))) / log( 10)', max_errs_map.a_c);
+  % res = add_result_to_test_results( res, 'max_err_map_a_a', 'abs( d_a_a - d_a_ex) ./ max( abs( d_a_ex))', max_errs_map.a_a);
+  res = add_result_to_test_results( res, 'max_err_map_a_b', 'abs( d_a_b - d_b_ex) ./ max( abs( d_b_ex))', max_errs_map.a_b);
+  res = add_result_to_test_results( res, 'max_err_map_a_c', 'abs( d_a_c - d_c_ex) ./ max( abs( d_c_ex))', max_errs_map.a_c);
 
-  res = add_result_to_test_results( res, 'max_err_map_b_a', 'log( abs( d_b_a - d_a_ex) ./ max( abs( d_a_ex))) / log( 10)', max_errs_map.b_a);
-  % res = add_result_to_test_results( res, 'max_err_map_b_b', 'log( abs( d_b_b - d_b_ex) ./ max( abs( d_b_ex))) / log( 10)', max_errs_map.b_b);
-  res = add_result_to_test_results( res, 'max_err_map_b_c', 'log( abs( d_b_c - d_c_ex) ./ max( abs( d_c_ex))) / log( 10)', max_errs_map.b_c);
+  res = add_result_to_test_results( res, 'max_err_map_b_a', 'abs( d_b_a - d_a_ex) ./ max( abs( d_a_ex))', max_errs_map.b_a);
+  % res = add_result_to_test_results( res, 'max_err_map_b_b', 'abs( d_b_b - d_b_ex) ./ max( abs( d_b_ex))', max_errs_map.b_b);
+  res = add_result_to_test_results( res, 'max_err_map_b_c', 'abs( d_b_c - d_c_ex) ./ max( abs( d_c_ex))', max_errs_map.b_c);
 
-  res = add_result_to_test_results( res, 'max_err_map_c_a', 'log( abs( d_c_a - d_a_ex) ./ max( abs( d_a_ex))) / log( 10)', max_errs_map.c_a);
-  res = add_result_to_test_results( res, 'max_err_map_c_b', 'log( abs( d_c_b - d_b_ex) ./ max( abs( d_b_ex))) / log( 10)', max_errs_map.c_b);
-  % res = add_result_to_test_results( res, 'max_err_map_c_c', 'log( abs( d_c_c - d_c_ex) ./ max( abs( d_c_ex))) / log( 10)', max_errs_map.c_c);
+  res = add_result_to_test_results( res, 'max_err_map_c_a', 'abs( d_c_a - d_a_ex) ./ max( abs( d_a_ex))', max_errs_map.c_a);
+  res = add_result_to_test_results( res, 'max_err_map_c_b', 'abs( d_c_b - d_b_ex) ./ max( abs( d_b_ex))', max_errs_map.c_b);
+  % res = add_result_to_test_results( res, 'max_err_map_c_c', 'abs( d_c_c - d_c_ex) ./ max( abs( d_c_ex))', max_errs_map.c_c);
 
   % d/dx
-  res = add_result_to_test_results( res, 'max_err_ddx_a_a', 'log( abs( ddx_a_a - ddx_a_ex) ./ max( abs( ddx_a_ex))) / log( 10)', max_errs_ddx.a_a);
-  res = add_result_to_test_results( res, 'max_err_ddx_a_b', 'log( abs( ddx_a_b - ddx_b_ex) ./ max( abs( ddx_b_ex))) / log( 10)', max_errs_ddx.a_b);
-  res = add_result_to_test_results( res, 'max_err_ddx_a_c', 'log( abs( ddx_a_c - ddx_c_ex) ./ max( abs( ddx_c_ex))) / log( 10)', max_errs_ddx.a_c);
+  res = add_result_to_test_results( res, 'max_err_ddx_a_a', 'abs( ddx_a_a - ddx_a_ex) ./ max( abs( ddx_a_ex))', max_errs_ddx.a_a);
+  res = add_result_to_test_results( res, 'max_err_ddx_a_b', 'abs( ddx_a_b - ddx_b_ex) ./ max( abs( ddx_b_ex))', max_errs_ddx.a_b);
+  res = add_result_to_test_results( res, 'max_err_ddx_a_c', 'abs( ddx_a_c - ddx_c_ex) ./ max( abs( ddx_c_ex))', max_errs_ddx.a_c);
 
-  res = add_result_to_test_results( res, 'max_err_ddx_b_a', 'log( abs( ddx_b_a - ddx_a_ex) ./ max( abs( ddx_a_ex))) / log( 10)', max_errs_ddx.b_a);
-  res = add_result_to_test_results( res, 'max_err_ddx_b_b', 'log( abs( ddx_b_b - ddx_b_ex) ./ max( abs( ddx_b_ex))) / log( 10)', max_errs_ddx.b_b);
-  res = add_result_to_test_results( res, 'max_err_ddx_b_c', 'log( abs( ddx_b_c - ddx_c_ex) ./ max( abs( ddx_c_ex))) / log( 10)', max_errs_ddx.b_c);
+  res = add_result_to_test_results( res, 'max_err_ddx_b_a', 'abs( ddx_b_a - ddx_a_ex) ./ max( abs( ddx_a_ex))', max_errs_ddx.b_a);
+  res = add_result_to_test_results( res, 'max_err_ddx_b_b', 'abs( ddx_b_b - ddx_b_ex) ./ max( abs( ddx_b_ex))', max_errs_ddx.b_b);
+  res = add_result_to_test_results( res, 'max_err_ddx_b_c', 'abs( ddx_b_c - ddx_c_ex) ./ max( abs( ddx_c_ex))', max_errs_ddx.b_c);
 
-  res = add_result_to_test_results( res, 'max_err_ddx_c_a', 'log( abs( ddx_c_a - ddx_a_ex) ./ max( abs( ddx_a_ex))) / log( 10)', max_errs_ddx.c_a);
-  res = add_result_to_test_results( res, 'max_err_ddx_c_b', 'log( abs( ddx_c_b - ddx_b_ex) ./ max( abs( ddx_b_ex))) / log( 10)', max_errs_ddx.c_b);
-  res = add_result_to_test_results( res, 'max_err_ddx_c_c', 'log( abs( ddx_c_c - ddx_c_ex) ./ max( abs( ddx_c_ex))) / log( 10)', max_errs_ddx.c_c);
+  res = add_result_to_test_results( res, 'max_err_ddx_c_a', 'abs( ddx_c_a - ddx_a_ex) ./ max( abs( ddx_a_ex))', max_errs_ddx.c_a);
+  res = add_result_to_test_results( res, 'max_err_ddx_c_b', 'abs( ddx_c_b - ddx_b_ex) ./ max( abs( ddx_b_ex))', max_errs_ddx.c_b);
+  res = add_result_to_test_results( res, 'max_err_ddx_c_c', 'abs( ddx_c_c - ddx_c_ex) ./ max( abs( ddx_c_ex))', max_errs_ddx.c_c);
 
   % d/dy
-  res = add_result_to_test_results( res, 'max_err_ddy_a_a', 'log( abs( ddy_a_a - ddy_a_ex) ./ max( abs( ddy_a_ex))) / log( 10)', max_errs_ddy.a_a);
-  res = add_result_to_test_results( res, 'max_err_ddy_a_b', 'log( abs( ddy_a_b - ddy_b_ex) ./ max( abs( ddy_b_ex))) / log( 10)', max_errs_ddy.a_b);
-  res = add_result_to_test_results( res, 'max_err_ddy_a_c', 'log( abs( ddy_a_c - ddy_c_ex) ./ max( abs( ddy_c_ex))) / log( 10)', max_errs_ddy.a_c);
+  res = add_result_to_test_results( res, 'max_err_ddy_a_a', 'abs( ddy_a_a - ddy_a_ex) ./ max( abs( ddy_a_ex))', max_errs_ddy.a_a);
+  res = add_result_to_test_results( res, 'max_err_ddy_a_b', 'abs( ddy_a_b - ddy_b_ex) ./ max( abs( ddy_b_ex))', max_errs_ddy.a_b);
+  res = add_result_to_test_results( res, 'max_err_ddy_a_c', 'abs( ddy_a_c - ddy_c_ex) ./ max( abs( ddy_c_ex))', max_errs_ddy.a_c);
 
-  res = add_result_to_test_results( res, 'max_err_ddy_b_a', 'log( abs( ddy_b_a - ddy_a_ex) ./ max( abs( ddy_a_ex))) / log( 10)', max_errs_ddy.b_a);
-  res = add_result_to_test_results( res, 'max_err_ddy_b_b', 'log( abs( ddy_b_b - ddy_b_ex) ./ max( abs( ddy_b_ex))) / log( 10)', max_errs_ddy.b_b);
-  res = add_result_to_test_results( res, 'max_err_ddy_b_c', 'log( abs( ddy_b_c - ddy_c_ex) ./ max( abs( ddy_c_ex))) / log( 10)', max_errs_ddy.b_c);
+  res = add_result_to_test_results( res, 'max_err_ddy_b_a', 'abs( ddy_b_a - ddy_a_ex) ./ max( abs( ddy_a_ex))', max_errs_ddy.b_a);
+  res = add_result_to_test_results( res, 'max_err_ddy_b_b', 'abs( ddy_b_b - ddy_b_ex) ./ max( abs( ddy_b_ex))', max_errs_ddy.b_b);
+  res = add_result_to_test_results( res, 'max_err_ddy_b_c', 'abs( ddy_b_c - ddy_c_ex) ./ max( abs( ddy_c_ex))', max_errs_ddy.b_c);
 
-  res = add_result_to_test_results( res, 'max_err_ddy_c_a', 'log( abs( ddy_c_a - ddy_a_ex) ./ max( abs( ddy_a_ex))) / log( 10)', max_errs_ddy.c_a);
-  res = add_result_to_test_results( res, 'max_err_ddy_c_b', 'log( abs( ddy_c_b - ddy_b_ex) ./ max( abs( ddy_b_ex))) / log( 10)', max_errs_ddy.c_b);
-  res = add_result_to_test_results( res, 'max_err_ddy_c_c', 'log( abs( ddy_c_c - ddy_c_ex) ./ max( abs( ddy_c_ex))) / log( 10)', max_errs_ddy.c_c);
+  res = add_result_to_test_results( res, 'max_err_ddy_c_a', 'abs( ddy_c_a - ddy_a_ex) ./ max( abs( ddy_a_ex))', max_errs_ddy.c_a);
+  res = add_result_to_test_results( res, 'max_err_ddy_c_b', 'abs( ddy_c_b - ddy_b_ex) ./ max( abs( ddy_b_ex))', max_errs_ddy.c_b);
+  res = add_result_to_test_results( res, 'max_err_ddy_c_c', 'abs( ddy_c_c - ddy_c_ex) ./ max( abs( ddy_c_ex))', max_errs_ddy.c_c);
 
   % 2nd order
-  res = add_result_to_test_results( res, 'max_err_ddx_b_b_2nd'   , 'log( abs( ddx_b_b_2nd    - ddx_b_ex   ) ./ max( abs( ddx_b_ex   ))) / log( 10)', max_errs_2nd.ddx);
-  res = add_result_to_test_results( res, 'max_err_ddy_b_b_2nd'  ,  'log( abs( ddy_b_b_2nd    - ddy_b_ex   ) ./ max( abs( ddy_b_ex   ))) / log( 10)', max_errs_2nd.ddy);
-  res = add_result_to_test_results( res, 'max_err_d2dx2_b_b_2nd' , 'log( abs( d2dx2_b_b_2nd  - d2dx2_b_ex ) ./ max( abs( d2dx2_b_ex ))) / log( 10)', max_errs_2nd.d2dx2);
-  res = add_result_to_test_results( res, 'max_err_d2dxdy_b_b_2nd', 'log( abs( d2dxdy_b_b_2nd - d2dxdy_b_ex) ./ max( abs( d2dxdy_b_ex))) / log( 10)', max_errs_2nd.d2dxdy);
-  res = add_result_to_test_results( res, 'max_err_d2dy2_b_b_2nd' , 'log( abs( d2dy2_b_b_2nd  - d2dy2_b_ex ) ./ max( abs( d2dy2_b_ex ))) / log( 10)', max_errs_2nd.d2dy2);
+  res = add_result_to_test_results( res, 'max_err_ddx_b_b_2nd'   , 'abs( ddx_b_b_2nd    - ddx_b_ex   ) ./ max( abs( ddx_b_ex   ))', max_errs_2nd.ddx);
+  res = add_result_to_test_results( res, 'max_err_ddy_b_b_2nd'  ,  'abs( ddy_b_b_2nd    - ddy_b_ex   ) ./ max( abs( ddy_b_ex   ))', max_errs_2nd.ddy);
+  res = add_result_to_test_results( res, 'max_err_d2dx2_b_b_2nd' , 'abs( d2dx2_b_b_2nd  - d2dx2_b_ex ) ./ max( abs( d2dx2_b_ex ))', max_errs_2nd.d2dx2);
+  res = add_result_to_test_results( res, 'max_err_d2dxdy_b_b_2nd', 'abs( d2dxdy_b_b_2nd - d2dxdy_b_ex) ./ max( abs( d2dxdy_b_ex))', max_errs_2nd.d2dxdy);
+  res = add_result_to_test_results( res, 'max_err_d2dy2_b_b_2nd' , 'abs( d2dy2_b_b_2nd  - d2dy2_b_ex ) ./ max( abs( d2dy2_b_ex ))', max_errs_2nd.d2dy2);
 
   % Write to scoreboard file
   write_test_results_to_scoreboard_file( res, [foldername_automated_testing '/scoreboard']);
@@ -186,17 +186,17 @@ function [H, max_errs] = analyse_mapping_derivatives_tests_mesh_function_map( fi
   % d_c_c  = ncread( filename,'d_c_c');
 
   %% Calculate errors
-  % err_a_a = calc_log_discretisation_error( d_a_ex, d_a_a);
-  err_a_b = calc_log10_discretisation_error( d_b_ex, d_a_b);
-  err_a_c = calc_log10_discretisation_error( d_c_ex, d_a_c);
+  % err_a_a = calc_discretisation_error( d_a_ex, d_a_a);
+  err_a_b = calc_discretisation_error( d_b_ex, d_a_b);
+  err_a_c = calc_discretisation_error( d_c_ex, d_a_c);
 
-  err_b_a = calc_log10_discretisation_error( d_a_ex, d_b_a);
-  % err_b_b = calc_log_discretisation_error( d_b_ex, d_b_b);
-  err_b_c = calc_log10_discretisation_error( d_c_ex, d_b_c);
+  err_b_a = calc_discretisation_error( d_a_ex, d_b_a);
+  % err_b_b = calc_discretisation_error( d_b_ex, d_b_b);
+  err_b_c = calc_discretisation_error( d_c_ex, d_b_c);
 
-  err_c_a = calc_log10_discretisation_error( d_a_ex, d_c_a);
-  err_c_b = calc_log10_discretisation_error( d_b_ex, d_c_b);
-  % err_c_c = calc_log_discretisation_error( d_c_ex, d_c_c);
+  err_c_a = calc_discretisation_error( d_a_ex, d_c_a);
+  err_c_b = calc_discretisation_error( d_b_ex, d_c_b);
+  % err_c_c = calc_discretisation_error( d_c_ex, d_c_c);
 
   % Calculate maxima for output
   % errs.a_a = max( err_a_a( mesh.VBI   == 0));
@@ -210,6 +210,19 @@ function [H, max_errs] = analyse_mapping_derivatives_tests_mesh_function_map( fi
   max_errs.c_a = max( err_c_a( mesh.VBI   == 0));
   max_errs.c_b = max( err_c_b( mesh.TriBI == 0));
   % errs.c_c = max( err_c_c( mesh.EBI   == 0));
+
+  % Take logarithm for plotting
+  % err_a_a = log( err_a_a) / log( 10);
+  err_a_b = log( err_a_b) / log( 10);
+  err_a_c = log( err_a_c) / log( 10);
+
+  err_b_a = log( err_b_a) / log( 10);
+  % err_b_b = log( err_b_b) / log( 10);
+  err_b_c = log( err_b_c) / log( 10);
+
+  err_c_a = log( err_c_a) / log( 10);
+  err_c_b = log( err_c_b) / log( 10);
+  % err_c_c = log( err_c_c) / log( 10);
 
   %% Calculate ranges
 
@@ -376,17 +389,17 @@ function [H, max_errs] = analyse_mapping_derivatives_tests_mesh_function_ddxy( f
   d_c_c  = ncread( filename,[ddxy '_c_c']);
 
   %% Calculate errors
-  err_a_a = calc_log10_discretisation_error( d_a_ex, d_a_a);
-  err_a_b = calc_log10_discretisation_error( d_b_ex, d_a_b);
-  err_a_c = calc_log10_discretisation_error( d_c_ex, d_a_c);
+  err_a_a = calc_discretisation_error( d_a_ex, d_a_a);
+  err_a_b = calc_discretisation_error( d_b_ex, d_a_b);
+  err_a_c = calc_discretisation_error( d_c_ex, d_a_c);
 
-  err_b_a = calc_log10_discretisation_error( d_a_ex, d_b_a);
-  err_b_b = calc_log10_discretisation_error( d_b_ex, d_b_b);
-  err_b_c = calc_log10_discretisation_error( d_c_ex, d_b_c);
+  err_b_a = calc_discretisation_error( d_a_ex, d_b_a);
+  err_b_b = calc_discretisation_error( d_b_ex, d_b_b);
+  err_b_c = calc_discretisation_error( d_c_ex, d_b_c);
 
-  err_c_a = calc_log10_discretisation_error( d_a_ex, d_c_a);
-  err_c_b = calc_log10_discretisation_error( d_b_ex, d_c_b);
-  err_c_c = calc_log10_discretisation_error( d_c_ex, d_c_c);
+  err_c_a = calc_discretisation_error( d_a_ex, d_c_a);
+  err_c_b = calc_discretisation_error( d_b_ex, d_c_b);
+  err_c_c = calc_discretisation_error( d_c_ex, d_c_c);
 
   % Calculate maxima for output
   max_errs.a_a = max( err_a_a( mesh.VBI   == 0));
@@ -400,6 +413,19 @@ function [H, max_errs] = analyse_mapping_derivatives_tests_mesh_function_ddxy( f
   max_errs.c_a = max( err_c_a( mesh.VBI   == 0));
   max_errs.c_b = max( err_c_b( mesh.TriBI == 0));
   max_errs.c_c = max( err_c_c( mesh.EBI   == 0));
+
+  % Take logarithm for plotting
+  err_a_a = log( err_a_a) / log( 10);
+  err_a_b = log( err_a_b) / log( 10);
+  err_a_c = log( err_a_c) / log( 10);
+
+  err_b_a = log( err_b_a) / log( 10);
+  err_b_b = log( err_b_b) / log( 10);
+  err_b_c = log( err_b_c) / log( 10);
+
+  err_c_a = log( err_c_a) / log( 10);
+  err_c_b = log( err_c_b) / log( 10);
+  err_c_c = log( err_c_c) / log( 10);
 
   %% Calculate ranges
 
@@ -547,11 +573,11 @@ function [H, max_errs] = analyse_mapping_derivatives_tests_mesh_function_2nd( fi
   d2dy2_b_b_2nd  = ncread( filename,'d2dy2_b_b_2nd');
 
   %% Calculate errors
-  err_ddx_b_b_2nd    = calc_log10_discretisation_error( ddx_b_ex   , ddx_b_b_2nd);
-  err_ddy_b_b_2nd    = calc_log10_discretisation_error( ddy_b_ex   , ddy_b_b_2nd);
-  err_d2dx2_b_b_2nd  = calc_log10_discretisation_error( d2dx2_b_ex , d2dx2_b_b_2nd);
-  err_d2dxdy_b_b_2nd = calc_log10_discretisation_error( d2dxdy_b_ex, d2dxdy_b_b_2nd);
-  err_d2dy2_b_b_2nd  = calc_log10_discretisation_error( d2dy2_b_ex , d2dy2_b_b_2nd);
+  err_ddx_b_b_2nd    = calc_discretisation_error( ddx_b_ex   , ddx_b_b_2nd);
+  err_ddy_b_b_2nd    = calc_discretisation_error( ddy_b_ex   , ddy_b_b_2nd);
+  err_d2dx2_b_b_2nd  = calc_discretisation_error( d2dx2_b_ex , d2dx2_b_b_2nd);
+  err_d2dxdy_b_b_2nd = calc_discretisation_error( d2dxdy_b_ex, d2dxdy_b_b_2nd);
+  err_d2dy2_b_b_2nd  = calc_discretisation_error( d2dy2_b_ex , d2dy2_b_b_2nd);
 
   % Calculate maxima for output
   max_errs.ddx    = max( err_ddx_b_b_2nd(    mesh.TriBI == 0));
@@ -559,6 +585,13 @@ function [H, max_errs] = analyse_mapping_derivatives_tests_mesh_function_2nd( fi
   max_errs.d2dx2  = max( err_d2dx2_b_b_2nd(  mesh.TriBI == 0));
   max_errs.d2dxdy = max( err_d2dxdy_b_b_2nd( mesh.TriBI == 0));
   max_errs.d2dy2  = max( err_d2dy2_b_b_2nd(  mesh.TriBI == 0));
+
+  % Take logarithm for plotting
+  err_ddx_b_b_2nd    = log( err_ddx_b_b_2nd   ) / log( 10);
+  err_ddy_b_b_2nd    = log( err_ddy_b_b_2nd   ) / log( 10);
+  err_d2dx2_b_b_2nd  = log( err_d2dx2_b_b_2nd ) / log( 10);
+  err_d2dxdy_b_b_2nd = log( err_d2dxdy_b_b_2nd) / log( 10);
+  err_d2dy2_b_b_2nd  = log( err_d2dy2_b_b_2nd ) / log( 10);
 
   %% Calculate ranges
 
@@ -653,11 +686,11 @@ function clim = calc_color_limits( d)
 
 end
 
-function err = calc_log10_discretisation_error( d_ex, d_disc)
+function err = calc_discretisation_error( d_ex, d_disc)
   if (max( abs( d_ex)) == 0)
-    err = log( abs( d_disc - d_ex)) / log( 10);
+    err = abs( d_disc - d_ex);
   else
-    err = log( abs( d_disc - d_ex) ./ max( abs( d_ex))) / log( 10);
+    err = abs( d_disc - d_ex) ./ max( abs( d_ex));
   end
 end
 

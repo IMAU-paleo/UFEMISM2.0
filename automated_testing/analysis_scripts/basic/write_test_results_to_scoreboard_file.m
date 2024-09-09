@@ -13,6 +13,7 @@ fid = fopen( filename,'a');
 
 % Write the test results to the scoreboard
 fprintf( fid, '%s\n', '<test>');
+fprintf( fid, '%s%s\n', '  name           : ', res.name);
 fprintf( fid, '%s%s\n', '  category       : ', res.category);
 fprintf( fid, '%s%s\n', '  git hash string: ', res.git_hash_string);
 fprintf( fid, '%s%s\n', '  date, time     : ', res.date_and_time);
