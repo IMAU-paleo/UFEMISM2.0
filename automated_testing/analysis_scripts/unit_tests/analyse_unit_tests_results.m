@@ -22,11 +22,15 @@ else
   error('need either foldername, or nothing as input!')
 end
 
+%%
+
 filename = [foldername_unit_tests '/unit_tests_output.txt'];
 R = read_unit_tests_structure( filename);
 
 filename_html = [foldername_automated_testing '/test_reports/unit_tests_report.html'];
 create_unit_tests_report_html( R, filename_html);
+
+%%
 
   function R = read_unit_tests_structure( filename)
     % Read the UFEMISM unit tests output file and collect

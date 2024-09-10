@@ -21,6 +21,8 @@ else
   error('need either foldername_scoreboard, or nothing as input!')
 end
 
+%%
+
 scoreboard = read_scoreboard_files( foldername_scoreboard);
 
 %% Write to HTML
@@ -65,6 +67,8 @@ fprintf( fid, '%s\n', '</body>');
 fprintf( fid, '%s\n', '</html>');
 
 fclose( fid);
+
+%%
 
   function scoreboard = read_scoreboard_files( foldername_scoreboard)
     % Read all the scoreboard files
