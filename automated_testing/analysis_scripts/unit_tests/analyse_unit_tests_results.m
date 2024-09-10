@@ -1,11 +1,26 @@
-function analyse_unit_tests_results(foldername)
+function analyse_unit_tests_results( varargin)
 % Process the UFEMISM unit tests results into a nice, semi-interactive html report.
 
 disp('Analysing unit test results...')
 
-% foldername = '../../results_unit_tests';
-filename = [foldername '/unit_tests_output.txt'];
+%%
 
+% In the GitHub Workflow, provide the scoreboard folder as
+% input; but retain the option of running without input (i.e. as a script)
+% locally, with user-defined folders
+
+input_args = varargin;
+if isempty( input_args)
+  % Assume this is a local run
+  foldername = '/Users/Beren017/Documents/GitHub/UFEMISM2.0/results_unit_tests';
+elseif length( input_args) == 1
+  % Assume this is a GitHub Workflow run
+  foldername = varargin{1};
+else
+  error('need either foldername, or nothing as input!')
+end
+
+filename = [foldername '/unit_tests_output.txt'];
 R = read_unit_tests_structure( filename);
 
 filename_html = [foldername '/unit_tests_report.html'];
@@ -104,186 +119,142 @@ create_unit_tests_report_html( R, filename_html);
 
     fid = fopen(filename,'w');
 
-    fprintf(fid,'<!DOCTYPE html>\n');
-    fprintf(fid,'<html>\n');
-    fprintf(fid,'\n');
-    fprintf(fid,'<!-- -->\n');
-    fprintf(fid,'<!-- UFEMISM unit tests report -->\n');
-    fprintf(fid,'<!-- -->\n');
-    fprintf(fid,'\n');
+    fprintf( fid, '%s\n', '<!DOCTYPE html>');
+    fprintf( fid, '%s\n', '<html>');
+    fprintf( fid, '%s\n', '');
+    fprintf( fid, '%s\n', '<!-- -->');
+    fprintf( fid, '%s\n', '<!-- UFEMISM unit tests report -->');
+    fprintf( fid, '%s\n', '<!-- -->');
+    fprintf( fid, '%s\n', ['<!-- Created: ' char(datetime) '-->']);
+    fprintf( fid, '%s\n', '<!-- -->');
+    fprintf( fid, '%s\n', '');
 
     print_html_head( fid)
 
-    fprintf(fid,'<body>\n');
-    fprintf(fid,'\n');
-    fprintf(fid,'<div class="container">\n');
-    fprintf(fid,'<h1>UFEMISM unit tests report</h1>\n');
+    fprintf( fid, '%s\n', '<body>');
+    fprintf( fid, '%s\n', '');
+    fprintf( fid, '%s\n', '<div class="container">');
+    fprintf( fid, '%s\n', '<h1>UFEMISM unit tests report</h1>');
+    fprintf( fid, '%s\n', ['  <p style="font-size: 18pt;">Created: ' char(datetime) '</p>']);
+    fprintf( fid, '%s\n', '  <p style="font-size: 18pt;">&#128994 = pass, &#128992 = fail</p>');
 
     process_unit_tests_tree( R.UFEMISM, fid, 0);
 
-    fprintf(fid,'</div>\n');
-    fprintf(fid,'\n');
+    fprintf( fid, '%s\n', '</div>');
+    fprintf( fid, '%s\n', '');
 
     print_html_tail_script( fid);
 
-    fprintf(fid,'\n');
-    fprintf(fid,'</body>\n');
-    fprintf(fid,'</html>\n');
+    fprintf( fid, '%s\n', '');
+    fprintf( fid, '%s\n', '</body>');
+    fprintf( fid, '%s\n', '</html>');
 
     fclose(fid);
 
-    function print_html_head( fid)
-      fprintf(fid,'<head>\n');
-      fprintf(fid,'<meta name="viewport" content="width=device-width, initial-scale=1">\n');
-      fprintf(fid,'<style>\n');
-      fprintf(fid,'.collapsible_pass {\n');
-      fprintf(fid,'  background-color: #00FF00;\n');
-      fprintf(fid,'  color: black;\n');
-      fprintf(fid,'  cursor: pointer;\n');
-      fprintf(fid,'  padding: 8px;\n');
-      fprintf(fid,'  width: 100%;\n');
-      fprintf(fid,'  border: none;\n');
-      fprintf(fid,'  text-align: left;\n');
-      fprintf(fid,'  outline: none;\n');
-      fprintf(fid,'  font-size: 20px;\n');
-      fprintf(fid,'}\n');
-      fprintf(fid,'\n');
-      fprintf(fid,'.collapsible_fail {\n');
-      fprintf(fid,'  background-color: #FF6666;\n');
-      fprintf(fid,'  color: black;\n');
-      fprintf(fid,'  cursor: pointer;\n');
-      fprintf(fid,'  padding: 8px;\n');
-      fprintf(fid,'  width: 100%;\n');
-      fprintf(fid,'  border: none;\n');
-      fprintf(fid,'  text-align: left;\n');
-      fprintf(fid,'  outline: none;\n');
-      fprintf(fid,'  font-size: 20px;\n');
-      fprintf(fid,'}\n');
-      fprintf(fid,'\n');
-      fprintf(fid,'.active {\n');
-      fprintf(fid,'  border: solid 3px black;\n');
-      fprintf(fid,'}\n');
-      fprintf(fid,'\n');
-      fprintf(fid,'.content {\n');
-      fprintf(fid,'  padding: 0 0 0 50px;\n');
-      fprintf(fid,'  display: none;\n');
-      fprintf(fid,'  overflow: hidden;\n');
-      fprintf(fid,'  background-color: white;\n');
-      fprintf(fid,'  border: solid 2px black;\n');
-      fprintf(fid,'  line-height: 1.0;\n');
-      fprintf(fid,'}\n');
-      fprintf(fid,'</style>\n');
-      fprintf(fid,'</head>\n');
-    end
-    function print_html_tail_script( fid)
-      fprintf(fid,'<script>\n');
-      fprintf(fid,'\n');
-      fprintf(fid,'var coll = document.getElementsByClassName("collapsible_pass");\n');
-      fprintf(fid,'var i;\n');
-      fprintf(fid,'\n');
-      fprintf(fid,'for (i = 0; i < coll.length; i++) {\n');
-      fprintf(fid,'  coll[i].addEventListener("click", function() {\n');
-      fprintf(fid,'    this.classList.toggle("active");\n');
-      fprintf(fid,'    var content = this.nextElementSibling;\n');
-      fprintf(fid,'    if (content.style.display === "block") {\n');
-      fprintf(fid,'      content.style.display = "none";\n');
-      fprintf(fid,'    } else {\n');
-      fprintf(fid,'      content.style.display = "block";\n');
-      fprintf(fid,'    }\n');
-      fprintf(fid,'  });\n');
-      fprintf(fid,'}\n');
-      fprintf(fid,'var coll = document.getElementsByClassName("collapsible_fail");\n');
-      fprintf(fid,'var i;\n');
-      fprintf(fid,'\n');
-      fprintf(fid,'for (i = 0; i < coll.length; i++) {\n');
-      fprintf(fid,'  coll[i].addEventListener("click", function() {\n');
-      fprintf(fid,'    this.classList.toggle("active");\n');
-      fprintf(fid,'    var content = this.nextElementSibling;\n');
-      fprintf(fid,'    if (content.style.display === "block") {\n');
-      fprintf(fid,'      content.style.display = "none";\n');
-      fprintf(fid,'    } else {\n');
-      fprintf(fid,'      content.style.display = "block";\n');
-      fprintf(fid,'    }\n');
-      fprintf(fid,'  });\n');
-      fprintf(fid,'}\n');
-      fprintf(fid,'\n');
-      fprintf(fid,'\n');
-      fprintf(fid,'</script>\n');
-    end
-    function process_unit_tests_tree( R, fid, depth)
+  end
 
-      is_leaf = true;
-      f = fields(R);
-      for fi = 1: length(f)
-        if isstruct(R.(f{fi}))
-          is_leaf = false;
-        end
+  function process_unit_tests_tree( R, fid, depth)
+
+    is_leaf = true;
+    f = fields(R);
+    for fi = 1: length(f)
+      if isstruct(R.(f{fi}))
+        is_leaf = false;
       end
+    end
 
-      if ~is_leaf
-        process_unit_tests_tree_branch( R, fid, depth)
+    if ~is_leaf
+      process_unit_tests_tree_branch( R, fid, depth)
+    else
+      process_unit_tests_tree_leaf( R, fid, depth)
+    end
+
+  end
+  function process_unit_tests_tree_branch( R, fid, depth)
+
+    p = '';
+    for ii = 1: depth
+      p = [p ' '];
+    end
+
+    f = fields(R);
+    for fi = 1: length(f)
+      if strcmpi(f{fi},'test_result'); continue; end
+
+      fprintf( fid, [p '<div>\n']);
+      
+      if R.(f{fi}).test_result
+        str = ['&#128994 - ' f{fi}];
       else
-        process_unit_tests_tree_leaf( R, fid, depth)
+        str = ['&#128992 - ' f{fi}];
       end
 
+      fprintf( fid, [p ' <button type="button" class="collapsible" style="font-size:18pt;">' str '</button>\n']);
+      fprintf( fid, [p ' <div class="content">\n']);
+
+      process_unit_tests_tree( R.(f{fi}), fid, depth+2)
+
+      fprintf( fid, [p ' </div>\n']);
+      fprintf( fid, [p '</div>\n']);
+
     end
-    function process_unit_tests_tree_branch( R, fid, depth)
 
-      f = fields(R);
-      for fi = 1: length(f)
-        if strcmpi(f{fi},'test_result'); continue; end
+  end
+  function process_unit_tests_tree_leaf( R, fid, depth)
 
-        if R.(f{fi}).test_result
-          div_class = 'collapsible_pass';
-        else
-          div_class = 'collapsible_fail';
-        end
+    p = '';
+    for ii = 1: depth
+      p = [p ' '];
+    end
 
-        for i = 1: depth
-          fprintf(fid,' ');
-        end
-        fprintf(fid,'<div>\n');
-        for i = 1: depth
-          fprintf(fid,' ');
-        end
-        fprintf(fid,['<button type="button" class="' div_class '">' f{fi} '</button>\n']);
-        for i = 1: depth
-          fprintf(fid,' ');
-        end
-        if R.(f{fi}).test_result
-          fprintf(fid,'<div class="content">\n');
-        else
-          fprintf(fid,'<div class="content" style="display:block">\n');
-        end
-        process_unit_tests_tree( R.(f{fi}), fid, depth+2)
-        for i = 1: depth
-          fprintf(fid,' ');
-        end
-        fprintf(fid,'</div>\n');
-        for i = 1: depth
-          fprintf(fid,' ');
-        end
-        fprintf(fid,'</div>\n');
-
+    f = fields(R);
+    for fi = 1: length(f)
+      if strcmpi(f{fi},'test_result'); continue; end
+      
+      if R.(f{fi})
+        str = ['&#128994 - ' f{fi}];
+      else
+        str = ['&#128992 - ' f{fi}];
       end
 
+      fprintf(fid,[p '<div style="font-size: 16pt">' str '</div>\n']);
     end
-    function process_unit_tests_tree_leaf( R, fid, depth)
-      f = fields(R);
-      for fi = 1: length(f)
-        if strcmpi(f{fi},'test_result'); continue; end
-        for i = 1: depth
-          fprintf(fid,' ');
-        end
-        if R.(f{fi})
-          % fprintf(fid,['<p style="color: #006600; font-weight: bold; font-size: 14pt">' f{fi} '</p>\n']);
-          fprintf(fid,['<div style="background-color: #00FF00; font-weight: bold; font-size: 16pt">' f{fi} '</div>\n']);
-        else
-          fprintf(fid,['<div style="background-color: #FF6666; font-weight: bold; font-size: 16pt">' f{fi} '</div>\n']);
-        end
-      end
-    end
+  end
 
+  function print_html_head( fid)
+    fprintf( fid, '%s\n', '<head>');
+    fprintf( fid, '%s\n', '<meta name="viewport" content="width=device-width, initial-scale=1">');
+    fprintf( fid, '%s\n', '<style>');
+    fprintf( fid, '%s\n', '.content {');
+    fprintf( fid, '%s\n', '  padding: 0 0 0 50px;');
+    fprintf( fid, '%s\n', '  display: none;');
+    fprintf( fid, '%s\n', '  overflow: hidden;');
+    fprintf( fid, '%s\n', '  background-color: white;');
+    fprintf( fid, '%s\n', '  border: solid 2px black;');
+    fprintf( fid, '%s\n', '  line-height: 1.0;');
+    fprintf( fid, '%s\n', '}');
+    fprintf( fid, '%s\n', '</style>');
+    fprintf( fid, '%s\n', '</head>');
+  end
+  function print_html_tail_script( fid)
+    fprintf( fid, '%s\n', '<script>');
+    fprintf( fid, '%s\n', '');
+    fprintf( fid, '%s\n', 'var coll = document.getElementsByClassName("collapsible");');
+    fprintf( fid, '%s\n', 'var i;');
+    fprintf( fid, '%s\n', '');
+    fprintf( fid, '%s\n', 'for (i = 0; i < coll.length; i++) {');
+    fprintf( fid, '%s\n', '  coll[i].addEventListener("click", function() {');
+    fprintf( fid, '%s\n', '    this.classList.toggle("active");');
+    fprintf( fid, '%s\n', '    var content = this.nextElementSibling;');
+    fprintf( fid, '%s\n', '    if (content.style.display === "block") {');
+    fprintf( fid, '%s\n', '      content.style.display = "none";');
+    fprintf( fid, '%s\n', '    } else {');
+    fprintf( fid, '%s\n', '      content.style.display = "block";');
+    fprintf( fid, '%s\n', '    }');
+    fprintf( fid, '%s\n', '  });');
+    fprintf( fid, '%s\n', '}');
+    fprintf( fid, '%s\n', '');
+    fprintf( fid, '%s\n', '</script>');
   end
 
 end
