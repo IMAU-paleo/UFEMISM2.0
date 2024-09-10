@@ -11,9 +11,11 @@ function create_scoreboard_html( varargin)
 input_args = varargin;
 if isempty( input_args)
   % Assume this is a local run
+  foldername_automated_testing = '/Users/Beren017/Documents/GitHub/UFEMISM2.0/automated_testing';
   foldername_scoreboard = '/Users/Beren017/Documents/GitHub/UFEMISM2.0/automated_testing/scoreboard';
 elseif length( input_args) == 1
   % Assume this is a GitHub Workflow run
+  foldername_automated_testing = 'automated_testing';
   foldername_scoreboard = varargin{1};
 else
   error('need either foldername_scoreboard, or nothing as input!')
@@ -23,7 +25,7 @@ scoreboard = read_scoreboard_files( foldername_scoreboard);
 
 %% Write to HTML
 
-filename = [foldername_scoreboard '/scoreboard_visualisation.html'];
+filename = [foldername_automated_testing '/test_reports/scoreboard_visualisation.html'];
 if exist( filename,'file')
   delete( filename)
 end
