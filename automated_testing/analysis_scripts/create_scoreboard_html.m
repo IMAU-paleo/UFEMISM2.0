@@ -25,7 +25,7 @@ scoreboard = read_scoreboard_files( foldername_scoreboard);
 
 %% Write to HTML
 
-filename = [foldername_automated_testing '/test_reports/scoreboard_visualisation.html'];
+filename = [foldername_automated_testing '/test_reports/scoreboard.html'];
 if exist( filename,'file')
   delete( filename)
 end
