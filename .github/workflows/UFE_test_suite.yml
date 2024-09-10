@@ -108,7 +108,7 @@ jobs:
         uses: actions/upload-artifact@v4.3.4
         with:
           name: unit_tests_report
-          path: results_unit_tests/unit_tests_report.html
+          path: automated_testing/test_reports/unit_tests_report.html
 
       - name: Verify unit tests results
         uses: matlab-actions/run-command@v2
@@ -169,12 +169,12 @@ jobs:
         with:
           cache: true
 
-      - name: Analyse component tests results
+      - name: Analyse component tests results (create figures and update scoreboard files)
         uses: matlab-actions/run-command@v2
         with:
           command: |
             addpath('automated_testing/analysis_scripts/component_tests')
-            analyse_component_tests('results_component_tests')
+            analyse_component_tests('${{github.workspace}}/results_component_tests')
 
       - name: Commit updated scoreboard files
         # See https://github.com/marketplace/actions/add-commit
@@ -185,8 +185,21 @@ jobs:
           message: 'Update scoreboard files (from UFEMISM test suite workflow by ${{ github.actor }})'
           push: true
 
+      - name: Create scoreboard visualisation
+        uses: matlab-actions/run-command@v2
+        with:
+          command: |
+            addpath('automated_testing/analysis_scripts')
+            create_scoreboard_html('${{github.workspace}}/automated_testing/scoreboard')
+
       - name: Upload component test figures as artifact
         uses: actions/upload-artifact@v4.3.4
         with:
           name: component_test_figures
           path: automated_testing/figures
+
+      - name: Upload scoreboard HTML as artifact
+        uses: actions/upload-artifact@v4.3.4
+        with:
+          name: scoreboard_HTML
+          path: automated_testing/test_reports/scoreboard.html
