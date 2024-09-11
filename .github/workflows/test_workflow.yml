@@ -15,4 +15,8 @@ jobs:
 
       - name: Piep
         run: |
-          echo 'github.ref_name = ${{ github.ref_name }}'
+          echo 'github.ref_name   = ${{ github.ref_name }}'
+          echo 'github.base_ref   = ${{ github.base_ref }}'
+          echo 'github.event_name = ${{ github.event_name }}'
+          echo 'github.head_ref   = ${{ github.head_ref }}'
+          echo 'github.ref        = ${{ github.ref }}'
