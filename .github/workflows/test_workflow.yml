@@ -1,0 +1,18 @@
+# Piep
+
+name: Tijns Test
+run-name: ${{ github.actor }} - hieperdepiep!
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  fritsieboi:
+    runs-on: macos-latest
+    steps:
+
+      - name: Piep
+        run: |
+          echo 'github.ref_name = ${{ github.ref_name }}'
