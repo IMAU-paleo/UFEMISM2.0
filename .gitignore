@@ -22,3 +22,6 @@ slurm-*.out
 
 # Ignore depend file
 .depend
+
+# Ignore automated test reports
+automated_testing/test_reports/*.html

@@ -123,7 +123,7 @@ contains
 
     mesh_name = filename_mesh( index( filename_mesh, '/', back = .true.)+1 : len_trim( filename_mesh)-3)
     grid_name = filename_grid( index( filename_grid, '/', back = .true.)+1 : len_trim( filename_grid)-3)
-    filename = trim( foldername_mesh_to_grid) // '/results_remapping_' // &
+    filename = trim( foldername_mesh_to_grid) // '/res_' // &
       mesh_name( 1:len_trim(mesh_name)) // '_TO_' // grid_name( 1:len_trim(grid_name)) // '.nc'
 
     if (par%master) write(0,*) '      Running mesh-to-grid remapping tests on mesh-grid combination:'
