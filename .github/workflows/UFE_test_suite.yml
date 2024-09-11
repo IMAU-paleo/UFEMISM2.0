@@ -183,7 +183,7 @@ jobs:
           add: automated_testing/scoreboard/scoreboard_*.txt
           author_name: ${{ github.actor }} (from UFEMISM test suite workflow)
           message: 'Update scoreboard files (from UFEMISM test suite workflow by ${{ github.actor }})'
-          push: true
+          push: origin ${{ github.head_ref }} --force
 
       - name: Create scoreboard visualisation
         uses: matlab-actions/run-command@v2
