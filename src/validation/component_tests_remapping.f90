@@ -8,6 +8,7 @@ module component_tests_remapping
   use control_resources_and_error_messaging, only: init_routine, finalise_routine
   use component_tests_remapping_grid_to_mesh, only: run_all_grid_to_mesh_remapping_tests
   use component_tests_remapping_mesh_to_grid, only: run_all_mesh_to_grid_remapping_tests
+  use component_tests_remapping_mesh_to_mesh, only: run_all_mesh_to_mesh_remapping_tests
 
   implicit none
 
@@ -38,6 +39,7 @@ contains
 
     call run_all_grid_to_mesh_remapping_tests( foldername_remapping, test_mesh_filenames, test_grid_filenames)
     call run_all_mesh_to_grid_remapping_tests( foldername_remapping, test_mesh_filenames, test_grid_filenames)
+    call run_all_mesh_to_mesh_remapping_tests( foldername_remapping, test_mesh_filenames)
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)

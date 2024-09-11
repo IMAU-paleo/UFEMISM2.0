@@ -129,6 +129,7 @@ contains
     if (par%master) write(0,*) '      Running mesh-to-grid remapping tests on mesh-grid combination:'
     if (par%master) write(0,*) '        mesh: ', colour_string( trim( mesh_name),'light blue')
     if (par%master) write(0,*) '        grid: ', colour_string( trim( grid_name),'light blue')
+
     ! Set up the mesh and the grid from the provided files
     call open_existing_netcdf_file_for_reading( filename_mesh, ncid)
     call setup_mesh_from_file( filename_mesh, ncid, mesh)
