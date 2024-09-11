@@ -18,8 +18,8 @@ for fi = 1: length( filenames)
 end
 
 function analyse_remapping_test( foldername, filename)
-  % Analyse the results of the complete set of mapping/derivative component
-  % tests for a single mesh and a single test function
+  % Analyse the results of the complete set of grid-to-mesh remapping component
+  % tests for a single grid-mesh combination
 
   disp(['Analysing ' filename '...']);
 

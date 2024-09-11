@@ -25,3 +25,6 @@ slurm-*.out
 
 # Ignore automated test reports
 automated_testing/test_reports/*.html
+
+# Ignore automated test figures
+automated_testing/figures/*.png

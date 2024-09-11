@@ -76,3 +76,29 @@
     cost function:     5.2592e-03
   </result>
 </test>
+<test>
+  name           : remapping_grid_to_mesh_grid_Ant_1.2800E+05_m_TO_mesh_Ant_gradient_8.0000E+05-4.0000E+05_m_y
+  category       : remapping/grid_to_mesh
+  git hash string: 687e42140d15ee6933b6d2c00023b300fe41ead2
+  date, time     : 11-Sep-2024 12:09:00
+  <result>
+    name         : rmse
+    description  : sqrt( mean( (d_mesh - d_mesh_ex).^2))
+    cost function:     7.3630e+01
+  </result>
+  <result>
+    name         : bounds_max
+    description  : max( 0, max( d_mesh(:)) - max( d_grid_ex(:)))
+    cost function:     0.0000e+00
+  </result>
+  <result>
+    name         : bounds_min
+    description  : max( 0, min( d_grid_ex(:)) - min( d_mesh(:)))
+    cost function:     1.0565e+01
+  </result>
+  <result>
+    name         : int_err
+    description  : abs( 1 - int_mesh / int_grid)
+    cost function:     5.2592e-03
+  </result>
+</test>
