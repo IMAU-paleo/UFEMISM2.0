@@ -45,6 +45,7 @@ jobs:
 
       - name: Commit updated scoreboard files
         # See https://github.com/marketplace/actions/add-commit
+        if: ${{ github.event_name == 'pull_request' }} # Only do this for pull requests
         uses: EndBug/add-and-commit@v9 # You can change this to use a specific version.
         with:
           add: automated_testing/scoreboard/scoreboard_*.txt
