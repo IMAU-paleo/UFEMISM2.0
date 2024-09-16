@@ -2,10 +2,9 @@ name: UFEMISM Test Suite - analyse unit tests
 run-name: ${{ github.actor }} - UFEMISM Test Suite - analyse unit tests
 on:
   workflow_call:
-  workflow_dispatch:
 
 jobs:
-  analyse_unit_test_results:
+  analyse_unit_tests:
     runs-on: macos-latest
     steps:
 
