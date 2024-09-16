@@ -155,11 +155,16 @@ jobs:
     runs-on: macos-latest
     steps:
 
-      - name: Checkout UFEMISM repository
+      - name: Checkout UFEMISM repository (from pull request)
+        if: ${{ github.event_name }} == 'pull_request'
         uses: actions/checkout@v4
         with:
          repository: ${{ github.event.pull_request.head.repo.full_name }}
          ref: ${{ github.event.pull_request.head.ref }}
+
+      - name: Checkout UFEMISM repository (from manual run)
+        if: ${{ github.event_name }} /= 'pull_request'
+        uses: actions/checkout@v4
 
       - name: Download component test results as artifacts
         uses: actions/download-artifact@v4
