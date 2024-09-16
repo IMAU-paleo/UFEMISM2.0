@@ -157,6 +157,9 @@ jobs:
 
       - name: Checkout UFEMISM repository
         uses: actions/checkout@v4
+        with:
+         repository: ${{ github.event.pull_request.head.repo.full_name }}
+         ref: ${{ github.event.pull_request.head.ref }}
 
       - name: Download component test results as artifacts
         uses: actions/download-artifact@v4
@@ -183,7 +186,7 @@ jobs:
           add: automated_testing/scoreboard/scoreboard_*.txt
           author_name: ${{ github.actor }} (from UFEMISM test suite workflow)
           message: 'Update scoreboard files (from UFEMISM test suite workflow by ${{ github.actor }})'
-          push: origin/${{ github.head_ref }} --force
+          push: true
 
       - name: Create scoreboard visualisation
         uses: matlab-actions/run-command@v2
