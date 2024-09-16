@@ -18,42 +18,7 @@ jobs:
 
   analyse_unit_test_results:
     needs: run_unit_tests
-    runs-on: macos-latest
-    steps:
-
-      - name: Checkout UFEMISM repository
-        uses: actions/checkout@v4
-
-      - name: Download unit test results as artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: results_unit_tests
-          path: results_unit_tests
-
-      - name: Install MATLAB
-        uses: matlab-actions/setup-matlab@v2.2.0
-        with:
-          cache: true
-
-      - name: Analyse unit tests results
-        uses: matlab-actions/run-command@v2
-        with:
-          command: |
-            addpath('automated_testing/analysis_scripts/unit_tests')
-            analyse_unit_tests_results('${{github.workspace}}/results_unit_tests')
-
-      - name: Upload test report as artifact
-        uses: actions/upload-artifact@v4.3.4
-        with:
-          name: unit_tests_report
-          path: automated_testing/test_reports/unit_tests_report.html
-
-      - name: Verify unit tests results
-        uses: matlab-actions/run-command@v2
-        with:
-          command: |
-            addpath('automated_testing/analysis_scripts/unit_tests')
-            verify_unit_tests_results('${{github.workspace}}/results_unit_tests')
+    uses: ./.github/workflows/UFE_test_suite_analyse_unit_tests.yml
 
   run_component_tests:
     needs: analyse_unit_test_results
