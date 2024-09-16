@@ -13,6 +13,7 @@ jobs:
     uses: ./.github/workflows/UFE_test_suite_compile_and_cache_UFEMISM.yml
 
   run_unit_tests:
+    needs: compile_and_cache_UFEMISM
     uses: ./.github/workflows/UFE_test_suite_run_unit_tests.yml
 
   analyse_unit_test_results:
