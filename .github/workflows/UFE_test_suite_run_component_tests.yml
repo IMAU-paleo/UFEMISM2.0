@@ -1,10 +1,10 @@
-name: UFEMISM Test Suite - run unit tests
-run-name: ${{ github.actor }} - UFEMISM Test Suite - run unit tests
+name: UFEMISM Test Suite - run component tests
+run-name: ${{ github.actor }} - UFEMISM Test Suite - run component tests
 on:
   workflow_call:
 
 jobs:
-  run_unit_tests:
+  run_component_tests:
     runs-on: macos-latest
     steps:
 
@@ -27,11 +27,11 @@ jobs:
           path: UFEMISM_program
           key: UFEMISM_program_${{ github.ref_name }}_${{ github.run_id }}
 
-      - name: Run unit tests
-        run: mpiexec  -n 2  UFEMISM_program  unit_tests
+      - name: Run component tests
+        run: mpiexec  -n 2  UFEMISM_program  component_tests
 
       - name: Upload output as artifacts
         uses: actions/upload-artifact@v4.3.4
         with:
-          name: results_unit_tests
-          path: results_unit_tests
+          name: results_component_tests
+          path: results_component_tests
