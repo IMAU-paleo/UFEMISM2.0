@@ -1,20 +1,21 @@
 function AA_count_lines_of_source_code
 
-main_src_path = '/Users/Beren017/Documents/GitHub/UFEMISM2.0/src';
-
-henk = dir( main_src_path);
-
 n_tot = 0;
 
 R.n     = [];
 R.names = {};
 
+%% src
+
+main_path = '../../src';
+henk = dir( main_path);
+
 for i = 1: length( henk)
   if henk( i).isdir
     if strcmpi( henk( i).name,'.') || strcmpi( henk( i).name,'..'); continue; end
-    f90_files = find_all_f90_files( [main_src_path '/' henk( i).name]);
-    if ~isempty( f90_files)
-      n = count_lines( f90_files);
+    code_files = find_all_code_files( [main_path '/' henk( i).name], '.f90');
+    if ~isempty( code_files)
+      n = count_lines( code_files);
       n_tot = n_tot + n;
       R.n( end+1,1) = n;
       R.names{ end+1} = henk( i).name;
@@ -22,9 +23,27 @@ for i = 1: length( henk)
   end
 end
 
-disp(['UFEMISM v2.0 in total contains ' num2str( n_tot) ' lines of code'])
+%% automated_testing
+
+main_path = '../../automated_testing';
+henk = dir( main_path);
+
+for i = 1: length( henk)
+  if henk( i).isdir
+    if strcmpi( henk( i).name,'.') || strcmpi( henk( i).name,'..'); continue; end
+    code_files = find_all_code_files( [main_path '/' henk( i).name], '.m');
+    if ~isempty( code_files)
+      n = count_lines( code_files);
+      n_tot = n_tot + n;
+      R.n( end+1,1) = n;
+      R.names{ end+1} = henk( i).name;
+    end
+  end
+end
 
 %% plot
+
+disp(['UFEMISM v2.0 contains ' num2str( n_tot) ' lines of code'])
 
 % Sort by number of lines
 [~,ind] = sortrows( R.n);
@@ -76,19 +95,25 @@ for i = 1: length( R.n)
   
 end
 
-function f90_files = find_all_f90_files( jan)
+function code_files = find_all_code_files( jan, extension)
 
-f90_files = {};
-
+code_files = {};
 piet = dir( jan);
 
 for p = 1: length( piet)
   if strcmpi( piet( p).name,'.') || strcmpi( piet( p).name,'..')
     continue
   end
+
+  if piet( p).isdir
+    code_files_more = find_all_code_files( [jan '/' piet( p).name], extension);
+    for pp = 1: length( code_files_more)
+      code_files{ end+1} = code_files_more{ pp};
+    end
+  end
   
-  if contains( piet( p).name,'.f90') || contains( piet( p).name,'.F90')
-    f90_files{ end+1} = [jan '/' piet( p).name];
+  if contains( piet( p).name, extension, 'Ignorecase',true)
+    code_files{ end+1} = [jan '/' piet( p).name];
   end
 end
 
