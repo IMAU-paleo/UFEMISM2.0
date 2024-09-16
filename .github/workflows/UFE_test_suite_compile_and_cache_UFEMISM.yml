@@ -1,5 +1,3 @@
-# The full UFEMISM Test Suite
-
 name: UFEMISM Test Suite - compile and cache UFEMISM
 run-name: ${{ github.actor }} - UFEMISM Test Suite - compile and cache UFEMISM
 on:
