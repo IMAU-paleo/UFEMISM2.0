@@ -76,3 +76,29 @@
     cost function:     7.4541e-04
   </result>
 </test>
+<test>
+  name           : remapping_mesh_to_mesh_mesh_Ant_uniform_4.0000E+05_m_nit_Lloyd_6_TO_mesh_Ant_uniform_4.0000E+05_m_nit_Lloyd_2
+  category       : remapping/mesh_to_mesh
+  git hash string: 24ca5c312ef5b5c2d58148929df04d1079b24706
+  date, time     : 16-Sep-2024 12:00:56
+  <result>
+    name         : rmse
+    description  : sqrt( mean( (d_mesh2 - d_mesh2_ex).^2))
+    cost function:     5.6765e+01
+  </result>
+  <result>
+    name         : bounds_max
+    description  : max( 0, max( d_mesh2(:)) - max( d_mesh1_ex(:)))
+    cost function:     0.0000e+00
+  </result>
+  <result>
+    name         : bounds_min
+    description  : max( 0, min( d_mesh2_ex(:)) - min( d_mesh2(:)))
+    cost function:     0.0000e+00
+  </result>
+  <result>
+    name         : int_err
+    description  : abs( 1 - int_mesh2 / int_mesh1)
+    cost function:     7.4541e-04
+  </result>
+</test>
