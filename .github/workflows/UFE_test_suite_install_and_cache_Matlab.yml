@@ -1,0 +1,14 @@
+name: UFEMISM Test Suite - install and cache Matlab
+run-name: ${{ github.actor }} - UFEMISM Test Suite - install and cache Matlab
+on:
+  workflow_call:
+
+jobs:
+  install_and_cache_matlab:
+    runs-on: macos-latest
+    steps:
+
+      - name: Install MATLAB
+        uses: matlab-actions/setup-matlab@v2.2.0
+        with:
+          cache: true
