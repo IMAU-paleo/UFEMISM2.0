@@ -50,3 +50,29 @@
     cost function:     5.4377e-04
   </result>
 </test>
+<test>
+  name           : remapping_mesh_to_mesh_mesh_Ant_gradient_8.0000E+05-4.0000E+05_m_y_TO_mesh_Ant_uniform_4.0000E+05_m_nit_Lloyd_4
+  category       : remapping/mesh_to_mesh
+  git hash string: a4717ea02820da51bd0c8e2be9277670fbd98ef2
+  date, time     : 16-Sep-2024 10:26:20
+  <result>
+    name         : rmse
+    description  : sqrt( mean( (d_mesh2 - d_mesh2_ex).^2))
+    cost function:     1.1148e+02
+  </result>
+  <result>
+    name         : bounds_max
+    description  : max( 0, max( d_mesh2(:)) - max( d_mesh1_ex(:)))
+    cost function:     0.0000e+00
+  </result>
+  <result>
+    name         : bounds_min
+    description  : max( 0, min( d_mesh2_ex(:)) - min( d_mesh2(:)))
+    cost function:     0.0000e+00
+  </result>
+  <result>
+    name         : int_err
+    description  : abs( 1 - int_mesh2 / int_mesh1)
+    cost function:     5.4377e-04
+  </result>
+</test>
