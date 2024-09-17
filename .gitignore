@@ -27,4 +27,5 @@ slurm-*.out
 automated_testing/test_reports/*.html
 
 # Ignore automated test figures
-automated_testing/figures/*.png
+automated_testing/unit_tests/figures/*.png
+automated_testing/component_tests/figures/*.png

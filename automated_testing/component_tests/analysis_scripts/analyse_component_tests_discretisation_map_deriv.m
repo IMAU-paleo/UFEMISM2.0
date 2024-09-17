@@ -1,9 +1,12 @@
-function analyse_component_tests_discretisation_map_deriv( foldername, foldername_automated_testing, do_print_figures)
+function analyse_component_tests_discretisation_map_deriv( foldername_automated_testing, do_print_figures)
 % Analyse the results of all the mapping/derivative discretisation
 % component tests
 
+foldername_results = [foldername_automated_testing '/component_tests/results/discretisation/mapping_derivatives'];
+foldername_figures = [foldername_automated_testing '/component_tests/figures'];
+
 % List all the test results
-filenames = dir( foldername);
+filenames = dir( foldername_results);
 i = 1;
 while i <= length( filenames)
   if  contains( filenames(i).name, 'res_') && ...
@@ -15,32 +18,34 @@ while i <= length( filenames)
 end
 
 for fi = 1: length( filenames)
-  analyse_component_test_discretisation_map_deriv( foldername, filenames( fi).name)
+  analyse_component_test_discretisation_map_deriv( filenames( fi).name)
 end
 
-function analyse_component_test_discretisation_map_deriv( foldername, filename)
+function analyse_component_test_discretisation_map_deriv( filename_short)
   % Analyse the results of the complete set of mapping/derivative component
   % tests for a single mesh and a single test function
 
-  disp(['Analysing ' filename '...'])
+  disp(['Analysing ' filename_short '...'])
+
+  filename_full = [foldername_results '/' filename_short];
   
-  [H_map, max_errs_map] = analyse_mapping_derivatives_tests_mesh_function_map(  [foldername '/' filename]);
-  [H_ddx, max_errs_ddx] = analyse_mapping_derivatives_tests_mesh_function_ddxy( [foldername '/' filename],'ddx');
-  [H_ddy, max_errs_ddy] = analyse_mapping_derivatives_tests_mesh_function_ddxy( [foldername '/' filename],'ddy');
-  [H_2nd, max_errs_2nd] = analyse_mapping_derivatives_tests_mesh_function_2nd(  [foldername '/' filename]);
+  [H_map, max_errs_map] = analyse_mapping_derivatives_tests_mesh_function_map(  filename_full);
+  [H_ddx, max_errs_ddx] = analyse_mapping_derivatives_tests_mesh_function_ddxy( filename_full,'ddx');
+  [H_ddy, max_errs_ddy] = analyse_mapping_derivatives_tests_mesh_function_ddxy( filename_full,'ddy');
+  [H_2nd, max_errs_2nd] = analyse_mapping_derivatives_tests_mesh_function_2nd(  filename_full);
   
-  write_to_scoreboard( filename, max_errs_map, max_errs_ddx, max_errs_ddy, max_errs_2nd);
+  write_to_scoreboard( filename_short, max_errs_map, max_errs_ddx, max_errs_ddy, max_errs_2nd);
 
   if do_print_figures
-    filename_map_png = strrep( filename, '.nc', '_map.png');
-    filename_ddx_png = strrep( filename, '.nc', '_ddx.png');
-    filename_ddy_png = strrep( filename, '.nc', '_ddy.png');
-    filename_2nd_png = strrep( filename, '.nc', '_2nd.png');
+    filename_map_png = strrep( filename_short, '.nc', '_map.png');
+    filename_ddx_png = strrep( filename_short, '.nc', '_ddx.png');
+    filename_ddy_png = strrep( filename_short, '.nc', '_ddy.png');
+    filename_2nd_png = strrep( filename_short, '.nc', '_2nd.png');
   
-    print( H_map.Fig, [foldername_automated_testing '/figures/' filename_map_png], '-dpng');
-    print( H_ddx.Fig, [foldername_automated_testing '/figures/' filename_ddx_png], '-dpng');
-    print( H_ddy.Fig, [foldername_automated_testing '/figures/' filename_ddy_png], '-dpng');
-    print( H_2nd.Fig, [foldername_automated_testing '/figures/' filename_2nd_png], '-dpng');
+    print( H_map.Fig, [foldername_figures '/' filename_map_png], '-dpng');
+    print( H_ddx.Fig, [foldername_figures '/' filename_ddx_png], '-dpng');
+    print( H_ddy.Fig, [foldername_figures '/' filename_ddy_png], '-dpng');
+    print( H_2nd.Fig, [foldername_figures '/' filename_2nd_png], '-dpng');
   
     close( H_map.Fig)
     close( H_ddx.Fig)
@@ -50,10 +55,10 @@ function analyse_component_test_discretisation_map_deriv( foldername, filename)
   
 end
   
-function write_to_scoreboard( filename, max_errs_map, max_errs_ddx, max_errs_ddy, max_errs_2nd)
+function write_to_scoreboard( filename_short, max_errs_map, max_errs_ddx, max_errs_ddy, max_errs_2nd)
 
   % Set up a scoreboard results structure
-  test_name = ['discretisation_map_deriv_' filename(5:end-3)];
+  test_name = ['discretisation_map_deriv_' filename_short(5:end-3)];
   res = initialise_test_results( test_name, 'discretisation/mapping_and_derivatives');
 
   % Map

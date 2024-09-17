@@ -14,17 +14,17 @@ disp('Verifying unit test results...')
 input_args = varargin;
 if isempty( input_args)
   % Assume this is a local run
-  foldername_unit_tests = '/Users/Beren017/Documents/GitHub/UFEMISM2.0/results_unit_tests';
-elseif length( input_args) == 1
+  foldername_automated_testing = '/Users/Beren017/Documents/GitHub/UFEMISM2.0/automated_testing';
+elseif isscalar( input_args)
   % Assume this is a GitHub Workflow run
-  foldername_unit_tests = varargin{1};
+  foldername_automated_testing = varargin{1};
 else
   error('need either foldername, or nothing as input!')
 end
 
 %%
 
-filename = [foldername_unit_tests '/unit_tests_output.txt'];
+filename = [foldername_automated_testing '/unit_tests/results/unit_tests_output.txt'];
 
 fid = fopen(filename);
 temp = textscan(fid,'%s','delimiter','\n'); temp = temp{1};

@@ -53,7 +53,7 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    C%output_dir = 'results_component_tests'
+    C%output_dir = 'automated_testing/component_tests/results'
 
     ! Create the directory
     if (par%master) then

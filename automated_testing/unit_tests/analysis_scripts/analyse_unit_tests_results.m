@@ -12,19 +12,17 @@ disp('Analysing unit test results...')
 input_args = varargin;
 if isempty( input_args)
   % Assume this is a local run
-  foldername_unit_tests = '/Users/Beren017/Documents/GitHub/UFEMISM2.0/results_unit_tests';
   foldername_automated_testing = '/Users/Beren017/Documents/GitHub/UFEMISM2.0/automated_testing';
-elseif length( input_args) == 1
+elseif isscalar( input_args)
   % Assume this is a GitHub Workflow run
-  foldername_unit_tests = varargin{1};
-  foldername_automated_testing = 'automated_testing';
+  foldername_automated_testing = varargin{1};
 else
   error('need either foldername, or nothing as input!')
 end
 
 %%
 
-filename = [foldername_unit_tests '/unit_tests_output.txt'];
+filename = [foldername_automated_testing 'unit_tests/results/unit_tests_output.txt'];
 R = read_unit_tests_structure( filename);
 
 filename_html = [foldername_automated_testing '/test_reports/unit_tests_report.html'];

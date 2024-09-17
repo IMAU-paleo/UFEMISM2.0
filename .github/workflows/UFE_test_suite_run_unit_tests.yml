@@ -34,4 +34,4 @@ jobs:
         uses: actions/upload-artifact@v4.3.4
         with:
           name: results_unit_tests
-          path: results_unit_tests
+          path: automated_testing/unit_tests/results
