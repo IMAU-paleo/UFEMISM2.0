@@ -49,7 +49,7 @@ CONTAINS
     IF (time > C%start_time_of_run) THEN
 
       ! Define local variables, paths to resulting melt pattern from laddie (BMB_latest.nc), and to file indicating whether laddie is ready (laddieready)
-      filename_BMB_laddie_output      = TRIM(C%fixed_output_dir) // '/laddie_output/BMB_latest.nc'
+      filename_BMB_laddie_output      = TRIM(C%fixed_output_dir) // '/laddie_output/output_BMB.nc'
       laddieready                     = TRIM(C%fixed_output_dir) // '/laddie_output/laddieready'
 
       ! Run LADDIE

@@ -793,11 +793,11 @@ MODULE model_configuration
     REAL(dp)            :: BMB_Favier2019_gamma_config                  = 99.32E-5
 
     ! "laddie"
-    CHARACTER(LEN=256)  :: choice_BMB_laddie_system                     = ''                               ! System on which the model is running: 'local_mac' or 'slurm_HPC'
-    CHARACTER(LEN=256)  :: filename_BMB_laddie_configname               = ''                               ! File name of basal melt provided by LADDIE
-    CHARACTER(LEN=256)  :: filename_BMB_laddie_initial_restart          = ''                               ! File name containing restart for laddie from laddie spinup
-    CHARACTER(LEN=256)  :: filename_BMB_laddie_initial_output           = ''                               ! File name containing output from laddie spinup 
-    CHARACTER(LEN=256)  :: dir_BMB_laddie_model                         = ''                               ! Directory where laddie code is located
+    CHARACTER(LEN=256)  :: choice_BMB_laddie_system_config              = ''                               ! System on which the model is running: 'local_mac' or 'slurm_HPC'
+    CHARACTER(LEN=256)  :: filename_BMB_laddie_configname_config        = ''                               ! File name of basal melt provided by LADDIE
+    CHARACTER(LEN=256)  :: filename_BMB_laddie_initial_restart_config   = ''                               ! File name containing restart for laddie from laddie spinup
+    CHARACTER(LEN=256)  :: filename_BMB_laddie_initial_output_config    = ''                               ! File name containing output from laddie spinup 
+    CHARACTER(LEN=256)  :: dir_BMB_laddie_model_config                  = ''                               ! Directory where laddie code is located
 
   ! == Lateral mass balance
   ! =======================
@@ -1709,11 +1709,11 @@ MODULE model_configuration
     REAL(dp)            :: BMB_Favier2019_gamma
 
     ! "laddie"
-    CHARACTER(LEN=256)  :: choice_BMB_laddie_system                                                    ! System on which the model is running: 'local_mac' or 'slurm_HPC'
-    CHARACTER(LEN=256)  :: filename_BMB_laddie_configname                                              ! File name of basal melt provided by LADDIE
-    CHARACTER(LEN=256)  :: filename_BMB_laddie_initial_restart                                         ! File name containing restart for laddie from laddie spinup
-    CHARACTER(LEN=256)  :: filename_BMB_laddie_initial_output                                          ! File name containing output from laddie spinup 
-    CHARACTER(LEN=256)  :: dir_BMB_laddie_model                                                        ! Directory where laddie code is located
+    CHARACTER(LEN=256)  :: choice_BMB_laddie_system                                                    
+    CHARACTER(LEN=256)  :: filename_BMB_laddie_configname                                             
+    CHARACTER(LEN=256)  :: filename_BMB_laddie_initial_restart                                       
+    CHARACTER(LEN=256)  :: filename_BMB_laddie_initial_output                                       
+    CHARACTER(LEN=256)  :: dir_BMB_laddie_model                                                    
 
   ! == Lateral mass balance
   ! =======================
