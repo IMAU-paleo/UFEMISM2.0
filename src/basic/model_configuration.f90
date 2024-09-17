@@ -792,6 +792,13 @@ MODULE model_configuration
     ! "parameterised"
     REAL(dp)            :: BMB_Favier2019_gamma_config                  = 99.32E-5
 
+    ! "laddie"
+    CHARACTER(LEN=256)  :: choice_BMB_laddie_system                     = ''                               ! System on which the model is running: 'local_mac' or 'slurm_HPC'
+    CHARACTER(LEN=256)  :: filename_BMB_laddie_configname               = ''                               ! File name of basal melt provided by LADDIE
+    CHARACTER(LEN=256)  :: filename_BMB_laddie_initial_restart          = ''                               ! File name containing restart for laddie from laddie spinup
+    CHARACTER(LEN=256)  :: filename_BMB_laddie_initial_output           = ''                               ! File name containing output from laddie spinup 
+    CHARACTER(LEN=256)  :: dir_BMB_laddie_model                         = ''                               ! Directory where laddie code is located
+
   ! == Lateral mass balance
   ! =======================
 
@@ -1701,6 +1708,13 @@ MODULE model_configuration
     ! "parameterised"
     REAL(dp)            :: BMB_Favier2019_gamma
 
+    ! "laddie"
+    CHARACTER(LEN=256)  :: choice_BMB_laddie_system                                                    ! System on which the model is running: 'local_mac' or 'slurm_HPC'
+    CHARACTER(LEN=256)  :: filename_BMB_laddie_configname                                              ! File name of basal melt provided by LADDIE
+    CHARACTER(LEN=256)  :: filename_BMB_laddie_initial_restart                                         ! File name containing restart for laddie from laddie spinup
+    CHARACTER(LEN=256)  :: filename_BMB_laddie_initial_output                                          ! File name containing output from laddie spinup 
+    CHARACTER(LEN=256)  :: dir_BMB_laddie_model                                                        ! Directory where laddie code is located
+
   ! == Lateral mass balance
   ! =======================
 
@@ -1712,7 +1726,7 @@ MODULE model_configuration
     REAL(dp)            :: LMB_inversion_t_start
     REAL(dp)            :: LMB_inversion_t_end
 
-    ! Choice of BMB model
+    ! Choice of LMB model
     CHARACTER(LEN=256)  :: choice_LMB_model_NAM
     CHARACTER(LEN=256)  :: choice_LMB_model_EAS
     CHARACTER(LEN=256)  :: choice_LMB_model_GRL
@@ -2501,6 +2515,11 @@ CONTAINS
       choice_BMB_model_parameterised_config                       , &
       uniform_BMB_config                                          , &
       BMB_Favier2019_gamma_config                                 , &
+      choice_BMB_laddie_system_config                             , &
+      filename_BMB_laddie_configname_config                       , &
+      filename_BMB_laddie_initial_restart_config                  , &
+      filename_BMB_laddie_initial_output_config                   , &
+      dir_BMB_laddie_model_config                                 , &
       dt_LMB_config                                               , &
       do_LMB_inversion_config                                     , &
       LMB_inversion_t_start_config                                , &
@@ -3406,6 +3425,13 @@ CONTAINS
     ! "parameterised"
     C%BMB_Favier2019_gamma                                   = BMB_Favier2019_gamma_config
 
+    ! "laddie"
+    C%choice_BMB_laddie_system                               = choice_BMB_laddie_system_config
+    C%filename_BMB_laddie_configname                         = filename_BMB_laddie_configname_config
+    C%filename_BMB_laddie_initial_restart                    = filename_BMB_laddie_initial_restart_config
+    C%filename_BMB_laddie_initial_output                     = filename_BMB_laddie_initial_output_config
+    C%dir_BMB_laddie_model                                   = dir_BMB_laddie_model_config
+
   ! == Lateral mass balance
   ! =======================
 
@@ -3417,7 +3443,7 @@ CONTAINS
     C%LMB_inversion_t_start                                  = LMB_inversion_t_start_config
     C%LMB_inversion_t_end                                    = LMB_inversion_t_end_config
 
-    ! Choice of BMB model
+    ! Choice of LMB model
     C%choice_LMB_model_NAM                                   = choice_LMB_model_NAM_config
     C%choice_LMB_model_EAS                                   = choice_LMB_model_EAS_config
     C%choice_LMB_model_GRL                                   = choice_LMB_model_GRL_config
