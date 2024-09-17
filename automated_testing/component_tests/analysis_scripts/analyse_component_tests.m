@@ -29,7 +29,7 @@ end
 
 addpath([foldername_automated_testing '/component_tests'])
 addpath([foldername_automated_testing '/component_tests/analysis_scripts'])
-addpath([foldername_automated_testing '/scoreboard'])
+addpath([foldername_automated_testing '/scoreboard/scripts'])
 
 %%
 analyse_component_tests_discretisation( foldername_automated_testing, do_print_figures);
