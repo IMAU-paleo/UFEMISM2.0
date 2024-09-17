@@ -1,8 +1,11 @@
-function analyse_component_tests_remapping_grid_to_mesh( foldername, foldername_automated_testing, do_print_figures)
+function analyse_component_tests_remapping_grid_to_mesh( foldername_automated_testing, do_print_figures)
 % Analyse the results of all the grid-to-mesh remapping component tests
 
+foldername_results = [foldername_automated_testing '/component_tests/results/remapping/grid_to_mesh'];
+foldername_figures = [foldername_automated_testing '/component_tests/figures'];
+
 % List all the test results
-filenames = dir( foldername);
+filenames = dir( foldername_results);
 i = 1;
 while i <= length( filenames)
   if  contains( filenames(i).name, 'res_') && ...
@@ -14,20 +17,20 @@ while i <= length( filenames)
 end
 
 for fi = 1: length( filenames)
-  analyse_remapping_test( foldername, filenames( fi).name)
+  analyse_remapping_test( filenames( fi).name)
 end
 
-function analyse_remapping_test( foldername, filename)
+function analyse_remapping_test( filename_short)
   % Analyse the results of the complete set of grid-to-mesh remapping component
   % tests for a single grid-mesh combination
 
-  disp(['Analysing ' filename '...']);
+  disp(['Analysing ' filename_short '...']);
 
-  filename_full = [foldername '/' filename];
+  filename_full = [foldername_results '/' filename_short];
 
   % Read test results
-  grid.x    = ncread(filename_full,'x');
-  grid.y    = ncread(filename_full,'y');
+  grid.x    = ncread( filename_full,'x');
+  grid.y    = ncread( filename_full,'y');
   grid.dx = grid.x(2) - grid.x(1);
   mesh      = read_mesh_from_file( filename_full);
   d_grid_ex = ncread( filename_full, 'd_grid_ex');
@@ -72,20 +75,20 @@ function analyse_remapping_test( foldername, filename)
     set( H.Ax{1,1},'clim',clim);
     set( H.Cbaraxes,'clim',clim);
 
-    filename_png = strrep( filename, '.nc', '.png');
-    print( H.Fig, [foldername_automated_testing '/figures/' filename_png], '-dpng');
+    filename_png = strrep( filename_short, '.nc', '.png');
+    print( H.Fig, [foldername_figures '/' filename_png], '-dpng');
     close( H.Fig)
 
   end
 
-  write_to_scoreboard( filename, grid, d_grid_ex, mesh, d_mesh_ex, d_mesh)
+  write_to_scoreboard( filename_short, grid, d_grid_ex, mesh, d_mesh_ex, d_mesh)
   
 end
 
-function write_to_scoreboard( filename, grid, d_grid_ex, mesh, d_mesh_ex, d_mesh)
+function write_to_scoreboard( filename_short, grid, d_grid_ex, mesh, d_mesh_ex, d_mesh)
 
   % Set up a scoreboard results structure
-  test_name = ['remapping_grid_to_mesh_' filename(5:end-3)];
+  test_name = ['remapping_grid_to_mesh_' filename_short(5:end-3)];
   res = initialise_test_results( test_name, 'remapping/grid_to_mesh');
 
   % Calculate cost functions

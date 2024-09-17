@@ -23,7 +23,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: results_component_tests
-          path: results_component_tests
+          path: automated_testing/component_tests/results
 
       - name: Install MATLAB
         uses: matlab-actions/setup-matlab@v2.2.0
@@ -34,14 +34,14 @@ jobs:
         uses: matlab-actions/run-command@v2
         with:
           command: |
-            addpath('automated_testing/analysis_scripts/component_tests')
-            analyse_component_tests('${{github.workspace}}/results_component_tests')
+            addpath('automated_testing/component_tests/analysis_scripts')
+            analyse_component_tests('${{github.workspace}}/automated_testing')
 
       - name: Upload component test figures as artifact
         uses: actions/upload-artifact@v4.3.4
         with:
           name: component_test_figures
-          path: automated_testing/figures
+          path: automated_testing/component_tests/figures
 
       - name: Commit updated scoreboard files
         # See https://github.com/marketplace/actions/add-commit
@@ -57,8 +57,8 @@ jobs:
         uses: matlab-actions/run-command@v2
         with:
           command: |
-            addpath('automated_testing/analysis_scripts')
-            create_scoreboard_html('${{github.workspace}}/automated_testing/scoreboard')
+            addpath('automated_testing/scoreboard')
+            create_scoreboard_html('${{github.workspace}}/automated_testing')
 
       - name: Upload scoreboard HTML as artifact
         uses: actions/upload-artifact@v4.3.4

@@ -1,8 +1,11 @@
-function analyse_component_tests_remapping_mesh_to_grid( foldername, foldername_automated_testing, do_print_figures)
+function analyse_component_tests_remapping_mesh_to_grid( foldername_automated_testing, do_print_figures)
 % Analyse the results of all the mesh-to-grid remapping component tests
 
+foldername_results = [foldername_automated_testing '/component_tests/results/remapping/mesh_to_grid'];
+foldername_figures = [foldername_automated_testing '/component_tests/figures'];
+
 % List all the test results
-filenames = dir( foldername);
+filenames = dir( foldername_results);
 i = 1;
 while i <= length( filenames)
   if  contains( filenames(i).name, 'res_') && ...
@@ -14,16 +17,16 @@ while i <= length( filenames)
 end
 
 for fi = 1: length( filenames)
-  analyse_remapping_test( foldername, filenames( fi).name)
+  analyse_remapping_test( filenames( fi).name)
 end
 
-function analyse_remapping_test( foldername, filename)
+function analyse_remapping_test( filename_short)
   % Analyse the results of the complete set of mesh-to-grid remapping component
   % tests for a single mesh-grid combination
 
-  disp(['Analysing ' filename '...']);
+  disp(['Analysing ' filename_short '...']);
 
-  filename_full = [foldername '/' filename];
+  filename_full = [foldername_results '/' filename_short];
 
   % Read test results
   grid.x    = ncread(filename_full,'x');
@@ -72,13 +75,13 @@ function analyse_remapping_test( foldername, filename)
     set( H.Ax{1,1},'clim',clim);
     set( H.Cbaraxes,'clim',clim);
 
-    filename_png = strrep( filename, '.nc', '.png');
-    print( H.Fig, [foldername_automated_testing '/figures/' filename_png], '-dpng');
+    filename_png = strrep( filename_short, '.nc', '.png');
+    print( H.Fig, [foldername_figures '/' filename_png], '-dpng');
     close( H.Fig)
 
   end
 
-  write_to_scoreboard( filename, mesh, d_mesh_ex, grid, d_grid_ex, d_grid);
+  write_to_scoreboard( filename_short, mesh, d_mesh_ex, grid, d_grid_ex, d_grid);
   
 end
   

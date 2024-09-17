@@ -179,7 +179,7 @@ contains
     ! Add routine to call stack
     call init_routine( routine_name)
 
-    if (par%master) write(0,*) '      Running all mapping/derivative tests on function ', &
+    if (par%master) write(0,*) '        Running all mapping/derivative tests on function ', &
       colour_string(trim(function_name),'light blue'), '...'
 
     ! Calculate exact solutions
