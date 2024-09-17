@@ -57,7 +57,7 @@ jobs:
         uses: matlab-actions/run-command@v2
         with:
           command: |
-            addpath('automated_testing/scoreboard')
+            addpath('automated_testing/scoreboard/scripts')
             create_scoreboard_html('${{github.workspace}}/automated_testing')
 
       - name: Upload scoreboard HTML as artifact

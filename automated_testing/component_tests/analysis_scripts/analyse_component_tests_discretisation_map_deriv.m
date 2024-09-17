@@ -2,6 +2,9 @@ function analyse_component_tests_discretisation_map_deriv( foldername_automated_
 % Analyse the results of all the mapping/derivative discretisation
 % component tests
 
+disp('    Analysing mapping/derivative component tests...')
+disp('')
+
 foldername_results = [foldername_automated_testing '/component_tests/results/discretisation/mapping_derivatives'];
 foldername_figures = [foldername_automated_testing '/component_tests/figures'];
 
@@ -21,11 +24,13 @@ for fi = 1: length( filenames)
   analyse_component_test_discretisation_map_deriv( filenames( fi).name)
 end
 
+disp('')
+
 function analyse_component_test_discretisation_map_deriv( filename_short)
   % Analyse the results of the complete set of mapping/derivative component
   % tests for a single mesh and a single test function
 
-  disp(['Analysing ' filename_short '...'])
+  disp(['      ' filename_short '...'])
 
   filename_full = [foldername_results '/' filename_short];
   
