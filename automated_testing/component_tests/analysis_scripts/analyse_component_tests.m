@@ -2,6 +2,9 @@ function analyse_component_tests( varargin)
 % Analyse the results of all component tests and add the results to the
 % scoreboard files.
 
+disp('Analysing component tests...')
+disp('')
+
 %%
 
 % In the GitHub Workflow, provide the component test results folders as

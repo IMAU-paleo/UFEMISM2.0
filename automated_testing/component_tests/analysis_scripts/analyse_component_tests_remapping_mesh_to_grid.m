@@ -1,6 +1,9 @@
 function analyse_component_tests_remapping_mesh_to_grid( foldername_automated_testing, do_print_figures)
 % Analyse the results of all the mesh-to-grid remapping component tests
 
+disp('    Analysing grid-to-mesh remapping component tests...')
+disp('')
+
 foldername_results = [foldername_automated_testing '/component_tests/results/remapping/mesh_to_grid'];
 foldername_figures = [foldername_automated_testing '/component_tests/figures'];
 
@@ -20,11 +23,13 @@ for fi = 1: length( filenames)
   analyse_remapping_test( filenames( fi).name)
 end
 
+disp('')
+
 function analyse_remapping_test( filename_short)
   % Analyse the results of the complete set of mesh-to-grid remapping component
   % tests for a single mesh-grid combination
 
-  disp(['Analysing ' filename_short '...']);
+  disp(['      ' filename_short '...']);
 
   filename_full = [foldername_results '/' filename_short];
 
