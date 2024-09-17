@@ -22,7 +22,7 @@ end
 
 %%
 
-filename = [foldername_automated_testing 'unit_tests/results/unit_tests_output.txt'];
+filename = [foldername_automated_testing '/unit_tests/results/unit_tests_output.txt'];
 R = read_unit_tests_structure( filename);
 
 filename_html = [foldername_automated_testing '/test_reports/unit_tests_report.html'];
