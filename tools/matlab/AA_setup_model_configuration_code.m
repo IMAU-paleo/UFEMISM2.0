@@ -1,12 +1,11 @@
 function AA_setup_model_configuration_code
 
 fill_configuration_module
-create_config_unit_tests
-% create_config_Halfar
+create_clean_config
 
 function fill_configuration_module
 
-filename_in  = '../../src/basic/model_configuration.f90';
+filename_in  = '/Users/Beren017/Documents/GitHub/UFEMISM2.0/src/basic/model_configuration.f90';
 filename_out = filename_in;
 
 %% Read model_configuration.f90 source code
@@ -91,6 +90,7 @@ for i = 1: length( param_block)
   % Check if a parameter is defined in this line
   ii = strfind( str,'_config');
   if ~isempty( ii)
+    ii = ii(1);
     n_config_variables = n_config_variables + 1;
     % Remove the "_config" extension and everything after that.
     str = str( 1:ii-1);
@@ -122,14 +122,16 @@ for i = 1: length( param_block)
   str = param_block{ i};
   
   % Check if a parameter is defined in this line
-  ii = strfind( str,'_config');
-  if ~isempty( ii)
+  if contains( str,'_config')
     
     % Remove the value assignment and everything after that.
     jj = strfind( str,'::');
     str = str( jj+3:end);
     jj = strfind( str,'=');
-    str = str( 1:jj-1);
+    if ~isempty(jj)
+      jj = jj(1);
+      str = str( 1:jj-1);
+    end
     
     % Append whitespaces until all strings are of equal length
     while length( str) < 60
@@ -171,14 +173,16 @@ for i = 1: length( param_block)
   str = param_block{ i};
   
   % Check if a parameter is defined in this line
-  ii = strfind( str,'_config');
-  if ~isempty( ii)
+  if contains( str,'_config')
     
     % Distill the parameter name
     jj = strfind( str,'::');
     str = str( jj+3:end);
     jj = strfind( str,'_config');
-    str = str( 1:jj-1);
+    if ~isempty( jj)
+      jj = jj(1);
+      str = str( 1:jj-1);
+    end
     param_name = str;
 
     % Append '    C%' to the start
@@ -257,13 +261,7 @@ end
 
 % Remove trailing whitespaces
 for i = 1: length( config_new)
-  str = config_new{ i};
-  if ~isempty( str)
-    while strcmpi( str( end),' ')
-      str = str( 1:end-1);
-    end
-  end
-  config_new{ i} = str;
+  config_new{ i} = strip( config_new{ i},'right');
 end
 
 %% Write to new file
@@ -275,10 +273,10 @@ end
 fclose( fid);
 
 end
-function create_config_unit_tests
+function create_clean_config
 
-filename_in  = '../../src/basic/model_configuration.f90';
-filename_out = '../../config-files/unit_tests.cfg';
+filename_in  = '/Users/Beren017/Documents/GitHub/UFEMISM2.0/src/basic/model_configuration.f90';
+filename_out = '/Users/Beren017/Documents/GitHub/UFEMISM2.0/config-files/config_clean.cfg';
 
 %% Read model_configuration.f90 source code
 
@@ -323,8 +321,7 @@ for i = 1: length( param_block)
   str = param_block{ i};
   
   % Check if a parameter is defined in this line
-  ii = strfind( str,'_config');
-  if ~isempty( ii)
+  if contains( str,'_config')
     % Remove the type declaration
     jj = strfind( str,'::');
     str = str( jj+3:end);
@@ -357,20 +354,6 @@ for i = 1: length( param_block)
       '! Viscosities of viscous asthenosphere layers [?]'];
   end
   
-  % Make sure this config actually performs the unit tests
-  if contains( str,'create_procedural_output_dir_config')
-    str = ['    create_procedural_output_dir_config          = .FALSE.                          '...
-      '! Automatically create an output directory with a procedural name (e.g. results_20210720_001/)'];
-  end
-  if contains( str,'fixed_output_dir_config')
-    str = ['    fixed_output_dir_config                      = ''results_unit_tests''             '...
-      '! If not, create a directory with this name instead (stops the program if this directory already exists)'];
-  end
-  if contains( str,'do_unit_tests_config')
-    str = ['    do_unit_tests_config                         = .TRUE.                           '...
-      '! Whether or not to (only) perform the unit tests in the main_validation module'];
-  end
-  
   % Add to the type block
   config_file{ end+1} = str;
   
@@ -378,13 +361,7 @@ end
 
 % Remove trailing whitespaces
 for i = 1: length( config_file)
-  str = config_file{ i};
-  if ~isempty( str)
-    while strcmpi( str( end),' ')
-      str = str( 1:end-1);
-    end
-  end
-  config_file{ i} = str;
+  config_file{ i} = strip( config_file{ i},'right');
 end
 
 %% Write to new file
