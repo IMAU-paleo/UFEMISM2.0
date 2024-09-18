@@ -27,7 +27,7 @@ elseif isscalar( input_args)
   do_print_figures = true;
 
 else
-  error('need either foldername_component_tests, or nothing as input!')
+  error('need either foldername_automated_testing, or nothing as input!')
 end
 
 addpath([foldername_automated_testing '/component_tests'])
