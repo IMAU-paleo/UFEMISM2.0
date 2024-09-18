@@ -4,7 +4,7 @@ on:
   workflow_call:
 
 jobs:
-  job_main:
+  Halfar_10km:
     runs-on: macos-latest
     steps:
 

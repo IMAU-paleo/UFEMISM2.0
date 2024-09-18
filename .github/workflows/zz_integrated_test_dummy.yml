@@ -4,7 +4,7 @@ on:
   workflow_call:
 
 jobs:
-  job_main:
+  !!test_name_firstname!!:
     runs-on: macos-latest
     steps:
 
