@@ -92,7 +92,7 @@ function write_to_scoreboard( filename, mesh1, d_mesh1_ex, mesh2, d_mesh2_ex, d_
 
   % Set up a scoreboard results structure
   test_name = ['remapping_mesh_to_mesh_' filename(5:end-3)];
-  res = initialise_test_results( test_name, 'remapping/mesh_to_mesh');
+  res = initialise_test_results( test_name, 'component_tests/remapping/mesh_to_mesh');
 
   % Calculate cost functions
   rmse = sqrt( mean( (d_mesh2 - d_mesh2_ex).^2));

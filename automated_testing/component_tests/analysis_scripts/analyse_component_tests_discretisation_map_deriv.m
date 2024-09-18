@@ -64,7 +64,7 @@ function write_to_scoreboard( filename_short, max_errs_map, max_errs_ddx, max_er
 
   % Set up a scoreboard results structure
   test_name = ['discretisation_map_deriv_' filename_short(5:end-3)];
-  res = initialise_test_results( test_name, 'discretisation/mapping_and_derivatives');
+  res = initialise_test_results( test_name, 'component_tests/discretisation/mapping_and_derivatives');
 
   % Map
   % res = add_result_to_test_results( res, 'max_err_map_a_a', 'abs( d_a_a - d_a_ex) ./ max( abs( d_a_ex))', max_errs_map.a_a);

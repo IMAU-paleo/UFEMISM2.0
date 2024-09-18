@@ -94,7 +94,7 @@ function write_to_scoreboard( filename, mesh, d_mesh_ex, grid, d_grid_ex, d_grid
 
   % Set up a scoreboard results structure
   test_name = ['remapping_mesh_to_grid_' filename(5:end-3)];
-  res = initialise_test_results( test_name, 'remapping/mesh_to_grid');
+  res = initialise_test_results( test_name, 'component_tests/remapping/mesh_to_grid');
 
   % Calculate cost functions
   rmse = sqrt( mean( (d_grid(:) - d_grid_ex(:)).^2));
