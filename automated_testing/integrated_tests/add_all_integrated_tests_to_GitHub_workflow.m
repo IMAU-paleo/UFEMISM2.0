@@ -72,6 +72,12 @@ end
 
   function create_single_test_workflow_file( test_path)
 
+    ii = strfind( test_path,'/'); ii = ii( end);
+    test_path_firstname = test_path( ii+1:end);
+
+    test_name           = strrep( test_path          ,'/','_');
+    test_name_firstname = strrep( test_path_firstname,'/','_');
+
     % Read dummy workflow file
     filename_workflow_dummy = [foldername_workflows ...
       '/zz_integrated_test_dummy.yml'];
@@ -79,13 +85,13 @@ end
     temp = textscan( fid,'%s','delimiter','\n','whitespace',''); temp = temp{1};
     fclose( fid);
 
-    % Place test path in file
+    % Place test name in file
     for ii = 1: length( temp)
-      temp{ii} = strrep( temp{ii}, '!!test_path!!', test_path);
+      temp{ii} = strrep( temp{ii}, '!!test_path!!'          , test_path);
+      temp{ii} = strrep( temp{ii}, '!!test_name_firstname!!', test_name_firstname);
     end
 
     % Write to single test workflow file
-    test_name = strrep( test_path,'/','_');
     filename_workflow = [foldername_workflows '/zz_integrated_test_' test_name '.yml'];
     fid = fopen( filename_workflow,'w');
     for ii = 1: length( temp)
