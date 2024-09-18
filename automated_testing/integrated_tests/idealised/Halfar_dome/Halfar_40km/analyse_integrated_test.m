@@ -1,7 +1,7 @@
 function analyse_integrated_test( varargin)
 % Analyse the results of the Halfar_40km integrated test
 
-disp('Analysing component tests...')
+disp('Analysing integrated test idealised/Halfar_dome/Halfar_40km...')
 disp('')
 
 %%
@@ -24,7 +24,7 @@ elseif isscalar( input_args)
   addpath('tools/matlab/')
 
 else
-  error('need either foldername_component_tests, or nothing as input!')
+  error('need either foldername_automated_testing, or nothing as input!')
 end
 
 foldername_test = [foldername_automated_testing '/integrated_tests/idealised/Halfar_dome/Halfar_40km'];

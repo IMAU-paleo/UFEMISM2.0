@@ -19,7 +19,7 @@ elseif isscalar( input_args)
   % Assume this is a GitHub Workflow run
   foldername_automated_testing = varargin{1};
 else
-  error('need either foldername, or nothing as input!')
+  error('need either foldername_automated_testing, or nothing as input!')
 end
 
 %%
