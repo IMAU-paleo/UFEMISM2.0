@@ -6,4 +6,4 @@ on:
 jobs:
 
   idealised_Halfar_dome_Halfar_40km:
-    uses: ./.github/workflows/integrated_test_workflows/idealised_Halfar_dome_Halfar_40km.yml
+    uses: ./.github/workflows/zz_integrated_test_idealised_Halfar_dome_Halfar_40km.yml
