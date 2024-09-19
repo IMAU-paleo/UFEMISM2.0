@@ -120,6 +120,17 @@ create_analyse_integrated_tests_workflow( list_of_tests)
     fprintf( fid, '%s\n', '    runs-on: macos-latest');
     fprintf( fid, '%s\n', '    steps:');
     fprintf( fid, '%s\n', '');
+    fprintf( fid, '%s\n', '      - name: Checkout UFEMISM repository (from pull request)');
+    fprintf( fid, '%s\n', "        if: ${{ github.event_name == 'pull_request' }}");
+    fprintf( fid, '%s\n', '        uses: actions/checkout@v4');
+    fprintf( fid, '%s\n', '        with:');
+    fprintf( fid, '%s\n', '         repository: ${{ github.event.pull_request.head.repo.full_name }}');
+    fprintf( fid, '%s\n', '         ref: ${{ github.event.pull_request.head.ref }}');
+    fprintf( fid, '%s\n', '');
+    fprintf( fid, '%s\n', '      - name: Checkout UFEMISM repository (from manual run)');
+    fprintf( fid, '%s\n', "        if: ${{ github.event_name != 'pull_request' }}");
+    fprintf( fid, '%s\n', '        uses: actions/checkout@v4');
+    fprintf( fid, '%s\n', '');
     fprintf( fid, '%s\n', '      - name: Install MATLAB');
     fprintf( fid, '%s\n', '        uses: matlab-actions/setup-matlab@v2.2.0');
     fprintf( fid, '%s\n', '        with:');

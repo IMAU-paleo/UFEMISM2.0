@@ -8,6 +8,17 @@ jobs:
     runs-on: macos-latest
     steps:
 
+      - name: Checkout UFEMISM repository (from pull request)
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: actions/checkout@v4
+        with:
+         repository: ${{ github.event.pull_request.head.repo.full_name }}
+         ref: ${{ github.event.pull_request.head.ref }}
+
+      - name: Checkout UFEMISM repository (from manual run)
+        if: ${{ github.event_name != 'pull_request' }}
+        uses: actions/checkout@v4
+
       - name: Install MATLAB
         uses: matlab-actions/setup-matlab@v2.2.0
         with:
