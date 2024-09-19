@@ -79,8 +79,7 @@ end
     test_name_firstname = strrep( test_path_firstname,'/','_');
 
     % Read dummy workflow file
-    filename_workflow_dummy = [foldername_workflows ...
-      '/zz_integrated_test_dummy.yml'];
+    filename_workflow_dummy = 'integrated_test_single_workflow_dummy.txt';
     fid = fopen( filename_workflow_dummy,'r');
     temp = textscan( fid,'%s','delimiter','\n','whitespace',''); temp = temp{1};
     fclose( fid);
@@ -88,6 +87,7 @@ end
     % Place test name in file
     for ii = 1: length( temp)
       temp{ii} = strrep( temp{ii}, '!!test_path!!'          , test_path);
+      temp{ii} = strrep( temp{ii}, '!!test_name!!'          , test_name);
       temp{ii} = strrep( temp{ii}, '!!test_name_firstname!!', test_name_firstname);
     end
 
