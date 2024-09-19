@@ -36,8 +36,8 @@ jobs:
         uses: matlab-actions/run-command@v2
         with:
           command: |
-            addpath("automated_testing/integrated_tests/idealised/Halfar_dome/Halfar_10km")
-            analyse_integrated_test("${{github.workspace}}/automated_testing")
+            addpath('automated_testing/integrated_tests/idealised/Halfar_dome/Halfar_10km')
+            analyse_integrated_test('${{github.workspace}}/automated_testing')
 
 # idealised/Halfar_dome/Halfar_20km
 
@@ -51,8 +51,8 @@ jobs:
         uses: matlab-actions/run-command@v2
         with:
           command: |
-            addpath("automated_testing/integrated_tests/idealised/Halfar_dome/Halfar_20km")
-            analyse_integrated_test("${{github.workspace}}/automated_testing")
+            addpath('automated_testing/integrated_tests/idealised/Halfar_dome/Halfar_20km')
+            analyse_integrated_test('${{github.workspace}}/automated_testing')
 
 # idealised/Halfar_dome/Halfar_40km
 
@@ -66,8 +66,8 @@ jobs:
         uses: matlab-actions/run-command@v2
         with:
           command: |
-            addpath("automated_testing/integrated_tests/idealised/Halfar_dome/Halfar_40km")
-            analyse_integrated_test("${{github.workspace}}/automated_testing")
+            addpath('automated_testing/integrated_tests/idealised/Halfar_dome/Halfar_40km')
+            analyse_integrated_test('${{github.workspace}}/automated_testing')
 
 # idealised/Halfar_dome/Halfar_5km
 
@@ -81,5 +81,5 @@ jobs:
         uses: matlab-actions/run-command@v2
         with:
           command: |
-            addpath("automated_testing/integrated_tests/idealised/Halfar_dome/Halfar_5km")
-            analyse_integrated_test("${{github.workspace}}/automated_testing")
+            addpath('automated_testing/integrated_tests/idealised/Halfar_dome/Halfar_5km')
+            analyse_integrated_test('${{github.workspace}}/automated_testing')
