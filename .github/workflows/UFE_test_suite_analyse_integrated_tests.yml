@@ -1,0 +1,74 @@
+name: UFEMISM Test Suite - analyse integrated tests
+run-name: ${{ github.actor }} - UFEMISM Test Suite - analyse integrated tests
+on:
+  workflow_call:
+
+jobs:
+  analyse_integrated_tests:
+    runs-on: macos-latest
+    steps:
+
+      - name: Install MATLAB
+        uses: matlab-actions/setup-matlab@v2.2.0
+        with:
+          cache: true
+
+# idealised/Halfar_dome/Halfar_10km
+
+      - name: Download artifacts for idealised/Halfar_dome/Halfar_10km
+        uses: actions/download-artifact@v4
+        with:
+          name: results_integrated_test_idealised_Halfar_dome_Halfar_10km
+          path: automated_testing/integrated_tests/idealised/Halfar_dome/Halfar_10km/results
+
+      - name: Analyse idealised/Halfar_dome/Halfar_10km
+        uses: matlab-actions/run-command@v2
+        with:
+          command: |
+            addpath("automated_testing/integrated_tests/idealised/Halfar_dome/Halfar_10km")
+            analyse_integrated_test("${{github.workspace}}/automated_testing")
+
+# idealised/Halfar_dome/Halfar_20km
+
+      - name: Download artifacts for idealised/Halfar_dome/Halfar_20km
+        uses: actions/download-artifact@v4
+        with:
+          name: results_integrated_test_idealised_Halfar_dome_Halfar_20km
+          path: automated_testing/integrated_tests/idealised/Halfar_dome/Halfar_20km/results
+
+      - name: Analyse idealised/Halfar_dome/Halfar_20km
+        uses: matlab-actions/run-command@v2
+        with:
+          command: |
+            addpath("automated_testing/integrated_tests/idealised/Halfar_dome/Halfar_20km")
+            analyse_integrated_test("${{github.workspace}}/automated_testing")
+
+# idealised/Halfar_dome/Halfar_40km
+
+      - name: Download artifacts for idealised/Halfar_dome/Halfar_40km
+        uses: actions/download-artifact@v4
+        with:
+          name: results_integrated_test_idealised_Halfar_dome_Halfar_40km
+          path: automated_testing/integrated_tests/idealised/Halfar_dome/Halfar_40km/results
+
+      - name: Analyse idealised/Halfar_dome/Halfar_40km
+        uses: matlab-actions/run-command@v2
+        with:
+          command: |
+            addpath("automated_testing/integrated_tests/idealised/Halfar_dome/Halfar_40km")
+            analyse_integrated_test("${{github.workspace}}/automated_testing")
+
+# idealised/Halfar_dome/Halfar_5km
+
+      - name: Download artifacts for idealised/Halfar_dome/Halfar_5km
+        uses: actions/download-artifact@v4
+        with:
+          name: results_integrated_test_idealised_Halfar_dome_Halfar_5km
+          path: automated_testing/integrated_tests/idealised/Halfar_dome/Halfar_5km/results
+
+      - name: Analyse idealised/Halfar_dome/Halfar_5km
+        uses: matlab-actions/run-command@v2
+        with:
+          command: |
+            addpath("automated_testing/integrated_tests/idealised/Halfar_dome/Halfar_5km")
+            analyse_integrated_test("${{github.workspace}}/automated_testing")

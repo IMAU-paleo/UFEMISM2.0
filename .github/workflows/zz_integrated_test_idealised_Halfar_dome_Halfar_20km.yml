@@ -30,18 +30,6 @@ jobs:
       - name: Run integrated test - idealised/Halfar_dome/Halfar_20km
         run: mpiexec  -n 2  UFEMISM_program  automated_testing/integrated_tests/idealised/Halfar_dome/Halfar_20km/config.cfg
 
-      - name: Install MATLAB
-        uses: matlab-actions/setup-matlab@v2.2.0
-        with:
-          cache: true
-
-      - name: Analyse integrated test - idealised/Halfar_dome/Halfar_20km
-        uses: matlab-actions/run-command@v2
-        with:
-          command: |
-            addpath('automated_testing/integrated_tests/idealised/Halfar_dome/Halfar_20km')
-            analyse_integrated_test('${{github.workspace}}/automated_testing')
-
       - name: Upload output as artifacts
         uses: actions/upload-artifact@v4.3.4
         with:
