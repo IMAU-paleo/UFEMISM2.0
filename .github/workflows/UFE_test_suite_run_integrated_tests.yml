@@ -1,5 +1,5 @@
-name: UFEMISM Test Suite - run and analyse integrated tests
-run-name: ${{ github.actor }} - UFEMISM Test Suite - run and analyse integrated tests
+name: UFEMISM Test Suite - run integrated tests
+run-name: ${{ github.actor }} - UFEMISM Test Suite - run integrated tests
 on:
   workflow_call:
 

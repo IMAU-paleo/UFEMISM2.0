@@ -44,12 +44,12 @@ end
   function add_tests_to_main_workflow_file( list_of_tests)
 
     filename_workflow_main  = [foldername_workflows ...
-      '/UFE_test_suite_run_and_analyse_integrated_tests.yml'];
+      '/UFE_test_suite_run_integrated_tests.yml'];
 
     fid = fopen( filename_workflow_main,'w');
 
-    fprintf( fid, '%s\n', 'name: UFEMISM Test Suite - run and analyse integrated tests');
-    fprintf( fid, '%s\n', 'run-name: ${{ github.actor }} - UFEMISM Test Suite - run and analyse integrated tests');
+    fprintf( fid, '%s\n', 'name: UFEMISM Test Suite - run integrated tests');
+    fprintf( fid, '%s\n', 'run-name: ${{ github.actor }} - UFEMISM Test Suite - run integrated tests');
     fprintf( fid, '%s\n', 'on:');
     fprintf( fid, '%s\n', '  workflow_call:');
     fprintf( fid, '%s\n', '');
