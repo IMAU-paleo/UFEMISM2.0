@@ -20,7 +20,7 @@ if isempty( input_args)
 elseif isscalar( input_args)
   % Assume this is a GitHub Workflow run
 
-  foldername_automated_testing = varargin{1}
+  foldername_automated_testing = varargin{1};
   addpath('tools/matlab/')
 
 else

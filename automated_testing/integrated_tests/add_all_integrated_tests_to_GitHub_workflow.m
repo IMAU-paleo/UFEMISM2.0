@@ -154,8 +154,8 @@ create_analyse_integrated_tests_workflow( list_of_tests)
       fprintf( fid, '%s\n', '        uses: matlab-actions/run-command@v2');
       fprintf( fid, '%s\n', '        with:');
       fprintf( fid, '%s\n', '          command: |');
-      fprintf( fid, '%s\n',['            addpath("automated_testing/integrated_tests/' test_path '")']);
-      fprintf( fid, '%s\n', '            analyse_integrated_test("${{github.workspace}}/automated_testing")');
+      fprintf( fid, '%s\n',['            addpath(''automated_testing/integrated_tests/' test_path ''')']);
+      fprintf( fid, '%s\n', '            analyse_integrated_test(''${{github.workspace}}/automated_testing'')');
     end
 
     fclose( fid);
