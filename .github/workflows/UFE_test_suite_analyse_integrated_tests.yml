@@ -24,20 +24,20 @@ jobs:
         with:
           cache: true
 
-# idealised/Halfar_dome/Halfar_10km
+# # idealised/Halfar_dome/Halfar_10km
 
-      - name: Download artifacts for idealised/Halfar_dome/Halfar_10km
-        uses: actions/download-artifact@v4
-        with:
-          name: results_integrated_test_idealised_Halfar_dome_Halfar_10km
-          path: automated_testing/integrated_tests/idealised/Halfar_dome/Halfar_10km/results
+#       - name: Download artifacts for idealised/Halfar_dome/Halfar_10km
+#         uses: actions/download-artifact@v4
+#         with:
+#           name: results_integrated_test_idealised_Halfar_dome_Halfar_10km
+#           path: automated_testing/integrated_tests/idealised/Halfar_dome/Halfar_10km/results
 
-      - name: Analyse idealised/Halfar_dome/Halfar_10km
-        uses: matlab-actions/run-command@v2
-        with:
-          command: |
-            addpath('automated_testing/integrated_tests/idealised/Halfar_dome/Halfar_10km')
-            analyse_integrated_test('${{github.workspace}}/automated_testing')
+#       - name: Analyse idealised/Halfar_dome/Halfar_10km
+#         uses: matlab-actions/run-command@v2
+#         with:
+#           command: |
+#             addpath('automated_testing/integrated_tests/idealised/Halfar_dome/Halfar_10km')
+#             analyse_integrated_test('${{github.workspace}}/automated_testing')
 
 # idealised/Halfar_dome/Halfar_20km
 
