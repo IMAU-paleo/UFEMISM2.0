@@ -39,7 +39,7 @@ function analyse_component_test_discretisation_map_deriv( filename_short)
   [H_ddy, max_errs_ddy] = analyse_mapping_derivatives_tests_mesh_function_ddxy( filename_full,'ddy');
   [H_2nd, max_errs_2nd] = analyse_mapping_derivatives_tests_mesh_function_2nd(  filename_full);
   
-  write_to_scoreboard( filename_short, max_errs_map, max_errs_ddx, max_errs_ddy, max_errs_2nd);
+  write_to_scoreboard_file( filename_short, max_errs_map, max_errs_ddx, max_errs_ddy, max_errs_2nd);
 
   if do_print_figures
     filename_map_png = strrep( filename_short, '.nc', '_map.png');
@@ -60,60 +60,60 @@ function analyse_component_test_discretisation_map_deriv( filename_short)
   
 end
   
-function write_to_scoreboard( filename_short, max_errs_map, max_errs_ddx, max_errs_ddy, max_errs_2nd)
+function write_to_scoreboard_file( filename_short, max_errs_map, max_errs_ddx, max_errs_ddy, max_errs_2nd)
 
   % Set up a scoreboard results structure
   test_name = ['discretisation_map_deriv_' filename_short(5:end-3)];
-  res = initialise_test_results( test_name, 'component_tests/discretisation/mapping_and_derivatives');
+  single_run = initialise_single_test_run( test_name, 'component_tests/discretisation/mapping_and_derivatives');
 
   % Map
-  % res = add_result_to_test_results( res, 'max_err_map_a_a', 'abs( d_a_a - d_a_ex) ./ max( abs( d_a_ex))', max_errs_map.a_a);
-  res = add_result_to_test_results( res, 'max_err_map_a_b', 'abs( d_a_b - d_b_ex) ./ max( abs( d_b_ex))', max_errs_map.a_b);
-  res = add_result_to_test_results( res, 'max_err_map_a_c', 'abs( d_a_c - d_c_ex) ./ max( abs( d_c_ex))', max_errs_map.a_c);
+  % res = add_subtest_to_single_run( res, 'max_err_map_a_a', 'abs( d_a_a - d_a_ex) ./ max( abs( d_a_ex))', max_errs_map.a_a);
+  single_run = add_subtest_to_single_run( single_run, 'max_err_map_a_b', 'abs( d_a_b - d_b_ex) ./ max( abs( d_b_ex))', max_errs_map.a_b);
+  single_run = add_subtest_to_single_run( single_run, 'max_err_map_a_c', 'abs( d_a_c - d_c_ex) ./ max( abs( d_c_ex))', max_errs_map.a_c);
 
-  res = add_result_to_test_results( res, 'max_err_map_b_a', 'abs( d_b_a - d_a_ex) ./ max( abs( d_a_ex))', max_errs_map.b_a);
-  % res = add_result_to_test_results( res, 'max_err_map_b_b', 'abs( d_b_b - d_b_ex) ./ max( abs( d_b_ex))', max_errs_map.b_b);
-  res = add_result_to_test_results( res, 'max_err_map_b_c', 'abs( d_b_c - d_c_ex) ./ max( abs( d_c_ex))', max_errs_map.b_c);
+  single_run = add_subtest_to_single_run( single_run, 'max_err_map_b_a', 'abs( d_b_a - d_a_ex) ./ max( abs( d_a_ex))', max_errs_map.b_a);
+  % res = add_subtest_to_single_run( res, 'max_err_map_b_b', 'abs( d_b_b - d_b_ex) ./ max( abs( d_b_ex))', max_errs_map.b_b);
+  single_run = add_subtest_to_single_run( single_run, 'max_err_map_b_c', 'abs( d_b_c - d_c_ex) ./ max( abs( d_c_ex))', max_errs_map.b_c);
 
-  res = add_result_to_test_results( res, 'max_err_map_c_a', 'abs( d_c_a - d_a_ex) ./ max( abs( d_a_ex))', max_errs_map.c_a);
-  res = add_result_to_test_results( res, 'max_err_map_c_b', 'abs( d_c_b - d_b_ex) ./ max( abs( d_b_ex))', max_errs_map.c_b);
-  % res = add_result_to_test_results( res, 'max_err_map_c_c', 'abs( d_c_c - d_c_ex) ./ max( abs( d_c_ex))', max_errs_map.c_c);
+  single_run = add_subtest_to_single_run( single_run, 'max_err_map_c_a', 'abs( d_c_a - d_a_ex) ./ max( abs( d_a_ex))', max_errs_map.c_a);
+  single_run = add_subtest_to_single_run( single_run, 'max_err_map_c_b', 'abs( d_c_b - d_b_ex) ./ max( abs( d_b_ex))', max_errs_map.c_b);
+  % res = add_subtest_to_single_run( res, 'max_err_map_c_c', 'abs( d_c_c - d_c_ex) ./ max( abs( d_c_ex))', max_errs_map.c_c);
 
   % d/dx
-  res = add_result_to_test_results( res, 'max_err_ddx_a_a', 'abs( ddx_a_a - ddx_a_ex) ./ max( abs( ddx_a_ex))', max_errs_ddx.a_a);
-  res = add_result_to_test_results( res, 'max_err_ddx_a_b', 'abs( ddx_a_b - ddx_b_ex) ./ max( abs( ddx_b_ex))', max_errs_ddx.a_b);
-  res = add_result_to_test_results( res, 'max_err_ddx_a_c', 'abs( ddx_a_c - ddx_c_ex) ./ max( abs( ddx_c_ex))', max_errs_ddx.a_c);
+  single_run = add_subtest_to_single_run( single_run, 'max_err_ddx_a_a', 'abs( ddx_a_a - ddx_a_ex) ./ max( abs( ddx_a_ex))', max_errs_ddx.a_a);
+  single_run = add_subtest_to_single_run( single_run, 'max_err_ddx_a_b', 'abs( ddx_a_b - ddx_b_ex) ./ max( abs( ddx_b_ex))', max_errs_ddx.a_b);
+  single_run = add_subtest_to_single_run( single_run, 'max_err_ddx_a_c', 'abs( ddx_a_c - ddx_c_ex) ./ max( abs( ddx_c_ex))', max_errs_ddx.a_c);
 
-  res = add_result_to_test_results( res, 'max_err_ddx_b_a', 'abs( ddx_b_a - ddx_a_ex) ./ max( abs( ddx_a_ex))', max_errs_ddx.b_a);
-  res = add_result_to_test_results( res, 'max_err_ddx_b_b', 'abs( ddx_b_b - ddx_b_ex) ./ max( abs( ddx_b_ex))', max_errs_ddx.b_b);
-  res = add_result_to_test_results( res, 'max_err_ddx_b_c', 'abs( ddx_b_c - ddx_c_ex) ./ max( abs( ddx_c_ex))', max_errs_ddx.b_c);
+  single_run = add_subtest_to_single_run( single_run, 'max_err_ddx_b_a', 'abs( ddx_b_a - ddx_a_ex) ./ max( abs( ddx_a_ex))', max_errs_ddx.b_a);
+  single_run = add_subtest_to_single_run( single_run, 'max_err_ddx_b_b', 'abs( ddx_b_b - ddx_b_ex) ./ max( abs( ddx_b_ex))', max_errs_ddx.b_b);
+  single_run = add_subtest_to_single_run( single_run, 'max_err_ddx_b_c', 'abs( ddx_b_c - ddx_c_ex) ./ max( abs( ddx_c_ex))', max_errs_ddx.b_c);
 
-  res = add_result_to_test_results( res, 'max_err_ddx_c_a', 'abs( ddx_c_a - ddx_a_ex) ./ max( abs( ddx_a_ex))', max_errs_ddx.c_a);
-  res = add_result_to_test_results( res, 'max_err_ddx_c_b', 'abs( ddx_c_b - ddx_b_ex) ./ max( abs( ddx_b_ex))', max_errs_ddx.c_b);
-  res = add_result_to_test_results( res, 'max_err_ddx_c_c', 'abs( ddx_c_c - ddx_c_ex) ./ max( abs( ddx_c_ex))', max_errs_ddx.c_c);
+  single_run = add_subtest_to_single_run( single_run, 'max_err_ddx_c_a', 'abs( ddx_c_a - ddx_a_ex) ./ max( abs( ddx_a_ex))', max_errs_ddx.c_a);
+  single_run = add_subtest_to_single_run( single_run, 'max_err_ddx_c_b', 'abs( ddx_c_b - ddx_b_ex) ./ max( abs( ddx_b_ex))', max_errs_ddx.c_b);
+  single_run = add_subtest_to_single_run( single_run, 'max_err_ddx_c_c', 'abs( ddx_c_c - ddx_c_ex) ./ max( abs( ddx_c_ex))', max_errs_ddx.c_c);
 
   % d/dy
-  res = add_result_to_test_results( res, 'max_err_ddy_a_a', 'abs( ddy_a_a - ddy_a_ex) ./ max( abs( ddy_a_ex))', max_errs_ddy.a_a);
-  res = add_result_to_test_results( res, 'max_err_ddy_a_b', 'abs( ddy_a_b - ddy_b_ex) ./ max( abs( ddy_b_ex))', max_errs_ddy.a_b);
-  res = add_result_to_test_results( res, 'max_err_ddy_a_c', 'abs( ddy_a_c - ddy_c_ex) ./ max( abs( ddy_c_ex))', max_errs_ddy.a_c);
+  single_run = add_subtest_to_single_run( single_run, 'max_err_ddy_a_a', 'abs( ddy_a_a - ddy_a_ex) ./ max( abs( ddy_a_ex))', max_errs_ddy.a_a);
+  single_run = add_subtest_to_single_run( single_run, 'max_err_ddy_a_b', 'abs( ddy_a_b - ddy_b_ex) ./ max( abs( ddy_b_ex))', max_errs_ddy.a_b);
+  single_run = add_subtest_to_single_run( single_run, 'max_err_ddy_a_c', 'abs( ddy_a_c - ddy_c_ex) ./ max( abs( ddy_c_ex))', max_errs_ddy.a_c);
 
-  res = add_result_to_test_results( res, 'max_err_ddy_b_a', 'abs( ddy_b_a - ddy_a_ex) ./ max( abs( ddy_a_ex))', max_errs_ddy.b_a);
-  res = add_result_to_test_results( res, 'max_err_ddy_b_b', 'abs( ddy_b_b - ddy_b_ex) ./ max( abs( ddy_b_ex))', max_errs_ddy.b_b);
-  res = add_result_to_test_results( res, 'max_err_ddy_b_c', 'abs( ddy_b_c - ddy_c_ex) ./ max( abs( ddy_c_ex))', max_errs_ddy.b_c);
+  single_run = add_subtest_to_single_run( single_run, 'max_err_ddy_b_a', 'abs( ddy_b_a - ddy_a_ex) ./ max( abs( ddy_a_ex))', max_errs_ddy.b_a);
+  single_run = add_subtest_to_single_run( single_run, 'max_err_ddy_b_b', 'abs( ddy_b_b - ddy_b_ex) ./ max( abs( ddy_b_ex))', max_errs_ddy.b_b);
+  single_run = add_subtest_to_single_run( single_run, 'max_err_ddy_b_c', 'abs( ddy_b_c - ddy_c_ex) ./ max( abs( ddy_c_ex))', max_errs_ddy.b_c);
 
-  res = add_result_to_test_results( res, 'max_err_ddy_c_a', 'abs( ddy_c_a - ddy_a_ex) ./ max( abs( ddy_a_ex))', max_errs_ddy.c_a);
-  res = add_result_to_test_results( res, 'max_err_ddy_c_b', 'abs( ddy_c_b - ddy_b_ex) ./ max( abs( ddy_b_ex))', max_errs_ddy.c_b);
-  res = add_result_to_test_results( res, 'max_err_ddy_c_c', 'abs( ddy_c_c - ddy_c_ex) ./ max( abs( ddy_c_ex))', max_errs_ddy.c_c);
+  single_run = add_subtest_to_single_run( single_run, 'max_err_ddy_c_a', 'abs( ddy_c_a - ddy_a_ex) ./ max( abs( ddy_a_ex))', max_errs_ddy.c_a);
+  single_run = add_subtest_to_single_run( single_run, 'max_err_ddy_c_b', 'abs( ddy_c_b - ddy_b_ex) ./ max( abs( ddy_b_ex))', max_errs_ddy.c_b);
+  single_run = add_subtest_to_single_run( single_run, 'max_err_ddy_c_c', 'abs( ddy_c_c - ddy_c_ex) ./ max( abs( ddy_c_ex))', max_errs_ddy.c_c);
 
   % 2nd order
-  res = add_result_to_test_results( res, 'max_err_ddx_b_b_2nd'   , 'abs( ddx_b_b_2nd    - ddx_b_ex   ) ./ max( abs( ddx_b_ex   ))', max_errs_2nd.ddx);
-  res = add_result_to_test_results( res, 'max_err_ddy_b_b_2nd'  ,  'abs( ddy_b_b_2nd    - ddy_b_ex   ) ./ max( abs( ddy_b_ex   ))', max_errs_2nd.ddy);
-  res = add_result_to_test_results( res, 'max_err_d2dx2_b_b_2nd' , 'abs( d2dx2_b_b_2nd  - d2dx2_b_ex ) ./ max( abs( d2dx2_b_ex ))', max_errs_2nd.d2dx2);
-  res = add_result_to_test_results( res, 'max_err_d2dxdy_b_b_2nd', 'abs( d2dxdy_b_b_2nd - d2dxdy_b_ex) ./ max( abs( d2dxdy_b_ex))', max_errs_2nd.d2dxdy);
-  res = add_result_to_test_results( res, 'max_err_d2dy2_b_b_2nd' , 'abs( d2dy2_b_b_2nd  - d2dy2_b_ex ) ./ max( abs( d2dy2_b_ex ))', max_errs_2nd.d2dy2);
+  single_run = add_subtest_to_single_run( single_run, 'max_err_ddx_b_b_2nd'   , 'abs( ddx_b_b_2nd    - ddx_b_ex   ) ./ max( abs( ddx_b_ex   ))', max_errs_2nd.ddx);
+  single_run = add_subtest_to_single_run( single_run, 'max_err_ddy_b_b_2nd'  ,  'abs( ddy_b_b_2nd    - ddy_b_ex   ) ./ max( abs( ddy_b_ex   ))', max_errs_2nd.ddy);
+  single_run = add_subtest_to_single_run( single_run, 'max_err_d2dx2_b_b_2nd' , 'abs( d2dx2_b_b_2nd  - d2dx2_b_ex ) ./ max( abs( d2dx2_b_ex ))', max_errs_2nd.d2dx2);
+  single_run = add_subtest_to_single_run( single_run, 'max_err_d2dxdy_b_b_2nd', 'abs( d2dxdy_b_b_2nd - d2dxdy_b_ex) ./ max( abs( d2dxdy_b_ex))', max_errs_2nd.d2dxdy);
+  single_run = add_subtest_to_single_run( single_run, 'max_err_d2dy2_b_b_2nd' , 'abs( d2dy2_b_b_2nd  - d2dy2_b_ex ) ./ max( abs( d2dy2_b_ex ))', max_errs_2nd.d2dy2);
 
   % Write to scoreboard file
-  write_test_results_to_scoreboard_file( res, [foldername_automated_testing '/scoreboard']);
+  write_single_test_run_to_scoreboard_file( single_run, [foldername_automated_testing '/scoreboard']);
 
 end
 

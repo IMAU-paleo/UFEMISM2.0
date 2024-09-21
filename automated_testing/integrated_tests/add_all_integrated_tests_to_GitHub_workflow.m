@@ -2,12 +2,15 @@ function add_all_integrated_tests_to_GitHub_workflow
 % Add all the integrated tests to the GitHub Workflow file so they will be
 % run automatically
 %
+% NOTE: meant to be run manually by the user after adding a new integrated
+% test
+%
 % NOTE: this script must be run from inside automated_testing/integrated_tests!
 
-foldername_integrated_tests = pwd;
-foldername_workflows = '../../.github/workflows';
+foldername_workflows = '../.github/workflows';
+foldername_integrated_tests = 'integrated_tests';
 
-list_of_tests = list_all_integrated_tests( {}, foldername_integrated_tests);
+list_of_tests = list_all_integrated_tests( foldername_integrated_tests);
 
 create_run_integrated_tests_workflow( list_of_tests)
 
@@ -16,32 +19,6 @@ for i = 1: length( list_of_tests)
 end
 
 create_analyse_integrated_tests_workflow( list_of_tests)
-
-  function list_of_tests = list_all_integrated_tests( list_of_tests, test_path)
-
-    henk = dir( test_path);
-
-    is_test = false;
-    for i = 1: length( henk)
-      if strcmpi( henk( i).name,'config.cfg')
-        is_test = true;
-      end
-    end
-    if is_test
-      list_of_tests{ end+1} = test_path( length( foldername_integrated_tests)+2:end);
-      return
-    end
-
-    for i = 1: length( henk)
-      if strcmpi( henk( i).name,'.') || strcmpi( henk( i).name, '..')
-        continue
-      end
-      if henk( i).isdir
-        list_of_tests = list_all_integrated_tests( list_of_tests, [test_path '/' henk( i).name]);
-      end
-    end
-
-  end
 
   function create_run_integrated_tests_workflow( list_of_tests)
 
@@ -64,7 +41,7 @@ create_analyse_integrated_tests_workflow( list_of_tests)
 
       fprintf( fid, '%s\n', '');
       fprintf( fid, '%s\n', ['  ' test_name ':']);
-      fprintf( fid, '%s\n', ['    uses: ./.github/workflows/zz_integrated_test_' test_name '.yml']);
+      fprintf( fid, '%s\n', ['    uses: ./.github/workflows/zz_' test_name '.yml']);
 
     end
 
@@ -94,7 +71,7 @@ create_analyse_integrated_tests_workflow( list_of_tests)
     end
 
     % Write to single test workflow file
-    filename_workflow = [foldername_workflows '/zz_integrated_test_' test_name '.yml'];
+    filename_workflow = [foldername_workflows '/zz_' test_name '.yml'];
     fid = fopen( filename_workflow,'w');
     for ii = 1: length( temp)
       fprintf( fid,'%s\n',temp{ii});
@@ -144,18 +121,11 @@ create_analyse_integrated_tests_workflow( list_of_tests)
       fprintf( fid, '%s\n', '');
       fprintf( fid, '%s\n', ['# ' test_path]);
       fprintf( fid, '%s\n', '');
-      fprintf( fid, '%s\n',['      - name: Download artifacts for ' test_path]);
+      fprintf( fid, '%s\n',['      - name: Download temporary scoreboard file for ' test_path]);
       fprintf( fid, '%s\n', '        uses: actions/download-artifact@v4');
       fprintf( fid, '%s\n', '        with:');
-      fprintf( fid, '%s\n',['          name: results_integrated_test_' test_name]);
-      fprintf( fid, '%s\n',['          path: automated_testing/integrated_tests/' test_path '/results']);
-      fprintf( fid, '%s\n', '');
-      fprintf( fid, '%s\n',['      - name: Analyse ' test_path]);
-      fprintf( fid, '%s\n', '        uses: matlab-actions/run-command@v2');
-      fprintf( fid, '%s\n', '        with:');
-      fprintf( fid, '%s\n', '          command: |');
-      fprintf( fid, '%s\n',['            addpath(''automated_testing/integrated_tests/' test_path ''')']);
-      fprintf( fid, '%s\n', '            analyse_integrated_test(''${{github.workspace}}/automated_testing'')');
+      fprintf( fid, '%s\n',['          name: temporary_scoreboard_' test_name]);
+      fprintf( fid, '%s\n',['          path: automated_testing/' test_path]);
     end
 
     fclose( fid);

@@ -86,15 +86,15 @@ function analyse_remapping_test( filename_short)
 
   end
 
-  write_to_scoreboard( filename_short, mesh, d_mesh_ex, grid, d_grid_ex, d_grid);
+  write_to_scoreboard_file( filename_short, mesh, d_mesh_ex, grid, d_grid_ex, d_grid);
   
 end
   
-function write_to_scoreboard( filename, mesh, d_mesh_ex, grid, d_grid_ex, d_grid)
+function write_to_scoreboard_file( filename, mesh, d_mesh_ex, grid, d_grid_ex, d_grid)
 
   % Set up a scoreboard results structure
   test_name = ['remapping_mesh_to_grid_' filename(5:end-3)];
-  res = initialise_test_results( test_name, 'component_tests/remapping/mesh_to_grid');
+  single_run = initialise_single_test_run( test_name, 'component_tests/remapping/mesh_to_grid');
 
   % Calculate cost functions
   rmse = sqrt( mean( (d_grid(:) - d_grid_ex(:)).^2));
@@ -107,13 +107,13 @@ function write_to_scoreboard( filename, mesh, d_mesh_ex, grid, d_grid_ex, d_grid
   int_err = abs( 1 - int_grid / int_mesh);
 
   % Add cost functions to results structure
-  res = add_result_to_test_results( res, 'rmse'       , 'sqrt( mean( (d_grid - d_grid_ex).^2))'        , rmse);
-  res = add_result_to_test_results( res, 'bounds_max' , 'max( 0, max( d_grid(:)) - max( d_mesh_ex(:)))', bounds_max);
-  res = add_result_to_test_results( res, 'bounds_min' , 'max( 0, min( d_mesh_ex(:)) - min( d_grid(:)))', bounds_min);
-  res = add_result_to_test_results( res, 'int_err'    , 'abs( 1 - int_grid / int_mesh)'                , int_err);
+  single_run = add_subtest_to_single_run( single_run, 'rmse'       , 'sqrt( mean( (d_grid - d_grid_ex).^2))'        , rmse);
+  single_run = add_subtest_to_single_run( single_run, 'bounds_max' , 'max( 0, max( d_grid(:)) - max( d_mesh_ex(:)))', bounds_max);
+  single_run = add_subtest_to_single_run( single_run, 'bounds_min' , 'max( 0, min( d_mesh_ex(:)) - min( d_grid(:)))', bounds_min);
+  single_run = add_subtest_to_single_run( single_run, 'int_err'    , 'abs( 1 - int_grid / int_mesh)'                , int_err);
 
   % Write to scoreboard file
-  write_test_results_to_scoreboard_file( res, [foldername_automated_testing '/scoreboard']);
+  write_single_test_run_to_scoreboard_file( single_run, [foldername_automated_testing '/scoreboard']);
 
 end
   
