@@ -1,5 +1,5 @@
-name: UFEMISM Test Suite - run and analyse integrated test - idealised/Halfar_dome/Halfar_10km
-run-name: ${{ github.actor }} - UFEMISM Test Suite - run and analyse integrated test - idealised/Halfar_dome/Halfar_10km
+name: UFEMISM Test Suite - run and analyse integrated_tests/idealised/Halfar_dome/Halfar_10km
+run-name: ${{ github.actor }} - UFEMISM Test Suite - run and analyse integrated_tests/idealised/Halfar_dome/Halfar_10km
 on:
   workflow_call:
 
@@ -17,6 +17,11 @@ jobs:
           brew install netcdf
           brew install netcdf-fortran
 
+      - name: Install MATLAB
+        uses: matlab-actions/setup-matlab@v2.2.0
+        with:
+          cache: true
+
       - name: Checkout UFEMISM repository
         uses: actions/checkout@v4
 
@@ -27,11 +32,18 @@ jobs:
           path: UFEMISM_program
           key: UFEMISM_program_${{ github.ref_name }}_${{ github.run_id }}
 
-      - name: Run integrated test - idealised/Halfar_dome/Halfar_10km
+      - name: Run integrated_tests/idealised/Halfar_dome/Halfar_10km
         run: mpiexec  -n 2  UFEMISM_program  automated_testing/integrated_tests/idealised/Halfar_dome/Halfar_10km/config.cfg
 
-      - name: Upload output as artifacts
+      - name: Analyse integrated_tests/idealised/Halfar_dome/Halfar_10km
+        uses: matlab-actions/run-command@v2
+        with:
+          command: |
+            addpath('automated_testing/integrated_tests/idealised/Halfar_dome/Halfar_10km')
+            analyse_integrated_test('${{github.workspace}}/automated_testing')
+
+      - name: Upload temporary scoreboard file as artifact
         uses: actions/upload-artifact@v4.3.4
         with:
-          name: results_integrated_test_idealised_Halfar_dome_Halfar_10km
-          path: automated_testing/integrated_tests/idealised/Halfar_dome/Halfar_10km/results
+          name: temporary_scoreboard_integrated_tests_idealised_Halfar_dome_Halfar_10km
+          path: automated_testing/integrated_tests/idealised/Halfar_dome/Halfar_10km/scoreboard_*.txt

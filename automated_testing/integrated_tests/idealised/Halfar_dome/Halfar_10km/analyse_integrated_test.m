@@ -53,7 +53,7 @@ end
 RMSE_Hi = sqrt( mean( (Hi( :,end) - Hi_analytical( :,end)).^2 ));
 
 % Write to scoreboard file
-write_to_scoreboard( RMSE_Hi);
+write_to_scoreboard_file( RMSE_Hi);
 
   function [A_flow, n_flow, H0, R0] = get_Halfar_dome_params_from_config( filename_config)
     fid = fopen( filename_config,'r');
@@ -145,17 +145,18 @@ write_to_scoreboard( RMSE_Hi);
   H = H0 * f1 * max( 0, (1 - (f2 * f3).^((n_flow + 1) / n_flow))).^(n_flow / (2*n_flow + 1));
 end
 
-  function write_to_scoreboard( RMSE_Hi)
+  function write_to_scoreboard_file( RMSE_Hi)
   
     % Set up a scoreboard results structure
-    test_name = 'Halfar_10km';
-    res = initialise_test_results( test_name, 'integrated_tests/idealised/Halfar');
+    test_name = 'integrated_tests_idealised_Halfar_dome_Halfar_10km';
+    single_run = initialise_single_test_run( test_name, 'integrated_tests/idealised/Halfar_dome');
   
     % Add cost functions to results structure
-    res = add_result_to_test_results( res, 'rmse', 'sqrt( mean( (Hi( :,end) - Hi_analytical( :,end)).^2 ))', RMSE_Hi);
+    single_run = add_subtest_to_single_run( single_run, 'rmse', 'sqrt( mean( (Hi( :,end) - Hi_analytical( :,end)).^2 ))', RMSE_Hi);
     
     % Write to scoreboard file
-    write_test_results_to_scoreboard_file( res, [foldername_automated_testing '/scoreboard']);
+    write_single_test_run_to_scoreboard_file( single_run, ...
+      [foldername_automated_testing '/integrated_tests/idealised/Halfar_dome/Halfar_10km']);
   
   end
   

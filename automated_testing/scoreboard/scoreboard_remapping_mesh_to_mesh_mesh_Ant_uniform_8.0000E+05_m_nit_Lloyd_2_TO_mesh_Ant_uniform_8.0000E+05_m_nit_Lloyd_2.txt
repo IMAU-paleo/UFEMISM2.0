@@ -1,0 +1,26 @@
+<test_run>
+  name           : remapping_mesh_to_mesh_mesh_Ant_uniform_8.0000E+05_m_nit_Lloyd_2_TO_mesh_Ant_uniform_8.0000E+05_m_nit_Lloyd_2
+  category       : component_tests/remapping/mesh_to_mesh
+  git hash string: 29fe429bcc533b417625b8337a96bdfdbdab0c00
+  date, time     : 19-Sep-2024 19:41:24
+  <subtest>
+    name         : rmse
+    description  : sqrt( mean( (d_mesh2 - d_mesh2_ex).^2))
+    cost function:     0.0000e+00
+  </subtest>
+  <subtest>
+    name         : bounds_max
+    description  : max( 0, max( d_mesh2(:)) - max( d_mesh1_ex(:)))
+    cost function:     0.0000e+00
+  </subtest>
+  <subtest>
+    name         : bounds_min
+    description  : max( 0, min( d_mesh2_ex(:)) - min( d_mesh2(:)))
+    cost function:     0.0000e+00
+  </subtest>
+  <subtest>
+    name         : int_err
+    description  : abs( 1 - int_mesh2 / int_mesh1)
+    cost function:     0.0000e+00
+  </subtest>
+</test_run>

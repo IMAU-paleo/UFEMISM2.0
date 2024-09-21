@@ -1,0 +1,11 @@
+<test_run>
+  name           : integrated_tests_idealised_Halfar_dome_Halfar_10km
+  category       : integrated_tests/idealised/Halfar_dome
+  git hash string: 29fe429bcc533b417625b8337a96bdfdbdab0c00
+  date, time     : 20-Sep-2024 09:14:41
+  <subtest>
+    name         : rmse
+    description  : sqrt( mean( (Hi( :,end) - Hi_analytical( :,end)).^2 ))
+    cost function:     1.8065e+01
+  </subtest>
+</test_run>

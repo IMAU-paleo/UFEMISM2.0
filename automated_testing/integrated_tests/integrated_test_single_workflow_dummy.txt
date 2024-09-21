@@ -1,5 +1,5 @@
-name: UFEMISM Test Suite - run and analyse integrated test - !!test_path!!
-run-name: ${{ github.actor }} - UFEMISM Test Suite - run and analyse integrated test - !!test_path!!
+name: UFEMISM Test Suite - run and analyse !!test_path!!
+run-name: ${{ github.actor }} - UFEMISM Test Suite - run and analyse !!test_path!!
 on:
   workflow_call:
 
@@ -17,6 +17,11 @@ jobs:
           brew install netcdf
           brew install netcdf-fortran
 
+      - name: Install MATLAB
+        uses: matlab-actions/setup-matlab@v2.2.0
+        with:
+          cache: true
+
       - name: Checkout UFEMISM repository
         uses: actions/checkout@v4
 
@@ -27,11 +32,18 @@ jobs:
           path: UFEMISM_program
           key: UFEMISM_program_${{ github.ref_name }}_${{ github.run_id }}
 
-      - name: Run integrated test - !!test_path!!
-        run: mpiexec  -n 2  UFEMISM_program  automated_testing/integrated_tests/!!test_path!!/config.cfg
+      - name: Run !!test_path!!
+        run: mpiexec  -n 2  UFEMISM_program  automated_testing/!!test_path!!/config.cfg
 
-      - name: Upload output as artifacts
+      - name: Analyse !!test_path!!
+        uses: matlab-actions/run-command@v2
+        with:
+          command: |
+            addpath('automated_testing/!!test_path!!')
+            analyse_integrated_test('${{github.workspace}}/automated_testing')
+
+      - name: Upload temporary scoreboard file as artifact
         uses: actions/upload-artifact@v4.3.4
         with:
-          name: results_integrated_test_!!test_name!!
-          path: automated_testing/integrated_tests/!!test_path!!/results
+          name: temporary_scoreboard_!!test_name!!
+          path: automated_testing/!!test_path!!/scoreboard_*.txt
