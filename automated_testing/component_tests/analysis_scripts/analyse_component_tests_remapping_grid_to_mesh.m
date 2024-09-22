@@ -93,8 +93,9 @@ end
 function write_to_scoreboard_file( filename_short, grid, d_grid_ex, mesh, d_mesh_ex, d_mesh)
 
   % Set up a scoreboard results structure
-  test_name = ['remapping_grid_to_mesh_' filename_short(5:end-3)];
-  single_run = initialise_single_test_run( test_name, 'component_tests/remapping/grid_to_mesh');
+  test_name = filename_short(5:end-3);
+  single_run = initialise_single_test_run( test_name, ...
+    'component_tests/remapping/grid_to_mesh');
 
   % Calculate cost functions
   rmse = sqrt( mean( (d_mesh - d_mesh_ex).^2));
@@ -107,13 +108,16 @@ function write_to_scoreboard_file( filename_short, grid, d_grid_ex, mesh, d_mesh
   int_err = abs( 1 - int_mesh / int_grid);
 
   % Add cost functions to results structure
-  single_run = add_subtest_to_single_run( single_run, 'rmse'       , 'sqrt( mean( (d_mesh - d_mesh_ex).^2))'        , rmse);
-  single_run = add_subtest_to_single_run( single_run, 'bounds_max' , 'max( 0, max( d_mesh(:)) - max( d_grid_ex(:)))', bounds_max);
-  single_run = add_subtest_to_single_run( single_run, 'bounds_min' , 'max( 0, min( d_grid_ex(:)) - min( d_mesh(:)))', bounds_min);
-  single_run = add_subtest_to_single_run( single_run, 'int_err'    , 'abs( 1 - int_mesh / int_grid)'                , int_err);
+  single_run = add_cost_function_to_single_run( single_run, 'rmse'       , 'sqrt( mean( (d_mesh - d_mesh_ex).^2))'        , rmse);
+  single_run = add_cost_function_to_single_run( single_run, 'bounds_max' , 'max( 0, max( d_mesh(:)) - max( d_grid_ex(:)))', bounds_max);
+  single_run = add_cost_function_to_single_run( single_run, 'bounds_min' , 'max( 0, min( d_grid_ex(:)) - min( d_mesh(:)))', bounds_min);
+  single_run = add_cost_function_to_single_run( single_run, 'int_err'    , 'abs( 1 - int_mesh / int_grid)'                , int_err);
 
   % Write to scoreboard file
-  write_single_test_run_to_scoreboard_file( single_run, [foldername_automated_testing '/scoreboard']);
+  all_runs_new.single_run = single_run;
+  filename_scoreboard_file = [foldername_automated_testing ...
+    '/scoreboard/scoreboard_files/' strrep( single_run.category, '/', '_') '_' test_name '.xml'];
+  append_test_results_to_main_scoreboard_file( all_runs_new, filename_scoreboard_file);
 
 end
   

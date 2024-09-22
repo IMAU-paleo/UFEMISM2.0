@@ -21,7 +21,7 @@ end
 
 %%
 
-scoreboard = read_scoreboard_files( [foldername_automated_testing '/scoreboard']);
+scoreboard = read_scoreboard_files( [foldername_automated_testing '/scoreboard/scoreboard_files']);
 
 %% Write to HTML
 
@@ -52,7 +52,7 @@ fprintf( fid, '%s\n', ['  <p style="font-size: 18pt;">Created: ' char(datetime) 
 fprintf( fid, '%s\n', '  <p style="font-size: 18pt;">&#128993 = unchanged, &#128994 = better, &#128992 = worse</p>');
 
 fprintf( fid, '%s\n', '  <div style="border: solid 0px #f00;">');
-process_scoreboard_branch( scoreboard, fid, 0, '')
+process_scoreboard_branch( scoreboard, fid, 0)
 fprintf( fid, '%s\n', '  </div>');
 
 fprintf( fid, '%s\n', ' </div>');
@@ -74,8 +74,7 @@ fclose( fid);
     list_of_files = dir( foldername_scoreboard);
     i = 1;
     while i <= length( list_of_files)
-      if contains( list_of_files( i).name,'scoreboard_') && ...
-         contains( list_of_files( i).name,'.txt')
+      if contains( list_of_files( i).name,'.xml')
         i = i+1;
       else
         list_of_files( i) = [];
@@ -86,102 +85,222 @@ fclose( fid);
       % For each individual component/integrated tests, the results of all
       % the runs of that test
       disp(['  Reading scoreboard file ' list_of_files( i).name '...'])
-      all_runs_of_test(i) = read_all_runs_of_test_from_scoreboard_file( [foldername_scoreboard '/' list_of_files( i).name]);
+      all_tests(i) = read_scoreboard_file( [foldername_scoreboard '/' list_of_files( i).name]);
     end
 
-    scoreboard = categorise_test_results( all_runs_of_test);
+    scoreboard = categorise_test_results( all_tests);
 
   end
 
-  function scoreboard = categorise_test_results( all_runs_of_test)
-    % Order the test results by category
+  function scoreboard = categorise_test_results( all_tests)
+    % Order the tests by category
 
-    scoreboard.subs       = {};
-    scoreboard.sub_names  = {};
-    scoreboard.has_better = false;
-    scoreboard.has_same   = false;
-    scoreboard.has_worse  = false;
+    scoreboard = create_category_tree( all_tests);
+    scoreboard = add_results_to_category_tree( scoreboard, all_tests);
+    scoreboard = check_results_of_last_run( scoreboard);
 
-    for i = 1: length( all_runs_of_test)
-      for ri = 1: length( all_runs_of_test( i).subtests)
-        full_name = [all_runs_of_test( i).category '/' all_runs_of_test( i).name '/' all_runs_of_test( i).subtests( ri).name];
-        scoreboard = add_single_test_result( scoreboard, full_name, all_runs_of_test( i).subtests( ri), ...
-          all_runs_of_test( i).git_hash_strings, all_runs_of_test( i).dates_and_times);
+  end
+
+  function scoreboard = create_category_tree( all_tests)
+    % Create the test category tree
+
+    scoreboard = initialise_empty_category_branch;
+
+    for ti = 1: length( all_tests)
+      single_run = all_tests( ti).single_run(1);
+      for cfi = 1: length( single_run.cost_functions)
+        cost_function = single_run.cost_functions( cfi);
+        cost_function_path = [char(single_run.category) '/' char(single_run.name) '/' char(cost_function.name)];
+        scoreboard = add_single_cost_function_to_category_tree( scoreboard, cost_function_path, cost_function);
       end
     end
 
   end
-  function scoreboard = add_single_test_result( scoreboard, full_name, single_subtest_result, git_hash_strings, dates_and_times)
+  function empty_branch = initialise_empty_category_branch
 
-    if ~isempty( full_name)
-      % Move down the category tree
+    empty_branch.subs       = {};
+    empty_branch.sub_names  = {};
+    empty_branch.has_better = false;
+    empty_branch.has_same   = false;
+    empty_branch.has_worse  = false;
 
-      k = strfind( full_name,'/');
+  end
+  function scoreboard = add_single_cost_function_to_category_tree( scoreboard, cost_function_path, cost_function)
+    % Add a single cost function to the test category tree
 
-      if isempty( k)
-        trunk = full_name;
-        branch = [];
-      else
-        k = k(1);
-        trunk = full_name( 1:k-1);
-        branch = full_name( k+1:end);
+    if ~contains( cost_function_path, '/')
+      % We've reached the end of this cost function's path
+
+      % Safety - check that this cost function is not yet listed
+      is_listed = false;
+      for ib  = 1: length( scoreboard.subs)
+        if strcmpi( scoreboard.sub_names{ ib}, cost_function.name)
+          is_listed = true;
+          break
+        end
       end
-  
-      j = find( strcmpi( scoreboard.sub_names, trunk));
-      if isempty( j)
-        % This category is not yet listed on the scoreboard; add it
-        scoreboard.sub_names{ end+1} = trunk;
-        j = length( scoreboard.sub_names);
-        scoreboard.subs{ j}.subs = [];
-        scoreboard.subs{ j}.sub_names = {};
-        scoreboard.subs{ j}.has_better = false;
-        scoreboard.subs{ j}.has_same   = false;
-        scoreboard.subs{ j}.has_worse  = false;
-      elseif ~isscalar( j)
-        error('whaa!')
+      if is_listed
+        error('This cost function is already listed!')
       end
 
-      scoreboard.subs{ j} = add_single_test_result( ...
-        scoreboard.subs{ j}, branch, single_subtest_result, git_hash_strings, dates_and_times);
+      % Add this cost function
+      ib = length( scoreboard.subs) + 1;
 
-      for j = 1: length( scoreboard.subs)
-        scoreboard.has_better = scoreboard.has_better || scoreboard.subs{ j}.has_better;
-        scoreboard.has_same   = scoreboard.has_same   || scoreboard.subs{ j}.has_same;
-        scoreboard.has_worse  = scoreboard.has_worse  || scoreboard.subs{ j}.has_worse;
-      end
+      scoreboard.sub_names{ ib} = cost_function.name;
+      scoreboard.subs{ ib} = initialise_empty_cost_function( cost_function);
 
     else
-      % Reached the end of the category tree; add result
-      
-      scoreboard = rmfield( scoreboard,'subs');
-      scoreboard = rmfield( scoreboard,'sub_names');
+      % Move down this cost function's path
 
-      scoreboard.description      = single_subtest_result.description;
-      scoreboard.git_hash_strings = git_hash_strings;
-      scoreboard.dates_and_times  = dates_and_times;
-      scoreboard.cost_function    = single_subtest_result.cost_function;
+      ii = strfind( cost_function_path,'/'); ii = ii(1);
+      trunk  = cost_function_path( 1:ii-1);
+      branch = cost_function_path( ii+1:end);
 
-      scoreboard.has_better = false;
-      scoreboard.has_same   = false;
-      scoreboard.has_worse  = false;
-
-      if isscalar( scoreboard.cost_function)
-        scoreboard.has_same = true;
-      else
-        if scoreboard.cost_function( end) == scoreboard.cost_function( end-1)
-          scoreboard.has_same = true;
-        elseif scoreboard.cost_function( end) > scoreboard.cost_function( end-1)
-          scoreboard.has_worse = true;
-        else
-          scoreboard.has_better = true;
+      % Check if the trunk is already listed as a branch
+      is_listed = false;
+      for ib  = 1: length( scoreboard.subs)
+        if strcmpi( scoreboard.sub_names{ ib}, trunk)
+          is_listed = true;
+          break
         end
       end
 
+      if is_listed
+        % This category is already listed; move into it.
+      else
+        % This category is not yet listed; add it.
+        ib = length( scoreboard.subs)+1;
+        scoreboard.sub_names{ ib} = trunk;
+        scoreboard.subs{ ib} = initialise_empty_category_branch;
+      end
+
+      scoreboard.subs{ ib} = add_single_cost_function_to_category_tree( ...
+        scoreboard.subs{ ib}, branch, cost_function);
+
+    end
+  end
+  function empty_cost_function = initialise_empty_cost_function( cost_function)
+
+    empty_cost_function.has_better = false;
+    empty_cost_function.has_same   = false;
+    empty_cost_function.has_worse  = false;
+
+    empty_cost_function.definition       = cost_function.definition;
+    empty_cost_function.n_runs           = 0;
+    empty_cost_function.git_hash_strings = cell(0);
+    empty_cost_function.date_and_times   = cell(0);
+    empty_cost_function.values           = [];
+
+  end
+
+  function scoreboard = add_results_to_category_tree( scoreboard, all_tests)
+    % Add the individual test results to the ordered category tree
+
+    for ti = 1: length( all_tests)
+      single_test = all_tests( ti);
+      for ri = 1: length( single_test.single_run)
+        single_run = single_test.single_run( ri);
+        for cfi = 1: length( single_run.cost_functions)
+          cost_function = single_run.cost_functions( cfi);
+          cost_function_path = [char(single_run.category) '/' char(single_run.name) '/' char(cost_function.name)];
+          scoreboard = add_single_cost_function_value_to_scoreboard( ...
+            scoreboard, cost_function_path, cost_function, ...
+            single_run.git_hash_string, single_run.date_and_time);
+        end
+      end
     end
 
   end
- 
-  function process_scoreboard_branch( scoreboard, fid, depth, name)
+  function scoreboard = add_single_cost_function_value_to_scoreboard( ...
+      scoreboard, cost_function_path, cost_function, git_hash_string_of_run, date_and_time_of_run)
+    
+    if ~contains( cost_function_path, '/')
+      % We've reached the end of this cost function's path
+
+      % Add the value to the corresponding branch of the scoreboard
+      found_it = false;
+      for ib = 1: length( scoreboard.subs)
+        if strcmpi( scoreboard.sub_names{ ib}, cost_function_path)
+          found_it = true;
+          scoreboard.subs{ ib} = add_single_cost_function_value_to_scoreboard_sub( ...
+            scoreboard.subs{ ib}, cost_function, git_hash_string_of_run, date_and_time_of_run);
+        end
+      end
+      % Safety
+      if ~found_it
+        error('Couldnt find corresponding branch on the scoreboard!')
+      end
+
+    else
+      % Move down this cost function's path
+
+      ii = strfind( cost_function_path,'/'); ii = ii(1);
+      trunk  = cost_function_path( 1:ii-1);
+      branch = cost_function_path( ii+1:end);
+
+      % Move into the corresponding branch of the scoreboard
+      found_it = false;
+      for ib = 1: length( scoreboard.subs)
+        if strcmpi( scoreboard.sub_names{ ib}, trunk)
+          found_it = true;
+          scoreboard.subs{ ib} = add_single_cost_function_value_to_scoreboard( ...
+            scoreboard.subs{ ib}, branch, cost_function, ...
+            git_hash_string_of_run, date_and_time_of_run);
+        end
+      end
+      % Safety
+      if ~found_it
+        error('Couldnt find corresponding branch on the scoreboard!')
+      end
+
+    end
+
+  end
+  function scoreboard = add_single_cost_function_value_to_scoreboard_sub( ...
+      scoreboard, cost_function, git_hash_string_of_run, date_and_time_of_run)
+
+    scoreboard.n_runs = scoreboard.n_runs + 1;
+    n = scoreboard.n_runs;
+
+    scoreboard.git_hash_strings{ n} = git_hash_string_of_run;
+    scoreboard.date_and_times{   n} = date_and_time_of_run;
+    scoreboard.values(           n) = cost_function.value;
+
+  end
+
+  function scoreboard = check_results_of_last_run( scoreboard)
+    % Fill in the has_better, has_worse and has_same flags
+
+    if isfield( scoreboard,'subs')
+      % We havent reached the end of the category tree yet
+
+      for ib = 1: length( scoreboard.subs)
+        scoreboard.subs{ ib} = check_results_of_last_run( scoreboard.subs{ ib});
+        scoreboard.has_better = scoreboard.has_better || scoreboard.subs{ ib}.has_better;
+        scoreboard.has_worse  = scoreboard.has_worse  || scoreboard.subs{ ib}.has_worse;
+        scoreboard.has_same   = scoreboard.has_same   || scoreboard.subs{ ib}.has_same;
+      end
+
+    else
+      % We've reached the end of the category tree
+      
+      if scoreboard.n_runs == 1
+        % Trivial answer
+        scoreboard.has_same = true;
+      else
+        % Complicated answer
+        if scoreboard.values( end) < scoreboard.values( end-1)
+          scoreboard.has_better = true;
+        elseif scoreboard.values( end) > scoreboard.values( end-1)
+          scoreboard.has_worse = true;
+        else
+          scoreboard.has_same = true;
+        end
+      end 
+    end
+  end
+
+  function process_scoreboard_branch( scoreboard, fid, depth)
 
     p = '';
     for ii = 1: depth
@@ -210,7 +329,7 @@ fclose( fid);
         fprintf( fid, '%s\n', [p ' <button type="button" class="collapsible" style="font-size:18pt;">' button_text '</button>']);
         fprintf( fid, '%s\n', [p ' <div class="content" style="font-size:18pt;">']);
 
-        process_scoreboard_branch( scoreboard.subs{ fi}, fid, depth+2, scoreboard.sub_names{ fi});
+        process_scoreboard_branch( scoreboard.subs{ fi}, fid, depth+2);
 
         fprintf( fid, '%s\n', [p ' </div>']);
         fprintf( fid, '%s\n', [p '</div>']);
@@ -218,7 +337,7 @@ fclose( fid);
       end
     end
   end
-  function process_scoreboard_leaf( scoreboard, fid, depth, name)
+  function process_scoreboard_leaf( scoreboard, fid, depth)
 
     p = '';
     for ii = 1: depth
@@ -226,21 +345,21 @@ fclose( fid);
     end
 
     fprintf(fid,'%s\n',[p '<div>']);
-    fprintf(fid,'%s\n',[p ' <p style="font-size:14pt">Description: ' scoreboard.description '</p>']); 
+    fprintf(fid,'%s\n',[p ' <p style="font-size:14pt"><b>Definition: </b>' scoreboard.definition '</p>']); 
 
     fprintf(fid,'%s\n',[p ' <div style="height:200px;">']);
     fprintf(fid,'%s\n',[p '  <table>']);
     fprintf(fid,'%s\n',[p '   <tr style="border-bottom: solid 1px #000;">']);
     fprintf(fid,'%s\n',[p '     <th style="width:160px; text-align:left;">Time</th>']);
-    fprintf(fid,'%s\n',[p '     <th style="width:160px; text-align:left;">Cost function</th>']);
+    fprintf(fid,'%s\n',[p '     <th style="width:160px; text-align:left;">Value</th>']);
     fprintf(fid,'%s\n',[p '     <th style="width:500px; text-align:left;">Commit</th>']);
     fprintf(fid,'%s\n',[p '   </tr>']);
 
-    for ii = length( scoreboard.cost_function): -1: 1
+    for ii = length( scoreboard.values): -1: 1
       fprintf(fid,'%s\n',[p '   <tr style="border-bottom: solid 1px #000; font-size: 12pt;">']);
-      fprintf(fid,'%s\n',[p '    <td>' scoreboard.dates_and_times{ ii} '</td>']);
-      fprintf(fid,'%s\n',[p '    <td>' num2str( scoreboard.cost_function( ii), '%14.4e') '</td>']);
-      fprintf(fid,'%s\n',[p '    <td>' scoreboard.git_hash_strings{ ii} '</td>']);
+      fprintf(fid,'%s\n',[p '    <td>' char(scoreboard.date_and_times{ ii}) '</td>']);
+      fprintf(fid,'%s\n',[p '    <td>' num2str( scoreboard.values( ii), '%14.4e') '</td>']);
+      fprintf(fid,'%s\n',[p '    <td>' char(scoreboard.git_hash_strings{ ii}) '</td>']);
       fprintf(fid,'%s\n',[p '   </tr>']);
     end
 

@@ -44,9 +44,6 @@ list_of_tests = list_all_integrated_tests( foldername_integrated_tests);
 
 for i = 1: length( list_of_tests)
   test_path = list_of_tests{ i};
-  ii = strfind( test_path,'/');ii = ii( end);
-  test_path_firstname = test_path( ii+1:end);
-  disp(['  Adding results of ' test_path_firstname ' to main scoreboard file...'])
   add_integrated_test_result_to_main_scoreboard_file( test_path);
 end
 
@@ -56,9 +53,9 @@ end
     scoreboard_file_exists = false;
     henk = dir( test_path);
     for ii = 1: length( henk)
-      if contains( henk( ii).name,'scoreboard_') && contains( henk( ii).name,'.txt')
+      if contains( henk( ii).name,'scoreboard_temp_') && contains( henk( ii).name,'.xml')
         scoreboard_file_exists = true;
-        scoreboard_filename = [test_path '/' henk( ii).name];
+        filename_temporary_scoreboard_file = henk( ii).name;
       end
     end
     % If not, do nothing
@@ -66,11 +63,18 @@ end
       return
     end
 
-    % Read single test run results from temporary scoreboard file
-    single_run = read_single_run_from_temporary_scoreboard_file( scoreboard_filename);
+    ii = strfind( test_path,'/');ii = ii( end);
+    test_path_firstname = test_path( ii+1:end);
+    disp(['  Adding results of ' test_path_firstname ' to main scoreboard file...'])
 
-    % Write single test run results to main scoreboard file
-    write_single_test_run_to_scoreboard_file( single_run, foldername_scoreboard);
+    % Read the single new test run from the temporary scoreboard file
+    all_runs_temp = read_scoreboard_file( [test_path '/' filename_temporary_scoreboard_file]);
+
+    % Append the results of the single run from the temporary scoreboard file to the main scoreboard file
+    filename_main_scoreboard_file = [strrep( filename_temporary_scoreboard_file, ...
+      'scoreboard_temp_', '')];
+    append_test_results_to_main_scoreboard_file( ...
+      all_runs_temp, [foldername_scoreboard '/scoreboard_files/' filename_main_scoreboard_file]);
 
   end
 

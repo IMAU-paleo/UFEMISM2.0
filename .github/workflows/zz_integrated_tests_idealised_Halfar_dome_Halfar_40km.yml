@@ -45,5 +45,5 @@ jobs:
       - name: Upload temporary scoreboard file as artifact
         uses: actions/upload-artifact@v4.3.4
         with:
-          name: temporary_scoreboard_integrated_tests_idealised_Halfar_dome_Halfar_40km
-          path: automated_testing/integrated_tests/idealised/Halfar_dome/Halfar_40km/scoreboard_*.txt
+          name: temporary_scoreboard_file_integrated_tests_idealised_Halfar_dome_Halfar_40km
+          path: automated_testing/integrated_tests/idealised/Halfar_dome/Halfar_40km/scoreboard_temp_*.xml

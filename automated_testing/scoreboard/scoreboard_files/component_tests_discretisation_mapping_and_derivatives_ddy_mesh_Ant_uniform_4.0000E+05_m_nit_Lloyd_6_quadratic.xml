@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<struct>
+    <single_run>
+        <name>mesh_Ant_uniform_4.0000E+05_m_nit_Lloyd_6_quadratic</name>
+        <category>component_tests/discretisation/mapping_and_derivatives/ddy</category>
+        <date_and_time>22-Sep-2024 13:06:41</date_and_time>
+        <git_hash_string>c457c63fe4b5d741929db274b7789ada8bae2789</git_hash_string>
+        <cost_functions>
+            <name>max_err_ddy_a_a</name>
+            <definition>abs( ddy_a_a - ddy_a_ex) ./ max( abs( ddy_a_ex))</definition>
+            <value>0.01022</value>
+        </cost_functions>
+        <cost_functions>
+            <name>max_err_ddy_a_b</name>
+            <definition>abs( ddy_a_b - ddy_b_ex) ./ max( abs( ddy_b_ex))</definition>
+            <value>0.044088</value>
+        </cost_functions>
+        <cost_functions>
+            <name>max_err_ddy_a_c</name>
+            <definition>abs( ddy_a_c - ddy_c_ex) ./ max( abs( ddy_c_ex))</definition>
+            <value>0.041405</value>
+        </cost_functions>
+        <cost_functions>
+            <name>max_err_ddy_b_a</name>
+            <definition>abs( ddy_b_a - ddy_a_ex) ./ max( abs( ddy_a_ex))</definition>
+            <value>0.0069102</value>
+        </cost_functions>
+        <cost_functions>
+            <name>max_err_ddy_b_b</name>
+            <definition>abs( ddy_b_b - ddy_b_ex) ./ max( abs( ddy_b_ex))</definition>
+            <value>0.043901</value>
+        </cost_functions>
+        <cost_functions>
+            <name>max_err_ddy_b_c</name>
+            <definition>abs( ddy_b_c - ddy_c_ex) ./ max( abs( ddy_c_ex))</definition>
+            <value>0.037672</value>
+        </cost_functions>
+        <cost_functions>
+            <name>max_err_ddy_c_a</name>
+            <definition>abs( ddy_c_a - ddy_a_ex) ./ max( abs( ddy_a_ex))</definition>
+            <value>0.0050819</value>
+        </cost_functions>
+        <cost_functions>
+            <name>max_err_ddy_c_b</name>
+            <definition>abs( ddy_c_b - ddy_b_ex) ./ max( abs( ddy_b_ex))</definition>
+            <value>0.022044</value>
+        </cost_functions>
+        <cost_functions>
+            <name>max_err_ddy_c_c</name>
+            <definition>abs( ddy_c_c - ddy_c_ex) ./ max( abs( ddy_c_ex))</definition>
+            <value>0.016709</value>
+        </cost_functions>
+    </single_run>
+</struct>

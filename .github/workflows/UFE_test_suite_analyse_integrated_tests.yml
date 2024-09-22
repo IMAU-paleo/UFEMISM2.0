@@ -29,7 +29,7 @@ jobs:
       - name: Download temporary scoreboard file for integrated_tests/idealised/Halfar_dome/Halfar_10km
         uses: actions/download-artifact@v4
         with:
-          name: temporary_scoreboard_integrated_tests_idealised_Halfar_dome_Halfar_10km
+          name: temporary_scoreboard_file_integrated_tests_idealised_Halfar_dome_Halfar_10km
           path: automated_testing/integrated_tests/idealised/Halfar_dome/Halfar_10km
 
 # integrated_tests/idealised/Halfar_dome/Halfar_20km
@@ -37,7 +37,7 @@ jobs:
       - name: Download temporary scoreboard file for integrated_tests/idealised/Halfar_dome/Halfar_20km
         uses: actions/download-artifact@v4
         with:
-          name: temporary_scoreboard_integrated_tests_idealised_Halfar_dome_Halfar_20km
+          name: temporary_scoreboard_file_integrated_tests_idealised_Halfar_dome_Halfar_20km
           path: automated_testing/integrated_tests/idealised/Halfar_dome/Halfar_20km
 
 # integrated_tests/idealised/Halfar_dome/Halfar_40km
@@ -45,7 +45,7 @@ jobs:
       - name: Download temporary scoreboard file for integrated_tests/idealised/Halfar_dome/Halfar_40km
         uses: actions/download-artifact@v4
         with:
-          name: temporary_scoreboard_integrated_tests_idealised_Halfar_dome_Halfar_40km
+          name: temporary_scoreboard_file_integrated_tests_idealised_Halfar_dome_Halfar_40km
           path: automated_testing/integrated_tests/idealised/Halfar_dome/Halfar_40km
 
 # integrated_tests/idealised/Halfar_dome/Halfar_5km
@@ -53,5 +53,5 @@ jobs:
       - name: Download temporary scoreboard file for integrated_tests/idealised/Halfar_dome/Halfar_5km
         uses: actions/download-artifact@v4
         with:
-          name: temporary_scoreboard_integrated_tests_idealised_Halfar_dome_Halfar_5km
+          name: temporary_scoreboard_file_integrated_tests_idealised_Halfar_dome_Halfar_5km
           path: automated_testing/integrated_tests/idealised/Halfar_dome/Halfar_5km

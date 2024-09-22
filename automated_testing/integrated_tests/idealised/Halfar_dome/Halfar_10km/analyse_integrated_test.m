@@ -3,6 +3,9 @@ function analyse_integrated_test( varargin)
 
 disp('Analysing integrated test idealised/Halfar_dome/Halfar_10km...')
 disp('')
+  
+test_name = 'Halfar_10km';
+test_path = 'integrated_tests/idealised/Halfar_dome';
 
 %%
 
@@ -27,7 +30,7 @@ else
   error('need either foldername_automated_testing, or nothing as input!')
 end
 
-foldername_test = [foldername_automated_testing '/integrated_tests/idealised/Halfar_dome/Halfar_10km'];
+foldername_test = [foldername_automated_testing '/' test_path '/' test_name];
 
 filename_config  = [foldername_test '/config.cfg'];
 filename_results = [foldername_test '/results/main_output_ANT_00001.nc'];
@@ -146,17 +149,19 @@ write_to_scoreboard_file( RMSE_Hi);
 end
 
   function write_to_scoreboard_file( RMSE_Hi)
-  
+
     % Set up a scoreboard results structure
-    test_name = 'integrated_tests_idealised_Halfar_dome_Halfar_10km';
-    single_run = initialise_single_test_run( test_name, 'integrated_tests/idealised/Halfar_dome');
+    single_run = initialise_single_test_run( test_name, test_path);
   
     % Add cost functions to results structure
-    single_run = add_subtest_to_single_run( single_run, 'rmse', 'sqrt( mean( (Hi( :,end) - Hi_analytical( :,end)).^2 ))', RMSE_Hi);
+    single_run = add_cost_function_to_single_run( single_run, ...
+      'rmse', 'sqrt( mean( (Hi( :,end) - Hi_analytical( :,end)).^2 ))', RMSE_Hi);
     
-    % Write to scoreboard file
-    write_single_test_run_to_scoreboard_file( single_run, ...
-      [foldername_automated_testing '/integrated_tests/idealised/Halfar_dome/Halfar_10km']);
+    % Write to temporary scoreboard file
+    filename_temporary_scoreboard_file = [foldername_test ...
+      '/scoreboard_temp_' strrep( test_path, '/', '_') '_' test_name '.xml'];
+    all_runs.single_run = single_run;
+    write_scoreboard_file( all_runs, filename_temporary_scoreboard_file);
   
   end
   
