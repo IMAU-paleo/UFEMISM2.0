@@ -4,7 +4,7 @@ function create_scoreboard_html( varargin)
 
 %%
 
-% In the GitHub Workflow, provide the scoreboard folder as
+% In the GitHub Workflow, provide the automated_testing folder as
 % input; but retain the option of running without input (i.e. as a script)
 % locally, with user-defined folders
 

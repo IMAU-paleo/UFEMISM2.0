@@ -86,7 +86,8 @@ function write_to_scoreboard_file_map( filename_short, max_errs_map)
   % Write to scoreboard file
   all_runs_new.single_run = single_run;
   filename_scoreboard_file = [foldername_automated_testing ...
-    '/scoreboard/scoreboard_files/' strrep( single_run.category, '/', '_') '_' test_name '.xml'];
+    '/component_tests/temporary_scoreboard_files/' ...
+    strrep( single_run.category, '/', '_') '_' test_name '.xml'];
   append_test_results_to_main_scoreboard_file( all_runs_new, filename_scoreboard_file);
 
 end
@@ -113,7 +114,8 @@ function write_to_scoreboard_file_ddx( filename_short, max_errs_ddx)
   % Write to scoreboard file
   all_runs_new.single_run = single_run;
   filename_scoreboard_file = [foldername_automated_testing ...
-    '/scoreboard/scoreboard_files/' strrep( single_run.category, '/', '_') '_' test_name '.xml'];
+    '/component_tests/temporary_scoreboard_files/' ...
+    strrep( single_run.category, '/', '_') '_' test_name '.xml'];
   append_test_results_to_main_scoreboard_file( all_runs_new, filename_scoreboard_file);
 
 end
@@ -140,7 +142,8 @@ function write_to_scoreboard_file_ddy( filename_short, max_errs_ddy)
   % Write to scoreboard file
   all_runs_new.single_run = single_run;
   filename_scoreboard_file = [foldername_automated_testing ...
-    '/scoreboard/scoreboard_files/' strrep( single_run.category, '/', '_') '_' test_name '.xml'];
+    '/component_tests/temporary_scoreboard_files/' ...
+    strrep( single_run.category, '/', '_') '_' test_name '.xml'];
   append_test_results_to_main_scoreboard_file( all_runs_new, filename_scoreboard_file);
 
 end
@@ -161,7 +164,8 @@ function write_to_scoreboard_file_2nd( filename_short, max_errs_2nd)
   % Write to scoreboard file
   all_runs_new.single_run = single_run;
   filename_scoreboard_file = [foldername_automated_testing ...
-    '/scoreboard/scoreboard_files/' strrep( single_run.category, '/', '_') '_' test_name '.xml'];
+    '/component_tests/temporary_scoreboard_files/' ...
+    strrep( single_run.category, '/', '_') '_' test_name '.xml'];
   append_test_results_to_main_scoreboard_file( all_runs_new, filename_scoreboard_file);
 
 end

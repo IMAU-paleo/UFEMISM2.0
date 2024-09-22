@@ -7,7 +7,7 @@ disp('')
 
 %%
 
-% In the GitHub Workflow, provide the component test results folders as
+% In the GitHub Workflow, provide the automated_testing folder as
 % input; but retain the option of running without input (i.e. as a script)
 % locally, with user-defined folders
 

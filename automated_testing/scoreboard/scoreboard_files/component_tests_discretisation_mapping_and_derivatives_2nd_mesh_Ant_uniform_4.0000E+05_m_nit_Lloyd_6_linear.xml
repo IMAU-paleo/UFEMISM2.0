@@ -3,8 +3,8 @@
     <single_run>
         <name>mesh_Ant_uniform_4.0000E+05_m_nit_Lloyd_6_linear</name>
         <category>component_tests/discretisation/mapping_and_derivatives/2nd</category>
-        <date_and_time>22-Sep-2024 13:06:38</date_and_time>
-        <git_hash_string>c457c63fe4b5d741929db274b7789ada8bae2789</git_hash_string>
+        <date_and_time>22-Sep-2024 16:50:33</date_and_time>
+        <git_hash_string>d0e4753ca14f7ddbbb793002e92975737696b158</git_hash_string>
         <cost_functions>
             <name>max_err_ddx_b_b_2nd</name>
             <definition>abs( ddx_b_b_2nd    - ddx_b_ex   ) ./ max( abs( ddx_b_ex   ))</definition>
