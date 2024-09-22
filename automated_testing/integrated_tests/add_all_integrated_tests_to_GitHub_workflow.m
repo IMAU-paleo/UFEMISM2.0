@@ -128,6 +128,13 @@ create_analyse_integrated_tests_workflow( list_of_tests)
       fprintf( fid, '%s\n',['          path: automated_testing/' test_path]);
     end
 
+    fprintf( fid, '%s\n','      - name: Append temporary to main scoreboard files');
+    fprintf( fid, '%s\n','        uses: matlab-actions/run-command@v2');
+    fprintf( fid, '%s\n','        with:');
+    fprintf( fid, '%s\n','          command: |');
+    fprintf( fid, '%s\n','            addpath(''automated_testing/integrated_tests'')');
+    fprintf( fid, '%s\n','            add_all_integrated_test_results_to_main_scoreboard_files(''${{github.workspace}}/automated_testing'')');
+
     fclose( fid);
 
   end

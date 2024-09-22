@@ -1,4 +1,4 @@
-function add_all_integrated_test_results_to_main_scoreboard_files( varargin)
+function append_temporary_to_main_scoreboard_files( varargin)
 % We want to be able to run each individual integrated test as a separate
 % job in the GitHub workflow, so that they will be executed (and analysed)
 % in parallel. However, that means that the test results (both the NetCDF
@@ -13,12 +13,12 @@ function add_all_integrated_test_results_to_main_scoreboard_files( varargin)
 % together.
 % A little bit convoluted, perhaps, but much cleaner overall!
 
-disp('Adding all integrated test results to the main scoreboard files...')
+disp('Appending results from temporary scoreboard files to main scoreboard files...')
 disp('')
 
 %%
 
-% In the GitHub Workflow, provide the component test results folders as
+% In the GitHub Workflow, provide the automated_testing folder as
 % input; but retain the option of running without input (i.e. as a script)
 % locally, with user-defined folders
 
@@ -38,7 +38,33 @@ foldername_scoreboard       = [foldername_automated_testing '/scoreboard'];
 
 addpath([foldername_scoreboard '/scripts'])
 
-%%
+%% Component tests
+
+list_of_temporary_scoreboard_files = dir( [foldername_automated_testing ...
+  '/component_tests/temporary_scoreboard_files']);
+
+for i = 1: length( list_of_temporary_scoreboard_files)
+
+  filename_short = list_of_temporary_scoreboard_files( i).name;
+  
+  if contains( filename_short,'.xml')
+
+    disp(['  Adding results of ' filename_short ' to main scoreboard file...'])
+
+    filename_temporary_scoreboard_file = [foldername_automated_testing ...
+      '/component_tests/temporary_scoreboard_files/' filename_short];
+
+    % Read the single new test run from the temporary scoreboard file
+    all_runs_temp = read_scoreboard_file( filename_temporary_scoreboard_file);
+
+    % Append the results of the single run from the temporary scoreboard file to the main scoreboard file
+    filename_main_scoreboard_file = [foldername_scoreboard '/scoreboard_files/' filename_short];
+    append_test_results_to_main_scoreboard_file( all_runs_temp, filename_main_scoreboard_file);
+
+  end
+end
+
+%% Integrated tests
 
 list_of_tests = list_all_integrated_tests( foldername_integrated_tests);
 

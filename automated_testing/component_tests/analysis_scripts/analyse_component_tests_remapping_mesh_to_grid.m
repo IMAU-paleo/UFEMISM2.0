@@ -116,7 +116,8 @@ function write_to_scoreboard_file( filename_short, mesh, d_mesh_ex, grid, d_grid
   % Write to scoreboard file
   all_runs_new.single_run = single_run;
   filename_scoreboard_file = [foldername_automated_testing ...
-    '/scoreboard/scoreboard_files/' strrep( single_run.category, '/', '_') '_' test_name '.xml'];
+    '/component_tests/temporary_scoreboard_files/' ...
+    strrep( single_run.category, '/', '_') '_' test_name '.xml'];
   append_test_results_to_main_scoreboard_file( all_runs_new, filename_scoreboard_file);
 
 end
