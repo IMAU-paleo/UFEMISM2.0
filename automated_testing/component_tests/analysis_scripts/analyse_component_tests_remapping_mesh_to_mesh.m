@@ -88,11 +88,12 @@ function analyse_remapping_test( filename_short)
   
 end
 
-function write_to_scoreboard_file( filename, mesh1, d_mesh1_ex, mesh2, d_mesh2_ex, d_mesh2)
+function write_to_scoreboard_file( filename_short, mesh1, d_mesh1_ex, mesh2, d_mesh2_ex, d_mesh2)
 
   % Set up a scoreboard results structure
-  test_name = ['remapping_mesh_to_mesh_' filename(5:end-3)];
-  single_run = initialise_single_test_run( test_name, 'component_tests/remapping/mesh_to_mesh');
+  test_name = filename_short(5:end-3);
+  single_run = initialise_single_test_run( test_name, ...
+    'component_tests/remapping/mesh_to_mesh');
 
   % Calculate cost functions
   rmse = sqrt( mean( (d_mesh2 - d_mesh2_ex).^2));
@@ -105,13 +106,16 @@ function write_to_scoreboard_file( filename, mesh1, d_mesh1_ex, mesh2, d_mesh2_e
   int_err = abs( 1 - int_mesh2 / int_mesh1);
 
   % Add cost functions to results structure
-  single_run = add_subtest_to_single_run( single_run, 'rmse'       , 'sqrt( mean( (d_mesh2 - d_mesh2_ex).^2))'        , rmse);
-  single_run = add_subtest_to_single_run( single_run, 'bounds_max' , 'max( 0, max( d_mesh2(:)) - max( d_mesh1_ex(:)))', bounds_max);
-  single_run = add_subtest_to_single_run( single_run, 'bounds_min' , 'max( 0, min( d_mesh2_ex(:)) - min( d_mesh2(:)))', bounds_min);
-  single_run = add_subtest_to_single_run( single_run, 'int_err'    , 'abs( 1 - int_mesh2 / int_mesh1)'                , int_err);
+  single_run = add_cost_function_to_single_run( single_run, 'rmse'       , 'sqrt( mean( (d_mesh2 - d_mesh2_ex).^2))'        , rmse);
+  single_run = add_cost_function_to_single_run( single_run, 'bounds_max' , 'max( 0, max( d_mesh2(:)) - max( d_mesh1_ex(:)))', bounds_max);
+  single_run = add_cost_function_to_single_run( single_run, 'bounds_min' , 'max( 0, min( d_mesh2_ex(:)) - min( d_mesh2(:)))', bounds_min);
+  single_run = add_cost_function_to_single_run( single_run, 'int_err'    , 'abs( 1 - int_mesh2 / int_mesh1)'                , int_err);
 
   % Write to scoreboard file
-  write_single_test_run_to_scoreboard_file( single_run, [foldername_automated_testing '/scoreboard']);
+  all_runs_new.single_run = single_run;
+  filename_scoreboard_file = [foldername_automated_testing ...
+    '/scoreboard/scoreboard_files/' strrep( single_run.category, '/', '_') '_' test_name '.xml'];
+  append_test_results_to_main_scoreboard_file( all_runs_new, filename_scoreboard_file);
 
 end
   

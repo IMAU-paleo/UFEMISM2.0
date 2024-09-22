@@ -45,5 +45,5 @@ jobs:
       - name: Upload temporary scoreboard file as artifact
         uses: actions/upload-artifact@v4.3.4
         with:
-          name: temporary_scoreboard_!!test_name!!
-          path: automated_testing/!!test_path!!/scoreboard_*.txt
+          name: temporary_scoreboard_file_!!test_name!!
+          path: automated_testing/!!test_path!!/scoreboard_temp_*.xml

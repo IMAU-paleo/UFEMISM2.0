@@ -124,7 +124,7 @@ create_analyse_integrated_tests_workflow( list_of_tests)
       fprintf( fid, '%s\n',['      - name: Download temporary scoreboard file for ' test_path]);
       fprintf( fid, '%s\n', '        uses: actions/download-artifact@v4');
       fprintf( fid, '%s\n', '        with:');
-      fprintf( fid, '%s\n',['          name: temporary_scoreboard_' test_name]);
+      fprintf( fid, '%s\n',['          name: temporary_scoreboard_file_' test_name]);
       fprintf( fid, '%s\n',['          path: automated_testing/' test_path]);
     end
 
