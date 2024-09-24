@@ -158,7 +158,7 @@ create_workflow_append_scoreboard_files( list_of_tests)
     fprintf( fid, '%s\n','        uses: matlab-actions/run-command@v2');
     fprintf( fid, '%s\n','        with:');
     fprintf( fid, '%s\n','          command: |');
-    fprintf( fid, '%s\n','            addpath(''automated_testing/integrated_tests'')');
+    fprintf( fid, '%s\n','            addpath(''automated_testing/scoreboard/scripts'')');
     fprintf( fid, '%s\n','            append_temporary_to_main_scoreboard_files(''${{github.workspace}}/automated_testing'')');
 
     fclose( fid);
