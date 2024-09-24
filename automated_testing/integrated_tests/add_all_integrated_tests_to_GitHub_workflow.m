@@ -12,15 +12,15 @@ foldername_integrated_tests = 'integrated_tests';
 
 list_of_tests = list_all_integrated_tests( foldername_integrated_tests);
 
-create_run_and_analyse_integrated_tests_workflow( list_of_tests)
+create_workflow_file_run_and_analyse_integrated_tests( list_of_tests)
 
 for i = 1: length( list_of_tests)
-  create_run_single_test_workflow( list_of_tests{ i});
+  create_workflow_file_run_single_test( list_of_tests{ i});
 end
 
-create_workflow_append_scoreboard_files( list_of_tests)
+create_workflow_file_finalise_scoreboard( list_of_tests)
 
-  function create_run_and_analyse_integrated_tests_workflow( list_of_tests)
+  function create_workflow_file_run_and_analyse_integrated_tests( list_of_tests)
 
     filename_run_and_analyse_integrated_tests_workflow  = [foldername_workflows ...
       '/UFE_test_suite_run_and_analyse_integrated_tests.yml'];
@@ -52,7 +52,7 @@ create_workflow_append_scoreboard_files( list_of_tests)
 
   end
 
-  function create_run_single_test_workflow( test_path)
+  function create_workflow_file_run_single_test( test_path)
 
     ii = strfind( test_path,'/'); ii = ii( end);
     test_path_firstname = test_path( ii+1:end);
@@ -83,23 +83,23 @@ create_workflow_append_scoreboard_files( list_of_tests)
 
   end
 
-  function create_workflow_append_scoreboard_files( list_of_tests)
+  function create_workflow_file_finalise_scoreboard( list_of_tests)
 
     filename_workflow_append_scoreboard_files  = [foldername_workflows ...
-      '/UFE_test_suite_append_temporary_to_main_scoreboard_files.yml'];
+      '/UFE_test_suite_finalise_scoreboard.yml'];
 
     fid = fopen( filename_workflow_append_scoreboard_files,'w');
 
     fprintf( fid, '%s\n', '# NOTE: this script is created automatically by running');
     fprintf( fid, '%s\n', '# ''automated_testing/integrated_tests/add_all_integrated_tests_to_Github_workflow.m''');
     fprintf( fid, '%s\n', '');
-    fprintf( fid, '%s\n', 'name: UFEMISM Test Suite - append integrated tests scoreboard files');
-    fprintf( fid, '%s\n', 'run-name: ${{ github.actor }} - UFEMISM Test Suite - append integrated tests scoreboard files');
+    fprintf( fid, '%s\n', 'name: UFEMISM Test Suite - finalise scoreboard');
+    fprintf( fid, '%s\n', 'run-name: ${{ github.actor }} - UFEMISM Test Suite - finalise scoreboard');
     fprintf( fid, '%s\n', 'on:');
     fprintf( fid, '%s\n', '  workflow_call:');
     fprintf( fid, '%s\n', '');
     fprintf( fid, '%s\n', 'jobs:');
-    fprintf( fid, '%s\n', '  append_temporary_to_main_scoreboard_files:');
+    fprintf( fid, '%s\n', '  finalise_scoreboard:');
     fprintf( fid, '%s\n', '    runs-on: macos-latest');
     fprintf( fid, '%s\n', '    steps:');
     fprintf( fid, '%s\n', '');
@@ -150,16 +150,39 @@ create_workflow_append_scoreboard_files( list_of_tests)
     end
 
     fprintf( fid, '%s\n', '');
-    fprintf( fid, '%s\n', '# =====================================================');
-    fprintf( fid, '%s\n', '# ===== Append temporary to main scoreboard files =====');
-    fprintf( fid, '%s\n', '# =====================================================');
+    fprintf( fid, '%s\n', '# ===============================');
+    fprintf( fid, '%s\n', '# ===== Finalise scoreboard =====');
+    fprintf( fid, '%s\n', '# ===============================');
     fprintf( fid, '%s\n', '');
-    fprintf( fid, '%s\n','      - name: Append temporary to main scoreboard files');
-    fprintf( fid, '%s\n','        uses: matlab-actions/run-command@v2');
-    fprintf( fid, '%s\n','        with:');
-    fprintf( fid, '%s\n','          command: |');
-    fprintf( fid, '%s\n','            addpath(''automated_testing/scoreboard/scripts'')');
-    fprintf( fid, '%s\n','            append_temporary_to_main_scoreboard_files(''${{github.workspace}}/automated_testing'')');
+    fprintf( fid, '%s\n', '      - name: Append temporary to main scoreboard files');
+    fprintf( fid, '%s\n', '        uses: matlab-actions/run-command@v2');
+    fprintf( fid, '%s\n', '        with:');
+    fprintf( fid, '%s\n', '          command: |');
+    fprintf( fid, '%s\n', '            addpath(''automated_testing/scoreboard/scripts'')');
+    fprintf( fid, '%s\n', '            append_temporary_to_main_scoreboard_files(''${{github.workspace}}/automated_testing'')');
+    fprintf( fid, '%s\n', '');
+    fprintf( fid, '%s\n', '       - name: Commit updated scoreboard files');
+    fprintf( fid, '%s\n', '         # See https://github.com/marketplace/actions/add-commit');
+    fprintf( fid, '%s\n', '         if: ${{ github.event_name == ''pull_request'' }} # Only do this for pull requests');
+    fprintf( fid, '%s\n', '         uses: EndBug/add-and-commit@v9 # You can change this to use a specific version.');
+    fprintf( fid, '%s\n', '         with:');
+    fprintf( fid, '%s\n', '           add: automated_testing/scoreboard/scoreboard_*.txt');
+    fprintf( fid, '%s\n', '           author_name: ${{ github.actor }} (from UFEMISM test suite workflow)');
+    fprintf( fid, '%s\n', '           message: ''Update scoreboard files (from UFEMISM test suite workflow by ${{ github.actor }})''');
+    fprintf( fid, '%s\n', '           push: true');
+    fprintf( fid, '%s\n', '');
+    fprintf( fid, '%s\n', '       - name: Create scoreboard visualisation');
+    fprintf( fid, '%s\n', '         uses: matlab-actions/run-command@v2');
+    fprintf( fid, '%s\n', '         with:');
+    fprintf( fid, '%s\n', '           command: |');
+    fprintf( fid, '%s\n', '             addpath(''automated_testing/scoreboard/scripts'')');
+    fprintf( fid, '%s\n', '             create_scoreboard_html(''${{github.workspace}}/automated_testing'')');
+    fprintf( fid, '%s\n', '');
+    fprintf( fid, '%s\n', '       - name: Upload scoreboard HTML as artifact');
+    fprintf( fid, '%s\n', '         uses: actions/upload-artifact@v4.3.4');
+    fprintf( fid, '%s\n', '         with:');
+    fprintf( fid, '%s\n', '           name: scoreboard');
+    fprintf( fid, '%s\n', '           path: automated_testing/test_reports/scoreboard.html');
 
     fclose( fid);
 
