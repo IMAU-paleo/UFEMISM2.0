@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<struct>
+<all_runs>
     <single_run>
         <name>mesh_Ant_gradient_8.0000E+05-4.0000E+05_m_x_quadratic</name>
         <category>component_tests/discretisation/mapping_and_derivatives/ddy</category>
@@ -51,4 +51,4 @@
             <value>0.03039</value>
         </cost_functions>
     </single_run>
-</struct>
+</all_runs>

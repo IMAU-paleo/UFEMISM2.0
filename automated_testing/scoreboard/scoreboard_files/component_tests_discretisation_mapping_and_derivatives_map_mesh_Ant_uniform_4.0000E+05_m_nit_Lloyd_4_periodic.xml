@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<struct>
+<all_runs>
     <single_run>
         <name>mesh_Ant_uniform_4.0000E+05_m_nit_Lloyd_4_periodic</name>
         <category>component_tests/discretisation/mapping_and_derivatives/map</category>
@@ -36,4 +36,4 @@
             <value>0.012492</value>
         </cost_functions>
     </single_run>
-</struct>
+</all_runs>

@@ -12,31 +12,34 @@ foldername_integrated_tests = 'integrated_tests';
 
 list_of_tests = list_all_integrated_tests( foldername_integrated_tests);
 
-create_run_integrated_tests_workflow( list_of_tests)
+create_run_and_analyse_integrated_tests_workflow( list_of_tests)
 
 for i = 1: length( list_of_tests)
   create_run_single_test_workflow( list_of_tests{ i});
 end
 
-create_analyse_integrated_tests_workflow( list_of_tests)
+create_workflow_append_scoreboard_files( list_of_tests)
 
-  function create_run_integrated_tests_workflow( list_of_tests)
+  function create_run_and_analyse_integrated_tests_workflow( list_of_tests)
 
-    filename_run_integrated_tests_workflow  = [foldername_workflows ...
-      '/UFE_test_suite_run_integrated_tests.yml'];
+    filename_run_and_analyse_integrated_tests_workflow  = [foldername_workflows ...
+      '/UFE_test_suite_run_and_analyse_integrated_tests.yml'];
 
-    fid = fopen( filename_run_integrated_tests_workflow,'w');
+    fid = fopen( filename_run_and_analyse_integrated_tests_workflow,'w');
 
-    fprintf( fid, '%s\n', 'name: UFEMISM Test Suite - run integrated tests');
-    fprintf( fid, '%s\n', 'run-name: ${{ github.actor }} - UFEMISM Test Suite - run integrated tests');
+    fprintf( fid, '%s\n', '# NOTE: this script is created automatically by running');
+    fprintf( fid, '%s\n', '# ''automated_testing/integrated_tests/add_all_integrated_tests_to_Github_workflow.m''');
+    fprintf( fid, '%s\n', '');
+    fprintf( fid, '%s\n', 'name: UFEMISM Test Suite - run and analyse integrated tests');
+    fprintf( fid, '%s\n', 'run-name: ${{ github.actor }} - UFEMISM Test Suite - run and analyse integrated tests');
     fprintf( fid, '%s\n', 'on:');
     fprintf( fid, '%s\n', '  workflow_call:');
     fprintf( fid, '%s\n', '');
     fprintf( fid, '%s\n', 'jobs:');
 
-    for i = 1: length( list_of_tests)
+    for ti = 1: length( list_of_tests)
 
-      test_path = list_of_tests{ i};
+      test_path = list_of_tests{ ti};
       test_name = strrep( test_path,'/','_');
 
       fprintf( fid, '%s\n', '');
@@ -80,20 +83,23 @@ create_analyse_integrated_tests_workflow( list_of_tests)
 
   end
 
-  function create_analyse_integrated_tests_workflow( list_of_tests)
+  function create_workflow_append_scoreboard_files( list_of_tests)
 
-    filename_analyse_integrated_tests_workflow  = [foldername_workflows ...
-      '/UFE_test_suite_analyse_integrated_tests.yml'];
+    filename_workflow_append_scoreboard_files  = [foldername_workflows ...
+      '/UFE_test_suite_append_integrated_tests_scoreboard_files.yml'];
 
-    fid = fopen( filename_analyse_integrated_tests_workflow,'w');
+    fid = fopen( filename_workflow_append_scoreboard_files,'w');
 
-    fprintf( fid, '%s\n', 'name: UFEMISM Test Suite - analyse integrated tests');
-    fprintf( fid, '%s\n', 'run-name: ${{ github.actor }} - UFEMISM Test Suite - analyse integrated tests');
+    fprintf( fid, '%s\n', '# NOTE: this script is created automatically by running');
+    fprintf( fid, '%s\n', '# ''automated_testing/integrated_tests/add_all_integrated_tests_to_Github_workflow.m''');
+    fprintf( fid, '%s\n', '');
+    fprintf( fid, '%s\n', 'name: UFEMISM Test Suite - append integrated tests scoreboard files');
+    fprintf( fid, '%s\n', 'run-name: ${{ github.actor }} - UFEMISM Test Suite - append integrated tests scoreboard files');
     fprintf( fid, '%s\n', 'on:');
     fprintf( fid, '%s\n', '  workflow_call:');
     fprintf( fid, '%s\n', '');
     fprintf( fid, '%s\n', 'jobs:');
-    fprintf( fid, '%s\n', '  analyse_integrated_tests:');
+    fprintf( fid, '%s\n', '  append_integrated_tests_scoreboard_files:');
     fprintf( fid, '%s\n', '    runs-on: macos-latest');
     fprintf( fid, '%s\n', '    steps:');
     fprintf( fid, '%s\n', '');
@@ -112,14 +118,29 @@ create_analyse_integrated_tests_workflow( list_of_tests)
     fprintf( fid, '%s\n', '        uses: matlab-actions/setup-matlab@v2.2.0');
     fprintf( fid, '%s\n', '        with:');
     fprintf( fid, '%s\n', '          cache: true');
+    fprintf( fid, '%s\n', '');
+    fprintf( fid, '%s\n', '# ===================================================================');
+    fprintf( fid, '%s\n', '# ===== Download temporary scoreboard files for component tests =====');
+    fprintf( fid, '%s\n', '# ===================================================================');
+    fprintf( fid, '%s\n', '');
+    fprintf( fid, '%s\n', '      - name: Download temporary scoreboard files for component tests');
+    fprintf( fid, '%s\n', '        uses: actions/download-artifact@v4');
+    fprintf( fid, '%s\n', '        with:');
+    fprintf( fid, '%s\n', '          name: component_test_scoreboard_files');
+    fprintf( fid, '%s\n', '          path: automated_testing/component_tests/temporary_scoreboard_files');
+    fprintf( fid, '%s\n', '');
+    fprintf( fid, '%s\n', '# ====================================================================');
+    fprintf( fid, '%s\n', '# ===== Download temporary scoreboard files for integrated tests =====');
+    fprintf( fid, '%s\n', '# ====================================================================');
+    fprintf( fid, '%s\n', '#');
+    fprintf( fid, '%s\n', '# NOTE: list created automatically; if you want to add new integrated tests,');
+    fprintf( fid, '%s\n', '# just run ''automated_testing/integrated_tests/add_all_integrated_tests_to_Github_workflow.m'' again');
 
-    for i = 1: length( list_of_tests)
+    for ti = 1: length( list_of_tests)
 
-      test_path = list_of_tests{ i};
+      test_path = list_of_tests{ ti};
       test_name = strrep( test_path,'/','_');
 
-      fprintf( fid, '%s\n', '');
-      fprintf( fid, '%s\n', ['# ' test_path]);
       fprintf( fid, '%s\n', '');
       fprintf( fid, '%s\n',['      - name: Download temporary scoreboard file for ' test_path]);
       fprintf( fid, '%s\n', '        uses: actions/download-artifact@v4');
@@ -128,6 +149,11 @@ create_analyse_integrated_tests_workflow( list_of_tests)
       fprintf( fid, '%s\n',['          path: automated_testing/' test_path]);
     end
 
+    fprintf( fid, '%s\n', '');
+    fprintf( fid, '%s\n', '# =====================================================');
+    fprintf( fid, '%s\n', '# ===== Append temporary to main scoreboard files =====');
+    fprintf( fid, '%s\n', '# =====================================================');
+    fprintf( fid, '%s\n', '');
     fprintf( fid, '%s\n','      - name: Append temporary to main scoreboard files');
     fprintf( fid, '%s\n','        uses: matlab-actions/run-command@v2');
     fprintf( fid, '%s\n','        with:');

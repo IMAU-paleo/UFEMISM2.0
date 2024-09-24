@@ -1,10 +1,13 @@
-name: UFEMISM Test Suite - analyse integrated tests
-run-name: ${{ github.actor }} - UFEMISM Test Suite - analyse integrated tests
+# NOTE: this script is created automatically by running
+# 'automated_testing/integrated_tests/add_all_integrated_tests_to_Github_workflow.m'
+
+name: UFEMISM Test Suite - append integrated tests scoreboard files
+run-name: ${{ github.actor }} - UFEMISM Test Suite - append integrated tests scoreboard files
 on:
   workflow_call:
 
 jobs:
-  analyse_integrated_tests:
+  append_integrated_tests_scoreboard_files:
     runs-on: macos-latest
     steps:
 
@@ -24,7 +27,22 @@ jobs:
         with:
           cache: true
 
-# integrated_tests/idealised/Halfar_dome/Halfar_10km
+# ===================================================================
+# ===== Download temporary scoreboard files for component tests =====
+# ===================================================================
+
+      - name: Download temporary scoreboard files for component tests
+        uses: actions/download-artifact@v4
+        with:
+          name: component_test_scoreboard_files
+          path: automated_testing/component_tests/temporary_scoreboard_files
+
+# ====================================================================
+# ===== Download temporary scoreboard files for integrated tests =====
+# ====================================================================
+#
+# NOTE: list created automatically; if you want to add new integrated tests,
+# just run 'automated_testing/integrated_tests/add_all_integrated_tests_to_Github_workflow.m' again
 
       - name: Download temporary scoreboard file for integrated_tests/idealised/Halfar_dome/Halfar_10km
         uses: actions/download-artifact@v4
@@ -32,15 +50,11 @@ jobs:
           name: temporary_scoreboard_file_integrated_tests_idealised_Halfar_dome_Halfar_10km
           path: automated_testing/integrated_tests/idealised/Halfar_dome/Halfar_10km
 
-# integrated_tests/idealised/Halfar_dome/Halfar_20km
-
       - name: Download temporary scoreboard file for integrated_tests/idealised/Halfar_dome/Halfar_20km
         uses: actions/download-artifact@v4
         with:
           name: temporary_scoreboard_file_integrated_tests_idealised_Halfar_dome_Halfar_20km
           path: automated_testing/integrated_tests/idealised/Halfar_dome/Halfar_20km
-
-# integrated_tests/idealised/Halfar_dome/Halfar_40km
 
       - name: Download temporary scoreboard file for integrated_tests/idealised/Halfar_dome/Halfar_40km
         uses: actions/download-artifact@v4
@@ -48,10 +62,19 @@ jobs:
           name: temporary_scoreboard_file_integrated_tests_idealised_Halfar_dome_Halfar_40km
           path: automated_testing/integrated_tests/idealised/Halfar_dome/Halfar_40km
 
-# integrated_tests/idealised/Halfar_dome/Halfar_5km
-
       - name: Download temporary scoreboard file for integrated_tests/idealised/Halfar_dome/Halfar_5km
         uses: actions/download-artifact@v4
         with:
           name: temporary_scoreboard_file_integrated_tests_idealised_Halfar_dome_Halfar_5km
           path: automated_testing/integrated_tests/idealised/Halfar_dome/Halfar_5km
+
+# =====================================================
+# ===== Append temporary to main scoreboard files =====
+# =====================================================
+
+      - name: Append temporary to main scoreboard files
+        uses: matlab-actions/run-command@v2
+        with:
+          command: |
+            addpath('automated_testing/scoreboard/scripts')
+            append_temporary_to_main_scoreboard_files('${{github.workspace}}/automated_testing')
