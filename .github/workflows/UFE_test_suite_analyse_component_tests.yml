@@ -48,26 +48,3 @@ jobs:
         with:
           name: component_test_figures
           path: automated_testing/component_tests/figures
-
-      # - name: Commit updated scoreboard files
-      #   # See https://github.com/marketplace/actions/add-commit
-      #   if: ${{ github.event_name == 'pull_request' }} # Only do this for pull requests
-      #   uses: EndBug/add-and-commit@v9 # You can change this to use a specific version.
-      #   with:
-      #     add: automated_testing/scoreboard/scoreboard_*.txt
-      #     author_name: ${{ github.actor }} (from UFEMISM test suite workflow)
-      #     message: 'Update scoreboard files (from UFEMISM test suite workflow by ${{ github.actor }})'
-      #     push: true
-
-      # - name: Create scoreboard visualisation
-      #   uses: matlab-actions/run-command@v2
-      #   with:
-      #     command: |
-      #       addpath('automated_testing/scoreboard/scripts')
-      #       create_scoreboard_html('${{github.workspace}}/automated_testing')
-
-      # - name: Upload scoreboard HTML as artifact
-      #   uses: actions/upload-artifact@v4.3.4
-      #   with:
-      #     name: scoreboard
-      #     path: automated_testing/test_reports/scoreboard.html
