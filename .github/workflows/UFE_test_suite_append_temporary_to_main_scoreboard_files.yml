@@ -77,4 +77,4 @@ jobs:
         with:
           command: |
             addpath('automated_testing/integrated_tests')
-            add_all_integrated_test_results_to_main_scoreboard_files('${{github.workspace}}/automated_testing')
+            append_temporary_to_main_scoreboard_files('${{github.workspace}}/automated_testing')
