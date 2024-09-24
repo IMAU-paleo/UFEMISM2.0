@@ -206,3 +206,29 @@
     cost function:     3.0440e-03
   </result>
 </test>
+<test>
+  name           : remapping_mesh_to_grid_mesh_Ant_uniform_8.0000E+05_m_nit_Lloyd_2_TO_grid_Ant_1.6000E+04_m
+  category       : remapping/mesh_to_grid
+  git hash string: 6f452a3a8d461455dac0b297e87b36ef74ffacd4
+  date, time     : 24-Sep-2024 09:30:45
+  <result>
+    name         : rmse
+    description  : sqrt( mean( (d_grid - d_grid_ex).^2))
+    cost function:     1.6306e+02
+  </result>
+  <result>
+    name         : bounds_max
+    description  : max( 0, max( d_grid(:)) - max( d_mesh_ex(:)))
+    cost function:     0.0000e+00
+  </result>
+  <result>
+    name         : bounds_min
+    description  : max( 0, min( d_mesh_ex(:)) - min( d_grid(:)))
+    cost function:     0.0000e+00
+  </result>
+  <result>
+    name         : int_err
+    description  : abs( 1 - int_grid / int_mesh)
+    cost function:     3.0440e-03
+  </result>
+</test>
