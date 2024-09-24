@@ -159,7 +159,7 @@ create_workflow_append_scoreboard_files( list_of_tests)
     fprintf( fid, '%s\n','        with:');
     fprintf( fid, '%s\n','          command: |');
     fprintf( fid, '%s\n','            addpath(''automated_testing/integrated_tests'')');
-    fprintf( fid, '%s\n','            add_all_integrated_test_results_to_main_scoreboard_files(''${{github.workspace}}/automated_testing'')');
+    fprintf( fid, '%s\n','            append_temporary_to_main_scoreboard_files(''${{github.workspace}}/automated_testing'')');
 
     fclose( fid);
 
