@@ -1,3 +1,6 @@
+# NOTE: this script is created automatically by running
+# 'automated_testing/integrated_tests/add_all_integrated_tests_to_Github_workflow.m'
+
 name: UFEMISM Test Suite - run and analyse integrated_tests/idealised/Halfar_dome/Halfar_20km
 run-name: ${{ github.actor }} - UFEMISM Test Suite - run and analyse integrated_tests/idealised/Halfar_dome/Halfar_20km
 on:

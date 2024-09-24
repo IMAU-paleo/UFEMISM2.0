@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<struct>
+<all_runs>
     <single_run>
         <name>Halfar_20km</name>
         <category>integrated_tests/idealised/Halfar_dome</category>
@@ -11,4 +11,4 @@
             <value>23.3385</value>
         </cost_functions>
     </single_run>
-</struct>
+</all_runs>
