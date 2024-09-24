@@ -36,6 +36,7 @@ end
 foldername_integrated_tests = [foldername_automated_testing '/integrated_tests'];
 foldername_scoreboard       = [foldername_automated_testing '/scoreboard'];
 
+addpath( foldername_integrated_tests)
 addpath([foldername_scoreboard '/scripts'])
 
 %% Component tests
