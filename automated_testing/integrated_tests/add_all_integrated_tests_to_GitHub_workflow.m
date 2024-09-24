@@ -86,7 +86,7 @@ create_workflow_append_scoreboard_files( list_of_tests)
   function create_workflow_append_scoreboard_files( list_of_tests)
 
     filename_workflow_append_scoreboard_files  = [foldername_workflows ...
-      '/UFE_test_suite_append_integrated_tests_scoreboard_files.yml'];
+      '/UFE_test_suite_append_temporary_to_main_scoreboard_files.yml'];
 
     fid = fopen( filename_workflow_append_scoreboard_files,'w');
 
@@ -99,7 +99,7 @@ create_workflow_append_scoreboard_files( list_of_tests)
     fprintf( fid, '%s\n', '  workflow_call:');
     fprintf( fid, '%s\n', '');
     fprintf( fid, '%s\n', 'jobs:');
-    fprintf( fid, '%s\n', '  append_integrated_tests_scoreboard_files:');
+    fprintf( fid, '%s\n', '  append_temporary_to_main_scoreboard_files:');
     fprintf( fid, '%s\n', '    runs-on: macos-latest');
     fprintf( fid, '%s\n', '    steps:');
     fprintf( fid, '%s\n', '');
