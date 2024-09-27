@@ -36,24 +36,18 @@ contains
     !       vid
 
     ! In/output variables:
-    type(type_mesh),            intent(in)        :: mesh
-    integer,                    intent(in)        :: ti,tj
-    logical                                       :: isso
+    type(type_mesh), intent(in) :: mesh
+    integer,         intent(in) :: ti,tj
+    logical                     :: isso
 
     ! Local variables:
-    character(len=256), parameter                 :: routine_name = 'are_Delaunay'
-    integer                                       :: n, vi, vj, vii, n1, n2, n3
-    logical                                       :: is_in_tj
-    integer                                       :: via, vib, vic, vid
-    real(dp), dimension(2)                        :: va, vb, vc, vd, cci, ccj
-    real(dp)                                      :: ccri, ccrj
+    character(len=256), parameter :: routine_name = 'are_Delaunay'
+    integer                       :: via, vib, vic, vid
+    real(dp), dimension(2)        :: va, vb, vc, vd, cci, ccj
+    real(dp)                      :: ccri, ccrj
 #if (DO_ASSERTIONS)
-    logical                                       :: are_connected_ij, are_connected_ji, both_false, one_false
-    logical                                       :: via_has_ti, via_has_tj
-    logical                                       :: vib_has_ti, vib_has_tj
-    logical                                       :: vic_has_ti, vic_has_tj
-    logical                                       :: vid_has_ti, vid_has_tj
-    integer                                       :: iti
+    logical                       :: are_connected_ij, are_connected_ji, both_false, one_false
+    integer                       :: n
 #endif
 
     ! Add routine to path
@@ -61,8 +55,8 @@ contains
 
 #if (DO_ASSERTIONS)
     ! Safety - assert that ti and tj are valid triangles
-    call test_ge_le( ti, 0, mesh%nTri, ASSERTION, 'ti should be > 0 and <= mesh%nTri')
-    call test_ge_le( tj, 0, mesh%nTri, ASSERTION, 'tj should be > 0 and <= mesh%nTri')
+    call test_ge_le( ti, 1, mesh%nTri, ASSERTION, 'ti should be > 0 and <= mesh%nTri')
+    call test_ge_le( tj, 1, mesh%nTri, ASSERTION, 'tj should be > 0 and <= mesh%nTri')
 #endif
 
 #if (DO_ASSERTIONS)
@@ -78,6 +72,61 @@ contains
     call test_eqv( both_false, .false., ASSERTION, 'ti and tj are not connected')
     call test_eqv( one_false , .false., ASSERTION, 'inconsistency in TriC, ti is connected to tj but not vice versa')
 #endif
+
+    ! Determine local geometry
+    call are_Delaunay_find_local_geometry( mesh, ti, tj, via, vib, vic, vid)
+
+    ! Check if ti-tj meets the Delaunay criterion
+    va = mesh%V( via,:)
+    vb = mesh%V( vib,:)
+    vc = mesh%V( vic,:)
+    vd = mesh%V( vid,:)
+
+    cci = mesh%Tricc( ti,:)
+    ccj = mesh%Tricc( tj,:)
+
+    ccri = norm2( va - cci)
+    ccrj = norm2( va - ccj)
+
+    isso = .true.
+
+    if     (norm2( vd - cci) < ccri) then
+      ! vid lies inside the circumcircle of ti
+      isso = .false.
+    elseif (norm2( vc - ccj) < ccrj) then
+      ! vic lies inside the circumcircle of tj
+      isso = .false.
+    end if
+
+    ! if the outer angle at via or vib is concave, don't flip.
+    ! Check this by checking if via lies inside the triangle
+    ! [vib,vic,vid], or the other way round.
+
+    if (.not. isso) then
+      if  (is_in_triangle( vb, vc, vd, va) .or. &
+          is_in_triangle( va, vd, vc, vb)) then
+        isso = .true.
+      end if
+    end if
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end function are_Delaunay
+
+  subroutine are_Delaunay_find_local_geometry( mesh, ti, tj, via, vib, vic, vid)
+    ! Determine the local geometry (i.e. the indices of vertices a,b,c,d; see diagram)
+
+    ! In/output variables:
+    type(type_mesh), intent(in)  :: mesh
+    integer,         intent(in)  :: ti, tj
+    integer,         intent(out) :: via, vib, vic, vid
+
+    ! Local variables:
+    integer :: vi, vj, n, vii, n2
+    logical :: is_in_tj
+    integer :: n1, n3
+    logical :: isso
 
     ! Find the two vertices vi and vj that are shared by ti and tj
 
@@ -109,7 +158,6 @@ contains
 #endif
 
     ! Find via,vib,vic,vid (see diagram)
-
     via = 0
     vib = 0
     vic = 0
@@ -137,14 +185,38 @@ contains
     end do
 
 #if (DO_ASSERTIONS)
-    ! Safety - assert that we found the four vertices spanning the two triangles
-    call test_gt( via, 0, ASSERTION, 'couldnt figure out local geometry')
-    call test_gt( vib, 0, ASSERTION, 'couldnt figure out local geometry')
-    call test_gt( vic, 0, ASSERTION, 'couldnt figure out local geometry')
-    call test_gt( vid, 0, ASSERTION, 'couldnt figure out local geometry')
+    isso = are_Delaunay_assert_local_geometry( mesh, ti, tj, via, vib, vic, vid)
 #endif
 
-#if (DO_ASSERTIONS)
+  end subroutine are_Delaunay_find_local_geometry
+
+  function are_Delaunay_assert_local_geometry( mesh, ti, tj, via, vib, vic, vid) result( isso)
+    ! Assert that are_Delaunay was able to figure out the local geometry correctly
+
+    ! In/output variables:
+    type(type_mesh), intent(in) :: mesh
+    integer,         intent(in) :: ti, tj, via, vib, vic, vid
+    logical                     :: isso
+
+    ! Local variables:
+    character(len=256), parameter :: routine_name = 'are_Delaunay_assert_local_geometry'
+    logical                       :: via_has_ti, via_has_tj
+    logical                       :: vib_has_ti, vib_has_tj
+    logical                       :: vic_has_ti, vic_has_tj
+    logical                       :: vid_has_ti, vid_has_tj
+    integer                       :: iti
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    isso = .false.
+
+    ! Safety - assert that we found the four vertices spanning the two triangles
+    call test_ge_le( via, 1, mesh%nV, ASSERTION, 'invalid value for via')
+    call test_ge_le( vib, 1, mesh%nV, ASSERTION, 'invalid value for vib')
+    call test_ge_le( vic, 1, mesh%nV, ASSERTION, 'invalid value for vic')
+    call test_ge_le( vid, 1, mesh%nV, ASSERTION, 'invalid value for vid')
+
     ! Safety - assert that the four vertices correctly list ti,tj as iTriangles
     via_has_ti = .false.
     via_has_tj = .false.
@@ -201,43 +273,12 @@ contains
       'inconsistent mesh geometry (vib has ti as an itriangle)')
     call test_eqv( vid_has_tj, .true., ASSERTION, &
       ': inconsistent mesh geometry (vib doesnt have tj as an itriangle)')
-#endif
-
-    ! Check if ti-tj meets the Delaunay criterion
-
-    va = mesh%V( via,:)
-    vb = mesh%V( vib,:)
-    vc = mesh%V( vic,:)
-    vd = mesh%V( vid,:)
-
-    cci = mesh%Tricc( ti,:)
-    ccj = mesh%Tricc( tj,:)
-
-    ccri = norm2( va - cci)
-    ccrj = norm2( va - ccj)
 
     isso = .true.
-
-    if     (norm2( vd - cci) < ccri) then
-      ! vid lies inside the circumcircle of ti
-      isso = .false.
-    elseif (norm2( vc - ccj) < ccrj) then
-      ! vic lies inside the circumcircle of tj
-      isso = .false.
-    end if
-
-    ! if the outer angle at via or vib is concave, don't flip.
-    ! Check this by checking if via lies inside the triangle
-    ! [vib,vic,vid], or the other way round.
-
-    if  (is_in_triangle( vb, vc, vd, va) .or. &
-         is_in_triangle( va, vd, vc, vb)) then
-      isso = .true.
-    end if
 
     ! Finalise routine path
     call finalise_routine( routine_name)
 
-  end function are_Delaunay
+  end function are_Delaunay_assert_local_geometry
 
 end module mesh_Delaunay_check_Delaunay_criterion
