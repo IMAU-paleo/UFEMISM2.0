@@ -2,6 +2,9 @@ module mesh_Delaunay_check_Delaunay_criterion
 
   ! Check if a pair of triangles satisfies the (local) Delaunay criterion
 
+  use assertions_unit_tests, only: ASSERTION, UNIT_TEST, test_eqv, test_neqv, test_eq, test_neq, &
+    test_gt, test_lt, test_ge, test_le, test_ge_le, test_tol, test_eq_permute, test_tol_mesh, &
+    test_mesh_is_self_consistent
   use precisions, only: dp
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, warning, crash
   use mesh_types, only: type_mesh
@@ -39,39 +42,42 @@ contains
 
     ! Local variables:
     character(len=256), parameter                 :: routine_name = 'are_Delaunay'
-    logical                                       :: are_connected_ij, are_connected_ji
-    integer                                       :: n, vi, vj, vii, n1, n2, n3, iti
+    integer                                       :: n, vi, vj, vii, n1, n2, n3
     logical                                       :: is_in_tj
     integer                                       :: via, vib, vic, vid
+    real(dp), dimension(2)                        :: va, vb, vc, vd, cci, ccj
+    real(dp)                                      :: ccri, ccrj
+#if (DO_ASSERTIONS)
+    logical                                       :: are_connected_ij, are_connected_ji, both_false, one_false
     logical                                       :: via_has_ti, via_has_tj
     logical                                       :: vib_has_ti, vib_has_tj
     logical                                       :: vic_has_ti, vic_has_tj
     logical                                       :: vid_has_ti, vid_has_tj
-    real(dp), dimension(2)                        :: va, vb, vc, vd, cci, ccj
-    real(dp)                                      :: ccri, ccrj
+    integer                                       :: iti
+#endif
 
     ! Add routine to path
     call init_routine( routine_name)
 
-    ! Safety
-    if (ti == 0 .or. tj == 0) then
-      call crash('Found ti=0 in mesh%Tri_flip_list!')
-    end if
+#if (DO_ASSERTIONS)
+    ! Safety - assert that ti and tj are valid triangles
+    call test_ge_le( ti, 0, mesh%nTri, ASSERTION, 'ti should be > 0 and <= mesh%nTri')
+    call test_ge_le( tj, 0, mesh%nTri, ASSERTION, 'tj should be > 0 and <= mesh%nTri')
+#endif
 
-    ! Check if these two triangles are connected
+#if (DO_ASSERTIONS)
+    ! Safety - assert that ti and tj are connected both ways in mesh%TriC
     are_connected_ij = .false.
     are_connected_ji = .false.
     do n = 1, 3
       if (mesh%TriC( ti,n) == tj) are_connected_ij = .true.
       if (mesh%TriC( tj,n) == ti) are_connected_ji = .true.
     end do
-    if (.not. are_connected_ij .and. .not. are_connected_ij) then
-      ! These two triangles are not connected
-      call crash('{int_01} and {int_02} are not connected!', int_01 = ti, int_02 = tj)
-    elseif (are_connected_ij .and. .not. are_connected_ji .or. .not. are_connected_ij .and. are_connected_ji) then
-      ! One of them lists the other as a neighbour, but not vice versa
-      call crash('inconsistency in TriC!')
-    end if
+    both_false = (.not. are_connected_ij .and. .not. are_connected_ij)
+    one_false  = (are_connected_ij .and. .not. are_connected_ji .or. .not. are_connected_ij .and. are_connected_ji)
+    call test_eqv( both_false, .false., ASSERTION, 'ti and tj are not connected')
+    call test_eqv( one_false , .false., ASSERTION, 'inconsistency in TriC, ti is connected to tj but not vice versa')
+#endif
 
     ! Find the two vertices vi and vj that are shared by ti and tj
 
@@ -96,10 +102,11 @@ contains
       end if
     end do
 
-    ! Safety
-    if (vi == 0 .or. vj == 0) then
-      call crash('couldnt find two shared vertices!')
-    end if
+#if (DO_ASSERTIONS)
+    ! Safety - assert that we found two shared vertices
+    call test_gt( vi, 0, ASSERTION, 'couldnt find shared vertex vi')
+    call test_gt( vj, 0, ASSERTION, 'couldnt find shared vertex vj')
+#endif
 
     ! Find via,vib,vic,vid (see diagram)
 
@@ -129,11 +136,16 @@ contains
 
     end do
 
-    ! Safety
-    if (via == 0 .or. vib == 0 .or. vic == 0 .or. vid == 0) then
-      call crash('couldnt figure out local geometry!')
-    end if
+#if (DO_ASSERTIONS)
+    ! Safety - assert that we found the four vertices spanning the two triangles
+    call test_gt( via, 0, ASSERTION, 'couldnt figure out local geometry')
+    call test_gt( vib, 0, ASSERTION, 'couldnt figure out local geometry')
+    call test_gt( vic, 0, ASSERTION, 'couldnt figure out local geometry')
+    call test_gt( vid, 0, ASSERTION, 'couldnt figure out local geometry')
+#endif
 
+#if (DO_ASSERTIONS)
+    ! Safety - assert that the four vertices correctly list ti,tj as iTriangles
     via_has_ti = .false.
     via_has_tj = .false.
     do iti = 1, mesh%niTri( via)
@@ -143,8 +155,10 @@ contains
         via_has_tj = .true.
       end if
     end do
-    if (.not. via_has_ti) call crash('inconsistent mesh geometry! (via doesnt have ti as an itriangle)')
-    if (.not. via_has_tj) call crash('inconsistent mesh geometry! (via doesnt have tj as an itriangle)')
+    call test_eqv( via_has_ti, .true., ASSERTION, &
+      ': inconsistent mesh geometry (via doesnt have ti as an itriangle)')
+    call test_eqv( via_has_tj, .true., ASSERTION, &
+      ': inconsistent mesh geometry (via doesnt have tj as an itriangle)')
 
     vib_has_ti = .false.
     vib_has_tj = .false.
@@ -155,8 +169,10 @@ contains
         vib_has_tj = .true.
       end if
     end do
-    if (.not. vib_has_ti) call crash('inconsistent mesh geometry! (vib doesnt have ti as an itriangle)')
-    if (.not. vib_has_tj) call crash('inconsistent mesh geometry! (vib doesnt have tj as an itriangle)')
+    call test_eqv( vib_has_ti, .true., ASSERTION, &
+      'inconsistent mesh geometry (vib doesnt have ti as an itriangle)')
+    call test_eqv( vib_has_tj, .true., ASSERTION, &
+      ': inconsistent mesh geometry (vib doesnt have tj as an itriangle)')
 
     vic_has_ti = .false.
     vic_has_tj = .false.
@@ -167,13 +183,10 @@ contains
         vic_has_tj = .true.
       end if
     end do
-    if (.not. vic_has_ti) call crash('inconsistent mesh geometry! (vic doesnt have ti as an itriangle)')
-    if (      vic_has_tj) then
-      call warning('ti = [{int_01}, {int_02}, {int_03}], tj = [{int_04}, {int_05}, {int_06}]', &
-        int_01 = mesh%Tri( ti,1), int_02 = mesh%Tri( ti,2), int_03 = mesh%Tri( ti,3), &
-        int_04 = mesh%Tri( tj,1), int_05 = mesh%Tri( tj,2), int_06 = mesh%Tri( tj,3))
-    end if
-    if (      vic_has_tj) call crash('inconsistent mesh geometry! (vic has tj as an itriangle)')
+    call test_eqv( vic_has_ti, .true., ASSERTION, &
+      'inconsistent mesh geometry (vib doesnt have ti as an itriangle)')
+    call test_eqv( vic_has_tj, .false., ASSERTION, &
+      ': inconsistent mesh geometry (vib has tj as an itriangle)')
 
     vid_has_ti = .false.
     vid_has_tj = .false.
@@ -184,8 +197,11 @@ contains
         vid_has_tj = .true.
       end if
     end do
-    if (      vid_has_ti) call crash('inconsistent mesh geometry! (vid has ti as an itriangle)')
-    if (.not. vid_has_tj) call crash('inconsistent mesh geometry! (vid doesnt have tj as an itriangle)')
+    call test_eqv( vid_has_ti, .false., ASSERTION, &
+      'inconsistent mesh geometry (vib has ti as an itriangle)')
+    call test_eqv( vid_has_tj, .true., ASSERTION, &
+      ': inconsistent mesh geometry (vib doesnt have tj as an itriangle)')
+#endif
 
     ! Check if ti-tj meets the Delaunay criterion
 
