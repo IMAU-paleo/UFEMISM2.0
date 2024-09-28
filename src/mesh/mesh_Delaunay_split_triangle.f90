@@ -2,6 +2,10 @@ module mesh_Delaunay_split_triangle
 
   ! Split a triangle of the mesh, and update the Delaunay triangulation accordingly.
 
+  use assertions_unit_tests, only: ASSERTION, UNIT_TEST, test_eqv, test_neqv, test_eq, test_neq, &
+    test_gt, test_lt, test_ge, test_le, test_ge_le, test_tol, test_eq_permute, test_tol_mesh, &
+    test_mesh_is_self_consistent, test_mesh_vertices_are_neighbours, test_mesh_triangles_are_neighbours, &
+    test_mesh_triangle_doesnt_have_duplicates
   use precisions, only: dp
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, warning, crash
   use mesh_types, only: type_mesh
@@ -67,23 +71,23 @@ contains
     !                 / \
 
     ! In/output variables:
-    type(type_mesh),            intent(inout)     :: mesh
-    integer,                    intent(in)        :: ti_in_guess
-    real(dp), dimension(2),     intent(in)        :: p_new
+    type(type_mesh),        intent(inout) :: mesh
+    integer,                intent(in)    :: ti_in_guess
+    real(dp), dimension(2), intent(in)    :: p_new
 
     ! Local variables:
-    character(len=256), parameter                 :: routine_name = 'split_triangle'
-    logical                                       :: isso
-    real(dp), dimension(2)                        :: p
-    integer                                       :: ci, iti, n, nf, t1, t2, t3, ti, tia, tib, tic
-    real(dp), dimension(2)                        :: va, vb, vc
-    integer                                       :: vi, via, vib, vic, vik, vj
-    integer                                       :: li_min, li_max
+    character(len=256), parameter :: routine_name = 'split_triangle'
+    logical                       :: isso
+    real(dp), dimension(2)        :: p
+    integer                       :: ci, iti, n, nf, t1, t2, t3, ti, tia, tib, tic
+    real(dp), dimension(2)        :: va, vb, vc
+    integer                       :: vi, via, vib, vic, vik, vj
+    integer                       :: li_min, li_max
 
     ! Add routine to path
     call init_routine( routine_name)
 
-    ! if p_new encroaches upon a border edge, split that instead
+    ! If p_new encroaches upon a border edge, split that instead
     call encroaches_upon_any( mesh, p_new, isso, vi, vj)
     if (isso) then
       p = (mesh%V( vi,:) + mesh%V( vj,:)) / 2._dp
@@ -92,16 +96,16 @@ contains
       return
     end if
 
-    ! == if p_new lies outside of the mesh domain, split a border edge instead.
+    ! == If p_new lies outside of the mesh domain, split a border edge instead.
     ! =========================================================================
 
     if (p_new( 1) < mesh%xmin) then
       ! p_new lies to the west of the mesh domain
 
-      ! Safety
-      if (p_new( 2) < mesh%ymin .or. p_new( 2) > mesh%ymax) then
-        call crash('p_new lies way outside mesh domain!')
-      end if
+#if (DO_ASSERTIONS)
+      ! Safety - assert that p_new lies outside the x domain, but inside the y domain
+      call test_ge_le( p_new(2), mesh%ymin, mesh%ymax, ASSERTION, 'p_new lies way outside mesh domain')
+#endif
 
       ! Find the two vertices vi,vj of the border edge that must be split.
       vi = 1
@@ -110,11 +114,6 @@ contains
         vi = vj
         vj = mesh%C( vi, mesh%nC( vi))
       end do
-
-      ! Safety
-      if (.not. (p_new( 2) >= mesh%V( vi,2) .and. p_new( 2) <= mesh%V( vj,2))) then
-        call crash('couldnt find border edge to split!')
-      end if
 
       p = (mesh%V( vi,:) + mesh%V( vj,:)) / 2._dp
       call split_border_edge( mesh, vi, vj, p)
@@ -127,10 +126,10 @@ contains
     if (p_new( 1) > mesh%xmax) then
       ! p_new lies to the east of the mesh domain
 
-      ! Safety
-      if (p_new( 2) < mesh%ymin .or. p_new( 2) > mesh%ymax) then
-        call crash('p_new lies way outside mesh domain!')
-      end if
+#if (DO_ASSERTIONS)
+      ! Safety - assert that p_new lies outside the x domain, but inside the y domain
+      call test_ge_le( p_new(2), mesh%ymin, mesh%ymax, ASSERTION, 'p_new lies way outside mesh domain')
+#endif
 
       ! Find the two vertices vi,vj of the border edge that must be split.
       vi = 2
@@ -139,11 +138,6 @@ contains
         vi = vj
         vj = mesh%C( vi, 1)
       end do
-
-      ! Safety
-      if (.not. (p_new( 2) >= mesh%V( vi,2) .and. p_new( 2) <= mesh%V( vj,2))) then
-        call crash('couldnt find border edge to split!')
-      end if
 
       p = (mesh%V( vi,:) + mesh%V( vj,:)) / 2._dp
       call split_border_edge( mesh, vi, vj, p)
@@ -156,10 +150,10 @@ contains
     if (p_new( 2) < mesh%ymin) then
       ! p_new lies to the south of the mesh domain
 
-      ! Safety
-      if (p_new( 1) < mesh%xmin .or. p_new( 1) > mesh%xmax) then
-        call crash('p_new lies way outside mesh domain!')
-      end if
+#if (DO_ASSERTIONS)
+      ! Safety - assert that p_new lies outside the y domain, but inside the x domain
+      call test_ge_le( p_new(1), mesh%xmin, mesh%xmax, ASSERTION, 'p_new lies way outside mesh domain')
+#endif
 
       ! Find the two vertices vi,vj of the border edge that must be split.
       vi = 1
@@ -168,11 +162,6 @@ contains
         vi = vj
         vj = mesh%C( vi, 1)
       end do
-
-      ! Safety
-      if (.not. (p_new( 1) >= mesh%V( vi,1) .and. p_new( 1) <= mesh%V( vj,1))) then
-        call crash('couldnt find border edge to split!')
-      end if
 
       p = (mesh%V( vi,:) + mesh%V( vj,:)) / 2._dp
       call split_border_edge( mesh, vi, vj, p)
@@ -185,10 +174,10 @@ contains
     if (p_new( 2) > mesh%ymax) then
       ! p_new lies to the north of the mesh domain
 
-      ! Safety
-      if (p_new( 1) < mesh%xmin .or. p_new( 1) > mesh%xmax) then
-        call crash('p_new lies way outside mesh domain!')
-      end if
+#if (DO_ASSERTIONS)
+      ! Safety - assert that p_new lies outside the y domain, but inside the x domain
+      call test_ge_le( p_new(1), mesh%xmin, mesh%xmax, ASSERTION, 'p_new lies way outside mesh domain')
+#endif
 
       ! Find the two vertices vi,vj of the border edge that must be split.
       vi = 1
@@ -197,11 +186,6 @@ contains
         vi = vj
         vj = mesh%C( vi, mesh%nC( vi))
       end do
-
-      ! Safety
-      if (.not. (p_new( 1) >= mesh%V( vi,1) .and. p_new( 1) <= mesh%V( vj,1))) then
-        call crash('couldnt find border edge to split!')
-      end if
 
       p = (mesh%V( vi,:) + mesh%V( vj,:)) / 2._dp
       call split_border_edge( mesh, vi, vj, p)
@@ -228,7 +212,7 @@ contains
     vb  = mesh%V( vib,:)
     vc  = mesh%V( vic,:)
 
-    ! Indice of the triangles neighbouring ti
+    ! Indices of the triangles neighbouring ti
     tia = mesh%TriC( ti,1)
     tib = mesh%TriC( ti,2)
     tic = mesh%TriC( ti,3)
@@ -257,7 +241,7 @@ contains
       return
     end if
 
-    ! == if the new vertex is (almost) colinear with two vertices of
+    ! == If the new vertex is (almost) colinear with two vertices of
     !    the containing triangle, split the line between them instead.
     ! ================================================================
 
@@ -302,10 +286,15 @@ contains
     t3 = mesh%nTri
     mesh%Tri( t3,:) = [vik,via,vib]
 
-    ! DENK DROM
-    if (do_debug) call check_if_triangle_already_exists( mesh, t1)
-    if (do_debug) call check_if_triangle_already_exists( mesh, t2)
-    if (do_debug) call check_if_triangle_already_exists( mesh, t3)
+#if (DO_ASSERTIONS)
+    ! Safety - check if everything went alright and we didnt create any duplicate triangles
+    call test_mesh_triangle_doesnt_have_duplicates( mesh, t1, ASSERTION, &
+      'a triangle with the vertices of t1 already exists')
+    call test_mesh_triangle_doesnt_have_duplicates( mesh, t2, ASSERTION, &
+      'a triangle with the vertices of t2 already exists')
+    call test_mesh_triangle_doesnt_have_duplicates( mesh, t3, ASSERTION, &
+      'a triangle with the vertices of t3 already exists')
+#endif
 
     ! == nC, C
 
