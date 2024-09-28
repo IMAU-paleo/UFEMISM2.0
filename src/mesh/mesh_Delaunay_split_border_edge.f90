@@ -2,6 +2,10 @@ module mesh_Delaunay_split_border_edge
 
   ! Split a border edge of the mesh, and update the Delaunay triangulation accordingly.
 
+  use assertions_unit_tests, only: ASSERTION, UNIT_TEST, test_eqv, test_neqv, test_eq, test_neq, &
+    test_gt, test_lt, test_ge, test_le, test_ge_le, test_tol, test_eq_permute, test_tol_mesh, &
+    test_mesh_is_self_consistent, test_mesh_vertices_are_neighbours, test_mesh_triangles_are_neighbours, &
+    test_mesh_triangle_doesnt_have_duplicates
   use precisions, only: dp
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, warning, crash
   use mesh_types, only: type_mesh
@@ -49,8 +53,6 @@ contains
     !          \ /     |     \ /
     !      - - via -- vik -- vib - -
 
-    IMPLICIT NONE
-
     ! In/output variables:
     type(type_mesh),            intent(inout)     :: mesh
     integer,                    intent(in)        :: vi, vj
@@ -58,8 +60,7 @@ contains
 
     ! Local variables:
     character(len=256), parameter                 :: routine_name = 'split_border_edge'
-    logical                                       :: are_connected_ij, are_connected_ji
-    integer                                       :: ci, cj, iti, n, n1, n2, n3, nf
+    integer                                       :: ci, iti, n, n1, n2, n3, nf
     real(dp), dimension(2)                        :: pa, pb
     integer                                       :: t1, t2, ti, tia, tib, tic, tii, via, vib, vic, vik
     integer                                       :: li_min, li_max
@@ -67,46 +68,26 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    ! == Safety
-    ! =========
+#if (DO_ASSERTIONS)
+    ! Safety - assert that vi and vj are valid vertices
+    call test_ge_le( vi, 1, mesh%nV, ASSERTION, 'invalid value for vi')
+    call test_ge_le( vj, 1, mesh%nV, ASSERTION, 'invalid value for vj')
 
-    ! Check if vi and vj are even connected
-    are_connected_ij = .false.
-    are_connected_ji = .false.
-    do ci = 1, mesh%nC( vi)
-      if (mesh%C( vi,ci) == vj) are_connected_ij = .true.
-    end do
-    do cj = 1, mesh%nC( vj)
-      if (mesh%C( vj,cj) == vi) are_connected_ji = .true.
-    end do
-    if (are_connected_ij .and. are_connected_ji) then
-      ! Both vi and vj list each other as neighbours; all is well
-    elseif (are_connected_ij) then
-      ! vi lists vj as a neighbour, not not the other way round - mesh inconsistency!
-      call crash('mesh inconsistency: {int_01} lists {int_02} as a neighbour, but not the other way round!', int_01 = vi, int_02 = vj)
-    elseif (are_connected_ji) then
-      ! vj lists vi as a neighbour, not not the other way round - mesh inconsistency!
-      call crash('mesh inconsistency: {int_01} lists {int_02} as a neighbour, but not the other way round!', int_01 = vj, int_02 = vi)
-    else
-      ! Neither vi nor vj lists the other as a neighbour
-      call crash('{int_01} and {int_02} are not connected!', int_01 = vi, int_02 = vj)
-    end if
+    ! Safety - assert that vi and vj are connected both ways
+    call test_mesh_vertices_are_neighbours( mesh, vi, vj, ASSERTION, 'vi and vj are not connected')
 
-    ! Check if p_new actually lies on [vi,vj]
+    ! Safety - assert that p_new lies on the line [vi,vj]
     pa = mesh%V( vi,:)
     pb = mesh%V( vj,:)
-    if (.not. lies_on_line_segment( pa, pb, p_new, mesh%tol_dist)) then
-      call crash('p does not lie on [{int_01}-{int_02}]!', int_01 = vi, int_02 = vj)
-    end if
+    call test_eqv( lies_on_line_segment( pa, pb, p_new, mesh%tol_dist), &
+      .true., ASSERTION, 'p does not lie on line [vi,vj]')
 
-    ! Check if [vi,vj] is actually a border edge
-    if (.not. is_border_edge( mesh, vi, vj)) then
-      call crash('[{int_01}-{int_02}] is not a border edge!', int_01 = vi, int_02 = vj)
-    end if
+    ! Safety - assert that [vi,vj] is a border edge
+    call test_eqv( is_border_edge( mesh, vi, vj), .true., ASSERTION, '[vi,vj] is not a border edge')
+#endif
 
-    ! == All safety checks passes; split the triangle ti adjacent to border
-    !    edge [vi,vj] into two new ones
-    ! =======================================================================
+    ! Split the triangle ti adjacent to borderedge [vi,vj] into two new ones
+    ! ======================================================================
 
     ! DENK DROM
     if (do_debug) call warning('splitting border edge [{int_01}-{int_02}}]', int_01 = vi, int_02 = vj)
@@ -123,9 +104,10 @@ contains
       end if
     end do
 
-    if (ti == 0) then
-      call crash('couldnt find triangle containing {int_01} and {int_02}!', int_01 = vi, int_02 = vj)
-    end if
+#if (DO_ASSERTIONS)
+    ! Safety
+    call test_ge_le( ti, 1, mesh%nTri, ASSERTION, 'couldnt find valid triangle ti containing vi and vj')
+#endif
 
     ! Let ti be spanned by vertices [via,vib,vic], such that via and
     ! vib lie on the border, and vic in the interior. Note: either via = vi
@@ -159,10 +141,14 @@ contains
       end if
     end do
 
+#if (DO_ASSERTIONS)
     ! Safety
-    if (via == 0 .or. vib == 0 .or. vic == 0) call crash('mesh%Tri doesnt make sense!')
-    if (tia == 0 .and. tib == 0) call crash('triangle has only one neighbour!')
-    if (tic > 0) call crash('triangle doesnt appear to be a border triangle!')
+    call test_ge_le( via, 1, mesh%nV, ASSERTION, 'invalid value for via in mesh%Tri')
+    call test_ge_le( vib, 1, mesh%nV, ASSERTION, 'invalid value for vib in mesh%Tri')
+    call test_ge_le( vic, 1, mesh%nV, ASSERTION, 'invalid value for vic in mesh%Tri')
+    call test_neqv( (tia == 0 .and. tib == 0), .true., ASSERTION, 'triangle ti has only one neighbour')
+    call test_eq( tic, 0, ASSERTION, 'triangle ti does not appear to be a border triangle (since it has three neighbours)')
+#endif
 
     ! == V, Tri
 
@@ -180,9 +166,10 @@ contains
     t2 = mesh%nTri
     mesh%Tri( t2,:) = [vik,vib,vic]
 
-    ! DENK DROM
-    if (do_debug) call check_if_triangle_already_exists( mesh, t1)
-    if (do_debug) call check_if_triangle_already_exists( mesh, t2)
+#if (DO_ASSERTIONS)
+    call test_mesh_triangle_doesnt_have_duplicates( mesh, t1, ASSERTION, 'a triangle with the vertices of t1 already exists')
+    call test_mesh_triangle_doesnt_have_duplicates( mesh, t2, ASSERTION, 'a triangle with the vertices of t2 already exists')
+#endif
 
     ! == nC, C
 

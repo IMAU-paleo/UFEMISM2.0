@@ -11,8 +11,8 @@ module assertions_unit_tests_mesh
 
   private
 
-  public :: test_tol_mesh, test_mesh_is_self_consistent, test_mesh_triangles_are_neighbours, &
-            test_mesh_triangle_doesnt_have_duplicates
+  public :: test_tol_mesh, test_mesh_is_self_consistent, test_mesh_vertices_are_neighbours
+  public :: test_mesh_triangles_are_neighbours, test_mesh_triangle_doesnt_have_duplicates
 
 contains
 
@@ -71,6 +71,34 @@ contains
     call process_test_result( test_mode, test_result, message)
 
   end subroutine test_tol_mesh
+
+  !> Test if  vertices vi, vj are neighbours
+  subroutine test_mesh_vertices_are_neighbours( mesh, vi, vj, test_mode, message)
+
+    ! In/output variables
+    type(type_mesh),  intent(in) :: mesh
+    integer,          intent(in) :: vi, vj
+    integer,          intent(in) :: test_mode
+    character(len=*), intent(in) :: message
+
+    ! Local variables
+    logical :: are_connected_ij, are_connected_ji, test_result
+    integer :: ci, cj
+
+    are_connected_ij = .false.
+    do ci = 1, mesh%nC( vi)
+      if (mesh%C( vi,ci) == vj) are_connected_ij = .true.
+    end do
+    are_connected_ji = .false.
+    do cj = 1, mesh%nC( vj)
+      if (mesh%C( vj,cj) == vi) are_connected_ji = .true.
+    end do
+
+    test_result = are_connected_ij .and. are_connected_ij
+
+    call process_test_result( test_mode, test_result, message)
+
+  end subroutine test_mesh_vertices_are_neighbours
 
   !> Test if triangles ti, tj are neighbours
   subroutine test_mesh_triangles_are_neighbours( mesh, ti, tj, test_mode, message)

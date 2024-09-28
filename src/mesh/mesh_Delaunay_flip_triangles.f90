@@ -153,9 +153,6 @@ contains
     ! Determine the local geometry around triangle pair [ti,tj]
     call find_triangle_pair_local_geometry( mesh, ti, tj, via, vib, vic, vid, tia, tib, tja, tjb)
 
-    ! == All safety checks passes; flip the triangle pair ti-tj
-    ! =========================================================
-
     ! DENK DROM
     if (do_debug) call warning('flipping triangles [{int_01}-{int_02}}]', int_01 = ti, int_02 = tj)
 

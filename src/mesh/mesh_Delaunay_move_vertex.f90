@@ -10,8 +10,6 @@ module mesh_Delaunay_move_vertex
 
   implicit none
 
-  logical :: do_debug = .false.
-
   private
 
   public :: move_vertex
