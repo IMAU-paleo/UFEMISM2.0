@@ -2,11 +2,14 @@ module mesh_Delaunay_flip_triangles
 
   ! Iteratively flip triangle pairs until the global Delaunay criterion is satisfied
 
+  use assertions_unit_tests, only: ASSERTION, UNIT_TEST, test_eqv, test_neqv, test_eq, test_neq, &
+    test_gt, test_lt, test_ge, test_le, test_ge_le, test_tol, test_eq_permute, test_tol_mesh, &
+    test_mesh_is_self_consistent, test_mesh_triangles_are_neighbours, test_mesh_triangle_doesnt_have_duplicates
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, warning, crash
   use mesh_types, only: type_mesh
   use mesh_Delaunay_check_Delaunay_criterion, only: are_Delaunay
   use mesh_utilities, only: write_mesh_to_text_file, check_if_triangle_already_exists, &
-    update_triangle_circumcenter, add_triangle_to_refinement_stack_first
+    update_triangle_circumcenter, add_triangle_to_refinement_stack_first, find_triangle_pair_local_geometry
 
   implicit none
 
@@ -22,14 +25,12 @@ contains
     ! Iteratively flip triangle pairs until the local Delaunay
     ! criterion is satisfied everywhere
 
-    IMPLICIT NONE
-
     ! In/output variables:
     type(type_mesh),            intent(inout)     :: mesh
     integer,                    intent(inout)     :: nf
 
     ! Local variables:
-    character(len=256), parameter                 :: routine_name = 'flip_triangles_until_Delaunay'
+    character(len=1024), parameter                :: routine_name = 'flip_triangles_until_Delaunay'
     integer                                       :: ti, tj
     logical                                       :: are_connected_ij, are_connected_ji
     integer                                       :: n
@@ -44,10 +45,11 @@ contains
       tj = mesh%Tri_flip_list( nf,2)
       nf = nf - 1
 
-      ! Safety
-      if (ti == 0 .or. tj == 0) then
-        call crash('found ti=0 in mesh%Tri_flip_list!')
-      end if
+#if (DO_ASSERTIONS)
+      ! Safety - assert that ti and tj are valid triangles
+      call test_ge_le( ti, 1, mesh%nTri, ASSERTION, 'ti should be > 0 and <= mesh%nTri')
+      call test_ge_le( tj, 1, mesh%nTri, ASSERTION, 'tj should be > 0 and <= mesh%nTri')
+#endif
 
       ! Check if these two triangles are still connected (they might have
       ! become disconnected due to an earlier flip operation
@@ -59,7 +61,7 @@ contains
       end do
       if (.not. are_connected_ij .and. .not. are_connected_ij) then
         ! These two triangles are no longer connected
-        CYCLE
+        cycle
       elseif ((are_connected_ij .and. .not. are_connected_ji) .or. (.not. are_connected_ij .and. are_connected_ji)) then
         ! Safety
         call crash('inconsistency in TriC!')
@@ -129,257 +131,27 @@ contains
     integer,                    intent(inout)     :: nf
 
     ! Local variables:
-    character(len=256), parameter                 :: routine_name = 'flip_triangle_pair'
-    logical                                       :: are_connected_ij, are_connected_ji
-    integer                                       :: n, vi, vj, vii
-    logical                                       :: is_in_tj
+    character(len=1024), parameter                :: routine_name = 'flip_triangle_pair'
+    integer                                       :: n
     integer                                       :: via, vib, vic, vid
     integer                                       :: ci, iti
-    integer                                       :: n1, n2, n3
-    integer                                       :: tia, tib, tja, tjb, t1, t2, tii
-    logical                                       :: via_has_ti, via_has_tj
-    logical                                       :: vib_has_ti, vib_has_tj
-    logical                                       :: vic_has_ti, vic_has_tj
-    logical                                       :: vid_has_ti, vid_has_tj
+    integer                                       :: tia, tib, tja, tjb, t1, t2
     integer                                       :: li_min, li_max
     logical                                       :: foundit
 
     ! Add routine to path
     call init_routine( routine_name)
 
-    ! Safety
-    if (ti == 0 .or. tj == 0) then
-      call crash('Found ti=0 in mesh%Tri_flip_list!')
-    end if
+#if (DO_ASSERTIONS)
+    ! Safety - assert that ti and tj are valid triangles
+    call test_ge_le( ti, 1, mesh%nTri, ASSERTION, 'ti should be > 0 and <= mesh%nTri')
+    call test_ge_le( tj, 1, mesh%nTri, ASSERTION, 'tj should be > 0 and <= mesh%nTri')
+    ! Safety - assert that ti and tj are neighbours
+    call test_mesh_triangles_are_neighbours( mesh, ti, tj, ASSERTION, 'ti and tj are not meighbours')
+#endif
 
-    ! Check if these two triangles are connected
-    are_connected_ij = .false.
-    are_connected_ji = .false.
-    do n = 1, 3
-      if (mesh%TriC( ti,n) == tj) are_connected_ij = .true.
-      if (mesh%TriC( tj,n) == ti) are_connected_ji = .true.
-    end do
-    if (.not. are_connected_ij .and. .not. are_connected_ij) then
-      ! These two triangles are not connected
-      call crash('{int_01} and {int_02} are not connected!', int_01 = ti, int_02 = tj)
-    elseif (are_connected_ij .and. .not. are_connected_ji .or. .not. are_connected_ij .and. are_connected_ji) then
-      ! One of them lists the other as a neighbour, but not vice versa
-      call crash('inconsistency in TriC!')
-    end if
-
-    ! Find the two vertices vi and vj that are shared by ti and tj
-
-    vi = 0
-    vj = 0
-
-    do n = 1, 3
-      vii = mesh%Tri( ti,n)
-      is_in_tj = .false.
-      do n2 = 1, 3
-        if (mesh%Tri( tj,n2) == vii) then
-          is_in_tj = .true.
-          exit
-        end if
-      end do
-      if (is_in_tj) then
-        if (vi == 0) then
-          vi = vii
-        else
-          vj = vii
-        end if
-      end if
-    end do
-
-    ! Safety
-    if (vi == 0 .or. vj == 0) then
-      call crash('couldnt find two shared vertices!')
-    end if
-
-    ! Find via,vib,vic,vid (see diagram)
-
-    via = 0
-    vib = 0
-    vic = 0
-    vid = 0
-
-    do n1 = 1, 3
-
-      n2 = n1 + 1
-      if (n2 == 4) n2 = 1
-      n3 = n2 + 1
-      if (n3 == 4) n3 = 1
-
-      if ((mesh%Tri( ti,n1) == vi .and. mesh%Tri( ti,n2) == vj) .or. &
-          (mesh%Tri( ti,n1) == vj .and. mesh%Tri( ti,n2) == vi)) then
-        via = mesh%Tri( ti,n1)
-        vib = mesh%Tri( ti,n2)
-        vic = mesh%Tri( ti,n3)
-      end if
-
-      if ((mesh%Tri( tj,n1) == vi .and. mesh%Tri( tj,n2) == vj) .or. &
-          (mesh%Tri( tj,n1) == vj .and. mesh%Tri( tj,n2) == vi)) then
-        vid = mesh%Tri( tj,n3)
-      end if
-
-    end do
-
-    ! Safety
-    if (via == 0 .or. vib == 0 .or. vic == 0 .or. vid == 0) then
-      call crash('couldnt figure out local geometry!')
-    end if
-    if (via == vib .or. via == vic .or. via == vid .or. &
-                        vib == vic .or. vib == vid .or. &
-                                        vic == vid) then
-      call crash('found duplicate vertices!')
-    end if
-
-    via_has_ti = .false.
-    via_has_tj = .false.
-    do iti = 1, mesh%niTri( via)
-      if     (mesh%iTri( via,iti) == ti) then
-        via_has_ti = .true.
-      elseif (mesh%iTri( via,iti) == tj) then
-        via_has_tj = .true.
-      end if
-    end do
-    if (.not. via_has_ti .or. .not. via_has_tj) then
-      call crash('inconsistent mesh geometry!')
-    end if
-
-    vib_has_ti = .false.
-    vib_has_tj = .false.
-    do iti = 1, mesh%niTri( vib)
-      if     (mesh%iTri( vib,iti) == ti) then
-        vib_has_ti = .true.
-      elseif (mesh%iTri( vib,iti) == tj) then
-        vib_has_tj = .true.
-      end if
-    end do
-    if (.not. vib_has_ti .or. .not. vib_has_tj) then
-      call crash('inconsistent mesh geometry!')
-    end if
-
-    vic_has_ti = .false.
-    vic_has_tj = .false.
-    do iti = 1, mesh%niTri( vic)
-      if     (mesh%iTri( vic,iti) == ti) then
-        vic_has_ti = .true.
-      elseif (mesh%iTri( vic,iti) == tj) then
-        vic_has_tj = .true.
-      end if
-    end do
-    if (.not. vic_has_ti .or. vic_has_tj) then
-      call crash('inconsistent mesh geometry!')
-    end if
-
-    vid_has_ti = .false.
-    vid_has_tj = .false.
-    do iti = 1, mesh%niTri( vid)
-      if     (mesh%iTri( vid,iti) == ti) then
-        vid_has_ti = .true.
-      elseif (mesh%iTri( vid,iti) == tj) then
-        vid_has_tj = .true.
-      end if
-    end do
-    if (vid_has_ti .or. .not. vid_has_tj) then
-      call crash('inconsistent mesh geometry!')
-    end if
-
-    ! Find triangles tia,tib,tja,tjb (see diagram)
-
-    tia = 0
-    do iti = 1, mesh%niTri( vic)
-      tii = mesh%iTri( vic,iti)
-      do n1 = 1, 3
-        n2 = n1 + 1
-        if (n2 == 4) n2 = 1
-        if (mesh%Tri( tii,n1) == vic .and. mesh%Tri( tii,n2) == vib) then
-          tia = tii
-          exit
-        end if
-      end do
-      if (tia > 0) exit
-    end do
-
-    tib = 0
-    do iti = 1, mesh%niTri( via)
-      tii = mesh%iTri( via,iti)
-      do n1 = 1, 3
-        n2 = n1 + 1
-        if (n2 == 4) n2 = 1
-        if (mesh%Tri( tii,n1) == via .and. mesh%Tri( tii,n2) == vic) then
-          tib = tii
-          exit
-        end if
-      end do
-      if (tib > 0) exit
-    end do
-
-    tja = 0
-    do iti = 1, mesh%niTri( vib)
-      tii = mesh%iTri( vib,iti)
-      do n1 = 1, 3
-        n2 = n1 + 1
-        if (n2 == 4) n2 = 1
-        if (mesh%Tri( tii,n1) == vib .and. mesh%Tri( tii,n2) == vid) then
-          tja = tii
-          exit
-        end if
-      end do
-      if (tja > 0) exit
-    end do
-
-    tjb = 0
-    do iti = 1, mesh%niTri( vid)
-      tii = mesh%iTri( vid,iti)
-      do n1 = 1, 3
-        n2 = n1 + 1
-        if (n2 == 4) n2 = 1
-        if (mesh%Tri( tii,n1) == vid .and. mesh%Tri( tii,n2) == via) then
-          tjb = tii
-          exit
-        end if
-      end do
-      if (tjb > 0) exit
-    end do
-
-    ! Safety
-    if (tia > 0 .and. tib > 0) then
-      if (tia == tib) then
-        call write_mesh_to_text_file( mesh, 'crashmesh.txt')
-        call crash('found duplicate triangles!')
-      end if
-    end if
-    if (tia > 0 .and. tja > 0) then
-      if (tia == tja) then
-        call write_mesh_to_text_file( mesh, 'crashmesh.txt')
-        call crash('found duplicate triangles!')
-      end if
-    end if
-    if (tia > 0 .and. tjb > 0) then
-      if (tia == tjb) then
-        call write_mesh_to_text_file( mesh, 'crashmesh.txt')
-        call crash('found duplicate triangles!')
-      end if
-    end if
-    if (tib > 0 .and. tja > 0) then
-      if (tib == tja) then
-        call write_mesh_to_text_file( mesh, 'crashmesh.txt')
-        call crash('found duplicate triangles!')
-      end if
-    end if
-    if (tib > 0 .and. tjb > 0) then
-      if (tib == tjb) then
-        call write_mesh_to_text_file( mesh, 'crashmesh.txt')
-        call crash('found duplicate triangles!')
-      end if
-    end if
-    if (tja > 0 .and. tjb > 0) then
-      if (tja == tjb) then
-        call write_mesh_to_text_file( mesh, 'crashmesh.txt')
-        call crash('found duplicate triangles!')
-      end if
-    end if
+    ! Determine the local geometry around triangle pair [ti,tj]
+    call find_triangle_pair_local_geometry( mesh, ti, tj, via, vib, vic, vid, tia, tib, tja, tjb)
 
     ! == All safety checks passes; flip the triangle pair ti-tj
     ! =========================================================
@@ -397,9 +169,10 @@ contains
     t2 = tj
     mesh%Tri( t2,:) = [vib, vic, vid]
 
-    ! DENK DROM
-    if (do_debug) call check_if_triangle_already_exists( mesh, t1)
-    if (do_debug) call check_if_triangle_already_exists( mesh, t2)
+#if (DO_ASSERTIONS)
+    call test_mesh_triangle_doesnt_have_duplicates( mesh, t1, ASSERTION, 'a triangle with the vertices of t1 already exists')
+    call test_mesh_triangle_doesnt_have_duplicates( mesh, t2, ASSERTION, 'a triangle with the vertices of t2 already exists')
+#endif
 
     ! == nC, C
 

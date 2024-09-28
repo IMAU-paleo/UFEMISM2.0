@@ -11,7 +11,8 @@ module assertions_unit_tests_mesh
 
   private
 
-  public :: test_tol_mesh, test_mesh_is_self_consistent, test_mesh_triangles_are_neighbours
+  public :: test_tol_mesh, test_mesh_is_self_consistent, test_mesh_triangles_are_neighbours, &
+            test_mesh_triangle_doesnt_have_duplicates
 
 contains
 
@@ -96,6 +97,38 @@ contains
     call process_test_result( test_mode, test_result, message)
 
   end subroutine test_mesh_triangles_are_neighbours
+
+  !> Test if a triangle doesn't have any duplicates
+  subroutine test_mesh_triangle_doesnt_have_duplicates( mesh, ti, test_mode, message)
+
+    ! In/output variables:
+    type(type_mesh),  intent(in) :: mesh
+    integer,          intent(in) :: ti
+    integer,          intent(in) :: test_mode
+    character(len=*), intent(in) :: message
+
+    ! Local variables:
+    integer :: via, vib, vic, tj
+    logical :: test_result
+
+    via = mesh%Tri( ti,1)
+    vib = mesh%Tri( ti,2)
+    vic = mesh%Tri( ti,3)
+
+    test_result = .true.
+
+    do tj = 1, mesh%nTri
+      if (tj == ti) cycle
+      if (any( via == mesh%Tri( tj,:)) .and. &
+          any( vib == mesh%Tri( tj,:)) .and. &
+          any( vic == mesh%Tri( tj,:))) then
+        test_result = .false.
+      end if
+    end do
+
+    call process_test_result( test_mode, test_result, message)
+
+  end subroutine test_mesh_triangle_doesnt_have_duplicates
 
   !> Test if a mesh is self-consistent
   subroutine test_mesh_is_self_consistent( mesh, test_mode, message)

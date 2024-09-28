@@ -5,6 +5,9 @@ MODULE mesh_utilities
 ! ===== Preamble =====
 ! ====================
 
+  use assertions_unit_tests, only: ASSERTION, UNIT_TEST, test_eqv, test_neqv, test_eq, test_neq, &
+    test_gt, test_lt, test_ge, test_le, test_ge_le, test_tol, test_eq_permute, test_tol_mesh, &
+    test_mesh_is_self_consistent, test_mesh_triangles_are_neighbours, test_mesh_triangle_doesnt_have_duplicates
   USE mpi
   USE precisions                                             , ONLY: dp
   USE mpi_basic                                              , ONLY: par, cerr, ierr, recv_status, sync
@@ -771,8 +774,12 @@ CONTAINS
     real(dp),        intent(out) :: alpha
 
     ! Local variables:
-    integer                :: ti
-    real(dp), dimension(2) :: p,q,r
+    character(len=1024), parameter :: routine_name = 'calc_smallest_internal_angle_mesh'
+    integer                        :: ti
+    real(dp), dimension(2)         :: p,q,r
+
+    ! Add routine to path
+    call init_routine( routine_name)
 
     alpha = 0._dp
     do ti = 1, mesh%nTri
@@ -781,6 +788,9 @@ CONTAINS
       r = mesh%V( mesh%Tri( ti,3),:)
       alpha = max( alpha, smallest_triangle_angle( p, q, r))
     end do
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
 
   end subroutine calc_smallest_internal_angle_mesh
 
@@ -794,8 +804,12 @@ CONTAINS
     real(dp),        intent(out) :: mean_skewness
 
     ! Local variables:
-    integer                :: ti
-    real(dp), dimension(2) :: p,q,r
+    character(len=1024), parameter :: routine_name = 'calc_mean_skewness'
+    integer                        :: ti
+    real(dp), dimension(2)         :: p,q,r
+
+    ! Add routine to path
+    call init_routine( routine_name)
 
     mean_skewness = 0._dp
     do ti = 1, mesh%nTri
@@ -805,7 +819,291 @@ CONTAINS
       mean_skewness = mean_skewness + equiangular_skewness( p, q, r) / real( mesh%nTri,dp)
     end do
 
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
   end subroutine calc_mean_skewness
+
+  !> Determine the local geometry around a pair of neighbouring triangles
+  subroutine find_triangle_pair_local_geometry( mesh, ti, tj, via, vib, vic, vid, tia, tib, tja, tjb)
+    !
+    !   \ /           \ /           \ /
+    ! - -o----------- vic ---------- o- -
+    !   / \           / \           / \
+    !      \  tib    /   \   tia   /
+    !       \       /     \       /
+    !        \     /       \     /
+    !         \   /   ti    \   /
+    !          \ /           \ /
+    !      - - via -------- vib - -
+    !          / \           / \
+    !         /   \         /   \
+    !        /     \  tj   /     \
+    !       /       \     /       \
+    !      /   tjb   \   /   tja   \
+    !   \ /           \ /           \ /
+    ! - -o----------- vid ---------- o- -
+    !   / \           / \           / \
+
+    ! In/output variables:
+    type(type_mesh), intent(in ) :: mesh
+    integer,         intent(in ) :: ti, tj
+    integer,         intent(out) :: via, vib, vic, vid, tia, tib, tja, tjb
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'find_triangle_pair_local_geometry'
+    integer                        :: vi, vj, n, vii, n1, n2, n3, iti, tii
+    logical                        :: is_in_tj
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Find the two vertices vi and vj that are shared by ti and tj
+
+    vi = 0
+    vj = 0
+
+    do n = 1, 3
+      vii = mesh%Tri( ti,n)
+      is_in_tj = .false.
+      do n2 = 1, 3
+        if (mesh%Tri( tj,n2) == vii) then
+          is_in_tj = .true.
+          exit
+        end if
+      end do
+      if (is_in_tj) then
+        if (vi == 0) then
+          vi = vii
+        else
+          vj = vii
+        end if
+      end if
+    end do
+
+    ! Safety
+#if (DO_ASSERTIONS)
+    call test_ge_le( vi, 1, mesh%nV, ASSERTION, 'invalid value for vi')
+    call test_ge_le( vj, 1, mesh%nV, ASSERTION, 'invalid value for vj')
+#endif
+
+    ! Find via,vib,vic,vid (see diagram)
+
+    via = 0
+    vib = 0
+    vic = 0
+    vid = 0
+
+    do n1 = 1, 3
+
+      n2 = n1 + 1
+      if (n2 == 4) n2 = 1
+      n3 = n2 + 1
+      if (n3 == 4) n3 = 1
+
+      if ((mesh%Tri( ti,n1) == vi .and. mesh%Tri( ti,n2) == vj) .or. &
+          (mesh%Tri( ti,n1) == vj .and. mesh%Tri( ti,n2) == vi)) then
+        via = mesh%Tri( ti,n1)
+        vib = mesh%Tri( ti,n2)
+        vic = mesh%Tri( ti,n3)
+      end if
+
+      if ((mesh%Tri( tj,n1) == vi .and. mesh%Tri( tj,n2) == vj) .or. &
+          (mesh%Tri( tj,n1) == vj .and. mesh%Tri( tj,n2) == vi)) then
+        vid = mesh%Tri( tj,n3)
+      end if
+
+    end do
+
+    ! Find triangles tia,tib,tja,tjb
+
+    tia = 0
+    do iti = 1, mesh%niTri( vic)
+      tii = mesh%iTri( vic,iti)
+      do n1 = 1, 3
+        n2 = n1 + 1
+        if (n2 == 4) n2 = 1
+        if (mesh%Tri( tii,n1) == vic .and. mesh%Tri( tii,n2) == vib) then
+          tia = tii
+          exit
+        end if
+      end do
+      if (tia > 0) exit
+    end do
+
+    tib = 0
+    do iti = 1, mesh%niTri( via)
+      tii = mesh%iTri( via,iti)
+      do n1 = 1, 3
+        n2 = n1 + 1
+        if (n2 == 4) n2 = 1
+        if (mesh%Tri( tii,n1) == via .and. mesh%Tri( tii,n2) == vic) then
+          tib = tii
+          exit
+        end if
+      end do
+      if (tib > 0) exit
+    end do
+
+    tja = 0
+    do iti = 1, mesh%niTri( vib)
+      tii = mesh%iTri( vib,iti)
+      do n1 = 1, 3
+        n2 = n1 + 1
+        if (n2 == 4) n2 = 1
+        if (mesh%Tri( tii,n1) == vib .and. mesh%Tri( tii,n2) == vid) then
+          tja = tii
+          exit
+        end if
+      end do
+      if (tja > 0) exit
+    end do
+
+    tjb = 0
+    do iti = 1, mesh%niTri( vid)
+      tii = mesh%iTri( vid,iti)
+      do n1 = 1, 3
+        n2 = n1 + 1
+        if (n2 == 4) n2 = 1
+        if (mesh%Tri( tii,n1) == vid .and. mesh%Tri( tii,n2) == via) then
+          tjb = tii
+          exit
+        end if
+      end do
+      if (tjb > 0) exit
+    end do
+
+#if (DO_ASSERTIONS)
+    call assert_triangle_pair_local_geometry( mesh, ti, tj, via, vib, vic, vid, tia, tib, tja, tjb)
+#endif
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine find_triangle_pair_local_geometry
+
+  !> Assert that the local geometry we found around a pair of neighbouring triangles is valid
+  subroutine assert_triangle_pair_local_geometry( mesh, ti, tj, via, vib, vic, vid, tia, tib, tja, tjb)
+    !
+    !   \ /           \ /           \ /
+    ! - -o----------- vic ---------- o- -
+    !   / \           / \           / \
+    !      \  tib    /   \   tia   /
+    !       \       /     \       /
+    !        \     /       \     /
+    !         \   /   ti    \   /
+    !          \ /           \ /
+    !      - - via -------- vib - -
+    !          / \           / \
+    !         /   \         /   \
+    !        /     \  tj   /     \
+    !       /       \     /       \
+    !      /   tjb   \   /   tja   \
+    !   \ /           \ /           \ /
+    ! - -o----------- vid ---------- o- -
+    !   / \           / \           / \
+
+    ! In/output variables:
+    type(type_mesh), intent(in ) :: mesh
+    integer,         intent(in ) :: ti, tj
+    integer,         intent(in ) :: via, vib, vic, vid, tia, tib, tja, tjb
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'assert_triangle_pair_local_geometry'
+    integer                        :: iti
+    logical                        :: via_has_ti, via_has_tj
+    logical                        :: vib_has_ti, vib_has_tj
+    logical                        :: vic_has_ti, vic_has_tj
+    logical                        :: vid_has_ti, vid_has_tj
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    call test_ge_le( via, 1, mesh%nV, ASSERTION, 'invalid value for via')
+    call test_ge_le( vib, 1, mesh%nV, ASSERTION, 'invalid value for vib')
+    call test_ge_le( vic, 1, mesh%nV, ASSERTION, 'invalid value for vic')
+    call test_ge_le( vid, 1, mesh%nV, ASSERTION, 'invalid value for vid')
+
+    call test_neq( via, vib, ASSERTION, 'via and vib are identical')
+    call test_neq( via, vic, ASSERTION, 'via and vic are identical')
+    call test_neq( via, vid, ASSERTION, 'via and vid are identical')
+    call test_neq( vib, vic, ASSERTION, 'vib and vic are identical')
+    call test_neq( vib, vid, ASSERTION, 'vib and vid are identical')
+    call test_neq( vic, vid, ASSERTION, 'vic and vid are identical')
+
+    via_has_ti = .false.
+    via_has_tj = .false.
+    do iti = 1, mesh%niTri( via)
+      if     (mesh%iTri( via,iti) == ti) then
+        via_has_ti = .true.
+      elseif (mesh%iTri( via,iti) == tj) then
+        via_has_tj = .true.
+      end if
+    end do
+
+    vib_has_ti = .false.
+    vib_has_tj = .false.
+    do iti = 1, mesh%niTri( vib)
+      if     (mesh%iTri( vib,iti) == ti) then
+        vib_has_ti = .true.
+      elseif (mesh%iTri( vib,iti) == tj) then
+        vib_has_tj = .true.
+      end if
+    end do
+
+    vic_has_ti = .false.
+    vic_has_tj = .false.
+    do iti = 1, mesh%niTri( vic)
+      if     (mesh%iTri( vic,iti) == ti) then
+        vic_has_ti = .true.
+      elseif (mesh%iTri( vic,iti) == tj) then
+        vic_has_tj = .true.
+      end if
+    end do
+
+    vid_has_ti = .false.
+    vid_has_tj = .false.
+    do iti = 1, mesh%niTri( vid)
+      if     (mesh%iTri( vid,iti) == ti) then
+        vid_has_ti = .true.
+      elseif (mesh%iTri( vid,iti) == tj) then
+        vid_has_tj = .true.
+      end if
+    end do
+
+    call test_eqv( via_has_ti, .true. , ASSERTION, 'via doesnt list ti as an iTriangle')
+    call test_eqv( via_has_tj, .true. , ASSERTION, 'via doesnt list tj as an iTriangle')
+    call test_eqv( vib_has_ti, .true. , ASSERTION, 'vib doesnt list ti as an iTriangle')
+    call test_eqv( vib_has_tj, .true. , ASSERTION, 'vib doesnt list tj as an iTriangle')
+    call test_eqv( vic_has_ti, .true. , ASSERTION, 'vic doesnt list ti as an iTriangle')
+    call test_eqv( vic_has_tj, .false., ASSERTION, 'vic lists tj as an iTriangle')
+    call test_eqv( vid_has_ti, .false., ASSERTION, 'vid lists ti as an iTriangle')
+    call test_eqv( vid_has_tj, .true. , ASSERTION, 'vid doesnt list tj as an iTriangle')
+
+    ! Safety
+    if (tia > 0 .and. tib > 0) then
+      call test_neq( tia, tib, ASSERTION, 'tia and tib are identical')
+    end if
+    if (tia > 0 .and. tja > 0) then
+      call test_neq( tia, tja, ASSERTION, 'tia and tja are identical')
+    end if
+    if (tia > 0 .and. tjb > 0) then
+      call test_neq( tia, tjb, ASSERTION, 'tia and tjb are identical')
+    end if
+    if (tib > 0 .and. tja > 0) then
+      call test_neq( tib, tja, ASSERTION, 'tib and tja are identical')
+    end if
+    if (tib > 0 .and. tjb > 0) then
+      call test_neq( tib, tjb, ASSERTION, 'tib and tjb are identical')
+    end if
+    if (tja > 0 .and. tjb > 0) then
+      call test_neq( tja, tjb, ASSERTION, 'tja and tjb are identical')
+    end if
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine assert_triangle_pair_local_geometry
 
 ! == Tools for handling the triangle refinement stack
 
@@ -2768,19 +3066,7 @@ CONTAINS
     TYPE(type_mesh),          INTENT(IN)          :: mesh
     INTEGER,                  INTENT(IN)          :: ti
 
-    ! Local variables:
-    INTEGER                                       :: via, vib, vic, tj
-
-    via = mesh%Tri( ti,1)
-    vib = mesh%Tri( ti,2)
-    vic = mesh%Tri( ti,3)
-
-    DO tj = 1, mesh%nTri
-      IF (tj == ti) CYCLE
-      IF (ANY( via == mesh%Tri( tj,:)) .AND. ANY( vib == mesh%Tri( tj,:)) .AND. ANY( vic == mesh%Tri( tj,:))) THEN
-        CALL crash('duplicate triangles detected at ti = {int_01}, tj = {int_02}', int_01 = ti, int_02 = tj)
-      END IF
-    END DO
+    call test_mesh_triangle_doesnt_have_duplicates( mesh, ti, ASSERTION, 'mesh triangle has duplicates')
 
   END SUBROUTINE check_if_triangle_already_exists
 
