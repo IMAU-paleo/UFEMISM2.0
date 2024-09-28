@@ -11,7 +11,7 @@ module assertions_unit_tests_mesh
 
   private
 
-  public :: test_tol_mesh, test_mesh_is_self_consistent
+  public :: test_tol_mesh, test_mesh_is_self_consistent, test_mesh_triangles_are_neighbours
 
 contains
 
@@ -70,6 +70,32 @@ contains
     call process_test_result( test_mode, test_result, message)
 
   end subroutine test_tol_mesh
+
+  !> Test if triangles ti, tj are neighbours
+  subroutine test_mesh_triangles_are_neighbours( mesh, ti, tj, test_mode, message)
+
+    ! In/output variables
+    type(type_mesh),  intent(in) :: mesh
+    integer,          intent(in) :: ti, tj
+    integer,          intent(in) :: test_mode
+    character(len=*), intent(in) :: message
+
+    ! Local variables
+    logical :: are_connected_ij, are_connected_ji, test_result
+    integer :: n
+
+    are_connected_ij = .false.
+    are_connected_ji = .false.
+    do n = 1, 3
+      if (mesh%TriC( ti,n) == tj) are_connected_ij = .true.
+      if (mesh%TriC( tj,n) == ti) are_connected_ji = .true.
+    end do
+
+    test_result = are_connected_ij .and. are_connected_ij
+
+    call process_test_result( test_mode, test_result, message)
+
+  end subroutine test_mesh_triangles_are_neighbours
 
   !> Test if a mesh is self-consistent
   subroutine test_mesh_is_self_consistent( mesh, test_mode, message)

@@ -27,7 +27,7 @@ module assertions_unit_tests
 
   public :: ASSERTION, UNIT_TEST
   public :: test_eqv, test_neqv, test_eq, test_neq, test_gt, test_lt, test_ge, test_le, test_ge_le, test_tol
-  public :: test_eq_permute, test_tol_mesh, test_mesh_is_self_consistent
+  public :: test_eq_permute, test_tol_mesh, test_mesh_is_self_consistent, test_mesh_triangles_are_neighbours
 
   ! Generic interfaces to specific test routines
   ! ============================================
