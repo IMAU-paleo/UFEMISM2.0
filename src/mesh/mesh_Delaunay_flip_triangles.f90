@@ -167,8 +167,11 @@ contains
     mesh%Tri( t2,:) = [vib, vic, vid]
 
 #if (DO_ASSERTIONS)
-    call test_mesh_triangle_doesnt_have_duplicates( mesh, t1, ASSERTION, 'a triangle with the vertices of t1 already exists')
-    call test_mesh_triangle_doesnt_have_duplicates( mesh, t2, ASSERTION, 'a triangle with the vertices of t2 already exists')
+    ! Safety - check if everything went alright and we didnt create any duplicate triangles
+    call test_mesh_triangle_doesnt_have_duplicates( mesh, t1, ASSERTION, &
+      'a triangle with the vertices of t1 already exists')
+    call test_mesh_triangle_doesnt_have_duplicates( mesh, t2, ASSERTION, &
+      'a triangle with the vertices of t2 already exists')
 #endif
 
     ! == nC, C

@@ -54,16 +54,16 @@ contains
     !      - - via -- vik -- vib - -
 
     ! In/output variables:
-    type(type_mesh),            intent(inout)     :: mesh
-    integer,                    intent(in)        :: vi, vj
-    real(dp), dimension(2),     intent(in)        :: p_new
+    type(type_mesh),        intent(inout) :: mesh
+    integer,                intent(in)    :: vi, vj
+    real(dp), dimension(2), intent(in)    :: p_new
 
     ! Local variables:
-    character(len=256), parameter                 :: routine_name = 'split_border_edge'
-    integer                                       :: ci, iti, n, n1, n2, n3, nf
-    real(dp), dimension(2)                        :: pa, pb
-    integer                                       :: t1, t2, ti, tia, tib, tic, tii, via, vib, vic, vik
-    integer                                       :: li_min, li_max
+    character(len=256), parameter :: routine_name = 'split_border_edge'
+    integer                       :: ci, iti, n, n1, n2, n3, nf
+    real(dp), dimension(2)        :: pa, pb
+    integer                       :: t1, t2, ti, tia, tib, tic, tii, via, vib, vic, vik
+    integer                       :: li_min, li_max
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -167,8 +167,11 @@ contains
     mesh%Tri( t2,:) = [vik,vib,vic]
 
 #if (DO_ASSERTIONS)
-    call test_mesh_triangle_doesnt_have_duplicates( mesh, t1, ASSERTION, 'a triangle with the vertices of t1 already exists')
-    call test_mesh_triangle_doesnt_have_duplicates( mesh, t2, ASSERTION, 'a triangle with the vertices of t2 already exists')
+    ! Safety - check if everything went alright and we didnt create any duplicate triangles
+    call test_mesh_triangle_doesnt_have_duplicates( mesh, t1, ASSERTION, &
+      'a triangle with the vertices of t1 already exists')
+    call test_mesh_triangle_doesnt_have_duplicates( mesh, t2, ASSERTION, &
+      'a triangle with the vertices of t2 already exists')
 #endif
 
     ! == nC, C
