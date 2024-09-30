@@ -1,4 +1,4 @@
-module mesh_Delaunay_flip_triangles
+module flip_triangles
 
   ! Iteratively flip triangle pairs until the global Delaunay criterion is satisfied
 
@@ -7,7 +7,7 @@ module mesh_Delaunay_flip_triangles
     test_mesh_is_self_consistent, test_mesh_triangles_are_neighbours, test_mesh_triangle_doesnt_have_duplicates
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, warning, crash
   use mesh_types, only: type_mesh
-  use mesh_Delaunay_check_Delaunay_criterion, only: are_Delaunay
+  use check_Delaunay_criterion, only: are_Delaunay
   use mesh_utilities, only: write_mesh_to_text_file, check_if_triangle_already_exists, &
     update_triangle_circumcenter, add_triangle_to_refinement_stack_first, find_triangle_pair_local_geometry
 
@@ -351,4 +351,4 @@ contains
 
   end subroutine flip_triangle_pair
 
-end module mesh_Delaunay_flip_triangles
+end module flip_triangles

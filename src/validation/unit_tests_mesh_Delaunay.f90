@@ -10,10 +10,10 @@ module unit_tests_mesh_Delaunay
   use mesh_types, only: type_mesh
   use mesh_memory, only: allocate_mesh_primary
   use mesh_dummy_meshes, only: initialise_dummy_mesh_5
-  use mesh_Delaunay_split_border_edge, only: split_border_edge
-  use mesh_Delaunay_split_edge, only: split_edge
-  use mesh_Delaunay_split_triangle, only: split_triangle
-  use mesh_Delaunay_move_vertex, only: move_vertex
+  use split_border_edges, only: split_border_edge
+  use split_edges, only: split_edge
+  use split_triangles, only: split_triangle
+  use move_vertices, only: move_vertex
 
   implicit none
 

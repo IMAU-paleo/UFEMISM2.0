@@ -1,11 +1,11 @@
-module mesh_Delaunay_move_vertex
+module move_vertices
 
   ! Move a vertex to a new position and update the Delaunay triangulation accordingly.
 
   use precisions, only: dp
   use control_resources_and_error_messaging, only: init_routine, finalise_routine
   use mesh_types, only: type_mesh
-  use mesh_Delaunay_flip_triangles, only: flip_triangles_until_Delaunay
+  use flip_triangles, only: flip_triangles_until_Delaunay
   use mesh_utilities, only: update_triangle_circumcenter
 
   implicit none
@@ -62,4 +62,4 @@ contains
 
   end subroutine move_vertex
 
-end module mesh_Delaunay_move_vertex
+end module move_vertices
