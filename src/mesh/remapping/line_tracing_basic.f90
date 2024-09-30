@@ -1,4 +1,4 @@
-module mesh_remapping_trace_line_basic
+module line_tracing_basic
 
   ! Some very basic functionality for the line tracing algorithms
 
@@ -107,4 +107,4 @@ contains
 
   end subroutine extend_single_row_memory
 
-end module mesh_remapping_trace_line_basic
+end module line_tracing_basic

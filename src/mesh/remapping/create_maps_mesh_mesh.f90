@@ -1,4 +1,4 @@
-module mesh_remapping_create_map_mesh_mesh
+module create_maps_mesh_mesh
 
   ! Create remapping objects between two meshes.
 
@@ -14,8 +14,8 @@ module mesh_remapping_create_map_mesh_mesh
   use math_utilities, only: triangle_area
   use mesh_utilities, only: calc_Voronoi_cell, find_containing_triangle, find_containing_vertex
   use petsc_basic, only: mat_CSR2petsc, mat_petsc2CSR, MatConvert
-  use mesh_remapping_trace_line_triangles, only: trace_line_tri
-  use mesh_remapping_trace_line_Voronoi_cells, only: trace_line_Vor
+  use line_tracing_triangles, only: trace_line_tri
+  use line_tracing_Voronoi, only: trace_line_Vor
 
   implicit none
 
@@ -840,4 +840,4 @@ contains
 
   end subroutine integrate_Voronoi_cells_through_triangles
 
-end module mesh_remapping_create_map_mesh_mesh
+end module create_maps_mesh_mesh
