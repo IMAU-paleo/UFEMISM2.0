@@ -2,9 +2,8 @@ module check_Delaunay_criterion
 
   ! Check if a pair of triangles satisfies the (local) Delaunay criterion
 
-  use assertions_unit_tests, only: ASSERTION, UNIT_TEST, test_eqv, test_neqv, test_eq, test_neq, &
-    test_gt, test_lt, test_ge, test_le, test_ge_le, test_tol, test_eq_permute, test_tol_mesh, &
-    test_mesh_is_self_consistent, test_mesh_triangles_are_neighbours
+  use tests_main
+  use assertions_basic
   use precisions, only: dp
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, warning, crash
   use mesh_types, only: type_mesh
@@ -52,10 +51,10 @@ contains
 
 #if (DO_ASSERTIONS)
     ! Safety - assert that ti and tj are valid triangles
-    call test_ge_le( ti, 1, mesh%nTri, ASSERTION, 'ti should be > 0 and <= mesh%nTri')
-    call test_ge_le( tj, 1, mesh%nTri, ASSERTION, 'tj should be > 0 and <= mesh%nTri')
+    call assert( test_ge_le( ti, 1, mesh%nTri), 'ti should be > 0 and <= mesh%nTri')
+    call assert( test_ge_le( tj, 1, mesh%nTri), 'tj should be > 0 and <= mesh%nTri')
     ! Safety - assert that ti and tj are neighbours
-    call test_mesh_triangles_are_neighbours( mesh, ti, tj, ASSERTION, 'ti and tj are not meighbours')
+    call assert( test_mesh_triangles_are_neighbours( mesh, ti, tj), 'ti and tj are not meighbours')
 #endif
 
     ! Determine the local geometry around triangle pair [ti,tj]

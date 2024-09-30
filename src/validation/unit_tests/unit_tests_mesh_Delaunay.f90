@@ -2,11 +2,13 @@ module unit_tests_mesh_Delaunay
 
   ! Unit tests for mesh functions - Delaunay triangulation.
 
+  use tests_main
+  use assertions_basic
+  use unit_tests_basic
   use precisions, only: dp
   use parameters
   use control_resources_and_error_messaging, only: warning, crash, happy, init_routine, finalise_routine, colour_string
   use model_configuration, only: C
-  use assertions_unit_tests
   use mesh_types, only: type_mesh
   use mesh_memory, only: allocate_mesh_primary
   use mesh_dummy_meshes, only: initialise_dummy_mesh_5
@@ -80,14 +82,14 @@ contains
     call split_triangle( mesh, 1, p_new)
 
     ! Check if there is indeed a new vertex in the location we wanted
-    call test_eq ( mesh%nV    , 6    , UNIT_TEST, trim(test_name)//'/new_vertex')
-    call test_tol( mesh%V(6,:), p_new, 1E-10_dp, UNIT_TEST, trim(test_name)//'/new_vertex_location')
+    call unit_test( test_eq ( mesh%nV, 6), trim(test_name)//'/new_vertex')
+    call unit_test( test_tol( mesh%V(6,:), p_new, 1E-10_dp), trim(test_name)//'/new_vertex_location')
 
     ! Check if there is indeed one new triangle
-    call test_eq ( mesh%nTri  , 5    , UNIT_TEST, trim(test_name)//'/new_triangle')
+    call unit_test( test_eq ( mesh%nTri, 5), trim(test_name)//'/new_triangle')
 
     ! Check if the mesh is still self-consistent
-    call test_mesh_is_self_consistent( mesh, UNIT_TEST, trim(test_name)//'/mesh_self_consistency')
+    call unit_test( test_mesh_is_self_consistent( mesh), trim(test_name)//'/mesh_self_consistency')
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)
@@ -124,14 +126,14 @@ contains
     call split_edge( mesh, 1, 5, p_new)
 
     ! Check if there is indeed a new vertex in the location we wanted
-    call test_eq ( mesh%nV    , 6    , UNIT_TEST, trim(test_name)//'/new_vertex')
-    call test_tol( mesh%V(6,:), p_new, 1E-10_dp, UNIT_TEST, trim(test_name)//'/new_vertex_location')
+    call unit_test( test_eq ( mesh%nV, 6), trim(test_name)//'/new_vertex')
+    call unit_test( test_tol( mesh%V(6,:), p_new, 1E-10_dp), trim(test_name)//'/new_vertex_location')
 
     ! Check if there are indeed two new triangles
-    call test_eq ( mesh%nTri  , 6    , UNIT_TEST, trim(test_name)//'/new_triangles')
+    call unit_test( test_eq ( mesh%nTri, 6), trim(test_name)//'/new_triangles')
 
     ! Check if the mesh is still self-consistent
-    call test_mesh_is_self_consistent( mesh, UNIT_TEST, trim(test_name)//'/mesh_self_consistency')
+    call unit_test( test_mesh_is_self_consistent( mesh), trim(test_name)//'/mesh_self_consistency')
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)
@@ -168,14 +170,14 @@ contains
     call split_border_edge( mesh, 1, 2, p_new)
 
     ! Check if there is indeed a new vertex in the location we wanted
-    call test_eq ( mesh%nV    , 6    , UNIT_TEST, trim(test_name)//'/new_vertex')
-    call test_tol( mesh%V(6,:), p_new, 1E-10_dp, UNIT_TEST, trim(test_name)//'/new_vertex_location')
+    call unit_test( test_eq ( mesh%nV, 6), trim(test_name)//'/new_vertex')
+    call unit_test( test_tol( mesh%V(6,:), p_new, 1E-10_dp), trim(test_name)//'/new_vertex_location')
 
     ! Check if there is indeed one new triangle
-    call test_eq ( mesh%nTri  , 5    , UNIT_TEST, trim(test_name)//'/new_triangle')
+    call unit_test( test_eq ( mesh%nTri, 5), trim(test_name)//'/new_triangle')
 
     ! Check if the mesh is still self-consistent
-    call test_mesh_is_self_consistent( mesh, UNIT_TEST, trim(test_name)//'/mesh_self_consistency')
+    call unit_test( test_mesh_is_self_consistent( mesh), trim(test_name)//'/mesh_self_consistency')
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)
@@ -212,10 +214,10 @@ contains
     call move_vertex( mesh, 5, p_new)
 
     ! Check if the vertex is in the correct location
-    call test_tol( mesh%V(5,:), p_new, 1E-10_dp, UNIT_TEST, trim(test_name)//'/new_vertex_location')
+    call unit_test( test_tol( mesh%V(5,:), p_new, 1E-10_dp), trim(test_name)//'/new_vertex_location')
 
     ! Check if the mesh is still self-consistent
-    call test_mesh_is_self_consistent( mesh, UNIT_TEST, trim(test_name)//'/mesh_self_consistency')
+    call unit_test( test_mesh_is_self_consistent( mesh), trim(test_name)//'/mesh_self_consistency')
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)

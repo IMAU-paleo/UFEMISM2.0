@@ -5,9 +5,8 @@ MODULE mesh_utilities
 ! ===== Preamble =====
 ! ====================
 
-  use assertions_unit_tests, only: ASSERTION, UNIT_TEST, test_eqv, test_neqv, test_eq, test_neq, &
-    test_gt, test_lt, test_ge, test_le, test_ge_le, test_tol, test_eq_permute, test_tol_mesh, &
-    test_mesh_is_self_consistent, test_mesh_triangles_are_neighbours, test_mesh_triangle_doesnt_have_duplicates
+  use tests_main
+  use assertions_basic
   USE mpi
   USE precisions                                             , ONLY: dp
   USE mpi_basic                                              , ONLY: par, cerr, ierr, recv_status, sync
@@ -883,8 +882,8 @@ CONTAINS
 
     ! Safety
 #if (DO_ASSERTIONS)
-    call test_ge_le( vi, 1, mesh%nV, ASSERTION, 'invalid value for vi')
-    call test_ge_le( vj, 1, mesh%nV, ASSERTION, 'invalid value for vj')
+    call assert( test_ge_le( vi, 1, mesh%nV), 'invalid value for vi')
+    call assert( test_ge_le( vj, 1, mesh%nV), 'invalid value for vj')
 #endif
 
     ! Find via,vib,vic,vid (see diagram)
@@ -1019,17 +1018,17 @@ CONTAINS
     ! Add routine to path
     call init_routine( routine_name)
 
-    call test_ge_le( via, 1, mesh%nV, ASSERTION, 'invalid value for via')
-    call test_ge_le( vib, 1, mesh%nV, ASSERTION, 'invalid value for vib')
-    call test_ge_le( vic, 1, mesh%nV, ASSERTION, 'invalid value for vic')
-    call test_ge_le( vid, 1, mesh%nV, ASSERTION, 'invalid value for vid')
+    call assert( test_ge_le( via, 1, mesh%nV), 'invalid value for via')
+    call assert( test_ge_le( vib, 1, mesh%nV), 'invalid value for vib')
+    call assert( test_ge_le( vic, 1, mesh%nV), 'invalid value for vic')
+    call assert( test_ge_le( vid, 1, mesh%nV), 'invalid value for vid')
 
-    call test_neq( via, vib, ASSERTION, 'via and vib are identical')
-    call test_neq( via, vic, ASSERTION, 'via and vic are identical')
-    call test_neq( via, vid, ASSERTION, 'via and vid are identical')
-    call test_neq( vib, vic, ASSERTION, 'vib and vic are identical')
-    call test_neq( vib, vid, ASSERTION, 'vib and vid are identical')
-    call test_neq( vic, vid, ASSERTION, 'vic and vid are identical')
+    call assert( test_neq( via, vib), 'via and vib are identical')
+    call assert( test_neq( via, vic), 'via and vic are identical')
+    call assert( test_neq( via, vid), 'via and vid are identical')
+    call assert( test_neq( vib, vic), 'vib and vic are identical')
+    call assert( test_neq( vib, vid), 'vib and vid are identical')
+    call assert( test_neq( vic, vid), 'vic and vid are identical')
 
     via_has_ti = .false.
     via_has_tj = .false.
@@ -1071,33 +1070,33 @@ CONTAINS
       end if
     end do
 
-    call test_eqv( via_has_ti, .true. , ASSERTION, 'via doesnt list ti as an iTriangle')
-    call test_eqv( via_has_tj, .true. , ASSERTION, 'via doesnt list tj as an iTriangle')
-    call test_eqv( vib_has_ti, .true. , ASSERTION, 'vib doesnt list ti as an iTriangle')
-    call test_eqv( vib_has_tj, .true. , ASSERTION, 'vib doesnt list tj as an iTriangle')
-    call test_eqv( vic_has_ti, .true. , ASSERTION, 'vic doesnt list ti as an iTriangle')
-    call test_eqv( vic_has_tj, .false., ASSERTION, 'vic lists tj as an iTriangle')
-    call test_eqv( vid_has_ti, .false., ASSERTION, 'vid lists ti as an iTriangle')
-    call test_eqv( vid_has_tj, .true. , ASSERTION, 'vid doesnt list tj as an iTriangle')
+    call assert( test_eqv( via_has_ti, .true. ), 'via doesnt list ti as an iTriangle')
+    call assert( test_eqv( via_has_tj, .true. ), 'via doesnt list tj as an iTriangle')
+    call assert( test_eqv( vib_has_ti, .true. ), 'vib doesnt list ti as an iTriangle')
+    call assert( test_eqv( vib_has_tj, .true. ), 'vib doesnt list tj as an iTriangle')
+    call assert( test_eqv( vic_has_ti, .true. ), 'vic doesnt list ti as an iTriangle')
+    call assert( test_eqv( vic_has_tj, .false.), 'vic lists tj as an iTriangle')
+    call assert( test_eqv( vid_has_ti, .false.), 'vid lists ti as an iTriangle')
+    call assert( test_eqv( vid_has_tj, .true. ), 'vid doesnt list tj as an iTriangle')
 
     ! Safety
     if (tia > 0 .and. tib > 0) then
-      call test_neq( tia, tib, ASSERTION, 'tia and tib are identical')
+      call assert( test_neq( tia, tib), 'tia and tib are identical')
     end if
     if (tia > 0 .and. tja > 0) then
-      call test_neq( tia, tja, ASSERTION, 'tia and tja are identical')
+      call assert( test_neq( tia, tja), 'tia and tja are identical')
     end if
     if (tia > 0 .and. tjb > 0) then
-      call test_neq( tia, tjb, ASSERTION, 'tia and tjb are identical')
+      call assert( test_neq( tia, tjb), 'tia and tjb are identical')
     end if
     if (tib > 0 .and. tja > 0) then
-      call test_neq( tib, tja, ASSERTION, 'tib and tja are identical')
+      call assert( test_neq( tib, tja), 'tib and tja are identical')
     end if
     if (tib > 0 .and. tjb > 0) then
-      call test_neq( tib, tjb, ASSERTION, 'tib and tjb are identical')
+      call assert( test_neq( tib, tjb), 'tib and tjb are identical')
     end if
     if (tja > 0 .and. tjb > 0) then
-      call test_neq( tja, tjb, ASSERTION, 'tja and tjb are identical')
+      call assert( test_neq( tja, tjb), 'tja and tjb are identical')
     end if
 
     ! Finalise routine path
@@ -3056,18 +3055,5 @@ CONTAINS
     END DO
 
   END SUBROUTINE check_mesh
-
-  SUBROUTINE check_if_triangle_already_exists( mesh, ti)
-    ! Check if any duplicate triangles exist
-
-    IMPLICIT NONE
-
-    ! In/output variables:
-    TYPE(type_mesh),          INTENT(IN)          :: mesh
-    INTEGER,                  INTENT(IN)          :: ti
-
-    call test_mesh_triangle_doesnt_have_duplicates( mesh, ti, ASSERTION, 'mesh triangle has duplicates')
-
-  END SUBROUTINE check_if_triangle_already_exists
 
 END MODULE mesh_utilities

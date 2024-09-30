@@ -101,8 +101,6 @@ UFEMISM_source = \
   basic/control_resources_and_error_messaging.f90 \
   basic/model_configuration.f90 \
   \
-  validation/basic_tests/assertions_unit_tests_output.f90 \
-  validation/basic_tests/assertions_unit_tests_basic.f90 \
   validation/basic_tests/tests_logical.f90 \
   validation/basic_tests/tests_int.f90 \
   validation/basic_tests/tests_dp.f90 \
@@ -110,7 +108,8 @@ UFEMISM_source = \
   validation/basic_tests/tests_grid.f90 \
   validation/basic_tests/tests_grid_lonlat.f90 \
   validation/basic_tests/tests_mesh.f90 \
-  validation/basic_tests/assertions_unit_tests.f90 \
+  validation/basic_tests/tests_main.f90 \
+  validation/basic_tests/assertions_basic.f90 \
   \
   basic/mpi_distributed_memory.f90 \
   basic/math_utilities.f90 \
@@ -211,6 +210,7 @@ UFEMISM_source = \
   main/main_regional_output.f90 \
   main/UFEMISM_main_model.f90 \
   \
+  validation/unit_tests/unit_tests_basic.f90 \
   validation/unit_tests/unit_tests_mpi.f90 \
   validation/unit_tests/unit_tests_petsc.f90 \
   validation/unit_tests/unit_tests_mesh_Delaunay.f90 \

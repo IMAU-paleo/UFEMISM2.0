@@ -2,16 +2,13 @@ module split_edges
 
   ! Split an edge of the mesh, and update the Delaunay triangulation accordingly.
 
-  use assertions_unit_tests, only: ASSERTION, UNIT_TEST, test_eqv, test_neqv, test_eq, test_neq, &
-    test_gt, test_lt, test_ge, test_le, test_ge_le, test_tol, test_eq_permute, test_tol_mesh, &
-    test_mesh_is_self_consistent, test_mesh_vertices_are_neighbours, test_mesh_triangles_are_neighbours, &
-    test_mesh_triangle_doesnt_have_duplicates
+  use tests_main
+  use assertions_basic
   use precisions, only: dp
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, warning, crash
   use mesh_types, only: type_mesh
   use math_utilities, only: lies_on_line_segment
-  use mesh_utilities, only: is_border_edge, check_if_triangle_already_exists, update_triangle_circumcenter, &
-    add_triangle_to_refinement_stack_last
+  use mesh_utilities, only: is_border_edge, update_triangle_circumcenter, add_triangle_to_refinement_stack_last
   use split_border_edges, only: split_border_edge
   use flip_triangles, only: flip_triangles_until_Delaunay
 
@@ -86,17 +83,16 @@ contains
 
 #if (DO_ASSERTIONS)
     ! Safety - assert that vi and vj are valid vertices
-    call test_ge_le( vi, 1, mesh%nV, ASSERTION, 'invalid value for vi')
-    call test_ge_le( vj, 1, mesh%nV, ASSERTION, 'invalid value for vj')
+    call assert( test_ge_le( vi, 1, mesh%nV), 'invalid value for vi')
+    call assert( test_ge_le( vj, 1, mesh%nV), 'invalid value for vj')
 
     ! Safety - assert that vi and vj are connected both ways
-    call test_mesh_vertices_are_neighbours( mesh, vi, vj, ASSERTION, 'vi and vj are not connected')
+    call assert( test_mesh_vertices_are_neighbours( mesh, vi, vj), 'vi and vj are not connected')
 
     ! Safety - assert that p_new lies on the line [vi,vj]
     pa = mesh%V( vi,:)
     pb = mesh%V( vj,:)
-    call test_eqv( lies_on_line_segment( pa, pb, p_new, mesh%tol_dist), &
-      .true., ASSERTION, 'p does not lie on line [vi,vj]')
+    call assert( lies_on_line_segment( pa, pb, p_new, mesh%tol_dist), 'p does not lie on line [vi,vj]')
 #endif
 
     ! If [vi,vj] is a border edge, split that instead
@@ -136,8 +132,8 @@ contains
 
 #if (DO_ASSERTIONS)
     ! Safety
-    call test_ge_le( tit, 1, mesh%nTri, ASSERTION, 'couldnt find valid triangle tit adjacent to [vi,vj]')
-    call test_ge_le( tib, 1, mesh%nTri, ASSERTION, 'couldnt find valid triangle tib adjacent to [vi,vj]')
+    call assert( test_ge_le( tit, 1, mesh%nTri), 'couldnt find valid triangle tit adjacent to [vi,vj]')
+    call assert( test_ge_le( tib, 1, mesh%nTri), 'couldnt find valid triangle tib adjacent to [vi,vj]')
 #endif
 
     ! Find the vertices vit and vib that are on the opposite corners of tit and
@@ -161,8 +157,8 @@ contains
 
 #if (DO_ASSERTIONS)
     ! Safety
-    call test_ge_le( vit, 1, mesh%nV, ASSERTION, 'couldnt find valid vertex vit opposite [vi,vj]')
-    call test_ge_le( vib, 1, mesh%nV, ASSERTION, 'couldnt find valid vertex vib opposite [vi,vj]')
+    call assert( test_ge_le( vit, 1, mesh%nV), 'couldnt find valid vertex vit opposite [vi,vj]')
+    call assert( test_ge_le( vib, 1, mesh%nV), 'couldnt find valid vertex vib opposite [vi,vj]')
 #endif
 
     ! Find the triangles titl, titr, tibl, and tibr that are adjacent to tit
@@ -215,14 +211,10 @@ contains
 
 #if (DO_ASSERTIONS)
     ! Safety - check if everything went alright and we didnt create any duplicate triangles
-    call test_mesh_triangle_doesnt_have_duplicates( mesh, t1, ASSERTION, &
-      'a triangle with the vertices of t1 already exists')
-    call test_mesh_triangle_doesnt_have_duplicates( mesh, t2, ASSERTION, &
-      'a triangle with the vertices of t2 already exists')
-    call test_mesh_triangle_doesnt_have_duplicates( mesh, t3, ASSERTION, &
-      'a triangle with the vertices of t3 already exists')
-    call test_mesh_triangle_doesnt_have_duplicates( mesh, t4, ASSERTION, &
-      'a triangle with the vertices of t4 already exists')
+    call assert( test_mesh_triangle_doesnt_have_duplicates( mesh, t1), 'a triangle with the vertices of t1 already exists')
+    call assert( test_mesh_triangle_doesnt_have_duplicates( mesh, t2), 'a triangle with the vertices of t2 already exists')
+    call assert( test_mesh_triangle_doesnt_have_duplicates( mesh, t3), 'a triangle with the vertices of t3 already exists')
+    call assert( test_mesh_triangle_doesnt_have_duplicates( mesh, t4), 'a triangle with the vertices of t4 already exists')
 #endif
 
     ! == nC, C

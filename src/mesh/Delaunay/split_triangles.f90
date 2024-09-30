@@ -2,17 +2,14 @@ module split_triangles
 
   ! Split a triangle of the mesh, and update the Delaunay triangulation accordingly.
 
-  use mpi_basic, only: par, sync
-  use assertions_unit_tests, only: ASSERTION, UNIT_TEST, test_eqv, test_neqv, test_eq, test_neq, &
-    test_gt, test_lt, test_ge, test_le, test_ge_le, test_tol, test_eq_permute, test_tol_mesh, &
-    test_mesh_is_self_consistent, test_mesh_vertices_are_neighbours, test_mesh_triangles_are_neighbours, &
-    test_mesh_triangle_doesnt_have_duplicates
+  use tests_main
+  use assertions_basic
   use precisions, only: dp
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, warning, crash
   use mesh_types, only: type_mesh
   use math_utilities, only: lies_on_line_segment
   use mesh_utilities, only: encroaches_upon_any, find_containing_triangle, encroaches_upon, is_border_edge, &
-    check_if_triangle_already_exists, update_triangle_circumcenter, add_triangle_to_refinement_stack_last
+    update_triangle_circumcenter, add_triangle_to_refinement_stack_last
   use split_edges, only: split_edge
   use split_border_edges, only: split_border_edge
   use flip_triangles, only: flip_triangles_until_Delaunay
@@ -154,12 +151,9 @@ contains
 
 #if (DO_ASSERTIONS)
     ! Safety - check if everything went alright and we didnt create any duplicate triangles
-    call test_mesh_triangle_doesnt_have_duplicates( mesh, t1, ASSERTION, &
-      'a triangle with the vertices of t1 already exists')
-    call test_mesh_triangle_doesnt_have_duplicates( mesh, t2, ASSERTION, &
-      'a triangle with the vertices of t2 already exists')
-    call test_mesh_triangle_doesnt_have_duplicates( mesh, t3, ASSERTION, &
-      'a triangle with the vertices of t3 already exists')
+    call assert( test_mesh_triangle_doesnt_have_duplicates( mesh, t1), 'a triangle with the vertices of t1 already exists')
+    call assert( test_mesh_triangle_doesnt_have_duplicates( mesh, t2), 'a triangle with the vertices of t2 already exists')
+    call assert( test_mesh_triangle_doesnt_have_duplicates( mesh, t3), 'a triangle with the vertices of t3 already exists')
 #endif
 
     ! == nC, C
@@ -365,7 +359,7 @@ contains
 
 #if (DO_ASSERTIONS)
     ! Safety - assert that p_new lies outside the x domain, but inside the y domain
-    call test_ge_le( p_new(2), mesh%ymin, mesh%ymax, ASSERTION, 'p_new lies way outside mesh domain')
+    call assert( test_ge_le( p_new(2), mesh%ymin, mesh%ymax), 'p_new lies way outside mesh domain')
 #endif
 
     ! Find the two vertices vi,vj of the border edge that must be split.
@@ -401,7 +395,7 @@ contains
 
 #if (DO_ASSERTIONS)
     ! Safety - assert that p_new lies outside the x domain, but inside the y domain
-    call test_ge_le( p_new(2), mesh%ymin, mesh%ymax, ASSERTION, 'p_new lies way outside mesh domain')
+    call assert( test_ge_le( p_new(2), mesh%ymin, mesh%ymax), 'p_new lies way outside mesh domain')
 #endif
 
     ! Find the two vertices vi,vj of the border edge that must be split.
@@ -437,7 +431,7 @@ contains
 
 #if (DO_ASSERTIONS)
     ! Safety - assert that p_new lies outside the y domain, but inside the x domain
-    call test_ge_le( p_new(1), mesh%xmin, mesh%xmax, ASSERTION, 'p_new lies way outside mesh domain')
+    call assert( test_ge_le( p_new(1), mesh%xmin, mesh%xmax), 'p_new lies way outside mesh domain')
 #endif
 
     ! Find the two vertices vi,vj of the border edge that must be split.
@@ -473,7 +467,7 @@ contains
 
 #if (DO_ASSERTIONS)
     ! Safety - assert that p_new lies outside the y domain, but inside the x domain
-    call test_ge_le( p_new(1), mesh%xmin, mesh%xmax, ASSERTION, 'p_new lies way outside mesh domain')
+    call assert( test_ge_le( p_new(1), mesh%xmin, mesh%xmax), 'p_new lies way outside mesh domain')
 #endif
 
     ! Find the two vertices vi,vj of the border edge that must be split.
@@ -530,12 +524,12 @@ contains
     tic = mesh%TriC( ti,3)
 
 #if (DO_ASSERTIONS)
-    call test_neq( via, vib, ASSERTION, 'via and vib are identical')
-    call test_neq( via, vic, ASSERTION, 'via and vic are identical')
-    call test_neq( vib, vic, ASSERTION, 'vib and vic are identical')
-    call test_neq( tia, tib, ASSERTION, 'tia and tib are identical')
-    call test_neq( tia, tic, ASSERTION, 'tia and tic are identical')
-    call test_neq( tib, tic, ASSERTION, 'tib and tic are identical')
+    call assert( via /= vib, 'via and vib are identical')
+    call assert( via /= vic, 'via and vic are identical')
+    call assert( vib /= vic, 'vib and vic are identical')
+    call assert( tia /= tib, 'tia and tib are identical')
+    call assert( tia /= tic, 'tia and tic are identical')
+    call assert( tib /= tic, 'tib and tic are identical')
 #endif
 
     ! Finalise routine path
