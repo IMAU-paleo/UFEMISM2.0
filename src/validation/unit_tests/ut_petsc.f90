@@ -1,4 +1,4 @@
-module unit_tests_petsc
+module ut_petsc
 
   ! Unit tests for different PETSc routines
   !
@@ -16,7 +16,7 @@ module unit_tests_petsc
     multiply_petsc_matrix_with_vector_1D, MatDestroy, mat_petsc2CSR
   use tests_main
   use assertions_basic
-  use unit_tests_basic
+  use ut_basic
 
   implicit none
 
@@ -370,4 +370,4 @@ contains
 
   end subroutine test_matrix_PETSc_CSR_conversion
 
-end module unit_tests_petsc
+end module ut_petsc

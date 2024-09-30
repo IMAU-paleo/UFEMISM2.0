@@ -1,10 +1,10 @@
-module unit_tests_mesh_refinement
+module ut_mesh_refinement
 
   ! Unit tests for mesh functions.
 
   use tests_main
   use assertions_basic
-  use unit_tests_basic
+  use ut_basic
   use precisions, only: dp
   use parameters
   use control_resources_and_error_messaging, only: warning, crash, happy, init_routine, finalise_routine, colour_string
@@ -679,4 +679,4 @@ contains
 
   end subroutine test_contiguous_domains
 
-end module unit_tests_mesh_refinement
+end module ut_mesh_refinement

@@ -210,24 +210,22 @@ UFEMISM_source = \
   main/main_regional_output.f90 \
   main/UFEMISM_main_model.f90 \
   \
-  validation/unit_tests/unit_tests_basic.f90 \
-  validation/unit_tests/unit_tests_mpi.f90 \
-  validation/unit_tests/unit_tests_petsc.f90 \
-  validation/unit_tests/unit_tests_mesh_Delaunay.f90 \
-  validation/unit_tests/unit_tests_mesh_refinement.f90 \
-  validation/unit_tests/unit_tests_mesh.f90 \
-  validation/unit_tests/unit_tests_netcdf.f90 \
-  validation/unit_tests/unit_tests_ice.f90 \
+  validation/unit_tests/ut_basic.f90 \
+  validation/unit_tests/ut_mpi.f90 \
+  validation/unit_tests/ut_petsc.f90 \
+  validation/unit_tests/ut_mesh_Delaunay.f90 \
+  validation/unit_tests/ut_mesh_refinement.f90 \
+  validation/unit_tests/ut_mesh.f90 \
   validation/unit_tests/unit_tests.f90 \
   \
-  validation/component_tests/component_tests_create_test_meshes.f90 \
-  validation/component_tests/component_tests_discretisation_mapping_derivatives.f90 \
-  validation/component_tests/component_tests_discretisation.f90 \
-  validation/component_tests/component_tests_remapping_basic.f90 \
-  validation/component_tests/component_tests_remapping_grid_to_mesh.f90 \
-  validation/component_tests/component_tests_remapping_mesh_to_grid.f90 \
-  validation/component_tests/component_tests_remapping_mesh_to_mesh.f90 \
-  validation/component_tests/component_tests_remapping.f90 \
+  validation/component_tests/ct_create_test_meshes.f90 \
+  validation/component_tests/ct_discretisation_mapping_derivatives.f90 \
+  validation/component_tests/ct_discretisation.f90 \
+  validation/component_tests/ct_remapping_basic.f90 \
+  validation/component_tests/ct_remapping_grid_to_mesh.f90 \
+  validation/component_tests/ct_remapping_mesh_to_grid.f90 \
+  validation/component_tests/ct_remapping_mesh_to_mesh.f90 \
+  validation/component_tests/ct_remapping.f90 \
   validation/component_tests/component_tests.f90 \
   \
   main/UFEMISM_program.f90

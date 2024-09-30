@@ -1,10 +1,10 @@
-module unit_tests_mpi
+module ut_mpi
 
   ! Unit tests for different MPI routines
 
   use tests_main
   use assertions_basic
-  use unit_tests_basic
+  use ut_basic
   use mpi
   use precisions, only: dp
   use mpi_basic, only: par, cerr, ierr, recv_status, sync
@@ -764,4 +764,4 @@ contains
 
   end subroutine test_distribute_from_master_dp_2D
 
-end module unit_tests_mpi
+end module ut_mpi

@@ -1,4 +1,4 @@
-module component_tests_discretisation
+module ct_discretisation
 
   ! Test everything related to discretisation
 
@@ -7,7 +7,7 @@ module component_tests_discretisation
   use precisions, only: dp
   use mpi_basic, only: par
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, colour_string
-  use component_tests_discretisation_mapping_derivatives, only: run_all_map_deriv_tests
+  use ct_discretisation_mapping_derivatives, only: run_all_map_deriv_tests
 
   implicit none
 
@@ -77,4 +77,4 @@ contains
 
   end subroutine create_discretisation_component_tests_output_folder
 
-end module component_tests_discretisation
+end module ct_discretisation

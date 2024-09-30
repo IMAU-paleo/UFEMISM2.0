@@ -1,4 +1,4 @@
-module component_tests_remapping_basic
+module ct_remapping_basic
 
   ! Test everything related to remapping - some basic utilities
 
@@ -81,4 +81,4 @@ contains
 
   end function test_function_Halfar
 
-end module component_tests_remapping_basic
+end module ct_remapping_basic

@@ -1,4 +1,4 @@
-module component_tests_create_test_meshes
+module ct_create_test_meshes
 
   ! Create the suite of test meshes for the component tests.
 
@@ -524,4 +524,4 @@ contains
 
   end subroutine add_filename_to_list_of_filenames
 
-end module component_tests_create_test_meshes
+end module ct_create_test_meshes

@@ -1,4 +1,4 @@
-module component_tests_discretisation_mapping_derivatives
+module ct_discretisation_mapping_derivatives
 
   ! Test the mesh matrix operators for mapping and derivatives
 
@@ -678,4 +678,4 @@ contains
 
   end function test_function_periodic
 
-end module component_tests_discretisation_mapping_derivatives
+end module ct_discretisation_mapping_derivatives

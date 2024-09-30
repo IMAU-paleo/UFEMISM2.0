@@ -1,10 +1,10 @@
-module unit_tests_mesh
+module ut_mesh
 
   ! Unit tests for mesh functions.
 
   use control_resources_and_error_messaging, only: init_routine, finalise_routine
-  use unit_tests_mesh_Delaunay, only: test_Delaunay
-  use unit_tests_mesh_refinement, only: test_refinement
+  use ut_mesh_Delaunay, only: test_Delaunay
+  use ut_mesh_refinement, only: test_refinement
 
   implicit none
 
@@ -40,4 +40,4 @@ contains
 
   end subroutine unit_tests_mesh_main
 
-end module unit_tests_mesh
+end module ut_mesh
