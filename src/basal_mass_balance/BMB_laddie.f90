@@ -46,31 +46,35 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! Define filename of BMB output from LADDIE 
-    filename_BMB_laddie_output      = TRIM(C%fixed_output_dir) // '/laddie_output/output_BMB.nc'
+    IF (time > C%start_time_of_run) THEN
 
-    ! Run LADDIE
-    IF (par%master) THEN
-      ! Different commands are needed to run laddie on different systems. local_mac or slurm_HPC (the latter is used for snellius)
-      IF (C%choice_BMB_laddie_system == 'local_mac') THEN
-        CALL system('cd ' // TRIM(C%dir_BMB_laddie_model) // '; conda activate laddie ; python3 runladdie.py ' // TRIM(C%filename_BMB_laddie_configname) // '; conda deactivate')
-      ELSEIF (C%choice_BMB_laddie_system == 'slurm_HPC') THEN
-        CALL system('cd ' // TRIM(C%dir_BMB_laddie_model) // '; srun --ntasks=1 --exact --overlap --cpu-bind=cores python3 runladdie.py ' // TRIM(C%filename_BMB_laddie_configname))
-      ELSE
-        CALL crash('C%BMB_laddie_system not recognized, should be "local_mac" or "slurm_HPC".')
+      ! Define filename of BMB output from LADDIE 
+      filename_BMB_laddie_output      = TRIM(C%fixed_output_dir) // '/laddie_output/output_BMB.nc'
+
+      ! Run LADDIE
+      IF (par%master) THEN
+        ! Different commands are needed to run laddie on different systems. local_mac or slurm_HPC (the latter is used for snellius)
+        IF (C%choice_BMB_laddie_system == 'local_mac') THEN
+          CALL system('cd ' // TRIM(C%dir_BMB_laddie_model) // '; conda activate laddie ; python3 runladdie.py ' // TRIM(C%filename_BMB_laddie_configname) // '; conda deactivate')
+        ELSEIF (C%choice_BMB_laddie_system == 'slurm_HPC') THEN
+          CALL system('cd ' // TRIM(C%dir_BMB_laddie_model) // '; srun --ntasks=1 --exact --overlap --cpu-bind=cores python3 runladdie.py ' // TRIM(C%filename_BMB_laddie_configname))
+        ELSE
+          CALL crash('C%BMB_laddie_system not recognized, should be "local_mac" or "slurm_HPC".')
+        END IF
+      END IF 
+
+      ! Other cores wait for master core to finish
+      CALL sync
+
+      ! Let UFEMISM sleep until LADDIE is finished
+      CALL wait_for_laddie_to_finish( filename_laddieready, found_laddie_file)
+
+      ! If laddieready is found, read in BMB data from LADDIE
+      IF (found_laddie_file) THEN
+        CALL read_field_from_file_2D( filename_BMB_laddie_output, 'BMBext', mesh, BMB%BMB_shelf)
       END IF
-    END IF 
 
-    ! Other cores wait for master core to finish
-    CALL sync
-
-    ! Let UFEMISM sleep until LADDIE is finished
-    CALL wait_for_laddie_to_finish( filename_laddieready, found_laddie_file)
-
-    ! If laddieready is found, read in BMB data from LADDIE
-    IF (found_laddie_file) THEN
-      CALL read_field_from_file_2D( filename_BMB_laddie_output, 'BMBext', mesh, BMB%BMB_shelf)
-    END IF
+    END IF ! (time > C%start_time_of_run)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
