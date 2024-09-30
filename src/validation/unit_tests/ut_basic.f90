@@ -1,4 +1,4 @@
-module unit_tests_basic
+module ut_basic
 
   use mpi_basic, only: par, sync
   use control_resources_and_error_messaging, only: crash, init_routine, finalise_routine, colour_string
@@ -57,4 +57,4 @@ contains
 
   end subroutine unit_test
 
-end module unit_tests_basic
+end module ut_basic

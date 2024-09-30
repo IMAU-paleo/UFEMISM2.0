@@ -1,4 +1,4 @@
-module component_tests_remapping
+module ct_remapping
 
   ! Test everything related to remapping
 
@@ -6,9 +6,9 @@ module component_tests_remapping
   use model_configuration, only: C
   use mpi_basic, only: par
   use control_resources_and_error_messaging, only: init_routine, finalise_routine
-  use component_tests_remapping_grid_to_mesh, only: run_all_grid_to_mesh_remapping_tests
-  use component_tests_remapping_mesh_to_grid, only: run_all_mesh_to_grid_remapping_tests
-  use component_tests_remapping_mesh_to_mesh, only: run_all_mesh_to_mesh_remapping_tests
+  use ct_remapping_grid_to_mesh, only: run_all_grid_to_mesh_remapping_tests
+  use ct_remapping_mesh_to_grid, only: run_all_mesh_to_grid_remapping_tests
+  use ct_remapping_mesh_to_mesh, only: run_all_mesh_to_mesh_remapping_tests
 
   implicit none
 
@@ -81,4 +81,4 @@ contains
 
   end subroutine create_remapping_component_tests_output_folder
 
-end module component_tests_remapping
+end module ct_remapping

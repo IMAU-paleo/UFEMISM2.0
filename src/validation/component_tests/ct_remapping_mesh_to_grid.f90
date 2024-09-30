@@ -1,4 +1,4 @@
-module component_tests_remapping_mesh_to_grid
+module ct_remapping_mesh_to_grid
 
   ! Test everything related to remapping
 
@@ -18,7 +18,7 @@ module component_tests_remapping_mesh_to_grid
   use analytical_solutions, only: Halfar_dome
   use netcdf_output, only: setup_mesh_in_netcdf_file, setup_xy_grid_in_netcdf_file, add_field_mesh_dp_2D_notime, &
     write_to_field_multopt_mesh_dp_2D_notime, add_field_grid_dp_2D_notime, write_to_field_multopt_grid_dp_2D_notime
-  use component_tests_remapping_basic, only: calc_test_function_on_grid, calc_test_function_on_mesh
+  use ct_remapping_basic, only: calc_test_function_on_grid, calc_test_function_on_mesh
 
   implicit none
 
@@ -170,4 +170,4 @@ contains
 
   end subroutine run_mesh_to_grid_remapping_tests_on_mesh_grid_combo
 
-end module component_tests_remapping_mesh_to_grid
+end module ct_remapping_mesh_to_grid

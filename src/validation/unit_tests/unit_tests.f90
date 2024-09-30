@@ -4,13 +4,13 @@ module unit_tests
 
   use tests_main
   use assertions_basic
-  use unit_tests_basic
+  use ut_basic
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash, colour_string
   use mpi_basic, only: par, sync
   use model_configuration, only: C
-  use unit_tests_mpi, only: unit_tests_mpi_distributed_memory_main
-  use unit_tests_petsc, only: unit_tests_petsc_main
-  use unit_tests_mesh, only: unit_tests_mesh_main
+  use ut_mpi, only: unit_tests_mpi_distributed_memory_main
+  use ut_petsc, only: unit_tests_petsc_main
+  use ut_mesh, only: unit_tests_mesh_main
 
   implicit none
 

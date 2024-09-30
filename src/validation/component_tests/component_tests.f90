@@ -7,9 +7,9 @@ module component_tests
   use mpi_basic, only: par, cerr, ierr, recv_status, sync
   use control_resources_and_error_messaging, only: warning, crash, happy, init_routine, finalise_routine, colour_string
   use model_configuration, only: C
-  use component_tests_create_test_meshes, only: create_all_test_meshes_and_grids
-  use component_tests_discretisation, only: run_all_discretisation_component_tests
-  use component_tests_remapping, only: run_all_remapping_component_tests
+  use ct_create_test_meshes, only: create_all_test_meshes_and_grids
+  use ct_discretisation, only: run_all_discretisation_component_tests
+  use ct_remapping, only: run_all_remapping_component_tests
 
   implicit none
 

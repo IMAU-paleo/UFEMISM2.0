@@ -1,10 +1,10 @@
-module unit_tests_mesh_Delaunay
+module ut_mesh_Delaunay
 
   ! Unit tests for mesh functions - Delaunay triangulation.
 
   use tests_main
   use assertions_basic
-  use unit_tests_basic
+  use ut_basic
   use precisions, only: dp
   use parameters
   use control_resources_and_error_messaging, only: warning, crash, happy, init_routine, finalise_routine, colour_string
@@ -224,4 +224,4 @@ contains
 
   end subroutine test_move_vertex
 
-end module unit_tests_mesh_Delaunay
+end module ut_mesh_Delaunay
