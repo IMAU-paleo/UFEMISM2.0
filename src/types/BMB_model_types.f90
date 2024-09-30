@@ -6,6 +6,7 @@ MODULE BMB_model_types
 ! ====================
 
   USE precisions                                             , ONLY: dp
+  USE laddie_model_types                                     , ONLY: type_laddie_model
 
   IMPLICIT NONE
 
@@ -29,6 +30,9 @@ MODULE BMB_model_types
 
     ! Timestepping
     REAL(dp)                                :: t_next
+
+    ! LADDIE
+    TYPE(type_laddie)                       :: laddie
 
   END TYPE type_BMB_model
 
