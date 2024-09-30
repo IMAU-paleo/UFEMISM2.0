@@ -1,8 +1,7 @@
 module tests_CSR
 
-  ! The assertions/unit tests for CSR-type matrices.
+  ! Basic tests for CSR-type matrices.
 
-  use assertions_unit_tests_basic, only: ASSERTION, UNIT_TEST, process_test_result
   use precisions, only: dp
   use CSR_sparse_matrix_type, only: type_sparse_matrix_CSR_dp
 
@@ -10,43 +9,37 @@ module tests_CSR
 
 contains
 
-  subroutine test_tol_CSR( a, b, tol, test_mode, message)
-    ! In/output variables:
-    type(type_sparse_matrix_CSR_dp), intent(in   ) :: a, b
-    real(dp),                        intent(in   ) :: tol
-    integer,                         intent(in   ) :: test_mode
-    character(len=*),                intent(in   ) :: message
-    ! Local variables:
-    logical :: test_result
+  pure function test_tol_CSR( a, b, tol) result( res)
+    type(type_sparse_matrix_CSR_dp), intent(in) :: a, b
+    real(dp),                        intent(in) :: tol
+    logical :: res
 
-    test_result = .true.
+    res = .true.
 
-    test_result = test_result .and. a%m     == b%m
-    test_result = test_result .and. a%m_loc == b%m_loc
-    test_result = test_result .and. a%n     == b%n
-    test_result = test_result .and. a%n_loc == b%n_loc
-    test_result = test_result .and. a%nnz   == b%nnz
+    res = res .and. a%m     == b%m
+    res = res .and. a%m_loc == b%m_loc
+    res = res .and. a%n     == b%n
+    res = res .and. a%n_loc == b%n_loc
+    res = res .and. a%nnz   == b%nnz
 
     if (size(a%ptr) == size(b%ptr)) then
-      test_result = test_result .and. all(a%ptr == b%ptr)
+      res = res .and. all(a%ptr == b%ptr)
     else
-      test_result = .false.
+      res = .false.
     end if
 
     if (size(a%ptr) == size(b%ptr)) then
-      test_result = test_result .and. all(a%ind == b%ind)
+      res = res .and. all(a%ind == b%ind)
     else
-      test_result = .false.
+      res = .false.
     end if
 
     if (size(a%val) == size(b%val)) then
-      test_result = test_result .and. all(a%val >= b%val - tol) .and. all(a%val <= b%val + tol)
+      res = res .and. all(a%val >= b%val - tol) .and. all(a%val <= b%val + tol)
     else
-      test_result = .false.
+      res = .false.
     end if
 
-    call process_test_result( test_mode, test_result, message)
-
-  end subroutine test_tol_CSR
+  end function test_tol_CSR
 
 end module tests_CSR
