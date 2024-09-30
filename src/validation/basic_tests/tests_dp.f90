@@ -1,8 +1,7 @@
 module tests_dp
 
-  ! The assertions/unit tests for double precision values.
+  ! Basic tests for double precision values.
 
-  use assertions_unit_tests_basic, only: ASSERTION, UNIT_TEST, process_test_result
   use precisions, only: dp
 
   implicit none
@@ -13,132 +12,92 @@ contains
   ! ===============
 
   !> Test if a == b
-  subroutine test_eq_dp_0D( a, b, test_mode, message)
+  pure function test_eq_dp_0D( a, b) result( res)
     ! In/output variables:
-    real(dp),         intent(in   ) :: a
-    real(dp),         intent(in   ) :: b
-    integer,          intent(in   ) :: test_mode
-    character(len=*), intent(in   ) :: message
-    ! Local variables:
-    logical :: test_result
+    real(dp), intent(in) :: a
+    real(dp), intent(in) :: b
+    logical :: res
 
-    test_result = a == b
+    res = a == b
 
-    call process_test_result( test_mode, test_result, message)
-
-  end subroutine test_eq_dp_0D
+  end function test_eq_dp_0D
 
   !> Test if a /= b
-  subroutine test_neq_dp_0D( a, b, test_mode, message)
+  pure function test_neq_dp_0D( a, b) result( res)
     ! In/output variables:
-    real(dp),         intent(in   ) :: a
-    real(dp),         intent(in   ) :: b
-    integer,          intent(in   ) :: test_mode
-    character(len=*), intent(in   ) :: message
-    ! Local variables:
-    logical :: test_result
+    real(dp), intent(in) :: a
+    real(dp), intent(in) :: b
+    logical :: res
 
-    test_result = a /= b
+    res = a /= b
 
-    call process_test_result( test_mode, test_result, message)
-
-  end subroutine test_neq_dp_0D
+  end function test_neq_dp_0D
 
   !> Test if a > b
-  subroutine test_gt_dp_0D( a, b, test_mode, message)
+  pure function test_gt_dp_0D( a, b) result( res)
     ! In/output variables:
-    real(dp),         intent(in   ) :: a
-    real(dp),         intent(in   ) :: b
-    integer,          intent(in   ) :: test_mode
-    character(len=*), intent(in   ) :: message
-    ! Local variables:
-    logical :: test_result
+    real(dp), intent(in) :: a
+    real(dp), intent(in) :: b
+    logical :: res
 
-    test_result = a > b
+    res = a > b
 
-    call process_test_result( test_mode, test_result, message)
-
-  end subroutine test_gt_dp_0D
+  end function test_gt_dp_0D
 
   !> Test if a < b
-  subroutine test_lt_dp_0D( a, b, test_mode, message)
+  pure function test_lt_dp_0D( a, b) result( res)
     ! In/output variables:
-    real(dp),         intent(in   ) :: a
-    real(dp),         intent(in   ) :: b
-    integer,          intent(in   ) :: test_mode
-    character(len=*), intent(in   ) :: message
-    ! Local variables:
-    logical :: test_result
+    real(dp), intent(in) :: a
+    real(dp), intent(in) :: b
+    logical :: res
 
-    test_result = a < b
+    res = a < b
 
-    call process_test_result( test_mode, test_result, message)
-
-  end subroutine test_lt_dp_0D
+  end function test_lt_dp_0D
 
   !> Test if a >= b
-  subroutine test_ge_dp_0D( a, b, test_mode, message)
+  pure function test_ge_dp_0D( a, b) result( res)
     ! In/output variables:
-    real(dp),         intent(in   ) :: a
-    real(dp),         intent(in   ) :: b
-    integer,          intent(in   ) :: test_mode
-    character(len=*), intent(in   ) :: message
-    ! Local variables:
-    logical :: test_result
+    real(dp), intent(in) :: a
+    real(dp), intent(in) :: b
+    logical :: res
 
-    test_result = a >= b
+    res = a >= b
 
-    call process_test_result( test_mode, test_result, message)
-
-  end subroutine test_ge_dp_0D
+  end function test_ge_dp_0D
 
   !> Test if a <= b
-  subroutine test_le_dp_0D( a, b, test_mode, message)
+  pure function test_le_dp_0D( a, b) result( res)
     ! In/output variables:
-    real(dp),         intent(in   ) :: a
-    real(dp),         intent(in   ) :: b
-    integer,          intent(in   ) :: test_mode
-    character(len=*), intent(in   ) :: message
-    ! Local variables:
-    logical :: test_result
+    real(dp), intent(in) :: a
+    real(dp), intent(in) :: b
+    logical :: res
 
-    test_result = a <= b
+    res = a <= b
 
-    call process_test_result( test_mode, test_result, message)
-
-  end subroutine test_le_dp_0D
+  end function test_le_dp_0D
 
   !> Test if a >= b1 && a <= b2
-  subroutine test_ge_le_dp_0D( a, b1, b2, test_mode, message)
+  pure function test_ge_le_dp_0D( a, b1, b2) result( res)
     ! In/output variables:
-    real(dp),         intent(in   ) :: a
-    real(dp),         intent(in   ) :: b1, b2
-    integer,          intent(in   ) :: test_mode
-    character(len=*), intent(in   ) :: message
-    ! Local variables:
-    logical :: test_result
+    real(dp), intent(in) :: a
+    real(dp), intent(in) :: b1, b2
+    logical :: res
 
-    test_result = a >= b1 .and. a <= b2
+    res = a >= b1 .and. a <= b2
 
-    call process_test_result( test_mode, test_result, message)
-
-  end subroutine test_ge_le_dp_0D
+  end function test_ge_le_dp_0D
 
   !> Test if a >= (b - tol) && a <= (b + tol)
-  subroutine test_tol_dp_0D( a, b, tol, test_mode, message)
+  pure function test_tol_dp_0D( a, b, tol) result( res)
     ! In/output variables:
-    real(dp),         intent(in   ) :: a
-    real(dp),         intent(in   ) :: b, tol
-    integer,          intent(in   ) :: test_mode
-    character(len=*), intent(in   ) :: message
-    ! Local variables:
-    logical :: test_result
+    real(dp), intent(in) :: a
+    real(dp), intent(in) :: b, tol
+    logical :: res
 
-    test_result = a >= (b - tol) .and. a <= (b + tol)
+    res = a >= (b - tol) .and. a <= (b + tol)
 
-    call process_test_result( test_mode, test_result, message)
-
-  end subroutine test_tol_dp_0D
+  end function test_tol_dp_0D
 
   ! ===== 1-D =====
   ! ===============
@@ -147,256 +106,176 @@ contains
     ! ==================
 
   !> Test if a(:) == b
-  subroutine test_eq_dp_1D_scalar( a, b, test_mode, message)
+  pure function test_eq_dp_1D_scalar( a, b) result( res)
     ! In/output variables:
-    real(dp),         dimension(:), intent(in   ) :: a
-    real(dp),                       intent(in   ) :: b
-    integer,                        intent(in   ) :: test_mode
-    character(len=*),               intent(in   ) :: message
-    ! Local variables:
-    logical :: test_result
+    real(dp), dimension(:), intent(in) :: a
+    real(dp),               intent(in) :: b
+    logical :: res
 
-    test_result = all(a == b)
+    res = all(a == b)
 
-    call process_test_result( test_mode, test_result, message)
-
-  end subroutine test_eq_dp_1D_scalar
+  end function test_eq_dp_1D_scalar
 
   !> Test if a(:) /= b
-  subroutine test_neq_dp_1D_scalar( a, b, test_mode, message)
+  pure function test_neq_dp_1D_scalar( a, b) result( res)
     ! In/output variables:
-    real(dp),         dimension(:), intent(in   ) :: a
-    real(dp),                       intent(in   ) :: b
-    integer,                        intent(in   ) :: test_mode
-    character(len=*),               intent(in   ) :: message
-    ! Local variables:
-    logical :: test_result
+    real(dp), dimension(:), intent(in) :: a
+    real(dp),               intent(in) :: b
+    logical :: res
 
-    test_result = all(a /= b)
+    res = all(a /= b)
 
-    call process_test_result( test_mode, test_result, message)
-
-  end subroutine test_neq_dp_1D_scalar
+  end function test_neq_dp_1D_scalar
 
   !> Test if a(:) > b
-  subroutine test_gt_dp_1D_scalar( a, b, test_mode, message)
+  pure function test_gt_dp_1D_scalar( a, b) result( res)
     ! In/output variables:
-    real(dp),         dimension(:), intent(in   ) :: a
-    real(dp),                       intent(in   ) :: b
-    integer,                        intent(in   ) :: test_mode
-    character(len=*),               intent(in   ) :: message
-    ! Local variables:
-    logical :: test_result
+    real(dp), dimension(:), intent(in) :: a
+    real(dp),               intent(in) :: b
+    logical :: res
 
-    test_result = all(a > b)
+    res = all(a > b)
 
-    call process_test_result( test_mode, test_result, message)
-
-  end subroutine test_gt_dp_1D_scalar
+  end function test_gt_dp_1D_scalar
 
   !> Test if a(:) < b
-  subroutine test_lt_dp_1D_scalar( a, b, test_mode, message)
+  pure function test_lt_dp_1D_scalar( a, b) result( res)
     ! In/output variables:
-    real(dp),         dimension(:), intent(in   ) :: a
-    real(dp),                       intent(in   ) :: b
-    integer,                        intent(in   ) :: test_mode
-    character(len=*),               intent(in   ) :: message
-    ! Local variables:
-    logical :: test_result
+    real(dp), dimension(:), intent(in) :: a
+    real(dp),               intent(in) :: b
+    logical :: res
 
-    test_result = all(a < b)
+    res = all(a < b)
 
-    call process_test_result( test_mode, test_result, message)
-
-  end subroutine test_lt_dp_1D_scalar
+  end function test_lt_dp_1D_scalar
 
   !> Test if a(:) >= b
-  subroutine test_ge_dp_1D_scalar( a, b, test_mode, message)
+  pure function test_ge_dp_1D_scalar( a, b) result( res)
     ! In/output variables:
-    real(dp),         dimension(:), intent(in   ) :: a
-    real(dp),                       intent(in   ) :: b
-    integer,                        intent(in   ) :: test_mode
-    character(len=*),               intent(in   ) :: message
-    ! Local variables:
-    logical :: test_result
+    real(dp), dimension(:), intent(in) :: a
+    real(dp),               intent(in) :: b
+    logical :: res
 
-    test_result = all(a >= b)
+    res = all(a >= b)
 
-    call process_test_result( test_mode, test_result, message)
-
-  end subroutine test_ge_dp_1D_scalar
+  end function test_ge_dp_1D_scalar
 
   !> Test if a(:) <= b
-  subroutine test_le_dp_1D_scalar( a, b, test_mode, message)
+  pure function test_le_dp_1D_scalar( a, b) result( res)
     ! In/output variables:
-    real(dp),         dimension(:), intent(in   ) :: a
-    real(dp),                       intent(in   ) :: b
-    integer,                        intent(in   ) :: test_mode
-    character(len=*),               intent(in   ) :: message
-    ! Local variables:
-    logical :: test_result
+    real(dp), dimension(:), intent(in) :: a
+    real(dp),               intent(in) :: b
+    logical :: res
 
-    test_result = all(a <= b)
+    res = all(a <= b)
 
-    call process_test_result( test_mode, test_result, message)
-
-  end subroutine test_le_dp_1D_scalar
+  end function test_le_dp_1D_scalar
 
   !> Test if a(:) >= b1 && a(:) <= b2
-  subroutine test_ge_le_dp_1D_scalar( a, b1, b2, test_mode, message)
+  pure function test_ge_le_dp_1D_scalar( a, b1, b2) result( res)
     ! In/output variables:
-    real(dp),         dimension(:), intent(in   ) :: a
-    real(dp),                       intent(in   ) :: b1, b2
-    integer,                        intent(in   ) :: test_mode
-    character(len=*),               intent(in   ) :: message
-    ! Local variables:
-    logical :: test_result
+    real(dp), dimension(:), intent(in) :: a
+    real(dp),               intent(in) :: b1, b2
+    logical :: res
 
-    test_result = all(a >= b1 .and. a <= b2)
+    res = all(a >= b1 .and. a <= b2)
 
-    call process_test_result( test_mode, test_result, message)
-
-  end subroutine test_ge_le_dp_1D_scalar
+  end function test_ge_le_dp_1D_scalar
 
   !> Test if a(:) >= (b - tol) && a(:) <= (b + tol)
-  subroutine test_tol_dp_1D_scalar( a, b, tol, test_mode, message)
+  pure function test_tol_dp_1D_scalar( a, b, tol) result( res)
     ! In/output variables:
-    real(dp),         dimension(:), intent(in   ) :: a
-    real(dp),                       intent(in   ) :: b, tol
-    integer,                        intent(in   ) :: test_mode
-    character(len=*),               intent(in   ) :: message
-    ! Local variables:
-    logical :: test_result
+    real(dp), dimension(:), intent(in) :: a
+    real(dp),               intent(in) :: b, tol
+    logical :: res
 
-    test_result = all(a >= (b - tol) .and. a <= (b + tol))
+    res = all(a >= (b - tol) .and. a <= (b + tol))
 
-    call process_test_result( test_mode, test_result, message)
-
-  end subroutine test_tol_dp_1D_scalar
+  end function test_tol_dp_1D_scalar
 
   ! ===== Array =====
   ! ==================
 
-!> Test if a(:) == b(:)
-subroutine test_eq_dp_1D_array( a, b, test_mode, message)
-  ! In/output variables:
-  real(dp),         dimension(:), intent(in   ) :: a, b
-  integer,                        intent(in   ) :: test_mode
-  character(len=*),               intent(in   ) :: message
-  ! Local variables:
-  logical :: test_result
+  !> Test if a(:) == b(:)
+  pure function test_eq_dp_1D_array( a, b) result( res)
+    ! In/output variables:
+    real(dp), dimension(:), intent(in) :: a, b
+    logical :: res
 
-  test_result = all(a == b)
+    res = all(a == b)
 
-  call process_test_result( test_mode, test_result, message)
+  end function test_eq_dp_1D_array
 
-end subroutine test_eq_dp_1D_array
+  !> Test if a(:) /= b(:)
+  pure function test_neq_dp_1D_array( a, b) result( res)
+    ! In/output variables:
+    real(dp), dimension(:), intent(in) :: a, b
+    logical :: res
 
-!> Test if a(:) /= b(:)
-subroutine test_neq_dp_1D_array( a, b, test_mode, message)
-  ! In/output variables:
-  real(dp),         dimension(:), intent(in   ) :: a, b
-  integer,                        intent(in   ) :: test_mode
-  character(len=*),               intent(in   ) :: message
-  ! Local variables:
-  logical :: test_result
+    res = all(a /= b)
 
-  test_result = all(a /= b)
+  end function test_neq_dp_1D_array
 
-  call process_test_result( test_mode, test_result, message)
+  !> Test if a(:) > b(:)
+  pure function test_gt_dp_1D_array( a, b) result( res)
+    ! In/output variables:
+    real(dp), dimension(:), intent(in) :: a, b
+    logical :: res
 
-end subroutine test_neq_dp_1D_array
+    res = all(a > b)
 
-!> Test if a(:) > b(:)
-subroutine test_gt_dp_1D_array( a, b, test_mode, message)
-  ! In/output variables:
-  real(dp),         dimension(:), intent(in   ) :: a, b
-  integer,                        intent(in   ) :: test_mode
-  character(len=*),               intent(in   ) :: message
-  ! Local variables:
-  logical :: test_result
+  end function test_gt_dp_1D_array
 
-  test_result = all(a > b)
+  !> Test if a(:) < b(:)
+  pure function test_lt_dp_1D_array( a, b) result( res)
+    ! In/output variables:
+    real(dp), dimension(:), intent(in) :: a, b
+    logical :: res
 
-  call process_test_result( test_mode, test_result, message)
+    res = all(a < b)
 
-end subroutine test_gt_dp_1D_array
+  end function test_lt_dp_1D_array
 
-!> Test if a(:) < b(:)
-subroutine test_lt_dp_1D_array( a, b, test_mode, message)
-  ! In/output variables:
-  real(dp),         dimension(:), intent(in   ) :: a, b
-  integer,                        intent(in   ) :: test_mode
-  character(len=*),               intent(in   ) :: message
-  ! Local variables:
-  logical :: test_result
+  !> Test if a(:) >= b(:)
+  pure function test_ge_dp_1D_array( a, b) result( res)
+    ! In/output variables:
+    real(dp), dimension(:), intent(in) :: a, b
+    logical :: res
 
-  test_result = all(a < b)
+    res = all(a >= b)
 
-  call process_test_result( test_mode, test_result, message)
+  end function test_ge_dp_1D_array
 
-end subroutine test_lt_dp_1D_array
+  !> Test if a(:) <= b(:)
+  pure function test_le_dp_1D_array( a, b) result( res)
+    ! In/output variables:
+    real(dp), dimension(:), intent(in) :: a, b
+    logical :: res
 
-!> Test if a(:) >= b(:)
-subroutine test_ge_dp_1D_array( a, b, test_mode, message)
-  ! In/output variables:
-  real(dp),         dimension(:), intent(in   ) :: a, b
-  integer,                        intent(in   ) :: test_mode
-  character(len=*),               intent(in   ) :: message
-  ! Local variables:
-  logical :: test_result
+    res = all(a <= b)
 
-  test_result = all(a >= b)
+  end function test_le_dp_1D_array
 
-  call process_test_result( test_mode, test_result, message)
+  !> Test if a(:) >= b1(:) && a(:) <= b2(:)
+  pure function test_ge_le_dp_1D_array( a, b1, b2) result( res)
+    ! In/output variables:
+    real(dp), dimension(:), intent(in) :: a, b1, b2
+    logical :: res
 
-end subroutine test_ge_dp_1D_array
+    res = all(a >= b1 .and. a <= b2)
 
-!> Test if a(:) <= b(:)
-subroutine test_le_dp_1D_array( a, b, test_mode, message)
-  ! In/output variables:
-  real(dp),         dimension(:), intent(in   ) :: a, b
-  integer,                        intent(in   ) :: test_mode
-  character(len=*),               intent(in   ) :: message
-  ! Local variables:
-  logical :: test_result
+  end function test_ge_le_dp_1D_array
 
-  test_result = all(a <= b)
+  !> Test if a(:) >= (b(:) - tol) && a(:) <= (b(:) + tol)
+  pure function test_tol_dp_1D_array( a, b, tol) result( res)
+    ! In/output variables:
+    real(dp), dimension(:), intent(in) :: a, b
+    real(dp),               intent(in) :: tol
+    logical :: res
 
-  call process_test_result( test_mode, test_result, message)
+    res = all(a >= (b - tol) .and. a <= (b + tol))
 
-end subroutine test_le_dp_1D_array
-
-!> Test if a(:) >= b1(:) && a(:) <= b2(:)
-subroutine test_ge_le_dp_1D_array( a, b1, b2, test_mode, message)
-  ! In/output variables:
-  real(dp),         dimension(:), intent(in   ) :: a, b1, b2
-  integer,                        intent(in   ) :: test_mode
-  character(len=*),               intent(in   ) :: message
-  ! Local variables:
-  logical :: test_result
-
-  test_result = all(a >= b1 .and. a <= b2)
-
-  call process_test_result( test_mode, test_result, message)
-
-end subroutine test_ge_le_dp_1D_array
-
-!> Test if a(:) >= (b(:) - tol) && a(:) <= (b(:) + tol)
-subroutine test_tol_dp_1D_array( a, b, tol, test_mode, message)
-  ! In/output variables:
-  real(dp),         dimension(:), intent(in   ) :: a, b
-  real(dp),                       intent(in   ) :: tol
-  integer,                        intent(in   ) :: test_mode
-  character(len=*),               intent(in   ) :: message
-  ! Local variables:
-  logical :: test_result
-
-  test_result = all(a >= (b - tol) .and. a <= (b + tol))
-
-  call process_test_result( test_mode, test_result, message)
-
-end subroutine test_tol_dp_1D_array
+  end function test_tol_dp_1D_array
 
 ! ===== 2-D =====
 ! ===============
@@ -404,257 +283,177 @@ end subroutine test_tol_dp_1D_array
   ! ===== Scalar =====
   ! ==================
 
-!> Test if a(:,:) == b
-subroutine test_eq_dp_2D_scalar( a, b, test_mode, message)
-  ! In/output variables:
-  real(dp),         dimension(:,:), intent(in   ) :: a
-  real(dp),                         intent(in   ) :: b
-  integer,                          intent(in   ) :: test_mode
-  character(len=*),                 intent(in   ) :: message
-  ! Local variables:
-  logical :: test_result
+  !> Test if a(:,:) == b
+  pure function test_eq_dp_2D_scalar( a, b) result( res)
+    ! In/output variables:
+    real(dp), dimension(:,:), intent(in) :: a
+    real(dp),                 intent(in) :: b
+    logical :: res
 
-  test_result = all(a == b)
+    res = all(a == b)
 
-  call process_test_result( test_mode, test_result, message)
+  end function test_eq_dp_2D_scalar
 
-end subroutine test_eq_dp_2D_scalar
+  !> Test if a(:,:) /= b
+  pure function test_neq_dp_2D_scalar( a, b) result( res)
+    ! In/output variables:
+    real(dp), dimension(:,:), intent(in) :: a
+    real(dp),                 intent(in) :: b
+    logical :: res
 
-!> Test if a(:,:) /= b
-subroutine test_neq_dp_2D_scalar( a, b, test_mode, message)
-  ! In/output variables:
-  real(dp),         dimension(:,:), intent(in   ) :: a
-  real(dp),                         intent(in   ) :: b
-  integer,                          intent(in   ) :: test_mode
-  character(len=*),                 intent(in   ) :: message
-  ! Local variables:
-  logical :: test_result
+    res = all(a /= b)
 
-  test_result = all(a /= b)
+  end function test_neq_dp_2D_scalar
 
-  call process_test_result( test_mode, test_result, message)
+  !> Test if a(:,:) > b
+  pure function test_gt_dp_2D_scalar( a, b) result( res)
+    ! In/output variables:
+    real(dp), dimension(:,:), intent(in) :: a
+    real(dp),                 intent(in) :: b
+    logical :: res
 
-end subroutine test_neq_dp_2D_scalar
+    res = all(a > b)
 
-!> Test if a(:,:) > b
-subroutine test_gt_dp_2D_scalar( a, b, test_mode, message)
-  ! In/output variables:
-  real(dp),         dimension(:,:), intent(in   ) :: a
-  real(dp),                         intent(in   ) :: b
-  integer,                          intent(in   ) :: test_mode
-  character(len=*),                 intent(in   ) :: message
-  ! Local variables:
-  logical :: test_result
+  end function test_gt_dp_2D_scalar
 
-  test_result = all(a > b)
+  !> Test if a(:,:) < b
+  pure function test_lt_dp_2D_scalar( a, b) result( res)
+    ! In/output variables:
+    real(dp), dimension(:,:), intent(in) :: a
+    real(dp),                 intent(in) :: b
+    logical :: res
 
-  call process_test_result( test_mode, test_result, message)
+    res = all(a < b)
 
-end subroutine test_gt_dp_2D_scalar
+  end function test_lt_dp_2D_scalar
 
-!> Test if a(:,:) < b
-subroutine test_lt_dp_2D_scalar( a, b, test_mode, message)
-  ! In/output variables:
-  real(dp),         dimension(:,:), intent(in   ) :: a
-  real(dp),                         intent(in   ) :: b
-  integer,                          intent(in   ) :: test_mode
-  character(len=*),                 intent(in   ) :: message
-  ! Local variables:
-  logical :: test_result
+  !> Test if a(:,:) >= b
+  pure function test_ge_dp_2D_scalar( a, b) result( res)
+    ! In/output variables:
+    real(dp), dimension(:,:), intent(in) :: a
+    real(dp),                 intent(in) :: b
+    logical :: res
 
-  test_result = all(a < b)
+    res = all(a >= b)
 
-  call process_test_result( test_mode, test_result, message)
+  end function test_ge_dp_2D_scalar
 
-end subroutine test_lt_dp_2D_scalar
+  !> Test if a(:,:) <= b
+  pure function test_le_dp_2D_scalar( a, b) result( res)
+    ! In/output variables:
+    real(dp), dimension(:,:), intent(in) :: a
+    real(dp),                 intent(in) :: b
+    logical :: res
 
-!> Test if a(:,:) >= b
-subroutine test_ge_dp_2D_scalar( a, b, test_mode, message)
-  ! In/output variables:
-  real(dp),         dimension(:,:), intent(in   ) :: a
-  real(dp),                         intent(in   ) :: b
-  integer,                          intent(in   ) :: test_mode
-  character(len=*),                 intent(in   ) :: message
-  ! Local variables:
-  logical :: test_result
+    res = all(a <= b)
 
-  test_result = all(a >= b)
+  end function test_le_dp_2D_scalar
 
-  call process_test_result( test_mode, test_result, message)
+  !> Test if a(:,:) >= b1 && a(:,:) <= b2
+  pure function test_ge_le_dp_2D_scalar( a, b1, b2) result( res)
+    ! In/output variables:
+    real(dp), dimension(:,:), intent(in) :: a
+    real(dp),                 intent(in) :: b1, b2
+    logical :: res
 
-end subroutine test_ge_dp_2D_scalar
+    res = all(a >= b1 .and. a <= b2)
 
-!> Test if a(:,:) <= b
-subroutine test_le_dp_2D_scalar( a, b, test_mode, message)
-  ! In/output variables:
-  real(dp),         dimension(:,:), intent(in   ) :: a
-  real(dp),                         intent(in   ) :: b
-  integer,                          intent(in   ) :: test_mode
-  character(len=*),                 intent(in   ) :: message
-  ! Local variables:
-  logical :: test_result
+  end function test_ge_le_dp_2D_scalar
 
-  test_result = all(a <= b)
+  !> Test if a(:,:) >= (b - tol) && a(:,:) <= (b + tol)
+  pure function test_tol_dp_2D_scalar( a, b, tol) result( res)
+    ! In/output variables:
+    real(dp), dimension(:,:), intent(in) :: a
+    real(dp),                 intent(in) :: b, tol
+    logical :: res
 
-  call process_test_result( test_mode, test_result, message)
+    res = all(a >= (b - tol) .and. a <= (b + tol))
 
-end subroutine test_le_dp_2D_scalar
-
-!> Test if a(:,:) >= b1 && a(:,:) <= b2
-subroutine test_ge_le_dp_2D_scalar( a, b1, b2, test_mode, message)
-  ! In/output variables:
-  real(dp),         dimension(:,:), intent(in   ) :: a
-  real(dp),                         intent(in   ) :: b1, b2
-  integer,                          intent(in   ) :: test_mode
-  character(len=*),                 intent(in   ) :: message
-  ! Local variables:
-  logical :: test_result
-
-  test_result = all(a >= b1 .and. a <= b2)
-
-  call process_test_result( test_mode, test_result, message)
-
-end subroutine test_ge_le_dp_2D_scalar
-
-!> Test if a(:,:) >= (b - tol) && a(:,:) <= (b + tol)
-subroutine test_tol_dp_2D_scalar( a, b, tol, test_mode, message)
-  ! In/output variables:
-  real(dp),         dimension(:,:), intent(in   ) :: a
-  real(dp),                         intent(in   ) :: b, tol
-  integer,                          intent(in   ) :: test_mode
-  character(len=*),                 intent(in   ) :: message
-  ! Local variables:
-  logical :: test_result
-
-  test_result = all(a >= (b - tol) .and. a <= (b + tol))
-
-  call process_test_result( test_mode, test_result, message)
-
-end subroutine test_tol_dp_2D_scalar
+  end function test_tol_dp_2D_scalar
 
     ! ===== Array =====
     ! ==================
 
-!> Test if a(:,:) == b(:,:)
-subroutine test_eq_dp_2D_array( a, b, test_mode, message)
-  ! In/output variables:
-  real(dp),         dimension(:,:), intent(in   ) :: a, b
-  integer,                          intent(in   ) :: test_mode
-  character(len=*),                 intent(in   ) :: message
-  ! Local variables:
-  logical :: test_result
+  !> Test if a(:,:) == b(:,:)
+  pure function test_eq_dp_2D_array( a, b) result( res)
+    ! In/output variables:
+    real(dp), dimension(:,:), intent(in) :: a, b
+    logical :: res
 
-  test_result = all(a == b)
+    res = all(a == b)
 
-  call process_test_result( test_mode, test_result, message)
+  end function test_eq_dp_2D_array
 
-end subroutine test_eq_dp_2D_array
+  !> Test if a(:,:) /= b(:,:)
+  pure function test_neq_dp_2D_array( a, b) result( res)
+    ! In/output variables:
+    real(dp), dimension(:,:), intent(in) :: a, b
+    logical :: res
 
-!> Test if a(:,:) /= b(:,:)
-subroutine test_neq_dp_2D_array( a, b, test_mode, message)
-  ! In/output variables:
-  real(dp),         dimension(:,:), intent(in   ) :: a, b
-  integer,                          intent(in   ) :: test_mode
-  character(len=*),                 intent(in   ) :: message
-  ! Local variables:
-  logical :: test_result
+    res = all(a /= b)
 
-  test_result = all(a /= b)
+  end function test_neq_dp_2D_array
 
-  call process_test_result( test_mode, test_result, message)
+  !> Test if a(:,:) > b(:,:)
+  pure function test_gt_dp_2D_array( a, b) result( res)
+    ! In/output variables:
+    real(dp), dimension(:,:), intent(in) :: a, b
+    logical :: res
 
-end subroutine test_neq_dp_2D_array
+    res = all(a > b)
 
-!> Test if a(:,:) > b(:,:)
-subroutine test_gt_dp_2D_array( a, b, test_mode, message)
-  ! In/output variables:
-  real(dp),         dimension(:,:), intent(in   ) :: a, b
-  integer,                          intent(in   ) :: test_mode
-  character(len=*),                 intent(in   ) :: message
-  ! Local variables:
-  logical :: test_result
+  end function test_gt_dp_2D_array
 
-  test_result = all(a > b)
+  !> Test if a(:,:) < b(:,:)
+  pure function test_lt_dp_2D_array( a, b) result( res)
+    ! In/output variables:
+    real(dp), dimension(:,:), intent(in) :: a, b
+    logical :: res
 
-  call process_test_result( test_mode, test_result, message)
+    res = all(a < b)
 
-end subroutine test_gt_dp_2D_array
+  end function test_lt_dp_2D_array
 
-!> Test if a(:,:) < b(:,:)
-subroutine test_lt_dp_2D_array( a, b, test_mode, message)
-  ! In/output variables:
-  real(dp),         dimension(:,:), intent(in   ) :: a, b
-  integer,                          intent(in   ) :: test_mode
-  character(len=*),                 intent(in   ) :: message
-  ! Local variables:
-  logical :: test_result
+  !> Test if a(:,:) >= b(:,:)
+  pure function test_ge_dp_2D_array( a, b) result( res)
+    ! In/output variables:
+    real(dp), dimension(:,:), intent(in) :: a, b
+    logical :: res
 
-  test_result = all(a < b)
+    res = all(a >= b)
 
-  call process_test_result( test_mode, test_result, message)
+  end function test_ge_dp_2D_array
 
-end subroutine test_lt_dp_2D_array
+  !> Test if a(:,:) <= b(:,:)
+  pure function test_le_dp_2D_array( a, b) result( res)
+    ! In/output variables:
+    real(dp), dimension(:,:), intent(in) :: a, b
+    logical :: res
 
-!> Test if a(:,:) >= b(:,:)
-subroutine test_ge_dp_2D_array( a, b, test_mode, message)
-  ! In/output variables:
-  real(dp),         dimension(:,:), intent(in   ) :: a, b
-  integer,                          intent(in   ) :: test_mode
-  character(len=*),                 intent(in   ) :: message
-  ! Local variables:
-  logical :: test_result
+    res = all(a <= b)
 
-  test_result = all(a >= b)
+  end function test_le_dp_2D_array
 
-  call process_test_result( test_mode, test_result, message)
+  !> Test if a(:,:) >= b1(:,:) && a(:,:) <= b2(:,:)
+  pure function test_ge_le_dp_2D_array( a, b1, b2) result( res)
+    ! In/output variables:
+    real(dp), dimension(:,:), intent(in) :: a, b1, b2
+    logical :: res
 
-end subroutine test_ge_dp_2D_array
+    res = all(a >= b1 .and. a <= b2)
 
-!> Test if a(:,:) <= b(:,:)
-subroutine test_le_dp_2D_array( a, b, test_mode, message)
-  ! In/output variables:
-  real(dp),         dimension(:,:), intent(in   ) :: a, b
-  integer,                          intent(in   ) :: test_mode
-  character(len=*),                 intent(in   ) :: message
-  ! Local variables:
-  logical :: test_result
+  end function test_ge_le_dp_2D_array
 
-  test_result = all(a <= b)
+  !> Test if a(:,:) >= (b(:,:) - tol) && a(:,:) <= (b(:,:) + tol)
+  pure function test_tol_dp_2D_array( a, b, tol) result( res)
+    ! In/output variables:
+    real(dp), dimension(:,:), intent(in) :: a, b
+    real(dp),                 intent(in) :: tol
+    logical :: res
 
-  call process_test_result( test_mode, test_result, message)
+    res = all(a >= (b - tol) .and. a <= (b + tol))
 
-end subroutine test_le_dp_2D_array
-
-!> Test if a(:,:) >= b1(:,:) && a(:,:) <= b2(:,:)
-subroutine test_ge_le_dp_2D_array( a, b1, b2, test_mode, message)
-  ! In/output variables:
-  real(dp),         dimension(:,:), intent(in   ) :: a, b1, b2
-  integer,                          intent(in   ) :: test_mode
-  character(len=*),                 intent(in   ) :: message
-  ! Local variables:
-  logical :: test_result
-
-  test_result = all(a >= b1 .and. a <= b2)
-
-  call process_test_result( test_mode, test_result, message)
-
-end subroutine test_ge_le_dp_2D_array
-
-!> Test if a(:,:) >= (b(:,:) - tol) && a(:,:) <= (b(:,:) + tol)
-subroutine test_tol_dp_2D_array( a, b, tol, test_mode, message)
-  ! In/output variables:
-  real(dp),         dimension(:,:), intent(in   ) :: a, b
-  real(dp),                         intent(in   ) :: tol
-  integer,                          intent(in   ) :: test_mode
-  character(len=*),                 intent(in   ) :: message
-  ! Local variables:
-  logical :: test_result
-
-  test_result = all(a >= (b - tol) .and. a <= (b + tol))
-
-  call process_test_result( test_mode, test_result, message)
-
-end subroutine test_tol_dp_2D_array
+  end function test_tol_dp_2D_array
 
 ! ===== 3-D =====
 ! ===============
@@ -662,257 +461,177 @@ end subroutine test_tol_dp_2D_array
   ! ===== Scalar =====
   ! ==================
 
-!> Test if a(:,:,:) == b
-subroutine test_eq_dp_3D_scalar( a, b, test_mode, message)
-  ! In/output variables:
-  real(dp),         dimension(:,:,:), intent(in   ) :: a
-  real(dp),                           intent(in   ) :: b
-  integer,                            intent(in   ) :: test_mode
-  character(len=*),                   intent(in   ) :: message
-  ! Local variables:
-  logical :: test_result
-
-  test_result = all(a == b)
-
-  call process_test_result( test_mode, test_result, message)
-
-end subroutine test_eq_dp_3D_scalar
-
-!> Test if a(:,:,:) /= b
-subroutine test_neq_dp_3D_scalar( a, b, test_mode, message)
-  ! In/output variables:
-  real(dp),         dimension(:,:,:), intent(in   ) :: a
-  real(dp),                           intent(in   ) :: b
-  integer,                            intent(in   ) :: test_mode
-  character(len=*),                   intent(in   ) :: message
-  ! Local variables:
-  logical :: test_result
-
-  test_result = all(a /= b)
-
-  call process_test_result( test_mode, test_result, message)
-
-end subroutine test_neq_dp_3D_scalar
+  !> Test if a(:,:,:) == b
+  pure function test_eq_dp_3D_scalar( a, b) result( res)
+    ! In/output variables:
+    real(dp), dimension(:,:,:), intent(in) :: a
+    real(dp),                   intent(in) :: b
+    logical :: res
 
-!> Test if a(:,:,:) > b
-subroutine test_gt_dp_3D_scalar( a, b, test_mode, message)
-  ! In/output variables:
-  real(dp),         dimension(:,:,:), intent(in   ) :: a
-  real(dp),                           intent(in   ) :: b
-  integer,                            intent(in   ) :: test_mode
-  character(len=*),                   intent(in   ) :: message
-  ! Local variables:
-  logical :: test_result
-
-  test_result = all(a > b)
-
-  call process_test_result( test_mode, test_result, message)
-
-end subroutine test_gt_dp_3D_scalar
+    res = all(a == b)
 
-!> Test if a(:,:,:) < b
-subroutine test_lt_dp_3D_scalar( a, b, test_mode, message)
-  ! In/output variables:
-  real(dp),         dimension(:,:,:), intent(in   ) :: a
-  real(dp),                           intent(in   ) :: b
-  integer,                            intent(in   ) :: test_mode
-  character(len=*),                   intent(in   ) :: message
-  ! Local variables:
-  logical :: test_result
-
-  test_result = all(a < b)
+  end function test_eq_dp_3D_scalar
 
-  call process_test_result( test_mode, test_result, message)
+  !> Test if a(:,:,:) /= b
+  pure function test_neq_dp_3D_scalar( a, b) result( res)
+    ! In/output variables:
+    real(dp), dimension(:,:,:), intent(in) :: a
+    real(dp),                   intent(in) :: b
+    logical :: res
 
-end subroutine test_lt_dp_3D_scalar
+    res = all(a /= b)
 
-!> Test if a(:,:,:) >= b
-subroutine test_ge_dp_3D_scalar( a, b, test_mode, message)
-  ! In/output variables:
-  real(dp),         dimension(:,:,:), intent(in   ) :: a
-  real(dp),                           intent(in   ) :: b
-  integer,                            intent(in   ) :: test_mode
-  character(len=*),                   intent(in   ) :: message
-  ! Local variables:
-  logical :: test_result
-
-  test_result = all(a >= b)
+  end function test_neq_dp_3D_scalar
 
-  call process_test_result( test_mode, test_result, message)
+  !> Test if a(:,:,:) > b
+  pure function test_gt_dp_3D_scalar( a, b) result( res)
+    ! In/output variables:
+    real(dp), dimension(:,:,:), intent(in) :: a
+    real(dp),                   intent(in) :: b
+    logical :: res
 
-end subroutine test_ge_dp_3D_scalar
+    res = all(a > b)
 
-!> Test if a(:,:,:) <= b
-subroutine test_le_dp_3D_scalar( a, b, test_mode, message)
-  ! In/output variables:
-  real(dp),         dimension(:,:,:), intent(in   ) :: a
-  real(dp),                           intent(in   ) :: b
-  integer,                            intent(in   ) :: test_mode
-  character(len=*),                   intent(in   ) :: message
-  ! Local variables:
-  logical :: test_result
+  end function test_gt_dp_3D_scalar
 
-  test_result = all(a <= b)
+  !> Test if a(:,:,:) < b
+  pure function test_lt_dp_3D_scalar( a, b) result( res)
+    ! In/output variables:
+    real(dp), dimension(:,:,:), intent(in) :: a
+    real(dp),                   intent(in) :: b
+    logical :: res
 
-  call process_test_result( test_mode, test_result, message)
+    res = all(a < b)
 
-end subroutine test_le_dp_3D_scalar
+  end function test_lt_dp_3D_scalar
 
-!> Test if a(:,:,:) >= b1 && a(:,:,:) <= b2
-subroutine test_ge_le_dp_3D_scalar( a, b1, b2, test_mode, message)
-  ! In/output variables:
-  real(dp),         dimension(:,:,:), intent(in   ) :: a
-  real(dp),                           intent(in   ) :: b1, b2
-  integer,                            intent(in   ) :: test_mode
-  character(len=*),                   intent(in   ) :: message
-  ! Local variables:
-  logical :: test_result
+  !> Test if a(:,:,:) >= b
+  pure function test_ge_dp_3D_scalar( a, b) result( res)
+    ! In/output variables:
+    real(dp), dimension(:,:,:), intent(in) :: a
+    real(dp),                   intent(in) :: b
+    logical :: res
 
-  test_result = all(a >= b1 .and. a <= b2)
+    res = all(a >= b)
 
-  call process_test_result( test_mode, test_result, message)
+  end function test_ge_dp_3D_scalar
 
-end subroutine test_ge_le_dp_3D_scalar
+  !> Test if a(:,:,:) <= b
+  pure function test_le_dp_3D_scalar( a, b) result( res)
+    ! In/output variables:
+    real(dp), dimension(:,:,:), intent(in) :: a
+    real(dp),                   intent(in) :: b
+    logical :: res
 
-!> Test if a(:,:,:) >= (b - tol) && a(:,:,:) <= (b + tol)
-subroutine test_tol_dp_3D_scalar( a, b, tol, test_mode, message)
-  ! In/output variables:
-  real(dp),         dimension(:,:,:), intent(in   ) :: a
-  real(dp),                           intent(in   ) :: b, tol
-  integer,                            intent(in   ) :: test_mode
-  character(len=*),                   intent(in   ) :: message
-  ! Local variables:
-  logical :: test_result
+    res = all(a <= b)
 
-  test_result = all(a >= (b - tol) .and. a <= (b + tol))
+  end function test_le_dp_3D_scalar
 
-  call process_test_result( test_mode, test_result, message)
+  !> Test if a(:,:,:) >= b1 && a(:,:,:) <= b2
+  pure function test_ge_le_dp_3D_scalar( a, b1, b2) result( res)
+    ! In/output variables:
+    real(dp), dimension(:,:,:), intent(in) :: a
+    real(dp),                   intent(in) :: b1, b2
+    logical :: res
 
-end subroutine test_tol_dp_3D_scalar
+    res = all(a >= b1 .and. a <= b2)
 
-    ! ===== Array =====
-    ! ==================
+  end function test_ge_le_dp_3D_scalar
 
-!> Test if a(:,:,:) == b(:,:,:)
-subroutine test_eq_dp_3D_array( a, b, test_mode, message)
-  ! In/output variables:
-  real(dp),         dimension(:,:,:), intent(in   ) :: a, b
-  integer,                            intent(in   ) :: test_mode
-  character(len=*),                   intent(in   ) :: message
-  ! Local variables:
-  logical :: test_result
+  !> Test if a(:,:,:) >= (b - tol) && a(:,:,:) <= (b + tol)
+  pure function test_tol_dp_3D_scalar( a, b, tol) result( res)
+    ! In/output variables:
+    real(dp), dimension(:,:,:), intent(in) :: a
+    real(dp),                   intent(in) :: b, tol
+    logical :: res
 
-  test_result = all(a == b)
+    res = all(a >= (b - tol) .and. a <= (b + tol))
 
-  call process_test_result( test_mode, test_result, message)
+  end function test_tol_dp_3D_scalar
 
-end subroutine test_eq_dp_3D_array
+      ! ===== Array =====
+      ! ==================
 
-!> Test if a(:,:,:) /= b(:,:,:)
-subroutine test_neq_dp_3D_array( a, b, test_mode, message)
-  ! In/output variables:
-  real(dp),         dimension(:,:,:), intent(in   ) :: a, b
-  integer,                            intent(in   ) :: test_mode
-  character(len=*),                   intent(in   ) :: message
-  ! Local variables:
-  logical :: test_result
+  !> Test if a(:,:,:) == b(:,:,:)
+  pure function test_eq_dp_3D_array( a, b) result( res)
+    ! In/output variables:
+    real(dp), dimension(:,:,:), intent(in) :: a, b
+    logical :: res
 
-  test_result = all(a /= b)
+    res = all(a == b)
 
-  call process_test_result( test_mode, test_result, message)
+  end function test_eq_dp_3D_array
 
-end subroutine test_neq_dp_3D_array
+  !> Test if a(:,:,:) /= b(:,:,:)
+  pure function test_neq_dp_3D_array( a, b) result( res)
+    ! In/output variables:
+    real(dp), dimension(:,:,:), intent(in) :: a, b
+    logical :: res
 
-!> Test if a(:,:,:) > b(:,:,:)
-  subroutine test_gt_dp_3D_array( a, b, test_mode, message)
-  ! In/output variables:
-  real(dp),         dimension(:,:,:), intent(in   ) :: a, b
-  integer,                            intent(in   ) :: test_mode
-  character(len=*),                   intent(in   ) :: message
-  ! Local variables:
-  logical :: test_result
+    res = all(a /= b)
 
-  test_result = all(a > b)
+  end function test_neq_dp_3D_array
 
-  call process_test_result( test_mode, test_result, message)
+  !> Test if a(:,:,:) > b(:,:,:)
+    pure function test_gt_dp_3D_array( a, b) result( res)
+    ! In/output variables:
+    real(dp), dimension(:,:,:), intent(in) :: a, b
+    logical :: res
 
-end subroutine test_gt_dp_3D_array
+    res = all(a > b)
 
-!> Test if a(:,:,:) < b(:,:,:)
-subroutine test_lt_dp_3D_array( a, b, test_mode, message)
-  ! In/output variables:
-  real(dp),         dimension(:,:,:), intent(in   ) :: a, b
-  integer,                            intent(in   ) :: test_mode
-  character(len=*),                   intent(in   ) :: message
-  ! Local variables:
-  logical :: test_result
+  end function test_gt_dp_3D_array
 
-  test_result = all(a < b)
+  !> Test if a(:,:,:) < b(:,:,:)
+  pure function test_lt_dp_3D_array( a, b) result( res)
+    ! In/output variables:
+    real(dp), dimension(:,:,:), intent(in) :: a, b
+    logical :: res
 
-  call process_test_result( test_mode, test_result, message)
+    res = all(a < b)
 
-end subroutine test_lt_dp_3D_array
+  end function test_lt_dp_3D_array
 
-!> Test if a(:,:,:) >= b(:,:,:)
-subroutine test_ge_dp_3D_array( a, b, test_mode, message)
-  ! In/output variables:
-  real(dp),         dimension(:,:,:), intent(in   ) :: a, b
-  integer,                            intent(in   ) :: test_mode
-  character(len=*),                   intent(in   ) :: message
-  ! Local variables:
-  logical :: test_result
+  !> Test if a(:,:,:) >= b(:,:,:)
+  pure function test_ge_dp_3D_array( a, b) result( res)
+    ! In/output variables:
+    real(dp), dimension(:,:,:), intent(in) :: a, b
+    logical :: res
 
-  test_result = all(a >= b)
+    res = all(a >= b)
 
-  call process_test_result( test_mode, test_result, message)
+  end function test_ge_dp_3D_array
 
-end subroutine test_ge_dp_3D_array
+  !> Test if a(:,:,:) <= b(:,:,:)
+  pure function test_le_dp_3D_array( a, b) result( res)
+    ! In/output variables:
+    real(dp), dimension(:,:,:), intent(in) :: a, b
+    logical :: res
 
-!> Test if a(:,:,:) <= b(:,:,:)
-subroutine test_le_dp_3D_array( a, b, test_mode, message)
-  ! In/output variables:
-  real(dp),         dimension(:,:,:), intent(in   ) :: a, b
-  integer,                            intent(in   ) :: test_mode
-  character(len=*),                   intent(in   ) :: message
-  ! Local variables:
-  logical :: test_result
+    res = all(a <= b)
 
-  test_result = all(a <= b)
+  end function test_le_dp_3D_array
 
-  call process_test_result( test_mode, test_result, message)
+  !> Test if a(:,:,:) >= b1(:,:,:) && a(:,:,:) <= b2(:,:,:)
+  pure function test_ge_le_dp_3D_array( a, b1, b2) result( res)
+    ! In/output variables:
+    real(dp), dimension(:,:,:), intent(in) :: a, b1, b2
+    logical :: res
 
-end subroutine test_le_dp_3D_array
+    res = all(a >= b1 .and. a <= b2)
 
-!> Test if a(:,:,:) >= b1(:,:,:) && a(:,:,:) <= b2(:,:,:)
-subroutine test_ge_le_dp_3D_array( a, b1, b2, test_mode, message)
-  ! In/output variables:
-  real(dp),         dimension(:,:,:), intent(in   ) :: a, b1, b2
-  integer,                            intent(in   ) :: test_mode
-  character(len=*),                   intent(in   ) :: message
-  ! Local variables:
-  logical :: test_result
+  end function test_ge_le_dp_3D_array
 
-  test_result = all(a >= b1 .and. a <= b2)
+  !> Test if a(:,:,:) >= (b(:,:,:) - tol) && a(:,:,:) <= (b(:,:,:) + tol)
+  pure function test_tol_dp_3D_array( a, b, tol) result( res)
+    ! In/output variables:
+    real(dp), dimension(:,:,:), intent(in) :: a, b
+    real(dp),                   intent(in) :: tol
+    logical :: res
 
-  call process_test_result( test_mode, test_result, message)
+    res = all(a >= (b - tol) .and. a <= (b + tol))
 
-end subroutine test_ge_le_dp_3D_array
-
-!> Test if a(:,:,:) >= (b(:,:,:) - tol) && a(:,:,:) <= (b(:,:,:) + tol)
-subroutine test_tol_dp_3D_array( a, b, tol, test_mode, message)
-  ! In/output variables:
-  real(dp),         dimension(:,:,:), intent(in   ) :: a, b
-  real(dp),                           intent(in   ) :: tol
-  integer,                            intent(in   ) :: test_mode
-  character(len=*),                   intent(in   ) :: message
-  ! Local variables:
-  logical :: test_result
-
-  test_result = all(a >= (b - tol) .and. a <= (b + tol))
-
-  call process_test_result( test_mode, test_result, message)
-
-end subroutine test_tol_dp_3D_array
+  end function test_tol_dp_3D_array
 
 ! ===== 4-D =====
 ! ===============
@@ -920,256 +639,176 @@ end subroutine test_tol_dp_3D_array
   ! ===== Scalar =====
   ! ==================
 
-!> Test if a(:,:,:,:) == b
-subroutine test_eq_dp_4D_scalar( a, b, test_mode, message)
-  ! In/output variables:
-  real(dp),         dimension(:,:,:,:), intent(in   ) :: a
-  real(dp),                             intent(in   ) :: b
-  integer,                              intent(in   ) :: test_mode
-  character(len=*),                     intent(in   ) :: message
-  ! Local variables:
-  logical :: test_result
+  !> Test if a(:,:,:,:) == b
+  pure function test_eq_dp_4D_scalar( a, b) result( res)
+    ! In/output variables:
+    real(dp), dimension(:,:,:,:), intent(in) :: a
+    real(dp),                     intent(in) :: b
+    logical :: res
 
-  test_result = all(a == b)
+    res = all(a == b)
 
-  call process_test_result( test_mode, test_result, message)
+  end function test_eq_dp_4D_scalar
 
-end subroutine test_eq_dp_4D_scalar
+  !> Test if a(:,:,:,:) /= b
+  pure function test_neq_dp_4D_scalar( a, b) result( res)
+    ! In/output variables:
+    real(dp), dimension(:,:,:,:), intent(in) :: a
+    real(dp),                     intent(in) :: b
+    logical :: res
 
-!> Test if a(:,:,:,:) /= b
-subroutine test_neq_dp_4D_scalar( a, b, test_mode, message)
-  ! In/output variables:
-  real(dp),         dimension(:,:,:,:), intent(in   ) :: a
-  real(dp),                             intent(in   ) :: b
-  integer,                              intent(in   ) :: test_mode
-  character(len=*),                     intent(in   ) :: message
-  ! Local variables:
-  logical :: test_result
+    res = all(a /= b)
 
-  test_result = all(a /= b)
+  end function test_neq_dp_4D_scalar
 
-  call process_test_result( test_mode, test_result, message)
+  !> Test if a(:,:,:,:) > b
+  pure function test_gt_dp_4D_scalar( a, b) result( res)
+    ! In/output variables:
+    real(dp), dimension(:,:,:,:), intent(in) :: a
+    real(dp),                     intent(in) :: b
+    logical :: res
 
-end subroutine test_neq_dp_4D_scalar
+    res = all(a > b)
 
-!> Test if a(:,:,:,:) > b
-subroutine test_gt_dp_4D_scalar( a, b, test_mode, message)
-  ! In/output variables:
-  real(dp),         dimension(:,:,:,:), intent(in   ) :: a
-  real(dp),                             intent(in   ) :: b
-  integer,                              intent(in   ) :: test_mode
-  character(len=*),                     intent(in   ) :: message
-  ! Local variables:
-  logical :: test_result
+  end function test_gt_dp_4D_scalar
 
-  test_result = all(a > b)
+  !> Test if a(:,:,:,:) < b
+  pure function test_lt_dp_4D_scalar( a, b) result( res)
+    ! In/output variables:
+    real(dp), dimension(:,:,:,:), intent(in) :: a
+    real(dp),                     intent(in) :: b
+    logical :: res
 
-  call process_test_result( test_mode, test_result, message)
+    res = all(a < b)
 
-end subroutine test_gt_dp_4D_scalar
+  end function test_lt_dp_4D_scalar
 
-!> Test if a(:,:,:,:) < b
-subroutine test_lt_dp_4D_scalar( a, b, test_mode, message)
-  ! In/output variables:
-  real(dp),         dimension(:,:,:,:), intent(in   ) :: a
-  real(dp),                             intent(in   ) :: b
-  integer,                              intent(in   ) :: test_mode
-  character(len=*),                     intent(in   ) :: message
-  ! Local variables:
-  logical :: test_result
+  !> Test if a(:,:,:,:) >= b
+  pure function test_ge_dp_4D_scalar( a, b) result( res)
+    ! In/output variables:
+    real(dp), dimension(:,:,:,:), intent(in) :: a
+    real(dp),                     intent(in) :: b
+    logical :: res
 
-  test_result = all(a < b)
+    res = all(a >= b)
 
-  call process_test_result( test_mode, test_result, message)
+  end function test_ge_dp_4D_scalar
 
-end subroutine test_lt_dp_4D_scalar
+  !> Test if a(:,:,:,:) <= b
+  pure function test_le_dp_4D_scalar( a, b) result( res)
+    ! In/output variables:
+    real(dp), dimension(:,:,:,:), intent(in) :: a
+    real(dp),                     intent(in) :: b
+    logical :: res
 
-!> Test if a(:,:,:,:) >= b
-subroutine test_ge_dp_4D_scalar( a, b, test_mode, message)
-  ! In/output variables:
-  real(dp),         dimension(:,:,:,:), intent(in   ) :: a
-  real(dp),                             intent(in   ) :: b
-  integer,                              intent(in   ) :: test_mode
-  character(len=*),                     intent(in   ) :: message
-  ! Local variables:
-  logical :: test_result
+    res = all(a <= b)
 
-  test_result = all(a >= b)
+  end function test_le_dp_4D_scalar
 
-  call process_test_result( test_mode, test_result, message)
+  !> Test if a(:,:,:,:) >= b1 && a(:,:,:,:) <= b2
+  pure function test_ge_le_dp_4D_scalar( a, b1, b2) result( res)
+    ! In/output variables:
+    real(dp), dimension(:,:,:,:), intent(in) :: a
+    real(dp),                     intent(in) :: b1, b2
+    logical :: res
 
-end subroutine test_ge_dp_4D_scalar
+    res = all(a >= b1 .and. a <= b2)
 
-!> Test if a(:,:,:,:) <= b
-subroutine test_le_dp_4D_scalar( a, b, test_mode, message)
-  ! In/output variables:
-  real(dp),         dimension(:,:,:,:), intent(in   ) :: a
-  real(dp),                             intent(in   ) :: b
-  integer,                              intent(in   ) :: test_mode
-  character(len=*),                     intent(in   ) :: message
-  ! Local variables:
-  logical :: test_result
+  end function test_ge_le_dp_4D_scalar
 
-  test_result = all(a <= b)
+  !> Test if a(:,:,:,:) >= (b - tol) && a(:,:,:,:) <= (b + tol)
+  pure function test_tol_dp_4D_scalar( a, b, tol) result( res)
+    ! In/output variables:
+    real(dp), dimension(:,:,:,:), intent(in) :: a
+    real(dp),                     intent(in) :: b, tol
+    logical :: res
 
-  call process_test_result( test_mode, test_result, message)
+    res = all(a >= (b - tol) .and. a <= (b + tol))
 
-end subroutine test_le_dp_4D_scalar
-
-!> Test if a(:,:,:,:) >= b1 && a(:,:,:,:) <= b2
-subroutine test_ge_le_dp_4D_scalar( a, b1, b2, test_mode, message)
-  ! In/output variables:
-  real(dp),         dimension(:,:,:,:), intent(in   ) :: a
-  real(dp),                             intent(in   ) :: b1, b2
-  integer,                              intent(in   ) :: test_mode
-  character(len=*),                     intent(in   ) :: message
-  ! Local variables:
-  logical :: test_result
-
-  test_result = all(a >= b1 .and. a <= b2)
-
-  call process_test_result( test_mode, test_result, message)
-
-end subroutine test_ge_le_dp_4D_scalar
-
-!> Test if a(:,:,:,:) >= (b - tol) && a(:,:,:,:) <= (b + tol)
-subroutine test_tol_dp_4D_scalar( a, b, tol, test_mode, message)
-  ! In/output variables:
-  real(dp),         dimension(:,:,:,:), intent(in   ) :: a
-  real(dp),                             intent(in   ) :: b, tol
-  integer,                              intent(in   ) :: test_mode
-  character(len=*),                     intent(in   ) :: message
-  ! Local variables:
-  logical :: test_result
-
-  test_result = all(a >= (b - tol) .and. a <= (b + tol))
-
-  call process_test_result( test_mode, test_result, message)
-
-end subroutine test_tol_dp_4D_scalar
+  end function test_tol_dp_4D_scalar
 
     ! ===== Array =====
     ! ==================
 
-!> Test if a(:,:,:,:) == b(:,:,:,:)
-subroutine test_eq_dp_4D_array( a, b, test_mode, message)
-  ! In/output variables:
-  real(dp),         dimension(:,:,:,:), intent(in   ) :: a, b
-  integer,                              intent(in   ) :: test_mode
-  character(len=*),                     intent(in   ) :: message
-  ! Local variables:
-  logical :: test_result
+  !> Test if a(:,:,:,:) == b(:,:,:,:)
+  pure function test_eq_dp_4D_array( a, b) result( res)
+    ! In/output variables:
+    real(dp), dimension(:,:,:,:), intent(in) :: a, b
+    logical :: res
 
-  test_result = all(a == b)
+    res = all(a == b)
 
-  call process_test_result( test_mode, test_result, message)
+  end function test_eq_dp_4D_array
 
-end subroutine test_eq_dp_4D_array
+  !> Test if a(:,:,:,:) /= b(:,:,:,:)
+  pure function test_neq_dp_4D_array( a, b) result( res)
+    ! In/output variables:
+    real(dp), dimension(:,:,:,:), intent(in) :: a, b
+    logical :: res
 
-!> Test if a(:,:,:,:) /= b(:,:,:,:)
-subroutine test_neq_dp_4D_array( a, b, test_mode, message)
-  ! In/output variables:
-  real(dp),         dimension(:,:,:,:), intent(in   ) :: a, b
-  integer,                              intent(in   ) :: test_mode
-  character(len=*),                     intent(in   ) :: message
-  ! Local variables:
-  logical :: test_result
+    res = all(a /= b)
 
-  test_result = all(a /= b)
+  end function test_neq_dp_4D_array
 
-  call process_test_result( test_mode, test_result, message)
+  !> Test if a(:,:,:,:) > b(:,:,:,:)
+  pure function test_gt_dp_4D_array( a, b) result( res)
+    ! In/output variables:
+    real(dp), dimension(:,:,:,:), intent(in) :: a, b
+    logical :: res
 
-end subroutine test_neq_dp_4D_array
+    res = all(a > b)
 
-!> Test if a(:,:,:,:) > b(:,:,:,:)
-subroutine test_gt_dp_4D_array( a, b, test_mode, message)
-  ! In/output variables:
-  real(dp),         dimension(:,:,:,:), intent(in   ) :: a, b
-  integer,                              intent(in   ) :: test_mode
-  character(len=*),                     intent(in   ) :: message
-  ! Local variables:
-  logical :: test_result
+  end function test_gt_dp_4D_array
 
-  test_result = all(a > b)
+  !> Test if a(:,:,:,:) < b(:,:,:,:)
+  pure function test_lt_dp_4D_array( a, b) result( res)
+    ! In/output variables:
+    real(dp), dimension(:,:,:,:), intent(in) :: a, b
+    logical :: res
 
-  call process_test_result( test_mode, test_result, message)
+    res = all(a < b)
 
-end subroutine test_gt_dp_4D_array
+  end function test_lt_dp_4D_array
 
-!> Test if a(:,:,:,:) < b(:,:,:,:)
-subroutine test_lt_dp_4D_array( a, b, test_mode, message)
-  ! In/output variables:
-  real(dp),         dimension(:,:,:,:), intent(in   ) :: a, b
-  integer,                              intent(in   ) :: test_mode
-  character(len=*),                     intent(in   ) :: message
-  ! Local variables:
-  logical :: test_result
+  !> Test if a(:,:,:,:) >= b(:,:,:,:)
+  pure function test_ge_dp_4D_array( a, b) result( res)
+    ! In/output variables:
+    real(dp), dimension(:,:,:,:), intent(in) :: a, b
+    logical :: res
 
-  test_result = all(a < b)
+    res = all(a >= b)
 
-  call process_test_result( test_mode, test_result, message)
+  end function test_ge_dp_4D_array
 
-end subroutine test_lt_dp_4D_array
+  !> Test if a(:,:,:,:) <= b(:,:,:,:)
+  pure function test_le_dp_4D_array( a, b) result( res)
+    ! In/output variables:
+    real(dp), dimension(:,:,:,:), intent(in) :: a, b
+    logical :: res
 
-!> Test if a(:,:,:,:) >= b(:,:,:,:)
-subroutine test_ge_dp_4D_array( a, b, test_mode, message)
-  ! In/output variables:
-  real(dp),         dimension(:,:,:,:), intent(in   ) :: a, b
-  integer,                              intent(in   ) :: test_mode
-  character(len=*),                     intent(in   ) :: message
-  ! Local variables:
-  logical :: test_result
+    res = all(a <= b)
 
-  test_result = all(a >= b)
+  end function test_le_dp_4D_array
 
-  call process_test_result( test_mode, test_result, message)
+  !> Test if a(:,:,:,:) >= b1(:,:,:,:) && a(:,:,:,:) <= b2(:,:,:,:)
+  pure function test_ge_le_dp_4D_array( a, b1, b2) result( res)
+    ! In/output variables:
+    real(dp), dimension(:,:,:,:), intent(in) :: a, b1, b2
+    logical :: res
 
-end subroutine test_ge_dp_4D_array
+    res = all(a >= b1 .and. a <= b2)
 
-!> Test if a(:,:,:,:) <= b(:,:,:,:)
-subroutine test_le_dp_4D_array( a, b, test_mode, message)
-  ! In/output variables:
-  real(dp),         dimension(:,:,:,:), intent(in   ) :: a, b
-  integer,                              intent(in   ) :: test_mode
-  character(len=*),                     intent(in   ) :: message
-  ! Local variables:
-  logical :: test_result
+  end function test_ge_le_dp_4D_array
 
-  test_result = all(a <= b)
+  !> Test if a(:,:,:,:) >= (b(:,:,:,:) - tol) && a(:,:,:,:) <= (b(:,:,:,:) + tol)
+  pure function test_tol_dp_4D_array( a, b, tol) result( res)
+    ! In/output variables:
+    real(dp), dimension(:,:,:,:), intent(in) :: a, b
+    real(dp),                     intent(in) :: tol
+    logical :: res
 
-  call process_test_result( test_mode, test_result, message)
+    res = all(a >= (b - tol) .and. a <= (b + tol))
 
-end subroutine test_le_dp_4D_array
-
-!> Test if a(:,:,:,:) >= b1(:,:,:,:) && a(:,:,:,:) <= b2(:,:,:,:)
-subroutine test_ge_le_dp_4D_array( a, b1, b2, test_mode, message)
-  ! In/output variables:
-  real(dp),         dimension(:,:,:,:), intent(in   ) :: a, b1, b2
-  integer,                              intent(in   ) :: test_mode
-  character(len=*),                     intent(in   ) :: message
-  ! Local variables:
-  logical :: test_result
-
-  test_result = all(a >= b1 .and. a <= b2)
-
-  call process_test_result( test_mode, test_result, message)
-
-end subroutine test_ge_le_dp_4D_array
-
-!> Test if a(:,:,:,:) >= (b(:,:,:,:) - tol) && a(:,:,:,:) <= (b(:,:,:,:) + tol)
-subroutine test_tol_dp_4D_array( a, b, tol, test_mode, message)
-  ! In/output variables:
-  real(dp),         dimension(:,:,:,:), intent(in   ) :: a, b
-  real(dp),                             intent(in   ) :: tol
-  integer,                              intent(in   ) :: test_mode
-  character(len=*),                     intent(in   ) :: message
-  ! Local variables:
-  logical :: test_result
-
-  test_result = all(a >= (b - tol) .and. a <= (b + tol))
-
-  call process_test_result( test_mode, test_result, message)
-
-end subroutine test_tol_dp_4D_array
+  end function test_tol_dp_4D_array
 
 end module tests_dp
