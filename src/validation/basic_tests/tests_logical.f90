@@ -11,7 +11,6 @@ contains
 
   !> Test if a == b
   pure function test_eqv_logical_0D( a, b) result( res)
-    ! In/output variables:
     logical, intent(in) :: a
     logical, intent(in) :: b
     logical :: res
@@ -22,7 +21,6 @@ contains
 
   !> Test if a /= b
   pure function test_neqv_logical_0D( a, b) result( res)
-    ! In/output variables:
     logical, intent(in) :: a
     logical, intent(in) :: b
     logical :: res
@@ -39,9 +37,9 @@ contains
 
   !> Test if a(:) == b
   pure function test_eqv_logical_1D_scalar( a, b) result( res)
-    ! In/output variables:
     logical, dimension(:), intent(in) :: a
     logical,               intent(in) :: b
+    logical :: res
 
     res = all( a .eqv. b)
 
@@ -49,9 +47,9 @@ contains
 
   !> Test if a(:) /= b
   pure function test_neqv_logical_1D_scalar( a, b) result( res)
-    ! In/output variables:
     logical, dimension(:), intent(in) :: a
     logical,               intent(in) :: b
+    logical :: res
 
     res = all( a .neqv. b)
 
@@ -62,8 +60,8 @@ contains
 
   !> Test if a(:) == b(:)
   pure function test_eqv_logical_1D_array( a, b) result( res)
-    ! In/output variables:
     logical, dimension(:), intent(in) :: a, b
+    logical :: res
 
     res = all( a .eqv. b)
 
@@ -71,8 +69,8 @@ contains
 
   !> Test if a(:) /= b
   pure function test_neqv_logical_1D_array( a, b) result( res)
-    ! In/output variables:
     logical, dimension(:), intent(in) :: a, b
+    logical :: res
 
     res = all( a .neqv. b)
 
@@ -86,9 +84,9 @@ contains
 
   !> Test if a(:,:) == b
   pure function test_eqv_logical_2D_scalar( a, b) result( res)
-    ! In/output variables:
     logical, dimension(:,:), intent(in) :: a
     logical,                 intent(in) :: b
+    logical :: res
 
     res = all( a .eqv. b)
 
@@ -96,9 +94,9 @@ contains
 
   !> Test if a(:,:) /= b
   pure function test_neqv_logical_2D_scalar( a, b) result( res)
-    ! In/output variables:
     logical, dimension(:,:), intent(in) :: a
     logical,                 intent(in) :: b
+    logical :: res
 
     res = all( a .neqv. b)
 
@@ -109,8 +107,8 @@ contains
 
   !> Test if a(:,:) == b(:,:)
   pure function test_eqv_logical_2D_array( a, b) result( res)
-    ! In/output variables:
     logical, dimension(:,:), intent(in) :: a, b
+    logical :: res
 
     res = all( a .eqv. b)
 
@@ -118,8 +116,8 @@ contains
 
   !> Test if a(:,:) /= b
   pure function test_neqv_logical_2D_array( a, b) result( res)
-    ! In/output variables:
     logical, dimension(:,:), intent(in) :: a, b
+    logical :: res
 
     res = all( a .neqv. b)
 
@@ -133,9 +131,9 @@ contains
 
   !> Test if a(:,:,:) == b
   pure function test_eqv_logical_3D_scalar( a, b) result( res)
-    ! In/output variables:
     logical, dimension(:,:,:), intent(in) :: a
     logical,                   intent(in) :: b
+    logical :: res
 
     res = all( a .eqv. b)
 
@@ -143,9 +141,9 @@ contains
 
   !> Test if a(:,:,:) /= b
   pure function test_neqv_logical_3D_scalar( a, b) result( res)
-    ! In/output variables:
     logical, dimension(:,:,:), intent(in) :: a
     logical,                   intent(in) :: b
+    logical :: res
 
     res = all( a .neqv. b)
 
@@ -156,8 +154,8 @@ contains
 
   !> Test if a(:,:,:) == b(:,:,:)
   pure function test_eqv_logical_3D_array( a, b) result( res)
-    ! In/output variables:
     logical, dimension(:,:,:), intent(in) :: a, b
+    logical :: res
 
     res = all( a .eqv. b)
 
@@ -165,8 +163,8 @@ contains
 
   !> Test if a(:,:,:) /= b
   pure function test_neqv_logical_3D_array( a, b) result( res)
-    ! In/output variables:
     logical, dimension(:,:,:), intent(in) :: a, b
+    logical :: res
 
     res = all( a .neqv. b)
 
@@ -180,9 +178,9 @@ contains
 
   !> Test if a(:,:,:,:) == b
   pure function test_eqv_logical_4D_scalar( a, b) result( res)
-    ! In/output variables:
     logical, dimension(:,:,:,:), intent(in) :: a
     logical,                     intent(in) :: b
+    logical :: res
 
     res = all( a .eqv. b)
 
@@ -190,9 +188,9 @@ contains
 
   !> Test if a(:,:,:,:) /= b
   pure function test_neqv_logical_4D_scalar( a, b) result( res)
-    ! In/output variables:
     logical, dimension(:,:,:,:), intent(in) :: a
     logical,                     intent(in) :: b
+    logical :: res
 
     res = all( a .neqv. b)
 
@@ -203,8 +201,8 @@ contains
 
   !> Test if a(:,:,:,:) == b(:,:,:,:)
   pure function test_eqv_logical_4D_array( a, b) result( res)
-    ! In/output variables:
     logical, dimension(:,:,:,:), intent(in) :: a, b
+    logical :: res
 
     res = all( a .eqv. b)
 
@@ -212,8 +210,8 @@ contains
 
   !> Test if a(:,:,:,:) /= b
   pure function test_neqv_logical_4D_array( a, b) result( res)
-    ! In/output variables:
     logical, dimension(:,:,:,:), intent(in) :: a, b
+    logical :: res
 
     res = all( a .neqv. b)
 
