@@ -33,8 +33,6 @@ CONTAINS
   SUBROUTINE run_BMB_model_prescribed( mesh, ice, BMB, region_name, time)
     ! Calculate the basal mass balance
 
-    IMPLICIT NONE
-
     ! In/output variables:
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
     TYPE(type_ice_model),                   INTENT(IN)    :: ice
@@ -91,8 +89,6 @@ CONTAINS
     !
     ! Prescribed BMB forcing
 
-    IMPLICIT NONE
-
     ! In- and output variables
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
     TYPE(type_BMB_model),                   INTENT(INOUT) :: BMB
@@ -142,8 +138,6 @@ CONTAINS
     !
     ! BMB only, no time
 
-    IMPLICIT NONE
-
     ! In/output variables:
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
     TYPE(type_BMB_model),                   INTENT(INOUT) :: BMB
@@ -172,8 +166,6 @@ CONTAINS
     ! Prescribe BMB from a file without a time dimension
     !
     ! BMB only, no time
-
-    IMPLICIT NONE
 
     ! In- and output variables
     TYPE(type_mesh),                        INTENT(IN)    :: mesh

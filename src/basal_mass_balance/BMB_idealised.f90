@@ -26,8 +26,6 @@ CONTAINS
     !
     ! Use an idealised BMB scheme
 
-    IMPLICIT NONE
-
     ! In/output variables:
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
     TYPE(type_ice_model),                   INTENT(IN)    :: ice
@@ -57,8 +55,6 @@ CONTAINS
 
   SUBROUTINE run_BMB_model_idealised_MISMIPplus( mesh, ice, BMB, time)
     ! The schematic basal melt used in the MISMIPplus experiments
-
-    IMPLICIT NONE
 
     ! In/output variables
     TYPE(type_mesh),                     INTENT(IN)    :: mesh
@@ -98,8 +94,6 @@ CONTAINS
     ! Initialise the BMB model
     !
     ! Use an idealised BMB scheme
-
-    IMPLICIT NONE
 
     ! In- and output variables
     TYPE(type_mesh),                        INTENT(IN)    :: mesh

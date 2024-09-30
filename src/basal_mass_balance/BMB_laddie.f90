@@ -30,8 +30,6 @@ CONTAINS
     !
     ! Call the external LADDIE model
 
-    IMPLICIT NONE
-
     ! In/output variables:
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
     TYPE(type_BMB_model),                   INTENT(INOUT) :: BMB
@@ -86,8 +84,6 @@ CONTAINS
     !
     ! Call the external LADDIE model
 
-    IMPLICIT NONE
-
     ! In/output variables:
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
     TYPE(type_BMB_model),                   INTENT(INOUT) :: BMB
@@ -129,8 +125,6 @@ CONTAINS
     !
     ! Simply reread the latest BMB output
 
-    IMPLICIT NONE
-
     ! In/output variables:
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
     TYPE(type_BMB_model),                   INTENT(INOUT) :: BMB
@@ -153,8 +147,6 @@ CONTAINS
     ! Let model sleep until a filename laddieready is detected
     !
     ! This filename is created by LADDIE when it's run is finished
-  
-    IMPLICIT NONE
   
     ! In/output variables:
     CHARACTER(LEN=256),                       INTENT(IN)  :: filename_laddieready

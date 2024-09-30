@@ -37,8 +37,6 @@ CONTAINS
   SUBROUTINE run_BMB_model( mesh, ice, ocean, refgeo, SMB, BMB, region_name, time)
     ! Calculate the basal mass balance
 
-    IMPLICIT NONE
-
     ! In/output variables:
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
     TYPE(type_ice_model),                   INTENT(IN)    :: ice
@@ -148,8 +146,6 @@ CONTAINS
   SUBROUTINE initialise_BMB_model( mesh, ice, BMB, region_name)
     ! Initialise the BMB model
 
-    IMPLICIT NONE
-
     ! In- and output variables
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
     TYPE(type_ice_model),                   INTENT(IN)    :: ice
@@ -236,8 +232,6 @@ CONTAINS
   SUBROUTINE write_to_restart_file_BMB_model( mesh, BMB, region_name, time)
     ! Write to the restart file for the BMB model
 
-    IMPLICIT NONE
-
     ! In/output variables:
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
     TYPE(type_BMB_model),                   INTENT(IN)    :: BMB
@@ -293,8 +287,6 @@ CONTAINS
   SUBROUTINE write_to_restart_file_BMB_model_region( mesh, BMB, region_name, time)
     ! Write to the restart NetCDF file for the BMB model
 
-    IMPLICIT NONE
-
     ! In/output variables:
     TYPE(type_mesh),          INTENT(IN) :: mesh
     TYPE(type_BMB_model),     INTENT(IN) :: BMB
@@ -337,8 +329,6 @@ CONTAINS
 
   SUBROUTINE create_restart_file_BMB_model( mesh, BMB, region_name)
     ! Create the restart file for the BMB model
-
-    IMPLICIT NONE
 
     ! In/output variables:
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
@@ -395,8 +385,6 @@ CONTAINS
     ! Create a restart NetCDF file for the BMB submodel
     ! Includes generation of the procedural filename (e.g. "restart_BMB_00001.nc")
 
-    IMPLICIT NONE
-
     ! In/output variables:
     TYPE(type_mesh),          INTENT(IN)    :: mesh
     TYPE(type_BMB_model),     INTENT(INOUT) :: BMB
@@ -446,8 +434,6 @@ CONTAINS
 
   SUBROUTINE remap_BMB_model( mesh_old, mesh_new, ice, BMB, region_name)
     ! Remap the BMB model
-
-    IMPLICIT NONE
 
     ! In- and output variables
     TYPE(type_mesh),                        INTENT(IN)    :: mesh_old
@@ -527,8 +513,6 @@ CONTAINS
 
   SUBROUTINE run_BMB_model_inverted( mesh, ice, BMB, time)
     ! Extrapolate inverted BMB values
-
-    IMPLICIT NONE
 
     ! In/output variables:
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
@@ -686,8 +670,6 @@ CONTAINS
   SUBROUTINE apply_BMB_subgrid_scheme( mesh, ice, BMB)
     ! Apply selected scheme for sub-grid shelf melt
     ! (see Leguy et al. 2021 for explanations of the three schemes)
-
-    IMPLICIT NONE
 
     ! In- and output variables
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
