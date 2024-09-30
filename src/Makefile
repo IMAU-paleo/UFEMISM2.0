@@ -103,13 +103,13 @@ UFEMISM_source = \
   \
   validation/basic_tests/assertions_unit_tests_output.f90 \
   validation/basic_tests/assertions_unit_tests_basic.f90 \
-  validation/basic_tests/assertions_unit_tests_logical.f90 \
-  validation/basic_tests/assertions_unit_tests_int.f90 \
-  validation/basic_tests/assertions_unit_tests_dp.f90 \
-  validation/basic_tests/assertions_unit_tests_CSR.f90 \
-  validation/basic_tests/assertions_unit_tests_grid.f90 \
-  validation/basic_tests/assertions_unit_tests_grid_lonlat.f90 \
-  validation/basic_tests/assertions_unit_tests_mesh.f90 \
+  validation/basic_tests/tests_logical.f90 \
+  validation/basic_tests/tests_int.f90 \
+  validation/basic_tests/tests_dp.f90 \
+  validation/basic_tests/tests_CSR.f90 \
+  validation/basic_tests/tests_grid.f90 \
+  validation/basic_tests/tests_grid_lonlat.f90 \
+  validation/basic_tests/tests_mesh.f90 \
   validation/basic_tests/assertions_unit_tests.f90 \
   \
   basic/mpi_distributed_memory.f90 \

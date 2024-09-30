@@ -13,43 +13,42 @@ module assertions_unit_tests
   ! x/y-grids, lon/lat-grids, and meshes
 
   use assertions_unit_tests_basic, only: ASSERTION, UNIT_TEST, process_test_result
-  use assertions_unit_tests_logical
-  use assertions_unit_tests_int
-  use assertions_unit_tests_dp
-  use assertions_unit_tests_CSR
-  use assertions_unit_tests_grid
-  use assertions_unit_tests_grid_lonlat
-  use assertions_unit_tests_mesh
+  use tests_logical
+  use tests_int
+  use tests_dp
+  use tests_CSR
+  use tests_grid
+  use tests_grid_lonlat
+  use tests_mesh
 
   implicit none
 
   private
 
-  public :: ASSERTION, UNIT_TEST
   public :: test_eqv, test_neqv, test_eq, test_neq, test_gt, test_lt, test_ge, test_le, test_ge_le, test_tol
   public :: test_eq_permute, test_tol_mesh, test_mesh_is_self_consistent, test_mesh_vertices_are_neighbours
   public :: test_mesh_triangles_are_neighbours, test_mesh_triangle_doesnt_have_duplicates
 
-  ! Generic interfaces to specific test routines
-  ! ============================================
+! Generic interfaces to specific test routines
+! ============================================
 
   !> Test if a .eqv. b
   interface test_eqv
-  procedure test_eqv_logical_0D
-  procedure test_eqv_logical_1D_scalar, test_eqv_logical_1D_array
-  procedure test_eqv_logical_2D_scalar, test_eqv_logical_2D_array
-  procedure test_eqv_logical_3D_scalar, test_eqv_logical_3D_array
-  procedure test_eqv_logical_4D_scalar, test_eqv_logical_4D_array
-end interface test_eqv
+    procedure test_eqv_logical_0D
+    procedure test_eqv_logical_1D_scalar, test_eqv_logical_1D_array
+    procedure test_eqv_logical_2D_scalar, test_eqv_logical_2D_array
+    procedure test_eqv_logical_3D_scalar, test_eqv_logical_3D_array
+    procedure test_eqv_logical_4D_scalar, test_eqv_logical_4D_array
+  end interface test_eqv
 
-!> Test if a .neqv. b
-interface test_neqv
-  procedure test_neqv_logical_0D
-  procedure test_neqv_logical_1D_scalar, test_neqv_logical_1D_array
-  procedure test_neqv_logical_2D_scalar, test_neqv_logical_2D_array
-  procedure test_neqv_logical_3D_scalar, test_neqv_logical_3D_array
-  procedure test_neqv_logical_4D_scalar, test_neqv_logical_4D_array
-end interface test_neqv
+  !> Test if a .neqv. b
+  interface test_neqv
+    procedure test_neqv_logical_0D
+    procedure test_neqv_logical_1D_scalar, test_neqv_logical_1D_array
+    procedure test_neqv_logical_2D_scalar, test_neqv_logical_2D_array
+    procedure test_neqv_logical_3D_scalar, test_neqv_logical_3D_array
+    procedure test_neqv_logical_4D_scalar, test_neqv_logical_4D_array
+  end interface test_neqv
 
   !> Test if a == b
   interface test_eq

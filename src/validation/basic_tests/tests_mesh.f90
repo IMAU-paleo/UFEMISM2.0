@@ -1,4 +1,4 @@
-module assertions_unit_tests_mesh
+module tests_mesh
 
   ! The assertions/unit tests for meshes.
 
@@ -726,4 +726,4 @@ contains
 
   end function is_border_edge
 
-end module assertions_unit_tests_mesh
+end module tests_mesh
