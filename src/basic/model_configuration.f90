@@ -3615,11 +3615,11 @@ CONTAINS
     IF (.NOT. ex) CALL crash('namelist file ' // TRIM( namelist_filename) // ' could not be found!')
 
     ! Check if all the variables appearing in the config file "config_filename" are valid
-    CALL check_if_all_config_variables_are_valid( config_filename, namelist_filename, all_are_valid)
+    ! NOTE: disabled until the config file code has been refactored to accomodate optional vs. required config parameters!
+    !CALL check_if_all_config_variables_are_valid( config_filename, namelist_filename, all_are_valid)
 
     ! Check if all the expected config variables appear in the config file "config_filename"
-    ! NOTE: disabled until the config file code has been refactored to accomodate optional vs. required config parameters!
-    !CALL check_if_all_expected_config_variables_are_present( config_filename, namelist_filename, all_are_present)
+    CALL check_if_all_expected_config_variables_are_present( config_filename, namelist_filename, all_are_present)
 
     ! If not all is well, crash
     IF (.NOT. (all_are_valid .AND. all_are_present)) CALL crash('config file "' // TRIM( config_filename) // '" is invalid!')
