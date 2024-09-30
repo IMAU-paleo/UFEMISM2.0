@@ -1,4 +1,4 @@
-module assertions_unit_tests_grid_lonlat
+module tests_grid_lonlat
 
   ! The assertions/unit tests for simple lon/lat-grids.
 
@@ -51,4 +51,4 @@ subroutine test_tol_grid_lonlat( grid1, grid2, tol_angle_deg, test_mode, message
 
 end subroutine test_tol_grid_lonlat
 
-end module assertions_unit_tests_grid_lonlat
+end module tests_grid_lonlat

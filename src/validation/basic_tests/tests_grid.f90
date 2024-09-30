@@ -1,4 +1,4 @@
-module assertions_unit_tests_grid
+module tests_grid
 
   ! The assertions/unit tests for simple square x/y-grids.
 
@@ -53,4 +53,4 @@ contains
 
   end subroutine test_tol_grid
 
-end module assertions_unit_tests_grid
+end module tests_grid

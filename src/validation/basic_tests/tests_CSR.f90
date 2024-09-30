@@ -1,4 +1,4 @@
-module assertions_unit_tests_CSR
+module tests_CSR
 
   ! The assertions/unit tests for CSR-type matrices.
 
@@ -49,4 +49,4 @@ contains
 
   end subroutine test_tol_CSR
 
-end module assertions_unit_tests_CSR
+end module tests_CSR

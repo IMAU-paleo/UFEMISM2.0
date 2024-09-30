@@ -1,4 +1,4 @@
-module assertions_unit_tests_logical
+module tests_logical
 
   ! The assertions/unit tests for logical values.
 
@@ -327,4 +327,4 @@ contains
 
   end subroutine test_neqv_logical_4D_array
 
-end module assertions_unit_tests_logical
+end module tests_logical
