@@ -27,8 +27,6 @@ CONTAINS
     !
     ! Use a parameterised BMB scheme
 
-    IMPLICIT NONE
-
     ! In/output variables:
     TYPE(type_mesh),                     INTENT(IN)    :: mesh
     TYPE(type_ice_model),                INTENT(IN)    :: ice
@@ -56,8 +54,6 @@ CONTAINS
 
   SUBROUTINE run_BMB_model_parameterised_Favier2019( mesh, ice, ocean, BMB)
     ! The basal melt parameterisation used in Favier et al. (2019)
-
-    IMPLICIT NONE
 
     ! In/output variables
     TYPE(type_mesh),                     INTENT(IN)    :: mesh
@@ -104,8 +100,6 @@ CONTAINS
     ! Initialise the BMB model
     !
     ! Use a parameterised BMB scheme
-
-    IMPLICIT NONE
 
     ! In- and output variables
     TYPE(type_mesh),                        INTENT(IN)    :: mesh

@@ -41,8 +41,9 @@ jobs:
     needs: [compile_and_cache_UFEMISM, install_and_cache_Matlab]
     uses: ./.github/workflows/UFE_test_suite_run_and_analyse_integrated_tests.yml
 
-  # Append the temporary scoreboard files from the component and integrated tests
-  # to the main scoreboard files, and commit the changes
-  finalise_scoreboard:
-    needs: [analyse_component_tests, run_and_analyse_integrated_tests]
-    uses: ./.github/workflows/UFE_test_suite_finalise_scoreboard.yml
+  # DENK DROM - fix this!
+  # # Append the temporary scoreboard files from the component and integrated tests
+  # # to the main scoreboard files, and commit the changes
+  # finalise_scoreboard:
+  #   needs: [analyse_component_tests, run_and_analyse_integrated_tests]
+  #   uses: ./.github/workflows/UFE_test_suite_finalise_scoreboard.yml
