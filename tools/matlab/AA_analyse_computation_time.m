@@ -1,6 +1,6 @@
 function AA_analyse_computation_time
   
-filename = '/Users/berends/Documents/Papers/UFEMISM2.0/MISMIP/results_MISMIP_5km_spinup/resource_tracking.nc';
+filename = '/Users/Beren017/Documents/GitHub/UFEMISM2.0/automated_testing/integrated_tests/idealised/Halfar_dome/Halfar_5km/results/resource_tracking.nc';
 
 R = read_resource_tracking_file( filename);
 

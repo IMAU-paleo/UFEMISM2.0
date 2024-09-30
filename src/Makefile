@@ -124,12 +124,12 @@ UFEMISM_source = \
   mesh/mesh_utilities.f90 \
   mesh/mesh_dummy_meshes.f90 \
   mesh/mesh_ROI_polygons.f90 \
-  mesh/mesh_Delaunay_check_Delaunay_criterion.f90 \
-  mesh/mesh_Delaunay_flip_triangles.f90 \
-  mesh/mesh_Delaunay_move_vertex.f90 \
-  mesh/mesh_Delaunay_split_border_edge.f90 \
-  mesh/mesh_Delaunay_split_edge.f90 \
-  mesh/mesh_Delaunay_split_triangle.f90 \
+  mesh/Delaunay/mesh_Delaunay_check_Delaunay_criterion.f90 \
+  mesh/Delaunay/mesh_Delaunay_flip_triangles.f90 \
+  mesh/Delaunay/mesh_Delaunay_move_vertex.f90 \
+  mesh/Delaunay/mesh_Delaunay_split_border_edge.f90 \
+  mesh/Delaunay/mesh_Delaunay_split_edge.f90 \
+  mesh/Delaunay/mesh_Delaunay_split_triangle.f90 \
   mesh/mesh_edges.f90 \
   mesh/mesh_refinement_basic.f90 \
   mesh/mesh_refinement_basic_ROI.f90 \
