@@ -19,7 +19,7 @@ MODULE BMB_main
   USE BMB_idealised                                          , ONLY: initialise_BMB_model_idealised, run_BMB_model_idealised
   USE BMB_prescribed                                         , ONLY: initialise_BMB_model_prescribed, run_BMB_model_prescribed
   USE BMB_parameterised                                      , ONLY: initialise_BMB_model_parameterised, run_BMB_model_parameterised
-  USE BMB_laddie                                             , ONLY: initialise_BMB_model_laddie, run_BMB_model_laddie
+  USE BMB_laddie                                             , ONLY: initialise_BMB_model_laddie, run_BMB_model_laddie, remap_BMB_model_laddie
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   USE math_utilities                                         , ONLY: is_floating
   USE mesh_utilities                                         , ONLY: extrapolate_Gaussian
@@ -512,7 +512,7 @@ CONTAINS
       CASE ('inverted')
         ! No need to do anything
       CASE ('laddie')
-        ! No need to do anything
+        CALL remap_BMB_model_laddie( mesh_new, BMB)
       CASE DEFAULT
         CALL crash('unknown choice_BMB_model "' // TRIM( choice_BMB_model) // '"')
     END SELECT
