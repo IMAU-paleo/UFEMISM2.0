@@ -796,7 +796,7 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: choice_BMB_laddie_system_config              = ''                               ! System on which the model is running: 'local_mac' or 'slurm_HPC'
     CHARACTER(LEN=256)  :: filename_BMB_laddie_configname_config        = ''                               ! File name of basal melt provided by LADDIE
     CHARACTER(LEN=256)  :: filename_BMB_laddie_initial_restart_config   = ''                               ! File name containing restart for laddie from laddie spinup
-    CHARACTER(LEN=256)  :: filename_BMB_laddie_initial_output_config    = ''                               ! File name containing output from laddie spinup 
+    CHARACTER(LEN=256)  :: filename_BMB_laddie_initial_output_config    = ''                               ! File name containing output from laddie spinup
     CHARACTER(LEN=256)  :: dir_BMB_laddie_model_config                  = ''                               ! Directory where laddie code is located
 
   ! == Lateral mass balance
@@ -1708,11 +1708,11 @@ MODULE model_configuration
     REAL(dp)            :: BMB_Favier2019_gamma
 
     ! "laddie"
-    CHARACTER(LEN=256)  :: choice_BMB_laddie_system                                                    
-    CHARACTER(LEN=256)  :: filename_BMB_laddie_configname                                             
-    CHARACTER(LEN=256)  :: filename_BMB_laddie_initial_restart                                       
-    CHARACTER(LEN=256)  :: filename_BMB_laddie_initial_output                                       
-    CHARACTER(LEN=256)  :: dir_BMB_laddie_model                                                    
+    CHARACTER(LEN=256)  :: choice_BMB_laddie_system
+    CHARACTER(LEN=256)  :: filename_BMB_laddie_configname
+    CHARACTER(LEN=256)  :: filename_BMB_laddie_initial_restart
+    CHARACTER(LEN=256)  :: filename_BMB_laddie_initial_output
+    CHARACTER(LEN=256)  :: dir_BMB_laddie_model
 
   ! == Lateral mass balance
   ! =======================
@@ -3618,7 +3618,8 @@ CONTAINS
     CALL check_if_all_config_variables_are_valid( config_filename, namelist_filename, all_are_valid)
 
     ! Check if all the expected config variables appear in the config file "config_filename"
-    CALL check_if_all_expected_config_variables_are_present( config_filename, namelist_filename, all_are_present)
+    ! NOTE: disabled until the config file code has been refactored to accomodate optional vs. required config parameters!
+    !CALL check_if_all_expected_config_variables_are_present( config_filename, namelist_filename, all_are_present)
 
     ! If not all is well, crash
     IF (.NOT. (all_are_valid .AND. all_are_present)) CALL crash('config file "' // TRIM( config_filename) // '" is invalid!')
