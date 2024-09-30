@@ -2,14 +2,13 @@ module flip_triangles
 
   ! Iteratively flip triangle pairs until the global Delaunay criterion is satisfied
 
-  use assertions_unit_tests, only: ASSERTION, UNIT_TEST, test_eqv, test_neqv, test_eq, test_neq, &
-    test_gt, test_lt, test_ge, test_le, test_ge_le, test_tol, test_eq_permute, test_tol_mesh, &
-    test_mesh_is_self_consistent, test_mesh_triangles_are_neighbours, test_mesh_triangle_doesnt_have_duplicates
+  use tests_main
+  use assertions_basic
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, warning, crash
   use mesh_types, only: type_mesh
   use check_Delaunay_criterion, only: are_Delaunay
-  use mesh_utilities, only: write_mesh_to_text_file, check_if_triangle_already_exists, &
-    update_triangle_circumcenter, add_triangle_to_refinement_stack_first, find_triangle_pair_local_geometry
+  use mesh_utilities, only: write_mesh_to_text_file, update_triangle_circumcenter, &
+    add_triangle_to_refinement_stack_first, find_triangle_pair_local_geometry
 
   implicit none
 
@@ -47,8 +46,8 @@ contains
 
 #if (DO_ASSERTIONS)
       ! Safety - assert that ti and tj are valid triangles
-      call test_ge_le( ti, 1, mesh%nTri, ASSERTION, 'ti should be > 0 and <= mesh%nTri')
-      call test_ge_le( tj, 1, mesh%nTri, ASSERTION, 'tj should be > 0 and <= mesh%nTri')
+      call assert( test_ge_le( ti, 1, mesh%nTri), 'invalid value for ti')
+      call assert( test_ge_le( tj, 1, mesh%nTri), 'invalid value for tj')
 #endif
 
       ! Check if these two triangles are still connected (they might have
@@ -144,10 +143,10 @@ contains
 
 #if (DO_ASSERTIONS)
     ! Safety - assert that ti and tj are valid triangles
-    call test_ge_le( ti, 1, mesh%nTri, ASSERTION, 'ti should be > 0 and <= mesh%nTri')
-    call test_ge_le( tj, 1, mesh%nTri, ASSERTION, 'tj should be > 0 and <= mesh%nTri')
+    call assert( test_ge_le( ti, 1, mesh%nTri), 'invalid value for ti')
+    call assert( test_ge_le( tj, 1, mesh%nTri), 'invalid value for tj')
     ! Safety - assert that ti and tj are neighbours
-    call test_mesh_triangles_are_neighbours( mesh, ti, tj, ASSERTION, 'ti and tj are not meighbours')
+    call assert( test_mesh_triangles_are_neighbours( mesh, ti, tj), 'ti and tj are not meighbours')
 #endif
 
     ! Determine the local geometry around triangle pair [ti,tj]
@@ -168,10 +167,8 @@ contains
 
 #if (DO_ASSERTIONS)
     ! Safety - check if everything went alright and we didnt create any duplicate triangles
-    call test_mesh_triangle_doesnt_have_duplicates( mesh, t1, ASSERTION, &
-      'a triangle with the vertices of t1 already exists')
-    call test_mesh_triangle_doesnt_have_duplicates( mesh, t2, ASSERTION, &
-      'a triangle with the vertices of t2 already exists')
+    call assert( test_mesh_triangle_doesnt_have_duplicates( mesh, t1), 'a triangle with the vertices of t1 already exists')
+    call assert( test_mesh_triangle_doesnt_have_duplicates( mesh, t2), 'a triangle with the vertices of t2 already exists')
 #endif
 
     ! == nC, C

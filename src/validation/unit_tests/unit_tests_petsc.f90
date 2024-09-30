@@ -7,15 +7,16 @@ module unit_tests_petsc
 #include <petsc/finclude/petscksp.h>
   use petscksp
   use mpi
-  use precisions                                             , only: dp
-  use mpi_basic                                              , only: par, cerr, ierr, recv_status, sync
-  use control_resources_and_error_messaging                  , only: warning, crash, happy, init_routine, finalise_routine
-  use model_configuration                                    , only: C
-  use CSR_sparse_matrix_utilities                            , only: type_sparse_matrix_CSR_dp, deallocate_matrix_CSR_dist
-  use petsc_basic                                            , only: perr, mat_CSR2petsc, multiply_CSR_matrix_with_vector_1D, multiply_petsc_matrix_with_vector_1D, MatDestroy, &
-                                                                     mat_petsc2CSR
-  use netcdf_debug                                           , only: write_CSR_matrix_to_NetCDF
-  use assertions_unit_tests, only: ASSERTION, UNIT_TEST, test_eqv, test_neqv, test_eq, test_neq, test_gt, test_lt, test_ge, test_le, test_ge_le, test_tol
+  use precisions, only: dp
+  use mpi_basic, only: par, cerr, ierr, recv_status, sync
+  use control_resources_and_error_messaging, only: warning, crash, happy, init_routine, finalise_routine
+  use model_configuration, only: C
+  use CSR_sparse_matrix_utilities, only: type_sparse_matrix_CSR_dp, deallocate_matrix_CSR_dist
+  use petsc_basic, only: perr, mat_CSR2petsc, multiply_CSR_matrix_with_vector_1D, &
+    multiply_petsc_matrix_with_vector_1D, MatDestroy, mat_petsc2CSR
+  use tests_main
+  use assertions_basic
+  use unit_tests_basic
 
   implicit none
 
@@ -38,6 +39,9 @@ contains
 
     ! Add routine to call stack
     call init_routine( routine_name)
+
+    ! Safety - should be run on two cores
+    call assert( test_eq( par%n, 2), 'should be run on two cores')
 
     ! Add test name to list
     test_name = trim( test_name_parent) // '/' // trim( test_name_local)
@@ -68,11 +72,11 @@ contains
     ! Add routine to call stack
     call init_routine( routine_name)
 
+    ! Safety - should be run on two cores
+    call assert( test_eq( par%n, 2), 'should be run on two cores')
+
     ! Add test name to list
     test_name = trim( test_name_parent) // '/' // trim( test_name_local)
-
-    ! Safety - should be run on two cores
-    call test_eq( par%n, 2, ASSERTION, 'should be run on two cores')
 
     ! == multiply_CSR_matrix_with_vector_1D
 
@@ -150,7 +154,7 @@ contains
     call multiply_CSR_matrix_with_vector_1D( AA, xx, yy)
 
     ! Check results
-    call test_eq( yy, yy_correct, UNIT_TEST, test_name)
+    call unit_test( test_eq( yy, yy_correct), test_name)
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)
@@ -174,11 +178,11 @@ contains
     ! Add routine to call stack
     call init_routine( routine_name)
 
+    ! Safety - should be run on two cores
+    call assert( test_eq( par%n, 2), 'should be run on two cores')
+
     ! Add test name to list
     test_name = trim( test_name_parent) // '/' // trim( test_name_local)
-
-    ! Safety - should be run on two cores
-    call test_eq( par%n, 2, ASSERTION, 'should be run on two cores')
 
     ! == multiply_CSR_matrix_with_vector_1D
 
@@ -259,7 +263,7 @@ contains
     call multiply_PETSc_matrix_with_vector_1D( A, xx, yy)
 
     ! Check results
-    call test_eq( yy, yy_correct, UNIT_TEST, test_name)
+    call unit_test( test_eq( yy, yy_correct), test_name)
 
     ! Clean up after yourself
     call deallocate_matrix_CSR_dist( AA)
@@ -289,11 +293,11 @@ contains
     ! Add routine to call stack
     call init_routine( routine_name)
 
+    ! Safety - should be run on two cores
+    call assert( test_eq( par%n, 2), 'should be run on two cores')
+
     ! Add test name to list
     test_name = trim( test_name_parent) // '/' // trim( test_name_local)
-
-    ! Safety - should be run on two cores
-    call test_eq( par%n, 2, ASSERTION, 'should be run on two cores')
 
     found_errors = .false.
 
@@ -359,7 +363,7 @@ contains
     call mat_petsc2CSR( A , AA2)
 
     ! Check results
-    call test_tol ( AA, AA2, 1e-12_dp, UNIT_TEST, test_name)
+    call unit_test( test_tol ( AA, AA2, 1e-12_dp), test_name)
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)

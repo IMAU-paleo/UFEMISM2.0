@@ -2,16 +2,18 @@ module unit_tests_mpi
 
   ! Unit tests for different MPI routines
 
+  use tests_main
+  use assertions_basic
+  use unit_tests_basic
   use mpi
-  use precisions                                             , only: dp
-  use mpi_basic                                              , only: par, cerr, ierr, recv_status, sync
-  use control_resources_and_error_messaging                  , only: warning, crash, happy, init_routine, finalise_routine, colour_string
-  use model_configuration                                    , only: C
-  use mpi_distributed_memory                                 , only: gather_to_all_int_1D, gather_to_all_int_2D, gather_to_all_dp_1D, gather_to_all_dp_2D, &
-                                                                     gather_to_master_int_1D, gather_to_master_int_2D, gather_to_master_dp_1D, &
-                                                                     gather_to_master_dp_2D, distribute_from_master_int_1D, distribute_from_master_int_2D, &
-                                                                     distribute_from_master_dp_1D, distribute_from_master_dp_2D
-  use assertions_unit_tests, only: ASSERTION, UNIT_TEST, test_eqv, test_neqv, test_eq, test_neq, test_gt, test_lt, test_ge, test_le, test_ge_le, test_tol
+  use precisions, only: dp
+  use mpi_basic, only: par, cerr, ierr, recv_status, sync
+  use control_resources_and_error_messaging, only: warning, crash, happy, init_routine, finalise_routine, colour_string
+  use model_configuration, only: C
+  use mpi_distributed_memory, only: gather_to_all_int_1D, gather_to_all_int_2D, gather_to_all_dp_1D, gather_to_all_dp_2D, &
+    gather_to_master_int_1D, gather_to_master_int_2D, gather_to_master_dp_1D, &
+    gather_to_master_dp_2D, distribute_from_master_int_1D, distribute_from_master_int_2D, &
+    distribute_from_master_dp_1D, distribute_from_master_dp_2D
 
   implicit none
 
@@ -34,6 +36,9 @@ contains
 
     ! Add routine to call stack
     call init_routine( routine_name)
+
+    ! Safety - should be run on two cores
+    call assert( test_eq( par%n, 2), 'should be run on two cores')
 
     ! Add test name to list
     test_name = trim( test_name_parent) // '/' // trim( test_name_local)
@@ -64,6 +69,9 @@ contains
 
     ! Add routine to call stack
     call init_routine( routine_name)
+
+    ! Safety - should be run on two cores
+    call assert( test_eq( par%n, 2), 'should be run on two cores')
 
     ! Add test name to list
     test_name = trim( test_name_parent) // '/' // trim( test_name_local)
@@ -96,7 +104,7 @@ contains
     test_name = trim( test_name_parent) // '/' // trim( test_name_local)
 
     ! Safety - should be run on two cores
-    call test_eq( par%n, 2, ASSERTION, 'should be run on two cores')
+    call assert( test_eq( par%n, 2), 'should be run on two cores')
 
     if (par%i == 0) then
       allocate( aa( 2))
@@ -121,7 +129,7 @@ contains
     call gather_to_master_int_1D( aa, bb)
 
     ! Check results
-    if (par%master) call test_eq( bb, cc, UNIT_TEST, test_name)
+    if (par%master) call unit_test( test_eq( bb, cc), test_name)
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)
@@ -146,7 +154,7 @@ contains
     test_name = trim( test_name_parent) // '/' // trim( test_name_local)
 
     ! Safety - should be run on two cores
-    call test_eq( par%n, 2, ASSERTION, 'should be run on two cores')
+    call assert( test_eq( par%n, 2), 'should be run on two cores')
 
     if (par%i == 0) then
       allocate( aa( 2,2))
@@ -169,10 +177,10 @@ contains
     end if
 
     ! Gather data
-    CALL gather_to_master_int_2D( aa, bb)
+    call gather_to_master_int_2D( aa, bb)
 
     ! Check results
-    if (par%master) call test_eq( bb, cc, UNIT_TEST, test_name)
+    if (par%master) call unit_test( test_eq( bb, cc), test_name)
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)
@@ -197,7 +205,7 @@ contains
     test_name = trim( test_name_parent) // '/' // trim( test_name_local)
 
     ! Safety - should be run on two cores
-    call test_eq( par%n, 2, ASSERTION, 'should be run on two cores')
+    call assert( test_eq( par%n, 2), 'should be run on two cores')
 
     if (par%i == 0) then
       allocate( aa( 2))
@@ -222,7 +230,7 @@ contains
     call gather_to_master_dp_1D( aa, bb)
 
     ! Check results
-    if (par%master) call test_eq( bb, cc, UNIT_TEST, test_name)
+    if (par%master) call unit_test( test_eq( bb, cc), test_name)
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)
@@ -247,7 +255,7 @@ contains
     test_name = trim( test_name_parent) // '/' // trim( test_name_local)
 
     ! Safety - should be run on two cores
-    call test_eq( par%n, 2, ASSERTION, 'should be run on two cores')
+    call assert( test_eq( par%n, 2), 'should be run on two cores')
 
     if (par%i == 0) then
       allocate( aa( 2,2))
@@ -270,10 +278,10 @@ contains
     end if
 
     ! Gather data
-    CALL gather_to_master_dp_2D( aa, bb)
+    call gather_to_master_dp_2D( aa, bb)
 
     ! Check results
-    if (par%master) call test_eq( bb, cc, UNIT_TEST, test_name)
+    if (par%master) call unit_test( test_eq( bb, cc), test_name)
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)
@@ -323,13 +331,13 @@ contains
     integer, dimension(:), allocatable :: aa, bb, cc
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
     ! Add test name to list
     test_name = trim( test_name_parent) // '/' // trim( test_name_local)
 
     ! Safety - should be run on two cores
-    call test_eq( par%n, 2, ASSERTION, 'should be run on two cores')
+    call assert( test_eq( par%n, 2), 'should be run on two cores')
 
     if (par%i == 0) then
       allocate( aa( 2))
@@ -351,10 +359,10 @@ contains
     end if
 
     ! Gather data
-    CALL gather_to_all_int_1D( aa, bb)
+    call gather_to_all_int_1D( aa, bb)
 
     ! Check results
-    call test_eq( bb, cc, UNIT_TEST, test_name)
+    call unit_test( test_eq( bb, cc), test_name)
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)
@@ -374,13 +382,13 @@ contains
     integer, dimension(:,:), allocatable :: aa, bb, cc
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
     ! Add test name to list
     test_name = trim( test_name_parent) // '/' // trim( test_name_local)
 
     ! Safety - should be run on two cores
-    call test_eq( par%n, 2, ASSERTION, 'should be run on two cores')
+    call assert( test_eq( par%n, 2), 'should be run on two cores')
 
     if (par%i == 0) then
       allocate( aa( 2,2))
@@ -403,10 +411,10 @@ contains
     end if
 
     ! Gather data
-    CALL gather_to_all_int_2D( aa, bb)
+    call gather_to_all_int_2D( aa, bb)
 
     ! Check results
-    call test_eq( bb, cc, UNIT_TEST, test_name)
+    call unit_test( test_eq( bb, cc), test_name)
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)
@@ -426,13 +434,13 @@ contains
     real(dp), dimension(:), allocatable :: aa, bb, cc
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
     ! Add test name to list
     test_name = trim( test_name_parent) // '/' // trim( test_name_local)
 
     ! Safety - should be run on two cores
-    call test_eq( par%n, 2, ASSERTION, 'should be run on two cores')
+    call assert( test_eq( par%n, 2), 'should be run on two cores')
 
     if (par%i == 0) then
       allocate( aa( 2))
@@ -454,10 +462,10 @@ contains
     end if
 
     ! Gather data
-    CALL gather_to_all_dp_1D( aa, bb)
+    call gather_to_all_dp_1D( aa, bb)
 
     ! Check results
-    call test_eq( bb, cc, UNIT_TEST, test_name)
+    call unit_test( test_eq( bb, cc), test_name)
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)
@@ -477,13 +485,13 @@ contains
     real(dp), dimension(:,:), allocatable :: aa, bb, cc
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
     ! Add test name to list
     test_name = trim( test_name_parent) // '/' // trim( test_name_local)
 
     ! Safety - should be run on two cores
-    call test_eq( par%n, 2, ASSERTION, 'should be run on two cores')
+    call assert( test_eq( par%n, 2), 'should be run on two cores')
 
     if (par%i == 0) then
       allocate( aa( 2,2))
@@ -506,10 +514,10 @@ contains
     end if
 
     ! Gather data
-    CALL gather_to_all_dp_2D( aa, bb)
+    call gather_to_all_dp_2D( aa, bb)
 
     ! Check results
-    call test_eq( bb, cc, UNIT_TEST, test_name)
+    call unit_test( test_eq( bb, cc), test_name)
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)
@@ -564,7 +572,7 @@ contains
     test_name = trim( test_name_parent) // '/' // trim( test_name_local)
 
     ! Safety - should be run on two cores
-    call test_eq( par%n, 2, ASSERTION, 'should be run on two cores')
+    call assert( test_eq( par%n, 2), 'should be run on two cores')
 
     if (par%i == 0) then
       allocate( aa( 7))
@@ -588,9 +596,9 @@ contains
 
     ! Check results
     if (par%master) then
-      call test_eq(bb( 1:2), cc( 1:2), UNIT_TEST, test_name)
+      call unit_test( test_eq(bb( 1:2), cc( 1:2)), test_name)
     elseif (par%i == 1) then
-      call test_eq(bb( 1:5), cc( 3:7), UNIT_TEST, test_name)
+      call unit_test( test_eq(bb( 1:5), cc( 3:7)), test_name)
     end if
 
     ! Remove routine from call stack
@@ -616,7 +624,7 @@ contains
     test_name = trim( test_name_parent) // '/' // trim( test_name_local)
 
     ! Safety - should be run on two cores
-    call test_eq( par%n, 2, ASSERTION, 'should be run on two cores')
+    call assert( test_eq( par%n, 2), 'should be run on two cores')
 
     if (par%i == 0) then
       allocate( aa( 7,2))
@@ -641,9 +649,9 @@ contains
 
     ! Check results
     if (par%master) then
-      call test_eq(bb( 1:2,:), cc( 1:2,:), UNIT_TEST, test_name)
+      call unit_test( test_eq(bb( 1:2,:), cc( 1:2,:)), test_name)
     elseif (par%i == 1) then
-      call test_eq(bb( 1:5,:), cc( 3:7,:), UNIT_TEST, test_name)
+      call unit_test( test_eq(bb( 1:5,:), cc( 3:7,:)), test_name)
     end if
 
     ! Remove routine from call stack
@@ -669,7 +677,7 @@ contains
     test_name = trim( test_name_parent) // '/' // trim( test_name_local)
 
     ! Safety - should be run on two cores
-    call test_eq( par%n, 2, ASSERTION, 'should be run on two cores')
+    call assert( test_eq( par%n, 2), 'should be run on two cores')
 
     if (par%i == 0) then
       allocate( aa( 7))
@@ -693,9 +701,9 @@ contains
 
     ! Check results
     if (par%master) then
-      call test_eq(bb( 1:2), cc( 1:2), UNIT_TEST, test_name)
+      call unit_test( test_eq(bb( 1:2), cc( 1:2)), test_name)
     elseif (par%i == 1) then
-      call test_eq(bb( 1:5), cc( 3:7), UNIT_TEST, test_name)
+      call unit_test( test_eq(bb( 1:5), cc( 3:7)), test_name)
     end if
 
     ! Remove routine from call stack
@@ -721,7 +729,7 @@ contains
     test_name = trim( test_name_parent) // '/' // trim( test_name_local)
 
     ! Safety - should be run on two cores
-    call test_eq( par%n, 2, ASSERTION, 'should be run on two cores')
+    call assert( test_eq( par%n, 2), 'should be run on two cores')
 
     if (par%i == 0) then
       allocate( aa( 7,2))
@@ -746,9 +754,9 @@ contains
 
     ! Check results
     if (par%master) then
-      call test_eq(bb( 1:2,:), cc( 1:2,:), UNIT_TEST, test_name)
+      call unit_test( test_eq(bb( 1:2,:), cc( 1:2,:)), test_name)
     elseif (par%i == 1) then
-      call test_eq(bb( 1:5,:), cc( 3:7,:), UNIT_TEST, test_name)
+      call unit_test( test_eq(bb( 1:5,:), cc( 3:7,:)), test_name)
     end if
 
     ! Remove routine from call stack
