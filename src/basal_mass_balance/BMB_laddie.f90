@@ -40,6 +40,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'run_BMB_model_laddie'
     CHARACTER(LEN=256)                                    :: filename_BMB_laddie_output
+    CHARACTER(LEN=256)                                    :: filename_laddieready
     LOGICAL                                               :: found_laddie_file
 
     ! Add routine to path
@@ -70,12 +71,6 @@ CONTAINS
     IF (found_laddie_file) THEN
       CALL read_field_from_file_2D( filename_BMB_laddie_output, 'BMBext', mesh, BMB%BMB_shelf)
     END IF
-
-    ! Remove laddieready file
-    IF (par%master) THEN
-      CALL system('rm ' // TRIM(laddieready))
-    END IF
-    CALL sync
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -186,6 +181,12 @@ CONTAINS
       CALL SLEEP(1)
 
     END DO ! End sleep loop if laddieready is found
+
+    ! Remove laddieready file
+    IF (par%master) THEN
+      CALL system('rm ' // TRIM(laddieready))
+    END IF
+    CALL sync
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
