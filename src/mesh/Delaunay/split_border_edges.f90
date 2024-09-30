@@ -1,4 +1,4 @@
-module mesh_Delaunay_split_border_edge
+module split_border_edges
 
   ! Split a border edge of the mesh, and update the Delaunay triangulation accordingly.
 
@@ -12,7 +12,7 @@ module mesh_Delaunay_split_border_edge
   use math_utilities, only: lies_on_line_segment
   use mesh_utilities, only: is_border_edge, check_if_triangle_already_exists, update_triangle_circumcenter, &
     add_triangle_to_refinement_stack_last
-  use mesh_Delaunay_flip_triangles, only: flip_triangles_until_Delaunay
+  use flip_triangles, only: flip_triangles_until_Delaunay
 
   implicit none
 
@@ -302,4 +302,4 @@ contains
 
   end subroutine split_border_edge
 
-end module mesh_Delaunay_split_border_edge
+end module split_border_edges

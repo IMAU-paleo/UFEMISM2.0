@@ -1,4 +1,4 @@
-module mesh_Delaunay_check_Delaunay_criterion
+module check_Delaunay_criterion
 
   ! Check if a pair of triangles satisfies the (local) Delaunay criterion
 
@@ -99,4 +99,4 @@ contains
 
   end function are_Delaunay
 
-end module mesh_Delaunay_check_Delaunay_criterion
+end module check_Delaunay_criterion
