@@ -100,16 +100,16 @@ UFEMISM_source = \
   basic/control_resources_and_error_messaging.f90 \
   basic/model_configuration.f90 \
   \
-  validation/assertions_unit_tests_output.f90 \
-  validation/assertions_unit_tests_basic.f90 \
-  validation/assertions_unit_tests_logical.f90 \
-  validation/assertions_unit_tests_int.f90 \
-  validation/assertions_unit_tests_dp.f90 \
-  validation/assertions_unit_tests_CSR.f90 \
-  validation/assertions_unit_tests_grid.f90 \
-  validation/assertions_unit_tests_grid_lonlat.f90 \
-  validation/assertions_unit_tests_mesh.f90 \
-  validation/assertions_unit_tests.f90 \
+  validation/basic_tests/assertions_unit_tests_output.f90 \
+  validation/basic_tests/assertions_unit_tests_basic.f90 \
+  validation/basic_tests/assertions_unit_tests_logical.f90 \
+  validation/basic_tests/assertions_unit_tests_int.f90 \
+  validation/basic_tests/assertions_unit_tests_dp.f90 \
+  validation/basic_tests/assertions_unit_tests_CSR.f90 \
+  validation/basic_tests/assertions_unit_tests_grid.f90 \
+  validation/basic_tests/assertions_unit_tests_grid_lonlat.f90 \
+  validation/basic_tests/assertions_unit_tests_mesh.f90 \
+  validation/basic_tests/assertions_unit_tests.f90 \
   \
   basic/mpi_distributed_memory.f90 \
   basic/math_utilities.f90 \
@@ -209,24 +209,24 @@ UFEMISM_source = \
   main/main_regional_output.f90 \
   main/UFEMISM_main_model.f90 \
   \
-  validation/unit_tests_mpi.f90 \
-  validation/unit_tests_petsc.f90 \
-  validation/unit_tests_mesh_Delaunay.f90 \
-  validation/unit_tests_mesh_refinement.f90 \
-  validation/unit_tests_mesh.f90 \
-  validation/unit_tests_netcdf.f90 \
-  validation/unit_tests_ice.f90 \
-  validation/unit_tests.f90 \
+  validation/unit_tests/unit_tests_mpi.f90 \
+  validation/unit_tests/unit_tests_petsc.f90 \
+  validation/unit_tests/unit_tests_mesh_Delaunay.f90 \
+  validation/unit_tests/unit_tests_mesh_refinement.f90 \
+  validation/unit_tests/unit_tests_mesh.f90 \
+  validation/unit_tests/unit_tests_netcdf.f90 \
+  validation/unit_tests/unit_tests_ice.f90 \
+  validation/unit_tests/unit_tests.f90 \
   \
-  validation/component_tests_create_test_meshes.f90 \
-  validation/component_tests_discretisation_mapping_derivatives.f90 \
-  validation/component_tests_discretisation.f90 \
-  validation/component_tests_remapping_basic.f90 \
-  validation/component_tests_remapping_grid_to_mesh.f90 \
-  validation/component_tests_remapping_mesh_to_grid.f90 \
-  validation/component_tests_remapping_mesh_to_mesh.f90 \
-  validation/component_tests_remapping.f90 \
-  validation/component_tests.f90 \
+  validation/component_tests/component_tests_create_test_meshes.f90 \
+  validation/component_tests/component_tests_discretisation_mapping_derivatives.f90 \
+  validation/component_tests/component_tests_discretisation.f90 \
+  validation/component_tests/component_tests_remapping_basic.f90 \
+  validation/component_tests/component_tests_remapping_grid_to_mesh.f90 \
+  validation/component_tests/component_tests_remapping_mesh_to_grid.f90 \
+  validation/component_tests/component_tests_remapping_mesh_to_mesh.f90 \
+  validation/component_tests/component_tests_remapping.f90 \
+  validation/component_tests/component_tests.f90 \
   \
   main/UFEMISM_program.f90
 
