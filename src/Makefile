@@ -9,6 +9,7 @@
 # Include settings from (uncommented) file below:
 
 include Makefile_include_local.txt
+#include Makefile_include_ecmwf.txt
 #include Makefile_include_nix.txt
 #include Makefile_include_snellius.txt
 
@@ -156,6 +157,7 @@ UFEMISM_source = \
   basal_mass_balance/BMB_idealised.f90 \
   basal_mass_balance/BMB_prescribed.f90 \
   basal_mass_balance/BMB_parameterised.f90 \
+  basal_mass_balance/BMB_laddie.f90 \
   basal_mass_balance/BMB_main.f90 \
   \
   lateral_mass_balance/LMB_main.f90 \

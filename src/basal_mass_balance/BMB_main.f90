@@ -19,6 +19,7 @@ MODULE BMB_main
   USE BMB_idealised                                          , ONLY: initialise_BMB_model_idealised, run_BMB_model_idealised
   USE BMB_prescribed                                         , ONLY: initialise_BMB_model_prescribed, run_BMB_model_prescribed
   USE BMB_parameterised                                      , ONLY: initialise_BMB_model_parameterised, run_BMB_model_parameterised
+  USE BMB_laddie                                             , ONLY: initialise_BMB_model_laddie, run_BMB_model_laddie, remap_BMB_model_laddie
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   USE math_utilities                                         , ONLY: is_floating
   USE mesh_utilities                                         , ONLY: extrapolate_Gaussian
@@ -35,8 +36,6 @@ CONTAINS
 
   SUBROUTINE run_BMB_model( mesh, ice, ocean, refgeo, SMB, BMB, region_name, time)
     ! Calculate the basal mass balance
-
-    IMPLICIT NONE
 
     ! In/output variables:
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
@@ -123,6 +122,8 @@ CONTAINS
         CALL run_BMB_model_parameterised( mesh, ice, ocean, BMB)
       CASE ('inverted')
         CALL run_BMB_model_inverted( mesh, ice, BMB, time)
+      CASE ('laddie')
+        CALL run_BMB_model_laddie( mesh, BMB, time)
       CASE DEFAULT
         CALL crash('unknown choice_BMB_model "' // TRIM( choice_BMB_model) // '"')
     END SELECT
@@ -144,8 +145,6 @@ CONTAINS
 
   SUBROUTINE initialise_BMB_model( mesh, ice, BMB, region_name)
     ! Initialise the BMB model
-
-    IMPLICIT NONE
 
     ! In- and output variables
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
@@ -219,6 +218,8 @@ CONTAINS
         CALL initialise_BMB_model_parameterised( mesh, BMB)
       CASE ('inverted')
         ! No need to do anything
+      CASE ('laddie')
+        CALL initialise_BMB_model_laddie( mesh, BMB)
       CASE DEFAULT
         CALL crash('unknown choice_BMB_model "' // TRIM( choice_BMB_model) // '"')
     END SELECT
@@ -230,8 +231,6 @@ CONTAINS
 
   SUBROUTINE write_to_restart_file_BMB_model( mesh, BMB, region_name, time)
     ! Write to the restart file for the BMB model
-
-    IMPLICIT NONE
 
     ! In/output variables:
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
@@ -274,6 +273,8 @@ CONTAINS
         ! No need to do anything
       CASE ('inverted')
         CALL write_to_restart_file_BMB_model_region( mesh, BMB, region_name, time)
+      CASE ('laddie')
+        ! No need to do anything
       CASE DEFAULT
         CALL crash('unknown choice_BMB_model "' // TRIM( choice_BMB_model) // '"')
     END SELECT
@@ -285,8 +286,6 @@ CONTAINS
 
   SUBROUTINE write_to_restart_file_BMB_model_region( mesh, BMB, region_name, time)
     ! Write to the restart NetCDF file for the BMB model
-
-    IMPLICIT NONE
 
     ! In/output variables:
     TYPE(type_mesh),          INTENT(IN) :: mesh
@@ -331,8 +330,6 @@ CONTAINS
   SUBROUTINE create_restart_file_BMB_model( mesh, BMB, region_name)
     ! Create the restart file for the BMB model
 
-    IMPLICIT NONE
-
     ! In/output variables:
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
     TYPE(type_BMB_model),                   INTENT(INOUT) :: BMB
@@ -373,6 +370,8 @@ CONTAINS
         ! No need to do anything
       CASE ('inverted')
         CALL create_restart_file_BMB_model_region( mesh, BMB, region_name)
+      CASE ('laddie')
+        ! No need to do anything
       CASE DEFAULT
         CALL crash('unknown choice_BMB_model "' // TRIM( choice_BMB_model) // '"')
     END SELECT
@@ -385,8 +384,6 @@ CONTAINS
   SUBROUTINE create_restart_file_BMB_model_region( mesh, BMB, region_name)
     ! Create a restart NetCDF file for the BMB submodel
     ! Includes generation of the procedural filename (e.g. "restart_BMB_00001.nc")
-
-    IMPLICIT NONE
 
     ! In/output variables:
     TYPE(type_mesh),          INTENT(IN)    :: mesh
@@ -437,8 +434,6 @@ CONTAINS
 
   SUBROUTINE remap_BMB_model( mesh_old, mesh_new, ice, BMB, region_name)
     ! Remap the BMB model
-
-    IMPLICIT NONE
 
     ! In- and output variables
     TYPE(type_mesh),                        INTENT(IN)    :: mesh_old
@@ -502,6 +497,8 @@ CONTAINS
         CALL crash('Remapping after mesh update not implemented yet for parameterised BMB')
       CASE ('inverted')
         ! No need to do anything
+      CASE ('laddie')
+        CALL remap_BMB_model_laddie( mesh_new, BMB)
       CASE DEFAULT
         CALL crash('unknown choice_BMB_model "' // TRIM( choice_BMB_model) // '"')
     END SELECT
@@ -516,8 +513,6 @@ CONTAINS
 
   SUBROUTINE run_BMB_model_inverted( mesh, ice, BMB, time)
     ! Extrapolate inverted BMB values
-
-    IMPLICIT NONE
 
     ! In/output variables:
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
@@ -675,8 +670,6 @@ CONTAINS
   SUBROUTINE apply_BMB_subgrid_scheme( mesh, ice, BMB)
     ! Apply selected scheme for sub-grid shelf melt
     ! (see Leguy et al. 2021 for explanations of the three schemes)
-
-    IMPLICIT NONE
 
     ! In- and output variables
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
