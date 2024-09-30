@@ -1,4 +1,4 @@
-module mesh_remapping_apply_maps
+module apply_maps
 
   ! Apply pre-created mapping operators to data fields to remap
   ! data fields between different grids/meshes.
@@ -511,4 +511,4 @@ contains
 
   end subroutine apply_map_mesh_to_mesh_3D
 
-end module mesh_remapping_apply_maps
+end module apply_maps

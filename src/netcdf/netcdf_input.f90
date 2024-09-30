@@ -34,7 +34,7 @@ MODULE netcdf_input
   USE mesh_secondary                                         , ONLY: calc_all_secondary_mesh_data
   USE mesh_parallel_creation                                 , ONLY: broadcast_mesh
   USE mesh_operators                                         , ONLY: calc_all_matrix_operators_mesh
-  USE mesh_remapping                                         , ONLY: map_from_xy_grid_to_mesh_2D, map_from_lonlat_grid_to_mesh_2D, map_from_mesh_to_mesh_2D, &
+  USE remapping_main                                         , ONLY: map_from_xy_grid_to_mesh_2D, map_from_lonlat_grid_to_mesh_2D, map_from_mesh_to_mesh_2D, &
                                                                      map_from_xy_grid_to_mesh_3D, map_from_lonlat_grid_to_mesh_3D, map_from_mesh_to_mesh_3D, &
                                                                      map_from_vertical_to_vertical_2D_ocean
 

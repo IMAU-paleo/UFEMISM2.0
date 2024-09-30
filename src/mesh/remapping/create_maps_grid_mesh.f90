@@ -1,4 +1,4 @@
-module mesh_remapping_create_map_grid_mesh
+module create_maps_grid_mesh
 
   ! Create remapping objects between a square Cartesian grid and a mesh.
 
@@ -12,13 +12,12 @@ module mesh_remapping_create_map_grid_mesh
   use CSR_sparse_matrix_utilities, only: type_sparse_matrix_CSR_dp, allocate_matrix_CSR_dist, &
     deallocate_matrix_CSR_dist, add_entry_CSR_dist, add_empty_row_CSR_dist
   use remapping_types, only: type_single_row_mapping_matrices, type_map
-  use mesh_remapping_trace_line_basic, only: add_integrals_to_single_row
   use math_utilities, only: is_in_triangle
   use mesh_utilities, only: find_containing_triangle, calc_Voronoi_cell, is_in_Voronoi_cell
   use petsc_basic, only: mat_CSR2petsc
-  use mesh_remapping_trace_line_grid, only: trace_line_grid
-  use mesh_remapping_trace_line_triangles, only: trace_line_tri
-  use mesh_remapping_trace_line_Voronoi_cells, only: trace_line_Vor
+  use line_tracing_grid, only: trace_line_grid
+  use line_tracing_triangles, only: trace_line_tri
+  use line_tracing_Voronoi, only: trace_line_Vor
   use grid_basic, only: calc_matrix_operators_grid
 
   implicit none
@@ -1137,4 +1136,4 @@ contains
 
   end subroutine create_map_from_mesh_to_xy_grid
 
-end module mesh_remapping_create_map_grid_mesh
+end module create_maps_grid_mesh

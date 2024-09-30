@@ -34,7 +34,7 @@ MODULE ice_velocity_BPA
   USE ice_flow_laws                                          , ONLY: calc_effective_viscosity_Glen_3D_uv_only, calc_ice_rheology_Glen
   USE ice_model_utilities                                    , ONLY: calc_zeta_gradients
   USE reallocate_mod                                         , ONLY: reallocate_bounds, reallocate_clean
-  USE mesh_remapping                                         , ONLY: map_from_mesh_to_mesh_with_reallocation_2D, map_from_mesh_to_mesh_with_reallocation_3D
+  use remapping_main, only: map_from_mesh_to_mesh_with_reallocation_2D, map_from_mesh_to_mesh_with_reallocation_3D
 
   IMPLICIT NONE
 

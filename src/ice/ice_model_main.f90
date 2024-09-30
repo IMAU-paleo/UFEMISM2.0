@@ -46,8 +46,7 @@ MODULE ice_model_main
                                                                      write_to_field_multopt_dp_0D
   USE netcdf_input                                           , ONLY: read_field_from_file_0D, read_field_from_mesh_file_2D
   USE reallocate_mod                                         , ONLY: reallocate_bounds
-  USE mesh_remapping                                         , ONLY: Atlas, map_from_mesh_to_mesh_with_reallocation_2D, map_from_mesh_to_mesh_with_reallocation_3D, &
-                                                                     map_from_mesh_to_mesh_2D
+  use remapping_main, only: Atlas, map_from_mesh_to_mesh_with_reallocation_2D, map_from_mesh_to_mesh_with_reallocation_3D, map_from_mesh_to_mesh_2D
   use mesh_data_smoothing, only: smooth_Gaussian_2D
   USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp
   USE petsc_basic                                            , ONLY: mat_petsc2CSR

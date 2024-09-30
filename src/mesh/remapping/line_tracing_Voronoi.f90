@@ -1,10 +1,10 @@
-module mesh_remapping_trace_line_Voronoi_cells
+module line_tracing_Voronoi
 
   ! Line tracing algorithm through mesh Voronoi cells
 
   use precisions, only: dp
   use remapping_types, only: type_map, type_single_row_mapping_matrices
-  use mesh_remapping_trace_line_basic, only: add_integrals_to_single_row
+  use line_tracing_basic, only: add_integrals_to_single_row
   use mesh_types, only: type_mesh
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash
   use math_utilities, only: lies_on_line_segment, segment_intersection, crop_line_to_domain, &
@@ -822,4 +822,4 @@ contains
 
   end subroutine trace_line_Vor_ei
 
-end module mesh_remapping_trace_line_Voronoi_cells
+end module line_tracing_Voronoi

@@ -51,7 +51,7 @@ MODULE UFEMISM_main_model
   use mesh_ROI_polygons
   USE math_utilities                                         , ONLY: longest_triangle_leg
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_logical_1D
-  USE mesh_remapping_apply_maps                              , ONLY: clear_all_maps_involving_this_mesh
+  use apply_maps, only: clear_all_maps_involving_this_mesh
   USE mesh_memory                                            , ONLY: deallocate_mesh
   USE ice_model_scalars                                      , ONLY: calc_ice_model_scalars
 

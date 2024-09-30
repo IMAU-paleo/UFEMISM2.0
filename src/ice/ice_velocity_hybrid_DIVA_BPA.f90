@@ -21,7 +21,7 @@ MODULE ice_velocity_hybrid_DIVA_BPA
   USE mesh_types                                             , ONLY: type_mesh
   USE ice_model_types                                        , ONLY: type_ice_model, type_ice_velocity_solver_DIVA, type_ice_velocity_solver_BPA, type_ice_velocity_solver_hybrid
   USE reallocate_mod                                         , ONLY: reallocate_bounds
-  USE mesh_remapping                                         , ONLY: map_from_mesh_to_mesh_with_reallocation_2D, map_from_mesh_to_mesh_with_reallocation_3D
+  use remapping_main, only: map_from_mesh_to_mesh_with_reallocation_2D, map_from_mesh_to_mesh_with_reallocation_3D
   USE ice_velocity_DIVA                                      , ONLY: allocate_DIVA_solver, remap_DIVA_solver, calc_DIVA_stiffness_matrix_row_free, &
                                                                      calc_DIVA_stiffness_matrix_row_BC_west, calc_DIVA_stiffness_matrix_row_BC_east, &
                                                                      calc_DIVA_stiffness_matrix_row_BC_south, calc_DIVA_stiffness_matrix_row_BC_north, &

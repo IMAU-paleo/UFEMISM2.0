@@ -11,7 +11,7 @@ module mesh_data_smoothing
   use mesh_types, only: type_mesh
   use grid_types, only: type_grid
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash
-  use mesh_remapping, only: map_from_mesh_to_xy_grid_2D, map_from_mesh_to_xy_grid_3D, &
+  use remapping_main, only: map_from_mesh_to_xy_grid_2D, map_from_mesh_to_xy_grid_3D, &
     map_from_xy_grid_to_mesh_2D, map_from_xy_grid_to_mesh_3D
   use grid_basic, only: smooth_Gaussian_2D_grid, smooth_Gaussian_3D_grid
 

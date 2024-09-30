@@ -138,15 +138,15 @@ UFEMISM_source = \
   mesh/mesh_parallel_creation.f90 \
   mesh/mesh_zeta.f90 \
   mesh/mesh_operators.f90 \
-  mesh/mesh_remapping_trace_line_basic.f90 \
-  mesh/mesh_remapping_trace_line_grid.f90 \
-  mesh/mesh_remapping_trace_line_triangles.f90 \
-  mesh/mesh_remapping_trace_line_Voronoi_cells.f90 \
-  mesh/mesh_remapping_create_map_grid_mesh.f90 \
-  mesh/mesh_remapping_create_map_gridlonlat_mesh.f90 \
-  mesh/mesh_remapping_create_map_mesh_mesh.f90 \
-  mesh/mesh_remapping_apply_maps.f90 \
-  mesh/mesh_remapping.f90 \
+  mesh/remapping/line_tracing_basic.f90 \
+  mesh/remapping/line_tracing_grid.f90 \
+  mesh/remapping/line_tracing_triangles.f90 \
+  mesh/remapping/line_tracing_Voronoi.f90 \
+  mesh/remapping/create_maps_grid_mesh.f90 \
+  mesh/remapping/create_maps_gridlonlat_mesh.f90 \
+  mesh/remapping/create_maps_mesh_mesh.f90 \
+  mesh/remapping/apply_maps.f90 \
+  mesh/remapping/remapping_main.f90 \
   mesh/mesh_data_smoothing.f90 \
   mesh/mesh_secondary.f90 \
   mesh/mesh_creation.f90 \

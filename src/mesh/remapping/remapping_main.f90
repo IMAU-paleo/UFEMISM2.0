@@ -1,61 +1,31 @@
-module mesh_remapping
+module remapping_main
 
-  ! Routines used in calculating and applying remapping operators between
-  ! meshes, x/y-grids, and lon/lat-grids
-
-! ===== Preamble =====
-! ====================
-
-#include <petsc/finclude/petscksp.h>
-  use petscksp
-  use mpi
-  use precisions                                             , only: dp
-  use mpi_basic                                              , only: par, cerr, ierr, recv_status, sync
-  use mpi_distributed_memory                                 , only: partition_list, gather_to_all_dp_1D
-  use control_resources_and_error_messaging                  , only: warning, crash, happy, init_routine, finalise_routine, colour_string
-  use model_configuration                                    , only: C
-  use CSR_sparse_matrix_utilities                            , only: type_sparse_matrix_CSR_dp, allocate_matrix_CSR_dist, add_entry_CSR_dist, deallocate_matrix_CSR_dist, &
-                                                                     add_empty_row_CSR_dist
-  use petsc_basic                                            , only: mat_CSR2petsc, multiply_PETSc_matrix_with_vector_1D, multiply_PETSc_matrix_with_vector_2D, &
-                                                                     MatDestroy, MatConvert, mat_petsc2CSR
-  use grid_basic                                             , only: type_grid, calc_matrix_operators_grid, gather_gridded_data_to_master_dp_2D, &
-                                                                     distribute_gridded_data_from_master_dp_2D, gather_gridded_data_to_master_dp_3D, &
-                                                                     distribute_gridded_data_from_master_dp_3D, smooth_Gaussian_2D_grid, smooth_Gaussian_3D_grid
-  use grid_lonlat_basic                                      , only: type_grid_lonlat
-  use mesh_types                                             , only: type_mesh
-  use math_utilities                                         , only: is_in_triangle, lies_on_line_segment, line_integral_xdy, line_integral_mxydx, &
-                                                                     line_integral_xydy, crop_line_to_domain, segment_intersection, triangle_area
-  use mesh_utilities                                         , only: is_in_Voronoi_cell, calc_Voronoi_cell, find_containing_vertex, find_containing_triangle, &
-                                                                     find_shared_Voronoi_boundary, check_if_meshes_are_identical, set_border_vertices_to_interior_mean_dp_2D, &
-                                                                     set_border_vertices_to_interior_mean_dp_3D, extrapolate_Gaussian
-  use mesh_operators                                         , only: calc_all_matrix_operators_mesh
-  use remapping_types, only: type_map, type_single_row_mapping_matrices
-  use mesh_remapping_trace_line_basic, only: add_integrals_to_single_row
-  use mesh_remapping_trace_line_triangles, only: trace_line_tri
-  use mesh_remapping_trace_line_Voronoi_cells, only: trace_line_Vor
+  use precisions, only: dp
+  use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash
+  use remapping_types, only: type_map
+  use grid_types, only: type_grid, type_grid_lonlat
+  use mesh_types, only: type_mesh
   use math_utilities, only: remap_cons_2nd_order_1D
-  use mesh_remapping_create_map_grid_mesh, only: create_map_from_xy_grid_to_mesh, create_map_from_xy_grid_to_mesh_triangles, &
-    create_map_from_mesh_to_xy_grid
-  use mesh_remapping_create_map_gridlonlat_mesh, only: create_map_from_lonlat_grid_to_mesh
-  use mesh_remapping_create_map_mesh_mesh, only: create_map_from_mesh_to_mesh_nearest_neighbour, &
-    create_map_from_mesh_to_mesh_trilin, create_map_from_mesh_to_mesh_2nd_order_conservative
-  use mesh_remapping_apply_maps, only: apply_map_xy_grid_to_mesh_2D, apply_map_xy_grid_to_mesh_3D, &
-    apply_map_xy_grid_to_mesh_triangles_2D, apply_map_xy_grid_to_mesh_triangles_3D, &
-    apply_map_lonlat_grid_to_mesh_2D, apply_map_lonlat_grid_to_mesh_3D, &
-    apply_map_mesh_to_xy_grid_2D, apply_map_mesh_to_xy_grid_3D, apply_map_mesh_to_xy_grid_2D_minval, &
-    apply_map_mesh_to_mesh_2D, apply_map_mesh_to_mesh_3D
+  use mesh_utilities, only: extrapolate_Gaussian, check_if_meshes_are_identical
+  use create_maps_grid_mesh
+  use create_maps_gridlonlat_mesh
+  use create_maps_mesh_mesh
+  use apply_maps
 
   implicit none
 
-  ! The Atlas: the complete collection of all mapping objects.
-  ! ==========================================================
+  private
 
-  type(type_map), dimension(1000) :: Atlas
+  public :: Atlas
+  public :: map_from_xy_grid_to_mesh_2D, map_from_xy_grid_to_mesh_3D
+  public :: map_from_xy_grid_to_mesh_triangles_2D, map_from_xy_grid_to_mesh_triangles_3D
+  public :: map_from_lonlat_grid_to_mesh_2D, map_from_lonlat_grid_to_mesh_3D
+  public :: map_from_mesh_to_xy_grid_2D, map_from_mesh_to_xy_grid_3D, map_from_mesh_to_xy_grid_2D_minval
+  public :: map_from_mesh_to_mesh_with_reallocation_2D, map_from_mesh_to_mesh_with_reallocation_3D
+  public :: map_from_mesh_to_mesh_2D, map_from_mesh_to_mesh_3D
+  public :: map_from_vertical_to_vertical_2D_ocean
 
 contains
-
-! == High-level functions
-! =======================
 
   ! From an x/y-grid to a mesh
   subroutine map_from_xy_grid_to_mesh_2D(     grid, mesh, d_grid_vec_partial, d_mesh_partial, method)
@@ -882,4 +852,4 @@ contains
 
   end subroutine map_from_vertical_to_vertical_2D_ocean
 
-end module mesh_remapping
+end module remapping_main
