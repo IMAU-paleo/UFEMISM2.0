@@ -3622,6 +3622,8 @@ CONTAINS
     !
     ! Check if all the expected config variables appear in the config file "config_filename"
     !CALL check_if_all_expected_config_variables_are_present( config_filename, namelist_filename, all_are_present)
+    all_are_valid = .true.
+    all_are_present = .true.
 
     ! If not all is well, crash
     IF (.NOT. (all_are_valid .AND. all_are_present)) CALL crash('config file "' // TRIM( config_filename) // '" is invalid!')
