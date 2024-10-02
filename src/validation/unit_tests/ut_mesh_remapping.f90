@@ -65,44 +65,9 @@ contains
     character(len=1024), parameter :: routine_name = 'test_trace_line_grid'
     character(len=1024), parameter :: test_name_local = 'trace_line_grid'
     character(len=1024)            :: test_name
-
-    ! Add routine to call stack
-    call init_routine( routine_name)
-
-    ! Add test name to list
-    test_name = trim( test_name_parent) // '/' // trim( test_name_local)
-
-    call test_trace_line_grid_start( test_name)
-
-    ! Remove routine from call stack
-    call finalise_routine( routine_name)
-
-  end subroutine test_trace_line_grid
-
-  subroutine test_trace_line_grid_start( test_name_parent)
-    ! Test the trace_line_grid_start subroutine
-
-    use line_tracing_grid
-
-    ! In/output variables:
-    character(len=*), intent(in) :: test_name_parent
-
-    ! Local variables:
-    character(len=1024), parameter :: routine_name = 'test_trace_line_grid_start'
-    character(len=1024), parameter :: test_name_local = 'trace_line_grid_start'
-    character(len=1024)            :: test_name
     real(dp)                       :: xmin, xmax, ymin, ymax, dx
     character(len=1024)            :: name
     type(type_grid)                :: grid
-    integer                        :: i,j,n_sub,ii,jj
-    real(dp)                       :: x,y,xmintol,xmaxtol,ymintol,ymaxtol
-    real(dp), dimension(2)         :: p
-    integer, dimension(2)          :: aij_in, bij_on, cxij_on, cyij_on
-    type(type_coinc_ind_grid)      :: coinc_ind
-    logical                        :: verified_p_inside_a
-    logical                        :: verified_p_on_b
-    logical                        :: verified_p_on_cx
-    logical                        :: verified_p_on_cy
 
     ! Add routine to call stack
     call init_routine( routine_name)
@@ -119,15 +84,75 @@ contains
     dx   = 1._dp
     call setup_square_grid( name, xmin, xmax, ymin, ymax, dx, grid)
 
-    verified_p_inside_a  = .true.
-    verified_p_on_b  = .true.
-    verified_p_on_cx = .true.
-    verified_p_on_cy = .true.
+    call test_trace_line_grid_start( test_name, grid)
+    ! call test_trace_line_grid_a    ( test_name)
 
-    n_sub = 50
+    ! Remove routine from call stack
+    call finalise_routine( routine_name)
+
+  end subroutine test_trace_line_grid
+
+  subroutine test_trace_line_grid_start( test_name_parent, grid)
+    ! Test the trace_line_grid_start subroutine
+
+    use line_tracing_grid
+
+    ! In/output variables:
+    character(len=*), intent(in) :: test_name_parent
+    type(type_grid),  intent(in) :: grid
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'test_trace_line_grid_start'
+    character(len=1024), parameter :: test_name_local = 'trace_line_grid_start'
+    character(len=1024)            :: test_name
+
+    ! Add routine to call stack
+    call init_routine( routine_name)
+
+    ! Add test name to list
+    test_name = trim( test_name_parent) // '/' // trim( test_name_local)
+
+    call test_trace_line_grid_start_p_inside_a( test_name, grid)
+    call test_trace_line_grid_start_p_on_b    ( test_name, grid)
+    call test_trace_line_grid_start_p_on_cx   ( test_name, grid)
+    call test_trace_line_grid_start_p_on_cy   ( test_name, grid)
+
+    ! Remove routine from call stack
+    call finalise_routine( routine_name)
+
+  end subroutine test_trace_line_grid_start
+
+  subroutine test_trace_line_grid_start_p_inside_a( test_name_parent, grid)
+    ! Test if trace_line_grid_start is able to identify points p that lie inside a-grid cells
+
+    use line_tracing_grid, only: trace_line_grid_start
+
+    ! In/output variables:
+    character(len=*), intent(in) :: test_name_parent
+    type(type_grid), intent(in ) :: grid
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'test_trace_line_grid_start_p_inside_a'
+    character(len=1024), parameter :: test_name_local = 'p_inside_a'
+    character(len=1024)            :: test_name
+    integer                        :: i,j,n_sub,ii,jj
+    real(dp)                       :: x, y, xmin, xmax, ymin, ymax, xmintol, xmaxtol, ymintol, ymaxtol
+    real(dp), dimension(2)         :: p
+    integer, dimension(2)          :: aij_in, bij_on, cxij_on, cyij_on
+    type(type_coinc_ind_grid)      :: coinc_ind
+    logical                        :: verified_p_inside_a
+
+    ! Add routine to call stack
+    call init_routine( routine_name)
+
+    ! Add test name to list
+    test_name = trim( test_name_parent) // '/' // trim( test_name_local)
+
+    verified_p_inside_a = .true.
 
     ! DENK DROM
-    if (par%master) call warning('DENK DROM - only loops over grid interior; trace_line_grid_start'//&
+    if (par%master) call warning('DENK DROM - test_trace_line_grid_start_p_inside_a'//&
+      ' only loops over grid interior; trace_line_grid_start'//&
       ' cannot yet handle the border cells properly; fix this!')
     do i = 2, grid%nx-1
     do j = 2, grid%ny-1
@@ -145,25 +170,77 @@ contains
       ymintol = ymin + grid%tol_dist * 2._dp
       ymaxtol = ymax - grid%tol_dist * 2._dp
 
-    ! p lies inside an a-grid cell
-    ! ============================
-
       ! Loop over a set of points spread out within this a-grid cell
+      n_sub = 50
       do ii = 1, n_sub
       do jj = 1, n_sub
+
         p( 1) = xmintol + (xmaxtol - xmintol) * real( ii-1,dp) / real( n_sub-1,dp)
         p( 2) = ymintol + (ymaxtol - ymintol) * real( jj-1,dp) / real( n_sub-1,dp)
+
         call trace_line_grid_start( grid, p, aij_in, bij_on, cxij_on, cyij_on)
         coinc_ind = old2new_coinc_ind( aij_in, bij_on, cxij_on, cyij_on)
+
         verified_p_inside_a = verified_p_inside_a .and. &
           coinc_ind%grid == a_grid .and. &
           coinc_ind%i    == i .and. &
           coinc_ind%j    == j
+
       end do
       end do
 
-    ! p lies on a b-grid point
-    ! ========================
+    end do
+    end do
+
+    call unit_test( verified_p_inside_a, trim(test_name))
+
+    ! Remove routine from call stack
+    call finalise_routine( routine_name)
+
+  end subroutine test_trace_line_grid_start_p_inside_a
+
+  subroutine test_trace_line_grid_start_p_on_b( test_name_parent, grid)
+    ! Test if trace_line_grid_start is able to identify points p that lie on b-grid points
+
+    use line_tracing_grid, only: trace_line_grid_start
+
+    ! In/output variables:
+    character(len=*), intent(in) :: test_name_parent
+    type(type_grid), intent(in ) :: grid
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'test_trace_line_grid_start_p_on_b'
+    character(len=1024), parameter :: test_name_local = 'p_on_b'
+    character(len=1024)            :: test_name
+    integer                        :: i,j
+    real(dp)                       :: x, y, xmin, xmax, ymin, ymax
+    real(dp), dimension(2)         :: p
+    integer, dimension(2)          :: aij_in, bij_on, cxij_on, cyij_on
+    type(type_coinc_ind_grid)      :: coinc_ind
+    logical                        :: verified_p_on_b
+
+    ! Add routine to call stack
+    call init_routine( routine_name)
+
+    ! Add test name to list
+    test_name = trim( test_name_parent) // '/' // trim( test_name_local)
+
+    verified_p_on_b = .true.
+
+    ! DENK DROM
+    if (par%master) call warning('DENK DROM - test_trace_line_grid_start_p_on_b'//&
+      ' only loops over grid interior; trace_line_grid_start'//&
+      ' cannot yet handle the border cells properly; fix this!')
+    do i = 2, grid%nx-1
+    do j = 2, grid%ny-1
+
+      x = grid%x( i)
+      y = grid%y( j)
+
+      xmin = x - grid%dx / 2._dp
+      xmax = x + grid%dx / 2._dp
+      ymin = y - grid%dx / 2._dp
+      ymax = y + grid%dx / 2._dp
 
       ! Southwest (i.e. b-grid point [i-1,j-1])
       p = [xmin, ymin]
@@ -201,8 +278,61 @@ contains
         coinc_ind%i    == i .and. &
         coinc_ind%j    == j
 
-    ! p lies on a cx-grid point
-    ! =========================
+    end do
+    end do
+
+    call unit_test( verified_p_on_b, trim(test_name))
+
+    ! Remove routine from call stack
+    call finalise_routine( routine_name)
+
+  end subroutine test_trace_line_grid_start_p_on_b
+
+  subroutine test_trace_line_grid_start_p_on_cx( test_name_parent, grid)
+    ! Test if trace_line_grid_start is able to identify points p that lie on cx-grid points
+
+    use line_tracing_grid, only: trace_line_grid_start
+
+    ! In/output variables:
+    character(len=*), intent(in) :: test_name_parent
+    type(type_grid), intent(in ) :: grid
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'test_trace_line_grid_start_p_on_cx'
+    character(len=1024), parameter :: test_name_local = 'p_on_cx'
+    character(len=1024)            :: test_name
+    integer                        :: i,j,n_sub,jj
+    real(dp)                       :: x, y, xmin, xmax, ymin, ymax, ymintol, ymaxtol
+    real(dp), dimension(2)         :: p
+    integer, dimension(2)          :: aij_in, bij_on, cxij_on, cyij_on
+    type(type_coinc_ind_grid)      :: coinc_ind
+    logical                        :: verified_p_on_cx
+
+    ! Add routine to call stack
+    call init_routine( routine_name)
+
+    ! Add test name to list
+    test_name = trim( test_name_parent) // '/' // trim( test_name_local)
+
+    verified_p_on_cx = .true.
+
+    ! DENK DROM
+    if (par%master) call warning('DENK DROM - test_trace_line_grid_start_p_on_cx'//&
+      ' only loops over grid interior; trace_line_grid_start'//&
+      ' cannot yet handle the border cells properly; fix this!')
+    do i = 2, grid%nx-1
+    do j = 2, grid%ny-1
+
+      x = grid%x( i)
+      y = grid%y( j)
+
+      xmin = x - grid%dx / 2._dp
+      xmax = x + grid%dx / 2._dp
+      ymin = y - grid%dx / 2._dp
+      ymax = y + grid%dx / 2._dp
+
+      ymintol = ymin + grid%tol_dist * 2._dp
+      ymaxtol = ymax - grid%tol_dist * 2._dp
 
       ! West (i.e. cx-grid point [i-1,j])
       p( 1) = xmin
@@ -228,8 +358,61 @@ contains
           coinc_ind%j    == j
       end do
 
-    ! p lies on a cy-grid point
-    ! =========================
+    end do
+    end do
+
+    call unit_test( verified_p_on_cx, trim(test_name))
+
+    ! Remove routine from call stack
+    call finalise_routine( routine_name)
+
+  end subroutine test_trace_line_grid_start_p_on_cx
+
+  subroutine test_trace_line_grid_start_p_on_cy( test_name_parent, grid)
+    ! Test if trace_line_grid_start is able to identify points p that lie on cy-grid points
+
+    use line_tracing_grid, only: trace_line_grid_start
+
+    ! In/output variables:
+    character(len=*), intent(in) :: test_name_parent
+    type(type_grid), intent(in ) :: grid
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'test_trace_line_grid_start_p_on_cy'
+    character(len=1024), parameter :: test_name_local = 'p_on_cy'
+    character(len=1024)            :: test_name
+    integer                        :: i,j,n_sub,ii
+    real(dp)                       :: x, y, xmin, xmax, ymin, ymax, xmintol, xmaxtol
+    real(dp), dimension(2)         :: p
+    integer, dimension(2)          :: aij_in, bij_on, cxij_on, cyij_on
+    type(type_coinc_ind_grid)      :: coinc_ind
+    logical                        :: verified_p_on_cy
+
+    ! Add routine to call stack
+    call init_routine( routine_name)
+
+    ! Add test name to list
+    test_name = trim( test_name_parent) // '/' // trim( test_name_local)
+
+    verified_p_on_cy = .true.
+
+    ! DENK DROM
+    if (par%master) call warning('DENK DROM - test_trace_line_grid_start_p_on_cy'//&
+      ' only loops over grid interior; trace_line_grid_start'//&
+      ' cannot yet handle the border cells properly; fix this!')
+    do i = 2, grid%nx-1
+    do j = 2, grid%ny-1
+
+      x = grid%x( i)
+      y = grid%y( j)
+
+      xmin = x - grid%dx / 2._dp
+      xmax = x + grid%dx / 2._dp
+      ymin = y - grid%dx / 2._dp
+      ymax = y + grid%dx / 2._dp
+
+      xmintol = xmin + grid%tol_dist * 2._dp
+      xmaxtol = xmax - grid%tol_dist * 2._dp
 
       ! South (i.e. cy-grid point [i,j-1])
       p( 2) = ymin
@@ -258,15 +441,32 @@ contains
     end do
     end do
 
-    call unit_test( verified_p_inside_a, trim(test_name)//'/p_inside_a')
-    call unit_test( verified_p_on_b    , trim(test_name)//'/p_on_b')
-    call unit_test( verified_p_on_cx   , trim(test_name)//'/p_on_cx')
-    call unit_test( verified_p_on_cy   , trim(test_name)//'/p_on_cy')
+    call unit_test( verified_p_on_cy, trim(test_name))
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)
 
-  end subroutine test_trace_line_grid_start
+  end subroutine test_trace_line_grid_start_p_on_cy
+
+  subroutine test_trace_line_grid_a( test_name_parent)
+    ! Test the trace_line_grid_a subroutine
+
+    use line_tracing_grid
+
+    ! In/output variables:
+    character(len=*), intent(in) :: test_name_parent
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'test_trace_line_grid_a'
+    character(len=1024), parameter :: test_name_local = 'trace_line_grid_a'
+
+    ! Add routine to call stack
+    call init_routine( routine_name)
+
+    ! Remove routine from call stack
+    call finalise_routine( routine_name)
+
+  end subroutine test_trace_line_grid_a
 
   function old2new_coinc_ind( aij_in, bij_on, cxij_on, cyij_on) result( coinc_ind)
     integer, dimension(2), intent(in) :: aij_in, bij_on, cxij_on, cyij_on
