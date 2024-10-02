@@ -36,6 +36,9 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'initialise_laddie_model'
     INTEGER                                               :: vi
+    REAL(dp), PARAMETER                                   :: H_init = 10.0_dp ! [m]    Initial thickness
+    REAL(dp), PARAMETER                                   :: T_off  = 0.0_dp  ! [degC] Initial temperature offset
+    REAL(dp), PARAMETER                                   :: S_off  = -0.1_dp ! [PSU]  Initial salinity offset
  
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -45,23 +48,22 @@ CONTAINS
 
     ! Allocate variables
     CALL allocate_laddie_model( mesh, laddie)
- 
-    laddie%H = C%laddie_thickness_minimum
-    laddie%U = 0._dp
-    laddie%V = 0._dp
-    laddie%T = 0._dp
-    laddie%S = 0._dp
+
+    ! Layer thickness 
+    DO vi = mesh%vi1, mesh%vi2
+       IF (ice%mask_floating_ice( vi)) THEN
+         laddie%H( vi) = H_init
+       END IF
+    END DO
 
     ! Initialise ambient T and S
-    laddie%T_amb = 0._dp
-    laddie%S_amb = 0._dp
     CALL compute_ambient_TS( mesh, laddie, ocean, ice)
 
     ! Initialise main T and S
     DO vi = mesh%vi1, mesh%vi2
        IF (ice%mask_floating_ice( vi)) THEN
-         laddie%T( vi) = laddie%T_amb( vi)
-         laddie%S( vi) = laddie%S_amb( vi) -0.1_dp
+         laddie%T( vi) = laddie%T_amb( vi) + T_off
+         laddie%S( vi) = laddie%S_amb( vi) + S_off
        END IF
     END DO
  
