@@ -215,6 +215,7 @@ UFEMISM_source = \
   validation/unit_tests/ut_petsc.f90 \
   validation/unit_tests/ut_mesh_Delaunay.f90 \
   validation/unit_tests/ut_mesh_refinement.f90 \
+  validation/unit_tests/ut_mesh_remapping.f90 \
   validation/unit_tests/ut_mesh.f90 \
   validation/unit_tests/unit_tests.f90 \
   \

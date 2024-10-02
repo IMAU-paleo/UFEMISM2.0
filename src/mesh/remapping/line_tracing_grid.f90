@@ -15,6 +15,7 @@ module line_tracing_grid
   private
 
   public :: trace_line_grid
+  public :: trace_line_grid_start, trace_line_grid_a, trace_line_grid_b, trace_line_grid_cx, trace_line_grid_cy
 
 contains
 
