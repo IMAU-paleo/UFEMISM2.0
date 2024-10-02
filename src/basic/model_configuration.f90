@@ -2613,6 +2613,29 @@ CONTAINS
       filename_BMB_laddie_initial_restart_config                  , &
       filename_BMB_laddie_initial_output_config                   , &
       dir_BMB_laddie_model_config                                 , &
+      dt_laddie_config                                            , &
+      time_duration_laddie_config                                 , &
+      choice_laddie_equation_of_state_config                      , &
+      uniform_laddie_eos_linear_alpha_config                      , &
+      uniform_laddie_eos_linear_beta_config                       , &
+      choice_laddie_coriolis_config                               , &
+      uniform_laddie_coriolis_parameter_config                    , &
+      choice_laddie_gamma_config                                  , &
+      uniform_laddie_gamma_T_config                               , &
+      laddie_drag_coefficient_config                              , &
+      laddie_drag_coefficient_mom_config                          , &
+      laddie_viscosity_config                                     , &
+      laddie_diffusivity_config                                   , &
+      choice_laddie_entrainment_config                            , &
+      laddie_Holland2006_cl_config                                , &
+      laddie_Gaspar1988_mu_config                                 , &
+      laddie_thickness_minimum_config                             , &
+      laddie_thickness_maximum_config                             , &
+      laddie_velocity_maximum_config                              , &
+      laddie_buoyancy_minimum_config                              , &
+      laddie_RA_timefilter_config                                 , &
+      choice_laddie_tides_config                                  , &
+      uniform_laddie_tidal_velocity_config                        , &
       dt_LMB_config                                               , &
       do_LMB_inversion_config                                     , &
       LMB_inversion_t_start_config                                , &
