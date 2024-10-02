@@ -22,10 +22,6 @@ MODULE laddie_model_types
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: T                           ! [degrees Celsius] Temperature
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: S                           ! [PSU]             Salinity  
   
-    ! Time domain
-    REAL(dp)                                :: dt                          ! [s]               Time step
-    REAL(dp)                                :: tend                        ! [s]               Time end of Laddie cycle
-  
     ! Time stepping
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: H_prev                      ! [m]               Layer thickness
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: U_prev                      ! [m s^-1]          2D velocity
