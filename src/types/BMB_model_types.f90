@@ -32,7 +32,7 @@ MODULE BMB_model_types
     REAL(dp)                                :: t_next
 
     ! LADDIE
-    TYPE(type_laddie)                       :: laddie
+    TYPE(type_laddie_model)                       :: laddie
 
   END TYPE type_BMB_model
 

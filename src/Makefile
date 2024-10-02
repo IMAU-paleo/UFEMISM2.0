@@ -71,6 +71,7 @@ UFEMISM_source = \
   types/climate_model_types.f90 \
   types/ocean_model_types.f90 \
   types/SMB_model_types.f90 \
+  types/laddie_model_types.f90 \
   types/BMB_model_types.f90 \
   types/LMB_model_types.f90 \
   types/AMB_model_types.f90 \
