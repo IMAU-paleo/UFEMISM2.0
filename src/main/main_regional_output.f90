@@ -756,6 +756,21 @@ CONTAINS
       CASE ('BMB')
         CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'BMB', region%BMB%BMB)
 
+    ! == LADDIE ==
+    ! ============
+
+      ! Main laddie variables
+      CASE ('H_lad')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'H_lad', region%BMB%laddie%H)
+      CASE ('U_lad')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'U_lad', region%BMB%laddie%U)
+      CASE ('V_lad')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'V_lad', region%BMB%laddie%V)
+      CASE ('T_lad')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'T_lad', region%BMB%laddie%T)
+      CASE ('S_lad')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'S_lad', region%BMB%laddie%S)
+
     ! == Lateral mass balance ==
     ! ==========================
 
@@ -1230,6 +1245,26 @@ CONTAINS
       CASE ('BMB')
         CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%BMB, d_grid_vec_partial_2D)
         CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'BMB', d_grid_vec_partial_2D)
+
+    ! == LADDIE ==
+    ! ============
+
+      ! Main laddie variables
+      CASE ('H_lad')
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%H, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'H_lad', d_grid_vec_partial_2D)
+      CASE ('U_lad')
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%U, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'U_lad', d_grid_vec_partial_2D)
+      CASE ('V_lad')
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%V, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'V_lad', d_grid_vec_partial_2D)
+      CASE ('T_lad')
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%T, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'T_lad', d_grid_vec_partial_2D)
+      CASE ('S_lad')
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%S, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'S_lad', d_grid_vec_partial_2D)
 
     ! == Lateral mass balance ==
     ! ==========================
@@ -2028,6 +2063,21 @@ CONTAINS
       CASE ('BMB')
         CALL add_field_mesh_dp_2D( filename, ncid, 'BMB', long_name = 'Basal mass balance', units = 'm yr^-1')
 
+    ! == LADDIE ==
+    ! ============
+
+      ! Main laddie variables
+      CASE ('H_lad')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'H_lad', long_name = 'Laddie layer thickness', units = 'm')
+      CASE ('U_lad')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'U_lad', long_name = 'Laddie U velocity', units = 'm s^-1')
+      CASE ('V_lad')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'V_lad', long_name = 'Laddie V velocity', units = 'm s^-1')
+      CASE ('T_lad')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'T_lad', long_name = 'Laddie temperature', units = 'deg C')
+      CASE ('S_lad')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'S_lad', long_name = 'Laddie salinity', units = 'PSU')
+
     ! == Lateral mass balance ==
     ! ==========================
 
@@ -2401,6 +2451,21 @@ CONTAINS
       ! Main BMB variables
       CASE ('BMB')
         CALL add_field_grid_dp_2D( filename, ncid, 'BMB', long_name = 'Basal mass balance', units = 'm yr^-1')
+
+    ! == LADDIE ==
+    ! ============
+
+      ! Main laddie variables
+      CASE ('H_lad')
+        CALL add_field_grid_dp_2D( filename, ncid, 'H_lad', long_name = 'Laddie layer thickness', units = 'm')
+      CASE ('U_lad')
+        CALL add_field_grid_dp_2D( filename, ncid, 'U_lad', long_name = 'Laddie U velocity', units = 'm s^-1')
+      CASE ('V_lad')
+        CALL add_field_grid_dp_2D( filename, ncid, 'V_lad', long_name = 'Laddie V velocity', units = 'm s^-1')
+      CASE ('T_lad')
+        CALL add_field_grid_dp_2D( filename, ncid, 'T_lad', long_name = 'Laddie temperature', units = 'deg C')
+      CASE ('S_lad')
+        CALL add_field_grid_dp_2D( filename, ncid, 'S_lad', long_name = 'Laddie salinity', units = 'PSU')
 
     ! == Lateral mass balance ==
     ! ==========================
