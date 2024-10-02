@@ -491,7 +491,7 @@ CONTAINS
     ! ===== Basal mass balance =====
     ! ==============================
 
-    CALL initialise_BMB_model( region%mesh, region%ice, region%BMB, region%name)
+    CALL initialise_BMB_model( region%mesh, region%ice, region%ocean, region%BMB, region%name)
 
     ! ===== Lateral mass balance =====
     ! ================================
