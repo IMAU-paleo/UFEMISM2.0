@@ -799,6 +799,50 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: filename_BMB_laddie_initial_output_config    = ''                               ! File name containing output from laddie spinup
     CHARACTER(LEN=256)  :: dir_BMB_laddie_model_config                  = ''                               ! Directory where laddie code is located
 
+  ! == LADDIE model
+  ! ===============
+
+    ! Time step
+    REAL(dp)            :: dt_laddie_config                             = 360._dp                          ! [s] Time step for integration of laddie model
+    REAL(dp)            :: time_duration_laddie_config                  = 6._dp                            ! [days] Duration of each run cycle
+  
+    ! Equation of state
+    CHARACTER(LEN=256)  :: choice_laddie_equation_of_state_config       = 'linear'                         ! Choose equation of state. Options: 'linear'
+    REAL(dp)            :: uniform_laddie_eos_linear_alpha_config       = 3.733E-5_dp                      ! [K ^-1] 'linear' eos: thermal expansion coefficient
+    REAL(dp)            :: uniform_laddie_eos_linear_beta_config        = 7.843E-4_dp                      ! [PSU ^-1] 'linear' eos: haline contraction coefficient
+
+    ! Coriolis
+    CHARACTER(LEN=256)  :: choice_laddie_coriolis_config                = 'uniform'                        ! Choose option Coriolis parameter. Options: 'uniform'
+    REAL(dp)            :: uniform_laddie_coriolis_parameter_config     = -1.37E-4_dp                      ! [s ^-1] 'linear' eos: thermal expansion coefficient
+  
+    ! Turbulent heat exchange
+    CHARACTER(LEN=256)  :: choice_laddie_gamma_config                   = 'uniform'                        ! Choose option turbulent heat exchange. Options: 'uniform', 'Jenkins1991'
+    REAL(dp)            :: uniform_laddie_gamma_T_config                = 1.8E-4_dp                        ! [] 'uniform': gamma_T parameter. gamma_S = gamma_T/35
+ 
+    ! Drag coefficients
+    REAL(dp)            :: laddie_drag_coefficient_config               = 2.5E-3_dp                        ! [] Drag coefficient Cd
+    REAL(dp)            :: laddie_drag_coefficient_mom_config           = 1.1E-3_dp                        ! [] Drag coefficient Cd_mom in momentum term
+ 
+    ! Viscosity and diffusivity
+    REAL(dp)            :: laddie_viscosity_config                      = 1.0E3_dp                         ! [m^2 s^-1] Viscosity parameter Ah
+    REAL(dp)            :: laddie_diffusivity_config                    = 1.0E3_dp                         ! [m^2 s^-1] Diffusivity parameter Kh
+
+    ! Entrainment
+    CHARACTER(LEN=256)  :: choice_laddie_entrainment_config             = 'Gaspar1988'                     ! Choose option entrainment parameterisation. Options: 'Holland2006', 'Gaspar1988'
+    REAL(dp)            :: laddie_Holland2006_cl_config                 = 1.775E-2_dp                      ! [] Scaling parameter c_l in Holland2006 entrainment
+    REAL(dp)            :: laddie_Gaspar1988_mu_config                  = 2.5_dp                           ! [] Scaling parameter mu in Gaspar1988 entrainment
+
+    ! Stability
+    REAL(dp)            :: laddie_thickness_minimum_config              = 2.0_dp                           ! [m] Minimum layer thickness allowed
+    REAL(dp)            :: laddie_thickness_maximum_config              = 1500.0_dp                        ! [m] Maximum layer thickness allowed
+    REAL(dp)            :: laddie_velocity_maximum_config               = 1.414_dp                         ! [m s^-1] Maximum velocity allowed
+    REAL(dp)            :: laddie_buoyancy_minimum_config               = 5.0E-3_dp                        ! [kg m^-3] Minimum density difference allowed
+    REAL(dp)            :: laddie_RA_timefilter_config                  = 0.8_dp                           ! [] Robert Asselin time filter parameter. Between 0 and 1
+
+    ! Tides
+    CHARACTER(LEN=256)  :: choice_laddie_tides_config                   = 'uniform'                        ! Choose option for tidal velocity. Options: 'uniform'
+    REAL(dp)            :: uniform_laddie_tidal_velocity_config         = 0.1_dp                           ! [m s^-1] Uniform tidal velocity
+
   ! == Lateral mass balance
   ! =======================
 
