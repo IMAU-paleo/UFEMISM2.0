@@ -191,9 +191,13 @@ CONTAINS
     ! RHS terms
     ALLOCATE( laddie%ddrho_amb_dx_b     ( mesh%ti1:mesh%ti2              )) ! [m^-1]          Horizontal derivative of buoyancy
     ALLOCATE( laddie%ddrho_amb_dy_b     ( mesh%ti1:mesh%ti2              )) ! [m^-1]          
+    ALLOCATE( laddie%dHib_dx_b          ( mesh%ti1:mesh%ti2              )) ! [m^-2]          Horizontal derivative of ice draft
+    ALLOCATE( laddie%dHib_dy_b          ( mesh%ti1:mesh%ti2              )) ! [m^-2]          
 
     laddie%ddrho_amb_dx_b = 0._dp
     laddie%ddrho_amb_dy_b = 0._dp
+    laddie%dHib_dx_b      = 0._dp
+    laddie%dHib_dy_b      = 0._dp
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

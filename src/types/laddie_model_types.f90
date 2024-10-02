@@ -82,6 +82,8 @@ MODULE laddie_model_types
     ! RHS terms
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: ddrho_amb_dx_b              ! [m^-1]            Horizontal derivative of buoyancy 
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: ddrho_amb_dy_b              ! [m^-1]            Horizontal derivative of buoyancy 
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHib_dx_b                   ! [m^-2]            Horizontal derivative of ice draft 
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHib_dy_b                   ! [m^-2]            Horizontal derivative of ice draft 
   
   END TYPE type_laddie_model
 
