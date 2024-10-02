@@ -17,9 +17,9 @@ MODULE mesh_parallel_creation
   USE mesh_memory                                            , ONLY: allocate_mesh_primary, extend_mesh_primary, crop_mesh_primary, deallocate_mesh
   USE mesh_utilities                                         , ONLY: list_border_vertices_west, list_border_vertices_east, list_border_vertices_south, &
                                                                      list_border_vertices_north, find_containing_triangle
-  use mesh_Delaunay_split_border_edge, only: split_border_edge
-  use mesh_Delaunay_flip_triangles, only: flip_triangles_until_Delaunay
-  use mesh_Delaunay_move_vertex, only: move_vertex
+  use split_border_edges, only: split_border_edge
+  use flip_triangles, only: flip_triangles_until_Delaunay
+  use move_vertices, only: move_vertex
 
   IMPLICIT NONE
 

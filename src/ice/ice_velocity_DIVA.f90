@@ -33,7 +33,7 @@ MODULE ice_velocity_DIVA
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_1D
   USE ice_flow_laws                                          , ONLY: calc_effective_viscosity_Glen_3D_uv_only, calc_ice_rheology_Glen
   USE reallocate_mod                                         , ONLY: reallocate_bounds, reallocate_clean
-  USE mesh_remapping                                         , ONLY: map_from_mesh_to_mesh_with_reallocation_2D, map_from_mesh_to_mesh_with_reallocation_3D
+  use remapping_main, only: map_from_mesh_to_mesh_with_reallocation_2D, map_from_mesh_to_mesh_with_reallocation_3D
 
   IMPLICIT NONE
 

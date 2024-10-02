@@ -48,10 +48,27 @@ $(OBJ_PATH) $(MOD_PATH):
 	mkdir -p $@
 
 # Pattern rules for creating object files from *.f90 (fortran 90) source files
+$(OBJ_PATH)/%.o : %.f90 Makefile | $(OBJ_PATH) $(MOD_PATH)
+	$(F90) $(F90FLAGS) $(F90DEFINITIONS) -J${MOD_PATH} -c -o $@ $<
+
+
+# Enable source code to be organised into sub(sub,sub,sub,...)directories
 $(OBJ_PATH)/%.o : */%.f90 Makefile | $(OBJ_PATH) $(MOD_PATH)
 	$(F90) $(F90FLAGS) $(F90DEFINITIONS) -J${MOD_PATH} -c -o $@ $<
 
-$(OBJ_PATH)/%.o : %.f90 Makefile | $(OBJ_PATH) $(MOD_PATH)
+$(OBJ_PATH)/%.o : */*/%.f90 Makefile | $(OBJ_PATH) $(MOD_PATH)
+	$(F90) $(F90FLAGS) $(F90DEFINITIONS) -J${MOD_PATH} -c -o $@ $<
+
+$(OBJ_PATH)/%.o : */*/*/%.f90 Makefile | $(OBJ_PATH) $(MOD_PATH)
+	$(F90) $(F90FLAGS) $(F90DEFINITIONS) -J${MOD_PATH} -c -o $@ $<
+
+$(OBJ_PATH)/%.o : */*/*/*/%.f90 Makefile | $(OBJ_PATH) $(MOD_PATH)
+	$(F90) $(F90FLAGS) $(F90DEFINITIONS) -J${MOD_PATH} -c -o $@ $<
+
+$(OBJ_PATH)/%.o : */*/*/*/*/%.f90 Makefile | $(OBJ_PATH) $(MOD_PATH)
+	$(F90) $(F90FLAGS) $(F90DEFINITIONS) -J${MOD_PATH} -c -o $@ $<
+
+$(OBJ_PATH)/%.o : */*/*/*/*/*/%.f90 Makefile | $(OBJ_PATH) $(MOD_PATH)
 	$(F90) $(F90FLAGS) $(F90DEFINITIONS) -J${MOD_PATH} -c -o $@ $<
 
 
@@ -85,16 +102,15 @@ UFEMISM_source = \
   basic/control_resources_and_error_messaging.f90 \
   basic/model_configuration.f90 \
   \
-  validation/assertions_unit_tests_output.f90 \
-  validation/assertions_unit_tests_basic.f90 \
-  validation/assertions_unit_tests_logical.f90 \
-  validation/assertions_unit_tests_int.f90 \
-  validation/assertions_unit_tests_dp.f90 \
-  validation/assertions_unit_tests_CSR.f90 \
-  validation/assertions_unit_tests_grid.f90 \
-  validation/assertions_unit_tests_grid_lonlat.f90 \
-  validation/assertions_unit_tests_mesh.f90 \
-  validation/assertions_unit_tests.f90 \
+  validation/basic_tests/tests_logical.f90 \
+  validation/basic_tests/tests_int.f90 \
+  validation/basic_tests/tests_dp.f90 \
+  validation/basic_tests/tests_CSR.f90 \
+  validation/basic_tests/tests_grid.f90 \
+  validation/basic_tests/tests_grid_lonlat.f90 \
+  validation/basic_tests/tests_mesh.f90 \
+  validation/basic_tests/tests_main.f90 \
+  validation/basic_tests/assertions_basic.f90 \
   \
   basic/mpi_distributed_memory.f90 \
   basic/math_utilities.f90 \
@@ -108,12 +124,12 @@ UFEMISM_source = \
   mesh/mesh_utilities.f90 \
   mesh/mesh_dummy_meshes.f90 \
   mesh/mesh_ROI_polygons.f90 \
-  mesh/mesh_Delaunay_check_Delaunay_criterion.f90 \
-  mesh/mesh_Delaunay_flip_triangles.f90 \
-  mesh/mesh_Delaunay_move_vertex.f90 \
-  mesh/mesh_Delaunay_split_border_edge.f90 \
-  mesh/mesh_Delaunay_split_edge.f90 \
-  mesh/mesh_Delaunay_split_triangle.f90 \
+  mesh/Delaunay/check_Delaunay_criterion.f90 \
+  mesh/Delaunay/flip_triangles.f90 \
+  mesh/Delaunay/move_vertices.f90 \
+  mesh/Delaunay/split_border_edges.f90 \
+  mesh/Delaunay/split_edges.f90 \
+  mesh/Delaunay/split_triangles.f90 \
   mesh/mesh_edges.f90 \
   mesh/mesh_refinement_basic.f90 \
   mesh/mesh_refinement_basic_ROI.f90 \
@@ -123,15 +139,15 @@ UFEMISM_source = \
   mesh/mesh_parallel_creation.f90 \
   mesh/mesh_zeta.f90 \
   mesh/mesh_operators.f90 \
-  mesh/mesh_remapping_trace_line_basic.f90 \
-  mesh/mesh_remapping_trace_line_grid.f90 \
-  mesh/mesh_remapping_trace_line_triangles.f90 \
-  mesh/mesh_remapping_trace_line_Voronoi_cells.f90 \
-  mesh/mesh_remapping_create_map_grid_mesh.f90 \
-  mesh/mesh_remapping_create_map_gridlonlat_mesh.f90 \
-  mesh/mesh_remapping_create_map_mesh_mesh.f90 \
-  mesh/mesh_remapping_apply_maps.f90 \
-  mesh/mesh_remapping.f90 \
+  mesh/remapping/line_tracing_basic.f90 \
+  mesh/remapping/line_tracing_grid.f90 \
+  mesh/remapping/line_tracing_triangles.f90 \
+  mesh/remapping/line_tracing_Voronoi.f90 \
+  mesh/remapping/create_maps_grid_mesh.f90 \
+  mesh/remapping/create_maps_gridlonlat_mesh.f90 \
+  mesh/remapping/create_maps_mesh_mesh.f90 \
+  mesh/remapping/apply_maps.f90 \
+  mesh/remapping/remapping_main.f90 \
   mesh/mesh_data_smoothing.f90 \
   mesh/mesh_secondary.f90 \
   mesh/mesh_creation.f90 \
@@ -195,24 +211,23 @@ UFEMISM_source = \
   main/main_regional_output.f90 \
   main/UFEMISM_main_model.f90 \
   \
-  validation/unit_tests_mpi.f90 \
-  validation/unit_tests_petsc.f90 \
-  validation/unit_tests_mesh_Delaunay.f90 \
-  validation/unit_tests_mesh_refinement.f90 \
-  validation/unit_tests_mesh.f90 \
-  validation/unit_tests_netcdf.f90 \
-  validation/unit_tests_ice.f90 \
-  validation/unit_tests.f90 \
+  validation/unit_tests/ut_basic.f90 \
+  validation/unit_tests/ut_mpi.f90 \
+  validation/unit_tests/ut_petsc.f90 \
+  validation/unit_tests/ut_mesh_Delaunay.f90 \
+  validation/unit_tests/ut_mesh_refinement.f90 \
+  validation/unit_tests/ut_mesh.f90 \
+  validation/unit_tests/unit_tests.f90 \
   \
-  validation/component_tests_create_test_meshes.f90 \
-  validation/component_tests_discretisation_mapping_derivatives.f90 \
-  validation/component_tests_discretisation.f90 \
-  validation/component_tests_remapping_basic.f90 \
-  validation/component_tests_remapping_grid_to_mesh.f90 \
-  validation/component_tests_remapping_mesh_to_grid.f90 \
-  validation/component_tests_remapping_mesh_to_mesh.f90 \
-  validation/component_tests_remapping.f90 \
-  validation/component_tests.f90 \
+  validation/component_tests/ct_create_test_meshes.f90 \
+  validation/component_tests/ct_discretisation_mapping_derivatives.f90 \
+  validation/component_tests/ct_discretisation.f90 \
+  validation/component_tests/ct_remapping_basic.f90 \
+  validation/component_tests/ct_remapping_grid_to_mesh.f90 \
+  validation/component_tests/ct_remapping_mesh_to_grid.f90 \
+  validation/component_tests/ct_remapping_mesh_to_mesh.f90 \
+  validation/component_tests/ct_remapping.f90 \
+  validation/component_tests/component_tests.f90 \
   \
   main/UFEMISM_program.f90
 

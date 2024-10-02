@@ -13,7 +13,7 @@ module mesh_refinement_basic_ROI
   use mesh_utilities, only: find_containing_triangle, add_triangle_to_refinement_stack_last, &
     remove_triangle_from_refinement_stack
   use mesh_memory, only: extend_mesh_primary, crop_mesh_primary
-  use mesh_Delaunay_split_triangle, only: split_triangle
+  use split_triangles, only: split_triangle
   use mesh_refinement_basic, only: refine_mesh_split_encroaching_triangles
 
   implicit none

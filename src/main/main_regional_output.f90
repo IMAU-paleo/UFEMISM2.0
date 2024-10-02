@@ -36,7 +36,7 @@ MODULE main_regional_output
                                                                      write_to_field_multopt_grid_dp_2D_monthly, write_to_field_multopt_grid_dp_2D_monthly_notime, &
                                                                      write_to_field_multopt_grid_dp_3D, write_to_field_multopt_grid_dp_3D_notime, &
                                                                      write_to_field_multopt_dp_0D
-  USE mesh_remapping                                         , ONLY: map_from_mesh_to_xy_grid_2D, map_from_mesh_to_xy_grid_3D, map_from_mesh_to_xy_grid_2D_minval
+  use remapping_main, only: map_from_mesh_to_xy_grid_2D, map_from_mesh_to_xy_grid_3D, map_from_mesh_to_xy_grid_2D_minval
 
   IMPLICIT NONE
 
