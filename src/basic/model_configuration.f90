@@ -1758,6 +1758,50 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: filename_BMB_laddie_initial_output
     CHARACTER(LEN=256)  :: dir_BMB_laddie_model
 
+  ! == LADDIE model
+  ! ===============
+
+    ! Time step
+    REAL(dp)            :: dt_laddie
+    REAL(dp)            :: time_duration_laddie
+  
+    ! Equation of state
+    CHARACTER(LEN=256)  :: choice_laddie_equation_of_state
+    REAL(dp)            :: uniform_laddie_eos_linear_alpha
+    REAL(dp)            :: uniform_laddie_eos_linear_beta
+
+    ! Coriolis
+    CHARACTER(LEN=256)  :: choice_laddie_coriolis
+    REAL(dp)            :: uniform_laddie_coriolis_parameter
+  
+    ! Turbulent heat exchange
+    CHARACTER(LEN=256)  :: choice_laddie_gamma
+    REAL(dp)            :: uniform_laddie_gamma_T
+ 
+    ! Drag coefficients
+    REAL(dp)            :: laddie_drag_coefficient
+    REAL(dp)            :: laddie_drag_coefficient_mom
+ 
+    ! Viscosity and diffusivity
+    REAL(dp)            :: laddie_viscosity
+    REAL(dp)            :: laddie_diffusivity
+
+    ! Entrainment
+    CHARACTER(LEN=256)  :: choice_laddie_entrainment
+    REAL(dp)            :: laddie_Holland2006_cl
+    REAL(dp)            :: laddie_Gaspar1988_mu
+
+    ! Stability
+    REAL(dp)            :: laddie_thickness_minimum
+    REAL(dp)            :: laddie_thickness_maximum
+    REAL(dp)            :: laddie_velocity_maximum
+    REAL(dp)            :: laddie_buoyancy_minimum
+    REAL(dp)            :: laddie_RA_timefilter
+
+    ! Tides
+    CHARACTER(LEN=256)  :: choice_laddie_tides
+    REAL(dp)            :: uniform_laddie_tidal_velocity
+
   ! == Lateral mass balance
   ! =======================
 
