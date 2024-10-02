@@ -147,12 +147,13 @@ CONTAINS
 
   END SUBROUTINE run_BMB_model
 
-  SUBROUTINE initialise_BMB_model( mesh, ice, BMB, region_name)
+  SUBROUTINE initialise_BMB_model( mesh, ice, ocean, BMB, region_name)
     ! Initialise the BMB model
 
     ! In- and output variables
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
     TYPE(type_ice_model),                   INTENT(IN)    :: ice
+    TYPE(type_ocean_model),                 INTENT(IN)    :: ocean
     TYPE(type_BMB_model),                   INTENT(OUT)   :: BMB
     CHARACTER(LEN=3),                       INTENT(IN)    :: region_name
 
@@ -225,7 +226,7 @@ CONTAINS
       CASE ('laddie')
         CALL initialise_BMB_model_laddie( mesh, BMB)
       CASE ('laddie2')
-        CALL initialise_laddie_model( mesh, BMB%laddie)
+        CALL initialise_laddie_model( mesh, BMB%laddie, ocean, ice)
       CASE DEFAULT
         CALL crash('unknown choice_BMB_model "' // TRIM( choice_BMB_model) // '"')
     END SELECT
