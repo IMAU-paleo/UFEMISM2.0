@@ -52,7 +52,9 @@ CONTAINS
     ! Layer thickness 
     DO vi = mesh%vi1, mesh%vi2
        IF (ice%mask_floating_ice( vi)) THEN
-         laddie%H( vi) = H_init
+         laddie%H( vi)      = H_init
+         laddie%H_prev( vi) = H_init
+         laddie%H_next( vi) = H_init
        END IF
     END DO
 
@@ -62,8 +64,12 @@ CONTAINS
     ! Initialise main T and S
     DO vi = mesh%vi1, mesh%vi2
        IF (ice%mask_floating_ice( vi)) THEN
-         laddie%T( vi) = laddie%T_amb( vi) + T_off
-         laddie%S( vi) = laddie%S_amb( vi) + S_off
+         laddie%T( vi)      = laddie%T_amb( vi) + T_off
+         laddie%T_prev( vi) = laddie%T_amb( vi) + T_off
+         laddie%T_next( vi) = laddie%T_amb( vi) + T_off
+         laddie%S( vi)      = laddie%S_amb( vi) + S_off
+         laddie%S_prev( vi) = laddie%S_amb( vi) + S_off
+         laddie%S_next( vi) = laddie%S_amb( vi) + S_off
        END IF
     END DO
  
