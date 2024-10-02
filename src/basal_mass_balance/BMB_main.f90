@@ -16,10 +16,12 @@ MODULE BMB_main
   USE reference_geometry_types                               , ONLY: type_reference_geometry
   USE SMB_model_types                                        , ONLY: type_SMB_model
   USE BMB_model_types                                        , ONLY: type_BMB_model
+  USE laddie_model_types                                     , ONLY: type_laddie_model
   USE BMB_idealised                                          , ONLY: initialise_BMB_model_idealised, run_BMB_model_idealised
   USE BMB_prescribed                                         , ONLY: initialise_BMB_model_prescribed, run_BMB_model_prescribed
   USE BMB_parameterised                                      , ONLY: initialise_BMB_model_parameterised, run_BMB_model_parameterised
   USE BMB_laddie                                             , ONLY: initialise_BMB_model_laddie, run_BMB_model_laddie, remap_BMB_model_laddie
+  USE laddie_main                                            , ONLY: initialise_laddie_model
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   USE math_utilities                                         , ONLY: is_floating
   USE mesh_utilities                                         , ONLY: extrapolate_Gaussian
@@ -124,6 +126,8 @@ CONTAINS
         CALL run_BMB_model_inverted( mesh, ice, BMB, time)
       CASE ('laddie')
         CALL run_BMB_model_laddie( mesh, BMB, time)
+      CASE ('laddie2')
+        ! EL To be added later
       CASE DEFAULT
         CALL crash('unknown choice_BMB_model "' // TRIM( choice_BMB_model) // '"')
     END SELECT
@@ -220,6 +224,8 @@ CONTAINS
         ! No need to do anything
       CASE ('laddie')
         CALL initialise_BMB_model_laddie( mesh, BMB)
+      CASE ('laddie2')
+        CALL initialise_laddie_model( mesh, BMB%laddie)
       CASE DEFAULT
         CALL crash('unknown choice_BMB_model "' // TRIM( choice_BMB_model) // '"')
     END SELECT
@@ -274,6 +280,8 @@ CONTAINS
       CASE ('inverted')
         CALL write_to_restart_file_BMB_model_region( mesh, BMB, region_name, time)
       CASE ('laddie')
+        ! No need to do anything
+      CASE ('laddie2')
         ! No need to do anything
       CASE DEFAULT
         CALL crash('unknown choice_BMB_model "' // TRIM( choice_BMB_model) // '"')
@@ -371,6 +379,8 @@ CONTAINS
       CASE ('inverted')
         CALL create_restart_file_BMB_model_region( mesh, BMB, region_name)
       CASE ('laddie')
+        ! No need to do anything
+      CASE ('laddie2')
         ! No need to do anything
       CASE DEFAULT
         CALL crash('unknown choice_BMB_model "' // TRIM( choice_BMB_model) // '"')
@@ -499,6 +509,8 @@ CONTAINS
         ! No need to do anything
       CASE ('laddie')
         CALL remap_BMB_model_laddie( mesh_new, BMB)
+      CASE ('laddie2')
+        ! EL to be filled later
       CASE DEFAULT
         CALL crash('unknown choice_BMB_model "' // TRIM( choice_BMB_model) // '"')
     END SELECT
