@@ -3550,6 +3550,50 @@ CONTAINS
     C%filename_BMB_laddie_initial_restart                    = filename_BMB_laddie_initial_restart_config
     C%filename_BMB_laddie_initial_output                     = filename_BMB_laddie_initial_output_config
     C%dir_BMB_laddie_model                                   = dir_BMB_laddie_model_config
+  
+  ! == LADDIE model
+  ! ===============
+
+    ! Time step
+    C%dt_laddie                                              = dt_laddie_config
+    C%time_duration_laddie                                   = time_duration_laddie_config
+  
+    ! Equation of state
+    C%choice_laddie_equation_of_state                        = choice_laddie_equation_of_state_config
+    C%uniform_laddie_eos_linear_alpha                        = uniform_laddie_eos_linear_alpha_config
+    C%uniform_laddie_eos_linear_beta                         = uniform_laddie_eos_linear_beta_config
+
+    ! Coriolis
+    C%choice_laddie_coriolis                                 = choice_laddie_coriolis_config
+    C%uniform_laddie_coriolis_parameter                      = uniform_laddie_coriolis_parameter_config
+  
+    ! Turbulent heat exchange
+    C%choice_laddie_gamma                                    = choice_laddie_gamma_config
+    C%uniform_laddie_gamma_T                                 = uniform_laddie_gamma_T_config
+ 
+    ! Drag coefficients
+    C%laddie_drag_coefficient                                = laddie_drag_coefficient_config
+    C%laddie_drag_coefficient_mom                            = laddie_drag_coefficient_mom_config
+ 
+    ! Viscosity and diffusivity
+    C%laddie_viscosity                                       = laddie_viscosity_config
+    C%laddie_diffusivity                                     = laddie_diffusivity_config
+
+    ! Entrainment
+    C%choice_laddie_entrainment                              = choice_laddie_entrainment_config
+    C%laddie_Holland2006_cl                                  = laddie_Holland2006_cl_config
+    C%laddie_Gaspar1988_mu                                   = laddie_Gaspar1988_mu_config
+
+    ! Stability
+    C%laddie_thickness_minimum                               = laddie_thickness_minimum_config
+    C%laddie_thickness_maximum                               = laddie_thickness_maximum_config
+    C%laddie_velocity_maximum                                = laddie_velocity_maximum_config
+    C%laddie_buoyancy_minimum                                = laddie_buoyancy_minimum_config
+    C%laddie_RA_timefilter                                   = laddie_RA_timefilter_config
+
+    ! Tides
+    C%choice_laddie_tides                                    = choice_laddie_tides_config
+    C%uniform_laddie_tidal_velocity                          = uniform_laddie_tidal_velocity_config
 
   ! == Lateral mass balance
   ! =======================
