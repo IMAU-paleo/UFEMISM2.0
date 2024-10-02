@@ -171,6 +171,10 @@ UFEMISM_source = \
   surface_mass_balance/SMB_prescribed.f90 \
   surface_mass_balance/SMB_main.f90 \
   \
+  ocean/ocean_utilities.f90 \
+  ocean/ocean_realistic.f90 \
+  ocean/ocean_main.f90 \
+  \
   laddie/laddie_main.f90 \
   \
   basal_mass_balance/BMB_idealised.f90 \
@@ -203,10 +207,6 @@ UFEMISM_source = \
   climate/climate_idealised.f90 \
   climate/climate_realistic.f90 \
   climate/climate_main.f90 \
-  \
-  ocean/ocean_utilities.f90 \
-  ocean/ocean_realistic.f90 \
-  ocean/ocean_main.f90 \
   \
   glacial_isostatic_adjustment/GIA_main.f90 \
   \
