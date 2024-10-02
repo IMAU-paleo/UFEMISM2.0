@@ -83,6 +83,10 @@ MODULE laddie_model_types
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: diffT                       ! [degC m s^-1]     Horizontal diffusivity of heat 
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: diffS                       ! [PSU m s^-1]      Horizontal diffusivity of salt
   
+    ! RHS terms
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: ddrho_amb_dx_b              ! [m^-1]            Horizontal derivative of buoyancy 
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: ddrho_amb_dy_b              ! [m^-1]            Horizontal derivative of buoyancy 
+  
   END TYPE type_laddie_model
 
 
