@@ -14,6 +14,7 @@ module ut_mesh_remapping
   use ut_mesh_remapping_trace_line_grid_start, only: test_trace_line_grid_start
   use ut_mesh_remapping_trace_line_grid_a, only: test_trace_line_grid_a
   use ut_mesh_remapping_trace_line_grid_b, only: test_trace_line_grid_b
+  use ut_mesh_remapping_trace_line_grid_cx, only: test_trace_line_grid_cx
 
   implicit none
 
@@ -79,6 +80,7 @@ contains
     call test_trace_line_grid_start( test_name, grid)
     call test_trace_line_grid_a    ( test_name, grid)
     call test_trace_line_grid_b    ( test_name, grid)
+    call test_trace_line_grid_cx   ( test_name, grid)
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)
