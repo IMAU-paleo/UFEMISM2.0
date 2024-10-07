@@ -1,73 +1,40 @@
 # Depends on this file
-$(OBJ_PATH)/%.o : %.f90 Makefile_include.txt
+$(OBJ_PATH)/%.o : %.f90 Makefile_include_local.txt
 
-# Compiler
-# ========
-
-# If you got gfortran and OpenMPI, then you got mpifort.
+# Compiler names:
   F90 = mpifort
 
-# Library paths
-# =============
-
-# These variables should point to the include and lib
-# directories of each of the required external libraries.
-#
-# "include" paths should be prefixed with -I
-#
-# "lib" paths should be prefixed with -L, and after them
-# the name of the corresponding library file.
-#
-# If you got nc-config, nf-config, or pkg-config, those can
-# do that job for you. If you do not, here is an example of
-# manually adding paths:
-#
-#  NCINC = -I/usr/local/Cellar/netcdf/4.9.2_1/include
-#  NCLIB = -L/usr/local/Cellar/netcdf/4.9.2_1/lib -lnetcdf
-#  NFINC = -I/usr/local/Cellar/netcdf-fortran/4.6.1/include
-#  NFLIB = -L/usr/local/Cellar/netcdf-fortran/4.6.1/lib -lnetcdff
-
-# Setting NetCDF and NetCDF-Fortranlibrary info:
-  NCINC = $(shell nc-config --cflags)
-  NCLIB = $(shell nc-config --libs)
-  NFINC = $(shell nf-config --fflags)
-  NFLIB = $(shell nf-config --flibs)
-
-  PETSC_DIR  = /usr/local/Cellar/petsc/3.20.5_1
-  LAPACK_DIR  = /usr/local/Cellar/lapack/3.12.0
-
-# Miscellaneous
-# =============
-
-# -ld_classic : Force Command Line Tools v15 on Mac to behave like v14, which supports -commons linker option
-#               Otherwise the error "ld: unknown options: -commons" is triggered after updating to CLTv15
-#               This might get patched in future versions of mpifort, so test without this fix later
-  XXLIB = # -ld_classic
-
-# Compiler flags
-# ==============
-
-# ---
-# From this line on, your settings above will be put together
-# and later used to compile the model code. If you get errors,
-# it is very likely something in the lines above is missing.
-# ---
+# Setting NetCDF, NetCDF-Fortran, and PETSc library info:
+  NCINC     = $(shell nc-config --cflags)
+  NCLIB     = $(shell nc-config --libs)
+  NFINC     = $(shell nf-config --fflags)
+  NFLIB     = $(shell nf-config --flibs)
+  PETSCINC  = $(shell pkg-config petsc --cflags)
+  PETSCLIB  = $(shell pkg-config petsc --libs)
+  LAPACKLIB = $(shell pkg-config lapack --libs)
 
 # Basic flags:
-  COMPILER_FLAGS_BASIC = -O3 -ffree-line-length-none -cpp
+  COMPILER_FLAGS_BASIC    = -O3 -Wall -ffree-line-length-none -cpp \
+                            -Werror=implicit-interface -fimplicit-none -g -march=native
 
 # Check flags:
-  COMPILER_FLAGS_CHECK   = -fbounds-check -fcheck-array-temporaries -fimplicit-none
+# check=all : bounds checking etc ...
+# backtrace : print backtrace on checking fail
+# Og        : compile only with optimizations compatible with gdb enabled
+# init-real=nan : initialize every real allocation to nan, follow the nans to find uninitialized values
+# init-integer=-42 : same, but for integers
+# init-character=33 : same, but for characters, 33 is equal to "!" (so look for those)
+  COMPILER_FLAGS_CHECK    = -fcheck=all -fbacktrace -Og \
+                            -finit-real=nan -finit-integer=-42 -finit-character=33 \
+                            -ffpe-trap=zero,overflow#,invalid
 
-# Library flags:
-  COMPILER_FLAGS_INCLS = ${NCINC} ${NFINC} -I$(PETSC_DIR)/include -I$(LAPACK_DIR)/include
+# Final set of compiler flags:
+  F90FLAGS                = ${COMPILER_FLAGS_BASIC} \
+                            ${COMPILER_FLAGS_CHECK} \
+                            ${NCINC} ${NFINC} ${PETSCINC}
 
-# Final list
-  F90FLAGS             = ${COMPILER_FLAGS_BASIC} \
-                         ${COMPILER_FLAGS_CHECK} \
-                         ${COMPILER_FLAGS_INCLS} 
-
-# Library linking
-# ===============
-
-  LDFLAGS              = ${NCLIB} ${NFLIB} -L${PETSC_DIR}/lib -lpetsc -L${LAPACK_DIR}/lib -llapack ${XXLIB}
+# Linking flags of libaries:
+# -ld_classic : Force Command Line Tools v15 on Mac to behave like v14, which supports -commons linker option
+#               Otherwise the error "ld: unknown options: -commons" is triggered after updating to CLTv15
+#               This might get patched in future versions of mpifort, so test without it later
+  LDFLAGS                 = ${PETSCLIB} ${NCLIB} ${NFLIB} ${LAPACKLIB} -g # -ld_classic
