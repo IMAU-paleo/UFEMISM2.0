@@ -115,5 +115,34 @@ CONTAINS
 
   END SUBROUTINE compute_freezing_temperature
 
+  SUBROUTINE compute_buoyancy( mesh, ice, laddie)
+    ! Compute buoyancy = (rho_amb - rho)/rho_sw
+    ! TODO update with Roquet EOS 
+
+    ! In- and output variables
+
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh
+    TYPE(type_ice_model),                   INTENT(IN)    :: ice
+    TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_buoyancy'
+    INTEGER                                               :: vi
+ 
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    DO vi = mesh%vi1, mesh%vi2
+       IF (ice%mask_floating_ice( vi)) THEN
+         laddie%drho_amb( vi) = C%uniform_laddie_eos_linear_beta  * (laddie%S_amb( vi)-laddie%S( vi)) &
+                              - C%uniform_laddie_eos_linear_alpha * (laddie%T_amb( vi)-laddie%T( vi))
+       END IF
+    END DO
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE compute_buoyancy
+
 END MODULE laddie_physics
 
