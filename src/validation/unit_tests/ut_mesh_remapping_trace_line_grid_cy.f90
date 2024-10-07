@@ -8,7 +8,7 @@ module ut_mesh_remapping_trace_line_grid_cy
   use precisions, only: dp
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, warning
   use grid_types, only: type_grid
-  use ut_mesh_remapping_trace_line_grid_basic
+  use line_tracing_basic
   use mpi_basic, only: par
 
   implicit none
