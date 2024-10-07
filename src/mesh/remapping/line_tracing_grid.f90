@@ -2,9 +2,11 @@ module line_tracing_grid
 
   ! Line tracing algorithm through square grid cells
 
+  use tests_main
+  use assertions_basic
   use precisions, only: dp
   use remapping_types, only: type_map, type_single_row_mapping_matrices
-  use line_tracing_basic, only: add_integrals_to_single_row
+  use line_tracing_basic
   use grid_types, only: type_grid
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash
   use math_utilities, only: lies_on_line_segment, segment_intersection, crop_line_to_domain, &
@@ -36,6 +38,7 @@ contains
     logical                        :: is_valid_line
     logical                        :: finished
     integer                        :: n_cycles
+    type(type_coinc_ind_grid)      :: coinc_ind
     integer,  dimension(2)         :: aij_in, bij_on, cxij_on, cyij_on
     real(dp), dimension(2)         :: p_next
     integer                        :: n_left
@@ -62,7 +65,12 @@ contains
     !    - lies inside grid cell aij_in, ...
     !    - lies on the b-grid point bij_on, or...
     !    - lies on the edge cij_on
-    call trace_line_grid_start( grid, pp, aij_in, bij_on, cxij_on, cyij_on)
+    call trace_line_grid_start( grid, pp, coinc_ind)
+
+    aij_in  = coinc_ind2aij_in ( coinc_ind)
+    bij_on  = coinc_ind2bij_on ( coinc_ind)
+    cxij_on = coinc_ind2cxij_on( coinc_ind)
+    cyij_on = coinc_ind2cyij_on( coinc_ind)
 
     ! Iteratively trace the line through the mesh
     finished = .false.
@@ -116,26 +124,33 @@ contains
   !>    - lies inside grid cell aij_in, ...
   !>    - lies on the b-grid point bij_on, or...
   !>    - lies on the edge cij_on
-  subroutine trace_line_grid_start( grid, p, aij_in, bij_on, cxij_on, cyij_on)
+  subroutine trace_line_grid_start( grid, p, coinc_ind)
 
     ! In/output variables
-    type(type_grid),        intent(in)    :: grid
-    real(dp), dimension(2), intent(in)    :: p
-    integer,  dimension(2), intent(out)   :: aij_in, bij_on, cxij_on, cyij_on
+    type(type_grid),           intent(in)  :: grid
+    real(dp), dimension(2),    intent(in)  :: p
+    type(type_coinc_ind_grid), intent(out) :: coinc_ind
 
     ! Local variables:
     integer  :: i,j
     real(dp) :: xl,xu,yl,yu
 
+#if (DO_ASSERTIONS)
+    ! Safety - check if p lies inside the grid domain
+    call assert( &
+      test_ge_le( p(1), grid%xmin - grid%dx / 2._dp, grid%xmax + grid%dx / 2._dp) .and. &
+      test_ge_le( p(2), grid%ymin - grid%dx / 2._dp, grid%ymax + grid%dx / 2._dp), &
+      'p lies outside the grid domain')
+#endif
+
     ! Initialise
-    aij_in  = [0,0]
-    bij_on  = [0,0]
-    cxij_on = [0,0]
-    cyij_on = [0,0]
+    coinc_ind%grid = no_value
+    coinc_ind%i = 0
+    coinc_ind%j = 0
 
     ! Find the grid cell containing p
-    i = 1 + floor( (p(1) - grid%xmin + grid%dx / 2._dp) / grid%dx)
-    j = 1 + floor( (p(2) - grid%ymin + grid%dx / 2._dp) / grid%dx)
+    i = max( 1, min( grid%nx, 1 + floor( (p(1) - grid%xmin + grid%dx / 2._dp) / grid%dx) ))
+    j = max( 1, min( grid%ny, 1 + floor( (p(2) - grid%ymin + grid%dx / 2._dp) / grid%dx) ))
 
     ! This grid cell's boundary
     xl = grid%x( i) - grid%dx / 2._dp
@@ -143,46 +158,63 @@ contains
     yl = grid%y( j) - grid%dx / 2._dp
     yu = grid%y( j) + grid%dx / 2._dp
 
+#if (DO_ASSERTIONS)
+    call assert( test_ge_le( p(1), xl, xu) .and. test_ge_le( p(2), yl, yu), &
+      'couldnt find grid cell containing p')
+#endif
+
     ! Check if p lies on either of the four surrounding b-grid points
-    if     (i > 1       .and. j > 1       .and. abs( p(1) - xl) < grid%tol_dist .and. abs( p(2) - yl) < grid%tol_dist) then
-      ! p coincides with the southwest corner
-      bij_on = [i-1,j-1]
-      return
-    elseif (i > 1       .and. j < grid%ny .and. abs( p(1) - xl) < grid%tol_dist .and. abs( p(2) - yu) < grid%tol_dist) then
-      ! p coincides with the northwest corner
-      bij_on = [i-1,j  ]
-      return
-    elseif (i < grid%nx .and. j < 1       .and. abs( p(1) - xu) < grid%tol_dist .and. abs( p(2) - yl) < grid%tol_dist) then
-      ! p coincides with the southeast corner
-      bij_on = [i  ,j-1]
-      return
-    elseif (i < grid%nx .and. j < grid%ny .and. abs( p(1) - xu) < grid%tol_dist .and. abs( p(2) - yu) < grid%tol_dist) then
-      ! p coincides with the northeast corner
-      bij_on = [i  ,j  ]
-      return
-    end if
+    if (test_tol( p(1), xl, grid%tol_dist) .and. test_tol( p(2), yl, grid%tol_dist)) then
+      ! p lies on the southwest corner of a-grid cell [i,j] (i.e. b-grid point [i-1,j-1])
+      coinc_ind%grid = b_grid
+      coinc_ind%i = i-1
+      coinc_ind%j = j-1
+    elseif (test_tol( p(1), xl, grid%tol_dist) .and. test_tol( p(2), yu, grid%tol_dist)) then
+      ! p lies on the northwest corner of a-grid cell [i,j] (i.e. b-grid point [i-1,j])
+      coinc_ind%grid = b_grid
+      coinc_ind%i = i-1
+      coinc_ind%j = j
+    elseif (test_tol( p(1), xu, grid%tol_dist) .and. test_tol( p(2), yl, grid%tol_dist)) then
+      ! p lies on the southeast corner of a-grid cell [i,j] (i.e. b-grid point [i,j-1])
+      coinc_ind%grid = b_grid
+      coinc_ind%i = i
+      coinc_ind%j = j-1
+    elseif (test_tol( p(1), xu, grid%tol_dist) .and. test_tol( p(2), yu, grid%tol_dist)) then
+      ! p lies on the northeast corner of a-grid cell [i,j] (i.e. b-grid point [i,j])
+      coinc_ind%grid = b_grid
+      coinc_ind%i = i
+      coinc_ind%j = j
 
     ! Check if p lies on any of the four borders
-    if     (i > 1       .and. abs( p(1) - xl) < grid%tol_dist) then
-      ! p coincides with the western border
-      cxij_on = [i-1,j  ]
-      return
-    elseif (i < grid%nx .and. abs( p(1) - xu) < grid%tol_dist) then
-      ! p coincides with the eastern border
-      cxij_on = [i  ,j  ]
-      return
-    elseif (j > 1       .and. abs( p(2) - yl) < grid%tol_dist) then
-      ! p coincides with the southern border
-      cyij_on = [i  ,j-1]
-      return
-    elseif (j < grid%ny .and. abs( p(2) - yu) < grid%tol_dist) then
-      ! p coincides with the northern border
-      cyij_on = [i  ,j  ]
-      return
-    end if
+    elseif (test_tol( p(1), xl, grid%tol_dist)) then
+      ! p coincides with the western border of a-grid cell [i,j] (i.e. cx-grid point [i-1,j])
+      coinc_ind%grid = cx_grid
+      coinc_ind%i = i-1
+      coinc_ind%j = j
+    elseif (test_tol( p(1), xu, grid%tol_dist)) then
+      ! p coincides with the eastern border of a-grid cell [i,j] (i.e. cx-grid point [i,j])
+      coinc_ind%grid = cx_grid
+      coinc_ind%i = i
+      coinc_ind%j = j
+    elseif (test_tol( p(2), yl, grid%tol_dist)) then
+      ! p coincides with the southern border of a-grid cell [i,j] (i.e. cy-grid point [i,j-1])
+      coinc_ind%grid = cy_grid
+      coinc_ind%i = i
+      coinc_ind%j = j-1
+    elseif (test_tol( p(2), yu, grid%tol_dist)) then
+      ! p coincides with the northern border of a-grid cell [i,j] (i.e. cy-grid point [i,j])
+      coinc_ind%grid = cy_grid
+      coinc_ind%i = i
+      coinc_ind%j = j
 
     ! p doesn't lie on the corners or borders, so it must lie inside the grid cell
-    aij_in = [i,j]
+    elseif (test_ge_le( p(1), xl, xu) .and. test_ge_le( p(2), yl, yu)) then
+      coinc_ind%grid = a_grid
+      coinc_ind%i = i
+      coinc_ind%j = j
+    else
+      call crash('couldnt find where p is on the grid')
+    end if
 
   end subroutine trace_line_grid_start
 
@@ -206,12 +238,13 @@ contains
     logical                :: do_cross
     real(dp), dimension(2) :: llis
 
+#if (DO_ASSERTIONS)
     ! Safety
     if ((aij_in( 1) == 0 .and. aij_in( 2) == 0) .or. cxij_on( 1) > 0 .or. cxij_on( 2) > 0 .or. &
         bij_on( 1) > 0 .or. bij_on( 2) > 0 .or. cyij_on( 1) > 0 .or. cyij_on( 2) > 0) then
-      WRITE(0,*) 'aij_in = ', aij_in, ', bij_on = ', bij_on, ', cxij_on = ', cxij_on, ', cyij_on = ', cyij_on
       call crash('trace_line_grid_a - coincidence indicators dont make sense!')
     end if
+#endif
 
     i = aij_in( 1)
     j = aij_in( 2)
