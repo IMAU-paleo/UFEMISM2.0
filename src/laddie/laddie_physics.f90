@@ -44,7 +44,7 @@ CONTAINS
     ! Get T and S at layer base
     DO vi = mesh%vi1, mesh%vi2
        IF (ice%mask_floating_ice( vi)) THEN
-         laddie%melt( vi) = 0.0_dp
+         laddie%melt( vi) = C%uniform_laddie_gamma_T * (laddie%T( vi) - ocean%T_freezing_point( vi))
        END IF
     END DO
 
