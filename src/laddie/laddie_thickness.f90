@@ -36,6 +36,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_H_np1'
     INTEGER                                               :: vi
+    REAL(dp)                                              :: dHdt
  
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -44,8 +45,18 @@ CONTAINS
     DO vi = mesh%vi1, mesh%vi2
       IF (ice%mask_floating_ice( vi)) THEN
 
+        ! Get dH_dt
+        dHdt = -laddie%divQ( vi) + laddie%melt( vi) + laddie%entr( vi)
+
         ! H_n = H_n + dH_dt * dt
-        laddie%H_next( vi) = laddie%H( vi) + 0.01_dp*dt
+        laddie%H_next( vi) = laddie%H( vi) + dHdt * dt
+
+        ! Maximum limit
+        laddie%H_next( vi) = MIN(laddie%H_next (vi),C%laddie_thickness_maximum)
+
+        ! Minimum limit
+        laddie%H_next( vi) = MAX(laddie%H_next (vi),C%laddie_thickness_minimum)
+        
 
       END IF !(ice%mask_floating_ice( vi)) THEN
     END DO !vi = mesh%vi, mesh%v2

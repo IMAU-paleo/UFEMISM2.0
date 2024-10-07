@@ -182,8 +182,8 @@ CONTAINS
     laddie%viscV          = 0._dp
 
     ! Diffusivities
-    ALLOCATE( laddie%diffT              ( mesh%ti1:mesh%ti2              )) ! [degC m s^-1]   Horizontal diffusivity of heat
-    ALLOCATE( laddie%diffS              ( mesh%ti1:mesh%ti2              )) ! [PSU m s^-1]    Horizontal diffusivity of salt
+    ALLOCATE( laddie%diffT              ( mesh%vi1:mesh%vi2              )) ! [degC m s^-1]   Horizontal diffusivity of heat
+    ALLOCATE( laddie%diffS              ( mesh%vi1:mesh%vi2              )) ! [PSU m s^-1]    Horizontal diffusivity of salt
 
     laddie%diffT          = 0._dp
     laddie%diffS          = 0._dp

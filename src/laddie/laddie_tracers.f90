@@ -36,9 +36,53 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_TS_np1'
     INTEGER                                               :: vi
+    REAL(dp)                                              :: dHTdt
+    REAL(dp)                                              :: dHSdt
+    REAL(dp)                                              :: HT_next
+    REAL(dp)                                              :: HS_next
  
     ! Add routine to path
     CALL init_routine( routine_name)
+
+    ! == Temperature integration ==
+
+    ! Loop over vertices
+    DO vi = mesh%vi1, mesh%vi2
+      IF (ice%mask_floating_ice( vi)) THEN
+
+        ! Get dHT_dt
+        dHTdt = -laddie%divQT( vi) &
+              + laddie%melt( vi) * laddie%T_base( vi) &
+              + laddie%entr( vi) * laddie%T_amb( vi) &
+              + laddie%diffT( vi) 
+
+        ! HT_n = HT_n + dHT_dt * dt
+        HT_next = laddie%T( vi)*laddie%H( vi) + dHTdt * dt
+
+        laddie%T_next( vi) = HT_next / laddie%H_next( vi)
+
+      END IF !(ice%mask_floating_ice( vi)) THEN
+    END DO !vi = mesh%vi, mesh%v2
+
+    ! == Salinity integration ==
+
+    ! Loop over vertices
+    DO vi = mesh%vi1, mesh%vi2
+      IF (ice%mask_floating_ice( vi)) THEN
+
+        ! Get dHS_dt
+        dHSdt = -laddie%divQS( vi) &
+              + laddie%entr( vi) * laddie%S_amb( vi) &
+              + laddie%diffS( vi)
+
+        ! HS_n = HS_n + dHS_dt * dt
+        HS_next = laddie%S( vi)*laddie%H( vi) + dHSdt * dt
+
+        laddie%S_next( vi) = HS_next / laddie%H_next( vi)
+
+      END IF !(ice%mask_floating_ice( vi)) THEN
+    END DO !vi = mesh%vi, mesh%v2
+
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

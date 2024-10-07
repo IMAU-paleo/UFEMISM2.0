@@ -34,7 +34,7 @@ CONTAINS
     ! In- and output variables
 
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
-    TYPE(type_ice_model),                   INTENT(IN)    :: ice
+    TYPE(type_ice_model),                   INTENT(INOUT) :: ice
     TYPE(type_ocean_model),                 INTENT(IN)    :: ocean
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
     REAL(dp),                               INTENT(IN)    :: time
@@ -61,6 +61,15 @@ CONTAINS
     ! Extrapolate new cells
     ! TODO
 
+    ! Set non-floating values
+    DO vi = mesh%vi1, mesh%vi2
+      IF (.NOT. ice%mask_floating_ice( vi)) THEN
+        laddie%H( vi) = 0.0_dp
+        laddie%T( vi) = 0.0_dp
+        laddie%S( vi) = 0.0_dp
+      END IF
+    END DO
+
     ! Initialise ambient T and S
     CALL compute_ambient_TS( mesh, laddie, ocean, ice)
 
@@ -86,7 +95,11 @@ CONTAINS
 
       ! Move main variables by 1 time step
       DO vi = mesh%vi1, mesh%vi2
-        laddie%H( vi) = laddie%H_next( vi)
+        IF (ice%mask_floating_ice( vi)) THEN
+          laddie%H( vi) = laddie%H_next( vi)
+          laddie%T( vi) = laddie%T_next( vi)
+          laddie%S( vi) = laddie%S_next( vi)
+        END IF
       END DO
 
       ! Display or save fields
@@ -97,6 +110,7 @@ CONTAINS
 
 
     END DO !DO WHILE (tl <= C%time_duration_laddie)
+
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
