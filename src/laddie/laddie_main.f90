@@ -193,7 +193,7 @@ CONTAINS
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: Hstar
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'initialise_laddie_model'
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'update_secondary_fields'
     INTEGER                                               :: vi
 
     ! Add routine to path
