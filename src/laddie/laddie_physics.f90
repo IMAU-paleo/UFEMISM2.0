@@ -87,5 +87,33 @@ CONTAINS
 
   END SUBROUTINE compute_entrainment
 
+  SUBROUTINE compute_freezing_temperature( mesh, ice, laddie)
+    ! Compute freezing temperature at ice shelf base, based on Laddie salinity.
+    ! TODO can maybe be merged with ice computation
+
+    ! In- and output variables
+
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh
+    TYPE(type_ice_model),                   INTENT(IN)    :: ice
+    TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_freezing_temperature'
+    INTEGER                                               :: vi
+ 
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    DO vi = mesh%vi1, mesh%vi2
+       IF (ice%mask_floating_ice( vi)) THEN
+         laddie%T_freeze( vi) = freezing_lambda_1*laddie%S( vi) + freezing_lambda_2 - freezing_lambda_3*ice%Hib( vi)
+       END IF
+    END DO
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE compute_freezing_temperature
+
 END MODULE laddie_physics
 
