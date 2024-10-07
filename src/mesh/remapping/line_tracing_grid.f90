@@ -81,7 +81,7 @@ contains
       if     (aij_in(  1) > 0 .or. aij_in(  2) > 0) then
         ! p lies inside a-grid cell aij_in
         coinc_ind = old2new_coinc_ind( aij_in, bij_on, cxij_on, cyij_on, .false.)
-        call trace_line_grid_a(  grid, pp, qq, coinc_ind, p_next, n_left, coincides, finished)
+        call trace_line_grid_a( grid, pp, qq, coinc_ind, p_next, n_left, coincides, finished)
         aij_in  = coinc_ind2aij_in ( coinc_ind)
         bij_on  = coinc_ind2bij_on ( coinc_ind)
         cxij_on = coinc_ind2cxij_on( coinc_ind)
@@ -89,14 +89,19 @@ contains
       elseif (bij_on(  1) > 0 .or. bij_on(  2) > 0) then
         ! p lies on b-grid point bij_on
         coinc_ind = old2new_coinc_ind( aij_in, bij_on, cxij_on, cyij_on, .false.)
-        call trace_line_grid_b(  grid, pp, qq, coinc_ind, p_next, n_left, coincides, finished)
+        call trace_line_grid_b( grid, pp, qq, coinc_ind, p_next, n_left, coincides, finished)
         aij_in  = coinc_ind2aij_in ( coinc_ind)
         bij_on  = coinc_ind2bij_on ( coinc_ind)
         cxij_on = coinc_ind2cxij_on( coinc_ind)
         cyij_on = coinc_ind2cyij_on( coinc_ind)
       elseif (cxij_on( 1) > 0 .or. cxij_on( 2) > 0) then
         ! p lies on cx-grid edge cxij_on
-        call trace_line_grid_cx( grid, pp, qq, aij_in, bij_on, cxij_on, cyij_on, p_next, n_left, coincides, finished)
+        coinc_ind = old2new_coinc_ind( aij_in, bij_on, cxij_on, cyij_on, .false.)
+        call trace_line_grid_cx( grid, pp, qq, coinc_ind, p_next, n_left, coincides, finished)
+        aij_in  = coinc_ind2aij_in ( coinc_ind)
+        bij_on  = coinc_ind2bij_on ( coinc_ind)
+        cxij_on = coinc_ind2cxij_on( coinc_ind)
+        cyij_on = coinc_ind2cyij_on( coinc_ind)
       elseif (cyij_on( 1) > 0 .or. cyij_on( 2) > 0) then
         ! p lies on cy-grid edge cyij_on
         call trace_line_grid_cy( grid, pp, qq, aij_in, bij_on, cxij_on, cyij_on, p_next, n_left, coincides, finished)
@@ -1008,32 +1013,31 @@ contains
 
   !> Given the line [pq], where p lies on cx-grid edge cxij_on
   !> find the point p_next where [pq] crosses into the next grid cell.
-  subroutine trace_line_grid_cx( grid, p, q, &
-    aij_in, bij_on, cxij_on, cyij_on, p_next, n_left, coincides, finished)
+  subroutine trace_line_grid_cx( grid, p, q, coinc_ind, p_next, n_left, coincides, finished)
 
     ! In/output variables
-    type(type_grid),        intent(in)    :: grid
-    real(dp), dimension(2), intent(in)    :: p,q
-    integer,  dimension(2), intent(inout) :: aij_in, bij_on, cxij_on, cyij_on
-    real(dp), dimension(2), intent(out)   :: p_next
-    integer,                intent(out)   :: n_left
-    logical,                intent(out)   :: coincides, finished
+    type(type_grid),           intent(in)    :: grid
+    real(dp), dimension(2),    intent(in)    :: p,q
+    type(type_coinc_ind_grid), intent(inout) :: coinc_ind
+    real(dp), dimension(2),    intent(out)   :: p_next
+    integer,                   intent(out)   :: n_left
+    logical,                   intent(out)   :: coincides, finished
 
     ! Local variables:
     integer                :: i,j
     real(dp)               :: x,yl,yu
     real(dp), dimension(2) :: sw,nw,se,ne,ss,nn
-    logical                :: do_cross
-    real(dp), dimension(2) :: llis
+    logical                :: q_on_cx, q_in_a, pq_through_b, pq_through_a
 
+#if (DO_ASSERTIONS)
     ! Safety
-    if (aij_in( 1) > 0 .or. aij_in( 2) > 0 .or. (cxij_on( 1) == 0 .and. cxij_on( 2) == 0) .or. &
-    bij_on( 1) > 0 .or. bij_on( 2) > 0 .or. cyij_on( 1) > 0 .or. cyij_on( 2) > 0) then
-      call crash('trace_line_grid_cx - coincidence indicators dont make sense!')
-    end if
+    call assert( coinc_ind%grid == cx_grid .and. &
+      test_ge_le( coinc_ind%i, 1, grid%nx-1) .and. test_ge_le( coinc_ind%j, 1, grid%ny), &
+      'trace_line_grid_cx - coincidence indicators dont make sense')
+#endif
 
-    i = cxij_on( 1)
-    j = cxij_on( 2)
+    i = coinc_ind%i
+    j = coinc_ind%j
 
     ! This c-grid edge
     x  = grid%x( i) + grid%dx / 2._dp
@@ -1048,247 +1052,364 @@ contains
     se = [x + grid%dx, yl]
     ne = [x + grid%dx, yu]
 
-    ! More safety
-    if (p(2) < yl .or. p(2) > yu .or. abs( p(1) - x) > grid%tol_dist) then
-      call crash('trace_line_grid_cx - coincidence indicators dont make sense!')
-    end if
+#if (DO_ASSERTIONS)
+    ! Safety
+    call assert( test_tol( p(1), x, grid%tol_dist) .and. &
+      test_ge_le( p(2), yl, yu), &
+      'trace_line_grid_cx - p doesnt lie on cxij')
+#endif
 
-    ! Check if q lies on the same cx-grid cell in the southern direction
-    if (q(2) < p(2) .and. q(2) >= yl - grid%tol_dist .and. abs( q(1) - x) < grid%tol_dist) then
-      ! q lies on the same cx-grid cell in the southern direction
-      p_next    = q
-      aij_in    = [0,0]
-      bij_on    = [0,0]
-      cxij_on   = [0,0]
-      cyij_on   = [0,0]
-      n_left    = grid%ij2n( i+1,j)
-      coincides = .true.
-      finished  = .true.
-      return
-    end if
+    ! Check if q lies on the same cx-grid point as p
+    call trace_line_grid_cx_q_on_cx( grid, p, q, i, j, x, yl, yu, &
+      coinc_ind, p_next, n_left, coincides, finished, q_on_cx)
+    if (q_on_cx) return
 
-    ! Check if q lies on the same cx-grid cell in the northern direction
-    if (q(2) > p(2) .and. q(2) <= yu + grid%tol_dist .and. abs( q(1) - x) < grid%tol_dist) then
-      ! q lies on the same cx-grid cell in the northern direction
-      p_next    = q
-      aij_in    = [0,0]
-      bij_on    = [0,0]
-      cxij_on   = [0,0]
-      cyij_on   = [0,0]
-      n_left    = grid%ij2n( i,j)
-      coincides = .true.
-      finished  = .true.
-      return
-    end if
+    ! Check if q lies inside either of the two neighbouring a-grid cells
+    call trace_line_grid_cx_q_in_a( grid, q, i, j, x, yl, yu, &
+      coinc_ind, p_next, n_left, coincides, finished, q_in_a)
+    if (q_in_a) return
 
-    ! Check if q lies inside the grid cell to the west
-    if (q(2) >= yl - grid%tol_dist .and. q(2) <= yu + grid%tol_dist .and. &
-        q(1) >= x - grid%dx - grid%tol_dist .and. q(1) <= x + grid%tol_dist) then
-      ! q lies inside the grid cell to the west
-      p_next    = q
-      aij_in    = [0,0]
-      bij_on    = [0,0]
-      cxij_on   = [0,0]
-      cyij_on   = [0,0]
-      n_left    = grid%ij2n( i,j)
-      coincides = .false.
-      finished  = .true.
-      return
-    end if
+    ! Check if pq passes through any of the 6 surrounding b-grid points
+    call trace_line_grid_cx_pq_through_b( grid, p, q, i, j, &
+      sw, nw, se, ne, ss, nn, &
+      coinc_ind, p_next, n_left, coincides, finished, pq_through_b)
+    if (pq_through_b) return
 
-    ! Check if q lies inside the grid cell to the east
-    if (q(2) >= yl - grid%tol_dist .and. q(2) <= yu + grid%tol_dist .and. &
-        q(1) <= x + grid%dx + grid%tol_dist .and. q(1) >= x - grid%tol_dist) then
-      ! q lies inside the grid cell to the east
-      p_next    = q
-      aij_in    = [0,0]
-      bij_on    = [0,0]
-      cxij_on   = [0,0]
-      cyij_on   = [0,0]
-      n_left    = grid%ij2n( i+1,j)
-      coincides = .false.
-      finished  = .true.
-      return
-    end if
+    ! Check if pq exits either of the two neighbouring a-grid cells through their borders
+    call trace_line_grid_cx_pq_through_a( grid, p, q, i, j, &
+      sw, nw, se, ne, ss, nn, &
+      coinc_ind, p_next, n_left, coincides, finished, pq_through_a)
+    if (pq_through_a) return
 
-    ! Check if [pq] passes through the b-grid point to the south
-    if (lies_on_line_segment( p, q, ss, grid%tol_dist)) then
-      ! [pq] passes through the b-grid point to the south
-      p_next    = ss
-      aij_in    = [0,0]
-      bij_on    = [i  ,j-1]
-      cxij_on   = [0,0]
-      cyij_on   = [0,0]
-      n_left    = grid%ij2n( i+1,j)
-      coincides = .true.
-      finished  = .false.
-      return
+    if (.not. (q_on_cx .or. q_in_a .or. pq_through_b .or. pq_through_a)) then
+      call crash('trace_line_grid_cx - couldnt find out where pq goes from here')
     end if
-
-    ! Check if [pq] passes through the b-grid point to the north
-    if (lies_on_line_segment( p, q, nn, grid%tol_dist)) then
-      ! [pq] passes through the b-grid point to the north
-      p_next    = nn
-      aij_in    = [0,0]
-      bij_on    = [i  ,j  ]
-      cxij_on   = [0,0]
-      cyij_on   = [0,0]
-      n_left    = grid%ij2n( i,j)
-      coincides = .true.
-      finished  = .false.
-      return
-    end if
-
-    ! Check if [pq] exits the a-grid cell to the west through the b-grid point to the northwest
-    if (lies_on_line_segment( p, q, nw, grid%tol_dist)) then
-      ! [pq] exits the a-grid cell to the west through the b-grid point to the northwest
-      p_next    = nw
-      aij_in    = [0,0]
-      bij_on    = [i-1,j  ]
-      cxij_on   = [0,0]
-      cyij_on   = [0,0]
-      n_left    = grid%ij2n( i,j)
-      coincides = .false.
-      finished  = .false.
-      return
-    end if
-
-    ! Check if [pq] exits the a-grid cell to the west through the b-grid point to the southwest
-    if (lies_on_line_segment( p, q, sw, grid%tol_dist)) then
-      ! [pq] exits the a-grid cell to the west through the b-grid point to the southwest
-      p_next    = sw
-      aij_in    = [0,0]
-      bij_on    = [i-1,j-1]
-      cxij_on   = [0,0]
-      cyij_on   = [0,0]
-      n_left    = grid%ij2n( i,j)
-      coincides = .false.
-      finished  = .false.
-      return
-    end if
-
-    ! Check if [pq] exits the a-grid cell to the east through the b-grid point to the northeast
-    if (lies_on_line_segment( p, q, ne, grid%tol_dist)) then
-      ! [pq] exits the a-grid cell to the west through the b-grid point to the northeast
-      p_next    = ne
-      aij_in    = [0,0]
-      bij_on    = [i+1,j  ]
-      cxij_on   = [0,0]
-      cyij_on   = [0,0]
-      n_left    = grid%ij2n( i+1,j)
-      coincides = .false.
-      finished  = .false.
-      return
-    end if
-
-    ! Check if [pq] exits the a-grid cell to the east through the b-grid point to the southeast
-    if (lies_on_line_segment( p, q, se, grid%tol_dist)) then
-      ! [pq] exits the a-grid cell to the west through the b-grid point to the southeast
-      p_next    = se
-      aij_in    = [0,0]
-      bij_on    = [i+1,j-1]
-      cxij_on   = [0,0]
-      cyij_on   = [0,0]
-      n_left    = grid%ij2n( i+1,j)
-      coincides = .false.
-      finished  = .false.
-      return
-    end if
-
-    ! Check if [pq] exits the a-grid cell to the west through its southern boundary
-    call segment_intersection( p, q, ss, sw, llis, do_cross, grid%tol_dist)
-    if (do_cross) then
-      ! [pq] exits the a-grid cell to the west through its southern boundary
-      p_next    = llis
-      aij_in    = [0,0]
-      bij_on    = [0,0]
-      cxij_on   = [0,0]
-      cyij_on   = [i  ,j-1]
-      n_left    = grid%ij2n( i,j)
-      coincides = .false.
-      finished  = .false.
-      return
-    end if
-
-    ! Check if [pq] exits the a-grid cell to the west through its western boundary
-    call segment_intersection( p, q, sw, nw, llis, do_cross, grid%tol_dist)
-    if (do_cross) then
-      ! [pq] exits the a-grid cell to the west through its western boundary
-      p_next    = llis
-      aij_in    = [0,0]
-      bij_on    = [0,0]
-      cxij_on   = [i-1,j]
-      cyij_on   = [0,0]
-      n_left    = grid%ij2n( i,j)
-      coincides = .false.
-      finished  = .false.
-      return
-    end if
-
-    ! Check if [pq] exits the a-grid cell to the west through its northern boundary
-    call segment_intersection( p, q, nw, nn, llis, do_cross, grid%tol_dist)
-    if (do_cross) then
-      ! [pq] exits the a-grid cell to the west through its northern boundary
-      p_next    = llis
-      aij_in    = [0,0]
-      bij_on    = [0,0]
-      cxij_on   = [0,0]
-      cyij_on   = [i,j]
-      n_left    = grid%ij2n( i,j)
-      coincides = .false.
-      finished  = .false.
-      return
-    end if
-
-    ! Check if [pq] exits the a-grid cell to the east through its northern boundary
-    call segment_intersection( p, q, nn, ne, llis, do_cross, grid%tol_dist)
-    if (do_cross) then
-      ! [pq] exits the a-grid cell to the east through its northern boundary
-      p_next    = llis
-      aij_in    = [0,0]
-      bij_on    = [0,0]
-      cxij_on   = [0,0]
-      cyij_on   = [i+1,j]
-      n_left    = grid%ij2n( i+1,j)
-      coincides = .false.
-      finished  = .false.
-      return
-    end if
-
-    ! Check if [pq] exits the a-grid cell to the east through its eastern boundary
-    call segment_intersection( p, q, ne, se, llis, do_cross, grid%tol_dist)
-    if (do_cross) then
-      ! [pq] exits the a-grid cell to the east through its eastern boundary
-      p_next    = llis
-      aij_in    = [0,0]
-      bij_on    = [0,0]
-      cxij_on   = [i+1,j]
-      cyij_on   = [0,0]
-      n_left    = grid%ij2n( i+1,j)
-      coincides = .false.
-      finished  = .false.
-      return
-    end if
-
-    ! Check if [pq] exits the a-grid cell to the east through its southern boundary
-    call segment_intersection( p, q, se, ss, llis, do_cross, grid%tol_dist)
-    if (do_cross) then
-      ! [pq] exits the a-grid cell to the east through its southern boundary
-      p_next    = llis
-      aij_in    = [0,0]
-      bij_on    = [0,0]
-      cxij_on   = [0,0]
-      cyij_on   = [i+1,j-1]
-      n_left    = grid%ij2n( i+1,j)
-      coincides = .false.
-      finished  = .false.
-      return
-    end if
-
-    ! This point should not be reachable!
-    call crash('trace_line_grid_cx - reached the unreachable end of the subroutine!')
 
   end subroutine trace_line_grid_cx
+
+  subroutine trace_line_grid_cx_q_on_cx( grid, p, q, i, j, x, yl, yu, &
+    coinc_ind, p_next, n_left, coincides, finished, q_on_cx)
+
+    ! In/output variables
+    type(type_grid),           intent(in)    :: grid
+    real(dp), dimension(2),    intent(in)    :: p, q
+    integer,                   intent(in)    :: i,j
+    real(dp),                  intent(in)    :: x, yl, yu
+    type(type_coinc_ind_grid), intent(inout) :: coinc_ind
+    real(dp), dimension(2),    intent(out)   :: p_next
+    integer,                   intent(out)   :: n_left
+    logical,                   intent(out)   :: coincides, finished, q_on_cx
+
+    q_on_cx   = .false.
+    p_next    = [0._dp, 0._dp]
+    n_left    = 0
+    coincides = .false.
+    finished  = .false.
+
+    if (test_tol( q(1), x, grid%tol_dist) .and. test_ge_le( q(2), yl - grid%tol_dist, p(2))) then
+      ! q lies on the same cx-grid cell in the southern direction
+
+      q_on_cx        = .true.
+      p_next         = q
+      coinc_ind%grid = no_value
+      coinc_ind%i    = 0
+      coinc_ind%j    = 0
+      n_left         = grid%ij2n( i+1,j)
+      coincides      = .true.
+      finished       = .true.
+
+    elseif (test_tol( q(1), x, grid%tol_dist) .and. test_ge_le( q(2), p(2), yu + grid%tol_dist)) then
+      ! q lies on the same cx-grid cell in the northern direction
+
+      q_on_cx        = .true.
+      p_next         = q
+      coinc_ind%grid = no_value
+      coinc_ind%i    = 0
+      coinc_ind%j    = 0
+      n_left         = grid%ij2n( i,j)
+      coincides      = .true.
+      finished       = .true.
+
+    end if
+
+  end subroutine trace_line_grid_cx_q_on_cx
+
+  subroutine trace_line_grid_cx_q_in_a( grid, q, i, j, x, yl, yu, &
+    coinc_ind, p_next, n_left, coincides, finished, q_in_a)
+
+    ! In/output variables
+    type(type_grid),           intent(in)    :: grid
+    real(dp), dimension(2),    intent(in)    :: q
+    integer,                   intent(in)    :: i,j
+    real(dp),                  intent(in)    :: x, yl, yu
+    type(type_coinc_ind_grid), intent(inout) :: coinc_ind
+    real(dp), dimension(2),    intent(out)   :: p_next
+    integer,                   intent(out)   :: n_left
+    logical,                   intent(out)   :: coincides, finished, q_in_a
+
+    q_in_a   = .false.
+    p_next    = [0._dp, 0._dp]
+    n_left    = 0
+    coincides = .false.
+    finished  = .false.
+
+    if (test_ge_le( q(1), x - grid%dx - grid%tol_dist, x + grid%tol_dist) .and. &
+        test_ge_le( q(2), yl - grid%tol_dist, yu + grid%tol_dist)) then
+      ! q lies inside the grid cell to the west (i.e. a-grid cell [i,j])
+
+      q_in_a         = .true.
+      p_next         = q
+      coinc_ind%grid = no_value
+      coinc_ind%i    = 0
+      coinc_ind%j    = 0
+      n_left         = grid%ij2n( i,j)
+      coincides      = .false.
+      finished       = .true.
+
+    elseif (test_ge_le( q(1), x - grid%tol_dist, x + grid%dx + grid%tol_dist) .and. &
+            test_ge_le( q(2), yl - grid%tol_dist, yu + grid%tol_dist)) then
+      ! q lies inside the grid cell to the east (i.e. a-grid cell [i+1,j])
+
+      q_in_a         = .true.
+      p_next         = q
+      coinc_ind%grid = no_value
+      coinc_ind%i    = 0
+      coinc_ind%j    = 0
+      n_left         = grid%ij2n( i+1,j)
+      coincides      = .false.
+      finished       = .true.
+
+    end if
+
+  end subroutine trace_line_grid_cx_q_in_a
+
+  subroutine trace_line_grid_cx_pq_through_b( grid, p, q, i, j, &
+    sw, nw, se, ne, ss, nn, &
+    coinc_ind, p_next, n_left, coincides, finished, pq_through_b)
+
+    ! In/output variables
+    type(type_grid),           intent(in)    :: grid
+    real(dp), dimension(2),    intent(in)    :: p, q
+    integer,                   intent(in)    :: i,j
+    real(dp), dimension(2),    intent(in)    :: sw, nw, se, ne, ss, nn
+    type(type_coinc_ind_grid), intent(inout) :: coinc_ind
+    real(dp), dimension(2),    intent(out)   :: p_next
+    integer,                   intent(out)   :: n_left
+    logical,                   intent(out)   :: coincides, finished, pq_through_b
+
+    pq_through_b = .false.
+    p_next       = [0._dp, 0._dp]
+    n_left       = 0
+    coincides    = .false.
+    finished     = .false.
+
+    if (lies_on_line_segment( p, q, ss, grid%tol_dist)) then
+      ! [pq] passes through the b-grid point to the south (i.e. b-grid point [i,j-1])
+
+      pq_through_b   = .true.
+      p_next         = ss
+      coinc_ind%grid = b_grid
+      coinc_ind%i    = i
+      coinc_ind%j    = j-1
+      n_left         = grid%ij2n( i+1,j)
+      coincides      = .true.
+      finished       = .false.
+
+    elseif (lies_on_line_segment( p, q, nn, grid%tol_dist)) then
+      ! [pq] passes through the b-grid point to the north (i.e. b-grid point [i,j])
+
+      pq_through_b   = .true.
+      p_next         = nn
+      coinc_ind%grid = b_grid
+      coinc_ind%i    = i
+      coinc_ind%j    = j
+      n_left         = grid%ij2n( i,j)
+      coincides      = .true.
+      finished       = .false.
+
+    elseif (lies_on_line_segment( p, q, nw, grid%tol_dist)) then
+      ! [pq] exits the grid cell to the west (i.e. a-grid cell [i,j])
+      ! through the b-grid point to the northwest (i.e. b-grid point [i-1,j])
+
+      pq_through_b   = .true.
+      p_next         = nw
+      coinc_ind%grid = b_grid
+      coinc_ind%i    = i-1
+      coinc_ind%j    = j
+      n_left         = grid%ij2n( i,j)
+      coincides      = .false.
+      finished       = .false.
+
+    elseif (lies_on_line_segment( p, q, sw, grid%tol_dist)) then
+      ! [pq] exits the grid cell to the west (i.e. a-grid cell [i,j])
+      ! through the b-grid point to the southwest (i.e. b-grid point [i-1,j-1])
+
+      pq_through_b   = .true.
+      p_next         = sw
+      coinc_ind%grid = b_grid
+      coinc_ind%i    = i-1
+      coinc_ind%j    = j-1
+      n_left         = grid%ij2n( i,j)
+      coincides      = .false.
+      finished       = .false.
+
+    elseif (lies_on_line_segment( p, q, ne, grid%tol_dist)) then
+      ! [pq] exits the grid cell to the east (i.e. a-grid cell [i+1,j])
+      ! through the b-grid point to the northeast (i.e. b-grid point [i+1,j])
+
+      pq_through_b   = .true.
+      p_next         = ne
+      coinc_ind%grid = b_grid
+      coinc_ind%i    = i+1
+      coinc_ind%j    = j
+      n_left         = grid%ij2n( i+1,j)
+      coincides      = .false.
+      finished       = .false.
+
+    elseif (lies_on_line_segment( p, q, se, grid%tol_dist)) then
+      ! [pq] exits the grid cell to the east (i.e. a-grid cell [i+1,j]
+      ! through the b-grid point to the southeast (i.e. b-grid point [i+1,j-1])
+
+      pq_through_b   = .true.
+      p_next         = se
+      coinc_ind%grid = b_grid
+      coinc_ind%i    = i+1
+      coinc_ind%j    = j-1
+      n_left         = grid%ij2n( i+1,j)
+      coincides      = .false.
+      finished       = .false.
+
+    end if
+
+  end subroutine trace_line_grid_cx_pq_through_b
+
+  subroutine trace_line_grid_cx_pq_through_a( grid, p, q, i, j, &
+    sw, nw, se, ne, ss, nn, &
+    coinc_ind, p_next, n_left, coincides, finished, pq_through_a)
+
+    ! In/output variables
+    type(type_grid),           intent(in)    :: grid
+    real(dp), dimension(2),    intent(in)    :: p, q
+    integer,                   intent(in)    :: i,j
+    real(dp), dimension(2),    intent(in)    :: sw, nw, se, ne, ss, nn
+    type(type_coinc_ind_grid), intent(inout) :: coinc_ind
+    real(dp), dimension(2),    intent(out)   :: p_next
+    integer,                   intent(out)   :: n_left
+    logical,                   intent(out)   :: coincides, finished, pq_through_a
+
+    ! Local variables
+    real(dp), dimension(2) :: llis
+    logical                :: do_cross
+
+    pq_through_a = .false.
+    p_next       = [0._dp, 0._dp]
+    n_left       = 0
+    coincides    = .false.
+    finished     = .false.
+
+    call segment_intersection( p, q, ss, sw, llis, do_cross, grid%tol_dist)
+    if (do_cross) then
+      ! [pq] exits the grid cell to the west (i.e. a-grid cell [i,j])
+      ! through its southern boundary (i.e. cy-grid point [i,j-1])
+
+      pq_through_a   = .true.
+      p_next         = llis
+      coinc_ind%grid = cy_grid
+      coinc_ind%i    = i
+      coinc_ind%j    = j-1
+      n_left         = grid%ij2n( i,j)
+      coincides      = .false.
+      finished       = .false.
+      return
+
+    end if
+
+    call segment_intersection( p, q, sw, nw, llis, do_cross, grid%tol_dist)
+    if (do_cross) then
+      ! [pq] exits the grid cell to the west (i.e. a-grid cell [i,j])
+      ! through its western boundary (i.e. cx-grid point [i-1,j])
+
+      pq_through_a   = .true.
+      p_next         = llis
+      coinc_ind%grid = cx_grid
+      coinc_ind%i    = i-1
+      coinc_ind%j    = j
+      n_left         = grid%ij2n( i,j)
+      coincides      = .false.
+      finished       = .false.
+      return
+
+    end if
+
+    call segment_intersection( p, q, nw, nn, llis, do_cross, grid%tol_dist)
+    if (do_cross) then
+      ! [pq] exits the grid cell to the west (i.e. a-grid cell [i,j])
+      ! through its northern boundary (i.e. cy-grid point [i,j])
+
+      pq_through_a   = .true.
+      p_next         = llis
+      coinc_ind%grid = cy_grid
+      coinc_ind%i    = i
+      coinc_ind%j    = j
+      n_left         = grid%ij2n( i,j)
+      coincides      = .false.
+      finished       = .false.
+      return
+
+    end if
+
+    call segment_intersection( p, q, nn, ne, llis, do_cross, grid%tol_dist)
+    if (do_cross) then
+      ! [pq] exits the grid cell to the east (i.e. a-grid cell [i+1,j])
+      ! through its northern boundary (i.e. cy-grid point [i+1,j])
+
+      pq_through_a   = .true.
+      p_next         = llis
+      coinc_ind%grid = cy_grid
+      coinc_ind%i    = i+1
+      coinc_ind%j    = j
+      n_left         = grid%ij2n( i+1,j)
+      coincides      = .false.
+      finished       = .false.
+      return
+
+    end if
+
+    call segment_intersection( p, q, ne, se, llis, do_cross, grid%tol_dist)
+    if (do_cross) then
+      ! [pq] exits the grid cell to the east (i.e. a-grid cell [i+1,j])
+      ! through its eastern boundary (i.e. cx-grid point [i+1,j])
+
+      pq_through_a   = .true.
+      p_next         = llis
+      coinc_ind%grid = cx_grid
+      coinc_ind%i    = i+1
+      coinc_ind%j    = j
+      n_left         = grid%ij2n( i+1,j)
+      coincides      = .false.
+      finished       = .false.
+      return
+
+    end if
+
+    call segment_intersection( p, q, se, ss, llis, do_cross, grid%tol_dist)
+    if (do_cross) then
+      ! [pq] exits the grid cell to the east (i.e. a-grid cell [i+1,j])
+      ! through its southern boundary (i.e. cy-grid point [i+1,j-1])
+
+      pq_through_a   = .true.
+      p_next         = llis
+      coinc_ind%grid = cy_grid
+      coinc_ind%i    = i+1
+      coinc_ind%j    = j-1
+      n_left         = grid%ij2n( i+1,j)
+      coincides      = .false.
+      finished       = .false.
+      return
+
+    end if
+
+  end subroutine trace_line_grid_cx_pq_through_a
 
   !> Given the line [pq], where p lies on cy-grid edge cyij_on
   !> find the point p_next where [pq] crosses into the next grid cell.
