@@ -89,5 +89,31 @@ CONTAINS
 
   END SUBROUTINE compute_TS_np1
 
+  SUBROUTINE compute_diffTS( mesh, ice, laddie, Hstar)
+    ! Compute horizontal diffusion of heat and salt
+
+    ! In- and output variables
+
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh
+    TYPE(type_ice_model),                   INTENT(IN)    :: ice
+    TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: Hstar
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_diffTS'
+    INTEGER                                               :: vi
+    REAL(dp), DIMENSION(mesh%nV)                          :: Hstar_tot
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Gather
+    CALL gather_to_all_dp_2D( Hstar, Hstar_tot)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE compute_diffTS
+
 END MODULE laddie_tracers
 
