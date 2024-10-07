@@ -52,6 +52,8 @@ MODULE laddie_model_types
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: S_base                      ! [PSU]             Salinity at ice shelf base
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: rho                         ! [kg m^-3]         Density of mixed layer water
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: drho_amb                    ! []                Buoyancy at layer bottom (rho_amb-rho)/rho_sw
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: Hdrho_amb                   ! [m]               Depth-integrated buoyancy
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: Hdrho_amb_b                 ! [m]               Depth-integrated buoyancy
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: drho_base                   ! []                Buoyancy at ice base (rho-rho_base)/rho_sw
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: u_star                      ! [m s^-1]          Friction velocity
   
@@ -88,6 +90,7 @@ MODULE laddie_model_types
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: ddrho_amb_dy_b              ! [m^-1]            Horizontal derivative of buoyancy 
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHib_dx_b                   ! [m^-2]            Horizontal derivative of ice draft 
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHib_dy_b                   ! [m^-2]            Horizontal derivative of ice draft 
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: H_b                         ! [m]               Layer thickness on b grid
   
   END TYPE type_laddie_model
 

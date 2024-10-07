@@ -22,6 +22,7 @@ MODULE laddie_main
   USE laddie_thickness                                       , ONLY: compute_H_np1 
   USE laddie_velocity                                        , ONLY: compute_UV_np1
   USE laddie_tracers                                         , ONLY: compute_TS_np1
+  USE mesh_operators                                         , ONLY: ddx_a_b_2D, ddy_a_b_2D, map_a_b_2D
 
   IMPLICIT NONE
     
@@ -72,20 +73,12 @@ CONTAINS
       END IF
     END DO
 
-    ! Initialise ambient T and S
-    CALL compute_ambient_TS( mesh, laddie, ocean, ice)
+    ! Update ice shelf draft gradients
+    CALL ddx_a_b_2D( mesh, ice%Hib , laddie%dHib_dx_b)
+    CALL ddy_a_b_2D( mesh, ice%Hib , laddie%dHib_dy_b)
 
-    ! Compute freezing temperature
-    CALL compute_freezing_temperature( mesh, ice, laddie)
-
-    ! Compute buoyancy
-    CALL compute_buoyancy( mesh, ice, laddie)
-
-    ! Compute melt rate
-    CALL compute_melt_rate( mesh, ice, ocean, laddie)
-    
-    ! Compute entrainment
-    CALL compute_entrainment( mesh, ice, ocean, laddie)
+    ! Update secondary fields
+    CALL update_secondary_fields( mesh, ice, ocean, laddie, laddie%H)
 
     ! == Main time loop ==
     ! ====================
@@ -101,7 +94,7 @@ CONTAINS
       CALL compute_TS_np1( mesh, ice, laddie, dt)
 
       ! Update secondary fields
-      ! TODO
+      CALL update_secondary_fields( mesh, ice, ocean, laddie, laddie%H)
 
       ! == Move time ==
       ! Increase laddie time
@@ -167,7 +160,7 @@ CONTAINS
     END DO
 
     ! Initialise ambient T and S
-    CALL compute_ambient_TS( mesh, laddie, ocean, ice)
+    CALL compute_ambient_TS( mesh, ice, ocean, laddie, laddie%H)
 
     ! Initialise main T and S
     DO vi = mesh%vi1, mesh%vi2
@@ -185,6 +178,54 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE initialise_laddie_model
+
+  SUBROUTINE update_secondary_fields( mesh, ice, ocean, laddie, Hstar)
+    ! Update all secondary fields required for next iteration
+
+    ! In- and output variables
+
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh
+    TYPE(type_ice_model),                   INTENT(IN)    :: ice
+    TYPE(type_ocean_model),                 INTENT(IN)    :: ocean
+    TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: Hstar
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'initialise_laddie_model'
+    INTEGER                                               :: vi
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Initialise ambient T and S
+    CALL compute_ambient_TS( mesh, ice, ocean, laddie, Hstar)
+
+    ! Compute freezing temperature
+    CALL compute_freezing_temperature( mesh, ice, laddie)
+
+    ! Compute buoyancy
+    CALL compute_buoyancy( mesh, ice, laddie, Hstar)
+
+    ! Map buoyancy to b grid
+    CALL map_a_b_2D( mesh, laddie%Hdrho_amb, laddie%Hdrho_amb_b)
+
+    ! Map thickness to b grid
+    CALL map_a_b_2D( mesh, Hstar, laddie%H_b)
+
+    ! Update buoyancy derivatives
+    CALL ddx_a_b_2D( mesh, laddie%drho_amb, laddie%ddrho_amb_dx_b)
+    CALL ddy_a_b_2D( mesh, laddie%drho_amb, laddie%ddrho_amb_dy_b)
+
+    ! Compute melt rate
+    CALL compute_melt_rate( mesh, ice, ocean, laddie, Hstar)
+    
+    ! Compute entrainment
+    CALL compute_entrainment( mesh, ice, ocean, laddie, Hstar)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE update_secondary_fields
 
 END MODULE laddie_main
 

@@ -24,7 +24,7 @@ CONTAINS
 ! ===== Main routines =====
 ! =========================
 
-  SUBROUTINE compute_melt_rate( mesh, ice, ocean, laddie)
+  SUBROUTINE compute_melt_rate( mesh, ice, ocean, laddie, Hstar)
     ! Compute melt rate using the three equations
 
     ! In- and output variables
@@ -33,6 +33,7 @@ CONTAINS
     TYPE(type_ocean_model),                 INTENT(IN)    :: ocean
     TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: Hstar
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_melt_rate'
@@ -56,7 +57,7 @@ CONTAINS
 
   END SUBROUTINE compute_melt_rate
 
-  SUBROUTINE compute_entrainment( mesh, ice, ocean, laddie)
+  SUBROUTINE compute_entrainment( mesh, ice, ocean, laddie, Hstar)
     ! Compute entrainment rate
 
     ! In- and output variables
@@ -65,6 +66,7 @@ CONTAINS
     TYPE(type_ocean_model),                 INTENT(IN)    :: ocean
     TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: Hstar
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_entrainment'
@@ -115,7 +117,7 @@ CONTAINS
 
   END SUBROUTINE compute_freezing_temperature
 
-  SUBROUTINE compute_buoyancy( mesh, ice, laddie)
+  SUBROUTINE compute_buoyancy( mesh, ice, laddie, Hstar)
     ! Compute buoyancy = (rho_amb - rho)/rho_sw
     ! TODO update with Roquet EOS 
 
@@ -124,6 +126,7 @@ CONTAINS
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
     TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: Hstar
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_buoyancy'
@@ -134,8 +137,11 @@ CONTAINS
 
     DO vi = mesh%vi1, mesh%vi2
        IF (ice%mask_floating_ice( vi)) THEN
+         ! Get buoyancy
          laddie%drho_amb( vi) = C%uniform_laddie_eos_linear_beta  * (laddie%S_amb( vi)-laddie%S( vi)) &
                               - C%uniform_laddie_eos_linear_alpha * (laddie%T_amb( vi)-laddie%T( vi))
+         ! Get depth-integrated buoyancy based on Hstar
+         laddie%Hdrho_amb( vi) = Hstar( vi) * laddie%drho_amb( vi)
        END IF
     END DO
 

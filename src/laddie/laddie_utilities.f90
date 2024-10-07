@@ -24,15 +24,16 @@ CONTAINS
 ! ===== Main routines =====
 ! =========================
 
-  SUBROUTINE compute_ambient_TS( mesh, laddie, ocean, ice)
+  SUBROUTINE compute_ambient_TS( mesh, ice, ocean, laddie, Hstar)
     ! Initialise the laddie model
 
     ! In- and output variables
 
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
-    TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
-    TYPE(type_ocean_model),                 INTENT(IN)    :: ocean
     TYPE(type_ice_model),                   INTENT(IN)    :: ice
+    TYPE(type_ocean_model),                 INTENT(IN)    :: ocean
+    TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: Hstar
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_ambient_TS'
@@ -44,8 +45,8 @@ CONTAINS
     ! Get T and S at layer base
     DO vi = mesh%vi1, mesh%vi2
        IF (ice%mask_floating_ice( vi)) THEN
-         CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, ocean%T( vi,:), laddie%H( vi) - ice%Hib( vi), laddie%T_amb( vi))
-         CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, ocean%S( vi,:), laddie%H( vi) - ice%Hib( vi), laddie%S_amb( vi))
+         CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, ocean%T( vi,:), Hstar( vi) - ice%Hib( vi), laddie%T_amb( vi))
+         CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, ocean%S( vi,:), Hstar( vi) - ice%Hib( vi), laddie%S_amb( vi))
        END IF
     END DO
 
@@ -125,11 +126,15 @@ CONTAINS
     ALLOCATE( laddie%rho                ( mesh%vi1:mesh%vi2              )) ! [kg m^-3]       Layer density
     ALLOCATE( laddie%rho_amb            ( mesh%vi1:mesh%vi2              )) ! [kg m^-3]       Ambient water density
     ALLOCATE( laddie%drho_amb           ( mesh%vi1:mesh%vi2              )) ! []              Buoyancy at layer bottom
+    ALLOCATE( laddie%Hdrho_amb          ( mesh%vi1:mesh%vi2              )) ! []              Depth-integrated buoyancy at layer bottom
+    ALLOCATE( laddie%Hdrho_amb_b        ( mesh%ti1:mesh%ti2              )) ! []              Depth-integrated buoyancy at layer bottom
     ALLOCATE( laddie%drho_base          ( mesh%vi1:mesh%vi2              )) ! []              Buoyancy at ice base
 
     laddie%rho            = 0._dp
     laddie%rho_amb        = 0._dp
     laddie%drho_amb       = 0._dp
+    laddie%Hdrho_amb      = 0._dp
+    laddie%Hdrho_amb_b    = 0._dp
     laddie%drho_base      = 0._dp
 
     ! Friction velocity
@@ -193,11 +198,13 @@ CONTAINS
     ALLOCATE( laddie%ddrho_amb_dy_b     ( mesh%ti1:mesh%ti2              )) ! [m^-1]          
     ALLOCATE( laddie%dHib_dx_b          ( mesh%ti1:mesh%ti2              )) ! [m^-2]          Horizontal derivative of ice draft
     ALLOCATE( laddie%dHib_dy_b          ( mesh%ti1:mesh%ti2              )) ! [m^-2]          
+    ALLOCATE( laddie%H_b                ( mesh%ti1:mesh%ti2              )) ! [m]             Layer thickness on b grid
 
     laddie%ddrho_amb_dx_b = 0._dp
     laddie%ddrho_amb_dy_b = 0._dp
     laddie%dHib_dx_b      = 0._dp
     laddie%dHib_dy_b      = 0._dp
+    laddie%H_b            = 0._dp
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
