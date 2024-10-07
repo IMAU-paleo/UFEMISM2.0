@@ -40,8 +40,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Run the chosen idealised ocean model
-    IF (C%choice_ocean_model_idealised == 'ISOMIP_WARM' .OR. &
-        C%choice_ocean_model_idealised == 'ISOMIP_COLD') THEN
+    IF (C%choice_ocean_model_idealised == 'ISOMIP') THEN
       ! No need to do anything 
     ELSE
       CALL crash('unknown choice_ocean_model_idealised "' // TRIM( C%choice_ocean_model_idealised) // '"')
@@ -74,8 +73,7 @@ CONTAINS
       colour_string( TRIM( C%choice_ocean_model_idealised),'light blue') // '"...'
 
     ! Run the chosen idealised ocean model
-    IF (C%choice_ocean_model_idealised == 'ISOMIP_WARM' .OR. &
-        C%choice_ocean_model_idealised == 'ISOMIP_COLD') THEN
+    IF (C%choice_ocean_model_idealised == 'ISOMIP') THEN
       CALL initialise_ocean_model_idealised_ISOMIP( mesh, ocean)
     ELSE
       CALL crash('unknown choice_ocean_model_idealised "' // TRIM( C%choice_ocean_model_idealised) // '"')
@@ -111,12 +109,14 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Define scenario-dependent parameters
-    IF (C%choice_ocean_model_idealised == 'ISOMIP_WARM') THEN
+    IF (C%choice_ocean_isomip_scenario == 'WARM') THEN
       T1 = 1.0_dp
       S1 = 34.7_dp
-    ELSE IF (C%choice_ocean_model_idealised == 'ISOMIP_COLD') THEN
+    ELSE IF (C%choice_ocean_isomip_scenario == 'COLD') THEN
       T1 = -1.9_dp
       S1 = 34.55_dp
+    ELSE
+      CALL crash('unknown choice_ocean_isomip_scenario "' // TRIM( C%choice_ocean_isomip_scenario) // '"')
     END IF
     
     DO vi = mesh%vi1, mesh%vi2
