@@ -687,8 +687,8 @@ MODULE model_configuration
     ! Choice of idealised ocean model
     CHARACTER(LEN=256)  :: choice_ocean_model_idealised_config          = ''                               ! Choice of idealised ocean forcing: 'ISOMIP', 'TANH'
     CHARACTER(LEN=256)  :: choice_ocean_isomip_scenario_config          = ''                               ! Scenario when using 'ISOMIP' forcing: 'WARM' or 'COLD'
-    CHARACTER(LEN=256)  :: ocean_tanh_deep_temperature_config           = 1.0_dp                           ! [degC] Deep ocean temperature when using 'TANH' forcing
-    CHARACTER(LEN=256)  :: ocean_tanh_thermocline_depth_config          = 100.0_dp                         ! [m]    Depth of thermocline when using 'TANH' forcing
+    REAL(dp)            :: ocean_tanh_deep_temperature_config           = 1.0_dp                           ! [degC] Deep ocean temperature when using 'TANH' forcing
+    REAL(dp)            :: ocean_tanh_thermocline_depth_config          = 100.0_dp                         ! [m]    Depth of thermocline when using 'TANH' forcing
 
     ! Choice of realistic ocean model
     CHARACTER(LEN=256)  :: choice_ocean_model_realistic_config          = ''
@@ -1649,8 +1649,8 @@ MODULE model_configuration
     ! Choice of idealised ocean model
     CHARACTER(LEN=256)  :: choice_ocean_model_idealised
     CHARACTER(LEN=256)  :: choice_ocean_isomip_scenario
-    CHARACTER(LEN=256)  :: ocean_tanh_deep_temperature
-    CHARACTER(LEN=256)  :: ocean_tanh_thermocline_depth
+    REAL(dp)            :: ocean_tanh_deep_temperature
+    REAL(dp)            :: ocean_tanh_thermocline_depth
 
     ! Choice of realistic ocean model
     CHARACTER(LEN=256)  :: choice_ocean_model_realistic
