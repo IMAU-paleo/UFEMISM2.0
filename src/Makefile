@@ -177,6 +177,9 @@ UFEMISM_source = \
   ocean/ocean_main.f90 \
   \
   laddie/laddie_utilities.f90 \
+  laddie/laddie_thickness.f90 \
+  laddie/laddie_velocity.f90 \
+  laddie/laddie_tracers.f90 \
   laddie/laddie_main.f90 \
   \
   basal_mass_balance/BMB_idealised.f90 \

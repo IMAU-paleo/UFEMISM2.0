@@ -17,6 +17,9 @@ MODULE laddie_main
   USE BMB_model_types                                        , ONLY: type_BMB_model
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   USE laddie_utilities                                       , ONLY: compute_ambient_TS, allocate_laddie_model
+  USE laddie_thickness                                       , ONLY: compute_H_np1 
+  USE laddie_velocity                                        , ONLY: compute_UV_np1
+  USE laddie_tracers                                         , ONLY: compute_TS_np1
 
   IMPLICIT NONE
     
@@ -41,25 +44,52 @@ CONTAINS
     INTEGER                                               :: vi
     REAL(dp), PARAMETER                                   :: T_off  = 0.0_dp  ! [degC] Initial temperature offset
     REAL(dp), PARAMETER                                   :: S_off  = -0.1_dp ! [PSU]  Initial salinity offset
+    REAL(dp)                                              :: tl = 0.0_dp      ! [s] Laddie time
+    REAL(dp)                                              :: dt               ! [s] Laddie time step
  
     ! Add routine to path
     CALL init_routine( routine_name)
  
+    ! == Preparation ==
+    ! =================
+
+    ! Get time step
+    dt = C%dt_laddie
+
+    ! Update masks
+    ! TODO
+
+    ! Extrapolate new cells
+    ! TODO
+
     ! Initialise ambient T and S
     CALL compute_ambient_TS( mesh, BMB%laddie, ocean, ice)
 
-    ! Initialise main T and S
-    DO vi = mesh%vi1, mesh%vi2
-       IF (ice%mask_floating_ice( vi)) THEN
-         BMB%laddie%T( vi)      = BMB%laddie%T_amb( vi) + T_off
-         BMB%laddie%T_prev( vi) = BMB%laddie%T_amb( vi) + T_off
-         BMB%laddie%T_next( vi) = BMB%laddie%T_amb( vi) + T_off
-         BMB%laddie%S( vi)      = BMB%laddie%S_amb( vi) + S_off
-         BMB%laddie%S_prev( vi) = BMB%laddie%S_amb( vi) + S_off
-         BMB%laddie%S_next( vi) = BMB%laddie%S_amb( vi) + S_off
-       END IF
-    END DO
- 
+    ! == Main time loop ==
+    ! ====================
+
+    DO WHILE (tl <= C%time_duration_laddie * sec_per_day)
+      ! Integrate H 1 time step
+      CALL compute_H_np1( mesh, BMB%laddie, dt)
+
+      ! Integrate U and V 1 time step
+      CALL compute_UV_np1( mesh, BMB%laddie, dt)
+
+      ! Integrate T and S 1 time step
+      CALL compute_TS_np1( mesh, BMB%laddie, dt)
+
+      ! Update secondary fields
+      ! TODO
+
+      ! Move time
+      tl = tl + C%dt_laddie
+  
+      ! Display or save fields
+      ! TODO 
+
+
+    END DO !DO WHILE (tl <= C%time_duration_laddie)
+
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
