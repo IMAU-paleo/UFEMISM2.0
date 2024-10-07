@@ -117,7 +117,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_entrainment'
     INTEGER                                               :: vi
-    REAL(dp), PARAMETER                                   :: mindrho = 0.0001_dp
+    REAL(dp), PARAMETER                                   :: mindrho = 0.001_dp
  
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -193,6 +193,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_buoyancy'
     INTEGER                                               :: vi
+    REAL(dp), PARAMETER                                   :: mindrho = 0.001_dp
  
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -202,6 +203,10 @@ CONTAINS
          ! Get buoyancy
          laddie%drho_amb( vi) = C%uniform_laddie_eos_linear_beta  * (laddie%S_amb( vi)-laddie%S( vi)) &
                               - C%uniform_laddie_eos_linear_alpha * (laddie%T_amb( vi)-laddie%T( vi))
+
+         ! Make sure buoyancy is positive TODO expand with convection scheme
+         laddie%drho_amb( vi) = MAX(laddie%drho_amb( vi),mindrho)
+
          ! Get depth-integrated buoyancy based on Hstar
          laddie%Hdrho_amb( vi) = Hstar( vi) * laddie%drho_amb( vi)
        END IF
