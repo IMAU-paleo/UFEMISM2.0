@@ -17,6 +17,7 @@ MODULE laddie_main
   USE BMB_model_types                                        , ONLY: type_BMB_model
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   USE laddie_utilities                                       , ONLY: compute_ambient_TS, allocate_laddie_model
+  USE laddie_physics                                         , ONLY: compute_melt_rate
   USE laddie_thickness                                       , ONLY: compute_H_np1 
   USE laddie_velocity                                        , ONLY: compute_UV_np1
   USE laddie_tracers                                         , ONLY: compute_TS_np1
@@ -34,7 +35,7 @@ CONTAINS
     ! In- and output variables
 
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
-    TYPE(type_ice_model),                   INTENT(INOUT) :: ice
+    TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_ocean_model),                 INTENT(IN)    :: ocean
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
     REAL(dp),                               INTENT(IN)    :: time
@@ -72,6 +73,9 @@ CONTAINS
 
     ! Initialise ambient T and S
     CALL compute_ambient_TS( mesh, laddie, ocean, ice)
+
+    ! Compute melt rate
+    CALL compute_melt_rate( mesh, ice, ocean, laddie)
 
     ! == Main time loop ==
     ! ====================
