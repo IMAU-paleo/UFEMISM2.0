@@ -15,6 +15,7 @@ module line_tracing_grid
   private
 
   public :: trace_line_grid
+  public :: trace_line_grid_start, trace_line_grid_a, trace_line_grid_b, trace_line_grid_cx, trace_line_grid_cy
 
 contains
 
@@ -539,7 +540,7 @@ contains
       cxij_on   = [0,0]
       cyij_on   = [0,0]
       n_left    = grid%ij2n( i ,j  )
-      coincides = .false.
+      coincides = .true.
       finished  = .false.
       return
     end if
@@ -553,7 +554,7 @@ contains
       cxij_on   = [0,0]
       cyij_on   = [0,0]
       n_left    = grid%ij2n( i  ,j+1)
-      coincides = .false.
+      coincides = .true.
       finished  = .false.
       return
     end if
@@ -567,7 +568,7 @@ contains
       cxij_on   = [0,0]
       cyij_on   = [0,0]
       n_left    = grid%ij2n( i+1,j+1)
-      coincides = .false.
+      coincides = .true.
       finished  = .false.
       return
     end if
@@ -581,6 +582,62 @@ contains
       cxij_on   = [0,0]
       cyij_on   = [0,0]
       n_left    = grid%ij2n( i+1,j  )
+      coincides = .true.
+      finished  = .false.
+      return
+    end if
+
+    ! Check if [pq] passes through the b-grid point to the southwest
+    if (lies_on_line_segment( p, q, sw, grid%tol_dist)) then
+      ! [pq] passes through the b-grid point to the southwest
+      p_next    = sw
+      aij_in    = [0,0]
+      bij_on    = [i-1,j-1]
+      cxij_on   = [0,0]
+      cyij_on   = [0,0]
+      n_left    = grid%ij2n( i,j)
+      coincides = .false.
+      finished  = .false.
+      return
+    end if
+
+    ! Check if [pq] passes through the b-grid point to the northwest
+    if (lies_on_line_segment( p, q, nw, grid%tol_dist)) then
+      ! [pq] passes through the b-grid point to the northweset
+      p_next    = nw
+      aij_in    = [0,0]
+      bij_on    = [i-1,j+1]
+      cxij_on   = [0,0]
+      cyij_on   = [0,0]
+      n_left    = grid%ij2n( i,j+1)
+      coincides = .false.
+      finished  = .false.
+      return
+    end if
+
+    ! Check if [pq] passes through the b-grid point to the southeast
+    if (lies_on_line_segment( p, q, se, grid%tol_dist)) then
+      ! [pq] passes through the b-grid point to the southeast
+      p_next    = se
+      aij_in    = [0,0]
+      bij_on    = [i+1,j-1]
+      cxij_on   = [0,0]
+      cyij_on   = [0,0]
+      n_left    = grid%ij2n( i+1,j)
+      coincides = .false.
+      finished  = .false.
+      return
+    end if
+
+    ! Check if [pq] passes through the b-grid point to the northeast
+    if (lies_on_line_segment( p, q, ne, grid%tol_dist)) then
+      ! [pq] passes through the b-grid point to the northeast
+      p_next    = ne
+      aij_in    = [0,0]
+      bij_on    = [i+1,j+1]
+      cxij_on   = [0,0]
+      cyij_on   = [0,0]
+      n_left    = grid%ij2n( i+1,j+1)
       coincides = .false.
       finished  = .false.
       return

@@ -22,6 +22,13 @@ MODULE laddie_model_types
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: T                           ! [degrees Celsius] Temperature
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: S                           ! [PSU]             Salinity  
   
+<<<<<<< HEAD
+=======
+    ! Time domain
+    REAL(dp)                                :: dt                          ! [s]               Time step
+    REAL(dp)                                :: tend                        ! [s]               Time end of Laddie cycle
+  
+>>>>>>> main
     ! Time stepping
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: H_prev                      ! [m]               Layer thickness
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: U_prev                      ! [m s^-1]          2D velocity
@@ -82,8 +89,11 @@ MODULE laddie_model_types
     ! RHS terms
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: ddrho_amb_dx_b              ! [m^-1]            Horizontal derivative of buoyancy 
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: ddrho_amb_dy_b              ! [m^-1]            Horizontal derivative of buoyancy 
+<<<<<<< HEAD
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHib_dx_b                   ! [m^-2]            Horizontal derivative of ice draft 
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHib_dy_b                   ! [m^-2]            Horizontal derivative of ice draft 
+=======
+>>>>>>> main
   
   END TYPE type_laddie_model
 

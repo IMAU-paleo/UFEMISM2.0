@@ -5,6 +5,7 @@ module ut_mesh
   use control_resources_and_error_messaging, only: init_routine, finalise_routine
   use ut_mesh_Delaunay, only: test_Delaunay
   use ut_mesh_refinement, only: test_refinement
+  use ut_mesh_remapping, only: test_remapping
 
   implicit none
 
@@ -34,6 +35,7 @@ contains
     ! Run all unit tests for the mesh creation subroutines
     call test_Delaunay  ( test_name)
     call test_refinement( test_name)
+    call test_remapping ( test_name)
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)
