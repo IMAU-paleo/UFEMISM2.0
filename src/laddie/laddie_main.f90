@@ -28,7 +28,7 @@ CONTAINS
 ! ===== Main routines =====
 ! =========================
 
-  SUBROUTINE run_laddie_model( mesh, ice, ocean, BMB, time)
+  SUBROUTINE run_laddie_model( mesh, ice, ocean, laddie, time)
     ! Run the laddie model
 
     ! In- and output variables
@@ -36,15 +36,13 @@ CONTAINS
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
     TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_ocean_model),                 INTENT(IN)    :: ocean
-    TYPE(type_BMB_model),                   INTENT(INOUT) :: BMB
+    TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
     REAL(dp),                               INTENT(IN)    :: time
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'run_laddie_model'
     INTEGER                                               :: vi
-    REAL(dp), PARAMETER                                   :: T_off  = 0.0_dp  ! [degC] Initial temperature offset
-    REAL(dp), PARAMETER                                   :: S_off  = -0.1_dp ! [PSU]  Initial salinity offset
-    REAL(dp)                                              :: tl = 0.0_dp      ! [s] Laddie time
+    REAL(dp)                                              :: tl               ! [s] Laddie time
     REAL(dp)                                              :: dt               ! [s] Laddie time step
  
     ! Add routine to path
@@ -54,6 +52,7 @@ CONTAINS
     ! =================
 
     ! Get time step
+    tl = 0.0_dp
     dt = C%dt_laddie
 
     ! Update masks
@@ -63,29 +62,38 @@ CONTAINS
     ! TODO
 
     ! Initialise ambient T and S
-    CALL compute_ambient_TS( mesh, BMB%laddie, ocean, ice)
+    CALL compute_ambient_TS( mesh, laddie, ocean, ice)
 
     ! == Main time loop ==
     ! ====================
 
     DO WHILE (tl <= C%time_duration_laddie * sec_per_day)
       ! Integrate H 1 time step
-      CALL compute_H_np1( mesh, BMB%laddie, dt)
+      CALL compute_H_np1( mesh, ice, laddie, dt)
 
       ! Integrate U and V 1 time step
-      CALL compute_UV_np1( mesh, BMB%laddie, dt)
+      CALL compute_UV_np1( mesh, ice, laddie, dt)
 
       ! Integrate T and S 1 time step
-      CALL compute_TS_np1( mesh, BMB%laddie, dt)
+      CALL compute_TS_np1( mesh, ice, laddie, dt)
 
       ! Update secondary fields
       ! TODO
 
-      ! Move time
+      ! == Move time ==
+      ! Increase laddie time
       tl = tl + C%dt_laddie
-  
+
+      ! Move main variables by 1 time step
+      DO vi = mesh%vi1, mesh%vi2
+        laddie%H( vi) = laddie%H_next( vi)
+      END DO
+
       ! Display or save fields
-      ! TODO 
+      ! TODO
+      ! IF (par%master) THEN
+      !   WRITE( *, "(F8.3)") MAXVAL(laddie%H)
+      ! END IF     
 
 
     END DO !DO WHILE (tl <= C%time_duration_laddie)

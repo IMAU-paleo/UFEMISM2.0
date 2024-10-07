@@ -23,12 +23,13 @@ CONTAINS
 ! ===== Main routines =====
 ! =========================
 
-  SUBROUTINE compute_TS_np1( mesh, laddie, dt)
+  SUBROUTINE compute_TS_np1( mesh, ice, laddie, dt)
     ! Integrate T and S by one time step
 
     ! In- and output variables
 
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
+    TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
     REAL(dp),                               INTENT(IN)    :: dt
 

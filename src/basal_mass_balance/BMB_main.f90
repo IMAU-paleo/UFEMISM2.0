@@ -127,7 +127,7 @@ CONTAINS
       CASE ('laddie')
         CALL run_BMB_model_laddie( mesh, BMB, time)
       CASE ('laddie2')
-        CALL run_laddie_model( mesh, ice, ocean, BMB, time)
+        CALL run_laddie_model( mesh, ice, ocean, BMB%laddie, time)
       CASE DEFAULT
         CALL crash('unknown choice_BMB_model "' // TRIM( choice_BMB_model) // '"')
     END SELECT
