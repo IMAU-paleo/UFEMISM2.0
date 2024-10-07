@@ -90,7 +90,11 @@ MODULE laddie_model_types
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: ddrho_amb_dy_b              ! [m^-1]            Horizontal derivative of buoyancy 
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHib_dx_b                   ! [m^-2]            Horizontal derivative of ice draft 
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHib_dy_b                   ! [m^-2]            Horizontal derivative of ice draft 
+
+    ! Mapped variables
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: H_b                         ! [m]               Layer thickness on b grid
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: U_a                         ! [m s^-1]          Layer velocity on a grid 
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: V_a                         ! [m s^-1]          
   
   END TYPE type_laddie_model
 

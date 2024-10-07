@@ -22,7 +22,7 @@ MODULE laddie_main
   USE laddie_thickness                                       , ONLY: compute_H_np1 
   USE laddie_velocity                                        , ONLY: compute_UV_np1
   USE laddie_tracers                                         , ONLY: compute_TS_np1
-  USE mesh_operators                                         , ONLY: ddx_a_b_2D, ddy_a_b_2D, map_a_b_2D
+  USE mesh_operators                                         , ONLY: ddx_a_b_2D, ddy_a_b_2D, map_a_b_2D, map_b_a_2D
 
   IMPLICIT NONE
     
@@ -67,9 +67,11 @@ CONTAINS
     ! Set non-floating values
     DO vi = mesh%vi1, mesh%vi2
       IF (.NOT. ice%mask_floating_ice( vi)) THEN
-        laddie%H( vi) = 0.0_dp
-        laddie%T( vi) = 0.0_dp
-        laddie%S( vi) = 0.0_dp
+        laddie%H( vi)    = 0.0_dp
+        laddie%T( vi)    = 0.0_dp
+        laddie%S( vi)    = 0.0_dp
+        laddie%melt( vi) = 0.0_dp
+        laddie%entr( vi) = 0.0_dp
       END IF
     END DO
 
@@ -211,6 +213,10 @@ CONTAINS
 
     ! Map thickness to b grid
     CALL map_a_b_2D( mesh, Hstar, laddie%H_b)
+
+    ! Map velocities to a grid
+    CALL map_b_a_2D( mesh, laddie%U, laddie%U_a)
+    CALL map_b_a_2D( mesh, laddie%V, laddie%V_a)
 
     ! Update buoyancy derivatives
     CALL ddx_a_b_2D( mesh, laddie%drho_amb, laddie%ddrho_amb_dx_b)

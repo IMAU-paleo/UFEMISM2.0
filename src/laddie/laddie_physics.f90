@@ -38,18 +38,50 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_melt_rate'
     INTEGER                                               :: vi
+    REAL(dp)                                              :: That
+    REAL(dp)                                              :: Chat
+    REAL(dp)                                              :: Ctil
+    REAL(dp)                                              :: Bval
+    REAL(dp)                                              :: Cval
  
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! Get T and S at layer base
+    ! Get friction velocity
     DO vi = mesh%vi1, mesh%vi2
        IF (ice%mask_floating_ice( vi)) THEN
-         laddie%melt( vi) = C%uniform_laddie_gamma_T * (laddie%T( vi) - ocean%T_freezing_point( vi))
-       ELSE
-         laddie%melt( vi) = 0.0_dp
+         laddie%u_star( vi) = C%laddie_drag_coefficient_mom * (laddie%U_a( vi)**2 + laddie%V_a( vi)**2 + C%uniform_laddie_tidal_velocity**2 )**.5
        END IF
-  
+    END DO
+
+    ! Get friction velocity TODO add non-fixed, non-uniform option. If fixed,uniform, compute during initialisation and skip here
+    DO vi = mesh%vi1, mesh%vi2
+       IF (ice%mask_floating_ice( vi)) THEN
+         laddie%gamma_T( vi) = C%uniform_laddie_gamma_T
+         laddie%gamma_S( vi) = C%uniform_laddie_gamma_T/35.0
+       END IF
+    END DO
+
+    ! Get melt rate
+    Chat = cp_ocean/L_fusion
+    Ctil = cp_ice/cp_ocean
+
+    DO vi = mesh%vi1, mesh%vi2
+       IF (ice%mask_floating_ice( vi)) THEN
+         ! Solve three equations
+         That = freezing_lambda_2 - freezing_lambda_3*ice%Hib( vi)
+         ! Chat = cp_ocean / (L_fusion - cp_ice * ice%Ti( vi, 1)) TODO expand with proper Ti
+
+         Bval = Chat*laddie%gamma_T( vi)*(That - laddie%T( vi)) + laddie%gamma_S( vi)*(1 + Chat*Ctil*(That + freezing_lambda_1*laddie%S( vi)))
+         Cval = Chat*laddie%gamma_T( vi)*laddie%gamma_S( vi) * (That-laddie%T( vi) + freezing_lambda_1*laddie%S( vi))
+
+         IF (4*Cval > Bval**2) THEN
+           !Something wrong, set melt rate to zero. TODO check whether model needs to be crashed
+           laddie%melt( vi) = 0.0
+         ELSE
+           laddie%melt( vi) = .5 * (-Bval + (Bval**2 - 4*Cval)**.5) 
+         END IF
+       END IF
     END DO
 
     ! Finalise routine path
