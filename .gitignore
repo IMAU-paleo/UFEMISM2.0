@@ -32,3 +32,6 @@ automated_testing/component_tests/figures/*.png
 
 # Ignore temporary scoreboard files
 automated_testing/component_tests/temporary_scoreboard_files/*.xml
+
+# Ignore local makefile_include file
+src/Makefile_include_local.txt
