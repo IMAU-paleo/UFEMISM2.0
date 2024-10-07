@@ -43,6 +43,7 @@ CONTAINS
     REAL(dp)                                              :: Ctil
     REAL(dp)                                              :: Bval
     REAL(dp)                                              :: Cval
+    REAL(dp)                                              :: Dval
  
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -54,7 +55,7 @@ CONTAINS
        END IF
     END DO
 
-    ! Get friction velocity TODO add non-fixed, non-uniform option. If fixed,uniform, compute during initialisation and skip here
+    ! Get gamma values. TODO add non-fixed, non-uniform option. If fixed,uniform, compute during initialisation and skip here
     DO vi = mesh%vi1, mesh%vi2
        IF (ice%mask_floating_ice( vi)) THEN
          laddie%gamma_T( vi) = C%uniform_laddie_gamma_T
@@ -62,10 +63,12 @@ CONTAINS
        END IF
     END DO
 
-    ! Get melt rate
+    ! == Get melt rate ==
+    ! ===================
     Chat = cp_ocean/L_fusion
     Ctil = cp_ice/cp_ocean
 
+    ! Loop over vertices
     DO vi = mesh%vi1, mesh%vi2
        IF (ice%mask_floating_ice( vi)) THEN
          ! Solve three equations
@@ -75,12 +78,23 @@ CONTAINS
          Bval = Chat*laddie%gamma_T( vi)*(That - laddie%T( vi)) + laddie%gamma_S( vi)*(1 + Chat*Ctil*(That + freezing_lambda_1*laddie%S( vi)))
          Cval = Chat*laddie%gamma_T( vi)*laddie%gamma_S( vi) * (That-laddie%T( vi) + freezing_lambda_1*laddie%S( vi))
 
+         ! Get melt rate
          IF (4*Cval > Bval**2) THEN
            !Something wrong, set melt rate to zero. TODO check whether model needs to be crashed
            laddie%melt( vi) = 0.0
          ELSE
            laddie%melt( vi) = .5 * (-Bval + (Bval**2 - 4*Cval)**.5) 
          END IF
+
+         ! Get temperature at ice base
+         Dval = Chat*laddie%gamma_T( vi)+Chat*Ctil*laddie%melt( vi)
+         IF (Dval == 0) THEN
+           ! Seems like a very unlikely case, but better to be careful
+           laddie%T_base( vi) = laddie%T_freeze( vi)
+         ELSE
+           laddie%T_base( vi) = Chat*laddie%gamma_T( vi)*laddie%T( vi)/Dval
+         END IF
+
        END IF
     END DO
 
@@ -103,16 +117,32 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_entrainment'
     INTEGER                                               :: vi
+    REAL(dp), PARAMETER                                   :: mindrho = 0.0001_dp
  
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! Get T and S at layer base
+    ! TODO only Gaspar for now
+
     DO vi = mesh%vi1, mesh%vi2
        IF (ice%mask_floating_ice( vi)) THEN
-         laddie%entr( vi) = 1.0E-6_dp
-       ELSE
-         laddie%entr( vi) = 0.0_dp
+         ! Get salinity at ice base
+         laddie%S_base( vi) = (laddie%T_base( vi) - freezing_lambda_2 + freezing_lambda_3 * ice%Hib( vi)) / freezing_lambda_1
+         
+         ! Get buoyancy at ice base
+         laddie%drho_base( vi) = C%uniform_laddie_eos_linear_beta  * (laddie%S( vi)-laddie%S_base( vi)) &
+                               - C%uniform_laddie_eos_linear_alpha * (laddie%T( vi)-laddie%T_base( vi))
+
+         ! Make sure buoyancy is positive
+         laddie%drho_base( vi) = MAX(laddie%drho_base( vi),mindrho)
+
+         ! Get entrainment
+         laddie%entr( vi) = 2*C%laddie_Gaspar1988_mu/grav & 
+                          * laddie%u_star( vi)**3 / (Hstar( vi) * laddie%drho_base( vi)) &
+                          - laddie%drho_base( vi) / laddie%drho_amb( vi) * laddie%melt( vi)
+
+         ! Get detrainment = negative component of entrainment
+         laddie%detr( vi) = - MIN(laddie%entr( vi),0.0_dp)
        END IF
     END DO
 
