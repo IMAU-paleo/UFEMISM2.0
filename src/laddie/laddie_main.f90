@@ -16,13 +16,15 @@ MODULE laddie_main
   USE ocean_model_types                                      , ONLY: type_ocean_model
   USE BMB_model_types                                        , ONLY: type_BMB_model
   USE reallocate_mod                                         , ONLY: reallocate_bounds
-  USE laddie_utilities                                       , ONLY: compute_ambient_TS, allocate_laddie_model
+  USE laddie_utilities                                       , ONLY: compute_ambient_TS, allocate_laddie_model, calc_laddie_flux_divergence_matrix_upwind
   USE laddie_physics                                         , ONLY: compute_melt_rate, compute_entrainment, &
                                                                      compute_freezing_temperature, compute_buoyancy
   USE laddie_thickness                                       , ONLY: compute_H_np1 
   USE laddie_velocity                                        , ONLY: compute_UV_np1, compute_viscUV
   USE laddie_tracers                                         , ONLY: compute_TS_np1, compute_diffTS
   USE mesh_operators                                         , ONLY: ddx_a_b_2D, ddy_a_b_2D, map_a_b_2D, map_b_a_2D
+  USE petsc_basic                                            , ONLY: multiply_CSR_matrix_with_vector_1D
+  USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp
 
   IMPLICIT NONE
     
@@ -195,6 +197,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'update_secondary_fields'
     INTEGER                                               :: vi
+    TYPE(type_sparse_matrix_CSR_dp)                       :: M_divQ
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -233,6 +236,12 @@ CONTAINS
 
     ! Compute viscosities
     CALL compute_viscUV( mesh, ice, laddie, Hstar)
+
+    ! Compute divergence matrix
+    CALL calc_laddie_flux_divergence_matrix_upwind( mesh, laddie%U, laddie%V, ice%mask_floating_ice, M_divQ)
+
+    ! Compute thickness divergence
+    CALL multiply_CSR_matrix_with_vector_1D( M_divQ, laddie%H, laddie%divQ)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
