@@ -26,7 +26,7 @@ CONTAINS
 ! ===== Main routines =====
 ! =========================
 
-  SUBROUTINE compute_ambient_TS( mesh, laddie, ocean, ice)
+  SUBROUTINE compute_ambient_TS( mesh, ice, ocean, laddie, Hstar)
     ! Compute T and S of ambient ocean water at the depth of LADDIE's layer bottom
     ! through vertical interpolation
 
@@ -379,18 +379,26 @@ CONTAINS
     ALLOCATE( laddie%ddrho_amb_dy_b     ( mesh%ti1:mesh%ti2              )) ! [m^-1]          
     ALLOCATE( laddie%dHib_dx_b          ( mesh%ti1:mesh%ti2              )) ! [m^-2]          Horizontal derivative of ice draft
     ALLOCATE( laddie%dHib_dy_b          ( mesh%ti1:mesh%ti2              )) ! [m^-2]          
+    ALLOCATE( laddie%dH_dx_b            ( mesh%ti1:mesh%ti2              )) ! [m^-2]          Horizontal derivative of thickness
+    ALLOCATE( laddie%dH_dy_b            ( mesh%ti1:mesh%ti2              )) ! [m^-2]          
+    ALLOCATE( laddie%detr_b             ( mesh%ti1:mesh%ti2              )) ! [m s^-1]        Detrainment on b grid
 
     laddie%ddrho_amb_dx_b = 0._dp
     laddie%ddrho_amb_dy_b = 0._dp
     laddie%dHib_dx_b      = 0._dp
     laddie%dHib_dy_b      = 0._dp
+    laddie%dH_dx_b        = 0._dp
+    laddie%dH_dy_b        = 0._dp
+    laddie%detr_b         = 0._dp
 
     ! Mapped main variables
     ALLOCATE( laddie%H_b                ( mesh%ti1:mesh%ti2              )) ! [m]             Layer thickness on b grid
+    ALLOCATE( laddie%H_b_next           ( mesh%ti1:mesh%ti2              )) ! [m]             Layer next thickness on b grid
     ALLOCATE( laddie%U_a                ( mesh%vi1:mesh%vi2              )) ! [m s^-1]        Layer velocity on a grid  
     ALLOCATE( laddie%V_a                ( mesh%vi1:mesh%vi2              )) ! [m s^-1]        
 
     laddie%H_b            = 0._dp
+    laddie%H_b_next       = 0._dp
     laddie%U_a            = 0._dp
     laddie%V_a            = 0._dp
 

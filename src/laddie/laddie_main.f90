@@ -46,9 +46,10 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'run_laddie_model'
-    INTEGER                                               :: vi
+    INTEGER                                               :: vi, ti
     REAL(dp)                                              :: tl               ! [s] Laddie time
     REAL(dp)                                              :: dt               ! [s] Laddie time step
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: Hstar            ! [m] Reference thickness in integration
  
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -91,6 +92,17 @@ CONTAINS
       ! Integrate H 1 time step
       CALL compute_H_np1( mesh, ice, laddie, dt)
 
+      ! Set Hstar
+      DO vi = mesh%vi1, mesh%vi2
+        IF (.NOT. ice%mask_floating_ice( vi)) THEN
+          Hstar( vi) = laddie%H( vi)
+        END IF
+      END DO
+
+      ! Update fields dependent on Hstar
+      ! TODO distribute update_secondary routines to prevent double calculations
+      CALL update_secondary_fields( mesh, ice, ocean, laddie, Hstar)
+
       ! Integrate U and V 1 time step
       CALL compute_UV_np1( mesh, ice, laddie, dt)
 
@@ -98,7 +110,7 @@ CONTAINS
       CALL compute_TS_np1( mesh, ice, laddie, dt)
 
       ! Update secondary fields
-      CALL update_secondary_fields( mesh, ice, ocean, laddie, laddie%H)
+      CALL update_secondary_fields( mesh, ice, ocean, laddie, Hstar)
 
       ! == Move time ==
       ! Increase laddie time
@@ -112,6 +124,14 @@ CONTAINS
           laddie%S( vi) = laddie%S_next( vi)
         END IF
       END DO
+
+      ! TODO make laddie%mask_b
+      ! For now, just integrate everything
+      DO ti = mesh%ti1, mesh%ti2
+        laddie%U( ti) = laddie%U_next( ti)
+        laddie%V( ti) = laddie%V_next( ti)
+      END DO
+
 
       ! Display or save fields
       ! TODO
@@ -219,6 +239,12 @@ CONTAINS
     ! Map thickness to b grid
     CALL map_a_b_2D( mesh, Hstar, laddie%H_b)
 
+    ! Map next thickness to b grid
+    CALL map_a_b_2D( mesh, laddie%H_next, laddie%H_b_next)
+
+    ! Map detrainment to b grid
+    CALL map_a_b_2D( mesh, laddie%detr, laddie%detr_b)
+
     ! Map velocities to a grid
     CALL map_b_a_2D( mesh, laddie%U, laddie%U_a)
     CALL map_b_a_2D( mesh, laddie%V, laddie%V_a)
@@ -226,6 +252,10 @@ CONTAINS
     ! Update buoyancy derivatives
     CALL ddx_a_b_2D( mesh, laddie%drho_amb, laddie%ddrho_amb_dx_b)
     CALL ddy_a_b_2D( mesh, laddie%drho_amb, laddie%ddrho_amb_dy_b)
+
+    ! Update thickness derivatives
+    CALL ddx_a_b_2D( mesh, Hstar, laddie%dH_dx_b)
+    CALL ddy_a_b_2D( mesh, Hstar, laddie%dH_dy_b)
 
     ! Compute melt rate
     CALL compute_melt_rate( mesh, ice, ocean, laddie, Hstar)
