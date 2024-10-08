@@ -21,7 +21,7 @@ MODULE laddie_main
                                                                      compute_freezing_temperature, compute_buoyancy
   USE laddie_thickness                                       , ONLY: compute_H_np1 
   USE laddie_velocity                                        , ONLY: compute_UV_np1
-  USE laddie_tracers                                         , ONLY: compute_TS_np1
+  USE laddie_tracers                                         , ONLY: compute_TS_np1, compute_diffTS
   USE mesh_operators                                         , ONLY: ddx_a_b_2D, ddy_a_b_2D, map_a_b_2D, map_b_a_2D
 
   IMPLICIT NONE
@@ -67,11 +67,11 @@ CONTAINS
     ! Set non-floating values
     DO vi = mesh%vi1, mesh%vi2
       IF (.NOT. ice%mask_floating_ice( vi)) THEN
-        laddie%H( vi)    = 0.0_dp
-        laddie%T( vi)    = 0.0_dp
-        laddie%S( vi)    = 0.0_dp
-        laddie%melt( vi) = 0.0_dp
-        laddie%entr( vi) = 0.0_dp
+        laddie%H( vi)     = 0.0_dp
+        laddie%T( vi)     = 0.0_dp
+        laddie%S( vi)     = 0.0_dp
+        laddie%melt( vi)  = 0.0_dp
+        laddie%entr( vi)  = 0.0_dp
       END IF
     END DO
 
@@ -227,6 +227,9 @@ CONTAINS
     
     ! Compute entrainment
     CALL compute_entrainment( mesh, ice, ocean, laddie, Hstar)
+
+    ! Compute diffusivities
+    CALL compute_diffTS( mesh, ice, laddie, Hstar)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
