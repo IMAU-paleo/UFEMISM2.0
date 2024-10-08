@@ -108,7 +108,15 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Gather
-    CALL gather_to_all_dp_2D( Hstar, Hstar_tot)
+    ! CALL gather_to_all_dp_2D( Hstar, Hstar_tot)
+
+    ! Get ddx_a_a of T and S
+    
+    ! Multiply with Hstar -> HdT_dx_a and with Kh
+
+    ! get ddx_a_a of Kh*H*dT_dx_a
+
+    ! TODO ensure ddx at boundaries by prescribing T and S at gl_gr and cf_oc through gaussian extrap
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
