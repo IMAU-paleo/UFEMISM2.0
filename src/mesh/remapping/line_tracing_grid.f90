@@ -32,14 +32,12 @@ contains
     logical,                                intent(in)    :: count_coincidences
 
     ! Local variables:
-    character(len=1024), parameter :: routine_name = 'trace_line_Vor'
-    real(dp)                       :: xmin, xmax, ymin, ymax
+    character(len=1024), parameter :: routine_name = 'trace_line_grid'
     real(dp), dimension(2)         :: pp,qq
-    logical                        :: is_valid_line
+    logical                        :: pq_passes_through_domain
     logical                        :: finished
     integer                        :: n_cycles
     type(type_coinc_ind_grid)      :: coinc_ind
-    integer,  dimension(2)         :: aij_in, bij_on, cxij_on, cyij_on
     real(dp), dimension(2)         :: p_next
     integer                        :: n_left
     logical                        :: coincides
@@ -49,28 +47,17 @@ contains
     call init_routine( routine_name)
 
     ! Crop the line [pq] so that it lies within the domain
-    xmin = grid%xmin !- grid%dx / 2._dp
-    xmax = grid%xmax !+ grid%dx / 2._dp
-    ymin = grid%ymin !- grid%dx / 2._dp
-    ymax = grid%ymax !+ grid%dx / 2._dp
-    call crop_line_to_domain( p, q, xmin, xmax, ymin, ymax, grid%tol_dist, pp, qq, is_valid_line)
+    call crop_line_to_domain( p, q, grid%xmin, grid%xmax, grid%ymin, grid%ymax, grid%tol_dist, &
+      pp, qq, pq_passes_through_domain)
 
-    if (.not. is_valid_line) then
+    if (.not. pq_passes_through_domain) then
       ! [pq] doesn't pass through the domain anywhere
       call finalise_routine( routine_name)
       return
     end if
 
-    ! Initialise the coincidence indicators for the point p, i.e. check if p either...
-    !    - lies inside grid cell aij_in, ...
-    !    - lies on the b-grid point bij_on, or...
-    !    - lies on the edge cij_on
+    ! Initialise the coincidence indicator for the point p
     call trace_line_grid_start( grid, pp, coinc_ind)
-
-    aij_in  = coinc_ind2aij_in ( coinc_ind)
-    bij_on  = coinc_ind2bij_on ( coinc_ind)
-    cxij_on = coinc_ind2cxij_on( coinc_ind)
-    cyij_on = coinc_ind2cyij_on( coinc_ind)
 
     ! Iteratively trace the line through the mesh
     finished = .false.
@@ -78,41 +65,20 @@ contains
     do while (.not. finished)
 
       ! Find the point p_next where [pq] crosses into the next Voronoi cell
-      if     (aij_in(  1) > 0 .or. aij_in(  2) > 0) then
-        ! p lies inside a-grid cell aij_in
-        coinc_ind = old2new_coinc_ind( aij_in, bij_on, cxij_on, cyij_on, .false.)
+      select case (coinc_ind%grid)
+      case default
+        call crash('coincidence indicator doesnt make sense')
+      case (no_value)
+        call crash('coincidence indicator doesnt make sense')
+      case (a_grid)
         call trace_line_grid_a( grid, pp, qq, coinc_ind, p_next, n_left, coincides, finished)
-        aij_in  = coinc_ind2aij_in ( coinc_ind)
-        bij_on  = coinc_ind2bij_on ( coinc_ind)
-        cxij_on = coinc_ind2cxij_on( coinc_ind)
-        cyij_on = coinc_ind2cyij_on( coinc_ind)
-      elseif (bij_on(  1) > 0 .or. bij_on(  2) > 0) then
-        ! p lies on b-grid point bij_on
-        coinc_ind = old2new_coinc_ind( aij_in, bij_on, cxij_on, cyij_on, .false.)
+      case (b_grid)
         call trace_line_grid_b( grid, pp, qq, coinc_ind, p_next, n_left, coincides, finished)
-        aij_in  = coinc_ind2aij_in ( coinc_ind)
-        bij_on  = coinc_ind2bij_on ( coinc_ind)
-        cxij_on = coinc_ind2cxij_on( coinc_ind)
-        cyij_on = coinc_ind2cyij_on( coinc_ind)
-      elseif (cxij_on( 1) > 0 .or. cxij_on( 2) > 0) then
-        ! p lies on cx-grid edge cxij_on
-        coinc_ind = old2new_coinc_ind( aij_in, bij_on, cxij_on, cyij_on, .false.)
+      case (cx_grid)
         call trace_line_grid_cx( grid, pp, qq, coinc_ind, p_next, n_left, coincides, finished)
-        aij_in  = coinc_ind2aij_in ( coinc_ind)
-        bij_on  = coinc_ind2bij_on ( coinc_ind)
-        cxij_on = coinc_ind2cxij_on( coinc_ind)
-        cyij_on = coinc_ind2cyij_on( coinc_ind)
-      elseif (cyij_on( 1) > 0 .or. cyij_on( 2) > 0) then
-        ! p lies on cy-grid edge cyij_on
-        coinc_ind = old2new_coinc_ind( aij_in, bij_on, cxij_on, cyij_on, .false.)
+      case (cy_grid)
         call trace_line_grid_cy( grid, pp, qq, coinc_ind, p_next, n_left, coincides, finished)
-        aij_in  = coinc_ind2aij_in ( coinc_ind)
-        bij_on  = coinc_ind2bij_on ( coinc_ind)
-        cxij_on = coinc_ind2cxij_on( coinc_ind)
-        cyij_on = coinc_ind2cyij_on( coinc_ind)
-      else
-        call crash('found no coincidence indicators!')
-      end if
+      end select
 
       ! Calculate the three line integrals
       LI_xdy   = line_integral_xdy(   pp, p_next, grid%tol_dist)
@@ -121,16 +87,17 @@ contains
 
       ! Add them to the results structure
       if (norm2( p_next - pp) > grid%tol_dist) then
-        call add_integrals_to_single_row( single_row, n_left, LI_xdy, LI_mxydx, LI_xydy, coincides, count_coincidences)
+        call add_integrals_to_single_row( single_row, n_left, &
+          LI_xdy, LI_mxydx, LI_xydy, coincides, count_coincidences)
       end if
 
-      ! cycle the pointer
+      ! Cycle the pointer
       pp = p_next
 
       ! Safety
       n_cycles = n_cycles + 1
       if (n_cycles > grid%n) then
-        call crash('trace_line_grid - iterative tracer got stuck!')
+        call crash('iterative tracer got stuck!')
       end if
 
     end do ! do while (.not. finished)
@@ -140,10 +107,7 @@ contains
 
   end subroutine trace_line_grid
 
-  !> Initialise the coincidence indicators for the point p, i.e. check if p either...
-  !>    - lies inside grid cell aij_in, ...
-  !>    - lies on the b-grid point bij_on, or...
-  !>    - lies on the edge cij_on
+  !> Initialise the coincidence indicator for the point p
   subroutine trace_line_grid_start( grid, p, coinc_ind)
 
     ! In/output variables
@@ -1038,7 +1002,7 @@ contains
     ! Safety
     call assert( coinc_ind%grid == cx_grid .and. &
       test_ge_le( coinc_ind%i, 1, grid%nx-1) .and. test_ge_le( coinc_ind%j, 1, grid%ny), &
-      'trace_line_grid_cx - coincidence indicators dont make sense')
+      'trace_line_grid_cx - coincidence indicator doesnt make sense')
 #endif
 
     i = coinc_ind%i
@@ -1438,7 +1402,7 @@ contains
     ! Safety
     call assert( coinc_ind%grid == cy_grid .and. &
       test_ge_le( coinc_ind%i, 1, grid%nx) .and. test_ge_le( coinc_ind%j, 1, grid%ny-1), &
-      'trace_line_grid_cy - coincidence indicators dont make sense')
+      'trace_line_grid_cy - coincidence indicator doesnt make sense')
 #endif
 
     i = coinc_ind%i
