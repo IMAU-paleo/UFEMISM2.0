@@ -517,6 +517,7 @@ CONTAINS
         CALL remap_BMB_model_laddie( mesh_new, BMB)
       CASE ('laddie2')
         ! EL to be filled later
+        CALL crash('Remapping for LADDIE2 model not implemented yet')
       CASE DEFAULT
         CALL crash('unknown choice_BMB_model "' // TRIM( choice_BMB_model) // '"')
     END SELECT

@@ -26,8 +26,9 @@ CONTAINS
 ! ===== Main routines =====
 ! =========================
 
-  SUBROUTINE compute_ambient_TS( mesh, ice, ocean, laddie, Hstar)
-    ! Initialise the laddie model
+  SUBROUTINE compute_ambient_TS( mesh, laddie, ocean, ice)
+    ! Compute T and S of ambient ocean water at the depth of LADDIE's layer bottom
+    ! through vertical interpolation
 
     ! In- and output variables
 
