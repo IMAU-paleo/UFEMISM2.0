@@ -25,7 +25,8 @@ CONTAINS
 ! =========================
 
   SUBROUTINE compute_ambient_TS( mesh, laddie, ocean, ice)
-    ! Initialise the laddie model
+    ! Compute T and S of ambient ocean water at the depth of LADDIE's layer bottom
+    ! through vertical interpolation
 
     ! In- and output variables
 
