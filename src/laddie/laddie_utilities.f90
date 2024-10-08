@@ -145,7 +145,7 @@ CONTAINS
     ! Physical parameter fields
     ALLOCATE( laddie%gamma_T            ( mesh%vi1:mesh%vi2              )) ! []              Turbulent heat exchange coefficient
     ALLOCATE( laddie%gamma_S            ( mesh%vi1:mesh%vi2              )) ! []              Turbulent salt exchange coefficient
-    ALLOCATE( laddie%A_h                ( mesh%vi1:mesh%vi2              )) ! [m^2 s^-1]      Horizontal laplacian viscosity
+    ALLOCATE( laddie%A_h                ( mesh%ti1:mesh%ti2              )) ! [m^2 s^-1]      Horizontal laplacian viscosity
     ALLOCATE( laddie%K_h                ( mesh%vi1:mesh%vi2              )) ! [m^2 s^-1]      Horizontal diffusivity
 
     laddie%gamma_T        = 0._dp
