@@ -198,6 +198,8 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'update_secondary_fields'
     INTEGER                                               :: vi
     TYPE(type_sparse_matrix_CSR_dp)                       :: M_divQ
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: HstarT
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: HstarS
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -242,6 +244,26 @@ CONTAINS
 
     ! Compute thickness divergence
     CALL multiply_CSR_matrix_with_vector_1D( M_divQ, laddie%H, laddie%divQ)
+
+    ! Compute Hstar * T
+    DO vi = mesh%vi1, mesh%vi2
+       IF (ice%mask_floating_ice( vi)) THEN
+         HstarT( vi) = Hstar( vi) * laddie%T( vi)
+       END IF
+    END DO
+
+    ! Compute heat divergence
+    CALL multiply_CSR_matrix_with_vector_1D( M_divQ, HstarT, laddie%divQT)
+
+    ! Compute Hstar * S
+    DO vi = mesh%vi1, mesh%vi2
+       IF (ice%mask_floating_ice( vi)) THEN
+         HstarS( vi) = Hstar( vi) * laddie%S( vi)
+       END IF
+    END DO
+
+    ! Compute salt divergence
+    CALL multiply_CSR_matrix_with_vector_1D( M_divQ, HstarS, laddie%divQS)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
