@@ -17,7 +17,7 @@ MODULE netcdf_basic
   USE precisions                                             , ONLY: dp
   USE mpi_basic                                              , ONLY: par, cerr, ierr, recv_status, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
-  USE model_configuration                                    , ONLY: C, git_hash_string
+  USE model_configuration                                    , ONLY: C, git_commit_hash
   USE math_utilities                                         , ONLY: check_for_NaN_dp_0D, check_for_NaN_int_0D, &
                                                                      check_for_NaN_dp_1D, check_for_NaN_int_1D, &
                                                                      check_for_NaN_dp_2D, check_for_NaN_int_2D, &
@@ -5290,7 +5290,7 @@ CONTAINS
     CALL MPI_BCAST( ncid, 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
 
     ! Add some very basic info about the current simulation to the header
-    call add_attribute_char( filename, ncid, NF90_GLOBAL, 'git commit hash', git_hash_string)
+    call add_attribute_char( filename, ncid, NF90_GLOBAL, 'git commit hash', git_commit_hash)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

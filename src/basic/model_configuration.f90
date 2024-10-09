@@ -1973,8 +1973,9 @@ MODULE model_configuration
   ! The main config structure
   TYPE(type_config)   :: C
 
-  ! The git commit of the model we're running
-  character(len=1024) :: git_hash_string
+  ! The has of the current git commit
+  character(len=1024) :: git_commit_hash
+  logical             :: has_uncommitted_changes = .false.
 
 CONTAINS
 
@@ -1998,13 +1999,19 @@ CONTAINS
   ! == Figure out which git commit of the model we're running
   ! =========================================================
 
-    if (par%master) then
-      call get_git_hash_string( git_hash_string)
-    end if
-    call mpi_bcast( git_hash_string, len( git_hash_string), MPI_CHAR, 0, MPI_COMM_WORLD, ierr)
+    if (par%master) call get_git_commit_hash( git_commit_hash)
+    call mpi_bcast( git_commit_hash, len( git_commit_hash), MPI_CHAR, 0, MPI_COMM_WORLD, ierr)
 
     if (par%master) write(0,'(A)') ''
-    if (par%master) write(0,'(A)') ' Running UFEMISM from git commit ' // colour_string( trim( git_hash_string), 'pink')
+    if (par%master) write(0,'(A)') ' Running UFEMISM from git commit ' // colour_string( trim( git_commit_hash), 'pink')
+
+    if (par%master) call check_for_uncommitted_changes
+    call mpi_bcast( has_uncommitted_changes, 1, MPI_LOGICAL, 0, MPI_COMM_WORLD, ierr)
+
+    if (par%master .and. has_uncommitted_changes) then
+      write(0,'(A)') ''
+      write(0,'(A)') colour_string( 'WARNING: You have uncommitted changes; the current simulation might not be reproducible!', 'yellow')
+    end if
 
   ! == Initialise main config parameters
   ! ====================================
@@ -2092,13 +2099,19 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Figure out which git commit of the model we're running
-    if (par%master) then
-      call get_git_hash_string( git_hash_string)
-    end if
-    call mpi_bcast( git_hash_string, len( git_hash_string), MPI_CHAR, 0, MPI_COMM_WORLD, ierr)
+    if (par%master) call get_git_commit_hash( git_commit_hash)
+    call mpi_bcast( git_commit_hash, len( git_commit_hash), MPI_CHAR, 0, MPI_COMM_WORLD, ierr)
 
     if (par%master) write(0,'(A)') ''
-    if (par%master) write(0,'(A)') ' Running UFEMISM from git commit ' // colour_string( trim( git_hash_string), 'pink')
+    if (par%master) write(0,'(A)') ' Running UFEMISM from git commit ' // colour_string( trim( git_commit_hash), 'pink')
+
+    if (par%master) call check_for_uncommitted_changes
+    call mpi_bcast( has_uncommitted_changes, 1, MPI_LOGICAL, 0, MPI_COMM_WORLD, ierr)
+
+    if (par%master .and. has_uncommitted_changes) then
+      write(0,'(A)') ''
+      write(0,'(A)') colour_string( 'WARNING: You have uncommitted changes; the current simulation might not be reproducible!', 'yellow')
+    end if
 
     ! Copy values from the XXX_config variables to the config structure
     CALL copy_config_variables_to_struct
@@ -4320,34 +4333,56 @@ CONTAINS
 
   END SUBROUTINE generate_procedural_output_dir_name
 
-  subroutine get_git_hash_string( git_hash_string)
+  subroutine get_git_commit_hash( git_commit_hash)
 
     ! In/output variables:
-    character(len=*), intent(out) :: git_hash_string
+    character(len=*), intent(out) :: git_commit_hash
 
     ! Local variables:
-    character(len=256), parameter :: routine_name = 'initialise_model_configuration'
-    character(len=256), parameter :: filename_git_hash_string = 'git_hash_string.txt'
+    character(len=256), parameter :: routine_name = 'get_git_commit_hash'
+    character(len=256), parameter :: filename_git_commit_hash = 'git_commit_hash.txt'
     integer                       :: ierr, ios
-    integer, parameter            :: git_hash_string_file_unit = 1847
+    integer, parameter            :: git_commit_hash_file_unit = 1847
 
     ! Add routine to path
     call init_routine( routine_name)
 
     ! Create a text file containing the hash of the current git commit
-    call system( 'git rev-parse HEAD > '//trim(filename_git_hash_string), ierr)
+    call system( 'git rev-parse HEAD > ' // trim(filename_git_commit_hash), ierr)
     if (ierr /= 0) call crash('failed to obtain hash of current git commit')
 
     ! Read the hash from the temporary git hash file
-    open( unit = git_hash_string_file_unit, file = filename_git_hash_string, iostat = ios)
-    if (ios /= 0) call crash('couldnt open temporary git hash file "' // trim( filename_git_hash_string) // '"!')
-    read( unit = git_hash_string_file_unit, fmt = '(A)', iostat = ios) git_hash_string
-    if (ios < 0) call crash('couldnt read git hash string from the temporary file')
-    close( unit = git_hash_string_file_unit)
+    open( unit = git_commit_hash_file_unit, file = filename_git_commit_hash, iostat = ios)
+    if (ios /= 0) call crash('couldnt open temporary git hash file "' // trim( filename_git_commit_hash) // '"!')
+    read( unit = git_commit_hash_file_unit, fmt = '(A)', iostat = ios) git_commit_hash
+    if (ios < 0) call crash('couldnt read commit hash from the temporary git hash file')
+    close( unit = git_commit_hash_file_unit)
+
+    ! Delete the temporary git hash file
+    call system( 'rm -f ' // trim( filename_git_commit_hash), ierr)
+    if (ierr /= 0) call crash('failed to delete temporary git hash file')
 
     ! Finalise routine path
     call finalise_routine( routine_name)
 
-  end subroutine get_git_hash_string
+  end subroutine get_git_commit_hash
+
+  subroutine check_for_uncommitted_changes
+
+    ! Local variables:
+    character(len=256), parameter :: routine_name = 'check_for_uncommitted_changes'
+    character(len=256), parameter :: filename_git_status = 'git_status.txt'
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Create a text file containing the output of git status
+    call system( 'git status > ' // trim( filename_git_status))
+    if (ierr /= 0) call crash('failed to write git status to text file')
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine check_for_uncommitted_changes
 
 END MODULE model_configuration
