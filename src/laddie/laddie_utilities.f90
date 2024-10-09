@@ -402,6 +402,14 @@ CONTAINS
     laddie%U_a            = 0._dp
     laddie%V_a            = 0._dp
 
+    ! Masks
+
+    ALLOCATE( laddie%mask_a             ( mesh%vi1:mesh%vi2              )) !                 Mask on a-grid
+    ALLOCATE( laddie%mask_b             ( mesh%ti1:mesh%ti2              )) !                 Mask on b-grid
+
+    laddie%mask_a         = .false.
+    laddie%mask_b         = .false.
+
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
