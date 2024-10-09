@@ -239,7 +239,8 @@ CONTAINS
 
           ! TODO move definition of TriE to mesh routine
           ! == Get ei and tj ==
-
+          ei = 0
+          tj = 0
           ! Get neighbouring vertex
           vi1 = mesh%Tri( ti, ci)
 
@@ -253,6 +254,7 @@ CONTAINS
           ! Loop over edges connected to first vertex
           DO j = 1,mesh%nC_mem
             e = mesh%VE( vi1, j)
+            IF ( e == 0) CYCLE
             DO k = 1,2
               IF (mesh%EV( e, k) == vi2) THEN
                 ei = e
@@ -260,15 +262,19 @@ CONTAINS
             END DO
           END DO ! j = 1, mesh%nC_mem 
           
+          IF ( ei == 0) CYCLE
           ! TODO make sure ei is not 0. Should not be possible
           ! TODO what happens if this is a border?          
 
           ! Get triangle bordering this shared edge
           IF (mesh%ETri( ei, 1) == ti) THEN
             tj = mesh%Etri( ei, 2)
-          ELSE
+          ELSEIF (mesh%ETri( ei, 2) == ti) THEN
             tj = mesh%Etri( ei, 1)
+          ELSE
+            CYCLE
           END IF
+          IF (tj == 0) CYCLE
           ! =================
 
           ! TODO skip flux into grounded ice. Need mask_grounded_tot( tj)
@@ -294,14 +300,12 @@ CONTAINS
           ! u_perp < 0: flow is entering this vertex from vertex tj
           cM_divQ( ci) = L_c * MIN( 0._dp, u_perp) / A_i
 
+          CALL add_entry_CSR_dist( M_divQ_b, ti, tj, cM_divQ( ci))
+
         END DO ! DO ci = 1, mesh%nC( ti)
 
         ! Add coefficients to matrix
         CALL add_entry_CSR_dist( M_divQ_b, ti, ti, cM_divQ( 0))
-        DO ci = 1, 3
-          tj = mesh%iTri(  ti,ci)
-          CALL add_entry_CSR_dist( M_divQ_b, ti, tj, cM_divQ( ci))
-        END DO ! DO ci = 1, mesh%nC( ti)
 
       ELSE
 
