@@ -153,7 +153,7 @@ CONTAINS
       ! Display or save fields
       ! TODO
       ! IF (par%master) THEN
-      !   WRITE( *, "(F8.3)") MAXVAL(laddie%H)
+      !   WRITE( *, "(A,F8.3,A,F8.3,A,F8.3)") 'D', MAXVAL(laddie%H), 'T', MAXVAL(laddie%T), 'U', MAXVAL(laddie%U)
       ! END IF     
 
     END DO !DO WHILE (tl <= C%time_duration_laddie)
@@ -176,9 +176,6 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'initialise_laddie_model'
     INTEGER                                               :: vi
-    REAL(dp), PARAMETER                                   :: H_init = 10.0_dp ! [m]    Initial thickness
-    REAL(dp), PARAMETER                                   :: T_off  = 0.0_dp  ! [degC] Initial temperature offset
-    REAL(dp), PARAMETER                                   :: S_off  = -0.1_dp ! [PSU]  Initial salinity offset
  
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -188,6 +185,11 @@ CONTAINS
 
     ! Allocate variables
     CALL allocate_laddie_model( mesh, laddie)
+
+    ! Mask on a grid
+    DO vi = mesh%vi1, mesh%vi2
+      laddie%mask_a( vi)  = ice%mask_floating_ice( vi)
+    END DO
 
     ! Layer thickness 
     DO vi = mesh%vi1, mesh%vi2
@@ -212,7 +214,7 @@ CONTAINS
          laddie%S_next( vi) = laddie%S_amb( vi) + C%laddie_initial_S_offset
        END IF
     END DO
- 
+
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
