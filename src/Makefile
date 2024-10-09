@@ -224,7 +224,6 @@ UFEMISM_source = \
   validation/unit_tests/ut_petsc.f90 \
   validation/unit_tests/ut_mesh_Delaunay.f90 \
   validation/unit_tests/ut_mesh_refinement.f90 \
-  validation/unit_tests/ut_mesh_remapping_trace_line_grid_basic.f90 \
   validation/unit_tests/ut_mesh_remapping_trace_line_grid_start.f90 \
   validation/unit_tests/ut_mesh_remapping_trace_line_grid_a.f90 \
   validation/unit_tests/ut_mesh_remapping_trace_line_grid_b.f90 \

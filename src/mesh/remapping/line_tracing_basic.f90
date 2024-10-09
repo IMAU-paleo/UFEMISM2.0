@@ -3,6 +3,7 @@ module line_tracing_basic
   ! Some very basic functionality for the line tracing algorithms
 
   use precisions, only: dp
+  use control_resources_and_error_messaging, only: crash
   use remapping_types, only: type_single_row_mapping_matrices
 
   implicit none
@@ -10,6 +11,18 @@ module line_tracing_basic
   private
 
   public :: add_integrals_to_single_row
+  public :: type_coinc_ind_grid, no_value, a_grid, b_grid, cx_grid, cy_grid
+
+  type type_coinc_ind_grid
+    integer :: grid
+    integer :: i,j
+  end type type_coinc_ind_grid
+
+  integer, parameter :: no_value = -1
+  integer, parameter :: a_grid   = 1
+  integer, parameter :: b_grid   = 2
+  integer, parameter :: cx_grid  = 3
+  integer, parameter :: cy_grid  = 4
 
 contains
 

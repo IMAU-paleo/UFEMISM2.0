@@ -414,6 +414,7 @@ CONTAINS
       ! No need to do anything
     ELSEIF (choice_ocean_model == 'idealised') THEN
       ! Not implemented yet TODO 
+      CALL crash('Remapping after mesh update not implemented yet for idealised ocean')
     ELSEIF (choice_ocean_model == 'realistic') THEN
       CALL crash('Remapping after mesh update not implemented yet for realistic ocean')
     ELSE
