@@ -52,23 +52,23 @@ CONTAINS
     ! Loop over vertices
     ! TODO apply only to laddie%mask_b
     DO ti = mesh%ti1, mesh%ti2
+      IF (laddie%mask_b( ti)) THEN
+        ! Get dHU_dt
+        dHUdt = - laddie%divQU( ti) &
+                - grav * laddie%Hdrho_amb_b( ti) * laddie%dH_dx_b( ti) &
+                + grav * laddie%Hdrho_amb_b( ti) * laddie%dHib_dx_b( ti) &
+                - .5*grav * laddie%H_b( ti)**2 * laddie%ddrho_amb_dx_b( ti) &
+                + C%uniform_laddie_coriolis_parameter * laddie%H_b( ti) * laddie%V( ti) &
+                - C%laddie_drag_coefficient * laddie%U( ti) * (laddie%U( ti)**2 + laddie%V( ti)**2)**.5 &
+                + laddie%viscU( ti) &
+                - laddie%detr_b( ti) * laddie%U( ti)
 
-      ! Get dHU_dt
-      dHUdt = - laddie%divQU( ti) &
-              - grav * laddie%Hdrho_amb_b( ti) * laddie%dH_dx_b( ti) &
-              + grav * laddie%Hdrho_amb_b( ti) * laddie%dHib_dx_b( ti) &
-              - .5*grav * laddie%H_b( ti)**2 * laddie%ddrho_amb_dx_b( ti) &
-              + C%uniform_laddie_coriolis_parameter * laddie%H_b( ti) * laddie%V( ti) &
-              - C%laddie_drag_coefficient * laddie%U( ti) * (laddie%U( ti)**2 + laddie%V( ti)**2)**.5 &
-              + laddie%viscU( ti) &
-              - laddie%detr_b( ti) * laddie%U( ti)
+        ! HU_n = HU_n + dHU_dt * dt
+        HU_next = laddie%U( ti)*laddie%H_b( ti) + dHUdt * dt
 
-      ! HU_n = HU_n + dHU_dt * dt
-      HU_next = laddie%U( ti)*laddie%H_b( ti) + dHUdt * dt
-
-      laddie%U_next( ti) = HU_next / laddie%H_b_next( ti)
-
-    END DO !vi = mesh%vi, mesh%v2
+        laddie%U_next( ti) = HU_next / laddie%H_b_next( ti)
+      END IF ! (laddie%mask_b( ti))
+    END DO !ti = mesh%ti1, mesh%ti2
 
     ! == Integrate V ==
     ! =================
@@ -76,22 +76,22 @@ CONTAINS
     ! Loop over vertices
     ! TODO apply only to laddie%mask_b
     DO ti = mesh%ti1, mesh%ti2
+      IF (laddie%mask_b( ti)) THEN
+        ! Get dHV_dt
+        dHVdt = - laddie%divQV( ti) &
+                - grav * laddie%Hdrho_amb_b( ti) * laddie%dH_dy_b( ti) &
+                + grav * laddie%Hdrho_amb_b( ti) * laddie%dHib_dy_b( ti) &
+                - .5*grav * laddie%H_b( ti)**2 * laddie%ddrho_amb_dy_b( ti) &
+                - C%uniform_laddie_coriolis_parameter * laddie%H_b( ti) * laddie%V( ti) &
+                - C%laddie_drag_coefficient * laddie%V( ti) * (laddie%U( ti)**2 + laddie%V( ti)**2)**.5 &
+                + laddie%viscV( ti) &
+                - laddie%detr_b( ti) * laddie%V( ti)
 
-      ! Get dHV_dt
-      dHVdt = - laddie%divQV( ti) &
-              - grav * laddie%Hdrho_amb_b( ti) * laddie%dH_dy_b( ti) &
-              + grav * laddie%Hdrho_amb_b( ti) * laddie%dHib_dy_b( ti) &
-              - .5*grav * laddie%H_b( ti)**2 * laddie%ddrho_amb_dy_b( ti) &
-              - C%uniform_laddie_coriolis_parameter * laddie%H_b( ti) * laddie%V( ti) &
-              - C%laddie_drag_coefficient * laddie%V( ti) * (laddie%U( ti)**2 + laddie%V( ti)**2)**.5 &
-              + laddie%viscV( ti) &
-              - laddie%detr_b( ti) * laddie%V( ti)
+        ! HV_n = HV_n + dHV_dt * dt
+        HV_next = laddie%V( ti)*laddie%H_b( ti) + dHVdt * dt
 
-      ! HV_n = HV_n + dHV_dt * dt
-      HV_next = laddie%V( ti)*laddie%H_b( ti) + dHVdt * dt
-
-      laddie%V_next( ti) = HV_next / laddie%H_b_next( ti)
-
+        laddie%V_next( ti) = HV_next / laddie%H_b_next( ti)
+      END IF ! (laddie%mask_b( ti))
     END DO !vi = mesh%vi, mesh%v2
 
     ! TODO add cutoff by multiplying UVnext by uabsmax/abs(uabs)
@@ -139,17 +139,7 @@ CONTAINS
 
     ! Loop over triangles                                  
     DO ti = mesh%ti1, mesh%ti2
-      nf1 = 0
-
-      ! Loop over connecing vertices and check whether any is floating
-      DO i = 1, 3
-        vi = mesh%Tri( ti, i)
-        IF (mask_a_tot( vi)) THEN
-          nf1 = nf1 + 1
-        END IF
-      END DO
-      
-      IF (nf1 > 0) THEN
+      IF (laddie%mask_b( ti)) THEN
         ! Get viscosity parameter
         laddie%A_h( ti) = C%laddie_viscosity
         ! TODO add scalable options
@@ -180,8 +170,8 @@ CONTAINS
           END IF
         END DO
 
-      END IF
-    END DO
+      END IF !(laddie%mask_b( ti)
+    END DO !ti = mesh%ti1, mesh%ti2
       
     ! Finalise routine path
     CALL finalise_routine( routine_name)
