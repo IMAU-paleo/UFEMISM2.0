@@ -16,6 +16,7 @@ MODULE ocean_main
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   USE ocean_utilities                                        , ONLY: initialise_ocean_vertical_grid, calc_ocean_temperature_at_shelf_base, calc_ocean_freezing_point_at_shelf_base
   USE ocean_realistic                                        , ONLY: initialise_ocean_model_realistic, run_ocean_model_realistic
+  USE ocean_idealised                                        , ONLY: initialise_ocean_model_idealised, run_ocean_model_idealised
   USE netcdf_basic                                           , ONLY: create_new_netcdf_file_for_writing, close_netcdf_file, open_existing_netcdf_file_for_writing
   USE netcdf_output                                          , ONLY: generate_filename_XXXXXdotnc, setup_mesh_in_netcdf_file, add_time_dimension_to_file, &
                                                                      add_field_mesh_dp_3D_ocean, add_depth_dimension_to_file, write_time_to_file, write_to_field_multopt_mesh_dp_3D_ocean
@@ -87,7 +88,7 @@ CONTAINS
     IF (choice_ocean_model == 'none') THEN
       ! No need to do anything
     ELSEIF (choice_ocean_model == 'idealised') THEN
-      CALL crash('No idealised options implemented yet')
+      CALL run_ocean_model_idealised( mesh, ice, ocean)
     ELSEIF (choice_ocean_model == 'realistic') THEN
       CALL run_ocean_model_realistic( mesh, ice, ocean)
     ELSE
@@ -158,7 +159,7 @@ CONTAINS
     IF     (choice_ocean_model == 'none') THEN
       ! No need to do anything
     ELSEIF (choice_ocean_model == 'idealised') THEN
-      CALL crash('No idealised options implemented yet')
+      CALL initialise_ocean_model_idealised( mesh, ocean)
     ELSEIF (choice_ocean_model == 'realistic') THEN
       CALL initialise_ocean_model_realistic( mesh, ocean, region_name)
     ELSE
@@ -412,7 +413,8 @@ CONTAINS
     IF     (choice_ocean_model == 'none') THEN
       ! No need to do anything
     ELSEIF (choice_ocean_model == 'idealised') THEN
-      ! No need to do anything
+      ! Not implemented yet TODO 
+      CALL crash('Remapping after mesh update not implemented yet for idealised ocean')
     ELSEIF (choice_ocean_model == 'realistic') THEN
       CALL crash('Remapping after mesh update not implemented yet for realistic ocean')
     ELSE

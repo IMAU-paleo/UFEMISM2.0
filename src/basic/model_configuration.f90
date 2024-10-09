@@ -685,7 +685,10 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: choice_ocean_model_ANT_config                = 'none'
 
     ! Choice of idealised ocean model
-    CHARACTER(LEN=256)  :: choice_ocean_model_idealised_config          = ''
+    CHARACTER(LEN=256)  :: choice_ocean_model_idealised_config          = ''                               ! Choice of idealised ocean forcing: 'ISOMIP', 'TANH'
+    CHARACTER(LEN=256)  :: choice_ocean_isomip_scenario_config          = ''                               ! Scenario when using 'ISOMIP' forcing: 'WARM' or 'COLD'
+    REAL(dp)            :: ocean_tanh_deep_temperature_config           = 1.0_dp                           ! [degC] Deep ocean temperature when using 'TANH' forcing
+    REAL(dp)            :: ocean_tanh_thermocline_depth_config          = 100.0_dp                         ! [m]    Depth of thermocline when using 'TANH' forcing
 
     ! Choice of realistic ocean model
     CHARACTER(LEN=256)  :: choice_ocean_model_realistic_config          = ''
@@ -1650,6 +1653,9 @@ MODULE model_configuration
 
     ! Choice of idealised ocean model
     CHARACTER(LEN=256)  :: choice_ocean_model_idealised
+    CHARACTER(LEN=256)  :: choice_ocean_isomip_scenario
+    REAL(dp)            :: ocean_tanh_deep_temperature
+    REAL(dp)            :: ocean_tanh_thermocline_depth
 
     ! Choice of realistic ocean model
     CHARACTER(LEN=256)  :: choice_ocean_model_realistic
@@ -2562,6 +2568,9 @@ CONTAINS
       choice_ocean_model_GRL_config                               , &
       choice_ocean_model_ANT_config                               , &
       choice_ocean_model_idealised_config                         , &
+      choice_ocean_isomip_scenario_config                         , &
+      ocean_tanh_deep_temperature_config                          , &
+      ocean_tanh_thermocline_depth_config                         , &
       choice_ocean_model_realistic_config                         , &
       filename_ocean_snapshot_NAM_config                          , &
       filename_ocean_snapshot_EAS_config                          , &
@@ -3451,6 +3460,9 @@ CONTAINS
 
     ! Choice of idealised ocean model
     C%choice_ocean_model_idealised                           = choice_ocean_model_idealised_config
+    C%choice_ocean_isomip_scenario                           = choice_ocean_isomip_scenario_config
+    C%ocean_tanh_deep_temperature                            = ocean_tanh_deep_temperature_config
+    C%ocean_tanh_thermocline_depth                           = ocean_tanh_thermocline_depth_config
 
     ! Choice of realistic ocean model
     C%choice_ocean_model_realistic                           = choice_ocean_model_realistic_config

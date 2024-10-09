@@ -21,7 +21,7 @@ MODULE BMB_main
   USE BMB_prescribed                                         , ONLY: initialise_BMB_model_prescribed, run_BMB_model_prescribed
   USE BMB_parameterised                                      , ONLY: initialise_BMB_model_parameterised, run_BMB_model_parameterised
   USE BMB_laddie                                             , ONLY: initialise_BMB_model_laddie, run_BMB_model_laddie, remap_BMB_model_laddie
-  USE laddie_main                                            , ONLY: initialise_laddie_model
+  USE laddie_main                                            , ONLY: initialise_laddie_model, run_laddie_model
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   USE math_utilities                                         , ONLY: is_floating
   USE mesh_utilities                                         , ONLY: extrapolate_Gaussian
@@ -127,8 +127,7 @@ CONTAINS
       CASE ('laddie')
         CALL run_BMB_model_laddie( mesh, BMB, time)
       CASE ('laddie2')
-        ! EL To be added later
-        CALL crash('LADDIE2 model not implemented yet')
+        CALL run_laddie_model( mesh, ice, ocean, BMB, time)
       CASE DEFAULT
         CALL crash('unknown choice_BMB_model "' // TRIM( choice_BMB_model) // '"')
     END SELECT

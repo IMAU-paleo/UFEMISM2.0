@@ -45,8 +45,8 @@ CONTAINS
     ! Get T and S at layer base
     DO vi = mesh%vi1, mesh%vi2
        IF (ice%mask_floating_ice( vi)) THEN
-         CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, ocean%T( vi,:), laddie%H( vi) - ice%Hib (vi), laddie%T_amb( vi))
-         CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, ocean%S( vi,:), laddie%H( vi) - ice%Hib (vi), laddie%S_amb( vi))
+         CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, ocean%T( vi,:), laddie%H( vi) - ice%Hib( vi), laddie%T_amb( vi))
+         CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, ocean%S( vi,:), laddie%H( vi) - ice%Hib( vi), laddie%S_amb( vi))
        END IF
     END DO
 

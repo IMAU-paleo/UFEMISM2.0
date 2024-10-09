@@ -14,6 +14,7 @@ MODULE laddie_main
   USE ice_model_types                                        , ONLY: type_ice_model
   USE laddie_model_types                                     , ONLY: type_laddie_model
   USE ocean_model_types                                      , ONLY: type_ocean_model
+  USE BMB_model_types                                        , ONLY: type_BMB_model
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   USE laddie_utilities                                       , ONLY: compute_ambient_TS, allocate_laddie_model
 
@@ -23,6 +24,47 @@ CONTAINS
     
 ! ===== Main routines =====
 ! =========================
+
+  SUBROUTINE run_laddie_model( mesh, ice, ocean, BMB, time)
+    ! Run the laddie model
+
+    ! In- and output variables
+
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh
+    TYPE(type_ice_model),                   INTENT(IN)    :: ice
+    TYPE(type_ocean_model),                 INTENT(IN)    :: ocean
+    TYPE(type_BMB_model),                   INTENT(INOUT) :: BMB
+    REAL(dp),                               INTENT(IN)    :: time
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'run_laddie_model'
+    INTEGER                                               :: vi
+    REAL(dp), PARAMETER                                   :: T_off  = 0.0_dp  ! [degC] Initial temperature offset
+    REAL(dp), PARAMETER                                   :: S_off  = -0.1_dp ! [PSU]  Initial salinity offset
+ 
+    ! Add routine to path
+    CALL init_routine( routine_name)
+ 
+    ! Initialise ambient T and S
+    CALL compute_ambient_TS( mesh, BMB%laddie, ocean, ice)
+
+    ! Initialise main T and S
+    DO vi = mesh%vi1, mesh%vi2
+       IF (ice%mask_floating_ice( vi)) THEN
+         BMB%laddie%T( vi)      = BMB%laddie%T_amb( vi) + T_off
+         BMB%laddie%T_prev( vi) = BMB%laddie%T_amb( vi) + T_off
+         BMB%laddie%T_next( vi) = BMB%laddie%T_amb( vi) + T_off
+         BMB%laddie%S( vi)      = BMB%laddie%S_amb( vi) + S_off
+         BMB%laddie%S_prev( vi) = BMB%laddie%S_amb( vi) + S_off
+         BMB%laddie%S_next( vi) = BMB%laddie%S_amb( vi) + S_off
+       END IF
+    END DO
+ 
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE run_laddie_model
+
   SUBROUTINE initialise_laddie_model( mesh, laddie, ocean, ice)
     ! Initialise the laddie model
 
@@ -36,6 +78,9 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'initialise_laddie_model'
     INTEGER                                               :: vi
+    REAL(dp), PARAMETER                                   :: H_init = 10.0_dp ! [m]    Initial thickness
+    REAL(dp), PARAMETER                                   :: T_off  = 0.0_dp  ! [degC] Initial temperature offset
+    REAL(dp), PARAMETER                                   :: S_off  = -0.1_dp ! [PSU]  Initial salinity offset
  
     ! Add routine to path
     CALL init_routine( routine_name)
