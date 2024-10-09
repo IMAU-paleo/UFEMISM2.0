@@ -18,6 +18,7 @@ MODULE laddie_main
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   USE laddie_utilities                                       , ONLY: compute_ambient_TS, allocate_laddie_model, &
                                                                      calc_laddie_flux_divergence_matrix_upwind, &
+                                                                     calc_laddie_flux_divergence_matrix_upwind_b, &
                                                                      map_laddie_velocities_from_b_to_c_2D
   USE laddie_physics                                         , ONLY: compute_melt_rate, compute_entrainment, &
                                                                      compute_freezing_temperature, compute_buoyancy
@@ -233,10 +234,13 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'update_secondary_fields'
-    INTEGER                                               :: vi
+    INTEGER                                               :: vi, ti
     TYPE(type_sparse_matrix_CSR_dp)                       :: M_divQ
+    TYPE(type_sparse_matrix_CSR_dp)                       :: M_divQ_b
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: HstarT
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: HstarS
+    REAL(dp), DIMENSION(mesh%ti1:mesh%ti2)                :: HstarU
+    REAL(dp), DIMENSION(mesh%ti1:mesh%ti2)                :: HstarV
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -314,6 +318,29 @@ CONTAINS
 
     ! Compute salt divergence
     CALL multiply_CSR_matrix_with_vector_1D( M_divQ, HstarS, laddie%divQS)
+
+    ! Compute divergence matrix on b grid
+    CALL calc_laddie_flux_divergence_matrix_upwind_b( mesh, laddie%U_c, laddie%V_c, laddie%mask_b, M_divQ_b)
+
+    ! Compute Hstar * U
+    DO ti = mesh%ti1, mesh%ti2
+       IF (laddie%mask_b( ti)) THEN
+         HstarU( ti) = laddie%H_b( ti) * laddie%U( ti)
+       END IF
+    END DO
+
+    ! Compute U momentum divergence
+    CALL multiply_CSR_matrix_with_vector_1D( M_divQ_b, HstarU, laddie%divQU)
+
+    ! Compute Hstar * V
+    DO ti = mesh%ti1, mesh%ti2
+       IF (laddie%mask_b( ti)) THEN
+         HstarV( ti) = laddie%H_b( ti) * laddie%V( ti)
+       END IF
+    END DO
+
+    ! Compute V momentum divergence
+    CALL multiply_CSR_matrix_with_vector_1D( M_divQ_b, HstarV, laddie%divQV)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
