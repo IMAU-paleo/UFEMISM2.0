@@ -808,7 +808,7 @@ MODULE model_configuration
     ! Time step
     REAL(dp)            :: dt_laddie_config                             = 360._dp                          ! [s] Time step for integration of laddie model
     REAL(dp)            :: time_duration_laddie_config                  = 6._dp                            ! [days] Duration of each run cycle
-  
+
     ! Initialisation
     REAL(dp)            :: laddie_initial_thickness_config              = 10._dp                           ! [m] Initial value of thickness H
     REAL(dp)            :: laddie_initial_T_offset_config               = 0.0_dp                           ! [degC] Initial offset of T relative to ambient
@@ -822,15 +822,15 @@ MODULE model_configuration
     ! Coriolis
     CHARACTER(LEN=256)  :: choice_laddie_coriolis_config                = 'uniform'                        ! Choose option Coriolis parameter. Options: 'uniform'
     REAL(dp)            :: uniform_laddie_coriolis_parameter_config     = -1.37E-4_dp                      ! [s ^-1] 'linear' eos: thermal expansion coefficient
-  
+
     ! Turbulent heat exchange
     CHARACTER(LEN=256)  :: choice_laddie_gamma_config                   = 'uniform'                        ! Choose option turbulent heat exchange. Options: 'uniform', 'Jenkins1991'
     REAL(dp)            :: uniform_laddie_gamma_T_config                = 1.8E-4_dp                        ! [] 'uniform': gamma_T parameter. gamma_S = gamma_T/35
- 
+
     ! Drag coefficients
     REAL(dp)            :: laddie_drag_coefficient_config               = 2.5E-3_dp                        ! [] Drag coefficient Cd
     REAL(dp)            :: laddie_drag_coefficient_mom_config           = 1.1E-3_dp                        ! [] Drag coefficient Cd_mom in momentum term
- 
+
     ! Viscosity and diffusivity
     REAL(dp)            :: laddie_viscosity_config                      = 1.0E3_dp                         ! [m^2 s^-1] Viscosity parameter Ah
     REAL(dp)            :: laddie_diffusivity_config                    = 1.0E3_dp                         ! [m^2 s^-1] Diffusivity parameter Kh
@@ -1775,7 +1775,7 @@ MODULE model_configuration
     ! Time step
     REAL(dp)            :: dt_laddie
     REAL(dp)            :: time_duration_laddie
-  
+
     ! Initialisation
     REAL(dp)            :: laddie_initial_thickness
     REAL(dp)            :: laddie_initial_T_offset
@@ -1789,15 +1789,15 @@ MODULE model_configuration
     ! Coriolis
     CHARACTER(LEN=256)  :: choice_laddie_coriolis
     REAL(dp)            :: uniform_laddie_coriolis_parameter
-  
+
     ! Turbulent heat exchange
     CHARACTER(LEN=256)  :: choice_laddie_gamma
     REAL(dp)            :: uniform_laddie_gamma_T
- 
+
     ! Drag coefficients
     REAL(dp)            :: laddie_drag_coefficient
     REAL(dp)            :: laddie_drag_coefficient_mom
- 
+
     ! Viscosity and diffusivity
     REAL(dp)            :: laddie_viscosity
     REAL(dp)            :: laddie_diffusivity
@@ -1979,6 +1979,9 @@ MODULE model_configuration
   ! The main config structure
   TYPE(type_config)   :: C
 
+  ! The git commit of the model we're running
+  character(len=1024) :: git_hash_string
+
 CONTAINS
 
 ! ===== Subroutines ======
@@ -1997,6 +2000,17 @@ CONTAINS
 
     ! Add routine to path
     CALL init_routine( routine_name)
+
+  ! == Figure out which git commit of the model we're running
+  ! =========================================================
+
+    if (par%master) then
+      call get_git_hash_string( git_hash_string)
+    end if
+    call mpi_bcast( git_hash_string, len( git_hash_string), MPI_CHAR, 0, MPI_COMM_WORLD, ierr)
+
+    if (par%master) write(0,'(A)') ''
+    if (par%master) write(0,'(A)') ' Running UFEMISM from git commit ' // colour_string( trim( git_hash_string), 'pink')
 
   ! == Initialise main config parameters
   ! ====================================
@@ -2082,6 +2096,15 @@ CONTAINS
 
     ! Add routine to path
     CALL init_routine( routine_name)
+
+    ! Figure out which git commit of the model we're running
+    if (par%master) then
+      call get_git_hash_string( git_hash_string)
+    end if
+    call mpi_bcast( git_hash_string, len( git_hash_string), MPI_CHAR, 0, MPI_COMM_WORLD, ierr)
+
+    if (par%master) write(0,'(A)') ''
+    if (par%master) write(0,'(A)') ' Running UFEMISM from git commit ' // colour_string( trim( git_hash_string), 'pink')
 
     ! Copy values from the XXX_config variables to the config structure
     CALL copy_config_variables_to_struct
@@ -3575,14 +3598,14 @@ CONTAINS
     C%filename_BMB_laddie_initial_restart                    = filename_BMB_laddie_initial_restart_config
     C%filename_BMB_laddie_initial_output                     = filename_BMB_laddie_initial_output_config
     C%dir_BMB_laddie_model                                   = dir_BMB_laddie_model_config
-  
+
   ! == LADDIE model
   ! ===============
 
     ! Time step
     C%dt_laddie                                              = dt_laddie_config
     C%time_duration_laddie                                   = time_duration_laddie_config
-  
+
     ! Initialisation
     C%laddie_initial_thickness                               = laddie_initial_thickness_config
     C%laddie_initial_T_offset                                = laddie_initial_T_offset_config
@@ -3596,15 +3619,15 @@ CONTAINS
     ! Coriolis
     C%choice_laddie_coriolis                                 = choice_laddie_coriolis_config
     C%uniform_laddie_coriolis_parameter                      = uniform_laddie_coriolis_parameter_config
-  
+
     ! Turbulent heat exchange
     C%choice_laddie_gamma                                    = choice_laddie_gamma_config
     C%uniform_laddie_gamma_T                                 = uniform_laddie_gamma_T_config
- 
+
     ! Drag coefficients
     C%laddie_drag_coefficient                                = laddie_drag_coefficient_config
     C%laddie_drag_coefficient_mom                            = laddie_drag_coefficient_mom_config
- 
+
     ! Viscosity and diffusivity
     C%laddie_viscosity                                       = laddie_viscosity_config
     C%laddie_diffusivity                                     = laddie_diffusivity_config
@@ -4308,5 +4331,35 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE generate_procedural_output_dir_name
+
+  subroutine get_git_hash_string( git_hash_string)
+
+    ! In/output variables:
+    character(len=*), intent(out) :: git_hash_string
+
+    ! Local variables:
+    character(len=256), parameter :: routine_name = 'initialise_model_configuration'
+    character(len=256), parameter :: filename_git_hash_string = 'git_hash_string.txt'
+    integer                       :: ierr, ios
+    integer, parameter            :: git_hash_string_file_unit = 1847
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Create a text file containing the hash of the current git commit
+    call system( 'git rev-parse HEAD > '//trim(filename_git_hash_string), ierr)
+    if (ierr /= 0) call crash('failed to obtain hash of current git commit')
+
+    ! Read the hash from the temporary git hash file
+    open( unit = git_hash_string_file_unit, file = filename_git_hash_string, iostat = ios)
+    if (ios /= 0) call crash('couldnt open temporary git hash file "' // trim( filename_git_hash_string) // '"!')
+    read( unit = git_hash_string_file_unit, fmt = '(A)', iostat = ios) git_hash_string
+    if (ios < 0) call crash('couldnt read git hash string from the temporary file')
+    close( unit = git_hash_string_file_unit)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine get_git_hash_string
 
 END MODULE model_configuration
