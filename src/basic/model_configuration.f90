@@ -2009,8 +2009,7 @@ CONTAINS
     call mpi_bcast( has_uncommitted_changes, 1, MPI_LOGICAL, 0, MPI_COMM_WORLD, ierr)
 
     if (par%master .and. has_uncommitted_changes) then
-      write(0,'(A)') ''
-      write(0,'(A)') colour_string( 'WARNING: You have uncommitted changes; the current simulation might not be reproducible!', 'yellow')
+      write(0,'(A)') colour_string( ' WARNING: You have uncommitted changes; the current simulation might not be reproducible!', 'yellow')
     end if
 
   ! == Initialise main config parameters
@@ -2109,8 +2108,7 @@ CONTAINS
     call mpi_bcast( has_uncommitted_changes, 1, MPI_LOGICAL, 0, MPI_COMM_WORLD, ierr)
 
     if (par%master .and. has_uncommitted_changes) then
-      write(0,'(A)') ''
-      write(0,'(A)') colour_string( 'WARNING: You have uncommitted changes; the current simulation might not be reproducible!', 'yellow')
+      write(0,'(A)') colour_string( ' WARNING: You have uncommitted changes; the current simulation might not be reproducible!', 'yellow')
     end if
 
     ! Copy values from the XXX_config variables to the config structure
@@ -4351,16 +4349,16 @@ CONTAINS
     call system( 'git rev-parse HEAD > ' // trim(filename_git_commit_hash), ierr)
     if (ierr /= 0) call crash('failed to obtain hash of current git commit')
 
-    ! Read the hash from the temporary git hash file
+    ! Read the hash from the temporary commit hash file
     open( unit = git_commit_hash_file_unit, file = filename_git_commit_hash, iostat = ios)
-    if (ios /= 0) call crash('couldnt open temporary git hash file "' // trim( filename_git_commit_hash) // '"!')
+    if (ios /= 0) call crash('couldnt open temporary commit hash file "' // trim( filename_git_commit_hash) // '"!')
     read( unit = git_commit_hash_file_unit, fmt = '(A)', iostat = ios) git_commit_hash
-    if (ios < 0) call crash('couldnt read commit hash from the temporary git hash file')
+    if (ios < 0) call crash('couldnt read commit hash from the temporary commit hash file')
     close( unit = git_commit_hash_file_unit)
 
-    ! Delete the temporary git hash file
+    ! Delete the temporary commit hash file
     call system( 'rm -f ' // trim( filename_git_commit_hash), ierr)
-    if (ierr /= 0) call crash('failed to delete temporary git hash file')
+    if (ierr /= 0) call crash('failed to delete temporary commit hash file')
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -4372,13 +4370,39 @@ CONTAINS
     ! Local variables:
     character(len=256), parameter :: routine_name = 'check_for_uncommitted_changes'
     character(len=256), parameter :: filename_git_status = 'git_status.txt'
+    integer                       :: ierr, ios
+    integer, parameter            :: git_status_file_unit = 1847
+    character(len=1024)           :: single_line
 
     ! Add routine to path
     call init_routine( routine_name)
 
     ! Create a text file containing the output of git status
-    call system( 'git status > ' // trim( filename_git_status))
+    call system( 'git status > ' // trim( filename_git_status), ierr)
     if (ierr /= 0) call crash('failed to write git status to text file')
+
+    ! Check the temporary git status file for uncommitted changes
+    open( unit = git_status_file_unit, file = filename_git_status, iostat = ios)
+    if (ios /= 0) call crash('couldnt open temporary git status file "' // trim( filename_git_status) // '"!')
+
+    do while (.true.)
+        ! Read a single line from the temporary git status file
+        read( unit = git_status_file_unit, fmt = '(A)', iostat = ios) single_line
+        ! If we've reached the end of the file, stop reading.
+        if (ios < 0) exit
+        ! Check if the temporary git status file mentions any uncommitted changes
+        if (single_line == 'Changes not staged for commit:') has_uncommitted_changes = .true.
+    end do
+
+    close( unit = git_status_file_unit)
+
+    ! Mention uncommitted changes in the commit hash (done after writing the commit hash to the terminal,
+    ! but still useful for the version that ends up in the NetCDF output files)
+    if (has_uncommitted_changes) git_commit_hash = trim( git_commit_hash) // ' (with uncommitted changes!)'
+
+    ! Delete the temporary git status file
+    call system( 'rm -f ' // trim( filename_git_status), ierr)
+    if (ierr /= 0) call crash('failed to delete temporary git status file')
 
     ! Finalise routine path
     call finalise_routine( routine_name)
