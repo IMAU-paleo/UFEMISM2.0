@@ -92,17 +92,6 @@ CONTAINS
       ! Integrate H 1 time step
       CALL compute_H_np1( mesh, ice, laddie, dt)
 
-      ! Set Hstar
-      DO vi = mesh%vi1, mesh%vi2
-        IF (.NOT. ice%mask_floating_ice( vi)) THEN
-          Hstar( vi) = laddie%H( vi)
-        END IF
-      END DO
-
-      ! Update fields dependent on Hstar
-      ! TODO distribute update_secondary routines to prevent double calculations
-      CALL update_secondary_fields( mesh, ice, ocean, laddie, Hstar)
-
       ! Integrate U and V 1 time step
       CALL compute_UV_np1( mesh, ice, laddie, dt)
 
@@ -110,7 +99,7 @@ CONTAINS
       CALL compute_TS_np1( mesh, ice, laddie, dt)
 
       ! Update secondary fields
-      CALL update_secondary_fields( mesh, ice, ocean, laddie, Hstar)
+      CALL update_secondary_fields( mesh, ice, ocean, laddie, laddie%H)
 
       ! == Move time ==
       ! Increase laddie time
@@ -132,16 +121,13 @@ CONTAINS
         laddie%V( ti) = laddie%V_next( ti)
       END DO
 
-
       ! Display or save fields
       ! TODO
       ! IF (par%master) THEN
       !   WRITE( *, "(F8.3)") MAXVAL(laddie%H)
       ! END IF     
 
-
     END DO !DO WHILE (tl <= C%time_duration_laddie)
-
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
