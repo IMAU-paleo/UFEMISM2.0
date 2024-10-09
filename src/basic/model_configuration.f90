@@ -809,6 +809,11 @@ MODULE model_configuration
     REAL(dp)            :: dt_laddie_config                             = 360._dp                          ! [s] Time step for integration of laddie model
     REAL(dp)            :: time_duration_laddie_config                  = 6._dp                            ! [days] Duration of each run cycle
   
+    ! Initialisation
+    REAL(dp)            :: laddie_initial_thickness_config              = 10._dp                           ! [m] Initial value of thickness H
+    REAL(dp)            :: laddie_initial_T_offset_config               = 0.0_dp                           ! [degC] Initial offset of T relative to ambient
+    REAL(dp)            :: laddie_initial_S_offset_config               = -0.1_dp                          ! [PSU] Initial offset of S relative to ambient. Must be negative for stable buoyancy!
+
     ! Equation of state
     CHARACTER(LEN=256)  :: choice_laddie_equation_of_state_config       = 'linear'                         ! Choose equation of state. Options: 'linear'
     REAL(dp)            :: uniform_laddie_eos_linear_alpha_config       = 3.733E-5_dp                      ! [K ^-1] 'linear' eos: thermal expansion coefficient
@@ -1771,6 +1776,11 @@ MODULE model_configuration
     REAL(dp)            :: dt_laddie
     REAL(dp)            :: time_duration_laddie
   
+    ! Initialisation
+    REAL(dp)            :: laddie_initial_thickness
+    REAL(dp)            :: laddie_initial_T_offset
+    REAL(dp)            :: laddie_initial_S_offset
+
     ! Equation of state
     CHARACTER(LEN=256)  :: choice_laddie_equation_of_state
     REAL(dp)            :: uniform_laddie_eos_linear_alpha
@@ -2624,6 +2634,9 @@ CONTAINS
       dir_BMB_laddie_model_config                                 , &
       dt_laddie_config                                            , &
       time_duration_laddie_config                                 , &
+      laddie_initial_thickness_config                             , &
+      laddie_initial_T_offset_config                              , &
+      laddie_initial_S_offset_config                              , &
       choice_laddie_equation_of_state_config                      , &
       uniform_laddie_eos_linear_alpha_config                      , &
       uniform_laddie_eos_linear_beta_config                       , &
@@ -3570,6 +3583,11 @@ CONTAINS
     C%dt_laddie                                              = dt_laddie_config
     C%time_duration_laddie                                   = time_duration_laddie_config
   
+    ! Initialisation
+    C%laddie_initial_thickness                               = laddie_initial_thickness_config
+    C%laddie_initial_T_offset                                = laddie_initial_T_offset_config
+    C%laddie_initial_S_offset                                = laddie_initial_S_offset_config
+
     ! Equation of state
     C%choice_laddie_equation_of_state                        = choice_laddie_equation_of_state_config
     C%uniform_laddie_eos_linear_alpha                        = uniform_laddie_eos_linear_alpha_config
