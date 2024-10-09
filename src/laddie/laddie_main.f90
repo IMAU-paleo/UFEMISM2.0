@@ -16,7 +16,9 @@ MODULE laddie_main
   USE ocean_model_types                                      , ONLY: type_ocean_model
   USE BMB_model_types                                        , ONLY: type_BMB_model
   USE reallocate_mod                                         , ONLY: reallocate_bounds
-  USE laddie_utilities                                       , ONLY: compute_ambient_TS, allocate_laddie_model, calc_laddie_flux_divergence_matrix_upwind
+  USE laddie_utilities                                       , ONLY: compute_ambient_TS, allocate_laddie_model, &
+                                                                     calc_laddie_flux_divergence_matrix_upwind, &
+                                                                     map_laddie_velocities_from_b_to_c_2D
   USE laddie_physics                                         , ONLY: compute_melt_rate, compute_entrainment, &
                                                                      compute_freezing_temperature, compute_buoyancy
   USE laddie_thickness                                       , ONLY: compute_H_np1 
@@ -255,8 +257,11 @@ CONTAINS
     ! Compute viscosities
     CALL compute_viscUV( mesh, ice, laddie, Hstar)
 
+    ! Get velocities on c grid
+    CALL map_laddie_velocities_from_b_to_c_2D( mesh, laddie%U, laddie%V, laddie%U_c, laddie%V_c)
+
     ! Compute divergence matrix
-    CALL calc_laddie_flux_divergence_matrix_upwind( mesh, laddie%U, laddie%V, ice%mask_floating_ice, M_divQ)
+    CALL calc_laddie_flux_divergence_matrix_upwind( mesh, laddie%U_c, laddie%V_c, ice%mask_floating_ice, M_divQ)
 
     ! Compute thickness divergence
     CALL multiply_CSR_matrix_with_vector_1D( M_divQ, laddie%H, laddie%divQ)

@@ -99,6 +99,8 @@ MODULE laddie_model_types
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: H_b_next                    ! [m]               Layer next thickness on b grid
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: U_a                         ! [m s^-1]          Layer velocity on a grid 
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: V_a                         ! [m s^-1]          
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: U_c                         ! [m s^-1]          Layer velocity on c grid
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: V_c                         ! [m s^-1]          
 
     ! Masks
     LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_a                      !                   Mask on a-grid on which to apply computation

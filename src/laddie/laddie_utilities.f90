@@ -58,8 +58,8 @@ CONTAINS
 
   END SUBROUTINE compute_ambient_TS
 
-  SUBROUTINE calc_laddie_flux_divergence_matrix_upwind( mesh, U, V, mask_floating, M_divQ)
-    ! Calculate the ice flux divergence matrix M_divQ using an upwind scheme
+  SUBROUTINE calc_laddie_flux_divergence_matrix_upwind( mesh, U_c, V_c, mask_floating, M_divQ)
+    ! Calculate the layer flux divergence matrix M_divQ using an upwind scheme
     !
     ! The vertically averaged ice flux divergence represents the net ice volume (which,
     ! assuming constant density, is proportional to the ice mass) entering each Voronoi
@@ -74,15 +74,14 @@ CONTAINS
 
     ! In/output variables:
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
-    REAL(dp), DIMENSION(mesh%ti1:mesh%ti2), INTENT(IN)    :: U
-    REAL(dp), DIMENSION(mesh%ti1:mesh%ti2), INTENT(IN)    :: V
+    REAL(dp), DIMENSION(mesh%ei1:mesh%ei2), INTENT(IN)    :: U_c
+    REAL(dp), DIMENSION(mesh%ei1:mesh%ei2), INTENT(IN)    :: V_c
     LOGICAL, DIMENSION(mesh%vi1:mesh%vi2),  INTENT(IN)    :: mask_floating
     TYPE(type_sparse_matrix_CSR_dp),        INTENT(OUT)   :: M_divQ
 
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'calc_laddie_flux_divergence_matrix_upwind'
-    REAL(dp), DIMENSION(mesh%ei1:mesh%ei2)                :: U_c, V_c
     REAL(dp), DIMENSION(mesh%nE)                          :: U_c_tot, V_c_tot
     INTEGER                                               :: ncols, ncols_loc, nrows, nrows_loc, nnz_est_proc
     INTEGER                                               :: vi, ci, ei, vj
@@ -95,7 +94,6 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Calculate vertically averaged ice velocities on the edges
-    CALL map_laddie_velocities_from_b_to_c_2D( mesh, U, V, U_c, V_c)
     CALL gather_to_all_dp_1D( U_c, U_c_tot)
     CALL gather_to_all_dp_1D( V_c, V_c_tot)
     CALL gather_to_all_logical_1D( mask_floating, mask_floating_tot)
@@ -396,11 +394,15 @@ CONTAINS
     ALLOCATE( laddie%H_b_next           ( mesh%ti1:mesh%ti2              )) ! [m]             Layer next thickness on b grid
     ALLOCATE( laddie%U_a                ( mesh%vi1:mesh%vi2              )) ! [m s^-1]        Layer velocity on a grid  
     ALLOCATE( laddie%V_a                ( mesh%vi1:mesh%vi2              )) ! [m s^-1]        
+    ALLOCATE( laddie%U_c                ( mesh%ei1:mesh%ei2              )) ! [m s^-1]        Layer velocity on c grid  
+    ALLOCATE( laddie%V_c                ( mesh%ei1:mesh%ei2              )) ! [m s^-1]        
 
     laddie%H_b            = 0._dp
     laddie%H_b_next       = 0._dp
     laddie%U_a            = 0._dp
     laddie%V_a            = 0._dp
+    laddie%U_c            = 0._dp
+    laddie%V_c            = 0._dp
 
     ! Masks
 
