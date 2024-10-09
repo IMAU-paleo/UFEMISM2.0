@@ -47,7 +47,7 @@ CONTAINS
 
     ! Get T and S at layer base
     DO vi = mesh%vi1, mesh%vi2
-       IF (ice%mask_floating_ice( vi)) THEN
+       IF (laddie%mask_a( vi)) THEN
          CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, ocean%T( vi,:), Hstar( vi) - ice%Hib( vi), laddie%T_amb( vi))
          CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, ocean%S( vi,:), Hstar( vi) - ice%Hib( vi), laddie%S_amb( vi))
        END IF
@@ -58,7 +58,7 @@ CONTAINS
 
   END SUBROUTINE compute_ambient_TS
 
-  SUBROUTINE calc_laddie_flux_divergence_matrix_upwind( mesh, U_c, V_c, mask_floating, M_divQ)
+  SUBROUTINE calc_laddie_flux_divergence_matrix_upwind( mesh, U_c, V_c, mask_a, M_divQ)
     ! Calculate the layer flux divergence matrix M_divQ using an upwind scheme
     !
     ! The vertically averaged ice flux divergence represents the net ice volume (which,
@@ -76,7 +76,7 @@ CONTAINS
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
     REAL(dp), DIMENSION(mesh%ei1:mesh%ei2), INTENT(IN)    :: U_c
     REAL(dp), DIMENSION(mesh%ei1:mesh%ei2), INTENT(IN)    :: V_c
-    LOGICAL, DIMENSION(mesh%vi1:mesh%vi2),  INTENT(IN)    :: mask_floating
+    LOGICAL, DIMENSION(mesh%vi1:mesh%vi2),  INTENT(IN)    :: mask_a
     TYPE(type_sparse_matrix_CSR_dp),        INTENT(OUT)   :: M_divQ
 
 
@@ -88,7 +88,7 @@ CONTAINS
     REAL(dp)                                              :: A_i, L_c
     REAL(dp)                                              :: D_x, D_y, D, u_perp
     REAL(dp), DIMENSION(0:mesh%nC_mem)                    :: cM_divQ
-    LOGICAL, DIMENSION(mesh%nV)                           :: mask_floating_tot
+    LOGICAL, DIMENSION(mesh%nV)                           :: mask_a_tot
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -96,7 +96,7 @@ CONTAINS
     ! Calculate vertically averaged ice velocities on the edges
     CALL gather_to_all_dp_1D( U_c, U_c_tot)
     CALL gather_to_all_dp_1D( V_c, V_c_tot)
-    CALL gather_to_all_logical_1D( mask_floating, mask_floating_tot)
+    CALL gather_to_all_logical_1D( mask_a, mask_a_tot)
 
     ! == Initialise the matrix using the native UFEMISM CSR-matrix format
     ! ===================================================================
@@ -115,7 +115,7 @@ CONTAINS
 
     DO vi = mesh%vi1, mesh%vi2
 
-      IF (mask_floating( vi)) THEN
+      IF (mask_a( vi)) THEN
         ! Initialise
         cM_divQ = 0._dp
 
@@ -164,7 +164,7 @@ CONTAINS
         ! Add empty row
         CALL add_empty_row_CSR_dist( M_divQ, vi)
 
-      END IF ! (ice%mask_floating_ice( vi))
+      END IF ! (mask_a( vi))
 
     END DO ! DO vi = mesh%vi1, mesh%vi2
 

@@ -27,6 +27,7 @@ MODULE laddie_main
   USE mesh_operators                                         , ONLY: ddx_a_b_2D, ddy_a_b_2D, map_a_b_2D, map_b_a_2D
   USE petsc_basic                                            , ONLY: multiply_CSR_matrix_with_vector_1D
   USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp
+  USE mpi_distributed_memory                                 , ONLY: gather_to_all_logical_1D
 
   IMPLICIT NONE
     
@@ -48,10 +49,11 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'run_laddie_model'
-    INTEGER                                               :: vi, ti
+    INTEGER                                               :: vi, ti, nf, i
     REAL(dp)                                              :: tl               ! [s] Laddie time
     REAL(dp)                                              :: dt               ! [s] Laddie time step
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: Hstar            ! [m] Reference thickness in integration
+    LOGICAL, DIMENSION(mesh%nV)                           :: mask_a_tot
  
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -63,20 +65,45 @@ CONTAINS
     tl = 0.0_dp
     dt = C%dt_laddie
 
-    ! Update masks
-    ! TODO
+    ! == Update masks ==
+    ! Mask on a grid
+    DO vi = mesh%vi1, mesh%vi2
+      laddie%mask_a( vi)  = ice%mask_floating_ice( vi)
+    END DO
+
+    ! Mask on b grid
+    CALL gather_to_all_logical_1D( laddie%mask_a, mask_a_tot)
+    DO ti = mesh%ti1, mesh%ti2
+      ! Initialise as false to overwrite previous mask
+      laddie%mask_b( ti) = .false.
+      ! Loop over connecing vertices and check whether they are floating
+      DO i = 1, 3
+        vi = mesh%Tri( ti, i)
+        IF (mask_a_tot( vi)) THEN
+          ! Set true if any of the three vertices is floating
+          laddie%mask_b( ti) = .true.
+        END IF
+      END DO
+    END DO
 
     ! Extrapolate new cells
     ! TODO
 
-    ! Set non-floating values
+    ! Set values to zero if outside laddie mask
     DO vi = mesh%vi1, mesh%vi2
-      IF (.NOT. ice%mask_floating_ice( vi)) THEN
+      IF (.NOT. laddie%mask_a( vi)) THEN
         laddie%H( vi)     = 0.0_dp
         laddie%T( vi)     = 0.0_dp
         laddie%S( vi)     = 0.0_dp
         laddie%melt( vi)  = 0.0_dp
         laddie%entr( vi)  = 0.0_dp
+      END IF
+    END DO
+
+    DO ti = mesh%ti1, mesh%ti2
+      IF (.NOT. laddie%mask_b( ti)) THEN
+        laddie%U( ti)     = 0.0_dp
+        laddie%V( ti)     = 0.0_dp
       END IF
     END DO
 
@@ -109,7 +136,7 @@ CONTAINS
 
       ! Move main variables by 1 time step
       DO vi = mesh%vi1, mesh%vi2
-        IF (ice%mask_floating_ice( vi)) THEN
+        IF (laddie%mask_a( vi)) THEN
           laddie%H( vi) = laddie%H_next( vi)
           laddie%T( vi) = laddie%T_next( vi)
           laddie%S( vi) = laddie%S_next( vi)
@@ -164,7 +191,7 @@ CONTAINS
 
     ! Layer thickness 
     DO vi = mesh%vi1, mesh%vi2
-       IF (ice%mask_floating_ice( vi)) THEN
+       IF (laddie%mask_a( vi)) THEN
          laddie%H( vi)      = C%laddie_initial_thickness
          laddie%H_prev( vi) = C%laddie_initial_thickness
          laddie%H_next( vi) = C%laddie_initial_thickness
@@ -176,7 +203,7 @@ CONTAINS
 
     ! Initialise main T and S
     DO vi = mesh%vi1, mesh%vi2
-       IF (ice%mask_floating_ice( vi)) THEN
+       IF (laddie%mask_a( vi)) THEN
          laddie%T( vi)      = laddie%T_amb( vi) + C%laddie_initial_T_offset 
          laddie%T_prev( vi) = laddie%T_amb( vi) + C%laddie_initial_T_offset
          laddie%T_next( vi) = laddie%T_amb( vi) + C%laddie_initial_T_offset
@@ -261,14 +288,14 @@ CONTAINS
     CALL map_laddie_velocities_from_b_to_c_2D( mesh, laddie%U, laddie%V, laddie%U_c, laddie%V_c)
 
     ! Compute divergence matrix
-    CALL calc_laddie_flux_divergence_matrix_upwind( mesh, laddie%U_c, laddie%V_c, ice%mask_floating_ice, M_divQ)
+    CALL calc_laddie_flux_divergence_matrix_upwind( mesh, laddie%U_c, laddie%V_c, laddie%mask_a, M_divQ)
 
     ! Compute thickness divergence
     CALL multiply_CSR_matrix_with_vector_1D( M_divQ, laddie%H, laddie%divQ)
 
     ! Compute Hstar * T
     DO vi = mesh%vi1, mesh%vi2
-       IF (ice%mask_floating_ice( vi)) THEN
+       IF (laddie%mask_a( vi)) THEN
          HstarT( vi) = Hstar( vi) * laddie%T( vi)
        END IF
     END DO
@@ -278,7 +305,7 @@ CONTAINS
 
     ! Compute Hstar * S
     DO vi = mesh%vi1, mesh%vi2
-       IF (ice%mask_floating_ice( vi)) THEN
+       IF (laddie%mask_a( vi)) THEN
          HstarS( vi) = Hstar( vi) * laddie%S( vi)
        END IF
     END DO

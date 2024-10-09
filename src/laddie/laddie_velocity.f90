@@ -94,6 +94,8 @@ CONTAINS
 
     END DO !vi = mesh%vi, mesh%v2
 
+    ! TODO add cutoff by multiplying UVnext by uabsmax/abs(uabs)
+
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
@@ -122,7 +124,7 @@ CONTAINS
     REAL(dp), DIMENSION(mesh%nTri)                        :: U_tot
     REAL(dp), DIMENSION(mesh%nTri)                        :: V_tot
     REAL(dp), DIMENSION(mesh%ti1:mesh%ti2)                :: Hstar_b
-    LOGICAL, DIMENSION(mesh%nV)                           :: mask_floating_ice_tot
+    LOGICAL, DIMENSION(mesh%nV)                           :: mask_a_tot
     
     ! Add routine to path
     CALL init_routine( routine_name)        
@@ -130,7 +132,7 @@ CONTAINS
     ! Gather
     CALL gather_to_all_dp_1D( laddie%U, U_tot)            
     CALL gather_to_all_dp_1D( laddie%V, V_tot)            
-    CALL gather_to_all_logical_1D( ice%mask_floating_ice, mask_floating_ice_tot)
+    CALL gather_to_all_logical_1D( laddie%mask_a, mask_a_tot)
 
     ! Map Hstar
     CALL map_a_b_2D( mesh, Hstar, Hstar_b)
@@ -142,7 +144,7 @@ CONTAINS
       ! Loop over connecing vertices and check whether any is floating
       DO i = 1, 3
         vi = mesh%Tri( ti, i)
-        IF (mask_floating_ice_tot( vi)) THEN
+        IF (mask_a_tot( vi)) THEN
           nf1 = nf1 + 1
         END IF
       END DO
@@ -165,7 +167,7 @@ CONTAINS
             nf2 = 0
             DO j = 1, 3
               vj = mesh%Tri( tj, j)
-              IF (mask_floating_ice_tot( vj)) THEN
+              IF (mask_a_tot( vj)) THEN
                 nf2 = nf2 + 1
               END IF
             END DO

@@ -50,14 +50,14 @@ CONTAINS
 
     ! Get friction velocity
     DO vi = mesh%vi1, mesh%vi2
-       IF (ice%mask_floating_ice( vi)) THEN
+       IF (laddie%mask_a( vi)) THEN
          laddie%u_star( vi) = C%laddie_drag_coefficient_mom * (laddie%U_a( vi)**2 + laddie%V_a( vi)**2 + C%uniform_laddie_tidal_velocity**2 )**.5
        END IF
     END DO
 
     ! Get gamma values. TODO add non-fixed, non-uniform option. If fixed,uniform, compute during initialisation and skip here
     DO vi = mesh%vi1, mesh%vi2
-       IF (ice%mask_floating_ice( vi)) THEN
+       IF (laddie%mask_a( vi)) THEN
          laddie%gamma_T( vi) = C%uniform_laddie_gamma_T
          laddie%gamma_S( vi) = C%uniform_laddie_gamma_T/35.0
        END IF
@@ -70,7 +70,7 @@ CONTAINS
 
     ! Loop over vertices
     DO vi = mesh%vi1, mesh%vi2
-       IF (ice%mask_floating_ice( vi)) THEN
+       IF (laddie%mask_a( vi)) THEN
          ! Solve three equations
          That = freezing_lambda_2 - freezing_lambda_3*ice%Hib( vi)
          ! Chat = cp_ocean / (L_fusion - cp_ice * ice%Ti( vi, 1)) TODO expand with proper Ti
@@ -125,7 +125,7 @@ CONTAINS
     ! TODO only Gaspar for now
 
     DO vi = mesh%vi1, mesh%vi2
-       IF (ice%mask_floating_ice( vi)) THEN
+       IF (laddie%mask_a( vi)) THEN
          ! Get salinity at ice base
          laddie%S_base( vi) = (laddie%T_base( vi) - freezing_lambda_2 + freezing_lambda_3 * ice%Hib( vi)) / freezing_lambda_1
          
@@ -169,7 +169,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     DO vi = mesh%vi1, mesh%vi2
-       IF (ice%mask_floating_ice( vi)) THEN
+       IF (laddie%mask_a( vi)) THEN
          laddie%T_freeze( vi) = freezing_lambda_1*laddie%S( vi) + freezing_lambda_2 - freezing_lambda_3*ice%Hib( vi)
        END IF
     END DO
@@ -199,7 +199,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     DO vi = mesh%vi1, mesh%vi2
-       IF (ice%mask_floating_ice( vi)) THEN
+       IF (laddie%mask_a( vi)) THEN
          ! Get buoyancy
          laddie%drho_amb( vi) = C%uniform_laddie_eos_linear_beta  * (laddie%S_amb( vi)-laddie%S( vi)) &
                               - C%uniform_laddie_eos_linear_alpha * (laddie%T_amb( vi)-laddie%T( vi))

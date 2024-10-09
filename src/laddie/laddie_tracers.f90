@@ -49,7 +49,7 @@ CONTAINS
 
     ! Loop over vertices
     DO vi = mesh%vi1, mesh%vi2
-      IF (ice%mask_floating_ice( vi)) THEN
+      IF (laddie%mask_a( vi)) THEN
 
         ! Get dHT_dt
         dHTdt = -laddie%divQT( vi) &
@@ -62,14 +62,14 @@ CONTAINS
 
         laddie%T_next( vi) = HT_next / laddie%H_next( vi)
 
-      END IF !(ice%mask_floating_ice( vi)) THEN
+      END IF !(laddie%mask_a( vi)) THEN
     END DO !vi = mesh%vi, mesh%v2
 
     ! == Salinity integration ==
 
     ! Loop over vertices
     DO vi = mesh%vi1, mesh%vi2
-      IF (ice%mask_floating_ice( vi)) THEN
+      IF (laddie%mask_a( vi)) THEN
 
         ! Get dHS_dt
         dHSdt = -laddie%divQS( vi) &
@@ -81,7 +81,7 @@ CONTAINS
 
         laddie%S_next( vi) = HS_next / laddie%H_next( vi)
 
-      END IF !(ice%mask_floating_ice( vi)) THEN
+      END IF !(laddie%mask_a( vi)) THEN
     END DO !vi = mesh%vi, mesh%v2
 
 
@@ -107,7 +107,7 @@ CONTAINS
     INTEGER                                               :: ci
     REAL(dp), DIMENSION(mesh%nV)                          :: T_tot
     REAL(dp), DIMENSION(mesh%nV)                          :: S_tot
-    LOGICAL, DIMENSION(mesh%nV)                           :: mask_floating_ice_tot
+    LOGICAL, DIMENSION(mesh%nV)                           :: mask_a_tot
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -115,11 +115,11 @@ CONTAINS
     ! Gather
     CALL gather_to_all_dp_1D( laddie%T, T_tot)
     CALL gather_to_all_dp_1D( laddie%S, S_tot)
-    CALL gather_to_all_logical_1D( ice%mask_floating_ice, mask_floating_ice_tot)
+    CALL gather_to_all_logical_1D( laddie%mask_a, mask_a_tot)
 
     ! Loop over vertices
     DO vi = mesh%vi1, mesh%vi2
-      IF (ice%mask_floating_ice( vi)) THEN
+      IF (laddie%mask_a( vi)) THEN
         ! Get diffusivity parameter
         laddie%K_h( vi) = C%laddie_diffusivity
         ! TODO add scalable options
@@ -132,7 +132,7 @@ CONTAINS
         DO ci = 1, mesh%nC( vi)
           vj = mesh%C( vi, ci)
           ! Can simply skip non-floating vertices to ensure d/dx = d/dy = 0 at boundaries
-          IF (mask_floating_ice_tot( vj)) THEN
+          IF (mask_a_tot( vj)) THEN
             laddie%diffT( vi) = laddie%diffT( vi) + (T_tot( vj)-laddie%T( vi)) * laddie%K_h( vi) * Hstar( vi) / mesh%A( vi)
             laddie%diffS( vi) = laddie%diffS( vi) + (S_tot( vj)-laddie%S( vi)) * laddie%K_h( vi) * Hstar( vi) / mesh%A( vi)
           END IF

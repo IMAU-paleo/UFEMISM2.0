@@ -43,7 +43,7 @@ CONTAINS
 
     ! Loop over vertices
     DO vi = mesh%vi1, mesh%vi2
-      IF (ice%mask_floating_ice( vi)) THEN
+      IF (laddie%mask_a( vi)) THEN
 
         ! Get dH_dt
         dHdt = -laddie%divQ( vi) + laddie%melt( vi) + laddie%entr( vi)
@@ -58,7 +58,7 @@ CONTAINS
         laddie%H_next( vi) = MAX(laddie%H_next (vi),C%laddie_thickness_minimum)
         
 
-      END IF !(ice%mask_floating_ice( vi)) THEN
+      END IF !(laddie%mask_a( vi)) THEN
     END DO !vi = mesh%vi, mesh%v2
 
     ! Finalise routine path
