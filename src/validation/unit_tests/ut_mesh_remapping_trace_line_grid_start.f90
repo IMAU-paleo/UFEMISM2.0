@@ -8,8 +8,8 @@ module ut_mesh_remapping_trace_line_grid_start
   use precisions, only: dp
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, warning
   use grid_types, only: type_grid
-  use ut_mesh_remapping_trace_line_grid_basic
   use mpi_basic, only: par
+  use line_tracing_basic
 
   implicit none
 
@@ -65,7 +65,6 @@ contains
     integer                        :: i,j,n_sub,ii,jj
     real(dp)                       :: x, y, xmin, xmax, ymin, ymax, xmintol, xmaxtol, ymintol, ymaxtol
     real(dp), dimension(2)         :: p
-    integer, dimension(2)          :: aij_in, bij_on, cxij_on, cyij_on
     type(type_coinc_ind_grid)      :: coinc_ind
     logical                        :: verified_p_inside_a
 
@@ -77,12 +76,8 @@ contains
 
     verified_p_inside_a = .true.
 
-    ! DENK DROM
-    if (par%master) call warning('DENK DROM - test_trace_line_grid_start_p_inside_a'//&
-      ' only loops over grid interior; trace_line_grid_start'//&
-      ' cannot yet handle the border cells properly; fix this!')
-    do i = 2, grid%nx-1
-    do j = 2, grid%ny-1
+    do i = 1, grid%nx
+    do j = 1, grid%ny
 
       x = grid%x( i)
       y = grid%y( j)
@@ -105,8 +100,7 @@ contains
         p( 1) = xmintol + (xmaxtol - xmintol) * real( ii-1,dp) / real( n_sub-1,dp)
         p( 2) = ymintol + (ymaxtol - ymintol) * real( jj-1,dp) / real( n_sub-1,dp)
 
-        call trace_line_grid_start( grid, p, aij_in, bij_on, cxij_on, cyij_on)
-        coinc_ind = old2new_coinc_ind( aij_in, bij_on, cxij_on, cyij_on, .false.)
+        call trace_line_grid_start( grid, p, coinc_ind)
 
         verified_p_inside_a = verified_p_inside_a .and. &
           coinc_ind%grid == a_grid .and. &
@@ -142,7 +136,6 @@ contains
     integer                        :: i,j
     real(dp)                       :: x, y, xmin, xmax, ymin, ymax
     real(dp), dimension(2)         :: p
-    integer, dimension(2)          :: aij_in, bij_on, cxij_on, cyij_on
     type(type_coinc_ind_grid)      :: coinc_ind
     logical                        :: verified_p_on_b
 
@@ -154,12 +147,8 @@ contains
 
     verified_p_on_b = .true.
 
-    ! DENK DROM
-    if (par%master) call warning('DENK DROM - test_trace_line_grid_start_p_on_b'//&
-      ' only loops over grid interior; trace_line_grid_start'//&
-      ' cannot yet handle the border cells properly; fix this!')
-    do i = 2, grid%nx-1
-    do j = 2, grid%ny-1
+    do i = 1, grid%nx
+    do j = 1, grid%ny
 
       x = grid%x( i)
       y = grid%y( j)
@@ -171,8 +160,7 @@ contains
 
       ! Southwest (i.e. b-grid point [i-1,j-1])
       p = [xmin, ymin]
-      call trace_line_grid_start( grid, p, aij_in, bij_on, cxij_on, cyij_on)
-      coinc_ind = old2new_coinc_ind( aij_in, bij_on, cxij_on, cyij_on, .false.)
+      call trace_line_grid_start( grid, p, coinc_ind)
       verified_p_on_b = verified_p_on_b .and. &
         coinc_ind%grid == b_grid .and. &
         coinc_ind%i    == i-1 .and. &
@@ -180,8 +168,7 @@ contains
 
       ! Northwest (i.e. b-grid point [i-1,j])
       p = [xmin, ymax]
-      call trace_line_grid_start( grid, p, aij_in, bij_on, cxij_on, cyij_on)
-      coinc_ind = old2new_coinc_ind( aij_in, bij_on, cxij_on, cyij_on, .false.)
+      call trace_line_grid_start( grid, p, coinc_ind)
       verified_p_on_b = verified_p_on_b .and. &
         coinc_ind%grid == b_grid .and. &
         coinc_ind%i    == i-1 .and. &
@@ -189,8 +176,7 @@ contains
 
       ! Southeast (i.e. b-grid point [i,j-1])
       p = [xmax, ymin]
-      call trace_line_grid_start( grid, p, aij_in, bij_on, cxij_on, cyij_on)
-      coinc_ind = old2new_coinc_ind( aij_in, bij_on, cxij_on, cyij_on, .false.)
+      call trace_line_grid_start( grid, p, coinc_ind)
       verified_p_on_b = verified_p_on_b .and. &
         coinc_ind%grid == b_grid .and. &
         coinc_ind%i    == i .and. &
@@ -198,8 +184,7 @@ contains
 
       ! Northeast (i.e. b-grid point [i,j])
       p = [xmax, ymax]
-      call trace_line_grid_start( grid, p, aij_in, bij_on, cxij_on, cyij_on)
-      coinc_ind = old2new_coinc_ind( aij_in, bij_on, cxij_on, cyij_on, .false.)
+      call trace_line_grid_start( grid, p, coinc_ind)
       verified_p_on_b = verified_p_on_b .and. &
         coinc_ind%grid == b_grid .and. &
         coinc_ind%i    == i .and. &
@@ -231,7 +216,6 @@ contains
     integer                        :: i,j,n_sub,jj
     real(dp)                       :: x, y, xmin, xmax, ymin, ymax, ymintol, ymaxtol
     real(dp), dimension(2)         :: p
-    integer, dimension(2)          :: aij_in, bij_on, cxij_on, cyij_on
     type(type_coinc_ind_grid)      :: coinc_ind
     logical                        :: verified_p_on_cx
 
@@ -243,12 +227,8 @@ contains
 
     verified_p_on_cx = .true.
 
-    ! DENK DROM
-    if (par%master) call warning('DENK DROM - test_trace_line_grid_start_p_on_cx'//&
-      ' only loops over grid interior; trace_line_grid_start'//&
-      ' cannot yet handle the border cells properly; fix this!')
-    do i = 2, grid%nx-1
-    do j = 2, grid%ny-1
+    do i = 1, grid%nx
+    do j = 1, grid%ny
 
       x = grid%x( i)
       y = grid%y( j)
@@ -265,8 +245,7 @@ contains
       p( 1) = xmin
       do jj = 1, n_sub
         p( 2) = ymintol + (ymaxtol - ymintol) * real( jj-1,dp) / real( n_sub-1,dp)
-        call trace_line_grid_start( grid, p, aij_in, bij_on, cxij_on, cyij_on)
-        coinc_ind = old2new_coinc_ind( aij_in, bij_on, cxij_on, cyij_on, .false.)
+        call trace_line_grid_start( grid, p, coinc_ind)
         verified_p_on_cx = verified_p_on_cx .and. &
           coinc_ind%grid == cx_grid .and. &
           coinc_ind%i    == i-1 .and. &
@@ -277,8 +256,7 @@ contains
       p( 1) = xmax
       do jj = 1, n_sub
         p( 2) = ymintol + (ymaxtol - ymintol) * real( jj-1,dp) / real( n_sub-1,dp)
-        call trace_line_grid_start( grid, p, aij_in, bij_on, cxij_on, cyij_on)
-        coinc_ind = old2new_coinc_ind( aij_in, bij_on, cxij_on, cyij_on, .false.)
+        call trace_line_grid_start( grid, p, coinc_ind)
         verified_p_on_cx = verified_p_on_cx .and. &
           coinc_ind%grid == cx_grid .and. &
           coinc_ind%i    == i .and. &
@@ -311,7 +289,6 @@ contains
     integer                        :: i,j,n_sub,ii
     real(dp)                       :: x, y, xmin, xmax, ymin, ymax, xmintol, xmaxtol
     real(dp), dimension(2)         :: p
-    integer, dimension(2)          :: aij_in, bij_on, cxij_on, cyij_on
     type(type_coinc_ind_grid)      :: coinc_ind
     logical                        :: verified_p_on_cy
 
@@ -323,12 +300,8 @@ contains
 
     verified_p_on_cy = .true.
 
-    ! DENK DROM
-    if (par%master) call warning('DENK DROM - test_trace_line_grid_start_p_on_cy'//&
-      ' only loops over grid interior; trace_line_grid_start'//&
-      ' cannot yet handle the border cells properly; fix this!')
-    do i = 2, grid%nx-1
-    do j = 2, grid%ny-1
+    do i = 1, grid%nx
+    do j = 1, grid%ny
 
       x = grid%x( i)
       y = grid%y( j)
@@ -345,8 +318,7 @@ contains
       p( 2) = ymin
       do ii = 1, n_sub
         p( 1) = xmintol + (xmaxtol - xmintol) * real( ii-1,dp) / real( n_sub-1,dp)
-        call trace_line_grid_start( grid, p, aij_in, bij_on, cxij_on, cyij_on)
-        coinc_ind = old2new_coinc_ind( aij_in, bij_on, cxij_on, cyij_on, .false.)
+        call trace_line_grid_start( grid, p, coinc_ind)
         verified_p_on_cy = verified_p_on_cy .and. &
           coinc_ind%grid == cy_grid .and. &
           coinc_ind%i    == i .and. &
@@ -357,8 +329,7 @@ contains
       p( 2) = ymax
       do ii = 1, n_sub
         p( 1) = xmintol + (xmaxtol - xmintol) * real( ii-1,dp) / real( n_sub-1,dp)
-        call trace_line_grid_start( grid, p, aij_in, bij_on, cxij_on, cyij_on)
-        coinc_ind = old2new_coinc_ind( aij_in, bij_on, cxij_on, cyij_on, .false.)
+        call trace_line_grid_start( grid, p, coinc_ind)
         verified_p_on_cy = verified_p_on_cy .and. &
           coinc_ind%grid == cy_grid .and. &
           coinc_ind%i    == i .and. &

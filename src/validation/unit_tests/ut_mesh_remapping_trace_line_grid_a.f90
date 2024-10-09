@@ -8,7 +8,7 @@ module ut_mesh_remapping_trace_line_grid_a
   use precisions, only: dp
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, warning
   use grid_types, only: type_grid
-  use ut_mesh_remapping_trace_line_grid_basic
+  use line_tracing_basic
   use mpi_basic, only: par
 
   implicit none
@@ -65,7 +65,6 @@ contains
     integer                        :: i,j,n_sub,iip,jjp,iiq,jjq
     real(dp)                       :: x, y, xmin, xmax, ymin, ymax, xmintol, xmaxtol, ymintol, ymaxtol
     real(dp), dimension(2)         :: p, q, p_next
-    integer, dimension(2)          :: aij_in, bij_on, cxij_on, cyij_on
     type(type_coinc_ind_grid)      :: coinc_ind
     integer                        :: n_left
     logical                        :: coincides, finished
@@ -79,12 +78,8 @@ contains
 
     verified_q_inside_a = .true.
 
-    ! DENK DROM
-    if (par%master) call warning('DENK DROM - test_trace_line_grid_a_q_inside_a'//&
-      ' only loops over grid interior; trace_line_grid_a'//&
-      ' cannot yet handle the border cells properly; fix this!')
-    do i = 2, grid%nx-1
-    do j = 2, grid%ny-1
+    do i = 1, grid%nx
+    do j = 1, grid%ny
 
       x = grid%x( i)
       y = grid%y( j)
@@ -115,14 +110,12 @@ contains
           q( 1) = xmintol + (xmaxtol - xmintol) * real( iiq-1,dp) / real( n_sub-1,dp)
           q( 2) = ymintol + (ymaxtol - ymintol) * real( jjq-1,dp) / real( n_sub-1,dp)
 
-          aij_in  = [i,j]
-          bij_on  = [0,0]
-          cxij_on = [0,0]
-          cyij_on = [0,0]
+          coinc_ind%grid = a_grid
+          coinc_ind%i    = i
+          coinc_ind%j    = j
 
           call trace_line_grid_a( grid, p, q, &
-            aij_in, bij_on, cxij_on, cyij_on, p_next, n_left, coincides, finished)
-          coinc_ind = old2new_coinc_ind( aij_in, bij_on, cxij_on, cyij_on, finished)
+            coinc_ind, p_next, n_left, coincides, finished)
 
           verified_q_inside_a = verified_q_inside_a .and. &
             test_tol( p_next, q, grid%tol_dist) .and. &
@@ -164,7 +157,6 @@ contains
     integer                        :: i,j,n_sub,iip,jjp
     real(dp)                       :: x, y, xmin, xmax, ymin, ymax, xmintol, xmaxtol, ymintol, ymaxtol
     real(dp), dimension(2)         :: p, q, p_next
-    integer, dimension(2)          :: aij_in, bij_on, cxij_on, cyij_on
     type(type_coinc_ind_grid)      :: coinc_ind
     integer                        :: n_left
     logical                        :: coincides, finished
@@ -178,12 +170,8 @@ contains
 
     verified_pq_exits_through_b = .true.
 
-    ! DENK DROM
-    if (par%master) call warning('DENK DROM - test_trace_line_grid_a_pq_exits_through_b'//&
-      ' only loops over grid interior; trace_line_grid_a'//&
-      ' cannot yet handle the border cells properly; fix this!')
-    do i = 2, grid%nx-1
-    do j = 2, grid%ny-1
+    do i = 1, grid%nx
+    do j = 1, grid%ny
 
       x = grid%x( i)
       y = grid%y( j)
@@ -212,14 +200,12 @@ contains
         q(1) = 2*xmin - p(1)
         q(2) = 2*ymin - p(2)
 
-        aij_in  = [i,j]
-        bij_on  = [0,0]
-        cxij_on = [0,0]
-        cyij_on = [0,0]
+        coinc_ind%grid = a_grid
+        coinc_ind%i    = i
+        coinc_ind%j    = j
 
         call trace_line_grid_a( grid, p, q, &
-          aij_in, bij_on, cxij_on, cyij_on, p_next, n_left, coincides, finished)
-        coinc_ind = old2new_coinc_ind( aij_in, bij_on, cxij_on, cyij_on, finished)
+          coinc_ind, p_next, n_left, coincides, finished)
 
         verified_pq_exits_through_b = verified_pq_exits_through_b .and. &
           test_tol( p_next, [xmin,ymin], grid%tol_dist) .and. &
@@ -235,14 +221,12 @@ contains
         q(1) = 2*xmin - p(1)
         q(2) = 2*ymax - p(2)
 
-        aij_in  = [i,j]
-        bij_on  = [0,0]
-        cxij_on = [0,0]
-        cyij_on = [0,0]
+        coinc_ind%grid = a_grid
+        coinc_ind%i    = i
+        coinc_ind%j    = j
 
         call trace_line_grid_a( grid, p, q, &
-          aij_in, bij_on, cxij_on, cyij_on, p_next, n_left, coincides, finished)
-        coinc_ind = old2new_coinc_ind( aij_in, bij_on, cxij_on, cyij_on, finished)
+          coinc_ind, p_next, n_left, coincides, finished)
 
         verified_pq_exits_through_b = verified_pq_exits_through_b .and. &
           test_tol( p_next, [xmin,ymax], grid%tol_dist) .and. &
@@ -258,14 +242,12 @@ contains
         q(1) = 2*xmax - p(1)
         q(2) = 2*ymin - p(2)
 
-        aij_in  = [i,j]
-        bij_on  = [0,0]
-        cxij_on = [0,0]
-        cyij_on = [0,0]
+        coinc_ind%grid = a_grid
+        coinc_ind%i    = i
+        coinc_ind%j    = j
 
         call trace_line_grid_a( grid, p, q, &
-          aij_in, bij_on, cxij_on, cyij_on, p_next, n_left, coincides, finished)
-        coinc_ind = old2new_coinc_ind( aij_in, bij_on, cxij_on, cyij_on, finished)
+          coinc_ind, p_next, n_left, coincides, finished)
 
         verified_pq_exits_through_b = verified_pq_exits_through_b .and. &
           test_tol( p_next, [xmax,ymin], grid%tol_dist) .and. &
@@ -281,14 +263,12 @@ contains
         q(1) = 2*xmax - p(1)
         q(2) = 2*ymax - p(2)
 
-        aij_in  = [i,j]
-        bij_on  = [0,0]
-        cxij_on = [0,0]
-        cyij_on = [0,0]
+        coinc_ind%grid = a_grid
+        coinc_ind%i    = i
+        coinc_ind%j    = j
 
         call trace_line_grid_a( grid, p, q, &
-          aij_in, bij_on, cxij_on, cyij_on, p_next, n_left, coincides, finished)
-        coinc_ind = old2new_coinc_ind( aij_in, bij_on, cxij_on, cyij_on, finished)
+          coinc_ind, p_next, n_left, coincides, finished)
 
         verified_pq_exits_through_b = verified_pq_exits_through_b .and. &
           test_tol( p_next, [xmax,ymax], grid%tol_dist) .and. &
@@ -327,7 +307,6 @@ contains
     integer                        :: i,j,n_sub,iip,jjp
     real(dp)                       :: x, y, xmin, xmax, ymin, ymax, xmintol, xmaxtol, ymintol, ymaxtol
     real(dp), dimension(2)         :: p, q, p_next
-    integer, dimension(2)          :: aij_in, bij_on, cxij_on, cyij_on
     type(type_coinc_ind_grid)      :: coinc_ind
     integer                        :: n_left
     logical                        :: coincides, finished
@@ -341,12 +320,8 @@ contains
 
     verified_pq_exits_through_cx = .true.
 
-    ! DENK DROM
-    if (par%master) call warning('DENK DROM - test_trace_line_grid_a_pq_exits_through_cx'//&
-      ' only loops over grid interior; trace_line_grid_a'//&
-      ' cannot yet handle the border cells properly; fix this!')
-    do i = 2, grid%nx-1
-    do j = 2, grid%ny-1
+    do i = 1, grid%nx
+    do j = 1, grid%ny
 
       x = grid%x( i)
       y = grid%y( j)
@@ -375,14 +350,12 @@ contains
         q(1) = 2*xmin - p(1)
         q(2) = p(2)
 
-        aij_in  = [i,j]
-        bij_on  = [0,0]
-        cxij_on = [0,0]
-        cyij_on = [0,0]
+        coinc_ind%grid = a_grid
+        coinc_ind%i    = i
+        coinc_ind%j    = j
 
         call trace_line_grid_a( grid, p, q, &
-          aij_in, bij_on, cxij_on, cyij_on, p_next, n_left, coincides, finished)
-        coinc_ind = old2new_coinc_ind( aij_in, bij_on, cxij_on, cyij_on, finished)
+          coinc_ind, p_next, n_left, coincides, finished)
 
         verified_pq_exits_through_cx = verified_pq_exits_through_cx .and. &
           test_tol( p_next, [xmin,p(2)], grid%tol_dist) .and. &
@@ -398,14 +371,12 @@ contains
         q(1) = 2*xmax - p(1)
         q(2) = p(2)
 
-        aij_in  = [i,j]
-        bij_on  = [0,0]
-        cxij_on = [0,0]
-        cyij_on = [0,0]
+        coinc_ind%grid = a_grid
+        coinc_ind%i    = i
+        coinc_ind%j    = j
 
         call trace_line_grid_a( grid, p, q, &
-          aij_in, bij_on, cxij_on, cyij_on, p_next, n_left, coincides, finished)
-        coinc_ind = old2new_coinc_ind( aij_in, bij_on, cxij_on, cyij_on, finished)
+          coinc_ind, p_next, n_left, coincides, finished)
 
         verified_pq_exits_through_cx = verified_pq_exits_through_cx .and. &
           test_tol( p_next, [xmax,p(2)], grid%tol_dist) .and. &
@@ -444,7 +415,6 @@ contains
     integer                        :: i,j,n_sub,iip,jjp
     real(dp)                       :: x, y, xmin, xmax, ymin, ymax, xmintol, xmaxtol, ymintol, ymaxtol
     real(dp), dimension(2)         :: p, q, p_next
-    integer, dimension(2)          :: aij_in, bij_on, cxij_on, cyij_on
     type(type_coinc_ind_grid)      :: coinc_ind
     integer                        :: n_left
     logical                        :: coincides, finished
@@ -458,12 +428,8 @@ contains
 
     verified_pq_exits_through_cy = .true.
 
-    ! DENK DROM
-    if (par%master) call warning('DENK DROM - test_trace_line_grid_a_pq_exits_through_cy'//&
-      ' only loops over grid interior; trace_line_grid_a'//&
-      ' cannot yet handle the border cells properly; fix this!')
-    do i = 2, grid%nx-1
-    do j = 2, grid%ny-1
+    do i = 1, grid%nx
+    do j = 1, grid%ny
 
       x = grid%x( i)
       y = grid%y( j)
@@ -492,14 +458,12 @@ contains
         q(1) = p(1)
         q(2) = 2*ymin - p(2)
 
-        aij_in  = [i,j]
-        bij_on  = [0,0]
-        cxij_on = [0,0]
-        cyij_on = [0,0]
+        coinc_ind%grid = a_grid
+        coinc_ind%i    = i
+        coinc_ind%j    = j
 
         call trace_line_grid_a( grid, p, q, &
-          aij_in, bij_on, cxij_on, cyij_on, p_next, n_left, coincides, finished)
-        coinc_ind = old2new_coinc_ind( aij_in, bij_on, cxij_on, cyij_on, finished)
+          coinc_ind, p_next, n_left, coincides, finished)
 
         verified_pq_exits_through_cy = verified_pq_exits_through_cy .and. &
           test_tol( p_next, [p(1),ymin], grid%tol_dist) .and. &
@@ -515,14 +479,12 @@ contains
         q(1) = p(1)
         q(2) = 2*ymax - p(2)
 
-        aij_in  = [i,j]
-        bij_on  = [0,0]
-        cxij_on = [0,0]
-        cyij_on = [0,0]
+        coinc_ind%grid = a_grid
+        coinc_ind%i    = i
+        coinc_ind%j    = j
 
         call trace_line_grid_a( grid, p, q, &
-          aij_in, bij_on, cxij_on, cyij_on, p_next, n_left, coincides, finished)
-        coinc_ind = old2new_coinc_ind( aij_in, bij_on, cxij_on, cyij_on, finished)
+          coinc_ind, p_next, n_left, coincides, finished)
 
         verified_pq_exits_through_cy = verified_pq_exits_through_cy .and. &
           test_tol( p_next, [p(1),ymax], grid%tol_dist) .and. &
