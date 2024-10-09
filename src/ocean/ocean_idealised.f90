@@ -40,13 +40,14 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Run the chosen idealised ocean model
-    IF (C%choice_ocean_model_idealised == 'ISOMIP') THEN
-      ! No need to do anything 
-    ELSEIF (C%choice_ocean_model_idealised == 'TANH') THEN
-      ! No need to do anything 
-    ELSE
-      CALL crash('unknown choice_ocean_model_idealised "' // TRIM( C%choice_ocean_model_idealised) // '"')
-    END IF
+    SELECT CASE (C%choice_ocean_model_idealised)
+      CASE DEFAULT
+        CALL crash('unknown choice_ocean_model_idealised "' // TRIM( C%choice_ocean_model_idealised) // '"')
+      CASE ('ISOMIP')
+        ! No need to do anything 
+      CASE ('TANH') 
+        ! No need to do anything 
+    END SELECT
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -75,13 +76,14 @@ CONTAINS
       colour_string( TRIM( C%choice_ocean_model_idealised),'light blue') // '"...'
 
     ! Run the chosen idealised ocean model
-    IF (C%choice_ocean_model_idealised == 'ISOMIP') THEN
-      CALL initialise_ocean_model_idealised_ISOMIP( mesh, ocean)
-    ELSEIF (C%choice_ocean_model_idealised == 'TANH') THEN
-      CALL initialise_ocean_model_idealised_TANH( mesh, ocean)
-    ELSE
-      CALL crash('unknown choice_ocean_model_idealised "' // TRIM( C%choice_ocean_model_idealised) // '"')
-    END IF
+    SELECT CASE (C%choice_ocean_model_idealised)
+      CASE DEFAULT
+        CALL crash('unknown choice_ocean_model_idealised "' // TRIM( C%choice_ocean_model_idealised) // '"')
+      CASE ('ISOMIP')
+        CALL initialise_ocean_model_idealised_ISOMIP( mesh, ocean)
+      CASE ('TANH') 
+        CALL initialise_ocean_model_idealised_TANH( mesh, ocean)
+    END SELECT
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -113,15 +115,16 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Define scenario-dependent parameters
-    IF (C%choice_ocean_isomip_scenario == 'WARM') THEN
-      T1 = 1.0_dp
-      S1 = 34.7_dp
-    ELSEIF (C%choice_ocean_isomip_scenario == 'COLD') THEN
-      T1 = -1.9_dp
-      S1 = 34.55_dp
-    ELSE
-      CALL crash('unknown choice_ocean_isomip_scenario "' // TRIM( C%choice_ocean_isomip_scenario) // '"')
-    END IF
+    SELECT CASE (C%choice_ocean_isomip_scenario)
+      CASE DEFAULT
+        CALL crash('unknown choice_ocean_isomip_scenario "' // TRIM( C%choice_ocean_isomip_scenario) // '"')
+      CASE ('WARM')
+        T1 = 1.0_dp
+        S1 = 34.7_dp
+      CASE ('COLD')
+        T1 = -1.9_dp
+        S1 = 34.55_dp
+    END SELECT
     
     DO vi = mesh%vi1, mesh%vi2
       DO k = 1, C%nz_ocean
