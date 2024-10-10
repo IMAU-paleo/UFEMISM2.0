@@ -117,7 +117,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_entrainment'
     INTEGER                                               :: vi
-    REAL(dp), PARAMETER                                   :: mindrho = 0.001_dp
+    REAL(dp), PARAMETER                                   :: mindrho = 0.000001_dp
  
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -193,7 +193,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_buoyancy'
     INTEGER                                               :: vi
-    REAL(dp), PARAMETER                                   :: mindrho = 0.001_dp
+    REAL(dp), PARAMETER                                   :: mindrho = 0.000001_dp
  
     ! Add routine to path
     CALL init_routine( routine_name)
