@@ -138,7 +138,7 @@ CONTAINS
 
          ! Get entrainment
          laddie%entr( vi) = 2*C%laddie_Gaspar1988_mu/grav & 
-                          * laddie%u_star( vi)**3 / (Hstar( vi) * laddie%drho_base( vi)) &
+                          * laddie%u_star( vi)**3 / (Hstar( vi) * laddie%drho_amb( vi)) &
                           - laddie%drho_base( vi) / laddie%drho_amb( vi) * laddie%melt( vi)
 
          ! Get detrainment = negative component of entrainment
