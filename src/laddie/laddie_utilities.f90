@@ -299,7 +299,7 @@ CONTAINS
 
           ! Calculate vertically averaged ice velocity component perpendicular to this edge
           ! TODO check sign. u_perp should be positive when flow exits triangle
-          u_perp = U_c_tot( ei) * L_y/L_c + V_c_tot( ei) * L_x/L_c
+          u_perp = - U_c_tot( ei) * L_y/L_c + V_c_tot( ei) * L_x/L_c
 
           ! Calculate matrix coefficients
           ! =============================
