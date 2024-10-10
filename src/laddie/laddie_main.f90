@@ -55,6 +55,7 @@ CONTAINS
     REAL(dp)                                              :: dt               ! [s] Laddie time step
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: Hstar            ! [m] Reference thickness in integration
     LOGICAL, DIMENSION(mesh%nV)                           :: mask_a_tot
+    LOGICAL, DIMENSION(mesh%nV)                           :: mask_a_gr_tot
  
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -69,11 +70,14 @@ CONTAINS
     ! == Update masks ==
     ! Mask on a grid
     DO vi = mesh%vi1, mesh%vi2
-      laddie%mask_a( vi)  = ice%mask_floating_ice( vi)
+      laddie%mask_a( vi)    = ice%mask_floating_ice( vi)
+      laddie%mask_gr_a( vi) = ice%mask_grounded_ice( vi)
     END DO
 
     ! Mask on b grid
     CALL gather_to_all_logical_1D( laddie%mask_a, mask_a_tot)
+    CALL gather_to_all_logical_1D( laddie%mask_gr_a, mask_a_gr_tot)
+
     DO ti = mesh%ti1, mesh%ti2
       ! Initialise as false to overwrite previous mask
       laddie%mask_b( ti) = .false.
@@ -83,6 +87,14 @@ CONTAINS
         IF (mask_a_tot( vi)) THEN
           ! Set true if any of the three vertices is floating
           laddie%mask_b( ti) = .true.
+        END IF
+      END DO
+      ! Loop over connecing vertices and check whether any of them is grounded
+      DO i = 1, 3
+        vi = mesh%Tri( ti, i)
+        IF (mask_a_gr_tot( vi)) THEN
+          ! Set false if any of the three vertices is grounded
+          laddie%mask_b( ti) = .false.
         END IF
       END DO
     END DO
