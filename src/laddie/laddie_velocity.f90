@@ -50,7 +50,6 @@ CONTAINS
     ! =================
 
     ! Loop over vertices
-    ! TODO apply only to laddie%mask_b
     DO ti = mesh%ti1, mesh%ti2
       IF (laddie%mask_b( ti)) THEN
         ! Get dHU_dt
@@ -74,7 +73,6 @@ CONTAINS
     ! =================
 
     ! Loop over vertices
-    ! TODO apply only to laddie%mask_b
     DO ti = mesh%ti1, mesh%ti2
       IF (laddie%mask_b( ti)) THEN
         ! Get dHV_dt
@@ -82,7 +80,7 @@ CONTAINS
                 - grav * laddie%Hdrho_amb_b( ti) * laddie%dH_dy_b( ti) &
                 + grav * laddie%Hdrho_amb_b( ti) * laddie%dHib_dy_b( ti) &
                 - .5*grav * laddie%H_b( ti)**2 * laddie%ddrho_amb_dy_b( ti) &
-                - C%uniform_laddie_coriolis_parameter * laddie%H_b( ti) * laddie%V( ti) &
+                - C%uniform_laddie_coriolis_parameter * laddie%H_b( ti) * laddie%U( ti) &
                 - C%laddie_drag_coefficient * laddie%V( ti) * (laddie%U( ti)**2 + laddie%V( ti)**2)**.5 &
                 + laddie%viscV( ti) &
                 - laddie%detr_b( ti) * laddie%V( ti)
