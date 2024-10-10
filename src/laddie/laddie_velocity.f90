@@ -38,7 +38,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_UV_np1'
     INTEGER                                               :: ti, ci, nfl, vj
-    REAL(dp)                                              :: dHUdt, dHVdt, HU_next, HV_next, PGF_x, PGF_y, Hdrho_fl
+    REAL(dp)                                              :: dHUdt, dHVdt, HU_next, HV_next, PGF_x, PGF_y, Hdrho_fl, Uabs
     LOGICAL, DIMENSION(mesh%nV)                           :: mask_a_tot
     REAL(dp), DIMENSION(mesh%nV)                          :: Hdrho_amb_tot
  
@@ -118,7 +118,18 @@ CONTAINS
       END IF ! (laddie%mask_b( ti))
     END DO !ti = mesh%ti1, mesh%ti2
 
-    ! TODO add cutoff by multiplying UVnext by uabsmax/abs(uabs)
+    ! Cutoff velocities to ensure Uabs <= Uabs_max
+    DO ti = mesh%ti1, mesh%ti2
+      IF (laddie%mask_b( ti)) THEN
+        ! Get absolute velocity
+        Uabs = (laddie%U_next( ti)**2 + laddie%V_next( ti)**2)**.5
+        
+        ! Scale U and V 
+        laddie%U_next( ti) = laddie%U_next( ti) * MIN(1.0_dp, C%laddie_velocity_maximum/Uabs)
+        laddie%V_next( ti) = laddie%V_next( ti) * MIN(1.0_dp, C%laddie_velocity_maximum/Uabs)
+      END IF ! (laddie%mask_b( ti))
+    END DO !ti = mesh%ti1, mesh%ti2
+
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
