@@ -123,6 +123,7 @@ CONTAINS
     REAL(dp), DIMENSION(mesh%nTri)                        :: V_tot
     REAL(dp), DIMENSION(mesh%ti1:mesh%ti2)                :: Hstar_b
     LOGICAL, DIMENSION(mesh%nV)                           :: mask_a_tot
+    LOGICAL, DIMENSION(mesh%nTri)                         :: mask_gr_b_tot
     
     ! Add routine to path
     CALL init_routine( routine_name)        
@@ -131,6 +132,7 @@ CONTAINS
     CALL gather_to_all_dp_1D( laddie%U, U_tot)            
     CALL gather_to_all_dp_1D( laddie%V, V_tot)            
     CALL gather_to_all_logical_1D( laddie%mask_a, mask_a_tot)
+    CALL gather_to_all_logical_1D( laddie%mask_gr_b, mask_gr_b_tot)
 
     ! Map Hstar
     CALL map_a_b_2D( mesh, Hstar, Hstar_b)
@@ -150,21 +152,16 @@ CONTAINS
         DO i = 1, 3
           tj = mesh%TriC( ti, i)
 
-          IF (tj>0) THEN
-            ! Check whether at least 2 of 3 vertices are floating to use neighbouring velocity, otherwise d/dx = d/dy = 0
-            nf2 = 0
-            DO j = 1, 3
-              vj = mesh%Tri( tj, j)
-              IF (mask_a_tot( vj)) THEN
-                nf2 = nf2 + 1
-              END IF
-            END DO
-
-            ! Can simply skip non-floating vertices to ensure d/dx = d/dy = 0 at boundaries
-            IF (nf2 > 1) THEN
-              laddie%viscU( ti) = laddie%viscU( ti) + (U_tot( tj)-laddie%U( ti)) * laddie%A_h( ti) * Hstar_b( ti) / mesh%TriA( ti)
-              laddie%viscV( ti) = laddie%viscV( ti) + (V_tot( tj)-laddie%V( ti)) * laddie%A_h( ti) * Hstar_b( ti) / mesh%TriA( ti)
-            END IF
+          IF (tj==0) THEN
+            ! Border or corner. For now, assume no slip. If free slip: CYCLE
+            laddie%viscU( ti) = laddie%viscU( ti) - laddie%U( ti) * laddie%A_h( ti) * Hstar_b( ti) / mesh%TriA( ti)
+            laddie%viscV( ti) = laddie%viscV( ti) - laddie%V( ti) * laddie%A_h( ti) * Hstar_b( ti) / mesh%TriA( ti)
+          ! TODO add CYCLE if neighbour is ocean. Again: d/dx = d/dy = 0
+          ELSE
+            ! Add viscosity flux based on dU/dx and dV/dy. 
+            ! Note: for grounded neighbours, U_tot( tj) = 0, meaning this is a no slip option. Can be expanded
+            laddie%viscU( ti) = laddie%viscU( ti) + (U_tot( tj)-laddie%U( ti)) * laddie%A_h( ti) * Hstar_b( ti) / mesh%TriA( ti)
+            laddie%viscV( ti) = laddie%viscV( ti) + (V_tot( tj)-laddie%V( ti)) * laddie%A_h( ti) * Hstar_b( ti) / mesh%TriA( ti)
           END IF
         END DO
 
