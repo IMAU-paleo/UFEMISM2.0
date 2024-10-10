@@ -37,61 +37,86 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_UV_np1'
-    INTEGER                                               :: ti
-    REAL(dp)                                              :: dHUdt, dHVdt, HU_next, HV_next, PGF
+    INTEGER                                               :: ti, ci, nfl, vj
+    REAL(dp)                                              :: dHUdt, dHVdt, HU_next, HV_next, PGF_x, PGF_y, Hdrho_fl
+    LOGICAL, DIMENSION(mesh%nV)                           :: mask_a_tot
+    REAL(dp), DIMENSION(mesh%nV)                          :: Hdrho_amb_tot
  
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! == Integrate U ==
-    ! =================
+    CALL gather_to_all_logical_1D( laddie%mask_a, mask_a_tot)
+    CALL gather_to_all_dp_1D( laddie%Hdrho_amb, Hdrho_amb_tot)
+
+    ! == Integrate U and V ==
+    ! =======================
 
     ! Loop over vertices
     DO ti = mesh%ti1, mesh%ti2
       IF (laddie%mask_b( ti)) THEN
 
-        ! Get pressure gradient force
-        PGF =   - grav * laddie%Hdrho_amb_b( ti) * laddie%dH_dx_b( ti) &
-                + grav * laddie%Hdrho_amb_b( ti) * laddie%dHib_dx_b( ti) &
-                - 0.5*grav * laddie%H_b( ti)**2 * laddie%ddrho_amb_dx_b( ti)
+        ! == pressure gradient force ==
+        ! =============================
 
-        ! Get dHU_dt
+        IF (laddie%mask_cf_b( ti)) THEN
+          ! Assume dH/dx and ddrho/dx = 0
+          ! Get nearest neighbour Hdrho from floating vertices
+          nfl = 0
+          Hdrho_fl = 0
+          DO ci = 1, 3
+            vj = mesh%Tri( ti, ci)
+            IF (vj == 0) CYCLE
+            IF (mask_a_tot( vj)) THEN
+              nfl = nfl + 1
+              Hdrho_fl = Hdrho_fl + Hdrho_amb_tot( vj)
+            END IF
+          END DO
+          ! Define PGF at calving front
+          PGF_x =   grav * Hdrho_fl/nfl * laddie%dHib_dx_b( ti)
+          PGF_y =   grav * Hdrho_fl/nfl * laddie%dHib_dy_b( ti)
+        ELSE
+          ! Regular full expression
+          PGF_x = - grav * laddie%Hdrho_amb_b( ti) * laddie%dH_dx_b( ti) &
+                  + grav * laddie%Hdrho_amb_b( ti) * laddie%dHib_dx_b( ti) &
+                  - 0.5*grav * laddie%H_b( ti)**2 * laddie%ddrho_amb_dx_b( ti)
+
+          PGF_y = - grav * laddie%Hdrho_amb_b( ti) * laddie%dH_dy_b( ti) &
+                  + grav * laddie%Hdrho_amb_b( ti) * laddie%dHib_dy_b( ti) &
+                  - 0.5*grav * laddie%H_b( ti)**2 * laddie%ddrho_amb_dy_b( ti)
+        END IF
+
+        ! == time derivatives ==
+        ! ======================
+
+        ! dHU_dt
         dHUdt = - laddie%divQU( ti) &
-                + PGF &
+                + PGF_x &
                 + C%uniform_laddie_coriolis_parameter * laddie%H_b( ti) * laddie%V( ti) &
                 - C%laddie_drag_coefficient * laddie%U( ti) * (laddie%U( ti)**2 + laddie%V( ti)**2)**.5 &
                 + laddie%viscU( ti) &
                 - laddie%detr_b( ti) * laddie%U( ti)
 
-        ! HU_n = HU_n + dHU_dt * dt
-        HU_next = laddie%U( ti)*laddie%H_b( ti) + dHUdt * dt
-
-        laddie%U_next( ti) = HU_next / laddie%H_b_next( ti)
-      END IF ! (laddie%mask_b( ti))
-    END DO !ti = mesh%ti1, mesh%ti2
-
-    ! == Integrate V ==
-    ! =================
-
-    ! Loop over vertices
-    DO ti = mesh%ti1, mesh%ti2
-      IF (laddie%mask_b( ti)) THEN
-        ! Get dHV_dt
+        ! dHV_dt
         dHVdt = - laddie%divQV( ti) &
-                - grav * laddie%Hdrho_amb_b( ti) * laddie%dH_dy_b( ti) &
-                + grav * laddie%Hdrho_amb_b( ti) * laddie%dHib_dy_b( ti) &
-                - 0.5*grav * laddie%H_b( ti)**2 * laddie%ddrho_amb_dy_b( ti) &
+                + PGF_y &
                 - C%uniform_laddie_coriolis_parameter * laddie%H_b( ti) * laddie%U( ti) &
                 - C%laddie_drag_coefficient * laddie%V( ti) * (laddie%U( ti)**2 + laddie%V( ti)**2)**.5 &
                 + laddie%viscV( ti) &
                 - laddie%detr_b( ti) * laddie%V( ti)
 
-        ! HV_n = HV_n + dHV_dt * dt
+        ! == next time step ==
+        ! ====================
+
+        ! HU_n = HU_n + dHU_dt * dt
+        HU_next = laddie%U( ti)*laddie%H_b( ti) + dHUdt * dt
         HV_next = laddie%V( ti)*laddie%H_b( ti) + dHVdt * dt
 
+        ! U_n = HU_n / H_n
+        laddie%U_next( ti) = HU_next / laddie%H_b_next( ti)
         laddie%V_next( ti) = HV_next / laddie%H_b_next( ti)
+
       END IF ! (laddie%mask_b( ti))
-    END DO !vi = mesh%vi, mesh%v2
+    END DO !ti = mesh%ti1, mesh%ti2
 
     ! TODO add cutoff by multiplying UVnext by uabsmax/abs(uabs)
 
