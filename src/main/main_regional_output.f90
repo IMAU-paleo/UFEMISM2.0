@@ -1254,9 +1254,11 @@ CONTAINS
         CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%H, d_grid_vec_partial_2D)
         CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'H_lad', d_grid_vec_partial_2D)
       CASE ('U_lad')
-        ! NOTE: mapping from mesh triangles to square grid is not (yet) available!
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%U_a, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'U_lad', d_grid_vec_partial_2D)
       CASE ('V_lad')
-        ! NOTE: mapping from mesh triangles to square grid is not (yet) available!
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%V_a, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'V_lad', d_grid_vec_partial_2D)
       CASE ('T_lad')
         CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%T, d_grid_vec_partial_2D)
         CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'T_lad', d_grid_vec_partial_2D)
