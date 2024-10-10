@@ -55,7 +55,8 @@ CONTAINS
         dHTdt = -laddie%divQT( vi) &
               + laddie%melt( vi) * laddie%T_base( vi) &
               + MAX(0.0_dp,laddie%entr( vi)) * laddie%T_amb( vi) &
-              - laddie%detr( vi) * laddie%T( vi) &
+              + laddie%entr_dmin( vi) * laddie%T_amb( vi) &
+              - laddie%detr( vi) * laddie%T_amb( vi) &
               + laddie%diffT( vi) 
 
         ! HT_n = HT_n + dHT_dt * dt
@@ -74,7 +75,9 @@ CONTAINS
 
         ! Get dHS_dt
         dHSdt = -laddie%divQS( vi) &
-              + laddie%entr( vi) * laddie%S_amb( vi) &
+              + MAX(0.0_dp,laddie%entr( vi)) * laddie%S_amb( vi) &
+              + laddie%entr_dmin( vi) * laddie%S_amb( vi) &
+              - laddie%detr( vi) * laddie%S_amb( vi) &
               + laddie%diffS( vi)
 
         ! HS_n = HS_n + dHS_dt * dt

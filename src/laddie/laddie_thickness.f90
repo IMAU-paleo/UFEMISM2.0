@@ -52,7 +52,7 @@ CONTAINS
         laddie%H_next( vi) = laddie%H( vi) + dHdt * dt
 
         ! If H_n < Hmin, enhance entrainment to ensure H_n >= Hmin
-        laddie%entr( vi) = laddie%entr( vi) + MAX( C%laddie_thickness_minimum - laddie%H_next( vi), 0.0_dp) / dt
+        laddie%entr_dmin( vi) = MAX( C%laddie_thickness_minimum - laddie%H_next( vi), 0.0_dp) / dt
 
         ! If H_n > Hmax, suppress entrainment to ensure H_n <= Hmax
         laddie%entr( vi) = laddie%entr( vi) + MIN( C%laddie_thickness_maximum - laddie%H_next( vi), 0.0_dp) / dt
@@ -61,7 +61,7 @@ CONTAINS
         laddie%detr( vi) = - MIN(laddie%entr( vi),0.0_dp)
 
         ! Get actual dHdt
-        dHdt = -laddie%divQ( vi) + laddie%melt( vi) + laddie%entr( vi)
+        dHdt = -laddie%divQ( vi) + laddie%melt( vi) + laddie%entr( vi) + laddie%entr_dmin( vi)
 
         ! Get actual H_n
         laddie%H_next( vi) = laddie%H( vi) + dHdt * dt
