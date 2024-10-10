@@ -144,11 +144,12 @@ CONTAINS
         END IF
       END DO
 
-      ! TODO make laddie%mask_b
-      ! For now, just integrate everything
+      ! Move velocities by 1 time step
       DO ti = mesh%ti1, mesh%ti2
-        laddie%U( ti) = laddie%U_next( ti)
-        laddie%V( ti) = laddie%V_next( ti)
+        IF (laddie%mask_b( ti)) THEN
+          laddie%U( ti) = laddie%U_next( ti)
+          laddie%V( ti) = laddie%V_next( ti)
+        END IF
       END DO
 
       ! Display or save fields
