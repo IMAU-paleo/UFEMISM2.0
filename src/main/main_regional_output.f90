@@ -771,6 +771,20 @@ CONTAINS
       CASE ('S_lad')
         CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'S_lad', region%BMB%laddie%S)
 
+      ! Useful laddie fields
+      CASE ('drho_amb')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'drho_amb', region%BMB%laddie%drho_amb)
+      CASE ('drho_base')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'drho_base', region%BMB%laddie%drho_base)
+      CASE ('entr')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'entr', region%BMB%laddie%entr)
+      CASE ('entr_dmin')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'entr_dmin', region%BMB%laddie%entr_dmin)
+      CASE ('melt')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'melt', region%BMB%laddie%melt)
+      CASE ('divQH')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'divQH', region%BMB%laddie%divQ)
+
     ! == Lateral mass balance ==
     ! ==========================
 
@@ -1265,6 +1279,26 @@ CONTAINS
       CASE ('S_lad')
         CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%S, d_grid_vec_partial_2D)
         CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'S_lad', d_grid_vec_partial_2D)
+
+      ! Useful laddie fields
+      CASE ('drho_amb')
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%drho_amb, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'drho_amb', d_grid_vec_partial_2D)
+      CASE ('drho_base')
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%drho_base, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'drho_base', d_grid_vec_partial_2D)
+      CASE ('entr')
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%entr, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'entr', d_grid_vec_partial_2D)
+      CASE ('entr_dmin')
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%entr_dmin, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'entr_dmin', d_grid_vec_partial_2D)
+      CASE ('melt')
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%melt, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'melt', d_grid_vec_partial_2D)
+      CASE ('divQH')
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%divQ, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'divQH', d_grid_vec_partial_2D)
 
     ! == Lateral mass balance ==
     ! ==========================
@@ -2078,6 +2112,20 @@ CONTAINS
       CASE ('S_lad')
         CALL add_field_mesh_dp_2D( filename, ncid, 'S_lad', long_name = 'Laddie salinity', units = 'PSU')
 
+      ! Useful laddie fields
+      CASE ('drho_amb')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'drho_amb', long_name = 'Depth integrated buoyancy', units = 'kg m^-2')
+      CASE ('drho_base')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'drho_base', long_name = 'Depth integrated buoyancy', units = 'kg m^-2')
+      CASE ('entr')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'entr', long_name = 'Entrainment rate', units = 'm s^-1')
+      CASE ('entr_dmin')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'entr_dmin', long_name = 'Entrainment rate for Dmin', units = 'm s^-1')
+      CASE ('melt')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'melt', long_name = 'melt rate', units = 'm s^-1')
+      CASE ('divQH')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'divQH', long_name = 'thickness divergence', units = 'm s^-1')
+
     ! == Lateral mass balance ==
     ! ==========================
 
@@ -2466,6 +2514,20 @@ CONTAINS
         CALL add_field_grid_dp_2D( filename, ncid, 'T_lad', long_name = 'Laddie temperature', units = 'deg C')
       CASE ('S_lad')
         CALL add_field_grid_dp_2D( filename, ncid, 'S_lad', long_name = 'Laddie salinity', units = 'PSU')
+
+      ! Useful laddie fields
+      CASE ('drho_amb')
+        CALL add_field_grid_dp_2D( filename, ncid, 'drho_amb', long_name = 'Depth integrated buoyancy', units = 'kg m^-2')
+      CASE ('drho_base')
+        CALL add_field_grid_dp_2D( filename, ncid, 'drho_base', long_name = 'Depth integrated buoyancy', units = 'kg m^-2')
+      CASE ('entr')
+        CALL add_field_grid_dp_2D( filename, ncid, 'entr', long_name = 'Entrainment rate', units = 'm s^-1')
+      CASE ('entr_dmin')
+        CALL add_field_grid_dp_2D( filename, ncid, 'entr_dmin', long_name = 'Entrainment rate for Dmin', units = 'm s^-1')
+      CASE ('melt')
+        CALL add_field_grid_dp_2D( filename, ncid, 'melt', long_name = 'melt rate', units = 'm s^-1')
+      CASE ('divQH')
+        CALL add_field_grid_dp_2D( filename, ncid, 'divQH', long_name = 'Thickness divergence', units = 'm s^-1')
 
     ! == Lateral mass balance ==
     ! ==========================
