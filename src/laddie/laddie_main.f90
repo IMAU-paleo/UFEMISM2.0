@@ -80,7 +80,8 @@ CONTAINS
 
     DO ti = mesh%ti1, mesh%ti2
       ! Initialise as false to overwrite previous mask
-      laddie%mask_b( ti) = .false.
+      laddie%mask_b( ti)    = .false.
+      laddie%mask_gr_b( ti) = .false.
       ! Loop over connecing vertices and check whether they are floating
       DO i = 1, 3
         vi = mesh%Tri( ti, i)
@@ -93,8 +94,10 @@ CONTAINS
       DO i = 1, 3
         vi = mesh%Tri( ti, i)
         IF (mask_a_gr_tot( vi)) THEN
-          ! Set false if any of the three vertices is grounded
+          ! Omit from mask if any of the three vertices is grounded
           laddie%mask_b( ti) = .false.
+          ! Define as grounded triangle
+          laddie%mask_gr_b( ti) = .true.
         END IF
       END DO
     END DO
@@ -307,7 +310,7 @@ CONTAINS
     CALL map_laddie_velocities_from_b_to_c_2D( mesh, laddie%U, laddie%V, laddie%U_c, laddie%V_c)
 
     ! Compute divergence matrix
-    CALL calc_laddie_flux_divergence_matrix_upwind( mesh, laddie%U_c, laddie%V_c, laddie%mask_a, M_divQ)
+    CALL calc_laddie_flux_divergence_matrix_upwind( mesh, laddie%U_c, laddie%V_c, laddie%mask_a, laddie%mask_gr_a, M_divQ)
 
     ! Compute thickness divergence
     CALL multiply_CSR_matrix_with_vector_1D( M_divQ, laddie%H, laddie%divQ)
@@ -333,7 +336,7 @@ CONTAINS
     CALL multiply_CSR_matrix_with_vector_1D( M_divQ, HstarS, laddie%divQS)
 
     ! Compute divergence matrix on b grid
-    CALL calc_laddie_flux_divergence_matrix_upwind_b( mesh, laddie%U_c, laddie%V_c, laddie%mask_b, M_divQ_b)
+    CALL calc_laddie_flux_divergence_matrix_upwind_b( mesh, laddie%U_c, laddie%V_c, laddie%mask_b, laddie%mask_gr_b, M_divQ_b)
 
     ! Compute Hstar * U
     DO ti = mesh%ti1, mesh%ti2

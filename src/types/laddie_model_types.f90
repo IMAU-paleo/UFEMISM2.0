@@ -104,7 +104,9 @@ MODULE laddie_model_types
 
     ! Masks
     LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_a                      !                   Mask on a-grid on which to apply computation
+    LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_gr_a                   !                   Grounded mask on a-grid
     LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_b                      !                   Mask on b-grid on which to apply computation
+    LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_gr_b                   !                   Grounded mask on b-grid
     
   
   END TYPE type_laddie_model
