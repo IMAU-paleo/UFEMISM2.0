@@ -38,10 +38,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_UV_np1'
     INTEGER                                               :: ti
-    REAL(dp)                                              :: dHUdt
-    REAL(dp)                                              :: dHVdt
-    REAL(dp)                                              :: HU_next
-    REAL(dp)                                              :: HV_next
+    REAL(dp)                                              :: dHUdt, dHVdt, HU_next, HV_next, PGF
  
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -52,11 +49,15 @@ CONTAINS
     ! Loop over vertices
     DO ti = mesh%ti1, mesh%ti2
       IF (laddie%mask_b( ti)) THEN
+
+        ! Get pressure gradient force
+        PGF =   - grav * laddie%Hdrho_amb_b( ti) * laddie%dH_dx_b( ti) &
+                + grav * laddie%Hdrho_amb_b( ti) * laddie%dHib_dx_b( ti) &
+                - 0.5*grav * laddie%H_b( ti)**2 * laddie%ddrho_amb_dx_b( ti)
+
         ! Get dHU_dt
         dHUdt = - laddie%divQU( ti) &
-                - grav * laddie%Hdrho_amb_b( ti) * laddie%dH_dx_b( ti) &
-                + grav * laddie%Hdrho_amb_b( ti) * laddie%dHib_dx_b( ti) &
-                - .5*grav * laddie%H_b( ti)**2 * laddie%ddrho_amb_dx_b( ti) &
+                + PGF &
                 + C%uniform_laddie_coriolis_parameter * laddie%H_b( ti) * laddie%V( ti) &
                 - C%laddie_drag_coefficient * laddie%U( ti) * (laddie%U( ti)**2 + laddie%V( ti)**2)**.5 &
                 + laddie%viscU( ti) &
@@ -79,7 +80,7 @@ CONTAINS
         dHVdt = - laddie%divQV( ti) &
                 - grav * laddie%Hdrho_amb_b( ti) * laddie%dH_dy_b( ti) &
                 + grav * laddie%Hdrho_amb_b( ti) * laddie%dHib_dy_b( ti) &
-                - .5*grav * laddie%H_b( ti)**2 * laddie%ddrho_amb_dy_b( ti) &
+                - 0.5*grav * laddie%H_b( ti)**2 * laddie%ddrho_amb_dy_b( ti) &
                 - C%uniform_laddie_coriolis_parameter * laddie%H_b( ti) * laddie%U( ti) &
                 - C%laddie_drag_coefficient * laddie%V( ti) * (laddie%U( ti)**2 + laddie%V( ti)**2)**.5 &
                 + laddie%viscV( ti) &
@@ -123,7 +124,7 @@ CONTAINS
     REAL(dp), DIMENSION(mesh%nTri)                        :: V_tot
     REAL(dp), DIMENSION(mesh%ti1:mesh%ti2)                :: Hstar_b
     LOGICAL, DIMENSION(mesh%nV)                           :: mask_a_tot
-    LOGICAL, DIMENSION(mesh%nTri)                         :: mask_gr_b_tot
+    LOGICAL, DIMENSION(mesh%nTri)                         :: mask_gl_b_tot
     
     ! Add routine to path
     CALL init_routine( routine_name)        
@@ -132,7 +133,7 @@ CONTAINS
     CALL gather_to_all_dp_1D( laddie%U, U_tot)            
     CALL gather_to_all_dp_1D( laddie%V, V_tot)            
     CALL gather_to_all_logical_1D( laddie%mask_a, mask_a_tot)
-    CALL gather_to_all_logical_1D( laddie%mask_gr_b, mask_gr_b_tot)
+    CALL gather_to_all_logical_1D( laddie%mask_gl_b, mask_gl_b_tot)
 
     ! Map Hstar
     CALL map_a_b_2D( mesh, Hstar, Hstar_b)

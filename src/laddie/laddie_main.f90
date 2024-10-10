@@ -56,10 +56,11 @@ CONTAINS
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: Hstar            ! [m] Reference thickness in integration
     LOGICAL, DIMENSION(mesh%nV)                           :: mask_a_tot
     LOGICAL, DIMENSION(mesh%nV)                           :: mask_a_gr_tot
+    LOGICAL, DIMENSION(mesh%nV)                           :: mask_a_oc_tot
  
     ! Add routine to path
     CALL init_routine( routine_name)
- 
+
     ! == Preparation ==
     ! =================
 
@@ -72,16 +73,19 @@ CONTAINS
     DO vi = mesh%vi1, mesh%vi2
       laddie%mask_a( vi)    = ice%mask_floating_ice( vi)
       laddie%mask_gr_a( vi) = ice%mask_grounded_ice( vi)
+      laddie%mask_oc_a( vi) = ice%mask_icefree_ocean( vi)
     END DO
 
     ! Mask on b grid
     CALL gather_to_all_logical_1D( laddie%mask_a, mask_a_tot)
     CALL gather_to_all_logical_1D( laddie%mask_gr_a, mask_a_gr_tot)
+    CALL gather_to_all_logical_1D( laddie%mask_oc_a, mask_a_oc_tot)
 
     DO ti = mesh%ti1, mesh%ti2
       ! Initialise as false to overwrite previous mask
       laddie%mask_b( ti)    = .false.
-      laddie%mask_gr_b( ti) = .false.
+      laddie%mask_gl_b( ti) = .false.
+      laddie%mask_cf_b( ti) = .false.
       ! Loop over connecing vertices and check whether they are floating
       DO i = 1, 3
         vi = mesh%Tri( ti, i)
@@ -90,14 +94,20 @@ CONTAINS
           laddie%mask_b( ti) = .true.
         END IF
       END DO
-      ! Loop over connecing vertices and check whether any of them is grounded
+      ! Loop over connecing vertices 
       DO i = 1, 3
         vi = mesh%Tri( ti, i)
+        ! Check if any of them is grounded
         IF (mask_a_gr_tot( vi)) THEN
           ! Omit from mask if any of the three vertices is grounded
           laddie%mask_b( ti) = .false.
-          ! Define as grounded triangle
-          laddie%mask_gr_b( ti) = .true.
+          ! Define as grounding line triangle
+          laddie%mask_gl_b( ti) = .true.
+        END IF
+        ! Check if any of them is icefree ocean
+        IF (mask_a_oc_tot( vi)) THEN
+          ! Define as calving front triangle
+          laddie%mask_cf_b( ti) = .true.
         END IF
       END DO
     END DO
@@ -169,9 +179,9 @@ CONTAINS
 
       ! Display or save fields
       ! TODO
-      ! IF (par%master) THEN
-      !   WRITE( *, "(A,F8.3,A,F8.3,A,F8.3)") 'D', MAXVAL(laddie%H), 'T', MAXVAL(laddie%T), 'U', MAXVAL(laddie%U)
-      ! END IF     
+      IF (par%master) THEN
+        WRITE( *, "(A,F8.3,A,F8.3,A,F8.3)") 'D', MAXVAL(laddie%H), 'T', MAXVAL(laddie%T), 'U', MAXVAL(laddie%U)
+      END IF     
 
     END DO !DO WHILE (tl <= C%time_duration_laddie)
 
@@ -336,7 +346,7 @@ CONTAINS
     CALL multiply_CSR_matrix_with_vector_1D( M_divQ, HstarS, laddie%divQS)
 
     ! Compute divergence matrix on b grid
-    CALL calc_laddie_flux_divergence_matrix_upwind_b( mesh, laddie%U_c, laddie%V_c, laddie%mask_b, laddie%mask_gr_b, M_divQ_b)
+    CALL calc_laddie_flux_divergence_matrix_upwind_b( mesh, laddie%U_c, laddie%V_c, laddie%mask_b, laddie%mask_gl_b, M_divQ_b)
 
     ! Compute Hstar * U
     DO ti = mesh%ti1, mesh%ti2

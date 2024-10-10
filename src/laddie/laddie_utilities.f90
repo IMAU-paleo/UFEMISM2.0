@@ -178,7 +178,7 @@ CONTAINS
 
   END SUBROUTINE calc_laddie_flux_divergence_matrix_upwind
 
-  SUBROUTINE calc_laddie_flux_divergence_matrix_upwind_b( mesh, U_c, V_c, mask_b, mask_gr_b, M_divQ_b)
+  SUBROUTINE calc_laddie_flux_divergence_matrix_upwind_b( mesh, U_c, V_c, mask_b, mask_gl_b, M_divQ_b)
     ! Calculate the layer flux divergence matrix M_divQ using an upwind scheme
     !
     ! The vertically averaged ice flux divergence represents the net ice volume (which,
@@ -197,7 +197,7 @@ CONTAINS
     REAL(dp), DIMENSION(mesh%ei1:mesh%ei2), INTENT(IN)    :: U_c
     REAL(dp), DIMENSION(mesh%ei1:mesh%ei2), INTENT(IN)    :: V_c
     LOGICAL, DIMENSION(mesh%ti1:mesh%ti2),  INTENT(IN)    :: mask_b
-    LOGICAL, DIMENSION(mesh%ti1:mesh%ti2),  INTENT(IN)    :: mask_gr_b
+    LOGICAL, DIMENSION(mesh%ti1:mesh%ti2),  INTENT(IN)    :: mask_gl_b
     TYPE(type_sparse_matrix_CSR_dp),        INTENT(OUT)   :: M_divQ_b
 
 
@@ -210,7 +210,7 @@ CONTAINS
     REAL(dp)                                              :: L_x, L_y, u_perp
     REAL(dp), DIMENSION(0:3)                              :: cM_divQ
     LOGICAL, DIMENSION(mesh%nTri)                         :: mask_b_tot
-    LOGICAL, DIMENSION(mesh%nTri)                         :: mask_gr_b_tot
+    LOGICAL, DIMENSION(mesh%nTri)                         :: mask_gl_b_tot
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -219,7 +219,7 @@ CONTAINS
     CALL gather_to_all_dp_1D( U_c, U_c_tot)
     CALL gather_to_all_dp_1D( V_c, V_c_tot)
     CALL gather_to_all_logical_1D( mask_b, mask_b_tot)
-    CALL gather_to_all_logical_1D( mask_gr_b, mask_gr_b_tot)
+    CALL gather_to_all_logical_1D( mask_gl_b, mask_gl_b_tot)
 
     ! == Initialise the matrix using the native UFEMISM CSR-matrix format
     ! ===================================================================
@@ -287,7 +287,7 @@ CONTAINS
 
           ! Skip connection if neighbour is grounded. No flux across grounding line
           ! Can be made more flexible when accounting for partial cells (PMP instead of FCMP)
-          IF (mask_gr_b_tot( tj)) CYCLE
+          IF (mask_gl_b_tot( tj)) CYCLE
 
           ! The Voronoi cell of triangle ti has area A_i
           A_i = mesh%TriA( ti)
@@ -566,13 +566,17 @@ CONTAINS
 
     ALLOCATE( laddie%mask_a             ( mesh%vi1:mesh%vi2              )) !                 Mask on a-grid
     ALLOCATE( laddie%mask_gr_a          ( mesh%vi1:mesh%vi2              )) !                 Grounded mask on a-grid
+    ALLOCATE( laddie%mask_oc_a          ( mesh%vi1:mesh%vi2              )) !                 Icefree ocean mask on a-grid
     ALLOCATE( laddie%mask_b             ( mesh%ti1:mesh%ti2              )) !                 Mask on b-grid
-    ALLOCATE( laddie%mask_gr_b          ( mesh%ti1:mesh%ti2              )) !                 Grounded mask on b-grid
+    ALLOCATE( laddie%mask_gl_b          ( mesh%ti1:mesh%ti2              )) !                 Grounding line mask on b-grid
+    ALLOCATE( laddie%mask_cf_b          ( mesh%ti1:mesh%ti2              )) !                 Calving front mask on b-grid
 
     laddie%mask_a         = .false.
     laddie%mask_gr_a      = .false.
+    laddie%mask_oc_a      = .false.
     laddie%mask_b         = .false.
-    laddie%mask_gr_b      = .false.
+    laddie%mask_gl_b      = .false.
+    laddie%mask_cf_b      = .false.
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
