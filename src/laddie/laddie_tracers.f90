@@ -54,7 +54,8 @@ CONTAINS
         ! Get dHT_dt
         dHTdt = -laddie%divQT( vi) &
               + laddie%melt( vi) * laddie%T_base( vi) &
-              + laddie%entr( vi) * laddie%T_amb( vi) &
+              + MAX(0.0_dp,laddie%entr( vi)) * laddie%T_amb( vi) &
+              - laddie%detr( vi) * laddie%T( vi) &
               + laddie%diffT( vi) 
 
         ! HT_n = HT_n + dHT_dt * dt
