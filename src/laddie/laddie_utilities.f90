@@ -12,7 +12,7 @@ MODULE laddie_utilities
   USE parameters
   USE mesh_types                                             , ONLY: type_mesh
   USE ice_model_types                                        , ONLY: type_ice_model
-  USE laddie_model_types                                     , ONLY: type_laddie_model
+  USE laddie_model_types                                     , ONLY: type_laddie_model, type_laddie_timestep
   USE ocean_model_types                                      , ONLY: type_ocean_model
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   USE ocean_utilities                                        , ONLY: interpolate_ocean_depth
@@ -254,55 +254,35 @@ CONTAINS
 
     ! Thickness
     ALLOCATE( laddie%H                  ( mesh%vi1:mesh%vi2              )) ! [m]             Layer thickness
-    ALLOCATE( laddie%H_prev             ( mesh%vi1:mesh%vi2              )) ! [m]             previous timestep
-    ALLOCATE( laddie%H_next             ( mesh%vi1:mesh%vi2              )) ! [m]             next timestep   
     ALLOCATE( laddie%dH_dt              ( mesh%vi1:mesh%vi2              )) ! [m]             change
 
     laddie%H              = 0._dp
-    laddie%H_prev         = 0._dp
-    laddie%H_next         = 0._dp
     laddie%dH_dt          = 0._dp
 
     ! Velocities
     ALLOCATE( laddie%U                  ( mesh%ti1:mesh%ti2              )) ! [m s^-1]        2D velocity
     ALLOCATE( laddie%V                  ( mesh%ti1:mesh%ti2              )) ! [m s^-1]  
-    ALLOCATE( laddie%U_prev             ( mesh%ti1:mesh%ti2              )) ! [m s^-1]        2D velocity previous timestep
-    ALLOCATE( laddie%V_prev             ( mesh%ti1:mesh%ti2              )) ! [m s^-1]  
-    ALLOCATE( laddie%U_next             ( mesh%ti1:mesh%ti2              )) ! [m s^-1]        2D velocity next timestep
-    ALLOCATE( laddie%V_next             ( mesh%ti1:mesh%ti2              )) ! [m s^-1]  
 
     laddie%U              = 0._dp
     laddie%V              = 0._dp
-    laddie%U_prev         = 0._dp
-    laddie%V_prev         = 0._dp
-    laddie%U_next         = 0._dp
-    laddie%V_next         = 0._dp
 
     ! Temperatures
     ALLOCATE( laddie%T                  ( mesh%vi1:mesh%vi2              )) ! [degC]          Temperature
-    ALLOCATE( laddie%T_prev             ( mesh%vi1:mesh%vi2              )) ! [degC]          Temperature previous timestep
-    ALLOCATE( laddie%T_next             ( mesh%vi1:mesh%vi2              )) ! [degC]          Temperature next timestep
     ALLOCATE( laddie%T_amb              ( mesh%vi1:mesh%vi2              )) ! [degC]          Temperature layer bottom
     ALLOCATE( laddie%T_base             ( mesh%vi1:mesh%vi2              )) ! [degC]          Temperature ice shelf base
     ALLOCATE( laddie%T_freeze           ( mesh%vi1:mesh%vi2              )) ! [degC]          Temperature freezing
 
     laddie%T              = 0._dp
-    laddie%T_prev         = 0._dp
-    laddie%T_next         = 0._dp
     laddie%T_amb          = 0._dp
     laddie%T_base         = 0._dp
     laddie%T_freeze       = 0._dp
 
     ! Salinities
     ALLOCATE( laddie%S                  ( mesh%vi1:mesh%vi2              )) ! [PSU]           Salinity   
-    ALLOCATE( laddie%S_prev             ( mesh%vi1:mesh%vi2              )) ! [PSU]           Salinity previous timestep
-    ALLOCATE( laddie%S_next             ( mesh%vi1:mesh%vi2              )) ! [PSU]           Salinity next timestep
     ALLOCATE( laddie%S_amb              ( mesh%vi1:mesh%vi2              )) ! [PSU]           Salinity layer bottom
     ALLOCATE( laddie%S_base             ( mesh%vi1:mesh%vi2              )) ! [PSU]           Salinity ice shelf base
 
     laddie%S              = 0._dp
-    laddie%S_prev         = 0._dp
-    laddie%S_next         = 0._dp
     laddie%S_amb          = 0._dp
     laddie%S_base         = 0._dp
 
@@ -396,7 +376,6 @@ CONTAINS
 
     ! Mapped main variables
     ALLOCATE( laddie%H_b                ( mesh%ti1:mesh%ti2              )) ! [m]             Layer thickness on b grid
-    ALLOCATE( laddie%H_b_next           ( mesh%ti1:mesh%ti2              )) ! [m]             Layer next thickness on b grid
     ALLOCATE( laddie%U_a                ( mesh%vi1:mesh%vi2              )) ! [m s^-1]        Layer velocity on a grid  
     ALLOCATE( laddie%V_a                ( mesh%vi1:mesh%vi2              )) ! [m s^-1]        
     ALLOCATE( laddie%H_c                ( mesh%ei1:mesh%ei2              )) ! [m]             Layer thickness on c grid 
@@ -404,7 +383,6 @@ CONTAINS
     ALLOCATE( laddie%V_c                ( mesh%ei1:mesh%ei2              )) ! [m s^-1]        
 
     laddie%H_b            = 0._dp
-    laddie%H_b_next       = 0._dp
     laddie%U_a            = 0._dp
     laddie%V_a            = 0._dp
     laddie%H_c            = 0._dp
@@ -431,6 +409,38 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE allocate_laddie_model 
+
+  SUBROUTINE allocate_laddie_timestep( mesh, npx)
+    ! Allocate variables of the laddie model
+
+    ! In- and output variables
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh
+    TYPE(type_laddie_timestep),             INTENT(INOUT) :: npx
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'allocate_laddie_timestep'
+ 
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ALLOCATE( npx%H                  ( mesh%vi1:mesh%vi2              )) ! [m]             Layer thickness
+    ALLOCATE( npx%H_b                ( mesh%ti1:mesh%ti2              )) ! [m]             Layer thickness on b grid
+    ALLOCATE( npx%U                  ( mesh%ti1:mesh%ti2              )) ! [m s^-1]        2D velocity
+    ALLOCATE( npx%V                  ( mesh%ti1:mesh%ti2              )) ! [m s^-1]  
+    ALLOCATE( npx%T                  ( mesh%vi1:mesh%vi2              )) ! [degC]          Temperature
+    ALLOCATE( npx%S                  ( mesh%vi1:mesh%vi2              )) ! [PSU]           Salinity   
+
+    npx%H              = 0._dp
+    npx%H_b            = 0._dp
+    npx%U              = 0._dp
+    npx%V              = 0._dp
+    npx%T              = 0._dp
+    npx%S              = 0._dp
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE allocate_laddie_timestep
 
 END MODULE laddie_utilities
 

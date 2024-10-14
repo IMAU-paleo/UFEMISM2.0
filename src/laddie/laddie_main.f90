@@ -17,6 +17,7 @@ MODULE laddie_main
   USE BMB_model_types                                        , ONLY: type_BMB_model
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   USE laddie_utilities                                       , ONLY: compute_ambient_TS, allocate_laddie_model, &
+                                                                     allocate_laddie_timestep, &
                                                                      calc_laddie_flux_divergence_matrix_upwind, &
                                                                      map_laddie_velocities_from_b_to_c_2D
   USE laddie_physics                                         , ONLY: compute_melt_rate, compute_entrainment, &
@@ -147,6 +148,7 @@ CONTAINS
       CALL compute_H_np1( mesh, ice, laddie, dt)
 
       ! Integrate U and V 1 time step
+      CALL map_a_b_2D( mesh, laddie%np1%H, laddie%np1%H_b)
       CALL compute_UV_np1( mesh, ice, laddie, dt)
 
       ! Integrate T and S 1 time step
@@ -162,19 +164,17 @@ CONTAINS
       ! Move main variables by 1 time step
       DO vi = mesh%vi1, mesh%vi2
         IF (laddie%mask_a( vi)) THEN
-          laddie%H( vi) = laddie%H_next( vi)
-          laddie%T( vi) = laddie%T_next( vi)
-          laddie%S( vi) = laddie%S_next( vi)
+          laddie%H( vi) = laddie%np1%H( vi)
+          laddie%T( vi) = laddie%np1%T( vi)
+          laddie%S( vi) = laddie%np1%S( vi)
         END IF
       END DO
-
-      CALL map_a_b_2D( mesh, laddie%H_next, laddie%H_b_next)
 
       ! Move velocities by 1 time step
       DO ti = mesh%ti1, mesh%ti2
         IF (laddie%mask_b( ti)) THEN
-          laddie%U( ti) = laddie%U_next( ti)
-          laddie%V( ti) = laddie%V_next( ti)
+          laddie%U( ti) = laddie%np1%U( ti)
+          laddie%V( ti) = laddie%np1%V( ti)
         END IF
       END DO
 
@@ -217,6 +217,9 @@ CONTAINS
     ! Allocate variables
     CALL allocate_laddie_model( mesh, laddie)
 
+    ! Allocate variables
+    CALL allocate_laddie_timestep( mesh, laddie%np1)
+
     ! Mask on a grid
     DO vi = mesh%vi1, mesh%vi2
       laddie%mask_a( vi)  = ice%mask_floating_ice( vi)
@@ -226,8 +229,7 @@ CONTAINS
     DO vi = mesh%vi1, mesh%vi2
        IF (laddie%mask_a( vi)) THEN
          laddie%H( vi)      = C%laddie_initial_thickness
-         laddie%H_prev( vi) = C%laddie_initial_thickness
-         laddie%H_next( vi) = C%laddie_initial_thickness
+         laddie%np1%H( vi)  = C%laddie_initial_thickness
        END IF
     END DO
 
@@ -238,11 +240,9 @@ CONTAINS
     DO vi = mesh%vi1, mesh%vi2
        IF (laddie%mask_a( vi)) THEN
          laddie%T( vi)      = laddie%T_amb( vi) + C%laddie_initial_T_offset 
-         laddie%T_prev( vi) = laddie%T_amb( vi) + C%laddie_initial_T_offset
-         laddie%T_next( vi) = laddie%T_amb( vi) + C%laddie_initial_T_offset
+         laddie%np1%T( vi)  = laddie%T_amb( vi) + C%laddie_initial_T_offset
          laddie%S( vi)      = laddie%S_amb( vi) + C%laddie_initial_S_offset
-         laddie%S_prev( vi) = laddie%S_amb( vi) + C%laddie_initial_S_offset
-         laddie%S_next( vi) = laddie%S_amb( vi) + C%laddie_initial_S_offset
+         laddie%np1%S( vi)  = laddie%S_amb( vi) + C%laddie_initial_S_offset
        END IF
     END DO
 
@@ -294,7 +294,7 @@ CONTAINS
     CALL map_a_c_2D( mesh, Hstar, laddie%H_c)
 
     ! Map next thickness to b grid
-    CALL map_a_b_2D( mesh, laddie%H_next, laddie%H_b_next)
+    CALL map_a_b_2D( mesh, laddie%np1%H, laddie%np1%H_b)
 
     ! Map detrainment to b grid
     CALL map_a_b_2D( mesh, laddie%detr, laddie%detr_b)

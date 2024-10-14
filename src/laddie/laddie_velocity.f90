@@ -112,8 +112,8 @@ CONTAINS
         HV_next = laddie%V( ti)*laddie%H_b( ti) + dHVdt * dt
 
         ! U_n = HU_n / H_n
-        laddie%U_next( ti) = HU_next / laddie%H_b_next( ti)
-        laddie%V_next( ti) = HV_next / laddie%H_b_next( ti)
+        laddie%np1%U( ti) = HU_next / laddie%np1%H_b( ti)
+        laddie%np1%V( ti) = HV_next / laddie%np1%H_b( ti)
 
       END IF ! (laddie%mask_b( ti))
     END DO !ti = mesh%ti1, mesh%ti2
@@ -122,11 +122,11 @@ CONTAINS
     DO ti = mesh%ti1, mesh%ti2
       IF (laddie%mask_b( ti)) THEN
         ! Get absolute velocity
-        Uabs = (laddie%U_next( ti)**2 + laddie%V_next( ti)**2)**.5
+        Uabs = (laddie%np1%U( ti)**2 + laddie%np1%V( ti)**2)**.5
         
         ! Scale U and V 
-        laddie%U_next( ti) = laddie%U_next( ti) * MIN(1.0_dp, C%laddie_velocity_maximum/Uabs)
-        laddie%V_next( ti) = laddie%V_next( ti) * MIN(1.0_dp, C%laddie_velocity_maximum/Uabs)
+        laddie%np1%U( ti) = laddie%np1%U( ti) * MIN(1.0_dp, C%laddie_velocity_maximum/Uabs)
+        laddie%np1%V( ti) = laddie%np1%V( ti) * MIN(1.0_dp, C%laddie_velocity_maximum/Uabs)
       END IF ! (laddie%mask_b( ti))
     END DO !ti = mesh%ti1, mesh%ti2
 

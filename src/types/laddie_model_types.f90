@@ -12,6 +12,19 @@ MODULE laddie_model_types
 ! ===== Types =====
 ! =================
 
+  TYPE type_laddie_timestep
+    ! Fields of (partial) timesteps
+
+    ! Main data fields
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: H                           ! [m]               Layer thickness
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: H_b                         ! [m]               Layer thickness on b grid
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: U                           ! [m s^-1]          2D velocity
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: V                           ! [m s^-1]
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: T                           ! [degrees Celsius] Temperature
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: S                           ! [PSU]             Salinity  
+
+  END TYPE type_laddie_timestep
+
   TYPE type_laddie_model
     ! The laddie model structure
   
@@ -25,19 +38,6 @@ MODULE laddie_model_types
     ! Time domain
     REAL(dp)                                :: dt                          ! [s]               Time step
     REAL(dp)                                :: tend                        ! [s]               Time end of Laddie cycle
-  
-    ! Time stepping
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: H_prev                      ! [m]               Layer thickness
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: U_prev                      ! [m s^-1]          2D velocity
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: V_prev                      ! [m s^-1]
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: T_prev                      ! [degrees Celsius] Temperature
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: S_prev                      ! [PSU]             Salinity  
-  
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: H_next                      ! [m]               Layer thickness
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: U_next                      ! [m s^-1]          2D velocity
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: V_next                      ! [m s^-1]
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: T_next                      ! [degrees Celsius] Temperature
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: S_next                      ! [PSU]             Salinity   
   
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dH_dt                       ! [m s^-1]          Layer thickness change
   
@@ -96,7 +96,6 @@ MODULE laddie_model_types
 
     ! Mapped variables
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: H_b                         ! [m]               Layer thickness on b grid
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: H_b_next                    ! [m]               Layer next thickness on b grid
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: U_a                         ! [m s^-1]          Layer velocity on a grid 
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: V_a                         ! [m s^-1]          
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: H_c                         ! [m]               Layer thickness on c grid 
@@ -110,10 +109,11 @@ MODULE laddie_model_types
     LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_b                      !                   Mask on b-grid on which to apply computation
     LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_gl_b                   !                   Grounding line mask on b-grid
     LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_cf_b                   !                   Calving front mask on b-grid
-    
+   
+    ! Timestepping types
+    TYPE(type_laddie_timestep)              :: np1                         !                   Timestep n plus 1  
   
   END TYPE type_laddie_model
-
 
 CONTAINS
 

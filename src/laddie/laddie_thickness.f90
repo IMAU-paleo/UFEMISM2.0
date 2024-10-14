@@ -49,13 +49,13 @@ CONTAINS
         dHdt = -laddie%divQ( vi) + laddie%melt( vi) + laddie%entr( vi)
 
         ! First guess at H_n
-        laddie%H_next( vi) = laddie%H( vi) + dHdt * dt
+        laddie%np1%H( vi) = laddie%H( vi) + dHdt * dt
 
         ! If H_n < Hmin, enhance entrainment to ensure H_n >= Hmin
-        laddie%entr_dmin( vi) = MAX( C%laddie_thickness_minimum - laddie%H_next( vi), 0.0_dp) / dt
+        laddie%entr_dmin( vi) = MAX( C%laddie_thickness_minimum - laddie%np1%H( vi), 0.0_dp) / dt
 
         ! If H_n > Hmax, suppress entrainment to ensure H_n <= Hmax
-        laddie%entr( vi) = laddie%entr( vi) + MIN( C%laddie_thickness_maximum - laddie%H_next( vi), 0.0_dp) / dt
+        laddie%entr( vi) = laddie%entr( vi) + MIN( C%laddie_thickness_maximum - laddie%np1%H( vi), 0.0_dp) / dt
 
         ! Update detrainment. Shouldn't matter but just in case
         laddie%detr( vi) = - MIN(laddie%entr( vi),0.0_dp)
@@ -64,7 +64,7 @@ CONTAINS
         dHdt = -laddie%divQ( vi) + laddie%melt( vi) + laddie%entr( vi) + laddie%entr_dmin( vi)
 
         ! Get actual H_n
-        laddie%H_next( vi) = laddie%H( vi) + dHdt * dt
+        laddie%np1%H( vi) = laddie%H( vi) + dHdt * dt
 
       END IF !(laddie%mask_a( vi)) THEN
     END DO !vi = mesh%vi, mesh%v2

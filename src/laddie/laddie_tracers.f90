@@ -62,7 +62,7 @@ CONTAINS
         ! HT_n = HT_n + dHT_dt * dt
         HT_next = laddie%T( vi)*laddie%H( vi) + dHTdt * dt
 
-        laddie%T_next( vi) = HT_next / laddie%H_next( vi)
+        laddie%np1%T( vi) = HT_next / laddie%np1%H( vi)
 
       END IF !(laddie%mask_a( vi)) THEN
     END DO !vi = mesh%vi, mesh%v2
@@ -83,7 +83,7 @@ CONTAINS
         ! HS_n = HS_n + dHS_dt * dt
         HS_next = laddie%S( vi)*laddie%H( vi) + dHSdt * dt
 
-        laddie%S_next( vi) = HS_next / laddie%H_next( vi)
+        laddie%np1%S( vi) = HS_next / laddie%np1%H( vi)
 
       END IF !(laddie%mask_a( vi)) THEN
     END DO !vi = mesh%vi, mesh%v2
