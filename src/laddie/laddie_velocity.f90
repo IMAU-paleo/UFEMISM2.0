@@ -25,7 +25,7 @@ CONTAINS
 ! ===== Main routines =====
 ! =========================
 
-  SUBROUTINE compute_UV_npx( mesh, ice, laddie, npx, Hstar_b, dt)
+  SUBROUTINE compute_UV_npx( mesh, ice, laddie, npx, Hstar_b, dt, inclvisc)
     ! Integrate U and V by one time step
 
     ! In- and output variables
@@ -36,6 +36,7 @@ CONTAINS
     TYPE(type_laddie_timestep),             INTENT(INOUT) :: npx
     REAL(dp),                               INTENT(IN)    :: dt
     REAL(dp), DIMENSION(mesh%ti1:mesh%ti2), INTENT(IN)    :: Hstar_b
+    LOGICAL,                                INTENT(IN)    :: inclvisc
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_UV_npx'
@@ -99,16 +100,22 @@ CONTAINS
                 + PGF_x &
                 + C%uniform_laddie_coriolis_parameter * Hstar_b( ti) * laddie%V( ti) &
                 - C%laddie_drag_coefficient * laddie%U( ti) * (laddie%U( ti)**2 + laddie%V( ti)**2)**.5 &
-                + laddie%viscU( ti) &
                 - detr_b( ti) * laddie%U( ti)
+
+        IF (inclvisc) THEN
+          dHUdt = dHUdt + laddie%viscU( ti)
+        END IF
 
         ! dHV_dt
         dHVdt = - laddie%divQV( ti) &
                 + PGF_y &
                 - C%uniform_laddie_coriolis_parameter * Hstar_b( ti) * laddie%U( ti) &
                 - C%laddie_drag_coefficient * laddie%V( ti) * (laddie%U( ti)**2 + laddie%V( ti)**2)**.5 &
-                + laddie%viscV( ti) &
                 - detr_b( ti) * laddie%V( ti)
+
+        IF (inclvisc) THEN
+          dHVdt = dHVdt + laddie%viscV( ti)
+        END IF
 
         ! == next time step ==
         ! ====================

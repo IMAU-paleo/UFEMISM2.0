@@ -285,10 +285,10 @@ CONTAINS
     CALL map_H_a_b( mesh, laddie, laddie%H, laddie%H_b)
 
     ! Integrate U and V 1 time step
-    CALL compute_UV_npx( mesh, ice, laddie, laddie%np1, laddie%H_b, dt)
+    CALL compute_UV_npx( mesh, ice, laddie, laddie%np1, laddie%H_b, dt, .true.)
 
     ! Integrate T and S 1 time step
-    CALL compute_TS_npx( mesh, ice, laddie, laddie%np1, dt)
+    CALL compute_TS_npx( mesh, ice, laddie, laddie%np1, dt, .true.)
 
     ! Update secondary fields
     CALL update_secondary_fields( mesh, ice, ocean, laddie, laddie%np1, laddie%H, laddie%H_b)
@@ -368,10 +368,10 @@ CONTAINS
     CALL map_H_a_b( mesh, laddie, Hstar, Hstar_b)
 
     ! Integrate U and V 1/3 time step
-    CALL compute_UV_npx( mesh, ice, laddie, laddie%np13, Hstar_b, dt/3)
+    CALL compute_UV_npx( mesh, ice, laddie, laddie%np13, Hstar_b, dt/3, .false.)
 
     ! Integrate T and S 1/3 time step
-    CALL compute_TS_npx( mesh, ice, laddie, laddie%np13, dt/3)
+    CALL compute_TS_npx( mesh, ice, laddie, laddie%np13, dt/3, .false.)
 
     ! Update secondary fields
     CALL update_secondary_fields( mesh, ice, ocean, laddie, laddie%np13, Hstar, Hstar_b)
@@ -393,10 +393,10 @@ CONTAINS
     CALL map_H_a_b( mesh, laddie, Hstarstar, Hstarstar_b)
 
     ! Integrate U and V 1/2 time step
-    CALL compute_UV_npx( mesh, ice, laddie, laddie%np12, Hstarstar_b, dt/2)
+    CALL compute_UV_npx( mesh, ice, laddie, laddie%np12, Hstarstar_b, dt/2, .false.)
 
     ! Integrate T and S 1/2 time step
-    CALL compute_TS_npx( mesh, ice, laddie, laddie%np12, dt/2)
+    CALL compute_TS_npx( mesh, ice, laddie, laddie%np12, dt/2, .false.)
 
     ! Update secondary fields
     CALL update_secondary_fields( mesh, ice, ocean, laddie, laddie%np12, Hstarstar, Hstarstar_b)
@@ -418,10 +418,10 @@ CONTAINS
     CALL map_H_a_b( mesh, laddie, Hstarstarstar, Hstarstarstar_b)
 
     ! Integrate U and V 1 time step
-    CALL compute_UV_npx( mesh, ice, laddie, laddie%np1, Hstarstarstar_b, dt)
+    CALL compute_UV_npx( mesh, ice, laddie, laddie%np1, Hstarstarstar_b, dt, .true.)
 
     ! Integrate T and S 1 time step
-    CALL compute_TS_npx( mesh, ice, laddie, laddie%np1, dt)
+    CALL compute_TS_npx( mesh, ice, laddie, laddie%np1, dt, .true.)
 
     ! Update secondary fields
     CALL update_secondary_fields( mesh, ice, ocean, laddie, laddie%np1, Hstarstarstar, Hstarstarstar_b)

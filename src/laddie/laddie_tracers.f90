@@ -24,7 +24,7 @@ CONTAINS
 ! ===== Main routines =====
 ! =========================
 
-  SUBROUTINE compute_TS_npx( mesh, ice, laddie, npx, dt)
+  SUBROUTINE compute_TS_npx( mesh, ice, laddie, npx, dt, incldiff)
     ! Integrate T and S by one time step
 
     ! In- and output variables
@@ -34,6 +34,7 @@ CONTAINS
     TYPE(type_laddie_model),                INTENT(IN)    :: laddie
     TYPE(type_laddie_timestep),             INTENT(INOUT) :: npx
     REAL(dp),                               INTENT(IN)    :: dt
+    LOGICAL,                                INTENT(IN)    :: incldiff
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_TS_npx'
@@ -57,8 +58,11 @@ CONTAINS
               + laddie%melt( vi) * laddie%T_base( vi) &
               + MAX(0.0_dp,laddie%entr( vi)) * laddie%T_amb( vi) &
               + laddie%entr_dmin( vi) * laddie%T_amb( vi) &
-              - laddie%detr( vi) * laddie%T_amb( vi) &
-              + laddie%diffT( vi) 
+              - laddie%detr( vi) * laddie%T_amb( vi)
+
+        IF (incldiff) THEN
+          dHTdt = dHTdt + laddie%diffT( vi)
+        END IF
 
         ! HT_n = HT_n + dHT_dt * dt
         HT_next = laddie%T( vi)*laddie%H( vi) + dHTdt * dt
@@ -78,8 +82,11 @@ CONTAINS
         dHSdt = -laddie%divQS( vi) &
               + MAX(0.0_dp,laddie%entr( vi)) * laddie%S_amb( vi) &
               + laddie%entr_dmin( vi) * laddie%S_amb( vi) &
-              - laddie%detr( vi) * laddie%S_amb( vi) &
-              + laddie%diffS( vi)
+              - laddie%detr( vi) * laddie%S_amb( vi)
+
+        IF (incldiff) THEN
+          dHSdt = dHSdt + laddie%diffS( vi)
+        END IF
 
         ! HS_n = HS_n + dHS_dt * dt
         HS_next = laddie%S( vi)*laddie%H( vi) + dHSdt * dt
