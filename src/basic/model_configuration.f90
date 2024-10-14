@@ -808,7 +808,7 @@ MODULE model_configuration
     ! Time step
     REAL(dp)            :: dt_laddie_config                             = 360._dp                          ! [s] Time step for integration of laddie model
     REAL(dp)            :: time_duration_laddie_config                  = 6._dp                            ! [days] Duration of each run cycle
-  
+
     ! Initialisation
     REAL(dp)            :: laddie_initial_thickness_config              = 10._dp                           ! [m] Initial value of thickness H
     REAL(dp)            :: laddie_initial_T_offset_config               = 0.0_dp                           ! [degC] Initial offset of T relative to ambient
@@ -822,15 +822,15 @@ MODULE model_configuration
     ! Coriolis
     CHARACTER(LEN=256)  :: choice_laddie_coriolis_config                = 'uniform'                        ! Choose option Coriolis parameter. Options: 'uniform'
     REAL(dp)            :: uniform_laddie_coriolis_parameter_config     = -1.37E-4_dp                      ! [s ^-1] 'linear' eos: thermal expansion coefficient
-  
+
     ! Turbulent heat exchange
     CHARACTER(LEN=256)  :: choice_laddie_gamma_config                   = 'uniform'                        ! Choose option turbulent heat exchange. Options: 'uniform', 'Jenkins1991'
     REAL(dp)            :: uniform_laddie_gamma_T_config                = 1.8E-4_dp                        ! [] 'uniform': gamma_T parameter. gamma_S = gamma_T/35
- 
+
     ! Drag coefficients
     REAL(dp)            :: laddie_drag_coefficient_config               = 2.5E-3_dp                        ! [] Drag coefficient Cd
     REAL(dp)            :: laddie_drag_coefficient_mom_config           = 1.1E-3_dp                        ! [] Drag coefficient Cd_mom in momentum term
- 
+
     ! Viscosity and diffusivity
     REAL(dp)            :: laddie_viscosity_config                      = 1.0E3_dp                         ! [m^2 s^-1] Viscosity parameter Ah
     REAL(dp)            :: laddie_diffusivity_config                    = 1.0E3_dp                         ! [m^2 s^-1] Diffusivity parameter Kh
@@ -1775,7 +1775,7 @@ MODULE model_configuration
     ! Time step
     REAL(dp)            :: dt_laddie
     REAL(dp)            :: time_duration_laddie
-  
+
     ! Initialisation
     REAL(dp)            :: laddie_initial_thickness
     REAL(dp)            :: laddie_initial_T_offset
@@ -1789,15 +1789,15 @@ MODULE model_configuration
     ! Coriolis
     CHARACTER(LEN=256)  :: choice_laddie_coriolis
     REAL(dp)            :: uniform_laddie_coriolis_parameter
-  
+
     ! Turbulent heat exchange
     CHARACTER(LEN=256)  :: choice_laddie_gamma
     REAL(dp)            :: uniform_laddie_gamma_T
- 
+
     ! Drag coefficients
     REAL(dp)            :: laddie_drag_coefficient
     REAL(dp)            :: laddie_drag_coefficient_mom
- 
+
     ! Viscosity and diffusivity
     REAL(dp)            :: laddie_viscosity
     REAL(dp)            :: laddie_diffusivity
@@ -1979,6 +1979,10 @@ MODULE model_configuration
   ! The main config structure
   TYPE(type_config)   :: C
 
+  ! The has of the current git commit
+  character(len=1024) :: git_commit_hash
+  logical             :: has_uncommitted_changes = .false.
+
 CONTAINS
 
 ! ===== Subroutines ======
@@ -1997,6 +2001,22 @@ CONTAINS
 
     ! Add routine to path
     CALL init_routine( routine_name)
+
+  ! == Figure out which git commit of the model we're running
+  ! =========================================================
+
+    if (par%master) call get_git_commit_hash( git_commit_hash)
+    call mpi_bcast( git_commit_hash, len( git_commit_hash), MPI_CHAR, 0, MPI_COMM_WORLD, ierr)
+
+    if (par%master) write(0,'(A)') ''
+    if (par%master) write(0,'(A)') ' Running UFEMISM from git commit ' // colour_string( trim( git_commit_hash), 'pink')
+
+    if (par%master) call check_for_uncommitted_changes
+    call mpi_bcast( has_uncommitted_changes, 1, MPI_LOGICAL, 0, MPI_COMM_WORLD, ierr)
+
+    if (par%master .and. has_uncommitted_changes) then
+      write(0,'(A)') colour_string( ' WARNING: You have uncommitted changes; the current simulation might not be reproducible!', 'yellow')
+    end if
 
   ! == Initialise main config parameters
   ! ====================================
@@ -2082,6 +2102,20 @@ CONTAINS
 
     ! Add routine to path
     CALL init_routine( routine_name)
+
+    ! Figure out which git commit of the model we're running
+    if (par%master) call get_git_commit_hash( git_commit_hash)
+    call mpi_bcast( git_commit_hash, len( git_commit_hash), MPI_CHAR, 0, MPI_COMM_WORLD, ierr)
+
+    if (par%master) write(0,'(A)') ''
+    if (par%master) write(0,'(A)') ' Running UFEMISM from git commit ' // colour_string( trim( git_commit_hash), 'pink')
+
+    if (par%master) call check_for_uncommitted_changes
+    call mpi_bcast( has_uncommitted_changes, 1, MPI_LOGICAL, 0, MPI_COMM_WORLD, ierr)
+
+    if (par%master .and. has_uncommitted_changes) then
+      write(0,'(A)') colour_string( ' WARNING: You have uncommitted changes; the current simulation might not be reproducible!', 'yellow')
+    end if
 
     ! Copy values from the XXX_config variables to the config structure
     CALL copy_config_variables_to_struct
@@ -3575,14 +3609,14 @@ CONTAINS
     C%filename_BMB_laddie_initial_restart                    = filename_BMB_laddie_initial_restart_config
     C%filename_BMB_laddie_initial_output                     = filename_BMB_laddie_initial_output_config
     C%dir_BMB_laddie_model                                   = dir_BMB_laddie_model_config
-  
+
   ! == LADDIE model
   ! ===============
 
     ! Time step
     C%dt_laddie                                              = dt_laddie_config
     C%time_duration_laddie                                   = time_duration_laddie_config
-  
+
     ! Initialisation
     C%laddie_initial_thickness                               = laddie_initial_thickness_config
     C%laddie_initial_T_offset                                = laddie_initial_T_offset_config
@@ -3596,15 +3630,15 @@ CONTAINS
     ! Coriolis
     C%choice_laddie_coriolis                                 = choice_laddie_coriolis_config
     C%uniform_laddie_coriolis_parameter                      = uniform_laddie_coriolis_parameter_config
-  
+
     ! Turbulent heat exchange
     C%choice_laddie_gamma                                    = choice_laddie_gamma_config
     C%uniform_laddie_gamma_T                                 = uniform_laddie_gamma_T_config
- 
+
     ! Drag coefficients
     C%laddie_drag_coefficient                                = laddie_drag_coefficient_config
     C%laddie_drag_coefficient_mom                            = laddie_drag_coefficient_mom_config
- 
+
     ! Viscosity and diffusivity
     C%laddie_viscosity                                       = laddie_viscosity_config
     C%laddie_diffusivity                                     = laddie_diffusivity_config
@@ -4308,5 +4342,83 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE generate_procedural_output_dir_name
+
+  subroutine get_git_commit_hash( git_commit_hash)
+
+    ! In/output variables:
+    character(len=*), intent(out) :: git_commit_hash
+
+    ! Local variables:
+    character(len=256), parameter :: routine_name = 'get_git_commit_hash'
+    character(len=256), parameter :: filename_git_commit_hash = 'git_commit_hash.txt'
+    integer                       :: ierr, ios
+    integer, parameter            :: git_commit_hash_file_unit = 1847
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Create a text file containing the hash of the current git commit
+    call system( 'git rev-parse HEAD > ' // trim(filename_git_commit_hash), ierr)
+    if (ierr /= 0) call crash('failed to obtain hash of current git commit')
+
+    ! Read the hash from the temporary commit hash file
+    open( unit = git_commit_hash_file_unit, file = filename_git_commit_hash, iostat = ios)
+    if (ios /= 0) call crash('couldnt open temporary commit hash file "' // trim( filename_git_commit_hash) // '"!')
+    read( unit = git_commit_hash_file_unit, fmt = '(A)', iostat = ios) git_commit_hash
+    if (ios < 0) call crash('couldnt read commit hash from the temporary commit hash file')
+    close( unit = git_commit_hash_file_unit)
+
+    ! Delete the temporary commit hash file
+    call system( 'rm -f ' // trim( filename_git_commit_hash), ierr)
+    if (ierr /= 0) call crash('failed to delete temporary commit hash file')
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine get_git_commit_hash
+
+  subroutine check_for_uncommitted_changes
+
+    ! Local variables:
+    character(len=256), parameter :: routine_name = 'check_for_uncommitted_changes'
+    character(len=256), parameter :: filename_git_status = 'git_status.txt'
+    integer                       :: ierr, ios
+    integer, parameter            :: git_status_file_unit = 1847
+    character(len=1024)           :: single_line
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Create a text file containing the output of git status
+    call system( 'git status > ' // trim( filename_git_status), ierr)
+    if (ierr /= 0) call crash('failed to write git status to text file')
+
+    ! Check the temporary git status file for uncommitted changes
+    open( unit = git_status_file_unit, file = filename_git_status, iostat = ios)
+    if (ios /= 0) call crash('couldnt open temporary git status file "' // trim( filename_git_status) // '"!')
+
+    do while (.true.)
+        ! Read a single line from the temporary git status file
+        read( unit = git_status_file_unit, fmt = '(A)', iostat = ios) single_line
+        ! If we've reached the end of the file, stop reading.
+        if (ios < 0) exit
+        ! Check if the temporary git status file mentions any uncommitted changes
+        if (single_line == 'Changes not staged for commit:') has_uncommitted_changes = .true.
+    end do
+
+    close( unit = git_status_file_unit)
+
+    ! Mention uncommitted changes in the commit hash (done after writing the commit hash to the terminal,
+    ! but still useful for the version that ends up in the NetCDF output files)
+    if (has_uncommitted_changes) git_commit_hash = trim( git_commit_hash) // ' (with uncommitted changes!)'
+
+    ! Delete the temporary git status file
+    call system( 'rm -f ' // trim( filename_git_status), ierr)
+    if (ierr /= 0) call crash('failed to delete temporary git status file')
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine check_for_uncommitted_changes
 
 END MODULE model_configuration

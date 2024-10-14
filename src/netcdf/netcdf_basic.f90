@@ -17,7 +17,7 @@ MODULE netcdf_basic
   USE precisions                                             , ONLY: dp
   USE mpi_basic                                              , ONLY: par, cerr, ierr, recv_status, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
-  USE model_configuration                                    , ONLY: C
+  USE model_configuration                                    , ONLY: C, git_commit_hash
   USE math_utilities                                         , ONLY: check_for_NaN_dp_0D, check_for_NaN_int_0D, &
                                                                      check_for_NaN_dp_1D, check_for_NaN_int_1D, &
                                                                      check_for_NaN_dp_2D, check_for_NaN_int_2D, &
@@ -29,7 +29,7 @@ MODULE netcdf_basic
               NF90_INQ_VARID, NF90_INQUIRE_VARIABLE, NF90_MAX_VAR_DIMS, NF90_GET_VAR, &
               NF90_CREATE, NF90_NOCLOBBER, NF90_NETCDF4, NF90_ENDDEF, NF90_REDEF, NF90_DEF_DIM, NF90_DEF_VAR, &
               NF90_PUT_ATT, NF90_WRITE, NF90_INT, NF90_FLOAT, NF90_DOUBLE, NF90_PUT_VAR, NF90_UNLIMITED, &
-              NF90_INQUIRE_ATTRIBUTE, NF90_SHARE
+              NF90_INQUIRE_ATTRIBUTE, NF90_SHARE, NF90_GLOBAL
 
   IMPLICIT NONE
 
@@ -5288,6 +5288,9 @@ CONTAINS
       IF (nerr /= NF90_NOERR) CALL crash('NF90_CREATE failed for file "' // TRIM( filename) // '"!')
     END IF ! IF (par%master) THEN
     CALL MPI_BCAST( ncid, 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
+
+    ! Add some very basic info about the current simulation to the header
+    call add_attribute_char( filename, ncid, NF90_GLOBAL, 'git commit hash', git_commit_hash)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
