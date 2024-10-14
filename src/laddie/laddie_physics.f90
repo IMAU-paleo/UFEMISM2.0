@@ -192,7 +192,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_buoyancy'
     INTEGER                                               :: vi
-    REAL(dp), PARAMETER                                   :: mindrho = 0.00005_dp
+    REAL(dp), PARAMETER                                   :: mindrho = 0.000005_dp
  
     ! Add routine to path
     CALL init_routine( routine_name)
