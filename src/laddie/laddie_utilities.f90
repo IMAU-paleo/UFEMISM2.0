@@ -58,6 +58,54 @@ CONTAINS
 
   END SUBROUTINE compute_ambient_TS
 
+  SUBROUTINE map_H_a_b( mesh, laddie, H_a, H_b)
+    ! Map layer thickness from a to b grid, accounting for BCs
+
+    ! In- and output variables
+
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh
+    TYPE(type_laddie_model),                INTENT(IN)    :: laddie
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: H_a
+    REAL(dp), DIMENSION(mesh%ti1:mesh%ti2), INTENT(INOUT) :: H_b
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'map_H_a_b'
+    INTEGER                                               :: i, vi, ti, n
+    REAL(dp), DIMENSION(mesh%nV)                          :: H_a_tot
+ 
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+
+    CALL gather_to_all_dp_1D( H_a, H_a_tot)
+
+    ! Get T and S at layer base
+    DO ti = mesh%ti1, mesh%ti2
+       IF (laddie%mask_b( ti)) THEN
+          
+          ! Set zero
+          H_b( ti) = 0.0_dp
+          n = 0
+
+          ! Loop over vertices
+          DO i = 1, 3
+            vi = mesh%Tri( ti, i)
+            IF (laddie%mask_a( vi)) THEN
+              H_b( ti) = H_b( ti) + H_a_tot( vi)
+              n = n + 1
+            END IF
+          END DO
+
+          H_b( ti) = H_b( ti) / n
+
+       END IF
+    END DO
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE map_H_a_b
+
   SUBROUTINE calc_laddie_flux_divergence_matrix_upwind( mesh, U_c, V_c, mask_a, mask_gr_a, M_divQ)
     ! Calculate the layer flux divergence matrix M_divQ using an upwind scheme
     !

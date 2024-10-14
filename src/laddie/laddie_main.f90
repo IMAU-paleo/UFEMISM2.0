@@ -17,7 +17,7 @@ MODULE laddie_main
   USE BMB_model_types                                        , ONLY: type_BMB_model
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   USE laddie_utilities                                       , ONLY: compute_ambient_TS, allocate_laddie_model, &
-                                                                     allocate_laddie_timestep, &
+                                                                     allocate_laddie_timestep, map_H_a_b, &
                                                                      calc_laddie_flux_divergence_matrix_upwind, &
                                                                      map_laddie_velocities_from_b_to_c_2D
   USE laddie_physics                                         , ONLY: compute_melt_rate, compute_entrainment, &
@@ -148,7 +148,7 @@ CONTAINS
       CALL compute_H_np1( mesh, ice, laddie, dt)
 
       ! Integrate U and V 1 time step
-      CALL map_a_b_2D( mesh, laddie%np1%H, laddie%np1%H_b)
+      CALL map_H_a_b( mesh, laddie, laddie%np1%H, laddie%np1%H_b)
       CALL compute_UV_np1( mesh, ice, laddie, dt)
 
       ! Integrate T and S 1 time step
@@ -183,9 +183,9 @@ CONTAINS
 
       ! Display or save fields
       ! TODO
-      ! IF (par%master) THEN
-      !   WRITE( *, "(A,F8.3,A,F8.3,A,F8.3)") 'Dmax ', MAXVAL(laddie%H), '  Tmax', MAXVAL(laddie%T), '   U', MAXVAL(laddie%U)
-      ! END IF     
+      IF (par%master) THEN
+        WRITE( *, "(A,F8.3,A,F12.7,A,F8.3)") 'Dmax ', MAXVAL(laddie%H), '  Meltmax', MAXVAL(laddie%melt), '   U', MAXVAL(laddie%U)
+      END IF     
 
     END DO !DO WHILE (tl <= C%time_duration_laddie)
 
@@ -288,7 +288,7 @@ CONTAINS
     CALL map_a_b_2D( mesh, laddie%Hdrho_amb, laddie%Hdrho_amb_b)
 
     ! Map thickness to b grid
-    CALL map_a_b_2D( mesh, Hstar, laddie%H_b)
+    CALL map_H_a_b( mesh, laddie, Hstar, laddie%H_b)
 
     ! Map thickness to c grid
     CALL map_a_c_2D( mesh, Hstar, laddie%H_c)
