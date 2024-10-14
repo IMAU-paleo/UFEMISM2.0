@@ -809,6 +809,9 @@ MODULE model_configuration
     REAL(dp)            :: dt_laddie_config                             = 360._dp                          ! [s] Time step for integration of laddie model
     REAL(dp)            :: time_duration_laddie_config                  = 6._dp                            ! [days] Duration of each run cycle
 
+    ! Integration
+    CHARACTER(LEN=256)  :: choice_laddie_integration_scheme_config      = ''                          ! Choose integration scheme. Options: 'euler'
+
     ! Initialisation
     REAL(dp)            :: laddie_initial_thickness_config              = 10._dp                           ! [m] Initial value of thickness H
     REAL(dp)            :: laddie_initial_T_offset_config               = 0.0_dp                           ! [degC] Initial offset of T relative to ambient
@@ -1776,6 +1779,9 @@ MODULE model_configuration
     REAL(dp)            :: dt_laddie
     REAL(dp)            :: time_duration_laddie
 
+    ! Integration
+    CHARACTER(LEN=256)  :: choice_laddie_integration_scheme
+
     ! Initialisation
     REAL(dp)            :: laddie_initial_thickness
     REAL(dp)            :: laddie_initial_T_offset
@@ -2668,6 +2674,7 @@ CONTAINS
       dir_BMB_laddie_model_config                                 , &
       dt_laddie_config                                            , &
       time_duration_laddie_config                                 , &
+      choice_laddie_integration_scheme_config                     , &
       laddie_initial_thickness_config                             , &
       laddie_initial_T_offset_config                              , &
       laddie_initial_S_offset_config                              , &
@@ -3616,6 +3623,9 @@ CONTAINS
     ! Time step
     C%dt_laddie                                              = dt_laddie_config
     C%time_duration_laddie                                   = time_duration_laddie_config
+
+    ! Integration
+    C%choice_laddie_integration_scheme                       = choice_laddie_integration_scheme_config
 
     ! Initialisation
     C%laddie_initial_thickness                               = laddie_initial_thickness_config

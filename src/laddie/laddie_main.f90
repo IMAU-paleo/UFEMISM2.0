@@ -144,7 +144,13 @@ CONTAINS
     ! ====================
 
     DO WHILE (tl <= C%time_duration_laddie * sec_per_day)
-      CALL integrate_euler( mesh, ice, ocean, laddie, tl, dt)  
+
+      SELECT CASE(C%choice_laddie_integration_scheme)
+        CASE DEFAULT
+          CALL crash('unknown choice_laddie_integration_scheme "' // TRIM( C%choice_laddie_integration_scheme) // '"')
+        CASE ('euler')
+          CALL integrate_euler( mesh, ice, ocean, laddie, tl, dt)  
+      END SELECT
 
       ! Display or save fields
       ! TODO
@@ -182,8 +188,13 @@ CONTAINS
     ! Allocate variables
     CALL allocate_laddie_model( mesh, laddie)
 
-    ! Allocate variables
-    CALL allocate_laddie_timestep( mesh, laddie%np1)
+    ! Allocate timestep
+    SELECT CASE(C%choice_laddie_integration_scheme)
+      CASE DEFAULT
+        CALL crash('unknown choice_laddie_integration_scheme "' // TRIM( C%choice_laddie_integration_scheme) // '"')
+      CASE ('euler')
+        CALL allocate_laddie_timestep( mesh, laddie%np1)
+    END SELECT
 
     ! Mask on a grid
     DO vi = mesh%vi1, mesh%vi2
