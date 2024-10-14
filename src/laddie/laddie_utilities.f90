@@ -178,159 +178,6 @@ CONTAINS
 
   END SUBROUTINE calc_laddie_flux_divergence_matrix_upwind
 
-  SUBROUTINE calc_laddie_flux_divergence_matrix_upwind_b( mesh, U_c, V_c, mask_b, mask_gl_b, M_divQ_b)
-    ! Calculate the layer flux divergence matrix M_divQ using an upwind scheme
-    !
-    ! The vertically averaged ice flux divergence represents the net ice volume (which,
-    ! assuming constant density, is proportional to the ice mass) entering each Voronoi
-    ! cell per unit time. This is found by calculating the ice fluxes through each
-    ! shared Voronoi cell boundary, using an upwind scheme: if ice flows from vertex vi
-    ! to vertex vj, the flux is found by multiplying the velocity at their shared
-    ! boundary u_c with the ice thickness at vi (and, of course, the length L_c of the
-    ! shared boundary). If instead it flows from vj to vi, u_c is multiplied with the
-    ! ice thickness at vj.
-
-    IMPLICIT NONE
-
-    ! In/output variables:
-    TYPE(type_mesh),                        INTENT(IN)    :: mesh
-    REAL(dp), DIMENSION(mesh%ei1:mesh%ei2), INTENT(IN)    :: U_c
-    REAL(dp), DIMENSION(mesh%ei1:mesh%ei2), INTENT(IN)    :: V_c
-    LOGICAL, DIMENSION(mesh%ti1:mesh%ti2),  INTENT(IN)    :: mask_b
-    LOGICAL, DIMENSION(mesh%ti1:mesh%ti2),  INTENT(IN)    :: mask_gl_b
-    TYPE(type_sparse_matrix_CSR_dp),        INTENT(OUT)   :: M_divQ_b
-
-
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'calc_laddie_flux_divergence_matrix_upwind_b'
-    REAL(dp), DIMENSION(mesh%nE)                          :: U_c_tot, V_c_tot
-    INTEGER                                               :: ncols, ncols_loc, nrows, nrows_loc, nnz_est_proc
-    INTEGER                                               :: ti, ci, ei, tj, vi1, vi2, i, j, e, k
-    REAL(dp)                                              :: A_i, L_c
-    REAL(dp)                                              :: L_x, L_y, u_perp
-    REAL(dp), DIMENSION(0:3)                              :: cM_divQ
-    LOGICAL, DIMENSION(mesh%nTri)                         :: mask_b_tot
-    LOGICAL, DIMENSION(mesh%nTri)                         :: mask_gl_b_tot
-
-    ! Add routine to path
-    CALL init_routine( routine_name)
-
-    ! Calculate vertically averaged ice velocities on the edges
-    CALL gather_to_all_dp_1D( U_c, U_c_tot)
-    CALL gather_to_all_dp_1D( V_c, V_c_tot)
-    CALL gather_to_all_logical_1D( mask_b, mask_b_tot)
-    CALL gather_to_all_logical_1D( mask_gl_b, mask_gl_b_tot)
-
-    ! == Initialise the matrix using the native UFEMISM CSR-matrix format
-    ! ===================================================================
-
-    ! Matrix size
-    ncols           = mesh%nTri      ! from
-    ncols_loc       = mesh%nTri_loc
-    nrows           = mesh%nTri      ! to
-    nrows_loc       = mesh%nTri_loc
-    nnz_est_proc    = mesh%nTri_loc + 3*(mesh%ti2 - mesh%ti1)
-
-    CALL allocate_matrix_CSR_dist( M_divQ_b, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
-
-    ! == Calculate coefficients
-    ! =========================
-
-    DO ti = mesh%ti1, mesh%ti2
-
-      IF (mask_b( ti)) THEN
-        ! Initialise
-        cM_divQ = 0._dp
-
-        ! Loop over all connections of triangle ti
-        DO ci = 1, 3
-
-          ! TODO move definition of TriE to mesh routine
-          ! == Get ei and tj ==
-          ei = 0
-          tj = 0
-          ! Get neighbouring vertex
-          vi1 = mesh%Tri( ti, ci)
-
-          ! Get the other neighbouring vertex
-          IF (i < 0) THEN
-            vi2 = mesh%Tri( ti, ci+1)
-          ELSE
-            vi2 = mesh%Tri( ti, 1)
-          END IF
-
-          ! Loop over edges connected to first vertex
-          DO j = 1,mesh%nC_mem
-            e = mesh%VE( vi1, j)
-            IF ( e == 0) CYCLE
-            DO k = 1,2
-              IF (mesh%EV( e, k) == vi2) THEN
-                ei = e
-              END IF
-            END DO
-          END DO ! j = 1, mesh%nC_mem 
-          
-          IF ( ei == 0) CYCLE
-          ! TODO make sure ei is not 0. Should not be possible
-          ! TODO what happens if this is a border?          
-
-          ! Get triangle bordering this shared edge
-          IF (mesh%ETri( ei, 1) == ti) THEN
-            tj = mesh%Etri( ei, 2)
-          ELSEIF (mesh%ETri( ei, 2) == ti) THEN
-            tj = mesh%Etri( ei, 1)
-          ELSE
-            CYCLE
-          END IF
-          IF (tj == 0) CYCLE
-          ! =================
-
-          ! Skip connection if neighbour is grounded. No flux across grounding line
-          ! Can be made more flexible when accounting for partial cells (PMP instead of FCMP)
-          IF (mask_gl_b_tot( tj)) CYCLE
-
-          ! The Voronoi cell of triangle ti has area A_i
-          A_i = mesh%TriA( ti)
-
-          ! The shared edge length of triangles ti and tj has length L_c 
-          L_x = mesh%V( vi1,1) - mesh%V( vi2,1)
-          L_y = mesh%V( vi1,2) - mesh%V( vi2,2)
-          L_c = SQRT( L_x**2 + L_y**2)
-
-          ! Calculate vertically averaged ice velocity component perpendicular to this edge
-          ! TODO check sign. u_perp should be positive when flow exits triangle
-          u_perp = - U_c_tot( ei) * L_y/L_c + V_c_tot( ei) * L_x/L_c
-
-          ! Calculate matrix coefficients
-          ! =============================
-
-          ! u_perp > 0: flow is exiting this vertex into vertex tj
-          cM_divQ( 0) = cM_divQ( 0) + L_c * MAX( 0._dp, u_perp) / A_i
-
-          ! u_perp < 0: flow is entering this vertex from vertex tj
-          cM_divQ( ci) = L_c * MIN( 0._dp, u_perp) / A_i
-
-          CALL add_entry_CSR_dist( M_divQ_b, ti, tj, cM_divQ( ci))
-
-        END DO ! DO ci = 1, mesh%nC( ti)
-
-        ! Add coefficients to matrix
-        CALL add_entry_CSR_dist( M_divQ_b, ti, ti, cM_divQ( 0))
-
-      ELSE
-
-        ! Add empty row
-        CALL add_empty_row_CSR_dist( M_divQ_b, ti)
-
-      END IF ! (mask_b( ti))
-
-    END DO ! DO ti = mesh%ti1, mesh%ti2
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE calc_laddie_flux_divergence_matrix_upwind_b
-
   SUBROUTINE map_laddie_velocities_from_b_to_c_2D( mesh, u_b_partial, v_b_partial, u_c, v_c)
     ! Calculate velocities on the c-grid for solving the ice thickness equation
     ! 
@@ -552,6 +399,7 @@ CONTAINS
     ALLOCATE( laddie%H_b_next           ( mesh%ti1:mesh%ti2              )) ! [m]             Layer next thickness on b grid
     ALLOCATE( laddie%U_a                ( mesh%vi1:mesh%vi2              )) ! [m s^-1]        Layer velocity on a grid  
     ALLOCATE( laddie%V_a                ( mesh%vi1:mesh%vi2              )) ! [m s^-1]        
+    ALLOCATE( laddie%H_c                ( mesh%ei1:mesh%ei2              )) ! [m]             Layer thickness on c grid 
     ALLOCATE( laddie%U_c                ( mesh%ei1:mesh%ei2              )) ! [m s^-1]        Layer velocity on c grid  
     ALLOCATE( laddie%V_c                ( mesh%ei1:mesh%ei2              )) ! [m s^-1]        
 
@@ -559,6 +407,7 @@ CONTAINS
     laddie%H_b_next       = 0._dp
     laddie%U_a            = 0._dp
     laddie%V_a            = 0._dp
+    laddie%H_c            = 0._dp
     laddie%U_c            = 0._dp
     laddie%V_c            = 0._dp
 

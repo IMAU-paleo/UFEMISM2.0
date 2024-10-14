@@ -18,14 +18,13 @@ MODULE laddie_main
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   USE laddie_utilities                                       , ONLY: compute_ambient_TS, allocate_laddie_model, &
                                                                      calc_laddie_flux_divergence_matrix_upwind, &
-                                                                     calc_laddie_flux_divergence_matrix_upwind_b, &
                                                                      map_laddie_velocities_from_b_to_c_2D
   USE laddie_physics                                         , ONLY: compute_melt_rate, compute_entrainment, &
                                                                      compute_freezing_temperature, compute_buoyancy
   USE laddie_thickness                                       , ONLY: compute_H_np1 
-  USE laddie_velocity                                        , ONLY: compute_UV_np1, compute_viscUV
+  USE laddie_velocity                                        , ONLY: compute_UV_np1, compute_viscUV, compute_divQUV_centered
   USE laddie_tracers                                         , ONLY: compute_TS_np1, compute_diffTS
-  USE mesh_operators                                         , ONLY: ddx_a_b_2D, ddy_a_b_2D, map_a_b_2D, map_b_a_2D
+  USE mesh_operators                                         , ONLY: ddx_a_b_2D, ddy_a_b_2D, map_a_b_2D, map_a_c_2D, map_b_a_2D
   USE petsc_basic                                            , ONLY: multiply_CSR_matrix_with_vector_1D
   USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_logical_1D
@@ -169,6 +168,8 @@ CONTAINS
         END IF
       END DO
 
+      CALL map_a_b_2D( mesh, laddie%H_next, laddie%H_b_next)
+
       ! Move velocities by 1 time step
       DO ti = mesh%ti1, mesh%ti2
         IF (laddie%mask_b( ti)) THEN
@@ -177,11 +178,14 @@ CONTAINS
         END IF
       END DO
 
+      CALL map_b_a_2D( mesh, laddie%U, laddie%U_a)
+      CALL map_b_a_2D( mesh, laddie%V, laddie%V_a)
+
       ! Display or save fields
       ! TODO
-      IF (par%master) THEN
-        WRITE( *, "(A,F8.3,A,F8.3,A,F8.3)") 'D', MAXVAL(laddie%H), 'T', MAXVAL(laddie%T), 'U', MAXVAL(laddie%U)
-      END IF     
+      ! IF (par%master) THEN
+      !   WRITE( *, "(A,F8.3,A,F8.3,A,F8.3)") 'Dmax ', MAXVAL(laddie%H), '  Tmax', MAXVAL(laddie%T), '   U', MAXVAL(laddie%U)
+      ! END IF     
 
     END DO !DO WHILE (tl <= C%time_duration_laddie)
 
@@ -286,6 +290,9 @@ CONTAINS
     ! Map thickness to b grid
     CALL map_a_b_2D( mesh, Hstar, laddie%H_b)
 
+    ! Map thickness to c grid
+    CALL map_a_c_2D( mesh, Hstar, laddie%H_c)
+
     ! Map next thickness to b grid
     CALL map_a_b_2D( mesh, laddie%H_next, laddie%H_b_next)
 
@@ -331,7 +338,6 @@ CONTAINS
          HstarT( vi) = Hstar( vi) * laddie%T( vi)
        END IF
     END DO
-
     ! Compute heat divergence
     CALL multiply_CSR_matrix_with_vector_1D( M_divQ, HstarT, laddie%divQT)
 
@@ -341,32 +347,11 @@ CONTAINS
          HstarS( vi) = Hstar( vi) * laddie%S( vi)
        END IF
     END DO
-
     ! Compute salt divergence
     CALL multiply_CSR_matrix_with_vector_1D( M_divQ, HstarS, laddie%divQS)
 
     ! Compute divergence matrix on b grid
-    CALL calc_laddie_flux_divergence_matrix_upwind_b( mesh, laddie%U_c, laddie%V_c, laddie%mask_b, laddie%mask_gl_b, M_divQ_b)
-
-    ! Compute Hstar * U
-    DO ti = mesh%ti1, mesh%ti2
-       IF (laddie%mask_b( ti)) THEN
-         HstarU( ti) = laddie%H_b( ti) * laddie%U( ti)
-       END IF
-    END DO
-
-    ! Compute U momentum divergence
-    CALL multiply_CSR_matrix_with_vector_1D( M_divQ_b, HstarU, laddie%divQU)
-
-    ! Compute Hstar * V
-    DO ti = mesh%ti1, mesh%ti2
-       IF (laddie%mask_b( ti)) THEN
-         HstarV( ti) = laddie%H_b( ti) * laddie%V( ti)
-       END IF
-    END DO
-
-    ! Compute V momentum divergence
-    CALL multiply_CSR_matrix_with_vector_1D( M_divQ_b, HstarV, laddie%divQV)
+    CALL compute_divQUV_centered( mesh, laddie, laddie%U_c, laddie%V_c, laddie%H_c, laddie%mask_b, laddie%mask_gl_b)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

@@ -117,7 +117,6 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_entrainment'
     INTEGER                                               :: vi
-    REAL(dp), PARAMETER                                   :: mindrho = 0.000001_dp
  
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -132,9 +131,6 @@ CONTAINS
          ! Get buoyancy at ice base
          laddie%drho_base( vi) = C%uniform_laddie_eos_linear_beta  * (laddie%S( vi)-laddie%S_base( vi)) &
                                - C%uniform_laddie_eos_linear_alpha * (laddie%T( vi)-laddie%T_base( vi))
-
-         ! Make sure buoyancy is positive
-         laddie%drho_base( vi) = MAX(laddie%drho_base( vi),mindrho)
 
          ! Get entrainment
          laddie%entr( vi) = 2*C%laddie_Gaspar1988_mu/grav & 
@@ -193,7 +189,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_buoyancy'
     INTEGER                                               :: vi
-    REAL(dp), PARAMETER                                   :: mindrho = 0.000001_dp
+    REAL(dp), PARAMETER                                   :: mindrho = 0.00005_dp
  
     ! Add routine to path
     CALL init_routine( routine_name)
