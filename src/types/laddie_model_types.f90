@@ -112,6 +112,8 @@ MODULE laddie_model_types
    
     ! Timestepping types
     TYPE(type_laddie_timestep)              :: np1                         !                   Timestep n plus 1  
+    TYPE(type_laddie_timestep)              :: np12                        !                   Timestep n plus 1/2  
+    TYPE(type_laddie_timestep)              :: np13                        !                   Timestep n plus 1/3  
   
   END TYPE type_laddie_model
 

@@ -12,7 +12,7 @@ MODULE laddie_thickness
   USE parameters
   USE mesh_types                                             , ONLY: type_mesh
   USE ice_model_types                                        , ONLY: type_ice_model
-  USE laddie_model_types                                     , ONLY: type_laddie_model
+  USE laddie_model_types                                     , ONLY: type_laddie_model, type_laddie_timestep
   USE ocean_model_types                                      , ONLY: type_ocean_model
   USE reallocate_mod                                         , ONLY: reallocate_bounds
 
@@ -23,7 +23,7 @@ CONTAINS
 ! ===== Main routines =====
 ! =========================
 
-  SUBROUTINE compute_H_np1( mesh, ice, laddie, dt)
+  SUBROUTINE compute_H_npx( mesh, ice, laddie, npx, dt)
     ! Integrate H by one time step
 
     ! In- and output variables
@@ -31,10 +31,11 @@ CONTAINS
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
     TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
+    TYPE(type_laddie_timestep),             INTENT(INOUT) :: npx
     REAL(dp),                               INTENT(IN)    :: dt
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_H_np1'
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_H_npx'
     INTEGER                                               :: vi
     REAL(dp)                                              :: dHdt
  
@@ -49,13 +50,13 @@ CONTAINS
         dHdt = -laddie%divQ( vi) + laddie%melt( vi) + laddie%entr( vi)
 
         ! First guess at H_n
-        laddie%np1%H( vi) = laddie%H( vi) + dHdt * dt
+        npx%H( vi) = laddie%H( vi) + dHdt * dt
 
         ! If H_n < Hmin, enhance entrainment to ensure H_n >= Hmin
-        laddie%entr_dmin( vi) = MAX( C%laddie_thickness_minimum - laddie%np1%H( vi), 0.0_dp) / dt
+        laddie%entr_dmin( vi) = MAX( C%laddie_thickness_minimum - npx%H( vi), 0.0_dp) / dt
 
         ! If H_n > Hmax, suppress entrainment to ensure H_n <= Hmax
-        laddie%entr( vi) = laddie%entr( vi) + MIN( C%laddie_thickness_maximum - laddie%np1%H( vi), 0.0_dp) / dt
+        laddie%entr( vi) = laddie%entr( vi) + MIN( C%laddie_thickness_maximum - npx%H( vi), 0.0_dp) / dt
 
         ! Update detrainment. Shouldn't matter but just in case
         laddie%detr( vi) = - MIN(laddie%entr( vi),0.0_dp)
@@ -64,7 +65,7 @@ CONTAINS
         dHdt = -laddie%divQ( vi) + laddie%melt( vi) + laddie%entr( vi) + laddie%entr_dmin( vi)
 
         ! Get actual H_n
-        laddie%np1%H( vi) = laddie%H( vi) + dHdt * dt
+        npx%H( vi) = laddie%H( vi) + dHdt * dt
 
       END IF !(laddie%mask_a( vi)) THEN
     END DO !vi = mesh%vi, mesh%v2
@@ -72,7 +73,7 @@ CONTAINS
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
-  END SUBROUTINE compute_H_np1
+  END SUBROUTINE compute_H_npx
 
 END MODULE laddie_thickness
 

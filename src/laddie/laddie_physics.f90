@@ -12,7 +12,7 @@ MODULE laddie_physics
   USE parameters
   USE mesh_types                                             , ONLY: type_mesh
   USE ice_model_types                                        , ONLY: type_ice_model
-  USE laddie_model_types                                     , ONLY: type_laddie_model
+  USE laddie_model_types                                     , ONLY: type_laddie_model, type_laddie_timestep
   USE ocean_model_types                                      , ONLY: type_ocean_model
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   USE ocean_utilities                                        , ONLY: interpolate_ocean_depth
@@ -24,7 +24,7 @@ CONTAINS
 ! ===== Main routines =====
 ! =========================
 
-  SUBROUTINE compute_melt_rate( mesh, ice, ocean, laddie, Hstar)
+  SUBROUTINE compute_melt_rate( mesh, ice, ocean, laddie, npx, Hstar)
     ! Compute melt rate using the three equations
 
     ! In- and output variables
@@ -33,6 +33,7 @@ CONTAINS
     TYPE(type_ocean_model),                 INTENT(IN)    :: ocean
     TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
+    TYPE(type_laddie_timestep),             INTENT(IN)    :: npx
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: Hstar
 
     ! Local variables:
@@ -75,8 +76,8 @@ CONTAINS
          That = freezing_lambda_2 - freezing_lambda_3*ice%Hib( vi)
          ! Chat = cp_ocean / (L_fusion - cp_ice * ice%Ti( vi, 1)) TODO expand with proper Ti
 
-         Bval = Chat*laddie%gamma_T( vi)*(That - laddie%T( vi)) + laddie%gamma_S( vi)*(1 + Chat*Ctil*(That + freezing_lambda_1*laddie%S( vi)))
-         Cval = Chat*laddie%gamma_T( vi)*laddie%gamma_S( vi) * (That-laddie%T( vi) + freezing_lambda_1*laddie%S( vi))
+         Bval = Chat*laddie%gamma_T( vi)*(That - npx%T( vi)) + laddie%gamma_S( vi)*(1 + Chat*Ctil*(That + freezing_lambda_1*npx%S( vi)))
+         Cval = Chat*laddie%gamma_T( vi)*laddie%gamma_S( vi) * (That-npx%T( vi) + freezing_lambda_1*npx%S( vi))
 
          ! Get melt rate
          IF (4*Cval > Bval**2) THEN
@@ -92,7 +93,7 @@ CONTAINS
            ! Seems like a very unlikely case, but better to be careful
            laddie%T_base( vi) = laddie%T_freeze( vi)
          ELSE
-           laddie%T_base( vi) = Chat*laddie%gamma_T( vi)*laddie%T( vi)/Dval
+           laddie%T_base( vi) = Chat*laddie%gamma_T( vi)*npx%T( vi)/Dval
          END IF
 
        END IF
@@ -103,7 +104,7 @@ CONTAINS
 
   END SUBROUTINE compute_melt_rate
 
-  SUBROUTINE compute_entrainment( mesh, ice, ocean, laddie, Hstar)
+  SUBROUTINE compute_entrainment( mesh, ice, ocean, laddie, npx, Hstar)
     ! Compute entrainment rate
 
     ! In- and output variables
@@ -112,6 +113,7 @@ CONTAINS
     TYPE(type_ocean_model),                 INTENT(IN)    :: ocean
     TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
+    TYPE(type_laddie_timestep),             INTENT(IN)    :: npx
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: Hstar
 
     ! Local variables:
@@ -129,8 +131,8 @@ CONTAINS
          laddie%S_base( vi) = (laddie%T_base( vi) - freezing_lambda_2 + freezing_lambda_3 * ice%Hib( vi)) / freezing_lambda_1
          
          ! Get buoyancy at ice base
-         laddie%drho_base( vi) = C%uniform_laddie_eos_linear_beta  * (laddie%S( vi)-laddie%S_base( vi)) &
-                               - C%uniform_laddie_eos_linear_alpha * (laddie%T( vi)-laddie%T_base( vi))
+         laddie%drho_base( vi) = C%uniform_laddie_eos_linear_beta  * (npx%S( vi)-laddie%S_base( vi)) &
+                               - C%uniform_laddie_eos_linear_alpha * (npx%T( vi)-laddie%T_base( vi))
 
          ! Make sure buoyancy is non-negative
          laddie%drho_base( vi) = MAX(laddie%drho_base( vi),0.0_dp)
@@ -150,7 +152,7 @@ CONTAINS
 
   END SUBROUTINE compute_entrainment
 
-  SUBROUTINE compute_freezing_temperature( mesh, ice, laddie)
+  SUBROUTINE compute_freezing_temperature( mesh, ice, laddie, npx)
     ! Compute freezing temperature at ice shelf base, based on Laddie salinity.
     ! TODO can maybe be merged with ice computation
 
@@ -159,6 +161,7 @@ CONTAINS
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
     TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
+    TYPE(type_laddie_timestep),             INTENT(IN)    :: npx
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_freezing_temperature'
@@ -169,7 +172,7 @@ CONTAINS
 
     DO vi = mesh%vi1, mesh%vi2
        IF (laddie%mask_a( vi)) THEN
-         laddie%T_freeze( vi) = freezing_lambda_1*laddie%S( vi) + freezing_lambda_2 - freezing_lambda_3*ice%Hib( vi)
+         laddie%T_freeze( vi) = freezing_lambda_1*npx%S( vi) + freezing_lambda_2 - freezing_lambda_3*ice%Hib( vi)
        END IF
     END DO
 
@@ -178,7 +181,7 @@ CONTAINS
 
   END SUBROUTINE compute_freezing_temperature
 
-  SUBROUTINE compute_buoyancy( mesh, ice, laddie, Hstar)
+  SUBROUTINE compute_buoyancy( mesh, ice, laddie, npx, Hstar)
     ! Compute buoyancy = (rho_amb - rho)/rho_sw
     ! TODO update with Roquet EOS 
 
@@ -187,6 +190,7 @@ CONTAINS
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
     TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
+    TYPE(type_laddie_timestep),             INTENT(IN)    :: npx
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: Hstar
 
     ! Local variables:
@@ -200,8 +204,8 @@ CONTAINS
     DO vi = mesh%vi1, mesh%vi2
        IF (laddie%mask_a( vi)) THEN
          ! Get buoyancy
-         laddie%drho_amb( vi) = C%uniform_laddie_eos_linear_beta  * (laddie%S_amb( vi)-laddie%S( vi)) &
-                              - C%uniform_laddie_eos_linear_alpha * (laddie%T_amb( vi)-laddie%T( vi))
+         laddie%drho_amb( vi) = C%uniform_laddie_eos_linear_beta  * (laddie%S_amb( vi)-npx%S( vi)) &
+                              - C%uniform_laddie_eos_linear_alpha * (laddie%T_amb( vi)-npx%T( vi))
 
          ! Make sure buoyancy is positive TODO expand with convection scheme
          laddie%drho_amb( vi) = MAX(laddie%drho_amb( vi),mindrho)

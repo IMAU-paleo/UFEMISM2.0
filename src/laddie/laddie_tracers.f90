@@ -12,7 +12,7 @@ MODULE laddie_tracers
   USE parameters
   USE mesh_types                                             , ONLY: type_mesh
   USE ice_model_types                                        , ONLY: type_ice_model
-  USE laddie_model_types                                     , ONLY: type_laddie_model
+  USE laddie_model_types                                     , ONLY: type_laddie_model, type_laddie_timestep
   USE ocean_model_types                                      , ONLY: type_ocean_model
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_1D, gather_to_all_logical_1D
@@ -24,18 +24,19 @@ CONTAINS
 ! ===== Main routines =====
 ! =========================
 
-  SUBROUTINE compute_TS_np1( mesh, ice, laddie, dt)
+  SUBROUTINE compute_TS_npx( mesh, ice, laddie, npx, dt)
     ! Integrate T and S by one time step
 
     ! In- and output variables
 
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
     TYPE(type_ice_model),                   INTENT(IN)    :: ice
-    TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
+    TYPE(type_laddie_model),                INTENT(IN)    :: laddie
+    TYPE(type_laddie_timestep),             INTENT(INOUT) :: npx
     REAL(dp),                               INTENT(IN)    :: dt
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_TS_np1'
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_TS_npx'
     INTEGER                                               :: vi
     REAL(dp)                                              :: dHTdt
     REAL(dp)                                              :: dHSdt
@@ -62,7 +63,7 @@ CONTAINS
         ! HT_n = HT_n + dHT_dt * dt
         HT_next = laddie%T( vi)*laddie%H( vi) + dHTdt * dt
 
-        laddie%np1%T( vi) = HT_next / laddie%np1%H( vi)
+        npx%T( vi) = HT_next / npx%H( vi)
 
       END IF !(laddie%mask_a( vi)) THEN
     END DO !vi = mesh%vi, mesh%v2
@@ -83,7 +84,7 @@ CONTAINS
         ! HS_n = HS_n + dHS_dt * dt
         HS_next = laddie%S( vi)*laddie%H( vi) + dHSdt * dt
 
-        laddie%np1%S( vi) = HS_next / laddie%np1%H( vi)
+        npx%S( vi) = HS_next / npx%H( vi)
 
       END IF !(laddie%mask_a( vi)) THEN
     END DO !vi = mesh%vi, mesh%v2
@@ -92,9 +93,9 @@ CONTAINS
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
-  END SUBROUTINE compute_TS_np1
+  END SUBROUTINE compute_TS_npx
 
-  SUBROUTINE compute_diffTS( mesh, ice, laddie, Hstar)
+  SUBROUTINE compute_diffTS( mesh, ice, laddie)
     ! Compute horizontal diffusion of heat and salt
 
     ! In- and output variables
@@ -102,7 +103,6 @@ CONTAINS
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
     TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: Hstar
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_diffTS'
@@ -137,8 +137,8 @@ CONTAINS
           vj = mesh%C( vi, ci)
           ! Can simply skip non-floating vertices to ensure d/dx = d/dy = 0 at boundaries
           IF (mask_a_tot( vj)) THEN
-            laddie%diffT( vi) = laddie%diffT( vi) + (T_tot( vj)-laddie%T( vi)) * laddie%K_h( vi) * Hstar( vi) / mesh%A( vi)
-            laddie%diffS( vi) = laddie%diffS( vi) + (S_tot( vj)-laddie%S( vi)) * laddie%K_h( vi) * Hstar( vi) / mesh%A( vi)
+            laddie%diffT( vi) = laddie%diffT( vi) + (T_tot( vj)-laddie%T( vi)) * laddie%K_h( vi) * laddie%H( vi) / mesh%A( vi)
+            laddie%diffS( vi) = laddie%diffS( vi) + (S_tot( vj)-laddie%S( vi)) * laddie%K_h( vi) * laddie%H( vi) / mesh%A( vi)
           END IF
         END DO
 

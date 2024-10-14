@@ -12,7 +12,7 @@ MODULE laddie_velocity
   USE parameters
   USE mesh_types                                             , ONLY: type_mesh
   USE ice_model_types                                        , ONLY: type_ice_model
-  USE laddie_model_types                                     , ONLY: type_laddie_model
+  USE laddie_model_types                                     , ONLY: type_laddie_model, type_laddie_timestep
   USE ocean_model_types                                      , ONLY: type_ocean_model
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_1D, gather_to_all_logical_1D
@@ -25,28 +25,34 @@ CONTAINS
 ! ===== Main routines =====
 ! =========================
 
-  SUBROUTINE compute_UV_np1( mesh, ice, laddie, dt)
+  SUBROUTINE compute_UV_npx( mesh, ice, laddie, npx, Hstar_b, dt)
     ! Integrate U and V by one time step
 
     ! In- and output variables
 
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
     TYPE(type_ice_model),                   INTENT(IN)    :: ice
-    TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
+    TYPE(type_laddie_model),                INTENT(IN)    :: laddie
+    TYPE(type_laddie_timestep),             INTENT(INOUT) :: npx
     REAL(dp),                               INTENT(IN)    :: dt
+    REAL(dp), DIMENSION(mesh%ti1:mesh%ti2), INTENT(IN)    :: Hstar_b
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_UV_np1'
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_UV_npx'
     INTEGER                                               :: ti, ci, nfl, vj
     REAL(dp)                                              :: dHUdt, dHVdt, HU_next, HV_next, PGF_x, PGF_y, Hdrho_fl, Uabs
     LOGICAL, DIMENSION(mesh%nV)                           :: mask_a_tot
     REAL(dp), DIMENSION(mesh%nV)                          :: Hdrho_amb_tot
+    REAL(dp), DIMENSION(mesh%ti1:mesh%ti2)                :: detr_b
  
     ! Add routine to path
     CALL init_routine( routine_name)
 
     CALL gather_to_all_logical_1D( laddie%mask_a, mask_a_tot)
     CALL gather_to_all_dp_1D( laddie%Hdrho_amb, Hdrho_amb_tot)
+
+    ! Map detrainment to b grid
+    CALL map_a_b_2D( mesh, laddie%detr, detr_b)
 
     ! == Integrate U and V ==
     ! =======================
@@ -78,11 +84,11 @@ CONTAINS
           ! Regular full expression
           PGF_x = - grav * laddie%Hdrho_amb_b( ti) * laddie%dH_dx_b( ti) &
                   + grav * laddie%Hdrho_amb_b( ti) * laddie%dHib_dx_b( ti) &
-                  - 0.5*grav * laddie%H_b( ti)**2 * laddie%ddrho_amb_dx_b( ti)
+                  - 0.5*grav * Hstar_b( ti)**2 * laddie%ddrho_amb_dx_b( ti)
 
           PGF_y = - grav * laddie%Hdrho_amb_b( ti) * laddie%dH_dy_b( ti) &
                   + grav * laddie%Hdrho_amb_b( ti) * laddie%dHib_dy_b( ti) &
-                  - 0.5*grav * laddie%H_b( ti)**2 * laddie%ddrho_amb_dy_b( ti)
+                  - 0.5*grav * Hstar_b( ti)**2 * laddie%ddrho_amb_dy_b( ti)
         END IF
 
         ! == time derivatives ==
@@ -91,18 +97,18 @@ CONTAINS
         ! dHU_dt
         dHUdt = - laddie%divQU( ti) &
                 + PGF_x &
-                + C%uniform_laddie_coriolis_parameter * laddie%H_b( ti) * laddie%V( ti) &
+                + C%uniform_laddie_coriolis_parameter * Hstar_b( ti) * laddie%V( ti) &
                 - C%laddie_drag_coefficient * laddie%U( ti) * (laddie%U( ti)**2 + laddie%V( ti)**2)**.5 &
                 + laddie%viscU( ti) &
-                - laddie%detr_b( ti) * laddie%U( ti)
+                - detr_b( ti) * laddie%U( ti)
 
         ! dHV_dt
         dHVdt = - laddie%divQV( ti) &
                 + PGF_y &
-                - C%uniform_laddie_coriolis_parameter * laddie%H_b( ti) * laddie%U( ti) &
+                - C%uniform_laddie_coriolis_parameter * Hstar_b( ti) * laddie%U( ti) &
                 - C%laddie_drag_coefficient * laddie%V( ti) * (laddie%U( ti)**2 + laddie%V( ti)**2)**.5 &
                 + laddie%viscV( ti) &
-                - laddie%detr_b( ti) * laddie%V( ti)
+                - detr_b( ti) * laddie%V( ti)
 
         ! == next time step ==
         ! ====================
@@ -112,8 +118,8 @@ CONTAINS
         HV_next = laddie%V( ti)*laddie%H_b( ti) + dHVdt * dt
 
         ! U_n = HU_n / H_n
-        laddie%np1%U( ti) = HU_next / laddie%np1%H_b( ti)
-        laddie%np1%V( ti) = HV_next / laddie%np1%H_b( ti)
+        npx%U( ti) = HU_next / npx%H_b( ti)
+        npx%V( ti) = HV_next / npx%H_b( ti)
 
       END IF ! (laddie%mask_b( ti))
     END DO !ti = mesh%ti1, mesh%ti2
@@ -122,11 +128,11 @@ CONTAINS
     DO ti = mesh%ti1, mesh%ti2
       IF (laddie%mask_b( ti)) THEN
         ! Get absolute velocity
-        Uabs = (laddie%np1%U( ti)**2 + laddie%np1%V( ti)**2)**.5
+        Uabs = (npx%U( ti)**2 + npx%V( ti)**2)**.5
         
         ! Scale U and V 
-        laddie%np1%U( ti) = laddie%np1%U( ti) * MIN(1.0_dp, C%laddie_velocity_maximum/Uabs)
-        laddie%np1%V( ti) = laddie%np1%V( ti) * MIN(1.0_dp, C%laddie_velocity_maximum/Uabs)
+        npx%U( ti) = npx%U( ti) * MIN(1.0_dp, C%laddie_velocity_maximum/Uabs)
+        npx%V( ti) = npx%V( ti) * MIN(1.0_dp, C%laddie_velocity_maximum/Uabs)
       END IF ! (laddie%mask_b( ti))
     END DO !ti = mesh%ti1, mesh%ti2
 
@@ -134,9 +140,9 @@ CONTAINS
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
-  END SUBROUTINE compute_UV_np1
+  END SUBROUTINE compute_UV_npx
 
-  SUBROUTINE compute_viscUV( mesh, ice, laddie, Hstar)       
+  SUBROUTINE compute_viscUV( mesh, ice, laddie)       
     ! Compute horizontal viscosity of momentum          
   
     ! In- and output variables                               
@@ -144,21 +150,11 @@ CONTAINS
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
     TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: Hstar
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_viscUV'
-    INTEGER                                               :: vi
-    INTEGER                                               :: vj
-    INTEGER                                               :: i
-    INTEGER                                               :: j
-    INTEGER                                               :: ti
-    INTEGER                                               :: tj
-    INTEGER                                               :: nf1
-    INTEGER                                               :: nf2
-    REAL(dp), DIMENSION(mesh%nTri)                        :: U_tot
-    REAL(dp), DIMENSION(mesh%nTri)                        :: V_tot
-    REAL(dp), DIMENSION(mesh%ti1:mesh%ti2)                :: Hstar_b
+    INTEGER                                               :: i, j, vi, vj, ti, tj, nf1, nf2
+    REAL(dp), DIMENSION(mesh%nTri)                        :: U_tot, V_tot
     LOGICAL, DIMENSION(mesh%nV)                           :: mask_a_tot
     LOGICAL, DIMENSION(mesh%nTri)                         :: mask_gl_b_tot
     
@@ -170,9 +166,6 @@ CONTAINS
     CALL gather_to_all_dp_1D( laddie%V, V_tot)            
     CALL gather_to_all_logical_1D( laddie%mask_a, mask_a_tot)
     CALL gather_to_all_logical_1D( laddie%mask_gl_b, mask_gl_b_tot)
-
-    ! Map Hstar
-    CALL map_a_b_2D( mesh, Hstar, Hstar_b)
 
     ! Loop over triangles                                  
     DO ti = mesh%ti1, mesh%ti2
@@ -191,14 +184,14 @@ CONTAINS
 
           IF (tj==0) THEN
             ! Border or corner. For now, assume no slip. If free slip: CYCLE
-            laddie%viscU( ti) = laddie%viscU( ti) - laddie%U( ti) * laddie%A_h( ti) * Hstar_b( ti) / mesh%TriA( ti)
-            laddie%viscV( ti) = laddie%viscV( ti) - laddie%V( ti) * laddie%A_h( ti) * Hstar_b( ti) / mesh%TriA( ti)
+            laddie%viscU( ti) = laddie%viscU( ti) - laddie%U( ti) * laddie%A_h( ti) * laddie%H_b( ti) / mesh%TriA( ti)
+            laddie%viscV( ti) = laddie%viscV( ti) - laddie%V( ti) * laddie%A_h( ti) * laddie%H_b( ti) / mesh%TriA( ti)
           ! TODO add CYCLE if neighbour is ocean. Again: d/dx = d/dy = 0
           ELSE
             ! Add viscosity flux based on dU/dx and dV/dy. 
             ! Note: for grounded neighbours, U_tot( tj) = 0, meaning this is a no slip option. Can be expanded
-            laddie%viscU( ti) = laddie%viscU( ti) + (U_tot( tj)-laddie%U( ti)) * laddie%A_h( ti) * Hstar_b( ti) / mesh%TriA( ti)
-            laddie%viscV( ti) = laddie%viscV( ti) + (V_tot( tj)-laddie%V( ti)) * laddie%A_h( ti) * Hstar_b( ti) / mesh%TriA( ti)
+            laddie%viscU( ti) = laddie%viscU( ti) + (U_tot( tj)-laddie%U( ti)) * laddie%A_h( ti) * laddie%H_b( ti) / mesh%TriA( ti)
+            laddie%viscV( ti) = laddie%viscV( ti) + (V_tot( tj)-laddie%V( ti)) * laddie%A_h( ti) * laddie%H_b( ti) / mesh%TriA( ti)
           END IF
         END DO
 

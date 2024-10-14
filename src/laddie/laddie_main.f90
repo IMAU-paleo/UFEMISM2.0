@@ -12,7 +12,7 @@ MODULE laddie_main
   USE parameters
   USE mesh_types                                             , ONLY: type_mesh
   USE ice_model_types                                        , ONLY: type_ice_model
-  USE laddie_model_types                                     , ONLY: type_laddie_model
+  USE laddie_model_types                                     , ONLY: type_laddie_model, type_laddie_timestep
   USE ocean_model_types                                      , ONLY: type_ocean_model
   USE BMB_model_types                                        , ONLY: type_BMB_model
   USE reallocate_mod                                         , ONLY: reallocate_bounds
@@ -22,9 +22,9 @@ MODULE laddie_main
                                                                      map_laddie_velocities_from_b_to_c_2D
   USE laddie_physics                                         , ONLY: compute_melt_rate, compute_entrainment, &
                                                                      compute_freezing_temperature, compute_buoyancy
-  USE laddie_thickness                                       , ONLY: compute_H_np1 
-  USE laddie_velocity                                        , ONLY: compute_UV_np1, compute_viscUV, compute_divQUV_centered
-  USE laddie_tracers                                         , ONLY: compute_TS_np1, compute_diffTS
+  USE laddie_thickness                                       , ONLY: compute_H_npx 
+  USE laddie_velocity                                        , ONLY: compute_UV_npx, compute_viscUV, compute_divQUV_centered
+  USE laddie_tracers                                         , ONLY: compute_TS_npx, compute_diffTS
   USE mesh_operators                                         , ONLY: ddx_a_b_2D, ddy_a_b_2D, map_a_b_2D, map_a_c_2D, map_b_a_2D
   USE petsc_basic                                            , ONLY: multiply_CSR_matrix_with_vector_1D
   USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp
@@ -138,7 +138,8 @@ CONTAINS
     CALL ddy_a_b_2D( mesh, ice%Hib , laddie%dHib_dy_b)
 
     ! Update secondary fields
-    CALL update_secondary_fields( mesh, ice, ocean, laddie, laddie%H)
+    ! CALL integrate_euler( mesh, ice, ocean, laddie, tl, dt)
+    ! CALL update_secondary_fields( mesh, ice, ocean, laddie, laddie%H)
 
     ! == Main time loop ==
     ! ====================
@@ -150,6 +151,8 @@ CONTAINS
           CALL crash('unknown choice_laddie_integration_scheme "' // TRIM( C%choice_laddie_integration_scheme) // '"')
         CASE ('euler')
           CALL integrate_euler( mesh, ice, ocean, laddie, tl, dt)  
+        CASE ('fbrk3')
+          CALL integrate_fbrk3( mesh, ice, ocean, laddie, tl, dt)  
       END SELECT
 
       ! Display or save fields
@@ -194,6 +197,10 @@ CONTAINS
         CALL crash('unknown choice_laddie_integration_scheme "' // TRIM( C%choice_laddie_integration_scheme) // '"')
       CASE ('euler')
         CALL allocate_laddie_timestep( mesh, laddie%np1)
+      CASE ('fbrk3')
+        CALL allocate_laddie_timestep( mesh, laddie%np13)
+        CALL allocate_laddie_timestep( mesh, laddie%np12)
+        CALL allocate_laddie_timestep( mesh, laddie%np1)
     END SELECT
 
     ! Mask on a grid
@@ -205,7 +212,16 @@ CONTAINS
     DO vi = mesh%vi1, mesh%vi2
        IF (laddie%mask_a( vi)) THEN
          laddie%H( vi)      = C%laddie_initial_thickness
-         laddie%np1%H( vi)  = C%laddie_initial_thickness
+         SELECT CASE(C%choice_laddie_integration_scheme)
+           CASE DEFAULT
+             CALL crash('unknown choice_laddie_integration_scheme "' // TRIM( C%choice_laddie_integration_scheme) // '"')
+           CASE ('euler')
+             laddie%np1%H( vi)   = C%laddie_initial_thickness
+           CASE ('fbrk3')
+             laddie%np13%H( vi)  = C%laddie_initial_thickness
+             laddie%np12%H( vi)  = C%laddie_initial_thickness
+             laddie%np1%H( vi)   = C%laddie_initial_thickness
+         END SELECT
        END IF
     END DO
 
@@ -216,9 +232,21 @@ CONTAINS
     DO vi = mesh%vi1, mesh%vi2
        IF (laddie%mask_a( vi)) THEN
          laddie%T( vi)      = laddie%T_amb( vi) + C%laddie_initial_T_offset 
-         laddie%np1%T( vi)  = laddie%T_amb( vi) + C%laddie_initial_T_offset
          laddie%S( vi)      = laddie%S_amb( vi) + C%laddie_initial_S_offset
-         laddie%np1%S( vi)  = laddie%S_amb( vi) + C%laddie_initial_S_offset
+         SELECT CASE(C%choice_laddie_integration_scheme)
+           CASE DEFAULT
+             CALL crash('unknown choice_laddie_integration_scheme "' // TRIM( C%choice_laddie_integration_scheme) // '"')
+           CASE ('euler')
+             laddie%np1%T( vi)   = laddie%T_amb( vi) + C%laddie_initial_T_offset
+             laddie%np1%S( vi)   = laddie%S_amb( vi) + C%laddie_initial_S_offset
+           CASE ('fbrk3')
+             laddie%np13%T( vi)  = laddie%T_amb( vi) + C%laddie_initial_T_offset
+             laddie%np13%S( vi)  = laddie%S_amb( vi) + C%laddie_initial_S_offset
+             laddie%np12%T( vi)  = laddie%T_amb( vi) + C%laddie_initial_T_offset
+             laddie%np12%S( vi)  = laddie%S_amb( vi) + C%laddie_initial_S_offset
+             laddie%np1%T( vi)   = laddie%T_amb( vi) + C%laddie_initial_T_offset
+             laddie%np1%S( vi)   = laddie%S_amb( vi) + C%laddie_initial_S_offset
+         END SELECT
        END IF
     END DO
 
@@ -245,19 +273,25 @@ CONTAINS
  
     ! Add routine to path
     CALL init_routine( routine_name)
- 
+
+    ! Update diffusive terms based on now time step
+    CALL update_diffusive_terms( mesh, ice, laddie)
+
     ! Integrate H 1 time step
-    CALL compute_H_np1( mesh, ice, laddie, dt)
+    CALL compute_H_npx( mesh, ice, laddie, laddie%np1, dt)
+
+    ! Map H and Hstar to b grid
+    CALL map_H_a_b( mesh, laddie, laddie%np1%H, laddie%np1%H_b)
+    CALL map_H_a_b( mesh, laddie, laddie%H, laddie%H_b)
 
     ! Integrate U and V 1 time step
-    CALL map_H_a_b( mesh, laddie, laddie%np1%H, laddie%np1%H_b)
-    CALL compute_UV_np1( mesh, ice, laddie, dt)
+    CALL compute_UV_npx( mesh, ice, laddie, laddie%np1, laddie%H_b, dt)
 
     ! Integrate T and S 1 time step
-    CALL compute_TS_np1( mesh, ice, laddie, dt)
+    CALL compute_TS_npx( mesh, ice, laddie, laddie%np1, dt)
 
     ! Update secondary fields
-    CALL update_secondary_fields( mesh, ice, ocean, laddie, laddie%H)
+    CALL update_secondary_fields( mesh, ice, ocean, laddie, laddie%np1, laddie%H, laddie%H_b)
 
     ! == Move time ==
     ! Increase laddie time
@@ -285,7 +319,141 @@ CONTAINS
 
   END SUBROUTINE integrate_euler
 
-  SUBROUTINE update_secondary_fields( mesh, ice, ocean, laddie, Hstar)
+  SUBROUTINE integrate_fbrk3( mesh, ice, ocean, laddie, tl, dt)
+    ! Integrate 1 timestep Forward-Backward Runge Kutta 3 scheme 
+
+    ! In- and output variables
+
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh
+    TYPE(type_ice_model),                   INTENT(IN)    :: ice
+    TYPE(type_ocean_model),                 INTENT(IN)    :: ocean
+    TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
+    REAL(dp),                               INTENT(INOUT) :: tl
+    REAL(dp),                               INTENT(IN)    :: dt
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'integrate_fbrk3'
+    INTEGER                                               :: vi, ti
+    REAL(dp), PARAMETER                                   :: beta1 = 0.500_dp
+    REAL(dp), PARAMETER                                   :: beta2 = 0.500_dp
+    REAL(dp), PARAMETER                                   :: beta3 = 0.344_dp
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: Hstar
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: Hstarstar
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: Hstarstarstar
+    REAL(dp), DIMENSION(mesh%ti1:mesh%ti2)                :: Hstar_b
+    REAL(dp), DIMENSION(mesh%ti1:mesh%ti2)                :: Hstarstar_b
+    REAL(dp), DIMENSION(mesh%ti1:mesh%ti2)                :: Hstarstarstar_b
+ 
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Update diffusive terms based on now time step
+    ! Possibly only add during stage 3
+    CALL update_diffusive_terms( mesh, ice, laddie)
+
+    ! == Stage 1: explicit 1/3 timestep ==
+    ! == RHS terms defined at n ==========
+    ! ====================================
+ 
+    ! Integrate H 1/3 time step
+    CALL compute_H_npx( mesh, ice, laddie, laddie%np13, dt/3)
+
+    ! Compute Hstar
+    DO vi = mesh%vi1, mesh%vi2
+      Hstar( vi) = beta1 * laddie%np13%H ( vi) + (1-beta1) * laddie%H( vi)
+    END DO
+
+    ! Map H and Hstar to b grid
+    CALL map_H_a_b( mesh, laddie, laddie%np13%H, laddie%np13%H_b)
+    CALL map_H_a_b( mesh, laddie, Hstar, Hstar_b)
+
+    ! Integrate U and V 1/3 time step
+    CALL compute_UV_npx( mesh, ice, laddie, laddie%np13, Hstar_b, dt/3)
+
+    ! Integrate T and S 1/3 time step
+    CALL compute_TS_npx( mesh, ice, laddie, laddie%np13, dt/3)
+
+    ! Update secondary fields
+    CALL update_secondary_fields( mesh, ice, ocean, laddie, laddie%np13, Hstar, Hstar_b)
+
+    ! == Stage 2: explicit 1/2 timestep ==
+    ! == RHS terms defined at n + 1/3 ====
+    ! ====================================
+
+    ! Integrate H 1/2 time step
+    CALL compute_H_npx( mesh, ice, laddie, laddie%np12, dt/2)
+
+    ! Compute Hstarstar
+    DO vi = mesh%vi1, mesh%vi2
+      Hstarstar( vi) = beta2 * laddie%np12%H ( vi) + (1-beta2) * laddie%H( vi)
+    END DO
+
+    ! Map H and Hstarstar to b grid
+    CALL map_H_a_b( mesh, laddie, laddie%np12%H, laddie%np12%H_b)
+    CALL map_H_a_b( mesh, laddie, Hstarstar, Hstarstar_b)
+
+    ! Integrate U and V 1/2 time step
+    CALL compute_UV_npx( mesh, ice, laddie, laddie%np12, Hstarstar_b, dt/2)
+
+    ! Integrate T and S 1/2 time step
+    CALL compute_TS_npx( mesh, ice, laddie, laddie%np12, dt/2)
+
+    ! Update secondary fields
+    CALL update_secondary_fields( mesh, ice, ocean, laddie, laddie%np12, Hstarstar, Hstarstar_b)
+
+    ! == Stage 3: explicit 1 timestep ====
+    ! == RHS terms defined at n + 1/2 ====
+    ! ====================================
+
+    ! Integrate H 1 time step
+    CALL compute_H_npx( mesh, ice, laddie, laddie%np1, dt)
+
+    ! Compute Hstarstarstar
+    DO vi = mesh%vi1, mesh%vi2
+      Hstarstarstar( vi) = beta3 * laddie%np1%H ( vi) + (1-2*beta3) * laddie%np12%H( vi) + beta3 * laddie%H( vi)
+    END DO
+
+    ! Map H and Hstarstarstar to b grid
+    CALL map_H_a_b( mesh, laddie, laddie%np1%H, laddie%np1%H_b)
+    CALL map_H_a_b( mesh, laddie, Hstarstarstar, Hstarstarstar_b)
+
+    ! Integrate U and V 1 time step
+    CALL compute_UV_npx( mesh, ice, laddie, laddie%np1, Hstarstarstar_b, dt)
+
+    ! Integrate T and S 1 time step
+    CALL compute_TS_npx( mesh, ice, laddie, laddie%np1, dt)
+
+    ! Update secondary fields
+    CALL update_secondary_fields( mesh, ice, ocean, laddie, laddie%np1, Hstarstarstar, Hstarstarstar_b)
+
+    ! =============== 
+    ! == Move time ==
+    ! Increase laddie time
+    tl = tl + C%dt_laddie
+
+    ! Move main variables by 1 time step
+    DO vi = mesh%vi1, mesh%vi2
+      IF (laddie%mask_a( vi)) THEN
+        laddie%H( vi) = laddie%np1%H( vi)
+        laddie%T( vi) = laddie%np1%T( vi)
+        laddie%S( vi) = laddie%np1%S( vi)
+      END IF
+    END DO
+
+    ! Move velocities by 1 time step
+    DO ti = mesh%ti1, mesh%ti2
+      IF (laddie%mask_b( ti)) THEN
+        laddie%U( ti) = laddie%np1%U( ti)
+        laddie%V( ti) = laddie%np1%V( ti)
+      END IF
+    END DO
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE integrate_fbrk3
+
+  SUBROUTINE update_secondary_fields( mesh, ice, ocean, laddie, npx, Hstar, Hstar_b)
     ! Update all secondary fields required for next iteration
 
     ! In- and output variables
@@ -294,7 +462,9 @@ CONTAINS
     TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_ocean_model),                 INTENT(IN)    :: ocean
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
+    TYPE(type_laddie_timestep),             INTENT(IN)    :: npx          ! Reference timestep
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: Hstar
+    REAL(dp), DIMENSION(mesh%ti1:mesh%ti2), INTENT(IN)    :: Hstar_b
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'update_secondary_fields'
@@ -305,6 +475,7 @@ CONTAINS
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: HstarS
     REAL(dp), DIMENSION(mesh%ti1:mesh%ti2)                :: HstarU
     REAL(dp), DIMENSION(mesh%ti1:mesh%ti2)                :: HstarV
+    REAL(dp), DIMENSION(mesh%ei1:mesh%ei2)                :: Hstar_c
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -313,63 +484,40 @@ CONTAINS
     CALL compute_ambient_TS( mesh, ice, ocean, laddie, Hstar)
 
     ! Compute freezing temperature
-    CALL compute_freezing_temperature( mesh, ice, laddie)
+    CALL compute_freezing_temperature( mesh, ice, laddie, npx)
 
     ! Compute buoyancy
-    CALL compute_buoyancy( mesh, ice, laddie, Hstar)
+    CALL compute_buoyancy( mesh, ice, laddie, npx, Hstar)
 
-    ! Map buoyancy to b grid
+    ! Bunch of mappings
     CALL map_a_b_2D( mesh, laddie%Hdrho_amb, laddie%Hdrho_amb_b)
+    CALL map_a_c_2D( mesh, Hstar, Hstar_c)
+    CALL map_b_a_2D( mesh, npx%U, laddie%U_a)
+    CALL map_b_a_2D( mesh, npx%V, laddie%V_a)
+    CALL map_laddie_velocities_from_b_to_c_2D( mesh, npx%U, npx%V, laddie%U_c, laddie%V_c)
 
-    ! Map thickness to b grid
-    CALL map_H_a_b( mesh, laddie, Hstar, laddie%H_b)
-
-    ! Map thickness to c grid
-    CALL map_a_c_2D( mesh, Hstar, laddie%H_c)
-
-    ! Map next thickness to b grid
-    CALL map_a_b_2D( mesh, laddie%np1%H, laddie%np1%H_b)
-
-    ! Map detrainment to b grid
-    CALL map_a_b_2D( mesh, laddie%detr, laddie%detr_b)
-
-    ! Map velocities to a grid
-    CALL map_b_a_2D( mesh, laddie%U, laddie%U_a)
-    CALL map_b_a_2D( mesh, laddie%V, laddie%V_a)
-
-    ! Update buoyancy derivatives
+    ! Bunch of derivatives
     CALL ddx_a_b_2D( mesh, laddie%drho_amb, laddie%ddrho_amb_dx_b)
     CALL ddy_a_b_2D( mesh, laddie%drho_amb, laddie%ddrho_amb_dy_b)
-
-    ! Update thickness derivatives
     CALL ddx_a_b_2D( mesh, Hstar, laddie%dH_dx_b)
     CALL ddy_a_b_2D( mesh, Hstar, laddie%dH_dy_b)
 
     ! Compute melt rate
-    CALL compute_melt_rate( mesh, ice, ocean, laddie, Hstar)
+    CALL compute_melt_rate( mesh, ice, ocean, laddie, npx, Hstar)
     
     ! Compute entrainment
-    CALL compute_entrainment( mesh, ice, ocean, laddie, Hstar)
-
-    ! Compute diffusivities
-    CALL compute_diffTS( mesh, ice, laddie, Hstar)
-
-    ! Compute viscosities
-    CALL compute_viscUV( mesh, ice, laddie, Hstar)
-
-    ! Get velocities on c grid
-    CALL map_laddie_velocities_from_b_to_c_2D( mesh, laddie%U, laddie%V, laddie%U_c, laddie%V_c)
+    CALL compute_entrainment( mesh, ice, ocean, laddie, npx, Hstar)
 
     ! Compute divergence matrix
     CALL calc_laddie_flux_divergence_matrix_upwind( mesh, laddie%U_c, laddie%V_c, laddie%mask_a, laddie%mask_gr_a, M_divQ)
 
     ! Compute thickness divergence
-    CALL multiply_CSR_matrix_with_vector_1D( M_divQ, laddie%H, laddie%divQ)
+    CALL multiply_CSR_matrix_with_vector_1D( M_divQ, npx%H, laddie%divQ)
 
     ! Compute Hstar * T
     DO vi = mesh%vi1, mesh%vi2
        IF (laddie%mask_a( vi)) THEN
-         HstarT( vi) = Hstar( vi) * laddie%T( vi)
+         HstarT( vi) = Hstar( vi) * npx%T( vi)
        END IF
     END DO
     ! Compute heat divergence
@@ -378,19 +526,48 @@ CONTAINS
     ! Compute Hstar * S
     DO vi = mesh%vi1, mesh%vi2
        IF (laddie%mask_a( vi)) THEN
-         HstarS( vi) = Hstar( vi) * laddie%S( vi)
+         HstarS( vi) = Hstar( vi) * npx%S( vi)
        END IF
     END DO
     ! Compute salt divergence
     CALL multiply_CSR_matrix_with_vector_1D( M_divQ, HstarS, laddie%divQS)
 
     ! Compute divergence matrix on b grid
-    CALL compute_divQUV_centered( mesh, laddie, laddie%U_c, laddie%V_c, laddie%H_c, laddie%mask_b, laddie%mask_gl_b)
+    CALL compute_divQUV_centered( mesh, laddie, laddie%U_c, laddie%V_c, Hstar_c, laddie%mask_b, laddie%mask_gl_b)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE update_secondary_fields
+
+  SUBROUTINE update_diffusive_terms( mesh, ice, laddie)
+    ! Update diffusivity and viscosity. Always based on now timestep for stability
+
+    ! In- and output variables
+
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh
+    TYPE(type_ice_model),                   INTENT(IN)    :: ice
+    TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'update_diffusive_terms'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Map thickness to b grid
+    CALL map_H_a_b( mesh, laddie, laddie%H, laddie%H_b)
+
+    ! Compute diffusivities
+    CALL compute_diffTS( mesh, ice, laddie)
+
+    ! Compute viscosities
+    CALL compute_viscUV( mesh, ice, laddie)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE update_diffusive_terms
 
 END MODULE laddie_main
 
