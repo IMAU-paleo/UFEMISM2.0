@@ -133,7 +133,7 @@ CONTAINS
                                - C%uniform_laddie_eos_linear_alpha * (laddie%T( vi)-laddie%T_base( vi))
 
          ! Make sure buoyancy is non-negative
-         laddie%drho_base( vi) = MAX(laddie%drho_amb( vi),0.0_dp)
+         laddie%drho_base( vi) = MAX(laddie%drho_base( vi),0.0_dp)
 
          ! Get entrainment
          laddie%entr( vi) = 2*C%laddie_Gaspar1988_mu/grav & 
