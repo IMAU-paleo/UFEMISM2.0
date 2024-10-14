@@ -144,42 +144,7 @@ CONTAINS
     ! ====================
 
     DO WHILE (tl <= C%time_duration_laddie * sec_per_day)
-      ! Integrate H 1 time step
-      CALL compute_H_np1( mesh, ice, laddie, dt)
-
-      ! Integrate U and V 1 time step
-      CALL map_H_a_b( mesh, laddie, laddie%np1%H, laddie%np1%H_b)
-      CALL compute_UV_np1( mesh, ice, laddie, dt)
-
-      ! Integrate T and S 1 time step
-      CALL compute_TS_np1( mesh, ice, laddie, dt)
-
-      ! Update secondary fields
-      CALL update_secondary_fields( mesh, ice, ocean, laddie, laddie%H)
-
-      ! == Move time ==
-      ! Increase laddie time
-      tl = tl + C%dt_laddie
-
-      ! Move main variables by 1 time step
-      DO vi = mesh%vi1, mesh%vi2
-        IF (laddie%mask_a( vi)) THEN
-          laddie%H( vi) = laddie%np1%H( vi)
-          laddie%T( vi) = laddie%np1%T( vi)
-          laddie%S( vi) = laddie%np1%S( vi)
-        END IF
-      END DO
-
-      ! Move velocities by 1 time step
-      DO ti = mesh%ti1, mesh%ti2
-        IF (laddie%mask_b( ti)) THEN
-          laddie%U( ti) = laddie%np1%U( ti)
-          laddie%V( ti) = laddie%np1%V( ti)
-        END IF
-      END DO
-
-      CALL map_b_a_2D( mesh, laddie%U, laddie%U_a)
-      CALL map_b_a_2D( mesh, laddie%V, laddie%V_a)
+      CALL integrate_euler( mesh, ice, ocean, laddie, tl, dt)  
 
       ! Display or save fields
       ! TODO
@@ -250,6 +215,64 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE initialise_laddie_model
+
+  SUBROUTINE integrate_euler( mesh, ice, ocean, laddie, tl, dt)
+    ! Integrate 1 timestep Euler scheme 
+
+    ! In- and output variables
+
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh
+    TYPE(type_ice_model),                   INTENT(IN)    :: ice
+    TYPE(type_ocean_model),                 INTENT(IN)    :: ocean
+    TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
+    REAL(dp),                               INTENT(INOUT) :: tl
+    REAL(dp),                               INTENT(IN)    :: dt
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'integrate_euler'
+    INTEGER                                               :: vi, ti
+ 
+    ! Add routine to path
+    CALL init_routine( routine_name)
+ 
+    ! Integrate H 1 time step
+    CALL compute_H_np1( mesh, ice, laddie, dt)
+
+    ! Integrate U and V 1 time step
+    CALL map_H_a_b( mesh, laddie, laddie%np1%H, laddie%np1%H_b)
+    CALL compute_UV_np1( mesh, ice, laddie, dt)
+
+    ! Integrate T and S 1 time step
+    CALL compute_TS_np1( mesh, ice, laddie, dt)
+
+    ! Update secondary fields
+    CALL update_secondary_fields( mesh, ice, ocean, laddie, laddie%H)
+
+    ! == Move time ==
+    ! Increase laddie time
+    tl = tl + C%dt_laddie
+
+    ! Move main variables by 1 time step
+    DO vi = mesh%vi1, mesh%vi2
+      IF (laddie%mask_a( vi)) THEN
+        laddie%H( vi) = laddie%np1%H( vi)
+        laddie%T( vi) = laddie%np1%T( vi)
+        laddie%S( vi) = laddie%np1%S( vi)
+      END IF
+    END DO
+
+    ! Move velocities by 1 time step
+    DO ti = mesh%ti1, mesh%ti2
+      IF (laddie%mask_b( ti)) THEN
+        laddie%U( ti) = laddie%np1%U( ti)
+        laddie%V( ti) = laddie%np1%V( ti)
+      END IF
+    END DO
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE integrate_euler
 
   SUBROUTINE update_secondary_fields( mesh, ice, ocean, laddie, Hstar)
     ! Update all secondary fields required for next iteration
