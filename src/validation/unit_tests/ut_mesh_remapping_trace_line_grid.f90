@@ -1240,7 +1240,7 @@ contains
       end do
     end do
 
-    call unit_test( verified, trim(test_name))
+    call unit_test( verified, trim(test_name)//'/all')
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)
