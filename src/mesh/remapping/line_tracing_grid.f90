@@ -5,7 +5,7 @@ module line_tracing_grid
   use tests_main
   use assertions_basic
   use precisions, only: dp
-  use remapping_types, only: type_map, type_single_row_mapping_matrices
+  use remapping_types, only: type_single_row_mapping_matrices
   use line_tracing_basic
   use grid_types, only: type_grid
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash
