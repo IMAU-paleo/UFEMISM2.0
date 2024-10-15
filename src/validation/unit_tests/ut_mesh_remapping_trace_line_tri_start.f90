@@ -11,8 +11,7 @@ module ut_mesh_remapping_trace_line_tri_start
   use mpi_basic, only: par, sync
   use line_tracing_basic
   use line_tracing_triangles
-  use math_utilities, only: lies_on_line_segment
-  use mesh_utilities, only: find_containing_triangle
+  use math_utilities, only: is_in_triangle, lies_on_line_segment
 
   implicit none
 
@@ -179,7 +178,6 @@ contains
     integer                        :: n_sub, ii, jj
     real(dp)                       :: x, y
     real(dp), dimension(2)         :: p
-    integer                        :: ti_in_true
     integer                        :: ti_hint, ti_in, vi_on, ei_on
     logical                        :: verified_p_in_ti
 
@@ -214,9 +212,7 @@ contains
         y = ymin + (ymax - ymin) * real( jj-1,dp) / real( n_sub-1,dp)
         p = [x,y]
 
-        ti_in_true = ti
-        call find_containing_triangle( mesh, p, ti_in_true)
-        if (ti_in_true /= ti .or. &
+        if (.not. is_in_triangle( va, vb, vc, p) .or. &
           lies_on_line_segment( va, vb, p, mesh%tol_dist) .or. &
           lies_on_line_segment( vb, vc, p, mesh%tol_dist) .or. &
           lies_on_line_segment( vc, va, p, mesh%tol_dist) .or. &
