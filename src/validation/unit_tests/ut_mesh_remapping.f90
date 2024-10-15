@@ -24,6 +24,7 @@ module ut_mesh_remapping
   use ut_mesh_remapping_trace_line_grid_cy, only: test_trace_line_grid_cy
   use ut_mesh_remapping_trace_line_grid, only: test_trace_line_grid
   use ut_mesh_remapping_trace_line_tri_start, only: test_trace_line_tri_start
+  use ut_mesh_remapping_trace_line_tri_ti, only: test_trace_line_tri_ti
 
   implicit none
 
@@ -135,6 +136,7 @@ contains
 
     ! Run unit tests on this mesh
     call test_trace_line_tri_start( test_name, mesh)
+    call test_trace_line_tri_ti   ( test_name, mesh)
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)
