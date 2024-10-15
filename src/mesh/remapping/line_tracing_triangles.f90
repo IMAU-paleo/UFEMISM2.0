@@ -16,6 +16,7 @@ module line_tracing_triangles
   private
 
   public :: trace_line_tri
+  public :: trace_line_tri_start, trace_line_tri_ti, trace_line_tri_vi, trace_line_tri_ei
 
 contains
 

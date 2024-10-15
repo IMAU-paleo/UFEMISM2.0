@@ -226,6 +226,7 @@ UFEMISM_source = \
   validation/unit_tests/ut_mesh_remapping_trace_line_grid_cx.f90 \
   validation/unit_tests/ut_mesh_remapping_trace_line_grid_cy.f90 \
   validation/unit_tests/ut_mesh_remapping_trace_line_grid.f90 \
+  validation/unit_tests/ut_mesh_remapping_trace_line_tri_start.f90 \
   validation/unit_tests/ut_mesh_remapping.f90 \
   validation/unit_tests/ut_mesh.f90 \
   validation/unit_tests/unit_tests.f90 \
