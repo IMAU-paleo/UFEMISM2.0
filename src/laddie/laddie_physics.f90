@@ -74,7 +74,7 @@ CONTAINS
     DO vi = mesh%vi1, mesh%vi2
        IF (laddie%mask_a( vi)) THEN
          ! Solve three equations
-         That = freezing_lambda_2 - freezing_lambda_3*ice%Hib( vi)
+         That = freezing_lambda_2 + freezing_lambda_3*ice%Hib( vi)
          ! Chat = cp_ocean / (L_fusion - cp_ice * ice%Ti( vi, 1)) TODO expand with proper Ti
 
          Bval = Chat*laddie%gamma_T( vi)*(That - npx%T( vi)) + laddie%gamma_S( vi)*(1 + Chat*Ctil*(That + freezing_lambda_1*npx%S( vi)))
@@ -131,14 +131,14 @@ CONTAINS
     DO vi = mesh%vi1, mesh%vi2
        IF (laddie%mask_a( vi)) THEN
          ! Get salinity at ice base
-         laddie%S_base( vi) = (laddie%T_base( vi) - freezing_lambda_2 + freezing_lambda_3 * ice%Hib( vi)) / freezing_lambda_1
+         laddie%S_base( vi) = (laddie%T_base( vi) - freezing_lambda_2 - freezing_lambda_3 * ice%Hib( vi)) / freezing_lambda_1
          
          ! Get buoyancy at ice base
          laddie%drho_base( vi) = C%uniform_laddie_eos_linear_beta  * (npx%S( vi)-laddie%S_base( vi)) &
                                - C%uniform_laddie_eos_linear_alpha * (npx%T( vi)-laddie%T_base( vi))
 
          ! Make sure buoyancy is non-negative
-         laddie%drho_base( vi) = MAX(laddie%drho_base( vi),0.0_dp)
+         ! laddie%drho_base( vi) = MAX(laddie%drho_base( vi),0.0_dp)
 
          ! Get entrainment
          laddie%entr( vi) = 2*C%laddie_Gaspar1988_mu/grav & 
@@ -177,7 +177,7 @@ CONTAINS
 
     DO vi = mesh%vi1, mesh%vi2
        IF (laddie%mask_a( vi)) THEN
-         laddie%T_freeze( vi) = freezing_lambda_1*npx%S( vi) + freezing_lambda_2 - freezing_lambda_3*ice%Hib( vi)
+         laddie%T_freeze( vi) = freezing_lambda_1*npx%S( vi) + freezing_lambda_2 + freezing_lambda_3*ice%Hib( vi)
        END IF
     END DO
 
