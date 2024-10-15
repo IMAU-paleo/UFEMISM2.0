@@ -118,9 +118,9 @@ CONTAINS
     ! Set values to zero if outside laddie mask
     DO vi = mesh%vi1, mesh%vi2
       IF (.NOT. laddie%mask_a( vi)) THEN
-        laddie%H( vi)     = 0.0_dp
-        laddie%T( vi)     = 0.0_dp
-        laddie%S( vi)     = 0.0_dp
+        laddie%now%H( vi)     = 0.0_dp
+        laddie%now%T( vi)     = 0.0_dp
+        laddie%now%S( vi)     = 0.0_dp
         laddie%melt( vi)  = 0.0_dp
         laddie%entr( vi)  = 0.0_dp
       END IF
@@ -128,8 +128,9 @@ CONTAINS
 
     DO ti = mesh%ti1, mesh%ti2
       IF (.NOT. laddie%mask_b( ti)) THEN
-        laddie%U( ti)     = 0.0_dp
-        laddie%V( ti)     = 0.0_dp
+        laddie%now%U( ti)     = 0.0_dp
+        laddie%now%V( ti)     = 0.0_dp
+        laddie%now%H_b( ti)   = 0.0_dp
       END IF
     END DO
 
@@ -138,8 +139,7 @@ CONTAINS
     CALL ddy_a_b_2D( mesh, ice%Hib , laddie%dHib_dy_b)
 
     ! Update secondary fields
-    ! CALL integrate_euler( mesh, ice, ocean, laddie, tl, dt)
-    ! CALL update_secondary_fields( mesh, ice, ocean, laddie, laddie%H)
+    CALL update_secondary_fields( mesh, ice, ocean, laddie, laddie%now, laddie%now%H, laddie%now%H_b)
 
     ! == Main time loop ==
     ! ====================
@@ -158,7 +158,7 @@ CONTAINS
       ! Display or save fields
       ! TODO
       IF (par%master) THEN
-        WRITE( *, "(A,F8.3,A,F12.7,A,F8.3)") 'Dmax ', MAXVAL(laddie%H), '  Meltmax', MAXVAL(laddie%melt), '   U', MAXVAL(laddie%U)
+        WRITE( *, "(A,F8.3,A,F12.7,A,F8.3)") 'Dmax ', MAXVAL(laddie%now%H), '  Meltmax', MAXVAL(laddie%melt), '   U', MAXVAL(laddie%now%U)
       END IF     
 
     END DO !DO WHILE (tl <= C%time_duration_laddie)
@@ -190,6 +190,7 @@ CONTAINS
 
     ! Allocate variables
     CALL allocate_laddie_model( mesh, laddie)
+    CALL allocate_laddie_timestep( mesh, laddie%now)
 
     ! Allocate timestep
     SELECT CASE(C%choice_laddie_integration_scheme)
@@ -211,7 +212,7 @@ CONTAINS
     ! Layer thickness 
     DO vi = mesh%vi1, mesh%vi2
        IF (laddie%mask_a( vi)) THEN
-         laddie%H( vi)      = C%laddie_initial_thickness
+         laddie%now%H( vi)      = C%laddie_initial_thickness
          SELECT CASE(C%choice_laddie_integration_scheme)
            CASE DEFAULT
              CALL crash('unknown choice_laddie_integration_scheme "' // TRIM( C%choice_laddie_integration_scheme) // '"')
@@ -225,14 +226,28 @@ CONTAINS
        END IF
     END DO
 
+    ! Layer thickness on b grid
+
+    CALL map_H_a_b( mesh, laddie, laddie%now%H, laddie%now%H_b)
+    SELECT CASE(C%choice_laddie_integration_scheme)
+      CASE DEFAULT
+        CALL crash('unknown choice_laddie_integration_scheme "' // TRIM( C%choice_laddie_integration_scheme) // '"')
+      CASE ('euler')
+        CALL map_H_a_b( mesh, laddie, laddie%np1%H, laddie%np1%H_b)
+      CASE ('fbrk3')
+        CALL map_H_a_b( mesh, laddie, laddie%np13%H, laddie%np13%H_b)
+        CALL map_H_a_b( mesh, laddie, laddie%np12%H, laddie%np12%H_b)
+        CALL map_H_a_b( mesh, laddie, laddie%np1%H, laddie%np1%H_b)
+    END SELECT
+
     ! Initialise ambient T and S
-    CALL compute_ambient_TS( mesh, ice, ocean, laddie, laddie%H)
+    CALL compute_ambient_TS( mesh, ice, ocean, laddie, laddie%now%H)
 
     ! Initialise main T and S
     DO vi = mesh%vi1, mesh%vi2
        IF (laddie%mask_a( vi)) THEN
-         laddie%T( vi)      = laddie%T_amb( vi) + C%laddie_initial_T_offset 
-         laddie%S( vi)      = laddie%S_amb( vi) + C%laddie_initial_S_offset
+         laddie%now%T( vi)      = laddie%T_amb( vi) + C%laddie_initial_T_offset 
+         laddie%now%S( vi)      = laddie%S_amb( vi) + C%laddie_initial_S_offset
          SELECT CASE(C%choice_laddie_integration_scheme)
            CASE DEFAULT
              CALL crash('unknown choice_laddie_integration_scheme "' // TRIM( C%choice_laddie_integration_scheme) // '"')
@@ -282,16 +297,16 @@ CONTAINS
 
     ! Map H and Hstar to b grid
     CALL map_H_a_b( mesh, laddie, laddie%np1%H, laddie%np1%H_b)
-    CALL map_H_a_b( mesh, laddie, laddie%H, laddie%H_b)
+    CALL map_H_a_b( mesh, laddie, laddie%now%H, laddie%now%H_b)
 
     ! Integrate U and V 1 time step
-    CALL compute_UV_npx( mesh, ice, laddie, laddie%np1, laddie%H_b, dt, .true.)
+    CALL compute_UV_npx( mesh, ice, laddie, laddie%now, laddie%np1, laddie%now%H_b, dt, .true.)
 
     ! Integrate T and S 1 time step
     CALL compute_TS_npx( mesh, ice, laddie, laddie%np1, dt, .true.)
 
     ! Update secondary fields
-    CALL update_secondary_fields( mesh, ice, ocean, laddie, laddie%np1, laddie%H, laddie%H_b)
+    CALL update_secondary_fields( mesh, ice, ocean, laddie, laddie%np1, laddie%now%H, laddie%now%H_b)
 
     ! == Move time ==
     ! Increase laddie time
@@ -300,17 +315,17 @@ CONTAINS
     ! Move main variables by 1 time step
     DO vi = mesh%vi1, mesh%vi2
       IF (laddie%mask_a( vi)) THEN
-        laddie%H( vi) = laddie%np1%H( vi)
-        laddie%T( vi) = laddie%np1%T( vi)
-        laddie%S( vi) = laddie%np1%S( vi)
+        laddie%now%H( vi) = laddie%np1%H( vi)
+        laddie%now%T( vi) = laddie%np1%T( vi)
+        laddie%now%S( vi) = laddie%np1%S( vi)
       END IF
     END DO
 
     ! Move velocities by 1 time step
     DO ti = mesh%ti1, mesh%ti2
       IF (laddie%mask_b( ti)) THEN
-        laddie%U( ti) = laddie%np1%U( ti)
-        laddie%V( ti) = laddie%np1%V( ti)
+        laddie%now%U( ti) = laddie%np1%U( ti)
+        laddie%now%V( ti) = laddie%np1%V( ti)
       END IF
     END DO
 
@@ -359,8 +374,9 @@ CONTAINS
     CALL compute_H_npx( mesh, ice, laddie, laddie%np13, dt/3)
 
     ! Compute Hstar
+    Hstar = 0.0_dp
     DO vi = mesh%vi1, mesh%vi2
-      Hstar( vi) = beta1 * laddie%np13%H ( vi) + (1-beta1) * laddie%H( vi)
+      Hstar( vi) = beta1 * laddie%np13%H ( vi) + (1-beta1) * laddie%now%H( vi)
     END DO
 
     ! Map H and Hstar to b grid
@@ -368,7 +384,7 @@ CONTAINS
     CALL map_H_a_b( mesh, laddie, Hstar, Hstar_b)
 
     ! Integrate U and V 1/3 time step
-    CALL compute_UV_npx( mesh, ice, laddie, laddie%np13, Hstar_b, dt/3, .false.)
+    CALL compute_UV_npx( mesh, ice, laddie, laddie%now, laddie%np13, Hstar_b, dt/3, .false.)
 
     ! Integrate T and S 1/3 time step
     CALL compute_TS_npx( mesh, ice, laddie, laddie%np13, dt/3, .false.)
@@ -384,8 +400,9 @@ CONTAINS
     CALL compute_H_npx( mesh, ice, laddie, laddie%np12, dt/2)
 
     ! Compute Hstarstar
+    Hstarstar = 0.0_dp
     DO vi = mesh%vi1, mesh%vi2
-      Hstarstar( vi) = beta2 * laddie%np12%H ( vi) + (1-beta2) * laddie%H( vi)
+      Hstarstar( vi) = beta2 * laddie%np12%H ( vi) + (1-beta2) * laddie%now%H( vi)
     END DO
 
     ! Map H and Hstarstar to b grid
@@ -393,7 +410,7 @@ CONTAINS
     CALL map_H_a_b( mesh, laddie, Hstarstar, Hstarstar_b)
 
     ! Integrate U and V 1/2 time step
-    CALL compute_UV_npx( mesh, ice, laddie, laddie%np12, Hstarstar_b, dt/2, .false.)
+    CALL compute_UV_npx( mesh, ice, laddie, laddie%np13, laddie%np12, Hstarstar_b, dt/2, .false.)
 
     ! Integrate T and S 1/2 time step
     CALL compute_TS_npx( mesh, ice, laddie, laddie%np12, dt/2, .false.)
@@ -409,8 +426,9 @@ CONTAINS
     CALL compute_H_npx( mesh, ice, laddie, laddie%np1, dt)
 
     ! Compute Hstarstarstar
+    Hstarstarstar = 0.0_dp
     DO vi = mesh%vi1, mesh%vi2
-      Hstarstarstar( vi) = beta3 * laddie%np1%H ( vi) + (1-2*beta3) * laddie%np12%H( vi) + beta3 * laddie%H( vi)
+      Hstarstarstar( vi) = beta3 * laddie%np1%H ( vi) + (1-2*beta3) * laddie%np12%H( vi) + beta3 * laddie%now%H( vi)
     END DO
 
     ! Map H and Hstarstarstar to b grid
@@ -418,7 +436,7 @@ CONTAINS
     CALL map_H_a_b( mesh, laddie, Hstarstarstar, Hstarstarstar_b)
 
     ! Integrate U and V 1 time step
-    CALL compute_UV_npx( mesh, ice, laddie, laddie%np1, Hstarstarstar_b, dt, .true.)
+    CALL compute_UV_npx( mesh, ice, laddie, laddie%np12, laddie%np1, Hstarstarstar_b, dt, .true.)
 
     ! Integrate T and S 1 time step
     CALL compute_TS_npx( mesh, ice, laddie, laddie%np1, dt, .true.)
@@ -434,17 +452,17 @@ CONTAINS
     ! Move main variables by 1 time step
     DO vi = mesh%vi1, mesh%vi2
       IF (laddie%mask_a( vi)) THEN
-        laddie%H( vi) = laddie%np1%H( vi)
-        laddie%T( vi) = laddie%np1%T( vi)
-        laddie%S( vi) = laddie%np1%S( vi)
+        laddie%now%H( vi) = laddie%np1%H( vi)
+        laddie%now%T( vi) = laddie%np1%T( vi)
+        laddie%now%S( vi) = laddie%np1%S( vi)
       END IF
     END DO
 
     ! Move velocities by 1 time step
     DO ti = mesh%ti1, mesh%ti2
       IF (laddie%mask_b( ti)) THEN
-        laddie%U( ti) = laddie%np1%U( ti)
-        laddie%V( ti) = laddie%np1%V( ti)
+        laddie%now%U( ti) = laddie%np1%U( ti)
+        laddie%now%V( ti) = laddie%np1%V( ti)
       END IF
     END DO
 
@@ -515,15 +533,18 @@ CONTAINS
     CALL multiply_CSR_matrix_with_vector_1D( M_divQ, npx%H, laddie%divQ)
 
     ! Compute Hstar * T
+    HstarT = 0.0_dp
     DO vi = mesh%vi1, mesh%vi2
        IF (laddie%mask_a( vi)) THEN
          HstarT( vi) = Hstar( vi) * npx%T( vi)
        END IF
     END DO
+
     ! Compute heat divergence
     CALL multiply_CSR_matrix_with_vector_1D( M_divQ, HstarT, laddie%divQT)
 
     ! Compute Hstar * S
+    HstarS = 0.0_dp
     DO vi = mesh%vi1, mesh%vi2
        IF (laddie%mask_a( vi)) THEN
          HstarS( vi) = Hstar( vi) * npx%S( vi)
@@ -556,7 +577,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Map thickness to b grid
-    CALL map_H_a_b( mesh, laddie, laddie%H, laddie%H_b)
+    CALL map_H_a_b( mesh, laddie, laddie%now%H, laddie%now%H_b)
 
     ! Compute diffusivities
     CALL compute_diffTS( mesh, ice, laddie)

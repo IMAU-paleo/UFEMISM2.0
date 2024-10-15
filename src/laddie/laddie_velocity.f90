@@ -17,6 +17,7 @@ MODULE laddie_velocity
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_1D, gather_to_all_logical_1D
   USE mesh_operators                                         , ONLY: map_a_b_2D
+  USE math_utilities                                         , ONLY: check_for_NaN_dp_1D
 
   IMPLICIT NONE
     
@@ -25,7 +26,7 @@ CONTAINS
 ! ===== Main routines =====
 ! =========================
 
-  SUBROUTINE compute_UV_npx( mesh, ice, laddie, npx, Hstar_b, dt, inclvisc)
+  SUBROUTINE compute_UV_npx( mesh, ice, laddie, npxref, npx, Hstar_b, dt, inclvisc)
     ! Integrate U and V by one time step
 
     ! In- and output variables
@@ -33,6 +34,7 @@ CONTAINS
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
     TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_laddie_model),                INTENT(IN)    :: laddie
+    TYPE(type_laddie_timestep),             INTENT(IN)    :: npxref
     TYPE(type_laddie_timestep),             INTENT(INOUT) :: npx
     REAL(dp),                               INTENT(IN)    :: dt
     REAL(dp), DIMENSION(mesh%ti1:mesh%ti2), INTENT(IN)    :: Hstar_b
@@ -78,6 +80,7 @@ CONTAINS
               Hdrho_fl = Hdrho_fl + Hdrho_amb_tot( vj)
             END IF
           END DO
+
           ! Define PGF at calving front
           PGF_x =   grav * Hdrho_fl/nfl * laddie%dHib_dx_b( ti)
           PGF_y =   grav * Hdrho_fl/nfl * laddie%dHib_dy_b( ti)
@@ -98,9 +101,9 @@ CONTAINS
         ! dHU_dt
         dHUdt = - laddie%divQU( ti) &
                 + PGF_x &
-                + C%uniform_laddie_coriolis_parameter * Hstar_b( ti) * laddie%V( ti) &
-                - C%laddie_drag_coefficient * laddie%U( ti) * (laddie%U( ti)**2 + laddie%V( ti)**2)**.5 &
-                - detr_b( ti) * laddie%U( ti)
+                + C%uniform_laddie_coriolis_parameter * Hstar_b( ti) * npxref%V( ti) &
+                - C%laddie_drag_coefficient * npxref%U( ti) * (npxref%U( ti)**2 + npxref%V( ti)**2)**.5 &
+                - detr_b( ti) * npxref%U( ti)
 
         IF (inclvisc) THEN
           dHUdt = dHUdt + laddie%viscU( ti)
@@ -109,9 +112,9 @@ CONTAINS
         ! dHV_dt
         dHVdt = - laddie%divQV( ti) &
                 + PGF_y &
-                - C%uniform_laddie_coriolis_parameter * Hstar_b( ti) * laddie%U( ti) &
-                - C%laddie_drag_coefficient * laddie%V( ti) * (laddie%U( ti)**2 + laddie%V( ti)**2)**.5 &
-                - detr_b( ti) * laddie%V( ti)
+                - C%uniform_laddie_coriolis_parameter * Hstar_b( ti) * npxref%U( ti) &
+                - C%laddie_drag_coefficient * npxref%V( ti) * (npxref%U( ti)**2 + npxref%V( ti)**2)**.5 &
+                - detr_b( ti) * npxref%V( ti)
 
         IF (inclvisc) THEN
           dHVdt = dHVdt + laddie%viscV( ti)
@@ -121,8 +124,8 @@ CONTAINS
         ! ====================
 
         ! HU_n = HU_n + dHU_dt * dt
-        HU_next = laddie%U( ti)*laddie%H_b( ti) + dHUdt * dt
-        HV_next = laddie%V( ti)*laddie%H_b( ti) + dHVdt * dt
+        HU_next = laddie%now%U( ti)*laddie%now%H_b( ti) + dHUdt * dt
+        HV_next = laddie%now%V( ti)*laddie%now%H_b( ti) + dHVdt * dt
 
         ! U_n = HU_n / H_n
         npx%U( ti) = HU_next / npx%H_b( ti)
@@ -138,11 +141,15 @@ CONTAINS
         Uabs = (npx%U( ti)**2 + npx%V( ti)**2)**.5
         
         ! Scale U and V 
-        npx%U( ti) = npx%U( ti) * MIN(1.0_dp, C%laddie_velocity_maximum/Uabs)
-        npx%V( ti) = npx%V( ti) * MIN(1.0_dp, C%laddie_velocity_maximum/Uabs)
+        IF (Uabs > 0) THEN
+          npx%U( ti) = npx%U( ti) * MIN(1.0_dp, C%laddie_velocity_maximum/Uabs)
+          npx%V( ti) = npx%V( ti) * MIN(1.0_dp, C%laddie_velocity_maximum/Uabs)
+        END IF
       END IF ! (laddie%mask_b( ti))
     END DO !ti = mesh%ti1, mesh%ti2
 
+    CALL check_for_NaN_dp_1D( npx%U, 'U_lad')
+    CALL check_for_NaN_dp_1D( npx%V, 'V_lad')
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -169,8 +176,8 @@ CONTAINS
     CALL init_routine( routine_name)        
 
     ! Gather
-    CALL gather_to_all_dp_1D( laddie%U, U_tot)            
-    CALL gather_to_all_dp_1D( laddie%V, V_tot)            
+    CALL gather_to_all_dp_1D( laddie%now%U, U_tot)            
+    CALL gather_to_all_dp_1D( laddie%now%V, V_tot)            
     CALL gather_to_all_logical_1D( laddie%mask_a, mask_a_tot)
     CALL gather_to_all_logical_1D( laddie%mask_gl_b, mask_gl_b_tot)
 
@@ -191,14 +198,14 @@ CONTAINS
 
           IF (tj==0) THEN
             ! Border or corner. For now, assume no slip. If free slip: CYCLE
-            laddie%viscU( ti) = laddie%viscU( ti) - laddie%U( ti) * laddie%A_h( ti) * laddie%H_b( ti) / mesh%TriA( ti)
-            laddie%viscV( ti) = laddie%viscV( ti) - laddie%V( ti) * laddie%A_h( ti) * laddie%H_b( ti) / mesh%TriA( ti)
+            laddie%viscU( ti) = laddie%viscU( ti) - laddie%now%U( ti) * laddie%A_h( ti) * laddie%now%H_b( ti) / mesh%TriA( ti)
+            laddie%viscV( ti) = laddie%viscV( ti) - laddie%now%V( ti) * laddie%A_h( ti) * laddie%now%H_b( ti) / mesh%TriA( ti)
           ! TODO add CYCLE if neighbour is ocean. Again: d/dx = d/dy = 0
           ELSE
             ! Add viscosity flux based on dU/dx and dV/dy. 
             ! Note: for grounded neighbours, U_tot( tj) = 0, meaning this is a no slip option. Can be expanded
-            laddie%viscU( ti) = laddie%viscU( ti) + (U_tot( tj)-laddie%U( ti)) * laddie%A_h( ti) * laddie%H_b( ti) / mesh%TriA( ti)
-            laddie%viscV( ti) = laddie%viscV( ti) + (V_tot( tj)-laddie%V( ti)) * laddie%A_h( ti) * laddie%H_b( ti) / mesh%TriA( ti)
+            laddie%viscU( ti) = laddie%viscU( ti) + (U_tot( tj)-laddie%now%U( ti)) * laddie%A_h( ti) * laddie%now%H_b( ti) / mesh%TriA( ti)
+            laddie%viscV( ti) = laddie%viscV( ti) + (V_tot( tj)-laddie%now%V( ti)) * laddie%A_h( ti) * laddie%now%H_b( ti) / mesh%TriA( ti)
           END IF
         END DO
 
@@ -326,7 +333,7 @@ CONTAINS
 
           ! Overwrite with triangle (b grid value) if at boundary
           IF (isbound) THEN
-            H_e = laddie%H_b( ti)
+            H_e = laddie%now%H_b( ti)
           END IF
 
           ! The shared edge length of triangles ti and tj has length L_c 

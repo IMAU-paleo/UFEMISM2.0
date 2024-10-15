@@ -28,13 +28,6 @@ MODULE laddie_model_types
   TYPE type_laddie_model
     ! The laddie model structure
   
-    ! Main data fields
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: H                           ! [m]               Layer thickness
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: U                           ! [m s^-1]          2D velocity
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: V                           ! [m s^-1]
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: T                           ! [degrees Celsius] Temperature
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: S                           ! [PSU]             Salinity  
-  
     ! Time domain
     REAL(dp)                                :: dt                          ! [s]               Time step
     REAL(dp)                                :: tend                        ! [s]               Time end of Laddie cycle
@@ -95,7 +88,6 @@ MODULE laddie_model_types
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: detr_b                      ! [m s^-1]          Detrainment on b grid 
 
     ! Mapped variables
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: H_b                         ! [m]               Layer thickness on b grid
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: U_a                         ! [m s^-1]          Layer velocity on a grid 
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: V_a                         ! [m s^-1]          
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: H_c                         ! [m]               Layer thickness on c grid 
@@ -111,6 +103,7 @@ MODULE laddie_model_types
     LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_cf_b                   !                   Calving front mask on b-grid
    
     ! Timestepping types
+    TYPE(type_laddie_timestep)              :: now                         !                   Timestep now  
     TYPE(type_laddie_timestep)              :: np1                         !                   Timestep n plus 1  
     TYPE(type_laddie_timestep)              :: np12                        !                   Timestep n plus 1/2  
     TYPE(type_laddie_timestep)              :: np13                        !                   Timestep n plus 1/3  

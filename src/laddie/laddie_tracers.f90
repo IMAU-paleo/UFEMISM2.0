@@ -16,6 +16,7 @@ MODULE laddie_tracers
   USE ocean_model_types                                      , ONLY: type_ocean_model
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_1D, gather_to_all_logical_1D
+  USE math_utilities                                         , ONLY: check_for_NaN_dp_1D
 
   IMPLICIT NONE
     
@@ -65,12 +66,14 @@ CONTAINS
         END IF
 
         ! HT_n = HT_n + dHT_dt * dt
-        HT_next = laddie%T( vi)*laddie%H( vi) + dHTdt * dt
+        HT_next = laddie%now%T( vi)*laddie%now%H( vi) + dHTdt * dt
 
         npx%T( vi) = HT_next / npx%H( vi)
 
       END IF !(laddie%mask_a( vi)) THEN
     END DO !vi = mesh%vi, mesh%v2
+
+    CALL check_for_NaN_dp_1D( npx%T, 'T_lad')
 
     ! == Salinity integration ==
 
@@ -89,13 +92,14 @@ CONTAINS
         END IF
 
         ! HS_n = HS_n + dHS_dt * dt
-        HS_next = laddie%S( vi)*laddie%H( vi) + dHSdt * dt
+        HS_next = laddie%now%S( vi)*laddie%now%H( vi) + dHSdt * dt
 
         npx%S( vi) = HS_next / npx%H( vi)
 
       END IF !(laddie%mask_a( vi)) THEN
     END DO !vi = mesh%vi, mesh%v2
 
+    CALL check_for_NaN_dp_1D( npx%S, 'S_lad')
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -124,8 +128,8 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Gather
-    CALL gather_to_all_dp_1D( laddie%T, T_tot)
-    CALL gather_to_all_dp_1D( laddie%S, S_tot)
+    CALL gather_to_all_dp_1D( laddie%now%T, T_tot)
+    CALL gather_to_all_dp_1D( laddie%now%S, S_tot)
     CALL gather_to_all_logical_1D( laddie%mask_a, mask_a_tot)
 
     ! Loop over vertices
@@ -144,8 +148,8 @@ CONTAINS
           vj = mesh%C( vi, ci)
           ! Can simply skip non-floating vertices to ensure d/dx = d/dy = 0 at boundaries
           IF (mask_a_tot( vj)) THEN
-            laddie%diffT( vi) = laddie%diffT( vi) + (T_tot( vj)-laddie%T( vi)) * laddie%K_h( vi) * laddie%H( vi) / mesh%A( vi)
-            laddie%diffS( vi) = laddie%diffS( vi) + (S_tot( vj)-laddie%S( vi)) * laddie%K_h( vi) * laddie%H( vi) / mesh%A( vi)
+            laddie%diffT( vi) = laddie%diffT( vi) + (T_tot( vj)-laddie%now%T( vi)) * laddie%K_h( vi) * laddie%now%H( vi) / mesh%A( vi)
+            laddie%diffS( vi) = laddie%diffS( vi) + (S_tot( vj)-laddie%now%S( vi)) * laddie%K_h( vi) * laddie%now%H( vi) / mesh%A( vi)
           END IF
         END DO
 

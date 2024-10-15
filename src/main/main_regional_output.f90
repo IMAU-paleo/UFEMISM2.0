@@ -761,15 +761,15 @@ CONTAINS
 
       ! Main laddie variables
       CASE ('H_lad')
-        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'H_lad', region%BMB%laddie%H)
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'H_lad', region%BMB%laddie%now%H)
       CASE ('U_lad')
-        CALL write_to_field_multopt_mesh_dp_2D_b( region%mesh, filename, ncid, 'U_lad', region%BMB%laddie%U)
+        CALL write_to_field_multopt_mesh_dp_2D_b( region%mesh, filename, ncid, 'U_lad', region%BMB%laddie%now%U)
       CASE ('V_lad')
-        CALL write_to_field_multopt_mesh_dp_2D_b( region%mesh, filename, ncid, 'V_lad', region%BMB%laddie%V)
+        CALL write_to_field_multopt_mesh_dp_2D_b( region%mesh, filename, ncid, 'V_lad', region%BMB%laddie%now%V)
       CASE ('T_lad')
-        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'T_lad', region%BMB%laddie%T)
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'T_lad', region%BMB%laddie%now%T)
       CASE ('S_lad')
-        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'S_lad', region%BMB%laddie%S)
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'S_lad', region%BMB%laddie%now%S)
 
       ! Useful laddie fields
       CASE ('drho_amb')
@@ -1265,7 +1265,7 @@ CONTAINS
 
       ! Main laddie variables
       CASE ('H_lad')
-        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%H, d_grid_vec_partial_2D)
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%now%H, d_grid_vec_partial_2D)
         CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'H_lad', d_grid_vec_partial_2D)
       CASE ('U_lad')
         CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%U_a, d_grid_vec_partial_2D)
@@ -1274,10 +1274,10 @@ CONTAINS
         CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%V_a, d_grid_vec_partial_2D)
         CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'V_lad', d_grid_vec_partial_2D)
       CASE ('T_lad')
-        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%T, d_grid_vec_partial_2D)
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%now%T, d_grid_vec_partial_2D)
         CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'T_lad', d_grid_vec_partial_2D)
       CASE ('S_lad')
-        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%S, d_grid_vec_partial_2D)
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%now%S, d_grid_vec_partial_2D)
         CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'S_lad', d_grid_vec_partial_2D)
 
       ! Useful laddie fields

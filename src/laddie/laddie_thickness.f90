@@ -15,6 +15,7 @@ MODULE laddie_thickness
   USE laddie_model_types                                     , ONLY: type_laddie_model, type_laddie_timestep
   USE ocean_model_types                                      , ONLY: type_ocean_model
   USE reallocate_mod                                         , ONLY: reallocate_bounds
+  USE math_utilities                                         , ONLY: check_for_NaN_dp_1D
 
   IMPLICIT NONE
     
@@ -50,7 +51,7 @@ CONTAINS
         dHdt = -laddie%divQ( vi) + laddie%melt( vi) + laddie%entr( vi)
 
         ! First guess at H_n
-        npx%H( vi) = laddie%H( vi) + dHdt * dt
+        npx%H( vi) = laddie%now%H( vi) + dHdt * dt
 
         ! If H_n < Hmin, enhance entrainment to ensure H_n >= Hmin
         laddie%entr_dmin( vi) = MAX( C%laddie_thickness_minimum - npx%H( vi), 0.0_dp) / dt
@@ -65,10 +66,12 @@ CONTAINS
         dHdt = -laddie%divQ( vi) + laddie%melt( vi) + laddie%entr( vi) + laddie%entr_dmin( vi)
 
         ! Get actual H_n
-        npx%H( vi) = laddie%H( vi) + dHdt * dt
+        npx%H( vi) = laddie%now%H( vi) + dHdt * dt
 
       END IF !(laddie%mask_a( vi)) THEN
     END DO !vi = mesh%vi, mesh%v2
+
+    CALL check_for_NaN_dp_1D( npx%H, 'H_lad')
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

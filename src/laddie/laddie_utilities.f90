@@ -81,22 +81,22 @@ CONTAINS
 
     ! Get T and S at layer base
     DO ti = mesh%ti1, mesh%ti2
+       H_b( ti) = 0.0_dp
        IF (laddie%mask_b( ti)) THEN
-          
-          ! Set zero
-          H_b( ti) = 0.0_dp
-          n = 0
+         
+         ! Set zero
+         n = 0
 
-          ! Loop over vertices
-          DO i = 1, 3
-            vi = mesh%Tri( ti, i)
-            IF (laddie%mask_a( vi)) THEN
-              H_b( ti) = H_b( ti) + H_a_tot( vi)
-              n = n + 1
-            END IF
-          END DO
+         ! Loop over vertices
+         DO i = 1, 3
+           vi = mesh%Tri( ti, i)
+           IF (laddie%mask_a( vi)) THEN
+             H_b( ti) = H_b( ti) + H_a_tot( vi)
+             n = n + 1
+           END IF
+         END DO
 
-          H_b( ti) = H_b( ti) / n
+         H_b( ti) = H_b( ti) / n
 
        END IF
     END DO
@@ -204,7 +204,7 @@ CONTAINS
           cM_divQ( ci) = L_c * MIN( 0._dp, u_perp) / A_i
 
         END DO ! DO ci = 1, mesh%nC( vi)
-
+       
         ! Add coefficients to matrix
         CALL add_entry_CSR_dist( M_divQ, vi, vi, cM_divQ( 0))
         DO ci = 1, mesh%nC( vi)
@@ -301,36 +301,23 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Thickness
-    ALLOCATE( laddie%H                  ( mesh%vi1:mesh%vi2              )) ! [m]             Layer thickness
     ALLOCATE( laddie%dH_dt              ( mesh%vi1:mesh%vi2              )) ! [m]             change
 
-    laddie%H              = 0._dp
     laddie%dH_dt          = 0._dp
 
-    ! Velocities
-    ALLOCATE( laddie%U                  ( mesh%ti1:mesh%ti2              )) ! [m s^-1]        2D velocity
-    ALLOCATE( laddie%V                  ( mesh%ti1:mesh%ti2              )) ! [m s^-1]  
-
-    laddie%U              = 0._dp
-    laddie%V              = 0._dp
-
     ! Temperatures
-    ALLOCATE( laddie%T                  ( mesh%vi1:mesh%vi2              )) ! [degC]          Temperature
     ALLOCATE( laddie%T_amb              ( mesh%vi1:mesh%vi2              )) ! [degC]          Temperature layer bottom
     ALLOCATE( laddie%T_base             ( mesh%vi1:mesh%vi2              )) ! [degC]          Temperature ice shelf base
     ALLOCATE( laddie%T_freeze           ( mesh%vi1:mesh%vi2              )) ! [degC]          Temperature freezing
 
-    laddie%T              = 0._dp
     laddie%T_amb          = 0._dp
     laddie%T_base         = 0._dp
     laddie%T_freeze       = 0._dp
 
     ! Salinities
-    ALLOCATE( laddie%S                  ( mesh%vi1:mesh%vi2              )) ! [PSU]           Salinity   
     ALLOCATE( laddie%S_amb              ( mesh%vi1:mesh%vi2              )) ! [PSU]           Salinity layer bottom
     ALLOCATE( laddie%S_base             ( mesh%vi1:mesh%vi2              )) ! [PSU]           Salinity ice shelf base
 
-    laddie%S              = 0._dp
     laddie%S_amb          = 0._dp
     laddie%S_base         = 0._dp
 
@@ -423,14 +410,12 @@ CONTAINS
     laddie%detr_b         = 0._dp
 
     ! Mapped main variables
-    ALLOCATE( laddie%H_b                ( mesh%ti1:mesh%ti2              )) ! [m]             Layer thickness on b grid
     ALLOCATE( laddie%U_a                ( mesh%vi1:mesh%vi2              )) ! [m s^-1]        Layer velocity on a grid  
     ALLOCATE( laddie%V_a                ( mesh%vi1:mesh%vi2              )) ! [m s^-1]        
     ALLOCATE( laddie%H_c                ( mesh%ei1:mesh%ei2              )) ! [m]             Layer thickness on c grid 
     ALLOCATE( laddie%U_c                ( mesh%ei1:mesh%ei2              )) ! [m s^-1]        Layer velocity on c grid  
     ALLOCATE( laddie%V_c                ( mesh%ei1:mesh%ei2              )) ! [m s^-1]        
 
-    laddie%H_b            = 0._dp
     laddie%U_a            = 0._dp
     laddie%V_a            = 0._dp
     laddie%H_c            = 0._dp

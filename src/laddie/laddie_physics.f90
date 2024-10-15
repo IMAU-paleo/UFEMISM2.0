@@ -16,6 +16,7 @@ MODULE laddie_physics
   USE ocean_model_types                                      , ONLY: type_ocean_model
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   USE ocean_utilities                                        , ONLY: interpolate_ocean_depth
+  USE math_utilities                                         , ONLY: check_for_NaN_dp_1D
 
   IMPLICIT NONE
     
@@ -99,6 +100,8 @@ CONTAINS
        END IF
     END DO
 
+    CALL check_for_NaN_dp_1D( laddie%melt, 'laddie melt')
+
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
@@ -146,6 +149,8 @@ CONTAINS
          laddie%detr( vi) = - MIN(laddie%entr( vi),0.0_dp)
        END IF
     END DO
+
+    CALL check_for_NaN_dp_1D( laddie%entr, 'laddie entr')
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
