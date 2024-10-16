@@ -24,7 +24,7 @@ MODULE laddie_main
                                                                      compute_freezing_temperature, compute_buoyancy
   USE laddie_thickness                                       , ONLY: compute_H_npx, compute_divQH
   USE laddie_velocity                                        , ONLY: compute_UV_npx, compute_viscUV, compute_divQUV_centered
-  USE laddie_tracers                                         , ONLY: compute_TS_npx, compute_diffTS
+  USE laddie_tracers                                         , ONLY: compute_TS_npx, compute_diffTS, compute_divQTS
   USE mesh_operators                                         , ONLY: ddx_a_b_2D, ddy_a_b_2D, map_a_b_2D, map_a_c_2D, map_b_a_2D
   USE petsc_basic                                            , ONLY: multiply_CSR_matrix_with_vector_1D
   USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp
@@ -547,32 +547,11 @@ CONTAINS
     ! Compute thickness divergence
     CALL compute_divQH( mesh, laddie, npx, laddie%U_c, laddie%V_c, npx%H_c, laddie%mask_a, laddie%mask_gr_a)
 
-    ! Compute divergence matrix
-    CALL calc_laddie_flux_divergence_matrix_upwind( mesh, laddie%U_c, laddie%V_c, laddie%mask_a, laddie%mask_gr_a, M_divQ)
-
-    ! Compute Hstar * T
-    HstarT = 0.0_dp
-    DO vi = mesh%vi1, mesh%vi2
-       IF (laddie%mask_a( vi)) THEN
-         HstarT( vi) = Hstar( vi) * npx%T( vi)
-       END IF
-    END DO
-
-    ! Compute heat divergence
-    CALL multiply_CSR_matrix_with_vector_1D( M_divQ, HstarT, laddie%divQT)
-
-    ! Compute Hstar * S
-    HstarS = 0.0_dp
-    DO vi = mesh%vi1, mesh%vi2
-       IF (laddie%mask_a( vi)) THEN
-         HstarS( vi) = Hstar( vi) * npx%S( vi)
-       END IF
-    END DO
-    ! Compute salt divergence
-    CALL multiply_CSR_matrix_with_vector_1D( M_divQ, HstarS, laddie%divQS)
-
-    ! Compute divergence matrix on b grid
+    ! Compute divergence of momentum
     CALL compute_divQUV_centered( mesh, laddie, laddie%U_c, laddie%V_c, Hstar_c, laddie%mask_b, laddie%mask_gl_b)
+
+    ! Compute divergence of heat and salt
+    CALL compute_divQTS( mesh, laddie, npx, laddie%U_c, laddie%V_c, Hstar, laddie%mask_a, laddie%mask_gr_a)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

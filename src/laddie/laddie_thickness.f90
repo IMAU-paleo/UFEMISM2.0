@@ -103,7 +103,8 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_divQH'
-    REAL(dp), DIMENSION(mesh%nE)                          :: U_c_tot, V_c_tot, H_c_tot
+    REAL(dp), DIMENSION(mesh%nE)                          :: U_c_tot, V_c_tot
+    REAL(dp), DIMENSION(mesh%nV)                          :: H_tot
     INTEGER                                               :: ncols, ncols_loc, nrows, nrows_loc, nnz_est_proc
     INTEGER                                               :: ti, ci, ei, tj, vi, vj, vi1, vi2, i, j, e, k
     REAL(dp)                                              :: A_i, L_c, D_x, D_y, D, u_perp
@@ -117,7 +118,7 @@ CONTAINS
     ! Calculate vertically averaged ice velocities on the edges
     CALL gather_to_all_dp_1D( U_c, U_c_tot)
     CALL gather_to_all_dp_1D( V_c, V_c_tot)
-    CALL gather_to_all_dp_1D( H_c, H_c_tot)
+    CALL gather_to_all_dp_1D( npx%H, H_tot)
     CALL gather_to_all_logical_1D( mask_a, mask_a_tot)
     CALL gather_to_all_logical_1D( mask_gr_a, mask_gr_a_tot)
 
@@ -160,9 +161,9 @@ CONTAINS
           ! =============================
           ! Upwind:
           ! u_perp > 0: flow is exiting this vertex into vertex vj
-          laddie%divQH( vi) = laddie%divQH( vi) + L_c * MAX( 0._dp, u_perp) * npx%H( vi) / A_i
+          laddie%divQH( vi) = laddie%divQH( vi) + L_c * MAX( 0._dp, u_perp) * H_tot( vi) / A_i
           ! u_perp < 0: flow is entering this vertex from vertex vj
-          laddie%divQH( vi) = laddie%divQH( vi) + L_c * MIN( 0._dp, u_perp) * npx%H( vj) / A_i
+          laddie%divQH( vi) = laddie%divQH( vi) + L_c * MIN( 0._dp, u_perp) * H_tot( vj) / A_i
           ! Centered:
           ! laddie%divQH( vi) = laddie%divQH( vi) + L_c * u_perp * H_c_tot( ei) / A_i
 
