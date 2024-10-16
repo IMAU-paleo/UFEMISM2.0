@@ -15,6 +15,8 @@ module mesh_dummy_meshes
   public :: initialise_dummy_mesh_9
   public :: initialise_dummy_mesh_16
 
+  real(dp), parameter :: tol = 1E-9_dp
+
 contains
 
   !> Initialise the 5-vertex, 4-triangle dummy mesh
@@ -38,7 +40,6 @@ contains
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'initialise_dummy_mesh_9'
-    real(dp), parameter            :: tol = 1E-9_dp
     integer                        :: vi, ti
 
     ! Add routine to path
@@ -142,7 +143,6 @@ contains
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'initialise_dummy_mesh_9'
-    real(dp), parameter            :: tol = 1E-9_dp
     integer                        :: vi, ti
 
     ! Add routine to path
@@ -272,7 +272,6 @@ contains
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'initialise_dummy_mesh_9'
-    real(dp), parameter            :: tol = 1E-9_dp
     integer                        :: vi, ti
 
     ! Add routine to path

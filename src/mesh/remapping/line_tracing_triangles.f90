@@ -530,9 +530,9 @@ contains
         vi_on     = vj
         ei_on     = 0
         if (mesh%EV( ei,1) == vi_on) then
-          ti_left = mesh%ETri( ei,1)
-        else
           ti_left = mesh%ETri( ei,2)
+        else
+          ti_left = mesh%ETri( ei,1)
         end if
         coincides = .true.
         finished  = .false.
