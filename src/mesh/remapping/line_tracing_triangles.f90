@@ -628,7 +628,8 @@ contains
     end if
 
     ! Check if q lies on the same edge in the direction of via
-    if (lies_on_line_segment( p, pa, q, mesh%tol_dist)) then
+    if (lies_on_line_segment( p, pa, q, mesh%tol_dist) .or. &
+      norm2( q - pa) < mesh%tol_dist) then
       ! q lies on the same edge in the direction of via
       p_next    = q
       ti_in     = 0
@@ -641,7 +642,8 @@ contains
     end if
 
     ! Check if q lies on the same edge in the direction of vib
-    if (lies_on_line_segment( p, pb, q, mesh%tol_dist)) then
+    if (lies_on_line_segment( p, pb, q, mesh%tol_dist) .or. &
+      norm2( q - pb) < mesh%tol_dist) then
       ! q lies on the same edge in the direction of vib
       p_next    = q
       ti_in     = 0
@@ -655,7 +657,10 @@ contains
 
     ! Check if q lies inside either of the two adjacent triangles
     if (til > 0) then
-      if (is_in_triangle( pa, pb, pl, q)) then
+      if (is_in_triangle( pa, pb, pl, q) .or. &
+          lies_on_line_segment( pa, pb, q, mesh%tol_dist) .or. &
+          lies_on_line_segment( pb, pl, q, mesh%tol_dist) .or. &
+          lies_on_line_segment( pl, pa, q, mesh%tol_dist)) then
         ! q lies inside triangle til
         p_next    = q
         ti_in     = 0
@@ -667,8 +672,12 @@ contains
         return
       end if
     end if
+
     if (tir > 0) then
-      if (is_in_triangle( pa, pr, pb, q)) then
+      if (is_in_triangle( pa, pr, pb, q) .or. &
+          lies_on_line_segment( pa, pr, q, mesh%tol_dist) .or. &
+          lies_on_line_segment( pr, pb, q, mesh%tol_dist) .or. &
+          lies_on_line_segment( pb, pa, q, mesh%tol_dist)) then
         ! q lies inside triangle tir
         p_next    = q
         ti_in     = 0
