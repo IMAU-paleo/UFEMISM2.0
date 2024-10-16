@@ -45,7 +45,10 @@ CONTAINS
     REAL(dp)                                              :: Ctil
     REAL(dp)                                              :: Bval
     REAL(dp)                                              :: Cval
-    REAL(dp)                                              :: Dval
+    REAL(dp)                                              :: Dval, AA
+    REAL(dp), PARAMETER                                   :: nu0 = 1.95E-6
+    REAL(dp), PARAMETER                                   :: eps = 1.0E-12
+
  
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -58,12 +61,25 @@ CONTAINS
     END DO
 
     ! Get gamma values. TODO add non-fixed, non-uniform option. If fixed,uniform, compute during initialisation and skip here
-    DO vi = mesh%vi1, mesh%vi2
-       IF (laddie%mask_a( vi)) THEN
-         laddie%gamma_T( vi) = C%uniform_laddie_gamma_T
-         laddie%gamma_S( vi) = C%uniform_laddie_gamma_T/35.0
-       END IF
-    END DO
+    SELECT CASE (C%choice_laddie_gamma)
+      CASE DEFAULT
+        CALL crash('unknown choice_laddie_gamma "' // TRIM( C%choice_laddie_gamma) // '"')
+      CASE ('uniform')
+        DO vi = mesh%vi1, mesh%vi2
+           IF (laddie%mask_a( vi)) THEN
+             laddie%gamma_T( vi) = C%uniform_laddie_gamma_T
+             laddie%gamma_S( vi) = C%uniform_laddie_gamma_T/35.0
+           END IF
+        END DO
+      CASE ('Jenkins1991')
+        DO vi = mesh%vi1, mesh%vi2
+           IF (laddie%mask_a( vi)) THEN
+             AA = 2.12*LOG(laddie%u_star( vi) * Hstar( vi)/nu0+eps)
+             laddie%gamma_T( vi) = laddie%u_star( vi) / (AA + 12.5 * Prandtl_number**(2/3) - 8.68) 
+             laddie%gamma_S( vi) = laddie%u_star( vi) / (AA + 12.5 * Schmidt_number**(2/3) - 8.68) 
+           END IF
+        END DO
+    END SELECT
 
     ! == Get melt rate ==
     ! ===================
