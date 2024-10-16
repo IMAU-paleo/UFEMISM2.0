@@ -783,7 +783,7 @@ CONTAINS
       CASE ('melt')
         CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'melt', region%BMB%laddie%melt)
       CASE ('divQH')
-        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'divQH', region%BMB%laddie%divQ)
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'divQH', region%BMB%laddie%divQH)
 
     ! == Lateral mass balance ==
     ! ==========================
@@ -1297,7 +1297,7 @@ CONTAINS
         CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%melt, d_grid_vec_partial_2D)
         CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'melt', d_grid_vec_partial_2D)
       CASE ('divQH')
-        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%divQ, d_grid_vec_partial_2D)
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%divQH, d_grid_vec_partial_2D)
         CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'divQH', d_grid_vec_partial_2D)
 
     ! == Lateral mass balance ==

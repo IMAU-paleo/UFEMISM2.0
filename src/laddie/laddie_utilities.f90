@@ -106,6 +106,54 @@ CONTAINS
 
   END SUBROUTINE map_H_a_b
 
+  SUBROUTINE map_H_a_c( mesh, laddie, H_a, H_c)
+    ! Map layer thickness from a to c grid, accounting for BCs
+
+    ! In- and output variables
+
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh
+    TYPE(type_laddie_model),                INTENT(IN)    :: laddie
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: H_a
+    REAL(dp), DIMENSION(mesh%ei1:mesh%ei2), INTENT(INOUT) :: H_c
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'map_H_a_c'
+    INTEGER                                               :: i, vi, ei, n
+    REAL(dp), DIMENSION(mesh%nV)                          :: H_a_tot
+ 
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+
+    CALL gather_to_all_dp_1D( H_a, H_a_tot)
+
+    DO ei = mesh%ei1, mesh%ei2
+       H_c( ei) = 0.0_dp
+       ! Set zero
+       n = 0
+       
+       ! Loop over vertices
+       DO i = 1, 2
+         vi = mesh%EV( ei, i)
+         IF (laddie%mask_a( vi)) THEN
+           H_c( ei) = H_c( ei) + H_a_tot( vi)
+           n = n+1
+         END IF
+       END DO
+
+       IF (n==0) THEN
+         H_c( ei) = 0
+       ELSE
+         H_c( ei) = H_c( ei) / n
+       END IF
+
+    END DO
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE map_H_a_c
+
   SUBROUTINE calc_laddie_flux_divergence_matrix_upwind( mesh, U_c, V_c, mask_a, mask_gr_a, M_divQ)
     ! Calculate the layer flux divergence matrix M_divQ using an upwind scheme
     !
@@ -366,13 +414,13 @@ CONTAINS
     laddie%entr_tot       = 0._dp
 
     ! Horizontal fluxes
-    ALLOCATE( laddie%divQ               ( mesh%vi1:mesh%vi2              )) ! [m^3 s^-1]      Divergence of layer thickness
+    ALLOCATE( laddie%divQH              ( mesh%vi1:mesh%vi2              )) ! [m^3 s^-1]      Divergence of layer thickness
     ALLOCATE( laddie%divQU              ( mesh%ti1:mesh%ti2              )) ! [m^4 s^-2]      Divergence of momentum
     ALLOCATE( laddie%divQV              ( mesh%ti1:mesh%ti2              )) ! [m^4 s^-2]   
     ALLOCATE( laddie%divQT              ( mesh%vi1:mesh%vi2              )) ! [degC m^3 s^-1] Divergence of heat
     ALLOCATE( laddie%divQS              ( mesh%vi1:mesh%vi2              )) ! [PSU m^3 s^-1]  Divergence of salt
 
-    laddie%divQ           = 0._dp
+    laddie%divQH          = 0._dp
     laddie%divQU          = 0._dp
     laddie%divQV          = 0._dp
     laddie%divQT          = 0._dp
@@ -458,6 +506,7 @@ CONTAINS
 
     ALLOCATE( npx%H                  ( mesh%vi1:mesh%vi2              )) ! [m]             Layer thickness
     ALLOCATE( npx%H_b                ( mesh%ti1:mesh%ti2              )) ! [m]             Layer thickness on b grid
+    ALLOCATE( npx%H_c                ( mesh%ei1:mesh%ei2              )) ! [m]             Layer thickness on c grid
     ALLOCATE( npx%U                  ( mesh%ti1:mesh%ti2              )) ! [m s^-1]        2D velocity
     ALLOCATE( npx%V                  ( mesh%ti1:mesh%ti2              )) ! [m s^-1]  
     ALLOCATE( npx%T                  ( mesh%vi1:mesh%vi2              )) ! [degC]          Temperature
@@ -465,6 +514,7 @@ CONTAINS
 
     npx%H              = 0._dp
     npx%H_b            = 0._dp
+    npx%H_c            = 0._dp
     npx%U              = 0._dp
     npx%V              = 0._dp
     npx%T              = 0._dp

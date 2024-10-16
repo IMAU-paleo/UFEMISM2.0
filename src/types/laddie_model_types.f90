@@ -18,6 +18,7 @@ MODULE laddie_model_types
     ! Main data fields
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: H                           ! [m]               Layer thickness
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: H_b                         ! [m]               Layer thickness on b grid
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: H_c                         ! [m]               Layer thickness on c grid
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: U                           ! [m s^-1]          2D velocity
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: V                           ! [m s^-1]
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: T                           ! [degrees Celsius] Temperature
@@ -64,7 +65,7 @@ MODULE laddie_model_types
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: entr_tot                    ! [m s^-1]          Total (net) entrainment = entr+entr_dmin-detr
   
     ! Horizontal fluxes
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: divQ                        ! [m^3 s^-1]        Divergence of layer thickness
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: divQH                       ! [m^3 s^-1]        Divergence of layer thickness
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: divQU                       ! [m^4 s^-2]        Divergence of momentum
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: divQV                       ! [m^4 s^-2]        
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: divQT                       ! [degC m^3 s^-1]   Divergence of heat
