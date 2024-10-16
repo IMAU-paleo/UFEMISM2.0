@@ -784,6 +784,14 @@ CONTAINS
         CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'melt', region%BMB%laddie%melt)
       CASE ('divQH')
         CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'divQH', region%BMB%laddie%divQH)
+      CASE ('divQT')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'divQT', region%BMB%laddie%divQT)
+      CASE ('divQS')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'divQS', region%BMB%laddie%divQS)
+      CASE ('divQU')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'divQU', region%BMB%laddie%divQU)
+      CASE ('divQV')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'divQV', region%BMB%laddie%divQV)
 
     ! == Lateral mass balance ==
     ! ==========================
@@ -1299,6 +1307,18 @@ CONTAINS
       CASE ('divQH')
         CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%divQH, d_grid_vec_partial_2D)
         CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'divQH', d_grid_vec_partial_2D)
+      CASE ('divQT')
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%divQT, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'divQT', d_grid_vec_partial_2D)
+      CASE ('divQS')
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%divQS, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'divQS', d_grid_vec_partial_2D)
+      CASE ('divQU')
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%divQU, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'divQU', d_grid_vec_partial_2D)
+      CASE ('divQV')
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%divQV, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'divQV', d_grid_vec_partial_2D)
 
     ! == Lateral mass balance ==
     ! ==========================
@@ -2122,9 +2142,17 @@ CONTAINS
       CASE ('entr_dmin')
         CALL add_field_mesh_dp_2D( filename, ncid, 'entr_dmin', long_name = 'Entrainment rate for Dmin', units = 'm s^-1')
       CASE ('melt')
-        CALL add_field_mesh_dp_2D( filename, ncid, 'melt', long_name = 'melt rate', units = 'm s^-1')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'melt', long_name = 'Melt rate', units = 'm s^-1')
       CASE ('divQH')
-        CALL add_field_mesh_dp_2D( filename, ncid, 'divQH', long_name = 'thickness divergence', units = 'm s^-1')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'divQH', long_name = 'Thickness divergence', units = 'm s^-1')
+      CASE ('divQT')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'divQT', long_name = 'Heat divergence', units = 'degC m s^-1')
+      CASE ('divQS')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'divQS', long_name = 'Salt divergence', units = 'PSU m s^-1')
+      CASE ('divQU')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'divQU', long_name = 'U Momentum divergence', units = 'm^2 s^-2')
+      CASE ('divQV')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'divQV', long_name = 'V Momentum divergence', units = 'm^2 s^-2')
 
     ! == Lateral mass balance ==
     ! ==========================
@@ -2528,6 +2556,14 @@ CONTAINS
         CALL add_field_grid_dp_2D( filename, ncid, 'melt', long_name = 'melt rate', units = 'm s^-1')
       CASE ('divQH')
         CALL add_field_grid_dp_2D( filename, ncid, 'divQH', long_name = 'Thickness divergence', units = 'm s^-1')
+      CASE ('divQT')
+        CALL add_field_grid_dp_2D( filename, ncid, 'divQT', long_name = 'Heat divergence', units = 'degC m s^-1')
+      CASE ('divQS')
+        CALL add_field_grid_dp_2D( filename, ncid, 'divQS', long_name = 'Salt divergence', units = 'PSU m s^-1')
+      CASE ('divQU')
+        CALL add_field_grid_dp_2D( filename, ncid, 'divQU', long_name = 'U momentum divergence', units = 'm^2 s^-2')
+      CASE ('divQV')
+        CALL add_field_grid_dp_2D( filename, ncid, 'divQV', long_name = 'V momentum divergence', units = 'm^2 s^-2')
 
     ! == Lateral mass balance ==
     ! ==========================
