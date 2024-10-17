@@ -30,7 +30,7 @@ contains
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'test_trace_line_tri_ei'
-    character(len=1024), parameter :: test_name_local = 'trace_line_tri_ei'
+    character(len=1024), parameter :: test_name_local = 'ei'
     character(len=1024)            :: test_name
 
     ! Add routine to call stack

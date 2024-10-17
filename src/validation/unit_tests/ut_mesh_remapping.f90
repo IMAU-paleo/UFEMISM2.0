@@ -27,6 +27,7 @@ module ut_mesh_remapping
   use ut_mesh_remapping_trace_line_tri_ti, only: test_trace_line_tri_ti
   use ut_mesh_remapping_trace_line_tri_vi, only: test_trace_line_tri_vi
   use ut_mesh_remapping_trace_line_tri_ei, only: test_trace_line_tri_ei
+  use ut_mesh_remapping_trace_line_tri, only: test_trace_line_tri
 
   implicit none
 
@@ -53,7 +54,7 @@ contains
     ! Add test name to list
     test_name = trim( test_name_parent) // '/' // trim( test_name_local)
 
-    ! call test_trace_line_grid_main( test_name)
+    call test_trace_line_grid_main( test_name)
     call test_trace_line_tri_main ( test_name)
 
     ! Remove routine from call stack
@@ -137,10 +138,11 @@ contains
     call calc_all_secondary_mesh_data( mesh, C%lambda_M_ANT, C%phi_M_ANT, C%beta_stereo_ANT)
 
     ! Run unit tests on this mesh
-    ! call test_trace_line_tri_start( test_name, mesh)
-    ! call test_trace_line_tri_ti   ( test_name, mesh)
-    ! call test_trace_line_tri_vi   ( test_name, mesh)
+    call test_trace_line_tri_start( test_name, mesh)
+    call test_trace_line_tri_ti   ( test_name, mesh)
+    call test_trace_line_tri_vi   ( test_name, mesh)
     call test_trace_line_tri_ei   ( test_name, mesh)
+    call test_trace_line_tri      ( test_name, mesh)
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)

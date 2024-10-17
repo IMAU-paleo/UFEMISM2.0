@@ -9,6 +9,7 @@ module ut_mesh_remapping_trace_line_grid
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, warning
   use grid_types, only: type_grid
   use line_tracing_basic
+  use line_tracing_grid
   use mpi_basic, only: par
   use remapping_types, only: type_single_row_mapping_matrices
 
@@ -23,15 +24,13 @@ contains
   subroutine test_trace_line_grid( test_name_parent, grid)
     ! Test the trace_line_grid subroutine
 
-    use line_tracing_grid
-
     ! In/output variables:
     character(len=*), intent(in) :: test_name_parent
     type(type_grid),  intent(in) :: grid
 
     ! Local variables:
     character(len=1024), parameter         :: routine_name = 'test_trace_line_grid'
-    character(len=1024), parameter         :: test_name_local = 'trace_line_grid_full'
+    character(len=1024), parameter         :: test_name_local = 'full'
     character(len=1024)                    :: test_name
 
     ! Add routine to call stack
@@ -57,8 +56,6 @@ contains
 
   subroutine test_trace_line_grid_westeast( test_name_parent, grid)
     ! Test the trace_line_grid subroutine
-
-    use line_tracing_grid
 
     ! In/output variables:
     character(len=*), intent(in) :: test_name_parent
@@ -203,8 +200,6 @@ contains
   subroutine test_trace_line_grid_eastwest( test_name_parent, grid)
     ! Test the trace_line_grid subroutine
 
-    use line_tracing_grid
-
     ! In/output variables:
     character(len=*), intent(in) :: test_name_parent
     type(type_grid),  intent(in) :: grid
@@ -347,8 +342,6 @@ contains
 
   subroutine test_trace_line_grid_southnorth( test_name_parent, grid)
     ! Test the trace_line_grid subroutine
-
-    use line_tracing_grid
 
     ! In/output variables:
     character(len=*), intent(in) :: test_name_parent
@@ -493,8 +486,6 @@ contains
   subroutine test_trace_line_grid_northsouth( test_name_parent, grid)
     ! Test the trace_line_grid subroutine
 
-    use line_tracing_grid
-
     ! In/output variables:
     character(len=*), intent(in) :: test_name_parent
     type(type_grid),  intent(in) :: grid
@@ -638,8 +629,6 @@ contains
   subroutine test_trace_line_grid_southwestnortheast( test_name_parent, grid)
     ! Test the trace_line_grid subroutine
 
-    use line_tracing_grid
-
     ! In/output variables:
     character(len=*), intent(in) :: test_name_parent
     type(type_grid),  intent(in) :: grid
@@ -770,8 +759,6 @@ contains
 
   subroutine test_trace_line_grid_northeastsouthwest( test_name_parent, grid)
     ! Test the trace_line_grid subroutine
-
-    use line_tracing_grid
 
     ! In/output variables:
     character(len=*), intent(in) :: test_name_parent
@@ -904,8 +891,6 @@ contains
   subroutine test_trace_line_grid_northwestsoutheast( test_name_parent, grid)
     ! Test the trace_line_grid subroutine
 
-    use line_tracing_grid
-
     ! In/output variables:
     character(len=*), intent(in) :: test_name_parent
     type(type_grid),  intent(in) :: grid
@@ -1037,8 +1022,6 @@ contains
   subroutine test_trace_line_grid_southeastnorthwest( test_name_parent, grid)
     ! Test the trace_line_grid subroutine
 
-    use line_tracing_grid
-
     ! In/output variables:
     character(len=*), intent(in) :: test_name_parent
     type(type_grid),  intent(in) :: grid
@@ -1169,8 +1152,6 @@ contains
 
   subroutine test_trace_line_grid_single_cell( test_name_parent, grid)
     ! Test the trace_line_grid subroutine
-
-    use line_tracing_grid
 
     ! In/output variables:
     character(len=*), intent(in) :: test_name_parent
