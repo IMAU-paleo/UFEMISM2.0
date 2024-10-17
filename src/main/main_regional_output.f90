@@ -792,6 +792,10 @@ CONTAINS
         CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'diffT', region%BMB%laddie%diffT)
       CASE ('diffS')
         CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'diffS', region%BMB%laddie%diffS)
+      CASE ('viscU')
+        CALL write_to_field_multopt_mesh_dp_2D_b( region%mesh, filename, ncid, 'viscU', region%BMB%laddie%viscU)
+      CASE ('viscV')
+        CALL write_to_field_multopt_mesh_dp_2D_b( region%mesh, filename, ncid, 'viscV', region%BMB%laddie%viscV)
 
     ! == Lateral mass balance ==
     ! ==========================
@@ -1319,6 +1323,10 @@ CONTAINS
       CASE ('diffS')
         CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%diffS, d_grid_vec_partial_2D)
         CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'diffS', d_grid_vec_partial_2D)
+      CASE ('viscU')
+        ! Not implemented
+      CASE ('viscV')
+        ! Not implemented
 
     ! == Lateral mass balance ==
     ! ==========================
@@ -2153,6 +2161,10 @@ CONTAINS
         CALL add_field_mesh_dp_2D( filename, ncid, 'diffT', long_name = 'Heat diffusion', units = 'degC m s^-1')
       CASE ('diffS')
         CALL add_field_mesh_dp_2D( filename, ncid, 'diffS', long_name = 'Salt diffusion', units = 'PSU m s^-1')
+      CASE ('viscU')
+        CALL add_field_mesh_dp_2D_b( filename, ncid, 'viscU', long_name = 'Laddie U viscosity', units = 'm^2 s^-2')
+      CASE ('viscV')
+        CALL add_field_mesh_dp_2D_b( filename, ncid, 'viscV', long_name = 'Laddie V viscosity', units = 'm^2 s^-2')
 
     ! == Lateral mass balance ==
     ! ==========================
@@ -2564,6 +2576,11 @@ CONTAINS
         CALL add_field_grid_dp_2D( filename, ncid, 'diffT', long_name = 'Heat diffusion', units = 'degC m s^-1')
       CASE ('diffS')
         CALL add_field_grid_dp_2D( filename, ncid, 'diffS', long_name = 'Salt diffusion', units = 'PSU m s^-1')
+      CASE ('viscU')
+        ! Not implemented
+      CASE ('viscV')
+        ! Not implemented
+
 
     ! == Lateral mass balance ==
     ! ==========================
