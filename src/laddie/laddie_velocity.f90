@@ -200,8 +200,10 @@ CONTAINS
             ! Border or corner. For now, assume no slip. If free slip: CYCLE
             laddie%viscU( ti) = laddie%viscU( ti) - laddie%now%U( ti) * laddie%A_h( ti) * laddie%now%H_b( ti) / mesh%TriA( ti)
             laddie%viscV( ti) = laddie%viscV( ti) - laddie%now%V( ti) * laddie%A_h( ti) * laddie%now%H_b( ti) / mesh%TriA( ti)
-          ! TODO add CYCLE if neighbour is ocean. Again: d/dx = d/dy = 0
           ELSE
+            ! Skip calving front - ocean connection: d/dx = d/dy = 0 
+            IF (laddie%mask_oc_b( tj)) CYCLE
+            
             ! Add viscosity flux based on dU/dx and dV/dy. 
             ! Note: for grounded neighbours, U_tot( tj) = 0, meaning this is a no slip option. Can be expanded
             laddie%viscU( ti) = laddie%viscU( ti) + (U_tot( tj)-laddie%now%U( ti)) * laddie%A_h( ti) * laddie%now%H_b( ti) / mesh%TriA( ti)
