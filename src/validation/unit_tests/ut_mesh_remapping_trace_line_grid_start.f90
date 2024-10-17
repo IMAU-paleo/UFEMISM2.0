@@ -10,6 +10,7 @@ module ut_mesh_remapping_trace_line_grid_start
   use grid_types, only: type_grid
   use mpi_basic, only: par
   use line_tracing_basic
+  use line_tracing_grid
 
   implicit none
 
@@ -22,15 +23,13 @@ contains
   subroutine test_trace_line_grid_start( test_name_parent, grid)
     ! Test the trace_line_grid_start subroutine
 
-    use line_tracing_grid
-
     ! In/output variables:
     character(len=*), intent(in) :: test_name_parent
     type(type_grid),  intent(in) :: grid
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'test_trace_line_grid_start'
-    character(len=1024), parameter :: test_name_local = 'trace_line_grid_start'
+    character(len=1024), parameter :: test_name_local = 'start'
     character(len=1024)            :: test_name
 
     ! Add routine to call stack
@@ -50,9 +49,7 @@ contains
   end subroutine test_trace_line_grid_start
 
   subroutine test_trace_line_grid_start_p_inside_a( test_name_parent, grid)
-    ! Test if trace_line_grid_start is able to identify points p that lie inside a-grid cells
-
-    use line_tracing_grid, only: trace_line_grid_start
+    ! Test if trace_line_grid_start is able to identify points p that lie inside a-grid cells, only: trace_line_grid_start
 
     ! In/output variables:
     character(len=*), intent(in) :: test_name_parent
@@ -121,9 +118,7 @@ contains
   end subroutine test_trace_line_grid_start_p_inside_a
 
   subroutine test_trace_line_grid_start_p_on_b( test_name_parent, grid)
-    ! Test if trace_line_grid_start is able to identify points p that lie on b-grid points
-
-    use line_tracing_grid, only: trace_line_grid_start
+    ! Test if trace_line_grid_start is able to identify points p that lie on b-grid points, only: trace_line_grid_start
 
     ! In/output variables:
     character(len=*), intent(in) :: test_name_parent
@@ -201,9 +196,7 @@ contains
   end subroutine test_trace_line_grid_start_p_on_b
 
   subroutine test_trace_line_grid_start_p_on_cx( test_name_parent, grid)
-    ! Test if trace_line_grid_start is able to identify points p that lie on cx-grid points
-
-    use line_tracing_grid, only: trace_line_grid_start
+    ! Test if trace_line_grid_start is able to identify points p that lie on cx-grid points, only: trace_line_grid_start
 
     ! In/output variables:
     character(len=*), intent(in) :: test_name_parent
@@ -274,9 +267,7 @@ contains
   end subroutine test_trace_line_grid_start_p_on_cx
 
   subroutine test_trace_line_grid_start_p_on_cy( test_name_parent, grid)
-    ! Test if trace_line_grid_start is able to identify points p that lie on cy-grid points
-
-    use line_tracing_grid, only: trace_line_grid_start
+    ! Test if trace_line_grid_start is able to identify points p that lie on cy-grid points, only: trace_line_grid_start
 
     ! In/output variables:
     character(len=*), intent(in) :: test_name_parent
