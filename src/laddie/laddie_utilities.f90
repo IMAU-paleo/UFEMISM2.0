@@ -478,6 +478,7 @@ CONTAINS
     ALLOCATE( laddie%mask_b             ( mesh%ti1:mesh%ti2              )) !                 Mask on b-grid
     ALLOCATE( laddie%mask_gl_b          ( mesh%ti1:mesh%ti2              )) !                 Grounding line mask on b-grid
     ALLOCATE( laddie%mask_cf_b          ( mesh%ti1:mesh%ti2              )) !                 Calving front mask on b-grid
+    ALLOCATE( laddie%mask_oc_b          ( mesh%ti1:mesh%ti2              )) !                 Icefree ocean mask on b-grid
 
     laddie%mask_a         = .false.
     laddie%mask_gr_a      = .false.
@@ -485,6 +486,7 @@ CONTAINS
     laddie%mask_b         = .false.
     laddie%mask_gl_b      = .false.
     laddie%mask_cf_b      = .false.
+    laddie%mask_oc_b      = .false.
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

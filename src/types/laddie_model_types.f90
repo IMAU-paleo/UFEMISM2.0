@@ -102,6 +102,7 @@ MODULE laddie_model_types
     LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_b                      !                   Mask on b-grid on which to apply computation
     LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_gl_b                   !                   Grounding line mask on b-grid
     LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_cf_b                   !                   Calving front mask on b-grid
+    LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_oc_b                   !                   Icefree ocean mask on b-grid
    
     ! Timestepping types
     TYPE(type_laddie_timestep)              :: now                         !                   Timestep now  

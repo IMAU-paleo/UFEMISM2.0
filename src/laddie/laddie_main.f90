@@ -50,13 +50,13 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'run_laddie_model'
-    INTEGER                                               :: vi, ti, nf, i
+    INTEGER                                               :: vi, ti, nf, i, no
     REAL(dp)                                              :: tl               ! [s] Laddie time
     REAL(dp)                                              :: dt               ! [s] Laddie time step
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: Hstar            ! [m] Reference thickness in integration
     LOGICAL, DIMENSION(mesh%nV)                           :: mask_a_tot
-    LOGICAL, DIMENSION(mesh%nV)                           :: mask_a_gr_tot
-    LOGICAL, DIMENSION(mesh%nV)                           :: mask_a_oc_tot
+    LOGICAL, DIMENSION(mesh%nV)                           :: mask_gr_a_tot
+    LOGICAL, DIMENSION(mesh%nV)                           :: mask_oc_a_tot
  
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -78,15 +78,17 @@ CONTAINS
 
     ! Mask on b grid
     CALL gather_to_all_logical_1D( laddie%mask_a, mask_a_tot)
-    CALL gather_to_all_logical_1D( laddie%mask_gr_a, mask_a_gr_tot)
-    CALL gather_to_all_logical_1D( laddie%mask_oc_a, mask_a_oc_tot)
+    CALL gather_to_all_logical_1D( laddie%mask_gr_a, mask_gr_a_tot)
+    CALL gather_to_all_logical_1D( laddie%mask_oc_a, mask_oc_a_tot)
 
     DO ti = mesh%ti1, mesh%ti2
       ! Initialise as false to overwrite previous mask
       laddie%mask_b( ti)    = .false.
       laddie%mask_gl_b( ti) = .false.
       laddie%mask_cf_b( ti) = .false.
-      ! Loop over connecing vertices and check whether they are floating
+      laddie%mask_oc_b( ti) = .false.
+
+      ! Define floating mask if any of the three vertices is floating
       DO i = 1, 3
         vi = mesh%Tri( ti, i)
         IF (mask_a_tot( vi)) THEN
@@ -94,23 +96,48 @@ CONTAINS
           laddie%mask_b( ti) = .true.
         END IF
       END DO
-      ! Loop over connecing vertices 
+
+      ! Define grounding line triangles 
       DO i = 1, 3
         vi = mesh%Tri( ti, i)
-        ! Check if any of them is grounded
-        IF (mask_a_gr_tot( vi)) THEN
-          ! Omit from mask if any of the three vertices is grounded
+        ! Check if any connected vertex is grounded
+        IF (mask_gr_a_tot( vi)) THEN
+          ! Omit triangle from floating mask. Adjust for no slip conditions
           laddie%mask_b( ti) = .false.
           ! Define as grounding line triangle
           laddie%mask_gl_b( ti) = .true.
         END IF
-        ! Check if any of them is icefree ocean
-        IF (mask_a_oc_tot( vi)) THEN
-          ! Define as calving front triangle
-          laddie%mask_cf_b( ti) = .true.
+      END DO
+
+      ! For non-grounding line triangles:
+      IF (.NOT. laddie%mask_gl_b( ti)) THEN
+        ! Define calving front triangles
+        DO i = 1, 3
+          vi = mesh%Tri( ti, i)
+          ! Check if any vertex is icefree ocean 
+          IF (mask_oc_a_tot( vi)) THEN
+            ! Define as calving front triangle
+            laddie%mask_cf_b( ti) = .true.
+          END IF
+        END DO
+      END IF
+
+      ! Define ocean triangles
+      no = 0 ! Number of ice free ocean vertices
+      DO i = 1, 3
+        vi = mesh%Tri( ti, i)
+        ! Check if vertex is icefree ocean
+        IF (mask_oc_a_tot( vi)) THEN
+          no = no + 1
         END IF
       END DO
-    END DO
+      ! Check whether all vertices are icefree ocean
+      IF (no == 3) THEN
+        ! Define as ocean triangle
+        laddie%mask_oc_b( ti) = .true.
+      END IF
+
+    END DO !ti = mesh%ti1, mesh%ti2
 
     ! Extrapolate new cells
     ! TODO
