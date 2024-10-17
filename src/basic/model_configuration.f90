@@ -809,6 +809,9 @@ MODULE model_configuration
     REAL(dp)            :: dt_laddie_config                             = 360._dp                          ! [s] Time step for integration of laddie model
     REAL(dp)            :: time_duration_laddie_config                  = 6._dp                            ! [days] Duration of each run cycle
 
+    ! Integration
+    CHARACTER(LEN=256)  :: choice_laddie_integration_scheme_config      = ''                          ! Choose integration scheme. Options: 'euler'
+
     ! Initialisation
     REAL(dp)            :: laddie_initial_thickness_config              = 10._dp                           ! [m] Initial value of thickness H
     REAL(dp)            :: laddie_initial_T_offset_config               = 0.0_dp                           ! [degC] Initial offset of T relative to ambient
@@ -828,8 +831,8 @@ MODULE model_configuration
     REAL(dp)            :: uniform_laddie_gamma_T_config                = 1.8E-4_dp                        ! [] 'uniform': gamma_T parameter. gamma_S = gamma_T/35
 
     ! Drag coefficients
-    REAL(dp)            :: laddie_drag_coefficient_config               = 2.5E-3_dp                        ! [] Drag coefficient Cd
-    REAL(dp)            :: laddie_drag_coefficient_mom_config           = 1.1E-3_dp                        ! [] Drag coefficient Cd_mom in momentum term
+    REAL(dp)            :: laddie_drag_coefficient_top_config           = 1.1E-3_dp                        ! [] Drag coefficient Cd_top in friction velocity
+    REAL(dp)            :: laddie_drag_coefficient_mom_config           = 2.5E-3_dp                        ! [] Drag coefficient Cd_mom in momentum term
 
     ! Viscosity and diffusivity
     REAL(dp)            :: laddie_viscosity_config                      = 1.0E3_dp                         ! [m^2 s^-1] Viscosity parameter Ah
@@ -1776,6 +1779,9 @@ MODULE model_configuration
     REAL(dp)            :: dt_laddie
     REAL(dp)            :: time_duration_laddie
 
+    ! Integration
+    CHARACTER(LEN=256)  :: choice_laddie_integration_scheme
+
     ! Initialisation
     REAL(dp)            :: laddie_initial_thickness
     REAL(dp)            :: laddie_initial_T_offset
@@ -1795,7 +1801,7 @@ MODULE model_configuration
     REAL(dp)            :: uniform_laddie_gamma_T
 
     ! Drag coefficients
-    REAL(dp)            :: laddie_drag_coefficient
+    REAL(dp)            :: laddie_drag_coefficient_top
     REAL(dp)            :: laddie_drag_coefficient_mom
 
     ! Viscosity and diffusivity
@@ -2668,6 +2674,7 @@ CONTAINS
       dir_BMB_laddie_model_config                                 , &
       dt_laddie_config                                            , &
       time_duration_laddie_config                                 , &
+      choice_laddie_integration_scheme_config                     , &
       laddie_initial_thickness_config                             , &
       laddie_initial_T_offset_config                              , &
       laddie_initial_S_offset_config                              , &
@@ -2678,7 +2685,7 @@ CONTAINS
       uniform_laddie_coriolis_parameter_config                    , &
       choice_laddie_gamma_config                                  , &
       uniform_laddie_gamma_T_config                               , &
-      laddie_drag_coefficient_config                              , &
+      laddie_drag_coefficient_top_config                          , &
       laddie_drag_coefficient_mom_config                          , &
       laddie_viscosity_config                                     , &
       laddie_diffusivity_config                                   , &
@@ -3617,6 +3624,9 @@ CONTAINS
     C%dt_laddie                                              = dt_laddie_config
     C%time_duration_laddie                                   = time_duration_laddie_config
 
+    ! Integration
+    C%choice_laddie_integration_scheme                       = choice_laddie_integration_scheme_config
+
     ! Initialisation
     C%laddie_initial_thickness                               = laddie_initial_thickness_config
     C%laddie_initial_T_offset                                = laddie_initial_T_offset_config
@@ -3636,7 +3646,7 @@ CONTAINS
     C%uniform_laddie_gamma_T                                 = uniform_laddie_gamma_T_config
 
     ! Drag coefficients
-    C%laddie_drag_coefficient                                = laddie_drag_coefficient_config
+    C%laddie_drag_coefficient_top                            = laddie_drag_coefficient_top_config
     C%laddie_drag_coefficient_mom                            = laddie_drag_coefficient_mom_config
 
     ! Viscosity and diffusivity
