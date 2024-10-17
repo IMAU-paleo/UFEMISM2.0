@@ -23,7 +23,7 @@ MODULE laddie_main
   USE laddie_physics                                         , ONLY: compute_melt_rate, compute_entrainment, &
                                                                      compute_freezing_temperature, compute_buoyancy
   USE laddie_thickness                                       , ONLY: compute_H_npx, compute_divQH
-  USE laddie_velocity                                        , ONLY: compute_UV_npx, compute_viscUV, compute_divQUV_centered
+  USE laddie_velocity                                        , ONLY: compute_UV_npx, compute_viscUV, compute_divQUV
   USE laddie_tracers                                         , ONLY: compute_TS_npx, compute_diffTS, compute_divQTS
   USE mesh_operators                                         , ONLY: ddx_a_b_2D, ddy_a_b_2D, map_a_b_2D, map_a_c_2D, map_b_a_2D
   USE petsc_basic                                            , ONLY: multiply_CSR_matrix_with_vector_1D
@@ -71,11 +71,18 @@ CONTAINS
     ! == Update masks ==
     ! Mask on a grid
     DO vi = mesh%vi1, mesh%vi2
-      laddie%mask_a( vi)    = ice%mask_floating_ice( vi)
-      laddie%mask_gr_a( vi) = ice%mask_grounded_ice( vi)
-      laddie%mask_oc_a( vi) = ice%mask_icefree_ocean( vi)
+      ! Check whether vertex on border
+      IF (mesh%VBI( vi) > 0) THEN
+        laddie%mask_a( vi)    = .false.
+        laddie%mask_gr_a( vi) = .true.
+      ELSE
+        ! Inherit regular masks
+        laddie%mask_a( vi)    = ice%mask_floating_ice( vi)
+        laddie%mask_gr_a( vi) = ice%mask_grounded_ice( vi)
+        laddie%mask_oc_a( vi) = ice%mask_icefree_ocean( vi)
+      END IF
     END DO
-
+      
     ! Mask on b grid
     CALL gather_to_all_logical_1D( laddie%mask_a, mask_a_tot)
     CALL gather_to_all_logical_1D( laddie%mask_gr_a, mask_gr_a_tot)
@@ -108,6 +115,14 @@ CONTAINS
           laddie%mask_gl_b( ti) = .true.
         END IF
       END DO
+
+      ! Also define border triangles as grounding line
+      IF (mesh%TriBI( ti) > 0) THEN
+        ! Omit triangle from floating mask. Adjust for no slip conditions
+        laddie%mask_b( ti) = .false.
+        ! Define as grounding line triangle
+        laddie%mask_gl_b( ti) = .true.
+      END IF
 
       ! For non-grounding line triangles:
       IF (.NOT. laddie%mask_gl_b( ti)) THEN
@@ -187,7 +202,7 @@ CONTAINS
       ! Display or save fields
       ! TODO
       IF (par%master) THEN
-        WRITE( *, "(F8.3,A,F8.3,A,F12.7,A,F8.3)") tl/sec_per_day, 'Dmax ', MAXVAL(laddie%now%H), '  Meltmax', MAXVAL(laddie%melt), '   U', MAXVAL(laddie%now%U)
+        WRITE( *, "(F8.3,A,F8.3,A,F12.7,A,F8.3)") tl/sec_per_day, '  Dmean ', SUM(laddie%now%H)/SIZE(laddie%now%H), '  Meltmax', MAXVAL(laddie%melt), '   U', MAXVAL(laddie%now%U)
       END IF     
 
     END DO !DO WHILE (tl <= C%time_duration_laddie)
@@ -575,7 +590,7 @@ CONTAINS
     CALL compute_divQH( mesh, laddie, npx, laddie%U_c, laddie%V_c, npx%H_c, laddie%mask_a, laddie%mask_gr_a)
 
     ! Compute divergence of momentum
-    CALL compute_divQUV_centered( mesh, laddie, laddie%U_c, laddie%V_c, Hstar_c, laddie%mask_b, laddie%mask_gl_b)
+    CALL compute_divQUV( mesh, laddie, npx, laddie%U_c, laddie%V_c, Hstar_c, laddie%mask_b, laddie%mask_gl_b)
 
     ! Compute divergence of heat and salt
     CALL compute_divQTS( mesh, laddie, npx, laddie%U_c, laddie%V_c, Hstar, laddie%mask_a, laddie%mask_gr_a)

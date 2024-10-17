@@ -56,7 +56,7 @@ CONTAINS
     ! Get friction velocity
     DO vi = mesh%vi1, mesh%vi2
        IF (laddie%mask_a( vi)) THEN
-         laddie%u_star( vi) = C%laddie_drag_coefficient_mom * (laddie%U_a( vi)**2 + laddie%V_a( vi)**2 + C%uniform_laddie_tidal_velocity**2 )**.5
+         laddie%u_star( vi) = (C%laddie_drag_coefficient_top * (laddie%U_a( vi)**2 + laddie%V_a( vi)**2 + C%uniform_laddie_tidal_velocity**2 ))**.5
        END IF
     END DO
 
@@ -217,7 +217,6 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_buoyancy'
     INTEGER                                               :: vi
-    REAL(dp), PARAMETER                                   :: mindrho = 0.0001_dp
  
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -229,7 +228,7 @@ CONTAINS
                               - C%uniform_laddie_eos_linear_alpha * (laddie%T_amb( vi)-npx%T( vi))
 
          ! Make sure buoyancy is positive TODO expand with convection scheme
-         laddie%drho_amb( vi) = MAX(laddie%drho_amb( vi),mindrho)
+         laddie%drho_amb( vi) = MAX(laddie%drho_amb( vi),C%laddie_buoyancy_minimum/seawater_density)
 
          ! Get depth-integrated buoyancy based on Hstar
          laddie%Hdrho_amb( vi) = Hstar( vi) * laddie%drho_amb( vi)

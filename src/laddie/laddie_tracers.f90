@@ -60,7 +60,7 @@ CONTAINS
               + laddie%melt( vi) * laddie%T_base( vi) &
               + MAX(0.0_dp,laddie%entr( vi)) * laddie%T_amb( vi) &
               + laddie%entr_dmin( vi) * laddie%T_amb( vi) &
-              - laddie%detr( vi) * npxref%T( vi)
+              - laddie%detr( vi) * laddie%T_amb( vi)
 
         IF (incldiff) THEN
           dHTdt = dHTdt + laddie%diffT( vi)
@@ -86,7 +86,7 @@ CONTAINS
         dHSdt = -laddie%divQS( vi) &
               + MAX(0.0_dp,laddie%entr( vi)) * laddie%S_amb( vi) &
               + laddie%entr_dmin( vi) * laddie%S_amb( vi) &
-              - laddie%detr( vi) * npxref%S( vi)
+              - laddie%detr( vi) * laddie%S_amb( vi)
 
         IF (incldiff) THEN
           dHSdt = dHSdt + laddie%diffS( vi)
@@ -226,6 +226,9 @@ CONTAINS
           ei = mesh%VE( vi,ci)
           vj = mesh%C(  vi,ci)
 
+          ! Skip if edge
+          IF (vj == 0) CYCLE
+
           ! Skip connection if neighbour is grounded. No flux across grounding line
           ! Can be made more flexible when accounting for partial cells (PMP instead of FCMP)
           IF (mask_gr_a_tot( vj)) CYCLE
@@ -252,6 +255,7 @@ CONTAINS
           ! u_perp < 0: flow is entering this vertex from vertex vj
           laddie%divQT( vi) = laddie%divQT( vi) + L_c * MIN( 0._dp, u_perp) * Hstar_tot( vj) * T_tot( vj) / A_i
           laddie%divQS( vi) = laddie%divQS( vi) + L_c * MIN( 0._dp, u_perp) * Hstar_tot( vj) * S_tot( vj) / A_i
+          END IF
           ! Centered:
 
         END DO ! DO ci = 1, mesh%nC( vi)

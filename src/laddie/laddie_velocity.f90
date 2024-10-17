@@ -67,7 +67,7 @@ CONTAINS
         ! == pressure gradient force ==
         ! =============================
 
-        IF (laddie%mask_cf_b( ti)) THEN
+        IF (laddie%mask_cf_b( ti) .OR. laddie%mask_gl_b( ti)) THEN
           ! Assume dH/dx and ddrho/dx = 0
           ! Get nearest neighbour Hdrho from floating vertices
           nfl = 0
@@ -81,7 +81,7 @@ CONTAINS
             END IF
           END DO
 
-          ! Define PGF at calving front
+          ! Define PGF at calving front / grounding line
           PGF_x =   grav * Hdrho_fl/nfl * laddie%dHib_dx_b( ti)
           PGF_y =   grav * Hdrho_fl/nfl * laddie%dHib_dy_b( ti)
         ELSE
@@ -102,7 +102,7 @@ CONTAINS
         dHUdt = - laddie%divQU( ti) &
                 + PGF_x &
                 + C%uniform_laddie_coriolis_parameter * Hstar_b( ti) * npxref%V( ti) &
-                - C%laddie_drag_coefficient * npxref%U( ti) * (npxref%U( ti)**2 + npxref%V( ti)**2)**.5 &
+                - C%laddie_drag_coefficient_mom * npxref%U( ti) * (npxref%U( ti)**2 + npxref%V( ti)**2)**.5 &
                 - detr_b( ti) * npxref%U( ti)
 
         IF (inclvisc) THEN
@@ -113,7 +113,7 @@ CONTAINS
         dHVdt = - laddie%divQV( ti) &
                 + PGF_y &
                 - C%uniform_laddie_coriolis_parameter * Hstar_b( ti) * npxref%U( ti) &
-                - C%laddie_drag_coefficient * npxref%V( ti) * (npxref%U( ti)**2 + npxref%V( ti)**2)**.5 &
+                - C%laddie_drag_coefficient_mom * npxref%V( ti) * (npxref%U( ti)**2 + npxref%V( ti)**2)**.5 &
                 - detr_b( ti) * npxref%V( ti)
 
         IF (inclvisc) THEN
@@ -219,7 +219,7 @@ CONTAINS
     
   END SUBROUTINE compute_viscUV
 
-  SUBROUTINE compute_divQUV_centered( mesh, laddie, U_c, V_c, H_c, mask_b, mask_gl_b)
+  SUBROUTINE compute_divQUV( mesh, laddie, npxref, U_c, V_c, H_c, mask_b, mask_gl_b)
     ! Calculate the layer flux divergence matrix M_divQ using an upwind scheme
     !
     ! The vertically averaged ice flux divergence represents the net ice volume (which,
@@ -236,11 +236,12 @@ CONTAINS
     ! In/output variables:
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
+    TYPE(type_laddie_timestep),             INTENT(IN)    :: npxref
     REAL(dp), DIMENSION(mesh%ei1:mesh%ei2), INTENT(IN)    :: U_c, V_c, H_c
     LOGICAL, DIMENSION(mesh%ti1:mesh%ti2),  INTENT(IN)    :: mask_b, mask_gl_b
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_divQUV_centered'
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_divQUV'
     REAL(dp), DIMENSION(mesh%nE)                          :: U_c_tot, V_c_tot, H_c_tot
     INTEGER                                               :: ncols, ncols_loc, nrows, nrows_loc, nnz_est_proc
     INTEGER                                               :: ti, ci, ei, tj, vi, vi1, vi2, i, j, e, k
@@ -281,8 +282,8 @@ CONTAINS
           ! Get neighbouring vertex
           vi1 = mesh%Tri( ti, ci)
 
-          ! Get the other neighbouring vertex
-          IF (i < 0) THEN
+          ! Get the next neighbouring vertex
+          IF (ci < 3) THEN
             vi2 = mesh%Tri( ti, ci+1)
           ELSE
             vi2 = mesh%Tri( ti, 1)
@@ -335,7 +336,7 @@ CONTAINS
 
           ! Overwrite with triangle (b grid value) if at boundary
           IF (isbound) THEN
-            H_e = laddie%now%H_b( ti)
+            H_e = npxref%H_b( ti)
           END IF
 
           ! The shared edge length of triangles ti and tj has length L_c 
@@ -367,7 +368,7 @@ CONTAINS
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
-  END SUBROUTINE compute_divQUV_centered
+  END SUBROUTINE compute_divQUV
 
 END MODULE laddie_velocity
 

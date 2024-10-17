@@ -831,8 +831,8 @@ MODULE model_configuration
     REAL(dp)            :: uniform_laddie_gamma_T_config                = 1.8E-4_dp                        ! [] 'uniform': gamma_T parameter. gamma_S = gamma_T/35
 
     ! Drag coefficients
-    REAL(dp)            :: laddie_drag_coefficient_config               = 2.5E-3_dp                        ! [] Drag coefficient Cd
-    REAL(dp)            :: laddie_drag_coefficient_mom_config           = 1.1E-3_dp                        ! [] Drag coefficient Cd_mom in momentum term
+    REAL(dp)            :: laddie_drag_coefficient_top_config           = 1.1E-3_dp                        ! [] Drag coefficient Cd_top in friction velocity
+    REAL(dp)            :: laddie_drag_coefficient_mom_config           = 2.5E-3_dp                        ! [] Drag coefficient Cd_mom in momentum term
 
     ! Viscosity and diffusivity
     REAL(dp)            :: laddie_viscosity_config                      = 1.0E3_dp                         ! [m^2 s^-1] Viscosity parameter Ah
@@ -1801,7 +1801,7 @@ MODULE model_configuration
     REAL(dp)            :: uniform_laddie_gamma_T
 
     ! Drag coefficients
-    REAL(dp)            :: laddie_drag_coefficient
+    REAL(dp)            :: laddie_drag_coefficient_top
     REAL(dp)            :: laddie_drag_coefficient_mom
 
     ! Viscosity and diffusivity
@@ -2685,7 +2685,7 @@ CONTAINS
       uniform_laddie_coriolis_parameter_config                    , &
       choice_laddie_gamma_config                                  , &
       uniform_laddie_gamma_T_config                               , &
-      laddie_drag_coefficient_config                              , &
+      laddie_drag_coefficient_top_config                          , &
       laddie_drag_coefficient_mom_config                          , &
       laddie_viscosity_config                                     , &
       laddie_diffusivity_config                                   , &
@@ -3646,7 +3646,7 @@ CONTAINS
     C%uniform_laddie_gamma_T                                 = uniform_laddie_gamma_T_config
 
     ! Drag coefficients
-    C%laddie_drag_coefficient                                = laddie_drag_coefficient_config
+    C%laddie_drag_coefficient_top                            = laddie_drag_coefficient_top_config
     C%laddie_drag_coefficient_mom                            = laddie_drag_coefficient_mom_config
 
     ! Viscosity and diffusivity
