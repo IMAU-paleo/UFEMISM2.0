@@ -2,6 +2,8 @@ module line_tracing_basic
 
   ! Some very basic functionality for the line tracing algorithms
 
+  use tests_main
+  use assertions_basic
   use precisions, only: dp
   use control_resources_and_error_messaging, only: crash
   use remapping_types, only: type_single_row_mapping_matrices
@@ -11,18 +13,25 @@ module line_tracing_basic
   private
 
   public :: add_integrals_to_single_row
-  public :: type_coinc_ind_grid, no_value, a_grid, b_grid, cx_grid, cy_grid
+  public :: type_coinc_ind_grid, type_coinc_ind_mesh, no_value, a_grid, b_grid, c_grid, cx_grid, cy_grid
+  public :: coinc_ind_mesh_old2new, coinc_ind_mesh_new2old
 
   type type_coinc_ind_grid
     integer :: grid
     integer :: i,j
   end type type_coinc_ind_grid
 
+  type type_coinc_ind_mesh
+    integer :: grid
+    integer :: i
+  end type type_coinc_ind_mesh
+
   integer, parameter :: no_value = -1
   integer, parameter :: a_grid   = 1
   integer, parameter :: b_grid   = 2
-  integer, parameter :: cx_grid  = 3
-  integer, parameter :: cy_grid  = 4
+  integer, parameter :: c_grid   = 3
+  integer, parameter :: cx_grid  = 4
+  integer, parameter :: cy_grid  = 5
 
 contains
 
@@ -119,5 +128,42 @@ contains
     single_row%LI_xydy(    1:n) = LI_xydy_temp
 
   end subroutine extend_single_row_memory
+
+  subroutine coinc_ind_mesh_old2new( ti_in, vi_on, ei_on, coinc_ind)
+    integer, intent(in) :: ti_in, vi_on, ei_on
+    type(type_coinc_ind_mesh), intent(out) :: coinc_ind
+    if (ti_in > 0) then
+      call assert( vi_on == 0, 'ti_in > 0 and vi_on > 0')
+      call assert( ei_on == 0, 'ti_in > 0 and ei_on > 0')
+      coinc_ind%grid = b_grid
+      coinc_ind%i = ti_in
+    elseif (vi_on > 0) then
+      call assert( ti_in == 0, 'vi_on > 0 and ti_in > 0')
+      call assert( ei_on == 0, 'vi_on > 0 and ei_on > 0')
+      coinc_ind%grid = a_grid
+      coinc_ind%i = vi_on
+    elseif (ei_on > 0) then
+      call assert( ti_in == 0, 'ei_on > 0 and ti_in > 0')
+      call assert( vi_on == 0, 'ei_on > 0 and vi_on > 0')
+      coinc_ind%grid = c_grid
+      coinc_ind%i = ei_on
+    else
+      call crash('ti_in, vi_on, ei_on are all zero')
+    end if
+  end subroutine coinc_ind_mesh_old2new
+  subroutine coinc_ind_mesh_new2old( coinc_ind, ti_in, vi_on, ei_on)
+    type(type_coinc_ind_mesh), intent(in) :: coinc_ind
+    integer, intent(out) :: ti_in, vi_on, ei_on
+    select case (coinc_ind%grid)
+    case default
+      call crash('invalid grid in coincidence indicator')
+    case (a_grid)
+      vi_on = coinc_ind%i
+    case (b_grid)
+      ti_in = coinc_ind%i
+    case (c_grid)
+      ei_on = coinc_ind%i
+    end select
+  end subroutine coinc_ind_mesh_new2old
 
 end module line_tracing_basic
