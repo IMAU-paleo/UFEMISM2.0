@@ -2,9 +2,11 @@ module line_tracing_triangles
 
   ! Line tracing algorithm through mesh triangles
 
+  use tests_main
+  use assertions_basic
   use precisions, only: dp
   use remapping_types, only: type_map, type_single_row_mapping_matrices
-  use line_tracing_basic, only: add_integrals_to_single_row
+  use line_tracing_basic
   use mesh_types, only: type_mesh
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash
   use math_utilities, only: lies_on_line_segment, segment_intersection, crop_line_to_domain, &
@@ -37,6 +39,7 @@ contains
     logical                        :: is_valid_line
     logical                        :: finished
     integer                        :: n_cycles
+    type(type_coinc_ind_mesh)      :: coinc_ind
     integer                        :: ti_in, vi_on, ei_on
     real(dp), dimension(2)         :: p_next
     integer                        :: ti_left
@@ -47,7 +50,8 @@ contains
     call init_routine( routine_name)
 
     ! Crop the line [pq] so that it lies within the mesh domain
-    call crop_line_to_domain( p, q, mesh%xmin, mesh%xmax, mesh%ymin, mesh%ymax, mesh%tol_dist, pp, qq, is_valid_line)
+    call crop_line_to_domain( p, q, mesh%xmin, mesh%xmax, mesh%ymin, mesh%ymax, mesh%tol_dist, &
+      pp, qq, is_valid_line)
 
     if (.not. is_valid_line) then
       ! [pq] doesn't pass through the mesh domain anywhere
@@ -59,7 +63,8 @@ contains
     !    - lies inside the Voronoi cell of vertex vi_in, ...
     !    - lies on the circumcentre of triangle ti_on, or...
     !    - lies on the shared Voronoi cell boundary represented by edge ei_on
-    call trace_line_tri_start( mesh, pp, ti_hint, ti_in, vi_on, ei_on)
+    call trace_line_tri_start( mesh, pp, ti_hint, coinc_ind)
+    call coinc_ind_mesh_new2old( coinc_ind, ti_in, vi_on, ei_on)
 
     ! Iteratively trace the line through the mesh
     finished = .false.
@@ -113,25 +118,30 @@ contains
   !>    - lies inside triangle ti_in, ...
   !>    - lies on vertex vi_on, or...
   !>    - lies on edge ei_on
-  subroutine trace_line_tri_start( mesh, p, ti_hint, ti_in, vi_on, ei_on)
+  subroutine trace_line_tri_start( mesh, p, ti_hint, coinc_ind)
 
     ! In/output variables:
-    type(type_mesh),        intent(in)    :: mesh
-    real(dp), dimension(2), intent(in)    :: p
-    integer,                intent(inout) :: ti_hint
-    integer,                intent(out)   :: ti_in
-    integer,                intent(out)   :: vi_on
-    integer,                intent(out)   :: ei_on
+    type(type_mesh),           intent(in)    :: mesh
+    real(dp), dimension(2),    intent(in)    :: p
+    integer,                   intent(inout) :: ti_hint
+    type(type_coinc_ind_mesh), intent(out)   :: coinc_ind
 
     ! Local variables:
     integer                :: via, vib, vic
     real(dp), dimension(2) :: pa, pb, pc
-    integer                :: vvi, vj, ei
+    integer                :: vvi, vj
+
+#if (DO_ASSERTIONS)
+    ! Safety - check if p lies inside the mesh domain
+    call assert( &
+      test_ge_le( p(1), mesh%xmin, mesh%xmax) .and. &
+      test_ge_le( p(2), mesh%ymin, mesh%ymax), &
+      'p lies outside the mesh domain')
+#endif
 
     ! Initialise
-    ti_in  = 0
-    vi_on  = 0
-    ei_on = 0
+    coinc_ind%grid = no_value
+    coinc_ind%i    = 0
 
     ! Find the triangle containing p
     call find_containing_triangle( mesh, p, ti_hint)
@@ -148,53 +158,80 @@ contains
     ! Check if p lies on any of the three vertices
     if     (norm2( pa - p) < mesh%tol_dist) then
       ! p lies on via
-      vi_on = via
+      coinc_ind%grid = a_grid
+      coinc_ind%i    = via
       return
     elseif (norm2( pb - p) < mesh%tol_dist) then
       ! p lies on vib
-      vi_on = vib
+      coinc_ind%grid = a_grid
+      coinc_ind%i    = vib
       return
     elseif (norm2( pc - p) < mesh%tol_dist) then
       ! p lies on vic
-      vi_on = vic
+      coinc_ind%grid = a_grid
+      coinc_ind%i    = vic
       return
-    end if
 
     ! Check if p lies on any of the three edges
-    if     (lies_on_line_segment( pa, pb, p, mesh%tol_dist)) then
+    elseif (lies_on_line_segment( pa, pb, p, mesh%tol_dist)) then
       ! p lies on the edge connecting via and vib
+
+      coinc_ind%grid = c_grid
       do vvi = 1, mesh%nC( via)
         vj = mesh%C(  via,vvi)
-        ei = mesh%VE( via,vvi)
         if (vj == vib) then
-          ei_on = ei
-          return
+          coinc_ind%i = mesh%VE( via,vvi)
         end if
       end do
+#if (DO_ASSERTIONS)
+      ! Safety
+      call assert( coinc_ind%i > 0, 'couldnt find edge ei connecting vertices vi,vj')
+#endif
+      return
+
     elseif (lies_on_line_segment( pb, pc, p, mesh%tol_dist)) then
       ! p lies on the edge connecting vib and vic
+
+      coinc_ind%grid = c_grid
       do vvi = 1, mesh%nC( vib)
         vj = mesh%C(  vib,vvi)
-        ei = mesh%VE( vib,vvi)
         if (vj == vic) then
-          ei_on = ei
+          coinc_ind%i = mesh%VE( vib,vvi)
           return
         end if
       end do
+#if (DO_ASSERTIONS)
+      ! Safety
+      call assert( coinc_ind%i > 0, 'couldnt find edge ei connecting vertices vi,vj')
+#endif
+      return
+
     elseif (lies_on_line_segment( pc, pa, p, mesh%tol_dist)) then
       ! p lies on the edge connecting vic and via
+
+      coinc_ind%grid = c_grid
       do vvi = 1, mesh%nC( vic)
         vj = mesh%C(  vic,vvi)
-        ei = mesh%VE( vic,vvi)
         if (vj == via) then
-          ei_on = ei
+          coinc_ind%i = mesh%VE( vic,vvi)
           return
         end if
       end do
-    end if
+#if (DO_ASSERTIONS)
+      ! Safety
+      call assert( coinc_ind%i > 0, 'couldnt find edge ei connecting vertices vi,vj')
+#endif
+      return
 
-    ! if p lies not on the vertices or edges of the triangle, then it must lie inside of it
-    ti_in = ti_hint
+    ! Check if p lies inside triangle ti
+    elseif (is_in_triangle( pa, pb, pc, p)) then
+      coinc_ind%grid = b_grid
+      coinc_ind%i    = ti_hint
+      return
+
+    else
+      call crash('couldnt find where p is on the mesh')
+    end if
 
   end subroutine trace_line_tri_start
 
