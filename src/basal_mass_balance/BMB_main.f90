@@ -129,9 +129,7 @@ CONTAINS
       CASE ('laddie2')
         CALL run_laddie_model( mesh, ice, ocean, BMB%laddie, time)
         DO vi = mesh%vi1, mesh%vi2
-          IF (ice%mask_floating_ice( vi)) THEN
-            BMB%BMB_shelf( vi) = -BMB%laddie%melt( vi) * sec_per_year
-          END IF
+          BMB%BMB_shelf( vi) = -BMB%laddie%melt( vi) * sec_per_year
         END DO
       CASE DEFAULT
         CALL crash('unknown choice_BMB_model "' // TRIM( choice_BMB_model) // '"')
