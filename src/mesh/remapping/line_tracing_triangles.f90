@@ -74,7 +74,9 @@ contains
       ! Find the point p_next where [pq] crosses into the next Voronoi cell
       if     (ti_in  > 0) then
         ! p lies inside triangle ti_in
-        call trace_line_tri_ti( mesh, pp, qq, p_next, ti_in, vi_on, ei_on, ti_left, coincides, finished)
+        call coinc_ind_mesh_old2new( ti_in, vi_on, ei_on, coinc_ind)
+        call trace_line_tri_ti( mesh, pp, qq, p_next, coinc_ind, ti_left, coincides, finished)
+        call coinc_ind_mesh_new2old( coinc_ind, ti_in, vi_on, ei_on)
       elseif (vi_on  > 0) then
         ! p lies on vertex vi_on
         call trace_line_tri_vi( mesh, pp, qq, p_next, ti_in, vi_on, ei_on, ti_left, coincides, finished)
@@ -237,24 +239,29 @@ contains
 
   !> Given the line [pq], where p lies inside triangle ti_in,
   !> find the point p_next where [pq] crosses into the next triangle.
-  subroutine trace_line_tri_ti( mesh, p, q, &
-    p_next, ti_in, vi_on, ei_on, ti_left, coincides, finished)
+  subroutine trace_line_tri_ti( mesh, p, q, p_next, coinc_ind, ti_left, coincides, finished)
 
     ! In/output variables
-    type(type_mesh),        intent(in)    :: mesh
-    real(dp), dimension(2), intent(in)    :: p,q
-    real(dp), dimension(2), intent(out)   :: p_next
-    integer,                intent(inout) :: ti_in
-    integer,                intent(inout) :: vi_on
-    integer,                intent(inout) :: ei_on
-    integer,                intent(out)   :: ti_left
-    logical,                intent(out)   :: coincides
-    logical,                intent(out)   :: finished
+    type(type_mesh),           intent(in)    :: mesh
+    real(dp), dimension(2),    intent(in)    :: p,q
+    real(dp), dimension(2),    intent(out)   :: p_next
+    type(type_coinc_ind_mesh), intent(inout) :: coinc_ind
+    integer,                   intent(out)   :: ti_left
+    logical,                   intent(out)   :: coincides
+    logical,                   intent(out)   :: finished
 
     ! Local variables:
-    integer                :: via, vib, vic
+    integer                :: ti_in, via, vib, vic
     real(dp), dimension(2) :: pa, pb, pc
     logical                :: q_in_ti, q_on_vi, q_on_ei, pq_through_vi, pq_through_ei
+
+#if (DO_ASSERTIONS)
+    ! Safety
+    call assert( coinc_ind%grid == b_grid, 'coincidence grid is not b_grid')
+    call assert( test_ge_le( coinc_ind%i, 0, mesh%nTri), 'invalid value for ti')
+#endif
+
+    ti_in = coinc_ind%i
 
     ! The three vertices spanning the triangle
     via = mesh%Tri( ti_in,1)
@@ -267,37 +274,32 @@ contains
 
 #if (DO_ASSERTIONS)
     ! Safety
-    if (ti_in == 0 .or. vi_on > 0 .or. ei_on > 0) then
-      call crash('trace_line_tri_ti - coincidence indicators dont make sense!')
-    end if
-    if (.not. is_in_triangle( pa, pb, pc, p)) then
-      call crash('trace_line_tri_ti - p does not lie inside triangle ti_in!')
-    end if
+    call assert( is_in_triangle( pa, pb, pc, p), 'p does not lie in triangle ti')
 #endif
 
     ! Check if q lies inside the same triangle ti
-    call trace_line_tri_ti_q_in_ti( q, pa, pb, pc, &
-      p_next, ti_in, vi_on, ei_on, ti_left, coincides, finished, q_in_ti)
+    call trace_line_tri_ti_q_in_ti( q, ti_in, pa, pb, pc, &
+      p_next, coinc_ind, ti_left, coincides, finished, q_in_ti)
     if (q_in_ti) return
 
     ! Check if q lies on any of the three vertices spanning triangle ti
-    call trace_line_tri_ti_q_on_vi( mesh, q, &
-      p_next, ti_in, vi_on, ei_on, ti_left, coincides, finished, q_on_vi)
+    call trace_line_tri_ti_q_on_vi( mesh, q, ti_in, &
+      p_next, coinc_ind, ti_left, coincides, finished, q_on_vi)
     if (q_on_vi) return
 
     ! Check if q lies on any of the three edges spanning triangle ti
-    call trace_line_tri_ti_q_on_ei( mesh, q, &
-      p_next, ti_in, vi_on, ei_on, ti_left, coincides, finished, q_on_ei)
+    call trace_line_tri_ti_q_on_ei( mesh, q, ti_in, &
+      p_next, coinc_ind, ti_left, coincides, finished, q_on_ei)
     if (q_on_ei) return
 
     ! Check if pq exits triangle ti through one of its vertices
-    call trace_line_tri_ti_pq_through_vi( mesh, p, q, &
-      p_next, ti_in, vi_on, ei_on, ti_left, coincides, finished, pq_through_vi)
+    call trace_line_tri_ti_pq_through_vi( mesh, p, q, ti_in, &
+      p_next, coinc_ind, ti_left, coincides, finished, pq_through_vi)
     if (pq_through_vi) return
 
     ! Check if pq exits triangle ti through one of its edges
-    call trace_line_tri_ti_pq_through_ei( mesh, p, q, &
-      p_next, ti_in, vi_on, ei_on, ti_left, coincides, finished, pq_through_ei)
+    call trace_line_tri_ti_pq_through_ei( mesh, p, q, ti_in, &
+      p_next, coinc_ind, ti_left, coincides, finished, pq_through_ei)
     if (pq_through_ei) return
 
     ! This point should not be reachable!
@@ -305,88 +307,84 @@ contains
 
   end subroutine trace_line_tri_ti
 
-  subroutine trace_line_tri_ti_q_in_ti( q, pa, pb, pc, &
-    p_next, ti_in, vi_on, ei_on, ti_left, coincides, finished, q_in_ti)
+  subroutine trace_line_tri_ti_q_in_ti( q, ti_in, pa, pb, pc, &
+    p_next, coinc_ind, ti_left, coincides, finished, q_in_ti)
 
     ! In/output variables
-    real(dp), dimension(2), intent(in)    :: q
-    real(dp), dimension(2), intent(in)    :: pa, pb, pc
-    real(dp), dimension(2), intent(out)   :: p_next
-    integer,                intent(inout) :: ti_in
-    integer,                intent(inout) :: vi_on
-    integer,                intent(inout) :: ei_on
-    integer,                intent(out)   :: ti_left
-    logical,                intent(out)   :: coincides
-    logical,                intent(out)   :: finished
-    logical,                intent(out)   :: q_in_ti
+    real(dp), dimension(2),    intent(in)    :: q
+    integer,                   intent(in)    :: ti_in
+    real(dp), dimension(2),    intent(in)    :: pa, pb, pc
+    real(dp), dimension(2),    intent(out)   :: p_next
+    type(type_coinc_ind_mesh), intent(inout) :: coinc_ind
+    integer,                   intent(out)   :: ti_left
+    logical,                   intent(out)   :: coincides
+    logical,                   intent(out)   :: finished
+    logical,                   intent(out)   :: q_in_ti
 
     q_in_ti = .false.
 
     if (is_in_triangle( pa, pb, pc, q)) then
-      ! q lies inside the same triangle
-      p_next    = q
-      ti_left   = ti_in
-      ti_in     = 0
-      vi_on     = 0
-      ei_on     = 0
-      coincides = .false.
-      finished  = .true.
-      q_in_ti   = .true.
+      ! q lies inside triangle ti
+      p_next         = q
+      ti_left        = ti_in
+      coinc_ind%grid = no_value
+      coinc_ind%i    = 0
+      coincides      = .false.
+      finished       = .true.
+      q_in_ti        = .true.
     end if
 
   end subroutine trace_line_tri_ti_q_in_ti
 
-  subroutine trace_line_tri_ti_q_on_vi( mesh, q, &
-    p_next, ti_in, vi_on, ei_on, ti_left, coincides, finished, q_on_vi)
+  subroutine trace_line_tri_ti_q_on_vi( mesh, q, ti_in, &
+    p_next, coinc_ind, ti_left, coincides, finished, q_on_vi)
 
     ! In/output variables
-    type(type_mesh),        intent(in)    :: mesh
-    real(dp), dimension(2), intent(in)    :: q
-    real(dp), dimension(2), intent(out)   :: p_next
-    integer,                intent(inout) :: ti_in
-    integer,                intent(inout) :: vi_on
-    integer,                intent(inout) :: ei_on
-    integer,                intent(out)   :: ti_left
-    logical,                intent(out)   :: coincides
-    logical,                intent(out)   :: finished
-    logical,                intent(out)   :: q_on_vi
+    type(type_mesh),           intent(in)    :: mesh
+    real(dp), dimension(2),    intent(in)    :: q
+    integer,                   intent(in)    :: ti_in
+    real(dp), dimension(2),    intent(out)   :: p_next
+    type(type_coinc_ind_mesh), intent(inout) :: coinc_ind
+    integer,                   intent(out)   :: ti_left
+    logical,                   intent(out)   :: coincides
+    logical,                   intent(out)   :: finished
+    logical,                   intent(out)   :: q_on_vi
 
     ! Local variables
-    integer :: n
+    integer :: n, vi
 
     q_on_vi = .false.
 
     do n = 1, 3
-      if (norm2( mesh%V( mesh%Tri( ti_in,n),:) - q) < mesh%tol_dist) then
-        ! q lies on vertex via
-        p_next    = q
-        ti_left   = ti_in
-        ti_in     = 0
-        vi_on     = 0
-        ei_on     = 0
-        coincides = .false.
-        finished  = .true.
-        q_on_vi   = .true.
+      vi = mesh%Tri( ti_in,n)
+      if (norm2( mesh%V( vi,:) - q) < mesh%tol_dist) then
+        ! q lies on vertex vi
+        p_next         = q
+        ti_left        = ti_in
+        coinc_ind%grid = no_value
+        coinc_ind%i    = 0
+        coincides      = .false.
+        finished       = .true.
+        q_on_vi        = .true.
         exit
       end if
     end do
 
   end subroutine trace_line_tri_ti_q_on_vi
 
-  subroutine trace_line_tri_ti_q_on_ei( mesh, q, &
-    p_next, ti_in, vi_on, ei_on, ti_left, coincides, finished, q_on_ei)
+  subroutine trace_line_tri_ti_q_on_ei( mesh, q, ti_in, &
+    p_next, coinc_ind, ti_left, coincides, finished, q_on_ei)
 
     ! In/output variables
-    type(type_mesh),        intent(in)    :: mesh
-    real(dp), dimension(2), intent(in)    :: q
-    real(dp), dimension(2), intent(out)   :: p_next
-    integer,                intent(inout) :: ti_in
-    integer,                intent(inout) :: vi_on
-    integer,                intent(inout) :: ei_on
-    integer,                intent(out)   :: ti_left
-    logical,                intent(out)   :: coincides
-    logical,                intent(out)   :: finished
-    logical,                intent(out)   :: q_on_ei
+    type(type_mesh),           intent(in)    :: mesh
+    real(dp), dimension(2),    intent(in)    :: q
+    integer,                   intent(in)    :: ti_in
+    real(dp), dimension(2),    intent(out)   :: p_next
+    type(type_coinc_ind_mesh), intent(inout) :: coinc_ind
+    integer,                   intent(out)   :: ti_left
+    logical,                   intent(out)   :: coincides
+    logical,                   intent(out)   :: finished
+    logical,                   intent(out)   :: q_on_ei
 
     ! Local variables
     integer :: n1, n2
@@ -401,34 +399,32 @@ contains
       pb = mesh%V( mesh%Tri( ti_in,n2),:)
       if (lies_on_line_segment( pa, pb, q, mesh%tol_dist)) then
         ! q lies on edge via-vib
-        p_next    = q
-        ti_left   = ti_in
-        ti_in     = 0
-        vi_on     = 0
-        ei_on     = 0
-        coincides = .false.
-        finished  = .true.
-        q_on_ei   = .true.
+        p_next         = q
+        ti_left        = ti_in
+        coinc_ind%grid = no_value
+        coinc_ind%i    = 0
+        coincides      = .false.
+        finished       = .true.
+        q_on_ei        = .true.
         exit
       end if
     end do
 
   end subroutine trace_line_tri_ti_q_on_ei
 
-  subroutine trace_line_tri_ti_pq_through_vi( mesh, p, q, &
-    p_next, ti_in, vi_on, ei_on, ti_left, coincides, finished, pq_through_vi)
+  subroutine trace_line_tri_ti_pq_through_vi( mesh, p, q, ti_in, &
+    p_next, coinc_ind, ti_left, coincides, finished, pq_through_vi)
 
     ! In/output variables
-    type(type_mesh),        intent(in)    :: mesh
-    real(dp), dimension(2), intent(in)    :: p,q
-    real(dp), dimension(2), intent(out)   :: p_next
-    integer,                intent(inout) :: ti_in
-    integer,                intent(inout) :: vi_on
-    integer,                intent(inout) :: ei_on
-    integer,                intent(out)   :: ti_left
-    logical,                intent(out)   :: coincides
-    logical,                intent(out)   :: finished
-    logical,                intent(out)   :: pq_through_vi
+    type(type_mesh),           intent(in)    :: mesh
+    real(dp), dimension(2),    intent(in)    :: p,q
+    integer,                   intent(in)    :: ti_in
+    real(dp), dimension(2),    intent(out)   :: p_next
+    type(type_coinc_ind_mesh), intent(inout) :: coinc_ind
+    integer,                   intent(out)   :: ti_left
+    logical,                   intent(out)   :: coincides
+    logical,                   intent(out)   :: finished
+    logical,                   intent(out)   :: pq_through_vi
 
     ! Local variables
     integer                :: n, vi
@@ -441,37 +437,35 @@ contains
       pvi = mesh%V( vi,:)
       if (lies_on_line_segment( p, q, pvi, mesh%tol_dist)) then
         ! [pq] passes through vi
-        p_next        = pvi
-        ti_left       = ti_in
-        ti_in         = 0
-        vi_on         = vi
-        ei_on         = 0
-        coincides     = .false.
-        finished      = .false.
-        pq_through_vi = .true.
+        p_next         = pvi
+        ti_left        = ti_in
+        coinc_ind%grid = a_grid
+        coinc_ind%i    = vi
+        coincides      = .false.
+        finished       = .false.
+        pq_through_vi  = .true.
         exit
       end if
     end do
 
   end subroutine trace_line_tri_ti_pq_through_vi
 
-  subroutine trace_line_tri_ti_pq_through_ei( mesh, p, q, &
-    p_next, ti_in, vi_on, ei_on, ti_left, coincides, finished, pq_through_ei)
+  subroutine trace_line_tri_ti_pq_through_ei( mesh, p, q, ti_in, &
+    p_next, coinc_ind, ti_left, coincides, finished, pq_through_ei)
 
     ! In/output variables
-    type(type_mesh),        intent(in)    :: mesh
-    real(dp), dimension(2), intent(in)    :: p,q
-    real(dp), dimension(2), intent(out)   :: p_next
-    integer,                intent(inout) :: ti_in
-    integer,                intent(inout) :: vi_on
-    integer,                intent(inout) :: ei_on
-    integer,                intent(out)   :: ti_left
-    logical,                intent(out)   :: coincides
-    logical,                intent(out)   :: finished
-    logical,                intent(out)   :: pq_through_ei
+    type(type_mesh),           intent(in)    :: mesh
+    real(dp), dimension(2),    intent(in)    :: p,q
+    integer,                   intent(in)    :: ti_in
+    real(dp), dimension(2),    intent(out)   :: p_next
+    type(type_coinc_ind_mesh), intent(inout) :: coinc_ind
+    integer,                   intent(out)   :: ti_left
+    logical,                   intent(out)   :: coincides
+    logical,                   intent(out)   :: finished
+    logical,                   intent(out)   :: pq_through_ei
 
     ! Local variables
-    integer                :: n1, n2, vi, vj, ci, vk, ei
+    integer                :: n1, n2, vi, vj, ci, vk
     real(dp), dimension(2) :: pvi, pvj, llis
     logical                :: do_cross
 
@@ -491,19 +485,17 @@ contains
 
       if (do_cross) then
         ! [pq] crosses edge [via,vib]
+        coinc_ind%grid = c_grid
         ! Find the edge connecting via and vib
         do ci = 1, mesh%nC( vi)
           vk = mesh%C(  vi,ci)
-          ei = mesh%VE( vi,ci)
           if (vk == vj) then
-            ei_on = ei
+            coinc_ind%i = mesh%VE( vi,ci)
             exit
           end if
         end do
         p_next    = llis
         ti_left   = ti_in
-        ti_in     = 0
-        vi_on     = 0
         coincides = .false.
         finished  = .false.
         pq_through_ei = .true.
