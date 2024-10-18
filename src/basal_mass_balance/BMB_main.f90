@@ -129,7 +129,7 @@ CONTAINS
       CASE ('laddie2')
         CALL run_laddie_model( mesh, ice, ocean, BMB%laddie, time)
         DO vi = mesh%vi1, mesh%vi2
-          IF (ice%mask_floating_ice( vi) .OR. ice%mask_icefree_ocean( vi) .OR. ice%mask_gl_gr( vi)) THEN
+          IF (ice%mask_floating_ice( vi)) THEN
             BMB%BMB_shelf( vi) = -BMB%laddie%melt( vi) * sec_per_year
           END IF
         END DO
