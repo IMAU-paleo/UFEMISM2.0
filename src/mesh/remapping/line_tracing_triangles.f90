@@ -523,11 +523,7 @@ contains
     logical,                intent(out)   :: finished
 
     ! Local variables:
-    integer                                            :: via, vib, vic
-    real(dp), dimension(2)                             :: pa, pb, pc, pv
-    integer                                            :: vvi, vj, ei, n1, n2, n3, vti, ti
-    real(dp), dimension(2)                             :: llis
-    logical                                            :: do_cross
+    logical :: q_on_ei, q_in_ti, pq_through_vi, pq_through_ei
 
     ! Safety
     if (ti_in > 0 .or. vi_on == 0 .or. ei_on > 0) then
@@ -538,12 +534,56 @@ contains
     end if
 
     ! Check if q lies on any of the edges originating in this vertex
-    do vvi = 1, mesh%nC( vi_on)
-      vj = mesh%C(  vi_on,vvi)
-      ei = mesh%VE( vi_on,vvi)
-      pv = mesh%V( vj,:)
+    call trace_line_tri_vi_q_on_ei( mesh, p, q, &
+      p_next, ti_in, vi_on, ei_on, ti_left, coincides, finished, q_on_ei)
+    if (q_on_ei) return
+
+    ! Check if q lies inside any of the triangles surrounding vi_on
+    call trace_line_tri_vi_q_in_ti( mesh, q, &
+      p_next, ti_in, vi_on, ei_on, ti_left, coincides, finished, q_in_ti)
+    if (q_in_ti) return
+
+    ! Check if [pq] passes through any of the neighbouring vertices
+    call trace_line_tri_vi_pq_through_vi( mesh, p, q, &
+      p_next, ti_in, vi_on, ei_on, ti_left, coincides, finished, pq_through_vi)
+    if (pq_through_vi) return
+
+    ! Check if [pq] exits into any of the adjacent triangles
+    call trace_line_tri_vi_pq_through_ei( mesh, p, q, &
+      p_next, ti_in, vi_on, ei_on, ti_left, coincides, finished, pq_through_ei)
+    if (pq_through_ei) return
+
+    ! This point should not be reachable!
+    call crash('trace_line_tri_vi - reached the unreachable end of the subroutine!')
+
+  end subroutine trace_line_tri_vi
+
+  subroutine trace_line_tri_vi_q_on_ei( mesh, p, q, &
+    p_next, ti_in, vi_on, ei_on, ti_left, coincides, finished, q_on_ei)
+
+    ! In/output variables
+    type(type_mesh),           intent(in)    :: mesh
+    real(dp), dimension(2),    intent(in)    :: p, q
+    ! integer,                   intent(in)    :: vi_on
+    real(dp), dimension(2),    intent(out)   :: p_next
+    integer,                   intent(inout) :: ti_in, vi_on, ei_on
+    integer,                   intent(out)   :: ti_left
+    logical,                   intent(out)   :: coincides
+    logical,                   intent(out)   :: finished
+    logical,                   intent(out)   :: q_on_ei
+
+    ! Local variables
+    integer                :: ci, vj, ei
+    real(dp), dimension(2) :: pvi
+
+    q_on_ei = .false.
+
+    do ci = 1, mesh%nC( vi_on)
+      vj = mesh%C(  vi_on,ci)
+      ei = mesh%VE( vi_on,ci)
+      pvi = mesh%V( vj,:)
       if (norm2( mesh%V( vj,:) - q) < mesh%tol_dist .or. &
-          lies_on_line_segment( p, pv, q, mesh%tol_dist)) then
+          lies_on_line_segment( p, pvi, q, mesh%tol_dist)) then
         ! q lies on edge ei, connecting vi_on and vj
         if (mesh%EV( ei,1) == vi_on) then
           ti_left = mesh%ETri( ei,1)
@@ -556,13 +596,35 @@ contains
         ei_on     = 0
         coincides = .true.
         finished  = .true.
-        return
+        q_on_ei   = .true.
+        exit
       end if
     end do
 
-    ! Check if q lies inside any of the triangles surrounding vi_on
-    do vti = 1, mesh%niTri( vi_on)
-      ti  = mesh%iTri( vi_on,vti)
+  end subroutine trace_line_tri_vi_q_on_ei
+
+  subroutine trace_line_tri_vi_q_in_ti( mesh, q, &
+    p_next, ti_in, vi_on, ei_on, ti_left, coincides, finished, q_in_ti)
+
+    ! In/output variables
+    type(type_mesh),           intent(in)    :: mesh
+    real(dp), dimension(2),    intent(in)    :: q
+    ! integer,                   intent(in)    :: vi_on
+    real(dp), dimension(2),    intent(out)   :: p_next
+    integer,                   intent(inout) :: ti_in, vi_on, ei_on
+    integer,                   intent(out)   :: ti_left
+    logical,                   intent(out)   :: coincides
+    logical,                   intent(out)   :: finished
+    logical,                   intent(out)   :: q_in_ti
+
+    ! Local variables
+    integer                :: iti, ti, via, vib, vic
+    real(dp), dimension(2) :: pa, pb, pc
+
+    q_in_ti = .false.
+
+    do iti = 1, mesh%niTri( vi_on)
+      ti  = mesh%iTri( vi_on,iti)
       via = mesh%Tri( ti,1)
       vib = mesh%Tri( ti,2)
       vic = mesh%Tri( ti,3)
@@ -581,14 +643,36 @@ contains
         ti_left   = ti
         coincides = .false.
         finished  = .true.
-        return
+        q_in_ti   = .true.
+        exit
       end if
     end do
 
-    ! Check if [pq] passes through any of the neighbouring vertices
-    do vvi = 1, mesh%nC( vi_on)
-      vj = mesh%C(  vi_on,vvi)
-      ei = mesh%VE( vi_on,vvi)
+  end subroutine trace_line_tri_vi_q_in_ti
+
+  subroutine trace_line_tri_vi_pq_through_vi( mesh, p, q, &
+    p_next, ti_in, vi_on, ei_on, ti_left, coincides, finished, pq_through_vi)
+
+    ! In/output variables
+    type(type_mesh),           intent(in)    :: mesh
+    real(dp), dimension(2),    intent(in)    :: p, q
+    ! integer,                   intent(in)    :: vi_on
+    real(dp), dimension(2),    intent(out)   :: p_next
+    integer,                   intent(inout) :: ti_in, vi_on, ei_on
+    integer,                   intent(out)   :: ti_left
+    logical,                   intent(out)   :: coincides
+    logical,                   intent(out)   :: finished
+    logical,                   intent(out)   :: pq_through_vi
+
+    ! Local variables
+    integer                :: ci, vj, ei
+    real(dp), dimension(2) :: pv
+
+    pq_through_vi = .false.
+
+    do ci = 1, mesh%nC( vi_on)
+      vj = mesh%C(  vi_on,ci)
+      ei = mesh%VE( vi_on,ci)
       pv = mesh%V( vj,:)
       if (lies_on_line_segment( p, q, pv, mesh%tol_dist)) then
         ! [pq] passes through neighbouring vertex vj, which is connected to vi_on by edge ei
@@ -601,13 +685,36 @@ contains
         else
           ti_left = mesh%ETri( ei,1)
         end if
-        coincides = .true.
-        finished  = .false.
-        return
+        coincides     = .true.
+        finished      = .false.
+        pq_through_vi = .true.
+        exit
       end if
     end do
 
-    ! Check if [pq] exits into any of the adjacent triangles
+  end subroutine trace_line_tri_vi_pq_through_vi
+
+  subroutine trace_line_tri_vi_pq_through_ei( mesh, p, q, &
+    p_next, ti_in, vi_on, ei_on, ti_left, coincides, finished, pq_through_ei)
+
+    ! In/output variables
+    type(type_mesh),           intent(in)    :: mesh
+    real(dp), dimension(2),    intent(in)    :: p, q
+    ! integer,                   intent(in)    :: vi_on
+    real(dp), dimension(2),    intent(out)   :: p_next
+    integer,                   intent(inout) :: ti_in, vi_on, ei_on
+    integer,                   intent(out)   :: ti_left
+    logical,                   intent(out)   :: coincides
+    logical,                   intent(out)   :: finished
+    logical,                   intent(out)   :: pq_through_ei
+
+    ! Local variables
+    integer                :: vti, ti, n1, n2, n3, vib, vic, ei, vvi, vj
+    real(dp), dimension(2) :: pb, pc, llis
+    logical                :: do_cross
+
+    pq_through_ei = .false.
+
     do vti = 1, mesh%niTri( vi_on)
       ti  = mesh%iTri( vi_on,vti)
       do n1 = 1, 3
@@ -632,23 +739,21 @@ contains
           call segment_intersection( p, q, pb, pc, llis, do_cross, mesh%tol_dist)
           if (do_cross) then
             ! [pq] exits triangle ti through the opposite edge ei
-            p_next    = llis
-            ti_in     = 0
-            vi_on     = 0
-            ei_on     = ei
-            ti_left   = ti
-            coincides = .false.
-            finished  = .false.
+            p_next        = llis
+            ti_in         = 0
+            vi_on         = 0
+            ei_on         = ei
+            ti_left       = ti
+            coincides     = .false.
+            finished      = .false.
+            pq_through_ei = .true.
             return
           end if
         end if
       end do
     end do
 
-    ! This point should not be reachable!
-    call crash('trace_line_tri_vi - reached the unreachable end of the subroutine!')
-
-  end subroutine trace_line_tri_vi
+  end subroutine trace_line_tri_vi_pq_through_ei
 
   !> Given the line [pq], where p lies on edge ei,
   !> find the point p_next where [pq] crosses into the next triangle.
