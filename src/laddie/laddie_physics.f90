@@ -68,15 +68,15 @@ CONTAINS
         DO vi = mesh%vi1, mesh%vi2
            IF (laddie%mask_a( vi)) THEN
              laddie%gamma_T( vi) = C%uniform_laddie_gamma_T
-             laddie%gamma_S( vi) = C%uniform_laddie_gamma_T/35.0
+             laddie%gamma_S( vi) = C%uniform_laddie_gamma_T/35.0_dp
            END IF
         END DO
       CASE ('Jenkins1991')
         DO vi = mesh%vi1, mesh%vi2
            IF (laddie%mask_a( vi)) THEN
-             AA = 2.12*LOG(laddie%u_star( vi) * Hstar( vi)/nu0+eps)
-             laddie%gamma_T( vi) = laddie%u_star( vi) / (AA + 12.5 * Prandtl_number**(2/3) - 8.68) 
-             laddie%gamma_S( vi) = laddie%u_star( vi) / (AA + 12.5 * Schmidt_number**(2/3) - 8.68) 
+             AA = 2.12_dp*LOG(laddie%u_star( vi) * Hstar( vi)/nu0+eps)
+             laddie%gamma_T( vi) = laddie%u_star( vi) / (AA + 12.5_dp * Prandtl_number**(2.0_dp/3) - 8.68_dp) 
+             laddie%gamma_S( vi) = laddie%u_star( vi) / (AA + 12.5_dp * Schmidt_number**(2.0_dp/3) - 8.68_dp) 
            END IF
         END DO
     END SELECT

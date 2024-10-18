@@ -255,7 +255,6 @@ CONTAINS
           ! u_perp < 0: flow is entering this vertex from vertex vj
           laddie%divQT( vi) = laddie%divQT( vi) + L_c * MIN( 0._dp, u_perp) * Hstar_tot( vj) * T_tot( vj) / A_i
           laddie%divQS( vi) = laddie%divQS( vi) + L_c * MIN( 0._dp, u_perp) * Hstar_tot( vj) * S_tot( vj) / A_i
-          END IF
           ! Centered:
 
         END DO ! DO ci = 1, mesh%nC( vi)
