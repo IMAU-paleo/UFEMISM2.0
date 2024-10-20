@@ -129,8 +129,9 @@ contains
 
   end subroutine extend_single_row_memory
 
-  subroutine coinc_ind_mesh_old2new( ti_in, vi_on, ei_on, coinc_ind)
+  subroutine coinc_ind_mesh_old2new( ti_in, vi_on, ei_on, finished, coinc_ind)
     integer, intent(in) :: ti_in, vi_on, ei_on
+    logical, intent(in) :: finished
     type(type_coinc_ind_mesh), intent(out) :: coinc_ind
     if (ti_in > 0) then
       call assert( vi_on == 0, 'ti_in > 0 and vi_on > 0')
@@ -147,13 +148,19 @@ contains
       call assert( vi_on == 0, 'ei_on > 0 and vi_on > 0')
       coinc_ind%grid = c_grid
       coinc_ind%i = ei_on
+    elseif (finished) then
+      coinc_ind%grid = no_value
+      coinc_ind%i = 0
     else
-      call crash('ti_in, vi_on, ei_on are all zero')
+      call crash('ti_in, vi_on, ei_on are all zero but finished = false')
     end if
   end subroutine coinc_ind_mesh_old2new
   subroutine coinc_ind_mesh_new2old( coinc_ind, ti_in, vi_on, ei_on)
     type(type_coinc_ind_mesh), intent(in) :: coinc_ind
     integer, intent(out) :: ti_in, vi_on, ei_on
+    ti_in = 0
+    vi_on = 0
+    ei_on = 0
     select case (coinc_ind%grid)
     case default
       call crash('invalid grid in coincidence indicator')
@@ -163,6 +170,7 @@ contains
       ti_in = coinc_ind%i
     case (c_grid)
       ei_on = coinc_ind%i
+    case (no_value)
     end select
   end subroutine coinc_ind_mesh_new2old
 
