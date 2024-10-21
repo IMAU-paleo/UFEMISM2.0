@@ -61,7 +61,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'construct_mesh_edges'
-    INTEGER                                       :: vi, ci, vj, ei, cj, iti, ti, n1, n2, n3, til, tir, vil, vir
+    INTEGER                                       :: vi, ci, vj, ei, cj, iti, ti, n1, n2, n3, til, tir, vil, vir, vi1, vi2
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -172,6 +172,38 @@ CONTAINS
 
       END DO ! DO ci = 1, mesh%nC(vi)
     END DO ! DO vi = 1, mesh%nV
+
+    ! Define TriE
+    DO ti = 1, mesh%nTri
+    
+      DO ci = 1, 3
+
+        ! Find the two vertices opposite from Tri(ti, ci)
+        SELECT CASE (ci)
+          CASE (1)
+            vi1 = mesh%Tri(ti, 2)
+            vi2 = mesh%Tri(ti, 3)
+          CASE (2)
+            vi1 = mesh%Tri(ti, 3)
+            vi2 = mesh%Tri(ti, 1)
+          CASE (3)
+            vi1 = mesh%Tri(ti, 1)
+            vi2 = mesh%Tri(ti, 2)
+        END SELECT
+
+        ! Loop over connections of first vertex 
+        DO cj = 1, mesh%nC( vi1)
+          ! Check whether connection is to second vertex
+          IF (mesh%C( vi1, cj) == vi2) THEN
+            ! Found edge, store
+            mesh%TriE(ti, ci) = mesh%VE(vi1, cj)
+            EXIT
+          END IF
+        END DO ! cj = 1, mesh%nC( vi1) 
+
+      END DO ! DO ci = 1, 3
+
+    END DO ! DO ti = 1, mesh%nTri
 
     ! Crop memory
     mesh%nE_mem = mesh%nE
