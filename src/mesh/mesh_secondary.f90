@@ -269,6 +269,7 @@ CONTAINS
     ! Calculate the width of the line separating two connected vertices (usually equal to
     ! the distance between the circumcenters of their two shared triangles, except for
     ! pairs of boundary vertices).
+    ! Also: calculate the length of the shared edge of two triangles
 
     IMPLICIT NONE
 
@@ -276,7 +277,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_connection_widths'
-    INTEGER                                            :: v1, nv2, v2, t1, t2, iti, ti, n
+    INTEGER                                            :: v1, nv2, v2, t1, t2, iti, ti, n, ci, vi1, vi2, ei
     LOGICAL                                            :: hasv2
 
     ! Add routine to path
@@ -284,7 +285,9 @@ CONTAINS
 
     ! Allocate clean memory
     IF (ALLOCATED( mesh%Cw)) DEALLOCATE( mesh%Cw)
+    IF (ALLOCATED( mesh%TriCw)) DEALLOCATE( mesh%TriCw)
     ALLOCATE( mesh%Cw( mesh%nV, mesh%nC_mem), source = 0._dp)
+    ALLOCATE( mesh%TriCw( mesh%nTri, 3), source = 0._dp)
 
     ! The way to go: for each vertex pair, find the two triangles that both
     ! are a part of. If there's only one, there's one Voronoi vertex and its
@@ -340,6 +343,30 @@ CONTAINS
       END DO ! DO nv2 = 1, mesh%nC(v1)
 
     END DO ! DO v1 = 1, mesh%nV
+
+    ! Define TriCw
+    DO t1 = 1, mesh%nTri
+
+      DO ci = 1, 3
+        t2 = mesh%TriC(t1, ci)
+
+        ! Skip if no connecting triangle at this side
+        IF (t2 == 0) CYCLE
+
+        ! Get connecting edge
+        ei = mesh%TriE( t1, ci)
+
+        ! Get the two vertices
+        vi1 = mesh%EV( ei, 1)
+        vi2 = mesh%EV( ei, 2)
+
+        ! Get the length of the edge
+        mesh%TriCw( t1, ci) = NORM2( mesh%V( vi1, :) - mesh%V( vi2, :))
+
+      END DO ! DO ci = 1, 3
+
+    END DO ! DO t1 = 1, mesh%nTri
+
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
