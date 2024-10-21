@@ -105,12 +105,9 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_divQH'
     REAL(dp), DIMENSION(mesh%nE)                          :: U_c_tot, V_c_tot
     REAL(dp), DIMENSION(mesh%nV)                          :: H_tot
-    INTEGER                                               :: ncols, ncols_loc, nrows, nrows_loc, nnz_est_proc
-    INTEGER                                               :: ti, ci, ei, tj, vi, vj, vi1, vi2, i, j, e, k
-    REAL(dp)                                              :: A_i, L_c, D_x, D_y, D, u_perp
-    LOGICAL, DIMENSION(mesh%nV)                           :: mask_a_tot
+    INTEGER                                               :: vi, ci, vj, ei
+    REAL(dp)                                              :: D_x, D_y, D, u_perp
     LOGICAL, DIMENSION(mesh%nV)                           :: mask_gr_a_tot
-    LOGICAL                                               :: isbound
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -119,7 +116,6 @@ CONTAINS
     CALL gather_to_all_dp_1D( U_c, U_c_tot)
     CALL gather_to_all_dp_1D( V_c, V_c_tot)
     CALL gather_to_all_dp_1D( npx%H, H_tot)
-    CALL gather_to_all_logical_1D( mask_a, mask_a_tot)
     CALL gather_to_all_logical_1D( mask_gr_a, mask_gr_a_tot)
 
     ! Initialise with zeros
@@ -137,7 +133,6 @@ CONTAINS
         DO ci = 1, mesh%nC( vi)
 
           ! Connection ci from vertex vi leads through edge ei to vertex vj
-          ei = mesh%VE( vi,ci)
           vj = mesh%C(  vi,ci)
 
           IF (vj == 0) CYCLE
@@ -146,12 +141,8 @@ CONTAINS
           ! Can be made more flexible when accounting for partial cells (PMP instead of FCMP)
           IF (mask_gr_a_tot( vj)) CYCLE
 
-          ! The Voronoi cell of vertex vi has area A_i
-          A_i = mesh%A( vi)
-
-          ! The shared Voronoi cell boundary section between the Voronoi cells
-          ! of vertices vi and vj has length L_c
-          L_c = mesh%Cw( vi,ci)
+          ! Get edge
+          ei = mesh%VE( vi,ci)
 
           ! Calculate vertically averaged ice velocity component perpendicular to this shared Voronoi cell boundary section
           D_x = mesh%V( vj,1) - mesh%V( vi,1)
@@ -163,11 +154,12 @@ CONTAINS
           ! =============================
           ! Upwind:
           ! u_perp > 0: flow is exiting this vertex into vertex vj
-          laddie%divQH( vi) = laddie%divQH( vi) + L_c * MAX( 0._dp, u_perp) * H_tot( vi) / A_i
+          IF (u_perp > 0) THEN
+            laddie%divQH( vi) = laddie%divQH( vi) + mesh%Cw( vi, ci) * u_perp * H_tot( vi) / mesh%A( vi)
           ! u_perp < 0: flow is entering this vertex from vertex vj
-          laddie%divQH( vi) = laddie%divQH( vi) + L_c * MIN( 0._dp, u_perp) * H_tot( vj) / A_i
-          ! Centered:
-          ! laddie%divQH( vi) = laddie%divQH( vi) + L_c * u_perp * H_c_tot( ei) / A_i
+          ELSE
+            laddie%divQH( vi) = laddie%divQH( vi) + mesh%Cw( vi, ci) * u_perp * H_tot( vj) / mesh%A( vi)
+          END IF
 
         END DO ! DO ci = 1, mesh%nC( vi)
        

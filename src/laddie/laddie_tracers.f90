@@ -190,7 +190,7 @@ CONTAINS
     REAL(dp), DIMENSION(mesh%nV)                          :: T_tot, S_tot, Hstar_tot
     INTEGER                                               :: ncols, ncols_loc, nrows, nrows_loc, nnz_est_proc
     INTEGER                                               :: ti, ci, ei, tj, vi, vj, vi1, vi2, i, j, e, k
-    REAL(dp)                                              :: A_i, L_c, D_x, D_y, D, u_perp
+    REAL(dp)                                              :: D_x, D_y, D, u_perp
     LOGICAL, DIMENSION(mesh%nV)                           :: mask_a_tot
     LOGICAL, DIMENSION(mesh%nV)                           :: mask_gr_a_tot
     LOGICAL                                               :: isbound
@@ -217,13 +217,11 @@ CONTAINS
     DO vi = mesh%vi1, mesh%vi2
 
       IF (mask_a( vi)) THEN
-        ! Initialise
 
         ! Loop over all connections of vertex vi
         DO ci = 1, mesh%nC( vi)
 
           ! Connection ci from vertex vi leads through edge ei to vertex vj
-          ei = mesh%VE( vi,ci)
           vj = mesh%C(  vi,ci)
 
           ! Skip if edge
@@ -233,12 +231,7 @@ CONTAINS
           ! Can be made more flexible when accounting for partial cells (PMP instead of FCMP)
           IF (mask_gr_a_tot( vj)) CYCLE
 
-          ! The Voronoi cell of vertex vi has area A_i
-          A_i = mesh%A( vi)
-
-          ! The shared Voronoi cell boundary section between the Voronoi cells
-          ! of vertices vi and vj has length L_c
-          L_c = mesh%Cw( vi,ci)
+          ei = mesh%VE( vi,ci)
 
           ! Calculate vertically averaged ice velocity component perpendicular to this shared Voronoi cell boundary section
           D_x = mesh%V( vj,1) - mesh%V( vi,1)
@@ -250,12 +243,14 @@ CONTAINS
           ! =============================
           ! Upwind:
           ! u_perp > 0: flow is exiting this vertex into vertex vj
-          laddie%divQT( vi) = laddie%divQT( vi) + L_c * MAX( 0._dp, u_perp) * Hstar_tot( vi) * T_tot( vi) / A_i
-          laddie%divQS( vi) = laddie%divQS( vi) + L_c * MAX( 0._dp, u_perp) * Hstar_tot( vi) * S_tot( vi) / A_i
+          IF (u_perp > 0) THEN
+            laddie%divQT( vi) = laddie%divQT( vi) + mesh%Cw( vi, ci) * u_perp * Hstar_tot( vi) * T_tot( vi) / mesh%A( vi)
+            laddie%divQS( vi) = laddie%divQS( vi) + mesh%Cw( vi, ci) * u_perp * Hstar_tot( vi) * S_tot( vi) / mesh%A( vi)
           ! u_perp < 0: flow is entering this vertex from vertex vj
-          laddie%divQT( vi) = laddie%divQT( vi) + L_c * MIN( 0._dp, u_perp) * Hstar_tot( vj) * T_tot( vj) / A_i
-          laddie%divQS( vi) = laddie%divQS( vi) + L_c * MIN( 0._dp, u_perp) * Hstar_tot( vj) * S_tot( vj) / A_i
-          ! Centered:
+          ELSE
+            laddie%divQT( vi) = laddie%divQT( vi) + mesh%Cw( vi, ci) * u_perp * Hstar_tot( vj) * T_tot( vj) / mesh%A( vi)
+            laddie%divQS( vi) = laddie%divQS( vi) + mesh%Cw( vi, ci) * u_perp * Hstar_tot( vj) * S_tot( vj) / mesh%A( vi)
+          END IF
 
         END DO ! DO ci = 1, mesh%nC( vi)
        

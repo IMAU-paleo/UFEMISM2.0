@@ -195,7 +195,6 @@ CONTAINS
           tj = mesh%TriC( ti, ci)
           ei = mesh%TriE( ti, ci)
 
-
           IF (tj==0) THEN
             ! Border or corner. For now, assume no slip. If free slip: CYCLE
             laddie%viscU( ti) = laddie%viscU( ti) - laddie%now%U( ti) * laddie%A_h( ti) * laddie%now%H_b( ti) / mesh%TriA( ti)
@@ -294,9 +293,6 @@ CONTAINS
 
           ! Calculate momentum divergence
           ! =============================
-          ! Upwind:
-          ! laddie%divQU( ti) = laddie%divQU( ti) + L_c * u_perp * laddie%U( ti) * laddie%H_b( ti) / A_i
-          ! laddie%divQV( ti) = laddie%divQV( ti) + L_c * u_perp * laddie%V( ti) * laddie%H_b( ti) / A_i
           ! Centered:
           laddie%divQU( ti) = laddie%divQU( ti) + mesh%TriCw( ti, ci) * u_perp * U_c_tot( ei) * H_c_tot( ei) / mesh%TriA( ti)
           laddie%divQV( ti) = laddie%divQV( ti) + mesh%TriCw( ti, ci) * u_perp * V_c_tot( ei) * H_c_tot( ei) / mesh%TriA( ti)
