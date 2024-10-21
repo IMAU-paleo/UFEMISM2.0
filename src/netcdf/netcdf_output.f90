@@ -35,7 +35,7 @@ MODULE netcdf_output
                           field_name_options_C, field_name_options_niTri, field_name_options_iTri, &
                           field_name_options_VBI, field_name_options_Tricc, field_name_options_TriC, field_name_options_TriGC, &
                           field_name_options_TriBI, field_name_options_E, field_name_options_VE, field_name_options_EV, &
-                          field_name_options_ETri, field_name_options_EBI, field_name_options_A, field_name_options_R, &
+                          field_name_options_ETri, field_name_options_TriE, field_name_options_EBI, field_name_options_A, field_name_options_R, &
                           field_name_options_Hi, field_name_options_Hb, field_name_options_Hs, field_name_options_dHb, &
                           field_name_options_SL, field_name_options_Ti, get_first_option_from_list, &
                           open_existing_netcdf_file_for_reading, close_netcdf_file, &
@@ -2634,6 +2634,7 @@ CONTAINS
     INTEGER                                            :: id_var_VE
     INTEGER                                            :: id_var_EV
     INTEGER                                            :: id_var_ETri
+    INTEGER                                            :: id_var_TriE
     INTEGER                                            :: id_var_EBI
 
     INTEGER                                            :: id_var_TriGC
@@ -2762,6 +2763,10 @@ CONTAINS
     CALL create_variable( filename, ncid, get_first_option_from_list( field_name_options_ETri          ), NF90_INT   , (/ id_dim_ei,  id_dim_two  /), id_var_ETri          )
     CALL add_attribute_char( filename, ncid, id_var_ETri          , 'long_name'  , 'Edge-to-triangle connectivity list')
     CALL add_attribute_char( filename, ncid, id_var_ETri          , 'orientation', 'tl,tr (left,right)')
+    ! TriE
+    CALL create_variable( filename, ncid, get_first_option_from_list( field_name_options_TriE          ), NF90_INT   , (/ id_dim_ei,  id_dim_two  /), id_var_TriE          )
+    CALL add_attribute_char( filename, ncid, id_var_TriE          , 'long_name'  , 'Triangle-to-edge connectivity list')
+    CALL add_attribute_char( filename, ncid, id_var_TriE          , 'orientation', 'same as triangle-triangle connectivity list')
     ! EBI
     CALL create_variable( filename, ncid, get_first_option_from_list( field_name_options_EBI           ), NF90_INT   , (/ id_dim_ei               /), id_var_EBI           )
     CALL add_attribute_char( filename, ncid, id_var_EBI           , 'long_name'  , 'Edge boundary index')
@@ -2819,6 +2824,7 @@ CONTAINS
     CALL write_var_master_int_2D(   filename, ncid, id_var_VE         , mesh%VE         )
     CALL write_var_master_int_2D(   filename, ncid, id_var_EV         , mesh%EV         )
     CALL write_var_master_int_2D(   filename, ncid, id_var_ETri       , mesh%ETri       )
+    CALL write_var_master_int_2D(   filename, ncid, id_var_TriE       , mesh%TriE       )
     CALL write_var_master_int_1D(   filename, ncid, id_var_EBI        , mesh%EBI        )
 
     ! Secondary geometry data

@@ -246,6 +246,7 @@ CONTAINS
     IF (ALLOCATED( mesh%VE              )) DEALLOCATE( mesh%VE              )
     IF (ALLOCATED( mesh%EV              )) DEALLOCATE( mesh%EV              )
     IF (ALLOCATED( mesh%ETri            )) DEALLOCATE( mesh%ETri            )
+    IF (ALLOCATED( mesh%TriE            )) DEALLOCATE( mesh%TriE            )
     IF (ALLOCATED( mesh%EBI             )) DEALLOCATE( mesh%EBI             )
 
   ! Matrix operators

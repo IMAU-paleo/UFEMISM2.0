@@ -83,6 +83,7 @@ module mesh_types
     integer,  dimension(:,:  ), allocatable :: VE                            !           Vertex-to-edge connectivity list
     integer,  dimension(:,:  ), allocatable :: EV                            !           Edge-to-vertex connectivity list
     integer,  dimension(:,:  ), allocatable :: ETri                          !           Edge-to-triangle connectivity list
+    integer,  dimension(:,:  ), allocatable :: TriE                          !           Triangle-to-edge connectivity list (order of TriC, across from 1st, 2nd, 3rd vertex)
     integer,  dimension(:    ), allocatable :: EBI                           ! [0-8]     Each edge's border index; 0 = free, 1 = north, 2 = northeast, ..., 8 = northwest
 
     ! Parallelisation ranges
