@@ -20,27 +20,27 @@ MODULE math_utilities
   !  *  -- LAPACK routine (version 3.1) --
   !  *     Univ. of Tennessee, Univ. of California Berkeley and NAG Ltd..
   !  *     November 2006
-  INTERFACE
-    SUBROUTINE DGETRF( M, N, A, LDA, IPIV, INFO )
-      INTEGER            INFO, LDA, M, N
-      INTEGER            IPIV( * )
-      DOUBLE PRECISION   A( LDA, * )
-    END SUBROUTINE
-    SUBROUTINE DGETRI( N, A, LDA, IPIV, WORK, LWORK, INFO )
-      INTEGER            INFO, LDA, LWORK, N
-      INTEGER            IPIV( * )
-      DOUBLE PRECISION   A( LDA, * ), WORK( * )
-    END SUBROUTINE
-    SUBROUTINE DGTSV( N, NRHS, DL, D, DU, B, LDB, INFO )
-      INTEGER            INFO, LDB, N, NRHS
-      DOUBLE PRECISION   B( LDB, * ), D( * ), DL( * ), DU( * )
-    END SUBROUTINE
-    SUBROUTINE DGESV( N, NRHS, A, LDA, IPIV, B, LDB, INFO )
-      INTEGER            INFO, LDA, LDB, N, NRHS
-      INTEGER            IPIV( * )
-      DOUBLE PRECISION   A( LDA, * ), B( LDB, * )
-    END SUBROUTINE
-  END INTERFACE
+  ! INTERFACE
+  !   SUBROUTINE DGETRF( M, N, A, LDA, IPIV, INFO )
+  !     INTEGER            INFO, LDA, M, N
+  !     INTEGER            IPIV( * )
+  !     DOUBLE PRECISION   A( LDA, * )
+  !   END SUBROUTINE
+  !   SUBROUTINE DGETRI( N, A, LDA, IPIV, WORK, LWORK, INFO )
+  !     INTEGER            INFO, LDA, LWORK, N
+  !     INTEGER            IPIV( * )
+  !     DOUBLE PRECISION   A( LDA, * ), WORK( * )
+  !   END SUBROUTINE
+  !   SUBROUTINE DGTSV( N, NRHS, DL, D, DU, B, LDB, INFO )
+  !     INTEGER            INFO, LDB, N, NRHS
+  !     DOUBLE PRECISION   B( LDB, * ), D( * ), DL( * ), DU( * )
+  !   END SUBROUTINE
+  !   SUBROUTINE DGESV( N, NRHS, A, LDA, IPIV, B, LDB, INFO )
+  !     INTEGER            INFO, LDA, LDB, N, NRHS
+  !     INTEGER            IPIV( * )
+  !     DOUBLE PRECISION   A( LDA, * ), B( LDB, * )
+  !   END SUBROUTINE
+  ! END INTERFACE
 
 CONTAINS
 
