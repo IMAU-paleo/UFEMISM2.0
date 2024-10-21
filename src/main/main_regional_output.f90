@@ -796,6 +796,10 @@ CONTAINS
         CALL write_to_field_multopt_mesh_dp_2D_b( region%mesh, filename, ncid, 'viscU', region%BMB%laddie%viscU)
       CASE ('viscV')
         CALL write_to_field_multopt_mesh_dp_2D_b( region%mesh, filename, ncid, 'viscV', region%BMB%laddie%viscV)
+      CASE ('T_base')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'T_base', region%BMB%laddie%T_base)
+      CASE ('u_star')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'u_star', region%BMB%laddie%u_star)
 
     ! == Lateral mass balance ==
     ! ==========================
@@ -1327,6 +1331,12 @@ CONTAINS
         ! Not implemented
       CASE ('viscV')
         ! Not implemented
+      CASE ('T_base')
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%T_base, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'T_base', d_grid_vec_partial_2D)
+      CASE ('u_star')
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%u_star, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'u_star', d_grid_vec_partial_2D)
 
     ! == Lateral mass balance ==
     ! ==========================
@@ -2165,6 +2175,10 @@ CONTAINS
         CALL add_field_mesh_dp_2D_b( filename, ncid, 'viscU', long_name = 'Laddie U viscosity', units = 'm^2 s^-2')
       CASE ('viscV')
         CALL add_field_mesh_dp_2D_b( filename, ncid, 'viscV', long_name = 'Laddie V viscosity', units = 'm^2 s^-2')
+      CASE ('T_base')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'T_base', long_name = 'Temperature at ice/ocean interface', units = 'deg C')
+      CASE ('u_star')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'u_star', long_name = 'Friction velocity', units = 'm s^-1')
 
     ! == Lateral mass balance ==
     ! ==========================
@@ -2580,6 +2594,10 @@ CONTAINS
         ! Not implemented
       CASE ('viscV')
         ! Not implemented
+      CASE ('T_base')
+        CALL add_field_grid_dp_2D( filename, ncid, 'T_base', long_name = 'Temperature at ice/ocean interface', units = 'deg C')
+      CASE ('u_star')
+        CALL add_field_grid_dp_2D( filename, ncid, 'u_star', long_name = 'Friction velocity', units = 'm s^-1')
 
 
     ! == Lateral mass balance ==
