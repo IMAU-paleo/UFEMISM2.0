@@ -2764,7 +2764,7 @@ CONTAINS
     CALL add_attribute_char( filename, ncid, id_var_ETri          , 'long_name'  , 'Edge-to-triangle connectivity list')
     CALL add_attribute_char( filename, ncid, id_var_ETri          , 'orientation', 'tl,tr (left,right)')
     ! TriE
-    CALL create_variable( filename, ncid, get_first_option_from_list( field_name_options_TriE          ), NF90_INT   , (/ id_dim_ei,  id_dim_two  /), id_var_TriE          )
+    CALL create_variable( filename, ncid, get_first_option_from_list( field_name_options_TriE          ), NF90_INT   , (/ id_dim_ti, id_dim_three /), id_var_TriE          )
     CALL add_attribute_char( filename, ncid, id_var_TriE          , 'long_name'  , 'Triangle-to-edge connectivity list')
     CALL add_attribute_char( filename, ncid, id_var_TriE          , 'orientation', 'same as triangle-triangle connectivity list')
     ! EBI
