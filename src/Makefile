@@ -13,6 +13,8 @@ include Makefile_include_local.txt
 #include Makefile_include_nix.txt
 #include Makefile_include_snellius.txt
 
+EXPORT PKG_CONFIG_PATH="/usr/local/opt/lapack/lib/pkgconfig"
+
 # The OBJ_PATH and the MOD_PATH are defined as:
 OBJ_PATH = object-files
 MOD_PATH = module-files
