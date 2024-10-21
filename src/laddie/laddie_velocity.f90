@@ -244,10 +244,8 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_divQUV'
     REAL(dp), DIMENSION(mesh%nE)                          :: U_c_tot, V_c_tot, H_c_tot
     INTEGER                                               :: ncols, ncols_loc, nrows, nrows_loc, nnz_est_proc
-    INTEGER                                               :: ti, ci, ei, tj, vi, vi1, vi2, i, j, e, k
-    REAL(dp)                                              :: A_i, L_c, H_e
-    REAL(dp)                                              :: L_x, L_y, u_perp
-    LOGICAL, DIMENSION(mesh%nTri)                         :: mask_b_tot
+    INTEGER                                               :: ti, tj, ci, ei
+    REAL(dp)                                              :: D_x, D_y, D_c, u_perp
     LOGICAL, DIMENSION(mesh%nTri)                         :: mask_gl_b_tot
     LOGICAL                                               :: isbound
 
@@ -258,7 +256,6 @@ CONTAINS
     CALL gather_to_all_dp_1D( U_c, U_c_tot)
     CALL gather_to_all_dp_1D( V_c, V_c_tot)
     CALL gather_to_all_dp_1D( H_c, H_c_tot)
-    CALL gather_to_all_logical_1D( mask_b, mask_b_tot)
     CALL gather_to_all_logical_1D( mask_gl_b, mask_gl_b_tot)
 
     ! Initialise with zeros
@@ -275,80 +272,25 @@ CONTAINS
         ! Loop over all connections of triangle ti
         DO ci = 1, 3
 
-          ! TODO move definition of TriE to mesh routine
-          ! == Get ei and tj ==
-          ei = 0
-          tj = 0
-          ! Get neighbouring vertex
-          vi1 = mesh%Tri( ti, ci)
+          tj = mesh%TriC( ti, ci)
 
-          ! Get the next neighbouring vertex
-          IF (ci < 3) THEN
-            vi2 = mesh%Tri( ti, ci+1)
-          ELSE
-            vi2 = mesh%Tri( ti, 1)
-          END IF
-
-          ! Loop over edges connected to first vertex
-          DO j = 1,mesh%nC_mem
-            e = mesh%VE( vi1, j)
-            IF ( e == 0) CYCLE
-            DO k = 1,2
-              IF (mesh%EV( e, k) == vi2) THEN
-                ei = e
-              END IF
-            END DO
-          END DO ! j = 1, mesh%nC_mem 
-          
-          IF ( ei == 0) CYCLE
-          ! TODO make sure ei is not 0. Should not be possible
-          ! TODO what happens if this is a border?          
-
-          ! Get triangle bordering this shared edge
-          IF (mesh%ETri( ei, 1) == ti) THEN
-            tj = mesh%Etri( ei, 2)
-          ELSEIF (mesh%ETri( ei, 2) == ti) THEN
-            tj = mesh%Etri( ei, 1)
-          ELSE
-            CYCLE
-          END IF
+          ! Skip if no connecting triangle on this side
           IF (tj == 0) CYCLE
-          ! =================
 
           ! Skip connection if neighbour is grounded. No flux across grounding line
           ! Can be made more flexible when accounting for partial cells (PMP instead of FCMP)
           IF (mask_gl_b_tot( tj)) CYCLE
 
-          ! The Voronoi cell of triangle ti has area A_i
-          A_i = mesh%TriA( ti)
+          ! Get edge index
+          ei = mesh%TriE( ti, ci)
 
-          ! Get thickness at edge
-
-          H_e = H_c_tot( ei)
-          ! Overwrite with triangle value if at boundary
-          isbound = .false.
-          DO i = 1, 4
-            vi = mesh%EV( ei, i)
-            IF (.NOT. laddie%mask_a( vi)) THEN
-              isbound = .true.
-            END IF
-          END DO
-
-          ! Overwrite with triangle (b grid value) if at boundary
-          IF (isbound) THEN
-            H_e = npxref%H_b( ti)
-          END IF
-
-          ! The shared edge length of triangles ti and tj has length L_c 
-          L_x = mesh%V( vi1,1) - mesh%V( vi2,1)
-          L_y = mesh%V( vi1,2) - mesh%V( vi2,2)
-          L_c = SQRT( L_x**2 + L_y**2)
-
-          ! Skip if for some reason, L_c = 0
-          IF (L_c == 0) CYCLE
+          ! The triangle-triangle vector from ti to tj
+          D_x = mesh%Tri( tj,1) - mesh%Tri( ti,1)
+          D_y = mesh%Tri( tj,2) - mesh%Tri( ti,2)
+          D_c = SQRT( D_x**2 + D_y**2)
 
           ! Calculate vertically averaged ice velocity component perpendicular to this edge
-          u_perp = - U_c_tot( ei) * L_y/L_c + V_c_tot( ei) * L_x/L_c
+          u_perp = U_c_tot( ei) * D_y/D_c + V_c_tot( ei) * D_x/D_c
 
           ! Calculate momentum divergence
           ! =============================
@@ -356,8 +298,8 @@ CONTAINS
           ! laddie%divQU( ti) = laddie%divQU( ti) + L_c * u_perp * laddie%U( ti) * laddie%H_b( ti) / A_i
           ! laddie%divQV( ti) = laddie%divQV( ti) + L_c * u_perp * laddie%V( ti) * laddie%H_b( ti) / A_i
           ! Centered:
-          laddie%divQU( ti) = laddie%divQU( ti) + L_c * u_perp * U_c_tot( ei) * H_e / A_i
-          laddie%divQV( ti) = laddie%divQV( ti) + L_c * u_perp * V_c_tot( ei) * H_e / A_i
+          laddie%divQU( ti) = laddie%divQU( ti) + mesh%TriCw( ti, ci) * u_perp * U_c_tot( ei) * H_c_tot( ei) / mesh%TriA( ti)
+          laddie%divQV( ti) = laddie%divQV( ti) + mesh%TriCw( ti, ci) * u_perp * V_c_tot( ei) * H_c_tot( ei) / mesh%TriA( ti)
 
         END DO ! DO ci = 1, 3
 
