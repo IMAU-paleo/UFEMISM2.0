@@ -80,7 +80,7 @@ CONTAINS
 
   END SUBROUTINE compute_H_npx
 
-  SUBROUTINE compute_divQH( mesh, laddie, npx, U_c, V_c, H_c, mask_a, mask_gr_a)
+  SUBROUTINE compute_divQH( mesh, laddie, npx, U_c, V_c, mask_a, mask_gr_a)
     ! Calculate the layer flux divergence matrix M_divQ using an upwind scheme
     !
     ! The vertically averaged ice flux divergence represents the net ice volume (which,
@@ -98,7 +98,7 @@ CONTAINS
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
     TYPE(type_laddie_timestep),             INTENT(IN)    :: npx
-    REAL(dp), DIMENSION(mesh%ei1:mesh%ei2), INTENT(IN)    :: U_c, V_c, H_c
+    REAL(dp), DIMENSION(mesh%ei1:mesh%ei2), INTENT(IN)    :: U_c, V_c
     LOGICAL, DIMENSION(mesh%vi1:mesh%vi2),  INTENT(IN)    :: mask_a, mask_gr_a
 
     ! Local variables:
