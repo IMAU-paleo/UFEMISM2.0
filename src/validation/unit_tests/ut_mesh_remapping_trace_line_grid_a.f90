@@ -9,6 +9,7 @@ module ut_mesh_remapping_trace_line_grid_a
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, warning
   use grid_types, only: type_grid
   use line_tracing_basic
+  use line_tracing_grid
   use mpi_basic, only: par
 
   implicit none
@@ -22,15 +23,13 @@ contains
   subroutine test_trace_line_grid_a( test_name_parent, grid)
     ! Test the trace_line_grid_a subroutine
 
-    use line_tracing_grid
-
     ! In/output variables:
     character(len=*), intent(in) :: test_name_parent
     type(type_grid),  intent(in) :: grid
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'test_trace_line_grid_a'
-    character(len=1024), parameter :: test_name_local = 'trace_line_grid_a'
+    character(len=1024), parameter :: test_name_local = 'a'
     character(len=1024)            :: test_name
 
     ! Add routine to call stack
@@ -51,8 +50,6 @@ contains
 
   subroutine test_trace_line_grid_a_q_inside_a( test_name_parent, grid)
     ! Test the trace_line_grid_a subroutine
-
-    use line_tracing_grid
 
     ! In/output variables:
     character(len=*), intent(in) :: test_name_parent
@@ -143,8 +140,6 @@ contains
 
   subroutine test_trace_line_grid_a_pq_exits_through_b( test_name_parent, grid)
     ! Test the trace_line_grid_a subroutine
-
-    use line_tracing_grid
 
     ! In/output variables:
     character(len=*), intent(in) :: test_name_parent
@@ -294,8 +289,6 @@ contains
   subroutine test_trace_line_grid_a_pq_exits_through_cx( test_name_parent, grid)
     ! Test the trace_line_grid_a subroutine
 
-    use line_tracing_grid
-
     ! In/output variables:
     character(len=*), intent(in) :: test_name_parent
     type(type_grid),  intent(in) :: grid
@@ -401,8 +394,6 @@ contains
 
   subroutine test_trace_line_grid_a_pq_exits_through_cy( test_name_parent, grid)
     ! Test the trace_line_grid_a subroutine
-
-    use line_tracing_grid
 
     ! In/output variables:
     character(len=*), intent(in) :: test_name_parent

@@ -1428,7 +1428,7 @@ CONTAINS
     REAL(dp), DIMENSION(2),   INTENT(IN)          :: pa, pb, pc, p
     LOGICAL                                       :: isso
     REAL(dp)                                      :: as_x, as_y, s1, s2, s3
-    REAL(dp), PARAMETER                           :: tol = 1E-8_dp
+    REAL(dp), PARAMETER                           :: tol = 1E-9_dp
 
     as_x = p( 1) - pa( 1)
     as_y = p( 2) - pa( 2)
