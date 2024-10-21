@@ -80,7 +80,7 @@ CONTAINS
 
   END SUBROUTINE compute_H_npx
 
-  SUBROUTINE compute_divQH( mesh, laddie, npx, U_c, V_c, mask_a, mask_gr_a)
+  SUBROUTINE compute_divQH( mesh, laddie, npx, U_c, V_c, mask_a, mask_gr_a, mask_oc_a)
     ! Calculate the layer flux divergence matrix M_divQ using an upwind scheme
     !
     ! The vertically averaged ice flux divergence represents the net ice volume (which,
@@ -99,7 +99,7 @@ CONTAINS
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
     TYPE(type_laddie_timestep),             INTENT(IN)    :: npx
     REAL(dp), DIMENSION(mesh%ei1:mesh%ei2), INTENT(IN)    :: U_c, V_c
-    LOGICAL, DIMENSION(mesh%vi1:mesh%vi2),  INTENT(IN)    :: mask_a, mask_gr_a
+    LOGICAL, DIMENSION(mesh%vi1:mesh%vi2),  INTENT(IN)    :: mask_a, mask_gr_a, mask_oc_a
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_divQH'
@@ -107,7 +107,7 @@ CONTAINS
     REAL(dp), DIMENSION(mesh%nV)                          :: H_tot
     INTEGER                                               :: vi, ci, vj, ei
     REAL(dp)                                              :: D_x, D_y, D, u_perp
-    LOGICAL, DIMENSION(mesh%nV)                           :: mask_gr_a_tot
+    LOGICAL, DIMENSION(mesh%nV)                           :: mask_gr_a_tot, mask_oc_a_tot
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -117,6 +117,7 @@ CONTAINS
     CALL gather_to_all_dp_1D( V_c, V_c_tot)
     CALL gather_to_all_dp_1D( npx%H, H_tot)
     CALL gather_to_all_logical_1D( mask_gr_a, mask_gr_a_tot)
+    CALL gather_to_all_logical_1D( mask_oc_a, mask_oc_a_tot)
 
     ! Initialise with zeros
     laddie%divQH = 0.0_dp
@@ -158,7 +159,12 @@ CONTAINS
             laddie%divQH( vi) = laddie%divQH( vi) + mesh%Cw( vi, ci) * u_perp * H_tot( vi) / mesh%A( vi)
           ! u_perp < 0: flow is entering this vertex from vertex vj
           ELSE
-            laddie%divQH( vi) = laddie%divQH( vi) + mesh%Cw( vi, ci) * u_perp * H_tot( vj) / mesh%A( vi)
+            IF (mask_oc_a_tot( vj)) THEN
+              ! Apply dH/dx = 0 in case of inflow from open ocean
+              laddie%divQH( vi) = laddie%divQH( vi) + mesh%Cw( vi, ci) * u_perp * H_tot( vi) / mesh%A( vi)
+            ELSE
+              laddie%divQH( vi) = laddie%divQH( vi) + mesh%Cw( vi, ci) * u_perp * H_tot( vj) / mesh%A( vi)
+            END IF
           END IF
 
         END DO ! DO ci = 1, mesh%nC( vi)

@@ -587,13 +587,13 @@ CONTAINS
     CALL compute_entrainment( mesh, ice, ocean, laddie, npx, Hstar)
 
     ! Compute thickness divergence
-    CALL compute_divQH( mesh, laddie, npx, laddie%U_c, laddie%V_c, npx%H_c, laddie%mask_a, laddie%mask_gr_a)
+    CALL compute_divQH( mesh, laddie, npx, laddie%U_c, laddie%V_c, laddie%mask_a, laddie%mask_gr_a, laddie%mask_oc_a)
 
     ! Compute divergence of momentum
     CALL compute_divQUV( mesh, laddie, npx, laddie%U_c, laddie%V_c, Hstar_c, laddie%mask_b, laddie%mask_gl_b)
 
     ! Compute divergence of heat and salt
-    CALL compute_divQTS( mesh, laddie, npx, laddie%U_c, laddie%V_c, Hstar, laddie%mask_a, laddie%mask_gr_a)
+    CALL compute_divQTS( mesh, laddie, npx, laddie%U_c, laddie%V_c, Hstar, laddie%mask_a, laddie%mask_gr_a, laddie%mask_oc_a)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
