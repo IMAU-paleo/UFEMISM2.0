@@ -4,6 +4,8 @@ $(OBJ_PATH)/%.o : %.f90 Makefile_include_local.txt
 # Compiler names:
   F90 = mpifort
 
+export PKG_CONFIG_PATH="/usr/local/opt/lapack/lib/pkgconfig"
+
 # Setting NetCDF, NetCDF-Fortran, and PETSc library info:
   NCINC     = $(shell nc-config --cflags)
   NCLIB     = $(shell nc-config --libs)
