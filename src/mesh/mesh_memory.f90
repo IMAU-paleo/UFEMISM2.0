@@ -233,6 +233,7 @@ CONTAINS
     IF (ALLOCATED( mesh%VorGC           )) DEALLOCATE( mesh%VorGC           )
     IF (ALLOCATED( mesh%R               )) DEALLOCATE( mesh%R               )
     IF (ALLOCATED( mesh%Cw              )) DEALLOCATE( mesh%Cw              )
+    IF (ALLOCATED( mesh%TriCw           )) DEALLOCATE( mesh%TriCw           )
     IF (ALLOCATED( mesh%TriBI           )) DEALLOCATE( mesh%TriBI           )
     IF (ALLOCATED( mesh%TriGC           )) DEALLOCATE( mesh%TriGC           )
     IF (ALLOCATED( mesh%TriA            )) DEALLOCATE( mesh%TriA            )
