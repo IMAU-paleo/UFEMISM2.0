@@ -28,7 +28,7 @@ contains
     type(type_tracer_tracking_model), intent(inout) :: tracer_tracking
 
     ! Local variables:
-    character(len=256), parameter :: routine_name = 'initialise_tracer_tracking_model'
+    character(len=1024), parameter :: routine_name = 'initialise_tracer_tracking_model'
 
     ! Add routine to path
     call init_routine( routine_name)

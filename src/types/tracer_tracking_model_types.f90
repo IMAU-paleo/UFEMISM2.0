@@ -13,6 +13,9 @@ module tracer_tracking_model_types
 
     logical,  dimension(:  ), allocatable :: is_in_use     ! Whether or not memory slot i is in use
     real(dp), dimension(:,:), allocatable :: r             ! Particle coordinates (x,y,z)
+    integer,  dimension(:  ), allocatable :: vi_in         ! Which mesh vertex' Voronoi cell each particle is located in
+    integer,  dimension(:  ), allocatable :: ti_in         ! Which mesh triangle             each particle is located in
+    real(dp), dimension(:,:), allocatable :: u             ! Particle velocity    (u,v,w)
     real(dp), dimension(:,:), allocatable :: r_origin      ! Coordinates of particle origin (x,y,z)
     real(dp), dimension(:  ), allocatable :: t_origin      ! Time of particle origin (i.e. time of snow deposition)
     real(dp), dimension(:,:), allocatable :: tracers       ! Values of different tracers
