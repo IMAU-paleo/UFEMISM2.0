@@ -118,11 +118,8 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_diffTS'
-    INTEGER                                               :: vi
-    INTEGER                                               :: vj
-    INTEGER                                               :: ci
-    REAL(dp), DIMENSION(mesh%nV)                          :: T_tot
-    REAL(dp), DIMENSION(mesh%nV)                          :: S_tot
+    INTEGER                                               :: vi, vj, ci, ei
+    REAL(dp), DIMENSION(mesh%nV)                          :: T_tot, S_tot
     LOGICAL, DIMENSION(mesh%nV)                           :: mask_a_tot
 
     ! Add routine to path
@@ -133,24 +130,27 @@ CONTAINS
     CALL gather_to_all_dp_1D( laddie%now%S, S_tot)
     CALL gather_to_all_logical_1D( laddie%mask_a, mask_a_tot)
 
+    ! Initialise at 0
+    laddie%diffT = 0.0_dp
+    laddie%diffS = 0.0_dp
+
     ! Loop over vertices
     DO vi = mesh%vi1, mesh%vi2
+
       IF (laddie%mask_a( vi)) THEN
+
         ! Get diffusivity parameter
         laddie%K_h( vi) = C%laddie_diffusivity
         ! TODO add scalable options
 
-        ! Initialise at 0
-        laddie%diffT( vi) = 0.0_dp
-        laddie%diffS( vi) = 0.0_dp
-
         ! Loop over connected vertices
         DO ci = 1, mesh%nC( vi)
           vj = mesh%C( vi, ci)
+          ei = mesh%VE( vi, ci)
           ! Can simply skip non-floating vertices to ensure d/dx = d/dy = 0 at boundaries
           IF (mask_a_tot( vj)) THEN
-            laddie%diffT( vi) = laddie%diffT( vi) + (T_tot( vj)-laddie%now%T( vi)) * laddie%K_h( vi) * laddie%now%H( vi) / mesh%A( vi)
-            laddie%diffS( vi) = laddie%diffS( vi) + (S_tot( vj)-laddie%now%S( vi)) * laddie%K_h( vi) * laddie%now%H( vi) / mesh%A( vi)
+            laddie%diffT( vi) = laddie%diffT( vi) + (T_tot( vj)-laddie%now%T( vi)) * laddie%K_h( vi) * laddie%now%H_c( ei) / mesh%A( vi)
+            laddie%diffS( vi) = laddie%diffS( vi) + (S_tot( vj)-laddie%now%S( vi)) * laddie%K_h( vi) * laddie%now%H_c( ei) / mesh%A( vi)
           END IF
         END DO
 
