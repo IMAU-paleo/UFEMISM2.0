@@ -202,7 +202,7 @@ CONTAINS
       ! Display or save fields
       ! TODO
       IF (par%master) THEN
-        WRITE( *, "(F8.3,A,F8.3,A,F12.7,A,F8.3)") tl/sec_per_day, '  Dmean ', SUM(laddie%now%H)/SIZE(laddie%now%H), '  Meltmax', MAXVAL(laddie%melt), '   U', MAXVAL(laddie%now%U)
+        WRITE( *, "(F8.3,A,F8.3,A,F12.7,A,F8.3,A,F8.3)") tl/sec_per_day, '  Dmean ', SUM(laddie%now%H)/SIZE(laddie%now%H), '  Meltmax', MAXVAL(laddie%melt), '   U', MAXVAL(laddie%now%U), '   Tmax', MAXVAL(laddie%now%T)
       END IF     
 
     END DO !DO WHILE (tl <= C%time_duration_laddie)
@@ -617,6 +617,9 @@ CONTAINS
 
     ! Map thickness to b grid
     CALL map_H_a_b( mesh, laddie, laddie%now%H, laddie%now%H_b)
+
+    ! Map thickness to c grid
+    CALL map_H_a_c( mesh, laddie, laddie%now%H, laddie%now%H_c)
 
     ! Compute diffusivities
     CALL compute_diffTS( mesh, ice, laddie)
