@@ -17,7 +17,8 @@ module tracer_tracking_model_particles
 
   private
 
-  public :: initialise_tracer_tracking_model_particles, interpolate_particles_velocities
+  public :: initialise_tracer_tracking_model_particles, interpolate_particles_velocities, &
+    calc_particle_zeta
 
   integer, parameter :: n_particles_init = 100
   integer, parameter :: n_tracers        = 16
@@ -41,8 +42,8 @@ contains
 
     allocate( particles%is_in_use( n_particles_init           ), source = .false.)
     allocate( particles%r        ( n_particles_init, 3        ), source = 0._dp  )
-    allocate( particles%vi_in    ( n_particles_init           ), source = 0      )
-    allocate( particles%ti_in    ( n_particles_init           ), source = 0      )
+    allocate( particles%vi_in    ( n_particles_init           ), source = 1      )
+    allocate( particles%ti_in    ( n_particles_init           ), source = 1      )
     allocate( particles%u        ( n_particles_init, 3        ), source = 0._dp  )
     allocate( particles%r_origin ( n_particles_init, 3        ), source = 0._dp  )
     allocate( particles%t_origin ( n_particles_init           ), source = 0._dp  )
@@ -117,8 +118,7 @@ contains
 
   end subroutine interpolate_particles_velocities
 
-  subroutine calc_particle_zeta( mesh, Hi, Hs, &
-    x, y, z, ti_in, zeta)
+  subroutine calc_particle_zeta( mesh, Hi, Hs, x, y, z, ti_in, zeta)
 
     ! In- and output variables
     type(type_mesh),        intent(in   ) :: mesh
