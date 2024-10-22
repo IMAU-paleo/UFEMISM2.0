@@ -964,49 +964,6 @@ CONTAINS
 
   END FUNCTIOn calc_matrix_inverse_5_by_5
 
-  SUBROUTINE calc_matrix_inverse_general( A, Ainv)
-    ! Calculate the inverse Ainv of an n-by-n matrix A using LAPACK
-
-    IMPLICIT NONE
-
-    ! Input variables:
-!   REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE, OPTIONAL, INTENT(INOUT) :: i
-    REAL(dp), DIMENSION(:,:    )                       , INTENT(IN)    :: A       ! The matrix A to be inverted
-
-    ! Output variables:
-    REAL(dp), DIMENSION( SIZE( A,1), SIZE( A,1))       , INTENT(OUT)   :: Ainv    ! Inverse of A
-
-    ! Local variables:
-    REAL(dp), DIMENSION( SIZE( A,1))                                   :: work     ! work array for LAPACK
-    INTEGER,  DIMENSION( SIZE( A,1))                                   :: ipiv     ! pivot indices
-    INTEGER                                                            :: n,info
-
-    n = size( A,1)
-
-    ! Safety
-    IF (SIZE (A,2) /= n) CALL crash('calc_matrix_inverse_general: matrix must be square!')
-
-    ! Store A in Ainv to prevent it from being overwritten by LAPACK
-    Ainv = A
-
-    ! DGETRF computes an LU factorization of a general M-by-N matrix A using partial pivoting with row interchanges.
-    CALL DGETRF( n, n, Ainv, n, ipiv, info)
-
-    ! Safety
-    IF (info /= 0) THEN
-      CALL crash('calc_matrix_inverse_general: DGETRF error: matrix is singular to working precision!')
-    END IF
-
-    ! DGETRI computes the inverse of a matrix using the LU factorization computed by DGETRF.
-    CALL DGETRI( n, Ainv, n, ipiv, work, n, info)
-
-    ! Safety
-    IF (info /= 0) THEN
-      CALL crash('calc_matrix_inverse_general: DGETRI error: matrix inversion failed!')
-    END IF
-
-  END SUBROUTINE calc_matrix_inverse_general
-
   PURE FUNCTION solve_Axb_2_by_2( A,b) RESULT( x)
     ! Direct solution of the 2-by-2 matrix equation Ax=b
 
