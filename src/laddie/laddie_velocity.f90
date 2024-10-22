@@ -171,6 +171,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_viscUV'
     INTEGER                                               :: ci, ti, tj, ei
+    REAL(dp)                                              :: D_x, D_y, D, Ah
     REAL(dp), DIMENSION(mesh%nTri)                        :: U_tot, V_tot
     LOGICAL, DIMENSION(mesh%nTri)                         :: mask_oc_b_tot
     
@@ -185,9 +186,6 @@ CONTAINS
     ! Loop over triangles                                  
     DO ti = mesh%ti1, mesh%ti2
       IF (laddie%mask_b( ti)) THEN
-        ! Get viscosity parameter
-        laddie%A_h( ti) = C%laddie_viscosity
-        ! TODO add scalable options
     
         ! Initialise at 0
         laddie%viscU( ti) = 0.0_dp
@@ -198,18 +196,24 @@ CONTAINS
           tj = mesh%TriC( ti, ci)
           ei = mesh%TriE( ti, ci)
 
+          D_x = mesh%Tri( tj,1) - mesh%Tri( ti,1)
+          D_y = mesh%Tri( tj,2) - mesh%Tri( ti,2)
+          D   = SQRT( D_x**2 + D_y**2)
+
+          Ah = C%laddie_viscosity * 0.5_dp*(SQRT(mesh%TriA( ti)) + SQRT(mesh%TriA( tj))) / 1000.0_dp
+
           IF (tj==0) THEN
             ! Border or corner. For now, assume no slip. If free slip: CYCLE
-            laddie%viscU( ti) = laddie%viscU( ti) - laddie%now%U( ti) * laddie%A_h( ti) * laddie%now%H_b( ti) / mesh%TriA( ti)
-            laddie%viscV( ti) = laddie%viscV( ti) - laddie%now%V( ti) * laddie%A_h( ti) * laddie%now%H_b( ti) / mesh%TriA( ti)
+            laddie%viscU( ti) = laddie%viscU( ti) - laddie%now%U( ti) * Ah * laddie%now%H_b( ti) / mesh%TriA( ti)
+            laddie%viscV( ti) = laddie%viscV( ti) - laddie%now%V( ti) * Ah * laddie%now%H_b( ti) / mesh%TriA( ti)
           ELSE
             ! Skip calving front - ocean connection: d/dx = d/dy = 0 
             IF (laddie%mask_oc_b( tj)) CYCLE
             
             ! Add viscosity flux based on dU/dx and dV/dy. 
             ! Note: for grounded neighbours, U_tot( tj) = 0, meaning this is a no slip option. Can be expanded
-            laddie%viscU( ti) = laddie%viscU( ti) + (U_tot( tj)-laddie%now%U( ti)) * laddie%A_h( ti) * laddie%now%H_c( ei) / mesh%TriA( ti)
-            laddie%viscV( ti) = laddie%viscV( ti) + (V_tot( tj)-laddie%now%V( ti)) * laddie%A_h( ti) * laddie%now%H_c( ei) / mesh%TriA( ti)
+            laddie%viscU( ti) = laddie%viscU( ti) + (U_tot( tj)-laddie%now%U( ti)) * Ah * laddie%now%H_c( ei) / mesh%TriA( ti) * mesh%TriCw( ti, ci) / D
+            laddie%viscV( ti) = laddie%viscV( ti) + (V_tot( tj)-laddie%now%V( ti)) * Ah * laddie%now%H_c( ei) / mesh%TriA( ti) * mesh%TriCw( ti, ci) / D
           END IF
         END DO
 
