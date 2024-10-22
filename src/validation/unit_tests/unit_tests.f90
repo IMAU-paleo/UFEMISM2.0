@@ -10,6 +10,7 @@ module unit_tests
   use model_configuration, only: C
   use ut_mpi, only: unit_tests_mpi_distributed_memory_main
   use ut_petsc, only: unit_tests_petsc_main
+  use ut_math_utilities, only: unit_tests_math_utilities_main
   use ut_mesh, only: unit_tests_mesh_main
 
   implicit none
@@ -43,6 +44,7 @@ contains
     ! Run all unit tests
     call unit_tests_mpi_distributed_memory_main( test_name)
     call unit_tests_petsc_main( test_name)
+    call unit_tests_math_utilities_main( test_name)
     call unit_tests_mesh_main( test_name)
 
     ! Finalise routine path
