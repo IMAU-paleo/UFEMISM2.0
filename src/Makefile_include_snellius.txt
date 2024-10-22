@@ -4,12 +4,11 @@ $(OBJ_PATH)/%.o : %.f90 Makefile_include_local.txt
 # Compiler names:
   F90 = mpifort
 
-# Setting the path for the netcdf libraries:  
+# Setting the path for the netcdf libraries:
   NCLIB     = $(shell nf-config --flibs)
   NCINC     = $(shell nf-config --fflags)
   PETSCINC  = -I${PETSC_DIR}/include
   PETSCLIB  = -L${PETSC_DIR}/lib -lpetsc
-  LAPACKLIB  = -lopenblas
 
 
 # Compiler flags:
@@ -30,4 +29,4 @@ $(OBJ_PATH)/%.o : %.f90 Makefile_include_local.txt
                             ${NCINC} ${PETSCINC}
 
 # Linking flags of libaries:
-  LDFLAGS                 = ${PETSCLIB} ${NCLIB} ${LAPACKLIB} -g
+  LDFLAGS                 = ${PETSCLIB} ${NCLIB} -g

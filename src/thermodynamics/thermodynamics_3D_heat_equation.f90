@@ -25,7 +25,7 @@ MODULE thermodynamics_3D_heat_equation
   USE thermodynamics_utilities                               , ONLY: calc_heat_capacity, calc_thermal_conductivity, calc_pressure_melting_point, &
                                                                      calc_upwind_heat_flux_derivatives, calc_strain_heating, calc_frictional_heating, &
                                                                      replace_Ti_with_robin_solution
-  USE math_utilities                                         , ONLY: tridiagonal_solve
+  use tridiagonal_solver, only: solve_tridiagonal_matrix_equation
   USE netcdf_basic                                           , ONLY: create_new_netcdf_file_for_writing, close_netcdf_file, &
                                                                      open_existing_netcdf_file_for_writing
   USE netcdf_output                                          , ONLY: generate_filename_XXXXXdotnc, setup_mesh_in_netcdf_file, add_time_dimension_to_file, &
@@ -476,7 +476,7 @@ CONTAINS
     END DO ! DO k = 1, mesh%nz
 
     ! Solve the tridiagonal matrix equation representing the heat equation for this grid cell
-    Ti_tplusdt = tridiagonal_solve( AA_ldiag, AA_diag, AA_udiag, bb)
+    call solve_tridiagonal_matrix_equation( C%nz, AA_ldiag, AA_diag, AA_udiag, bb, Ti_tplusdt)
 
     ! Make sure ice temperature doesn't exceed pressure melting point
     DO k = 1, mesh%nz

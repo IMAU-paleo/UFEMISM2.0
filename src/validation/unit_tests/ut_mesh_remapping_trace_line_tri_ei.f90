@@ -63,7 +63,8 @@ contains
     integer                        :: n_sub,iip,iiq
     real(dp)                       :: w
     real(dp), dimension(2)         :: pvi,pvj,p,q,p_next
-    integer                        :: ti_left_actual, ti_in, vi_on, ei_on, ti_left
+    integer                        :: ti_left_actual, ti_left
+    type(type_coinc_ind_mesh)      :: coinc_ind
     logical                        :: coincides, finished
     logical                        :: verified_q_on_ei
 
@@ -97,20 +98,18 @@ contains
           q = w * mesh%V( vi,:) + (1._dp - w) * mesh%V( vj,:)
 
           ! Reset coincidence indicator
-          ti_in = 0
-          vi_on = 0
-          ei_on = ei
+          coinc_ind%grid = c_grid
+          coinc_ind%i    = ei
 
           ! Trace pq
           call trace_line_tri_ei( mesh, p, q, &
-            p_next, ti_in, vi_on, ei_on, ti_left, coincides, finished)
+            p_next, coinc_ind, ti_left, coincides, finished)
 
           ! Check results
           verified_q_on_ei = verified_q_on_ei .and. &
             test_tol( p_next, q, mesh%tol_dist) .and. &
-            ti_in == 0 .and. &
-            vi_on == 0 .and. &
-            ei_on == 0 .and. &
+            coinc_ind%grid == no_value .and. &
+            coinc_ind%i == 0 .and. &
             ti_left == ti_left_actual .and. &
             (coincides .eqv. .true.) .and. &
             (finished .eqv. .true.)
@@ -127,20 +126,18 @@ contains
           q = w * mesh%V( vi,:) + (1._dp - w) * mesh%V( vj,:)
 
           ! Reset coincidence indicator
-          ti_in = 0
-          vi_on = 0
-          ei_on = ei
+          coinc_ind%grid = c_grid
+          coinc_ind%i    = ei
 
           ! Trace pq
           call trace_line_tri_ei( mesh, p, q, &
-            p_next, ti_in, vi_on, ei_on, ti_left, coincides, finished)
+            p_next, coinc_ind, ti_left, coincides, finished)
 
           ! Check results
           verified_q_on_ei = verified_q_on_ei .and. &
             test_tol( p_next, q, mesh%tol_dist) .and. &
-            ti_in == 0 .and. &
-            vi_on == 0 .and. &
-            ei_on == 0 .and. &
+            coinc_ind%grid == no_value .and. &
+            coinc_ind%i == 0 .and. &
             ti_left == ti_left_actual .and. &
             (coincides .eqv. .true.) .and. &
             (finished .eqv. .true.)
@@ -170,7 +167,8 @@ contains
     integer                        :: n_sub,iip,iiq,jjq
     real(dp)                       :: w,xmin,xmax,ymin,ymax,xq,yq
     real(dp), dimension(2)         :: pvi,pvj,pvl,pvr,p,q,p_next
-    integer                        :: ti_in, vi_on, ei_on, ti_left
+    integer                        :: ti_left
+    type(type_coinc_ind_mesh)      :: coinc_ind
     logical                        :: coincides, finished
     logical                        :: verified_q_in_ti
 
@@ -226,20 +224,18 @@ contains
             end if
 
             ! Reset coincidence indicator
-            ti_in = 0
-            vi_on = 0
-            ei_on = ei
+            coinc_ind%grid = c_grid
+            coinc_ind%i    = ei
 
             ! Trace pq
             call trace_line_tri_ei( mesh, p, q, &
-              p_next, ti_in, vi_on, ei_on, ti_left, coincides, finished)
+              p_next, coinc_ind, ti_left, coincides, finished)
 
             ! Check results
             verified_q_in_ti = verified_q_in_ti .and. &
               test_tol( p_next, q, mesh%tol_dist) .and. &
-              ti_in == 0 .and. &
-              vi_on == 0 .and. &
-              ei_on == 0 .and. &
+              coinc_ind%grid == no_value .and. &
+              coinc_ind%i == 0 .and. &
               ti_left == til .and. &
               (coincides .eqv. .false.) .and. &
               (finished .eqv. .true.)
@@ -276,20 +272,18 @@ contains
             end if
 
             ! Reset coincidence indicator
-            ti_in = 0
-            vi_on = 0
-            ei_on = ei
+            coinc_ind%grid = c_grid
+            coinc_ind%i    = ei
 
             ! Trace pq
             call trace_line_tri_ei( mesh, p, q, &
-              p_next, ti_in, vi_on, ei_on, ti_left, coincides, finished)
+              p_next, coinc_ind, ti_left, coincides, finished)
 
             ! Check results
             verified_q_in_ti = verified_q_in_ti .and. &
               test_tol( p_next, q, mesh%tol_dist) .and. &
-              ti_in == 0 .and. &
-              vi_on == 0 .and. &
-              ei_on == 0 .and. &
+              coinc_ind%grid == no_value .and. &
+              coinc_ind%i == 0 .and. &
               ti_left == tir .and. &
               (coincides .eqv. .false.) .and. &
               (finished .eqv. .true.)
@@ -323,7 +317,8 @@ contains
     integer                        :: n_sub,iip
     real(dp)                       :: w
     real(dp), dimension(2)         :: pvi,pvj,pvl,pvr,d,p,q,p_next
-    integer                        :: ti_in, vi_on, ei_on, ti_left
+    integer                        :: ti_left
+    type(type_coinc_ind_mesh)      :: coinc_ind
     logical                        :: coincides, finished
     logical                        :: verified_pq_through_vi
 
@@ -359,20 +354,18 @@ contains
         q = pvi + d
 
         ! Reset coincidence indicator
-        ti_in = 0
-        vi_on = 0
-        ei_on = ei
+        coinc_ind%grid = c_grid
+        coinc_ind%i    = ei
 
         ! Trace pq
         call trace_line_tri_ei( mesh, p, q, &
-          p_next, ti_in, vi_on, ei_on, ti_left, coincides, finished)
+          p_next, coinc_ind, ti_left, coincides, finished)
 
         ! Check results
         verified_pq_through_vi = verified_pq_through_vi .and. &
           test_tol( p_next, pvi, mesh%tol_dist) .and. &
-          ti_in == 0 .and. &
-          vi_on == vi .and. &
-          ei_on == 0 .and. &
+          coinc_ind%grid == a_grid .and. &
+          coinc_ind%i == vi .and. &
           ti_left == tir .and. &
           (coincides .eqv. .true.) .and. &
           (finished .eqv. .false.)
@@ -384,20 +377,18 @@ contains
         q = pvj + d
 
         ! Reset coincidence indicator
-        ti_in = 0
-        vi_on = 0
-        ei_on = ei
+        coinc_ind%grid = c_grid
+        coinc_ind%i    = ei
 
         ! Trace pq
         call trace_line_tri_ei( mesh, p, q, &
-          p_next, ti_in, vi_on, ei_on, ti_left, coincides, finished)
+          p_next, coinc_ind, ti_left, coincides, finished)
 
         ! Check results
         verified_pq_through_vi = verified_pq_through_vi .and. &
           test_tol( p_next, pvj, mesh%tol_dist) .and. &
-          ti_in == 0 .and. &
-          vi_on == vj .and. &
-          ei_on == 0 .and. &
+          coinc_ind%grid == a_grid .and. &
+          coinc_ind%i == vj .and. &
           ti_left == til .and. &
           (coincides .eqv. .true.) .and. &
           (finished .eqv. .false.)
@@ -413,20 +404,18 @@ contains
           q = pvl + d
 
           ! Reset coincidence indicator
-          ti_in = 0
-          vi_on = 0
-          ei_on = ei
+          coinc_ind%grid = c_grid
+          coinc_ind%i    = ei
 
           ! Trace pq
           call trace_line_tri_ei( mesh, p, q, &
-            p_next, ti_in, vi_on, ei_on, ti_left, coincides, finished)
+            p_next, coinc_ind, ti_left, coincides, finished)
 
           ! Check results
           verified_pq_through_vi = verified_pq_through_vi .and. &
             test_tol( p_next, pvl, mesh%tol_dist) .and. &
-            ti_in == 0 .and. &
-            vi_on == vil .and. &
-            ei_on == 0 .and. &
+            coinc_ind%grid == a_grid .and. &
+            coinc_ind%i == vil .and. &
             ti_left == til .and. &
             (coincides .eqv. .false.) .and. &
             (finished .eqv. .false.)
@@ -444,20 +433,19 @@ contains
           q = pvr + d
 
           ! Reset coincidence indicator
-          ti_in = 0
-          vi_on = 0
-          ei_on = ei
+          coinc_ind%grid = c_grid
+          coinc_ind%i    = ei
+
 
           ! Trace pq
           call trace_line_tri_ei( mesh, p, q, &
-            p_next, ti_in, vi_on, ei_on, ti_left, coincides, finished)
+            p_next, coinc_ind, ti_left, coincides, finished)
 
           ! Check results
           verified_pq_through_vi = verified_pq_through_vi .and. &
             test_tol( p_next, pvr, mesh%tol_dist) .and. &
-            ti_in == 0 .and. &
-            vi_on == vir .and. &
-            ei_on == 0 .and. &
+            coinc_ind%grid == a_grid .and. &
+            coinc_ind%i == vir .and. &
             ti_left == tir .and. &
             (coincides .eqv. .false.) .and. &
             (finished .eqv. .false.)
@@ -488,7 +476,8 @@ contains
     integer                        :: n_sub,iip,iiq
     real(dp)                       :: w
     real(dp), dimension(2)         :: pvi,pvj,pvl,pvr,p,pp,d,q,p_next
-    integer                        :: ti_in, vi_on, ei_on, ti_left
+    integer                        :: ti_left
+    type(type_coinc_ind_mesh)      :: coinc_ind
     logical                        :: coincides, finished
     logical                        :: verified_pq_through_ei
 
@@ -542,20 +531,18 @@ contains
             q = pp + d
 
             ! Reset coincidence indicator
-            ti_in = 0
-            vi_on = 0
-            ei_on = ei
+            coinc_ind%grid = c_grid
+            coinc_ind%i    = ei
 
             ! Trace pq
             call trace_line_tri_ei( mesh, p, q, &
-              p_next, ti_in, vi_on, ei_on, ti_left, coincides, finished)
+              p_next, coinc_ind, ti_left, coincides, finished)
 
             ! Check results
             verified_pq_through_ei = verified_pq_through_ei .and. &
               test_tol( p_next, pp, mesh%tol_dist) .and. &
-              ti_in == 0 .and. &
-              vi_on == 0 .and. &
-              ei_on == ej .and. &
+              coinc_ind%grid == c_grid .and. &
+              coinc_ind%i == ej .and. &
               ti_left == til .and. &
               (coincides .eqv. .false.) .and. &
               (finished .eqv. .false.)
@@ -582,20 +569,18 @@ contains
             q = pp + d
 
             ! Reset coincidence indicator
-            ti_in = 0
-            vi_on = 0
-            ei_on = ei
+            coinc_ind%grid = c_grid
+            coinc_ind%i    = ei
 
             ! Trace pq
             call trace_line_tri_ei( mesh, p, q, &
-              p_next, ti_in, vi_on, ei_on, ti_left, coincides, finished)
+              p_next, coinc_ind, ti_left, coincides, finished)
 
             ! Check results
             verified_pq_through_ei = verified_pq_through_ei .and. &
               test_tol( p_next, pp, mesh%tol_dist) .and. &
-              ti_in == 0 .and. &
-              vi_on == 0 .and. &
-              ei_on == ej .and. &
+              coinc_ind%grid == c_grid .and. &
+              coinc_ind%i == ej .and. &
               ti_left == til .and. &
               (coincides .eqv. .false.) .and. &
               (finished .eqv. .false.)
@@ -628,20 +613,18 @@ contains
             q = pp + d
 
             ! Reset coincidence indicator
-            ti_in = 0
-            vi_on = 0
-            ei_on = ei
+            coinc_ind%grid = c_grid
+            coinc_ind%i    = ei
 
             ! Trace pq
             call trace_line_tri_ei( mesh, p, q, &
-              p_next, ti_in, vi_on, ei_on, ti_left, coincides, finished)
+              p_next, coinc_ind, ti_left, coincides, finished)
 
             ! Check results
             verified_pq_through_ei = verified_pq_through_ei .and. &
               test_tol( p_next, pp, mesh%tol_dist) .and. &
-              ti_in == 0 .and. &
-              vi_on == 0 .and. &
-              ei_on == ej .and. &
+              coinc_ind%grid == c_grid .and. &
+              coinc_ind%i == ej .and. &
               ti_left == tir .and. &
               (coincides .eqv. .false.) .and. &
               (finished .eqv. .false.)
@@ -668,20 +651,18 @@ contains
             q = pp + d
 
             ! Reset coincidence indicator
-            ti_in = 0
-            vi_on = 0
-            ei_on = ei
+            coinc_ind%grid = c_grid
+            coinc_ind%i    = ei
 
             ! Trace pq
             call trace_line_tri_ei( mesh, p, q, &
-              p_next, ti_in, vi_on, ei_on, ti_left, coincides, finished)
+              p_next, coinc_ind, ti_left, coincides, finished)
 
             ! Check results
             verified_pq_through_ei = verified_pq_through_ei .and. &
               test_tol( p_next, pp, mesh%tol_dist) .and. &
-              ti_in == 0 .and. &
-              vi_on == 0 .and. &
-              ei_on == ej .and. &
+              coinc_ind%grid == c_grid .and. &
+              coinc_ind%i == ej .and. &
               ti_left == tir .and. &
               (coincides .eqv. .false.) .and. &
               (finished .eqv. .false.)
