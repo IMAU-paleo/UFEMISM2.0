@@ -113,7 +113,7 @@ UFEMISM_source = \
   validation/basic_tests/assertions_basic.f90 \
   \
   basic/mpi_distributed_memory.f90 \
-  basic/math_utilities.f90 \
+  basic/math_utilities/math_utilities.f90 \
   basic/analytical_solutions.f90 \
   basic/CSR_sparse_matrix_utilities.f90 \
   basic/petsc_basic.f90 \
