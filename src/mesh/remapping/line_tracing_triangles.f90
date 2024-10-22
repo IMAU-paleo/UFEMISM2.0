@@ -40,7 +40,6 @@ contains
     logical                        :: finished
     integer                        :: n_cycles
     type(type_coinc_ind_mesh)      :: coinc_ind
-    integer                        :: ti_in, vi_on, ei_on
     real(dp), dimension(2)         :: p_next
     integer                        :: ti_left
     logical                        :: coincides
@@ -64,7 +63,6 @@ contains
     !    - lies on the circumcentre of triangle ti_on, or...
     !    - lies on the shared Voronoi cell boundary represented by edge ei_on
     call trace_line_tri_start( mesh, pp, ti_hint, coinc_ind)
-    call coinc_ind_mesh_new2old( coinc_ind, ti_in, vi_on, ei_on)
 
     ! Iteratively trace the line through the mesh
     finished = .false.
@@ -72,22 +70,18 @@ contains
     do while (.not. finished)
 
       ! Find the point p_next where [pq] crosses into the next Voronoi cell
-      if     (ti_in  > 0) then
-        ! p lies inside triangle ti_in
-        call coinc_ind_mesh_old2new( ti_in, vi_on, ei_on, .false., coinc_ind)
-        call trace_line_tri_ti( mesh, pp, qq, p_next, coinc_ind, ti_left, coincides, finished)
-        call coinc_ind_mesh_new2old( coinc_ind, ti_in, vi_on, ei_on)
-      elseif (vi_on  > 0) then
-        ! p lies on vertex vi_on
-        call coinc_ind_mesh_old2new( ti_in, vi_on, ei_on, .false., coinc_ind)
+      select case (coinc_ind%grid)
+      case (no_value)
+        call crash('coincidence indicator doesnt make sense')
+      case default
+        call crash('coincidence indicator doesnt make sense')
+      case( a_grid)
         call trace_line_tri_vi( mesh, pp, qq, p_next, coinc_ind, ti_left, coincides, finished)
-        call coinc_ind_mesh_new2old( coinc_ind, ti_in, vi_on, ei_on)
-      elseif (ei_on > 0) then
-        ! p lies on edge ei_on
-        call trace_line_tri_ei( mesh, pp, qq, p_next, ti_in, vi_on, ei_on, ti_left, coincides, finished)
-      else
-        call crash('coincidence indicators dont make sense!')
-      end if
+      case (b_grid)
+        call trace_line_tri_ti( mesh, pp, qq, p_next, coinc_ind, ti_left, coincides, finished)
+      case (c_grid)
+        call trace_line_tri_ei( mesh, pp, qq, p_next, coinc_ind, ti_left, coincides, finished)
+      end select
 
       ! Calculate the three line integrals
       LI_xdy   = line_integral_xdy(   pp, p_next, mesh%tol_dist)
@@ -758,25 +752,28 @@ contains
   !> Given the line [pq], where p lies on edge ei,
   !> find the point p_next where [pq] crosses into the next triangle.
   subroutine trace_line_tri_ei( mesh, p, q, &
-    p_next, ti_in, vi_on, ei_on, ti_left, coincides, finished)
+    p_next, coinc_ind, ti_left, coincides, finished)
 
     ! In/output variables
-    type(type_mesh),        intent(in)    :: mesh
-    real(dp), dimension(2), intent(in)    :: p,q
-    real(dp), dimension(2), intent(out)   :: p_next
-    integer,                intent(inout) :: ti_in
-    integer,                intent(inout) :: vi_on
-    integer,                intent(inout) :: ei_on
-    integer,                intent(out)   :: ti_left
-    logical,                intent(out)   :: coincides
-    logical,                intent(out)   :: finished
+    type(type_mesh),           intent(in)    :: mesh
+    real(dp), dimension(2),    intent(in)    :: p,q
+    real(dp), dimension(2),    intent(out)   :: p_next
+    type(type_coinc_ind_mesh), intent(inout) :: coinc_ind
+    integer,                   intent(out)   :: ti_left
+    logical,                   intent(out)   :: coincides
+    logical,                   intent(out)   :: finished
 
     ! Local variables:
-    integer                :: via, vib, vil, vir, til, tir
+    integer                :: ei_on, via, vib, vil, vir, til, tir
     real(dp), dimension(2) :: pa, pb, pl, pr
-    integer                :: vvi, vj, ei
-    real(dp), dimension(2) :: llis
-    logical                :: do_cross
+    logical                :: q_on_ei, q_in_ti, pq_through_vi, pq_through_ei
+
+#if (DO_ASSERTIONS)
+    call assert( coinc_ind%grid == c_grid, 'coincidence grid is not c_grid')
+    call assert( test_ge_le( coinc_ind%i, 1, mesh%nE), 'invalid value for ei')
+#endif
+
+    ei_on = coinc_ind%i
 
     ! Some more info about this edge
     via = mesh%EV(   ei_on,1)
@@ -791,25 +788,65 @@ contains
     if (vil > 0) pl  = mesh%V( vil,:)
     if (vir > 0) pr  = mesh%V( vir,:)
 
-    ! Safety
-    if (ti_in > 0 .or. vi_on > 0 .or. ei_on == 0) then
-      call crash('trace_line_tri_ei - coincidence indicators dont make sense!')
+#if (DO_ASSERTIONS)
+    call assert( lies_on_line_segment( pa, pb, p, mesh%tol_dist), &
+      'p does not lie on edge ei')
+#endif
+
+    ! Check if q lies on the same edge as p
+    call trace_line_tri_ei_q_on_ei( mesh, p, q, til, tir, pa, pb, &
+      p_next, coinc_ind, ti_left, coincides, finished, q_on_ei)
+    if (q_on_ei) return
+
+    ! Check if q lies inside either of the two adjacent triangles
+    call trace_line_tri_ei_q_in_ti( mesh, q, til, tir, pa, pb, pr, pl, &
+      p_next, coinc_ind, ti_left, coincides, finished, q_in_ti)
+    if (q_in_ti) return
+
+    ! Check if pq passes through any of the (up to) four vertices surrounding edge ei
+    call trace_line_tri_ei_pq_through_vi( mesh, p, q, via, vib, vil, vir, til, tir, &
+      pa, pb, pr, pl, p_next, coinc_ind, ti_left, coincides, finished, pq_through_vi)
+    if (pq_through_vi) return
+
+    ! Check if pq passes through any of the (up to) four edges surrounding edge ei
+    call trace_line_tri_ei_pq_through_ei( mesh, p, q, via, vib, vil, vir, til, tir, &
+      pa, pb, pr, pl, p_next, coinc_ind, ti_left, coincides, finished, pq_through_ei)
+    if (pq_through_ei) return
+
+    if (.not. (q_on_ei .or. q_in_ti .or. pq_through_vi .or. pq_through_ei)) then
+      call crash('trace_line_tri_ei - couldnt find out where pq goes from here')
     end if
-    if (.not. lies_on_line_segment( pa, pb, p, mesh%tol_dist)) then
-      call crash('trace_line_tri_ei - p does not lie on edge ei_on!')
-    end if
+
+  end subroutine trace_line_tri_ei
+
+  subroutine trace_line_tri_ei_q_on_ei( mesh, p, q, til, tir, pa, pb, &
+    p_next, coinc_ind, ti_left, coincides, finished, q_on_ei)
+
+    ! In/output variables
+    type(type_mesh),           intent(in)    :: mesh
+    real(dp), dimension(2),    intent(in)    :: p,q
+    integer,                   intent(in)    :: til, tir
+    real(dp), dimension(2),    intent(in)    :: pa, pb
+    real(dp), dimension(2),    intent(out)   :: p_next
+    type(type_coinc_ind_mesh), intent(inout) :: coinc_ind
+    integer,                   intent(out)   :: ti_left
+    logical,                   intent(out)   :: coincides
+    logical,                   intent(out)   :: finished
+    logical,                   intent(out)   :: q_on_ei
+
+    q_on_ei = .false.
 
     ! Check if q lies on the same edge in the direction of via
     if (lies_on_line_segment( p, pa, q, mesh%tol_dist) .or. &
       norm2( q - pa) < mesh%tol_dist) then
       ! q lies on the same edge in the direction of via
-      p_next    = q
-      ti_in     = 0
-      vi_on     = 0
-      ei_on     = 0
-      ti_left   = tir
-      coincides = .true.
-      finished  = .true.
+      p_next         = q
+      coinc_ind%grid = no_value
+      coinc_ind%i    = 0
+      ti_left        = tir
+      coincides      = .true.
+      finished       = .true.
+      q_on_ei        = .true.
       return
     end if
 
@@ -817,30 +854,48 @@ contains
     if (lies_on_line_segment( p, pb, q, mesh%tol_dist) .or. &
       norm2( q - pb) < mesh%tol_dist) then
       ! q lies on the same edge in the direction of vib
-      p_next    = q
-      ti_in     = 0
-      vi_on     = 0
-      ei_on     = 0
-      ti_left   = til
-      coincides = .true.
-      finished  = .true.
+      p_next         = q
+      coinc_ind%grid = no_value
+      coinc_ind%i    = 0
+      ti_left        = til
+      coincides      = .true.
+      finished       = .true.
+      q_on_ei        = .true.
       return
     end if
 
-    ! Check if q lies inside either of the two adjacent triangles
+  end subroutine trace_line_tri_ei_q_on_ei
+
+  subroutine trace_line_tri_ei_q_in_ti( mesh, q, til, tir, pa, pb, pr, pl, &
+    p_next, coinc_ind, ti_left, coincides, finished, q_in_ti)
+
+    ! In/output variables
+    type(type_mesh),           intent(in)    :: mesh
+    real(dp), dimension(2),    intent(in)    :: q
+    integer,                   intent(in)    :: til, tir
+    real(dp), dimension(2),    intent(in)    :: pa, pb, pr, pl
+    real(dp), dimension(2),    intent(out)   :: p_next
+    type(type_coinc_ind_mesh), intent(inout) :: coinc_ind
+    integer,                   intent(out)   :: ti_left
+    logical,                   intent(out)   :: coincides
+    logical,                   intent(out)   :: finished
+    logical,                   intent(out)   :: q_in_ti
+
+    q_in_ti = .false.
+
     if (til > 0) then
       if (is_in_triangle( pa, pb, pl, q) .or. &
           lies_on_line_segment( pa, pb, q, mesh%tol_dist) .or. &
           lies_on_line_segment( pb, pl, q, mesh%tol_dist) .or. &
           lies_on_line_segment( pl, pa, q, mesh%tol_dist)) then
         ! q lies inside triangle til
-        p_next    = q
-        ti_in     = 0
-        vi_on     = 0
-        ei_on     = 0
-        ti_left   = til
-        coincides = .false.
-        finished  = .true.
+        p_next         = q
+        coinc_ind%grid = no_value
+        coinc_ind%i    = 0
+        ti_left        = til
+        coincides      = .false.
+        finished       = .true.
+        q_in_ti        = .true.
         return
       end if
     end if
@@ -851,40 +906,59 @@ contains
           lies_on_line_segment( pr, pb, q, mesh%tol_dist) .or. &
           lies_on_line_segment( pb, pa, q, mesh%tol_dist)) then
         ! q lies inside triangle tir
-        p_next    = q
-        ti_in     = 0
-        vi_on     = 0
-        ei_on     = 0
-        ti_left   = tir
-        coincides = .false.
-        finished  = .true.
+        p_next         = q
+        coinc_ind%grid = no_value
+        coinc_ind%i    = 0
+        ti_left        = tir
+        coincides      = .false.
+        finished       = .true.
+        q_in_ti        = .true.
         return
       end if
     end if
 
+  end subroutine trace_line_tri_ei_q_in_ti
+
+  subroutine trace_line_tri_ei_pq_through_vi( mesh, p, q, via, vib, vil, vir, til, tir, &
+    pa, pb, pr, pl, p_next, coinc_ind, ti_left, coincides, finished, pq_through_vi)
+
+    ! In/output variables
+    type(type_mesh),           intent(in)    :: mesh
+    real(dp), dimension(2),    intent(in)    :: p,q
+    integer,                   intent(in)    :: via, vib, vil, vir, til, tir
+    real(dp), dimension(2),    intent(in)    :: pa, pb, pr, pl
+    real(dp), dimension(2),    intent(out)   :: p_next
+    type(type_coinc_ind_mesh), intent(inout) :: coinc_ind
+    integer,                   intent(out)   :: ti_left
+    logical,                   intent(out)   :: coincides
+    logical,                   intent(out)   :: finished
+    logical,                   intent(out)   :: pq_through_vi
+
+    pq_through_vi = .false.
+
     ! Check if [pq] passes through pa
     if (lies_on_line_segment( p, q, pa, mesh%tol_dist)) then
       ! [pq] passes through pa
-      p_next    = pa
-      ti_in     = 0
-      vi_on     = via
-      ei_on     = 0
-      ti_left   = tir
-      coincides = .true.
-      finished  = .false.
+      p_next         = pa
+      coinc_ind%grid = a_grid
+      coinc_ind%i    = via
+      ti_left        = tir
+      coincides      = .true.
+      finished       = .false.
+      pq_through_vi  = .true.
       return
     end if
 
     ! Check if [pq] passes through pb
     if (lies_on_line_segment( p, q, pb, mesh%tol_dist)) then
       ! [pq] passes through pb
-      p_next    = pb
-      ti_in     = 0
-      vi_on     = vib
-      ei_on     = 0
-      ti_left   = til
-      coincides = .true.
-      finished  = .false.
+      p_next         = pb
+      coinc_ind%grid = a_grid
+      coinc_ind%i    = vib
+      ti_left        = til
+      coincides      = .true.
+      finished       = .false.
+      pq_through_vi  = .true.
       return
     end if
 
@@ -892,13 +966,13 @@ contains
     if (til > 0) then
       if (lies_on_line_segment( p, q, pl, mesh%tol_dist)) then
         ! [pq] passes through pl
-        p_next    = pl
-        ti_in     = 0
-        vi_on     = vil
-        ei_on     = 0
-        ti_left   = til
-        coincides = .false.
-        finished  = .false.
+        p_next         = pl
+        coinc_ind%grid = a_grid
+        coinc_ind%i    = vil
+        ti_left        = til
+        coincides      = .false.
+        finished       = .false.
+        pq_through_vi  = .true.
         return
       end if
     end if
@@ -907,37 +981,60 @@ contains
     if (tir > 0) then
       if (lies_on_line_segment( p, q, pr, mesh%tol_dist)) then
         ! [pq] passes through pr
-        p_next    = pr
-        ti_in     = 0
-        vi_on     = vir
-        ei_on     = 0
-        ti_left   = tir
-        coincides = .false.
-        finished  = .false.
+        p_next         = pr
+        coinc_ind%grid = a_grid
+        coinc_ind%i    = vir
+        ti_left        = tir
+        coincides      = .false.
+        finished       = .false.
+        pq_through_vi  = .true.
         return
       end if
     end if
+
+  end subroutine trace_line_tri_ei_pq_through_vi
+
+  subroutine trace_line_tri_ei_pq_through_ei( mesh, p, q, via, vib, vil, vir, til, tir, &
+    pa, pb, pr, pl, p_next, coinc_ind, ti_left, coincides, finished, pq_through_ei)
+
+    ! In/output variables
+    type(type_mesh),           intent(in)    :: mesh
+    real(dp), dimension(2),    intent(in)    :: p,q
+    integer,                   intent(in)    :: via, vib, vil, vir, til, tir
+    real(dp), dimension(2),    intent(in)    :: pa, pb, pr, pl
+    real(dp), dimension(2),    intent(out)   :: p_next
+    type(type_coinc_ind_mesh), intent(inout) :: coinc_ind
+    integer,                   intent(out)   :: ti_left
+    logical,                   intent(out)   :: coincides
+    logical,                   intent(out)   :: finished
+    logical,                   intent(out)   :: pq_through_ei
+
+    ! Local variables
+    integer                :: ci, vj
+    logical                :: do_cross
+    real(dp), dimension(2) :: llis
+
+    pq_through_ei = .false.
 
     ! Check if [pq] crosses edge [via,vil]
     if (til > 0) then
       call segment_intersection( p, q, pa, pl, llis, do_cross, mesh%tol_dist)
       if (do_cross) then
         ! [pq] crosses edge [via,vil]
+        coinc_ind%grid = c_grid
         ! Find the edge connecting via and vil
-        do vvi = 1, mesh%nC( via)
-          vj = mesh%C(  via,vvi)
-          ei = mesh%VE( via,vvi)
+        do ci = 1, mesh%nC( via)
+          vj = mesh%C( via,ci)
           if (vj == vil) then
-            ei_on = ei
+            coinc_ind%i = mesh%VE( via,ci)
             exit
           end if
         end do
-        p_next    = llis
-        ti_in     = 0
-        vi_on     = 0
-        ti_left   = til
-        coincides = .false.
-        finished  = .false.
+        p_next        = llis
+        ti_left       = til
+        coincides     = .false.
+        finished      = .false.
+        pq_through_ei = .true.
         return
       end if
     end if
@@ -947,21 +1044,20 @@ contains
       call segment_intersection( p, q, pl, pb, llis, do_cross, mesh%tol_dist)
       if (do_cross) then
         ! [pq] crosses edge [vil,vib]
+        coinc_ind%grid = c_grid
         ! Find the edge connecting vil and vib
-        do vvi = 1, mesh%nC( vil)
-          vj = mesh%C(  vil,vvi)
-          ei = mesh%VE( vil,vvi)
+        do ci = 1, mesh%nC( vil)
+          vj = mesh%C( vil,ci)
           if (vj == vib) then
-            ei_on = ei
+            coinc_ind%i = mesh%VE( vil,ci)
             exit
           end if
         end do
-        p_next    = llis
-        ti_in     = 0
-        vi_on     = 0
-        ti_left   = til
-        coincides = .false.
-        finished  = .false.
+        p_next        = llis
+        ti_left       = til
+        coincides     = .false.
+        finished      = .false.
+        pq_through_ei = .true.
         return
       end if
     end if
@@ -971,21 +1067,20 @@ contains
       call segment_intersection( p, q, pa, pr, llis, do_cross, mesh%tol_dist)
       if (do_cross) then
         ! [pq] crosses edge [via,vir]
+        coinc_ind%grid = c_grid
         ! Find the edge connecting via and vir
-        do vvi = 1, mesh%nC( via)
-          vj  = mesh%C(    via,vvi)
-          ei = mesh%VE( via,vvi)
+        do ci = 1, mesh%nC( via)
+          vj  = mesh%C( via,ci)
           if (vj == vir) then
-            ei_on = ei
+            coinc_ind%i = mesh%VE( via,ci)
             exit
           end if
         end do
-        p_next    = llis
-        ti_in     = 0
-        vi_on     = 0
-        ti_left   = tir
-        coincides = .false.
-        finished  = .false.
+        p_next        = llis
+        ti_left       = tir
+        coincides     = .false.
+        finished      = .false.
+        pq_through_ei = .true.
         return
       end if
     end if
@@ -995,28 +1090,24 @@ contains
       call segment_intersection( p, q, pr, pb, llis, do_cross, mesh%tol_dist)
       if (do_cross) then
         ! [pq] crosses edge [vir,vib]
+        coinc_ind%grid = c_grid
         ! Find the edge connecting vir and vib
-        do vvi = 1, mesh%nC( vir)
-          vj = mesh%C(  vir,vvi)
-          ei = mesh%VE( vir,vvi)
+        do ci = 1, mesh%nC( vir)
+          vj = mesh%C( vir,ci)
           if (vj == vib) then
-            ei_on = ei
+            coinc_ind%i = mesh%VE( vir,ci)
             exit
           end if
         end do
-        p_next    = llis
-        ti_in     = 0
-        vi_on     = 0
-        ti_left   = tir
-        coincides = .false.
-        finished  = .false.
+        p_next        = llis
+        ti_left       = tir
+        coincides     = .false.
+        finished      = .false.
+        pq_through_ei = .true.
         return
       end if
     end if
 
-    ! This point should not be reachable!
-    call crash('trace_line_tri_ei - reached the unreachable end of the subroutine!')
-
-  end subroutine trace_line_tri_ei
+  end subroutine trace_line_tri_ei_pq_through_ei
 
 end module line_tracing_triangles
