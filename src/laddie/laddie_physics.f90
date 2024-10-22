@@ -26,13 +26,12 @@ CONTAINS
 ! ===== Main routines =====
 ! =========================
 
-  SUBROUTINE compute_melt_rate( mesh, ice, ocean, laddie, npx, Hstar)
+  SUBROUTINE compute_melt_rate( mesh, ice, laddie, npx, Hstar)
     ! Compute melt rate using the three equations
 
     ! In- and output variables
 
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
-    TYPE(type_ocean_model),                 INTENT(IN)    :: ocean
     TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
     TYPE(type_laddie_timestep),             INTENT(IN)    :: npx
@@ -124,13 +123,12 @@ CONTAINS
 
   END SUBROUTINE compute_melt_rate
 
-  SUBROUTINE compute_entrainment( mesh, ice, ocean, laddie, npx, Hstar)
+  SUBROUTINE compute_entrainment( mesh, ice, laddie, npx, Hstar)
     ! Compute entrainment rate
 
     ! In- and output variables
 
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
-    TYPE(type_ocean_model),                 INTENT(IN)    :: ocean
     TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
     TYPE(type_laddie_timestep),             INTENT(IN)    :: npx

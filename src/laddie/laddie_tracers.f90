@@ -25,16 +25,17 @@ CONTAINS
 ! ===== Main routines =====
 ! =========================
 
-  SUBROUTINE compute_TS_npx( mesh, ice, laddie, npxref, npx, dt, incldiff)
+  SUBROUTINE compute_TS_npx( mesh, ice, laddie, npxref, npx, Hstar, dt, incldiff)
     ! Integrate T and S by one time step
 
     ! In- and output variables
 
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
     TYPE(type_ice_model),                   INTENT(IN)    :: ice
-    TYPE(type_laddie_model),                INTENT(IN)    :: laddie
+    TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
     TYPE(type_laddie_timestep),             INTENT(IN)    :: npxref
     TYPE(type_laddie_timestep),             INTENT(INOUT) :: npx
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: Hstar
     REAL(dp),                               INTENT(IN)    :: dt
     LOGICAL,                                INTENT(IN)    :: incldiff
 
@@ -48,6 +49,9 @@ CONTAINS
  
     ! Add routine to path
     CALL init_routine( routine_name)
+
+    ! Compute divergence of heat and salt
+    CALL compute_divQTS( mesh, laddie, npx, laddie%U_c, laddie%V_c, Hstar, laddie%mask_a, laddie%mask_gr_a, laddie%mask_oc_a)
 
     ! == Temperature integration ==
 

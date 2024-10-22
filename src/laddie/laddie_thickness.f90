@@ -17,6 +17,9 @@ MODULE laddie_thickness
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_1D, gather_to_all_logical_1D
   USE math_utilities                                         , ONLY: check_for_NaN_dp_1D
+  USE laddie_physics                                         , ONLY: compute_melt_rate, compute_entrainment, &
+                                                                     compute_freezing_temperature, compute_buoyancy
+  USE laddie_utilities                                       , ONLY: map_laddie_velocities_from_b_to_c_2D, compute_ambient_TS
 
   IMPLICIT NONE
     
@@ -25,13 +28,14 @@ CONTAINS
 ! ===== Main routines =====
 ! =========================
 
-  SUBROUTINE compute_H_npx( mesh, ice, laddie, npxref, npx, dt)
+  SUBROUTINE compute_H_npx( mesh, ice, ocean, laddie, npxref, npx, dt)
     ! Integrate H by one time step
 
     ! In- and output variables
 
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
     TYPE(type_ice_model),                   INTENT(IN)    :: ice
+    TYPE(type_ocean_model),                 INTENT(IN)    :: ocean
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
     TYPE(type_laddie_timestep),             INTENT(IN)    :: npxref
     TYPE(type_laddie_timestep),             INTENT(INOUT) :: npx
@@ -44,6 +48,25 @@ CONTAINS
  
     ! Add routine to path
     CALL init_routine( routine_name)
+
+    ! Compute thickness divergence                                   
+    CALL map_laddie_velocities_from_b_to_c_2D( mesh, npxref%U, npxref%V, laddie%U_c, laddie%V_c)
+    CALL compute_divQH( mesh, laddie, npxref, laddie%U_c, laddie%V_c, laddie%mask_a, laddie%mask_gr_a, laddie%mask_oc_a)
+
+    ! Compute freezing temperature
+    CALL compute_freezing_temperature( mesh, ice, laddie, npxref)
+
+    ! Initialise ambient T and S
+    CALL compute_ambient_TS( mesh, ice, ocean, laddie, npxref%H)
+
+    ! Compute buoyancy
+    CALL compute_buoyancy( mesh, ice, laddie, npx, npxref%H)
+
+    ! Compute melt rate
+    CALL compute_melt_rate( mesh, ice, laddie, npxref, npxref%H)
+     
+    ! Compute entrainment                                    
+    CALL compute_entrainment( mesh, ice, laddie, npxref, npxref%H)
 
     ! Loop over vertices
     DO vi = mesh%vi1, mesh%vi2

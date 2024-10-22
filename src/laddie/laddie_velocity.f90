@@ -16,8 +16,10 @@ MODULE laddie_velocity
   USE ocean_model_types                                      , ONLY: type_ocean_model
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_1D, gather_to_all_logical_1D
-  USE mesh_operators                                         , ONLY: map_a_b_2D
+  USE mesh_operators                                         , ONLY: ddx_a_b_2D, ddy_a_b_2D, map_a_b_2D, map_a_c_2D, map_b_a_2D
   USE math_utilities                                         , ONLY: check_for_NaN_dp_1D
+  USE laddie_utilities                                       , ONLY: compute_ambient_TS, map_H_a_b, map_H_a_c
+  USE laddie_physics                                         , ONLY: compute_buoyancy
 
   IMPLICIT NONE
     
@@ -26,19 +28,21 @@ CONTAINS
 ! ===== Main routines =====
 ! =========================
 
-  SUBROUTINE compute_UV_npx( mesh, ice, laddie, npxref, npx, Hstar_b, dt, inclvisc)
+  SUBROUTINE compute_UV_npx( mesh, ice, ocean, laddie, npxref, npx, Hstar, dt, inclvisc)
     ! Integrate U and V by one time step
 
     ! In- and output variables
 
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
     TYPE(type_ice_model),                   INTENT(IN)    :: ice
-    TYPE(type_laddie_model),                INTENT(IN)    :: laddie
+    TYPE(type_ocean_model),                 INTENT(IN)    :: ocean
+    TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
     TYPE(type_laddie_timestep),             INTENT(IN)    :: npxref
     TYPE(type_laddie_timestep),             INTENT(INOUT) :: npx
     REAL(dp),                               INTENT(IN)    :: dt
-    REAL(dp), DIMENSION(mesh%ti1:mesh%ti2), INTENT(IN)    :: Hstar_b
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: Hstar
     LOGICAL,                                INTENT(IN)    :: inclvisc
+
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_UV_npx'
@@ -47,6 +51,8 @@ CONTAINS
     LOGICAL, DIMENSION(mesh%nV)                           :: mask_a_tot
     REAL(dp), DIMENSION(mesh%nV)                          :: Hdrho_amb_tot
     REAL(dp), DIMENSION(mesh%ti1:mesh%ti2)                :: detr_b
+    REAL(dp), DIMENSION(mesh%ti1:mesh%ti2)                :: Hstar_b
+    REAL(dp), DIMENSION(mesh%ei1:mesh%ei2)                :: Hstar_c
  
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -54,8 +60,26 @@ CONTAINS
     CALL gather_to_all_logical_1D( laddie%mask_a, mask_a_tot)
     CALL gather_to_all_dp_1D( laddie%Hdrho_amb, Hdrho_amb_tot)
 
-    ! Map detrainment to b grid
+    ! Initialise ambient T and S                             
+    ! TODO costly, see whether necessary to recompute with Hstar
+    CALL compute_ambient_TS( mesh, ice, ocean, laddie, Hstar)
+
+    ! Compute buoyancy
+    CALL compute_buoyancy( mesh, ice, laddie, npx, Hstar)
+ 
+    ! Bunch of mappings                                      
     CALL map_a_b_2D( mesh, laddie%detr, detr_b)
+    CALL map_a_b_2D( mesh, laddie%Hdrho_amb, laddie%Hdrho_amb_b)
+    CALL map_H_a_b( mesh, laddie, Hstar, Hstar_b)
+    CALL map_H_a_c( mesh, laddie, Hstar, Hstar_c)
+
+    CALL ddx_a_b_2D( mesh, laddie%drho_amb, laddie%ddrho_amb_dx_b)
+    CALL ddy_a_b_2D( mesh, laddie%drho_amb, laddie%ddrho_amb_dy_b)
+    CALL ddx_a_b_2D( mesh, Hstar, laddie%dH_dx_b)
+    CALL ddy_a_b_2D( mesh, Hstar, laddie%dH_dy_b)
+
+    ! Compute divergence of momentum
+    CALL compute_divQUV( mesh, laddie, npx, laddie%U_c, laddie%V_c, Hstar_c, laddie%mask_b, laddie%mask_gl_b)
 
     ! == Integrate U and V ==
     ! =======================
