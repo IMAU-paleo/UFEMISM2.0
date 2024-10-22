@@ -17,6 +17,7 @@ MODULE laddie_physics
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   USE ocean_utilities                                        , ONLY: interpolate_ocean_depth
   USE math_utilities                                         , ONLY: check_for_NaN_dp_1D
+  USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_1D, gather_to_all_logical_1D
 
   IMPLICIT NONE
     
@@ -216,10 +217,20 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_buoyancy'
-    INTEGER                                               :: vi
+    INTEGER                                               :: vi, vj, n, ci
+    REAL(dp)                                              :: T, S, H
+    LOGICAL, DIMENSION(mesh%nV)                           :: mask_a_tot
+    REAL(dp), DIMENSION(mesh%nV)                          :: T_tot, S_tot, H_tot
  
     ! Add routine to path
     CALL init_routine( routine_name)
+
+    CALL gather_to_all_logical_1D( laddie%mask_a, mask_a_tot)
+    CALL gather_to_all_dp_1D( npx%T, T_tot)
+    CALL gather_to_all_dp_1D( npx%S, S_tot)
+    CALL gather_to_all_dp_1D( Hstar, H_tot)
+
+    laddie%drho_amb = 0.0_dp
 
     DO vi = mesh%vi1, mesh%vi2
        IF (laddie%mask_a( vi)) THEN
@@ -232,6 +243,39 @@ CONTAINS
 
          ! Get depth-integrated buoyancy based on Hstar
          laddie%Hdrho_amb( vi) = Hstar( vi) * laddie%drho_amb( vi)
+
+       ELSE IF (laddie%mask_oc_a( vi)) THEN
+         ! Get nearest neighbour T, S, Hstar from
+         n = 0
+         T = 0.0_dp
+         S = 0.0_dp
+         H = 0.0_dp
+         DO ci = 1,mesh%nC( vi)
+           vj = mesh%C( vi, ci)
+           IF (mask_a_tot( vj)) THEN
+             T = T + T_tot( vj)
+             S = S + S_tot( vj)
+             H = H + H_tot( vj)
+             n = n + 1
+           END IF
+         END DO
+
+         IF (n==0) CYCLE
+
+         T = T / n
+         S = S / n
+         H = H / n
+
+         ! Get buoyancy
+         laddie%drho_amb( vi) = C%uniform_laddie_eos_linear_beta  * (laddie%S_amb( vi) - S) &
+                              - C%uniform_laddie_eos_linear_alpha * (laddie%T_amb( vi) - T)
+
+         ! Make sure buoyancy is positive TODO expand with convection scheme
+         laddie%drho_amb( vi) = MAX(laddie%drho_amb( vi),C%laddie_buoyancy_minimum/seawater_density)
+
+         ! Get depth-integrated buoyancy based on Hstar
+         laddie%Hdrho_amb( vi) = H * laddie%drho_amb( vi)
+
        END IF
     END DO
 

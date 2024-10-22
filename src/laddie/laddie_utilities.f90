@@ -50,6 +50,9 @@ CONTAINS
        IF (laddie%mask_a( vi)) THEN
          CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, ocean%T( vi,:), Hstar( vi) - ice%Hib( vi), laddie%T_amb( vi))
          CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, ocean%S( vi,:), Hstar( vi) - ice%Hib( vi), laddie%S_amb( vi))
+       ELSE IF (laddie%mask_oc_a( vi)) THEN
+         laddie%T_amb( vi) = ocean%T( vi, 1)
+         laddie%S_amb( vi) = ocean%S( vi, 1)
        END IF
     END DO
 

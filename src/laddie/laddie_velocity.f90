@@ -82,8 +82,11 @@ CONTAINS
           END DO
 
           ! Define PGF at calving front / grounding line
-          PGF_x =   grav * Hdrho_fl/nfl * laddie%dHib_dx_b( ti)
-          PGF_y =   grav * Hdrho_fl/nfl * laddie%dHib_dy_b( ti)
+          PGF_x =   grav * Hdrho_fl/nfl * laddie%dHib_dx_b( ti) &
+                  - 0.5*grav * Hstar_b( ti)**2 * laddie%ddrho_amb_dx_b( ti)
+
+          PGF_y =   grav * Hdrho_fl/nfl * laddie%dHib_dy_b( ti) &
+                  - 0.5*grav * Hstar_b( ti)**2 * laddie%ddrho_amb_dy_b( ti)
         ELSE
           ! Regular full expression
           PGF_x = - grav * laddie%Hdrho_amb_b( ti) * laddie%dH_dx_b( ti) &
