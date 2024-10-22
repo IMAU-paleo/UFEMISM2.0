@@ -119,6 +119,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_diffTS'
     INTEGER                                               :: vi, vj, ci, ei
+    REAL(dp)                                              :: D_x, D_y, D
     REAL(dp), DIMENSION(mesh%nV)                          :: T_tot, S_tot
     LOGICAL, DIMENSION(mesh%nV)                           :: mask_a_tot
 
@@ -140,7 +141,8 @@ CONTAINS
       IF (laddie%mask_a( vi)) THEN
 
         ! Get diffusivity parameter
-        laddie%K_h( vi) = C%laddie_diffusivity
+        ! laddie%K_h( vi) = C%laddie_diffusivity
+        laddie%K_h( vi) = C%laddie_diffusivity * SQRT(mesh%A( vi)) / 1000.0_dp
         ! TODO add scalable options
 
         ! Loop over connected vertices
@@ -149,8 +151,14 @@ CONTAINS
           ei = mesh%VE( vi, ci)
           ! Can simply skip non-floating vertices to ensure d/dx = d/dy = 0 at boundaries
           IF (mask_a_tot( vj)) THEN
-            laddie%diffT( vi) = laddie%diffT( vi) + (T_tot( vj)-laddie%now%T( vi)) * laddie%K_h( vi) * laddie%now%H_c( ei) / mesh%A( vi)
-            laddie%diffS( vi) = laddie%diffS( vi) + (S_tot( vj)-laddie%now%S( vi)) * laddie%K_h( vi) * laddie%now%H_c( ei) / mesh%A( vi)
+            ! Calculate vertically averaged ice velocity component perpendicular to this shared Voronoi cell boundary section
+
+            D_x = mesh%V( vj,1) - mesh%V( vi,1)
+            D_y = mesh%V( vj,2) - mesh%V( vi,2)
+            D   = SQRT( D_x**2 + D_y**2)
+
+            laddie%diffT( vi) = laddie%diffT( vi) + (T_tot( vj)-laddie%now%T( vi)) * laddie%K_h( vi) * laddie%now%H_c( ei) / mesh%A( vi) * mesh%Cw( vi, ci)/D
+            laddie%diffS( vi) = laddie%diffS( vi) + (S_tot( vj)-laddie%now%S( vi)) * laddie%K_h( vi) * laddie%now%H_c( ei) / mesh%A( vi) * mesh%Cw( vi, ci)/D
           END IF
         END DO
 
