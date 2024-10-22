@@ -14,37 +14,9 @@ MODULE math_utilities
 
   IMPLICIT NONE
 
-  ! Interfaces to LAPACK, which are otherwise implicitly generated (taken from
-  ! LAPACK source)
-  !  *
-  !  *  -- LAPACK routine (version 3.1) --
-  !  *     Univ. of Tennessee, Univ. of California Berkeley and NAG Ltd..
-  !  *     November 2006
-  INTERFACE
-    SUBROUTINE DGETRF( M, N, A, LDA, IPIV, INFO )
-      INTEGER            INFO, LDA, M, N
-      INTEGER            IPIV( * )
-      DOUBLE PRECISION   A( LDA, * )
-    END SUBROUTINE
-    SUBROUTINE DGETRI( N, A, LDA, IPIV, WORK, LWORK, INFO )
-      INTEGER            INFO, LDA, LWORK, N
-      INTEGER            IPIV( * )
-      DOUBLE PRECISION   A( LDA, * ), WORK( * )
-    END SUBROUTINE
-    SUBROUTINE DGTSV( N, NRHS, DL, D, DU, B, LDB, INFO )
-      INTEGER            INFO, LDB, N, NRHS
-      DOUBLE PRECISION   B( LDB, * ), D( * ), DL( * ), DU( * )
-    END SUBROUTINE
-    SUBROUTINE DGESV( N, NRHS, A, LDA, IPIV, B, LDB, INFO )
-      INTEGER            INFO, LDA, LDB, N, NRHS
-      INTEGER            IPIV( * )
-      DOUBLE PRECISION   A( LDA, * ), B( LDB, * )
-    END SUBROUTINE
-  END INTERFACE
-
 CONTAINS
 
-! ===== Subroutinea ======
+! ===== Subroutines ======
 ! ========================
 
 ! == Floatation criterion, surface elevation, and thickness above floatation
@@ -428,47 +400,6 @@ CONTAINS
     I_pq = (1._dp/2._dp * (xp - yp*dx/dy) * (yq**2-yp**2)) + (1._dp/3._dp * dx/dy * (yq**3-yp**3))
 
   END FUNCTION line_integral_xydy
-
-! == Some wrappers for LAPACK matrix functionality
-
-  FUNCTION tridiagonal_solve( ldiag, diag, udiag, b) RESULT(x)
-    ! Solve the matrix equation Ax = b, where A is a tridiagonal matrix.
-    ! Provide only the three diagonals of A as vectors.
-    ! Uses the LAPACK function DGTSV to solve the equation.
-
-    IMPLICIT NONE
-
-    ! Input variables:
-!   REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE, OPTIONAL, INTENT(INOUT) :: i
-    REAL(dp), DIMENSION(:      )                       , INTENT(IN)    ::  diag    !       Diagonal of matrix A
-    REAL(dp), DIMENSION(SIZE(diag)-1)                  , INTENT(IN)    :: ldiag    ! Lower diagonal of matrix A
-    REAL(dp), DIMENSION(SIZE(diag)-1)                  , INTENT(IN)    :: udiag    ! Upper diagonal of matrix A
-    REAL(dp), DIMENSION(SIZE(diag)  )                  , INTENT(IN)    :: b        ! Right-hand side of the equation
-
-    ! Output variables:
-    REAL(dp), DIMENSION(SIZE(diag)  )                                  :: x        ! Solution to the matrix equation
-
-    ! Local variables:
-    INTEGER                                                            :: info
-    REAL(dp), DIMENSION(SIZE(diag)  )                                  :: diag_copy
-    REAL(dp), DIMENSION(SIZE(diag)-1)                                  :: udiag_copy, ldiag_copy
-
-    ! The LAPACK solver will overwrite the right-hand side b with the solution x. Therefore we
-    ! first copy b to the solution vector x:
-    x = b
-
-    ! The LAPACK solver will change the elements in the matrix, therefore we copy them:
-    diag_copy  =  diag
-    udiag_copy = udiag
-    ldiag_copy = ldiag
-
-    CALL DGTSV( SIZE( diag), 1, ldiag_copy, diag_copy, udiag_copy, x, SIZE( diag), info)
-
-    IF (info /= 0) THEN
-      CALL crash('LAPACK solver DGTSV returned error message info = {int_01}', int_01 = info)
-    END IF
-
-  END FUNCTION tridiagonal_solve
 
 ! == Finding inverses of some small matrices
 
