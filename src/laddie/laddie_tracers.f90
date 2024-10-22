@@ -64,7 +64,7 @@ CONTAINS
               + laddie%melt( vi) * laddie%T_base( vi) &
               + MAX(0.0_dp,laddie%entr( vi)) * laddie%T_amb( vi) &
               + laddie%entr_dmin( vi) * laddie%T_amb( vi) &
-              - laddie%detr( vi) * laddie%T_amb( vi)
+              - laddie%detr( vi) * npxref%T( vi)
 
         IF (incldiff) THEN
           dHTdt = dHTdt + laddie%diffT( vi)
@@ -90,7 +90,7 @@ CONTAINS
         dHSdt = -laddie%divQS( vi) &
               + MAX(0.0_dp,laddie%entr( vi)) * laddie%S_amb( vi) &
               + laddie%entr_dmin( vi) * laddie%S_amb( vi) &
-              - laddie%detr( vi) * laddie%S_amb( vi)
+              - laddie%detr( vi) * npxref%S( vi)
 
         IF (incldiff) THEN
           dHSdt = dHSdt + laddie%diffS( vi)

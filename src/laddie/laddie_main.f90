@@ -400,9 +400,9 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'integrate_fbrk3'
     INTEGER                                               :: vi, ti
-    REAL(dp), PARAMETER                                   :: beta1 = 0.500_dp
-    REAL(dp), PARAMETER                                   :: beta2 = 0.500_dp
-    REAL(dp), PARAMETER                                   :: beta3 = 0.344_dp
+    REAL(dp), PARAMETER                                   :: beta1 = 0.0_dp ! 0.500_dp
+    REAL(dp), PARAMETER                                   :: beta2 = 0.667_dp ! 0.500_dp
+    REAL(dp), PARAMETER                                   :: beta3 = 0.0_dp ! 0.344_dp
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: Hstar, Hstarstar, Hstarstarstar
     REAL(dp), DIMENSION(mesh%ti1:mesh%ti2)                :: Hstar_b, Hstarstar_b, Hstarstarstar_b
     REAL(dp), DIMENSION(mesh%ei1:mesh%ei2)                :: Hstar_c, Hstarstar_c, Hstarstarstar_c
@@ -435,7 +435,7 @@ CONTAINS
     CALL compute_UV_npx( mesh, ice, ocean, laddie, laddie%now, laddie%np13, Hstar, dt/3, .false.)
 
     ! Integrate T and S 1/3 time step
-    CALL compute_TS_npx( mesh, ice, laddie, laddie%now, laddie%np13, Hstar, dt/3, .false.)
+    CALL compute_TS_npx( mesh, ice, laddie, laddie%now, laddie%np13, laddie%now%H, dt/3, .false.)
 
     ! == Stage 2: explicit 1/2 timestep ==
     ! == RHS terms defined at n + 1/3 ====
@@ -458,7 +458,7 @@ CONTAINS
     CALL compute_UV_npx( mesh, ice, ocean, laddie, laddie%np13, laddie%np12, Hstarstar, dt/2, .false.)
 
     ! Integrate T and S 1/2 time step
-    CALL compute_TS_npx( mesh, ice, laddie, laddie%np13, laddie%np12, Hstarstar, dt/2, .false.)
+    CALL compute_TS_npx( mesh, ice, laddie, laddie%np13, laddie%np12, laddie%np13%H, dt/2, .false.)
 
     ! == Stage 3: explicit 1 timestep ====
     ! == RHS terms defined at n + 1/2 ====
@@ -481,7 +481,7 @@ CONTAINS
     CALL compute_UV_npx( mesh, ice, ocean, laddie, laddie%np12, laddie%np1, Hstarstarstar, dt, .true.)
 
     ! Integrate T and S 1 time step
-    CALL compute_TS_npx( mesh, ice, laddie, laddie%np12, laddie%np1, Hstarstarstar, dt, .true.)
+    CALL compute_TS_npx( mesh, ice, laddie, laddie%np12, laddie%np1, laddie%np12%H, dt, .true.)
 
     ! =============== 
     ! == Move time ==
