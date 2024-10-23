@@ -11,8 +11,10 @@ module tracer_tracking_model_types
   type type_tracer_tracking_model_particles
     ! The data structure for the particle-based tracer tracking model
 
+    integer                               :: n             ! Size of allocated memory
     logical,  dimension(:  ), allocatable :: is_in_use     ! Whether or not memory slot i is in use
     real(dp), dimension(:,:), allocatable :: r             ! Particle coordinates (x,y,z)
+    real(dp), dimension(:  ), allocatable :: zeta          ! Particle zeta coordinate
     integer,  dimension(:  ), allocatable :: vi_in         ! Which mesh vertex' Voronoi cell each particle is located in
     integer,  dimension(:  ), allocatable :: ti_in         ! Which mesh triangle             each particle is located in
     real(dp), dimension(:,:), allocatable :: u             ! Particle velocity    (u,v,w)

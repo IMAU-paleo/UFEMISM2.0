@@ -16,7 +16,10 @@ module ut_tracer_tracking
   use mesh_refinement_basic, only: refine_mesh_uniform
   use mesh_secondary, only: calc_all_secondary_mesh_data
   use mesh_utilities, only: find_containing_triangle, find_containing_vertex
-  use tracer_tracking_model_particles, only: calc_particle_zeta, interpolate_3d_velocities_to_3D_point
+  use tracer_tracking_model_types, only: type_tracer_tracking_model_particles
+  use tracer_tracking_model_particles, only: calc_particle_zeta, interpolate_3d_velocities_to_3D_point, &
+    update_particles_vi_ti_in, type_nearest_particles, find_n_particles_nearest_to_each_vertex
+  use mpi
 
   implicit none
 
@@ -64,8 +67,9 @@ contains
     call calc_all_secondary_mesh_data( mesh, C%lambda_M_ANT, C%phi_M_ANT, C%beta_stereo_ANT)
 
     ! Run unit tests on this test mesh
-    call test_calc_particle_zeta                   ( test_name, mesh)
-    call test_interpolate_3d_velocities_to_3D_point( test_name, mesh)
+    call test_calc_particle_zeta                      ( test_name, mesh)
+    call test_interpolate_3d_velocities_to_3D_point   ( test_name, mesh)
+    call test_find_n_particles_nearest_to_each_vertext( test_name, mesh)
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)
@@ -236,6 +240,124 @@ contains
     call finalise_routine( routine_name)
 
   end subroutine test_interpolate_3d_velocities_to_3D_point
+
+  subroutine test_find_n_particles_nearest_to_each_vertext( test_name_parent, mesh)
+
+    ! In/output variables:
+    character(len=*), intent(in) :: test_name_parent
+    type(type_mesh),  intent(in) :: mesh
+
+    ! Local variables:
+    character(len=1024), parameter             :: routine_name = 'test_find_n_particles_nearest_to_each_vertext'
+    character(len=1024), parameter             :: test_name_local = 'find_n_particles_nearest_to_each_vertex'
+    character(len=1024)                        :: test_name
+    real(dp), dimension(mesh%nV)               :: Hi, Hb, Hs
+    integer                                    :: vi
+    type(type_tracer_tracking_model_particles) :: particles
+    integer                                    :: ip
+    real(dp)                                   :: rnd
+    type(type_nearest_particles)               :: nearest_particles, nearest_particles_bruteforce
+    logical                                    :: verified
+    real(dp), dimension(mesh%nV,C%nz,3)        :: rs_mesh
+    real(dp), dimension(:,:), allocatable      :: rs_particles
+    real(dp)                                   :: dist_max, dist
+    integer                                    :: k, ii, jj
+
+    ! Add routine to call stack
+    call init_routine( routine_name)
+
+    ! Add test name to list
+    test_name = trim( test_name_parent) // '/' // trim( test_name_local)
+
+    ! Initialise a simple ice geometry
+    do vi = 1, mesh%nV
+      call calc_simple_test_geometry( mesh%xmin, mesh%xmax, mesh%ymin, mesh%ymax, mesh%V( vi,1), mesh%V( vi,2), &
+        Hi = Hi( vi), Hb = Hb( vi), Hs = Hs( vi))
+    end do
+
+    ! Initialise a set of particles
+    particles%n = 1000
+    allocate( particles%is_in_use( particles%n   ), source = .true.)
+    allocate( particles%r        ( particles%n, 3), source = 0._dp)
+    allocate( particles%zeta     ( particles%n   ), source = 0._dp)
+    allocate( particles%vi_in    ( particles%n   ), source = 1    )
+    allocate( particles%ti_in    ( particles%n   ), source = 1    )
+
+    do ip = 1, particles%n
+      call random_number( rnd)
+      particles%r( ip,1) = mesh%xmin + (0.005_dp + 0.99_dp * rnd * (mesh%xmax - mesh%xmin))
+      call random_number( rnd)
+      particles%r( ip,2) = mesh%xmin + (0.005_dp + 0.99_dp * rnd * (mesh%xmax - mesh%xmin))
+      call random_number( rnd)
+      particles%zeta( ip) = rnd
+    end do
+
+    call update_particles_vi_ti_in( mesh, particles)
+
+    call find_n_particles_nearest_to_each_vertex( mesh, particles, 4, nearest_particles)
+
+    ! Compare to a brute-force search
+    ! ===============================
+
+    ! Calculate scaled coordinates for mesh vertex-layers and for particles
+    do vi = 1, mesh%nV
+      do k = 1, C%nz
+        rs_mesh( vi,k,1) = (mesh%V( vi,1) - mesh%xmin) / (mesh%xmax - mesh%xmin)
+        rs_mesh( vi,k,2) = (mesh%V( vi,2) - mesh%ymin) / (mesh%ymax - mesh%ymin)
+        rs_mesh( vi,k,3) = mesh%zeta( k)
+      end do
+    end do
+
+    allocate(rs_particles( particles%n, 3))
+    do ip = 1, particles%n
+      rs_particles( ip,1) = (particles%r( ip,1) - mesh%xmin) / (mesh%xmax - mesh%xmin)
+      rs_particles( ip,2) = (particles%r( ip,2) - mesh%ymin) / (mesh%ymax - mesh%ymin)
+      rs_particles( ip,3) = particles%zeta( ip)
+    end do
+
+    ! Allocate memory
+    dist_max = norm2( [mesh%xmin,mesh%ymin] - [mesh%xmax,mesh%ymax])
+    nearest_particles_bruteforce%n = nearest_particles%n
+    allocate( nearest_particles_bruteforce%ip( mesh%nV, C%nz, nearest_particles%n), source = 0)
+    allocate( nearest_particles_bruteforce%d ( mesh%nV, C%nz, nearest_particles%n), source = dist_max)
+
+    do vi = 1, mesh%nV
+      do k = 1, C%nz
+        do ip = 1, particles%n
+          ! Calculate the scaled distance between particle ip and vertex-layer [vi,k]
+          dist = norm2( rs_particles( ip,:) - rs_mesh( vi,k,:))
+          do ii = 1, nearest_particles_bruteforce%n
+            if (dist < nearest_particles_bruteforce%d( vi,k,ii)) then
+              do jj = nearest_particles_bruteforce%n, ii+1, -1
+                nearest_particles_bruteforce%d(  vi,k,jj) = nearest_particles_bruteforce%d(  vi,k,jj-1)
+                nearest_particles_bruteforce%ip( vi,k,jj) = nearest_particles_bruteforce%ip( vi,k,jj-1)
+              end do
+              nearest_particles_bruteforce%d(  vi,k,ii) = dist
+              nearest_particles_bruteforce%ip( vi,k,ii) = ip
+              exit
+            end if
+          end do
+        end do
+      end do
+    end do
+
+    ! Compare results
+    verified = .true.
+    do vi = 1, mesh%nV
+      do k = 1, C%nz
+        do ii = 1, nearest_particles%n
+          verified = verified .and. &
+            any( nearest_particles%ip( vi,k,ii) == nearest_particles%ip( vi,k,:))
+        end do
+      end do
+    end do
+
+    call unit_test( verified, trim( test_name) // '/result')
+
+    ! Remove routine from call stack
+    call finalise_routine( routine_name)
+
+  end subroutine test_find_n_particles_nearest_to_each_vertext
 
   subroutine calc_simple_test_geometry( xmin, xmax, ymin, ymax, x, y, &
     Hi, Hb, Hs, z, zeta, zeta_q, u, v, w)
