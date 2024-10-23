@@ -18,7 +18,7 @@ module tracer_tracking_model_particles
   private
 
   public :: initialise_tracer_tracking_model_particles, interpolate_particles_velocities, &
-    calc_particle_zeta
+    calc_particle_zeta, interpolate_3d_velocities_to_3D_point
 
   integer, parameter :: n_particles_init = 100
   integer, parameter :: n_tracers        = 16
