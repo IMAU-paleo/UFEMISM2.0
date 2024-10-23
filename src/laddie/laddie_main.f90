@@ -400,9 +400,9 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'integrate_fbrk3'
     INTEGER                                               :: vi, ti
-    REAL(dp), PARAMETER                                   :: beta1 = 0.0_dp ! 0.500_dp
-    REAL(dp), PARAMETER                                   :: beta2 = 0.667_dp ! 0.500_dp
-    REAL(dp), PARAMETER                                   :: beta3 = 0.0_dp ! 0.344_dp
+    REAL(dp), PARAMETER                                   :: beta1 = 0.500_dp
+    REAL(dp), PARAMETER                                   :: beta2 = 0.500_dp
+    REAL(dp), PARAMETER                                   :: beta3 = 0.344_dp
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: Hstar, Hstarstar, Hstarstarstar
     REAL(dp), DIMENSION(mesh%ti1:mesh%ti2)                :: Hstar_b, Hstarstar_b, Hstarstarstar_b
     REAL(dp), DIMENSION(mesh%ei1:mesh%ei2)                :: Hstar_c, Hstarstar_c, Hstarstarstar_c
@@ -474,7 +474,7 @@ CONTAINS
     CALL map_H_a_c( mesh, laddie, laddie%np1%H, laddie%np1%H_c)
 
     ! Update diffusive terms
-    CALL update_diffusive_terms( mesh, ice, laddie, laddie%np12)
+    CALL update_diffusive_terms( mesh, ice, laddie, laddie%now)
 
     ! Integrate U and V 1 time step
     CALL compute_UV_npx( mesh, ice, ocean, laddie, laddie%np12, laddie%np1, Hstarstarstar, dt, .true.)

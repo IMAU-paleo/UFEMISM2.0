@@ -281,7 +281,7 @@ CONTAINS
     INTEGER                                               :: ncols, ncols_loc, nrows, nrows_loc, nnz_est_proc
     INTEGER                                               :: ti, tj, ci, ei
     REAL(dp)                                              :: D_x, D_y, D_c, u_perp
-    LOGICAL, DIMENSION(mesh%nTri)                         :: mask_gl_b_tot
+    LOGICAL, DIMENSION(mesh%nTri)                         :: mask_gl_b_tot, mask_b_tot
     LOGICAL                                               :: isbound
 
     ! Add routine to path
@@ -292,6 +292,7 @@ CONTAINS
     CALL gather_to_all_dp_1D( V_c, V_c_tot)
     CALL gather_to_all_dp_1D( H_c, H_c_tot)
     CALL gather_to_all_logical_1D( mask_gl_b, mask_gl_b_tot)
+    CALL gather_to_all_logical_1D( laddie%mask_b, mask_b_tot)
     CALL gather_to_all_dp_1D( npxref%U, U_tot)
     CALL gather_to_all_dp_1D( npxref%V, V_tot)
     CALL gather_to_all_dp_1D( npxref%H_b, H_b_tot)
@@ -317,7 +318,8 @@ CONTAINS
 
           ! Skip connection if neighbour is grounded. No flux across grounding line
           ! Can be made more flexible when accounting for partial cells (PMP instead of FCMP)
-          IF (mask_gl_b_tot( tj)) CYCLE
+          ! IF (mask_gl_b_tot( tj)) CYCLE ! Skip grounded
+          IF (mask_b_tot( tj)) CYCLE ! Skip grounded and ocean
 
           ! Get edge index
           ei = mesh%TriE( ti, ci)
@@ -333,19 +335,19 @@ CONTAINS
           ! Calculate momentum divergence
           ! =============================
           ! Centered:
-          !laddie%divQU( ti) = laddie%divQU( ti) + mesh%TriCw( ti, ci) * u_perp * U_c_tot( ei) * H_c_tot( ei) / mesh%TriA( ti)
-          !laddie%divQV( ti) = laddie%divQV( ti) + mesh%TriCw( ti, ci) * u_perp * V_c_tot( ei) * H_c_tot( ei) / mesh%TriA( ti)
+          laddie%divQU( ti) = laddie%divQU( ti) + mesh%TriCw( ti, ci) * u_perp * U_c_tot( ei) * H_c_tot( ei) / mesh%TriA( ti)
+          laddie%divQV( ti) = laddie%divQV( ti) + mesh%TriCw( ti, ci) * u_perp * V_c_tot( ei) * H_c_tot( ei) / mesh%TriA( ti)
 
           ! Upwind:
           ! u_perp > 0: flow is exiting this vertex into vertex vj
-          IF (u_perp > 0) THEN
-            laddie%divQU( ti) = laddie%divQU( ti) + mesh%TriCw( ti, ci) * u_perp * H_b_tot( ti) * U_tot( ti) / mesh%TriA( ti)
-            laddie%divQV( ti) = laddie%divQV( ti) + mesh%TriCw( ti, ci) * u_perp * H_b_tot( ti) * V_tot( ti) / mesh%TriA( ti)
+          !IF (u_perp > 0) THEN
+          !  laddie%divQU( ti) = laddie%divQU( ti) + mesh%TriCw( ti, ci) * u_perp * H_b_tot( ti) * U_tot( ti) / mesh%TriA( ti)
+          !  laddie%divQV( ti) = laddie%divQV( ti) + mesh%TriCw( ti, ci) * u_perp * H_b_tot( ti) * V_tot( ti) / mesh%TriA( ti)
           ! u_perp < 0: flow is entering this vertex from vertex vj
-          ELSE
-            laddie%divQU( ti) = laddie%divQU( ti) + mesh%TriCw( ti, ci) * u_perp * H_b_tot( tj) * U_tot( tj) / mesh%TriA( ti)
-            laddie%divQV( ti) = laddie%divQV( ti) + mesh%TriCw( ti, ci) * u_perp * H_b_tot( tj) * V_tot( tj) / mesh%TriA( ti)
-          END IF
+          !ELSE
+          !  laddie%divQU( ti) = laddie%divQU( ti) + mesh%TriCw( ti, ci) * u_perp * H_b_tot( tj) * U_tot( tj) / mesh%TriA( ti)
+          !  laddie%divQV( ti) = laddie%divQV( ti) + mesh%TriCw( ti, ci) * u_perp * H_b_tot( tj) * V_tot( tj) / mesh%TriA( ti)
+          !END IF
         END DO ! DO ci = 1, 3
 
       END IF ! (mask_b( ti))
