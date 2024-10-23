@@ -6,7 +6,7 @@ module tracer_tracking_model_particles
   use assertions_basic
   use precisions, only: dp
   use mpi_basic, only: par
-  use control_resources_and_error_messaging, only: init_routine, finalise_routine
+  use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash
   use mesh_types, only: type_mesh
   use ice_model_types, only: type_ice_model
   use tracer_tracking_model_types, only: type_tracer_tracking_model_particles
@@ -18,10 +18,18 @@ module tracer_tracking_model_particles
   private
 
   public :: initialise_tracer_tracking_model_particles, interpolate_particles_velocities, &
-    calc_particle_zeta, interpolate_3d_velocities_to_3D_point
+    calc_particle_zeta, interpolate_3d_velocities_to_3D_point, update_particles_vi_ti_in, &
+    find_n_particles_nearest_to_each_vertex, type_nearest_particles
 
-  integer, parameter :: n_particles_init = 100
-  integer, parameter :: n_tracers        = 16
+  integer, parameter :: n_particles_init  = 100
+  integer, parameter :: n_tracers         = 16
+
+  type type_nearest_particles
+    ! List the n neaerest particles for each mesh vertex-layer
+    integer :: n
+    integer,  dimension(:,:,:), allocatable :: ip
+    real(dp), dimension(:,:,:), allocatable :: d
+  end type type_nearest_particles
 
 contains
 
@@ -40,14 +48,16 @@ contains
     ! Print to terminal
     if (par%master)  write(*,'(a)') '     Initialising particle-based tracer tracking model...'
 
-    allocate( particles%is_in_use( n_particles_init           ), source = .false.)
-    allocate( particles%r        ( n_particles_init, 3        ), source = 0._dp  )
-    allocate( particles%vi_in    ( n_particles_init           ), source = 1      )
-    allocate( particles%ti_in    ( n_particles_init           ), source = 1      )
-    allocate( particles%u        ( n_particles_init, 3        ), source = 0._dp  )
-    allocate( particles%r_origin ( n_particles_init, 3        ), source = 0._dp  )
-    allocate( particles%t_origin ( n_particles_init           ), source = 0._dp  )
-    allocate( particles%tracers  ( n_particles_init, n_tracers), source = 0._dp  )
+    particles%n = n_particles_init
+    allocate( particles%is_in_use( particles%n           ), source = .false.)
+    allocate( particles%r        ( particles%n, 3        ), source = 0._dp  )
+    allocate( particles%zeta     ( particles%n           ), source = 0._dp  )
+    allocate( particles%vi_in    ( particles%n           ), source = 1      )
+    allocate( particles%ti_in    ( particles%n           ), source = 1      )
+    allocate( particles%u        ( particles%n, 3        ), source = 0._dp  )
+    allocate( particles%r_origin ( particles%n, 3        ), source = 0._dp  )
+    allocate( particles%t_origin ( particles%n           ), source = 0._dp  )
+    allocate( particles%tracers  ( particles%n, n_tracers), source = 0._dp  )
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -68,7 +78,7 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    do ip = 1, size( particles%r, 1)
+    do ip = 1, particles%n
       if (particles%is_in_use( ip)) then
 
         p = [particles%r( ip,1), particles%r( ip,2)]
@@ -98,7 +108,7 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    do ip = 1, size( particles%r, 1)
+    do ip = 1, particles%n
       if (particles%is_in_use( ip)) then
 
         call calc_particle_zeta( mesh, ice%Hi, ice%Hs, &
@@ -160,11 +170,6 @@ contains
     end if
 
     Hi_interp = max( 0.1_dp, Hi_interp)
-
-#if (DO_ASSERTIONS)
-    ! Safety
-    call assert( test_ge_le( z, Hs_interp - Hi_interp, Hs_interp), 'particle lies outside of the ice')
-#endif
 
     ! Calculate zeta
     zeta = (Hs_interp - z) / Hi_interp
@@ -298,18 +303,130 @@ contains
 
   end subroutine interpolate_3d_velocities_to_3D_point_w
 
-  subroutine move_particle( x_t, y_t, z_t, u_t, v_t, w_t, dt, x_tplusdt, y_tplusdt, z_tplusdt)
+  subroutine find_n_particles_nearest_to_each_vertex( mesh, particles, n_nearest_to_find, &
+    nearest_particles)
 
-    ! In/output variables:
-    real(dp), intent(in ) :: x_t, y_t, z_t                   !< [m]    Particle position at time t
-    real(dp), intent(in ) :: u_t, v_t, w_t                   !< [m/yr] Particle velocity at time t
-    real(dp), intent(in ) :: dt                              !< [yr]   Time step
-    real(dp), intent(out) :: x_tplusdt, y_tplusdt, z_tplusdt !< [m] Particle position at time t + dt
+    ! In/output variables
+    type(type_mesh),                            intent(in   ) :: mesh
+    type(type_tracer_tracking_model_particles), intent(in   ) :: particles
+    integer,                                    intent(in   ) :: n_nearest_to_find
+    type(type_nearest_particles),               intent(  out) :: nearest_particles
 
-    x_tplusdt = x_t + dt * u_t
-    y_tplusdt = y_t + dt * v_t
-    z_tplusdt = z_t + dt * w_t
+    ! Local variables
+    character(len=1024), parameter      :: routine_name = 'find_n_particles_nearest_to_each_vertex'
+    real(dp), dimension(mesh%nV,C%nz,3) :: rs_mesh
+    real(dp), dimension(particles%n ,3) :: rs_particles
+    integer                             :: vi,k,ip
+    real(dp)                            :: dist_max
+    integer                             :: vi_in
+    integer,  dimension(mesh%nV)        :: map, stack
+    integer                             :: stackN
+    integer                             :: ii,jj,ci,vj
+    integer                             :: n_cycles
+    logical                             :: is_one_of_n_nearest_particles
+    real(dp)                            :: dist
 
-  end subroutine move_particle
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Calculate scaled coordinates for mesh vertex-layers and for particles
+    do vi = 1, mesh%nV
+      do k = 1, C%nz
+        rs_mesh( vi,k,1) = (mesh%V( vi,1) - mesh%xmin) / (mesh%xmax - mesh%xmin)
+        rs_mesh( vi,k,2) = (mesh%V( vi,2) - mesh%ymin) / (mesh%ymax - mesh%ymin)
+        rs_mesh( vi,k,3) = mesh%zeta( k)
+      end do
+    end do
+
+    do ip = 1, particles%n
+      rs_particles( ip,1) = (particles%r( ip,1) - mesh%xmin) / (mesh%xmax - mesh%xmin)
+      rs_particles( ip,2) = (particles%r( ip,2) - mesh%ymin) / (mesh%ymax - mesh%ymin)
+      rs_particles( ip,3) = particles%zeta( ip)
+    end do
+
+    ! Allocate memory
+    dist_max = norm2( [mesh%xmin,mesh%ymin] - [mesh%xmax,mesh%ymax])
+    nearest_particles%n = n_nearest_to_find
+    allocate( nearest_particles%ip( mesh%nV, C%nz, nearest_particles%n), source = 0)
+    allocate( nearest_particles%d ( mesh%nV, C%nz, nearest_particles%n), source = dist_max)
+
+    ! Do a flood-fill style expansion around each particle
+
+    ! Initialise map and stack
+    map    = 0
+    stack  = 0
+    stackN = 0
+
+    do ip = 1, particles%n
+
+      vi_in = particles%vi_in( ip)
+
+      ! Clean up map and stack
+      do ii = 1, stackN
+        vi = stack( ii)
+        map( vi) = 0
+      end do
+      stackN = 0
+
+      ! Initialise map and stack with the vertex whose Voronoi cell contains particle ip
+      map( vi_in) = 1
+      stackN = 1
+      stack( 1) = vi_in
+
+      ! Expand outward until we've covered all vertices that are nearest to particle ip
+      n_cycles = 0
+      do while (stackN > 0)
+
+        ! Safety
+        n_cycles = n_cycles + 1
+        if (n_cycles > mesh%nV) call crash('Flood-fill expansion got stuck!')
+
+        ! Take the last vertex from the stack
+        vi = stack( stackN)
+        stackN = stackN - 1
+        ! Mark it as checked
+        map( vi) = 2
+
+        is_one_of_n_nearest_particles = .false.
+
+        do k = 1, C%nz
+          ! Calculate the scaled distance between particle ip and vertex-layer [vi,k]
+          dist = norm2( rs_particles( ip,:) - rs_mesh( vi,k,:))
+          do ii = 1, nearest_particles%n
+            if (dist < nearest_particles%d( vi,k,ii)) then
+              is_one_of_n_nearest_particles = .true.
+              do jj = nearest_particles%n, ii+1, -1
+                nearest_particles%d(  vi,k,jj) = nearest_particles%d(  vi,k,jj-1)
+                nearest_particles%ip( vi,k,jj) = nearest_particles%ip( vi,k,jj-1)
+              end do
+              nearest_particles%d(  vi,k,ii) = dist
+              nearest_particles%ip( vi,k,ii) = ip
+              exit
+            end if
+          end do
+        end do
+
+        ! If this particle was nearest to any of the layers of this vertex, add
+        ! this vertex' unchecked neighbours to the stack
+        if (is_one_of_n_nearest_particles) then
+          do ci = 1, mesh%nC( vi)
+            vj = mesh%C( vi,ci)
+            if (map( vj) == 0) then
+              ! Add this unchecked neighbour to the stack
+              stackN = stackN + 1
+              stack( stackN) = vj
+              map( vj) = 1
+            end if
+          end do
+        end if
+
+      end do
+
+    end do
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine find_n_particles_nearest_to_each_vertex
 
 end module tracer_tracking_model_particles
