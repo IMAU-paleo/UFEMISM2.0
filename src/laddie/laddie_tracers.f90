@@ -111,7 +111,7 @@ CONTAINS
 
   END SUBROUTINE compute_TS_npx
 
-  SUBROUTINE compute_diffTS( mesh, ice, laddie)
+  SUBROUTINE compute_diffTS( mesh, ice, laddie, npxref)
     ! Compute horizontal diffusion of heat and salt
 
     ! In- and output variables
@@ -119,6 +119,7 @@ CONTAINS
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
     TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
+    TYPE(type_laddie_timestep),             INTENT(IN)    :: npxref
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_diffTS'
@@ -131,8 +132,8 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Gather
-    CALL gather_to_all_dp_1D( laddie%now%T, T_tot)
-    CALL gather_to_all_dp_1D( laddie%now%S, S_tot)
+    CALL gather_to_all_dp_1D( npxref%T, T_tot)
+    CALL gather_to_all_dp_1D( npxref%S, S_tot)
     CALL gather_to_all_logical_1D( laddie%mask_a, mask_a_tot)
 
     ! Initialise at 0
@@ -156,10 +157,10 @@ CONTAINS
             D_y = mesh%V( vj,2) - mesh%V( vi,2)
             D   = SQRT( D_x**2 + D_y**2)
 
-            Kh = C%laddie_diffusivity * 0.5_dp*(SQRT(mesh%A( vi)) + SQRT(mesh%A( vj))) / 1000.0_dp
+            Kh = C%laddie_diffusivity ! * 0.5_dp*(SQRT(mesh%A( vi)) + SQRT(mesh%A( vj))) / 1000.0_dp
 
-            laddie%diffT( vi) = laddie%diffT( vi) + (T_tot( vj)-laddie%now%T( vi)) * Kh * laddie%now%H_c( ei) / mesh%A( vi) * mesh%Cw( vi, ci)/D
-            laddie%diffS( vi) = laddie%diffS( vi) + (S_tot( vj)-laddie%now%S( vi)) * Kh * laddie%now%H_c( ei) / mesh%A( vi) * mesh%Cw( vi, ci)/D
+            laddie%diffT( vi) = laddie%diffT( vi) + (T_tot( vj) - T_tot( vi)) * Kh * npxref%H_c( ei) / mesh%A( vi) * mesh%Cw( vi, ci)/D
+            laddie%diffS( vi) = laddie%diffS( vi) + (S_tot( vj) - S_tot( vi)) * Kh * npxref%H_c( ei) / mesh%A( vi) * mesh%Cw( vi, ci)/D
           END IF
         END DO
 

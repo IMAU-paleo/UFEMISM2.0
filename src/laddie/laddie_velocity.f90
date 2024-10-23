@@ -183,7 +183,7 @@ CONTAINS
 
   END SUBROUTINE compute_UV_npx
 
-  SUBROUTINE compute_viscUV( mesh, ice, laddie)       
+  SUBROUTINE compute_viscUV( mesh, ice, laddie, npxref)
     ! Compute horizontal viscosity of momentum          
   
     ! In- and output variables                               
@@ -191,11 +191,12 @@ CONTAINS
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
     TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
+    TYPE(type_laddie_timestep),             INTENT(IN)    :: npxref
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_viscUV'
     INTEGER                                               :: ci, ti, tj, ei
-    REAL(dp)                                              :: D_x, D_y, D, Ah
+    REAL(dp)                                              :: D_x, D_y, D, Ah, dUabs
     REAL(dp), DIMENSION(mesh%nTri)                        :: U_tot, V_tot
     LOGICAL, DIMENSION(mesh%nTri)                         :: mask_oc_b_tot
     
@@ -203,8 +204,8 @@ CONTAINS
     CALL init_routine( routine_name)        
 
     ! Gather
-    CALL gather_to_all_dp_1D( laddie%now%U, U_tot)            
-    CALL gather_to_all_dp_1D( laddie%now%V, V_tot)            
+    CALL gather_to_all_dp_1D( npxref%U, U_tot)            
+    CALL gather_to_all_dp_1D( npxref%V, V_tot)            
     CALL gather_to_all_logical_1D( laddie%mask_oc_b, mask_oc_b_tot)
 
     ! Loop over triangles                                  
@@ -224,20 +225,23 @@ CONTAINS
           D_y = mesh%Tri( tj,2) - mesh%Tri( ti,2)
           D   = SQRT( D_x**2 + D_y**2)
 
-          Ah = C%laddie_viscosity * 0.5_dp*(SQRT(mesh%TriA( ti)) + SQRT(mesh%TriA( tj))) / 1000.0_dp
+          Ah = C%laddie_viscosity ! * 0.5_dp*(SQRT(mesh%TriA( ti)) + SQRT(mesh%TriA( tj))) / 1000.0_dp
 
           IF (tj==0) THEN
             ! Border or corner. For now, assume no slip. If free slip: CYCLE
-            laddie%viscU( ti) = laddie%viscU( ti) - laddie%now%U( ti) * Ah * laddie%now%H_b( ti) / mesh%TriA( ti)
-            laddie%viscV( ti) = laddie%viscV( ti) - laddie%now%V( ti) * Ah * laddie%now%H_b( ti) / mesh%TriA( ti)
+            laddie%viscU( ti) = laddie%viscU( ti) - npxref%U( ti) * Ah * npxref%H_b( ti) / mesh%TriA( ti)
+            laddie%viscV( ti) = laddie%viscV( ti) - npxref%V( ti) * Ah * npxref%H_b( ti) / mesh%TriA( ti)
           ELSE
             ! Skip calving front - ocean connection: d/dx = d/dy = 0 
             IF (laddie%mask_oc_b( tj)) CYCLE
+
+            dUabs = SQRT((U_tot( tj) - U_tot( ti))**2 + (V_tot( tj) - V_tot( ti))**2)
+            Ah = C%laddie_viscosity * dUabs * mesh%triCw( ti, ci) / 100.0_dp
             
             ! Add viscosity flux based on dU/dx and dV/dy. 
             ! Note: for grounded neighbours, U_tot( tj) = 0, meaning this is a no slip option. Can be expanded
-            laddie%viscU( ti) = laddie%viscU( ti) + (U_tot( tj)-laddie%now%U( ti)) * Ah * laddie%now%H_c( ei) / mesh%TriA( ti) * mesh%TriCw( ti, ci) / D
-            laddie%viscV( ti) = laddie%viscV( ti) + (V_tot( tj)-laddie%now%V( ti)) * Ah * laddie%now%H_c( ei) / mesh%TriA( ti) * mesh%TriCw( ti, ci) / D
+            laddie%viscU( ti) = laddie%viscU( ti) + (U_tot( tj) - U_tot( ti)) * Ah * npxref%H_c( ei) / mesh%TriA( ti) * mesh%TriCw( ti, ci) / D
+            laddie%viscV( ti) = laddie%viscV( ti) + (V_tot( tj) - V_tot( ti)) * Ah * npxref%H_c( ei) / mesh%TriA( ti) * mesh%TriCw( ti, ci) / D
           END IF
         END DO
 
@@ -273,6 +277,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_divQUV'
     REAL(dp), DIMENSION(mesh%nE)                          :: U_c_tot, V_c_tot, H_c_tot
+    REAL(dp), DIMENSION(mesh%nTri)                        :: U_tot, V_tot, H_b_tot
     INTEGER                                               :: ncols, ncols_loc, nrows, nrows_loc, nnz_est_proc
     INTEGER                                               :: ti, tj, ci, ei
     REAL(dp)                                              :: D_x, D_y, D_c, u_perp
@@ -287,6 +292,9 @@ CONTAINS
     CALL gather_to_all_dp_1D( V_c, V_c_tot)
     CALL gather_to_all_dp_1D( H_c, H_c_tot)
     CALL gather_to_all_logical_1D( mask_gl_b, mask_gl_b_tot)
+    CALL gather_to_all_dp_1D( npxref%U, U_tot)
+    CALL gather_to_all_dp_1D( npxref%V, V_tot)
+    CALL gather_to_all_dp_1D( npxref%H_b, H_b_tot)
 
     ! Initialise with zeros
     laddie%divQU = 0.0_dp
@@ -325,9 +333,19 @@ CONTAINS
           ! Calculate momentum divergence
           ! =============================
           ! Centered:
-          laddie%divQU( ti) = laddie%divQU( ti) + mesh%TriCw( ti, ci) * u_perp * U_c_tot( ei) * H_c_tot( ei) / mesh%TriA( ti)
-          laddie%divQV( ti) = laddie%divQV( ti) + mesh%TriCw( ti, ci) * u_perp * V_c_tot( ei) * H_c_tot( ei) / mesh%TriA( ti)
+          !laddie%divQU( ti) = laddie%divQU( ti) + mesh%TriCw( ti, ci) * u_perp * U_c_tot( ei) * H_c_tot( ei) / mesh%TriA( ti)
+          !laddie%divQV( ti) = laddie%divQV( ti) + mesh%TriCw( ti, ci) * u_perp * V_c_tot( ei) * H_c_tot( ei) / mesh%TriA( ti)
 
+          ! Upwind:
+          ! u_perp > 0: flow is exiting this vertex into vertex vj
+          IF (u_perp > 0) THEN
+            laddie%divQU( ti) = laddie%divQU( ti) + mesh%TriCw( ti, ci) * u_perp * H_b_tot( ti) * U_tot( ti) / mesh%TriA( ti)
+            laddie%divQV( ti) = laddie%divQV( ti) + mesh%TriCw( ti, ci) * u_perp * H_b_tot( ti) * V_tot( ti) / mesh%TriA( ti)
+          ! u_perp < 0: flow is entering this vertex from vertex vj
+          ELSE
+            laddie%divQU( ti) = laddie%divQU( ti) + mesh%TriCw( ti, ci) * u_perp * H_b_tot( tj) * U_tot( tj) / mesh%TriA( ti)
+            laddie%divQV( ti) = laddie%divQV( ti) + mesh%TriCw( ti, ci) * u_perp * H_b_tot( tj) * V_tot( tj) / mesh%TriA( ti)
+          END IF
         END DO ! DO ci = 1, 3
 
       END IF ! (mask_b( ti))

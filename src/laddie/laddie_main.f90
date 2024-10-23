@@ -343,15 +343,15 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! Update diffusive terms based on now time step
-    CALL update_diffusive_terms( mesh, ice, laddie)
-
     ! Integrate H 1 time step
     CALL compute_H_npx( mesh, ice, ocean, laddie, laddie%now, laddie%np1, dt)
 
     ! Map H to b grid and c grid
     CALL map_H_a_b( mesh, laddie, laddie%np1%H, laddie%np1%H_b)
     CALL map_H_a_c( mesh, laddie, laddie%np1%H, laddie%np1%H_c)
+
+    ! Update diffusive terms based on now time step
+    CALL update_diffusive_terms( mesh, ice, laddie, laddie%now)
 
     ! Integrate U and V 1 time step
     CALL compute_UV_npx( mesh, ice, ocean, laddie, laddie%now, laddie%np1, laddie%now%H, dt, .true.)
@@ -409,10 +409,6 @@ CONTAINS
  
     ! Add routine to path
     CALL init_routine( routine_name)
-
-    ! Update diffusive terms based on now time step
-    ! Possibly only add during stage 3
-    CALL update_diffusive_terms( mesh, ice, laddie)
 
     ! == Stage 1: explicit 1/3 timestep ==
     ! == RHS terms defined at n ==========
@@ -477,6 +473,9 @@ CONTAINS
     CALL map_H_a_b( mesh, laddie, laddie%np1%H, laddie%np1%H_b)
     CALL map_H_a_c( mesh, laddie, laddie%np1%H, laddie%np1%H_c)
 
+    ! Update diffusive terms
+    CALL update_diffusive_terms( mesh, ice, laddie, laddie%np12)
+
     ! Integrate U and V 1 time step
     CALL compute_UV_npx( mesh, ice, ocean, laddie, laddie%np12, laddie%np1, Hstarstarstar, dt, .true.)
 
@@ -505,6 +504,9 @@ CONTAINS
       END IF
     END DO
 
+    laddie%now%H_b = laddie%np1%H_b
+    laddie%now%H_c = laddie%np1%H_c
+
     ! Map velocities to a grid for gridded output. TODO move to main_regional_output 
     CALL map_b_a_2D( mesh, laddie%now%U, laddie%U_a)
     CALL map_b_a_2D( mesh, laddie%now%V, laddie%V_a)
@@ -514,7 +516,7 @@ CONTAINS
 
   END SUBROUTINE integrate_fbrk3
 
-  SUBROUTINE update_diffusive_terms( mesh, ice, laddie)
+  SUBROUTINE update_diffusive_terms( mesh, ice, laddie, npxref)
     ! Update diffusivity and viscosity. Always based on now timestep for stability
 
     ! In- and output variables
@@ -522,6 +524,7 @@ CONTAINS
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
     TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
+    TYPE(type_laddie_timestep),             INTENT(IN)    :: npxref
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'update_diffusive_terms'
@@ -529,17 +532,11 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! Map thickness to b grid
-    CALL map_H_a_b( mesh, laddie, laddie%now%H, laddie%now%H_b)
-
-    ! Map thickness to c grid
-    CALL map_H_a_c( mesh, laddie, laddie%now%H, laddie%now%H_c)
-
     ! Compute diffusivities
-    CALL compute_diffTS( mesh, ice, laddie)
+    CALL compute_diffTS( mesh, ice, laddie, npxref)
 
     ! Compute viscosities
-    CALL compute_viscUV( mesh, ice, laddie)
+    CALL compute_viscUV( mesh, ice, laddie, npxref)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
