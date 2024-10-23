@@ -113,7 +113,8 @@ UFEMISM_source = \
   validation/basic_tests/assertions_basic.f90 \
   \
   basic/mpi_distributed_memory.f90 \
-  basic/math_utilities.f90 \
+  basic/math_utilities/math_utilities.f90 \
+  basic/math_utilities/tridiagonal_solver.f90 \
   basic/analytical_solutions.f90 \
   basic/CSR_sparse_matrix_utilities.f90 \
   basic/petsc_basic.f90 \
@@ -222,6 +223,7 @@ UFEMISM_source = \
   validation/unit_tests/ut_basic.f90 \
   validation/unit_tests/ut_mpi.f90 \
   validation/unit_tests/ut_petsc.f90 \
+  validation/unit_tests/ut_math_utilities.f90 \
   validation/unit_tests/ut_mesh_Delaunay.f90 \
   validation/unit_tests/ut_mesh_refinement.f90 \
   validation/unit_tests/ut_mesh_remapping_trace_line_grid_start.f90 \

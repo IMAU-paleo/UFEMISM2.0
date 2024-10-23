@@ -62,7 +62,7 @@ contains
     character(len=1024)            :: test_name
     integer                        :: ti, n, vi, ti_hint
     real(dp), dimension(2)         :: p
-    integer                        :: ti_in, vi_on, ei_on
+    type(type_coinc_ind_mesh)      :: coinc_ind
     logical                        :: verified_p_on_vi
 
     ! Add routine to call stack
@@ -78,12 +78,11 @@ contains
         vi = mesh%Tri( ti,n)
         p = mesh%V( vi,:)
         ti_hint = ti
-        call trace_line_tri_start( mesh, p, ti_hint, ti_in, vi_on, ei_on)
+        call trace_line_tri_start( mesh, p, ti_hint, coinc_ind)
         verified_p_on_vi = verified_p_on_vi .and. &
           ti_hint == ti .and. &
-          ti_in == 0 .and. &
-          vi_on == vi .and. &
-          ei_on == 0
+          coinc_ind%grid == a_grid .and. &
+          coinc_ind%i == vi
       end do
     end do
 
@@ -110,7 +109,8 @@ contains
     integer                        :: n_sub, ii
     real(dp)                       :: w
     real(dp), dimension(2)         :: p
-    integer                        :: ti_hint, ti_in, vi_on, ei_on
+    integer                        :: ti_hint
+    type(type_coinc_ind_mesh)      :: coinc_ind
     logical                        :: verified_p_on_ei
 
     ! Add routine to call stack
@@ -143,12 +143,11 @@ contains
           ! Limit p because rounding errors can cause it to end up just slightly outside the mesh domain
           p = [min( max( mesh%xmin, p(1)), mesh%xmax), min( max( mesh%ymin, p(2)), mesh%ymax)]
           ti_hint = ti
-          call trace_line_tri_start( mesh, p, ti_hint, ti_in, vi_on, ei_on)
+          call trace_line_tri_start( mesh, p, ti_hint, coinc_ind)
           verified_p_on_ei = verified_p_on_ei .and. &
             ti_hint == ti .and. &
-            ti_in == 0 .and. &
-            vi_on == 0 .and. &
-            ei_on == ei
+            coinc_ind%grid == c_grid .and. &
+            coinc_ind%i == ei
         end do
 
       end do
@@ -178,7 +177,8 @@ contains
     integer                        :: n_sub, ii, jj
     real(dp)                       :: x, y
     real(dp), dimension(2)         :: p
-    integer                        :: ti_hint, ti_in, vi_on, ei_on
+    integer                        :: ti_hint
+    type(type_coinc_ind_mesh)      :: coinc_ind
     logical                        :: verified_p_in_ti
 
     ! Add routine to call stack
@@ -223,12 +223,11 @@ contains
         end if
 
         ti_hint = ti
-        call trace_line_tri_start( mesh, p, ti_hint, ti_in, vi_on, ei_on)
+        call trace_line_tri_start( mesh, p, ti_hint, coinc_ind)
         verified_p_in_ti = verified_p_in_ti .and. &
           ti_hint == ti .and. &
-          ti_in == ti .and. &
-          vi_on == 0 .and. &
-          ei_on == 0
+          coinc_ind%grid == b_grid .and. &
+          coinc_ind%i == ti
 
       end do
       end do
