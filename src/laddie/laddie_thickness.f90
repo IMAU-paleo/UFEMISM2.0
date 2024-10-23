@@ -20,6 +20,7 @@ MODULE laddie_thickness
   USE laddie_physics                                         , ONLY: compute_melt_rate, compute_entrainment, &
                                                                      compute_freezing_temperature, compute_buoyancy
   USE laddie_utilities                                       , ONLY: map_laddie_velocities_from_b_to_c_2D, compute_ambient_TS
+  USE mesh_operators                                         , ONLY: map_b_c_2D
 
   IMPLICIT NONE
     
@@ -50,7 +51,10 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Compute thickness divergence                                   
-    CALL map_laddie_velocities_from_b_to_c_2D( mesh, npxref%U, npxref%V, laddie%U_c, laddie%V_c)
+    !CALL map_laddie_velocities_from_b_to_c_2D( mesh, npxref%U, npxref%V, laddie%U_c, laddie%V_c)
+    CALL map_b_c_2D( mesh, npxref%U, laddie%U_c)
+    CALL map_b_c_2D( mesh, npxref%V, laddie%V_c)
+
     CALL compute_divQH( mesh, laddie, npxref, laddie%U_c, laddie%V_c, laddie%mask_a, laddie%mask_gr_a, laddie%mask_oc_a)
 
     ! Compute freezing temperature
