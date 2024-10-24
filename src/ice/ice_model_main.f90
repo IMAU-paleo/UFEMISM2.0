@@ -50,7 +50,6 @@ MODULE ice_model_main
   use mesh_data_smoothing, only: smooth_Gaussian_2D
   USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp
   USE petsc_basic                                            , ONLY: mat_petsc2CSR
-  USE reallocate_mod                                         , ONLY: reallocate_bounds_dp_1D
   USE BMB_main                                               , ONLY: run_BMB_model
   USE mesh_operators                                         , ONLY: ddx_a_a_2D, ddy_a_a_2D
   USE mesh_utilities                                         , ONLY: extrapolate_Gaussian
@@ -1017,13 +1016,13 @@ CONTAINS
     END DO ! DO vi_new = mesh_new%vi1, mesh_new%vi2
 
     ! Recalculate Hs
-    CALL reallocate_bounds_dp_1D( ice%Hs, mesh_new%vi1, mesh_new%vi2)
+    CALL reallocate_bounds( ice%Hs, mesh_new%vi1, mesh_new%vi2)
     DO vi = mesh_new%vi1, mesh_new%vi2
       ice%Hs( vi) = ice_surface_elevation( Hi_new( vi), ice%Hb( vi), ice%SL( vi))
     END DO
 
     ! Move Hi_new to ice%Hi
-    CALL reallocate_bounds_dp_1D( ice%Hi, mesh_new%vi1, mesh_new%vi2)
+    CALL reallocate_bounds( ice%Hi, mesh_new%vi1, mesh_new%vi2)
     ice%Hi = Hi_new
 
     ! Finalise routine path
