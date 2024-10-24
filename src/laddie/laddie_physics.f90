@@ -48,6 +48,7 @@ CONTAINS
     REAL(dp)                                              :: Dval, AA
     REAL(dp), PARAMETER                                   :: nu0 = 1.95E-6
     REAL(dp), PARAMETER                                   :: eps = 1.0E-12
+    REAL(dp), PARAMETER                                   :: Ti = -25.0_dp
 
  
     ! Add routine to path
@@ -83,7 +84,7 @@ CONTAINS
 
     ! == Get melt rate ==
     ! ===================
-    Chat = cp_ocean/L_fusion
+    !Chat = cp_ocean/L_fusion
     Ctil = cp_ice/cp_ocean
 
     ! Loop over vertices
@@ -91,7 +92,7 @@ CONTAINS
        IF (laddie%mask_a( vi)) THEN
          ! Solve three equations
          That = freezing_lambda_2 + freezing_lambda_3*ice%Hib( vi)
-         ! Chat = cp_ocean / (L_fusion - cp_ice * ice%Ti( vi, 1)) TODO expand with proper Ti
+         Chat = cp_ocean / (L_fusion - cp_ice * Ti) ! TODO ice%Ti( vi, 1))
 
          Bval = Chat*laddie%gamma_T( vi)*(That - npx%T( vi)) + laddie%gamma_S( vi)*(1 + Chat*Ctil*(That + freezing_lambda_1*npx%S( vi)))
          Cval = Chat*laddie%gamma_T( vi)*laddie%gamma_S( vi) * (That-npx%T( vi) + freezing_lambda_1*npx%S( vi))
@@ -101,16 +102,16 @@ CONTAINS
            !Something wrong, set melt rate to zero. TODO check whether model needs to be crashed
            laddie%melt( vi) = 0.0
          ELSE
-           laddie%melt( vi) = .5 * (-Bval + (Bval**2 - 4*Cval)**.5) 
+           laddie%melt( vi) = 0.5_dp * (-Bval + SQRT(Bval**2 - 4.0_dp*Cval)) 
          END IF
 
          ! Get temperature at ice base
-         Dval = Chat*laddie%gamma_T( vi)+Chat*Ctil*laddie%melt( vi)
+         Dval = laddie%melt( vi) * cp_ice - cp_ocean * laddie%gamma_T( vi)
          IF (Dval == 0) THEN
            ! Seems like a very unlikely case, but better to be careful
            laddie%T_base( vi) = laddie%T_freeze( vi)
          ELSE
-           laddie%T_base( vi) = Chat*laddie%gamma_T( vi)*npx%T( vi)/Dval
+           laddie%T_base( vi) = (laddie%melt( vi) * (L_fusion - cp_ice * Ti) - cp_ocean * laddie%gamma_T( vi) * npx%T( vi)) / Dval 
          END IF
 
        END IF
