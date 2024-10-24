@@ -14,6 +14,7 @@ module tracer_tracking_model_particles
   use mesh_utilities, only: find_containing_triangle, find_containing_vertex, &
     interpolate_to_point_dp_2D, interpolate_to_point_dp_3D
   use reallocate_mod, only: reallocate
+  use mpi
 
   implicit none
 
@@ -299,16 +300,17 @@ contains
     x, y, zeta, vi_in, ti_in, u, v, w)
 
     ! In- and output variables
-    type(type_mesh),          intent(in   ) :: mesh
-    real(dp), dimension(:,:), intent(in   ) :: u_3D_b, v_3D_b, w_3D
-    real(dp),                 intent(in   ) :: x,y,zeta
-    integer,                  intent(in   ) :: vi_in, ti_in
-    real(dp),                 intent(  out) :: u,v,w
+    type(type_mesh),                             intent(in   ) :: mesh
+    real(dp), dimension(mesh%ti1:mesh%ti2,C%nz), intent(in   ) :: u_3D_b, v_3D_b
+    real(dp), dimension(mesh%vi1:mesh%vi2,C%nz), intent(in   ) :: w_3D
+    real(dp),                                    intent(in   ) :: x,y,zeta
+    integer,                                     intent(in   ) :: vi_in, ti_in
+    real(dp),                                    intent(  out) :: u,v,w
 
     ! Local variables
-    real(dp), dimension(size(u_3D_b,2)) :: u_col, v_col, w_col
-    real(dp)                            :: zeta_limited, wwk1, wwk2
-    integer                             :: k1, k2
+    real(dp), dimension(C%nz) :: u_col, v_col, w_col
+    real(dp)                  :: zeta_limited, wwk1, wwk2
+    integer                   :: k1, k2
 
     call interpolate_3d_velocities_to_3D_point_uv( mesh, u_3D_b, v_3D_b, &
       x, y, vi_in, u_col, v_col)
@@ -338,16 +340,16 @@ contains
     x, y, vi_in, u_col, v_col)
 
     ! In- and output variables
-    type(type_mesh),          intent(in   ) :: mesh
-    real(dp), dimension(:,:), intent(in   ) :: u_3D_b, v_3D_b
-    real(dp),                 intent(in   ) :: x,y
-    integer,                  intent(in   ) :: vi_in
-    real(dp), dimension(:),   intent(  out) :: u_col, v_col
+    type(type_mesh),                             intent(in   ) :: mesh
+    real(dp), dimension(mesh%ti1:mesh%ti2,C%nz), intent(in   ) :: u_3D_b, v_3D_b
+    real(dp),                                    intent(in   ) :: x,y
+    integer,                                     intent(in   ) :: vi_in
+    real(dp), dimension(C%nz),                   intent(  out) :: u_col, v_col
 
     ! Local variables
-    integer                             :: iti, ti, ti_nearest
-    real(dp)                            :: ww_sum, dist_min, dist, ww
-    real(dp), dimension(size(u_3D_b,2)) :: u_col_sum, v_col_sum
+    integer                   :: iti, ti, ti_nearest, ierr
+    real(dp)                  :: ww_sum, dist_min, dist, ww
+    real(dp), dimension(C%nz) :: u, v, u_nearest, v_nearest, u_col_sum, v_col_sum
 
     ! u,v are defined on the triangles, so average over itriangles around vi_in
 
@@ -359,20 +361,33 @@ contains
 
     do iti = 1, mesh%niTri( vi_in)
       ti = mesh%iTri( vi_in,iti)
+
+      if (test_ge_le( ti, mesh%ti1, mesh%ti2)) then
+        u = u_3D_b( ti,:)
+        v = v_3D_b( ti,:)
+      else
+        u = -huge( u)
+        v = -huge( v)
+      end if
+      call MPI_ALLREDUCE( MPI_IN_PLACE, u, C%nz, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
+      call MPI_ALLREDUCE( MPI_IN_PLACE, v, C%nz, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
+
       dist = norm2( mesh%Tricc( ti,:) - [x,y])
       ww = 1._dp / dist**2
       ww_sum    = ww_sum    + ww
-      u_col_sum = u_col_sum + ww * u_3D_b( ti,:)
-      v_col_sum = v_col_sum + ww * v_3D_b( ti,:)
+      u_col_sum = u_col_sum + ww * u
+      v_col_sum = v_col_sum + ww * v
       if (dist < dist_min) then
         dist_min   = dist
         ti_nearest = ti
+        u_nearest = u
+        v_nearest = v
       end if
     end do
     if (dist_min < mesh%tol_dist) then
       ! p lies on a triangle circumcentre; just use u,v from that triangle
-      u_col = u_3D_b( ti_nearest,:)
-      v_col = v_3D_b( ti_nearest,:)
+      u_col = u_nearest
+      v_col = v_nearest
     else
       u_col = u_col_sum / ww_sum
       v_col = v_col_sum / ww_sum
