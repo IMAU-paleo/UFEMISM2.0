@@ -233,6 +233,7 @@ CONTAINS
     IF (ALLOCATED( mesh%VorGC           )) DEALLOCATE( mesh%VorGC           )
     IF (ALLOCATED( mesh%R               )) DEALLOCATE( mesh%R               )
     IF (ALLOCATED( mesh%Cw              )) DEALLOCATE( mesh%Cw              )
+    IF (ALLOCATED( mesh%TriCw           )) DEALLOCATE( mesh%TriCw           )
     IF (ALLOCATED( mesh%TriBI           )) DEALLOCATE( mesh%TriBI           )
     IF (ALLOCATED( mesh%TriGC           )) DEALLOCATE( mesh%TriGC           )
     IF (ALLOCATED( mesh%TriA            )) DEALLOCATE( mesh%TriA            )
@@ -246,6 +247,7 @@ CONTAINS
     IF (ALLOCATED( mesh%VE              )) DEALLOCATE( mesh%VE              )
     IF (ALLOCATED( mesh%EV              )) DEALLOCATE( mesh%EV              )
     IF (ALLOCATED( mesh%ETri            )) DEALLOCATE( mesh%ETri            )
+    IF (ALLOCATED( mesh%TriE            )) DEALLOCATE( mesh%TriE            )
     IF (ALLOCATED( mesh%EBI             )) DEALLOCATE( mesh%EBI             )
 
   ! Matrix operators
