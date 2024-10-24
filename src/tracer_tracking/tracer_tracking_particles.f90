@@ -61,65 +61,65 @@ contains
 
   end subroutine initialise_tracer_tracking_model_particles
 
-  subroutine move_and_remove_particles( mesh, ice, particles, dt)
+  subroutine move_and_remove_particle( mesh, ice, particles, ip, dt)
 
     ! In- and output variables
     type(type_mesh),                            intent(in   ) :: mesh
     type(type_ice_model),                       intent(in   ) :: ice
     type(type_tracer_tracking_model_particles), intent(inout) :: particles
+    integer,                                    intent(in   ) :: ip
     real(dp),                                   intent(in   ) :: dt
 
     ! Local variables:
-    character(len=1024), parameter :: routine_name = 'move_and_remove_particles'
-    integer                        :: ip
+    character(len=1024), parameter :: routine_name = 'move_and_remove_particle'
     real(dp), dimension(2)         :: p
-    real(dp)                       :: Hi_interp, Hs_interp
+    real(dp)                       :: Hi_interp
 
     ! Add routine to path
     call init_routine( routine_name)
 
-    do ip = 1, particles%n
-      if (.not. particles%is_in_use( ip)) cycle
+#if (DO_ASSERTIONS)
+    call assert( test_ge_le( ip, 1, particles%n), 'ip out of bounds')
+    call assert( particles%is_in_use( ip), 'particle is not in use')
+#endif
 
-      ! Using the interpolated velocities from the last time
-      ! this model was run, move the particle to its new position
-      particles%r = particles%r + particles%u * dt
+    ! Using the interpolated velocities from the last time
+    ! this model was run, move the particle to its new position
+    particles%r = particles%r + particles%u * dt
 
-      ! If the new position is outside the mesh domain, remove the particle
-      if ((.not. test_ge_le( particles%r( ip,1), mesh%xmin, mesh%xmax)) .or. &
-          (.not. test_ge_le( particles%r( ip,2), mesh%ymin, mesh%ymax))) then
-        call remove_particle( particles, ip)
-        cycle
-      end if
+    ! If the new position is outside the mesh domain, remove the particle
+    if ((.not. test_ge_le( particles%r( ip,1), mesh%xmin, mesh%xmax)) .or. &
+        (.not. test_ge_le( particles%r( ip,2), mesh%ymin, mesh%ymax))) then
+      call remove_particle( particles, ip)
+      cycle
+    end if
 
-      ! Find the vertex and triangle containing the new position
-      p = particles%r( ip,1:2)
-      call find_containing_triangle( mesh, p, particles%ti_in( ip))
-      call find_containing_vertex  ( mesh, p, particles%vi_in( ip))
+    ! Find the vertex and triangle containing the new position
+    p = particles%r( ip,1:2)
+    call find_containing_triangle( mesh, p, particles%ti_in( ip))
+    call find_containing_vertex  ( mesh, p, particles%vi_in( ip))
 
-      ! Calculate the zeta coordinate of the new position
-      call calc_particle_zeta( mesh, ice%Hi, ice%Hs, &
-        particles%r( ip,1), particles%r( ip,2), particles%r( ip,3), particles%ti_in( ip), &
-        particles%zeta( ip), Hi_interp, Hs_interp)
+    ! Calculate the zeta coordinate of the new position
+    call calc_particle_zeta( mesh, ice%Hi, ice%Hs, &
+      particles%r( ip,1), particles%r( ip,2), particles%r( ip,3), particles%ti_in( ip), &
+      particles%zeta( ip), Hi_interp_ = Hi_interp)
 
-      ! If the new position is outside the ice sheet, remove the particle
-      if (particles%zeta( ip) < 0._dp .or. particles%zeta( ip) > 0._dp .or. Hi_interp < 0.1_dp) then
-        call remove_particle( particles, ip)
-        cycle
-      end if
+    ! If the new position is outside the ice sheet, remove the particle
+    if (particles%zeta( ip) < 0._dp .or. particles%zeta( ip) > 0._dp .or. Hi_interp < 0.1_dp) then
+      call remove_particle( particles, ip)
+      cycle
+    end if
 
-      ! Interpolate the current ice velocity solution to the new position
-      call interpolate_3d_velocities_to_3D_point( mesh, ice%u_3D_b, ice%v_3D_b, ice%w_3D, &
-        particles%r( ip,1), particles%r( ip,2), particles%zeta( ip), &
-        particles%vi_in( ip), particles%ti_in( ip), &
-        particles%u( ip,1), particles%u( ip,2), particles%u( ip,3))
-
-    end do
+    ! Interpolate the current ice velocity solution to the new position
+    call interpolate_3d_velocities_to_3D_point( mesh, ice%u_3D_b, ice%v_3D_b, ice%w_3D, &
+      particles%r( ip,1), particles%r( ip,2), particles%zeta( ip), &
+      particles%vi_in( ip), particles%ti_in( ip), &
+      particles%u( ip,1), particles%u( ip,2), particles%u( ip,3))
 
     ! Finalise routine path
     call finalise_routine( routine_name)
 
-  end subroutine move_and_remove_particles
+  end subroutine move_and_remove_particle
 
   subroutine add_particle( mesh, ice, particles, x, y, z, time)
 
@@ -131,12 +131,38 @@ contains
 
     ! Local variables
     character(len=1024), parameter :: routine_name = 'add_particle'
+    real(dp), dimension(2)         :: p
+    integer                        :: ti_in, vi_in
+    real(dp)                       :: zeta, Hi_interp
+    real(dp)                       :: u,v,w
     integer                        :: ipp, ip
     logical                        :: out_of_memory
-    real(dp), dimension(2)         :: p
 
     ! Add routine to path
     call init_routine( routine_name)
+
+#if (DO_ASSERTIONS)
+    call assert( test_ge_le( x, mesh%xmin, mesh%xmax) .and. test_ge_le( y, mesh%ymin, mesh%ymax), &
+      '[x,y] lies outside the mesh domain')
+#endif
+
+    ! Find where on the mesh the new particle is located
+    p = [x,y]
+    vi_in = 1
+    call find_containing_vertex  ( mesh, p, vi_in)
+    ti_in = mesh%iTri( vi_in,1)
+    call find_containing_triangle( mesh, p, ti_in)
+
+    call calc_particle_zeta( mesh, ice%Hi, ice%Hs, x, y, z, &
+      ti_in, zeta, Hi_interp_ = Hi_interp)
+
+#if (DO_ASSERTIONS)
+    call assert( test_ge_le( zeta, 0._dp, 1._dp) .and. Hi_interp > 0.1_dp, &
+      '[x,y,z] does not lie inside the ice sheet')
+#endif
+
+    call interpolate_3d_velocities_to_3D_point( mesh, ice%u_3D_b, ice%v_3D_b, ice%w_3D, &
+      x, y, zeta, vi_in, ti_in, u, v, w)
 
     ! Find the first empty memory slot. If none can be found,
     ! allocate additional memory and place the new particle there.
@@ -154,24 +180,18 @@ contains
       call extend_particles_memory( particles)
     end if
 
+    ! Add the new particle data to the list
     particles%id_max = particles%id_max + 1_int8
-    particles%is_in_use( ip) = .true.
-    particles%id       ( ip) = particles%id_max
+
+    particles%is_in_use( ip  ) = .true.
+    particles%id       ( ip  ) = particles%id_max
     particles%r        ( ip,:) = [x,y,z]
-
-    p = [particles%r( ip,1), particles%r( ip,2)]
-    call find_containing_triangle( mesh, p, particles%ti_in( ip))
-    call find_containing_vertex  ( mesh, p, particles%vi_in( ip))
-
-    call calc_particle_zeta( mesh, ice%Hi, ice%Hs, x, y, z, &
-      particles%ti_in( ip), particles%zeta( ip))
-
-    call interpolate_3d_velocities_to_3D_point( mesh, ice%u_3D_b, ice%v_3D_b, ice%w_3D, &
-      x, y, particles%zeta( ip), particles%vi_in( ip), particles%ti_in( ip), &
-      particles%u (ip,1), particles%u( ip,2), particles%u( ip,3))
-
-    particles%r_origin( ip,:) = [x,y,z]
-    particles%t_origin( ip  ) = time
+    particles%zeta     ( ip  ) = zeta
+    particles%vi_in    ( ip  ) = vi_in
+    particles%ti_in    ( ip  ) = ti_in
+    particles%u        ( ip,:) = [u,v,w]
+    particles%r_origin ( ip,:) = [x,y,z]
+    particles%t_origin ( ip  ) = time
 
     ! Finalise routine path
     call finalise_routine( routine_name)
