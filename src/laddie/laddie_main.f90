@@ -198,7 +198,7 @@ CONTAINS
       ! Display or save fields
       ! TODO
       IF (par%master) THEN
-        WRITE( *, "(F8.3,A,F8.3,A,F12.7,A,F8.3,A,F8.3)") tl/sec_per_day, '  Dmean ', SUM(laddie%now%H)/SIZE(laddie%now%H), '  Meltmax', MAXVAL(laddie%melt), '   U', MAXVAL(laddie%now%U), '   Tmax', MAXVAL(laddie%now%T)
+        WRITE( *, "(F8.3,A,F8.3,A,F8.2,A,F8.3,A,F8.3)") tl/sec_per_day, '  Dmean ', SUM(laddie%now%H)/SIZE(laddie%now%H), '  Meltmax', MAXVAL(laddie%melt*sec_per_year), '   U', MAXVAL(SQRT(laddie%now%U**2+laddie%now%V**2)), '   Tmax', MAXVAL(laddie%now%T)
       END IF     
 
     END DO !DO WHILE (tl <= C%time_duration_laddie)
