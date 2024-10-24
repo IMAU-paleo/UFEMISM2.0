@@ -254,14 +254,13 @@ contains
     real(dp), dimension(mesh%nV)               :: Hi, Hb, Hs
     integer                                    :: vi
     type(type_tracer_tracking_model_particles) :: particles
-    integer                                    :: ip
-    real(dp)                                   :: rnd
+    integer                                    :: nx,ny,nz,i,j,k,ip
     type(type_nearest_particles)               :: nearest_particles, nearest_particles_bruteforce
     logical                                    :: verified
     real(dp), dimension(mesh%nV,C%nz,3)        :: rs_mesh
     real(dp), dimension(:,:), allocatable      :: rs_particles
     real(dp)                                   :: dist_max, dist
-    integer                                    :: k, ii, jj
+    integer                                    :: ii, jj
 
     ! Add routine to call stack
     call init_routine( routine_name)
@@ -276,20 +275,26 @@ contains
     end do
 
     ! Initialise a set of particles
-    particles%n = 1000
+    nx = 25
+    ny = 25
+    nz = 16
+    particles%n = nx * ny * nz
     allocate( particles%is_in_use( particles%n   ), source = .true.)
     allocate( particles%r        ( particles%n, 3), source = 0._dp)
     allocate( particles%zeta     ( particles%n   ), source = 0._dp)
     allocate( particles%vi_in    ( particles%n   ), source = 1    )
     allocate( particles%ti_in    ( particles%n   ), source = 1    )
 
-    do ip = 1, particles%n
-      call random_number( rnd)
-      particles%r( ip,1) = mesh%xmin + (0.005_dp + 0.99_dp * rnd * (mesh%xmax - mesh%xmin))
-      call random_number( rnd)
-      particles%r( ip,2) = mesh%xmin + (0.005_dp + 0.99_dp * rnd * (mesh%xmax - mesh%xmin))
-      call random_number( rnd)
-      particles%zeta( ip) = rnd
+    ip = 0
+    do i = 1, nx
+    do j = 1, ny
+    do k = 1, nz
+      ip = ip + 1
+      particles%r( ip,1) = mesh%xmin + (mesh%xmax - mesh%xmin) * real( i-1,dp) / real( nx-1,dp)
+      particles%r( ip,2) = mesh%ymin + (mesh%ymax - mesh%ymin) * real( j-1,dp) / real( nx-1,dp)
+      particles%zeta( ip) = real( k-1,dp) / real(nz-1,dp)
+    end do
+    end do
     end do
 
     call update_particles_vi_ti_in( mesh, particles)
