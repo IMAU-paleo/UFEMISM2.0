@@ -399,11 +399,11 @@ contains
     x, y, ti_in, w_col)
 
     ! In- and output variables
-    type(type_mesh),          intent(in   ) :: mesh
-    real(dp), dimension(:,:), intent(in   ) :: w_3D
-    real(dp),                 intent(in   ) :: x,y
-    integer,                  intent(in   ) :: ti_in
-    real(dp), dimension(:),   intent(  out) :: w_col
+    type(type_mesh),                             intent(in   ) :: mesh
+    real(dp), dimension(mesh%vi1:mesh%vi2,C%nz), intent(in   ) :: w_3D
+    real(dp),                                    intent(in   ) :: x,y
+    integer,                                     intent(in   ) :: ti_in
+    real(dp), dimension(C%nz),                   intent(  out) :: w_col
 
     ! Local variables
     real(dp), dimension(2) :: p
