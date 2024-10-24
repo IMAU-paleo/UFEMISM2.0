@@ -91,7 +91,8 @@ contains
     if ((.not. test_ge_le( particles%r( ip,1), mesh%xmin, mesh%xmax)) .or. &
         (.not. test_ge_le( particles%r( ip,2), mesh%ymin, mesh%ymax))) then
       call remove_particle( particles, ip)
-      cycle
+      call finalise_routine( routine_name)
+      return
     end if
 
     ! Find the vertex and triangle containing the new position
@@ -107,7 +108,8 @@ contains
     ! If the new position is outside the ice sheet, remove the particle
     if (particles%zeta( ip) < 0._dp .or. particles%zeta( ip) > 0._dp .or. Hi_interp < 0.1_dp) then
       call remove_particle( particles, ip)
-      cycle
+      call finalise_routine( routine_name)
+      return
     end if
 
     ! Interpolate the current ice velocity solution to the new position
