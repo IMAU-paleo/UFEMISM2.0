@@ -800,6 +800,8 @@ CONTAINS
         CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'T_base', region%BMB%laddie%T_base)
       CASE ('u_star')
         CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'u_star', region%BMB%laddie%u_star)
+      CASE ('gamma_T')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'gamma_T', region%BMB%laddie%gamma_T)
 
     ! == Lateral mass balance ==
     ! ==========================
@@ -1337,6 +1339,9 @@ CONTAINS
       CASE ('u_star')
         CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%u_star, d_grid_vec_partial_2D)
         CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'u_star', d_grid_vec_partial_2D)
+      CASE ('gamma_T')
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%gamma_T, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'gamma_T', d_grid_vec_partial_2D)
 
     ! == Lateral mass balance ==
     ! ==========================
@@ -2179,6 +2184,8 @@ CONTAINS
         CALL add_field_mesh_dp_2D( filename, ncid, 'T_base', long_name = 'Temperature at ice/ocean interface', units = 'deg C')
       CASE ('u_star')
         CALL add_field_mesh_dp_2D( filename, ncid, 'u_star', long_name = 'Friction velocity', units = 'm s^-1')
+      CASE ('gamma_T')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'gamma_T', long_name = 'Heat exchange coefficient', units = 'm s^-1')
 
     ! == Lateral mass balance ==
     ! ==========================
@@ -2598,6 +2605,8 @@ CONTAINS
         CALL add_field_grid_dp_2D( filename, ncid, 'T_base', long_name = 'Temperature at ice/ocean interface', units = 'deg C')
       CASE ('u_star')
         CALL add_field_grid_dp_2D( filename, ncid, 'u_star', long_name = 'Friction velocity', units = 'm s^-1')
+      CASE ('gamma_T')
+        CALL add_field_grid_dp_2D( filename, ncid, 'gamma_T', long_name = 'Heat exchange coefficient', units = 'm s^-1')
 
 
     ! == Lateral mass balance ==
