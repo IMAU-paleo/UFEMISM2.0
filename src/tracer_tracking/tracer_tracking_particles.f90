@@ -4,33 +4,35 @@ module tracer_tracking_model_particles
 
   use tests_main
   use assertions_basic
-  use precisions, only: dp
+  use precisions, only: dp, int8
   use mpi_basic, only: par
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash
   use mesh_types, only: type_mesh
   use ice_model_types, only: type_ice_model
   use tracer_tracking_model_types, only: type_tracer_tracking_model_particles
   use model_configuration, only: C
-  use mesh_utilities, only: find_containing_triangle, find_containing_vertex
+  use mesh_utilities, only: find_containing_triangle, find_containing_vertex, &
+    interpolate_to_point_dp_2D, interpolate_to_point_dp_3D
+  use reallocate_mod, only: reallocate
 
   implicit none
 
   private
 
   public :: initialise_tracer_tracking_model_particles, interpolate_particles_velocities, &
-    calc_particle_zeta, interpolate_3d_velocities_to_3D_point, update_particles_vi_ti_in, &
-    create_particles_to_mesh_map
+    calc_particle_zeta, interpolate_3d_velocities_to_3D_point, create_particles_to_mesh_map
 
   integer, parameter :: n_particles_init  = 100
-  integer, parameter :: n_tracers         = 16
+  integer, parameter :: n_tracers         = 1
 
 contains
 
-  subroutine initialise_tracer_tracking_model_particles( mesh, particles)
+  subroutine initialise_tracer_tracking_model_particles( mesh, ice, particles)
 
     ! In- and output variables
     type(type_mesh),                            intent(in   ) :: mesh
-    type(type_tracer_tracking_model_particles), intent(inout) :: particles
+    type(type_ice_model),                       intent(in   ) :: ice
+    type(type_tracer_tracking_model_particles), intent(  out) :: particles
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'initialise_tracer_tracking_model_particles'
@@ -41,8 +43,10 @@ contains
     ! Print to terminal
     if (par%master)  write(*,'(a)') '     Initialising particle-based tracer tracking model...'
 
-    particles%n = n_particles_init
+    particles%n      = n_particles_init
+    particles%id_max = 0_int8
     allocate( particles%is_in_use( particles%n           ), source = .false.)
+    allocate( particles%id       ( particles%n           ), source = 0_int8 )
     allocate( particles%r        ( particles%n, 3        ), source = 0._dp  )
     allocate( particles%zeta     ( particles%n           ), source = 0._dp  )
     allocate( particles%vi_in    ( particles%n           ), source = 1      )
@@ -57,34 +61,172 @@ contains
 
   end subroutine initialise_tracer_tracking_model_particles
 
-  subroutine update_particles_vi_ti_in( mesh, particles)
+  subroutine move_and_remove_particles( mesh, ice, particles, dt)
 
     ! In- and output variables
     type(type_mesh),                            intent(in   ) :: mesh
+    type(type_ice_model),                       intent(in   ) :: ice
     type(type_tracer_tracking_model_particles), intent(inout) :: particles
+    real(dp),                                   intent(in   ) :: dt
 
-    ! Local variables
-    character(len=1024), parameter :: routine_name = 'update_particles_vi_ti_in'
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'move_and_remove_particles'
     integer                        :: ip
     real(dp), dimension(2)         :: p
+    real(dp)                       :: Hi_interp, Hs_interp
 
     ! Add routine to path
     call init_routine( routine_name)
 
     do ip = 1, particles%n
-      if (particles%is_in_use( ip)) then
+      if (.not. particles%is_in_use( ip)) cycle
 
-        p = [particles%r( ip,1), particles%r( ip,2)]
-        call find_containing_triangle( mesh, p, particles%ti_in( ip))
-        call find_containing_vertex  ( mesh, p, particles%vi_in( ip))
+      ! Using the interpolated velocities from the last time
+      ! this model was run, move the particle to its new position
+      particles%r = particles%r + particles%u * dt
 
+      ! If the new position is outside the mesh domain, remove the particle
+      if ((.not. test_ge_le( particles%r( ip,1), mesh%xmin, mesh%xmax)) .or. &
+          (.not. test_ge_le( particles%r( ip,2), mesh%ymin, mesh%ymax))) then
+        call remove_particle( particles, ip)
+        cycle
       end if
+
+      ! Find the vertex and triangle containing the new position
+      p = particles%r( ip,1:2)
+      call find_containing_triangle( mesh, p, particles%ti_in( ip))
+      call find_containing_vertex  ( mesh, p, particles%vi_in( ip))
+
+      ! Calculate the zeta coordinate of the new position
+      call calc_particle_zeta( mesh, ice%Hi, ice%Hs, &
+        particles%r( ip,1), particles%r( ip,2), particles%r( ip,3), particles%ti_in( ip), &
+        particles%zeta( ip), Hi_interp, Hs_interp)
+
+      ! If the new position is outside the ice sheet, remove the particle
+      if (particles%zeta( ip) < 0._dp .or. particles%zeta( ip) > 0._dp .or. Hi_interp < 0.1_dp) then
+        call remove_particle( particles, ip)
+        cycle
+      end if
+
+      ! Interpolate the current ice velocity solution to the new position
+      call interpolate_3d_velocities_to_3D_point( mesh, ice%u_3D_b, ice%v_3D_b, ice%w_3D, &
+        particles%r( ip,1), particles%r( ip,2), particles%zeta( ip), &
+        particles%vi_in( ip), particles%ti_in( ip), &
+        particles%u( ip,1), particles%u( ip,2), particles%u( ip,3))
+
     end do
 
     ! Finalise routine path
     call finalise_routine( routine_name)
 
-  end subroutine update_particles_vi_ti_in
+  end subroutine move_and_remove_particles
+
+  subroutine add_particle( mesh, ice, particles, x, y, z, time)
+
+    ! In/output variables
+    type(type_mesh),                            intent(in   ) :: mesh
+    type(type_ice_model),                       intent(in   ) :: ice
+    type(type_tracer_tracking_model_particles), intent(inout) :: particles
+    real(dp),                                   intent(in   ) :: x, y, z, time
+
+    ! Local variables
+    character(len=1024), parameter :: routine_name = 'add_particle'
+    integer                        :: ipp, ip
+    logical                        :: out_of_memory
+    real(dp), dimension(2)         :: p
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Find the first empty memory slot. If none can be found,
+    ! allocate additional memory and place the new particle there.
+    out_of_memory = .true.
+    do ipp = 1, particles%n
+      if (.not. particles%is_in_use( ipp)) then
+        ! Place the new particle here
+        out_of_memory = .false.
+        ip = ipp
+        exit
+      end if
+    end do
+    if (out_of_memory) then
+      ip = particles%n + 1
+      call extend_particles_memory( particles)
+    end if
+
+    particles%id_max = particles%id_max + 1_int8
+    particles%is_in_use( ip) = .true.
+    particles%id       ( ip) = particles%id_max
+    particles%r        ( ip,:) = [x,y,z]
+
+    p = [particles%r( ip,1), particles%r( ip,2)]
+    call find_containing_triangle( mesh, p, particles%ti_in( ip))
+    call find_containing_vertex  ( mesh, p, particles%vi_in( ip))
+
+    call calc_particle_zeta( mesh, ice%Hi, ice%Hs, x, y, z, &
+      particles%ti_in( ip), particles%zeta( ip))
+
+    call interpolate_3d_velocities_to_3D_point( mesh, ice%u_3D_b, ice%v_3D_b, ice%w_3D, &
+      x, y, particles%zeta( ip), particles%vi_in( ip), particles%ti_in( ip), &
+      particles%u (ip,1), particles%u( ip,2), particles%u( ip,3))
+
+    particles%r_origin( ip,:) = [x,y,z]
+    particles%t_origin( ip  ) = time
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine add_particle
+
+  subroutine remove_particle( particles, ip)
+
+    ! In/output variables
+    type(type_tracer_tracking_model_particles), intent(inout) :: particles
+    integer,                                    intent(in   ) :: ip
+
+    ! Local variables
+    character(len=1024), parameter :: routine_name = 'remove_particle'
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    particles%is_in_use( ip   ) = .false.
+    particles%id       ( ip   ) = 0_int8
+    particles%r        ( ip, :) = 0._dp
+    particles%zeta     ( ip   ) = 0._dp
+    particles%vi_in    ( ip   ) = 1
+    particles%ti_in    ( ip   ) = 1
+    particles%u        ( ip, :) = 0._dp
+    particles%r_origin ( ip, :) = 0._dp
+    particles%t_origin ( ip   ) = 0._dp
+    particles%tracers  ( ip, :) = 0._dp
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine remove_particle
+
+  subroutine extend_particles_memory( particles)
+
+    ! In/output variables
+    type(type_tracer_tracking_model_particles), intent(inout) :: particles
+
+    ! Local variables
+
+    particles%n = particles%n * 2
+
+    call reallocate( particles%is_in_use, particles%n           , source = .false.)
+    call reallocate( particles%id       , particles%n           , source = 0_int8 )
+    call reallocate( particles%r        , particles%n, 3        , source = 0._dp  )
+    call reallocate( particles%zeta     , particles%n           , source = 0._dp  )
+    call reallocate( particles%vi_in    , particles%n           , source = 1      )
+    call reallocate( particles%ti_in    , particles%n           , source = 1      )
+    call reallocate( particles%u        , particles%n, 3        , source = 0._dp  )
+    call reallocate( particles%r_origin , particles%n, 3        , source = 0._dp  )
+    call reallocate( particles%t_origin , particles%n           , source = 0._dp  )
+    call reallocate( particles%tracers  , particles%n, n_tracers, source = 0._dp  )
+
+  end subroutine extend_particles_memory
 
   subroutine interpolate_particles_velocities( mesh, ice, particles)
 
@@ -121,7 +263,7 @@ contains
 
   end subroutine interpolate_particles_velocities
 
-  subroutine calc_particle_zeta( mesh, Hi, Hs, x, y, z, ti_in, zeta)
+  subroutine calc_particle_zeta( mesh, Hi, Hs, x, y, z, ti_in, zeta, Hi_interp_, Hs_interp_)
 
     ! In- and output variables
     type(type_mesh),        intent(in   ) :: mesh
@@ -129,43 +271,26 @@ contains
     real(dp),               intent(in   ) :: x,y,z
     integer,                intent(in   ) :: ti_in
     real(dp),               intent(  out) :: zeta
+    real(dp), optional,     intent(  out) :: Hi_interp_, Hs_interp_
 
     ! Local variables
-    integer  :: n, vi, vi_nearest
-    real(dp) :: ww_sum, dist_min, dist, ww, Hi_sum, Hs_sum, Hi_interp, Hs_interp
+    real(dp), dimension(2) :: p
+    integer                :: ti_in_
+    real(dp)               :: Hi_interp, Hs_interp
 
     ! Interpolate Hib,Hs horizontally to [x,y]
-    vi_nearest = 0
-    ww_sum     = 0._dp
-    Hi_sum     = 0._dp
-    Hs_sum     = 0._dp
-    dist_min   = 1._dp / mesh%tol_dist
-
-    do n = 1, 3
-      vi = mesh%Tri( ti_in,n)
-      dist = norm2( mesh%V( vi,:) - [x,y])
-      ww = 1._dp / dist**2
-      ww_sum = ww_sum + ww
-      Hi_sum = Hi_sum + ww * Hi( vi)
-      Hs_sum = Hs_sum + ww * Hs( vi)
-      if (dist < dist_min) then
-        dist_min   = dist
-        vi_nearest = vi
-      end if
-    end do
-    if (dist_min < mesh%tol_dist) then
-      ! p lies on a vertex; just use Hib,Hs from that triangle
-      Hi_interp = Hi( vi_nearest)
-      Hs_interp = Hs( vi_nearest)
-    else
-      Hi_interp = Hi_sum / ww_sum
-      Hs_interp = Hs_sum / ww_sum
-    end if
+    p = [x,y]
+    ti_in_ = ti_in
+    call interpolate_to_point_dp_2D( mesh, Hi, p, ti_in_, Hi_interp)
+    call interpolate_to_point_dp_2D( mesh, Hs, p, ti_in_, Hs_interp)
 
     Hi_interp = max( 0.1_dp, Hi_interp)
 
     ! Calculate zeta
     zeta = (Hs_interp - z) / Hi_interp
+
+    if (present( Hi_interp_)) Hi_interp_ = Hi_interp
+    if (present( Hs_interp_)) Hs_interp_ = Hs_interp
 
   end subroutine calc_particle_zeta
 
@@ -265,44 +390,23 @@ contains
     real(dp), dimension(:),   intent(  out) :: w_col
 
     ! Local variables
-    integer                           :: n, vi, vi_nearest
-    real(dp)                          :: ww_sum, dist_min, dist, ww
-    real(dp), dimension(size(w_3D,2)) :: w_col_sum
+    real(dp), dimension(2) :: p
+    integer                :: ti_in_
 
-    ! w is defined on the vertices, so average over the vertices of ti_in
-
-    vi_nearest = 0
-    ww_sum     = 0._dp
-    w_col_sum  = 0._dp
-    dist_min   = 1._dp / mesh%tol_dist
-
-    do n = 1, 3
-      vi = mesh%Tri( ti_in,n)
-      dist = norm2( mesh%V( vi,:) - [x,y])
-      ww = 1._dp / dist**2
-      ww_sum    = ww_sum    + ww
-      w_col_sum = w_col_sum + ww * w_3D( vi,:)
-      if (dist < dist_min) then
-        dist_min   = dist
-        vi_nearest = vi
-      end if
-    end do
-    if (dist_min < mesh%tol_dist) then
-      ! p lies on a vertex; just use Hib,Hs from that triangle
-      w_col = w_3D( vi_nearest,:)
-    else
-      w_col = w_col_sum / ww_sum
-    end if
+    ! w is defined on the vertices
+    p = [x,y]
+    ti_in_ = ti_in
+    call interpolate_to_point_dp_3D( mesh, w_3D, p, ti_in_, w_col)
 
   end subroutine interpolate_3d_velocities_to_3D_point_w
 
-  subroutine map_particle_tracer_to_mesh( mesh, particles, f_particles, f_interp)
+  subroutine map_particle_tracer_to_mesh( mesh, particles, f_particles, f_mesh)
 
     ! In/output variables
     type(type_mesh),                            intent(in   ) :: mesh
     type(type_tracer_tracking_model_particles), intent(in   ) :: particles
     real(dp), dimension(particles%n),           intent(in   ) :: f_particles
-    real(dp), dimension(mesh%nV,C%nz),          intent(  out) :: f_interp
+    real(dp), dimension(mesh%nV,C%nz),          intent(  out) :: f_mesh
 
     ! Local variables
     character(len=1024), parameter :: routine_name = 'map_particle_tracer_to_mesh'
@@ -313,7 +417,7 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    f_interp = 0._dp
+    f_mesh = 0._dp
 
     do vi = 1, mesh%nV
 
@@ -328,7 +432,7 @@ contains
           dist = particles%map%d(  vi,k,ii)
           if (dist < mesh%tol_dist) then
             coincides_with_particle = .true.
-            f_interp( vi,k) = f_particles( ip)
+            f_mesh( vi,k) = f_particles( ip)
             exit
           end if
           w = 1._dp / dist**2
@@ -336,7 +440,7 @@ contains
           f_sum = f_sum + w * f_particles( ip)
         end do
         if (.not. coincides_with_particle) then
-          f_interp( vi,k) = f_sum / w_sum
+          f_mesh( vi,k) = f_sum / w_sum
         end if
 
       end do
