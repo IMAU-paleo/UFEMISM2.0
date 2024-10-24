@@ -19,7 +19,7 @@ module tracer_tracking_model_particles
 
   private
 
-  public :: initialise_tracer_tracking_model_particles, interpolate_particles_velocities, &
+  public :: initialise_tracer_tracking_model_particles, &
     calc_particle_zeta, interpolate_3d_velocities_to_3D_point, create_particles_to_mesh_map
 
   integer, parameter :: n_particles_init  = 100
@@ -212,6 +212,10 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
+#if (DO_ASSERTIONS)
+    call assert( particles%is_in_use( ip), 'particle is not in use')
+#endif
+
     particles%is_in_use( ip   ) = .false.
     particles%id       ( ip   ) = 0_int8
     particles%r        ( ip, :) = 0._dp
@@ -234,6 +238,10 @@ contains
     type(type_tracer_tracking_model_particles), intent(inout) :: particles
 
     ! Local variables
+    character(len=1024), parameter :: routine_name = 'extend_particles_memory'
+
+    ! Add routine to path
+    call init_routine( routine_name)
 
     particles%n = particles%n * 2
 
@@ -248,42 +256,10 @@ contains
     call reallocate( particles%t_origin , particles%n           , source = 0._dp  )
     call reallocate( particles%tracers  , particles%n, n_tracers, source = 0._dp  )
 
-  end subroutine extend_particles_memory
-
-  subroutine interpolate_particles_velocities( mesh, ice, particles)
-
-    ! In- and output variables
-    type(type_mesh),                            intent(in   ) :: mesh
-    type(type_ice_model),                       intent(in   ) :: ice
-    type(type_tracer_tracking_model_particles), intent(inout) :: particles
-
-    ! Local variables:
-    character(len=1024), parameter :: routine_name = 'interpolate_particles_velocities'
-    integer                        :: ip
-    real(dp)                       :: zeta
-
-    ! Add routine to path
-    call init_routine( routine_name)
-
-    do ip = 1, particles%n
-      if (particles%is_in_use( ip)) then
-
-        call calc_particle_zeta( mesh, ice%Hi, ice%Hs, &
-          particles%r( ip,1), particles%r( ip,2), particles%r( ip,3), &
-          particles%ti_in( ip), zeta)
-
-        call interpolate_3d_velocities_to_3D_point( mesh, ice%u_3D_b, ice%v_3D_b, ice%w_3D, &
-          particles%r( ip,1), particles%r( ip,2), zeta, &
-          particles%vi_in( ip), particles%ti_in( ip), &
-          particles%u( ip,1), particles%u( ip,2), particles%u( ip,3))
-
-      end if
-    end do
-
     ! Finalise routine path
     call finalise_routine( routine_name)
 
-  end subroutine interpolate_particles_velocities
+  end subroutine extend_particles_memory
 
   subroutine calc_particle_zeta( mesh, Hi, Hs, x, y, z, ti_in, zeta, Hi_interp_, Hs_interp_)
 
@@ -422,7 +398,7 @@ contains
 
   end subroutine interpolate_3d_velocities_to_3D_point_w
 
-  subroutine map_particle_tracer_to_mesh( mesh, particles, f_particles, f_mesh)
+  subroutine map_tracer_to_mesh( mesh, particles, f_particles, f_mesh)
 
     ! In/output variables
     type(type_mesh),                            intent(in   ) :: mesh
@@ -431,7 +407,7 @@ contains
     real(dp), dimension(mesh%nV,C%nz),          intent(  out) :: f_mesh
 
     ! Local variables
-    character(len=1024), parameter :: routine_name = 'map_particle_tracer_to_mesh'
+    character(len=1024), parameter :: routine_name = 'map_tracer_to_mesh'
     integer                        :: vi, k, ii, ip
     real(dp)                       :: w_sum, f_sum, w, dist
     logical                        :: coincides_with_particle
@@ -471,7 +447,7 @@ contains
     ! Finalise routine path
     call finalise_routine( routine_name)
 
-  end subroutine map_particle_tracer_to_mesh
+  end subroutine map_tracer_to_mesh
 
   subroutine create_particles_to_mesh_map( mesh, n_nearest_to_find, particles)
 
