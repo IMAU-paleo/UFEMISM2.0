@@ -507,7 +507,7 @@ CONTAINS
     ! ===== Tracer tracking model =====
     ! =================================
 
-    call initialise_tracer_tracking_model( region%mesh, region%tracer_tracking)
+    ! call initialise_tracer_tracking_model( region%mesh, region%ice, region%tracer_tracking)
 
     ! ===== Run the climate, ocean, SMB, BMB, and LMB models =====
     ! ============================================================
