@@ -166,19 +166,19 @@ contains
     type(type_mesh),  intent(in) :: mesh
 
     ! Local variables:
-    character(len=1024), parameter      :: routine_name = 'test_interpolate_3d_velocities_to_3D_point'
-    character(len=1024), parameter      :: test_name_local = 'interpolate_3d_velocities_to_3D_point'
-    character(len=1024)                 :: test_name
-    real(dp), dimension(mesh%nTri,C%nz) :: u_3D_b, v_3D_b
-    real(dp), dimension(mesh%nV  ,C%nz) :: w_3D
-    integer                             :: vi,ti,k
-    integer                             :: n_particles,i,j
-    real(dp)                            :: x,y,zeta
-    real(dp), dimension(2)              :: p
-    integer                             :: vi_in, ti_in
-    real(dp)                            :: u_ex, v_ex, w_ex
-    real(dp)                            :: u,v,w
-    logical                             :: verified_u, verified_v, verified_w
+    character(len=1024), parameter              :: routine_name = 'test_interpolate_3d_velocities_to_3D_point'
+    character(len=1024), parameter              :: test_name_local = 'interpolate_3d_velocities_to_3D_point'
+    character(len=1024)                         :: test_name
+    real(dp), dimension(mesh%ti1:mesh%ti2,C%nz) :: u_3D_b, v_3D_b
+    real(dp), dimension(mesh%vi1:mesh%vi2,C%nz) :: w_3D
+    integer                                     :: vi,ti,k
+    integer                                     :: n_particles,i,j
+    real(dp)                                    :: x,y,zeta
+    real(dp), dimension(2)                      :: p
+    integer                                     :: vi_in, ti_in
+    real(dp)                                    :: u_ex, v_ex, w_ex
+    real(dp)                                    :: u, v, w, max_diff_u, max_diff_v, max_diff_w
+    logical                                     :: verified_u, verified_v, verified_w
 
     ! Add routine to call stack
     call init_routine( routine_name)
@@ -191,14 +191,14 @@ contains
     verified_w = .true.
 
     ! Set up a simple test velocity field
-    do ti = 1, mesh%nTri
+    do ti = mesh%ti1, mesh%ti2
     do k = 1, C%nz
       call calc_simple_test_geometry( mesh%xmin, mesh%xmax, mesh%ymin, mesh%ymax, mesh%Tricc( ti,1), mesh%Tricc( ti,2), &
         zeta_q = mesh%zeta( k), u = u_3D_b( ti,k), v = v_3D_b( ti,k))
     end do
     end do
 
-    do vi = 1, mesh%nV
+    do vi = mesh%vi1, mesh%vi2
     do k = 1, C%nz
       call calc_simple_test_geometry( mesh%xmin, mesh%xmax, mesh%ymin, mesh%ymax, mesh%V( vi,1), mesh%V( vi,2), &
         zeta_q = mesh%zeta( k), w = w_3D( vi,k))
@@ -209,6 +209,11 @@ contains
     n_particles = 100
     vi_in = 1
     ti_in = 1
+
+    max_diff_u = 0._dp
+    max_diff_v = 0._dp
+    max_diff_w = 0._dp
+
     do i = 2, n_particles-1
     do j = 2, n_particles-1
     do k = 1, C%nz
@@ -229,14 +234,17 @@ contains
       call interpolate_3d_velocities_to_3D_point( mesh, u_3D_b, v_3D_b, w_3D, &
         x, y, zeta, vi_in, ti_in, u, v, w)
 
-      ! Check result
-      verified_u = verified_u .and. test_tol( u, u_ex, 10._dp)
-      verified_v = verified_v .and. test_tol( v, v_ex, 10._dp)
-      verified_w = verified_w .and. test_tol( w, w_ex, 0.1_dp)
+      max_diff_u = max( max_diff_u, abs( u - u_ex))
+      max_diff_v = max( max_diff_v, abs( v - v_ex))
+      max_diff_w = max( max_diff_w, abs( w - w_ex))
 
     end do
     end do
     end do
+
+    verified_u = max_diff_u <= 5._dp
+    verified_v = max_diff_v <= 5._dp
+    verified_w = max_diff_w <= 0.001_dp
 
     call unit_test( verified_u, trim( test_name) // '/u')
     call unit_test( verified_v, trim( test_name) // '/v')
