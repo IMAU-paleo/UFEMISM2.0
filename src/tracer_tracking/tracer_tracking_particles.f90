@@ -19,11 +19,12 @@ module tracer_tracking_model_particles
 
   private
 
-  public :: initialise_tracer_tracking_model_particles, &
-    calc_particle_zeta, interpolate_3d_velocities_to_3D_point, create_particles_to_mesh_map
+  public :: initialise_tracer_tracking_model_particles, calc_particle_zeta, &
+    interpolate_3d_velocities_to_3D_point, calc_particles_to_mesh_map
 
   integer, parameter :: n_particles_init  = 100
   integer, parameter :: n_tracers         = 1
+  integer, parameter :: n_nearest_to_find = 4
 
 contains
 
@@ -55,6 +56,10 @@ contains
     allocate( particles%r_origin ( particles%n, 3        ), source = 0._dp  )
     allocate( particles%t_origin ( particles%n           ), source = 0._dp  )
     allocate( particles%tracers  ( particles%n, n_tracers), source = 0._dp  )
+
+    particles%map%n = n_nearest_to_find
+    allocate( particles%map%ip( mesh%nV, C%nz, particles%map%n), source = 0)
+    allocate( particles%map%d ( mesh%nV, C%nz, particles%map%n), source = 0._dp)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -264,23 +269,21 @@ contains
   subroutine calc_particle_zeta( mesh, Hi, Hs, x, y, z, ti_in, zeta, Hi_interp_, Hs_interp_)
 
     ! In- and output variables
-    type(type_mesh),        intent(in   ) :: mesh
-    real(dp), dimension(:), intent(in   ) :: Hi, Hs
-    real(dp),               intent(in   ) :: x,y,z
-    integer,                intent(in   ) :: ti_in
-    real(dp),               intent(  out) :: zeta
-    real(dp), optional,     intent(  out) :: Hi_interp_, Hs_interp_
+    type(type_mesh),                        intent(in   ) :: mesh
+    real(dp), dimension(mesh%vi1:mesh%vi2), intent(in   ) :: Hi, Hs
+    real(dp),                               intent(in   ) :: x,y,z
+    integer,                                intent(inout) :: ti_in
+    real(dp),                               intent(  out) :: zeta
+    real(dp), optional,                     intent(  out) :: Hi_interp_, Hs_interp_
 
     ! Local variables
     real(dp), dimension(2) :: p
-    integer                :: ti_in_
     real(dp)               :: Hi_interp, Hs_interp
 
     ! Interpolate Hib,Hs horizontally to [x,y]
     p = [x,y]
-    ti_in_ = ti_in
-    call interpolate_to_point_dp_2D( mesh, Hi, p, ti_in_, Hi_interp)
-    call interpolate_to_point_dp_2D( mesh, Hs, p, ti_in_, Hs_interp)
+    call interpolate_to_point_dp_2D( mesh, Hi, p, ti_in, Hi_interp)
+    call interpolate_to_point_dp_2D( mesh, Hs, p, ti_in, Hs_interp)
 
     Hi_interp = max( 0.1_dp, Hi_interp)
 
@@ -401,10 +404,10 @@ contains
   subroutine map_tracer_to_mesh( mesh, particles, f_particles, f_mesh)
 
     ! In/output variables
-    type(type_mesh),                            intent(in   ) :: mesh
-    type(type_tracer_tracking_model_particles), intent(in   ) :: particles
-    real(dp), dimension(particles%n),           intent(in   ) :: f_particles
-    real(dp), dimension(mesh%nV,C%nz),          intent(  out) :: f_mesh
+    type(type_mesh),                             intent(in   ) :: mesh
+    type(type_tracer_tracking_model_particles),  intent(in   ) :: particles
+    real(dp), dimension(particles%n),            intent(in   ) :: f_particles
+    real(dp), dimension(mesh%vi1:mesh%vi2,C%nz), intent(  out) :: f_mesh
 
     ! Local variables
     character(len=1024), parameter :: routine_name = 'map_tracer_to_mesh'
@@ -417,7 +420,7 @@ contains
 
     f_mesh = 0._dp
 
-    do vi = 1, mesh%nV
+    do vi = mesh%vi1, mesh%vi2
 
       do k = 1, C%nz
 
@@ -449,15 +452,14 @@ contains
 
   end subroutine map_tracer_to_mesh
 
-  subroutine create_particles_to_mesh_map( mesh, n_nearest_to_find, particles)
+  subroutine calc_particles_to_mesh_map( mesh, particles)
 
     ! In/output variables
     type(type_mesh),                            intent(in   ) :: mesh
-    integer,                                    intent(in   ) :: n_nearest_to_find
     type(type_tracer_tracking_model_particles), intent(inout) :: particles
 
     ! Local variables
-    character(len=1024), parameter      :: routine_name = 'create_particles_to_mesh_map'
+    character(len=1024), parameter      :: routine_name = 'calc_particles_to_mesh_map'
     real(dp), dimension(mesh%nV,C%nz,3) :: rs_mesh
     real(dp), dimension(particles%n ,3) :: rs_particles
     integer                             :: vi,k,ip
@@ -472,6 +474,11 @@ contains
 
     ! Add routine to path
     call init_routine( routine_name)
+
+    ! Initialise
+    dist_max = norm2( [mesh%xmin,mesh%ymin] - [mesh%xmax,mesh%ymax])
+    particles%map%ip = 0
+    particles%map%d  = dist_max
 
     ! Calculate scaled coordinates for mesh vertex-layers and for particles
     do vi = 1, mesh%nV
@@ -488,14 +495,6 @@ contains
       rs_particles( ip,2) = (particles%r( ip,2) - mesh%ymin) / (mesh%ymax - mesh%ymin)
       rs_particles( ip,3) = particles%zeta( ip)
     end do
-
-    ! Allocate memory
-    dist_max = norm2( [mesh%xmin,mesh%ymin] - [mesh%xmax,mesh%ymax])
-    particles%map%n = n_nearest_to_find
-    allocate( particles%map%ip( mesh%nV, C%nz, particles%map%n), source = 0)
-    allocate( particles%map%d ( mesh%nV, C%nz, particles%map%n), source = dist_max)
-
-    ! Do a flood-fill style expansion around each particle
 
     ! Initialise map and stack
     map    = 0
@@ -574,6 +573,6 @@ contains
     ! Finalise routine path
     call finalise_routine( routine_name)
 
-  end subroutine create_particles_to_mesh_map
+  end subroutine calc_particles_to_mesh_map
 
 end module tracer_tracking_model_particles

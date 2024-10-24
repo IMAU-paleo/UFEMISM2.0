@@ -18,8 +18,9 @@ module ut_tracer_tracking
   use mesh_utilities, only: find_containing_triangle, find_containing_vertex
   use tracer_tracking_model_types, only: type_tracer_tracking_model_particles, type_map_particles_to_mesh
   use tracer_tracking_model_particles, only: calc_particle_zeta, interpolate_3d_velocities_to_3D_point, &
-    create_particles_to_mesh_map
+    calc_particles_to_mesh_map
   use mpi
+  use mpi_distributed_memory, only: gather_to_all_dp_1D
 
   implicit none
 
@@ -67,9 +68,9 @@ contains
     call calc_all_secondary_mesh_data( mesh, C%lambda_M_ANT, C%phi_M_ANT, C%beta_stereo_ANT)
 
     ! Run unit tests on this test mesh
-    call test_calc_particle_zeta                      ( test_name, mesh)
-    call test_interpolate_3d_velocities_to_3D_point   ( test_name, mesh)
-    call test_create_particles_to_mesh_map( test_name, mesh)
+    call test_calc_particle_zeta                   ( test_name, mesh)
+    call test_interpolate_3d_velocities_to_3D_point( test_name, mesh)
+    call test_calc_particles_to_mesh_map           ( test_name, mesh)
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)
@@ -83,19 +84,20 @@ contains
     type(type_mesh),  intent(in) :: mesh
 
     ! Local variables:
-    character(len=1024), parameter :: routine_name = 'test_calc_particle_zeta'
-    character(len=1024), parameter :: test_name_local = 'calc_particle_zeta'
-    character(len=1024)            :: test_name
-    real(dp), dimension(mesh%nV)   :: Hi,Hb,Hs
-    integer                        :: vi
-    integer                        :: n_particles,i,j,k
-    real(dp)                       :: zmin,zmax
-    real(dp)                       :: x,y,z
-    real(dp), dimension(2)         :: p
-    integer                        :: ti_in
-    real(dp)                       :: Hi_ex, Hb_ex, Hs_ex, zeta_ex
-    real(dp)                       :: zeta
-    logical                        :: verified
+    character(len=1024), parameter         :: routine_name = 'test_calc_particle_zeta'
+    character(len=1024), parameter         :: test_name_local = 'calc_particle_zeta'
+    character(len=1024)                    :: test_name
+    real(dp), dimension(mesh%vi1:mesh%vi2) :: Hi,Hb,Hs
+    integer                                :: vi
+    integer                                :: nx,ny,nz,i,j,k
+    real(dp)                               :: zmin,zmax
+    integer                                :: ierr
+    real(dp)                               :: x,y,z
+    real(dp), dimension(2)                 :: p
+    integer                                :: ti_in
+    real(dp)                               :: Hi_ex, Hb_ex, Hs_ex, zeta_ex
+    real(dp)                               :: Hi_interp, Hs_interp, zeta_interp, max_err_zeta
+    logical                                :: verified
 
     ! Add routine to call stack
     call init_routine( routine_name)
@@ -103,27 +105,30 @@ contains
     ! Add test name to list
     test_name = trim( test_name_parent) // '/' // trim( test_name_local)
 
-    verified = .true.
-
     ! Set up a simple test geometry
-    do vi = 1, mesh%nV
+    do vi = mesh%vi1, mesh%vi2
       call calc_simple_test_geometry( mesh%xmin, mesh%xmax, mesh%ymin, mesh%ymax, mesh%V( vi,1), mesh%V( vi,2), &
         Hi = Hi( vi), Hb = Hb( vi), Hs = Hs( vi))
     end do
 
     zmin = minval( Hb)
     zmax = maxval( Hs)
+    call MPI_ALLREDUCE( MPI_IN_PLACE, zmin, 1, MPI_DOUBLE_PRECISION, MPI_MIN, MPI_COMM_WORLD, ierr)
+    call MPI_ALLREDUCE( MPI_IN_PLACE, zmax, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
 
     ! Determine zeta for a grid of test particles
-    n_particles = 100
+    nx = 100
+    ny = 100
+    nz = 100
     ti_in = 1
-    do i = 2, n_particles-1
-    do j = 2, n_particles-1
-    do k = 1, n_particles
+    max_err_zeta = 0._dp
+    do i = 2, nx-1
+    do j = 2, ny-1
+    do k = 1, nz
 
-      x = mesh%xmin + (mesh%xmax - mesh%xmin) * real( i-1,dp) / real( n_particles-1,dp)
-      y = mesh%ymin + (mesh%ymax - mesh%ymin) * real( j-1,dp) / real( n_particles-1,dp)
-      z =      zmin + (     zmax -      zmin) * real( k-1,dp) / real( n_particles-1,dp)
+      x = mesh%xmin + (mesh%xmax - mesh%xmin) * real( i-1,dp) / real( nx-1,dp)
+      y = mesh%ymin + (mesh%ymax - mesh%ymin) * real( j-1,dp) / real( ny-1,dp)
+      z =      zmin + (     zmax -      zmin) * real( k-1,dp) / real( nz-1,dp)
 
       p = [x,y]
       call find_containing_triangle( mesh, p, ti_in)
@@ -137,14 +142,15 @@ contains
       if (zeta_ex < 0.05_dp .or. zeta_ex > 0.95_dp) cycle
 
       ! Interpolation
-      call calc_particle_zeta( mesh, Hi, Hs, x, y, z, ti_in, zeta)
+      call calc_particle_zeta( mesh, Hi, Hs, x, y, z, ti_in, zeta_interp, &
+        Hi_interp_ = Hi_interp, Hs_interp_ = Hs_interp)
+      max_err_zeta = max( max_err_zeta, abs( zeta_interp - zeta_ex))
 
-      ! Check result
-      verified = verified .and. test_tol( zeta, zeta_ex, 0.05_dp)
+    end do
+    end do
+    end do
 
-    end do
-    end do
-    end do
+    verified = max_err_zeta <= 0.005_dp
 
     call unit_test( verified, trim( test_name) // '/zeta')
 
@@ -241,15 +247,15 @@ contains
 
   end subroutine test_interpolate_3d_velocities_to_3D_point
 
-  subroutine test_create_particles_to_mesh_map( test_name_parent, mesh)
+  subroutine test_calc_particles_to_mesh_map( test_name_parent, mesh)
 
     ! In/output variables:
     character(len=*), intent(in) :: test_name_parent
     type(type_mesh),  intent(in) :: mesh
 
     ! Local variables:
-    character(len=1024), parameter             :: routine_name = 'test_find_n_particles_nearest_to_each_vertext'
-    character(len=1024), parameter             :: test_name_local = 'create_particles_to_mesh_map'
+    character(len=1024), parameter             :: routine_name = 'test_calc_particles_to_mesh_map'
+    character(len=1024), parameter             :: test_name_local = 'calc_particles_to_mesh_map'
     character(len=1024)                        :: test_name
     real(dp), dimension(mesh%nV)               :: Hi, Hb, Hs
     integer                                    :: nx,ny,nz,vi
@@ -301,7 +307,11 @@ contains
     end do
     end do
 
-    call create_particles_to_mesh_map( mesh, 4, particles)
+    particles%map%n = 4
+    allocate( particles%map%ip( mesh%nV, C%nz, particles%map%n), source = 0)
+    allocate( particles%map%d ( mesh%nV, C%nz, particles%map%n), source = 0._dp)
+
+    call calc_particles_to_mesh_map( mesh, particles)
 
     ! Compare to a brute-force search
     ! ===============================
@@ -353,21 +363,17 @@ contains
     do vi = 1, mesh%nV
       do k = 1, C%nz
         do ii = 1, particles%map%n
-          verified = verified .and. &
-            any( particles%map%ip( vi,k,ii) == map_bruteforce%ip( vi,k,:))
-          if (par%master .and. .not. any( particles%map%ip( vi,k,ii) == map_bruteforce%ip( vi,k,:))) then
-            write(0,*) 'tijn: ', particles%map%ip( vi,k,:), ', brute: ', map_bruteforce%ip( vi,k,:)
-          end if
+          verified = verified .and. any( particles%map%ip( vi,k,ii) == map_bruteforce%ip( vi,k,:))
         end do
       end do
     end do
 
-    call unit_test( verified, trim( test_name) // '/result')
+    call unit_test( verified, trim( test_name) // '/map')
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)
 
-  end subroutine test_create_particles_to_mesh_map
+  end subroutine test_calc_particles_to_mesh_map
 
   subroutine calc_simple_test_geometry( xmin, xmax, ymin, ymax, x, y, &
     Hi, Hb, Hs, z, zeta, zeta_q, u, v, w)
@@ -391,8 +397,8 @@ contains
 
     if (present( Hi)) then
       call assert( present( Hs) .and. present( Hs), 'need both Hi, Hb and Hs')
-      Hi = 2000._dp + 500._dp * (cos( 3._dp * pi * cx * (x - xmin)) + cos( 2._dp * pi * cy * (y - ymin)))
-      Hb =            200._dp * (sin( 2._dp * pi * cx * (x - xmin)) + sin( 3._dp * pi * cy * (y - ymin)))
+      Hi = 2000._dp + 500._dp * (cos( 1._dp * pi * cx * (x - xmin)) + cos( 2._dp * pi * cy * (y - ymin)))
+      Hb =            200._dp * (sin( 2._dp * pi * cx * (x - xmin)) + sin( 1._dp * pi * cy * (y - ymin)))
       Hs = Hb + Hi
     end if
 
@@ -403,17 +409,17 @@ contains
 
     if (present( u)) then
       call assert( present( zeta_q), 'need both zeta_q and u')
-      u = (1._dp - zeta_q) * (100._dp + 50._dp * (sin( 2.5_dp * pi * cx * (x - xmin)) + cos( 3.5_dp * pi * cy * (y - ymin))))
+      u = (1._dp - zeta_q) * (100._dp + 50._dp * (sin( 1.5_dp * pi * cx * (x - xmin)) + cos( 0.5_dp * pi * cy * (y - ymin))))
     end if
 
     if (present( v)) then
       call assert( present( zeta_q), 'need both zeta_q and v')
-      v = (1._dp - zeta_q) * (100._dp + 50._dp * (cos( 3.5_dp * pi * cx * (x - xmin)) + sin( 2.5_dp * pi * cy * (y - ymin))))
+      v = (1._dp - zeta_q) * (100._dp + 50._dp * (cos( 0.5_dp * pi * cx * (x - xmin)) + sin( 1.5_dp * pi * cy * (y - ymin))))
     end if
 
     if (present( w)) then
       call assert( present( zeta_q), 'need both zeta_q and w')
-      w = (1._dp - zeta_q) * (          -1._dp * (sin( 1.5_dp * pi * cx * (x - xmin)) + sin( 2.2_dp * pi * cy * (y - ymin))))
+      w = (1._dp - zeta_q) * (          -1._dp * (sin( 0.5_dp * pi * cx * (x - xmin)) + sin( 0.2_dp * pi * cy * (y - ymin))))
     end if
 
   end subroutine calc_simple_test_geometry
