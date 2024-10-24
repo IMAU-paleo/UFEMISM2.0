@@ -18,7 +18,7 @@ module ut_tracer_tracking
   use mesh_utilities, only: find_containing_triangle, find_containing_vertex
   use tracer_tracking_model_types, only: type_tracer_tracking_model_particles, type_map_particles_to_mesh
   use tracer_tracking_model_particles, only: calc_particle_zeta, interpolate_3d_velocities_to_3D_point, &
-    update_particles_vi_ti_in, create_particles_to_mesh_map
+    create_particles_to_mesh_map
   use mpi
 
   implicit none
@@ -252,13 +252,14 @@ contains
     character(len=1024), parameter             :: test_name_local = 'create_particles_to_mesh_map'
     character(len=1024)                        :: test_name
     real(dp), dimension(mesh%nV)               :: Hi, Hb, Hs
-    integer                                    :: vi
+    integer                                    :: nx,ny,nz,vi
     type(type_tracer_tracking_model_particles) :: particles
-    integer                                    :: nx,ny,nz,i,j,k,ip
-    type(type_map_particles_to_mesh)           :: map_bruteforce
+    integer                                    :: i,j,k,ip
+    real(dp), dimension(2)                     :: p
     logical                                    :: verified
     real(dp), dimension(mesh%nV,C%nz,3)        :: rs_mesh
     real(dp), dimension(:,:), allocatable      :: rs_particles
+    type(type_map_particles_to_mesh)           :: map_bruteforce
     real(dp)                                   :: dist_max, dist
     integer                                    :: ii, jj
 
@@ -293,11 +294,12 @@ contains
       particles%r( ip,1) = mesh%xmin + (mesh%xmax - mesh%xmin) * real( i-1,dp) / real( nx-1,dp)
       particles%r( ip,2) = mesh%ymin + (mesh%ymax - mesh%ymin) * real( j-1,dp) / real( nx-1,dp)
       particles%zeta( ip) = real( k-1,dp) / real(nz-1,dp)
+      p = [particles%r( ip,1), particles%r( ip,2)]
+      call find_containing_triangle( mesh, p, particles%ti_in( ip))
+      call find_containing_vertex  ( mesh, p, particles%vi_in( ip))
     end do
     end do
     end do
-
-    call update_particles_vi_ti_in( mesh, particles)
 
     call create_particles_to_mesh_map( mesh, 4, particles)
 

@@ -5,10 +5,11 @@ module tracer_tracking_model_main
   use precisions, only: dp
   use mpi_basic, only: par
   use control_resources_and_error_messaging, only: init_routine, finalise_routine
+  use model_configuration, only: C
   use mesh_types, only: type_mesh
+  use ice_model_types, only: type_ice_model
   use tracer_tracking_model_types, only: type_tracer_tracking_model
   use tracer_tracking_model_particles, only: initialise_tracer_tracking_model_particles
-  use model_configuration, only: C
 
   implicit none
 
@@ -21,10 +22,11 @@ module tracer_tracking_model_main
 
 contains
 
-  subroutine initialise_tracer_tracking_model( mesh, tracer_tracking)
+  subroutine initialise_tracer_tracking_model( mesh, ice, tracer_tracking)
 
     ! In- and output variables
     type(type_mesh),                  intent(in   ) :: mesh
+    type(type_ice_model),             intent(in   ) :: ice
     type(type_tracer_tracking_model), intent(inout) :: tracer_tracking
 
     ! Local variables:
@@ -39,7 +41,7 @@ contains
     allocate( tracer_tracking%age    ( mesh%nV, C%nz           ))
     allocate( tracer_tracking%tracers( mesh%nV, C%nz, n_tracers))
 
-    call initialise_tracer_tracking_model_particles( mesh, tracer_tracking%particles)
+    call initialise_tracer_tracking_model_particles( mesh, ice, tracer_tracking%particles)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
