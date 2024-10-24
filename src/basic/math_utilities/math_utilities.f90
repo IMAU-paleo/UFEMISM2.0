@@ -5,6 +5,8 @@ MODULE math_utilities
 ! ===== Preamble =====
 ! ====================
 
+  use tests_main
+  use assertions_basic
   USE mpi
   USE precisions                                             , ONLY: dp
   USE mpi_basic                                              , ONLY: par, cerr, ierr, recv_status, sync
@@ -3541,5 +3543,119 @@ CONTAINS
     deallocate( ddz_src)
 
   end subroutine remap_cons_2nd_order_1D
+
+  subroutine interpolate_inside_triangle_dp_2D( pa, pb, pc, fa, fb, fc, p, f, tol_dist)
+    ! In/output variables
+    real(dp), dimension(2), intent(in   ) :: pa, pb, pc
+    real(dp),               intent(in   ) :: fa, fb, fc
+    real(dp), dimension(2), intent(in   ) :: p
+    real(dp),               intent(  out) :: f
+    real(dp),               intent(in   ) :: tol_dist
+    ! Local variables
+    real(dp) :: Atri_abp, Atri_bcp, Atri_cap, Atri_tot, wa, wb, wc
+
+#if (DO_ASSERTIONS)
+    call assert( is_in_triangle( pa, pb, pc, p) .or. &
+      lies_on_line_segment( pa, pb, p, tol_dist) .or. &
+      lies_on_line_segment( pb, pc, p, tol_dist) .or. &
+      lies_on_line_segment( pc, pa, p, tol_dist) .or. &
+      norm2( pa - p) <= tol_dist .or. &
+      norm2( pb - p) <= tol_dist .or. &
+      norm2( pc - p) <= tol_dist, 'p does not lie in triangle')
+#endif
+
+    ! If p coincides with a, b, or c, copy f from there
+    if (norm2( pa - p) <= tol_dist) then
+      f = fa
+    elseif (norm2( pb - p) <= tol_dist) then
+      f = fb
+    elseif (norm2( pc - p) <= tol_dist) then
+      f = fc
+
+    ! If p lies on one of the three edges, interpolate between its two vertices
+    elseif (lies_on_line_segment( pa, pb, p, tol_dist)) then
+      wa = norm2( pb - p) / norm2( pb - pa)
+      wb = 1._dp - wa
+      f = wa * fa + wb * fb
+    elseif (lies_on_line_segment( pb, pc, p, tol_dist)) then
+      wb = norm2( pc - p) / norm2( pc - pb)
+      wc = 1._dp - wb
+      f = wb * fb + wc * fc
+    elseif (lies_on_line_segment( pc, pa, p, tol_dist)) then
+      wc = norm2( pa - p) / norm2( pa - pc)
+      wa = 1._dp - wc
+      f = wc * fc + wa * fa
+
+    ! Otherwise, p lies inside the triangle; do a trilinear interpolation
+    else
+      Atri_abp = triangle_area( pa, pb, p)
+      Atri_bcp = triangle_area( pb, pc, p)
+      Atri_cap = triangle_area( pc, pa, p)
+      Atri_tot = Atri_abp + Atri_bcp + Atri_cap
+      wa = Atri_bcp / Atri_tot
+      wb = Atri_cap / Atri_tot
+      wc = Atri_abp / Atri_tot
+      f = wa * fa + wb * fb + wc * fc
+    end if
+
+  end subroutine interpolate_inside_triangle_dp_2D
+
+  subroutine interpolate_inside_triangle_dp_3D( pa, pb, pc, fa, fb, fc, p, f, tol_dist)
+    ! In/output variables
+    real(dp), dimension(2), intent(in   ) :: pa, pb, pc
+    real(dp), dimension(:), intent(in   ) :: fa, fb, fc
+    real(dp), dimension(2), intent(in   ) :: p
+    real(dp), dimension(:), intent(  out) :: f
+    real(dp),               intent(in   ) :: tol_dist
+    ! Local variables
+    real(dp) :: Atri_abp, Atri_bcp, Atri_cap, Atri_tot, wa, wb, wc
+
+#if (DO_ASSERTIONS)
+    call assert( is_in_triangle( pa, pb, pc, p) .or. &
+      lies_on_line_segment( pa, pb, p, tol_dist) .or. &
+      lies_on_line_segment( pb, pc, p, tol_dist) .or. &
+      lies_on_line_segment( pc, pa, p, tol_dist) .or. &
+      norm2( pa - p) <= tol_dist .or. &
+      norm2( pb - p) <= tol_dist .or. &
+      norm2( pc - p) <= tol_dist, 'p does not lie in triangle')
+    call assert( size( fa) == size( fb) .and. size( fb) == size( fc) .and. size( fc) == size( f), &
+      'incorrect input dimensions')
+#endif
+
+    ! If p coincides with a, b, or c, copy f from there
+    if (norm2( pa - p) <= tol_dist) then
+      f = fa
+    elseif (norm2( pb - p) <= tol_dist) then
+      f = fb
+    elseif (norm2( pc - p) <= tol_dist) then
+      f = fc
+
+    ! If p lies on one of the three edges, interpolate between its two vertices
+    elseif (lies_on_line_segment( pa, pb, p, tol_dist)) then
+      wa = norm2( pb - p) / norm2( pb - pa)
+      wb = 1._dp - wa
+      f = wa * fa + wb * fb
+    elseif (lies_on_line_segment( pb, pc, p, tol_dist)) then
+      wb = norm2( pc - p) / norm2( pc - pb)
+      wc = 1._dp - wb
+      f = wb * fb + wc * fc
+    elseif (lies_on_line_segment( pc, pa, p, tol_dist)) then
+      wc = norm2( pa - p) / norm2( pa - pc)
+      wa = 1._dp - wc
+      f = wc * fc + wa * fa
+
+    ! Otherwise, p lies inside the triangle; do a trilinear interpolation
+    else
+      Atri_abp = triangle_area( pa, pb, p)
+      Atri_bcp = triangle_area( pb, pc, p)
+      Atri_cap = triangle_area( pc, pa, p)
+      Atri_tot = Atri_abp + Atri_bcp + Atri_cap
+      wa = Atri_bcp / Atri_tot
+      wb = Atri_cap / Atri_tot
+      wc = Atri_abp / Atri_tot
+      f = wa * fa + wb * fb + wc * fc
+    end if
+
+  end subroutine interpolate_inside_triangle_dp_3D
 
 END MODULE math_utilities

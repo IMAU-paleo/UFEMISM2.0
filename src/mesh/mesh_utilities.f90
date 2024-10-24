@@ -16,7 +16,8 @@ MODULE mesh_utilities
   USE mesh_types                                             , ONLY: type_mesh
   USE math_utilities                                         , ONLY: geometric_center, is_in_triangle, lies_on_line_segment, circumcenter, &
                                                                      line_from_points, line_line_intersection, encroaches_upon, crop_line_to_domain, &
-                                                                     triangle_area, smallest_triangle_angle, equiangular_skewness
+                                                                     triangle_area, smallest_triangle_angle, equiangular_skewness, &
+                                                                     interpolate_inside_triangle_dp_2D, interpolate_inside_triangle_dp_3D
   USE mpi_distributed_memory                                 , ONLY: gather_to_master_int_1D, gather_to_master_dp_1D, &
                                                                      distribute_from_master_int_1D, distribute_from_master_dp_1D, &
                                                                      gather_to_all_int_1D, gather_to_all_dp_1D
@@ -1434,16 +1435,10 @@ CONTAINS
     REAL(dp),                                INTENT(OUT  ) :: d_int
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'interpolate_to_point_dp_2D'
-    REAL(dp)                                                     :: d_min
-    INTEGER                                                      :: via, vib, vic
-    REAL(dp)                                                     :: da, db, dc
-    REAL(dp), DIMENSION(2)                                       :: pa, pb, pc
-    REAL(dp)                                                     :: Atri_abp, Atri_bcp, Atri_cap, Atri_tot
-    REAL(dp)                                                     :: wa, wb, wc
-
-    ! Add routine to path
-    CALL init_routine( routine_name)
+    REAL(dp)               :: d_min
+    INTEGER                :: via, vib, vic
+    REAL(dp)               :: da, db, dc
+    REAL(dp), DIMENSION(2) :: pa, pb, pc
 
     ! Find the global minimum value of d
     d_min = MINVAL( d)
@@ -1456,6 +1451,10 @@ CONTAINS
     via = mesh%Tri( ti_in,1)
     vib = mesh%Tri( ti_in,2)
     vic = mesh%Tri( ti_in,3)
+
+    pa = mesh%V( via,:)
+    pb = mesh%V( vib,:)
+    pc = mesh%V( vic,:)
 
     ! Communicate the values of d on these three vertices
 
@@ -1480,25 +1479,7 @@ CONTAINS
     END IF
     CALL MPI_ALLREDUCE( MPI_IN_PLACE, dc, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
 
-    ! Trilinearly interpolate between a,b,c to find d_int
-    pa = mesh%V( via,:)
-    pb = mesh%V( vib,:)
-    pc = mesh%V( vic,:)
-
-    Atri_abp = triangle_area( pa, pb, p)
-    Atri_bcp = triangle_area( pb, pc, p)
-    Atri_cap = triangle_area( pc, pa, p)
-
-    Atri_tot = Atri_abp + Atri_bcp + Atri_cap
-
-    wc = Atri_abp / Atri_tot
-    wa = Atri_bcp / Atri_tot
-    wb = Atri_cap / Atri_tot
-
-    d_int = da * wa + db * wb + dc * wc
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call interpolate_inside_triangle_dp_2D( pa, pb, pc, da, db, dc, p, d_int, mesh%tol_dist)
 
   END SUBROUTINE interpolate_to_point_dp_2D
 
@@ -1515,17 +1496,11 @@ CONTAINS
     REAL(dp), DIMENSION(C%nz),                      INTENT(  OUT) :: d_int
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER :: routine_name = 'interpolate_to_point_dp_2D'
     INTEGER                       :: k
     REAL(dp), DIMENSION(C%nz)     :: d_min
     INTEGER                       :: via, vib, vic
     REAL(dp), DIMENSION(C%nz)     :: da, db, dc
     REAL(dp), DIMENSION(2)        :: pa, pb, pc
-    REAL(dp)                      :: Atri_abp, Atri_bcp, Atri_cap, Atri_tot
-    REAL(dp)                      :: wa, wb, wc
-
-    ! Add routine to path
-    CALL init_routine( routine_name)
 
 #if (DO_ASSERTIONS)
     call assert( size( d,2) == size( d_int),'input array sizes dont match')
@@ -1544,6 +1519,10 @@ CONTAINS
     via = mesh%Tri( ti_in,1)
     vib = mesh%Tri( ti_in,2)
     vic = mesh%Tri( ti_in,3)
+
+    pa = mesh%V( via,:)
+    pb = mesh%V( vib,:)
+    pc = mesh%V( vic,:)
 
     ! Communicate the values of d on these three vertices
 
@@ -1568,25 +1547,7 @@ CONTAINS
     END IF
     CALL MPI_ALLREDUCE( MPI_IN_PLACE, dc, C%nz, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
 
-    ! Trilinearly interpolate between a,b,c to find d_int
-    pa = mesh%V( via,:)
-    pb = mesh%V( vib,:)
-    pc = mesh%V( vic,:)
-
-    Atri_abp = triangle_area( pa, pb, p)
-    Atri_bcp = triangle_area( pb, pc, p)
-    Atri_cap = triangle_area( pc, pa, p)
-
-    Atri_tot = Atri_abp + Atri_bcp + Atri_cap
-
-    wc = Atri_abp / Atri_tot
-    wa = Atri_bcp / Atri_tot
-    wb = Atri_cap / Atri_tot
-
-    d_int = da * wa + db * wb + dc * wc
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call interpolate_inside_triangle_dp_3D( pa, pb, pc, da, db, dc, p, d_int, mesh%tol_dist)
 
   END SUBROUTINE interpolate_to_point_dp_3D
 
