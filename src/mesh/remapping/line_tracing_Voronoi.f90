@@ -16,7 +16,7 @@ module line_tracing_Voronoi
 
   private
 
-  public :: trace_line_Vor
+  public :: trace_line_Vor, trace_line_Vor_start
 
 contains
 
