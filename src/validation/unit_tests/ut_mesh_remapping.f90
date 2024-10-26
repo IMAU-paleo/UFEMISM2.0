@@ -28,6 +28,7 @@ module ut_mesh_remapping
   use ut_mesh_remapping_trace_line_tri_vi, only: test_trace_line_tri_vi
   use ut_mesh_remapping_trace_line_tri_ei, only: test_trace_line_tri_ei
   use ut_mesh_remapping_trace_line_tri, only: test_trace_line_tri
+  use ut_mesh_remapping_trace_line_Vor_start, only: test_trace_line_Vor_start
 
   implicit none
 
@@ -56,6 +57,7 @@ contains
 
     call test_trace_line_grid_main( test_name)
     call test_trace_line_tri_main ( test_name)
+    call test_trace_line_Vor_main ( test_name)
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)
@@ -148,5 +150,47 @@ contains
     call finalise_routine( routine_name)
 
   end subroutine test_trace_line_tri_main
+
+  subroutine test_trace_line_Vor_main( test_name_parent)
+    ! Test the trace_line_Vor subroutines
+
+    ! In/output variables:
+    character(len=*), intent(in) :: test_name_parent
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'test_trace_line_Vor_main'
+    character(len=1024), parameter :: test_name_local = 'trace_line_Vor'
+    character(len=1024)            :: test_name
+    real(dp)                       :: xmin, xmax, ymin, ymax, alpha_min, res_max
+    character(len=1024)            :: name
+    type(type_mesh)                :: mesh
+
+    ! Add routine to call stack
+    call init_routine( routine_name)
+
+    ! Add test name to list
+    test_name = trim( test_name_parent) // '/' // trim( test_name_local)
+
+    ! Create a simple test mesh
+    name = 'test_mesh'
+    xmin = 0._dp
+    xmax = pi
+    ymin = 0._dp
+    ymax = pi
+    alpha_min = 25._dp * pi / 180._dp
+    res_max = pi / 20._dp
+
+    call allocate_mesh_primary( mesh, name, 100, 200, C%nC_mem)
+    call initialise_dummy_mesh_5( mesh, xmin, xmax, ymin, ymax)
+    call refine_mesh_uniform( mesh, res_max, alpha_min)
+    call calc_all_secondary_mesh_data( mesh, C%lambda_M_ANT, C%phi_M_ANT, C%beta_stereo_ANT)
+
+    ! Run unit tests on this mesh
+    call test_trace_line_Vor_start( test_name, mesh)
+
+    ! Remove routine from call stack
+    call finalise_routine( routine_name)
+
+  end subroutine test_trace_line_Vor_main
 
 end module ut_mesh_remapping
