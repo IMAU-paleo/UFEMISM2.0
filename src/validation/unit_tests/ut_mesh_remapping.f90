@@ -59,8 +59,8 @@ contains
     ! Add test name to list
     test_name = trim( test_name_parent) // '/' // trim( test_name_local)
 
-    ! call test_trace_line_grid_main( test_name)
-    ! call test_trace_line_tri_main ( test_name)
+    call test_trace_line_grid_main( test_name)
+    call test_trace_line_tri_main ( test_name)
     call test_trace_line_Vor_main ( test_name)
 
     ! Remove routine from call stack
@@ -190,9 +190,9 @@ contains
     call calc_all_secondary_mesh_data( mesh, C%lambda_M_ANT, C%phi_M_ANT, C%beta_stereo_ANT)
 
     ! Run unit tests on this mesh
-    ! call test_trace_line_Vor_start( test_name, mesh)
-    ! call test_trace_line_Vor_vi   ( test_name, mesh)
-    ! call test_trace_line_Vor_ti   ( test_name, mesh)
+    call test_trace_line_Vor_start( test_name, mesh)
+    call test_trace_line_Vor_vi   ( test_name, mesh)
+    call test_trace_line_Vor_ti   ( test_name, mesh)
     call test_trace_line_Vor_ei   ( test_name, mesh)
     call test_trace_line_Vor      ( test_name, mesh)
 
