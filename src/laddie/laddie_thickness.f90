@@ -174,19 +174,15 @@ CONTAINS
           D   = SQRT( D_x**2 + D_y**2)
           u_perp = U_c_tot( ei) * D_x/D + V_c_tot( ei) * D_y/D
 
-          ! Calculate momentum divergence
+          ! Calculate upwind momentum divergence
           ! =============================
-          ! Upwind:
           ! u_perp > 0: flow is exiting this vertex into vertex vj
           IF (u_perp > 0) THEN
             laddie%divQH( vi) = laddie%divQH( vi) + mesh%Cw( vi, ci) * u_perp * H_tot( vi) / mesh%A( vi)
           ! u_perp < 0: flow is entering this vertex from vertex vj
           ELSE
             IF (mask_oc_a_tot( vj)) THEN
-              ! Apply dH/dx = 0 in case of inflow from open ocean
-              !laddie%divQH( vi) = laddie%divQH( vi) + mesh%Cw( vi, ci) * u_perp * H_tot( vi) / mesh%A( vi)
-              ! No inflow
-              CYCLE
+              CYCLE ! No inflow
             ELSE
               laddie%divQH( vi) = laddie%divQH( vi) + mesh%Cw( vi, ci) * u_perp * H_tot( vj) / mesh%A( vi)
             END IF

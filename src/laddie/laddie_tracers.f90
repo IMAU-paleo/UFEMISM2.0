@@ -157,7 +157,7 @@ CONTAINS
             D_y = mesh%V( vj,2) - mesh%V( vi,2)
             D   = SQRT( D_x**2 + D_y**2)
 
-            Kh = C%laddie_diffusivity ! * 0.5_dp*(SQRT(mesh%A( vi)) + SQRT(mesh%A( vj))) / 1000.0_dp
+            Kh = C%laddie_diffusivity 
 
             laddie%diffT( vi) = laddie%diffT( vi) + (T_tot( vj) - T_tot( vi)) * Kh * npxref%H_c( ei) / mesh%A( vi) * mesh%Cw( vi, ci)/D
             laddie%diffS( vi) = laddie%diffS( vi) + (S_tot( vj) - S_tot( vi)) * Kh * npxref%H_c( ei) / mesh%A( vi) * mesh%Cw( vi, ci)/D
@@ -248,9 +248,8 @@ CONTAINS
           D   = SQRT( D_x**2 + D_y**2)
           u_perp = U_c_tot( ei) * D_x/D + V_c_tot( ei) * D_y/D
 
-          ! Calculate momentum divergence
+          ! Calculate upwind momentum divergence
           ! =============================
-          ! Upwind:
           ! u_perp > 0: flow is exiting this vertex into vertex vj
           IF (u_perp > 0) THEN
             laddie%divQT( vi) = laddie%divQT( vi) + mesh%Cw( vi, ci) * u_perp * Hstar_tot( vi) * T_tot( vi) / mesh%A( vi)
@@ -258,11 +257,7 @@ CONTAINS
           ! u_perp < 0: flow is entering this vertex from vertex vj
           ELSE
             IF (mask_oc_a_tot( vj)) THEN
-              ! Apply dHT/dx, dHS/dx = 0 in case of inflow from open ocean
-              !laddie%divQT( vi) = laddie%divQT( vi) + mesh%Cw( vi, ci) * u_perp * Hstar_tot( vi) * T_tot( vi) / mesh%A( vi)
-              !laddie%divQS( vi) = laddie%divQS( vi) + mesh%Cw( vi, ci) * u_perp * Hstar_tot( vi) * S_tot( vi) / mesh%A( vi)
-              ! No inflow
-              CYCLE
+              CYCLE ! no inflow
             ELSE
               laddie%divQT( vi) = laddie%divQT( vi) + mesh%Cw( vi, ci) * u_perp * Hstar_tot( vj) * T_tot( vj) / mesh%A( vi)
               laddie%divQS( vi) = laddie%divQS( vi) + mesh%Cw( vi, ci) * u_perp * Hstar_tot( vj) * S_tot( vj) / mesh%A( vi)
