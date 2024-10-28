@@ -31,6 +31,7 @@ module ut_mesh_remapping
   use ut_mesh_remapping_trace_line_Vor_start, only: test_trace_line_Vor_start
   use ut_mesh_remapping_trace_line_Vor_vi, only: test_trace_line_Vor_vi
   use ut_mesh_remapping_trace_line_Vor_ti, only: test_trace_line_Vor_ti
+  use ut_mesh_remapping_trace_line_Vor_ei, only: test_trace_line_Vor_ei
 
   implicit none
 
@@ -189,8 +190,9 @@ contains
 
     ! Run unit tests on this mesh
     call test_trace_line_Vor_start( test_name, mesh)
-    call test_trace_line_Vor_vi( test_name, mesh)
-    call test_trace_line_Vor_ti( test_name, mesh)
+    call test_trace_line_Vor_vi   ( test_name, mesh)
+    call test_trace_line_Vor_ti   ( test_name, mesh)
+    call test_trace_line_Vor_ei   ( test_name, mesh)
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)
