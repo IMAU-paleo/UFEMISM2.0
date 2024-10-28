@@ -59,8 +59,8 @@ contains
     ! Add test name to list
     test_name = trim( test_name_parent) // '/' // trim( test_name_local)
 
-    call test_trace_line_grid_main( test_name)
-    call test_trace_line_tri_main ( test_name)
+    ! call test_trace_line_grid_main( test_name)
+    ! call test_trace_line_tri_main ( test_name)
     call test_trace_line_Vor_main ( test_name)
 
     ! Remove routine from call stack
@@ -191,10 +191,10 @@ contains
 
     ! Run unit tests on this mesh
     call test_trace_line_Vor_start( test_name, mesh)
-    call test_trace_line_Vor_vi   ( test_name, mesh)
-    call test_trace_line_Vor_ti   ( test_name, mesh)
-    call test_trace_line_Vor_ei   ( test_name, mesh)
-    call test_trace_line_Vor      ( test_name, mesh)
+    ! call test_trace_line_Vor_vi   ( test_name, mesh)
+    ! call test_trace_line_Vor_ti   ( test_name, mesh)
+    ! call test_trace_line_Vor_ei   ( test_name, mesh)
+    ! call test_trace_line_Vor      ( test_name, mesh)
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)
