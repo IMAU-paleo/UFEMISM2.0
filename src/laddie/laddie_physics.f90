@@ -91,7 +91,7 @@ CONTAINS
        IF (laddie%mask_a( vi)) THEN
          ! Solve three equations
          That = freezing_lambda_2 + freezing_lambda_3*ice%Hib( vi)
-         Chat = cp_ocean / (L_fusion - cp_ice * Ti) ! TODO ice%Ti( vi, 1))
+         Chat = cp_ocean / (L_fusion - cp_ice * ice%Ti( vi, 1))
 
          Bval = Chat*laddie%gamma_T( vi)*(That - npx%T( vi)) + laddie%gamma_S( vi)*(1 + Chat*Ctil*(That + freezing_lambda_1*npx%S( vi)))
          Cval = Chat*laddie%gamma_T( vi)*laddie%gamma_S( vi) * (That-npx%T( vi) + freezing_lambda_1*npx%S( vi))
