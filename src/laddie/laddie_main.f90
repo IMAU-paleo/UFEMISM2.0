@@ -17,9 +17,7 @@ MODULE laddie_main
   USE BMB_model_types                                        , ONLY: type_BMB_model
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   USE laddie_utilities                                       , ONLY: compute_ambient_TS, allocate_laddie_model, &
-                                                                     allocate_laddie_timestep, map_H_a_b, map_H_a_c, &
-                                                                     calc_laddie_flux_divergence_matrix_upwind, &
-                                                                     map_laddie_velocities_from_b_to_c_2D
+                                                                     allocate_laddie_timestep, map_H_a_b, map_H_a_c
   USE laddie_physics                                         , ONLY: compute_freezing_temperature, compute_buoyancy
   USE laddie_thickness                                       , ONLY: compute_H_npx
   USE laddie_velocity                                        , ONLY: compute_UV_npx, compute_viscUV, compute_divQUV
