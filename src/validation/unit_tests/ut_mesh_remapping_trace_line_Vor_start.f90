@@ -62,7 +62,7 @@ contains
     character(len=1024)            :: test_name
     integer                        :: ti, vi_hint
     real(dp), dimension(2)         :: p
-    integer                        :: vi_in, ti_on, ei_on
+    type(type_coinc_ind_mesh)      :: coinc_ind
     logical                        :: verified_p_on_ti
 
     ! Add routine to call stack
@@ -76,11 +76,10 @@ contains
     vi_hint = 1
     do ti = 1, mesh%nTri
       p = mesh%Tricc( ti,:)
-      call trace_line_Vor_start( mesh, p, vi_hint, vi_in, ti_on, ei_on)
+      call trace_line_Vor_start( mesh, p, vi_hint, coinc_ind)
       verified_p_on_ti = verified_p_on_ti .and. &
-        vi_in == 0 .and. &
-        ti_on == ti .and. &
-        ei_on == 0
+        coinc_ind%grid == b_grid .and. &
+        coinc_ind%i == ti
     end do
 
     call unit_test( verified_p_on_ti, trim(test_name))
@@ -107,7 +106,7 @@ contains
     integer                        :: n_sub, ii
     real(dp)                       :: w
     real(dp), dimension(2)         :: p
-    integer                        :: vi_in, ti_on, ei_on
+    type(type_coinc_ind_mesh)      :: coinc_ind
     logical                        :: verified_p_on_ei
 
     ! Add routine to call stack
@@ -127,11 +126,10 @@ contains
         do ii = 2, n_sub-1
           w = real( ii-1,dp) / real( n_sub-1,dp)
           p = w * cc1 + (1._dp - w) * cc2
-          call trace_line_Vor_start( mesh, p, vi_hint, vi_in, ti_on, ei_on)
+          call trace_line_Vor_start( mesh, p, vi_hint, coinc_ind)
           verified_p_on_ei = verified_p_on_ei .and. &
-            vi_in == 0 .and. &
-            ti_on == 0 .and. &
-            ei_on == ei
+            coinc_ind%grid == c_grid .and. &
+            coinc_ind%i == ei
         end do
       end do
     end do
@@ -161,7 +159,7 @@ contains
     real(dp), dimension(2)         :: p
     real(dp)                       :: dist_to_vi, dist_to_nearest_vj
     integer                        :: ci, vj
-    integer                        :: vi_in, ti_on, ei_on
+    type(type_coinc_ind_mesh)      :: coinc_ind
     logical                        :: verified_p_in_vi
 
     ! Add routine to call stack
@@ -199,11 +197,10 @@ contains
           dist_to_nearest_vj = min( dist_to_nearest_vj, norm2( p - mesh%V( vj,:)))
         end do
         if (dist_to_vi < dist_to_nearest_vj - mesh%tol_dist) then
-          call trace_line_Vor_start( mesh, p, vi_hint, vi_in, ti_on, ei_on)
+          call trace_line_Vor_start( mesh, p, vi_hint, coinc_ind)
           verified_p_in_vi = verified_p_in_vi .and. &
-            vi_in == vi .and. &
-            ti_on == 0 .and. &
-            ei_on == 0
+            coinc_ind%grid == a_grid .and. &
+            coinc_ind%i == vi
         end if
       end do
       end do

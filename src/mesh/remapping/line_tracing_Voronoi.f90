@@ -4,7 +4,7 @@ module line_tracing_Voronoi
 
   use precisions, only: dp
   use remapping_types, only: type_map, type_single_row_mapping_matrices
-  use line_tracing_basic, only: add_integrals_to_single_row
+  use line_tracing_basic
   use mesh_types, only: type_mesh
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash
   use math_utilities, only: lies_on_line_segment, segment_intersection, crop_line_to_domain, &
@@ -38,6 +38,7 @@ contains
     logical                        :: finished
     integer                        :: n_cycles
     integer                        :: vi_in, ti_on, ei_on
+    type(type_coinc_ind_mesh)      :: coinc_ind
     real(dp), dimension(2)         :: p_next
     integer                        :: vi_left
     logical                        :: coincides
@@ -59,7 +60,8 @@ contains
     !    - lies inside the Voronoi cell of vertex vi_in, ...
     !    - lies on the circumcentre of triangle ti_on, or...
     !    - lies on the shared Voronoi cell boundary represented by edge ei_on
-    call trace_line_Vor_start( mesh, pp, vi_hint, vi_in, ti_on, ei_on)
+    call trace_line_Vor_start( mesh, pp, vi_hint, coinc_ind)
+    call coinc_ind_mesh_new2old( coinc_ind, vi_in, ti_on, ei_on)
 
     ! Iteratively trace the line through the mesh
     finished = .false.
@@ -111,34 +113,32 @@ contains
   !>    - lies inside the Voronoi cell of vertex vi_in, ...
   !>    - lies on the circumcentre of triangle ti_on, or...
   !>    - lies on the shared Voronoi cell boundary represented by edge ei_on
-  subroutine trace_line_Vor_start( mesh, p, vi_hint, vi_in, ti_on, ei_on)
+  subroutine trace_line_Vor_start( mesh, p, vi_hint, coinc_ind)
 
     ! In/output variables
-    type(type_mesh),        intent(in)    :: mesh
-    real(dp), dimension(2), intent(in)    :: p
-    integer,                intent(inout) :: vi_hint
-    integer,                intent(out)   :: vi_in
-    integer,                intent(out)   :: ti_on
-    integer,                intent(out)   :: ei_on
+    type(type_mesh),           intent(in)    :: mesh
+    real(dp), dimension(2),    intent(in)    :: p
+    integer,                   intent(inout) :: vi_hint
+    type(type_coinc_ind_mesh), intent(out)   :: coinc_ind
 
     ! Local variables:
-    integer                :: vti, ti, vei, ei
+    integer                :: iti, ti, vei, ei
     real(dp), dimension(2) :: cc1, cc2
 
     ! Initialise
-    vi_in = 0
-    ti_on = 0
-    ei_on = 0
+    coinc_ind%grid = no_value
+    coinc_ind%i    = 0
 
     ! Find the vertex whose Voronoi cell contains p
     call find_containing_vertex( mesh, p, vi_hint)
 
     ! Check if p lies on any of the surrounding triangles' circumcentres
-    do vti = 1, mesh%niTri( vi_hint)
-      ti = mesh%iTri( vi_hint,vti)
+    do iti = 1, mesh%niTri( vi_hint)
+      ti = mesh%iTri( vi_hint,iti)
       if (norm2( mesh%Tricc( ti,:) - p) < mesh%tol_dist) then
         ! p lies on the circumcentre of triangle ti
-        ti_on = ti
+        coinc_ind%grid = b_grid
+        coinc_ind%i    = ti
         return
       end if
     end do
@@ -149,13 +149,15 @@ contains
       call find_shared_Voronoi_boundary( mesh, ei, cc1, cc2)
       if (lies_on_line_segment( cc1, cc2, p, mesh%tol_dist)) then
         ! p lies on the shared Voronoi cell boundary represented by edge ei
-        ei_on = ei
+        coinc_ind%grid = c_grid
+        coinc_ind%i    = ei
         return
       end if
     end do
 
-    ! if p lies not on the boundary of the Voronoi cell, then it must lie inside of it
-    vi_in = vi_hint
+    ! If p lies not on the boundary of the Voronoi cell, then it must lie inside of it
+    coinc_ind%grid = a_grid
+    coinc_ind%i    = vi_hint
 
   end subroutine trace_line_Vor_start
 
