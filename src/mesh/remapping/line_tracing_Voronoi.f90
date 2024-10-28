@@ -178,14 +178,13 @@ contains
     logical,                   intent(out)   :: finished
 
     ! Local variables:
-    integer                             :: vi_in, vti, ti, ei, vori, vorj, ci, vj
-    real(dp), dimension(2)              :: r, llis, pa, pb
+    integer                             :: vi_in
     real(dp)                            :: dx
-    logical                             :: do_cross
     real(dp), dimension( mesh%nC_mem,2) :: Vor
     integer,  dimension( mesh%nC_mem  ) :: Vor_vi
     integer,  dimension( mesh%nC_mem  ) :: Vor_ti
     integer                             :: nVor
+    logical                             :: q_in_vi, q_on_ei, pq_through_ti, pq_through_ei
 
 #if (DO_ASSERTIONS)
     call assert( coinc_ind%grid == a_grid, 'coincidence grid is not a_grid')
@@ -195,6 +194,50 @@ contains
     vi_in = coinc_ind%i
 
     ! Check if q lies inside the same Voronoi cell
+    call trace_line_Vor_vi_q_in_vi(  mesh, vi_in, q, &
+      p_next, coinc_ind, vi_left, coincides, finished, q_in_vi)
+    if (q_in_vi) return
+
+    dx = ((mesh%xmax - mesh%xmin) + (mesh%ymax - mesh%ymin)) / 200
+    call calc_Voronoi_cell( mesh, vi_in, dx, Vor, Vor_vi, Vor_ti, nVor)
+
+    ! Check if q lies on the boundary of this Voronoi cell
+    call trace_line_Vor_vi_q_on_ei(  mesh, vi_in, nVor, Vor, q, &
+      p_next, coinc_ind, vi_left, coincides, finished, q_on_ei)
+    if (q_on_ei) return
+
+    ! Check if [pq] passes through any of the surrounding triangles' circumcentres
+    call trace_line_Vor_vi_pq_through_ti(  mesh, vi_in, p, q, &
+      p_next, coinc_ind, vi_left, coincides, finished, pq_through_ti)
+    if (pq_through_ti) return
+
+    ! Check if [pq] passes through any of the shared Voronoi boundaries
+    call trace_line_Vor_vi_pq_through_ei(  mesh, vi_in, nVor, Vor, Vor_vi, p, q, &
+      p_next, coinc_ind, vi_left, coincides, finished, pq_through_ei)
+    if (pq_through_ei) return
+
+    if (.not. (q_in_vi .or. q_on_ei .or. pq_through_ti .or. pq_through_ei)) then
+      call crash('trace_line_Vor_vi - couldnt find out where pq goes from here')
+    end if
+
+  end subroutine trace_line_Vor_vi
+
+  subroutine trace_line_Vor_vi_q_in_vi(  mesh, vi_in, q, &
+    p_next, coinc_ind, vi_left, coincides, finished, q_in_vi)
+
+    ! In/output variables
+    type(type_mesh),           intent(in)    :: mesh
+    integer,                   intent(in)    :: vi_in
+    real(dp), dimension(2),    intent(in)    :: q
+    real(dp), dimension(2),    intent(out)   :: p_next
+    type(type_coinc_ind_mesh), intent(inout) :: coinc_ind
+    integer,                   intent(out)   :: vi_left
+    logical,                   intent(out)   :: coincides
+    logical,                   intent(out)   :: finished
+    logical,                   intent(out)   :: q_in_vi
+
+    q_in_vi = .false.
+
     if (is_in_Voronoi_cell( mesh, q, vi_in)) then
       ! q lies inside the same Voronoi cell
       p_next         = q
@@ -203,18 +246,39 @@ contains
       coinc_ind%i    = 0
       coincides      = .false.
       finished       = .true.
-      return
+      q_in_vi        = .true.
     end if
 
-    ! Check if q lies on the boundary of this Voronoi cell
-    dx = ((mesh%xmax - mesh%xmin) + (mesh%ymax - mesh%ymin)) / 200
-    call calc_Voronoi_cell( mesh, vi_in, dx, Vor, Vor_vi, Vor_ti, nVor)
-    do vori = 1, nVor
-      vorj = vori + 1
-      if (vorj == nVor + 1) vorj = 1
+  end subroutine trace_line_Vor_vi_q_in_vi
+
+  subroutine trace_line_Vor_vi_q_on_ei(  mesh, vi_in, nVor, Vor, q, &
+    p_next, coinc_ind, vi_left, coincides, finished, q_on_ei)
+
+    ! In/output variables
+    type(type_mesh),                     intent(in)    :: mesh
+    integer,                             intent(in)    :: vi_in
+    integer,                             intent(in)    :: nVor
+    real(dp), dimension( mesh%nC_mem,2), intent(in)    :: Vor
+    real(dp), dimension(2),              intent(in)    :: q
+    real(dp), dimension(2),              intent(out)   :: p_next
+    type(type_coinc_ind_mesh),           intent(inout) :: coinc_ind
+    integer,                             intent(out)   :: vi_left
+    logical,                             intent(out)   :: coincides
+    logical,                             intent(out)   :: finished
+    logical,                             intent(out)   :: q_on_ei
+
+    ! Local variables:
+    integer                :: vori1, vori2
+    real(dp), dimension(2) :: pa, pb
+
+    q_on_ei = .false.
+
+    do vori1 = 1, nVor
+      vori2 = vori1 + 1
+      if (vori2 == nVor + 1) vori2 = 1
       ! The two endpoints of this section of the Voronoi cell boundary
-      pa = Vor( vori,:)
-      pb = Vor( vorj,:)
+      pa = Vor( vori1,:)
+      pb = Vor( vori2,:)
       if (norm2( q - pa) < mesh%tol_dist .or. lies_on_line_segment( pa, pb, q, mesh%tol_dist)) then
         ! q lies on the boundary of the same Voronoi cell
         p_next         = q
@@ -223,13 +287,35 @@ contains
         coinc_ind%i    = 0
         coincides      = .false.
         finished       = .true.
-        return
+        q_on_ei        = .true.
+        exit
       end if
     end do
 
-    ! Check if [pq] passes through any of the surrounding triangles' circumcentres
-    do vti = 1, mesh%niTri( vi_in)
-      ti = mesh%iTri( vi_in,vti)
+  end subroutine trace_line_Vor_vi_q_on_ei
+
+  subroutine trace_line_Vor_vi_pq_through_ti(  mesh, vi_in, p, q, &
+    p_next, coinc_ind, vi_left, coincides, finished, pq_through_ti)
+
+    ! In/output variables
+    type(type_mesh),           intent(in)    :: mesh
+    integer,                   intent(in)    :: vi_in
+    real(dp), dimension(2),    intent(in)    :: p, q
+    real(dp), dimension(2),    intent(out)   :: p_next
+    type(type_coinc_ind_mesh), intent(inout) :: coinc_ind
+    integer,                   intent(out)   :: vi_left
+    logical,                   intent(out)   :: coincides
+    logical,                   intent(out)   :: finished
+    logical,                   intent(out)   :: pq_through_ti
+
+    ! Local variables
+    integer                :: iti, ti
+    real(dp), dimension(2) :: r
+
+    pq_through_ti = .false.
+
+    do iti = 1, mesh%niTri( vi_in)
+      ti = mesh%iTri( vi_in,iti)
       r  = mesh%Tricc( ti,:)
       if (lies_on_line_segment( p, q, r, mesh%tol_dist)) then
         ! [pq] passes through this triangle's circumcentre
@@ -239,19 +325,45 @@ contains
         coinc_ind%i    = ti
         coincides      = .false.
         finished       = .false.
-        return
+        pq_through_ti  = .true.
+        exit
       end if
     end do
 
-    ! Check if [pq] passes through any of the shared Voronoi boundaries
-    do vori = 1, nVor
-      vorj = vori + 1
-      if (vorj == nVor + 1) vorj = 1
+  end subroutine trace_line_Vor_vi_pq_through_ti
+
+  subroutine trace_line_Vor_vi_pq_through_ei(  mesh, vi_in, nVor, Vor, Vor_vi, p, q, &
+    p_next, coinc_ind, vi_left, coincides, finished, pq_through_ei)
+
+    ! In/output variables
+    type(type_mesh),                     intent(in)    :: mesh
+    integer,                             intent(in)    :: vi_in
+    integer,                             intent(in)    :: nVor
+    real(dp), dimension( mesh%nC_mem,2), intent(in)    :: Vor
+    integer , dimension( mesh%nC_mem  ), intent(in)    :: Vor_vi
+    real(dp), dimension(2),              intent(in)    :: p, q
+    real(dp), dimension(2),              intent(out)   :: p_next
+    type(type_coinc_ind_mesh),           intent(inout) :: coinc_ind
+    integer,                             intent(out)   :: vi_left
+    logical,                             intent(out)   :: coincides
+    logical,                             intent(out)   :: finished
+    logical,                             intent(out)   :: pq_through_ei
+
+    ! Local variables
+    integer                :: vori1, vori2, vj, ei, ci
+    real(dp), dimension(2) :: pa, pb, llis
+    logical                :: do_cross
+
+    pq_through_ei = .false.
+
+    do vori1 = 1, nVor
+      vori2 = vori1 + 1
+      if (vori2 == nVor + 1) vori2 = 1
       ! The two endpoints of this section of the Voronoi cell boundary
-      pa = Vor( vori,:)
-      pb = Vor( vorj,:)
+      pa = Vor( vori1,:)
+      pb = Vor( vori2,:)
       ! The other vertex sharing this Voronoi cell boundary
-      vj = Vor_vi( vori)
+      vj = Vor_vi( vori1)
       ! The edge representing this shared Voronoi cell boundary
       ei = 0
       do ci = 1, mesh%nC( vi_in)
@@ -272,14 +384,12 @@ contains
         coinc_ind%i    = ei
         coincides      = .false.
         finished       = .false.
-        return
+        pq_through_ei  = .true.
+        exit
       end if
     end do
 
-    ! This point should not be reachable!
-    call crash('trace_line_Vor_vi - reached the unreachable end of the subroutine!')
-
-  end subroutine trace_line_Vor_vi
+  end subroutine trace_line_Vor_vi_pq_through_ei
 
   !> Given the line [pq], where p lies on the circumcentre of triangle ti_on,
   !> find the point p_next where [pq] crosses into the next Voronoi cell.
