@@ -19,7 +19,7 @@ MODULE laddie_thickness
   USE math_utilities                                         , ONLY: check_for_NaN_dp_1D
   USE laddie_physics                                         , ONLY: compute_melt_rate, compute_entrainment, &
                                                                      compute_freezing_temperature, compute_buoyancy
-  USE laddie_utilities                                       , ONLY: compute_ambient_TS
+  USE laddie_utilities                                       , ONLY: compute_ambient_TS, map_H_a_b, map_H_a_c
 
   IMPLICIT NONE
     
@@ -93,6 +93,10 @@ CONTAINS
 
       END IF !(laddie%mask_a( vi)) THEN
     END DO !vi = mesh%vi, mesh%v2
+
+    ! Map H to b grid and c grid
+    CALL map_H_a_b( mesh, laddie, npx%H, npx%H_b)
+    CALL map_H_a_c( mesh, laddie, npx%H, npx%H_c)
 
     CALL check_for_NaN_dp_1D( npx%H, 'H_lad')
 

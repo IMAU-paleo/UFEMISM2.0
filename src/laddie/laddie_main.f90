@@ -340,10 +340,6 @@ CONTAINS
     ! Integrate H 1 time step
     CALL compute_H_npx( mesh, ice, ocean, laddie, laddie%now, laddie%np1, dt)
 
-    ! Map H to b grid and c grid
-    CALL map_H_a_b( mesh, laddie, laddie%np1%H, laddie%np1%H_b)
-    CALL map_H_a_c( mesh, laddie, laddie%np1%H, laddie%np1%H_c)
-
     ! Update diffusive terms based on now time step
     CALL update_diffusive_terms( mesh, ice, laddie, laddie%now)
 
@@ -365,6 +361,10 @@ CONTAINS
     laddie%now%V = laddie%np1%V
     laddie%now%H_b = laddie%np1%H_b
     laddie%now%H_c = laddie%np1%H_c
+    laddie%now%U_a = laddie%np1%U_a
+    laddie%now%U_c = laddie%np1%U_c
+    laddie%now%V_a = laddie%np1%V_a
+    laddie%now%V_c = laddie%np1%V_c
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -404,10 +404,6 @@ CONTAINS
     ! Compute Hstar
     Hstar = beta1 * laddie%np13%H + (1-beta1) * laddie%now%H
 
-    ! Map H to b grid and c grid
-    CALL map_H_a_b( mesh, laddie, laddie%np13%H, laddie%np13%H_b)
-    CALL map_H_a_c( mesh, laddie, laddie%np13%H, laddie%np13%H_c)
-
     ! Integrate U and V 1/3 time step
     CALL compute_UV_npx( mesh, ice, ocean, laddie, laddie%now, laddie%np13, Hstar, dt/3, .false.)
 
@@ -424,10 +420,6 @@ CONTAINS
     ! Compute new Hstar
     Hstar = beta2 * laddie%np12%H + (1-beta2) * laddie%now%H
 
-    ! Map H to b and c grid
-    CALL map_H_a_b( mesh, laddie, laddie%np12%H, laddie%np12%H_b)
-    CALL map_H_a_c( mesh, laddie, laddie%np12%H, laddie%np12%H_c)
-
     ! Integrate U and V 1/2 time step
     CALL compute_UV_npx( mesh, ice, ocean, laddie, laddie%np13, laddie%np12, Hstar, dt/2, .false.)
 
@@ -443,10 +435,6 @@ CONTAINS
 
     ! Compute new Hstar
     Hstar = beta3 * laddie%np1%H + (1-2*beta3) * laddie%np12%H + beta3 * laddie%now%H
-
-    ! Map H to b and cgrid
-    CALL map_H_a_b( mesh, laddie, laddie%np1%H, laddie%np1%H_b)
-    CALL map_H_a_c( mesh, laddie, laddie%np1%H, laddie%np1%H_c)
 
     ! Update diffusive terms
     CALL update_diffusive_terms( mesh, ice, laddie, laddie%now)
