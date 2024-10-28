@@ -68,7 +68,8 @@ contains
     integer                        :: n_sub, iiq
     real(dp)                       :: w
     real(dp), dimension(2)         :: q, p_next
-    integer                        :: vi_in, ti_on, ei_on, vi_left
+    type(type_coinc_ind_mesh)      :: coinc_ind
+    integer                        :: vi_left
     logical                        :: coincides, finished
     logical                        :: verified_q_on_ei
 
@@ -101,17 +102,15 @@ contains
           if (norm2( p - q) <= mesh%tol_dist) cycle
 
           ! Initialise coincidence indicator
-          vi_in = 0
-          ti_on = ti
-          ei_on = 0
+          coinc_ind%grid = b_grid
+          coinc_ind%i    = ti
 
           call trace_line_Vor_ti(  mesh, p, q, &
-            p_next, vi_in, ti_on, ei_on, vi_left, coincides, finished)
+            p_next, coinc_ind, vi_left, coincides, finished)
           verified_q_on_ei = verified_q_on_ei .and. &
             norm2( p_next - q) < mesh%tol_dist .and. &
-            vi_in == 0 .and. &
-            ti_on == 0 .and. &
-            ei_on == 0 .and. &
+            coinc_ind%grid == no_value .and. &
+            coinc_ind%i == 0 .and. &
             vi_left == vic .and. &
             (coincides .eqv. .true.) .and. &
             (finished .eqv. .true.)
@@ -149,7 +148,8 @@ contains
     real(dp), dimension(2)         :: q
     real(dp)                       :: dist_to_vi, dist_to_nearest_vj
     real(dp), dimension(2)         :: p_next
-    integer                        :: vi_in, ti_on, ei_on, vi_left
+    type(type_coinc_ind_mesh)      :: coinc_ind
+    integer                        :: vi_left
     logical                        :: coincides, finished
     logical                        :: verified_q_in_vi
 
@@ -191,19 +191,16 @@ contains
           end do
           if (dist_to_vi < dist_to_nearest_vj - mesh%tol_dist) then
 
-
-              ! Initialise coincidence indicator§
-            vi_in = 0
-            ti_on = ti
-            ei_on = 0
+            ! Initialise coincidence indicator
+            coinc_ind%grid = b_grid
+            coinc_ind%i    = ti
 
             call trace_line_Vor_ti(  mesh, p, q, &
-              p_next, vi_in, ti_on, ei_on, vi_left, coincides, finished)
+              p_next, coinc_ind, vi_left, coincides, finished)
               verified_q_in_vi = verified_q_in_vi .and. &
               norm2( p_next - q) < mesh%tol_dist .and. &
-              vi_in == 0 .and. &
-              ti_on == 0 .and. &
-              ei_on == 0 .and. &
+              coinc_ind%grid == no_value .and. &
+              coinc_ind%i == 0 .and. &
               vi_left == vi .and. &
               (coincides .eqv. .false.) .and. &
               (finished .eqv. .true.)
@@ -239,7 +236,8 @@ contains
     real(dp), dimension(2)         :: p
     integer                        :: n1, n2, n3, via, vib, vic, tj
     real(dp), dimension(2)         :: pp, d, q, p_next
-    integer                        :: vi_in, ti_on, ei_on, vi_left
+    type(type_coinc_ind_mesh)      :: coinc_ind
+    integer                        :: vi_left
     logical                        :: coincides, finished
     integer                        :: iti0, iti, iti2, tj0, tj2
     logical                        :: verified_pq_through_ti
@@ -274,17 +272,15 @@ contains
             q(2) <= mesh%ymin .or. q(2) >= mesh%ymax) cycle
 
         ! Initialise coincidence indicator
-        vi_in = 0
-        ti_on = ti
-        ei_on = 0
+        coinc_ind%grid = b_grid
+        coinc_ind%i    = ti
 
         call trace_line_Vor_ti(  mesh, p, q, &
-          p_next, vi_in, ti_on, ei_on, vi_left, coincides, finished)
+          p_next, coinc_ind, vi_left, coincides, finished)
         verified_pq_through_ti = verified_pq_through_ti .and. &
           norm2( p_next - pp) < mesh%tol_dist .and. &
-          vi_in == 0 .and. &
-          ti_on == tj .and. &
-          ei_on == 0 .and. &
+          coinc_ind%grid == b_grid .and. &
+          coinc_ind%i == tj .and. &
           vi_left == vic .and. &
           (coincides .eqv. .true.) .and. &
           (finished .eqv. .false.)
@@ -325,17 +321,15 @@ contains
               q(2) <= mesh%ymin .or. q(2) >= mesh%ymax) cycle
 
           ! Initialise coincidence indicator
-          vi_in = 0
-          ti_on = ti
-          ei_on = 0
+          coinc_ind%grid = b_grid
+          coinc_ind%i    = ti
 
           call trace_line_Vor_ti(  mesh, p, q, &
-            p_next, vi_in, ti_on, ei_on, vi_left, coincides, finished)
+            p_next, coinc_ind, vi_left, coincides, finished)
           verified_pq_through_ti = verified_pq_through_ti .and. &
             norm2( p_next - pp) < mesh%tol_dist .and. &
-            vi_in == 0 .and. &
-            ti_on == tj .and. &
-            ei_on == 0 .and. &
+            coinc_ind%grid == b_grid .and. &
+            coinc_ind%i == tj .and. &
             vi_left == via .and. &
             (coincides .eqv. .false.) .and. &
             (finished .eqv. .false.)
@@ -372,7 +366,8 @@ contains
     real(dp)                       :: w
     real(dp), dimension(2)         :: pp, d, q
     real(dp), dimension(2)         :: p_next
-    integer                        :: vi_in, ti_on, ei_on, vi_left
+    type(type_coinc_ind_mesh)      :: coinc_ind
+    integer                        :: vi_left
     logical                        :: coincides, finished
     logical                        :: verified_pq_through_ei
 
@@ -413,17 +408,15 @@ contains
                 q(2) <= mesh%ymin .or. q(2) >= mesh%ymax) cycle
 
             ! Initialise coincidence indicator
-            vi_in = 0
-            ti_on = ti
-            ei_on = 0
+            coinc_ind%grid = b_grid
+            coinc_ind%i    = ti
 
             call trace_line_Vor_ti(  mesh, p, q, &
-              p_next, vi_in, ti_on, ei_on, vi_left, coincides, finished)
+              p_next, coinc_ind, vi_left, coincides, finished)
               verified_pq_through_ei = verified_pq_through_ei .and. &
               norm2( p_next - pp) < mesh%tol_dist .and. &
-              vi_in == 0 .and. &
-              ti_on == 0 .and. &
-              ei_on == ei .and. &
+              coinc_ind%grid == c_grid .and. &
+              coinc_ind%i == ei .and. &
               vi_left == via .and. &
               (coincides .eqv. .false.) .and. &
               (finished .eqv. .false.)
