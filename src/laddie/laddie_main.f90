@@ -386,9 +386,6 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'integrate_fbrk3'
     INTEGER                                               :: vi, ti
-    REAL(dp), PARAMETER                                   :: beta1 = 0.500_dp
-    REAL(dp), PARAMETER                                   :: beta2 = 0.500_dp
-    REAL(dp), PARAMETER                                   :: beta3 = 0.344_dp
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: Hstar
  
     ! Add routine to path
@@ -402,7 +399,7 @@ CONTAINS
     CALL compute_H_npx( mesh, ice, ocean, laddie, laddie%now, laddie%np13, dt/3)
 
     ! Compute Hstar
-    Hstar = beta1 * laddie%np13%H + (1-beta1) * laddie%now%H
+    Hstar = C%laddie_fbrk3_beta1 * laddie%np13%H + (1-C%laddie_fbrk3_beta1) * laddie%now%H
 
     ! Integrate U and V 1/3 time step
     CALL compute_UV_npx( mesh, ice, ocean, laddie, laddie%now, laddie%np13, Hstar, dt/3, .false.)
@@ -418,7 +415,7 @@ CONTAINS
     CALL compute_H_npx( mesh, ice, ocean, laddie, laddie%np13, laddie%np12, dt/2)
 
     ! Compute new Hstar
-    Hstar = beta2 * laddie%np12%H + (1-beta2) * laddie%now%H
+    Hstar = C%laddie_fbrk3_beta2 * laddie%np12%H + (1-C%laddie_fbrk3_beta2) * laddie%now%H
 
     ! Integrate U and V 1/2 time step
     CALL compute_UV_npx( mesh, ice, ocean, laddie, laddie%np13, laddie%np12, Hstar, dt/2, .false.)
@@ -434,7 +431,7 @@ CONTAINS
     CALL compute_H_npx( mesh, ice, ocean, laddie, laddie%np12, laddie%np1, dt)
 
     ! Compute new Hstar
-    Hstar = beta3 * laddie%np1%H + (1-2*beta3) * laddie%np12%H + beta3 * laddie%now%H
+    Hstar = C%laddie_fbrk3_beta3 * laddie%np1%H + (1-2*C%laddie_fbrk3_beta3) * laddie%np12%H + C%laddie_fbrk3_beta3 * laddie%now%H
 
     ! Update diffusive terms
     CALL update_diffusive_terms( mesh, ice, laddie, laddie%now)

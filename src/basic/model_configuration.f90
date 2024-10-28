@@ -810,7 +810,10 @@ MODULE model_configuration
     REAL(dp)            :: time_duration_laddie_config                  = 6._dp                            ! [days] Duration of each run cycle
 
     ! Integration
-    CHARACTER(LEN=256)  :: choice_laddie_integration_scheme_config      = ''                          ! Choose integration scheme. Options: 'euler'
+    CHARACTER(LEN=256)  :: choice_laddie_integration_scheme_config      = ''                               ! Choose integration scheme. Options: 'euler', 'fbrk3'
+    REAL(dp)            :: laddie_fbrk3_beta1_config                    = 0.0_dp                           ! [] beta1 factor in FBRK3 integration. Must be between 0 and 1
+    REAL(dp)            :: laddie_fbrk3_beta2_config                    = 0.0_dp                           ! [] beta2 factor in FBRK3 integration. Must be between 0 and 1
+    REAL(dp)            :: laddie_fbrk3_beta3_config                    = 0.0_dp                           ! [] beta3 factor in FBRK3 integration. Must be between 0 and 1
 
     ! Initialisation
     REAL(dp)            :: laddie_initial_thickness_config              = 10._dp                           ! [m] Initial value of thickness H
@@ -848,7 +851,6 @@ MODULE model_configuration
     REAL(dp)            :: laddie_thickness_maximum_config              = 1500.0_dp                        ! [m] Maximum layer thickness allowed
     REAL(dp)            :: laddie_velocity_maximum_config               = 1.414_dp                         ! [m s^-1] Maximum velocity allowed
     REAL(dp)            :: laddie_buoyancy_minimum_config               = 5.0E-3_dp                        ! [kg m^-3] Minimum density difference allowed
-    REAL(dp)            :: laddie_RA_timefilter_config                  = 0.8_dp                           ! [] Robert Asselin time filter parameter. Between 0 and 1
 
     ! Tides
     CHARACTER(LEN=256)  :: choice_laddie_tides_config                   = 'uniform'                        ! Choose option for tidal velocity. Options: 'uniform'
@@ -1781,6 +1783,9 @@ MODULE model_configuration
 
     ! Integration
     CHARACTER(LEN=256)  :: choice_laddie_integration_scheme
+    REAL(dp)            :: laddie_fbrk3_beta1
+    REAL(dp)            :: laddie_fbrk3_beta2
+    REAL(dp)            :: laddie_fbrk3_beta3
 
     ! Initialisation
     REAL(dp)            :: laddie_initial_thickness
@@ -1818,7 +1823,6 @@ MODULE model_configuration
     REAL(dp)            :: laddie_thickness_maximum
     REAL(dp)            :: laddie_velocity_maximum
     REAL(dp)            :: laddie_buoyancy_minimum
-    REAL(dp)            :: laddie_RA_timefilter
 
     ! Tides
     CHARACTER(LEN=256)  :: choice_laddie_tides
@@ -2675,6 +2679,9 @@ CONTAINS
       dt_laddie_config                                            , &
       time_duration_laddie_config                                 , &
       choice_laddie_integration_scheme_config                     , &
+      laddie_fbrk3_beta1_config                                   , &
+      laddie_fbrk3_beta2_config                                   , &
+      laddie_fbrk3_beta3_config                                   , &
       laddie_initial_thickness_config                             , &
       laddie_initial_T_offset_config                              , &
       laddie_initial_S_offset_config                              , &
@@ -2696,7 +2703,6 @@ CONTAINS
       laddie_thickness_maximum_config                             , &
       laddie_velocity_maximum_config                              , &
       laddie_buoyancy_minimum_config                              , &
-      laddie_RA_timefilter_config                                 , &
       choice_laddie_tides_config                                  , &
       uniform_laddie_tidal_velocity_config                        , &
       dt_LMB_config                                               , &
@@ -3626,6 +3632,9 @@ CONTAINS
 
     ! Integration
     C%choice_laddie_integration_scheme                       = choice_laddie_integration_scheme_config
+    C%laddie_fbrk3_beta1                                     = laddie_fbrk3_beta1_config
+    C%laddie_fbrk3_beta2                                     = laddie_fbrk3_beta2_config
+    C%laddie_fbrk3_beta3                                     = laddie_fbrk3_beta3_config
 
     ! Initialisation
     C%laddie_initial_thickness                               = laddie_initial_thickness_config
@@ -3663,7 +3672,6 @@ CONTAINS
     C%laddie_thickness_maximum                               = laddie_thickness_maximum_config
     C%laddie_velocity_maximum                                = laddie_velocity_maximum_config
     C%laddie_buoyancy_minimum                                = laddie_buoyancy_minimum_config
-    C%laddie_RA_timefilter                                   = laddie_RA_timefilter_config
 
     ! Tides
     C%choice_laddie_tides                                    = choice_laddie_tides_config
