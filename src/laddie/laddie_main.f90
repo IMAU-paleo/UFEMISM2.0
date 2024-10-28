@@ -18,13 +18,10 @@ MODULE laddie_main
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   USE laddie_utilities                                       , ONLY: compute_ambient_TS, allocate_laddie_model, &
                                                                      allocate_laddie_timestep, map_H_a_b, map_H_a_c
-  USE laddie_physics                                         , ONLY: compute_freezing_temperature, compute_buoyancy
   USE laddie_thickness                                       , ONLY: compute_H_npx
   USE laddie_velocity                                        , ONLY: compute_UV_npx, compute_viscUV, compute_divQUV
   USE laddie_tracers                                         , ONLY: compute_TS_npx, compute_diffTS, compute_divQTS
-  USE mesh_operators                                         , ONLY: ddx_a_b_2D, ddy_a_b_2D, map_a_b_2D, map_a_c_2D, map_b_a_2D
-  USE petsc_basic                                            , ONLY: multiply_CSR_matrix_with_vector_1D
-  USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp
+  USE mesh_operators                                         , ONLY: ddx_a_b_2D, ddy_a_b_2D, map_b_a_2D
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_logical_1D
 
   IMPLICIT NONE

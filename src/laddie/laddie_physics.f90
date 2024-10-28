@@ -15,7 +15,6 @@ MODULE laddie_physics
   USE laddie_model_types                                     , ONLY: type_laddie_model, type_laddie_timestep
   USE ocean_model_types                                      , ONLY: type_ocean_model
   USE reallocate_mod                                         , ONLY: reallocate_bounds
-  USE ocean_utilities                                        , ONLY: interpolate_ocean_depth
   USE math_utilities                                         , ONLY: check_for_NaN_dp_1D
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_1D, gather_to_all_logical_1D
 

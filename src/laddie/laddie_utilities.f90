@@ -16,8 +16,7 @@ MODULE laddie_utilities
   USE ocean_model_types                                      , ONLY: type_ocean_model
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   USE ocean_utilities                                        , ONLY: interpolate_ocean_depth
-  USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp, allocate_matrix_CSR_dist, add_entry_CSR_dist, add_empty_row_CSR_dist   
-  USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_1D, gather_to_all_logical_1D
+  USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_1D
 
   IMPLICIT NONE
     
