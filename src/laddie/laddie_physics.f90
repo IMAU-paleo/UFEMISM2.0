@@ -39,15 +39,9 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_melt_rate'
     INTEGER                                               :: vi
-    REAL(dp)                                              :: That
-    REAL(dp)                                              :: Chat
-    REAL(dp)                                              :: Ctil
-    REAL(dp)                                              :: Bval
-    REAL(dp)                                              :: Cval
-    REAL(dp)                                              :: Dval, AA
+    REAL(dp)                                              :: That, Chat, Ctil, Bval, Cval, Dval, AA
     REAL(dp), PARAMETER                                   :: nu0 = 1.95E-6
     REAL(dp), PARAMETER                                   :: eps = 1.0E-12
-    REAL(dp), PARAMETER                                   :: Ti = -25.0_dp
 
  
     ! Add routine to path
@@ -56,11 +50,11 @@ CONTAINS
     ! Get friction velocity
     DO vi = mesh%vi1, mesh%vi2
        IF (laddie%mask_a( vi)) THEN
-         laddie%u_star( vi) = (C%laddie_drag_coefficient_top * (laddie%U_a( vi)**2 + laddie%V_a( vi)**2 + C%uniform_laddie_tidal_velocity**2 ))**.5
+         laddie%u_star( vi) = (C%laddie_drag_coefficient_top * (npx%U_a( vi)**2 + npx%V_a( vi)**2 + C%uniform_laddie_tidal_velocity**2 ))**.5
        END IF
     END DO
 
-    ! Get gamma values. TODO add non-fixed, non-uniform option. If fixed,uniform, compute during initialisation and skip here
+    ! Get gamma values 
     SELECT CASE (C%choice_laddie_gamma)
       CASE DEFAULT
         CALL crash('unknown choice_laddie_gamma "' // TRIM( C%choice_laddie_gamma) // '"')
@@ -98,7 +92,7 @@ CONTAINS
 
          ! Get melt rate
          IF (4*Cval > Bval**2) THEN
-           !Something wrong, set melt rate to zero. TODO check whether model needs to be crashed
+           !Something wrong, set melt rate to zero
            laddie%melt( vi) = 0.0
          ELSE
            laddie%melt( vi) = 0.5_dp * (-Bval + SQRT(Bval**2 - 4.0_dp*Cval)) 
@@ -110,7 +104,7 @@ CONTAINS
            ! Seems like a very unlikely case, but better to be careful
            laddie%T_base( vi) = laddie%T_freeze( vi)
          ELSE
-           laddie%T_base( vi) = (laddie%melt( vi) * (L_fusion - cp_ice * Ti) - cp_ocean * laddie%gamma_T( vi) * npx%T( vi)) / Dval 
+           laddie%T_base( vi) = (laddie%melt( vi) * (L_fusion - cp_ice * ice%Ti( vi, 1)) - cp_ocean * laddie%gamma_T( vi) * npx%T( vi)) / Dval 
          END IF
 
        END IF

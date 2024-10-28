@@ -20,6 +20,7 @@ MODULE laddie_velocity
   USE math_utilities                                         , ONLY: check_for_NaN_dp_1D
   USE laddie_utilities                                       , ONLY: compute_ambient_TS, map_H_a_b, map_H_a_c
   USE laddie_physics                                         , ONLY: compute_buoyancy
+  USE mesh_operators                                         , ONLY: map_b_c_2D, map_b_a_2D
 
   IMPLICIT NONE
     
@@ -79,7 +80,7 @@ CONTAINS
     CALL ddy_a_b_2D( mesh, Hstar, laddie%dH_dy_b)
 
     ! Compute divergence of momentum
-    CALL compute_divQUV( mesh, laddie, npx, laddie%U_c, laddie%V_c, Hstar_c, laddie%mask_b, laddie%mask_gl_b)
+    CALL compute_divQUV( mesh, laddie, npx, Hstar_c)
 
     ! == Integrate U and V ==
     ! =======================
@@ -162,6 +163,12 @@ CONTAINS
       END IF ! (laddie%mask_b( ti))
     END DO !ti = mesh%ti1, mesh%ti2
 
+    ! Map velocities to a and c grid
+    CALL map_b_a_2D( mesh, npx%U, npx%U_a)
+    CALL map_b_a_2D( mesh, npx%V, npx%V_a)
+    CALL map_b_c_2D( mesh, npx%U, npx%U_c)
+    CALL map_b_c_2D( mesh, npx%V, npx%V_c)
+
     CALL check_for_NaN_dp_1D( npx%U, 'U_lad')
     CALL check_for_NaN_dp_1D( npx%V, 'V_lad')
 
@@ -240,7 +247,7 @@ CONTAINS
     
   END SUBROUTINE compute_viscUV
 
-  SUBROUTINE compute_divQUV( mesh, laddie, npxref, U_c, V_c, H_c, mask_b, mask_gl_b)
+  SUBROUTINE compute_divQUV( mesh, laddie, npxref, H_c)
     ! Calculate the layer flux divergence matrix M_divQ using an upwind scheme
     !
     ! The vertically averaged ice flux divergence represents the net ice volume (which,
@@ -258,8 +265,7 @@ CONTAINS
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
     TYPE(type_laddie_timestep),             INTENT(IN)    :: npxref
-    REAL(dp), DIMENSION(mesh%ei1:mesh%ei2), INTENT(IN)    :: U_c, V_c, H_c
-    LOGICAL, DIMENSION(mesh%ti1:mesh%ti2),  INTENT(IN)    :: mask_b, mask_gl_b
+    REAL(dp), DIMENSION(mesh%ei1:mesh%ei2), INTENT(IN)    :: H_c
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_divQUV'
@@ -275,10 +281,10 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Calculate vertically averaged ice velocities on the edges
-    CALL gather_to_all_dp_1D( U_c, U_c_tot)
-    CALL gather_to_all_dp_1D( V_c, V_c_tot)
+    CALL gather_to_all_dp_1D( npxref%U_c, U_c_tot)
+    CALL gather_to_all_dp_1D( npxref%V_c, V_c_tot)
     CALL gather_to_all_dp_1D( H_c, H_c_tot)
-    CALL gather_to_all_logical_1D( mask_gl_b, mask_gl_b_tot)
+    CALL gather_to_all_logical_1D( laddie%mask_gl_b, mask_gl_b_tot)
     CALL gather_to_all_logical_1D( laddie%mask_b, mask_b_tot)
     CALL gather_to_all_dp_1D( npxref%U, U_tot)
     CALL gather_to_all_dp_1D( npxref%V, V_tot)
@@ -293,7 +299,7 @@ CONTAINS
 
     DO ti = mesh%ti1, mesh%ti2
 
-      IF (mask_b( ti)) THEN
+      IF (laddie%mask_b( ti)) THEN
 
         ! Loop over all connections of triangle ti
         DO ci = 1, 3
@@ -337,7 +343,7 @@ CONTAINS
           !END IF
         END DO ! DO ci = 1, 3
 
-      END IF ! (mask_b( ti))
+      END IF ! (laddie%mask_b( ti))
 
     END DO ! DO ti = mesh%ti1, mesh%ti2
 

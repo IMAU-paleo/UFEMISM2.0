@@ -51,7 +51,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Compute divergence of heat and salt
-    CALL compute_divQTS( mesh, laddie, npx, laddie%U_c, laddie%V_c, Hstar, laddie%mask_a, laddie%mask_gr_a, laddie%mask_oc_a)
+    CALL compute_divQTS( mesh, laddie, npx, Hstar)
 
     ! == Temperature integration ==
 
@@ -172,7 +172,7 @@ CONTAINS
 
   END SUBROUTINE compute_diffTS
 
-  SUBROUTINE compute_divQTS( mesh, laddie, npx, U_c, V_c, Hstar, mask_a, mask_gr_a, mask_oc_a)
+  SUBROUTINE compute_divQTS( mesh, laddie, npx, Hstar)
     ! Calculate the layer flux divergence matrix M_divQ using an upwind scheme
     !
     ! The vertically averaged ice flux divergence represents the net ice volume (which,
@@ -190,9 +190,7 @@ CONTAINS
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
     TYPE(type_laddie_timestep),             INTENT(IN)    :: npx
-    REAL(dp), DIMENSION(mesh%ei1:mesh%ei2), INTENT(IN)    :: U_c, V_c
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: Hstar
-    LOGICAL, DIMENSION(mesh%vi1:mesh%vi2),  INTENT(IN)    :: mask_a, mask_gr_a, mask_oc_a
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_divQTS'
@@ -209,14 +207,14 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Calculate vertically averaged ice velocities on the edges
-    CALL gather_to_all_dp_1D( U_c, U_c_tot)
-    CALL gather_to_all_dp_1D( V_c, V_c_tot)
+    CALL gather_to_all_dp_1D( npx%U_c, U_c_tot)
+    CALL gather_to_all_dp_1D( npx%V_c, V_c_tot)
     CALL gather_to_all_dp_1D( Hstar, Hstar_tot)
     CALL gather_to_all_dp_1D( npx%T, T_tot)
     CALL gather_to_all_dp_1D( npx%S, S_tot)
-    CALL gather_to_all_logical_1D( mask_a, mask_a_tot)
-    CALL gather_to_all_logical_1D( mask_gr_a, mask_gr_a_tot)
-    CALL gather_to_all_logical_1D( mask_oc_a, mask_oc_a_tot)
+    CALL gather_to_all_logical_1D( laddie%mask_a, mask_a_tot)
+    CALL gather_to_all_logical_1D( laddie%mask_gr_a, mask_gr_a_tot)
+    CALL gather_to_all_logical_1D( laddie%mask_oc_a, mask_oc_a_tot)
 
     ! Initialise with zeros
     laddie%divQT = 0.0_dp
@@ -227,7 +225,7 @@ CONTAINS
 
     DO vi = mesh%vi1, mesh%vi2
 
-      IF (mask_a( vi)) THEN
+      IF (laddie%mask_a( vi)) THEN
 
         ! Loop over all connections of vertex vi
         DO ci = 1, mesh%nC( vi)
@@ -273,7 +271,7 @@ CONTAINS
 
         END DO ! DO ci = 1, mesh%nC( vi)
        
-      END IF ! (mask_a( vi))
+      END IF ! (laddie%mask_a( vi))
 
     END DO ! DO vi = mesh%vi1, mesh%vi2
 

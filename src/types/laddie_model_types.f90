@@ -20,7 +20,11 @@ MODULE laddie_model_types
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: H_b                         ! [m]               Layer thickness on b grid
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: H_c                         ! [m]               Layer thickness on c grid
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: U                           ! [m s^-1]          2D velocity
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: U_a                         ! [m s^-1]          2D velocity on a grid
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: U_c                         ! [m s^-1]          2D velocity on c grid
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: V                           ! [m s^-1]
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: V_a                         ! [m s^-1]
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: V_c                         ! [m s^-1]
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: T                           ! [degrees Celsius] Temperature
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: S                           ! [PSU]             Salinity  
 
@@ -89,11 +93,7 @@ MODULE laddie_model_types
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: detr_b                      ! [m s^-1]          Detrainment on b grid 
 
     ! Mapped variables
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: U_a                         ! [m s^-1]          Layer velocity on a grid 
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: V_a                         ! [m s^-1]          
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: H_c                         ! [m]               Layer thickness on c grid 
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: U_c                         ! [m s^-1]          Layer velocity on c grid
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: V_c                         ! [m s^-1]          
 
     ! Masks
     LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_a                      !                   Mask on a-grid on which to apply computation

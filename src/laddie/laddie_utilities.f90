@@ -279,17 +279,9 @@ CONTAINS
     laddie%detr_b         = 0._dp
 
     ! Mapped main variables
-    ALLOCATE( laddie%U_a                ( mesh%vi1:mesh%vi2              )) ! [m s^-1]        Layer velocity on a grid  
-    ALLOCATE( laddie%V_a                ( mesh%vi1:mesh%vi2              )) ! [m s^-1]        
     ALLOCATE( laddie%H_c                ( mesh%ei1:mesh%ei2              )) ! [m]             Layer thickness on c grid 
-    ALLOCATE( laddie%U_c                ( mesh%ei1:mesh%ei2              )) ! [m s^-1]        Layer velocity on c grid  
-    ALLOCATE( laddie%V_c                ( mesh%ei1:mesh%ei2              )) ! [m s^-1]        
 
-    laddie%U_a            = 0._dp
-    laddie%V_a            = 0._dp
     laddie%H_c            = 0._dp
-    laddie%U_c            = 0._dp
-    laddie%V_c            = 0._dp
 
     ! Masks
 
@@ -331,7 +323,11 @@ CONTAINS
     ALLOCATE( npx%H_b                ( mesh%ti1:mesh%ti2              )) ! [m]             Layer thickness on b grid
     ALLOCATE( npx%H_c                ( mesh%ei1:mesh%ei2              )) ! [m]             Layer thickness on c grid
     ALLOCATE( npx%U                  ( mesh%ti1:mesh%ti2              )) ! [m s^-1]        2D velocity
+    ALLOCATE( npx%U_a                ( mesh%vi1:mesh%vi2              )) ! [m s^-1]        2D velocity on a grid
+    ALLOCATE( npx%U_c                ( mesh%ei1:mesh%ei2              )) ! [m s^-1]        2D velocity on b grid
     ALLOCATE( npx%V                  ( mesh%ti1:mesh%ti2              )) ! [m s^-1]  
+    ALLOCATE( npx%V_a                ( mesh%vi1:mesh%vi2              )) ! [m s^-1]  
+    ALLOCATE( npx%V_c                ( mesh%ei1:mesh%ei2              )) ! [m s^-1]  
     ALLOCATE( npx%T                  ( mesh%vi1:mesh%vi2              )) ! [degC]          Temperature
     ALLOCATE( npx%S                  ( mesh%vi1:mesh%vi2              )) ! [PSU]           Salinity   
 
@@ -339,7 +335,11 @@ CONTAINS
     npx%H_b            = 0._dp
     npx%H_c            = 0._dp
     npx%U              = 0._dp
+    npx%U_a            = 0._dp
+    npx%U_c            = 0._dp
     npx%V              = 0._dp
+    npx%V_a            = 0._dp
+    npx%V_c            = 0._dp
     npx%T              = 0._dp
     npx%S              = 0._dp
 

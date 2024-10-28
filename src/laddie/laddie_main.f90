@@ -21,7 +21,7 @@ MODULE laddie_main
   USE laddie_thickness                                       , ONLY: compute_H_npx
   USE laddie_velocity                                        , ONLY: compute_UV_npx, compute_viscUV, compute_divQUV
   USE laddie_tracers                                         , ONLY: compute_TS_npx, compute_diffTS, compute_divQTS
-  USE mesh_operators                                         , ONLY: ddx_a_b_2D, ddy_a_b_2D, map_b_a_2D
+  USE mesh_operators                                         , ONLY: ddx_a_b_2D, ddy_a_b_2D
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_logical_1D
 
   IMPLICIT NONE
@@ -470,10 +470,10 @@ CONTAINS
     laddie%now%V = laddie%np1%V
     laddie%now%H_b = laddie%np1%H_b
     laddie%now%H_c = laddie%np1%H_c
-
-    ! Map velocities to a grid for gridded output. TODO move to main_regional_output 
-    CALL map_b_a_2D( mesh, laddie%now%U, laddie%U_a)
-    CALL map_b_a_2D( mesh, laddie%now%V, laddie%V_a)
+    laddie%now%U_a = laddie%np1%U_a
+    laddie%now%U_c = laddie%np1%U_c
+    laddie%now%V_a = laddie%np1%V_a
+    laddie%now%V_c = laddie%np1%V_c
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
