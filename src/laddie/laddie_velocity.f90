@@ -53,13 +53,11 @@ CONTAINS
     REAL(dp), DIMENSION(mesh%nV)                          :: Hdrho_amb_tot
     REAL(dp), DIMENSION(mesh%ti1:mesh%ti2)                :: detr_b
     REAL(dp), DIMENSION(mesh%ti1:mesh%ti2)                :: Hstar_b
-    REAL(dp), DIMENSION(mesh%ei1:mesh%ei2)                :: Hstar_c
  
     ! Add routine to path
     CALL init_routine( routine_name)
 
     CALL gather_to_all_logical_1D( laddie%mask_a, mask_a_tot)
-    !CALL gather_to_all_dp_1D( laddie%Hdrho_amb, Hdrho_amb_tot)
 
     ! Initialise ambient T and S                             
     ! TODO costly, see whether necessary to recompute with Hstar
@@ -72,15 +70,15 @@ CONTAINS
     CALL map_a_b_2D( mesh, laddie%detr, detr_b)
     CALL map_H_a_b( mesh, laddie, laddie%Hdrho_amb, laddie%Hdrho_amb_b)
     CALL map_H_a_b( mesh, laddie, Hstar, Hstar_b)
-    CALL map_H_a_c( mesh, laddie, Hstar, Hstar_c)
 
+    ! Bunch of derivatives
     CALL ddx_a_b_2D( mesh, laddie%drho_amb, laddie%ddrho_amb_dx_b)
     CALL ddy_a_b_2D( mesh, laddie%drho_amb, laddie%ddrho_amb_dy_b)
     CALL ddx_a_b_2D( mesh, Hstar, laddie%dH_dx_b)
     CALL ddy_a_b_2D( mesh, Hstar, laddie%dH_dy_b)
 
     ! Compute divergence of momentum
-    CALL compute_divQUV( mesh, laddie, npx, Hstar_c)
+    CALL compute_divQUV( mesh, laddie, npx, Hstar)
 
     ! == Integrate U and V ==
     ! =======================
@@ -247,7 +245,7 @@ CONTAINS
     
   END SUBROUTINE compute_viscUV
 
-  SUBROUTINE compute_divQUV( mesh, laddie, npxref, H_c)
+  SUBROUTINE compute_divQUV( mesh, laddie, npxref, Hstar)
     ! Calculate the layer flux divergence matrix M_divQ using an upwind scheme
     !
     ! The vertically averaged ice flux divergence represents the net ice volume (which,
@@ -265,7 +263,7 @@ CONTAINS
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
     TYPE(type_laddie_timestep),             INTENT(IN)    :: npxref
-    REAL(dp), DIMENSION(mesh%ei1:mesh%ei2), INTENT(IN)    :: H_c
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: Hstar
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_divQUV'
@@ -276,14 +274,17 @@ CONTAINS
     REAL(dp)                                              :: D_x, D_y, D_c, u_perp
     LOGICAL, DIMENSION(mesh%nTri)                         :: mask_gl_b_tot, mask_b_tot
     LOGICAL                                               :: isbound
+    REAL(dp), DIMENSION(mesh%ei1:mesh%ei2)                :: Hstar_c
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    CALL map_H_a_c( mesh, laddie, Hstar, Hstar_c)
+
     ! Calculate vertically averaged ice velocities on the edges
     CALL gather_to_all_dp_1D( npxref%U_c, U_c_tot)
     CALL gather_to_all_dp_1D( npxref%V_c, V_c_tot)
-    CALL gather_to_all_dp_1D( H_c, H_c_tot)
+    CALL gather_to_all_dp_1D( Hstar_c, H_c_tot)
     CALL gather_to_all_logical_1D( laddie%mask_gl_b, mask_gl_b_tot)
     CALL gather_to_all_logical_1D( laddie%mask_b, mask_b_tot)
     CALL gather_to_all_dp_1D( npxref%U, U_tot)

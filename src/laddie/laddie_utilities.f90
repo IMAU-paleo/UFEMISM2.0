@@ -75,7 +75,6 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-
     CALL gather_to_all_dp_1D( H_a, H_a_tot)
 
     ! Get T and S at layer base
