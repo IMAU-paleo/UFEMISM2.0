@@ -2,6 +2,8 @@ module line_tracing_Voronoi
 
   ! Line tracing algorithm through mesh Voronoi cells
 
+  use tests_main
+  use assertions_basic
   use precisions, only: dp
   use remapping_types, only: type_map, type_single_row_mapping_matrices
   use line_tracing_basic
@@ -71,7 +73,9 @@ contains
       ! Find the point p_next where [pq] crosses into the next Voronoi cell
       if     (vi_in  > 0) then
         ! p lies inside the Voronoi cell of vertex vi_in
-        call trace_line_Vor_vi( mesh, pp, qq, p_next, vi_in, ti_on, ei_on, vi_left, coincides, finished)
+        call coinc_ind_mesh_old2new( vi_in, ti_on, ei_on, finished, coinc_ind)
+        call trace_line_Vor_vi( mesh, pp, qq, p_next, coinc_ind, vi_left, coincides, finished)
+        call coinc_ind_mesh_new2old( coinc_ind, vi_in, ti_on, ei_on)
       elseif (ti_on  > 0) then
         ! p lies on the circumcentre of triangle ti_on
         call trace_line_Vor_ti( mesh, pp, qq, p_next, vi_in, ti_on, ei_on, vi_left, coincides, finished)
@@ -164,21 +168,19 @@ contains
   !> Given the line [pq], where p lies inside the Voronoi cell of vertex vi_in,
   !> find the point p_next where [pq] crosses into the next Voronoi cell.
   subroutine trace_line_Vor_vi(  mesh, p, q, &
-    p_next, vi_in, ti_on, ei_on, vi_left, coincides, finished)
+    p_next, coinc_ind, vi_left, coincides, finished)
 
     ! In/output variables
-    type(type_mesh),        intent(in)    :: mesh
-    real(dp), dimension(2), intent(in)    :: p,q
-    real(dp), dimension(2), intent(out)   :: p_next
-    integer,                intent(inout) :: vi_in
-    integer,                intent(inout) :: ti_on
-    integer,                intent(inout) :: ei_on
-    integer,                intent(out)   :: vi_left
-    logical,                intent(out)   :: coincides
-    logical,                intent(out)   :: finished
+    type(type_mesh),           intent(in)    :: mesh
+    real(dp), dimension(2),    intent(in)    :: p,q
+    real(dp), dimension(2),    intent(out)   :: p_next
+    type(type_coinc_ind_mesh), intent(inout) :: coinc_ind
+    integer,                   intent(out)   :: vi_left
+    logical,                   intent(out)   :: coincides
+    logical,                   intent(out)   :: finished
 
     ! Local variables:
-    integer                             :: vti, ti, ei, vori, vorj, ci, vj
+    integer                             :: vi_in, vti, ti, ei, vori, vorj, ci, vj
     real(dp), dimension(2)              :: r, llis, pa, pb
     real(dp)                            :: dx
     logical                             :: do_cross
@@ -187,21 +189,22 @@ contains
     integer,  dimension( mesh%nC_mem  ) :: Vor_ti
     integer                             :: nVor
 
-    ! Safety
-    if (vi_in == 0 .or. ti_on > 0 .or. ei_on > 0 .or. (.not. is_in_Voronoi_cell( mesh, p, vi_in))) then
-      call crash('trace_line_Vor_vi - coincidence indicators dont make sense!')
-    end if
+#if (DO_ASSERTIONS)
+    call assert( coinc_ind%grid == a_grid, 'coincidence grid is not a_grid')
+    call assert( test_ge_le( coinc_ind%i, 1, mesh%nV), 'invalid value for vi')
+#endif
+
+    vi_in = coinc_ind%i
 
     ! Check if q lies inside the same Voronoi cell
     if (is_in_Voronoi_cell( mesh, q, vi_in)) then
       ! q lies inside the same Voronoi cell
-      p_next    = q
-      vi_left   = vi_in
-      vi_in     = 0
-      ti_on     = 0
-      ei_on     = 0
-      coincides = .false.
-      finished  = .true.
+      p_next         = q
+      vi_left        = vi_in
+      coinc_ind%grid = no_value
+      coinc_ind%i    = 0
+      coincides      = .false.
+      finished       = .true.
       return
     end if
 
@@ -216,13 +219,12 @@ contains
       pb = Vor( vorj,:)
       if (norm2( q - pa) < mesh%tol_dist .or. lies_on_line_segment( pa, pb, q, mesh%tol_dist)) then
         ! q lies on the boundary of the same Voronoi cell
-        p_next    = q
-        vi_left   = vi_in
-        vi_in     = 0
-        ti_on     = 0
-        ei_on     = 0
-        coincides = .false.
-        finished  = .true.
+        p_next         = q
+        vi_left        = vi_in
+        coinc_ind%grid = no_value
+        coinc_ind%i    = 0
+        coincides      = .false.
+        finished       = .true.
         return
       end if
     end do
@@ -233,13 +235,12 @@ contains
       r  = mesh%Tricc( ti,:)
       if (lies_on_line_segment( p, q, r, mesh%tol_dist)) then
         ! [pq] passes through this triangle's circumcentre
-        p_next    = mesh%Tricc( ti,:)
-        vi_left   = vi_in
-        vi_in     = 0
-        ti_on     = ti
-        ei_on     = 0
-        coincides = .false.
-        finished  = .false.
+        p_next         = mesh%Tricc( ti,:)
+        vi_left        = vi_in
+        coinc_ind%grid = b_grid
+        coinc_ind%i    = ti
+        coincides      = .false.
+        finished       = .false.
         return
       end if
     end do
@@ -267,13 +268,12 @@ contains
       call segment_intersection( p, q, pa, pb, llis, do_cross, mesh%tol_dist)
       if (do_cross) then
         ! [pq] passes into the Voronoi cell of vj
-        p_next    = llis
-        vi_left   = vi_in
-        vi_in     = 0
-        ti_on     = 0
-        ei_on     = ei
-        coincides = .false.
-        finished  = .false.
+        p_next         = llis
+        vi_left        = vi_in
+        coinc_ind%grid = c_grid
+        coinc_ind%i    = ei
+        coincides      = .false.
+        finished       = .false.
         return
       end if
     end do
