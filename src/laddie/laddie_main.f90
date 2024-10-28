@@ -44,10 +44,9 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'run_laddie_model'
-    INTEGER                                               :: vi, ti, nf, i, no
+    INTEGER                                               :: vi, ti, i, no
     REAL(dp)                                              :: tl               ! [s] Laddie time
     REAL(dp)                                              :: dt               ! [s] Laddie time step
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: Hstar            ! [m] Reference thickness in integration
     LOGICAL, DIMENSION(mesh%nV)                           :: mask_a_tot
     LOGICAL, DIMENSION(mesh%nV)                           :: mask_gr_a_tot
     LOGICAL, DIMENSION(mesh%nV)                           :: mask_oc_a_tot
@@ -356,24 +355,16 @@ CONTAINS
 
     ! == Move time ==
     ! Increase laddie time
-    tl = tl + C%dt_laddie
+    tl = tl + dt
 
     ! Move main variables by 1 time step
-    DO vi = mesh%vi1, mesh%vi2
-      IF (laddie%mask_a( vi)) THEN
-        laddie%now%H( vi) = laddie%np1%H( vi)
-        laddie%now%T( vi) = laddie%np1%T( vi)
-        laddie%now%S( vi) = laddie%np1%S( vi)
-      END IF
-    END DO
-
-    ! Move velocities by 1 time step
-    DO ti = mesh%ti1, mesh%ti2
-      IF (laddie%mask_b( ti)) THEN
-        laddie%now%U( ti) = laddie%np1%U( ti)
-        laddie%now%V( ti) = laddie%np1%V( ti)
-      END IF
-    END DO
+    laddie%now%H = laddie%np1%H
+    laddie%now%T = laddie%np1%T
+    laddie%now%S = laddie%np1%S
+    laddie%now%U = laddie%np1%U
+    laddie%now%V = laddie%np1%V
+    laddie%now%H_b = laddie%np1%H_b
+    laddie%now%H_c = laddie%np1%H_c
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -398,9 +389,7 @@ CONTAINS
     REAL(dp), PARAMETER                                   :: beta1 = 0.500_dp
     REAL(dp), PARAMETER                                   :: beta2 = 0.500_dp
     REAL(dp), PARAMETER                                   :: beta3 = 0.344_dp
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: Hstar, Hstarstar, Hstarstarstar
-    REAL(dp), DIMENSION(mesh%ti1:mesh%ti2)                :: Hstar_b, Hstarstar_b, Hstarstarstar_b
-    REAL(dp), DIMENSION(mesh%ei1:mesh%ei2)                :: Hstar_c, Hstarstar_c, Hstarstarstar_c
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: Hstar
  
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -413,10 +402,7 @@ CONTAINS
     CALL compute_H_npx( mesh, ice, ocean, laddie, laddie%now, laddie%np13, dt/3)
 
     ! Compute Hstar
-    Hstar = 0.0_dp
-    DO vi = mesh%vi1, mesh%vi2
-      Hstar( vi) = beta1 * laddie%np13%H ( vi) + (1-beta1) * laddie%now%H( vi)
-    END DO
+    Hstar = beta1 * laddie%np13%H + (1-beta1) * laddie%now%H
 
     ! Map H to b grid and c grid
     CALL map_H_a_b( mesh, laddie, laddie%np13%H, laddie%np13%H_b)
@@ -435,18 +421,15 @@ CONTAINS
     ! Integrate H 1/2 time step
     CALL compute_H_npx( mesh, ice, ocean, laddie, laddie%np13, laddie%np12, dt/2)
 
-    ! Compute Hstarstar
-    Hstarstar = 0.0_dp
-    DO vi = mesh%vi1, mesh%vi2
-      Hstarstar( vi) = beta2 * laddie%np12%H ( vi) + (1-beta2) * laddie%now%H( vi)
-    END DO
+    ! Compute new Hstar
+    Hstar = beta2 * laddie%np12%H + (1-beta2) * laddie%now%H
 
     ! Map H to b and c grid
     CALL map_H_a_b( mesh, laddie, laddie%np12%H, laddie%np12%H_b)
     CALL map_H_a_c( mesh, laddie, laddie%np12%H, laddie%np12%H_c)
 
     ! Integrate U and V 1/2 time step
-    CALL compute_UV_npx( mesh, ice, ocean, laddie, laddie%np13, laddie%np12, Hstarstar, dt/2, .false.)
+    CALL compute_UV_npx( mesh, ice, ocean, laddie, laddie%np13, laddie%np12, Hstar, dt/2, .false.)
 
     ! Integrate T and S 1/2 time step
     CALL compute_TS_npx( mesh, ice, laddie, laddie%np13, laddie%np12, laddie%np13%H, dt/2, .false.)
@@ -458,11 +441,8 @@ CONTAINS
     ! Integrate H 1 time step
     CALL compute_H_npx( mesh, ice, ocean, laddie, laddie%np12, laddie%np1, dt)
 
-    ! Compute Hstarstarstar
-    Hstarstarstar = 0.0_dp
-    DO vi = mesh%vi1, mesh%vi2
-      Hstarstarstar( vi) = beta3 * laddie%np1%H ( vi) + (1-2*beta3) * laddie%np12%H( vi) + beta3 * laddie%now%H( vi)
-    END DO
+    ! Compute new Hstar
+    Hstar = beta3 * laddie%np1%H + (1-2*beta3) * laddie%np12%H + beta3 * laddie%now%H
 
     ! Map H to b and cgrid
     CALL map_H_a_b( mesh, laddie, laddie%np1%H, laddie%np1%H_b)
@@ -472,7 +452,7 @@ CONTAINS
     CALL update_diffusive_terms( mesh, ice, laddie, laddie%now)
 
     ! Integrate U and V 1 time step
-    CALL compute_UV_npx( mesh, ice, ocean, laddie, laddie%np12, laddie%np1, Hstarstarstar, dt, .true.)
+    CALL compute_UV_npx( mesh, ice, ocean, laddie, laddie%np12, laddie%np1, Hstar, dt, .true.)
 
     ! Integrate T and S 1 time step
     CALL compute_TS_npx( mesh, ice, laddie, laddie%np12, laddie%np1, laddie%np12%H, dt, .true.)
@@ -480,25 +460,14 @@ CONTAINS
     ! =============== 
     ! == Move time ==
     ! Increase laddie time
-    tl = tl + C%dt_laddie
+    tl = tl + dt
 
     ! Move main variables by 1 time step
-    DO vi = mesh%vi1, mesh%vi2
-      IF (laddie%mask_a( vi)) THEN
-        laddie%now%H( vi) = laddie%np1%H( vi)
-        laddie%now%T( vi) = laddie%np1%T( vi)
-        laddie%now%S( vi) = laddie%np1%S( vi)
-      END IF
-    END DO
-
-    ! Move velocities by 1 time step
-    DO ti = mesh%ti1, mesh%ti2
-      IF (laddie%mask_b( ti)) THEN
-        laddie%now%U( ti) = laddie%np1%U( ti)
-        laddie%now%V( ti) = laddie%np1%V( ti)
-      END IF
-    END DO
-
+    laddie%now%H = laddie%np1%H
+    laddie%now%T = laddie%np1%T
+    laddie%now%S = laddie%np1%S
+    laddie%now%U = laddie%np1%U
+    laddie%now%V = laddie%np1%V
     laddie%now%H_b = laddie%np1%H_b
     laddie%now%H_c = laddie%np1%H_c
 
