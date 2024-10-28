@@ -612,9 +612,9 @@ contains
       ccr = mesh%Tricc( tir,:)
     end if
 
-    ! Check if q coincides with ccl
-    if (norm2( ccl - q) < mesh%tol_dist) then
-      ! q coincides with ccl
+    ! Check if q lies on the same shared Voronoi cell boundary, in the direction of ccl
+    if (lies_on_line_segment( p, ccl, q, mesh%tol_dist) .or. &
+      norm2( ccl - q) < mesh%tol_dist) then
       p_next    = q
       vi_in     = 0
       ti_on     = 0
@@ -625,8 +625,9 @@ contains
       return
     end if
 
-    ! Check if q coincides with ccr
-    if (norm2( ccr - q) < mesh%tol_dist) then
+    ! Check if q lies on the same shared Voronoi cell boundary, in the direction of ccr
+    if (lies_on_line_segment( p, ccr, q, mesh%tol_dist) .or. &
+      norm2( ccr - q) < mesh%tol_dist) then
       ! q coincides with ccr
       p_next    = q
       vi_in     = 0
@@ -635,32 +636,6 @@ contains
       vi_left   = vib
       coincides = .true.
       finished  = .true.
-      return
-    end if
-
-    ! Check if [pq] passes through ccl
-    if (lies_on_line_segment( p, q, ccl, mesh%tol_dist)) then
-      ! [pq] passes through ccl
-      p_next    = ccl
-      vi_in     = 0
-      ti_on     = til
-      ei_on     = 0
-      vi_left   = via
-      coincides = .true.
-      finished  = .false.
-      return
-    end if
-
-    ! Check if [pq] passes through ccr
-    if (lies_on_line_segment( p, q, ccr, mesh%tol_dist)) then
-      ! [pq] passes through ccr
-      p_next    = ccr
-      vi_in     = 0
-      ti_on     = tir
-      ei_on     = 0
-      vi_left   = vib
-      coincides = .true.
-      finished  = .false.
       return
     end if
 
@@ -756,6 +731,32 @@ contains
       end if
     end do
 
+    ! Check if [pq] passes through ccl
+    if (lies_on_line_segment( p, q, ccl, mesh%tol_dist)) then
+      ! [pq] passes through ccl
+      p_next    = ccl
+      vi_in     = 0
+      ti_on     = til
+      ei_on     = 0
+      vi_left   = via
+      coincides = .true.
+      finished  = .false.
+      return
+    end if
+
+    ! Check if [pq] passes through ccr
+    if (lies_on_line_segment( p, q, ccr, mesh%tol_dist)) then
+      ! [pq] passes through ccr
+      p_next    = ccr
+      vi_in     = 0
+      ti_on     = tir
+      ei_on     = 0
+      vi_left   = vib
+      coincides = .true.
+      finished  = .false.
+      return
+    end if
+
     ! Check if pq crosses the circumcentre of any of the triangles surrounding via
     do vti = 1, mesh%niTri( via)
       ti = mesh%iTri( via,vti)
@@ -767,6 +768,23 @@ contains
         ti_on     = ti
         ei_on     = 0
         vi_left   = via
+        coincides = .false.
+        finished  = .false.
+        return
+      end if
+    end do
+
+    ! Check if pq crosses the circumcentre of any of the triangles surrounding vib
+    do vti = 1, mesh%niTri( vib)
+      ti = mesh%iTri( vib,vti)
+      cc1 = mesh%Tricc( ti,:)
+      if (lies_on_line_segment( p, q, cc1, mesh%tol_dist)) then
+        ! [pq] passes through the circumcentre of triangle ti
+        p_next    = cc1
+        vi_in     = 0
+        ti_on     = ti
+        ei_on     = 0
+        vi_left   = vib
         coincides = .false.
         finished  = .false.
         return
@@ -786,23 +804,6 @@ contains
         ti_on     = 0
         ei_on     = ei
         vi_left   = via
-        coincides = .false.
-        finished  = .false.
-        return
-      end if
-    end do
-
-    ! Check if pq crosses the circumcentre of any of the triangles surrounding vib
-    do vti = 1, mesh%niTri( vib)
-      ti = mesh%iTri( vib,vti)
-      cc1 = mesh%Tricc( ti,:)
-      if (lies_on_line_segment( p, q, cc1, mesh%tol_dist)) then
-        ! [pq] passes through the circumcentre of triangle ti
-        p_next    = cc1
-        vi_in     = 0
-        ti_on     = ti
-        ei_on     = 0
-        vi_left   = vib
         coincides = .false.
         finished  = .false.
         return
