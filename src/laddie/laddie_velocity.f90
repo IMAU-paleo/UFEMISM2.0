@@ -58,7 +58,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     CALL gather_to_all_logical_1D( laddie%mask_a, mask_a_tot)
-    CALL gather_to_all_dp_1D( laddie%Hdrho_amb, Hdrho_amb_tot)
+    !CALL gather_to_all_dp_1D( laddie%Hdrho_amb, Hdrho_amb_tot)
 
     ! Initialise ambient T and S                             
     ! TODO costly, see whether necessary to recompute with Hstar
@@ -69,7 +69,7 @@ CONTAINS
  
     ! Bunch of mappings                                      
     CALL map_a_b_2D( mesh, laddie%detr, detr_b)
-    CALL map_a_b_2D( mesh, laddie%Hdrho_amb, laddie%Hdrho_amb_b)
+    CALL map_H_a_b( mesh, laddie, laddie%Hdrho_amb, laddie%Hdrho_amb_b)
     CALL map_H_a_b( mesh, laddie, Hstar, Hstar_b)
     CALL map_H_a_c( mesh, laddie, Hstar, Hstar_c)
 
@@ -93,24 +93,11 @@ CONTAINS
 
         IF (laddie%mask_cf_b( ti) .OR. laddie%mask_gl_b( ti)) THEN
           ! Assume dH/dx and ddrho/dx = 0
-          ! Get nearest neighbour Hdrho from floating vertices
-          nfl = 0
-          Hdrho_fl = 0
-          DO ci = 1, 3
-            vj = mesh%Tri( ti, ci)
-            IF (vj == 0) CYCLE
-            IF (mask_a_tot( vj)) THEN
-              nfl = nfl + 1
-              Hdrho_fl = Hdrho_fl + Hdrho_amb_tot( vj)
-            END IF
-          END DO
 
           ! Define PGF at calving front / grounding line
-          PGF_x =   grav * Hdrho_fl/nfl * laddie%dHib_dx_b( ti) ! &
-                  ! - 0.5*grav * Hstar_b( ti)**2 * laddie%ddrho_amb_dx_b( ti)
+          PGF_x = grav * laddie%Hdrho_amb_b( ti) * laddie%dHib_dx_b( ti) ! &
 
-          PGF_y =   grav * Hdrho_fl/nfl * laddie%dHib_dy_b( ti) ! &
-                  ! - 0.5*grav * Hstar_b( ti)**2 * laddie%ddrho_amb_dy_b( ti)
+          PGF_y = grav * laddie%Hdrho_amb_b( ti) * laddie%dHib_dy_b( ti) ! &
         ELSE
           ! Regular full expression
           PGF_x = - grav * laddie%Hdrho_amb_b( ti) * laddie%dH_dx_b( ti) &
