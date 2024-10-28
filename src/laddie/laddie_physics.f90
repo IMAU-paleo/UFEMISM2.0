@@ -48,23 +48,15 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Get friction velocity
-    DO vi = mesh%vi1, mesh%vi2
-       IF (laddie%mask_a( vi)) THEN
-         laddie%u_star( vi) = (C%laddie_drag_coefficient_top * (npx%U_a( vi)**2 + npx%V_a( vi)**2 + C%uniform_laddie_tidal_velocity**2 ))**.5
-       END IF
-    END DO
+    laddie%u_star= (C%laddie_drag_coefficient_top * (npx%U_a**2 + npx%V_a**2 + C%uniform_laddie_tidal_velocity**2 ))**.5
 
     ! Get gamma values 
     SELECT CASE (C%choice_laddie_gamma)
       CASE DEFAULT
         CALL crash('unknown choice_laddie_gamma "' // TRIM( C%choice_laddie_gamma) // '"')
       CASE ('uniform')
-        DO vi = mesh%vi1, mesh%vi2
-           IF (laddie%mask_a( vi)) THEN
-             laddie%gamma_T( vi) = C%uniform_laddie_gamma_T
-             laddie%gamma_S( vi) = C%uniform_laddie_gamma_T/35.0_dp
-           END IF
-        END DO
+        laddie%gamma_T = C%uniform_laddie_gamma_T
+        laddie%gamma_S = C%uniform_laddie_gamma_T/35.0_dp
       CASE ('Jenkins1991')
         DO vi = mesh%vi1, mesh%vi2
            IF (laddie%mask_a( vi)) THEN
@@ -145,9 +137,6 @@ CONTAINS
          ! Get buoyancy at ice base
          laddie%drho_base( vi) = C%uniform_laddie_eos_linear_beta  * (npx%S( vi)-laddie%S_base( vi)) &
                                - C%uniform_laddie_eos_linear_alpha * (npx%T( vi)-laddie%T_base( vi))
-
-         ! Make sure buoyancy is non-negative
-         ! laddie%drho_base( vi) = MAX(laddie%drho_base( vi),0.0_dp)
 
          ! Get entrainment
          laddie%entr( vi) = 2*C%laddie_Gaspar1988_mu/grav & 
@@ -235,38 +224,6 @@ CONTAINS
 
          ! Get depth-integrated buoyancy based on Hstar
          laddie%Hdrho_amb( vi) = Hstar( vi) * laddie%drho_amb( vi)
-
-       ELSE IF (laddie%mask_oc_a( vi)) THEN
-         ! Get nearest neighbour T, S, Hstar from
-         n = 0
-         T = 0.0_dp
-         S = 0.0_dp
-         H = 0.0_dp
-         DO ci = 1,mesh%nC( vi)
-           vj = mesh%C( vi, ci)
-           IF (mask_a_tot( vj)) THEN
-             T = T + T_tot( vj)
-             S = S + S_tot( vj)
-             H = H + H_tot( vj)
-             n = n + 1
-           END IF
-         END DO
-
-         IF (n==0) CYCLE
-
-         T = T / n
-         S = S / n
-         H = H / n
-
-         ! Get buoyancy
-         laddie%drho_amb( vi) = C%uniform_laddie_eos_linear_beta  * (laddie%S_amb( vi) - S) &
-                              - C%uniform_laddie_eos_linear_alpha * (laddie%T_amb( vi) - T)
-
-         ! Make sure buoyancy is positive TODO expand with convection scheme
-         laddie%drho_amb( vi) = MAX(laddie%drho_amb( vi),C%laddie_buoyancy_minimum/seawater_density)
-
-         ! Get depth-integrated buoyancy based on Hstar
-         laddie%Hdrho_amb( vi) = H * laddie%drho_amb( vi)
 
        END IF
     END DO
