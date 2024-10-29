@@ -802,6 +802,10 @@ CONTAINS
         CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'u_star', region%BMB%laddie%u_star)
       CASE ('gamma_T')
         CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'gamma_T', region%BMB%laddie%gamma_T)
+      CASE ('divQU')
+        CALL write_to_field_multopt_mesh_dp_2D_b( region%mesh, filename, ncid, 'divQU', region%BMB%laddie%divQU)
+      CASE ('divQV')
+        CALL write_to_field_multopt_mesh_dp_2D_b( region%mesh, filename, ncid, 'divQV', region%BMB%laddie%divQV)
 
     ! == Lateral mass balance ==
     ! ==========================
@@ -1342,6 +1346,10 @@ CONTAINS
       CASE ('gamma_T')
         CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%gamma_T, d_grid_vec_partial_2D)
         CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'gamma_T', d_grid_vec_partial_2D)
+      CASE ('divQU')
+        ! Not implemented
+      CASE ('divQV')
+        ! Not implemented
 
     ! == Lateral mass balance ==
     ! ==========================
@@ -2186,6 +2194,10 @@ CONTAINS
         CALL add_field_mesh_dp_2D( filename, ncid, 'u_star', long_name = 'Friction velocity', units = 'm s^-1')
       CASE ('gamma_T')
         CALL add_field_mesh_dp_2D( filename, ncid, 'gamma_T', long_name = 'Heat exchange coefficient', units = 'm s^-1')
+      CASE ('divQU')
+        CALL add_field_mesh_dp_2D_b( filename, ncid, 'divQU', long_name = 'Laddie U divQosity', units = 'm^2 s^-2')
+      CASE ('divQV')
+        CALL add_field_mesh_dp_2D_b( filename, ncid, 'divQV', long_name = 'Laddie V divQosity', units = 'm^2 s^-2')
 
     ! == Lateral mass balance ==
     ! ==========================
@@ -2607,6 +2619,10 @@ CONTAINS
         CALL add_field_grid_dp_2D( filename, ncid, 'u_star', long_name = 'Friction velocity', units = 'm s^-1')
       CASE ('gamma_T')
         CALL add_field_grid_dp_2D( filename, ncid, 'gamma_T', long_name = 'Heat exchange coefficient', units = 'm s^-1')
+      CASE ('divQU')
+        ! Not implemented
+      CASE ('divQV')
+        ! Not implemented
 
 
     ! == Lateral mass balance ==
