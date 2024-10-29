@@ -80,7 +80,13 @@ CONTAINS
         laddie%entr_dmin( vi) = MAX( C%laddie_thickness_minimum - npx%H( vi), 0.0_dp) / dt
 
         ! If H_n > Hmax, suppress entrainment to ensure H_n <= Hmax
-        laddie%entr( vi) = laddie%entr( vi) + MIN( C%laddie_thickness_maximum - npx%H( vi), 0.0_dp) / dt
+        !laddie%entr( vi) = laddie%entr( vi) + MIN( C%laddie_thickness_maximum - npx%H( vi), 0.0_dp) / dt
+        laddie%entr( vi) = laddie%entr( vi) + MIN( ice%Hib( vi)-ice%Hb( vi) - npx%H( vi), 0.0_dp) / dt
+
+        ! Prevent strong entr_dmin and strong detrainment
+        IF (laddie%entr_dmin(vi) > 0) THEN
+          laddie%entr( vi) = MAX(laddie%entr( vi), 0.0_dp)
+        END IF
 
         ! Update detrainment. Shouldn't matter but just in case
         laddie%detr( vi) = - MIN(laddie%entr( vi),0.0_dp)

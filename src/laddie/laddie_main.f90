@@ -68,10 +68,13 @@ CONTAINS
       IF (mesh%VBI( vi) > 0) THEN
         laddie%mask_a( vi)    = .false.
         laddie%mask_gr_a( vi) = .true.
+      ELSE IF (ice%Hib( vi) - ice%Hb( vi) < 2*C%laddie_thickness_minimum) THEN
+        laddie%mask_a( vi)    = .false.
+        laddie%mask_gr_a( vi) = .true.
       ELSE
         ! Inherit regular masks
         laddie%mask_a( vi)    = ice%mask_floating_ice( vi)
-        laddie%mask_gr_a( vi) = ice%mask_grounded_ice( vi)
+        laddie%mask_gr_a( vi) = ice%mask_grounded_ice( vi) .OR. ice%mask_icefree_land( vi)
         laddie%mask_oc_a( vi) = ice%mask_icefree_ocean( vi)
       END IF
     END DO
@@ -401,6 +404,9 @@ CONTAINS
     ! Compute Hstar
     Hstar = C%laddie_fbrk3_beta1 * laddie%np13%H + (1-C%laddie_fbrk3_beta1) * laddie%now%H
 
+    ! Update diffusive terms
+    CALL update_diffusive_terms( mesh, ice, laddie, laddie%now)
+
     ! Integrate U and V 1/3 time step
     CALL compute_UV_npx( mesh, ice, ocean, laddie, laddie%now, laddie%np13, Hstar, dt/3, .false.)
 
@@ -416,6 +422,9 @@ CONTAINS
 
     ! Compute new Hstar
     Hstar = C%laddie_fbrk3_beta2 * laddie%np12%H + (1-C%laddie_fbrk3_beta2) * laddie%now%H
+
+    ! Update diffusive terms
+    !CALL update_diffusive_terms( mesh, ice, laddie, laddie%np13)
 
     ! Integrate U and V 1/2 time step
     CALL compute_UV_npx( mesh, ice, ocean, laddie, laddie%np13, laddie%np12, Hstar, dt/2, .false.)
@@ -434,7 +443,7 @@ CONTAINS
     Hstar = C%laddie_fbrk3_beta3 * laddie%np1%H + (1-2*C%laddie_fbrk3_beta3) * laddie%np12%H + C%laddie_fbrk3_beta3 * laddie%now%H
 
     ! Update diffusive terms
-    CALL update_diffusive_terms( mesh, ice, laddie, laddie%now)
+    !CALL update_diffusive_terms( mesh, ice, laddie, laddie%np12)
 
     ! Integrate U and V 1 time step
     CALL compute_UV_npx( mesh, ice, ocean, laddie, laddie%np12, laddie%np1, Hstar, dt, .true.)
