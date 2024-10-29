@@ -90,8 +90,8 @@ CONTAINS
         !CALL compute_divQUV_centered( mesh, laddie, npx, Hstar_c)
         CALL compute_divQUV_centered( mesh, laddie, npx, npxref%H_c)
       CASE ('upstream')
-        !CALL compute_divQUV_upstream( mesh, laddie, npx, Hstar_b)
-        CALL compute_divQUV_upstream( mesh, laddie, npx, npxref%H_b)
+        CALL compute_divQUV_upstream( mesh, laddie, npx, Hstar_b)
+        !CALL compute_divQUV_upstream( mesh, laddie, npx, npxref%H_b)
     END SELECT
 
     ! == Integrate U and V ==
