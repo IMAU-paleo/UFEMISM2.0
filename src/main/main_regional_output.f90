@@ -806,6 +806,10 @@ CONTAINS
         CALL write_to_field_multopt_mesh_dp_2D_b( region%mesh, filename, ncid, 'divQU', region%BMB%laddie%divQU)
       CASE ('divQV')
         CALL write_to_field_multopt_mesh_dp_2D_b( region%mesh, filename, ncid, 'divQV', region%BMB%laddie%divQV)
+      CASE ('HU_lad')
+        CALL write_to_field_multopt_mesh_dp_2D_b( region%mesh, filename, ncid, 'HU_lad', region%BMB%laddie%now%H_b*region%BMB%laddie%now%U)
+      CASE ('HV_lad')
+        CALL write_to_field_multopt_mesh_dp_2D_b( region%mesh, filename, ncid, 'HV_lad', region%BMB%laddie%now%H_b*region%BMB%laddie%now%V)
 
     ! == Lateral mass balance ==
     ! ==========================
@@ -1349,6 +1353,10 @@ CONTAINS
       CASE ('divQU')
         ! Not implemented
       CASE ('divQV')
+        ! Not implemented
+      CASE ('HU_lad')
+        ! Not implemented
+      CASE ('HV_lad')
         ! Not implemented
 
     ! == Lateral mass balance ==
@@ -2195,9 +2203,13 @@ CONTAINS
       CASE ('gamma_T')
         CALL add_field_mesh_dp_2D( filename, ncid, 'gamma_T', long_name = 'Heat exchange coefficient', units = 'm s^-1')
       CASE ('divQU')
-        CALL add_field_mesh_dp_2D_b( filename, ncid, 'divQU', long_name = 'Laddie U divQosity', units = 'm^2 s^-2')
+        CALL add_field_mesh_dp_2D_b( filename, ncid, 'divQU', long_name = 'Laddie U divergence', units = 'm^2 s^-2')
       CASE ('divQV')
-        CALL add_field_mesh_dp_2D_b( filename, ncid, 'divQV', long_name = 'Laddie V divQosity', units = 'm^2 s^-2')
+        CALL add_field_mesh_dp_2D_b( filename, ncid, 'divQV', long_name = 'Laddie V divergence', units = 'm^2 s^-2')
+      CASE ('HU_lad')
+        CALL add_field_mesh_dp_2D_b( filename, ncid, 'HU_lad', long_name = 'Laddie HU ', units = 'm^2 s^-1')
+      CASE ('HV_lad')
+        CALL add_field_mesh_dp_2D_b( filename, ncid, 'HV_lad', long_name = 'Laddie HV ', units = 'm^2 s^-1')
 
     ! == Lateral mass balance ==
     ! ==========================
@@ -2622,6 +2634,10 @@ CONTAINS
       CASE ('divQU')
         ! Not implemented
       CASE ('divQV')
+        ! Not implemented
+      CASE ('HU_lad')
+        ! Not implemented
+      CASE ('HV_lad')
         ! Not implemented
 
 
