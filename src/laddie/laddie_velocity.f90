@@ -87,11 +87,11 @@ CONTAINS
         laddie%divQU = 0.0_dp
         laddie%divQV = 0.0_dp
       CASE ('centered')
-        CALL compute_divQUV_centered( mesh, laddie, npx, Hstar_c)
-        !CALL compute_divQUV_centered( mesh, laddie, npx, npxref%H_c)
+        !CALL compute_divQUV_centered( mesh, laddie, npx, Hstar_c)
+        CALL compute_divQUV_centered( mesh, laddie, npx, npxref%H_c)
       CASE ('upstream')
-        CALL compute_divQUV_upstream( mesh, laddie, npx, Hstar_b)
-        !CALL compute_divQUV_upstream( mesh, laddie, npx, npxref%H_b)
+        !CALL compute_divQUV_upstream( mesh, laddie, npx, Hstar_b)
+        CALL compute_divQUV_upstream( mesh, laddie, npx, npxref%H_b)
     END SELECT
 
     ! == Integrate U and V ==
@@ -176,10 +176,9 @@ CONTAINS
     END DO !ti = mesh%ti1, mesh%ti2
 
     ! Map velocities to a and c grid
+    CALL map_laddie_velocities_from_b_to_c_2D( mesh, npx%U, npx%V, npx%U_c, npx%V_c)
     CALL map_b_a_2D( mesh, npx%U, npx%U_a)
     CALL map_b_a_2D( mesh, npx%V, npx%V_a)
-    CALL map_b_c_2D( mesh, npx%U, npx%U_c)
-    CALL map_b_c_2D( mesh, npx%V, npx%V_c)
 
     CALL check_for_NaN_dp_1D( npx%U, 'U_lad')
     CALL check_for_NaN_dp_1D( npx%V, 'V_lad')
@@ -227,8 +226,8 @@ CONTAINS
           tj = mesh%TriC( ti, ci)
           ei = mesh%TriE( ti, ci)
 
-          D_x = mesh%Tri( tj,1) - mesh%Tri( ti,1)
-          D_y = mesh%Tri( tj,2) - mesh%Tri( ti,2)
+          D_x = mesh%Tricc( tj,1) - mesh%Tricc( ti,1)
+          D_y = mesh%Tricc( tj,2) - mesh%Tricc( ti,2)
           D   = SQRT( D_x**2 + D_y**2)
 
           Ah = C%laddie_viscosity ! * 0.5_dp*(SQRT(mesh%TriA( ti)) + SQRT(mesh%TriA( tj))) / 1000.0_dp
@@ -314,8 +313,8 @@ CONTAINS
           ei = mesh%TriE( ti, ci)
 
           ! The triangle-triangle vector from ti to tj
-          D_x = mesh%Tri( tj,1) - mesh%Tri( ti,1)
-          D_y = mesh%Tri( tj,2) - mesh%Tri( ti,2)
+          D_x = mesh%Tricc( tj,1) - mesh%Tricc( ti,1)
+          D_y = mesh%Tricc( tj,2) - mesh%Tricc( ti,2)
           D_c = SQRT( D_x**2 + D_y**2)
 
           ! Calculate vertically averaged ice velocity component perpendicular to this edge
@@ -360,8 +359,8 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_divQUV_upstream'
-    REAL(dp), DIMENSION(mesh%nE)                          :: U_c_tot, V_c_tot
     REAL(dp), DIMENSION(mesh%nTri)                        :: U_tot, V_tot, H_b_tot
+    REAL(dp), DIMENSION(mesh%nE)                          :: U_c_tot, V_c_tot
     INTEGER                                               :: ti, tj, ci, ei
     REAL(dp)                                              :: D_x, D_y, D_c, u_perp_x, u_perp_y
     LOGICAL, DIMENSION(mesh%nTri)                         :: mask_gl_b_tot, mask_cf_b_tot, mask_b_tot
@@ -370,13 +369,13 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Calculate vertically averaged ice velocities on the edges
-    CALL gather_to_all_dp_1D( npxref%U_c, U_c_tot)
-    CALL gather_to_all_dp_1D( npxref%V_c, V_c_tot)
     CALL gather_to_all_logical_1D( laddie%mask_gl_b, mask_gl_b_tot)
     CALL gather_to_all_logical_1D( laddie%mask_cf_b, mask_cf_b_tot)
     CALL gather_to_all_logical_1D( laddie%mask_b, mask_b_tot)
     CALL gather_to_all_dp_1D( npxref%U, U_tot)
     CALL gather_to_all_dp_1D( npxref%V, V_tot)
+    CALL gather_to_all_dp_1D( npxref%U_c, U_c_tot)
+    CALL gather_to_all_dp_1D( npxref%V_c, V_c_tot)
     CALL gather_to_all_dp_1D( Hstar_b, H_b_tot)
 
     ! Initialise with zeros
@@ -394,6 +393,11 @@ CONTAINS
         DO ci = 1, 3
 
           tj = mesh%TriC( ti, ci)
+          ei = mesh%TriE( ti, ci)
+
+          !IF (par%master) THEN
+          !  WRITE( *, *) ti, ci, tj, ei, mask_gl_b_tot( tj)
+          !END IF     
 
           ! Skip if no connecting triangle on this side
           IF (tj == 0) CYCLE
@@ -401,12 +405,9 @@ CONTAINS
           ! Skip connection if neighbour is grounded. No flux across grounding line
           IF (mask_gl_b_tot( tj)) CYCLE
 
-          ! Get edge index
-          ei = mesh%TriE( ti, ci)
-
           ! The triangle-triangle vector from ti to tj
-          D_x = mesh%Tri( tj,1) - mesh%Tri( ti,1)
-          D_y = mesh%Tri( tj,2) - mesh%Tri( ti,2)
+          D_x = mesh%Tricc( tj,1) - mesh%Tricc( ti,1)
+          D_y = mesh%Tricc( tj,2) - mesh%Tricc( ti,2)
           D_c = SQRT( D_x**2 + D_y**2)
 
           ! Calculate vertically averaged ice velocity component perpendicular to this edge
@@ -415,23 +416,24 @@ CONTAINS
 
           ! Calculate upstream momentum divergence
           ! =============================
-          ! u_perp > 0: flow is exiting this vertex into vertex vj
+          ! u_perp > 0: flow is exiting this triangle into triangle tj
           IF (u_perp_x > 0) THEN
-            laddie%divQU( ti) = laddie%divQU( ti) + mesh%TriCw( ti, ci) * u_perp_x * H_b_tot( ti) * U_tot( ti) / mesh%TriA( ti)
-          ! u_perp < 0: flow is entering this vertex from vertex vj
+            laddie%divQU( ti) = laddie%divQU( ti) + mesh%TriCw( ti, ci) * H_b_tot( ti) * U_tot( ti)* u_perp_x / mesh%TriA( ti)
+          ! u_perp < 0: flow is entering this triangle into triangle tj
           ELSE
-            IF (mask_cf_b_tot( tj)) CYCLE !No inflow of momentum
-            laddie%divQU( ti) = laddie%divQU( ti) + mesh%TriCw( ti, ci) * u_perp_x * H_b_tot( tj) * U_tot( tj) / mesh%TriA( ti)
+            laddie%divQU( ti) = laddie%divQU( ti) + mesh%TriCw( ti, ci) * H_b_tot( tj) * U_tot( tj)* u_perp_x / mesh%TriA( ti)
           END IF
 
           ! V momentum
-          IF (u_perp_x > 0) THEN
-            laddie%divQV( ti) = laddie%divQV( ti) + mesh%TriCw( ti, ci) * u_perp_y * H_b_tot( ti) * V_tot( ti) / mesh%TriA( ti)
+          IF (u_perp_y > 0) THEN
+            laddie%divQV( ti) = laddie%divQV( ti) + mesh%TriCw( ti, ci) * H_b_tot( ti) * V_tot( ti)* u_perp_y / mesh%TriA( ti)
           ELSE
-            IF (mask_cf_b_tot( tj)) CYCLE !No inflow of momentum
-            laddie%divQV( ti) = laddie%divQV( ti) + mesh%TriCw( ti, ci) * u_perp_y * H_b_tot( tj) * V_tot( tj) / mesh%TriA( ti)
+            laddie%divQV( ti) = laddie%divQV( ti) + mesh%TriCw( ti, ci) * H_b_tot( tj) * V_tot( tj)* u_perp_y / mesh%TriA( ti)
           END IF
 
+          !IF (par%master) THEN
+          !  WRITE( *, "(I3,I3,I3,I3,A,F15.3,A,F12.6,A,F12.6,A,F18.12)") ti, ci, tj, ei, '  D_x: ', D_x, '  H_b_tot(ti)', H_b_tot( ti), '   U_tot( ti)', U_tot( ti), '   divQU(ti)', laddie%divQU( ti)*mesh%TriA( ti)
+          !END IF     
         END DO ! DO ci = 1, 3
 
       END IF ! (laddie%mask_b( ti))
@@ -442,6 +444,67 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE compute_divQUV_upstream
+
+  SUBROUTINE map_laddie_velocities_from_b_to_c_2D( mesh, u_b_partial, v_b_partial, u_c, v_c)
+    ! Calculate velocities on the c-grid for solving the ice thickness equation
+    ! 
+    ! Uses a different scheme then the standard mapping operator, as that one is too diffusive
+        
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh
+    REAL(dp), DIMENSION(mesh%ti1:mesh%ti2), INTENT(IN)    :: u_b_partial
+    REAL(dp), DIMENSION(mesh%ti1:mesh%ti2), INTENT(IN)    :: v_b_partial
+    REAL(dp), DIMENSION(mesh%ei1:mesh%ei2), INTENT(OUT)   :: u_c
+    REAL(dp), DIMENSION(mesh%ei1:mesh%ei2), INTENT(OUT)   :: v_c
+      
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'map_laddie_velocities_from_b_to_c_2D'
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE               :: u_b_tot, v_b_tot
+    INTEGER                                               :: ei, til, tir
+      
+    ! Add routine to path
+    CALL init_routine( routine_name)
+        
+    ! Allocate memory
+    ALLOCATE( u_b_tot( mesh%nTri))
+    ALLOCATE( v_b_tot( mesh%nTri))
+        
+    ! Gather the full b-grid velocity fields to all processes
+    CALL gather_to_all_dp_1D( u_b_partial, u_b_tot)
+    CALL gather_to_all_dp_1D( v_b_partial, v_b_tot)
+
+    ! Map velocities from the b-grid (triangles) to the c-grid (edges)
+    DO ei = mesh%ei1, mesh%ei2
+
+      til = mesh%ETri( ei,1)
+      tir = mesh%ETri( ei,2)
+
+      IF     (til == 0 .AND. tir > 0) THEN
+        u_c( ei) = u_b_tot( tir)
+        v_c( ei) = v_b_tot( tir)
+      ELSEIF (tir == 0 .AND. til > 0) THEN
+        u_c( ei) = u_b_tot( til)
+        v_c( ei) = v_b_tot( til)
+      ELSEIF (til >  0 .AND. tir > 0) THEN
+        u_c( ei) = (u_b_tot( til) + u_b_tot( tir)) / 2._dp
+        v_c( ei) = (v_b_tot( til) + v_b_tot( tir)) / 2._dp
+      ELSE
+        CALL crash('something is seriously wrong with the ETri array of this mesh!')
+      END IF
+
+    END DO
+
+    ! Clean up after yourself
+    DEALLOCATE( u_b_tot)
+    DEALLOCATE( v_b_tot)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE map_laddie_velocities_from_b_to_c_2D
+
 
 END MODULE laddie_velocity
 
