@@ -815,6 +815,9 @@ MODULE model_configuration
     REAL(dp)            :: laddie_fbrk3_beta2_config                    = 0.0_dp                           ! [] beta2 factor in FBRK3 integration. Must be between 0 and 1
     REAL(dp)            :: laddie_fbrk3_beta3_config                    = 0.0_dp                           ! [] beta3 factor in FBRK3 integration. Must be between 0 and 1
 
+    ! Momentum advection
+    CHARACTER(LEN=256)  :: choice_laddie_momentum_advection_config      = ''                               ! Choose momentum advection scheme. Options: 'none', 'centered', 'upstream'
+
     ! Initialisation
     REAL(dp)            :: laddie_initial_thickness_config              = 10._dp                           ! [m] Initial value of thickness H
     REAL(dp)            :: laddie_initial_T_offset_config               = 0.0_dp                           ! [degC] Initial offset of T relative to ambient
@@ -1787,6 +1790,9 @@ MODULE model_configuration
     REAL(dp)            :: laddie_fbrk3_beta2
     REAL(dp)            :: laddie_fbrk3_beta3
 
+    ! Momentum advection
+    CHARACTER(LEN=256)  :: choice_laddie_momentum_advection
+
     ! Initialisation
     REAL(dp)            :: laddie_initial_thickness
     REAL(dp)            :: laddie_initial_T_offset
@@ -2682,6 +2688,7 @@ CONTAINS
       laddie_fbrk3_beta1_config                                   , &
       laddie_fbrk3_beta2_config                                   , &
       laddie_fbrk3_beta3_config                                   , &
+      choice_laddie_momentum_advection_config                     , &
       laddie_initial_thickness_config                             , &
       laddie_initial_T_offset_config                              , &
       laddie_initial_S_offset_config                              , &
@@ -3635,6 +3642,9 @@ CONTAINS
     C%laddie_fbrk3_beta1                                     = laddie_fbrk3_beta1_config
     C%laddie_fbrk3_beta2                                     = laddie_fbrk3_beta2_config
     C%laddie_fbrk3_beta3                                     = laddie_fbrk3_beta3_config
+
+    ! Momentum advection
+    C%choice_laddie_momentum_advection                       = choice_laddie_momentum_advection_config
 
     ! Initialisation
     C%laddie_initial_thickness                               = laddie_initial_thickness_config

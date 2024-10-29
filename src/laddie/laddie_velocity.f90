@@ -53,6 +53,7 @@ CONTAINS
     REAL(dp), DIMENSION(mesh%nV)                          :: Hdrho_amb_tot
     REAL(dp), DIMENSION(mesh%ti1:mesh%ti2)                :: detr_b
     REAL(dp), DIMENSION(mesh%ti1:mesh%ti2)                :: Hstar_b
+    REAL(dp), DIMENSION(mesh%ei1:mesh%ei2)                :: Hstar_c
  
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -70,6 +71,7 @@ CONTAINS
     CALL map_a_b_2D( mesh, laddie%detr, detr_b)
     CALL map_H_a_b( mesh, laddie, laddie%Hdrho_amb, laddie%Hdrho_amb_b)
     CALL map_H_a_b( mesh, laddie, Hstar, Hstar_b)
+    CALL map_H_a_c( mesh, laddie, Hstar, Hstar_c)
 
     ! Bunch of derivatives
     CALL ddx_a_b_2D( mesh, laddie%drho_amb, laddie%ddrho_amb_dx_b)
@@ -78,7 +80,19 @@ CONTAINS
     CALL ddy_a_b_2D( mesh, Hstar, laddie%dH_dy_b)
 
     ! Compute divergence of momentum
-    CALL compute_divQUV( mesh, laddie, npx, Hstar)
+    SELECT CASE(C%choice_laddie_momentum_advection)
+      CASE DEFAULT
+        CALL crash('unknown choice_laddie_momentum_advection "' // TRIM( C%choice_laddie_momentum_advection) // '"')
+      CASE ('none')
+        laddie%divQU = 0.0_dp
+        laddie%divQV = 0.0_dp
+      CASE ('centered')
+        CALL compute_divQUV_centered( mesh, laddie, npx, Hstar_c)
+        !CALL compute_divQUV_centered( mesh, laddie, npx, npxref%H_c)
+      CASE ('upstream')
+        CALL compute_divQUV_upstream( mesh, laddie, npx, Hstar_b)
+        !CALL compute_divQUV_upstream( mesh, laddie, npx, npxref%H_b)
+    END SELECT
 
     ! == Integrate U and V ==
     ! =======================
@@ -245,17 +259,8 @@ CONTAINS
     
   END SUBROUTINE compute_viscUV
 
-  SUBROUTINE compute_divQUV( mesh, laddie, npxref, Hstar)
-    ! Calculate the layer flux divergence matrix M_divQ using an upwind scheme
-    !
-    ! The vertically averaged ice flux divergence represents the net ice volume (which,
-    ! assuming constant density, is proportional to the ice mass) entering each Voronoi
-    ! cell per unit time. This is found by calculating the ice fluxes through each
-    ! shared Voronoi cell boundary, using an upwind scheme: if ice flows from vertex vi
-    ! to vertex vj, the flux is found by multiplying the velocity at their shared
-    ! boundary u_c with the ice thickness at vi (and, of course, the length L_c of the
-    ! shared boundary). If instead it flows from vj to vi, u_c is multiplied with the
-    ! ice thickness at vj.
+  SUBROUTINE compute_divQUV_centered( mesh, laddie, npxref, Hstar_c)
+    ! Centered scheme
 
     IMPLICIT NONE
 
@@ -263,33 +268,25 @@ CONTAINS
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
     TYPE(type_laddie_timestep),             INTENT(IN)    :: npxref
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: Hstar
+    REAL(dp), DIMENSION(mesh%ei1:mesh%ei2), INTENT(IN)    :: Hstar_c
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_divQUV'
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_divQUV_centered'
     REAL(dp), DIMENSION(mesh%nE)                          :: U_c_tot, V_c_tot, H_c_tot
-    REAL(dp), DIMENSION(mesh%nTri)                        :: U_tot, V_tot, H_b_tot
-    INTEGER                                               :: ncols, ncols_loc, nrows, nrows_loc, nnz_est_proc
     INTEGER                                               :: ti, tj, ci, ei
-    REAL(dp)                                              :: D_x, D_y, D_c, u_perp
-    LOGICAL, DIMENSION(mesh%nTri)                         :: mask_gl_b_tot, mask_b_tot
-    LOGICAL                                               :: isbound
-    REAL(dp), DIMENSION(mesh%ei1:mesh%ei2)                :: Hstar_c
+    REAL(dp)                                              :: D_x, D_y, D_c, u_perp_x, u_perp_y
+    LOGICAL, DIMENSION(mesh%nTri)                         :: mask_gl_b_tot, mask_cf_b_tot, mask_b_tot
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    CALL map_H_a_c( mesh, laddie, Hstar, Hstar_c)
-
     ! Calculate vertically averaged ice velocities on the edges
     CALL gather_to_all_dp_1D( npxref%U_c, U_c_tot)
     CALL gather_to_all_dp_1D( npxref%V_c, V_c_tot)
-    CALL gather_to_all_dp_1D( Hstar_c, H_c_tot)
     CALL gather_to_all_logical_1D( laddie%mask_gl_b, mask_gl_b_tot)
+    CALL gather_to_all_logical_1D( laddie%mask_cf_b, mask_cf_b_tot)
     CALL gather_to_all_logical_1D( laddie%mask_b, mask_b_tot)
-    CALL gather_to_all_dp_1D( npxref%U, U_tot)
-    CALL gather_to_all_dp_1D( npxref%V, V_tot)
-    CALL gather_to_all_dp_1D( npxref%H_b, H_b_tot)
+    CALL gather_to_all_dp_1D( Hstar_c, H_c_tot)
 
     ! Initialise with zeros
     laddie%divQU = 0.0_dp
@@ -311,9 +308,7 @@ CONTAINS
           IF (tj == 0) CYCLE
 
           ! Skip connection if neighbour is grounded. No flux across grounding line
-          ! Can be made more flexible when accounting for partial cells (PMP instead of FCMP)
-          ! IF (mask_gl_b_tot( tj)) CYCLE ! Skip grounded
-          IF (mask_b_tot( tj)) CYCLE ! Skip grounded and ocean
+          IF (mask_gl_b_tot( tj)) CYCLE
 
           ! Get edge index
           ei = mesh%TriE( ti, ci)
@@ -324,24 +319,23 @@ CONTAINS
           D_c = SQRT( D_x**2 + D_y**2)
 
           ! Calculate vertically averaged ice velocity component perpendicular to this edge
-          u_perp = U_c_tot( ei) * D_y/D_c + V_c_tot( ei) * D_x/D_c
+          u_perp_x = U_c_tot( ei) * D_x/D_c
+          u_perp_y = V_c_tot( ei) * D_y/D_c
 
-          ! Calculate momentum divergence
+          ! Calculate upwind momentum divergence
           ! =============================
-          ! Centered:
-          laddie%divQU( ti) = laddie%divQU( ti) + mesh%TriCw( ti, ci) * u_perp * U_c_tot( ei) * H_c_tot( ei) / mesh%TriA( ti)
-          laddie%divQV( ti) = laddie%divQV( ti) + mesh%TriCw( ti, ci) * u_perp * V_c_tot( ei) * H_c_tot( ei) / mesh%TriA( ti)
+          IF (u_perp_x>0 .AND. mask_cf_b_tot( tj)) THEN
+            !No inflow of momentum
+          ELSE
+            laddie%divQU( ti) = laddie%divQU( ti) - mesh%TriCw( ti, ci) * u_perp_x * U_c_tot( ei) * H_c_tot( ei) / mesh%TriA( ti) 
+          END IF
 
-          ! Upwind:
-          ! u_perp > 0: flow is exiting this vertex into vertex vj
-          !IF (u_perp > 0) THEN
-          !  laddie%divQU( ti) = laddie%divQU( ti) + mesh%TriCw( ti, ci) * u_perp * H_b_tot( ti) * U_tot( ti) / mesh%TriA( ti)
-          !  laddie%divQV( ti) = laddie%divQV( ti) + mesh%TriCw( ti, ci) * u_perp * H_b_tot( ti) * V_tot( ti) / mesh%TriA( ti)
-          ! u_perp < 0: flow is entering this vertex from vertex vj
-          !ELSE
-          !  laddie%divQU( ti) = laddie%divQU( ti) + mesh%TriCw( ti, ci) * u_perp * H_b_tot( tj) * U_tot( tj) / mesh%TriA( ti)
-          !  laddie%divQV( ti) = laddie%divQV( ti) + mesh%TriCw( ti, ci) * u_perp * H_b_tot( tj) * V_tot( tj) / mesh%TriA( ti)
-          !END IF
+          IF (u_perp_y>0 .AND. mask_cf_b_tot( tj)) THEN
+            !No inflow of momentum
+          ELSE
+            laddie%divQV( ti) = laddie%divQV( ti) - mesh%TriCw( ti, ci) * u_perp_y * V_c_tot( ei) * H_c_tot( ei) / mesh%TriA( ti)
+          END IF
+
         END DO ! DO ci = 1, 3
 
       END IF ! (laddie%mask_b( ti))
@@ -351,7 +345,104 @@ CONTAINS
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
-  END SUBROUTINE compute_divQUV
+  END SUBROUTINE compute_divQUV_centered
+
+  SUBROUTINE compute_divQUV_upstream( mesh, laddie, npxref, Hstar_b)
+    ! Upstream scheme
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh
+    TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
+    TYPE(type_laddie_timestep),             INTENT(IN)    :: npxref
+    REAL(dp), DIMENSION(mesh%ti1:mesh%ti2), INTENT(IN)    :: Hstar_b
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_divQUV_upstream'
+    REAL(dp), DIMENSION(mesh%nE)                          :: U_c_tot, V_c_tot
+    REAL(dp), DIMENSION(mesh%nTri)                        :: U_tot, V_tot, H_b_tot
+    INTEGER                                               :: ti, tj, ci, ei
+    REAL(dp)                                              :: D_x, D_y, D_c, u_perp_x, u_perp_y
+    LOGICAL, DIMENSION(mesh%nTri)                         :: mask_gl_b_tot, mask_cf_b_tot, mask_b_tot
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Calculate vertically averaged ice velocities on the edges
+    CALL gather_to_all_dp_1D( npxref%U_c, U_c_tot)
+    CALL gather_to_all_dp_1D( npxref%V_c, V_c_tot)
+    CALL gather_to_all_logical_1D( laddie%mask_gl_b, mask_gl_b_tot)
+    CALL gather_to_all_logical_1D( laddie%mask_cf_b, mask_cf_b_tot)
+    CALL gather_to_all_logical_1D( laddie%mask_b, mask_b_tot)
+    CALL gather_to_all_dp_1D( npxref%U, U_tot)
+    CALL gather_to_all_dp_1D( npxref%V, V_tot)
+    CALL gather_to_all_dp_1D( Hstar_b, H_b_tot)
+
+    ! Initialise with zeros
+    laddie%divQU = 0.0_dp
+    laddie%divQV = 0.0_dp
+
+    ! == Loop over triangles ==
+    ! =========================
+
+    DO ti = mesh%ti1, mesh%ti2
+
+      IF (laddie%mask_b( ti)) THEN
+
+        ! Loop over all connections of triangle ti
+        DO ci = 1, 3
+
+          tj = mesh%TriC( ti, ci)
+
+          ! Skip if no connecting triangle on this side
+          IF (tj == 0) CYCLE
+
+          ! Skip connection if neighbour is grounded. No flux across grounding line
+          IF (mask_gl_b_tot( tj)) CYCLE
+
+          ! Get edge index
+          ei = mesh%TriE( ti, ci)
+
+          ! The triangle-triangle vector from ti to tj
+          D_x = mesh%Tri( tj,1) - mesh%Tri( ti,1)
+          D_y = mesh%Tri( tj,2) - mesh%Tri( ti,2)
+          D_c = SQRT( D_x**2 + D_y**2)
+
+          ! Calculate vertically averaged ice velocity component perpendicular to this edge
+          u_perp_x = U_c_tot( ei) * D_x/D_c
+          u_perp_y = V_c_tot( ei) * D_y/D_c
+
+          ! Calculate upstream momentum divergence
+          ! =============================
+          ! u_perp > 0: flow is exiting this vertex into vertex vj
+          IF (u_perp_x > 0) THEN
+            laddie%divQU( ti) = laddie%divQU( ti) + mesh%TriCw( ti, ci) * u_perp_x * H_b_tot( ti) * U_tot( ti) / mesh%TriA( ti)
+          ! u_perp < 0: flow is entering this vertex from vertex vj
+          ELSE
+            IF (mask_cf_b_tot( tj)) CYCLE !No inflow of momentum
+            laddie%divQU( ti) = laddie%divQU( ti) + mesh%TriCw( ti, ci) * u_perp_x * H_b_tot( tj) * U_tot( tj) / mesh%TriA( ti)
+          END IF
+
+          ! V momentum
+          IF (u_perp_x > 0) THEN
+            laddie%divQV( ti) = laddie%divQV( ti) + mesh%TriCw( ti, ci) * u_perp_y * H_b_tot( ti) * V_tot( ti) / mesh%TriA( ti)
+          ELSE
+            IF (mask_cf_b_tot( tj)) CYCLE !No inflow of momentum
+            laddie%divQV( ti) = laddie%divQV( ti) + mesh%TriCw( ti, ci) * u_perp_y * H_b_tot( tj) * V_tot( tj) / mesh%TriA( ti)
+          END IF
+
+        END DO ! DO ci = 1, 3
+
+      END IF ! (laddie%mask_b( ti))
+
+    END DO ! DO ti = mesh%ti1, mesh%ti2
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE compute_divQUV_upstream
 
 END MODULE laddie_velocity
+
 

@@ -19,8 +19,8 @@ MODULE laddie_main
   USE laddie_utilities                                       , ONLY: compute_ambient_TS, allocate_laddie_model, &
                                                                      allocate_laddie_timestep, map_H_a_b, map_H_a_c
   USE laddie_thickness                                       , ONLY: compute_H_npx
-  USE laddie_velocity                                        , ONLY: compute_UV_npx, compute_viscUV, compute_divQUV
-  USE laddie_tracers                                         , ONLY: compute_TS_npx, compute_diffTS, compute_divQTS
+  USE laddie_velocity                                        , ONLY: compute_UV_npx, compute_viscUV
+  USE laddie_tracers                                         , ONLY: compute_TS_npx, compute_diffTS
   USE mesh_operators                                         , ONLY: ddx_a_b_2D, ddy_a_b_2D
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_logical_1D
 
