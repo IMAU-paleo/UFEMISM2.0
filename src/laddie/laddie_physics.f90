@@ -123,6 +123,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_entrainment'
     INTEGER                                               :: vi
+    REAL(dp), PARAMETER                                   :: maxdetr = 0.001_dp
  
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -142,6 +143,9 @@ CONTAINS
          laddie%entr( vi) = 2*C%laddie_Gaspar1988_mu/grav & 
                           * laddie%u_star( vi)**3 / (Hstar( vi) * laddie%drho_amb( vi)) &
                           - laddie%drho_base( vi) / laddie%drho_amb( vi) * laddie%melt( vi)
+
+         ! Prevent too strong detrainment
+         laddie%entr( vi) = MAX(laddie%entr( vi), -maxdetr)
 
          ! Get detrainment = negative component of entrainment
          laddie%detr( vi) = - MIN(laddie%entr( vi),0.0_dp)
