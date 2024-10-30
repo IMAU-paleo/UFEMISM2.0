@@ -33,8 +33,8 @@ contains
     test_name = trim( test_name_parent) // '/' // trim( test_name_local)
 
     ! Run all unit tests for the mesh creation subroutines
-    ! call test_Delaunay  ( test_name)
-    ! call test_refinement( test_name)
+    call test_Delaunay  ( test_name)
+    call test_refinement( test_name)
     call test_remapping ( test_name)
 
     ! Remove routine from call stack
