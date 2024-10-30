@@ -40,7 +40,7 @@ contains
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'initialise_dummy_mesh_9'
-    integer                        :: vi, ti
+    integer                        :: ti
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -64,9 +64,11 @@ contains
     mesh%V( 4,:)      = [-1._dp,  1._dp]
     mesh%V( 5,:)      = [ 0._dp,  0._dp]
 
-    do vi = 1, mesh%nV
-      mesh%V( vi,:) = (((mesh%V(vi,:) + [1._dp, 1._dp]) * 0.5_dp) * [(xmax - xmin), (ymax - ymin)]) + [xmin, ymin]
-    end do
+    ! Scale mesh to [xmin,xmax]x[ymin,ymax]
+    mesh%V( :,1) = (mesh%V( :,1) - minval( mesh%V( :,1))) / (maxval( mesh%V( :,1)) - minval( mesh%V( :,1)))
+    mesh%V( :,2) = (mesh%V( :,2) - minval( mesh%V( :,2))) / (maxval( mesh%V( :,2)) - minval( mesh%V( :,2)))
+    mesh%V( :,1) = (mesh%V( :,1) * (xmax - xmin)) + xmin
+    mesh%V( :,2) = (mesh%V( :,2) * (ymax - ymin)) + ymin
 
     ! ! Make sure the central vertex is slightly off-centre, to prevent trivial Delaunay criteria
     ! ! in the early stages of mesh refinement (i.e. 4 or more vertices being cocircular), which
@@ -143,7 +145,7 @@ contains
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'initialise_dummy_mesh_9'
-    integer                        :: vi, ti
+    integer                        :: ti
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -171,9 +173,11 @@ contains
     mesh%V( 8,:)      = [ 0._dp,-1._dp]
     mesh%V( 9,:)      = [ 1._dp,-1._dp]
 
-    do vi = 1, mesh%nV
-      mesh%V( vi,:) = (((mesh%V(vi,:) + [1._dp, 1._dp]) * 0.5_dp) * [(xmax - xmin), (ymax - ymin)]) + [xmin, ymin]
-    end do
+    ! Scale mesh to [xmin,xmax]x[ymin,ymax]
+    mesh%V( :,1) = (mesh%V( :,1) - minval( mesh%V( :,1))) / (maxval( mesh%V( :,1)) - minval( mesh%V( :,1)))
+    mesh%V( :,2) = (mesh%V( :,2) - minval( mesh%V( :,2))) / (maxval( mesh%V( :,2)) - minval( mesh%V( :,2)))
+    mesh%V( :,1) = (mesh%V( :,1) * (xmax - xmin)) + xmin
+    mesh%V( :,2) = (mesh%V( :,2) * (ymax - ymin)) + ymin
 
     ! ! Make sure the central vertex is slightly off-centre, to prevent trivial Delaunay criteria
     ! ! in the early stages of mesh refinement (i.e. 4 or more vertices being cocircular), which
@@ -272,7 +276,7 @@ contains
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'initialise_dummy_mesh_9'
-    integer                        :: vi, ti
+    integer                        :: ti
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -307,9 +311,11 @@ contains
     mesh%V( 15,:)      = [2._dp, 0._dp]
     mesh%V( 16,:)      = [3._dp, 0._dp]
 
-    do vi = 1, mesh%nV
-      mesh%V( vi,:) = ((mesh%V(vi,:) / 3._dp) * [(xmax - xmin), (ymax - ymin)]) + [xmin, ymin]
-    end do
+    ! Scale mesh to [xmin,xmax]x[ymin,ymax]
+    mesh%V( :,1) = (mesh%V( :,1) - minval( mesh%V( :,1))) / (maxval( mesh%V( :,1)) - minval( mesh%V( :,1)))
+    mesh%V( :,2) = (mesh%V( :,2) - minval( mesh%V( :,2))) / (maxval( mesh%V( :,2)) - minval( mesh%V( :,2)))
+    mesh%V( :,1) = (mesh%V( :,1) * (xmax - xmin)) + xmin
+    mesh%V( :,2) = (mesh%V( :,2) * (ymax - ymin)) + ymin
 
     mesh%VBI           = 0
     mesh%VBI(1:16)     = [8,1,1,2,7,0,0,3,7,0,0,3,6,5,5,4]

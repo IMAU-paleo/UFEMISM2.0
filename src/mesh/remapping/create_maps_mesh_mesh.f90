@@ -243,7 +243,6 @@ contains
     call integrate_triangles_through_Voronoi_cells( mesh_src, mesh_dst, B_xdy_b_a, B_mxydx_b_a, B_xydy_b_a, count_coincidences)
 
     ! Transpose line integral matrices
-    !if (par%master) WRITE(0,*) 'calc_remapping_operators_mesh_mesh_conservative - transposing line integral matrices...'
     call MatCreateTranspose( B_xdy_b_a  , B_xdy_b_a_T  , perr)
     call MatCreateTranspose( B_mxydx_b_a, B_mxydx_b_a_T, perr)
     call MatCreateTranspose( B_xydy_b_a , B_xydy_b_a_T , perr)
@@ -277,9 +276,17 @@ contains
 
     do n = istart+1, iend ! +1 because PETSc indexes from 0
 
-      ! w0
+      ! Calculate area of overlap
       call MatGetRow( B_xdy_a_b, n-1, ncols, cols, vals, perr)
       A_overlap_tot = sum( vals( 1:ncols))
+      call MatRestoreRow( B_xdy_a_b, n-1, ncols, cols, vals, perr)
+
+      ! Skip vertices with zero overlap (which can happen if the boundary
+      ! of their Voronoi cell coincides with that of this one)
+      if (A_overlap_tot <= tiny( A_overlap_tot) * 16._dp) cycle
+
+      ! w0
+      call MatGetRow( B_xdy_a_b, n-1, ncols, cols, vals, perr)
       do k = 1, ncols
         w0_row( k) = vals( k) / A_overlap_tot
         call MatSetValues( w0, 1, n-1, 1, cols( k), w0_row( k), INSERT_VALUES, perr)
@@ -305,6 +312,7 @@ contains
       call MatRestoreRow( B_xydy_a_b, n-1, ncols, cols, vals, perr)
 
     end do
+
     call MatAssemblyBegin( w0, MAT_FINAL_ASSEMBLY, perr)
     call MatAssemblyEnd(   w0, MAT_FINAL_ASSEMBLY, perr)
     call MatAssemblyBegin( w1x, MAT_FINAL_ASSEMBLY, perr)
@@ -321,7 +329,7 @@ contains
     ! ===================================
 
     ! Safety
-    if (.not. allocateD( mesh_src%vi2n)) then
+    if (.not. allocated( mesh_src%vi2n)) then
       call crash('matrix operators for mesh "' // trim( mesh_src%name) // '" have not been calculated!')
     end if
 
@@ -757,7 +765,7 @@ contains
     ! == Initialise the three matrices using the native UFEMISM CSR-matrix format
     ! ===========================================================================
 
-    ! Matrix sise
+    ! Matrix size
     nrows           = mesh_Vor%nV    ! to
     nrows_loc       = mesh_Vor%nV_loc
     ncols           = mesh_tri%nTri  ! from

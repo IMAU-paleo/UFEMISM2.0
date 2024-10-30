@@ -32,19 +32,15 @@ contains
     logical,                                intent(in)    :: count_coincidences
 
     ! Local variables:
-    character(len=1024), parameter :: routine_name = 'trace_line_grid'
-    real(dp), dimension(2)         :: pp,qq
-    logical                        :: pq_passes_through_domain
-    logical                        :: finished
-    integer                        :: n_cycles
-    type(type_coinc_ind_grid)      :: coinc_ind
-    real(dp), dimension(2)         :: p_next
-    integer                        :: n_left
-    logical                        :: coincides
-    real(dp)                       :: LI_xdy, LI_mxydx, LI_xydy
-
-    ! Add routine to path
-    call init_routine( routine_name)
+    real(dp), dimension(2)    :: pp,qq
+    logical                   :: pq_passes_through_domain
+    logical                   :: finished
+    integer                   :: n_cycles
+    type(type_coinc_ind_grid) :: coinc_ind
+    real(dp), dimension(2)    :: p_next
+    integer                   :: n_left
+    logical                   :: coincides
+    real(dp)                  :: LI_xdy, LI_mxydx, LI_xydy
 
     ! Crop the line [pq] so that it lies within the domain
     call crop_line_to_domain( p, q, grid%xmin, grid%xmax, grid%ymin, grid%ymax, grid%tol_dist, &
@@ -52,7 +48,6 @@ contains
 
     if (.not. pq_passes_through_domain) then
       ! [pq] doesn't pass through the domain anywhere
-      call finalise_routine( routine_name)
       return
     end if
 
@@ -67,9 +62,9 @@ contains
       ! Find the point p_next where [pq] crosses into the next Voronoi cell
       select case (coinc_ind%grid)
       case default
-        call crash('coincidence indicator doesnt make sense')
+        call crash('trace_line_grid - coincidence indicator doesnt make sense')
       case (no_value)
-        call crash('coincidence indicator doesnt make sense')
+        call crash('trace_line_grid - coincidence indicator doesnt make sense')
       case (a_grid)
         call trace_line_grid_a( grid, pp, qq, coinc_ind, p_next, n_left, coincides, finished)
       case (b_grid)
@@ -97,13 +92,10 @@ contains
       ! Safety
       n_cycles = n_cycles + 1
       if (n_cycles > grid%n) then
-        call crash('iterative tracer got stuck!')
+        call crash('trace_line_grid - iterative tracer got stuck!')
       end if
 
-    end do ! do while (.not. finished)
-
-    ! Finalise routine path
-    call finalise_routine( routine_name)
+    end do
 
   end subroutine trace_line_grid
 
@@ -124,7 +116,7 @@ contains
     call assert( &
       test_ge_le( p(1), grid%xmin - grid%dx / 2._dp, grid%xmax + grid%dx / 2._dp) .and. &
       test_ge_le( p(2), grid%ymin - grid%dx / 2._dp, grid%ymax + grid%dx / 2._dp), &
-      'p lies outside the grid domain')
+      'trace_line_grid_start - p lies outside the grid domain')
 #endif
 
     ! Initialise
@@ -144,7 +136,7 @@ contains
 
 #if (DO_ASSERTIONS)
     call assert( test_ge_le( p(1), xl, xu) .and. test_ge_le( p(2), yl, yu), &
-      'couldnt find grid cell containing p')
+      'trace_line_grid_start - couldnt find grid cell containing p')
 #endif
 
     ! Check if p lies on either of the four surrounding b-grid points
@@ -197,7 +189,7 @@ contains
       coinc_ind%i = i
       coinc_ind%j = j
     else
-      call crash('couldnt find where p is on the grid')
+      call crash('trace_line_grid_start - couldnt find where p is on the grid')
     end if
 
   end subroutine trace_line_grid_start

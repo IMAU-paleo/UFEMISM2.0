@@ -1206,10 +1206,13 @@ CONTAINS
     LOGICAL                                       :: FoundIt
     INTEGER                                       :: n, ti, n2, tin
 
-    ! If p lies outside the mesh domain, throw an error
-    IF (p( 1) < mesh%xmin .OR. p( 1) > mesh%xmax .OR. p( 2) < mesh%ymin .OR. p( 2) > mesh%ymax) THEN
-      CALL crash('find_containing_triangle - p lies outside mesh domain!')
-    END IF
+#if (DO_ASSERTIONS)
+    call assert( &
+      test_ge_le( p(1), mesh%xmin, mesh%xmax) .and. &
+      test_ge_le( p(2), mesh%ymin, mesh%ymax), &
+      'find_containing_triangle - p lies outside mesh domain')
+    call assert( test_ge_le( ti_in, 1, mesh%nTri), 'invalid initial guess for ti_in')
+#endif
 
     ! See if the initial guess is correct.
     qq = mesh%V( mesh%Tri( ti_in,1),:)
