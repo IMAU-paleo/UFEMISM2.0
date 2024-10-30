@@ -12,6 +12,7 @@ module ut_basic
 
   ! Module variables
   character(len=1024) :: filename_unit_tests_output
+  logical             :: all_unit_tests_passed = .true.
 
 contains
 
@@ -30,8 +31,13 @@ contains
 
     if (test_result .eqv. .true.) then
       str_file     = 'Unit test passed:'
-      str_terminal = colour_string( 'Unit test passed:', 'green')
+      if (all_unit_tests_passed) then
+        str_terminal = colour_string( 'Unit test passed:', 'green')
+      else
+        str_terminal = colour_string( 'Unit test passed:', 'yellow')
+      end if
     else
+      all_unit_tests_passed = .false.
       str_file     = 'Unit test failed:'
       str_terminal = colour_string( 'Unit test failed:', 'red')
     end if
