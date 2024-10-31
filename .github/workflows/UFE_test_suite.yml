@@ -26,6 +26,10 @@ jobs:
       run: |
         echo ls -a
         ls -a
+        echo ls data
+        ls data
+        echo ls data/topography
+        ls data/topography
 
   # # Compile the model and cache the executable
   # compile_and_cache_UFEMISM:
