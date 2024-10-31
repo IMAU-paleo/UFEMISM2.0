@@ -32,3 +32,6 @@ automated_testing/component_tests/figures/*.png
 
 # Ignore temporary scoreboard files
 automated_testing/component_tests/temporary_scoreboard_files/*.xml
+
+# Ignore input data
+data
