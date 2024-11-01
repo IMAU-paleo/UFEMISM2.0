@@ -34,19 +34,15 @@ contains
     integer,                                intent(inout) :: ti_hint
 
     ! Local variables:
-    character(len=1024), parameter :: routine_name = 'trace_line_tri'
-    real(dp), dimension(2)         :: pp, qq
-    logical                        :: is_valid_line
-    logical                        :: finished
-    integer                        :: n_cycles
-    type(type_coinc_ind_mesh)      :: coinc_ind
-    real(dp), dimension(2)         :: p_next
-    integer                        :: ti_left
-    logical                        :: coincides
-    real(dp)                       :: LI_xdy, LI_mxydx, LI_xydy
-
-    ! Add routine to path
-    call init_routine( routine_name)
+    real(dp), dimension(2)    :: pp, qq
+    logical                   :: is_valid_line
+    logical                   :: finished
+    integer                   :: n_cycles
+    type(type_coinc_ind_mesh) :: coinc_ind
+    real(dp), dimension(2)    :: p_next
+    integer                   :: ti_left
+    logical                   :: coincides
+    real(dp)                  :: LI_xdy, LI_mxydx, LI_xydy
 
     ! Crop the line [pq] so that it lies within the mesh domain
     call crop_line_to_domain( p, q, mesh%xmin, mesh%xmax, mesh%ymin, mesh%ymax, mesh%tol_dist, &
@@ -54,7 +50,6 @@ contains
 
     if (.not. is_valid_line) then
       ! [pq] doesn't pass through the mesh domain anywhere
-      call finalise_routine( routine_name)
       return
     end if
 
@@ -72,9 +67,9 @@ contains
       ! Find the point p_next where [pq] crosses into the next Voronoi cell
       select case (coinc_ind%grid)
       case (no_value)
-        call crash('coincidence indicator doesnt make sense')
+        call crash('trace_line_tri - coincidence indicator doesnt make sense')
       case default
-        call crash('coincidence indicator doesnt make sense')
+        call crash('trace_line_tri - coincidence indicator doesnt make sense')
       case( a_grid)
         call trace_line_tri_vi( mesh, pp, qq, p_next, coinc_ind, ti_left, coincides, finished)
       case (b_grid)
@@ -103,12 +98,9 @@ contains
       end if
 
       ! Update ti_hint, for more efficiency
-      ti_hint = ti_left
+      if (ti_left > 0) ti_hint = ti_left
 
     end do ! do while (.not. finished)
-
-    ! Finalise routine path
-    call finalise_routine( routine_name)
 
   end subroutine trace_line_tri
 
@@ -134,7 +126,7 @@ contains
     call assert( &
       test_ge_le( p(1), mesh%xmin, mesh%xmax) .and. &
       test_ge_le( p(2), mesh%ymin, mesh%ymax), &
-      'p lies outside the mesh domain')
+      'trace_line_tri_start - p lies outside the mesh domain')
 #endif
 
     ! Initialise
@@ -158,17 +150,14 @@ contains
       ! p lies on via
       coinc_ind%grid = a_grid
       coinc_ind%i    = via
-      return
     elseif (norm2( pb - p) < mesh%tol_dist) then
       ! p lies on vib
       coinc_ind%grid = a_grid
       coinc_ind%i    = vib
-      return
     elseif (norm2( pc - p) < mesh%tol_dist) then
       ! p lies on vic
       coinc_ind%grid = a_grid
       coinc_ind%i    = vic
-      return
 
     ! Check if p lies on any of the three edges
     elseif (lies_on_line_segment( pa, pb, p, mesh%tol_dist)) then
@@ -183,9 +172,9 @@ contains
       end do
 #if (DO_ASSERTIONS)
       ! Safety
-      call assert( coinc_ind%i > 0, 'couldnt find edge ei connecting vertices vi,vj')
+      call assert( coinc_ind%i > 0, &
+        'trace_line_tri_start - couldnt find edge ei connecting vertices vi,vj')
 #endif
-      return
 
     elseif (lies_on_line_segment( pb, pc, p, mesh%tol_dist)) then
       ! p lies on the edge connecting vib and vic
@@ -195,14 +184,14 @@ contains
         vj = mesh%C(  vib,vvi)
         if (vj == vic) then
           coinc_ind%i = mesh%VE( vib,vvi)
-          return
+          exit
         end if
       end do
 #if (DO_ASSERTIONS)
       ! Safety
-      call assert( coinc_ind%i > 0, 'couldnt find edge ei connecting vertices vi,vj')
+      call assert( coinc_ind%i > 0, &
+        'trace_line_tri_start - couldnt find edge ei connecting vertices vi,vj')
 #endif
-      return
 
     elseif (lies_on_line_segment( pc, pa, p, mesh%tol_dist)) then
       ! p lies on the edge connecting vic and via
@@ -212,23 +201,22 @@ contains
         vj = mesh%C(  vic,vvi)
         if (vj == via) then
           coinc_ind%i = mesh%VE( vic,vvi)
-          return
+          exit
         end if
       end do
 #if (DO_ASSERTIONS)
       ! Safety
-      call assert( coinc_ind%i > 0, 'couldnt find edge ei connecting vertices vi,vj')
+      call assert( coinc_ind%i > 0, &
+        'trace_line_tri_start - couldnt find edge ei connecting vertices vi,vj')
 #endif
-      return
 
     ! Check if p lies inside triangle ti
     elseif (is_in_triangle( pa, pb, pc, p)) then
       coinc_ind%grid = b_grid
       coinc_ind%i    = ti_hint
-      return
 
     else
-      call crash('couldnt find where p is on the mesh')
+      call crash('trace_line_tri_start - couldnt find where p is on the mesh')
     end if
 
   end subroutine trace_line_tri_start
@@ -253,8 +241,8 @@ contains
 
 #if (DO_ASSERTIONS)
     ! Safety
-    call assert( coinc_ind%grid == b_grid, 'coincidence grid is not b_grid')
-    call assert( test_ge_le( coinc_ind%i, 1, mesh%nTri), 'invalid value for ti')
+    call assert( coinc_ind%grid == b_grid, 'trace_line_tri_ti - coincidence grid is not b_grid')
+    call assert( test_ge_le( coinc_ind%i, 1, mesh%nTri), 'trace_line_tri_ti - invalid value for ti')
 #endif
 
     ti_in = coinc_ind%i
@@ -270,7 +258,7 @@ contains
 
 #if (DO_ASSERTIONS)
     ! Safety
-    call assert( is_in_triangle( pa, pb, pc, p), 'p does not lie in triangle ti')
+    call assert( is_in_triangle( pa, pb, pc, p), 'trace_line_tri_ti - p does not lie in triangle ti')
 #endif
 
     ! Check if q lies inside the same triangle ti
@@ -384,7 +372,7 @@ contains
     logical,                   intent(out)   :: q_on_ei
 
     ! Local variables
-    integer :: n1, n2
+    integer                :: n1, n2
     real(dp), dimension(2) :: pa, pb
 
     q_on_ei = .false.
@@ -522,8 +510,10 @@ contains
 
 #if (DO_ASSERTIONS)
     ! Safety
-    call assert( coinc_ind%grid == a_grid, 'coincidence grid is not a_grid')
-    call assert( test_ge_le( coinc_ind%i, 1, mesh%nV), 'invalid value for vi')
+    call assert( coinc_ind%grid == a_grid, 'trace_line_tri_vi - coincidence grid is not a_grid')
+    call assert( test_ge_le( coinc_ind%i, 1, mesh%nV), 'trace_line_tri_vi - invalid value for vi')
+    call assert( test_le( norm2( p - mesh%V( coinc_ind%i,:)), mesh%tol_dist), &
+      'trace_line_tri_vi - p doesnt lie on vertex vi')
 #endif
 
     ! Check if q lies on any of the edges originating in this vertex
@@ -547,7 +537,7 @@ contains
     if (pq_through_ei) return
 
     if (.not. (q_on_ei .or. q_in_ti.or. pq_through_vi .or. pq_through_ei)) then
-      call crash('trace_line_tri_ti - couldnt find out where pq goes from here')
+      call crash('trace_line_tri_vi - couldnt find out where pq goes from here')
     end if
 
   end subroutine trace_line_tri_vi
@@ -769,8 +759,8 @@ contains
     logical                :: q_on_ei, q_in_ti, pq_through_vi, pq_through_ei
 
 #if (DO_ASSERTIONS)
-    call assert( coinc_ind%grid == c_grid, 'coincidence grid is not c_grid')
-    call assert( test_ge_le( coinc_ind%i, 1, mesh%nE), 'invalid value for ei')
+    call assert( coinc_ind%grid == c_grid, 'trace_line_tri_ei - coincidence grid is not c_grid')
+    call assert( test_ge_le( coinc_ind%i, 1, mesh%nE), 'trace_line_tri_ei - invalid value for ei')
 #endif
 
     ei_on = coinc_ind%i
@@ -790,7 +780,7 @@ contains
 
 #if (DO_ASSERTIONS)
     call assert( lies_on_line_segment( pa, pb, p, mesh%tol_dist), &
-      'p does not lie on edge ei')
+      'trace_line_tri_ei - p does not lie on edge ei')
 #endif
 
     ! Check if q lies on the same edge as p

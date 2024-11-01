@@ -34,26 +34,21 @@ contains
     integer,                                intent(inout) :: vi_hint
 
     ! Local variables:
-    character(len=1024), parameter :: routine_name = 'trace_line_Vor'
-    real(dp), dimension(2)         :: pp,qq
-    logical                        :: is_valid_line
-    logical                        :: finished
-    integer                        :: n_cycles
-    type(type_coinc_ind_mesh)      :: coinc_ind
-    real(dp), dimension(2)         :: p_next
-    integer                        :: vi_left
-    logical                        :: coincides
-    real(dp)                       :: LI_xdy, LI_mxydx, LI_xydy
-
-    ! Add routine to path
-    call init_routine( routine_name)
+    real(dp), dimension(2)    :: pp,qq
+    logical                   :: is_valid_line
+    logical                   :: finished
+    integer                   :: n_cycles
+    type(type_coinc_ind_mesh) :: coinc_ind
+    real(dp), dimension(2)    :: p_next
+    integer                   :: vi_left
+    logical                   :: coincides
+    real(dp)                  :: LI_xdy, LI_mxydx, LI_xydy
 
     ! Crop the line [pq] so that it lies within the mesh domain
     call crop_line_to_domain( p, q, mesh%xmin, mesh%xmax, mesh%ymin, mesh%ymax, mesh%tol_dist, pp, qq, is_valid_line)
 
     if (.not.is_valid_line) then
       ! [pq] doesn't pass through the mesh domain anywhere
-      call finalise_routine( routine_name)
       return
     end if
 
@@ -71,9 +66,9 @@ contains
       ! Find the point p_next where [pq] crosses into the next Voronoi cell
       select case (coinc_ind%grid)
       case default
-        call crash('coincidence indicator doesnt make sense')
+        call crash('trace_line_Vor - coincidence indicator doesnt make sense')
       case (no_value)
-        call crash('coincidence indicator doesnt make sense')
+        call crash('trace_line_Vor - coincidence indicator doesnt make sense')
       case (a_grid)
         call trace_line_Vor_vi( mesh, pp, qq, p_next, coinc_ind, vi_left, coincides, finished)
       case (b_grid)
@@ -104,10 +99,7 @@ contains
       ! Update vi_hint, for more efficiency
       vi_hint = vi_left
 
-    end do ! do while (.not.finished)
-
-    ! Finalise routine path
-    call finalise_routine( routine_name)
+    end do
 
   end subroutine trace_line_Vor
 
@@ -187,8 +179,10 @@ contains
     logical                             :: q_in_vi, q_on_ei, pq_through_ti, pq_through_ei
 
 #if (DO_ASSERTIONS)
-    call assert( coinc_ind%grid == a_grid, 'coincidence grid is not a_grid')
-    call assert( test_ge_le( coinc_ind%i, 1, mesh%nV), 'invalid value for vi')
+    call assert( coinc_ind%grid == a_grid, 'trace_line_Vor_vi - coincidence grid is not a_grid')
+    call assert( test_ge_le( coinc_ind%i, 1, mesh%nV), 'trace_line_Vor_vi - invalid value for vi')
+    call assert( is_in_Voronoi_cell( mesh, p, coinc_ind%i), &
+      'trace_line_Vor_vi - p does not lie in the Voronoi cell of vertex vi')
 #endif
 
     vi_in = coinc_ind%i
@@ -373,7 +367,7 @@ contains
         end if
       end do
       ! Safety
-      if (ei == 0) call crash('couldnt find edge between vi and vj!')
+      if (ei == 0) call crash('trace_line_Vor_vi_pq_through_ei - couldnt find edge between vi and vj!')
 
       call segment_intersection( p, q, pa, pb, llis, do_cross, mesh%tol_dist)
       if (do_cross) then
@@ -410,8 +404,10 @@ contains
     logical :: q_on_ei, q_in_vi, pq_through_ti, pq_through_ei
 
 #if (DO_ASSERTIONS)
-    call assert( coinc_ind%grid == b_grid, 'coincidence grid is not b_grid')
-    call assert( test_ge_le( coinc_ind%i, 1, mesh%nTri), 'invalid value for ti')
+    call assert( coinc_ind%grid == b_grid, 'trace_line_Vor_ti - coincidence grid is not b_grid')
+    call assert( test_ge_le( coinc_ind%i, 1, mesh%nTri), 'trace_line_Vor_ti - invalid value for ti')
+    call assert( norm2( mesh%Tricc( coinc_ind%i,:) - p) <= mesh%tol_dist, &
+      'trace_line_Vor_ti - p does not lie on the circumcentre of ti')
 #endif
 
     ti_on = coinc_ind%i
@@ -695,8 +691,8 @@ contains
     logical                :: pq_through_ei, pq_through_ti, pq_through_other_ei
 
 #if (DO_ASSERTIONS)
-    call assert( coinc_ind%grid == c_grid, 'coincidence grid is not c_grid')
-    call assert( test_ge_le( coinc_ind%i, 1, mesh%nE), 'invalid value for ei')
+    call assert( coinc_ind%grid == c_grid, 'trace_line_Vor_ei - coincidence grid is not c_grid')
+    call assert( test_ge_le( coinc_ind%i, 1, mesh%nE), 'trace_line_Vor_ei - invalid value for ei')
 #endif
 
     ei_on = coinc_ind%i
@@ -725,6 +721,11 @@ contains
       ccl = mesh%Tricc( til,:)
       ccr = mesh%Tricc( tir,:)
     end if
+
+#if (DO_ASSERTIONS)
+    call assert( lies_on_line_segment( ccl, ccr, p, mesh%tol_dist), &
+      'trace_line_Vor_ei - p does not lie on the shared Voronoi boundary represented by ei')
+#endif
 
     ! Check if q lies on the same shared Voronoi cell boundary
     call trace_line_Vor_ei_q_on_ei( mesh, via, vib, ccl, ccr, p, q, &

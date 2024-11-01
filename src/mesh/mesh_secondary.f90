@@ -5,6 +5,8 @@ MODULE mesh_secondary
 ! ===== Preamble =====
 ! ====================
 
+  use tests_main
+  use assertions_basic
   USE mpi
   USE precisions                                             , ONLY: dp
   USE mpi_basic                                              , ONLY: par, cerr, ierr, recv_status, sync
@@ -12,7 +14,7 @@ MODULE mesh_secondary
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
   USE mesh_types                                             , ONLY: type_mesh
-  USE mesh_utilities                                         , ONLY: calc_Voronoi_cell
+  USE mesh_utilities                                         , ONLY: calc_Voronoi_cell, find_shared_Voronoi_boundary
   USE math_utilities                                         , ONLY: cross2, line_integral_xdy, line_integral_xydy, line_integral_mxydx, triangle_area, &
                                                                      geometric_center, inverse_oblique_sg_projection
   USE mesh_edges                                             , ONLY: construct_mesh_edges
@@ -65,96 +67,69 @@ CONTAINS
   END SUBROUTINE calc_all_secondary_mesh_data
 
   SUBROUTINE calc_TriBI( mesh)
-    ! Calculate triangle boundary indices
-
-    IMPLICIT NONE
+    !< Calculate triangle boundary indices
 
     ! In/output variables:
-    TYPE(type_mesh),            INTENT(INOUT)     :: mesh
+    type(type_mesh), intent(inout) :: mesh
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'calc_all_secondary_mesh_data'
-    INTEGER                                       :: vi, vi_prev, ti, vi_NW, vi_NE, vi_SE, vi_SW
+    character(len=1024), parameter :: routine_name = 'calc_all_secondary_mesh_data'
+    integer                        :: vi_SW, vi_SE, vi_NE, vi_NW, vi, iti, ti, n_cycles
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
     ! Allocate clean memory
-    IF (ALLOCATED( mesh%TriBI)) DEALLOCATE( mesh%TriBI)
-    ALLOCATE( mesh%TriBI( mesh%nTri), source = 0)
+    if (allocated( mesh%TriBI)) deallocate( mesh%TriBI)
+    allocate( mesh%TriBI( mesh%nTri), source = 0)
 
-    vi_prev = 1
-    vi = mesh%C( vi_prev, mesh%nC( vi_prev))
+    ! Locate the southwest corner
+    vi_SW = 0
+    do vi = 1, mesh%nV
+      if (mesh%VBI( vi) == 6) then
+        vi_SW = vi
+        exit
+      end if
+    end do
+#if (DO_ASSERTIONS)
+    call assert( test_ge_le( vi_SW, 1, mesh%nV),'couldnt find the vertex in the southwest corner')
+#endif
 
-    ! Move a pointer along the domain boundaries to efficiently
-    ! find all the boundary triangles
+    ! Set triangle border indices efficiently by tracing the domain border
+    vi = vi_SW
+    n_cycles = 0
+    vi_SE = 0
+    vi_NE = 0
+    vi_NW = 0
+    do while (.true.)
+      n_cycles = n_cycles + 1
+      if (n_cycles > mesh%nV) call crash('got stuck tracing the domain border')
+      do iti = 1, mesh%niTri( vi)
+        ti = mesh%iTri( vi,iti)
+        mesh%TriBI( ti) = mesh%VBI( vi)
+      end do
+      vi = mesh%C( vi, mesh%nC( vi))
+      if (mesh%VBI( vi) == 4) vi_SE = vi
+      if (mesh%VBI( vi) == 2) vi_NE = vi
+      if (mesh%VBI( vi) == 8) vi_NW = vi
+      if (vi == vi_SW) exit
+    end do
+#if (DO_ASSERTIONS)
+    call assert( test_ge_le( vi_SE, 1, mesh%nV),'couldnt find the vertex in the southeast corner')
+    call assert( test_ge_le( vi_NE, 1, mesh%nV),'couldnt find the vertex in the northeast corner')
+    call assert( test_ge_le( vi_NW, 1, mesh%nV),'couldnt find the vertex in the northwest corner')
+#endif
 
-    ! West (SN)
-    ! =========
-
-    DO WHILE ( ABS( mesh%V( vi,2) - mesh%ymax) > mesh%tol_dist)
-      vi = mesh%C(  vi_prev, mesh%nC(  vi_prev))
-      ti = mesh%iTri(  vi, 1)
-      mesh%TriBI( ti) = 7
-      ti = mesh%iTri(  vi, mesh%niTri( vi))
-      mesh%TriBI( ti) = 7
-      vi_prev = vi
-    END DO
-    vi_NW = vi
-
-    ! North (WE)
-    ! ==========
-
-    DO WHILE ( ABS( mesh%V( vi,1) - mesh%xmax) > mesh%tol_dist)
-      vi = mesh%C(  vi_prev, mesh%nC(  vi_prev))
-      ti = mesh%iTri(  vi, 1)
-      mesh%TriBI( ti) = 1
-      ti = mesh%iTri(  vi, mesh%niTri( vi))
-      mesh%TriBI( ti) = 1
-      vi_prev = vi
-    END DO
-    vi_NE = vi
-
-    ! East (NS)
-    ! =========
-
-    DO WHILE ( ABS( mesh%V( vi,2) - mesh%ymin) > mesh%tol_dist)
-      vi = mesh%C(  vi_prev, mesh%nC(  vi_prev))
-      ti = mesh%iTri(  vi, 1)
-      mesh%TriBI( ti) = 3
-      ti = mesh%iTri(  vi, mesh%niTri( vi))
-      mesh%TriBI( ti) = 3
-      vi_prev = vi
-    END DO
-    vi_SE = vi
-
-    ! South (EW)
-    ! ==========
-
-    DO WHILE ( ABS( mesh%V( vi,1) - mesh%xmin) > mesh%tol_dist)
-      vi = mesh%C(  vi_prev, mesh%nC(  vi_prev))
-      ti = mesh%iTri(  vi, 1)
-      mesh%TriBI( ti) = 5
-      ti = mesh%iTri(  vi, mesh%niTri( vi))
-      mesh%TriBI( ti) = 5
-      vi_prev = vi
-    END DO
-    vi_SW = vi
-
-    ! Correct the last ones on each side
-    ti = mesh%iTri(  vi_SW, mesh%niTri( vi_SW))
-    mesh%TriBI( ti) = 7
-    ti = mesh%iTri(  vi_SE, mesh%niTri( vi_SE))
-    mesh%TriBI( ti) = 5
-    ti = mesh%iTri(  vi_NE, mesh%niTri( vi_NE))
-    mesh%TriBI( ti) = 3
-    ti = mesh%iTri(  vi_NW, mesh%niTri( vi_NW))
-    mesh%TriBI( ti) = 1
+    ! Corner triangles
+    if (mesh%niTri( vi_SW) == 1) mesh%TriBI( mesh%iTri( vi_SW,1)) = 6
+    if (mesh%niTri( vi_SE) == 1) mesh%TriBI( mesh%iTri( vi_SE,1)) = 4
+    if (mesh%niTri( vi_NE) == 1) mesh%TriBI( mesh%iTri( vi_NE,1)) = 2
+    if (mesh%niTri( vi_NW) == 1) mesh%TriBI( mesh%iTri( vi_NW,1)) = 8
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE calc_TriBI
+  end subroutine calc_TriBI
 
   SUBROUTINE calc_Voronoi_cell_areas( mesh)
     ! Calculate the areas of the Voronoi cells of all the vertices
@@ -265,93 +240,41 @@ CONTAINS
 
   END SUBROUTINE calc_Voronoi_cell_geometric_centres
 
-  SUBROUTINE calc_connection_widths( mesh)
-    ! Calculate the width of the line separating two connected vertices (usually equal to
-    ! the distance between the circumcenters of their two shared triangles, except for
-    ! pairs of boundary vertices).
-    ! Also: calculate the length of the shared edge of two triangles
+  subroutine calc_connection_widths( mesh)
+    ! Calculate the length of the shared Voronoi cell boundary between all connected vertices
 
-    IMPLICIT NONE
+    ! In/output variables
+    type(type_mesh), intent(inout) :: mesh
 
-    TYPE(type_mesh),                 INTENT(INOUT)     :: mesh
-
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_connection_widths'
-    INTEGER                                            :: v1, nv2, v2, t1, t2, iti, ti, n, ci, vi1, vi2, ei
-    LOGICAL                                            :: hasv2
+    ! Local variables
+    character(len=1024), parameter :: routine_name = 'calc_connection_widths'
+    integer                        :: vi, ci, ei, t1, t2, vi1, vi2
+    real(dp), dimension(2)         :: p, q
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
     ! Allocate clean memory
-    IF (ALLOCATED( mesh%Cw)) DEALLOCATE( mesh%Cw)
-    IF (ALLOCATED( mesh%TriCw)) DEALLOCATE( mesh%TriCw)
-    ALLOCATE( mesh%Cw( mesh%nV, mesh%nC_mem), source = 0._dp)
-    ALLOCATE( mesh%TriCw( mesh%nTri, 3), source = 0._dp)
+    if (allocated( mesh%Cw)) deallocate( mesh%Cw)
+    if (allocated( mesh%TriCw)) deallocate( mesh%TriCw)
+    allocate( mesh%Cw( mesh%nV, mesh%nC_mem), source = 0._dp)
+    allocate( mesh%TriCw( mesh%nTri, 3), source = 0._dp)
 
-    ! The way to go: for each vertex pair, find the two triangles that both
-    ! are a part of. If there's only one, there's one Voronoi vertex and its
-    ! projection on the map edge.
-
-    DO v1 = 1, mesh%nV
-
-      DO nv2 = 1, mesh%nC( v1)
-        v2 = mesh%C( v1,nv2)
-
-        t1 = 0
-        t2 = 0
-        DO iti = 1, mesh%niTri( v1)
-          ti = mesh%iTri( v1,iti)
-          hasv2 = .FALSE.
-          DO n = 1, 3
-            IF (mesh%Tri( ti,n) == v2) hasv2 = .TRUE.
-          END DO
-          IF (hasv2) THEN
-            IF (t1 == 0) THEN
-              t1 = ti
-            ELSE
-              t2 = ti
-            END IF
-          END IF
-        END DO ! DO iti = 1, mesh%niTri(v1)
-
-        ! We should now have at least a single shared triangle.
-        IF (t1 == 0) THEN
-          CALL crash('couldnt find a single shared triangle!')
-        END IF
-
-        IF (t2 > 0) THEN
-          ! Two shared triangles; Cw equals the distance between the two
-          ! triangles' circumcenters
-          mesh%Cw( v1,nv2) = NORM2( mesh%Tricc( t1,:) - mesh%Tricc( t2,:))
-        ELSE
-          ! One shared triangle; Cw equals the distance between that triangle's
-          ! circumcenter and the domain boundary
-          IF     (mesh%TriBI( t1) == 1) THEN
-            mesh%Cw( v1,nv2) = MAX( 0._dp, mesh%ymax - mesh%Tricc( t1,2))
-          ELSEIF (mesh%TriBI( t1) == 3) THEN
-            mesh%Cw( v1,nv2) = MAX( 0._dp, mesh%xmax - mesh%Tricc( t1,1))
-          ELSEIF (mesh%TriBI( t1) == 5) THEN
-            mesh%Cw( v1,nv2) = MAX( 0._dp, mesh%Tricc( t1,2) - mesh%ymin)
-          ELSEIF (mesh%TriBI( t1) == 7) THEN
-            mesh%Cw( v1,nv2) = MAX( 0._dp, mesh%Tricc( t1,1) - mesh%xmin)
-          ELSE
-            CALL crash('the only shared triangle isnt a Boundary triangle - this cannot be!')
-          END IF
-        END IF ! IF (t2>0) THEN
-
-      END DO ! DO nv2 = 1, mesh%nC(v1)
-
-    END DO ! DO v1 = 1, mesh%nV
+    do vi = 1, mesh%nV
+      do ci = 1, mesh%nC( vi)
+        ei = mesh%VE( vi,ci)
+        call find_shared_Voronoi_boundary( mesh, ei, p, q)
+        mesh%Cw( vi,ci) = norm2( p-q)
+      end do
+    end do
 
     ! Define TriCw
-    DO t1 = 1, mesh%nTri
-
-      DO ci = 1, 3
+    do t1 = 1, mesh%nTri
+      do ci = 1, 3
         t2 = mesh%TriC(t1, ci)
 
         ! Skip if no connecting triangle at this side
-        IF (t2 == 0) CYCLE
+        if (t2 == 0) cycle
 
         ! Get connecting edge
         ei = mesh%TriE( t1, ci)
@@ -361,17 +284,15 @@ CONTAINS
         vi2 = mesh%EV( ei, 2)
 
         ! Get the length of the edge
-        mesh%TriCw( t1, ci) = NORM2( mesh%V( vi1, :) - mesh%V( vi2, :))
+        mesh%TriCw( t1, ci) = norm2( mesh%V( vi1, :) - mesh%V( vi2, :))
 
-      END DO ! DO ci = 1, 3
-
-    END DO ! DO t1 = 1, mesh%nTri
-
+      end do ! DO ci = 1, 3
+    end do ! DO t1 = 1, mesh%nTri
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE calc_connection_widths
+  end subroutine calc_connection_widths
 
   SUBROUTINE calc_triangle_areas( mesh)
     ! Find the areas of all the triangles

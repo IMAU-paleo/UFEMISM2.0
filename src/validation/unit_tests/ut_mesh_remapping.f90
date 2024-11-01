@@ -33,6 +33,7 @@ module ut_mesh_remapping
   use ut_mesh_remapping_trace_line_Vor_ti, only: test_trace_line_Vor_ti
   use ut_mesh_remapping_trace_line_Vor_ei, only: test_trace_line_Vor_ei
   use ut_mesh_remapping_trace_line_Vor, only: test_trace_line_Vor
+  use ut_mesh_remapping_mesh_to_mesh, only: test_remapping_mesh_to_mesh
 
   implicit none
 
@@ -59,9 +60,10 @@ contains
     ! Add test name to list
     test_name = trim( test_name_parent) // '/' // trim( test_name_local)
 
-    call test_trace_line_grid_main( test_name)
-    call test_trace_line_tri_main ( test_name)
-    call test_trace_line_Vor_main ( test_name)
+    call test_trace_line_grid_main  ( test_name)
+    call test_trace_line_tri_main   ( test_name)
+    call test_trace_line_Vor_main   ( test_name)
+    call test_remapping_mesh_to_mesh( test_name)
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)
