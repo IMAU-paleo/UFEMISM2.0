@@ -41,8 +41,7 @@ CONTAINS
     INTEGER                                               :: vi
     REAL(dp)                                              :: That, Chat, Ctil, Bval, Cval, Dval, AA
     REAL(dp), PARAMETER                                   :: nu0 = 1.95E-6
-    REAL(dp), PARAMETER                                   :: eps = 1.0E-12
-
+    REAL(dp), PARAMETER                                   :: eps = 1.0E-12 ! Some small parameter to prevent div. by zero
  
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -69,7 +68,6 @@ CONTAINS
 
     ! == Get melt rate ==
     ! ===================
-    !Chat = cp_ocean/L_fusion
     Ctil = cp_ice/cp_ocean
 
     ! Loop over vertices
@@ -128,7 +126,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! TODO only Gaspar for now
+    ! Only Gaspar option for now
 
     DO vi = mesh%vi1, mesh%vi2
        IF (laddie%mask_a( vi)) THEN

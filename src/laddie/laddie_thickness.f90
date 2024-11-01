@@ -29,7 +29,7 @@ CONTAINS
 ! =========================
 
   SUBROUTINE compute_H_npx( mesh, ice, ocean, laddie, npxref, npx, dt)
-    ! Integrate H by one time step
+    ! Integrate H by time step dt
 
     ! In- and output variables
 
@@ -37,8 +37,8 @@ CONTAINS
     TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_ocean_model),                 INTENT(IN)    :: ocean
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
-    TYPE(type_laddie_timestep),             INTENT(IN)    :: npxref
-    TYPE(type_laddie_timestep),             INTENT(INOUT) :: npx
+    TYPE(type_laddie_timestep),             INTENT(IN)    :: npxref    ! Reference time step as input
+    TYPE(type_laddie_timestep),             INTENT(INOUT) :: npx       ! New timestep as output
     REAL(dp),                               INTENT(IN)    :: dt
 
     ! Local variables:
@@ -49,6 +49,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    ! Compute thickness divergence
     CALL compute_divQH( mesh, laddie, npxref)
 
     ! Compute freezing temperature
@@ -79,8 +80,7 @@ CONTAINS
         ! If H_n < Hmin, enhance entrainment to ensure H_n >= Hmin
         laddie%entr_dmin( vi) = MAX( C%laddie_thickness_minimum - npx%H( vi), 0.0_dp) / dt
 
-        ! If H_n > Hmax, suppress entrainment to ensure H_n <= Hmax
-        !laddie%entr( vi) = laddie%entr( vi) + MIN( C%laddie_thickness_maximum - npx%H( vi), 0.0_dp) / dt
+        ! If H_n > Hmax, suppress entrainment to ensure H_n <= available water column thickness
         laddie%entr( vi) = laddie%entr( vi) + MIN( ice%Hib( vi)-ice%Hb( vi) - npx%H( vi), 0.0_dp) / dt
 
         ! Prevent strong entr_dmin and strong detrainment
@@ -100,7 +100,7 @@ CONTAINS
       END IF !(laddie%mask_a( vi)) THEN
     END DO !vi = mesh%vi, mesh%v2
 
-    ! Map H to b grid and c grid
+    ! Map new values of H to b grid and c grid
     CALL map_H_a_b( mesh, laddie, npx%H, npx%H_b)
     CALL map_H_a_c( mesh, laddie, npx%H, npx%H_c)
 
@@ -112,18 +112,7 @@ CONTAINS
   END SUBROUTINE compute_H_npx
 
   SUBROUTINE compute_divQH( mesh, laddie, npx)
-    ! Calculate the layer flux divergence matrix M_divQ using an upwind scheme
-    !
-    ! The vertically averaged ice flux divergence represents the net ice volume (which,
-    ! assuming constant density, is proportional to the ice mass) entering each Voronoi
-    ! cell per unit time. This is found by calculating the ice fluxes through each
-    ! shared Voronoi cell boundary, using an upwind scheme: if ice flows from vertex vi
-    ! to vertex vj, the flux is found by multiplying the velocity at their shared
-    ! boundary u_c with the ice thickness at vi (and, of course, the length L_c of the
-    ! shared boundary). If instead it flows from vj to vi, u_c is multiplied with the
-    ! ice thickness at vj.
-
-    IMPLICIT NONE
+    ! Divergence of layer thickness based on first order upwind scheme
 
     ! In/output variables:
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
