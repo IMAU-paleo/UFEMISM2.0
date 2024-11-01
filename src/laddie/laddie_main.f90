@@ -264,21 +264,7 @@ CONTAINS
     CALL compute_TS_npx( mesh, ice, laddie, laddie%now, laddie%np1, laddie%now%H, dt, .true.)
 
     ! == Move time ==
-    ! Increase laddie time
-    tl = tl + dt
-
-    ! Move main variables by 1 time step
-    laddie%now%H = laddie%np1%H
-    laddie%now%T = laddie%np1%T
-    laddie%now%S = laddie%np1%S
-    laddie%now%U = laddie%np1%U
-    laddie%now%V = laddie%np1%V
-    laddie%now%H_b = laddie%np1%H_b
-    laddie%now%H_c = laddie%np1%H_c
-    laddie%now%U_a = laddie%np1%U_a
-    laddie%now%U_c = laddie%np1%U_c
-    laddie%now%V_a = laddie%np1%V_a
-    laddie%now%V_c = laddie%np1%V_c
+    CALL move_laddie_timestep( laddie, tl, dt)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -364,6 +350,28 @@ CONTAINS
 
     ! =============== 
     ! == Move time ==
+    CALL move_laddie_timestep( laddie, tl, dt)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE integrate_fbrk3
+
+  SUBROUTINE move_laddie_timestep( laddie, tl, dt)
+    ! Move time tl by timestep and overwrite now timestep
+
+    ! In- and output variables
+
+    TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
+    REAL(dp),                               INTENT(INOUT) :: tl
+    REAL(dp),                               INTENT(IN)    :: dt
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'move_laddie_timestep'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
     ! Increase laddie time
     tl = tl + dt
 
@@ -383,7 +391,7 @@ CONTAINS
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
-  END SUBROUTINE integrate_fbrk3
+  END SUBROUTINE move_laddie_timestep
 
   SUBROUTINE update_diffusive_terms( mesh, ice, laddie, npxref)
     ! Update diffusivity and viscosity. Always based on now timestep for stability
