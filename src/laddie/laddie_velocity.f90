@@ -87,8 +87,8 @@ CONTAINS
         laddie%divQU = 0.0_dp
         laddie%divQV = 0.0_dp
       CASE ('upstream')
-        CALL compute_divQUV_upstream( mesh, laddie, npx, Hstar_b)
-        !CALL compute_divQUV_upstream( mesh, laddie, npx, npxref%H_b)
+        !CALL compute_divQUV_upstream( mesh, laddie, npx, Hstar_b)
+        CALL compute_divQUV_upstream( mesh, laddie, npx, npxref%H_b)
     END SELECT
 
     ! == Integrate U and V ==
