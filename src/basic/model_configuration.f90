@@ -816,7 +816,7 @@ MODULE model_configuration
     REAL(dp)            :: laddie_fbrk3_beta3_config                    = 0.0_dp                           ! [] beta3 factor in FBRK3 integration. Must be between 0 and 1
 
     ! Momentum advection
-    CHARACTER(LEN=256)  :: choice_laddie_momentum_advection_config      = ''                               ! Choose momentum advection scheme. Options: 'none', 'centered', 'upstream'
+    CHARACTER(LEN=256)  :: choice_laddie_momentum_advection_config      = ''                               ! Choose momentum advection scheme. Options: 'none', 'upstream'
 
     ! Initialisation
     REAL(dp)            :: laddie_initial_thickness_config              = 10._dp                           ! [m] Initial value of thickness H

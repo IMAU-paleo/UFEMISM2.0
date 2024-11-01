@@ -86,9 +86,6 @@ CONTAINS
       CASE ('none')
         laddie%divQU = 0.0_dp
         laddie%divQV = 0.0_dp
-      CASE ('centered')
-        !CALL compute_divQUV_centered( mesh, laddie, npx, Hstar_c)
-        CALL compute_divQUV_centered( mesh, laddie, npx, npxref%H_c)
       CASE ('upstream')
         CALL compute_divQUV_upstream( mesh, laddie, npx, Hstar_b)
         !CALL compute_divQUV_upstream( mesh, laddie, npx, npxref%H_b)
@@ -257,94 +254,6 @@ CONTAINS
     CALL finalise_routine( routine_name)
     
   END SUBROUTINE compute_viscUV
-
-  SUBROUTINE compute_divQUV_centered( mesh, laddie, npxref, Hstar_c)
-    ! Centered scheme
-
-    IMPLICIT NONE
-
-    ! In/output variables:
-    TYPE(type_mesh),                        INTENT(IN)    :: mesh
-    TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
-    TYPE(type_laddie_timestep),             INTENT(IN)    :: npxref
-    REAL(dp), DIMENSION(mesh%ei1:mesh%ei2), INTENT(IN)    :: Hstar_c
-
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_divQUV_centered'
-    REAL(dp), DIMENSION(mesh%nE)                          :: U_c_tot, V_c_tot, H_c_tot
-    INTEGER                                               :: ti, tj, ci, ei
-    REAL(dp)                                              :: D_x, D_y, D_c, u_perp_x, u_perp_y
-    LOGICAL, DIMENSION(mesh%nTri)                         :: mask_gl_b_tot, mask_cf_b_tot, mask_b_tot
-
-    ! Add routine to path
-    CALL init_routine( routine_name)
-
-    ! Calculate vertically averaged ice velocities on the edges
-    CALL gather_to_all_dp_1D( npxref%U_c, U_c_tot)
-    CALL gather_to_all_dp_1D( npxref%V_c, V_c_tot)
-    CALL gather_to_all_logical_1D( laddie%mask_gl_b, mask_gl_b_tot)
-    CALL gather_to_all_logical_1D( laddie%mask_cf_b, mask_cf_b_tot)
-    CALL gather_to_all_logical_1D( laddie%mask_b, mask_b_tot)
-    CALL gather_to_all_dp_1D( Hstar_c, H_c_tot)
-
-    ! Initialise with zeros
-    laddie%divQU = 0.0_dp
-    laddie%divQV = 0.0_dp
-
-    ! == Loop over triangles ==
-    ! =========================
-
-    DO ti = mesh%ti1, mesh%ti2
-
-      IF (laddie%mask_b( ti)) THEN
-
-        ! Loop over all connections of triangle ti
-        DO ci = 1, 3
-
-          tj = mesh%TriC( ti, ci)
-
-          ! Skip if no connecting triangle on this side
-          IF (tj == 0) CYCLE
-
-          ! Skip connection if neighbour is grounded. No flux across grounding line
-          IF (mask_gl_b_tot( tj)) CYCLE
-
-          ! Get edge index
-          ei = mesh%TriE( ti, ci)
-
-          ! The triangle-triangle vector from ti to tj
-          D_x = mesh%Tricc( tj,1) - mesh%Tricc( ti,1)
-          D_y = mesh%Tricc( tj,2) - mesh%Tricc( ti,2)
-          D_c = SQRT( D_x**2 + D_y**2)
-
-          ! Calculate vertically averaged ice velocity component perpendicular to this edge
-          u_perp_x = U_c_tot( ei) * D_x/D_c
-          u_perp_y = V_c_tot( ei) * D_y/D_c
-
-          ! Calculate upwind momentum divergence
-          ! =============================
-          IF (u_perp_x>0 .AND. mask_cf_b_tot( tj)) THEN
-            !No inflow of momentum
-          ELSE
-            laddie%divQU( ti) = laddie%divQU( ti) - mesh%TriCw( ti, ci) * u_perp_x * U_c_tot( ei) * H_c_tot( ei) / mesh%TriA( ti) 
-          END IF
-
-          IF (u_perp_y>0 .AND. mask_cf_b_tot( tj)) THEN
-            !No inflow of momentum
-          ELSE
-            laddie%divQV( ti) = laddie%divQV( ti) - mesh%TriCw( ti, ci) * u_perp_y * V_c_tot( ei) * H_c_tot( ei) / mesh%TriA( ti)
-          END IF
-
-        END DO ! DO ci = 1, 3
-
-      END IF ! (laddie%mask_b( ti))
-
-    END DO ! DO ti = mesh%ti1, mesh%ti2
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE compute_divQUV_centered
 
   SUBROUTINE compute_divQUV_upstream( mesh, laddie, npxref, Hstar_b)
     ! Upstream scheme
