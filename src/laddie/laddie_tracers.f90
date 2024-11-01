@@ -53,57 +53,85 @@ CONTAINS
     ! Compute divergence of heat and salt
     CALL compute_divQTS( mesh, laddie, npx, Hstar)
 
-    ! == Temperature integration ==
+    IF (incldiff) THEN
+      ! Compute RHS including diffusive term
 
-    ! Loop over vertices
-    DO vi = mesh%vi1, mesh%vi2
-      IF (laddie%mask_a( vi)) THEN
+      ! Loop over vertices
+      DO vi = mesh%vi1, mesh%vi2
+        IF (laddie%mask_a( vi)) THEN
 
-        ! Get dHT_dt
-        dHTdt = -laddie%divQT( vi) &
-              + laddie%melt( vi) * laddie%T_base( vi) &
-              + MAX(0.0_dp,laddie%entr( vi)) * laddie%T_amb( vi) &
-              + laddie%entr_dmin( vi) * laddie%T_amb( vi) &
-              - laddie%detr( vi) * npxref%T( vi)
+          ! == Temperature integration ==
 
-        IF (incldiff) THEN
-          dHTdt = dHTdt + laddie%diffT( vi)
-        END IF
+          ! Get dHT_dt
+          dHTdt = -laddie%divQT( vi) &
+                + laddie%melt( vi) * laddie%T_base( vi) &
+                + MAX(0.0_dp,laddie%entr( vi)) * laddie%T_amb( vi) &
+                + laddie%entr_dmin( vi) * laddie%T_amb( vi) &
+                - laddie%detr( vi) * npxref%T( vi) &
+                + laddie%diffT( vi)
 
-        ! HT_n = HT_n + dHT_dt * dt
-        HT_next = laddie%now%T( vi)*laddie%now%H( vi) + dHTdt * dt
+          ! HT_n = HT_n + dHT_dt * dt
+          HT_next = laddie%now%T( vi)*laddie%now%H( vi) + dHTdt * dt
 
-        npx%T( vi) = HT_next / npx%H( vi)
+          npx%T( vi) = HT_next / npx%H( vi)
 
-      END IF !(laddie%mask_a( vi)) THEN
-    END DO !vi = mesh%vi, mesh%v2
+          ! == Salinity integration ==
 
+          ! Get dHS_dt
+          dHSdt = -laddie%divQS( vi) &
+                + MAX(0.0_dp,laddie%entr( vi)) * laddie%S_amb( vi) &
+                + laddie%entr_dmin( vi) * laddie%S_amb( vi) &
+                - laddie%detr( vi) * npxref%S( vi) &
+                + laddie%diffS( vi)
+
+          ! HS_n = HS_n + dHS_dt * dt
+          HS_next = laddie%now%S( vi)*laddie%now%H( vi) + dHSdt * dt
+
+          npx%S( vi) = HS_next / npx%H( vi)
+        END IF !(laddie%mask_a( vi)) THEN
+      END DO !vi = mesh%vi, mesh%v2
+
+    ELSE
+      ! Without diffusive term
+
+      ! Loop over vertices
+      DO vi = mesh%vi1, mesh%vi2
+        IF (laddie%mask_a( vi)) THEN
+
+          ! == Temperature integration ==
+
+          ! Get dHT_dt
+          dHTdt = -laddie%divQT( vi) &
+                + laddie%melt( vi) * laddie%T_base( vi) &
+                + MAX(0.0_dp,laddie%entr( vi)) * laddie%T_amb( vi) &
+                + laddie%entr_dmin( vi) * laddie%T_amb( vi) &
+                - laddie%detr( vi) * npxref%T( vi)
+
+          ! HT_n = HT_n + dHT_dt * dt
+          HT_next = laddie%now%T( vi)*laddie%now%H( vi) + dHTdt * dt
+
+          npx%T( vi) = HT_next / npx%H( vi)
+
+          ! == Salinity integration ==
+
+          ! Get dHS_dt
+          dHSdt = -laddie%divQS( vi) &
+                + MAX(0.0_dp,laddie%entr( vi)) * laddie%S_amb( vi) &
+                + laddie%entr_dmin( vi) * laddie%S_amb( vi) &
+                - laddie%detr( vi) * npxref%S( vi)
+
+          ! HS_n = HS_n + dHS_dt * dt
+          HS_next = laddie%now%S( vi)*laddie%now%H( vi) + dHSdt * dt
+
+          npx%S( vi) = HS_next / npx%H( vi)
+
+        END IF !(laddie%mask_a( vi)) THEN
+      END DO !vi = mesh%vi, mesh%v2
+
+    END IF
+
+    ! Safety
     CALL check_for_NaN_dp_1D( npx%T, 'T_lad')
-
-    ! == Salinity integration ==
-
-    ! Loop over vertices
-    DO vi = mesh%vi1, mesh%vi2
-      IF (laddie%mask_a( vi)) THEN
-
-        ! Get dHS_dt
-        dHSdt = -laddie%divQS( vi) &
-              + MAX(0.0_dp,laddie%entr( vi)) * laddie%S_amb( vi) &
-              + laddie%entr_dmin( vi) * laddie%S_amb( vi) &
-              - laddie%detr( vi) * npxref%S( vi)
-
-        IF (incldiff) THEN
-          dHSdt = dHSdt + laddie%diffS( vi)
-        END IF
-
-        ! HS_n = HS_n + dHS_dt * dt
-        HS_next = laddie%now%S( vi)*laddie%now%H( vi) + dHSdt * dt
-
-        npx%S( vi) = HS_next / npx%H( vi)
-
-      END IF !(laddie%mask_a( vi)) THEN
-    END DO !vi = mesh%vi, mesh%v2
-
     CALL check_for_NaN_dp_1D( npx%S, 'S_lad')
 
     ! Finalise routine path
@@ -173,18 +201,7 @@ CONTAINS
   END SUBROUTINE compute_diffTS
 
   SUBROUTINE compute_divQTS( mesh, laddie, npx, Hstar)
-    ! Calculate the layer flux divergence matrix M_divQ using an upwind scheme
-    !
-    ! The vertically averaged ice flux divergence represents the net ice volume (which,
-    ! assuming constant density, is proportional to the ice mass) entering each Voronoi
-    ! cell per unit time. This is found by calculating the ice fluxes through each
-    ! shared Voronoi cell boundary, using an upwind scheme: if ice flows from vertex vi
-    ! to vertex vj, the flux is found by multiplying the velocity at their shared
-    ! boundary u_c with the ice thickness at vi (and, of course, the length L_c of the
-    ! shared boundary). If instead it flows from vj to vi, u_c is multiplied with the
-    ! ice thickness at vj.
-
-    IMPLICIT NONE
+    ! Divergence of heat / salt
 
     ! In/output variables:
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
