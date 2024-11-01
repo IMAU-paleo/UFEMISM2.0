@@ -17,7 +17,8 @@ MODULE laddie_main
   USE BMB_model_types                                        , ONLY: type_BMB_model
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   USE laddie_utilities                                       , ONLY: compute_ambient_TS, allocate_laddie_model, &
-                                                                     allocate_laddie_timestep, map_H_a_b, map_H_a_c
+                                                                     allocate_laddie_timestep, map_H_a_b, map_H_a_c, &
+                                                                     print_diagnostics
   USE laddie_thickness                                       , ONLY: compute_H_npx
   USE laddie_velocity                                        , ONLY: compute_UV_npx, compute_viscUV
   USE laddie_tracers                                         , ONLY: compute_TS_npx, compute_diffTS
@@ -62,7 +63,7 @@ CONTAINS
     CALL update_laddie_masks( mesh, ice, laddie)
 
     ! Extrapolate new cells
-    ! TODO
+    ! TODO, use Gaussian extrap routine
 
     ! Set values to zero if outside laddie mask
     DO vi = mesh%vi1, mesh%vi2
@@ -92,7 +93,7 @@ CONTAINS
     ! == Main time loop ==
     ! ====================
 
-    DO WHILE (tl <= C%time_duration_laddie * sec_per_day)
+    DO WHILE (tl < C%time_duration_laddie * sec_per_day)
 
       SELECT CASE(C%choice_laddie_integration_scheme)
         CASE DEFAULT
@@ -104,12 +105,9 @@ CONTAINS
       END SELECT
 
       ! Display or save fields
-      ! TODO
-      IF (par%master) THEN
-        WRITE( *, "(F8.3,A,F8.3,A,F8.2,A,F8.3,A,F8.3)") tl/sec_per_day, '  Dmean ', SUM(laddie%now%H)/SIZE(laddie%now%H), '  Meltmax', MAXVAL(laddie%melt*sec_per_year), '   U', MAXVAL(SQRT(laddie%now%U**2+laddie%now%V**2)), '   Tmax', MAXVAL(laddie%now%T)
-      END IF     
+      CALL print_diagnostics( laddie, tl)
 
-    END DO !DO WHILE (tl <= C%time_duration_laddie)
+    END DO !DO WHILE (tl < C%time_duration_laddie)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

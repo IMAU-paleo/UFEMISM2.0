@@ -344,5 +344,27 @@ CONTAINS
 
   END SUBROUTINE allocate_laddie_timestep
 
+  SUBROUTINE print_diagnostics( laddie, tl)
+    ! Print out diagnostics
+
+    ! In- and output variables
+    TYPE(type_laddie_model),                INTENT(IN)    :: laddie
+    REAL(dp),                               INTENT(IN)    :: tl
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'print_diagnostics'
+ 
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    IF (par%master) THEN
+      WRITE( *, "(F8.3,A,F8.3,A,F8.2,A,F8.3,A,F8.3)") tl/sec_per_day, '  Dmean ', SUM(laddie%now%H)/SIZE(laddie%now%H), '  Meltmax', MAXVAL(laddie%melt*sec_per_year), '   U', MAXVAL(SQRT(laddie%now%U**2+laddie%now%V**2)), '   Tmax', MAXVAL(laddie%now%T)
+    END IF     
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE print_diagnostics
+
 END MODULE laddie_utilities
 
