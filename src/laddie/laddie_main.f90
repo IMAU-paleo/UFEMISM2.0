@@ -173,7 +173,6 @@ CONTAINS
     END DO
 
     ! Layer thickness on b grid
-
     CALL map_H_a_b( mesh, laddie, laddie%now%H, laddie%now%H_b)
     SELECT CASE(C%choice_laddie_integration_scheme)
       CASE DEFAULT
@@ -187,7 +186,6 @@ CONTAINS
     END SELECT
 
     ! Layer thickness on c grid
-
     CALL map_H_a_c( mesh, laddie, laddie%now%H, laddie%now%H_c)
     SELECT CASE(C%choice_laddie_integration_scheme)
       CASE DEFAULT
@@ -271,6 +269,8 @@ CONTAINS
 
   SUBROUTINE integrate_fbrk3( mesh, ice, ocean, laddie, tl, dt)
     ! Integrate 1 timestep Forward-Backward Runge Kutta 3 scheme 
+
+    ! Based on Lilly et al (2023, MWR) doi:10.1175/MWR-D-23-0113.1
 
     ! In- and output variables
 
@@ -356,7 +356,7 @@ CONTAINS
   END SUBROUTINE integrate_fbrk3
 
   SUBROUTINE move_laddie_timestep( laddie, tl, dt)
-    ! Move time tl by timestep and overwrite now timestep
+    ! Increase laddie time tl by timestep dt and overwrite now timestep
 
     ! In- and output variables
 
@@ -392,7 +392,9 @@ CONTAINS
   END SUBROUTINE move_laddie_timestep
 
   SUBROUTINE update_diffusive_terms( mesh, ice, laddie, npxref)
-    ! Update diffusivity and viscosity. Always based on now timestep for stability
+    ! Update diffusivity and viscosity. Based on reference timestep npxref
+
+    ! For stability, most studies base diffusive terms on the now timestep
 
     ! In- and output variables
 
@@ -419,7 +421,7 @@ CONTAINS
   END SUBROUTINE update_diffusive_terms
 
   SUBROUTINE update_laddie_masks( mesh, ice, laddie)
-    ! Update bunch of masks for laddie
+    ! Update bunch of masks for laddie at the start of a new run
 
     ! In- and output variables
 
