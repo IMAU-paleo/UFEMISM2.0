@@ -92,6 +92,8 @@ CONTAINS
             ! No need to do anything
           CASE ('prescribed_fixed')
             ! No need to do anything
+          CASE ('laddie2')
+            ! No need to do anything
           CASE DEFAULT
             CALL apply_BMB_subgrid_scheme( mesh, ice, BMB)
         END SELECT
@@ -140,6 +142,8 @@ CONTAINS
       CASE ('inverted')
         ! No need to do anything
       CASE ('prescribed_fixed')
+        ! No need to do anything
+      CASE ('laddie2')
         ! No need to do anything
       CASE DEFAULT
         CALL apply_BMB_subgrid_scheme( mesh, ice, BMB)
