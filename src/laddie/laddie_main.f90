@@ -59,10 +59,6 @@ CONTAINS
     ! == Preparation ==
     ! =================
 
-    ! Get time step
-    tl = 0.0_dp
-    dt = C%dt_laddie
-
     ! Extrapolate data into new cells
     CALL extrapolate_laddie_variables( mesh, ice, laddie)
 
@@ -97,36 +93,21 @@ CONTAINS
     CALL ddx_a_b_2D( mesh, ice%Hib , laddie%dHib_dx_b)
     CALL ddy_a_b_2D( mesh, ice%Hib , laddie%dHib_dy_b)
 
-    ! == Short relaxation ==
-
-    ! Set time step
-    tl = 0.0_dp
-    dt = C%dt_laddie / fac_dt_relax
-
-    DO WHILE (tl < time_relax_laddie * sec_per_day)
-
-      SELECT CASE(C%choice_laddie_integration_scheme)
-        CASE DEFAULT
-          CALL crash('unknown choice_laddie_integration_scheme "' // TRIM( C%choice_laddie_integration_scheme) // '"')
-        CASE ('euler')
-          CALL integrate_euler( mesh, ice, ocean, laddie, tl, dt)  
-        CASE ('fbrk3')
-          CALL integrate_fbrk3( mesh, ice, ocean, laddie, tl, dt)  
-      END SELECT
-
-      ! Display or save fields
-      CALL print_diagnostics( laddie, tl)
-
-    END DO !DO WHILE (tl < C%time_duration_laddie)
-
     ! == Main time loop ==
     ! ====================
 
-    ! Set time step
     tl = 0.0_dp
-    dt = C%dt_laddie
 
     DO WHILE (tl < C%time_duration_laddie * sec_per_day)
+
+      ! Set time step
+      IF (tl < time_relax_laddie * sec_per_day) THEN
+        ! Relaxation, take short time step
+        dt = C%dt_laddie / fac_dt_relax
+      ELSE
+        ! Regular timestep
+        dt = C%dt_laddie
+      END IF
 
       SELECT CASE(C%choice_laddie_integration_scheme)
         CASE DEFAULT
