@@ -24,6 +24,7 @@ MODULE laddie_main
   USE laddie_tracers                                         , ONLY: compute_TS_npx, compute_diffTS
   USE mesh_operators                                         , ONLY: ddx_a_b_2D, ddy_a_b_2D
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_logical_1D
+  USE mesh_utilities                                         , ONLY: extrapolate_Gaussian
 
   IMPLICIT NONE
     
@@ -59,11 +60,11 @@ CONTAINS
     tl = 0.0_dp
     dt = C%dt_laddie
 
+    ! Extrapolate data into new cells
+    CALL extrapolate_laddie_variables( mesh, ice, laddie)
+
     ! == Update masks ==
     CALL update_laddie_masks( mesh, ice, laddie)
-
-    ! Extrapolate new cells
-    ! TODO, use Gaussian extrap routine
 
     ! Set values to zero if outside laddie mask
     DO vi = mesh%vi1, mesh%vi2
@@ -529,6 +530,57 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE update_laddie_masks
+
+  SUBROUTINE extrapolate_laddie_variables( mesh, ice, laddie)
+    ! Update bunch of masks for laddie at the start of a new run
+
+    ! In- and output variables
+
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh
+    TYPE(type_ice_model),                   INTENT(IN)    :: ice
+    TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'extrapolate_laddie_variables'
+    INTEGER                                               :: vi
+    INTEGER, DIMENSION(mesh%vi1: mesh%vi2)                :: mask
+    REAL(dp), PARAMETER                                   :: sigma = 1000.0_dp
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Initialise mask
+    mask = 0
+
+    ! Determine mask for seed (2: previously floating cells), fill (1: new floating cells), or ignore (0: grounded/ocean)
+    DO vi = mesh%vi1, mesh%vi2
+      ! Skip if vertex is at border
+      IF (mesh%VBI( vi) > 0) CYCLE
+
+      ! Skip if water column thickness is insufficient, treated as grounded for now
+      IF (ice%Hib( vi) - ice%Hb( vi) < 2*C%laddie_thickness_minimum) CYCLE
+
+      ! Currently floating ice, so either seed or fill here
+      IF (ice%mask_floating_ice( vi)) THEN
+        IF (laddie%mask_a( vi)) THEN
+          ! Data already available here, so use as seed
+          mask( vi) = 2
+        ELSE
+          ! New floating cells, so fill here
+          mask (vi) = 1
+        END IF
+      END IF
+    END DO
+
+    ! Apply extrapolation to H, T and S 
+    CALL extrapolate_Gaussian( mesh, mask, laddie%now%H, sigma)
+    CALL extrapolate_Gaussian( mesh, mask, laddie%now%T, sigma)
+    CALL extrapolate_Gaussian( mesh, mask, laddie%now%S, sigma)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE extrapolate_laddie_variables
 
 END MODULE laddie_main
 
