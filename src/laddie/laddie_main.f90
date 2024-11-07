@@ -46,7 +46,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'run_laddie_model'
-    INTEGER                                               :: vi, ti
+    INTEGER                                               :: vi, ti, ei
     REAL(dp)                                              :: tl               ! [s] Laddie time
     REAL(dp)                                              :: dt               ! [s] Laddie time step
     REAL(dp), PARAMETER                                   :: time_relax_laddie = 0.1_dp ! [days]
