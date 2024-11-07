@@ -49,6 +49,9 @@ CONTAINS
     INTEGER                                               :: vi, ti
     REAL(dp)                                              :: tl               ! [s] Laddie time
     REAL(dp)                                              :: dt               ! [s] Laddie time step
+    REAL(dp), PARAMETER                                   :: time_relax_laddie = 0.1_dp ! [days]
+    REAL(dp), PARAMETER                                   :: fac_dt_relax = 2.0_dp ! Reduction factor of time step
+
  
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -85,14 +88,43 @@ CONTAINS
       END IF
     END DO
 
-    laddie%H_c = 0.0_dp
+    ! Simply set H_c zero everywhere, will be recomputed through mapping later
+    DO ei = mesh%ei1, mesh%ei2
+      laddie%H_c( ei) = 0.0_dp
+    END DO
 
     ! Update ice shelf draft gradients
     CALL ddx_a_b_2D( mesh, ice%Hib , laddie%dHib_dx_b)
     CALL ddy_a_b_2D( mesh, ice%Hib , laddie%dHib_dy_b)
 
+    ! == Short relaxation ==
+
+    ! Set time step
+    tl = 0.0_dp
+    dt = C%dt_laddie / fac_dt_relax
+
+    DO WHILE (tl < time_relax_laddie * sec_per_day)
+
+      SELECT CASE(C%choice_laddie_integration_scheme)
+        CASE DEFAULT
+          CALL crash('unknown choice_laddie_integration_scheme "' // TRIM( C%choice_laddie_integration_scheme) // '"')
+        CASE ('euler')
+          CALL integrate_euler( mesh, ice, ocean, laddie, tl, dt)  
+        CASE ('fbrk3')
+          CALL integrate_fbrk3( mesh, ice, ocean, laddie, tl, dt)  
+      END SELECT
+
+      ! Display or save fields
+      CALL print_diagnostics( laddie, tl)
+
+    END DO !DO WHILE (tl < C%time_duration_laddie)
+
     ! == Main time loop ==
     ! ====================
+
+    ! Set time step
+    tl = 0.0_dp
+    dt = C%dt_laddie
 
     DO WHILE (tl < C%time_duration_laddie * sec_per_day)
 
