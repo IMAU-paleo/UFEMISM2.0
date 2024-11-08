@@ -49,8 +49,8 @@ CONTAINS
     INTEGER                                               :: vi, ti, ei
     REAL(dp)                                              :: tl               ! [s] Laddie time
     REAL(dp)                                              :: dt               ! [s] Laddie time step
-    REAL(dp), PARAMETER                                   :: time_relax_laddie = 0.1_dp ! [days]
-    REAL(dp), PARAMETER                                   :: fac_dt_relax = 2.0_dp ! Reduction factor of time step
+    REAL(dp), PARAMETER                                   :: time_relax_laddie = 0.02_dp ! [days]
+    REAL(dp), PARAMETER                                   :: fac_dt_relax = 3.0_dp ! Reduction factor of time step
 
  
     ! Add routine to path
@@ -557,7 +557,7 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'extrapolate_laddie_variables'
     INTEGER                                               :: vi
     INTEGER, DIMENSION(mesh%vi1: mesh%vi2)                :: mask
-    REAL(dp), PARAMETER                                   :: sigma = 1000.0_dp
+    REAL(dp), PARAMETER                                   :: sigma = 16000.0_dp
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -589,6 +589,24 @@ CONTAINS
     CALL extrapolate_Gaussian( mesh, mask, laddie%now%H, sigma)
     CALL extrapolate_Gaussian( mesh, mask, laddie%now%T, sigma)
     CALL extrapolate_Gaussian( mesh, mask, laddie%now%S, sigma)
+
+    ! Make sure all zero-thicknesses are gone
+    DO vi = mesh%vi1, mesh%vi2
+      ! Skip if vertex is at border
+      IF (mesh%VBI( vi) > 0) CYCLE
+
+      ! Skip if water column thickness is insufficient, treated as grounded for now
+      IF (ice%Hib( vi) - ice%Hb( vi) < 2*C%laddie_thickness_minimum) CYCLE
+
+      ! Currently floating ice, so either seed or fill here
+      IF (ice%mask_floating_ice( vi)) THEN
+        IF (laddie%now%H( vi) == 0.0_dp) THEN
+          laddie%now%H( vi) = C%laddie_thickness_minimum
+          laddie%now%T( vi) = laddie%T_amb( vi) + C%laddie_initial_T_offset 
+          laddie%now%S( vi) = laddie%S_amb( vi) + C%laddie_initial_S_offset
+        END IF
+      END IF
+    END DO
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
