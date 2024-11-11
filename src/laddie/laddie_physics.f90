@@ -75,7 +75,8 @@ CONTAINS
        IF (laddie%mask_a( vi)) THEN
          ! Solve three equations
          That = freezing_lambda_2 + freezing_lambda_3*ice%Hib( vi)
-         Chat = cp_ocean / (L_fusion - cp_ice * ice%Ti( vi, 1))
+         Chat = cp_ocean / L_fusion
+         !Chat = cp_ocean / (L_fusion - cp_ice * ice%Ti( vi, 1))
 
          Bval = Chat*laddie%gamma_T( vi)*(That - npx%T( vi)) + laddie%gamma_S( vi)*(1 + Chat*Ctil*(That + freezing_lambda_1*npx%S( vi)))
          Cval = Chat*laddie%gamma_T( vi)*laddie%gamma_S( vi) * (That-npx%T( vi) + freezing_lambda_1*npx%S( vi))
@@ -94,7 +95,8 @@ CONTAINS
            ! Seems like a very unlikely case, but better to be careful
            laddie%T_base( vi) = laddie%T_freeze( vi)
          ELSE
-           laddie%T_base( vi) = (laddie%melt( vi) * (L_fusion - cp_ice * ice%Ti( vi, 1)) - cp_ocean * laddie%gamma_T( vi) * npx%T( vi)) / Dval 
+           laddie%T_base( vi) = (laddie%melt( vi) * L_fusion - cp_ocean * laddie%gamma_T( vi) * npx%T( vi)) / Dval 
+           !laddie%T_base( vi) = (laddie%melt( vi) * (L_fusion - cp_ice * ice%Ti( vi, 1)) - cp_ocean * laddie%gamma_T( vi) * npx%T( vi)) / Dval 
          END IF
 
        END IF
