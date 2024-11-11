@@ -33,7 +33,7 @@ CONTAINS
 ! ===== Main routines =====
 ! =========================
 
-  SUBROUTINE run_laddie_model( mesh, ice, ocean, laddie, time)
+  SUBROUTINE run_laddie_model( mesh, ice, ocean, laddie, time, duration)
     ! Run the laddie model
 
     ! In- and output variables
@@ -43,6 +43,7 @@ CONTAINS
     TYPE(type_ocean_model),                 INTENT(IN)    :: ocean
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
     REAL(dp),                               INTENT(IN)    :: time
+    REAL(dp),                               INTENT(IN)    :: duration
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'run_laddie_model'
@@ -98,7 +99,7 @@ CONTAINS
 
     tl = 0.0_dp
 
-    DO WHILE (tl < C%time_duration_laddie * sec_per_day)
+    DO WHILE (tl < duration * sec_per_day)
 
       ! Set time step
       IF (tl < time_relax_laddie * sec_per_day) THEN
@@ -460,6 +461,9 @@ CONTAINS
       ELSE IF (ice%Hib( vi) - ice%Hb( vi) < 2*C%laddie_thickness_minimum) THEN
         laddie%mask_a( vi)    = .false.
         laddie%mask_gr_a( vi) = .true.
+      ELSE IF (ice%Hi( vi) < 1.0 .and. ice%mask_floating_ice( vi)) THEN
+        laddie%mask_a( vi)    = .false.
+        laddie%mask_oc_a( vi) = .true.
       ELSE
         ! Inherit regular masks
         laddie%mask_a( vi)    = ice%mask_floating_ice( vi)
@@ -573,6 +577,8 @@ CONTAINS
       ! Skip if water column thickness is insufficient, treated as grounded for now
       IF (ice%Hib( vi) - ice%Hb( vi) < 2*C%laddie_thickness_minimum) CYCLE
 
+      IF (ice%Hi( vi) < 1.0 .and. ice%mask_floating_ice( vi)) CYCLE
+
       ! Currently floating ice, so either seed or fill here
       IF (ice%mask_floating_ice( vi)) THEN
         IF (laddie%mask_a( vi)) THEN
@@ -597,6 +603,8 @@ CONTAINS
 
       ! Skip if water column thickness is insufficient, treated as grounded for now
       IF (ice%Hib( vi) - ice%Hb( vi) < 2*C%laddie_thickness_minimum) CYCLE
+
+      IF (ice%Hi( vi) < 1.0 .and. ice%mask_floating_ice( vi)) CYCLE
 
       ! Currently floating ice, so either seed or fill here
       IF (ice%mask_floating_ice( vi)) THEN

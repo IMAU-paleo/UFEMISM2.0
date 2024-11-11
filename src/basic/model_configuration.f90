@@ -808,6 +808,7 @@ MODULE model_configuration
     ! Time step
     REAL(dp)            :: dt_laddie_config                             = 360._dp                          ! [s] Time step for integration of laddie model
     REAL(dp)            :: time_duration_laddie_config                  = 6._dp                            ! [days] Duration of each run cycle
+    REAL(dp)            :: time_duration_laddie_init_config             = 30._dp                           ! [days] Duration of each run cycle
 
     ! Integration
     CHARACTER(LEN=256)  :: choice_laddie_integration_scheme_config      = ''                               ! Choose integration scheme. Options: 'euler', 'fbrk3'
@@ -1782,6 +1783,7 @@ MODULE model_configuration
     ! Time step
     REAL(dp)            :: dt_laddie
     REAL(dp)            :: time_duration_laddie
+    REAL(dp)            :: time_duration_laddie_init
 
     ! Integration
     CHARACTER(LEN=256)  :: choice_laddie_integration_scheme
@@ -2682,6 +2684,7 @@ CONTAINS
       dir_BMB_laddie_model_config                                 , &
       dt_laddie_config                                            , &
       time_duration_laddie_config                                 , &
+      time_duration_laddie_init_config                            , &
       choice_laddie_integration_scheme_config                     , &
       laddie_fbrk3_beta1_config                                   , &
       laddie_fbrk3_beta2_config                                   , &
@@ -3633,6 +3636,7 @@ CONTAINS
     ! Time step
     C%dt_laddie                                              = dt_laddie_config
     C%time_duration_laddie                                   = time_duration_laddie_config
+    C%time_duration_laddie_init                              = time_duration_laddie_init_config
 
     ! Integration
     C%choice_laddie_integration_scheme                       = choice_laddie_integration_scheme_config
