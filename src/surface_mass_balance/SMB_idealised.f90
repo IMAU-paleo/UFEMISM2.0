@@ -216,7 +216,7 @@ contains
 
       dH_dt = H0 * (df1_dt * G**p4 + f1 * p4 * G**(p4 - 1._dp) * dG_dt)
 
-      SMB%SMB( vi) = -dH_dt
+      SMB%SMB( vi) = -dH_dt * sec_per_year
 
     end do
 
