@@ -149,13 +149,13 @@ end subroutine test_remapping_mesh_to_mesh
     call unit_test( verified, trim( test_name) // '/trilin/refined')
 
     call check_if_is_identity_map( map_nV5_2nd_order_conservative, verified)
-    call unit_test( verified, trim( test_name) // '/2nd_order_conservative/dummy_v5')
+    call unit_test( verified, trim( test_name) // '/second_order_conservative/dummy_v5')
     call check_if_is_identity_map( map_nV9_2nd_order_conservative, verified)
-    call unit_test( verified, trim( test_name) // '/2nd_order_conservative/dummy_v9')
+    call unit_test( verified, trim( test_name) // '/second_order_conservative/dummy_v9')
     call check_if_is_identity_map( map_nV16_2nd_order_conservative, verified)
-    call unit_test( verified, trim( test_name) // '/2nd_order_conservative/dummy_v16')
+    call unit_test( verified, trim( test_name) // '/second_order_conservative/dummy_v16')
     call check_if_is_identity_map( map_refined_2nd_order_conservative, verified)
-    call unit_test( verified, trim( test_name) // '/2nd_order_conservative/refined')
+    call unit_test( verified, trim( test_name) // '/second_order_conservative/refined')
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)
