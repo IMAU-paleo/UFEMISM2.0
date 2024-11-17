@@ -30,6 +30,8 @@ module tracer_tracking_model_particles
 contains
 
   subroutine initialise_tracer_tracking_model_particles( mesh, ice, particles)
+    !< Initialise the particle-based tracer-tracking model.
+    !< Allocates memory for a number of particles.
 
     ! In- and output variables
     type(type_mesh),                            intent(in   ) :: mesh
@@ -68,6 +70,10 @@ contains
   end subroutine initialise_tracer_tracking_model_particles
 
   subroutine move_and_remove_particle( mesh, ice, particles, ip, dt)
+    !< Move particle ip for time dt to a new position.
+    !< Assumes velocity has alread been calculated for the current position.
+    !< Calculates velocities for the new position.
+    !< Removes the particle if its new position lies outside the ice sheet.
 
     ! In- and output variables
     type(type_mesh),                            intent(in   ) :: mesh
@@ -130,6 +136,9 @@ contains
   end subroutine move_and_remove_particle
 
   subroutine add_particle( mesh, ice, particles, x, y, z, time)
+    !< Add a new particle to the particle-based tracer tracking model.
+    !< Inserts it into the first available memory slot.
+    !< If no slots are available, allocates additional memory.
 
     ! In/output variables
     type(type_mesh),                            intent(in   ) :: mesh
@@ -207,6 +216,8 @@ contains
   end subroutine add_particle
 
   subroutine remove_particle( particles, ip)
+    !< Removes particle ip from the particle-based tracer-tracking model,
+    !< and marks its memory slot as available.
 
     ! In/output variables
     type(type_tracer_tracking_model_particles), intent(inout) :: particles
@@ -239,6 +250,7 @@ contains
   end subroutine remove_particle
 
   subroutine extend_particles_memory( particles)
+    !< Extend the allocated memory for the particle-based tracer-tracking model.
 
     ! In/output variables
     type(type_tracer_tracking_model_particles), intent(inout) :: particles
@@ -268,6 +280,9 @@ contains
   end subroutine extend_particles_memory
 
   subroutine calc_particle_zeta( mesh, Hi, Hs, x, y, z, ti_in, zeta, Hi_interp_, Hs_interp_)
+    !< Calculate the zeta coordinate of a particle located at position [x,y,z]
+    !< NOTE: allows the particle to be located outside the ice sheet
+    !< (in which case, zeta will be < 0 or > 1).
 
     ! In- and output variables
     type(type_mesh),                        intent(in   ) :: mesh
@@ -298,6 +313,7 @@ contains
 
   subroutine interpolate_3d_velocities_to_3D_point( mesh, u_3D_b, v_3D_b, w_3D, &
     x, y, zeta, vi_in, ti_in, u, v, w)
+    !< Interpolate the ice velocity fields u,v,w to a particle located at [x,y,zeta]
 
     ! In- and output variables
     type(type_mesh),                             intent(in   ) :: mesh
@@ -338,6 +354,9 @@ contains
 
   subroutine interpolate_3d_velocities_to_3D_point_uv( mesh, u_3D_b, v_3D_b, &
     x, y, vi_in, u_col, v_col)
+    !< Interpolate the horizontal ice velocity fields u,v to a particle located at [x,y]
+    !< NOTE: does not include vertical interpolation; instead, returns
+    !< velocity columns u_col( nz), v_col( nz)
 
     ! In- and output variables
     type(type_mesh),                             intent(in   ) :: mesh
@@ -397,6 +416,9 @@ contains
 
   subroutine interpolate_3d_velocities_to_3D_point_w( mesh, w_3D, &
     x, y, ti_in, w_col)
+    !< Interpolate the vertical ice velocity field w to a particle located at [x,y]
+    !< NOTE: does not include vertical interpolation; instead, returns
+    !< velocity column w_col( nz)
 
     ! In- and output variables
     type(type_mesh),                             intent(in   ) :: mesh
@@ -417,6 +439,7 @@ contains
   end subroutine interpolate_3d_velocities_to_3D_point_w
 
   subroutine map_tracer_to_mesh( mesh, particles, f_particles, f_mesh)
+    !< Map a data field defined on the tracer particles to the model mesh
 
     ! In/output variables
     type(type_mesh),                             intent(in   ) :: mesh
@@ -468,6 +491,8 @@ contains
   end subroutine map_tracer_to_mesh
 
   subroutine calc_particles_to_mesh_map( mesh, particles)
+    !< Calculate the interpolation weights describing the
+    !< mapping operation from the tracer particles to the model mesh.
 
     ! In/output variables
     type(type_mesh),                            intent(in   ) :: mesh
