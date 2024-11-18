@@ -50,9 +50,8 @@ MODULE ice_model_main
   use mesh_data_smoothing, only: smooth_Gaussian_2D
   USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp
   USE petsc_basic                                            , ONLY: mat_petsc2CSR
-  USE reallocate_mod                                         , ONLY: reallocate_bounds_dp_1D
   USE BMB_main                                               , ONLY: run_BMB_model
-  USE mesh_operators                                         , ONLY: ddx_a_a_2D, ddy_a_a_2D
+  USE mesh_operators                                         , ONLY: ddx_a_a_2D, ddy_a_a_2D, ddx_a_b_2D, ddy_a_b_2D
   USE mesh_utilities                                         , ONLY: extrapolate_Gaussian
 
   IMPLICIT NONE
@@ -168,6 +167,10 @@ CONTAINS
     ! Calculate new effective thickness
     CALL calc_effective_thickness( region%mesh, region%ice, region%ice%Hi, region%ice%Hi_eff, region%ice%fraction_margin)
 
+    ! Calculate ice shelf draft gradients
+    CALL ddx_a_b_2D( region%mesh, region%ice%Hib, region%ice%dHib_dx_b)
+    CALL ddy_a_b_2D( region%mesh, region%ice%Hib, region%ice%dHib_dy_b)
+
     ! Calculate absolute surface gradient
     CALL ddx_a_a_2D( region%mesh, region%ice%Hs, dHs_dx)
     CALL ddy_a_a_2D( region%mesh, region%ice%Hs, dHs_dy)
@@ -202,7 +205,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'initialise_ice_dynamics_model'
-    INTEGER                                               :: vi
+    INTEGER                                               :: vi, ti
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: dHs_dx, dHs_dy
 
     ! Add routine to path
@@ -295,6 +298,12 @@ CONTAINS
       ice%dHib_dt( vi) = 0._dp
 
     END DO ! DO vi = mesh%vi1, mesh%vi2
+
+    DO ti = mesh%ti1, mesh%ti2
+      ! Horizontal derivatives
+      ice%dHib_dx_b( ti) = 0._dp
+      ice%dHib_dy_b( ti) = 0._dp
+    END DO ! DO ti = mesh%ti1, mesh%ti2 
 
     ! Calculate zeta gradients
     CALL calc_zeta_gradients( mesh, ice)
@@ -469,7 +478,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'remap_ice_dynamics_model'
-    INTEGER                                               :: vi,k
+    INTEGER                                               :: vi, ti, k
     REAL(dp), DIMENSION(mesh_new%vi1:mesh_new%vi2)        :: dHs_dx, dHs_dy
     REAL(dp)                                              :: Ti_min
 
@@ -544,6 +553,10 @@ CONTAINS
     CALL reallocate_bounds( ice%dHib_dt                     , mesh_new%vi1, mesh_new%vi2         )  ! [m yr^-1] Ice base elevation rate of change
     CALL reallocate_bounds( ice%dHi_dt_raw                  , mesh_new%vi1, mesh_new%vi2         )  ! [m yr^-1] Ice thickness rate of change before any imposed modifications
     CALL reallocate_bounds( ice%dHi_dt_residual             , mesh_new%vi1, mesh_new%vi2         )  ! [m yr^-1] Residual ice thickness rate of change after imposed modifications
+
+    ! Horizontal derivatives
+    CALL reallocate_bounds( ice%dHib_dx_b                   , mesh_new%ti1, mesh_new%ti2         )  ! [] Horizontal derivative of ice draft on b-grid
+    CALL reallocate_bounds( ice%dHib_dy_b                   , mesh_new%ti1, mesh_new%ti2         )  ! [] Horizontal derivative of ice draft on b-grid        
 
     ! Target quantities
     CALL reallocate_bounds( ice%dHi_dt_target               , mesh_new%vi1, mesh_new%vi2         )  ! [m yr^-1] Target ice thickness rate of change for inversions
@@ -745,6 +758,12 @@ CONTAINS
       ice%dHib_dt( vi) = 0._dp
 
     END DO ! DO vi = mesh_new%vi1, mesh_new%vi2
+
+    DO ti = mesh_new%ti1, mesh_new%ti2
+      ! Horizontal derivatives
+      ice%dHib_dx_b( ti) = 0._dp
+      ice%dHib_dy_b( ti) = 0._dp
+    END DO ! DO ti = mesh_new%ti1, mesh_new%ti2 
 
     ! Calculate zeta gradients
     CALL calc_zeta_gradients( mesh_new, ice)
@@ -1017,13 +1036,13 @@ CONTAINS
     END DO ! DO vi_new = mesh_new%vi1, mesh_new%vi2
 
     ! Recalculate Hs
-    CALL reallocate_bounds_dp_1D( ice%Hs, mesh_new%vi1, mesh_new%vi2)
+    CALL reallocate_bounds( ice%Hs, mesh_new%vi1, mesh_new%vi2)
     DO vi = mesh_new%vi1, mesh_new%vi2
       ice%Hs( vi) = ice_surface_elevation( Hi_new( vi), ice%Hb( vi), ice%SL( vi))
     END DO
 
     ! Move Hi_new to ice%Hi
-    CALL reallocate_bounds_dp_1D( ice%Hi, mesh_new%vi1, mesh_new%vi2)
+    CALL reallocate_bounds( ice%Hi, mesh_new%vi1, mesh_new%vi2)
     ice%Hi = Hi_new
 
     ! Finalise routine path

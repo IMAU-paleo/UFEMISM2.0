@@ -42,6 +42,7 @@ CONTAINS
     REAL(dp)                                              :: That, Chat, Ctil, Bval, Cval, Dval, AA
     REAL(dp), PARAMETER                                   :: nu0 = 1.95E-6
     REAL(dp), PARAMETER                                   :: eps = 1.0E-12 ! Some small parameter to prevent div. by zero
+    REAL(dp), PARAMETER                                   :: tol = 1.0E-12 ! Some small parameter to prevent div. by zero
  
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -91,7 +92,7 @@ CONTAINS
 
          ! Get temperature at ice base
          Dval = laddie%melt( vi) * cp_ice - cp_ocean * laddie%gamma_T( vi)
-         IF (Dval == 0) THEN
+         IF (ABS(Dval) < tol) THEN
            ! Seems like a very unlikely case, but better to be careful
            laddie%T_base( vi) = laddie%T_freeze( vi)
          ELSE

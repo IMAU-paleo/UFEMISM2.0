@@ -54,6 +54,7 @@ MODULE UFEMISM_main_model
   use apply_maps, only: clear_all_maps_involving_this_mesh
   USE mesh_memory                                            , ONLY: deallocate_mesh
   USE ice_model_scalars                                      , ONLY: calc_ice_model_scalars
+  use tracer_tracking_model_main, only: initialise_tracer_tracking_model
 
   IMPLICIT NONE
 
@@ -502,6 +503,11 @@ CONTAINS
     ! ===================================
 
     CALL initialise_AMB_model( region%mesh, region%AMB)
+
+    ! ===== Tracer tracking model =====
+    ! =================================
+
+    ! call initialise_tracer_tracking_model( region%mesh, region%ice, region%tracer_tracking)
 
     ! ===== Run the climate, ocean, SMB, BMB, and LMB models =====
     ! ============================================================

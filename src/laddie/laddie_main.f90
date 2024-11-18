@@ -22,7 +22,6 @@ MODULE laddie_main
   USE laddie_thickness                                       , ONLY: compute_H_npx
   USE laddie_velocity                                        , ONLY: compute_UV_npx, compute_viscUV
   USE laddie_tracers                                         , ONLY: compute_TS_npx, compute_diffTS
-  USE mesh_operators                                         , ONLY: ddx_a_b_2D, ddy_a_b_2D
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_logical_1D
   USE mesh_utilities                                         , ONLY: extrapolate_Gaussian
 
@@ -89,10 +88,6 @@ CONTAINS
     DO ei = mesh%ei1, mesh%ei2
       laddie%H_c( ei) = 0.0_dp
     END DO
-
-    ! Update ice shelf draft gradients
-    CALL ddx_a_b_2D( mesh, ice%Hib , laddie%dHib_dx_b)
-    CALL ddy_a_b_2D( mesh, ice%Hib , laddie%dHib_dy_b)
 
     ! == Main time loop ==
     ! ====================
@@ -257,7 +252,6 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'integrate_euler'
-    INTEGER                                               :: vi, ti
  
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -298,7 +292,6 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'integrate_fbrk3'
-    INTEGER                                               :: vi, ti
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: Hstar
  
     ! Add routine to path
