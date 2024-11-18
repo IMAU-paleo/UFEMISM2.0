@@ -94,6 +94,7 @@ UFEMISM_source = \
   types/AMB_model_types.f90 \
   types/GIA_model_types.f90 \
   types/basal_inversion_types.f90 \
+  types/tracer_tracking_model_types.f90 \
   types/region_types.f90 \
   \
   basic/parameters.f90 \
@@ -217,6 +218,9 @@ UFEMISM_source = \
   \
   glacial_isostatic_adjustment/GIA_main.f90 \
   \
+  tracer_tracking/tracer_tracking_particles.f90 \
+  tracer_tracking/tracer_tracking_main.f90 \
+  \
   main/main_regional_output.f90 \
   main/UFEMISM_main_model.f90 \
   \
@@ -245,6 +249,7 @@ UFEMISM_source = \
   validation/unit_tests/ut_mesh_remapping_mesh_to_mesh.f90 \
   validation/unit_tests/ut_mesh_remapping.f90 \
   validation/unit_tests/ut_mesh.f90 \
+  validation/unit_tests/ut_tracer_tracking.f90 \
   validation/unit_tests/unit_tests.f90 \
   \
   validation/component_tests/ct_create_test_meshes.f90 \

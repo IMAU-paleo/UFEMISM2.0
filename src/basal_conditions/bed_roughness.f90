@@ -22,7 +22,6 @@ MODULE bed_roughness
   USE ice_model_types                                        , ONLY: type_ice_model
   USE reference_geometry_types                               , ONLY: type_reference_geometry
   USE basal_inversion_types                                  , ONLY: type_basal_inversion
-  USE reallocate_mod                                         , ONLY: reallocate_clean_dp_1D
   USE analytical_solutions                                   , ONLY: Schoof2006_icestream
   USE netcdf_input                                           , ONLY: read_field_from_file_2D
 
