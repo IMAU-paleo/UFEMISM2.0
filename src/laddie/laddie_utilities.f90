@@ -260,16 +260,12 @@ CONTAINS
     ! RHS terms
     ALLOCATE( laddie%ddrho_amb_dx_b     ( mesh%ti1:mesh%ti2              )) ! [m^-1]          Horizontal derivative of buoyancy
     ALLOCATE( laddie%ddrho_amb_dy_b     ( mesh%ti1:mesh%ti2              )) ! [m^-1]          
-    ALLOCATE( laddie%dHib_dx_b          ( mesh%ti1:mesh%ti2              )) ! [m^-2]          Horizontal derivative of ice draft
-    ALLOCATE( laddie%dHib_dy_b          ( mesh%ti1:mesh%ti2              )) ! [m^-2]          
     ALLOCATE( laddie%dH_dx_b            ( mesh%ti1:mesh%ti2              )) ! [m^-2]          Horizontal derivative of thickness
     ALLOCATE( laddie%dH_dy_b            ( mesh%ti1:mesh%ti2              )) ! [m^-2]          
     ALLOCATE( laddie%detr_b             ( mesh%ti1:mesh%ti2              )) ! [m s^-1]        Detrainment on b grid
 
     laddie%ddrho_amb_dx_b = 0._dp
     laddie%ddrho_amb_dy_b = 0._dp
-    laddie%dHib_dx_b      = 0._dp
-    laddie%dHib_dy_b      = 0._dp
     laddie%dH_dx_b        = 0._dp
     laddie%dH_dy_b        = 0._dp
     laddie%detr_b         = 0._dp

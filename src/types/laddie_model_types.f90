@@ -86,8 +86,6 @@ MODULE laddie_model_types
     ! RHS terms
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: ddrho_amb_dx_b              ! [m^-1]            Horizontal derivative of buoyancy 
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: ddrho_amb_dy_b              ! [m^-1]            Horizontal derivative of buoyancy 
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHib_dx_b                   ! [m^-2]            Horizontal derivative of ice draft 
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHib_dy_b                   ! [m^-2]            Horizontal derivative of ice draft 
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dH_dx_b                     ! [m^-2]            Horizontal derivative of thickness
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dH_dy_b                     ! [m^-2]            Horizontal derivative of thickness 
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: detr_b                      ! [m s^-1]          Detrainment on b grid 

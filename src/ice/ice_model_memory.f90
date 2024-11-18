@@ -81,6 +81,13 @@ CONTAINS
     ice%dHi_dt_raw                  = 0._dp
     ice%dHi_dt_residual             = 0._dp
 
+    ! Horizontal derivatives
+    ALLOCATE( ice%dHib_dx_b                   ( mesh%ti1:mesh%ti2        ))  ! [] Horizontal derivative of ice draft on b-grid
+    ALLOCATE( ice%dHib_dy_b                   ( mesh%ti1:mesh%ti2        ))  ! [] Horizontal derivative of ice draft on b-grid        
+
+    ice%dHib_dx_b                   = 0._dp
+    ice%dHib_dy_b                   = 0._dp
+
     ! Target quantities
     ALLOCATE( ice%dHi_dt_target               ( mesh%vi1:mesh%vi2        ))  ! [m yr^-1] Target ice thickness rate of change for inversions
     ALLOCATE( ice%uabs_surf_target            ( mesh%vi1:mesh%vi2        ))  ! [m yr^-1] Target ice surface speed for inversions

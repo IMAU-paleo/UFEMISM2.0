@@ -167,6 +167,10 @@ CONTAINS
     ! Calculate new effective thickness
     CALL calc_effective_thickness( region%mesh, region%ice, region%ice%Hi, region%ice%Hi_eff, region%ice%fraction_margin)
 
+    ! Calculate ice shelf draft gradients
+    CALL ddx_a_b_2D( region%mesh, region%ice%Hib , region%ice%dHib_dx_b)
+    CALL ddy_a_b_2D( region%mesh, region%ice%Hib , region%ice%dHib_dy_b)
+
     ! Calculate absolute surface gradient
     CALL ddx_a_a_2D( region%mesh, region%ice%Hs, dHs_dx)
     CALL ddy_a_a_2D( region%mesh, region%ice%Hs, dHs_dy)
@@ -294,6 +298,12 @@ CONTAINS
       ice%dHib_dt( vi) = 0._dp
 
     END DO ! DO vi = mesh%vi1, mesh%vi2
+
+    DO ti = mesh%ti1, mesh%ti2
+      ! Horizontal derivatives
+      ice%dHib_dx_b( ti) = 0._dp
+      ice%dHib_dy_b( ti) = 0._dp
+    END DO ! DO ti = mesh%ti1, mesh%ti2 
 
     ! Calculate zeta gradients
     CALL calc_zeta_gradients( mesh, ice)
@@ -544,6 +554,10 @@ CONTAINS
     CALL reallocate_bounds( ice%dHi_dt_raw                  , mesh_new%vi1, mesh_new%vi2         )  ! [m yr^-1] Ice thickness rate of change before any imposed modifications
     CALL reallocate_bounds( ice%dHi_dt_residual             , mesh_new%vi1, mesh_new%vi2         )  ! [m yr^-1] Residual ice thickness rate of change after imposed modifications
 
+    ! Horizontal derivatives
+    CALL reallocate_bounds( ice%dHib_dx_b                   , mesh%ti1:mesh%ti2                  )  ! [] Horizontal derivative of ice draft on b-grid
+    CALL reallocate_bounds( ice%dHib_dy_b                   , mesh%ti1:mesh%ti2                  )  ! [] Horizontal derivative of ice draft on b-grid        
+
     ! Target quantities
     CALL reallocate_bounds( ice%dHi_dt_target               , mesh_new%vi1, mesh_new%vi2         )  ! [m yr^-1] Target ice thickness rate of change for inversions
     CALL reallocate_bounds( ice%uabs_surf_target            , mesh_new%vi1, mesh_new%vi2         )  ! [m yr^-1] Target ice surface speed for inversions
@@ -744,6 +758,12 @@ CONTAINS
       ice%dHib_dt( vi) = 0._dp
 
     END DO ! DO vi = mesh_new%vi1, mesh_new%vi2
+
+    DO ti = mesh_new%ti1, mesh_new%ti2
+      ! Horizontal derivatives
+      ice%dHib_dx_b( ti) = 0._dp
+      ice%dHib_dy_b( ti) = 0._dp
+    END DO ! DO ti = mesh_new%ti1, mesh_new%ti2 
 
     ! Calculate zeta gradients
     CALL calc_zeta_gradients( mesh_new, ice)
