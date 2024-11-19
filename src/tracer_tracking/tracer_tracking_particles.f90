@@ -21,7 +21,8 @@ module tracer_tracking_model_particles
   private
 
   public :: initialise_tracer_tracking_model_particles, calc_particle_zeta, &
-    interpolate_3d_velocities_to_3D_point, calc_particles_to_mesh_map
+    interpolate_3d_velocities_to_3D_point, calc_particles_to_mesh_map, add_particle, &
+    move_and_remove_particle
 
   integer, parameter :: n_particles_init  = 100
   integer, parameter :: n_tracers         = 1
@@ -97,7 +98,7 @@ contains
 
     ! Using the interpolated velocities from the last time
     ! this model was run, move the particle to its new position
-    particles%r = particles%r + particles%u * dt
+    particles%r( ip,:) = particles%r( ip,:) + particles%u( ip,:) * dt
 
     ! If the new position is outside the mesh domain, remove the particle
     if ((.not. test_ge_le( particles%r( ip,1), mesh%xmin, mesh%xmax)) .or. &
@@ -118,7 +119,7 @@ contains
       particles%zeta( ip), Hi_interp_ = Hi_interp)
 
     ! If the new position is outside the ice sheet, remove the particle
-    if (particles%zeta( ip) < 0._dp .or. particles%zeta( ip) > 0._dp .or. Hi_interp < 0.1_dp) then
+    if (particles%zeta( ip) < 0._dp .or. particles%zeta( ip) > 1._dp .or. Hi_interp < 0.1_dp) then
       call remove_particle( particles, ip)
       call finalise_routine( routine_name)
       return
@@ -296,7 +297,7 @@ contains
     real(dp), dimension(2) :: p
     real(dp)               :: Hi_interp, Hs_interp
 
-    ! Interpolate Hib,Hs horizontally to [x,y]
+    ! Interpolate Hi, Hs horizontally to [x,y]
     p = [x,y]
     call interpolate_to_point_dp_2D( mesh, Hi, p, ti_in, Hi_interp)
     call interpolate_to_point_dp_2D( mesh, Hs, p, ti_in, Hs_interp)

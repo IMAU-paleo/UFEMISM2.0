@@ -3545,12 +3545,14 @@ CONTAINS
   end subroutine remap_cons_2nd_order_1D
 
   subroutine interpolate_inside_triangle_dp_2D( pa, pb, pc, fa, fb, fc, p, f, tol_dist)
+
     ! In/output variables
     real(dp), dimension(2), intent(in   ) :: pa, pb, pc
     real(dp),               intent(in   ) :: fa, fb, fc
     real(dp), dimension(2), intent(in   ) :: p
     real(dp),               intent(  out) :: f
     real(dp),               intent(in   ) :: tol_dist
+
     ! Local variables
     real(dp) :: Atri_abp, Atri_bcp, Atri_cap, Atri_tot, wa, wb, wc
 
