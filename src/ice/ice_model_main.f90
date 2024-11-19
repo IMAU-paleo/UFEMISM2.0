@@ -205,7 +205,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'initialise_ice_dynamics_model'
-    INTEGER                                               :: vi, ti
+    INTEGER                                               :: vi
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: dHs_dx, dHs_dy
 
     ! Add routine to path
@@ -299,11 +299,9 @@ CONTAINS
 
     END DO ! DO vi = mesh%vi1, mesh%vi2
 
-    DO ti = mesh%ti1, mesh%ti2
-      ! Horizontal derivatives
-      ice%dHib_dx_b( ti) = 0._dp
-      ice%dHib_dy_b( ti) = 0._dp
-    END DO ! DO ti = mesh%ti1, mesh%ti2 
+    ! Calculate ice shelf draft gradients
+    CALL ddx_a_b_2D( mesh, ice%Hib, ice%dHib_dx_b)
+    CALL ddy_a_b_2D( mesh, ice%Hib, ice%dHib_dy_b)
 
     ! Calculate zeta gradients
     CALL calc_zeta_gradients( mesh, ice)
