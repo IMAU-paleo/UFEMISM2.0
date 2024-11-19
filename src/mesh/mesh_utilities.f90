@@ -1438,14 +1438,9 @@ CONTAINS
     REAL(dp),                                INTENT(OUT  ) :: d_int
 
     ! Local variables:
-    REAL(dp)               :: d_min
     INTEGER                :: via, vib, vic
     REAL(dp)               :: da, db, dc
     REAL(dp), DIMENSION(2) :: pa, pb, pc
-
-    ! Find the global minimum value of d
-    d_min = MINVAL( d)
-    CALL MPI_ALLREDUCE( MPI_IN_PLACE, d_min, 1, MPI_DOUBLE_PRECISION, MPI_MIN, MPI_COMM_WORLD, ierr)
 
     ! Find the triangle containing p
     CALL find_containing_triangle( mesh, p, ti_in)
@@ -1464,21 +1459,21 @@ CONTAINS
     IF (via >= mesh%vi1 .AND. via <= mesh%vi2) THEN
       da = d( via)
     ELSE
-      da = d_min
+      da = -huge( da)
     END IF
     CALL MPI_ALLREDUCE( MPI_IN_PLACE, da, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
 
     IF (vib >= mesh%vi1 .AND. vib <= mesh%vi2) THEN
       db = d( vib)
     ELSE
-      db = d_min
+      db = -huge( db)
     END IF
     CALL MPI_ALLREDUCE( MPI_IN_PLACE, db, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
 
     IF (vic >= mesh%vi1 .AND. vic <= mesh%vi2) THEN
       dc = d( vic)
     ELSE
-      dc = d_min
+      dc = -huge( dc)
     END IF
     CALL MPI_ALLREDUCE( MPI_IN_PLACE, dc, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
 
