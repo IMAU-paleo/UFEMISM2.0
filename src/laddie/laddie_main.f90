@@ -31,7 +31,7 @@ CONTAINS
 ! ===== Main routines =====
 ! =========================
 
-  SUBROUTINE run_laddie_model( mesh, ice, ocean, laddie)
+  SUBROUTINE run_laddie_model( mesh, ice, ocean, laddie, time)
     ! Run the laddie model
 
     ! In- and output variables
@@ -40,6 +40,7 @@ CONTAINS
     TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_ocean_model),                 INTENT(IN)    :: ocean
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
+    REAL(dp),                               INTENT(IN)    :: time
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'run_laddie_model'
