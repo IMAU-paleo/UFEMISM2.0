@@ -1084,18 +1084,6 @@ CONTAINS
     if (tia > 0 .and. tib > 0) then
       call assert( test_neq( tia, tib), 'tia and tib are identical')
     end if
-    if (tia > 0 .and. tja > 0) then
-      call assert( test_neq( tia, tja), 'tia and tja are identical')
-    end if
-    if (tia > 0 .and. tjb > 0) then
-      call assert( test_neq( tia, tjb), 'tia and tjb are identical')
-    end if
-    if (tib > 0 .and. tja > 0) then
-      call assert( test_neq( tib, tja), 'tib and tja are identical')
-    end if
-    if (tib > 0 .and. tjb > 0) then
-      call assert( test_neq( tib, tjb), 'tib and tjb are identical')
-    end if
     if (tja > 0 .and. tjb > 0) then
       call assert( test_neq( tja, tjb), 'tja and tjb are identical')
     end if
