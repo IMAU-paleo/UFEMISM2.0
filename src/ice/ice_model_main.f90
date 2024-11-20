@@ -1313,6 +1313,8 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    t_pseudo = 0._dp
+
     ! Print to terminal
     IF (par%master .AND. C%do_time_display .AND. C%geometry_relaxation_t_years > 0._dp) THEN
 
@@ -1323,8 +1325,7 @@ CONTAINS
         write(*,"(A)") '   Stepping out of time to relax geometry...'
       END IF
 
-      ! Initialise and display pseudo time
-      t_pseudo = 0._dp
+      ! Display pseudo time
       write( r_time,"(F7.3)") t_pseudo
       write( r_step,"(F5.3)") C%geometry_relaxation_t_years / 100._dp
       write( *,"(A)", ADVANCE = TRIM( 'no')) c_carriage_return // &
