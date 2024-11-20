@@ -511,7 +511,7 @@ contains
 
     end do
 
-    call unit_test( verified, test_name)
+    call unit_test( verified, trim( test_name) // '/position')
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)
@@ -644,7 +644,7 @@ contains
 
     end do
 
-    call unit_test( max_diff < 5e3_dp, test_name)
+    call unit_test( max_diff < 5e3_dp, trim( test_name) // '/position')
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)
