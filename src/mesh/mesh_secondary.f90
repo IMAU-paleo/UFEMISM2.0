@@ -248,7 +248,7 @@ CONTAINS
 
     ! Local variables
     character(len=1024), parameter :: routine_name = 'calc_connection_widths'
-    integer                        :: vi, ci, ei
+    integer                        :: vi, ci, ei, t1, t2, vi1, vi2
     real(dp), dimension(2)         :: p, q
 
     ! Add routine to path
@@ -256,7 +256,9 @@ CONTAINS
 
     ! Allocate clean memory
     if (allocated( mesh%Cw)) deallocate( mesh%Cw)
+    if (allocated( mesh%TriCw)) deallocate( mesh%TriCw)
     allocate( mesh%Cw( mesh%nV, mesh%nC_mem), source = 0._dp)
+    allocate( mesh%TriCw( mesh%nTri, 3), source = 0._dp)
 
     do vi = 1, mesh%nV
       do ci = 1, mesh%nC( vi)
@@ -265,6 +267,27 @@ CONTAINS
         mesh%Cw( vi,ci) = norm2( p-q)
       end do
     end do
+
+    ! Define TriCw
+    do t1 = 1, mesh%nTri
+      do ci = 1, 3
+        t2 = mesh%TriC(t1, ci)
+
+        ! Skip if no connecting triangle at this side
+        if (t2 == 0) cycle
+
+        ! Get connecting edge
+        ei = mesh%TriE( t1, ci)
+
+        ! Get the two vertices
+        vi1 = mesh%EV( ei, 1)
+        vi2 = mesh%EV( ei, 2)
+
+        ! Get the length of the edge
+        mesh%TriCw( t1, ci) = norm2( mesh%V( vi1, :) - mesh%V( vi2, :))
+
+      end do ! DO ci = 1, 3
+    end do ! DO t1 = 1, mesh%nTri
 
     ! Finalise routine path
     call finalise_routine( routine_name)

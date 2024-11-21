@@ -12,32 +12,30 @@ MODULE laddie_model_types
 ! ===== Types =====
 ! =================
 
-  TYPE type_laddie_model
-    ! The laddie model structure
-  
+  TYPE type_laddie_timestep
+    ! Fields of (partial) timesteps
+
     ! Main data fields
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: H                           ! [m]               Layer thickness
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: H_b                         ! [m]               Layer thickness on b grid
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: H_c                         ! [m]               Layer thickness on c grid
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: U                           ! [m s^-1]          2D velocity
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: U_a                         ! [m s^-1]          2D velocity on a grid
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: U_c                         ! [m s^-1]          2D velocity on c grid
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: V                           ! [m s^-1]
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: V_a                         ! [m s^-1]
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: V_c                         ! [m s^-1]
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: T                           ! [degrees Celsius] Temperature
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: S                           ! [PSU]             Salinity  
+
+  END TYPE type_laddie_timestep
+
+  TYPE type_laddie_model
+    ! The laddie model structure
   
     ! Time domain
     REAL(dp)                                :: dt                          ! [s]               Time step
     REAL(dp)                                :: tend                        ! [s]               Time end of Laddie cycle
-  
-    ! Time stepping
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: H_prev                      ! [m]               Layer thickness
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: U_prev                      ! [m s^-1]          2D velocity
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: V_prev                      ! [m s^-1]
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: T_prev                      ! [degrees Celsius] Temperature
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: S_prev                      ! [PSU]             Salinity  
-  
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: H_next                      ! [m]               Layer thickness
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: U_next                      ! [m s^-1]          2D velocity
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: V_next                      ! [m s^-1]
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: T_next                      ! [degrees Celsius] Temperature
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: S_next                      ! [PSU]             Salinity   
   
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dH_dt                       ! [m s^-1]          Layer thickness change
   
@@ -52,6 +50,8 @@ MODULE laddie_model_types
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: S_base                      ! [PSU]             Salinity at ice shelf base
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: rho                         ! [kg m^-3]         Density of mixed layer water
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: drho_amb                    ! []                Buoyancy at layer bottom (rho_amb-rho)/rho_sw
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: Hdrho_amb                   ! [m]               Depth-integrated buoyancy
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: Hdrho_amb_b                 ! [m]               Depth-integrated buoyancy
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: drho_base                   ! []                Buoyancy at ice base (rho-rho_base)/rho_sw
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: u_star                      ! [m s^-1]          Friction velocity
   
@@ -69,7 +69,7 @@ MODULE laddie_model_types
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: entr_tot                    ! [m s^-1]          Total (net) entrainment = entr+entr_dmin-detr
   
     ! Horizontal fluxes
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: divQ                        ! [m^3 s^-1]        Divergence of layer thickness
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: divQH                       ! [m^3 s^-1]        Divergence of layer thickness
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: divQU                       ! [m^4 s^-2]        Divergence of momentum
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: divQV                       ! [m^4 s^-2]        
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: divQT                       ! [degC m^3 s^-1]   Divergence of heat
@@ -86,11 +86,29 @@ MODULE laddie_model_types
     ! RHS terms
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: ddrho_amb_dx_b              ! [m^-1]            Horizontal derivative of buoyancy 
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: ddrho_amb_dy_b              ! [m^-1]            Horizontal derivative of buoyancy 
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHib_dx_b                   ! [m^-2]            Horizontal derivative of ice draft 
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHib_dy_b                   ! [m^-2]            Horizontal derivative of ice draft 
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dH_dx_b                     ! [m^-2]            Horizontal derivative of thickness
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dH_dy_b                     ! [m^-2]            Horizontal derivative of thickness 
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: detr_b                      ! [m s^-1]          Detrainment on b grid 
+
+    ! Mapped variables
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: H_c                         ! [m]               Layer thickness on c grid 
+
+    ! Masks
+    LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_a                      !                   Mask on a-grid on which to apply computation
+    LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_gr_a                   !                   Grounded mask on a-grid
+    LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_oc_a                   !                   Icefree ocean mask on a-grid
+    LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_b                      !                   Mask on b-grid on which to apply computation
+    LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_gl_b                   !                   Grounding line mask on b-grid
+    LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_cf_b                   !                   Calving front mask on b-grid
+    LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_oc_b                   !                   Icefree ocean mask on b-grid
+   
+    ! Timestepping types
+    TYPE(type_laddie_timestep)              :: now                         !                   Timestep now  
+    TYPE(type_laddie_timestep)              :: np1                         !                   Timestep n plus 1  
+    TYPE(type_laddie_timestep)              :: np12                        !                   Timestep n plus 1/2  
+    TYPE(type_laddie_timestep)              :: np13                        !                   Timestep n plus 1/3  
   
   END TYPE type_laddie_model
-
 
 CONTAINS
 
