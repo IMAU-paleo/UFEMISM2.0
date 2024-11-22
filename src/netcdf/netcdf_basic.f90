@@ -14,7 +14,7 @@ MODULE netcdf_basic
 ! ====================
 
   USE mpi
-  USE precisions                                             , ONLY: dp
+  USE precisions                                             , ONLY: dp, int8
   USE mpi_basic                                              , ONLY: par, cerr, ierr, recv_status, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C, git_commit_hash
@@ -29,7 +29,7 @@ MODULE netcdf_basic
               NF90_INQ_VARID, NF90_INQUIRE_VARIABLE, NF90_MAX_VAR_DIMS, NF90_GET_VAR, &
               NF90_CREATE, NF90_NOCLOBBER, NF90_NETCDF4, NF90_ENDDEF, NF90_REDEF, NF90_DEF_DIM, NF90_DEF_VAR, &
               NF90_PUT_ATT, NF90_WRITE, NF90_INT, NF90_FLOAT, NF90_DOUBLE, NF90_PUT_VAR, NF90_UNLIMITED, &
-              NF90_INQUIRE_ATTRIBUTE, NF90_SHARE, NF90_GLOBAL
+              NF90_INQUIRE_ATTRIBUTE, NF90_SHARE, NF90_GLOBAL, NF90_INT64
 
   IMPLICIT NONE
 
@@ -4687,6 +4687,96 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE write_var_master_int_4D
+
+  SUBROUTINE write_var_master_int8_2D(  filename, ncid, id_var, d, start, count)
+    ! Write data to a NetCDF file
+    !
+    ! NOTE: only the Master actually writes data! Gathering from other processes
+    !       must be done beforehand
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
+    INTEGER,                             INTENT(IN)    :: ncid
+    INTEGER,                             INTENT(IN)    :: id_var
+    INTEGER(int8),  DIMENSION(:,:  ), optional,INTENT(IN)    :: d
+    INTEGER,  DIMENSION(2    ), OPTIONAL,INTENT(IN)    :: start, count
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_var_master_int8_2D'
+    CHARACTER(LEN=256)                                 :: var_name
+    INTEGER                                            :: var_type
+    INTEGER                                            :: ndims_of_var
+    INTEGER,  DIMENSION( NF90_MAX_VAR_DIMS)            :: dims_of_var
+    INTEGER                                            :: di
+    CHARACTER(LEN=256)                                 :: dim_name
+    INTEGER                                            :: dim_length
+    INTEGER,  DIMENSION( 2)                            :: start_applied, count_applied
+
+    ! Add routine to path
+    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+
+    ! Inquire some info on this variable
+    CALL inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
+
+    ! Check variable type
+    IF (par%master .AND. .NOT. (var_type == NF90_INT64)) &
+      CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_INT!')
+
+    ! Check number of dimensions
+    IF (par%master .AND. ndims_of_var /= 2) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+
+    if (par%master .and. .not. present(d)) call crash('d needs to be present on master')
+
+    ! Set start and count
+    IF (PRESENT( start)) THEN
+      start_applied = start
+    ELSE
+      start_applied = (/ 1, 1 /)
+    END IF
+    IF (par%master .AND. ANY( start_applied == 0)) CALL crash('start must be positive!')
+
+    IF (PRESENT( count)) THEN
+      count_applied = count
+    ELSE
+      if (par%master) then
+        count_applied = shape(d)
+      else
+        count_applied = 1
+      end if
+    END IF
+    IF (par%master .AND. ANY( count_applied == 0)) CALL crash('count must be positive!')
+
+    ! Check sizes of dimensions
+    DO di = 1, ndims_of_var
+
+      ! Check size of this dimension in the file
+      CALL inquire_dim_info( filename, ncid, dims_of_var( di), dim_name = dim_name, dim_length = dim_length)
+
+      IF (par%master) then
+        ! Check if the combination of dimension size, start, and count, matches the size of d
+        if(count_applied( di) /= SIZE( d,di)) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // &
+        '": count({int_01}) = {int_02}, but SIZE(d,{int_03}) = {int_04}!', int_01 = di, int_02 = count_applied( di), int_03 = di, int_04 = SIZE( d,di))
+
+        ! Check if this dimension is large enough to read this amount of data
+        IF (par%master .AND. start_applied( di) + count_applied( di) - 1 > dim_length) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // &
+            TRIM( filename) // '"start + count - 1 = {int_01}, but dim_length = {int_02}!', int_01 = start_applied( di) + count_applied( di) - 1, int_02 = dim_length)
+      end if
+
+    END DO
+
+    ! Write the data
+    IF (par%master) THEN
+      nerr = NF90_PUT_VAR( ncid, id_var, d, start_applied, count_applied)
+      IF (nerr /= NF90_NOERR) CALL crash('NF90_PUT_VAR failed for variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '"!')
+    END IF
+    CALL sync
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE write_var_master_int8_2D
 
   SUBROUTINE write_var_master_dp_0D(  filename, ncid, id_var, d)
     ! Write data to a NetCDF file

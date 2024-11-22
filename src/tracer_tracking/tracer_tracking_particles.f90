@@ -6,7 +6,8 @@ module tracer_tracking_model_particles
   use assertions_basic
   use precisions, only: dp, int8
   use mpi_basic, only: par
-  use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash
+  use mpi
+  use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash, warning
   use mesh_types, only: type_mesh
   use ice_model_types, only: type_ice_model
   use tracer_tracking_model_types, only: type_tracer_tracking_model_particles
@@ -14,7 +15,11 @@ module tracer_tracking_model_particles
   use mesh_utilities, only: find_containing_triangle, find_containing_vertex, &
     interpolate_to_point_dp_2D, interpolate_to_point_dp_3D
   use reallocate_mod, only: reallocate
-  use mpi
+  use netcdf_basic, only: create_new_netcdf_file_for_writing, create_dimension, create_variable, &
+    close_netcdf_file, open_existing_netcdf_file_for_writing, field_name_options_time, inquire_dim_multopt, &
+    write_var_master_int8_2D, write_var_master_dp_2D, write_var_master_dp_3D
+  use netcdf, only: NF90_UNLIMITED, NF90_INT64, NF90_DOUBLE
+  use netcdf_output, only: write_time_to_file
 
   implicit none
 
@@ -22,15 +27,14 @@ module tracer_tracking_model_particles
 
   public :: initialise_tracer_tracking_model_particles, calc_particle_zeta, &
     interpolate_3d_velocities_to_3D_point, calc_particles_to_mesh_map, add_particle, &
-    move_and_remove_particle
+    move_and_remove_particle, create_particles_netcdf_file, write_to_netcdf_file
 
-  integer, parameter :: n_particles_init  = 100
   integer, parameter :: n_tracers         = 1
   integer, parameter :: n_nearest_to_find = 4
 
 contains
 
-  subroutine initialise_tracer_tracking_model_particles( mesh, ice, particles)
+  subroutine initialise_tracer_tracking_model_particles( mesh, ice, particles, n_max)
     !< Initialise the particle-based tracer-tracking model.
     !< Allocates memory for a number of particles.
 
@@ -38,6 +42,7 @@ contains
     type(type_mesh),                            intent(in   ) :: mesh
     type(type_ice_model),                       intent(in   ) :: ice
     type(type_tracer_tracking_model_particles), intent(  out) :: particles
+    integer                                   , intent(in   ) :: n_max
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'initialise_tracer_tracking_model_particles'
@@ -48,18 +53,18 @@ contains
     ! Print to terminal
     if (par%master)  write(*,'(a)') '     Initialising particle-based tracer tracking model...'
 
-    particles%n      = n_particles_init
+    particles%n_max  = n_max
     particles%id_max = 0_int8
-    allocate( particles%is_in_use( particles%n           ), source = .false.)
-    allocate( particles%id       ( particles%n           ), source = 0_int8 )
-    allocate( particles%r        ( particles%n, 3        ), source = 0._dp  )
-    allocate( particles%zeta     ( particles%n           ), source = 0._dp  )
-    allocate( particles%vi_in    ( particles%n           ), source = 1      )
-    allocate( particles%ti_in    ( particles%n           ), source = 1      )
-    allocate( particles%u        ( particles%n, 3        ), source = 0._dp  )
-    allocate( particles%r_origin ( particles%n, 3        ), source = 0._dp  )
-    allocate( particles%t_origin ( particles%n           ), source = 0._dp  )
-    allocate( particles%tracers  ( particles%n, n_tracers), source = 0._dp  )
+    allocate( particles%is_in_use( particles%n_max           ), source = .false.)
+    allocate( particles%id       ( particles%n_max           ), source = 0_int8 )
+    allocate( particles%r        ( particles%n_max, 3        ), source = 0._dp  )
+    allocate( particles%zeta     ( particles%n_max           ), source = 0._dp  )
+    allocate( particles%vi_in    ( particles%n_max           ), source = 1      )
+    allocate( particles%ti_in    ( particles%n_max           ), source = 1      )
+    allocate( particles%u        ( particles%n_max, 3        ), source = 0._dp  )
+    allocate( particles%r_origin ( particles%n_max, 3        ), source = 0._dp  )
+    allocate( particles%t_origin ( particles%n_max           ), source = 0._dp  )
+    allocate( particles%tracers  ( particles%n_max, n_tracers), source = 0._dp  )
 
     particles%map%n = n_nearest_to_find
     allocate( particles%map%ip( mesh%nV, C%nz, particles%map%n), source = 0)
@@ -92,7 +97,7 @@ contains
     call init_routine( routine_name)
 
 #if (DO_ASSERTIONS)
-    call assert( test_ge_le( ip, 1, particles%n), 'ip out of bounds')
+    call assert( test_ge_le( ip, 1, particles%n_max), 'ip out of bounds')
     call assert( particles%is_in_use( ip), 'particle is not in use')
 #endif
 
@@ -182,10 +187,9 @@ contains
     call interpolate_3d_velocities_to_3D_point( mesh, ice%u_3D_b, ice%v_3D_b, ice%w_3D, &
       x, y, zeta, vi_in, ti_in, u, v, w)
 
-    ! Find the first empty memory slot. If none can be found,
-    ! allocate additional memory and place the new particle there.
+    ! Find the first empty memory slot. If none can be found, throw an error.
     out_of_memory = .true.
-    do ipp = 1, particles%n
+    do ipp = 1, particles%n_max
       if (.not. particles%is_in_use( ipp)) then
         ! Place the new particle here
         out_of_memory = .false.
@@ -194,8 +198,7 @@ contains
       end if
     end do
     if (out_of_memory) then
-      ip = particles%n + 1
-      call extend_particles_memory( particles)
+      call crash('Out of memory - exceeded maximum number of particles')
     end if
 
     ! Add the new particle data to the list
@@ -249,36 +252,6 @@ contains
     call finalise_routine( routine_name)
 
   end subroutine remove_particle
-
-  subroutine extend_particles_memory( particles)
-    !< Extend the allocated memory for the particle-based tracer-tracking model.
-
-    ! In/output variables
-    type(type_tracer_tracking_model_particles), intent(inout) :: particles
-
-    ! Local variables
-    character(len=1024), parameter :: routine_name = 'extend_particles_memory'
-
-    ! Add routine to path
-    call init_routine( routine_name)
-
-    particles%n = particles%n * 2
-
-    call reallocate( particles%is_in_use, particles%n           , source = .false.)
-    call reallocate( particles%id       , particles%n           , source = 0_int8 )
-    call reallocate( particles%r        , particles%n, 3        , source = 0._dp  )
-    call reallocate( particles%zeta     , particles%n           , source = 0._dp  )
-    call reallocate( particles%vi_in    , particles%n           , source = 1      )
-    call reallocate( particles%ti_in    , particles%n           , source = 1      )
-    call reallocate( particles%u        , particles%n, 3        , source = 0._dp  )
-    call reallocate( particles%r_origin , particles%n, 3        , source = 0._dp  )
-    call reallocate( particles%t_origin , particles%n           , source = 0._dp  )
-    call reallocate( particles%tracers  , particles%n, n_tracers, source = 0._dp  )
-
-    ! Finalise routine path
-    call finalise_routine( routine_name)
-
-  end subroutine extend_particles_memory
 
   subroutine calc_particle_zeta( mesh, Hi, Hs, x, y, z, ti_in, zeta, Hi_interp_, Hs_interp_)
     !< Calculate the zeta coordinate of a particle located at position [x,y,z]
@@ -445,7 +418,7 @@ contains
     ! In/output variables
     type(type_mesh),                             intent(in   ) :: mesh
     type(type_tracer_tracking_model_particles),  intent(in   ) :: particles
-    real(dp), dimension(particles%n),            intent(in   ) :: f_particles
+    real(dp), dimension(particles%n_max),            intent(in   ) :: f_particles
     real(dp), dimension(mesh%vi1:mesh%vi2,C%nz), intent(  out) :: f_mesh
 
     ! Local variables
@@ -502,13 +475,13 @@ contains
     ! Local variables
     character(len=1024), parameter      :: routine_name = 'calc_particles_to_mesh_map'
     real(dp), dimension(mesh%nV,C%nz,3) :: rs_mesh
-    real(dp), dimension(particles%n ,3) :: rs_particles
-    integer                             :: vi,k,ip
+    real(dp), dimension(particles%n_max ,3) :: rs_particles
+    integer                             :: vi, k, ip
     real(dp)                            :: dist_max
     integer                             :: vi_in
     integer,  dimension(mesh%nV)        :: map, stack
     integer                             :: stackN
-    integer                             :: ii,jj,ci,vj
+    integer                             :: ii, jj, ci, vj
     integer                             :: n_cycles
     logical                             :: is_one_of_n_nearest_particles
     real(dp)                            :: dist
@@ -530,7 +503,7 @@ contains
       end do
     end do
 
-    do ip = 1, particles%n
+    do ip = 1, particles%n_max
       if (.not. particles%is_in_use( ip)) cycle
       rs_particles( ip,1) = (particles%r( ip,1) - mesh%xmin) / (mesh%xmax - mesh%xmin)
       rs_particles( ip,2) = (particles%r( ip,2) - mesh%ymin) / (mesh%ymax - mesh%ymin)
@@ -542,7 +515,7 @@ contains
     stack  = 0
     stackN = 0
 
-    do ip = 1, particles%n
+    do ip = 1, particles%n_max
 
       if (.not. particles%is_in_use( ip)) cycle
 
@@ -615,5 +588,106 @@ contains
     call finalise_routine( routine_name)
 
   end subroutine calc_particles_to_mesh_map
+
+  subroutine write_to_netcdf_file( particles, time)
+    !< Write particle data to NetCDF
+
+    ! In/output variables:
+    type(type_tracer_tracking_model_particles), intent(in) :: particles
+    real(dp),                                   intent(in) :: time
+
+    ! Local variables:
+    character(len=1024), parameter               :: routine_name = 'write_to_netcdf_file'
+    character(len=1024)                          :: filename
+    integer                                      :: ncid, id_dim_time, ti
+    integer(int8), dimension(:,:  ), allocatable :: id_with_time
+    real(dp),      dimension(:,:,:), allocatable :: r_with_time
+    real(dp),      dimension(:,:  ), allocatable :: t_origin_with_time
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    filename = particles%nc%filename
+
+    call open_existing_netcdf_file_for_writing( filename, ncid)
+
+    ! Write time and find timeframe
+    call write_time_to_file( filename, ncid, time)
+    call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
+
+    ! Add "pretend" time dimension
+    if (par%master) then
+
+      allocate( id_with_time      ( particles%n_max,    1))
+      allocate( r_with_time       ( particles%n_max, 3, 1))
+      allocate( t_origin_with_time( particles%n_max,    1))
+
+      id_with_time      ( :  ,1) = particles%id
+      r_with_time       ( :,:,1) = particles%r
+      t_origin_with_time( :  ,1) = particles%t_origin
+
+    end if
+
+    ! Write data
+    call write_var_master_int8_2D( filename, ncid, particles%nc%id_var_id       , id_with_time      , &
+      start = [1,ti], count = [particles%n_max,1])
+    call write_var_master_dp_3D  ( filename, ncid, particles%nc%id_var_r        , r_with_time       , &
+      start = [1,1,ti], count = [particles%n_max,3,1])
+    call write_var_master_dp_2D  ( filename, ncid, particles%nc%id_var_t_origin , t_origin_with_time, &
+      start = [1,ti], count = [particles%n_max,1])
+
+    call close_netcdf_file( ncid)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine write_to_netcdf_file
+
+  subroutine create_particles_netcdf_file( filename, particles)
+    !< Create a NetCDF output file for the raw particle data
+
+    ! In/output variables:
+    character(len=*),                           intent(in   ) :: filename
+    type(type_tracer_tracking_model_particles), intent(inout) :: particles
+
+    ! Local variables
+    character(len=1024), parameter :: routine_name = 'create_particles_netcdf_file'
+    integer                        :: ncid, n, three, time
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Create and open new file
+    call create_new_netcdf_file_for_writing( filename, ncid)
+
+    particles%nc%filename = trim(filename)
+
+    ! Define dimensions
+    call create_dimension( filename, ncid, 'n',     particles%n_max   , particles%nc%id_dim_n    )
+    call create_dimension( filename, ncid, 'three', 3             , particles%nc%id_dim_three)
+    call create_dimension( filename, ncid, 'time',  NF90_UNLIMITED, particles%nc%id_dim_time )
+
+    ! Abbreviations for shorter code
+    n     = particles%nc%id_dim_n
+    three = particles%nc%id_dim_three
+    time  = particles%nc%id_dim_time
+
+    ! Define variables
+    call create_variable( filename, ncid, 'time', &
+      NF90_DOUBLE, [time], particles%nc%id_var_time)
+    call create_variable( filename, ncid, 'id', &
+      NF90_INT64, [n, time], particles%nc%id_var_id)
+    call create_variable( filename, ncid, 'r', &
+      NF90_DOUBLE, [n, three, time], particles%nc%id_var_r)
+    call create_variable( filename, ncid, 't_origin', &
+      NF90_DOUBLE, [n, time], particles%nc%id_var_t_origin)
+
+    ! Close file
+    call close_netcdf_file( ncid)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine create_particles_netcdf_file
 
 end module tracer_tracking_model_particles
