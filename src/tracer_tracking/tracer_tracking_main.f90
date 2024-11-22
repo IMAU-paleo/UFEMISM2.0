@@ -41,7 +41,7 @@ contains
     allocate( tracer_tracking%age    ( mesh%nV, C%nz           ))
     allocate( tracer_tracking%tracers( mesh%nV, C%nz, n_tracers))
 
-    call initialise_tracer_tracking_model_particles( mesh, ice, tracer_tracking%particles)
+    ! call initialise_tracer_tracking_model_particles( mesh, ice, tracer_tracking%particles)
 
     ! Finalise routine path
     call finalise_routine( routine_name)

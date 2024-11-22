@@ -300,12 +300,12 @@ contains
     nx = 25
     ny = 25
     nz = 16
-    particles%n = nx * ny * nz
-    allocate( particles%is_in_use( particles%n   ), source = .true.)
-    allocate( particles%r        ( particles%n, 3), source = 0._dp)
-    allocate( particles%zeta     ( particles%n   ), source = 0._dp)
-    allocate( particles%vi_in    ( particles%n   ), source = 1    )
-    allocate( particles%ti_in    ( particles%n   ), source = 1    )
+    particles%n_max = nx * ny * nz
+    allocate( particles%is_in_use( particles%n_max   ), source = .true.)
+    allocate( particles%r        ( particles%n_max, 3), source = 0._dp)
+    allocate( particles%zeta     ( particles%n_max   ), source = 0._dp)
+    allocate( particles%vi_in    ( particles%n_max   ), source = 1    )
+    allocate( particles%ti_in    ( particles%n_max   ), source = 1    )
 
     ip = 0
     do i = 1, nx
@@ -340,8 +340,8 @@ contains
       end do
     end do
 
-    allocate(rs_particles( particles%n, 3))
-    do ip = 1, particles%n
+    allocate(rs_particles( particles%n_max, 3))
+    do ip = 1, particles%n_max
       rs_particles( ip,1) = (particles%r( ip,1) - mesh%xmin) / (mesh%xmax - mesh%xmin)
       rs_particles( ip,2) = (particles%r( ip,2) - mesh%ymin) / (mesh%ymax - mesh%ymin)
       rs_particles( ip,3) = particles%zeta( ip)
@@ -355,7 +355,7 @@ contains
 
     do vi = 1, mesh%nV
       do k = 1, C%nz
-        do ip = 1, particles%n
+        do ip = 1, particles%n_max
           ! Calculate the scaled distance between particle ip and vertex-layer [vi,k]
           dist = norm2( rs_particles( ip,:) - rs_mesh( vi,k,:))
           do ii = 1, map_bruteforce%n
@@ -449,8 +449,6 @@ contains
       ice%w_3D  ( :,k) = w_surf * (1._dp - mesh%zeta( k))
     end do
 
-    call initialise_tracer_tracking_model_particles( mesh, ice, particles)
-
     xmin    = mesh%xmin * 0.95_dp
     xmax    = 0._dp
     ymin    = mesh%ymin * 0.95_dp
@@ -462,6 +460,8 @@ contains
     n_particles_y = 20
     n_particles_z = 20
     n_particles = n_particles_x * n_particles_y * n_particles_z
+
+    call initialise_tracer_tracking_model_particles( mesh, ice, particles, n_particles)
 
     allocate( zeta_orig( n_particles))
 
@@ -576,8 +576,6 @@ contains
     end do
     end do
 
-    call initialise_tracer_tracking_model_particles( mesh, ice, particles)
-
     xmin    = mesh%xmin * 0.45_dp
     xmax    = mesh%xmax * 0.45_dp
     ymin    = mesh%ymin * 0.45_dp
@@ -589,6 +587,8 @@ contains
     n_particles_y = 10
     n_particles_z = 10
     n_particles = n_particles_x * n_particles_y * n_particles_z
+
+    call initialise_tracer_tracking_model_particles( mesh, ice, particles, n_particles)
 
     allocate( zeta_orig( n_particles))
 
