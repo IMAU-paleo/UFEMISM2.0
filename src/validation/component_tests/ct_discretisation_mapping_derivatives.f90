@@ -15,6 +15,8 @@ module ct_discretisation_mapping_derivatives
   use netcdf_output, only: setup_mesh_in_netcdf_file, add_field_mesh_dp_2D_notime, add_field_mesh_dp_2D_b_notime, &
     add_field_mesh_dp_2D_c_notime, write_to_field_multopt_mesh_dp_2D_notime, write_to_field_multopt_mesh_dp_2D_b_notime, &
     write_to_field_multopt_mesh_dp_2D_c_notime
+  use assertions_basic
+  use tests_main
 
   implicit none
 
@@ -126,6 +128,9 @@ contains
     call open_existing_netcdf_file_for_reading( trim(test_mesh_filename), ncid)
     call setup_mesh_from_file( test_mesh_filename, ncid, mesh)
     call close_netcdf_file( ncid)
+
+    ! Check mesh self-consistency
+    call assert( test_mesh_is_self_consistent( mesh), 'mesh is not self-consistent')
 
     ! Run all the mapping tests with different test functions
 
