@@ -29,6 +29,48 @@ CONTAINS
 ! ===== Subroutines =====
 ! =======================
 
+  subroutine find_corner_vertices( mesh)
+
+    ! In/output variables:
+    type(type_mesh), intent(inout) :: mesh
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'find_corner_vertices'
+    integer                        :: vi
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    mesh%vi_SW = 0
+    mesh%vi_SE = 0
+    mesh%vi_NW = 0
+    mesh%vi_NE = 0
+
+    do vi = 1, mesh%nV
+      if     (mesh%VBI( vi) == 6) then
+        mesh%vi_SW = vi
+      elseif (mesh%VBI( vi) == 4) then
+        mesh%vi_SE = vi
+      elseif (mesh%VBI( vi) == 8) then
+        mesh%vi_NW = vi
+      elseif (mesh%VBI( vi) == 2) then
+        mesh%vi_NE = vi
+      end if
+    end do
+
+    ! Safety
+#if (DO_ASSERTIONS)
+    call assert( test_ge_le( mesh%vi_SW, 1, mesh%nV), 'invalid value for mesh%vi_SW')
+    call assert( test_ge_le( mesh%vi_SE, 1, mesh%nV), 'invalid value for mesh%vi_SE')
+    call assert( test_ge_le( mesh%vi_NW, 1, mesh%nV), 'invalid value for mesh%vi_NW')
+    call assert( test_ge_le( mesh%vi_NE, 1, mesh%nV), 'invalid value for mesh%vi_NE')
+#endif
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine find_corner_vertices
+
 ! == Finding the vertices of a vertex' Voronoi cell
   SUBROUTINE calc_Voronoi_cell( mesh, vi, dx, Vor, Vor_vi, Vor_ti, nVor)
     ! Find the points spanning the Voronoi cell of vertex vi of the mesh.

@@ -164,6 +164,7 @@ contains
     res = res .and. is_self_consistent_Tri_C( mesh)
     res = res .and. is_self_consistent_triangle_duplicates( mesh)
     res = res .and. is_self_consistent_TriC( mesh)
+    res = res .and. is_self_consistent_VorC( mesh)
 
   end function test_mesh_is_self_consistent
 
@@ -640,5 +641,51 @@ contains
     end if
 
   end function is_border_edge
+
+  !> Check if the Voronoi mesh connectivity lists are self-consistent
+  pure function is_self_consistent_VorC( mesh) result(res)
+
+    ! In/output variables:
+    type(type_mesh), intent( in) :: mesh
+    logical                      :: res
+    ! Local variables:
+    integer :: vori, ci, vorj, cj, vork
+    logical :: lists_vori
+
+    res = .true.
+
+    if (.not. allocated( mesh%VornC)) return
+
+    do vori = 1, mesh%nVor
+
+      ! Check consistency between VornC and VorC
+      do ci = 1, mesh%VornC( vori)
+        if (mesh%VorC( vori,ci) == 0) res = .false.
+      end do
+      do ci = mesh%VornC( vori)+1, 3
+        if (mesh%VorC( vori,ci) > 0) res = .false.
+      end do
+
+      ! Check self-consistency of VorC
+      do ci = 1, mesh%VornC( vori)
+        vorj = mesh%VorC( vori,ci)
+        if (vorj < 1 .or. vorj > mesh%nVor) then
+          ! res = .false.
+          cycle
+        end if
+        lists_vori = .false.
+        do cj = 1, mesh%VornC( vorj)
+          vork = mesh%VorC( vorj,cj)
+          if (vork == vori) then
+            lists_vori = .true.
+            exit
+          end if
+        end do
+        if (.not. lists_vori) res = .false.
+      end do
+
+    end do
+
+  end function is_self_consistent_VorC
 
 end module tests_mesh
