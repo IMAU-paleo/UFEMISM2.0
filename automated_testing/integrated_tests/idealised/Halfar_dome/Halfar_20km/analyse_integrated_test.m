@@ -157,11 +157,8 @@ end
     single_run = add_cost_function_to_single_run( single_run, ...
       'rmse', 'sqrt( mean( (Hi( :,end) - Hi_analytical( :,end)).^2 ))', RMSE_Hi);
     
-    % Write to temporary scoreboard file
-    filename_temporary_scoreboard_file = [foldername_test ...
-      '/scoreboard_temp_' strrep( test_path, '/', '_') '_' test_name '.xml'];
-    all_runs.single_run = single_run;
-    write_scoreboard_file( all_runs, filename_temporary_scoreboard_file);
+    % Write to scoreboard file
+    write_scoreboard_file( foldername_automated_testing, single_run);
   
   end
   
