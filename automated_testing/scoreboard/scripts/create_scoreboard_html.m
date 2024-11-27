@@ -71,6 +71,7 @@ fclose( fid);
   function scoreboard = read_scoreboard_files( foldername_scoreboard)
     % Read all the scoreboard files
 
+    % List all the scoreboard .xml files
     list_of_files = dir( foldername_scoreboard);
     i = 1;
     while i <= length( list_of_files)
@@ -81,11 +82,33 @@ fclose( fid);
       end
     end
 
+    % For each test, list all runs of that test (identified by their
+    % individual git hash strings)
+
+    all_tests = [];
+
     for i = 1: length( list_of_files)
-      % For each individual component/integrated tests, the results of all
-      % the runs of that test
-      disp(['  Reading scoreboard file ' list_of_files( i).name '...'])
-      all_tests(i) = read_scoreboard_file( [foldername_scoreboard '/' list_of_files( i).name]);
+
+      filename = list_of_files(i).name;
+
+      % Read single test run
+      single_run = read_scoreboard_file( filename);
+
+      % Check if this test is already listed
+      foundit = false;
+      for ii = 1: length( all_tests)
+        if strcmp( all_tests(ii).single_run(1).category, single_run.category) && ...
+            strcmp( all_tests(ii).single_run(1).name, single_run.name)
+          % Add single run to this test
+          foundit = true;
+          all_tests(ii).single_run(end+1) = single_run;
+        end
+      end
+      % If not, add it
+      if ~foundit
+        all_tests(end+1).single_run = single_run;
+      end
+
     end
 
     scoreboard = categorise_test_results( all_tests);
