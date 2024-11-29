@@ -116,6 +116,7 @@ UFEMISM_source = \
   basic/mpi_distributed_memory.f90 \
   basic/math_utilities/math_utilities.f90 \
   basic/math_utilities/tridiagonal_solver.f90 \
+  basic/math_utilities/shape_functions.f90 \
   basic/analytical_solutions.f90 \
   basic/CSR_sparse_matrix_utilities.f90 \
   basic/petsc_basic.f90 \

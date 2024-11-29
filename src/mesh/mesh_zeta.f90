@@ -13,7 +13,7 @@ MODULE mesh_zeta
   USE reallocate_mod                                         , ONLY: reallocate
   USE mesh_types                                             , ONLY: type_mesh
   USE CSR_sparse_matrix_utilities                            , ONLY: allocate_matrix_CSR_loc, add_entry_CSR_dist
-  USE math_utilities                                         , ONLY: calc_shape_functions_1D_reg_2nd_order
+  use shape_functions, only: calc_shape_functions_1D_reg_2nd_order
 
   IMPLICIT NONE
 
