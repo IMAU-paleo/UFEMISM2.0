@@ -18,7 +18,6 @@ MODULE basal_hydrology
   USE ice_model_types                                        , ONLY: type_ice_model
   USE reference_geometry_types                               , ONLY: type_reference_geometry
   USE basal_inversion_types                                  , ONLY: type_hydrology_inversion
-  USE reallocate_mod                                         , ONLY: reallocate_clean_dp_1D
   USE mesh_utilities                                         , ONLY: find_containing_vertex, find_containing_triangle, extrapolate_Gaussian
   USE math_utilities                                         , ONLY: triangle_area, is_floating
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_1D, gather_to_all_logical_1D

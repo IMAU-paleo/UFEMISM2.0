@@ -1,228 +1,279 @@
-MODULE reallocate_mod
+module reallocate_mod
 
-  ! Interfaces that facilitate easy extension/cropping of ALLOCATEd memory for arrays
+  ! interfaces that facilitate easy extension/cropping of allocated memory for arrays
 
-! ===== Preamble =====
-! ====================
+  use precisions, only: dp, int8
 
-  USE precisions                                             , ONLY: dp
+  implicit none
 
-  IMPLICIT NONE
+  private
 
-! ===== Interfaces =====
-! ======================
+  public :: reallocate, reallocate_bounds, reallocate_clean
 
-  INTERFACE reallocate
-    PROCEDURE :: reallocate_dp_1D
-    PROCEDURE :: reallocate_dp_2D
-    PROCEDURE :: reallocate_int_1D
-    PROCEDURE :: reallocate_int_2D
-  END INTERFACE
+  interface reallocate
+    procedure :: reallocate_dp_1D
+    procedure :: reallocate_dp_2D
+    procedure :: reallocate_int_1D
+    procedure :: reallocate_int_2D
+    procedure :: reallocate_int8_1D
+    procedure :: reallocate_logical_1D
+  end interface
 
-  INTERFACE reallocate_bounds
-    PROCEDURE :: reallocate_bounds_dp_1D
-    PROCEDURE :: reallocate_bounds_dp_2D
-    PROCEDURE :: reallocate_bounds_int_1D
-    PROCEDURE :: reallocate_bounds_int_2D
-    PROCEDURE :: reallocate_bounds_logical_1D
-  END INTERFACE
+  interface reallocate_bounds
+    procedure :: reallocate_bounds_dp_1D
+    procedure :: reallocate_bounds_dp_2D
+    procedure :: reallocate_bounds_int_1D
+    procedure :: reallocate_bounds_int_2D
+    procedure :: reallocate_bounds_logical_1D
+  end interface
 
-  INTERFACE reallocate_clean
-    PROCEDURE :: reallocate_clean_int_1D
-    PROCEDURE :: reallocate_clean_int_2D
-    PROCEDURE :: reallocate_clean_dp_1D
-    PROCEDURE :: reallocate_clean_dp_2D
-  END INTERFACE
+  interface reallocate_clean
+    procedure :: reallocate_clean_int_1D
+    procedure :: reallocate_clean_int_2D
+    procedure :: reallocate_clean_dp_1D
+    procedure :: reallocate_clean_dp_2D
+  end interface
 
-CONTAINS
+contains
 
-! ===== Subroutines =====
-! =======================
+  subroutine reallocate_dp_1D( array, newx, source)
+    ! allocate, swap pointer (bonus: implicit deallocate)
 
-  SUBROUTINE reallocate_dp_1D( array,newx)
-    ! ALLOCATE, swap pointer (bonus: implicit DEALLOCATE)
+    real(dp), allocatable, dimension(:), intent(inout)   :: array
+    integer                            , intent(in)      :: newx
+    real(dp),              optional    , intent(in)      :: source
 
-    IMPLICIT NONE
+    real(dp), allocatable, dimension(:) :: newarray
+    real(dp)                            :: source_
 
-    REAL(dp), ALLOCATABLE, DIMENSION(:), INTENT(INOUT)   :: array
-    INTEGER                            , INTENT(IN)      :: newx
-    REAL(dp), ALLOCATABLE, DIMENSION(:)                  :: newarray
+    if (present(source)) then
+      source_ = source
+    else
+      source_ = 0._dp
+    end if
 
-    ALLOCATE( newarray( newx), source = 0._dp)
-    newarray( 1: MIN( newx,SIZE( array,1))) = array(1: MIN( newx,SIZE( array,1)))
-    CALL MOVE_ALLOC( newarray, array)
+    allocate( newarray( newx), source = source_)
+    newarray( 1: min( newx,size( array,1))) = array(1: min( newx,size( array,1)))
+    call move_alloc( newarray, array)
 
-  END SUBROUTINE reallocate_dp_1D
+  end subroutine reallocate_dp_1D
 
-  SUBROUTINE reallocate_dp_2D( array,newx, newy)
-    ! ALLOCATE, swap pointer (bonus: implicit DEALLOCATE)
+  subroutine reallocate_dp_2D( array, newx, newy, source)
+    ! allocate, swap pointer (bonus: implicit deallocate)
 
-    IMPLICIT NONE
+    real(dp), allocatable, dimension(:,:), intent(inout) :: array
+    integer                              , intent(in)    :: newx
+    integer                              , intent(in)    :: newy
+    real(dp),              optional      , intent(in)    :: source
 
-    REAL(dp), ALLOCATABLE, DIMENSION(:,:), INTENT(INOUT) :: array
-    INTEGER                              , INTENT(IN)    :: newx
-    INTEGER                              , INTENT(IN)    :: newy
-    REAL(dp), ALLOCATABLE, DIMENSION(:,:)                :: newarray
+    real(dp), allocatable, dimension(:,:) :: newarray
+    real(dp)                              :: source_
 
-    ALLOCATE( newarray( newx,newy), source = 0._dp)
-    newarray( 1: MIN( newx,SIZE( array,1)),1: MIN( newy,SIZE( array,2))) &
-        = array(1: MIN( newx,SIZE( array,1)),1: MIN( newy,SIZE( array,2)))
-    CALL MOVE_ALLOC( newarray, array)
+    if (present(source)) then
+      source_ = source
+    else
+      source_ = 0._dp
+    end if
 
-  END SUBROUTINE reallocate_dp_2D
+    allocate( newarray( newx,newy), source = source_)
+    newarray( 1: min( newx,size( array,1)),1: min( newy,size( array,2))) &
+        = array(1: min( newx,size( array,1)),1: min( newy,size( array,2)))
+    call move_alloc( newarray, array)
 
-  SUBROUTINE reallocate_int_1D( array,newx)
-    ! ALLOCATE, swap pointer (bonus: implicit DEALLOCATE)
+  end subroutine reallocate_dp_2D
 
-    IMPLICIT NONE
+  subroutine reallocate_int_1D( array, newx, source)
+    ! allocate, swap pointer (bonus: implicit deallocate)
 
-    INTEGER,  ALLOCATABLE, DIMENSION(:), INTENT(INOUT)   :: array
-    INTEGER                            , INTENT(IN)      :: newx
-    INTEGER,  ALLOCATABLE, DIMENSION(:)                  :: newarray
+    integer,  allocatable, dimension(:), intent(inout) :: array
+    integer                            , intent(in)    :: newx
+    integer,               optional,     intent(in)    :: source
 
-    ALLOCATE( newarray( newx), source = 0)
-    newarray( 1: MIN( newx,SIZE( array,1))) = array(1: MIN( newx,SIZE( array,1)))
-    CALL MOVE_ALLOC( newarray, array)
+    integer,  allocatable, dimension(:) :: newarray
+    integer                             :: source_
 
-  END SUBROUTINE reallocate_int_1D
+    if (present(source)) then
+      source_ = source
+    else
+      source_ = 0
+    end if
 
-  SUBROUTINE reallocate_int_2D( array,newx, newy)
-    ! ALLOCATE, swap pointer (bonus: implicit DEALLOCATE)
+    allocate( newarray( newx), source = source_)
+    newarray( 1: min( newx,size( array,1))) = array(1: min( newx,size( array,1)))
+    call move_alloc( newarray, array)
 
-    IMPLICIT NONE
+  end subroutine reallocate_int_1D
 
-    INTEGER,  ALLOCATABLE, DIMENSION(:,:), INTENT(INOUT) :: array
-    INTEGER                              , INTENT(IN)    :: newx
-    INTEGER                              , INTENT(IN)    :: newy
-    INTEGER,  ALLOCATABLE, DIMENSION(:,:)                :: newarray
+  subroutine reallocate_int_2D( array, newx, newy, source)
+    ! allocate, swap pointer (bonus: implicit deallocate)
 
-    ALLOCATE( newarray( newx,newy), source = 0)
-    newarray( 1: MIN( newx,SIZE( array,1)),1: MIN( newy,SIZE( array,2))) &
-        = array(1: MIN( newx,SIZE( array,1)),1: MIN( newy,SIZE( array,2)))
-    CALL MOVE_ALLOC( newarray, array)
+    integer,  allocatable, dimension(:,:), intent(inout) :: array
+    integer                              , intent(in)    :: newx
+    integer                              , intent(in)    :: newy
+    integer,               optional,       intent(in)    :: source
 
-  END SUBROUTINE reallocate_int_2D
+    integer,  allocatable, dimension(:,:) :: newarray
+    integer                               :: source_
 
-  SUBROUTINE reallocate_bounds_dp_1D( array,start,stop)
-    ! ALLOCATE, swap pointer (bonus: implicit DEALLOCATE)
+    if (present(source)) then
+      source_ = source
+    else
+      source_ = 0
+    end if
 
-    IMPLICIT NONE
+    allocate( newarray( newx,newy), source = source_)
+    newarray( 1: min( newx,size( array,1)),1: min( newy,size( array,2))) &
+        = array(1: min( newx,size( array,1)),1: min( newy,size( array,2)))
+    call move_alloc( newarray, array)
 
-    REAL(dp), ALLOCATABLE, DIMENSION(:), INTENT(INOUT)   :: array
-    INTEGER                            , INTENT(IN)      :: start, stop
-    REAL(dp), ALLOCATABLE, DIMENSION(:)                  :: newarray
+  end subroutine reallocate_int_2D
 
-    ALLOCATE( newarray( start:stop), source = 0._dp)
-    CALL MOVE_ALLOC( newarray, array)
+  subroutine reallocate_int8_1D( array, newx, source)
+    ! allocate, swap pointer (bonus: implicit deallocate)
 
-  END SUBROUTINE reallocate_bounds_dp_1D
+    integer(int8),  allocatable, dimension(:), intent(inout) :: array
+    integer                                  , intent(in)    :: newx
+    integer(int8),               optional,     intent(in)    :: source
 
-  SUBROUTINE reallocate_bounds_dp_2D( array,start,stop,d2)
-    ! ALLOCATE, swap pointer (bonus: implicit DEALLOCATE)
+    integer(int8),  allocatable, dimension(:) :: newarray
+    integer(int8)                             :: source_
 
-    IMPLICIT NONE
+    if (present(source)) then
+      source_ = source
+    else
+      source_ = 0_int8
+    end if
 
-    REAL(dp), ALLOCATABLE, DIMENSION(:,:), INTENT(INOUT) :: array
-    INTEGER                              , INTENT(IN)    :: start, stop, d2
-    REAL(dp), ALLOCATABLE, DIMENSION(:,:)                :: newarray
+    allocate( newarray( newx), source = source_)
+    newarray( 1: min( newx,size( array,1))) = array(1: min( newx,size( array,1)))
+    call move_alloc( newarray, array)
 
-    ALLOCATE( newarray( start:stop,d2), source = 0._dp)
-    CALL MOVE_ALLOC( newarray, array)
+  end subroutine reallocate_int8_1D
 
-  END SUBROUTINE reallocate_bounds_dp_2D
+  subroutine reallocate_logical_1D( array, newx, source)
+    ! allocate, swap pointer (bonus: implicit deallocate)
 
-  SUBROUTINE reallocate_bounds_int_1D( array,start,stop)
-    ! ALLOCATE, swap pointer (bonus: implicit DEALLOCATE)
+    logical,  allocatable, dimension(:), intent(inout) :: array
+    integer                            , intent(in)    :: newx
+    logical,               optional,     intent(in)    :: source
 
-    IMPLICIT NONE
+    logical,  allocatable, dimension(:) :: newarray
+    logical                             :: source_
 
-    INTEGER , ALLOCATABLE, DIMENSION(:), INTENT(INOUT)   :: array
-    INTEGER                            , INTENT(IN)      :: start, stop
-    INTEGER , ALLOCATABLE, DIMENSION(:)                  :: newarray
+    if (present(source)) then
+      source_ = source
+    else
+      source_ = .false.
+    end if
 
-    ALLOCATE( newarray( start:stop), source = 0)
-    CALL MOVE_ALLOC( newarray, array)
+    allocate( newarray( newx), source = source_)
+    newarray( 1: min( newx,size( array,1))) = array(1: min( newx,size( array,1)))
+    call move_alloc( newarray, array)
 
-  END SUBROUTINE reallocate_bounds_int_1D
+  end subroutine reallocate_logical_1D
 
-  SUBROUTINE reallocate_bounds_int_2D( array,start,stop,d2)
-    ! ALLOCATE, swap pointer (bonus: implicit DEALLOCATE)
+  subroutine reallocate_bounds_dp_1D( array,start,stop)
+    ! allocate, swap pointer (bonus: implicit deallocate)
 
-    IMPLICIT NONE
+    real(dp), allocatable, dimension(:), intent(inout)   :: array
+    integer                            , intent(in)      :: start, stop
+    real(dp), allocatable, dimension(:)                  :: newarray
 
-    INTEGER , ALLOCATABLE, DIMENSION(:,:), INTENT(INOUT) :: array
-    INTEGER                              , INTENT(IN)    :: start, stop, d2
-    INTEGER , ALLOCATABLE, DIMENSION(:,:)                :: newarray
+    allocate( newarray( start:stop), source = 0._dp)
+    call move_alloc( newarray, array)
 
-    ALLOCATE( newarray( start:stop,d2), source = 0)
-    CALL MOVE_ALLOC( newarray, array)
+  end subroutine reallocate_bounds_dp_1D
 
-  END SUBROUTINE reallocate_bounds_int_2D
+  subroutine reallocate_bounds_dp_2D( array,start,stop,d2)
+    ! allocate, swap pointer (bonus: implicit deallocate)
 
-  SUBROUTINE reallocate_bounds_logical_1D( array,start,stop)
-    ! ALLOCATE, swap pointer (bonus: implicit DEALLOCATE)
+    real(dp), allocatable, dimension(:,:), intent(inout) :: array
+    integer                              , intent(in)    :: start, stop, d2
+    real(dp), allocatable, dimension(:,:)                :: newarray
 
-    IMPLICIT NONE
+    allocate( newarray( start:stop,d2), source = 0._dp)
+    call move_alloc( newarray, array)
 
-    LOGICAL , ALLOCATABLE, DIMENSION(:), INTENT(INOUT)   :: array
-    INTEGER                            , INTENT(IN)      :: start, stop
-    LOGICAL , ALLOCATABLE, DIMENSION(:)                  :: newarray
+  end subroutine reallocate_bounds_dp_2D
 
-    ALLOCATE( newarray( start:stop), source = .FALSE.)
-    CALL MOVE_ALLOC( newarray, array)
+  subroutine reallocate_bounds_int_1D( array,start,stop)
+    ! allocate, swap pointer (bonus: implicit deallocate)
 
-  END SUBROUTINE reallocate_bounds_logical_1D
+    integer , allocatable, dimension(:), intent(inout)   :: array
+    integer                            , intent(in)      :: start, stop
+    integer , allocatable, dimension(:)                  :: newarray
 
-  SUBROUTINE reallocate_clean_int_1D( d, n1)
-    ! Allocate new, clean memory for d
+    allocate( newarray( start:stop), source = 0)
+    call move_alloc( newarray, array)
 
-    IMPLICIT NONE
+  end subroutine reallocate_bounds_int_1D
 
-    INTEGER,  ALLOCATABLE, DIMENSION(:), INTENT(INOUT)   :: d
-    INTEGER                            , INTENT(IN)      :: n1
+  subroutine reallocate_bounds_int_2D( array,start,stop,d2)
+    ! allocate, swap pointer (bonus: implicit deallocate)
 
-    DEALLOCATE( d)
-    ALLOCATE( d( n1), source = 0)
+    integer , allocatable, dimension(:,:), intent(inout) :: array
+    integer                              , intent(in)    :: start, stop, d2
+    integer , allocatable, dimension(:,:)                :: newarray
 
-  END SUBROUTINE reallocate_clean_int_1D
+    allocate( newarray( start:stop,d2), source = 0)
+    call move_alloc( newarray, array)
 
-  SUBROUTINE reallocate_clean_int_2D( d, n1, n2)
-    ! Allocate new, clean memory for d
+  end subroutine reallocate_bounds_int_2D
 
-    IMPLICIT NONE
+  subroutine reallocate_bounds_logical_1D( array,start,stop)
+    ! allocate, swap pointer (bonus: implicit deallocate)
 
-    INTEGER,  ALLOCATABLE, DIMENSION(:,:), INTENT(INOUT)   :: d
-    INTEGER                              , INTENT(IN)      :: n1, n2
+    LOGICAL , allocatable, dimension(:), intent(inout)   :: array
+    integer                            , intent(in)      :: start, stop
+    LOGICAL , allocatable, dimension(:)                  :: newarray
 
-    DEALLOCATE( d)
-    ALLOCATE( d( n1, n2), source = 0)
+    allocate( newarray( start:stop), source = .FALSE.)
+    call move_alloc( newarray, array)
 
-  END SUBROUTINE reallocate_clean_int_2D
+  end subroutine reallocate_bounds_logical_1D
 
-  SUBROUTINE reallocate_clean_dp_1D( d, n1)
-    ! Allocate new, clean memory for d
+  subroutine reallocate_clean_int_1D( d, n1)
+    ! allocate new, clean memory for d
 
-    IMPLICIT NONE
+    integer,  allocatable, dimension(:), intent(inout)   :: d
+    integer                            , intent(in)      :: n1
 
-    REAL(dp), ALLOCATABLE, DIMENSION(:), INTENT(INOUT)   :: d
-    INTEGER                            , INTENT(IN)      :: n1
+    deallocate( d)
+    allocate( d( n1), source = 0)
 
-    DEALLOCATE( d)
-    ALLOCATE( d( n1), source = 0._dp)
+  end subroutine reallocate_clean_int_1D
 
-  END SUBROUTINE reallocate_clean_dp_1D
+  subroutine reallocate_clean_int_2D( d, n1, n2)
+    ! allocate new, clean memory for d
 
-  SUBROUTINE reallocate_clean_dp_2D( d, n1, n2)
-    ! Allocate new, clean memory for d
+    integer,  allocatable, dimension(:,:), intent(inout)   :: d
+    integer                              , intent(in)      :: n1, n2
 
-    IMPLICIT NONE
+    deallocate( d)
+    allocate( d( n1, n2), source = 0)
 
-    REAL(dp), ALLOCATABLE, DIMENSION(:,:), INTENT(INOUT)   :: d
-    INTEGER                              , INTENT(IN)      :: n1, n2
+  end subroutine reallocate_clean_int_2D
 
-    DEALLOCATE( d)
-    ALLOCATE( d( n1, n2), source = 0._dp)
+  subroutine reallocate_clean_dp_1D( d, n1)
+    ! allocate new, clean memory for d
 
-  END SUBROUTINE reallocate_clean_dp_2D
+    real(dp), allocatable, dimension(:), intent(inout)   :: d
+    integer                            , intent(in)      :: n1
 
-END MODULE reallocate_mod
+    deallocate( d)
+    allocate( d( n1), source = 0._dp)
+
+  end subroutine reallocate_clean_dp_1D
+
+  subroutine reallocate_clean_dp_2D( d, n1, n2)
+    ! allocate new, clean memory for d
+
+    real(dp), allocatable, dimension(:,:), intent(inout)   :: d
+    integer                              , intent(in)      :: n1, n2
+
+    deallocate( d)
+    allocate( d( n1, n2), source = 0._dp)
+
+  end subroutine reallocate_clean_dp_2D
+
+end module reallocate_mod

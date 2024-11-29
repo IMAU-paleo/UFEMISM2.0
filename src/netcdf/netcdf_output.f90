@@ -30,12 +30,15 @@ MODULE netcdf_output
   USE netcdf_basic, ONLY: nerr, field_name_options_x, field_name_options_y, field_name_options_zeta, &
                           field_name_options_lon, field_name_options_lat, field_name_options_time, field_name_options_month, field_name_options_depth, &
                           field_name_options_dim_nV, field_name_options_dim_nTri, field_name_options_dim_nC_mem, &
-                          field_name_options_dim_nE, field_name_options_dim_two, field_name_options_dim_three, &
+                          field_name_options_dim_nE, field_name_options_dim_nVor, field_name_options_dim_two, field_name_options_dim_three, &
                           field_name_options_dim_four, field_name_options_V, field_name_options_Tri, field_name_options_nC, &
                           field_name_options_C, field_name_options_niTri, field_name_options_iTri, &
                           field_name_options_VBI, field_name_options_Tricc, field_name_options_TriC, field_name_options_TriGC, &
                           field_name_options_TriBI, field_name_options_E, field_name_options_VE, field_name_options_EV, &
-                          field_name_options_ETri, field_name_options_EBI, field_name_options_A, field_name_options_R, &
+                          field_name_options_ETri, field_name_options_EBI, field_name_options_vi2vori, field_name_options_ti2vori, &
+                          field_name_options_ei2vori, field_name_options_vori2vi, field_name_options_vori2ti, field_name_options_vori2ei, &
+                          field_name_options_Vor, field_name_options_VornC, field_name_options_VorC, field_name_options_nVVor, &
+                          field_name_options_VVor, field_name_options_A, field_name_options_R, &
                           field_name_options_Hi, field_name_options_Hb, field_name_options_Hs, field_name_options_dHb, &
                           field_name_options_SL, field_name_options_Ti, get_first_option_from_list, &
                           open_existing_netcdf_file_for_reading, close_netcdf_file, &
@@ -2605,6 +2608,7 @@ CONTAINS
     INTEGER                                            :: id_dim_ti
     INTEGER                                            :: id_dim_ci
     INTEGER                                            :: id_dim_ei
+    INTEGER                                            :: id_dim_vori
     INTEGER                                            :: id_dim_two
     INTEGER                                            :: id_dim_three
     INTEGER                                            :: id_dim_four
@@ -2636,6 +2640,18 @@ CONTAINS
     INTEGER                                            :: id_var_ETri
     INTEGER                                            :: id_var_EBI
 
+    INTEGER                                            :: id_var_vi2vori
+    INTEGER                                            :: id_var_ti2vori
+    INTEGER                                            :: id_var_ei2vori
+    INTEGER                                            :: id_var_vori2vi
+    INTEGER                                            :: id_var_vori2ti
+    INTEGER                                            :: id_var_vori2ei
+    INTEGER                                            :: id_var_Vor
+    INTEGER                                            :: id_var_VornC
+    INTEGER                                            :: id_var_VorC
+    INTEGER                                            :: id_var_nVVor
+    INTEGER                                            :: id_var_VVor
+
     INTEGER                                            :: id_var_TriGC
     INTEGER                                            :: id_var_R
     INTEGER                                            :: id_var_A
@@ -2649,7 +2665,8 @@ CONTAINS
     CALL create_dimension( filename, ncid, get_first_option_from_list( field_name_options_dim_nV    ), mesh%nV    , id_dim_vi   )
     CALL create_dimension( filename, ncid, get_first_option_from_list( field_name_options_dim_nTri  ), mesh%nTri  , id_dim_ti   )
     CALL create_dimension( filename, ncid, get_first_option_from_list( field_name_options_dim_nC_mem), mesh%nC_mem, id_dim_ci   )
-    CALL create_dimension( filename, ncid, get_first_option_from_list( field_name_options_dim_nE    ), mesh%nE    , id_dim_ei  )
+    CALL create_dimension( filename, ncid, get_first_option_from_list( field_name_options_dim_nE    ), mesh%nE    , id_dim_ei   )
+    CALL create_dimension( filename, ncid, get_first_option_from_list( field_name_options_dim_nVor  ), mesh%nVor  , id_dim_vori )
     CALL create_dimension( filename, ncid, get_first_option_from_list( field_name_options_dim_two   ), 2          , id_dim_two  )
     CALL create_dimension( filename, ncid, get_first_option_from_list( field_name_options_dim_three ), 3          , id_dim_three)
     CALL create_dimension( filename, ncid, get_first_option_from_list( field_name_options_dim_four  ), 4          , id_dim_four )
@@ -2767,6 +2784,44 @@ CONTAINS
     CALL add_attribute_char( filename, ncid, id_var_EBI           , 'long_name'  , 'Edge boundary index')
     CALL add_attribute_char( filename, ncid, id_var_EBI           , 'orientation', '1 = N, 2 = NE, 3 = E, 4 = SE, 5 = S, 6 = SW, 7 = W, 8 = NW')
 
+  ! == Create mesh variables - Voronoi mesh data
+  ! ============================================
+
+    ! vi2vori
+    call create_variable( filename, ncid, get_first_option_from_list( field_name_options_vi2vori), NF90_INT, (/ id_dim_vi /), id_var_vi2vori)
+    call add_attribute_char( filename, ncid, id_var_vi2vori, 'long_name' , 'Translation table from regular vertices to Voronoi vertices')
+    ! ti2vori
+    call create_variable( filename, ncid, get_first_option_from_list( field_name_options_ti2vori), NF90_INT, (/ id_dim_ti /), id_var_ti2vori)
+    call add_attribute_char( filename, ncid, id_var_ti2vori, 'long_name' , 'Translation table from triangles to Voronoi vertices')
+    ! ei2vori
+    call create_variable( filename, ncid, get_first_option_from_list( field_name_options_ei2vori), NF90_INT, (/ id_dim_ei /), id_var_ei2vori)
+    call add_attribute_char( filename, ncid, id_var_ei2vori, 'long_name' , 'Translation table from edges to Voronoi vertices')
+    ! vori2vi
+    call create_variable( filename, ncid, get_first_option_from_list( field_name_options_vori2vi), NF90_INT, (/ id_dim_vori /), id_var_vori2vi)
+    call add_attribute_char( filename, ncid, id_var_vori2vi, 'long_name' , 'Translation table from Voronoi vertices to regular vertices')
+    ! vori2ti
+    call create_variable( filename, ncid, get_first_option_from_list( field_name_options_vori2ti), NF90_INT, (/ id_dim_vori /), id_var_vori2ti)
+    call add_attribute_char( filename, ncid, id_var_vori2ti, 'long_name' , 'Translation table from Voronoi vertices to triangles')
+    ! vori2ei
+    call create_variable( filename, ncid, get_first_option_from_list( field_name_options_vori2ei), NF90_INT, (/ id_dim_vori /), id_var_vori2ei)
+    call add_attribute_char( filename, ncid, id_var_vori2ei, 'long_name' , 'Translation table from Voronoi vertices to edges')
+    ! Vor
+    call create_variable( filename, ncid, get_first_option_from_list( field_name_options_Vor), NF90_DOUBLE, (/ id_dim_vori, id_dim_two /), id_var_Vor)
+    call add_attribute_char( filename, ncid, id_var_Vor, 'long_name' , 'Voronoi vertex coordinates')
+    CALL add_attribute_char( filename, ncid, id_var_Vor, 'units', 'm')
+    ! VornC
+    call create_variable( filename, ncid, get_first_option_from_list( field_name_options_VornC), NF90_INT, (/ id_dim_vori /), id_var_VornC)
+    call add_attribute_char( filename, ncid, id_var_VornC, 'long_name' , 'Number of Voronoi vertex connections')
+    ! VorC
+    call create_variable( filename, ncid, get_first_option_from_list( field_name_options_VorC), NF90_INT, (/ id_dim_vori, id_dim_three /), id_var_VorC)
+    call add_attribute_char( filename, ncid, id_var_VorC, 'long_name' , 'Indices of Voronoi vertex connections')
+    ! nVVor
+    call create_variable( filename, ncid, get_first_option_from_list( field_name_options_nVVor), NF90_INT, (/ id_dim_vi /), id_var_nVVor)
+    call add_attribute_char( filename, ncid, id_var_nVVor, 'long_name' , 'Number of Voronoi vertices spanning each Voronoi cell')
+    ! VVor
+    call create_variable( filename, ncid, get_first_option_from_list( field_name_options_VVor), NF90_INT, (/ id_dim_vi, id_dim_ci /), id_var_VVor)
+    call add_attribute_char( filename, ncid, id_var_VVor, 'long_name' , 'Indices of Voronoi vertices spanning each Voronoi cell')
+
   ! == Create mesh variables - secondary geometry data
   ! ==================================================
 
@@ -2821,6 +2876,19 @@ CONTAINS
     CALL write_var_master_int_2D(   filename, ncid, id_var_ETri       , mesh%ETri       )
     CALL write_var_master_int_1D(   filename, ncid, id_var_EBI        , mesh%EBI        )
 
+    ! Voronoi mesh data
+    call write_var_master_int_1D(   filename, ncid, id_var_vi2vori    , mesh%vi2vori    )
+    call write_var_master_int_1D(   filename, ncid, id_var_ti2vori    , mesh%ti2vori    )
+    call write_var_master_int_1D(   filename, ncid, id_var_ei2vori    , mesh%ei2vori    )
+    call write_var_master_int_1D(   filename, ncid, id_var_vori2vi    , mesh%vori2vi    )
+    call write_var_master_int_1D(   filename, ncid, id_var_vori2ti    , mesh%vori2ti    )
+    call write_var_master_int_1D(   filename, ncid, id_var_vori2ei    , mesh%vori2ei    )
+    call write_var_master_dp_2D(    filename, ncid, id_var_Vor        , mesh%Vor        )
+    call write_var_master_int_1D(   filename, ncid, id_var_VornC      , mesh%VornC      )
+    call write_var_master_int_2D(   filename, ncid, id_var_VorC       , mesh%VorC       )
+    call write_var_master_int_1D(   filename, ncid, id_var_nVVor      , mesh%nVVor      )
+    call write_var_master_int_2D(   filename, ncid, id_var_VVor       , mesh%VVor       )
+
     ! Secondary geometry data
     CALL write_var_master_dp_2D(    filename, ncid, id_var_TriGC      , mesh%TriGC      )
     CALL write_var_master_dp_1D(    filename, ncid, id_var_R          , mesh%R          )
@@ -2847,7 +2915,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'setup_CDF_in_netcdf_file'
 
-    INTEGER                                            :: id_dim_vi, id_dim_ti, id_dim_bin, dummy
+    INTEGER                                            :: id_dim_vi, id_dim_ti, id_dim_bin
     INTEGER                                            :: id_var_cdf, id_var_cdf_b
 
     ! Add routine to path

@@ -19,6 +19,7 @@ MODULE region_types
   USE GIA_model_types                                        , ONLY: type_GIA_model
   USE basal_inversion_types                                  , ONLY: type_basal_inversion, type_hydrology_inversion
   USE scalar_types                                           , ONLY: type_regional_scalars
+  use tracer_tracking_model_types, only: type_tracer_tracking_model
 
   IMPLICIT NONE
 
@@ -76,6 +77,9 @@ MODULE region_types
 
     ! The basal hydrology inversion model
     TYPE(type_hydrology_inversion)          :: HIV
+
+    ! The tracer tracking model
+    type(type_tracer_tracking_model)        :: tracer_tracking
 
     ! Scalar data
     TYPE(type_regional_scalars)             :: scalars                     ! Scalar data (e.g. total area, volume, mass balance)

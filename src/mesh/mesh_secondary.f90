@@ -14,7 +14,7 @@ MODULE mesh_secondary
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
   USE mesh_types                                             , ONLY: type_mesh
-  USE mesh_utilities                                         , ONLY: calc_Voronoi_cell, find_shared_Voronoi_boundary
+  USE mesh_utilities                                         , ONLY: calc_Voronoi_cell, find_shared_Voronoi_boundary, find_corner_vertices
   USE math_utilities                                         , ONLY: cross2, line_integral_xdy, line_integral_xydy, line_integral_mxydx, triangle_area, &
                                                                      geometric_center, inverse_oblique_sg_projection
   USE mesh_edges                                             , ONLY: construct_mesh_edges
@@ -23,6 +23,7 @@ MODULE mesh_secondary
                                                                      calc_matrix_operators_mesh_b_a, calc_matrix_operators_mesh_b_b, calc_matrix_operators_mesh_b_c, &
                                                                      calc_matrix_operators_mesh_c_a, calc_matrix_operators_mesh_c_b, calc_matrix_operators_mesh_c_c
   USE mesh_zeta                                              , ONLY: initialise_scaled_vertical_coordinate
+  use mesh_Voronoi, only: construct_Voronoi_mesh
 
   IMPLICIT NONE
 
@@ -50,6 +51,8 @@ CONTAINS
 
     ! Secondary geometry data
     CALL construct_mesh_edges(                  mesh)
+    call find_corner_vertices(                  mesh)
+    call construct_Voronoi_mesh(                mesh)
     CALL calc_TriBI(                            mesh)
     CALL calc_Voronoi_cell_areas(               mesh)
     CALL calc_Voronoi_cell_geometric_centres(   mesh)

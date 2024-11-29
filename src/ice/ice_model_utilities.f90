@@ -2427,6 +2427,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'MISMIPplus_adapt_flow_factor'
     REAL(dp), DIMENSION(2)                             :: pp,qq
+    integer                                            :: ti_in
     REAL(dp)                                           :: TAFp,TAFq,lambda_GL, x_GL
     REAL(dp)                                           :: A_flow_old, f, A_flow_new
 
@@ -2443,11 +2444,12 @@ CONTAINS
     qq = pp
     TAFp = 1._dp
     TAFq = 1._dp
+    ti_in = 1
     DO WHILE (TAFp * TAFq > 0._dp)
       pp   = qq
       TAFp = TAFq
       qq = pp + [C%maximum_resolution_grounding_line, 0._dp]
-      CALL interpolate_to_point_dp_2D( mesh, ice%TAF, qq, TAFq)
+      CALL interpolate_to_point_dp_2D( mesh, ice%TAF, qq, ti_in, TAFq)
     END DO
 
     lambda_GL = TAFp / (TAFp - TAFq)

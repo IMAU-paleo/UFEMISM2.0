@@ -41,7 +41,7 @@ MODULE UFEMISM_main_model
   USE basal_inversion_main                                   , ONLY: initialise_basal_inversion, run_basal_inversion
   USE netcdf_basic                                           , ONLY: open_existing_netcdf_file_for_reading, close_netcdf_file
   USE netcdf_input                                           , ONLY: setup_mesh_from_file
-  USE mesh_creation                                          , ONLY: create_mesh_from_gridded_geometry, create_mesh_from_meshed_geometry, write_mesh_success
+  USE mesh_creation_main                                     , ONLY: create_mesh_from_gridded_geometry, create_mesh_from_meshed_geometry, write_mesh_success
   USE mesh_operators                                         , ONLY: calc_all_matrix_operators_mesh
   USE grid_basic                                             , ONLY: setup_square_grid
   USE main_regional_output                                   , ONLY: create_main_regional_output_file_mesh,   create_main_regional_output_file_grid, &
@@ -54,6 +54,7 @@ MODULE UFEMISM_main_model
   use apply_maps, only: clear_all_maps_involving_this_mesh
   USE mesh_memory                                            , ONLY: deallocate_mesh
   USE ice_model_scalars                                      , ONLY: calc_ice_model_scalars
+  use tracer_tracking_model_main, only: initialise_tracer_tracking_model
 
   IMPLICIT NONE
 
@@ -502,6 +503,11 @@ CONTAINS
     ! ===================================
 
     CALL initialise_AMB_model( region%mesh, region%AMB)
+
+    ! ===== Tracer tracking model =====
+    ! =================================
+
+    ! call initialise_tracer_tracking_model( region%mesh, region%ice, region%tracer_tracking)
 
     ! ===== Run the climate, ocean, SMB, BMB, and LMB models =====
     ! ============================================================
