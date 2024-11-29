@@ -201,8 +201,8 @@ contains
       end do
 
       ! Fill in masks for floating/grounded ice
-      allocate( mask_sheet( grid%nx, grid%ny), source = .false)
-      allocate( mask_shelf( grid%nx, grid%ny), source = .false)
+      allocate( mask_sheet( grid%nx, grid%ny), source = .false.)
+      allocate( mask_shelf( grid%nx, grid%ny), source = .false.)
 
       do i = 1, grid%nx
       do j = 1, grid%ny
@@ -217,10 +217,10 @@ contains
       end do
 
       ! Fill in masks for where to calculate lines
-      allocate( mask_calc_grounding_line( grid%nx, grid%ny), source = .false)
-      allocate( mask_calc_calving_front(  grid%nx, grid%ny), source = .false)
-      allocate( mask_calc_ice_front(      grid%nx, grid%ny), source = .false)
-      allocate( mask_calc_coastline(      grid%nx, grid%ny), source = .false)
+      allocate( mask_calc_grounding_line( grid%nx, grid%ny), source = .false.)
+      allocate( mask_calc_calving_front(  grid%nx, grid%ny), source = .false.)
+      allocate( mask_calc_ice_front(      grid%nx, grid%ny), source = .false.)
+      allocate( mask_calc_coastline(      grid%nx, grid%ny), source = .false.)
 
       do i = 1, grid%nx
       do j = 1, grid%ny
@@ -408,8 +408,8 @@ contains
       end do
 
       ! Fill in masks for floating/grounded ice
-      allocate( mask_sheet( mesh%nV), source = .false)
-      allocate( mask_shelf( mesh%nV), source = .false)
+      allocate( mask_sheet( mesh%nV), source = .false.)
+      allocate( mask_shelf( mesh%nV), source = .false.)
 
       do vi = 1, mesh%nV
         if (Hi_tot( vi) > 0.1_dp) then
@@ -422,9 +422,9 @@ contains
       end do
 
       ! Fill in masks for where to calculate lines
-      allocate( mask_calc_grounding_line( mesh%nV), source = .false)
-      allocate( mask_calc_calving_front ( mesh%nV), source = .false)
-      allocate( mask_calc_coastline     ( mesh%nV), source = .false)
+      allocate( mask_calc_grounding_line( mesh%nV), source = .false.)
+      allocate( mask_calc_calving_front ( mesh%nV), source = .false.)
+      allocate( mask_calc_coastline     ( mesh%nV), source = .false.)
 
       do vi = 1, mesh%nV
 
