@@ -1,4 +1,4 @@
-MODULE mesh_creation
+MODULE mesh_creation_main
 
   ! Routines used to create a mesh.
 
@@ -1102,4 +1102,4 @@ CONTAINS
 
   END SUBROUTINE write_mesh_success
 
-END MODULE mesh_creation
+END MODULE mesh_creation_main
