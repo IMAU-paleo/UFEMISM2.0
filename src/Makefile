@@ -141,7 +141,7 @@ UFEMISM_source = \
   mesh/mesh_Lloyds_algorithm.f90 \
   mesh/mesh_parallel_creation.f90 \
   mesh/mesh_zeta.f90 \
-  mesh/mesh_operators.f90 \
+  mesh/discretisation/mesh_operators.f90 \
   mesh/remapping/line_tracing_basic.f90 \
   mesh/remapping/line_tracing_grid.f90 \
   mesh/remapping/line_tracing_triangles.f90 \
