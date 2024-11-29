@@ -13,7 +13,7 @@ jobs:
         run: |
           #brew install gcc                    # Not needed on GitHub server, already installed
           brew install open-mpi
-          brew install petsc
+          brew install petsc@3.15.1
           brew unlink hdf5-mpi                 # To fix the following conflict: "hdf5-mpi: because hdf5-mpi is a variant of hdf5, one can only use one or the other"
           brew install netcdf
           brew install netcdf-fortran
