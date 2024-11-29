@@ -18,7 +18,7 @@ MODULE ice_velocity_main
                                                                      type_ice_velocity_solver_DIVA, type_ice_velocity_solver_BPA, type_ice_velocity_solver_hybrid
   USE parameters
   USE reallocate_mod                                         , ONLY: reallocate_clean
-  USE mesh_operators                                         , ONLY: map_b_a_2D, map_b_a_3D, ddx_a_a_2D, ddy_a_a_2D, ddx_a_b_2D, ddy_a_b_2D
+  use mesh_disc_apply_operators, only: map_b_a_2D, map_b_a_3D, ddx_a_a_2D, ddy_a_a_2D, ddx_a_b_2D, ddy_a_b_2D
   USE ice_velocity_SIA                                       , ONLY: initialise_SIA_solver , solve_SIA , remap_SIA_solver
   USE ice_velocity_SSA                                       , ONLY: initialise_SSA_solver , solve_SSA , remap_SSA_solver , create_restart_file_SSA , write_to_restart_file_SSA
   USE ice_velocity_DIVA                                      , ONLY: initialise_DIVA_solver, solve_DIVA, remap_DIVA_solver, create_restart_file_DIVA, write_to_restart_file_DIVA
