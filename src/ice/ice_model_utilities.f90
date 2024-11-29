@@ -30,8 +30,8 @@ MODULE ice_model_utilities
   USE petsc_basic                                            , ONLY: mat_petsc2CSR
   USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp, deallocate_matrix_CSR_dist
   USE grid_basic                                             , ONLY: gather_gridded_data_to_master_dp_2D
-  USE mesh_operators                                         , ONLY: ddx_a_a_2D, ddy_a_a_2D, map_a_b_2D, ddx_a_b_2D, ddy_a_b_2D, &
-                                                                     ddx_b_a_2D, ddy_b_a_2D
+  use mesh_disc_apply_operators, only: ddx_a_a_2D, ddy_a_a_2D, map_a_b_2D, ddx_a_b_2D, ddy_a_b_2D, &
+    ddx_b_a_2D, ddy_b_a_2D
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_1D
   USE mesh_utilities                                         , ONLY: calc_Voronoi_cell, interpolate_to_point_dp_2D, extrapolate_Gaussian
   USE netcdf_input                                           , ONLY: read_field_from_mesh_file_3D_CDF, read_field_from_mesh_file_3D_b_CDF

@@ -15,7 +15,7 @@ module mesh_creation_from_reduced_geometry
   use mesh_contiguous_domains, only: enforce_contiguous_process_domains
   use mesh_parallel_creation, only: broadcast_mesh
   use mesh_secondary, only: calc_all_secondary_mesh_data
-  use mesh_operators, only: calc_all_matrix_operators_mesh
+  use mesh_disc_calc_matrix_operators_2D, only: calc_all_matrix_operators_mesh
   use mesh_creation_refine_in_ROIs, only: refine_mesh_in_regions_of_interest
 
   implicit none

@@ -30,7 +30,8 @@ MODULE ice_velocity_hybrid_DIVA_BPA
                                                                      calc_BPA_stiffness_matrix_row_BC_west, calc_BPA_stiffness_matrix_row_BC_east, &
                                                                      calc_BPA_stiffness_matrix_row_BC_south, calc_BPA_stiffness_matrix_row_BC_north, &
                                                                      calc_BPA_stiffness_matrix_row_BC_base, calc_BPA_stiffness_matrix_row_BC_surf
-  USE mesh_operators                                         , ONLY: calc_3D_matrix_operators_mesh, map_a_b_2D, map_b_a_2D, map_b_a_3D, map_a_b_3D
+  use mesh_disc_apply_operators, only: map_a_b_2D, map_b_a_2D, map_b_a_3D, map_a_b_3D
+  use mesh_disc_calc_matrix_operators_3D, only: calc_3D_matrix_operators_mesh
   use mesh_ROI_polygons
   USE math_utilities                                         , ONLY: is_in_polygon, is_in_polygons
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_logical_1D
