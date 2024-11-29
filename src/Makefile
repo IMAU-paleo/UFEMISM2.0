@@ -153,7 +153,10 @@ UFEMISM_source = \
   mesh/remapping/remapping_main.f90 \
   mesh/mesh_data_smoothing.f90 \
   mesh/mesh_secondary.f90 \
-  mesh/mesh_creation.f90 \
+  mesh/creation/reduce_ice_geometry.f90 \
+  mesh/creation/mesh_creation_refine_in_ROIs.f90 \
+  mesh/creation/mesh_creation_from_reduced_geometry.f90 \
+  mesh/creation/mesh_creation_main.f90 \
   \
   netcdf/netcdf_basic.f90 \
   netcdf/netcdf_debug.f90 \
