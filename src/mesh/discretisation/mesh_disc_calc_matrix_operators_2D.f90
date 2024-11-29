@@ -9,7 +9,7 @@ module mesh_disc_calc_matrix_operators_2D
     crop_matrix_CSR_dist
   use mesh_utilities, only: extend_group_single_iteration_a, extend_group_single_iteration_b, &
     extend_group_single_iteration_c
-  use math_utilities, only: calc_shape_functions_2D_reg_1st_order, &
+  use shape_functions, only: calc_shape_functions_2D_reg_1st_order, &
     calc_shape_functions_2D_reg_2nd_order, calc_shape_functions_2D_stag_1st_order
   use mesh_translation_tables, only: calc_field_to_vector_form_translation_tables
   use mesh_zeta, only: calc_vertical_operators_reg_1D, calc_vertical_operators_stag_1D, &
