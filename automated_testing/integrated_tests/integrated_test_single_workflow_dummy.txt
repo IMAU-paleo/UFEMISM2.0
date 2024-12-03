@@ -49,4 +49,4 @@ jobs:
         uses: actions/upload-artifact@v4.3.4
         with:
           name: scoreboard_file_!!test_name!!
-          path: automated_testing/temporary_scoreboard_files/*.xml
+          path: automated_testing/scoreboard/temporary_scoreboard_files/*.xml

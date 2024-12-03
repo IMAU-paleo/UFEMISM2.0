@@ -49,4 +49,4 @@ jobs:
         uses: actions/upload-artifact@v4.3.4
         with:
           name: scoreboard_file_integrated_tests_idealised_Halfar_dome_Halfar_static_20km
-          path: automated_testing/temporary_scoreboard_files/*.xml
+          path: automated_testing/scoreboard/temporary_scoreboard_files/*.xml
