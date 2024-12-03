@@ -51,7 +51,7 @@ MODULE ice_model_main
   USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp
   USE petsc_basic                                            , ONLY: mat_petsc2CSR
   USE BMB_main                                               , ONLY: run_BMB_model
-  USE mesh_operators                                         , ONLY: ddx_a_a_2D, ddy_a_a_2D
+  use mesh_disc_apply_operators, only: ddx_a_a_2D, ddy_a_a_2D
   USE mesh_utilities                                         , ONLY: extrapolate_Gaussian
 
   IMPLICIT NONE

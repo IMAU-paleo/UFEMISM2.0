@@ -116,6 +116,7 @@ UFEMISM_source = \
   basic/mpi_distributed_memory.f90 \
   basic/math_utilities/math_utilities.f90 \
   basic/math_utilities/tridiagonal_solver.f90 \
+  basic/math_utilities/shape_functions.f90 \
   basic/analytical_solutions.f90 \
   basic/CSR_sparse_matrix_utilities.f90 \
   basic/petsc_basic.f90 \
@@ -141,7 +142,10 @@ UFEMISM_source = \
   mesh/mesh_Lloyds_algorithm.f90 \
   mesh/mesh_parallel_creation.f90 \
   mesh/mesh_zeta.f90 \
-  mesh/mesh_operators.f90 \
+  mesh/discretisation/mesh_translation_tables.f90 \
+  mesh/discretisation/mesh_disc_calc_matrix_operators_2D.f90 \
+  mesh/discretisation/mesh_disc_calc_matrix_operators_3D.f90 \
+  mesh/discretisation/mesh_disc_apply_operators.f90 \
   mesh/remapping/line_tracing_basic.f90 \
   mesh/remapping/line_tracing_grid.f90 \
   mesh/remapping/line_tracing_triangles.f90 \

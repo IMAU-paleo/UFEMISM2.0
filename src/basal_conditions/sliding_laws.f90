@@ -15,7 +15,7 @@ MODULE sliding_laws
   USE mesh_types                                             , ONLY: type_mesh
   USE ice_model_types                                        , ONLY: type_ice_model
   USE parameters
-  USE mesh_operators                                         , ONLY: map_b_a_2D
+  use mesh_disc_apply_operators, only: map_b_a_2D
   USE mesh_utilities                                         , ONLY: extrapolate_Gaussian
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_logical_1D, gather_to_all_dp_1D
 

@@ -18,10 +18,6 @@ MODULE mesh_secondary
   USE math_utilities                                         , ONLY: cross2, line_integral_xdy, line_integral_xydy, line_integral_mxydx, triangle_area, &
                                                                      geometric_center, inverse_oblique_sg_projection
   USE mesh_edges                                             , ONLY: construct_mesh_edges
-  USE mesh_operators                                         , ONLY: calc_field_to_vector_form_translation_tables, calc_matrix_operators_mesh_b_b_2nd_order, &
-                                                                     calc_matrix_operators_mesh_a_a, calc_matrix_operators_mesh_a_b, calc_matrix_operators_mesh_a_c, &
-                                                                     calc_matrix_operators_mesh_b_a, calc_matrix_operators_mesh_b_b, calc_matrix_operators_mesh_b_c, &
-                                                                     calc_matrix_operators_mesh_c_a, calc_matrix_operators_mesh_c_b, calc_matrix_operators_mesh_c_c
   USE mesh_zeta                                              , ONLY: initialise_scaled_vertical_coordinate
   use mesh_Voronoi, only: construct_Voronoi_mesh
 
