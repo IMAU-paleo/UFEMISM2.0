@@ -290,6 +290,36 @@ fclose( fid);
     scoreboard.date_and_times{   n} = date_and_time_of_run;
     scoreboard.values(           n) = cost_function.value;
 
+    % Sort by date and time
+    ii = n;
+    if ii > 1
+      while scoreboard.date_and_times{ ii} < scoreboard.date_and_times{ ii-1}
+  
+        date_and_time_tempa  = scoreboard.date_and_times{   ii  };
+        git_has_string_tempa = scoreboard.git_hash_strings{ ii  };
+        value_tempa          = scoreboard.values(           ii  );
+  
+        date_and_time_tempb  = scoreboard.date_and_times{   ii-1};
+        git_has_string_tempb = scoreboard.git_hash_strings{ ii-1};
+        value_tempb          = scoreboard.values(           ii-1);
+  
+        scoreboard.date_and_times{   ii  } = date_and_time_tempb ;
+        scoreboard.git_hash_strings{ ii  } = git_has_string_tempb;
+        scoreboard.values(           ii  ) = value_tempb         ;
+  
+        scoreboard.date_and_times{   ii-1} = date_and_time_tempa ;
+        scoreboard.git_hash_strings{ ii-1} = git_has_string_tempa;
+        scoreboard.values(           ii-1) = value_tempa         ;
+  
+        ii = ii-1;
+  
+        if ii == 1
+          break
+        end
+  
+      end
+    end
+
   end
 
   function scoreboard = check_results_of_last_run( scoreboard)
