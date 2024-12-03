@@ -24,7 +24,7 @@ elseif isscalar( input_args)
 
   foldername_automated_testing = varargin{1};
   addpath('tools/matlab/')
-  do_print_figures = true;
+  do_print_figures = false;
 
 else
   error('need either foldername_automated_testing, or nothing as input!')
