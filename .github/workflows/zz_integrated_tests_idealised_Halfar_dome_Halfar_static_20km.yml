@@ -45,8 +45,8 @@ jobs:
             addpath('automated_testing/integrated_tests/idealised/Halfar_dome/Halfar_static_20km')
             analyse_integrated_test('${{github.workspace}}/automated_testing')
 
-      - name: Upload temporary scoreboard file as artifact
+      - name: Upload scoreboard file as artifact
         uses: actions/upload-artifact@v4.3.4
         with:
-          name: temporary_scoreboard_file_integrated_tests_idealised_Halfar_dome_Halfar_static_20km
-          path: automated_testing/integrated_tests/idealised/Halfar_dome/Halfar_static_20km/scoreboard_temp_*.xml
+          name: scoreboard_file_integrated_tests_idealised_Halfar_dome_Halfar_static_20km
+          path: automated_testing/temporary_scoreboard_files/*.xml
