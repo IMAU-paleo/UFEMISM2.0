@@ -92,7 +92,8 @@ fclose( fid);
       filename = list_of_files(i).name;
 
       % Read single test run
-      single_run = read_scoreboard_file( filename);
+      single_run = read_scoreboard_file( [foldername_automated_testing ...
+        '/scoreboard/scoreboard_files/' filename]);
 
       % Check if this test is already listed
       foundit = false;
