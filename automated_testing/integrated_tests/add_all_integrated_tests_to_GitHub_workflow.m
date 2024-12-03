@@ -119,19 +119,19 @@ create_workflow_file_finalise_scoreboard( list_of_tests)
     fprintf( fid, '%s\n', '        with:');
     fprintf( fid, '%s\n', '          cache: true');
     fprintf( fid, '%s\n', '');
-    fprintf( fid, '%s\n', '# ===================================================================');
-    fprintf( fid, '%s\n', '# ===== Download temporary scoreboard files for component tests =====');
-    fprintf( fid, '%s\n', '# ===================================================================');
+    fprintf( fid, '%s\n', '# =========================================================');
+    fprintf( fid, '%s\n', '# ===== Download scoreboard files for component tests =====');
+    fprintf( fid, '%s\n', '# =========================================================');
     fprintf( fid, '%s\n', '');
-    fprintf( fid, '%s\n', '      - name: Download temporary scoreboard files for component tests');
+    fprintf( fid, '%s\n', '      - name: Download scoreboard files for component tests');
     fprintf( fid, '%s\n', '        uses: actions/download-artifact@v4');
     fprintf( fid, '%s\n', '        with:');
-    fprintf( fid, '%s\n', '          name: component_test_scoreboard_files');
-    fprintf( fid, '%s\n', '          path: automated_testing/component_tests/temporary_scoreboard_files');
+    fprintf( fid, '%s\n', '          name: scoreboard_files_component_tests');
+    fprintf( fid, '%s\n', '          path: automated_testing/scoreboard/scoreboard_files');
     fprintf( fid, '%s\n', '');
-    fprintf( fid, '%s\n', '# ====================================================================');
-    fprintf( fid, '%s\n', '# ===== Download temporary scoreboard files for integrated tests =====');
-    fprintf( fid, '%s\n', '# ====================================================================');
+    fprintf( fid, '%s\n', '# ==========================================================');
+    fprintf( fid, '%s\n', '# ===== Download scoreboard files for integrated tests =====');
+    fprintf( fid, '%s\n', '# ==========================================================');
     fprintf( fid, '%s\n', '#');
     fprintf( fid, '%s\n', '# NOTE: list created automatically; if you want to add new integrated tests,');
     fprintf( fid, '%s\n', '# just run ''automated_testing/integrated_tests/add_all_integrated_tests_to_Github_workflow.m'' again');
@@ -142,11 +142,11 @@ create_workflow_file_finalise_scoreboard( list_of_tests)
       test_name = strrep( test_path,'/','_');
 
       fprintf( fid, '%s\n', '');
-      fprintf( fid, '%s\n',['      - name: Download temporary scoreboard file for ' test_path]);
+      fprintf( fid, '%s\n',['      - name: Download scoreboard file for ' test_path]);
       fprintf( fid, '%s\n', '        uses: actions/download-artifact@v4');
       fprintf( fid, '%s\n', '        with:');
-      fprintf( fid, '%s\n',['          name: temporary_scoreboard_file_' test_name]);
-      fprintf( fid, '%s\n',['          path: automated_testing/' test_path]);
+      fprintf( fid, '%s\n',['          name: scoreboard_file_' test_name]);
+      fprintf( fid, '%s\n', '          path: automated_testing/scoreboard/scoreboard_files');
     end
 
     fprintf( fid, '%s\n', '');
@@ -154,19 +154,12 @@ create_workflow_file_finalise_scoreboard( list_of_tests)
     fprintf( fid, '%s\n', '# ===== Finalise scoreboard =====');
     fprintf( fid, '%s\n', '# ===============================');
     fprintf( fid, '%s\n', '');
-    fprintf( fid, '%s\n', '      - name: Append temporary to main scoreboard files');
-    fprintf( fid, '%s\n', '        uses: matlab-actions/run-command@v2');
-    fprintf( fid, '%s\n', '        with:');
-    fprintf( fid, '%s\n', '          command: |');
-    fprintf( fid, '%s\n', '            addpath(''automated_testing/scoreboard/scripts'')');
-    fprintf( fid, '%s\n', '            append_temporary_to_main_scoreboard_files(''${{github.workspace}}/automated_testing'')');
-    fprintf( fid, '%s\n', '');
-    fprintf( fid, '%s\n', '      - name: Commit updated scoreboard files');
+    fprintf( fid, '%s\n', '      - name: Commit scoreboard files');
     fprintf( fid, '%s\n', '        # See https://github.com/marketplace/actions/add-commit');
     fprintf( fid, '%s\n', '        if: ${{ github.event_name == ''pull_request'' }} # Only do this for pull requests');
     fprintf( fid, '%s\n', '        uses: EndBug/add-and-commit@v9 # You can change this to use a specific version.');
     fprintf( fid, '%s\n', '        with:');
-    fprintf( fid, '%s\n', '          add: automated_testing/scoreboard/scoreboard_*.txt');
+    fprintf( fid, '%s\n', '          add: automated_testing/scoreboard/scoreboard_files/*.xml');
     fprintf( fid, '%s\n', '          author_name: ${{ github.actor }} (from UFEMISM test suite workflow)');
     fprintf( fid, '%s\n', '          message: ''Update scoreboard files (from UFEMISM test suite workflow by ${{ github.actor }})''');
     fprintf( fid, '%s\n', '          push: true');
@@ -178,7 +171,7 @@ create_workflow_file_finalise_scoreboard( list_of_tests)
     fprintf( fid, '%s\n', '            addpath(''automated_testing/scoreboard/scripts'')');
     fprintf( fid, '%s\n', '            create_scoreboard_html(''${{github.workspace}}/automated_testing'')');
     fprintf( fid, '%s\n', '');
-    fprintf( fid, '%s\n', '      - name: Upload scoreboard HTML as artifact');
+    fprintf( fid, '%s\n', '      - name: Upload scoreboard visualisation as artifact');
     fprintf( fid, '%s\n', '        uses: actions/upload-artifact@v4.3.4');
     fprintf( fid, '%s\n', '        with:');
     fprintf( fid, '%s\n', '          name: scoreboard');
