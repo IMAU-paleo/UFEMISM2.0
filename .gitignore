@@ -24,6 +24,9 @@ slurm-*.out
 # Ignore Matlab autosave files
 *.asv
 
+# ignore data directory
+data
+
 # Ignore automated test reports
 automated_testing/test_reports/*.html
 
