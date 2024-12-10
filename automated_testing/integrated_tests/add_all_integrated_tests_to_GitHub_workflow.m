@@ -61,7 +61,13 @@ create_workflow_file_finalise_scoreboard( list_of_tests)
     test_name_firstname = strrep( test_path_firstname,'/','_');
 
     % Read dummy workflow file
-    filename_workflow_dummy = 'integrated_test_single_workflow_dummy.txt';
+    if contains( test_name,'idealised')
+      filename_workflow_dummy = 'integrated_test_idealised_single_workflow_dummy.txt';
+    elseif contains( test_name,'realistic')
+      filename_workflow_dummy = 'integrated_test_realistic_single_workflow_dummy.txt';
+    else
+      error('dont know if this test is idealised or realistic!')
+    end
     fid = fopen( filename_workflow_dummy,'r');
     temp = textscan( fid,'%s','delimiter','\n','whitespace',''); temp = temp{1};
     fclose( fid);
