@@ -33,19 +33,30 @@ end
 foldername_test = [foldername_automated_testing '/' test_path '/' test_name];
 
 filename_results = [foldername_test '/results/main_output_ANT_00001.nc'];
+filename_scalars = [foldername_test '/results/scalar_output_ANT_00001.nc'];
 
 addpath([foldername_automated_testing '/scoreboard/scripts'])
 
 %%
 
 % Read model output
-Hi = ncread( filename_results,'Hi');
+time       = ncread( filename_scalars,'time');
+Hi         = ncread( filename_results,'Hi');
+ice_volume = ncread( filename_scalars, 'ice_volume');
 
+% Calculate cost functions
+m_last5000yr = time > time(end) - 5000;
 RMSE_Hi = sqrt( mean( (Hi( :,end) - Hi( :,1)).^2 ));
+peak_volume_difference = max( abs( ice_volume - ice_volume(1)));
+final_volume_difference = ice_volume( end) - ice_volume(1);
+ice_volume_var = max( ice_volume( m_last5000yr)) - min( ice_volume( m_last5000yr));
 
-write_to_scoreboard_file( RMSE_Hi);
+% Write to file
+write_to_scoreboard_file( RMSE_Hi, peak_volume_difference, ...
+  final_volume_difference, ice_volume_var);
 
-  function write_to_scoreboard_file( RMSE_Hi)
+  function write_to_scoreboard_file( RMSE_Hi, peak_volume_difference, ...
+  final_volume_difference, ice_volume_var)
 
     % Set up a scoreboard results structure
     single_run = initialise_single_test_run( test_name, test_path);
@@ -53,6 +64,12 @@ write_to_scoreboard_file( RMSE_Hi);
     % Add cost functions to results structure
     single_run = add_cost_function_to_single_run( single_run, ...
       'rmse', 'sqrt( mean( (Hi( :,end) - Hi( :,1)).^2 ))', RMSE_Hi);
+    single_run = add_cost_function_to_single_run( single_run, ...
+      'peak_volume_difference', 'max( abs( ice_volume - ice_volume(1)))', peak_volume_difference);
+    single_run = add_cost_function_to_single_run( single_run, ...
+      'final_volume_difference', 'ice_volume( end) - ice_volume(1)', final_volume_difference);
+    single_run = add_cost_function_to_single_run( single_run, ...
+      'ice_volume_var', 'max( ice_volume( last 5000 yr)) - min( ice_volume( last 5000 yr))', ice_volume_var);
     
     % Write to scoreboard file
     write_scoreboard_file( foldername_automated_testing, single_run);
