@@ -8,7 +8,7 @@ list_of_tests = list_all_integrated_tests_recursive( {}, foldername_integrated_t
   
     is_test = false;
     for i = 1: length( henk)
-      if strcmpi( henk( i).name,'config.cfg')
+      if contains( henk( i).name,'config') && contains( henk( i).name,'.cfg')
         is_test = true;
       end
     end
