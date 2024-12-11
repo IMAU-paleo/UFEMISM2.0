@@ -1,13 +1,13 @@
 # NOTE: this script is created automatically by running
 # 'automated_testing/integrated_tests/add_all_integrated_tests_to_Github_workflow.m'
 
-name: UFEMISM Test Suite - run and analyse !!test_path!!
-run-name: ${{ github.actor }} - UFEMISM Test Suite - run and analyse !!test_path!!
+name: UFEMISM Test Suite - run and analyse integrated_tests/idealised/MISMIP_mod
+run-name: ${{ github.actor }} - UFEMISM Test Suite - run and analyse integrated_tests/idealised/MISMIP_mod
 on:
   workflow_call:
 
 jobs:
-  !!test_name_firstname!!:
+  MISMIP_mod:
     runs-on: macos-latest
     steps:
 
@@ -35,18 +35,27 @@ jobs:
           path: UFEMISM_program
           key: UFEMISM_program_${{ github.ref_name }}_${{ github.run_id }}
 
-      - name: Run !!test_path!!
-        run: mpiexec  -n 2  UFEMISM_program  automated_testing/!!test_path!!/config.cfg
+      - name: Run integrated_tests/idealised/MISMIP_mod - 01_spinup_40km
+        run: mpiexec  -n 2  UFEMISM_program  automated_testing/integrated_tests/idealised/MISMIP_mod/config_01_spinup_40km.cfg
 
-      - name: Analyse !!test_path!!
+      - name: Run integrated_tests/idealised/MISMIP_mod - 02_spinup_20km
+        run: mpiexec  -n 2  UFEMISM_program  automated_testing/integrated_tests/idealised/MISMIP_mod/config_02_spinup_20km.cfg
+
+      - name: Run integrated_tests/idealised/MISMIP_mod - 03_spinup_10km
+        run: mpiexec  -n 2  UFEMISM_program  automated_testing/integrated_tests/idealised/MISMIP_mod/config_03_spinup_10km.cfg
+
+      - name: Run integrated_tests/idealised/MISMIP_mod - 04_spinup_8km
+        run: mpiexec  -n 2  UFEMISM_program  automated_testing/integrated_tests/idealised/MISMIP_mod/config_04_spinup_8km.cfg
+
+      - name: Analyse integrated_tests/idealised/MISMIP_mod
         uses: matlab-actions/run-command@v2
         with:
           command: |
-            addpath('automated_testing/!!test_path!!')
+            addpath('automated_testing/integrated_tests/idealised/MISMIP_mod')
             analyse_integrated_test('${{github.workspace}}/automated_testing')
 
       - name: Upload scoreboard file as artifact
         uses: actions/upload-artifact@v4.3.4
         with:
-          name: scoreboard_file_!!test_name!!
+          name: scoreboard_file_integrated_tests_idealised_MISMIP_mod
           path: automated_testing/scoreboard/temporary_scoreboard_files/*.xml
