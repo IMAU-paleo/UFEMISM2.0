@@ -24,7 +24,14 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: 'IMAU-paleo/data'
-          path: 'data'
+          path: '../data'
+
+      - name: check if it worked
+        run: |
+          echo ls -a ..
+          ls -a ..
+          echo ls -a ../data
+          ls -a ../data
 
       - name: Restore UFEMISM program from cache
         uses: actions/cache/restore@v3
