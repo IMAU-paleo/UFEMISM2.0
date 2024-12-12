@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<single_run>
+    <name>MISMIP_mod</name>
+    <category>integrated_tests/idealised/MISMIP_mod</category>
+    <date_and_time>12-Dec-2024 10:04:18</date_and_time>
+    <git_hash_string>f23332c4442fdaa6783bff24972c4680025e19c7</git_hash_string>
+    <cost_functions>
+        <name>GL_hyst</name>
+        <definition>r_GL2 - r_GL1</definition>
+        <value>3396.5997</value>
+    </cost_functions>
+</single_run>
