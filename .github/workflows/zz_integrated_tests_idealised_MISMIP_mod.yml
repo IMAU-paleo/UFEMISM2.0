@@ -38,14 +38,14 @@ jobs:
       - name: Run integrated_tests/idealised/MISMIP_mod - 01_spinup_40km
         run: mpiexec  -n 2  UFEMISM_program  automated_testing/integrated_tests/idealised/MISMIP_mod/config_01_spinup_40km.cfg
 
-      - name: Run integrated_tests/idealised/MISMIP_mod - 02_spinup_20km
-        run: mpiexec  -n 2  UFEMISM_program  automated_testing/integrated_tests/idealised/MISMIP_mod/config_02_spinup_20km.cfg
+      - name: Run integrated_tests/idealised/MISMIP_mod - 02_spinup_10km
+        run: mpiexec  -n 2  UFEMISM_program  automated_testing/integrated_tests/idealised/MISMIP_mod/config_02_spinup_10km.cfg
 
-      - name: Run integrated_tests/idealised/MISMIP_mod - 03_spinup_10km
-        run: mpiexec  -n 2  UFEMISM_program  automated_testing/integrated_tests/idealised/MISMIP_mod/config_03_spinup_10km.cfg
+      - name: Run integrated_tests/idealised/MISMIP_mod - 03_advance_10km
+        run: mpiexec  -n 2  UFEMISM_program  automated_testing/integrated_tests/idealised/MISMIP_mod/config_03_advance_10km.cfg
 
-      - name: Run integrated_tests/idealised/MISMIP_mod - 04_spinup_8km
-        run: mpiexec  -n 2  UFEMISM_program  automated_testing/integrated_tests/idealised/MISMIP_mod/config_04_spinup_8km.cfg
+      - name: Run integrated_tests/idealised/MISMIP_mod - 04_retreat_10km
+        run: mpiexec  -n 2  UFEMISM_program  automated_testing/integrated_tests/idealised/MISMIP_mod/config_04_retreat_10km.cfg
 
       - name: Analyse integrated_tests/idealised/MISMIP_mod
         uses: matlab-actions/run-command@v2

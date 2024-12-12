@@ -30,132 +30,61 @@ else
   error('need either foldername_automated_testing, or nothing as input!')
 end
 
-foldername_test = [foldername_automated_testing '/' test_path '/' test_name];
-
-filename_config  = [foldername_test '/config.cfg'];
-filename_results = [foldername_test '/results/main_output_ANT_00001.nc'];
-
+foldername_test = [foldername_automated_testing '/' test_path];
 addpath([foldername_automated_testing '/scoreboard/scripts'])
 
 %%
 
-% % Read model output
-% mesh      = read_mesh_from_file( filename_results);
-% time      = ncread( filename_results,'time'); nt = length( time);
-% Hi        = ncread( filename_results,'Hi');
-% 
-% % Read Halfar dome parameters from config file, calculate analytical solution
-% [A_flow, n_flow, H0, R0] = get_Halfar_dome_params_from_config( filename_config);
-% 
-% Hi_analytical = zeros( mesh.nV, nt);
-% for ti = 1: nt
-%   Hi_analytical( :,ti) = Halfar_solution( A_flow, n_flow, H0, R0, mesh.V(:,1), mesh.V(:,2), time(ti));
-% end
-% 
-% % Calculate thickness error at the end of the simulation
-% RMSE_Hi = sqrt( mean( (Hi( :,end) - Hi_analytical( :,end)).^2 ));
-% 
-% % Write to scoreboard file
-% write_to_scoreboard_file( RMSE_Hi);
+filename_results1 = [foldername_test '/results_spinup_10km/main_output_ANT_00001.nc'];
+filename_results2 = [foldername_test '/results_retreat_10km/main_output_ANT_00012.nc'];
 
-  function [A_flow, n_flow, H0, R0] = get_Halfar_dome_params_from_config( filename_config)
-    fid = fopen( filename_config,'r');
-    temp = textscan(fid,'%s','delimiter','\n'); temp = temp{1};
-    fclose( fid);
-    
-    found_A_flow = false;
-    found_n_flow = false;
-    found_H0     = false;
-    found_R0     = false;
-    
-    for i = 1: length( temp)
-      str = temp{i};
-    
-      if contains( str,'uniform_Glens_flow_factor_config')
-        found_A_flow = true;
-        ii = strfind( str,'='); ii = ii(1);
-        str = str( ii+1:end);
-        ii = strfind( str,'!'); ii = ii(1);
-        str = str( 1:ii-1);
-        str = strip( str,'both');
-        A_flow = str2double( str);
-      end
-    
-      if contains( str,'Glens_flow_law_exponent_config')
-        found_n_flow = true;
-        ii = strfind( str,'='); ii = ii(1);
-        str = str( ii+1:end);
-        ii = strfind( str,'!'); ii = ii(1);
-        str = str( 1:ii-1);
-        str = strip( str,'both');
-        n_flow = str2double( str);
-      end
-    
-      if contains( str,'refgeo_idealised_Halfar_H0_config')
-        found_H0 = true;
-        ii = strfind( str,'='); ii = ii(1);
-        str = str( ii+1:end);
-        ii = strfind( str,'!'); ii = ii(1);
-        str = str( 1:ii-1);
-        str = strip( str,'both');
-        H0 = str2double( str);
-      end
-    
-      if contains( str,'refgeo_idealised_Halfar_R0_config')
-        found_R0 = true;
-        ii = strfind( str,'='); ii = ii(1);
-        str = str( ii+1:end);
-        ii = strfind( str,'!'); ii = ii(1);
-        str = str( 1:ii-1);
-        str = strip( str,'both');
-        R0 = str2double( str);
-      end
-    
-    end
+% Read model output
+mesh1     = read_mesh_from_file( filename_results1);
+mesh2     = read_mesh_from_file( filename_results2);
+time1     = ncread( filename_results1,'time'); nt1 = length( time1);
+time2     = ncread( filename_results2,'time'); nt2 = length( time2);
+Hi1       = ncread( filename_results1,'Hi',[1,nt1],[Inf,1]);
+Hi2       = ncread( filename_results2,'Hi',[1,nt2],[Inf,1]);
+Hb1       = ncread( filename_results1,'Hb',[1,nt1],[Inf,1]);
+Hb2       = ncread( filename_results2,'Hb',[1,nt2],[Inf,1]);
 
-    if ~found_A_flow
-      error('Couldnt find A_flow in config file!')
-    end
-    if ~found_n_flow
-      error('Couldnt find n_flow in config file!')
-    end
-    if ~found_H0
-      error('Couldnt find H0 in config file!')
-    end
-    if ~found_R0
-      error('Couldnt find R0 in config file!')
-    end
+r_GL1 = calc_mean_grounding_line_radius( mesh1, Hi1, Hb1);
+r_GL2 = calc_mean_grounding_line_radius( mesh2, Hi2, Hb2);
 
+GL_hyst = r_GL2 - r_GL1;
+
+% Write to scoreboard file
+write_to_scoreboard_file( GL_hyst);
+
+  function r_GL = calc_mean_grounding_line_radius( mesh, Hi, Hb)
+    TAF = Hi - max( 0, -Hb * (1028 / 910));
+    n_GL = 0;
+    sum_r_GL = 0;
+    for ei = 1: mesh.nE
+      vi = mesh.EV( ei,1);
+      vj = mesh.EV( ei,2);
+      if TAF(vi)*TAF(vj) < 0
+        f1 = TAF(vi);
+        f2 = TAF(vj);
+        d = norm(mesh.V(vi,:) - mesh.V(vj,:));
+        lambda = (f2 - f1) / d;
+        p_GL = lambda * mesh.V(vi,:) + (1-lambda) * mesh.V(vj,:);
+        r_GL = norm(p_GL);
+        n_GL = n_GL + 1;
+        sum_r_GL = sum_r_GL + r_GL;
+      end
+    end
+    r_GL = sum_r_GL / n_GL;
   end
 
-  function H = Halfar_solution( A_flow, n_flow, H0, R0, x, y, time)
-  
-  ice_density  = 910;
-  grav         = 9.81;
-  sec_per_year = 31556926;
-  
-  Gamma = (2/5) * (A_flow / sec_per_year) * (ice_density * grav)^n_flow;
-  t0 = 1 / ((5*n_flow + 3) * Gamma) * ((2*n_flow + 1)/(n_flow + 1))^n_flow * (R0^(n_flow + 1)) / (H0^(2*n_flow  + 1));
-
-  tp = (time * sec_per_year) + t0;
-
-  r = sqrt(x.^2 + y.^2);
-
-  f1 = (t0 / tp)^(2 / (5*n_flow + 3));
-  f2 = (t0 / tp)^(1 / (5*n_flow + 3));
-  f3 = (r / R0);
-
-  H = H0 * f1 * max( 0, (1 - (f2 * f3).^((n_flow + 1) / n_flow))).^(n_flow / (2*n_flow + 1));
-end
-
-  function write_to_scoreboard_file( RMSE_Hi)
+  function write_to_scoreboard_file( GL_hyst)
 
     % Set up a scoreboard results structure
     single_run = initialise_single_test_run( test_name, test_path);
   
     % Add cost functions to results structure
     single_run = add_cost_function_to_single_run( single_run, ...
-      'rmse', 'sqrt( mean( (Hi( :,end) - Hi_analytical( :,end)).^2 ))', RMSE_Hi);
+      'GL_hyst', 'r_GL2 - r_GL1', GL_hyst);
     
     % Write to scoreboard file
     write_scoreboard_file( foldername_automated_testing, single_run);
