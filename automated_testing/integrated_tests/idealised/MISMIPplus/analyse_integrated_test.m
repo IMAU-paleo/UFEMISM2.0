@@ -1,11 +1,11 @@
 function analyse_integrated_test( varargin)
 % Analyse the results of the MISMIP_mod integrated test
 
-disp('Analysing integrated test idealised/MISMIP+...')
+disp('Analysing integrated test idealised/MISMIPplus...')
 disp('')
   
-test_name = 'MISMIP+';
-test_path = 'integrated_tests/idealised/MISMIP+';
+test_name = 'MISMIPplus';
+test_path = 'integrated_tests/idealised/MISMIPplus';
 
 %%
 
