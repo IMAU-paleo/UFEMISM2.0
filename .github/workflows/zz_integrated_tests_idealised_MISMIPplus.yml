@@ -1,13 +1,13 @@
 # NOTE: this script is created automatically by running
 # 'automated_testing/integrated_tests/add_all_integrated_tests_to_Github_workflow.m'
 
-name: UFEMISM Test Suite - run and analyse integrated_tests/idealised/MISMIP+
-run-name: ${{ github.actor }} - UFEMISM Test Suite - run and analyse integrated_tests/idealised/MISMIP+
+name: UFEMISM Test Suite - run and analyse integrated_tests/idealised/MISMIPplus
+run-name: ${{ github.actor }} - UFEMISM Test Suite - run and analyse integrated_tests/idealised/MISMIPplus
 on:
   workflow_call:
 
 jobs:
-  MISMIP+:
+  MISMIPplus:
     runs-on: macos-latest
     steps:
 
@@ -35,30 +35,30 @@ jobs:
           path: UFEMISM_program
           key: UFEMISM_program_${{ github.ref_name }}_${{ github.run_id }}
 
-      - name: Run integrated_tests/idealised/MISMIP+ - 01_5km_spinup_part0
-        run: mpiexec  -n 2  UFEMISM_program  automated_testing/integrated_tests/idealised/MISMIP+/config_01_5km_spinup_part0.cfg
+      - name: Run integrated_tests/idealised/MISMIPplus - 01_5km_spinup_part0
+        run: mpiexec  -n 2  UFEMISM_program  automated_testing/integrated_tests/idealised/MISMIPplus/config_01_5km_spinup_part0.cfg
 
-      - name: Run integrated_tests/idealised/MISMIP+ - 02_5km_spinup
-        run: mpiexec  -n 2  UFEMISM_program  automated_testing/integrated_tests/idealised/MISMIP+/config_02_5km_spinup.cfg
+      - name: Run integrated_tests/idealised/MISMIPplus - 02_5km_spinup
+        run: mpiexec  -n 2  UFEMISM_program  automated_testing/integrated_tests/idealised/MISMIPplus/config_02_5km_spinup.cfg
 
-      - name: Run integrated_tests/idealised/MISMIP+ - 03_5km_ice1r
-        run: mpiexec  -n 2  UFEMISM_program  automated_testing/integrated_tests/idealised/MISMIP+/config_03_5km_ice1r.cfg
+      - name: Run integrated_tests/idealised/MISMIPplus - 03_5km_ice1r
+        run: mpiexec  -n 2  UFEMISM_program  automated_testing/integrated_tests/idealised/MISMIPplus/config_03_5km_ice1r.cfg
 
-      - name: Run integrated_tests/idealised/MISMIP+ - 04_4km_spinup
-        run: mpiexec  -n 2  UFEMISM_program  automated_testing/integrated_tests/idealised/MISMIP+/config_04_4km_spinup.cfg
+      - name: Run integrated_tests/idealised/MISMIPplus - 04_4km_spinup
+        run: mpiexec  -n 2  UFEMISM_program  automated_testing/integrated_tests/idealised/MISMIPplus/config_04_4km_spinup.cfg
 
-      - name: Run integrated_tests/idealised/MISMIP+ - 05_4km_ice1r
-        run: mpiexec  -n 2  UFEMISM_program  automated_testing/integrated_tests/idealised/MISMIP+/config_05_4km_ice1r.cfg
+      - name: Run integrated_tests/idealised/MISMIPplus - 05_4km_ice1r
+        run: mpiexec  -n 2  UFEMISM_program  automated_testing/integrated_tests/idealised/MISMIPplus/config_05_4km_ice1r.cfg
 
-      - name: Analyse integrated_tests/idealised/MISMIP+
+      - name: Analyse integrated_tests/idealised/MISMIPplus
         uses: matlab-actions/run-command@v2
         with:
           command: |
-            addpath('automated_testing/integrated_tests/idealised/MISMIP+')
+            addpath('automated_testing/integrated_tests/idealised/MISMIPplus')
             analyse_integrated_test('${{github.workspace}}/automated_testing')
 
       - name: Upload scoreboard file as artifact
         uses: actions/upload-artifact@v4.3.4
         with:
-          name: scoreboard_file_integrated_tests_idealised_MISMIP+
+          name: scoreboard_file_integrated_tests_idealised_MISMIPplus
           path: automated_testing/scoreboard/temporary_scoreboard_files/*.xml
