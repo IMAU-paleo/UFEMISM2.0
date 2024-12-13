@@ -32,6 +32,9 @@ jobs:
   integrated_tests_idealised_Halfar_dome_Halfar_static_5km:
     uses: ./.github/workflows/zz_integrated_tests_idealised_Halfar_dome_Halfar_static_5km.yml
 
+  integrated_tests_idealised_MISMIP+:
+    uses: ./.github/workflows/zz_integrated_tests_idealised_MISMIP+.yml
+
   integrated_tests_idealised_MISMIP_mod:
     uses: ./.github/workflows/zz_integrated_tests_idealised_MISMIP_mod.yml
 
