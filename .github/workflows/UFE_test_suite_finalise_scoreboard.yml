@@ -92,6 +92,12 @@ jobs:
           name: scoreboard_file_integrated_tests_idealised_Halfar_dome_Halfar_static_5km
           path: automated_testing/scoreboard/scoreboard_files
 
+      - name: Download scoreboard file for integrated_tests/idealised/MISMIP+
+        uses: actions/download-artifact@v4
+        with:
+          name: scoreboard_file_integrated_tests_idealised_MISMIP+
+          path: automated_testing/scoreboard/scoreboard_files
+
       - name: Download scoreboard file for integrated_tests/idealised/MISMIP_mod
         uses: actions/download-artifact@v4
         with:
