@@ -95,9 +95,9 @@ for it = 1:7
     0.25 * x_GL_smooth( 3:end  );
 end
 
-err_x_GL_init     = x_GL(1) - 450e3;
-err_x_GL_final_lo = min( 0, x_GL( end) - 350e3);
-err_x_GL_final_hi = max( 0, x_GL( end) - 420e3);
+err_x_GL_init     = abs( x_GL(1) - 450e3);
+err_x_GL_final_lo = abs( min( 0, x_GL( end) - 350e3));
+err_x_GL_final_hi = abs( max( 0, x_GL( end) - 420e3));
 var_x_GL          = max( abs( x_GL_smooth - x_GL));
 
 % Write to scoreboard file
@@ -112,11 +112,11 @@ write_to_scoreboard_file( ...
   
     % Add cost functions to results structure
     single_run = add_cost_function_to_single_run( single_run, ...
-      'err_x_GL_init', 'x_GL(1) - 450e3', err_x_GL_init);
+      'err_x_GL_init', 'abs( x_GL(1) - 450e3)', err_x_GL_init);
     single_run = add_cost_function_to_single_run( single_run, ...
-      'err_x_GL_final_lo', 'min( 0, x_GL( end) - 350e3)', err_x_GL_final_lo);
+      'err_x_GL_final_lo', 'abs( min( 0, x_GL( end) - 350e3))', err_x_GL_final_lo);
     single_run = add_cost_function_to_single_run( single_run, ...
-      'err_x_GL_final_hi', 'max( 0, x_GL( end) - 420e3)', err_x_GL_final_hi);
+      'err_x_GL_final_hi', 'abs( max( 0, x_GL( end) - 420e3))', err_x_GL_final_hi);
     single_run = add_cost_function_to_single_run( single_run, ...
       'var_x_GL', 'max( abs( x_GL_smooth - x_GL))', var_x_GL);
     

@@ -1,22 +1,22 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <single_run>
-    <name>MISMIP+</name>
-    <category>integrated_tests/idealised/MISMIP+</category>
-    <date_and_time>13-Dec-2024 09:13:00</date_and_time>
-    <git_hash_string>a6ae7b7a8da8327d7b3eb27eeec44c12a0988c87</git_hash_string>
+    <name>MISMIPplus</name>
+    <category>integrated_tests/idealised/MISMIPplus</category>
+    <date_and_time>13-Dec-2024 12:42:23</date_and_time>
+    <git_hash_string>f2e1815161a69ed121f145996252faff52ad9c85</git_hash_string>
     <cost_functions>
         <name>err_x_GL_init</name>
-        <definition>x_GL(1) - 450e3</definition>
-        <value>-242.1644</value>
+        <definition>abs( x_GL(1) - 450e3)</definition>
+        <value>242.1644</value>
     </cost_functions>
     <cost_functions>
         <name>err_x_GL_final_lo</name>
-        <definition>min( 0, x_GL( end) - 350e3)</definition>
+        <definition>abs( min( 0, x_GL( end) - 350e3))</definition>
         <value>0</value>
     </cost_functions>
     <cost_functions>
         <name>err_x_GL_final_hi</name>
-        <definition>max( 0, x_GL( end) - 420e3)</definition>
+        <definition>abs( max( 0, x_GL( end) - 420e3))</definition>
         <value>0</value>
     </cost_functions>
     <cost_functions>
