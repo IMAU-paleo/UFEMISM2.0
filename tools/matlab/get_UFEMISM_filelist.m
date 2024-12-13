@@ -1,6 +1,6 @@
 function timeframes = get_UFEMISM_filelist( foldername, region)
-  % Return a list of all the timeframes found in this simulatio,
-  % and the files they are contained in
+% Return a list of all the timeframes found in this simulation,
+% and the files they are contained in
 
 filename = [foldername '/main_output_' region '_00001.nc'];
 
