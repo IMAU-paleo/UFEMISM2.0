@@ -32,11 +32,11 @@ jobs:
   integrated_tests_idealised_Halfar_dome_Halfar_static_5km:
     uses: ./.github/workflows/zz_integrated_tests_idealised_Halfar_dome_Halfar_static_5km.yml
 
-  integrated_tests_idealised_MISMIP+:
-    uses: ./.github/workflows/zz_integrated_tests_idealised_MISMIP+.yml
-
   integrated_tests_idealised_MISMIP_mod:
     uses: ./.github/workflows/zz_integrated_tests_idealised_MISMIP_mod.yml
+
+  integrated_tests_idealised_MISMIPplus:
+    uses: ./.github/workflows/zz_integrated_tests_idealised_MISMIPplus.yml
 
   integrated_tests_realistic_Antarctica_initialisation_Ant_init_20kyr_invBMB_invpwf_40km:
     uses: ./.github/workflows/zz_integrated_tests_realistic_Antarctica_initialisation_Ant_init_20kyr_invBMB_invpwf_40km.yml
