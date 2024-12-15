@@ -32,6 +32,9 @@ end
 addpath([foldername_automated_testing '/scoreboard/scripts'])
 addpath(foldername_ISMIP_HOM)
 
+foldername_test = [foldername_automated_testing '/integrated_tests/idealised/'
+  'ISMIP-HOM/exp_A'];
+
 %%
 
 % Read and process the Pattyn et al. (2008) ISMIP-HOM model ensemble
@@ -55,7 +58,7 @@ for Li = 1:6
   for approxi = 1:3
     approx = approxs{ approxi};
 
-    foldername = ['results_ISMIP_HOM_A_' num2str(L) '_' approx];
+    foldername = [foldername_test '/results_ISMIP_HOM_A_' num2str(L) '_' approx];
     filename = [foldername '/main_output_ANT_00001.nc'];
     mesh = read_mesh_from_file( filename);
 
