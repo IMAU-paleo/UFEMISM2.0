@@ -94,18 +94,12 @@ create_workflow_file_finalise_scoreboard( list_of_tests)
     fprintf( fid, '%s\n', ['      - name: Checkout UFEMISM repository']);
     fprintf( fid, '%s\n', ['        uses: actions/checkout@v4']);
     fprintf( fid, '%s\n', ['']);
-
-    % For realistic experiments, check out the data repo too
-    if (contains(test_name,'realistic'))
-
-      fprintf( fid, '%s\n', ['      - name: Checkout data repository']);
-      fprintf( fid, '%s\n', ['        uses: actions/checkout@v4']);
-      fprintf( fid, '%s\n', ['        with:']);
-      fprintf( fid, '%s\n', ['          repository: ''IMAU-paleo/data''']);
-      fprintf( fid, '%s\n', ['          path: ''data''']);
-      fprintf( fid, '%s\n', ['']);
-    end
-
+    fprintf( fid, '%s\n', ['      - name: Checkout data repository']);
+    fprintf( fid, '%s\n', ['        uses: actions/checkout@v4']);
+    fprintf( fid, '%s\n', ['        with:']);
+    fprintf( fid, '%s\n', ['          repository: ''IMAU-paleo/data''']);
+    fprintf( fid, '%s\n', ['          path: ''data''']);
+    fprintf( fid, '%s\n', ['']);
     fprintf( fid, '%s\n', ['      - name: Restore UFEMISM program from cache']);
     fprintf( fid, '%s\n', ['        uses: actions/cache/restore@v3']);
     fprintf( fid, '%s\n', ['        id: UFEMISM_program_cache_restore']);

@@ -28,6 +28,12 @@ jobs:
       - name: Checkout UFEMISM repository
         uses: actions/checkout@v4
 
+      - name: Checkout data repository
+        uses: actions/checkout@v4
+        with:
+          repository: 'IMAU-paleo/data'
+          path: 'data'
+
       - name: Restore UFEMISM program from cache
         uses: actions/cache/restore@v3
         id: UFEMISM_program_cache_restore
