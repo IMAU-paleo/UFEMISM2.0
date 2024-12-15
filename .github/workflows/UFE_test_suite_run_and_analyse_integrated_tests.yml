@@ -38,6 +38,9 @@ jobs:
   integrated_tests_idealised_ISMIP-HOM_exp_B:
     uses: ./.github/workflows/zz_integrated_tests_idealised_ISMIP-HOM_exp_B.yml
 
+  integrated_tests_idealised_ISMIP-HOM_exp_C:
+    uses: ./.github/workflows/zz_integrated_tests_idealised_ISMIP-HOM_exp_C.yml
+
   integrated_tests_idealised_MISMIP_mod:
     uses: ./.github/workflows/zz_integrated_tests_idealised_MISMIP_mod.yml
 
