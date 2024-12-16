@@ -22,7 +22,7 @@ MODULE GIA_model_types
     ! Main data fields
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: relative_surface_load_mesh  ! [Pa] Surface load relative to the GIA-equilibrium reference geometry, on the UFEMISM mesh
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: relative_surface_load_grid  ! [Pa] Surface load relative to the GIA-equilibrium reference geometry, on the UFEMISM mesh
-
+    
     ! Sub-models
 
     ! Timestepping
@@ -30,6 +30,18 @@ MODULE GIA_model_types
     REAL(dp)                                :: t_next                      ! [yr] Time of the next state
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHb_prev                    ! [m]  The previous state (bedrock deflection relative to the GIA-equilibrium reference geometry)
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHb_next                    ! [m]  The next state     (idem)
+
+    ! ELRA
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: surface_load_mesh           ! [Pa] 
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: surface_load_grid           ! [Pa]
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: relative_surface_load_ext_grid           ! [Pa]     
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHb_eq_grid
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHb_grid
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHb_dt_grid
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: surface_load_PD_mesh
+     
+    INTEGER,                                :: flex_prof_rad               ! radius of the flexoral profile
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: flex_prof_grid
 
   END TYPE type_GIA_model
 
