@@ -177,7 +177,8 @@ CONTAINS
           ! u_perp < 0: flow is entering this vertex from vertex vj
           ELSE
             IF (mask_oc_a_tot( vj)) THEN
-              CYCLE ! No inflow
+              !CYCLE ! No inflow
+              laddie%divQH( vi) = laddie%divQH( vi) + mesh%Cw( vi, ci) * u_perp * H_tot( vi) / mesh%A( vi)
             ELSE
               laddie%divQH( vi) = laddie%divQH( vi) + mesh%Cw( vi, ci) * u_perp * H_tot( vj) / mesh%A( vi)
             END IF

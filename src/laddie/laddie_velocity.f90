@@ -105,9 +105,11 @@ CONTAINS
           ! Assume dH/dx and ddrho/dx = 0
 
           ! Define PGF at calving front / grounding line
-          PGF_x = grav * laddie%Hdrho_amb_b( ti) * ice%dHib_dx_b( ti) ! &
+          PGF_x = grav * laddie%Hdrho_amb_b( ti) * ice%dHib_dx_b( ti) &
+                  - 0.5*grav * Hstar_b( ti)**2 * laddie%ddrho_amb_dx_b( ti)
 
-          PGF_y = grav * laddie%Hdrho_amb_b( ti) * ice%dHib_dy_b( ti) ! &
+          PGF_y = grav * laddie%Hdrho_amb_b( ti) * ice%dHib_dy_b( ti) &
+                  - 0.5*grav * Hstar_b( ti)**2 * laddie%ddrho_amb_dy_b( ti)
         ELSE
           ! Regular full expression
           PGF_x = - grav * laddie%Hdrho_amb_b( ti) * laddie%dH_dx_b( ti) &
