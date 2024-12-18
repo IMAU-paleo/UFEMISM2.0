@@ -27,88 +27,123 @@ jobs:
         with:
           cache: true
 
-# ===================================================================
-# ===== Download temporary scoreboard files for component tests =====
-# ===================================================================
+# =========================================================
+# ===== Download scoreboard files for component tests =====
+# =========================================================
 
-      - name: Download temporary scoreboard files for component tests
+      - name: Download scoreboard files for component tests
         uses: actions/download-artifact@v4
         with:
-          name: component_test_scoreboard_files
-          path: automated_testing/component_tests/temporary_scoreboard_files
+          name: scoreboard_files_component_tests
+          path: automated_testing/scoreboard/scoreboard_files
 
-# ====================================================================
-# ===== Download temporary scoreboard files for integrated tests =====
-# ====================================================================
+# ==========================================================
+# ===== Download scoreboard files for integrated tests =====
+# ==========================================================
 #
 # NOTE: list created automatically; if you want to add new integrated tests,
 # just run 'automated_testing/integrated_tests/add_all_integrated_tests_to_Github_workflow.m' again
 
-      - name: Download temporary scoreboard file for integrated_tests/idealised/Halfar_dome/Halfar_10km
+      - name: Download scoreboard file for integrated_tests/idealised/Halfar_dome/Halfar_10km
         uses: actions/download-artifact@v4
         with:
-          name: temporary_scoreboard_file_integrated_tests_idealised_Halfar_dome_Halfar_10km
-          path: automated_testing/integrated_tests/idealised/Halfar_dome/Halfar_10km
+          name: scoreboard_file_integrated_tests_idealised_Halfar_dome_Halfar_10km
+          path: automated_testing/scoreboard/scoreboard_files
 
-      - name: Download temporary scoreboard file for integrated_tests/idealised/Halfar_dome/Halfar_20km
+      - name: Download scoreboard file for integrated_tests/idealised/Halfar_dome/Halfar_20km
         uses: actions/download-artifact@v4
         with:
-          name: temporary_scoreboard_file_integrated_tests_idealised_Halfar_dome_Halfar_20km
-          path: automated_testing/integrated_tests/idealised/Halfar_dome/Halfar_20km
+          name: scoreboard_file_integrated_tests_idealised_Halfar_dome_Halfar_20km
+          path: automated_testing/scoreboard/scoreboard_files
 
-      - name: Download temporary scoreboard file for integrated_tests/idealised/Halfar_dome/Halfar_40km
+      - name: Download scoreboard file for integrated_tests/idealised/Halfar_dome/Halfar_40km
         uses: actions/download-artifact@v4
         with:
-          name: temporary_scoreboard_file_integrated_tests_idealised_Halfar_dome_Halfar_40km
-          path: automated_testing/integrated_tests/idealised/Halfar_dome/Halfar_40km
+          name: scoreboard_file_integrated_tests_idealised_Halfar_dome_Halfar_40km
+          path: automated_testing/scoreboard/scoreboard_files
 
-      - name: Download temporary scoreboard file for integrated_tests/idealised/Halfar_dome/Halfar_5km
+      - name: Download scoreboard file for integrated_tests/idealised/Halfar_dome/Halfar_5km
         uses: actions/download-artifact@v4
         with:
-          name: temporary_scoreboard_file_integrated_tests_idealised_Halfar_dome_Halfar_5km
-          path: automated_testing/integrated_tests/idealised/Halfar_dome/Halfar_5km
+          name: scoreboard_file_integrated_tests_idealised_Halfar_dome_Halfar_5km
+          path: automated_testing/scoreboard/scoreboard_files
 
-      - name: Download temporary scoreboard file for integrated_tests/idealised/Halfar_dome/Halfar_static_10km
+      - name: Download scoreboard file for integrated_tests/idealised/Halfar_dome/Halfar_static_10km
         uses: actions/download-artifact@v4
         with:
-          name: temporary_scoreboard_file_integrated_tests_idealised_Halfar_dome_Halfar_static_10km
-          path: automated_testing/integrated_tests/idealised/Halfar_dome/Halfar_static_10km
+          name: scoreboard_file_integrated_tests_idealised_Halfar_dome_Halfar_static_10km
+          path: automated_testing/scoreboard/scoreboard_files
 
-      - name: Download temporary scoreboard file for integrated_tests/idealised/Halfar_dome/Halfar_static_20km
+      - name: Download scoreboard file for integrated_tests/idealised/Halfar_dome/Halfar_static_20km
         uses: actions/download-artifact@v4
         with:
-          name: temporary_scoreboard_file_integrated_tests_idealised_Halfar_dome_Halfar_static_20km
-          path: automated_testing/integrated_tests/idealised/Halfar_dome/Halfar_static_20km
+          name: scoreboard_file_integrated_tests_idealised_Halfar_dome_Halfar_static_20km
+          path: automated_testing/scoreboard/scoreboard_files
 
-      - name: Download temporary scoreboard file for integrated_tests/idealised/Halfar_dome/Halfar_static_40km
+      - name: Download scoreboard file for integrated_tests/idealised/Halfar_dome/Halfar_static_40km
         uses: actions/download-artifact@v4
         with:
-          name: temporary_scoreboard_file_integrated_tests_idealised_Halfar_dome_Halfar_static_40km
-          path: automated_testing/integrated_tests/idealised/Halfar_dome/Halfar_static_40km
+          name: scoreboard_file_integrated_tests_idealised_Halfar_dome_Halfar_static_40km
+          path: automated_testing/scoreboard/scoreboard_files
 
-      - name: Download temporary scoreboard file for integrated_tests/idealised/Halfar_dome/Halfar_static_5km
+      - name: Download scoreboard file for integrated_tests/idealised/Halfar_dome/Halfar_static_5km
         uses: actions/download-artifact@v4
         with:
-          name: temporary_scoreboard_file_integrated_tests_idealised_Halfar_dome_Halfar_static_5km
-          path: automated_testing/integrated_tests/idealised/Halfar_dome/Halfar_static_5km
+          name: scoreboard_file_integrated_tests_idealised_Halfar_dome_Halfar_static_5km
+          path: automated_testing/scoreboard/scoreboard_files
+
+      - name: Download scoreboard file for integrated_tests/idealised/ISMIP-HOM/exp_A
+        uses: actions/download-artifact@v4
+        with:
+          name: scoreboard_file_integrated_tests_idealised_ISMIP-HOM_exp_A
+          path: automated_testing/scoreboard/scoreboard_files
+
+      - name: Download scoreboard file for integrated_tests/idealised/ISMIP-HOM/exp_B
+        uses: actions/download-artifact@v4
+        with:
+          name: scoreboard_file_integrated_tests_idealised_ISMIP-HOM_exp_B
+          path: automated_testing/scoreboard/scoreboard_files
+
+      - name: Download scoreboard file for integrated_tests/idealised/ISMIP-HOM/exp_C
+        uses: actions/download-artifact@v4
+        with:
+          name: scoreboard_file_integrated_tests_idealised_ISMIP-HOM_exp_C
+          path: automated_testing/scoreboard/scoreboard_files
+
+      - name: Download scoreboard file for integrated_tests/idealised/ISMIP-HOM/exp_D
+        uses: actions/download-artifact@v4
+        with:
+          name: scoreboard_file_integrated_tests_idealised_ISMIP-HOM_exp_D
+          path: automated_testing/scoreboard/scoreboard_files
+
+      - name: Download scoreboard file for integrated_tests/idealised/MISMIP_mod
+        uses: actions/download-artifact@v4
+        with:
+          name: scoreboard_file_integrated_tests_idealised_MISMIP_mod
+          path: automated_testing/scoreboard/scoreboard_files
+
+      - name: Download scoreboard file for integrated_tests/idealised/MISMIPplus
+        uses: actions/download-artifact@v4
+        with:
+          name: scoreboard_file_integrated_tests_idealised_MISMIPplus
+          path: automated_testing/scoreboard/scoreboard_files
+
+      - name: Download scoreboard file for integrated_tests/realistic/Antarctica/initialisation/Ant_init_20kyr_invBMB_invpwf_40km
+        uses: actions/download-artifact@v4
+        with:
+          name: scoreboard_file_integrated_tests_realistic_Antarctica_initialisation_Ant_init_20kyr_invBMB_invpwf_40km
+          path: automated_testing/scoreboard/scoreboard_files
 
 # ===============================
 # ===== Finalise scoreboard =====
 # ===============================
 
-      - name: Append temporary to main scoreboard files
-        uses: matlab-actions/run-command@v2
-        with:
-          command: |
-            addpath('automated_testing/scoreboard/scripts')
-            append_temporary_to_main_scoreboard_files('${{github.workspace}}/automated_testing')
-
-      - name: Commit updated scoreboard files
+      - name: Commit scoreboard files
         # See https://github.com/marketplace/actions/add-commit
         if: ${{ github.event_name == 'pull_request' }} # Only do this for pull requests
         uses: EndBug/add-and-commit@v9 # You can change this to use a specific version.
         with:
-          add: automated_testing/scoreboard/scoreboard_*.txt
+          add: automated_testing/scoreboard/scoreboard_files/*.xml
           author_name: ${{ github.actor }} (from UFEMISM test suite workflow)
           message: 'Update scoreboard files (from UFEMISM test suite workflow by ${{ github.actor }})'
           push: true
@@ -120,7 +155,7 @@ jobs:
             addpath('automated_testing/scoreboard/scripts')
             create_scoreboard_html('${{github.workspace}}/automated_testing')
 
-      - name: Upload scoreboard HTML as artifact
+      - name: Upload scoreboard visualisation as artifact
         uses: actions/upload-artifact@v4.3.4
         with:
           name: scoreboard

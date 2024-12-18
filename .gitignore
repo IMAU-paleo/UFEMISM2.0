@@ -11,8 +11,6 @@ UFEMISM_program
 
 # Ignore output files
 result*/
-/benchmarks/MISMIP_mod/MISMIP_mod*
-/benchmarks/ISMIP-HOM/ISMIP_HOM_*
 
 # Ignore MacOS files
 .DS_Store
@@ -22,6 +20,12 @@ slurm-*.out
 
 # Ignore depend file
 .depend
+
+# Ignore Matlab autosave files
+*.asv
+
+# ignore data directory
+data
 
 # Ignore automated test reports
 automated_testing/test_reports/*.html

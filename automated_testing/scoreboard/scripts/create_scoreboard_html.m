@@ -71,6 +71,7 @@ fclose( fid);
   function scoreboard = read_scoreboard_files( foldername_scoreboard)
     % Read all the scoreboard files
 
+    % List all the scoreboard .xml files
     list_of_files = dir( foldername_scoreboard);
     i = 1;
     while i <= length( list_of_files)
@@ -81,11 +82,34 @@ fclose( fid);
       end
     end
 
+    % For each test, list all runs of that test (identified by their
+    % individual git hash strings)
+
+    all_tests = [];
+
     for i = 1: length( list_of_files)
-      % For each individual component/integrated tests, the results of all
-      % the runs of that test
-      disp(['  Reading scoreboard file ' list_of_files( i).name '...'])
-      all_tests(i) = read_scoreboard_file( [foldername_scoreboard '/' list_of_files( i).name]);
+
+      filename = list_of_files(i).name;
+
+      % Read single test run
+      single_run = read_scoreboard_file( [foldername_automated_testing ...
+        '/scoreboard/scoreboard_files/' filename]);
+
+      % Check if this test is already listed
+      foundit = false;
+      for ii = 1: length( all_tests)
+        if strcmp( all_tests(ii).single_run(1).category, single_run.category) && ...
+            strcmp( all_tests(ii).single_run(1).name, single_run.name)
+          % Add single run to this test
+          foundit = true;
+          all_tests(ii).single_run(end+1) = single_run;
+        end
+      end
+      % If not, add it
+      if ~foundit
+        all_tests(end+1).single_run = single_run;
+      end
+
     end
 
     scoreboard = categorise_test_results( all_tests);
@@ -265,6 +289,36 @@ fclose( fid);
     scoreboard.git_hash_strings{ n} = git_hash_string_of_run;
     scoreboard.date_and_times{   n} = date_and_time_of_run;
     scoreboard.values(           n) = cost_function.value;
+
+    % Sort by date and time
+    ii = n;
+    if ii > 1
+      while scoreboard.date_and_times{ ii} < scoreboard.date_and_times{ ii-1}
+  
+        date_and_time_tempa  = scoreboard.date_and_times{   ii  };
+        git_has_string_tempa = scoreboard.git_hash_strings{ ii  };
+        value_tempa          = scoreboard.values(           ii  );
+  
+        date_and_time_tempb  = scoreboard.date_and_times{   ii-1};
+        git_has_string_tempb = scoreboard.git_hash_strings{ ii-1};
+        value_tempb          = scoreboard.values(           ii-1);
+  
+        scoreboard.date_and_times{   ii  } = date_and_time_tempb ;
+        scoreboard.git_hash_strings{ ii  } = git_has_string_tempb;
+        scoreboard.values(           ii  ) = value_tempb         ;
+  
+        scoreboard.date_and_times{   ii-1} = date_and_time_tempa ;
+        scoreboard.git_hash_strings{ ii-1} = git_has_string_tempa;
+        scoreboard.values(           ii-1) = value_tempa         ;
+  
+        ii = ii-1;
+  
+        if ii == 1
+          break
+        end
+  
+      end
+    end
 
   end
 

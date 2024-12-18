@@ -27,6 +27,18 @@ function mesh = read_mesh_from_file( filename)
   mesh.ETri           = ncread(filename,'ETri');
   mesh.EBI            = ncread(filename,'EBI');
   mesh.nE             = size( mesh.E,1);
+
+  mesh.vi2vori        = ncread( filename, 'vi2vori');
+  mesh.ti2vori        = ncread( filename, 'ti2vori');
+  mesh.ei2vori        = ncread( filename, 'ei2vori');
+  mesh.vori2vi        = ncread( filename, 'vori2vi');
+  mesh.vori2ti        = ncread( filename, 'vori2ti');
+  mesh.vori2ei        = ncread( filename, 'vori2ei');
+  mesh.Vor            = ncread( filename, 'Vor');
+  mesh.VornC          = ncread( filename, 'VornC');
+  mesh.VorC           = ncread( filename, 'VorC');
+  mesh.nVVor          = ncread( filename, 'nVVor');
+  mesh.VVor           = ncread( filename, 'VVor');
   
   mesh.TriGC          = ncread( filename,'TriGC');
   mesh.R              = ncread( filename,'R');

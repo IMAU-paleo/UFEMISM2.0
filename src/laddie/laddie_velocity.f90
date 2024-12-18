@@ -16,11 +16,10 @@ MODULE laddie_velocity
   USE ocean_model_types                                      , ONLY: type_ocean_model
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_1D, gather_to_all_logical_1D
-  USE mesh_operators                                         , ONLY: ddx_a_b_2D, ddy_a_b_2D, map_a_b_2D
+  USE mesh_disc_apply_operators                              , ONLY: ddx_a_b_2D, ddy_a_b_2D, map_a_b_2D, map_b_c_2D, map_b_a_2D
   USE math_utilities                                         , ONLY: check_for_NaN_dp_1D
   USE laddie_utilities                                       , ONLY: compute_ambient_TS, map_H_a_b, map_H_a_c
   USE laddie_physics                                         , ONLY: compute_buoyancy
-  USE mesh_operators                                         , ONLY: map_b_c_2D, map_b_a_2D
 
   IMPLICIT NONE
     

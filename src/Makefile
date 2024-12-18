@@ -116,6 +116,7 @@ UFEMISM_source = \
   basic/mpi_distributed_memory.f90 \
   basic/math_utilities/math_utilities.f90 \
   basic/math_utilities/tridiagonal_solver.f90 \
+  basic/math_utilities/shape_functions.f90 \
   basic/analytical_solutions.f90 \
   basic/CSR_sparse_matrix_utilities.f90 \
   basic/petsc_basic.f90 \
@@ -133,6 +134,7 @@ UFEMISM_source = \
   mesh/Delaunay/split_edges.f90 \
   mesh/Delaunay/split_triangles.f90 \
   mesh/mesh_edges.f90 \
+  mesh/Voronoi_mesh/mesh_Voronoi.f90 \
   mesh/mesh_refinement_basic.f90 \
   mesh/mesh_refinement_basic_ROI.f90 \
   mesh/mesh_refinement_fun.f90 \
@@ -140,7 +142,10 @@ UFEMISM_source = \
   mesh/mesh_Lloyds_algorithm.f90 \
   mesh/mesh_parallel_creation.f90 \
   mesh/mesh_zeta.f90 \
-  mesh/mesh_operators.f90 \
+  mesh/discretisation/mesh_translation_tables.f90 \
+  mesh/discretisation/mesh_disc_calc_matrix_operators_2D.f90 \
+  mesh/discretisation/mesh_disc_calc_matrix_operators_3D.f90 \
+  mesh/discretisation/mesh_disc_apply_operators.f90 \
   mesh/remapping/line_tracing_basic.f90 \
   mesh/remapping/line_tracing_grid.f90 \
   mesh/remapping/line_tracing_triangles.f90 \
@@ -152,7 +157,10 @@ UFEMISM_source = \
   mesh/remapping/remapping_main.f90 \
   mesh/mesh_data_smoothing.f90 \
   mesh/mesh_secondary.f90 \
-  mesh/mesh_creation.f90 \
+  mesh/creation/reduce_ice_geometry.f90 \
+  mesh/creation/mesh_creation_refine_in_ROIs.f90 \
+  mesh/creation/mesh_creation_from_reduced_geometry.f90 \
+  mesh/creation/mesh_creation_main.f90 \
   \
   netcdf/netcdf_basic.f90 \
   netcdf/netcdf_debug.f90 \

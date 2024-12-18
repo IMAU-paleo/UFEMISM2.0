@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<single_run>
+    <name>Halfar_5km</name>
+    <category>integrated_tests/idealised/Halfar_dome</category>
+    <date_and_time>03-Dec-2024 12:03:00</date_and_time>
+    <git_hash_string>269bdfb63ed3121caf6fb22ce3d62b0653be9594</git_hash_string>
+    <cost_functions>
+        <name>rmse</name>
+        <definition>sqrt( mean( (Hi( :,end) - Hi_analytical( :,end)).^2 ))</definition>
+        <value></value>
+    </cost_functions>
+</single_run>

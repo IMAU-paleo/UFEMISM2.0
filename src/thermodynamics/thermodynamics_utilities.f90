@@ -20,7 +20,7 @@ MODULE thermodynamics_utilities
   USE ice_model_types                                        , ONLY: type_ice_model
   USE climate_model_types                                    , ONLY: type_climate_model
   USE SMB_model_types                                        , ONLY: type_SMB_model
-  USE mesh_operators                                         , ONLY: ddx_a_b_3D, ddy_a_b_3D
+  use mesh_disc_apply_operators, only: ddx_a_b_3D, ddy_a_b_3D
   USE math_utilities                                         , ONLY: cross2
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_2D
 

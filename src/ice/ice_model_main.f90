@@ -51,7 +51,7 @@ MODULE ice_model_main
   USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp
   USE petsc_basic                                            , ONLY: mat_petsc2CSR
   USE BMB_main                                               , ONLY: run_BMB_model
-  USE mesh_operators                                         , ONLY: ddx_a_a_2D, ddy_a_a_2D, ddx_a_b_2D, ddy_a_b_2D
+  use mesh_disc_apply_operators, only: ddx_a_a_2D, ddy_a_a_2D, ddx_a_b_2D, ddy_a_b_2D
   USE mesh_utilities                                         , ONLY: extrapolate_Gaussian
 
   IMPLICIT NONE
@@ -1331,6 +1331,8 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    t_pseudo = 0._dp
+
     ! Print to terminal
     IF (par%master .AND. C%do_time_display .AND. C%geometry_relaxation_t_years > 0._dp) THEN
 
@@ -1341,8 +1343,7 @@ CONTAINS
         write(*,"(A)") '   Stepping out of time to relax geometry...'
       END IF
 
-      ! Initialise and display pseudo time
-      t_pseudo = 0._dp
+      ! Display pseudo time
       write( r_time,"(F7.3)") t_pseudo
       write( r_step,"(F5.3)") C%geometry_relaxation_t_years / 100._dp
       write( *,"(A)", ADVANCE = TRIM( 'no')) c_carriage_return // &

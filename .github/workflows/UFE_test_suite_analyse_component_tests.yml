@@ -19,6 +19,12 @@ jobs:
         if: ${{ github.event_name != 'pull_request' }}
         uses: actions/checkout@v4
 
+      - name: Checkout data repository
+        uses: actions/checkout@v4
+        with:
+          repository: 'IMAU-paleo/data'
+          path: 'data'
+
       - name: Download component test results as artifacts
         uses: actions/download-artifact@v4
         with:
@@ -30,21 +36,15 @@ jobs:
         with:
           cache: true
 
-      - name: Analyse component tests results (create figures and update scoreboard files)
+      - name: Analyse component tests results and write results to scoreboard files
         uses: matlab-actions/run-command@v2
         with:
           command: |
             addpath('automated_testing/component_tests/analysis_scripts')
             analyse_component_tests('${{github.workspace}}/automated_testing')
 
-      - name: Upload temporary scoreboard files as artifact
+      - name: Upload scoreboard files as artifact
         uses: actions/upload-artifact@v4.3.4
         with:
-          name: component_test_scoreboard_files
-          path: automated_testing/component_tests/temporary_scoreboard_files
-
-      - name: Upload component test figures as artifact
-        uses: actions/upload-artifact@v4.3.4
-        with:
-          name: component_test_figures
-          path: automated_testing/component_tests/figures
+          name: scoreboard_files_component_tests
+          path: automated_testing/scoreboard/temporary_scoreboard_files/*.xml
