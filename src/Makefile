@@ -114,6 +114,7 @@ UFEMISM_source = \
   validation/basic_tests/assertions_basic.f90 \
   \
   basic/mpi_distributed_memory.f90 \
+  basic/math_utilities/flip_mod.f90 \
   basic/math_utilities/math_utilities.f90 \
   basic/math_utilities/tridiagonal_solver.f90 \
   basic/math_utilities/shape_functions.f90 \
