@@ -149,6 +149,33 @@ contains
 
   end subroutine map_a_b_2D
 
+  subroutine map_b_c_2D( mesh, d_b, d_c)
+    ! Map a 2-D data field from the b-grid (triangles) to the c-grid (edges)
+
+    ! In/output variables:
+    type(type_mesh),            intent(in   ) :: mesh
+    real(dp), dimension(:    ), intent(in   ) :: d_b
+    real(dp), dimension(:    ), intent(out  ) :: d_c
+
+    ! Local variables:
+    character(len=256), parameter :: routine_name = 'map_b_c_2D'
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Safety
+    if (size( d_b,1) /= mesh%nTri_loc .or. size( d_c,1) /= mesh%nE_loc) then
+      call crash('vector and matrix sizes dont match!')
+    end if
+
+    ! Perform the mapping operation as a matrix multiplication
+    call multiply_CSR_matrix_with_vector_1D( mesh%M_map_b_c, d_b, d_c)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine map_b_c_2D
+
   subroutine map_a_b_3D( mesh, d_a, d_b)
     ! Map a 3-D data field from the a-grid (vertices) to the b-grid (triangles)
 
