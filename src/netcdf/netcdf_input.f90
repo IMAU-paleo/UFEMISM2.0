@@ -25,9 +25,8 @@ MODULE netcdf_input
   USE grid_lonlat_basic                                      , ONLY: type_grid_lonlat, calc_lonlat_field_to_vector_form_translation_tables, &
                                                                      distribute_lonlat_gridded_data_from_master_dp_2D, deallocate_lonlat_grid, &
                                                                      distribute_lonlat_gridded_data_from_master_dp_3D
-  USE math_utilities                                         , ONLY: permute_2D_int, permute_2D_dp, permute_3D_int, permute_3D_dp, &
-                                                                     flip_1D_int, flip_2D_x1_int, flip_2D_x2_int, flip_3D_x1_int, flip_3D_x2_int, flip_3D_x3_int, &
-                                                                     flip_1D_dp , flip_2D_x1_dp , flip_2D_x2_dp , flip_3D_x1_dp , flip_3D_x2_dp , flip_3D_x3_dp
+  USE math_utilities                                         , ONLY: permute_2D_int, permute_2D_dp, permute_3D_int, permute_3D_dp
+  use flip_mod, only: flip
   USE mesh_types                                             , ONLY: type_mesh
   USE mesh_memory                                            , ONLY: allocate_mesh_primary, deallocate_mesh
   USE mesh_utilities                                         , ONLY: check_mesh
@@ -736,8 +735,8 @@ CONTAINS
     IF     (xdir == 'normal') THEN
       ! No need to do anything
     ELSEIF (xdir == 'reverse') THEN
-      CALL flip_1D_dp( grid_loc%x)
-      IF (par%master) CALL flip_2D_x1_dp( d_grid)
+      call flip( grid_loc%x)
+      IF (par%master) call flip( d_grid, 1)
     ELSE
       CALL crash('unknown xdir = "' // TRIM( xdir) // '"!')
     END IF
@@ -746,8 +745,8 @@ CONTAINS
     IF     (ydir == 'normal') THEN
       ! No need to do anything
     ELSEIF (ydir == 'reverse') THEN
-      CALL flip_1D_dp( grid_loc%y)
-      IF (par%master) CALL flip_2D_x2_dp( d_grid)
+      call flip( grid_loc%y)
+      IF (par%master) call flip( d_grid, 2)
     ELSE
       CALL crash('unknown ydir = "' // TRIM( ydir) // '"!')
     END IF
@@ -886,8 +885,8 @@ CONTAINS
     IF     (xdir == 'normal') THEN
       ! No need to do anything
     ELSEIF (xdir == 'reverse') THEN
-      CALL flip_1D_dp( grid_loc%x)
-      IF (par%master) CALL flip_2D_x1_int( d_grid)
+      call flip( grid_loc%x)
+      IF (par%master) call flip( d_grid, 1)
     ELSE
       CALL crash('unknown xdir = "' // TRIM( xdir) // '"!')
     END IF
@@ -896,8 +895,8 @@ CONTAINS
     IF     (ydir == 'normal') THEN
       ! No need to do anything
     ELSEIF (ydir == 'reverse') THEN
-      CALL flip_1D_dp( grid_loc%y)
-      IF (par%master) CALL flip_2D_x2_int( d_grid)
+      call flip( grid_loc%y)
+      IF (par%master) call flip( d_grid, 2)
     ELSE
       CALL crash('unknown ydir = "' // TRIM( ydir) // '"!')
     END IF
@@ -1031,8 +1030,8 @@ CONTAINS
     IF     (xdir == 'normal') THEN
       ! No need to do anything
     ELSEIF (xdir == 'reverse') THEN
-      CALL flip_1D_dp( grid_loc%x)
-      IF (par%master) CALL flip_3D_x1_dp( d_grid)
+      call flip( grid_loc%x)
+      IF (par%master) call flip( d_grid, 1)
     ELSE
       CALL crash('unknown xdir = "' // TRIM( xdir) // '"!')
     END IF
@@ -1041,8 +1040,8 @@ CONTAINS
     IF     (ydir == 'normal') THEN
       ! No need to do anything
     ELSEIF (ydir == 'reverse') THEN
-      CALL flip_1D_dp( grid_loc%y)
-      IF (par%master) CALL flip_3D_x2_dp( d_grid)
+      call flip( grid_loc%y)
+      IF (par%master) call flip( d_grid, 2)
     ELSE
       CALL crash('unknown ydir = "' // TRIM( ydir) // '"!')
     END IF
@@ -1178,8 +1177,8 @@ CONTAINS
     IF     (xdir == 'normal') THEN
       ! No need to do anything
     ELSEIF (xdir == 'reverse') THEN
-      CALL flip_1D_dp( grid_loc%x)
-      IF (par%master) CALL flip_3D_x1_dp( d_grid)
+      call flip( grid_loc%x)
+      IF (par%master) call flip( d_grid, 1)
     ELSE
       CALL crash('unknown xdir = "' // TRIM( xdir) // '"!')
     END IF
@@ -1188,8 +1187,8 @@ CONTAINS
     IF     (ydir == 'normal') THEN
       ! No need to do anything
     ELSEIF (ydir == 'reverse') THEN
-      CALL flip_1D_dp( grid_loc%y)
-      IF (par%master) CALL flip_3D_x2_dp( d_grid)
+      call flip( grid_loc%y)
+      IF (par%master) call flip( d_grid, 2)
     ELSE
       CALL crash('unknown ydir = "' // TRIM( ydir) // '"!')
     END IF
@@ -1325,8 +1324,8 @@ CONTAINS
     IF     (xdir == 'normal') THEN
       ! No need to do anything
     ELSEIF (xdir == 'reverse') THEN
-      CALL flip_1D_dp( grid_loc%x)
-      IF (par%master) CALL flip_3D_x1_dp( d_grid)
+      call flip( grid_loc%x)
+      IF (par%master) call flip( d_grid, 1)
     ELSE
       CALL crash('unknown xdir = "' // TRIM( xdir) // '"!')
     END IF
@@ -1335,8 +1334,8 @@ CONTAINS
     IF     (ydir == 'normal') THEN
       ! No need to do anything
     ELSEIF (ydir == 'reverse') THEN
-      CALL flip_1D_dp( grid_loc%y)
-      IF (par%master) CALL flip_3D_x2_dp( d_grid)
+      call flip( grid_loc%y)
+      IF (par%master) call flip( d_grid, 2)
     ELSE
       CALL crash('unknown ydir = "' // TRIM( ydir) // '"!')
     END IF
@@ -1468,8 +1467,8 @@ CONTAINS
     IF     (londir == 'normal') THEN
       ! No need to do anything
     ELSEIF (londir == 'reverse') THEN
-      CALL flip_1D_dp( grid_loc%lon)
-      IF (par%master) CALL flip_2D_x1_dp( d_grid)
+      call flip( grid_loc%lon)
+      IF (par%master) call flip( d_grid, 1)
     ELSE
       CALL crash('unknown londir = "' // TRIM( londir) // '"!')
     END IF
@@ -1478,8 +1477,8 @@ CONTAINS
     IF     (latdir == 'normal') THEN
       ! No need to do anything
     ELSEIF (latdir == 'reverse') THEN
-      CALL flip_1D_dp( grid_loc%lat)
-      IF (par%master) CALL flip_2D_x2_dp( d_grid)
+      call flip( grid_loc%lat)
+      IF (par%master) call flip( d_grid, 2)
     ELSE
       CALL crash('unknown latdir = "' // TRIM( latdir) // '"!')
     END IF
@@ -1615,8 +1614,8 @@ CONTAINS
     IF     (londir == 'normal') THEN
       ! No need to do anything
     ELSEIF (londir == 'reverse') THEN
-      CALL flip_1D_dp( grid_loc%lon)
-      IF (par%master) CALL flip_3D_x1_dp( d_grid)
+      call flip( grid_loc%lon)
+      IF (par%master) call flip( d_grid, 1)
     ELSE
       CALL crash('unknown londir = "' // TRIM( londir) // '"!')
     END IF
@@ -1625,8 +1624,8 @@ CONTAINS
     IF     (latdir == 'normal') THEN
       ! No need to do anything
     ELSEIF (latdir == 'reverse') THEN
-      CALL flip_1D_dp( grid_loc%lat)
-      IF (par%master) CALL flip_3D_x2_dp( d_grid)
+      call flip( grid_loc%lat)
+      IF (par%master) call flip( d_grid, 2)
     ELSE
       CALL crash('unknown latdir = "' // TRIM( latdir) // '"!')
     END IF
@@ -1762,8 +1761,8 @@ CONTAINS
     IF     (londir == 'normal') THEN
       ! No need to do anything
     ELSEIF (londir == 'reverse') THEN
-      CALL flip_1D_dp( grid_loc%lon)
-      IF (par%master) CALL flip_3D_x1_dp( d_grid)
+      call flip( grid_loc%lon)
+      IF (par%master) call flip( d_grid, 1)
     ELSE
       CALL crash('unknown londir = "' // TRIM( londir) // '"!')
     END IF
@@ -1772,8 +1771,8 @@ CONTAINS
     IF     (latdir == 'normal') THEN
       ! No need to do anything
     ELSEIF (latdir == 'reverse') THEN
-      CALL flip_1D_dp( grid_loc%lat)
-      IF (par%master) CALL flip_3D_x2_dp( d_grid)
+      call flip( grid_loc%lat)
+      IF (par%master) call flip( d_grid, 2)
     ELSE
       CALL crash('unknown latdir = "' // TRIM( latdir) // '"!')
     END IF
@@ -1909,8 +1908,8 @@ CONTAINS
     IF     (londir == 'normal') THEN
       ! No need to do anything
     ELSEIF (londir == 'reverse') THEN
-      CALL flip_1D_dp( grid_loc%lon)
-      IF (par%master) CALL flip_3D_x1_dp( d_grid)
+      call flip( grid_loc%lon)
+      IF (par%master) call flip( d_grid, 1)
     ELSE
       CALL crash('unknown londir = "' // TRIM( londir) // '"!')
     END IF
@@ -1919,8 +1918,8 @@ CONTAINS
     IF     (latdir == 'normal') THEN
       ! No need to do anything
     ELSEIF (latdir == 'reverse') THEN
-      CALL flip_1D_dp( grid_loc%lat)
-      IF (par%master) CALL flip_3D_x2_dp( d_grid)
+      call flip( grid_loc%lat)
+      IF (par%master) call flip( d_grid, 2)
     ELSE
       CALL crash('unknown latdir = "' // TRIM( latdir) // '"!')
     END IF
