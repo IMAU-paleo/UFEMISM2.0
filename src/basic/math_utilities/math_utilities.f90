@@ -1094,34 +1094,34 @@ contains
     ! Test if the point pc lies within tol_dist of the line pa-pb
 
     ! In/output variables:
-    real(dp), dimension(2),   intent(in)          :: pa, pb, pc
-    real(dp),                 intent(in)          :: tol_dist
-    logical                                       :: isso
+    real(dp), dimension(2), intent(in) :: pa, pb, pc
+    real(dp),               intent(in) :: tol_dist
+    logical                            :: isso
 
     ! Local variables:
-    real(dp), dimension(2)                        :: d, e, d_norm, e_par, e_ort
+    real(dp), dimension(2) :: d, e, d_norm, e_par, e_ort
 
     d = pb - pa
     e = pc - pa
 
-    d_norm = d / NORM2( d)
+    d_norm = d / norm2( d)
 
     e_par = (e( 1) * d_norm( 1) + e( 2) * d_norm( 2)) * d_norm
     e_ort = e - e_par
 
     isso = .true.
-    if (NORM2( e_ort) > tol_dist) then
+    if (norm2( e_ort) > tol_dist) then
       isso = .false.
       return
     end if
 
     if ((e( 1) * d( 1) + e( 2)* d ( 2)) > 0._dp) then
-      if (NORM2( e_par) > (NORM2( d))) then
+      if (norm2( e_par) > (norm2( d))) then
         isso = .false.
         return
       end if
     else
-      if (NORM2( e_par) > 0._dp) then
+      if (norm2( e_par) > 0._dp) then
         isso = .false.
         return
       end if
@@ -1132,8 +1132,8 @@ contains
   pure subroutine line_from_points( p, q, la, lb, lc)
     ! Find a,b,c such that the line ax + by = c passes through p and q
 
-    real(dp), dimension(2),     intent(in)        :: p, q
-    real(dp),                   intent(out)       :: la, lb, lc
+    real(dp), dimension(2), intent(in   ) :: p, q
+    real(dp),               intent(  out) :: la, lb, lc
 
     la = q( 2) - p( 2)
     lb = p( 1) - q( 1)
@@ -1145,11 +1145,11 @@ contains
     ! Find a,b,c such that the line ax + by = c describes the perpendicular
     ! bisector to the line [pq]
 
-    real(dp), dimension(2),     intent(in)        :: p, q
-    real(dp),                   intent(in)        :: la1, lb1
-    real(dp),                   intent(out)       :: la2, lb2, lc2
-    real(dp)                                      :: temp
-    real(dp), dimension(2)                        :: m
+    real(dp), dimension(2), intent(in   ) :: p, q
+    real(dp),               intent(in   ) :: la1, lb1
+    real(dp),               intent(  out) :: la2, lb2, lc2
+    real(dp)                              :: temp
+    real(dp), dimension(2)                :: m
 
     m = (p+q)/2
     lc2 = -lb1*m(1) + la1*m(2)
@@ -1163,9 +1163,9 @@ contains
   pure subroutine line_line_intersection( la1, lb1, lc1, la2, lb2, lc2, llis)
     ! Find the intersection llis of the lines la1*x+lb1*y=lc1 and la2*x+lb2*y=lc2
 
-    real(dp),                   intent(in)        :: la1, lb1, lc1, la2, lb2, lc2
-    real(dp), dimension(2),     intent(out)       :: llis
-    real(dp)                                      :: d
+    real(dp),               intent(in   ) :: la1, lb1, lc1, la2, lb2, lc2
+    real(dp), dimension(2), intent(  out) :: llis
+    real(dp)                              :: d
 
     d = la1*lb2 - la2*lb1
     if (d == 0) then
@@ -1184,10 +1184,10 @@ contains
     ! Find the circumcenter cc of the triangle pqr
     ! If pqr are colinear, returns [1e30,1e30]
 
-    real(dp), dimension(2),     intent(in)        :: p, q, r
-    real(dp), dimension(2)                        :: cc
-    real(dp)                                      :: la1,lb1,lc1,le1,lf1,lg1
-    real(dp)                                      :: la2,lb2,lc2,le2,lf2,lg2
+    real(dp), dimension(2), intent(in) :: p, q, r
+    real(dp), dimension(2)             :: cc
+    real(dp)                           :: la1,lb1,lc1,le1,lf1,lg1
+    real(dp)                           :: la2,lb2,lc2,le2,lf2,lg2
 
     cc = [0._dp, 0._dp]
 
@@ -1211,8 +1211,8 @@ contains
     ! Calculate the geometric centre of triangle [pqr]
 
     ! In/output variables:
-    real(dp), dimension(2), intent(in)            :: p, q, r
-    real(dp), dimension(2)                        :: gc
+    real(dp), dimension(2), intent(in) :: p, q, r
+    real(dp), dimension(2)             :: gc
 
     gc = (p + q + r) / 3._dp
 
@@ -1221,8 +1221,8 @@ contains
   pure function triangle_area( p, q, r) result( A)
     ! Find the area of the triangle [p,q,r]
 
-    real(dp), dimension(2), intent(in)  :: p, q, r
-    real(dp)                            :: A
+    real(dp), dimension(2), intent(in) :: p, q, r
+    real(dp)                           :: A
 
     A = abs( cross2( [q(1)-p(1), q(2)-p(2)], [r(1)-p(1), r(2)-p(2)] )) / 2._dp
 
@@ -1231,10 +1231,10 @@ contains
   pure function is_in_triangle( pa, pb, pc, p) result(isso)
     ! Check if the point p lies inside the triangle abc, or within distance tol of its edges
 
-    real(dp), dimension(2),   intent(in)          :: pa, pb, pc, p
-    logical                                       :: isso
-    real(dp)                                      :: as_x, as_y, s1, s2, s3
-    real(dp), parameter                           :: tol = 1E-9_dp
+    real(dp), dimension(2), intent(in) :: pa, pb, pc, p
+    logical                            :: isso
+    real(dp)                           :: as_x, as_y, s1, s2, s3
+    real(dp), parameter                :: tol = 1E-9_dp
 
     as_x = p( 1) - pa( 1)
     as_y = p( 2) - pa( 2)
@@ -1255,13 +1255,13 @@ contains
   pure function longest_triangle_leg( p, q, r) result( d)
     ! Find the longest leg of the triangle [p,q,r]
 
-    real(dp), dimension(2), intent(in)  :: p, q, r
-    real(dp)                            :: d
-    real(dp)                            :: d_pq, d_qr, d_rp
+    real(dp), dimension(2), intent(in) :: p, q, r
+    real(dp)                           :: d
+    real(dp)                           :: d_pq, d_qr, d_rp
 
-    d_pq = NORM2( p-q)
-    d_qr = NORM2( q-r)
-    d_rp = NORM2( r-p)
+    d_pq = norm2( p-q)
+    d_qr = norm2( q-r)
+    d_rp = norm2( r-p)
     d = max( max( d_pq, d_qr), d_rp)
 
   end function longest_triangle_leg
@@ -1269,10 +1269,10 @@ contains
   pure function smallest_triangle_angle( p, q, r) result( alpha)
     ! Find the smallest internal angle of the triangle [p,q,r]
 
-    real(dp), dimension(2), intent(in)  :: p, q, r
-    real(dp)                            :: alpha
-    real(dp), dimension(2)              :: pq, qr, rp
-    real(dp)                            :: ap, aq, ar
+    real(dp), dimension(2), intent(in) :: p, q, r
+    real(dp)                           :: alpha
+    real(dp), dimension(2)             :: pq, qr, rp
+    real(dp)                           :: ap, aq, ar
 
     ! Triangle legs
     pq = p-q
@@ -1280,9 +1280,9 @@ contains
     rp = r-p
 
     ! Internal angles
-    ap = Acos(-(rp( 1) * pq( 1) + rp( 2) * pq( 2)) / (NORM2( rp) * NORM2( pq)))
-    aq = Acos(-(pq( 1) * qr( 1) + pq( 2) * qr( 2)) / (NORM2( pq) * NORM2( qr)))
-    ar = Acos(-(rp( 1) * qr( 1) + rp( 2) * qr( 2)) / (NORM2( rp) * NORM2( qr)))
+    ap = acos(-(rp( 1) * pq( 1) + rp( 2) * pq( 2)) / (norm2( rp) * norm2( pq)))
+    aq = acos(-(pq( 1) * qr( 1) + pq( 2) * qr( 2)) / (norm2( pq) * norm2( qr)))
+    ar = acos(-(rp( 1) * qr( 1) + rp( 2) * qr( 2)) / (norm2( rp) * norm2( qr)))
 
     ! Smallest internal angle
     alpha = min( min( ap, aq), ar)
@@ -1297,8 +1297,8 @@ contains
     real(dp)                           :: alpha
 
     ! Local variables:
-    real(dp), dimension(2)             :: pq, qr, rp
-    real(dp)                           :: ap, aq, ar
+    real(dp), dimension(2) :: pq, qr, rp
+    real(dp)               :: ap, aq, ar
 
     ! Triangle legs
     pq = p-q
@@ -1341,25 +1341,25 @@ contains
     ! if [pq] doesn't pass through the domain at all, return is_valid_line = .false.
 
     ! In/output variables
-    real(dp), dimension(2),              intent(in)    :: p, q
-    real(dp),                            intent(in)    :: xmin, xmax, ymin, ymax, tol_dist
-    real(dp), dimension(2),              intent(out)   :: pp, qq
-    logical,                             intent(out)   :: is_valid_line
+    real(dp), dimension(2), intent(in   ) :: p, q
+    real(dp),               intent(in   ) :: xmin, xmax, ymin, ymax, tol_dist
+    real(dp), dimension(2), intent(  out) :: pp, qq
+    logical,                intent(  out) :: is_valid_line
 
     ! Local variables:
-    real(dp), dimension(2)                             :: sw, se, nw, ne
-    logical                                            :: p_inside
-    logical                                            :: p_on_border
-    logical                                            :: p_outside
-    logical                                            :: q_inside
-    logical                                            :: q_on_border
-    logical                                            :: q_outside
-    logical                                            :: do_cross_w
-    logical                                            :: do_cross_e
-    logical                                            :: do_cross_s
-    logical                                            :: do_cross_n
-    integer                                            :: n_cross
-    real(dp), dimension(2)                             :: llis_w, llis_e, llis_s, llis_n, llis1, llis2
+    real(dp), dimension(2) :: sw, se, nw, ne
+    logical                :: p_inside
+    logical                :: p_on_border
+    logical                :: p_outside
+    logical                :: q_inside
+    logical                :: q_on_border
+    logical                :: q_outside
+    logical                :: do_cross_w
+    logical                :: do_cross_e
+    logical                :: do_cross_s
+    logical                :: do_cross_n
+    integer                :: n_cross
+    real(dp), dimension(2) :: llis_w, llis_e, llis_s, llis_n, llis1, llis2
 
     sw = [xmin,ymin]
     se = [xmax,ymin]
@@ -1605,7 +1605,7 @@ contains
       elseif (n_cross == 2) then
         ! pq passes through the domain; crop it
 
-        if (NORM2( llis1 - p) < NORM2( llis2 - p)) then
+        if (norm2( llis1 - p) < norm2( llis2 - p)) then
           ! the cropped line runs from llis1 to llis2
           pp = llis1
           qq = llis2
@@ -1644,11 +1644,11 @@ contains
     ! Check if c encroaches upon segment ab
 
     ! In/output variables:
-    real(dp), dimension(2), intent(in)            :: pa, pb, pc
-    real(dp),               intent(in)            :: tol_dist
-    logical                                       :: isso
+    real(dp), dimension(2), intent(in) :: pa, pb, pc
+    real(dp),               intent(in) :: tol_dist
+    logical                            :: isso
 
-    isso = NORM2( pc - (pa + pb) / 2._dp) < NORM2( pa - pb) / 2._dp + tol_dist
+    isso = norm2( pc - (pa + pb) / 2._dp) < norm2( pa - pb) / 2._dp + tol_dist
 
   end function encroaches_upon
 
@@ -1656,9 +1656,9 @@ contains
     ! Given a function f( x) and points x1, x2 such that f( x1) = f1, f( x2) = f2,
     ! interpolate f linearly to find the point x0 such that f( x0) = f0
 
-    real(dp),               intent(in)  :: x1, x2, f1, f2, f0
-    real(dp)                            :: x0
-    real(dp)                            :: lambda
+    real(dp), intent(in) :: x1, x2, f1, f2, f0
+    real(dp)             :: x0
+    real(dp)             :: lambda
 
     ! Safety - if f1 == f2, then f = f0 = f1 everywhere
     if (abs( 1._dp - f1/f2) < 1E-9_dp) then
@@ -1673,7 +1673,7 @@ contains
 
 ! == Basic array operations
 
-  subroutine permute_2D_int(  d, map)
+  subroutine permute_2D_int( d, map)
     ! Permute a 2-D array
 
     ! In/output variables:
@@ -1681,9 +1681,9 @@ contains
     integer,  dimension(2),                  intent(in)    :: map
 
     ! Local variables:
-    character(len=256), parameter                          :: routine_name = 'permute_2D_int'
-    integer                                                :: i,j,n1,n2
-    integer,  dimension(:,:  ), allocatable                :: d_temp
+    character(len=256), parameter           :: routine_name = 'permute_2D_int'
+    integer                                 :: i,j,n1,n2
+    integer,  dimension(:,:  ), allocatable :: d_temp
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -1727,17 +1727,17 @@ contains
 
   end subroutine permute_2D_int
 
-  subroutine permute_2D_dp(  d, map)
+  subroutine permute_2D_dp( d, map)
     ! Permute a 2-D array
 
     ! In/output variables:
-    real(dp), dimension(:,:  ), allocatable, intent(inout) :: d
-    integer,  dimension(2),                  intent(in)    :: map
+    real(dp), dimension(:,:), allocatable, intent(inout) :: d
+    integer,  dimension(2),                intent(in)    :: map
 
     ! Local variables:
-    character(len=256), parameter                          :: routine_name = 'permute_2D_dp'
-    integer                                                :: i,j,n1,n2
-    real(dp), dimension(:,:  ), allocatable                :: d_temp
+    character(len=256), parameter         :: routine_name = 'permute_2D_dp'
+    integer                               :: i,j,n1,n2
+    real(dp), dimension(:,:), allocatable :: d_temp
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -1781,7 +1781,7 @@ contains
 
   end subroutine permute_2D_dp
 
-  subroutine permute_3D_int(  d, map)
+  subroutine permute_3D_int( d, map)
     ! Permute a 3-D array
 
     ! In/output variables:
@@ -1789,9 +1789,9 @@ contains
     integer,  dimension(3),                  intent(in)    :: map
 
     ! Local variables:
-    character(len=256), parameter                      :: routine_name = 'permute_3D_int'
-    integer                                            :: i,j,k,n1,n2,n3
-    integer,  dimension(:,:,:), allocatable            :: d_temp
+    character(len=256), parameter           :: routine_name = 'permute_3D_int'
+    integer                                 :: i,j,k,n1,n2,n3
+    integer,  dimension(:,:,:), allocatable :: d_temp
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -1912,7 +1912,7 @@ contains
 
   end subroutine permute_3D_int
 
-  subroutine permute_3D_dp(  d, map)
+  subroutine permute_3D_dp( d, map)
     ! Permute a 3-D array
 
     ! In/output variables:
@@ -1920,9 +1920,9 @@ contains
     integer,  dimension(3),                  intent(in)    :: map
 
     ! Local variables:
-    character(len=256), parameter                      :: routine_name = 'permute_3D_dp'
-    integer                                            :: i,j,k,n1,n2,n3
-    real(dp), dimension(:,:,:), allocatable            :: d_temp
+    character(len=256), parameter           :: routine_name = 'permute_3D_dp'
+    integer                                 :: i,j,k,n1,n2,n3
+    real(dp), dimension(:,:,:), allocatable :: d_temp
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -2047,11 +2047,11 @@ contains
     ! Flip a 1-D array
 
     ! In/output variables:
-    integer,  dimension(:    ),          intent(inout) :: d
+    integer,  dimension(:), intent(inout) :: d
 
     ! Local variables:
-    character(len=256), parameter                      :: routine_name = 'flip_1D_int'
-    integer                                            :: i,nx,iopp
+    character(len=256), parameter :: routine_name = 'flip_1D_int'
+    integer                       :: i,nx,iopp
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -2076,11 +2076,11 @@ contains
     ! Flip a 1-D array
 
     ! In/output variables:
-    real(dp), dimension(:    ),          intent(inout) :: d
+    real(dp), dimension(:), intent(inout) :: d
 
     ! Local variables:
-    character(len=256), parameter                      :: routine_name = 'flip_1D_dp'
-    integer                                            :: i,nx,iopp
+    character(len=256), parameter :: routine_name = 'flip_1D_dp'
+    integer                       :: i,nx,iopp
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -2105,11 +2105,11 @@ contains
     ! Flip a 2-D array along the first dimension
 
     ! In/output variables:
-    integer,  dimension(:,:  ),          intent(inout) :: d
+    integer,  dimension(:,:), intent(inout) :: d
 
     ! Local variables:
-    character(len=256), parameter                      :: routine_name = 'flip_2D_x1_int'
-    integer                                            :: i,n1,n2,iopp
+    character(len=256), parameter :: routine_name = 'flip_2D_x1_int'
+    integer                       :: i,n1,n2,iopp
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -2135,11 +2135,11 @@ contains
     ! Flip a 2-D array along the first dimension
 
     ! In/output variables:
-    real(dp), dimension(:,:  ),          intent(inout) :: d
+    real(dp), dimension(:,:), intent(inout) :: d
 
     ! Local variables:
-    character(len=256), parameter                      :: routine_name = 'flip_2D_x1_dp'
-    integer                                            :: i,n1,n2,iopp
+    character(len=256), parameter :: routine_name = 'flip_2D_x1_dp'
+    integer                       :: i,n1,n2,iopp
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -2165,11 +2165,11 @@ contains
     ! Flip a 2-D array along the second dimension
 
     ! In/output variables:
-    integer,  dimension(:,:  ),          intent(inout) :: d
+    integer,  dimension(:,:), intent(inout) :: d
 
     ! Local variables:
-    character(len=256), parameter                      :: routine_name = 'flip_2D_x2_int'
-    integer                                            :: j,n1,n2,jopp
+    character(len=256), parameter :: routine_name = 'flip_2D_x2_int'
+    integer                       :: j,n1,n2,jopp
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -2195,11 +2195,11 @@ contains
     ! Flip a 2-D array along the second dimension
 
     ! In/output variables:
-    real(dp), dimension(:,:  ),          intent(inout) :: d
+    real(dp), dimension(:,:), intent(inout) :: d
 
     ! Local variables:
-    character(len=256), parameter                      :: routine_name = 'flip_2D_x2_dp'
-    integer                                            :: j,n1,n2,jopp
+    character(len=256), parameter :: routine_name = 'flip_2D_x2_dp'
+    integer                       :: j,n1,n2,jopp
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -2225,11 +2225,11 @@ contains
     ! Flip a 3-D array along the first dimension
 
     ! In/output variables:
-    integer,  dimension(:,:,:),          intent(inout) :: d
+    integer,  dimension(:,:,:), intent(inout) :: d
 
     ! Local variables:
-    character(len=256), parameter                      :: routine_name = 'flip_3D_x1_int'
-    integer                                            :: i,n1,n2,n3,iopp
+    character(len=256), parameter :: routine_name = 'flip_3D_x1_int'
+    integer                       :: i,n1,n2,n3,iopp
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -2256,11 +2256,11 @@ contains
     ! Flip a 3-D array along the first dimension
 
     ! In/output variables:
-    real(dp), dimension(:,:,:),          intent(inout) :: d
+    real(dp), dimension(:,:,:), intent(inout) :: d
 
     ! Local variables:
-    character(len=256), parameter                      :: routine_name = 'flip_3D_x1_dp'
-    integer                                            :: i,n1,n2,n3,iopp
+    character(len=256), parameter :: routine_name = 'flip_3D_x1_dp'
+    integer                       :: i,n1,n2,n3,iopp
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -2287,11 +2287,11 @@ contains
     ! Flip a 3-D array along the second dimension
 
     ! In/output variables:
-    integer,  dimension(:,:,:),          intent(inout) :: d
+    integer,  dimension(:,:,:), intent(inout) :: d
 
     ! Local variables:
-    character(len=256), parameter                      :: routine_name = 'flip_3D_x2_int'
-    integer                                            :: j,n1,n2,n3,jopp
+    character(len=256), parameter :: routine_name = 'flip_3D_x2_int'
+    integer                       :: j,n1,n2,n3,jopp
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -2318,11 +2318,11 @@ contains
     ! Flip a 3-D array along the second dimension
 
     ! In/output variables:
-    real(dp), dimension(:,:,:),          intent(inout) :: d
+    real(dp), dimension(:,:,:), intent(inout) :: d
 
     ! Local variables:
-    character(len=256), parameter                      :: routine_name = 'flip_3D_x2_dp'
-    integer                                            :: j,n1,n2,n3,jopp
+    character(len=256), parameter :: routine_name = 'flip_3D_x2_dp'
+    integer                       :: j,n1,n2,n3,jopp
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -2349,11 +2349,11 @@ contains
     ! Flip a 3-D array along the third dimension
 
     ! In/output variables:
-    integer,  dimension(:,:,:),          intent(inout) :: d
+    integer,  dimension(:,:,:), intent(inout) :: d
 
     ! Local variables:
-    character(len=256), parameter                      :: routine_name = 'flip_3D_x3_int'
-    integer                                            :: k,n1,n2,n3,kopp
+    character(len=256), parameter :: routine_name = 'flip_3D_x3_int'
+    integer                       :: k,n1,n2,n3,kopp
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -2380,11 +2380,11 @@ contains
     ! Flip a 3-D array along the third dimension
 
     ! In/output variables:
-    real(dp), dimension(:,:,:),          intent(inout) :: d
+    real(dp), dimension(:,:,:), intent(inout) :: d
 
     ! Local variables:
-    character(len=256), parameter                      :: routine_name = 'flip_3D_x3_dp'
-    integer                                            :: k,n1,n2,n3,kopp
+    character(len=256), parameter :: routine_name = 'flip_3D_x3_dp'
+    integer                       :: k,n1,n2,n3,kopp
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -2777,23 +2777,23 @@ contains
     !   with the parallelisation being done by distributing the 2-D grid cells over the processes.
 
     ! In/output variables:
-    real(dp), dimension(:    ),          intent(in)    :: z_src
-    integer,  dimension(:    ),          intent(in)    :: mask_src
-    real(dp), dimension(:    ),          intent(in)    :: d_src
-    real(dp), dimension(:    ),          intent(in)    :: z_dst
-    integer,  dimension(:    ),          intent(in)    :: mask_dst
-    real(dp), dimension(:    ),          intent(out)   :: d_dst
+    real(dp), dimension(:), intent(in   ) :: z_src
+    integer,  dimension(:), intent(in   ) :: mask_src
+    real(dp), dimension(:), intent(in   ) :: d_src
+    real(dp), dimension(:), intent(in   ) :: z_dst
+    integer,  dimension(:), intent(in   ) :: mask_dst
+    real(dp), dimension(:), intent(  out) :: d_dst
 
     ! Local variables:
-    logical                                            :: all_are_masked
-    integer                                            :: nz_src, nz_dst
-    integer                                            :: k
-    real(dp), dimension(:    ), allocatable            :: ddz_src
-    integer                                            :: k_src, k_dst
-    real(dp)                                           :: zl_src, zu_src, zl_dst, zu_dst, z_lo, z_hi, z, d
-    real(dp)                                           :: dz_overlap, dz_overlap_tot, d_int, d_int_tot
-    real(dp)                                           :: dist_to_dst, dist_to_dst_min, max_dist
-    integer                                            :: k_src_nearest_to_dst
+    logical                                 :: all_are_masked
+    integer                                 :: nz_src, nz_dst
+    integer                                 :: k
+    real(dp), dimension(:    ), allocatable :: ddz_src
+    integer                                 :: k_src, k_dst
+    real(dp)                                :: zl_src, zu_src, zl_dst, zu_dst, z_lo, z_hi, z, d
+    real(dp)                                :: dz_overlap, dz_overlap_tot, d_int, d_int_tot
+    real(dp)                                :: dist_to_dst, dist_to_dst_min, max_dist
+    integer                                 :: k_src_nearest_to_dst
 
     ! Initialise
     d_dst = 0._dp
@@ -2910,7 +2910,7 @@ contains
 
         ! Safety
         if (k_src_nearest_to_dst == 0) then
-          WRITE(0,*) '  remap_cons_2nd_order_1D - ERROR: couldnt find nearest neighbour on source grid!'
+          write(0,*) '  remap_cons_2nd_order_1D - ERROR: couldnt find nearest neighbour on source grid!'
           call MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
         end if
 
