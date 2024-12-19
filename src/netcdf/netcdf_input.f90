@@ -47,7 +47,7 @@ MODULE netcdf_input
                           field_name_options_C, field_name_options_niTri, field_name_options_iTri, &
                           field_name_options_VBI, field_name_options_Tricc, field_name_options_TriC, &
                           field_name_options_TriBI, field_name_options_E, field_name_options_VE, field_name_options_EV, &
-                          field_name_options_ETri, field_name_options_EBI, field_name_options_A, field_name_options_R, &
+                          field_name_options_ETri, field_name_options_TriE, field_name_options_EBI, field_name_options_A, field_name_options_R, &
                           field_name_options_Hi, field_name_options_Hb, field_name_options_Hs, field_name_options_dHb, &
                           field_name_options_SL, field_name_options_Ti, get_first_option_from_list, &
                           open_existing_netcdf_file_for_reading, close_netcdf_file, &
