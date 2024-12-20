@@ -25,7 +25,7 @@ MODULE netcdf_input
   USE grid_lonlat_basic                                      , ONLY: type_grid_lonlat, calc_lonlat_field_to_vector_form_translation_tables, &
                                                                      distribute_lonlat_gridded_data_from_master_dp_2D, deallocate_lonlat_grid, &
                                                                      distribute_lonlat_gridded_data_from_master_dp_3D
-  USE math_utilities                                         , ONLY: permute_2D_int, permute_2D_dp, permute_3D_int, permute_3D_dp
+  use permute_mod, only: permute
   use flip_mod, only: flip
   USE mesh_types                                             , ONLY: type_mesh
   USE mesh_memory                                            , ONLY: allocate_mesh_primary, deallocate_mesh
@@ -726,7 +726,7 @@ CONTAINS
     IF     (indexing == 'xy') THEN
       ! No need to do anything
     ELSEIF (indexing == 'yx') THEN
-      IF (par%master) CALL permute_2D_dp( d_grid, map = [2,1])
+      IF (par%master) call permute( d_grid, map = [2,1])
     ELSE
       CALL crash('unknown indexing = "' // TRIM( indexing) // '"!')
     END IF
@@ -876,7 +876,7 @@ CONTAINS
     IF     (indexing == 'xy') THEN
       ! No need to do anything
     ELSEIF (indexing == 'yx') THEN
-      IF (par%master) CALL permute_2D_int( d_grid, map = [2,1])
+      IF (par%master) call permute( d_grid, map = [2,1])
     ELSE
       CALL crash('unknown indexing = "' // TRIM( indexing) // '"!')
     END IF
@@ -1021,7 +1021,7 @@ CONTAINS
     IF     (indexing == 'xy') THEN
       ! No need to do anything
     ELSEIF (indexing == 'yx') THEN
-      IF (par%master) CALL permute_3D_dp( d_grid, map = [2,1,3])
+      IF (par%master) call permute( d_grid, map = [2,1,3])
     ELSE
       CALL crash('unknown indexing = "' // TRIM( indexing) // '"!')
     END IF
@@ -1168,7 +1168,7 @@ CONTAINS
     IF     (indexing == 'xy') THEN
       ! No need to do anything
     ELSEIF (indexing == 'yx') THEN
-      IF (par%master) CALL permute_3D_dp( d_grid, map = [2,1,3])
+      IF (par%master) call permute( d_grid, map = [2,1,3])
     ELSE
       CALL crash('unknown indexing = "' // TRIM( indexing) // '"!')
     END IF
@@ -1315,7 +1315,7 @@ CONTAINS
     IF     (indexing == 'xy') THEN
       ! No need to do anything
     ELSEIF (indexing == 'yx') THEN
-      IF (par%master) CALL permute_3D_dp( d_grid, map = [2,1,3])
+      IF (par%master) call permute( d_grid, map = [2,1,3])
     ELSE
       CALL crash('unknown indexing = "' // TRIM( indexing) // '"!')
     END IF
@@ -1458,7 +1458,7 @@ CONTAINS
     IF     (indexing == 'lonlat') THEN
       ! No need to do anything
     ELSEIF (indexing == 'latlon') THEN
-      IF (par%master) CALL permute_2D_dp( d_grid, map = [2,1])
+      IF (par%master) call permute( d_grid, map = [2,1])
     ELSE
       CALL crash('unknown indexing = "' // TRIM( indexing) // '"!')
     END IF
@@ -1605,7 +1605,7 @@ CONTAINS
     IF     (indexing == 'lonlat') THEN
       ! No need to do anything
     ELSEIF (indexing == 'latlon') THEN
-      IF (par%master) CALL permute_3D_dp( d_grid, map = [2,1,3])
+      IF (par%master) call permute( d_grid, map = [2,1,3])
     ELSE
       CALL crash('unknown indexing = "' // TRIM( indexing) // '"!')
     END IF
@@ -1752,7 +1752,7 @@ CONTAINS
     IF     (indexing == 'lonlat') THEN
       ! No need to do anything
     ELSEIF (indexing == 'latlon') THEN
-      IF (par%master) CALL permute_3D_dp( d_grid, map = [2,1,3])
+      IF (par%master) call permute( d_grid, map = [2,1,3])
     ELSE
       CALL crash('unknown indexing = "' // TRIM( indexing) // '"!')
     END IF
@@ -1899,7 +1899,7 @@ CONTAINS
     IF     (indexing == 'lonlat') THEN
       ! No need to do anything
     ELSEIF (indexing == 'latlon') THEN
-      IF (par%master) CALL permute_3D_dp( d_grid, map = [2,1,3])
+      IF (par%master) call permute( d_grid, map = [2,1,3])
     ELSE
       CALL crash('unknown indexing = "' // TRIM( indexing) // '"!')
     END IF
