@@ -16,7 +16,8 @@ MODULE mesh_secondary
   USE mesh_types                                             , ONLY: type_mesh
   USE mesh_utilities                                         , ONLY: calc_Voronoi_cell, find_shared_Voronoi_boundary, find_corner_vertices
   USE math_utilities                                         , ONLY: cross2, line_integral_xdy, line_integral_xydy, line_integral_mxydx, triangle_area, &
-                                                                     geometric_center, inverse_oblique_sg_projection
+                                                                     geometric_center
+  use projections, only: inverse_oblique_sg_projection
   USE mesh_edges                                             , ONLY: construct_mesh_edges
   USE mesh_zeta                                              , ONLY: initialise_scaled_vertical_coordinate
   use mesh_Voronoi, only: construct_Voronoi_mesh

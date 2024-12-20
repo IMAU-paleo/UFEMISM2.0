@@ -8,7 +8,8 @@ MODULE grid_lonlat_basic
   USE parameters
   USE petsc_basic                                            , ONLY: perr, mat_CSR2petsc
   USE reallocate_mod                                         , ONLY: reallocate
-  USE math_utilities                                         , ONLY: linint_points, inverse_oblique_sg_projection
+  USE math_utilities                                         , ONLY: linint_points
+  use projections, only: inverse_oblique_sg_projection
   USE mpi_distributed_memory                                 , ONLY: partition_list, distribute_from_master_dp_1D, gather_to_master_dp_1D
   USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp, allocate_matrix_CSR_dist, add_entry_CSR_dist, &
                                                                      deallocate_matrix_CSR_dist

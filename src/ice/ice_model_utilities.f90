@@ -24,7 +24,8 @@ MODULE ice_model_utilities
   USE LMB_model_types                                        , ONLY: type_LMB_model
   USE AMB_model_types                                        , ONLY: type_AMB_model
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_logical_1D
-  USE math_utilities                                         , ONLY: is_floating, triangle_area, oblique_sg_projection, is_in_polygon
+  USE math_utilities                                         , ONLY: is_floating, triangle_area, is_in_polygon
+  use projections, only: oblique_sg_projection
   use remapping_main, only: Atlas
   use create_maps_grid_mesh, only: create_map_from_xy_grid_to_mesh, create_map_from_xy_grid_to_mesh_triangles
   USE petsc_basic                                            , ONLY: mat_petsc2CSR
