@@ -7,7 +7,7 @@ module check_Delaunay_criterion
   use precisions, only: dp
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, warning, crash
   use mesh_types, only: type_mesh
-  use math_utilities, only: is_in_triangle
+  use plane_geometry, only: is_in_triangle
   use mesh_utilities, only: find_triangle_pair_local_geometry
 
   implicit none

@@ -19,7 +19,7 @@ MODULE SMB_main
   USE SMB_prescribed                                         , ONLY: initialise_SMB_model_prescribed, run_SMB_model_prescribed
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   use mesh_ROI_polygons, only: calc_polygon_Patagonia
-  USE math_utilities                                         , ONLY: is_in_polygon
+  use plane_geometry, only: is_in_polygon
   USE mesh_data_smoothing                                    , ONLY: smooth_Gaussian_2D
 
   IMPLICIT NONE

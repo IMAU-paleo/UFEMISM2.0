@@ -5,7 +5,8 @@ module mesh_contiguous_domains
   use precisions, only: dp
   use mesh_types, only: type_mesh
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash
-  use math_utilities, only: geometric_center, quick_n_dirty_sort
+  use plane_geometry, only: geometric_center
+  use math_utilities, only: quick_n_dirty_sort
 
   implicit none
 

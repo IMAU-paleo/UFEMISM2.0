@@ -33,7 +33,7 @@ MODULE ice_velocity_hybrid_DIVA_BPA
   use mesh_disc_apply_operators, only: map_a_b_2D, map_b_a_2D, map_b_a_3D, map_a_b_3D
   use mesh_disc_calc_matrix_operators_3D, only: calc_3D_matrix_operators_mesh
   use mesh_ROI_polygons
-  USE math_utilities                                         , ONLY: is_in_polygon, is_in_polygons
+  use plane_geometry, only: is_in_polygon, is_in_polygons
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_logical_1D
   USE ice_model_utilities                                    , ONLY: calc_zeta_gradients
   USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp, allocate_matrix_CSR_dist, add_entry_CSR_dist, read_single_row_CSR_dist, &

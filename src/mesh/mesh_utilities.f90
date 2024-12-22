@@ -14,10 +14,9 @@ MODULE mesh_utilities
   USE model_configuration                                    , ONLY: C
   USE reallocate_mod
   USE mesh_types                                             , ONLY: type_mesh
-  USE math_utilities                                         , ONLY: geometric_center, is_in_triangle, lies_on_line_segment, circumcenter, &
-                                                                     line_from_points, line_line_intersection, encroaches_upon, crop_line_to_domain, &
-                                                                     triangle_area, smallest_triangle_angle, equiangular_skewness, &
-                                                                     interpolate_inside_triangle_dp_2D, interpolate_inside_triangle_dp_3D
+  use plane_geometry, only: geometric_center, is_in_triangle, lies_on_line_segment, circumcenter, &
+    line_from_points, line_line_intersection, encroaches_upon, crop_line_to_domain, triangle_area, &
+    smallest_triangle_angle, equiangular_skewness, interpolate_inside_triangle
   USE mpi_distributed_memory                                 , ONLY: gather_to_master_int_1D, gather_to_master_dp_1D, &
                                                                      distribute_from_master_int_1D, distribute_from_master_dp_1D, &
                                                                      gather_to_all_int_1D, gather_to_all_dp_1D
@@ -1507,7 +1506,7 @@ CONTAINS
     END IF
     CALL MPI_ALLREDUCE( MPI_IN_PLACE, dc, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
 
-    call interpolate_inside_triangle_dp_2D( pa, pb, pc, da, db, dc, p, d_int, mesh%tol_dist)
+    call interpolate_inside_triangle( pa, pb, pc, da, db, dc, p, d_int, mesh%tol_dist)
 
   END SUBROUTINE interpolate_to_point_dp_2D
 
@@ -1575,7 +1574,7 @@ CONTAINS
     END IF
     CALL MPI_ALLREDUCE( MPI_IN_PLACE, dc, C%nz, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
 
-    call interpolate_inside_triangle_dp_3D( pa, pb, pc, da, db, dc, p, d_int, mesh%tol_dist)
+    call interpolate_inside_triangle( pa, pb, pc, da, db, dc, p, d_int, mesh%tol_dist)
 
   END SUBROUTINE interpolate_to_point_dp_3D
 

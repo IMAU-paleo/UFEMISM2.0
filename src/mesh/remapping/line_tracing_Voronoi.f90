@@ -9,8 +9,8 @@ module line_tracing_Voronoi
   use line_tracing_basic
   use mesh_types, only: type_mesh
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash
-  use math_utilities, only: lies_on_line_segment, segment_intersection, crop_line_to_domain, &
-    line_integral_xdy, line_integral_mxydx, line_integral_xydy
+  use plane_geometry, only: lies_on_line_segment, segment_intersection, crop_line_to_domain
+  use math_utilities, only: line_integral_xdy, line_integral_mxydx, line_integral_xydy
   use mesh_utilities, only: find_shared_Voronoi_boundary, is_in_Voronoi_cell, calc_Voronoi_cell, &
     find_containing_vertex
 

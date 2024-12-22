@@ -19,7 +19,7 @@ contains
   end function calc_determinant_2_by_2
 
   pure function calc_determinant_3_by_3( A) result( detA)
-    ! Determinant of a 2-by-2 matrix
+    ! Determinant of a 3-by-3 matrix
 
     real(dp), dimension(3,3), intent(in) :: A
     real(dp)                             :: detA
