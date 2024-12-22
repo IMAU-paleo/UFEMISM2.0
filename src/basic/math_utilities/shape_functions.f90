@@ -7,7 +7,7 @@ module shape_functions
 
   use precisions, only: dp
   use control_resources_and_error_messaging, only: crash
-  use math_utilities, only: calc_determinant_2_by_2, calc_determinant_3_by_3, calc_determinant_5_by_5, &
+  use matrix_algebra, only: calc_determinant_2_by_2, calc_determinant_3_by_3, calc_determinant_5_by_5, &
     calc_matrix_inverse_2_by_2, calc_matrix_inverse_3_by_3, calc_matrix_inverse_5_by_5
 
   real(dp), parameter :: q = 1.5_dp  ! Distance weighting exponent (see Syrakos et al., 2017)
