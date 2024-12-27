@@ -12,7 +12,7 @@ MODULE grid_basic
   USE parameters
   USE petsc_basic                                            , ONLY: perr, mat_CSR2petsc
   USE reallocate_mod                                         , ONLY: reallocate
-  USE math_utilities                                         , ONLY: linint_points
+  use interpolation, only: linint_points
   use projections, only: inverse_oblique_sg_projection
   USE mpi_distributed_memory                                 , ONLY: partition_list, distribute_from_master_dp_1D, gather_to_master_dp_1D, &
                                                                      distribute_from_master_int_1D, gather_to_master_int_1D
