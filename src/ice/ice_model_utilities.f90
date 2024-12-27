@@ -24,7 +24,7 @@ MODULE ice_model_utilities
   USE LMB_model_types                                        , ONLY: type_LMB_model
   USE AMB_model_types                                        , ONLY: type_AMB_model
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_logical_1D
-  use math_utilities, only: is_floating
+  use ice_geometry_basics, only: is_floating
   use plane_geometry, only: triangle_area, is_in_polygon
   use projections, only: oblique_sg_projection
   use remapping_main, only: Atlas

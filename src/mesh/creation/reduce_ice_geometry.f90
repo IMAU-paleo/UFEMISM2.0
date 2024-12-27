@@ -13,7 +13,7 @@ module reduce_ice_geometry
   use mpi_distributed_memory, only: gather_to_master_dp_1D
   use grid_basic, only: gather_gridded_data_to_master_dp_2D, calc_grid_mask_as_polygons, &
     calc_grid_contour_as_line
-  use math_utilities, only: thickness_above_floatation
+  use ice_geometry_basics, only: thickness_above_floatation
   use mesh_utilities, only: calc_mesh_mask_as_polygons, calc_mesh_contour_as_line
 
   implicit none

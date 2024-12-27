@@ -20,8 +20,7 @@ MODULE ice_thickness
   USE ice_velocity_main                                      , ONLY: map_velocities_from_b_to_c_2D
   USE petsc_basic                                            , ONLY: multiply_CSR_matrix_with_vector_1D, solve_matrix_equation_CSR_PETSc
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_1D, gather_to_all_logical_1D
-  USE math_utilities                                         , ONLY: ice_surface_elevation, Hi_from_Hb_Hs_and_SL
-  USE math_utilities                                         , ONLY: is_floating
+  use ice_geometry_basics, only: ice_surface_elevation, Hi_from_Hb_Hs_and_SL, is_floating
 
   IMPLICIT NONE
 

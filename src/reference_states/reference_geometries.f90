@@ -23,7 +23,7 @@ MODULE reference_geometries
   USE reference_geometry_types                               , ONLY: type_reference_geometry
   USE mesh_types                                             , ONLY: type_mesh
   USE grid_basic                                             , ONLY: type_grid, setup_square_grid, distribute_gridded_data_from_master_dp_2D, smooth_Gaussian_2D_grid
-  USE math_utilities                                         , ONLY: ice_surface_elevation, is_floating
+  use ice_geometry_basics, only: ice_surface_elevation, is_floating
   use projections, only: oblique_sg_projection
   USE analytical_solutions                                   , ONLY: Halfar_dome, Bueler_dome
   USE netcdf_basic                                           , ONLY: inquire_xy_grid, inquire_lonlat_grid, inquire_mesh, open_existing_netcdf_file_for_reading, &
