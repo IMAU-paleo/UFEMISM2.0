@@ -1080,7 +1080,7 @@ CONTAINS
       CALL read_var_master_dp_1D( filename, ncid, id_var, time)
 
       ! Check validity
-      call assert( (.not. any( isnan( time))), 'found NaN in time')
+      if (par%master) call assert( (.not. any( isnan( time))), 'found NaN in time')
 
       ! Clean up after yourself
       DEALLOCATE( time)
