@@ -122,7 +122,8 @@ UFEMISM_source = \
   basic/math_utilities/ice_geometry_basics.f90 \
   basic/math_utilities/line_integrals.f90 \
   basic/math_utilities/sorting.f90 \
-  basic/math_utilities/math_utilities.f90 \
+  basic/math_utilities/erf_mod.f90 \
+  basic/math_utilities/interpolation.f90 \
   basic/math_utilities/tridiagonal_solver.f90 \
   basic/math_utilities/shape_functions.f90 \
   basic/analytical_solutions.f90 \

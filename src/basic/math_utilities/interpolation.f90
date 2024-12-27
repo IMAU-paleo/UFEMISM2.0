@@ -1,74 +1,17 @@
-module math_utilities
+module interpolation
 
-  ! Some generally useful tools, and basic mathematical functions
+  ! Some basic one-dimensional interpolation functions
 
-  use tests_main
-  use assertions_basic
-  use mpi
   use precisions, only: dp
-  use mpi_basic, only: par, cerr, ierr
-  use control_resources_and_error_messaging, only: crash, init_routine, finalise_routine
-  use parameters
-  use reallocate_mod, only: reallocate
-  use matrix_algebra, only: solve_Axb_2_by_2
+  use control_resources_and_error_messaging, only: crash
 
   implicit none
 
 contains
 
-! == The error function
-
-  pure function error_function( X) result( ERR)
-    ! Purpose: Compute error function erf(x)
-    ! Input:   x   --- Argument of erf(x)
-    ! Output:  ERR --- erf(x)
-
-    ! Input variables:
-    real(dp), intent(in)  :: X
-
-    ! Output variables:
-    real(dp) :: ERR
-
-    ! Local variables:
-    real(dp) :: EPS
-    real(dp) :: X2
-    real(dp) :: ER
-    real(dp) :: R
-    real(dp) :: C0
-    integer  :: k
-
-    EPS = 1.0E-15_dp
-    X2  = X * X
-    if (abs(X) < 3.5_dp) then
-      ER = 1.0_dp
-      R  = 1.0_dp
-      do k = 1, 50
-        R  = R * X2 / (real(k, dp) + 0.5_dp)
-        ER = ER+R
-        if (abs(R) < abs(ER) * EPS) then
-          C0  = 2.0_dp / sqrt(pi) * X * exp(-X2)
-          ERR = C0 * ER
-          exit
-        end if
-      end do
-    else
-      ER = 1.0_dp
-      R  = 1.0_dp
-      do k = 1, 12
-        R  = -R * (real(k, dp) - 0.5_dp) / X2
-        ER = ER + R
-        C0  = exp(-X2) / (abs(X) * sqrt(pi))
-        ERR = 1.0_dp - C0 * ER
-        if (X < 0.0_dp) ERR = -ERR
-      end do
-    end if
-
-  end function error_function
-
-  ! Remapping of a 1-D variable (2nd-order conservative)
   subroutine remap_cons_2nd_order_1D( z_src, mask_src, d_src, z_dst, mask_dst, d_dst)
-    ! 2nd-order conservative remapping of a 1-D variable
-    !
+    !< 2nd-order conservative remapping of a 1-D variable
+
     ! Used to remap ocean data from the provided vertical grid to the UFEMISM ocean vertical grid
     !
     ! Both z_src and z_dst can be irregular.
@@ -212,8 +155,7 @@ contains
 
         ! Safety
         if (k_src_nearest_to_dst == 0) then
-          write(0,*) '  remap_cons_2nd_order_1D - ERROR: couldnt find nearest neighbour on source grid!'
-          call MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+          call crash('  remap_cons_2nd_order_1D - ERROR: couldnt find nearest neighbour on source grid!')
         end if
 
         d_dst( k_dst) = d_src( k_src_nearest_to_dst)
@@ -228,8 +170,8 @@ contains
   end subroutine remap_cons_2nd_order_1D
 
   pure function linint_points( x1, x2, f1, f2, f0) result( x0)
-    ! Given a function f( x) and points x1, x2 such that f( x1) = f1, f( x2) = f2,
-    ! interpolate f linearly to find the point x0 such that f( x0) = f0
+    !< Given a function f( x) and points x1, x2 such that f( x1) = f1, f( x2) = f2,
+    !< interpolate f linearly to find the point x0 such that f( x0) = f0
 
     real(dp), intent(in) :: x1, x2, f1, f2, f0
     real(dp)             :: x0
@@ -246,4 +188,4 @@ contains
 
   end function linint_points
 
-end module math_utilities
+end module interpolation
