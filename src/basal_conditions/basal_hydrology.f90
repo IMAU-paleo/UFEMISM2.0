@@ -19,7 +19,7 @@ MODULE basal_hydrology
   USE reference_geometry_types                               , ONLY: type_reference_geometry
   USE basal_inversion_types                                  , ONLY: type_hydrology_inversion
   USE mesh_utilities                                         , ONLY: find_containing_vertex, find_containing_triangle, extrapolate_Gaussian
-  use math_utilities, only: is_floating
+  use ice_geometry_basics, only: is_floating
   use plane_geometry, only: triangle_area
   USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_1D, gather_to_all_logical_1D
   USE mesh_data_smoothing                                    , ONLY: smooth_Gaussian_2D
