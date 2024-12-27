@@ -120,6 +120,7 @@ UFEMISM_source = \
   basic/math_utilities/matrix_algebra.f90 \
   basic/math_utilities/plane_geometry.f90 \
   basic/math_utilities/ice_geometry_basics.f90 \
+  basic/math_utilities/line_integrals.f90 \
   basic/math_utilities/math_utilities.f90 \
   basic/math_utilities/tridiagonal_solver.f90 \
   basic/math_utilities/shape_functions.f90 \
