@@ -22,7 +22,7 @@ MODULE basal_hydrology
   use ice_geometry_basics, only: is_floating
   use plane_geometry, only: triangle_area
   use mpi_distributed_memory, only: gather_to_all
-  USE mesh_data_smoothing                                    , ONLY: smooth_Gaussian_2D
+  use mesh_data_smoothing, only: smooth_Gaussian
   USE netcdf_debug                                           , ONLY: save_variable_as_netcdf_dp_1D, save_variable_as_netcdf_dp_2D
   USE netcdf_input                                           , ONLY: read_field_from_file_2D
 
@@ -903,7 +903,7 @@ CONTAINS
       dC1_dt_smoothed = dC1_dt
 
       ! Smooth the local variable
-      CALL smooth_Gaussian_2D( mesh, grid_smooth, dC1_dt_smoothed, C%porenudge_H_dHdt_flowline_r_smooth)
+      CALL smooth_Gaussian( mesh, grid_smooth, dC1_dt_smoothed, C%porenudge_H_dHdt_flowline_r_smooth)
 
       DO vi = mesh%vi1, mesh%vi2
         dC1_dt( vi) = (1._dp - C%porenudge_H_dHdt_flowline_w_smooth) * dC1_dt( vi) + C%porenudge_H_dHdt_flowline_w_smooth * dC1_dt_smoothed( vi)
@@ -938,7 +938,7 @@ CONTAINS
 
       ! Smooth the instability field
       unstable_vertex_smoothed = 1._dp - EXP( REAL( MIN( 0, -ice%pc%tau_n_guilty + 0), dp) / 1._dp)
-      CALL smooth_Gaussian_2D( mesh, grid_smooth, unstable_vertex_smoothed, 40000._dp)
+      CALL smooth_Gaussian( mesh, grid_smooth, unstable_vertex_smoothed, 40000._dp)
 
       ! Merge the smoothed and original instability fields: the guiltier
       ! the vertex, the stronger the original field dominates there.

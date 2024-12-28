@@ -134,6 +134,7 @@ UFEMISM_source = \
   \
   basic/grid/mpi_distributed_memory_grid.f90 \
   basic/grid/grid_basic.f90 \
+  basic/grid/smooth_gridded_data.f90 \
   basic/grid_lonlat_basic.f90 \
   \
   mesh/mesh_memory.f90 \
