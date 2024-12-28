@@ -5,7 +5,7 @@ module ct_remapping_basic
   use precisions, only: dp
   use mesh_types, only: type_mesh
   use grid_types, only: type_grid
-  use grid_basic, only: distribute_gridded_data_from_master_dp_2D
+  use mpi_distributed_memory_grid, only: distribute_gridded_data_from_master
   use mpi_basic, only: par
   use analytical_solutions, only: Halfar_dome
 
@@ -58,7 +58,7 @@ contains
 
     ! Distribute gridded data over the processes
     allocate( d_grid_ex_vec_partial( grid%n_loc))
-    call distribute_gridded_data_from_master_dp_2D( grid, d_grid_ex, d_grid_ex_vec_partial)
+    call distribute_gridded_data_from_master( grid, d_grid_ex, d_grid_ex_vec_partial)
     if (par%master) deallocate( d_grid_ex)
 
   end subroutine calc_test_function_on_grid

@@ -22,7 +22,8 @@ MODULE reference_geometries
   USE parameters
   USE reference_geometry_types                               , ONLY: type_reference_geometry
   USE mesh_types                                             , ONLY: type_mesh
-  USE grid_basic                                             , ONLY: type_grid, setup_square_grid, distribute_gridded_data_from_master_dp_2D, smooth_Gaussian_2D_grid
+  use grid_basic, only: type_grid, setup_square_grid, smooth_Gaussian_2D_grid
+  use mpi_distributed_memory_grid, only: distribute_gridded_data_from_master
   use ice_geometry_basics, only: ice_surface_elevation, is_floating
   use projections, only: oblique_sg_projection
   USE analytical_solutions                                   , ONLY: Halfar_dome, Bueler_dome
@@ -523,10 +524,10 @@ CONTAINS
     END IF
 
     ! Distribute the data over the processes in vector form
-    CALL distribute_gridded_data_from_master_dp_2D( refgeo%grid_raw, Hi, refgeo%Hi_grid_raw)
-    CALL distribute_gridded_data_from_master_dp_2D( refgeo%grid_raw, Hb, refgeo%Hb_grid_raw)
-    CALL distribute_gridded_data_from_master_dp_2D( refgeo%grid_raw, Hs, refgeo%Hs_grid_raw)
-    CALL distribute_gridded_data_from_master_dp_2D( refgeo%grid_raw, SL, refgeo%SL_grid_raw)
+    CALL distribute_gridded_data_from_master( refgeo%grid_raw, Hi, refgeo%Hi_grid_raw)
+    CALL distribute_gridded_data_from_master( refgeo%grid_raw, Hb, refgeo%Hb_grid_raw)
+    CALL distribute_gridded_data_from_master( refgeo%grid_raw, Hs, refgeo%Hs_grid_raw)
+    CALL distribute_gridded_data_from_master( refgeo%grid_raw, SL, refgeo%SL_grid_raw)
 
     ! Clean up after yourself
     IF (par%master) THEN

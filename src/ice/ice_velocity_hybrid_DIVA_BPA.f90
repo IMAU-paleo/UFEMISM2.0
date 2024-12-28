@@ -38,7 +38,8 @@ MODULE ice_velocity_hybrid_DIVA_BPA
   USE ice_model_utilities                                    , ONLY: calc_zeta_gradients
   USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp, allocate_matrix_CSR_dist, add_entry_CSR_dist, read_single_row_CSR_dist, &
                                                                      deallocate_matrix_CSR_dist, add_empty_row_CSR_dist
-  USE grid_basic                                             , ONLY: type_grid, gather_gridded_data_to_master_int_2D, calc_grid_mask_as_polygons
+  use grid_basic, only: type_grid, calc_grid_mask_as_polygons
+  use mpi_distributed_memory_grid, only: gather_gridded_data_to_master
   USE netcdf_basic                                           , ONLY: open_existing_netcdf_file_for_reading, close_netcdf_file
   USE netcdf_input                                           , ONLY: setup_xy_grid_from_file, read_field_from_xy_file_2D_int
 
@@ -622,7 +623,7 @@ CONTAINS
 
     ! Gather partial gridded data to the Master and broadcast the total field to all processes
     ALLOCATE( mask_int_grid( grid%nx, grid%ny))
-    CALL gather_gridded_data_to_master_int_2D( grid, mask_int_grid_vec_partial, mask_int_grid)
+    CALL gather_gridded_data_to_master( grid, mask_int_grid_vec_partial, mask_int_grid)
     CALL MPI_BCAST( mask_int_grid, grid%nx * grid%ny, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
 
     ! Calculate logical mask (assumes data from file is integer 0 for FALSE and integer 1 for TRUE)

@@ -15,8 +15,7 @@ module apply_maps
     mat_petsc2CSR, MatDestroy
   use mesh_utilities, only: set_border_vertices_to_interior_mean_dp_2D, set_border_vertices_to_interior_mean_dp_3D
   use mpi_distributed_memory, only: gather_to_all
-  use grid_basic, only: gather_gridded_data_to_master_dp_2D, gather_gridded_data_to_master_dp_3D, &
-    distribute_gridded_data_from_master_dp_2D, distribute_gridded_data_from_master_dp_3D
+  use mpi_distributed_memory_grid, only: gather_gridded_data_to_master, distribute_gridded_data_from_master
 
   implicit none
 
@@ -289,7 +288,7 @@ contains
       ! allocate memory for complete gridded data
       allocate( d_grid( grid%nx, grid%ny))
       ! Gather complete gridded data
-      call gather_gridded_data_to_master_dp_2D( grid, d_grid_vec_partial, d_grid)
+      call gather_gridded_data_to_master( grid, d_grid_vec_partial, d_grid)
       ! Set values in the outermost row of grid cells
       ! equal to those in the second-outermost row
       d_grid( 1      ,:) = d_grid( 2        ,:)
@@ -297,16 +296,16 @@ contains
       d_grid( :,1      ) = d_grid( :,2        )
       d_grid( :,grid%ny) = d_grid( :,grid%ny-1)
       ! Distribute complete gridded data back over the processes
-      call distribute_gridded_data_from_master_dp_2D( grid, d_grid, d_grid_vec_partial)
+      call distribute_gridded_data_from_master( grid, d_grid, d_grid_vec_partial)
       ! Clean up after yourself
       deallocate( d_grid)
     else ! if (par%master) then
       ! allocate zero memory for complete gridded data (only the master needs this)
       allocate( d_grid( 0,0))
       ! Gather complete gridded data
-      call gather_gridded_data_to_master_dp_2D( grid, d_grid_vec_partial)
+      call gather_gridded_data_to_master( grid, d_grid_vec_partial)
       ! Distribute complete gridded data back over the processes
-      call distribute_gridded_data_from_master_dp_2D( grid, d_grid, d_grid_vec_partial)
+      call distribute_gridded_data_from_master( grid, d_grid, d_grid_vec_partial)
       ! Clean up after yourself
       deallocate( d_grid)
     end if ! if (par%master) then
@@ -350,7 +349,7 @@ contains
       ! allocate memory for complete gridded data
       allocate( d_grid( grid%nx, grid%ny, size( d_mesh_partial,2)))
       ! Gather complete gridded data
-      call gather_gridded_data_to_master_dp_3D( grid, d_grid_vec_partial, d_grid)
+      call gather_gridded_data_to_master( grid, d_grid_vec_partial, d_grid)
       ! Set values in the outermost row of grid cells
       ! equal to those in the second-outermost row
       d_grid( 1      ,:,:) = d_grid( 2        ,:,:)
@@ -358,16 +357,16 @@ contains
       d_grid( :,1      ,:) = d_grid( :,2        ,:)
       d_grid( :,grid%ny,:) = d_grid( :,grid%ny-1,:)
       ! Distribute complete gridded data back over the processes
-      call distribute_gridded_data_from_master_dp_3D( grid, d_grid, d_grid_vec_partial)
+      call distribute_gridded_data_from_master( grid, d_grid, d_grid_vec_partial)
       ! Clean up after yourself
       deallocate( d_grid)
     else ! if (par%master) then
       ! allocate zero memory for complete gridded data (only the master needs this)
       allocate( d_grid( 0,0,0))
       ! Gather complete gridded data
-      call gather_gridded_data_to_master_dp_3D( grid, d_grid_vec_partial, d_grid)
+      call gather_gridded_data_to_master( grid, d_grid_vec_partial, d_grid)
       ! Distribute complete gridded data back over the processes
-      call distribute_gridded_data_from_master_dp_3D( grid, d_grid, d_grid_vec_partial)
+      call distribute_gridded_data_from_master( grid, d_grid, d_grid_vec_partial)
       ! Clean up after yourself
       deallocate( d_grid)
     end if ! if (par%master) then
