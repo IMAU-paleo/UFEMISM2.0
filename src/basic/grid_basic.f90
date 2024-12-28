@@ -1,52 +1,47 @@
-MODULE grid_basic
+module grid_basic
 
   ! Functions for working with simple square x/y-grids
 
 #include <petsc/finclude/petscksp.h>
-  USE petscksp
-  USE mpi
-  USE precisions                                             , ONLY: dp
-  use grid_types                                             , only: type_grid
-  USE mpi_basic                                              , ONLY: par, cerr, ierr, recv_status, sync
-  USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
-  USE parameters
-  USE petsc_basic                                            , ONLY: perr, mat_CSR2petsc
-  USE reallocate_mod                                         , ONLY: reallocate
+  use petscksp
+  use mpi
+  use precisions, only: dp
+  use grid_types, only: type_grid
+  use mpi_basic, only: par, cerr, ierr, recv_status, sync
+  use control_resources_and_error_messaging, only: crash, init_routine, finalise_routine
+  use parameters
+  use petsc_basic, only: mat_CSR2petsc
+  use reallocate_mod, only: reallocate
   use interpolation, only: linint_points
   use projections, only: inverse_oblique_sg_projection
   use mpi_distributed_memory, only: partition_list, distribute_from_master, gather_to_master
-  USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp, allocate_matrix_CSR_dist, add_entry_CSR_dist, &
-                                                                     deallocate_matrix_CSR_dist
+  use CSR_sparse_matrix_utilities, only: type_sparse_matrix_CSR_dp, allocate_matrix_CSR_dist, &
+    add_entry_CSR_dist, deallocate_matrix_CSR_dist
 
-  IMPLICIT NONE
+  implicit none
 
-CONTAINS
-
-! ===== Subroutines ======
-! ========================
+contains
 
 ! == Basic square grid functionality
 
-  SUBROUTINE setup_square_grid( name, xmin, xmax, ymin, ymax, dx, grid, lambda_M, phi_M, beta_stereo)
-    ! Set up a square grid that covers the specified domain
-
-    IMPLICIT NONE
+  subroutine setup_square_grid( name, xmin, xmax, ymin, ymax, dx, grid, lambda_M, phi_M, beta_stereo)
+    !< Set up a square grid that covers the specified domain
 
     ! In/output variables:
-    CHARACTER(LEN=256),                  INTENT(IN)    :: name
-    REAL(dp),                            INTENT(IN)    :: xmin, xmax, ymin, ymax        ! [m] Domain
-    REAL(dp),                            INTENT(IN)    :: dx                            ! [m] Resolution
-    TYPE(type_grid),                     INTENT(OUT)   :: grid
-    REAL(dp),                  OPTIONAL, INTENT(IN)    :: lambda_M, phi_M, beta_stereo
+    character(len=256), intent(in   ) :: name
+    real(dp),           intent(in   ) :: xmin, xmax, ymin, ymax        ! [m] Domain
+    real(dp),           intent(in   ) :: dx                            ! [m] Resolution
+    type(type_grid),    intent(  out) :: grid
+    real(dp), optional, intent(in   ) :: lambda_M, phi_M, beta_stereo
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'setup_square_grid'
-    REAL(dp)                                           :: xmid, ymid
-    INTEGER                                            :: nx_pos, ny_pos
-    INTEGER                                            :: i,j,ii,jj
+    character(len=256), parameter :: routine_name = 'setup_square_grid'
+    real(dp)                      :: xmid, ymid
+    integer                       :: nx_pos, ny_pos
+    integer                       :: i,j,ii,jj
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
     ! Name
     grid%name = name
@@ -58,195 +53,196 @@ CONTAINS
 
     xmid = (xmin + xmax) / 2._dp
     nx_pos = 0
-    DO WHILE (xmid + REAL( nx_pos,dp) * grid%dx + grid%dx / 2._dp < xmax)
+    do while (xmid + real( nx_pos,dp) * grid%dx + grid%dx / 2._dp < xmax)
       nx_pos = nx_pos + 1
-    END DO
+    end do
     grid%nx = 1 + 2 * nx_pos
 
     ymid = (ymin + ymax) / 2._dp
     ny_pos = 0
-    DO WHILE (ymid + REAL( ny_pos,dp) * grid%dx + grid%dx / 2._dp < ymax)
+    do while (ymid + real( ny_pos,dp) * grid%dx + grid%dx / 2._dp < ymax)
       ny_pos = ny_pos + 1
-    END DO
+    end do
     grid%ny = 1 + 2 * ny_pos
 
     ! Fill in x and y
-    ALLOCATE( grid%x( grid%nx))
-    ALLOCATE( grid%y( grid%ny))
+    allocate( grid%x( grid%nx))
+    allocate( grid%y( grid%ny))
 
-    DO i = 1, grid%nx
+    do i = 1, grid%nx
       ii = i - (nx_pos+1)
-      grid%x( i) = xmid + REAL( ii,dp) * grid%dx
-    END DO
+      grid%x( i) = xmid + real( ii,dp) * grid%dx
+    end do
 
-    DO j = 1, grid%ny
+    do j = 1, grid%ny
       jj = j - (ny_pos+1)
-      grid%y( j) = ymid + REAL( jj,dp) * grid%dx
-    END DO
+      grid%y( j) = ymid + real( jj,dp) * grid%dx
+    end do
 
     ! Calculate secondary grid geometry data
-    CALL calc_secondary_grid_data( grid, lambda_M, phi_M, beta_stereo)
+    call calc_secondary_grid_data( grid, lambda_M, phi_M, beta_stereo)
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE setup_square_grid
+  end subroutine setup_square_grid
 
-  SUBROUTINE deallocate_grid( grid)
-    ! Deallocate memory for a grid object
-
-    IMPLICIT NONE
+  subroutine deallocate_grid( grid)
+    !< deallocate memory for a grid object
 
     ! In/output variables:
-    TYPE(type_grid),                     INTENT(INOUT) :: grid
+    type(type_grid), intent(inout) :: grid
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'deallocate_grid'
+    character(len=256), parameter :: routine_name = 'deallocate_grid'
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
-    IF (ALLOCATED( grid%x   )) DEALLOCATE( grid%x   )
-    IF (ALLOCATED( grid%y   )) DEALLOCATE( grid%y   )
-    IF (ALLOCATED( grid%lon )) DEALLOCATE( grid%lon )
-    IF (ALLOCATED( grid%lat )) DEALLOCATE( grid%lat )
-    IF (ALLOCATED( grid%ij2n)) DEALLOCATE( grid%ij2n)
-    IF (ALLOCATED( grid%n2ij)) DEALLOCATE( grid%n2ij)
+    if (allocated( grid%x   )) deallocate( grid%x   )
+    if (allocated( grid%y   )) deallocate( grid%y   )
+    if (allocated( grid%lon )) deallocate( grid%lon )
+    if (allocated( grid%lat )) deallocate( grid%lat )
+    if (allocated( grid%ij2n)) deallocate( grid%ij2n)
+    if (allocated( grid%n2ij)) deallocate( grid%n2ij)
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE deallocate_grid
+  end subroutine deallocate_grid
 
-  SUBROUTINE check_if_grids_are_identical( grid1, grid2, isso)
-    ! Check if two grids are identical
-
-    IMPLICIT NONE
+  subroutine check_if_grids_are_identical( grid1, grid2, isso)
+    !< Check if two grids are identical
 
     ! In/output variables:
-    TYPE(type_grid),                     INTENT(IN)    :: grid1, grid2
-    LOGICAL,                             INTENT(OUT)   :: isso
+    type(type_grid), intent(in   ) :: grid1, grid2
+    logical,         intent(  out) :: isso
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'check_if_grids_are_identical'
-    REAL(dp), PARAMETER                                :: rtol = 1E-9_dp
-    INTEGER                                            :: i,j
+    character(len=256), parameter :: routine_name = 'check_if_grids_are_identical'
+    real(dp), parameter           :: rtol = 1E-9_dp
+    integer                       :: i,j
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
-    isso = .TRUE.
+    isso = .true.
 
     ! Size
-    IF (grid1%nx /= grid2%nx .OR. grid1%ny /= grid2%ny) THEN
-      isso = .FALSE.
-      RETURN
-    END IF
+    if (grid1%nx /= grid2%nx .or. grid1%ny /= grid2%ny) then
+      isso = .false.
+      goto 888
+    end if
 
     ! Coordinates
-    DO i = 1, grid1%nx
-      IF (abs(grid1%x( i) - grid2%x( i)) > abs(rtol * max(grid1%x(i), grid2%x(i)))) THEN
-        isso = .FALSE.
-        RETURN
-      END IF
-    END DO
-    DO j = 1, grid1%ny
-      IF (abs(grid1%y( j) - grid2%y( j)) > abs(rtol * max(grid1%y(j), grid2%y(j)))) THEN
-        isso = .FALSE.
-        RETURN
-      END IF
-    END DO
+    do i = 1, grid1%nx
+      if (abs(grid1%x( i) - grid2%x( i)) > abs(rtol * max(grid1%x(i), grid2%x(i)))) then
+        isso = .false.
+        goto 888
+      end if
+    end do
+    do j = 1, grid1%ny
+      if (abs(grid1%y( j) - grid2%y( j)) > abs(rtol * max(grid1%y(j), grid2%y(j)))) then
+        isso = .false.
+        goto 888
+      end if
+    end do
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+888 call finalise_routine( routine_name)
 
-  END SUBROUTINE check_if_grids_are_identical
+  end subroutine check_if_grids_are_identical
 
-  SUBROUTINE calc_secondary_grid_data( grid, lambda_M, phi_M, beta_stereo)
-    ! Calculate secondary geometry data for a square grid
-
-    IMPLICIT NONE
+  subroutine calc_secondary_grid_data( grid, lambda_M, phi_M, beta_stereo)
+    !< Calculate secondary geometry data for a square grid
 
     ! In/output variables:
-    TYPE(type_grid),                     INTENT(INOUT) :: grid
-    REAL(dp),                  OPTIONAL, INTENT(IN)    :: lambda_M, phi_M, beta_stereo
+    type(type_grid),    intent(inout) :: grid
+    real(dp), optional, intent(in   ) :: lambda_M, phi_M, beta_stereo
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_secondary_grid_data'
-    INTEGER                                            :: i,j
-    REAL(dp), PARAMETER                                :: tol = 1E-9_dp
+    character(len=256), parameter :: routine_name = 'calc_secondary_grid_data'
+    integer                       :: i,j
+    real(dp), parameter           :: tol = 1E-9_dp
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
     ! Resolution
-    grid%dx   = ABS( grid%x( 2) - grid%x( 1))
+    grid%dx = abs( grid%x( 2) - grid%x( 1))
 
+#if (DO_ASSERTIONS)
     ! Safety
-    DO i = 1, grid%nx-1
-      IF (1._dp - ABS(grid%x( i+1) - grid%x( i)) / grid%dx > 1E-6_dp) CALL crash( TRIM( grid%name) // '" has an irregular x-dimension!')
-    END DO
-    DO j = 1, grid%ny-1
-      IF (1._dp - ABS(grid%y( j+1) - grid%y( j)) / grid%dx > 1E-6_dp) CALL crash( TRIM( grid%name) // '" has an irregular y-dimension!')
-    END DO
+    do i = 1, grid%nx-1
+      if (1._dp - abs(grid%x( i+1) - grid%x( i)) / grid%dx > 1E-6_dp) then
+        call crash( trim( grid%name) // '" has an irregular x-dimension!')
+      end if
+    end do
+    do j = 1, grid%ny-1
+      if (1._dp - abs(grid%y( j+1) - grid%y( j)) / grid%dx > 1E-6_dp) then
+        call crash( trim( grid%name) // '" has an irregular y-dimension!')
+      end if
+    end do
+#endif
 
     ! Domain size
-    grid%xmin = MINVAL( grid%x)
-    grid%xmax = MAXVAL( grid%x)
-    grid%ymin = MINVAL( grid%y)
-    grid%ymax = MAXVAL( grid%y)
+    grid%xmin = minval( grid%x)
+    grid%xmax = maxval( grid%x)
+    grid%ymin = minval( grid%y)
+    grid%ymax = maxval( grid%y)
 
     ! Tolerance; points lying within this distance of each other are treated as identical
     grid%tol_dist = ((grid%xmax - grid%xmin) + (grid%ymax - grid%ymin)) * tol / 2._dp
 
     ! Conversion tables for grid-form vs. vector-form data
-    CALL calc_field_to_vector_form_translation_tables( grid)
+    call calc_field_to_vector_form_translation_tables( grid)
 
     ! Lon/lat-coordinates
-    IF (PRESENT( lambda_M) .OR. PRESENT( phi_M) .OR. PRESENT( beta_stereo)) THEN
+    if (present( lambda_M) .or. present( phi_M) .or. present( beta_stereo)) then
 
       ! Safety
-      IF (.NOT. (PRESENT( lambda_M) .AND. PRESENT( phi_M) .AND. PRESENT( beta_stereo))) CALL crash('need lambda_M, phi_M, and beta_stereo!')
+      if (.not. (present( lambda_M) .and. present( phi_M) .and. present( beta_stereo))) then
+        call crash('need lambda_M, phi_M, and beta_stereo!')
+      end if
 
-      ! Allocate memory
-      ALLOCATE( grid%lon( grid%nx, grid%ny))
-      ALLOCATE( grid%lat( grid%nx, grid%ny))
+      ! allocate memory
+      allocate( grid%lon( grid%nx, grid%ny))
+      allocate( grid%lat( grid%nx, grid%ny))
 
       ! Calculate lon/lat-coordinates for each grid point using the provided oblique stereographic projection parameters
-      DO i = 1, grid%nx
-      DO j = 1, grid%ny
-        CALL inverse_oblique_sg_projection( grid%x( i), grid%y( j), lambda_M, phi_M, beta_stereo, grid%lon( i,j), grid%lat( i,j))
-      END DO
-      END DO
+      do i = 1, grid%nx
+      do j = 1, grid%ny
+        call inverse_oblique_sg_projection( grid%x( i), grid%y( j), lambda_M, phi_M, beta_stereo, grid%lon( i,j), grid%lat( i,j))
+      end do
+      end do
 
-    END IF ! IF (PRESENT( lambda_M) .OR. PRESENT( phi_M) .OR. PRESENT( beta_stereo)) THEN
+    end if
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE calc_secondary_grid_data
+  end subroutine calc_secondary_grid_data
 
-  SUBROUTINE calc_matrix_operators_grid( grid, M_ddx, M_ddy)
-    ! Calculate matrix operators for partial derivatives on a regular grid (needed for conservative remapping)
-
-    IMPLICIT NONE
+  subroutine calc_matrix_operators_grid( grid, M_ddx, M_ddy)
+    !< Calculate matrix operators for partial derivatives on a regular grid
+    !< (needed for conservative remapping)
 
     ! In/output variables:
-    TYPE(type_grid),                     INTENT(IN)    :: grid
-    TYPE(tMat),                          INTENT(OUT)   :: M_ddx, M_ddy
+    type(type_grid), intent(in   ) :: grid
+    type(tMat),      intent(  out) :: M_ddx, M_ddy
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_matrix_operators_grid'
-    INTEGER                                            :: ncols, nrows, ncols_loc, nrows_loc, nnz_per_row_est, nnz_est_proc
-    TYPE(type_sparse_matrix_CSR_dp)                    :: M_ddx_CSR, M_ddy_CSR
-    INTEGER                                            :: row, i, j, col
-    REAL(dp)                                           :: valpos, valneg
+    character(len=256), parameter   :: routine_name = 'calc_matrix_operators_grid'
+    integer                         :: ncols, nrows, ncols_loc, nrows_loc, nnz_per_row_est, nnz_est_proc
+    type(type_sparse_matrix_CSR_dp) :: M_ddx_CSR, M_ddy_CSR
+    integer                         :: row, i, j, col
+    real(dp)                        :: valpos, valneg
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
-  ! == Initialise the matrices using the native UFEMISM CSR-matrix format
-  ! =====================================================================
+    ! == Initialise the matrices using the native UFEMISM CSR-matrix format
+    ! =====================================================================
 
     ! Matrix size
     ncols           = grid%n      ! from
@@ -256,27 +252,27 @@ CONTAINS
     nnz_per_row_est = 2
     nnz_est_proc    = nrows_loc * nnz_per_row_est
 
-    CALL allocate_matrix_CSR_dist( M_ddx_CSR, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
-    CALL allocate_matrix_CSR_dist( M_ddy_CSR, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+    call allocate_matrix_CSR_dist( M_ddx_CSR, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+    call allocate_matrix_CSR_dist( M_ddy_CSR, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
 
-  ! == Fill matrix coefficients
-  ! ===========================
+    ! == Fill matrix coefficients
+    ! ===========================
 
     valpos =  1._dp / (2._dp * grid%dx)
     valneg = -1._dp / (2._dp * grid%dx)
 
-    DO row = grid%n1, grid%n2
+    do row = grid%n1, grid%n2
 
       ! Grid indices
       i = grid%n2ij( row,1)
       j = grid%n2ij( row,2)
 
       ! Skip the border
-      IF (i == 1 .OR. i == grid%nx .OR. j == 1 .OR. j == grid%ny) THEN
+      if (i == 1 .or. i == grid%nx .or. j == 1 .or. j == grid%ny) then
         M_ddx_CSR%ptr( row+1) = M_ddx_CSR%ptr( row)
         M_ddy_CSR%ptr( row+1) = M_ddy_CSR%ptr( row)
-        CYCLE
-      END IF
+        cycle
+      end if
 
     ! == d/dx
 
@@ -312,135 +308,131 @@ CONTAINS
       ! Ptr
       M_ddy_CSR%ptr( row+1) = M_ddy_CSR%ptr( row) + 2
 
-    END DO ! DO row = grid%n1, grid%n2
+    end do ! DO row = grid%n1, grid%n2
 
     ! Convert to PETSc format
-    CALL mat_CSR2petsc( M_ddx_CSR, M_ddx)
-    CALL mat_CSR2petsc( M_ddy_CSR, M_ddy)
+    call mat_CSR2petsc( M_ddx_CSR, M_ddx)
+    call mat_CSR2petsc( M_ddy_CSR, M_ddy)
 
     ! Clean up after yourself
-    CALL deallocate_matrix_CSR_dist( M_ddx_CSR)
-    CALL deallocate_matrix_CSR_dist( M_ddy_CSR)
+    call deallocate_matrix_CSR_dist( M_ddx_CSR)
+    call deallocate_matrix_CSR_dist( M_ddy_CSR)
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE calc_matrix_operators_grid
+  end subroutine calc_matrix_operators_grid
 
-  SUBROUTINE calc_field_to_vector_form_translation_tables( grid)
-    ! Calculate grid-cell-to-matrix-row translation tables
-
-    IMPLICIT NONE
+  subroutine calc_field_to_vector_form_translation_tables( grid)
+    !< Calculate grid-cell-to-matrix-row translation tables
 
     ! In/output variables
-    TYPE(type_grid),                         INTENT(INOUT) :: grid
+    type(type_grid), intent(inout) :: grid
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'calc_field_to_vector_form_translation_tables'
-    INTEGER                                                :: i,j,n
+    character(len=256), parameter :: routine_name = 'calc_field_to_vector_form_translation_tables'
+    integer                       :: i,j,n
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
     ! Total number of grid cells
     grid%n = grid%nx * grid%ny
 
     ! Allocate memory
-    IF (ALLOCATED( grid%ij2n)) DEALLOCATE( grid%ij2n)
-    IF (ALLOCATED( grid%n2ij)) DEALLOCATE( grid%n2ij)
-    ALLOCATE( grid%ij2n( grid%nx, grid%ny), source = 0)
-    ALLOCATE( grid%n2ij( grid%n , 2      ), source = 0)
+    if (allocated( grid%ij2n)) deallocate( grid%ij2n)
+    if (allocated( grid%n2ij)) deallocate( grid%n2ij)
+    allocate( grid%ij2n( grid%nx, grid%ny), source = 0)
+    allocate( grid%n2ij( grid%n , 2      ), source = 0)
 
     ! Fill in tables
     n = 0
-    DO i = 1, grid%nx
-    DO j = 1, grid%ny
+    do i = 1, grid%nx
+    do j = 1, grid%ny
       n = n + 1
       grid%ij2n( i,j) = n
       grid%n2ij( n,:) = [i,j]
-    END DO
-    END DO
+    end do
+    end do
 
     ! Parallelisation domains
-    CALL partition_list( grid%n, par%i, par%n, grid%n1, grid%n2)
+    call partition_list( grid%n, par%i, par%n, grid%n1, grid%n2)
     grid%n_loc = grid%n2 + 1 - grid%n1
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE calc_field_to_vector_form_translation_tables
+  end subroutine calc_field_to_vector_form_translation_tables
 
 ! == Calculate contour lines and polygons from gridded data (for mesh generation)
 
-  SUBROUTINE calc_grid_contour_as_line( grid, d, f, line, mask)
-    ! Calculate a contour line at level f for data d on a square grid.
-    ! Generate the contour line in UFEMISM line-segment format (i.e. unordered
-    ! individual line segments).
-
-    IMPLICIT NONE
+  subroutine calc_grid_contour_as_line( grid, d, f, line, mask)
+    !< Calculate a contour line at level f for data d on a square grid.
+    !< Generate the contour line in UFEMISM line-segment format (i.e. unordered
+    !< individual line segments).
 
     ! In/output variables
-    TYPE(type_grid),                         INTENT(IN)    :: grid
-    REAL(dp), DIMENSION(:,:  ),              INTENT(IN)    :: d
-    REAL(dp),                                INTENT(IN)    :: f
-    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE, INTENT(OUT)   :: line
-    LOGICAL,  DIMENSION(:,:  ), OPTIONAL,    INTENT(IN)    :: mask
+    type(type_grid),                         intent(in   ) :: grid
+    real(dp), dimension(:,:  ),              intent(in   ) :: d
+    real(dp),                                intent(in   ) :: f
+    real(dp), dimension(:,:  ), allocatable, intent(  out) :: line
+    logical,  dimension(:,:  ), optional,    intent(in   ) :: mask
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'calc_grid_contour_as_line'
-    REAL(dp), PARAMETER                                    :: tol = 1E-5_dp
-    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                :: d_scaled
-    INTEGER                                                :: i,j
-    LOGICAL,  DIMENSION(:,:  ), ALLOCATABLE                :: mask_loc
-    INTEGER                                                :: n_max, n
-    REAL(dp)                                               :: d_sw, d_nw, d_se, d_ne
-    REAL(dp)                                               :: xw, xe, xs, xn, yw, ye, ys, yn
-    LOGICAL                                                :: do_cross_w, do_cross_e, do_cross_s, do_cross_n
+    character(len=256), parameter           :: routine_name = 'calc_grid_contour_as_line'
+    real(dp), parameter                     :: tol = 1E-5_dp
+    real(dp), dimension(:,:  ), allocatable :: d_scaled
+    integer                                 :: i,j
+    logical,  dimension(:,:  ), allocatable :: mask_loc
+    integer                                 :: n_max, n
+    real(dp)                                :: d_sw, d_nw, d_se, d_ne
+    real(dp)                                :: xw, xe, xs, xn, yw, ye, ys, yn
+    logical                                 :: do_cross_w, do_cross_e, do_cross_s, do_cross_n
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
     ! Safety
-    IF (SIZE( d,1) /= grid%nx .OR. SIZE( d,2) /= grid%ny) CALL crash('d is not nx-by-ny!')
+    if (size( d,1) /= grid%nx .or. size( d,2) /= grid%ny) call crash('d is not nx-by-ny!')
 
     ! Trivial case: if all values of d are greater or smaller than f,
     ! the contour line is empty
-    IF (MINVAL( d) >= f .OR. MAXVAL( d) <= f) THEN
-      ALLOCATE( line( 0,0))
-      CALL finalise_routine( routine_name)
-      RETURN
-    END IF
+    if (minval( d) >= f .or. maxval( d) <= f) then
+      allocate( line( 0,0))
+      call finalise_routine( routine_name)
+      return
+    end if
 
     ! Shift d so the contour lies at d_scaled = 0
-    ALLOCATE( d_scaled( grid%nx, grid%ny))
+    allocate( d_scaled( grid%nx, grid%ny))
     d_scaled = d - f
 
     ! Set the mask to optionally skip certain grid cells
-    ALLOCATE( mask_loc( grid%nx, grid%ny))
-    IF (PRESENT( mask)) THEN
+    allocate( mask_loc( grid%nx, grid%ny))
+    if (present( mask)) then
       mask_loc = mask
-    ELSE
-      mask_loc =  .TRUE.
-    END IF
+    else
+      mask_loc =  .true.
+    end if
 
     n_max = 1000
-    ALLOCATE( line( n_max, 4))
+    allocate( line( n_max, 4))
 
     n = 0
-    DO i = 1, grid%nx-1
-    DO j = 1, grid%ny-1
+    do i = 1, grid%nx-1
+    do j = 1, grid%ny-1
 
       ! Skip this grid cell if told so
-      IF ((.NOT. mask_loc( i  ,j  )) .AND. &
-          (.NOT. mask_loc( i  ,j+1)) .AND. &
-          (.NOT. mask_loc( i+1,j  )) .AND. &
-          (.NOT. mask_loc( i+1,j+1))) CYCLE
+      if ((.not. mask_loc( i  ,j  )) .and. &
+          (.not. mask_loc( i  ,j+1)) .and. &
+          (.not. mask_loc( i+1,j  )) .and. &
+          (.not. mask_loc( i+1,j+1))) cycle
 
       ! Extend allocated memory IF needed
-      IF (n > n_max - 10) THEN
+      if (n > n_max - 10) then
         n_max = n + 1000
-        CALL reallocate( line, n_max, 4)
-      END IF
+        call reallocate( line, n_max, 4)
+      end if
 
       ! The four corners of the b-grid cell
       d_sw = d_scaled( i  ,j  )
@@ -454,261 +446,257 @@ CONTAINS
       yn = grid%y( j+1)
 
       ! If all four corners are above/below the level, no line here
-      IF ((d_sw >= 0._dp .AND. d_nw >= 0._dp .AND. d_se >= 0._dp .AND. d_ne >= 0._dp) .OR. &
-          (d_sw <= 0._dp .AND. d_nw <= 0._dp .AND. d_se <= 0._dp .AND. d_ne <= 0._dp)) THEN
-        CYCLE
-      END IF
+      if ((d_sw >= 0._dp .and. d_nw >= 0._dp .and. d_se >= 0._dp .and. d_ne >= 0._dp) .or. &
+          (d_sw <= 0._dp .and. d_nw <= 0._dp .and. d_se <= 0._dp .and. d_ne <= 0._dp)) then
+        cycle
+      end if
 
       ! Add tolerances to keep line lengths finite
-      IF (d_sw >= 0._dp) THEN
-        d_sw = MAX( d_sw, tol)
-      ELSE
-        d_sw = MIN( d_sw, tol)
-      END IF
-      IF (d_nw >= 0._dp) THEN
-        d_nw = MAX( d_nw, tol)
-      ELSE
-        d_nw = MIN( d_nw, tol)
-      END IF
-      IF (d_se >= 0._dp) THEN
-        d_se = MAX( d_se, tol)
-      ELSE
-        d_se = MIN( d_se, tol)
-      END IF
-      IF (d_ne >= 0._dp) THEN
-        d_ne = MAX( d_ne, tol)
-      ELSE
-        d_ne = MIN( d_ne, tol)
-      END IF
+      if (d_sw >= 0._dp) then
+        d_sw = max( d_sw, tol)
+      else
+        d_sw = min( d_sw, tol)
+      end if
+      if (d_nw >= 0._dp) then
+        d_nw = max( d_nw, tol)
+      else
+        d_nw = min( d_nw, tol)
+      end if
+      if (d_se >= 0._dp) then
+        d_se = max( d_se, tol)
+      else
+        d_se = min( d_se, tol)
+      end if
+      if (d_ne >= 0._dp) then
+        d_ne = max( d_ne, tol)
+      else
+        d_ne = min( d_ne, tol)
+      end if
 
       ! Find boundary crossings
 
-      do_cross_w = .FALSE.
-      do_cross_e = .FALSE.
-      do_cross_s = .FALSE.
-      do_cross_n = .FALSE.
+      do_cross_w = .false.
+      do_cross_e = .false.
+      do_cross_s = .false.
+      do_cross_n = .false.
 
-      IF (d_sw * d_nw < 0._dp) THEN
+      if (d_sw * d_nw < 0._dp) then
         ! The contour crosses the western boundary of this b-grid cell
-        do_cross_w = .TRUE.
+        do_cross_w = .true.
         yw = linint_points( ys, yn, d_sw, d_nw, 0._dp)
-      END IF
+      end if
 
-      IF (d_se * d_ne < 0._dp) THEN
+      if (d_se * d_ne < 0._dp) then
         ! The contour crosses the eastern boundary of this b-grid cell
-        do_cross_e = .TRUE.
+        do_cross_e = .true.
         ye = linint_points( ys, yn, d_se, d_ne, 0._dp)
-      END IF
+      end if
 
-      IF (d_nw * d_ne < 0._dp) THEN
+      if (d_nw * d_ne < 0._dp) then
         ! The contour crosses the northern boundary of this b-grid cell
-        do_cross_n = .TRUE.
+        do_cross_n = .true.
         xn = linint_points( xw, xe, d_nw, d_ne, 0._dp)
-      END IF
+      end if
 
-      IF (d_sw * d_se < 0._dp) THEN
+      if (d_sw * d_se < 0._dp) then
         ! The contour crosses the southern boundary of this b-grid cell
-        do_cross_s = .TRUE.
+        do_cross_s = .true.
         xs = linint_points( xw, xe, d_sw, d_se, 0._dp)
-      END IF
+      end if
 
       ! Add line segments
       n = n + 1
-      IF     (do_cross_w) THEN
-        IF     (do_cross_e) THEN
+      if     (do_cross_w) then
+        if     (do_cross_e) then
           ! From west to east
           line( n,:) = [xw,yw,xe,ye]
-        ELSEIF (do_cross_s) THEN
+        elseif (do_cross_s) then
           ! From west to south
           line( n,:) = [xw,yw,xs,ys]
-        ELSEIF (do_cross_n) THEN
+        elseif (do_cross_n) then
           ! From west to north
           line( n,:) = [xw,yw,xn,yn]
-        ELSE
-          CALL crash('found only a crossing at the western boundary!')
-        END IF
-      ELSEIF (do_cross_e) THEN
-        IF     (do_cross_s) THEN
+        else
+          call crash('found only a crossing at the western boundary!')
+        end if
+      elseif (do_cross_e) then
+        IF     (do_cross_s) then
           ! From east to south
           line( n,:) = [xe,ye,xs,ys]
-        ELSEIF (do_cross_n) THEN
+        elseif (do_cross_n) then
           ! From east to north
           line( n,:) = [xe,ye,xn,yn]
-        ELSE
-          CALL crash('found only a crossing at the eastern boundary!')
-        END IF
-      ELSEIF (do_cross_s) THEN
-        IF     (do_cross_n) THEN
+        else
+          call crash('found only a crossing at the eastern boundary!')
+        end if
+      elseif (do_cross_s) then
+        IF     (do_cross_n) then
           ! From south to north
           line( n,:) = [xs,ys,xn,yn]
-        ELSE
-          CALL crash('found only a crossing at the southern boundary!')
-        END IF
-      ELSEIF (do_cross_n) THEN
-          CALL crash('found only a crossing at the northern boundary!')
-      ELSE
-        CALL crash('whaa!')
-      END IF
+        else
+          call crash('found only a crossing at the southern boundary!')
+        end if
+      elseif (do_cross_n) then
+          call crash('found only a crossing at the northern boundary!')
+      else
+        call crash('whaa!')
+      end if
 
-    END DO
-    END DO
+    end do
+    end do
 
     ! Crop memory
-    CALL reallocate( line, n, 4)
+    call reallocate( line, n, 4)
 
     ! Clean up after yourself
-    DEALLOCATE( d_scaled)
-    DEALLOCATE( mask_loc)
+    deallocate( d_scaled)
+    deallocate( mask_loc)
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE calc_grid_contour_as_line
+  end subroutine calc_grid_contour_as_line
 
-  SUBROUTINE poly2line( poly, line)
-    ! Convert a multi-polygon to UFEMISM line-segment format (i.e. unordered
-    ! individual line segments).
-
-    IMPLICIT NONE
+  subroutine poly2line( poly, line)
+    !< Convert a multi-polygon to UFEMISM line-segment format (i.e. unordered
+    !< individual line segments).
 
     ! In/output variables
-    REAL(dp), DIMENSION(:,:  ),              INTENT(IN)    :: poly
-    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE, INTENT(OUT)   :: line
+    real(dp), dimension(:,:  ),              intent(in   ) :: poly
+    real(dp), dimension(:,:  ), allocatable, intent(  out) :: line
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'poly2line'
-    INTEGER                                                :: n,i1,i2
+    character(len=256), parameter :: routine_name = 'poly2line'
+    integer                       :: n,i1,i2
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
-    n = SIZE( poly,1)
+    n = size( poly,1)
 
-    ! Allocate memory for line segments
-    ALLOCATE( line( n,4))
+    ! allocate memory for line segments
+    allocate( line( n,4))
 
     ! Convert polygon to line-segment format
-    DO i1 = 1, n
+    do i1 = 1, n
       i2 = i1 + 1
-      IF (i2 == n+1) i2 = 1
+      if (i2 == n+1) i2 = 1
       line( i1,:) = [poly( i1,1), poly( i1,2), poly( i2,1), poly( i2,2)]
-    END DO
+    end do
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE poly2line
+  end subroutine poly2line
 
-  SUBROUTINE calc_grid_mask_as_polygons( grid, mask, poly_mult)
-    ! Calculate a set of polygon enveloping all TRUE-valued mask cells
-
-    IMPLICIT NONE
+  subroutine calc_grid_mask_as_polygons( grid, mask, poly_mult)
+    !< Calculate a set of polygon enveloping all TRUE-valued mask cells
 
     ! In/output variables
-    TYPE(type_grid),                         INTENT(IN)    :: grid
-    LOGICAL,  DIMENSION(:,:  ),              INTENT(IN)    :: mask
-    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE, INTENT(OUT)   :: poly_mult
+    type(type_grid),                         intent(in   ) :: grid
+    logical,  dimension(:,:  ),              intent(in   ) :: mask
+    real(dp), dimension(:,:  ), allocatable, intent(  out) :: poly_mult
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'calc_grid_mask_as_polygons'
-    LOGICAL,  DIMENSION(:,:  ), ALLOCATABLE                :: mask_loc
-    INTEGER                                                :: i,j
-    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                :: poly
-    INTEGER                                                :: n_poly, n_tot
+    character(len=256), parameter         :: routine_name = 'calc_grid_mask_as_polygons'
+    logical,  dimension(:,:), allocatable :: mask_loc
+    integer                               :: i,j
+    real(dp), dimension(:,:), allocatable :: poly
+    integer                               :: n_poly, n_tot
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
     ! Safety
-    IF (SIZE( mask,1) /= grid%nx .OR. SIZE( mask,2) /= grid%ny) CALL crash('incorrect data dimensions!')
+    if (size( mask,1) /= grid%nx .or. size( mask,2) /= grid%ny) call crash('incorrect data dimensions!')
 
     ! Trivial case for no TRUE values at all
-    IF (.NOT. ANY( mask)) THEN
-      ALLOCATE( poly_mult( 0,0))
-      CALL finalise_routine( routine_name)
-      RETURN
-    END IF
+    if (.not. any( mask)) then
+      allocate( poly_mult( 0,0))
+      call finalise_routine( routine_name)
+      return
+    end if
 
     ! Make a local copy of the logical mask
-    ALLOCATE( mask_loc( grid%nx, grid%ny))
+    allocate( mask_loc( grid%nx, grid%ny))
     mask_loc = mask
 
     ! Initialise poly_mult and poly
-    ALLOCATE( poly_mult( grid%nx*grid%ny,2))
-    ALLOCATE( poly(      grid%nx*grid%ny,2))
+    allocate( poly_mult( grid%nx*grid%ny,2))
+    allocate( poly(      grid%nx*grid%ny,2))
     n_tot = 0
 
     ! Calculate polygons for all TRUE regions of the mask
-    DO i = 1, grid%nx
-    DO j = 1, grid%ny
+    do i = 1, grid%nx
+    do j = 1, grid%ny
 
-      IF (mask_loc( i,j)) THEN
+      if (mask_loc( i,j)) then
         ! Found a seed for a TRUE region
 
         ! Calculate a polygon enveloping this TRUE region, and
         ! remove the region from the mask
-        CALL calc_grid_mask_as_polygon( grid, mask_loc, i, j, poly, n_poly)
+        call calc_grid_mask_as_polygon( grid, mask_loc, i, j, poly, n_poly)
 
         ! Add this polygon to poly_mult
-        poly_mult( n_tot+1,1) = REAL( n_poly,dp)
+        poly_mult( n_tot+1,1) = real( n_poly,dp)
         poly_mult( n_tot+1,2) = 0._dp
         poly_mult( n_tot+2:n_tot+1+n_poly,:) = poly( 1:n_poly,:)
         n_tot = n_tot + 1 + n_poly
 
-      END IF ! IF (mask_loc( i,j)) THEN
+      end if ! if (mask_loc( i,j)) then
 
-    END DO
-    END DO
+    end do
+    end do
 
     ! Crop memory
-    CALL reallocate( poly_mult, n_tot, 2)
+    call reallocate( poly_mult, n_tot, 2)
 
     ! Clean up after yourself
-    DEALLOCATE( mask_loc)
-    DEALLOCATE( poly)
+    deallocate( mask_loc)
+    deallocate( poly)
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE calc_grid_mask_as_polygons
+  end subroutine calc_grid_mask_as_polygons
 
-  SUBROUTINE calc_grid_mask_as_polygon( grid, mask, i0, j0, poly, n_poly)
-    ! Calculate a polygon enveloping the set of TRUE-valued mask cells around i0,j0,
-    ! and remove that set of grid cells from the mask
-
-    IMPLICIT NONE
+  subroutine calc_grid_mask_as_polygon( grid, mask, i0, j0, poly, n_poly)
+    !< Calculate a polygon enveloping the set of TRUE-valued mask cells around i0,j0,
+    !< and remove that set of grid cells from the mask
 
     ! In/output variables
-    TYPE(type_grid),                         INTENT(IN)    :: grid
-    LOGICAL,  DIMENSION(:,:  ),              INTENT(INOUT) :: mask
-    INTEGER,                                 INTENT(IN)    :: i0,j0
-    REAL(dp), DIMENSION(:,:  ),              INTENT(OUT)   :: poly
-    INTEGER,                                 INTENT(OUT)   :: n_poly
+    type(type_grid),          intent(in   ) :: grid
+    logical,  dimension(:,:), intent(inout) :: mask
+    integer,                  intent(in   ) :: i0,j0
+    real(dp), dimension(:,:), intent(  out) :: poly
+    integer,                  intent(  out) :: n_poly
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'calc_grid_mask_as_polygon'
-    LOGICAL,  DIMENSION(:,:  ), ALLOCATABLE                :: mask_ext
-    INTEGER,  DIMENSION(:,:  ), ALLOCATABLE                :: map
-    INTEGER,  DIMENSION(:,:  ), ALLOCATABLE                :: stack
-    INTEGER                                                :: stackN
-    INTEGER                                                :: i,j,ii,jj,i_sw,j_sw
-    CHARACTER(LEN=256)                                     :: dir, dir_prev
-    INTEGER                                                :: it
+    character(len=256), parameter         :: routine_name = 'calc_grid_mask_as_polygon'
+    logical,  dimension(:,:), allocatable :: mask_ext
+    integer,  dimension(:,:), allocatable :: map
+    integer,  dimension(:,:), allocatable :: stack
+    integer                               :: stackN
+    integer                               :: i,j,ii,jj,i_sw,j_sw
+    character(len=256)                    :: dir, dir_prev
+    integer                               :: it
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
+#if (DO_ASSERTIONS)
     ! Safety
-    IF (SIZE( mask,1) /= grid%nx .OR. SIZE( mask,2) /= grid%ny) CALL crash('incorrect data dimensions!')
-    IF (.NOT. mask( i0,j0)) CALL crash('seed at i0,j0 is not TRUE!')
+    if (size( mask,1) /= grid%nx .or. size( mask,2) /= grid%ny) call crash('incorrect data dimensions!')
+    if (.not. mask( i0,j0)) call crash('seed at i0,j0 is not TRUE!')
+#endif
 
     ! Pad a row of FALSEs around the mask so the set of TRUEs around i0,j0 is really an island
-    ALLOCATE( mask_ext( 0:grid%nx+1, 0:grid%ny+1), source = .FALSE.)
+    allocate( mask_ext( 0:grid%nx+1, 0:grid%ny+1), source = .false.)
     mask_ext( 1:grid%nx, 1:grid%ny) = mask
 
     ! Use a flood-fill algorithm to find the map of same-valued grid cells around mask cell i0,j0
-    ALLOCATE( map(   0:grid%nx+1, 0:grid%ny+1) , source = 0)
-    ALLOCATE( stack( (grid%nx+2)*(grid%ny+2),2))
+    allocate( map(   0:grid%nx+1, 0:grid%ny+1) , source = 0)
+    allocate( stack( (grid%nx+2)*(grid%ny+2),2))
 
     map( i0,j0) = 1
     stackN = 1
@@ -717,7 +705,7 @@ CONTAINS
     i_sw = 0
     j_sw = 0
 
-    DO WHILE (stackN > 0)
+    do while (stackN > 0)
 
       ! Take the last element from the stack
       i = stack( stackN,1)
@@ -728,31 +716,31 @@ CONTAINS
       map( i,j) = 2
 
       ! Remove it from the input mask
-      mask( i,j) = .FALSE.
+      mask( i,j) = .false.
 
       ! Add all non-mapped, non-stacked, TRUE-valued neighbours to the stack
-      DO ii = MAX( 0, i-1), MIN( grid%nx+1, i+1)
-      DO jj = MAX( 0, j-1), MIN( grid%ny+1, j+1)
-        IF (ii /= i .AND. jj /= j) CYCLE ! Don't include diagonal neighbours
-        IF (map( ii,jj) == 0 .AND. mask_ext( ii,jj)) THEN
+      DO ii = max( 0, i-1), min( grid%nx+1, i+1)
+      DO jj = max( 0, j-1), min( grid%ny+1, j+1)
+        if (ii /= i .and. jj /= j) cycle ! Don't include diagonal neighbours
+        if (map( ii,jj) == 0 .and. mask_ext( ii,jj)) then
           ! Add this neighbour to the stack
           stackN = stackN + 1
           stack( stackN,:) = [ii,jj]
           ! Mark this neighbour on the map as stacked
           map( ii,jj) = 1
-        END IF
-      END DO
-      END DO
+        end if
+      end do
+      end do
 
       ! If it is a southwest corner, save it as a starting point for the outline tracer
-      IF (.NOT. mask_ext( i-1,j) .AND. .NOT. mask_ext( i,j-1)) THEN
+      if (.not. mask_ext( i-1,j) .and. .not. mask_ext( i,j-1)) then
         i_sw = i
         j_sw = j
-      END IF
+      end if
 
-    END DO ! DO WHILE (stackN > 0)
+    end do ! do while (stackN > 0)
     ! Safety
-    IF (i_sw == 0 .OR. j_sw == 0) CALL crash('couldnt find starting SW corner!')
+    if (i_sw == 0 .or. j_sw == 0) call crash('couldnt find starting SW corner!')
 
     ! Start at the southwest corner we found earlier
     ii = i_sw
@@ -764,695 +752,665 @@ CONTAINS
 
     ! Trace the outline of the mapped grid cells.
     it = 0
-    DO WHILE (.TRUE.)
+    do while (.true.)
 
       ! Safety
       it = it + 1
-      IF (it > grid%nx*grid%ny) CALL crash('outline tracer got stuck!')
+      if (it > grid%nx*grid%ny) call crash('outline tracer got stuck!')
 
-      ! Cycle direction
+      ! cycle direction
       dir_prev = dir
 
       ! Check which way we go next
-      IF     (dir_prev == 'east') THEN
+      if     (dir_prev == 'east') then
         ! We were going east, so [ii,jj] is to the north of us, and we can
         ! continue north, east, or south
 
-        IF     (map( ii+1,jj) == 0) THEN
+        if     (map( ii+1,jj) == 0) then
           ! Go north
           dir = 'north'
-        ELSEIF (map( ii+1,jj-1) == 0) THEN
+        elseif (map( ii+1,jj-1) == 0) then
           ! Go east
           dir = 'east'
           ii = ii+1
-        ELSEIF (map( ii,jj-1) == 0) THEN
+        elseif (map( ii,jj-1) == 0) then
           ! Go south
           dir = 'south'
           ii = ii+1
           jj = jj-1
-        ELSE
-          CALL crash('outline tracer got stuck while going east!')
-        END IF
+        else
+          call crash('outline tracer got stuck while going east!')
+        end if
 
-      ELSEIF (dir_prev == 'north') THEN
+      elseif (dir_prev == 'north') then
         ! We were going north, so [ii,jj] is to the west of us, and we can
         ! continue west, north, or east
 
-        IF     (map( ii,jj+1) == 0) THEN
+        if     (map( ii,jj+1) == 0) then
           ! Go west
           dir = 'west'
-        ELSEIF (map( ii+1,jj+1) == 0) THEN
+        elseif (map( ii+1,jj+1) == 0) then
           ! Go north
           dir = 'north'
           jj = jj+1
-        ELSEIF (map( ii+1,jj) == 0) THEN
+        elseif (map( ii+1,jj) == 0) then
           ! Go east
           dir = 'east'
           ii = ii+1
           jj = jj+1
-        ELSE
-          CALL crash('outline tracer got stuck while going north!')
-        END IF
+        else
+          call crash('outline tracer got stuck while going north!')
+        end if
 
-      ELSEIF (dir_prev == 'west') THEN
+      elseif (dir_prev == 'west') then
         ! We were going west, so [ii,jj] is to the south of us, and we can
         ! continue south, west, or north
 
-        IF     (map( ii-1,jj) == 0) THEN
+        if     (map( ii-1,jj) == 0) then
           ! Go south
           dir = 'south'
-        ELSEIF (map( ii-1,jj+1) == 0) THEN
+        elseif (map( ii-1,jj+1) == 0) then
           ! Go west
           dir = 'west'
           ii = ii-1
-        ELSEIF (map( ii,jj+1) == 0) THEN
+        elseif (map( ii,jj+1) == 0) then
           ! Go north
           dir = 'north'
           ii = ii-1
           jj = jj+1
-        ELSE
-          CALL crash('outline tracer got stuck while going north!')
-        END IF
+        else
+          call crash('outline tracer got stuck while going north!')
+        end if
 
-      ELSEIF (dir_prev == 'south') THEN
+      elseif (dir_prev == 'south') then
         ! We were going south, so [ii,jj] is to the east of us, and we can
         ! continue east, south, or west
 
-        IF     (map( ii,jj-1) == 0) THEN
+        if     (map( ii,jj-1) == 0) then
           ! Go east
           dir = 'east'
-        ELSEIF (map( ii-1,jj-1) == 0) THEN
+        elseif (map( ii-1,jj-1) == 0) then
           ! Go south
           dir = 'south'
           jj = jj-1
-        ELSEIF (map( ii-1,jj) == 0) THEN
+        elseif (map( ii-1,jj) == 0) then
           ! Go west
           dir = 'west'
           ii = ii-1
           jj = jj-1
-        ELSE
-          CALL crash('outline tracer got stuck while going north!')
-        END IF
+        else
+          call crash('outline tracer got stuck while going north!')
+        end if
 
-      ELSE
-        CALL crash('unknown dir_prev "' // TRIM( dir_prev) // '"!')
-      END IF
+      else
+        call crash('unknown dir_prev "' // trim( dir_prev) // '"!')
+      end if
 
       ! Add new vertex to the polygon
       n_poly = n_poly+1
-      IF     (dir == 'east') THEN
+      if     (dir == 'east') then
         poly( n_poly,:) = poly( n_poly-1,:) + [grid%dx, 0._dp]
-      ELSEIF (dir == 'north') THEN
+      elseif (dir == 'north') then
         poly( n_poly,:) = poly( n_poly-1,:) + [0._dp, grid%dx]
-      ELSEIF (dir == 'west') THEN
+      elseif (dir == 'west') then
         poly( n_poly,:) = poly( n_poly-1,:) + [-grid%dx, 0._dp]
-      ELSEIF (dir == 'south') THEN
+      elseif (dir == 'south') then
         poly( n_poly,:) = poly( n_poly-1,:) + [0._dp, -grid%dx]
-      ELSE
-        CALL crash('unknown dir "' // TRIM( dir) // '"!')
-      END IF
+      else
+        call crash('unknown dir "' // trim( dir) // '"!')
+      end if
 
       ! If we've reached the starting point again, we're done
-      IF (NORM2( poly( n_poly,:) - poly( 1,:)) < grid%dx / 10._dp) THEN
+      if (norm2( poly( n_poly,:) - poly( 1,:)) < grid%dx / 10._dp) then
         ! Don't double count
         n_poly = n_poly-1
-        EXIT
-      END IF
+        exit
+      end if
 
-    END DO ! DO WHILE (.TRUE.)
+    end do ! do while (.true.)
 
     ! Clean up after yourself
-    DEALLOCATE( mask_ext)
-    DEALLOCATE( map)
-    DEALLOCATE( stack)
+    deallocate( mask_ext)
+    deallocate( map)
+    deallocate( stack)
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE calc_grid_mask_as_polygon
+  end subroutine calc_grid_mask_as_polygon
 
 ! == Gaussian smoothing of gridded data
 
-  SUBROUTINE smooth_Gaussian_2D_grid( grid, d_grid_vec_partial, r)
-    ! Apply a Gaussian smoothing filter with sigma = r to the 2D data field d
-
-    IMPLICIT NONE
+  subroutine smooth_Gaussian_2D_grid( grid, d_grid_vec_partial, r)
+    !< Apply a Gaussian smoothing filter with sigma = r to the 2D data field d
 
     ! In/output variables:
-    TYPE(type_grid),                     INTENT(IN)    :: grid
-    REAL(dp), DIMENSION(:    ),          INTENT(INOUT) :: d_grid_vec_partial
-    REAL(dp),                            INTENT(IN)    :: r      ! Smoothing radius in m
+    type(type_grid),        intent(in   ) :: grid
+    real(dp), dimension(:), intent(inout) :: d_grid_vec_partial
+    real(dp),               intent(in   ) :: r                    !< [m] Smoothing radius
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'smooth_Gaussian_2D_grid'
-    INTEGER                                            :: n
-    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: d_grid_tot
-    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: d_grid_tot_smoothed
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: f
-    INTEGER                                            :: i,j,k,ii,jj
+    character(len=256), parameter         :: routine_name = 'smooth_Gaussian_2D_grid'
+    integer                               :: n
+    real(dp), dimension(:,:), allocatable :: d_grid_tot
+    real(dp), dimension(:,:), allocatable :: d_grid_tot_smoothed
+    real(dp), dimension(:),   allocatable :: f
+    integer                               :: i,j,k,ii,jj
 
     ! Number of cells to extend the data by (3 standard deviations is enough to capture the tails of the normal distribution)
-    n = CEILING( r / grid%dx) * 3
+    n = ceiling( r / grid%dx) * 3
 
     ! Calculate the 1-D smoothing filter
-    ALLOCATE( f( -n:n))
+    allocate( f( -n:n))
     f = 0._dp
-    DO k = -n, n
-      f( k) = EXP( -0.5_dp * (REAL( k,dp) * grid%dx/r)**2)
-    END DO
-    f = f / SUM(f)
+    do k = -n, n
+      f( k) = exp( -0.5_dp * (real( k,dp) * grid%dx/r)**2)
+    end do
+    f = f / sum(f)
 
-    ! Allocate memory
-    ALLOCATE( d_grid_tot(          grid%nx,grid%ny), source = 0._dp)
-    ALLOCATE( d_grid_tot_smoothed( grid%nx,grid%ny), source = 0._dp)
+    ! allocate memory
+    allocate( d_grid_tot(          grid%nx,grid%ny), source = 0._dp)
+    allocate( d_grid_tot_smoothed( grid%nx,grid%ny), source = 0._dp)
 
     ! Gather data to the master in grid form
-    CALL gather_gridded_data_to_master_dp_2D( grid, d_grid_vec_partial, d_grid_tot)
+    call gather_gridded_data_to_master_dp_2D( grid, d_grid_vec_partial, d_grid_tot)
 
     ! Let the master do the actual work
-    IF (par%master) THEN
+    if (par%master) then
 
       ! First smooth in the x-direction
       d_grid_tot_smoothed = 0._dp
-      DO i = 1, grid%nx
-      DO j = 1, grid%ny
+      do i = 1, grid%nx
+      do j = 1, grid%ny
         DO k = -n, n
-          ii = MAX( 1, MIN( grid%nx, i+k ))
+          ii = max( 1, min( grid%nx, i+k ))
           d_grid_tot_smoothed( i,j) = d_grid_tot_smoothed( i,j) + d_grid_tot( ii,j) * f( k)
-        END DO
-      END DO
-      END DO
+        end do
+      end do
+      end do
       d_grid_tot = d_grid_tot_smoothed
 
-      ! Then smooth in the y-direction
+      ! then smooth in the y-direction
       d_grid_tot_smoothed = 0._dp
-      DO i = 1, grid%nx
-      DO j = 1, grid%ny
+      do i = 1, grid%nx
+      do j = 1, grid%ny
         DO k = -n, n
-          jj = MAX( 1, MIN( grid%ny, j+k ))
+          jj = max( 1, min( grid%ny, j+k ))
           d_grid_tot_smoothed( i,j) = d_grid_tot_smoothed( i,j) + d_grid_tot( i,jj) * f( k)
-        END DO
-      END DO
-      END DO
+        end do
+      end do
+      end do
       d_grid_tot = d_grid_tot_smoothed
 
-    END IF ! IF (par%master) THEN
+    end if ! if (par%master) then
 
     ! Distributed smoothed data back from the master
-    CALL distribute_gridded_data_from_master_dp_2D( grid, d_grid_tot, d_grid_vec_partial)
+    call distribute_gridded_data_from_master_dp_2D( grid, d_grid_tot, d_grid_vec_partial)
 
     ! Clean up after yourself
-    DEALLOCATE( d_grid_tot)
-    DEALLOCATE( d_grid_tot_smoothed)
-    DEALLOCATE( f)
+    deallocate( d_grid_tot)
+    deallocate( d_grid_tot_smoothed)
+    deallocate( f)
 
-  END SUBROUTINE smooth_Gaussian_2D_grid
+  end subroutine smooth_Gaussian_2D_grid
 
-  SUBROUTINE smooth_Gaussian_3D_grid( grid, d_grid_vec_partial, r)
-    ! Apply a Gaussian smoothing filter with sigma = r to the 3D data field d
-
-    IMPLICIT NONE
+  subroutine smooth_Gaussian_3D_grid( grid, d_grid_vec_partial, r)
+    !< Apply a Gaussian smoothing filter with sigma = r to the 3D data field d
 
     ! In/output variables:
-    TYPE(type_grid),                     INTENT(IN)    :: grid
-    REAL(dp), DIMENSION(:,:  ),          INTENT(INOUT) :: d_grid_vec_partial
-    REAL(dp),                            INTENT(IN)    :: r      ! Smoothing radius in m
+    type(type_grid),          intent(in   ) :: grid
+    real(dp), dimension(:,:), intent(inout) :: d_grid_vec_partial
+    real(dp),               intent(in   ) :: r                    !< [m] Smoothing radius
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'smooth_Gaussian_3D_grid'
-    INTEGER                                            :: n
-    REAL(dp), DIMENSION(:,:,:), ALLOCATABLE            :: d_grid_tot
-    REAL(dp), DIMENSION(:,:,:), ALLOCATABLE            :: d_grid_tot_smoothed
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: f
-    INTEGER                                            :: i,j,k,ii,jj
+    character(len=256), parameter           :: routine_name = 'smooth_Gaussian_3D_grid'
+    integer                                 :: n
+    real(dp), dimension(:,:,:), allocatable :: d_grid_tot
+    real(dp), dimension(:,:,:), allocatable :: d_grid_tot_smoothed
+    real(dp), dimension(:    ), allocatable :: f
+    integer                                 :: i,j,k,ii,jj
 
     ! Number of cells to extend the data by (3 standard deviations is enough to capture the tails of the normal distribution)
-    n = CEILING( r / grid%dx) * 3
+    n = ceiling( r / grid%dx) * 3
 
     ! Calculate the 1-D smoothing filter
-    ALLOCATE( f( -n:n))
+    allocate( f( -n:n))
     f = 0._dp
-    DO k = -n, n
-      f( k) = EXP( -0.5_dp * (REAL( k,dp) * grid%dx/r)**2)
-    END DO
-    f = f / SUM(f)
+    do k = -n, n
+      f( k) = exp( -0.5_dp * (real( k,dp) * grid%dx/r)**2)
+    end do
+    f = f / sum(f)
 
-    ! Allocate memory
-    ALLOCATE( d_grid_tot(          grid%nx,grid%ny,SIZE( d_grid_vec_partial,2)), source = 0._dp)
-    ALLOCATE( d_grid_tot_smoothed( grid%nx,grid%ny,SIZE( d_grid_vec_partial,2)), source = 0._dp)
+    ! allocate memory
+    allocate( d_grid_tot(          grid%nx,grid%ny,size( d_grid_vec_partial,2)), source = 0._dp)
+    allocate( d_grid_tot_smoothed( grid%nx,grid%ny,size( d_grid_vec_partial,2)), source = 0._dp)
 
     ! Gather data to the master in grid form
-    CALL gather_gridded_data_to_master_dp_3D( grid, d_grid_vec_partial, d_grid_tot)
+    call gather_gridded_data_to_master_dp_3D( grid, d_grid_vec_partial, d_grid_tot)
 
     ! Let the master do the actual work
-    IF (par%master) THEN
+    if (par%master) then
 
       ! First smooth in the x-direction
       d_grid_tot_smoothed = 0._dp
-      DO i = 1, grid%nx
-      DO j = 1, grid%ny
-        DO k = -n, n
-          ii = MAX( 1, MIN( grid%nx, i+k ))
+      do i = 1, grid%nx
+      do j = 1, grid%ny
+        do k = -n, n
+          ii = max( 1, min( grid%nx, i+k ))
           d_grid_tot_smoothed( i,j,:) = d_grid_tot_smoothed( i,j,:) + d_grid_tot( ii,j,:) * f( k)
-        END DO
-      END DO
-      END DO
+        end do
+      end do
+      end do
       d_grid_tot = d_grid_tot_smoothed
 
-      ! Then smooth in the y-direction
+      ! then smooth in the y-direction
       d_grid_tot_smoothed = 0._dp
-      DO i = 1, grid%nx
-      DO j = 1, grid%ny
-        DO k = -n, n
-          jj = MAX( 1, MIN( grid%ny, j+k ))
+      do i = 1, grid%nx
+      do j = 1, grid%ny
+        do k = -n, n
+          jj = max( 1, min( grid%ny, j+k ))
           d_grid_tot_smoothed( i,j,:) = d_grid_tot_smoothed( i,j,:) + d_grid_tot( i,jj,:) * f( k)
-        END DO
-      END DO
-      END DO
+        end do
+      end do
+      end do
       d_grid_tot = d_grid_tot_smoothed
 
-    END IF ! IF (par%master) THEN
+    end if ! if (par%master) then
 
     ! Distributed smoothed data back from the master
-    CALL distribute_gridded_data_from_master_dp_3D( grid, d_grid_tot, d_grid_vec_partial)
+    call distribute_gridded_data_from_master_dp_3D( grid, d_grid_tot, d_grid_vec_partial)
 
     ! Clean up after yourself
-    DEALLOCATE( d_grid_tot)
-    DEALLOCATE( d_grid_tot_smoothed)
-    DEALLOCATE( f)
+    deallocate( d_grid_tot)
+    deallocate( d_grid_tot_smoothed)
+    deallocate( f)
 
-  END SUBROUTINE smooth_Gaussian_3D_grid
+  end subroutine smooth_Gaussian_3D_grid
 
-! == Subroutines for manipulating gridded data in distributed memory
+! == subroutines for manipulating gridded data in distributed memory
 
-  SUBROUTINE distribute_gridded_data_from_master_int_2D( grid, d_grid, d_grid_vec_partial)
-    ! Distribute a 2-D gridded data field from the Master.
-    ! Input from Master: total data field in field form
-    ! Output to all: partial data in vector form
+  subroutine distribute_gridded_data_from_master_int_2D( grid, d_grid, d_grid_vec_partial)
+    !< Distribute a 2-D gridded data field from the Master.
+    !< Input from Master: total data field in field form
+    !< Output to all: partial data in vector form
 
-    IMPLICIT NONE
-
-    ! Input variables:
-    TYPE(type_grid),                                     INTENT(IN)    :: grid
-    INTEGER,  DIMENSION(:,:    ), optional,              INTENT(IN)    :: d_grid
-
-    ! Output variables:
-    INTEGER , DIMENSION(:      ),                        INTENT(OUT)   :: d_grid_vec_partial
+    ! In/output variables:
+    type(type_grid),                   intent(in   ) :: grid
+    integer, dimension(:,:), optional, intent(in   ) :: d_grid
+    integer, dimension(:  ),           intent(  out) :: d_grid_vec_partial
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'distribute_gridded_data_from_master_int_2D'
-    INTEGER                                                            :: n,i,j
-    INTEGER,  DIMENSION(:      ), ALLOCATABLE                          :: d_grid_vec_total
+    character(len=256), parameter      :: routine_name = 'distribute_gridded_data_from_master_int_2D'
+    integer                            :: n,i,j
+    integer, dimension(:), allocatable :: d_grid_vec_total
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
     ! Convert gridded data to vector form
-    IF (par%master) THEN
+    if (par%master) then
       if (.not. present(d_grid)) call crash('d_grid must be present on master')
 
-      ! Allocate memory
-      ALLOCATE( d_grid_vec_total( grid%n), source = 0)
+      ! allocate memory
+      allocate( d_grid_vec_total( grid%n), source = 0)
 
       ! Convert to vector form
-      DO n = 1, grid%n
+      do n = 1, grid%n
         i = grid%n2ij( n,1)
         j = grid%n2ij( n,2)
         d_grid_vec_total( n) = d_grid( i,j)
-      END DO
+      end do
 
     ! When passing arrays, it is required they exist
-    ELSE
-      ALLOCATE( d_grid_vec_total(0) )
-    END IF ! IF (par%master) THEN
+    else
+      allocate( d_grid_vec_total(0) )
+    end if ! if (par%master) then
 
     ! Distribute vector-form data to the processes
-    CALL distribute_from_master( d_grid_vec_total, d_grid_vec_partial)
+    call distribute_from_master( d_grid_vec_total, d_grid_vec_partial)
 
     ! Clean up after yourself
-    DEALLOCATE( d_grid_vec_total)
+    deallocate( d_grid_vec_total)
 
     ! Add routine to path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE distribute_gridded_data_from_master_int_2D
+  end subroutine distribute_gridded_data_from_master_int_2D
 
-  SUBROUTINE distribute_gridded_data_from_master_dp_2D( grid, d_grid, d_grid_vec_partial)
-    ! Distribute a 2-D gridded data field from the Master.
-    ! Input from Master: total data field in field form
-    ! Output to all: partial data in vector form
+  subroutine distribute_gridded_data_from_master_dp_2D( grid, d_grid, d_grid_vec_partial)
+    !< Distribute a 2-D gridded data field from the Master.
+    !< Input from Master: total data field in field form
+    !< Output to all: partial data in vector form
 
-    IMPLICIT NONE
-
-    ! Input variables:
-    TYPE(type_grid),                                     INTENT(IN)    :: grid
-    REAL(dp), DIMENSION(:,:    ), optional,              INTENT(IN)    :: d_grid
-
-    ! Output variables:
-    REAL(dp), DIMENSION(:      ),                        INTENT(OUT)   :: d_grid_vec_partial
+    ! In/output variables:
+    type(type_grid),                    intent(in)    :: grid
+    real(dp), dimension(:,:), optional, intent(in)    :: d_grid
+    real(dp), dimension(:  ),           intent(out)   :: d_grid_vec_partial
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'distribute_gridded_data_from_master_dp_2D'
-    INTEGER                                                            :: n,i,j
-    REAL(dp), DIMENSION(:      ), ALLOCATABLE                          :: d_grid_vec_total
+    character(len=256), parameter       :: routine_name = 'distribute_gridded_data_from_master_dp_2D'
+    integer                             :: n,i,j
+    real(dp), dimension(:), allocatable :: d_grid_vec_total
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
     ! Convert gridded data to vector form
-    IF (par%master) THEN
+    if (par%master) then
       if (.not. present(d_grid)) call crash('d_grid must be present on master')
 
-      ! Allocate memory
-      ALLOCATE( d_grid_vec_total( grid%n), source = 0._dp)
+      ! allocate memory
+      allocate( d_grid_vec_total( grid%n), source = 0._dp)
 
       ! Convert to vector form
-      DO n = 1, grid%n
+      do n = 1, grid%n
         i = grid%n2ij( n,1)
         j = grid%n2ij( n,2)
         d_grid_vec_total( n) = d_grid( i,j)
-      END DO
+      end do
 
     ! When passing arrays, it is required they exist
-    ELSE
-      ALLOCATE( d_grid_vec_total(0) )
-    END IF ! IF (par%master) THEN
+    else
+      allocate( d_grid_vec_total(0) )
+    end if ! if (par%master) then
 
     ! Distribute vector-form data to the processes
-    CALL distribute_from_master( d_grid_vec_total, d_grid_vec_partial)
+    call distribute_from_master( d_grid_vec_total, d_grid_vec_partial)
 
     ! Clean up after yourself
-    DEALLOCATE( d_grid_vec_total)
+    deallocate( d_grid_vec_total)
 
     ! Add routine to path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE distribute_gridded_data_from_master_dp_2D
+  end subroutine distribute_gridded_data_from_master_dp_2D
 
-  SUBROUTINE distribute_gridded_data_from_master_int_3D( grid, d_grid, d_grid_vec_partial)
-    ! Distribute a 3-D gridded data field from the Master.
-    ! Input from Master: total data field in field form
-    ! Output to all: partial data in vector form
+  subroutine distribute_gridded_data_from_master_int_3D( grid, d_grid, d_grid_vec_partial)
+    !< Distribute a 3-D gridded data field from the Master.
+    !< Input from Master: total data field in field form
+    !< Output to all: partial data in vector form
 
-    IMPLICIT NONE
-
-    ! Input variables:
-    TYPE(type_grid),                                     INTENT(IN)    :: grid
-    INTEGER,  DIMENSION(:,:,:  ),                        INTENT(IN)    :: d_grid
-
-    ! Output variables:
-    INTEGER,  DIMENSION(:,:    ),                        INTENT(OUT)   :: d_grid_vec_partial
+    ! In/output variables:
+    type(type_grid),           intent(in   ) :: grid
+    integer, dimension(:,:,:), intent(in   ) :: d_grid
+    integer, dimension(:,:  ), intent(  out) :: d_grid_vec_partial
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'distribute_gridded_data_from_master_int_3D'
-    INTEGER                                                            :: k
-    INTEGER,  DIMENSION(:,:    ), ALLOCATABLE                          :: d_grid_2D
-    INTEGER,  DIMENSION(:      ), ALLOCATABLE                          :: d_grid_vec_partial_2D
+    character(len=256), parameter        :: routine_name = 'distribute_gridded_data_from_master_int_3D'
+    integer                              :: k
+    integer, dimension(:,:), allocatable :: d_grid_2D
+    integer, dimension(:  ), allocatable :: d_grid_vec_partial_2D
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
     ! Safety
-    IF (par%master .AND. SIZE( d_grid,3) /= SIZE( d_grid_vec_partial,2)) CALL crash('vector sizes dont match!')
+    if (par%master .and. size( d_grid,3) /= size( d_grid_vec_partial,2)) then
+      call crash('vector sizes dont match!')
+    end if
 
-    ! Allocate memory
-    IF (par%master) then
-       ALLOCATE( d_grid_2D( SIZE( d_grid,1), SIZE( d_grid,2)), source = 0)
+    ! allocate memory
+    if (par%master) then
+       allocate( d_grid_2D( size( d_grid,1), size( d_grid,2)), source = 0)
     else
        allocate ( d_grid_2d(0,0))
     end if
 
-    ALLOCATE( d_grid_vec_partial_2D( SIZE( d_grid_vec_partial,1)), source = 0)
+    allocate( d_grid_vec_partial_2D( size( d_grid_vec_partial,1)), source = 0)
 
     ! Treat each layer as a separate 2-D field
-    DO k = 1, SIZE( d_grid_vec_partial,2)
-      IF (par%master) d_grid_2D = d_grid( :,:,k)
-      CALL distribute_gridded_data_from_master_int_2D( grid, d_grid_2D, d_grid_vec_partial_2D)
+    do k = 1, size( d_grid_vec_partial,2)
+      if (par%master) d_grid_2D = d_grid( :,:,k)
+      call distribute_gridded_data_from_master_int_2D( grid, d_grid_2D, d_grid_vec_partial_2D)
       d_grid_vec_partial( :,k) = d_grid_vec_partial_2D
-    END DO
+    end do
 
     ! Clean up after yourself
-    DEALLOCATE( d_grid_2D)
-    DEALLOCATE( d_grid_vec_partial_2D)
+    deallocate( d_grid_2D)
+    deallocate( d_grid_vec_partial_2D)
 
     ! Add routine to path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE distribute_gridded_data_from_master_int_3D
+  end subroutine distribute_gridded_data_from_master_int_3D
 
-  SUBROUTINE distribute_gridded_data_from_master_dp_3D( grid, d_grid, d_grid_vec_partial)
+  subroutine distribute_gridded_data_from_master_dp_3D( grid, d_grid, d_grid_vec_partial)
     ! Distribute a 3-D gridded data field from the Master.
     ! Input from Master: total data field in field form
     ! Output to all: partial data in vector form
 
-    IMPLICIT NONE
-
-    ! Input variables:
-    TYPE(type_grid),                                     INTENT(IN)    :: grid
-    REAL(dp), DIMENSION(:,:,:  ),                        INTENT(IN)    :: d_grid
-
-    ! Output variables:
-    REAL(dp), DIMENSION(:,:    ),                        INTENT(OUT)   :: d_grid_vec_partial
+    ! In/output variables:
+    type(type_grid),            intent(in   ) :: grid
+    real(dp), dimension(:,:,:), intent(in   ) :: d_grid
+    real(dp), dimension(:,:  ), intent(  out) :: d_grid_vec_partial
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'distribute_gridded_data_from_master_dp_3D'
-    INTEGER                                                            :: k
-    REAL(dp), DIMENSION(:,:    ), ALLOCATABLE                          :: d_grid_2D
-    REAL(dp), DIMENSION(:      ), ALLOCATABLE                          :: d_grid_vec_partial_2D
+    character(len=256), parameter         :: routine_name = 'distribute_gridded_data_from_master_dp_3D'
+    integer                               :: k
+    real(dp), dimension(:,:), allocatable :: d_grid_2D
+    real(dp), dimension(:  ), allocatable :: d_grid_vec_partial_2D
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
     ! Safety
-    IF (par%master .AND. SIZE( d_grid,3) /= SIZE( d_grid_vec_partial,2)) CALL crash('vector sizes dont match!')
+    if (par%master .and. size( d_grid,3) /= size( d_grid_vec_partial,2)) then
+      call crash('vector sizes dont match!')
+    end if
 
-    ! Allocate memory
-    IF (par%master) then
-       ALLOCATE( d_grid_2D( SIZE( d_grid,1), SIZE( d_grid,2)), source = 0._dp)
+    ! allocate memory
+    if (par%master) then
+       allocate( d_grid_2D( size( d_grid,1), size( d_grid,2)), source = 0._dp)
     else
        allocate ( d_grid_2d(0,0))
     end if
 
-    ALLOCATE( d_grid_vec_partial_2D( SIZE( d_grid_vec_partial,1)), source = 0._dp)
+    allocate( d_grid_vec_partial_2D( size( d_grid_vec_partial,1)), source = 0._dp)
 
     ! Treat each layer as a separate 2-D field
-    DO k = 1, SIZE( d_grid_vec_partial,2)
-      IF (par%master) d_grid_2D = d_grid( :,:,k)
-      CALL distribute_gridded_data_from_master_dp_2D( grid, d_grid_2D, d_grid_vec_partial_2D)
+    do k = 1, size( d_grid_vec_partial,2)
+      if (par%master) d_grid_2D = d_grid( :,:,k)
+      call distribute_gridded_data_from_master_dp_2D( grid, d_grid_2D, d_grid_vec_partial_2D)
       d_grid_vec_partial( :,k) = d_grid_vec_partial_2D
-    END DO
+    end do
 
     ! Clean up after yourself
-    DEALLOCATE( d_grid_2D)
-    DEALLOCATE( d_grid_vec_partial_2D)
+    deallocate( d_grid_2D)
+    deallocate( d_grid_vec_partial_2D)
 
     ! Add routine to path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE distribute_gridded_data_from_master_dp_3D
+  end subroutine distribute_gridded_data_from_master_dp_3D
 
-  SUBROUTINE gather_gridded_data_to_master_int_2D( grid, d_grid_vec_partial, d_grid)
-    ! Gather a 2-D gridded data field to the Master.
-    ! Input from all: partial data in vector form
-    ! Output to Master: total data field in field form
+  subroutine gather_gridded_data_to_master_int_2D( grid, d_grid_vec_partial, d_grid)
+    !< Gather a 2-D gridded data field to the Master.
+    !< Input from all: partial data in vector form
+    !< Output to Master: total data field in field form
 
-    IMPLICIT NONE
-
-    ! Input variables:
-    TYPE(type_grid),                                     INTENT(IN)    :: grid
-    INTEGER,  DIMENSION(:      ),                        INTENT(IN)    :: d_grid_vec_partial
-
-    ! Output variables:
-    INTEGER,  DIMENSION(:,:    ), optional,              INTENT(OUT)   :: d_grid
+    ! In/output variables:
+    type(type_grid),                   intent(in   ) :: grid
+    integer, dimension(:  ),           intent(in   ) :: d_grid_vec_partial
+    integer, dimension(:,:), optional, intent(  out) :: d_grid
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'gather_gridded_data_to_master_int_2D'
-    INTEGER                                                            :: n,i,j
-    INTEGER,  DIMENSION(:      ), ALLOCATABLE                          :: d_grid_vec_total
+    character(len=256), parameter      :: routine_name = 'gather_gridded_data_to_master_int_2D'
+    integer                            :: n,i,j
+    integer, dimension(:), allocatable :: d_grid_vec_total
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
-    ! Allocate memory
-    IF (par%master) THEN
-      ALLOCATE( d_grid_vec_total( grid%n), source = 0)
+    ! allocate memory
+    if (par%master) then
+      allocate( d_grid_vec_total( grid%n), source = 0)
     else
       ! It must be allocated to be used in a function call
       allocate( d_grid_vec_total(0) )
     end if
 
     ! Gather data
-    CALL gather_to_master( d_grid_vec_partial, d_grid_vec_total)
+    call gather_to_master( d_grid_vec_partial, d_grid_vec_total)
 
     ! Convert to grid form
-    IF (par%master) THEN
+    if (par%master) then
       if (.not. present(d_grid)) call crash("d_grid must be present on master")
-      DO n = 1, grid%n
+      do n = 1, grid%n
         i = grid%n2ij( n,1)
         j = grid%n2ij( n,2)
         d_grid( i,j) = d_grid_vec_total( n)
-      END DO
-    END IF ! IF (par%master) THEN
+      end do
+    end if ! if (par%master) then
 
     ! Clean up after yourself
-    DEALLOCATE( d_grid_vec_total)
+    deallocate( d_grid_vec_total)
 
     ! Add routine to path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE gather_gridded_data_to_master_int_2D
+  end subroutine gather_gridded_data_to_master_int_2D
 
-  SUBROUTINE gather_gridded_data_to_master_dp_2D( grid, d_grid_vec_partial, d_grid)
-    ! Gather a 2-D gridded data field to the Master.
-    ! Input from all: partial data in vector form
-    ! Output to Master: total data field in field form
+  subroutine gather_gridded_data_to_master_dp_2D( grid, d_grid_vec_partial, d_grid)
+    !< Gather a 2-D gridded data field to the Master.
+    !< Input from all: partial data in vector form
+    !< Output to Master: total data field in field form
 
-    IMPLICIT NONE
-
-    ! Input variables:
-    TYPE(type_grid),                                     INTENT(IN)    :: grid
-    REAL(dp), DIMENSION(:      ),                        INTENT(IN)    :: d_grid_vec_partial
-
-    ! Output variables:
-    REAL(dp), DIMENSION(:,:    ), optional,              INTENT(OUT)   :: d_grid
+    ! In/output variables:
+    type(type_grid),                    intent(in   ) :: grid
+    real(dp), dimension(:),             intent(in   ) :: d_grid_vec_partial
+    real(dp), dimension(:,:), optional, intent(  out) :: d_grid
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'gather_gridded_data_to_master_dp_2D'
-    INTEGER                                                            :: n,i,j
-    REAL(dp), DIMENSION(:      ), ALLOCATABLE                          :: d_grid_vec_total
+    character(len=256), parameter       :: routine_name = 'gather_gridded_data_to_master_dp_2D'
+    integer                             :: n,i,j
+    real(dp), dimension(:), allocatable :: d_grid_vec_total
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
-    ! Allocate memory
-    IF (par%master) THEN
-      ALLOCATE( d_grid_vec_total( grid%n), source = 0._dp)
+    ! allocate memory
+    if (par%master) then
+      allocate( d_grid_vec_total( grid%n), source = 0._dp)
     else
       ! It must be allocated to be used in a function call
       allocate( d_grid_vec_total(0) )
     end if
 
     ! Gather data
-    CALL gather_to_master( d_grid_vec_partial, d_grid_vec_total)
+    call gather_to_master( d_grid_vec_partial, d_grid_vec_total)
 
     ! Convert to grid form
-    IF (par%master) THEN
+    if (par%master) then
       if (.not. present(d_grid)) call crash("d_grid must be present on master")
-      DO n = 1, grid%n
+      do n = 1, grid%n
         i = grid%n2ij( n,1)
         j = grid%n2ij( n,2)
         d_grid( i,j) = d_grid_vec_total( n)
-      END DO
-    END IF ! IF (par%master) THEN
+      end do
+    end if ! if (par%master) then
 
     ! Clean up after yourself
-    DEALLOCATE( d_grid_vec_total)
+    deallocate( d_grid_vec_total)
 
     ! Add routine to path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE gather_gridded_data_to_master_dp_2D
+  end subroutine gather_gridded_data_to_master_dp_2D
 
-  SUBROUTINE gather_gridded_data_to_master_int_3D( grid, d_grid_vec_partial, d_grid)
-    ! Gather a 3-D gridded data field to the Master.
-    ! Input from all: partial data in vector form
-    ! Output to Master: total data field in field form
+  subroutine gather_gridded_data_to_master_int_3D( grid, d_grid_vec_partial, d_grid)
+    !< Gather a 3-D gridded data field to the Master.
+    !< Input from all: partial data in vector form
+    !< Output to Master: total data field in field form
 
-    IMPLICIT NONE
-
-    ! Input variables:
-    TYPE(type_grid),                                     INTENT(IN)    :: grid
-    INTEGER,  DIMENSION(:,:    ),                        INTENT(IN)    :: d_grid_vec_partial
-
-    ! Output variables:
-    INTEGER,  DIMENSION(:,:,:  ),                        INTENT(OUT)   :: d_grid
+    ! In/output variables:
+    type(type_grid),           intent(in   ) :: grid
+    integer, dimension(:,:  ), intent(in   ) :: d_grid_vec_partial
+    integer, dimension(:,:,:), intent(  out) :: d_grid
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'gather_gridded_data_to_master_int_3D'
-    INTEGER                                                            :: k
-    INTEGER,  DIMENSION(:,:    ), ALLOCATABLE                          :: d_grid_2D
-    INTEGER,  DIMENSION(:      ), ALLOCATABLE                          :: d_grid_vec_partial_2D
+    character(len=256), parameter        :: routine_name = 'gather_gridded_data_to_master_int_3D'
+    integer                              :: k
+    integer, dimension(:,:), allocatable :: d_grid_2D
+    integer, dimension(:  ), allocatable :: d_grid_vec_partial_2D
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
     ! Safety
-    IF (par%master .AND. SIZE( d_grid,3) /= SIZE( d_grid_vec_partial,2)) CALL crash('vector sizes dont match!')
+    if (par%master .and. size( d_grid,3) /= size( d_grid_vec_partial,2)) call crash('vector sizes dont match!')
 
-    ! Allocate memory
-    IF (par%master) then
-      ALLOCATE( d_grid_2D( grid%nx, grid%ny), source = 0)
+    ! allocate memory
+    if (par%master) then
+      allocate( d_grid_2D( grid%nx, grid%ny), source = 0)
     else
       allocate( d_grid_2d(0,0))
     end if
 
-    ALLOCATE( d_grid_vec_partial_2D( grid%n_loc), source = 0)
+    allocate( d_grid_vec_partial_2D( grid%n_loc), source = 0)
 
     ! Treat each layer as a separate 2-D field
-    DO k = 1, SIZE( d_grid_vec_partial,2)
+    do k = 1, size( d_grid_vec_partial,2)
       d_grid_vec_partial_2D = d_grid_vec_partial( :,k)
-      CALL gather_gridded_data_to_master_int_2D( grid, d_grid_vec_partial_2D, d_grid_2D)
-      IF (par%master) d_grid( :,:,k) = d_grid_2D
-    END DO
+      call gather_gridded_data_to_master_int_2D( grid, d_grid_vec_partial_2D, d_grid_2D)
+      if (par%master) d_grid( :,:,k) = d_grid_2D
+    end do
 
     ! Clean up after yourself
-    DEALLOCATE( d_grid_2D)
-    DEALLOCATE( d_grid_vec_partial_2D)
+    deallocate( d_grid_2D)
+    deallocate( d_grid_vec_partial_2D)
 
     ! Add routine to path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE gather_gridded_data_to_master_int_3D
+  end subroutine gather_gridded_data_to_master_int_3D
 
-  SUBROUTINE gather_gridded_data_to_master_dp_3D( grid, d_grid_vec_partial, d_grid)
-    ! Gather a 3-D gridded data field to the Master.
-    ! Input from all: partial data in vector form
-    ! Output to Master: total data field in field form
+  subroutine gather_gridded_data_to_master_dp_3D( grid, d_grid_vec_partial, d_grid)
+    !< Gather a 3-D gridded data field to the Master.
+    !< Input from all: partial data in vector form
+    !< Output to Master: total data field in field form
 
-    IMPLICIT NONE
-
-    ! Input variables:
-    TYPE(type_grid),                                     INTENT(IN)    :: grid
-    REAL(dp), DIMENSION(:,:    ),                        INTENT(IN)    :: d_grid_vec_partial
-
-    ! Output variables:
-    REAL(dp), DIMENSION(:,:,:  ),                        INTENT(OUT)   :: d_grid
+    ! In/output variables:
+    type(type_grid),            intent(in   ) :: grid
+    real(dp), dimension(:,:  ), intent(in   ) :: d_grid_vec_partial
+    real(dp), dimension(:,:,:), intent(  out) :: d_grid
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'gather_gridded_data_to_master_dp_3D'
-    INTEGER                                                            :: k
-    REAL(dp), DIMENSION(:,:    ), ALLOCATABLE                          :: d_grid_2D
-    REAL(dp), DIMENSION(:      ), ALLOCATABLE                          :: d_grid_vec_partial_2D
+    character(len=256), parameter         :: routine_name = 'gather_gridded_data_to_master_dp_3D'
+    integer                               :: k
+    real(dp), dimension(:,:), allocatable :: d_grid_2D
+    real(dp), dimension(:  ), allocatable :: d_grid_vec_partial_2D
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
     ! Safety
-    IF (par%master .AND. SIZE( d_grid,3) /= SIZE( d_grid_vec_partial,2)) CALL crash('vector sizes dont match!')
+    if (par%master .and. size( d_grid,3) /= size( d_grid_vec_partial,2)) then
+      call crash('vector sizes dont match!')
+    end if
 
-    ! Allocate memory
-    IF (par%master) then
-      ALLOCATE( d_grid_2D( grid%nx, grid%ny), source = 0._dp)
+    ! allocate memory
+    if (par%master) then
+      allocate( d_grid_2D( grid%nx, grid%ny), source = 0._dp)
     else
       allocate( d_grid_2d(0,0))
     end if
 
-    ALLOCATE( d_grid_vec_partial_2D( grid%n_loc), source = 0._dp)
+    allocate( d_grid_vec_partial_2D( grid%n_loc), source = 0._dp)
 
     ! Treat each layer as a separate 2-D field
-    DO k = 1, SIZE( d_grid_vec_partial,2)
+    do k = 1, size( d_grid_vec_partial,2)
       d_grid_vec_partial_2D = d_grid_vec_partial( :,k)
-      CALL gather_gridded_data_to_master_dp_2D( grid, d_grid_vec_partial_2D, d_grid_2D)
-      IF (par%master) d_grid( :,:,k) = d_grid_2D
-    END DO
+      call gather_gridded_data_to_master_dp_2D( grid, d_grid_vec_partial_2D, d_grid_2D)
+      if (par%master) d_grid( :,:,k) = d_grid_2D
+    end do
 
     ! Clean up after yourself
-    DEALLOCATE( d_grid_2D)
-    DEALLOCATE( d_grid_vec_partial_2D)
+    deallocate( d_grid_2D)
+    deallocate( d_grid_vec_partial_2D)
 
     ! Add routine to path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE gather_gridded_data_to_master_dp_3D
+  end subroutine gather_gridded_data_to_master_dp_3D
 
-END MODULE grid_basic
+end module grid_basic
