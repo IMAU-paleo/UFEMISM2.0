@@ -34,7 +34,7 @@ MODULE ice_velocity_hybrid_DIVA_BPA
   use mesh_disc_calc_matrix_operators_3D, only: calc_3D_matrix_operators_mesh
   use mesh_ROI_polygons
   use plane_geometry, only: is_in_polygon, is_in_polygons
-  USE mpi_distributed_memory                                 , ONLY: gather_to_all_logical_1D
+  use mpi_distributed_memory, only: gather_to_all
   USE ice_model_utilities                                    , ONLY: calc_zeta_gradients
   USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp, allocate_matrix_CSR_dist, add_entry_CSR_dist, read_single_row_CSR_dist, &
                                                                      deallocate_matrix_CSR_dist, add_empty_row_CSR_dist
@@ -1327,10 +1327,10 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Gather global masks
-    CALL gather_to_all_logical_1D( hybrid%mask_DIVA_b        , mask_DIVA_b_tot        )
-    CALL gather_to_all_logical_1D( hybrid%mask_BPA_b         , mask_BPA_b_tot         )
-    CALL gather_to_all_logical_1D( hybrid%mask_3D_from_DIVA_b, mask_3D_from_DIVA_b_tot)
-    CALL gather_to_all_logical_1D( hybrid%mask_vav_from_BPA_b, mask_vav_from_BPA_b_tot)
+    CALL gather_to_all( hybrid%mask_DIVA_b        , mask_DIVA_b_tot        )
+    CALL gather_to_all( hybrid%mask_BPA_b         , mask_BPA_b_tot         )
+    CALL gather_to_all( hybrid%mask_3D_from_DIVA_b, mask_3D_from_DIVA_b_tot)
+    CALL gather_to_all( hybrid%mask_vav_from_BPA_b, mask_vav_from_BPA_b_tot)
 
     ! Allocate memory
     ALLOCATE( tiuv2nh      ( mesh%nTri          ,  2   ))

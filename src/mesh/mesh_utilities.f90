@@ -17,9 +17,7 @@ MODULE mesh_utilities
   use plane_geometry, only: geometric_center, is_in_triangle, lies_on_line_segment, circumcenter, &
     line_from_points, line_line_intersection, encroaches_upon, crop_line_to_domain, triangle_area, &
     smallest_triangle_angle, equiangular_skewness, interpolate_inside_triangle
-  USE mpi_distributed_memory                                 , ONLY: gather_to_master_int_1D, gather_to_master_dp_1D, &
-                                                                     distribute_from_master_int_1D, distribute_from_master_dp_1D, &
-                                                                     gather_to_all_int_1D, gather_to_all_dp_1D
+  use mpi_distributed_memory, only: gather_to_all
 
   IMPLICIT NONE
 
@@ -1659,7 +1657,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Gather global data field
-    CALL gather_to_all_dp_1D( d_partial, d_tot)
+    CALL gather_to_all( d_partial, d_tot)
 
     ! First pass: set values of border vertices to mean of interior neighbours
     ! ...for those border vertices that actually have interior neighbours.
@@ -1975,8 +1973,8 @@ CONTAINS
     mask_local = mask_partial
 
     ! Gather complete fill mask and data to all processes
-    CALL gather_to_all_int_1D( mask_local, mask_tot)
-    CALL gather_to_all_dp_1D(  d_partial , d_tot   )
+    CALL gather_to_all( mask_local, mask_tot)
+    CALL gather_to_all(  d_partial , d_tot   )
 
     ! == Flood-fill iteration
     ! =======================
@@ -2124,8 +2122,8 @@ CONTAINS
     ! Exchange newly filled mask and data between the processes
     ! =========================================================
 
-      CALL gather_to_all_int_1D( mask_local, mask_tot)
-      CALL gather_to_all_dp_1D(  d_partial , d_tot   )
+      CALL gather_to_all( mask_local, mask_tot)
+      CALL gather_to_all(  d_partial , d_tot   )
 
     END DO iterate_floodfill
 

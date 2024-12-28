@@ -24,7 +24,7 @@ MODULE ice_velocity_main
   USE ice_velocity_DIVA                                      , ONLY: initialise_DIVA_solver, solve_DIVA, remap_DIVA_solver, create_restart_file_DIVA, write_to_restart_file_DIVA
   USE ice_velocity_BPA                                       , ONLY: initialise_BPA_solver , solve_BPA , remap_BPA_solver , create_restart_file_BPA , write_to_restart_file_BPA
   USE ice_velocity_hybrid_DIVA_BPA                           , ONLY: initialise_hybrid_DIVA_BPA_solver, solve_hybrid_DIVA_BPA, remap_hybrid_DIVA_BPA_solver
-  USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_1D, gather_to_all_dp_2D
+  use mpi_distributed_memory, only: gather_to_all
   USE mesh_zeta                                              , ONLY: vertical_average
 
   IMPLICIT NONE
@@ -628,8 +628,8 @@ CONTAINS
     ALLOCATE( v_b_tot( mesh%nTri))
 
     ! Gather the full b-grid velocity fields to all processes
-    CALL gather_to_all_dp_1D( u_b_partial, u_b_tot)
-    CALL gather_to_all_dp_1D( v_b_partial, v_b_tot)
+    CALL gather_to_all( u_b_partial, u_b_tot)
+    CALL gather_to_all( v_b_partial, v_b_tot)
 
     ! Map velocities from the b-grid (triangles) to the c-grid (edges)
     DO ei = mesh%ei1, mesh%ei2
@@ -688,8 +688,8 @@ CONTAINS
     ALLOCATE( v_b_tot( mesh%nTri,mesh%nz))
 
     ! Gather the full b-grid velocity fields to all processes
-    CALL gather_to_all_dp_2D( u_b_partial, u_b_tot)
-    CALL gather_to_all_dp_2D( v_b_partial, v_b_tot)
+    CALL gather_to_all( u_b_partial, u_b_tot)
+    CALL gather_to_all( v_b_partial, v_b_tot)
 
     ! Map velocities from the b-grid (triangles) to the c-grid (edges)
     DO ei = mesh%ei1, mesh%ei2
@@ -823,8 +823,8 @@ CONTAINS
 
     ! Calculate u,v on the c-grid (edges)
     CALL map_velocities_from_b_to_c_3D( mesh, ice%u_3D_b, ice%v_3D_b, u_3D_c, v_3D_c)
-    CALL gather_to_all_dp_2D( u_3D_c, u_3D_c_tot)
-    CALL gather_to_all_dp_2D( v_3D_c, v_3D_c_tot)
+    CALL gather_to_all( u_3D_c, u_3D_c_tot)
+    CALL gather_to_all( v_3D_c, v_3D_c_tot)
 
     ! Calculate vertical velocities by solving conservation of mass in each 3-D cell
     DO vi = mesh%vi1, mesh%vi2

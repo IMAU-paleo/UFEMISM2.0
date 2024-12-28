@@ -23,7 +23,6 @@ MODULE ice_model_utilities
   USE BMB_model_types                                        , ONLY: type_BMB_model
   USE LMB_model_types                                        , ONLY: type_LMB_model
   USE AMB_model_types                                        , ONLY: type_AMB_model
-  USE mpi_distributed_memory                                 , ONLY: gather_to_all_logical_1D
   use ice_geometry_basics, only: is_floating
   use plane_geometry, only: triangle_area, is_in_polygon
   use projections, only: oblique_sg_projection
@@ -34,7 +33,7 @@ MODULE ice_model_utilities
   USE grid_basic                                             , ONLY: gather_gridded_data_to_master_dp_2D
   use mesh_disc_apply_operators, only: ddx_a_a_2D, ddy_a_a_2D, map_a_b_2D, ddx_a_b_2D, ddy_a_b_2D, &
     ddx_b_a_2D, ddy_b_a_2D
-  USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_1D
+  use mpi_distributed_memory, only: gather_to_all
   USE mesh_utilities                                         , ONLY: calc_Voronoi_cell, interpolate_to_point_dp_2D, extrapolate_Gaussian
   USE netcdf_input                                           , ONLY: read_field_from_mesh_file_3D_CDF, read_field_from_mesh_file_3D_b_CDF
   use mesh_ROI_polygons, only: calc_polygon_Patagonia
@@ -143,10 +142,10 @@ CONTAINS
     ! ==========================
 
     ! Gather basic masks to all processes
-    CALL gather_to_all_logical_1D( ice%mask_icefree_land , mask_icefree_land_tot )
-    CALL gather_to_all_logical_1D( ice%mask_icefree_ocean, mask_icefree_ocean_tot)
-    CALL gather_to_all_logical_1D( ice%mask_grounded_ice , mask_grounded_ice_tot )
-    CALL gather_to_all_logical_1D( ice%mask_floating_ice , mask_floating_ice_tot )
+    CALL gather_to_all( ice%mask_icefree_land , mask_icefree_land_tot )
+    CALL gather_to_all( ice%mask_icefree_ocean, mask_icefree_ocean_tot)
+    CALL gather_to_all( ice%mask_grounded_ice , mask_grounded_ice_tot )
+    CALL gather_to_all( ice%mask_floating_ice , mask_floating_ice_tot )
 
     ! Initialise transitional masks
     ice%mask_margin    = .FALSE.
@@ -284,7 +283,7 @@ CONTAINS
       CALL calc_grounded_fractions_bedrock_CDF_b( mesh, ice, fraction_gr_CDF_b)
 
       ! Gather global floating ice mask
-      CALL gather_to_all_logical_1D( ice%mask_floating_ice, mask_floating_ice_tot)
+      CALL gather_to_all( ice%mask_floating_ice, mask_floating_ice_tot)
 
       ! a-grid (vertices): take the smallest value (used for basal melt?)
       ice%fraction_gr = MIN( fraction_gr_TAF_a, fraction_gr_CDF_a)
@@ -343,13 +342,13 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Gather global thickness above floatation
-    CALL gather_to_all_dp_1D( ice%TAF, TAF_tot)
+    CALL gather_to_all( ice%TAF, TAF_tot)
 
     ! Map thickness-above-floatation to the b-grid
     CALL map_a_b_2D(  mesh, ice%TAF, TAF_b)
 
     ! Gather global thickness above floatation on the b-grid
-    CALL gather_to_all_dp_1D( TAF_b, TAF_b_tot)
+    CALL gather_to_all( TAF_b, TAF_b_tot)
 
     DO vi = mesh%vi1, mesh%vi2
 
@@ -504,7 +503,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Gather global thickness above floatation
-    CALL gather_to_all_dp_1D( ice%TAF, TAF_tot)
+    CALL gather_to_all( ice%TAF, TAF_tot)
 
     DO ti = mesh%ti1, mesh%ti2
 
@@ -839,7 +838,7 @@ CONTAINS
     CALL map_a_b_2D( mesh, ice%dHb, dHb_b)
 
     ! Gather global thickness above floatation
-    CALL gather_to_all_dp_1D( ice%TAF, TAF_tot)
+    CALL gather_to_all( ice%TAF, TAF_tot)
 
     DO ti = mesh%ti1, mesh%ti2
 
@@ -1415,9 +1414,9 @@ CONTAINS
     call init_routine( routine_name)
 
     ! Collect Hi from all processes
-    call gather_to_all_dp_1D( Hi,     Hi_tot)
-    call gather_to_all_dp_1D( ice%Hb, Hb_tot)
-    call gather_to_all_dp_1D( ice%SL, SL_tot)
+    call gather_to_all( Hi,     Hi_tot)
+    call gather_to_all( ice%Hb, Hb_tot)
+    call gather_to_all( ice%SL, SL_tot)
 
     ! == Margin mask
     ! ==============
@@ -1435,7 +1434,7 @@ CONTAINS
     end do
 
     ! Gather mask values from all processes
-    call gather_to_all_logical_1D( mask_margin, mask_margin_tot)
+    call gather_to_all( mask_margin, mask_margin_tot)
 
     ! == Floating mask
     ! ================
@@ -1450,7 +1449,7 @@ CONTAINS
     end do
 
     ! Gather mask values from all processes
-    call gather_to_all_logical_1D( mask_floating, mask_floating_tot)
+    call gather_to_all( mask_floating, mask_floating_tot)
 
     ! == Default values
     ! =================

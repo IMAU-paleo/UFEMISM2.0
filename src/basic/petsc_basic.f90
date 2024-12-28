@@ -14,7 +14,7 @@ MODULE petsc_basic
   USE parameters
   USE reallocate_mod                                         , ONLY: reallocate
   USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp, allocate_matrix_CSR_dist, add_entry_CSR_dist, deallocate_matrix_CSR_dist, crop_matrix_CSR_dist
-  USE mpi_distributed_memory                                 , ONLY: partition_list, gather_to_all_dp_1D
+  use mpi_distributed_memory, only: partition_list, gather_to_all
 
   IMPLICIT NONE
 
@@ -465,7 +465,7 @@ CONTAINS
     ALLOCATE( xxv( nx_global))
 
     ! Gather x
-    CALL gather_to_all_dp_1D( xx, xxv)
+    CALL gather_to_all( xx, xxv)
 
     ! Perform CSR matrix multiplication
     DO i = AA%i1, AA%i2

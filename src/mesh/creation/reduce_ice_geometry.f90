@@ -10,7 +10,7 @@ module reduce_ice_geometry
   use control_resources_and_error_messaging, only: init_routine, finalise_routine
   use grid_types, only: type_grid
   use mesh_types, only: type_mesh
-  use mpi_distributed_memory, only: gather_to_master_dp_1D
+  use mpi_distributed_memory, only: gather_to_master
   use grid_basic, only: gather_gridded_data_to_master_dp_2D, calc_grid_mask_as_polygons, &
     calc_grid_contour_as_line
   use ice_geometry_basics, only: thickness_above_floatation
@@ -295,10 +295,10 @@ contains
     end if
 
     ! Gather ice geometry data in grid form to the master
-    call gather_to_master_dp_1D( Hi, Hi_tot)
-    call gather_to_master_dp_1D( Hb, Hb_tot)
-    call gather_to_master_dp_1D( Hs, Hs_tot)
-    call gather_to_master_dp_1D( SL, SL_tot)
+    call gather_to_master( Hi, Hi_tot)
+    call gather_to_master( Hb, Hb_tot)
+    call gather_to_master( Hs, Hs_tot)
+    call gather_to_master( SL, SL_tot)
 
     ! Let the master calculate the polygons and lines
 

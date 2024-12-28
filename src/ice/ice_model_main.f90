@@ -38,8 +38,7 @@ MODULE ice_model_main
   USE ice_velocity_main                                      , ONLY: initialise_velocity_solver, solve_stress_balance, remap_velocity_solver, &
                                                                      create_restart_file_ice_velocity, write_to_restart_file_ice_velocity, &
                                                                      map_velocities_from_b_to_c_2D
-  USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_1D, gather_to_all_logical_1D, distribute_from_master_int_1D, &
-                                                                     distribute_from_master_int_2D
+  use mpi_distributed_memory, only: gather_to_all, distribute_from_master
   USE netcdf_basic                                           , ONLY: create_new_netcdf_file_for_writing, close_netcdf_file, open_existing_netcdf_file_for_writing
   USE netcdf_output                                          , ONLY: generate_filename_XXXXXdotnc, setup_mesh_in_netcdf_file, add_time_dimension_to_file, &
                                                                      add_field_dp_0D, add_field_mesh_dp_2D, write_time_to_file, write_to_field_multopt_mesh_dp_2D, &
@@ -896,9 +895,9 @@ CONTAINS
     ice%SL = 0._dp
 
     ! Gather global ice thickness and masks
-    CALL gather_to_all_dp_1D(      ice%Hi                , Hi_old_tot            )
-    CALL gather_to_all_logical_1D( ice%mask_floating_ice , mask_floating_ice_tot )
-    CALL gather_to_all_logical_1D( ice%mask_icefree_ocean, mask_icefree_ocean_tot)
+    CALL gather_to_all(      ice%Hi                , Hi_old_tot            )
+    CALL gather_to_all( ice%mask_floating_ice , mask_floating_ice_tot )
+    CALL gather_to_all( ice%mask_icefree_ocean, mask_icefree_ocean_tot)
 
     ! First, naively remap ice thickness and surface elevation without any restrictions
     CALL map_from_mesh_to_mesh_2D( mesh_old, mesh_new, ice%Hi, Hi_new, '2nd_order_conservative')
@@ -1102,9 +1101,9 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Gather global masks
-    CALL gather_to_all_logical_1D( ice%mask_icefree_ocean, mask_icefree_ocean_tot)
-    CALL gather_to_all_logical_1D( ice%mask_floating_ice , mask_floating_ice_tot )
-    CALL gather_to_all_logical_1D( ice%mask_cf_fl        , mask_cf_fl_tot        )
+    CALL gather_to_all( ice%mask_icefree_ocean, mask_icefree_ocean_tot)
+    CALL gather_to_all( ice%mask_floating_ice , mask_floating_ice_tot )
+    CALL gather_to_all( ice%mask_cf_fl        , mask_cf_fl_tot        )
 
     ! == Create the relaxation mask
     ! =============================
@@ -1200,9 +1199,9 @@ CONTAINS
     END IF ! IF (par%master) THEN
 
     ! Distribute BC masks to all processes
-    CALL distribute_from_master_int_1D( BC_prescr_mask_tot   , BC_prescr_mask   )
-    CALL distribute_from_master_int_1D( BC_prescr_mask_b_tot , BC_prescr_mask_b )
-    CALL distribute_from_master_int_2D( BC_prescr_mask_bk_tot, BC_prescr_mask_bk)
+    CALL distribute_from_master( BC_prescr_mask_tot   , BC_prescr_mask   )
+    CALL distribute_from_master( BC_prescr_mask_b_tot , BC_prescr_mask_b )
+    CALL distribute_from_master( BC_prescr_mask_bk_tot, BC_prescr_mask_bk)
 
     ! == Fill in prescribed velocities and thicknesses away from the front
     ! ====================================================================
@@ -2174,7 +2173,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Gather global ice thickness
-    CALL gather_to_all_dp_1D( ice%Hi, Hi_tot)
+    CALL gather_to_all( ice%Hi, Hi_tot)
 
     ! Initialise time step with maximum allowed value
     dt_crit_SIA = C%dt_ice_max
@@ -2234,14 +2233,14 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Gather global ice thickness
-    CALL gather_to_all_dp_1D( ice%Hi, Hi_tot)
+    CALL gather_to_all( ice%Hi, Hi_tot)
 
-    CALL gather_to_all_logical_1D( ice%mask_floating_ice, mask_floating_ice_tot)
+    CALL gather_to_all( ice%mask_floating_ice, mask_floating_ice_tot)
 
     ! Calculate vertically averaged ice velocities on the edges
     CALL map_velocities_from_b_to_c_2D( mesh, ice%u_vav_b, ice%v_vav_b, u_vav_c, v_vav_c)
-    CALL gather_to_all_dp_1D( u_vav_c, u_vav_c_tot)
-    CALL gather_to_all_dp_1D( v_vav_c, v_vav_c_tot)
+    CALL gather_to_all( u_vav_c, u_vav_c_tot)
+    CALL gather_to_all( v_vav_c, v_vav_c_tot)
 
     ! Initialise time step with maximum allowed value
     dt_crit_adv = C%dt_ice_max
@@ -2517,17 +2516,17 @@ CONTAINS
     ! ================
 
     ! Gather data from all processes
-    CALL gather_to_all_dp_1D(      region%ice%Hi_eff, Hi_tot)
-    CALL gather_to_all_dp_1D(      region%ice%fraction_margin, fraction_margin_tot)
+    CALL gather_to_all(      region%ice%Hi_eff, Hi_tot)
+    CALL gather_to_all(      region%ice%fraction_margin, fraction_margin_tot)
 
     ! Gather masks from all processes
-    CALL gather_to_all_logical_1D( region%ice%mask_cf_fl, mask_cf_fl_tot)
-    CALL gather_to_all_logical_1D( region%ice%mask_icefree_ocean, mask_icefree_ocean_tot)
+    CALL gather_to_all( region%ice%mask_cf_fl, mask_cf_fl_tot)
+    CALL gather_to_all( region%ice%mask_icefree_ocean, mask_icefree_ocean_tot)
 
     ! Calculate vertically averaged ice velocities on the edges
     CALL map_velocities_from_b_to_c_2D( region%mesh, region%ice%u_vav_b, region%ice%v_vav_b, u_vav_c, v_vav_c)
-    CALL gather_to_all_dp_1D( u_vav_c, u_vav_c_tot)
-    CALL gather_to_all_dp_1D( v_vav_c, v_vav_c_tot)
+    CALL gather_to_all( u_vav_c, u_vav_c_tot)
+    CALL gather_to_all( v_vav_c, v_vav_c_tot)
 
     ! Initialise
     LMB_trans = 0._dp
@@ -2670,7 +2669,7 @@ CONTAINS
     ! END DO
 
     ! ! Gather advancing and floating calving front masks from all processes
-    ! CALL gather_to_all_logical_1D( mask_advancing_calving_front, mask_advancing_calving_front_tot)
+    ! CALL gather_to_all( mask_advancing_calving_front, mask_advancing_calving_front_tot)
 
     ! ! Identify vertices where LMB will operate
     ! DO vi = region%mesh%vi1, region%mesh%vi2

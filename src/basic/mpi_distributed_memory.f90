@@ -4,10 +4,36 @@ module mpi_distributed_memory
 
   use mpi
   use precisions, only: dp
-  use mpi_basic, only: par, cerr, ierr, recv_status, sync
-  use control_resources_and_error_messaging, only: warning, crash, happy, init_routine, finalise_routine, colour_string
+  use mpi_basic, only: par
+  use control_resources_and_error_messaging, only: crash, init_routine, finalise_routine
 
   implicit none
+
+  private
+
+  public :: partition_list, gather_to_master, gather_to_all, distribute_from_master
+
+  interface gather_to_master
+    procedure gather_to_master_int_1D
+    procedure gather_to_master_int_2D
+    procedure gather_to_master_dp_1D
+    procedure gather_to_master_dp_2D
+  end interface gather_to_master
+
+  interface gather_to_all
+    procedure gather_to_all_logical_1D
+    procedure gather_to_all_int_1D
+    procedure gather_to_all_int_2D
+    procedure gather_to_all_dp_1D
+    procedure gather_to_all_dp_2D
+  end interface gather_to_all
+
+  interface distribute_from_master
+    procedure distribute_from_master_int_1D
+    procedure distribute_from_master_int_2D
+    procedure distribute_from_master_dp_1D
+    procedure distribute_from_master_dp_2D
+  end interface distribute_from_master
 
 contains
 
@@ -51,7 +77,7 @@ contains
 
     ! Local variables:
     character(len=256), parameter :: routine_name = 'gather_to_master_int_1D'
-    integer                       :: n1,i
+    integer                       :: ierr,n1,i
     integer                       :: n_tot
     integer,  dimension(1:par%n)  :: counts, displs
 
@@ -98,9 +124,10 @@ contains
 
     ! Local variables:
     character(len=256), parameter :: routine_name = 'gather_to_master_int_2D'
-    integer                       :: n1,n2,i,n2_proc
+    integer                       :: ierr,n1,n2,i,n2_proc
     integer                       :: j
     integer                       :: dummy(1)
+    integer                       :: recv_status( MPI_STATUS_SIZE)
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -145,7 +172,7 @@ contains
 
     ! Local variables:
     character(len=256), parameter :: routine_name = 'gather_to_master_dp_1D'
-    integer                       :: n1,i
+    integer                       :: ierr,n1,i
     integer                       :: n_tot
     integer,  dimension(1:par%n)  :: counts, displs
 
@@ -192,9 +219,10 @@ contains
 
     ! Local variables:
     character(len=256), parameter :: routine_name = 'gather_to_master_dp_2D'
-    integer                       :: n1,n2,i,n2_proc
+    integer                       :: ierr,n1,n2,i,n2_proc
     integer                       :: j
     real(dp)                      :: dummy(1)
+    integer                       :: recv_status( MPI_STATUS_SIZE)
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -243,7 +271,7 @@ contains
 
     ! Local variables:
     character(len=256), parameter :: routine_name = 'gather_to_all_logical_1D'
-    integer                       :: n1,i
+    integer                       :: ierr,n1,i
     integer                       :: n_tot
     integer,  dimension(1:par%n)  :: counts, displs
 
@@ -284,7 +312,7 @@ contains
 
     ! Local variables:
     character(len=256), parameter :: routine_name = 'gather_to_all_int_1D'
-    integer                       :: n1,i
+    integer                       :: ierr,n1,i
     integer                       :: n_tot
     integer,  dimension(1:par%n)  :: counts, displs
 
@@ -325,10 +353,11 @@ contains
 
     ! Local variables:
     character(len=256), parameter             :: routine_name = 'gather_to_all_int_2D'
-    integer                                   :: n1,n2,i,n2_proc
+    integer                                   :: ierr,n1,n2,i,n2_proc
     integer , dimension(:      ), allocatable :: d_partial_1D
     integer , dimension(:      ), allocatable :: d_tot_1D
     integer                                   :: n1_tot,j
+    integer                                   :: recv_status( MPI_STATUS_SIZE)
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -372,7 +401,7 @@ contains
 
     ! Local variables:
     character(len=256), parameter :: routine_name = 'gather_to_all_dp_1D'
-    integer                       :: n1,i
+    integer                       :: ierr,n1,i
     integer                       :: n_tot
     integer,  dimension(1:par%n)  :: counts, displs
 
@@ -413,10 +442,11 @@ contains
 
     ! Local variables:
     character(len=256), parameter             :: routine_name = 'gather_to_all_dp_2D'
-    integer                                   :: n1,n2,i,n2_proc
+    integer                                   :: ierr,n1,n2,i,n2_proc
     real(dp), dimension(:      ), allocatable :: d_partial_1D
     real(dp), dimension(:      ), allocatable :: d_tot_1D
     integer                                   :: n1_tot,j
+    integer                                   :: recv_status( MPI_STATUS_SIZE)
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -464,7 +494,7 @@ contains
 
     ! Local variables:
     character(len=256), parameter :: routine_name = 'distribute_from_master_int_1D'
-    integer                       :: n1,n_tot,i
+    integer                       :: ierr,n1,n_tot,i
     integer,  dimension(1:par%n)  :: counts, displs
 
     ! Add routine to path
@@ -508,8 +538,8 @@ contains
 
     ! Local variables:
     character(len=256), parameter :: routine_name = 'distribute_from_master_int_2D'
-    integer                       :: n1,n2,i,n2_proc
-    integer                       :: j
+    integer                       :: ierr,n1,n2,i,n2_proc,j
+    integer                       :: recv_status( MPI_STATUS_SIZE)
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -551,7 +581,7 @@ contains
 
     ! Local variables:
     character(len=256), parameter :: routine_name = 'distribute_from_master_dp_1D'
-    integer                       :: n1,n_tot,i
+    integer                       :: ierr,n1,n_tot,i
     integer,  dimension(1:par%n)  :: counts, displs
 
     ! Add routine to path
@@ -595,8 +625,8 @@ contains
 
     ! Local variables:
     character(len=256), parameter :: routine_name = 'distribute_from_master_dp_2D'
-    integer                       :: n1,n2,i,n2_proc
-    integer                       :: j
+    integer                       :: ierr,n1,n2,i,n2_proc,j
+    integer                       :: recv_status( MPI_STATUS_SIZE)
 
     ! Add routine to path
     call init_routine( routine_name)

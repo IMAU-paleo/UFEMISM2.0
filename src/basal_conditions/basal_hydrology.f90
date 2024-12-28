@@ -21,7 +21,7 @@ MODULE basal_hydrology
   USE mesh_utilities                                         , ONLY: find_containing_vertex, find_containing_triangle, extrapolate_Gaussian
   use ice_geometry_basics, only: is_floating
   use plane_geometry, only: triangle_area
-  USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_1D, gather_to_all_logical_1D
+  use mpi_distributed_memory, only: gather_to_all
   USE mesh_data_smoothing                                    , ONLY: smooth_Gaussian_2D
   USE netcdf_debug                                           , ONLY: save_variable_as_netcdf_dp_1D, save_variable_as_netcdf_dp_2D
   USE netcdf_input                                           , ONLY: read_field_from_file_2D
@@ -470,19 +470,19 @@ CONTAINS
     ALLOCATE( unstable_vertex_smoothed( mesh%vi1:mesh%vi2), source = 0._dp )
 
     ! Gather ice model data from all processes
-    CALL gather_to_all_dp_1D(      ice%Hi               , Hi_tot               )
-    CALL gather_to_all_dp_1D(      refgeo%Hi            , Hi_target_tot        )
-    CALL gather_to_all_dp_1D(      ice%dHi_dt           , dHi_dt_tot           )
-    CALL gather_to_all_dp_1D(      ice%uabs_surf        , U_tot                )
-    CALL gather_to_all_dp_1D(      ice%uabs_surf_target , U_target_tot         )
-    CALL gather_to_all_dp_1D(      ice%Ti_hom           , Ti_hom_tot           )
-    CALL gather_to_all_dp_1D(      ice%u_vav_b          , u_b_tot              )
-    CALL gather_to_all_dp_1D(      ice%v_vav_b          , v_b_tot              )
-    CALL gather_to_all_logical_1D( ice%mask_grounded_ice, mask_grounded_ice_tot)
-    CALL gather_to_all_logical_1D( ice%mask_gl_gr       , mask_gl_gr_tot       )
-    CALL gather_to_all_logical_1D( ice%mask_cf_gr       , mask_cf_gr_tot       )
-    CALL gather_to_all_logical_1D( ice%mask_margin      , mask_margin_tot      )
-    CALL gather_to_all_dp_1D(      ice%fraction_gr      , fraction_gr_tot      )
+    CALL gather_to_all(      ice%Hi               , Hi_tot               )
+    CALL gather_to_all(      refgeo%Hi            , Hi_target_tot        )
+    CALL gather_to_all(      ice%dHi_dt           , dHi_dt_tot           )
+    CALL gather_to_all(      ice%uabs_surf        , U_tot                )
+    CALL gather_to_all(      ice%uabs_surf_target , U_target_tot         )
+    CALL gather_to_all(      ice%Ti_hom           , Ti_hom_tot           )
+    CALL gather_to_all(      ice%u_vav_b          , u_b_tot              )
+    CALL gather_to_all(      ice%v_vav_b          , v_b_tot              )
+    CALL gather_to_all( ice%mask_grounded_ice, mask_grounded_ice_tot)
+    CALL gather_to_all( ice%mask_gl_gr       , mask_gl_gr_tot       )
+    CALL gather_to_all( ice%mask_cf_gr       , mask_cf_gr_tot       )
+    CALL gather_to_all( ice%mask_margin      , mask_margin_tot      )
+    CALL gather_to_all(      ice%fraction_gr      , fraction_gr_tot      )
 
     ! == Reducing power
     ! =================
@@ -971,7 +971,7 @@ CONTAINS
     ! ==============================
 
     ! Gather ice model data from all processes
-    CALL gather_to_all_dp_1D( HIV%pore_water_fraction_next, pore_water_fraction_next_tot)
+    CALL gather_to_all( HIV%pore_water_fraction_next, pore_water_fraction_next_tot)
 
     ! First, check at the grounded margins for the highest
     ! pore water fraction among inverted neighbours, to make
@@ -1194,10 +1194,10 @@ CONTAINS
     ice%pore_water_fraction = HIV%pore_water_fraction_app
 
     ! Gather inversion data, inversion mask, and horizontal velocities from all processes
-    CALL gather_to_all_dp_1D(      ice%pore_water_fraction, pore_water_fraction_tot)
-    CALL gather_to_all_logical_1D( HIV%mask_inverted_point, mask_inverted_point_tot)
-    CALL gather_to_all_dp_1D(      ice%u_vav_b            , u_b_tot                )
-    CALL gather_to_all_dp_1D(      ice%v_vav_b            , v_b_tot                )
+    CALL gather_to_all(      ice%pore_water_fraction, pore_water_fraction_tot)
+    CALL gather_to_all( HIV%mask_inverted_point, mask_inverted_point_tot)
+    CALL gather_to_all(      ice%u_vav_b            , u_b_tot                )
+    CALL gather_to_all(      ice%v_vav_b            , v_b_tot                )
 
     ! Extrapolate non-inverted areas using closest upstream inverted value
     DO vi = mesh%vi1, mesh%vi2

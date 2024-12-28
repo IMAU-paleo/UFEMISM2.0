@@ -19,7 +19,7 @@ MODULE ice_thickness
   USE ice_model_types                                        , ONLY: type_ice_model
   USE ice_velocity_main                                      , ONLY: map_velocities_from_b_to_c_2D
   USE petsc_basic                                            , ONLY: multiply_CSR_matrix_with_vector_1D, solve_matrix_equation_CSR_PETSc
-  USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_1D, gather_to_all_logical_1D
+  use mpi_distributed_memory, only: gather_to_all
   use ice_geometry_basics, only: ice_surface_elevation, Hi_from_Hb_Hs_and_SL, is_floating
 
   IMPLICIT NONE
@@ -579,9 +579,9 @@ CONTAINS
 
     ! Calculate vertically averaged ice velocities on the edges
     CALL map_velocities_from_b_to_c_2D( mesh, u_vav_b, v_vav_b, u_vav_c, v_vav_c)
-    CALL gather_to_all_dp_1D( u_vav_c, u_vav_c_tot)
-    CALL gather_to_all_dp_1D( v_vav_c, v_vav_c_tot)
-    CALL gather_to_all_dp_1D( fraction_margin, fraction_margin_tot)
+    CALL gather_to_all( u_vav_c, u_vav_c_tot)
+    CALL gather_to_all( v_vav_c, v_vav_c_tot)
+    CALL gather_to_all( fraction_margin, fraction_margin_tot)
 
     ! == Initialise the matrix using the native UFEMISM CSR-matrix format
     ! ===================================================================
@@ -690,8 +690,8 @@ CONTAINS
     END DO
 
     ! Gather global data fields
-    CALL gather_to_all_dp_1D(      Hs_tplusdt, Hs_tplusdt_tot)
-    CALL gather_to_all_logical_1D( mask_noice, mask_noice_tot)
+    CALL gather_to_all(      Hs_tplusdt, Hs_tplusdt_tot)
+    CALL gather_to_all( mask_noice, mask_noice_tot)
 
     ! == First pass: set values of border vertices to mean of interior neighbours
     !    ...for those border vertices that actually have interior neighbours.
@@ -752,7 +752,7 @@ CONTAINS
     ! =======================================================================
 
     ! Gather global data fields again
-    CALL gather_to_all_dp_1D( Hs_tplusdt, Hs_tplusdt_tot)
+    CALL gather_to_all( Hs_tplusdt, Hs_tplusdt_tot)
 
     DO vi = mesh%vi1, mesh%vi2
 

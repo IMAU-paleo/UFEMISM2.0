@@ -17,8 +17,7 @@ MODULE netcdf_input
   USE mpi_basic                                              , ONLY: par, cerr, ierr, recv_status, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
-  USE mpi_distributed_memory                                 , ONLY: distribute_from_master_dp_1D , distribute_from_master_dp_2D, &
-                                                                     distribute_from_master_int_1D, distribute_from_master_int_2D
+  use mpi_distributed_memory, only: distribute_from_master
   USE grid_basic                                             , ONLY: type_grid, calc_secondary_grid_data, deallocate_grid, &
                                                                      distribute_gridded_data_from_master_int_2D, distribute_gridded_data_from_master_int_3D, &
                                                                      distribute_gridded_data_from_master_dp_2D, distribute_gridded_data_from_master_dp_3D
@@ -2008,7 +2007,7 @@ CONTAINS
     ! ==================================================================================
 
     ! Distribute data
-    CALL distribute_from_master_dp_1D( d_mesh, d_mesh_partial)
+    CALL distribute_from_master( d_mesh, d_mesh_partial)
 
     ! Clean up after yourself
     IF (par%master) DEALLOCATE( d_mesh)
@@ -2089,7 +2088,7 @@ CONTAINS
     ! ==================================================================================
 
     ! Distribute data
-    CALL distribute_from_master_dp_1D( d_mesh, d_mesh_partial)
+    CALL distribute_from_master( d_mesh, d_mesh_partial)
 
     ! Clean up after yourself
     IF (par%master) DEALLOCATE( d_mesh)
@@ -2171,7 +2170,7 @@ CONTAINS
     ! ==================================================================================
 
     ! Distribute data
-    CALL distribute_from_master_dp_2D( d_mesh, d_mesh_partial)
+    CALL distribute_from_master( d_mesh, d_mesh_partial)
 
     ! Clean up after yourself
     IF (par%master) DEALLOCATE( d_mesh)
@@ -2255,7 +2254,7 @@ CONTAINS
     ! ==================================================================================
 
     ! Distribute data
-    CALL distribute_from_master_dp_2D( d_mesh, d_mesh_partial)
+    CALL distribute_from_master( d_mesh, d_mesh_partial)
 
     ! Clean up after yourself
     IF (par%master) DEALLOCATE( d_mesh)
@@ -2341,7 +2340,7 @@ CONTAINS
     ! ==================================================================================
 
     ! Distribute data
-    CALL distribute_from_master_dp_2D( d_mesh, d_mesh_partial)
+    CALL distribute_from_master( d_mesh, d_mesh_partial)
 
     ! Clean up after yourself
     IF (par%master) DEALLOCATE( d_mesh)
@@ -2425,7 +2424,7 @@ CONTAINS
     ! ==================================================================================
 
     ! Distribute data
-    CALL distribute_from_master_dp_2D( d_mesh, d_mesh_partial)
+    CALL distribute_from_master( d_mesh, d_mesh_partial)
 
     ! Clean up after yourself
     IF (par%master) DEALLOCATE( d_mesh)
@@ -2491,7 +2490,7 @@ CONTAINS
     ! ==================================================================================
 
     ! Distribute data
-    CALL distribute_from_master_dp_2D( d_mesh, d_mesh_partial)
+    CALL distribute_from_master( d_mesh, d_mesh_partial)
 
     ! Clean up after yourself
     IF (par%master) DEALLOCATE( d_mesh)
@@ -2556,7 +2555,7 @@ CONTAINS
     ! ==================================================================================
 
     ! Distribute data
-    CALL distribute_from_master_dp_2D( d_mesh, d_mesh_partial)
+    CALL distribute_from_master( d_mesh, d_mesh_partial)
 
     ! Clean up after yourself
     IF (par%master) DEALLOCATE( d_mesh)
