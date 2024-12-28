@@ -30,7 +30,7 @@ MODULE ice_model_utilities
   use create_maps_grid_mesh, only: create_map_from_xy_grid_to_mesh, create_map_from_xy_grid_to_mesh_triangles
   USE petsc_basic                                            , ONLY: mat_petsc2CSR
   USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp, deallocate_matrix_CSR_dist
-  USE grid_basic                                             , ONLY: gather_gridded_data_to_master_dp_2D
+  use mpi_distributed_memory_grid, only: gather_gridded_data_to_master
   use mesh_disc_apply_operators, only: ddx_a_a_2D, ddy_a_a_2D, map_a_b_2D, ddx_a_b_2D, ddy_a_b_2D, &
     ddx_b_a_2D, ddy_b_a_2D
   use mpi_distributed_memory, only: gather_to_all
@@ -1061,7 +1061,7 @@ CONTAINS
 
     ! Get complete gridded bedrock elevation on all processes
     ALLOCATE( Hb_grid_tot( refgeo%grid_raw%nx, refgeo%grid_raw%ny))
-    CALL gather_gridded_data_to_master_dp_2D( refgeo%grid_raw, refgeo%Hb_grid_raw, Hb_grid_tot)
+    CALL gather_gridded_data_to_master( refgeo%grid_raw, refgeo%Hb_grid_raw, Hb_grid_tot)
     CALL MPI_BCAST( Hb_grid_tot, refgeo%grid_raw%nx * refgeo%grid_raw%ny, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
 
     ! Allocate memory for list of bedrock elevations
@@ -1220,7 +1220,7 @@ CONTAINS
 
     ! Get complete gridded bedrock elevation on all processes
     ALLOCATE( Hb_grid_tot( refgeo%grid_raw%nx, refgeo%grid_raw%ny))
-    CALL gather_gridded_data_to_master_dp_2D( refgeo%grid_raw, refgeo%Hb_grid_raw, Hb_grid_tot)
+    CALL gather_gridded_data_to_master( refgeo%grid_raw, refgeo%Hb_grid_raw, Hb_grid_tot)
     CALL MPI_BCAST( Hb_grid_tot, refgeo%grid_raw%nx * refgeo%grid_raw%ny, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
 
     ! Allocate memory for list of bedrock elevations

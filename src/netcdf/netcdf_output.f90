@@ -15,7 +15,8 @@ MODULE netcdf_output
   USE mpi_basic                                              , ONLY: par, cerr, ierr, recv_status, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
-  USE grid_basic                                             , ONLY: type_grid, gather_gridded_data_to_master_dp_2D, gather_gridded_data_to_master_dp_3D
+  use grid_basic, only: type_grid
+  use mpi_distributed_memory_grid, only: gather_gridded_data_to_master
   USE grid_lonlat_basic                                      , ONLY: type_grid_lonlat, gather_lonlat_gridded_data_to_master_dp_2D, &
                                                                      gather_lonlat_gridded_data_to_master_dp_3D
   USE mesh_types                                             , ONLY: type_mesh
@@ -94,7 +95,7 @@ CONTAINS
 
     ! Gather data to the master
     IF (par%master) ALLOCATE( d_grid( grid%nx, grid%ny))
-    CALL gather_gridded_data_to_master_dp_2D( grid, d_grid_vec_partial, d_grid)
+    CALL gather_gridded_data_to_master( grid, d_grid_vec_partial, d_grid)
 
     ! Add "pretend" time dimension
     IF (par%master) THEN
@@ -154,7 +155,7 @@ CONTAINS
 
     ! Gather data to the master
     IF (par%master) ALLOCATE( d_grid( grid%nx, grid%ny, 12))
-    CALL gather_gridded_data_to_master_dp_3D( grid, d_grid_vec_partial, d_grid)
+    CALL gather_gridded_data_to_master( grid, d_grid_vec_partial, d_grid)
 
     ! Add "pretend" time dimension
     IF (par%master) THEN
@@ -216,7 +217,7 @@ CONTAINS
 
     ! Gather data to the master
     IF (par%master) ALLOCATE( d_grid( grid%nx, grid%ny, nz))
-    CALL gather_gridded_data_to_master_dp_3D( grid, d_grid_vec_partial, d_grid)
+    CALL gather_gridded_data_to_master( grid, d_grid_vec_partial, d_grid)
 
     ! Add "pretend" time dimension
     IF (par%master) THEN
@@ -273,7 +274,7 @@ CONTAINS
 
     ! Gather data to the master
     IF (par%master) ALLOCATE( d_grid( grid%nx, grid%ny))
-    CALL gather_gridded_data_to_master_dp_2D( grid, d_grid_vec_partial, d_grid)
+    CALL gather_gridded_data_to_master( grid, d_grid_vec_partial, d_grid)
 
     ! Write data to the variable
     CALL write_var_master_dp_2D( filename, ncid, id_var, d_grid)
@@ -320,7 +321,7 @@ CONTAINS
 
     ! Gather data to the master
     IF (par%master) ALLOCATE( d_grid( grid%nx, grid%ny, 12))
-    CALL gather_gridded_data_to_master_dp_3D( grid, d_grid_vec_partial, d_grid)
+    CALL gather_gridded_data_to_master( grid, d_grid_vec_partial, d_grid)
 
     ! Write data to the variable
     CALL write_var_master_dp_3D( filename, ncid, id_var, d_grid)
@@ -369,7 +370,7 @@ CONTAINS
 
     ! Gather data to the master
     IF (par%master) ALLOCATE( d_grid( grid%nx, grid%ny, nz))
-    CALL gather_gridded_data_to_master_dp_3D( grid, d_grid_vec_partial, d_grid)
+    CALL gather_gridded_data_to_master( grid, d_grid_vec_partial, d_grid)
 
     ! Write data to the variable
     CALL write_var_master_dp_3D( filename, ncid, id_var, d_grid)

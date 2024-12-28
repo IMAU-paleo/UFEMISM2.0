@@ -18,9 +18,8 @@ MODULE netcdf_input
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
   use mpi_distributed_memory, only: distribute_from_master
-  USE grid_basic                                             , ONLY: type_grid, calc_secondary_grid_data, deallocate_grid, &
-                                                                     distribute_gridded_data_from_master_int_2D, distribute_gridded_data_from_master_int_3D, &
-                                                                     distribute_gridded_data_from_master_dp_2D, distribute_gridded_data_from_master_dp_3D
+  use grid_basic, only: type_grid, calc_secondary_grid_data, deallocate_grid
+  use mpi_distributed_memory_grid, only: distribute_gridded_data_from_master
   USE grid_lonlat_basic                                      , ONLY: type_grid_lonlat, calc_lonlat_field_to_vector_form_translation_tables, &
                                                                      distribute_lonlat_gridded_data_from_master_dp_2D, deallocate_lonlat_grid, &
                                                                      distribute_lonlat_gridded_data_from_master_dp_3D
@@ -754,7 +753,7 @@ CONTAINS
     ! ==================================================================================
 
     ! Distribute data
-    CALL distribute_gridded_data_from_master_dp_2D( grid_loc, d_grid, d_grid_vec_partial)
+    CALL distribute_gridded_data_from_master( grid_loc, d_grid, d_grid_vec_partial)
 
     ! Clean up after yourself
     CALL deallocate_grid( grid_loc)
@@ -904,7 +903,7 @@ CONTAINS
   ! ==================================================================================
 
     ! Distribute data
-    CALL distribute_gridded_data_from_master_int_2D( grid_loc, d_grid, d_grid_vec_partial)
+    CALL distribute_gridded_data_from_master( grid_loc, d_grid, d_grid_vec_partial)
 
     ! Clean up after yourself
     CALL deallocate_grid( grid_loc)
@@ -1049,7 +1048,7 @@ CONTAINS
     ! ==================================================================================
 
     ! Distribute data
-    CALL distribute_gridded_data_from_master_dp_3D( grid_loc, d_grid, d_grid_vec_partial)
+    CALL distribute_gridded_data_from_master( grid_loc, d_grid, d_grid_vec_partial)
 
     ! Clean up after yourself
     IF (par%master) DEALLOCATE( d_grid)
@@ -1196,7 +1195,7 @@ CONTAINS
     ! ==================================================================================
 
     ! Distribute data
-    CALL distribute_gridded_data_from_master_dp_3D( grid_loc, d_grid, d_grid_vec_partial)
+    CALL distribute_gridded_data_from_master( grid_loc, d_grid, d_grid_vec_partial)
 
     ! Clean up after yourself
     IF (par%master) DEALLOCATE( d_grid)
@@ -1343,7 +1342,7 @@ CONTAINS
     ! ==================================================================================
 
     ! Distribute data
-    CALL distribute_gridded_data_from_master_dp_3D( grid_loc, d_grid, d_grid_vec_partial)
+    CALL distribute_gridded_data_from_master( grid_loc, d_grid, d_grid_vec_partial)
 
     ! Clean up after yourself
     IF (par%master) DEALLOCATE( d_grid)
