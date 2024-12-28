@@ -22,8 +22,9 @@ MODULE reference_geometries
   USE parameters
   USE reference_geometry_types                               , ONLY: type_reference_geometry
   USE mesh_types                                             , ONLY: type_mesh
-  use grid_basic, only: type_grid, setup_square_grid, smooth_Gaussian_2D_grid
+  use grid_basic, only: type_grid, setup_square_grid
   use mpi_distributed_memory_grid, only: distribute_gridded_data_from_master
+  use smooth_gridded_data, only: smooth_Gaussian_grid
   use ice_geometry_basics, only: ice_surface_elevation, is_floating
   use projections, only: oblique_sg_projection
   USE analytical_solutions                                   , ONLY: Halfar_dome, Bueler_dome
@@ -1454,7 +1455,7 @@ CONTAINS
     r_smooth = refgeo%grid_raw%dx * C%r_smooth_geometry
 
     ! Apply smoothing to the bed topography
-    CALL smooth_Gaussian_2D_grid( refgeo%grid_raw, refgeo%Hb_grid_raw, r_smooth)
+    CALL smooth_Gaussian_grid( refgeo%grid_raw, refgeo%Hb_grid_raw, r_smooth)
 
     ! Correct smoothed geometry if necessary
     DO n = refgeo%grid_raw%n1, refgeo%grid_raw%n2

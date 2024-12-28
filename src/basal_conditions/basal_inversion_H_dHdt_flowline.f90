@@ -27,7 +27,7 @@ MODULE basal_inversion_H_dHdt_flowline
   use plane_geometry, only: triangle_area
   use mpi_distributed_memory, only: gather_to_all
   use mesh_disc_apply_operators, only: ddx_a_a_2D, ddy_a_a_2D
-  USE mesh_data_smoothing                                    , ONLY: smooth_Gaussian_2D
+  use mesh_data_smoothing, only: smooth_Gaussian
 
 
   IMPLICIT NONE
@@ -396,8 +396,8 @@ CONTAINS
     dC2_dt_smoothed = dC2_dt
 
     ! Smooth the local variable
-    CALL smooth_Gaussian_2D( mesh, grid_smooth, dC1_dt_smoothed, C%bednudge_H_dHdt_flowline_r_smooth)
-    CALL smooth_Gaussian_2D( mesh, grid_smooth, dC2_dt_smoothed, C%bednudge_H_dHdt_flowline_r_smooth)
+    CALL smooth_Gaussian( mesh, grid_smooth, dC1_dt_smoothed, C%bednudge_H_dHdt_flowline_r_smooth)
+    CALL smooth_Gaussian( mesh, grid_smooth, dC2_dt_smoothed, C%bednudge_H_dHdt_flowline_r_smooth)
 
     DO vi = mesh%vi1, mesh%vi2
       dC1_dt( vi) = (1._dp - C%bednudge_H_dHdt_flowline_w_smooth) * dC1_dt( vi) + C%bednudge_H_dHdt_flowline_w_smooth * dC1_dt_smoothed( vi)

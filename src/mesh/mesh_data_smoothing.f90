@@ -13,13 +13,18 @@ module mesh_data_smoothing
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash
   use remapping_main, only: map_from_mesh_to_xy_grid_2D, map_from_mesh_to_xy_grid_3D, &
     map_from_xy_grid_to_mesh_2D, map_from_xy_grid_to_mesh_3D
-  use grid_basic, only: smooth_Gaussian_2D_grid, smooth_Gaussian_3D_grid
+  use smooth_gridded_data, only: smooth_Gaussian_grid
 
   implicit none
 
   private
 
-  public :: smooth_Gaussian_2D, smooth_Gaussian_3D
+  public :: smooth_Gaussian
+
+  interface smooth_Gaussian
+    procedure smooth_Gaussian_2D
+    procedure smooth_Gaussian_3D
+  end interface smooth_Gaussian
 
 contains
 
@@ -45,7 +50,7 @@ contains
     call map_from_mesh_to_xy_grid_2D( mesh, grid, d_mesh_partial, d_grid_vec_partial)
 
     ! Apply smoothing on the gridded data
-    call smooth_Gaussian_2D_grid( grid, d_grid_vec_partial, r)
+    call smooth_Gaussian_grid( grid, d_grid_vec_partial, r)
 
     ! Map data back to the mesh
     call map_from_xy_grid_to_mesh_2D( grid, mesh, d_grid_vec_partial, d_mesh_partial)
@@ -80,7 +85,7 @@ contains
     call map_from_mesh_to_xy_grid_3D( mesh, grid, d_mesh_partial, d_grid_vec_partial)
 
     ! Apply smoothing on the gridded data
-    call smooth_Gaussian_3D_grid( grid, d_grid_vec_partial, r)
+    call smooth_Gaussian_grid( grid, d_grid_vec_partial, r)
 
     ! Map data back to the mesh
     call map_from_xy_grid_to_mesh_3D( grid, mesh, d_grid_vec_partial, d_mesh_partial)
