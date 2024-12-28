@@ -14,7 +14,7 @@ module apply_maps
   use petsc_basic, only: multiply_PETSc_matrix_with_vector_1D, multiply_PETSc_matrix_with_vector_2D, &
     mat_petsc2CSR, MatDestroy
   use mesh_utilities, only: set_border_vertices_to_interior_mean_dp_2D, set_border_vertices_to_interior_mean_dp_3D
-  use mpi_distributed_memory, only: gather_to_all_dp_1D, gather_to_all_dp_2D
+  use mpi_distributed_memory, only: gather_to_all
   use grid_basic, only: gather_gridded_data_to_master_dp_2D, gather_gridded_data_to_master_dp_3D, &
     distribute_gridded_data_from_master_dp_2D, distribute_gridded_data_from_master_dp_3D
 
@@ -405,7 +405,7 @@ contains
     end if
 
     ! Gather global mesh data
-    call gather_to_all_dp_1D( d_mesh_partial, d_mesh_tot)
+    call gather_to_all( d_mesh_partial, d_mesh_tot)
 
     ! Convert mapping matrix from PETSc format to UFEMISM CSR format
     call mat_petsc2CSR( map%M, M_CSR)

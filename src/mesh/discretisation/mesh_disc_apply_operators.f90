@@ -6,7 +6,7 @@ module mesh_disc_apply_operators
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash
   use mesh_types, only: type_mesh
   use CSR_sparse_matrix_type, only: type_sparse_matrix_CSR_dp
-  use mpi_distributed_memory, only: gather_to_all_dp_1D, gather_to_all_dp_2D
+  use mpi_distributed_memory, only: gather_to_all
   use petsc_basic, only: multiply_CSR_matrix_with_vector_1D, &
     multiply_CSR_matrix_with_vector_2D
 
@@ -478,7 +478,7 @@ contains
     allocate( d_bk_tot( mesh%nTri, mesh%nz))
 
     ! Gather data
-    call gather_to_all_dp_2D( d_bk, d_bk_tot)
+    call gather_to_all( d_bk, d_bk_tot)
 
     ! Calculate gradient
     do vi = mesh%vi1, mesh%vi2
@@ -549,7 +549,7 @@ contains
     allocate( d_ak_tot( mesh%nV, mesh%nz))
 
     ! Gather data
-    call gather_to_all_dp_2D( d_ak, d_ak_tot)
+    call gather_to_all( d_ak, d_ak_tot)
 
     ! Calculate gradient
     do ti = mesh%ti1, mesh%ti2
@@ -620,7 +620,7 @@ contains
     allocate( d_bk_tot( mesh%nTri, mesh%nz))
 
     ! Gather data
-    call gather_to_all_dp_2D( d_bk, d_bk_tot)
+    call gather_to_all( d_bk, d_bk_tot)
 
     ! Calculate gradient
     do ti = mesh%ti1, mesh%ti2
@@ -691,7 +691,7 @@ contains
     allocate( d_bks_tot( mesh%nTri, mesh%nz-1))
 
     ! Gather data
-    call gather_to_all_dp_2D( d_bks, d_bks_tot)
+    call gather_to_all( d_bks, d_bks_tot)
 
     ! Calculate gradient
     do ti = mesh%ti1, mesh%ti2
@@ -762,7 +762,7 @@ contains
     allocate( d_bks_tot( mesh%nTri, mesh%nz-1))
 
     ! Gather data
-    call gather_to_all_dp_2D( d_bks, d_bks_tot)
+    call gather_to_all( d_bks, d_bks_tot)
 
     ! Calculate gradient
     do vi = mesh%vi1, mesh%vi2
@@ -833,7 +833,7 @@ contains
     allocate( d_ak_tot( mesh%nV, mesh%nz))
 
     ! Gather data
-    call gather_to_all_dp_2D( d_ak, d_ak_tot)
+    call gather_to_all( d_ak, d_ak_tot)
 
     ! Calculate gradient
     do ti = mesh%ti1, mesh%ti2
@@ -904,7 +904,7 @@ contains
     allocate( d_bk_tot( mesh%nTri, mesh%nz))
 
     ! Gather data
-    call gather_to_all_dp_2D( d_bk, d_bk_tot)
+    call gather_to_all( d_bk, d_bk_tot)
 
     ! Calculate gradient
     do ti = mesh%ti1, mesh%ti2

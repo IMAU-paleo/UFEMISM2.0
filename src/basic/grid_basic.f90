@@ -14,8 +14,7 @@ MODULE grid_basic
   USE reallocate_mod                                         , ONLY: reallocate
   use interpolation, only: linint_points
   use projections, only: inverse_oblique_sg_projection
-  USE mpi_distributed_memory                                 , ONLY: partition_list, distribute_from_master_dp_1D, gather_to_master_dp_1D, &
-                                                                     distribute_from_master_int_1D, gather_to_master_int_1D
+  use mpi_distributed_memory, only: partition_list, distribute_from_master, gather_to_master
   USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp, allocate_matrix_CSR_dist, add_entry_CSR_dist, &
                                                                      deallocate_matrix_CSR_dist
 
@@ -1088,7 +1087,7 @@ CONTAINS
     END IF ! IF (par%master) THEN
 
     ! Distribute vector-form data to the processes
-    CALL distribute_from_master_int_1D( d_grid_vec_total, d_grid_vec_partial)
+    CALL distribute_from_master( d_grid_vec_total, d_grid_vec_partial)
 
     ! Clean up after yourself
     DEALLOCATE( d_grid_vec_total)
@@ -1140,7 +1139,7 @@ CONTAINS
     END IF ! IF (par%master) THEN
 
     ! Distribute vector-form data to the processes
-    CALL distribute_from_master_dp_1D( d_grid_vec_total, d_grid_vec_partial)
+    CALL distribute_from_master( d_grid_vec_total, d_grid_vec_partial)
 
     ! Clean up after yourself
     DEALLOCATE( d_grid_vec_total)
@@ -1283,7 +1282,7 @@ CONTAINS
     end if
 
     ! Gather data
-    CALL gather_to_master_int_1D( d_grid_vec_partial, d_grid_vec_total)
+    CALL gather_to_master( d_grid_vec_partial, d_grid_vec_total)
 
     ! Convert to grid form
     IF (par%master) THEN
@@ -1334,7 +1333,7 @@ CONTAINS
     end if
 
     ! Gather data
-    CALL gather_to_master_dp_1D( d_grid_vec_partial, d_grid_vec_total)
+    CALL gather_to_master( d_grid_vec_partial, d_grid_vec_total)
 
     ! Convert to grid form
     IF (par%master) THEN

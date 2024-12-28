@@ -18,7 +18,7 @@ module ice_model_scalars
   use LMB_model_types                                        , ONLY: type_LMB_model
   use reference_geometries                                   , ONLY: type_reference_geometry
   USE ice_velocity_main                                      , ONLY: map_velocities_from_b_to_c_2D
-  USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_1D, gather_to_all_logical_1D
+  use mpi_distributed_memory, only: gather_to_all
 
   implicit none
 
@@ -400,17 +400,17 @@ contains
 
     ! Calculate vertically averaged ice velocities on the triangle edges
     call map_velocities_from_b_to_c_2D( mesh, ice%u_vav_b, ice%v_vav_b, u_vav_c, v_vav_c)
-    call gather_to_all_dp_1D( u_vav_c, u_vav_c_tot)
-    call gather_to_all_dp_1D( v_vav_c, v_vav_c_tot)
+    call gather_to_all( u_vav_c, u_vav_c_tot)
+    call gather_to_all( v_vav_c, v_vav_c_tot)
 
     ! Gather ice thickness from all processes
-    call gather_to_all_dp_1D( ice%Hi, Hi_tot)
-    call gather_to_all_dp_1D( ice%fraction_margin, fraction_margin_tot)
+    call gather_to_all( ice%Hi, Hi_tot)
+    call gather_to_all( ice%fraction_margin, fraction_margin_tot)
 
     ! Gather basic masks to all processes
-    call gather_to_all_logical_1D( ice%mask_floating_ice , mask_floating_ice_tot )
-    call gather_to_all_logical_1D( ice%mask_icefree_land , mask_icefree_land_tot )
-    call gather_to_all_logical_1D( ice%mask_icefree_ocean, mask_icefree_ocean_tot)
+    call gather_to_all( ice%mask_floating_ice , mask_floating_ice_tot )
+    call gather_to_all( ice%mask_icefree_land , mask_icefree_land_tot )
+    call gather_to_all( ice%mask_icefree_ocean, mask_icefree_ocean_tot)
 
     ! Initialise
     scalars%gl_flux           = 0._dp

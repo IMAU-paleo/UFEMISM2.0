@@ -14,7 +14,7 @@ MODULE netcdf_debug
   USE model_configuration                                    , ONLY: C
   USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp, deallocate_matrix_CSR_dist, gather_CSR_dist_to_master
   USE petsc_basic                                            , ONLY: mat_petsc2CSR
-  USE mpi_distributed_memory                                 , ONLY: gather_to_master_int_1D, gather_to_master_int_2D, gather_to_master_dp_1D, gather_to_master_dp_2D
+  use mpi_distributed_memory, only: gather_to_master
 
   USE netcdf,       ONLY: NF90_UNLIMITED, NF90_INT, NF90_FLOAT, NF90_DOUBLE
   USE netcdf_basic, ONLY: nerr, field_name_options_x, field_name_options_y, field_name_options_zeta, &
@@ -229,9 +229,9 @@ CONTAINS
     CALL MPI_ALLREDUCE( n_partial, n_tot, 1, MPI_INTEGER, MPI_SUM, MPI_COMM_WORLD, ierr)
     IF (par%master) THEN
       ALLOCATE( d_tot( n_tot))
-      CALL gather_to_master_int_1D( d_partial, d_tot)
+      CALL gather_to_master( d_partial, d_tot)
     ELSE
-      CALL gather_to_master_int_1D( d_partial)
+      CALL gather_to_master( d_partial)
     END IF
 
     ! Create dimensions
@@ -294,9 +294,9 @@ CONTAINS
     CALL MPI_ALLREDUCE( n_partial, n_tot, 1, MPI_INTEGER, MPI_SUM, MPI_COMM_WORLD, ierr)
     IF (par%master) THEN
       ALLOCATE( d_tot( n_tot, n2))
-      CALL gather_to_master_int_2D( d_partial, d_tot)
+      CALL gather_to_master( d_partial, d_tot)
     ELSE
-      CALL gather_to_master_int_2D( d_partial)
+      CALL gather_to_master( d_partial)
     END IF
 
     ! Create dimensions
@@ -359,9 +359,9 @@ CONTAINS
     CALL MPI_ALLREDUCE( n_partial, n_tot, 1, MPI_INTEGER, MPI_SUM, MPI_COMM_WORLD, ierr)
     IF (par%master) THEN
       ALLOCATE( d_tot( n_tot))
-      CALL gather_to_master_dp_1D( d_partial, d_tot)
+      CALL gather_to_master( d_partial, d_tot)
     ELSE
-      CALL gather_to_master_dp_1D( d_partial)
+      CALL gather_to_master( d_partial)
     END IF
 
     ! Create dimensions
@@ -424,9 +424,9 @@ CONTAINS
     CALL MPI_ALLREDUCE( n_partial, n_tot, 1, MPI_INTEGER, MPI_SUM, MPI_COMM_WORLD, ierr)
     IF (par%master) THEN
       ALLOCATE( d_tot( n_tot, n2))
-      CALL gather_to_master_dp_2D( d_partial, d_tot)
+      CALL gather_to_master( d_partial, d_tot)
     ELSE
-      CALL gather_to_master_dp_2D( d_partial)
+      CALL gather_to_master( d_partial)
     END IF
 
     ! Create dimensions
