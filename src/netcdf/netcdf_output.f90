@@ -2895,11 +2895,6 @@ CONTAINS
     CALL write_var_master_dp_1D(    filename, ncid, id_var_lon        , mesh%lon        )
     CALL write_var_master_dp_1D(    filename, ncid, id_var_lat        , mesh%lat        )
 
-    ! Operator matrices
-    if (C%do_write_matrix_operators) then
-      call write_matrix_operators_to_netcdf_file( filename, ncid, mesh)
-    end if
-
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
@@ -2917,6 +2912,8 @@ CONTAINS
     character(len=256), parameter :: routine_name = 'write_matrix_operators_to_netcdf_file'
 
     call init_routine( routine_name)
+
+    call write_mesh_translation_tables_to_netcdf_file( filename, ncid, mesh)
 
     call write_matrix_operator_to_netcdf_file( filename, ncid, mesh%M_ddx_a_a, 'M_ddx_a_a')
     call write_matrix_operator_to_netcdf_file( filename, ncid, mesh%M_ddx_a_b, 'M_ddx_a_b')
@@ -2958,6 +2955,167 @@ CONTAINS
 
   end subroutine write_matrix_operators_to_netcdf_file
 
+  subroutine write_mesh_translation_tables_to_netcdf_file( filename, ncid, mesh)
+    !< Write the mesh translation tables to the netcdf output file
+
+    ! In/output variables:
+    character(len=*), intent(in   ) :: filename
+    integer,          intent(inout) :: ncid
+    type(type_mesh),  intent(in   ) :: mesh
+
+    ! Local variables:
+    character(len=256), parameter   :: routine_name = 'write_mesh_translation_tables_to_netcdf_file'
+    integer :: id_dim_nz, id_dim_nzp1, id_dim_vi, id_dim_ti, id_dim_ei, id_dim_two, id_dim_three
+    integer :: ierr
+    integer :: grp_ncid
+    integer :: id_dim_nna, id_dim_nnauv, id_dim_nnak, id_dim_nnaks, id_dim_nnakuv, id_dim_nnaksuv
+    integer :: id_var_n2vi, id_var_n2viuv, id_var_n2vik, id_var_n2vikuv, id_var_n2viks, id_var_n2viksuv
+    integer :: id_var_vi2n, id_var_viuv2n, id_var_vik2n, id_var_vikuv2n, id_var_viks2n, id_var_viksuv2n
+    integer :: id_dim_nnb, id_dim_nnbuv, id_dim_nnbk, id_dim_nnbks, id_dim_nnbkuv, id_dim_nnbksuv
+    integer :: id_var_n2ti, id_var_n2tiuv, id_var_n2tik, id_var_n2tikuv, id_var_n2tiks, id_var_n2tiksuv
+    integer :: id_var_ti2n, id_var_tiuv2n, id_var_tik2n, id_var_tikuv2n, id_var_tiks2n, id_var_tiksuv2n
+    integer :: id_dim_nnc, id_dim_nncuv, id_dim_nnck, id_dim_nncks, id_dim_nnckuv, id_dim_nncksuv
+    integer :: id_var_n2ei, id_var_n2eiuv, id_var_n2eik, id_var_n2eikuv, id_var_n2eiks, id_var_n2eiksuv
+    integer :: id_var_ei2n, id_var_eiuv2n, id_var_eik2n, id_var_eikuv2n, id_var_eiks2n, id_var_eiksuv2n
+
+    call init_routine( routine_name)
+
+    ! Create a group for them
+    ierr = NF90_DEF_GRP( ncid, 'mesh_translation_tables', grp_ncid)
+
+    call create_dimension( filename, grp_ncid, 'nz'  , mesh%nz  , id_dim_nz)
+    call create_dimension( filename, grp_ncid, 'nzp1', mesh%nz+1, id_dim_nzp1)
+
+    call inquire_dim_multopt( filename, ncid, get_first_option_from_list( field_name_options_dim_nV    ), id_dim_vi)
+    call inquire_dim_multopt( filename, ncid, get_first_option_from_list( field_name_options_dim_nTri  ), id_dim_ti)
+    call inquire_dim_multopt( filename, ncid, get_first_option_from_list( field_name_options_dim_nE    ), id_dim_ei)
+    call inquire_dim_multopt( filename, ncid, get_first_option_from_list( field_name_options_dim_two   ), id_dim_two)
+    call inquire_dim_multopt( filename, ncid, get_first_option_from_list( field_name_options_dim_three ), id_dim_three)
+
+    ! a-grid (vertices)
+    ! =================
+
+    ! Create dimensions
+    call create_dimension( filename, grp_ncid, 'nna'    , mesh%nna    , id_dim_nna)
+    call create_dimension( filename, grp_ncid, 'nna'    , mesh%nna    , id_dim_nna)
+    call create_dimension( filename, grp_ncid, 'nnauv'  , mesh%nnauv  , id_dim_nnauv)
+    call create_dimension( filename, grp_ncid, 'nnak'   , mesh%nnak   , id_dim_nnak)
+    call create_dimension( filename, grp_ncid, 'nnaks'  , mesh%nnaks  , id_dim_nnaks)
+    call create_dimension( filename, grp_ncid, 'nnakuv' , mesh%nnakuv , id_dim_nnakuv)
+    call create_dimension( filename, grp_ncid, 'nnaksuv', mesh%nnaksuv, id_dim_nnaksuv)
+
+    ! Create variables
+    call create_variable( filename, grp_ncid, 'n2vi'    , NF90_INT, [id_dim_nna                             ], id_var_n2vi)
+    call create_variable( filename, grp_ncid, 'n2viuv'  , NF90_INT, [id_dim_nnauv  , id_dim_two             ], id_var_n2viuv)
+    call create_variable( filename, grp_ncid, 'n2vik'   , NF90_INT, [id_dim_nnak   , id_dim_two             ], id_var_n2vik)
+    call create_variable( filename, grp_ncid, 'n2vikuv' , NF90_INT, [id_dim_nnakuv , id_dim_three           ], id_var_n2vikuv)
+    call create_variable( filename, grp_ncid, 'n2viks'  , NF90_INT, [id_dim_nnaks  , id_dim_two             ], id_var_n2viks)
+    call create_variable( filename, grp_ncid, 'n2viksuv', NF90_INT, [id_dim_nnaksuv, id_dim_three           ], id_var_n2viksuv)
+    call create_variable( filename, grp_ncid, 'vi2n'    , NF90_INT, [id_dim_vi                              ], id_var_vi2n)
+    call create_variable( filename, grp_ncid, 'viuv2n'  , NF90_INT, [id_dim_vi                  , id_dim_two], id_var_viuv2n)
+    call create_variable( filename, grp_ncid, 'vik2n'   , NF90_INT, [id_dim_vi     , id_dim_nz              ], id_var_vik2n)
+    call create_variable( filename, grp_ncid, 'vikuv2n' , NF90_INT, [id_dim_vi     , id_dim_nz,   id_dim_two], id_var_vikuv2n)
+    call create_variable( filename, grp_ncid, 'viks2n'  , NF90_INT, [id_dim_vi     , id_dim_nzp1            ], id_var_viks2n)
+    call create_variable( filename, grp_ncid, 'viksuv2n', NF90_INT, [id_dim_vi     , id_dim_nzp1, id_dim_two], id_var_viksuv2n)
+
+    ! Write variables
+    call write_var_master_int_1D( filename, grp_ncid, id_var_n2vi    , mesh%n2vi)
+    call write_var_master_int_2D( filename, grp_ncid, id_var_n2viuv  , mesh%n2viuv)
+    call write_var_master_int_2D( filename, grp_ncid, id_var_n2vik   , mesh%n2vik)
+    call write_var_master_int_2D( filename, grp_ncid, id_var_n2vikuv , mesh%n2vikuv)
+    call write_var_master_int_2D( filename, grp_ncid, id_var_n2viks  , mesh%n2viks)
+    call write_var_master_int_2D( filename, grp_ncid, id_var_n2viksuv, mesh%n2viksuv)
+    call write_var_master_int_1D( filename, grp_ncid, id_var_vi2n    , mesh%vi2n)
+    call write_var_master_int_2D( filename, grp_ncid, id_var_viuv2n  , mesh%viuv2n)
+    call write_var_master_int_2D( filename, grp_ncid, id_var_vik2n   , mesh%vik2n)
+    call write_var_master_int_3D( filename, grp_ncid, id_var_vikuv2n , mesh%vikuv2n)
+    call write_var_master_int_2D( filename, grp_ncid, id_var_viks2n  , mesh%viks2n)
+    call write_var_master_int_3D( filename, grp_ncid, id_var_viksuv2n, mesh%viksuv2n)
+
+    ! b-grid (triangles)
+    ! ==================
+
+    ! Create dimensions
+    call create_dimension( filename, grp_ncid, 'nnb'    , mesh%nnb    , id_dim_nnb)
+    call create_dimension( filename, grp_ncid, 'nnb'    , mesh%nnb    , id_dim_nnb)
+    call create_dimension( filename, grp_ncid, 'nnbuv'  , mesh%nnbuv  , id_dim_nnbuv)
+    call create_dimension( filename, grp_ncid, 'nnbk'   , mesh%nnbk   , id_dim_nnbk)
+    call create_dimension( filename, grp_ncid, 'nnbks'  , mesh%nnbks  , id_dim_nnbks)
+    call create_dimension( filename, grp_ncid, 'nnbkuv' , mesh%nnbkuv , id_dim_nnbkuv)
+    call create_dimension( filename, grp_ncid, 'nnbksuv', mesh%nnbksuv, id_dim_nnbksuv)
+
+    ! Create variables
+    call create_variable( filename, grp_ncid, 'n2ti'    , NF90_INT, [id_dim_nnb                             ], id_var_n2ti)
+    call create_variable( filename, grp_ncid, 'n2tiuv'  , NF90_INT, [id_dim_nnbuv  , id_dim_two             ], id_var_n2tiuv)
+    call create_variable( filename, grp_ncid, 'n2tik'   , NF90_INT, [id_dim_nnbk   , id_dim_two             ], id_var_n2tik)
+    call create_variable( filename, grp_ncid, 'n2tikuv' , NF90_INT, [id_dim_nnbkuv , id_dim_three           ], id_var_n2tikuv)
+    call create_variable( filename, grp_ncid, 'n2tiks'  , NF90_INT, [id_dim_nnbks  , id_dim_two             ], id_var_n2tiks)
+    call create_variable( filename, grp_ncid, 'n2tiksuv', NF90_INT, [id_dim_nnbksuv, id_dim_three           ], id_var_n2tiksuv)
+    call create_variable( filename, grp_ncid, 'ti2n'    , NF90_INT, [id_dim_ti                              ], id_var_ti2n)
+    call create_variable( filename, grp_ncid, 'tiuv2n'  , NF90_INT, [id_dim_ti                  , id_dim_two], id_var_tiuv2n)
+    call create_variable( filename, grp_ncid, 'tik2n'   , NF90_INT, [id_dim_ti     , id_dim_nz              ], id_var_tik2n)
+    call create_variable( filename, grp_ncid, 'tikuv2n' , NF90_INT, [id_dim_ti     , id_dim_nz,   id_dim_two], id_var_tikuv2n)
+    call create_variable( filename, grp_ncid, 'tiks2n'  , NF90_INT, [id_dim_ti     , id_dim_nzp1            ], id_var_tiks2n)
+    call create_variable( filename, grp_ncid, 'tiksuv2n', NF90_INT, [id_dim_ti     , id_dim_nzp1, id_dim_two], id_var_tiksuv2n)
+
+    ! Write variables
+    call write_var_master_int_1D( filename, grp_ncid, id_var_n2ti    , mesh%n2ti)
+    call write_var_master_int_2D( filename, grp_ncid, id_var_n2tiuv  , mesh%n2tiuv)
+    call write_var_master_int_2D( filename, grp_ncid, id_var_n2tik   , mesh%n2tik)
+    call write_var_master_int_2D( filename, grp_ncid, id_var_n2tikuv , mesh%n2tikuv)
+    call write_var_master_int_2D( filename, grp_ncid, id_var_n2tiks  , mesh%n2tiks)
+    call write_var_master_int_2D( filename, grp_ncid, id_var_n2tiksuv, mesh%n2tiksuv)
+    call write_var_master_int_1D( filename, grp_ncid, id_var_ti2n    , mesh%ti2n)
+    call write_var_master_int_2D( filename, grp_ncid, id_var_tiuv2n  , mesh%tiuv2n)
+    call write_var_master_int_2D( filename, grp_ncid, id_var_tik2n   , mesh%tik2n)
+    call write_var_master_int_3D( filename, grp_ncid, id_var_tikuv2n , mesh%tikuv2n)
+    call write_var_master_int_2D( filename, grp_ncid, id_var_tiks2n  , mesh%tiks2n)
+    call write_var_master_int_3D( filename, grp_ncid, id_var_tiksuv2n, mesh%tiksuv2n)
+
+    ! c-grid (edges)
+    ! ==============
+
+    ! Create dimensions
+    call create_dimension( filename, grp_ncid, 'nnc'    , mesh%nnc    , id_dim_nnc)
+    call create_dimension( filename, grp_ncid, 'nnc'    , mesh%nnc    , id_dim_nnc)
+    call create_dimension( filename, grp_ncid, 'nncuv'  , mesh%nncuv  , id_dim_nncuv)
+    call create_dimension( filename, grp_ncid, 'nnck'   , mesh%nnck   , id_dim_nnck)
+    call create_dimension( filename, grp_ncid, 'nncks'  , mesh%nncks  , id_dim_nncks)
+    call create_dimension( filename, grp_ncid, 'nnckuv' , mesh%nnckuv , id_dim_nnckuv)
+    call create_dimension( filename, grp_ncid, 'nncksuv', mesh%nncksuv, id_dim_nncksuv)
+
+    ! Create variables
+    call create_variable( filename, grp_ncid, 'n2ei'    , NF90_INT, [id_dim_nnc                             ], id_var_n2ei)
+    call create_variable( filename, grp_ncid, 'n2eiuv'  , NF90_INT, [id_dim_nncuv  , id_dim_two             ], id_var_n2eiuv)
+    call create_variable( filename, grp_ncid, 'n2eik'   , NF90_INT, [id_dim_nnck   , id_dim_two             ], id_var_n2eik)
+    call create_variable( filename, grp_ncid, 'n2eikuv' , NF90_INT, [id_dim_nnckuv , id_dim_three           ], id_var_n2eikuv)
+    call create_variable( filename, grp_ncid, 'n2eiks'  , NF90_INT, [id_dim_nncks  , id_dim_two             ], id_var_n2eiks)
+    call create_variable( filename, grp_ncid, 'n2eiksuv', NF90_INT, [id_dim_nncksuv, id_dim_three           ], id_var_n2eiksuv)
+    call create_variable( filename, grp_ncid, 'ei2n'    , NF90_INT, [id_dim_ei                              ], id_var_ei2n)
+    call create_variable( filename, grp_ncid, 'eiuv2n'  , NF90_INT, [id_dim_ei                  , id_dim_two], id_var_eiuv2n)
+    call create_variable( filename, grp_ncid, 'eik2n'   , NF90_INT, [id_dim_ei     , id_dim_nz              ], id_var_eik2n)
+    call create_variable( filename, grp_ncid, 'eikuv2n' , NF90_INT, [id_dim_ei     , id_dim_nz,   id_dim_two], id_var_eikuv2n)
+    call create_variable( filename, grp_ncid, 'eiks2n'  , NF90_INT, [id_dim_ei     , id_dim_nzp1            ], id_var_eiks2n)
+    call create_variable( filename, grp_ncid, 'eiksuv2n', NF90_INT, [id_dim_ei     , id_dim_nzp1, id_dim_two], id_var_eiksuv2n)
+
+    ! Write variables
+    call write_var_master_int_1D( filename, grp_ncid, id_var_n2ei    , mesh%n2ei)
+    call write_var_master_int_2D( filename, grp_ncid, id_var_n2eiuv  , mesh%n2eiuv)
+    call write_var_master_int_2D( filename, grp_ncid, id_var_n2eik   , mesh%n2eik)
+    call write_var_master_int_2D( filename, grp_ncid, id_var_n2eikuv , mesh%n2eikuv)
+    call write_var_master_int_2D( filename, grp_ncid, id_var_n2eiks  , mesh%n2eiks)
+    call write_var_master_int_2D( filename, grp_ncid, id_var_n2eiksuv, mesh%n2eiksuv)
+    call write_var_master_int_1D( filename, grp_ncid, id_var_ei2n    , mesh%ei2n)
+    call write_var_master_int_2D( filename, grp_ncid, id_var_eiuv2n  , mesh%eiuv2n)
+    call write_var_master_int_2D( filename, grp_ncid, id_var_eik2n   , mesh%eik2n)
+    call write_var_master_int_3D( filename, grp_ncid, id_var_eikuv2n , mesh%eikuv2n)
+    call write_var_master_int_2D( filename, grp_ncid, id_var_eiks2n  , mesh%eiks2n)
+    call write_var_master_int_3D( filename, grp_ncid, id_var_eiksuv2n, mesh%eiksuv2n)
+
+    call finalise_routine( routine_name)
+
+  end subroutine write_mesh_translation_tables_to_netcdf_file
+
   subroutine write_matrix_operator_to_netcdf_file( filename, ncid, A, name)
     !< Write a single matrix operator to the netcdf output file
 
@@ -2994,7 +3152,7 @@ CONTAINS
     call create_variable( filename, grp_ncid, 'val', NF90_DOUBLE, [id_dim_nnz], id_var_val)
 
     ! Write to NetCDF
-    call write_var_master_int_1D( filename, grp_ncid, id_var_ptr, A_tot%ptr               )
+    call write_var_master_int_1D( filename, grp_ncid, id_var_ptr, A_tot%ptr              )
     call write_var_master_int_1D( filename, grp_ncid, id_var_ind, A_tot%ind( 1:A_tot%nnz))
     call write_var_master_dp_1D(  filename, grp_ncid, id_var_val, A_tot%val( 1:A_tot%nnz))
 
