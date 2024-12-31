@@ -35,7 +35,8 @@ MODULE main_regional_output
                                                                      write_to_field_multopt_grid_dp_2D, write_to_field_multopt_grid_dp_2D_notime, &
                                                                      write_to_field_multopt_grid_dp_2D_monthly, write_to_field_multopt_grid_dp_2D_monthly_notime, &
                                                                      write_to_field_multopt_grid_dp_3D, write_to_field_multopt_grid_dp_3D_notime, &
-                                                                     write_to_field_multopt_dp_0D
+                                                                     write_to_field_multopt_dp_0D, &
+                                                                     write_matrix_operators_to_netcdf_file
   use remapping_main, only: map_from_mesh_to_xy_grid_2D, map_from_mesh_to_xy_grid_3D, map_from_mesh_to_xy_grid_2D_minval
 
   IMPLICIT NONE
@@ -1420,6 +1421,11 @@ CONTAINS
     CALL add_time_dimension_to_file(  region%output_filename_mesh, ncid)
     CALL add_zeta_dimension_to_file(  region%output_filename_mesh, ncid, region%mesh%zeta)
     CALL add_month_dimension_to_file( region%output_filename_mesh, ncid)
+
+    ! Operator matrices
+    if (C%do_write_matrix_operators) then
+      call write_matrix_operators_to_netcdf_file( region%output_filename_mesh, ncid, region%mesh)
+    end if
 
     ! Add the default data fields to the file
     CALL create_main_regional_output_file_mesh_field( region%output_filename_mesh, ncid, 'Hi')
