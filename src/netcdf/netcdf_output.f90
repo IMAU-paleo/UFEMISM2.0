@@ -12,7 +12,7 @@ MODULE netcdf_output
 
   USE mpi
   USE precisions                                             , ONLY: dp
-  USE mpi_basic                                              , ONLY: par, cerr, ierr, recv_status, sync
+  USE mpi_basic                                              , ONLY: par, cerr, recv_status, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
   use grid_basic, only: type_grid
@@ -23,7 +23,7 @@ MODULE netcdf_output
   USE ice_model_types                                        , ONLY: type_ice_model
   use mpi_distributed_memory, only: gather_to_master
 
-  USE netcdf,       ONLY: NF90_UNLIMITED, NF90_INT, NF90_FLOAT, NF90_DOUBLE, NF90_MAX_VAR_DIMS
+  USE netcdf,       ONLY: NF90_UNLIMITED, NF90_INT, NF90_FLOAT, NF90_DOUBLE, NF90_MAX_VAR_DIMS, NF90_DEF_GRP
   USE netcdf_basic, ONLY: nerr, field_name_options_x, field_name_options_y, field_name_options_zeta, &
                           field_name_options_lon, field_name_options_lat, field_name_options_time, field_name_options_month, field_name_options_depth, &
                           field_name_options_dim_nV, field_name_options_dim_nTri, field_name_options_dim_nC_mem, &
@@ -51,6 +51,8 @@ MODULE netcdf_output
                           write_var_master_dp_0D, write_var_master_dp_1D, write_var_master_dp_2D, write_var_master_dp_3D, write_var_master_dp_4D, &
                           add_attribute_char, check_month, check_time, create_dimension, create_variable, create_scalar_variable, inquire_var, &
                           open_existing_netcdf_file_for_writing, inquire_var_info
+  use CSR_sparse_matrix_type, only: type_sparse_matrix_CSR_dp
+  use CSR_sparse_matrix_utilities, only: gather_CSR_dist_to_master
 
   IMPLICIT NONE
 
@@ -2893,10 +2895,112 @@ CONTAINS
     CALL write_var_master_dp_1D(    filename, ncid, id_var_lon        , mesh%lon        )
     CALL write_var_master_dp_1D(    filename, ncid, id_var_lat        , mesh%lat        )
 
+    ! Operator matrices
+    if (C%do_write_matrix_operators) then
+      call write_matrix_operators_to_netcdf_file( filename, ncid, mesh)
+    end if
+
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE setup_mesh_in_netcdf_file
+
+  subroutine write_matrix_operators_to_netcdf_file( filename, ncid, mesh)
+    !< Write all the matrix operators to the netcdf output file
+
+    ! In/output variables:
+    character(len=*), intent(in   ) :: filename
+    integer,          intent(inout) :: ncid
+    type(type_mesh),  intent(in   ) :: mesh
+
+    ! Local variables:
+    character(len=256), parameter :: routine_name = 'write_matrix_operators_to_netcdf_file'
+
+    call init_routine( routine_name)
+
+    call write_matrix_operator_to_netcdf_file( filename, ncid, mesh%M_ddx_a_a, 'M_ddx_a_a')
+    call write_matrix_operator_to_netcdf_file( filename, ncid, mesh%M_ddx_a_b, 'M_ddx_a_b')
+    call write_matrix_operator_to_netcdf_file( filename, ncid, mesh%M_ddx_a_c, 'M_ddx_a_c')
+    call write_matrix_operator_to_netcdf_file( filename, ncid, mesh%M_ddx_b_a, 'M_ddx_b_a')
+    call write_matrix_operator_to_netcdf_file( filename, ncid, mesh%M_ddx_b_b, 'M_ddx_b_b')
+    call write_matrix_operator_to_netcdf_file( filename, ncid, mesh%M_ddx_b_c, 'M_ddx_b_c')
+    call write_matrix_operator_to_netcdf_file( filename, ncid, mesh%M_ddx_c_a, 'M_ddx_c_a')
+    call write_matrix_operator_to_netcdf_file( filename, ncid, mesh%M_ddx_c_b, 'M_ddx_c_b')
+    call write_matrix_operator_to_netcdf_file( filename, ncid, mesh%M_ddx_c_c, 'M_ddx_c_c')
+
+    call write_matrix_operator_to_netcdf_file( filename, ncid, mesh%M_ddy_a_a, 'M_ddy_a_a')
+    call write_matrix_operator_to_netcdf_file( filename, ncid, mesh%M_ddy_a_b, 'M_ddy_a_b')
+    call write_matrix_operator_to_netcdf_file( filename, ncid, mesh%M_ddy_a_c, 'M_ddy_a_c')
+    call write_matrix_operator_to_netcdf_file( filename, ncid, mesh%M_ddy_b_a, 'M_ddy_b_a')
+    call write_matrix_operator_to_netcdf_file( filename, ncid, mesh%M_ddy_b_b, 'M_ddy_b_b')
+    call write_matrix_operator_to_netcdf_file( filename, ncid, mesh%M_ddy_b_c, 'M_ddy_b_c')
+    call write_matrix_operator_to_netcdf_file( filename, ncid, mesh%M_ddy_c_a, 'M_ddy_c_a')
+    call write_matrix_operator_to_netcdf_file( filename, ncid, mesh%M_ddy_c_b, 'M_ddy_c_b')
+    call write_matrix_operator_to_netcdf_file( filename, ncid, mesh%M_ddy_c_c, 'M_ddy_c_c')
+
+    ! call write_matrix_operator_to_netcdf_file( filename, ncid, mesh%M_map_a_a, 'M_map_a_a')
+    call write_matrix_operator_to_netcdf_file( filename, ncid, mesh%M_map_a_b, 'M_map_a_b')
+    call write_matrix_operator_to_netcdf_file( filename, ncid, mesh%M_map_a_c, 'M_map_a_c')
+    call write_matrix_operator_to_netcdf_file( filename, ncid, mesh%M_map_b_a, 'M_map_b_a')
+    ! call write_matrix_operator_to_netcdf_file( filename, ncid, mesh%M_map_b_b, 'M_map_b_b')
+    call write_matrix_operator_to_netcdf_file( filename, ncid, mesh%M_map_b_c, 'M_map_b_c')
+    call write_matrix_operator_to_netcdf_file( filename, ncid, mesh%M_map_c_a, 'M_map_c_a')
+    call write_matrix_operator_to_netcdf_file( filename, ncid, mesh%M_map_c_b, 'M_map_c_b')
+    ! call write_matrix_operator_to_netcdf_file( filename, ncid, mesh%M_map_c_c, 'M_map_c_c')
+
+    call write_matrix_operator_to_netcdf_file( filename, ncid, mesh%M2_ddx_b_b   , 'M2_ddx_b_b')
+    call write_matrix_operator_to_netcdf_file( filename, ncid, mesh%M2_ddy_b_b   , 'M2_ddy_b_b')
+    call write_matrix_operator_to_netcdf_file( filename, ncid, mesh%M2_d2dx2_b_b , 'M2_d2dx2_b_b')
+    call write_matrix_operator_to_netcdf_file( filename, ncid, mesh%M2_d2dxdy_b_b, 'M2_d2dxdy_b_b')
+    call write_matrix_operator_to_netcdf_file( filename, ncid, mesh%M2_d2dy2_b_b , 'M2_d2dy2_b_b')
+
+    call finalise_routine( routine_name)
+
+  end subroutine write_matrix_operators_to_netcdf_file
+
+  subroutine write_matrix_operator_to_netcdf_file( filename, ncid, A, name)
+    !< Write a single matrix operator to the netcdf output file
+
+    ! In/output variables:
+    character(len=*),                 intent(in   ) :: filename
+    integer,                          intent(inout) :: ncid
+    type(type_sparse_matrix_CSR_dp),  intent(in   ) :: A
+    character(len=*),                 intent(in   ) :: name
+
+    ! Local variables:
+    character(len=256), parameter   :: routine_name = 'write_matrix_operator_to_netcdf_file'
+    type(type_sparse_matrix_CSR_dp) :: A_tot
+    integer                         :: ierr
+    integer                         :: grp_ncid, id_dim_m, id_dim_mp1, id_dim_n, id_dim_nnz
+    integer                         :: id_var_ptr, id_var_ind, id_var_val
+
+    call init_routine( routine_name)
+
+    ! Gather distributed matrix to the master
+    call gather_CSR_dist_to_master( A, A_tot)
+
+    ! Create a new NetCDF group for this matrix operator
+    ierr = NF90_DEF_GRP( ncid, name, grp_ncid)
+
+    ! Create dimensions
+    call create_dimension( filename, grp_ncid, 'm'     , A_tot%m  , id_dim_m  )
+    call create_dimension( filename, grp_ncid, 'mplus1', A_tot%m+1, id_dim_mp1)
+    call create_dimension( filename, grp_ncid, 'n'     , A_tot%n  , id_dim_n  )
+    call create_dimension( filename, grp_ncid, 'nnz'   , A_tot%nnz, id_dim_nnz)
+
+    ! Create variables
+    call create_variable( filename, grp_ncid, 'ptr', NF90_INT   , [id_dim_mp1], id_var_ptr)
+    call create_variable( filename, grp_ncid, 'ind', NF90_INT   , [id_dim_nnz], id_var_ind)
+    call create_variable( filename, grp_ncid, 'val', NF90_DOUBLE, [id_dim_nnz], id_var_val)
+
+    ! Write to NetCDF
+    call write_var_master_int_1D( filename, grp_ncid, id_var_ptr, A_tot%ptr               )
+    call write_var_master_int_1D( filename, grp_ncid, id_var_ind, A_tot%ind( 1:A_tot%nnz))
+    call write_var_master_dp_1D(  filename, grp_ncid, id_var_val, A_tot%val( 1:A_tot%nnz))
+
+    call finalise_routine( routine_name)
+
+  end subroutine write_matrix_operator_to_netcdf_file
 
   ! Set up mesh and meshed variables
   SUBROUTINE setup_CDF_in_netcdf_file( filename, ncid, ice)
@@ -3890,7 +3994,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'generate_filename_XXXXXdotnc'
-    INTEGER                                            :: i
+    INTEGER                                            :: i, ierr
     CHARACTER(LEN=5)                                   :: i_str
     LOGICAL                                            :: ex
 
