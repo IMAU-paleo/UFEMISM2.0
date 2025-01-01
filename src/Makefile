@@ -24,6 +24,13 @@ ifeq ($(DO_ASSERTIONS),yes)
   F90DEFINITIONS += -DDO_ASSERTIONS
 endif
 
+# Compile with resource tracker: anything else than yes (no quotes) will
+# result in the model being compiled without the resource tracker
+DO_RESOURCE_TRACKING = no
+ifeq ($(DO_RESOURCE_TRACKING),yes)
+  F90DEFINITIONS += -DDO_RESOURCE_TRACKING
+endif
+
 # ========================================
 #       Building the UFEMISM_program
 # ========================================

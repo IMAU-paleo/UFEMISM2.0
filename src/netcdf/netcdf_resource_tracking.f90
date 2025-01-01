@@ -40,6 +40,8 @@ CONTAINS
     ! Input variables:
     REAL(dp),                           INTENT(IN)    :: time
 
+#if (DO_RESOURCE_TRACKER)
+
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                     :: routine_name = 'write_to_resource_tracking_file'
     INTEGER                                           :: n_routines, length_routine_name, i
@@ -99,10 +101,14 @@ CONTAINS
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
+#endif
+
   END SUBROUTINE write_to_resource_tracking_file
 
   SUBROUTINE create_resource_tracking_file
     ! Create the resource tracking output file
+
+#if (DO_RESOURCE_TRACKER)
 
     IMPLICIT NONE
 
@@ -154,6 +160,8 @@ CONTAINS
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
+
+#endif
 
   END SUBROUTINE create_resource_tracking_file
 

@@ -37,6 +37,8 @@ CONTAINS
   SUBROUTINE initialise_control_and_resource_tracker
     ! Initialise the control and resource tracker
 
+#if (DO_RESOURCE_TRACKER)
+
     IMPLICIT NONE
 
     ! Local variables:
@@ -56,6 +58,8 @@ CONTAINS
     ! Initialise the routine path
     routine_path = 'UFEMISM_program'
 
+#endif
+
   END SUBROUTINE initialise_control_and_resource_tracker
 
   SUBROUTINE init_routine( routine_name, do_track_resource_use)
@@ -67,6 +71,8 @@ CONTAINS
     ! REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE, OPTIONAL, INTENT(INOUT) :: i
     CHARACTER(LEN=256)                                 , INTENT(IN)    :: routine_name
     LOGICAL                                  , OPTIONAL, INTENT(IN)    :: do_track_resource_use
+
+#if (DO_RESOURCE_TRACKER)
 
     ! Local variables:
     INTEGER                                                            :: len_path_tot, len_path_used, len_name
@@ -112,6 +118,7 @@ CONTAINS
 
     END IF
 
+#endif
 
   END SUBROUTINE init_routine
 
@@ -123,6 +130,8 @@ CONTAINS
     ! In/output variables:
     ! REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE, OPTIONAL, INTENT(INOUT) :: i
     CHARACTER(LEN=256)                                 , INTENT(IN)    :: routine_name
+
+#if (DO_RESOURCE_TRACKER)
 
     ! Local variables:
     LOGICAL                                                            :: do_track_resource_use
@@ -177,6 +186,8 @@ CONTAINS
 
     END IF ! IF (do_track_resource_use) THEN
 
+#endif
+
   END SUBROUTINE finalise_routine
 
   SUBROUTINE find_subroutine_in_resource_tracker( i)
@@ -187,6 +198,8 @@ CONTAINS
     ! In/output variables:
     ! REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE, OPTIONAL, INTENT(INOUT) :: i
     INTEGER                                            , INTENT(OUT)   :: i
+
+#if (DO_RESOURCE_TRACKER)
 
     ! Local variables:
     INTEGER                                                            :: n
@@ -207,10 +220,14 @@ CONTAINS
     ! If we've reached this point, then the resource tracker is overflowing
     CALL crash('Resource tracker overflows! Allocate more memory for it in control_resources_and_error_messaging/initialise_control_and_resource_tracker!')
 
+#endif
+
   END SUBROUTINE find_subroutine_in_resource_tracker
 
   SUBROUTINE reset_resource_tracker
     ! Reset the computation times and maximum memory use for all subroutines in the resource tracker
+
+#if (DO_RESOURCE_TRACKER)
 
     IMPLICIT NONE
 
@@ -224,6 +241,8 @@ CONTAINS
       resource_tracker( i)%tstart      = 0._dp
       resource_tracker( i)%tcomp       = 0._dp
     END DO
+
+#endif
 
   END SUBROUTINE reset_resource_tracker
 
@@ -374,8 +393,13 @@ CONTAINS
     IF (PRESENT( dp_10 )) CALL insert_val_into_string_dp(  err_msg_loc, '{dp_10}' , dp_10 )
 
     ! Write the error to the screen
+#if (DO_RESOURCE_TRACKER)
     WRITE(0,'(A,A,A,A,A,A)') colour_string(' ERROR: ' // TRIM( err_msg_loc),'red') // ' in ' // colour_string( TRIM(routine_path),'light blue') // &
       ' on process ', colour_string( process_str,'light blue'), ' (0 = master)'
+#else
+    WRITE(0,'(A,A,A,A)') colour_string(' ERROR: ' // TRIM( err_msg_loc),'red') // &
+      ' on process ', colour_string( process_str,'light blue'), ' (0 = master)'
+#endif
 
     ! Stop the program
     error stop
@@ -443,8 +467,13 @@ CONTAINS
     IF (PRESENT( dp_10 )) CALL insert_val_into_string_dp(  err_msg_loc, '{dp_10}' , dp_10 )
 
     ! Write the error to the screen
+#if (DO_RESOURCE_TRACKER)
     WRITE(0,'(A,A,A,A,A,A)') colour_string(' WARNING: ' // TRIM( err_msg_loc),'yellow') // ' in ' // colour_string( TRIM(routine_path),'light blue') // &
       ' on process ', colour_string( process_str,'light blue'), ' (0 = master)'
+#else
+    WRITE(0,'(A,A,A,A)') colour_string(' WARNING: ' // TRIM( err_msg_loc),'yellow') // &
+      ' on process ', colour_string( process_str,'light blue'), ' (0 = master)'
+#endif
 
     ! Clean up after yourself
     DEALLOCATE( process_str)
@@ -512,9 +541,14 @@ CONTAINS
     IF (PRESENT( dp_09 )) CALL insert_val_into_string_dp(  err_msg_loc, '{dp_09}' , dp_09 )
     IF (PRESENT( dp_10 )) CALL insert_val_into_string_dp(  err_msg_loc, '{dp_10}' , dp_10 )
 
-    ! Write the error to the screen
+    ! Write the message to the screen
+#if (DO_RESOURCE_TRACKER)
     WRITE(0,'(A,A,A,A,A,A)') colour_string(' SUCCESS: ' // TRIM( err_msg_loc),'green') // ' in ' // colour_string( TRIM(routine_path),'light blue') // &
       ' on process ', colour_string( process_str,'light blue'), ' (0 = master)'
+#else
+    WRITE(0,'(A,A,A,A)') colour_string(' SUCCESS: ' // TRIM( err_msg_loc),'green') // &
+      ' on process ', colour_string( process_str,'light blue'), ' (0 = master)'
+#endif
 
     ! Clean up after yourself
     DEALLOCATE( process_str)
