@@ -1601,6 +1601,58 @@ CONTAINS
   END SUBROUTINE write_to_field_multopt_mesh_dp_3D_b_notime
 
   ! Write a scalar variable
+  SUBROUTINE write_to_field_multopt_int_0D( filename, ncid, field_name_options, d)
+    ! Write a 0-D data field to a NetCDF file variable
+    !
+    ! Write to the last time frame of the variable
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
+    INTEGER,                             INTENT(IN)    :: ncid
+    CHARACTER(LEN=*),                    INTENT(IN)    :: field_name_options
+    integer,                             INTENT(IN)    :: d
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_to_field_multopt_int_0D'
+    INTEGER                                            :: id_var, id_dim_time, ti
+    CHARACTER(LEN=256)                                 :: var_name
+    INTEGER                                            :: var_type
+    INTEGER                                            :: ndims_of_var
+    INTEGER, DIMENSION( NF90_MAX_VAR_DIMS)             :: dims_of_var
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Inquire the variable
+    CALL inquire_var_multopt( filename, ncid, field_name_options, id_var, var_name = var_name)
+    IF (id_var == -1) CALL crash('no variables for name options "' // TRIM( field_name_options) // '" were found in file "' // TRIM( filename) // '"!')
+
+    ! Check if the file has a time dimension and variable
+    CALL check_time( filename, ncid)
+
+    ! Inquire variable info
+    CALL inquire_var_info( filename, ncid, id_var, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
+
+    ! Inquire file time dimension
+    CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
+
+    ! Check if the variable has time as a dimension
+    IF (ndims_of_var /= 1) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+    IF (.NOT. ANY( dims_of_var == id_dim_time)) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have time as a dimension!')
+
+    ! Inquire length of time dimension
+    CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
+
+    ! Write data to the variable
+    CALL write_var_master_int_1D( filename, ncid, id_var, (/ d /), start = (/ ti /), count = (/ 1 /) )
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE write_to_field_multopt_int_0D
+
   SUBROUTINE write_to_field_multopt_dp_0D( filename, ncid, field_name_options, d)
     ! Write a 0-D data field to a NetCDF file variable
     !
