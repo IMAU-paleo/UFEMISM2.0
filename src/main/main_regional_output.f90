@@ -1366,6 +1366,7 @@ CONTAINS
     CALL write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'margin_land_flux',  region%scalars%margin_land_flux)
     CALL write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'margin_ocean_flux', region%scalars%margin_ocean_flux)
 
+    ! Numerical stability info
     call write_to_field_multopt_int_0D( region%output_filename_scalar, ncid, 'n_dt_ice',         region%ice%n_dt_ice)
     call write_to_field_multopt_dp_0D ( region%output_filename_scalar, ncid, 'min_dt_ice',       region%ice%min_dt_ice)
     call write_to_field_multopt_dp_0D ( region%output_filename_scalar, ncid, 'max_dt_ice',       region%ice%max_dt_ice)
@@ -1380,6 +1381,20 @@ CONTAINS
     call write_to_field_multopt_int_0D( region%output_filename_scalar, ncid, 'min_Axb_its_per_visc_it',  region%ice%min_Axb_its_per_visc_it)
     call write_to_field_multopt_int_0D( region%output_filename_scalar, ncid, 'max_Axb_its_per_visc_it',  region%ice%max_Axb_its_per_visc_it)
     call write_to_field_multopt_dp_0D ( region%output_filename_scalar, ncid, 'mean_Axb_its_per_visc_it', region%ice%mean_Axb_its_per_visc_it)
+
+    ! Reset stability info
+    region%ice%n_dt_ice                 = 0
+    region%ice%min_dt_ice               = huge( ice%min_dt_ice
+    region%ice%max_dt_ice               = 0._dp
+    region%ice%mean_dt_ice              = 0._dp
+    region%ice%n_visc_its               = 0
+    region%ice%min_visc_its             = huge( ice%min_visc_its)
+    region%ice%max_visc_its             = 0
+    region%ice%mean_visc_its            = 0._dp
+    region%ice%n_Axb_its                = 0
+    region%ice%min_Axb_its_per_visc_it  = huge( ice%min_Axb_its_per_visc_it)
+    region%ice%max_Axb_its_per_visc_it  = 0
+    region%ice%mean_Axb_its_per_visc_it = 0._dp
 
     ! Close the file
     CALL close_netcdf_file( ncid)
