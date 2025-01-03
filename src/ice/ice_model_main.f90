@@ -378,15 +378,15 @@ CONTAINS
 
     ! Numerical stability info
     ice%n_dt_ice                 = 0
-    ice%min_dt_ice               = 0._dp
+    ice%min_dt_ice               = huge( ice%min_dt_ice
     ice%max_dt_ice               = 0._dp
     ice%mean_dt_ice              = 0._dp
     ice%n_visc_its               = 0
-    ice%min_visc_its             = 0
+    ice%min_visc_its             = huge( ice%min_visc_its)
     ice%max_visc_its             = 0
     ice%mean_visc_its            = 0._dp
     ice%n_Axb_its                = 0
-    ice%min_Axb_its_per_visc_it  = 0
+    ice%min_Axb_its_per_visc_it  = huge( ice%min_Axb_its_per_visc_it)
     ice%max_Axb_its_per_visc_it  = 0
     ice%mean_Axb_its_per_visc_it = 0._dp
 
