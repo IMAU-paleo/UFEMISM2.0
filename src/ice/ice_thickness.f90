@@ -302,6 +302,7 @@ CONTAINS
     INTEGER                                                         :: vi, k1, k2, k, vj
     REAL(dp)                                                        :: dt_max
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                          :: dHi_dt_dummy
+    INTEGER                                                         :: n_Axb_its
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -353,7 +354,8 @@ CONTAINS
     CALL apply_ice_thickness_BC_matrix( mesh, mask_noice, AA, bb, Hi_tplusdt, BC_prescr_mask, BC_prescr_Hi)
 
     ! Solve for Hi_tplusdt
-    CALL solve_matrix_equation_CSR_PETSc( AA, bb, Hi_tplusdt, C%dHi_PETSc_rtol, C%dHi_PETSc_abstol)
+    CALL solve_matrix_equation_CSR_PETSc( AA, bb, Hi_tplusdt, C%dHi_PETSc_rtol, C%dHi_PETSc_abstol, &
+      n_Axb_its)
 
     ! Store the corresponding dH/dt in the artificial mass balance field
     AMB = (Hi_tplusdt - Hi) / dt
@@ -461,6 +463,7 @@ CONTAINS
     INTEGER                                                         :: vi, k1, k2, k, vj
     REAL(dp)                                                        :: dt_max
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                          :: dHi_dt_dummy
+    INTEGER                                                         :: n_Axb_its
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -512,7 +515,8 @@ CONTAINS
     CALL apply_ice_thickness_BC_matrix( mesh, mask_noice, AA, bb, Hi_tplusdt, BC_prescr_mask, BC_prescr_Hi)
 
     ! Solve for Hi_tplusdt
-    CALL solve_matrix_equation_CSR_PETSc( AA, bb, Hi_tplusdt, C%dHi_PETSc_rtol, C%dHi_PETSc_abstol)
+    CALL solve_matrix_equation_CSR_PETSc( AA, bb, Hi_tplusdt, C%dHi_PETSc_rtol, C%dHi_PETSc_abstol, &
+      n_Axb_its)
 
     ! Store the corresponding dH/dt in the artificial mass balance field
     AMB = (Hi_tplusdt - Hi) / dt

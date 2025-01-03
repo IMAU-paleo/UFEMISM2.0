@@ -23,7 +23,7 @@ MODULE petsc_basic
 CONTAINS
 
 ! == Solve a square CSR matrix equation with PETSc
-  SUBROUTINE solve_matrix_equation_CSR_PETSc( AA, bb, xx, rtol, abstol)
+  SUBROUTINE solve_matrix_equation_CSR_PETSc( AA, bb, xx, rtol, abstol, n_Axb_its)
 
     IMPLICIT NONE
 
@@ -32,6 +32,7 @@ CONTAINS
     REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: bb
     REAL(dp), DIMENSION(:    ),          INTENT(INOUT) :: xx
     REAL(dp),                            INTENT(IN)    :: rtol, abstol
+    integer,                             intent(out)   :: n_Axb_its
 
     ! Local variables
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'solve_matrix_equation_CSR_PETSc'
@@ -44,7 +45,7 @@ CONTAINS
     CALL mat_CSR2petsc( AA, A)
 
     ! Solve the PETSC matrix equation
-    CALL solve_matrix_equation_PETSc( A, bb, xx, rtol, abstol)
+    CALL solve_matrix_equation_PETSc( A, bb, xx, rtol, abstol, n_Axb_its)
 
     ! Clean up after yourself
     CALL MatDestroy( A, perr)
@@ -54,7 +55,7 @@ CONTAINS
 
   END SUBROUTINE solve_matrix_equation_CSR_PETSc
 
-  SUBROUTINE solve_matrix_equation_PETSc( A, bb, xx, rtol, abstol)
+  SUBROUTINE solve_matrix_equation_PETSc( A, bb, xx, rtol, abstol, n_Axb_its)
     ! Solve the matrix equation using a Krylov solver from PETSc
 
     IMPLICIT NONE
@@ -64,6 +65,7 @@ CONTAINS
     REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: bb
     REAL(dp), DIMENSION(:    ),          INTENT(INOUT) :: xx
     REAL(dp),                            INTENT(IN)    :: rtol, abstol
+    integer,                             intent(out)   :: n_Axb_its
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'solve_matrix_equation_PETSc'
@@ -71,7 +73,6 @@ CONTAINS
     TYPE(tVec)                                         :: b
     TYPE(tVec)                                         :: x
     TYPE(tKSP)                                         :: KSP_solver
-    INTEGER                                            :: its
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -116,8 +117,7 @@ CONTAINS
     CALL solve_matrix_equation_PETSc_KSPSolve( KSP_solver, b, x)
 
     ! Find out how many iterations it took
-    CALL KSPGetIterationNumber( KSP_solver, its, perr)
-    !IF (par%master) WRITE(0,*) '   PETSc solved Ax=b in ', its, ' iterations'
+    call KSPGetIterationNumber( KSP_solver, n_Axb_its, perr)
 
     ! Get the solution back to the native UFEMISM storage structure
     CALL vec_petsc2double( x, xx)

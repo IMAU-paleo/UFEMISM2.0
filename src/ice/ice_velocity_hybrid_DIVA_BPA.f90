@@ -106,7 +106,9 @@ CONTAINS
 
   END SUBROUTINE initialise_hybrid_DIVA_BPA_solver
 
-  SUBROUTINE solve_hybrid_DIVA_BPA( mesh, ice, hybrid, region_name, BC_prescr_mask_b, BC_prescr_u_b, BC_prescr_v_b)
+  SUBROUTINE solve_hybrid_DIVA_BPA( mesh, ice, hybrid, region_name, &
+    n_visc_its, n_Axb_its, min_Axb_its_per_visc_it, max_Axb_its_per_visc_it, &
+    BC_prescr_mask_b, BC_prescr_u_b, BC_prescr_v_b)
     ! Calculate ice velocities by solving the hybrid DIVA/BPA
 
     IMPLICIT NONE
@@ -116,6 +118,10 @@ CONTAINS
     TYPE(type_ice_model),                  INTENT(INOUT)           :: ice
     TYPE(type_ice_velocity_solver_hybrid), INTENT(INOUT)           :: hybrid
     CHARACTER(LEN=3),                      INTENT(IN)              :: region_name
+    integer,                               intent(out)             :: n_visc_its               ! Number of non-linear viscosity iterations
+    integer,                               intent(out)             :: n_Axb_its                ! Number of iterations in iterative solver for linearised momentum balance
+    integer,                               intent(out)             :: min_Axb_its_per_visc_it  ! Smallest number of iterations in iterative solver for linearised momentum balance per non-linear viscosity iteration
+    integer,                               intent(out)             :: max_Axb_its_per_visc_it  ! Largest number of iterations in iterative solver for linearised momentum balance per non-linear viscosity iteration
     INTEGER,  DIMENSION(:    ),            INTENT(IN)   , OPTIONAL :: BC_prescr_mask_b      ! Mask of triangles where velocity is prescribed
     REAL(dp), DIMENSION(:    ),            INTENT(IN)   , OPTIONAL :: BC_prescr_u_b         ! Prescribed velocities in the x-direction
     REAL(dp), DIMENSION(:    ),            INTENT(IN)   , OPTIONAL :: BC_prescr_v_b         ! Prescribed velocities in the y-direction
@@ -133,6 +139,7 @@ CONTAINS
     REAL(dp)                                                       :: visc_it_relax_applied
     REAL(dp)                                                       :: Glens_flow_law_epsilon_sq_0_applied
     INTEGER                                                        :: nit_diverg_consec
+    integer                                                        :: n_Axb_its_visc_it
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -186,6 +193,12 @@ CONTAINS
     visc_it_relax_applied               = C%visc_it_relax
     Glens_flow_law_epsilon_sq_0_applied = C%Glens_flow_law_epsilon_sq_0
 
+    ! Initialise stability info
+    n_visc_its               = 0
+    n_Axb_its                = 0
+    min_Axb_its_per_visc_it  = huge( min_Axb_its_per_visc_it)
+    max_Axb_its_per_visc_it  = 0
+
     ! The viscosity iteration
     viscosity_iteration_i = 0
     has_converged         = .FALSE.
@@ -226,7 +239,13 @@ CONTAINS
     ! =======================================
 
       ! Solve the linearised hybrid DIVA/BPA to calculate a new velocity solution
-      CALL solve_hybrid_DIVA_BPA_linearised( mesh, ice, hybrid, BC_prescr_mask_b_applied, BC_prescr_u_b_applied, BC_prescr_v_b_applied)
+      CALL solve_hybrid_DIVA_BPA_linearised( mesh, ice, hybrid, n_Axb_its_visc_it, &
+        BC_prescr_mask_b_applied, BC_prescr_u_b_applied, BC_prescr_v_b_applied)
+
+      ! Update stability info
+      n_Axb_its = n_Axb_its + n_Axb_its_visc_it
+      min_Axb_its_per_visc_it = min( min_Axb_its_per_visc_it, n_Axb_its_visc_it)
+      max_Axb_its_per_visc_it = max( max_Axb_its_per_visc_it, n_Axb_its_visc_it)
 
       ! Copy results to the DIVA and BPA structures
       hybrid%DIVA%u_vav_b = hybrid%u_vav_b
@@ -302,6 +321,9 @@ CONTAINS
     DEALLOCATE( BC_prescr_mask_b_applied)
     DEALLOCATE( BC_prescr_u_b_applied   )
     DEALLOCATE( BC_prescr_v_b_applied   )
+
+    ! Stability info
+    n_visc_its = viscosity_iteration_i
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -662,7 +684,8 @@ CONTAINS
 
 ! == Assemble and solve the linearised BPA
 
-  SUBROUTINE solve_hybrid_DIVA_BPA_linearised( mesh, ice, hybrid, BC_prescr_mask_b, BC_prescr_u_b, BC_prescr_v_b)
+  SUBROUTINE solve_hybrid_DIVA_BPA_linearised( mesh, ice, hybrid, n_Axb_its, &
+    BC_prescr_mask_b, BC_prescr_u_b, BC_prescr_v_b)
     ! Solve the linearised hybrid DIVA/BPA
 
     IMPLICIT NONE
@@ -671,6 +694,7 @@ CONTAINS
     TYPE(type_mesh),                       INTENT(IN)              :: mesh
     TYPE(type_ice_model),                  INTENT(IN)              :: ice
     TYPE(type_ice_velocity_solver_hybrid), INTENT(INOUT)           :: hybrid
+    integer,                                           intent(out) :: n_Axb_its             ! Number of iterations used in the iterative solver
     INTEGER,  DIMENSION(mesh%ti1:mesh%ti2),            INTENT(IN)  :: BC_prescr_mask_b      ! Mask of triangles where velocity is prescribed
     REAL(dp), DIMENSION(mesh%ti1:mesh%ti2),            INTENT(IN)  :: BC_prescr_u_b         ! Prescribed velocities in the x-direction
     REAL(dp), DIMENSION(mesh%ti1:mesh%ti2),            INTENT(IN)  :: BC_prescr_v_b         ! Prescribed velocities in the y-direction
@@ -932,7 +956,8 @@ CONTAINS
   ! ============================
 
     ! Use PETSc to solve the matrix equation
-    CALL solve_matrix_equation_CSR_PETSc( A_combi, b_combi, uv_combi, hybrid%PETSc_rtol, hybrid%PETSc_abstol)
+    CALL solve_matrix_equation_CSR_PETSc( A_combi, b_combi, uv_combi, hybrid%PETSc_rtol, hybrid%PETSc_abstol, &
+      n_Axb_its)
 
     ! Get velocities back from the combined vector
     DO ti = mesh%ti1, mesh%ti2
