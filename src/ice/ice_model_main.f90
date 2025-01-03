@@ -376,6 +376,20 @@ CONTAINS
       CALL crash('unknown choice_timestepping "' // TRIM( C%choice_timestepping) // '"!')
     END IF
 
+    ! Numerical stability info
+    ice%n_dt_ice                 = 0
+    ice%min_dt_ice               = 0._dp
+    ice%max_dt_ice               = 0._dp
+    ice%mean_dt_ice              = 0._dp
+    ice%n_visc_its               = 0
+    ice%min_visc_its             = 0
+    ice%max_visc_its             = 0
+    ice%mean_visc_its            = 0._dp
+    ice%n_Axb_its                = 0
+    ice%min_Axb_its_per_visc_it  = 0
+    ice%max_Axb_its_per_visc_it  = 0
+    ice%mean_Axb_its_per_visc_it = 0._dp
+
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 

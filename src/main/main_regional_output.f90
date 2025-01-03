@@ -35,7 +35,7 @@ MODULE main_regional_output
                                                                      write_to_field_multopt_grid_dp_2D, write_to_field_multopt_grid_dp_2D_notime, &
                                                                      write_to_field_multopt_grid_dp_2D_monthly, write_to_field_multopt_grid_dp_2D_monthly_notime, &
                                                                      write_to_field_multopt_grid_dp_3D, write_to_field_multopt_grid_dp_3D_notime, &
-                                                                     write_to_field_multopt_dp_0D, &
+                                                                     write_to_field_multopt_dp_0D, write_to_field_multopt_int_0D, &
                                                                      write_matrix_operators_to_netcdf_file
   use remapping_main, only: map_from_mesh_to_xy_grid_2D, map_from_mesh_to_xy_grid_3D, map_from_mesh_to_xy_grid_2D_minval
 
@@ -1306,7 +1306,7 @@ CONTAINS
     IMPLICIT NONE
 
     ! In/output variables:
-    TYPE(type_model_region)                            , INTENT(IN)    :: region
+    TYPE(type_model_region)                            , INTENT(INOUT) :: region
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'write_to_scalar_regional_output_file'
@@ -1365,6 +1365,21 @@ CONTAINS
     CALL write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'cf_fl_flux',        region%scalars%cf_fl_flux)
     CALL write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'margin_land_flux',  region%scalars%margin_land_flux)
     CALL write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'margin_ocean_flux', region%scalars%margin_ocean_flux)
+
+    call write_to_field_multopt_int_0D( region%output_filename_scalar, ncid, 'n_dt_ice',         region%ice%n_dt_ice)
+    call write_to_field_multopt_dp_0D ( region%output_filename_scalar, ncid, 'min_dt_ice',       region%ice%min_dt_ice)
+    call write_to_field_multopt_dp_0D ( region%output_filename_scalar, ncid, 'max_dt_ice',       region%ice%max_dt_ice)
+    call write_to_field_multopt_dp_0D ( region%output_filename_scalar, ncid, 'mean_dt_ice',      region%ice%mean_dt_ice)
+
+    call write_to_field_multopt_int_0D( region%output_filename_scalar, ncid, 'n_visc_its',           region%ice%n_visc_its)
+    call write_to_field_multopt_int_0D( region%output_filename_scalar, ncid, 'min_visc_its_per_dt',  region%ice%min_visc_its)
+    call write_to_field_multopt_int_0D( region%output_filename_scalar, ncid, 'max_visc_its_per_dt',  region%ice%max_visc_its)
+    call write_to_field_multopt_dp_0D ( region%output_filename_scalar, ncid, 'mean_visc_its_per_dt', region%ice%mean_visc_its)
+
+    call write_to_field_multopt_int_0D( region%output_filename_scalar, ncid, 'n_Axb_its',                region%ice%n_Axb_its)
+    call write_to_field_multopt_int_0D( region%output_filename_scalar, ncid, 'min_Axb_its_per_visc_it',  region%ice%min_Axb_its_per_visc_it)
+    call write_to_field_multopt_int_0D( region%output_filename_scalar, ncid, 'max_Axb_its_per_visc_it',  region%ice%max_Axb_its_per_visc_it)
+    call write_to_field_multopt_dp_0D ( region%output_filename_scalar, ncid, 'mean_Axb_its_per_visc_it', region%ice%mean_Axb_its_per_visc_it)
 
     ! Close the file
     CALL close_netcdf_file( ncid)
@@ -2788,7 +2803,7 @@ CONTAINS
 
       ! Mean number of iterations in iterative solver for linearised momentum balance per non-linear viscosity iteration
       case ('mean_Axb_its_per_visc_it')
-        call add_field_dp_0D( filename, ncid, 'min_Axb_its_per_visc_it', long_name = 'Mean number of iterations in iterative solver for linearised momentum balance per non-linear viscosity iteration')
+        call add_field_dp_0D( filename, ncid, 'mean_Axb_its_per_visc_it', long_name = 'Mean number of iterations in iterative solver for linearised momentum balance per non-linear viscosity iteration')
 
     ! ===== End of user-defined output fields =====
     ! =============================================
