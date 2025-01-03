@@ -378,13 +378,13 @@ CONTAINS
 
     ! Numerical stability info
     ice%n_dt_ice                 = 0
-    ice%min_dt_ice               = huge( ice%min_dt_ice
+    ice%min_dt_ice               = huge( ice%min_dt_ice)
     ice%max_dt_ice               = 0._dp
     ice%mean_dt_ice              = 0._dp
     ice%n_visc_its               = 0
-    ice%min_visc_its             = huge( ice%min_visc_its)
-    ice%max_visc_its             = 0
-    ice%mean_visc_its            = 0._dp
+    ice%min_visc_its_per_dt      = huge( ice%min_visc_its_per_dt)
+    ice%max_visc_its_per_dt      = 0
+    ice%mean_visc_its_per_dt     = 0._dp
     ice%n_Axb_its                = 0
     ice%min_Axb_its_per_visc_it  = huge( ice%min_Axb_its_per_visc_it)
     ice%max_Axb_its_per_visc_it  = 0
@@ -1109,6 +1109,11 @@ CONTAINS
     REAL(dp)                                              :: Glens_flow_law_epsilon_sq_0_save
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: Hi_tplusdt
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: divQ
+    integer                                               :: n_visc_its
+    integer                                               :: n_Axb_its
+    integer                                               :: min_Axb_its_per_visc_it
+    integer                                               :: max_Axb_its_per_visc_it
+    real(dp)                                              :: mean_Axb_its_per_visc_it
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -1265,7 +1270,9 @@ CONTAINS
     pseudo_time: DO WHILE (t_pseudo < dt_relax)
 
       ! Update velocity solution around the calving front
-      CALL solve_stress_balance( mesh, ice, BMB_new, region_name, BC_prescr_mask_b, BC_prescr_u_b, BC_prescr_v_b, BC_prescr_mask_bk, BC_prescr_u_bk, BC_prescr_v_bk)
+      CALL solve_stress_balance( mesh, ice, BMB_new, region_name, &
+        n_visc_its, n_Axb_its, min_Axb_its_per_visc_it, max_Axb_its_per_visc_it, &
+        BC_prescr_mask_b, BC_prescr_u_b, BC_prescr_v_b, BC_prescr_mask_bk, BC_prescr_u_bk, BC_prescr_v_bk)
 
       ! Calculate dH/dt around the calving front
       CALL calc_dHi_dt( mesh, ice%Hi, ice%Hb, ice%SL, ice%u_vav_b, ice%v_vav_b, SMB_new, BMB_new, LMB_new, AMB_new, ice%fraction_margin, ice%mask_noice, C%dt_ice_min, &
@@ -1321,6 +1328,11 @@ CONTAINS
     REAL(dp), DIMENSION(region%mesh%vi1:region%mesh%vi2)  :: Hi_new, dHi_dt_new
     REAL(dp), DIMENSION(region%mesh%vi1:region%mesh%vi2)  :: SMB_dummy, BMB_dummy, LMB_dummy, AMB_dummy, dHi_dt_target_dummy
     CHARACTER(LEN=256)                                    :: t_years, r_time, r_step, r_adv, t_format
+    integer                                               :: n_visc_its
+    integer                                               :: n_Axb_its
+    integer                                               :: min_Axb_its_per_visc_it
+    integer                                               :: max_Axb_its_per_visc_it
+    real(dp)                                              :: mean_Axb_its_per_visc_it
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -1374,7 +1386,8 @@ CONTAINS
       region%ice%effective_pressure = MAX( 0._dp, ice_density * grav * region%ice%Hi_eff) * region%ice%fraction_gr
 
       ! Calculate ice velocities for the predicted geometry
-      CALL solve_stress_balance( region%mesh, region%ice, BMB_dummy, region%name)
+      CALL solve_stress_balance( region%mesh, region%ice, BMB_dummy, region%name, &
+        n_visc_its, n_Axb_its, min_Axb_its_per_visc_it, max_Axb_its_per_visc_it)
 
       ! Calculate thinning rates for current geometry and velocity
       CALL calc_dHi_dt( region%mesh, region%ice%Hi, region%ice%Hb, region%ice%SL, region%ice%u_vav_b, region%ice%v_vav_b, SMB_dummy, BMB_dummy, LMB_dummy, AMB_dummy, region%ice%fraction_margin, &
@@ -1512,6 +1525,11 @@ CONTAINS
     INTEGER                                               :: pc_it
     REAL(dp), DIMENSION(region%mesh%vi1:region%mesh%vi2)  :: Hi_dummy, dHi_dt_dummy, LMB_dummy, AMB_dummy
     INTEGER                                               :: vi, n_guilty, n_tot
+    integer                                               :: n_visc_its
+    integer                                               :: n_Axb_its
+    integer                                               :: min_Axb_its_per_visc_it
+    integer                                               :: max_Axb_its_per_visc_it
+    real(dp)                                              :: mean_Axb_its_per_visc_it
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -1626,7 +1644,21 @@ CONTAINS
       ! CALL run_BMB_model( region%mesh, region%ice, region%ocean, region%refgeo_PD, region%SMB, region%BMB, region%name, region%time)
 
       ! Calculate ice velocities for the predicted geometry
-      CALL solve_stress_balance( region%mesh, region%ice, region%BMB%BMB, region%name)
+      CALL solve_stress_balance( region%mesh, region%ice, region%BMB%BMB, region%name, &
+        n_visc_its, n_Axb_its, min_Axb_its_per_visc_it, max_Axb_its_per_visc_it)
+
+      ! Update stability info
+      region%ice%n_dt_ice                = region%ice%n_dt_ice   + 1
+      region%ice%min_dt_ice              = min( region%ice%min_dt_ice, region%ice%pc%dt_np1)
+      region%ice%max_dt_ice              = max( region%ice%max_dt_ice, region%ice%pc%dt_np1)
+
+      region%ice%n_visc_its              = region%ice%n_visc_its + n_visc_its
+      region%ice%min_visc_its_per_dt     = min( region%ice%min_visc_its_per_dt, n_visc_its)
+      region%ice%max_visc_its_per_dt     = max( region%ice%max_visc_its_per_dt, n_visc_its)
+
+      region%ice%n_Axb_its               = region%ice%n_Axb_its  + n_Axb_its
+      region%ice%min_Axb_its_per_visc_it = min( region%ice%min_Axb_its_per_visc_it, min_Axb_its_per_visc_it)
+      region%ice%max_Axb_its_per_visc_it = max( region%ice%max_Axb_its_per_visc_it, max_Axb_its_per_visc_it)
 
       ! == Corrector step ==
       ! ====================
@@ -2101,6 +2133,11 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'run_ice_dynamics_model_direct'
     REAL(dp)                                              :: dt_crit_SIA, dt_crit_adv, dt
     INTEGER                                               :: vi
+    integer                                               :: n_visc_its
+    integer                                               :: n_Axb_its
+    integer                                               :: min_Axb_its_per_visc_it
+    integer                                               :: max_Axb_its_per_visc_it
+    real(dp)                                              :: mean_Axb_its_per_visc_it
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -2117,7 +2154,8 @@ CONTAINS
     region%ice%Hi_prev    = region%ice%Hi_next
 
     ! Calculate ice velocities
-    CALL solve_stress_balance( region%mesh, region%ice, region%BMB%BMB, region%name)
+    CALL solve_stress_balance( region%mesh, region%ice, region%BMB%BMB, region%name, &
+      n_visc_its, n_Axb_its, min_Axb_its_per_visc_it, max_Axb_its_per_visc_it)
 
     ! Calculate time step
 

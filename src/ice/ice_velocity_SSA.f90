@@ -93,7 +93,9 @@ CONTAINS
 
   END SUBROUTINE initialise_SSA_solver
 
-  SUBROUTINE solve_SSA( mesh, ice, SSA, BC_prescr_mask_b, BC_prescr_u_b, BC_prescr_v_b)
+  SUBROUTINE solve_SSA( mesh, ice, SSA, &
+    n_visc_its, n_Axb_its, min_Axb_its_per_visc_it, max_Axb_its_per_visc_it, &
+    BC_prescr_mask_b, BC_prescr_u_b, BC_prescr_v_b)
     ! Calculate ice velocities by solving the Shallow Shelf Approximation
 
     IMPLICIT NONE
@@ -102,6 +104,10 @@ CONTAINS
     TYPE(type_mesh),                     INTENT(IN)              :: mesh
     TYPE(type_ice_model),                INTENT(INOUT)           :: ice
     TYPE(type_ice_velocity_solver_SSA),  INTENT(INOUT)           :: SSA
+    integer,                             intent(out)             :: n_visc_its               ! Number of non-linear viscosity iterations
+    integer,                             intent(out)             :: n_Axb_its                ! Number of iterations in iterative solver for linearised momentum balance
+    integer,                             intent(out)             :: min_Axb_its_per_visc_it  ! Smallest number of iterations in iterative solver for linearised momentum balance per non-linear viscosity iteration
+    integer,                             intent(out)             :: max_Axb_its_per_visc_it  ! Largest number of iterations in iterative solver for linearised momentum balance per non-linear viscosity iteration
     INTEGER,  DIMENSION(:    ),          INTENT(IN)   , OPTIONAL :: BC_prescr_mask_b      ! Mask of triangles where velocity is prescribed
     REAL(dp), DIMENSION(:    ),          INTENT(IN)   , OPTIONAL :: BC_prescr_u_b         ! Prescribed velocities in the x-direction
     REAL(dp), DIMENSION(:    ),          INTENT(IN)   , OPTIONAL :: BC_prescr_v_b         ! Prescribed velocities in the y-direction
@@ -119,6 +125,7 @@ CONTAINS
     REAL(dp)                                                     :: visc_it_relax_applied
     REAL(dp)                                                     :: Glens_flow_law_epsilon_sq_0_applied
     INTEGER                                                      :: nit_diverg_consec
+    integer                                                      :: n_Axb_its_visc_it
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -160,6 +167,12 @@ CONTAINS
     visc_it_relax_applied               = C%visc_it_relax
     Glens_flow_law_epsilon_sq_0_applied = C%Glens_flow_law_epsilon_sq_0
 
+    ! Initialise stability info
+    n_visc_its               = 0
+    n_Axb_its                = 0
+    min_Axb_its_per_visc_it  = huge( min_Axb_its_per_visc_it)
+    max_Axb_its_per_visc_it  = 0
+
     ! The viscosity iteration
     viscosity_iteration_i = 0
     has_converged         = .FALSE.
@@ -176,7 +189,13 @@ CONTAINS
       CALL calc_applied_basal_friction_coefficient( mesh, ice, SSA)
 
       ! Solve the linearised SSA to calculate a new velocity solution
-      CALL solve_SSA_linearised( mesh, SSA, BC_prescr_mask_b_applied, BC_prescr_u_b_applied, BC_prescr_v_b_applied)
+      CALL solve_SSA_linearised( mesh, SSA, n_Axb_its_visc_it, &
+        BC_prescr_mask_b_applied, BC_prescr_u_b_applied, BC_prescr_v_b_applied)
+
+      ! Update stability info
+      n_Axb_its = n_Axb_its + n_Axb_its_visc_it
+      min_Axb_its_per_visc_it = min( min_Axb_its_per_visc_it, n_Axb_its_visc_it)
+      max_Axb_its_per_visc_it = max( max_Axb_its_per_visc_it, n_Axb_its_visc_it)
 
       ! Limit velocities for improved stability
       CALL apply_velocity_limits( mesh, SSA)
@@ -232,6 +251,9 @@ CONTAINS
     DEALLOCATE( BC_prescr_mask_b_applied)
     DEALLOCATE( BC_prescr_u_b_applied   )
     DEALLOCATE( BC_prescr_v_b_applied   )
+
+    ! Stability info
+    n_visc_its = viscosity_iteration_i
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -309,7 +331,8 @@ CONTAINS
 
 ! == Assemble and solve the linearised SSA
 
-  SUBROUTINE solve_SSA_linearised( mesh, SSA, BC_prescr_mask_b, BC_prescr_u_b, BC_prescr_v_b)
+  SUBROUTINE solve_SSA_linearised( mesh, SSA, n_Axb_its, &
+    BC_prescr_mask_b, BC_prescr_u_b, BC_prescr_v_b)
     ! Solve the linearised SSA
 
     IMPLICIT NONE
@@ -317,6 +340,7 @@ CONTAINS
     ! In/output variables:
     TYPE(type_mesh),                     INTENT(IN)              :: mesh
     TYPE(type_ice_velocity_solver_SSA),  INTENT(INOUT)           :: SSA
+    integer,                                         intent(out) :: n_Axb_its             ! Number of iterations used in the iterative solver
     INTEGER,  DIMENSION(mesh%ti1:mesh%ti2),          INTENT(IN)  :: BC_prescr_mask_b      ! Mask of triangles where velocity is prescribed
     REAL(dp), DIMENSION(mesh%ti1:mesh%ti2),          INTENT(IN)  :: BC_prescr_u_b         ! Prescribed velocities in the x-direction
     REAL(dp), DIMENSION(mesh%ti1:mesh%ti2),          INTENT(IN)  :: BC_prescr_v_b         ! Prescribed velocities in the y-direction
@@ -427,7 +451,8 @@ CONTAINS
   ! ============================
 
     ! Use PETSc to solve the matrix equation
-    CALL solve_matrix_equation_CSR_PETSc( A_CSR, bb, uv_buv, SSA%PETSc_rtol, SSA%PETSc_abstol)
+    CALL solve_matrix_equation_CSR_PETSc( A_CSR, bb, uv_buv, SSA%PETSc_rtol, SSA%PETSc_abstol, &
+      n_Axb_its)
 
     ! Disentangle the u and v components of the velocity solution
     DO ti = mesh%ti1, mesh%ti2

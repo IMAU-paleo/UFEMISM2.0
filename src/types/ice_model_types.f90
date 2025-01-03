@@ -438,9 +438,9 @@ MODULE ice_model_types
     real(dp)                                :: max_dt_ice                  ! [yr] Largest ice-dynamical time step
     real(dp)                                :: mean_dt_ice                 ! [yr] Mean ice-dynamical time step
     integer                                 :: n_visc_its                  !      Total number of non-linear viscosity iterations
-    integer                                 :: min_visc_its                !      Smallest number of non-linear viscosity iterations in a single ice-dynamical time step
-    integer                                 :: max_visc_its                !      Largest number of non-linear viscosity iterations in a single ice-dynamical time step
-    real(dp)                                :: mean_visc_its               !      Mean number of non-linear viscosity iterations in a single ice-dynamical time step
+    integer                                 :: min_visc_its_per_dt         !      Smallest number of non-linear viscosity iterations in a single ice-dynamical time step
+    integer                                 :: max_visc_its_per_dt         !      Largest number of non-linear viscosity iterations in a single ice-dynamical time step
+    real(dp)                                :: mean_visc_its_per_dt        !      Mean number of non-linear viscosity iterations in a single ice-dynamical time step
     integer                                 :: n_Axb_its                   !      Total number of iterations in iterative solver for linearised momentum balance
     integer                                 :: min_Axb_its_per_visc_it     !      Smallest number of iterations in iterative solver for linearised momentum balance per non-linear viscosity iteration
     integer                                 :: max_Axb_its_per_visc_it     !      Largest number of iterations in iterative solver for linearised momentum balance per non-linear viscosity iteration

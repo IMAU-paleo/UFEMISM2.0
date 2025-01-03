@@ -1370,29 +1370,32 @@ CONTAINS
     call write_to_field_multopt_int_0D( region%output_filename_scalar, ncid, 'n_dt_ice',         region%ice%n_dt_ice)
     call write_to_field_multopt_dp_0D ( region%output_filename_scalar, ncid, 'min_dt_ice',       region%ice%min_dt_ice)
     call write_to_field_multopt_dp_0D ( region%output_filename_scalar, ncid, 'max_dt_ice',       region%ice%max_dt_ice)
+    region%ice%mean_dt_ice = C%dt_output / real( region%ice%n_dt_ice,dp)
     call write_to_field_multopt_dp_0D ( region%output_filename_scalar, ncid, 'mean_dt_ice',      region%ice%mean_dt_ice)
 
     call write_to_field_multopt_int_0D( region%output_filename_scalar, ncid, 'n_visc_its',           region%ice%n_visc_its)
-    call write_to_field_multopt_int_0D( region%output_filename_scalar, ncid, 'min_visc_its_per_dt',  region%ice%min_visc_its)
-    call write_to_field_multopt_int_0D( region%output_filename_scalar, ncid, 'max_visc_its_per_dt',  region%ice%max_visc_its)
-    call write_to_field_multopt_dp_0D ( region%output_filename_scalar, ncid, 'mean_visc_its_per_dt', region%ice%mean_visc_its)
+    call write_to_field_multopt_int_0D( region%output_filename_scalar, ncid, 'min_visc_its_per_dt',  region%ice%min_visc_its_per_dt)
+    call write_to_field_multopt_int_0D( region%output_filename_scalar, ncid, 'max_visc_its_per_dt',  region%ice%max_visc_its_per_dt)
+    region%ice%mean_visc_its_per_dt = real( region%ice%n_visc_its,dp) / real( region%ice%n_dt_ice,dp)
+    call write_to_field_multopt_dp_0D ( region%output_filename_scalar, ncid, 'mean_visc_its_per_dt', region%ice%mean_visc_its_per_dt)
 
     call write_to_field_multopt_int_0D( region%output_filename_scalar, ncid, 'n_Axb_its',                region%ice%n_Axb_its)
     call write_to_field_multopt_int_0D( region%output_filename_scalar, ncid, 'min_Axb_its_per_visc_it',  region%ice%min_Axb_its_per_visc_it)
     call write_to_field_multopt_int_0D( region%output_filename_scalar, ncid, 'max_Axb_its_per_visc_it',  region%ice%max_Axb_its_per_visc_it)
+    region%ice%mean_visc_its_per_dt = real( region%ice%n_Axb_its,dp) / real( region%ice%n_visc_its,dp)
     call write_to_field_multopt_dp_0D ( region%output_filename_scalar, ncid, 'mean_Axb_its_per_visc_it', region%ice%mean_Axb_its_per_visc_it)
 
     ! Reset stability info
     region%ice%n_dt_ice                 = 0
-    region%ice%min_dt_ice               = huge( ice%min_dt_ice
+    region%ice%min_dt_ice               = huge( region%ice%min_dt_ice)
     region%ice%max_dt_ice               = 0._dp
     region%ice%mean_dt_ice              = 0._dp
     region%ice%n_visc_its               = 0
-    region%ice%min_visc_its             = huge( ice%min_visc_its)
-    region%ice%max_visc_its             = 0
-    region%ice%mean_visc_its            = 0._dp
+    region%ice%min_visc_its_per_dt      = huge( region%ice%min_visc_its_per_dt)
+    region%ice%max_visc_its_per_dt      = 0
+    region%ice%mean_visc_its_per_dt     = 0._dp
     region%ice%n_Axb_its                = 0
-    region%ice%min_Axb_its_per_visc_it  = huge( ice%min_Axb_its_per_visc_it)
+    region%ice%min_Axb_its_per_visc_it  = huge( region%ice%min_Axb_its_per_visc_it)
     region%ice%max_Axb_its_per_visc_it  = 0
     region%ice%mean_Axb_its_per_visc_it = 0._dp
 
