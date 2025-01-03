@@ -25,7 +25,7 @@ MODULE main_regional_output
                                                                      add_field_grid_dp_2D, add_field_grid_dp_2D_notime, &
                                                                      add_field_grid_dp_3D, add_field_grid_dp_3D_notime, &
                                                                      add_field_grid_dp_2D_monthly, add_field_grid_dp_2D_monthly_notime, &
-                                                                     add_field_dp_0D, &
+                                                                     add_field_dp_0D, add_field_int_0D, &
                                                                      write_to_field_multopt_mesh_int_2D, write_to_field_multopt_mesh_int_2D_notime, &
                                                                      write_to_field_multopt_mesh_dp_2D, write_to_field_multopt_mesh_dp_2D_notime, &
                                                                      write_to_field_multopt_mesh_dp_2D_monthly, write_to_field_multopt_mesh_dp_2D_monthly_notime, &
@@ -2534,6 +2534,8 @@ CONTAINS
     CALL add_time_dimension_to_file(  region%output_filename_scalar, ncid)
 
     ! Add the default data fields to the file
+
+    ! Integrated ice geometry
     CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'ice_area')
     CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'ice_volume')
     CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'ice_volume_af')
@@ -2542,6 +2544,7 @@ CONTAINS
     CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'ice_volume_PD')
     CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'ice_volume_af_PD')
 
+    ! Integrated mass fluxes
     CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'SMB_total')
     CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'SMB_gr')
     CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'SMB_fl')
@@ -2569,6 +2572,22 @@ CONTAINS
     CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'cf_fl_flux')
     CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'margin_land_flux')
     CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'margin_ocean_flux')
+
+    ! Numerical stability info
+    call create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'n_dt_ice')
+    call create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'min_dt_ice')
+    call create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'max_dt_ice')
+    call create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'mean_dt_ice')
+
+    call create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'n_visc_its')
+    call create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'min_visc_its_per_dt')
+    call create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'max_visc_its_per_dt')
+    call create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'mean_visc_its_per_dt')
+
+    call create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'n_Axb_its')
+    call create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'min_Axb_its_per_visc_it')
+    call create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'max_Axb_its_per_visc_it')
+    call create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'mean_Axb_its_per_visc_it')
 
     ! Close the file
     CALL close_netcdf_file( ncid)
@@ -2722,6 +2741,54 @@ CONTAINS
       ! Total flux exiting ice margins into marine areas
       CASE ('margin_ocean_flux')
         CALL add_field_dp_0D( filename, ncid, 'margin_ocean_flux', long_name = 'Total lateral flux exiting the ice margin into water', units = 'Gt yr^-1')
+
+      ! Total number of ice-dynamical time steps
+      case ('n_dt_ice')
+        call add_field_int_0D( filename, ncid, 'n_dt_ice', long_name = 'Total number of ice-dynamical time steps')
+
+      ! Smallest ice-dynamical time step
+      case ('min_dt_ice')
+        call add_field_dp_0D( filename, ncid, 'min_dt_ice', long_name = 'Smallest ice-dynamical time step', units = 'yr')
+
+      ! Largest ice-dynamical time step
+      case ('max_dt_ice')
+        call add_field_dp_0D( filename, ncid, 'max_dt_ice', long_name = 'Largest ice-dynamical time step', units = 'yr')
+
+      ! Mean ice-dynamical time step
+      case ('mean_dt_ice')
+        call add_field_dp_0D( filename, ncid, 'mean_dt_ice', long_name = 'Mean ice-dynamical time step', units = 'yr')
+
+      ! Total number of non-linear viscosity iterations
+      case ('n_visc_its')
+        call add_field_int_0D( filename, ncid, 'n_visc_its', long_name = 'Total number of non-linear viscosity iterations')
+
+      ! Smallest number of non-linear viscosity iterations in a single ice-dynamical time step
+      case ('min_visc_its_per_dt')
+        call add_field_int_0D( filename, ncid, 'min_visc_its_per_dt', long_name = 'Smallest number of non-linear viscosity iterations in a single ice-dynamical time step')
+
+      ! Largest number of non-linear viscosity iterations in a single ice-dynamical time step
+      case ('max_visc_its_per_dt')
+        call add_field_int_0D( filename, ncid, 'max_visc_its_per_dt', long_name = 'Largest number of non-linear viscosity iterations in a single ice-dynamical time step')
+
+      ! Mean number of non-linear viscosity iterations in a single ice-dynamical time step
+      case ('mean_visc_its_per_dt')
+        call add_field_dp_0D( filename, ncid, 'mean_visc_its_per_dt', long_name = 'Mean number of non-linear viscosity iterations in a single ice-dynamical time step')
+
+      ! Total number of iterations in iterative solver for linearised momentum balance
+      case ('n_Axb_its')
+        call add_field_int_0D( filename, ncid, 'n_Axb_its', long_name = 'Total number of iterations in iterative solver for linearised momentum balance')
+
+      ! Smallest number of iterations in iterative solver for linearised momentum balance per non-linear viscosity iteration
+      case ('min_Axb_its_per_visc_it')
+        call add_field_int_0D( filename, ncid, 'min_Axb_its_per_visc_it', long_name = 'Smallest number of iterations in iterative solver for linearised momentum balance per non-linear viscosity iteration')
+
+      ! Largest number of iterations in iterative solver for linearised momentum balance per non-linear viscosity iteration
+      case ('max_Axb_its_per_visc_it')
+        call add_field_int_0D( filename, ncid, 'max_Axb_its_per_visc_it', long_name = 'Largest number of iterations in iterative solver for linearised momentum balance per non-linear viscosity iteration')
+
+      ! Mean number of iterations in iterative solver for linearised momentum balance per non-linear viscosity iteration
+      case ('mean_Axb_its_per_visc_it')
+        call add_field_dp_0D( filename, ncid, 'min_Axb_its_per_visc_it', long_name = 'Mean number of iterations in iterative solver for linearised momentum balance per non-linear viscosity iteration')
 
     ! ===== End of user-defined output fields =====
     ! =============================================

@@ -4139,6 +4139,43 @@ CONTAINS
 
   END SUBROUTINE add_field_dp_0D
 
+  SUBROUTINE add_field_int_0D( filename, ncid, var_name, long_name, units)
+    ! Add a 0-D variable to an existing NetCDF file
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
+    INTEGER,                             INTENT(IN)    :: ncid
+    CHARACTER(LEN=*),                    INTENT(IN)    :: var_name
+    CHARACTER(LEN=*),          OPTIONAL, INTENT(IN)    :: long_name
+    CHARACTER(LEN=*),          OPTIONAL, INTENT(IN)    :: units
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'add_field_int_0D'
+    INTEGER                                            :: id_dim_time, id_var
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Inquire dimensions
+    CALL inquire_dim_multopt( filename, ncid, field_name_options_time  , id_dim_time)
+
+    ! Safety
+    IF (id_dim_time == -1) CALL crash('no time dimension could be found in file "' // TRIM( filename) // '"!')
+
+    ! Create variable
+    CALL create_variable( filename, ncid, var_name, NF90_INT, (/ id_dim_time /), id_var)
+
+    ! Add attributes
+    IF (PRESENT( long_name)) CALL add_attribute_char( filename, ncid, id_var, 'long_name', long_name)
+    IF (PRESENT( units    )) CALL add_attribute_char( filename, ncid, id_var, 'units'    , units    )
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE add_field_int_0D
+
   ! ===== Generate procedural file names =====
   ! ==========================================
 
