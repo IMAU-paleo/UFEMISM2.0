@@ -1,10 +1,12 @@
-function analyse_integrated_test( varargin)
-% Analyse the results of the Halfar_20km integrated test
+function analyse_integrated_test_Halfar_10km( varargin)
+% Analyse the results of the Halfar_10km integrated test
 
-disp('Analysing integrated test idealised/Halfar_dome/Halfar_static_20km...')
+varargin = varargin{1};
+
+disp('Analysing integrated test idealised/Halfar_dome/Halfar_10km...')
 disp('')
   
-test_name = 'Halfar_static_20km';
+test_name = 'Halfar_10km';
 test_path = 'integrated_tests/idealised/Halfar_dome';
 
 %%
@@ -49,7 +51,7 @@ Hi        = ncread( filename_results,'Hi');
 
 Hi_analytical = zeros( mesh.nV, nt);
 for ti = 1: nt
-  Hi_analytical( :,ti) = Halfar_solution( A_flow, n_flow, H0, R0, mesh.V(:,1), mesh.V(:,2), 0);
+  Hi_analytical( :,ti) = Halfar_solution( A_flow, n_flow, H0, R0, mesh.V(:,1), mesh.V(:,2), time(ti));
 end
 
 % Calculate thickness error at the end of the simulation
