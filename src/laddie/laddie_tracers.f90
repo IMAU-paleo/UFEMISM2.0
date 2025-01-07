@@ -24,7 +24,7 @@ CONTAINS
 ! ===== Main routines =====
 ! =========================
 
-  SUBROUTINE compute_TS_npx( mesh, ice, laddie, npxref, npx, Hstar, dt, incldiff)
+  SUBROUTINE compute_TS_npx( mesh, ice, laddie, npxref, npx, Hstar, dt, include_diffusive_terms)
     ! Integrate T and S by one time step
 
     ! In- and output variables
@@ -36,7 +36,7 @@ CONTAINS
     TYPE(type_laddie_timestep),             INTENT(INOUT) :: npx
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: Hstar
     REAL(dp),                               INTENT(IN)    :: dt
-    LOGICAL,                                INTENT(IN)    :: incldiff
+    LOGICAL,                                INTENT(IN)    :: include_diffusive_terms
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_TS_npx'
@@ -52,7 +52,7 @@ CONTAINS
     ! Compute divergence of heat and salt
     CALL compute_divQTS( mesh, laddie, npx, Hstar)
 
-    IF (incldiff) THEN
+    IF (include_diffusive_terms) THEN
       ! Compute RHS including diffusive term
 
       ! Loop over vertices

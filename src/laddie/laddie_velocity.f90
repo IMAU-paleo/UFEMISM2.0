@@ -27,7 +27,7 @@ CONTAINS
 ! ===== Main routines =====
 ! =========================
 
-  SUBROUTINE compute_UV_npx( mesh, ice, ocean, laddie, npxref, npx, Hstar, dt, inclvisc)
+  SUBROUTINE compute_UV_npx( mesh, ice, ocean, laddie, npxref, npx, Hstar, dt, include_viscosity_terms)
     ! Integrate U and V by one time step
 
     ! In- and output variables
@@ -40,7 +40,7 @@ CONTAINS
     TYPE(type_laddie_timestep),             INTENT(INOUT) :: npx
     REAL(dp),                               INTENT(IN)    :: dt
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: Hstar
-    LOGICAL,                                INTENT(IN)    :: inclvisc
+    LOGICAL,                                INTENT(IN)    :: include_viscosity_terms
 
 
     ! Local variables:
@@ -127,7 +127,7 @@ CONTAINS
                 - C%laddie_drag_coefficient_mom * npxref%U( ti) * (npxref%U( ti)**2 + npxref%V( ti)**2)**.5 &
                 - detr_b( ti) * npxref%U( ti)
 
-        IF (inclvisc) THEN
+        IF (include_viscosity_terms) THEN
           dHUdt = dHUdt + laddie%viscU( ti)
         END IF
 
@@ -138,7 +138,7 @@ CONTAINS
                 - C%laddie_drag_coefficient_mom * npxref%V( ti) * (npxref%U( ti)**2 + npxref%V( ti)**2)**.5 &
                 - detr_b( ti) * npxref%V( ti)
 
-        IF (inclvisc) THEN
+        IF (include_viscosity_terms) THEN
           dHVdt = dHVdt + laddie%viscV( ti)
         END IF
 
