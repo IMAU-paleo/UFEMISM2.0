@@ -162,7 +162,7 @@ CONTAINS
     ! In- and output variables
 
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
-    TYPE(type_laddie_model),                INTENT(IN)    :: laddie
+    TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
     TYPE(type_ocean_model),                 INTENT(IN)    :: ocean
     TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_laddie_timestep),             INTENT(INOUT) :: npx
