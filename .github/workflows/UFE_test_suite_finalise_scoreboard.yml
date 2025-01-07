@@ -92,28 +92,10 @@ jobs:
           name: scoreboard_file_integrated_tests_idealised_Halfar_dome_Halfar_static_5km
           path: automated_testing/scoreboard/scoreboard_files
 
-      - name: Download scoreboard file for integrated_tests/idealised/ISMIP-HOM/exp_A
+      - name: Download scoreboard file for integrated_tests/idealised/ISMIP-HOM
         uses: actions/download-artifact@v4
         with:
-          name: scoreboard_file_integrated_tests_idealised_ISMIP-HOM_exp_A
-          path: automated_testing/scoreboard/scoreboard_files
-
-      - name: Download scoreboard file for integrated_tests/idealised/ISMIP-HOM/exp_B
-        uses: actions/download-artifact@v4
-        with:
-          name: scoreboard_file_integrated_tests_idealised_ISMIP-HOM_exp_B
-          path: automated_testing/scoreboard/scoreboard_files
-
-      - name: Download scoreboard file for integrated_tests/idealised/ISMIP-HOM/exp_C
-        uses: actions/download-artifact@v4
-        with:
-          name: scoreboard_file_integrated_tests_idealised_ISMIP-HOM_exp_C
-          path: automated_testing/scoreboard/scoreboard_files
-
-      - name: Download scoreboard file for integrated_tests/idealised/ISMIP-HOM/exp_D
-        uses: actions/download-artifact@v4
-        with:
-          name: scoreboard_file_integrated_tests_idealised_ISMIP-HOM_exp_D
+          name: scoreboard_file_integrated_tests_idealised_ISMIP-HOM
           path: automated_testing/scoreboard/scoreboard_files
 
       - name: Download scoreboard file for integrated_tests/idealised/MISMIP_mod
