@@ -103,7 +103,7 @@ var_x_GL          = max( abs( x_GL_smooth - x_GL));
 % Read stability info for the last spin-up simulation
 % (the retreat simulations have a very fast-changing ice sheet,
 %  so the time step is pretty much always at the minimum)
-filename = 'results_4km_spinup/scalar_output_ANT_00001.nc';
+filename = [foldername_test '/results_4km_spinup/scalar_output_ANT_00001.nc'];
 nskip = 5; % Skip the first few values, as the model is still relaxing there
 stab = read_stability_info( filename, nskip);
 
