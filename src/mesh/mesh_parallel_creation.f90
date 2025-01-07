@@ -12,7 +12,7 @@ MODULE mesh_parallel_creation
   USE model_configuration                                    , ONLY: C
   USE parameters
   USE reallocate_mod                                         , ONLY: reallocate
-  USE math_utilities                                         , ONLY: cross2
+  use plane_geometry, only: cross2
   USE mesh_types                                             , ONLY: type_mesh
   USE mesh_memory                                            , ONLY: allocate_mesh_primary, extend_mesh_primary, crop_mesh_primary, deallocate_mesh
   USE mesh_utilities                                         , ONLY: list_border_vertices_west, list_border_vertices_east, list_border_vertices_south, &

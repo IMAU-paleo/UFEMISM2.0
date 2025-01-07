@@ -24,7 +24,7 @@ MODULE ice_velocity_main
   USE ice_velocity_DIVA                                      , ONLY: initialise_DIVA_solver, solve_DIVA, remap_DIVA_solver, create_restart_file_DIVA, write_to_restart_file_DIVA
   USE ice_velocity_BPA                                       , ONLY: initialise_BPA_solver , solve_BPA , remap_BPA_solver , create_restart_file_BPA , write_to_restart_file_BPA
   USE ice_velocity_hybrid_DIVA_BPA                           , ONLY: initialise_hybrid_DIVA_BPA_solver, solve_hybrid_DIVA_BPA, remap_hybrid_DIVA_BPA_solver
-  USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_1D, gather_to_all_dp_2D
+  use mpi_distributed_memory, only: gather_to_all
   USE mesh_zeta                                              , ONLY: vertical_average
 
   IMPLICIT NONE
@@ -80,7 +80,9 @@ CONTAINS
 
   END SUBROUTINE initialise_velocity_solver
 
-  SUBROUTINE solve_stress_balance( mesh, ice, BMB, region_name, BC_prescr_mask_b, BC_prescr_u_b, BC_prescr_v_b, BC_prescr_mask_bk, BC_prescr_u_bk, BC_prescr_v_bk)
+  SUBROUTINE solve_stress_balance( mesh, ice, BMB, region_name, &
+    n_visc_its, n_Axb_its, min_Axb_its_per_visc_it, max_Axb_its_per_visc_it, &
+    BC_prescr_mask_b, BC_prescr_u_b, BC_prescr_v_b, BC_prescr_mask_bk, BC_prescr_u_bk, BC_prescr_v_bk)
     ! Calculate all ice velocities based on the chosen stress balance approximation
 
     IMPLICIT NONE
@@ -90,6 +92,10 @@ CONTAINS
     TYPE(type_ice_model),                   INTENT(INOUT)           :: ice
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)              :: BMB
     CHARACTER(LEN=3),                       INTENT(IN)              :: region_name
+    integer,                                intent(out)             :: n_visc_its               ! Number of non-linear viscosity iterations
+    integer,                                intent(out)             :: n_Axb_its                ! Number of iterations in iterative solver for linearised momentum balance
+    integer,                                intent(out)             :: min_Axb_its_per_visc_it  ! Smallest number of iterations in iterative solver for linearised momentum balance per non-linear viscosity iteration
+    integer,                                intent(out)             :: max_Axb_its_per_visc_it  ! Largest number of iterations in iterative solver for linearised momentum balance per non-linear viscosity iteration
     ! Prescribed velocities for the SSA/DIVA
     INTEGER,  DIMENSION(:    ),             INTENT(IN)   , OPTIONAL :: BC_prescr_mask_b      ! Mask of triangles where velocity is prescribed
     REAL(dp), DIMENSION(:    ),             INTENT(IN)   , OPTIONAL :: BC_prescr_u_b         ! Prescribed velocities in the x-direction
@@ -122,32 +128,42 @@ CONTAINS
       CASE ('SSA')
         ! Calculate velocities according to the Shallow Shelf Approximation
 
-        CALL solve_SSA( mesh, ice, ice%SSA, BC_prescr_mask_b, BC_prescr_u_b, BC_prescr_v_b)
+        CALL solve_SSA( mesh, ice, ice%SSA, &
+          n_visc_its, n_Axb_its, min_Axb_its_per_visc_it, max_Axb_its_per_visc_it, &
+          BC_prescr_mask_b, BC_prescr_u_b, BC_prescr_v_b)
         CALL set_ice_velocities_to_SSA_results( mesh, ice, ice%SSA)
 
       CASE ('SIA/SSA')
         ! Calculate velocities according to the hybrid SIA/SSA
 
         CALL solve_SIA( mesh, ice, ice%SIA)
-        CALL solve_SSA( mesh, ice, ice%SSA, BC_prescr_mask_b, BC_prescr_u_b, BC_prescr_v_b)
+        CALL solve_SSA( mesh, ice, ice%SSA, &
+          n_visc_its, n_Axb_its, min_Axb_its_per_visc_it, max_Axb_its_per_visc_it, &
+          BC_prescr_mask_b, BC_prescr_u_b, BC_prescr_v_b)
         CALL set_ice_velocities_to_SIASSA_results( mesh, ice, ice%SIA, ice%SSA)
 
       CASE ('DIVA')
         ! Calculate velocities according to the Depth-Integrated Viscosity Approximation
 
-        CALL solve_DIVA( mesh, ice, ice%DIVA, BC_prescr_mask_b, BC_prescr_u_b, BC_prescr_v_b)
+        CALL solve_DIVA( mesh, ice, ice%DIVA, &
+          n_visc_its, n_Axb_its, min_Axb_its_per_visc_it, max_Axb_its_per_visc_it, &
+          BC_prescr_mask_b, BC_prescr_u_b, BC_prescr_v_b)
         CALL set_ice_velocities_to_DIVA_results( mesh, ice, ice%DIVA)
 
       CASE ('BPA')
         ! Calculate velocities according to the Blatter-Pattyn Approximation
 
-        CALL solve_BPA( mesh, ice, ice%BPA, BC_prescr_mask_bk, BC_prescr_u_bk, BC_prescr_v_bk)
+        CALL solve_BPA( mesh, ice, ice%BPA, &
+          n_visc_its, n_Axb_its, min_Axb_its_per_visc_it, max_Axb_its_per_visc_it, &
+          BC_prescr_mask_bk, BC_prescr_u_bk, BC_prescr_v_bk)
         CALL set_ice_velocities_to_BPA_results( mesh, ice, ice%BPA)
 
       CASE ('hybrid DIVA/BPA')
         ! Calculate velocities according to the hybrid DIVA/BPA
 
-        CALL solve_hybrid_DIVA_BPA( mesh, ice, ice%hybrid, region_name, BC_prescr_mask_b, BC_prescr_u_b, BC_prescr_v_b)
+        CALL solve_hybrid_DIVA_BPA( mesh, ice, ice%hybrid, region_name, &
+          n_visc_its, n_Axb_its, min_Axb_its_per_visc_it, max_Axb_its_per_visc_it, &
+          BC_prescr_mask_b, BC_prescr_u_b, BC_prescr_v_b)
         CALL set_ice_velocities_to_hybrid_DIVA_BPA_results( mesh, ice, ice%hybrid)
 
     END SELECT
@@ -628,8 +644,8 @@ CONTAINS
     ALLOCATE( v_b_tot( mesh%nTri))
 
     ! Gather the full b-grid velocity fields to all processes
-    CALL gather_to_all_dp_1D( u_b_partial, u_b_tot)
-    CALL gather_to_all_dp_1D( v_b_partial, v_b_tot)
+    CALL gather_to_all( u_b_partial, u_b_tot)
+    CALL gather_to_all( v_b_partial, v_b_tot)
 
     ! Map velocities from the b-grid (triangles) to the c-grid (edges)
     DO ei = mesh%ei1, mesh%ei2
@@ -688,8 +704,8 @@ CONTAINS
     ALLOCATE( v_b_tot( mesh%nTri,mesh%nz))
 
     ! Gather the full b-grid velocity fields to all processes
-    CALL gather_to_all_dp_2D( u_b_partial, u_b_tot)
-    CALL gather_to_all_dp_2D( v_b_partial, v_b_tot)
+    CALL gather_to_all( u_b_partial, u_b_tot)
+    CALL gather_to_all( v_b_partial, v_b_tot)
 
     ! Map velocities from the b-grid (triangles) to the c-grid (edges)
     DO ei = mesh%ei1, mesh%ei2
@@ -823,8 +839,8 @@ CONTAINS
 
     ! Calculate u,v on the c-grid (edges)
     CALL map_velocities_from_b_to_c_3D( mesh, ice%u_3D_b, ice%v_3D_b, u_3D_c, v_3D_c)
-    CALL gather_to_all_dp_2D( u_3D_c, u_3D_c_tot)
-    CALL gather_to_all_dp_2D( v_3D_c, v_3D_c_tot)
+    CALL gather_to_all( u_3D_c, u_3D_c_tot)
+    CALL gather_to_all( v_3D_c, v_3D_c_tot)
 
     ! Calculate vertical velocities by solving conservation of mass in each 3-D cell
     DO vi = mesh%vi1, mesh%vi2

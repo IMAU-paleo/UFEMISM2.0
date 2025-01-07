@@ -23,7 +23,7 @@ MODULE BMB_main
   USE BMB_laddie                                             , ONLY: initialise_BMB_model_laddie, run_BMB_model_laddie, remap_BMB_model_laddie
   USE laddie_main                                            , ONLY: initialise_laddie_model, run_laddie_model
   USE reallocate_mod                                         , ONLY: reallocate_bounds
-  USE math_utilities                                         , ONLY: is_floating
+  use ice_geometry_basics, only: is_floating
   USE mesh_utilities                                         , ONLY: extrapolate_Gaussian
   USE netcdf_basic                                           , ONLY: create_new_netcdf_file_for_writing, close_netcdf_file, open_existing_netcdf_file_for_writing
   USE netcdf_output                                          , ONLY: generate_filename_XXXXXdotnc, setup_mesh_in_netcdf_file, add_time_dimension_to_file, &

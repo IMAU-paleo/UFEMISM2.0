@@ -48,8 +48,7 @@ MODULE UFEMISM_main_model
                                                                      create_main_regional_output_file_grid_ROI, write_to_main_regional_output_file_grid_ROI, &
                                                                      create_scalar_regional_output_file, write_to_scalar_regional_output_file
   use mesh_ROI_polygons
-  USE math_utilities                                         , ONLY: longest_triangle_leg
-  USE mpi_distributed_memory                                 , ONLY: gather_to_all_logical_1D
+  use plane_geometry, only: longest_triangle_leg
   use apply_maps, only: clear_all_maps_involving_this_mesh
   USE mesh_memory                                            , ONLY: deallocate_mesh
   USE ice_model_scalars                                      , ONLY: calc_ice_model_scalars

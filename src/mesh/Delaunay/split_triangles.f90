@@ -7,7 +7,7 @@ module split_triangles
   use precisions, only: dp
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, warning, crash
   use mesh_types, only: type_mesh
-  use math_utilities, only: lies_on_line_segment
+  use plane_geometry, only: lies_on_line_segment
   use mesh_utilities, only: encroaches_upon_any, find_containing_triangle, encroaches_upon, is_border_edge, &
     update_triangle_circumcenter, add_triangle_to_refinement_stack_last
   use split_edges, only: split_edge

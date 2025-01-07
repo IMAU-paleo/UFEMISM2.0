@@ -21,7 +21,6 @@ module ut_tracer_tracking
     calc_particles_to_mesh_map, initialise_tracer_tracking_model_particles, add_particle, &
     move_and_remove_particle
   use mpi
-  use mpi_distributed_memory, only: gather_to_all_dp_1D
   use ice_model_types, only: type_ice_model
   use ice_model_memory, only: allocate_ice_model
   use reference_geometries, only: calc_idealised_geometry

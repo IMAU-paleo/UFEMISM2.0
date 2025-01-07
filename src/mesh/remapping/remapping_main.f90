@@ -5,7 +5,7 @@ module remapping_main
   use remapping_types, only: type_map
   use grid_types, only: type_grid, type_grid_lonlat
   use mesh_types, only: type_mesh
-  use math_utilities, only: remap_cons_2nd_order_1D
+  use interpolation, only: remap_cons_2nd_order_1D
   use mesh_utilities, only: extrapolate_Gaussian, check_if_meshes_are_identical
   use create_maps_grid_mesh
   use create_maps_gridlonlat_mesh

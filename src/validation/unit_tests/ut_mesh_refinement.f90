@@ -15,7 +15,7 @@ module ut_mesh_refinement
   use mesh_refinement_basic, only: refine_mesh_uniform, refine_mesh_point, refine_mesh_line, refine_mesh_polygon
   use mesh_refinement_basic_ROI, only: refine_mesh_line_ROI, refine_mesh_polygon_ROI
   use mesh_utilities, only: find_containing_triangle, calc_smallest_internal_angle_mesh, calc_mean_skewness
-  use math_utilities, only: longest_triangle_leg, is_in_polygon
+  use plane_geometry, only: longest_triangle_leg, is_in_polygon
   use mesh_Lloyds_algorithm, only: Lloyds_algorithm_single_iteration
   use mesh_contiguous_domains, only: enforce_contiguous_process_domains
   use mesh_secondary, only: calc_triangle_geometric_centres

@@ -114,13 +114,27 @@ UFEMISM_source = \
   validation/basic_tests/assertions_basic.f90 \
   \
   basic/mpi_distributed_memory.f90 \
-  basic/math_utilities/math_utilities.f90 \
+  \
+  basic/math_utilities/flip_mod.f90 \
+  basic/math_utilities/permute_mod.f90 \
+  basic/math_utilities/projections.f90 \
+  basic/math_utilities/matrix_algebra.f90 \
+  basic/math_utilities/plane_geometry.f90 \
+  basic/math_utilities/ice_geometry_basics.f90 \
+  basic/math_utilities/line_integrals.f90 \
+  basic/math_utilities/sorting.f90 \
+  basic/math_utilities/erf_mod.f90 \
+  basic/math_utilities/interpolation.f90 \
   basic/math_utilities/tridiagonal_solver.f90 \
   basic/math_utilities/shape_functions.f90 \
+  \
   basic/analytical_solutions.f90 \
   basic/CSR_sparse_matrix_utilities.f90 \
   basic/petsc_basic.f90 \
-  basic/grid_basic.f90 \
+  \
+  basic/grid/mpi_distributed_memory_grid.f90 \
+  basic/grid/grid_basic.f90 \
+  basic/grid/smooth_gridded_data.f90 \
   basic/grid_lonlat_basic.f90 \
   \
   mesh/mesh_memory.f90 \

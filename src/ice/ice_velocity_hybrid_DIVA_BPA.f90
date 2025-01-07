@@ -33,12 +33,13 @@ MODULE ice_velocity_hybrid_DIVA_BPA
   use mesh_disc_apply_operators, only: map_a_b_2D, map_b_a_2D, map_b_a_3D, map_a_b_3D
   use mesh_disc_calc_matrix_operators_3D, only: calc_3D_matrix_operators_mesh
   use mesh_ROI_polygons
-  USE math_utilities                                         , ONLY: is_in_polygon, is_in_polygons
-  USE mpi_distributed_memory                                 , ONLY: gather_to_all_logical_1D
+  use plane_geometry, only: is_in_polygon, is_in_polygons
+  use mpi_distributed_memory, only: gather_to_all
   USE ice_model_utilities                                    , ONLY: calc_zeta_gradients
   USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp, allocate_matrix_CSR_dist, add_entry_CSR_dist, read_single_row_CSR_dist, &
                                                                      deallocate_matrix_CSR_dist, add_empty_row_CSR_dist
-  USE grid_basic                                             , ONLY: type_grid, gather_gridded_data_to_master_int_2D, calc_grid_mask_as_polygons
+  use grid_basic, only: type_grid, calc_grid_mask_as_polygons
+  use mpi_distributed_memory_grid, only: gather_gridded_data_to_master
   USE netcdf_basic                                           , ONLY: open_existing_netcdf_file_for_reading, close_netcdf_file
   USE netcdf_input                                           , ONLY: setup_xy_grid_from_file, read_field_from_xy_file_2D_int
 
@@ -105,7 +106,9 @@ CONTAINS
 
   END SUBROUTINE initialise_hybrid_DIVA_BPA_solver
 
-  SUBROUTINE solve_hybrid_DIVA_BPA( mesh, ice, hybrid, region_name, BC_prescr_mask_b, BC_prescr_u_b, BC_prescr_v_b)
+  SUBROUTINE solve_hybrid_DIVA_BPA( mesh, ice, hybrid, region_name, &
+    n_visc_its, n_Axb_its, min_Axb_its_per_visc_it, max_Axb_its_per_visc_it, &
+    BC_prescr_mask_b, BC_prescr_u_b, BC_prescr_v_b)
     ! Calculate ice velocities by solving the hybrid DIVA/BPA
 
     IMPLICIT NONE
@@ -115,6 +118,10 @@ CONTAINS
     TYPE(type_ice_model),                  INTENT(INOUT)           :: ice
     TYPE(type_ice_velocity_solver_hybrid), INTENT(INOUT)           :: hybrid
     CHARACTER(LEN=3),                      INTENT(IN)              :: region_name
+    integer,                               intent(out)             :: n_visc_its               ! Number of non-linear viscosity iterations
+    integer,                               intent(out)             :: n_Axb_its                ! Number of iterations in iterative solver for linearised momentum balance
+    integer,                               intent(out)             :: min_Axb_its_per_visc_it  ! Smallest number of iterations in iterative solver for linearised momentum balance per non-linear viscosity iteration
+    integer,                               intent(out)             :: max_Axb_its_per_visc_it  ! Largest number of iterations in iterative solver for linearised momentum balance per non-linear viscosity iteration
     INTEGER,  DIMENSION(:    ),            INTENT(IN)   , OPTIONAL :: BC_prescr_mask_b      ! Mask of triangles where velocity is prescribed
     REAL(dp), DIMENSION(:    ),            INTENT(IN)   , OPTIONAL :: BC_prescr_u_b         ! Prescribed velocities in the x-direction
     REAL(dp), DIMENSION(:    ),            INTENT(IN)   , OPTIONAL :: BC_prescr_v_b         ! Prescribed velocities in the y-direction
@@ -132,6 +139,7 @@ CONTAINS
     REAL(dp)                                                       :: visc_it_relax_applied
     REAL(dp)                                                       :: Glens_flow_law_epsilon_sq_0_applied
     INTEGER                                                        :: nit_diverg_consec
+    integer                                                        :: n_Axb_its_visc_it
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -185,6 +193,12 @@ CONTAINS
     visc_it_relax_applied               = C%visc_it_relax
     Glens_flow_law_epsilon_sq_0_applied = C%Glens_flow_law_epsilon_sq_0
 
+    ! Initialise stability info
+    n_visc_its               = 0
+    n_Axb_its                = 0
+    min_Axb_its_per_visc_it  = huge( min_Axb_its_per_visc_it)
+    max_Axb_its_per_visc_it  = 0
+
     ! The viscosity iteration
     viscosity_iteration_i = 0
     has_converged         = .FALSE.
@@ -225,7 +239,13 @@ CONTAINS
     ! =======================================
 
       ! Solve the linearised hybrid DIVA/BPA to calculate a new velocity solution
-      CALL solve_hybrid_DIVA_BPA_linearised( mesh, ice, hybrid, BC_prescr_mask_b_applied, BC_prescr_u_b_applied, BC_prescr_v_b_applied)
+      CALL solve_hybrid_DIVA_BPA_linearised( mesh, ice, hybrid, n_Axb_its_visc_it, &
+        BC_prescr_mask_b_applied, BC_prescr_u_b_applied, BC_prescr_v_b_applied)
+
+      ! Update stability info
+      n_Axb_its = n_Axb_its + n_Axb_its_visc_it
+      min_Axb_its_per_visc_it = min( min_Axb_its_per_visc_it, n_Axb_its_visc_it)
+      max_Axb_its_per_visc_it = max( max_Axb_its_per_visc_it, n_Axb_its_visc_it)
 
       ! Copy results to the DIVA and BPA structures
       hybrid%DIVA%u_vav_b = hybrid%u_vav_b
@@ -301,6 +321,9 @@ CONTAINS
     DEALLOCATE( BC_prescr_mask_b_applied)
     DEALLOCATE( BC_prescr_u_b_applied   )
     DEALLOCATE( BC_prescr_v_b_applied   )
+
+    ! Stability info
+    n_visc_its = viscosity_iteration_i
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -622,7 +645,7 @@ CONTAINS
 
     ! Gather partial gridded data to the Master and broadcast the total field to all processes
     ALLOCATE( mask_int_grid( grid%nx, grid%ny))
-    CALL gather_gridded_data_to_master_int_2D( grid, mask_int_grid_vec_partial, mask_int_grid)
+    CALL gather_gridded_data_to_master( grid, mask_int_grid_vec_partial, mask_int_grid)
     CALL MPI_BCAST( mask_int_grid, grid%nx * grid%ny, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
 
     ! Calculate logical mask (assumes data from file is integer 0 for FALSE and integer 1 for TRUE)
@@ -661,7 +684,8 @@ CONTAINS
 
 ! == Assemble and solve the linearised BPA
 
-  SUBROUTINE solve_hybrid_DIVA_BPA_linearised( mesh, ice, hybrid, BC_prescr_mask_b, BC_prescr_u_b, BC_prescr_v_b)
+  SUBROUTINE solve_hybrid_DIVA_BPA_linearised( mesh, ice, hybrid, n_Axb_its, &
+    BC_prescr_mask_b, BC_prescr_u_b, BC_prescr_v_b)
     ! Solve the linearised hybrid DIVA/BPA
 
     IMPLICIT NONE
@@ -670,6 +694,7 @@ CONTAINS
     TYPE(type_mesh),                       INTENT(IN)              :: mesh
     TYPE(type_ice_model),                  INTENT(IN)              :: ice
     TYPE(type_ice_velocity_solver_hybrid), INTENT(INOUT)           :: hybrid
+    integer,                                           intent(out) :: n_Axb_its             ! Number of iterations used in the iterative solver
     INTEGER,  DIMENSION(mesh%ti1:mesh%ti2),            INTENT(IN)  :: BC_prescr_mask_b      ! Mask of triangles where velocity is prescribed
     REAL(dp), DIMENSION(mesh%ti1:mesh%ti2),            INTENT(IN)  :: BC_prescr_u_b         ! Prescribed velocities in the x-direction
     REAL(dp), DIMENSION(mesh%ti1:mesh%ti2),            INTENT(IN)  :: BC_prescr_v_b         ! Prescribed velocities in the y-direction
@@ -931,7 +956,8 @@ CONTAINS
   ! ============================
 
     ! Use PETSc to solve the matrix equation
-    CALL solve_matrix_equation_CSR_PETSc( A_combi, b_combi, uv_combi, hybrid%PETSc_rtol, hybrid%PETSc_abstol)
+    CALL solve_matrix_equation_CSR_PETSc( A_combi, b_combi, uv_combi, hybrid%PETSc_rtol, hybrid%PETSc_abstol, &
+      n_Axb_its)
 
     ! Get velocities back from the combined vector
     DO ti = mesh%ti1, mesh%ti2
@@ -1327,10 +1353,10 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Gather global masks
-    CALL gather_to_all_logical_1D( hybrid%mask_DIVA_b        , mask_DIVA_b_tot        )
-    CALL gather_to_all_logical_1D( hybrid%mask_BPA_b         , mask_BPA_b_tot         )
-    CALL gather_to_all_logical_1D( hybrid%mask_3D_from_DIVA_b, mask_3D_from_DIVA_b_tot)
-    CALL gather_to_all_logical_1D( hybrid%mask_vav_from_BPA_b, mask_vav_from_BPA_b_tot)
+    CALL gather_to_all( hybrid%mask_DIVA_b        , mask_DIVA_b_tot        )
+    CALL gather_to_all( hybrid%mask_BPA_b         , mask_BPA_b_tot         )
+    CALL gather_to_all( hybrid%mask_3D_from_DIVA_b, mask_3D_from_DIVA_b_tot)
+    CALL gather_to_all( hybrid%mask_vav_from_BPA_b, mask_vav_from_BPA_b_tot)
 
     ! Allocate memory
     ALLOCATE( tiuv2nh      ( mesh%nTri          ,  2   ))

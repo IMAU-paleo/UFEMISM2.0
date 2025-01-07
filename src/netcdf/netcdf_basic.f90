@@ -13,16 +13,12 @@ MODULE netcdf_basic
 ! ===== Preamble =====
 ! ====================
 
+  use assertions_basic
   USE mpi
   USE precisions                                             , ONLY: dp, int8
   USE mpi_basic                                              , ONLY: par, cerr, ierr, recv_status, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C, git_commit_hash
-  USE math_utilities                                         , ONLY: check_for_NaN_dp_0D, check_for_NaN_int_0D, &
-                                                                     check_for_NaN_dp_1D, check_for_NaN_int_1D, &
-                                                                     check_for_NaN_dp_2D, check_for_NaN_int_2D, &
-                                                                     check_for_NaN_dp_3D, check_for_NaN_int_3D, &
-                                                                     check_for_NaN_dp_4D, check_for_NaN_int_4D
 
   ! Import  NetCDF functionality
   USE netcdf, ONLY: NF90_NOERR, NF90_OPEN, NF90_CLOSE, NF90_NOWRITE, NF90_INQ_DIMID, NF90_INQUIRE_DIMENSION, &
@@ -488,8 +484,7 @@ CONTAINS
     ! Read variable
     CALL read_var_master_dp_1D( filename, ncid, id_var, x)
 
-    ! Check validity
-    IF (par%master) CALL check_for_NaN_dp_1D( x, 'x')
+    if (par%master) call assert( (.not. any( isnan( x))), 'found NaNs in x')
 
     ! Check grid spacing
     IF (par%master) THEN
@@ -561,8 +556,7 @@ CONTAINS
     ! Read variable
     CALL read_var_master_dp_1D( filename, ncid, id_var, y)
 
-    ! Check validity
-    IF (par%master) CALL check_for_NaN_dp_1D( y, 'y')
+    if (par%master) call assert( (.not. any( isnan( y))), 'found NaNs in y')
 
     ! Check grid spacing
     IF (par%master) THEN
@@ -630,8 +624,7 @@ CONTAINS
     ! Read variable
     CALL read_var_master_dp_1D( filename, ncid, id_var, lon)
 
-    ! Check validity
-    IF (par%master) CALL check_for_NaN_dp_1D( lon, 'lon')
+    if (par%master) call assert( (.not. any( isnan( lon))), 'found NaNs in lon')
 
     ! Check grid spacing
     IF (par%master) THEN
@@ -698,8 +691,7 @@ CONTAINS
     ! Read variable
     CALL read_var_master_dp_1D( filename, ncid, id_var, lat)
 
-    ! Check validity
-    IF (par%master) CALL check_for_NaN_dp_1D( lat, 'lat')
+    if (par%master) call assert( (.not. any( isnan( lat))), 'found NaNs in lat')
 
     ! Check grid spacing
     IF (par%master) THEN
@@ -991,7 +983,7 @@ CONTAINS
 
     ! Check validity
     IF (par%master) THEN
-      CALL check_for_NaN_dp_1D( zeta, 'zeta')
+      call assert( (.not. any( isnan( zeta))), 'found NaNs in zeta')
 
       IF (zeta( 1) /= 0._dp) CALL crash('zeta in file "' // TRIM( filename) // '" does not start at zero!')
       IF (zeta( n) /= 1._dp) CALL crash('zeta in file "' // TRIM( filename) // '" does not end at one!')
@@ -1089,7 +1081,7 @@ CONTAINS
       CALL read_var_master_dp_1D( filename, ncid, id_var, time)
 
       ! Check validity
-      IF (par%master) CALL check_for_NaN_dp_1D( time, 'time')
+      if (par%master) call assert( (.not. any( isnan( time))), 'found NaN in time')
 
       ! Clean up after yourself
       DEALLOCATE( time)
@@ -1149,7 +1141,7 @@ CONTAINS
 
     ! Check validity
     IF (par%master) THEN
-      CALL check_for_NaN_dp_1D( depth, 'depth')
+      call assert( (.not. any( isnan( depth))), 'found NaNs in depth')
 
       DO k = 2, n
         IF (depth( k) <= depth( k-1)) CALL crash('depth in file "' // TRIM( filename) // '" does not increase monotonously!')
