@@ -154,8 +154,6 @@ CONTAINS
           ! Connection ci from vertex vi leads through edge ei to vertex vj
           vj = mesh%C(  vi,ci)
 
-          IF (vj == 0) CYCLE
-
           ! Skip connection if neighbour is grounded. No flux across grounding line
           ! Can be made more flexible when accounting for partial cells (PMP instead of FCMP)
           IF (mask_gr_a_tot( vj)) CYCLE
