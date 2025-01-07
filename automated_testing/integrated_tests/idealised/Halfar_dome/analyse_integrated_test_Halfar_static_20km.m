@@ -1,10 +1,12 @@
-function analyse_integrated_test( varargin)
-% Analyse the results of the Halfar_5km integrated test
+function analyse_integrated_test_Halfar_static_20km( varargin)
+% Analyse the results of the Halfar_20km integrated test
 
-disp('Analysing integrated test idealised/Halfar_dome/Halfar_static_5km...')
+varargin = varargin{1};
+
+disp('Analysing integrated test idealised/Halfar_dome/Halfar_static_20km...')
 disp('')
   
-test_name = 'Halfar_static_5km';
+test_name = 'Halfar_static_20km';
 test_path = 'integrated_tests/idealised/Halfar_dome';
 
 %%

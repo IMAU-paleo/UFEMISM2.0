@@ -1,5 +1,7 @@
-function analyse_integrated_test( varargin)
+function analyse_integrated_test_Halfar_20km( varargin)
 % Analyse the results of the Halfar_20km integrated test
+
+varargin = varargin{1};
 
 disp('Analysing integrated test idealised/Halfar_dome/Halfar_20km...')
 disp('')
