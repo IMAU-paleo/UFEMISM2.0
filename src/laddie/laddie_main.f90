@@ -131,97 +131,78 @@ CONTAINS
 
     ! Allocate variables
     CALL allocate_laddie_model( mesh, laddie)
-    CALL allocate_laddie_timestep( mesh, laddie%now)
-
-    ! Allocate timestep
-    SELECT CASE(C%choice_laddie_integration_scheme)
-      CASE DEFAULT
-        CALL crash('unknown choice_laddie_integration_scheme "' // TRIM( C%choice_laddie_integration_scheme) // '"')
-      CASE ('euler')
-        CALL allocate_laddie_timestep( mesh, laddie%np1)
-      CASE ('fbrk3')
-        CALL allocate_laddie_timestep( mesh, laddie%np13)
-        CALL allocate_laddie_timestep( mesh, laddie%np12)
-        CALL allocate_laddie_timestep( mesh, laddie%np1)
-    END SELECT
 
     ! Mask on a grid
     DO vi = mesh%vi1, mesh%vi2
       laddie%mask_a( vi)  = ice%mask_floating_ice( vi)
     END DO
 
+    ! Initialise requested timesteps
+    CALL initialise_laddie_model_timestep( mesh, laddie, ocean, ice, laddie%now)
+
+    SELECT CASE(C%choice_laddie_integration_scheme)
+      CASE DEFAULT
+        CALL crash('unknown choice_laddie_integration_scheme "' // TRIM( C%choice_laddie_integration_scheme) // '"')
+      CASE ('euler')
+        CALL initialise_laddie_model_timestep( mesh, laddie, ocean, ice, laddie%np1)
+      CASE ('fbrk3')
+        CALL initialise_laddie_model_timestep( mesh, laddie, ocean, ice, laddie%np13)
+        CALL initialise_laddie_model_timestep( mesh, laddie, ocean, ice, laddie%np12)
+        CALL initialise_laddie_model_timestep( mesh, laddie, ocean, ice, laddie%np1)
+    END SELECT
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE initialise_laddie_model
+
+  SUBROUTINE initialise_laddie_model_timestep( mesh, laddie, ocean, ice, npx)
+    ! Initialise the laddie model for given timestep
+
+    ! In- and output variables
+
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh
+    TYPE(type_laddie_model),                INTENT(IN)    :: laddie
+    TYPE(type_ocean_model),                 INTENT(IN)    :: ocean
+    TYPE(type_ice_model),                   INTENT(IN)    :: ice
+    TYPE(type_laddie_timestep),             INTENT(INOUT) :: npx
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'initialise_laddie_model_timestep'
+    INTEGER                                               :: vi
+ 
+    ! Add routine to path
+    CALL init_routine( routine_name)
+ 
+    ! Allocate timestep
+    CALL allocate_laddie_timestep( mesh, npx)
+
     ! Layer thickness 
     DO vi = mesh%vi1, mesh%vi2
        IF (laddie%mask_a( vi)) THEN
-         laddie%now%H( vi)      = C%laddie_initial_thickness
-         SELECT CASE(C%choice_laddie_integration_scheme)
-           CASE DEFAULT
-             CALL crash('unknown choice_laddie_integration_scheme "' // TRIM( C%choice_laddie_integration_scheme) // '"')
-           CASE ('euler')
-             laddie%np1%H( vi)   = C%laddie_initial_thickness
-           CASE ('fbrk3')
-             laddie%np13%H( vi)  = C%laddie_initial_thickness
-             laddie%np12%H( vi)  = C%laddie_initial_thickness
-             laddie%np1%H( vi)   = C%laddie_initial_thickness
-         END SELECT
+         npx%H( vi)      = C%laddie_initial_thickness
        END IF
     END DO
 
-    ! Layer thickness on b grid
-    CALL map_H_a_b( mesh, laddie, laddie%now%H, laddie%now%H_b)
-    SELECT CASE(C%choice_laddie_integration_scheme)
-      CASE DEFAULT
-        CALL crash('unknown choice_laddie_integration_scheme "' // TRIM( C%choice_laddie_integration_scheme) // '"')
-      CASE ('euler')
-        CALL map_H_a_b( mesh, laddie, laddie%np1%H, laddie%np1%H_b)
-      CASE ('fbrk3')
-        CALL map_H_a_b( mesh, laddie, laddie%np13%H, laddie%np13%H_b)
-        CALL map_H_a_b( mesh, laddie, laddie%np12%H, laddie%np12%H_b)
-        CALL map_H_a_b( mesh, laddie, laddie%np1%H, laddie%np1%H_b)
-    END SELECT
-
-    ! Layer thickness on c grid
-    CALL map_H_a_c( mesh, laddie, laddie%now%H, laddie%now%H_c)
-    SELECT CASE(C%choice_laddie_integration_scheme)
-      CASE DEFAULT
-        CALL crash('unknown choice_laddie_integration_scheme "' // TRIM( C%choice_laddie_integration_scheme) // '"')
-      CASE ('euler')
-        CALL map_H_a_c( mesh, laddie, laddie%np1%H, laddie%np1%H_c)
-      CASE ('fbrk3')
-        CALL map_H_a_c( mesh, laddie, laddie%np13%H, laddie%np13%H_c)
-        CALL map_H_a_c( mesh, laddie, laddie%np12%H, laddie%np12%H_c)
-        CALL map_H_a_c( mesh, laddie, laddie%np1%H, laddie%np1%H_c)
-    END SELECT
+    ! Layer thickness on b and c grid
+    CALL map_H_a_b( mesh, laddie, npx%H, npx%H_b)
+    CALL map_H_a_c( mesh, laddie, npx%H, npx%H_c)
 
     ! Initialise ambient T and S
-    CALL compute_ambient_TS( mesh, ice, ocean, laddie, laddie%now%H)
+    CALL compute_ambient_TS( mesh, ice, ocean, laddie, npx%H)
 
     ! Initialise main T and S
     DO vi = mesh%vi1, mesh%vi2
        IF (laddie%mask_a( vi)) THEN
-         laddie%now%T( vi)      = laddie%T_amb( vi) + C%laddie_initial_T_offset 
-         laddie%now%S( vi)      = laddie%S_amb( vi) + C%laddie_initial_S_offset
-         SELECT CASE(C%choice_laddie_integration_scheme)
-           CASE DEFAULT
-             CALL crash('unknown choice_laddie_integration_scheme "' // TRIM( C%choice_laddie_integration_scheme) // '"')
-           CASE ('euler')
-             laddie%np1%T( vi)   = laddie%T_amb( vi) + C%laddie_initial_T_offset
-             laddie%np1%S( vi)   = laddie%S_amb( vi) + C%laddie_initial_S_offset
-           CASE ('fbrk3')
-             laddie%np13%T( vi)  = laddie%T_amb( vi) + C%laddie_initial_T_offset
-             laddie%np13%S( vi)  = laddie%S_amb( vi) + C%laddie_initial_S_offset
-             laddie%np12%T( vi)  = laddie%T_amb( vi) + C%laddie_initial_T_offset
-             laddie%np12%S( vi)  = laddie%S_amb( vi) + C%laddie_initial_S_offset
-             laddie%np1%T( vi)   = laddie%T_amb( vi) + C%laddie_initial_T_offset
-             laddie%np1%S( vi)   = laddie%S_amb( vi) + C%laddie_initial_S_offset
-         END SELECT
+         npx%T( vi)      = laddie%T_amb( vi) + C%laddie_initial_T_offset 
+         npx%S( vi)      = laddie%S_amb( vi) + C%laddie_initial_S_offset
        END IF
     END DO
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
-  END SUBROUTINE initialise_laddie_model
+  END SUBROUTINE initialise_laddie_model_timestep
 
   SUBROUTINE integrate_euler( mesh, ice, ocean, laddie, tl, dt)
     ! Integrate 1 timestep Euler scheme 
