@@ -94,7 +94,7 @@ CONTAINS
            END IF
          END DO
 
-         H_b( ti) = H_b( ti) / n
+         H_b( ti) = H_b( ti) / real( n, dp)
 
        END IF
     END DO
