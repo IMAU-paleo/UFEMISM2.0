@@ -15,9 +15,8 @@ MODULE laddie_velocity
   USE laddie_model_types                                     , ONLY: type_laddie_model, type_laddie_timestep
   USE ocean_model_types                                      , ONLY: type_ocean_model
   USE reallocate_mod                                         , ONLY: reallocate_bounds
-  USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_1D, gather_to_all_logical_1D
+  USE mpi_distributed_memory                                 , ONLY: gather_to_all
   USE mesh_disc_apply_operators                              , ONLY: ddx_a_b_2D, ddy_a_b_2D, map_a_b_2D, map_b_a_2D, map_b_c_2D
-  USE math_utilities                                         , ONLY: check_for_NaN_dp_1D
   USE laddie_utilities                                       , ONLY: compute_ambient_TS, map_H_a_b, map_H_a_c
   USE laddie_physics                                         , ONLY: compute_buoyancy
 
@@ -57,7 +56,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    CALL gather_to_all_logical_1D( laddie%mask_a, mask_a_tot)
+    CALL gather_to_all( laddie%mask_a, mask_a_tot)
 
     ! Initialise ambient T and S                             
     ! TODO costly, see whether necessary to recompute with Hstar
@@ -176,9 +175,6 @@ CONTAINS
     CALL map_b_a_2D( mesh, npx%U, npx%U_a)
     CALL map_b_a_2D( mesh, npx%V, npx%V_a)
 
-    CALL check_for_NaN_dp_1D( npx%U, 'U_lad')
-    CALL check_for_NaN_dp_1D( npx%V, 'V_lad')
-
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
@@ -205,9 +201,9 @@ CONTAINS
     CALL init_routine( routine_name)        
 
     ! Gather
-    CALL gather_to_all_dp_1D( npxref%U, U_tot)            
-    CALL gather_to_all_dp_1D( npxref%V, V_tot)            
-    CALL gather_to_all_logical_1D( laddie%mask_oc_b, mask_oc_b_tot)
+    CALL gather_to_all( npxref%U, U_tot)            
+    CALL gather_to_all( npxref%V, V_tot)            
+    CALL gather_to_all( laddie%mask_oc_b, mask_oc_b_tot)
 
     ! Loop over triangles                                  
     DO ti = mesh%ti1, mesh%ti2
@@ -277,14 +273,14 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Calculate vertically averaged ice velocities on the edges
-    CALL gather_to_all_logical_1D( laddie%mask_gl_b, mask_gl_b_tot)
-    CALL gather_to_all_logical_1D( laddie%mask_cf_b, mask_cf_b_tot)
-    CALL gather_to_all_logical_1D( laddie%mask_b, mask_b_tot)
-    CALL gather_to_all_dp_1D( npxref%U, U_tot)
-    CALL gather_to_all_dp_1D( npxref%V, V_tot)
-    CALL gather_to_all_dp_1D( npxref%U_c, U_c_tot)
-    CALL gather_to_all_dp_1D( npxref%V_c, V_c_tot)
-    CALL gather_to_all_dp_1D( Hstar_b, H_b_tot)
+    CALL gather_to_all( laddie%mask_gl_b, mask_gl_b_tot)
+    CALL gather_to_all( laddie%mask_cf_b, mask_cf_b_tot)
+    CALL gather_to_all( laddie%mask_b, mask_b_tot)
+    CALL gather_to_all( npxref%U, U_tot)
+    CALL gather_to_all( npxref%V, V_tot)
+    CALL gather_to_all( npxref%U_c, U_c_tot)
+    CALL gather_to_all( npxref%V_c, V_c_tot)
+    CALL gather_to_all( Hstar_b, H_b_tot)
 
     ! Initialise with zeros
     laddie%divQU = 0.0_dp
@@ -380,8 +376,8 @@ CONTAINS
     ALLOCATE( v_b_tot( mesh%nTri))
         
     ! Gather the full b-grid velocity fields to all processes
-    CALL gather_to_all_dp_1D( u_b_partial, u_b_tot)
-    CALL gather_to_all_dp_1D( v_b_partial, v_b_tot)
+    CALL gather_to_all( u_b_partial, u_b_tot)
+    CALL gather_to_all( v_b_partial, v_b_tot)
 
     ! Map velocities from the b-grid (triangles) to the c-grid (edges)
     DO ei = mesh%ei1, mesh%ei2

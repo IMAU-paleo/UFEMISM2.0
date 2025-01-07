@@ -15,8 +15,6 @@ MODULE laddie_physics
   USE laddie_model_types                                     , ONLY: type_laddie_model, type_laddie_timestep
   USE ocean_model_types                                      , ONLY: type_ocean_model
   USE reallocate_mod                                         , ONLY: reallocate_bounds
-  USE math_utilities                                         , ONLY: check_for_NaN_dp_1D
-  USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_1D, gather_to_all_logical_1D
 
   IMPLICIT NONE
     
@@ -101,8 +99,6 @@ CONTAINS
        END IF
     END DO
 
-    CALL check_for_NaN_dp_1D( laddie%melt, 'laddie melt')
-
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
@@ -150,8 +146,6 @@ CONTAINS
          laddie%detr( vi) = - MIN(laddie%entr( vi),0.0_dp)
        END IF
     END DO
-
-    CALL check_for_NaN_dp_1D( laddie%entr, 'laddie entr')
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

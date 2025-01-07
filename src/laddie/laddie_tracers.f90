@@ -15,8 +15,7 @@ MODULE laddie_tracers
   USE laddie_model_types                                     , ONLY: type_laddie_model, type_laddie_timestep
   USE ocean_model_types                                      , ONLY: type_ocean_model
   USE reallocate_mod                                         , ONLY: reallocate_bounds
-  USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_1D, gather_to_all_logical_1D
-  USE math_utilities                                         , ONLY: check_for_NaN_dp_1D
+  USE mpi_distributed_memory                                 , ONLY: gather_to_all
 
   IMPLICIT NONE
     
@@ -130,10 +129,6 @@ CONTAINS
 
     END IF
 
-    ! Safety
-    CALL check_for_NaN_dp_1D( npx%T, 'T_lad')
-    CALL check_for_NaN_dp_1D( npx%S, 'S_lad')
-
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
@@ -160,9 +155,9 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Gather
-    CALL gather_to_all_dp_1D( npxref%T, T_tot)
-    CALL gather_to_all_dp_1D( npxref%S, S_tot)
-    CALL gather_to_all_logical_1D( laddie%mask_a, mask_a_tot)
+    CALL gather_to_all( npxref%T, T_tot)
+    CALL gather_to_all( npxref%S, S_tot)
+    CALL gather_to_all( laddie%mask_a, mask_a_tot)
 
     ! Initialise at 0
     laddie%diffT = 0.0_dp
@@ -224,14 +219,14 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Calculate vertically averaged ice velocities on the edges
-    CALL gather_to_all_dp_1D( npx%U_c, U_c_tot)
-    CALL gather_to_all_dp_1D( npx%V_c, V_c_tot)
-    CALL gather_to_all_dp_1D( Hstar, Hstar_tot)
-    CALL gather_to_all_dp_1D( npx%T, T_tot)
-    CALL gather_to_all_dp_1D( npx%S, S_tot)
-    CALL gather_to_all_logical_1D( laddie%mask_a, mask_a_tot)
-    CALL gather_to_all_logical_1D( laddie%mask_gr_a, mask_gr_a_tot)
-    CALL gather_to_all_logical_1D( laddie%mask_oc_a, mask_oc_a_tot)
+    CALL gather_to_all( npx%U_c, U_c_tot)
+    CALL gather_to_all( npx%V_c, V_c_tot)
+    CALL gather_to_all( Hstar, Hstar_tot)
+    CALL gather_to_all( npx%T, T_tot)
+    CALL gather_to_all( npx%S, S_tot)
+    CALL gather_to_all( laddie%mask_a, mask_a_tot)
+    CALL gather_to_all( laddie%mask_gr_a, mask_gr_a_tot)
+    CALL gather_to_all( laddie%mask_oc_a, mask_oc_a_tot)
 
     ! Initialise with zeros
     laddie%divQT = 0.0_dp

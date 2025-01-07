@@ -16,7 +16,7 @@ MODULE laddie_utilities
   USE ocean_model_types                                      , ONLY: type_ocean_model
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   USE ocean_utilities                                        , ONLY: interpolate_ocean_depth
-  USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_1D
+  USE mpi_distributed_memory                                 , ONLY: gather_to_all
 
   IMPLICIT NONE
     
@@ -75,7 +75,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    CALL gather_to_all_dp_1D( H_a, H_a_tot)
+    CALL gather_to_all( H_a, H_a_tot)
 
     ! Get T and S at layer base
     DO ti = mesh%ti1, mesh%ti2
@@ -123,7 +123,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
 
-    CALL gather_to_all_dp_1D( H_a, H_a_tot)
+    CALL gather_to_all( H_a, H_a_tot)
 
     DO ei = mesh%ei1, mesh%ei2
        H_c( ei) = 0.0_dp

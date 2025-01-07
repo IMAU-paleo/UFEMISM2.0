@@ -15,8 +15,7 @@ MODULE laddie_thickness
   USE laddie_model_types                                     , ONLY: type_laddie_model, type_laddie_timestep
   USE ocean_model_types                                      , ONLY: type_ocean_model
   USE reallocate_mod                                         , ONLY: reallocate_bounds
-  USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_1D, gather_to_all_logical_1D
-  USE math_utilities                                         , ONLY: check_for_NaN_dp_1D
+  USE mpi_distributed_memory                                 , ONLY: gather_to_all
   USE laddie_physics                                         , ONLY: compute_melt_rate, compute_entrainment, &
                                                                      compute_freezing_temperature, compute_buoyancy
   USE laddie_utilities                                       , ONLY: compute_ambient_TS, map_H_a_b, map_H_a_c
@@ -104,8 +103,6 @@ CONTAINS
     CALL map_H_a_b( mesh, laddie, npx%H, npx%H_b)
     CALL map_H_a_c( mesh, laddie, npx%H, npx%H_c)
 
-    CALL check_for_NaN_dp_1D( npx%H, 'H_lad')
-
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
@@ -131,11 +128,11 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Calculate vertically averaged ice velocities on the edges
-    CALL gather_to_all_dp_1D( npx%U_c, U_c_tot)
-    CALL gather_to_all_dp_1D( npx%V_c, V_c_tot)
-    CALL gather_to_all_dp_1D( npx%H, H_tot)
-    CALL gather_to_all_logical_1D( laddie%mask_gr_a, mask_gr_a_tot)
-    CALL gather_to_all_logical_1D( laddie%mask_oc_a, mask_oc_a_tot)
+    CALL gather_to_all( npx%U_c, U_c_tot)
+    CALL gather_to_all( npx%V_c, V_c_tot)
+    CALL gather_to_all( npx%H, H_tot)
+    CALL gather_to_all( laddie%mask_gr_a, mask_gr_a_tot)
+    CALL gather_to_all( laddie%mask_oc_a, mask_oc_a_tot)
 
     ! Initialise with zeros
     laddie%divQH = 0.0_dp

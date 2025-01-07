@@ -22,7 +22,7 @@ MODULE laddie_main
   USE laddie_thickness                                       , ONLY: compute_H_npx
   USE laddie_velocity                                        , ONLY: compute_UV_npx, compute_viscUV
   USE laddie_tracers                                         , ONLY: compute_TS_npx, compute_diffTS
-  USE mpi_distributed_memory                                 , ONLY: gather_to_all_logical_1D
+  USE mpi_distributed_memory                                 , ONLY: gather_to_all
 
   IMPLICIT NONE
     
@@ -448,9 +448,9 @@ CONTAINS
     END DO
       
     ! Mask on b grid
-    CALL gather_to_all_logical_1D( laddie%mask_a, mask_a_tot)
-    CALL gather_to_all_logical_1D( laddie%mask_gr_a, mask_gr_a_tot)
-    CALL gather_to_all_logical_1D( laddie%mask_oc_a, mask_oc_a_tot)
+    CALL gather_to_all( laddie%mask_a, mask_a_tot)
+    CALL gather_to_all( laddie%mask_gr_a, mask_gr_a_tot)
+    CALL gather_to_all( laddie%mask_oc_a, mask_oc_a_tot)
 
     DO ti = mesh%ti1, mesh%ti2
       ! Initialise as false to overwrite previous mask
