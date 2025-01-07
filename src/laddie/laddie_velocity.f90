@@ -85,6 +85,7 @@ CONTAINS
         laddie%divQU = 0.0_dp
         laddie%divQV = 0.0_dp
       CASE ('upstream')
+        ! TODO figure out which of the below lines is best
         !CALL compute_divQUV_upstream( mesh, laddie, npx, Hstar_b)
         CALL compute_divQUV_upstream( mesh, laddie, npx, npxref%H_b)
     END SELECT
@@ -163,10 +164,10 @@ CONTAINS
         Uabs = (npx%U( ti)**2 + npx%V( ti)**2)**.5
         
         ! Scale U and V 
-        IF (Uabs > 0) THEN
-          npx%U( ti) = npx%U( ti) * MIN(1.0_dp, C%laddie_velocity_maximum/Uabs)
-          npx%V( ti) = npx%V( ti) * MIN(1.0_dp, C%laddie_velocity_maximum/Uabs)
-        END IF
+        IF (Uabs == 0) CYCLE ! Prevent division by zero
+        npx%U( ti) = npx%U( ti) * MIN(1.0_dp, C%laddie_velocity_maximum/Uabs)
+        npx%V( ti) = npx%V( ti) * MIN(1.0_dp, C%laddie_velocity_maximum/Uabs)
+
       END IF ! (laddie%mask_b( ti))
     END DO !ti = mesh%ti1, mesh%ti2
 
@@ -253,8 +254,6 @@ CONTAINS
   SUBROUTINE compute_divQUV_upstream( mesh, laddie, npxref, Hstar_b)
     ! Upstream scheme
 
-    IMPLICIT NONE
-
     ! In/output variables:
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
@@ -299,10 +298,6 @@ CONTAINS
           tj = mesh%TriC( ti, ci)
           ei = mesh%TriE( ti, ci)
 
-          !IF (par%master) THEN
-          !  WRITE( *, *) ti, ci, tj, ei, mask_gl_b_tot( tj)
-          !END IF     
-
           ! Skip if no connecting triangle on this side
           IF (tj == 0) CYCLE
 
@@ -314,7 +309,7 @@ CONTAINS
           D_y = mesh%Tricc( tj,2) - mesh%Tricc( ti,2)
           D_c = SQRT( D_x**2 + D_y**2)
 
-          ! Calculate vertically averaged ice velocity component perpendicular to this edge
+          ! Calculate vertically averaged water velocity component perpendicular to this edge
           u_perp_x = U_c_tot( ei) * D_x/D_c
           u_perp_y = V_c_tot( ei) * D_y/D_c
 
@@ -335,9 +330,6 @@ CONTAINS
             laddie%divQV( ti) = laddie%divQV( ti) + mesh%TriCw( ti, ci) * H_b_tot( tj) * V_tot( tj)* u_perp_y / mesh%TriA( ti)
           END IF
 
-          !IF (par%master) THEN
-          !  WRITE( *, "(I3,I3,I3,I3,A,F15.3,A,F12.6,A,F12.6,A,F18.12)") ti, ci, tj, ei, '  D_x: ', D_x, '  H_b_tot(ti)', H_b_tot( ti), '   U_tot( ti)', U_tot( ti), '   divQU(ti)', laddie%divQU( ti)*mesh%TriA( ti)
-          !END IF     
         END DO ! DO ci = 1, 3
 
       END IF ! (laddie%mask_b( ti))
@@ -350,12 +342,10 @@ CONTAINS
   END SUBROUTINE compute_divQUV_upstream
 
   SUBROUTINE map_laddie_velocities_from_b_to_c_2D( mesh, u_b_partial, v_b_partial, u_c, v_c)
-    ! Calculate velocities on the c-grid for solving the ice thickness equation
+    ! Calculate velocities on the c-grid for solving the layer thickness equation
     ! 
     ! Uses a different scheme then the standard mapping operator, as that one is too diffusive
         
-    IMPLICIT NONE
-
     ! In/output variables:
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
     REAL(dp), DIMENSION(mesh%ti1:mesh%ti2), INTENT(IN)    :: u_b_partial
