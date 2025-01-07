@@ -203,16 +203,9 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_buoyancy'
     INTEGER                                               :: vi, vj, n, ci
     REAL(dp)                                              :: T, S, H
-    LOGICAL, DIMENSION(mesh%nV)                           :: mask_a_tot
-    REAL(dp), DIMENSION(mesh%nV)                          :: T_tot, S_tot, H_tot
  
     ! Add routine to path
     CALL init_routine( routine_name)
-
-    CALL gather_to_all_logical_1D( laddie%mask_a, mask_a_tot)
-    CALL gather_to_all_dp_1D( npx%T, T_tot)
-    CALL gather_to_all_dp_1D( npx%S, S_tot)
-    CALL gather_to_all_dp_1D( Hstar, H_tot)
 
     laddie%drho_amb = 0.0_dp
 
