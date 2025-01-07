@@ -100,12 +100,19 @@ err_x_GL_final_lo = abs( min( 0, x_GL( end) - 350e3));
 err_x_GL_final_hi = abs( max( 0, x_GL( end) - 420e3));
 var_x_GL          = max( abs( x_GL_smooth - x_GL));
 
+% Read stability info for the last spin-up simulation
+% (the retreat simulations have a very fast-changing ice sheet,
+%  so the time step is pretty much always at the minimum)
+filename = 'results_4km_spinup/scalar_output_ANT_00001.nc';
+nskip = 5; % Skip the first few values, as the model is still relaxing there
+stab = read_stability_info( filename, nskip);
+
 % Write to scoreboard file
 write_to_scoreboard_file( ...
-  err_x_GL_init, err_x_GL_final_lo, err_x_GL_final_hi, var_x_GL);
+  err_x_GL_init, err_x_GL_final_lo, err_x_GL_final_hi, var_x_GL, stab);
 
   function write_to_scoreboard_file( ...
-      err_x_GL_init, err_x_GL_final_lo, err_x_GL_final_hi, var_x_GL)
+      err_x_GL_init, err_x_GL_final_lo, err_x_GL_final_hi, var_x_GL, stab)
 
     % Set up a scoreboard results structure
     single_run = initialise_single_test_run( test_name, test_path);
@@ -119,6 +126,8 @@ write_to_scoreboard_file( ...
       'err_x_GL_final_hi', 'abs( max( 0, x_GL( end) - 420e3))', err_x_GL_final_hi);
     single_run = add_cost_function_to_single_run( single_run, ...
       'var_x_GL', 'max( abs( x_GL_smooth - x_GL))', var_x_GL);
+
+    single_run = add_stability_info_cost_functions( single_run, stab);
     
     % Write to scoreboard file
     write_scoreboard_file( foldername_automated_testing, single_run);

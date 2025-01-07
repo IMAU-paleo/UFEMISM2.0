@@ -53,8 +53,13 @@ r_GL2 = calc_mean_grounding_line_radius( mesh2, Hi2, Hb2);
 
 GL_hyst = r_GL2 - r_GL1;
 
+% Read stability info for the last spin-up simulation
+filename = 'results_spinup_10km/scalar_output_ANT_00001.nc';
+nskip = 5; % Skip the first few values, as the model is still relaxing there
+stab = read_stability_info( filename, nskip);
+
 % Write to scoreboard file
-write_to_scoreboard_file( GL_hyst);
+write_to_scoreboard_file( GL_hyst, stab);
 
   function r_GL = calc_mean_grounding_line_radius( mesh, Hi, Hb)
     TAF = Hi - max( 0, -Hb * (1028 / 910));
@@ -77,7 +82,7 @@ write_to_scoreboard_file( GL_hyst);
     r_GL = sum_r_GL / n_GL;
   end
 
-  function write_to_scoreboard_file( GL_hyst)
+  function write_to_scoreboard_file( GL_hyst, stab)
 
     % Set up a scoreboard results structure
     single_run = initialise_single_test_run( test_name, test_path);
@@ -85,6 +90,8 @@ write_to_scoreboard_file( GL_hyst);
     % Add cost functions to results structure
     single_run = add_cost_function_to_single_run( single_run, ...
       'GL_hyst', 'r_GL2 - r_GL1', GL_hyst);
+
+    single_run = add_stability_info_cost_functions( single_run, stab);
     
     % Write to scoreboard file
     write_scoreboard_file( foldername_automated_testing, single_run);
