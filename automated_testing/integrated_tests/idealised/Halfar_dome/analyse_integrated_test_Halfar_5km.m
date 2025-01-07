@@ -32,10 +32,10 @@ else
   error('need either foldername_automated_testing, or nothing as input!')
 end
 
-foldername_test = [foldername_automated_testing '/' test_path '/' test_name];
+foldername_test = [foldername_automated_testing '/' test_path];
 
-filename_config  = [foldername_test '/config.cfg'];
-filename_results = [foldername_test '/results/main_output_ANT_00001.nc'];
+filename_config  = [foldername_test '/config_Halfar_5km.cfg'];
+filename_results = [foldername_test '/results_Halfar_5km/main_output_ANT_00001.nc'];
 
 addpath([foldername_automated_testing '/scoreboard/scripts'])
 
@@ -57,8 +57,13 @@ end
 % Calculate thickness error at the end of the simulation
 RMSE_Hi = sqrt( mean( (Hi( :,end) - Hi_analytical( :,end)).^2 ));
 
+% Read stability info
+filename = [foldername_test '/results_Halfar_5km/scalar_output_ANT_00001.nc'];
+nskip = 5; % Skip the first few values, as the model is still relaxing there
+stab = read_stability_info( filename, nskip);
+
 % Write to scoreboard file
-write_to_scoreboard_file( RMSE_Hi);
+write_to_scoreboard_file( RMSE_Hi, stab);
 
   function [A_flow, n_flow, H0, R0] = get_Halfar_dome_params_from_config( filename_config)
     fid = fopen( filename_config,'r');
@@ -150,7 +155,7 @@ write_to_scoreboard_file( RMSE_Hi);
   H = H0 * f1 * max( 0, (1 - (f2 * f3).^((n_flow + 1) / n_flow))).^(n_flow / (2*n_flow + 1));
 end
 
-  function write_to_scoreboard_file( RMSE_Hi)
+  function write_to_scoreboard_file( RMSE_Hi, stab)
 
     % Set up a scoreboard results structure
     single_run = initialise_single_test_run( test_name, test_path);
@@ -158,6 +163,8 @@ end
     % Add cost functions to results structure
     single_run = add_cost_function_to_single_run( single_run, ...
       'rmse', 'sqrt( mean( (Hi( :,end) - Hi_analytical( :,end)).^2 ))', RMSE_Hi);
+
+    single_run = add_stability_info_cost_functions( single_run, stab);
     
     % Write to scoreboard file
     write_scoreboard_file( foldername_automated_testing, single_run);
