@@ -32,17 +32,8 @@ jobs:
   # integrated_tests_idealised_Halfar_dome_Halfar_static_5km:
   #   uses: ./.github/workflows/zz_integrated_tests_idealised_Halfar_dome_Halfar_static_5km.yml
 
-  integrated_tests_idealised_ISMIP-HOM_exp_A:
-    uses: ./.github/workflows/zz_integrated_tests_idealised_ISMIP-HOM_exp_A.yml
-
-  integrated_tests_idealised_ISMIP-HOM_exp_B:
-    uses: ./.github/workflows/zz_integrated_tests_idealised_ISMIP-HOM_exp_B.yml
-
-  integrated_tests_idealised_ISMIP-HOM_exp_C:
-    uses: ./.github/workflows/zz_integrated_tests_idealised_ISMIP-HOM_exp_C.yml
-
-  integrated_tests_idealised_ISMIP-HOM_exp_D:
-    uses: ./.github/workflows/zz_integrated_tests_idealised_ISMIP-HOM_exp_D.yml
+  integrated_tests_idealised_ISMIP-HOM:
+    uses: ./.github/workflows/zz_integrated_tests_idealised_ISMIP-HOM.yml
 
   integrated_tests_idealised_MISMIP_mod:
     uses: ./.github/workflows/zz_integrated_tests_idealised_MISMIP_mod.yml
