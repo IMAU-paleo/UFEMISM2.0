@@ -1,6 +1,8 @@
 function analyse_integrated_test( varargin)
 % Analyse the results of the ISMIP-HOM experiment C integrated test
 
+varargin = varargin{1};
+
 disp('Analysing integrated test idealised/ISMIP-HOM/experiment_C...')
 disp('')
 
