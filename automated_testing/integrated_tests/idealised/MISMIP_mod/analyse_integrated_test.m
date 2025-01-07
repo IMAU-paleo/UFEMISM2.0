@@ -54,7 +54,7 @@ r_GL2 = calc_mean_grounding_line_radius( mesh2, Hi2, Hb2);
 GL_hyst = r_GL2 - r_GL1;
 
 % Read stability info for the last spin-up simulation
-filename = 'results_spinup_10km/scalar_output_ANT_00001.nc';
+filename = [foldername_test '/results_spinup_10km/scalar_output_ANT_00001.nc'];
 nskip = 5; % Skip the first few values, as the model is still relaxing there
 stab = read_stability_info( filename, nskip);
 
