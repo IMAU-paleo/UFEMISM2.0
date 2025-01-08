@@ -121,7 +121,7 @@ CONTAINS
     REAL(dp), DIMENSION(mesh%nE)                          :: U_c_tot, V_c_tot
     REAL(dp), DIMENSION(mesh%nV)                          :: H_tot
     INTEGER                                               :: vi, ci, vj, ei
-    REAL(dp)                                              :: D_x, D_y, D, u_perp
+    REAL(dp)                                              :: u_perp
     LOGICAL, DIMENSION(mesh%nV)                           :: mask_gr_a_tot, mask_oc_a_tot
 
     ! Add routine to path
@@ -159,10 +159,7 @@ CONTAINS
           ei = mesh%VE( vi,ci)
 
           ! Calculate vertically averaged ice velocity component perpendicular to this shared Voronoi cell boundary section
-          D_x = mesh%V( vj,1) - mesh%V( vi,1)
-          D_y = mesh%V( vj,2) - mesh%V( vi,2)
-          D   = SQRT( D_x**2 + D_y**2)
-          u_perp = U_c_tot( ei) * D_x/D + V_c_tot( ei) * D_y/D
+          u_perp = U_c_tot( ei) * mesh%D_x( vi, ci)/mesh%D( vi, ci) + V_c_tot( ei) * mesh%D_y( vi, ci)/mesh%D( vi, ci)
 
           ! Calculate upwind momentum divergence
           ! =============================
