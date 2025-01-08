@@ -116,33 +116,29 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'map_H_a_c'
-    INTEGER                                               :: i, vi, ei, n
+    INTEGER                                               :: ei, vi, vj
     REAL(dp), DIMENSION(mesh%nV)                          :: H_a_tot
  
     ! Add routine to path
     CALL init_routine( routine_name)
 
-
     CALL gather_to_all( H_a, H_a_tot)
 
     DO ei = mesh%ei1, mesh%ei2
-       H_c( ei) = 0.0_dp
-       ! Set zero
-       n = 0
        
-       ! Loop over vertices
-       DO i = 1, 2
-         vi = mesh%EV( ei, i)
-         IF (laddie%mask_a( vi)) THEN
-           H_c( ei) = H_c( ei) + H_a_tot( vi)
-           n = n+1
-         END IF
-       END DO
+       ! Get neighbouring vertices
+       vi = mesh%EV( ei, 1)
+       vj = mesh%EV( ei, 2)
 
-       IF (n==0) THEN
-         H_c( ei) = 0
+       ! Get masked average between the two vertices
+       IF (laddie%mask_a( vi) .AND. laddie%mask_a( vj)) THEN
+         H_c( ei) = 0.5_dp * (H_a_tot( vi) + H_a_tot( vj))
+       ELSEIF (laddie%mask_a( vi)) THEN
+         H_c( ei) = H_a_tot( vi)
+       ELSEIF (laddie%mask_a( vj)) THEN
+         H_c( ei) = H_a_tot( vj)
        ELSE
-         H_c( ei) = H_c( ei) / n
+         H_c( ei) = 0.0_dp
        END IF
 
     END DO
@@ -227,7 +223,6 @@ CONTAINS
     ALLOCATE( laddie%H_c                ( mesh%ei1:mesh%ei2), source=0._dp) ! [m]             Layer thickness on c grid 
 
     ! Masks
-
     ALLOCATE( laddie%mask_a             ( mesh%vi1:mesh%vi2), source=.false.) !                 Mask on a-grid
     ALLOCATE( laddie%mask_gr_a          ( mesh%vi1:mesh%vi2), source=.false.) !                 Grounded mask on a-grid
     ALLOCATE( laddie%mask_oc_a          ( mesh%vi1:mesh%vi2), source=.false.) !                 Icefree ocean mask on a-grid
