@@ -35,7 +35,7 @@ addpath([foldername_automated_testing '/scoreboard/scripts'])
 addpath(foldername_ISMIP_HOM)
 
 foldername_test = [foldername_automated_testing '/integrated_tests/idealised/' ...
-  'ISMIP-HOM/exp_A'];
+  'ISMIP-HOM'];
 
 %%
 
