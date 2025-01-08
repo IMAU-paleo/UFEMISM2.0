@@ -81,7 +81,7 @@ CONTAINS
 
          ! Get melt rate
          IF (4*Cval > Bval**2) THEN
-           !Something wrong, set melt rate to zero
+           ! Probably not possible, but to prevent NaNs, set melt rate to zero
            laddie%melt( vi) = 0.0
          ELSE
            laddie%melt( vi) = 0.5_dp * (-Bval + SQRT(Bval**2 - 4.0_dp*Cval)) 
