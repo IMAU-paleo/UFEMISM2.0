@@ -1,4 +1,4 @@
-MODULE netcdf_basic
+module netcdf_basic
 
   ! Basic NetCDF routines
   ! =====================
@@ -14,23 +14,23 @@ MODULE netcdf_basic
 ! ====================
 
   use assertions_basic
-  USE mpi
-  USE precisions                                             , ONLY: dp, int8
-  USE mpi_basic                                              , ONLY: par, cerr, ierr, recv_status, sync
-  USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
-  USE model_configuration                                    , ONLY: C, git_commit_hash
+  use mpi
+  use precisions                                             , only: dp, int8
+  use mpi_basic                                              , only: par, cerr, ierr, recv_status, sync
+  use control_resources_and_error_messaging                  , only: warning, crash, happy, init_routine, finalise_routine, colour_string
+  use model_configuration                                    , only: C, git_commit_hash
 
   ! Import  NetCDF functionality
-  USE netcdf, ONLY: NF90_NOERR, NF90_OPEN, NF90_CLOSE, NF90_NOWRITE, NF90_INQ_DIMID, NF90_INQUIRE_DIMENSION, &
-              NF90_INQ_VARID, NF90_INQUIRE_VARIABLE, NF90_MAX_VAR_DIMS, NF90_GET_VAR, &
-              NF90_CREATE, NF90_NOCLOBBER, NF90_NETCDF4, NF90_ENDDEF, NF90_REDEF, NF90_DEF_DIM, NF90_DEF_VAR, &
+  use netcdf, only: NF90_NOERR, NF90_OPEN, NF90_CLOSE, NF90_NOWRITE, NF90_INQ_DIMID, NF90_inquire_dimension, &
+              NF90_INQ_VARID, NF90_inquire_VARIABLE, NF90_MAX_VAR_DIMS, NF90_GET_VAR, &
+              NF90_CREATE, NF90_NOCLOBBER, NF90_NETCDF4, NF90_endDEF, NF90_REDEF, NF90_DEF_DIM, NF90_DEF_VAR, &
               NF90_PUT_ATT, NF90_WRITE, NF90_INT, NF90_FLOAT, NF90_DOUBLE, NF90_PUT_VAR, NF90_UNLIMITED, &
-              NF90_INQUIRE_ATTRIBUTE, NF90_SHARE, NF90_GLOBAL, NF90_INT64
+              NF90_inquire_ATTRIBUTE, NF90_SHARE, NF90_GLOBAL, NF90_INT64
 
-  IMPLICIT NONE
+  implicit none
 
   ! NetCDF error code
-  INTEGER :: nerr
+  integer :: nerr
 
   ! Possible names for different dimensions and variables
   ! =====================================================
@@ -38,3449 +38,3381 @@ MODULE netcdf_basic
   ! Different options for the name of a dimension or variable can now be tried.
   ! They are separated by a double vertical bar ||
 
-  ! Dimensions
-  CHARACTER(LEN=256), PARAMETER :: field_name_options_x              = 'x||X||x1||X1||nx||NX||x-coordinate||X-coordinate||easting||Easting'
-  CHARACTER(LEN=256), PARAMETER :: field_name_options_y              = 'y||Y||y1||Y1||ny||NY||y-coordinate||Y-coordinate||northing||Northing'
-  CHARACTER(LEN=256), PARAMETER :: field_name_options_zeta           = 'zeta||Zeta'
-  CHARACTER(LEN=256), PARAMETER :: field_name_options_lon            = 'lon||Lon||long||Long||longitude||Longitude'
-  CHARACTER(LEN=256), PARAMETER :: field_name_options_lat            = 'lat||Lat||latitude||Latitude'
-  CHARACTER(LEN=256), PARAMETER :: field_name_options_time           = 'time||Time||t||nt'
-  CHARACTER(LEN=256), PARAMETER :: field_name_options_month          = 'month||Month'
-  CHARACTER(LEN=256), PARAMETER :: field_name_options_depth          = 'depth||Depth'
+  ! dimensions
+  character(len=1024), parameter :: field_name_options_x              = 'x||X||x1||X1||nx||NX||x-coordinate||X-coordinate||easting||Easting'
+  character(len=1024), parameter :: field_name_options_y              = 'y||Y||y1||Y1||ny||NY||y-coordinate||Y-coordinate||northing||Northing'
+  character(len=1024), parameter :: field_name_options_zeta           = 'zeta||Zeta'
+  character(len=1024), parameter :: field_name_options_lon            = 'lon||Lon||long||Long||longitude||Longitude'
+  character(len=1024), parameter :: field_name_options_lat            = 'lat||Lat||latitude||Latitude'
+  character(len=1024), parameter :: field_name_options_time           = 'time||Time||t||nt'
+  character(len=1024), parameter :: field_name_options_month          = 'month||Month'
+  character(len=1024), parameter :: field_name_options_depth          = 'depth||Depth'
 
   ! Mesh
-  CHARACTER(LEN=256), PARAMETER :: field_name_options_dim_nV         = 'vi'
-  CHARACTER(LEN=256), PARAMETER :: field_name_options_dim_nTri       = 'ti'
-  CHARACTER(LEN=256), PARAMETER :: field_name_options_dim_nC_mem     = 'ci'
-  CHARACTER(LEN=256), PARAMETER :: field_name_options_dim_nE         = 'ei'
-  CHARACTER(LEN=256), PARAMETER :: field_name_options_dim_nVor       = 'vori'
-  CHARACTER(LEN=256), PARAMETER :: field_name_options_dim_two        = 'two'
-  CHARACTER(LEN=256), PARAMETER :: field_name_options_dim_three      = 'three'
-  CHARACTER(LEN=256), PARAMETER :: field_name_options_dim_four       = 'four'
+  character(len=1024), parameter :: field_name_options_dim_nV         = 'vi'
+  character(len=1024), parameter :: field_name_options_dim_nTri       = 'ti'
+  character(len=1024), parameter :: field_name_options_dim_nC_mem     = 'ci'
+  character(len=1024), parameter :: field_name_options_dim_nE         = 'ei'
+  character(len=1024), parameter :: field_name_options_dim_nVor       = 'vori'
+  character(len=1024), parameter :: field_name_options_dim_two        = 'two'
+  character(len=1024), parameter :: field_name_options_dim_three      = 'three'
+  character(len=1024), parameter :: field_name_options_dim_four       = 'four'
 
-  CHARACTER(LEN=256), PARAMETER :: field_name_options_V              = 'V'
-  CHARACTER(LEN=256), PARAMETER :: field_name_options_Tri            = 'Tri'
-  CHARACTER(LEN=256), PARAMETER :: field_name_options_nC             = 'nC'
-  CHARACTER(LEN=256), PARAMETER :: field_name_options_C              = 'C'
-  CHARACTER(LEN=256), PARAMETER :: field_name_options_niTri          = 'niTri'
-  CHARACTER(LEN=256), PARAMETER :: field_name_options_iTri           = 'iTri'
-  CHARACTER(LEN=256), PARAMETER :: field_name_options_VBI            = 'VBI'
-  CHARACTER(LEN=256), PARAMETER :: field_name_options_Tricc          = 'Tricc'
-  CHARACTER(LEN=256), PARAMETER :: field_name_options_TriC           = 'TriC'
-  CHARACTER(LEN=256), PARAMETER :: field_name_options_TriBI          = 'TriBI'
-  CHARACTER(LEN=256), PARAMETER :: field_name_options_E              = 'E'
-  CHARACTER(LEN=256), PARAMETER :: field_name_options_VE             = 'VE'
-  CHARACTER(LEN=256), PARAMETER :: field_name_options_EV             = 'EV'
-  CHARACTER(LEN=256), PARAMETER :: field_name_options_ETri           = 'ETri'
-  CHARACTER(LEN=256), PARAMETER :: field_name_options_EBI            = 'EBI'
-  CHARACTER(LEN=256), PARAMETER :: field_name_options_vi2vori        = 'vi2vori'
-  CHARACTER(LEN=256), PARAMETER :: field_name_options_ti2vori        = 'ti2vori'
-  CHARACTER(LEN=256), PARAMETER :: field_name_options_ei2vori        = 'ei2vori'
-  CHARACTER(LEN=256), PARAMETER :: field_name_options_vori2vi        = 'vori2vi'
-  CHARACTER(LEN=256), PARAMETER :: field_name_options_vori2ti        = 'vori2ti'
-  CHARACTER(LEN=256), PARAMETER :: field_name_options_vori2ei        = 'vori2ei'
-  CHARACTER(LEN=256), PARAMETER :: field_name_options_Vor            = 'Vor'
-  CHARACTER(LEN=256), PARAMETER :: field_name_options_VornC          = 'VornC'
-  CHARACTER(LEN=256), PARAMETER :: field_name_options_VorC           = 'VorC'
-  CHARACTER(LEN=256), PARAMETER :: field_name_options_nVVor          = 'nVVor'
-  CHARACTER(LEN=256), PARAMETER :: field_name_options_VVor           = 'VVor'
-  CHARACTER(LEN=256), PARAMETER :: field_name_options_TriGC          = 'TriGC'
-  CHARACTER(LEN=256), PARAMETER :: field_name_options_A              = 'A'
-  CHARACTER(LEN=256), PARAMETER :: field_name_options_R              = 'R'
+  character(len=1024), parameter :: field_name_options_V              = 'V'
+  character(len=1024), parameter :: field_name_options_Tri            = 'Tri'
+  character(len=1024), parameter :: field_name_options_nC             = 'nC'
+  character(len=1024), parameter :: field_name_options_C              = 'C'
+  character(len=1024), parameter :: field_name_options_niTri          = 'niTri'
+  character(len=1024), parameter :: field_name_options_iTri           = 'iTri'
+  character(len=1024), parameter :: field_name_options_VBI            = 'VBI'
+  character(len=1024), parameter :: field_name_options_Tricc          = 'Tricc'
+  character(len=1024), parameter :: field_name_options_TriC           = 'TriC'
+  character(len=1024), parameter :: field_name_options_TriBI          = 'TriBI'
+  character(len=1024), parameter :: field_name_options_E              = 'E'
+  character(len=1024), parameter :: field_name_options_VE             = 'VE'
+  character(len=1024), parameter :: field_name_options_EV             = 'EV'
+  character(len=1024), parameter :: field_name_options_ETri           = 'ETri'
+  character(len=1024), parameter :: field_name_options_EBI            = 'EBI'
+  character(len=1024), parameter :: field_name_options_vi2vori        = 'vi2vori'
+  character(len=1024), parameter :: field_name_options_ti2vori        = 'ti2vori'
+  character(len=1024), parameter :: field_name_options_ei2vori        = 'ei2vori'
+  character(len=1024), parameter :: field_name_options_vori2vi        = 'vori2vi'
+  character(len=1024), parameter :: field_name_options_vori2ti        = 'vori2ti'
+  character(len=1024), parameter :: field_name_options_vori2ei        = 'vori2ei'
+  character(len=1024), parameter :: field_name_options_Vor            = 'Vor'
+  character(len=1024), parameter :: field_name_options_VornC          = 'VornC'
+  character(len=1024), parameter :: field_name_options_VorC           = 'VorC'
+  character(len=1024), parameter :: field_name_options_nVVor          = 'nVVor'
+  character(len=1024), parameter :: field_name_options_VVor           = 'VVor'
+  character(len=1024), parameter :: field_name_options_TriGC          = 'TriGC'
+  character(len=1024), parameter :: field_name_options_A              = 'A'
+  character(len=1024), parameter :: field_name_options_R              = 'R'
 
   ! Variables
-  CHARACTER(LEN=256), PARAMETER :: field_name_options_Hi             = 'Hi||thickness||lithk'
-  CHARACTER(LEN=256), PARAMETER :: field_name_options_Hb             = 'Hb||bed||topg'
-  CHARACTER(LEN=256), PARAMETER :: field_name_options_Hs             = 'Hs||surface||orog'
-  CHARACTER(LEN=256), PARAMETER :: field_name_options_SL             = 'SL'
-  CHARACTER(LEN=256), PARAMETER :: field_name_options_dHb            = 'dHb'
-  CHARACTER(LEN=256), PARAMETER :: field_name_options_Ti             = 'Ti'
-  CHARACTER(LEN=256), PARAMETER :: field_name_options_T_ocean        = 'T_ocean||t_ocean||t_an'
-  CHARACTER(LEN=256), PARAMETER :: field_name_options_S_ocean        = 'S_ocean||s_ocean||s_an'
+  character(len=1024), parameter :: field_name_options_Hi             = 'Hi||thickness||lithk'
+  character(len=1024), parameter :: field_name_options_Hb             = 'Hb||bed||topg'
+  character(len=1024), parameter :: field_name_options_Hs             = 'Hs||surface||orog'
+  character(len=1024), parameter :: field_name_options_SL             = 'SL'
+  character(len=1024), parameter :: field_name_options_dHb            = 'dHb'
+  character(len=1024), parameter :: field_name_options_Ti             = 'Ti'
+  character(len=1024), parameter :: field_name_options_T_ocean        = 'T_ocean||t_ocean||t_an'
+  character(len=1024), parameter :: field_name_options_S_ocean        = 'S_ocean||s_ocean||s_an'
 
-CONTAINS
+contains
 
   ! Check if a file contains all the variables and dimensions describing
   ! an x/y-grid, a lon/lat-grid, or a mesh
-  SUBROUTINE inquire_xy_grid( filename, has_xy_grid)
-    ! Inquire if a NetCDF file contains all the dimensions and variables
+  subroutine inquire_xy_grid( filename, has_xy_grid)
+    ! inquire if a NetCDF file contains all the dimensions and variables
     ! describing a regular x/y-grid.
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    LOGICAL,                             INTENT(OUT)   :: has_xy_grid
+    character(len=*), intent(in   ) :: filename
+    logical,          intent(  out) :: has_xy_grid
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'inquire_xy_grid'
-    INTEGER                                            :: ncid
-    INTEGER                                            :: id_dim_x, id_dim_y
-    INTEGER                                            :: id_var_x, id_var_y
+    character(len=1024), parameter :: routine_name = 'inquire_xy_grid'
+    integer                        :: ncid
+    integer                        :: id_dim_x, id_dim_y
+    integer                        :: id_var_x, id_var_y
 
     ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+    call init_routine( routine_name, do_track_resource_use = .false.)
 
     ! Open the NetCDF file
-    CALL open_existing_netcdf_file_for_reading( filename, ncid)
+    call open_existing_netcdf_file_for_reading( filename, ncid)
 
     ! Look for x and y dimensions and variables
-    CALL inquire_dim_multopt( filename, ncid, field_name_options_x, id_dim_x)
-    CALL inquire_dim_multopt( filename, ncid, field_name_options_y, id_dim_y)
-    CALL inquire_var_multopt( filename, ncid, field_name_options_x, id_var_x)
-    CALL inquire_var_multopt( filename, ncid, field_name_options_y, id_var_y)
+    call inquire_dim_multopt( filename, ncid, field_name_options_x, id_dim_x)
+    call inquire_dim_multopt( filename, ncid, field_name_options_y, id_dim_y)
+    call inquire_var_multopt( filename, ncid, field_name_options_x, id_var_x)
+    call inquire_var_multopt( filename, ncid, field_name_options_y, id_var_y)
 
     ! Check if everything is there
-    has_xy_grid = .TRUE.
+    has_xy_grid = .true.
 
-    IF (id_dim_x              == -1) has_xy_grid = .FALSE.
-    IF (id_dim_y              == -1) has_xy_grid = .FALSE.
-    IF (id_var_x              == -1) has_xy_grid = .FALSE.
-    IF (id_var_y              == -1) has_xy_grid = .FALSE.
+    if (id_dim_x == -1) has_xy_grid = .false.
+    if (id_dim_y == -1) has_xy_grid = .false.
+    if (id_var_x == -1) has_xy_grid = .false.
+    if (id_var_y == -1) has_xy_grid = .false.
 
     ! Close the NetCDF file
-    CALL close_netcdf_file( ncid)
+    call close_netcdf_file( ncid)
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE inquire_xy_grid
+  end subroutine inquire_xy_grid
 
-  SUBROUTINE inquire_lonlat_grid( filename, has_lonlat_grid)
-    ! Inquire if a NetCDF file contains all the dimensions and variables
+  subroutine inquire_lonlat_grid( filename, has_lonlat_grid)
+    ! inquire if a NetCDF file contains all the dimensions and variables
     ! describing a regular lon/lat-grid.
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    LOGICAL,                             INTENT(OUT)   :: has_lonlat_grid
+    character(len=*), intent(in   ) :: filename
+    logical,          intent(  out) :: has_lonlat_grid
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'inquire_lonlat_grid'
-    INTEGER                                            :: ncid
-    INTEGER                                            :: id_dim_lon, id_dim_lat
-    INTEGER                                            :: id_var_lon, id_var_lat
+    character(len=1024), parameter :: routine_name = 'inquire_lonlat_grid'
+    integer                        :: ncid
+    integer                        :: id_dim_lon, id_dim_lat
+    integer                        :: id_var_lon, id_var_lat
 
     ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+    call init_routine( routine_name, do_track_resource_use = .false.)
 
     ! Open the NetCDF file
-    CALL open_existing_netcdf_file_for_reading( filename, ncid)
+    call open_existing_netcdf_file_for_reading( filename, ncid)
 
     ! Look for x and y dimensions and variables
-    CALL inquire_dim_multopt( filename, ncid, field_name_options_lon, id_dim_lon)
-    CALL inquire_dim_multopt( filename, ncid, field_name_options_lat, id_dim_lat)
-    CALL inquire_var_multopt( filename, ncid, field_name_options_lon, id_var_lon)
-    CALL inquire_var_multopt( filename, ncid, field_name_options_lat, id_var_lat)
+    call inquire_dim_multopt( filename, ncid, field_name_options_lon, id_dim_lon)
+    call inquire_dim_multopt( filename, ncid, field_name_options_lat, id_dim_lat)
+    call inquire_var_multopt( filename, ncid, field_name_options_lon, id_var_lon)
+    call inquire_var_multopt( filename, ncid, field_name_options_lat, id_var_lat)
 
     ! Check if everything is there
-    has_lonlat_grid = .TRUE.
+    has_lonlat_grid = .true.
 
-    IF (id_dim_lon            == -1) has_lonlat_grid = .FALSE.
-    IF (id_dim_lat            == -1) has_lonlat_grid = .FALSE.
-    IF (id_var_lon            == -1) has_lonlat_grid = .FALSE.
-    IF (id_var_lat            == -1) has_lonlat_grid = .FALSE.
+    if (id_dim_lon == -1) has_lonlat_grid = .false.
+    if (id_dim_lat == -1) has_lonlat_grid = .false.
+    if (id_var_lon == -1) has_lonlat_grid = .false.
+    if (id_var_lat == -1) has_lonlat_grid = .false.
 
     ! Close the NetCDF file
-    CALL close_netcdf_file( ncid)
+    call close_netcdf_file( ncid)
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE inquire_lonlat_grid
+  end subroutine inquire_lonlat_grid
 
-  SUBROUTINE inquire_mesh( filename, has_mesh)
-    ! Inquire if a NetCDF file contains all the dimensions and variables
+  subroutine inquire_mesh( filename, has_mesh)
+    ! inquire if a NetCDF file contains all the dimensions and variables
     ! describing a mesh.
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    LOGICAL,                             INTENT(OUT)   :: has_mesh
+    character(len=*), intent(in   ) :: filename
+    logical,          intent(  out) :: has_mesh
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'inquire_mesh'
-    INTEGER                                            :: ncid
-    INTEGER                                            :: id_dim_vi, id_dim_ti, id_dim_ci, id_dim_two, id_dim_three
-    INTEGER                                            :: id_var_V, id_var_nC, id_var_C, id_var_niTri, id_var_iTri, id_var_VBI
-    INTEGER                                            :: id_var_Tri, id_var_Tricc, id_var_TriC, id_var_TrIBI
+    character(len=1024), parameter :: routine_name = 'inquire_mesh'
+    integer                        :: ncid
+    integer                        :: id_dim_vi, id_dim_ti, id_dim_ci, id_dim_two, id_dim_three
+    integer                        :: id_var_V, id_var_nC, id_var_C, id_var_niTri, id_var_iTri, id_var_VBI
+    integer                        :: id_var_Tri, id_var_Tricc, id_var_TriC, id_var_TrIBI
 
     ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+    call init_routine( routine_name, do_track_resource_use = .false.)
 
     ! Open the NetCDF file
-    CALL open_existing_netcdf_file_for_reading( filename, ncid)
+    call open_existing_netcdf_file_for_reading( filename, ncid)
 
-    ! Inquire mesh dimensions
-    CALL inquire_dim_multopt( filename, ncid, field_name_options_dim_nV    , id_dim_vi   )
-    CALL inquire_dim_multopt( filename, ncid, field_name_options_dim_nTri  , id_dim_ti   )
-    CALL inquire_dim_multopt( filename, ncid, field_name_options_dim_nC_mem, id_dim_ci   )
-    CALL inquire_dim_multopt( filename, ncid, field_name_options_dim_two   , id_dim_two  )
-    CALL inquire_dim_multopt( filename, ncid, field_name_options_dim_three , id_dim_three)
+    ! inquire mesh dimensions
+    call inquire_dim_multopt( filename, ncid, field_name_options_dim_nV    , id_dim_vi   )
+    call inquire_dim_multopt( filename, ncid, field_name_options_dim_nTri  , id_dim_ti   )
+    call inquire_dim_multopt( filename, ncid, field_name_options_dim_nC_mem, id_dim_ci   )
+    call inquire_dim_multopt( filename, ncid, field_name_options_dim_two   , id_dim_two  )
+    call inquire_dim_multopt( filename, ncid, field_name_options_dim_three , id_dim_three)
 
-    ! Inquire mesh variables
-    CALL inquire_var_multopt( filename, ncid, field_name_options_V         , id_var_V    )
-    CALL inquire_var_multopt( filename, ncid, field_name_options_nC        , id_var_nC   )
-    CALL inquire_var_multopt( filename, ncid, field_name_options_C         , id_var_C    )
-    CALL inquire_var_multopt( filename, ncid, field_name_options_niTri     , id_var_niTri)
-    CALL inquire_var_multopt( filename, ncid, field_name_options_iTri      , id_var_iTri )
-    CALL inquire_var_multopt( filename, ncid, field_name_options_VBI       , id_var_VBI  )
-    CALL inquire_var_multopt( filename, ncid, field_name_options_Tri       , id_var_Tri  )
-    CALL inquire_var_multopt( filename, ncid, field_name_options_Tricc     , id_var_Tricc)
-    CALL inquire_var_multopt( filename, ncid, field_name_options_TriC      , id_var_TriC )
-    CALL inquire_var_multopt( filename, ncid, field_name_options_TriBI     , id_var_TriBI)
+    ! inquire mesh variables
+    call inquire_var_multopt( filename, ncid, field_name_options_V         , id_var_V    )
+    call inquire_var_multopt( filename, ncid, field_name_options_nC        , id_var_nC   )
+    call inquire_var_multopt( filename, ncid, field_name_options_C         , id_var_C    )
+    call inquire_var_multopt( filename, ncid, field_name_options_niTri     , id_var_niTri)
+    call inquire_var_multopt( filename, ncid, field_name_options_iTri      , id_var_iTri )
+    call inquire_var_multopt( filename, ncid, field_name_options_VBI       , id_var_VBI  )
+    call inquire_var_multopt( filename, ncid, field_name_options_Tri       , id_var_Tri  )
+    call inquire_var_multopt( filename, ncid, field_name_options_Tricc     , id_var_Tricc)
+    call inquire_var_multopt( filename, ncid, field_name_options_TriC      , id_var_TriC )
+    call inquire_var_multopt( filename, ncid, field_name_options_TriBI     , id_var_TriBI)
 
     ! Check if everything is there
-    has_mesh = .TRUE.
+    has_mesh = .true.
 
-    IF (id_dim_vi    == -1) has_mesh = .FALSE.
-    IF (id_dim_ti    == -1) has_mesh = .FALSE.
-    IF (id_dim_ci    == -1) has_mesh = .FALSE.
-    IF (id_dim_two   == -1) has_mesh = .FALSE.
-    IF (id_dim_three == -1) has_mesh = .FALSE.
+    if (id_dim_vi    == -1) has_mesh = .false.
+    if (id_dim_ti    == -1) has_mesh = .false.
+    if (id_dim_ci    == -1) has_mesh = .false.
+    if (id_dim_two   == -1) has_mesh = .false.
+    if (id_dim_three == -1) has_mesh = .false.
 
-    IF (id_var_V     == -1) has_mesh = .FALSE.
-    IF (id_var_nC    == -1) has_mesh = .FALSE.
-    IF (id_var_C     == -1) has_mesh = .FALSE.
-    IF (id_var_niTri == -1) has_mesh = .FALSE.
-    IF (id_var_iTri  == -1) has_mesh = .FALSE.
-    IF (id_var_VBI   == -1) has_mesh = .FALSE.
-    IF (id_var_Tri   == -1) has_mesh = .FALSE.
-    IF (id_var_Tricc == -1) has_mesh = .FALSE.
-    IF (id_var_TriC  == -1) has_mesh = .FALSE.
-    IF (id_var_TriBI == -1) has_mesh = .FALSE.
+    if (id_var_V     == -1) has_mesh = .false.
+    if (id_var_nC    == -1) has_mesh = .false.
+    if (id_var_C     == -1) has_mesh = .false.
+    if (id_var_niTri == -1) has_mesh = .false.
+    if (id_var_iTri  == -1) has_mesh = .false.
+    if (id_var_VBI   == -1) has_mesh = .false.
+    if (id_var_Tri   == -1) has_mesh = .false.
+    if (id_var_Tricc == -1) has_mesh = .false.
+    if (id_var_TriC  == -1) has_mesh = .false.
+    if (id_var_TriBI == -1) has_mesh = .false.
 
     ! Close the NetCDF file
-    CALL close_netcdf_file( ncid)
+    call close_netcdf_file( ncid)
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE inquire_mesh
+  end subroutine inquire_mesh
 
-  ! Inquire if a file contains the variable and dimension for
+  ! inquire if a file contains the variable and dimension for
   ! zeta, z_ocean, time, or months
-  SUBROUTINE inquire_zeta( filename, ncid, has_zeta)
-    ! Inquire if a NetCDF file contains a zeta dimension and variable
-
-    IMPLICIT NONE
+  subroutine inquire_zeta( filename, ncid, has_zeta)
+    ! inquire if a NetCDF file contains a zeta dimension and variable
 
     ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    LOGICAL,                             INTENT(OUT)   :: has_zeta
+    character(len=*), intent(in   ) :: filename
+    integer,          intent(in   ) :: ncid
+    logical,          intent(  out) :: has_zeta
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'inquire_zeta'
-    INTEGER                                            :: id_dim_zeta, id_var_zeta
+    character(len=1024), parameter :: routine_name = 'inquire_zeta'
+    integer                        :: id_dim_zeta, id_var_zeta
 
     ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+    call init_routine( routine_name, do_track_resource_use = .false.)
 
     ! Look for zeta dimension and variable
-    CALL inquire_dim_multopt( filename, ncid, field_name_options_zeta, id_dim_zeta)
-    CALL inquire_var_multopt( filename, ncid, field_name_options_zeta, id_var_zeta)
+    call inquire_dim_multopt( filename, ncid, field_name_options_zeta, id_dim_zeta)
+    call inquire_var_multopt( filename, ncid, field_name_options_zeta, id_var_zeta)
 
     ! Check if everything is there
-    has_zeta = .TRUE.
+    has_zeta = .true.
 
-    IF (id_dim_zeta           == -1) has_zeta = .FALSE.
-    IF (id_var_zeta           == -1) has_zeta = .FALSE.
+    if (id_dim_zeta == -1) has_zeta = .false.
+    if (id_var_zeta == -1) has_zeta = .false.
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE inquire_zeta
+  end subroutine inquire_zeta
 
-  SUBROUTINE inquire_month( filename, ncid, has_month)
-    ! Inquire if a NetCDF file contains a month dimension and variable
-
-    IMPLICIT NONE
+  subroutine inquire_month( filename, ncid, has_month)
+    ! inquire if a NetCDF file contains a month dimension and variable
 
     ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    LOGICAL,                             INTENT(OUT)   :: has_month
+    character(len=*), intent(in   ) :: filename
+    integer,          intent(in   ) :: ncid
+    logical,          intent(  out) :: has_month
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'inquire_month'
-    INTEGER                                            :: id_dim_month, id_var_month
+    character(len=1024), parameter :: routine_name = 'inquire_month'
+    integer                        :: id_dim_month, id_var_month
 
     ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+    call init_routine( routine_name, do_track_resource_use = .false.)
 
     ! Look for month dimension and variable
-    CALL inquire_dim_multopt( filename, ncid, field_name_options_month, id_dim_month)
-    CALL inquire_var_multopt( filename, ncid, field_name_options_month, id_var_month)
+    call inquire_dim_multopt( filename, ncid, field_name_options_month, id_dim_month)
+    call inquire_var_multopt( filename, ncid, field_name_options_month, id_var_month)
 
     ! Check if everything is there
-    has_month = .TRUE.
+    has_month = .true.
 
-    IF (id_dim_month           == -1) has_month = .FALSE.
-    IF (id_var_month           == -1) has_month = .FALSE.
+    if (id_dim_month == -1) has_month = .false.
+    if (id_var_month == -1) has_month = .false.
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE inquire_month
+  end subroutine inquire_month
 
-  SUBROUTINE inquire_time( filename, ncid, has_time)
-    ! Inquire if a NetCDF file contains a time dimension and variable
-
-    IMPLICIT NONE
+  subroutine inquire_time( filename, ncid, has_time)
+    ! inquire if a NetCDF file contains a time dimension and variable
 
     ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    LOGICAL,                             INTENT(OUT)   :: has_time
+    character(len=*), intent(in   ) :: filename
+    integer,          intent(in   ) :: ncid
+    logical,          intent(  out) :: has_time
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'inquire_time'
-    INTEGER                                            :: id_dim_time, id_var_time
+    character(len=1024), parameter :: routine_name = 'inquire_time'
+    integer                        :: id_dim_time, id_var_time
 
     ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+    call init_routine( routine_name, do_track_resource_use = .false.)
 
     ! Look for time dimension and variable
-    CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
-    CALL inquire_var_multopt( filename, ncid, field_name_options_time, id_var_time)
+    call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
+    call inquire_var_multopt( filename, ncid, field_name_options_time, id_var_time)
 
     ! Check if everything is there
-    has_time = .TRUE.
+    has_time = .true.
 
-    IF (id_dim_time           == -1) has_time = .FALSE.
-    IF (id_var_time           == -1) has_time = .FALSE.
+    if (id_dim_time == -1) has_time = .false.
+    if (id_var_time == -1) has_time = .false.
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE inquire_time
+  end subroutine inquire_time
 
-  SUBROUTINE find_timeframe( filename, ncid, time, ti)
+  subroutine find_timeframe( filename, ncid, time, ti)
     ! Find the timeframe in the file that is closest to the desired time.
-    ! If the file has no time dimension or variable, throw an error.
-
-    IMPLICIT NONE
+    ! if the file has no time dimension or variable, throw an error.
 
     ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    REAL(dp),                            INTENT(IN)    :: time
-    INTEGER,                             INTENT(OUT)   :: ti
+    character(len=*), intent(in   ) :: filename
+    integer,          intent(in   ) :: ncid
+    real(dp),         intent(in   ) :: time
+    integer,          intent(  out) :: ti
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'find_timeframe'
-    INTEGER                                            :: nt, id_dim_time, id_var_time
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: time_from_file
-    INTEGER                                            :: tii
-    REAL(dp)                                           :: dt_min
+    character(len=1024), parameter      :: routine_name = 'find_timeframe'
+    integer                             :: nt, id_dim_time, id_var_time
+    real(dp), dimension(:), allocatable :: time_from_file
+    integer                             :: tii
+    real(dp)                            :: dt_min
 
     ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+    call init_routine( routine_name, do_track_resource_use = .false.)
 
     ! Check if the file contains a valid time dimension and variable
-    CALL check_time( filename, ncid)
+    call check_time( filename, ncid)
 
-    ! Inquire size of time dimension
-    CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = nt)
+    ! inquire size of time dimension
+    call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = nt)
 
-    ! Inquire time variable ID
-    CALL inquire_var_multopt( filename, ncid, field_name_options_time, id_var_time)
+    ! inquire time variable ID
+    call inquire_var_multopt( filename, ncid, field_name_options_time, id_var_time)
 
-    ! Allocate memory
-    ALLOCATE( time_from_file( nt))
+    ! allocate memory
+    allocate( time_from_file( nt))
 
     ! Read time from file
-    CALL read_var_master_dp_1D( filename, ncid, id_var_time, time_from_file)
-    CALL MPI_BCAST( time_from_file, nt, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+    call read_var_master_dp_1D( filename, ncid, id_var_time, time_from_file)
+    call MPI_BCAST( time_from_file, nt, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
 
     ! Find timeframe closest to desired time
-    IF (time_from_file( 1) > time) THEN
+    if (time_from_file( 1) > time) then
       ! Desired time beyond lower limit
-      CALL warning('desired timeframe at t = {dp_01} before start of file time for file "' // TRIM( filename) // '"; reading data from t = {dp_02} instead!', dp_01 = time, dp_02 = time_from_file( 1))
+      call warning('desired timeframe at t = {dp_01} before start of file time for file "' &
+        // trim( filename) // '"; reading data from t = {dp_02} instead!', &
+        dp_01 = time, dp_02 = time_from_file( 1))
       ti = 1
-    ELSEIF (time_from_file( nt) < time) THEN
+    elseif (time_from_file( nt) < time) then
       ! Desired time beyond upper limit
-      CALL warning('desired timeframe at t = {dp_01} after end of file time for file "' // TRIM( filename) // '"; reading data from t = {dp_02} instead!', dp_01 = time, dp_02 = time_from_file( nt))
+      call warning('desired timeframe at t = {dp_01} after end of file time for file "' &
+        // trim( filename) // '"; reading data from t = {dp_02} instead!', &
+        dp_01 = time, dp_02 = time_from_file( nt))
       ti = nt
-    ELSE
+    else
       ! Desired time is within the file time
-      dt_min = HUGE( 1._dp)
-      DO tii = 1, nt
-        IF (ABS( time_from_file( tii) - time) < dt_min) THEN
+      dt_min = huge( 1._dp)
+      do tii = 1, nt
+        if (abs( time_from_file( tii) - time) < dt_min) then
           ti = tii
-          dt_min = ABS( time_from_file( tii) - time)
-        END IF
-      END DO
-      IF (dt_min > 0._dp) THEN
-        CALL warning('desired timeframe at t = {dp_01} not present in file "' // TRIM( filename) // '"; reading data from closest match at t = {dp_02} instead!', dp_01 = time, dp_02 = time_from_file( ti))
-      END IF
-    END IF
+          dt_min = abs( time_from_file( tii) - time)
+        end if
+      end do
+      if (dt_min > 0._dp) then
+        call warning('desired timeframe at t = {dp_01} not present in file "' &
+          // trim( filename) // '"; reading data from closest match at t = {dp_02} instead!', &
+          dp_01 = time, dp_02 = time_from_file( ti))
+      end if
+    end if
 
     ! Clean up after yourself
-    DEALLOCATE( time_from_file)
+    deallocate( time_from_file)
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE find_timeframe
+  end subroutine find_timeframe
 
 ! ===== Safety checks on variables and dimensions =====
 ! =====================================================
 
   ! x/y-grid dimensions
-  SUBROUTINE check_x( filename, ncid)
+  subroutine check_x( filename, ncid)
     ! Check if this file contains a valid x dimension and variable
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
+    character(len=*), intent(in   ) :: filename
+    integer,          intent(in   ) :: ncid
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'check_x'
-    INTEGER                                            :: id_dim
-    INTEGER                                            :: n
-    CHARACTER(LEN=256)                                 :: dim_name
-    INTEGER                                            :: id_var
-    CHARACTER(LEN=256)                                 :: var_name
-    INTEGER                                            :: var_type
-    INTEGER                                            :: ndims_of_var
-    INTEGER,  DIMENSION( NF90_MAX_VAR_DIMS)            :: dims_of_var
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: x
-    REAL(dp)                                           :: dx, dxp
-    INTEGER                                            :: i
+    character(len=1024), parameter          :: routine_name = 'check_x'
+    integer                                 :: id_dim
+    integer                                 :: n
+    character(len=1024)                     :: dim_name
+    integer                                 :: id_var
+    character(len=1024)                     :: var_name
+    integer                                 :: var_type
+    integer                                 :: ndims_of_var
+    integer,  dimension( NF90_MAX_VAR_DIMS) :: dims_of_var
+    real(dp), dimension(:), allocatable     :: x
+    real(dp)                                :: dx, dxp
+    integer                                 :: i
 
     ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+    call init_routine( routine_name, do_track_resource_use = .false.)
 
-    ! Inquire dimension
-    CALL inquire_dim_multopt( filename, ncid, field_name_options_x, id_dim, dim_length = n, dim_name = dim_name)
+    ! inquire dimension
+    call inquire_dim_multopt( filename, ncid, field_name_options_x, id_dim, dim_length = n, dim_name = dim_name)
 
     ! Safety checks on dimension
-    IF (id_dim == -1) CALL crash('no valid x dimension could be found in file "' // TRIM( filename) // '"!')
-    IF (n == NF90_UNLIMITED) CALL crash('dimension "' // TRIM( dim_name) // '" in file "' // TRIM( filename) // '" is unlimited!')
-    IF (n < 1) CALL crash('dimension "' // TRIM( dim_name) // '" in file "' // TRIM( filename) // '" has length {int_01}!', int_01  = n)
+    if (id_dim == -1) call crash('no valid x dimension could be found in file "' // trim( filename) // '"!')
+    if (n == NF90_UNLIMITED) call crash('dimension "' // trim( dim_name) // '" in file "' // trim( filename) // '" is unlimited!')
+    if (n < 1) call crash('dimension "' // trim( dim_name) // '" in file "' // trim( filename) // '" has length {int_01}!', int_01  = n)
 
-    ! Inquire variable
-    CALL inquire_var_multopt( filename, ncid, field_name_options_x, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
-    IF (id_var == -1) CALL crash('no valid x variable could be found in file "' // TRIM( filename) // '"!')
+    ! inquire variable
+    call inquire_var_multopt( filename, ncid, field_name_options_x, id_var, &
+      var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
+    if (id_var == -1) call crash('no valid x variable could be found in file "' // trim( filename) // '"!')
 
     ! Check variable type
-    IF (.NOT. (var_type == NF90_FLOAT .OR. var_type == NF90_DOUBLE)) CALL crash('variable "' // TRIM( var_name) // &
-      '" in file "' // TRIM( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
+    if (.not. (var_type == NF90_FLOAT .or. var_type == NF90_DOUBLE)) call crash('variable "' // trim( var_name) // &
+      '" in file "' // trim( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
 
     ! Check variable dimension
-    IF (ndims_of_var /= 1) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-    IF (dims_of_var( 1) /= id_dim) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have ' // TRIM( dim_name) // ' as a dimension!')
+    if (ndims_of_var /= 1) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+    if (dims_of_var( 1) /= id_dim) call crash('variable "' // trim( var_name) // '" in file "' // &
+      trim( filename) // '" does not have ' // trim( dim_name) // ' as a dimension!')
 
-    ! Allocate memory
-    ALLOCATE( x( n))
+    ! allocate memory
+    allocate( x( n))
 
     ! Read variable
-    CALL read_var_master_dp_1D( filename, ncid, id_var, x)
+    call read_var_master_dp_1D( filename, ncid, id_var, x)
 
     if (par%master) call assert( (.not. any( isnan( x))), 'found NaNs in x')
 
     ! Check grid spacing
-    IF (par%master) THEN
+    if (par%master) then
       dx = x( 2) - x( 1)
-      DO i = 2, n
+      do i = 2, n
         dxp = x( i) - x( i-1)
-        IF (ABS( 1._dp - dxp / dx) > 1E-5_dp) CALL crash('x coordinate in file "' // TRIM( filename) // '" is irregular!')
-      END DO
-    END IF ! IF (par%master) THEN
-    CALL sync
+        if (abs( 1._dp - dxp / dx) > 1E-5_dp) call crash('x coordinate in file "' // trim( filename) // '" is irregular!')
+      end do
+    end if ! if (par%master) then
+    call sync
 
     ! Clean up after yourself
-    DEALLOCATE( x)
+    deallocate( x)
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE check_x
+  end subroutine check_x
 
-  SUBROUTINE check_y( filename, ncid)
+  subroutine check_y( filename, ncid)
     ! Check if this file contains a valid y dimension and variable
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
+    character(len=*), intent(in   ) :: filename
+    integer,          intent(in   ) :: ncid
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'check_y'
-    INTEGER                                            :: id_dim
-    INTEGER                                            :: n
-    CHARACTER(LEN=256)                                 :: dim_name
-    INTEGER                                            :: id_var
-    CHARACTER(LEN=256)                                 :: var_name
-    INTEGER                                            :: var_type
-    INTEGER                                            :: ndims_of_var
-    INTEGER,  DIMENSION( NF90_MAX_VAR_DIMS)            :: dims_of_var
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: y
-    REAL(dp)                                           :: dy, dyp
-    INTEGER                                            :: i
+    character(len=1024), parameter          :: routine_name = 'check_y'
+    integer                                 :: id_dim
+    integer                                 :: n
+    character(len=1024)                     :: dim_name
+    integer                                 :: id_var
+    character(len=1024)                     :: var_name
+    integer                                 :: var_type
+    integer                                 :: ndims_of_var
+    integer,  dimension( NF90_MAX_VAR_DIMS) :: dims_of_var
+    real(dp), dimension(:), allocatable     :: y
+    real(dp)                                :: dy, dyp
+    integer                                 :: i
 
     ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+    call init_routine( routine_name, do_track_resource_use = .false.)
 
-    ! Inquire dimension
-    CALL inquire_dim_multopt( filename, ncid, field_name_options_y, id_dim, dim_length = n, dim_name = dim_name)
+    ! inquire dimension
+    call inquire_dim_multopt( filename, ncid, field_name_options_y, id_dim, dim_length = n, dim_name = dim_name)
 
     ! Safety checks on dimension
-    IF (id_dim == -1) CALL crash('no valid y dimension could be found in file "' // TRIM( filename) // '"!')
-    IF (n == NF90_UNLIMITED) CALL crash('dimension "' // TRIM( dim_name) // '" in file "' // TRIM( filename) // '" is unlimited!')
-    IF (n < 1) CALL crash('dimension "' // TRIM( dim_name) // '" in file "' // TRIM( filename) // '" has length {int_01}!', int_01  = n)
+    if (id_dim == -1) call crash('no valid y dimension could be found in file "' // trim( filename) // '"!')
+    if (n == NF90_UNLIMITED) call crash('dimension "' // trim( dim_name) // '" in file "' // trim( filename) // '" is unlimited!')
+    if (n < 1) call crash('dimension "' // trim( dim_name) // '" in file "' // trim( filename) // '" has length {int_01}!', int_01  = n)
 
-    ! Inquire variable
-    CALL inquire_var_multopt( filename, ncid, field_name_options_y, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
-    IF (id_var == -1) CALL crash('no valid y variable could be found in file "' // TRIM( filename) // '"!')
+    ! inquire variable
+    call inquire_var_multopt( filename, ncid, field_name_options_y, id_var, &
+      var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
+    if (id_var == -1) call crash('no valid y variable could be found in file "' // trim( filename) // '"!')
 
     ! Check variable type
-    IF (.NOT. (var_type == NF90_FLOAT .OR. var_type == NF90_DOUBLE)) CALL crash('variable "' // TRIM( var_name) // &
-      '" in file "' // TRIM( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
+    if (.not. (var_type == NF90_FLOAT .or. var_type == NF90_DOUBLE)) call crash('variable "' // trim( var_name) // &
+      '" in file "' // trim( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
 
     ! Check variable dimension
-    IF (ndims_of_var /= 1) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-    IF (dims_of_var( 1) /= id_dim) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have ' // TRIM( dim_name) // ' as a dimension!')
+    if (ndims_of_var /= 1) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+    if (dims_of_var( 1) /= id_dim) call crash('variable "' // trim( var_name) // '" in file "' // &
+      trim( filename) // '" does not have ' // trim( dim_name) // ' as a dimension!')
 
-    ! Allocate memory
-    ALLOCATE( y( n))
+    ! allocate memory
+    allocate( y( n))
 
     ! Read variable
-    CALL read_var_master_dp_1D( filename, ncid, id_var, y)
+    call read_var_master_dp_1D( filename, ncid, id_var, y)
 
     if (par%master) call assert( (.not. any( isnan( y))), 'found NaNs in y')
 
     ! Check grid spacing
-    IF (par%master) THEN
+    if (par%master) then
       dy = y( 2) - y( 1)
-      DO i = 2, n
+      do i = 2, n
         dyp = y( i) - y( i-1)
-        IF (ABS( 1._dp - dyp / dy) > 1E-5_dp) CALL crash('y coordinate in file "' // TRIM( filename) // '" is irregular!')
-      END DO
-    END IF
-    CALL sync
+        if (abs( 1._dp - dyp / dy) > 1E-5_dp) call crash('y coordinate in file "' // trim( filename) // '" is irregular!')
+      end do
+    end if
+    call sync
 
     ! Clean up after yourself
-    DEALLOCATE( y)
+    deallocate( y)
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE check_y
+  end subroutine check_y
 
   ! lon/lat-grid dimensions
-  SUBROUTINE check_lon( filename, ncid)
+  subroutine check_lon( filename, ncid)
     ! Check if this file contains a valid longitude dimension and variable
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
+    character(len=*), intent(in   ) :: filename
+    integer,          intent(in   ) :: ncid
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'check_lon'
-    INTEGER                                            :: id_dim
-    INTEGER                                            :: n
-    CHARACTER(LEN=256)                                 :: dim_name
-    INTEGER                                            :: id_var
-    CHARACTER(LEN=256)                                 :: var_name
-    INTEGER                                            :: var_type
-    INTEGER                                            :: ndims_of_var
-    INTEGER,  DIMENSION( NF90_MAX_VAR_DIMS)            :: dims_of_var
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: lon
-    REAL(dp)                                           :: dlon, dlonp
-    INTEGER                                            :: i
+    character(len=1024), parameter          :: routine_name = 'check_lon'
+    integer                                 :: id_dim
+    integer                                 :: n
+    character(len=1024)                     :: dim_name
+    integer                                 :: id_var
+    character(len=1024)                     :: var_name
+    integer                                 :: var_type
+    integer                                 :: ndims_of_var
+    integer,  dimension( NF90_MAX_VAR_DIMS) :: dims_of_var
+    real(dp), dimension(:), allocatable     :: lon
+    real(dp)                                :: dlon, dlonp
+    integer                                 :: i
 
     ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+    call init_routine( routine_name, do_track_resource_use = .false.)
 
-    ! Inquire dimension
-    CALL inquire_dim_multopt( filename, ncid, field_name_options_lon, id_dim, dim_length = n, dim_name = dim_name)
+    ! inquire dimension
+    call inquire_dim_multopt( filename, ncid, field_name_options_lon, id_dim, dim_length = n, dim_name = dim_name)
 
     ! Safety checks on dimension
-    IF (id_dim == -1) CALL crash('no valid longitude dimension could be found in file "' // TRIM( filename) // '"!')
-    IF (n == NF90_UNLIMITED) CALL crash('longitude dimension in file "' // TRIM( filename) // '" is unlimited!')
-    IF (n < 1) CALL crash('longitude dimension in file "' // TRIM( filename) // '" has length n = {int_01}!', int_01  = n)
+    if (id_dim == -1) call crash('no valid longitude dimension could be found in file "' // trim( filename) // '"!')
+    if (n == NF90_UNLIMITED) call crash('longitude dimension in file "' // trim( filename) // '" is unlimited!')
+    if (n < 1) call crash('longitude dimension in file "' // trim( filename) // '" has length n = {int_01}!', int_01  = n)
 
-    ! Inquire variable
-    CALL inquire_var_multopt( filename, ncid, field_name_options_lon, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
-    IF (id_var == -1) CALL crash('no valid longitude variable could be found in file "' // TRIM( filename) // '"!')
-    IF (.NOT. (var_type == NF90_FLOAT .OR. var_type == NF90_DOUBLE)) CALL crash('longitude variable in file "' // TRIM( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
-    IF (ndims_of_var /= 1) CALL crash('longitude variable in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-    IF (dims_of_var( 1) /= id_dim) CALL crash('longitude variable in file "' // TRIM( filename) // '" does not have longitude as a dimension!')
+    ! inquire variable
+    call inquire_var_multopt( filename, ncid, field_name_options_lon, id_var, &
+      var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
+    if (id_var == -1) call crash('no valid longitude variable could be found in file "' // trim( filename) // '"!')
+    if (.not. (var_type == NF90_FLOAT .or. var_type == NF90_DOUBLE)) call crash('longitude variable in file "' // trim( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
+    if (ndims_of_var /= 1) call crash('longitude variable in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+    if (dims_of_var( 1) /= id_dim) call crash('longitude variable in file "' // trim( filename) // '" does not have longitude as a dimension!')
 
-    ! Allocate memory
-    ALLOCATE( lon( n))
+    ! allocate memory
+    allocate( lon( n))
 
     ! Read variable
-    CALL read_var_master_dp_1D( filename, ncid, id_var, lon)
+    call read_var_master_dp_1D( filename, ncid, id_var, lon)
 
     if (par%master) call assert( (.not. any( isnan( lon))), 'found NaNs in lon')
 
     ! Check grid spacing
-    IF (par%master) THEN
+    if (par%master) then
       dlon = lon( 2) - lon( 1)
-      DO i = 2, n
+      do i = 2, n
         dlonp = lon( i) - lon( i-1)
-        IF (ABS( 1._dp - dlonp / dlon) > 1E-5_dp) CALL crash('longitude coordinate in file "' // TRIM( filename) // '" is irregular!')
-      END DO
-    END IF ! IF (par%master) THEN
-    CALL sync
+        if (abs( 1._dp - dlonp / dlon) > 1E-5_dp) call crash('longitude coordinate in file "' // trim( filename) // '" is irregular!')
+      end do
+    end if ! if (par%master) then
+    call sync
 
     ! Clean up after yourself
-    DEALLOCATE( lon)
+    deallocate( lon)
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE check_lon
+  end subroutine check_lon
 
-  SUBROUTINE check_lat( filename, ncid)
+  subroutine check_lat( filename, ncid)
     ! Check if this file contains a valid latitude dimension and variable
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
+    character(len=*), intent(in   ) :: filename
+    integer,          intent(in   ) :: ncid
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'check_lat'
-    INTEGER                                            :: id_dim
-    INTEGER                                            :: n
-    CHARACTER(LEN=256)                                 :: dim_name
-    INTEGER                                            :: id_var
-    CHARACTER(LEN=256)                                 :: var_name
-    INTEGER                                            :: var_type
-    INTEGER                                            :: ndims_of_var
-    INTEGER,  DIMENSION( NF90_MAX_VAR_DIMS)            :: dims_of_var
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: lat
-    REAL(dp)                                           :: dlat, dlatp
-    INTEGER                                            :: i
+    character(len=1024), parameter          :: routine_name = 'check_lat'
+    integer                                 :: id_dim
+    integer                                 :: n
+    character(len=1024)                     :: dim_name
+    integer                                 :: id_var
+    character(len=1024)                     :: var_name
+    integer                                 :: var_type
+    integer                                 :: ndims_of_var
+    integer,  dimension( NF90_MAX_VAR_DIMS) :: dims_of_var
+    real(dp), dimension(:), allocatable     :: lat
+    real(dp)                                :: dlat, dlatp
+    integer                                 :: i
 
     ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+    call init_routine( routine_name, do_track_resource_use = .false.)
 
-    ! Inquire dimension
-    CALL inquire_dim_multopt( filename, ncid, field_name_options_lat, id_dim, dim_length = n, dim_name = dim_name)
+    ! inquire dimension
+    call inquire_dim_multopt( filename, ncid, field_name_options_lat, id_dim, dim_length = n, dim_name = dim_name)
 
     ! Safety checks on dimension
-    IF (id_dim == -1) CALL crash('no valid latitude dimension could be found in file "' // TRIM( filename) // '"!')
-    IF (n == NF90_UNLIMITED) CALL crash('latitude dimension in file "' // TRIM( filename) // '" is unlimited!')
-    IF (n < 1) CALL crash('latitude dimension in file "' // TRIM( filename) // '" has length n = {int_01}!', int_01  = n)
+    if (id_dim == -1) call crash('no valid latitude dimension could be found in file "' // trim( filename) // '"!')
+    if (n == NF90_UNLIMITED) call crash('latitude dimension in file "' // trim( filename) // '" is unlimited!')
+    if (n < 1) call crash('latitude dimension in file "' // trim( filename) // '" has length n = {int_01}!', int_01  = n)
 
-    ! Inquire variable
-    CALL inquire_var_multopt( filename, ncid, field_name_options_lat, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
-    IF (id_var == -1) CALL crash('no valid latitude variable could be found in file "' // TRIM( filename) // '"!')
-    IF (.NOT. (var_type == NF90_FLOAT .OR. var_type == NF90_DOUBLE)) CALL crash('latitude variable in file "' // TRIM( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
-    IF (ndims_of_var /= 1) CALL crash('latitude variable in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-    IF (dims_of_var( 1) /= id_dim) CALL crash('latitude variable in file "' // TRIM( filename) // '" does not have latitude as a dimension!')
+    ! inquire variable
+    call inquire_var_multopt( filename, ncid, field_name_options_lat, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
+    if (id_var == -1) call crash('no valid latitude variable could be found in file "' // trim( filename) // '"!')
+    if (.not. (var_type == NF90_FLOAT .or. var_type == NF90_DOUBLE)) call crash('latitude variable in file "' // trim( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
+    if (ndims_of_var /= 1) call crash('latitude variable in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+    if (dims_of_var( 1) /= id_dim) call crash('latitude variable in file "' // trim( filename) // '" does not have latitude as a dimension!')
 
-    ! Allocate memory
-    ALLOCATE( lat( n))
+    ! allocate memory
+    allocate( lat( n))
 
     ! Read variable
-    CALL read_var_master_dp_1D( filename, ncid, id_var, lat)
+    call read_var_master_dp_1D( filename, ncid, id_var, lat)
 
     if (par%master) call assert( (.not. any( isnan( lat))), 'found NaNs in lat')
 
     ! Check grid spacing
-    IF (par%master) THEN
+    if (par%master) then
       dlat = lat( 2) - lat( 1)
-      DO i = 2, n
+      do i = 2, n
         dlatp = lat( i) - lat( i-1)
-        IF (ABS( 1._dp - dlatp / dlat) > 1E-5_dp) CALL crash('latitude coordinate in file "' // TRIM( filename) // '" is irregular!')
-      END DO
-    END IF ! IF (par%master) THEN
-    CALL sync
+        if (abs( 1._dp - dlatp / dlat) > 1E-5_dp) call crash('latitude coordinate in file "' // trim( filename) // '" is irregular!')
+      end do
+    end if ! if (par%master) then
+    call sync
 
     ! Clean up after yourself
-    DEALLOCATE( lat)
+    deallocate( lat)
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE check_lat
+  end subroutine check_lat
 
   ! Mesh dimensions
-  SUBROUTINE check_mesh_dimensions( filename, ncid)
+  subroutine check_mesh_dimensions( filename, ncid)
     ! Check if this file contains valid mesh dimensions and variables
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
+    character(len=*), intent(in   ) :: filename
+    integer,          intent(in   ) :: ncid
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'check_mesh_dimensions'
-    INTEGER                                            :: id_dim_vi, id_dim_ti, id_dim_ci, id_dim_two, id_dim_three
-    INTEGER                                            :: nV, nTri, nC_mem, n_two, n_three
-    CHARACTER(LEN=256)                                 :: dim_name_vi, dim_name_ti, dim_name_ci, dim_name_two, dim_name_three
-    INTEGER                                            :: id_var
-    CHARACTER(LEN=256)                                 :: var_name
-    INTEGER                                            :: var_type
-    INTEGER                                            :: ndims_of_var
-    INTEGER,  DIMENSION( NF90_MAX_VAR_DIMS)            :: dims_of_var
+    character(len=1024), parameter          :: routine_name = 'check_mesh_dimensions'
+    integer                                 :: id_dim_vi, id_dim_ti, id_dim_ci, id_dim_two, id_dim_three
+    integer                                 :: nV, nTri, nC_mem, n_two, n_three
+    character(len=1024)                     :: dim_name_vi, dim_name_ti, dim_name_ci, dim_name_two, dim_name_three
+    integer                                 :: id_var
+    character(len=1024)                     :: var_name
+    integer                                 :: var_type
+    integer                                 :: ndims_of_var
+    integer,  dimension( NF90_MAX_VAR_DIMS) :: dims_of_var
 
     ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+    call init_routine( routine_name, do_track_resource_use = .false.)
 
-  ! == Inquire dimensions
-  ! =====================
+    ! == inquire dimensions
+    ! =====================
 
-    CALL inquire_dim_multopt( filename, ncid, field_name_options_dim_nV    , id_dim_vi   , dim_length = nV     , dim_name = dim_name_vi   )
-    CALL inquire_dim_multopt( filename, ncid, field_name_options_dim_nTri  , id_dim_ti   , dim_length = nTri   , dim_name = dim_name_ti   )
-    CALL inquire_dim_multopt( filename, ncid, field_name_options_dim_nC_mem, id_dim_ci   , dim_length = nC_mem , dim_name = dim_name_ci   )
-    CALL inquire_dim_multopt( filename, ncid, field_name_options_dim_two   , id_dim_two  , dim_length = n_two  , dim_name = dim_name_two  )
-    CALL inquire_dim_multopt( filename, ncid, field_name_options_dim_three , id_dim_three, dim_length = n_three, dim_name = dim_name_three)
+    call inquire_dim_multopt( filename, ncid, field_name_options_dim_nV    , id_dim_vi   , dim_length = nV     , dim_name = dim_name_vi   )
+    call inquire_dim_multopt( filename, ncid, field_name_options_dim_nTri  , id_dim_ti   , dim_length = nTri   , dim_name = dim_name_ti   )
+    call inquire_dim_multopt( filename, ncid, field_name_options_dim_nC_mem, id_dim_ci   , dim_length = nC_mem , dim_name = dim_name_ci   )
+    call inquire_dim_multopt( filename, ncid, field_name_options_dim_two   , id_dim_two  , dim_length = n_two  , dim_name = dim_name_two  )
+    call inquire_dim_multopt( filename, ncid, field_name_options_dim_three , id_dim_three, dim_length = n_three, dim_name = dim_name_three)
 
     ! Safety checks on dimensions
-    IF (id_dim_vi    == -1) CALL crash('no valid vi    dimension could be found in file "' // TRIM( filename) // '"!')
-    IF (id_dim_ti    == -1) CALL crash('no valid ti    dimension could be found in file "' // TRIM( filename) // '"!')
-    IF (id_dim_ci    == -1) CALL crash('no valid ci    dimension could be found in file "' // TRIM( filename) // '"!')
-    IF (id_dim_two   == -1) CALL crash('no valid two   dimension could be found in file "' // TRIM( filename) // '"!')
-    IF (id_dim_three == -1) CALL crash('no valid three dimension could be found in file "' // TRIM( filename) // '"!')
+    if (id_dim_vi    == -1) call crash('no valid vi    dimension could be found in file "' // trim( filename) // '"!')
+    if (id_dim_ti    == -1) call crash('no valid ti    dimension could be found in file "' // trim( filename) // '"!')
+    if (id_dim_ci    == -1) call crash('no valid ci    dimension could be found in file "' // trim( filename) // '"!')
+    if (id_dim_two   == -1) call crash('no valid two   dimension could be found in file "' // trim( filename) // '"!')
+    if (id_dim_three == -1) call crash('no valid three dimension could be found in file "' // trim( filename) // '"!')
 
-    IF (nV      == NF90_UNLIMITED) CALL crash('vi    dimension in file "' // TRIM( filename) // '" is unlimited!')
-    IF (nTri    == NF90_UNLIMITED) CALL crash('ti    dimension in file "' // TRIM( filename) // '" is unlimited!')
-    IF (nC_mem  == NF90_UNLIMITED) CALL crash('ci    dimension in file "' // TRIM( filename) // '" is unlimited!')
-    IF (n_two   == NF90_UNLIMITED) CALL crash('two   dimension in file "' // TRIM( filename) // '" is unlimited!')
-    IF (n_three == NF90_UNLIMITED) CALL crash('three dimension in file "' // TRIM( filename) // '" is unlimited!')
+    if (nV      == NF90_UNLIMITED) call crash('vi    dimension in file "' // trim( filename) // '" is unlimited!')
+    if (nTri    == NF90_UNLIMITED) call crash('ti    dimension in file "' // trim( filename) // '" is unlimited!')
+    if (nC_mem  == NF90_UNLIMITED) call crash('ci    dimension in file "' // trim( filename) // '" is unlimited!')
+    if (n_two   == NF90_UNLIMITED) call crash('two   dimension in file "' // trim( filename) // '" is unlimited!')
+    if (n_three == NF90_UNLIMITED) call crash('three dimension in file "' // trim( filename) // '" is unlimited!')
 
-    IF (nV      <  1) CALL crash('vi    dimension in file "' // TRIM( filename) // '" has length n = {int_01}!', int_01  = nV     )
-    IF (nTri    <  1) CALL crash('ti    dimension in file "' // TRIM( filename) // '" has length n = {int_01}!', int_01  = nTri   )
-    IF (nC_mem  <  1) CALL crash('ci    dimension in file "' // TRIM( filename) // '" has length n = {int_01}!', int_01  = nC_mem )
-    IF (n_two   /= 2) CALL crash('two   dimension in file "' // TRIM( filename) // '" has length n = {int_01}!', int_01  = n_two  )
-    IF (n_three /= 3) CALL crash('three dimension in file "' // TRIM( filename) // '" has length n = {int_01}!', int_01  = n_three)
+    if (nV      <  1) call crash('vi    dimension in file "' // trim( filename) // '" has length n = {int_01}!', int_01  = nV     )
+    if (nTri    <  1) call crash('ti    dimension in file "' // trim( filename) // '" has length n = {int_01}!', int_01  = nTri   )
+    if (nC_mem  <  1) call crash('ci    dimension in file "' // trim( filename) // '" has length n = {int_01}!', int_01  = nC_mem )
+    if (n_two   /= 2) call crash('two   dimension in file "' // trim( filename) // '" has length n = {int_01}!', int_01  = n_two  )
+    if (n_three /= 3) call crash('three dimension in file "' // trim( filename) // '" has length n = {int_01}!', int_01  = n_three)
 
-  ! == Inquire variables
-  ! ====================
+    ! == inquire variables
+    ! ====================
 
     ! Metadata
     ! ========
 
     ! xmin
-    CALL inquire_var_multopt( filename, ncid, 'xmin', id_var, var_name = var_name, &
+    call inquire_var_multopt( filename, ncid, 'xmin', id_var, var_name = var_name, &
       var_type = var_type, ndims_of_var = ndims_of_var)
-    IF (id_var == -1) CALL crash('no valid xmin variable could be found in file "' // TRIM( filename) // '"!')
-    IF (.NOT. (var_type == NF90_FLOAT .OR. var_type == NF90_DOUBLE)) &
-      CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
-    IF (ndims_of_var /= 0) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+    if (id_var == -1) call crash('no valid xmin variable could be found in file "' // trim( filename) // '"!')
+    if (.not. (var_type == NF90_FLOAT .or. var_type == NF90_DOUBLE)) &
+      call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
+    if (ndims_of_var /= 0) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 
     ! xmax
-    CALL inquire_var_multopt( filename, ncid, 'xmax', id_var, var_name = var_name, &
+    call inquire_var_multopt( filename, ncid, 'xmax', id_var, var_name = var_name, &
       var_type = var_type, ndims_of_var = ndims_of_var)
-    IF (id_var == -1) CALL crash('no valid xmax variable could be found in file "' // TRIM( filename) // '"!')
-    IF (.NOT. (var_type == NF90_FLOAT .OR. var_type == NF90_DOUBLE)) &
-      CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
-    IF (ndims_of_var /= 0) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+    if (id_var == -1) call crash('no valid xmax variable could be found in file "' // trim( filename) // '"!')
+    if (.not. (var_type == NF90_FLOAT .or. var_type == NF90_DOUBLE)) &
+      call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
+    if (ndims_of_var /= 0) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 
     ! ymin
-    CALL inquire_var_multopt( filename, ncid, 'ymin', id_var, var_name = var_name, &
+    call inquire_var_multopt( filename, ncid, 'ymin', id_var, var_name = var_name, &
       var_type = var_type, ndims_of_var = ndims_of_var)
-    IF (id_var == -1) CALL crash('no valid ymin variable could be found in file "' // TRIM( filename) // '"!')
-    IF (.NOT. (var_type == NF90_FLOAT .OR. var_type == NF90_DOUBLE)) &
-      CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
-    IF (ndims_of_var /= 0) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+    if (id_var == -1) call crash('no valid ymin variable could be found in file "' // trim( filename) // '"!')
+    if (.not. (var_type == NF90_FLOAT .or. var_type == NF90_DOUBLE)) &
+      call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
+    if (ndims_of_var /= 0) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 
     ! ymax
-    CALL inquire_var_multopt( filename, ncid, 'ymax', id_var, var_name = var_name, &
+    call inquire_var_multopt( filename, ncid, 'ymax', id_var, var_name = var_name, &
       var_type = var_type, ndims_of_var = ndims_of_var)
-    IF (id_var == -1) CALL crash('no valid ymax variable could be found in file "' // TRIM( filename) // '"!')
-    IF (.NOT. (var_type == NF90_FLOAT .OR. var_type == NF90_DOUBLE)) &
-      CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
-    IF (ndims_of_var /= 0) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+    if (id_var == -1) call crash('no valid ymax variable could be found in file "' // trim( filename) // '"!')
+    if (.not. (var_type == NF90_FLOAT .or. var_type == NF90_DOUBLE)) &
+      call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
+    if (ndims_of_var /= 0) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 
     ! tol_dist
-    CALL inquire_var_multopt( filename, ncid, 'tol_dist', id_var, var_name = var_name, &
+    call inquire_var_multopt( filename, ncid, 'tol_dist', id_var, var_name = var_name, &
       var_type = var_type, ndims_of_var = ndims_of_var)
-    IF (id_var == -1) CALL crash('no valid tol_dist variable could be found in file "' // TRIM( filename) // '"!')
-    IF (.NOT. (var_type == NF90_FLOAT .OR. var_type == NF90_DOUBLE)) &
-      CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
-    IF (ndims_of_var /= 0) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+    if (id_var == -1) call crash('no valid tol_dist variable could be found in file "' // trim( filename) // '"!')
+    if (.not. (var_type == NF90_FLOAT .or. var_type == NF90_DOUBLE)) &
+      call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
+    if (ndims_of_var /= 0) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 
     ! lambda_M
-    CALL inquire_var_multopt( filename, ncid, 'lambda_M', id_var, var_name = var_name, &
+    call inquire_var_multopt( filename, ncid, 'lambda_M', id_var, var_name = var_name, &
       var_type = var_type, ndims_of_var = ndims_of_var)
-    IF (id_var == -1) CALL crash('no valid lambda_M variable could be found in file "' // TRIM( filename) // '"!')
-    IF (.NOT. (var_type == NF90_FLOAT .OR. var_type == NF90_DOUBLE)) &
-      CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
-    IF (ndims_of_var /= 0) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+    if (id_var == -1) call crash('no valid lambda_M variable could be found in file "' // trim( filename) // '"!')
+    if (.not. (var_type == NF90_FLOAT .or. var_type == NF90_DOUBLE)) &
+      call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
+    if (ndims_of_var /= 0) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 
     ! phi_M
-    CALL inquire_var_multopt( filename, ncid, 'phi_M', id_var, var_name = var_name, &
+    call inquire_var_multopt( filename, ncid, 'phi_M', id_var, var_name = var_name, &
       var_type = var_type, ndims_of_var = ndims_of_var)
-    IF (id_var == -1) CALL crash('no valid phi_M variable could be found in file "' // TRIM( filename) // '"!')
-    IF (.NOT. (var_type == NF90_FLOAT .OR. var_type == NF90_DOUBLE)) &
-      CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
-    IF (ndims_of_var /= 0) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+    if (id_var == -1) call crash('no valid phi_M variable could be found in file "' // trim( filename) // '"!')
+    if (.not. (var_type == NF90_FLOAT .or. var_type == NF90_DOUBLE)) &
+      call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
+    if (ndims_of_var /= 0) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 
     ! beta_stereo
-    CALL inquire_var_multopt( filename, ncid, 'beta_stereo', id_var, var_name = var_name, &
+    call inquire_var_multopt( filename, ncid, 'beta_stereo', id_var, var_name = var_name, &
       var_type = var_type, ndims_of_var = ndims_of_var)
-    IF (id_var == -1) CALL crash('no valid beta_stereo variable could be found in file "' // TRIM( filename) // '"!')
-    IF (.NOT. (var_type == NF90_FLOAT .OR. var_type == NF90_DOUBLE)) &
-      CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
-    IF (ndims_of_var /= 0) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+    if (id_var == -1) call crash('no valid beta_stereo variable could be found in file "' // trim( filename) // '"!')
+    if (.not. (var_type == NF90_FLOAT .or. var_type == NF90_DOUBLE)) &
+      call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
+    if (ndims_of_var /= 0) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 
     ! Vertex data
     ! ===========
 
     ! V
-    CALL inquire_var_multopt( filename, ncid, field_name_options_V, id_var, var_name = var_name, &
+    call inquire_var_multopt( filename, ncid, field_name_options_V, id_var, var_name = var_name, &
       var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
-    IF (id_var == -1) CALL crash('no valid V variable could be found in file "' // TRIM( filename) // '"!')
-    IF (.NOT. (var_type == NF90_FLOAT .OR. var_type == NF90_DOUBLE)) &
-      CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
-    IF (ndims_of_var /= 2) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-    IF (.NOT. (dims_of_var( 1) == id_dim_vi .AND. dims_of_var( 2) == id_dim_two)) &
-      CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have vi and two as dimensions!')
+    if (id_var == -1) call crash('no valid V variable could be found in file "' // trim( filename) // '"!')
+    if (.not. (var_type == NF90_FLOAT .or. var_type == NF90_DOUBLE)) &
+      call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
+    if (ndims_of_var /= 2) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+    if (.not. (dims_of_var( 1) == id_dim_vi .and. dims_of_var( 2) == id_dim_two)) &
+      call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have vi and two as dimensions!')
 
     ! nC
-    CALL inquire_var_multopt( filename, ncid, field_name_options_nC, id_var, var_name = var_name, &
+    call inquire_var_multopt( filename, ncid, field_name_options_nC, id_var, var_name = var_name, &
       var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
-    IF (id_var == -1) CALL crash('no valid nC variable could be found in file "' // TRIM( filename) // '"!')
-    IF (.NOT. var_type == NF90_INT) &
-      CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_INT!')
-    IF (ndims_of_var /= 1) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-    IF (.NOT. dims_of_var( 1) == id_dim_vi) &
-      CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have vi as a dimension!')
+    if (id_var == -1) call crash('no valid nC variable could be found in file "' // trim( filename) // '"!')
+    if (.not. var_type == NF90_INT) &
+      call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" is not of type NF90_INT!')
+    if (ndims_of_var /= 1) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+    if (.not. dims_of_var( 1) == id_dim_vi) &
+      call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have vi as a dimension!')
 
     ! C
-    CALL inquire_var_multopt( filename, ncid, field_name_options_C, id_var, var_name = var_name, &
+    call inquire_var_multopt( filename, ncid, field_name_options_C, id_var, var_name = var_name, &
       var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
-    IF (id_var == -1) CALL crash('no valid C variable could be found in file "' // TRIM( filename) // '"!')
-    IF (.NOT. var_type == NF90_INT) &
-      CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_INT!')
-    IF (ndims_of_var /= 2) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-    IF (.NOT. (dims_of_var( 1) == id_dim_vi .AND. dims_of_var( 2) == id_dim_ci)) &
-      CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have vi and ci as dimensions!')
+    if (id_var == -1) call crash('no valid C variable could be found in file "' // trim( filename) // '"!')
+    if (.not. var_type == NF90_INT) &
+      call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" is not of type NF90_INT!')
+    if (ndims_of_var /= 2) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+    if (.not. (dims_of_var( 1) == id_dim_vi .and. dims_of_var( 2) == id_dim_ci)) &
+      call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have vi and ci as dimensions!')
 
     ! niTri
-    CALL inquire_var_multopt( filename, ncid, field_name_options_niTri, id_var, var_name = var_name, &
+    call inquire_var_multopt( filename, ncid, field_name_options_niTri, id_var, var_name = var_name, &
       var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
-    IF (id_var == -1) CALL crash('no valid niTri variable could be found in file "' // TRIM( filename) // '"!')
-    IF (.NOT. var_type == NF90_INT) &
-      CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_INT!')
-    IF (ndims_of_var /= 1) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-    IF (.NOT. dims_of_var( 1) == id_dim_vi) &
-      CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have vi as a dimension!')
+    if (id_var == -1) call crash('no valid niTri variable could be found in file "' // trim( filename) // '"!')
+    if (.not. var_type == NF90_INT) &
+      call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" is not of type NF90_INT!')
+    if (ndims_of_var /= 1) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+    if (.not. dims_of_var( 1) == id_dim_vi) &
+      call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have vi as a dimension!')
 
     ! iTri
-    CALL inquire_var_multopt( filename, ncid, field_name_options_iTri, id_var, var_name = var_name, &
+    call inquire_var_multopt( filename, ncid, field_name_options_iTri, id_var, var_name = var_name, &
       var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
-    IF (id_var == -1) CALL crash('no valid iTri variable could be found in file "' // TRIM( filename) // '"!')
-    IF (.NOT. var_type == NF90_INT) &
-      CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_INT!')
-    IF (ndims_of_var /= 2) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-    IF (.NOT. (dims_of_var( 1) == id_dim_vi .AND. dims_of_var( 2) == id_dim_ci)) &
-      CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have vi and ci as dimensions!')
+    if (id_var == -1) call crash('no valid iTri variable could be found in file "' // trim( filename) // '"!')
+    if (.not. var_type == NF90_INT) &
+      call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" is not of type NF90_INT!')
+    if (ndims_of_var /= 2) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+    if (.not. (dims_of_var( 1) == id_dim_vi .and. dims_of_var( 2) == id_dim_ci)) &
+      call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have vi and ci as dimensions!')
 
     ! VBI
-    CALL inquire_var_multopt( filename, ncid, field_name_options_VBI, id_var, var_name = var_name, &
+    call inquire_var_multopt( filename, ncid, field_name_options_VBI, id_var, var_name = var_name, &
       var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
-    IF (id_var == -1) CALL crash('no valid VBI variable could be found in file "' // TRIM( filename) // '"!')
-    IF (.NOT. var_type == NF90_INT) &
-      CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_INT!')
-    IF (ndims_of_var /= 1) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-    IF (.NOT. dims_of_var( 1) == id_dim_vi) &
-      CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have vi as a dimension!')
+    if (id_var == -1) call crash('no valid VBI variable could be found in file "' // trim( filename) // '"!')
+    if (.not. var_type == NF90_INT) &
+      call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" is not of type NF90_INT!')
+    if (ndims_of_var /= 1) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+    if (.not. dims_of_var( 1) == id_dim_vi) &
+      call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have vi as a dimension!')
 
     ! Triangle data
     ! =============
 
     ! Tri
-    CALL inquire_var_multopt( filename, ncid, field_name_options_Tri, id_var, var_name = var_name, &
+    call inquire_var_multopt( filename, ncid, field_name_options_Tri, id_var, var_name = var_name, &
       var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
-    IF (id_var == -1) CALL crash('no valid Tri variable could be found in file "' // TRIM( filename) // '"!')
-    IF (.NOT. var_type == NF90_INT) &
-      CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_INT!')
-    IF (ndims_of_var /= 2) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-    IF (.NOT. (dims_of_var( 1) == id_dim_ti .AND. dims_of_var( 2) == id_dim_three)) &
-      CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have ti and three as dimensions!')
+    if (id_var == -1) call crash('no valid Tri variable could be found in file "' // trim( filename) // '"!')
+    if (.not. var_type == NF90_INT) &
+      call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" is not of type NF90_INT!')
+    if (ndims_of_var /= 2) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+    if (.not. (dims_of_var( 1) == id_dim_ti .and. dims_of_var( 2) == id_dim_three)) &
+      call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have ti and three as dimensions!')
 
     ! Tricc
-    CALL inquire_var_multopt( filename, ncid, field_name_options_Tricc, id_var, var_name = var_name, &
+    call inquire_var_multopt( filename, ncid, field_name_options_Tricc, id_var, var_name = var_name, &
       var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
-    IF (id_var == -1) CALL crash('no valid Tricc variable could be found in file "' // TRIM( filename) // '"!')
-    IF (.NOT. (var_type == NF90_FLOAT .OR. var_type == NF90_DOUBLE)) &
-      CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
-    IF (ndims_of_var /= 2) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-    IF (.NOT. (dims_of_var( 1) == id_dim_ti .AND. dims_of_var( 2) == id_dim_two)) &
-      CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have ti and two as dimensions!')
+    if (id_var == -1) call crash('no valid Tricc variable could be found in file "' // trim( filename) // '"!')
+    if (.not. (var_type == NF90_FLOAT .or. var_type == NF90_DOUBLE)) &
+      call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
+    if (ndims_of_var /= 2) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+    if (.not. (dims_of_var( 1) == id_dim_ti .and. dims_of_var( 2) == id_dim_two)) &
+      call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have ti and two as dimensions!')
 
     ! TriC
-    CALL inquire_var_multopt( filename, ncid, field_name_options_TriC, id_var, var_name = var_name, &
+    call inquire_var_multopt( filename, ncid, field_name_options_TriC, id_var, var_name = var_name, &
       var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
-    IF (id_var == -1) CALL crash('no valid TriC variable could be found in file "' // TRIM( filename) // '"!')
-    IF (.NOT. var_type == NF90_INT) &
-      CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_INT!')
-    IF (ndims_of_var /= 2) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-    IF (.NOT. (dims_of_var( 1) == id_dim_ti .AND. dims_of_var( 2) == id_dim_three)) &
-      CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have ti and three as dimensions!')
+    if (id_var == -1) call crash('no valid TriC variable could be found in file "' // trim( filename) // '"!')
+    if (.not. var_type == NF90_INT) &
+      call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" is not of type NF90_INT!')
+    if (ndims_of_var /= 2) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+    if (.not. (dims_of_var( 1) == id_dim_ti .and. dims_of_var( 2) == id_dim_three)) &
+      call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have ti and three as dimensions!')
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE check_mesh_dimensions
+  end subroutine check_mesh_dimensions
 
   ! Zeta, z_ocean, month, time dimensions
-  SUBROUTINE check_zeta( filename, ncid)
+  subroutine check_zeta( filename, ncid)
     ! Check if this file contains a valid zeta dimension and variable
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
+    character(len=*), intent(in   ) :: filename
+    integer,          intent(in   ) :: ncid
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'check_zeta'
-    INTEGER                                            :: id_dim
-    INTEGER                                            :: n
-    CHARACTER(LEN=256)                                 :: dim_name
-    INTEGER                                            :: id_var
-    CHARACTER(LEN=256)                                 :: var_name
-    INTEGER                                            :: var_type
-    INTEGER                                            :: ndims_of_var
-    INTEGER,  DIMENSION( NF90_MAX_VAR_DIMS)            :: dims_of_var
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: zeta
-    INTEGER                                            :: k
+    character(len=1024), parameter          :: routine_name = 'check_zeta'
+    integer                                 :: id_dim
+    integer                                 :: n
+    character(len=1024)                     :: dim_name
+    integer                                 :: id_var
+    character(len=1024)                     :: var_name
+    integer                                 :: var_type
+    integer                                 :: ndims_of_var
+    integer,  dimension( NF90_MAX_VAR_DIMS) :: dims_of_var
+    real(dp), dimension(:), allocatable     :: zeta
+    integer                                 :: k
 
     ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+    call init_routine( routine_name, do_track_resource_use = .false.)
 
-    ! Inquire dimension
-    CALL inquire_dim_multopt( filename, ncid, field_name_options_zeta, id_dim, dim_length = n, dim_name = dim_name)
+    ! inquire dimension
+    call inquire_dim_multopt( filename, ncid, field_name_options_zeta, id_dim, dim_length = n, dim_name = dim_name)
 
     ! Safety checks on dimension
-    IF (id_dim == -1) CALL crash('no valid zeta dimension could be found in file "' // TRIM( filename) // '"!')
-    IF (n == NF90_UNLIMITED) CALL crash('zeta dimension in file "' // TRIM( filename) // '" is unlimited!')
-    IF (n < 1) CALL crash('zeta dimension in file "' // TRIM( filename) // '" has length n = {int_01}!', int_01  = n)
+    if (id_dim == -1) call crash('no valid zeta dimension could be found in file "' // trim( filename) // '"!')
+    if (n == NF90_UNLIMITED) call crash('zeta dimension in file "' // trim( filename) // '" is unlimited!')
+    if (n < 1) call crash('zeta dimension in file "' // trim( filename) // '" has length n = {int_01}!', int_01  = n)
 
-    ! Inquire variable
-    CALL inquire_var_multopt( filename, ncid, field_name_options_zeta, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
-    IF (id_var == -1) CALL crash('no valid zeta variable could be found in file "' // TRIM( filename) // '"!')
-    IF (.NOT. (var_type == NF90_FLOAT .OR. var_type == NF90_DOUBLE)) CALL crash('zeta variable in file "' // TRIM( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
-    IF (ndims_of_var /= 1) CALL crash('zeta variable in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-    IF (dims_of_var( 1) /= id_dim) CALL crash('zeta variable in file "' // TRIM( filename) // '" does not have zeta as a dimension!')
+    ! inquire variable
+    call inquire_var_multopt( filename, ncid, field_name_options_zeta, id_var, &
+      var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
+    if (id_var == -1) call crash('no valid zeta variable could be found in file "' // trim( filename) // '"!')
+    if (.not. (var_type == NF90_FLOAT .or. var_type == NF90_DOUBLE)) call crash('zeta variable in file "' // trim( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
+    if (ndims_of_var /= 1) call crash('zeta variable in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+    if (dims_of_var( 1) /= id_dim) call crash('zeta variable in file "' // trim( filename) // '" does not have zeta as a dimension!')
 
-    ! Allocate memory
-    ALLOCATE( zeta( n))
+    ! allocate memory
+    allocate( zeta( n))
 
     ! Read variable
-    CALL read_var_master_dp_1D( filename, ncid, id_var, zeta)
+    call read_var_master_dp_1D( filename, ncid, id_var, zeta)
 
     ! Check validity
-    IF (par%master) THEN
+    if (par%master) then
       call assert( (.not. any( isnan( zeta))), 'found NaNs in zeta')
 
-      IF (zeta( 1) /= 0._dp) CALL crash('zeta in file "' // TRIM( filename) // '" does not start at zero!')
-      IF (zeta( n) /= 1._dp) CALL crash('zeta in file "' // TRIM( filename) // '" does not end at one!')
+      if (zeta( 1) /= 0._dp) call crash('zeta in file "' // trim( filename) // '" does not start at zero!')
+      if (zeta( n) /= 1._dp) call crash('zeta in file "' // trim( filename) // '" does not end at one!')
 
-      DO k = 2, n
-        IF (zeta( k) <= zeta( k-1)) CALL crash('zeta in file "' // TRIM( filename) // '" does not increase monotonously!')
-      END DO
-    END IF
-    CALL sync
+      do k = 2, n
+        if (zeta( k) <= zeta( k-1)) call crash('zeta in file "' // trim( filename) // '" does not increase monotonously!')
+      end do
+    end if
+    call sync
 
     ! Clean up after yourself
-    DEALLOCATE( zeta)
+    deallocate( zeta)
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE check_zeta
+  end subroutine check_zeta
 
-  SUBROUTINE check_month( filename, ncid)
+  subroutine check_month( filename, ncid)
     ! Check if this file contains a valid month dimension (we don't really care about the variable)
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
+    character(len=*), intent(in   ) :: filename
+    integer,          intent(in   ) :: ncid
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'check_month'
-    INTEGER                                            :: id_dim
-    INTEGER                                            :: n
-    CHARACTER(LEN=256)                                 :: dim_name
+    character(len=1024), parameter :: routine_name = 'check_month'
+    integer                        :: id_dim
+    integer                        :: n
+    character(len=1024)            :: dim_name
 
     ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+    call init_routine( routine_name, do_track_resource_use = .false.)
 
-    ! Inquire dimension
-    CALL inquire_dim_multopt( filename, ncid, field_name_options_month, id_dim, dim_length = n, dim_name = dim_name)
+    ! inquire dimension
+    call inquire_dim_multopt( filename, ncid, field_name_options_month, id_dim, dim_length = n, dim_name = dim_name)
 
     ! Safety checks on dimension
-    IF (id_dim == -1) CALL crash('no valid month dimension could be found in file "' // TRIM( filename) // '"!')
-    IF (n == NF90_UNLIMITED) CALL crash('month dimension in file "' // TRIM( filename) // '" is unlimited!')
-    IF (n /= 12) CALL crash('month dimension in file "' // TRIM( filename) // '" has length n = {int_01}!', int_01  = n)
+    if (id_dim == -1) call crash('no valid month dimension could be found in file "' // trim( filename) // '"!')
+    if (n == NF90_UNLIMITED) call crash('month dimension in file "' // trim( filename) // '" is unlimited!')
+    if (n /= 12) call crash('month dimension in file "' // trim( filename) // '" has length n = {int_01}!', int_01  = n)
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE check_month
+  end subroutine check_month
 
-  SUBROUTINE check_time( filename, ncid)
+  subroutine check_time( filename, ncid)
     ! Check if this file contains a valid time dimension and variable
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
+    character(len=*), intent(in   ) :: filename
+    integer,          intent(in   ) :: ncid
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'check_time'
-    INTEGER                                            :: id_dim
-    INTEGER                                            :: n
-    CHARACTER(LEN=256)                                 :: dim_name
-    INTEGER                                            :: id_var
-    CHARACTER(LEN=256)                                 :: var_name
-    INTEGER                                            :: var_type
-    INTEGER                                            :: ndims_of_var
-    INTEGER,  DIMENSION( NF90_MAX_VAR_DIMS)            :: dims_of_var
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: time
+    character(len=1024), parameter          :: routine_name = 'check_time'
+    integer                                 :: id_dim
+    integer                                 :: n
+    character(len=1024)                     :: dim_name
+    integer                                 :: id_var
+    character(len=1024)                     :: var_name
+    integer                                 :: var_type
+    integer                                 :: ndims_of_var
+    integer,  dimension( NF90_MAX_VAR_DIMS) :: dims_of_var
+    real(dp), dimension(:), allocatable     :: time
 
     ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+    call init_routine( routine_name, do_track_resource_use = .false.)
 
-    ! Inquire dimension
-    CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim, dim_length = n, dim_name = dim_name)
+    ! inquire dimension
+    call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim, dim_length = n, dim_name = dim_name)
 
     ! Safety checks on dimension
-    IF (id_dim == -1) CALL crash('no valid time dimension could be found in file "' // TRIM( filename) // '"!')
-    IF (n < 0) CALL crash('time dimension in file "' // TRIM( filename) // '" has length n = {int_01}!', int_01  = n)
+    if (id_dim == -1) call crash('no valid time dimension could be found in file "' // trim( filename) // '"!')
+    if (n < 0) call crash('time dimension in file "' // trim( filename) // '" has length n = {int_01}!', int_01  = n)
 
-    ! Inquire variable
-    CALL inquire_var_multopt( filename, ncid, field_name_options_time, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
-    IF (id_var == -1) CALL crash('no valid time variable could be found in file "' // TRIM( filename) // '"!')
-    IF (.NOT. (var_type == NF90_FLOAT .OR. var_type == NF90_DOUBLE)) CALL crash('time variable in file "' // TRIM( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
-    IF (ndims_of_var /= 1) CALL crash('time variable in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-    IF (dims_of_var( 1) /= id_dim) CALL crash('time variable in file "' // TRIM( filename) // '" does not have time as a dimension!')
+    ! inquire variable
+    call inquire_var_multopt( filename, ncid, field_name_options_time, id_var, &
+      var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
+    if (id_var == -1) call crash('no valid time variable could be found in file "' // trim( filename) // '"!')
+    if (.not. (var_type == NF90_FLOAT .or. var_type == NF90_DOUBLE)) call crash('time variable in file "' // trim( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
+    if (ndims_of_var /= 1) call crash('time variable in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+    if (dims_of_var( 1) /= id_dim) call crash('time variable in file "' // trim( filename) // '" does not have time as a dimension!')
 
-    ! For new output files, time is still empty. If it's not, check if entries are valid
-    IF (n > 0) THEN
+    ! For new output files, time is still empty. if it's not, check if entries are valid
+    if (n > 0) then
 
-      ! Allocate memory
-      ALLOCATE( time( n))
+      ! allocate memory
+      allocate( time( n))
 
       ! Read variable
-      CALL read_var_master_dp_1D( filename, ncid, id_var, time)
+      call read_var_master_dp_1D( filename, ncid, id_var, time)
 
       ! Check validity
       if (par%master) call assert( (.not. any( isnan( time))), 'found NaN in time')
 
       ! Clean up after yourself
-      DEALLOCATE( time)
+      deallocate( time)
 
-    END IF ! IF (n > 0) THEN
+    end if ! if (n > 0) then
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE check_time
+  end subroutine check_time
 
-  SUBROUTINE check_depth( filename, ncid)
+  subroutine check_depth( filename, ncid)
     ! Check if this file contains a valid depth dimension and variable
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
+    character(len=*), intent(in   ) :: filename
+    integer,          intent(in   ) :: ncid
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'check_depth'
-    INTEGER                                            :: id_dim
-    INTEGER                                            :: n
-    CHARACTER(LEN=256)                                 :: dim_name
-    INTEGER                                            :: id_var
-    CHARACTER(LEN=256)                                 :: var_name
-    INTEGER                                            :: var_type
-    INTEGER                                            :: ndims_of_var
-    INTEGER,  DIMENSION( NF90_MAX_VAR_DIMS)            :: dims_of_var
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: depth
-    INTEGER                                            :: k
+    character(len=1024), parameter          :: routine_name = 'check_depth'
+    integer                                 :: id_dim
+    integer                                 :: n
+    character(len=1024)                     :: dim_name
+    integer                                 :: id_var
+    character(len=1024)                     :: var_name
+    integer                                 :: var_type
+    integer                                 :: ndims_of_var
+    integer,  dimension( NF90_MAX_VAR_DIMS) :: dims_of_var
+    real(dp), dimension(:), allocatable     :: depth
+    integer                                 :: k
 
     ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+    call init_routine( routine_name, do_track_resource_use = .false.)
 
-    ! Inquire dimension
-    CALL inquire_dim_multopt( filename, ncid, field_name_options_depth, id_dim, dim_length = n, dim_name = dim_name)
+    ! inquire dimension
+    call inquire_dim_multopt( filename, ncid, field_name_options_depth, id_dim, dim_length = n, dim_name = dim_name)
 
     ! Safety checks on dimension
-    IF (id_dim == -1) CALL crash('no valid depth dimension could be found in file "' // TRIM( filename) // '"!')
-    IF (n == NF90_UNLIMITED) CALL crash('depth dimension in file "' // TRIM( filename) // '" is unlimited!')
-    IF (n < 1) CALL crash('depth dimension in file "' // TRIM( filename) // '" has length n = {int_01}!', int_01  = n)
+    if (id_dim == -1) call crash('no valid depth dimension could be found in file "' // trim( filename) // '"!')
+    if (n == NF90_UNLIMITED) call crash('depth dimension in file "' // trim( filename) // '" is unlimited!')
+    if (n < 1) call crash('depth dimension in file "' // trim( filename) // '" has length n = {int_01}!', int_01  = n)
 
-    ! Inquire variable
-    CALL inquire_var_multopt( filename, ncid, field_name_options_depth, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
-    IF (id_var == -1) CALL crash('no valid depth variable could be found in file "' // TRIM( filename) // '"!')
-    IF (.NOT. (var_type == NF90_FLOAT .OR. var_type == NF90_DOUBLE)) CALL crash('depth variable in file "' // TRIM( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
-    IF (ndims_of_var /= 1) CALL crash('depth variable in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-    IF (dims_of_var( 1) /= id_dim) CALL crash('depth variable in file "' // TRIM( filename) // '" does not have depth as a dimension!')
+    ! inquire variable
+    call inquire_var_multopt( filename, ncid, field_name_options_depth, id_var, &
+      var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
+    if (id_var == -1) call crash('no valid depth variable could be found in file "' // trim( filename) // '"!')
+    if (.not. (var_type == NF90_FLOAT .or. var_type == NF90_DOUBLE)) call crash('depth variable in file "' // trim( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
+    if (ndims_of_var /= 1) call crash('depth variable in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+    if (dims_of_var( 1) /= id_dim) call crash('depth variable in file "' // trim( filename) // '" does not have depth as a dimension!')
 
-    ! Allocate memory
-    ALLOCATE( depth( n))
+    ! allocate memory
+    allocate( depth( n))
 
     ! Read variable
-    CALL read_var_master_dp_1D( filename, ncid, id_var, depth)
+    call read_var_master_dp_1D( filename, ncid, id_var, depth)
 
     ! Check validity
-    IF (par%master) THEN
+    if (par%master) then
       call assert( (.not. any( isnan( depth))), 'found NaNs in depth')
 
-      DO k = 2, n
-        IF (depth( k) <= depth( k-1)) CALL crash('depth in file "' // TRIM( filename) // '" does not increase monotonously!')
-      END DO
-    END IF
-    CALL sync
+      do k = 2, n
+        if (depth( k) <= depth( k-1)) call crash('depth in file "' // trim( filename) // '" does not increase monotonously!')
+      end do
+    end if
+    call sync
 
     ! Clean up after yourself
-    DEALLOCATE( depth)
+    deallocate( depth)
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE check_depth
+  end subroutine check_depth
 
   ! x/y-grid field variables
-  SUBROUTINE check_xy_grid_field_int_2D(            filename, ncid, var_name, should_have_time)
+  subroutine check_xy_grid_field_int_2D( filename, ncid, var_name, should_have_time)
     ! Check if this file contains a 2-D x/y-grid variable by this name
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    CHARACTER(LEN=*),                    INTENT(IN)    :: var_name
-    LOGICAL,                   OPTIONAL, INTENT(IN)    :: should_have_time
+    character(len=*),           intent(in   ) :: filename
+    integer,                    intent(in   ) :: ncid
+    character(len=*),           intent(in   ) :: var_name
+    logical,          optional, intent(in   ) :: should_have_time
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'check_xy_grid_field_int_2D'
-    INTEGER                                            :: id_dim_x, id_dim_y, id_dim_time, id_var
-    INTEGER                                            :: var_type
-    INTEGER                                            :: ndims_of_var
-    INTEGER, DIMENSION( NF90_MAX_VAR_DIMS)             :: dims_of_var
-    LOGICAL                                            :: file_has_time
+    character(len=1024), parameter         :: routine_name = 'check_xy_grid_field_int_2D'
+    integer                                :: id_dim_x, id_dim_y, id_dim_time, id_var
+    integer                                :: var_type
+    integer                                :: ndims_of_var
+    integer, dimension( NF90_MAX_VAR_DIMS) :: dims_of_var
+    logical                                :: file_has_time
 
     ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+    call init_routine( routine_name, do_track_resource_use = .false.)
 
     ! Check if the file has valid x and y dimensions and variables
-    CALL check_x( filename, ncid)
-    CALL check_y( filename, ncid)
+    call check_x( filename, ncid)
+    call check_y( filename, ncid)
 
-    ! Inquire x,y dimensions
-    CALL inquire_dim_multopt( filename, ncid, field_name_options_x, id_dim_x)
-    CALL inquire_dim_multopt( filename, ncid, field_name_options_y, id_dim_y)
+    ! inquire x,y dimensions
+    call inquire_dim_multopt( filename, ncid, field_name_options_x, id_dim_x)
+    call inquire_dim_multopt( filename, ncid, field_name_options_y, id_dim_y)
 
-    ! Inquire variable
-    CALL inquire_var( filename, ncid, var_name, id_var)
-    IF (id_var == -1) CALL crash('variable "' // TRIM( var_name) // '" could not be found in file "' // TRIM( filename) // '"!')
+    ! inquire variable
+    call inquire_var( filename, ncid, var_name, id_var)
+    if (id_var == -1) call crash('variable "' // trim( var_name) // '" could not be found in file "' // trim( filename) // '"!')
 
-    ! Inquire variable info
-    CALL inquire_var_info( filename, ncid, id_var, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
+    ! inquire variable info
+    call inquire_var_info( filename, ncid, id_var, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
 
     ! Check variable type
-    IF (.NOT. var_type == NF90_INT) THEN
-      CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_INT!')
-    END IF
+    if (.not. var_type == NF90_INT) then
+      call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" is not of type NF90_INT!')
+    end if
 
     ! Check x,y dimensions
-    IF (.NOT. ANY( dims_of_var == id_dim_x)) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have x as a dimension!')
-    IF (.NOT. ANY( dims_of_var == id_dim_y)) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have y as a dimension!')
+    if (.not. any( dims_of_var == id_dim_x)) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have x as a dimension!')
+    if (.not. any( dims_of_var == id_dim_y)) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have y as a dimension!')
 
-    IF (.NOT. PRESENT( should_have_time)) THEN
+    if (.not. present( should_have_time)) then
       ! This variable is allowed to either have or not have a time dimension
 
       ! Check if the file contains a time dimension
-      CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
-      IF (id_dim_time == -1) THEN
-        file_has_time = .FALSE.
-      ELSE
-        file_has_time = .TRUE.
-      END IF
+      call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
+      if (id_dim_time == -1) then
+        file_has_time = .false.
+      else
+        file_has_time = .true.
+      end if
 
-      IF (file_has_time) THEN
+      if (file_has_time) then
         ! Check if the variable has time as a dimension
-        IF (ndims_of_var == 2) THEN
+        if (ndims_of_var == 2) then
           ! The variable only has x,y as dimensions.
-        ELSE
-          IF (ndims_of_var == 3) THEN
-            IF (.NOT. ANY( dims_of_var == id_dim_time)) CALL crash('variable "' // TRIM( var_name) // '" in file "' &
-              // TRIM( filename) // '" has three dimensions, but the third one is not time!')
-          ELSE
-            CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-          END IF
-        END IF
-      ELSE ! IF (file_has_time) THEN
+        else
+          if (ndims_of_var == 3) then
+            if (.not. any( dims_of_var == id_dim_time)) call crash('variable "' // trim( var_name) // '" in file "' &
+              // trim( filename) // '" has three dimensions, but the third one is not time!')
+          else
+            call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+          end if
+        end if
+      else ! if (file_has_time) then
         ! The file does not have a time dimension; the variable should only have x,y as dimensions
-        IF (ndims_of_var /= 2) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-      END IF ! IF (file_has_time) THEN
+        if (ndims_of_var /= 2) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+      end if ! if (file_has_time) then
 
-    ELSE ! IF (.NOT. PRESENT( should_have_time)) THEN
-      IF (should_have_time) THEN
+    else ! if (.not. present( should_have_time)) then
+      if (should_have_time) then
         ! This variable should have a time dimension
 
         ! Check if the file has a valid time dimension
-        CALL check_time( filename, ncid)
+        call check_time( filename, ncid)
 
-        ! Inquire the time dimension
-        CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
+        ! inquire the time dimension
+        call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
 
         ! Check if the variable has time as a dimension
-        IF (ndims_of_var /= 3) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-        IF (.NOT. ANY( dims_of_var == id_dim_time)) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have time as a dimension!')
+        if (ndims_of_var /= 3) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+        if (.not. any( dims_of_var == id_dim_time)) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have time as a dimension!')
 
-      ELSE ! IF (should_have_time) THEN
+      else ! if (should_have_time) then
         ! This variable should not have a time dimension; the variable should only have x,y as dimensions
 
-        IF (ndims_of_var /= 2) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+        if (ndims_of_var /= 2) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 
-      END IF ! IF (should_have_time) THEN
-    END IF ! IF (.NOT. PRESENT( should_have_time)) THEN
+      end if ! if (should_have_time) then
+    end if ! if (.not. present( should_have_time)) then
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE check_xy_grid_field_int_2D
+  end subroutine check_xy_grid_field_int_2D
 
-  SUBROUTINE check_xy_grid_field_dp_2D(             filename, ncid, var_name, should_have_time)
+  subroutine check_xy_grid_field_dp_2D( filename, ncid, var_name, should_have_time)
     ! Check if this file contains a 2-D x/y-grid variable by this name
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    CHARACTER(LEN=*),                    INTENT(IN)    :: var_name
-    LOGICAL,                   OPTIONAL, INTENT(IN)    :: should_have_time
+    character(len=*),           intent(in   ) :: filename
+    integer,                    intent(in   ) :: ncid
+    character(len=*),           intent(in   ) :: var_name
+    logical,          optional, intent(in   ) :: should_have_time
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'check_xy_grid_field_dp_2D'
-    INTEGER                                            :: id_dim_x, id_dim_y, id_dim_time, id_var
-    INTEGER                                            :: var_type
-    INTEGER                                            :: ndims_of_var
-    INTEGER, DIMENSION( NF90_MAX_VAR_DIMS)             :: dims_of_var
-    LOGICAL                                            :: file_has_time
+    character(len=1024), parameter         :: routine_name = 'check_xy_grid_field_dp_2D'
+    integer                                :: id_dim_x, id_dim_y, id_dim_time, id_var
+    integer                                :: var_type
+    integer                                :: ndims_of_var
+    integer, dimension( NF90_MAX_VAR_DIMS) :: dims_of_var
+    logical                                :: file_has_time
 
     ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+    call init_routine( routine_name, do_track_resource_use = .false.)
 
     ! Check if the file has valid x and y dimensions and variables
-    CALL check_x( filename, ncid)
-    CALL check_y( filename, ncid)
+    call check_x( filename, ncid)
+    call check_y( filename, ncid)
 
-    ! Inquire x,y dimensions
-    CALL inquire_dim_multopt( filename, ncid, field_name_options_x, id_dim_x)
-    CALL inquire_dim_multopt( filename, ncid, field_name_options_y, id_dim_y)
+    ! inquire x,y dimensions
+    call inquire_dim_multopt( filename, ncid, field_name_options_x, id_dim_x)
+    call inquire_dim_multopt( filename, ncid, field_name_options_y, id_dim_y)
 
-    ! Inquire variable
-    CALL inquire_var( filename, ncid, var_name, id_var)
-    IF (id_var == -1) CALL crash('variable "' // TRIM( var_name) // '" could not be found in file "' // TRIM( filename) // '"!')
+    ! inquire variable
+    call inquire_var( filename, ncid, var_name, id_var)
+    if (id_var == -1) call crash('variable "' // trim( var_name) // '" could not be found in file "' // trim( filename) // '"!')
 
-    ! Inquire variable info
-    CALL inquire_var_info( filename, ncid, id_var, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
+    ! inquire variable info
+    call inquire_var_info( filename, ncid, id_var, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
 
     ! Check variable type
-    IF (.NOT. (var_type == NF90_FLOAT .OR. var_type == NF90_DOUBLE)) THEN
-      CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
-    END IF
+    if (.not. (var_type == NF90_FLOAT .or. var_type == NF90_DOUBLE)) then
+      call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
+    end if
 
     ! Check x,y dimensions
-    IF (.NOT. ANY( dims_of_var == id_dim_x)) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have x as a dimension!')
-    IF (.NOT. ANY( dims_of_var == id_dim_y)) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have y as a dimension!')
+    if (.not. any( dims_of_var == id_dim_x)) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have x as a dimension!')
+    if (.not. any( dims_of_var == id_dim_y)) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have y as a dimension!')
 
-    IF (.NOT. PRESENT( should_have_time)) THEN
+    if (.not. present( should_have_time)) then
       ! This variable is allowed to either have or not have a time dimension
 
       ! Check if the file contains a time dimension
-      CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
-      IF (id_dim_time == -1) THEN
-        file_has_time = .FALSE.
-      ELSE
-        file_has_time = .TRUE.
-      END IF
+      call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
+      if (id_dim_time == -1) then
+        file_has_time = .false.
+      else
+        file_has_time = .true.
+      end if
 
-      IF (file_has_time) THEN
+      if (file_has_time) then
         ! Check if the variable has time as a dimension
-        IF (ndims_of_var == 2) THEN
+        if (ndims_of_var == 2) then
           ! The variable only has x,y as dimensions.
-        ELSE
-          IF (ndims_of_var == 3) THEN
-            IF (.NOT. ANY( dims_of_var == id_dim_time)) CALL crash('variable "' // TRIM( var_name) // '" in file "' &
-              // TRIM( filename) // '" has three dimensions, but the third one is not time!')
-          ELSE
-            CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-          END IF
-        END IF
-      ELSE ! IF (file_has_time) THEN
+        else
+          if (ndims_of_var == 3) then
+            if (.not. any( dims_of_var == id_dim_time)) call crash('variable "' // trim( var_name) // '" in file "' &
+              // trim( filename) // '" has three dimensions, but the third one is not time!')
+          else
+            call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+          end if
+        end if
+      else ! if (file_has_time) then
         ! The file does not have a time dimension; the variable should only have x,y as dimensions
-        IF (ndims_of_var /= 2) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-      END IF ! IF (file_has_time) THEN
+        if (ndims_of_var /= 2) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+      end if ! if (file_has_time) then
 
-    ELSE ! IF (.NOT. PRESENT( should_have_time)) THEN
-      IF (should_have_time) THEN
+    else ! if (.not. present( should_have_time)) then
+      if (should_have_time) then
         ! This variable should have a time dimension
 
         ! Check if the file has a valid time dimension
-        CALL check_time( filename, ncid)
+        call check_time( filename, ncid)
 
-        ! Inquire the time dimension
-        CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
+        ! inquire the time dimension
+        call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
 
         ! Check if the variable has time as a dimension
-        IF (ndims_of_var /= 3) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-        IF (.NOT. ANY( dims_of_var == id_dim_time)) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have time as a dimension!')
+        if (ndims_of_var /= 3) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+        if (.not. any( dims_of_var == id_dim_time)) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have time as a dimension!')
 
-      ELSE ! IF (should_have_time) THEN
+      else ! if (should_have_time) then
         ! This variable should not have a time dimension; the variable should only have x,y as dimensions
 
-        IF (ndims_of_var /= 2) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+        if (ndims_of_var /= 2) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 
-      END IF ! IF (should_have_time) THEN
-    END IF ! IF (.NOT. PRESENT( should_have_time)) THEN
+      end if ! if (should_have_time) then
+    end if ! if (.not. present( should_have_time)) then
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE check_xy_grid_field_dp_2D
+  end subroutine check_xy_grid_field_dp_2D
 
-  SUBROUTINE check_xy_grid_field_dp_2D_monthly(     filename, ncid, var_name, should_have_time)
+  subroutine check_xy_grid_field_dp_2D_monthly( filename, ncid, var_name, should_have_time)
     ! Check if this file contains a 2-D monthly x/y-grid variable by this name
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    CHARACTER(LEN=*),                    INTENT(IN)    :: var_name
-    LOGICAL,                   OPTIONAL, INTENT(IN)    :: should_have_time
+    character(len=*),           intent(in   ) :: filename
+    integer,                    intent(in   ) :: ncid
+    character(len=*),           intent(in   ) :: var_name
+    logical,          optional, intent(in   ) :: should_have_time
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'check_xy_grid_field_dp_2D_monthly'
-    INTEGER                                            :: id_dim_x, id_dim_y, id_dim_month, id_dim_time, id_var
-    INTEGER                                            :: var_type
-    INTEGER                                            :: ndims_of_var
-    INTEGER, DIMENSION( NF90_MAX_VAR_DIMS)             :: dims_of_var
-    LOGICAL                                            :: file_has_time
+    character(len=1024), parameter         :: routine_name = 'check_xy_grid_field_dp_2D_monthly'
+    integer                                :: id_dim_x, id_dim_y, id_dim_month, id_dim_time, id_var
+    integer                                :: var_type
+    integer                                :: ndims_of_var
+    integer, dimension( NF90_MAX_VAR_DIMS) :: dims_of_var
+    logical                                :: file_has_time
 
     ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+    call init_routine( routine_name, do_track_resource_use = .false.)
 
     ! Check if the file has valid x and y dimensions and variables
-    CALL check_x(     filename, ncid)
-    CALL check_y(     filename, ncid)
-    CALL check_month( filename, ncid)
+    call check_x(     filename, ncid)
+    call check_y(     filename, ncid)
+    call check_month( filename, ncid)
 
-    ! Inquire x,y dimensions
-    CALL inquire_dim_multopt( filename, ncid, field_name_options_x    , id_dim_x    )
-    CALL inquire_dim_multopt( filename, ncid, field_name_options_y    , id_dim_y    )
-    CALL inquire_dim_multopt( filename, ncid, field_name_options_month, id_dim_month)
+    ! inquire x,y dimensions
+    call inquire_dim_multopt( filename, ncid, field_name_options_x    , id_dim_x    )
+    call inquire_dim_multopt( filename, ncid, field_name_options_y    , id_dim_y    )
+    call inquire_dim_multopt( filename, ncid, field_name_options_month, id_dim_month)
 
-    ! Inquire variable
-    CALL inquire_var( filename, ncid, var_name, id_var)
-    IF (id_var == -1) CALL crash('variable "' // TRIM( var_name) // '" could not be found in file "' // TRIM( filename) // '"!')
+    ! inquire variable
+    call inquire_var( filename, ncid, var_name, id_var)
+    if (id_var == -1) call crash('variable "' // trim( var_name) // '" could not be found in file "' // trim( filename) // '"!')
 
-    ! Inquire variable info
-    CALL inquire_var_info( filename, ncid, id_var, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
+    ! inquire variable info
+    call inquire_var_info( filename, ncid, id_var, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
 
     ! Check variable type
-    IF (.NOT. (var_type == NF90_FLOAT .OR. var_type == NF90_DOUBLE)) THEN
-      CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
-    END IF
+    if (.not. (var_type == NF90_FLOAT .or. var_type == NF90_DOUBLE)) then
+      call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
+    end if
 
     ! Check x,y dimensions
-    IF (.NOT. ANY( dims_of_var == id_dim_x    )) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have x as a dimension!')
-    IF (.NOT. ANY( dims_of_var == id_dim_y    )) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have y as a dimension!')
-    IF (.NOT. ANY( dims_of_var == id_dim_month)) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have month as a dimension!')
+    if (.not. any( dims_of_var == id_dim_x    )) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have x as a dimension!')
+    if (.not. any( dims_of_var == id_dim_y    )) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have y as a dimension!')
+    if (.not. any( dims_of_var == id_dim_month)) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have month as a dimension!')
 
-    IF (.NOT. PRESENT( should_have_time)) THEN
+    if (.not. present( should_have_time)) then
       ! This variable is allowed to either have or not have a time dimension
 
       ! Check if the file contains a time dimension
-      CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
-      IF (id_dim_time == -1) THEN
-        file_has_time = .FALSE.
-      ELSE
-        file_has_time = .TRUE.
-      END IF
+      call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
+      if (id_dim_time == -1) then
+        file_has_time = .false.
+      else
+        file_has_time = .true.
+      end if
 
-      IF (file_has_time) THEN
+      if (file_has_time) then
         ! Check if the variable has time as a dimension
-        IF (ndims_of_var == 3) THEN
+        if (ndims_of_var == 3) then
           ! The variable only has x,y,m as dimensions.
-        ELSE
-          IF (ndims_of_var == 4) THEN
-            IF (.NOT. ANY( dims_of_var == id_dim_time)) CALL crash('variable "' // TRIM( var_name) // '" in file "' &
-              // TRIM( filename) // '" has four dimensions, but the fourth one is not time!')
-          ELSE
-            CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-          END IF
-        END IF
-      ELSE ! IF (file_has_time) THEN
+        else
+          if (ndims_of_var == 4) then
+            if (.not. any( dims_of_var == id_dim_time)) call crash('variable "' // trim( var_name) // '" in file "' &
+              // trim( filename) // '" has four dimensions, but the fourth one is not time!')
+          else
+            call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+          end if
+        end if
+      else ! if (file_has_time) then
         ! The file does not have a time dimension; the variable should only have x,y,m as dimensions
-        IF (ndims_of_var /= 3) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-      END IF ! IF (file_has_time) THEN
+        if (ndims_of_var /= 3) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+      end if ! if (file_has_time) then
 
-    ELSE ! IF (.NOT. PRESENT( should_have_time)) THEN
-      IF (should_have_time) THEN
+    else ! if (.not. present( should_have_time)) then
+      if (should_have_time) then
         ! This variable should have a time dimension
 
         ! Check if the file has a valid time dimension
-        CALL check_time( filename, ncid)
+        call check_time( filename, ncid)
 
-        ! Inquire the time dimension
-        CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
+        ! inquire the time dimension
+        call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
 
         ! Check if the variable has time as a dimension
-        IF (ndims_of_var /= 4) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-        IF (.NOT. ANY( dims_of_var == id_dim_time)) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have time as a dimension!')
+        if (ndims_of_var /= 4) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+        if (.not. any( dims_of_var == id_dim_time)) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have time as a dimension!')
 
-      ELSE ! IF (should_have_time) THEN
+      else ! if (should_have_time) then
         ! This variable should not have a time dimension; the variable should only have x,y,m as dimensions
 
-        IF (ndims_of_var /= 3) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+        if (ndims_of_var /= 3) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 
-      END IF ! IF (should_have_time) THEN
-    END IF ! IF (.NOT. PRESENT( should_have_time)) THEN
+      end if ! if (should_have_time) then
+    end if ! if (.not. present( should_have_time)) then
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE check_xy_grid_field_dp_2D_monthly
+  end subroutine check_xy_grid_field_dp_2D_monthly
 
-  SUBROUTINE check_xy_grid_field_dp_3D(             filename, ncid, var_name, should_have_time)
+  subroutine check_xy_grid_field_dp_3D( filename, ncid, var_name, should_have_time)
     ! Check if this file contains a 3-D x/y-grid variable by this name
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    CHARACTER(LEN=*),                    INTENT(IN)    :: var_name
-    LOGICAL,                   OPTIONAL, INTENT(IN)    :: should_have_time
+    character(len=*),           intent(in   ) :: filename
+    integer,                    intent(in   ) :: ncid
+    character(len=*),           intent(in   ) :: var_name
+    logical,          optional, intent(in   ) :: should_have_time
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'check_xy_grid_field_dp_3D'
-    INTEGER                                            :: id_dim_x, id_dim_y, id_dim_zeta, id_dim_time, id_var
-    INTEGER                                            :: var_type
-    INTEGER                                            :: ndims_of_var
-    INTEGER, DIMENSION( NF90_MAX_VAR_DIMS)             :: dims_of_var
-    LOGICAL                                            :: file_has_time
+    character(len=1024), parameter         :: routine_name = 'check_xy_grid_field_dp_3D'
+    integer                                :: id_dim_x, id_dim_y, id_dim_zeta, id_dim_time, id_var
+    integer                                :: var_type
+    integer                                :: ndims_of_var
+    integer, dimension( NF90_MAX_VAR_DIMS) :: dims_of_var
+    logical                                :: file_has_time
 
     ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+    call init_routine( routine_name, do_track_resource_use = .false.)
 
     ! Check if the file has valid x and y dimensions and variables
-    CALL check_x(    filename, ncid)
-    CALL check_y(    filename, ncid)
-    CALL check_zeta( filename, ncid)
+    call check_x(    filename, ncid)
+    call check_y(    filename, ncid)
+    call check_zeta( filename, ncid)
 
-    ! Inquire x,y,zeta dimensions
-    CALL inquire_dim_multopt( filename, ncid, field_name_options_x   , id_dim_x   )
-    CALL inquire_dim_multopt( filename, ncid, field_name_options_y   , id_dim_y   )
-    CALL inquire_dim_multopt( filename, ncid, field_name_options_zeta, id_dim_zeta)
+    ! inquire x,y,zeta dimensions
+    call inquire_dim_multopt( filename, ncid, field_name_options_x   , id_dim_x   )
+    call inquire_dim_multopt( filename, ncid, field_name_options_y   , id_dim_y   )
+    call inquire_dim_multopt( filename, ncid, field_name_options_zeta, id_dim_zeta)
 
-    ! Inquire variable
-    CALL inquire_var( filename, ncid, var_name, id_var)
-    IF (id_var == -1) CALL crash('variable "' // TRIM( var_name) // '" could not be found in file "' // TRIM( filename) // '"!')
+    ! inquire variable
+    call inquire_var( filename, ncid, var_name, id_var)
+    if (id_var == -1) call crash('variable "' // trim( var_name) // '" could not be found in file "' // trim( filename) // '"!')
 
-    ! Inquire variable info
-    CALL inquire_var_info( filename, ncid, id_var, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
+    ! inquire variable info
+    call inquire_var_info( filename, ncid, id_var, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
 
     ! Check variable type
-    IF (.NOT. (var_type == NF90_FLOAT .OR. var_type == NF90_DOUBLE)) THEN
-      CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
-    END IF
+    if (.not. (var_type == NF90_FLOAT .or. var_type == NF90_DOUBLE)) then
+      call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
+    end if
 
     ! Check x,y dimensions
-    IF (.NOT. ANY( dims_of_var == id_dim_x   )) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have x as a dimension!')
-    IF (.NOT. ANY( dims_of_var == id_dim_y   )) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have y as a dimension!')
-    IF (.NOT. ANY( dims_of_var == id_dim_zeta)) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have zeta as a dimension!')
+    if (.not. any( dims_of_var == id_dim_x   )) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have x as a dimension!')
+    if (.not. any( dims_of_var == id_dim_y   )) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have y as a dimension!')
+    if (.not. any( dims_of_var == id_dim_zeta)) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have zeta as a dimension!')
 
-    IF (.NOT. PRESENT( should_have_time)) THEN
+    if (.not. present( should_have_time)) then
       ! This variable is allowed to either have or not have a time dimension
 
       ! Check if the file contains a time dimension
-      CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
-      IF (id_dim_time == -1) THEN
-        file_has_time = .FALSE.
-      ELSE
-        file_has_time = .TRUE.
-      END IF
+      call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
+      if (id_dim_time == -1) then
+        file_has_time = .false.
+      else
+        file_has_time = .true.
+      end if
 
-      IF (file_has_time) THEN
+      if (file_has_time) then
         ! Check if the variable has time as a dimension
-        IF (ndims_of_var == 3) THEN
+        if (ndims_of_var == 3) then
           ! The variable only has x,y,zeta as dimensions.
-        ELSE
-          IF (ndims_of_var == 4) THEN
-            IF (.NOT. ANY( dims_of_var == id_dim_time)) CALL crash('variable "' // TRIM( var_name) // '" in file "' &
-              // TRIM( filename) // '" has four dimensions, but the fourth one is not time!')
-          ELSE
-            CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-          END IF
-        END IF
-      ELSE ! IF (file_has_time) THEN
+        else
+          if (ndims_of_var == 4) then
+            if (.not. any( dims_of_var == id_dim_time)) call crash('variable "' // trim( var_name) // '" in file "' &
+              // trim( filename) // '" has four dimensions, but the fourth one is not time!')
+          else
+            call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+          end if
+        end if
+      else ! if (file_has_time) then
         ! The file does not have a time dimension; the variable should only have x,y,zeta as dimensions
-        IF (ndims_of_var /= 3) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-      END IF ! IF (file_has_time) THEN
+        if (ndims_of_var /= 3) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+      end if ! if (file_has_time) then
 
-    ELSE ! IF (.NOT. PRESENT( should_have_time)) THEN
-      IF (should_have_time) THEN
+    else ! if (.not. present( should_have_time)) then
+      if (should_have_time) then
         ! This variable should have a time dimension
 
         ! Check if the file has a valid time dimension
-        CALL check_time( filename, ncid)
+        call check_time( filename, ncid)
 
-        ! Inquire the time dimension
-        CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
+        ! inquire the time dimension
+        call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
 
         ! Check if the variable has time as a dimension
-        IF (ndims_of_var /= 4) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-        IF (.NOT. ANY( dims_of_var == id_dim_time)) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have time as a dimension!')
+        if (ndims_of_var /= 4) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+        if (.not. any( dims_of_var == id_dim_time)) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have time as a dimension!')
 
-      ELSE ! IF (should_have_time) THEN
+      else ! if (should_have_time) then
         ! This variable should not have a time dimension; the variable should only have x,y,zeta as dimensions
 
-        IF (ndims_of_var /= 3) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+        if (ndims_of_var /= 3) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 
-      END IF ! IF (should_have_time) THEN
-    END IF ! IF (.NOT. PRESENT( should_have_time)) THEN
+      end if ! if (should_have_time) then
+    end if ! if (.not. present( should_have_time)) then
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE check_xy_grid_field_dp_3D
+  end subroutine check_xy_grid_field_dp_3D
 
-  SUBROUTINE check_xy_grid_field_dp_3D_ocean(       filename, ncid, var_name, should_have_time)
+  subroutine check_xy_grid_field_dp_3D_ocean(       filename, ncid, var_name, should_have_time)
     ! Check if this file contains a 3-D x/y-grid variable by this name
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    CHARACTER(LEN=*),                    INTENT(IN)    :: var_name
-    LOGICAL,                   OPTIONAL, INTENT(IN)    :: should_have_time
+    character(len=*),           intent(in   ) :: filename
+    integer,                    intent(in   ) :: ncid
+    character(len=*),           intent(in   ) :: var_name
+    logical,          optional, intent(in   ) :: should_have_time
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'check_xy_grid_field_dp_3D_ocean'
-    INTEGER                                            :: id_dim_x, id_dim_y, id_dim_depth, id_dim_time, id_var
-    INTEGER                                            :: var_type
-    INTEGER                                            :: ndims_of_var
-    INTEGER, DIMENSION( NF90_MAX_VAR_DIMS)             :: dims_of_var
-    LOGICAL                                            :: file_has_time
+    character(len=1024), parameter         :: routine_name = 'check_xy_grid_field_dp_3D_ocean'
+    integer                                :: id_dim_x, id_dim_y, id_dim_depth, id_dim_time, id_var
+    integer                                :: var_type
+    integer                                :: ndims_of_var
+    integer, dimension( NF90_MAX_VAR_DIMS) :: dims_of_var
+    logical                                :: file_has_time
 
     ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+    call init_routine( routine_name, do_track_resource_use = .false.)
 
     ! Check if the file has valid x and y dimensions and variables
-    CALL check_x(     filename, ncid)
-    CALL check_y(     filename, ncid)
-    CALL check_depth( filename, ncid)
+    call check_x(     filename, ncid)
+    call check_y(     filename, ncid)
+    call check_depth( filename, ncid)
 
-    ! Inquire x,y,depth dimensions
-    CALL inquire_dim_multopt( filename, ncid, field_name_options_x    , id_dim_x   )
-    CALL inquire_dim_multopt( filename, ncid, field_name_options_y    , id_dim_y   )
-    CALL inquire_dim_multopt( filename, ncid, field_name_options_depth, id_dim_depth)
+    ! inquire x,y,depth dimensions
+    call inquire_dim_multopt( filename, ncid, field_name_options_x    , id_dim_x   )
+    call inquire_dim_multopt( filename, ncid, field_name_options_y    , id_dim_y   )
+    call inquire_dim_multopt( filename, ncid, field_name_options_depth, id_dim_depth)
 
-    ! Inquire variable
-    CALL inquire_var( filename, ncid, var_name, id_var)
-    IF (id_var == -1) CALL crash('variable "' // TRIM( var_name) // '" could not be found in file "' // TRIM( filename) // '"!')
+    ! inquire variable
+    call inquire_var( filename, ncid, var_name, id_var)
+    if (id_var == -1) call crash('variable "' // trim( var_name) // '" could not be found in file "' // trim( filename) // '"!')
 
-    ! Inquire variable info
-    CALL inquire_var_info( filename, ncid, id_var, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
+    ! inquire variable info
+    call inquire_var_info( filename, ncid, id_var, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
 
     ! Check variable type
-    IF (.NOT. (var_type == NF90_FLOAT .OR. var_type == NF90_DOUBLE)) THEN
-      CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
-    END IF
+    if (.not. (var_type == NF90_FLOAT .or. var_type == NF90_DOUBLE)) then
+      call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
+    end if
 
     ! Check x,y dimensions
-    IF (.NOT. ANY( dims_of_var == id_dim_x    )) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have x as a dimension!')
-    IF (.NOT. ANY( dims_of_var == id_dim_y    )) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have y as a dimension!')
-    IF (.NOT. ANY( dims_of_var == id_dim_depth)) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have depth as a dimension!')
+    if (.not. any( dims_of_var == id_dim_x    )) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have x as a dimension!')
+    if (.not. any( dims_of_var == id_dim_y    )) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have y as a dimension!')
+    if (.not. any( dims_of_var == id_dim_depth)) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have depth as a dimension!')
 
-    IF (.NOT. PRESENT( should_have_time)) THEN
+    if (.not. present( should_have_time)) then
       ! This variable is allowed to either have or not have a time dimension
 
       ! Check if the file contains a time dimension
-      CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
-      IF (id_dim_time == -1) THEN
-        file_has_time = .FALSE.
-      ELSE
-        file_has_time = .TRUE.
-      END IF
+      call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
+      if (id_dim_time == -1) then
+        file_has_time = .false.
+      else
+        file_has_time = .true.
+      end if
 
-      IF (file_has_time) THEN
+      if (file_has_time) then
         ! Check if the variable has time as a dimension
-        IF (ndims_of_var == 3) THEN
+        if (ndims_of_var == 3) then
           ! The variable only has x,y,depth as dimensions.
-        ELSE
-          IF (ndims_of_var == 4) THEN
-            IF (.NOT. ANY( dims_of_var == id_dim_time)) CALL crash('variable "' // TRIM( var_name) // '" in file "' &
-              // TRIM( filename) // '" has four dimensions, but the fourth one is not time!')
-          ELSE
-            CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-          END IF
-        END IF
-      ELSE ! IF (file_has_time) THEN
+        else
+          if (ndims_of_var == 4) then
+            if (.not. any( dims_of_var == id_dim_time)) call crash('variable "' // trim( var_name) // '" in file "' &
+              // trim( filename) // '" has four dimensions, but the fourth one is not time!')
+          else
+            call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+          end if
+        end if
+      else ! if (file_has_time) then
         ! The file does not have a time dimension; the variable should only have x,y,depth as dimensions
-        IF (ndims_of_var /= 3) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-      END IF ! IF (file_has_time) THEN
+        if (ndims_of_var /= 3) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+      end if ! if (file_has_time) then
 
-    ELSE ! IF (.NOT. PRESENT( should_have_time)) THEN
-      IF (should_have_time) THEN
+    else ! if (.not. present( should_have_time)) then
+      if (should_have_time) then
         ! This variable should have a time dimension
 
         ! Check if the file has a valid time dimension
-        CALL check_time( filename, ncid)
+        call check_time( filename, ncid)
 
-        ! Inquire the time dimension
-        CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
+        ! inquire the time dimension
+        call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
 
         ! Check if the variable has time as a dimension
-        IF (ndims_of_var /= 4) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-        IF (.NOT. ANY( dims_of_var == id_dim_time)) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have time as a dimension!')
+        if (ndims_of_var /= 4) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+        if (.not. any( dims_of_var == id_dim_time)) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have time as a dimension!')
 
-      ELSE ! IF (should_have_time) THEN
+      else ! if (should_have_time) then
         ! This variable should not have a time dimension; the variable should only have x,y,depth as dimensions
 
-        IF (ndims_of_var /= 3) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+        if (ndims_of_var /= 3) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 
-      END IF ! IF (should_have_time) THEN
-    END IF ! IF (.NOT. PRESENT( should_have_time)) THEN
+      end if ! if (should_have_time) then
+    end if ! if (.not. present( should_have_time)) then
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE check_xy_grid_field_dp_3D_ocean
+  end subroutine check_xy_grid_field_dp_3D_ocean
 
   ! lon/lat-grid field variables
-  SUBROUTINE check_lonlat_grid_field_int_2D(        filename, ncid, var_name, should_have_time)
+  subroutine check_lonlat_grid_field_int_2D( filename, ncid, var_name, should_have_time)
     ! Check if this file contains a 2-D lon/lat-grid variable by this name
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    CHARACTER(LEN=*),                    INTENT(IN)    :: var_name
-    LOGICAL,                   OPTIONAL, INTENT(IN)    :: should_have_time
+    character(len=*),           intent(in   ) :: filename
+    integer,                    intent(in   ) :: ncid
+    character(len=*),           intent(in   ) :: var_name
+    logical,          optional, intent(in   ) :: should_have_time
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'check_lonlat_grid_field_int_2D'
-    INTEGER                                            :: id_dim_lon, id_dim_lat, id_dim_time, id_var
-    INTEGER                                            :: var_type
-    INTEGER                                            :: ndims_of_var
-    INTEGER, DIMENSION( NF90_MAX_VAR_DIMS)             :: dims_of_var
-    LOGICAL                                            :: file_has_time
+    character(len=1024), parameter         :: routine_name = 'check_lonlat_grid_field_int_2D'
+    integer                                :: id_dim_lon, id_dim_lat, id_dim_time, id_var
+    integer                                :: var_type
+    integer                                :: ndims_of_var
+    integer, dimension( NF90_MAX_VAR_DIMS) :: dims_of_var
+    logical                                :: file_has_time
 
     ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+    call init_routine( routine_name, do_track_resource_use = .false.)
 
     ! Check if the file has valid lon and lat dimensions and variables
-    CALL check_lon( filename, ncid)
-    CALL check_lat( filename, ncid)
+    call check_lon( filename, ncid)
+    call check_lat( filename, ncid)
 
-    ! Inquire lon,lat dimensions
-    CALL inquire_dim_multopt( filename, ncid, field_name_options_lon, id_dim_lon)
-    CALL inquire_dim_multopt( filename, ncid, field_name_options_lat, id_dim_lat)
+    ! inquire lon,lat dimensions
+    call inquire_dim_multopt( filename, ncid, field_name_options_lon, id_dim_lon)
+    call inquire_dim_multopt( filename, ncid, field_name_options_lat, id_dim_lat)
 
-    ! Inquire variable
-    CALL inquire_var( filename, ncid, var_name, id_var)
-    IF (id_var == -1) CALL crash('variable "' // TRIM( var_name) // '" could not be found in file "' // TRIM( filename) // '"!')
+    ! inquire variable
+    call inquire_var( filename, ncid, var_name, id_var)
+    if (id_var == -1) call crash('variable "' // trim( var_name) // '" could not be found in file "' // trim( filename) // '"!')
 
-    ! Inquire variable info
-    CALL inquire_var_info( filename, ncid, id_var, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
+    ! inquire variable info
+    call inquire_var_info( filename, ncid, id_var, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
 
     ! Check variable type
-    IF (.NOT. var_type == NF90_INT) THEN
-      CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_INT!')
-    END IF
+    if (.not. var_type == NF90_INT) then
+      call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" is not of type NF90_INT!')
+    end if
 
     ! Check lon,lat dimensions
-    IF (.NOT. ANY( dims_of_var == id_dim_lon)) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have longitude as a dimension!')
-    IF (.NOT. ANY( dims_of_var == id_dim_lat)) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have latitude as a dimension!')
+    if (.not. any( dims_of_var == id_dim_lon)) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have longitude as a dimension!')
+    if (.not. any( dims_of_var == id_dim_lat)) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have latitude as a dimension!')
 
-    IF (.NOT. PRESENT( should_have_time)) THEN
+    if (.not. present( should_have_time)) then
       ! This variable is allowed to either have or not have a time dimension
 
       ! Check if the file contains a time dimension
-      CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
-      IF (id_dim_time == -1) THEN
-        file_has_time = .FALSE.
-      ELSE
-        file_has_time = .TRUE.
-      END IF
+      call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
+      if (id_dim_time == -1) then
+        file_has_time = .false.
+      else
+        file_has_time = .true.
+      end if
 
-      IF (file_has_time) THEN
+      if (file_has_time) then
         ! Check if the variable has time as a dimension
-        IF (ndims_of_var == 2) THEN
+        if (ndims_of_var == 2) then
           ! The variable only has lon,lat as dimensions.
-        ELSE
-          IF (ndims_of_var == 3) THEN
-            IF (.NOT. ANY( dims_of_var == id_dim_time)) CALL crash('variable "' // TRIM( var_name) // '" in file "' &
-              // TRIM( filename) // '" has three dimensions, but the third one is not time!')
-          ELSE
-            CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-          END IF
-        END IF
-      ELSE ! IF (file_has_time) THEN
+        else
+          if (ndims_of_var == 3) then
+            if (.not. any( dims_of_var == id_dim_time)) call crash('variable "' // trim( var_name) // '" in file "' &
+              // trim( filename) // '" has three dimensions, but the third one is not time!')
+          else
+            call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+          end if
+        end if
+      else ! if (file_has_time) then
         ! The file does not have a time dimension; the variable should only have lon,lat as dimensions
-        IF (ndims_of_var /= 2) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-      END IF ! IF (file_has_time) THEN
+        if (ndims_of_var /= 2) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+      end if ! if (file_has_time) then
 
-    ELSE ! IF (.NOT. PRESENT( should_have_time)) THEN
-      IF (should_have_time) THEN
+    else ! if (.not. present( should_have_time)) then
+      if (should_have_time) then
         ! This variable should have a time dimension
 
         ! Check if the file has a valid time dimension
-        CALL check_time( filename, ncid)
+        call check_time( filename, ncid)
 
-        ! Inquire the time dimension
-        CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
+        ! inquire the time dimension
+        call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
 
         ! Check if the variable has time as a dimension
-        IF (ndims_of_var /= 3) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-        IF (.NOT. ANY( dims_of_var == id_dim_time)) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have time as a dimension!')
+        if (ndims_of_var /= 3) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+        if (.not. any( dims_of_var == id_dim_time)) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have time as a dimension!')
 
-      ELSE ! IF (should_have_time) THEN
+      else ! if (should_have_time) then
         ! This variable should not have a time dimension; the variable should only have lon,lat as dimensions
 
-        IF (ndims_of_var /= 2) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+        if (ndims_of_var /= 2) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 
-      END IF ! IF (should_have_time) THEN
-    END IF ! IF (.NOT. PRESENT( should_have_time)) THEN
+      end if ! if (should_have_time) then
+    end if ! if (.not. present( should_have_time)) then
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE check_lonlat_grid_field_int_2D
+  end subroutine check_lonlat_grid_field_int_2D
 
-  SUBROUTINE check_lonlat_grid_field_dp_2D(         filename, ncid, var_name, should_have_time)
+  subroutine check_lonlat_grid_field_dp_2D( filename, ncid, var_name, should_have_time)
     ! Check if this file contains a 2-D lon/lat-grid variable by this name
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    CHARACTER(LEN=*),                    INTENT(IN)    :: var_name
-    LOGICAL,                   OPTIONAL, INTENT(IN)    :: should_have_time
+    character(len=*),           intent(in   ) :: filename
+    integer,                    intent(in   ) :: ncid
+    character(len=*),           intent(in   ) :: var_name
+    logical,          optional, intent(in   ) :: should_have_time
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'check_lonlat_grid_field_dp_2D'
-    INTEGER                                            :: id_dim_lon, id_dim_lat, id_dim_time, id_var
-    INTEGER                                            :: var_type
-    INTEGER                                            :: ndims_of_var
-    INTEGER, DIMENSION( NF90_MAX_VAR_DIMS)             :: dims_of_var
-    LOGICAL                                            :: file_has_time
+    character(len=1024), parameter         :: routine_name = 'check_lonlat_grid_field_dp_2D'
+    integer                                :: id_dim_lon, id_dim_lat, id_dim_time, id_var
+    integer                                :: var_type
+    integer                                :: ndims_of_var
+    integer, dimension( NF90_MAX_VAR_DIMS) :: dims_of_var
+    logical                                :: file_has_time
 
     ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+    call init_routine( routine_name, do_track_resource_use = .false.)
 
     ! Check if the file has valid lon and lat dimensions and variables
-    CALL check_lon( filename, ncid)
-    CALL check_lat( filename, ncid)
+    call check_lon( filename, ncid)
+    call check_lat( filename, ncid)
 
-    ! Inquire lon,lat dimensions
-    CALL inquire_dim_multopt( filename, ncid, field_name_options_lon, id_dim_lon)
-    CALL inquire_dim_multopt( filename, ncid, field_name_options_lat, id_dim_lat)
+    ! inquire lon,lat dimensions
+    call inquire_dim_multopt( filename, ncid, field_name_options_lon, id_dim_lon)
+    call inquire_dim_multopt( filename, ncid, field_name_options_lat, id_dim_lat)
 
-    ! Inquire variable
-    CALL inquire_var( filename, ncid, var_name, id_var)
-    IF (id_var == -1) CALL crash('variable "' // TRIM( var_name) // '" could not be found in file "' // TRIM( filename) // '"!')
+    ! inquire variable
+    call inquire_var( filename, ncid, var_name, id_var)
+    if (id_var == -1) call crash('variable "' // trim( var_name) // '" could not be found in file "' // trim( filename) // '"!')
 
-    ! Inquire variable info
-    CALL inquire_var_info( filename, ncid, id_var, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
+    ! inquire variable info
+    call inquire_var_info( filename, ncid, id_var, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
 
     ! Check variable type
-    IF (.NOT. (var_type == NF90_FLOAT .OR. var_type == NF90_DOUBLE)) THEN
-      CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
-    END IF
+    if (.not. (var_type == NF90_FLOAT .or. var_type == NF90_DOUBLE)) then
+      call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
+    end if
 
     ! Check lon,lat dimensions
-    IF (.NOT. ANY( dims_of_var == id_dim_lon)) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have longitude as a dimension!')
-    IF (.NOT. ANY( dims_of_var == id_dim_lat)) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have latitude as a dimension!')
+    if (.not. any( dims_of_var == id_dim_lon)) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have longitude as a dimension!')
+    if (.not. any( dims_of_var == id_dim_lat)) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have latitude as a dimension!')
 
-    IF (.NOT. PRESENT( should_have_time)) THEN
+    if (.not. present( should_have_time)) then
       ! This variable is allowed to either have or not have a time dimension
 
       ! Check if the file contains a time dimension
-      CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
-      IF (id_dim_time == -1) THEN
-        file_has_time = .FALSE.
-      ELSE
-        file_has_time = .TRUE.
-      END IF
+      call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
+      if (id_dim_time == -1) then
+        file_has_time = .false.
+      else
+        file_has_time = .true.
+      end if
 
-      IF (file_has_time) THEN
+      if (file_has_time) then
         ! Check if the variable has time as a dimension
-        IF (ndims_of_var == 2) THEN
+        if (ndims_of_var == 2) then
           ! The variable only has lon,lat as dimensions.
-        ELSE
-          IF (ndims_of_var == 3) THEN
-            IF (.NOT. ANY( dims_of_var == id_dim_time)) CALL crash('variable "' // TRIM( var_name) // '" in file "' &
-              // TRIM( filename) // '" has three dimensions, but the third one is not time!')
-          ELSE
-            CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-          END IF
-        END IF
-      ELSE ! IF (file_has_time) THEN
+        else
+          if (ndims_of_var == 3) then
+            if (.not. any( dims_of_var == id_dim_time)) call crash('variable "' // trim( var_name) // '" in file "' &
+              // trim( filename) // '" has three dimensions, but the third one is not time!')
+          else
+            call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+          end if
+        end if
+      else ! if (file_has_time) then
         ! The file does not have a time dimension; the variable should only have lon,lat as dimensions
-        IF (ndims_of_var /= 2) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-      END IF ! IF (file_has_time) THEN
+        if (ndims_of_var /= 2) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+      end if ! if (file_has_time) then
 
-    ELSE ! IF (.NOT. PRESENT( should_have_time)) THEN
-      IF (should_have_time) THEN
+    else ! if (.not. present( should_have_time)) then
+      if (should_have_time) then
         ! This variable should have a time dimension
 
         ! Check if the file has a valid time dimension
-        CALL check_time( filename, ncid)
+        call check_time( filename, ncid)
 
-        ! Inquire the time dimension
-        CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
+        ! inquire the time dimension
+        call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
 
         ! Check if the variable has time as a dimension
-        IF (ndims_of_var /= 3) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-        IF (.NOT. ANY( dims_of_var == id_dim_time)) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have time as a dimension!')
+        if (ndims_of_var /= 3) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+        if (.not. any( dims_of_var == id_dim_time)) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have time as a dimension!')
 
-      ELSE ! IF (should_have_time) THEN
+      else ! if (should_have_time) then
         ! This variable should not have a time dimension; the variable should only have lon,lat as dimensions
 
-        IF (ndims_of_var /= 2) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+        if (ndims_of_var /= 2) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 
-      END IF ! IF (should_have_time) THEN
-    END IF ! IF (.NOT. PRESENT( should_have_time)) THEN
+      end if ! if (should_have_time) then
+    end if ! if (.not. present( should_have_time)) then
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE check_lonlat_grid_field_dp_2D
+  end subroutine check_lonlat_grid_field_dp_2D
 
-  SUBROUTINE check_lonlat_grid_field_dp_2D_monthly( filename, ncid, var_name, should_have_time)
+  subroutine check_lonlat_grid_field_dp_2D_monthly( filename, ncid, var_name, should_have_time)
     ! Check if this file contains a 2-D monthly lon/lat-grid variable by this name
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    CHARACTER(LEN=*),                    INTENT(IN)    :: var_name
-    LOGICAL,                   OPTIONAL, INTENT(IN)    :: should_have_time
+    character(len=*),           intent(in   ) :: filename
+    integer,                    intent(in   ) :: ncid
+    character(len=*),           intent(in   ) :: var_name
+    logical,          optional, intent(in   ) :: should_have_time
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'check_lonlat_grid_field_dp_2D_monthly'
-    INTEGER                                            :: id_dim_lon, id_dim_lat, id_dim_month, id_dim_time, id_var
-    INTEGER                                            :: var_type
-    INTEGER                                            :: ndims_of_var
-    INTEGER, DIMENSION( NF90_MAX_VAR_DIMS)             :: dims_of_var
-    LOGICAL                                            :: file_has_time
+    character(len=1024), parameter         :: routine_name = 'check_lonlat_grid_field_dp_2D_monthly'
+    integer                                :: id_dim_lon, id_dim_lat, id_dim_month, id_dim_time, id_var
+    integer                                :: var_type
+    integer                                :: ndims_of_var
+    integer, dimension( NF90_MAX_VAR_DIMS) :: dims_of_var
+    logical                                :: file_has_time
 
     ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+    call init_routine( routine_name, do_track_resource_use = .false.)
 
     ! Check if the file has valid lon and lat dimensions and variables
-    CALL check_lon(   filename, ncid)
-    CALL check_lat(   filename, ncid)
-    CALL check_month( filename, ncid)
+    call check_lon(   filename, ncid)
+    call check_lat(   filename, ncid)
+    call check_month( filename, ncid)
 
-    ! Inquire lon,lat dimensions
-    CALL inquire_dim_multopt( filename, ncid, field_name_options_lon  , id_dim_lon  )
-    CALL inquire_dim_multopt( filename, ncid, field_name_options_lat  , id_dim_lat  )
-    CALL inquire_dim_multopt( filename, ncid, field_name_options_month, id_dim_month)
+    ! inquire lon,lat dimensions
+    call inquire_dim_multopt( filename, ncid, field_name_options_lon  , id_dim_lon  )
+    call inquire_dim_multopt( filename, ncid, field_name_options_lat  , id_dim_lat  )
+    call inquire_dim_multopt( filename, ncid, field_name_options_month, id_dim_month)
 
-    ! Inquire variable
-    CALL inquire_var( filename, ncid, var_name, id_var)
-    IF (id_var == -1) CALL crash('variable "' // TRIM( var_name) // '" could not be found in file "' // TRIM( filename) // '"!')
+    ! inquire variable
+    call inquire_var( filename, ncid, var_name, id_var)
+    if (id_var == -1) call crash('variable "' // trim( var_name) // '" could not be found in file "' // trim( filename) // '"!')
 
-    ! Inquire variable info
-    CALL inquire_var_info( filename, ncid, id_var, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
+    ! inquire variable info
+    call inquire_var_info( filename, ncid, id_var, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
 
     ! Check variable type
-    IF (.NOT. (var_type == NF90_FLOAT .OR. var_type == NF90_DOUBLE)) THEN
-      CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
-    END IF
+    if (.not. (var_type == NF90_FLOAT .or. var_type == NF90_DOUBLE)) then
+      call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
+    end if
 
     ! Check lon,lat dimensions
-    IF (.NOT. ANY( dims_of_var == id_dim_lon  )) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have longitude as a dimension!')
-    IF (.NOT. ANY( dims_of_var == id_dim_lat  )) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have latitude as a dimension!')
-    IF (.NOT. ANY( dims_of_var == id_dim_month)) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have month as a dimension!')
+    if (.not. any( dims_of_var == id_dim_lon  )) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have longitude as a dimension!')
+    if (.not. any( dims_of_var == id_dim_lat  )) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have latitude as a dimension!')
+    if (.not. any( dims_of_var == id_dim_month)) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have month as a dimension!')
 
-    IF (.NOT. PRESENT( should_have_time)) THEN
+    if (.not. present( should_have_time)) then
       ! This variable is allowed to either have or not have a time dimension
 
       ! Check if the file contains a time dimension
-      CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
-      IF (id_dim_time == -1) THEN
-        file_has_time = .FALSE.
-      ELSE
-        file_has_time = .TRUE.
-      END IF
+      call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
+      if (id_dim_time == -1) then
+        file_has_time = .false.
+      else
+        file_has_time = .true.
+      end if
 
-      IF (file_has_time) THEN
+      if (file_has_time) then
         ! Check if the variable has time as a dimension
-        IF (ndims_of_var == 3) THEN
+        if (ndims_of_var == 3) then
           ! The variable only has lon,lat,m as dimensions.
-        ELSE
-          IF (ndims_of_var == 4) THEN
-            IF (.NOT. ANY( dims_of_var == id_dim_time)) CALL crash('variable "' // TRIM( var_name) // '" in file "' &
-              // TRIM( filename) // '" has four dimensions, but the fourth one is not time!')
-          ELSE
-            CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-          END IF
-        END IF
-      ELSE ! IF (file_has_time) THEN
+        else
+          if (ndims_of_var == 4) then
+            if (.not. any( dims_of_var == id_dim_time)) call crash('variable "' // trim( var_name) // '" in file "' &
+              // trim( filename) // '" has four dimensions, but the fourth one is not time!')
+          else
+            call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+          end if
+        end if
+      else ! if (file_has_time) then
         ! The file does not have a time dimension; the variable should only have lon,lat,m as dimensions
-        IF (ndims_of_var /= 3) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-      END IF ! IF (file_has_time) THEN
+        if (ndims_of_var /= 3) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+      end if ! if (file_has_time) then
 
-    ELSE ! IF (.NOT. PRESENT( should_have_time)) THEN
-      IF (should_have_time) THEN
+    else ! if (.not. present( should_have_time)) then
+      if (should_have_time) then
         ! This variable should have a time dimension
 
         ! Check if the file has a valid time dimension
-        CALL check_time( filename, ncid)
+        call check_time( filename, ncid)
 
-        ! Inquire the time dimension
-        CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
+        ! inquire the time dimension
+        call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
 
         ! Check if the variable has time as a dimension
-        IF (ndims_of_var /= 4) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-        IF (.NOT. ANY( dims_of_var == id_dim_time)) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have time as a dimension!')
+        if (ndims_of_var /= 4) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+        if (.not. any( dims_of_var == id_dim_time)) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have time as a dimension!')
 
-      ELSE ! IF (should_have_time) THEN
+      else ! if (should_have_time) then
         ! This variable should not have a time dimension; the variable should only have lon,lat,m as dimensions
 
-        IF (ndims_of_var /= 3) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+        if (ndims_of_var /= 3) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 
-      END IF ! IF (should_have_time) THEN
-    END IF ! IF (.NOT. PRESENT( should_have_time)) THEN
+      end if ! if (should_have_time) then
+    end if ! if (.not. present( should_have_time)) then
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE check_lonlat_grid_field_dp_2D_monthly
+  end subroutine check_lonlat_grid_field_dp_2D_monthly
 
-  SUBROUTINE check_lonlat_grid_field_dp_3D(         filename, ncid, var_name, should_have_time)
+  subroutine check_lonlat_grid_field_dp_3D( filename, ncid, var_name, should_have_time)
     ! Check if this file contains a 3-D lon/lat-grid variable by this name
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    CHARACTER(LEN=*),                    INTENT(IN)    :: var_name
-    LOGICAL,                   OPTIONAL, INTENT(IN)    :: should_have_time
+    character(len=*),           intent(in   ) :: filename
+    integer,                    intent(in   ) :: ncid
+    character(len=*),           intent(in   ) :: var_name
+    logical,          optional, intent(in   ) :: should_have_time
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'check_lonlat_grid_field_dp_3D'
-    INTEGER                                            :: id_dim_lon, id_dim_lat, id_dim_zeta, id_dim_time, id_var
-    INTEGER                                            :: var_type
-    INTEGER                                            :: ndims_of_var
-    INTEGER, DIMENSION( NF90_MAX_VAR_DIMS)             :: dims_of_var
-    LOGICAL                                            :: file_has_time
+    character(len=1024), parameter         :: routine_name = 'check_lonlat_grid_field_dp_3D'
+    integer                                :: id_dim_lon, id_dim_lat, id_dim_zeta, id_dim_time, id_var
+    integer                                :: var_type
+    integer                                :: ndims_of_var
+    integer, dimension( NF90_MAX_VAR_DIMS) :: dims_of_var
+    logical                                :: file_has_time
 
     ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+    call init_routine( routine_name, do_track_resource_use = .false.)
 
     ! Check if the file has valid lon and lat dimensions and variables
-    CALL check_lon(  filename, ncid)
-    CALL check_lat(  filename, ncid)
-    CALL check_zeta( filename, ncid)
+    call check_lon(  filename, ncid)
+    call check_lat(  filename, ncid)
+    call check_zeta( filename, ncid)
 
-    ! Inquire lon,lat,zeta dimensions
-    CALL inquire_dim_multopt( filename, ncid, field_name_options_lon , id_dim_lon )
-    CALL inquire_dim_multopt( filename, ncid, field_name_options_lat , id_dim_lat )
-    CALL inquire_dim_multopt( filename, ncid, field_name_options_zeta, id_dim_zeta)
+    ! inquire lon,lat,zeta dimensions
+    call inquire_dim_multopt( filename, ncid, field_name_options_lon , id_dim_lon )
+    call inquire_dim_multopt( filename, ncid, field_name_options_lat , id_dim_lat )
+    call inquire_dim_multopt( filename, ncid, field_name_options_zeta, id_dim_zeta)
 
-    ! Inquire variable
-    CALL inquire_var( filename, ncid, var_name, id_var)
-    IF (id_var == -1) CALL crash('variable "' // TRIM( var_name) // '" could not be found in file "' // TRIM( filename) // '"!')
+    ! inquire variable
+    call inquire_var( filename, ncid, var_name, id_var)
+    if (id_var == -1) call crash('variable "' // trim( var_name) // '" could not be found in file "' // trim( filename) // '"!')
 
-    ! Inquire variable info
-    CALL inquire_var_info( filename, ncid, id_var, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
+    ! inquire variable info
+    call inquire_var_info( filename, ncid, id_var, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
 
     ! Check variable type
-    IF (.NOT. (var_type == NF90_FLOAT .OR. var_type == NF90_DOUBLE)) THEN
-      CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
-    END IF
+    if (.not. (var_type == NF90_FLOAT .or. var_type == NF90_DOUBLE)) then
+      call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
+    end if
 
     ! Check lon,lat dimensions
-    IF (.NOT. ANY( dims_of_var == id_dim_lon )) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have longitude as a dimension!')
-    IF (.NOT. ANY( dims_of_var == id_dim_lat )) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have latitude as a dimension!')
-    IF (.NOT. ANY( dims_of_var == id_dim_zeta)) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have zeta as a dimension!')
+    if (.not. any( dims_of_var == id_dim_lon )) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have longitude as a dimension!')
+    if (.not. any( dims_of_var == id_dim_lat )) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have latitude as a dimension!')
+    if (.not. any( dims_of_var == id_dim_zeta)) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have zeta as a dimension!')
 
-    IF (.NOT. PRESENT( should_have_time)) THEN
+    if (.not. present( should_have_time)) then
       ! This variable is allowed to either have or not have a time dimension
 
       ! Check if the file contains a time dimension
-      CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
-      IF (id_dim_time == -1) THEN
-        file_has_time = .FALSE.
-      ELSE
-        file_has_time = .TRUE.
-      END IF
+      call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
+      if (id_dim_time == -1) then
+        file_has_time = .false.
+      else
+        file_has_time = .true.
+      end if
 
-      IF (file_has_time) THEN
+      if (file_has_time) then
         ! Check if the variable has time as a dimension
-        IF (ndims_of_var == 3) THEN
+        if (ndims_of_var == 3) then
           ! The variable only has lon,lat,zeta as dimensions.
-        ELSE
-          IF (ndims_of_var == 4) THEN
-            IF (.NOT. ANY( dims_of_var == id_dim_time)) CALL crash('variable "' // TRIM( var_name) // '" in file "' &
-              // TRIM( filename) // '" has four dimensions, but the fourth one is not time!')
-          ELSE
-            CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-          END IF
-        END IF
-      ELSE ! IF (file_has_time) THEN
+        else
+          if (ndims_of_var == 4) then
+            if (.not. any( dims_of_var == id_dim_time)) call crash('variable "' // trim( var_name) // '" in file "' &
+              // trim( filename) // '" has four dimensions, but the fourth one is not time!')
+          else
+            call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+          end if
+        end if
+      else ! if (file_has_time) then
         ! The file does not have a time dimension; the variable should only have lon,lat,zeta as dimensions
-        IF (ndims_of_var /= 3) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-      END IF ! IF (file_has_time) THEN
+        if (ndims_of_var /= 3) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+      end if ! if (file_has_time) then
 
-    ELSE ! IF (.NOT. PRESENT( should_have_time)) THEN
-      IF (should_have_time) THEN
+    else ! if (.not. present( should_have_time)) then
+      if (should_have_time) then
         ! This variable should have a time dimension
 
         ! Check if the file has a valid time dimension
-        CALL check_time( filename, ncid)
+        call check_time( filename, ncid)
 
-        ! Inquire the time dimension
-        CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
+        ! inquire the time dimension
+        call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
 
         ! Check if the variable has time as a dimension
-        IF (ndims_of_var /= 4) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-        IF (.NOT. ANY( dims_of_var == id_dim_time)) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have time as a dimension!')
+        if (ndims_of_var /= 4) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+        if (.not. any( dims_of_var == id_dim_time)) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have time as a dimension!')
 
-      ELSE ! IF (should_have_time) THEN
+      else ! if (should_have_time) then
         ! This variable should not have a time dimension; the variable should only have lon,lat,zeta as dimensions
 
-        IF (ndims_of_var /= 3) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+        if (ndims_of_var /= 3) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 
-      END IF ! IF (should_have_time) THEN
-    END IF ! IF (.NOT. PRESENT( should_have_time)) THEN
+      end if ! if (should_have_time) then
+    end if ! if (.not. present( should_have_time)) then
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE check_lonlat_grid_field_dp_3D
+  end subroutine check_lonlat_grid_field_dp_3D
 
-  SUBROUTINE check_lonlat_grid_field_dp_3D_ocean(   filename, ncid, var_name, should_have_time)
+  subroutine check_lonlat_grid_field_dp_3D_ocean( filename, ncid, var_name, should_have_time)
     ! Check if this file contains a 3-D lon/lat-grid variable by this name
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    CHARACTER(LEN=*),                    INTENT(IN)    :: var_name
-    LOGICAL,                   OPTIONAL, INTENT(IN)    :: should_have_time
+    character(len=*),           intent(in   ) :: filename
+    integer,                    intent(in   ) :: ncid
+    character(len=*),           intent(in   ) :: var_name
+    logical,          optional, intent(in   ) :: should_have_time
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'check_lonlat_grid_field_dp_3D_ocean'
-    INTEGER                                            :: id_dim_lon, id_dim_lat, id_dim_depth, id_dim_time, id_var
-    INTEGER                                            :: var_type
-    INTEGER                                            :: ndims_of_var
-    INTEGER, DIMENSION( NF90_MAX_VAR_DIMS)             :: dims_of_var
-    LOGICAL                                            :: file_has_time
+    character(len=1024), parameter         :: routine_name = 'check_lonlat_grid_field_dp_3D_ocean'
+    integer                                :: id_dim_lon, id_dim_lat, id_dim_depth, id_dim_time, id_var
+    integer                                :: var_type
+    integer                                :: ndims_of_var
+    integer, dimension( NF90_MAX_VAR_DIMS) :: dims_of_var
+    logical                                :: file_has_time
 
     ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+    call init_routine( routine_name, do_track_resource_use = .false.)
 
     ! Check if the file has valid lon and lat dimensions and variables
-    CALL check_lon(   filename, ncid)
-    CALL check_lat(   filename, ncid)
-    CALL check_depth( filename, ncid)
+    call check_lon(   filename, ncid)
+    call check_lat(   filename, ncid)
+    call check_depth( filename, ncid)
 
-    ! Inquire lon,lat,depth dimensions
-    CALL inquire_dim_multopt( filename, ncid, field_name_options_lon  , id_dim_lon )
-    CALL inquire_dim_multopt( filename, ncid, field_name_options_lat  , id_dim_lat )
-    CALL inquire_dim_multopt( filename, ncid, field_name_options_depth, id_dim_depth)
+    ! inquire lon,lat,depth dimensions
+    call inquire_dim_multopt( filename, ncid, field_name_options_lon  , id_dim_lon )
+    call inquire_dim_multopt( filename, ncid, field_name_options_lat  , id_dim_lat )
+    call inquire_dim_multopt( filename, ncid, field_name_options_depth, id_dim_depth)
 
-    ! Inquire variable
-    CALL inquire_var( filename, ncid, var_name, id_var)
-    IF (id_var == -1) CALL crash('variable "' // TRIM( var_name) // '" could not be found in file "' // TRIM( filename) // '"!')
+    ! inquire variable
+    call inquire_var( filename, ncid, var_name, id_var)
+    if (id_var == -1) call crash('variable "' // trim( var_name) // '" could not be found in file "' // trim( filename) // '"!')
 
-    ! Inquire variable info
-    CALL inquire_var_info( filename, ncid, id_var, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
+    ! inquire variable info
+    call inquire_var_info( filename, ncid, id_var, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
 
     ! Check variable type
-    IF (.NOT. (var_type == NF90_FLOAT .OR. var_type == NF90_DOUBLE)) THEN
-      CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
-    END IF
+    if (.not. (var_type == NF90_FLOAT .or. var_type == NF90_DOUBLE)) then
+      call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
+    end if
 
     ! Check lon,lat dimensions
-    IF (.NOT. ANY( dims_of_var == id_dim_lon  )) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have longitude as a dimension!')
-    IF (.NOT. ANY( dims_of_var == id_dim_lat  )) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have latitude as a dimension!')
-    IF (.NOT. ANY( dims_of_var == id_dim_depth)) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have depth as a dimension!')
+    if (.not. any( dims_of_var == id_dim_lon  )) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have longitude as a dimension!')
+    if (.not. any( dims_of_var == id_dim_lat  )) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have latitude as a dimension!')
+    if (.not. any( dims_of_var == id_dim_depth)) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have depth as a dimension!')
 
-    IF (.NOT. PRESENT( should_have_time)) THEN
+    if (.not. present( should_have_time)) then
       ! This variable is allowed to either have or not have a time dimension
 
       ! Check if the file contains a time dimension
-      CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
-      IF (id_dim_time == -1) THEN
-        file_has_time = .FALSE.
-      ELSE
-        file_has_time = .TRUE.
-      END IF
+      call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
+      if (id_dim_time == -1) then
+        file_has_time = .false.
+      else
+        file_has_time = .true.
+      end if
 
-      IF (file_has_time) THEN
+      if (file_has_time) then
         ! Check if the variable has time as a dimension
-        IF (ndims_of_var == 3) THEN
+        if (ndims_of_var == 3) then
           ! The variable only has lon,lat,depth as dimensions.
-        ELSE
-          IF (ndims_of_var == 4) THEN
-            IF (.NOT. ANY( dims_of_var == id_dim_time)) CALL crash('variable "' // TRIM( var_name) // '" in file "' &
-              // TRIM( filename) // '" has four dimensions, but the fourth one is not time!')
-          ELSE
-            CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-          END IF
-        END IF
-      ELSE ! IF (file_has_time) THEN
+        else
+          if (ndims_of_var == 4) then
+            if (.not. any( dims_of_var == id_dim_time)) call crash('variable "' // trim( var_name) // '" in file "' &
+              // trim( filename) // '" has four dimensions, but the fourth one is not time!')
+          else
+            call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+          end if
+        end if
+      else ! if (file_has_time) then
         ! The file does not have a time dimension; the variable should only have lon,lat,depth as dimensions
-        IF (ndims_of_var /= 3) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-      END IF ! IF (file_has_time) THEN
+        if (ndims_of_var /= 3) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+      end if ! if (file_has_time) then
 
-    ELSE ! IF (.NOT. PRESENT( should_have_time)) THEN
-      IF (should_have_time) THEN
+    else ! if (.not. present( should_have_time)) then
+      if (should_have_time) then
         ! This variable should have a time dimension
 
         ! Check if the file has a valid time dimension
-        CALL check_time( filename, ncid)
+        call check_time( filename, ncid)
 
-        ! Inquire the time dimension
-        CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
+        ! inquire the time dimension
+        call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
 
         ! Check if the variable has time as a dimension
-        IF (ndims_of_var /= 4) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-        IF (.NOT. ANY( dims_of_var == id_dim_time)) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have time as a dimension!')
+        if (ndims_of_var /= 4) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+        if (.not. any( dims_of_var == id_dim_time)) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have time as a dimension!')
 
-      ELSE ! IF (should_have_time) THEN
+      else ! if (should_have_time) then
         ! This variable should not have a time dimension; the variable should only have lon,lat,depth as dimensions
 
-        IF (ndims_of_var /= 3) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+        if (ndims_of_var /= 3) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 
-      END IF ! IF (should_have_time) THEN
-    END IF ! IF (.NOT. PRESENT( should_have_time)) THEN
+      end if ! if (should_have_time) then
+    end if ! if (.not. present( should_have_time)) then
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE check_lonlat_grid_field_dp_3D_ocean
+  end subroutine check_lonlat_grid_field_dp_3D_ocean
 
   ! mesh field variables
-  SUBROUTINE check_mesh_field_int_2D(               filename, ncid, var_name, should_have_time)
+  subroutine check_mesh_field_int_2D( filename, ncid, var_name, should_have_time)
     ! Check if this file contains a 2-D mesh variable by this name
     !
     ! NOTE: this is 2-D in the physical sense, so a 1-D array!
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    CHARACTER(LEN=*),                    INTENT(IN)    :: var_name
-    LOGICAL,                   OPTIONAL, INTENT(IN)    :: should_have_time
+    character(len=*),           intent(in   ) :: filename
+    integer,                    intent(in   ) :: ncid
+    character(len=*),           intent(in   ) :: var_name
+    logical,          optional, intent(in   ) :: should_have_time
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'check_mesh_field_int_2D'
-    INTEGER                                            :: id_dim_vi, id_dim_time, id_var
-    INTEGER                                            :: var_type
-    INTEGER                                            :: ndims_of_var
-    INTEGER, DIMENSION( NF90_MAX_VAR_DIMS)             :: dims_of_var
-    LOGICAL                                            :: file_has_time
+    character(len=1024), parameter         :: routine_name = 'check_mesh_field_int_2D'
+    integer                                :: id_dim_vi, id_dim_time, id_var
+    integer                                :: var_type
+    integer                                :: ndims_of_var
+    integer, dimension( NF90_MAX_VAR_DIMS) :: dims_of_var
+    logical                                :: file_has_time
 
     ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+    call init_routine( routine_name, do_track_resource_use = .false.)
 
     ! Check if the file has valid mesh dimensions and variables
-    CALL check_mesh_dimensions( filename, ncid)
+    call check_mesh_dimensions( filename, ncid)
 
-    ! Inquire mesh dimensions
-    CALL inquire_dim_multopt( filename, ncid, field_name_options_dim_nV, id_dim_vi)
+    ! inquire mesh dimensions
+    call inquire_dim_multopt( filename, ncid, field_name_options_dim_nV, id_dim_vi)
 
-    ! Inquire variable
-    CALL inquire_var( filename, ncid, var_name, id_var)
-    IF (id_var == -1) CALL crash('variable "' // TRIM( var_name) // '" could not be found in file "' // TRIM( filename) // '"!')
+    ! inquire variable
+    call inquire_var( filename, ncid, var_name, id_var)
+    if (id_var == -1) call crash('variable "' // trim( var_name) // '" could not be found in file "' // trim( filename) // '"!')
 
-    ! Inquire variable info
-    CALL inquire_var_info( filename, ncid, id_var, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
+    ! inquire variable info
+    call inquire_var_info( filename, ncid, id_var, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
 
     ! Check variable type
-    IF (.NOT. var_type == NF90_INT) THEN
-      CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_INT!')
-    END IF
+    if (.not. var_type == NF90_INT) then
+      call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" is not of type NF90_INT!')
+    end if
 
     ! Check mesh dimensions
-    IF (.NOT. ANY( dims_of_var == id_dim_vi)) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have vi as a dimension!')
+    if (.not. any( dims_of_var == id_dim_vi)) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have vi as a dimension!')
 
-    IF (.NOT. PRESENT( should_have_time)) THEN
+    if (.not. present( should_have_time)) then
       ! This variable is allowed to either have or not have a time dimension
 
       ! Check if the file contains a time dimension
-      CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
-      IF (id_dim_time == -1) THEN
-        file_has_time = .FALSE.
-      ELSE
-        file_has_time = .TRUE.
-      END IF
+      call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
+      if (id_dim_time == -1) then
+        file_has_time = .false.
+      else
+        file_has_time = .true.
+      end if
 
-      IF (file_has_time) THEN
+      if (file_has_time) then
         ! Check if the variable has time as a dimension
-        IF (ndims_of_var == 1) THEN
+        if (ndims_of_var == 1) then
           ! The variable only has vi as a dimension
-        ELSE
-          IF (ndims_of_var == 2) THEN
-            IF (.NOT. ANY( dims_of_var == id_dim_time)) CALL crash('variable "' // TRIM( var_name) // '" in file "' &
-              // TRIM( filename) // '" has two dimensions, but the second one is not time!')
-          ELSE
-            CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-          END IF
-        END IF
-      ELSE ! IF (file_has_time) THEN
+        else
+          if (ndims_of_var == 2) then
+            if (.not. any( dims_of_var == id_dim_time)) call crash('variable "' // trim( var_name) // '" in file "' &
+              // trim( filename) // '" has two dimensions, but the second one is not time!')
+          else
+            call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+          end if
+        end if
+      else ! if (file_has_time) then
         ! The file does not have a time dimension; the variable should only have vi as a dimension
-        IF (ndims_of_var /= 1) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-      END IF ! IF (file_has_time) THEN
+        if (ndims_of_var /= 1) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+      end if ! if (file_has_time) then
 
-    ELSE ! IF (.NOT. PRESENT( should_have_time)) THEN
-      IF (should_have_time) THEN
+    else ! if (.not. present( should_have_time)) then
+      if (should_have_time) then
         ! This variable should have a time dimension
 
         ! Check if the file has a valid time dimension
-        CALL check_time( filename, ncid)
+        call check_time( filename, ncid)
 
-        ! Inquire the time dimension
-        CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
+        ! inquire the time dimension
+        call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
 
         ! Check if the variable has time as a dimension
-        IF (ndims_of_var /= 2) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-        IF (.NOT. ANY( dims_of_var == id_dim_time)) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have time as a dimension!')
+        if (ndims_of_var /= 2) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+        if (.not. any( dims_of_var == id_dim_time)) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have time as a dimension!')
 
-      ELSE ! IF (should_have_time) THEN
+      else ! if (should_have_time) then
         ! This variable should not have a time dimension; the variable should only have vi as a dimension
 
-        IF (ndims_of_var /= 1) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+        if (ndims_of_var /= 1) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 
-      END IF ! IF (should_have_time) THEN
-    END IF ! IF (.NOT. PRESENT( should_have_time)) THEN
+      end if ! if (should_have_time) then
+    end if ! if (.not. present( should_have_time)) then
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE check_mesh_field_int_2D
+  end subroutine check_mesh_field_int_2D
 
-  SUBROUTINE check_mesh_field_int_2D_b(             filename, ncid, var_name, should_have_time)
+  subroutine check_mesh_field_int_2D_b( filename, ncid, var_name, should_have_time)
     ! Check if this file contains a 2-D mesh variable by this name
     !
     ! NOTE: this is 2-D in the physical sense, so a 1-D array!
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    CHARACTER(LEN=*),                    INTENT(IN)    :: var_name
-    LOGICAL,                   OPTIONAL, INTENT(IN)    :: should_have_time
+    character(len=*),           intent(in   ) :: filename
+    integer,                    intent(in   ) :: ncid
+    character(len=*),           intent(in   ) :: var_name
+    logical,          optional, intent(in   ) :: should_have_time
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'check_mesh_field_int_2D_b'
-    INTEGER                                            :: id_dim_ti, id_dim_time, id_var
-    INTEGER                                            :: var_type
-    INTEGER                                            :: ndims_of_var
-    INTEGER, DIMENSION( NF90_MAX_VAR_DIMS)             :: dims_of_var
-    LOGICAL                                            :: file_has_time
+    character(len=1024), parameter         :: routine_name = 'check_mesh_field_int_2D_b'
+    integer                                :: id_dim_ti, id_dim_time, id_var
+    integer                                :: var_type
+    integer                                :: ndims_of_var
+    integer, dimension( NF90_MAX_VAR_DIMS) :: dims_of_var
+    logical                                :: file_has_time
 
     ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+    call init_routine( routine_name, do_track_resource_use = .false.)
 
     ! Check if the file has valid mesh dimensions and variables
-    CALL check_mesh_dimensions( filename, ncid)
+    call check_mesh_dimensions( filename, ncid)
 
-    ! Inquire mesh dimensions
-    CALL inquire_dim_multopt( filename, ncid, field_name_options_dim_nTri, id_dim_ti)
+    ! inquire mesh dimensions
+    call inquire_dim_multopt( filename, ncid, field_name_options_dim_nTri, id_dim_ti)
 
-    ! Inquire variable
-    CALL inquire_var( filename, ncid, var_name, id_var)
-    IF (id_var == -1) CALL crash('variable "' // TRIM( var_name) // '" could not be found in file "' // TRIM( filename) // '"!')
+    ! inquire variable
+    call inquire_var( filename, ncid, var_name, id_var)
+    if (id_var == -1) call crash('variable "' // trim( var_name) // '" could not be found in file "' // trim( filename) // '"!')
 
-    ! Inquire variable info
-    CALL inquire_var_info( filename, ncid, id_var, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
+    ! inquire variable info
+    call inquire_var_info( filename, ncid, id_var, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
 
     ! Check variable type
-    IF (.NOT. var_type == NF90_INT) THEN
-      CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_INT!')
-    END IF
+    if (.not. var_type == NF90_INT) then
+      call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" is not of type NF90_INT!')
+    end if
 
     ! Check mesh dimensions
-    IF (.NOT. ANY( dims_of_var == id_dim_ti)) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have ti as a dimension!')
+    if (.not. any( dims_of_var == id_dim_ti)) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have ti as a dimension!')
 
-    IF (.NOT. PRESENT( should_have_time)) THEN
+    if (.not. present( should_have_time)) then
       ! This variable is allowed to either have or not have a time dimension
 
       ! Check if the file contains a time dimension
-      CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
-      IF (id_dim_time == -1) THEN
-        file_has_time = .FALSE.
-      ELSE
-        file_has_time = .TRUE.
-      END IF
+      call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
+      if (id_dim_time == -1) then
+        file_has_time = .false.
+      else
+        file_has_time = .true.
+      end if
 
-      IF (file_has_time) THEN
+      if (file_has_time) then
         ! Check if the variable has time as a dimension
-        IF (ndims_of_var == 1) THEN
+        if (ndims_of_var == 1) then
           ! The variable only has vi as a dimension
-        ELSE
-          IF (ndims_of_var == 2) THEN
-            IF (.NOT. ANY( dims_of_var == id_dim_time)) CALL crash('variable "' // TRIM( var_name) // '" in file "' &
-              // TRIM( filename) // '" has two dimensions, but the second one is not time!')
-          ELSE
-            CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-          END IF
-        END IF
-      ELSE ! IF (file_has_time) THEN
+        else
+          if (ndims_of_var == 2) then
+            if (.not. any( dims_of_var == id_dim_time)) call crash('variable "' // trim( var_name) // '" in file "' &
+              // trim( filename) // '" has two dimensions, but the second one is not time!')
+          else
+            call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+          end if
+        end if
+      else ! if (file_has_time) then
         ! The file does not have a time dimension; the variable should only have vi as a dimension
-        IF (ndims_of_var /= 1) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-      END IF ! IF (file_has_time) THEN
+        if (ndims_of_var /= 1) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+      end if ! if (file_has_time) then
 
-    ELSE ! IF (.NOT. PRESENT( should_have_time)) THEN
-      IF (should_have_time) THEN
+    else ! if (.not. present( should_have_time)) then
+      if (should_have_time) then
         ! This variable should have a time dimension
 
         ! Check if the file has a valid time dimension
-        CALL check_time( filename, ncid)
+        call check_time( filename, ncid)
 
-        ! Inquire the time dimension
-        CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
+        ! inquire the time dimension
+        call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
 
         ! Check if the variable has time as a dimension
-        IF (ndims_of_var /= 2) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-        IF (.NOT. ANY( dims_of_var == id_dim_time)) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have time as a dimension!')
+        if (ndims_of_var /= 2) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+        if (.not. any( dims_of_var == id_dim_time)) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have time as a dimension!')
 
-      ELSE ! IF (should_have_time) THEN
+      else ! if (should_have_time) then
         ! This variable should not have a time dimension; the variable should only have vi as a dimension
 
-        IF (ndims_of_var /= 1) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+        if (ndims_of_var /= 1) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 
-      END IF ! IF (should_have_time) THEN
-    END IF ! IF (.NOT. PRESENT( should_have_time)) THEN
+      end if ! if (should_have_time) then
+    end if ! if (.not. present( should_have_time)) then
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE check_mesh_field_int_2D_b
+  end subroutine check_mesh_field_int_2D_b
 
-  SUBROUTINE check_mesh_field_int_2D_c(             filename, ncid, var_name, should_have_time)
+  subroutine check_mesh_field_int_2D_c( filename, ncid, var_name, should_have_time)
     ! Check if this file contains a 2-D mesh variable by this name
     !
     ! NOTE: this is 2-D in the physical sense, so a 1-D array!
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    CHARACTER(LEN=*),                    INTENT(IN)    :: var_name
-    LOGICAL,                   OPTIONAL, INTENT(IN)    :: should_have_time
+    character(len=*),           intent(in   ) :: filename
+    integer,                    intent(in   ) :: ncid
+    character(len=*),           intent(in   ) :: var_name
+    logical,          optional, intent(in   ) :: should_have_time
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'check_mesh_field_int_2D_c'
-    INTEGER                                            :: id_dim_ei, id_dim_time, id_var
-    INTEGER                                            :: var_type
-    INTEGER                                            :: ndims_of_var
-    INTEGER, DIMENSION( NF90_MAX_VAR_DIMS)             :: dims_of_var
-    LOGICAL                                            :: file_has_time
+    character(len=1024), parameter         :: routine_name = 'check_mesh_field_int_2D_c'
+    integer                                :: id_dim_ei, id_dim_time, id_var
+    integer                                :: var_type
+    integer                                :: ndims_of_var
+    integer, dimension( NF90_MAX_VAR_DIMS) :: dims_of_var
+    logical                                :: file_has_time
 
     ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+    call init_routine( routine_name, do_track_resource_use = .false.)
 
     ! Check if the file has valid mesh dimensions and variables
-    CALL check_mesh_dimensions( filename, ncid)
+    call check_mesh_dimensions( filename, ncid)
 
-    ! Inquire mesh dimensions
-    CALL inquire_dim_multopt( filename, ncid, field_name_options_dim_nE, id_dim_ei)
+    ! inquire mesh dimensions
+    call inquire_dim_multopt( filename, ncid, field_name_options_dim_nE, id_dim_ei)
 
-    ! Inquire variable
-    CALL inquire_var( filename, ncid, var_name, id_var)
-    IF (id_var == -1) CALL crash('variable "' // TRIM( var_name) // '" could not be found in file "' // TRIM( filename) // '"!')
+    ! inquire variable
+    call inquire_var( filename, ncid, var_name, id_var)
+    if (id_var == -1) call crash('variable "' // trim( var_name) // '" could not be found in file "' // trim( filename) // '"!')
 
-    ! Inquire variable info
-    CALL inquire_var_info( filename, ncid, id_var, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
+    ! inquire variable info
+    call inquire_var_info( filename, ncid, id_var, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
 
     ! Check variable type
-    IF (.NOT. var_type == NF90_INT) THEN
-      CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_INT!')
-    END IF
+    if (.not. var_type == NF90_INT) then
+      call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" is not of type NF90_INT!')
+    end if
 
     ! Check mesh dimensions
-    IF (.NOT. ANY( dims_of_var == id_dim_ei)) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have ei as a dimension!')
+    if (.not. any( dims_of_var == id_dim_ei)) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have ei as a dimension!')
 
-    IF (.NOT. PRESENT( should_have_time)) THEN
+    if (.not. present( should_have_time)) then
       ! This variable is allowed to either have or not have a time dimension
 
       ! Check if the file contains a time dimension
-      CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
-      IF (id_dim_time == -1) THEN
-        file_has_time = .FALSE.
-      ELSE
-        file_has_time = .TRUE.
-      END IF
+      call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
+      if (id_dim_time == -1) then
+        file_has_time = .false.
+      else
+        file_has_time = .true.
+      end if
 
-      IF (file_has_time) THEN
+      if (file_has_time) then
         ! Check if the variable has time as a dimension
-        IF (ndims_of_var == 1) THEN
+        if (ndims_of_var == 1) then
           ! The variable only has vi as a dimension
-        ELSE
-          IF (ndims_of_var == 2) THEN
-            IF (.NOT. ANY( dims_of_var == id_dim_time)) CALL crash('variable "' // TRIM( var_name) // '" in file "' &
-              // TRIM( filename) // '" has two dimensions, but the second one is not time!')
-          ELSE
-            CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-          END IF
-        END IF
-      ELSE ! IF (file_has_time) THEN
+        else
+          if (ndims_of_var == 2) then
+            if (.not. any( dims_of_var == id_dim_time)) call crash('variable "' // trim( var_name) // '" in file "' &
+              // trim( filename) // '" has two dimensions, but the second one is not time!')
+          else
+            call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+          end if
+        end if
+      else ! if (file_has_time) then
         ! The file does not have a time dimension; the variable should only have vi as a dimension
-        IF (ndims_of_var /= 1) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-      END IF ! IF (file_has_time) THEN
+        if (ndims_of_var /= 1) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+      end if ! if (file_has_time) then
 
-    ELSE ! IF (.NOT. PRESENT( should_have_time)) THEN
-      IF (should_have_time) THEN
+    else ! if (.not. present( should_have_time)) then
+      if (should_have_time) then
         ! This variable should have a time dimension
 
         ! Check if the file has a valid time dimension
-        CALL check_time( filename, ncid)
+        call check_time( filename, ncid)
 
-        ! Inquire the time dimension
-        CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
+        ! inquire the time dimension
+        call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
 
         ! Check if the variable has time as a dimension
-        IF (ndims_of_var /= 2) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-        IF (.NOT. ANY( dims_of_var == id_dim_time)) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have time as a dimension!')
+        if (ndims_of_var /= 2) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+        if (.not. any( dims_of_var == id_dim_time)) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have time as a dimension!')
 
-      ELSE ! IF (should_have_time) THEN
+      else ! if (should_have_time) then
         ! This variable should not have a time dimension; the variable should only have vi as a dimension
 
-        IF (ndims_of_var /= 1) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+        if (ndims_of_var /= 1) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 
-      END IF ! IF (should_have_time) THEN
-    END IF ! IF (.NOT. PRESENT( should_have_time)) THEN
+      end if ! if (should_have_time) then
+    end if ! if (.not. present( should_have_time)) then
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE check_mesh_field_int_2D_c
+  end subroutine check_mesh_field_int_2D_c
 
-  SUBROUTINE check_mesh_field_dp_2D(                filename, ncid, var_name, should_have_time)
+  subroutine check_mesh_field_dp_2D( filename, ncid, var_name, should_have_time)
     ! Check if this file contains a 2-D mesh variable by this name
     !
     ! NOTE: this is 2-D in the physical sense, so a 1-D array!
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    CHARACTER(LEN=*),                    INTENT(IN)    :: var_name
-    LOGICAL,                   OPTIONAL, INTENT(IN)    :: should_have_time
+    character(len=*),           intent(in   ) :: filename
+    integer,                    intent(in   ) :: ncid
+    character(len=*),           intent(in   ) :: var_name
+    logical,          optional, intent(in   ) :: should_have_time
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'check_mesh_field_dp_2D'
-    INTEGER                                            :: id_dim_vi, id_dim_time, id_var
-    INTEGER                                            :: var_type
-    INTEGER                                            :: ndims_of_var
-    INTEGER, DIMENSION( NF90_MAX_VAR_DIMS)             :: dims_of_var
-    LOGICAL                                            :: file_has_time
+    character(len=1024), parameter         :: routine_name = 'check_mesh_field_dp_2D'
+    integer                                :: id_dim_vi, id_dim_time, id_var
+    integer                                :: var_type
+    integer                                :: ndims_of_var
+    integer, dimension( NF90_MAX_VAR_DIMS) :: dims_of_var
+    logical                                :: file_has_time
 
     ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+    call init_routine( routine_name, do_track_resource_use = .false.)
 
     ! Check if the file has valid mesh dimensions and variables
-    CALL check_mesh_dimensions( filename, ncid)
+    call check_mesh_dimensions( filename, ncid)
 
-    ! Inquire mesh dimensions
-    CALL inquire_dim_multopt( filename, ncid, field_name_options_dim_nV, id_dim_vi)
+    ! inquire mesh dimensions
+    call inquire_dim_multopt( filename, ncid, field_name_options_dim_nV, id_dim_vi)
 
-    ! Inquire variable
-    CALL inquire_var( filename, ncid, var_name, id_var)
-    IF (id_var == -1) CALL crash('variable "' // TRIM( var_name) // '" could not be found in file "' // TRIM( filename) // '"!')
+    ! inquire variable
+    call inquire_var( filename, ncid, var_name, id_var)
+    if (id_var == -1) call crash('variable "' // trim( var_name) // '" could not be found in file "' // trim( filename) // '"!')
 
-    ! Inquire variable info
-    CALL inquire_var_info( filename, ncid, id_var, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
+    ! inquire variable info
+    call inquire_var_info( filename, ncid, id_var, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
 
     ! Check variable type
-    IF (.NOT. (var_type == NF90_FLOAT .OR. var_type == NF90_DOUBLE)) THEN
-      CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
-    END IF
+    if (.not. (var_type == NF90_FLOAT .or. var_type == NF90_DOUBLE)) then
+      call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
+    end if
 
     ! Check mesh dimensions
-    IF (.NOT. ANY( dims_of_var == id_dim_vi)) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have vi as a dimension!')
+    if (.not. any( dims_of_var == id_dim_vi)) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have vi as a dimension!')
 
-    IF (.NOT. PRESENT( should_have_time)) THEN
+    if (.not. present( should_have_time)) then
       ! This variable is allowed to either have or not have a time dimension
 
       ! Check if the file contains a time dimension
-      CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
-      IF (id_dim_time == -1) THEN
-        file_has_time = .FALSE.
-      ELSE
-        file_has_time = .TRUE.
-      END IF
+      call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
+      if (id_dim_time == -1) then
+        file_has_time = .false.
+      else
+        file_has_time = .true.
+      end if
 
-      IF (file_has_time) THEN
+      if (file_has_time) then
         ! Check if the variable has time as a dimension
-        IF (ndims_of_var == 1) THEN
+        if (ndims_of_var == 1) then
           ! The variable only has vi as a dimension
-        ELSE
-          IF (ndims_of_var == 2) THEN
-            IF (.NOT. ANY( dims_of_var == id_dim_time)) CALL crash('variable "' // TRIM( var_name) // '" in file "' &
-              // TRIM( filename) // '" has two dimensions, but the second one is not time!')
-          ELSE
-            CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-          END IF
-        END IF
-      ELSE ! IF (file_has_time) THEN
+        else
+          if (ndims_of_var == 2) then
+            if (.not. any( dims_of_var == id_dim_time)) call crash('variable "' // trim( var_name) // '" in file "' &
+              // trim( filename) // '" has two dimensions, but the second one is not time!')
+          else
+            call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+          end if
+        end if
+      else ! if (file_has_time) then
         ! The file does not have a time dimension; the variable should only have vi as a dimension
-        IF (ndims_of_var /= 1) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-      END IF ! IF (file_has_time) THEN
+        if (ndims_of_var /= 1) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+      end if ! if (file_has_time) then
 
-    ELSE ! IF (.NOT. PRESENT( should_have_time)) THEN
-      IF (should_have_time) THEN
+    else ! if (.not. present( should_have_time)) then
+      if (should_have_time) then
         ! This variable should have a time dimension
 
         ! Check if the file has a valid time dimension
-        CALL check_time( filename, ncid)
+        call check_time( filename, ncid)
 
-        ! Inquire the time dimension
-        CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
+        ! inquire the time dimension
+        call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
 
         ! Check if the variable has time as a dimension
-        IF (ndims_of_var /= 2) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-        IF (.NOT. ANY( dims_of_var == id_dim_time)) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have time as a dimension!')
+        if (ndims_of_var /= 2) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+        if (.not. any( dims_of_var == id_dim_time)) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have time as a dimension!')
 
-      ELSE ! IF (should_have_time) THEN
+      else ! if (should_have_time) then
         ! This variable should not have a time dimension; the variable should only have vi as a dimension
 
-        IF (ndims_of_var /= 1) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+        if (ndims_of_var /= 1) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 
-      END IF ! IF (should_have_time) THEN
-    END IF ! IF (.NOT. PRESENT( should_have_time)) THEN
+      end if ! if (should_have_time) then
+    end if ! if (.not. present( should_have_time)) then
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE check_mesh_field_dp_2D
+  end subroutine check_mesh_field_dp_2D
 
-  SUBROUTINE check_mesh_field_dp_2D_b(              filename, ncid, var_name, should_have_time)
+  subroutine check_mesh_field_dp_2D_b( filename, ncid, var_name, should_have_time)
     ! Check if this file contains a 2-D mesh variable by this name
     !
     ! NOTE: this is 2-D in the physical sense, so a 1-D array!
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    CHARACTER(LEN=*),                    INTENT(IN)    :: var_name
-    LOGICAL,                   OPTIONAL, INTENT(IN)    :: should_have_time
+    character(len=*),           intent(in   ) :: filename
+    integer,                    intent(in   ) :: ncid
+    character(len=*),           intent(in   ) :: var_name
+    logical,          optional, intent(in   ) :: should_have_time
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'check_mesh_field_dp_2D_b'
-    INTEGER                                            :: id_dim_ti, id_dim_time, id_var
-    INTEGER                                            :: var_type
-    INTEGER                                            :: ndims_of_var
-    INTEGER, DIMENSION( NF90_MAX_VAR_DIMS)             :: dims_of_var
-    LOGICAL                                            :: file_has_time
+    character(len=1024), parameter         :: routine_name = 'check_mesh_field_dp_2D_b'
+    integer                                :: id_dim_ti, id_dim_time, id_var
+    integer                                :: var_type
+    integer                                :: ndims_of_var
+    integer, dimension( NF90_MAX_VAR_DIMS) :: dims_of_var
+    logical                                :: file_has_time
 
     ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+    call init_routine( routine_name, do_track_resource_use = .false.)
 
     ! Check if the file has valid mesh dimensions and variables
-    CALL check_mesh_dimensions( filename, ncid)
+    call check_mesh_dimensions( filename, ncid)
 
-    ! Inquire mesh dimensions
-    CALL inquire_dim_multopt( filename, ncid, field_name_options_dim_nTri, id_dim_ti)
+    ! inquire mesh dimensions
+    call inquire_dim_multopt( filename, ncid, field_name_options_dim_nTri, id_dim_ti)
 
-    ! Inquire variable
-    CALL inquire_var( filename, ncid, var_name, id_var)
-    IF (id_var == -1) CALL crash('variable "' // TRIM( var_name) // '" could not be found in file "' // TRIM( filename) // '"!')
+    ! inquire variable
+    call inquire_var( filename, ncid, var_name, id_var)
+    if (id_var == -1) call crash('variable "' // trim( var_name) // '" could not be found in file "' // trim( filename) // '"!')
 
-    ! Inquire variable info
-    CALL inquire_var_info( filename, ncid, id_var, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
+    ! inquire variable info
+    call inquire_var_info( filename, ncid, id_var, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
 
     ! Check variable type
-    IF (.NOT. (var_type == NF90_FLOAT .OR. var_type == NF90_DOUBLE)) THEN
-      CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
-    END IF
+    if (.not. (var_type == NF90_FLOAT .or. var_type == NF90_DOUBLE)) then
+      call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
+    end if
 
     ! Check mesh dimensions
-    IF (.NOT. ANY( dims_of_var == id_dim_ti)) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have ti as a dimension!')
+    if (.not. any( dims_of_var == id_dim_ti)) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have ti as a dimension!')
 
-    IF (.NOT. PRESENT( should_have_time)) THEN
+    if (.not. present( should_have_time)) then
       ! This variable is allowed to either have or not have a time dimension
 
       ! Check if the file contains a time dimension
-      CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
-      IF (id_dim_time == -1) THEN
-        file_has_time = .FALSE.
-      ELSE
-        file_has_time = .TRUE.
-      END IF
+      call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
+      if (id_dim_time == -1) then
+        file_has_time = .false.
+      else
+        file_has_time = .true.
+      end if
 
-      IF (file_has_time) THEN
+      if (file_has_time) then
         ! Check if the variable has time as a dimension
-        IF (ndims_of_var == 1) THEN
+        if (ndims_of_var == 1) then
           ! The variable only has vi as a dimension
-        ELSE
-          IF (ndims_of_var == 2) THEN
-            IF (.NOT. ANY( dims_of_var == id_dim_time)) CALL crash('variable "' // TRIM( var_name) // '" in file "' &
-              // TRIM( filename) // '" has two dimensions, but the second one is not time!')
-          ELSE
-            CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-          END IF
-        END IF
-      ELSE ! IF (file_has_time) THEN
+        else
+          if (ndims_of_var == 2) then
+            if (.not. any( dims_of_var == id_dim_time)) call crash('variable "' // trim( var_name) // '" in file "' &
+              // trim( filename) // '" has two dimensions, but the second one is not time!')
+          else
+            call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+          end if
+        end if
+      else ! if (file_has_time) then
         ! The file does not have a time dimension; the variable should only have vi as a dimension
-        IF (ndims_of_var /= 1) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-      END IF ! IF (file_has_time) THEN
+        if (ndims_of_var /= 1) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+      end if ! if (file_has_time) then
 
-    ELSE ! IF (.NOT. PRESENT( should_have_time)) THEN
-      IF (should_have_time) THEN
+    else ! if (.not. present( should_have_time)) then
+      if (should_have_time) then
         ! This variable should have a time dimension
 
         ! Check if the file has a valid time dimension
-        CALL check_time( filename, ncid)
+        call check_time( filename, ncid)
 
-        ! Inquire the time dimension
-        CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
+        ! inquire the time dimension
+        call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
 
         ! Check if the variable has time as a dimension
-        IF (ndims_of_var /= 2) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-        IF (.NOT. ANY( dims_of_var == id_dim_time)) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have time as a dimension!')
+        if (ndims_of_var /= 2) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+        if (.not. any( dims_of_var == id_dim_time)) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have time as a dimension!')
 
-      ELSE ! IF (should_have_time) THEN
+      else ! if (should_have_time) then
         ! This variable should not have a time dimension; the variable should only have vi as a dimension
 
-        IF (ndims_of_var /= 1) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+        if (ndims_of_var /= 1) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 
-      END IF ! IF (should_have_time) THEN
-    END IF ! IF (.NOT. PRESENT( should_have_time)) THEN
+      end if ! if (should_have_time) then
+    end if ! if (.not. present( should_have_time)) then
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE check_mesh_field_dp_2D_b
+  end subroutine check_mesh_field_dp_2D_b
 
-  SUBROUTINE check_mesh_field_dp_2D_c(              filename, ncid, var_name, should_have_time)
+  subroutine check_mesh_field_dp_2D_c( filename, ncid, var_name, should_have_time)
     ! Check if this file contains a 2-D mesh variable by this name
     !
     ! NOTE: this is 2-D in the physical sense, so a 1-D array!
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    CHARACTER(LEN=*),                    INTENT(IN)    :: var_name
-    LOGICAL,                   OPTIONAL, INTENT(IN)    :: should_have_time
+    character(len=*),           intent(in   ) :: filename
+    integer,                    intent(in   ) :: ncid
+    character(len=*),           intent(in   ) :: var_name
+    logical,          optional, intent(in   ) :: should_have_time
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'check_mesh_field_dp_2D_c'
-    INTEGER                                            :: id_dim_ei, id_dim_time, id_var
-    INTEGER                                            :: var_type
-    INTEGER                                            :: ndims_of_var
-    INTEGER, DIMENSION( NF90_MAX_VAR_DIMS)             :: dims_of_var
-    LOGICAL                                            :: file_has_time
+    character(len=1024), parameter         :: routine_name = 'check_mesh_field_dp_2D_c'
+    integer                                :: id_dim_ei, id_dim_time, id_var
+    integer                                :: var_type
+    integer                                :: ndims_of_var
+    integer, dimension( NF90_MAX_VAR_DIMS) :: dims_of_var
+    logical                                :: file_has_time
 
     ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+    call init_routine( routine_name, do_track_resource_use = .false.)
 
     ! Check if the file has valid mesh dimensions and variables
-    CALL check_mesh_dimensions( filename, ncid)
+    call check_mesh_dimensions( filename, ncid)
 
-    ! Inquire mesh dimensions
-    CALL inquire_dim_multopt( filename, ncid, field_name_options_dim_nE, id_dim_ei)
+    ! inquire mesh dimensions
+    call inquire_dim_multopt( filename, ncid, field_name_options_dim_nE, id_dim_ei)
 
-    ! Inquire variable
-    CALL inquire_var( filename, ncid, var_name, id_var)
-    IF (id_var == -1) CALL crash('variable "' // TRIM( var_name) // '" could not be found in file "' // TRIM( filename) // '"!')
+    ! inquire variable
+    call inquire_var( filename, ncid, var_name, id_var)
+    if (id_var == -1) call crash('variable "' // trim( var_name) // '" could not be found in file "' // trim( filename) // '"!')
 
-    ! Inquire variable info
-    CALL inquire_var_info( filename, ncid, id_var, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
+    ! inquire variable info
+    call inquire_var_info( filename, ncid, id_var, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
 
     ! Check variable type
-    IF (.NOT. (var_type == NF90_FLOAT .OR. var_type == NF90_DOUBLE)) THEN
-      CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
-    END IF
+    if (.not. (var_type == NF90_FLOAT .or. var_type == NF90_DOUBLE)) then
+      call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
+    end if
 
     ! Check mesh dimensions
-    IF (.NOT. ANY( dims_of_var == id_dim_ei)) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have ei as a dimension!')
+    if (.not. any( dims_of_var == id_dim_ei)) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have ei as a dimension!')
 
-    IF (.NOT. PRESENT( should_have_time)) THEN
+    if (.not. present( should_have_time)) then
       ! This variable is allowed to either have or not have a time dimension
 
       ! Check if the file contains a time dimension
-      CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
-      IF (id_dim_time == -1) THEN
-        file_has_time = .FALSE.
-      ELSE
-        file_has_time = .TRUE.
-      END IF
+      call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
+      if (id_dim_time == -1) then
+        file_has_time = .false.
+      else
+        file_has_time = .true.
+      end if
 
-      IF (file_has_time) THEN
+      if (file_has_time) then
         ! Check if the variable has time as a dimension
-        IF (ndims_of_var == 1) THEN
+        if (ndims_of_var == 1) then
           ! The variable only has vi as a dimension
-        ELSE
-          IF (ndims_of_var == 2) THEN
-            IF (.NOT. ANY( dims_of_var == id_dim_time)) CALL crash('variable "' // TRIM( var_name) // '" in file "' &
-              // TRIM( filename) // '" has two dimensions, but the second one is not time!')
-          ELSE
-            CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-          END IF
-        END IF
-      ELSE ! IF (file_has_time) THEN
+        else
+          if (ndims_of_var == 2) then
+            if (.not. any( dims_of_var == id_dim_time)) call crash('variable "' // trim( var_name) // '" in file "' &
+              // trim( filename) // '" has two dimensions, but the second one is not time!')
+          else
+            call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+          end if
+        end if
+      else ! if (file_has_time) then
         ! The file does not have a time dimension; the variable should only have vi as a dimension
-        IF (ndims_of_var /= 1) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-      END IF ! IF (file_has_time) THEN
+        if (ndims_of_var /= 1) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+      end if ! if (file_has_time) then
 
-    ELSE ! IF (.NOT. PRESENT( should_have_time)) THEN
-      IF (should_have_time) THEN
+    else ! if (.not. present( should_have_time)) then
+      if (should_have_time) then
         ! This variable should have a time dimension
 
         ! Check if the file has a valid time dimension
-        CALL check_time( filename, ncid)
+        call check_time( filename, ncid)
 
-        ! Inquire the time dimension
-        CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
+        ! inquire the time dimension
+        call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
 
         ! Check if the variable has time as a dimension
-        IF (ndims_of_var /= 2) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-        IF (.NOT. ANY( dims_of_var == id_dim_time)) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have time as a dimension!')
+        if (ndims_of_var /= 2) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+        if (.not. any( dims_of_var == id_dim_time)) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have time as a dimension!')
 
-      ELSE ! IF (should_have_time) THEN
+      else ! if (should_have_time) then
         ! This variable should not have a time dimension; the variable should only have vi as a dimension
 
-        IF (ndims_of_var /= 1) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+        if (ndims_of_var /= 1) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 
-      END IF ! IF (should_have_time) THEN
-    END IF ! IF (.NOT. PRESENT( should_have_time)) THEN
+      end if ! if (should_have_time) then
+    end if ! if (.not. present( should_have_time)) then
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE check_mesh_field_dp_2D_c
+  end subroutine check_mesh_field_dp_2D_c
 
-  SUBROUTINE check_mesh_field_dp_2D_monthly(        filename, ncid, var_name, should_have_time)
+  subroutine check_mesh_field_dp_2D_monthly( filename, ncid, var_name, should_have_time)
     ! Check if this file contains a 2-D monthly mesh variable by this name
     !
     ! NOTE: this is 2-D monthly in the physical sense, so a 2-D array!
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    CHARACTER(LEN=*),                    INTENT(IN)    :: var_name
-    LOGICAL,                   OPTIONAL, INTENT(IN)    :: should_have_time
+    character(len=*),           intent(in   ) :: filename
+    integer,                    intent(in   ) :: ncid
+    character(len=*),           intent(in   ) :: var_name
+    logical,          optional, intent(in   ) :: should_have_time
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'check_mesh_field_dp_2D_monthly'
-    INTEGER                                            :: id_dim_vi, id_dim_month, id_dim_time, id_var
-    INTEGER                                            :: var_type
-    INTEGER                                            :: ndims_of_var
-    INTEGER, DIMENSION( NF90_MAX_VAR_DIMS)             :: dims_of_var
-    LOGICAL                                            :: file_has_time
+    character(len=1024), parameter         :: routine_name = 'check_mesh_field_dp_2D_monthly'
+    integer                                :: id_dim_vi, id_dim_month, id_dim_time, id_var
+    integer                                :: var_type
+    integer                                :: ndims_of_var
+    integer, dimension( NF90_MAX_VAR_DIMS) :: dims_of_var
+    logical                                :: file_has_time
 
     ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+    call init_routine( routine_name, do_track_resource_use = .false.)
 
     ! Check if the file has valid mesh dimensions and variables
-    CALL check_mesh_dimensions( filename, ncid)
-    CALL check_month(           filename, ncid)
+    call check_mesh_dimensions( filename, ncid)
+    call check_month(           filename, ncid)
 
-    ! Inquire mesh dimensions
-    CALL inquire_dim_multopt( filename, ncid, field_name_options_dim_nV, id_dim_vi   )
-    CALL inquire_dim_multopt( filename, ncid, field_name_options_month , id_dim_month)
+    ! inquire mesh dimensions
+    call inquire_dim_multopt( filename, ncid, field_name_options_dim_nV, id_dim_vi   )
+    call inquire_dim_multopt( filename, ncid, field_name_options_month , id_dim_month)
 
-    ! Inquire variable
-    CALL inquire_var( filename, ncid, var_name, id_var)
-    IF (id_var == -1) CALL crash('variable "' // TRIM( var_name) // '" could not be found in file "' // TRIM( filename) // '"!')
+    ! inquire variable
+    call inquire_var( filename, ncid, var_name, id_var)
+    if (id_var == -1) call crash('variable "' // trim( var_name) // '" could not be found in file "' // trim( filename) // '"!')
 
-    ! Inquire variable info
-    CALL inquire_var_info( filename, ncid, id_var, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
+    ! inquire variable info
+    call inquire_var_info( filename, ncid, id_var, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
 
     ! Check variable type
-    IF (.NOT. (var_type == NF90_FLOAT .OR. var_type == NF90_DOUBLE)) THEN
-      CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
-    END IF
+    if (.not. (var_type == NF90_FLOAT .or. var_type == NF90_DOUBLE)) then
+      call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
+    end if
 
     ! Check mesh dimensions
-    IF (.NOT. ANY( dims_of_var == id_dim_vi   )) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have vi as a dimension!')
-    IF (.NOT. ANY( dims_of_var == id_dim_month)) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have month as a dimension!')
+    if (.not. any( dims_of_var == id_dim_vi   )) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have vi as a dimension!')
+    if (.not. any( dims_of_var == id_dim_month)) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have month as a dimension!')
 
-    IF (.NOT. PRESENT( should_have_time)) THEN
+    if (.not. present( should_have_time)) then
       ! This variable is allowed to either have or not have a time dimension
 
       ! Check if the file contains a time dimension
-      CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
-      IF (id_dim_time == -1) THEN
-        file_has_time = .FALSE.
-      ELSE
-        file_has_time = .TRUE.
-      END IF
+      call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
+      if (id_dim_time == -1) then
+        file_has_time = .false.
+      else
+        file_has_time = .true.
+      end if
 
-      IF (file_has_time) THEN
+      if (file_has_time) then
         ! Check if the variable has time as a dimension
-        IF (ndims_of_var == 2) THEN
+        if (ndims_of_var == 2) then
           ! The variable only has vi,m as dimensions
-        ELSE
-          IF (ndims_of_var == 3) THEN
-            IF (.NOT. ANY( dims_of_var == id_dim_time)) CALL crash('variable "' // TRIM( var_name) // '" in file "' &
-              // TRIM( filename) // '" has three dimensions, but the third one is not time!')
-          ELSE
-            CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-          END IF
-        END IF
-      ELSE ! IF (file_has_time) THEN
+        else
+          if (ndims_of_var == 3) then
+            if (.not. any( dims_of_var == id_dim_time)) call crash('variable "' // trim( var_name) // '" in file "' &
+              // trim( filename) // '" has three dimensions, but the third one is not time!')
+          else
+            call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+          end if
+        end if
+      else ! if (file_has_time) then
         ! The file does not have a time dimension; the variable should only have vi,m as dimensions
-        IF (ndims_of_var /= 2) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-      END IF ! IF (file_has_time) THEN
+        if (ndims_of_var /= 2) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+      end if ! if (file_has_time) then
 
-    ELSE ! IF (.NOT. PRESENT( should_have_time)) THEN
-      IF (should_have_time) THEN
+    else ! if (.not. present( should_have_time)) then
+      if (should_have_time) then
         ! This variable should have a time dimension
 
         ! Check if the file has a valid time dimension
-        CALL check_time( filename, ncid)
+        call check_time( filename, ncid)
 
-        ! Inquire the time dimension
-        CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
+        ! inquire the time dimension
+        call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
 
         ! Check if the variable has time as a dimension
-        IF (ndims_of_var /= 3) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-        IF (.NOT. ANY( dims_of_var == id_dim_time)) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have time as a dimension!')
+        if (ndims_of_var /= 3) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+        if (.not. any( dims_of_var == id_dim_time)) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have time as a dimension!')
 
-      ELSE ! IF (should_have_time) THEN
+      else ! if (should_have_time) then
         ! This variable should not have a time dimension; the variable should only have vi,m as dimensions
 
-        IF (ndims_of_var /= 2) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+        if (ndims_of_var /= 2) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 
-      END IF ! IF (should_have_time) THEN
-    END IF ! IF (.NOT. PRESENT( should_have_time)) THEN
+      end if ! if (should_have_time) then
+    end if ! if (.not. present( should_have_time)) then
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE check_mesh_field_dp_2D_monthly
+  end subroutine check_mesh_field_dp_2D_monthly
 
-  SUBROUTINE check_mesh_field_dp_3D(                filename, ncid, var_name, should_have_time)
+  subroutine check_mesh_field_dp_3D( filename, ncid, var_name, should_have_time)
     ! Check if this file contains a 3-D mesh variable by this name
     !
     ! NOTE: this is 3-D in the physical sense, so a 2-D array!
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    CHARACTER(LEN=*),                    INTENT(IN)    :: var_name
-    LOGICAL,                   OPTIONAL, INTENT(IN)    :: should_have_time
+    character(len=*),           intent(in   ) :: filename
+    integer,                    intent(in   ) :: ncid
+    character(len=*),           intent(in   ) :: var_name
+    logical,          optional, intent(in   ) :: should_have_time
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'check_mesh_field_dp_3D'
-    INTEGER                                            :: id_dim_vi, id_dim_zeta, id_dim_time, id_var
-    INTEGER                                            :: var_type
-    INTEGER                                            :: ndims_of_var
-    INTEGER, DIMENSION( NF90_MAX_VAR_DIMS)             :: dims_of_var
-    LOGICAL                                            :: file_has_time
+    character(len=1024), parameter         :: routine_name = 'check_mesh_field_dp_3D'
+    integer                                :: id_dim_vi, id_dim_zeta, id_dim_time, id_var
+    integer                                :: var_type
+    integer                                :: ndims_of_var
+    integer, dimension( NF90_MAX_VAR_DIMS) :: dims_of_var
+    logical                                :: file_has_time
 
     ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+    call init_routine( routine_name, do_track_resource_use = .false.)
 
     ! Check if the file has valid mesh dimensions and variables
-    CALL check_mesh_dimensions( filename, ncid)
-    CALL check_zeta(            filename, ncid)
+    call check_mesh_dimensions( filename, ncid)
+    call check_zeta(            filename, ncid)
 
-    ! Inquire mesh dimensions
-    CALL inquire_dim_multopt( filename, ncid, field_name_options_dim_nV, id_dim_vi  )
-    CALL inquire_dim_multopt( filename, ncid, field_name_options_zeta  , id_dim_zeta)
+    ! inquire mesh dimensions
+    call inquire_dim_multopt( filename, ncid, field_name_options_dim_nV, id_dim_vi  )
+    call inquire_dim_multopt( filename, ncid, field_name_options_zeta  , id_dim_zeta)
 
-    ! Inquire variable
-    CALL inquire_var( filename, ncid, var_name, id_var)
-    IF (id_var == -1) CALL crash('variable "' // TRIM( var_name) // '" could not be found in file "' // TRIM( filename) // '"!')
+    ! inquire variable
+    call inquire_var( filename, ncid, var_name, id_var)
+    if (id_var == -1) call crash('variable "' // trim( var_name) // '" could not be found in file "' // trim( filename) // '"!')
 
-    ! Inquire variable info
-    CALL inquire_var_info( filename, ncid, id_var, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
+    ! inquire variable info
+    call inquire_var_info( filename, ncid, id_var, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
 
     ! Check variable type
-    IF (.NOT. (var_type == NF90_FLOAT .OR. var_type == NF90_DOUBLE)) THEN
-      CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
-    END IF
+    if (.not. (var_type == NF90_FLOAT .or. var_type == NF90_DOUBLE)) then
+      call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
+    end if
 
     ! Check mesh dimensions
-    IF (.NOT. ANY( dims_of_var == id_dim_vi  )) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have vi as a dimension!')
-    IF (.NOT. ANY( dims_of_var == id_dim_zeta)) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have zeta as a dimension!')
+    if (.not. any( dims_of_var == id_dim_vi  )) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have vi as a dimension!')
+    if (.not. any( dims_of_var == id_dim_zeta)) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have zeta as a dimension!')
 
-    IF (.NOT. PRESENT( should_have_time)) THEN
+    if (.not. present( should_have_time)) then
       ! This variable is allowed to either have or not have a time dimension
 
       ! Check if the file contains a time dimension
-      CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
-      IF (id_dim_time == -1) THEN
-        file_has_time = .FALSE.
-      ELSE
-        file_has_time = .TRUE.
-      END IF
+      call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
+      if (id_dim_time == -1) then
+        file_has_time = .false.
+      else
+        file_has_time = .true.
+      end if
 
-      IF (file_has_time) THEN
+      if (file_has_time) then
         ! Check if the variable has time as a dimension
-        IF (ndims_of_var == 2) THEN
+        if (ndims_of_var == 2) then
           ! The variable only has vi,zeta as dimensions
-        ELSE
-          IF (ndims_of_var == 3) THEN
-            IF (.NOT. ANY( dims_of_var == id_dim_time)) CALL crash('variable "' // TRIM( var_name) // '" in file "' &
-              // TRIM( filename) // '" has three dimensions, but the third one is not time!')
-          ELSE
-            CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-          END IF
-        END IF
-      ELSE ! IF (file_has_time) THEN
+        else
+          if (ndims_of_var == 3) then
+            if (.not. any( dims_of_var == id_dim_time)) call crash('variable "' // trim( var_name) // '" in file "' &
+              // trim( filename) // '" has three dimensions, but the third one is not time!')
+          else
+            call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+          end if
+        end if
+      else ! if (file_has_time) then
         ! The file does not have a time dimension; the variable should only have vi,zeta as dimensions
-        IF (ndims_of_var /= 2) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-      END IF ! IF (file_has_time) THEN
+        if (ndims_of_var /= 2) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+      end if ! if (file_has_time) then
 
-    ELSE ! IF (.NOT. PRESENT( should_have_time)) THEN
-      IF (should_have_time) THEN
+    else ! if (.not. present( should_have_time)) then
+      if (should_have_time) then
         ! This variable should have a time dimension
 
         ! Check if the file has a valid time dimension
-        CALL check_time( filename, ncid)
+        call check_time( filename, ncid)
 
-        ! Inquire the time dimension
-        CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
+        ! inquire the time dimension
+        call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
 
         ! Check if the variable has time as a dimension
-        IF (ndims_of_var /= 3) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-        IF (.NOT. ANY( dims_of_var == id_dim_time)) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have time as a dimension!')
+        if (ndims_of_var /= 3) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+        if (.not. any( dims_of_var == id_dim_time)) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have time as a dimension!')
 
-      ELSE ! IF (should_have_time) THEN
+      else ! if (should_have_time) then
         ! This variable should not have a time dimension; the variable should only have vi,zeta as dimensions
 
-        IF (ndims_of_var /= 2) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+        if (ndims_of_var /= 2) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 
-      END IF ! IF (should_have_time) THEN
-    END IF ! IF (.NOT. PRESENT( should_have_time)) THEN
+      end if ! if (should_have_time) then
+    end if ! if (.not. present( should_have_time)) then
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE check_mesh_field_dp_3D
+  end subroutine check_mesh_field_dp_3D
 
-  SUBROUTINE check_mesh_field_dp_3D_b(              filename, ncid, var_name, should_have_time)
+  subroutine check_mesh_field_dp_3D_b( filename, ncid, var_name, should_have_time)
     ! Check if this file contains a 3-D mesh variable by this name
     !
     ! NOTE: this is 3-D in the physical sense, so a 2-D array!
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    CHARACTER(LEN=*),                    INTENT(IN)    :: var_name
-    LOGICAL,                   OPTIONAL, INTENT(IN)    :: should_have_time
+    character(len=*),           intent(in   ) :: filename
+    integer,                    intent(in   ) :: ncid
+    character(len=*),           intent(in   ) :: var_name
+    logical,          optional, intent(in   ) :: should_have_time
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'check_mesh_field_dp_3D'
-    INTEGER                                            :: id_dim_ti, id_dim_zeta, id_dim_time, id_var
-    INTEGER                                            :: var_type
-    INTEGER                                            :: ndims_of_var
-    INTEGER, DIMENSION( NF90_MAX_VAR_DIMS)             :: dims_of_var
-    LOGICAL                                            :: file_has_time
+    character(len=1024), parameter         :: routine_name = 'check_mesh_field_dp_3D'
+    integer                                :: id_dim_ti, id_dim_zeta, id_dim_time, id_var
+    integer                                :: var_type
+    integer                                :: ndims_of_var
+    integer, dimension( NF90_MAX_VAR_DIMS) :: dims_of_var
+    logical                                :: file_has_time
 
     ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+    call init_routine( routine_name, do_track_resource_use = .false.)
 
     ! Check if the file has valid mesh dimensions and variables
-    CALL check_mesh_dimensions( filename, ncid)
-    CALL check_zeta(            filename, ncid)
+    call check_mesh_dimensions( filename, ncid)
+    call check_zeta(            filename, ncid)
 
-    ! Inquire mesh dimensions
-    CALL inquire_dim_multopt( filename, ncid, field_name_options_dim_nTri, id_dim_ti  )
-    CALL inquire_dim_multopt( filename, ncid, field_name_options_zeta    , id_dim_zeta)
+    ! inquire mesh dimensions
+    call inquire_dim_multopt( filename, ncid, field_name_options_dim_nTri, id_dim_ti  )
+    call inquire_dim_multopt( filename, ncid, field_name_options_zeta    , id_dim_zeta)
 
-    ! Inquire variable
-    CALL inquire_var( filename, ncid, var_name, id_var)
-    IF (id_var == -1) CALL crash('variable "' // TRIM( var_name) // '" could not be found in file "' // TRIM( filename) // '"!')
+    ! inquire variable
+    call inquire_var( filename, ncid, var_name, id_var)
+    if (id_var == -1) call crash('variable "' // trim( var_name) // '" could not be found in file "' // trim( filename) // '"!')
 
-    ! Inquire variable info
-    CALL inquire_var_info( filename, ncid, id_var, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
+    ! inquire variable info
+    call inquire_var_info( filename, ncid, id_var, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
 
     ! Check variable type
-    IF (.NOT. (var_type == NF90_FLOAT .OR. var_type == NF90_DOUBLE)) THEN
-      CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
-    END IF
+    if (.not. (var_type == NF90_FLOAT .or. var_type == NF90_DOUBLE)) then
+      call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
+    end if
 
     ! Check mesh dimensions
-    IF (.NOT. ANY( dims_of_var == id_dim_ti  )) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have ti as a dimension!')
-    IF (.NOT. ANY( dims_of_var == id_dim_zeta)) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have zeta as a dimension!')
+    if (.not. any( dims_of_var == id_dim_ti  )) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have ti as a dimension!')
+    if (.not. any( dims_of_var == id_dim_zeta)) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have zeta as a dimension!')
 
-    IF (.NOT. PRESENT( should_have_time)) THEN
+    if (.not. present( should_have_time)) then
       ! This variable is allowed to either have or not have a time dimension
 
       ! Check if the file contains a time dimension
-      CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
-      IF (id_dim_time == -1) THEN
-        file_has_time = .FALSE.
-      ELSE
-        file_has_time = .TRUE.
-      END IF
+      call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
+      if (id_dim_time == -1) then
+        file_has_time = .false.
+      else
+        file_has_time = .true.
+      end if
 
-      IF (file_has_time) THEN
+      if (file_has_time) then
         ! Check if the variable has time as a dimension
-        IF (ndims_of_var == 2) THEN
+        if (ndims_of_var == 2) then
           ! The variable only has ti,zeta as dimensions
-        ELSE
-          IF (ndims_of_var == 3) THEN
-            IF (.NOT. ANY( dims_of_var == id_dim_time)) CALL crash('variable "' // TRIM( var_name) // '" in file "' &
-              // TRIM( filename) // '" has three dimensions, but the third one is not time!')
-          ELSE
-            CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-          END IF
-        END IF
-      ELSE ! IF (file_has_time) THEN
+        else
+          if (ndims_of_var == 3) then
+            if (.not. any( dims_of_var == id_dim_time)) call crash('variable "' // trim( var_name) // '" in file "' &
+              // trim( filename) // '" has three dimensions, but the third one is not time!')
+          else
+            call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+          end if
+        end if
+      else ! if (file_has_time) then
         ! The file does not have a time dimension; the variable should only have ti,zeta as dimensions
-        IF (ndims_of_var /= 2) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-      END IF ! IF (file_has_time) THEN
+        if (ndims_of_var /= 2) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+      end if ! if (file_has_time) then
 
-    ELSE ! IF (.NOT. PRESENT( should_have_time)) THEN
-      IF (should_have_time) THEN
+    else ! if (.not. present( should_have_time)) then
+      if (should_have_time) then
         ! This variable should have a time dimension
 
         ! Check if the file has a valid time dimension
-        CALL check_time( filename, ncid)
+        call check_time( filename, ncid)
 
-        ! Inquire the time dimension
-        CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
+        ! inquire the time dimension
+        call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
 
         ! Check if the variable has time as a dimension
-        IF (ndims_of_var /= 3) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-        IF (.NOT. ANY( dims_of_var == id_dim_time)) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have time as a dimension!')
+        if (ndims_of_var /= 3) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+        if (.not. any( dims_of_var == id_dim_time)) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have time as a dimension!')
 
-      ELSE ! IF (should_have_time) THEN
+      else ! if (should_have_time) then
         ! This variable should not have a time dimension; the variable should only have ti,zeta as dimensions
 
-        IF (ndims_of_var /= 2) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+        if (ndims_of_var /= 2) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 
-      END IF ! IF (should_have_time) THEN
-    END IF ! IF (.NOT. PRESENT( should_have_time)) THEN
+      end if ! if (should_have_time) then
+    end if ! if (.not. present( should_have_time)) then
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE check_mesh_field_dp_3D_b
+  end subroutine check_mesh_field_dp_3D_b
 
-  SUBROUTINE check_mesh_field_dp_3D_ocean(          filename, ncid, var_name, should_have_time)
+  subroutine check_mesh_field_dp_3D_ocean( filename, ncid, var_name, should_have_time)
     ! Check if this file contains a 3-D mesh variable by this name
     !
     ! NOTE: this is 3-D in the physical sense, so a 2-D array!
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    CHARACTER(LEN=*),                    INTENT(IN)    :: var_name
-    LOGICAL,                   OPTIONAL, INTENT(IN)    :: should_have_time
+    character(len=*),           intent(in   ) :: filename
+    integer,                    intent(in   ) :: ncid
+    character(len=*),           intent(in   ) :: var_name
+    logical,          optional, intent(in   ) :: should_have_time
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'check_mesh_field_dp_3D_ocean'
-    INTEGER                                            :: id_dim_vi, id_dim_depth, id_dim_time, id_var
-    INTEGER                                            :: var_type
-    INTEGER                                            :: ndims_of_var
-    INTEGER, DIMENSION( NF90_MAX_VAR_DIMS)             :: dims_of_var
-    LOGICAL                                            :: file_has_time
+    character(len=1024), parameter         :: routine_name = 'check_mesh_field_dp_3D_ocean'
+    integer                                :: id_dim_vi, id_dim_depth, id_dim_time, id_var
+    integer                                :: var_type
+    integer                                :: ndims_of_var
+    integer, dimension( NF90_MAX_VAR_DIMS) :: dims_of_var
+    logical                                :: file_has_time
 
     ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+    call init_routine( routine_name, do_track_resource_use = .false.)
 
     ! Check if the file has valid mesh dimensions and variables
-    CALL check_mesh_dimensions( filename, ncid)
-    CALL check_depth(           filename, ncid)
+    call check_mesh_dimensions( filename, ncid)
+    call check_depth(           filename, ncid)
 
-    ! Inquire mesh dimensions
-    CALL inquire_dim_multopt( filename, ncid, field_name_options_dim_nV, id_dim_vi   )
-    CALL inquire_dim_multopt( filename, ncid, field_name_options_depth , id_dim_depth)
+    ! inquire mesh dimensions
+    call inquire_dim_multopt( filename, ncid, field_name_options_dim_nV, id_dim_vi   )
+    call inquire_dim_multopt( filename, ncid, field_name_options_depth , id_dim_depth)
 
-    ! Inquire variable
-    CALL inquire_var( filename, ncid, var_name, id_var)
-    IF (id_var == -1) CALL crash('variable "' // TRIM( var_name) // '" could not be found in file "' // TRIM( filename) // '"!')
+    ! inquire variable
+    call inquire_var( filename, ncid, var_name, id_var)
+    if (id_var == -1) call crash('variable "' // trim( var_name) // '" could not be found in file "' // trim( filename) // '"!')
 
-    ! Inquire variable info
-    CALL inquire_var_info( filename, ncid, id_var, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
+    ! inquire variable info
+    call inquire_var_info( filename, ncid, id_var, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
 
     ! Check variable type
-    IF (.NOT. (var_type == NF90_FLOAT .OR. var_type == NF90_DOUBLE)) THEN
-      CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
-    END IF
+    if (.not. (var_type == NF90_FLOAT .or. var_type == NF90_DOUBLE)) then
+      call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
+    end if
 
     ! Check mesh dimensions
-    IF (.NOT. ANY( dims_of_var == id_dim_vi   )) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have vi as a dimension!')
-    IF (.NOT. ANY( dims_of_var == id_dim_depth)) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have depth as a dimension!')
+    if (.not. any( dims_of_var == id_dim_vi   )) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have vi as a dimension!')
+    if (.not. any( dims_of_var == id_dim_depth)) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have depth as a dimension!')
 
-    IF (.NOT. PRESENT( should_have_time)) THEN
+    if (.not. present( should_have_time)) then
       ! This variable is allowed to either have or not have a time dimension
 
       ! Check if the file contains a time dimension
-      CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
-      IF (id_dim_time == -1) THEN
-        file_has_time = .FALSE.
-      ELSE
-        file_has_time = .TRUE.
-      END IF
+      call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
+      if (id_dim_time == -1) then
+        file_has_time = .false.
+      else
+        file_has_time = .true.
+      end if
 
-      IF (file_has_time) THEN
+      if (file_has_time) then
         ! Check if the variable has time as a dimension
-        IF (ndims_of_var == 2) THEN
+        if (ndims_of_var == 2) then
           ! The variable only has vi,depth as dimensions
-        ELSE
-          IF (ndims_of_var == 3) THEN
-            IF (.NOT. ANY( dims_of_var == id_dim_time)) CALL crash('variable "' // TRIM( var_name) // '" in file "' &
-              // TRIM( filename) // '" has three dimensions, but the third one is not time!')
-          ELSE
-            CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-          END IF
-        END IF
-      ELSE ! IF (file_has_time) THEN
+        else
+          if (ndims_of_var == 3) then
+            if (.not. any( dims_of_var == id_dim_time)) call crash('variable "' // trim( var_name) // '" in file "' &
+              // trim( filename) // '" has three dimensions, but the third one is not time!')
+          else
+            call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+          end if
+        end if
+      else ! if (file_has_time) then
         ! The file does not have a time dimension; the variable should only have vi,depth as dimensions
-        IF (ndims_of_var /= 2) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-      END IF ! IF (file_has_time) THEN
+        if (ndims_of_var /= 2) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+      end if ! if (file_has_time) then
 
-    ELSE ! IF (.NOT. PRESENT( should_have_time)) THEN
-      IF (should_have_time) THEN
+    else ! if (.not. present( should_have_time)) then
+      if (should_have_time) then
         ! This variable should have a time dimension
 
         ! Check if the file has a valid time dimension
-        CALL check_time( filename, ncid)
+        call check_time( filename, ncid)
 
-        ! Inquire the time dimension
-        CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
+        ! inquire the time dimension
+        call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
 
         ! Check if the variable has time as a dimension
-        IF (ndims_of_var /= 3) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
-        IF (.NOT. ANY( dims_of_var == id_dim_time)) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" does not have time as a dimension!')
+        if (ndims_of_var /= 3) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+        if (.not. any( dims_of_var == id_dim_time)) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have time as a dimension!')
 
-      ELSE ! IF (should_have_time) THEN
+      else ! if (should_have_time) then
         ! This variable should not have a time dimension; the variable should only have vi,depth as dimensions
 
-        IF (ndims_of_var /= 2) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+        if (ndims_of_var /= 2) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 
-      END IF ! IF (should_have_time) THEN
-    END IF ! IF (.NOT. PRESENT( should_have_time)) THEN
+      end if ! if (should_have_time) then
+    end if ! if (.not. present( should_have_time)) then
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE check_mesh_field_dp_3D_ocean
+  end subroutine check_mesh_field_dp_3D_ocean
 
 ! ===== Flexible looking for dimensions and variables =====
 ! =========================================================
 
   ! Look for dimensions
-  SUBROUTINE inquire_dim_multopt( filename, ncid, dim_name_options, id_dim, dim_length, dim_name)
-    ! Inquire if this file contains a dimension by name of dim_name.
-    ! If so, return its length and identifier. If not, return -1 for both.
+  subroutine inquire_dim_multopt( filename, ncid, dim_name_options, id_dim, dim_length, dim_name)
+    ! inquire if this file contains a dimension by name of dim_name.
+    ! if so, return its length and identifier. if not, return -1 for both.
     !
     ! Supports providing multiple options for the dimension name, separated by two
     ! vertical bars || e.g. if we're looking for an X-dimension, we could do something like:
     !
-    ! CALL inquire_dim_multopt( ncid, dim_name_options = 'x||X||x1||X1||x-coordinate||X-coordinate||easting', dim_length, id_dim)
+    ! call inquire_dim_multopt( ncid, dim_name_options = 'x||X||x1||X1||x-coordinate||X-coordinate||easting', dim_length, id_dim)
     !
-    ! IF more than one match is found, crash.
-
-    IMPLICIT NONE
+    ! if more than one match is found, crash.
 
     ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    CHARACTER(LEN=*),                    INTENT(IN)    :: dim_name_options
-    INTEGER,                             INTENT(OUT)   :: id_dim
-
-    INTEGER,                                INTENT(OUT), OPTIONAL :: dim_length
-    CHARACTER(LEN=256),                     INTENT(OUT), OPTIONAL :: dim_name
+    character(len=*),                    intent(in   ) :: filename
+    integer,                             intent(in   ) :: ncid
+    character(len=*),                    intent(in   ) :: dim_name_options
+    integer,                             intent(  out) :: id_dim
+    integer,             optional,       intent(  out) :: dim_length
+    character(len=1024), optional,       intent(  out) :: dim_name
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'inquire_dim_multopt'
-    CHARACTER(LEN=256)                                 :: dim_name_options_parsed
-    CHARACTER(LEN=256)                                 :: dim_name_options_redux
-    INTEGER                                            :: i, n_matches
-    INTEGER                                            :: dim_length_try, dim_length_match
-    INTEGER                                            :: id_dim_try, id_dim_match
-    CHARACTER(LEN=256)                                 :: dim_name_try, dim_name_match
+    character(len=1024), parameter :: routine_name = 'inquire_dim_multopt'
+    character(len=1024)            :: dim_name_options_parsed
+    character(len=1024)            :: dim_name_options_redux
+    integer                        :: i, n_matches
+    integer                        :: dim_length_try, dim_length_match
+    integer                        :: id_dim_try, id_dim_match
+    character(len=1024)            :: dim_name_try, dim_name_match
 
     ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+    call init_routine( routine_name, do_track_resource_use = .false.)
 
     ! Parse field name options
-    CALL parse_field_name_options( dim_name_options, dim_name_options_parsed)
+    call parse_field_name_options( dim_name_options, dim_name_options_parsed)
 
     ! Try all options provided in dim_name_options
 
-    dim_name_options_redux = TRIM( dim_name_options_parsed)
+    dim_name_options_redux = trim( dim_name_options_parsed)
     n_matches = 0
 
-    DO WHILE (.TRUE.)
+    do while (.true.)
 
-      i = INDEX( dim_name_options_redux, '||')
+      i = index( dim_name_options_redux, '||')
 
-      IF (i > 0) THEN
+      if (i > 0) then
         ! More than one option is left over; take the last one
 
         dim_name_try = dim_name_options_redux( 1:i-1)
-        dim_name_options_redux = dim_name_options_redux( i+2:LEN_TRIM( dim_name_options_redux))
+        dim_name_options_redux = dim_name_options_redux( i+2:len_trim( dim_name_options_redux))
 
-      ELSE
+      else
         ! Only one option is left over
 
         dim_name_try = dim_name_options_redux
-        dim_name_options_redux( 1:LEN( dim_name_options_redux)) = ''
+        dim_name_options_redux( 1:len( dim_name_options_redux)) = ''
 
-      END IF
+      end if
 
       ! Try the selected name option
-      CALL inquire_dim( filename, ncid, dim_name_try, dim_length_try, id_dim_try)
+      call inquire_dim( filename, ncid, dim_name_try, dim_length_try, id_dim_try)
 
-      IF (id_dim_try == -1) THEN
+      if (id_dim_try == -1) then
         ! No dimension by this name was found; try the next option
-      ELSE
+      else
         ! A dimension by this name was found; hurray!
         n_matches  = n_matches + 1
         dim_length_match = dim_length_try
         id_dim_match     = id_dim_try
         dim_name_match   = dim_name_try
-      END IF
+      end if
 
-      ! If the list of options is now empty, exit
-      IF (LEN_TRIM( dim_name_options_redux) == 0) EXIT
+      ! if the list of options is now empty, exit
+      if (len_trim( dim_name_options_redux) == 0) EXIT
 
-    END DO
+    end do
 
-    IF (n_matches == 0) THEN
+    if (n_matches == 0) then
       ! None of the optional dimension names were found in the NetCDF file
       dim_length_match = -1
       id_dim_match     = -1
-    ELSEIF (n_matches > 1) THEN
+    elseif (n_matches > 1) then
       ! More than one match was found
-      CALL crash('more than one of the provided dimension names were found in file "' // TRIM( filename) // '"!')
-    ELSE
+      call crash('more than one of the provided dimension names were found in file "' // trim( filename) // '"!')
+    else
       ! We found exactly one match; hurray!
-    END IF
+    end if
 
     ! Copy to output arguments
     id_dim = id_dim_match
-    IF (PRESENT( dim_name  )) dim_name   = dim_name_match
-    IF (PRESENT( dim_length)) dim_length = dim_length_match
+    if (present( dim_name  )) dim_name   = dim_name_match
+    if (present( dim_length)) dim_length = dim_length_match
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE inquire_dim_multopt
+  end subroutine inquire_dim_multopt
 
   ! Look for variables
-  SUBROUTINE inquire_var_multopt( filename, ncid, var_name_options, id_var, var_name, var_type, ndims_of_var, dims_of_var)
-    ! Inquire if this file contains a variable by name of var_name.
-    ! If so, return its identifier. If not, return -1.
+  subroutine inquire_var_multopt( filename, ncid, var_name_options, id_var, var_name, var_type, ndims_of_var, dims_of_var)
+    ! inquire if this file contains a variable by name of var_name.
+    ! if so, return its identifier. if not, return -1.
     !
     ! Supports providing multiple options for the variable name, separated by two
     ! vertical bars || e.g. if we're looking for an X-variable, we could do something like:
     !
-    ! CALL inquire_var_multopt( ncid, var_name_options = 'x||X||x1||X1||x-coordinate||X-coordinate||easting', id_var)
+    ! call inquire_var_multopt( ncid, var_name_options = 'x||X||x1||X1||x-coordinate||X-coordinate||easting', id_var)
     !
-    ! IF more than one match is found, crash.
-
-    IMPLICIT NONE
+    ! if more than one match is found, crash.
 
     ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    CHARACTER(LEN=*),                    INTENT(IN)    :: var_name_options
-    INTEGER,                             INTENT(OUT)   :: id_var
-
-    CHARACTER(LEN=256),                     INTENT(OUT), OPTIONAL :: var_name
-    INTEGER,                                INTENT(OUT), OPTIONAL :: var_type
-    INTEGER,                                INTENT(OUT), OPTIONAL :: ndims_of_var
-    INTEGER, DIMENSION( NF90_MAX_VAR_DIMS), INTENT(OUT), OPTIONAL :: dims_of_var
+    character(len=*),                                 intent(in   ) :: filename
+    integer,                                          intent(in   ) :: ncid
+    character(len=*),                                 intent(in   ) :: var_name_options
+    integer,                                          intent(  out) :: id_var
+    character(len=1024),                    optional, intent(  out) :: var_name
+    integer,                                optional, intent(  out) :: var_type
+    integer,                                optional, intent(  out) :: ndims_of_var
+    integer, dimension( NF90_MAX_VAR_DIMS), optional, intent(  out) :: dims_of_var
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'inquire_var_multopt'
-    CHARACTER(LEN=256)                                 :: var_name_options_parsed
-    CHARACTER(LEN=256)                                 :: var_name_options_redux
-    INTEGER                                            :: i, n_matches, id_var_try
-    CHARACTER(LEN=256)                                 :: var_name_try, var_name_match
+    character(len=1024), parameter :: routine_name = 'inquire_var_multopt'
+    character(len=1024)            :: var_name_options_parsed
+    character(len=1024)            :: var_name_options_redux
+    integer                        :: i, n_matches, id_var_try
+    character(len=1024)            :: var_name_try, var_name_match
 
     ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+    call init_routine( routine_name, do_track_resource_use = .false.)
 
     ! Parse field name options
-    CALL parse_field_name_options( var_name_options, var_name_options_parsed)
+    call parse_field_name_options( var_name_options, var_name_options_parsed)
 
     ! Try all options provided in var_name_options
 
-    var_name_options_redux = TRIM( var_name_options_parsed)
+    var_name_options_redux = trim( var_name_options_parsed)
     n_matches = 0
 
-    DO WHILE (.TRUE.)
+    do while (.true.)
 
-      i = INDEX( var_name_options_redux, '||')
+      i = index( var_name_options_redux, '||')
 
-      IF (i > 0) THEN
+      if (i > 0) then
         ! More than one option is left over; take the last one
 
         var_name_try = var_name_options_redux( 1:i-1)
-        var_name_options_redux = var_name_options_redux( i+2:LEN_TRIM( var_name_options_redux))
+        var_name_options_redux = var_name_options_redux( i+2:len_trim( var_name_options_redux))
 
-      ELSE
+      else
         ! Only one option is left over
 
-        var_name_try = TRIM( var_name_options_redux)
-        var_name_options_redux( 1:LEN( var_name_options_redux)) = ''
+        var_name_try = trim( var_name_options_redux)
+        var_name_options_redux( 1:len( var_name_options_redux)) = ''
 
-      END IF
+      end if
 
       ! Try the selected name option
-      CALL inquire_var( filename, ncid, var_name_try, id_var_try)
+      call inquire_var( filename, ncid, var_name_try, id_var_try)
 
-      IF (id_var_try == -1) THEN
+      if (id_var_try == -1) then
         ! No variable by this name was found; try the next option
-      ELSE
+      else
         ! A variable by this name was found; hurray!
         n_matches      = n_matches + 1
         id_var         = id_var_try
         var_name_match = var_name_try
-      END IF
+      end if
 
-      ! If the list of options is now empty, exit
-      IF (LEN_TRIM( var_name_options_redux) == 0) EXIT
+      ! if the list of options is now empty, exit
+      if (len_trim( var_name_options_redux) == 0) EXIT
 
-    END DO
+    end do
 
-    IF (n_matches == 0) THEN
+    if (n_matches == 0) then
       ! None of the optional variable names were found in the NetCDF file
       id_var     = -1
-    ELSEIF (n_matches > 1) THEN
+    elseif (n_matches > 1) then
       ! More than one match was found
-      CALL crash('more than one of the provided variable names were found in file "' // TRIM( filename) // '"!')
-    ELSE
-      ! We found exactly one match. Inquire additional info on this variable.
-      CALL inquire_var_info( filename, ncid, id_var, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
-    END IF
+      call crash('more than one of the provided variable names were found in file "' // trim( filename) // '"!')
+    else
+      ! We found exactly one match. inquire additional info on this variable.
+      call inquire_var_info( filename, ncid, id_var, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
+    end if
 
     ! Copy to output arguments
-    IF (PRESENT( var_name)) var_name = var_name_match
+    if (present( var_name)) var_name = var_name_match
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE inquire_var_multopt
+  end subroutine inquire_var_multopt
 
 ! ===== Parse flexible dimension/variable names =====
 ! ===================================================
 
-  SUBROUTINE parse_field_name_options( field_name_options, field_name_options_parsed)
+  subroutine parse_field_name_options( field_name_options, field_name_options_parsed)
     ! Check if a default set of field name options should be used.
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: field_name_options
-    CHARACTER(LEN=256),                  INTENT(OUT)   :: field_name_options_parsed
+    character(len=*),    intent(in   ) :: field_name_options
+    character(len=1024), intent(  out) :: field_name_options_parsed
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'parse_field_name_options'
+    character(len=1024), parameter :: routine_name = 'parse_field_name_options'
 
     ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+    call init_routine( routine_name, do_track_resource_use = .false.)
 
     field_name_options_parsed = field_name_options
 
-    IF (INDEX( field_name_options,'default_options_') > 0) THEN
+    if (index( field_name_options,'default_options_') > 0) then
       ! Use one of the default options
 
-      ! Dimensions
-      IF     (field_name_options == 'default_options_x') THEN
+      ! dimensions
+      if     (field_name_options == 'default_options_x') then
         field_name_options_parsed = field_name_options_x
-      ELSEIF (field_name_options == 'default_options_y') THEN
+      elseif (field_name_options == 'default_options_y') then
         field_name_options_parsed = field_name_options_y
-      ELSEIF (field_name_options == 'default_options_zeta') THEN
+      elseif (field_name_options == 'default_options_zeta') then
         field_name_options_parsed = field_name_options_zeta
-      ELSEIF (field_name_options == 'default_options_lon') THEN
+      elseif (field_name_options == 'default_options_lon') then
         field_name_options_parsed = field_name_options_lon
-      ELSEIF (field_name_options == 'default_options_lat') THEN
+      elseif (field_name_options == 'default_options_lat') then
         field_name_options_parsed = field_name_options_lat
-      ELSEIF (field_name_options == 'default_options_time') THEN
+      elseif (field_name_options == 'default_options_time') then
         field_name_options_parsed = field_name_options_time
 
       ! Variables
-      ELSEIF (field_name_options == 'default_options_Hi') THEN
+      elseif (field_name_options == 'default_options_Hi') then
         field_name_options_parsed = field_name_options_Hi
-      ELSEIF (field_name_options == 'default_options_Hb') THEN
+      elseif (field_name_options == 'default_options_Hb') then
         field_name_options_parsed = field_name_options_Hb
-      ELSEIF (field_name_options == 'default_options_Hs') THEN
+      elseif (field_name_options == 'default_options_Hs') then
         field_name_options_parsed = field_name_options_Hs
-      ELSEIF (field_name_options == 'default_options_SL') THEN
+      elseif (field_name_options == 'default_options_SL') then
         field_name_options_parsed = field_name_options_SL
 
       ! Unrecognised default options
-      ELSE
-        CALL crash('unregocnised default field name option "' // TRIM( field_name_options) // '"')
-      END IF
+      else
+        call crash('unregocnised default field name option "' // trim( field_name_options) // '"')
+      end if
 
-    END IF
+    end if
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE parse_field_name_options
+  end subroutine parse_field_name_options
 
-  FUNCTION get_first_option_from_list( field_name_options) RESULT( field_name)
+  function get_first_option_from_list( field_name_options) result( field_name)
     ! Get the first option from a list of field name options
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: field_name_options
-    CHARACTER(LEN=256)                                 :: field_name
+    character(len=*),  intent(in   ) :: field_name_options
+    character(len=1024)              :: field_name
 
     ! Local variables:
-    INTEGER                                            :: i
+    integer :: i
 
     field_name( 1:256) = ' '
 
-    i = INDEX( field_name_options,'||')
+    i = index( field_name_options,'||')
 
-    IF (i > 0) THEN
+    if (i > 0) then
       field_name = field_name_options( 1:i-1)
-    ELSE
-      field_name = TRIM( field_name_options)
-    END IF
+    else
+      field_name = trim( field_name_options)
+    end if
 
-  END FUNCTION get_first_option_from_list
+  end function get_first_option_from_list
 
 ! ===== Read data from variables =====
 ! ====================================
@@ -3488,799 +3420,779 @@ CONTAINS
   ! NOTE: only the Master actually reads data! Distributing to other processes
   !       must be done afterward
 
-  SUBROUTINE read_var_master_int_0D(  filename, ncid, id_var, d)
+  subroutine read_var_master_int_0D(  filename, ncid, id_var, d)
     ! Read data from a NetCDF file
     !
     ! NOTE: only the Master actually reads data! Distributing to other processes
     !       must be done afterward
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    INTEGER,                             INTENT(IN)    :: id_var
-    INTEGER,                             INTENT(OUT)   :: d
+    character(len=*), intent(in   ) :: filename
+    integer,          intent(in   ) :: ncid
+    integer,          intent(in   ) :: id_var
+    integer,          intent(  out) :: d
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'read_var_master_int_0D'
-    CHARACTER(LEN=256)                                 :: var_name
-    INTEGER                                            :: var_type
-    INTEGER                                            :: ndims_of_var
+    character(len=1024), parameter :: routine_name = 'read_var_master_int_0D'
+    character(len=1024)            :: var_name
+    integer                        :: var_type
+    integer                        :: ndims_of_var
 
     ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+    call init_routine( routine_name, do_track_resource_use = .false.)
 
-    ! Inquire some info on this variable
-    CALL inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var)
+    ! inquire some info on this variable
+    call inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var)
 
     ! Check variable type
-    IF (.NOT. (var_type == NF90_INT)) &
-      CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_INT!')
+    if (.not. (var_type == NF90_INT)) &
+      call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" is not of type NF90_INT!')
 
     ! Check number of dimensions
-    IF (ndims_of_var /= 0) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+    if (ndims_of_var /= 0) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 
     ! Read the data
-    IF (par%master) THEN
+    if (par%master) then
       nerr = NF90_GET_VAR( ncid, id_var, d)
-      IF (nerr /= NF90_NOERR) CALL crash('NF90_GET_VAR failed for variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '"!')
-    END IF
-    CALL sync
+      if (nerr /= NF90_NOERR) call crash('NF90_GET_VAR failed for variable "' // trim( var_name) // '" in file "' // trim( filename) // '"!')
+    end if
+    call sync
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE read_var_master_int_0D
+  end subroutine read_var_master_int_0D
 
-  SUBROUTINE read_var_master_int_1D(  filename, ncid, id_var, d, start, count)
+  subroutine read_var_master_int_1D( filename, ncid, id_var, d, start, count)
     ! Read data from a NetCDF file
     !
     ! NOTE: only the Master actually reads data! Distributing to other processes
     !       must be done afterward
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    INTEGER,                             INTENT(IN)    :: id_var
-    INTEGER,  DIMENSION(:    ), optional,INTENT(OUT)   :: d
-    INTEGER,  DIMENSION(1    ), OPTIONAL,INTENT(IN)    :: start, count
+    character(len=*),                     intent(in   ) :: filename
+    integer,                              intent(in   ) :: ncid
+    integer,                              intent(in   ) :: id_var
+    integer,  dimension(:    ), optional, intent(  out) :: d
+    integer,  dimension(1    ), optional, intent(in   ) :: start, count
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'read_var_master_int_1D'
-    CHARACTER(LEN=256)                                 :: var_name
-    INTEGER                                            :: var_type
-    INTEGER                                            :: ndims_of_var
-    INTEGER,  DIMENSION( NF90_MAX_VAR_DIMS)            :: dims_of_var
-    INTEGER                                            :: di
-    CHARACTER(LEN=256)                                 :: dim_name
-    INTEGER                                            :: dim_length
-    INTEGER,  DIMENSION( 1)                            :: start_applied, count_applied
+    character(len=1024), parameter          :: routine_name = 'read_var_master_int_1D'
+    character(len=1024)                     :: var_name
+    integer                                 :: var_type
+    integer                                 :: ndims_of_var
+    integer,  dimension( NF90_MAX_VAR_DIMS) :: dims_of_var
+    integer                                 :: di
+    character(len=1024)                     :: dim_name
+    integer                                 :: dim_length
+    integer, dimension(1)                   :: start_applied, count_applied
 
     ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+    call init_routine( routine_name, do_track_resource_use = .false.)
 
-    ! Inquire some info on this variable
-    CALL inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
+    ! inquire some info on this variable
+    call inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
 
     ! Check variable type
-    IF (.NOT. (var_type == NF90_INT)) &
-      CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_INT!')
+    if (.not. (var_type == NF90_INT)) &
+      call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" is not of type NF90_INT!')
 
     ! Check number of dimensions
-    IF (ndims_of_var /= 1) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+    if (ndims_of_var /= 1) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 
     if (par%master .and. .not. present(d)) call crash('d needs to be present on master')
 
     ! Set start and count
-    IF (PRESENT( start)) THEN
+    if (present( start)) then
       start_applied = start
-    ELSE
+    else
       start_applied = (/ 1 /)
-    END IF
-    IF (par%master .AND. ANY( start_applied == 0)) CALL crash('start must be positive!')
+    end if
+    if (par%master .and. any( start_applied == 0)) call crash('start must be positive!')
 
-    IF (PRESENT( count)) THEN
+    if (present( count)) then
       count_applied = count
-    ELSE
+    else
       if (par%master) then
         count_applied = shape(d)
       else
         count_applied = 1
       end if
-    END IF
-    IF (par%master .AND. ANY( count_applied == 0)) CALL crash('count must be positive!')
+    end if
+    if (par%master .and. any( count_applied == 0)) call crash('count must be positive!')
 
     ! Check sizes of dimensions
-    DO di = 1, ndims_of_var
+    do di = 1, ndims_of_var
 
       ! Check size of this dimension in the file
-      CALL inquire_dim_info( filename, ncid, dims_of_var( di), dim_name = dim_name, dim_length = dim_length)
+      call inquire_dim_info( filename, ncid, dims_of_var( di), dim_name = dim_name, dim_length = dim_length)
 
       ! Check if the combination of dimension size, start, and count, matches the size of d
-      IF (par%master .AND. count_applied( di) /= SIZE( d,di)) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // &
+      if (par%master .and. count_applied( di) /= SIZE( d,di)) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // trim( filename) // &
         '": count({int_01}) = {int_02}, but SIZE(d,{int_03}) = {int_04}!', int_01 = di, int_02 = count_applied( di), int_03 = di, int_04 = SIZE( d,di))
 
       ! Check if this dimension is large enough to read this amount of data
-      IF (par%master .AND. start_applied( di) + count_applied( di) - 1 > dim_length) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // &
-        TRIM( filename) // '"start + count - 1 = {int_01}, but dim_length = {int_02}!', int_01 = start_applied( di) + count_applied( di) - 1, int_02 = dim_length)
+      if (par%master .and. start_applied( di) + count_applied( di) - 1 > dim_length) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // &
+        trim( filename) // '"start + count - 1 = {int_01}, but dim_length = {int_02}!', int_01 = start_applied( di) + count_applied( di) - 1, int_02 = dim_length)
 
-    END DO
+    end do
 
     ! Read the data
-    IF (par%master) THEN
+    if (par%master) then
       nerr = NF90_GET_VAR( ncid, id_var, d, start, count)
-      IF (nerr /= NF90_NOERR) CALL crash('NF90_GET_VAR failed for variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '"!')
-    END IF
-    CALL sync
+      if (nerr /= NF90_NOERR) call crash('NF90_GET_VAR failed for variable "' // trim( var_name) // '" in file "' // trim( filename) // '"!')
+    end if
+    call sync
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE read_var_master_int_1D
+  end subroutine read_var_master_int_1D
 
-  SUBROUTINE read_var_master_int_2D(  filename, ncid, id_var, d, start, count)
+  subroutine read_var_master_int_2D( filename, ncid, id_var, d, start, count)
     ! Read data from a NetCDF file
     !
     ! NOTE: only the Master actually reads data! Distributing to other processes
     !       must be done afterward
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    INTEGER,                             INTENT(IN)    :: id_var
-    INTEGER,  DIMENSION(:,:  ), optional,INTENT(OUT)   :: d
-    INTEGER,  DIMENSION(2    ), OPTIONAL,INTENT(IN)    :: start, count
+    character(len=*),                   intent(in   ) :: filename
+    integer,                            intent(in   ) :: ncid
+    integer,                            intent(in   ) :: id_var
+    integer,  dimension(:,:), optional, intent(  out) :: d
+    integer,  dimension(2),   optional, intent(in   ) :: start, count
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'read_var_master_int_2D'
-    CHARACTER(LEN=256)                                 :: var_name
-    INTEGER                                            :: var_type
-    INTEGER                                            :: ndims_of_var
-    INTEGER,  DIMENSION( NF90_MAX_VAR_DIMS)            :: dims_of_var
-    INTEGER                                            :: di
-    CHARACTER(LEN=256)                                 :: dim_name
-    INTEGER                                            :: dim_length
-    INTEGER,  DIMENSION( 2)                            :: start_applied, count_applied
+    character(len=1024), parameter          :: routine_name = 'read_var_master_int_2D'
+    character(len=1024)                     :: var_name
+    integer                                 :: var_type
+    integer                                 :: ndims_of_var
+    integer,  dimension( NF90_MAX_VAR_DIMS) :: dims_of_var
+    integer                                 :: di
+    character(len=1024)                     :: dim_name
+    integer                                 :: dim_length
+    integer, dimension(2)                   :: start_applied, count_applied
 
     ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+    call init_routine( routine_name, do_track_resource_use = .false.)
 
-    ! Inquire some info on this variable
-    CALL inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
+    ! inquire some info on this variable
+    call inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
 
     ! Check variable type
-    IF (.NOT. (var_type == NF90_INT)) &
-      CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_INT!')
+    if (.not. (var_type == NF90_INT)) &
+      call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" is not of type NF90_INT!')
 
     ! Check number of dimensions
-    IF (ndims_of_var /= 2) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+    if (ndims_of_var /= 2) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 
     if (par%master .and. .not. present(d)) call crash('d needs to be present on master')
 
     ! Set start and count
-    IF (PRESENT( start)) THEN
+    if (present( start)) then
       start_applied = start
-    ELSE
+    else
       start_applied = (/ 1, 1 /)
-    END IF
-    IF (par%master .AND. ANY( start_applied == 0)) CALL crash('start must be positive!')
+    end if
+    if (par%master .and. any( start_applied == 0)) call crash('start must be positive!')
 
-    IF (PRESENT( count)) THEN
+    if (present( count)) then
       count_applied = count
-    ELSE
+    else
       if (par%master) then
         count_applied = shape(d)
       else
         count_applied = 1
       end if
-    END IF
-    IF (par%master .AND. ANY( count_applied == 0)) CALL crash('count must be positive!')
+    end if
+    if (par%master .and. any( count_applied == 0)) call crash('count must be positive!')
 
     ! Check sizes of dimensions
-    DO di = 1, ndims_of_var
+    do di = 1, ndims_of_var
 
       ! Check size of this dimension in the file
-      CALL inquire_dim_info( filename, ncid, dims_of_var( di), dim_name = dim_name, dim_length = dim_length)
+      call inquire_dim_info( filename, ncid, dims_of_var( di), dim_name = dim_name, dim_length = dim_length)
 
       ! Check if the combination of dimension size, start, and count, matches the size of d
-      IF (par%master .AND. count_applied( di) /= SIZE( d,di)) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // &
+      if (par%master .and. count_applied( di) /= SIZE( d,di)) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // trim( filename) // &
         '": count({int_01}) = {int_02}, but SIZE(d,{int_03}) = {int_04}!', int_01 = di, int_02 = count_applied( di), int_03 = di, int_04 = SIZE( d,di))
 
       ! Check if this dimension is large enough to read this amount of data
-      IF (par%master .AND. start_applied( di) + count_applied( di) - 1 > dim_length) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // &
-        TRIM( filename) // '"start + count - 1 = {int_01}, but dim_length = {int_02}!', int_01 = start_applied( di) + count_applied( di) - 1, int_02 = dim_length)
+      if (par%master .and. start_applied( di) + count_applied( di) - 1 > dim_length) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // &
+        trim( filename) // '"start + count - 1 = {int_01}, but dim_length = {int_02}!', int_01 = start_applied( di) + count_applied( di) - 1, int_02 = dim_length)
 
-    END DO
+    end do
 
     ! Read the data
-    IF (par%master) THEN
+    if (par%master) then
       nerr = NF90_GET_VAR( ncid, id_var, d, start, count)
-      IF (nerr /= NF90_NOERR) CALL crash('NF90_GET_VAR failed for variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '"!')
-    END IF
-    CALL sync
+      if (nerr /= NF90_NOERR) call crash('NF90_GET_VAR failed for variable "' // trim( var_name) // '" in file "' // trim( filename) // '"!')
+    end if
+    call sync
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE read_var_master_int_2D
+  end subroutine read_var_master_int_2D
 
-  SUBROUTINE read_var_master_int_3D(  filename, ncid, id_var, d, start, count)
+  subroutine read_var_master_int_3D( filename, ncid, id_var, d, start, count)
     ! Read data from a NetCDF file
     !
     ! NOTE: only the Master actually reads data! Distributing to other processes
     !       must be done afterward
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    INTEGER,                             INTENT(IN)    :: id_var
-    INTEGER,  DIMENSION(:,:,:), optional,INTENT(OUT)   :: d
-    INTEGER,  DIMENSION(3    ), OPTIONAL,INTENT(IN)    :: start, count
+    character(len=*),                    intent(in   ) :: filename
+    integer,                             intent(in   ) :: ncid
+    integer,                             intent(in   ) :: id_var
+    integer, dimension(:,:,:), optional, intent(  out) :: d
+    integer, dimension(3),     optional, intent(in   ) :: start, count
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'read_var_master_int_3D'
-    CHARACTER(LEN=256)                                 :: var_name
-    INTEGER                                            :: var_type
-    INTEGER                                            :: ndims_of_var
-    INTEGER,  DIMENSION( NF90_MAX_VAR_DIMS)            :: dims_of_var
-    INTEGER                                            :: di
-    CHARACTER(LEN=256)                                 :: dim_name
-    INTEGER                                            :: dim_length
-    INTEGER,  DIMENSION( 3)                            :: start_applied, count_applied
+    character(len=1024), parameter          :: routine_name = 'read_var_master_int_3D'
+    character(len=1024)                     :: var_name
+    integer                                 :: var_type
+    integer                                 :: ndims_of_var
+    integer,  dimension( NF90_MAX_VAR_DIMS) :: dims_of_var
+    integer                                 :: di
+    character(len=1024)                     :: dim_name
+    integer                                 :: dim_length
+    integer, dimension(3)                   :: start_applied, count_applied
 
     ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+    call init_routine( routine_name, do_track_resource_use = .false.)
 
-    ! Inquire some info on this variable
-    CALL inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
+    ! inquire some info on this variable
+    call inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
 
     ! Check variable type
-    IF (.NOT. (var_type == NF90_INT)) &
-      CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_INT!')
+    if (.not. (var_type == NF90_INT)) &
+      call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" is not of type NF90_INT!')
 
     ! Check number of dimensions
-    IF (ndims_of_var /= 3) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+    if (ndims_of_var /= 3) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 
     if (par%master .and. .not. present(d)) call crash('d needs to be present on master')
 
     ! Set start and count
-    IF (PRESENT( start)) THEN
+    if (present( start)) then
       start_applied = start
-    ELSE
+    else
       start_applied = (/ 1, 1, 1 /)
-    END IF
-    IF (par%master .AND. ANY( start_applied == 0)) CALL crash('start must be positive!')
+    end if
+    if (par%master .and. any( start_applied == 0)) call crash('start must be positive!')
 
-    IF (PRESENT( count)) THEN
+    if (present( count)) then
       count_applied = count
-    ELSE
+    else
       if (par%master) then
         count_applied = shape(d)
       else
         count_applied = 1
       end if
-    END IF
-    IF (par%master .AND. ANY( count_applied == 0)) CALL crash('count must be positive!')
+    end if
+    if (par%master .and. any( count_applied == 0)) call crash('count must be positive!')
 
     ! Check sizes of dimensions
-    DO di = 1, ndims_of_var
+    do di = 1, ndims_of_var
 
       ! Check size of this dimension in the file
-      CALL inquire_dim_info( filename, ncid, dims_of_var( di), dim_name = dim_name, dim_length = dim_length)
+      call inquire_dim_info( filename, ncid, dims_of_var( di), dim_name = dim_name, dim_length = dim_length)
 
       ! Check if the combination of dimension size, start, and count, matches the size of d
-      IF (par%master .AND. count_applied( di) /= SIZE( d,di)) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // &
+      if (par%master .and. count_applied( di) /= SIZE( d,di)) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // trim( filename) // &
         '": count({int_01}) = {int_02}, but SIZE(d,{int_03}) = {int_04}!', int_01 = di, int_02 = count_applied( di), int_03 = di, int_04 = SIZE( d,di))
 
       ! Check if this dimension is large enough to read this amount of data
-      IF (par%master .AND. start_applied( di) + count_applied( di) - 1 > dim_length) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // &
-        TRIM( filename) // '"start + count - 1 = {int_01}, but dim_length = {int_02}!', int_01 = start_applied( di) + count_applied( di) - 1, int_02 = dim_length)
+      if (par%master .and. start_applied( di) + count_applied( di) - 1 > dim_length) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // &
+        trim( filename) // '"start + count - 1 = {int_01}, but dim_length = {int_02}!', int_01 = start_applied( di) + count_applied( di) - 1, int_02 = dim_length)
 
-    END DO
+    end do
 
     ! Read the data
-    IF (par%master) THEN
+    if (par%master) then
       nerr = NF90_GET_VAR( ncid, id_var, d, start, count)
-      IF (nerr /= NF90_NOERR) CALL crash('NF90_GET_VAR failed for variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '"!')
-    END IF
-    CALL sync
+      if (nerr /= NF90_NOERR) call crash('NF90_GET_VAR failed for variable "' // trim( var_name) // '" in file "' // trim( filename) // '"!')
+    end if
+    call sync
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE read_var_master_int_3D
+  end subroutine read_var_master_int_3D
 
-  SUBROUTINE read_var_master_int_4D(  filename, ncid, id_var, d, start, count)
+  subroutine read_var_master_int_4D( filename, ncid, id_var, d, start, count)
     ! Read data from a NetCDF file
     !
     ! NOTE: only the Master actually reads data! Distributing to other processes
     !       must be done afterward
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    INTEGER,                             INTENT(IN)    :: id_var
-    INTEGER,  DIMENSION(:,:,:,:),optional,INTENT(OUT)  :: d
-    INTEGER,  DIMENSION(4    ), OPTIONAL,INTENT(IN)    :: start, count
+    character(len=*),                      intent(in   ) :: filename
+    integer,                               intent(in   ) :: ncid
+    integer,                               intent(in   ) :: id_var
+    integer, dimension(:,:,:,:), optional, intent(  out) :: d
+    integer, dimension(4),       optional, intent(in   ) :: start, count
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'read_var_master_int_4D'
-    CHARACTER(LEN=256)                                 :: var_name
-    INTEGER                                            :: var_type
-    INTEGER                                            :: ndims_of_var
-    INTEGER,  DIMENSION( NF90_MAX_VAR_DIMS)            :: dims_of_var
-    INTEGER                                            :: di
-    CHARACTER(LEN=256)                                 :: dim_name
-    INTEGER                                            :: dim_length
-    INTEGER,  DIMENSION( 4)                            :: start_applied, count_applied
+    character(len=1024), parameter          :: routine_name = 'read_var_master_int_4D'
+    character(len=1024)                     :: var_name
+    integer                                 :: var_type
+    integer                                 :: ndims_of_var
+    integer,  dimension( NF90_MAX_VAR_DIMS) :: dims_of_var
+    integer                                 :: di
+    character(len=1024)                     :: dim_name
+    integer                                 :: dim_length
+    integer, dimension(4)                   :: start_applied, count_applied
 
     ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+    call init_routine( routine_name, do_track_resource_use = .false.)
 
-    ! Inquire some info on this variable
-    CALL inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
+    ! inquire some info on this variable
+    call inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
 
     ! Check variable type
-    IF (.NOT. (var_type == NF90_INT)) &
-      CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_INT!')
+    if (.not. (var_type == NF90_INT)) &
+      call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" is not of type NF90_INT!')
 
     ! Check number of dimensions
-    IF (ndims_of_var /= 4) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+    if (ndims_of_var /= 4) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 
     if (par%master .and. .not. present(d)) call crash('d needs to be present on master')
 
     ! Set start and count
-    IF (PRESENT( start)) THEN
+    if (present( start)) then
       start_applied = start
-    ELSE
+    else
       start_applied = (/ 1, 1, 1, 1 /)
-    END IF
-    IF (par%master .AND. ANY( start_applied == 0)) CALL crash('start must be positive!')
+    end if
+    if (par%master .and. any( start_applied == 0)) call crash('start must be positive!')
 
-    IF (PRESENT( count)) THEN
+    if (present( count)) then
       count_applied = count
-    ELSE
+    else
       if (par%master) then
         count_applied = shape(d)
       else
         count_applied = 1
       end if
-    END IF
-    IF (par%master .AND. ANY( count_applied == 0)) CALL crash('count must be positive!')
+    end if
+    if (par%master .and. any( count_applied == 0)) call crash('count must be positive!')
 
     ! Check sizes of dimensions
-    DO di = 1, ndims_of_var
+    do di = 1, ndims_of_var
 
       ! Check size of this dimension in the file
-      CALL inquire_dim_info( filename, ncid, dims_of_var( di), dim_name = dim_name, dim_length = dim_length)
+      call inquire_dim_info( filename, ncid, dims_of_var( di), dim_name = dim_name, dim_length = dim_length)
 
       ! Check if the combination of dimension size, start, and count, matches the size of d
-      IF (par%master .AND. count_applied( di) /= SIZE( d,di)) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // &
+      if (par%master .and. count_applied( di) /= SIZE( d,di)) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // trim( filename) // &
         '": count({int_01}) = {int_02}, but SIZE(d,{int_03}) = {int_04}!', int_01 = di, int_02 = count_applied( di), int_03 = di, int_04 = SIZE( d,di))
 
       ! Check if this dimension is large enough to read this amount of data
-      IF (par%master .AND. start_applied( di) + count_applied( di) - 1 > dim_length) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // &
-        TRIM( filename) // '"start + count - 1 = {int_01}, but dim_length = {int_02}!', int_01 = start_applied( di) + count_applied( di) - 1, int_02 = dim_length)
+      if (par%master .and. start_applied( di) + count_applied( di) - 1 > dim_length) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // &
+        trim( filename) // '"start + count - 1 = {int_01}, but dim_length = {int_02}!', int_01 = start_applied( di) + count_applied( di) - 1, int_02 = dim_length)
 
-    END DO
+    end do
 
     ! Read the data
-    IF (par%master) THEN
+    if (par%master) then
       nerr = NF90_GET_VAR( ncid, id_var, d, start, count)
-      IF (nerr /= NF90_NOERR) CALL crash('NF90_GET_VAR failed for variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '"!')
-    END IF
-    CALL sync
+      if (nerr /= NF90_NOERR) call crash('NF90_GET_VAR failed for variable "' // trim( var_name) // '" in file "' // trim( filename) // '"!')
+    end if
+    call sync
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE read_var_master_int_4D
+  end subroutine read_var_master_int_4D
 
-  SUBROUTINE read_var_master_dp_0D(  filename, ncid, id_var, d)
+  subroutine read_var_master_dp_0D( filename, ncid, id_var, d)
     ! Read data from a NetCDF file
     !
     ! NOTE: only the Master actually reads data! Distributing to other processes
     !       must be done afterward
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    INTEGER,                             INTENT(IN)    :: id_var
-    REAL(dp),                            INTENT(OUT)   :: d
+    character(len=*), intent(in   ) :: filename
+    integer,          intent(in   ) :: ncid
+    integer,          intent(in   ) :: id_var
+    real(dp),         intent(  out) :: d
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'read_var_master_dp_0D'
-    CHARACTER(LEN=256)                                 :: var_name
-    INTEGER                                            :: var_type
-    INTEGER                                            :: ndims_of_var
+    character(len=1024), parameter :: routine_name = 'read_var_master_dp_0D'
+    character(len=1024)            :: var_name
+    integer                        :: var_type
+    integer                        :: ndims_of_var
 
     ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+    call init_routine( routine_name, do_track_resource_use = .false.)
 
-    ! Inquire some info on this variable
-    CALL inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var)
+    ! inquire some info on this variable
+    call inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var)
 
     ! Check variable type
-    IF (.NOT. (var_type == NF90_FLOAT .OR. var_type == NF90_DOUBLE)) &
-      CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
+    if (.not. (var_type == NF90_FLOAT .or. var_type == NF90_DOUBLE)) &
+      call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
 
     ! Check number of dimensions
-    IF (ndims_of_var /= 0) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+    if (ndims_of_var /= 0) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 
     ! Read the data
-    IF (par%master) THEN
+    if (par%master) then
       nerr = NF90_GET_VAR( ncid, id_var, d)
-      IF (nerr /= NF90_NOERR) CALL crash('NF90_GET_VAR failed for variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '"!')
-    END IF
-    CALL sync
+      if (nerr /= NF90_NOERR) call crash('NF90_GET_VAR failed for variable "' // trim( var_name) // '" in file "' // trim( filename) // '"!')
+    end if
+    call sync
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE read_var_master_dp_0D
+  end subroutine read_var_master_dp_0D
 
-  SUBROUTINE read_var_master_dp_1D(  filename, ncid, id_var, d, start, count)
+  subroutine read_var_master_dp_1D( filename, ncid, id_var, d, start, count)
     ! Read data from a NetCDF file
     !
     ! NOTE: only the Master actually reads data! Distributing to other processes
     !       must be done afterward
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    INTEGER,                             INTENT(IN)    :: id_var
-    REAL(dp), DIMENSION(:    ), optional,INTENT(OUT)   :: d
-    INTEGER,  DIMENSION(1    ), OPTIONAL,INTENT(IN)    :: start, count
+    character(len=*),                 intent(in   ) :: filename
+    integer,                          intent(in   ) :: ncid
+    integer,                          intent(in   ) :: id_var
+    real(dp), dimension(:), optional, intent(  out) :: d
+    integer,  dimension(1), optional, intent(in   ) :: start, count
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'read_var_master_dp_1D'
-    CHARACTER(LEN=256)                                 :: var_name
-    INTEGER                                            :: var_type
-    INTEGER                                            :: ndims_of_var
-    INTEGER,  DIMENSION( NF90_MAX_VAR_DIMS)            :: dims_of_var
-    INTEGER                                            :: di
-    CHARACTER(LEN=256)                                 :: dim_name
-    INTEGER                                            :: dim_length
-    INTEGER,  DIMENSION( 1)                            :: start_applied, count_applied
+    character(len=1024), parameter          :: routine_name = 'read_var_master_dp_1D'
+    character(len=1024)                     :: var_name
+    integer                                 :: var_type
+    integer                                 :: ndims_of_var
+    integer,  dimension( NF90_MAX_VAR_DIMS) :: dims_of_var
+    integer                                 :: di
+    character(len=1024)                     :: dim_name
+    integer                                 :: dim_length
+    integer, dimension(1)                   :: start_applied, count_applied
 
     ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+    call init_routine( routine_name, do_track_resource_use = .false.)
 
-    ! Inquire some info on this variable
-    CALL inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
+    ! inquire some info on this variable
+    call inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
 
     ! Check variable type
-    IF (.NOT. (var_type == NF90_FLOAT .OR. var_type == NF90_DOUBLE)) &
-      CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
+    if (.not. (var_type == NF90_FLOAT .or. var_type == NF90_DOUBLE)) &
+      call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
 
     ! Check number of dimensions
-    IF (ndims_of_var /= 1) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+    if (ndims_of_var /= 1) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 
     if (par%master .and. .not. present(d)) call crash('d needs to be present on master')
 
     ! Set start and count
-    IF (PRESENT( start)) THEN
+    if (present( start)) then
       start_applied = start
-    ELSE
+    else
       start_applied = (/ 1 /)
-    END IF
-    IF (par%master .AND. ANY( start_applied == 0)) CALL crash('start must be positive!')
+    end if
+    if (par%master .and. any( start_applied == 0)) call crash('start must be positive!')
 
-    IF (PRESENT( count)) THEN
+    if (present( count)) then
       count_applied = count
-    ELSE
+    else
       if (par%master) then
         count_applied = shape(d)
       else
         count_applied = 1
       end if
-    END IF
-    IF (par%master .AND. ANY( count_applied == 0)) CALL crash('count must be positive!')
+    end if
+    if (par%master .and. any( count_applied == 0)) call crash('count must be positive!')
 
     ! Check sizes of dimensions
-    DO di = 1, ndims_of_var
+    do di = 1, ndims_of_var
 
       ! Check size of this dimension in the file
-      CALL inquire_dim_info( filename, ncid, dims_of_var( di), dim_name = dim_name, dim_length = dim_length)
+      call inquire_dim_info( filename, ncid, dims_of_var( di), dim_name = dim_name, dim_length = dim_length)
 
       ! Check if the combination of dimension size, start, and count, matches the size of d
-      IF (par%master .AND. count_applied( di) /= SIZE( d,di)) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // &
+      if (par%master .and. count_applied( di) /= SIZE( d,di)) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // trim( filename) // &
         '": count({int_01}) = {int_02}, but SIZE(d,{int_03}) = {int_04}!', int_01 = di, int_02 = count_applied( di), int_03 = di, int_04 = SIZE( d,di))
 
       ! Check if this dimension is large enough to read this amount of data
-      IF (par%master .AND. start_applied( di) + count_applied( di) - 1 > dim_length) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // &
-        TRIM( filename) // '"start + count - 1 = {int_01}, but dim_length = {int_02}!', int_01 = start_applied( di) + count_applied( di) - 1, int_02 = dim_length)
+      if (par%master .and. start_applied( di) + count_applied( di) - 1 > dim_length) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // &
+        trim( filename) // '"start + count - 1 = {int_01}, but dim_length = {int_02}!', int_01 = start_applied( di) + count_applied( di) - 1, int_02 = dim_length)
 
-    END DO
+    end do
 
     ! Read the data
-    IF (par%master) THEN
+    if (par%master) then
       nerr = NF90_GET_VAR( ncid, id_var, d, start, count)
-      IF (nerr /= NF90_NOERR) CALL crash('NF90_GET_VAR failed for variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '"!')
-    END IF
-    CALL sync
+      if (nerr /= NF90_NOERR) call crash('NF90_GET_VAR failed for variable "' // trim( var_name) // '" in file "' // trim( filename) // '"!')
+    end if
+    call sync
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE read_var_master_dp_1D
+  end subroutine read_var_master_dp_1D
 
-  SUBROUTINE read_var_master_dp_2D(  filename, ncid, id_var, d, start, count)
+  subroutine read_var_master_dp_2D( filename, ncid, id_var, d, start, count)
     ! Read data from a NetCDF file
     !
     ! NOTE: only the Master actually reads data! Distributing to other processes
     !       must be done afterward
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    INTEGER,                             INTENT(IN)    :: id_var
-    REAL(dp), DIMENSION(:,:  ), Optional,INTENT(OUT)   :: d
-    INTEGER,  DIMENSION(2    ), OPTIONAL,INTENT(IN)    :: start, count
+    character(len=*),                    intent(in   ) :: filename
+    integer,                             intent(in   ) :: ncid
+    integer,                             intent(in   ) :: id_var
+    real(dp), dimension(:,:  ), optional,intent(  out) :: d
+    integer,  dimension(2),     optional,intent(in   ) :: start, count
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'read_var_master_dp_2D'
-    CHARACTER(LEN=256)                                 :: var_name
-    INTEGER                                            :: var_type
-    INTEGER                                            :: ndims_of_var
-    INTEGER,  DIMENSION( NF90_MAX_VAR_DIMS)            :: dims_of_var
-    INTEGER                                            :: di
-    CHARACTER(LEN=256)                                 :: dim_name
-    INTEGER                                            :: dim_length
-    INTEGER,  DIMENSION( 2)                            :: start_applied, count_applied
+    character(len=1024), parameter          :: routine_name = 'read_var_master_dp_2D'
+    character(len=1024)                     :: var_name
+    integer                                 :: var_type
+    integer                                 :: ndims_of_var
+    integer,  dimension( NF90_MAX_VAR_DIMS) :: dims_of_var
+    integer                                 :: di
+    character(len=1024)                     :: dim_name
+    integer                                 :: dim_length
+    integer, dimension(2)                   :: start_applied, count_applied
 
     ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+    call init_routine( routine_name, do_track_resource_use = .false.)
 
-    ! Inquire some info on this variable
-    CALL inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
+    ! inquire some info on this variable
+    call inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
 
     ! Check variable type
-    IF (.NOT. (var_type == NF90_FLOAT .OR. var_type == NF90_DOUBLE)) &
-      CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
+    if (.not. (var_type == NF90_FLOAT .or. var_type == NF90_DOUBLE)) &
+      call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
 
     ! Check number of dimensions
-    IF (ndims_of_var /= 2) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+    if (ndims_of_var /= 2) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 
     if (par%master .and. .not. present(d)) call crash('d needs to be present on master')
 
     ! Set start and count
-    IF (PRESENT( start)) THEN
+    if (present( start)) then
       start_applied = start
-    ELSE
+    else
       start_applied = (/ 1, 1 /)
-    END IF
-    IF (par%master .AND. ANY( start_applied == 0)) CALL crash('start must be positive!')
+    end if
+    if (par%master .and. any( start_applied == 0)) call crash('start must be positive!')
 
-    IF (PRESENT( count)) THEN
+    if (present( count)) then
       count_applied = count
-    ELSE
+    else
       if (par%master) then
         count_applied = shape(d)
       else
         count_applied = 1
       end if
-    END IF
-    IF (par%master .AND. ANY( count_applied == 0)) CALL crash('count must be positive!')
+    end if
+    if (par%master .and. any( count_applied == 0)) call crash('count must be positive!')
 
     ! Check sizes of dimensions
-    DO di = 1, ndims_of_var
+    do di = 1, ndims_of_var
 
       ! Check size of this dimension in the file
-      CALL inquire_dim_info( filename, ncid, dims_of_var( di), dim_name = dim_name, dim_length = dim_length)
+      call inquire_dim_info( filename, ncid, dims_of_var( di), dim_name = dim_name, dim_length = dim_length)
 
       ! Check if the combination of dimension size, start, and count, matches the size of d
-      IF (par%master .AND. count_applied( di) /= SIZE( d,di)) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // &
+      if (par%master .and. count_applied( di) /= SIZE( d,di)) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // trim( filename) // &
         '": count({int_01}) = {int_02}, but SIZE(d,{int_03}) = {int_04}!', int_01 = di, int_02 = count_applied( di), int_03 = di, int_04 = SIZE( d,di))
 
       ! Check if this dimension is large enough to read this amount of data
-      IF (par%master .AND. start_applied( di) + count_applied( di) - 1 > dim_length) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // &
-        TRIM( filename) // '"start + count - 1 = {int_01}, but dim_length = {int_02}!', int_01 = start_applied( di) + count_applied( di) - 1, int_02 = dim_length)
+      if (par%master .and. start_applied( di) + count_applied( di) - 1 > dim_length) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // &
+        trim( filename) // '"start + count - 1 = {int_01}, but dim_length = {int_02}!', int_01 = start_applied( di) + count_applied( di) - 1, int_02 = dim_length)
 
-    END DO
+    end do
 
     ! Read the data
-    IF (par%master) THEN
+    if (par%master) then
       nerr = NF90_GET_VAR( ncid, id_var, d, start, count)
-      IF (nerr /= NF90_NOERR) CALL crash('NF90_GET_VAR failed for variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '"!')
-    END IF
-    CALL sync
+      if (nerr /= NF90_NOERR) call crash('NF90_GET_VAR failed for variable "' // trim( var_name) // '" in file "' // trim( filename) // '"!')
+    end if
+    call sync
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE read_var_master_dp_2D
+  end subroutine read_var_master_dp_2D
 
-  SUBROUTINE read_var_master_dp_3D(  filename, ncid, id_var, d, start, count)
+  subroutine read_var_master_dp_3D( filename, ncid, id_var, d, start, count)
     ! Read data from a NetCDF file
     !
     ! NOTE: only the Master actually reads data! Distributing to other processes
     !       must be done afterward
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    INTEGER,                             INTENT(IN)    :: id_var
-    REAL(dp), DIMENSION(:,:,:), optional,INTENT(OUT)   :: d
-    INTEGER,  DIMENSION(3    ), OPTIONAL,INTENT(IN)    :: start, count
+    character(len=*),                     intent(in   ) :: filename
+    integer,                              intent(in   ) :: ncid
+    integer,                              intent(in   ) :: id_var
+    real(dp), dimension(:,:,:), optional, intent(  out) :: d
+    integer,  dimension(3),     optional, intent(in   ) :: start, count
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'read_var_master_dp_3D'
-    CHARACTER(LEN=256)                                 :: var_name
-    INTEGER                                            :: var_type
-    INTEGER                                            :: ndims_of_var
-    INTEGER,  DIMENSION( NF90_MAX_VAR_DIMS)            :: dims_of_var
-    INTEGER                                            :: di
-    CHARACTER(LEN=256)                                 :: dim_name
-    INTEGER                                            :: dim_length
-    INTEGER,  DIMENSION( 3)                            :: start_applied, count_applied
+    character(len=1024), parameter          :: routine_name = 'read_var_master_dp_3D'
+    character(len=1024)                     :: var_name
+    integer                                 :: var_type
+    integer                                 :: ndims_of_var
+    integer,  dimension( NF90_MAX_VAR_DIMS) :: dims_of_var
+    integer                                 :: di
+    character(len=1024)                     :: dim_name
+    integer                                 :: dim_length
+    integer, dimension(3)                   :: start_applied, count_applied
 
     ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+    call init_routine( routine_name, do_track_resource_use = .false.)
 
-    ! Inquire some info on this variable
-    CALL inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
+    ! inquire some info on this variable
+    call inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
 
     ! Check variable type
-    IF (.NOT. (var_type == NF90_FLOAT .OR. var_type == NF90_DOUBLE)) &
-      CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
+    if (.not. (var_type == NF90_FLOAT .or. var_type == NF90_DOUBLE)) &
+      call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
 
     ! Check number of dimensions
-    IF (ndims_of_var /= 3) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+    if (ndims_of_var /= 3) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 
     if (par%master .and. .not. present(d)) call crash('d needs to be present on master')
 
     ! Set start and count
-    IF (PRESENT( start)) THEN
+    if (present( start)) then
       start_applied = start
-    ELSE
+    else
       start_applied = (/ 1, 1, 1 /)
-    END IF
-    IF (par%master .AND. ANY( start_applied == 0)) CALL crash('start must be positive!')
+    end if
+    if (par%master .and. any( start_applied == 0)) call crash('start must be positive!')
 
-    IF (PRESENT( count)) THEN
+    if (present( count)) then
       count_applied = count
-    ELSE
+    else
       if (par%master) then
         count_applied = shape(d)
       else
         count_applied = 1
       end if
-    END IF
-    IF (par%master .AND. ANY( count_applied == 0)) CALL crash('count must be positive!')
+    end if
+    if (par%master .and. any( count_applied == 0)) call crash('count must be positive!')
 
     ! Check sizes of dimensions
-    DO di = 1, ndims_of_var
+    do di = 1, ndims_of_var
 
       ! Check size of this dimension in the file
-      CALL inquire_dim_info( filename, ncid, dims_of_var( di), dim_name = dim_name, dim_length = dim_length)
+      call inquire_dim_info( filename, ncid, dims_of_var( di), dim_name = dim_name, dim_length = dim_length)
 
       ! Check if the combination of dimension size, start, and count, matches the size of d
-      IF (par%master .AND. count_applied( di) /= SIZE( d,di)) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // &
+      if (par%master .and. count_applied( di) /= SIZE( d,di)) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // trim( filename) // &
         '": count({int_01}) = {int_02}, but SIZE(d,{int_03}) = {int_04}!', int_01 = di, int_02 = count_applied( di), int_03 = di, int_04 = SIZE( d,di))
 
       ! Check if this dimension is large enough to read this amount of data
-      IF (par%master .AND. start_applied( di) + count_applied( di) - 1 > dim_length) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // &
-        TRIM( filename) // '"start + count - 1 = {int_01}, but dim_length = {int_02}!', int_01 = start_applied( di) + count_applied( di) - 1, int_02 = dim_length)
+      if (par%master .and. start_applied( di) + count_applied( di) - 1 > dim_length) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // &
+        trim( filename) // '"start + count - 1 = {int_01}, but dim_length = {int_02}!', int_01 = start_applied( di) + count_applied( di) - 1, int_02 = dim_length)
 
-    END DO
+    end do
 
     ! Read the data
-    IF (par%master) THEN
+    if (par%master) then
       nerr = NF90_GET_VAR( ncid, id_var, d, start, count)
-      IF (nerr /= NF90_NOERR) CALL crash('NF90_GET_VAR failed for variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '"!')
-    END IF
-    CALL sync
+      if (nerr /= NF90_NOERR) call crash('NF90_GET_VAR failed for variable "' // trim( var_name) // '" in file "' // trim( filename) // '"!')
+    end if
+    call sync
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE read_var_master_dp_3D
+  end subroutine read_var_master_dp_3D
 
-  SUBROUTINE read_var_master_dp_4D(  filename, ncid, id_var, d, start, count)
+  subroutine read_var_master_dp_4D( filename, ncid, id_var, d, start, count)
     ! Read data from a NetCDF file
     !
     ! NOTE: only the Master actually reads data! Distributing to other processes
     !       must be done afterward
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    INTEGER,                             INTENT(IN)    :: id_var
-    REAL(dp), DIMENSION(:,:,:,:), optional, INTENT(OUT)   :: d
-    INTEGER,  DIMENSION(4    ), OPTIONAL,INTENT(IN)    :: start, count
+    character(len=*),                       intent(in   ) :: filename
+    integer,                                intent(in   ) :: ncid
+    integer,                                intent(in   ) :: id_var
+    real(dp), dimension(:,:,:,:), optional, intent(  out) :: d
+    integer,  dimension(4),       optional, intent(in   ) :: start, count
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'read_var_master_dp_4D'
-    CHARACTER(LEN=256)                                 :: var_name
-    INTEGER                                            :: var_type
-    INTEGER                                            :: ndims_of_var
-    INTEGER,  DIMENSION( NF90_MAX_VAR_DIMS)            :: dims_of_var
-    INTEGER                                            :: di
-    CHARACTER(LEN=256)                                 :: dim_name
-    INTEGER                                            :: dim_length
-    INTEGER,  DIMENSION( 4)                            :: start_applied, count_applied
+    character(len=1024), parameter          :: routine_name = 'read_var_master_dp_4D'
+    character(len=1024)                     :: var_name
+    integer                                 :: var_type
+    integer                                 :: ndims_of_var
+    integer,  dimension( NF90_MAX_VAR_DIMS) :: dims_of_var
+    integer                                 :: di
+    character(len=1024)                     :: dim_name
+    integer                                 :: dim_length
+    integer, dimension(4)                   :: start_applied, count_applied
 
     ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+    call init_routine( routine_name, do_track_resource_use = .false.)
 
-    ! Inquire some info on this variable
-    CALL inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
+    ! inquire some info on this variable
+    call inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
 
     ! Check variable type
-    IF (.NOT. (var_type == NF90_FLOAT .OR. var_type == NF90_DOUBLE)) &
-      CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
+    if (.not. (var_type == NF90_FLOAT .or. var_type == NF90_DOUBLE)) &
+      call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
 
     ! Check number of dimensions
-    IF (ndims_of_var /= 4) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+    if (ndims_of_var /= 4) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 
     if (par%master .and. .not. present(d)) call crash('d needs to be present on master')
 
     ! Set start and count
-    IF (PRESENT( start)) THEN
+    if (present( start)) then
       start_applied = start
-    ELSE
+    else
       start_applied = (/ 1, 1, 1, 1 /)
-    END IF
-    IF (par%master .AND. ANY( start_applied == 0)) CALL crash('start must be positive!')
+    end if
+    if (par%master .and. any( start_applied == 0)) call crash('start must be positive!')
 
-    IF (PRESENT( count)) THEN
+    if (present( count)) then
       count_applied = count
-    ELSE
+    else
       if (par%master) then
         count_applied = shape(d)
       else
         count_applied = 1
       end if
-    END IF
-    IF (par%master .AND. ANY( count_applied == 0)) CALL crash('count must be positive!')
+    end if
+    if (par%master .and. any( count_applied == 0)) call crash('count must be positive!')
 
     ! Check sizes of dimensions
-    DO di = 1, ndims_of_var
+    do di = 1, ndims_of_var
 
       ! Check size of this dimension in the file
-      CALL inquire_dim_info( filename, ncid, dims_of_var( di), dim_name = dim_name, dim_length = dim_length)
+      call inquire_dim_info( filename, ncid, dims_of_var( di), dim_name = dim_name, dim_length = dim_length)
 
       ! Check if the combination of dimension size, start, and count, matches the size of d
-      IF (par%master .AND. count_applied( di) /= SIZE( d,di)) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // &
+      if (par%master .and. count_applied( di) /= SIZE( d,di)) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // trim( filename) // &
         '": count({int_01}) = {int_02}, but SIZE(d,{int_03}) = {int_04}!', int_01 = di, int_02 = count_applied( di), int_03 = di, int_04 = SIZE( d,di))
 
       ! Check if this dimension is large enough to read this amount of data
-      IF (par%master .AND. start_applied( di) + count_applied( di) - 1 > dim_length) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // &
-        TRIM( filename) // '"start + count - 1 = {int_01}, but dim_length = {int_02}!', int_01 = start_applied( di) + count_applied( di) - 1, int_02 = dim_length)
+      if (par%master .and. start_applied( di) + count_applied( di) - 1 > dim_length) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // &
+        trim( filename) // '"start + count - 1 = {int_01}, but dim_length = {int_02}!', int_01 = start_applied( di) + count_applied( di) - 1, int_02 = dim_length)
 
-    END DO
+    end do
 
     ! Read the data
-    IF (par%master) THEN
+    if (par%master) then
       nerr = NF90_GET_VAR( ncid, id_var, d, start, count)
-      IF (nerr /= NF90_NOERR) CALL crash('NF90_GET_VAR failed for variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '"!')
-    END IF
-    CALL sync
+      if (nerr /= NF90_NOERR) call crash('NF90_GET_VAR failed for variable "' // trim( var_name) // '" in file "' // trim( filename) // '"!')
+    end if
+    call sync
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE read_var_master_dp_4D
+  end subroutine read_var_master_dp_4D
 
 ! ===== Write data to variables =====
 ! ===================================
@@ -4288,1423 +4200,1371 @@ CONTAINS
   ! NOTE: only the Master actually writes data! Gathering from other processes
   !       must be done beforehand
 
-  SUBROUTINE write_var_master_int_0D(  filename, ncid, id_var, d)
+  subroutine write_var_master_int_0D( filename, ncid, id_var, d)
     ! Write data to a NetCDF file
     !
     ! NOTE: only the Master actually writes data! Gathering from other processes
     !       must be done beforehand
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    INTEGER,                             INTENT(IN)    :: id_var
-    INTEGER,                             INTENT(IN)    :: d
+    character(len=*), intent(in   ) :: filename
+    integer,          intent(in   ) :: ncid
+    integer,          intent(in   ) :: id_var
+    integer,          intent(in   ) :: d
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_var_master_int_0D'
-    CHARACTER(LEN=256)                                 :: var_name
-    INTEGER                                            :: var_type
-    INTEGER                                            :: ndims_of_var
+    character(len=1024), parameter :: routine_name = 'write_var_master_int_0D'
+    character(len=1024)            :: var_name
+    integer                        :: var_type
+    integer                        :: ndims_of_var
 
     ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+    call init_routine( routine_name, do_track_resource_use = .false.)
 
-    ! Inquire some info on this variable
-    CALL inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var)
+    ! inquire some info on this variable
+    call inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var)
 
     ! Check variable type
-    IF (par%master .AND. .NOT. (var_type == NF90_INT)) &
-      CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_INT!')
+    if (par%master .and. .not. (var_type == NF90_INT)) &
+      call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" is not of type NF90_INT!')
 
     ! Check number of dimensions
-    IF (par%master .AND. ndims_of_var /= 0) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+    if (par%master .and. ndims_of_var /= 0) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 
     ! Write the data
-    IF (par%master) THEN
+    if (par%master) then
       nerr = NF90_PUT_VAR( ncid, id_var, d)
-      IF (nerr /= NF90_NOERR) CALL crash('NF90_PUT_VAR failed for variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '"!')
-    END IF
-    CALL sync
+      if (nerr /= NF90_NOERR) call crash('NF90_PUT_VAR failed for variable "' // trim( var_name) // '" in file "' // trim( filename) // '"!')
+    end if
+    call sync
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE write_var_master_int_0D
+  end subroutine write_var_master_int_0D
 
-  SUBROUTINE write_var_master_int_1D(  filename, ncid, id_var, d, start, count)
+  subroutine write_var_master_int_1D(  filename, ncid, id_var, d, start, count)
     ! Write data to a NetCDF file
     !
     ! NOTE: only the Master actually writes data! Gathering from other processes
     !       must be done beforehand
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    INTEGER,                             INTENT(IN)    :: id_var
-    INTEGER,  DIMENSION(:    ), optional,INTENT(IN)    :: d
-    INTEGER,  DIMENSION(1    ), OPTIONAL,INTENT(IN)    :: start, count
+    character(len=*),                    intent(in   ) :: filename
+    integer,                             intent(in   ) :: ncid
+    integer,                             intent(in   ) :: id_var
+    integer,  dimension(:    ), optional,intent(in   ) :: d
+    integer,  dimension(1    ), optional,intent(in   ) :: start, count
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_var_master_int_1D'
-    CHARACTER(LEN=256)                                 :: var_name
-    INTEGER                                            :: var_type
-    INTEGER                                            :: ndims_of_var
-    INTEGER,  DIMENSION( NF90_MAX_VAR_DIMS)            :: dims_of_var
-    INTEGER                                            :: di
-    CHARACTER(LEN=256)                                 :: dim_name
-    INTEGER                                            :: dim_length
-    INTEGER,  DIMENSION( 1)                            :: start_applied, count_applied
+    character(len=1024), parameter                     :: routine_name = 'write_var_master_int_1D'
+    character(len=1024)                                :: var_name
+    integer                                            :: var_type
+    integer                                            :: ndims_of_var
+    integer,  dimension( NF90_MAX_VAR_DIMS)            :: dims_of_var
+    integer                                            :: di
+    character(len=1024)                                :: dim_name
+    integer                                            :: dim_length
+    integer,  dimension( 1)                            :: start_applied, count_applied
 
     ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+    call init_routine( routine_name, do_track_resource_use = .false.)
 
-    ! Inquire some info on this variable
-    CALL inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
+    ! inquire some info on this variable
+    call inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
 
     ! Check variable type
-    IF (par%master .AND. .NOT. (var_type == NF90_INT)) &
-      CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_INT!')
+    if (par%master .and. .not. (var_type == NF90_INT)) &
+      call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" is not of type NF90_INT!')
 
     ! Check number of dimensions
-    IF (par%master .AND. ndims_of_var /= 1) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+    if (par%master .and. ndims_of_var /= 1) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 
     if (par%master .and. .not. present(d)) call crash('d needs to be present on master')
 
     ! Set start and count
-    IF (PRESENT( start)) THEN
+    if (present( start)) then
       start_applied = start
-    ELSE
+    else
       start_applied = 1
-    END IF
-    IF (par%master .AND. ANY( start_applied == 0)) CALL crash('start must be positive!')
+    end if
+    if (par%master .and. any( start_applied == 0)) call crash('start must be positive!')
 
-    IF (PRESENT( count)) THEN
+    if (present( count)) then
       count_applied = count
-    ELSE
+    else
       if (par%master) then
         count_applied = shape(d)
       else
         count_applied = 1
       end if
-    END IF
-    IF (par%master .AND. ANY( count_applied == 0)) CALL crash('count must be positive!')
+    end if
+    if (par%master .and. any( count_applied == 0)) call crash('count must be positive!')
 
     ! Check sizes of dimensions
-    DO di = 1, ndims_of_var
+    do di = 1, ndims_of_var
 
       ! Check size of this dimension in the file
-      CALL inquire_dim_info( filename, ncid, dims_of_var( di), dim_name = dim_name, dim_length = dim_length)
+      call inquire_dim_info( filename, ncid, dims_of_var( di), dim_name = dim_name, dim_length = dim_length)
 
-      IF (par%master) then
+      if (par%master) then
         ! Check if the combination of dimension size, start, and count, matches the size of d
-        if ( count_applied( di) /= SIZE( d,di)) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // &
+        if ( count_applied( di) /= SIZE( d,di)) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // trim( filename) // &
         '": count({int_01}) = {int_02}, but SIZE(d,{int_03}) = {int_04}!', int_01 = di, int_02 = count_applied( di), int_03 = di, int_04 = SIZE( d,di))
 
        ! Check if this dimension is large enough to read this amount of data
-       IF (start_applied( di) + count_applied( di) - 1 > dim_length) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // &
-        TRIM( filename) // '"start + count - 1 = {int_01}, but dim_length = {int_02}!', int_01 = start_applied( di) + count_applied( di) - 1, int_02 = dim_length)
+       if (start_applied( di) + count_applied( di) - 1 > dim_length) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // &
+        trim( filename) // '"start + count - 1 = {int_01}, but dim_length = {int_02}!', int_01 = start_applied( di) + count_applied( di) - 1, int_02 = dim_length)
       end if
 
-    END DO
+    end do
 
     ! Write the data
-    IF (par%master) THEN
+    if (par%master) then
       nerr = NF90_PUT_VAR( ncid, id_var, d, start_applied, count_applied)
-      IF (nerr /= NF90_NOERR) CALL crash('NF90_PUT_VAR failed for variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '"!')
-    END IF
-    CALL sync
+      if (nerr /= NF90_NOERR) call crash('NF90_PUT_VAR failed for variable "' // trim( var_name) // '" in file "' // trim( filename) // '"!')
+    end if
+    call sync
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE write_var_master_int_1D
+  end subroutine write_var_master_int_1D
 
-  SUBROUTINE write_var_master_int_2D(  filename, ncid, id_var, d, start, count)
+  subroutine write_var_master_int_2D( filename, ncid, id_var, d, start, count)
     ! Write data to a NetCDF file
     !
     ! NOTE: only the Master actually writes data! Gathering from other processes
     !       must be done beforehand
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    INTEGER,                             INTENT(IN)    :: id_var
-    INTEGER,  DIMENSION(:,:  ), optional,INTENT(IN)    :: d
-    INTEGER,  DIMENSION(2    ), OPTIONAL,INTENT(IN)    :: start, count
+    character(len=*),                   intent(in   ) :: filename
+    integer,                            intent(in   ) :: ncid
+    integer,                            intent(in   ) :: id_var
+    integer,  dimension(:,:), optional, intent(in   ) :: d
+    integer,  dimension(2  ), optional, intent(in   ) :: start, count
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_var_master_int_2D'
-    CHARACTER(LEN=256)                                 :: var_name
-    INTEGER                                            :: var_type
-    INTEGER                                            :: ndims_of_var
-    INTEGER,  DIMENSION( NF90_MAX_VAR_DIMS)            :: dims_of_var
-    INTEGER                                            :: di
-    CHARACTER(LEN=256)                                 :: dim_name
-    INTEGER                                            :: dim_length
-    INTEGER,  DIMENSION( 2)                            :: start_applied, count_applied
+    character(len=1024), parameter          :: routine_name = 'write_var_master_int_2D'
+    character(len=1024)                     :: var_name
+    integer                                 :: var_type
+    integer                                 :: ndims_of_var
+    integer,  dimension( NF90_MAX_VAR_DIMS) :: dims_of_var
+    integer                                 :: di
+    character(len=1024)                     :: dim_name
+    integer                                 :: dim_length
+    integer, dimension(2)                   :: start_applied, count_applied
 
     ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+    call init_routine( routine_name, do_track_resource_use = .false.)
 
-    ! Inquire some info on this variable
-    CALL inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
+    ! inquire some info on this variable
+    call inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
 
     ! Check variable type
-    IF (par%master .AND. .NOT. (var_type == NF90_INT)) &
-      CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_INT!')
+    if (par%master .and. .not. (var_type == NF90_INT)) &
+      call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" is not of type NF90_INT!')
 
     ! Check number of dimensions
-    IF (par%master .AND. ndims_of_var /= 2) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+    if (par%master .and. ndims_of_var /= 2) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 
     if (par%master .and. .not. present(d)) call crash('d needs to be present on master')
 
     ! Set start and count
-    IF (PRESENT( start)) THEN
+    if (present( start)) then
       start_applied = start
-    ELSE
+    else
       start_applied = (/ 1, 1 /)
-    END IF
-    IF (par%master .AND. ANY( start_applied == 0)) CALL crash('start must be positive!')
+    end if
+    if (par%master .and. any( start_applied == 0)) call crash('start must be positive!')
 
-    IF (PRESENT( count)) THEN
+    if (present( count)) then
       count_applied = count
-    ELSE
+    else
       if (par%master) then
         count_applied = shape(d)
       else
         count_applied = 1
       end if
-    END IF
-    IF (par%master .AND. ANY( count_applied == 0)) CALL crash('count must be positive!')
+    end if
+    if (par%master .and. any( count_applied == 0)) call crash('count must be positive!')
 
     ! Check sizes of dimensions
-    DO di = 1, ndims_of_var
+    do di = 1, ndims_of_var
 
       ! Check size of this dimension in the file
-      CALL inquire_dim_info( filename, ncid, dims_of_var( di), dim_name = dim_name, dim_length = dim_length)
+      call inquire_dim_info( filename, ncid, dims_of_var( di), dim_name = dim_name, dim_length = dim_length)
 
-      IF (par%master) then
+      if (par%master) then
         ! Check if the combination of dimension size, start, and count, matches the size of d
-        if(count_applied( di) /= SIZE( d,di)) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // &
+        if(count_applied( di) /= SIZE( d,di)) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // trim( filename) // &
         '": count({int_01}) = {int_02}, but SIZE(d,{int_03}) = {int_04}!', int_01 = di, int_02 = count_applied( di), int_03 = di, int_04 = SIZE( d,di))
 
         ! Check if this dimension is large enough to read this amount of data
-        IF (par%master .AND. start_applied( di) + count_applied( di) - 1 > dim_length) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // &
-            TRIM( filename) // '"start + count - 1 = {int_01}, but dim_length = {int_02}!', int_01 = start_applied( di) + count_applied( di) - 1, int_02 = dim_length)
+        if (par%master .and. start_applied( di) + count_applied( di) - 1 > dim_length) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // &
+            trim( filename) // '"start + count - 1 = {int_01}, but dim_length = {int_02}!', int_01 = start_applied( di) + count_applied( di) - 1, int_02 = dim_length)
       end if
 
-    END DO
+    end do
 
     ! Write the data
-    IF (par%master) THEN
+    if (par%master) then
       nerr = NF90_PUT_VAR( ncid, id_var, d, start_applied, count_applied)
-      IF (nerr /= NF90_NOERR) CALL crash('NF90_PUT_VAR failed for variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '"!')
-    END IF
-    CALL sync
+      if (nerr /= NF90_NOERR) call crash('NF90_PUT_VAR failed for variable "' // trim( var_name) // '" in file "' // trim( filename) // '"!')
+    end if
+    call sync
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE write_var_master_int_2D
+  end subroutine write_var_master_int_2D
 
-  SUBROUTINE write_var_master_int_3D(  filename, ncid, id_var, d, start, count)
+  subroutine write_var_master_int_3D( filename, ncid, id_var, d, start, count)
     ! Write data to a NetCDF file
     !
     ! NOTE: only the Master actually writes data! Gathering from other processes
     !       must be done beforehand
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    INTEGER,                             INTENT(IN)    :: id_var
-    INTEGER,  DIMENSION(:,:,:), optional,INTENT(IN)    :: d
-    INTEGER,  DIMENSION(3    ), OPTIONAL,INTENT(IN)    :: start, count
+    character(len=*),                    intent(in   ) :: filename
+    integer,                             intent(in   ) :: ncid
+    integer,                             intent(in   ) :: id_var
+    integer, dimension(:,:,:), optional, intent(in   ) :: d
+    integer, dimension(3),     optional, intent(in   ) :: start, count
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_var_master_int_3D'
-    CHARACTER(LEN=256)                                 :: var_name
-    INTEGER                                            :: var_type
-    INTEGER                                            :: ndims_of_var
-    INTEGER,  DIMENSION( NF90_MAX_VAR_DIMS)            :: dims_of_var
-    INTEGER                                            :: di
-    CHARACTER(LEN=256)                                 :: dim_name
-    INTEGER                                            :: dim_length
-    INTEGER,  DIMENSION( 3)                            :: start_applied, count_applied
+    character(len=1024), parameter          :: routine_name = 'write_var_master_int_3D'
+    character(len=1024)                     :: var_name
+    integer                                 :: var_type
+    integer                                 :: ndims_of_var
+    integer,  dimension( NF90_MAX_VAR_DIMS) :: dims_of_var
+    integer                                 :: di
+    character(len=1024)                     :: dim_name
+    integer                                 :: dim_length
+    integer, dimension(3)                   :: start_applied, count_applied
 
     ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+    call init_routine( routine_name, do_track_resource_use = .false.)
 
-    ! Inquire some info on this variable
-    CALL inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
+    ! inquire some info on this variable
+    call inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
 
     ! Check variable type
-    IF (par%master .AND. .NOT. (var_type == NF90_INT)) &
-      CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_INT!')
+    if (par%master .and. .not. (var_type == NF90_INT)) &
+      call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" is not of type NF90_INT!')
 
     ! Check number of dimensions
-    IF (par%master .AND. ndims_of_var /= 3) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+    if (par%master .and. ndims_of_var /= 3) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 
     if (par%master .and. .not. present(d)) call crash('d needs to be present on master')
 
     ! Set start and count
-    IF (PRESENT( start)) THEN
+    if (present( start)) then
       start_applied = start
-    ELSE
+    else
       start_applied = (/ 1, 1, 1 /)
-    END IF
-    IF (par%master .AND. ANY( start_applied == 0)) CALL crash('start must be positive!')
+    end if
+    if (par%master .and. any( start_applied == 0)) call crash('start must be positive!')
 
-    IF (PRESENT( count)) THEN
+    if (present( count)) then
       count_applied = count
-    ELSE
+    else
       if (par%master) then
         count_applied = shape(d)
       else
         count_applied = 1
       end if
-    END IF
-    IF (par%master .AND. ANY( count_applied == 0)) CALL crash('count must be positive!')
+    end if
+    if (par%master .and. any( count_applied == 0)) call crash('count must be positive!')
 
     ! Check sizes of dimensions
-    DO di = 1, ndims_of_var
+    do di = 1, ndims_of_var
 
       ! Check size of this dimension in the file
-      CALL inquire_dim_info( filename, ncid, dims_of_var( di), dim_name = dim_name, dim_length = dim_length)
+      call inquire_dim_info( filename, ncid, dims_of_var( di), dim_name = dim_name, dim_length = dim_length)
 
-      IF (par%master) then
+      if (par%master) then
         ! Check if the combination of dimension size, start, and count, matches the size of d
-        if(count_applied( di) /= SIZE( d,di)) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // &
+        if(count_applied( di) /= SIZE( d,di)) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // trim( filename) // &
         '": count({int_01}) = {int_02}, but SIZE(d,{int_03}) = {int_04}!', int_01 = di, int_02 = count_applied( di), int_03 = di, int_04 = SIZE( d,di))
 
         ! Check if this dimension is large enough to read this amount of data
-        IF (start_applied( di) + count_applied( di) - 1 > dim_length) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // &
-          TRIM( filename) // '"start + count - 1 = {int_01}, but dim_length = {int_02}!', int_01 = start_applied( di) + count_applied( di) - 1, int_02 = dim_length)
+        if (start_applied( di) + count_applied( di) - 1 > dim_length) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // &
+          trim( filename) // '"start + count - 1 = {int_01}, but dim_length = {int_02}!', int_01 = start_applied( di) + count_applied( di) - 1, int_02 = dim_length)
       end if
 
-    END DO
+    end do
 
     ! Write the data
-    IF (par%master) THEN
+    if (par%master) then
       nerr = NF90_PUT_VAR( ncid, id_var, d, start_applied, count_applied)
-      IF (nerr /= NF90_NOERR) CALL crash('NF90_PUT_VAR failed for variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '"!')
-    END IF
-    CALL sync
+      if (nerr /= NF90_NOERR) call crash('NF90_PUT_VAR failed for variable "' // trim( var_name) // '" in file "' // trim( filename) // '"!')
+    end if
+    call sync
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE write_var_master_int_3D
+  end subroutine write_var_master_int_3D
 
-  SUBROUTINE write_var_master_int_4D(  filename, ncid, id_var, d, start, count)
+  subroutine write_var_master_int_4D( filename, ncid, id_var, d, start, count)
     ! Write data to a NetCDF file
     !
     ! NOTE: only the Master actually writes data! Gathering from other processes
     !       must be done beforehand
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    INTEGER,                             INTENT(IN)    :: id_var
-    INTEGER,  DIMENSION(:,:,:,:),optional,INTENT(IN)   :: d
-    INTEGER,  DIMENSION(4    ), OPTIONAL,INTENT(IN)    :: start, count
+    character(len=*),                      intent(in   ) :: filename
+    integer,                               intent(in   ) :: ncid
+    integer,                               intent(in   ) :: id_var
+    integer, dimension(:,:,:,:), optional, intent(in   ) :: d
+    integer, dimension(4),       optional, intent(in   ) :: start, count
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_var_master_int_4D'
-    CHARACTER(LEN=256)                                 :: var_name
-    INTEGER                                            :: var_type
-    INTEGER                                            :: ndims_of_var
-    INTEGER,  DIMENSION( NF90_MAX_VAR_DIMS)            :: dims_of_var
-    INTEGER                                            :: di
-    CHARACTER(LEN=256)                                 :: dim_name
-    INTEGER                                            :: dim_length
-    INTEGER,  DIMENSION( 4)                            :: start_applied, count_applied
+    character(len=1024), parameter          :: routine_name = 'write_var_master_int_4D'
+    character(len=1024)                     :: var_name
+    integer                                 :: var_type
+    integer                                 :: ndims_of_var
+    integer,  dimension( NF90_MAX_VAR_DIMS) :: dims_of_var
+    integer                                 :: di
+    character(len=1024)                     :: dim_name
+    integer                                 :: dim_length
+    integer, dimension(4)                   :: start_applied, count_applied
 
     ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+    call init_routine( routine_name, do_track_resource_use = .false.)
 
-    ! Inquire some info on this variable
-    CALL inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
+    ! inquire some info on this variable
+    call inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
 
     ! Check variable type
-    IF (par%master .AND. .NOT. (var_type == NF90_INT)) &
-      CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_INT!')
+    if (par%master .and. .not. (var_type == NF90_INT)) &
+      call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" is not of type NF90_INT!')
 
     ! Check number of dimensions
-    IF (par%master .AND. ndims_of_var /= 4) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+    if (par%master .and. ndims_of_var /= 4) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 
     if (par%master .and. .not. present(d)) call crash('d needs to be present on master')
 
     ! Set start and count
-    IF (PRESENT( start)) THEN
+    if (present( start)) then
       start_applied = start
-    ELSE
+    else
       start_applied = (/ 1, 1, 1, 1 /)
-    END IF
-    IF (par%master .AND. ANY( start_applied == 0)) CALL crash('start must be positive!')
+    end if
+    if (par%master .and. any( start_applied == 0)) call crash('start must be positive!')
 
-    IF (PRESENT( count)) THEN
+    if (present( count)) then
       count_applied = count
-    ELSE
+    else
       if (par%master) then
         count_applied = shape(d)
       else
         count_applied = 1
       end if
-    END IF
-    IF (par%master .AND. ANY( count_applied == 0)) CALL crash('count must be positive!')
+    end if
+    if (par%master .and. any( count_applied == 0)) call crash('count must be positive!')
 
     ! Check sizes of dimensions
-    DO di = 1, ndims_of_var
+    do di = 1, ndims_of_var
 
       ! Check size of this dimension in the file
-      CALL inquire_dim_info( filename, ncid, dims_of_var( di), dim_name = dim_name, dim_length = dim_length)
+      call inquire_dim_info( filename, ncid, dims_of_var( di), dim_name = dim_name, dim_length = dim_length)
 
-      IF (par%master) then
+      if (par%master) then
         ! Check if the combination of dimension size, start, and count, matches the size of d
-        if( count_applied( di) /= SIZE( d,di)) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // &
+        if( count_applied( di) /= SIZE( d,di)) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // trim( filename) // &
         '": count({int_01}) = {int_02}, but SIZE(d,{int_03}) = {int_04}!', int_01 = di, int_02 = count_applied( di), int_03 = di, int_04 = SIZE( d,di))
 
         ! Check if this dimension is large enough to read this amount of data
-        IF (start_applied( di) + count_applied( di) - 1 > dim_length) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // &
-          TRIM( filename) // '"start + count - 1 = {int_01}, but dim_length = {int_02}!', int_01 = start_applied( di) + count_applied( di) - 1, int_02 = dim_length)
+        if (start_applied( di) + count_applied( di) - 1 > dim_length) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // &
+          trim( filename) // '"start + count - 1 = {int_01}, but dim_length = {int_02}!', int_01 = start_applied( di) + count_applied( di) - 1, int_02 = dim_length)
       end if
-    END DO
+    end do
 
     ! Write the data
-    IF (par%master) THEN
+    if (par%master) then
       nerr = NF90_PUT_VAR( ncid, id_var, d, start_applied, count_applied)
-      IF (nerr /= NF90_NOERR) CALL crash('NF90_PUT_VAR failed for variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '"!')
-    END IF
-    CALL sync
+      if (nerr /= NF90_NOERR) call crash('NF90_PUT_VAR failed for variable "' // trim( var_name) // '" in file "' // trim( filename) // '"!')
+    end if
+    call sync
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE write_var_master_int_4D
+  end subroutine write_var_master_int_4D
 
-  SUBROUTINE write_var_master_int8_2D(  filename, ncid, id_var, d, start, count)
+  subroutine write_var_master_int8_2D( filename, ncid, id_var, d, start, count)
     ! Write data to a NetCDF file
     !
     ! NOTE: only the Master actually writes data! Gathering from other processes
     !       must be done beforehand
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    INTEGER,                             INTENT(IN)    :: id_var
-    INTEGER(int8),  DIMENSION(:,:  ), optional,INTENT(IN)    :: d
-    INTEGER,  DIMENSION(2    ), OPTIONAL,INTENT(IN)    :: start, count
+    character(len=*),                        intent(in   ) :: filename
+    integer,                                 intent(in   ) :: ncid
+    integer,                                 intent(in   ) :: id_var
+    integer(int8), dimension(:,:), optional, intent(in   ) :: d
+    integer,       dimension(2),   optional, intent(in   ) :: start, count
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_var_master_int8_2D'
-    CHARACTER(LEN=256)                                 :: var_name
-    INTEGER                                            :: var_type
-    INTEGER                                            :: ndims_of_var
-    INTEGER,  DIMENSION( NF90_MAX_VAR_DIMS)            :: dims_of_var
-    INTEGER                                            :: di
-    CHARACTER(LEN=256)                                 :: dim_name
-    INTEGER                                            :: dim_length
-    INTEGER,  DIMENSION( 2)                            :: start_applied, count_applied
+    character(len=1024), parameter          :: routine_name = 'write_var_master_int8_2D'
+    character(len=1024)                     :: var_name
+    integer                                 :: var_type
+    integer                                 :: ndims_of_var
+    integer,  dimension( NF90_MAX_VAR_DIMS) :: dims_of_var
+    integer                                 :: di
+    character(len=1024)                     :: dim_name
+    integer                                 :: dim_length
+    integer, dimension(2)                   :: start_applied, count_applied
 
     ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+    call init_routine( routine_name, do_track_resource_use = .false.)
 
-    ! Inquire some info on this variable
-    CALL inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
+    ! inquire some info on this variable
+    call inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
 
     ! Check variable type
-    IF (par%master .AND. .NOT. (var_type == NF90_INT64)) &
-      CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_INT!')
+    if (par%master .and. .not. (var_type == NF90_INT64)) &
+      call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" is not of type NF90_INT!')
 
     ! Check number of dimensions
-    IF (par%master .AND. ndims_of_var /= 2) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+    if (par%master .and. ndims_of_var /= 2) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 
     if (par%master .and. .not. present(d)) call crash('d needs to be present on master')
 
     ! Set start and count
-    IF (PRESENT( start)) THEN
+    if (present( start)) then
       start_applied = start
-    ELSE
+    else
       start_applied = (/ 1, 1 /)
-    END IF
-    IF (par%master .AND. ANY( start_applied == 0)) CALL crash('start must be positive!')
+    end if
+    if (par%master .and. any( start_applied == 0)) call crash('start must be positive!')
 
-    IF (PRESENT( count)) THEN
+    if (present( count)) then
       count_applied = count
-    ELSE
+    else
       if (par%master) then
         count_applied = shape(d)
       else
         count_applied = 1
       end if
-    END IF
-    IF (par%master .AND. ANY( count_applied == 0)) CALL crash('count must be positive!')
+    end if
+    if (par%master .and. any( count_applied == 0)) call crash('count must be positive!')
 
     ! Check sizes of dimensions
-    DO di = 1, ndims_of_var
+    do di = 1, ndims_of_var
 
       ! Check size of this dimension in the file
-      CALL inquire_dim_info( filename, ncid, dims_of_var( di), dim_name = dim_name, dim_length = dim_length)
+      call inquire_dim_info( filename, ncid, dims_of_var( di), dim_name = dim_name, dim_length = dim_length)
 
-      IF (par%master) then
+      if (par%master) then
         ! Check if the combination of dimension size, start, and count, matches the size of d
-        if(count_applied( di) /= SIZE( d,di)) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // &
+        if(count_applied( di) /= SIZE( d,di)) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // trim( filename) // &
         '": count({int_01}) = {int_02}, but SIZE(d,{int_03}) = {int_04}!', int_01 = di, int_02 = count_applied( di), int_03 = di, int_04 = SIZE( d,di))
 
         ! Check if this dimension is large enough to read this amount of data
-        IF (par%master .AND. start_applied( di) + count_applied( di) - 1 > dim_length) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // &
-            TRIM( filename) // '"start + count - 1 = {int_01}, but dim_length = {int_02}!', int_01 = start_applied( di) + count_applied( di) - 1, int_02 = dim_length)
+        if (par%master .and. start_applied( di) + count_applied( di) - 1 > dim_length) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // &
+            trim( filename) // '"start + count - 1 = {int_01}, but dim_length = {int_02}!', int_01 = start_applied( di) + count_applied( di) - 1, int_02 = dim_length)
       end if
 
-    END DO
+    end do
 
     ! Write the data
-    IF (par%master) THEN
+    if (par%master) then
       nerr = NF90_PUT_VAR( ncid, id_var, d, start_applied, count_applied)
-      IF (nerr /= NF90_NOERR) CALL crash('NF90_PUT_VAR failed for variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '"!')
-    END IF
-    CALL sync
+      if (nerr /= NF90_NOERR) call crash('NF90_PUT_VAR failed for variable "' // trim( var_name) // '" in file "' // trim( filename) // '"!')
+    end if
+    call sync
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE write_var_master_int8_2D
+  end subroutine write_var_master_int8_2D
 
-  SUBROUTINE write_var_master_dp_0D(  filename, ncid, id_var, d)
+  subroutine write_var_master_dp_0D( filename, ncid, id_var, d)
     ! Write data to a NetCDF file
     !
     ! NOTE: only the Master actually writes data! Gathering from other processes
     !       must be done beforehand
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    INTEGER,                             INTENT(IN)    :: id_var
-    REAL(dp),                            INTENT(IN)    :: d
+    character(len=*), intent(in   ) :: filename
+    integer,          intent(in   ) :: ncid
+    integer,          intent(in   ) :: id_var
+    real(dp),         intent(in   ) :: d
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_var_master_dp_0D'
-    CHARACTER(LEN=256)                                 :: var_name
-    INTEGER                                            :: var_type
-    INTEGER                                            :: ndims_of_var
+    character(len=1024), parameter :: routine_name = 'write_var_master_dp_0D'
+    character(len=1024)            :: var_name
+    integer                        :: var_type
+    integer                        :: ndims_of_var
 
     ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+    call init_routine( routine_name, do_track_resource_use = .false.)
 
-    ! Inquire some info on this variable
-    CALL inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var)
+    ! inquire some info on this variable
+    call inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var)
 
     ! Check variable type
-    IF (par%master .AND. .NOT. (var_type == NF90_FLOAT .OR. var_type == NF90_DOUBLE)) &
-      CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
+    if (par%master .and. .not. (var_type == NF90_FLOAT .or. var_type == NF90_DOUBLE)) &
+      call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
 
     ! Check number of dimensions
-    IF (par%master .AND. ndims_of_var /= 0) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+    if (par%master .and. ndims_of_var /= 0) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 
     ! Write the data
-    IF (par%master) THEN
+    if (par%master) then
       nerr = NF90_PUT_VAR( ncid, id_var, d)
-      IF (nerr /= NF90_NOERR) CALL crash('NF90_PUT_VAR failed for variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '"!')
-    END IF
-    CALL sync
+      if (nerr /= NF90_NOERR) call crash('NF90_PUT_VAR failed for variable "' // trim( var_name) // '" in file "' // trim( filename) // '"!')
+    end if
+    call sync
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE write_var_master_dp_0D
+  end subroutine write_var_master_dp_0D
 
-  SUBROUTINE write_var_master_dp_1D(  filename, ncid, id_var, d, start, count)
+  subroutine write_var_master_dp_1D( filename, ncid, id_var, d, start, count)
     ! Write data to a NetCDF file
     !
     ! NOTE: only the Master actually writes data! Gathering from other processes
     !       must be done beforehand
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    INTEGER,                             INTENT(IN)    :: id_var
-    REAL(dp), DIMENSION(:    ), optional,INTENT(IN)    :: d
-    INTEGER,  DIMENSION(1    ), OPTIONAL,INTENT(IN)    :: start, count
+    character(len=*),                intent(in   ) :: filename
+    integer,                         intent(in   ) :: ncid
+    integer,                         intent(in   ) :: id_var
+    real(dp), dimension(:), optional,intent(in   ) :: d
+    integer,  dimension(1), optional,intent(in   ) :: start, count
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_var_master_dp_1D'
-    CHARACTER(LEN=256)                                 :: var_name
-    INTEGER                                            :: var_type
-    INTEGER                                            :: ndims_of_var
-    INTEGER,  DIMENSION( NF90_MAX_VAR_DIMS)            :: dims_of_var
-    INTEGER                                            :: di
-    CHARACTER(LEN=256)                                 :: dim_name
-    INTEGER                                            :: dim_length
-    INTEGER,  DIMENSION( 1)                            :: start_applied, count_applied
+    character(len=1024), parameter          :: routine_name = 'write_var_master_dp_1D'
+    character(len=1024)                     :: var_name
+    integer                                 :: var_type
+    integer                                 :: ndims_of_var
+    integer,  dimension( NF90_MAX_VAR_DIMS) :: dims_of_var
+    integer                                 :: di
+    character(len=1024)                     :: dim_name
+    integer                                 :: dim_length
+    integer, dimension(1)                   :: start_applied, count_applied
 
     ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+    call init_routine( routine_name, do_track_resource_use = .false.)
 
-    ! Inquire some info on this variable
-    CALL inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
+    ! inquire some info on this variable
+    call inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
 
     ! Check variable type
-    IF (par%master .AND. .NOT. (var_type == NF90_FLOAT .OR. var_type == NF90_DOUBLE)) &
-      CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
+    if (par%master .and. .not. (var_type == NF90_FLOAT .or. var_type == NF90_DOUBLE)) &
+      call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
 
     ! Check number of dimensions
-    IF (par%master .AND. ndims_of_var /= 1) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+    if (par%master .and. ndims_of_var /= 1) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 
     if (par%master .and. .not. present(d)) call crash('d needs to be present on master')
 
     ! Set start and count
-    IF (PRESENT( start)) THEN
+    if (present( start)) then
       start_applied = start
-    ELSE
+    else
       start_applied =  1
-    END IF
-    IF (par%master .AND. ANY( start_applied == 0)) CALL crash('start must be positive!')
+    end if
+    if (par%master .and. any( start_applied == 0)) call crash('start must be positive!')
 
-    IF (PRESENT( count)) THEN
+    if (present( count)) then
       count_applied = count
-    ELSE
+    else
       if (par%master) then
         count_applied = shape(d)
       else
         count_applied = 1
       end if
-    END IF
-    IF (par%master .AND. ANY( count_applied == 0)) CALL crash('count must be positive!')
+    end if
+    if (par%master .and. any( count_applied == 0)) call crash('count must be positive!')
 
     ! Check sizes of dimensions
-    DO di = 1, ndims_of_var
+    do di = 1, ndims_of_var
 
       ! Check size of this dimension in the file
-      CALL inquire_dim_info( filename, ncid, dims_of_var( di), dim_name = dim_name, dim_length = dim_length)
+      call inquire_dim_info( filename, ncid, dims_of_var( di), dim_name = dim_name, dim_length = dim_length)
 
-      IF (par%master) then
+      if (par%master) then
         ! Check if the combination of dimension size, start, and count, matches the size of d
-        if ( count_applied( di) /= SIZE( d,di)) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // &
+        if ( count_applied( di) /= SIZE( d,di)) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // trim( filename) // &
         '": count({int_01}) = {int_02}, but SIZE(d,{int_03}) = {int_04}!', int_01 = di, int_02 = count_applied( di), int_03 = di, int_04 = SIZE( d,di))
 
         ! Check if this dimension is large enough to read this amount of data
-        IF (var_name /= 'time') THEN
+        if (var_name /= 'time') then
           ! Exception for time, because there the dimension is usually unlimited
-          IF (start_applied( di) + count_applied( di) - 1 > dim_length) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // &
-            TRIM( filename) // '"start + count - 1 = {int_01}, but dim_length = {int_02}!', int_01 = start_applied( di) + count_applied( di) - 1, int_02 = dim_length)
+          if (start_applied( di) + count_applied( di) - 1 > dim_length) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // &
+            trim( filename) // '"start + count - 1 = {int_01}, but dim_length = {int_02}!', int_01 = start_applied( di) + count_applied( di) - 1, int_02 = dim_length)
         end if
-      END IF
+      end if
 
-    END DO
+    end do
 
     ! Write the data
-    IF (par%master) THEN
+    if (par%master) then
       nerr = NF90_PUT_VAR( ncid, id_var, d, start_applied, count_applied)
-      IF (nerr /= NF90_NOERR) CALL crash('NF90_PUT_VAR failed for variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '"!')
-    END IF
-    CALL sync
+      if (nerr /= NF90_NOERR) call crash('NF90_PUT_VAR failed for variable "' // trim( var_name) // '" in file "' // trim( filename) // '"!')
+    end if
+    call sync
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE write_var_master_dp_1D
+  end subroutine write_var_master_dp_1D
 
-  SUBROUTINE write_var_master_dp_2D(  filename, ncid, id_var, d, start, count)
+  subroutine write_var_master_dp_2D( filename, ncid, id_var, d, start, count)
     ! Write data to a NetCDF file
     !
     ! NOTE: only the Master actually writes data! Gathering from other processes
     !       must be done beforehand
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    INTEGER,                             INTENT(IN)    :: id_var
-    REAL(dp), DIMENSION(:,:  ), optional,INTENT(IN)    :: d
-    INTEGER,  DIMENSION(2    ), OPTIONAL,INTENT(IN)    :: start, count
+    character(len=*),                   intent(in   ) :: filename
+    integer,                            intent(in   ) :: ncid
+    integer,                            intent(in   ) :: id_var
+    real(dp), dimension(:,:), optional, intent(in   ) :: d
+    integer,  dimension(2),   optional, intent(in   ) :: start, count
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_var_master_dp_2D'
-    CHARACTER(LEN=256)                                 :: var_name
-    INTEGER                                            :: var_type
-    INTEGER                                            :: ndims_of_var
-    INTEGER,  DIMENSION( NF90_MAX_VAR_DIMS)            :: dims_of_var
-    INTEGER                                            :: di
-    CHARACTER(LEN=256)                                 :: dim_name
-    INTEGER                                            :: dim_length
-    INTEGER,  DIMENSION( 2)                            :: start_applied, count_applied
+    character(len=1024), parameter          :: routine_name = 'write_var_master_dp_2D'
+    character(len=1024)                     :: var_name
+    integer                                 :: var_type
+    integer                                 :: ndims_of_var
+    integer,  dimension( NF90_MAX_VAR_DIMS) :: dims_of_var
+    integer                                 :: di
+    character(len=1024)                     :: dim_name
+    integer                                 :: dim_length
+    integer, dimension(2)                   :: start_applied, count_applied
 
     ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+    call init_routine( routine_name, do_track_resource_use = .false.)
 
-    ! Inquire some info on this variable
-    CALL inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
+    ! inquire some info on this variable
+    call inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
 
     ! Check variable type
-    IF (par%master .AND. .NOT. (var_type == NF90_FLOAT .OR. var_type == NF90_DOUBLE)) &
-      CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
+    if (par%master .and. .not. (var_type == NF90_FLOAT .or. var_type == NF90_DOUBLE)) &
+      call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
 
     ! Check number of dimensions
-    IF (par%master .AND. ndims_of_var /= 2) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+    if (par%master .and. ndims_of_var /= 2) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 
     if (par%master .and. .not. present(d)) call crash('d needs to be present on master')
 
     ! Set start and count
-    IF (PRESENT( start)) THEN
+    if (present( start)) then
       start_applied = start
-    ELSE
+    else
       start_applied = (/ 1, 1 /)
-    END IF
-    IF (par%master .AND. ANY( start_applied == 0)) CALL crash('start must be positive!')
+    end if
+    if (par%master .and. any( start_applied == 0)) call crash('start must be positive!')
 
-    IF (PRESENT( count)) THEN
+    if (present( count)) then
       count_applied = count
-    ELSE
+    else
       if (par%master) then
         count_applied = shape(d)
       else
         count_applied = 1
       end if
-    END IF
-    IF (par%master .AND. ANY( count_applied == 0)) CALL crash('count must be positive!')
+    end if
+    if (par%master .and. any( count_applied == 0)) call crash('count must be positive!')
 
     ! Check sizes of dimensions
-    DO di = 1, ndims_of_var
+    do di = 1, ndims_of_var
 
       ! Check size of this dimension in the file
-      CALL inquire_dim_info( filename, ncid, dims_of_var( di), dim_name = dim_name, dim_length = dim_length)
+      call inquire_dim_info( filename, ncid, dims_of_var( di), dim_name = dim_name, dim_length = dim_length)
 
       ! Check if the combination of dimension size, start, and count, matches the size of d
-      IF (par%master) then
-        if( count_applied( di) /= SIZE( d,di)) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // &
+      if (par%master) then
+        if( count_applied( di) /= SIZE( d,di)) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // trim( filename) // &
         '": count({int_01}) = {int_02}, but SIZE(d,{int_03}) = {int_04}!', int_01 = di, int_02 = count_applied( di), int_03 = di, int_04 = SIZE( d,di))
 
       ! Check if this dimension is large enough to read this amount of data
-        IF (start_applied( di) + count_applied( di) - 1 > dim_length) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // &
-        TRIM( filename) // '"start + count - 1 = {int_01}, but dim_length = {int_02}!', int_01 = start_applied( di) + count_applied( di) - 1, int_02 = dim_length)
+        if (start_applied( di) + count_applied( di) - 1 > dim_length) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // &
+        trim( filename) // '"start + count - 1 = {int_01}, but dim_length = {int_02}!', int_01 = start_applied( di) + count_applied( di) - 1, int_02 = dim_length)
       end if
 
-    END DO
+    end do
 
     ! Write the data
-    IF (par%master) THEN
+    if (par%master) then
       nerr = NF90_PUT_VAR( ncid, id_var, d, start_applied, count_applied)
-      IF (nerr /= NF90_NOERR) CALL crash('NF90_PUT_VAR failed for variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '"!')
-    END IF
-    CALL sync
+      if (nerr /= NF90_NOERR) call crash('NF90_PUT_VAR failed for variable "' // trim( var_name) // '" in file "' // trim( filename) // '"!')
+    end if
+    call sync
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE write_var_master_dp_2D
+  end subroutine write_var_master_dp_2D
 
-  SUBROUTINE write_var_master_dp_3D(  filename, ncid, id_var, d, start, count)
+  subroutine write_var_master_dp_3D( filename, ncid, id_var, d, start, count)
     ! Write data to a NetCDF file
     !
     ! NOTE: only the Master actually writes data! Gathering from other processes
     !       must be done beforehand
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    INTEGER,                             INTENT(IN)    :: id_var
-    REAL(dp), DIMENSION(:,:,:), optional,INTENT(IN)    :: d
-    INTEGER,  DIMENSION(3    ), OPTIONAL,INTENT(IN)    :: start, count
+    character(len=*),                     intent(in   ) :: filename
+    integer,                              intent(in   ) :: ncid
+    integer,                              intent(in   ) :: id_var
+    real(dp), dimension(:,:,:), optional, intent(in   ) :: d
+    integer,  dimension(3),     optional, intent(in   ) :: start, count
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_var_master_dp_3D'
-    CHARACTER(LEN=256)                                 :: var_name
-    INTEGER                                            :: var_type
-    INTEGER                                            :: ndims_of_var
-    INTEGER,  DIMENSION( NF90_MAX_VAR_DIMS)            :: dims_of_var
-    INTEGER                                            :: di
-    CHARACTER(LEN=256)                                 :: dim_name
-    INTEGER                                            :: dim_length
-    INTEGER,  DIMENSION( 3)                            :: start_applied, count_applied
+    character(len=1024), parameter          :: routine_name = 'write_var_master_dp_3D'
+    character(len=1024)                     :: var_name
+    integer                                 :: var_type
+    integer                                 :: ndims_of_var
+    integer,  dimension( NF90_MAX_VAR_DIMS) :: dims_of_var
+    integer                                 :: di
+    character(len=1024)                     :: dim_name
+    integer                                 :: dim_length
+    integer, dimension(3)                   :: start_applied, count_applied
 
     ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+    call init_routine( routine_name, do_track_resource_use = .false.)
 
-    ! Inquire some info on this variable
-    CALL inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
+    ! inquire some info on this variable
+    call inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
 
     ! Check variable type
-    IF (par%master .AND. .NOT. (var_type == NF90_FLOAT .OR. var_type == NF90_DOUBLE)) &
-      CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
+    if (par%master .and. .not. (var_type == NF90_FLOAT .or. var_type == NF90_DOUBLE)) &
+      call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
 
     ! Check number of dimensions
-    IF (par%master .AND. ndims_of_var /= 3) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+    if (par%master .and. ndims_of_var /= 3) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 
     if (par%master .and. .not. present(d)) call crash('d needs to be present on master')
 
     ! Set start and count
-    IF (PRESENT( start)) THEN
+    if (present( start)) then
       start_applied = start
-    ELSE
+    else
       start_applied = (/ 1, 1, 1 /)
-    END IF
-    IF (par%master .AND. ANY( start_applied == 0)) CALL crash('start must be positive!')
+    end if
+    if (par%master .and. any( start_applied == 0)) call crash('start must be positive!')
 
-    IF (PRESENT( count)) THEN
+    if (present( count)) then
       count_applied = count
-    ELSE
+    else
       if (par%master) then
         count_applied = shape(d)
       else
         count_applied = 1
       end if
-    END IF
-    IF (par%master .AND. ANY( count_applied == 0)) CALL crash('count must be positive!')
+    end if
+    if (par%master .and. any( count_applied == 0)) call crash('count must be positive!')
 
     ! Check sizes of dimensions
-    DO di = 1, ndims_of_var
+    do di = 1, ndims_of_var
 
       ! Check size of this dimension in the file
-      CALL inquire_dim_info( filename, ncid, dims_of_var( di), dim_name = dim_name, dim_length = dim_length)
+      call inquire_dim_info( filename, ncid, dims_of_var( di), dim_name = dim_name, dim_length = dim_length)
 
-      IF (par%master) then
+      if (par%master) then
         ! Check if the combination of dimension size, start, and count, matches the size of d
-        if( count_applied( di) /= SIZE( d,di)) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // &
+        if( count_applied( di) /= SIZE( d,di)) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // trim( filename) // &
         '": count({int_01}) = {int_02}, but SIZE(d,{int_03}) = {int_04}!', int_01 = di, int_02 = count_applied( di), int_03 = di, int_04 = SIZE( d,di))
 
         ! Check if this dimension is large enough to read this amount of data
-        IF (start_applied( di) + count_applied( di) - 1 > dim_length) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // &
-        TRIM( filename) // '"start + count - 1 = {int_01}, but dim_length = {int_02}!', int_01 = start_applied( di) + count_applied( di) - 1, int_02 = dim_length)
+        if (start_applied( di) + count_applied( di) - 1 > dim_length) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // &
+        trim( filename) // '"start + count - 1 = {int_01}, but dim_length = {int_02}!', int_01 = start_applied( di) + count_applied( di) - 1, int_02 = dim_length)
       end if
 
-    END DO
+    end do
 
     ! Write the data
-    IF (par%master) THEN
+    if (par%master) then
       nerr = NF90_PUT_VAR( ncid, id_var, d, start_applied, count_applied)
-      IF (nerr /= NF90_NOERR) CALL crash('NF90_PUT_VAR failed for variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '"!')
-    END IF
-    CALL sync
+      if (nerr /= NF90_NOERR) call crash('NF90_PUT_VAR failed for variable "' // trim( var_name) // '" in file "' // trim( filename) // '"!')
+    end if
+    call sync
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE write_var_master_dp_3D
+  end subroutine write_var_master_dp_3D
 
-  SUBROUTINE write_var_master_dp_4D(  filename, ncid, id_var, d, start, count)
+  subroutine write_var_master_dp_4D( filename, ncid, id_var, d, start, count)
     ! Write data to a NetCDF file
     !
     ! NOTE: only the Master actually writes data! Gathering from other processes
     !       must be done beforehand
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    INTEGER,                             INTENT(IN)    :: id_var
-    REAL(dp), DIMENSION(:,:,:,:),optional,INTENT(IN)   :: d
-    INTEGER,  DIMENSION(4    ), OPTIONAL,INTENT(IN)    :: start, count
+    character(len=*),                       intent(in   ) :: filename
+    integer,                                intent(in   ) :: ncid
+    integer,                                intent(in   ) :: id_var
+    real(dp), dimension(:,:,:,:), optional, intent(in   ) :: d
+    integer,  dimension(4),       optional, intent(in   ) :: start, count
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_var_master_dp_4D'
-    CHARACTER(LEN=256)                                 :: var_name
-    INTEGER                                            :: var_type
-    INTEGER                                            :: ndims_of_var
-    INTEGER,  DIMENSION( NF90_MAX_VAR_DIMS)            :: dims_of_var
-    INTEGER                                            :: di
-    CHARACTER(LEN=256)                                 :: dim_name
-    INTEGER                                            :: dim_length
-    INTEGER,  DIMENSION( 4)                            :: start_applied, count_applied
+    character(len=1024), parameter          :: routine_name = 'write_var_master_dp_4D'
+    character(len=1024)                     :: var_name
+    integer                                 :: var_type
+    integer                                 :: ndims_of_var
+    integer,  dimension( NF90_MAX_VAR_DIMS) :: dims_of_var
+    integer                                 :: di
+    character(len=1024)                     :: dim_name
+    integer                                 :: dim_length
+    integer, dimension(4)                   :: start_applied, count_applied
 
     ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+    call init_routine( routine_name, do_track_resource_use = .false.)
 
-    ! Inquire some info on this variable
-    CALL inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
+    ! inquire some info on this variable
+    call inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
 
     ! Check variable type
-    IF (par%master .AND. .NOT. (var_type == NF90_FLOAT .OR. var_type == NF90_DOUBLE)) &
-      CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
+    if (par%master .and. .not. (var_type == NF90_FLOAT .or. var_type == NF90_DOUBLE)) &
+      call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
 
     ! Check number of dimensions
-    IF (par%master .AND. ndims_of_var /= 4) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+    if (par%master .and. ndims_of_var /= 4) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 
     if (par%master .and. .not. present(d)) call crash('d needs to be present on master')
 
     ! Set start and count
-    IF (PRESENT( start)) THEN
+    if (present( start)) then
       start_applied = start
-    ELSE
+    else
       start_applied = (/ 1, 1, 1, 1 /)
-    END IF
-    IF (par%master .AND. ANY( start_applied == 0)) CALL crash('start must be positive!')
+    end if
+    if (par%master .and. any( start_applied == 0)) call crash('start must be positive!')
 
-    IF (PRESENT( count)) THEN
+    if (present( count)) then
       count_applied = count
-    ELSE
+    else
       if (par%master) then
         count_applied = shape(d)
       else
         count_applied = 1
       end if
-    END IF
-    IF (par%master .AND. ANY( count_applied == 0)) CALL crash('count must be positive!')
+    end if
+    if (par%master .and. any( count_applied == 0)) call crash('count must be positive!')
 
     ! Check sizes of dimensions
-    DO di = 1, ndims_of_var
+    do di = 1, ndims_of_var
 
       ! Check size of this dimension in the file
-      CALL inquire_dim_info( filename, ncid, dims_of_var( di), dim_name = dim_name, dim_length = dim_length)
+      call inquire_dim_info( filename, ncid, dims_of_var( di), dim_name = dim_name, dim_length = dim_length)
 
-      IF (par%master) then
+      if (par%master) then
         ! Check if the combination of dimension size, start, and count, matches the size of d
-        if(count_applied( di) /= SIZE( d,di)) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // &
+        if(count_applied( di) /= SIZE( d,di)) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // trim( filename) // &
         '": count({int_01}) = {int_02}, but SIZE(d,{int_03}) = {int_04}!', int_01 = di, int_02 = count_applied( di), int_03 = di, int_04 = SIZE( d,di))
 
         ! Check if this dimension is large enough to read this amount of data
-        IF (start_applied( di) + count_applied( di) - 1 > dim_length) CALL crash('error for dimension "' // TRIM( dim_name) // '" of variable "' // TRIM( var_name) // '" in file "' // &
-        TRIM( filename) // '"start + count - 1 = {int_01}, but dim_length = {int_02}!', int_01 = start_applied( di) + count_applied( di) - 1, int_02 = dim_length)
+        if (start_applied( di) + count_applied( di) - 1 > dim_length) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // &
+        trim( filename) // '"start + count - 1 = {int_01}, but dim_length = {int_02}!', int_01 = start_applied( di) + count_applied( di) - 1, int_02 = dim_length)
       end if
 
-    END DO
+    end do
 
     ! Write the data
-    IF (par%master) THEN
+    if (par%master) then
       nerr = NF90_PUT_VAR( ncid, id_var, d, start_applied, count_applied)
-      IF (nerr /= NF90_NOERR) CALL crash('NF90_PUT_VAR failed for variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '"!')
-    END IF
-    CALL sync
+      if (nerr /= NF90_NOERR) call crash('NF90_PUT_VAR failed for variable "' // trim( var_name) // '" in file "' // trim( filename) // '"!')
+    end if
+    call sync
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE write_var_master_dp_4D
+  end subroutine write_var_master_dp_4D
 
 ! ===== Basic NetCDF wrapper functions =====
 ! ==========================================
 
-  ! Inquire dimensions and variables
-  SUBROUTINE inquire_dim( filename, ncid, dim_name, dim_length, id_dim)
-    ! Inquire if this file contains a dimension by name of dim_name.
-    ! If so, return its length and identifier; if not, return -1 for both.
-
-    IMPLICIT NONE
+  ! inquire dimensions and variables
+  subroutine inquire_dim( filename, ncid, dim_name, dim_length, id_dim)
+    ! inquire if this file contains a dimension by name of dim_name.
+    ! if so, return its length and identifier; if not, return -1 for both.
 
     ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    CHARACTER(LEN=*),                    INTENT(IN)    :: dim_name
-    INTEGER,                             INTENT(OUT)   :: dim_length
-    INTEGER,                             INTENT(OUT)   :: id_dim
+    character(len=*), intent(in   ) :: filename
+    integer,          intent(in   ) :: ncid
+    character(len=*), intent(in   ) :: dim_name
+    integer,          intent(  out) :: dim_length
+    integer,          intent(  out) :: id_dim
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'inquire_dim'
+    character(len=1024), parameter :: routine_name = 'inquire_dim'
 
     ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+    call init_routine( routine_name, do_track_resource_use = .false.)
 
-    IF (par%master) THEN
+    if (par%master) then
 
       ! Check if a dimension of this name exists in the file
       nerr = NF90_INQ_DIMID( ncid, dim_name, id_dim)
 
-      IF (nerr /= NF90_NOERR) THEN
-        ! If a dimension by this name does not exist, return -1 for the length and ID
+      if (nerr /= NF90_NOERR) then
+        ! if a dimension by this name does not exist, return -1 for the length and ID
         id_dim     = -1
         dim_length = -1
-      ELSE
-        ! If a dimension by this name exists, find its length
-        nerr = NF90_INQUIRE_DIMENSION( ncid, id_dim, len = dim_length)
-        IF (nerr /= NF90_NOERR) CALL crash('NF90_INQUIRE_DIMENSION failed for file "' // TRIM( filename) // '"!')
-      END IF
+      else
+        ! if a dimension by this name exists, find its length
+        nerr = NF90_inquire_dimension( ncid, id_dim, len = dim_length)
+        if (nerr /= NF90_NOERR) call crash('NF90_inquire_dimension failed for file "' // trim( filename) // '"!')
+      end if
 
-    END IF ! IF (par%master) THEN
-    CALL sync
+    end if ! if (par%master) then
+    call sync
 
-    CALL MPI_BCAST( id_dim    , 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
-    CALL MPI_BCAST( dim_length, 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE inquire_dim
-
-  SUBROUTINE inquire_dim_info( filename, ncid, id_dim, dim_name, dim_length)
-    ! Inquire some info of a dimension
-
-    IMPLICIT NONE
-
-    ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    INTEGER,                             INTENT(IN)    :: id_dim
-
-    CHARACTER(LEN=256),                     INTENT(OUT), OPTIONAL :: dim_name
-    INTEGER,                                INTENT(OUT), OPTIONAL :: dim_length
-
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'inquire_dim_info'
-
-    ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
-
-    IF (par%master) THEN
-      ! Inquire some info on this variable
-      nerr = NF90_INQUIRE_DIMENSION( ncid, id_dim, name = dim_name, len = dim_length)
-      IF (nerr /= NF90_NOERR) CALL crash('NF90_INQUIRE_DIMENSION failed for file "' // TRIM( filename) // '"!')
-    END IF ! IF (par%master) THEN
-
-    IF (PRESENT( dim_name  )) CALL MPI_BCAST( dim_name  , 256, MPI_CHAR   , 0, MPI_COMM_WORLD, ierr)
-    IF (PRESENT( dim_length)) CALL MPI_BCAST( dim_length, 1  , MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
+    call MPI_BCAST( id_dim    , 1, MPI_integer, 0, MPI_COMM_WORLD, ierr)
+    call MPI_BCAST( dim_length, 1, MPI_integer, 0, MPI_COMM_WORLD, ierr)
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE inquire_dim_info
+  end subroutine inquire_dim
 
-  SUBROUTINE inquire_var( filename, ncid, var_name, id_var)
-    ! Inquire if this file contains a variable by name of var_name.
-    ! If so, return its identifier. If not, return -1 for the identifier.
-
-    IMPLICIT NONE
+  subroutine inquire_dim_info( filename, ncid, id_dim, dim_name, dim_length)
+    ! inquire some info of a dimension
 
     ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    CHARACTER(LEN=*),                    INTENT(IN)    :: var_name
-    INTEGER,                             INTENT(OUT)   :: id_var
+    character(len=*),              intent(in   ) :: filename
+    integer,                       intent(in   ) :: ncid
+    integer,                       intent(in   ) :: id_dim
+    character(len=1024), optional, intent(  out) :: dim_name
+    integer,             optional, intent(  out) :: dim_length
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'inquire_var'
-    CHARACTER                                          :: dummy1
+    character(len=1024), parameter :: routine_name = 'inquire_dim_info'
 
     ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+    call init_routine( routine_name, do_track_resource_use = .false.)
+
+    if (par%master) then
+      ! inquire some info on this variable
+      nerr = NF90_inquire_dimension( ncid, id_dim, name = dim_name, len = dim_length)
+      if (nerr /= NF90_NOERR) call crash('NF90_inquire_dimension failed for file "' // trim( filename) // '"!')
+    end if ! if (par%master) then
+
+    if (present( dim_name  )) call MPI_BCAST( dim_name  , 256, MPI_CHAR   , 0, MPI_COMM_WORLD, ierr)
+    if (present( dim_length)) call MPI_BCAST( dim_length, 1  , MPI_integer, 0, MPI_COMM_WORLD, ierr)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine inquire_dim_info
+
+  subroutine inquire_var( filename, ncid, var_name, id_var)
+    ! inquire if this file contains a variable by name of var_name.
+    ! if so, return its identifier. if not, return -1 for the identifier.
+
+    ! In/output variables:
+    character(len=*), intent(in   ) :: filename
+    integer,          intent(in   ) :: ncid
+    character(len=*), intent(in   ) :: var_name
+    integer,          intent(  out) :: id_var
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'inquire_var'
+    character                      :: dummy1
+
+    ! Add routine to path
+    call init_routine( routine_name, do_track_resource_use = .false.)
 
     ! To prevent "unused variable" compiler warnings
     dummy1 = filename( 1:1)
 
-    IF (par%master) THEN
+    if (par%master) then
 
       ! Check if a variable of this name exists in the file
       nerr = NF90_INQ_VARID( ncid, var_name, id_var)
 
-      IF (nerr /= NF90_NOERR) THEN
-        ! If a variable by this name does not exist, return -1 for the ID
+      if (nerr /= NF90_NOERR) then
+        ! if a variable by this name does not exist, return -1 for the ID
         id_var = -1
-      END IF
+      end if
 
-    END IF ! IF (par%master) THEN
-    CALL sync
+    end if ! if (par%master) then
+    call sync
 
-    CALL MPI_BCAST( id_var, 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
+    call MPI_BCAST( id_var, 1, MPI_integer, 0, MPI_COMM_WORLD, ierr)
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE inquire_var
+  end subroutine inquire_var
 
-  SUBROUTINE inquire_var_info( filename, ncid, id_var, var_name, var_type, ndims_of_var, dims_of_var)
-    ! Inquire some info of a variable
-
-    IMPLICIT NONE
+  subroutine inquire_var_info( filename, ncid, id_var, var_name, var_type, ndims_of_var, dims_of_var)
+    ! inquire some info of a variable
 
     ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    INTEGER,                             INTENT(IN)    :: id_var
-
-    CHARACTER(LEN=256),                     INTENT(OUT), OPTIONAL :: var_name
-    INTEGER,                                INTENT(OUT), OPTIONAL :: var_type
-    INTEGER,                                INTENT(OUT), OPTIONAL :: ndims_of_var
-    INTEGER, DIMENSION( NF90_MAX_VAR_DIMS), INTENT(OUT), OPTIONAL :: dims_of_var
+    character(len=*),                                 intent(in   ) :: filename
+    integer,                                          intent(in   ) :: ncid
+    integer,                                          intent(in   ) :: id_var
+    character(len=1024),                    optional, intent(  out) :: var_name
+    integer,                                optional, intent(  out) :: var_type
+    integer,                                optional, intent(  out) :: ndims_of_var
+    integer, dimension( NF90_MAX_VAR_DIMS), optional, intent(  out) :: dims_of_var
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'inquire_var_info'
+    character(len=1024), parameter :: routine_name = 'inquire_var_info'
 
     ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+    call init_routine( routine_name, do_track_resource_use = .false.)
 
-    IF (par%master) THEN
-      ! Inquire some info on this variable
-      nerr = NF90_INQUIRE_VARIABLE( ncid, id_var, name = var_name, xtype = var_type, ndims = ndims_of_var, dimids = dims_of_var)
-      IF (nerr /= NF90_NOERR) CALL crash('NF90_INQUIRE_VARIABLE failed for file "' // TRIM( filename) // '"!')
-    END IF ! IF (par%master) THEN
+    if (par%master) then
+      ! inquire some info on this variable
+      nerr = NF90_inquire_VARIABLE( ncid, id_var, name = var_name, xtype = var_type, ndims = ndims_of_var, dimids = dims_of_var)
+      if (nerr /= NF90_NOERR) call crash('NF90_inquire_VARIABLE failed for file "' // trim( filename) // '"!')
+    end if ! if (par%master) then
 
-    IF (PRESENT( var_name    )) CALL MPI_BCAST( var_name    , 256              , MPI_CHAR   , 0, MPI_COMM_WORLD, ierr)
-    IF (PRESENT( var_type    )) CALL MPI_BCAST( var_type    , 1                , MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
-    IF (PRESENT( ndims_of_var)) CALL MPI_BCAST( ndims_of_var, 1                , MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
-    IF (PRESENT(  dims_of_var)) CALL MPI_BCAST( dims_of_var , NF90_MAX_VAR_DIMS, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
+    if (present( var_name    )) call MPI_BCAST( var_name    , 256              , MPI_CHAR   , 0, MPI_COMM_WORLD, ierr)
+    if (present( var_type    )) call MPI_BCAST( var_type    , 1                , MPI_integer, 0, MPI_COMM_WORLD, ierr)
+    if (present( ndims_of_var)) call MPI_BCAST( ndims_of_var, 1                , MPI_integer, 0, MPI_COMM_WORLD, ierr)
+    if (present(  dims_of_var)) call MPI_BCAST( dims_of_var , NF90_MAX_VAR_DIMS, MPI_integer, 0, MPI_COMM_WORLD, ierr)
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE inquire_var_info
+  end subroutine inquire_var_info
 
   ! Create new NetCDF file
-  SUBROUTINE create_new_netcdf_file_for_writing( filename, ncid)
+  subroutine create_new_netcdf_file_for_writing( filename, ncid)
     ! Create a new NetCDF file in the specified location for writing.
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(OUT)   :: ncid
+    character(len=*), intent(in   ) :: filename
+    integer,          intent(  out) :: ncid
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'create_new_netcdf_file_for_writing'
-    LOGICAL                                            :: file_exists
+    character(len=1024), parameter :: routine_name = 'create_new_netcdf_file_for_writing'
+    logical                        :: file_exists
 
     ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+    call init_routine( routine_name, do_track_resource_use = .false.)
 
     ! Check if this file already exists
-    IF (par%master) THEN
-      INQUIRE( EXIST = file_exists, FILE = TRIM( filename))
-      IF (file_exists) THEN
-        CALL crash('file "' // TRIM( filename) // '" already exists!')
-      END IF
-    END IF
+    if (par%master) then
+      inquire( exist = file_exists, file = trim( filename))
+      if (file_exists) then
+        call crash('file "' // trim( filename) // '" already exists!')
+      end if
+    end if
 
     ! Create the NetCDF file
-    IF (par%master) THEN
-      nerr = NF90_CREATE( filename, IOR( NF90_NOCLOBBER, NF90_NETCDF4), ncid)
-      IF (nerr /= NF90_NOERR) CALL crash('NF90_CREATE failed for file "' // TRIM( filename) // '"!')
-    END IF ! IF (par%master) THEN
-    CALL MPI_BCAST( ncid, 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
+    if (par%master) then
+      nerr = NF90_CREATE( filename, ior( NF90_NOCLOBBER, NF90_NETCDF4), ncid)
+      if (nerr /= NF90_NOERR) call crash('NF90_CREATE failed for file "' // trim( filename) // '"!')
+    end if ! if (par%master) then
+    call MPI_BCAST( ncid, 1, MPI_integer, 0, MPI_COMM_WORLD, ierr)
 
     ! Add some very basic info about the current simulation to the header
     call add_attribute_char( filename, ncid, NF90_GLOBAL, 'git commit hash', git_commit_hash)
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE create_new_netcdf_file_for_writing
+  end subroutine create_new_netcdf_file_for_writing
 
   ! Create dimensions, variables, and attributes
-  SUBROUTINE create_dimension( filename, ncid, dim_name, dim_length, id_dim)
+  subroutine create_dimension( filename, ncid, dim_name, dim_length, id_dim)
     ! Create a new dimension in a NetCDF file.
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    CHARACTER(LEN=*),                    INTENT(IN)    :: dim_name
-    INTEGER,                             INTENT(IN)    :: dim_length
-    INTEGER,                             INTENT(OUT)   :: id_dim
+    character(len=*), intent(in   ) :: filename
+    integer,          intent(in   ) :: ncid
+    character(len=*), intent(in   ) :: dim_name
+    integer,          intent(in   ) :: dim_length
+    integer,          intent(  out) :: id_dim
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'create_dimension'
-    INTEGER                                            :: dim_length_present
+    character(len=1024), parameter :: routine_name = 'create_dimension'
+    integer                        :: dim_length_present
 
     ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+    call init_routine( routine_name, do_track_resource_use = .false.)
 
     ! Safety: check if a dimension by this name is already present in this file
-    CALL inquire_dim( filename, ncid, dim_name, dim_length_present, id_dim)
-    IF (id_dim /= -1) THEN
-      !CALL crash('file "' // TRIM( filename) // '" already contains dimension "' // TRIM( dim_name) // '"!')
-      CALL finalise_routine( routine_name)
+    call inquire_dim( filename, ncid, dim_name, dim_length_present, id_dim)
+    if (id_dim /= -1) then
+      !call crash('file "' // trim( filename) // '" already contains dimension "' // trim( dim_name) // '"!')
+      call finalise_routine( routine_name)
       RETURN
-    END IF
+    end if
 
     ! Add the dimension
-    IF (par%master) THEN
+    if (par%master) then
       nerr = NF90_DEF_DIM( ncid, dim_name, dim_length, id_dim)
-      IF (nerr /= NF90_NOERR) CALL crash('NF90_DEF_DIM failed for file "' // TRIM( filename) // '"!')
-    END IF
-    CALL sync
+      if (nerr /= NF90_NOERR) call crash('NF90_DEF_DIM failed for file "' // trim( filename) // '"!')
+    end if
+    call sync
 
-    CALL MPI_BCAST( id_dim, 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
+    call MPI_BCAST( id_dim, 1, MPI_integer, 0, MPI_COMM_WORLD, ierr)
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE create_dimension
+  end subroutine create_dimension
 
-  SUBROUTINE create_variable( filename, ncid, var_name, var_type, dim_ids, id_var)
+  subroutine create_variable( filename, ncid, var_name, var_type, dim_ids, id_var)
     ! Create a new variable in a NetCDF file.
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    CHARACTER(LEN=*),                    INTENT(IN)    :: var_name
-    INTEGER,                             INTENT(IN)    :: var_type
-    INTEGER, DIMENSION(:),               INTENT(IN)    :: dim_ids
-    INTEGER,                             INTENT(OUT)   :: id_var
+    character(len=*),      intent(in   ) :: filename
+    integer,               intent(in   ) :: ncid
+    character(len=*),      intent(in   ) :: var_name
+    integer,               intent(in   ) :: var_type
+    integer, dimension(:), intent(in   ) :: dim_ids
+    integer,               intent(  out) :: id_var
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'create_variable'
+    character(len=1024), parameter :: routine_name = 'create_variable'
 
     ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+    call init_routine( routine_name, do_track_resource_use = .false.)
 
     ! Safety: check if a variable by this name is already present in this file
-    CALL inquire_var( filename, ncid, var_name, id_var)
-    IF (id_var /= -1) THEN
-      !CALL crash('file "' // TRIM( filename) // '" already contains variable "' // TRIM( var_name) // '"!')
-      CALL finalise_routine( routine_name)
-      RETURN
-    END IF
+    call inquire_var( filename, ncid, var_name, id_var)
+    if (id_var /= -1) then
+      !call crash('file "' // trim( filename) // '" already contains variable "' // trim( var_name) // '"!')
+      call finalise_routine( routine_name)
+      return
+    end if
 
     ! Add the variable
-    IF (par%master) THEN
+    if (par%master) then
       nerr = NF90_DEF_VAR( ncid, name = var_name, xtype = var_type, dimids = dim_ids, varid = id_var)
-      IF (nerr /= NF90_NOERR) CALL crash('NF90_DEF_VAR failed for file "' // TRIM( filename) // '"!')
-    END IF
-    CALL sync
+      if (nerr /= NF90_NOERR) call crash('NF90_DEF_VAR failed for file "' // trim( filename) // '"!')
+    end if
+    call sync
 
-    CALL MPI_BCAST( id_var, 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
+    call MPI_BCAST( id_var, 1, MPI_integer, 0, MPI_COMM_WORLD, ierr)
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE create_variable
+  end subroutine create_variable
 
-  SUBROUTINE create_scalar_variable( filename, ncid, var_name, var_type, id_var)
+  subroutine create_scalar_variable( filename, ncid, var_name, var_type, id_var)
     ! Create a new scalar variable in a NetCDF file.
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    CHARACTER(LEN=*),                    INTENT(IN)    :: var_name
-    INTEGER,                             INTENT(IN)    :: var_type
-    INTEGER,                             INTENT(OUT)   :: id_var
+    character(len=*), intent(in   ) :: filename
+    integer,          intent(in   ) :: ncid
+    character(len=*), intent(in   ) :: var_name
+    integer,          intent(in   ) :: var_type
+    integer,          intent(  out) :: id_var
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'create_scalar_variable'
+    character(len=1024), parameter :: routine_name = 'create_scalar_variable'
 
     ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+    call init_routine( routine_name, do_track_resource_use = .false.)
 
     ! Safety: check if a variable by this name is already present in this file
-    CALL inquire_var( filename, ncid, var_name, id_var)
-    IF (id_var /= -1) CALL crash('file "' // TRIM( filename) // '" already contains variable "' // TRIM( var_name) // '"!')
+    call inquire_var( filename, ncid, var_name, id_var)
+    if (id_var /= -1) call crash('file "' // trim( filename) // '" already contains variable "' // trim( var_name) // '"!')
 
     ! Add the variable
-    IF (par%master) THEN
+    if (par%master) then
       nerr = NF90_DEF_VAR( ncid, name = var_name, xtype = var_type, varid = id_var)
-      IF (nerr /= NF90_NOERR) CALL crash('NF90_DEF_VAR failed for file "' // TRIM( filename) // '"!')
-    END IF
-    CALL sync
+      if (nerr /= NF90_NOERR) call crash('NF90_DEF_VAR failed for file "' // trim( filename) // '"!')
+    end if
+    call sync
 
-    CALL MPI_BCAST( id_var, 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
+    call MPI_BCAST( id_var, 1, MPI_integer, 0, MPI_COMM_WORLD, ierr)
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE create_scalar_variable
+  end subroutine create_scalar_variable
 
-  SUBROUTINE add_attribute_int( filename, ncid, id_var, att_name, att_val)
+  subroutine add_attribute_int( filename, ncid, id_var, att_name, att_val)
     ! Add an integer-valued attributes to a variable.
     ! Assume the file is in data mode; put it in define mode,
     ! add the attribute, and put it back in data mode.
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    INTEGER,                             INTENT(IN)    :: id_var
-    CHARACTER(LEN=*),                    INTENT(IN)    :: att_name
-    INTEGER,                             INTENT(IN)    :: att_val
+    character(len=*), intent(in   ) :: filename
+    integer,          intent(in   ) :: ncid
+    integer,          intent(in   ) :: id_var
+    character(len=*), intent(in   ) :: att_name
+    integer,          intent(in   ) :: att_val
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'add_attribute_int'
+    character(len=1024), parameter :: routine_name = 'add_attribute_int'
 
     ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+    call init_routine( routine_name, do_track_resource_use = .false.)
 
     ! Add the attribute
-    IF (par%master) THEN
+    if (par%master) then
       nerr = NF90_PUT_ATT( ncid, id_var, att_name, att_val)
-      IF (nerr /= NF90_NOERR) CALL crash('NF90_PUT_ATT failed for file "' // TRIM( filename) // '"!')
-    END IF
-    CALL sync
+      if (nerr /= NF90_NOERR) call crash('NF90_PUT_ATT failed for file "' // trim( filename) // '"!')
+    end if
+    call sync
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE add_attribute_int
+  end subroutine add_attribute_int
 
-  SUBROUTINE add_attribute_dp( filename, ncid, id_var, att_name, att_val)
+  subroutine add_attribute_dp( filename, ncid, id_var, att_name, att_val)
     ! Add a double-precision-valued attributes to a variable.
     ! Assume the file is in data mode; put it in define mode,
     ! add the attribute, and put it back in data mode.
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    INTEGER,                             INTENT(IN)    :: id_var
-    CHARACTER(LEN=*),                    INTENT(IN)    :: att_name
-    REAL(dp),                            INTENT(IN)    :: att_val
+    character(len=*), intent(in   ) :: filename
+    integer,          intent(in   ) :: ncid
+    integer,          intent(in   ) :: id_var
+    character(len=*), intent(in   ) :: att_name
+    real(dp),         intent(in   ) :: att_val
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'add_attribute_dp'
+    character(len=1024), parameter :: routine_name = 'add_attribute_dp'
 
     ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+    call init_routine( routine_name, do_track_resource_use = .false.)
 
     ! Add the attribute
-    IF (par%master) THEN
+    if (par%master) then
       nerr = NF90_PUT_ATT( ncid, id_var, att_name, att_val)
-      IF (nerr /= NF90_NOERR) CALL crash('NF90_PUT_ATT failed for file "' // TRIM( filename) // '"!')
-    END IF
-    CALL sync
+      if (nerr /= NF90_NOERR) call crash('NF90_PUT_ATT failed for file "' // trim( filename) // '"!')
+    end if
+    call sync
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE add_attribute_dp
+  end subroutine add_attribute_dp
 
-  SUBROUTINE add_attribute_char( filename, ncid, id_var, att_name, att_val)
+  subroutine add_attribute_char( filename, ncid, id_var, att_name, att_val)
     ! Add a character-valued attributes to a variable.
     ! Assume the file is in data mode; put it in define mode,
     ! add the attribute, and put it back in data mode.
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    INTEGER,                             INTENT(IN)    :: id_var
-    CHARACTER(LEN=*),                    INTENT(IN)    :: att_name
-    CHARACTER(LEN=*),                    INTENT(IN)    :: att_val
+    character(len=*), intent(in   ) :: filename
+    integer,          intent(in   ) :: ncid
+    integer,          intent(in   ) :: id_var
+    character(len=*), intent(in   ) :: att_name
+    character(len=*), intent(in   ) :: att_val
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'add_attribute_char'
+    character(len=1024), parameter :: routine_name = 'add_attribute_char'
 
     ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+    call init_routine( routine_name, do_track_resource_use = .false.)
 
     ! Add the attribute
-    IF (par%master) THEN
+    if (par%master) then
       nerr = NF90_PUT_ATT( ncid, id_var, att_name, att_val)
-      IF (nerr /= NF90_NOERR) CALL crash('NF90_PUT_ATT failed for file "' // TRIM( filename) // '"!')
-    END IF
-    CALL sync
+      if (nerr /= NF90_NOERR) call crash('NF90_PUT_ATT failed for file "' // trim( filename) // '"!')
+    end if
+    call sync
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE add_attribute_char
+  end subroutine add_attribute_char
 
   ! Open and close a NetCDF file
-  SUBROUTINE open_existing_netcdf_file_for_reading( filename, ncid)
+  subroutine open_existing_netcdf_file_for_reading( filename, ncid)
     ! Open the NetCDF file in the specified location for reading only,
     ! and return its identifier.
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(OUT)   :: ncid
+    character(len=*), intent(in   ) :: filename
+    integer,          intent(  out) :: ncid
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'open_netcdf_file_for_reading'
-    LOGICAL                                            :: file_exists
+    character(len=1024), parameter :: routine_name = 'open_netcdf_file_for_reading'
+    logical                        :: file_exists
 
     ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+    call init_routine( routine_name, do_track_resource_use = .false.)
 
     ! Check if this file actually exists
-    INQUIRE( EXIST = file_exists, FILE = TRIM( filename))
-    IF (.NOT. file_exists) THEN
-      CALL crash('file "' // TRIM( filename) // '" not found!')
-    END IF
+    inquire( exist = file_exists, file = trim( filename))
+    if (.not. file_exists) then
+      call crash('file "' // trim( filename) // '" not found!')
+    end if
 
     ! Open the NetCDF file with read-only access
-    IF (par%master) THEN
-      nerr = NF90_OPEN( TRIM( filename), NF90_NOWRITE, ncid)
-      IF (nerr /= NF90_NOERR) CALL crash('NF90_OPEN failed for file "' // TRIM( filename) // '"!')
-    END IF ! IF (par%master) THEN
+    if (par%master) then
+      nerr = NF90_OPEN( trim( filename), NF90_NOWRITE, ncid)
+      if (nerr /= NF90_NOERR) call crash('NF90_OPEN failed for file "' // trim( filename) // '"!')
+    end if ! if (par%master) then
 
-    CALL MPI_BCAST( ncid, 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
+    call MPI_BCAST( ncid, 1, MPI_integer, 0, MPI_COMM_WORLD, ierr)
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE open_existing_netcdf_file_for_reading
+  end subroutine open_existing_netcdf_file_for_reading
 
-  SUBROUTINE open_existing_netcdf_file_for_writing( filename, ncid)
+  subroutine open_existing_netcdf_file_for_writing( filename, ncid)
     ! Open an existing NetCDF file in data mode
     ! In data mode, no new dimensions, variables, or attributes can be created,
     ! but data can be written to existing variables.
     ! When opening an existing NetCDF file, it is by default in data mode.
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(OUT)   :: ncid
+    character(len=*), intent(in   ) :: filename
+    integer,          intent(  out) :: ncid
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'open_existing_netcdf_file_for_writing'
-    LOGICAL                                            :: file_exists
+    character(len=1024), parameter :: routine_name = 'open_existing_netcdf_file_for_writing'
+    logical                        :: file_exists
 
     ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+    call init_routine( routine_name, do_track_resource_use = .false.)
 
     ! Check if this file actually exists
-    INQUIRE( EXIST = file_exists, FILE = TRIM( filename))
-    IF (.NOT. file_exists) THEN
-      CALL crash('file "' // TRIM( filename) // '" not found!')
-    END IF
+    inquire( exist = file_exists, file = trim( filename))
+    if (.not. file_exists) then
+      call crash('file "' // trim( filename) // '" not found!')
+    end if
 
     ! Open the NetCDF file with read+write access
-    IF (par%master) THEN
-      nerr = NF90_OPEN( TRIM( filename), IOR( NF90_WRITE, NF90_SHARE), ncid)
-      IF (nerr /= NF90_NOERR) CALL crash('NF90_OPEN failed for file "' // TRIM( filename) // '" beeperdebeep!')
-    END IF ! IF (par%master) THEN
+    if (par%master) then
+      nerr = NF90_OPEN( trim( filename), ior( NF90_WRITE, NF90_SHARE), ncid)
+      if (nerr /= NF90_NOERR) call crash('NF90_OPEN failed for file "' // trim( filename) // '" beeperdebeep!')
+    end if ! if (par%master) then
 
-    CALL MPI_BCAST( ncid, 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
+    call MPI_BCAST( ncid, 1, MPI_integer, 0, MPI_COMM_WORLD, ierr)
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE open_existing_netcdf_file_for_writing
+  end subroutine open_existing_netcdf_file_for_writing
 
-  SUBROUTINE close_netcdf_file( ncid)
+  subroutine close_netcdf_file( ncid)
     ! Close an opened NetCDF file
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    INTEGER,                             INTENT(IN)    :: ncid
+    integer, intent(in   ) :: ncid
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'close_netcdf_file'
+    character(len=1024), parameter :: routine_name = 'close_netcdf_file'
 
     ! Add routine to path
-    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+    call init_routine( routine_name, do_track_resource_use = .false.)
 
     ! Close netCDF file:
-    IF (par%master) THEN
+    if (par%master) then
       nerr = NF90_CLOSE( ncid)
-      IF (nerr /= NF90_NOERR) CALL crash('NF90_CLOSE failed!')
-    END IF ! IF (par%master) THEN
-    CALL sync
+      if (nerr /= NF90_NOERR) call crash('NF90_CLOSE failed!')
+    end if ! if (par%master) then
+    call sync
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE close_netcdf_file
+  end subroutine close_netcdf_file
 
-END MODULE netcdf_basic
+end module netcdf_basic
