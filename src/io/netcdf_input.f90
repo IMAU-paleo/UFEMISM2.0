@@ -76,7 +76,7 @@ CONTAINS
     REAL(dp), OPTIONAL,                      INTENT(IN)    :: time_to_read
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'read_field_from_file_2D'
+    character(len=1024), parameter                         :: routine_name = 'read_field_from_file_2D'
     LOGICAL                                                :: file_exists
     LOGICAL                                                :: has_xy_grid, has_lonlat_grid, has_mesh
     INTEGER                                                :: ncid
@@ -86,7 +86,7 @@ CONTAINS
     REAL(dp), DIMENSION(:    ), ALLOCATABLE                :: d_grid_vec_partial_from_file
     REAL(dp), DIMENSION(:    ), ALLOCATABLE                :: d_grid_lonlat_vec_partial_from_file
     REAL(dp), DIMENSION(:    ), ALLOCATABLE                :: d_mesh_partial_from_file
-    CHARACTER(LEN=256), PARAMETER                          :: method_mesh2mesh = '2nd_order_conservative'
+    character(len=1024), parameter                         :: method_mesh2mesh = '2nd_order_conservative'
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -198,7 +198,7 @@ CONTAINS
     REAL(dp), OPTIONAL,                      INTENT(IN)    :: time_to_read
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'read_field_from_file_2D_monthly'
+    character(len=1024), parameter                         :: routine_name = 'read_field_from_file_2D_monthly'
     LOGICAL                                                :: file_exists
     LOGICAL                                                :: has_xy_grid, has_lonlat_grid, has_mesh
     INTEGER                                                :: ncid
@@ -208,7 +208,7 @@ CONTAINS
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                :: d_grid_vec_partial_from_file
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                :: d_grid_lonlat_vec_partial_from_file
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                :: d_mesh_partial_from_file
-    CHARACTER(LEN=256), PARAMETER                          :: method_mesh2mesh = '2nd_order_conservative'
+    character(len=1024), parameter                         :: method_mesh2mesh = '2nd_order_conservative'
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -324,7 +324,7 @@ CONTAINS
     REAL(dp), DIMENSION(:    ), ALLOCATABLE, INTENT(OUT), OPTIONAL :: zeta
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'read_field_from_file_3D'
+    character(len=1024), parameter                         :: routine_name = 'read_field_from_file_3D'
     LOGICAL                                                :: file_exists
     LOGICAL                                                :: has_xy_grid, has_lonlat_grid, has_mesh
     INTEGER                                                :: ncid
@@ -334,7 +334,7 @@ CONTAINS
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                :: d_grid_vec_partial_from_file
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                :: d_grid_lonlat_vec_partial_from_file
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                :: d_mesh_partial_from_file
-    CHARACTER(LEN=256), PARAMETER                          :: method_mesh2mesh = '2nd_order_conservative'
+    character(len=1024), parameter                         :: method_mesh2mesh = '2nd_order_conservative'
     INTEGER                                                :: nzeta_loc
     REAL(dp), DIMENSION(:    ), ALLOCATABLE                :: zeta_loc
 
@@ -462,7 +462,7 @@ CONTAINS
     REAL(dp), DIMENSION(:    ), ALLOCATABLE, INTENT(OUT), OPTIONAL :: depth
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'read_field_from_file_3D_ocean'
+    character(len=1024), parameter                         :: routine_name = 'read_field_from_file_3D_ocean'
     LOGICAL                                                :: file_exists
     LOGICAL                                                :: has_xy_grid, has_lonlat_grid, has_mesh
     INTEGER                                                :: ncid
@@ -473,7 +473,7 @@ CONTAINS
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                :: d_grid_lonlat_vec_partial_from_file
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                :: d_mesh_partial_from_file
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                :: d_partial_raw_layers
-    CHARACTER(LEN=256), PARAMETER                          :: method_mesh2mesh = '2nd_order_conservative'
+    character(len=1024), parameter                         :: method_mesh2mesh = '2nd_order_conservative'
     INTEGER                                                :: ndepth_loc
     REAL(dp), DIMENSION(:    ), ALLOCATABLE                :: depth_loc
 
@@ -620,12 +620,12 @@ CONTAINS
     REAL(dp),                   OPTIONAL,    INTENT(IN)    :: time_to_read
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'read_field_from_xy_file_2D'
+    character(len=1024), parameter                         :: routine_name = 'read_field_from_xy_file_2D'
     INTEGER                                                :: ncid
     TYPE(type_grid)                                        :: grid_loc
     INTEGER                                                :: id_var
-    CHARACTER(LEN=256)                                     :: var_name
-    CHARACTER(LEN=256)                                     :: indexing, xdir, ydir
+    CHARACTER(LEN=1024)                                    :: var_name
+    CHARACTER(LEN=1024)                                    :: indexing, xdir, ydir
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                :: d_grid
     REAL(dp), DIMENSION(:,:,:), ALLOCATABLE                :: d_grid_with_time
     INTEGER                                                :: ti
@@ -770,12 +770,12 @@ CONTAINS
     REAL(dp),                   OPTIONAL,    INTENT(IN)    :: time_to_read
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'read_field_from_xy_file_2D_int'
+    character(len=1024), parameter                         :: routine_name = 'read_field_from_xy_file_2D_int'
     INTEGER                                                :: ncid
     TYPE(type_grid)                                        :: grid_loc
     INTEGER                                                :: id_var
-    CHARACTER(LEN=256)                                     :: var_name
-    CHARACTER(LEN=256)                                     :: indexing, xdir, ydir
+    CHARACTER(LEN=1024)                                    :: var_name
+    CHARACTER(LEN=1024)                                    :: indexing, xdir, ydir
     INTEGER,  DIMENSION(:,:  ), ALLOCATABLE                :: d_grid
     INTEGER,  DIMENSION(:,:,:), ALLOCATABLE                :: d_grid_with_time
     INTEGER                                                :: ti
@@ -783,8 +783,8 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-  ! == Read grid and data from file
-  ! ===============================
+    ! == Read grid and data from file
+    ! ===============================
 
     ! Open the NetCDF file
     CALL open_existing_netcdf_file_for_reading( filename, ncid)
@@ -859,8 +859,8 @@ CONTAINS
     ! Close the NetCDF file
     CALL close_netcdf_file( ncid)
 
-  ! == Perform necessary corrections to the gridded data
-  ! ====================================================
+    ! == Perform necessary corrections to the gridded data
+    ! ====================================================
 
     ! Indexing
     IF     (indexing == 'xy') THEN
@@ -891,8 +891,8 @@ CONTAINS
       CALL crash('unknown ydir = "' // TRIM( ydir) // '"!')
     END IF
 
-  ! == Distribute gridded data from the master to all processes in partial vector form
-  ! ==================================================================================
+    ! == Distribute gridded data from the master to all processes in partial vector form
+    ! ==================================================================================
 
     ! Distribute data
     CALL distribute_gridded_data_from_master( grid_loc, d_grid, d_grid_vec_partial)
@@ -920,12 +920,12 @@ CONTAINS
     REAL(dp),                   OPTIONAL,    INTENT(IN)    :: time_to_read
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'read_field_from_xy_file_2D_monthly'
+    character(len=1024), parameter                         :: routine_name = 'read_field_from_xy_file_2D_monthly'
     INTEGER                                                :: ncid
     TYPE(type_grid)                                        :: grid_loc
     INTEGER                                                :: id_var
-    CHARACTER(LEN=256)                                     :: var_name
-    CHARACTER(LEN=256)                                     :: indexing, xdir, ydir
+    CHARACTER(LEN=1024)                                    :: var_name
+    CHARACTER(LEN=1024)                                    :: indexing, xdir, ydir
     REAL(dp), DIMENSION(:,:,:  ), ALLOCATABLE              :: d_grid
     REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE              :: d_grid_with_time
     INTEGER                                                :: ti
@@ -1065,14 +1065,14 @@ CONTAINS
     REAL(dp),                   OPTIONAL,    INTENT(IN)    :: time_to_read
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'read_field_from_xy_file_3D'
+    character(len=1024), parameter                         :: routine_name = 'read_field_from_xy_file_3D'
     INTEGER                                                :: ncid
     TYPE(type_grid)                                        :: grid_loc
     INTEGER                                                :: nzeta_loc
     REAL(dp), DIMENSION(:    ), ALLOCATABLE                :: zeta_loc
     INTEGER                                                :: id_var
-    CHARACTER(LEN=256)                                     :: var_name
-    CHARACTER(LEN=256)                                     :: indexing, xdir, ydir
+    CHARACTER(LEN=1024)                                    :: var_name
+    CHARACTER(LEN=1024)                                    :: indexing, xdir, ydir
     REAL(dp), DIMENSION(:,:,:  ), ALLOCATABLE              :: d_grid
     REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE              :: d_grid_with_time
     INTEGER                                                :: ti
@@ -1212,14 +1212,14 @@ CONTAINS
     REAL(dp),                   OPTIONAL,    INTENT(IN)    :: time_to_read
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'read_field_from_xy_file_3D_ocean'
+    character(len=1024), parameter                         :: routine_name = 'read_field_from_xy_file_3D_ocean'
     INTEGER                                                :: ncid
     TYPE(type_grid)                                        :: grid_loc
     INTEGER                                                :: ndepth_loc
     REAL(dp), DIMENSION(:    ), ALLOCATABLE                :: depth_loc
     INTEGER                                                :: id_var
-    CHARACTER(LEN=256)                                     :: var_name
-    CHARACTER(LEN=256)                                     :: indexing, xdir, ydir
+    CHARACTER(LEN=1024)                                    :: var_name
+    CHARACTER(LEN=1024)                                    :: indexing, xdir, ydir
     REAL(dp), DIMENSION(:,:,:  ), ALLOCATABLE              :: d_grid
     REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE              :: d_grid_with_time
     INTEGER                                                :: ti
@@ -1360,12 +1360,12 @@ CONTAINS
     REAL(dp),                   OPTIONAL,    INTENT(IN)    :: time_to_read
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'read_field_from_lonlat_file_2D'
+    character(len=1024), parameter                         :: routine_name = 'read_field_from_lonlat_file_2D'
     INTEGER                                                :: ncid
     TYPE(type_grid_lonlat)                                 :: grid_loc
     INTEGER                                                :: id_var
-    CHARACTER(LEN=256)                                     :: var_name
-    CHARACTER(LEN=256)                                     :: indexing, londir, latdir
+    CHARACTER(LEN=1024)                                    :: var_name
+    CHARACTER(LEN=1024)                                    :: indexing, londir, latdir
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                :: d_grid
     REAL(dp), DIMENSION(:,:,:), ALLOCATABLE                :: d_grid_with_time
     INTEGER                                                :: ti
@@ -1504,12 +1504,12 @@ CONTAINS
     REAL(dp),                   OPTIONAL,    INTENT(IN)    :: time_to_read
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'read_field_from_lonlat_file_2D_monthly'
+    character(len=1024), parameter                         :: routine_name = 'read_field_from_lonlat_file_2D_monthly'
     INTEGER                                                :: ncid
     TYPE(type_grid_lonlat)                                 :: grid_loc
     INTEGER                                                :: id_var
-    CHARACTER(LEN=256)                                     :: var_name
-    CHARACTER(LEN=256)                                     :: indexing, londir, latdir
+    CHARACTER(LEN=1024)                                    :: var_name
+    CHARACTER(LEN=1024)                                    :: indexing, londir, latdir
     REAL(dp), DIMENSION(:,:,:  ), ALLOCATABLE              :: d_grid
     REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE              :: d_grid_with_time
     INTEGER                                                :: ti
@@ -1649,14 +1649,14 @@ CONTAINS
     REAL(dp),                   OPTIONAL,    INTENT(IN)    :: time_to_read
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'read_field_from_lonlat_file_3D'
+    character(len=1024), parameter                         :: routine_name = 'read_field_from_lonlat_file_3D'
     INTEGER                                                :: ncid
     TYPE(type_grid_lonlat)                                 :: grid_loc
     INTEGER                                                :: nzeta_loc
     REAL(dp), DIMENSION(:    ), ALLOCATABLE                :: zeta_loc
     INTEGER                                                :: id_var
-    CHARACTER(LEN=256)                                     :: var_name
-    CHARACTER(LEN=256)                                     :: indexing, londir, latdir
+    CHARACTER(LEN=1024)                                    :: var_name
+    CHARACTER(LEN=1024)                                    :: indexing, londir, latdir
     REAL(dp), DIMENSION(:,:,:  ), ALLOCATABLE              :: d_grid
     REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE              :: d_grid_with_time
     INTEGER                                                :: ti
@@ -1796,14 +1796,14 @@ CONTAINS
     REAL(dp),                   OPTIONAL,    INTENT(IN)    :: time_to_read
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'read_field_from_lonlat_file_3D_ocean'
+    character(len=1024), parameter                         :: routine_name = 'read_field_from_lonlat_file_3D_ocean'
     INTEGER                                                :: ncid
     TYPE(type_grid_lonlat)                                 :: grid_loc
     INTEGER                                                :: ndepth_loc
     REAL(dp), DIMENSION(:    ), ALLOCATABLE                :: depth_loc
     INTEGER                                                :: id_var
-    CHARACTER(LEN=256)                                     :: var_name
-    CHARACTER(LEN=256)                                     :: indexing, londir, latdir
+    CHARACTER(LEN=1024)                                    :: var_name
+    CHARACTER(LEN=1024)                                    :: indexing, londir, latdir
     REAL(dp), DIMENSION(:,:,:  ), ALLOCATABLE              :: d_grid
     REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE              :: d_grid_with_time
     INTEGER                                                :: ti
@@ -1944,11 +1944,11 @@ CONTAINS
     REAL(dp),                   OPTIONAL,    INTENT(IN)    :: time_to_read
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'read_field_from_mesh_file_2D'
+    character(len=1024), parameter                         :: routine_name = 'read_field_from_mesh_file_2D'
     INTEGER                                                :: ncid
     TYPE(type_mesh)                                        :: mesh_loc
     INTEGER                                                :: id_var
-    CHARACTER(LEN=256)                                     :: var_name
+    CHARACTER(LEN=1024)                                    :: var_name
     REAL(dp), DIMENSION(:    ), ALLOCATABLE                :: d_mesh
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                :: d_mesh_with_time
     INTEGER                                                :: ti
@@ -2025,11 +2025,11 @@ CONTAINS
     REAL(dp),                   OPTIONAL,    INTENT(IN)    :: time_to_read
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'read_field_from_mesh_file_2D_b'
+    character(len=1024), parameter                         :: routine_name = 'read_field_from_mesh_file_2D_b'
     INTEGER                                                :: ncid
     TYPE(type_mesh)                                        :: mesh_loc
     INTEGER                                                :: id_var
-    CHARACTER(LEN=256)                                     :: var_name
+    CHARACTER(LEN=1024)                                    :: var_name
     REAL(dp), DIMENSION(:    ), ALLOCATABLE                :: d_mesh
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                :: d_mesh_with_time
     INTEGER                                                :: ti
@@ -2104,11 +2104,11 @@ CONTAINS
     REAL(dp),                   OPTIONAL,    INTENT(IN)    :: time_to_read
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'read_field_from_mesh_file_2D_monthly'
+    character(len=1024), parameter                         :: routine_name = 'read_field_from_mesh_file_2D_monthly'
     INTEGER                                                :: ncid
     TYPE(type_mesh)                                        :: mesh_loc
     INTEGER                                                :: id_var
-    CHARACTER(LEN=256)                                     :: var_name
+    CHARACTER(LEN=1024)                                    :: var_name
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                :: d_mesh
     REAL(dp), DIMENSION(:,:,:), ALLOCATABLE                :: d_mesh_with_time
     INTEGER                                                :: ti
@@ -2186,13 +2186,13 @@ CONTAINS
     REAL(dp),                   OPTIONAL,    INTENT(IN)    :: time_to_read
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'read_field_from_mesh_file_3D'
+    character(len=1024), parameter                         :: routine_name = 'read_field_from_mesh_file_3D'
     INTEGER                                                :: ncid
     TYPE(type_mesh)                                        :: mesh_loc
     INTEGER                                                :: nzeta_loc
     REAL(dp), DIMENSION(:    ), ALLOCATABLE                :: zeta_loc
     INTEGER                                                :: id_var
-    CHARACTER(LEN=256)                                     :: var_name
+    CHARACTER(LEN=1024)                                    :: var_name
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                :: d_mesh
     REAL(dp), DIMENSION(:,:,:), ALLOCATABLE                :: d_mesh_with_time
     INTEGER                                                :: ti
@@ -2272,13 +2272,13 @@ CONTAINS
     REAL(dp),                   OPTIONAL,    INTENT(IN)    :: time_to_read
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'read_field_from_mesh_file_3D'
+    character(len=1024), parameter                         :: routine_name = 'read_field_from_mesh_file_3D'
     INTEGER                                                :: ncid
     TYPE(type_mesh)                                        :: mesh_loc
     INTEGER                                                :: nzeta_loc
     REAL(dp), DIMENSION(:    ), ALLOCATABLE                :: zeta_loc
     INTEGER                                                :: id_var
-    CHARACTER(LEN=256)                                     :: var_name
+    CHARACTER(LEN=1024)                                    :: var_name
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                :: d_mesh
     REAL(dp), DIMENSION(:,:,:), ALLOCATABLE                :: d_mesh_with_time
     INTEGER                                                :: ti
@@ -2356,13 +2356,13 @@ CONTAINS
     REAL(dp),                   OPTIONAL,    INTENT(IN)    :: time_to_read
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'read_field_from_mesh_file_3D_ocean'
+    character(len=1024), parameter                         :: routine_name = 'read_field_from_mesh_file_3D_ocean'
     INTEGER                                                :: ncid
     TYPE(type_mesh)                                        :: mesh_loc
     INTEGER                                                :: ndepth_loc
     REAL(dp), DIMENSION(:    ), ALLOCATABLE                :: depth_loc
     INTEGER                                                :: id_var
-    CHARACTER(LEN=256)                                     :: var_name
+    CHARACTER(LEN=1024)                                    :: var_name
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                :: d_mesh
     REAL(dp), DIMENSION(:,:,:), ALLOCATABLE                :: d_mesh_with_time
     INTEGER                                                :: ti
@@ -2440,10 +2440,10 @@ CONTAINS
     REAL(dp),                   OPTIONAL,    INTENT(IN)    :: time_to_read
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'read_field_from_mesh_file_3D_CDF'
+    character(len=1024), parameter                         :: routine_name = 'read_field_from_mesh_file_3D_CDF'
     INTEGER                                                :: ncid
     INTEGER                                                :: id_dim_vi, id_var, id_dim_bins, nbins_loc, nV_loc
-    CHARACTER(LEN=256)                                     :: var_name
+    CHARACTER(LEN=1024)                                    :: var_name
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                :: d_mesh
 
     ! Add routine to path
@@ -2505,10 +2505,10 @@ CONTAINS
     REAL(dp),                   OPTIONAL,    INTENT(IN)    :: time_to_read
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'read_field_from_mesh_file_3D_b_CDF'
+    character(len=1024), parameter                         :: routine_name = 'read_field_from_mesh_file_3D_b_CDF'
     INTEGER                                                :: ncid
     INTEGER                                                :: id_dim_ti, id_var, id_dim_bins, nbins_loc, nTri_loc
-    CHARACTER(LEN=256)                                     :: var_name
+    CHARACTER(LEN=1024)                                    :: var_name
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                :: d_mesh
 
     ! Add routine to path
@@ -2569,10 +2569,10 @@ CONTAINS
     REAL(dp),                   OPTIONAL,    INTENT(IN)    :: time_to_read
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                          :: routine_name = 'read_field_from_file_0D'
+    character(len=1024), parameter                         :: routine_name = 'read_field_from_file_0D'
     INTEGER                                                :: ncid
     INTEGER                                                :: id_var, id_dim_time
-    CHARACTER(LEN=256)                                     :: var_name
+    CHARACTER(LEN=1024)                                    :: var_name
     INTEGER                                                :: var_type
     INTEGER                                                :: ndims_of_var
     INTEGER, DIMENSION( NF90_MAX_VAR_DIMS)                 :: dims_of_var
@@ -2651,7 +2651,7 @@ CONTAINS
     TYPE(type_grid),                     INTENT(OUT)   :: grid
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'setup_xy_grid_from_file'
+    character(len=1024), parameter                     :: routine_name = 'setup_xy_grid_from_file'
     REAL(dp), PARAMETER                                :: tol = 1E-9_dp
     INTEGER                                            :: id_dim_x, id_dim_y
     INTEGER                                            :: id_var_x, id_var_y
@@ -2705,7 +2705,7 @@ CONTAINS
     TYPE(type_grid_lonlat),              INTENT(OUT)   :: grid
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'setup_lonlat_grid_from_file'
+    character(len=1024), parameter                     :: routine_name = 'setup_lonlat_grid_from_file'
     INTEGER                                            :: id_dim_lon, id_dim_lat
     INTEGER                                            :: id_var_lon, id_var_lat
 
@@ -2758,8 +2758,8 @@ CONTAINS
     TYPE(type_mesh),                     INTENT(OUT)   :: mesh
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'setup_mesh_from_file'
-    CHARACTER(LEN=256)                                 :: name
+    character(len=1024), parameter                     :: routine_name = 'setup_mesh_from_file'
+    CHARACTER(LEN=1024)                                :: name
     INTEGER                                            :: id_dim_vi, id_dim_ti, id_dim_ci, id_dim_two, id_dim_three
     INTEGER                                            :: nV_mem, nTri_mem, nC_mem, n_two, n_three
     INTEGER                                            :: id_var_xmin, id_var_xmax, id_var_ymin, id_var_ymax, id_var_tol_dist, id_var_lambda_M, id_var_phi_M, id_var_beta_stereo
@@ -2871,7 +2871,7 @@ CONTAINS
     REAL(dp), DIMENSION(:), ALLOCATABLE, INTENT(OUT)   ::  zeta
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'setup_zeta_from_file'
+    character(len=1024), parameter                     :: routine_name = 'setup_zeta_from_file'
     INTEGER                                            :: id_dim_zeta, id_var_zeta
 
     ! Add routine to path
@@ -2912,7 +2912,7 @@ CONTAINS
     REAL(dp), DIMENSION(:), ALLOCATABLE, INTENT(OUT)   ::  depth
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'setup_depth_from_file'
+    character(len=1024), parameter                     :: routine_name = 'setup_depth_from_file'
     INTEGER                                            :: id_dim_depth, id_var_depth
 
     ! Add routine to path
@@ -2953,12 +2953,12 @@ CONTAINS
     CHARACTER(LEN=*),                    INTENT(IN)    :: filename
     INTEGER,                             INTENT(IN)    :: ncid
     CHARACTER(LEN=*),                    INTENT(IN)    :: var_name
-    CHARACTER(LEN=256),                  INTENT(OUT)   :: indexing
-    CHARACTER(LEN=256),                  INTENT(OUT)   :: xdir
-    CHARACTER(LEN=256),                  INTENT(OUT)   :: ydir
+    CHARACTER(LEN=1024),                 INTENT(OUT)   :: indexing
+    CHARACTER(LEN=1024),                 INTENT(OUT)   :: xdir
+    CHARACTER(LEN=1024),                 INTENT(OUT)   :: ydir
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'determine_xy_indexing'
+    character(len=1024), parameter                     :: routine_name = 'determine_xy_indexing'
     INTEGER                                            :: id_dim_x, id_dim_y
     INTEGER                                            :: nx, ny
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: x, y
@@ -3032,12 +3032,12 @@ CONTAINS
     CHARACTER(LEN=*),                    INTENT(IN)    :: filename
     INTEGER,                             INTENT(IN)    :: ncid
     CHARACTER(LEN=*),                    INTENT(IN)    :: var_name
-    CHARACTER(LEN=256),                  INTENT(OUT)   :: indexing
-    CHARACTER(LEN=256),                  INTENT(OUT)   :: londir
-    CHARACTER(LEN=256),                  INTENT(OUT)   :: latdir
+    CHARACTER(LEN=1024),                 INTENT(OUT)   :: indexing
+    CHARACTER(LEN=1024),                 INTENT(OUT)   :: londir
+    CHARACTER(LEN=1024),                 INTENT(OUT)   :: latdir
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'determine_lonlat_indexing'
+    character(len=1024), parameter                     :: routine_name = 'determine_lonlat_indexing'
     INTEGER                                            :: id_dim_lon, id_dim_lat
     INTEGER                                            :: nlon, nlat
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: lon, lat

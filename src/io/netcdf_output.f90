@@ -67,9 +67,9 @@ CONTAINS
     REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: d_grid_vec_partial
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_to_field_multopt_grid_dp_2D'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'write_to_field_multopt_grid_dp_2D'
     INTEGER                                            :: id_var, id_dim_time, ti
-    CHARACTER(LEN=256)                                 :: var_name
+    CHARACTER(LEN=1024)                                :: var_name
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: d_grid
     REAL(dp), DIMENSION(:,:,:), ALLOCATABLE            :: d_grid_with_time
 
@@ -127,9 +127,9 @@ CONTAINS
     REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: d_grid_vec_partial
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_to_field_multopt_grid_dp_2D_monthly'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'write_to_field_multopt_grid_dp_2D_monthly'
     INTEGER                                            :: id_var, id_dim_time, ti
-    CHARACTER(LEN=256)                                 :: var_name
+    CHARACTER(LEN=1024)                                :: var_name
     REAL(dp), DIMENSION(:,:,:  ), ALLOCATABLE          :: d_grid
     REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE          :: d_grid_with_time
 
@@ -187,9 +187,9 @@ CONTAINS
     REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: d_grid_vec_partial
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_to_field_multopt_grid_dp_3D'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'write_to_field_multopt_grid_dp_3D'
     INTEGER                                            :: id_var, id_dim_time, ti, nz
-    CHARACTER(LEN=256)                                 :: var_name
+    CHARACTER(LEN=1024)                                :: var_name
     REAL(dp), DIMENSION(:,:,:  ), ALLOCATABLE          :: d_grid
     REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE          :: d_grid_with_time
 
@@ -247,9 +247,9 @@ CONTAINS
     REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: d_grid_vec_partial
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_to_field_multopt_grid_dp_2D_notime'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'write_to_field_multopt_grid_dp_2D_notime'
     INTEGER                                            :: id_var
-    CHARACTER(LEN=256)                                 :: var_name
+    CHARACTER(LEN=1024)                                :: var_name
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: d_grid
 
     ! Add routine to path
@@ -294,9 +294,9 @@ CONTAINS
     REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: d_grid_vec_partial
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_to_field_multopt_grid_dp_2D_monthly_notime'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'write_to_field_multopt_grid_dp_2D_monthly_notime'
     INTEGER                                            :: id_var
-    CHARACTER(LEN=256)                                 :: var_name
+    CHARACTER(LEN=1024)                                :: var_name
     REAL(dp), DIMENSION(:,:,:), ALLOCATABLE            :: d_grid
 
     ! Add routine to path
@@ -341,9 +341,9 @@ CONTAINS
     REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: d_grid_vec_partial
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_to_field_multopt_grid_dp_3D_notime'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'write_to_field_multopt_grid_dp_3D_notime'
     INTEGER                                            :: id_var, nz
-    CHARACTER(LEN=256)                                 :: var_name
+    CHARACTER(LEN=1024)                                :: var_name
     REAL(dp), DIMENSION(:,:,:), ALLOCATABLE            :: d_grid
 
     ! Add routine to path
@@ -393,9 +393,9 @@ CONTAINS
     REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: d_grid_vec_partial
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_to_field_multopt_lonlat_grid_dp_2D'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'write_to_field_multopt_lonlat_grid_dp_2D'
     INTEGER                                            :: id_var, id_dim_time, ti
-    CHARACTER(LEN=256)                                 :: var_name
+    CHARACTER(LEN=1024)                                :: var_name
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: d_grid
     REAL(dp), DIMENSION(:,:,:), ALLOCATABLE            :: d_grid_with_time
 
@@ -453,9 +453,9 @@ CONTAINS
     REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: d_grid_vec_partial
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_to_field_multopt_lonlat_grid_dp_2D_monthly'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'write_to_field_multopt_lonlat_grid_dp_2D_monthly'
     INTEGER                                            :: id_var, id_dim_time, ti
-    CHARACTER(LEN=256)                                 :: var_name
+    CHARACTER(LEN=1024)                                :: var_name
     REAL(dp), DIMENSION(:,:,:  ), ALLOCATABLE          :: d_grid
     REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE          :: d_grid_with_time
 
@@ -513,9 +513,9 @@ CONTAINS
     REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: d_grid_vec_partial
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_to_field_multopt_lonlat_grid_dp_3D'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'write_to_field_multopt_lonlat_grid_dp_3D'
     INTEGER                                            :: id_var, id_dim_time, ti, nz
-    CHARACTER(LEN=256)                                 :: var_name
+    CHARACTER(LEN=1024)                                :: var_name
     REAL(dp), DIMENSION(:,:,:  ), ALLOCATABLE          :: d_grid
     REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE          :: d_grid_with_time
 
@@ -573,9 +573,9 @@ CONTAINS
     REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: d_grid_vec_partial
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_to_field_multopt_lonlat_grid_dp_2D_notime'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'write_to_field_multopt_lonlat_grid_dp_2D_notime'
     INTEGER                                            :: id_var
-    CHARACTER(LEN=256)                                 :: var_name
+    CHARACTER(LEN=1024)                                :: var_name
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: d_grid
 
     ! Add routine to path
@@ -620,9 +620,9 @@ CONTAINS
     REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: d_grid_vec_partial
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_to_field_multopt_lonlat_grid_dp_2D_monthly_notime'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'write_to_field_multopt_lonlat_grid_dp_2D_monthly_notime'
     INTEGER                                            :: id_var
-    CHARACTER(LEN=256)                                 :: var_name
+    CHARACTER(LEN=1024)                                :: var_name
     REAL(dp), DIMENSION(:,:,:), ALLOCATABLE            :: d_grid
 
     ! Add routine to path
@@ -667,9 +667,9 @@ CONTAINS
     REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: d_grid_vec_partial
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_to_field_multopt_lonlat_grid_dp_3D_notime'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'write_to_field_multopt_lonlat_grid_dp_3D_notime'
     INTEGER                                            :: id_var, nz
-    CHARACTER(LEN=256)                                 :: var_name
+    CHARACTER(LEN=1024)                                :: var_name
     REAL(dp), DIMENSION(:,:,:), ALLOCATABLE            :: d_grid
 
     ! Add routine to path
@@ -720,9 +720,9 @@ CONTAINS
     INTEGER,  DIMENSION(:    ),          INTENT(IN)    :: d_partial
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_to_field_multopt_mesh_int_2D'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'write_to_field_multopt_mesh_int_2D'
     INTEGER                                            :: id_var, id_dim_time, ti
-    CHARACTER(LEN=256)                                 :: var_name
+    CHARACTER(LEN=1024)                                :: var_name
     INTEGER,  DIMENSION(:    ), ALLOCATABLE            :: d_tot
     INTEGER,  DIMENSION(:,:  ), ALLOCATABLE            :: d_tot_with_time
 
@@ -781,9 +781,9 @@ CONTAINS
     REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: d_partial
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_to_field_multopt_mesh_dp_2D'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'write_to_field_multopt_mesh_dp_2D'
     INTEGER                                            :: id_var, id_dim_time, ti
-    CHARACTER(LEN=256)                                 :: var_name
+    CHARACTER(LEN=1024)                                :: var_name
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: d_tot
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: d_tot_with_time
 
@@ -842,9 +842,9 @@ CONTAINS
     REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: d_partial
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_to_field_multopt_mesh_dp_2D_b'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'write_to_field_multopt_mesh_dp_2D_b'
     INTEGER                                            :: id_var, id_dim_time, ti
-    CHARACTER(LEN=256)                                 :: var_name
+    CHARACTER(LEN=1024)                                :: var_name
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: d_tot
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: d_tot_with_time
 
@@ -903,9 +903,9 @@ CONTAINS
     REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: d_partial
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_to_field_multopt_mesh_dp_2D_monthly'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'write_to_field_multopt_mesh_dp_2D_monthly'
     INTEGER                                            :: id_var, id_dim_time, ti
-    CHARACTER(LEN=256)                                 :: var_name
+    CHARACTER(LEN=1024)                                :: var_name
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: d_tot
     REAL(dp), DIMENSION(:,:,:), ALLOCATABLE            :: d_tot_with_time
 
@@ -964,9 +964,9 @@ CONTAINS
     REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: d_partial
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_to_field_multopt_mesh_dp_3D'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'write_to_field_multopt_mesh_dp_3D'
     INTEGER                                            :: id_var, id_dim_time, ti
-    CHARACTER(LEN=256)                                 :: var_name
+    CHARACTER(LEN=1024)                                :: var_name
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: d_tot
     REAL(dp), DIMENSION(:,:,:), ALLOCATABLE            :: d_tot_with_time
 
@@ -1025,9 +1025,9 @@ CONTAINS
     REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: d_partial
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_to_field_multopt_mesh_dp_3D_b'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'write_to_field_multopt_mesh_dp_3D_b'
     INTEGER                                            :: id_var, id_dim_time, ti
-    CHARACTER(LEN=256)                                 :: var_name
+    CHARACTER(LEN=1024)                                :: var_name
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: d_tot
     REAL(dp), DIMENSION(:,:,:), ALLOCATABLE            :: d_tot_with_time
 
@@ -1086,9 +1086,9 @@ CONTAINS
     REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: d_partial
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_to_field_multopt_mesh_dp_3D_ocean'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'write_to_field_multopt_mesh_dp_3D_ocean'
     INTEGER                                            :: id_var, id_dim_time, ti
-    CHARACTER(LEN=256)                                 :: var_name
+    CHARACTER(LEN=1024)                                :: var_name
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: d_tot
     REAL(dp), DIMENSION(:,:,:), ALLOCATABLE            :: d_tot_with_time
 
@@ -1145,9 +1145,9 @@ CONTAINS
     INTEGER,  DIMENSION(:    ),          INTENT(IN)    :: d_partial
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_to_field_multopt_mesh_int_2D_notime'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'write_to_field_multopt_mesh_int_2D_notime'
     INTEGER                                            :: id_var, id_dim_time, ti
-    CHARACTER(LEN=256)                                 :: var_name
+    CHARACTER(LEN=1024)                                :: var_name
     INTEGER,  DIMENSION(:    ), ALLOCATABLE            :: d_tot
 
     ! Add routine to path
@@ -1196,9 +1196,9 @@ CONTAINS
     INTEGER,  DIMENSION(:    ),          INTENT(IN)    :: d_partial
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_to_field_multopt_mesh_int_2D_b_notime'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'write_to_field_multopt_mesh_int_2D_b_notime'
     INTEGER                                            :: id_var, id_dim_time, ti
-    CHARACTER(LEN=256)                                 :: var_name
+    CHARACTER(LEN=1024)                                :: var_name
     INTEGER,  DIMENSION(:    ), ALLOCATABLE            :: d_tot
 
     ! Add routine to path
@@ -1247,9 +1247,9 @@ CONTAINS
     INTEGER,  DIMENSION(:    ),          INTENT(IN)    :: d_partial
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_to_field_multopt_mesh_int_2D_c_notime'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'write_to_field_multopt_mesh_int_2D_c_notime'
     INTEGER                                            :: id_var, id_dim_time, ti
-    CHARACTER(LEN=256)                                 :: var_name
+    CHARACTER(LEN=1024)                                :: var_name
     INTEGER,  DIMENSION(:    ), ALLOCATABLE            :: d_tot
 
     ! Add routine to path
@@ -1298,9 +1298,9 @@ CONTAINS
     REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: d_partial
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_to_field_multopt_mesh_dp_2D_notime'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'write_to_field_multopt_mesh_dp_2D_notime'
     INTEGER                                            :: id_var, id_dim_time, ti
-    CHARACTER(LEN=256)                                 :: var_name
+    CHARACTER(LEN=1024)                                :: var_name
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: d_tot
 
     ! Add routine to path
@@ -1349,9 +1349,9 @@ CONTAINS
     REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: d_partial
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_to_field_multopt_mesh_dp_2D_b_notime'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'write_to_field_multopt_mesh_dp_2D_b_notime'
     INTEGER                                            :: id_var, id_dim_time, ti
-    CHARACTER(LEN=256)                                 :: var_name
+    CHARACTER(LEN=1024)                                :: var_name
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: d_tot
 
     ! Add routine to path
@@ -1400,9 +1400,9 @@ CONTAINS
     REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: d_partial
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_to_field_multopt_mesh_dp_2D_c_notime'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'write_to_field_multopt_mesh_dp_2D_c_notime'
     INTEGER                                            :: id_var, id_dim_time, ti
-    CHARACTER(LEN=256)                                 :: var_name
+    CHARACTER(LEN=1024)                                :: var_name
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: d_tot
 
     ! Add routine to path
@@ -1451,9 +1451,9 @@ CONTAINS
     REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: d_partial
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_to_field_multopt_mesh_dp_2D_monthly_notime'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'write_to_field_multopt_mesh_dp_2D_monthly_notime'
     INTEGER                                            :: id_var, id_dim_time, ti
-    CHARACTER(LEN=256)                                 :: var_name
+    CHARACTER(LEN=1024)                                :: var_name
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: d_tot
 
     ! Add routine to path
@@ -1502,9 +1502,9 @@ CONTAINS
     REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: d_partial
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_to_field_multopt_mesh_dp_3D_notime'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'write_to_field_multopt_mesh_dp_3D_notime'
     INTEGER                                            :: id_var, id_dim_time, ti
-    CHARACTER(LEN=256)                                 :: var_name
+    CHARACTER(LEN=1024)                                :: var_name
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: d_tot
 
     ! Add routine to path
@@ -1553,9 +1553,9 @@ CONTAINS
     REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: d_partial
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_to_field_multopt_mesh_dp_3D_b_notime'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'write_to_field_multopt_mesh_dp_3D_b_notime'
     INTEGER                                            :: id_var, id_dim_time, ti
-    CHARACTER(LEN=256)                                 :: var_name
+    CHARACTER(LEN=1024)                                :: var_name
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: d_tot
 
     ! Add routine to path
@@ -1603,9 +1603,9 @@ CONTAINS
     integer,                             INTENT(IN)    :: d
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_to_field_multopt_int_0D'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'write_to_field_multopt_int_0D'
     INTEGER                                            :: id_var, id_dim_time, ti
-    CHARACTER(LEN=256)                                 :: var_name
+    CHARACTER(LEN=1024)                                :: var_name
     INTEGER                                            :: var_type
     INTEGER                                            :: ndims_of_var
     INTEGER, DIMENSION( NF90_MAX_VAR_DIMS)             :: dims_of_var
@@ -1655,9 +1655,9 @@ CONTAINS
     REAL(dp),                            INTENT(IN)    :: d
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_to_field_multopt_dp_0D'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'write_to_field_multopt_dp_0D'
     INTEGER                                            :: id_var, id_dim_time, ti
-    CHARACTER(LEN=256)                                 :: var_name
+    CHARACTER(LEN=1024)                                :: var_name
     INTEGER                                            :: var_type
     INTEGER                                            :: ndims_of_var
     INTEGER, DIMENSION( NF90_MAX_VAR_DIMS)             :: dims_of_var
@@ -1705,7 +1705,7 @@ CONTAINS
     REAL(dp),                            INTENT(IN)    :: time
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_time_to_file'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'write_time_to_file'
     INTEGER                                            :: id_dim_time
     INTEGER                                            :: id_var_time
     INTEGER                                            :: nt
@@ -1746,7 +1746,7 @@ CONTAINS
     TYPE(type_grid),                     INTENT(IN)    :: grid
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'setup_xy_grid_in_netcdf_file'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'setup_xy_grid_in_netcdf_file'
     INTEGER                                            :: id_dim_x
     INTEGER                                            :: id_dim_y
     INTEGER                                            :: id_var_x
@@ -1814,7 +1814,7 @@ CONTAINS
     CHARACTER(LEN=*),          OPTIONAL, INTENT(IN)    :: units
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'add_field_grid_int_2D'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'add_field_grid_int_2D'
     INTEGER                                            :: id_dim_x, id_dim_y, id_dim_time, id_var
 
     ! Add routine to path
@@ -1863,7 +1863,7 @@ CONTAINS
     CHARACTER(LEN=*),          OPTIONAL, INTENT(IN)    :: units
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'add_field_grid_dp_2D'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'add_field_grid_dp_2D'
     INTEGER                                            :: id_dim_x, id_dim_y, id_dim_time, id_var
 
     ! Add routine to path
@@ -1912,7 +1912,7 @@ CONTAINS
     CHARACTER(LEN=*),          OPTIONAL, INTENT(IN)    :: units
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'add_field_grid_dp_2D_monthly'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'add_field_grid_dp_2D_monthly'
     INTEGER                                            :: id_dim_x, id_dim_y, id_dim_month, id_dim_time, id_var
 
     ! Add routine to path
@@ -1964,7 +1964,7 @@ CONTAINS
     CHARACTER(LEN=*),          OPTIONAL, INTENT(IN)    :: units
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'add_field_grid_dp_3D'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'add_field_grid_dp_3D'
     INTEGER                                            :: id_dim_x, id_dim_y, id_dim_zeta, id_dim_time, id_var
 
     ! Add routine to path
@@ -2016,7 +2016,7 @@ CONTAINS
     CHARACTER(LEN=*),          OPTIONAL, INTENT(IN)    :: units
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'add_field_grid_int_2D_notime'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'add_field_grid_int_2D_notime'
     INTEGER                                            :: id_dim_x, id_dim_y, id_var
 
     ! Add routine to path
@@ -2062,7 +2062,7 @@ CONTAINS
     CHARACTER(LEN=*),          OPTIONAL, INTENT(IN)    :: units
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'add_field_grid_dp_2D_notime'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'add_field_grid_dp_2D_notime'
     INTEGER                                            :: id_dim_x, id_dim_y, id_var
 
     ! Add routine to path
@@ -2108,7 +2108,7 @@ CONTAINS
     CHARACTER(LEN=*),          OPTIONAL, INTENT(IN)    :: units
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'add_field_grid_dp_2D_monthly_notime'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'add_field_grid_dp_2D_monthly_notime'
     INTEGER                                            :: id_dim_x, id_dim_y, id_dim_month, id_var
 
     ! Add routine to path
@@ -2157,7 +2157,7 @@ CONTAINS
     CHARACTER(LEN=*),          OPTIONAL, INTENT(IN)    :: units
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'add_field_grid_dp_3D_notime'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'add_field_grid_dp_3D_notime'
     INTEGER                                            :: id_dim_x, id_dim_y, id_dim_zeta, id_var
 
     ! Add routine to path
@@ -2205,7 +2205,7 @@ CONTAINS
     TYPE(type_grid_lonlat),              INTENT(IN)    :: grid
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'setup_lonlat_grid_in_netcdf_file'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'setup_lonlat_grid_in_netcdf_file'
     INTEGER                                            :: id_dim_lon
     INTEGER                                            :: id_dim_lat
     INTEGER                                            :: id_var_lon
@@ -2250,7 +2250,7 @@ CONTAINS
     CHARACTER(LEN=*),          OPTIONAL, INTENT(IN)    :: units
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'add_field_lonlat_grid_int_2D'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'add_field_lonlat_grid_int_2D'
     INTEGER                                            :: id_dim_lon, id_dim_lat, id_dim_time, id_var
 
     ! Add routine to path
@@ -2299,7 +2299,7 @@ CONTAINS
     CHARACTER(LEN=*),          OPTIONAL, INTENT(IN)    :: units
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'add_field_lonlat_grid_dp_2D'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'add_field_lonlat_grid_dp_2D'
     INTEGER                                            :: id_dim_lon, id_dim_lat, id_dim_time, id_var
 
     ! Add routine to path
@@ -2348,7 +2348,7 @@ CONTAINS
     CHARACTER(LEN=*),          OPTIONAL, INTENT(IN)    :: units
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'add_field_lonlat_grid_dp_2D_monthly'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'add_field_lonlat_grid_dp_2D_monthly'
     INTEGER                                            :: id_dim_lon, id_dim_lat, id_dim_month, id_dim_time, id_var
 
     ! Add routine to path
@@ -2400,7 +2400,7 @@ CONTAINS
     CHARACTER(LEN=*),          OPTIONAL, INTENT(IN)    :: units
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'add_field_lonlat_grid_dp_3D'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'add_field_lonlat_grid_dp_3D'
     INTEGER                                            :: id_dim_lon, id_dim_lat, id_dim_zeta, id_dim_time, id_var
 
     ! Add routine to path
@@ -2452,7 +2452,7 @@ CONTAINS
     CHARACTER(LEN=*),          OPTIONAL, INTENT(IN)    :: units
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'add_field_lonlat_grid_int_2D_notime'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'add_field_lonlat_grid_int_2D_notime'
     INTEGER                                            :: id_dim_lon, id_dim_lat, id_var
 
     ! Add routine to path
@@ -2498,7 +2498,7 @@ CONTAINS
     CHARACTER(LEN=*),          OPTIONAL, INTENT(IN)    :: units
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'add_field_lonlat_grid_dp_2D_notime'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'add_field_lonlat_grid_dp_2D_notime'
     INTEGER                                            :: id_dim_lon, id_dim_lat, id_var
 
     ! Add routine to path
@@ -2544,7 +2544,7 @@ CONTAINS
     CHARACTER(LEN=*),          OPTIONAL, INTENT(IN)    :: units
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'add_field_lonlat_grid_dp_2D_monthly_notime'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'add_field_lonlat_grid_dp_2D_monthly_notime'
     INTEGER                                            :: id_dim_lon, id_dim_lat, id_dim_month, id_var
 
     ! Add routine to path
@@ -2593,7 +2593,7 @@ CONTAINS
     CHARACTER(LEN=*),          OPTIONAL, INTENT(IN)    :: units
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'add_field_lonlat_grid_dp_3D_notime'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'add_field_lonlat_grid_dp_3D_notime'
     INTEGER                                            :: id_dim_lon, id_dim_lat, id_dim_zeta, id_var
 
     ! Add routine to path
@@ -2641,7 +2641,7 @@ CONTAINS
     TYPE(type_mesh),                     INTENT(IN)    :: mesh
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'setup_mesh_in_netcdf_file'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'setup_mesh_in_netcdf_file'
 
     INTEGER                                            :: id_dim_vi
     INTEGER                                            :: id_dim_ti
@@ -2949,7 +2949,7 @@ CONTAINS
     type(type_mesh),  intent(in   ) :: mesh
 
     ! Local variables:
-    character(len=256), parameter :: routine_name = 'write_matrix_operators_to_netcdf_file'
+    character(len=1024), parameter :: routine_name = 'write_matrix_operators_to_netcdf_file'
 
     call init_routine( routine_name)
 
@@ -3004,7 +3004,7 @@ CONTAINS
     type(type_mesh),  intent(in   ) :: mesh
 
     ! Local variables:
-    character(len=256), parameter   :: routine_name = 'write_mesh_translation_tables_to_netcdf_file'
+    CHARACTER(LEN=1024), PARAMETER  :: routine_name = 'write_mesh_translation_tables_to_netcdf_file'
     integer :: id_dim_nz, id_dim_nzp1, id_dim_vi, id_dim_ti, id_dim_ei, id_dim_two, id_dim_three
     integer :: ierr
     integer :: grp_ncid
@@ -3166,7 +3166,7 @@ CONTAINS
     character(len=*),                 intent(in   ) :: name
 
     ! Local variables:
-    character(len=256), parameter   :: routine_name = 'write_matrix_operator_to_netcdf_file'
+    CHARACTER(LEN=1024), PARAMETER  :: routine_name = 'write_matrix_operator_to_netcdf_file'
     type(type_sparse_matrix_CSR_dp) :: A_tot
     integer                         :: ierr
     integer                         :: grp_ncid, id_dim_m, id_dim_mp1, id_dim_n, id_dim_nnz
@@ -3212,7 +3212,7 @@ CONTAINS
     TYPE(type_ice_model),                INTENT(IN)    :: ice
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'setup_CDF_in_netcdf_file'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'setup_CDF_in_netcdf_file'
 
     INTEGER                                            :: id_dim_vi, id_dim_ti, id_dim_bin
     INTEGER                                            :: id_var_cdf, id_var_cdf_b
@@ -3257,7 +3257,7 @@ CONTAINS
     CHARACTER(LEN=*),          OPTIONAL, INTENT(IN)    :: units
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'add_field_mesh_int_2D'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'add_field_mesh_int_2D'
     INTEGER                                            :: id_dim_vi, id_dim_time, id_var
 
     ! Add routine to path
@@ -3302,7 +3302,7 @@ CONTAINS
     CHARACTER(LEN=*),          OPTIONAL, INTENT(IN)    :: units
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'add_field_mesh_dp_2D'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'add_field_mesh_dp_2D'
     INTEGER                                            :: id_dim_vi, id_dim_time, id_var
 
     ! Add routine to path
@@ -3347,7 +3347,7 @@ CONTAINS
     CHARACTER(LEN=*),          OPTIONAL, INTENT(IN)    :: units
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'add_field_mesh_dp_2D_b'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'add_field_mesh_dp_2D_b'
     INTEGER                                            :: id_dim_ti, id_dim_time, id_var
 
     ! Add routine to path
@@ -3392,7 +3392,7 @@ CONTAINS
     CHARACTER(LEN=*),          OPTIONAL, INTENT(IN)    :: units
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'add_field_mesh_dp_2D_monthly'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'add_field_mesh_dp_2D_monthly'
     INTEGER                                            :: id_dim_vi, id_dim_month, id_dim_time, id_var
 
     ! Add routine to path
@@ -3440,7 +3440,7 @@ CONTAINS
     CHARACTER(LEN=*),          OPTIONAL, INTENT(IN)    :: units
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'add_field_mesh_dp_3D'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'add_field_mesh_dp_3D'
     INTEGER                                            :: id_dim_vi, id_dim_zeta, id_dim_time, id_var
 
     ! Add routine to path
@@ -3488,7 +3488,7 @@ CONTAINS
     CHARACTER(LEN=*),          OPTIONAL, INTENT(IN)    :: units
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'add_field_mesh_dp_3D_b'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'add_field_mesh_dp_3D_b'
     INTEGER                                            :: id_dim_ti, id_dim_zeta, id_dim_time, id_var
 
     ! Add routine to path
@@ -3536,7 +3536,7 @@ CONTAINS
     CHARACTER(LEN=*),          OPTIONAL, INTENT(IN)    :: units
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'add_field_mesh_dp_3D_ocean'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'add_field_mesh_dp_3D_ocean'
     INTEGER                                            :: id_dim_vi, id_dim_depth, id_dim_time, id_var
 
     ! Add routine to path
@@ -3584,7 +3584,7 @@ CONTAINS
     CHARACTER(LEN=*),          OPTIONAL, INTENT(IN)    :: units
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'add_field_mesh_int_2D_notime'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'add_field_mesh_int_2D_notime'
     INTEGER                                            :: id_dim_vi, id_var
 
     ! Add routine to path
@@ -3627,7 +3627,7 @@ CONTAINS
     CHARACTER(LEN=*),          OPTIONAL, INTENT(IN)    :: units
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'add_field_mesh_int_2D_b_notime'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'add_field_mesh_int_2D_b_notime'
     INTEGER                                            :: id_dim_ti, id_var
 
     ! Add routine to path
@@ -3670,7 +3670,7 @@ CONTAINS
     CHARACTER(LEN=*),          OPTIONAL, INTENT(IN)    :: units
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'add_field_mesh_int_2D_c_notime'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'add_field_mesh_int_2D_c_notime'
     INTEGER                                            :: id_dim_ei, id_var
 
     ! Add routine to path
@@ -3713,7 +3713,7 @@ CONTAINS
     CHARACTER(LEN=*),          OPTIONAL, INTENT(IN)    :: units
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'add_field_mesh_dp_2D_notime'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'add_field_mesh_dp_2D_notime'
     INTEGER                                            :: id_dim_vi, id_var
 
     ! Add routine to path
@@ -3756,7 +3756,7 @@ CONTAINS
     CHARACTER(LEN=*),          OPTIONAL, INTENT(IN)    :: units
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'add_field_mesh_dp_2D_b_notime'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'add_field_mesh_dp_2D_b_notime'
     INTEGER                                            :: id_dim_ti, id_var
 
     ! Add routine to path
@@ -3799,7 +3799,7 @@ CONTAINS
     CHARACTER(LEN=*),          OPTIONAL, INTENT(IN)    :: units
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'add_field_mesh_dp_2D_c_notime'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'add_field_mesh_dp_2D_c_notime'
     INTEGER                                            :: id_dim_ei, id_var
 
     ! Add routine to path
@@ -3842,7 +3842,7 @@ CONTAINS
     CHARACTER(LEN=*),          OPTIONAL, INTENT(IN)    :: units
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'add_field_mesh_dp_2D_monthly_notime'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'add_field_mesh_dp_2D_monthly_notime'
     INTEGER                                            :: id_dim_vi, id_dim_month, id_var
 
     ! Add routine to path
@@ -3888,7 +3888,7 @@ CONTAINS
     CHARACTER(LEN=*),          OPTIONAL, INTENT(IN)    :: units
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'add_field_mesh_dp_3D_notime'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'add_field_mesh_dp_3D_notime'
     INTEGER                                            :: id_dim_vi, id_dim_zeta, id_var
 
     ! Add routine to path
@@ -3934,7 +3934,7 @@ CONTAINS
     CHARACTER(LEN=*),          OPTIONAL, INTENT(IN)    :: units
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'add_field_mesh_dp_3D_b_notime'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'add_field_mesh_dp_3D_b_notime'
     INTEGER                                            :: id_dim_ti, id_dim_zeta, id_var
 
     ! Add routine to path
@@ -3978,7 +3978,7 @@ CONTAINS
     INTEGER,                             INTENT(IN)    :: ncid
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'add_time_dimension_to_file'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'add_time_dimension_to_file'
     INTEGER                                            :: id_dim_time
     INTEGER                                            :: id_var_time
 
@@ -4008,7 +4008,7 @@ CONTAINS
     INTEGER,                             INTENT(IN)    :: ncid
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'add_month_dimension_to_file'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'add_month_dimension_to_file'
     INTEGER                                            :: id_dim_month
     INTEGER                                            :: id_var_month
 
@@ -4043,7 +4043,7 @@ CONTAINS
     REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: zeta
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'add_zeta_dimension_to_file'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'add_zeta_dimension_to_file'
     INTEGER                                            :: nz
     INTEGER                                            :: id_dim_zeta
     INTEGER                                            :: id_var_zeta
@@ -4081,7 +4081,7 @@ CONTAINS
     REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: depth
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'add_depth_dimension_to_file'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'add_depth_dimension_to_file'
     INTEGER                                            :: nz
     INTEGER                                            :: id_dim_depth
     INTEGER                                            :: id_var_depth
@@ -4117,7 +4117,7 @@ CONTAINS
     INTEGER,                             INTENT(IN)    :: ncid
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'add_cdf_dimension_to_file'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'add_cdf_dimension_to_file'
     INTEGER                                            :: id_dim_bins
     INTEGER                                            :: id_var_cdf, k
 
@@ -4155,7 +4155,7 @@ CONTAINS
     CHARACTER(LEN=*),          OPTIONAL, INTENT(IN)    :: units
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'add_field_dp_0D'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'add_field_dp_0D'
     INTEGER                                            :: id_dim_time, id_var
 
     ! Add routine to path
@@ -4192,7 +4192,7 @@ CONTAINS
     CHARACTER(LEN=*),          OPTIONAL, INTENT(IN)    :: units
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'add_field_int_0D'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'add_field_int_0D'
     INTEGER                                            :: id_dim_time, id_var
 
     ! Add routine to path
@@ -4228,7 +4228,7 @@ CONTAINS
     CHARACTER(LEN=*),                    INTENT(OUT)   :: filename_base_XXXXXdotnc
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'generate_filename_XXXXXdotnc'
+    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'generate_filename_XXXXXdotnc'
     INTEGER                                            :: i, ierr
     CHARACTER(LEN=5)                                   :: i_str
     LOGICAL                                            :: ex
