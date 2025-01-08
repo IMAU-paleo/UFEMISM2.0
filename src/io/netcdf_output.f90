@@ -23,34 +23,22 @@ MODULE netcdf_output
   USE ice_model_types                                        , ONLY: type_ice_model
   use mpi_distributed_memory, only: gather_to_master
 
-  USE netcdf,       ONLY: NF90_UNLIMITED, NF90_INT, NF90_FLOAT, NF90_DOUBLE, NF90_MAX_VAR_DIMS, NF90_DEF_GRP
-  USE netcdf_basic, ONLY: nerr, field_name_options_x, field_name_options_y, field_name_options_zeta, &
-                          field_name_options_lon, field_name_options_lat, field_name_options_time, field_name_options_month, field_name_options_depth, &
-                          field_name_options_dim_nV, field_name_options_dim_nTri, field_name_options_dim_nC_mem, &
-                          field_name_options_dim_nE, field_name_options_dim_nVor, field_name_options_dim_two, field_name_options_dim_three, &
-                          field_name_options_dim_four, field_name_options_V, field_name_options_Tri, field_name_options_nC, &
-                          field_name_options_C, field_name_options_niTri, field_name_options_iTri, &
-                          field_name_options_VBI, field_name_options_Tricc, field_name_options_TriC, field_name_options_TriGC, &
-                          field_name_options_TriBI, field_name_options_E, field_name_options_VE, field_name_options_EV, &
-                          field_name_options_ETri, field_name_options_EBI, field_name_options_vi2vori, field_name_options_ti2vori, &
-                          field_name_options_ei2vori, field_name_options_vori2vi, field_name_options_vori2ti, field_name_options_vori2ei, &
-                          field_name_options_Vor, field_name_options_VornC, field_name_options_VorC, field_name_options_nVVor, &
-                          field_name_options_VVor, field_name_options_A, field_name_options_R, &
-                          field_name_options_Hi, field_name_options_Hb, field_name_options_Hs, field_name_options_dHb, &
-                          field_name_options_SL, field_name_options_Ti, get_first_option_from_list, &
-                          open_existing_netcdf_file_for_reading, close_netcdf_file, &
-                          inquire_dim_multopt, inquire_var_multopt, &
-                          check_x, check_y, check_lon, check_lat, check_mesh_dimensions, check_zeta, check_depth, find_timeframe, &
-                          check_xy_grid_field_int_2D, check_xy_grid_field_dp_2D, check_xy_grid_field_dp_2D_monthly, check_xy_grid_field_dp_3D, &
-                          check_lonlat_grid_field_int_2D, check_lonlat_grid_field_dp_2D, check_lonlat_grid_field_dp_2D_monthly, check_lonlat_grid_field_dp_3D, &
-                          check_mesh_field_int_2D, check_mesh_field_int_2D_b, check_mesh_field_int_2D_c, &
-                          check_mesh_field_dp_2D, check_mesh_field_dp_2D_b, check_mesh_field_dp_2D_c, &
-                          check_mesh_field_dp_2D_monthly, check_mesh_field_dp_3D, check_mesh_field_dp_3D_b, check_mesh_field_dp_3D_ocean, &
-                          inquire_xy_grid, inquire_lonlat_grid, inquire_mesh, &
-                          write_var_master_int_0D, write_var_master_int_1D, write_var_master_int_2D, write_var_master_int_3D, write_var_master_int_4D, &
-                          write_var_master_dp_0D, write_var_master_dp_1D, write_var_master_dp_2D, write_var_master_dp_3D, write_var_master_dp_4D, &
-                          add_attribute_char, check_month, check_time, create_dimension, create_variable, create_scalar_variable, inquire_var, &
-                          open_existing_netcdf_file_for_writing, inquire_var_info
+  use netcdf, only: NF90_UNLIMITED, NF90_INT, NF90_FLOAT, NF90_DOUBLE, NF90_MAX_VAR_DIMS, NF90_DEF_GRP
+  use field_name_options
+  use netcdf_basic, only: nerr, &
+    open_existing_netcdf_file_for_reading, close_netcdf_file, &
+    inquire_dim_multopt, inquire_var_multopt, &
+    check_x, check_y, check_lon, check_lat, check_mesh_dimensions, check_zeta, check_depth, find_timeframe, &
+    check_xy_grid_field_int_2D, check_xy_grid_field_dp_2D, check_xy_grid_field_dp_2D_monthly, check_xy_grid_field_dp_3D, &
+    check_lonlat_grid_field_int_2D, check_lonlat_grid_field_dp_2D, check_lonlat_grid_field_dp_2D_monthly, check_lonlat_grid_field_dp_3D, &
+    check_mesh_field_int_2D, check_mesh_field_int_2D_b, check_mesh_field_int_2D_c, &
+    check_mesh_field_dp_2D, check_mesh_field_dp_2D_b, check_mesh_field_dp_2D_c, &
+    check_mesh_field_dp_2D_monthly, check_mesh_field_dp_3D, check_mesh_field_dp_3D_b, check_mesh_field_dp_3D_ocean, &
+    inquire_xy_grid, inquire_lonlat_grid, inquire_mesh, &
+    write_var_master_int_0D, write_var_master_int_1D, write_var_master_int_2D, write_var_master_int_3D, write_var_master_int_4D, &
+    write_var_master_dp_0D, write_var_master_dp_1D, write_var_master_dp_2D, write_var_master_dp_3D, write_var_master_dp_4D, &
+    add_attribute_char, check_month, check_time, create_dimension, create_variable, create_scalar_variable, inquire_var, &
+    open_existing_netcdf_file_for_writing, inquire_var_info
   use CSR_sparse_matrix_type, only: type_sparse_matrix_CSR_dp
   use CSR_sparse_matrix_utilities, only: gather_CSR_dist_to_master
 

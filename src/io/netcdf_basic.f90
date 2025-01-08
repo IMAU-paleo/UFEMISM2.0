@@ -15,10 +15,11 @@ module netcdf_basic
 
   use assertions_basic
   use mpi
-  use precisions                                             , only: dp, int8
-  use mpi_basic                                              , only: par, cerr, ierr, recv_status, sync
-  use control_resources_and_error_messaging                  , only: warning, crash, happy, init_routine, finalise_routine, colour_string
-  use model_configuration                                    , only: C, git_commit_hash
+  use precisions, only: dp, int8
+  use mpi_basic, only: par, cerr, ierr, recv_status, sync
+  use control_resources_and_error_messaging, only: warning, crash, happy, init_routine, finalise_routine, colour_string
+  use model_configuration, only: C, git_commit_hash
+  use field_name_options
 
   ! Import  NetCDF functionality
   use netcdf, only: NF90_NOERR, NF90_OPEN, NF90_CLOSE, NF90_NOWRITE, NF90_INQ_DIMID, NF90_inquire_dimension, &
@@ -31,72 +32,6 @@ module netcdf_basic
 
   ! NetCDF error code
   integer :: nerr
-
-  ! Possible names for different dimensions and variables
-  ! =====================================================
-
-  ! Different options for the name of a dimension or variable can now be tried.
-  ! They are separated by a double vertical bar ||
-
-  ! dimensions
-  character(len=1024), parameter :: field_name_options_x              = 'x||X||x1||X1||nx||NX||x-coordinate||X-coordinate||easting||Easting'
-  character(len=1024), parameter :: field_name_options_y              = 'y||Y||y1||Y1||ny||NY||y-coordinate||Y-coordinate||northing||Northing'
-  character(len=1024), parameter :: field_name_options_zeta           = 'zeta||Zeta'
-  character(len=1024), parameter :: field_name_options_lon            = 'lon||Lon||long||Long||longitude||Longitude'
-  character(len=1024), parameter :: field_name_options_lat            = 'lat||Lat||latitude||Latitude'
-  character(len=1024), parameter :: field_name_options_time           = 'time||Time||t||nt'
-  character(len=1024), parameter :: field_name_options_month          = 'month||Month'
-  character(len=1024), parameter :: field_name_options_depth          = 'depth||Depth'
-
-  ! Mesh
-  character(len=1024), parameter :: field_name_options_dim_nV         = 'vi'
-  character(len=1024), parameter :: field_name_options_dim_nTri       = 'ti'
-  character(len=1024), parameter :: field_name_options_dim_nC_mem     = 'ci'
-  character(len=1024), parameter :: field_name_options_dim_nE         = 'ei'
-  character(len=1024), parameter :: field_name_options_dim_nVor       = 'vori'
-  character(len=1024), parameter :: field_name_options_dim_two        = 'two'
-  character(len=1024), parameter :: field_name_options_dim_three      = 'three'
-  character(len=1024), parameter :: field_name_options_dim_four       = 'four'
-
-  character(len=1024), parameter :: field_name_options_V              = 'V'
-  character(len=1024), parameter :: field_name_options_Tri            = 'Tri'
-  character(len=1024), parameter :: field_name_options_nC             = 'nC'
-  character(len=1024), parameter :: field_name_options_C              = 'C'
-  character(len=1024), parameter :: field_name_options_niTri          = 'niTri'
-  character(len=1024), parameter :: field_name_options_iTri           = 'iTri'
-  character(len=1024), parameter :: field_name_options_VBI            = 'VBI'
-  character(len=1024), parameter :: field_name_options_Tricc          = 'Tricc'
-  character(len=1024), parameter :: field_name_options_TriC           = 'TriC'
-  character(len=1024), parameter :: field_name_options_TriBI          = 'TriBI'
-  character(len=1024), parameter :: field_name_options_E              = 'E'
-  character(len=1024), parameter :: field_name_options_VE             = 'VE'
-  character(len=1024), parameter :: field_name_options_EV             = 'EV'
-  character(len=1024), parameter :: field_name_options_ETri           = 'ETri'
-  character(len=1024), parameter :: field_name_options_EBI            = 'EBI'
-  character(len=1024), parameter :: field_name_options_vi2vori        = 'vi2vori'
-  character(len=1024), parameter :: field_name_options_ti2vori        = 'ti2vori'
-  character(len=1024), parameter :: field_name_options_ei2vori        = 'ei2vori'
-  character(len=1024), parameter :: field_name_options_vori2vi        = 'vori2vi'
-  character(len=1024), parameter :: field_name_options_vori2ti        = 'vori2ti'
-  character(len=1024), parameter :: field_name_options_vori2ei        = 'vori2ei'
-  character(len=1024), parameter :: field_name_options_Vor            = 'Vor'
-  character(len=1024), parameter :: field_name_options_VornC          = 'VornC'
-  character(len=1024), parameter :: field_name_options_VorC           = 'VorC'
-  character(len=1024), parameter :: field_name_options_nVVor          = 'nVVor'
-  character(len=1024), parameter :: field_name_options_VVor           = 'VVor'
-  character(len=1024), parameter :: field_name_options_TriGC          = 'TriGC'
-  character(len=1024), parameter :: field_name_options_A              = 'A'
-  character(len=1024), parameter :: field_name_options_R              = 'R'
-
-  ! Variables
-  character(len=1024), parameter :: field_name_options_Hi             = 'Hi||thickness||lithk'
-  character(len=1024), parameter :: field_name_options_Hb             = 'Hb||bed||topg'
-  character(len=1024), parameter :: field_name_options_Hs             = 'Hs||surface||orog'
-  character(len=1024), parameter :: field_name_options_SL             = 'SL'
-  character(len=1024), parameter :: field_name_options_dHb            = 'dHb'
-  character(len=1024), parameter :: field_name_options_Ti             = 'Ti'
-  character(len=1024), parameter :: field_name_options_T_ocean        = 'T_ocean||t_ocean||t_an'
-  character(len=1024), parameter :: field_name_options_S_ocean        = 'S_ocean||s_ocean||s_an'
 
 contains
 
@@ -3334,85 +3269,6 @@ contains
     call finalise_routine( routine_name)
 
   end subroutine inquire_var_multopt
-
-! ===== Parse flexible dimension/variable names =====
-! ===================================================
-
-  subroutine parse_field_name_options( field_name_options, field_name_options_parsed)
-    ! Check if a default set of field name options should be used.
-
-    ! In/output variables:
-    character(len=*),    intent(in   ) :: field_name_options
-    character(len=1024), intent(  out) :: field_name_options_parsed
-
-    ! Local variables:
-    character(len=1024), parameter :: routine_name = 'parse_field_name_options'
-
-    ! Add routine to path
-    call init_routine( routine_name, do_track_resource_use = .false.)
-
-    field_name_options_parsed = field_name_options
-
-    if (index( field_name_options,'default_options_') > 0) then
-      ! Use one of the default options
-
-      ! dimensions
-      if     (field_name_options == 'default_options_x') then
-        field_name_options_parsed = field_name_options_x
-      elseif (field_name_options == 'default_options_y') then
-        field_name_options_parsed = field_name_options_y
-      elseif (field_name_options == 'default_options_zeta') then
-        field_name_options_parsed = field_name_options_zeta
-      elseif (field_name_options == 'default_options_lon') then
-        field_name_options_parsed = field_name_options_lon
-      elseif (field_name_options == 'default_options_lat') then
-        field_name_options_parsed = field_name_options_lat
-      elseif (field_name_options == 'default_options_time') then
-        field_name_options_parsed = field_name_options_time
-
-      ! Variables
-      elseif (field_name_options == 'default_options_Hi') then
-        field_name_options_parsed = field_name_options_Hi
-      elseif (field_name_options == 'default_options_Hb') then
-        field_name_options_parsed = field_name_options_Hb
-      elseif (field_name_options == 'default_options_Hs') then
-        field_name_options_parsed = field_name_options_Hs
-      elseif (field_name_options == 'default_options_SL') then
-        field_name_options_parsed = field_name_options_SL
-
-      ! Unrecognised default options
-      else
-        call crash('unregocnised default field name option "' // trim( field_name_options) // '"')
-      end if
-
-    end if
-
-    ! Finalise routine path
-    call finalise_routine( routine_name)
-
-  end subroutine parse_field_name_options
-
-  function get_first_option_from_list( field_name_options) result( field_name)
-    ! Get the first option from a list of field name options
-
-    ! In/output variables:
-    character(len=*),  intent(in   ) :: field_name_options
-    character(len=1024)              :: field_name
-
-    ! Local variables:
-    integer :: i
-
-    field_name( 1:256) = ' '
-
-    i = index( field_name_options,'||')
-
-    if (i > 0) then
-      field_name = field_name_options( 1:i-1)
-    else
-      field_name = trim( field_name_options)
-    end if
-
-  end function get_first_option_from_list
 
 ! ===== Read data from variables =====
 ! ====================================
