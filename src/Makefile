@@ -176,11 +176,11 @@ UFEMISM_source = \
   mesh/creation/mesh_creation_from_reduced_geometry.f90 \
   mesh/creation/mesh_creation_main.f90 \
   \
-  netcdf/netcdf_basic.f90 \
-  netcdf/netcdf_debug.f90 \
-  netcdf/netcdf_input.f90 \
-  netcdf/netcdf_output.f90 \
-  netcdf/netcdf_resource_tracking.f90 \
+  io/netcdf_basic.f90 \
+  io/netcdf_debug.f90 \
+  io/netcdf_input.f90 \
+  io/netcdf_output.f90 \
+  io/netcdf_resource_tracking.f90 \
   \
   reference_states/reference_geometries.f90 \
   \
