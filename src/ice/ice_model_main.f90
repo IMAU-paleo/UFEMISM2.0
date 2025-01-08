@@ -2526,7 +2526,7 @@ CONTAINS
     INTEGER                                               :: vi, vj, ci, ei
     REAL(dp), DIMENSION(region%mesh%ei1:region%mesh%ei2)  :: u_vav_c, v_vav_c
     REAL(dp), DIMENSION(region%mesh%nE)                   :: u_vav_c_tot, v_vav_c_tot
-    REAL(dp)                                              :: dt_dummy, calving_rate, calving_ratio, D_x, D_y, D, calving_perp, L_c, V_calved
+    REAL(dp)                                              :: dt_dummy, calving_rate, calving_ratio, calving_perp, L_c, V_calved
     REAL(dp), DIMENSION(region%mesh%vi1:region%mesh%vi2)  :: SMB_dummy, BMB_dummy, LMB_dummy, AMB_dummy, dHi_dt_dummy, Hi_dummy, divQ_eff, LMB_trans
     REAL(dp), DIMENSION(region%mesh%nV)                   :: Hi_tot, fraction_margin_tot
     LOGICAL                                               :: found_advancing_calving_front, found_calving_front_neighbour
@@ -2634,10 +2634,7 @@ CONTAINS
     !     L_c = region%mesh%Cw( vi,ci)
 
     !     ! Calculate calving rate component perpendicular to this shared Voronoi cell boundary section
-    !     D_x = region%mesh%V( vj,1) - region%mesh%V( vi,1)
-    !     D_y = region%mesh%V( vj,2) - region%mesh%V( vi,2)
-    !     D   = SQRT( D_x**2 + D_y**2)
-    !     calving_perp = calving_ratio * ABS( u_vav_c_tot( ei) * D_x/D + v_vav_c_tot( ei) * D_y/D)
+    !     calving_perp = calving_ratio * ABS( u_vav_c_tot( ei) * mesh%D_x( vi, ci)/mesh%D( vi, ci) + v_vav_c_tot( ei) * mesh%D_y( vi, ci)/mesh%D( vi, ci))
 
     !     ! Calving front vertices: check if neighbour is open ocean
     !     IF (region%ice%mask_cf_fl( vi) .AND. mask_icefree_ocean_tot( vj)) THEN
