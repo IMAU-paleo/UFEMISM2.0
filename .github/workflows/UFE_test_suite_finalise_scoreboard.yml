@@ -44,76 +44,16 @@ jobs:
 # NOTE: list created automatically; if you want to add new integrated tests,
 # just run 'automated_testing/integrated_tests/add_all_integrated_tests_to_Github_workflow.m' again
 
-      - name: Download scoreboard file for integrated_tests/idealised/Halfar_dome/Halfar_10km
+      - name: Download scoreboard file for integrated_tests/idealised/Halfar_dome
         uses: actions/download-artifact@v4
         with:
-          name: scoreboard_file_integrated_tests_idealised_Halfar_dome_Halfar_10km
+          name: scoreboard_file_integrated_tests_idealised_Halfar_dome
           path: automated_testing/scoreboard/scoreboard_files
 
-      - name: Download scoreboard file for integrated_tests/idealised/Halfar_dome/Halfar_20km
+      - name: Download scoreboard file for integrated_tests/idealised/ISMIP-HOM
         uses: actions/download-artifact@v4
         with:
-          name: scoreboard_file_integrated_tests_idealised_Halfar_dome_Halfar_20km
-          path: automated_testing/scoreboard/scoreboard_files
-
-      - name: Download scoreboard file for integrated_tests/idealised/Halfar_dome/Halfar_40km
-        uses: actions/download-artifact@v4
-        with:
-          name: scoreboard_file_integrated_tests_idealised_Halfar_dome_Halfar_40km
-          path: automated_testing/scoreboard/scoreboard_files
-
-      - name: Download scoreboard file for integrated_tests/idealised/Halfar_dome/Halfar_5km
-        uses: actions/download-artifact@v4
-        with:
-          name: scoreboard_file_integrated_tests_idealised_Halfar_dome_Halfar_5km
-          path: automated_testing/scoreboard/scoreboard_files
-
-      - name: Download scoreboard file for integrated_tests/idealised/Halfar_dome/Halfar_static_10km
-        uses: actions/download-artifact@v4
-        with:
-          name: scoreboard_file_integrated_tests_idealised_Halfar_dome_Halfar_static_10km
-          path: automated_testing/scoreboard/scoreboard_files
-
-      - name: Download scoreboard file for integrated_tests/idealised/Halfar_dome/Halfar_static_20km
-        uses: actions/download-artifact@v4
-        with:
-          name: scoreboard_file_integrated_tests_idealised_Halfar_dome_Halfar_static_20km
-          path: automated_testing/scoreboard/scoreboard_files
-
-      - name: Download scoreboard file for integrated_tests/idealised/Halfar_dome/Halfar_static_40km
-        uses: actions/download-artifact@v4
-        with:
-          name: scoreboard_file_integrated_tests_idealised_Halfar_dome_Halfar_static_40km
-          path: automated_testing/scoreboard/scoreboard_files
-
-      - name: Download scoreboard file for integrated_tests/idealised/Halfar_dome/Halfar_static_5km
-        uses: actions/download-artifact@v4
-        with:
-          name: scoreboard_file_integrated_tests_idealised_Halfar_dome_Halfar_static_5km
-          path: automated_testing/scoreboard/scoreboard_files
-
-      - name: Download scoreboard file for integrated_tests/idealised/ISMIP-HOM/exp_A
-        uses: actions/download-artifact@v4
-        with:
-          name: scoreboard_file_integrated_tests_idealised_ISMIP-HOM_exp_A
-          path: automated_testing/scoreboard/scoreboard_files
-
-      - name: Download scoreboard file for integrated_tests/idealised/ISMIP-HOM/exp_B
-        uses: actions/download-artifact@v4
-        with:
-          name: scoreboard_file_integrated_tests_idealised_ISMIP-HOM_exp_B
-          path: automated_testing/scoreboard/scoreboard_files
-
-      - name: Download scoreboard file for integrated_tests/idealised/ISMIP-HOM/exp_C
-        uses: actions/download-artifact@v4
-        with:
-          name: scoreboard_file_integrated_tests_idealised_ISMIP-HOM_exp_C
-          path: automated_testing/scoreboard/scoreboard_files
-
-      - name: Download scoreboard file for integrated_tests/idealised/ISMIP-HOM/exp_D
-        uses: actions/download-artifact@v4
-        with:
-          name: scoreboard_file_integrated_tests_idealised_ISMIP-HOM_exp_D
+          name: scoreboard_file_integrated_tests_idealised_ISMIP-HOM
           path: automated_testing/scoreboard/scoreboard_files
 
       - name: Download scoreboard file for integrated_tests/idealised/MISMIP_mod

@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<single_run>
+    <name>MISMIP_mod</name>
+    <category>integrated_tests/idealised/MISMIP_mod</category>
+    <date_and_time>07-Jan-2025 09:39:36</date_and_time>
+    <git_hash_string>3f068478c3b1e59428805ba98893ac6c6eaccc9d</git_hash_string>
+    <cost_functions>
+        <name>GL_hyst</name>
+        <definition>r_GL2 - r_GL1</definition>
+        <value>5344.244</value>
+    </cost_functions>
+    <cost_functions>
+        <name>n_dt_ice</name>
+        <definition>total number of ice-dynamical time steps</definition>
+        <value>779</value>
+    </cost_functions>
+    <cost_functions>
+        <name>inv_min_dt_ice</name>
+        <definition>1 / (smallest ice-dynamical time step)</definition>
+        <value>0.35004</value>
+    </cost_functions>
+    <cost_functions>
+        <name>inv_max_dt_ice</name>
+        <definition>1 / (largest ice-dynamical time step)</definition>
+        <value>0.14565</value>
+    </cost_functions>
+    <cost_functions>
+        <name>inv_mean_dt_ice</name>
+        <definition>1 / (mean ice-dynamical time step)</definition>
+        <value>0.16391</value>
+    </cost_functions>
+    <cost_functions>
+        <name>n_visc_its</name>
+        <definition>total number of viscosity iterations</definition>
+        <value>815</value>
+    </cost_functions>
+    <cost_functions>
+        <name>min_visc_its_per_dt</name>
+        <definition>smallest number of visc its per time step</definition>
+        <value>1</value>
+    </cost_functions>
+    <cost_functions>
+        <name>max_visc_its_per_dt</name>
+        <definition>largest number of visc its per time step</definition>
+        <value>5</value>
+    </cost_functions>
+    <cost_functions>
+        <name>mean_visc_its_per_dt</name>
+        <definition>mean number of visc its per time step</definition>
+        <value>1.0415</value>
+    </cost_functions>
+    <cost_functions>
+        <name>n_Axb_its</name>
+        <definition>total number of linear solver iterations</definition>
+        <value>45976</value>
+    </cost_functions>
+    <cost_functions>
+        <name>min_Axb_its_per_visc_it</name>
+        <definition>smallest number of linear solver its per visc it</definition>
+        <value>20</value>
+    </cost_functions>
+    <cost_functions>
+        <name>max_Axb_its_per_visc_it</name>
+        <definition>largest number of linear solver its per visc it</definition>
+        <value>102</value>
+    </cost_functions>
+    <cost_functions>
+        <name>mean_Axb_its_per_visc_it</name>
+        <definition>mean number of linear solver its per visc it</definition>
+        <value>0</value>
+    </cost_functions>
+</single_run>

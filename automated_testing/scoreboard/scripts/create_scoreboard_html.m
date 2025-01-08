@@ -250,9 +250,12 @@ fclose( fid);
             scoreboard.subs{ ib}, cost_function, git_hash_string_of_run, date_and_time_of_run);
         end
       end
-      % Safety
+      % If it couldnt be found, add a new branch
       if ~found_it
-        error('Couldnt find corresponding branch on the scoreboard!')
+        scoreboard = add_single_cost_function_to_category_tree( ...
+          scoreboard, cost_function_path, cost_function);
+        scoreboard.subs{ end} = add_single_cost_function_value_to_scoreboard_sub( ...
+          scoreboard.subs{ end}, cost_function, git_hash_string_of_run, date_and_time_of_run);
       end
 
     else

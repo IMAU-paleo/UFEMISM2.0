@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<single_run>
+    <name>Halfar_10km</name>
+    <category>integrated_tests/idealised/Halfar_dome</category>
+    <date_and_time>08-Jan-2025 11:41:47</date_and_time>
+    <git_hash_string>d848b280e56ebff8408f4b1a85f61045ad02cf14</git_hash_string>
+    <cost_functions>
+        <name>rmse</name>
+        <definition>sqrt( mean( (Hi( :,end) - Hi_analytical( :,end)).^2 ))</definition>
+        <value>18.0543</value>
+    </cost_functions>
+    <cost_functions>
+        <name>n_dt_ice</name>
+        <definition>total number of ice-dynamical time steps</definition>
+        <value>713</value>
+    </cost_functions>
+    <cost_functions>
+        <name>inv_min_dt_ice</name>
+        <definition>1 / (smallest ice-dynamical time step)</definition>
+        <value>5.8146</value>
+    </cost_functions>
+    <cost_functions>
+        <name>inv_max_dt_ice</name>
+        <definition>1 / (largest ice-dynamical time step)</definition>
+        <value>0.50875</value>
+    </cost_functions>
+    <cost_functions>
+        <name>inv_mean_dt_ice</name>
+        <definition>1 / (mean ice-dynamical time step)</definition>
+        <value>1.259</value>
+    </cost_functions>
+    <cost_functions>
+        <name>n_visc_its</name>
+        <definition>total number of viscosity iterations</definition>
+        <value>-29946</value>
+    </cost_functions>
+    <cost_functions>
+        <name>min_visc_its_per_dt</name>
+        <definition>smallest number of visc its per time step</definition>
+        <value>-42</value>
+    </cost_functions>
+    <cost_functions>
+        <name>max_visc_its_per_dt</name>
+        <definition>largest number of visc its per time step</definition>
+        <value>0</value>
+    </cost_functions>
+    <cost_functions>
+        <name>mean_visc_its_per_dt</name>
+        <definition>mean number of visc its per time step</definition>
+        <value>-42</value>
+    </cost_functions>
+    <cost_functions>
+        <name>n_Axb_its</name>
+        <definition>total number of linear solver iterations</definition>
+        <value>-29946</value>
+    </cost_functions>
+    <cost_functions>
+        <name>min_Axb_its_per_visc_it</name>
+        <definition>smallest number of linear solver its per visc it</definition>
+        <value>-42</value>
+    </cost_functions>
+    <cost_functions>
+        <name>max_Axb_its_per_visc_it</name>
+        <definition>largest number of linear solver its per visc it</definition>
+        <value>0</value>
+    </cost_functions>
+    <cost_functions>
+        <name>mean_Axb_its_per_visc_it</name>
+        <definition>mean number of linear solver its per visc it</definition>
+        <value>0</value>
+    </cost_functions>
+</single_run>
