@@ -41,10 +41,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_TS_npx'
     INTEGER                                               :: vi
-    REAL(dp)                                              :: dHTdt
-    REAL(dp)                                              :: dHSdt
-    REAL(dp)                                              :: HT_next
-    REAL(dp)                                              :: HS_next
+    REAL(dp)                                              :: dHTdt, dHSdt, HT_next, HS_next
  
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -52,82 +49,42 @@ CONTAINS
     ! Compute divergence of heat and salt
     CALL compute_divQTS( mesh, laddie, npx, Hstar)
 
-    IF (include_diffusive_terms) THEN
-      ! Compute RHS including diffusive term
+    ! Loop over vertices
+    DO vi = mesh%vi1, mesh%vi2
+      IF (laddie%mask_a( vi)) THEN
 
-      ! Loop over vertices
-      DO vi = mesh%vi1, mesh%vi2
-        IF (laddie%mask_a( vi)) THEN
+        ! == Get time derivatives ==
 
-          ! == Temperature integration ==
+        ! Time-derivative heat equation
+        dHTdt = -laddie%divQT( vi) &
+               + laddie%melt( vi) * laddie%T_base( vi) &
+               + MAX(0.0_dp,laddie%entr( vi)) * laddie%T_amb( vi) &
+               + laddie%entr_dmin( vi) * laddie%T_amb( vi) &
+               - laddie%detr( vi) * npxref%T( vi)
 
-          ! Get dHT_dt
-          dHTdt = -laddie%divQT( vi) &
-                + laddie%melt( vi) * laddie%T_base( vi) &
-                + MAX(0.0_dp,laddie%entr( vi)) * laddie%T_amb( vi) &
-                + laddie%entr_dmin( vi) * laddie%T_amb( vi) &
-                - laddie%detr( vi) * npxref%T( vi) &
-                + laddie%diffT( vi)
+        ! Time-derivative salt equation
+        dHSdt = -laddie%divQS( vi) &
+               + MAX(0.0_dp,laddie%entr( vi)) * laddie%S_amb( vi) &
+               + laddie%entr_dmin( vi) * laddie%S_amb( vi) &
+               - laddie%detr( vi) * npxref%S( vi)
 
-          ! HT_n = HT_n + dHT_dt * dt
-          HT_next = laddie%now%T( vi)*laddie%now%H( vi) + dHTdt * dt
+        ! Add diffusive terms if requested
+        IF (include_diffusive_terms) THEN
+          dHTdt = dHTdt + laddie%diffT( vi)
+          dHSdt = dHSdt + laddie%diffS( vi)
+        END IF
 
-          npx%T( vi) = HT_next / npx%H( vi)
+        ! == Apply time-integration ==
 
-          ! == Salinity integration ==
+        ! HT_n = HT + dHT_dt * dt
+        HT_next = laddie%now%T( vi)*laddie%now%H( vi) + dHTdt * dt
+        npx%T( vi) = HT_next / npx%H( vi)
 
-          ! Get dHS_dt
-          dHSdt = -laddie%divQS( vi) &
-                + MAX(0.0_dp,laddie%entr( vi)) * laddie%S_amb( vi) &
-                + laddie%entr_dmin( vi) * laddie%S_amb( vi) &
-                - laddie%detr( vi) * npxref%S( vi) &
-                + laddie%diffS( vi)
-
-          ! HS_n = HS_n + dHS_dt * dt
-          HS_next = laddie%now%S( vi)*laddie%now%H( vi) + dHSdt * dt
-
-          npx%S( vi) = HS_next / npx%H( vi)
-        END IF !(laddie%mask_a( vi)) THEN
-      END DO !vi = mesh%vi, mesh%v2
-
-    ELSE
-      ! Without diffusive term
-
-      ! Loop over vertices
-      DO vi = mesh%vi1, mesh%vi2
-        IF (laddie%mask_a( vi)) THEN
-
-          ! == Temperature integration ==
-
-          ! Get dHT_dt
-          dHTdt = -laddie%divQT( vi) &
-                + laddie%melt( vi) * laddie%T_base( vi) &
-                + MAX(0.0_dp,laddie%entr( vi)) * laddie%T_amb( vi) &
-                + laddie%entr_dmin( vi) * laddie%T_amb( vi) &
-                - laddie%detr( vi) * npxref%T( vi)
-
-          ! HT_n = HT_n + dHT_dt * dt
-          HT_next = laddie%now%T( vi)*laddie%now%H( vi) + dHTdt * dt
-
-          npx%T( vi) = HT_next / npx%H( vi)
-
-          ! == Salinity integration ==
-
-          ! Get dHS_dt
-          dHSdt = -laddie%divQS( vi) &
-                + MAX(0.0_dp,laddie%entr( vi)) * laddie%S_amb( vi) &
-                + laddie%entr_dmin( vi) * laddie%S_amb( vi) &
-                - laddie%detr( vi) * npxref%S( vi)
-
-          ! HS_n = HS_n + dHS_dt * dt
-          HS_next = laddie%now%S( vi)*laddie%now%H( vi) + dHSdt * dt
-
-          npx%S( vi) = HS_next / npx%H( vi)
-
-        END IF !(laddie%mask_a( vi)) THEN
-      END DO !vi = mesh%vi, mesh%v2
-
-    END IF
+        ! HS_n = HS + dHS_dt * dt
+        HS_next = laddie%now%S( vi)*laddie%now%H( vi) + dHSdt * dt
+        npx%S( vi) = HS_next / npx%H( vi)
+      END IF !(laddie%mask_a( vi)) THEN
+    END DO !vi = mesh%vi, mesh%v2
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
