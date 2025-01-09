@@ -92,6 +92,8 @@ CONTAINS
             ! No need to do anything
           CASE ('prescribed_fixed')
             ! No need to do anything
+          CASE ('laddie2')
+            ! No need to do anything
           CASE DEFAULT
             CALL apply_BMB_subgrid_scheme( mesh, ice, BMB)
         END SELECT
@@ -127,9 +129,14 @@ CONTAINS
       CASE ('laddie')
         CALL run_BMB_model_laddie( mesh, BMB, time)
       CASE ('laddie2')
-        CALL run_laddie_model( mesh, ice, ocean, BMB%laddie, time)
+        IF (time == C%start_time_of_run) THEN
+          CALL run_laddie_model( mesh, ice, ocean, BMB%laddie, time, C%time_duration_laddie_init)
+        ELSE
+          CALL run_laddie_model( mesh, ice, ocean, BMB%laddie, time, C%time_duration_laddie)
+        END IF
+
         DO vi = mesh%vi1, mesh%vi2
-          BMB%BMB_shelf( vi) = -BMB%laddie%melt( vi) * sec_per_year
+          BMB%BMB( vi) = -BMB%laddie%melt( vi) * sec_per_year
         END DO
       CASE DEFAULT
         CALL crash('unknown choice_BMB_model "' // TRIM( choice_BMB_model) // '"')
@@ -140,6 +147,8 @@ CONTAINS
       CASE ('inverted')
         ! No need to do anything
       CASE ('prescribed_fixed')
+        ! No need to do anything
+      CASE ('laddie2')
         ! No need to do anything
       CASE DEFAULT
         CALL apply_BMB_subgrid_scheme( mesh, ice, BMB)
