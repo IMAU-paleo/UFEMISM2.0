@@ -1,26 +1,19 @@
-MODULE netcdf_output
+module netcdf_output
+  !< Routines to create and write data to output files, both on meshes and on grids. For
+  !< grid files, remapping of data from the provided model mesh to the output grid is done
+  !< automatically.
 
-! ===== Creating and writing to output files =====
-! ================================================
-!
-! These routines create and write data to output files, both on meshes and on grids. For
-! grid files, remapping of data from the provided model mesh to the output grid is done
-! automatically.
-
-! ===== Preamble =====
-! ====================
-
-  USE mpi
-  USE precisions                                             , ONLY: dp
-  USE mpi_basic                                              , ONLY: par, cerr, recv_status, sync
-  USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
-  USE model_configuration                                    , ONLY: C
+  use mpi
+  use precisions, only: dp
+  use mpi_basic, only: par, cerr, recv_status, sync
+  use control_resources_and_error_messaging, only: warning, crash, happy, init_routine, finalise_routine, colour_string
+  use model_configuration, only: C
   use grid_basic, only: type_grid
   use mpi_distributed_memory_grid, only: gather_gridded_data_to_master
-  USE grid_lonlat_basic                                      , ONLY: type_grid_lonlat, gather_lonlat_gridded_data_to_master_dp_2D, &
-                                                                     gather_lonlat_gridded_data_to_master_dp_3D
-  USE mesh_types                                             , ONLY: type_mesh
-  USE ice_model_types                                        , ONLY: type_ice_model
+  use grid_lonlat_basic, only: type_grid_lonlat, gather_lonlat_gridded_data_to_master_dp_2D, &
+    gather_lonlat_gridded_data_to_master_dp_3D
+  use mesh_types, only: type_mesh
+  use ice_model_types, only: type_ice_model
   use mpi_distributed_memory, only: gather_to_master
   use netcdf, only: NF90_UNLIMITED, NF90_INT, NF90_FLOAT, NF90_DOUBLE, NF90_MAX_VAR_DIMS, NF90_DEF_GRP
   use netcdf_field_name_options
@@ -32,9 +25,9 @@ MODULE netcdf_output
   use CSR_sparse_matrix_type, only: type_sparse_matrix_CSR_dp
   use CSR_sparse_matrix_utilities, only: gather_CSR_dist_to_master
 
-  IMPLICIT NONE
+  implicit none
 
-CONTAINS
+contains
 
   ! ==== Write data to flexibly-defined fields =====
   ! ================================================
@@ -364,332 +357,6 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE write_to_field_multopt_grid_dp_3D_notime
-
-  ! Write data to a lon/lat-gridded output file
-  SUBROUTINE write_to_field_multopt_lonlat_grid_dp_2D(                grid, filename, ncid, field_name_options, d_grid_vec_partial)
-    ! Write a 2-D data field defined on a lon/lat-grid to a NetCDF file variable on the same grid
-    !
-    ! Write to the last time frame of the variable
-    !
-    ! d is stored in vector form, distributed over the processes
-
-    IMPLICIT NONE
-
-    ! In/output variables:
-    TYPE(type_grid_lonlat),              INTENT(IN)    :: grid
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    CHARACTER(LEN=*),                    INTENT(IN)    :: field_name_options
-    REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: d_grid_vec_partial
-
-    ! Local variables:
-    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'write_to_field_multopt_lonlat_grid_dp_2D'
-    INTEGER                                            :: id_var, id_dim_time, ti
-    CHARACTER(LEN=1024)                                :: var_name
-    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: d_grid
-    REAL(dp), DIMENSION(:,:,:), ALLOCATABLE            :: d_grid_with_time
-
-    ! Add routine to path
-    CALL init_routine( routine_name)
-
-    ! Inquire the variable
-    CALL inquire_var_multopt( filename, ncid, field_name_options, id_var, var_name = var_name)
-    IF (id_var == -1) CALL crash('no variables for name options "' // TRIM( field_name_options) // '" were found in file "' // TRIM( filename) // '"!')
-
-    ! Check if this variable has the correct type and dimensions
-    CALL check_lonlat_grid_field_dp_2D( filename, ncid, var_name, should_have_time = .TRUE.)
-
-    ! Gather data to the master
-    IF (par%master) ALLOCATE( d_grid( grid%nlon, grid%nlat))
-    CALL gather_lonlat_gridded_data_to_master_dp_2D( grid, d_grid_vec_partial, d_grid)
-
-    ! Add "pretend" time dimension
-    IF (par%master) THEN
-      ALLOCATE( d_grid_with_time( grid%nlon, grid%nlat,1))
-      d_grid_with_time( :,:,1) = d_grid
-    END IF
-
-    ! Inquire length of time dimension
-    CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
-
-    ! Write data to the variable
-    CALL write_var_master( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, ti /), count = (/ grid%nlon, grid%nlat, 1 /) )
-
-    ! Clean up after yourself
-    IF (par%master) THEN
-      DEALLOCATE( d_grid)
-      DEALLOCATE( d_grid_with_time)
-    END IF
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE write_to_field_multopt_lonlat_grid_dp_2D
-
-  SUBROUTINE write_to_field_multopt_lonlat_grid_dp_2D_monthly(        grid, filename, ncid, field_name_options, d_grid_vec_partial)
-    ! Write a 2-D monthly data field defined on a lon/lat-grid to a NetCDF file variable on the same grid
-    !
-    ! Write to the last time frame of the variable
-    !
-    ! d is stored in vector form, distributed over the processes
-
-    IMPLICIT NONE
-
-    ! In/output variables:
-    TYPE(type_grid_lonlat),              INTENT(IN)    :: grid
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    CHARACTER(LEN=*),                    INTENT(IN)    :: field_name_options
-    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: d_grid_vec_partial
-
-    ! Local variables:
-    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'write_to_field_multopt_lonlat_grid_dp_2D_monthly'
-    INTEGER                                            :: id_var, id_dim_time, ti
-    CHARACTER(LEN=1024)                                :: var_name
-    REAL(dp), DIMENSION(:,:,:  ), ALLOCATABLE          :: d_grid
-    REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE          :: d_grid_with_time
-
-    ! Add routine to path
-    CALL init_routine( routine_name)
-
-    ! Inquire the variable
-    CALL inquire_var_multopt( filename, ncid, field_name_options, id_var, var_name = var_name)
-    IF (id_var == -1) CALL crash('no variables for name options "' // TRIM( field_name_options) // '" were found in file "' // TRIM( filename) // '"!')
-
-    ! Check if this variable has the correct type and dimensions
-    CALL check_lonlat_grid_field_dp_2D_monthly( filename, ncid, var_name, should_have_time = .TRUE.)
-
-    ! Gather data to the master
-    IF (par%master) ALLOCATE( d_grid( grid%nlon, grid%nlat, 12))
-    CALL gather_lonlat_gridded_data_to_master_dp_3D( grid, d_grid_vec_partial, d_grid)
-
-    ! Add "pretend" time dimension
-    IF (par%master) THEN
-      ALLOCATE( d_grid_with_time( grid%nlon, grid%nlat,12,1))
-      d_grid_with_time( :,:,:,1) = d_grid
-    END IF
-
-    ! Inquire length of time dimension
-    CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
-
-    ! Write data to the variable
-    CALL write_var_master( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid%nlon, grid%nlat, 12, 1 /) )
-
-    ! Clean up after yourself
-    IF (par%master) THEN
-      DEALLOCATE( d_grid)
-      DEALLOCATE( d_grid_with_time)
-    END IF
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE write_to_field_multopt_lonlat_grid_dp_2D_monthly
-
-  SUBROUTINE write_to_field_multopt_lonlat_grid_dp_3D(                grid, filename, ncid, field_name_options, d_grid_vec_partial)
-    ! Write a 3-D data field defined on a lon/lat-grid to a NetCDF file variable on the same grid
-    !
-    ! Write to the last time frame of the variable
-    !
-    ! d is stored in vector form, distributed over the processes
-
-    IMPLICIT NONE
-
-    ! In/output variables:
-    TYPE(type_grid_lonlat),              INTENT(IN)    :: grid
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    CHARACTER(LEN=*),                    INTENT(IN)    :: field_name_options
-    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: d_grid_vec_partial
-
-    ! Local variables:
-    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'write_to_field_multopt_lonlat_grid_dp_3D'
-    INTEGER                                            :: id_var, id_dim_time, ti, nz
-    CHARACTER(LEN=1024)                                :: var_name
-    REAL(dp), DIMENSION(:,:,:  ), ALLOCATABLE          :: d_grid
-    REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE          :: d_grid_with_time
-
-    ! Add routine to path
-    CALL init_routine( routine_name)
-
-    nz = SIZE( d_grid_vec_partial,2)
-
-    ! Inquire the variable
-    CALL inquire_var_multopt( filename, ncid, field_name_options, id_var, var_name = var_name)
-    IF (id_var == -1) CALL crash('no variables for name options "' // TRIM( field_name_options) // '" were found in file "' // TRIM( filename) // '"!')
-
-    ! Check if this variable has the correct type and dimensions
-    CALL check_lonlat_grid_field_dp_3D( filename, ncid, var_name, should_have_time = .TRUE.)
-
-    ! Gather data to the master
-    IF (par%master) ALLOCATE( d_grid( grid%nlon, grid%nlat, nz))
-    CALL gather_lonlat_gridded_data_to_master_dp_3D( grid, d_grid_vec_partial, d_grid)
-
-    ! Add "pretend" time dimension
-    IF (par%master) THEN
-      ALLOCATE( d_grid_with_time( grid%nlon, grid%nlat,nz,1))
-      d_grid_with_time( :,:,:,1) = d_grid
-    END IF
-
-    ! Inquire length of time dimension
-    CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
-
-    ! Write data to the variable
-    CALL write_var_master( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid%nlon, grid%nlat, nz, 1 /) )
-
-    ! Clean up after yourself
-    IF (par%master) THEN
-      DEALLOCATE( d_grid)
-      DEALLOCATE( d_grid_with_time)
-    END IF
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE write_to_field_multopt_lonlat_grid_dp_3D
-
-  SUBROUTINE write_to_field_multopt_lonlat_grid_dp_2D_notime(         grid, filename, ncid, field_name_options, d_grid_vec_partial)
-    ! Write a 2-D data field defined on a lon/lat-grid to a NetCDF file variable on the same grid
-    !
-    ! d is stored in vector form, distributed over the processes
-
-    IMPLICIT NONE
-
-    ! In/output variables:
-    TYPE(type_grid_lonlat),              INTENT(IN)    :: grid
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    CHARACTER(LEN=*),                    INTENT(IN)    :: field_name_options
-    REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: d_grid_vec_partial
-
-    ! Local variables:
-    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'write_to_field_multopt_lonlat_grid_dp_2D_notime'
-    INTEGER                                            :: id_var
-    CHARACTER(LEN=1024)                                :: var_name
-    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: d_grid
-
-    ! Add routine to path
-    CALL init_routine( routine_name)
-
-    ! Inquire the variable
-    CALL inquire_var_multopt( filename, ncid, field_name_options, id_var, var_name = var_name)
-    IF (id_var == -1) CALL crash('no variables for name options "' // TRIM( field_name_options) // '" were found in file "' // TRIM( filename) // '"!')
-
-    ! Check if this variable has the correct type and dimensions
-    CALL check_lonlat_grid_field_dp_2D( filename, ncid, var_name, should_have_time = .FALSE.)
-
-    ! Gather data to the master
-    IF (par%master) ALLOCATE( d_grid( grid%nlon, grid%nlat))
-    CALL gather_lonlat_gridded_data_to_master_dp_2D( grid, d_grid_vec_partial, d_grid)
-
-    ! Write data to the variable
-    CALL write_var_master( filename, ncid, id_var, d_grid)
-
-    ! Clean up after yourself
-    IF (par%master) THEN
-      DEALLOCATE( d_grid)
-    END IF
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE write_to_field_multopt_lonlat_grid_dp_2D_notime
-
-  SUBROUTINE write_to_field_multopt_lonlat_grid_dp_2D_monthly_notime( grid, filename, ncid, field_name_options, d_grid_vec_partial)
-    ! Write a 2-D monthly data field defined on a lon/lat-grid to a NetCDF file variable on the same grid
-    !
-    ! d is stored in vector form, distributed over the processes
-
-    IMPLICIT NONE
-
-    ! In/output variables:
-    TYPE(type_grid_lonlat),              INTENT(IN)    :: grid
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    CHARACTER(LEN=*),                    INTENT(IN)    :: field_name_options
-    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: d_grid_vec_partial
-
-    ! Local variables:
-    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'write_to_field_multopt_lonlat_grid_dp_2D_monthly_notime'
-    INTEGER                                            :: id_var
-    CHARACTER(LEN=1024)                                :: var_name
-    REAL(dp), DIMENSION(:,:,:), ALLOCATABLE            :: d_grid
-
-    ! Add routine to path
-    CALL init_routine( routine_name)
-
-    ! Inquire the variable
-    CALL inquire_var_multopt( filename, ncid, field_name_options, id_var, var_name = var_name)
-    IF (id_var == -1) CALL crash('no variables for name options "' // TRIM( field_name_options) // '" were found in file "' // TRIM( filename) // '"!')
-
-    ! Check if this variable has the correct type and dimensions
-    CALL check_lonlat_grid_field_dp_2D_monthly( filename, ncid, var_name, should_have_time = .FALSE.)
-
-    ! Gather data to the master
-    IF (par%master) ALLOCATE( d_grid( grid%nlon, grid%nlat, 12))
-    CALL gather_lonlat_gridded_data_to_master_dp_3D( grid, d_grid_vec_partial, d_grid)
-
-    ! Write data to the variable
-    CALL write_var_master( filename, ncid, id_var, d_grid)
-
-    ! Clean up after yourself
-    IF (par%master) THEN
-      DEALLOCATE( d_grid)
-    END IF
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE write_to_field_multopt_lonlat_grid_dp_2D_monthly_notime
-
-  SUBROUTINE write_to_field_multopt_lonlat_grid_dp_3D_notime(         grid, filename, ncid, field_name_options, d_grid_vec_partial)
-    ! Write a 3-D data field defined on a lon/lat-grid to a NetCDF file variable on the same grid
-    !
-    ! d is stored in vector form, distributed over the processes
-
-    IMPLICIT NONE
-
-    ! In/output variables:
-    TYPE(type_grid_lonlat),              INTENT(IN)    :: grid
-    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
-    INTEGER,                             INTENT(IN)    :: ncid
-    CHARACTER(LEN=*),                    INTENT(IN)    :: field_name_options
-    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: d_grid_vec_partial
-
-    ! Local variables:
-    CHARACTER(LEN=1024), PARAMETER                     :: routine_name = 'write_to_field_multopt_lonlat_grid_dp_3D_notime'
-    INTEGER                                            :: id_var, nz
-    CHARACTER(LEN=1024)                                :: var_name
-    REAL(dp), DIMENSION(:,:,:), ALLOCATABLE            :: d_grid
-
-    ! Add routine to path
-    CALL init_routine( routine_name)
-
-    nz = SIZE( d_grid_vec_partial,2)
-
-    ! Inquire the variable
-    CALL inquire_var_multopt( filename, ncid, field_name_options, id_var, var_name = var_name)
-    IF (id_var == -1) CALL crash('no variables for name options "' // TRIM( field_name_options) // '" were found in file "' // TRIM( filename) // '"!')
-
-    ! Check if this variable has the correct type and dimensions
-    CALL check_lonlat_grid_field_dp_3D( filename, ncid, var_name, should_have_time = .FALSE.)
-
-    ! Gather data to the master
-    IF (par%master) ALLOCATE( d_grid( grid%nlon, grid%nlat, nz))
-    CALL gather_lonlat_gridded_data_to_master_dp_3D( grid, d_grid_vec_partial, d_grid)
-
-    ! Write data to the variable
-    CALL write_var_master( filename, ncid, id_var, d_grid)
-
-    ! Clean up after yourself
-    IF (par%master) THEN
-      DEALLOCATE( d_grid)
-    END IF
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE write_to_field_multopt_lonlat_grid_dp_3D_notime
 
   ! Write data to a mesh output file
   SUBROUTINE write_to_field_multopt_mesh_int_2D(                      mesh, filename, ncid, field_name_options, d_partial)
@@ -2701,8 +2368,8 @@ CONTAINS
     CALL create_dimension( filename, ncid, get_first_option_from_list( field_name_options_dim_three ), 3          , id_dim_three)
     CALL create_dimension( filename, ncid, get_first_option_from_list( field_name_options_dim_four  ), 4          , id_dim_four )
 
-  ! == Create mesh variables - metadata
-  ! ===================================
+    ! == Create mesh variables - metadata
+    ! ===================================
 
     ! xmin
     CALL create_scalar_variable( filename, ncid, 'xmin', NF90_DOUBLE, id_var_xmin)
@@ -2744,8 +2411,8 @@ CONTAINS
     CALL add_attribute_char( filename, ncid, id_var_beta_stereo, 'long_name'  , 'Standard parallel of the oblique stereographic projection')
     CALL add_attribute_char( filename, ncid, id_var_beta_stereo, 'units', 'degrees')
 
-  ! == Create mesh variables - vertex data
-  ! ======================================
+    ! == Create mesh variables - vertex data
+    ! ======================================
 
     ! V
     CALL create_variable( filename, ncid, get_first_option_from_list( field_name_options_V             ), NF90_DOUBLE, (/ id_dim_vi, id_dim_two   /), id_var_V             )
@@ -2770,8 +2437,8 @@ CONTAINS
     CALL add_attribute_char( filename, ncid, id_var_VBI           , 'long_name'  , 'Vertex boundary index')
     CALL add_attribute_char( filename, ncid, id_var_VBI           , 'orientation', '1 = N, 2 = NE, 3 = E, 4 = SE, 5 = S, 6 = SW, 7 = W, 8 = NW')
 
-  ! == Create mesh variables - triangle data
-  ! ========================================
+    ! == Create mesh variables - triangle data
+    ! ========================================
 
     ! Tri
     CALL create_variable( filename, ncid, get_first_option_from_list( field_name_options_Tri           ), NF90_INT   , (/ id_dim_ti, id_dim_three /), id_var_Tri           )
@@ -2790,8 +2457,8 @@ CONTAINS
     CALL add_attribute_char( filename, ncid, id_var_TriBI         , 'long_name'  , 'Triangle boundary index')
     CALL add_attribute_char( filename, ncid, id_var_TriBI         , 'orientation', '1 = N, 2 = NE, 3 = E, 4 = SE, 5 = S, 6 = SW, 7 = W, 8 = NW')
 
-  ! == Create mesh variables - edge data
-  ! ====================================
+    ! == Create mesh variables - edge data
+    ! ====================================
 
     ! E
     CALL create_variable( filename, ncid, get_first_option_from_list( field_name_options_E             ), NF90_DOUBLE, (/ id_dim_ei, id_dim_two   /), id_var_E             )
@@ -2818,8 +2485,8 @@ CONTAINS
     CALL add_attribute_char( filename, ncid, id_var_EBI           , 'long_name'  , 'Edge boundary index')
     CALL add_attribute_char( filename, ncid, id_var_EBI           , 'orientation', '1 = N, 2 = NE, 3 = E, 4 = SE, 5 = S, 6 = SW, 7 = W, 8 = NW')
 
-  ! == Create mesh variables - Voronoi mesh data
-  ! ============================================
+    ! == Create mesh variables - Voronoi mesh data
+    ! ============================================
 
     ! vi2vori
     call create_variable( filename, ncid, get_first_option_from_list( field_name_options_vi2vori), NF90_INT, (/ id_dim_vi /), id_var_vi2vori)
@@ -2856,8 +2523,8 @@ CONTAINS
     call create_variable( filename, ncid, get_first_option_from_list( field_name_options_VVor), NF90_INT, (/ id_dim_vi, id_dim_ci /), id_var_VVor)
     call add_attribute_char( filename, ncid, id_var_VVor, 'long_name' , 'Indices of Voronoi vertices spanning each Voronoi cell')
 
-  ! == Create mesh variables - secondary geometry data
-  ! ==================================================
+    ! == Create mesh variables - secondary geometry data
+    ! ==================================================
 
     ! TriGC
     CALL create_variable( filename, ncid, get_first_option_from_list( field_name_options_TriGC         ), NF90_DOUBLE, (/ id_dim_ti, id_dim_two   /), id_var_TriGC         )
@@ -2876,8 +2543,8 @@ CONTAINS
     CALL add_field_mesh_dp_2D_notime( filename, ncid, get_first_option_from_list( field_name_options_lat           ), long_name = 'Latitude' , units = 'degrees north')
     CALL inquire_var(                 filename, ncid, get_first_option_from_list( field_name_options_lat           ), id_var_lat)
 
-  ! == Write mesh data to file
-  ! ==========================
+    ! == Write mesh data to file
+    ! ==========================
 
     ! Metadata
     CALL write_var_master(    filename, ncid, id_var_xmin       , mesh%xmin       )
