@@ -20,7 +20,6 @@ MODULE ocean_main
   use netcdf_basic_wrappers
   USE netcdf_output                                          , ONLY: generate_filename_XXXXXdotnc, setup_mesh_in_netcdf_file, add_time_dimension_to_file, &
                                                                      add_field_mesh_dp_3D_ocean, add_depth_dimension_to_file, write_time_to_file, write_to_field_multopt_mesh_dp_3D_ocean
-  USE netcdf_debug                                           , ONLY: save_variable_as_netcdf_dp_2D, save_variable_as_netcdf_dp_1D
 
   IMPLICIT NONE
 

@@ -14,7 +14,6 @@ MODULE climate_realistic
   USE ice_model_types                                        , ONLY: type_ice_model
   USE climate_model_types                                    , ONLY: type_climate_model
   USE netcdf_input                                           , ONLY: read_field_from_file_2D_monthly
-  USE netcdf_debug                                           , ONLY: save_variable_as_netcdf_dp_2D
 
   IMPLICIT NONE
 

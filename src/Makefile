@@ -185,7 +185,7 @@ UFEMISM_source = \
   io/netcdf_basic/netcdf_write_var_master.f90 \
   io/netcdf_basic/netcdf_check_fields.f90 \
   io/netcdf_basic/netcdf_find_timeframe.f90 \
-  io/netcdf_debug.f90 \
+  io/netcdf_basic/netcdf_save_single_variables.f90 \
   io/netcdf_input.f90 \
   io/netcdf_output.f90 \
   io/netcdf_resource_tracking.f90 \
