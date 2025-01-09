@@ -114,11 +114,7 @@ function write_to_scoreboard_file( filename_short, mesh, d_mesh_ex, grid, d_grid
   single_run = add_cost_function_to_single_run( single_run, 'int_err'    , 'abs( 1 - int_grid / int_mesh)'                , int_err);
 
   % Write to scoreboard file
-  all_runs_new.single_run = single_run;
-  filename_scoreboard_file = [foldername_automated_testing ...
-    '/component_tests/temporary_scoreboard_files/' ...
-    strrep( single_run.category, '/', '_') '_' test_name '.xml'];
-  append_test_results_to_main_scoreboard_file( all_runs_new, filename_scoreboard_file);
+  write_scoreboard_file( foldername_automated_testing, single_run);
 
 end
   

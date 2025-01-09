@@ -31,15 +31,14 @@ MODULE ice_model_main
                                                                      calc_mask_noice, alter_ice_thickness, initialise_bedrock_CDFs, MB_inversion, calc_effective_thickness, &
                                                                      initialise_dHi_dt_target, initialise_uabs_surf_target
   USE ice_thickness                                          , ONLY: calc_dHi_dt, apply_mask_noice_direct, apply_ice_thickness_BC_explicit
-  USE math_utilities                                         , ONLY: ice_surface_elevation, thickness_above_floatation, Hi_from_Hb_Hs_and_SL, is_floating
+  use ice_geometry_basics, only: ice_surface_elevation, thickness_above_floatation, Hi_from_Hb_Hs_and_SL, is_floating
   USE geothermal_heat_flux                                   , ONLY: initialise_geothermal_heat_flux
   USE basal_hydrology                                        , ONLY: initialise_basal_hydrology_model
   USE bed_roughness                                          , ONLY: initialise_bed_roughness
   USE ice_velocity_main                                      , ONLY: initialise_velocity_solver, solve_stress_balance, remap_velocity_solver, &
                                                                      create_restart_file_ice_velocity, write_to_restart_file_ice_velocity, &
                                                                      map_velocities_from_b_to_c_2D
-  USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_1D, gather_to_all_logical_1D, distribute_from_master_int_1D, &
-                                                                     distribute_from_master_int_2D
+  use mpi_distributed_memory, only: gather_to_all, distribute_from_master
   USE netcdf_basic                                           , ONLY: create_new_netcdf_file_for_writing, close_netcdf_file, open_existing_netcdf_file_for_writing
   USE netcdf_output                                          , ONLY: generate_filename_XXXXXdotnc, setup_mesh_in_netcdf_file, add_time_dimension_to_file, &
                                                                      add_field_dp_0D, add_field_mesh_dp_2D, write_time_to_file, write_to_field_multopt_mesh_dp_2D, &
@@ -47,11 +46,10 @@ MODULE ice_model_main
   USE netcdf_input                                           , ONLY: read_field_from_file_0D, read_field_from_mesh_file_2D
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   use remapping_main, only: Atlas, map_from_mesh_to_mesh_with_reallocation_2D, map_from_mesh_to_mesh_with_reallocation_3D, map_from_mesh_to_mesh_2D
-  use mesh_data_smoothing, only: smooth_Gaussian_2D
   USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp
   USE petsc_basic                                            , ONLY: mat_petsc2CSR
   USE BMB_main                                               , ONLY: run_BMB_model
-  USE mesh_operators                                         , ONLY: ddx_a_a_2D, ddy_a_a_2D, ddx_a_b_2D, ddy_a_b_2D
+  use mesh_disc_apply_operators, only: ddx_a_a_2D, ddy_a_a_2D, ddx_a_b_2D, ddy_a_b_2D
   USE mesh_utilities                                         , ONLY: extrapolate_Gaussian
 
   IMPLICIT NONE
@@ -385,6 +383,20 @@ CONTAINS
     ELSE
       CALL crash('unknown choice_timestepping "' // TRIM( C%choice_timestepping) // '"!')
     END IF
+
+    ! Numerical stability info
+    ice%n_dt_ice                 = 0
+    ice%min_dt_ice               = huge( ice%min_dt_ice)
+    ice%max_dt_ice               = 0._dp
+    ice%mean_dt_ice              = 0._dp
+    ice%n_visc_its               = 0
+    ice%min_visc_its_per_dt      = huge( ice%min_visc_its_per_dt)
+    ice%max_visc_its_per_dt      = 0
+    ice%mean_visc_its_per_dt     = 0._dp
+    ice%n_Axb_its                = 0
+    ice%min_Axb_its_per_visc_it  = huge( ice%min_Axb_its_per_visc_it)
+    ice%max_Axb_its_per_visc_it  = 0
+    ice%mean_Axb_its_per_visc_it = 0._dp
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -914,9 +926,9 @@ CONTAINS
     ice%SL = 0._dp
 
     ! Gather global ice thickness and masks
-    CALL gather_to_all_dp_1D(      ice%Hi                , Hi_old_tot            )
-    CALL gather_to_all_logical_1D( ice%mask_floating_ice , mask_floating_ice_tot )
-    CALL gather_to_all_logical_1D( ice%mask_icefree_ocean, mask_icefree_ocean_tot)
+    CALL gather_to_all(      ice%Hi                , Hi_old_tot            )
+    CALL gather_to_all( ice%mask_floating_ice , mask_floating_ice_tot )
+    CALL gather_to_all( ice%mask_icefree_ocean, mask_icefree_ocean_tot)
 
     ! First, naively remap ice thickness and surface elevation without any restrictions
     CALL map_from_mesh_to_mesh_2D( mesh_old, mesh_new, ice%Hi, Hi_new, '2nd_order_conservative')
@@ -1115,14 +1127,19 @@ CONTAINS
     REAL(dp)                                              :: Glens_flow_law_epsilon_sq_0_save
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: Hi_tplusdt
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: divQ
+    integer                                               :: n_visc_its
+    integer                                               :: n_Axb_its
+    integer                                               :: min_Axb_its_per_visc_it
+    integer                                               :: max_Axb_its_per_visc_it
+    real(dp)                                              :: mean_Axb_its_per_visc_it
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
     ! Gather global masks
-    CALL gather_to_all_logical_1D( ice%mask_icefree_ocean, mask_icefree_ocean_tot)
-    CALL gather_to_all_logical_1D( ice%mask_floating_ice , mask_floating_ice_tot )
-    CALL gather_to_all_logical_1D( ice%mask_cf_fl        , mask_cf_fl_tot        )
+    CALL gather_to_all( ice%mask_icefree_ocean, mask_icefree_ocean_tot)
+    CALL gather_to_all( ice%mask_floating_ice , mask_floating_ice_tot )
+    CALL gather_to_all( ice%mask_cf_fl        , mask_cf_fl_tot        )
 
     ! == Create the relaxation mask
     ! =============================
@@ -1218,9 +1235,9 @@ CONTAINS
     END IF ! IF (par%master) THEN
 
     ! Distribute BC masks to all processes
-    CALL distribute_from_master_int_1D( BC_prescr_mask_tot   , BC_prescr_mask   )
-    CALL distribute_from_master_int_1D( BC_prescr_mask_b_tot , BC_prescr_mask_b )
-    CALL distribute_from_master_int_2D( BC_prescr_mask_bk_tot, BC_prescr_mask_bk)
+    CALL distribute_from_master( BC_prescr_mask_tot   , BC_prescr_mask   )
+    CALL distribute_from_master( BC_prescr_mask_b_tot , BC_prescr_mask_b )
+    CALL distribute_from_master( BC_prescr_mask_bk_tot, BC_prescr_mask_bk)
 
     ! == Fill in prescribed velocities and thicknesses away from the front
     ! ====================================================================
@@ -1271,7 +1288,9 @@ CONTAINS
     pseudo_time: DO WHILE (t_pseudo < dt_relax)
 
       ! Update velocity solution around the calving front
-      CALL solve_stress_balance( mesh, ice, BMB_new, region_name, BC_prescr_mask_b, BC_prescr_u_b, BC_prescr_v_b, BC_prescr_mask_bk, BC_prescr_u_bk, BC_prescr_v_bk)
+      CALL solve_stress_balance( mesh, ice, BMB_new, region_name, &
+        n_visc_its, n_Axb_its, min_Axb_its_per_visc_it, max_Axb_its_per_visc_it, &
+        BC_prescr_mask_b, BC_prescr_u_b, BC_prescr_v_b, BC_prescr_mask_bk, BC_prescr_u_bk, BC_prescr_v_bk)
 
       ! Calculate dH/dt around the calving front
       CALL calc_dHi_dt( mesh, ice%Hi, ice%Hb, ice%SL, ice%u_vav_b, ice%v_vav_b, SMB_new, BMB_new, LMB_new, AMB_new, ice%fraction_margin, ice%mask_noice, C%dt_ice_min, &
@@ -1327,9 +1346,16 @@ CONTAINS
     REAL(dp), DIMENSION(region%mesh%vi1:region%mesh%vi2)  :: Hi_new, dHi_dt_new
     REAL(dp), DIMENSION(region%mesh%vi1:region%mesh%vi2)  :: SMB_dummy, BMB_dummy, LMB_dummy, AMB_dummy, dHi_dt_target_dummy
     CHARACTER(LEN=256)                                    :: t_years, r_time, r_step, r_adv, t_format
+    integer                                               :: n_visc_its
+    integer                                               :: n_Axb_its
+    integer                                               :: min_Axb_its_per_visc_it
+    integer                                               :: max_Axb_its_per_visc_it
+    real(dp)                                              :: mean_Axb_its_per_visc_it
 
     ! Add routine to path
     CALL init_routine( routine_name)
+
+    t_pseudo = 0._dp
 
     ! Print to terminal
     IF (par%master .AND. C%do_time_display .AND. C%geometry_relaxation_t_years > 0._dp) THEN
@@ -1341,8 +1367,7 @@ CONTAINS
         write(*,"(A)") '   Stepping out of time to relax geometry...'
       END IF
 
-      ! Initialise and display pseudo time
-      t_pseudo = 0._dp
+      ! Display pseudo time
       write( r_time,"(F7.3)") t_pseudo
       write( r_step,"(F5.3)") C%geometry_relaxation_t_years / 100._dp
       write( *,"(A)", ADVANCE = TRIM( 'no')) c_carriage_return // &
@@ -1379,7 +1404,8 @@ CONTAINS
       region%ice%effective_pressure = MAX( 0._dp, ice_density * grav * region%ice%Hi_eff) * region%ice%fraction_gr
 
       ! Calculate ice velocities for the predicted geometry
-      CALL solve_stress_balance( region%mesh, region%ice, BMB_dummy, region%name)
+      CALL solve_stress_balance( region%mesh, region%ice, BMB_dummy, region%name, &
+        n_visc_its, n_Axb_its, min_Axb_its_per_visc_it, max_Axb_its_per_visc_it)
 
       ! Calculate thinning rates for current geometry and velocity
       CALL calc_dHi_dt( region%mesh, region%ice%Hi, region%ice%Hb, region%ice%SL, region%ice%u_vav_b, region%ice%v_vav_b, SMB_dummy, BMB_dummy, LMB_dummy, AMB_dummy, region%ice%fraction_margin, &
@@ -1517,6 +1543,11 @@ CONTAINS
     INTEGER                                               :: pc_it
     REAL(dp), DIMENSION(region%mesh%vi1:region%mesh%vi2)  :: Hi_dummy, dHi_dt_dummy, LMB_dummy, AMB_dummy
     INTEGER                                               :: vi, n_guilty, n_tot
+    integer                                               :: n_visc_its
+    integer                                               :: n_Axb_its
+    integer                                               :: min_Axb_its_per_visc_it
+    integer                                               :: max_Axb_its_per_visc_it
+    real(dp)                                              :: mean_Axb_its_per_visc_it
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -1631,7 +1662,21 @@ CONTAINS
       ! CALL run_BMB_model( region%mesh, region%ice, region%ocean, region%refgeo_PD, region%SMB, region%BMB, region%name, region%time)
 
       ! Calculate ice velocities for the predicted geometry
-      CALL solve_stress_balance( region%mesh, region%ice, region%BMB%BMB, region%name)
+      CALL solve_stress_balance( region%mesh, region%ice, region%BMB%BMB, region%name, &
+        n_visc_its, n_Axb_its, min_Axb_its_per_visc_it, max_Axb_its_per_visc_it)
+
+      ! Update stability info
+      region%ice%n_dt_ice                = region%ice%n_dt_ice   + 1
+      region%ice%min_dt_ice              = min( region%ice%min_dt_ice, region%ice%pc%dt_np1)
+      region%ice%max_dt_ice              = max( region%ice%max_dt_ice, region%ice%pc%dt_np1)
+
+      region%ice%n_visc_its              = region%ice%n_visc_its + n_visc_its
+      region%ice%min_visc_its_per_dt     = min( region%ice%min_visc_its_per_dt, n_visc_its)
+      region%ice%max_visc_its_per_dt     = max( region%ice%max_visc_its_per_dt, n_visc_its)
+
+      region%ice%n_Axb_its               = region%ice%n_Axb_its  + n_Axb_its
+      region%ice%min_Axb_its_per_visc_it = min( region%ice%min_Axb_its_per_visc_it, min_Axb_its_per_visc_it)
+      region%ice%max_Axb_its_per_visc_it = max( region%ice%max_Axb_its_per_visc_it, max_Axb_its_per_visc_it)
 
       ! == Corrector step ==
       ! ====================
@@ -2106,6 +2151,11 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'run_ice_dynamics_model_direct'
     REAL(dp)                                              :: dt_crit_SIA, dt_crit_adv, dt
     INTEGER                                               :: vi
+    integer                                               :: n_visc_its
+    integer                                               :: n_Axb_its
+    integer                                               :: min_Axb_its_per_visc_it
+    integer                                               :: max_Axb_its_per_visc_it
+    real(dp)                                              :: mean_Axb_its_per_visc_it
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -2122,7 +2172,8 @@ CONTAINS
     region%ice%Hi_prev    = region%ice%Hi_next
 
     ! Calculate ice velocities
-    CALL solve_stress_balance( region%mesh, region%ice, region%BMB%BMB, region%name)
+    CALL solve_stress_balance( region%mesh, region%ice, region%BMB%BMB, region%name, &
+      n_visc_its, n_Axb_its, min_Axb_its_per_visc_it, max_Axb_its_per_visc_it)
 
     ! Calculate time step
 
@@ -2191,7 +2242,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Gather global ice thickness
-    CALL gather_to_all_dp_1D( ice%Hi, Hi_tot)
+    CALL gather_to_all( ice%Hi, Hi_tot)
 
     ! Initialise time step with maximum allowed value
     dt_crit_SIA = C%dt_ice_max
@@ -2251,14 +2302,14 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Gather global ice thickness
-    CALL gather_to_all_dp_1D( ice%Hi, Hi_tot)
+    CALL gather_to_all( ice%Hi, Hi_tot)
 
-    CALL gather_to_all_logical_1D( ice%mask_floating_ice, mask_floating_ice_tot)
+    CALL gather_to_all( ice%mask_floating_ice, mask_floating_ice_tot)
 
     ! Calculate vertically averaged ice velocities on the edges
     CALL map_velocities_from_b_to_c_2D( mesh, ice%u_vav_b, ice%v_vav_b, u_vav_c, v_vav_c)
-    CALL gather_to_all_dp_1D( u_vav_c, u_vav_c_tot)
-    CALL gather_to_all_dp_1D( v_vav_c, v_vav_c_tot)
+    CALL gather_to_all( u_vav_c, u_vav_c_tot)
+    CALL gather_to_all( v_vav_c, v_vav_c_tot)
 
     ! Initialise time step with maximum allowed value
     dt_crit_adv = C%dt_ice_max
@@ -2475,7 +2526,7 @@ CONTAINS
     INTEGER                                               :: vi, vj, ci, ei
     REAL(dp), DIMENSION(region%mesh%ei1:region%mesh%ei2)  :: u_vav_c, v_vav_c
     REAL(dp), DIMENSION(region%mesh%nE)                   :: u_vav_c_tot, v_vav_c_tot
-    REAL(dp)                                              :: dt_dummy, calving_rate, calving_ratio, D_x, D_y, D, calving_perp, L_c, V_calved
+    REAL(dp)                                              :: dt_dummy, calving_rate, calving_ratio, calving_perp, L_c, V_calved
     REAL(dp), DIMENSION(region%mesh%vi1:region%mesh%vi2)  :: SMB_dummy, BMB_dummy, LMB_dummy, AMB_dummy, dHi_dt_dummy, Hi_dummy, divQ_eff, LMB_trans
     REAL(dp), DIMENSION(region%mesh%nV)                   :: Hi_tot, fraction_margin_tot
     LOGICAL                                               :: found_advancing_calving_front, found_calving_front_neighbour
@@ -2534,17 +2585,17 @@ CONTAINS
     ! ================
 
     ! Gather data from all processes
-    CALL gather_to_all_dp_1D(      region%ice%Hi_eff, Hi_tot)
-    CALL gather_to_all_dp_1D(      region%ice%fraction_margin, fraction_margin_tot)
+    CALL gather_to_all(      region%ice%Hi_eff, Hi_tot)
+    CALL gather_to_all(      region%ice%fraction_margin, fraction_margin_tot)
 
     ! Gather masks from all processes
-    CALL gather_to_all_logical_1D( region%ice%mask_cf_fl, mask_cf_fl_tot)
-    CALL gather_to_all_logical_1D( region%ice%mask_icefree_ocean, mask_icefree_ocean_tot)
+    CALL gather_to_all( region%ice%mask_cf_fl, mask_cf_fl_tot)
+    CALL gather_to_all( region%ice%mask_icefree_ocean, mask_icefree_ocean_tot)
 
     ! Calculate vertically averaged ice velocities on the edges
     CALL map_velocities_from_b_to_c_2D( region%mesh, region%ice%u_vav_b, region%ice%v_vav_b, u_vav_c, v_vav_c)
-    CALL gather_to_all_dp_1D( u_vav_c, u_vav_c_tot)
-    CALL gather_to_all_dp_1D( v_vav_c, v_vav_c_tot)
+    CALL gather_to_all( u_vav_c, u_vav_c_tot)
+    CALL gather_to_all( v_vav_c, v_vav_c_tot)
 
     ! Initialise
     LMB_trans = 0._dp
@@ -2583,10 +2634,7 @@ CONTAINS
     !     L_c = region%mesh%Cw( vi,ci)
 
     !     ! Calculate calving rate component perpendicular to this shared Voronoi cell boundary section
-    !     D_x = region%mesh%V( vj,1) - region%mesh%V( vi,1)
-    !     D_y = region%mesh%V( vj,2) - region%mesh%V( vi,2)
-    !     D   = SQRT( D_x**2 + D_y**2)
-    !     calving_perp = calving_ratio * ABS( u_vav_c_tot( ei) * D_x/D + v_vav_c_tot( ei) * D_y/D)
+    !     calving_perp = calving_ratio * ABS( u_vav_c_tot( ei) * mesh%D_x( vi, ci)/mesh%D( vi, ci) + v_vav_c_tot( ei) * mesh%D_y( vi, ci)/mesh%D( vi, ci))
 
     !     ! Calving front vertices: check if neighbour is open ocean
     !     IF (region%ice%mask_cf_fl( vi) .AND. mask_icefree_ocean_tot( vj)) THEN
@@ -2687,7 +2735,7 @@ CONTAINS
     ! END DO
 
     ! ! Gather advancing and floating calving front masks from all processes
-    ! CALL gather_to_all_logical_1D( mask_advancing_calving_front, mask_advancing_calving_front_tot)
+    ! CALL gather_to_all( mask_advancing_calving_front, mask_advancing_calving_front_tot)
 
     ! ! Identify vertices where LMB will operate
     ! DO vi = region%mesh%vi1, region%mesh%vi2

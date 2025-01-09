@@ -49,6 +49,7 @@ MODULE model_configuration
     logical             :: do_benchmarks_config                         = .FALSE.                          ! Whether or not to (only) perform the benchmarks
     LOGICAL             :: do_check_for_NaN_config                      = .FALSE.                          ! Whether or not fields should be checked for NaN values
     LOGICAL             :: do_time_display_config                       = .TRUE.                           ! Print current model time to screen
+    logical             :: do_write_matrix_operators_config             = .false.                          ! Whether or not to write the operator matrices to output
 
   ! == Time of simulation
   ! =====================
@@ -1024,6 +1025,7 @@ MODULE model_configuration
     logical             :: do_benchmarks
     LOGICAL             :: do_check_for_NaN
     LOGICAL             :: do_time_display
+    logical             :: do_write_matrix_operators
 
   ! == Time of simulation
   ! =====================
@@ -2208,6 +2210,7 @@ CONTAINS
       do_benchmarks_config                                        , &
       do_check_for_NaN_config                                     , &
       do_time_display_config                                      , &
+      do_write_matrix_operators_config                            , &
       start_time_of_run_config                                    , &
       end_time_of_run_config                                      , &
       dt_coupling_config                                          , &
@@ -2877,6 +2880,7 @@ CONTAINS
     C%do_benchmarks                                          = do_benchmarks_config
     C%do_check_for_NaN                                       = do_check_for_NaN_config
     C%do_time_display                                        = do_time_display_config
+    C%do_write_matrix_operators                              = do_write_matrix_operators_config
 
   ! == Time of simulation
   ! =====================

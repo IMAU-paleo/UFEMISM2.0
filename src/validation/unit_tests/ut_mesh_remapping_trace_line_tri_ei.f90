@@ -11,7 +11,7 @@ module ut_mesh_remapping_trace_line_tri_ei
   use mpi_basic, only: par, sync
   use line_tracing_basic
   use line_tracing_triangles
-  use math_utilities, only: is_in_triangle, lies_on_line_segment
+  use plane_geometry, only: is_in_triangle, lies_on_line_segment
 
   implicit none
 

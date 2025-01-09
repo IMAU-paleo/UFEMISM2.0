@@ -39,6 +39,7 @@ module mesh_types
   ! =================
 
     ! Vertex data
+    integer                                 :: vi_SW, vi_SE, vi_NW, vi_NE    !           Indices of the vertices at the four corners of the domain
     real(dp), dimension(:,:  ), allocatable :: V                             ! [m]       The x,y-coordinates of all the vertices
     integer,  dimension(:    ), allocatable :: nC                            !           The number of other vertices this vertex is connected to
     integer,  dimension(:,:  ), allocatable :: C                             !           The list   of other vertices this vertex is connected to (ordered counter-clockwise, from edge to edge for edge vertices)
@@ -68,6 +69,9 @@ module mesh_types
     real(dp), dimension(:,:  ), allocatable :: VorGC                         ! [m]       The geometric centre of each vertex's Voronoi cell
     real(dp), dimension(:    ), allocatable :: R                             ! [m]       The resolution of each vertex (defined as distance to nearest neighbour)
     real(dp), dimension(:,:  ), allocatable :: Cw                            ! [m]       The width of all vertex connections (= length of the shared Voronoi cell edge)
+    real(dp), dimension(:,:  ), allocatable :: D_x                           ! [m]       x-component of vertex-vertex connections
+    real(dp), dimension(:,:  ), allocatable :: D_y                           ! [m]       y-component of vertex-vertex connections
+    real(dp), dimension(:,:  ), allocatable :: D                             ! [m]       absolute distance of vertex-vertex connections
     real(dp), dimension(:,:  ), allocatable :: TriCw                         ! [m]       The width of all triangle connections (= shared triangle edge)
     integer,  dimension(:    ), allocatable :: TriBI                         ! [0-8]     Each triangle's border index; 0 = free, 1 = north, 2 = northeast, ..., 8 = northwest
     real(dp), dimension(:,:  ), allocatable :: TriGC                         ! [m]       The X,Y-coordinates of each triangle's geometric centre
@@ -86,6 +90,20 @@ module mesh_types
     integer,  dimension(:,:  ), allocatable :: ETri                          !           Edge-to-triangle connectivity list
     integer,  dimension(:,:  ), allocatable :: TriE                          !           Triangle-to-edge connectivity list (order of TriC, across from 1st, 2nd, 3rd vertex)
     integer,  dimension(:    ), allocatable :: EBI                           ! [0-8]     Each edge's border index; 0 = free, 1 = north, 2 = northeast, ..., 8 = northwest
+
+    ! Voronoi mesh
+    integer                                 :: nVor                          !           Total number of Voronoi vertices
+    integer,  dimension(:    ), allocatable :: vi2vori                       !           To which Voronoi vertex (if any) each vertex   corresponds (>0 only for the four corner vertices)
+    integer,  dimension(:    ), allocatable :: ti2vori                       !           To which Voronoi vertex (if any) each triangle corresponds (>0 always)
+    integer,  dimension(:    ), allocatable :: ei2vori                       !           To which Voronoi vertex (if any) each edge     corresponds (>0 only for border edges)
+    integer,  dimension(:    ), allocatable :: vori2vi                       !           To which regular vertex (if any) each Voronoi vertex corresponds (vori2vi( vi2vori( vi)) = vi)
+    integer,  dimension(:    ), allocatable :: vori2ti                       !           To which triangle       (if any) each Voronoi vertex corresponds (vori2ti( ti2vori( ti)) = ti)
+    integer,  dimension(:    ), allocatable :: vori2ei                       !           To which edge           (if any) each Voronoi vertex corresponds (vori2ei( ei2vori( ei)) = ei)
+    real(dp), dimension(:,:  ), allocatable :: Vor                           ! [m]       Coordinates of all the Voronoi vertices
+    integer,  dimension(:    ), allocatable :: VornC                         !           Number  of other Voronoi vertices that each Voronoi vertex is connected to (2 for corners, 3 otherwise)
+    integer,  dimension(:,:  ), allocatable :: VorC                          !           Indices of other Voronoi vertices that each Voronoi vertex is connected to
+    integer,  dimension(:    ), allocatable :: nVVor                         !           For each regular vertex, the number of Voronoi vertices spanning its Voronoi cell
+    integer,  dimension(:,:  ), allocatable :: VVor                          !           For each regular vertex, the indices of the Voronoi vertices spanning its Voronoi cell
 
     ! Parallelisation ranges
     integer                                 :: vi1, vi2, nV_loc              ! Each process "owns" nV_loc   vertices  vi1 - vi2, so that nV_loc   = vi2 + 1 - vi1

@@ -20,9 +20,9 @@ MODULE thermodynamics_utilities
   USE ice_model_types                                        , ONLY: type_ice_model
   USE climate_model_types                                    , ONLY: type_climate_model
   USE SMB_model_types                                        , ONLY: type_SMB_model
-  USE mesh_operators                                         , ONLY: ddx_a_b_3D, ddy_a_b_3D
-  USE math_utilities                                         , ONLY: cross2
-  USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_2D
+  use mesh_disc_apply_operators, only: ddx_a_b_3D, ddy_a_b_3D
+  use plane_geometry, only: cross2
+  use mpi_distributed_memory, only: gather_to_all
 
   IMPLICIT NONE
 
@@ -373,10 +373,10 @@ CONTAINS
     CALL ddy_a_b_3D( mesh, ice%Ti, dTi_dyp_3D_b)
 
     ! Gather full velocity fields
-    CALL gather_to_all_dp_2D( ice%u_3D_b  , u_3D_b_tot      )
-    CALL gather_to_all_dp_2D( ice%v_3D_b  , v_3D_b_tot      )
-    CALL gather_to_all_dp_2D( dTi_dxp_3D_b, dTi_dxp_3D_b_tot)
-    CALL gather_to_all_dp_2D( dTi_dyp_3D_b, dTi_dyp_3D_b_tot)
+    CALL gather_to_all( ice%u_3D_b  , u_3D_b_tot      )
+    CALL gather_to_all( ice%v_3D_b  , v_3D_b_tot      )
+    CALL gather_to_all( dTi_dxp_3D_b, dTi_dxp_3D_b_tot)
+    CALL gather_to_all( dTi_dyp_3D_b, dTi_dyp_3D_b_tot)
 
     DO vi = mesh%vi1, mesh%vi2
 

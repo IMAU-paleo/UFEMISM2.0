@@ -13,7 +13,7 @@ MODULE ice_velocity_SIA
   USE parameters
   USE mesh_types                                             , ONLY: type_mesh
   USE ice_model_types                                        , ONLY: type_ice_model, type_ice_velocity_solver_SIA
-  USE mesh_operators                                         , ONLY: map_a_b_2D, map_a_b_3D, ddx_a_a_2D, ddy_a_a_2D, ddx_a_b_2D, ddy_a_b_2D
+  use mesh_disc_apply_operators, only: map_a_b_2D, map_a_b_3D, ddx_a_a_2D, ddy_a_a_2D, ddx_a_b_2D, ddy_a_b_2D
   USE mesh_zeta                                              , ONLY: integrate_from_zeta_is_one_to_zeta_is_zetap
   USE ice_flow_laws                                          , ONLY: calc_effective_viscosity_Glen_2D, calc_ice_rheology_Glen
   USE reallocate_mod                                         , ONLY: reallocate_bounds

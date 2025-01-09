@@ -19,9 +19,8 @@ MODULE ice_thickness
   USE ice_model_types                                        , ONLY: type_ice_model
   USE ice_velocity_main                                      , ONLY: map_velocities_from_b_to_c_2D
   USE petsc_basic                                            , ONLY: multiply_CSR_matrix_with_vector_1D, solve_matrix_equation_CSR_PETSc
-  USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_1D, gather_to_all_logical_1D
-  USE math_utilities                                         , ONLY: ice_surface_elevation, Hi_from_Hb_Hs_and_SL
-  USE math_utilities                                         , ONLY: is_floating
+  use mpi_distributed_memory, only: gather_to_all
+  use ice_geometry_basics, only: ice_surface_elevation, Hi_from_Hb_Hs_and_SL, is_floating
 
   IMPLICIT NONE
 
@@ -303,6 +302,7 @@ CONTAINS
     INTEGER                                                         :: vi, k1, k2, k, vj
     REAL(dp)                                                        :: dt_max
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                          :: dHi_dt_dummy
+    INTEGER                                                         :: n_Axb_its
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -354,7 +354,8 @@ CONTAINS
     CALL apply_ice_thickness_BC_matrix( mesh, mask_noice, AA, bb, Hi_tplusdt, BC_prescr_mask, BC_prescr_Hi)
 
     ! Solve for Hi_tplusdt
-    CALL solve_matrix_equation_CSR_PETSc( AA, bb, Hi_tplusdt, C%dHi_PETSc_rtol, C%dHi_PETSc_abstol)
+    CALL solve_matrix_equation_CSR_PETSc( AA, bb, Hi_tplusdt, C%dHi_PETSc_rtol, C%dHi_PETSc_abstol, &
+      n_Axb_its)
 
     ! Store the corresponding dH/dt in the artificial mass balance field
     AMB = (Hi_tplusdt - Hi) / dt
@@ -462,6 +463,7 @@ CONTAINS
     INTEGER                                                         :: vi, k1, k2, k, vj
     REAL(dp)                                                        :: dt_max
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                          :: dHi_dt_dummy
+    INTEGER                                                         :: n_Axb_its
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -513,7 +515,8 @@ CONTAINS
     CALL apply_ice_thickness_BC_matrix( mesh, mask_noice, AA, bb, Hi_tplusdt, BC_prescr_mask, BC_prescr_Hi)
 
     ! Solve for Hi_tplusdt
-    CALL solve_matrix_equation_CSR_PETSc( AA, bb, Hi_tplusdt, C%dHi_PETSc_rtol, C%dHi_PETSc_abstol)
+    CALL solve_matrix_equation_CSR_PETSc( AA, bb, Hi_tplusdt, C%dHi_PETSc_rtol, C%dHi_PETSc_abstol, &
+      n_Axb_its)
 
     ! Store the corresponding dH/dt in the artificial mass balance field
     AMB = (Hi_tplusdt - Hi) / dt
@@ -572,7 +575,7 @@ CONTAINS
     INTEGER                                               :: ncols, ncols_loc, nrows, nrows_loc, nnz_est_proc
     INTEGER                                               :: vi, ci, ei, vj
     REAL(dp)                                              :: A_i, L_c
-    REAL(dp)                                              :: D_x, D_y, D, u_perp
+    REAL(dp)                                              :: u_perp
     REAL(dp), DIMENSION(0:mesh%nC_mem)                    :: cM_divQ
 
     ! Add routine to path
@@ -580,9 +583,9 @@ CONTAINS
 
     ! Calculate vertically averaged ice velocities on the edges
     CALL map_velocities_from_b_to_c_2D( mesh, u_vav_b, v_vav_b, u_vav_c, v_vav_c)
-    CALL gather_to_all_dp_1D( u_vav_c, u_vav_c_tot)
-    CALL gather_to_all_dp_1D( v_vav_c, v_vav_c_tot)
-    CALL gather_to_all_dp_1D( fraction_margin, fraction_margin_tot)
+    CALL gather_to_all( u_vav_c, u_vav_c_tot)
+    CALL gather_to_all( v_vav_c, v_vav_c_tot)
+    CALL gather_to_all( fraction_margin, fraction_margin_tot)
 
     ! == Initialise the matrix using the native UFEMISM CSR-matrix format
     ! ===================================================================
@@ -619,10 +622,7 @@ CONTAINS
         L_c = mesh%Cw( vi,ci)
 
         ! Calculate vertically averaged ice velocity component perpendicular to this shared Voronoi cell boundary section
-        D_x = mesh%V( vj,1) - mesh%V( vi,1)
-        D_y = mesh%V( vj,2) - mesh%V( vi,2)
-        D   = SQRT( D_x**2 + D_y**2)
-        u_perp = u_vav_c_tot( ei) * D_x/D + v_vav_c_tot( ei) * D_y/D
+        u_perp = u_vav_c_tot( ei) * mesh%D_x( vi, ci)/mesh%D( vi, ci) + v_vav_c_tot( ei) * mesh%D_y( vi, ci)/mesh%D( vi, ci)
 
         ! Calculate matrix coefficients
         ! =============================
@@ -691,8 +691,8 @@ CONTAINS
     END DO
 
     ! Gather global data fields
-    CALL gather_to_all_dp_1D(      Hs_tplusdt, Hs_tplusdt_tot)
-    CALL gather_to_all_logical_1D( mask_noice, mask_noice_tot)
+    CALL gather_to_all(      Hs_tplusdt, Hs_tplusdt_tot)
+    CALL gather_to_all( mask_noice, mask_noice_tot)
 
     ! == First pass: set values of border vertices to mean of interior neighbours
     !    ...for those border vertices that actually have interior neighbours.
@@ -753,7 +753,7 @@ CONTAINS
     ! =======================================================================
 
     ! Gather global data fields again
-    CALL gather_to_all_dp_1D( Hs_tplusdt, Hs_tplusdt_tot)
+    CALL gather_to_all( Hs_tplusdt, Hs_tplusdt_tot)
 
     DO vi = mesh%vi1, mesh%vi2
 

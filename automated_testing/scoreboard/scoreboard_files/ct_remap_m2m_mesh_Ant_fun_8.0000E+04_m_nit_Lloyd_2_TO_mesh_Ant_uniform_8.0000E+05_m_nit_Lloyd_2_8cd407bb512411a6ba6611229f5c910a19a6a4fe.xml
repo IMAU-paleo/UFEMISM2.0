@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<single_run>
+    <name>mesh_Ant_fun_8.0000E+04_m_nit_Lloyd_2_TO_mesh_Ant_uniform_8.0000E+05_m_nit_Lloyd_2</name>
+    <category>component_tests/remapping/mesh_to_mesh</category>
+    <date_and_time>10-Dec-2024 16:04:11</date_and_time>
+    <git_hash_string>8cd407bb512411a6ba6611229f5c910a19a6a4fe</git_hash_string>
+    <cost_functions>
+        <name>rmse</name>
+        <definition>sqrt( mean( (d_mesh2 - d_mesh2_ex).^2))</definition>
+        <value>83.5287</value>
+    </cost_functions>
+    <cost_functions>
+        <name>bounds_max</name>
+        <definition>max( 0, max( d_mesh2(:)) - max( d_mesh1_ex(:)))</definition>
+        <value>0</value>
+    </cost_functions>
+    <cost_functions>
+        <name>bounds_min</name>
+        <definition>max( 0, min( d_mesh2_ex(:)) - min( d_mesh2(:)))</definition>
+        <value>0</value>
+    </cost_functions>
+    <cost_functions>
+        <name>int_err</name>
+        <definition>abs( 1 - int_mesh2 / int_mesh1)</definition>
+        <value>0.0024808</value>
+    </cost_functions>
+</single_run>

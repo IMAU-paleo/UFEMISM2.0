@@ -41,16 +41,14 @@ MODULE UFEMISM_main_model
   USE basal_inversion_main                                   , ONLY: initialise_basal_inversion, run_basal_inversion
   USE netcdf_basic                                           , ONLY: open_existing_netcdf_file_for_reading, close_netcdf_file
   USE netcdf_input                                           , ONLY: setup_mesh_from_file
-  USE mesh_creation                                          , ONLY: create_mesh_from_gridded_geometry, create_mesh_from_meshed_geometry, write_mesh_success
-  USE mesh_operators                                         , ONLY: calc_all_matrix_operators_mesh
+  USE mesh_creation_main                                     , ONLY: create_mesh_from_gridded_geometry, create_mesh_from_meshed_geometry, write_mesh_success
   USE grid_basic                                             , ONLY: setup_square_grid
   USE main_regional_output                                   , ONLY: create_main_regional_output_file_mesh,   create_main_regional_output_file_grid, &
                                                                      write_to_main_regional_output_file_mesh, write_to_main_regional_output_file_grid, &
                                                                      create_main_regional_output_file_grid_ROI, write_to_main_regional_output_file_grid_ROI, &
                                                                      create_scalar_regional_output_file, write_to_scalar_regional_output_file
   use mesh_ROI_polygons
-  USE math_utilities                                         , ONLY: longest_triangle_leg
-  USE mpi_distributed_memory                                 , ONLY: gather_to_all_logical_1D
+  use plane_geometry, only: longest_triangle_leg
   use apply_maps, only: clear_all_maps_involving_this_mesh
   USE mesh_memory                                            , ONLY: deallocate_mesh
   USE ice_model_scalars                                      , ONLY: calc_ice_model_scalars

@@ -24,10 +24,10 @@ MODULE basal_inversion_H_dHdt_flowline
   USE reference_geometry_types                               , ONLY: type_reference_geometry
   USE basal_inversion_types                                  , ONLY: type_basal_inversion
   USE mesh_utilities                                         , ONLY: find_containing_vertex, find_containing_triangle, extrapolate_Gaussian
-  USE math_utilities                                         , ONLY: triangle_area
-  USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_1D, gather_to_all_logical_1D
-  USE mesh_operators                                         , ONLY: ddx_a_a_2D, ddy_a_a_2D
-  USE mesh_data_smoothing                                    , ONLY: smooth_Gaussian_2D
+  use plane_geometry, only: triangle_area
+  use mpi_distributed_memory, only: gather_to_all
+  use mesh_disc_apply_operators, only: ddx_a_a_2D, ddy_a_a_2D
+  use mesh_data_smoothing, only: smooth_Gaussian
 
 
   IMPLICIT NONE
@@ -113,16 +113,16 @@ CONTAINS
     ALLOCATE( dC2_dt_smoothed( mesh%vi1:mesh%vi2), source = 0._dp  )
 
     ! Gather ice model data from all processes
-    CALL gather_to_all_dp_1D(      ice%Hi               , Hi_tot               )
-    CALL gather_to_all_dp_1D(      ice%Hs               , Hs_tot               )
-    CALL gather_to_all_dp_1D(      refgeo%Hs            , Hs_target_tot        )
-    CALL gather_to_all_dp_1D(      ice%dHs_dt           , dHs_dt_tot           )
-    CALL gather_to_all_dp_1D(      ice%u_vav_b          , u_b_tot              )
-    CALL gather_to_all_dp_1D(      ice%v_vav_b          , v_b_tot              )
-    CALL gather_to_all_logical_1D( ice%mask_grounded_ice, mask_grounded_ice_tot)
-    CALL gather_to_all_logical_1D( ice%mask_gl_gr       , mask_gl_gr_tot       )
-    CALL gather_to_all_logical_1D( ice%mask_margin      , mask_margin_tot      )
-    CALL gather_to_all_dp_1D(      ice%fraction_gr      , fraction_gr_tot      )
+    CALL gather_to_all(      ice%Hi               , Hi_tot               )
+    CALL gather_to_all(      ice%Hs               , Hs_tot               )
+    CALL gather_to_all(      refgeo%Hs            , Hs_target_tot        )
+    CALL gather_to_all(      ice%dHs_dt           , dHs_dt_tot           )
+    CALL gather_to_all(      ice%u_vav_b          , u_b_tot              )
+    CALL gather_to_all(      ice%v_vav_b          , v_b_tot              )
+    CALL gather_to_all( ice%mask_grounded_ice, mask_grounded_ice_tot)
+    CALL gather_to_all( ice%mask_gl_gr       , mask_gl_gr_tot       )
+    CALL gather_to_all( ice%mask_margin      , mask_margin_tot      )
+    CALL gather_to_all(      ice%fraction_gr      , fraction_gr_tot      )
 
   ! == Calculate bed roughness rates of changes
   ! ===========================================
@@ -396,8 +396,8 @@ CONTAINS
     dC2_dt_smoothed = dC2_dt
 
     ! Smooth the local variable
-    CALL smooth_Gaussian_2D( mesh, grid_smooth, dC1_dt_smoothed, C%bednudge_H_dHdt_flowline_r_smooth)
-    CALL smooth_Gaussian_2D( mesh, grid_smooth, dC2_dt_smoothed, C%bednudge_H_dHdt_flowline_r_smooth)
+    CALL smooth_Gaussian( mesh, grid_smooth, dC1_dt_smoothed, C%bednudge_H_dHdt_flowline_r_smooth)
+    CALL smooth_Gaussian( mesh, grid_smooth, dC2_dt_smoothed, C%bednudge_H_dHdt_flowline_r_smooth)
 
     DO vi = mesh%vi1, mesh%vi2
       dC1_dt( vi) = (1._dp - C%bednudge_H_dHdt_flowline_w_smooth) * dC1_dt( vi) + C%bednudge_H_dHdt_flowline_w_smooth * dC1_dt_smoothed( vi)

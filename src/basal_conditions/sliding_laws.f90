@@ -15,9 +15,9 @@ MODULE sliding_laws
   USE mesh_types                                             , ONLY: type_mesh
   USE ice_model_types                                        , ONLY: type_ice_model
   USE parameters
-  USE mesh_operators                                         , ONLY: map_b_a_2D
+  use mesh_disc_apply_operators, only: map_b_a_2D
   USE mesh_utilities                                         , ONLY: extrapolate_Gaussian
-  USE mpi_distributed_memory                                 , ONLY: gather_to_all_logical_1D, gather_to_all_dp_1D
+  use mpi_distributed_memory, only: gather_to_all
 
   IMPLICIT NONE
 
@@ -647,8 +647,8 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Gather data from all processes
-    CALL gather_to_all_logical_1D( ice%mask_grounded_ice, mask_grounded_ice_tot)
-    CALL gather_to_all_dp_1D(      ice%till_yield_stress, till_yield_stress_tot)
+    CALL gather_to_all( ice%mask_grounded_ice, mask_grounded_ice_tot)
+    CALL gather_to_all(      ice%till_yield_stress, till_yield_stress_tot)
 
     DO vi = mesh%vi1, mesh%vi2
 

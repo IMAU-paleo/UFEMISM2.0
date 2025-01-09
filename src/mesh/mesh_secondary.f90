@@ -14,15 +14,13 @@ MODULE mesh_secondary
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
   USE mesh_types                                             , ONLY: type_mesh
-  USE mesh_utilities                                         , ONLY: calc_Voronoi_cell, find_shared_Voronoi_boundary
-  USE math_utilities                                         , ONLY: cross2, line_integral_xdy, line_integral_xydy, line_integral_mxydx, triangle_area, &
-                                                                     geometric_center, inverse_oblique_sg_projection
+  USE mesh_utilities                                         , ONLY: calc_Voronoi_cell, find_shared_Voronoi_boundary, find_corner_vertices
+  use line_integrals, only: line_integral_xdy, line_integral_xydy, line_integral_mxydx
+  use plane_geometry, only: cross2, geometric_center, triangle_area
+  use projections, only: inverse_oblique_sg_projection
   USE mesh_edges                                             , ONLY: construct_mesh_edges
-  USE mesh_operators                                         , ONLY: calc_field_to_vector_form_translation_tables, calc_matrix_operators_mesh_b_b_2nd_order, &
-                                                                     calc_matrix_operators_mesh_a_a, calc_matrix_operators_mesh_a_b, calc_matrix_operators_mesh_a_c, &
-                                                                     calc_matrix_operators_mesh_b_a, calc_matrix_operators_mesh_b_b, calc_matrix_operators_mesh_b_c, &
-                                                                     calc_matrix_operators_mesh_c_a, calc_matrix_operators_mesh_c_b, calc_matrix_operators_mesh_c_c
   USE mesh_zeta                                              , ONLY: initialise_scaled_vertical_coordinate
+  use mesh_Voronoi, only: construct_Voronoi_mesh
 
   IMPLICIT NONE
 
@@ -50,10 +48,13 @@ CONTAINS
 
     ! Secondary geometry data
     CALL construct_mesh_edges(                  mesh)
+    call find_corner_vertices(                  mesh)
+    call construct_Voronoi_mesh(                mesh)
     CALL calc_TriBI(                            mesh)
     CALL calc_Voronoi_cell_areas(               mesh)
     CALL calc_Voronoi_cell_geometric_centres(   mesh)
     CALL calc_connection_widths(                mesh)
+    CALL calc_connection_lengths(               mesh)
     CALL calc_triangle_areas(                   mesh)
     CALL calc_mesh_resolution(                  mesh)
     CALL calc_triangle_geometric_centres(       mesh)
@@ -293,6 +294,48 @@ CONTAINS
     call finalise_routine( routine_name)
 
   end subroutine calc_connection_widths
+
+  subroutine calc_connection_lengths( mesh)
+    ! Calculate the connection length between two vertices, including x- and y- components
+
+    ! In/output variables
+    type(type_mesh), intent(inout) :: mesh
+
+    ! Local variables
+    character(len=1024), parameter :: routine_name = 'calc_connection_lengths'
+    integer                        :: vi, vj, ci
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Allocate clean memory
+    if (allocated( mesh%D_x)) deallocate( mesh%D_x)
+    if (allocated( mesh%D_y)) deallocate( mesh%D_y)
+    if (allocated( mesh%D)) deallocate( mesh%D)
+    allocate( mesh%D_x( mesh%nV, mesh%nC_mem), source = 0._dp)
+    allocate( mesh%D_y( mesh%nV, mesh%nC_mem), source = 0._dp)
+    allocate( mesh%D( mesh%nV, mesh%nC_mem), source = 0._dp)
+
+    do vi = 1, mesh%nV
+      do ci = 1, mesh%nC( vi)
+
+      ! Connection ci from vertex vi leads through edge ei to vertex vj
+      vj = mesh%C(  vi,ci)
+
+      ! Get x, and y components
+      mesh%D_x( vi, ci) = mesh%V( vj,1) - mesh%V( vi,1)
+      mesh%D_y( vi, ci) = mesh%V( vj,2) - mesh%V( vi,2)
+
+      ! Get absolute distance
+      mesh%D( vi, ci)   = sqrt( mesh%D_x( vi, ci)**2 + mesh%D_y( vi, ci)**2)
+
+      end do
+    end do
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine calc_connection_lengths
 
   SUBROUTINE calc_triangle_areas( mesh)
     ! Find the areas of all the triangles

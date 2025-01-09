@@ -8,8 +8,8 @@ module mesh_refinement_basic_ROI
   use mesh_types, only: type_mesh
   use model_configuration, only: C
   use grid_basic, only: poly2line
-  use math_utilities, only: is_in_polygon, crop_line_to_domain, smallest_triangle_angle, is_in_triangle, &
-    segment_intersection, lies_on_line_segment, longest_triangle_leg, circumcenter
+  use plane_geometry, only: is_in_polygon, crop_line_to_domain, smallest_triangle_angle, &
+    is_in_triangle, segment_intersection, lies_on_line_segment, longest_triangle_leg, circumcenter
   use mesh_utilities, only: find_containing_triangle, add_triangle_to_refinement_stack_last, &
     remove_triangle_from_refinement_stack
   use mesh_memory, only: extend_mesh_primary, crop_mesh_primary

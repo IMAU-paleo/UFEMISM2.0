@@ -15,12 +15,10 @@ MODULE laddie_velocity
   USE laddie_model_types                                     , ONLY: type_laddie_model, type_laddie_timestep
   USE ocean_model_types                                      , ONLY: type_ocean_model
   USE reallocate_mod                                         , ONLY: reallocate_bounds
-  USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_1D, gather_to_all_logical_1D
-  USE mesh_operators                                         , ONLY: ddx_a_b_2D, ddy_a_b_2D, map_a_b_2D
-  USE math_utilities                                         , ONLY: check_for_NaN_dp_1D
+  USE mpi_distributed_memory                                 , ONLY: gather_to_all
+  USE mesh_disc_apply_operators                              , ONLY: ddx_a_b_2D, ddy_a_b_2D, map_a_b_2D, map_b_a_2D, map_b_c_2D
   USE laddie_utilities                                       , ONLY: compute_ambient_TS, map_H_a_b, map_H_a_c
   USE laddie_physics                                         , ONLY: compute_buoyancy
-  USE mesh_operators                                         , ONLY: map_b_c_2D, map_b_a_2D
 
   IMPLICIT NONE
     
@@ -29,7 +27,7 @@ CONTAINS
 ! ===== Main routines =====
 ! =========================
 
-  SUBROUTINE compute_UV_npx( mesh, ice, ocean, laddie, npxref, npx, Hstar, dt, inclvisc)
+  SUBROUTINE compute_UV_npx( mesh, ice, ocean, laddie, npxref, npx, Hstar, dt, include_viscosity_terms)
     ! Integrate U and V by one time step
 
     ! In- and output variables
@@ -42,7 +40,7 @@ CONTAINS
     TYPE(type_laddie_timestep),             INTENT(INOUT) :: npx
     REAL(dp),                               INTENT(IN)    :: dt
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: Hstar
-    LOGICAL,                                INTENT(IN)    :: inclvisc
+    LOGICAL,                                INTENT(IN)    :: include_viscosity_terms
 
 
     ! Local variables:
@@ -58,7 +56,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    CALL gather_to_all_logical_1D( laddie%mask_a, mask_a_tot)
+    CALL gather_to_all( laddie%mask_a, mask_a_tot)
 
     ! Initialise ambient T and S                             
     ! TODO costly, see whether necessary to recompute with Hstar
@@ -87,6 +85,7 @@ CONTAINS
         laddie%divQU = 0.0_dp
         laddie%divQV = 0.0_dp
       CASE ('upstream')
+        ! TODO figure out which of the below lines is best
         !CALL compute_divQUV_upstream( mesh, laddie, npx, Hstar_b)
         CALL compute_divQUV_upstream( mesh, laddie, npx, npxref%H_b)
     END SELECT
@@ -131,7 +130,7 @@ CONTAINS
                 - C%laddie_drag_coefficient_mom * npxref%U( ti) * (npxref%U( ti)**2 + npxref%V( ti)**2)**.5 &
                 - detr_b( ti) * npxref%U( ti)
 
-        IF (inclvisc) THEN
+        IF (include_viscosity_terms) THEN
           dHUdt = dHUdt + laddie%viscU( ti)
         END IF
 
@@ -142,7 +141,7 @@ CONTAINS
                 - C%laddie_drag_coefficient_mom * npxref%V( ti) * (npxref%U( ti)**2 + npxref%V( ti)**2)**.5 &
                 - detr_b( ti) * npxref%V( ti)
 
-        IF (inclvisc) THEN
+        IF (include_viscosity_terms) THEN
           dHVdt = dHVdt + laddie%viscV( ti)
         END IF
 
@@ -167,10 +166,10 @@ CONTAINS
         Uabs = (npx%U( ti)**2 + npx%V( ti)**2)**.5
         
         ! Scale U and V 
-        IF (Uabs > 0) THEN
-          npx%U( ti) = npx%U( ti) * MIN(1.0_dp, C%laddie_velocity_maximum/Uabs)
-          npx%V( ti) = npx%V( ti) * MIN(1.0_dp, C%laddie_velocity_maximum/Uabs)
-        END IF
+        IF (Uabs == 0) CYCLE ! Prevent division by zero
+        npx%U( ti) = npx%U( ti) * MIN(1.0_dp, C%laddie_velocity_maximum/Uabs)
+        npx%V( ti) = npx%V( ti) * MIN(1.0_dp, C%laddie_velocity_maximum/Uabs)
+
       END IF ! (laddie%mask_b( ti))
     END DO !ti = mesh%ti1, mesh%ti2
 
@@ -178,9 +177,6 @@ CONTAINS
     CALL map_laddie_velocities_from_b_to_c_2D( mesh, npx%U, npx%V, npx%U_c, npx%V_c)
     CALL map_b_a_2D( mesh, npx%U, npx%U_a)
     CALL map_b_a_2D( mesh, npx%V, npx%V_a)
-
-    CALL check_for_NaN_dp_1D( npx%U, 'U_lad')
-    CALL check_for_NaN_dp_1D( npx%V, 'V_lad')
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -208,9 +204,9 @@ CONTAINS
     CALL init_routine( routine_name)        
 
     ! Gather
-    CALL gather_to_all_dp_1D( npxref%U, U_tot)            
-    CALL gather_to_all_dp_1D( npxref%V, V_tot)            
-    CALL gather_to_all_logical_1D( laddie%mask_oc_b, mask_oc_b_tot)
+    CALL gather_to_all( npxref%U, U_tot)            
+    CALL gather_to_all( npxref%V, V_tot)            
+    CALL gather_to_all( laddie%mask_oc_b, mask_oc_b_tot)
 
     ! Loop over triangles                                  
     DO ti = mesh%ti1, mesh%ti2
@@ -260,8 +256,6 @@ CONTAINS
   SUBROUTINE compute_divQUV_upstream( mesh, laddie, npxref, Hstar_b)
     ! Upstream scheme
 
-    IMPLICIT NONE
-
     ! In/output variables:
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
@@ -280,14 +274,14 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Calculate vertically averaged ice velocities on the edges
-    CALL gather_to_all_logical_1D( laddie%mask_gl_b, mask_gl_b_tot)
-    CALL gather_to_all_logical_1D( laddie%mask_cf_b, mask_cf_b_tot)
-    CALL gather_to_all_logical_1D( laddie%mask_b, mask_b_tot)
-    CALL gather_to_all_dp_1D( npxref%U, U_tot)
-    CALL gather_to_all_dp_1D( npxref%V, V_tot)
-    CALL gather_to_all_dp_1D( npxref%U_c, U_c_tot)
-    CALL gather_to_all_dp_1D( npxref%V_c, V_c_tot)
-    CALL gather_to_all_dp_1D( Hstar_b, H_b_tot)
+    CALL gather_to_all( laddie%mask_gl_b, mask_gl_b_tot)
+    CALL gather_to_all( laddie%mask_cf_b, mask_cf_b_tot)
+    CALL gather_to_all( laddie%mask_b, mask_b_tot)
+    CALL gather_to_all( npxref%U, U_tot)
+    CALL gather_to_all( npxref%V, V_tot)
+    CALL gather_to_all( npxref%U_c, U_c_tot)
+    CALL gather_to_all( npxref%V_c, V_c_tot)
+    CALL gather_to_all( Hstar_b, H_b_tot)
 
     ! Initialise with zeros
     laddie%divQU = 0.0_dp
@@ -306,10 +300,6 @@ CONTAINS
           tj = mesh%TriC( ti, ci)
           ei = mesh%TriE( ti, ci)
 
-          !IF (par%master) THEN
-          !  WRITE( *, *) ti, ci, tj, ei, mask_gl_b_tot( tj)
-          !END IF     
-
           ! Skip if no connecting triangle on this side
           IF (tj == 0) CYCLE
 
@@ -321,7 +311,7 @@ CONTAINS
           D_y = mesh%Tricc( tj,2) - mesh%Tricc( ti,2)
           D_c = SQRT( D_x**2 + D_y**2)
 
-          ! Calculate vertically averaged ice velocity component perpendicular to this edge
+          ! Calculate vertically averaged water velocity component perpendicular to this edge
           u_perp_x = U_c_tot( ei) * D_x/D_c
           u_perp_y = V_c_tot( ei) * D_y/D_c
 
@@ -342,9 +332,6 @@ CONTAINS
             laddie%divQV( ti) = laddie%divQV( ti) + mesh%TriCw( ti, ci) * H_b_tot( tj) * V_tot( tj)* u_perp_y / mesh%TriA( ti)
           END IF
 
-          !IF (par%master) THEN
-          !  WRITE( *, "(I3,I3,I3,I3,A,F15.3,A,F12.6,A,F12.6,A,F18.12)") ti, ci, tj, ei, '  D_x: ', D_x, '  H_b_tot(ti)', H_b_tot( ti), '   U_tot( ti)', U_tot( ti), '   divQU(ti)', laddie%divQU( ti)*mesh%TriA( ti)
-          !END IF     
         END DO ! DO ci = 1, 3
 
       END IF ! (laddie%mask_b( ti))
@@ -357,12 +344,10 @@ CONTAINS
   END SUBROUTINE compute_divQUV_upstream
 
   SUBROUTINE map_laddie_velocities_from_b_to_c_2D( mesh, u_b_partial, v_b_partial, u_c, v_c)
-    ! Calculate velocities on the c-grid for solving the ice thickness equation
+    ! Calculate velocities on the c-grid for solving the layer thickness equation
     ! 
     ! Uses a different scheme then the standard mapping operator, as that one is too diffusive
         
-    IMPLICIT NONE
-
     ! In/output variables:
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
     REAL(dp), DIMENSION(mesh%ti1:mesh%ti2), INTENT(IN)    :: u_b_partial
@@ -383,8 +368,8 @@ CONTAINS
     ALLOCATE( v_b_tot( mesh%nTri))
         
     ! Gather the full b-grid velocity fields to all processes
-    CALL gather_to_all_dp_1D( u_b_partial, u_b_tot)
-    CALL gather_to_all_dp_1D( v_b_partial, v_b_tot)
+    CALL gather_to_all( u_b_partial, u_b_tot)
+    CALL gather_to_all( v_b_partial, v_b_tot)
 
     ! Map velocities from the b-grid (triangles) to the c-grid (edges)
     DO ei = mesh%ei1, mesh%ei2

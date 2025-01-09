@@ -11,7 +11,7 @@ module create_maps_mesh_mesh
   use remapping_types, only: type_map, type_single_row_mapping_matrices
   use CSR_sparse_matrix_utilities, only: type_sparse_matrix_CSR_dp, allocate_matrix_CSR_dist, &
     add_empty_row_CSR_dist, add_entry_CSR_dist, deallocate_matrix_CSR_dist
-  use math_utilities, only: triangle_area
+  use plane_geometry, only: triangle_area
   use mesh_utilities, only: calc_Voronoi_cell, find_containing_triangle, find_containing_vertex
   use petsc_basic, only: mat_CSR2petsc, mat_petsc2CSR, MatConvert
   use line_tracing_triangles, only: trace_line_tri
@@ -289,7 +289,7 @@ contains
       call MatGetRow( B_xdy_a_b, n-1, ncols, cols, vals, perr)
       do k = 1, ncols
         w0_row( k) = vals( k) / A_overlap_tot
-        call MatSetValues( w0, 1, n-1, 1, cols( k), w0_row( k), INSERT_VALUES, perr)
+        call MatSetValues( w0, 1, [n-1], 1, [cols( k)], [w0_row( k)], INSERT_VALUES, perr)
       end do
       call MatRestoreRow( B_xdy_a_b, n-1, ncols, cols, vals, perr)
 
@@ -298,7 +298,7 @@ contains
       do k = 1, ncols
         ti = cols( k)+1
         w1x_row( k) = (vals( k) / A_overlap_tot) - (mesh_src%TriGC( ti,1) * w0_row( k))
-        call MatSetValues( w1x, 1, n-1, 1, cols( k), w1x_row( k), INSERT_VALUES, perr)
+        call MatSetValues( w1x, 1, [n-1], 1, [cols( k)], [w1x_row( k)], INSERT_VALUES, perr)
       end do
       call MatRestoreRow( B_mxydx_a_b, n-1, ncols, cols, vals, perr)
 
@@ -307,7 +307,7 @@ contains
       do k = 1, ncols
         ti = cols( k)+1
         w1y_row( k) = (vals( k) / A_overlap_tot) - (mesh_src%TriGC( ti,2) * w0_row( k))
-        call MatSetValues( w1y, 1, n-1, 1, cols( k), w1y_row( k), INSERT_VALUES, perr)
+        call MatSetValues( w1y, 1, [n-1], 1, [cols( k)], [w1y_row( k)], INSERT_VALUES, perr)
       end do
       call MatRestoreRow( B_xydy_a_b, n-1, ncols, cols, vals, perr)
 

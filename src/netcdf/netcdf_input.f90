@@ -17,23 +17,20 @@ MODULE netcdf_input
   USE mpi_basic                                              , ONLY: par, cerr, ierr, recv_status, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
-  USE mpi_distributed_memory                                 , ONLY: distribute_from_master_dp_1D , distribute_from_master_dp_2D, &
-                                                                     distribute_from_master_int_1D, distribute_from_master_int_2D
-  USE grid_basic                                             , ONLY: type_grid, calc_secondary_grid_data, deallocate_grid, &
-                                                                     distribute_gridded_data_from_master_int_2D, distribute_gridded_data_from_master_int_3D, &
-                                                                     distribute_gridded_data_from_master_dp_2D, distribute_gridded_data_from_master_dp_3D
+  use mpi_distributed_memory, only: distribute_from_master
+  use grid_basic, only: type_grid, calc_secondary_grid_data, deallocate_grid
+  use mpi_distributed_memory_grid, only: distribute_gridded_data_from_master
   USE grid_lonlat_basic                                      , ONLY: type_grid_lonlat, calc_lonlat_field_to_vector_form_translation_tables, &
                                                                      distribute_lonlat_gridded_data_from_master_dp_2D, deallocate_lonlat_grid, &
                                                                      distribute_lonlat_gridded_data_from_master_dp_3D
-  USE math_utilities                                         , ONLY: permute_2D_int, permute_2D_dp, permute_3D_int, permute_3D_dp, &
-                                                                     flip_1D_int, flip_2D_x1_int, flip_2D_x2_int, flip_3D_x1_int, flip_3D_x2_int, flip_3D_x3_int, &
-                                                                     flip_1D_dp , flip_2D_x1_dp , flip_2D_x2_dp , flip_3D_x1_dp , flip_3D_x2_dp , flip_3D_x3_dp
+  use permute_mod, only: permute
+  use flip_mod, only: flip
   USE mesh_types                                             , ONLY: type_mesh
   USE mesh_memory                                            , ONLY: allocate_mesh_primary, deallocate_mesh
   USE mesh_utilities                                         , ONLY: check_mesh
   USE mesh_secondary                                         , ONLY: calc_all_secondary_mesh_data
   USE mesh_parallel_creation                                 , ONLY: broadcast_mesh
-  USE mesh_operators                                         , ONLY: calc_all_matrix_operators_mesh
+  USE mesh_disc_calc_matrix_operators_2D, ONLY: calc_all_matrix_operators_mesh
   USE remapping_main                                         , ONLY: map_from_xy_grid_to_mesh_2D, map_from_lonlat_grid_to_mesh_2D, map_from_mesh_to_mesh_2D, &
                                                                      map_from_xy_grid_to_mesh_3D, map_from_lonlat_grid_to_mesh_3D, map_from_mesh_to_mesh_3D, &
                                                                      map_from_vertical_to_vertical_2D_ocean
@@ -727,7 +724,7 @@ CONTAINS
     IF     (indexing == 'xy') THEN
       ! No need to do anything
     ELSEIF (indexing == 'yx') THEN
-      IF (par%master) CALL permute_2D_dp( d_grid, map = [2,1])
+      IF (par%master) call permute( d_grid, map = [2,1])
     ELSE
       CALL crash('unknown indexing = "' // TRIM( indexing) // '"!')
     END IF
@@ -736,8 +733,8 @@ CONTAINS
     IF     (xdir == 'normal') THEN
       ! No need to do anything
     ELSEIF (xdir == 'reverse') THEN
-      CALL flip_1D_dp( grid_loc%x)
-      IF (par%master) CALL flip_2D_x1_dp( d_grid)
+      call flip( grid_loc%x)
+      IF (par%master) call flip( d_grid, 1)
     ELSE
       CALL crash('unknown xdir = "' // TRIM( xdir) // '"!')
     END IF
@@ -746,8 +743,8 @@ CONTAINS
     IF     (ydir == 'normal') THEN
       ! No need to do anything
     ELSEIF (ydir == 'reverse') THEN
-      CALL flip_1D_dp( grid_loc%y)
-      IF (par%master) CALL flip_2D_x2_dp( d_grid)
+      call flip( grid_loc%y)
+      IF (par%master) call flip( d_grid, 2)
     ELSE
       CALL crash('unknown ydir = "' // TRIM( ydir) // '"!')
     END IF
@@ -756,7 +753,7 @@ CONTAINS
     ! ==================================================================================
 
     ! Distribute data
-    CALL distribute_gridded_data_from_master_dp_2D( grid_loc, d_grid, d_grid_vec_partial)
+    CALL distribute_gridded_data_from_master( grid_loc, d_grid, d_grid_vec_partial)
 
     ! Clean up after yourself
     CALL deallocate_grid( grid_loc)
@@ -877,7 +874,7 @@ CONTAINS
     IF     (indexing == 'xy') THEN
       ! No need to do anything
     ELSEIF (indexing == 'yx') THEN
-      IF (par%master) CALL permute_2D_int( d_grid, map = [2,1])
+      IF (par%master) call permute( d_grid, map = [2,1])
     ELSE
       CALL crash('unknown indexing = "' // TRIM( indexing) // '"!')
     END IF
@@ -886,8 +883,8 @@ CONTAINS
     IF     (xdir == 'normal') THEN
       ! No need to do anything
     ELSEIF (xdir == 'reverse') THEN
-      CALL flip_1D_dp( grid_loc%x)
-      IF (par%master) CALL flip_2D_x1_int( d_grid)
+      call flip( grid_loc%x)
+      IF (par%master) call flip( d_grid, 1)
     ELSE
       CALL crash('unknown xdir = "' // TRIM( xdir) // '"!')
     END IF
@@ -896,8 +893,8 @@ CONTAINS
     IF     (ydir == 'normal') THEN
       ! No need to do anything
     ELSEIF (ydir == 'reverse') THEN
-      CALL flip_1D_dp( grid_loc%y)
-      IF (par%master) CALL flip_2D_x2_int( d_grid)
+      call flip( grid_loc%y)
+      IF (par%master) call flip( d_grid, 2)
     ELSE
       CALL crash('unknown ydir = "' // TRIM( ydir) // '"!')
     END IF
@@ -906,7 +903,7 @@ CONTAINS
   ! ==================================================================================
 
     ! Distribute data
-    CALL distribute_gridded_data_from_master_int_2D( grid_loc, d_grid, d_grid_vec_partial)
+    CALL distribute_gridded_data_from_master( grid_loc, d_grid, d_grid_vec_partial)
 
     ! Clean up after yourself
     CALL deallocate_grid( grid_loc)
@@ -1022,7 +1019,7 @@ CONTAINS
     IF     (indexing == 'xy') THEN
       ! No need to do anything
     ELSEIF (indexing == 'yx') THEN
-      IF (par%master) CALL permute_3D_dp( d_grid, map = [2,1,3])
+      IF (par%master) call permute( d_grid, map = [2,1,3])
     ELSE
       CALL crash('unknown indexing = "' // TRIM( indexing) // '"!')
     END IF
@@ -1031,8 +1028,8 @@ CONTAINS
     IF     (xdir == 'normal') THEN
       ! No need to do anything
     ELSEIF (xdir == 'reverse') THEN
-      CALL flip_1D_dp( grid_loc%x)
-      IF (par%master) CALL flip_3D_x1_dp( d_grid)
+      call flip( grid_loc%x)
+      IF (par%master) call flip( d_grid, 1)
     ELSE
       CALL crash('unknown xdir = "' // TRIM( xdir) // '"!')
     END IF
@@ -1041,8 +1038,8 @@ CONTAINS
     IF     (ydir == 'normal') THEN
       ! No need to do anything
     ELSEIF (ydir == 'reverse') THEN
-      CALL flip_1D_dp( grid_loc%y)
-      IF (par%master) CALL flip_3D_x2_dp( d_grid)
+      call flip( grid_loc%y)
+      IF (par%master) call flip( d_grid, 2)
     ELSE
       CALL crash('unknown ydir = "' // TRIM( ydir) // '"!')
     END IF
@@ -1051,7 +1048,7 @@ CONTAINS
     ! ==================================================================================
 
     ! Distribute data
-    CALL distribute_gridded_data_from_master_dp_3D( grid_loc, d_grid, d_grid_vec_partial)
+    CALL distribute_gridded_data_from_master( grid_loc, d_grid, d_grid_vec_partial)
 
     ! Clean up after yourself
     IF (par%master) DEALLOCATE( d_grid)
@@ -1169,7 +1166,7 @@ CONTAINS
     IF     (indexing == 'xy') THEN
       ! No need to do anything
     ELSEIF (indexing == 'yx') THEN
-      IF (par%master) CALL permute_3D_dp( d_grid, map = [2,1,3])
+      IF (par%master) call permute( d_grid, map = [2,1,3])
     ELSE
       CALL crash('unknown indexing = "' // TRIM( indexing) // '"!')
     END IF
@@ -1178,8 +1175,8 @@ CONTAINS
     IF     (xdir == 'normal') THEN
       ! No need to do anything
     ELSEIF (xdir == 'reverse') THEN
-      CALL flip_1D_dp( grid_loc%x)
-      IF (par%master) CALL flip_3D_x1_dp( d_grid)
+      call flip( grid_loc%x)
+      IF (par%master) call flip( d_grid, 1)
     ELSE
       CALL crash('unknown xdir = "' // TRIM( xdir) // '"!')
     END IF
@@ -1188,8 +1185,8 @@ CONTAINS
     IF     (ydir == 'normal') THEN
       ! No need to do anything
     ELSEIF (ydir == 'reverse') THEN
-      CALL flip_1D_dp( grid_loc%y)
-      IF (par%master) CALL flip_3D_x2_dp( d_grid)
+      call flip( grid_loc%y)
+      IF (par%master) call flip( d_grid, 2)
     ELSE
       CALL crash('unknown ydir = "' // TRIM( ydir) // '"!')
     END IF
@@ -1198,7 +1195,7 @@ CONTAINS
     ! ==================================================================================
 
     ! Distribute data
-    CALL distribute_gridded_data_from_master_dp_3D( grid_loc, d_grid, d_grid_vec_partial)
+    CALL distribute_gridded_data_from_master( grid_loc, d_grid, d_grid_vec_partial)
 
     ! Clean up after yourself
     IF (par%master) DEALLOCATE( d_grid)
@@ -1316,7 +1313,7 @@ CONTAINS
     IF     (indexing == 'xy') THEN
       ! No need to do anything
     ELSEIF (indexing == 'yx') THEN
-      IF (par%master) CALL permute_3D_dp( d_grid, map = [2,1,3])
+      IF (par%master) call permute( d_grid, map = [2,1,3])
     ELSE
       CALL crash('unknown indexing = "' // TRIM( indexing) // '"!')
     END IF
@@ -1325,8 +1322,8 @@ CONTAINS
     IF     (xdir == 'normal') THEN
       ! No need to do anything
     ELSEIF (xdir == 'reverse') THEN
-      CALL flip_1D_dp( grid_loc%x)
-      IF (par%master) CALL flip_3D_x1_dp( d_grid)
+      call flip( grid_loc%x)
+      IF (par%master) call flip( d_grid, 1)
     ELSE
       CALL crash('unknown xdir = "' // TRIM( xdir) // '"!')
     END IF
@@ -1335,8 +1332,8 @@ CONTAINS
     IF     (ydir == 'normal') THEN
       ! No need to do anything
     ELSEIF (ydir == 'reverse') THEN
-      CALL flip_1D_dp( grid_loc%y)
-      IF (par%master) CALL flip_3D_x2_dp( d_grid)
+      call flip( grid_loc%y)
+      IF (par%master) call flip( d_grid, 2)
     ELSE
       CALL crash('unknown ydir = "' // TRIM( ydir) // '"!')
     END IF
@@ -1345,7 +1342,7 @@ CONTAINS
     ! ==================================================================================
 
     ! Distribute data
-    CALL distribute_gridded_data_from_master_dp_3D( grid_loc, d_grid, d_grid_vec_partial)
+    CALL distribute_gridded_data_from_master( grid_loc, d_grid, d_grid_vec_partial)
 
     ! Clean up after yourself
     IF (par%master) DEALLOCATE( d_grid)
@@ -1459,7 +1456,7 @@ CONTAINS
     IF     (indexing == 'lonlat') THEN
       ! No need to do anything
     ELSEIF (indexing == 'latlon') THEN
-      IF (par%master) CALL permute_2D_dp( d_grid, map = [2,1])
+      IF (par%master) call permute( d_grid, map = [2,1])
     ELSE
       CALL crash('unknown indexing = "' // TRIM( indexing) // '"!')
     END IF
@@ -1468,8 +1465,8 @@ CONTAINS
     IF     (londir == 'normal') THEN
       ! No need to do anything
     ELSEIF (londir == 'reverse') THEN
-      CALL flip_1D_dp( grid_loc%lon)
-      IF (par%master) CALL flip_2D_x1_dp( d_grid)
+      call flip( grid_loc%lon)
+      IF (par%master) call flip( d_grid, 1)
     ELSE
       CALL crash('unknown londir = "' // TRIM( londir) // '"!')
     END IF
@@ -1478,8 +1475,8 @@ CONTAINS
     IF     (latdir == 'normal') THEN
       ! No need to do anything
     ELSEIF (latdir == 'reverse') THEN
-      CALL flip_1D_dp( grid_loc%lat)
-      IF (par%master) CALL flip_2D_x2_dp( d_grid)
+      call flip( grid_loc%lat)
+      IF (par%master) call flip( d_grid, 2)
     ELSE
       CALL crash('unknown latdir = "' // TRIM( latdir) // '"!')
     END IF
@@ -1606,7 +1603,7 @@ CONTAINS
     IF     (indexing == 'lonlat') THEN
       ! No need to do anything
     ELSEIF (indexing == 'latlon') THEN
-      IF (par%master) CALL permute_3D_dp( d_grid, map = [2,1,3])
+      IF (par%master) call permute( d_grid, map = [2,1,3])
     ELSE
       CALL crash('unknown indexing = "' // TRIM( indexing) // '"!')
     END IF
@@ -1615,8 +1612,8 @@ CONTAINS
     IF     (londir == 'normal') THEN
       ! No need to do anything
     ELSEIF (londir == 'reverse') THEN
-      CALL flip_1D_dp( grid_loc%lon)
-      IF (par%master) CALL flip_3D_x1_dp( d_grid)
+      call flip( grid_loc%lon)
+      IF (par%master) call flip( d_grid, 1)
     ELSE
       CALL crash('unknown londir = "' // TRIM( londir) // '"!')
     END IF
@@ -1625,8 +1622,8 @@ CONTAINS
     IF     (latdir == 'normal') THEN
       ! No need to do anything
     ELSEIF (latdir == 'reverse') THEN
-      CALL flip_1D_dp( grid_loc%lat)
-      IF (par%master) CALL flip_3D_x2_dp( d_grid)
+      call flip( grid_loc%lat)
+      IF (par%master) call flip( d_grid, 2)
     ELSE
       CALL crash('unknown latdir = "' // TRIM( latdir) // '"!')
     END IF
@@ -1753,7 +1750,7 @@ CONTAINS
     IF     (indexing == 'lonlat') THEN
       ! No need to do anything
     ELSEIF (indexing == 'latlon') THEN
-      IF (par%master) CALL permute_3D_dp( d_grid, map = [2,1,3])
+      IF (par%master) call permute( d_grid, map = [2,1,3])
     ELSE
       CALL crash('unknown indexing = "' // TRIM( indexing) // '"!')
     END IF
@@ -1762,8 +1759,8 @@ CONTAINS
     IF     (londir == 'normal') THEN
       ! No need to do anything
     ELSEIF (londir == 'reverse') THEN
-      CALL flip_1D_dp( grid_loc%lon)
-      IF (par%master) CALL flip_3D_x1_dp( d_grid)
+      call flip( grid_loc%lon)
+      IF (par%master) call flip( d_grid, 1)
     ELSE
       CALL crash('unknown londir = "' // TRIM( londir) // '"!')
     END IF
@@ -1772,8 +1769,8 @@ CONTAINS
     IF     (latdir == 'normal') THEN
       ! No need to do anything
     ELSEIF (latdir == 'reverse') THEN
-      CALL flip_1D_dp( grid_loc%lat)
-      IF (par%master) CALL flip_3D_x2_dp( d_grid)
+      call flip( grid_loc%lat)
+      IF (par%master) call flip( d_grid, 2)
     ELSE
       CALL crash('unknown latdir = "' // TRIM( latdir) // '"!')
     END IF
@@ -1900,7 +1897,7 @@ CONTAINS
     IF     (indexing == 'lonlat') THEN
       ! No need to do anything
     ELSEIF (indexing == 'latlon') THEN
-      IF (par%master) CALL permute_3D_dp( d_grid, map = [2,1,3])
+      IF (par%master) call permute( d_grid, map = [2,1,3])
     ELSE
       CALL crash('unknown indexing = "' // TRIM( indexing) // '"!')
     END IF
@@ -1909,8 +1906,8 @@ CONTAINS
     IF     (londir == 'normal') THEN
       ! No need to do anything
     ELSEIF (londir == 'reverse') THEN
-      CALL flip_1D_dp( grid_loc%lon)
-      IF (par%master) CALL flip_3D_x1_dp( d_grid)
+      call flip( grid_loc%lon)
+      IF (par%master) call flip( d_grid, 1)
     ELSE
       CALL crash('unknown londir = "' // TRIM( londir) // '"!')
     END IF
@@ -1919,8 +1916,8 @@ CONTAINS
     IF     (latdir == 'normal') THEN
       ! No need to do anything
     ELSEIF (latdir == 'reverse') THEN
-      CALL flip_1D_dp( grid_loc%lat)
-      IF (par%master) CALL flip_3D_x2_dp( d_grid)
+      call flip( grid_loc%lat)
+      IF (par%master) call flip( d_grid, 2)
     ELSE
       CALL crash('unknown latdir = "' // TRIM( latdir) // '"!')
     END IF
@@ -2009,7 +2006,7 @@ CONTAINS
     ! ==================================================================================
 
     ! Distribute data
-    CALL distribute_from_master_dp_1D( d_mesh, d_mesh_partial)
+    CALL distribute_from_master( d_mesh, d_mesh_partial)
 
     ! Clean up after yourself
     IF (par%master) DEALLOCATE( d_mesh)
@@ -2090,7 +2087,7 @@ CONTAINS
     ! ==================================================================================
 
     ! Distribute data
-    CALL distribute_from_master_dp_1D( d_mesh, d_mesh_partial)
+    CALL distribute_from_master( d_mesh, d_mesh_partial)
 
     ! Clean up after yourself
     IF (par%master) DEALLOCATE( d_mesh)
@@ -2172,7 +2169,7 @@ CONTAINS
     ! ==================================================================================
 
     ! Distribute data
-    CALL distribute_from_master_dp_2D( d_mesh, d_mesh_partial)
+    CALL distribute_from_master( d_mesh, d_mesh_partial)
 
     ! Clean up after yourself
     IF (par%master) DEALLOCATE( d_mesh)
@@ -2256,7 +2253,7 @@ CONTAINS
     ! ==================================================================================
 
     ! Distribute data
-    CALL distribute_from_master_dp_2D( d_mesh, d_mesh_partial)
+    CALL distribute_from_master( d_mesh, d_mesh_partial)
 
     ! Clean up after yourself
     IF (par%master) DEALLOCATE( d_mesh)
@@ -2342,7 +2339,7 @@ CONTAINS
     ! ==================================================================================
 
     ! Distribute data
-    CALL distribute_from_master_dp_2D( d_mesh, d_mesh_partial)
+    CALL distribute_from_master( d_mesh, d_mesh_partial)
 
     ! Clean up after yourself
     IF (par%master) DEALLOCATE( d_mesh)
@@ -2426,7 +2423,7 @@ CONTAINS
     ! ==================================================================================
 
     ! Distribute data
-    CALL distribute_from_master_dp_2D( d_mesh, d_mesh_partial)
+    CALL distribute_from_master( d_mesh, d_mesh_partial)
 
     ! Clean up after yourself
     IF (par%master) DEALLOCATE( d_mesh)
@@ -2492,7 +2489,7 @@ CONTAINS
     ! ==================================================================================
 
     ! Distribute data
-    CALL distribute_from_master_dp_2D( d_mesh, d_mesh_partial)
+    CALL distribute_from_master( d_mesh, d_mesh_partial)
 
     ! Clean up after yourself
     IF (par%master) DEALLOCATE( d_mesh)
@@ -2557,7 +2554,7 @@ CONTAINS
     ! ==================================================================================
 
     ! Distribute data
-    CALL distribute_from_master_dp_2D( d_mesh, d_mesh_partial)
+    CALL distribute_from_master( d_mesh, d_mesh_partial)
 
     ! Clean up after yourself
     IF (par%master) DEALLOCATE( d_mesh)

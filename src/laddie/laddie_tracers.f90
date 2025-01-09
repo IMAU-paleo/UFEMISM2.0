@@ -15,8 +15,7 @@ MODULE laddie_tracers
   USE laddie_model_types                                     , ONLY: type_laddie_model, type_laddie_timestep
   USE ocean_model_types                                      , ONLY: type_ocean_model
   USE reallocate_mod                                         , ONLY: reallocate_bounds
-  USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_1D, gather_to_all_logical_1D
-  USE math_utilities                                         , ONLY: check_for_NaN_dp_1D
+  USE mpi_distributed_memory                                 , ONLY: gather_to_all
 
   IMPLICIT NONE
     
@@ -25,7 +24,7 @@ CONTAINS
 ! ===== Main routines =====
 ! =========================
 
-  SUBROUTINE compute_TS_npx( mesh, ice, laddie, npxref, npx, Hstar, dt, incldiff)
+  SUBROUTINE compute_TS_npx( mesh, ice, laddie, npxref, npx, Hstar, dt, include_diffusive_terms)
     ! Integrate T and S by one time step
 
     ! In- and output variables
@@ -37,15 +36,12 @@ CONTAINS
     TYPE(type_laddie_timestep),             INTENT(INOUT) :: npx
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: Hstar
     REAL(dp),                               INTENT(IN)    :: dt
-    LOGICAL,                                INTENT(IN)    :: incldiff
+    LOGICAL,                                INTENT(IN)    :: include_diffusive_terms
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_TS_npx'
     INTEGER                                               :: vi
-    REAL(dp)                                              :: dHTdt
-    REAL(dp)                                              :: dHSdt
-    REAL(dp)                                              :: HT_next
-    REAL(dp)                                              :: HS_next
+    REAL(dp)                                              :: dHTdt, dHSdt, HT_next, HS_next
  
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -53,86 +49,42 @@ CONTAINS
     ! Compute divergence of heat and salt
     CALL compute_divQTS( mesh, laddie, npx, Hstar)
 
-    IF (incldiff) THEN
-      ! Compute RHS including diffusive term
+    ! Loop over vertices
+    DO vi = mesh%vi1, mesh%vi2
+      IF (laddie%mask_a( vi)) THEN
 
-      ! Loop over vertices
-      DO vi = mesh%vi1, mesh%vi2
-        IF (laddie%mask_a( vi)) THEN
+        ! == Get time derivatives ==
 
-          ! == Temperature integration ==
+        ! Time-derivative heat equation
+        dHTdt = -laddie%divQT( vi) &
+               + laddie%melt( vi) * laddie%T_base( vi) &
+               + MAX(0.0_dp,laddie%entr( vi)) * laddie%T_amb( vi) &
+               + laddie%entr_dmin( vi) * laddie%T_amb( vi) &
+               - laddie%detr( vi) * npxref%T( vi)
 
-          ! Get dHT_dt
-          dHTdt = -laddie%divQT( vi) &
-                + laddie%melt( vi) * laddie%T_base( vi) &
-                + MAX(0.0_dp,laddie%entr( vi)) * laddie%T_amb( vi) &
-                + laddie%entr_dmin( vi) * laddie%T_amb( vi) &
-                - laddie%detr( vi) * npxref%T( vi) &
-                + laddie%diffT( vi)
+        ! Time-derivative salt equation
+        dHSdt = -laddie%divQS( vi) &
+               + MAX(0.0_dp,laddie%entr( vi)) * laddie%S_amb( vi) &
+               + laddie%entr_dmin( vi) * laddie%S_amb( vi) &
+               - laddie%detr( vi) * npxref%S( vi)
 
-          ! HT_n = HT_n + dHT_dt * dt
-          HT_next = laddie%now%T( vi)*laddie%now%H( vi) + dHTdt * dt
+        ! Add diffusive terms if requested
+        IF (include_diffusive_terms) THEN
+          dHTdt = dHTdt + laddie%diffT( vi)
+          dHSdt = dHSdt + laddie%diffS( vi)
+        END IF
 
-          npx%T( vi) = HT_next / npx%H( vi)
+        ! == Apply time-integration ==
 
-          ! == Salinity integration ==
+        ! HT_n = HT + dHT_dt * dt
+        HT_next = laddie%now%T( vi)*laddie%now%H( vi) + dHTdt * dt
+        npx%T( vi) = HT_next / npx%H( vi)
 
-          ! Get dHS_dt
-          dHSdt = -laddie%divQS( vi) &
-                + MAX(0.0_dp,laddie%entr( vi)) * laddie%S_amb( vi) &
-                + laddie%entr_dmin( vi) * laddie%S_amb( vi) &
-                - laddie%detr( vi) * npxref%S( vi) &
-                + laddie%diffS( vi)
-
-          ! HS_n = HS_n + dHS_dt * dt
-          HS_next = laddie%now%S( vi)*laddie%now%H( vi) + dHSdt * dt
-
-          npx%S( vi) = HS_next / npx%H( vi)
-        END IF !(laddie%mask_a( vi)) THEN
-      END DO !vi = mesh%vi, mesh%v2
-
-    ELSE
-      ! Without diffusive term
-
-      ! Loop over vertices
-      DO vi = mesh%vi1, mesh%vi2
-        IF (laddie%mask_a( vi)) THEN
-
-          ! == Temperature integration ==
-
-          ! Get dHT_dt
-          dHTdt = -laddie%divQT( vi) &
-                + laddie%melt( vi) * laddie%T_base( vi) &
-                + MAX(0.0_dp,laddie%entr( vi)) * laddie%T_amb( vi) &
-                + laddie%entr_dmin( vi) * laddie%T_amb( vi) &
-                - laddie%detr( vi) * npxref%T( vi)
-
-          ! HT_n = HT_n + dHT_dt * dt
-          HT_next = laddie%now%T( vi)*laddie%now%H( vi) + dHTdt * dt
-
-          npx%T( vi) = HT_next / npx%H( vi)
-
-          ! == Salinity integration ==
-
-          ! Get dHS_dt
-          dHSdt = -laddie%divQS( vi) &
-                + MAX(0.0_dp,laddie%entr( vi)) * laddie%S_amb( vi) &
-                + laddie%entr_dmin( vi) * laddie%S_amb( vi) &
-                - laddie%detr( vi) * npxref%S( vi)
-
-          ! HS_n = HS_n + dHS_dt * dt
-          HS_next = laddie%now%S( vi)*laddie%now%H( vi) + dHSdt * dt
-
-          npx%S( vi) = HS_next / npx%H( vi)
-
-        END IF !(laddie%mask_a( vi)) THEN
-      END DO !vi = mesh%vi, mesh%v2
-
-    END IF
-
-    ! Safety
-    CALL check_for_NaN_dp_1D( npx%T, 'T_lad')
-    CALL check_for_NaN_dp_1D( npx%S, 'S_lad')
+        ! HS_n = HS + dHS_dt * dt
+        HS_next = laddie%now%S( vi)*laddie%now%H( vi) + dHSdt * dt
+        npx%S( vi) = HS_next / npx%H( vi)
+      END IF !(laddie%mask_a( vi)) THEN
+    END DO !vi = mesh%vi, mesh%v2
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -152,7 +104,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_diffTS'
     INTEGER                                               :: vi, vj, ci, ei
-    REAL(dp)                                              :: D_x, D_y, D, Kh
+    REAL(dp)                                              :: Kh
     REAL(dp), DIMENSION(mesh%nV)                          :: T_tot, S_tot
     LOGICAL, DIMENSION(mesh%nV)                           :: mask_a_tot
 
@@ -160,9 +112,9 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Gather
-    CALL gather_to_all_dp_1D( npxref%T, T_tot)
-    CALL gather_to_all_dp_1D( npxref%S, S_tot)
-    CALL gather_to_all_logical_1D( laddie%mask_a, mask_a_tot)
+    CALL gather_to_all( npxref%T, T_tot)
+    CALL gather_to_all( npxref%S, S_tot)
+    CALL gather_to_all( laddie%mask_a, mask_a_tot)
 
     ! Initialise at 0
     laddie%diffT = 0.0_dp
@@ -181,14 +133,10 @@ CONTAINS
           IF (mask_a_tot( vj)) THEN
             ! Calculate vertically averaged ice velocity component perpendicular to this shared Voronoi cell boundary section
 
-            D_x = mesh%V( vj,1) - mesh%V( vi,1)
-            D_y = mesh%V( vj,2) - mesh%V( vi,2)
-            D   = SQRT( D_x**2 + D_y**2)
-
             Kh = C%laddie_diffusivity 
 
-            laddie%diffT( vi) = laddie%diffT( vi) + (T_tot( vj) - T_tot( vi)) * Kh * npxref%H_c( ei) / mesh%A( vi) * mesh%Cw( vi, ci)/D
-            laddie%diffS( vi) = laddie%diffS( vi) + (S_tot( vj) - S_tot( vi)) * Kh * npxref%H_c( ei) / mesh%A( vi) * mesh%Cw( vi, ci)/D
+            laddie%diffT( vi) = laddie%diffT( vi) + (T_tot( vj) - T_tot( vi)) * Kh * npxref%H_c( ei) / mesh%A( vi) * mesh%Cw( vi, ci)/mesh%D( vi, ci)
+            laddie%diffS( vi) = laddie%diffS( vi) + (S_tot( vj) - S_tot( vi)) * Kh * npxref%H_c( ei) / mesh%A( vi) * mesh%Cw( vi, ci)/mesh%D( vi, ci)
           END IF
         END DO
 
@@ -215,7 +163,7 @@ CONTAINS
     REAL(dp), DIMENSION(mesh%nV)                          :: T_tot, S_tot, Hstar_tot
     INTEGER                                               :: ncols, ncols_loc, nrows, nrows_loc, nnz_est_proc
     INTEGER                                               :: ti, ci, ei, tj, vi, vj, vi1, vi2, i, j, e, k
-    REAL(dp)                                              :: D_x, D_y, D, u_perp
+    REAL(dp)                                              :: u_perp
     LOGICAL, DIMENSION(mesh%nV)                           :: mask_a_tot
     LOGICAL, DIMENSION(mesh%nV)                           :: mask_gr_a_tot, mask_oc_a_tot
     LOGICAL                                               :: isbound
@@ -224,14 +172,14 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Calculate vertically averaged ice velocities on the edges
-    CALL gather_to_all_dp_1D( npx%U_c, U_c_tot)
-    CALL gather_to_all_dp_1D( npx%V_c, V_c_tot)
-    CALL gather_to_all_dp_1D( Hstar, Hstar_tot)
-    CALL gather_to_all_dp_1D( npx%T, T_tot)
-    CALL gather_to_all_dp_1D( npx%S, S_tot)
-    CALL gather_to_all_logical_1D( laddie%mask_a, mask_a_tot)
-    CALL gather_to_all_logical_1D( laddie%mask_gr_a, mask_gr_a_tot)
-    CALL gather_to_all_logical_1D( laddie%mask_oc_a, mask_oc_a_tot)
+    CALL gather_to_all( npx%U_c, U_c_tot)
+    CALL gather_to_all( npx%V_c, V_c_tot)
+    CALL gather_to_all( Hstar, Hstar_tot)
+    CALL gather_to_all( npx%T, T_tot)
+    CALL gather_to_all( npx%S, S_tot)
+    CALL gather_to_all( laddie%mask_a, mask_a_tot)
+    CALL gather_to_all( laddie%mask_gr_a, mask_gr_a_tot)
+    CALL gather_to_all( laddie%mask_oc_a, mask_oc_a_tot)
 
     ! Initialise with zeros
     laddie%divQT = 0.0_dp
@@ -250,9 +198,6 @@ CONTAINS
           ! Connection ci from vertex vi leads through edge ei to vertex vj
           vj = mesh%C(  vi,ci)
 
-          ! Skip if edge
-          IF (vj == 0) CYCLE
-
           ! Skip connection if neighbour is grounded. No flux across grounding line
           ! Can be made more flexible when accounting for partial cells (PMP instead of FCMP)
           IF (mask_gr_a_tot( vj)) CYCLE
@@ -260,10 +205,7 @@ CONTAINS
           ei = mesh%VE( vi,ci)
 
           ! Calculate vertically averaged ice velocity component perpendicular to this shared Voronoi cell boundary section
-          D_x = mesh%V( vj,1) - mesh%V( vi,1)
-          D_y = mesh%V( vj,2) - mesh%V( vi,2)
-          D   = SQRT( D_x**2 + D_y**2)
-          u_perp = U_c_tot( ei) * D_x/D + V_c_tot( ei) * D_y/D
+          u_perp = U_c_tot( ei) * mesh%D_x( vi, ci)/mesh%D( vi, ci) + V_c_tot( ei) * mesh%D_y( vi, ci)/mesh%D( vi, ci)
 
           ! Calculate upwind momentum divergence
           ! =============================

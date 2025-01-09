@@ -6,10 +6,10 @@ module ut_tracer_tracking
   use assertions_basic
   use ut_basic
   use precisions, only: dp
-  use mpi_basic, only: par
+  use mpi_basic, only: par, sync
   use model_configuration, only: C
   use parameters, only: pi
-  use control_resources_and_error_messaging, only: init_routine, finalise_routine
+  use control_resources_and_error_messaging, only: init_routine, finalise_routine, warning, crash
   use mesh_types, only: type_mesh
   use mesh_memory, only: allocate_mesh_primary
   use mesh_dummy_meshes, only: initialise_dummy_mesh_5
@@ -18,9 +18,12 @@ module ut_tracer_tracking
   use mesh_utilities, only: find_containing_triangle, find_containing_vertex
   use tracer_tracking_model_types, only: type_tracer_tracking_model_particles, type_map_particles_to_mesh
   use tracer_tracking_model_particles, only: calc_particle_zeta, interpolate_3d_velocities_to_3D_point, &
-    calc_particles_to_mesh_map
+    calc_particles_to_mesh_map, initialise_tracer_tracking_model_particles, add_particle, &
+    move_and_remove_particle
   use mpi
-  use mpi_distributed_memory, only: gather_to_all_dp_1D
+  use ice_model_types, only: type_ice_model
+  use ice_model_memory, only: allocate_ice_model
+  use reference_geometries, only: calc_idealised_geometry
 
   implicit none
 
@@ -64,6 +67,7 @@ contains
 
     call allocate_mesh_primary( mesh, name, 100, 200, C%nC_mem)
     call initialise_dummy_mesh_5( mesh, xmin, xmax, ymin, ymax)
+    C%mesh_resolution_tolerance = 1._dp
     call refine_mesh_uniform( mesh, res_max, alpha_min)
     call calc_all_secondary_mesh_data( mesh, C%lambda_M_ANT, C%phi_M_ANT, C%beta_stereo_ANT)
 
@@ -71,6 +75,8 @@ contains
     call test_calc_particle_zeta                   ( test_name, mesh)
     call test_interpolate_3d_velocities_to_3D_point( test_name, mesh)
     call test_calc_particles_to_mesh_map           ( test_name, mesh)
+    call test_particle_movement_slab_on_a_slope    ( test_name, mesh)
+    call test_particle_movement_vortex             ( test_name, mesh)
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)
@@ -293,12 +299,12 @@ contains
     nx = 25
     ny = 25
     nz = 16
-    particles%n = nx * ny * nz
-    allocate( particles%is_in_use( particles%n   ), source = .true.)
-    allocate( particles%r        ( particles%n, 3), source = 0._dp)
-    allocate( particles%zeta     ( particles%n   ), source = 0._dp)
-    allocate( particles%vi_in    ( particles%n   ), source = 1    )
-    allocate( particles%ti_in    ( particles%n   ), source = 1    )
+    particles%n_max = nx * ny * nz
+    allocate( particles%is_in_use( particles%n_max   ), source = .true.)
+    allocate( particles%r        ( particles%n_max, 3), source = 0._dp)
+    allocate( particles%zeta     ( particles%n_max   ), source = 0._dp)
+    allocate( particles%vi_in    ( particles%n_max   ), source = 1    )
+    allocate( particles%ti_in    ( particles%n_max   ), source = 1    )
 
     ip = 0
     do i = 1, nx
@@ -333,8 +339,8 @@ contains
       end do
     end do
 
-    allocate(rs_particles( particles%n, 3))
-    do ip = 1, particles%n
+    allocate(rs_particles( particles%n_max, 3))
+    do ip = 1, particles%n_max
       rs_particles( ip,1) = (particles%r( ip,1) - mesh%xmin) / (mesh%xmax - mesh%xmin)
       rs_particles( ip,2) = (particles%r( ip,2) - mesh%ymin) / (mesh%ymax - mesh%ymin)
       rs_particles( ip,3) = particles%zeta( ip)
@@ -348,7 +354,7 @@ contains
 
     do vi = 1, mesh%nV
       do k = 1, C%nz
-        do ip = 1, particles%n
+        do ip = 1, particles%n_max
           ! Calculate the scaled distance between particle ip and vertex-layer [vi,k]
           dist = norm2( rs_particles( ip,:) - rs_mesh( vi,k,:))
           do ii = 1, map_bruteforce%n
@@ -382,6 +388,267 @@ contains
     call finalise_routine( routine_name)
 
   end subroutine test_calc_particles_to_mesh_map
+
+  subroutine test_particle_movement_slab_on_a_slope( test_name_parent, mesh)
+
+    ! In/output variables:
+    character(len=*), intent(in) :: test_name_parent
+    type(type_mesh),  intent(in) :: mesh
+
+    ! Local variables:
+    character(len=1024), parameter             :: routine_name = 'test_particle_movement_slab_on_a_slope'
+    character(len=1024), parameter             :: test_name_local = 'particle_movement_slab_on_a_slope'
+    character(len=1024)                        :: test_name
+    type(type_ice_model)                       :: ice
+    integer                                    :: vi,k,i,j,ip
+    character(len=1024)                        :: choice_refgeo_idealised
+    real(dp), parameter                        :: theta = -0.01_dp
+    real(dp), parameter                        :: uabs = 100._dp
+    real(dp)                                   :: u_surf, w_surf
+    type(type_tracer_tracking_model_particles) :: particles
+    integer                                    :: n_particles_x, n_particles_y, n_particles_z, n_particles
+    real(dp), dimension(:), allocatable        :: zeta_orig
+    real(dp)                                   :: xmin, xmax, ymin, ymax, zetamin, zetamax, x, y, zeta
+    real(dp)                                   :: Hi, Hb, Hs, SL, z
+    real(dp), parameter                        :: tstart = 0._dp
+    real(dp), parameter                        :: tstop  = 100._dp
+    real(dp), parameter                        :: dt     = 1._dp
+    real(dp)                                   :: time
+    real(dp), dimension(3)                     :: r_expected
+    logical                                    :: verified
+
+    ! Add routine to call stack
+    call init_routine( routine_name)
+
+    ! Add test name to list
+    test_name = trim( test_name_parent) // '/' // trim( test_name_local)
+
+    ! Set up a slab-on-a-slope ice sheet
+    call allocate_ice_model( mesh, ice)
+
+    choice_refgeo_idealised = 'slabonaslope'
+    C%refgeo_idealised_slabonaslope_Hi = 1000._dp
+    C%refgeo_idealised_slabonaslope_dhdx = tan( theta * pi / 180._dp)
+
+    do vi = mesh%vi1, mesh%vi2
+      call calc_idealised_geometry( mesh%V( vi,1), mesh%V( vi,2), &
+        ice%Hi( vi), ice%Hb( vi), ice%Hs( vi), ice%SL( vi), choice_refgeo_idealised)
+    end do
+
+    ! Set up a very simple velocity field
+
+    ! Ice flows parallel to the surface, with the speed increasing from
+    ! zero at the base to u_abs at the surface.
+
+    ice%v_3D_b = 0._dp
+    u_surf = uabs * cos( theta * pi / 180._dp)
+    w_surf = uabs * sin( theta * pi / 180._dp)
+    do k = 1, mesh%nz
+      ice%u_3D_b( :,k) = u_surf * (1._dp - mesh%zeta( k))
+      ice%w_3D  ( :,k) = w_surf * (1._dp - mesh%zeta( k))
+    end do
+
+    xmin    = mesh%xmin * 0.95_dp
+    xmax    = 0._dp
+    ymin    = mesh%ymin * 0.95_dp
+    ymax    = mesh%ymax * 0.95_dp
+    zetamin = 0.05_dp
+    zetamax = 0.95_dp
+
+    n_particles_x = 20
+    n_particles_y = 20
+    n_particles_z = 20
+    n_particles = n_particles_x * n_particles_y * n_particles_z
+
+    call initialise_tracer_tracking_model_particles( mesh, ice, particles, n_particles)
+
+    allocate( zeta_orig( n_particles))
+
+    ip = 0
+    do i = 1, n_particles_x
+      do j = 1, n_particles_y
+        do k = 1, n_particles_z
+
+          ip = ip + 1
+
+          x    = xmin    + (xmax    - xmin   ) * real(i-1,dp) / real(n_particles_x-1,dp)
+          y    = ymin    + (ymax    - ymin   ) * real(j-1,dp) / real(n_particles_y-1,dp)
+          zeta = zetamin + (zetamax - zetamin) * real(k-1,dp) / real(n_particles_z-1,dp)
+
+          zeta_orig( ip) = zeta
+
+          call calc_idealised_geometry( x, y, Hi, Hb, Hs, SL, choice_refgeo_idealised)
+          z = Hs - zeta * Hi
+
+          call add_particle( mesh, ice, particles, x, y, z, 0._dp)
+
+        end do
+      end do
+    end do
+
+    ! Move particles through time
+    verified = .true.
+
+    time = tstart
+    do while (time < tstop)
+
+      time = time + dt
+
+      do ip = 1, n_particles
+
+        call move_and_remove_particle( mesh, ice, particles, ip, dt)
+
+        r_expected = [ &
+          particles%r_origin( ip,1) + u_surf * (1._dp - zeta_orig( ip)) * time, &
+          particles%r_origin( ip,2), &
+          particles%r_origin( ip,3) + w_surf * (1._dp - zeta_orig( ip)) * time]
+
+        ! Check that the particle has not strayed too far from the analytical solution
+        verified = verified .and. norm2( particles%r( ip,:) - r_expected) < 1e-5_dp
+
+      end do
+
+    end do
+
+    call unit_test( verified, trim( test_name) // '/position')
+
+    ! Remove routine from call stack
+    call finalise_routine( routine_name)
+
+  end subroutine test_particle_movement_slab_on_a_slope
+
+  subroutine test_particle_movement_vortex( test_name_parent, mesh)
+
+    ! In/output variables:
+    character(len=*), intent(in) :: test_name_parent
+    type(type_mesh),  intent(in) :: mesh
+
+    ! Local variables:
+    character(len=1024), parameter             :: routine_name = 'test_particle_movement_vortex'
+    character(len=1024), parameter             :: test_name_local = 'particle_movement_vortex'
+    character(len=1024)                        :: test_name
+    type(type_ice_model)                       :: ice
+    integer                                    :: ti,k,i,j,ip
+    real(dp), parameter                        :: Hi = 1000._dp
+    real(dp), parameter                        :: time_rev_surf = 1000._dp
+    type(type_tracer_tracking_model_particles) :: particles
+    integer                                    :: n_particles_x, n_particles_y, n_particles_z, n_particles
+    real(dp), dimension(:), allocatable        :: zeta_orig
+    real(dp)                                   :: xmin, xmax, ymin, ymax, zetamin, zetamax, x, y, zeta
+    real(dp)                                   :: Hs, z
+    real(dp), parameter                        :: tstart = 0._dp
+    real(dp), parameter                        :: tstop  = 100._dp
+    real(dp), parameter                        :: dt     = 1._dp
+    real(dp)                                   :: time
+    real(dp)                                   :: r_orig, theta_orig, theta_expected
+    real(dp), dimension(3)                     :: r_expected
+    real(dp)                                   :: diff, max_diff
+
+    ! Add routine to call stack
+    call init_routine( routine_name)
+
+    ! Add test name to list
+    test_name = trim( test_name_parent) // '/' // trim( test_name_local)
+
+    ! Set up a simple ice slab
+    call allocate_ice_model( mesh, ice)
+
+    ice%Hi = Hi
+    ice%Hb = 0._dp
+    ice%Hs = ice%Hb + ice%Hi
+    ice%SL = -1000._dp
+
+    ! Set up a simple velocity field
+
+    ! Horizontal vortex, counter-clockwise around the origin.
+    ! Takes 1,000 years for a revolution at the surface,
+    ! infinity years at the base (rotation speed decreases
+    ! linearly with depth)
+
+    ice%w_3D = 0._dp
+    do ti = mesh%ti1, mesh%ti2
+    do k = 1, mesh%nz
+      x = mesh%Tricc( ti,1)
+      y = mesh%Tricc( ti,2)
+      ice%u_3D_b( ti,k) = -y * 2_dp * pi / time_rev_surf * (1._dp - mesh%zeta( k))
+      ice%v_3D_b( ti,k) =  x * 2_dp * pi / time_rev_surf * (1._dp - mesh%zeta( k))
+    end do
+    end do
+
+    xmin    = mesh%xmin * 0.45_dp
+    xmax    = mesh%xmax * 0.45_dp
+    ymin    = mesh%ymin * 0.45_dp
+    ymax    = mesh%ymax * 0.45_dp
+    zetamin = 0.05_dp
+    zetamax = 0.95_dp
+
+    n_particles_x = 10
+    n_particles_y = 10
+    n_particles_z = 10
+    n_particles = n_particles_x * n_particles_y * n_particles_z
+
+    call initialise_tracer_tracking_model_particles( mesh, ice, particles, n_particles)
+
+    allocate( zeta_orig( n_particles))
+
+    ip = 0
+    do i = 1, n_particles_x
+      do j = 1, n_particles_y
+        do k = 1, n_particles_z
+
+          ip = ip + 1
+
+          x    = xmin    + (xmax    - xmin   ) * real(i-1,dp) / real(n_particles_x-1,dp)
+          y    = ymin    + (ymax    - ymin   ) * real(j-1,dp) / real(n_particles_y-1,dp)
+          zeta = zetamin + (zetamax - zetamin) * real(k-1,dp) / real(n_particles_z-1,dp)
+
+          zeta_orig( ip) = zeta
+
+          Hs = Hi
+          z = Hs - zeta * Hi
+
+          call add_particle( mesh, ice, particles, x, y, z, 0._dp)
+
+        end do
+      end do
+    end do
+
+    ! Move particles through time
+    max_diff = 0._dp
+
+    time = tstart
+    do while (time < tstop)
+
+      time = time + dt
+
+      do ip = 1, n_particles
+
+        call move_and_remove_particle( mesh, ice, particles, ip, dt)
+
+        r_orig     = norm2( particles%r_origin( ip,1:2))
+        theta_orig = atan2( particles%r_origin( ip,2), particles%r_origin( ip,1))
+
+        theta_expected = theta_orig + 2._dp * pi * time / time_rev_surf * (1._dp - zeta_orig( ip))
+        if (theta_expected > pi) theta_expected = theta_expected - 2._dp * pi
+
+        r_expected = [ &
+          r_orig * cos( theta_expected), &
+          r_orig * sin( theta_expected), &
+          particles%r_origin( ip,3)]
+
+        diff = norm2( r_expected - particles%r(ip,:))
+        max_diff = max( max_diff, diff)
+
+      end do
+
+    end do
+
+    call unit_test( max_diff < 5e3_dp, trim( test_name) // '/position')
+
+    ! Remove routine from call stack
+    call finalise_routine( routine_name)
+
+  end subroutine test_particle_movement_vortex
 
   subroutine calc_simple_test_geometry( xmin, xmax, ymin, ymax, x, y, &
     Hi, Hb, Hs, z, zeta, zeta_q, u, v, w)

@@ -12,7 +12,6 @@ module ct_remapping_mesh_to_grid
   use mesh_types, only: type_mesh
   use netcdf_basic, only: open_existing_netcdf_file_for_reading, close_netcdf_file, create_new_netcdf_file_for_writing
   use netcdf_input, only: setup_mesh_from_file, setup_xy_grid_from_file
-  use grid_basic, only: distribute_gridded_data_from_master_dp_2D
   use apply_maps, only: clear_all_maps_involving_this_mesh
   use remapping_main, only: map_from_mesh_to_xy_grid_2D
   use analytical_solutions, only: Halfar_dome

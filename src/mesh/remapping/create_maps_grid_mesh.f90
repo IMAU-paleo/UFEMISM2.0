@@ -12,7 +12,7 @@ module create_maps_grid_mesh
   use CSR_sparse_matrix_utilities, only: type_sparse_matrix_CSR_dp, allocate_matrix_CSR_dist, &
     deallocate_matrix_CSR_dist, add_entry_CSR_dist, add_empty_row_CSR_dist
   use remapping_types, only: type_single_row_mapping_matrices, type_map
-  use math_utilities, only: is_in_triangle
+  use plane_geometry, only: is_in_triangle
   use mesh_utilities, only: find_containing_triangle, calc_Voronoi_cell, is_in_Voronoi_cell
   use petsc_basic, only: mat_CSR2petsc
   use line_tracing_grid, only: trace_line_grid

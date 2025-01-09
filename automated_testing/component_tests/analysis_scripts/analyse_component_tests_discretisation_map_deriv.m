@@ -84,11 +84,7 @@ function write_to_scoreboard_file_map( filename_short, max_errs_map)
   % res = add_cost_function_to_single_run( res, 'max_err_map_c_c', 'abs( d_c_c - d_c_ex) ./ max( abs( d_c_ex))', max_errs_map.c_c);
 
   % Write to scoreboard file
-  all_runs_new.single_run = single_run;
-  filename_scoreboard_file = [foldername_automated_testing ...
-    '/component_tests/temporary_scoreboard_files/' ...
-    strrep( single_run.category, '/', '_') '_' test_name '.xml'];
-  append_test_results_to_main_scoreboard_file( all_runs_new, filename_scoreboard_file);
+  write_scoreboard_file( foldername_automated_testing, single_run)
 
 end
 function write_to_scoreboard_file_ddx( filename_short, max_errs_ddx)
@@ -112,11 +108,7 @@ function write_to_scoreboard_file_ddx( filename_short, max_errs_ddx)
   single_run = add_cost_function_to_single_run( single_run, 'max_err_ddx_c_c', 'abs( ddx_c_c - ddx_c_ex) ./ max( abs( ddx_c_ex))', max_errs_ddx.c_c);
 
   % Write to scoreboard file
-  all_runs_new.single_run = single_run;
-  filename_scoreboard_file = [foldername_automated_testing ...
-    '/component_tests/temporary_scoreboard_files/' ...
-    strrep( single_run.category, '/', '_') '_' test_name '.xml'];
-  append_test_results_to_main_scoreboard_file( all_runs_new, filename_scoreboard_file);
+  write_scoreboard_file( foldername_automated_testing, single_run)
 
 end
 function write_to_scoreboard_file_ddy( filename_short, max_errs_ddy)
@@ -140,11 +132,7 @@ function write_to_scoreboard_file_ddy( filename_short, max_errs_ddy)
   single_run = add_cost_function_to_single_run( single_run, 'max_err_ddy_c_c', 'abs( ddy_c_c - ddy_c_ex) ./ max( abs( ddy_c_ex))', max_errs_ddy.c_c);
 
   % Write to scoreboard file
-  all_runs_new.single_run = single_run;
-  filename_scoreboard_file = [foldername_automated_testing ...
-    '/component_tests/temporary_scoreboard_files/' ...
-    strrep( single_run.category, '/', '_') '_' test_name '.xml'];
-  append_test_results_to_main_scoreboard_file( all_runs_new, filename_scoreboard_file);
+  write_scoreboard_file( foldername_automated_testing, single_run)
 
 end
 function write_to_scoreboard_file_2nd( filename_short, max_errs_2nd)
@@ -162,11 +150,7 @@ function write_to_scoreboard_file_2nd( filename_short, max_errs_2nd)
   single_run = add_cost_function_to_single_run( single_run, 'max_err_d2dy2_b_b_2nd' , 'abs( d2dy2_b_b_2nd  - d2dy2_b_ex ) ./ max( abs( d2dy2_b_ex ))', max_errs_2nd.d2dy2);
 
   % Write to scoreboard file
-  all_runs_new.single_run = single_run;
-  filename_scoreboard_file = [foldername_automated_testing ...
-    '/component_tests/temporary_scoreboard_files/' ...
-    strrep( single_run.category, '/', '_') '_' test_name '.xml'];
-  append_test_results_to_main_scoreboard_file( all_runs_new, filename_scoreboard_file);
+  write_scoreboard_file( foldername_automated_testing, single_run)
 
 end
 

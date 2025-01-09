@@ -17,10 +17,10 @@ MODULE ice_velocity_BPA
   USE mesh_types                                             , ONLY: type_mesh
   USE ice_model_types                                        , ONLY: type_ice_model, type_ice_velocity_solver_BPA
   USE parameters
-  USE mesh_operators                                         , ONLY: map_a_b_2D, map_a_b_3D, ddx_a_b_2D, ddy_a_b_2D, ddx_b_a_3D, ddy_b_a_3D, &
-                                                                     calc_3D_gradient_bk_ak, calc_3D_gradient_bk_bks, map_ak_bks, map_bks_ak, &
-                                                                     calc_3D_gradient_ak_bk, calc_3D_gradient_bks_bk, calc_3D_matrix_operators_mesh, &
-                                                                     map_b_a_3D
+  use mesh_disc_apply_operators, only: map_a_b_2D, map_a_b_3D, ddx_a_b_2D, ddy_a_b_2D, &
+    ddx_b_a_3D, ddy_b_a_3D, calc_3D_gradient_bk_ak, calc_3D_gradient_bk_bks, &
+    map_ak_bks, map_bks_ak, calc_3D_gradient_ak_bk, calc_3D_gradient_bks_bk, map_b_a_3D
+  use mesh_disc_calc_matrix_operators_3D, only: calc_3D_matrix_operators_mesh
   USE mesh_zeta                                              , ONLY: vertical_average
   USE sliding_laws                                           , ONLY: calc_basal_friction_coefficient
   USE mesh_utilities                                         , ONLY: find_ti_copy_ISMIP_HOM_periodic
@@ -30,7 +30,7 @@ MODULE ice_velocity_BPA
   USE netcdf_output                                          , ONLY: generate_filename_XXXXXdotnc, setup_mesh_in_netcdf_file, add_time_dimension_to_file, &
                                                                      add_zeta_dimension_to_file, add_field_mesh_dp_3D_b, write_time_to_file, write_to_field_multopt_mesh_dp_3D_b
   USE netcdf_input                                           , ONLY: read_field_from_mesh_file_3D_b
-  USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_2D
+  use mpi_distributed_memory, only: gather_to_all
   USE ice_flow_laws                                          , ONLY: calc_effective_viscosity_Glen_3D_uv_only, calc_ice_rheology_Glen
   USE ice_model_utilities                                    , ONLY: calc_zeta_gradients
   USE reallocate_mod                                         , ONLY: reallocate_bounds, reallocate_clean
@@ -97,7 +97,9 @@ CONTAINS
 
   END SUBROUTINE initialise_BPA_solver
 
-  SUBROUTINE solve_BPA( mesh, ice, BPA, BC_prescr_mask_bk, BC_prescr_u_bk, BC_prescr_v_bk)
+  SUBROUTINE solve_BPA( mesh, ice, BPA, &
+    n_visc_its, n_Axb_its, min_Axb_its_per_visc_it, max_Axb_its_per_visc_it, &
+    BC_prescr_mask_bk, BC_prescr_u_bk, BC_prescr_v_bk)
     ! Calculate ice velocities by solving the Blatter-Pattyn Approximation
 
     IMPLICIT NONE
@@ -106,6 +108,10 @@ CONTAINS
     TYPE(type_mesh),                     INTENT(INOUT)           :: mesh
     TYPE(type_ice_model),                INTENT(INOUT)           :: ice
     TYPE(type_ice_velocity_solver_BPA),  INTENT(INOUT)           :: BPA
+    integer,                             intent(out)             :: n_visc_its               ! Number of non-linear viscosity iterations
+    integer,                             intent(out)             :: n_Axb_its                ! Number of iterations in iterative solver for linearised momentum balance
+    integer,                             intent(out)             :: min_Axb_its_per_visc_it  ! Smallest number of iterations in iterative solver for linearised momentum balance per non-linear viscosity iteration
+    integer,                             intent(out)             :: max_Axb_its_per_visc_it  ! Largest number of iterations in iterative solver for linearised momentum balance per non-linear viscosity iteration
     INTEGER,  DIMENSION(:,:  ),          INTENT(IN)   , OPTIONAL :: BC_prescr_mask_bk     ! Mask of triangles where velocity is prescribed
     REAL(dp), DIMENSION(:,:  ),          INTENT(IN)   , OPTIONAL :: BC_prescr_u_bk        ! Prescribed velocities in the x-direction
     REAL(dp), DIMENSION(:,:  ),          INTENT(IN)   , OPTIONAL :: BC_prescr_v_bk        ! Prescribed velocities in the y-direction
@@ -123,6 +129,7 @@ CONTAINS
     REAL(dp)                                                     :: visc_it_relax_applied
     REAL(dp)                                                     :: Glens_flow_law_epsilon_sq_0_applied
     INTEGER                                                      :: nit_diverg_consec
+    integer                                                      :: n_Axb_its_visc_it
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -170,6 +177,12 @@ CONTAINS
     visc_it_relax_applied               = C%visc_it_relax
     Glens_flow_law_epsilon_sq_0_applied = C%Glens_flow_law_epsilon_sq_0
 
+    ! Initialise stability info
+    n_visc_its               = 0
+    n_Axb_its                = 0
+    min_Axb_its_per_visc_it  = huge( min_Axb_its_per_visc_it)
+    max_Axb_its_per_visc_it  = 0
+
     ! The viscosity iteration
     viscosity_iteration_i = 0
     has_converged         = .FALSE.
@@ -186,7 +199,13 @@ CONTAINS
       CALL calc_applied_basal_friction_coefficient( mesh, ice, BPA)
 
       ! Solve the linearised BPA to calculate a new velocity solution
-      CALL solve_BPA_linearised( mesh, ice, BPA, BC_prescr_mask_bk_applied, BC_prescr_u_bk_applied, BC_prescr_v_bk_applied)
+      CALL solve_BPA_linearised( mesh, ice, BPA, n_Axb_its_visc_it, &
+        BC_prescr_mask_bk_applied, BC_prescr_u_bk_applied, BC_prescr_v_bk_applied)
+
+      ! Update stability info
+      n_Axb_its = n_Axb_its + n_Axb_its_visc_it
+      min_Axb_its_per_visc_it = min( min_Axb_its_per_visc_it, n_Axb_its_visc_it)
+      max_Axb_its_per_visc_it = max( max_Axb_its_per_visc_it, n_Axb_its_visc_it)
 
       ! Limit velocities for improved stability
       CALL apply_velocity_limits( mesh, BPA)
@@ -242,6 +261,9 @@ CONTAINS
     DEALLOCATE( BC_prescr_mask_bk_applied)
     DEALLOCATE( BC_prescr_u_bk_applied   )
     DEALLOCATE( BC_prescr_v_bk_applied   )
+
+    ! Stability info
+    n_visc_its = viscosity_iteration_i
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -331,7 +353,8 @@ CONTAINS
 
 ! == Assemble and solve the linearised BPA
 
-  SUBROUTINE solve_BPA_linearised( mesh, ice, BPA, BC_prescr_mask_bk, BC_prescr_u_bk, BC_prescr_v_bk)
+  SUBROUTINE solve_BPA_linearised( mesh, ice, BPA, n_Axb_its, &
+    BC_prescr_mask_bk, BC_prescr_u_bk, BC_prescr_v_bk)
     ! Solve the linearised BPA
 
     IMPLICIT NONE
@@ -340,6 +363,7 @@ CONTAINS
     TYPE(type_mesh),                     INTENT(IN)              :: mesh
     TYPE(type_ice_model),                INTENT(IN)              :: ice
     TYPE(type_ice_velocity_solver_BPA),  INTENT(INOUT)           :: BPA
+    integer,                                         intent(out) :: n_Axb_its             ! Number of iterations used in the iterative solver
     INTEGER,  DIMENSION(mesh%ti1:mesh%ti2,mesh%nz),  INTENT(IN)  :: BC_prescr_mask_bk      ! Mask of triangles where velocity is prescribed
     REAL(dp), DIMENSION(mesh%ti1:mesh%ti2,mesh%nz),  INTENT(IN)  :: BC_prescr_u_bk         ! Prescribed velocities in the x-direction
     REAL(dp), DIMENSION(mesh%ti1:mesh%ti2,mesh%nz),  INTENT(IN)  :: BC_prescr_v_bk         ! Prescribed velocities in the y-direction
@@ -356,8 +380,8 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Store the previous solution
-    CALL gather_to_all_dp_2D( BPA%u_bk, BPA%u_bk_prev)
-    CALL gather_to_all_dp_2D( BPA%v_bk, BPA%v_bk_prev)
+    CALL gather_to_all( BPA%u_bk, BPA%u_bk_prev)
+    CALL gather_to_all( BPA%v_bk, BPA%v_bk_prev)
 
   ! == Initialise the stiffness matrix using the native UFEMISM CSR-matrix format
   ! =============================================================================
@@ -457,7 +481,8 @@ CONTAINS
   ! ============================
 
     ! Use PETSc to solve the matrix equation
-    CALL solve_matrix_equation_CSR_PETSc( A_CSR, bb, uv_bkuv, BPA%PETSc_rtol, BPA%PETSc_abstol)
+    CALL solve_matrix_equation_CSR_PETSc( A_CSR, bb, uv_bkuv, BPA%PETSc_rtol, BPA%PETSc_abstol, &
+      n_Axb_its)
 
     ! Disentangle the u and v components of the velocity solution
     DO ti = mesh%ti1, mesh%ti2

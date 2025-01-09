@@ -15,8 +15,6 @@ MODULE laddie_physics
   USE laddie_model_types                                     , ONLY: type_laddie_model, type_laddie_timestep
   USE ocean_model_types                                      , ONLY: type_ocean_model
   USE reallocate_mod                                         , ONLY: reallocate_bounds
-  USE math_utilities                                         , ONLY: check_for_NaN_dp_1D
-  USE mpi_distributed_memory                                 , ONLY: gather_to_all_dp_1D, gather_to_all_logical_1D
 
   IMPLICIT NONE
     
@@ -84,7 +82,7 @@ CONTAINS
 
          ! Get melt rate
          IF (4*Cval > Bval**2) THEN
-           !Something wrong, set melt rate to zero
+           ! Probably not possible, but to prevent NaNs, set melt rate to zero
            laddie%melt( vi) = 0.0
          ELSE
            laddie%melt( vi) = 0.5_dp * (-Bval + SQRT(Bval**2 - 4.0_dp*Cval)) 
@@ -102,8 +100,6 @@ CONTAINS
 
        END IF
     END DO
-
-    CALL check_for_NaN_dp_1D( laddie%melt, 'laddie melt')
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -152,8 +148,6 @@ CONTAINS
          laddie%detr( vi) = - MIN(laddie%entr( vi),0.0_dp)
        END IF
     END DO
-
-    CALL check_for_NaN_dp_1D( laddie%entr, 'laddie entr')
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -205,16 +199,9 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_buoyancy'
     INTEGER                                               :: vi, vj, n, ci
     REAL(dp)                                              :: T, S, H
-    LOGICAL, DIMENSION(mesh%nV)                           :: mask_a_tot
-    REAL(dp), DIMENSION(mesh%nV)                          :: T_tot, S_tot, H_tot
  
     ! Add routine to path
     CALL init_routine( routine_name)
-
-    CALL gather_to_all_logical_1D( laddie%mask_a, mask_a_tot)
-    CALL gather_to_all_dp_1D( npx%T, T_tot)
-    CALL gather_to_all_dp_1D( npx%S, S_tot)
-    CALL gather_to_all_dp_1D( Hstar, H_tot)
 
     laddie%drho_amb = 0.0_dp
 
