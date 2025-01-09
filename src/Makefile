@@ -186,7 +186,14 @@ UFEMISM_source = \
   io/netcdf_basic/netcdf_check_fields.f90 \
   io/netcdf_basic/netcdf_find_timeframe.f90 \
   io/netcdf_basic/netcdf_save_single_variables.f90 \
-  io/netcdf_input.f90 \
+  \
+  io/netcdf_input/netcdf_determine_indexing.f90 \
+  io/netcdf_input/netcdf_setup_grid_mesh.f90 \
+  io/netcdf_input/netcdf_read_field_from_mesh_file.f90 \
+  io/netcdf_input/netcdf_read_field_from_lonlat_grid_file.f90 \
+  io/netcdf_input/netcdf_read_field_from_xy_grid_file.f90 \
+  io/netcdf_input/netcdf_read_and_map_field_from_file.f90 \
+  \
   io/netcdf_output.f90 \
   io/netcdf_resource_tracking.f90 \
   \

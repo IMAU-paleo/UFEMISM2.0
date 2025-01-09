@@ -13,7 +13,7 @@ MODULE ocean_realistic
   USE mesh_types                                             , ONLY: type_mesh
   USE ice_model_types                                        , ONLY: type_ice_model
   USE ocean_model_types                                      , ONLY: type_ocean_model
-  USE netcdf_input                                           , ONLY: read_field_from_file_3D_ocean
+  use netcdf_read_and_map_field_from_file, only: read_field_from_file_3D_ocean
   use netcdf_field_name_options
 
   IMPLICIT NONE

@@ -14,7 +14,7 @@ MODULE SMB_prescribed
   USE ice_model_types                                        , ONLY: type_ice_model
   USE climate_model_types                                    , ONLY: type_climate_model
   USE SMB_model_types                                        , ONLY: type_SMB_model
-  USE netcdf_input                                           , ONLY: read_field_from_file_2D
+  use netcdf_read_and_map_field_from_file, only: read_field_from_file_2D
 
   IMPLICIT NONE
 

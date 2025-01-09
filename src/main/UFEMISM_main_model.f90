@@ -37,7 +37,7 @@ MODULE UFEMISM_main_model
                                                                      create_restart_file_GIA_model, write_to_restart_file_GIA_model
   USE basal_inversion_main                                   , ONLY: initialise_basal_inversion, run_basal_inversion
   use netcdf_basic_wrappers
-  USE netcdf_input                                           , ONLY: setup_mesh_from_file
+  use netcdf_setup_grid_mesh, only: setup_mesh_from_file
   USE mesh_creation_main                                     , ONLY: create_mesh_from_gridded_geometry, create_mesh_from_meshed_geometry, write_mesh_success
   USE grid_basic                                             , ONLY: setup_square_grid
   USE main_regional_output                                   , ONLY: create_main_regional_output_file_mesh,   create_main_regional_output_file_grid, &

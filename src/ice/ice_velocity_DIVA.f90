@@ -26,7 +26,7 @@ MODULE ice_velocity_DIVA
   USE netcdf_output                                          , ONLY: generate_filename_XXXXXdotnc, setup_mesh_in_netcdf_file, add_time_dimension_to_file, &
                                                                      add_field_mesh_dp_2D_b, add_field_mesh_dp_3D_b, write_time_to_file, write_to_field_multopt_mesh_dp_2D_b, &
                                                                      write_to_field_multopt_mesh_dp_3D_b, add_zeta_dimension_to_file
-  USE netcdf_input                                           , ONLY: read_field_from_mesh_file_2D_b, read_field_from_mesh_file_3D_b
+  use netcdf_read_field_from_mesh_file, only: read_field_from_mesh_file_2D_b, read_field_from_mesh_file_3D_b
   use mpi_distributed_memory, only: gather_to_all
   USE ice_flow_laws                                          , ONLY: calc_effective_viscosity_Glen_3D_uv_only, calc_ice_rheology_Glen
   USE reallocate_mod                                         , ONLY: reallocate_bounds, reallocate_clean

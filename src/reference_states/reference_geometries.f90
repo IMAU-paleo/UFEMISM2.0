@@ -27,7 +27,9 @@ MODULE reference_geometries
   use netcdf_inquire_grid_mesh, only: inquire_xy_grid, inquire_lonlat_grid, inquire_mesh
   use netcdf_basic_wrappers, only: open_existing_netcdf_file_for_reading, close_netcdf_file
   use netcdf_field_name_options, only: inquire_var_multopt
-  USE netcdf_input                                           , ONLY: setup_xy_grid_from_file, read_field_from_xy_file_2D, setup_mesh_from_file, read_field_from_mesh_file_2D
+  use netcdf_setup_grid_mesh
+  use netcdf_read_field_from_xy_grid_file
+  use netcdf_read_field_from_mesh_file
   use remapping_main, only: map_from_xy_grid_to_mesh_2D, map_from_mesh_to_mesh_2D
 
   IMPLICIT NONE

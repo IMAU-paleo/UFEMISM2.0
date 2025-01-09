@@ -10,7 +10,7 @@ module ct_remapping_mesh_to_mesh
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, colour_string, warning
   use mesh_types, only: type_mesh
   use netcdf_basic_wrappers
-  use netcdf_input, only: setup_mesh_from_file
+  use netcdf_setup_grid_mesh, only: setup_mesh_from_file
   use ct_remapping_basic, only: calc_test_function_on_mesh
   use remapping_main, only: map_from_mesh_to_mesh_2D
   use apply_maps, only: clear_all_maps_involving_this_mesh

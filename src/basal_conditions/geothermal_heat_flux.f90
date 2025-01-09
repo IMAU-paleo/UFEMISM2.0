@@ -11,7 +11,7 @@ MODULE geothermal_heat_flux
   USE model_configuration                                    , ONLY: C
   USE mesh_types                                             , ONLY: type_mesh
   USE ice_model_types                                        , ONLY: type_ice_model
-  USE netcdf_input                                           , ONLY: read_field_from_file_2D
+  use netcdf_read_and_map_field_from_file, only: read_field_from_file_2D
   USE parameters                                             , ONLY: sec_per_year
 
   IMPLICIT NONE

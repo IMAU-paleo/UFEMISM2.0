@@ -15,7 +15,7 @@ MODULE BMB_laddie
   USE mesh_types                                             , ONLY: type_mesh
   USE ice_model_types                                        , ONLY: type_ice_model
   USE BMB_model_types                                        , ONLY: type_BMB_model
-  USE netcdf_input                                           , ONLY: read_field_from_file_2D
+  use netcdf_read_and_map_field_from_file, only: read_field_from_file_2D
 
   IMPLICIT NONE
 
@@ -46,7 +46,7 @@ CONTAINS
 
     IF (time > C%start_time_of_run) THEN
 
-      ! Define filename of BMB output from LADDIE 
+      ! Define filename of BMB output from LADDIE
       filename_BMB_laddie_output      = TRIM(C%fixed_output_dir) // '/laddie_output/output_BMB.nc'
 
       ! Run LADDIE
@@ -59,7 +59,7 @@ CONTAINS
         ELSE
           CALL crash('C%BMB_laddie_system not recognized, should be "local_mac" or "slurm_HPC".')
         END IF
-      END IF 
+      END IF
 
       ! Other cores wait for master core to finish
       CALL sync
@@ -97,17 +97,17 @@ CONTAINS
 
     IF (par%master) THEN
 
-      ! Check if LADDIE restartfile exists to copy into laddie_output directory                             
+      ! Check if LADDIE restartfile exists to copy into laddie_output directory
       INQUIRE( EXIST = file_exists, FILE = TRIM( C%filename_BMB_laddie_initial_restart))
-      IF (.NOT. file_exists) THEN                              
+      IF (.NOT. file_exists) THEN
         CALL crash('file "' // TRIM( C%filename_BMB_laddie_initial_restart) // '" not found!')
       END IF
 
-      ! Create folder for laddie output in fixed_output_dir, 
+      ! Create folder for laddie output in fixed_output_dir,
       CALL system('mkdir ' // TRIM(C%fixed_output_dir) // '/laddie_output')
 
       ! Copy initial restart file to restart_latest.nc
-      CALL system('cp ' // TRIM(C%filename_BMB_laddie_initial_restart) // ' ' // TRIM(C%fixed_output_dir) // '/laddie_output/restart_latest.nc')  
+      CALL system('cp ' // TRIM(C%filename_BMB_laddie_initial_restart) // ' ' // TRIM(C%fixed_output_dir) // '/laddie_output/restart_latest.nc')
 
     END IF
     CALL sync
@@ -147,7 +147,7 @@ CONTAINS
     ! Let model sleep until a filename laddieready is detected
     !
     ! This filename is created by LADDIE when it's run is finished
-  
+
     ! In/output variables:
     CHARACTER(LEN=256),                       INTENT(IN)  :: filename_laddieready
     LOGICAL,                                  INTENT(OUT) :: found_laddie_file
@@ -155,7 +155,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'wait_for_laddie_to_finish'
     CHARACTER(LEN=256)                                    :: laddieready
-    
+
     ! Add routine to path
     CALL init_routine( routine_name)
 
@@ -166,10 +166,10 @@ CONTAINS
     found_laddie_file = .FALSE.
 
     ! Start sleep loop
-    DO WHILE (.NOT. found_laddie_file) 
+    DO WHILE (.NOT. found_laddie_file)
       IF (par%master) THEN
         print*, 'Looking for LADDIE file...'
-      END IF 
+      END IF
       CALL sync
 
       INQUIRE( EXIST = found_laddie_file, FILE = laddieready)

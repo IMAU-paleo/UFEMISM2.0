@@ -32,9 +32,9 @@ MODULE ice_model_utilities
     ddx_b_a_2D, ddy_b_a_2D
   use mpi_distributed_memory, only: gather_to_all
   USE mesh_utilities                                         , ONLY: calc_Voronoi_cell, interpolate_to_point_dp_2D, extrapolate_Gaussian
-  USE netcdf_input                                           , ONLY: read_field_from_mesh_file_3D_CDF, read_field_from_mesh_file_3D_b_CDF
+  use netcdf_read_field_from_mesh_file, only: read_field_from_mesh_file_3D_CDF, read_field_from_mesh_file_3D_b_CDF
   use mesh_ROI_polygons, only: calc_polygon_Patagonia
-  USE netcdf_input                                           , ONLY: read_field_from_file_2D
+  use netcdf_read_and_map_field_from_file, only: read_field_from_file_2D
 
   IMPLICIT NONE
 

@@ -37,7 +37,8 @@ MODULE ice_velocity_hybrid_DIVA_BPA
   use grid_basic, only: type_grid, calc_grid_mask_as_polygons
   use mpi_distributed_memory_grid, only: gather_gridded_data_to_master
   use netcdf_basic_wrappers
-  USE netcdf_input                                           , ONLY: setup_xy_grid_from_file, read_field_from_xy_file_2D_int
+  use netcdf_setup_grid_mesh, ONLY: setup_xy_grid_from_file
+  use netcdf_read_field_from_xy_grid_file, ONLY: read_field_from_xy_file_2D_int
 
   IMPLICIT NONE
 

@@ -11,7 +11,7 @@ module ct_remapping_mesh_to_grid
   use grid_types, only: type_grid
   use mesh_types, only: type_mesh
   use netcdf_basic_wrappers
-  use netcdf_input, only: setup_mesh_from_file, setup_xy_grid_from_file
+  use netcdf_setup_grid_mesh, only: setup_mesh_from_file, setup_xy_grid_from_file
   use apply_maps, only: clear_all_maps_involving_this_mesh
   use remapping_main, only: map_from_mesh_to_xy_grid_2D
   use analytical_solutions, only: Halfar_dome

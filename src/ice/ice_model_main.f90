@@ -39,7 +39,7 @@ MODULE ice_model_main
   USE netcdf_output                                          , ONLY: generate_filename_XXXXXdotnc, setup_mesh_in_netcdf_file, add_time_dimension_to_file, &
                                                                      add_field_dp_0D, add_field_mesh_dp_2D, write_time_to_file, write_to_field_multopt_mesh_dp_2D, &
                                                                      write_to_field_multopt_dp_0D
-  USE netcdf_input                                           , ONLY: read_field_from_file_0D, read_field_from_mesh_file_2D
+  use netcdf_read_and_map_field_from_file, only: read_field_from_file_0D, read_field_from_mesh_file_2D
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   use remapping_main, only: Atlas, map_from_mesh_to_mesh_with_reallocation_2D, map_from_mesh_to_mesh_with_reallocation_3D, map_from_mesh_to_mesh_2D
   USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp
