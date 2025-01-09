@@ -393,7 +393,7 @@ contains
     logical,  dimension(mesh%nV)               :: mask_icefree_ocean_tot
     integer                                    :: vi, ci, ei, vj
     real(dp)                                   :: A_i, L_c
-    real(dp)                                   :: D_x, D_y, D, u_perp
+    real(dp)                                   :: u_perp
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -437,10 +437,7 @@ contains
 
         ! Calculate vertically averaged ice velocity component perpendicular
         ! to this shared Voronoi cell boundary section
-        D_x = mesh%V( vj,1) - mesh%V( vi,1)
-        D_y = mesh%V( vj,2) - mesh%V( vi,2)
-        D   = sqrt( D_x**2 + D_y**2)
-        u_perp = u_vav_c_tot( ei) * D_x/D + v_vav_c_tot( ei) * D_y/D
+        u_perp = u_vav_c_tot( ei) * mesh%D_x( vi, ci)/mesh%D( vi, ci) + v_vav_c_tot( ei) * mesh%D_y( vi, ci)/mesh%D( vi, ci)
 
         ! Calculate the flux: if u_perp > 0, that means that this mass is
         ! flowing out from our transitional vertex. If so, add it its (negative) total.

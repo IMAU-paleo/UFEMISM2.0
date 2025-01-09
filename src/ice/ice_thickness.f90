@@ -575,7 +575,7 @@ CONTAINS
     INTEGER                                               :: ncols, ncols_loc, nrows, nrows_loc, nnz_est_proc
     INTEGER                                               :: vi, ci, ei, vj
     REAL(dp)                                              :: A_i, L_c
-    REAL(dp)                                              :: D_x, D_y, D, u_perp
+    REAL(dp)                                              :: u_perp
     REAL(dp), DIMENSION(0:mesh%nC_mem)                    :: cM_divQ
 
     ! Add routine to path
@@ -622,10 +622,7 @@ CONTAINS
         L_c = mesh%Cw( vi,ci)
 
         ! Calculate vertically averaged ice velocity component perpendicular to this shared Voronoi cell boundary section
-        D_x = mesh%V( vj,1) - mesh%V( vi,1)
-        D_y = mesh%V( vj,2) - mesh%V( vi,2)
-        D   = SQRT( D_x**2 + D_y**2)
-        u_perp = u_vav_c_tot( ei) * D_x/D + v_vav_c_tot( ei) * D_y/D
+        u_perp = u_vav_c_tot( ei) * mesh%D_x( vi, ci)/mesh%D( vi, ci) + v_vav_c_tot( ei) * mesh%D_y( vi, ci)/mesh%D( vi, ci)
 
         ! Calculate matrix coefficients
         ! =============================

@@ -49,7 +49,7 @@ MODULE ice_model_main
   USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp
   USE petsc_basic                                            , ONLY: mat_petsc2CSR
   USE BMB_main                                               , ONLY: run_BMB_model
-  use mesh_disc_apply_operators, only: ddx_a_a_2D, ddy_a_a_2D
+  use mesh_disc_apply_operators, only: ddx_a_a_2D, ddy_a_a_2D, ddx_a_b_2D, ddy_a_b_2D
   USE mesh_utilities                                         , ONLY: extrapolate_Gaussian
 
   IMPLICIT NONE
@@ -164,6 +164,10 @@ CONTAINS
 
     ! Calculate new effective thickness
     CALL calc_effective_thickness( region%mesh, region%ice, region%ice%Hi, region%ice%Hi_eff, region%ice%fraction_margin)
+
+    ! Calculate ice shelf draft gradients
+    CALL ddx_a_b_2D( region%mesh, region%ice%Hib, region%ice%dHib_dx_b)
+    CALL ddy_a_b_2D( region%mesh, region%ice%Hib, region%ice%dHib_dy_b)
 
     ! Calculate absolute surface gradient
     CALL ddx_a_a_2D( region%mesh, region%ice%Hs, dHs_dx)
@@ -292,6 +296,10 @@ CONTAINS
       ice%dHib_dt( vi) = 0._dp
 
     END DO ! DO vi = mesh%vi1, mesh%vi2
+
+    ! Calculate ice shelf draft gradients
+    CALL ddx_a_b_2D( mesh, ice%Hib, ice%dHib_dx_b)
+    CALL ddy_a_b_2D( mesh, ice%Hib, ice%dHib_dy_b)
 
     ! Calculate zeta gradients
     CALL calc_zeta_gradients( mesh, ice)
@@ -480,7 +488,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'remap_ice_dynamics_model'
-    INTEGER                                               :: vi,k
+    INTEGER                                               :: vi, ti, k
     REAL(dp), DIMENSION(mesh_new%vi1:mesh_new%vi2)        :: dHs_dx, dHs_dy
     REAL(dp)                                              :: Ti_min
 
@@ -555,6 +563,10 @@ CONTAINS
     CALL reallocate_bounds( ice%dHib_dt                     , mesh_new%vi1, mesh_new%vi2         )  ! [m yr^-1] Ice base elevation rate of change
     CALL reallocate_bounds( ice%dHi_dt_raw                  , mesh_new%vi1, mesh_new%vi2         )  ! [m yr^-1] Ice thickness rate of change before any imposed modifications
     CALL reallocate_bounds( ice%dHi_dt_residual             , mesh_new%vi1, mesh_new%vi2         )  ! [m yr^-1] Residual ice thickness rate of change after imposed modifications
+
+    ! Horizontal derivatives
+    CALL reallocate_bounds( ice%dHib_dx_b                   , mesh_new%ti1, mesh_new%ti2         )  ! [] Horizontal derivative of ice draft on b-grid
+    CALL reallocate_bounds( ice%dHib_dy_b                   , mesh_new%ti1, mesh_new%ti2         )  ! [] Horizontal derivative of ice draft on b-grid        
 
     ! Target quantities
     CALL reallocate_bounds( ice%dHi_dt_target               , mesh_new%vi1, mesh_new%vi2         )  ! [m yr^-1] Target ice thickness rate of change for inversions
@@ -756,6 +768,12 @@ CONTAINS
       ice%dHib_dt( vi) = 0._dp
 
     END DO ! DO vi = mesh_new%vi1, mesh_new%vi2
+
+    DO ti = mesh_new%ti1, mesh_new%ti2
+      ! Horizontal derivatives
+      ice%dHib_dx_b( ti) = 0._dp
+      ice%dHib_dy_b( ti) = 0._dp
+    END DO ! DO ti = mesh_new%ti1, mesh_new%ti2 
 
     ! Calculate zeta gradients
     CALL calc_zeta_gradients( mesh_new, ice)
@@ -2508,7 +2526,7 @@ CONTAINS
     INTEGER                                               :: vi, vj, ci, ei
     REAL(dp), DIMENSION(region%mesh%ei1:region%mesh%ei2)  :: u_vav_c, v_vav_c
     REAL(dp), DIMENSION(region%mesh%nE)                   :: u_vav_c_tot, v_vav_c_tot
-    REAL(dp)                                              :: dt_dummy, calving_rate, calving_ratio, D_x, D_y, D, calving_perp, L_c, V_calved
+    REAL(dp)                                              :: dt_dummy, calving_rate, calving_ratio, calving_perp, L_c, V_calved
     REAL(dp), DIMENSION(region%mesh%vi1:region%mesh%vi2)  :: SMB_dummy, BMB_dummy, LMB_dummy, AMB_dummy, dHi_dt_dummy, Hi_dummy, divQ_eff, LMB_trans
     REAL(dp), DIMENSION(region%mesh%nV)                   :: Hi_tot, fraction_margin_tot
     LOGICAL                                               :: found_advancing_calving_front, found_calving_front_neighbour
@@ -2616,10 +2634,7 @@ CONTAINS
     !     L_c = region%mesh%Cw( vi,ci)
 
     !     ! Calculate calving rate component perpendicular to this shared Voronoi cell boundary section
-    !     D_x = region%mesh%V( vj,1) - region%mesh%V( vi,1)
-    !     D_y = region%mesh%V( vj,2) - region%mesh%V( vi,2)
-    !     D   = SQRT( D_x**2 + D_y**2)
-    !     calving_perp = calving_ratio * ABS( u_vav_c_tot( ei) * D_x/D + v_vav_c_tot( ei) * D_y/D)
+    !     calving_perp = calving_ratio * ABS( u_vav_c_tot( ei) * mesh%D_x( vi, ci)/mesh%D( vi, ci) + v_vav_c_tot( ei) * mesh%D_y( vi, ci)/mesh%D( vi, ci))
 
     !     ! Calving front vertices: check if neighbour is open ocean
     !     IF (region%ice%mask_cf_fl( vi) .AND. mask_icefree_ocean_tot( vj)) THEN

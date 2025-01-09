@@ -72,6 +72,7 @@ MODULE netcdf_basic
   CHARACTER(LEN=256), PARAMETER :: field_name_options_VE             = 'VE'
   CHARACTER(LEN=256), PARAMETER :: field_name_options_EV             = 'EV'
   CHARACTER(LEN=256), PARAMETER :: field_name_options_ETri           = 'ETri'
+  CHARACTER(LEN=256), PARAMETER :: field_name_options_TriE           = 'TriE'
   CHARACTER(LEN=256), PARAMETER :: field_name_options_EBI            = 'EBI'
   CHARACTER(LEN=256), PARAMETER :: field_name_options_vi2vori        = 'vi2vori'
   CHARACTER(LEN=256), PARAMETER :: field_name_options_ti2vori        = 'ti2vori'
