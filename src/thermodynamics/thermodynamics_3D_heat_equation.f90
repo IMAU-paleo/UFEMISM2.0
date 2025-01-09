@@ -26,8 +26,7 @@ MODULE thermodynamics_3D_heat_equation
                                                                      calc_upwind_heat_flux_derivatives, calc_strain_heating, calc_frictional_heating, &
                                                                      replace_Ti_with_robin_solution
   use tridiagonal_solver, only: solve_tridiagonal_matrix_equation
-  USE netcdf_basic                                           , ONLY: create_new_netcdf_file_for_writing, close_netcdf_file, &
-                                                                     open_existing_netcdf_file_for_writing
+  use netcdf_basic_wrappers
   USE netcdf_output                                          , ONLY: generate_filename_XXXXXdotnc, setup_mesh_in_netcdf_file, add_time_dimension_to_file, &
                                                                      add_zeta_dimension_to_file, add_field_mesh_dp_3D, write_time_to_file, &
                                                                      write_to_field_multopt_mesh_dp_3D

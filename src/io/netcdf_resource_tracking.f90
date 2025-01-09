@@ -18,10 +18,12 @@ MODULE netcdf_resource_tracking
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string, resource_tracker
   USE model_configuration                                    , ONLY: C
 
-  USE netcdf,        ONLY: NF90_UNLIMITED, NF90_DOUBLE, NF90_INT
-  USE netcdf_basic,  ONLY: nerr, create_new_netcdf_file_for_writing, create_dimension, create_variable, add_attribute_char, close_netcdf_file, &
-                           open_existing_netcdf_file_for_writing, find_timeframe, write_var_master_int_2D, write_var_master_dp_2D, inquire_var_multopt
-  USE netcdf_output, ONLY: write_time_to_file
+  use netcdf, only: NF90_UNLIMITED, NF90_DOUBLE, NF90_INT
+  use netcdf_output, only: write_time_to_file
+  use netcdf_basic_wrappers
+  use netcdf_field_name_options
+  use netcdf_write_var_master
+  use netcdf_find_timeframe
 
   IMPLICIT NONE
 
@@ -83,10 +85,10 @@ CONTAINS
     CALL inquire_var_multopt( filename_resource_tracker, ncid, 'tcomp'                , id_var_tcomp)
 
     ! Write data
-    CALL write_var_master_int_2D( filename_resource_tracker, ncid, id_var_names, routine_names_encoded)
+    CALL write_var_master( filename_resource_tracker, ncid, id_var_names, routine_names_encoded)
 
     ! Computation time
-    CALL write_var_master_dp_2D(  filename_resource_tracker, ncid, id_var_tcomp, tcomp, start = [1,ti], count = [n_routines,1])
+    CALL write_var_master(  filename_resource_tracker, ncid, id_var_tcomp, tcomp, start = [1,ti], count = [n_routines,1])
 
     ! Close the file
     CALL close_netcdf_file( ncid)

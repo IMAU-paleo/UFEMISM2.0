@@ -25,7 +25,7 @@ MODULE ice_velocity_DIVA
   USE mesh_utilities                                         , ONLY: find_ti_copy_ISMIP_HOM_periodic
   USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp, allocate_matrix_CSR_dist, add_entry_CSR_dist, read_single_row_CSR_dist, &
                                                                      deallocate_matrix_CSR_dist
-  USE netcdf_basic                                           , ONLY: create_new_netcdf_file_for_writing, close_netcdf_file, open_existing_netcdf_file_for_writing
+  use netcdf_basic_wrappers
   USE netcdf_output                                          , ONLY: generate_filename_XXXXXdotnc, setup_mesh_in_netcdf_file, add_time_dimension_to_file, &
                                                                      add_field_mesh_dp_2D_b, add_field_mesh_dp_3D_b, write_time_to_file, write_to_field_multopt_mesh_dp_2D_b, &
                                                                      write_to_field_multopt_mesh_dp_3D_b, add_zeta_dimension_to_file

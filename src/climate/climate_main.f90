@@ -16,7 +16,7 @@ MODULE climate_main
   USE climate_idealised                                      , ONLY: initialise_climate_model_idealised, run_climate_model_idealised
   USE climate_realistic                                      , ONLY: initialise_climate_model_realistic, run_climate_model_realistic
   USE reallocate_mod                                         , ONLY: reallocate_bounds
-  USE netcdf_basic                                           , ONLY: create_new_netcdf_file_for_writing, close_netcdf_file, open_existing_netcdf_file_for_writing
+  use netcdf_basic_wrappers
   USE netcdf_output                                          , ONLY: generate_filename_XXXXXdotnc, setup_mesh_in_netcdf_file, add_time_dimension_to_file, &
                                                                      add_field_mesh_dp_2D_monthly, add_month_dimension_to_file, write_time_to_file, write_to_field_multopt_mesh_dp_2D_monthly
 

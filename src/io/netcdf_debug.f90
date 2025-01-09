@@ -16,21 +16,10 @@ MODULE netcdf_debug
   USE petsc_basic                                            , ONLY: mat_petsc2CSR
   use mpi_distributed_memory, only: gather_to_master
 
-  USE netcdf,       ONLY: NF90_UNLIMITED, NF90_INT, NF90_FLOAT, NF90_DOUBLE
-  USE netcdf_basic, ONLY: nerr, &
-    open_existing_netcdf_file_for_reading, close_netcdf_file, create_new_netcdf_file_for_writing, &
-    inquire_dim_multopt, inquire_var_multopt, &
-    check_x, check_y, check_lon, check_lat, check_mesh_dimensions, check_zeta, find_timeframe, &
-    check_xy_grid_field_int_2D, check_xy_grid_field_dp_2D, check_xy_grid_field_dp_2D_monthly, check_xy_grid_field_dp_3D, &
-    check_lonlat_grid_field_int_2D, check_lonlat_grid_field_dp_2D, check_lonlat_grid_field_dp_2D_monthly, check_lonlat_grid_field_dp_3D, &
-    check_mesh_field_int_2D, check_mesh_field_int_2D_b, check_mesh_field_int_2D_c, &
-    check_mesh_field_dp_2D, check_mesh_field_dp_2D_b, check_mesh_field_dp_2D_c, &
-    check_mesh_field_dp_2D_monthly, check_mesh_field_dp_3D, &
-    inquire_xy_grid, inquire_lonlat_grid, inquire_mesh, &
-    write_var_master_int_0D, write_var_master_int_1D, write_var_master_int_2D, write_var_master_int_3D, write_var_master_int_4D, &
-    write_var_master_dp_0D, write_var_master_dp_1D, write_var_master_dp_2D, write_var_master_dp_3D, write_var_master_dp_4D, &
-    add_attribute_char, check_month, check_time, create_dimension, create_variable, inquire_var, &
-    open_existing_netcdf_file_for_writing
+  use netcdf, only: NF90_INT, NF90_DOUBLE
+  use netcdf_inquire_grid_mesh
+  use netcdf_write_var_master
+  use netcdf_basic_wrappers
 
   IMPLICIT NONE
 
@@ -120,9 +109,9 @@ CONTAINS
     CALL create_variable( filename_applied, ncid, 'val', NF90_DOUBLE, [id_dim_nnz], id_var_val)
 
     ! Write to NetCDF
-    CALL write_var_master_int_1D( filename_applied, ncid, id_var_ptr, AA_tot%ptr               )
-    CALL write_var_master_int_1D( filename_applied, ncid, id_var_ind, AA_tot%ind( 1:AA_tot%nnz))
-    CALL write_var_master_dp_1D(  filename_applied, ncid, id_var_val, AA_tot%val( 1:AA_tot%nnz))
+    CALL write_var_master( filename_applied, ncid, id_var_ptr, AA_tot%ptr               )
+    CALL write_var_master( filename_applied, ncid, id_var_ind, AA_tot%ind( 1:AA_tot%nnz))
+    CALL write_var_master(  filename_applied, ncid, id_var_val, AA_tot%val( 1:AA_tot%nnz))
 
     ! Close the NetCDF file
     CALL close_netcdf_file( ncid)
@@ -231,7 +220,7 @@ CONTAINS
     CALL create_variable( filename, ncid, field_name, NF90_INT, (/ id_dim_n1 /), id_var)
 
     ! Write data
-    CALL write_var_master_int_1D( filename, ncid, id_var, d_tot)
+    CALL write_var_master( filename, ncid, id_var, d_tot)
 
     ! Close the NetCDF file
     CALL close_netcdf_file( ncid)
@@ -297,7 +286,7 @@ CONTAINS
     CALL create_variable( filename, ncid, field_name, NF90_INT, (/ id_dim_n1, id_dim_n2 /), id_var)
 
     ! Write data
-    CALL write_var_master_int_2D( filename, ncid, id_var, d_tot)
+    CALL write_var_master( filename, ncid, id_var, d_tot)
 
     ! Close the NetCDF file
     CALL close_netcdf_file( ncid)
@@ -361,7 +350,7 @@ CONTAINS
     CALL create_variable( filename, ncid, field_name, NF90_DOUBLE, (/ id_dim_n1 /), id_var)
 
     ! Write data
-    CALL write_var_master_dp_1D( filename, ncid, id_var, d_tot)
+    CALL write_var_master( filename, ncid, id_var, d_tot)
 
     ! Close the NetCDF file
     CALL close_netcdf_file( ncid)
@@ -427,7 +416,7 @@ CONTAINS
     CALL create_variable( filename, ncid, field_name, NF90_DOUBLE, (/ id_dim_n1, id_dim_n2 /), id_var)
 
     ! Write data
-    CALL write_var_master_dp_2D( filename, ncid, id_var, d_tot)
+    CALL write_var_master( filename, ncid, id_var, d_tot)
 
     ! Close the NetCDF file
     CALL close_netcdf_file( ncid)

@@ -36,19 +36,13 @@ MODULE netcdf_input
                                                                      map_from_vertical_to_vertical_2D_ocean
 
   use netcdf, only: NF90_MAX_VAR_DIMS
-  use field_name_options
-  use netcdf_basic, only: nerr, &
-    open_existing_netcdf_file_for_reading, close_netcdf_file, &
-    inquire_dim_multopt, inquire_var_multopt, check_time, inquire_var_info, &
-    read_var_master_int_0D, read_var_master_int_1D, read_var_master_int_2D, read_var_master_int_3D, read_var_master_int_4D, &
-    read_var_master_dp_0D , read_var_master_dp_1D , read_var_master_dp_2D , read_var_master_dp_3D , read_var_master_dp_4D, &
-    check_x, check_y, check_lon, check_lat, check_mesh_dimensions, check_zeta, check_month, check_depth, find_timeframe, &
-    check_xy_grid_field_int_2D, check_xy_grid_field_dp_2D, check_xy_grid_field_dp_2D_monthly, check_xy_grid_field_dp_3D, check_xy_grid_field_dp_3D_ocean, &
-    check_lonlat_grid_field_int_2D, check_lonlat_grid_field_dp_2D, check_lonlat_grid_field_dp_2D_monthly, check_lonlat_grid_field_dp_3D, check_lonlat_grid_field_dp_3D_ocean, &
-    check_mesh_field_int_2D, check_mesh_field_dp_2D, check_mesh_field_dp_2D_b, check_mesh_field_dp_2D_monthly, check_mesh_field_dp_3D, check_mesh_field_dp_3D_ocean, &
-    check_mesh_field_dp_3D_b, inquire_xy_grid, inquire_lonlat_grid, inquire_mesh
-
-  USE netcdf_debug                                           , ONLY: save_variable_as_netcdf_dp_2D
+  use netcdf_field_name_options
+  use netcdf_inquire_grid_mesh
+  use netcdf_read_var_master
+  use netcdf_check_dimensions
+  use netcdf_basic_wrappers
+  use netcdf_check_fields
+  use netcdf_find_timeframe
 
   IMPLICIT NONE
 
@@ -663,14 +657,14 @@ CONTAINS
 
       ! Read data from file
       IF (.NOT. PRESENT( time_to_read)) THEN
-        CALL read_var_master_dp_2D( filename, ncid, id_var, d_grid)
+        CALL read_var_master( filename, ncid, id_var, d_grid)
       ELSE
         ! Allocate memory
         IF (par%master) ALLOCATE( d_grid_with_time( grid_loc%nx, grid_loc%ny, 1))
         ! Find out which timeframe to read
         CALL find_timeframe( filename, ncid, time_to_read, ti)
         ! Read data
-        CALL read_var_master_dp_3D( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, ti /), count = (/ grid_loc%nx, grid_loc%ny, 1 /) )
+        CALL read_var_master( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, ti /), count = (/ grid_loc%nx, grid_loc%ny, 1 /) )
         ! Copy to output memory
         IF (par%master) d_grid = d_grid_with_time( :,:,1)
         ! Clean up after yourself
@@ -688,14 +682,14 @@ CONTAINS
 
       ! Read data from file
       IF (.NOT. PRESENT( time_to_read)) THEN
-        CALL read_var_master_dp_2D( filename, ncid, id_var, d_grid)
+        CALL read_var_master( filename, ncid, id_var, d_grid)
       ELSE
         ! Allocate memory
         IF (par%master) ALLOCATE( d_grid_with_time( grid_loc%ny, grid_loc%nx, 1))
         ! Find out which timeframe to read
         CALL find_timeframe( filename, ncid, time_to_read, ti)
         ! Read data
-        CALL read_var_master_dp_3D( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, ti /), count = (/ grid_loc%ny, grid_loc%nx, 1 /) )
+        CALL read_var_master( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, ti /), count = (/ grid_loc%ny, grid_loc%nx, 1 /) )
         ! Copy to output memory
         IF (par%master) d_grid = d_grid_with_time( :,:,1)
         ! Clean up after yourself
@@ -813,14 +807,14 @@ CONTAINS
 
       ! Read data from file
       IF (.NOT. PRESENT( time_to_read)) THEN
-        CALL read_var_master_int_2D( filename, ncid, id_var, d_grid)
+        CALL read_var_master( filename, ncid, id_var, d_grid)
       ELSE
         ! Allocate memory
         IF (par%master) ALLOCATE( d_grid_with_time( grid_loc%nx, grid_loc%ny, 1))
         ! Find out which timeframe to read
         CALL find_timeframe( filename, ncid, time_to_read, ti)
         ! Read data
-        CALL read_var_master_int_3D( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, ti /), count = (/ grid_loc%nx, grid_loc%ny, 1 /) )
+        CALL read_var_master( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, ti /), count = (/ grid_loc%nx, grid_loc%ny, 1 /) )
         ! Copy to output memory
         IF (par%master) d_grid = d_grid_with_time( :,:,1)
         ! Clean up after yourself
@@ -838,14 +832,14 @@ CONTAINS
 
       ! Read data from file
       IF (.NOT. PRESENT( time_to_read)) THEN
-        CALL read_var_master_int_2D( filename, ncid, id_var, d_grid)
+        CALL read_var_master( filename, ncid, id_var, d_grid)
       ELSE
         ! Allocate memory
         IF (par%master) ALLOCATE( d_grid_with_time( grid_loc%ny, grid_loc%nx, 1))
         ! Find out which timeframe to read
         CALL find_timeframe( filename, ncid, time_to_read, ti)
         ! Read data
-        CALL read_var_master_int_3D( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, ti /), count = (/ grid_loc%ny, grid_loc%nx, 1 /) )
+        CALL read_var_master( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, ti /), count = (/ grid_loc%ny, grid_loc%nx, 1 /) )
         ! Copy to output memory
         IF (par%master) d_grid = d_grid_with_time( :,:,1)
         ! Clean up after yourself
@@ -962,14 +956,14 @@ CONTAINS
 
       ! Read data from file
       IF (.NOT. PRESENT( time_to_read)) THEN
-        CALL read_var_master_dp_3D( filename, ncid, id_var, d_grid)
+        CALL read_var_master( filename, ncid, id_var, d_grid)
       ELSE
         ! Allocate memory
         IF (par%master) ALLOCATE( d_grid_with_time( grid_loc%nx, grid_loc%ny, 12, 1))
         ! Find out which timeframe to read
         CALL find_timeframe( filename, ncid, time_to_read, ti)
         ! Read data
-        CALL read_var_master_dp_4D( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid_loc%nx, grid_loc%ny, 12, 1 /) )
+        CALL read_var_master( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid_loc%nx, grid_loc%ny, 12, 1 /) )
         ! Copy to output memory
         IF (par%master) d_grid = d_grid_with_time( :,:,:,1)
         ! Clean up after yourself
@@ -983,14 +977,14 @@ CONTAINS
 
       ! Read data from file
       IF (.NOT. PRESENT( time_to_read)) THEN
-        CALL read_var_master_dp_3D( filename, ncid, id_var, d_grid)
+        CALL read_var_master( filename, ncid, id_var, d_grid)
       ELSE
         ! Allocate memory
         IF (par%master) ALLOCATE( d_grid_with_time( grid_loc%ny, grid_loc%nx, 12, 1))
         ! Find out which timeframe to read
         CALL find_timeframe( filename, ncid, time_to_read, ti)
         ! Read data
-        CALL read_var_master_dp_4D( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid_loc%ny, grid_loc%nx, 12, 1 /) )
+        CALL read_var_master( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid_loc%ny, grid_loc%nx, 12, 1 /) )
         ! Copy to output memory
         IF (par%master) d_grid = d_grid_with_time( :,:,:,1)
         ! Clean up after yourself
@@ -1109,14 +1103,14 @@ CONTAINS
 
       ! Read data from file
       IF (.NOT. PRESENT( time_to_read)) THEN
-        CALL read_var_master_dp_3D( filename, ncid, id_var, d_grid)
+        CALL read_var_master( filename, ncid, id_var, d_grid)
       ELSE
         ! Allocate memory
         IF (par%master) ALLOCATE( d_grid_with_time( grid_loc%nx, grid_loc%ny, nzeta_loc, 1))
         ! Find out which timeframe to read
         CALL find_timeframe( filename, ncid, time_to_read, ti)
         ! Read data
-        CALL read_var_master_dp_4D( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid_loc%nx, grid_loc%ny, nzeta_loc, 1 /) )
+        CALL read_var_master( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid_loc%nx, grid_loc%ny, nzeta_loc, 1 /) )
         ! Copy to output memory
         IF (par%master) d_grid = d_grid_with_time( :,:,:,1)
         ! Clean up after yourself
@@ -1130,14 +1124,14 @@ CONTAINS
 
       ! Read data from file
       IF (.NOT. PRESENT( time_to_read)) THEN
-        CALL read_var_master_dp_3D( filename, ncid, id_var, d_grid)
+        CALL read_var_master( filename, ncid, id_var, d_grid)
       ELSE
         ! Allocate memory
         IF (par%master) ALLOCATE( d_grid_with_time( grid_loc%ny, grid_loc%nx, nzeta_loc, 1))
         ! Find out which timeframe to read
         CALL find_timeframe( filename, ncid, time_to_read, ti)
         ! Read data
-        CALL read_var_master_dp_4D( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid_loc%ny, grid_loc%nx, nzeta_loc, 1 /) )
+        CALL read_var_master( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid_loc%ny, grid_loc%nx, nzeta_loc, 1 /) )
         ! Copy to output memory
         IF (par%master) d_grid = d_grid_with_time( :,:,:,1)
         ! Clean up after yourself
@@ -1256,14 +1250,14 @@ CONTAINS
 
       ! Read data from file
       IF (.NOT. PRESENT( time_to_read)) THEN
-        CALL read_var_master_dp_3D( filename, ncid, id_var, d_grid)
+        CALL read_var_master( filename, ncid, id_var, d_grid)
       ELSE
         ! Allocate memory
         IF (par%master) ALLOCATE( d_grid_with_time( grid_loc%nx, grid_loc%ny, ndepth_loc, 1))
         ! Find out which timeframe to read
         CALL find_timeframe( filename, ncid, time_to_read, ti)
         ! Read data
-        CALL read_var_master_dp_4D( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid_loc%nx, grid_loc%ny, ndepth_loc, 1 /) )
+        CALL read_var_master( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid_loc%nx, grid_loc%ny, ndepth_loc, 1 /) )
         ! Copy to output memory
         IF (par%master) d_grid = d_grid_with_time( :,:,:,1)
         ! Clean up after yourself
@@ -1277,14 +1271,14 @@ CONTAINS
 
       ! Read data from file
       IF (.NOT. PRESENT( time_to_read)) THEN
-        CALL read_var_master_dp_3D( filename, ncid, id_var, d_grid)
+        CALL read_var_master( filename, ncid, id_var, d_grid)
       ELSE
         ! Allocate memory
         IF (par%master) ALLOCATE( d_grid_with_time( grid_loc%ny, grid_loc%nx, ndepth_loc, 1))
         ! Find out which timeframe to read
         CALL find_timeframe( filename, ncid, time_to_read, ti)
         ! Read data
-        CALL read_var_master_dp_4D( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid_loc%ny, grid_loc%nx, ndepth_loc, 1 /) )
+        CALL read_var_master( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid_loc%ny, grid_loc%nx, ndepth_loc, 1 /) )
         ! Copy to output memory
         IF (par%master) d_grid = d_grid_with_time( :,:,:,1)
         ! Clean up after yourself
@@ -1399,14 +1393,14 @@ CONTAINS
 
       ! Read data from file
       IF (.NOT. PRESENT( time_to_read)) THEN
-        CALL read_var_master_dp_2D( filename, ncid, id_var, d_grid)
+        CALL read_var_master( filename, ncid, id_var, d_grid)
       ELSE
         ! Allocate memory
         IF (par%master) ALLOCATE( d_grid_with_time( grid_loc%nlon, grid_loc%nlat, 1))
         ! Find out which timeframe to read
         CALL find_timeframe( filename, ncid, time_to_read, ti)
         ! Read data
-        CALL read_var_master_dp_3D( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, ti /), count = (/ grid_loc%nlon, grid_loc%nlat, 1 /) )
+        CALL read_var_master( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, ti /), count = (/ grid_loc%nlon, grid_loc%nlat, 1 /) )
         ! Copy to output memory
         IF (par%master) d_grid = d_grid_with_time( :,:,1)
         ! Clean up after yourself
@@ -1420,14 +1414,14 @@ CONTAINS
 
       ! Read data from file
       IF (.NOT. PRESENT( time_to_read)) THEN
-        CALL read_var_master_dp_2D( filename, ncid, id_var, d_grid)
+        CALL read_var_master( filename, ncid, id_var, d_grid)
       ELSE
         ! Allocate memory
         IF (par%master) ALLOCATE( d_grid_with_time( grid_loc%nlat, grid_loc%nlon, 1))
         ! Find out which timeframe to read
         CALL find_timeframe( filename, ncid, time_to_read, ti)
         ! Read data
-        CALL read_var_master_dp_3D( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, ti /), count = (/ grid_loc%nlat, grid_loc%nlon, 1 /) )
+        CALL read_var_master( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, ti /), count = (/ grid_loc%nlat, grid_loc%nlon, 1 /) )
         ! Copy to output memory
         IF (par%master) d_grid = d_grid_with_time( :,:,1)
         ! Clean up after yourself
@@ -1546,14 +1540,14 @@ CONTAINS
 
       ! Read data from file
       IF (.NOT. PRESENT( time_to_read)) THEN
-        CALL read_var_master_dp_3D( filename, ncid, id_var, d_grid)
+        CALL read_var_master( filename, ncid, id_var, d_grid)
       ELSE
         ! Allocate memory
         IF (par%master) ALLOCATE( d_grid_with_time( grid_loc%nlon, grid_loc%nlat, 12, 1))
         ! Find out which timeframe to read
         CALL find_timeframe( filename, ncid, time_to_read, ti)
         ! Read data
-        CALL read_var_master_dp_4D( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid_loc%nlon, grid_loc%nlat, 12, 1 /) )
+        CALL read_var_master( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid_loc%nlon, grid_loc%nlat, 12, 1 /) )
         ! Copy to output memory
         IF (par%master) d_grid = d_grid_with_time( :,:,:,1)
         ! Clean up after yourself
@@ -1567,14 +1561,14 @@ CONTAINS
 
       ! Read data from file
       IF (.NOT. PRESENT( time_to_read)) THEN
-        CALL read_var_master_dp_3D( filename, ncid, id_var, d_grid)
+        CALL read_var_master( filename, ncid, id_var, d_grid)
       ELSE
         ! Allocate memory
         IF (par%master) ALLOCATE( d_grid_with_time( grid_loc%nlat, grid_loc%nlon, 12, 1))
         ! Find out which timeframe to read
         CALL find_timeframe( filename, ncid, time_to_read, ti)
         ! Read data
-        CALL read_var_master_dp_4D( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid_loc%nlat, grid_loc%nlon, 12, 1 /) )
+        CALL read_var_master( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid_loc%nlat, grid_loc%nlon, 12, 1 /) )
         ! Copy to output memory
         IF (par%master) d_grid = d_grid_with_time( :,:,:,1)
         ! Clean up after yourself
@@ -1693,14 +1687,14 @@ CONTAINS
 
       ! Read data from file
       IF (.NOT. PRESENT( time_to_read)) THEN
-        CALL read_var_master_dp_3D( filename, ncid, id_var, d_grid)
+        CALL read_var_master( filename, ncid, id_var, d_grid)
       ELSE
         ! Allocate memory
         IF (par%master) ALLOCATE( d_grid_with_time( grid_loc%nlon, grid_loc%nlat, nzeta_loc, 1))
         ! Find out which timeframe to read
         CALL find_timeframe( filename, ncid, time_to_read, ti)
         ! Read data
-        CALL read_var_master_dp_4D( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid_loc%nlon, grid_loc%nlat, nzeta_loc, 1 /) )
+        CALL read_var_master( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid_loc%nlon, grid_loc%nlat, nzeta_loc, 1 /) )
         ! Copy to output memory
         IF (par%master) d_grid = d_grid_with_time( :,:,:,1)
         ! Clean up after yourself
@@ -1714,14 +1708,14 @@ CONTAINS
 
       ! Read data from file
       IF (.NOT. PRESENT( time_to_read)) THEN
-        CALL read_var_master_dp_3D( filename, ncid, id_var, d_grid)
+        CALL read_var_master( filename, ncid, id_var, d_grid)
       ELSE
         ! Allocate memory
         IF (par%master) ALLOCATE( d_grid_with_time( grid_loc%nlat, grid_loc%nlon, nzeta_loc, 1))
         ! Find out which timeframe to read
         CALL find_timeframe( filename, ncid, time_to_read, ti)
         ! Read data
-        CALL read_var_master_dp_4D( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid_loc%nlat, grid_loc%nlon, nzeta_loc, 1 /) )
+        CALL read_var_master( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid_loc%nlat, grid_loc%nlon, nzeta_loc, 1 /) )
         ! Copy to output memory
         IF (par%master) d_grid = d_grid_with_time( :,:,:,1)
         ! Clean up after yourself
@@ -1840,14 +1834,14 @@ CONTAINS
 
       ! Read data from file
       IF (.NOT. PRESENT( time_to_read)) THEN
-        CALL read_var_master_dp_3D( filename, ncid, id_var, d_grid)
+        CALL read_var_master( filename, ncid, id_var, d_grid)
       ELSE
         ! Allocate memory
         IF (par%master) ALLOCATE( d_grid_with_time( grid_loc%nlon, grid_loc%nlat, ndepth_loc, 1))
         ! Find out which timeframe to read
         CALL find_timeframe( filename, ncid, time_to_read, ti)
         ! Read data
-        CALL read_var_master_dp_4D( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid_loc%nlon, grid_loc%nlat, ndepth_loc, 1 /) )
+        CALL read_var_master( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid_loc%nlon, grid_loc%nlat, ndepth_loc, 1 /) )
         ! Copy to output memory
         IF (par%master) d_grid = d_grid_with_time( :,:,:,1)
         ! Clean up after yourself
@@ -1861,14 +1855,14 @@ CONTAINS
 
       ! Read data from file
       IF (.NOT. PRESENT( time_to_read)) THEN
-        CALL read_var_master_dp_3D( filename, ncid, id_var, d_grid)
+        CALL read_var_master( filename, ncid, id_var, d_grid)
       ELSE
         ! Allocate memory
         IF (par%master) ALLOCATE( d_grid_with_time( grid_loc%nlat, grid_loc%nlon, ndepth_loc, 1))
         ! Find out which timeframe to read
         CALL find_timeframe( filename, ncid, time_to_read, ti)
         ! Read data
-        CALL read_var_master_dp_4D( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid_loc%nlat, grid_loc%nlon, ndepth_loc, 1 /) )
+        CALL read_var_master( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid_loc%nlat, grid_loc%nlon, ndepth_loc, 1 /) )
         ! Copy to output memory
         IF (par%master) d_grid = d_grid_with_time( :,:,:,1)
         ! Clean up after yourself
@@ -1977,14 +1971,14 @@ CONTAINS
 
     ! Read data from file
     IF (.NOT. PRESENT( time_to_read)) THEN
-      CALL read_var_master_dp_1D( filename, ncid, id_var, d_mesh)
+      CALL read_var_master( filename, ncid, id_var, d_mesh)
     ELSE
       ! Allocate memory
       IF (par%master) ALLOCATE( d_mesh_with_time( mesh_loc%nV, 1))
       ! Find out which timeframe to read
       CALL find_timeframe( filename, ncid, time_to_read, ti)
       ! Read data
-      CALL read_var_master_dp_2D( filename, ncid, id_var, d_mesh_with_time, start = (/ 1, ti /), count = (/ mesh_loc%nV, 1 /) )
+      CALL read_var_master( filename, ncid, id_var, d_mesh_with_time, start = (/ 1, ti /), count = (/ mesh_loc%nV, 1 /) )
       ! Copy to output memory
       IF (par%master) d_mesh = d_mesh_with_time( :,1)
       ! Clean up after yourself
@@ -2058,14 +2052,14 @@ CONTAINS
 
     ! Read data from file
     IF (.NOT. PRESENT( time_to_read)) THEN
-      CALL read_var_master_dp_1D( filename, ncid, id_var, d_mesh)
+      CALL read_var_master( filename, ncid, id_var, d_mesh)
     ELSE
       ! Allocate memory
       IF (par%master) ALLOCATE( d_mesh_with_time( mesh_loc%nTri, 1))
       ! Find out which timeframe to read
       CALL find_timeframe( filename, ncid, time_to_read, ti)
       ! Read data
-      CALL read_var_master_dp_2D( filename, ncid, id_var, d_mesh_with_time, start = (/ 1, ti /), count = (/ mesh_loc%nTri, 1 /) )
+      CALL read_var_master( filename, ncid, id_var, d_mesh_with_time, start = (/ 1, ti /), count = (/ mesh_loc%nTri, 1 /) )
       ! Copy to output memory
       IF (par%master) d_mesh = d_mesh_with_time( :,1)
       ! Clean up after yourself
@@ -2140,14 +2134,14 @@ CONTAINS
 
     ! Read data from file
     IF (.NOT. PRESENT( time_to_read)) THEN
-      CALL read_var_master_dp_2D( filename, ncid, id_var, d_mesh)
+      CALL read_var_master( filename, ncid, id_var, d_mesh)
     ELSE
       ! Allocate memory
       IF (par%master) ALLOCATE( d_mesh_with_time( mesh_loc%nV, 12, 1))
       ! Find out which timeframe to read
       CALL find_timeframe( filename, ncid, time_to_read, ti)
       ! Read data
-      CALL read_var_master_dp_3D( filename, ncid, id_var, d_mesh_with_time, start = (/ 1, 1, ti /), count = (/ mesh_loc%nV, 12, 1 /) )
+      CALL read_var_master( filename, ncid, id_var, d_mesh_with_time, start = (/ 1, 1, ti /), count = (/ mesh_loc%nV, 12, 1 /) )
       ! Copy to output memory
       IF (par%master) d_mesh = d_mesh_with_time( :,:,1)
       ! Clean up after yourself
@@ -2224,14 +2218,14 @@ CONTAINS
 
     ! Read data from file
     IF (.NOT. PRESENT( time_to_read)) THEN
-      CALL read_var_master_dp_2D( filename, ncid, id_var, d_mesh)
+      CALL read_var_master( filename, ncid, id_var, d_mesh)
     ELSE
       ! Allocate memory
       IF (par%master) ALLOCATE( d_mesh_with_time( mesh_loc%nV, nzeta_loc, 1))
       ! Find out which timeframe to read
       CALL find_timeframe( filename, ncid, time_to_read, ti)
       ! Read data
-      CALL read_var_master_dp_3D( filename, ncid, id_var, d_mesh_with_time, start = (/ 1, 1, ti /), count = (/ mesh_loc%nV, nzeta_loc, 1 /) )
+      CALL read_var_master( filename, ncid, id_var, d_mesh_with_time, start = (/ 1, 1, ti /), count = (/ mesh_loc%nV, nzeta_loc, 1 /) )
       ! Copy to output memory
       IF (par%master) d_mesh = d_mesh_with_time( :,:,1)
       ! Clean up after yourself
@@ -2310,14 +2304,14 @@ CONTAINS
 
     ! Read data from file
     IF (.NOT. PRESENT( time_to_read)) THEN
-      CALL read_var_master_dp_2D( filename, ncid, id_var, d_mesh)
+      CALL read_var_master( filename, ncid, id_var, d_mesh)
     ELSE
       ! Allocate memory
       IF (par%master) ALLOCATE( d_mesh_with_time( mesh_loc%nTri, nzeta_loc, 1))
       ! Find out which timeframe to read
       CALL find_timeframe( filename, ncid, time_to_read, ti)
       ! Read data
-      CALL read_var_master_dp_3D( filename, ncid, id_var, d_mesh_with_time, start = (/ 1, 1, ti /), count = (/ mesh_loc%nTri, nzeta_loc, 1 /) )
+      CALL read_var_master( filename, ncid, id_var, d_mesh_with_time, start = (/ 1, 1, ti /), count = (/ mesh_loc%nTri, nzeta_loc, 1 /) )
       ! Copy to output memory
       IF (par%master) d_mesh = d_mesh_with_time( :,:,1)
       ! Clean up after yourself
@@ -2394,14 +2388,14 @@ CONTAINS
 
     ! Read data from file
     IF (.NOT. PRESENT( time_to_read)) THEN
-      CALL read_var_master_dp_2D( filename, ncid, id_var, d_mesh)
+      CALL read_var_master( filename, ncid, id_var, d_mesh)
     ELSE
       ! Allocate memory
       IF (par%master) ALLOCATE( d_mesh_with_time( mesh_loc%nV, ndepth_loc, 1))
       ! Find out which timeframe to read
       CALL find_timeframe( filename, ncid, time_to_read, ti)
       ! Read data
-      CALL read_var_master_dp_3D( filename, ncid, id_var, d_mesh_with_time, start = (/ 1, 1, ti /), count = (/ mesh_loc%nV, ndepth_loc, 1 /) )
+      CALL read_var_master( filename, ncid, id_var, d_mesh_with_time, start = (/ 1, 1, ti /), count = (/ mesh_loc%nV, ndepth_loc, 1 /) )
       ! Copy to output memory
       IF (par%master) d_mesh = d_mesh_with_time( :,:,1)
       ! Clean up after yourself
@@ -2472,7 +2466,7 @@ CONTAINS
     IF (par%master) ALLOCATE( d_mesh( nV_loc, C%subgrid_bedrock_cdf_nbins))
 
     ! Read data from file
-    CALL read_var_master_dp_2D( filename, ncid, id_var, d_mesh)
+    CALL read_var_master( filename, ncid, id_var, d_mesh)
 
     ! Close the NetCDF file
     CALL close_netcdf_file( ncid)
@@ -2537,7 +2531,7 @@ CONTAINS
     IF (par%master) ALLOCATE( d_mesh( nTri_loc, C%subgrid_bedrock_cdf_nbins))
 
     ! Read data from file
-    CALL read_var_master_dp_2D( filename, ncid, id_var, d_mesh)
+    CALL read_var_master( filename, ncid, id_var, d_mesh)
 
     ! Close the NetCDF file
     CALL close_netcdf_file( ncid)
@@ -2609,7 +2603,7 @@ CONTAINS
       CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
       ! Read the data
-      CALL read_var_master_dp_1D( filename, ncid, id_var, d_with_time, start = (/ ti /), count = (/ 1 /))
+      CALL read_var_master( filename, ncid, id_var, d_with_time, start = (/ ti /), count = (/ 1 /))
       IF (par%master) d = d_with_time( 1)
 
       ! Broadcast to all processes
@@ -2625,7 +2619,7 @@ CONTAINS
       IF (ndims_of_var /= 0) CALL crash('variable "' // TRIM( var_name) // '" in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 
       ! Read the data
-      CALL read_var_master_dp_0D( filename, ncid, id_var, d)
+      CALL read_var_master( filename, ncid, id_var, d)
 
       ! Broadcast to all processes
       CALL MPI_BCAST( d, 1, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
@@ -2679,8 +2673,8 @@ CONTAINS
     CALL inquire_var_multopt( filename, ncid, field_name_options_y, id_var_y)
 
     ! Read x and y
-    CALL read_var_master_dp_1D(  filename, ncid, id_var_x, grid%x)
-    CALL read_var_master_dp_1D(  filename, ncid, id_var_y, grid%y)
+    CALL read_var_master(  filename, ncid, id_var_x, grid%x)
+    CALL read_var_master(  filename, ncid, id_var_y, grid%y)
 
     ! Broadcast x and y from the master to the other processes
     CALL MPI_BCAST( grid%x, grid%nx, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
@@ -2732,8 +2726,8 @@ CONTAINS
     CALL inquire_var_multopt( filename, ncid, field_name_options_lat, id_var_lat)
 
     ! Read x and y
-    CALL read_var_master_dp_1D(  filename, ncid, id_var_lon, grid%lon)
-    CALL read_var_master_dp_1D(  filename, ncid, id_var_lat, grid%lat)
+    CALL read_var_master(  filename, ncid, id_var_lon, grid%lon)
+    CALL read_var_master(  filename, ncid, id_var_lat, grid%lat)
 
     ! Broadcast x and y from the master to the other processes
     CALL MPI_BCAST( grid%lon, grid%nlon, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
@@ -2820,27 +2814,27 @@ CONTAINS
     ! =================
 
     ! Metadata
-    CALL read_var_master_dp_0D(  filename, ncid, id_var_xmin          , mesh%xmin          )
-    CALL read_var_master_dp_0D(  filename, ncid, id_var_xmax          , mesh%xmax          )
-    CALL read_var_master_dp_0D(  filename, ncid, id_var_ymin          , mesh%ymin          )
-    CALL read_var_master_dp_0D(  filename, ncid, id_var_ymax          , mesh%ymax          )
-    CALL read_var_master_dp_0D(  filename, ncid, id_var_tol_dist      , mesh%tol_dist      )
-    CALL read_var_master_dp_0D(  filename, ncid, id_var_lambda_M      , mesh%lambda_M      )
-    CALL read_var_master_dp_0D(  filename, ncid, id_var_phi_M         , mesh%phi_M         )
-    CALL read_var_master_dp_0D(  filename, ncid, id_var_beta_stereo   , mesh%beta_stereo   )
+    CALL read_var_master(  filename, ncid, id_var_xmin          , mesh%xmin          )
+    CALL read_var_master(  filename, ncid, id_var_xmax          , mesh%xmax          )
+    CALL read_var_master(  filename, ncid, id_var_ymin          , mesh%ymin          )
+    CALL read_var_master(  filename, ncid, id_var_ymax          , mesh%ymax          )
+    CALL read_var_master(  filename, ncid, id_var_tol_dist      , mesh%tol_dist      )
+    CALL read_var_master(  filename, ncid, id_var_lambda_M      , mesh%lambda_M      )
+    CALL read_var_master(  filename, ncid, id_var_phi_M         , mesh%phi_M         )
+    CALL read_var_master(  filename, ncid, id_var_beta_stereo   , mesh%beta_stereo   )
 
     ! Vertex data
-    CALL read_var_master_dp_2D(  filename, ncid, id_var_V             , mesh%V             )
-    CALL read_var_master_int_1D( filename, ncid, id_var_nC            , mesh%nC            )
-    CALL read_var_master_int_2D( filename, ncid, id_var_C             , mesh%C             )
-    CALL read_var_master_int_1D( filename, ncid, id_var_niTri         , mesh%niTri         )
-    CALL read_var_master_int_2D( filename, ncid, id_var_iTri          , mesh%iTri          )
-    CALL read_var_master_int_1D( filename, ncid, id_var_VBI           , mesh%VBI           )
+    CALL read_var_master(  filename, ncid, id_var_V             , mesh%V             )
+    CALL read_var_master( filename, ncid, id_var_nC            , mesh%nC            )
+    CALL read_var_master( filename, ncid, id_var_C             , mesh%C             )
+    CALL read_var_master( filename, ncid, id_var_niTri         , mesh%niTri         )
+    CALL read_var_master( filename, ncid, id_var_iTri          , mesh%iTri          )
+    CALL read_var_master( filename, ncid, id_var_VBI           , mesh%VBI           )
 
     ! Triangle data
-    CALL read_var_master_int_2D( filename, ncid, id_var_Tri           , mesh%Tri           )
-    CALL read_var_master_dp_2D(  filename, ncid, id_var_Tricc         , mesh%Tricc         )
-    CALL read_var_master_int_2D( filename, ncid, id_var_TriC          , mesh%TriC          )
+    CALL read_var_master( filename, ncid, id_var_Tri           , mesh%Tri           )
+    CALL read_var_master(  filename, ncid, id_var_Tricc         , mesh%Tricc         )
+    CALL read_var_master( filename, ncid, id_var_TriC          , mesh%TriC          )
 
     ! Safety - check if the mesh data read from NetCDF makes sense
     IF (par%master) CALL check_mesh( mesh)
@@ -2890,7 +2884,7 @@ CONTAINS
     ALLOCATE( zeta( nzeta))
 
     ! Read zeta from file
-    CALL read_var_master_dp_1D( filename, ncid, id_var_zeta, zeta)
+    CALL read_var_master( filename, ncid, id_var_zeta, zeta)
 
     ! Broadcast zeta from master to all other processes
     CALL MPI_BCAST( zeta, nzeta, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
@@ -2931,7 +2925,7 @@ CONTAINS
     ALLOCATE( depth( ndepth))
 
     ! Read depth from file
-    CALL read_var_master_dp_1D( filename, ncid, id_var_depth, depth)
+    CALL read_var_master( filename, ncid, id_var_depth, depth)
 
     ! Broadcast depth from master to all other processes
     CALL MPI_BCAST( depth, ndepth, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
@@ -2985,8 +2979,8 @@ CONTAINS
     CALL inquire_var_multopt( filename, ncid, field_name_options_y, id_var_y)
 
     ! Read x and y
-    CALL read_var_master_dp_1D(  filename, ncid, id_var_x, x)
-    CALL read_var_master_dp_1D(  filename, ncid, id_var_y, y)
+    CALL read_var_master(  filename, ncid, id_var_x, x)
+    CALL read_var_master(  filename, ncid, id_var_y, y)
     CALL MPI_BCAST( x, nx, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
     CALL MPI_BCAST( y, ny, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
 
@@ -3064,8 +3058,8 @@ CONTAINS
     CALL inquire_var_multopt( filename, ncid, field_name_options_lat, id_var_lat)
 
     ! Read lon and lat
-    CALL read_var_master_dp_1D(  filename, ncid, id_var_lon, lon)
-    CALL read_var_master_dp_1D(  filename, ncid, id_var_lat, lat)
+    CALL read_var_master(  filename, ncid, id_var_lon, lon)
+    CALL read_var_master(  filename, ncid, id_var_lat, lat)
     CALL MPI_BCAST( lon, nlon, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
     CALL MPI_BCAST( lat, nlat, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
 

@@ -18,7 +18,7 @@ module ct_create_test_meshes
   use mesh_refinement_fun, only: mesh_add_smileyface, mesh_add_UFEMISM_letters
   use mesh_Lloyds_algorithm, only: Lloyds_algorithm_single_iteration
   use mesh_secondary, only: calc_all_secondary_mesh_data
-  use netcdf_basic, only: create_new_netcdf_file_for_writing, close_netcdf_file
+  use netcdf_basic_wrappers
   use netcdf_output, only: setup_mesh_in_netcdf_file, add_field_mesh_dp_2D_notime, add_field_mesh_dp_2D_b_notime, &
     add_field_mesh_dp_2D_c_notime, write_to_field_multopt_mesh_dp_2D_notime, write_to_field_multopt_mesh_dp_2D_b_notime, &
     write_to_field_multopt_mesh_dp_2D_c_notime, setup_xy_grid_in_netcdf_file, add_field_grid_dp_2D_notime, &

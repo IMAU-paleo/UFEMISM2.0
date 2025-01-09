@@ -40,7 +40,7 @@ MODULE ice_velocity_hybrid_DIVA_BPA
                                                                      deallocate_matrix_CSR_dist, add_empty_row_CSR_dist
   use grid_basic, only: type_grid, calc_grid_mask_as_polygons
   use mpi_distributed_memory_grid, only: gather_gridded_data_to_master
-  USE netcdf_basic                                           , ONLY: open_existing_netcdf_file_for_reading, close_netcdf_file
+  use netcdf_basic_wrappers
   USE netcdf_input                                           , ONLY: setup_xy_grid_from_file, read_field_from_xy_file_2D_int
 
   IMPLICIT NONE

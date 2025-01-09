@@ -22,7 +22,7 @@ MODULE thermodynamics_main
   USE climate_model_types                                    , ONLY: type_climate_model
   USE SMB_model_types                                        , ONLY: type_SMB_model
   USE BMB_model_types                                        , ONLY: type_BMB_model
-  USE netcdf_basic                                           , ONLY: field_name_options_Ti
+  use netcdf_field_name_options
   USE netcdf_input                                           , ONLY: read_field_from_file_3D
   USE thermodynamics_3D_heat_equation                        , ONLY: solve_3D_heat_equation, create_restart_file_thermo_3D_heat_equation, &
                                                                      write_to_restart_file_thermo_3D_heat_equation

@@ -12,7 +12,7 @@ MODULE main_regional_output
   USE model_configuration                                    , ONLY: C
   USE grid_basic                                             , ONLY: type_grid
   USE region_types                                           , ONLY: type_model_region
-  USE netcdf_basic                                           , ONLY: create_new_netcdf_file_for_writing, open_existing_netcdf_file_for_writing, close_netcdf_file
+  use netcdf_basic_wrappers
   USE netcdf_output                                          , ONLY: generate_filename_XXXXXdotnc, setup_mesh_in_netcdf_file, setup_xy_grid_in_netcdf_file, setup_CDF_in_netcdf_file, &
                                                                      add_time_dimension_to_file, add_zeta_dimension_to_file, add_month_dimension_to_file, &
                                                                      write_time_to_file, &

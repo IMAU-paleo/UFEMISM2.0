@@ -24,21 +24,12 @@ MODULE netcdf_output
   use mpi_distributed_memory, only: gather_to_master
 
   use netcdf, only: NF90_UNLIMITED, NF90_INT, NF90_FLOAT, NF90_DOUBLE, NF90_MAX_VAR_DIMS, NF90_DEF_GRP
-  use field_name_options
-  use netcdf_basic, only: nerr, &
-    open_existing_netcdf_file_for_reading, close_netcdf_file, &
-    inquire_dim_multopt, inquire_var_multopt, &
-    check_x, check_y, check_lon, check_lat, check_mesh_dimensions, check_zeta, check_depth, find_timeframe, &
-    check_xy_grid_field_int_2D, check_xy_grid_field_dp_2D, check_xy_grid_field_dp_2D_monthly, check_xy_grid_field_dp_3D, &
-    check_lonlat_grid_field_int_2D, check_lonlat_grid_field_dp_2D, check_lonlat_grid_field_dp_2D_monthly, check_lonlat_grid_field_dp_3D, &
-    check_mesh_field_int_2D, check_mesh_field_int_2D_b, check_mesh_field_int_2D_c, &
-    check_mesh_field_dp_2D, check_mesh_field_dp_2D_b, check_mesh_field_dp_2D_c, &
-    check_mesh_field_dp_2D_monthly, check_mesh_field_dp_3D, check_mesh_field_dp_3D_b, check_mesh_field_dp_3D_ocean, &
-    inquire_xy_grid, inquire_lonlat_grid, inquire_mesh, &
-    write_var_master_int_0D, write_var_master_int_1D, write_var_master_int_2D, write_var_master_int_3D, write_var_master_int_4D, &
-    write_var_master_dp_0D, write_var_master_dp_1D, write_var_master_dp_2D, write_var_master_dp_3D, write_var_master_dp_4D, &
-    add_attribute_char, check_month, check_time, create_dimension, create_variable, create_scalar_variable, inquire_var, &
-    open_existing_netcdf_file_for_writing, inquire_var_info
+  use netcdf_field_name_options
+  use netcdf_inquire_grid_mesh
+  use netcdf_write_var_master
+  use netcdf_basic_wrappers
+  use netcdf_check_dimensions
+  use netcdf_check_fields
   use CSR_sparse_matrix_type, only: type_sparse_matrix_CSR_dp
   use CSR_sparse_matrix_utilities, only: gather_CSR_dist_to_master
 
@@ -97,7 +88,7 @@ CONTAINS
     CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    CALL write_var_master_dp_3D( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, ti /), count = (/ grid%nx, grid%ny, 1 /) )
+    CALL write_var_master( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, ti /), count = (/ grid%nx, grid%ny, 1 /) )
 
     ! Clean up after yourself
     IF (par%master) THEN
@@ -157,7 +148,7 @@ CONTAINS
     CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    CALL write_var_master_dp_4D( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid%nx, grid%ny, 12, 1 /) )
+    CALL write_var_master( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid%nx, grid%ny, 12, 1 /) )
 
     ! Clean up after yourself
     IF (par%master) THEN
@@ -219,7 +210,7 @@ CONTAINS
     CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    CALL write_var_master_dp_4D( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid%nx, grid%ny, nz, 1 /) )
+    CALL write_var_master( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid%nx, grid%ny, nz, 1 /) )
 
     ! Clean up after yourself
     IF (par%master) THEN
@@ -267,7 +258,7 @@ CONTAINS
     CALL gather_gridded_data_to_master( grid, d_grid_vec_partial, d_grid)
 
     ! Write data to the variable
-    CALL write_var_master_dp_2D( filename, ncid, id_var, d_grid)
+    CALL write_var_master( filename, ncid, id_var, d_grid)
 
     ! Clean up after yourself
     IF (par%master) THEN
@@ -314,7 +305,7 @@ CONTAINS
     CALL gather_gridded_data_to_master( grid, d_grid_vec_partial, d_grid)
 
     ! Write data to the variable
-    CALL write_var_master_dp_3D( filename, ncid, id_var, d_grid)
+    CALL write_var_master( filename, ncid, id_var, d_grid)
 
     ! Clean up after yourself
     IF (par%master) THEN
@@ -363,7 +354,7 @@ CONTAINS
     CALL gather_gridded_data_to_master( grid, d_grid_vec_partial, d_grid)
 
     ! Write data to the variable
-    CALL write_var_master_dp_3D( filename, ncid, id_var, d_grid)
+    CALL write_var_master( filename, ncid, id_var, d_grid)
 
     ! Clean up after yourself
     IF (par%master) THEN
@@ -423,7 +414,7 @@ CONTAINS
     CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    CALL write_var_master_dp_3D( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, ti /), count = (/ grid%nlon, grid%nlat, 1 /) )
+    CALL write_var_master( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, ti /), count = (/ grid%nlon, grid%nlat, 1 /) )
 
     ! Clean up after yourself
     IF (par%master) THEN
@@ -483,7 +474,7 @@ CONTAINS
     CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    CALL write_var_master_dp_4D( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid%nlon, grid%nlat, 12, 1 /) )
+    CALL write_var_master( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid%nlon, grid%nlat, 12, 1 /) )
 
     ! Clean up after yourself
     IF (par%master) THEN
@@ -545,7 +536,7 @@ CONTAINS
     CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    CALL write_var_master_dp_4D( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid%nlon, grid%nlat, nz, 1 /) )
+    CALL write_var_master( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid%nlon, grid%nlat, nz, 1 /) )
 
     ! Clean up after yourself
     IF (par%master) THEN
@@ -593,7 +584,7 @@ CONTAINS
     CALL gather_lonlat_gridded_data_to_master_dp_2D( grid, d_grid_vec_partial, d_grid)
 
     ! Write data to the variable
-    CALL write_var_master_dp_2D( filename, ncid, id_var, d_grid)
+    CALL write_var_master( filename, ncid, id_var, d_grid)
 
     ! Clean up after yourself
     IF (par%master) THEN
@@ -640,7 +631,7 @@ CONTAINS
     CALL gather_lonlat_gridded_data_to_master_dp_3D( grid, d_grid_vec_partial, d_grid)
 
     ! Write data to the variable
-    CALL write_var_master_dp_3D( filename, ncid, id_var, d_grid)
+    CALL write_var_master( filename, ncid, id_var, d_grid)
 
     ! Clean up after yourself
     IF (par%master) THEN
@@ -689,7 +680,7 @@ CONTAINS
     CALL gather_lonlat_gridded_data_to_master_dp_3D( grid, d_grid_vec_partial, d_grid)
 
     ! Write data to the variable
-    CALL write_var_master_dp_3D( filename, ncid, id_var, d_grid)
+    CALL write_var_master( filename, ncid, id_var, d_grid)
 
     ! Clean up after yourself
     IF (par%master) THEN
@@ -750,7 +741,7 @@ CONTAINS
     CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    CALL write_var_master_int_2D( filename, ncid, id_var, d_tot_with_time, start = (/ 1, ti /), count = (/ mesh%nV, 1 /) )
+    CALL write_var_master( filename, ncid, id_var, d_tot_with_time, start = (/ 1, ti /), count = (/ mesh%nV, 1 /) )
 
     ! Clean up after yourself
     IF (par%master) THEN
@@ -811,7 +802,7 @@ CONTAINS
     CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    CALL write_var_master_dp_2D( filename, ncid, id_var, d_tot_with_time, start = (/ 1, ti /), count = (/ mesh%nV, 1 /) )
+    CALL write_var_master( filename, ncid, id_var, d_tot_with_time, start = (/ 1, ti /), count = (/ mesh%nV, 1 /) )
 
     ! Clean up after yourself
     IF (par%master) THEN
@@ -872,7 +863,7 @@ CONTAINS
     CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    CALL write_var_master_dp_2D( filename, ncid, id_var, d_tot_with_time, start = (/ 1, ti /), count = (/ mesh%nTri, 1 /) )
+    CALL write_var_master( filename, ncid, id_var, d_tot_with_time, start = (/ 1, ti /), count = (/ mesh%nTri, 1 /) )
 
     ! Clean up after yourself
     IF (par%master) THEN
@@ -933,7 +924,7 @@ CONTAINS
     CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    CALL write_var_master_dp_3D( filename, ncid, id_var, d_tot_with_time, start = (/ 1, 1, ti /), count = (/ mesh%nV, 12, 1 /) )
+    CALL write_var_master( filename, ncid, id_var, d_tot_with_time, start = (/ 1, 1, ti /), count = (/ mesh%nV, 12, 1 /) )
 
     ! Clean up after yourself
     IF (par%master) THEN
@@ -994,7 +985,7 @@ CONTAINS
     CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    CALL write_var_master_dp_3D( filename, ncid, id_var, d_tot_with_time, start = (/ 1, 1, ti /), count = (/ mesh%nV, mesh%nz, 1 /) )
+    CALL write_var_master( filename, ncid, id_var, d_tot_with_time, start = (/ 1, 1, ti /), count = (/ mesh%nV, mesh%nz, 1 /) )
 
     ! Clean up after yourself
     IF (par%master) THEN
@@ -1055,7 +1046,7 @@ CONTAINS
     CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    CALL write_var_master_dp_3D( filename, ncid, id_var, d_tot_with_time, start = (/ 1, 1, ti /), count = (/ mesh%nTri, mesh%nz, 1 /) )
+    CALL write_var_master( filename, ncid, id_var, d_tot_with_time, start = (/ 1, 1, ti /), count = (/ mesh%nTri, mesh%nz, 1 /) )
 
     ! Clean up after yourself
     IF (par%master) THEN
@@ -1116,7 +1107,7 @@ CONTAINS
     CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    CALL write_var_master_dp_3D( filename, ncid, id_var, d_tot_with_time, start = (/ 1, 1, ti /), count = (/ mesh%nV, C%nz_ocean, 1 /) )
+    CALL write_var_master( filename, ncid, id_var, d_tot_with_time, start = (/ 1, 1, ti /), count = (/ mesh%nV, C%nz_ocean, 1 /) )
 
     ! Clean up after yourself
     IF (par%master) THEN
@@ -1168,7 +1159,7 @@ CONTAINS
     CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    CALL write_var_master_int_1D( filename, ncid, id_var, d_tot)
+    CALL write_var_master( filename, ncid, id_var, d_tot)
 
     ! Clean up after yourself
     IF (par%master) THEN
@@ -1219,7 +1210,7 @@ CONTAINS
     CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    CALL write_var_master_int_1D( filename, ncid, id_var, d_tot)
+    CALL write_var_master( filename, ncid, id_var, d_tot)
 
     ! Clean up after yourself
     IF (par%master) THEN
@@ -1270,7 +1261,7 @@ CONTAINS
     CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    CALL write_var_master_int_1D( filename, ncid, id_var, d_tot)
+    CALL write_var_master( filename, ncid, id_var, d_tot)
 
     ! Clean up after yourself
     IF (par%master) THEN
@@ -1321,7 +1312,7 @@ CONTAINS
     CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    CALL write_var_master_dp_1D( filename, ncid, id_var, d_tot)
+    CALL write_var_master( filename, ncid, id_var, d_tot)
 
     ! Clean up after yourself
     IF (par%master) THEN
@@ -1372,7 +1363,7 @@ CONTAINS
     CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    CALL write_var_master_dp_1D( filename, ncid, id_var, d_tot)
+    CALL write_var_master( filename, ncid, id_var, d_tot)
 
     ! Clean up after yourself
     IF (par%master) THEN
@@ -1423,7 +1414,7 @@ CONTAINS
     CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    CALL write_var_master_dp_1D( filename, ncid, id_var, d_tot)
+    CALL write_var_master( filename, ncid, id_var, d_tot)
 
     ! Clean up after yourself
     IF (par%master) THEN
@@ -1474,7 +1465,7 @@ CONTAINS
     CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    CALL write_var_master_dp_2D( filename, ncid, id_var, d_tot)
+    CALL write_var_master( filename, ncid, id_var, d_tot)
 
     ! Clean up after yourself
     IF (par%master) THEN
@@ -1525,7 +1516,7 @@ CONTAINS
     CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    CALL write_var_master_dp_2D( filename, ncid, id_var, d_tot)
+    CALL write_var_master( filename, ncid, id_var, d_tot)
 
     ! Clean up after yourself
     IF (par%master) THEN
@@ -1576,7 +1567,7 @@ CONTAINS
     CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    CALL write_var_master_dp_2D( filename, ncid, id_var, d_tot)
+    CALL write_var_master( filename, ncid, id_var, d_tot)
 
     ! Clean up after yourself
     IF (par%master) THEN
@@ -1634,7 +1625,7 @@ CONTAINS
     CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    CALL write_var_master_int_1D( filename, ncid, id_var, (/ d /), start = (/ ti /), count = (/ 1 /) )
+    CALL write_var_master( filename, ncid, id_var, (/ d /), start = (/ ti /), count = (/ 1 /) )
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -1686,7 +1677,7 @@ CONTAINS
     CALL inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    CALL write_var_master_dp_1D( filename, ncid, id_var, (/ d /), start = (/ ti /), count = (/ 1 /) )
+    CALL write_var_master( filename, ncid, id_var, (/ d /), start = (/ ti /), count = (/ 1 /) )
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -1724,7 +1715,7 @@ CONTAINS
 
     ! Write time
     nt = nt + 1
-    CALL write_var_master_dp_1D( filename, ncid, id_var_time, (/ time /), start = (/ nt /), count = (/ 1 /) )
+    CALL write_var_master( filename, ncid, id_var_time, (/ time /), start = (/ nt /), count = (/ 1 /) )
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -1767,13 +1758,13 @@ CONTAINS
     CALL create_variable( filename, ncid, get_first_option_from_list( field_name_options_x), NF90_DOUBLE, (/ id_dim_x /), id_var_x)
     CALL add_attribute_char( filename, ncid, id_var_x, 'long_name', 'x-coordinate')
     CALL add_attribute_char( filename, ncid, id_var_x, 'units'    , 'm'           )
-    CALL write_var_master_dp_1D( filename, ncid, id_var_x, grid%x)
+    CALL write_var_master( filename, ncid, id_var_x, grid%x)
 
     ! y
     CALL create_variable( filename, ncid, get_first_option_from_list( field_name_options_y), NF90_DOUBLE, (/ id_dim_y /), id_var_y)
     CALL add_attribute_char( filename, ncid, id_var_y, 'long_name', 'y-coordinate')
     CALL add_attribute_char( filename, ncid, id_var_y, 'units'    , 'm'           )
-    CALL write_var_master_dp_1D( filename, ncid, id_var_y, grid%y)
+    CALL write_var_master( filename, ncid, id_var_y, grid%y)
 
     ! lon/lat-coordinates
     IF (ALLOCATED( grid%lon) .OR. ALLOCATED( grid%lat)) THEN
@@ -1786,13 +1777,13 @@ CONTAINS
       CALL create_variable( filename, ncid, get_first_option_from_list( field_name_options_lon), NF90_DOUBLE, (/ id_dim_x, id_dim_y /), id_var_lon)
       CALL add_attribute_char( filename, ncid, id_var_lon, 'long_name', 'Longitude')
       CALL add_attribute_char( filename, ncid, id_var_lon, 'units'    , 'degrees east')
-      CALL write_var_master_dp_2D( filename, ncid, id_var_lon, grid%lon)
+      CALL write_var_master( filename, ncid, id_var_lon, grid%lon)
 
       ! lat
       CALL create_variable( filename, ncid, get_first_option_from_list( field_name_options_lat), NF90_DOUBLE, (/ id_dim_x, id_dim_y /), id_var_lat)
       CALL add_attribute_char( filename, ncid, id_var_lat, 'long_name', 'Latitude')
       CALL add_attribute_char( filename, ncid, id_var_lat, 'units'    , 'degrees north')
-      CALL write_var_master_dp_2D( filename, ncid, id_var_lat, grid%lat)
+      CALL write_var_master( filename, ncid, id_var_lat, grid%lat)
 
     END IF ! IF (ALLOCATED( grid%lon)) THEN
 
@@ -2224,13 +2215,13 @@ CONTAINS
     CALL create_variable( filename, ncid, get_first_option_from_list( field_name_options_lon), NF90_DOUBLE, (/ id_dim_lon /), id_var_lon)
     CALL add_attribute_char( filename, ncid, id_var_lon, 'long_name', 'Longitude')
     CALL add_attribute_char( filename, ncid, id_var_lon, 'units'    , 'degrees east')
-    CALL write_var_master_dp_1D( filename, ncid, id_var_lon, grid%lon)
+    CALL write_var_master( filename, ncid, id_var_lon, grid%lon)
 
     ! lat
     CALL create_variable( filename, ncid, get_first_option_from_list( field_name_options_lat), NF90_DOUBLE, (/ id_dim_lat /), id_var_lat)
     CALL add_attribute_char( filename, ncid, id_var_lat, 'long_name', 'Latitude')
     CALL add_attribute_char( filename, ncid, id_var_lat, 'units'    , 'degrees north')
-    CALL write_var_master_dp_1D( filename, ncid, id_var_lat, grid%lat)
+    CALL write_var_master( filename, ncid, id_var_lat, grid%lat)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -2885,55 +2876,55 @@ CONTAINS
   ! ==========================
 
     ! Metadata
-    CALL write_var_master_dp_0D(    filename, ncid, id_var_xmin       , mesh%xmin       )
-    CALL write_var_master_dp_0D(    filename, ncid, id_var_xmax       , mesh%xmax       )
-    CALL write_var_master_dp_0D(    filename, ncid, id_var_ymin       , mesh%ymin       )
-    CALL write_var_master_dp_0D(    filename, ncid, id_var_ymax       , mesh%ymax       )
-    CALL write_var_master_dp_0D(    filename, ncid, id_var_tol_dist   , mesh%tol_dist   )
-    CALL write_var_master_dp_0D(    filename, ncid, id_var_lambda_M   , mesh%lambda_M   )
-    CALL write_var_master_dp_0D(    filename, ncid, id_var_phi_M      , mesh%phi_M      )
-    CALL write_var_master_dp_0D(    filename, ncid, id_var_beta_stereo, mesh%beta_stereo)
+    CALL write_var_master(    filename, ncid, id_var_xmin       , mesh%xmin       )
+    CALL write_var_master(    filename, ncid, id_var_xmax       , mesh%xmax       )
+    CALL write_var_master(    filename, ncid, id_var_ymin       , mesh%ymin       )
+    CALL write_var_master(    filename, ncid, id_var_ymax       , mesh%ymax       )
+    CALL write_var_master(    filename, ncid, id_var_tol_dist   , mesh%tol_dist   )
+    CALL write_var_master(    filename, ncid, id_var_lambda_M   , mesh%lambda_M   )
+    CALL write_var_master(    filename, ncid, id_var_phi_M      , mesh%phi_M      )
+    CALL write_var_master(    filename, ncid, id_var_beta_stereo, mesh%beta_stereo)
 
     ! Vertex data
-    CALL write_var_master_dp_2D(    filename, ncid, id_var_V          , mesh%V          )
-    CALL write_var_master_int_1D(   filename, ncid, id_var_nC         , mesh%nC         )
-    CALL write_var_master_int_2D(   filename, ncid, id_var_C          , mesh%C          )
-    CALL write_var_master_int_1D(   filename, ncid, id_var_niTri      , mesh%niTri      )
-    CALL write_var_master_int_2D(   filename, ncid, id_var_iTri       , mesh%iTri       )
-    CALL write_var_master_int_1D(   filename, ncid, id_var_VBI        , mesh%VBI        )
+    CALL write_var_master(    filename, ncid, id_var_V          , mesh%V          )
+    CALL write_var_master(   filename, ncid, id_var_nC         , mesh%nC         )
+    CALL write_var_master(   filename, ncid, id_var_C          , mesh%C          )
+    CALL write_var_master(   filename, ncid, id_var_niTri      , mesh%niTri      )
+    CALL write_var_master(   filename, ncid, id_var_iTri       , mesh%iTri       )
+    CALL write_var_master(   filename, ncid, id_var_VBI        , mesh%VBI        )
 
     ! Triangle data
-    CALL write_var_master_int_2D(   filename, ncid, id_var_Tri        , mesh%Tri        )
-    CALL write_var_master_dp_2D(    filename, ncid, id_var_Tricc      , mesh%Tricc      )
-    CALL write_var_master_int_2D(   filename, ncid, id_var_TriC       , mesh%TriC       )
-    CALL write_var_master_int_1D(   filename, ncid, id_var_TriBI      , mesh%TriBI      )
+    CALL write_var_master(   filename, ncid, id_var_Tri        , mesh%Tri        )
+    CALL write_var_master(    filename, ncid, id_var_Tricc      , mesh%Tricc      )
+    CALL write_var_master(   filename, ncid, id_var_TriC       , mesh%TriC       )
+    CALL write_var_master(   filename, ncid, id_var_TriBI      , mesh%TriBI      )
 
     ! Edge data
-    CALL write_var_master_dp_2D(    filename, ncid, id_var_E          , mesh%E          )
-    CALL write_var_master_int_2D(   filename, ncid, id_var_VE         , mesh%VE         )
-    CALL write_var_master_int_2D(   filename, ncid, id_var_EV         , mesh%EV         )
-    CALL write_var_master_int_2D(   filename, ncid, id_var_ETri       , mesh%ETri       )
-    CALL write_var_master_int_1D(   filename, ncid, id_var_EBI        , mesh%EBI        )
+    CALL write_var_master(    filename, ncid, id_var_E          , mesh%E          )
+    CALL write_var_master(   filename, ncid, id_var_VE         , mesh%VE         )
+    CALL write_var_master(   filename, ncid, id_var_EV         , mesh%EV         )
+    CALL write_var_master(   filename, ncid, id_var_ETri       , mesh%ETri       )
+    CALL write_var_master(   filename, ncid, id_var_EBI        , mesh%EBI        )
 
     ! Voronoi mesh data
-    call write_var_master_int_1D(   filename, ncid, id_var_vi2vori    , mesh%vi2vori    )
-    call write_var_master_int_1D(   filename, ncid, id_var_ti2vori    , mesh%ti2vori    )
-    call write_var_master_int_1D(   filename, ncid, id_var_ei2vori    , mesh%ei2vori    )
-    call write_var_master_int_1D(   filename, ncid, id_var_vori2vi    , mesh%vori2vi    )
-    call write_var_master_int_1D(   filename, ncid, id_var_vori2ti    , mesh%vori2ti    )
-    call write_var_master_int_1D(   filename, ncid, id_var_vori2ei    , mesh%vori2ei    )
-    call write_var_master_dp_2D(    filename, ncid, id_var_Vor        , mesh%Vor        )
-    call write_var_master_int_1D(   filename, ncid, id_var_VornC      , mesh%VornC      )
-    call write_var_master_int_2D(   filename, ncid, id_var_VorC       , mesh%VorC       )
-    call write_var_master_int_1D(   filename, ncid, id_var_nVVor      , mesh%nVVor      )
-    call write_var_master_int_2D(   filename, ncid, id_var_VVor       , mesh%VVor       )
+    call write_var_master(   filename, ncid, id_var_vi2vori    , mesh%vi2vori    )
+    call write_var_master(   filename, ncid, id_var_ti2vori    , mesh%ti2vori    )
+    call write_var_master(   filename, ncid, id_var_ei2vori    , mesh%ei2vori    )
+    call write_var_master(   filename, ncid, id_var_vori2vi    , mesh%vori2vi    )
+    call write_var_master(   filename, ncid, id_var_vori2ti    , mesh%vori2ti    )
+    call write_var_master(   filename, ncid, id_var_vori2ei    , mesh%vori2ei    )
+    call write_var_master(    filename, ncid, id_var_Vor        , mesh%Vor        )
+    call write_var_master(   filename, ncid, id_var_VornC      , mesh%VornC      )
+    call write_var_master(   filename, ncid, id_var_VorC       , mesh%VorC       )
+    call write_var_master(   filename, ncid, id_var_nVVor      , mesh%nVVor      )
+    call write_var_master(   filename, ncid, id_var_VVor       , mesh%VVor       )
 
     ! Secondary geometry data
-    CALL write_var_master_dp_2D(    filename, ncid, id_var_TriGC      , mesh%TriGC      )
-    CALL write_var_master_dp_1D(    filename, ncid, id_var_R          , mesh%R          )
-    CALL write_var_master_dp_1D(    filename, ncid, id_var_A          , mesh%A          )
-    CALL write_var_master_dp_1D(    filename, ncid, id_var_lon        , mesh%lon        )
-    CALL write_var_master_dp_1D(    filename, ncid, id_var_lat        , mesh%lat        )
+    CALL write_var_master(    filename, ncid, id_var_TriGC      , mesh%TriGC      )
+    CALL write_var_master(    filename, ncid, id_var_R          , mesh%R          )
+    CALL write_var_master(    filename, ncid, id_var_A          , mesh%A          )
+    CALL write_var_master(    filename, ncid, id_var_lon        , mesh%lon        )
+    CALL write_var_master(    filename, ncid, id_var_lat        , mesh%lat        )
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -3059,18 +3050,18 @@ CONTAINS
     call create_variable( filename, grp_ncid, 'viksuv2n', NF90_INT, [id_dim_vi     , id_dim_nzp1, id_dim_two], id_var_viksuv2n)
 
     ! Write variables
-    call write_var_master_int_1D( filename, grp_ncid, id_var_n2vi    , mesh%n2vi)
-    call write_var_master_int_2D( filename, grp_ncid, id_var_n2viuv  , mesh%n2viuv)
-    call write_var_master_int_2D( filename, grp_ncid, id_var_n2vik   , mesh%n2vik)
-    call write_var_master_int_2D( filename, grp_ncid, id_var_n2vikuv , mesh%n2vikuv)
-    call write_var_master_int_2D( filename, grp_ncid, id_var_n2viks  , mesh%n2viks)
-    call write_var_master_int_2D( filename, grp_ncid, id_var_n2viksuv, mesh%n2viksuv)
-    call write_var_master_int_1D( filename, grp_ncid, id_var_vi2n    , mesh%vi2n)
-    call write_var_master_int_2D( filename, grp_ncid, id_var_viuv2n  , mesh%viuv2n)
-    call write_var_master_int_2D( filename, grp_ncid, id_var_vik2n   , mesh%vik2n)
-    call write_var_master_int_3D( filename, grp_ncid, id_var_vikuv2n , mesh%vikuv2n)
-    call write_var_master_int_2D( filename, grp_ncid, id_var_viks2n  , mesh%viks2n)
-    call write_var_master_int_3D( filename, grp_ncid, id_var_viksuv2n, mesh%viksuv2n)
+    call write_var_master( filename, grp_ncid, id_var_n2vi    , mesh%n2vi)
+    call write_var_master( filename, grp_ncid, id_var_n2viuv  , mesh%n2viuv)
+    call write_var_master( filename, grp_ncid, id_var_n2vik   , mesh%n2vik)
+    call write_var_master( filename, grp_ncid, id_var_n2vikuv , mesh%n2vikuv)
+    call write_var_master( filename, grp_ncid, id_var_n2viks  , mesh%n2viks)
+    call write_var_master( filename, grp_ncid, id_var_n2viksuv, mesh%n2viksuv)
+    call write_var_master( filename, grp_ncid, id_var_vi2n    , mesh%vi2n)
+    call write_var_master( filename, grp_ncid, id_var_viuv2n  , mesh%viuv2n)
+    call write_var_master( filename, grp_ncid, id_var_vik2n   , mesh%vik2n)
+    call write_var_master( filename, grp_ncid, id_var_vikuv2n , mesh%vikuv2n)
+    call write_var_master( filename, grp_ncid, id_var_viks2n  , mesh%viks2n)
+    call write_var_master( filename, grp_ncid, id_var_viksuv2n, mesh%viksuv2n)
 
     ! b-grid (triangles)
     ! ==================
@@ -3099,18 +3090,18 @@ CONTAINS
     call create_variable( filename, grp_ncid, 'tiksuv2n', NF90_INT, [id_dim_ti     , id_dim_nzp1, id_dim_two], id_var_tiksuv2n)
 
     ! Write variables
-    call write_var_master_int_1D( filename, grp_ncid, id_var_n2ti    , mesh%n2ti)
-    call write_var_master_int_2D( filename, grp_ncid, id_var_n2tiuv  , mesh%n2tiuv)
-    call write_var_master_int_2D( filename, grp_ncid, id_var_n2tik   , mesh%n2tik)
-    call write_var_master_int_2D( filename, grp_ncid, id_var_n2tikuv , mesh%n2tikuv)
-    call write_var_master_int_2D( filename, grp_ncid, id_var_n2tiks  , mesh%n2tiks)
-    call write_var_master_int_2D( filename, grp_ncid, id_var_n2tiksuv, mesh%n2tiksuv)
-    call write_var_master_int_1D( filename, grp_ncid, id_var_ti2n    , mesh%ti2n)
-    call write_var_master_int_2D( filename, grp_ncid, id_var_tiuv2n  , mesh%tiuv2n)
-    call write_var_master_int_2D( filename, grp_ncid, id_var_tik2n   , mesh%tik2n)
-    call write_var_master_int_3D( filename, grp_ncid, id_var_tikuv2n , mesh%tikuv2n)
-    call write_var_master_int_2D( filename, grp_ncid, id_var_tiks2n  , mesh%tiks2n)
-    call write_var_master_int_3D( filename, grp_ncid, id_var_tiksuv2n, mesh%tiksuv2n)
+    call write_var_master( filename, grp_ncid, id_var_n2ti    , mesh%n2ti)
+    call write_var_master( filename, grp_ncid, id_var_n2tiuv  , mesh%n2tiuv)
+    call write_var_master( filename, grp_ncid, id_var_n2tik   , mesh%n2tik)
+    call write_var_master( filename, grp_ncid, id_var_n2tikuv , mesh%n2tikuv)
+    call write_var_master( filename, grp_ncid, id_var_n2tiks  , mesh%n2tiks)
+    call write_var_master( filename, grp_ncid, id_var_n2tiksuv, mesh%n2tiksuv)
+    call write_var_master( filename, grp_ncid, id_var_ti2n    , mesh%ti2n)
+    call write_var_master( filename, grp_ncid, id_var_tiuv2n  , mesh%tiuv2n)
+    call write_var_master( filename, grp_ncid, id_var_tik2n   , mesh%tik2n)
+    call write_var_master( filename, grp_ncid, id_var_tikuv2n , mesh%tikuv2n)
+    call write_var_master( filename, grp_ncid, id_var_tiks2n  , mesh%tiks2n)
+    call write_var_master( filename, grp_ncid, id_var_tiksuv2n, mesh%tiksuv2n)
 
     ! c-grid (edges)
     ! ==============
@@ -3139,18 +3130,18 @@ CONTAINS
     call create_variable( filename, grp_ncid, 'eiksuv2n', NF90_INT, [id_dim_ei     , id_dim_nzp1, id_dim_two], id_var_eiksuv2n)
 
     ! Write variables
-    call write_var_master_int_1D( filename, grp_ncid, id_var_n2ei    , mesh%n2ei)
-    call write_var_master_int_2D( filename, grp_ncid, id_var_n2eiuv  , mesh%n2eiuv)
-    call write_var_master_int_2D( filename, grp_ncid, id_var_n2eik   , mesh%n2eik)
-    call write_var_master_int_2D( filename, grp_ncid, id_var_n2eikuv , mesh%n2eikuv)
-    call write_var_master_int_2D( filename, grp_ncid, id_var_n2eiks  , mesh%n2eiks)
-    call write_var_master_int_2D( filename, grp_ncid, id_var_n2eiksuv, mesh%n2eiksuv)
-    call write_var_master_int_1D( filename, grp_ncid, id_var_ei2n    , mesh%ei2n)
-    call write_var_master_int_2D( filename, grp_ncid, id_var_eiuv2n  , mesh%eiuv2n)
-    call write_var_master_int_2D( filename, grp_ncid, id_var_eik2n   , mesh%eik2n)
-    call write_var_master_int_3D( filename, grp_ncid, id_var_eikuv2n , mesh%eikuv2n)
-    call write_var_master_int_2D( filename, grp_ncid, id_var_eiks2n  , mesh%eiks2n)
-    call write_var_master_int_3D( filename, grp_ncid, id_var_eiksuv2n, mesh%eiksuv2n)
+    call write_var_master( filename, grp_ncid, id_var_n2ei    , mesh%n2ei)
+    call write_var_master( filename, grp_ncid, id_var_n2eiuv  , mesh%n2eiuv)
+    call write_var_master( filename, grp_ncid, id_var_n2eik   , mesh%n2eik)
+    call write_var_master( filename, grp_ncid, id_var_n2eikuv , mesh%n2eikuv)
+    call write_var_master( filename, grp_ncid, id_var_n2eiks  , mesh%n2eiks)
+    call write_var_master( filename, grp_ncid, id_var_n2eiksuv, mesh%n2eiksuv)
+    call write_var_master( filename, grp_ncid, id_var_ei2n    , mesh%ei2n)
+    call write_var_master( filename, grp_ncid, id_var_eiuv2n  , mesh%eiuv2n)
+    call write_var_master( filename, grp_ncid, id_var_eik2n   , mesh%eik2n)
+    call write_var_master( filename, grp_ncid, id_var_eikuv2n , mesh%eikuv2n)
+    call write_var_master( filename, grp_ncid, id_var_eiks2n  , mesh%eiks2n)
+    call write_var_master( filename, grp_ncid, id_var_eiksuv2n, mesh%eiksuv2n)
 
     call finalise_routine( routine_name)
 
@@ -3192,9 +3183,9 @@ CONTAINS
     call create_variable( filename, grp_ncid, 'val', NF90_DOUBLE, [id_dim_nnz], id_var_val)
 
     ! Write to NetCDF
-    call write_var_master_int_1D( filename, grp_ncid, id_var_ptr, A_tot%ptr              )
-    call write_var_master_int_1D( filename, grp_ncid, id_var_ind, A_tot%ind( 1:A_tot%nnz))
-    call write_var_master_dp_1D(  filename, grp_ncid, id_var_val, A_tot%val( 1:A_tot%nnz))
+    call write_var_master( filename, grp_ncid, id_var_ptr, A_tot%ptr              )
+    call write_var_master( filename, grp_ncid, id_var_ind, A_tot%ind( 1:A_tot%nnz))
+    call write_var_master(  filename, grp_ncid, id_var_val, A_tot%val( 1:A_tot%nnz))
 
     call finalise_routine( routine_name)
 
@@ -3231,13 +3222,13 @@ CONTAINS
     CALL create_variable( filename, ncid, 'bedrock_cdf', NF90_DOUBLE, (/ id_dim_vi, id_dim_bin /), id_var_cdf)
     CALL add_attribute_char( filename, ncid, id_var_cdf, 'long_name', 'Bedrock CDF of vertices')
     CALL add_attribute_char( filename, ncid, id_var_cdf, 'units'    , '%'                 )
-    CALL write_var_master_dp_2D( filename, ncid, id_var_cdf, ice%bedrock_cdf)
+    CALL write_var_master( filename, ncid, id_var_cdf, ice%bedrock_cdf)
 
     ! Triangle data
     CALL create_variable( filename, ncid, 'bedrock_cdf_b', NF90_DOUBLE, (/ id_dim_ti, id_dim_bin /), id_var_cdf_b)
     CALL add_attribute_char( filename, ncid, id_var_cdf_b, 'long_name', 'Bedrock CDF of triangles')
     CALL add_attribute_char( filename, ncid, id_var_cdf_b, 'units', '%')
-    CALL write_var_master_dp_2D( filename, ncid, id_var_cdf_b, ice%bedrock_cdf_b)
+    CALL write_var_master( filename, ncid, id_var_cdf_b, ice%bedrock_cdf_b)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -4025,7 +4016,7 @@ CONTAINS
     CALL add_attribute_char( filename, ncid, id_var_month, 'description', '1 = Jan, 2 = Feb, ..., 12 = Dec')
 
     ! Write month variable
-    CALL write_var_master_int_1D( filename, ncid, id_var_month, (/ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 /) )
+    CALL write_var_master( filename, ncid, id_var_month, (/ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 /) )
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -4063,7 +4054,7 @@ CONTAINS
     CALL add_attribute_char( filename, ncid, id_var_zeta, 'transformation', 'zeta = (h - z) / H; zeta = 0 at the ice surface; zeta = 1 at the ice base')
 
     ! Write month variable
-    CALL write_var_master_dp_1D( filename, ncid, id_var_zeta, zeta)
+    CALL write_var_master( filename, ncid, id_var_zeta, zeta)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -4100,7 +4091,7 @@ CONTAINS
     CALL add_attribute_char( filename, ncid, id_var_depth, 'units', 'meters')
 
     ! Write month variable
-    CALL write_var_master_dp_1D( filename, ncid, id_var_depth, depth)
+    CALL write_var_master( filename, ncid, id_var_depth, depth)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -4134,7 +4125,7 @@ CONTAINS
     CALL add_attribute_char( filename, ncid, id_var_cdf, 'description', 'Each of the bins that form the bedrock CDF')
 
     ! Write month variable
-    CALL write_var_master_int_1D( filename, ncid, id_var_cdf, (/ (k, k = 1, C%subgrid_bedrock_cdf_nbins) /) )
+    CALL write_var_master( filename, ncid, id_var_cdf, (/ (k, k = 1, C%subgrid_bedrock_cdf_nbins) /) )
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

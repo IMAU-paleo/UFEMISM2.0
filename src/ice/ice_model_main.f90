@@ -39,7 +39,7 @@ MODULE ice_model_main
                                                                      create_restart_file_ice_velocity, write_to_restart_file_ice_velocity, &
                                                                      map_velocities_from_b_to_c_2D
   use mpi_distributed_memory, only: gather_to_all, distribute_from_master
-  USE netcdf_basic                                           , ONLY: create_new_netcdf_file_for_writing, close_netcdf_file, open_existing_netcdf_file_for_writing
+  use netcdf_basic_wrappers
   USE netcdf_output                                          , ONLY: generate_filename_XXXXXdotnc, setup_mesh_in_netcdf_file, add_time_dimension_to_file, &
                                                                      add_field_dp_0D, add_field_mesh_dp_2D, write_time_to_file, write_to_field_multopt_mesh_dp_2D, &
                                                                      write_to_field_multopt_dp_0D

@@ -176,8 +176,15 @@ UFEMISM_source = \
   mesh/creation/mesh_creation_from_reduced_geometry.f90 \
   mesh/creation/mesh_creation_main.f90 \
   \
-  io/field_name_options.f90 \
-  io/netcdf_basic.f90 \
+  io/netcdf_basic/netcdf_basic_wrappers.f90 \
+  io/netcdf_basic/netcdf_field_name_options.f90 \
+  io/netcdf_basic/netcdf_inquire_dimensions.f90 \
+  io/netcdf_basic/netcdf_inquire_grid_mesh.f90 \
+  io/netcdf_basic/netcdf_read_var_master.f90 \
+  io/netcdf_basic/netcdf_check_dimensions.f90 \
+  io/netcdf_basic/netcdf_write_var_master.f90 \
+  io/netcdf_basic/netcdf_check_fields.f90 \
+  io/netcdf_basic/netcdf_find_timeframe.f90 \
   io/netcdf_debug.f90 \
   io/netcdf_input.f90 \
   io/netcdf_output.f90 \
