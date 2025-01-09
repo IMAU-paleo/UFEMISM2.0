@@ -2890,7 +2890,7 @@ CONTAINS
     CALL write_var_master(    filename, ncid, id_var_beta_stereo, mesh%beta_stereo)
 
     ! Vertex data
-    CALL write_var_master(    filename, ncid, id_var_V          , mesh%V          )
+    CALL write_var_master(   filename, ncid, id_var_V          , mesh%V          )
     CALL write_var_master(   filename, ncid, id_var_nC         , mesh%nC         )
     CALL write_var_master(   filename, ncid, id_var_C          , mesh%C          )
     CALL write_var_master(   filename, ncid, id_var_niTri      , mesh%niTri      )
@@ -2899,17 +2899,17 @@ CONTAINS
 
     ! Triangle data
     CALL write_var_master(   filename, ncid, id_var_Tri        , mesh%Tri        )
-    CALL write_var_master(    filename, ncid, id_var_Tricc      , mesh%Tricc      )
+    CALL write_var_master(   filename, ncid, id_var_Tricc      , mesh%Tricc      )
     CALL write_var_master(   filename, ncid, id_var_TriC       , mesh%TriC       )
     CALL write_var_master(   filename, ncid, id_var_TriBI      , mesh%TriBI      )
 
     ! Edge data
-    CALL write_var_master_dp_2D(    filename, ncid, id_var_E          , mesh%E          )
-    CALL write_var_master_int_2D(   filename, ncid, id_var_VE         , mesh%VE         )
-    CALL write_var_master_int_2D(   filename, ncid, id_var_EV         , mesh%EV         )
-    CALL write_var_master_int_2D(   filename, ncid, id_var_ETri       , mesh%ETri       )
-    CALL write_var_master_int_2D(   filename, ncid, id_var_TriE       , mesh%TriE       )
-    CALL write_var_master_int_1D(   filename, ncid, id_var_EBI        , mesh%EBI        )
+    CALL write_var_master(   filename, ncid, id_var_E          , mesh%E          )
+    CALL write_var_master(   filename, ncid, id_var_VE         , mesh%VE         )
+    CALL write_var_master(   filename, ncid, id_var_EV         , mesh%EV         )
+    CALL write_var_master(   filename, ncid, id_var_ETri       , mesh%ETri       )
+    CALL write_var_master(   filename, ncid, id_var_TriE       , mesh%TriE       )
+    CALL write_var_master(   filename, ncid, id_var_EBI        , mesh%EBI        )
 
     ! Voronoi mesh data
     call write_var_master(   filename, ncid, id_var_vi2vori    , mesh%vi2vori    )
@@ -2918,7 +2918,7 @@ CONTAINS
     call write_var_master(   filename, ncid, id_var_vori2vi    , mesh%vori2vi    )
     call write_var_master(   filename, ncid, id_var_vori2ti    , mesh%vori2ti    )
     call write_var_master(   filename, ncid, id_var_vori2ei    , mesh%vori2ei    )
-    call write_var_master(    filename, ncid, id_var_Vor        , mesh%Vor        )
+    call write_var_master(   filename, ncid, id_var_Vor        , mesh%Vor        )
     call write_var_master(   filename, ncid, id_var_VornC      , mesh%VornC      )
     call write_var_master(   filename, ncid, id_var_VorC       , mesh%VorC       )
     call write_var_master(   filename, ncid, id_var_nVVor      , mesh%nVVor      )

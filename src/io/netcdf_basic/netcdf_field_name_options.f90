@@ -16,7 +16,7 @@ module netcdf_field_name_options
     field_name_options_dim_four, field_name_options_V, field_name_options_Tri, field_name_options_nC, &
     field_name_options_C, field_name_options_niTri, field_name_options_iTri, field_name_options_VBI, &
     field_name_options_Tricc, field_name_options_TriC, field_name_options_TriBI, field_name_options_E, &
-    field_name_options_VE, field_name_options_EV, field_name_options_ETri, field_name_options_EBI, &
+    field_name_options_VE, field_name_options_EV, field_name_options_ETri, field_name_options_TriE, field_name_options_EBI, &
     field_name_options_vi2vori, field_name_options_ti2vori, field_name_options_ei2vori, field_name_options_vori2vi, &
     field_name_options_vori2ti, field_name_options_vori2ei, field_name_options_Vor, field_name_options_VornC, &
     field_name_options_VorC, field_name_options_nVVor, field_name_options_VVor, field_name_options_TriGC, &
@@ -60,6 +60,7 @@ module netcdf_field_name_options
   character(len=1024), parameter :: field_name_options_VE             = 'VE'
   character(len=1024), parameter :: field_name_options_EV             = 'EV'
   character(len=1024), parameter :: field_name_options_ETri           = 'ETri'
+  character(len=1024), parameter :: field_name_options_TriE           = 'TriE'
   character(len=1024), parameter :: field_name_options_EBI            = 'EBI'
   character(len=1024), parameter :: field_name_options_vi2vori        = 'vi2vori'
   character(len=1024), parameter :: field_name_options_ti2vori        = 'ti2vori'
