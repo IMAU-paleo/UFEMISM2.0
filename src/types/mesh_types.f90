@@ -69,6 +69,10 @@ module mesh_types
     real(dp), dimension(:,:  ), allocatable :: VorGC                         ! [m]       The geometric centre of each vertex's Voronoi cell
     real(dp), dimension(:    ), allocatable :: R                             ! [m]       The resolution of each vertex (defined as distance to nearest neighbour)
     real(dp), dimension(:,:  ), allocatable :: Cw                            ! [m]       The width of all vertex connections (= length of the shared Voronoi cell edge)
+    real(dp), dimension(:,:  ), allocatable :: D_x                           ! [m]       x-component of vertex-vertex connections
+    real(dp), dimension(:,:  ), allocatable :: D_y                           ! [m]       y-component of vertex-vertex connections
+    real(dp), dimension(:,:  ), allocatable :: D                             ! [m]       absolute distance of vertex-vertex connections
+    real(dp), dimension(:,:  ), allocatable :: TriCw                         ! [m]       The width of all triangle connections (= shared triangle edge)
     integer,  dimension(:    ), allocatable :: TriBI                         ! [0-8]     Each triangle's border index; 0 = free, 1 = north, 2 = northeast, ..., 8 = northwest
     real(dp), dimension(:,:  ), allocatable :: TriGC                         ! [m]       The X,Y-coordinates of each triangle's geometric centre
     real(dp), dimension(:    ), allocatable :: TriA                          ! [m^2]     The area of each triangle
@@ -84,6 +88,7 @@ module mesh_types
     integer,  dimension(:,:  ), allocatable :: VE                            !           Vertex-to-edge connectivity list
     integer,  dimension(:,:  ), allocatable :: EV                            !           Edge-to-vertex connectivity list
     integer,  dimension(:,:  ), allocatable :: ETri                          !           Edge-to-triangle connectivity list
+    integer,  dimension(:,:  ), allocatable :: TriE                          !           Triangle-to-edge connectivity list (order of TriC, across from 1st, 2nd, 3rd vertex)
     integer,  dimension(:    ), allocatable :: EBI                           ! [0-8]     Each edge's border index; 0 = free, 1 = north, 2 = northeast, ..., 8 = northwest
 
     ! Voronoi mesh

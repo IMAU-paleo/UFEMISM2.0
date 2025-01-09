@@ -127,7 +127,10 @@ CONTAINS
       CASE ('laddie')
         CALL run_BMB_model_laddie( mesh, BMB, time)
       CASE ('laddie2')
-        CALL run_laddie_model( mesh, ice, ocean, BMB, time)
+        CALL run_laddie_model( mesh, ice, ocean, BMB%laddie, time)
+        DO vi = mesh%vi1, mesh%vi2
+          BMB%BMB_shelf( vi) = -BMB%laddie%melt( vi) * sec_per_year
+        END DO
       CASE DEFAULT
         CALL crash('unknown choice_BMB_model "' // TRIM( choice_BMB_model) // '"')
     END SELECT

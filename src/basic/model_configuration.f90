@@ -810,6 +810,15 @@ MODULE model_configuration
     REAL(dp)            :: dt_laddie_config                             = 360._dp                          ! [s] Time step for integration of laddie model
     REAL(dp)            :: time_duration_laddie_config                  = 6._dp                            ! [days] Duration of each run cycle
 
+    ! Integration
+    CHARACTER(LEN=256)  :: choice_laddie_integration_scheme_config      = ''                               ! Choose integration scheme. Options: 'euler', 'fbrk3'
+    REAL(dp)            :: laddie_fbrk3_beta1_config                    = 0.0_dp                           ! [] beta1 factor in FBRK3 integration. Must be between 0 and 1
+    REAL(dp)            :: laddie_fbrk3_beta2_config                    = 0.0_dp                           ! [] beta2 factor in FBRK3 integration. Must be between 0 and 1
+    REAL(dp)            :: laddie_fbrk3_beta3_config                    = 0.0_dp                           ! [] beta3 factor in FBRK3 integration. Must be between 0 and 1
+
+    ! Momentum advection
+    CHARACTER(LEN=256)  :: choice_laddie_momentum_advection_config      = ''                               ! Choose momentum advection scheme. Options: 'none', 'upstream'
+
     ! Initialisation
     REAL(dp)            :: laddie_initial_thickness_config              = 10._dp                           ! [m] Initial value of thickness H
     REAL(dp)            :: laddie_initial_T_offset_config               = 0.0_dp                           ! [degC] Initial offset of T relative to ambient
@@ -829,8 +838,8 @@ MODULE model_configuration
     REAL(dp)            :: uniform_laddie_gamma_T_config                = 1.8E-4_dp                        ! [] 'uniform': gamma_T parameter. gamma_S = gamma_T/35
 
     ! Drag coefficients
-    REAL(dp)            :: laddie_drag_coefficient_config               = 2.5E-3_dp                        ! [] Drag coefficient Cd
-    REAL(dp)            :: laddie_drag_coefficient_mom_config           = 1.1E-3_dp                        ! [] Drag coefficient Cd_mom in momentum term
+    REAL(dp)            :: laddie_drag_coefficient_top_config           = 1.1E-3_dp                        ! [] Drag coefficient Cd_top in friction velocity
+    REAL(dp)            :: laddie_drag_coefficient_mom_config           = 2.5E-3_dp                        ! [] Drag coefficient Cd_mom in momentum term
 
     ! Viscosity and diffusivity
     REAL(dp)            :: laddie_viscosity_config                      = 1.0E3_dp                         ! [m^2 s^-1] Viscosity parameter Ah
@@ -843,10 +852,8 @@ MODULE model_configuration
 
     ! Stability
     REAL(dp)            :: laddie_thickness_minimum_config              = 2.0_dp                           ! [m] Minimum layer thickness allowed
-    REAL(dp)            :: laddie_thickness_maximum_config              = 1500.0_dp                        ! [m] Maximum layer thickness allowed
     REAL(dp)            :: laddie_velocity_maximum_config               = 1.414_dp                         ! [m s^-1] Maximum velocity allowed
     REAL(dp)            :: laddie_buoyancy_minimum_config               = 5.0E-3_dp                        ! [kg m^-3] Minimum density difference allowed
-    REAL(dp)            :: laddie_RA_timefilter_config                  = 0.8_dp                           ! [] Robert Asselin time filter parameter. Between 0 and 1
 
     ! Tides
     CHARACTER(LEN=256)  :: choice_laddie_tides_config                   = 'uniform'                        ! Choose option for tidal velocity. Options: 'uniform'
@@ -1778,6 +1785,15 @@ MODULE model_configuration
     REAL(dp)            :: dt_laddie
     REAL(dp)            :: time_duration_laddie
 
+    ! Integration
+    CHARACTER(LEN=256)  :: choice_laddie_integration_scheme
+    REAL(dp)            :: laddie_fbrk3_beta1
+    REAL(dp)            :: laddie_fbrk3_beta2
+    REAL(dp)            :: laddie_fbrk3_beta3
+
+    ! Momentum advection
+    CHARACTER(LEN=256)  :: choice_laddie_momentum_advection
+
     ! Initialisation
     REAL(dp)            :: laddie_initial_thickness
     REAL(dp)            :: laddie_initial_T_offset
@@ -1797,7 +1813,7 @@ MODULE model_configuration
     REAL(dp)            :: uniform_laddie_gamma_T
 
     ! Drag coefficients
-    REAL(dp)            :: laddie_drag_coefficient
+    REAL(dp)            :: laddie_drag_coefficient_top
     REAL(dp)            :: laddie_drag_coefficient_mom
 
     ! Viscosity and diffusivity
@@ -1811,10 +1827,8 @@ MODULE model_configuration
 
     ! Stability
     REAL(dp)            :: laddie_thickness_minimum
-    REAL(dp)            :: laddie_thickness_maximum
     REAL(dp)            :: laddie_velocity_maximum
     REAL(dp)            :: laddie_buoyancy_minimum
-    REAL(dp)            :: laddie_RA_timefilter
 
     ! Tides
     CHARACTER(LEN=256)  :: choice_laddie_tides
@@ -2671,6 +2685,11 @@ CONTAINS
       dir_BMB_laddie_model_config                                 , &
       dt_laddie_config                                            , &
       time_duration_laddie_config                                 , &
+      choice_laddie_integration_scheme_config                     , &
+      laddie_fbrk3_beta1_config                                   , &
+      laddie_fbrk3_beta2_config                                   , &
+      laddie_fbrk3_beta3_config                                   , &
+      choice_laddie_momentum_advection_config                     , &
       laddie_initial_thickness_config                             , &
       laddie_initial_T_offset_config                              , &
       laddie_initial_S_offset_config                              , &
@@ -2681,7 +2700,7 @@ CONTAINS
       uniform_laddie_coriolis_parameter_config                    , &
       choice_laddie_gamma_config                                  , &
       uniform_laddie_gamma_T_config                               , &
-      laddie_drag_coefficient_config                              , &
+      laddie_drag_coefficient_top_config                          , &
       laddie_drag_coefficient_mom_config                          , &
       laddie_viscosity_config                                     , &
       laddie_diffusivity_config                                   , &
@@ -2689,10 +2708,8 @@ CONTAINS
       laddie_Holland2006_cl_config                                , &
       laddie_Gaspar1988_mu_config                                 , &
       laddie_thickness_minimum_config                             , &
-      laddie_thickness_maximum_config                             , &
       laddie_velocity_maximum_config                              , &
       laddie_buoyancy_minimum_config                              , &
-      laddie_RA_timefilter_config                                 , &
       choice_laddie_tides_config                                  , &
       uniform_laddie_tidal_velocity_config                        , &
       dt_LMB_config                                               , &
@@ -3621,6 +3638,15 @@ CONTAINS
     C%dt_laddie                                              = dt_laddie_config
     C%time_duration_laddie                                   = time_duration_laddie_config
 
+    ! Integration
+    C%choice_laddie_integration_scheme                       = choice_laddie_integration_scheme_config
+    C%laddie_fbrk3_beta1                                     = laddie_fbrk3_beta1_config
+    C%laddie_fbrk3_beta2                                     = laddie_fbrk3_beta2_config
+    C%laddie_fbrk3_beta3                                     = laddie_fbrk3_beta3_config
+
+    ! Momentum advection
+    C%choice_laddie_momentum_advection                       = choice_laddie_momentum_advection_config
+
     ! Initialisation
     C%laddie_initial_thickness                               = laddie_initial_thickness_config
     C%laddie_initial_T_offset                                = laddie_initial_T_offset_config
@@ -3640,7 +3666,7 @@ CONTAINS
     C%uniform_laddie_gamma_T                                 = uniform_laddie_gamma_T_config
 
     ! Drag coefficients
-    C%laddie_drag_coefficient                                = laddie_drag_coefficient_config
+    C%laddie_drag_coefficient_top                            = laddie_drag_coefficient_top_config
     C%laddie_drag_coefficient_mom                            = laddie_drag_coefficient_mom_config
 
     ! Viscosity and diffusivity
@@ -3654,10 +3680,8 @@ CONTAINS
 
     ! Stability
     C%laddie_thickness_minimum                               = laddie_thickness_minimum_config
-    C%laddie_thickness_maximum                               = laddie_thickness_maximum_config
     C%laddie_velocity_maximum                                = laddie_velocity_maximum_config
     C%laddie_buoyancy_minimum                                = laddie_buoyancy_minimum_config
-    C%laddie_RA_timefilter                                   = laddie_RA_timefilter_config
 
     ! Tides
     C%choice_laddie_tides                                    = choice_laddie_tides_config

@@ -22,7 +22,6 @@ MODULE netcdf_output
   USE mesh_types                                             , ONLY: type_mesh
   USE ice_model_types                                        , ONLY: type_ice_model
   use mpi_distributed_memory, only: gather_to_master
-
   use netcdf, only: NF90_UNLIMITED, NF90_INT, NF90_FLOAT, NF90_DOUBLE, NF90_MAX_VAR_DIMS, NF90_DEF_GRP
   use netcdf_field_name_options
   use netcdf_inquire_grid_mesh
@@ -2668,6 +2667,7 @@ CONTAINS
     INTEGER                                            :: id_var_VE
     INTEGER                                            :: id_var_EV
     INTEGER                                            :: id_var_ETri
+    INTEGER                                            :: id_var_TriE
     INTEGER                                            :: id_var_EBI
 
     INTEGER                                            :: id_var_vi2vori
@@ -2809,6 +2809,10 @@ CONTAINS
     CALL create_variable( filename, ncid, get_first_option_from_list( field_name_options_ETri          ), NF90_INT   , (/ id_dim_ei,  id_dim_two  /), id_var_ETri          )
     CALL add_attribute_char( filename, ncid, id_var_ETri          , 'long_name'  , 'Edge-to-triangle connectivity list')
     CALL add_attribute_char( filename, ncid, id_var_ETri          , 'orientation', 'tl,tr (left,right)')
+    ! TriE
+    CALL create_variable( filename, ncid, get_first_option_from_list( field_name_options_TriE          ), NF90_INT   , (/ id_dim_ti, id_dim_three /), id_var_TriE          )
+    CALL add_attribute_char( filename, ncid, id_var_TriE          , 'long_name'  , 'Triangle-to-edge connectivity list')
+    CALL add_attribute_char( filename, ncid, id_var_TriE          , 'orientation', 'same as triangle-triangle connectivity list')
     ! EBI
     CALL create_variable( filename, ncid, get_first_option_from_list( field_name_options_EBI           ), NF90_INT   , (/ id_dim_ei               /), id_var_EBI           )
     CALL add_attribute_char( filename, ncid, id_var_EBI           , 'long_name'  , 'Edge boundary index')
@@ -2900,11 +2904,12 @@ CONTAINS
     CALL write_var_master(   filename, ncid, id_var_TriBI      , mesh%TriBI      )
 
     ! Edge data
-    CALL write_var_master(    filename, ncid, id_var_E          , mesh%E          )
-    CALL write_var_master(   filename, ncid, id_var_VE         , mesh%VE         )
-    CALL write_var_master(   filename, ncid, id_var_EV         , mesh%EV         )
-    CALL write_var_master(   filename, ncid, id_var_ETri       , mesh%ETri       )
-    CALL write_var_master(   filename, ncid, id_var_EBI        , mesh%EBI        )
+    CALL write_var_master_dp_2D(    filename, ncid, id_var_E          , mesh%E          )
+    CALL write_var_master_int_2D(   filename, ncid, id_var_VE         , mesh%VE         )
+    CALL write_var_master_int_2D(   filename, ncid, id_var_EV         , mesh%EV         )
+    CALL write_var_master_int_2D(   filename, ncid, id_var_ETri       , mesh%ETri       )
+    CALL write_var_master_int_2D(   filename, ncid, id_var_TriE       , mesh%TriE       )
+    CALL write_var_master_int_1D(   filename, ncid, id_var_EBI        , mesh%EBI        )
 
     ! Voronoi mesh data
     call write_var_master(   filename, ncid, id_var_vi2vori    , mesh%vi2vori    )

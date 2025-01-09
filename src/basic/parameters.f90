@@ -14,6 +14,7 @@ MODULE parameters
 
   REAL(dp), PARAMETER :: pi                               = 3.141592653589793_dp
   REAL(dp), PARAMETER :: sec_per_year                     = 31556943.36_dp            ! = 365.2424 * 24 * 3600
+  REAL(dp), PARAMETER :: sec_per_day                      = 86400.0_dp                ! = 24 * 3600
   REAL(dp), PARAMETER :: T0                               = 273.16_dp                 ! [K]                 Triple point of water
   REAL(dp), PARAMETER :: Clausius_Clapeyron_gradient      = 8.7E-04_dp                ! [K m^-1]            Clausius Clapeyron gradient
   REAL(dp), PARAMETER :: grav                             = 9.81_dp                   ! [m s^-2]            Acceleration of gravity
