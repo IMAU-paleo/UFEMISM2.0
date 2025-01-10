@@ -10,14 +10,9 @@ module netcdf_read_field_from_xy_grid_file
   use grid_basic, only: deallocate_grid
   use permute_mod
   use flip_mod
-  use netcdf_basic_wrappers
-  use netcdf_setup_grid_mesh
-  use netcdf_field_name_options
-  use netcdf_check_fields
+  use netcdf_basic
+  use netcdf_setup_grid_mesh_from_file
   use netcdf_determine_indexing
-  use netcdf_read_var_master
-  use netcdf_find_timeframe
-  use netcdf_check_dimensions
 
   implicit none
 

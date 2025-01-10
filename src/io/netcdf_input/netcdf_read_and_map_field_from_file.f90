@@ -16,12 +16,8 @@ module netcdf_read_and_map_field_from_file
   use grid_basic, only: deallocate_grid
   use grid_lonlat_basic, only: deallocate_lonlat_grid
   use mesh_memory, only: deallocate_mesh
-  use netcdf_field_name_options
-  use netcdf_basic_wrappers
-  use netcdf_check_dimensions
-  use netcdf_read_var_master
-  use netcdf_inquire_grid_mesh
-  use netcdf_setup_grid_mesh
+  use netcdf_basic
+  use netcdf_setup_grid_mesh_from_file
   use netcdf_read_field_from_mesh_file
   use netcdf_read_field_from_lonlat_grid_file
   use netcdf_read_field_from_xy_grid_file

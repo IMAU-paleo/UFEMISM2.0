@@ -25,9 +25,7 @@ MODULE BMB_main
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   use ice_geometry_basics, only: is_floating
   USE mesh_utilities                                         , ONLY: extrapolate_Gaussian
-  use netcdf_basic_wrappers
-  USE netcdf_output                                          , ONLY: generate_filename_XXXXXdotnc, setup_mesh_in_netcdf_file, add_time_dimension_to_file, &
-                                                                     add_field_mesh_dp_2D, write_to_field_multopt_mesh_dp_2D, write_time_to_file, write_to_field_multopt_mesh_dp_3D_ocean
+  use netcdf_io_main
 
   IMPLICIT NONE
 

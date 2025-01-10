@@ -19,7 +19,7 @@ MODULE netcdf_resource_tracking
   USE model_configuration                                    , ONLY: C
 
   use netcdf, only: NF90_UNLIMITED, NF90_DOUBLE, NF90_INT
-  use netcdf_output, only: write_time_to_file
+  use netcdf_add_write_scalar_variables, only: write_time_to_file
   use netcdf_basic_wrappers
   use netcdf_field_name_options
   use netcdf_write_var_master

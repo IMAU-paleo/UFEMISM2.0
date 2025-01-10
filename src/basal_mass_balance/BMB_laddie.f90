@@ -15,7 +15,7 @@ MODULE BMB_laddie
   USE mesh_types                                             , ONLY: type_mesh
   USE ice_model_types                                        , ONLY: type_ice_model
   USE BMB_model_types                                        , ONLY: type_BMB_model
-  use netcdf_read_and_map_field_from_file, only: read_field_from_file_2D
+  use netcdf_io_main
 
   IMPLICIT NONE
 

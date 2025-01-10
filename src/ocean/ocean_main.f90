@@ -17,9 +17,7 @@ MODULE ocean_main
   USE ocean_utilities                                        , ONLY: initialise_ocean_vertical_grid, calc_ocean_temperature_at_shelf_base, calc_ocean_freezing_point_at_shelf_base
   USE ocean_realistic                                        , ONLY: initialise_ocean_model_realistic, run_ocean_model_realistic
   USE ocean_idealised                                        , ONLY: initialise_ocean_model_idealised, run_ocean_model_idealised
-  use netcdf_basic_wrappers
-  USE netcdf_output                                          , ONLY: generate_filename_XXXXXdotnc, setup_mesh_in_netcdf_file, add_time_dimension_to_file, &
-                                                                     add_field_mesh_dp_3D_ocean, add_depth_dimension_to_file, write_time_to_file, write_to_field_multopt_mesh_dp_3D_ocean
+  use netcdf_io_main
 
   IMPLICIT NONE
 

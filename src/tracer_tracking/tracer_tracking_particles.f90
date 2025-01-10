@@ -16,10 +16,7 @@ module tracer_tracking_model_particles
     interpolate_to_point_dp_2D, interpolate_to_point_dp_3D
   use reallocate_mod, only: reallocate
   use netcdf, only: NF90_UNLIMITED, NF90_INT64, NF90_DOUBLE
-  use netcdf_output, only: write_time_to_file
-  use netcdf_field_name_options
-  use netcdf_basic_wrappers
-  use netcdf_write_var_master
+  use netcdf_io_main
 
   implicit none
 

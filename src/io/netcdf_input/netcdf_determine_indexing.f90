@@ -4,9 +4,7 @@ module netcdf_determine_indexing
   use mpi
   use precisions, only: dp
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash
-  use netcdf_field_name_options
-  use netcdf_check_dimensions
-  use netcdf_read_var_master
+  use netcdf_basic
   use netcdf, only: NF90_MAX_VAR_DIMS
 
   implicit none

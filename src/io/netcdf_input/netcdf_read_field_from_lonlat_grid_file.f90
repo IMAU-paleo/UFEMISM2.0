@@ -10,14 +10,9 @@ module netcdf_read_field_from_lonlat_grid_file
   use flip_mod
   use grid_lonlat_basic, only: distribute_lonlat_gridded_data_from_master_dp_2D, &
     distribute_lonlat_gridded_data_from_master_dp_3D, deallocate_lonlat_grid
-  use netcdf_check_dimensions
-  use netcdf_basic_wrappers
-  use netcdf_setup_grid_mesh
-  use netcdf_field_name_options
-  use netcdf_check_fields
+  use netcdf_basic
+  use netcdf_setup_grid_mesh_from_file
   use netcdf_determine_indexing
-  use netcdf_read_var_master
-  use netcdf_find_timeframe
 
   implicit none
 

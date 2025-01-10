@@ -9,13 +9,8 @@ module netcdf_read_field_from_mesh_file
   use mpi_distributed_memory, only: distribute_from_master
   use mesh_types, only: type_mesh
   use mesh_memory, only: deallocate_mesh
-  use netcdf_field_name_options
-  use netcdf_basic_wrappers
-  use netcdf_read_var_master
-  use netcdf_setup_grid_mesh
-  use netcdf_check_fields
-  use netcdf_find_timeframe
-  use netcdf_check_dimensions
+  use netcdf_basic
+  use netcdf_setup_grid_mesh_from_file
 
   implicit none
 

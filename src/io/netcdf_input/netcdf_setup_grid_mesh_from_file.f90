@@ -1,4 +1,4 @@
-module netcdf_setup_grid_mesh
+module netcdf_setup_grid_mesh_from_file
   !< Set up grids/mesh from a NetCDF file
 
   use mpi
@@ -14,9 +14,7 @@ module netcdf_setup_grid_mesh
   use mesh_disc_calc_matrix_operators_2D, only: calc_all_matrix_operators_mesh
   use grid_lonlat_basic, only: calc_lonlat_field_to_vector_form_translation_tables
   use grid_basic, only: calc_secondary_grid_data
-  use netcdf_field_name_options
-  use netcdf_check_dimensions
-  use netcdf_read_var_master
+  use netcdf_basic
 
   implicit none
 
@@ -321,4 +319,4 @@ contains
 
   end subroutine setup_depth_from_file
 
-end module netcdf_setup_grid_mesh
+end module netcdf_setup_grid_mesh_from_file

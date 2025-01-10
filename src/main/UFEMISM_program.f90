@@ -34,7 +34,7 @@ PROGRAM UFEMISM_program
                                                                      initialise_control_and_resource_tracker, reset_resource_tracker, &
                                                                      print_UFEMISM_start, print_UFEMISM_end
   USE model_configuration                                    , ONLY: C, initialise_model_configuration, initialise_model_configuration_unit_tests
-  USE netcdf_resource_tracking                               , ONLY: create_resource_tracking_file, write_to_resource_tracking_file
+  use netcdf_io_main
   USE region_types                                           , ONLY: type_model_region
   USE UFEMISM_main_model                                     , ONLY: initialise_model_region, run_model_region
   USE ice_model_utilities                                    , ONLY: MISMIPplus_adapt_flow_factor

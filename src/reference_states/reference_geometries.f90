@@ -24,12 +24,7 @@ MODULE reference_geometries
   use ice_geometry_basics, only: ice_surface_elevation, is_floating
   use projections, only: oblique_sg_projection
   USE analytical_solutions                                   , ONLY: Halfar_dome, Bueler_dome
-  use netcdf_inquire_grid_mesh, only: inquire_xy_grid, inquire_lonlat_grid, inquire_mesh
-  use netcdf_basic_wrappers, only: open_existing_netcdf_file_for_reading, close_netcdf_file
-  use netcdf_field_name_options, only: inquire_var_multopt
-  use netcdf_setup_grid_mesh
-  use netcdf_read_field_from_xy_grid_file
-  use netcdf_read_field_from_mesh_file
+  use netcdf_io_main
   use remapping_main, only: map_from_xy_grid_to_mesh_2D, map_from_mesh_to_mesh_2D
 
   IMPLICIT NONE

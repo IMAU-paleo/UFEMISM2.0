@@ -23,7 +23,7 @@ MODULE bed_roughness
   USE reference_geometry_types                               , ONLY: type_reference_geometry
   USE basal_inversion_types                                  , ONLY: type_basal_inversion
   USE analytical_solutions                                   , ONLY: Schoof2006_icestream
-  use netcdf_read_and_map_field_from_file, only: read_field_from_file_2D
+  use netcdf_io_main
 
   IMPLICIT NONE
 

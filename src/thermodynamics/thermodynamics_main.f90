@@ -19,8 +19,7 @@ MODULE thermodynamics_main
   USE climate_model_types                                    , ONLY: type_climate_model
   USE SMB_model_types                                        , ONLY: type_SMB_model
   USE BMB_model_types                                        , ONLY: type_BMB_model
-  use netcdf_field_name_options
-  use netcdf_read_and_map_field_from_file, only: read_field_from_file_3D
+  use netcdf_io_main
   USE thermodynamics_3D_heat_equation                        , ONLY: solve_3D_heat_equation, create_restart_file_thermo_3D_heat_equation, &
                                                                      write_to_restart_file_thermo_3D_heat_equation
   USE thermodynamics_utilities                               , ONLY: calc_pressure_melting_point, replace_Ti_with_robin_solution, calc_homologous_temperature

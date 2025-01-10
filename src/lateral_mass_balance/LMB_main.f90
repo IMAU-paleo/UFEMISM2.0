@@ -15,9 +15,7 @@ MODULE LMB_main
   USE SMB_model_types                                        , ONLY: type_SMB_model
   USE LMB_model_types                                        , ONLY: type_LMB_model
   USE reallocate_mod                                         , ONLY: reallocate_bounds
-  use netcdf_basic_wrappers
-  USE netcdf_output                                          , ONLY: generate_filename_XXXXXdotnc, setup_mesh_in_netcdf_file, add_time_dimension_to_file, &
-                                                                     add_field_mesh_dp_2D, write_to_field_multopt_mesh_dp_2D, write_time_to_file, write_to_field_multopt_mesh_dp_3D_ocean
+  use netcdf_io_main
 
   IMPLICIT NONE
 
