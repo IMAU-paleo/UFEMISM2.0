@@ -205,9 +205,9 @@ UFEMISM_source = \
   io/netcdf_output/netcdf_setup_grid_mesh_in_file.f90 \
   io/netcdf_output/netcdf_write_field_grid.f90 \
   io/netcdf_output/netcdf_write_field_mesh.f90 \
+  io/netcdf_output/netcdf_resource_tracking.f90 \
   io/netcdf_output/netcdf_output.f90 \
   \
-  io/netcdf_resource_tracking.f90 \
   io/netcdf_io_main.f90 \
   \
   reference_states/reference_geometries.f90 \

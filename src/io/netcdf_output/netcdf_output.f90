@@ -10,5 +10,6 @@ module netcdf_output
   use netcdf_setup_grid_mesh_in_file
   use netcdf_write_field_grid
   use netcdf_write_field_mesh
+  use netcdf_resource_tracking
 
 end module netcdf_output

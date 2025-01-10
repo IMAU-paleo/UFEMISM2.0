@@ -4,6 +4,5 @@ module netcdf_io_main
   use netcdf_basic
   use netcdf_input
   use netcdf_output
-  use netcdf_resource_tracking
 
 end module netcdf_io_main
