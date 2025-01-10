@@ -25,7 +25,7 @@ MODULE main_regional_output
                                                                      add_field_grid_dp_2D, add_field_grid_dp_2D_notime, &
                                                                      add_field_grid_dp_3D, add_field_grid_dp_3D_notime, &
                                                                      add_field_grid_dp_2D_monthly, add_field_grid_dp_2D_monthly_notime, &
-                                                                     add_field_dp_0D, &
+                                                                     add_field_dp_0D, add_field_int_0D, &
                                                                      write_to_field_multopt_mesh_int_2D, write_to_field_multopt_mesh_int_2D_notime, &
                                                                      write_to_field_multopt_mesh_dp_2D, write_to_field_multopt_mesh_dp_2D_notime, &
                                                                      write_to_field_multopt_mesh_dp_2D_monthly, write_to_field_multopt_mesh_dp_2D_monthly_notime, &
@@ -35,7 +35,8 @@ MODULE main_regional_output
                                                                      write_to_field_multopt_grid_dp_2D, write_to_field_multopt_grid_dp_2D_notime, &
                                                                      write_to_field_multopt_grid_dp_2D_monthly, write_to_field_multopt_grid_dp_2D_monthly_notime, &
                                                                      write_to_field_multopt_grid_dp_3D, write_to_field_multopt_grid_dp_3D_notime, &
-                                                                     write_to_field_multopt_dp_0D
+                                                                     write_to_field_multopt_dp_0D, write_to_field_multopt_int_0D, &
+                                                                     write_matrix_operators_to_netcdf_file
   use remapping_main, only: map_from_mesh_to_xy_grid_2D, map_from_mesh_to_xy_grid_3D, map_from_mesh_to_xy_grid_2D_minval
 
   IMPLICIT NONE
@@ -761,15 +762,55 @@ CONTAINS
 
       ! Main laddie variables
       CASE ('H_lad')
-        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'H_lad', region%BMB%laddie%H)
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'H_lad', region%BMB%laddie%now%H)
       CASE ('U_lad')
-        CALL write_to_field_multopt_mesh_dp_2D_b( region%mesh, filename, ncid, 'U_lad', region%BMB%laddie%U)
+        CALL write_to_field_multopt_mesh_dp_2D_b( region%mesh, filename, ncid, 'U_lad', region%BMB%laddie%now%U)
       CASE ('V_lad')
-        CALL write_to_field_multopt_mesh_dp_2D_b( region%mesh, filename, ncid, 'V_lad', region%BMB%laddie%V)
+        CALL write_to_field_multopt_mesh_dp_2D_b( region%mesh, filename, ncid, 'V_lad', region%BMB%laddie%now%V)
       CASE ('T_lad')
-        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'T_lad', region%BMB%laddie%T)
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'T_lad', region%BMB%laddie%now%T)
       CASE ('S_lad')
-        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'S_lad', region%BMB%laddie%S)
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'S_lad', region%BMB%laddie%now%S)
+
+      ! Useful laddie fields
+      CASE ('drho_amb')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'drho_amb', region%BMB%laddie%drho_amb)
+      CASE ('drho_base')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'drho_base', region%BMB%laddie%drho_base)
+      CASE ('entr')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'entr', region%BMB%laddie%entr)
+      CASE ('entr_dmin')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'entr_dmin', region%BMB%laddie%entr_dmin)
+      CASE ('melt')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'melt', region%BMB%laddie%melt)
+      CASE ('divQH')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'divQH', region%BMB%laddie%divQH)
+      CASE ('divQT')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'divQT', region%BMB%laddie%divQT)
+      CASE ('divQS')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'divQS', region%BMB%laddie%divQS)
+      CASE ('diffT')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'diffT', region%BMB%laddie%diffT)
+      CASE ('diffS')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'diffS', region%BMB%laddie%diffS)
+      CASE ('viscU')
+        CALL write_to_field_multopt_mesh_dp_2D_b( region%mesh, filename, ncid, 'viscU', region%BMB%laddie%viscU)
+      CASE ('viscV')
+        CALL write_to_field_multopt_mesh_dp_2D_b( region%mesh, filename, ncid, 'viscV', region%BMB%laddie%viscV)
+      CASE ('T_base')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'T_base', region%BMB%laddie%T_base)
+      CASE ('u_star')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'u_star', region%BMB%laddie%u_star)
+      CASE ('gamma_T')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'gamma_T', region%BMB%laddie%gamma_T)
+      CASE ('divQU')
+        CALL write_to_field_multopt_mesh_dp_2D_b( region%mesh, filename, ncid, 'divQU', region%BMB%laddie%divQU)
+      CASE ('divQV')
+        CALL write_to_field_multopt_mesh_dp_2D_b( region%mesh, filename, ncid, 'divQV', region%BMB%laddie%divQV)
+      CASE ('HU_lad')
+        CALL write_to_field_multopt_mesh_dp_2D_b( region%mesh, filename, ncid, 'HU_lad', region%BMB%laddie%now%H_b*region%BMB%laddie%now%U)
+      CASE ('HV_lad')
+        CALL write_to_field_multopt_mesh_dp_2D_b( region%mesh, filename, ncid, 'HV_lad', region%BMB%laddie%now%H_b*region%BMB%laddie%now%V)
 
     ! == Lateral mass balance ==
     ! ==========================
@@ -1251,18 +1292,73 @@ CONTAINS
 
       ! Main laddie variables
       CASE ('H_lad')
-        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%H, d_grid_vec_partial_2D)
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%now%H, d_grid_vec_partial_2D)
         CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'H_lad', d_grid_vec_partial_2D)
       CASE ('U_lad')
-        ! NOTE: mapping from mesh triangles to square grid is not (yet) available!
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%now%U_a, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'U_lad', d_grid_vec_partial_2D)
       CASE ('V_lad')
-        ! NOTE: mapping from mesh triangles to square grid is not (yet) available!
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%now%V_a, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'V_lad', d_grid_vec_partial_2D)
       CASE ('T_lad')
-        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%T, d_grid_vec_partial_2D)
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%now%T, d_grid_vec_partial_2D)
         CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'T_lad', d_grid_vec_partial_2D)
       CASE ('S_lad')
-        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%S, d_grid_vec_partial_2D)
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%now%S, d_grid_vec_partial_2D)
         CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'S_lad', d_grid_vec_partial_2D)
+
+      ! Useful laddie fields
+      CASE ('drho_amb')
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%drho_amb, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'drho_amb', d_grid_vec_partial_2D)
+      CASE ('drho_base')
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%drho_base, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'drho_base', d_grid_vec_partial_2D)
+      CASE ('entr')
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%entr, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'entr', d_grid_vec_partial_2D)
+      CASE ('entr_dmin')
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%entr_dmin, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'entr_dmin', d_grid_vec_partial_2D)
+      CASE ('melt')
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%melt, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'melt', d_grid_vec_partial_2D)
+      CASE ('divQH')
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%divQH, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'divQH', d_grid_vec_partial_2D)
+      CASE ('divQT')
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%divQT, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'divQT', d_grid_vec_partial_2D)
+      CASE ('divQS')
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%divQS, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'divQS', d_grid_vec_partial_2D)
+      CASE ('diffT')
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%diffT, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'diffT', d_grid_vec_partial_2D)
+      CASE ('diffS')
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%diffS, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'diffS', d_grid_vec_partial_2D)
+      CASE ('viscU')
+        ! Not implemented
+      CASE ('viscV')
+        ! Not implemented
+      CASE ('T_base')
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%T_base, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'T_base', d_grid_vec_partial_2D)
+      CASE ('u_star')
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%u_star, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'u_star', d_grid_vec_partial_2D)
+      CASE ('gamma_T')
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%gamma_T, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'gamma_T', d_grid_vec_partial_2D)
+      CASE ('divQU')
+        ! Not implemented
+      CASE ('divQV')
+        ! Not implemented
+      CASE ('HU_lad')
+        ! Not implemented
+      CASE ('HV_lad')
+        ! Not implemented
 
     ! == Lateral mass balance ==
     ! ==========================
@@ -1305,7 +1401,7 @@ CONTAINS
     IMPLICIT NONE
 
     ! In/output variables:
-    TYPE(type_model_region)                            , INTENT(IN)    :: region
+    TYPE(type_model_region)                            , INTENT(INOUT) :: region
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'write_to_scalar_regional_output_file'
@@ -1365,6 +1461,39 @@ CONTAINS
     CALL write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'margin_land_flux',  region%scalars%margin_land_flux)
     CALL write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'margin_ocean_flux', region%scalars%margin_ocean_flux)
 
+    ! Numerical stability info
+    call write_to_field_multopt_int_0D( region%output_filename_scalar, ncid, 'n_dt_ice',         region%ice%n_dt_ice)
+    call write_to_field_multopt_dp_0D ( region%output_filename_scalar, ncid, 'min_dt_ice',       region%ice%min_dt_ice)
+    call write_to_field_multopt_dp_0D ( region%output_filename_scalar, ncid, 'max_dt_ice',       region%ice%max_dt_ice)
+    region%ice%mean_dt_ice = C%dt_output / real( region%ice%n_dt_ice,dp)
+    call write_to_field_multopt_dp_0D ( region%output_filename_scalar, ncid, 'mean_dt_ice',      region%ice%mean_dt_ice)
+
+    call write_to_field_multopt_int_0D( region%output_filename_scalar, ncid, 'n_visc_its',           region%ice%n_visc_its)
+    call write_to_field_multopt_int_0D( region%output_filename_scalar, ncid, 'min_visc_its_per_dt',  region%ice%min_visc_its_per_dt)
+    call write_to_field_multopt_int_0D( region%output_filename_scalar, ncid, 'max_visc_its_per_dt',  region%ice%max_visc_its_per_dt)
+    region%ice%mean_visc_its_per_dt = real( region%ice%n_visc_its,dp) / real( region%ice%n_dt_ice,dp)
+    call write_to_field_multopt_dp_0D ( region%output_filename_scalar, ncid, 'mean_visc_its_per_dt', region%ice%mean_visc_its_per_dt)
+
+    call write_to_field_multopt_int_0D( region%output_filename_scalar, ncid, 'n_Axb_its',                region%ice%n_Axb_its)
+    call write_to_field_multopt_int_0D( region%output_filename_scalar, ncid, 'min_Axb_its_per_visc_it',  region%ice%min_Axb_its_per_visc_it)
+    call write_to_field_multopt_int_0D( region%output_filename_scalar, ncid, 'max_Axb_its_per_visc_it',  region%ice%max_Axb_its_per_visc_it)
+    region%ice%mean_visc_its_per_dt = real( region%ice%n_Axb_its,dp) / real( region%ice%n_visc_its,dp)
+    call write_to_field_multopt_dp_0D ( region%output_filename_scalar, ncid, 'mean_Axb_its_per_visc_it', region%ice%mean_Axb_its_per_visc_it)
+
+    ! Reset stability info
+    region%ice%n_dt_ice                 = 0
+    region%ice%min_dt_ice               = huge( region%ice%min_dt_ice)
+    region%ice%max_dt_ice               = 0._dp
+    region%ice%mean_dt_ice              = 0._dp
+    region%ice%n_visc_its               = 0
+    region%ice%min_visc_its_per_dt      = huge( region%ice%min_visc_its_per_dt)
+    region%ice%max_visc_its_per_dt      = 0
+    region%ice%mean_visc_its_per_dt     = 0._dp
+    region%ice%n_Axb_its                = 0
+    region%ice%min_Axb_its_per_visc_it  = huge( region%ice%min_Axb_its_per_visc_it)
+    region%ice%max_Axb_its_per_visc_it  = 0
+    region%ice%mean_Axb_its_per_visc_it = 0._dp
+
     ! Close the file
     CALL close_netcdf_file( ncid)
 
@@ -1420,6 +1549,11 @@ CONTAINS
     CALL add_time_dimension_to_file(  region%output_filename_mesh, ncid)
     CALL add_zeta_dimension_to_file(  region%output_filename_mesh, ncid, region%mesh%zeta)
     CALL add_month_dimension_to_file( region%output_filename_mesh, ncid)
+
+    ! Operator matrices
+    if (C%do_write_matrix_operators) then
+      call write_matrix_operators_to_netcdf_file( region%output_filename_mesh, ncid, region%mesh)
+    end if
 
     ! Add the default data fields to the file
     CALL create_main_regional_output_file_mesh_field( region%output_filename_mesh, ncid, 'Hi')
@@ -2076,6 +2210,46 @@ CONTAINS
       CASE ('S_lad')
         CALL add_field_mesh_dp_2D( filename, ncid, 'S_lad', long_name = 'Laddie salinity', units = 'PSU')
 
+      ! Useful laddie fields
+      CASE ('drho_amb')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'drho_amb', long_name = 'Depth integrated buoyancy', units = 'kg m^-2')
+      CASE ('drho_base')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'drho_base', long_name = 'Depth integrated buoyancy', units = 'kg m^-2')
+      CASE ('entr')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'entr', long_name = 'Entrainment rate', units = 'm s^-1')
+      CASE ('entr_dmin')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'entr_dmin', long_name = 'Entrainment rate for Dmin', units = 'm s^-1')
+      CASE ('melt')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'melt', long_name = 'Melt rate', units = 'm s^-1')
+      CASE ('divQH')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'divQH', long_name = 'Thickness divergence', units = 'm s^-1')
+      CASE ('divQT')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'divQT', long_name = 'Heat divergence', units = 'degC m s^-1')
+      CASE ('divQS')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'divQS', long_name = 'Salt divergence', units = 'PSU m s^-1')
+      CASE ('diffT')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'diffT', long_name = 'Heat diffusion', units = 'degC m s^-1')
+      CASE ('diffS')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'diffS', long_name = 'Salt diffusion', units = 'PSU m s^-1')
+      CASE ('viscU')
+        CALL add_field_mesh_dp_2D_b( filename, ncid, 'viscU', long_name = 'Laddie U viscosity', units = 'm^2 s^-2')
+      CASE ('viscV')
+        CALL add_field_mesh_dp_2D_b( filename, ncid, 'viscV', long_name = 'Laddie V viscosity', units = 'm^2 s^-2')
+      CASE ('T_base')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'T_base', long_name = 'Temperature at ice/ocean interface', units = 'deg C')
+      CASE ('u_star')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'u_star', long_name = 'Friction velocity', units = 'm s^-1')
+      CASE ('gamma_T')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'gamma_T', long_name = 'Heat exchange coefficient', units = 'm s^-1')
+      CASE ('divQU')
+        CALL add_field_mesh_dp_2D_b( filename, ncid, 'divQU', long_name = 'Laddie U divergence', units = 'm^2 s^-2')
+      CASE ('divQV')
+        CALL add_field_mesh_dp_2D_b( filename, ncid, 'divQV', long_name = 'Laddie V divergence', units = 'm^2 s^-2')
+      CASE ('HU_lad')
+        CALL add_field_mesh_dp_2D_b( filename, ncid, 'HU_lad', long_name = 'Laddie HU ', units = 'm^2 s^-1')
+      CASE ('HV_lad')
+        CALL add_field_mesh_dp_2D_b( filename, ncid, 'HV_lad', long_name = 'Laddie HV ', units = 'm^2 s^-1')
+
     ! == Lateral mass balance ==
     ! ==========================
 
@@ -2465,6 +2639,47 @@ CONTAINS
       CASE ('S_lad')
         CALL add_field_grid_dp_2D( filename, ncid, 'S_lad', long_name = 'Laddie salinity', units = 'PSU')
 
+      ! Useful laddie fields
+      CASE ('drho_amb')
+        CALL add_field_grid_dp_2D( filename, ncid, 'drho_amb', long_name = 'Depth integrated buoyancy', units = 'kg m^-2')
+      CASE ('drho_base')
+        CALL add_field_grid_dp_2D( filename, ncid, 'drho_base', long_name = 'Depth integrated buoyancy', units = 'kg m^-2')
+      CASE ('entr')
+        CALL add_field_grid_dp_2D( filename, ncid, 'entr', long_name = 'Entrainment rate', units = 'm s^-1')
+      CASE ('entr_dmin')
+        CALL add_field_grid_dp_2D( filename, ncid, 'entr_dmin', long_name = 'Entrainment rate for Dmin', units = 'm s^-1')
+      CASE ('melt')
+        CALL add_field_grid_dp_2D( filename, ncid, 'melt', long_name = 'melt rate', units = 'm s^-1')
+      CASE ('divQH')
+        CALL add_field_grid_dp_2D( filename, ncid, 'divQH', long_name = 'Thickness divergence', units = 'm s^-1')
+      CASE ('divQT')
+        CALL add_field_grid_dp_2D( filename, ncid, 'divQT', long_name = 'Heat divergence', units = 'degC m s^-1')
+      CASE ('divQS')
+        CALL add_field_grid_dp_2D( filename, ncid, 'divQS', long_name = 'Salt divergence', units = 'PSU m s^-1')
+      CASE ('diffT')
+        CALL add_field_grid_dp_2D( filename, ncid, 'diffT', long_name = 'Heat diffusion', units = 'degC m s^-1')
+      CASE ('diffS')
+        CALL add_field_grid_dp_2D( filename, ncid, 'diffS', long_name = 'Salt diffusion', units = 'PSU m s^-1')
+      CASE ('viscU')
+        ! Not implemented
+      CASE ('viscV')
+        ! Not implemented
+      CASE ('T_base')
+        CALL add_field_grid_dp_2D( filename, ncid, 'T_base', long_name = 'Temperature at ice/ocean interface', units = 'deg C')
+      CASE ('u_star')
+        CALL add_field_grid_dp_2D( filename, ncid, 'u_star', long_name = 'Friction velocity', units = 'm s^-1')
+      CASE ('gamma_T')
+        CALL add_field_grid_dp_2D( filename, ncid, 'gamma_T', long_name = 'Heat exchange coefficient', units = 'm s^-1')
+      CASE ('divQU')
+        ! Not implemented
+      CASE ('divQV')
+        ! Not implemented
+      CASE ('HU_lad')
+        ! Not implemented
+      CASE ('HV_lad')
+        ! Not implemented
+
+
     ! == Lateral mass balance ==
     ! ==========================
 
@@ -2528,6 +2743,8 @@ CONTAINS
     CALL add_time_dimension_to_file(  region%output_filename_scalar, ncid)
 
     ! Add the default data fields to the file
+
+    ! Integrated ice geometry
     CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'ice_area')
     CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'ice_volume')
     CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'ice_volume_af')
@@ -2536,6 +2753,7 @@ CONTAINS
     CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'ice_volume_PD')
     CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'ice_volume_af_PD')
 
+    ! Integrated mass fluxes
     CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'SMB_total')
     CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'SMB_gr')
     CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'SMB_fl')
@@ -2563,6 +2781,22 @@ CONTAINS
     CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'cf_fl_flux')
     CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'margin_land_flux')
     CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'margin_ocean_flux')
+
+    ! Numerical stability info
+    call create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'n_dt_ice')
+    call create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'min_dt_ice')
+    call create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'max_dt_ice')
+    call create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'mean_dt_ice')
+
+    call create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'n_visc_its')
+    call create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'min_visc_its_per_dt')
+    call create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'max_visc_its_per_dt')
+    call create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'mean_visc_its_per_dt')
+
+    call create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'n_Axb_its')
+    call create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'min_Axb_its_per_visc_it')
+    call create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'max_Axb_its_per_visc_it')
+    call create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'mean_Axb_its_per_visc_it')
 
     ! Close the file
     CALL close_netcdf_file( ncid)
@@ -2716,6 +2950,54 @@ CONTAINS
       ! Total flux exiting ice margins into marine areas
       CASE ('margin_ocean_flux')
         CALL add_field_dp_0D( filename, ncid, 'margin_ocean_flux', long_name = 'Total lateral flux exiting the ice margin into water', units = 'Gt yr^-1')
+
+      ! Total number of ice-dynamical time steps
+      case ('n_dt_ice')
+        call add_field_int_0D( filename, ncid, 'n_dt_ice', long_name = 'Total number of ice-dynamical time steps')
+
+      ! Smallest ice-dynamical time step
+      case ('min_dt_ice')
+        call add_field_dp_0D( filename, ncid, 'min_dt_ice', long_name = 'Smallest ice-dynamical time step', units = 'yr')
+
+      ! Largest ice-dynamical time step
+      case ('max_dt_ice')
+        call add_field_dp_0D( filename, ncid, 'max_dt_ice', long_name = 'Largest ice-dynamical time step', units = 'yr')
+
+      ! Mean ice-dynamical time step
+      case ('mean_dt_ice')
+        call add_field_dp_0D( filename, ncid, 'mean_dt_ice', long_name = 'Mean ice-dynamical time step', units = 'yr')
+
+      ! Total number of non-linear viscosity iterations
+      case ('n_visc_its')
+        call add_field_int_0D( filename, ncid, 'n_visc_its', long_name = 'Total number of non-linear viscosity iterations')
+
+      ! Smallest number of non-linear viscosity iterations in a single ice-dynamical time step
+      case ('min_visc_its_per_dt')
+        call add_field_int_0D( filename, ncid, 'min_visc_its_per_dt', long_name = 'Smallest number of non-linear viscosity iterations in a single ice-dynamical time step')
+
+      ! Largest number of non-linear viscosity iterations in a single ice-dynamical time step
+      case ('max_visc_its_per_dt')
+        call add_field_int_0D( filename, ncid, 'max_visc_its_per_dt', long_name = 'Largest number of non-linear viscosity iterations in a single ice-dynamical time step')
+
+      ! Mean number of non-linear viscosity iterations in a single ice-dynamical time step
+      case ('mean_visc_its_per_dt')
+        call add_field_dp_0D( filename, ncid, 'mean_visc_its_per_dt', long_name = 'Mean number of non-linear viscosity iterations in a single ice-dynamical time step')
+
+      ! Total number of iterations in iterative solver for linearised momentum balance
+      case ('n_Axb_its')
+        call add_field_int_0D( filename, ncid, 'n_Axb_its', long_name = 'Total number of iterations in iterative solver for linearised momentum balance')
+
+      ! Smallest number of iterations in iterative solver for linearised momentum balance per non-linear viscosity iteration
+      case ('min_Axb_its_per_visc_it')
+        call add_field_int_0D( filename, ncid, 'min_Axb_its_per_visc_it', long_name = 'Smallest number of iterations in iterative solver for linearised momentum balance per non-linear viscosity iteration')
+
+      ! Largest number of iterations in iterative solver for linearised momentum balance per non-linear viscosity iteration
+      case ('max_Axb_its_per_visc_it')
+        call add_field_int_0D( filename, ncid, 'max_Axb_its_per_visc_it', long_name = 'Largest number of iterations in iterative solver for linearised momentum balance per non-linear viscosity iteration')
+
+      ! Mean number of iterations in iterative solver for linearised momentum balance per non-linear viscosity iteration
+      case ('mean_Axb_its_per_visc_it')
+        call add_field_dp_0D( filename, ncid, 'mean_Axb_its_per_visc_it', long_name = 'Mean number of iterations in iterative solver for linearised momentum balance per non-linear viscosity iteration')
 
     ! ===== End of user-defined output fields =====
     ! =============================================

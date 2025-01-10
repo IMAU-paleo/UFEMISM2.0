@@ -19,8 +19,8 @@ MODULE SMB_main
   USE SMB_prescribed                                         , ONLY: initialise_SMB_model_prescribed, run_SMB_model_prescribed
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   use mesh_ROI_polygons, only: calc_polygon_Patagonia
-  USE math_utilities                                         , ONLY: is_in_polygon
-  USE mesh_data_smoothing                                    , ONLY: smooth_Gaussian_2D
+  use plane_geometry, only: is_in_polygon
+  use mesh_data_smoothing, only: smooth_Gaussian
 
   IMPLICIT NONE
 
@@ -391,7 +391,7 @@ CONTAINS
 
     ! Smooth the reconstructed field
     SMB_smoothed = SMB%SMB
-    CALL smooth_Gaussian_2D( mesh, grid_smooth, SMB_smoothed, r_smooth)
+    CALL smooth_Gaussian( mesh, grid_smooth, SMB_smoothed, r_smooth)
 
     ! Only apply the smoothed field inside the reconstructed area
     ! to reduce the power of positive SMB there
@@ -409,7 +409,7 @@ CONTAINS
 
     ! Smooth the field once more
     SMB_smoothed = SMB%SMB
-    CALL smooth_Gaussian_2D( mesh, grid_smooth, SMB_smoothed, r_smooth)
+    CALL smooth_Gaussian( mesh, grid_smooth, SMB_smoothed, r_smooth)
 
     ! Apply this second smoothing only outside of the reconstructed area
     ! to conserve the power of negative SMB there

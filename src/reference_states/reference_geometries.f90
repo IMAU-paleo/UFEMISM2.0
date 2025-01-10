@@ -22,8 +22,11 @@ MODULE reference_geometries
   USE parameters
   USE reference_geometry_types                               , ONLY: type_reference_geometry
   USE mesh_types                                             , ONLY: type_mesh
-  USE grid_basic                                             , ONLY: type_grid, setup_square_grid, distribute_gridded_data_from_master_dp_2D, smooth_Gaussian_2D_grid
-  USE math_utilities                                         , ONLY: ice_surface_elevation, oblique_sg_projection, is_floating
+  use grid_basic, only: type_grid, setup_square_grid
+  use mpi_distributed_memory_grid, only: distribute_gridded_data_from_master
+  use smooth_gridded_data, only: smooth_Gaussian_grid
+  use ice_geometry_basics, only: ice_surface_elevation, is_floating
+  use projections, only: oblique_sg_projection
   USE analytical_solutions                                   , ONLY: Halfar_dome, Bueler_dome
   USE netcdf_basic                                           , ONLY: inquire_xy_grid, inquire_lonlat_grid, inquire_mesh, open_existing_netcdf_file_for_reading, &
                                                                      inquire_var_multopt, close_netcdf_file
@@ -522,10 +525,10 @@ CONTAINS
     END IF
 
     ! Distribute the data over the processes in vector form
-    CALL distribute_gridded_data_from_master_dp_2D( refgeo%grid_raw, Hi, refgeo%Hi_grid_raw)
-    CALL distribute_gridded_data_from_master_dp_2D( refgeo%grid_raw, Hb, refgeo%Hb_grid_raw)
-    CALL distribute_gridded_data_from_master_dp_2D( refgeo%grid_raw, Hs, refgeo%Hs_grid_raw)
-    CALL distribute_gridded_data_from_master_dp_2D( refgeo%grid_raw, SL, refgeo%SL_grid_raw)
+    CALL distribute_gridded_data_from_master( refgeo%grid_raw, Hi, refgeo%Hi_grid_raw)
+    CALL distribute_gridded_data_from_master( refgeo%grid_raw, Hb, refgeo%Hb_grid_raw)
+    CALL distribute_gridded_data_from_master( refgeo%grid_raw, Hs, refgeo%Hs_grid_raw)
+    CALL distribute_gridded_data_from_master( refgeo%grid_raw, SL, refgeo%SL_grid_raw)
 
     ! Clean up after yourself
     IF (par%master) THEN
@@ -1452,7 +1455,7 @@ CONTAINS
     r_smooth = refgeo%grid_raw%dx * C%r_smooth_geometry
 
     ! Apply smoothing to the bed topography
-    CALL smooth_Gaussian_2D_grid( refgeo%grid_raw, refgeo%Hb_grid_raw, r_smooth)
+    CALL smooth_Gaussian_grid( refgeo%grid_raw, refgeo%Hb_grid_raw, r_smooth)
 
     ! Correct smoothed geometry if necessary
     DO n = refgeo%grid_raw%n1, refgeo%grid_raw%n2

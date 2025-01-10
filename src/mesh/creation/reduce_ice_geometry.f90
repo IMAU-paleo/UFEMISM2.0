@@ -10,10 +10,10 @@ module reduce_ice_geometry
   use control_resources_and_error_messaging, only: init_routine, finalise_routine
   use grid_types, only: type_grid
   use mesh_types, only: type_mesh
-  use mpi_distributed_memory, only: gather_to_master_dp_1D
-  use grid_basic, only: gather_gridded_data_to_master_dp_2D, calc_grid_mask_as_polygons, &
-    calc_grid_contour_as_line
-  use math_utilities, only: thickness_above_floatation
+  use mpi_distributed_memory, only: gather_to_master
+  use grid_basic, only: calc_grid_mask_as_polygons, calc_grid_contour_as_line
+  use mpi_distributed_memory_grid, only: gather_gridded_data_to_master
+  use ice_geometry_basics, only: thickness_above_floatation
   use mesh_utilities, only: calc_mesh_mask_as_polygons, calc_mesh_contour_as_line
 
   implicit none
@@ -85,10 +85,10 @@ contains
     end if
 
     ! Gather ice geometry data in grid form to the master
-    call gather_gridded_data_to_master_dp_2D( grid, Hi, Hi_grid)
-    call gather_gridded_data_to_master_dp_2D( grid, Hb, Hb_grid)
-    call gather_gridded_data_to_master_dp_2D( grid, Hs, Hs_grid)
-    call gather_gridded_data_to_master_dp_2D( grid, SL, SL_grid)
+    call gather_gridded_data_to_master( grid, Hi, Hi_grid)
+    call gather_gridded_data_to_master( grid, Hb, Hb_grid)
+    call gather_gridded_data_to_master( grid, Hs, Hs_grid)
+    call gather_gridded_data_to_master( grid, SL, SL_grid)
 
     ! Let the master calculate the polygons and lines
 
@@ -295,10 +295,10 @@ contains
     end if
 
     ! Gather ice geometry data in grid form to the master
-    call gather_to_master_dp_1D( Hi, Hi_tot)
-    call gather_to_master_dp_1D( Hb, Hb_tot)
-    call gather_to_master_dp_1D( Hs, Hs_tot)
-    call gather_to_master_dp_1D( SL, SL_tot)
+    call gather_to_master( Hi, Hi_tot)
+    call gather_to_master( Hb, Hb_tot)
+    call gather_to_master( Hs, Hs_tot)
+    call gather_to_master( SL, SL_tot)
 
     ! Let the master calculate the polygons and lines
 
