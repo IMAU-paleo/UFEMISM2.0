@@ -143,7 +143,7 @@ contains
 
     ! Write the data
     if (par%master) then
-      call handle_netcdf_error( NF90_PUT_VAR( ncid, id_var, d), &
+      call handle_netcdf_error( NF90_PUT_VAR( ncid, id_var, d, start_applied, count_applied), &
         filename = filename, dimvarname = var_name)
     end if
 
@@ -225,7 +225,7 @@ contains
 
     ! Write the data
     if (par%master) then
-      call handle_netcdf_error( NF90_PUT_VAR( ncid, id_var, d), &
+      call handle_netcdf_error( NF90_PUT_VAR( ncid, id_var, d, start_applied, count_applied), &
         filename = filename, dimvarname = var_name)
     end if
 
@@ -307,7 +307,7 @@ contains
 
     ! Write the data
     if (par%master) then
-      call handle_netcdf_error( NF90_PUT_VAR( ncid, id_var, d), &
+      call handle_netcdf_error( NF90_PUT_VAR( ncid, id_var, d, start_applied, count_applied), &
         filename = filename, dimvarname = var_name)
     end if
 
@@ -388,7 +388,7 @@ contains
 
     ! Write the data
     if (par%master) then
-      call handle_netcdf_error( NF90_PUT_VAR( ncid, id_var, d), &
+      call handle_netcdf_error( NF90_PUT_VAR( ncid, id_var, d, start_applied, count_applied), &
         filename = filename, dimvarname = var_name)
     end if
 
@@ -470,7 +470,7 @@ contains
 
     ! Write the data
     if (par%master) then
-      call handle_netcdf_error( NF90_PUT_VAR( ncid, id_var, d), &
+      call handle_netcdf_error( NF90_PUT_VAR( ncid, id_var, d, start_applied, count_applied), &
         filename = filename, dimvarname = var_name)
     end if
 
@@ -594,7 +594,7 @@ contains
 
     ! Write the data
     if (par%master) then
-      call handle_netcdf_error( NF90_PUT_VAR( ncid, id_var, d), &
+      call handle_netcdf_error( NF90_PUT_VAR( ncid, id_var, d, start_applied, count_applied), &
         filename = filename, dimvarname = var_name)
     end if
 
@@ -676,7 +676,7 @@ contains
 
     ! Write the data
     if (par%master) then
-      call handle_netcdf_error( NF90_PUT_VAR( ncid, id_var, d), &
+      call handle_netcdf_error( NF90_PUT_VAR( ncid, id_var, d, start_applied, count_applied), &
         filename = filename, dimvarname = var_name)
     end if
 
@@ -758,7 +758,7 @@ contains
 
     ! Write the data
     if (par%master) then
-      call handle_netcdf_error( NF90_PUT_VAR( ncid, id_var, d), &
+      call handle_netcdf_error( NF90_PUT_VAR( ncid, id_var, d, start_applied, count_applied), &
         filename = filename, dimvarname = var_name)
     end if
 
@@ -840,7 +840,7 @@ contains
 
     ! Write the data
     if (par%master) then
-      call handle_netcdf_error( NF90_PUT_VAR( ncid, id_var, d), &
+      call handle_netcdf_error( NF90_PUT_VAR( ncid, id_var, d, start_applied, count_applied), &
         filename = filename, dimvarname = var_name)
     end if
 

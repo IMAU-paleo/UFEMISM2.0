@@ -90,8 +90,8 @@ contains
         filename = filename)
     end if
 
-    if (present( dim_name  )) call MPI_BCAST( dim_name  , 256, MPI_CHAR   , 0, MPI_COMM_WORLD, ierr)
-    if (present( dim_length)) call MPI_BCAST( dim_length, 1  , MPI_integer, 0, MPI_COMM_WORLD, ierr)
+    if (present( dim_name  )) call MPI_BCAST( dim_name  , len( dim_name), MPI_CHAR   , 0, MPI_COMM_WORLD, ierr)
+    if (present( dim_length)) call MPI_BCAST( dim_length, 1             , MPI_integer, 0, MPI_COMM_WORLD, ierr)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -164,7 +164,7 @@ contains
         filename = filename)
     end if
 
-    if (present( var_name    )) call MPI_BCAST( var_name    , 256              , MPI_CHAR   , 0, MPI_COMM_WORLD, ierr)
+    if (present( var_name    )) call MPI_BCAST( var_name    , len( var_name)   , MPI_CHAR   , 0, MPI_COMM_WORLD, ierr)
     if (present( var_type    )) call MPI_BCAST( var_type    , 1                , MPI_integer, 0, MPI_COMM_WORLD, ierr)
     if (present( ndims_of_var)) call MPI_BCAST( ndims_of_var, 1                , MPI_integer, 0, MPI_COMM_WORLD, ierr)
     if (present(  dims_of_var)) call MPI_BCAST( dims_of_var , NF90_MAX_VAR_DIMS, MPI_integer, 0, MPI_COMM_WORLD, ierr)
