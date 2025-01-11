@@ -12,10 +12,6 @@ MODULE ice_model_main
   USE mpi_basic                                              , ONLY: par, cerr, ierr, recv_status, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
-  USE netcdf_debug                                           , ONLY: write_PETSc_matrix_to_NetCDF, write_CSR_matrix_to_NetCDF, &
-                                                                     save_variable_as_netcdf_int_1D, save_variable_as_netcdf_int_2D, &
-                                                                     save_variable_as_netcdf_dp_1D , save_variable_as_netcdf_dp_2D, &
-                                                                     save_variable_as_netcdf_logical_1D
   USE parameters
   USE mesh_types                                             , ONLY: type_mesh
   USE ice_model_types                                        , ONLY: type_ice_model, type_ice_pc
@@ -39,11 +35,7 @@ MODULE ice_model_main
                                                                      create_restart_file_ice_velocity, write_to_restart_file_ice_velocity, &
                                                                      map_velocities_from_b_to_c_2D
   use mpi_distributed_memory, only: gather_to_all, distribute_from_master
-  USE netcdf_basic                                           , ONLY: create_new_netcdf_file_for_writing, close_netcdf_file, open_existing_netcdf_file_for_writing
-  USE netcdf_output                                          , ONLY: generate_filename_XXXXXdotnc, setup_mesh_in_netcdf_file, add_time_dimension_to_file, &
-                                                                     add_field_dp_0D, add_field_mesh_dp_2D, write_time_to_file, write_to_field_multopt_mesh_dp_2D, &
-                                                                     write_to_field_multopt_dp_0D
-  USE netcdf_input                                           , ONLY: read_field_from_file_0D, read_field_from_mesh_file_2D
+  use netcdf_io_main
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   use remapping_main, only: Atlas, map_from_mesh_to_mesh_with_reallocation_2D, map_from_mesh_to_mesh_with_reallocation_3D, map_from_mesh_to_mesh_2D
   USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp
@@ -566,7 +558,7 @@ CONTAINS
 
     ! Horizontal derivatives
     CALL reallocate_bounds( ice%dHib_dx_b                   , mesh_new%ti1, mesh_new%ti2         )  ! [] Horizontal derivative of ice draft on b-grid
-    CALL reallocate_bounds( ice%dHib_dy_b                   , mesh_new%ti1, mesh_new%ti2         )  ! [] Horizontal derivative of ice draft on b-grid        
+    CALL reallocate_bounds( ice%dHib_dy_b                   , mesh_new%ti1, mesh_new%ti2         )  ! [] Horizontal derivative of ice draft on b-grid
 
     ! Target quantities
     CALL reallocate_bounds( ice%dHi_dt_target               , mesh_new%vi1, mesh_new%vi2         )  ! [m yr^-1] Target ice thickness rate of change for inversions
@@ -773,7 +765,7 @@ CONTAINS
       ! Horizontal derivatives
       ice%dHib_dx_b( ti) = 0._dp
       ice%dHib_dy_b( ti) = 0._dp
-    END DO ! DO ti = mesh_new%ti1, mesh_new%ti2 
+    END DO ! DO ti = mesh_new%ti1, mesh_new%ti2
 
     ! Calculate zeta gradients
     CALL calc_zeta_gradients( mesh_new, ice)

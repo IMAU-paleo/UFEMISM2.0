@@ -15,10 +15,6 @@ MODULE reference_geometries
   USE mpi_basic                                              , ONLY: par, cerr, ierr, recv_status, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
-  USE netcdf_debug                                           , ONLY: write_PETSc_matrix_to_NetCDF, write_CSR_matrix_to_NetCDF, &
-                                                                     save_variable_as_netcdf_int_1D, save_variable_as_netcdf_int_2D, &
-                                                                     save_variable_as_netcdf_dp_1D , save_variable_as_netcdf_dp_2D, &
-                                                                     save_variable_as_netcdf_logical_1D
   USE parameters
   USE reference_geometry_types                               , ONLY: type_reference_geometry
   USE mesh_types                                             , ONLY: type_mesh
@@ -28,9 +24,7 @@ MODULE reference_geometries
   use ice_geometry_basics, only: ice_surface_elevation, is_floating
   use projections, only: oblique_sg_projection
   USE analytical_solutions                                   , ONLY: Halfar_dome, Bueler_dome
-  USE netcdf_basic                                           , ONLY: inquire_xy_grid, inquire_lonlat_grid, inquire_mesh, open_existing_netcdf_file_for_reading, &
-                                                                     inquire_var_multopt, close_netcdf_file
-  USE netcdf_input                                           , ONLY: setup_xy_grid_from_file, read_field_from_xy_file_2D, setup_mesh_from_file, read_field_from_mesh_file_2D
+  use netcdf_io_main
   use remapping_main, only: map_from_xy_grid_to_mesh_2D, map_from_mesh_to_mesh_2D
 
   IMPLICIT NONE

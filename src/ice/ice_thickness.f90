@@ -12,7 +12,6 @@ MODULE ice_thickness
   USE mpi_basic                                              , ONLY: par, cerr, ierr, recv_status, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
-  USE netcdf_debug                                           , ONLY: save_variable_as_netcdf_dp_1D, write_CSR_matrix_to_NetCDF
   USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp, allocate_matrix_CSR_dist, add_entry_CSR_dist, &
                                                                      deallocate_matrix_CSR_dist, duplicate_matrix_CSR_dist
   USE mesh_types                                             , ONLY: type_mesh

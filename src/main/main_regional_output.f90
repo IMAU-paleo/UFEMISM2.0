@@ -12,31 +12,7 @@ MODULE main_regional_output
   USE model_configuration                                    , ONLY: C
   USE grid_basic                                             , ONLY: type_grid
   USE region_types                                           , ONLY: type_model_region
-  USE netcdf_basic                                           , ONLY: create_new_netcdf_file_for_writing, open_existing_netcdf_file_for_writing, close_netcdf_file
-  USE netcdf_output                                          , ONLY: generate_filename_XXXXXdotnc, setup_mesh_in_netcdf_file, setup_xy_grid_in_netcdf_file, setup_CDF_in_netcdf_file, &
-                                                                     add_time_dimension_to_file, add_zeta_dimension_to_file, add_month_dimension_to_file, &
-                                                                     write_time_to_file, &
-                                                                     add_field_mesh_int_2D, add_field_mesh_int_2D_notime, &
-                                                                     add_field_mesh_dp_2D, add_field_mesh_dp_2D_notime, &
-                                                                     add_field_mesh_dp_2D_monthly, add_field_mesh_dp_2D_monthly_notime, &
-                                                                     add_field_mesh_dp_3D, add_field_mesh_dp_3D_notime, &
-                                                                     add_field_mesh_dp_2D_b, add_field_mesh_dp_2D_b_notime, &
-                                                                     add_field_mesh_dp_3D_b, add_field_mesh_dp_3D_b_notime, &
-                                                                     add_field_grid_dp_2D, add_field_grid_dp_2D_notime, &
-                                                                     add_field_grid_dp_3D, add_field_grid_dp_3D_notime, &
-                                                                     add_field_grid_dp_2D_monthly, add_field_grid_dp_2D_monthly_notime, &
-                                                                     add_field_dp_0D, add_field_int_0D, &
-                                                                     write_to_field_multopt_mesh_int_2D, write_to_field_multopt_mesh_int_2D_notime, &
-                                                                     write_to_field_multopt_mesh_dp_2D, write_to_field_multopt_mesh_dp_2D_notime, &
-                                                                     write_to_field_multopt_mesh_dp_2D_monthly, write_to_field_multopt_mesh_dp_2D_monthly_notime, &
-                                                                     write_to_field_multopt_mesh_dp_3D, write_to_field_multopt_mesh_dp_3D_notime, &
-                                                                     write_to_field_multopt_mesh_dp_2D_b, write_to_field_multopt_mesh_dp_2D_b_notime, &
-                                                                     write_to_field_multopt_mesh_dp_3D_b, write_to_field_multopt_mesh_dp_3D_b_notime, &
-                                                                     write_to_field_multopt_grid_dp_2D, write_to_field_multopt_grid_dp_2D_notime, &
-                                                                     write_to_field_multopt_grid_dp_2D_monthly, write_to_field_multopt_grid_dp_2D_monthly_notime, &
-                                                                     write_to_field_multopt_grid_dp_3D, write_to_field_multopt_grid_dp_3D_notime, &
-                                                                     write_to_field_multopt_dp_0D, write_to_field_multopt_int_0D, &
-                                                                     write_matrix_operators_to_netcdf_file
+  use netcdf_io_main
   use remapping_main, only: map_from_mesh_to_xy_grid_2D, map_from_mesh_to_xy_grid_3D, map_from_mesh_to_xy_grid_2D_minval
 
   IMPLICIT NONE
@@ -1542,7 +1518,7 @@ CONTAINS
 
     IF (C%choice_subgrid_grounded_fraction == 'bedrock_CDF' .OR. C%choice_subgrid_grounded_fraction == 'bilin_interp_TAF+bedrock_CDF') THEN
       ! Set up bedrock CDF in the file
-      CALL setup_CDF_in_netcdf_file( region%output_filename_mesh, ncid, region%ice)
+      CALL setup_bedrock_CDF_in_netcdf_file( region%output_filename_mesh, ncid, region%ice)
     END IF
 
     ! Add time, zeta, and month dimensions+variables to the file

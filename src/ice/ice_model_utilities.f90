@@ -12,9 +12,6 @@ MODULE ice_model_utilities
   USE mpi_basic                                              , ONLY: par, cerr, ierr, recv_status, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
-  USE netcdf_debug                                           , ONLY: write_PETSc_matrix_to_NetCDF, write_CSR_matrix_to_NetCDF, &
-                                                                     save_variable_as_netcdf_int_1D, save_variable_as_netcdf_int_2D, &
-                                                                     save_variable_as_netcdf_dp_1D , save_variable_as_netcdf_dp_2D
   USE parameters
   USE mesh_types                                             , ONLY: type_mesh
   USE ice_model_types                                        , ONLY: type_ice_model
@@ -35,9 +32,8 @@ MODULE ice_model_utilities
     ddx_b_a_2D, ddy_b_a_2D
   use mpi_distributed_memory, only: gather_to_all
   USE mesh_utilities                                         , ONLY: calc_Voronoi_cell, interpolate_to_point_dp_2D, extrapolate_Gaussian
-  USE netcdf_input                                           , ONLY: read_field_from_mesh_file_3D_CDF, read_field_from_mesh_file_3D_b_CDF
   use mesh_ROI_polygons, only: calc_polygon_Patagonia
-  USE netcdf_input                                           , ONLY: read_field_from_file_2D
+  use netcdf_io_main
 
   IMPLICIT NONE
 
