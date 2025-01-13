@@ -753,4 +753,26 @@ CONTAINS
 
   END SUBROUTINE int2str
 
+  function strrep( str, old, new) result( str_new)
+    !< Replace all occurences in [str] of [old] with [new]
+
+    ! In/output variables
+    character(len=*), intent(inout) :: str
+    character(len=*), intent(in   ) :: old, new
+    character(len=len(str))         :: str_new
+
+    ! Local variables:
+    integer                         :: i, j, nit
+
+    str_new = str
+    nit = 0
+    do while (index( str_new, old) > 0 .and. nit < len( str))
+      nit = nit + 1
+      i = index( str_new,old)
+      j = i + len( old)
+      str_new = str_new( 1:i-1) // trim(new) // str( j: len_trim( str_new))
+    end do
+
+  end function strrep
+
 END MODULE control_resources_and_error_messaging
