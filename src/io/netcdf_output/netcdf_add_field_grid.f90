@@ -36,10 +36,12 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
+#if (DO_ASSERTIONS)
     ! Check if x,y, and time dimensions and variables are there
     call check_x(    filename, ncid)
     call check_y(    filename, ncid)
     call check_time( filename, ncid)
+#endif
 
     ! Inquire dimensions
     call inquire_dim_multopt( filename, ncid, field_name_options_x   , id_dim_x   )
@@ -58,8 +60,10 @@ contains
     if (present( long_name)) call add_attribute_char( filename, ncid, id_var, 'long_name', long_name)
     if (present( units    )) call add_attribute_char( filename, ncid, id_var, 'units'    , units    )
 
+#if (DO_ASSERTIONS)
     ! Final safety check
     call check_xy_grid_field_int_2D( filename, ncid, var_name, should_have_time = .true.)
+#endif
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -83,11 +87,13 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
+#if (DO_ASSERTIONS)
     ! Check if x,y, and time dimensions and variables are there
     call check_x(    filename, ncid)
     call check_y(    filename, ncid)
     call check_zeta( filename, ncid)
     call check_time( filename, ncid)
+#endif
 
     ! Inquire dimensions
     call inquire_dim_multopt( filename, ncid, field_name_options_x   , id_dim_x   )
@@ -108,8 +114,10 @@ contains
     if (present( long_name)) call add_attribute_char( filename, ncid, id_var, 'long_name', long_name)
     if (present( units    )) call add_attribute_char( filename, ncid, id_var, 'units'    , units    )
 
+#if (DO_ASSERTIONS)
     ! Final safety check
     call check_xy_grid_field_int_3D( filename, ncid, var_name, should_have_time = .true.)
+#endif
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -133,10 +141,12 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
+#if (DO_ASSERTIONS)
     ! Check if x,y, and time dimensions and variables are there
     call check_x(    filename, ncid)
     call check_y(    filename, ncid)
     call check_time( filename, ncid)
+#endif
 
     ! Inquire dimensions
     call inquire_dim_multopt( filename, ncid, field_name_options_x   , id_dim_x   )
@@ -155,8 +165,10 @@ contains
     if (present( long_name)) call add_attribute_char( filename, ncid, id_var, 'long_name', long_name)
     if (present( units    )) call add_attribute_char( filename, ncid, id_var, 'units'    , units    )
 
+#if (DO_ASSERTIONS)
     ! Final safety check
     call check_xy_grid_field_dp_2D( filename, ncid, var_name, should_have_time = .true.)
+#endif
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -180,11 +192,13 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
+#if (DO_ASSERTIONS)
     ! Check if x,y, and time dimensions and variables are there
     call check_x(     filename, ncid)
     call check_y(     filename, ncid)
     call check_month( filename, ncid)
     call check_time(  filename, ncid)
+#endif
 
     ! Inquire dimensions
     call inquire_dim_multopt( filename, ncid, field_name_options_x    , id_dim_x    )
@@ -205,8 +219,10 @@ contains
     if (present( long_name)) call add_attribute_char( filename, ncid, id_var, 'long_name', long_name)
     if (present( units    )) call add_attribute_char( filename, ncid, id_var, 'units'    , units    )
 
+#if (DO_ASSERTIONS)
     ! Final safety check
     call check_xy_grid_field_dp_2D_monthly( filename, ncid, var_name, should_have_time = .true.)
+#endif
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -230,11 +246,13 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
+#if (DO_ASSERTIONS)
     ! Check if x,y, and time dimensions and variables are there
     call check_x(    filename, ncid)
     call check_y(    filename, ncid)
     call check_zeta( filename, ncid)
     call check_time( filename, ncid)
+#endif
 
     ! Inquire dimensions
     call inquire_dim_multopt( filename, ncid, field_name_options_x   , id_dim_x   )
@@ -255,8 +273,10 @@ contains
     if (present( long_name)) call add_attribute_char( filename, ncid, id_var, 'long_name', long_name)
     if (present( units    )) call add_attribute_char( filename, ncid, id_var, 'units'    , units    )
 
+#if (DO_ASSERTIONS)
     ! Final safety check
     call check_xy_grid_field_dp_3D( filename, ncid, var_name, should_have_time = .true.)
+#endif
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -280,11 +300,13 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
+#if (DO_ASSERTIONS)
     ! Check if x,y, and time dimensions and variables are there
     call check_x(     filename, ncid)
     call check_y(     filename, ncid)
     call check_depth( filename, ncid)
     call check_time(  filename, ncid)
+#endif
 
     ! Inquire dimensions
     call inquire_dim_multopt( filename, ncid, field_name_options_x    , id_dim_x    )
@@ -305,8 +327,10 @@ contains
     if (present( long_name)) call add_attribute_char( filename, ncid, id_var, 'long_name', long_name)
     if (present( units    )) call add_attribute_char( filename, ncid, id_var, 'units'    , units    )
 
+#if (DO_ASSERTIONS)
     ! Final safety check
     call check_xy_grid_field_dp_3D_ocean( filename, ncid, var_name, should_have_time = .true.)
+#endif
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -332,9 +356,11 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
+#if (DO_ASSERTIONS)
     ! Check if x,y dimensions and variables are there
     call check_x( filename, ncid)
     call check_y( filename, ncid)
+#endif
 
     ! Inquire dimensions
     call inquire_dim_multopt( filename, ncid, field_name_options_x, id_dim_x)
@@ -351,8 +377,10 @@ contains
     if (present( long_name)) call add_attribute_char( filename, ncid, id_var, 'long_name', long_name)
     if (present( units    )) call add_attribute_char( filename, ncid, id_var, 'units'    , units    )
 
+#if (DO_ASSERTIONS)
     ! Final safety check
     call check_xy_grid_field_int_2D( filename, ncid, var_name, should_have_time = .false.)
+#endif
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -376,10 +404,12 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
+#if (DO_ASSERTIONS)
     ! Check if x,y, and time dimensions and variables are there
     call check_x(    filename, ncid)
     call check_y(    filename, ncid)
     call check_zeta( filename, ncid)
+#endif
 
     ! Inquire dimensions
     call inquire_dim_multopt( filename, ncid, field_name_options_x   , id_dim_x   )
@@ -398,8 +428,10 @@ contains
     if (present( long_name)) call add_attribute_char( filename, ncid, id_var, 'long_name', long_name)
     if (present( units    )) call add_attribute_char( filename, ncid, id_var, 'units'    , units    )
 
+#if (DO_ASSERTIONS)
     ! Final safety check
     call check_xy_grid_field_int_3D( filename, ncid, var_name, should_have_time = .false.)
+#endif
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -423,9 +455,11 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
+#if (DO_ASSERTIONS)
     ! Check if x,y, and time dimensions and variables are there
     call check_x( filename, ncid)
     call check_y( filename, ncid)
+#endif
 
     ! Inquire dimensions
     call inquire_dim_multopt( filename, ncid, field_name_options_x, id_dim_x)
@@ -442,8 +476,10 @@ contains
     if (present( long_name)) call add_attribute_char( filename, ncid, id_var, 'long_name', long_name)
     if (present( units    )) call add_attribute_char( filename, ncid, id_var, 'units'    , units    )
 
+#if (DO_ASSERTIONS)
     ! Final safety check
     call check_xy_grid_field_dp_2D( filename, ncid, var_name, should_have_time = .false.)
+#endif
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -467,10 +503,12 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
+#if (DO_ASSERTIONS)
     ! Check if x,y, and time dimensions and variables are there
     call check_x(     filename, ncid)
     call check_y(     filename, ncid)
     call check_month( filename, ncid)
+#endif
 
     ! Inquire dimensions
     call inquire_dim_multopt( filename, ncid, field_name_options_x    , id_dim_x    )
@@ -489,8 +527,10 @@ contains
     if (present( long_name)) call add_attribute_char( filename, ncid, id_var, 'long_name', long_name)
     if (present( units    )) call add_attribute_char( filename, ncid, id_var, 'units'    , units    )
 
+#if (DO_ASSERTIONS)
     ! Final safety check
     call check_xy_grid_field_dp_2D_monthly( filename, ncid, var_name, should_have_time = .false.)
+#endif
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -514,10 +554,12 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
+#if (DO_ASSERTIONS)
     ! Check if x,y, and time dimensions and variables are there
     call check_x(    filename, ncid)
     call check_y(    filename, ncid)
     call check_zeta( filename, ncid)
+#endif
 
     ! Inquire dimensions
     call inquire_dim_multopt( filename, ncid, field_name_options_x   , id_dim_x   )
@@ -536,8 +578,10 @@ contains
     if (present( long_name)) call add_attribute_char( filename, ncid, id_var, 'long_name', long_name)
     if (present( units    )) call add_attribute_char( filename, ncid, id_var, 'units'    , units    )
 
+#if (DO_ASSERTIONS)
     ! Final safety check
     call check_xy_grid_field_dp_3D( filename, ncid, var_name, should_have_time = .false.)
+#endif
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -561,10 +605,12 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
+#if (DO_ASSERTIONS)
     ! Check if x,y, and time dimensions and variables are there
     call check_x(     filename, ncid)
     call check_y(     filename, ncid)
     call check_depth( filename, ncid)
+#endif
 
     ! Inquire dimensions
     call inquire_dim_multopt( filename, ncid, field_name_options_x    , id_dim_x    )
@@ -583,8 +629,10 @@ contains
     if (present( long_name)) call add_attribute_char( filename, ncid, id_var, 'long_name', long_name)
     if (present( units    )) call add_attribute_char( filename, ncid, id_var, 'units'    , units    )
 
+#if (DO_ASSERTIONS)
     ! Final safety check
     call check_xy_grid_field_dp_3D_ocean( filename, ncid, var_name, should_have_time = .false.)
+#endif
 
     ! Finalise routine path
     call finalise_routine( routine_name)

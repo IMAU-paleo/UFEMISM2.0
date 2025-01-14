@@ -53,8 +53,10 @@ contains
     call inquire_var_multopt( filename, ncid, field_name_options, id_var, var_name = var_name)
     if (id_var == -1) call crash('no variables for name options "' // trim( field_name_options) // '" were found in file "' // trim( filename) // '"!')
 
+#if (DO_ASSERTIONS)
     ! Check if this variable has the correct type and dimensions
     call check_mesh_field_int_2D( filename, ncid, var_name, should_have_time = .true.)
+#endif
 
     ! Gather data to the master
     if (par%master) allocate( d_tot( mesh%nV))
@@ -105,8 +107,10 @@ contains
     call inquire_var_multopt( filename, ncid, field_name_options, id_var, var_name = var_name)
     if (id_var == -1) call crash('no variables for name options "' // trim( field_name_options) // '" were found in file "' // trim( filename) // '"!')
 
+#if (DO_ASSERTIONS)
     ! Check if this variable has the correct type and dimensions
     call check_mesh_field_dp_2D( filename, ncid, var_name, should_have_time = .true.)
+#endif
 
     ! Gather data to the master
     if (par%master) allocate( d_tot( mesh%nV))
@@ -157,8 +161,10 @@ contains
     call inquire_var_multopt( filename, ncid, field_name_options, id_var, var_name = var_name)
     if (id_var == -1) call crash('no variables for name options "' // trim( field_name_options) // '" were found in file "' // trim( filename) // '"!')
 
+#if (DO_ASSERTIONS)
     ! Check if this variable has the correct type and dimensions
     call check_mesh_field_dp_2D_b( filename, ncid, var_name, should_have_time = .true.)
+#endif
 
     ! Gather data to the master
     if (par%master) allocate( d_tot( mesh%nTri))
@@ -209,8 +215,10 @@ contains
     call inquire_var_multopt( filename, ncid, field_name_options, id_var, var_name = var_name)
     if (id_var == -1) call crash('no variables for name options "' // trim( field_name_options) // '" were found in file "' // trim( filename) // '"!')
 
+#if (DO_ASSERTIONS)
     ! Check if this variable has the correct type and dimensions
     call check_mesh_field_dp_2D_monthly( filename, ncid, var_name, should_have_time = .true.)
+#endif
 
     ! Gather data to the master
     if (par%master) allocate( d_tot( mesh%nV, 12))
@@ -261,8 +269,10 @@ contains
     call inquire_var_multopt( filename, ncid, field_name_options, id_var, var_name = var_name)
     if (id_var == -1) call crash('no variables for name options "' // trim( field_name_options) // '" were found in file "' // trim( filename) // '"!')
 
+#if (DO_ASSERTIONS)
     ! Check if this variable has the correct type and dimensions
     call check_mesh_field_dp_3D( filename, ncid, var_name, should_have_time = .true.)
+#endif
 
     ! Gather data to the master
     if (par%master) allocate( d_tot( mesh%nV, mesh%nz))
@@ -313,8 +323,10 @@ contains
     call inquire_var_multopt( filename, ncid, field_name_options, id_var, var_name = var_name)
     if (id_var == -1) call crash('no variables for name options "' // trim( field_name_options) // '" were found in file "' // trim( filename) // '"!')
 
+#if (DO_ASSERTIONS)
     ! Check if this variable has the correct type and dimensions
     call check_mesh_field_dp_3D_b( filename, ncid, var_name, should_have_time = .true.)
+#endif
 
     ! Gather data to the master
     if (par%master) allocate( d_tot( mesh%nTri, mesh%nz))
@@ -365,8 +377,10 @@ contains
     call inquire_var_multopt( filename, ncid, field_name_options, id_var, var_name = var_name)
     if (id_var == -1) call crash('no variables for name options "' // trim( field_name_options) // '" were found in file "' // trim( filename) // '"!')
 
+#if (DO_ASSERTIONS)
     ! Check if this variable has the correct type and dimensions
     call check_mesh_field_dp_3D_ocean( filename, ncid, var_name, should_have_time = .true.)
+#endif
 
     ! Gather data to the master
     if (par%master) allocate( d_tot( mesh%nV, C%nz_ocean))
@@ -414,8 +428,10 @@ contains
     call inquire_var_multopt( filename, ncid, field_name_options, id_var, var_name = var_name)
     if (id_var == -1) call crash('no variables for name options "' // trim( field_name_options) // '" were found in file "' // trim( filename) // '"!')
 
+#if (DO_ASSERTIONS)
     ! Check if this variable has the correct type and dimensions
     call check_mesh_field_int_2D( filename, ncid, var_name, should_have_time = .false.)
+#endif
 
     ! Gather data to the master
     if (par%master) allocate( d_tot( mesh%nV))
@@ -457,8 +473,10 @@ contains
     call inquire_var_multopt( filename, ncid, field_name_options, id_var, var_name = var_name)
     if (id_var == -1) call crash('no variables for name options "' // trim( field_name_options) // '" were found in file "' // trim( filename) // '"!')
 
+#if (DO_ASSERTIONS)
     ! Check if this variable has the correct type and dimensions
     call check_mesh_field_int_2D_b( filename, ncid, var_name, should_have_time = .false.)
+#endif
 
     ! Gather data to the master
     if (par%master) allocate( d_tot( mesh%nTri))
@@ -500,8 +518,10 @@ contains
     call inquire_var_multopt( filename, ncid, field_name_options, id_var, var_name = var_name)
     if (id_var == -1) call crash('no variables for name options "' // trim( field_name_options) // '" were found in file "' // trim( filename) // '"!')
 
+#if (DO_ASSERTIONS)
     ! Check if this variable has the correct type and dimensions
     call check_mesh_field_int_2D_c( filename, ncid, var_name, should_have_time = .false.)
+#endif
 
     ! Gather data to the master
     if (par%master) allocate( d_tot( mesh%nE))
@@ -543,8 +563,10 @@ contains
     call inquire_var_multopt( filename, ncid, field_name_options, id_var, var_name = var_name)
     if (id_var == -1) call crash('no variables for name options "' // trim( field_name_options) // '" were found in file "' // trim( filename) // '"!')
 
+#if (DO_ASSERTIONS)
     ! Check if this variable has the correct type and dimensions
     call check_mesh_field_dp_2D( filename, ncid, var_name, should_have_time = .false.)
+#endif
 
     ! Gather data to the master
     if (par%master) allocate( d_tot( mesh%nV))
@@ -586,8 +608,10 @@ contains
     call inquire_var_multopt( filename, ncid, field_name_options, id_var, var_name = var_name)
     if (id_var == -1) call crash('no variables for name options "' // trim( field_name_options) // '" were found in file "' // trim( filename) // '"!')
 
+#if (DO_ASSERTIONS)
     ! Check if this variable has the correct type and dimensions
     call check_mesh_field_dp_2D_b( filename, ncid, var_name, should_have_time = .false.)
+#endif
 
     ! Gather data to the master
     if (par%master) allocate( d_tot( mesh%nTri))
@@ -629,8 +653,10 @@ contains
     call inquire_var_multopt( filename, ncid, field_name_options, id_var, var_name = var_name)
     if (id_var == -1) call crash('no variables for name options "' // trim( field_name_options) // '" were found in file "' // trim( filename) // '"!')
 
+#if (DO_ASSERTIONS)
     ! Check if this variable has the correct type and dimensions
     call check_mesh_field_dp_2D_c( filename, ncid, var_name, should_have_time = .false.)
+#endif
 
     ! Gather data to the master
     if (par%master) allocate( d_tot( mesh%nE))
@@ -672,8 +698,10 @@ contains
     call inquire_var_multopt( filename, ncid, field_name_options, id_var, var_name = var_name)
     if (id_var == -1) call crash('no variables for name options "' // trim( field_name_options) // '" were found in file "' // trim( filename) // '"!')
 
+#if (DO_ASSERTIONS)
     ! Check if this variable has the correct type and dimensions
     call check_mesh_field_dp_2D_monthly( filename, ncid, var_name, should_have_time = .false.)
+#endif
 
     ! Gather data to the master
     if (par%master) allocate( d_tot( mesh%nV, 12))
@@ -715,8 +743,10 @@ contains
     call inquire_var_multopt( filename, ncid, field_name_options, id_var, var_name = var_name)
     if (id_var == -1) call crash('no variables for name options "' // trim( field_name_options) // '" were found in file "' // trim( filename) // '"!')
 
+#if (DO_ASSERTIONS)
     ! Check if this variable has the correct type and dimensions
     call check_mesh_field_dp_3D( filename, ncid, var_name, should_have_time = .false.)
+#endif
 
     ! Gather data to the master
     if (par%master) allocate( d_tot( mesh%nV, mesh%nz))
@@ -758,8 +788,10 @@ contains
     call inquire_var_multopt( filename, ncid, field_name_options, id_var, var_name = var_name)
     if (id_var == -1) call crash('no variables for name options "' // trim( field_name_options) // '" were found in file "' // trim( filename) // '"!')
 
+#if (DO_ASSERTIONS)
     ! Check if this variable has the correct type and dimensions
     call check_mesh_field_dp_3D_b( filename, ncid, var_name, should_have_time = .false.)
+#endif
 
     ! Gather data to the master
     if (par%master) allocate( d_tot( mesh%nTri, mesh%nz))
@@ -801,8 +833,10 @@ contains
     call inquire_var_multopt( filename, ncid, field_name_options, id_var, var_name = var_name)
     if (id_var == -1) call crash('no variables for name options "' // trim( field_name_options) // '" were found in file "' // trim( filename) // '"!')
 
+#if (DO_ASSERTIONS)
     ! Check if this variable has the correct type and dimensions
     call check_mesh_field_dp_3D_ocean( filename, ncid, var_name, should_have_time = .false.)
+#endif
 
     ! Gather data to the master
     if (par%master) allocate( d_tot( mesh%nV, C%nz_ocean))

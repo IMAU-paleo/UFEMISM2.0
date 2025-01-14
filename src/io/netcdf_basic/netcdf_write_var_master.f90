@@ -49,6 +49,7 @@ contains
     ! Add routine to path
     call init_routine( routine_name, do_track_resource_use = .false.)
 
+#if (DO_ASSERTIONS)
     ! inquire some info on this variable
     call inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var)
 
@@ -58,6 +59,7 @@ contains
 
     ! Check number of dimensions
     if (par%master .and. ndims_of_var /= 0) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+#endif
 
     ! Write the data
     if (par%master) then
@@ -94,6 +96,7 @@ contains
     ! Add routine to path
     call init_routine( routine_name, do_track_resource_use = .false.)
 
+#if (DO_ASSERTIONS)
     ! inquire some info on this variable
     call inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
 
@@ -103,6 +106,7 @@ contains
 
     ! Check number of dimensions
     if (par%master .and. ndims_of_var /= 1) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+#endif
 
     ! Set start and count
     if (present( start)) then
@@ -123,6 +127,7 @@ contains
     end if
     if (par%master .and. any( count_applied == 0)) call crash('count must be positive!')
 
+#if (DO_ASSERTIONS)
     ! Check sizes of dimensions
     do di = 1, ndims_of_var
 
@@ -140,6 +145,7 @@ contains
       end if
 
     end do
+#endif
 
     ! Write the data
     if (par%master) then
@@ -176,6 +182,7 @@ contains
     ! Add routine to path
     call init_routine( routine_name, do_track_resource_use = .false.)
 
+#if (DO_ASSERTIONS)
     ! inquire some info on this variable
     call inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
 
@@ -185,6 +192,7 @@ contains
 
     ! Check number of dimensions
     if (par%master .and. ndims_of_var /= 2) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+#endif
 
     ! Set start and count
     if (present( start)) then
@@ -205,6 +213,7 @@ contains
     end if
     if (par%master .and. any( count_applied == 0)) call crash('count must be positive!')
 
+#if (DO_ASSERTIONS)
     ! Check sizes of dimensions
     do di = 1, ndims_of_var
 
@@ -222,6 +231,7 @@ contains
       end if
 
     end do
+#endif
 
     ! Write the data
     if (par%master) then
@@ -258,6 +268,7 @@ contains
     ! Add routine to path
     call init_routine( routine_name, do_track_resource_use = .false.)
 
+#if (DO_ASSERTIONS)
     ! inquire some info on this variable
     call inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
 
@@ -267,6 +278,7 @@ contains
 
     ! Check number of dimensions
     if (par%master .and. ndims_of_var /= 3) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+#endif
 
     ! Set start and count
     if (present( start)) then
@@ -287,6 +299,7 @@ contains
     end if
     if (par%master .and. any( count_applied == 0)) call crash('count must be positive!')
 
+#if (DO_ASSERTIONS)
     ! Check sizes of dimensions
     do di = 1, ndims_of_var
 
@@ -304,6 +317,7 @@ contains
       end if
 
     end do
+#endif
 
     ! Write the data
     if (par%master) then
@@ -340,6 +354,7 @@ contains
     ! Add routine to path
     call init_routine( routine_name, do_track_resource_use = .false.)
 
+#if (DO_ASSERTIONS)
     ! inquire some info on this variable
     call inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
 
@@ -349,6 +364,7 @@ contains
 
     ! Check number of dimensions
     if (par%master .and. ndims_of_var /= 4) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+#endif
 
     ! Set start and count
     if (present( start)) then
@@ -369,6 +385,7 @@ contains
     end if
     if (par%master .and. any( count_applied == 0)) call crash('count must be positive!')
 
+#if (DO_ASSERTIONS)
     ! Check sizes of dimensions
     do di = 1, ndims_of_var
 
@@ -385,6 +402,7 @@ contains
           trim( filename) // '"start + count - 1 = {int_01}, but dim_length = {int_02}!', int_01 = start_applied( di) + count_applied( di) - 1, int_02 = dim_length)
       end if
     end do
+#endif
 
     ! Write the data
     if (par%master) then
@@ -421,6 +439,7 @@ contains
     ! Add routine to path
     call init_routine( routine_name, do_track_resource_use = .false.)
 
+#if (DO_ASSERTIONS)
     ! inquire some info on this variable
     call inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
 
@@ -430,6 +449,7 @@ contains
 
     ! Check number of dimensions
     if (par%master .and. ndims_of_var /= 2) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+#endif
 
     ! Set start and count
     if (present( start)) then
@@ -450,6 +470,7 @@ contains
     end if
     if (par%master .and. any( count_applied == 0)) call crash('count must be positive!')
 
+#if (DO_ASSERTIONS)
     ! Check sizes of dimensions
     do di = 1, ndims_of_var
 
@@ -467,6 +488,7 @@ contains
       end if
 
     end do
+#endif
 
     ! Write the data
     if (par%master) then
@@ -497,6 +519,7 @@ contains
     ! Add routine to path
     call init_routine( routine_name, do_track_resource_use = .false.)
 
+#if (DO_ASSERTIONS)
     ! inquire some info on this variable
     call inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var)
 
@@ -506,6 +529,7 @@ contains
 
     ! Check number of dimensions
     if (par%master .and. ndims_of_var /= 0) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+#endif
 
     ! Write the data
     if (par%master) then
@@ -542,6 +566,7 @@ contains
     ! Add routine to path
     call init_routine( routine_name, do_track_resource_use = .false.)
 
+#if (DO_ASSERTIONS)
     ! inquire some info on this variable
     call inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
 
@@ -551,6 +576,7 @@ contains
 
     ! Check number of dimensions
     if (par%master .and. ndims_of_var /= 1) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+#endif
 
     ! Set start and count
     if (present( start)) then
@@ -571,6 +597,7 @@ contains
     end if
     if (par%master .and. any( count_applied == 0)) call crash('count must be positive!')
 
+#if (DO_ASSERTIONS)
     ! Check sizes of dimensions
     do di = 1, ndims_of_var
 
@@ -591,6 +618,7 @@ contains
       end if
 
     end do
+#endif
 
     ! Write the data
     if (par%master) then
@@ -627,6 +655,7 @@ contains
     ! Add routine to path
     call init_routine( routine_name, do_track_resource_use = .false.)
 
+#if (DO_ASSERTIONS)
     ! inquire some info on this variable
     call inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
 
@@ -636,6 +665,7 @@ contains
 
     ! Check number of dimensions
     if (par%master .and. ndims_of_var /= 2) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+#endif
 
     ! Set start and count
     if (present( start)) then
@@ -656,6 +686,7 @@ contains
     end if
     if (par%master .and. any( count_applied == 0)) call crash('count must be positive!')
 
+#if (DO_ASSERTIONS)
     ! Check sizes of dimensions
     do di = 1, ndims_of_var
 
@@ -673,6 +704,7 @@ contains
       end if
 
     end do
+#endif
 
     ! Write the data
     if (par%master) then
@@ -709,6 +741,7 @@ contains
     ! Add routine to path
     call init_routine( routine_name, do_track_resource_use = .false.)
 
+#if (DO_ASSERTIONS)
     ! inquire some info on this variable
     call inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
 
@@ -718,6 +751,7 @@ contains
 
     ! Check number of dimensions
     if (par%master .and. ndims_of_var /= 3) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+#endif
 
     ! Set start and count
     if (present( start)) then
@@ -738,6 +772,7 @@ contains
     end if
     if (par%master .and. any( count_applied == 0)) call crash('count must be positive!')
 
+#if (DO_ASSERTIONS)
     ! Check sizes of dimensions
     do di = 1, ndims_of_var
 
@@ -755,6 +790,7 @@ contains
       end if
 
     end do
+#endif
 
     ! Write the data
     if (par%master) then
@@ -791,6 +827,7 @@ contains
     ! Add routine to path
     call init_routine( routine_name, do_track_resource_use = .false.)
 
+#if (DO_ASSERTIONS)
     ! inquire some info on this variable
     call inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
 
@@ -800,6 +837,7 @@ contains
 
     ! Check number of dimensions
     if (par%master .and. ndims_of_var /= 4) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+#endif
 
     ! Set start and count
     if (present( start)) then
@@ -820,6 +858,7 @@ contains
     end if
     if (par%master .and. any( count_applied == 0)) call crash('count must be positive!')
 
+#if (DO_ASSERTIONS)
     ! Check sizes of dimensions
     do di = 1, ndims_of_var
 
@@ -837,6 +876,7 @@ contains
       end if
 
     end do
+#endif
 
     ! Write the data
     if (par%master) then
