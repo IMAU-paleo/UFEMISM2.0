@@ -113,8 +113,10 @@ contains
     call inquire_var_multopt( filename, ncid, field_name_options, id_var, var_name = var_name)
     if (id_var == -1) call crash('no variables for name options "' // trim( field_name_options) // '" were found in file "' // trim( filename) // '"!')
 
+#if (DO_ASSERTIONS)
     ! Check if the file has a time dimension and variable
     call check_time( filename, ncid)
+#endif
 
     ! Inquire variable info
     call inquire_var_info( filename, ncid, id_var, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
@@ -163,8 +165,10 @@ contains
     call inquire_var_multopt( filename, ncid, field_name_options, id_var, var_name = var_name)
     if (id_var == -1) call crash('no variables for name options "' // trim( field_name_options) // '" were found in file "' // trim( filename) // '"!')
 
+#if (DO_ASSERTIONS)
     ! Check if the file has a time dimension and variable
     call check_time( filename, ncid)
+#endif
 
     ! Inquire variable info
     call inquire_var_info( filename, ncid, id_var, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
@@ -204,8 +208,10 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
+#if (DO_ASSERTIONS)
     ! Check time dimension and variable
     call check_time( filename, ncid)
+#endif
 
     ! Determine current length of time dimension in file
     call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = nt)
