@@ -1707,12 +1707,12 @@ CONTAINS
     ! Read velocities from the file
     IF (timeframe == 1E9_dp) THEN
       ! Assume the file has no time dimension
-      CALL read_field_from_mesh_file_2D_b( filename, 'u_b', SSA%u_b)
-      CALL read_field_from_mesh_file_2D_b( filename, 'v_b', SSA%v_b)
+      CALL read_field_from_mesh_file_dp_2D_b( filename, 'u_b', SSA%u_b)
+      CALL read_field_from_mesh_file_dp_2D_b( filename, 'v_b', SSA%v_b)
     ELSE
       ! Read specified timeframe
-      CALL read_field_from_mesh_file_2D_b( filename, 'u_b', SSA%u_b, time_to_read = timeframe)
-      CALL read_field_from_mesh_file_2D_b( filename, 'v_b', SSA%v_b, time_to_read = timeframe)
+      CALL read_field_from_mesh_file_dp_2D_b( filename, 'u_b', SSA%u_b, time_to_read = timeframe)
+      CALL read_field_from_mesh_file_dp_2D_b( filename, 'v_b', SSA%v_b, time_to_read = timeframe)
     END IF
 
     ! Finalise routine path

@@ -134,7 +134,7 @@ contains
       allocate( d_mesh_partial_from_file( mesh_from_file%vi1: mesh_from_file%vi2))
 
       ! Read meshed data
-      call read_field_from_mesh_file_2D( filename, field_name_options, d_mesh_partial_from_file, time_to_read = time_to_read)
+      call read_field_from_mesh_file_dp_2D( filename, field_name_options, d_mesh_partial_from_file, time_to_read = time_to_read)
 
       ! Remap data
       call map_from_mesh_to_mesh_2D( mesh_from_file, mesh, d_mesh_partial_from_file, d_partial, method = method_mesh2mesh)
@@ -255,7 +255,7 @@ contains
       allocate( d_mesh_partial_from_file( mesh_from_file%vi1: mesh_from_file%vi2,12))
 
       ! Read meshed data
-      call read_field_from_mesh_file_2D_monthly( filename, field_name_options, d_mesh_partial_from_file, time_to_read = time_to_read)
+      call read_field_from_mesh_file_dp_2D_monthly( filename, field_name_options, d_mesh_partial_from_file, time_to_read = time_to_read)
 
       ! Remap data
       call map_from_mesh_to_mesh_3D( mesh_from_file, mesh, d_mesh_partial_from_file, d_partial, method = method_mesh2mesh)
@@ -385,7 +385,7 @@ contains
       allocate( d_mesh_partial_from_file( mesh_from_file%vi1: mesh_from_file%vi2, nzeta_loc))
 
       ! Read meshed data
-      call read_field_from_mesh_file_3D( filename, field_name_options, d_mesh_partial_from_file, time_to_read = time_to_read)
+      call read_field_from_mesh_file_dp_3D( filename, field_name_options, d_mesh_partial_from_file, time_to_read = time_to_read)
 
       ! Remap data
       call map_from_mesh_to_mesh_3D( mesh_from_file, mesh, d_mesh_partial_from_file, d_partial, method = method_mesh2mesh)
@@ -538,7 +538,7 @@ contains
       allocate( d_mesh_partial_from_file( mesh_from_file%vi1: mesh_from_file%vi2, ndepth_loc))
 
       ! Read meshed data
-      call read_field_from_mesh_file_3D_ocean( filename, field_name_options, d_mesh_partial_from_file, time_to_read = time_to_read)
+      call read_field_from_mesh_file_dp_3D_ocean( filename, field_name_options, d_mesh_partial_from_file, time_to_read = time_to_read)
 
       ! allocate memory for meshed data using all data layers
       allocate( d_partial_raw_layers( mesh%vi1:mesh%vi2, ndepth_loc))

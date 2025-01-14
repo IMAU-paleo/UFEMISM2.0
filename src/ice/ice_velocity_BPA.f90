@@ -2213,12 +2213,12 @@ CONTAINS
     ! Read velocities from the file
     IF (timeframe == 1E9_dp) THEN
       ! Assume the file has no time dimension
-      CALL read_field_from_mesh_file_3D_b( filename, 'u_bk', BPA%u_bk)
-      CALL read_field_from_mesh_file_3D_b( filename, 'v_bk', BPA%v_bk)
+      CALL read_field_from_mesh_file_dp_3D_b( filename, 'u_bk', BPA%u_bk)
+      CALL read_field_from_mesh_file_dp_3D_b( filename, 'v_bk', BPA%v_bk)
     ELSE
       ! Read specified timeframe
-      CALL read_field_from_mesh_file_3D_b( filename, 'u_bk', BPA%u_bk, time_to_read = timeframe)
-      CALL read_field_from_mesh_file_3D_b( filename, 'v_bk', BPA%v_bk, time_to_read = timeframe)
+      CALL read_field_from_mesh_file_dp_3D_b( filename, 'u_bk', BPA%u_bk, time_to_read = timeframe)
+      CALL read_field_from_mesh_file_dp_3D_b( filename, 'v_bk', BPA%v_bk, time_to_read = timeframe)
     END IF
 
     ! Finalise routine path

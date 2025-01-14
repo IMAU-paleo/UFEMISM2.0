@@ -20,7 +20,8 @@ module netcdf_write_field_mesh
     write_to_field_multopt_mesh_int_2D_b_notime, write_to_field_multopt_mesh_int_2D_c_notime, &
     write_to_field_multopt_mesh_dp_2D_notime, write_to_field_multopt_mesh_dp_2D_b_notime, &
     write_to_field_multopt_mesh_dp_2D_c_notime, write_to_field_multopt_mesh_dp_2D_monthly_notime, &
-    write_to_field_multopt_mesh_dp_3D_notime, write_to_field_multopt_mesh_dp_3D_b_notime
+    write_to_field_multopt_mesh_dp_3D_notime, write_to_field_multopt_mesh_dp_3D_b_notime, &
+    write_to_field_multopt_mesh_dp_3D_ocean_notime
 
 contains
 
@@ -774,5 +775,48 @@ contains
     call finalise_routine( routine_name)
 
   end subroutine write_to_field_multopt_mesh_dp_3D_b_notime
+
+  subroutine write_to_field_multopt_mesh_dp_3D_ocean_notime( mesh, filename, ncid, &
+    field_name_options, d_partial)
+    !< Write a 3-D data field defined on a mesh to a NetCDF file variable on the same mesh
+    !< (Mind you, that's 3-D in the physical sense, so a 2-D array!)
+
+    ! In/output variables:
+    type(type_mesh),          intent(in   ) :: mesh
+    character(len=*),         intent(in   ) :: filename
+    integer,                  intent(in   ) :: ncid
+    character(len=*),         intent(in   ) :: field_name_options
+    real(dp), dimension(:,:), intent(in   ) :: d_partial
+
+    ! Local variables:
+    character(len=1024), parameter        :: routine_name = 'write_to_field_multopt_mesh_dp_3D_ocean_notime'
+    integer                               :: id_var, id_dim_time, ti
+    character(len=1024)                   :: var_name
+    real(dp), dimension(:,:), allocatable :: d_tot
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Inquire the variable
+    call inquire_var_multopt( filename, ncid, field_name_options, id_var, var_name = var_name)
+    if (id_var == -1) call crash('no variables for name options "' // trim( field_name_options) // '" were found in file "' // trim( filename) // '"!')
+
+    ! Check if this variable has the correct type and dimensions
+    call check_mesh_field_dp_3D_ocean( filename, ncid, var_name, should_have_time = .false.)
+
+    ! Gather data to the master
+    if (par%master) allocate( d_tot( mesh%nV, C%nz_ocean))
+    call gather_to_master( d_partial, d_tot)
+
+    ! Inquire length of time dimension
+    call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
+
+    ! Write data to the variable
+    call write_var_master( filename, ncid, id_var, d_tot)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine write_to_field_multopt_mesh_dp_3D_ocean_notime
 
 end module netcdf_write_field_mesh

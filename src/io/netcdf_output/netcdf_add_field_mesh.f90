@@ -15,7 +15,7 @@ module netcdf_add_field_mesh
   add_field_mesh_dp_3D_ocean, add_field_mesh_int_2D_notime, add_field_mesh_int_2D_b_notime, &
   add_field_mesh_int_2D_c_notime, add_field_mesh_dp_2D_notime, add_field_mesh_dp_2D_b_notime, &
   add_field_mesh_dp_2D_c_notime, add_field_mesh_dp_2D_monthly_notime, add_field_mesh_dp_3D_notime, &
-  add_field_mesh_dp_3D_b_notime
+  add_field_mesh_dp_3D_b_notime, add_field_mesh_dp_3D_ocean_notime
 
 contains
 
@@ -709,5 +709,49 @@ subroutine add_field_mesh_dp_3D_b_notime( filename, ncid, var_name, long_name, u
   call finalise_routine( routine_name)
 
 end subroutine add_field_mesh_dp_3D_b_notime
+
+subroutine add_field_mesh_dp_3D_ocean_notime( filename, ncid, var_name, long_name, units)
+  !< Add a 3-D variable to an existing NetCDF file with a mesh
+
+  ! In/output variables:
+  character(len=*),           intent(in   ) :: filename
+  integer,                    intent(in   ) :: ncid
+  character(len=*),           intent(in   ) :: var_name
+  character(len=*), optional, intent(in   ) :: long_name
+  character(len=*), optional, intent(in   ) :: units
+
+  ! Local variables:
+  character(len=1024), parameter :: routine_name = 'add_field_mesh_dp_3D_ocean_notime'
+  integer                        :: id_dim_vi, id_dim_depth, id_var
+
+  ! Add routine to path
+  call init_routine( routine_name)
+
+  ! Check if all mesh dimensions and variables are there
+  call check_depth(           filename, ncid)
+  call check_mesh_dimensions( filename, ncid)
+
+  ! Inquire dimensions
+  call inquire_dim_multopt( filename, ncid, field_name_options_dim_nV, id_dim_vi   )
+  call inquire_dim_multopt( filename, ncid, field_name_options_depth , id_dim_depth)
+
+  ! Safety
+  if (id_dim_vi    == -1) call crash('no vi dimension could be found in file "' // trim( filename) // '"!')
+  if (id_dim_depth == -1) call crash('no depth dimension could be found in file "' // trim( filename) // '"!')
+
+  ! Create variable
+  call create_variable( filename, ncid, var_name, NF90_DOUBLE, (/ id_dim_vi, id_dim_depth /), id_var)
+
+  ! Add attributes
+  if (present( long_name)) call add_attribute_char( filename, ncid, id_var, 'long_name', long_name)
+  if (present( units    )) call add_attribute_char( filename, ncid, id_var, 'units'    , units    )
+
+  ! Final safety check
+  call check_mesh_field_dp_3D_ocean( filename, ncid, var_name, should_have_time = .false.)
+
+  ! Finalise routine path
+  call finalise_routine( routine_name)
+
+end subroutine add_field_mesh_dp_3D_ocean_notime
 
 end module netcdf_add_field_mesh

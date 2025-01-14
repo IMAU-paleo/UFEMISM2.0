@@ -16,13 +16,171 @@ module netcdf_read_field_from_mesh_file
 
   private
 
-  public :: read_field_from_mesh_file_2D, read_field_from_mesh_file_2D_b, read_field_from_mesh_file_2D_monthly, &
-    read_field_from_mesh_file_3D, read_field_from_mesh_file_3D_b, read_field_from_mesh_file_3D_ocean, &
-    read_field_from_mesh_file_3D_CDF, read_field_from_mesh_file_3D_b_CDF
+  public :: read_field_from_mesh_file_int_2D, read_field_from_mesh_file_int_2D_b, &
+    read_field_from_mesh_file_dp_2D, read_field_from_mesh_file_dp_2D_b, &
+    read_field_from_mesh_file_dp_2D_monthly, read_field_from_mesh_file_dp_3D, &
+    read_field_from_mesh_file_dp_3D_b, read_field_from_mesh_file_dp_3D_ocean, &
+    read_field_from_mesh_file_CDF, read_field_from_mesh_file_CDF_b
 
 contains
 
-  subroutine read_field_from_mesh_file_2D( filename, field_name_options, &
+  subroutine read_field_from_mesh_file_int_2D( filename, field_name_options, &
+    d_mesh_partial, time_to_read)
+    !< Read a 2-D data field from a NetCDF file on a mesh
+
+    ! NOTE: the mesh should be read before, and memory allocated for d_mesh_partial!
+
+    ! In/output variables:
+    character(len=*),                 intent(in   ) :: filename
+    character(len=*),                 intent(in   ) :: field_name_options
+    integer,  dimension(:),           intent(  out) :: d_mesh_partial
+    real(dp),               optional, intent(in   ) :: time_to_read
+
+    ! Local variables:
+    character(len=1024), parameter        :: routine_name = 'read_field_from_mesh_file_int_2D'
+    integer                               :: ncid
+    type(type_mesh)                       :: mesh_loc
+    integer                               :: id_var
+    character(len=1024)                   :: var_name
+    integer , dimension(:  ), allocatable :: d_mesh
+    integer , dimension(:,:), allocatable :: d_mesh_with_time
+    integer                               :: ti
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! == Read grid and data from file
+    ! ===============================
+
+    ! Open the NetCDF file
+    call open_existing_netcdf_file_for_reading( filename, ncid)
+
+    ! Set up the mesh from the file
+    call setup_mesh_from_file( filename, ncid, mesh_loc)
+
+    ! Look for the specified variable in the file
+    call inquire_var_multopt( filename, ncid, field_name_options, id_var, var_name = var_name)
+    if (id_var == -1) call crash('couldnt find any of the options "' // trim( field_name_options) // '" in file "' // trim( filename)  // '"!')
+
+    ! Check if the variable has the required dimensions
+    call check_mesh_field_int_2D( filename, ncid, var_name, should_have_time = present( time_to_read))
+
+    ! allocate memory
+    if (par%master) allocate( d_mesh( mesh_loc%nV))
+
+    ! Read data from file
+    if (.not. present( time_to_read)) then
+      call read_var_master( filename, ncid, id_var, d_mesh)
+    else
+      ! allocate memory
+      if (par%master) allocate( d_mesh_with_time( mesh_loc%nV, 1))
+      ! Find out which timeframe to read
+      call find_timeframe( filename, ncid, time_to_read, ti)
+      ! Read data
+      call read_var_master( filename, ncid, id_var, d_mesh_with_time, start = (/ 1, ti /), count = (/ mesh_loc%nV, 1 /) )
+      ! Copy to output memory
+      if (par%master) d_mesh = d_mesh_with_time( :,1)
+      ! Clean up after yourself
+      if (par%master) deallocate( d_mesh_with_time)
+    end if
+
+    ! Close the NetCDF file
+    call close_netcdf_file( ncid)
+
+    ! == Distribute gridded data from the master to all processes in partial vector form
+    ! ==================================================================================
+
+    ! Distribute data
+    call distribute_from_master( d_mesh, d_mesh_partial)
+
+    ! Clean up after yourself
+    if (par%master) deallocate( d_mesh)
+    call deallocate_mesh( mesh_loc)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine read_field_from_mesh_file_int_2D
+
+  subroutine read_field_from_mesh_file_int_2D_b( filename, field_name_options, &
+    d_mesh_partial, time_to_read)
+    !< Read a 2-D data field from a NetCDF file on a mesh b-grid
+
+    ! NOTE: the mesh should be read before, and memory allocated for d_mesh_partial!
+
+    ! In/output variables:
+    character(len=*),                 intent(in   ) :: filename
+    character(len=*),                 intent(in   ) :: field_name_options
+    integer , dimension(:),           intent(  out) :: d_mesh_partial
+    real(dp),               optional, intent(in   ) :: time_to_read
+
+    ! Local variables:
+    character(len=1024), parameter        :: routine_name = 'read_field_from_mesh_file_int_2D_b'
+    integer                               :: ncid
+    type(type_mesh)                       :: mesh_loc
+    integer                               :: id_var
+    character(len=1024)                   :: var_name
+    integer , dimension(:  ), allocatable :: d_mesh
+    integer , dimension(:,:), allocatable :: d_mesh_with_time
+    integer                               :: ti
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! == Read grid and data from file
+    ! ===============================
+
+    ! Open the NetCDF file
+    call open_existing_netcdf_file_for_reading( filename, ncid)
+
+    ! Set up the mesh from the file
+    call setup_mesh_from_file( filename, ncid, mesh_loc)
+
+    ! Look for the specified variable in the file
+    call inquire_var_multopt( filename, ncid, field_name_options, id_var, var_name = var_name)
+    if (id_var == -1) call crash('couldnt find any of the options "' // trim( field_name_options) // '" in file "' // trim( filename)  // '"!')
+
+    ! Check if the variable has the required dimensions
+    call check_mesh_field_int_2D_b( filename, ncid, var_name, should_have_time = present( time_to_read))
+
+    ! allocate memory
+    if (par%master) allocate( d_mesh( mesh_loc%nTri))
+
+    ! Read data from file
+    if (.not. present( time_to_read)) then
+      call read_var_master( filename, ncid, id_var, d_mesh)
+    else
+      ! allocate memory
+      if (par%master) allocate( d_mesh_with_time( mesh_loc%nTri, 1))
+      ! Find out which timeframe to read
+      call find_timeframe( filename, ncid, time_to_read, ti)
+      ! Read data
+      call read_var_master( filename, ncid, id_var, d_mesh_with_time, start = (/ 1, ti /), count = (/ mesh_loc%nTri, 1 /) )
+      ! Copy to output memory
+      if (par%master) d_mesh = d_mesh_with_time( :,1)
+      ! Clean up after yourself
+      if (par%master) deallocate( d_mesh_with_time)
+    end if
+
+    ! Close the NetCDF file
+    call close_netcdf_file( ncid)
+
+    ! == Distribute gridded data from the master to all processes in partial vector form
+    ! ==================================================================================
+
+    ! Distribute data
+    call distribute_from_master( d_mesh, d_mesh_partial)
+
+    ! Clean up after yourself
+    if (par%master) deallocate( d_mesh)
+    call deallocate_mesh( mesh_loc)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine read_field_from_mesh_file_int_2D_b
+
+  subroutine read_field_from_mesh_file_dp_2D( filename, field_name_options, &
     d_mesh_partial, time_to_read)
     !< Read a 2-D data field from a NetCDF file on a mesh
 
@@ -35,7 +193,7 @@ contains
     real(dp),               optional, intent(in   ) :: time_to_read
 
     ! Local variables:
-    character(len=1024), parameter        :: routine_name = 'read_field_from_mesh_file_2D'
+    character(len=1024), parameter        :: routine_name = 'read_field_from_mesh_file_dp_2D'
     integer                               :: ncid
     type(type_mesh)                       :: mesh_loc
     integer                               :: id_var
@@ -98,9 +256,9 @@ contains
     ! Finalise routine path
     call finalise_routine( routine_name)
 
-  end subroutine read_field_from_mesh_file_2D
+  end subroutine read_field_from_mesh_file_dp_2D
 
-  subroutine read_field_from_mesh_file_2D_b( filename, field_name_options, &
+  subroutine read_field_from_mesh_file_dp_2D_b( filename, field_name_options, &
     d_mesh_partial, time_to_read)
     !< Read a 2-D data field from a NetCDF file on a mesh b-grid
 
@@ -113,7 +271,7 @@ contains
     real(dp),               optional, intent(in   ) :: time_to_read
 
     ! Local variables:
-    character(len=1024), parameter        :: routine_name = 'read_field_from_mesh_file_2D_b'
+    character(len=1024), parameter        :: routine_name = 'read_field_from_mesh_file_dp_2D_b'
     integer                               :: ncid
     type(type_mesh)                       :: mesh_loc
     integer                               :: id_var
@@ -176,9 +334,9 @@ contains
     ! Finalise routine path
     call finalise_routine( routine_name)
 
-  end subroutine read_field_from_mesh_file_2D_b
+  end subroutine read_field_from_mesh_file_dp_2D_b
 
-  subroutine read_field_from_mesh_file_2D_monthly( filename, field_name_options, &
+  subroutine read_field_from_mesh_file_dp_2D_monthly( filename, field_name_options, &
     d_mesh_partial, time_to_read)
     !< Read a 2-D monthly data field from a NetCDF file on a mesh
 
@@ -191,7 +349,7 @@ contains
     real(dp),                 optional, intent(in   ) :: time_to_read
 
     ! Local variables:
-    character(len=1024), parameter          :: routine_name = 'read_field_from_mesh_file_2D_monthly'
+    character(len=1024), parameter          :: routine_name = 'read_field_from_mesh_file_dp_2D_monthly'
     integer                                 :: ncid
     type(type_mesh)                         :: mesh_loc
     integer                                 :: id_var
@@ -257,9 +415,9 @@ contains
     ! Finalise routine path
     call finalise_routine( routine_name)
 
-  end subroutine read_field_from_mesh_file_2D_monthly
+  end subroutine read_field_from_mesh_file_dp_2D_monthly
 
-  subroutine read_field_from_mesh_file_3D( filename, field_name_options, &
+  subroutine read_field_from_mesh_file_dp_3D( filename, field_name_options, &
     d_mesh_partial, time_to_read)
     !< Read a 3-D data field from a NetCDF file on a mesh
 
@@ -272,7 +430,7 @@ contains
     real(dp),                 optional, intent(in   ) :: time_to_read
 
     ! Local variables:
-    character(len=1024), parameter          :: routine_name = 'read_field_from_mesh_file_3D'
+    character(len=1024), parameter          :: routine_name = 'read_field_from_mesh_file_dp_3D'
     integer                                 :: ncid
     type(type_mesh)                         :: mesh_loc
     integer                                 :: nzeta_loc
@@ -340,9 +498,9 @@ contains
     ! Finalise routine path
     call finalise_routine( routine_name)
 
-  end subroutine read_field_from_mesh_file_3D
+  end subroutine read_field_from_mesh_file_dp_3D
 
-  subroutine read_field_from_mesh_file_3D_b( filename, field_name_options, &
+  subroutine read_field_from_mesh_file_dp_3D_b( filename, field_name_options, &
     d_mesh_partial, time_to_read)
     !< Read a 3-D data field from a NetCDF file on a mesh b-grid
 
@@ -355,7 +513,7 @@ contains
     real(dp),                 optional, intent(in   ) :: time_to_read
 
     ! Local variables:
-    character(len=1024), parameter          :: routine_name = 'read_field_from_mesh_file_3D'
+    character(len=1024), parameter          :: routine_name = 'read_field_from_mesh_file_dp_3D_b'
     integer                                 :: ncid
     type(type_mesh)                         :: mesh_loc
     integer                                 :: nzeta_loc
@@ -423,9 +581,9 @@ contains
     ! Finalise routine path
     call finalise_routine( routine_name)
 
-  end subroutine read_field_from_mesh_file_3D_b
+  end subroutine read_field_from_mesh_file_dp_3D_b
 
-  subroutine read_field_from_mesh_file_3D_ocean( filename, field_name_options, &
+  subroutine read_field_from_mesh_file_dp_3D_ocean( filename, field_name_options, &
     d_mesh_partial, time_to_read)
     !< Read a 3-D ocean data field from a NetCDF file on a mesh
 
@@ -438,7 +596,7 @@ contains
     real(dp),                 optional, intent(in   ) :: time_to_read
 
     ! Local variables:
-    character(len=1024), parameter          :: routine_name = 'read_field_from_mesh_file_3D_ocean'
+    character(len=1024), parameter          :: routine_name = 'read_field_from_mesh_file_dp_3D_ocean'
     integer                                 :: ncid
     type(type_mesh)                         :: mesh_loc
     integer                                 :: ndepth_loc
@@ -506,9 +664,9 @@ contains
     ! Finalise routine path
     call finalise_routine( routine_name)
 
-  end subroutine read_field_from_mesh_file_3D_ocean
+  end subroutine read_field_from_mesh_file_dp_3D_ocean
 
-  subroutine read_field_from_mesh_file_3D_CDF( filename, field_name_options, &
+  subroutine read_field_from_mesh_file_CDF( filename, field_name_options, &
     d_mesh_partial)
     !< Read a cumulative density function field from a NetCDF file on a mesh
 
@@ -520,7 +678,7 @@ contains
     real(dp), dimension(:,:),           intent(  out) :: d_mesh_partial
 
     ! Local variables:
-    character(len=1024), parameter        :: routine_name = 'read_field_from_mesh_file_3D_CDF'
+    character(len=1024), parameter        :: routine_name = 'read_field_from_mesh_file_CDF'
     integer                               :: ncid
     integer                               :: id_dim_vi, id_var, id_dim_bins, nbins_loc, nV_loc
     character(len=1024)                   :: var_name
@@ -569,9 +727,9 @@ contains
     ! Finalise routine path
     call finalise_routine( routine_name)
 
-  end subroutine read_field_from_mesh_file_3D_CDF
+  end subroutine read_field_from_mesh_file_CDF
 
-  subroutine read_field_from_mesh_file_3D_b_CDF( filename, field_name_options, &
+  subroutine read_field_from_mesh_file_CDF_b( filename, field_name_options, &
     d_mesh_partial)
     !< Read a cumulative density function field from a NetCDF file on a mesh b-grid
 
@@ -583,7 +741,7 @@ contains
     real(dp), dimension(:,:),           intent(  out) :: d_mesh_partial
 
     ! Local variables:
-    character(len=1024), parameter          :: routine_name = 'read_field_from_mesh_file_3D_b_CDF'
+    character(len=1024), parameter          :: routine_name = 'read_field_from_mesh_file_CDF_b'
     integer                                 :: ncid
     integer                                 :: id_dim_ti, id_var, id_dim_bins, nbins_loc, nTri_loc
     character(len=1024)                     :: var_name
@@ -632,6 +790,6 @@ contains
     ! Finalise routine path
     call finalise_routine( routine_name)
 
-  end subroutine read_field_from_mesh_file_3D_b_CDF
+  end subroutine read_field_from_mesh_file_CDF_b
 
 end module netcdf_read_field_from_mesh_file
