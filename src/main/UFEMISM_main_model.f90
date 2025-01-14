@@ -202,6 +202,9 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    ! Write to scalar regional output file
+    CALL write_to_scalar_regional_output_file( region)
+
     ! Determine time of next output event
     t_closest = MIN( region%output_t_next, region%output_restart_t_next, region%output_grid_t_next)
 
@@ -270,9 +273,6 @@ CONTAINS
       DO i = 1, region%nROI
         CALL write_to_main_regional_output_file_grid_ROI( region, region%output_grids_ROI( i), region%output_filenames_grid_ROI( i))
       END DO
-
-      ! Write to scalar regional output file
-      CALL write_to_scalar_regional_output_file( region)
     END IF
 
     IF (do_output_restart) THEN

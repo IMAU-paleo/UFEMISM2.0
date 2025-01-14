@@ -1392,9 +1392,6 @@ CONTAINS
       RETURN
     END IF
 
-    ! Print to terminal
-    IF (par%master) WRITE(0,'(A)') '   Writing to scalar output file "' // colour_string( TRIM( region%output_filename_scalar), 'light blue') // '"...'
-
     ! Open the NetCDF file
     CALL open_existing_netcdf_file_for_writing( region%output_filename_scalar, ncid)
 
