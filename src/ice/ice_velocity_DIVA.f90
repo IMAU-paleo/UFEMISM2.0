@@ -1969,18 +1969,18 @@ CONTAINS
     ! Read velocities from the file
     IF (timeframe == 1E9_dp) THEN
       ! Assume the file has no time dimension
-      CALL read_field_from_mesh_file_2D_b( filename, 'u_vav_b' , DIVA%u_vav_b )
-      CALL read_field_from_mesh_file_2D_b( filename, 'v_vav_b' , DIVA%v_vav_b )
-      CALL read_field_from_mesh_file_2D_b( filename, 'tau_bx_b', DIVA%tau_bx_b)
-      CALL read_field_from_mesh_file_2D_b( filename, 'tau_by_b', DIVA%tau_by_b)
-      CALL read_field_from_mesh_file_3D_b( filename, 'eta_3D_b', DIVA%eta_3D_b)
+      CALL read_field_from_mesh_file_dp_2D_b( filename, 'u_vav_b' , DIVA%u_vav_b )
+      CALL read_field_from_mesh_file_dp_2D_b( filename, 'v_vav_b' , DIVA%v_vav_b )
+      CALL read_field_from_mesh_file_dp_2D_b( filename, 'tau_bx_b', DIVA%tau_bx_b)
+      CALL read_field_from_mesh_file_dp_2D_b( filename, 'tau_by_b', DIVA%tau_by_b)
+      CALL read_field_from_mesh_file_dp_3D_b( filename, 'eta_3D_b', DIVA%eta_3D_b)
     ELSE
       ! Read specified timeframe
-      CALL read_field_from_mesh_file_2D_b( filename, 'u_vav_b' , DIVA%u_vav_b , time_to_read = timeframe)
-      CALL read_field_from_mesh_file_2D_b( filename, 'v_vav_b' , DIVA%v_vav_b , time_to_read = timeframe)
-      CALL read_field_from_mesh_file_2D_b( filename, 'tau_bx_b', DIVA%tau_bx_b, time_to_read = timeframe)
-      CALL read_field_from_mesh_file_2D_b( filename, 'tau_by_b', DIVA%tau_by_b, time_to_read = timeframe)
-      CALL read_field_from_mesh_file_3D_b( filename, 'eta_3D_b', DIVA%eta_3D_b, time_to_read = timeframe)
+      CALL read_field_from_mesh_file_dp_2D_b( filename, 'u_vav_b' , DIVA%u_vav_b , time_to_read = timeframe)
+      CALL read_field_from_mesh_file_dp_2D_b( filename, 'v_vav_b' , DIVA%v_vav_b , time_to_read = timeframe)
+      CALL read_field_from_mesh_file_dp_2D_b( filename, 'tau_bx_b', DIVA%tau_bx_b, time_to_read = timeframe)
+      CALL read_field_from_mesh_file_dp_2D_b( filename, 'tau_by_b', DIVA%tau_by_b, time_to_read = timeframe)
+      CALL read_field_from_mesh_file_dp_3D_b( filename, 'eta_3D_b', DIVA%eta_3D_b, time_to_read = timeframe)
     END IF
 
     ! Finalise routine path

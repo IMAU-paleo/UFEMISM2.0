@@ -736,13 +736,13 @@ CONTAINS
     IF (timeframe_refgeo /= 1E9_dp) THEN
       ! We need to read a specific time frame
 
-      CALL read_field_from_mesh_file_2D( filename_refgeo, 'default_options_Hi', refgeo%Hi_mesh_raw, time_to_read = timeframe_refgeo)
-      CALL read_field_from_mesh_file_2D( filename_refgeo, 'default_options_Hb', refgeo%Hb_mesh_raw, time_to_read = timeframe_refgeo)
-      CALL read_field_from_mesh_file_2D( filename_refgeo, 'default_options_Hs', refgeo%Hs_mesh_raw, time_to_read = timeframe_refgeo)
+      CALL read_field_from_mesh_file_dp_2D( filename_refgeo, 'default_options_Hi', refgeo%Hi_mesh_raw, time_to_read = timeframe_refgeo)
+      CALL read_field_from_mesh_file_dp_2D( filename_refgeo, 'default_options_Hb', refgeo%Hb_mesh_raw, time_to_read = timeframe_refgeo)
+      CALL read_field_from_mesh_file_dp_2D( filename_refgeo, 'default_options_Hs', refgeo%Hs_mesh_raw, time_to_read = timeframe_refgeo)
 
       ! If the file has a sea-level field, read that; if not, assume present-day (i.e. zero)
       IF (has_SL) THEN
-        CALL read_field_from_mesh_file_2D( filename_refgeo, 'default_options_SL', refgeo%SL_mesh_raw, time_to_read = timeframe_refgeo)
+        CALL read_field_from_mesh_file_dp_2D( filename_refgeo, 'default_options_SL', refgeo%SL_mesh_raw, time_to_read = timeframe_refgeo)
       ELSE
         refgeo%SL_mesh_raw = 0._dp
       END IF
@@ -750,13 +750,13 @@ CONTAINS
     ELSE !  IF (timeframe_refgeo /= 1E9_dp) THEN
       ! We need to read data from a time-less NetCDF file
 
-      CALL read_field_from_mesh_file_2D( filename_refgeo, 'default_options_Hi', refgeo%Hi_mesh_raw)
-      CALL read_field_from_mesh_file_2D( filename_refgeo, 'default_options_Hb', refgeo%Hb_mesh_raw)
-      CALL read_field_from_mesh_file_2D( filename_refgeo, 'default_options_Hs', refgeo%Hs_mesh_raw)
+      CALL read_field_from_mesh_file_dp_2D( filename_refgeo, 'default_options_Hi', refgeo%Hi_mesh_raw)
+      CALL read_field_from_mesh_file_dp_2D( filename_refgeo, 'default_options_Hb', refgeo%Hb_mesh_raw)
+      CALL read_field_from_mesh_file_dp_2D( filename_refgeo, 'default_options_Hs', refgeo%Hs_mesh_raw)
 
       ! If the file has a sea-level field, read that; if not, assume present-day (i.e. zero)
       IF (has_SL) THEN
-        CALL read_field_from_mesh_file_2D( filename_refgeo, 'default_options_SL', refgeo%SL_mesh_raw)
+        CALL read_field_from_mesh_file_dp_2D( filename_refgeo, 'default_options_SL', refgeo%SL_mesh_raw)
       ELSE
         refgeo%SL_mesh_raw = 0._dp
       END IF

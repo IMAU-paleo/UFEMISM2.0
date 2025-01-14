@@ -1372,8 +1372,8 @@ CONTAINS
     END IF
 
     ! Read meshed data
-    CALL read_field_from_mesh_file_3D_CDF(   filename, 'bedrock_cdf',   ice%bedrock_cdf   )
-    CALL read_field_from_mesh_file_3D_b_CDF( filename, 'bedrock_cdf_b', ice%bedrock_cdf_b )
+    CALL read_field_from_mesh_file_CDF(   filename, 'bedrock_cdf',   ice%bedrock_cdf   )
+    CALL read_field_from_mesh_file_CDF_b( filename, 'bedrock_cdf_b', ice%bedrock_cdf_b )
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

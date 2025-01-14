@@ -418,6 +418,7 @@ contains
 
     ! Vertical coordinate
     C%nz_ocean = 10
+    if (allocated( C%z_ocean)) deallocate( C%z_ocean)
     allocate( C%z_ocean( C%nz_ocean))
     do k = 1, C%nz_ocean
       C%z_ocean( k) = real(k-1,dp) * 500._dp
