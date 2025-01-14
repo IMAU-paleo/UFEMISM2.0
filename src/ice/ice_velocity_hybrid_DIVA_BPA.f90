@@ -636,7 +636,7 @@ CONTAINS
 
     ! Read gridded mask from file
     ALLOCATE( mask_int_grid_vec_partial( grid%n1: grid%n2))
-    CALL read_field_from_xy_file_2D_int( filename_hybrid_DIVA_BPA_mask, 'mask_BPA', mask_int_grid_vec_partial)
+    CALL read_field_from_xy_file_int_2D( filename_hybrid_DIVA_BPA_mask, 'mask_BPA', mask_int_grid_vec_partial)
 
     ! Gather partial gridded data to the Master and broadcast the total field to all processes
     ALLOCATE( mask_int_grid( grid%nx, grid%ny))

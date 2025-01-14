@@ -92,7 +92,7 @@ contains
       allocate( d_grid_vec_partial_from_file( grid_from_file%n1: grid_from_file%n2))
 
       ! Read gridded data
-      call read_field_from_xy_file_2D( filename, field_name_options, d_grid_vec_partial_from_file, time_to_read = time_to_read)
+      call read_field_from_xy_file_dp_2D( filename, field_name_options, d_grid_vec_partial_from_file, time_to_read = time_to_read)
 
       ! Remap data
       call map_from_xy_grid_to_mesh_2D( grid_from_file, mesh, d_grid_vec_partial_from_file, d_partial)
@@ -213,7 +213,7 @@ contains
       allocate( d_grid_vec_partial_from_file( grid_from_file%n1: grid_from_file%n2,12))
 
       ! Read gridded data
-      call read_field_from_xy_file_2D_monthly( filename, field_name_options, d_grid_vec_partial_from_file, time_to_read = time_to_read)
+      call read_field_from_xy_file_dp_2D_monthly( filename, field_name_options, d_grid_vec_partial_from_file, time_to_read = time_to_read)
 
       ! Remap data
       call map_from_xy_grid_to_mesh_3D( grid_from_file, mesh, d_grid_vec_partial_from_file, d_partial)
@@ -341,7 +341,7 @@ contains
       allocate( d_grid_vec_partial_from_file( grid_from_file%n1: grid_from_file%n2, nzeta_loc))
 
       ! Read gridded data
-      call read_field_from_xy_file_3D( filename, field_name_options, d_grid_vec_partial_from_file, time_to_read = time_to_read)
+      call read_field_from_xy_file_dp_3D( filename, field_name_options, d_grid_vec_partial_from_file, time_to_read = time_to_read)
 
       ! Remap data
       call map_from_xy_grid_to_mesh_3D( grid_from_file, mesh, d_grid_vec_partial_from_file, d_partial)
@@ -480,7 +480,7 @@ contains
       allocate( d_grid_vec_partial_from_file( grid_from_file%n1: grid_from_file%n2, ndepth_loc))
 
       ! Read gridded data
-      call read_field_from_xy_file_3D_ocean( filename, field_name_options, d_grid_vec_partial_from_file, time_to_read = time_to_read)
+      call read_field_from_xy_file_dp_3D_ocean( filename, field_name_options, d_grid_vec_partial_from_file, time_to_read = time_to_read)
 
       ! allocate memory for meshed data using all data layers
       allocate( d_partial_raw_layers( mesh%vi1:mesh%vi2, ndepth_loc))
