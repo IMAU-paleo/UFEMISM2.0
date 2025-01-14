@@ -1,6 +1,6 @@
 MODULE ice_velocity_BPA
 
-  ! Routines for calculating ice velocities using the Shallow Shelf Approximation (BPA)
+  ! Routines for calculating ice velocities using the Blatter-Pattyn Approximation (BPA)
 
 ! ===== Preamble =====
 ! ====================
@@ -94,7 +94,7 @@ CONTAINS
   END SUBROUTINE initialise_BPA_solver
 
   SUBROUTINE solve_BPA( mesh, ice, BPA, &
-    n_visc_its, n_Axb_its, min_Axb_its_per_visc_it, max_Axb_its_per_visc_it, &
+    n_visc_its, n_Axb_its, &
     BC_prescr_mask_bk, BC_prescr_u_bk, BC_prescr_v_bk)
     ! Calculate ice velocities by solving the Blatter-Pattyn Approximation
 
@@ -104,10 +104,8 @@ CONTAINS
     TYPE(type_mesh),                     INTENT(INOUT)           :: mesh
     TYPE(type_ice_model),                INTENT(INOUT)           :: ice
     TYPE(type_ice_velocity_solver_BPA),  INTENT(INOUT)           :: BPA
-    integer,                             intent(out)             :: n_visc_its               ! Number of non-linear viscosity iterations
-    integer,                             intent(out)             :: n_Axb_its                ! Number of iterations in iterative solver for linearised momentum balance
-    integer,                             intent(out)             :: min_Axb_its_per_visc_it  ! Smallest number of iterations in iterative solver for linearised momentum balance per non-linear viscosity iteration
-    integer,                             intent(out)             :: max_Axb_its_per_visc_it  ! Largest number of iterations in iterative solver for linearised momentum balance per non-linear viscosity iteration
+    integer,                             intent(out)             :: n_visc_its            ! Number of non-linear viscosity iterations
+    integer,                             intent(out)             :: n_Axb_its             ! Number of iterations in iterative solver for linearised momentum balance
     INTEGER,  DIMENSION(:,:  ),          INTENT(IN)   , OPTIONAL :: BC_prescr_mask_bk     ! Mask of triangles where velocity is prescribed
     REAL(dp), DIMENSION(:,:  ),          INTENT(IN)   , OPTIONAL :: BC_prescr_u_bk        ! Prescribed velocities in the x-direction
     REAL(dp), DIMENSION(:,:  ),          INTENT(IN)   , OPTIONAL :: BC_prescr_v_bk        ! Prescribed velocities in the y-direction
@@ -174,10 +172,8 @@ CONTAINS
     Glens_flow_law_epsilon_sq_0_applied = C%Glens_flow_law_epsilon_sq_0
 
     ! Initialise stability info
-    n_visc_its               = 0
-    n_Axb_its                = 0
-    min_Axb_its_per_visc_it  = huge( min_Axb_its_per_visc_it)
-    max_Axb_its_per_visc_it  = 0
+    n_visc_its = 0
+    n_Axb_its  = 0
 
     ! The viscosity iteration
     viscosity_iteration_i = 0
@@ -200,8 +196,6 @@ CONTAINS
 
       ! Update stability info
       n_Axb_its = n_Axb_its + n_Axb_its_visc_it
-      min_Axb_its_per_visc_it = min( min_Axb_its_per_visc_it, n_Axb_its_visc_it)
-      max_Axb_its_per_visc_it = max( max_Axb_its_per_visc_it, n_Axb_its_visc_it)
 
       ! Limit velocities for improved stability
       CALL apply_velocity_limits( mesh, BPA)

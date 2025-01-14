@@ -102,7 +102,7 @@ CONTAINS
   END SUBROUTINE initialise_hybrid_DIVA_BPA_solver
 
   SUBROUTINE solve_hybrid_DIVA_BPA( mesh, ice, hybrid, region_name, &
-    n_visc_its, n_Axb_its, min_Axb_its_per_visc_it, max_Axb_its_per_visc_it, &
+    n_visc_its, n_Axb_its, &
     BC_prescr_mask_b, BC_prescr_u_b, BC_prescr_v_b)
     ! Calculate ice velocities by solving the hybrid DIVA/BPA
 
@@ -113,10 +113,8 @@ CONTAINS
     TYPE(type_ice_model),                  INTENT(INOUT)           :: ice
     TYPE(type_ice_velocity_solver_hybrid), INTENT(INOUT)           :: hybrid
     CHARACTER(LEN=3),                      INTENT(IN)              :: region_name
-    integer,                               intent(out)             :: n_visc_its               ! Number of non-linear viscosity iterations
-    integer,                               intent(out)             :: n_Axb_its                ! Number of iterations in iterative solver for linearised momentum balance
-    integer,                               intent(out)             :: min_Axb_its_per_visc_it  ! Smallest number of iterations in iterative solver for linearised momentum balance per non-linear viscosity iteration
-    integer,                               intent(out)             :: max_Axb_its_per_visc_it  ! Largest number of iterations in iterative solver for linearised momentum balance per non-linear viscosity iteration
+    integer,                               intent(out)             :: n_visc_its            ! Number of non-linear viscosity iterations
+    integer,                               intent(out)             :: n_Axb_its             ! Number of iterations in iterative solver for linearised momentum balance
     INTEGER,  DIMENSION(:    ),            INTENT(IN)   , OPTIONAL :: BC_prescr_mask_b      ! Mask of triangles where velocity is prescribed
     REAL(dp), DIMENSION(:    ),            INTENT(IN)   , OPTIONAL :: BC_prescr_u_b         ! Prescribed velocities in the x-direction
     REAL(dp), DIMENSION(:    ),            INTENT(IN)   , OPTIONAL :: BC_prescr_v_b         ! Prescribed velocities in the y-direction
@@ -189,10 +187,8 @@ CONTAINS
     Glens_flow_law_epsilon_sq_0_applied = C%Glens_flow_law_epsilon_sq_0
 
     ! Initialise stability info
-    n_visc_its               = 0
-    n_Axb_its                = 0
-    min_Axb_its_per_visc_it  = huge( min_Axb_its_per_visc_it)
-    max_Axb_its_per_visc_it  = 0
+    n_visc_its = 0
+    n_Axb_its  = 0
 
     ! The viscosity iteration
     viscosity_iteration_i = 0
@@ -239,8 +235,6 @@ CONTAINS
 
       ! Update stability info
       n_Axb_its = n_Axb_its + n_Axb_its_visc_it
-      min_Axb_its_per_visc_it = min( min_Axb_its_per_visc_it, n_Axb_its_visc_it)
-      max_Axb_its_per_visc_it = max( max_Axb_its_per_visc_it, n_Axb_its_visc_it)
 
       ! Copy results to the DIVA and BPA structures
       hybrid%DIVA%u_vav_b = hybrid%u_vav_b
