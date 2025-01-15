@@ -59,7 +59,7 @@ write_to_scoreboard_file( RMSE_Hi, peak_volume_difference, ...
   final_volume_difference, ice_volume_var, stab);
 
   function write_to_scoreboard_file( RMSE_Hi, peak_volume_difference, ...
-  final_volume_difference, ice_volume_var)
+  final_volume_difference, ice_volume_var, stab)
 
     % Set up a scoreboard results structure
     single_run = initialise_single_test_run( test_name, test_path);
