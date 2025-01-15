@@ -1752,7 +1752,7 @@ CONTAINS
 
       ! If not, re-do the PC timestep
       ELSE
-        IF (par%master) CALL warning('{dp_01}% of vertices ({int_01}) are changing rapidly (eta = {dp_02}), reducing dt and redoing PC timestep', dp_01 = 100._dp * REAL( n_guilty,dp) / REAL(n_tot,dp), int_01 = n_guilty, dp_02 = region%ice%pc%eta_np1)
+        !IF (par%master) CALL warning('{dp_01}% of vertices ({int_01}) are changing rapidly (eta = {dp_02}), reducing dt and redoing PC timestep', dp_01 = 100._dp * REAL( n_guilty,dp) / REAL(n_tot,dp), int_01 = n_guilty, dp_02 = region%ice%pc%eta_np1)
         region%ice%pc%dt_np1 = region%ice%pc%dt_np1 * 0.8_dp
         ! If the timestep has reached the specified lower limit, stop iterating
         IF (region%ice%pc%dt_np1 <= C%dt_ice_min) THEN

@@ -245,18 +245,18 @@ UFEMISM_source = \
   \
   artificial_mass_balance/AMB_main.f90 \
   \
-  ice/ice_model_memory.f90 \
-  ice/ice_model_utilities.f90 \
-  ice/ice_flow_laws.f90 \
-  ice/ice_velocity_SIA.f90 \
-  ice/ice_velocity_SSA.f90 \
-  ice/ice_velocity_DIVA.f90 \
-  ice/ice_velocity_BPA.f90 \
-  ice/ice_velocity_hybrid_DIVA_BPA.f90 \
-  ice/ice_velocity_main.f90 \
-  ice/ice_thickness.f90 \
-  ice/ice_model_scalars.f90 \
-  ice/ice_model_main.f90 \
+  ice_dynamics/ice_model_memory.f90 \
+  ice_dynamics/ice_model_utilities.f90 \
+  ice_dynamics/ice_flow_laws.f90 \
+  ice_dynamics/ice_velocity_SIA.f90 \
+  ice_dynamics/ice_velocity_SSA.f90 \
+  ice_dynamics/ice_velocity_DIVA.f90 \
+  ice_dynamics/ice_velocity_BPA.f90 \
+  ice_dynamics/ice_velocity_hybrid_DIVA_BPA.f90 \
+  ice_dynamics/ice_velocity_main.f90 \
+  ice_dynamics/ice_thickness.f90 \
+  ice_dynamics/ice_model_scalars.f90 \
+  ice_dynamics/ice_model_main.f90 \
   \
   thermodynamics/thermodynamics_utilities.f90 \
   thermodynamics/thermodynamics_3D_heat_equation.f90 \
