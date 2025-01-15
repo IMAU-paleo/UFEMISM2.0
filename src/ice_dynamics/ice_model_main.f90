@@ -26,7 +26,7 @@ MODULE ice_model_main
   USE ice_model_utilities                                    , ONLY: determine_masks, calc_bedrock_CDFs, calc_grounded_fractions, calc_zeta_gradients, &
                                                                      calc_mask_noice, alter_ice_thickness, initialise_bedrock_CDFs, MB_inversion, calc_effective_thickness, &
                                                                      initialise_dHi_dt_target, initialise_uabs_surf_target
-  USE ice_thickness                                          , ONLY: calc_dHi_dt, apply_mask_noice_direct, apply_ice_thickness_BC_explicit
+  use conservation_of_mass_main, only: calc_dHi_dt, apply_mask_noice_direct, apply_ice_thickness_BC_explicit
   use ice_geometry_basics, only: ice_surface_elevation, thickness_above_floatation, Hi_from_Hb_Hs_and_SL, is_floating
   USE geothermal_heat_flux                                   , ONLY: initialise_geothermal_heat_flux
   USE basal_hydrology                                        , ONLY: initialise_basal_hydrology_model

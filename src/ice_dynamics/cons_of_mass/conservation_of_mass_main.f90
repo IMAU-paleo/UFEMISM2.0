@@ -1,4 +1,4 @@
-module ice_thickness
+module conservation_of_mass_main
 
   ! Contains all the routines needed to calculate ice thickness rates of change (dH/dt)
 
@@ -649,14 +649,14 @@ contains
     real(dp), dimension(mesh%vi1:mesh%vi2), intent(inout) :: Hi_tplusdt
 
     ! Local variables:
-    character(len=1024), parameter                                  :: routine_name = 'apply_ice_thickness_BC_explicit'
-    real(dp), dimension(mesh%vi1:mesh%vi2)                          :: Hs_tplusdt
-    integer                                                         :: vi
-    real(dp), dimension(mesh%nV)                                    :: Hs_tplusdt_tot
-    logical,  dimension(mesh%nV)                                    :: mask_noice_tot
-    CHARACTER(LEN=256)                                              :: BC_H
-    integer                                                         :: ci,vj,n_interior_neighbours
-    real(dp)                                                        :: Hs_sum
+    character(len=1024), parameter         :: routine_name = 'apply_ice_thickness_BC_explicit'
+    real(dp), dimension(mesh%vi1:mesh%vi2) :: Hs_tplusdt
+    integer                                :: vi
+    real(dp), dimension(mesh%nV)           :: Hs_tplusdt_tot
+    logical,  dimension(mesh%nV)           :: mask_noice_tot
+    character(len=256)                     :: BC_H
+    integer                                :: ci,vj,n_interior_neighbours
+    real(dp)                               :: Hs_sum
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -1072,8 +1072,8 @@ contains
     real(dp), dimension(mesh%vi1:mesh%vi2), intent(inout) :: Hi
 
     ! Local variables:
-    character(len=1024), parameter                        :: routine_name = 'apply_mask_noice_direct'
-    integer                                               :: vi
+    character(len=1024), parameter :: routine_name = 'apply_mask_noice_direct'
+    integer                        :: vi
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -1140,4 +1140,4 @@ contains
 
   end subroutine calc_flux_limited_timestep
 
-end module ice_thickness
+end module conservation_of_mass_main

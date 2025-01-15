@@ -254,7 +254,7 @@ UFEMISM_source = \
   ice_dynamics/ice_velocity_BPA.f90 \
   ice_dynamics/ice_velocity_hybrid_DIVA_BPA.f90 \
   ice_dynamics/ice_velocity_main.f90 \
-  ice_dynamics/ice_thickness.f90 \
+  ice_dynamics/cons_of_mass/conservation_of_mass_main.f90 \
   ice_dynamics/ice_model_scalars.f90 \
   ice_dynamics/ice_model_main.f90 \
   \
