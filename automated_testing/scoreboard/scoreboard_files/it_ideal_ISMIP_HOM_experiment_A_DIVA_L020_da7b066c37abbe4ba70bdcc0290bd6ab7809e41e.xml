@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<single_run>
+    <name>L020</name>
+    <category>integrated_tests/idealised/ISMIP_HOM/experiment_A/DIVA</category>
+    <date_and_time>14-Jan-2025 16:54:31</date_and_time>
+    <git_hash_string>da7b066c37abbe4ba70bdcc0290bd6ab7809e41e</git_hash_string>
+    <cost_functions>
+        <name>rmse</name>
+        <definition>sqrt( mean( (u_surf - u_ensemble).^2 ))</definition>
+        <value>4.5107</value>
+    </cost_functions>
+</single_run>
