@@ -1,159 +1,147 @@
-MODULE ice_velocity_SSA
+module ice_velocity_SSA
 
   ! Routines for calculating ice velocities using the Shallow Shelf Approximation (SSA)
 
-! ===== Preamble =====
-! ====================
-
-#include <petsc/finclude/petscksp.h>
-  USE petscksp
-  USE mpi
-  USE precisions                                             , ONLY: dp
-  USE mpi_basic                                              , ONLY: par, cerr, ierr, recv_status, sync
-  USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
-  USE model_configuration                                    , ONLY: C
-  USE petsc_basic                                            , ONLY: solve_matrix_equation_CSR_PETSc
-  USE mesh_types                                             , ONLY: type_mesh
-  USE ice_model_types                                        , ONLY: type_ice_model, type_ice_velocity_solver_SSA
-  USE parameters
-  use mesh_disc_apply_operators, only: map_a_b_2D, ddx_a_b_2D, ddy_a_b_2D, ddx_b_a_2D, ddy_b_a_2D, map_b_a_2D
-  USE mesh_zeta                                              , ONLY: vertical_average
-  USE sliding_laws                                           , ONLY: calc_basal_friction_coefficient
-  USE mesh_utilities                                         , ONLY: find_ti_copy_ISMIP_HOM_periodic
-  USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp, allocate_matrix_CSR_dist, add_entry_CSR_dist, read_single_row_CSR_dist, &
-                                                                     deallocate_matrix_CSR_dist
+  use mpi
+  use mpi_basic, only: par
+  use precisions, only: dp
+  use parameters, only: grav, ice_density
+  use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash, warning, colour_string
+  use model_configuration, only: C
+  use mesh_types, only: type_mesh
+  use ice_model_types, only: type_ice_model, type_ice_velocity_solver_SSA
+  use CSR_sparse_matrix_type, only: type_sparse_matrix_CSR_dp
+  use CSR_sparse_matrix_utilities, only: allocate_matrix_CSR_dist, add_entry_CSR_dist, read_single_row_CSR_dist
   use netcdf_io_main
+  use sliding_laws, only: calc_basal_friction_coefficient
+  use mesh_disc_apply_operators, only: ddx_a_b_2D, ddy_a_b_2D, map_a_b_2D, ddx_b_a_2D, ddy_b_a_2D, map_b_a_2D
+  use ice_flow_laws, only: calc_ice_rheology_Glen, calc_effective_viscosity_Glen_2D
+  use mesh_zeta, only: vertical_average
+  use mesh_utilities, only: find_ti_copy_ismip_hom_periodic
   use mpi_distributed_memory, only: gather_to_all
-  USE ice_flow_laws                                          , ONLY: calc_effective_viscosity_Glen_2D, calc_ice_rheology_Glen
-  USE reallocate_mod                                         , ONLY: reallocate_bounds, reallocate_clean
-  use remapping_main, only: map_from_mesh_to_mesh_with_reallocation_2D, map_from_mesh_to_mesh_with_reallocation_3D
+  use petsc_basic, only: solve_matrix_equation_CSR_PETSc
+  use reallocate_mod, only: reallocate_bounds, reallocate_clean
 
-  IMPLICIT NONE
+  implicit none
 
-CONTAINS
+contains
 
-! ===== Subroutines =====
-! =======================
+  ! == Main routines
 
-! == Main routines
-
-  SUBROUTINE initialise_SSA_solver( mesh, SSA, region_name)
-    ! Initialise the SSA solver
-
-    IMPLICIT NONE
+  subroutine initialise_SSA_solver( mesh, SSA, region_name)
 
     ! In/output variables:
-    TYPE(type_mesh),                     INTENT(IN)    :: mesh
-    TYPE(type_ice_velocity_solver_SSA),  INTENT(OUT)   :: SSA
-    CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
+    type(type_mesh),                    intent(in   ) :: mesh
+    type(type_ice_velocity_solver_SSA), intent(  out) :: SSA
+    character(len=3),                   intent(in   ) :: region_name
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_SSA_solver'
-    CHARACTER(LEN=256)                                 :: choice_initial_velocity
+    character(len=1024), parameter :: routine_name = 'initialise_SSA_solver'
+    character(len=256)             :: choice_initial_velocity
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
-    ! Allocate memory
-    CALL allocate_SSA_solver( mesh, SSA)
+    ! allocate memory
+    call allocate_SSA_solver( mesh, SSA)
 
     ! Determine the choice of initial velocities for this model region
-    IF     (region_name == 'NAM') THEN
+    select case (region_name)
+    case default
+      call crash('unknown model region "' // region_name // '"!')
+    case ('NAM')
       choice_initial_velocity  = C%choice_initial_velocity_NAM
-    ELSEIF (region_name == 'EAS') THEN
+    case ('EAS')
       choice_initial_velocity  = C%choice_initial_velocity_EAS
-    ELSEIF (region_name == 'GRL') THEN
+    case ('GRL')
       choice_initial_velocity  = C%choice_initial_velocity_GRL
-    ELSEIF (region_name == 'ANT') THEN
+    case ('ANT')
       choice_initial_velocity  = C%choice_initial_velocity_ANT
-    ELSE
-      CALL crash('unknown model region "' // region_name // '"!')
-    END IF
+    end select
 
     ! Initialise velocities according to the specified method
-    IF     (choice_initial_velocity == 'zero') THEN
+    select case (choice_initial_velocity)
+    case default
+      call crash('unknown choice_initial_velocity "' // trim( choice_initial_velocity) // '"!')
+    case ('zero')
       SSA%u_b = 0._dp
       SSA%v_b = 0._dp
-    ELSEIF (choice_initial_velocity == 'read_from_file') THEN
-      CALL initialise_SSA_velocities_from_file( mesh, SSA, region_name)
-    ELSE
-      CALL crash('unknown choice_initial_velocity "' // TRIM( choice_initial_velocity) // '"!')
-    END IF
+    case ('read_from_file')
+      call initialise_SSA_velocities_from_file( mesh, SSA, region_name)
+    end select
 
     ! Set tolerances for PETSc matrix solver for the linearised SSA
     SSA%PETSc_rtol   = C%stress_balance_PETSc_rtol
     SSA%PETSc_abstol = C%stress_balance_PETSc_abstol
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE initialise_SSA_solver
+  end subroutine initialise_SSA_solver
 
-  SUBROUTINE solve_SSA( mesh, ice, SSA, &
-    n_visc_its, n_Axb_its, &
+  subroutine solve_SSA( mesh, ice, SSA, n_visc_its, n_Axb_its, &
     BC_prescr_mask_b, BC_prescr_u_b, BC_prescr_v_b)
-    ! Calculate ice velocities by solving the Shallow Shelf Approximation
-
-    IMPLICIT NONE
+    !< Calculate ice velocities by solving the Shallow Shelf Approximation
 
     ! In/output variables:
-    TYPE(type_mesh),                     INTENT(IN)              :: mesh
-    TYPE(type_ice_model),                INTENT(INOUT)           :: ice
-    TYPE(type_ice_velocity_solver_SSA),  INTENT(INOUT)           :: SSA
-    integer,                             intent(out)             :: n_visc_its            ! Number of non-linear viscosity iterations
-    integer,                             intent(out)             :: n_Axb_its             ! Number of iterations in iterative solver for linearised momentum balance
-    INTEGER,  DIMENSION(:    ),          INTENT(IN)   , OPTIONAL :: BC_prescr_mask_b      ! Mask of triangles where velocity is prescribed
-    REAL(dp), DIMENSION(:    ),          INTENT(IN)   , OPTIONAL :: BC_prescr_u_b         ! Prescribed velocities in the x-direction
-    REAL(dp), DIMENSION(:    ),          INTENT(IN)   , OPTIONAL :: BC_prescr_v_b         ! Prescribed velocities in the y-direction
+    type(type_mesh),                    intent(in   ) :: mesh
+    type(type_ice_model),               intent(inout) :: ice
+    type(type_ice_velocity_solver_SSA), intent(inout) :: SSA
+    integer,                            intent(  out) :: n_visc_its            ! Number of non-linear viscosity iterations
+    integer,                            intent(  out) :: n_Axb_its             ! Number of iterations in iterative solver for linearised momentum balance
+    integer,  dimension(:), optional,   intent(in   ) :: BC_prescr_mask_b      ! Mask of triangles where velocity is prescribed
+    real(dp), dimension(:), optional,   intent(in   ) :: BC_prescr_u_b         ! Prescribed velocities in the x-direction
+    real(dp), dimension(:), optional,   intent(in   ) :: BC_prescr_v_b         ! Prescribed velocities in the y-direction
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'solve_SSA'
-    LOGICAL                                                      :: grounded_ice_exists
-    INTEGER,  DIMENSION(:    ), ALLOCATABLE                      :: BC_prescr_mask_b_applied
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: BC_prescr_u_b_applied
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: BC_prescr_v_b_applied
-    INTEGER                                                      :: viscosity_iteration_i
-    LOGICAL                                                      :: has_converged
-    REAL(dp)                                                     :: resid_UV, resid_UV_prev
-    REAL(dp)                                                     :: uv_min, uv_max
-    REAL(dp)                                                     :: visc_it_relax_applied
-    REAL(dp)                                                     :: Glens_flow_law_epsilon_sq_0_applied
-    INTEGER                                                      :: nit_diverg_consec
-    integer                                                      :: n_Axb_its_visc_it
+    character(len=1024), parameter      :: routine_name = 'solve_SSA'
+    logical                             :: grounded_ice_exists
+    integer                             :: ierr
+    integer,  dimension(:), allocatable :: BC_prescr_mask_b_applied
+    real(dp), dimension(:), allocatable :: BC_prescr_u_b_applied
+    real(dp), dimension(:), allocatable :: BC_prescr_v_b_applied
+    integer                             :: viscosity_iteration_i
+    logical                             :: has_converged
+    real(dp)                            :: resid_UV, resid_UV_prev
+    real(dp)                            :: uv_min, uv_max
+    real(dp)                            :: visc_it_relax_applied
+    real(dp)                            :: Glens_flow_law_epsilon_sq_0_applied
+    integer                             :: nit_diverg_consec
+    integer                             :: n_Axb_its_visc_it
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
-    ! If there is no grounded ice, or no sliding, no need to solve the SSA
-    grounded_ice_exists = ANY( ice%mask_grounded_ice)
-    CALL MPI_ALLREDUCE( MPI_IN_PLACE, grounded_ice_exists, 1, MPI_LOGICAL, MPI_LOR, MPI_COMM_WORLD, ierr)
-    IF (.NOT. grounded_ice_exists .OR. C%choice_sliding_law == 'no_sliding') THEN
+    ! if there is no grounded ice, or no sliding, no need to solve the SSA
+    grounded_ice_exists = any( ice%mask_grounded_ice)
+    call MPI_ALLREDUCE( MPI_IN_PLACE, grounded_ice_exists, 1, MPI_logical, MPI_LOR, MPI_COMM_WORLD, ierr)
+    if (.not. grounded_ice_exists .or. C%choice_sliding_law == 'no_sliding') then
       SSA%u_b = 0._dp
       SSA%v_b = 0._dp
-      CALL finalise_routine( routine_name)
-      RETURN
-    END IF
+      call finalise_routine( routine_name)
+      return
+    end if
 
     ! Handle the optional prescribed u,v boundary conditions
-    ALLOCATE( BC_prescr_mask_b_applied( mesh%ti1:mesh%ti2))
-    ALLOCATE( BC_prescr_u_b_applied(    mesh%ti1:mesh%ti2))
-    ALLOCATE( BC_prescr_v_b_applied(    mesh%ti1:mesh%ti2))
-    IF (PRESENT( BC_prescr_mask_b) .OR. PRESENT( BC_prescr_u_b) .OR. PRESENT( BC_prescr_v_b)) THEN
+    allocate( BC_prescr_mask_b_applied( mesh%ti1:mesh%ti2))
+    allocate( BC_prescr_u_b_applied(    mesh%ti1:mesh%ti2))
+    allocate( BC_prescr_v_b_applied(    mesh%ti1:mesh%ti2))
+    if (present( BC_prescr_mask_b) .or. present( BC_prescr_u_b) .or. present( BC_prescr_v_b)) then
       ! Safety
-      IF (.NOT. (PRESENT( BC_prescr_mask_b) .AND. PRESENT( BC_prescr_u_b) .AND. PRESENT( BC_prescr_v_b))) THEN
-        CALL crash('need to provide prescribed u,v fields and mask!')
-      END IF
+      if (.not. (present( BC_prescr_mask_b) .and. present( BC_prescr_u_b) .and. present( BC_prescr_v_b))) then
+        call crash('need to provide prescribed u,v fields and mask!')
+      end if
       BC_prescr_mask_b_applied = BC_prescr_mask_b
       BC_prescr_u_b_applied    = BC_prescr_u_b
       BC_prescr_v_b_applied    = BC_prescr_v_b
-    ELSE
+    else
       BC_prescr_mask_b_applied = 0
       BC_prescr_u_b_applied    = 0._dp
       BC_prescr_v_b_applied    = 0._dp
-    END IF
+    end if
 
     ! Calculate the driving stress
-    CALL calc_driving_stress( mesh, ice, SSA)
+    call calc_driving_stress( mesh, ice, SSA)
 
     ! Adaptive relaxation parameter for the viscosity iteration
     resid_UV                            = 1E9_dp
@@ -167,191 +155,181 @@ CONTAINS
 
     ! The viscosity iteration
     viscosity_iteration_i = 0
-    has_converged         = .FALSE.
-    viscosity_iteration: DO WHILE (.NOT. has_converged)
+    has_converged         = .false.
+    viscosity_iteration: do while (.not. has_converged)
       viscosity_iteration_i = viscosity_iteration_i + 1
 
       ! Calculate the strain rates for the current velocity solution
-      CALL calc_strain_rates( mesh, SSA)
+      call calc_strain_rates( mesh, SSA)
 
       ! Calculate the effective viscosity for the current velocity solution
-      CALL calc_effective_viscosity( mesh, ice, SSA, Glens_flow_law_epsilon_sq_0_applied)
+      call calc_effective_viscosity( mesh, ice, SSA, Glens_flow_law_epsilon_sq_0_applied)
 
       ! Calculate the basal friction coefficient betab for the current velocity solution
-      CALL calc_applied_basal_friction_coefficient( mesh, ice, SSA)
+      call calc_applied_basal_friction_coefficient( mesh, ice, SSA)
 
       ! Solve the linearised SSA to calculate a new velocity solution
-      CALL solve_SSA_linearised( mesh, SSA, n_Axb_its_visc_it, &
+      call solve_SSA_linearised( mesh, SSA, n_Axb_its_visc_it, &
         BC_prescr_mask_b_applied, BC_prescr_u_b_applied, BC_prescr_v_b_applied)
 
       ! Update stability info
       n_Axb_its = n_Axb_its + n_Axb_its_visc_it
 
       ! Limit velocities for improved stability
-      CALL apply_velocity_limits( mesh, SSA)
+      call apply_velocity_limits( mesh, SSA)
 
       ! Reduce the change between velocity solutions
-      CALL relax_viscosity_iterations( mesh, SSA, visc_it_relax_applied)
+      call relax_viscosity_iterations( mesh, SSA, visc_it_relax_applied)
 
       ! Calculate the L2-norm of the two consecutive velocity solutions
       resid_UV_prev = resid_UV
-      CALL calc_visc_iter_UV_resid( mesh, SSA, resid_UV)
+      call calc_visc_iter_UV_resid( mesh, SSA, resid_UV)
 
-      ! If the viscosity iteration diverges, lower the relaxation parameter
-      IF (resid_UV > resid_UV_prev) THEN
+      ! if the viscosity iteration diverges, lower the relaxation parameter
+      if (resid_UV > resid_UV_prev) then
         nit_diverg_consec = nit_diverg_consec + 1
-      ELSE
+      else
         nit_diverg_consec = 0
-      END IF
-      IF (nit_diverg_consec > 2) THEN
+      end if
+      if (nit_diverg_consec > 2) then
         nit_diverg_consec = 0
         visc_it_relax_applied               = visc_it_relax_applied               * 0.9_dp
         Glens_flow_law_epsilon_sq_0_applied = Glens_flow_law_epsilon_sq_0_applied * 1.2_dp
-      END IF
-      IF (visc_it_relax_applied <= 0.05_dp .OR. Glens_flow_law_epsilon_sq_0_applied >= 1E-5_dp) THEN
-        IF (visc_it_relax_applied < 0.05_dp) THEN
-          CALL crash('viscosity iteration still diverges even with very low relaxation factor!')
-        ELSEIF (Glens_flow_law_epsilon_sq_0_applied > 1E-5_dp) THEN
-          CALL crash('viscosity iteration still diverges even with very high effective strain rate regularisation!')
-        END IF
-      END IF
+      end if
+      if (visc_it_relax_applied <= 0.05_dp .or. Glens_flow_law_epsilon_sq_0_applied >= 1E-5_dp) then
+        if (visc_it_relax_applied < 0.05_dp) then
+          call crash('viscosity iteration still diverges even with very low relaxation factor!')
+        elseif (Glens_flow_law_epsilon_sq_0_applied > 1E-5_dp) then
+          call crash('viscosity iteration still diverges even with very high effective strain rate regularisation!')
+        end if
+      end if
 
       ! DENK DROM
-      uv_min = MINVAL( SSA%u_b)
-      uv_max = MAXVAL( SSA%u_b)
-      CALL MPI_ALLREDUCE( MPI_IN_PLACE, uv_min, 1, MPI_DOUBLE_PRECISION, MPI_MIN, MPI_COMM_WORLD, ierr)
-      CALL MPI_ALLREDUCE( MPI_IN_PLACE, uv_max, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
-!      IF (par%master) WRITE(0,*) '    SSA - viscosity iteration ', viscosity_iteration_i, ', u = [', uv_min, ' - ', uv_max, '], resid = ', resid_UV
+      uv_min = minval( SSA%u_b)
+      uv_max = maxval( SSA%u_b)
+      call MPI_ALLREDUCE( MPI_IN_PLACE, uv_min, 1, MPI_doUBLE_PRECISION, MPI_MIN, MPI_COMM_WORLD, ierr)
+      call MPI_ALLREDUCE( MPI_IN_PLACE, uv_max, 1, MPI_doUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
+      ! if (par%master) write(0,*) '    SSA - viscosity iteration ', viscosity_iteration_i, ', u = [', uv_min, ' - ', uv_max, '], resid = ', resid_UV
 
-      ! If the viscosity iteration has converged, or has reached the maximum allowed number of iterations, stop it.
-      has_converged = .FALSE.
-      IF (resid_UV < C%visc_it_norm_dUV_tol) THEN
+      ! if the viscosity iteration has converged, or has reached the maximum allowed number of iterations, stop it.
+      has_converged = .false.
+      if (resid_UV < C%visc_it_norm_dUV_tol) then
         has_converged = .TRUE.
-      END IF
+      end if
 
-      ! If we've reached the maximum allowed number of iterations without converging, throw a warning
-      IF (viscosity_iteration_i > C%visc_it_nit) THEN
-        IF (par%master) CALL warning('viscosity iteration failed to converge within {int_01} iterations!', int_01 = C%visc_it_nit)
-        EXIT viscosity_iteration
-      END IF
+      ! if we've reached the maximum allowed number of iterations without converging, throw a warning
+      if (viscosity_iteration_i > C%visc_it_nit) then
+        if (par%master) call warning('viscosity iteration failed to converge within {int_01} iterations!', int_01 = C%visc_it_nit)
+        exit viscosity_iteration
+      end if
 
-    END DO viscosity_iteration
-
-    ! Clean up after yourself
-    DEALLOCATE( BC_prescr_mask_b_applied)
-    DEALLOCATE( BC_prescr_u_b_applied   )
-    DEALLOCATE( BC_prescr_v_b_applied   )
+    end do viscosity_iteration
 
     ! Stability info
     n_visc_its = viscosity_iteration_i
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE solve_SSA
+  end subroutine solve_SSA
 
-  SUBROUTINE remap_SSA_solver( mesh_old, mesh_new, SSA)
-    ! Remap the SSA solver
-
-    IMPLICIT NONE
+  subroutine remap_SSA_solver( mesh_old, mesh_new, SSA)
 
     ! In/output variables:
-    TYPE(type_mesh),                     INTENT(IN)    :: mesh_old
-    TYPE(type_mesh),                     INTENT(IN)    :: mesh_new
-    TYPE(type_ice_velocity_solver_SSA),  INTENT(INOUT) :: SSA
+    type(type_mesh),                    intent(in   ) :: mesh_old
+    type(type_mesh),                    intent(in   ) :: mesh_new
+    type(type_ice_velocity_solver_SSA), intent(inout) :: SSA
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'remap_SSA_solver'
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: u_a
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: v_a
+    character(len=1024), parameter          :: routine_name = 'remap_SSA_solver'
+    real(dp), dimension(:    ), allocatable :: u_a
+    real(dp), dimension(:    ), allocatable :: v_a
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
-  ! Remap the fields that are re-used during the viscosity iteration
-  ! ================================================================
+    ! Remap the fields that are re-used during the viscosity iteration
+    ! ================================================================
 
-    ! Allocate memory for velocities on the a-grid (vertices)
-    ALLOCATE( u_a( mesh_old%vi1: mesh_old%vi2))
-    ALLOCATE( v_a( mesh_old%vi1: mesh_old%vi2))
+    ! allocate memory for velocities on the a-grid (vertices)
+    allocate( u_a( mesh_old%vi1: mesh_old%vi2))
+    allocate( v_a( mesh_old%vi1: mesh_old%vi2))
 
     ! Map velocities from the triangles of the old mesh to the vertices of the old mesh
-    CALL map_b_a_2D( mesh_old, SSA%u_b, u_a)
-    CALL map_b_a_2D( mesh_old, SSA%v_b, v_a)
+    call map_b_a_2D( mesh_old, SSA%u_b, u_a)
+    call map_b_a_2D( mesh_old, SSA%v_b, v_a)
 
     ! Remap velocities from the vertices of the old mesh to the vertices of the new mesh
-    CALL map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, u_a, '2nd_order_conservative')
-    CALL map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, v_a, '2nd_order_conservative')
+    call map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, u_a, '2nd_order_conservative')
+    call map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, v_a, '2nd_order_conservative')
 
-    ! Reallocate memory for the velocities on the triangles
-    CALL reallocate_bounds( SSA%u_b                         , mesh_new%ti1, mesh_new%ti2)
-    CALL reallocate_bounds( SSA%v_b                         , mesh_new%ti1, mesh_new%ti2)
+    ! reallocate memory for the velocities on the triangles
+    call reallocate_bounds( SSA%u_b                         , mesh_new%ti1, mesh_new%ti2)
+    call reallocate_bounds( SSA%v_b                         , mesh_new%ti1, mesh_new%ti2)
 
     ! Map velocities from the vertices of the new mesh to the triangles of the new mesh
-    CALL map_a_b_2D( mesh_new, u_a, SSA%u_b)
-    CALL map_a_b_2D( mesh_new, v_a, SSA%v_b)
+    call map_a_b_2D( mesh_new, u_a, SSA%u_b)
+    call map_a_b_2D( mesh_new, v_a, SSA%v_b)
 
     ! Clean up after yourself
-    DEALLOCATE( u_a)
-    DEALLOCATE( v_a)
+    deallocate( u_a)
+    deallocate( v_a)
 
-  ! Reallocate everything else
-  ! ==========================
+    ! reallocate everything else
+    ! ==========================
 
-    CALL reallocate_bounds( SSA%A_flow_vav_a                , mesh_new%vi1, mesh_new%vi2)           ! [Pa^-3 y^-1] Vertically averaged Glen's flow law parameter
-    CALL reallocate_bounds( SSA%du_dx_a                     , mesh_new%vi1, mesh_new%vi2)           ! [yr^-1] 2-D horizontal strain rates
-    CALL reallocate_bounds( SSA%du_dy_a                     , mesh_new%vi1, mesh_new%vi2)
-    CALL reallocate_bounds( SSA%dv_dx_a                     , mesh_new%vi1, mesh_new%vi2)
-    CALL reallocate_bounds( SSA%dv_dy_a                     , mesh_new%vi1, mesh_new%vi2)
-    CALL reallocate_bounds( SSA%eta_a                       , mesh_new%vi1, mesh_new%vi2)           ! Effective viscosity
-    CALL reallocate_bounds( SSA%N_a                         , mesh_new%vi1, mesh_new%vi2)           ! Product term N = eta * H
-    CALL reallocate_bounds( SSA%N_b                         , mesh_new%ti1, mesh_new%ti2)
-    CALL reallocate_bounds( SSA%dN_dx_b                     , mesh_new%ti1, mesh_new%ti2)           ! Gradients of N
-    CALL reallocate_bounds( SSA%dN_dy_b                     , mesh_new%ti1, mesh_new%ti2)
-    CALL reallocate_bounds( SSA%basal_friction_coefficient_b, mesh_new%ti1, mesh_new%ti2)           ! Basal friction coefficient (basal_shear_stress = u * basal_friction_coefficient)
-    CALL reallocate_bounds( SSA%tau_dx_b                    , mesh_new%ti1, mesh_new%ti2)           ! Driving stress
-    CALL reallocate_bounds( SSA%tau_dy_b                    , mesh_new%ti1, mesh_new%ti2)
-    CALL reallocate_clean ( SSA%u_b_prev                    , mesh_new%nTri             )           ! Velocity solution from previous viscosity iteration
-    CALL reallocate_clean ( SSA%v_b_prev                    , mesh_new%nTri             )
+    call reallocate_bounds( SSA%A_flow_vav_a                , mesh_new%vi1, mesh_new%vi2)           ! [Pa^-3 y^-1] Vertically averaged Glen's flow law parameter
+    call reallocate_bounds( SSA%du_dx_a                     , mesh_new%vi1, mesh_new%vi2)           ! [yr^-1] 2-D horizontal strain rates
+    call reallocate_bounds( SSA%du_dy_a                     , mesh_new%vi1, mesh_new%vi2)
+    call reallocate_bounds( SSA%dv_dx_a                     , mesh_new%vi1, mesh_new%vi2)
+    call reallocate_bounds( SSA%dv_dy_a                     , mesh_new%vi1, mesh_new%vi2)
+    call reallocate_bounds( SSA%eta_a                       , mesh_new%vi1, mesh_new%vi2)           ! Effective viscosity
+    call reallocate_bounds( SSA%N_a                         , mesh_new%vi1, mesh_new%vi2)           ! Product term N = eta * H
+    call reallocate_bounds( SSA%N_b                         , mesh_new%ti1, mesh_new%ti2)
+    call reallocate_bounds( SSA%dN_dx_b                     , mesh_new%ti1, mesh_new%ti2)           ! Gradients of N
+    call reallocate_bounds( SSA%dN_dy_b                     , mesh_new%ti1, mesh_new%ti2)
+    call reallocate_bounds( SSA%basal_friction_coefficient_b, mesh_new%ti1, mesh_new%ti2)           ! Basal friction coefficient (basal_shear_stress = u * basal_friction_coefficient)
+    call reallocate_bounds( SSA%tau_dx_b                    , mesh_new%ti1, mesh_new%ti2)           ! Driving stress
+    call reallocate_bounds( SSA%tau_dy_b                    , mesh_new%ti1, mesh_new%ti2)
+    call reallocate_clean ( SSA%u_b_prev                    , mesh_new%nTri             )           ! Velocity solution from previous viscosity iteration
+    call reallocate_clean ( SSA%v_b_prev                    , mesh_new%nTri             )
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE remap_SSA_solver
+  end subroutine remap_SSA_solver
 
 ! == Assemble and solve the linearised SSA
 
-  SUBROUTINE solve_SSA_linearised( mesh, SSA, n_Axb_its, &
+  subroutine solve_SSA_linearised( mesh, SSA, n_Axb_its, &
     BC_prescr_mask_b, BC_prescr_u_b, BC_prescr_v_b)
     ! Solve the linearised SSA
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    TYPE(type_mesh),                     INTENT(IN)              :: mesh
-    TYPE(type_ice_velocity_solver_SSA),  INTENT(INOUT)           :: SSA
-    integer,                                         intent(out) :: n_Axb_its             ! Number of iterations used in the iterative solver
-    INTEGER,  DIMENSION(mesh%ti1:mesh%ti2),          INTENT(IN)  :: BC_prescr_mask_b      ! Mask of triangles where velocity is prescribed
-    REAL(dp), DIMENSION(mesh%ti1:mesh%ti2),          INTENT(IN)  :: BC_prescr_u_b         ! Prescribed velocities in the x-direction
-    REAL(dp), DIMENSION(mesh%ti1:mesh%ti2),          INTENT(IN)  :: BC_prescr_v_b         ! Prescribed velocities in the y-direction
+    type(type_mesh),                        intent(in   ) :: mesh
+    type(type_ice_velocity_solver_SSA),     intent(inout) :: SSA
+    integer,                                intent(  out) :: n_Axb_its             ! Number of iterations used in the iterative solver
+    integer,  dimension(mesh%ti1:mesh%ti2), intent(in   ) :: BC_prescr_mask_b      ! Mask of triangles where velocity is prescribed
+    real(dp), dimension(mesh%ti1:mesh%ti2), intent(in   ) :: BC_prescr_u_b         ! Prescribed velocities in the x-direction
+    real(dp), dimension(mesh%ti1:mesh%ti2), intent(in   ) :: BC_prescr_v_b         ! Prescribed velocities in the y-direction
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'solve_SSA_linearised'
-    INTEGER                                                      :: ncols, ncols_loc, nrows, nrows_loc, nnz_est_proc
-    TYPE(type_sparse_matrix_CSR_dp)                              :: A_CSR
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: bb
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: uv_buv
-    INTEGER                                                      :: row_tiuv,ti,uv
+    character(len=1024), parameter      :: routine_name = 'solve_SSA_linearised'
+    integer                             :: ncols, ncols_loc, nrows, nrows_loc, nnz_est_proc
+    type(type_sparse_matrix_CSR_dp)     :: A_CSR
+    real(dp), dimension(:), allocatable :: bb
+    real(dp), dimension(:), allocatable :: uv_buv
+    integer                             :: row_tiuv,ti,uv
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
     ! Store the previous solution
-    CALL gather_to_all( SSA%u_b, SSA%u_b_prev)
-    CALL gather_to_all( SSA%v_b, SSA%v_b_prev)
+    call gather_to_all( SSA%u_b, SSA%u_b_prev)
+    call gather_to_all( SSA%v_b, SSA%v_b_prev)
 
-  ! == Initialise the stiffness matrix using the native UFEMISM CSR-matrix format
-  ! =============================================================================
+    ! == Initialise the stiffness matrix using the native UFEMISM CSR-matrix format
+    ! =============================================================================
 
     ! Matrix size
     ncols           = mesh%nTri     * 2      ! from
@@ -360,14 +338,14 @@ CONTAINS
     nrows_loc       = mesh%nTri_loc * 2
     nnz_est_proc    = mesh%M2_ddx_b_b%nnz * 4
 
-    CALL allocate_matrix_CSR_dist( A_CSR, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+    call allocate_matrix_CSR_dist( A_CSR, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
 
-    ! Allocate memory for the load vector and the solution
-    ALLOCATE( bb(     mesh%ti1*2-1: mesh%ti2*2))
-    ALLOCATE( uv_buv( mesh%ti1*2-1: mesh%ti2*2))
+    ! allocate memory for the load vector and the solution
+    allocate( bb(     mesh%ti1*2-1: mesh%ti2*2))
+    allocate( uv_buv( mesh%ti1*2-1: mesh%ti2*2))
 
     ! Fill in the current velocity solution
-    DO ti = mesh%ti1, mesh%ti2
+    do ti = mesh%ti1, mesh%ti2
 
       ! u
       row_tiuv = mesh%tiuv2n( ti,1)
@@ -377,75 +355,75 @@ CONTAINS
       row_tiuv = mesh%tiuv2n( ti,2)
       uv_buv( row_tiuv) = SSA%v_b( ti)
 
-    END DO ! DO ti = mesh%ti1, mesh%ti2
+    end do
 
-  ! == Construct the stiffness matrix for the linearised SSA
-  ! ========================================================
+    ! == Construct the stiffness matrix for the linearised SSA
+    ! ========================================================
 
-    DO row_tiuv = A_CSR%i1, A_CSR%i2
+    do row_tiuv = A_CSR%i1, A_CSR%i2
 
       ti = mesh%n2tiuv( row_tiuv,1)
       uv = mesh%n2tiuv( row_tiuv,2)
 
-      IF (BC_prescr_mask_b( ti) == 1) THEN
+      if (BC_prescr_mask_b( ti) == 1) then
         ! Dirichlet boundary condition; velocities are prescribed for this triangle
 
         ! Stiffness matrix: diagonal element set to 1
-        CALL add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, 1._dp)
+        call add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, 1._dp)
 
         ! Load vector: prescribed velocity
-        IF     (uv == 1) THEN
+        if     (uv == 1) then
           bb( row_tiuv) = BC_prescr_u_b( ti)
-        ELSEIF (uv == 2) THEN
+        elseif (uv == 2) then
           bb( row_tiuv) = BC_prescr_v_b( ti)
-        ELSE
-          CALL crash('uv can only be 1 or 2!')
-        END IF
+        else
+          call crash('uv can only be 1 or 2!')
+        end if
 
-      ELSEIF (mesh%TriBI( ti) == 1 .OR. mesh%TriBI( ti) == 2) THEN
+      elseif (mesh%TriBI( ti) == 1 .or. mesh%TriBI( ti) == 2) then
         ! Northern domain border
 
-        CALL calc_SSA_stiffness_matrix_row_BC_north( mesh, SSA, A_CSR, bb, row_tiuv)
+        call calc_SSA_stiffness_matrix_row_BC_north( mesh, SSA, A_CSR, bb, row_tiuv)
 
-      ELSEIF (mesh%TriBI( ti) == 3 .OR. mesh%TriBI( ti) == 4) THEN
+      elseif (mesh%TriBI( ti) == 3 .or. mesh%TriBI( ti) == 4) then
         ! Eastern domain border
 
-        CALL calc_SSA_stiffness_matrix_row_BC_east( mesh, SSA, A_CSR, bb, row_tiuv)
+        call calc_SSA_stiffness_matrix_row_BC_east( mesh, SSA, A_CSR, bb, row_tiuv)
 
-      ELSEIF (mesh%TriBI( ti) == 5 .OR. mesh%TriBI( ti) == 6) THEN
+      elseif (mesh%TriBI( ti) == 5 .or. mesh%TriBI( ti) == 6) then
         ! Southern domain border
 
-        CALL calc_SSA_stiffness_matrix_row_BC_south( mesh, SSA, A_CSR, bb, row_tiuv)
+        call calc_SSA_stiffness_matrix_row_BC_south( mesh, SSA, A_CSR, bb, row_tiuv)
 
-      ELSEIF (mesh%TriBI( ti) == 7 .OR. mesh%TriBI( ti) == 8) THEN
+      elseif (mesh%TriBI( ti) == 7 .or. mesh%TriBI( ti) == 8) then
         ! Western domain border
 
-        CALL calc_SSA_stiffness_matrix_row_BC_west( mesh, SSA, A_CSR, bb, row_tiuv)
+        call calc_SSA_stiffness_matrix_row_BC_west( mesh, SSA, A_CSR, bb, row_tiuv)
 
-      ELSE
+      else
         ! No boundary conditions apply; solve the SSA
 
-        IF (C%do_include_SSADIVA_crossterms) THEN
+        if (C%do_include_SSADIVA_crossterms) then
           ! Calculate matrix coefficients for the full SSA
-          CALL calc_SSA_stiffness_matrix_row_free( mesh, SSA, A_CSR, bb, row_tiuv)
-        ELSE
+          call calc_SSA_stiffness_matrix_row_free( mesh, SSA, A_CSR, bb, row_tiuv)
+        else
           ! Calculate matrix coefficients for the SSA sans the gradients of the effective viscosity (the "cross-terms")
-          CALL calc_SSA_sans_stiffness_matrix_row_free( mesh, SSA, A_CSR, bb, row_tiuv)
-        END IF
+          call calc_SSA_sans_stiffness_matrix_row_free( mesh, SSA, A_CSR, bb, row_tiuv)
+        end if
 
-      END IF
+      end if
 
-    END DO ! DO row_tiuv = A_CSR%i1, A_CSR%i2
+    end do
 
-  ! == Solve the matrix equation
-  ! ============================
+    ! == Solve the matrix equation
+    ! ============================
 
     ! Use PETSc to solve the matrix equation
-    CALL solve_matrix_equation_CSR_PETSc( A_CSR, bb, uv_buv, SSA%PETSc_rtol, SSA%PETSc_abstol, &
+    call solve_matrix_equation_CSR_PETSc( A_CSR, bb, uv_buv, SSA%PETSc_rtol, SSA%PETSc_abstol, &
       n_Axb_its)
 
     ! Disentangle the u and v components of the velocity solution
-    DO ti = mesh%ti1, mesh%ti2
+    do ti = mesh%ti1, mesh%ti2
 
       ! u
       row_tiuv = mesh%tiuv2n( ti,1)
@@ -455,21 +433,16 @@ CONTAINS
       row_tiuv = mesh%tiuv2n( ti,2)
       SSA%v_b( ti) = uv_buv( row_tiuv)
 
-    END DO ! DO ti = mesh%ti1, mesh%ti2
-
-    ! Clean up after yourself
-    CALL deallocate_matrix_CSR_dist( A_CSR)
-    DEALLOCATE( bb)
-    DEALLOCATE( uv_buv)
+    end do
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE solve_SSA_linearised
+  end subroutine solve_SSA_linearised
 
-  SUBROUTINE calc_SSA_stiffness_matrix_row_free( mesh, SSA, A_CSR, bb, row_tiuv)
-    ! Add coefficients to this matrix row to represent the linearised SSA
-    !
+  subroutine calc_SSA_stiffness_matrix_row_free( mesh, SSA, A_CSR, bb, row_tiuv)
+    !< Add coefficients to this matrix row to represent the linearised SSA
+
     ! The SSA reads;
     !
     !   d/dx [ 2 N ( 2 du/dx + dv/dy )] + d/dy [ N ( du/dy + dv/dx)] - beta_b u = -tau_dx
@@ -496,31 +469,29 @@ CONTAINS
     ! stress tau_d on the b-grid (triangles), and the effective viscosity eta and the
     ! product term N = eta H on the a-grid (vertices).
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    TYPE(type_mesh),                     INTENT(IN)              :: mesh
-    TYPE(type_ice_velocity_solver_SSA),  INTENT(IN)              :: SSA
-    TYPE(type_sparse_matrix_CSR_dp),     INTENT(INOUT)           :: A_CSR
-    REAL(dp), DIMENSION(mesh%ti1*2-1: mesh%ti2*2), INTENT(INOUT) :: bb
-    INTEGER,                             INTENT(IN)              :: row_tiuv
+    type(type_mesh),                               intent(in   ) :: mesh
+    type(type_ice_velocity_solver_SSA),            intent(in   ) :: SSA
+    type(type_sparse_matrix_CSR_dp),               intent(inout) :: A_CSR
+    real(dp), dimension(mesh%ti1*2-1: mesh%ti2*2), intent(inout) :: bb
+    integer,                                       intent(in   ) :: row_tiuv
 
     ! Local variables:
-    INTEGER                                                      :: ti, uv
-    REAL(dp)                                                     :: N, dN_dx, dN_dy, basal_friction_coefficient, tau_dx, tau_dy
-    INTEGER,  DIMENSION(:    ), ALLOCATABLE                      :: single_row_ind
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: single_row_ddx_val
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: single_row_ddy_val
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: single_row_d2dx2_val
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: single_row_d2dxdy_val
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: single_row_d2dy2_val
-    INTEGER                                                      :: single_row_nnz
-    REAL(dp)                                                     :: Au, Av
-    INTEGER                                                      :: k, tj, col_tju, col_tjv
+    integer                             :: ti, uv
+    real(dp)                            :: N, dN_dx, dN_dy, basal_friction_coefficient, tau_dx, tau_dy
+    integer,  dimension(:), allocatable :: single_row_ind
+    real(dp), dimension(:), allocatable :: single_row_ddx_val
+    real(dp), dimension(:), allocatable :: single_row_ddy_val
+    real(dp), dimension(:), allocatable :: single_row_d2dx2_val
+    real(dp), dimension(:), allocatable :: single_row_d2dxdy_val
+    real(dp), dimension(:), allocatable :: single_row_d2dy2_val
+    integer                             :: single_row_nnz
+    real(dp)                            :: Au, Av
+    integer                             :: k, tj, col_tju, col_tjv
 
     ! Relevant indices for this triangle
-    ti     = mesh%n2tiuv( row_tiuv,1)
-    uv     = mesh%n2tiuv( row_tiuv,2)
+    ti = mesh%n2tiuv( row_tiuv,1)
+    uv = mesh%n2tiuv( row_tiuv,2)
 
     ! N, dN/dx, dN/dy, basal_friction_coefficient_b, tau_dx, and tau_dy on this triangle
     N                          = SSA%N_b(      ti)
@@ -530,25 +501,25 @@ CONTAINS
     tau_dx                     = SSA%tau_dx_b( ti)
     tau_dy                     = SSA%tau_dy_b( ti)
 
-    ! Allocate memory for single matrix rows
-    ALLOCATE( single_row_ind(        mesh%nC_mem*2))
-    ALLOCATE( single_row_ddx_val(    mesh%nC_mem*2))
-    ALLOCATE( single_row_ddy_val(    mesh%nC_mem*2))
-    ALLOCATE( single_row_d2dx2_val(  mesh%nC_mem*2))
-    ALLOCATE( single_row_d2dxdy_val( mesh%nC_mem*2))
-    ALLOCATE( single_row_d2dy2_val(  mesh%nC_mem*2))
+    ! allocate memory for single matrix rows
+    allocate( single_row_ind(        mesh%nC_mem*2))
+    allocate( single_row_ddx_val(    mesh%nC_mem*2))
+    allocate( single_row_ddy_val(    mesh%nC_mem*2))
+    allocate( single_row_d2dx2_val(  mesh%nC_mem*2))
+    allocate( single_row_d2dxdy_val( mesh%nC_mem*2))
+    allocate( single_row_d2dy2_val(  mesh%nC_mem*2))
 
     ! Read coefficients of the operator matrices
-    CALL read_single_row_CSR_dist( mesh%M2_ddx_b_b   , ti, single_row_ind, single_row_ddx_val   , single_row_nnz)
-    CALL read_single_row_CSR_dist( mesh%M2_ddy_b_b   , ti, single_row_ind, single_row_ddy_val   , single_row_nnz)
-    CALL read_single_row_CSR_dist( mesh%M2_d2dx2_b_b , ti, single_row_ind, single_row_d2dx2_val , single_row_nnz)
-    CALL read_single_row_CSR_dist( mesh%M2_d2dxdy_b_b, ti, single_row_ind, single_row_d2dxdy_val, single_row_nnz)
-    CALL read_single_row_CSR_dist( mesh%M2_d2dy2_b_b , ti, single_row_ind, single_row_d2dy2_val , single_row_nnz)
+    call read_single_row_CSR_dist( mesh%M2_ddx_b_b   , ti, single_row_ind, single_row_ddx_val   , single_row_nnz)
+    call read_single_row_CSR_dist( mesh%M2_ddy_b_b   , ti, single_row_ind, single_row_ddy_val   , single_row_nnz)
+    call read_single_row_CSR_dist( mesh%M2_d2dx2_b_b , ti, single_row_ind, single_row_d2dx2_val , single_row_nnz)
+    call read_single_row_CSR_dist( mesh%M2_d2dxdy_b_b, ti, single_row_ind, single_row_d2dxdy_val, single_row_nnz)
+    call read_single_row_CSR_dist( mesh%M2_d2dy2_b_b , ti, single_row_ind, single_row_d2dy2_val , single_row_nnz)
 
-    IF (uv == 1) THEN
+    if (uv == 1) then
       ! x-component
 
-      DO k = 1, single_row_nnz
+      do k = 1, single_row_nnz
 
         ! Relevant indices for this neighbouring triangle
         tj      = single_row_ind( k)
@@ -563,25 +534,25 @@ CONTAINS
              4._dp * dN_dx * single_row_ddx_val(    k) + &  ! 4 dN/dx du/dx
                      N     * single_row_d2dy2_val(  k) + &  !    N    d2u/dy2
                      dN_dy * single_row_ddy_val(    k)      !   dN/dy du/dy
-        IF (tj == ti) Au = Au - basal_friction_coefficient  ! - beta_b u
+        if (tj == ti) Au = Au - basal_friction_coefficient  ! - beta_b u
 
         Av = 3._dp * N     * single_row_d2dxdy_val( k) + &  ! 3  N    d2v/dxdy
              2._dp * dN_dx * single_row_ddy_val(    k) + &  ! 2 dN/dx dv/dy
                      dN_dy * single_row_ddx_val(    k)      !   dN/dy dv/dx
 
         ! Add coefficients to the stiffness matrix
-        CALL add_entry_CSR_dist( A_CSR, row_tiuv, col_tju, Au)
-        CALL add_entry_CSR_dist( A_CSR, row_tiuv, col_tjv, Av)
+        call add_entry_CSR_dist( A_CSR, row_tiuv, col_tju, Au)
+        call add_entry_CSR_dist( A_CSR, row_tiuv, col_tjv, Av)
 
-      END DO
+      end do
 
       ! Load vector
       bb( row_tiuv) = -tau_dx
 
-    ELSEIF (uv == 2) THEN
+    elseif (uv == 2) then
       ! y-component
 
-      DO k = 1, single_row_nnz
+      do k = 1, single_row_nnz
 
         ! Relevant indices for this neighbouring triangle
         tj      = single_row_ind( k)
@@ -596,39 +567,31 @@ CONTAINS
              4._dp * dN_dy * single_row_ddy_val(    k) + &  ! 4 dN/dy dv/dy
                      N     * single_row_d2dx2_val(  k) + &  !    N    d2v/dx2
                      dN_dx * single_row_ddx_val(    k)      !   dN/dx dv/dx
-        IF (tj == ti) Av = Av - basal_friction_coefficient  ! - beta_b v
+        if (tj == ti) Av = Av - basal_friction_coefficient  ! - beta_b v
 
         Au = 3._dp * N     * single_row_d2dxdy_val( k) + &  ! 3  N    d2u/dxdy
              2._dp * dN_dy * single_row_ddx_val(    k) + &  ! 2 dN/dy du/dx
                      dN_dx * single_row_ddy_val(    k)      !   dN/dx du/dy
 
         ! Add coefficients to the stiffness matrix
-        CALL add_entry_CSR_dist( A_CSR, row_tiuv, col_tju, Au)
-        CALL add_entry_CSR_dist( A_CSR, row_tiuv, col_tjv, Av)
+        call add_entry_CSR_dist( A_CSR, row_tiuv, col_tju, Au)
+        call add_entry_CSR_dist( A_CSR, row_tiuv, col_tjv, Av)
 
-      END DO
+      end do
 
       ! Load vector
       bb( row_tiuv) = -tau_dy
 
-    ELSE
-      CALL crash('uv can only be 1 or 2!')
-    END IF
+    else
+      call crash('uv can only be 1 or 2!')
+    end if
 
-    ! Clean up after yourself
-    DEALLOCATE( single_row_ind)
-    DEALLOCATE( single_row_ddx_val)
-    DEALLOCATE( single_row_ddy_val)
-    DEALLOCATE( single_row_d2dx2_val)
-    DEALLOCATE( single_row_d2dxdy_val)
-    DEALLOCATE( single_row_d2dy2_val)
+  end subroutine calc_SSA_stiffness_matrix_row_free
 
-  END SUBROUTINE calc_SSA_stiffness_matrix_row_free
+  subroutine calc_SSA_sans_stiffness_matrix_row_free( mesh, SSA, A_CSR, bb, row_tiuv)
+    !< Add coefficients to this matrix row to represent the linearised SSA
+    !< sans the gradients of the effective viscosity (the "cross-terms")
 
-  SUBROUTINE calc_SSA_sans_stiffness_matrix_row_free( mesh, SSA, A_CSR, bb, row_tiuv)
-    ! Add coefficients to this matrix row to represent the linearised SSA
-    ! sans the gradients of the effective viscosity (the "cross-terms")
-    !
     ! The SSA reads;
     !
     !   d/dx [ 2 N ( 2 du/dx + dv/dy )] + d/dy [ N ( du/dy + dv/dx)] - beta_b u = -tau_dx
@@ -655,7 +618,7 @@ CONTAINS
     !
     ! Note that there is no clear mathematical or physical reason why this should be allowed.
     ! However, while I (Tijn Berends, 2023) have found a few cases where there are noticeable
-    ! differences    ! in the solutions (e.g. ISMIP-HOM experiments with high strain rates),
+    ! differences in the solutions (e.g. ISMIP-HOM experiments with high strain rates),
     ! most of the time the difference with respect to the full SSA/DIVA is very small.
     ! The "sans" option makes the solver quite a lot more stable and therefore faster.
     ! Someone really ought to perform some proper experiments to determine whether or not
@@ -665,31 +628,29 @@ CONTAINS
     ! stress tau_d on the b-grid (triangles), and the effective viscosity eta and the
     ! product term N = eta H on the a-grid (vertices).
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    TYPE(type_mesh),                     INTENT(IN)              :: mesh
-    TYPE(type_ice_velocity_solver_SSA),  INTENT(IN)              :: SSA
-    TYPE(type_sparse_matrix_CSR_dp),     INTENT(INOUT)           :: A_CSR
-    REAL(dp), DIMENSION(mesh%ti1*2-1: mesh%ti2*2), INTENT(INOUT) :: bb
-    INTEGER,                             INTENT(IN)              :: row_tiuv
+    type(type_mesh),                               intent(in   ) :: mesh
+    type(type_ice_velocity_solver_SSA),            intent(in   ) :: SSA
+    type(type_sparse_matrix_CSR_dp),               intent(inout) :: A_CSR
+    real(dp), dimension(mesh%ti1*2-1: mesh%ti2*2), intent(inout) :: bb
+    integer,                                       intent(in   ) :: row_tiuv
 
     ! Local variables:
-    INTEGER                                                      :: ti, uv
-    REAL(dp)                                                     :: N, basal_friction_coefficient, tau_dx, tau_dy
-    INTEGER,  DIMENSION(:    ), ALLOCATABLE                      :: single_row_ind
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: single_row_ddx_val
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: single_row_ddy_val
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: single_row_d2dx2_val
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: single_row_d2dxdy_val
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: single_row_d2dy2_val
-    INTEGER                                                      :: single_row_nnz
-    REAL(dp)                                                     :: Au, Av
-    INTEGER                                                      :: k, tj, col_tju, col_tjv
+    integer                             :: ti, uv
+    real(dp)                            :: N, basal_friction_coefficient, tau_dx, tau_dy
+    integer,  dimension(:), allocatable :: single_row_ind
+    real(dp), dimension(:), allocatable :: single_row_ddx_val
+    real(dp), dimension(:), allocatable :: single_row_ddy_val
+    real(dp), dimension(:), allocatable :: single_row_d2dx2_val
+    real(dp), dimension(:), allocatable :: single_row_d2dxdy_val
+    real(dp), dimension(:), allocatable :: single_row_d2dy2_val
+    integer                             :: single_row_nnz
+    real(dp)                            :: Au, Av
+    integer                             :: k, tj, col_tju, col_tjv
 
     ! Relevant indices for this triangle
-    ti     = mesh%n2tiuv( row_tiuv,1)
-    uv     = mesh%n2tiuv( row_tiuv,2)
+    ti = mesh%n2tiuv( row_tiuv,1)
+    uv = mesh%n2tiuv( row_tiuv,2)
 
     ! N, beta_b, tau_dx, and tau_dy on this triangle
     N                          = SSA%N_b(      ti)
@@ -697,25 +658,25 @@ CONTAINS
     tau_dx                     = SSA%tau_dx_b( ti)
     tau_dy                     = SSA%tau_dy_b( ti)
 
-    ! Allocate memory for single matrix rows
-    ALLOCATE( single_row_ind(        mesh%nC_mem*2))
-    ALLOCATE( single_row_ddx_val(    mesh%nC_mem*2))
-    ALLOCATE( single_row_ddy_val(    mesh%nC_mem*2))
-    ALLOCATE( single_row_d2dx2_val(  mesh%nC_mem*2))
-    ALLOCATE( single_row_d2dxdy_val( mesh%nC_mem*2))
-    ALLOCATE( single_row_d2dy2_val(  mesh%nC_mem*2))
+    ! allocate memory for single matrix rows
+    allocate( single_row_ind(        mesh%nC_mem*2))
+    allocate( single_row_ddx_val(    mesh%nC_mem*2))
+    allocate( single_row_ddy_val(    mesh%nC_mem*2))
+    allocate( single_row_d2dx2_val(  mesh%nC_mem*2))
+    allocate( single_row_d2dxdy_val( mesh%nC_mem*2))
+    allocate( single_row_d2dy2_val(  mesh%nC_mem*2))
 
     ! Read coefficients of the operator matrices
-    CALL read_single_row_CSR_dist( mesh%M2_ddx_b_b   , ti, single_row_ind, single_row_ddx_val   , single_row_nnz)
-    CALL read_single_row_CSR_dist( mesh%M2_ddy_b_b   , ti, single_row_ind, single_row_ddy_val   , single_row_nnz)
-    CALL read_single_row_CSR_dist( mesh%M2_d2dx2_b_b , ti, single_row_ind, single_row_d2dx2_val , single_row_nnz)
-    CALL read_single_row_CSR_dist( mesh%M2_d2dxdy_b_b, ti, single_row_ind, single_row_d2dxdy_val, single_row_nnz)
-    CALL read_single_row_CSR_dist( mesh%M2_d2dy2_b_b , ti, single_row_ind, single_row_d2dy2_val , single_row_nnz)
+    call read_single_row_CSR_dist( mesh%M2_ddx_b_b   , ti, single_row_ind, single_row_ddx_val   , single_row_nnz)
+    call read_single_row_CSR_dist( mesh%M2_ddy_b_b   , ti, single_row_ind, single_row_ddy_val   , single_row_nnz)
+    call read_single_row_CSR_dist( mesh%M2_d2dx2_b_b , ti, single_row_ind, single_row_d2dx2_val , single_row_nnz)
+    call read_single_row_CSR_dist( mesh%M2_d2dxdy_b_b, ti, single_row_ind, single_row_d2dxdy_val, single_row_nnz)
+    call read_single_row_CSR_dist( mesh%M2_d2dy2_b_b , ti, single_row_ind, single_row_d2dy2_val , single_row_nnz)
 
-    IF (uv == 1) THEN
+    if (uv == 1) then
       ! x-component
 
-      DO k = 1, single_row_nnz
+      do k = 1, single_row_nnz
 
         ! Relevant indices for this neighbouring triangle
         tj      = single_row_ind( k)
@@ -727,23 +688,23 @@ CONTAINS
         ! Combine the mesh operators
         Au = 4._dp * single_row_d2dx2_val(  k) + &             ! 4 d2u/dx2
                      single_row_d2dy2_val(  k)                 !   d2u/dy2
-        IF (tj == ti) Au = Au - basal_friction_coefficient / N ! - beta_b u / N
+        if (tj == ti) Au = Au - basal_friction_coefficient / N ! - beta_b u / N
 
         Av = 3._dp * single_row_d2dxdy_val( k)                 ! 3 d2v/dxdy
 
         ! Add coefficients to the stiffness matrix
-        CALL add_entry_CSR_dist( A_CSR, row_tiuv, col_tju, Au)
-        CALL add_entry_CSR_dist( A_CSR, row_tiuv, col_tjv, Av)
+        call add_entry_CSR_dist( A_CSR, row_tiuv, col_tju, Au)
+        call add_entry_CSR_dist( A_CSR, row_tiuv, col_tjv, Av)
 
-      END DO
+      end do
 
       ! Load vector
       bb( row_tiuv) = -tau_dx / N
 
-    ELSEIF (uv == 2) THEN
+    elseif (uv == 2) then
       ! y-component
 
-      DO k = 1, single_row_nnz
+      do k = 1, single_row_nnz
 
         ! Relevant indices for this neighbouring triangle
         tj      = single_row_ind( k)
@@ -755,848 +716,813 @@ CONTAINS
         ! Combine the mesh operators
         Av = 4._dp * single_row_d2dy2_val(  k) + &             ! 4 d2v/dy2
                      single_row_d2dx2_val(  k)                 !   d2v/dx2
-        IF (tj == ti) Av = Av - basal_friction_coefficient / N ! - beta_b v / N
+        if (tj == ti) Av = Av - basal_friction_coefficient / N ! - beta_b v / N
 
         Au = 3._dp * single_row_d2dxdy_val( k)                 ! 3 d2u/dxdy
 
         ! Add coefficients to the stiffness matrix
-        CALL add_entry_CSR_dist( A_CSR, row_tiuv, col_tju, Au)
-        CALL add_entry_CSR_dist( A_CSR, row_tiuv, col_tjv, Av)
+        call add_entry_CSR_dist( A_CSR, row_tiuv, col_tju, Au)
+        call add_entry_CSR_dist( A_CSR, row_tiuv, col_tjv, Av)
 
-      END DO
+      end do
 
       ! Load vector
       bb( row_tiuv) = -tau_dy / N
 
-    ELSE
-      CALL crash('uv can only be 1 or 2!')
-    END IF
+    else
+      call crash('uv can only be 1 or 2!')
+    end if
 
-    ! Clean up after yourself
-    DEALLOCATE( single_row_ind)
-    DEALLOCATE( single_row_ddx_val)
-    DEALLOCATE( single_row_ddy_val)
-    DEALLOCATE( single_row_d2dx2_val)
-    DEALLOCATE( single_row_d2dxdy_val)
-    DEALLOCATE( single_row_d2dy2_val)
+  end subroutine calc_SSA_sans_stiffness_matrix_row_free
 
-  END SUBROUTINE calc_SSA_sans_stiffness_matrix_row_free
-
-  SUBROUTINE calc_SSA_stiffness_matrix_row_BC_west( mesh, SSA, A_CSR, bb, row_tiuv)
-    ! Add coefficients to this matrix row to represent boundary conditions at the
-    ! western domain border.
-
-    IMPLICIT NONE
+  subroutine calc_SSA_stiffness_matrix_row_BC_west( mesh, SSA, A_CSR, bb, row_tiuv)
+    !< Add coefficients to this matrix row to represent boundary conditions at the
+    !< western domain border.
 
     ! In/output variables:
-    TYPE(type_mesh),                     INTENT(IN)              :: mesh
-    TYPE(type_ice_velocity_solver_SSA),  INTENT(IN)              :: SSA
-    TYPE(type_sparse_matrix_CSR_dp),     INTENT(INOUT)           :: A_CSR
-    REAL(dp), DIMENSION(A_CSR%i1:A_CSR%i2), INTENT(INOUT)        :: bb
-    INTEGER,                             INTENT(IN)              :: row_tiuv
+    type(type_mesh),                        intent(in   ) :: mesh
+    type(type_ice_velocity_solver_SSA),     intent(in   ) :: SSA
+    type(type_sparse_matrix_CSR_dp),        intent(inout) :: A_CSR
+    real(dp), dimension(A_CSR%i1:A_CSR%i2), intent(inout) :: bb
+    integer,                                intent(in   ) :: row_tiuv
 
     ! Local variables:
-    INTEGER                                                      :: ti,uv,row_ti
-    INTEGER                                                      :: tj, col_tjuv
-    INTEGER,  DIMENSION(mesh%nC_mem)                             :: ti_copy
-    REAL(dp), DIMENSION(mesh%nC_mem)                             :: wti_copy
-    REAL(dp)                                                     :: u_fixed, v_fixed
-    INTEGER                                                      :: n, n_neighbours
+    integer                          :: ti,uv,row_ti
+    integer                          :: tj, col_tjuv
+    integer,  dimension(mesh%nC_mem) :: ti_copy
+    real(dp), dimension(mesh%nC_mem) :: wti_copy
+    real(dp)                         :: u_fixed, v_fixed
+    integer                          :: n, n_neighbours
 
     ti = mesh%n2tiuv( row_tiuv,1)
     uv = mesh%n2tiuv( row_tiuv,2)
     row_ti = mesh%ti2n( ti)
 
-    IF (uv == 1) THEN
+    if (uv == 1) then
       ! x-component
 
-      IF     (C%BC_u_west == 'infinite') THEN
+      if     (C%BC_u_west == 'infinite') then
         ! du/dx = 0
         !
         ! NOTE: using the d/dx operator matrix doesn't always work well, not sure why...
 
         ! Set u on this triangle equal to the average value on its neighbours
         n_neighbours = 0
-        DO n = 1, 3
+        do n = 1, 3
           tj = mesh%TriC( ti,n)
-          IF (tj == 0) CYCLE
+          if (tj == 0) cycle
           n_neighbours = n_neighbours + 1
           col_tjuv = mesh%tiuv2n( tj,uv)
-          CALL add_entry_CSR_dist( A_CSR, row_tiuv, col_tjuv, 1._dp)
-        END DO
-        IF (n_neighbours == 0) CALL crash('whaa!')
-        CALL add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, -1._dp * REAL( n_neighbours,dp))
+          call add_entry_CSR_dist( A_CSR, row_tiuv, col_tjuv, 1._dp)
+        end do
+        if (n_neighbours == 0) call crash('whaa!')
+        call add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, -1._dp * real( n_neighbours,dp))
 
         ! Load vector
         bb( row_tiuv) = 0._dp
 
-      ELSEIF (C%BC_u_west == 'zero') THEN
+      elseif (C%BC_u_west == 'zero') then
         ! u = 0
 
         ! Stiffness matrix
-        CALL add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, 1._dp)
+        call add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, 1._dp)
 
         ! Load vector
         bb( row_tiuv) = 0._dp
 
-      ELSEIF (C%BC_u_west == 'periodic_ISMIP-HOM') THEN
+      elseif (C%BC_u_west == 'periodic_ISMIP-HOM') then
         ! u(x,y) = u(x+-L/2,y+-L/2)
 
         ! Find the triangle ti_copy that is displaced by [x+-L/2,y+-L/2] relative to ti
-        CALL find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy, wti_copy)
+        call find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy, wti_copy)
 
         ! Set value at ti equal to value at ti_copy
-        CALL add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv,  1._dp)
+        call add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv,  1._dp)
         u_fixed = 0._dp
-        DO n = 1, mesh%nC_mem
+        do n = 1, mesh%nC_mem
           tj = ti_copy( n)
-          IF (tj == 0) CYCLE
+          if (tj == 0) cycle
           u_fixed = u_fixed + wti_copy( n) * SSA%u_b_prev( tj)
-        END DO
+        end do
         ! Relax solution to improve stability
         u_fixed = (C%visc_it_relax * u_fixed) + ((1._dp - C%visc_it_relax) * SSA%u_b_prev( ti))
         ! Set load vector
         bb( row_tiuv) = u_fixed
 
-      ELSE
-        CALL crash('unknown BC_u_west "' // TRIM( C%BC_u_west) // '"!')
-      END IF
+      else
+        call crash('unknown BC_u_west "' // trim( C%BC_u_west) // '"!')
+      end if
 
-    ELSEIF (uv == 2) THEN
+    elseif (uv == 2) then
       ! y-component
 
-      IF     (C%BC_v_west == 'infinite') THEN
+      if     (C%BC_v_west == 'infinite') then
         ! dv/dx = 0
         !
         ! NOTE: using the d/dx operator matrix doesn't always work well, not sure why...
 
         ! Set v on this triangle equal to the average value on its neighbours
         n_neighbours = 0
-        DO n = 1, 3
+        do n = 1, 3
           tj = mesh%TriC( ti,n)
-          IF (tj == 0) CYCLE
+          if (tj == 0) cycle
           n_neighbours = n_neighbours + 1
           col_tjuv = mesh%tiuv2n( tj,uv)
-          CALL add_entry_CSR_dist( A_CSR, row_tiuv, col_tjuv, 1._dp)
-        END DO
-        IF (n_neighbours == 0) CALL crash('whaa!')
-        CALL add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, -1._dp * REAL( n_neighbours,dp))
+          call add_entry_CSR_dist( A_CSR, row_tiuv, col_tjuv, 1._dp)
+        end do
+        if (n_neighbours == 0) call crash('whaa!')
+        call add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, -1._dp * real( n_neighbours,dp))
 
         ! Load vector
         bb( row_tiuv) = 0._dp
 
-      ELSEIF (C%BC_v_west == 'zero') THEN
+      elseif (C%BC_v_west == 'zero') then
         ! v = 0
 
         ! Stiffness matrix
-        CALL add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, 1._dp)
+        call add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, 1._dp)
 
         ! Load vector
         bb( row_tiuv) = 0._dp
 
-      ELSEIF (C%BC_v_west == 'periodic_ISMIP-HOM') THEN
+      elseif (C%BC_v_west == 'periodic_ISMIP-HOM') then
         ! v(x,y) = v(x+-L/2,y+-L/2)
 
         ! Find the triangle ti_copy that is displaced by [x+-L/2,y+-L/2] relative to ti
-        CALL find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy, wti_copy)
+        call find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy, wti_copy)
 
         ! Set value at ti equal to value at ti_copy
-        CALL add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv,  1._dp)
+        call add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv,  1._dp)
         v_fixed = 0._dp
-        DO n = 1, mesh%nC_mem
+        do n = 1, mesh%nC_mem
           tj = ti_copy( n)
-          IF (tj == 0) CYCLE
+          if (tj == 0) cycle
           v_fixed = v_fixed + wti_copy( n) * SSA%v_b_prev( tj)
-        END DO
+        end do
         ! Relax solution to improve stability
         v_fixed = (C%visc_it_relax * v_fixed) + ((1._dp - C%visc_it_relax) * SSA%v_b_prev( ti))
         ! Set load vector
         bb( row_tiuv) = v_fixed
 
-      ELSE
-        CALL crash('unknown BC_u_west "' // TRIM( C%BC_u_west) // '"!')
-      END IF
+      else
+        call crash('unknown BC_u_west "' // trim( C%BC_u_west) // '"!')
+      end if
 
-    ELSE
-      CALL crash('uv can only be 1 or 2!')
-    END IF
+    else
+      call crash('uv can only be 1 or 2!')
+    end if
 
-  END SUBROUTINE calc_SSA_stiffness_matrix_row_BC_west
+  end subroutine calc_SSA_stiffness_matrix_row_BC_west
 
-  SUBROUTINE calc_SSA_stiffness_matrix_row_BC_east( mesh, SSA, A_CSR, bb, row_tiuv)
-    ! Add coefficients to this matrix row to represent boundary conditions at the
-    ! eastern domain border.
-
-    IMPLICIT NONE
+  subroutine calc_SSA_stiffness_matrix_row_BC_east( mesh, SSA, A_CSR, bb, row_tiuv)
+    !< Add coefficients to this matrix row to represent boundary conditions at the
+    !< eastern domain border.
 
     ! In/output variables:
-    TYPE(type_mesh),                     INTENT(IN)              :: mesh
-    TYPE(type_ice_velocity_solver_SSA),  INTENT(IN)              :: SSA
-    TYPE(type_sparse_matrix_CSR_dp),     INTENT(INOUT)           :: A_CSR
-    REAL(dp), DIMENSION(A_CSR%i1:A_CSR%i2), INTENT(INOUT)        :: bb
-    INTEGER,                             INTENT(IN)              :: row_tiuv
+    type(type_mesh),                        intent(in   ) :: mesh
+    type(type_ice_velocity_solver_SSA),     intent(in   ) :: SSA
+    type(type_sparse_matrix_CSR_dp),        intent(inout) :: A_CSR
+    real(dp), dimension(A_CSR%i1:A_CSR%i2), intent(inout) :: bb
+    integer,                                intent(in   ) :: row_tiuv
 
     ! Local variables:
-    INTEGER                                                      :: ti,uv,row_ti
-    INTEGER                                                      :: tj, col_tjuv
-    INTEGER,  DIMENSION(mesh%nC_mem)                             :: ti_copy
-    REAL(dp), DIMENSION(mesh%nC_mem)                             :: wti_copy
-    REAL(dp)                                                     :: u_fixed, v_fixed
-    INTEGER                                                      :: n, n_neighbours
+    integer                          :: ti,uv,row_ti
+    integer                          :: tj, col_tjuv
+    integer,  dimension(mesh%nC_mem) :: ti_copy
+    real(dp), dimension(mesh%nC_mem) :: wti_copy
+    real(dp)                         :: u_fixed, v_fixed
+    integer                          :: n, n_neighbours
 
     ti = mesh%n2tiuv( row_tiuv,1)
     uv = mesh%n2tiuv( row_tiuv,2)
     row_ti = mesh%ti2n( ti)
 
-    IF (uv == 1) THEN
+    if (uv == 1) then
       ! x-component
 
-      IF     (C%BC_u_east == 'infinite') THEN
+      if     (C%BC_u_east == 'infinite') then
         ! du/dx = 0
         !
         ! NOTE: using the d/dx operator matrix doesn't always work well, not sure why...
 
         ! Set u on this triangle equal to the average value on its neighbours
         n_neighbours = 0
-        DO n = 1, 3
+        do n = 1, 3
           tj = mesh%TriC( ti,n)
-          IF (tj == 0) CYCLE
+          if (tj == 0) cycle
           n_neighbours = n_neighbours + 1
           col_tjuv = mesh%tiuv2n( tj,uv)
-          CALL add_entry_CSR_dist( A_CSR, row_tiuv, col_tjuv, 1._dp)
-        END DO
-        IF (n_neighbours == 0) CALL crash('whaa!')
-        CALL add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, -1._dp * REAL( n_neighbours,dp))
+          call add_entry_CSR_dist( A_CSR, row_tiuv, col_tjuv, 1._dp)
+        end do
+        if (n_neighbours == 0) call crash('whaa!')
+        call add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, -1._dp * real( n_neighbours,dp))
 
         ! Load vector
         bb( row_tiuv) = 0._dp
 
-      ELSEIF (C%BC_u_east == 'zero') THEN
+      elseif (C%BC_u_east == 'zero') then
         ! u = 0
 
         ! Stiffness matrix
-        CALL add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, 1._dp)
+        call add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, 1._dp)
 
         ! Load vector
         bb( row_tiuv) = 0._dp
 
-      ELSEIF (C%BC_u_east == 'periodic_ISMIP-HOM') THEN
+      elseif (C%BC_u_east == 'periodic_ISMIP-HOM') then
         ! u(x,y) = u(x+-L/2,y+-L/2)
 
         ! Find the triangle ti_copy that is displaced by [x+-L/2,y+-L/2] relative to ti
-        CALL find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy, wti_copy)
+        call find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy, wti_copy)
 
         ! Set value at ti equal to value at ti_copy
-        CALL add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv,  1._dp)
+        call add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv,  1._dp)
         u_fixed = 0._dp
-        DO n = 1, mesh%nC_mem
+        do n = 1, mesh%nC_mem
           tj = ti_copy( n)
-          IF (tj == 0) CYCLE
+          if (tj == 0) cycle
           u_fixed = u_fixed + wti_copy( n) * SSA%u_b_prev( tj)
-        END DO
+        end do
         ! Relax solution to improve stability
         u_fixed = (C%visc_it_relax * u_fixed) + ((1._dp - C%visc_it_relax) * SSA%u_b_prev( ti))
         ! Set load vector
         bb( row_tiuv) = u_fixed
 
-      ELSE
-        CALL crash('unknown BC_u_east "' // TRIM( C%BC_u_east) // '"!')
-      END IF
+      else
+        call crash('unknown BC_u_east "' // trim( C%BC_u_east) // '"!')
+      end if
 
-    ELSEIF (uv == 2) THEN
+    elseif (uv == 2) then
       ! y-component
 
-      IF     (C%BC_v_east == 'infinite') THEN
+      if     (C%BC_v_east == 'infinite') then
         ! dv/dx = 0
         !
         ! NOTE: using the d/dx operator matrix doesn't always work well, not sure why...
 
         ! Set v on this triangle equal to the average value on its neighbours
         n_neighbours = 0
-        DO n = 1, 3
+        do n = 1, 3
           tj = mesh%TriC( ti,n)
-          IF (tj == 0) CYCLE
+          if (tj == 0) cycle
           n_neighbours = n_neighbours + 1
           col_tjuv = mesh%tiuv2n( tj,uv)
-          CALL add_entry_CSR_dist( A_CSR, row_tiuv, col_tjuv, 1._dp)
-        END DO
-        IF (n_neighbours == 0) CALL crash('whaa!')
-        CALL add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, -1._dp * REAL( n_neighbours,dp))
+          call add_entry_CSR_dist( A_CSR, row_tiuv, col_tjuv, 1._dp)
+        end do
+        if (n_neighbours == 0) call crash('whaa!')
+        call add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, -1._dp * real( n_neighbours,dp))
 
         ! Load vector
         bb( row_tiuv) = 0._dp
 
-      ELSEIF (C%BC_v_east == 'zero') THEN
+      elseif (C%BC_v_east == 'zero') then
         ! v = 0
 
         ! Stiffness matrix
-        CALL add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, 1._dp)
+        call add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, 1._dp)
 
         ! Load vector
         bb( row_tiuv) = 0._dp
 
-      ELSEIF (C%BC_v_east == 'periodic_ISMIP-HOM') THEN
+      elseif (C%BC_v_east == 'periodic_ISMIP-HOM') then
         ! v(x,y) = v(x+-L/2,y+-L/2)
 
         ! Find the triangle ti_copy that is displaced by [x+-L/2,y+-L/2] relative to ti
-        CALL find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy, wti_copy)
+        call find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy, wti_copy)
 
         ! Set value at ti equal to value at ti_copy
-        CALL add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv,  1._dp)
+        call add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv,  1._dp)
         v_fixed = 0._dp
-        DO n = 1, mesh%nC_mem
+        do n = 1, mesh%nC_mem
           tj = ti_copy( n)
-          IF (tj == 0) CYCLE
+          if (tj == 0) cycle
           v_fixed = v_fixed + wti_copy( n) * SSA%v_b_prev( tj)
-        END DO
+        end do
         ! Relax solution to improve stability
         v_fixed = (C%visc_it_relax * v_fixed) + ((1._dp - C%visc_it_relax) * SSA%v_b_prev( ti))
         ! Set load vector
         bb( row_tiuv) = v_fixed
 
-      ELSE
-        CALL crash('unknown BC_u_east "' // TRIM( C%BC_u_east) // '"!')
-      END IF
+      else
+        call crash('unknown BC_u_east "' // trim( C%BC_u_east) // '"!')
+      end if
 
-    ELSE
-      CALL crash('uv can only be 1 or 2!')
-    END IF
+    else
+      call crash('uv can only be 1 or 2!')
+    end if
 
-  END SUBROUTINE calc_SSA_stiffness_matrix_row_BC_east
+  end subroutine calc_SSA_stiffness_matrix_row_BC_east
 
-  SUBROUTINE calc_SSA_stiffness_matrix_row_BC_south( mesh, SSA, A_CSR, bb, row_tiuv)
-    ! Add coefficients to this matrix row to represent boundary conditions at the
-    ! southern domain border.
-
-    IMPLICIT NONE
+  subroutine calc_SSA_stiffness_matrix_row_BC_south( mesh, SSA, A_CSR, bb, row_tiuv)
+    !< Add coefficients to this matrix row to represent boundary conditions at the
+    !< southern domain border.
 
     ! In/output variables:
-    TYPE(type_mesh),                     INTENT(IN)              :: mesh
-    TYPE(type_ice_velocity_solver_SSA),  INTENT(IN)              :: SSA
-    TYPE(type_sparse_matrix_CSR_dp),     INTENT(INOUT)           :: A_CSR
-    REAL(dp), DIMENSION(A_CSR%i1:A_CSR%i2), INTENT(INOUT)        :: bb
-    INTEGER,                             INTENT(IN)              :: row_tiuv
+    type(type_mesh),                        intent(in   ) :: mesh
+    type(type_ice_velocity_solver_SSA),     intent(in   ) :: SSA
+    type(type_sparse_matrix_CSR_dp),        intent(inout) :: A_CSR
+    real(dp), dimension(A_CSR%i1:A_CSR%i2), intent(inout) :: bb
+    integer,                                intent(in   ) :: row_tiuv
 
     ! Local variables:
-    INTEGER                                                      :: ti,uv,row_ti
-    INTEGER                                                      :: tj, col_tjuv
-    INTEGER,  DIMENSION(mesh%nC_mem)                             :: ti_copy
-    REAL(dp), DIMENSION(mesh%nC_mem)                             :: wti_copy
-    REAL(dp)                                                     :: u_fixed, v_fixed
-    INTEGER                                                      :: n, n_neighbours
+    integer                          :: ti,uv,row_ti
+    integer                          :: tj, col_tjuv
+    integer,  dimension(mesh%nC_mem) :: ti_copy
+    real(dp), dimension(mesh%nC_mem) :: wti_copy
+    real(dp)                         :: u_fixed, v_fixed
+    integer                          :: n, n_neighbours
 
     ti = mesh%n2tiuv( row_tiuv,1)
     uv = mesh%n2tiuv( row_tiuv,2)
     row_ti = mesh%ti2n( ti)
 
-    IF (uv == 1) THEN
+    if (uv == 1) then
       ! x-component
 
-      IF     (C%BC_u_south == 'infinite') THEN
+      if     (C%BC_u_south == 'infinite') then
         ! du/dy = 0
         !
         ! NOTE: using the d/dy operator matrix doesn't always work well, not sure why...
 
         ! Set u on this triangle equal to the average value on its neighbours
         n_neighbours = 0
-        DO n = 1, 3
+        do n = 1, 3
           tj = mesh%TriC( ti,n)
-          IF (tj == 0) CYCLE
+          if (tj == 0) cycle
           n_neighbours = n_neighbours + 1
           col_tjuv = mesh%tiuv2n( tj,uv)
-          CALL add_entry_CSR_dist( A_CSR, row_tiuv, col_tjuv, 1._dp)
-        END DO
-        IF (n_neighbours == 0) CALL crash('whaa!')
-        CALL add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, -1._dp * REAL( n_neighbours,dp))
+          call add_entry_CSR_dist( A_CSR, row_tiuv, col_tjuv, 1._dp)
+        end do
+        if (n_neighbours == 0) call crash('whaa!')
+        call add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, -1._dp * real( n_neighbours,dp))
 
         ! Load vector
         bb( row_tiuv) = 0._dp
 
-      ELSEIF (C%BC_u_south == 'zero') THEN
+      elseif (C%BC_u_south == 'zero') then
         ! u = 0
 
         ! Stiffness matrix
-        CALL add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, 1._dp)
+        call add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, 1._dp)
 
         ! Load vector
         bb( row_tiuv) = 0._dp
 
-      ELSEIF (C%BC_u_south == 'periodic_ISMIP-HOM') THEN
+      elseif (C%BC_u_south == 'periodic_ISMIP-HOM') then
         ! u(x,y) = u(x+-L/2,y+-L/2)
 
         ! Find the triangle ti_copy that is displaced by [x+-L/2,y+-L/2] relative to ti
-        CALL find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy, wti_copy)
+        call find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy, wti_copy)
 
         ! Set value at ti equal to value at ti_copy
-        CALL add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv,  1._dp)
+        call add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv,  1._dp)
         u_fixed = 0._dp
-        DO n = 1, mesh%nC_mem
+        do n = 1, mesh%nC_mem
           tj = ti_copy( n)
-          IF (tj == 0) CYCLE
+          if (tj == 0) cycle
           u_fixed = u_fixed + wti_copy( n) * SSA%u_b_prev( tj)
-        END DO
+        end do
         ! Relax solution to improve stability
         u_fixed = (C%visc_it_relax * u_fixed) + ((1._dp - C%visc_it_relax) * SSA%u_b_prev( ti))
         ! Set load vector
         bb( row_tiuv) = u_fixed
 
-      ELSE
-        CALL crash('unknown BC_u_south "' // TRIM( C%BC_u_south) // '"!')
-      END IF
+      else
+        call crash('unknown BC_u_south "' // trim( C%BC_u_south) // '"!')
+      end if
 
-    ELSEIF (uv == 2) THEN
+    elseif (uv == 2) then
       ! y-component
 
-      IF     (C%BC_v_south == 'infinite') THEN
+      if     (C%BC_v_south == 'infinite') then
         ! dv/dy = 0
         !
         ! NOTE: using the d/dy operator matrix doesn't always work well, not sure why...
 
         ! Set v on this triangle equal to the average value on its neighbours
         n_neighbours = 0
-        DO n = 1, 3
+        do n = 1, 3
           tj = mesh%TriC( ti,n)
-          IF (tj == 0) CYCLE
+          if (tj == 0) cycle
           n_neighbours = n_neighbours + 1
           col_tjuv = mesh%tiuv2n( tj,uv)
-          CALL add_entry_CSR_dist( A_CSR, row_tiuv, col_tjuv, 1._dp)
-        END DO
-        IF (n_neighbours == 0) CALL crash('whaa!')
-        CALL add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, -1._dp * REAL( n_neighbours,dp))
+          call add_entry_CSR_dist( A_CSR, row_tiuv, col_tjuv, 1._dp)
+        end do
+        if (n_neighbours == 0) call crash('whaa!')
+        call add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, -1._dp * real( n_neighbours,dp))
 
         ! Load vector
         bb( row_tiuv) = 0._dp
 
-      ELSEIF (C%BC_v_south == 'zero') THEN
+      elseif (C%BC_v_south == 'zero') then
         ! v = 0
 
         ! Stiffness matrix
-        CALL add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, 1._dp)
+        call add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, 1._dp)
 
         ! Load vector
         bb( row_tiuv) = 0._dp
 
-      ELSEIF (C%BC_v_south == 'periodic_ISMIP-HOM') THEN
+      elseif (C%BC_v_south == 'periodic_ISMIP-HOM') then
         ! v(x,y) = v(x+-L/2,y+-L/2)
 
         ! Find the triangle ti_copy that is displaced by [x+-L/2,y+-L/2] relative to ti
-        CALL find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy, wti_copy)
+        call find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy, wti_copy)
 
         ! Set value at ti equal to value at ti_copy
-        CALL add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv,  1._dp)
+        call add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv,  1._dp)
         v_fixed = 0._dp
-        DO n = 1, mesh%nC_mem
+        do n = 1, mesh%nC_mem
           tj = ti_copy( n)
-          IF (tj == 0) CYCLE
+          if (tj == 0) cycle
           v_fixed = v_fixed + wti_copy( n) * SSA%v_b_prev( tj)
-        END DO
+        end do
         ! Relax solution to improve stability
         v_fixed = (C%visc_it_relax * v_fixed) + ((1._dp - C%visc_it_relax) * SSA%v_b_prev( ti))
         ! Set load vector
         bb( row_tiuv) = v_fixed
 
-      ELSE
-        CALL crash('unknown BC_u_south "' // TRIM( C%BC_u_south) // '"!')
-      END IF
+      else
+        call crash('unknown BC_u_south "' // trim( C%BC_u_south) // '"!')
+      end if
 
-    ELSE
-      CALL crash('uv can only be 1 or 2!')
-    END IF
+    else
+      call crash('uv can only be 1 or 2!')
+    end if
 
-  END SUBROUTINE calc_SSA_stiffness_matrix_row_BC_south
+  end subroutine calc_SSA_stiffness_matrix_row_BC_south
 
-  SUBROUTINE calc_SSA_stiffness_matrix_row_BC_north( mesh, SSA, A_CSR, bb, row_tiuv)
-    ! Add coefficients to this matrix row to represent boundary conditions at the
-    ! northern domain border.
-
-    IMPLICIT NONE
+  subroutine calc_SSA_stiffness_matrix_row_BC_north( mesh, SSA, A_CSR, bb, row_tiuv)
+    !< Add coefficients to this matrix row to represent boundary conditions at the
+    !< northern domain border.
 
     ! In/output variables:
-    TYPE(type_mesh),                     INTENT(IN)              :: mesh
-    TYPE(type_ice_velocity_solver_SSA),  INTENT(IN)              :: SSA
-    TYPE(type_sparse_matrix_CSR_dp),     INTENT(INOUT)           :: A_CSR
-    REAL(dp), DIMENSION(A_CSR%i1:A_CSR%i2), INTENT(INOUT)        :: bb
-    INTEGER,                             INTENT(IN)              :: row_tiuv
+    type(type_mesh),                        intent(in   ) :: mesh
+    type(type_ice_velocity_solver_SSA),     intent(in   ) :: SSA
+    type(type_sparse_matrix_CSR_dp),        intent(inout) :: A_CSR
+    real(dp), dimension(A_CSR%i1:A_CSR%i2), intent(inout) :: bb
+    integer,                                intent(in   ) :: row_tiuv
 
     ! Local variables:
-    INTEGER                                                      :: ti,uv,row_ti
-    INTEGER                                                      :: tj, col_tjuv
-    INTEGER,  DIMENSION(mesh%nC_mem)                             :: ti_copy
-    REAL(dp), DIMENSION(mesh%nC_mem)                             :: wti_copy
-    REAL(dp)                                                     :: u_fixed, v_fixed
-    INTEGER                                                      :: n, n_neighbours
+    integer                          :: ti,uv,row_ti
+    integer                          :: tj, col_tjuv
+    integer,  dimension(mesh%nC_mem) :: ti_copy
+    real(dp), dimension(mesh%nC_mem) :: wti_copy
+    real(dp)                         :: u_fixed, v_fixed
+    integer                          :: n, n_neighbours
 
     ti = mesh%n2tiuv( row_tiuv,1)
     uv = mesh%n2tiuv( row_tiuv,2)
     row_ti = mesh%ti2n( ti)
 
-    IF (uv == 1) THEN
+    if (uv == 1) then
       ! x-component
 
-      IF     (C%BC_u_north == 'infinite') THEN
+      if     (C%BC_u_north == 'infinite') then
         ! du/dy = 0
         !
         ! NOTE: using the d/dy operator matrix doesn't always work well, not sure why...
 
         ! Set u on this triangle equal to the average value on its neighbours
         n_neighbours = 0
-        DO n = 1, 3
+        do n = 1, 3
           tj = mesh%TriC( ti,n)
-          IF (tj == 0) CYCLE
+          if (tj == 0) cycle
           n_neighbours = n_neighbours + 1
           col_tjuv = mesh%tiuv2n( tj,uv)
-          CALL add_entry_CSR_dist( A_CSR, row_tiuv, col_tjuv, 1._dp)
-        END DO
-        IF (n_neighbours == 0) CALL crash('whaa!')
-        CALL add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, -1._dp * REAL( n_neighbours,dp))
+          call add_entry_CSR_dist( A_CSR, row_tiuv, col_tjuv, 1._dp)
+        end do
+        if (n_neighbours == 0) call crash('whaa!')
+        call add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, -1._dp * real( n_neighbours,dp))
 
         ! Load vector
         bb( row_tiuv) = 0._dp
 
-      ELSEIF (C%BC_u_north == 'zero') THEN
+      elseif (C%BC_u_north == 'zero') then
         ! u = 0
 
         ! Stiffness matrix
-        CALL add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, 1._dp)
+        call add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, 1._dp)
 
         ! Load vector
         bb( row_tiuv) = 0._dp
 
-      ELSEIF (C%BC_u_north == 'periodic_ISMIP-HOM') THEN
+      elseif (C%BC_u_north == 'periodic_ISMIP-HOM') then
         ! u(x,y) = u(x+-L/2,y+-L/2)
 
         ! Find the triangle ti_copy that is displaced by [x+-L/2,y+-L/2] relative to ti
-        CALL find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy, wti_copy)
+        call find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy, wti_copy)
 
         ! Set value at ti equal to value at ti_copy
-        CALL add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv,  1._dp)
+        call add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv,  1._dp)
         u_fixed = 0._dp
-        DO n = 1, mesh%nC_mem
+        do n = 1, mesh%nC_mem
           tj = ti_copy( n)
-          IF (tj == 0) CYCLE
+          if (tj == 0) cycle
           u_fixed = u_fixed + wti_copy( n) * SSA%u_b_prev( tj)
-        END DO
+        end do
         ! Relax solution to improve stability
         u_fixed = (C%visc_it_relax * u_fixed) + ((1._dp - C%visc_it_relax) * SSA%u_b_prev( ti))
         ! Set load vector
         bb( row_tiuv) = u_fixed
 
-      ELSE
-        CALL crash('unknown BC_u_north "' // TRIM( C%BC_u_north) // '"!')
-      END IF
+      else
+        call crash('unknown BC_u_north "' // trim( C%BC_u_north) // '"!')
+      end if
 
-    ELSEIF (uv == 2) THEN
+    elseif (uv == 2) then
       ! y-component
 
-      IF     (C%BC_v_north == 'infinite') THEN
+      if     (C%BC_v_north == 'infinite') then
         ! dv/dy = 0
         !
         ! NOTE: using the d/dy operator matrix doesn't always work well, not sure why...
 
         ! Set v on this triangle equal to the average value on its neighbours
         n_neighbours = 0
-        DO n = 1, 3
+        do n = 1, 3
           tj = mesh%TriC( ti,n)
-          IF (tj == 0) CYCLE
+          if (tj == 0) cycle
           n_neighbours = n_neighbours + 1
           col_tjuv = mesh%tiuv2n( tj,uv)
-          CALL add_entry_CSR_dist( A_CSR, row_tiuv, col_tjuv, 1._dp)
-        END DO
-        IF (n_neighbours == 0) CALL crash('whaa!')
-        CALL add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, -1._dp * REAL( n_neighbours,dp))
+          call add_entry_CSR_dist( A_CSR, row_tiuv, col_tjuv, 1._dp)
+        end do
+        if (n_neighbours == 0) call crash('whaa!')
+        call add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, -1._dp * real( n_neighbours,dp))
 
         ! Load vector
         bb( row_tiuv) = 0._dp
 
-      ELSEIF (C%BC_v_north == 'zero') THEN
+      elseif (C%BC_v_north == 'zero') then
         ! v = 0
 
         ! Stiffness matrix
-        CALL add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, 1._dp)
+        call add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, 1._dp)
 
         ! Load vector
         bb( row_tiuv) = 0._dp
 
-      ELSEIF (C%BC_v_north == 'periodic_ISMIP-HOM') THEN
+      elseif (C%BC_v_north == 'periodic_ISMIP-HOM') then
         ! v(x,y) = v(x+-L/2,y+-L/2)
 
         ! Find the triangle ti_copy that is displaced by [x+-L/2,y+-L/2] relative to ti
-        CALL find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy, wti_copy)
+        call find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy, wti_copy)
 
         ! Set value at ti equal to value at ti_copy
-        CALL add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv,  1._dp)
+        call add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv,  1._dp)
         v_fixed = 0._dp
-        DO n = 1, mesh%nC_mem
+        do n = 1, mesh%nC_mem
           tj = ti_copy( n)
-          IF (tj == 0) CYCLE
+          if (tj == 0) cycle
           v_fixed = v_fixed + wti_copy( n) * SSA%v_b_prev( tj)
-        END DO
+        end do
         ! Relax solution to improve stability
         v_fixed = (C%visc_it_relax * v_fixed) + ((1._dp - C%visc_it_relax) * SSA%v_b_prev( ti))
         ! Set load vector
         bb( row_tiuv) = v_fixed
 
-      ELSE
-        CALL crash('unknown BC_u_north "' // TRIM( C%BC_u_north) // '"!')
-      END IF
+      else
+        call crash('unknown BC_u_north "' // trim( C%BC_u_north) // '"!')
+      end if
 
-    ELSE
-      CALL crash('uv can only be 1 or 2!')
-    END IF
+    else
+      call crash('uv can only be 1 or 2!')
+    end if
 
-  END SUBROUTINE calc_SSA_stiffness_matrix_row_BC_north
+  end subroutine calc_SSA_stiffness_matrix_row_BC_north
 
 ! == Calculate several intermediate terms in the SSA
 
-  SUBROUTINE calc_driving_stress( mesh, ice, SSA)
-    ! Calculate the driving stress
-
-    IMPLICIT NONE
+  subroutine calc_driving_stress( mesh, ice, SSA)
+    !< Calculate the driving stress
 
     ! In/output variables:
-    TYPE(type_mesh),                     INTENT(IN)              :: mesh
-    TYPE(type_ice_model),                INTENT(IN)              :: ice
-    TYPE(type_ice_velocity_solver_SSA),  INTENT(INOUT)           :: SSA
+    type(type_mesh),                    intent(in   ):: mesh
+    type(type_ice_model),               intent(in   ):: ice
+    type(type_ice_velocity_solver_SSA), intent(inout):: SSA
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'calc_driving_stress'
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: Hi_b
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: dHs_dx_b
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: dHs_dy_b
-    INTEGER                                                      :: ti
+    character(len=1024), parameter      :: routine_name = 'calc_driving_stress'
+    real(dp), dimension(:), allocatable :: Hi_b
+    real(dp), dimension(:), allocatable :: dHs_dx_b
+    real(dp), dimension(:), allocatable :: dHs_dy_b
+    integer                             :: ti
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
-    ! Allocate shared memory
-    ALLOCATE( Hi_b(     mesh%ti1:mesh%ti2))
-    ALLOCATE( dHs_dx_b( mesh%ti1:mesh%ti2))
-    ALLOCATE( dHs_dy_b( mesh%ti1:mesh%ti2))
+    ! allocate shared memory
+    allocate( Hi_b(     mesh%ti1:mesh%ti2))
+    allocate( dHs_dx_b( mesh%ti1:mesh%ti2))
+    allocate( dHs_dy_b( mesh%ti1:mesh%ti2))
 
     ! Calculate Hi, dHs/dx, and dHs/dy on the b-grid
-    CALL map_a_b_2D( mesh, ice%Hi, Hi_b    )
-    CALL ddx_a_b_2D( mesh, ice%Hs, dHs_dx_b)
-    CALL ddy_a_b_2D( mesh, ice%Hs, dHs_dy_b)
+    call map_a_b_2D( mesh, ice%Hi, Hi_b    )
+    call ddx_a_b_2D( mesh, ice%Hs, dHs_dx_b)
+    call ddy_a_b_2D( mesh, ice%Hs, dHs_dy_b)
 
     ! Calculate the driving stress
-    DO ti = mesh%ti1, mesh%ti2
+    do ti = mesh%ti1, mesh%ti2
       SSA%tau_dx_b( ti) = -ice_density * grav * Hi_b( ti) * dHs_dx_b( ti)
       SSA%tau_dy_b( ti) = -ice_density * grav * Hi_b( ti) * dHs_dy_b( ti)
-    END DO
-
-    ! Clean up after yourself
-    DEALLOCATE( Hi_b    )
-    DEALLOCATE( dHs_dx_b)
-    DEALLOCATE( dHs_dy_b)
+    end do
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE calc_driving_stress
+  end subroutine calc_driving_stress
 
-  SUBROUTINE calc_strain_rates( mesh, SSA)
-    ! Calculate the strain rates
-
-    IMPLICIT NONE
+  subroutine calc_strain_rates( mesh, SSA)
+    !< Calculate the strain rates
 
     ! In/output variables:
-    TYPE(type_mesh),                     INTENT(IN)              :: mesh
-    TYPE(type_ice_velocity_solver_SSA),  INTENT(INOUT)           :: SSA
+    type(type_mesh),                     intent(in   ) :: mesh
+    type(type_ice_velocity_solver_SSA),  intent(inout) :: SSA
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'calc_strain_rates'
+    character(len=1024), parameter :: routine_name = 'calc_strain_rates'
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
     ! Calculate the strain rates
-    CALL ddx_b_a_2D( mesh, SSA%u_b, SSA%du_dx_a)
-    CALL ddy_b_a_2D( mesh, SSA%u_b, SSA%du_dy_a)
-    CALL ddx_b_a_2D( mesh, SSA%v_b, SSA%dv_dx_a)
-    CALL ddy_b_a_2D( mesh, SSA%v_b, SSA%dv_dy_a)
+    call ddx_b_a_2D( mesh, SSA%u_b, SSA%du_dx_a)
+    call ddy_b_a_2D( mesh, SSA%u_b, SSA%du_dy_a)
+    call ddx_b_a_2D( mesh, SSA%v_b, SSA%dv_dx_a)
+    call ddy_b_a_2D( mesh, SSA%v_b, SSA%dv_dy_a)
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE calc_strain_rates
+  end subroutine calc_strain_rates
 
-  SUBROUTINE calc_vertically_averaged_flow_parameter( mesh, ice, SSA)
-    ! Calculate the vertical average of Glen's flow parameter A
-
-    IMPLICIT NONE
+  subroutine calc_vertically_averaged_flow_parameter( mesh, ice, SSA)
+    !< Calculate the vertical average of Glen's flow parameter A
 
     ! In/output variables:
-    TYPE(type_mesh),                     INTENT(IN)              :: mesh
-    TYPE(type_ice_model),                INTENT(IN)              :: ice
-    TYPE(type_ice_velocity_solver_SSA),  INTENT(INOUT)           :: SSA
+    type(type_mesh),                     intent(in   ) :: mesh
+    type(type_ice_model),                intent(in   ) :: ice
+    type(type_ice_velocity_solver_SSA),  intent(inout) :: SSA
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'calc_vertically_averaged_flow_parameter'
-    INTEGER                                                      :: vi
-    REAL(dp), DIMENSION( mesh%nz)                                :: A_prof
+    character(len=1024), parameter :: routine_name = 'calc_vertically_averaged_flow_parameter'
+    integer                        :: vi
+    real(dp), dimension( mesh%nz)  :: A_prof
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
     ! Calculate the vertical average of Glen's flow parameter A
-    DO vi = mesh%vi1, mesh%vi2
+    do vi = mesh%vi1, mesh%vi2
       A_prof = ice%A_flow( vi,:)
       SSA%A_flow_vav_a( vi) = vertical_average( mesh%zeta, A_prof)
-    END DO
+    end do
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE calc_vertically_averaged_flow_parameter
+  end subroutine calc_vertically_averaged_flow_parameter
 
-  SUBROUTINE calc_effective_viscosity( mesh, ice, SSA, Glens_flow_law_epsilon_sq_0_applied)
-    ! Calculate the effective viscosity eta, the product term N = eta*H, and the gradients of N
-
-    IMPLICIT NONE
+  subroutine calc_effective_viscosity( mesh, ice, SSA, Glens_flow_law_epsilon_sq_0_applied)
+    !< Calculate the effective viscosity eta, the product term N = eta*H, and the gradients of N
 
     ! In/output variables:
-    TYPE(type_mesh),                     INTENT(IN)              :: mesh
-    TYPE(type_ice_model),                INTENT(INOUT)           :: ice
-    TYPE(type_ice_velocity_solver_SSA),  INTENT(INOUT)           :: SSA
-    REAL(dp),                            INTENT(IN)              :: Glens_flow_law_epsilon_sq_0_applied
+    type(type_mesh),                    intent(in   ) :: mesh
+    type(type_ice_model),               intent(inout) :: ice
+    type(type_ice_velocity_solver_SSA), intent(inout) :: SSA
+    real(dp),                           intent(in   ) :: Glens_flow_law_epsilon_sq_0_applied
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'calc_effective_viscosity'
-    REAL(dp)                                                     :: A_min, eta_max
-    INTEGER                                                      :: vi
+    character(len=1024), parameter :: routine_name = 'calc_effective_viscosity'
+    real(dp)                       :: A_min, eta_max
+    integer                        :: vi
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
     ! Calculate maximum allowed effective viscosity, for stability
     A_min = 1E-18_dp
     eta_max = 0.5_dp * A_min**(-1._dp / C%Glens_flow_law_exponent) * (Glens_flow_law_epsilon_sq_0_applied)**((1._dp - C%Glens_flow_law_exponent)/(2._dp*C%Glens_flow_law_exponent))
 
     ! Calculate the effective viscosity eta
-    IF (C%choice_flow_law == 'Glen') THEN
+    if (C%choice_flow_law == 'Glen') then
       ! Calculate the effective viscosity eta according to Glen's flow law
 
       ! Calculate flow factors
-      CALL calc_ice_rheology_Glen( mesh, ice)
-      CALL calc_vertically_averaged_flow_parameter( mesh, ice, SSA)
+      call calc_ice_rheology_Glen( mesh, ice)
+      call calc_vertically_averaged_flow_parameter( mesh, ice, SSA)
 
       ! Calculate effective viscosity
-      DO vi = mesh%vi1, mesh%vi2
+      do vi = mesh%vi1, mesh%vi2
         SSA%eta_a( vi) = calc_effective_viscosity_Glen_2D( Glens_flow_law_epsilon_sq_0_applied, &
           SSA%du_dx_a( vi), SSA%du_dy_a( vi), SSA%dv_dx_a( vi), SSA%dv_dy_a( vi), SSA%A_flow_vav_a( vi))
-      END DO
+      end do
 
-    ELSE
-      CALL crash('unknown choice_flow_law "' // TRIM( C%choice_flow_law) // '"!')
-    END IF
+    else
+      call crash('unknown choice_flow_law "' // trim( C%choice_flow_law) // '"!')
+    end if
 
     ! Safety
-    SSA%eta_a = MIN( MAX( SSA%eta_a, C%visc_eff_min), eta_max)
+    SSA%eta_a = min( max( SSA%eta_a, C%visc_eff_min), eta_max)
 
     ! Calculate the product term N = eta * H on the a-grid
-    SSA%N_a = SSA%eta_a * MAX( 0.1_dp, ice%Hi)
+    SSA%N_a = SSA%eta_a * max( 0.1_dp, ice%Hi)
 
     ! Calculate the product term N and its gradients on the b-grid
-    CALL map_a_b_2D( mesh, SSA%N_a, SSA%N_b    )
-    CALL ddx_a_b_2D( mesh, SSA%N_a, SSA%dN_dx_b)
-    CALL ddy_a_b_2D( mesh, SSA%N_a, SSA%dN_dy_b)
+    call map_a_b_2D( mesh, SSA%N_a, SSA%N_b    )
+    call ddx_a_b_2D( mesh, SSA%N_a, SSA%dN_dx_b)
+    call ddy_a_b_2D( mesh, SSA%N_a, SSA%dN_dy_b)
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE calc_effective_viscosity
+  end subroutine calc_effective_viscosity
 
-  SUBROUTINE calc_applied_basal_friction_coefficient( mesh, ice, SSA)
-    ! Calculate the applied basal friction coefficient beta_b, i.e. on the b-grid
-    ! and scaled with the sub-grid grounded fraction
-    !
-    ! This is where the sliding law is called!
+  subroutine calc_applied_basal_friction_coefficient( mesh, ice, SSA)
+    !< Calculate the applied basal friction coefficient beta_b, i.e. on the b-grid
+    !< and scaled with the sub-grid grounded fraction
 
-    IMPLICIT NONE
+    ! NOTE: this is where the sliding law is called!
 
     ! In/output variables:
-    TYPE(type_mesh),                     INTENT(IN)              :: mesh
-    TYPE(type_ice_model),                INTENT(INOUT)           :: ice
-    TYPE(type_ice_velocity_solver_SSA),  INTENT(INOUT)           :: SSA
+    type(type_mesh),                    intent(in   ) :: mesh
+    type(type_ice_model),               intent(inout) :: ice
+    type(type_ice_velocity_solver_SSA), intent(inout) :: SSA
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'calc_applied_basal_friction_coefficient'
-    INTEGER                                                      :: ti
+    character(len=1024), parameter :: routine_name = 'calc_applied_basal_friction_coefficient'
+    integer                        :: ti
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
     ! Calculate the basal friction coefficient for the current velocity solution
     ! This is where the sliding law is called!
-    CALL calc_basal_friction_coefficient( mesh, ice, SSA%u_b, SSA%v_b)
+    call calc_basal_friction_coefficient( mesh, ice, SSA%u_b, SSA%v_b)
 
     ! Map the basal friction coefficient to the b-grid
-    CALL map_a_b_2D( mesh, ice%basal_friction_coefficient, SSA%basal_friction_coefficient_b)
+    call map_a_b_2D( mesh, ice%basal_friction_coefficient, SSA%basal_friction_coefficient_b)
 
     ! Apply the sub-grid grounded fraction, and limit the friction coefficient to improve stability
-    IF (C%do_GL_subgrid_friction) THEN
-      DO ti = mesh%ti1, mesh%ti2
+    if (C%do_GL_subgrid_friction) then
+      do ti = mesh%ti1, mesh%ti2
         SSA%basal_friction_coefficient_b( ti) = SSA%basal_friction_coefficient_b( ti) * ice%fraction_gr_b( ti)**C%subgrid_friction_exponent_on_B_grid
-      END DO
-    END IF
+      end do
+    end if
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE calc_applied_basal_friction_coefficient
+  end subroutine calc_applied_basal_friction_coefficient
 
 ! == Some useful tools for improving numerical stability of the viscosity iteration
 
-  SUBROUTINE relax_viscosity_iterations( mesh, SSA, visc_it_relax)
-    ! Reduce the change between velocity solutions
-
-    IMPLICIT NONE
+  subroutine relax_viscosity_iterations( mesh, SSA, visc_it_relax)
+    !< Reduce the change between velocity solutions
 
     ! In/output variables:
-    TYPE(type_mesh),                     INTENT(IN)              :: mesh
-    TYPE(type_ice_velocity_solver_SSA),  INTENT(INOUT)           :: SSA
-    REAL(dp),                            INTENT(IN)              :: visc_it_relax
+    type(type_mesh),                    intent(in   ) :: mesh
+    type(type_ice_velocity_solver_SSA), intent(inout) :: SSA
+    real(dp),                           intent(in   ) :: visc_it_relax
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'relax_viscosity_iterations'
-    INTEGER                                                      :: ti
+    character(len=1024), parameter :: routine_name = 'relax_viscosity_iterations'
+    integer                        :: ti
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
-    DO ti = mesh%ti1, mesh%ti2
+    do ti = mesh%ti1, mesh%ti2
       SSA%u_b( ti) = (visc_it_relax * SSA%u_b( ti)) + ((1._dp - visc_it_relax) * SSA%u_b_prev( ti))
       SSA%v_b( ti) = (visc_it_relax * SSA%v_b( ti)) + ((1._dp - visc_it_relax) * SSA%v_b_prev( ti))
-    END DO
+    end do
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE relax_viscosity_iterations
+  end subroutine relax_viscosity_iterations
 
-  SUBROUTINE calc_visc_iter_UV_resid( mesh, SSA, resid_UV)
-    ! Calculate the L2-norm of the two consecutive velocity solutions
-
-    IMPLICIT NONE
+  subroutine calc_visc_iter_UV_resid( mesh, SSA, resid_UV)
+    !< Calculate the L2-norm of the two consecutive velocity solutions
 
     ! In/output variables:
-    TYPE(type_mesh),                     INTENT(IN)              :: mesh
-    TYPE(type_ice_velocity_solver_SSA),  INTENT(IN)              :: SSA
-    REAL(dp),                            INTENT(OUT)             :: resid_UV
+    type(type_mesh),                    intent(in   ) :: mesh
+    type(type_ice_velocity_solver_SSA), intent(in   ) :: SSA
+    real(dp),                           intent(  out) :: resid_UV
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'calc_visc_iter_UV_resid'
-    INTEGER                                                      :: ierr
-    INTEGER                                                      :: ti
-    REAL(dp)                                                     :: res1, res2
+    character(len=1024), parameter :: routine_name = 'calc_visc_iter_UV_resid'
+    integer                        :: ierr
+    integer                        :: ti
+    real(dp)                       :: res1, res2
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
     res1 = 0._dp
     res2 = 0._dp
 
-    DO ti = mesh%ti1, mesh%ti2
+    do ti = mesh%ti1, mesh%ti2
 
       res1 = res1 + (SSA%u_b( ti) - SSA%u_b_prev( ti))**2
       res1 = res1 + (SSA%v_b( ti) - SSA%v_b_prev( ti))**2
@@ -1604,272 +1530,241 @@ CONTAINS
       res2 = res2 + (SSA%u_b( ti) + SSA%u_b_prev( ti))**2
       res2 = res2 + (SSA%v_b( ti) + SSA%v_b_prev( ti))**2
 
-    END DO
+    end do
 
     ! Combine results from all processes
-    CALL MPI_ALLREDUCE( MPI_IN_PLACE, res1, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
-    CALL MPI_ALLREDUCE( MPI_IN_PLACE, res2, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+    call MPI_ALLREDUCE( MPI_IN_PLACE, res1, 1, MPI_doUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+    call MPI_ALLREDUCE( MPI_IN_PLACE, res2, 1, MPI_doUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
 
     ! Calculate residual
-    resid_UV = 2._dp * res1 / MAX( res2, 1E-8_dp)
+    resid_UV = 2._dp * res1 / max( res2, 1E-8_dp)
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE calc_visc_iter_UV_resid
+  end subroutine calc_visc_iter_UV_resid
 
-  SUBROUTINE apply_velocity_limits( mesh, SSA)
-    ! Limit velocities for improved stability
-
-    IMPLICIT NONE
+  subroutine apply_velocity_limits( mesh, SSA)
+    !< Limit velocities for improved stability
 
     ! In/output variables:
-    TYPE(type_mesh),                     INTENT(IN)              :: mesh
-    TYPE(type_ice_velocity_solver_SSA),  INTENT(INOUT)           :: SSA
+    type(type_mesh),                    intent(in   ) :: mesh
+    type(type_ice_velocity_solver_SSA), intent(inout) :: SSA
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'apply_velocity_limits'
-    INTEGER                                                      :: ti
-    REAL(dp)                                                     :: uabs
+    character(len=1024), parameter :: routine_name = 'apply_velocity_limits'
+    integer                        :: ti
+    real(dp)                       :: uabs
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
-    DO ti = mesh%ti1, mesh%ti2
+    do ti = mesh%ti1, mesh%ti2
 
       ! Calculate absolute speed
-      uabs = SQRT( SSA%u_b( ti)**2 + SSA%v_b( ti)**2)
+      uabs = sqrt( SSA%u_b( ti)**2 + SSA%v_b( ti)**2)
 
       ! Reduce velocities if necessary
-      IF (uabs > C%vel_max) THEN
+      if (uabs > C%vel_max) then
         SSA%u_b( ti) = SSA%u_b( ti) * C%vel_max / uabs
         SSA%v_b( ti) = SSA%v_b( ti) * C%vel_max / uabs
-      END IF
+      end if
 
-    END DO
-    CALL sync
+    end do
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE apply_velocity_limits
+  end subroutine apply_velocity_limits
 
 ! == Initialisation
 
-  SUBROUTINE initialise_SSA_velocities_from_file( mesh, SSA, region_name)
+  subroutine initialise_SSA_velocities_from_file( mesh, SSA, region_name)
     ! Initialise the velocities for the SSA solver from an external NetCDF file
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    TYPE(type_mesh),                     INTENT(IN)    :: mesh
-    TYPE(type_ice_velocity_solver_SSA),  INTENT(INOUT) :: SSA
-    CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
+    type(type_mesh),                    intent(in   ) :: mesh
+    type(type_ice_velocity_solver_SSA), intent(inout) :: SSA
+    character(len=3),                   intent(in   ) :: region_name
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_SSA_velocities_from_file'
-    REAL(dp)                                           :: dummy1
-    CHARACTER(LEN=256)                                 :: filename
-    REAL(dp)                                           :: timeframe
+    character(len=1024), parameter :: routine_name = 'initialise_SSA_velocities_from_file'
+    real(dp)                       :: dummy1
+    character(len=256)             :: filename
+    real(dp)                       :: timeframe
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
     ! To prevent compiler warnings
     dummy1 = mesh%xmin
 
     ! Determine the filename and timeframe to read for this model region
-    IF     (region_name == 'NAM') THEN
+    select case (region_name)
+    case default
+      call crash('unknown model region "' // region_name // '"!')
+    case ('NAM')
       filename  = C%filename_initial_velocity_NAM
       timeframe = C%timeframe_initial_velocity_NAM
-    ELSEIF (region_name == 'EAS') THEN
+    case ('EAS')
       filename  = C%filename_initial_velocity_EAS
       timeframe = C%timeframe_initial_velocity_EAS
-    ELSEIF (region_name == 'GRL') THEN
+    case ('GRL')
       filename  = C%filename_initial_velocity_GRL
       timeframe = C%timeframe_initial_velocity_GRL
-    ELSEIF (region_name == 'ANT') THEN
+    case ('ANT')
       filename  = C%filename_initial_velocity_ANT
       timeframe = C%timeframe_initial_velocity_ANT
-    ELSE
-      CALL crash('unknown model region "' // region_name // '"!')
-    END IF
+    end select
 
-    ! Write to terminal
-    IF (par%master) WRITE(0,*) '   Initialising SSA velocities from file "' // colour_string( TRIM( filename),'light blue') // '"...'
+    ! write to terminal
+    if (par%master) write(0,*) '   Initialising SSA velocities from file "' // colour_string( trim( filename),'light blue') // '"...'
 
     ! Read velocities from the file
-    IF (timeframe == 1E9_dp) THEN
+    if (timeframe == 1E9_dp) then
       ! Assume the file has no time dimension
-      CALL read_field_from_mesh_file_dp_2D_b( filename, 'u_b', SSA%u_b)
-      CALL read_field_from_mesh_file_dp_2D_b( filename, 'v_b', SSA%v_b)
-    ELSE
+      call read_field_from_mesh_file_dp_2D_b( filename, 'u_b', SSA%u_b)
+      call read_field_from_mesh_file_dp_2D_b( filename, 'v_b', SSA%v_b)
+    else
       ! Read specified timeframe
-      CALL read_field_from_mesh_file_dp_2D_b( filename, 'u_b', SSA%u_b, time_to_read = timeframe)
-      CALL read_field_from_mesh_file_dp_2D_b( filename, 'v_b', SSA%v_b, time_to_read = timeframe)
-    END IF
+      call read_field_from_mesh_file_dp_2D_b( filename, 'u_b', SSA%u_b, time_to_read = timeframe)
+      call read_field_from_mesh_file_dp_2D_b( filename, 'v_b', SSA%v_b, time_to_read = timeframe)
+    end if
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE initialise_SSA_velocities_from_file
+  end subroutine initialise_SSA_velocities_from_file
 
-  SUBROUTINE allocate_SSA_solver( mesh, SSA)
-    ! Allocate memory the SSA solver
-
-    IMPLICIT NONE
+  subroutine allocate_SSA_solver( mesh, SSA)
 
     ! In/output variables:
-    TYPE(type_mesh),                     INTENT(IN)    :: mesh
-    TYPE(type_ice_velocity_solver_SSA),  INTENT(OUT)   :: SSA
+    type(type_mesh),                    intent(in   ) :: mesh
+    type(type_ice_velocity_solver_SSA), intent(  out) :: SSA
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'allocate_SSA_solver'
+    character(len=1024), parameter :: routine_name = 'allocate_SSA_solver'
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
     ! Solution
-    ALLOCATE( SSA%u_b(          mesh%ti1:mesh%ti2))                   ! [m yr^-1] 2-D horizontal ice velocity
-    SSA%u_b = 0._dp
-    ALLOCATE( SSA%v_b(          mesh%ti1:mesh%ti2))
-    SSA%v_b = 0._dp
+    allocate( SSA%u_b(                          mesh%ti1:mesh%ti2))   ! [m yr^-1] 2-D horizontal ice velocity
+    allocate( SSA%v_b(                          mesh%ti1:mesh%ti2))
 
     ! Intermediate data fields
-    ALLOCATE( SSA%A_flow_vav_a( mesh%vi1:mesh%vi2))                   ! [Pa^-3 y^-1] Vertically averaged Glen's flow law parameter
-    SSA%A_flow_vav_a = 0._dp
-    ALLOCATE( SSA%du_dx_a(      mesh%vi1:mesh%vi2))                   ! [yr^-1] 2-D horizontal strain rates
-    SSA%du_dx_a = 0._dp
-    ALLOCATE( SSA%du_dy_a(      mesh%vi1:mesh%vi2))
-    SSA%du_dy_a = 0._dp
-    ALLOCATE( SSA%dv_dx_a(      mesh%vi1:mesh%vi2))
-    SSA%dv_dx_a = 0._dp
-    ALLOCATE( SSA%dv_dy_a(      mesh%vi1:mesh%vi2))
-    SSA%dv_dy_a = 0._dp
-    ALLOCATE( SSA%eta_a(        mesh%vi1:mesh%vi2))                   ! Effective viscosity
-    SSA%eta_a = 0._dp
-    ALLOCATE( SSA%N_a(          mesh%vi1:mesh%vi2))                   ! Product term N = eta * H
-    SSA%N_a = 0._dp
-    ALLOCATE( SSA%N_b(          mesh%ti1:mesh%ti2))
-    SSA%N_b = 0._dp
-    ALLOCATE( SSA%dN_dx_b(      mesh%ti1:mesh%ti2))                   ! Gradients of N
-    SSA%dN_dx_b = 0._dp
-    ALLOCATE( SSA%dN_dy_b(      mesh%ti1:mesh%ti2))
-    SSA%dN_dy_b = 0._dp
-    ALLOCATE( SSA%basal_friction_coefficient_b( mesh%ti1:mesh%ti2))   ! Basal friction coefficient (basal_shear_stress = u * basal_friction_coefficient)
-    SSA%basal_friction_coefficient_b = 0._dp
-    ALLOCATE( SSA%tau_dx_b(     mesh%ti1:mesh%ti2))                   ! Driving stress
-    SSA%tau_dx_b = 0._dp
-    ALLOCATE( SSA%tau_dy_b(     mesh%ti1:mesh%ti2))
-    SSA%tau_dy_b = 0._dp
-    ALLOCATE( SSA%u_b_prev(     mesh%nTri))                   ! Velocity solution from previous viscosity iteration
-    SSA%u_b_prev = 0._dp
-    ALLOCATE( SSA%v_b_prev(     mesh%nTri))
-    SSA%v_b_prev = 0._dp
+    allocate( SSA%A_flow_vav_a(                 mesh%vi1:mesh%vi2))   ! [Pa^-3 y^-1] Vertically averaged Glen's flow law parameter
+    allocate( SSA%du_dx_a(                      mesh%vi1:mesh%vi2))   ! [yr^-1] 2-D horizontal strain rates
+    allocate( SSA%du_dy_a(                      mesh%vi1:mesh%vi2))
+    allocate( SSA%dv_dx_a(                      mesh%vi1:mesh%vi2))
+    allocate( SSA%dv_dy_a(                      mesh%vi1:mesh%vi2))
+    allocate( SSA%eta_a(                        mesh%vi1:mesh%vi2))   ! Effective viscosity
+    allocate( SSA%N_a(                          mesh%vi1:mesh%vi2))   ! Product term N = eta * H
+    allocate( SSA%N_b(                          mesh%ti1:mesh%ti2))
+    allocate( SSA%dN_dx_b(                      mesh%ti1:mesh%ti2))   ! Gradients of N
+    allocate( SSA%dN_dy_b(                      mesh%ti1:mesh%ti2))
+    allocate( SSA%basal_friction_coefficient_b( mesh%ti1:mesh%ti2))   ! Basal friction coefficient (basal_shear_stress = u * basal_friction_coefficient)
+    allocate( SSA%tau_dx_b(                     mesh%ti1:mesh%ti2))   ! Driving stress
+    allocate( SSA%tau_dy_b(                     mesh%ti1:mesh%ti2))
+    allocate( SSA%u_b_prev(                     mesh%nTri        ))   ! Velocity solution from previous viscosity iteration
+    allocate( SSA%v_b_prev(                     mesh%nTri        ))
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE allocate_SSA_solver
+  end subroutine allocate_SSA_solver
 
 ! == Restart NetCDF files
 
-  SUBROUTINE write_to_restart_file_SSA( mesh, SSA, time)
-    ! Write to the restart NetCDF file for the SSA solver
-
-    IMPLICIT NONE
+  subroutine write_to_restart_file_SSA( mesh, SSA, time)
 
     ! In/output variables:
-    TYPE(type_mesh),                     INTENT(IN)              :: mesh
-    TYPE(type_ice_velocity_solver_SSA),  INTENT(IN)              :: SSA
-    REAL(dp),                            INTENT(IN)              :: time
+    type(type_mesh),                    intent(in   ) :: mesh
+    type(type_ice_velocity_solver_SSA), intent(in   ) :: SSA
+    real(dp),                           intent(in   ) :: time
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'write_to_restart_file_SSA'
-    INTEGER                                                      :: ncid
+    character(len=1024), parameter :: routine_name = 'write_to_restart_file_SSA'
+    integer                        :: ncid
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
-    ! If no NetCDF output should be created, do nothing
-    IF (.NOT. C%do_create_netcdf_output) THEN
-      CALL finalise_routine( routine_name)
-      RETURN
-    END IF
+    ! if no NetCDF output should be created, do nothing
+    if (.not. C%do_create_netcdf_output) then
+      call finalise_routine( routine_name)
+      return
+    end if
 
     ! Print to terminal
-    IF (par%master) WRITE(0,'(A)') '   Writing to SSA restart file "' // &
-      colour_string( TRIM( SSA%restart_filename), 'light blue') // '"...'
+    if (par%master) write(0,'(A)') '   Writing to SSA restart file "' // &
+      colour_string( trim( SSA%restart_filename), 'light blue') // '"...'
 
     ! Open the NetCDF file
-    CALL open_existing_netcdf_file_for_writing( SSA%restart_filename, ncid)
+    call open_existing_netcdf_file_for_writing( SSA%restart_filename, ncid)
 
-    ! Write the time to the file
-    CALL write_time_to_file( SSA%restart_filename, ncid, time)
+    ! write the time to the file
+    call write_time_to_file( SSA%restart_filename, ncid, time)
 
-    ! Write the velocity fields to the file
-    CALL write_to_field_multopt_mesh_dp_2D_b( mesh, SSA%restart_filename, ncid, 'u_b', SSA%u_b)
-    CALL write_to_field_multopt_mesh_dp_2D_b( mesh, SSA%restart_filename, ncid, 'v_b', SSA%v_b)
+    ! write the velocity fields to the file
+    call write_to_field_multopt_mesh_dp_2D_b( mesh, SSA%restart_filename, ncid, 'u_b', SSA%u_b)
+    call write_to_field_multopt_mesh_dp_2D_b( mesh, SSA%restart_filename, ncid, 'v_b', SSA%v_b)
 
     ! Close the file
-    CALL close_netcdf_file( ncid)
+    call close_netcdf_file( ncid)
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE write_to_restart_file_SSA
+  end subroutine write_to_restart_file_SSA
 
-  SUBROUTINE create_restart_file_SSA( mesh, SSA)
-    ! Create a restart NetCDF file for the SSA solver
-    ! Includes generation of the procedural filename (e.g. "restart_SSA_00001.nc")
-
-    IMPLICIT NONE
+  subroutine create_restart_file_SSA( mesh, SSA)
 
     ! In/output variables:
-    TYPE(type_mesh),                     INTENT(IN)              :: mesh
-    TYPE(type_ice_velocity_solver_SSA),  INTENT(INOUT)           :: SSA
+    type(type_mesh),                    intent(in   ) :: mesh
+    type(type_ice_velocity_solver_SSA), intent(inout) :: SSA
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'create_restart_file_SSA'
-    CHARACTER(LEN=256)                                           :: filename_base
-    INTEGER                                                      :: ncid
+    character(len=1024), parameter :: routine_name = 'create_restart_file_SSA'
+    character(len=256)             :: filename_base
+    integer                        :: ncid
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
-    ! If no NetCDF output should be created, do nothing
-    IF (.NOT. C%do_create_netcdf_output) THEN
-      CALL finalise_routine( routine_name)
-      RETURN
-    END IF
+    ! if no NetCDF output should be created, do nothing
+    if (.not. C%do_create_netcdf_output) then
+      call finalise_routine( routine_name)
+      return
+    end if
 
     ! Set the filename
-    filename_base = TRIM( C%output_dir) // 'restart_ice_velocity_SSA'
-    CALL generate_filename_XXXXXdotnc( filename_base, SSA%restart_filename)
+    filename_base = trim( C%output_dir) // 'restart_ice_velocity_SSA'
+    call generate_filename_XXXXXdotnc( filename_base, SSA%restart_filename)
 
     ! Print to terminal
-    IF (par%master) WRITE(0,'(A)') '   Creating SSA restart file "' // &
-      colour_string( TRIM( SSA%restart_filename), 'light blue') // '"...'
+    if (par%master) write(0,'(A)') '   Creating SSA restart file "' // &
+      colour_string( trim( SSA%restart_filename), 'light blue') // '"...'
 
     ! Create the NetCDF file
-    CALL create_new_netcdf_file_for_writing( SSA%restart_filename, ncid)
+    call create_new_netcdf_file_for_writing( SSA%restart_filename, ncid)
 
     ! Set up the mesh in the file
-    CALL setup_mesh_in_netcdf_file( SSA%restart_filename, ncid, mesh)
+    call setup_mesh_in_netcdf_file( SSA%restart_filename, ncid, mesh)
 
     ! Add a time dimension to the file
-    CALL add_time_dimension_to_file( SSA%restart_filename, ncid)
+    call add_time_dimension_to_file( SSA%restart_filename, ncid)
 
     ! Add the velocity fields to the file
-    CALL add_field_mesh_dp_2D_b( SSA%restart_filename, ncid, 'u_b', long_name = '2-D horizontal ice velocity in the x-direction', units = 'm/yr')
-    CALL add_field_mesh_dp_2D_b( SSA%restart_filename, ncid, 'v_b', long_name = '2-D horizontal ice velocity in the y-direction', units = 'm/yr')
+    call add_field_mesh_dp_2D_b( SSA%restart_filename, ncid, 'u_b', long_name = '2-D horizontal ice velocity in the x-direction', units = 'm/yr')
+    call add_field_mesh_dp_2D_b( SSA%restart_filename, ncid, 'v_b', long_name = '2-D horizontal ice velocity in the y-direction', units = 'm/yr')
 
     ! Close the file
-    CALL close_netcdf_file( ncid)
+    call close_netcdf_file( ncid)
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE create_restart_file_SSA
+  end subroutine create_restart_file_SSA
 
-END MODULE ice_velocity_SSA
+end module ice_velocity_SSA
