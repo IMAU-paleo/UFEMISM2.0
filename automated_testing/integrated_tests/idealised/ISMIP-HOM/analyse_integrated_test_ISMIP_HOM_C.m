@@ -1,4 +1,4 @@
-function analyse_integrated_test( varargin)
+function analyse_integrated_test_ISMIP_HOM_C( varargin)
 % Analyse the results of the ISMIP-HOM experiment C integrated test
 
 varargin = varargin{1};
@@ -76,16 +76,20 @@ for Li = 1:6
     err_neg = max( 0, HO.(ex).u_min - u_surf);
     err_abs = max( err_pos, err_neg);
     RMSE_u_surf = sqrt( mean( err_abs.^2));
+
+    % Read stability info
+    filename = [foldername '/scalar_output_ANT_00001.nc'];
+    stab = read_stability_info( filename, 1);
   
     % Write to scoreboard file
     test_path = ['integrated_tests/idealised/ISMIP_HOM/experiment_C/' approx];
     test_name = ex;
-    write_to_scoreboard_file( RMSE_u_surf)
+    write_to_scoreboard_file( RMSE_u_surf, stab)
 
   end
 end
 
-  function write_to_scoreboard_file( RMSE_u_surf)
+  function write_to_scoreboard_file( RMSE_u_surf, stab)
 
     % Set up a scoreboard results structure
     single_run = initialise_single_test_run( test_name, test_path);
@@ -93,6 +97,8 @@ end
     % Add cost functions to results structure
     single_run = add_cost_function_to_single_run( single_run, ...
       'rmse', 'sqrt( mean( (u_surf - u_ensemble).^2 ))', RMSE_u_surf);
+
+    single_run = add_stability_info_cost_functions( single_run, stab);
     
     % Write to scoreboard file
     write_scoreboard_file( foldername_automated_testing, single_run);
