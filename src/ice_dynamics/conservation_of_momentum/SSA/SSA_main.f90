@@ -1,4 +1,4 @@
-module ice_velocity_SSA
+module SSA_main
 
   ! Routines for calculating ice velocities using the Shallow Shelf Approximation (SSA)
 
@@ -1767,4 +1767,4 @@ contains
 
   end subroutine create_restart_file_SSA
 
-end module ice_velocity_SSA
+end module SSA_main
