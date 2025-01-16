@@ -12,9 +12,6 @@ MODULE thermodynamics_3D_heat_equation
   USE mpi_basic                                              , ONLY: par, cerr, ierr, recv_status, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
-  USE netcdf_debug                                           , ONLY: write_PETSc_matrix_to_NetCDF, write_CSR_matrix_to_NetCDF, &
-                                                                     save_variable_as_netcdf_int_1D, save_variable_as_netcdf_int_2D, &
-                                                                     save_variable_as_netcdf_dp_1D , save_variable_as_netcdf_dp_2D
   USE parameters
   USE mesh_types                                             , ONLY: type_mesh
   USE ice_model_types                                        , ONLY: type_ice_model
@@ -26,11 +23,7 @@ MODULE thermodynamics_3D_heat_equation
                                                                      calc_upwind_heat_flux_derivatives, calc_strain_heating, calc_frictional_heating, &
                                                                      replace_Ti_with_robin_solution
   use tridiagonal_solver, only: solve_tridiagonal_matrix_equation
-  USE netcdf_basic                                           , ONLY: create_new_netcdf_file_for_writing, close_netcdf_file, &
-                                                                     open_existing_netcdf_file_for_writing
-  USE netcdf_output                                          , ONLY: generate_filename_XXXXXdotnc, setup_mesh_in_netcdf_file, add_time_dimension_to_file, &
-                                                                     add_zeta_dimension_to_file, add_field_mesh_dp_3D, write_time_to_file, &
-                                                                     write_to_field_multopt_mesh_dp_3D
+  use netcdf_io_main
 
   IMPLICIT NONE
 
@@ -276,25 +269,25 @@ CONTAINS
     ELSE
       ! An unacceptably large number of grid cells was unstable; throw an error.
 
-      CALL save_variable_as_netcdf_dp_1D(  ice%Hi                  , 'Hi'                  )
-      CALL save_variable_as_netcdf_dp_1D(  ice%Hi_eff              , 'Hi_eff'              )
-      CALL save_variable_as_netcdf_dp_1D(  ice%Hb                  , 'Hb'                  )
-      CALL save_variable_as_netcdf_dp_1D(  ice%SL                  , 'SL'                  )
-      CALL save_variable_as_netcdf_dp_2D(  ice%dzeta_dx_ak         , 'dzeta_dx_ak'         )
-      CALL save_variable_as_netcdf_dp_2D(  ice%dzeta_dy_ak         , 'dzeta_dy_ak'         )
-      CALL save_variable_as_netcdf_dp_2D(  ice%dzeta_dz_ak         , 'dzeta_dz_ak'         )
-      CALL save_variable_as_netcdf_dp_2D(  ice%dzeta_dt_ak         , 'dzeta_dt_ak'         )
-      CALL save_variable_as_netcdf_dp_2D(  ice%u_3D                , 'u_3D'                )
-      CALL save_variable_as_netcdf_dp_2D(  ice%v_3D                , 'v_3D'                )
-      CALL save_variable_as_netcdf_dp_2D(  ice%w_3D                , 'w_3D'                )
-      CALL save_variable_as_netcdf_dp_1D(  ice%frictional_heating  , 'frictional_heating'  )
-      CALL save_variable_as_netcdf_dp_2D(  ice%internal_heating    , 'internal_heating'    )
-      CALL save_variable_as_netcdf_dp_1D(  T_surf_annual           , 'T_surf_annual'       )
-      CALL save_variable_as_netcdf_dp_1D(  Q_base_grnd             , 'Q_base_grnd'         )
-      CALL save_variable_as_netcdf_dp_1D(  T_base_float            , 'T_base_float'        )
-      CALL save_variable_as_netcdf_dp_2D(  ice%Ti                  , 'Ti'                  )
-      CALL save_variable_as_netcdf_dp_2D(  Ti_tplusdt              , 'Ti_tplusdt'          )
-      CALL save_variable_as_netcdf_int_1D( is_unstable             , 'is_unstable'         )
+      ! CALL save_variable_as_netcdf_dp_1D(  ice%Hi                  , 'Hi'                  )
+      ! CALL save_variable_as_netcdf_dp_1D(  ice%Hi_eff              , 'Hi_eff'              )
+      ! CALL save_variable_as_netcdf_dp_1D(  ice%Hb                  , 'Hb'                  )
+      ! CALL save_variable_as_netcdf_dp_1D(  ice%SL                  , 'SL'                  )
+      ! CALL save_variable_as_netcdf_dp_2D(  ice%dzeta_dx_ak         , 'dzeta_dx_ak'         )
+      ! CALL save_variable_as_netcdf_dp_2D(  ice%dzeta_dy_ak         , 'dzeta_dy_ak'         )
+      ! CALL save_variable_as_netcdf_dp_2D(  ice%dzeta_dz_ak         , 'dzeta_dz_ak'         )
+      ! CALL save_variable_as_netcdf_dp_2D(  ice%dzeta_dt_ak         , 'dzeta_dt_ak'         )
+      ! CALL save_variable_as_netcdf_dp_2D(  ice%u_3D                , 'u_3D'                )
+      ! CALL save_variable_as_netcdf_dp_2D(  ice%v_3D                , 'v_3D'                )
+      ! CALL save_variable_as_netcdf_dp_2D(  ice%w_3D                , 'w_3D'                )
+      ! CALL save_variable_as_netcdf_dp_1D(  ice%frictional_heating  , 'frictional_heating'  )
+      ! CALL save_variable_as_netcdf_dp_2D(  ice%internal_heating    , 'internal_heating'    )
+      ! CALL save_variable_as_netcdf_dp_1D(  T_surf_annual           , 'T_surf_annual'       )
+      ! CALL save_variable_as_netcdf_dp_1D(  Q_base_grnd             , 'Q_base_grnd'         )
+      ! CALL save_variable_as_netcdf_dp_1D(  T_base_float            , 'T_base_float'        )
+      ! CALL save_variable_as_netcdf_dp_2D(  ice%Ti                  , 'Ti'                  )
+      ! CALL save_variable_as_netcdf_dp_2D(  Ti_tplusdt              , 'Ti_tplusdt'          )
+      ! CALL save_variable_as_netcdf_int_1D( is_unstable             , 'is_unstable'         )
       CALL crash('heat equation solver unstable for more than 1% of vertices!')
 
     END IF

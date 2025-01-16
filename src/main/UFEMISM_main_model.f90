@@ -12,9 +12,6 @@ MODULE UFEMISM_main_model
                                                                      insert_val_into_string_dp
   USE model_configuration                                    , ONLY: C
   USE parameters
-  USE netcdf_debug                                           , ONLY: write_PETSc_matrix_to_NetCDF, write_CSR_matrix_to_NetCDF, &
-                                                                     save_variable_as_netcdf_int_1D, save_variable_as_netcdf_int_2D, &
-                                                                     save_variable_as_netcdf_dp_1D , save_variable_as_netcdf_dp_2D
   USE region_types                                           , ONLY: type_model_region
   USE ice_model_types                                        , ONLY: type_ice_model
   USE mesh_types                                             , ONLY: type_mesh
@@ -39,8 +36,7 @@ MODULE UFEMISM_main_model
   USE GIA_main                                               , ONLY: initialise_GIA_model, run_GIA_model, remap_GIA_model, &
                                                                      create_restart_file_GIA_model, write_to_restart_file_GIA_model
   USE basal_inversion_main                                   , ONLY: initialise_basal_inversion, run_basal_inversion
-  USE netcdf_basic                                           , ONLY: open_existing_netcdf_file_for_reading, close_netcdf_file
-  USE netcdf_input                                           , ONLY: setup_mesh_from_file
+  use netcdf_io_main
   USE mesh_creation_main                                     , ONLY: create_mesh_from_gridded_geometry, create_mesh_from_meshed_geometry, write_mesh_success
   USE grid_basic                                             , ONLY: setup_square_grid
   USE main_regional_output                                   , ONLY: create_main_regional_output_file_mesh,   create_main_regional_output_file_grid, &
@@ -206,6 +202,9 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    ! Write to scalar regional output file
+    CALL write_to_scalar_regional_output_file( region)
+
     ! Determine time of next output event
     t_closest = MIN( region%output_t_next, region%output_restart_t_next, region%output_grid_t_next)
 
@@ -274,9 +273,6 @@ CONTAINS
       DO i = 1, region%nROI
         CALL write_to_main_regional_output_file_grid_ROI( region, region%output_grids_ROI( i), region%output_filenames_grid_ROI( i))
       END DO
-
-      ! Write to scalar regional output file
-      CALL write_to_scalar_regional_output_file( region)
     END IF
 
     IF (do_output_restart) THEN

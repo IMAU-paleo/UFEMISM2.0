@@ -12,10 +12,6 @@ MODULE ice_model_main
   USE mpi_basic                                              , ONLY: par, cerr, ierr, recv_status, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
-  USE netcdf_debug                                           , ONLY: write_PETSc_matrix_to_NetCDF, write_CSR_matrix_to_NetCDF, &
-                                                                     save_variable_as_netcdf_int_1D, save_variable_as_netcdf_int_2D, &
-                                                                     save_variable_as_netcdf_dp_1D , save_variable_as_netcdf_dp_2D, &
-                                                                     save_variable_as_netcdf_logical_1D
   USE parameters
   USE mesh_types                                             , ONLY: type_mesh
   USE ice_model_types                                        , ONLY: type_ice_model, type_ice_pc
@@ -39,11 +35,7 @@ MODULE ice_model_main
                                                                      create_restart_file_ice_velocity, write_to_restart_file_ice_velocity, &
                                                                      map_velocities_from_b_to_c_2D
   use mpi_distributed_memory, only: gather_to_all, distribute_from_master
-  USE netcdf_basic                                           , ONLY: create_new_netcdf_file_for_writing, close_netcdf_file, open_existing_netcdf_file_for_writing
-  USE netcdf_output                                          , ONLY: generate_filename_XXXXXdotnc, setup_mesh_in_netcdf_file, add_time_dimension_to_file, &
-                                                                     add_field_dp_0D, add_field_mesh_dp_2D, write_time_to_file, write_to_field_multopt_mesh_dp_2D, &
-                                                                     write_to_field_multopt_dp_0D
-  USE netcdf_input                                           , ONLY: read_field_from_file_0D, read_field_from_mesh_file_2D
+  use netcdf_io_main
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   use remapping_main, only: Atlas, map_from_mesh_to_mesh_with_reallocation_2D, map_from_mesh_to_mesh_with_reallocation_3D, map_from_mesh_to_mesh_2D
   USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp
@@ -385,18 +377,9 @@ CONTAINS
     END IF
 
     ! Numerical stability info
-    ice%n_dt_ice                 = 0
-    ice%min_dt_ice               = huge( ice%min_dt_ice)
-    ice%max_dt_ice               = 0._dp
-    ice%mean_dt_ice              = 0._dp
-    ice%n_visc_its               = 0
-    ice%min_visc_its_per_dt      = huge( ice%min_visc_its_per_dt)
-    ice%max_visc_its_per_dt      = 0
-    ice%mean_visc_its_per_dt     = 0._dp
-    ice%n_Axb_its                = 0
-    ice%min_Axb_its_per_visc_it  = huge( ice%min_Axb_its_per_visc_it)
-    ice%max_Axb_its_per_visc_it  = 0
-    ice%mean_Axb_its_per_visc_it = 0._dp
+    ice%dt_ice     = 0._dp
+    ice%n_visc_its = 0
+    ice%n_Axb_its  = 0
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -566,7 +549,7 @@ CONTAINS
 
     ! Horizontal derivatives
     CALL reallocate_bounds( ice%dHib_dx_b                   , mesh_new%ti1, mesh_new%ti2         )  ! [] Horizontal derivative of ice draft on b-grid
-    CALL reallocate_bounds( ice%dHib_dy_b                   , mesh_new%ti1, mesh_new%ti2         )  ! [] Horizontal derivative of ice draft on b-grid        
+    CALL reallocate_bounds( ice%dHib_dy_b                   , mesh_new%ti1, mesh_new%ti2         )  ! [] Horizontal derivative of ice draft on b-grid
 
     ! Target quantities
     CALL reallocate_bounds( ice%dHi_dt_target               , mesh_new%vi1, mesh_new%vi2         )  ! [m yr^-1] Target ice thickness rate of change for inversions
@@ -773,7 +756,7 @@ CONTAINS
       ! Horizontal derivatives
       ice%dHib_dx_b( ti) = 0._dp
       ice%dHib_dy_b( ti) = 0._dp
-    END DO ! DO ti = mesh_new%ti1, mesh_new%ti2 
+    END DO ! DO ti = mesh_new%ti1, mesh_new%ti2
 
     ! Calculate zeta gradients
     CALL calc_zeta_gradients( mesh_new, ice)
@@ -1129,9 +1112,6 @@ CONTAINS
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: divQ
     integer                                               :: n_visc_its
     integer                                               :: n_Axb_its
-    integer                                               :: min_Axb_its_per_visc_it
-    integer                                               :: max_Axb_its_per_visc_it
-    real(dp)                                              :: mean_Axb_its_per_visc_it
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -1289,7 +1269,7 @@ CONTAINS
 
       ! Update velocity solution around the calving front
       CALL solve_stress_balance( mesh, ice, BMB_new, region_name, &
-        n_visc_its, n_Axb_its, min_Axb_its_per_visc_it, max_Axb_its_per_visc_it, &
+        n_visc_its, n_Axb_its, &
         BC_prescr_mask_b, BC_prescr_u_b, BC_prescr_v_b, BC_prescr_mask_bk, BC_prescr_u_bk, BC_prescr_v_bk)
 
       ! Calculate dH/dt around the calving front
@@ -1405,7 +1385,7 @@ CONTAINS
 
       ! Calculate ice velocities for the predicted geometry
       CALL solve_stress_balance( region%mesh, region%ice, BMB_dummy, region%name, &
-        n_visc_its, n_Axb_its, min_Axb_its_per_visc_it, max_Axb_its_per_visc_it)
+        n_visc_its, n_Axb_its)
 
       ! Calculate thinning rates for current geometry and velocity
       CALL calc_dHi_dt( region%mesh, region%ice%Hi, region%ice%Hb, region%ice%SL, region%ice%u_vav_b, region%ice%v_vav_b, SMB_dummy, BMB_dummy, LMB_dummy, AMB_dummy, region%ice%fraction_margin, &
@@ -1663,20 +1643,12 @@ CONTAINS
 
       ! Calculate ice velocities for the predicted geometry
       CALL solve_stress_balance( region%mesh, region%ice, region%BMB%BMB, region%name, &
-        n_visc_its, n_Axb_its, min_Axb_its_per_visc_it, max_Axb_its_per_visc_it)
+        n_visc_its, n_Axb_its)
 
       ! Update stability info
-      region%ice%n_dt_ice                = region%ice%n_dt_ice   + 1
-      region%ice%min_dt_ice              = min( region%ice%min_dt_ice, region%ice%pc%dt_np1)
-      region%ice%max_dt_ice              = max( region%ice%max_dt_ice, region%ice%pc%dt_np1)
-
-      region%ice%n_visc_its              = region%ice%n_visc_its + n_visc_its
-      region%ice%min_visc_its_per_dt     = min( region%ice%min_visc_its_per_dt, n_visc_its)
-      region%ice%max_visc_its_per_dt     = max( region%ice%max_visc_its_per_dt, n_visc_its)
-
-      region%ice%n_Axb_its               = region%ice%n_Axb_its  + n_Axb_its
-      region%ice%min_Axb_its_per_visc_it = min( region%ice%min_Axb_its_per_visc_it, min_Axb_its_per_visc_it)
-      region%ice%max_Axb_its_per_visc_it = max( region%ice%max_Axb_its_per_visc_it, max_Axb_its_per_visc_it)
+      region%ice%dt_ice     = region%ice%pc%dt_np1
+      region%ice%n_visc_its = n_visc_its
+      region%ice%n_Axb_its  = n_Axb_its
 
       ! == Corrector step ==
       ! ====================
@@ -1944,30 +1916,30 @@ CONTAINS
     ! Read values from the file
     IF (timeframe == 1E9_dp) THEN
       ! Assume the file has no time dimension
-      CALL read_field_from_file_0D(      filename, 'dt_n'                    , pc%dt_n                    )
-      CALL read_field_from_file_0D(      filename, 'dt_np1'                  , pc%dt_np1                  )
-      CALL read_field_from_file_0D(      filename, 'zeta_t'                  , pc%zeta_t                  )
-      CALL read_field_from_mesh_file_2D( filename, 'dHi_dt_Hi_nm1_u_nm1'     , pc%dHi_dt_Hi_nm1_u_nm1     )
-      CALL read_field_from_mesh_file_2D( filename, 'dHi_dt_Hi_n_u_n'         , pc%dHi_dt_Hi_n_u_n         )
-      CALL read_field_from_mesh_file_2D( filename, 'Hi_star_np1'             , pc%Hi_star_np1             )
-      CALL read_field_from_mesh_file_2D( filename, 'dHi_dt_Hi_star_np1_u_np1', pc%dHi_dt_Hi_star_np1_u_np1)
-      CALL read_field_from_mesh_file_2D( filename, 'Hi_np1'                  , pc%Hi_np1                  )
-      CALL read_field_from_mesh_file_2D( filename, 'tau_np1'                 , pc%tau_np1                 )
-      CALL read_field_from_file_0D(      filename, 'eta_n'                   , pc%eta_n                   )
-      CALL read_field_from_file_0D(      filename, 'eta_np1'                 , pc%eta_np1                 )
+      CALL read_field_from_file_0D(         filename, 'dt_n'                    , pc%dt_n                    )
+      CALL read_field_from_file_0D(         filename, 'dt_np1'                  , pc%dt_np1                  )
+      CALL read_field_from_file_0D(         filename, 'zeta_t'                  , pc%zeta_t                  )
+      CALL read_field_from_mesh_file_dp_2D( filename, 'dHi_dt_Hi_nm1_u_nm1'     , pc%dHi_dt_Hi_nm1_u_nm1     )
+      CALL read_field_from_mesh_file_dp_2D( filename, 'dHi_dt_Hi_n_u_n'         , pc%dHi_dt_Hi_n_u_n         )
+      CALL read_field_from_mesh_file_dp_2D( filename, 'Hi_star_np1'             , pc%Hi_star_np1             )
+      CALL read_field_from_mesh_file_dp_2D( filename, 'dHi_dt_Hi_star_np1_u_np1', pc%dHi_dt_Hi_star_np1_u_np1)
+      CALL read_field_from_mesh_file_dp_2D( filename, 'Hi_np1'                  , pc%Hi_np1                  )
+      CALL read_field_from_mesh_file_dp_2D( filename, 'tau_np1'                 , pc%tau_np1                 )
+      CALL read_field_from_file_0D(         filename, 'eta_n'                   , pc%eta_n                   )
+      CALL read_field_from_file_0D(         filename, 'eta_np1'                 , pc%eta_np1                 )
     ELSE
       ! Read specified timeframe
-      CALL read_field_from_file_0D(      filename, 'dt_n'                    , pc%dt_n                    , time_to_read = timeframe)
-      CALL read_field_from_file_0D(      filename, 'dt_np1'                  , pc%dt_np1                  , time_to_read = timeframe)
-      CALL read_field_from_file_0D(      filename, 'zeta_t'                  , pc%zeta_t                  , time_to_read = timeframe)
-      CALL read_field_from_mesh_file_2D( filename, 'dHi_dt_Hi_nm1_u_nm1'     , pc%dHi_dt_Hi_nm1_u_nm1     , time_to_read = timeframe)
-      CALL read_field_from_mesh_file_2D( filename, 'dHi_dt_Hi_n_u_n'         , pc%dHi_dt_Hi_n_u_n         , time_to_read = timeframe)
-      CALL read_field_from_mesh_file_2D( filename, 'Hi_star_np1'             , pc%Hi_star_np1             , time_to_read = timeframe)
-      CALL read_field_from_mesh_file_2D( filename, 'dHi_dt_Hi_star_np1_u_np1', pc%dHi_dt_Hi_star_np1_u_np1, time_to_read = timeframe)
-      CALL read_field_from_mesh_file_2D( filename, 'Hi_np1'                  , pc%Hi_np1                  , time_to_read = timeframe)
-      CALL read_field_from_mesh_file_2D( filename, 'tau_np1'                 , pc%tau_np1                 , time_to_read = timeframe)
-      CALL read_field_from_file_0D(      filename, 'eta_n'                   , pc%eta_n                   , time_to_read = timeframe)
-      CALL read_field_from_file_0D(      filename, 'eta_np1'                 , pc%eta_np1                 , time_to_read = timeframe)
+      CALL read_field_from_file_0D(         filename, 'dt_n'                    , pc%dt_n                    , time_to_read = timeframe)
+      CALL read_field_from_file_0D(         filename, 'dt_np1'                  , pc%dt_np1                  , time_to_read = timeframe)
+      CALL read_field_from_file_0D(         filename, 'zeta_t'                  , pc%zeta_t                  , time_to_read = timeframe)
+      CALL read_field_from_mesh_file_dp_2D( filename, 'dHi_dt_Hi_nm1_u_nm1'     , pc%dHi_dt_Hi_nm1_u_nm1     , time_to_read = timeframe)
+      CALL read_field_from_mesh_file_dp_2D( filename, 'dHi_dt_Hi_n_u_n'         , pc%dHi_dt_Hi_n_u_n         , time_to_read = timeframe)
+      CALL read_field_from_mesh_file_dp_2D( filename, 'Hi_star_np1'             , pc%Hi_star_np1             , time_to_read = timeframe)
+      CALL read_field_from_mesh_file_dp_2D( filename, 'dHi_dt_Hi_star_np1_u_np1', pc%dHi_dt_Hi_star_np1_u_np1, time_to_read = timeframe)
+      CALL read_field_from_mesh_file_dp_2D( filename, 'Hi_np1'                  , pc%Hi_np1                  , time_to_read = timeframe)
+      CALL read_field_from_mesh_file_dp_2D( filename, 'tau_np1'                 , pc%tau_np1                 , time_to_read = timeframe)
+      CALL read_field_from_file_0D(         filename, 'eta_n'                   , pc%eta_n                   , time_to_read = timeframe)
+      CALL read_field_from_file_0D(         filename, 'eta_np1'                 , pc%eta_np1                 , time_to_read = timeframe)
     END IF
 
     ! Finalise routine path
@@ -2153,9 +2125,6 @@ CONTAINS
     INTEGER                                               :: vi
     integer                                               :: n_visc_its
     integer                                               :: n_Axb_its
-    integer                                               :: min_Axb_its_per_visc_it
-    integer                                               :: max_Axb_its_per_visc_it
-    real(dp)                                              :: mean_Axb_its_per_visc_it
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -2173,7 +2142,7 @@ CONTAINS
 
     ! Calculate ice velocities
     CALL solve_stress_balance( region%mesh, region%ice, region%BMB%BMB, region%name, &
-      n_visc_its, n_Axb_its, min_Axb_its_per_visc_it, max_Axb_its_per_visc_it)
+      n_visc_its, n_Axb_its)
 
     ! Calculate time step
 

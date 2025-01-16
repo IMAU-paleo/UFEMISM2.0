@@ -9,13 +9,10 @@ module ct_remapping_mesh_to_mesh
   use parameters
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, colour_string, warning
   use mesh_types, only: type_mesh
-  use netcdf_basic, only: open_existing_netcdf_file_for_reading, close_netcdf_file, create_new_netcdf_file_for_writing, &
-    create_dimension, create_variable
-  use netcdf_input, only: setup_mesh_from_file
   use ct_remapping_basic, only: calc_test_function_on_mesh
   use remapping_main, only: map_from_mesh_to_mesh_2D
   use apply_maps, only: clear_all_maps_involving_this_mesh
-  use netcdf_output, only: setup_mesh_in_netcdf_file, add_field_mesh_dp_2D_notime, write_to_field_multopt_mesh_dp_2D_notime
+  use netcdf_io_main
   use netcdf, only: NF90_DOUBLE, NF90_PUT_VAR
   use mpi_distributed_memory, only: gather_to_master
 

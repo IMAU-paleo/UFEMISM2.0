@@ -12,10 +12,6 @@ MODULE ice_velocity_hybrid_DIVA_BPA
   USE mpi_basic                                              , ONLY: par, cerr, ierr, recv_status, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
-  USE netcdf_debug                                           , ONLY: write_PETSc_matrix_to_NetCDF, write_CSR_matrix_to_NetCDF, &
-                                                                     save_variable_as_netcdf_int_1D, save_variable_as_netcdf_int_2D, &
-                                                                     save_variable_as_netcdf_dp_1D , save_variable_as_netcdf_dp_2D, &
-                                                                     save_variable_as_netcdf_logical_1D
   USE parameters
   USE petsc_basic                                            , ONLY: solve_matrix_equation_CSR_PETSc
   USE mesh_types                                             , ONLY: type_mesh
@@ -40,8 +36,7 @@ MODULE ice_velocity_hybrid_DIVA_BPA
                                                                      deallocate_matrix_CSR_dist, add_empty_row_CSR_dist
   use grid_basic, only: type_grid, calc_grid_mask_as_polygons
   use mpi_distributed_memory_grid, only: gather_gridded_data_to_master
-  USE netcdf_basic                                           , ONLY: open_existing_netcdf_file_for_reading, close_netcdf_file
-  USE netcdf_input                                           , ONLY: setup_xy_grid_from_file, read_field_from_xy_file_2D_int
+  use netcdf_io_main
 
   IMPLICIT NONE
 
@@ -107,7 +102,7 @@ CONTAINS
   END SUBROUTINE initialise_hybrid_DIVA_BPA_solver
 
   SUBROUTINE solve_hybrid_DIVA_BPA( mesh, ice, hybrid, region_name, &
-    n_visc_its, n_Axb_its, min_Axb_its_per_visc_it, max_Axb_its_per_visc_it, &
+    n_visc_its, n_Axb_its, &
     BC_prescr_mask_b, BC_prescr_u_b, BC_prescr_v_b)
     ! Calculate ice velocities by solving the hybrid DIVA/BPA
 
@@ -118,10 +113,8 @@ CONTAINS
     TYPE(type_ice_model),                  INTENT(INOUT)           :: ice
     TYPE(type_ice_velocity_solver_hybrid), INTENT(INOUT)           :: hybrid
     CHARACTER(LEN=3),                      INTENT(IN)              :: region_name
-    integer,                               intent(out)             :: n_visc_its               ! Number of non-linear viscosity iterations
-    integer,                               intent(out)             :: n_Axb_its                ! Number of iterations in iterative solver for linearised momentum balance
-    integer,                               intent(out)             :: min_Axb_its_per_visc_it  ! Smallest number of iterations in iterative solver for linearised momentum balance per non-linear viscosity iteration
-    integer,                               intent(out)             :: max_Axb_its_per_visc_it  ! Largest number of iterations in iterative solver for linearised momentum balance per non-linear viscosity iteration
+    integer,                               intent(out)             :: n_visc_its            ! Number of non-linear viscosity iterations
+    integer,                               intent(out)             :: n_Axb_its             ! Number of iterations in iterative solver for linearised momentum balance
     INTEGER,  DIMENSION(:    ),            INTENT(IN)   , OPTIONAL :: BC_prescr_mask_b      ! Mask of triangles where velocity is prescribed
     REAL(dp), DIMENSION(:    ),            INTENT(IN)   , OPTIONAL :: BC_prescr_u_b         ! Prescribed velocities in the x-direction
     REAL(dp), DIMENSION(:    ),            INTENT(IN)   , OPTIONAL :: BC_prescr_v_b         ! Prescribed velocities in the y-direction
@@ -194,10 +187,8 @@ CONTAINS
     Glens_flow_law_epsilon_sq_0_applied = C%Glens_flow_law_epsilon_sq_0
 
     ! Initialise stability info
-    n_visc_its               = 0
-    n_Axb_its                = 0
-    min_Axb_its_per_visc_it  = huge( min_Axb_its_per_visc_it)
-    max_Axb_its_per_visc_it  = 0
+    n_visc_its = 0
+    n_Axb_its  = 0
 
     ! The viscosity iteration
     viscosity_iteration_i = 0
@@ -244,8 +235,6 @@ CONTAINS
 
       ! Update stability info
       n_Axb_its = n_Axb_its + n_Axb_its_visc_it
-      min_Axb_its_per_visc_it = min( min_Axb_its_per_visc_it, n_Axb_its_visc_it)
-      max_Axb_its_per_visc_it = max( max_Axb_its_per_visc_it, n_Axb_its_visc_it)
 
       ! Copy results to the DIVA and BPA structures
       hybrid%DIVA%u_vav_b = hybrid%u_vav_b
@@ -641,7 +630,7 @@ CONTAINS
 
     ! Read gridded mask from file
     ALLOCATE( mask_int_grid_vec_partial( grid%n1: grid%n2))
-    CALL read_field_from_xy_file_2D_int( filename_hybrid_DIVA_BPA_mask, 'mask_BPA', mask_int_grid_vec_partial)
+    CALL read_field_from_xy_file_int_2D( filename_hybrid_DIVA_BPA_mask, 'mask_BPA', mask_int_grid_vec_partial)
 
     ! Gather partial gridded data to the Master and broadcast the total field to all processes
     ALLOCATE( mask_int_grid( grid%nx, grid%ny))

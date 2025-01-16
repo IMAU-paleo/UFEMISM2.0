@@ -12,6 +12,7 @@ module unit_tests
   use ut_petsc, only: unit_tests_petsc_main
   use ut_math_utilities, only: unit_tests_math_utilities_main
   use ut_mesh, only: unit_tests_mesh_main
+  use ut_netcdf, only: unit_tests_netcdf_main
   use ut_tracer_tracking, only: unit_tests_tracer_tracking_main
 
   implicit none
@@ -47,6 +48,7 @@ contains
     call unit_tests_petsc_main                 ( test_name)
     call unit_tests_math_utilities_main        ( test_name)
     call unit_tests_mesh_main                  ( test_name)
+    call unit_tests_netcdf_main                ( test_name)
     call unit_tests_tracer_tracking_main       ( test_name)
 
     ! Finalise routine path

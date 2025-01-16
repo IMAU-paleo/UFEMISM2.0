@@ -176,11 +176,39 @@ UFEMISM_source = \
   mesh/creation/mesh_creation_from_reduced_geometry.f90 \
   mesh/creation/mesh_creation_main.f90 \
   \
-  netcdf/netcdf_basic.f90 \
-  netcdf/netcdf_debug.f90 \
-  netcdf/netcdf_input.f90 \
-  netcdf/netcdf_output.f90 \
-  netcdf/netcdf_resource_tracking.f90 \
+  io/netcdf_basic/netcdf_basic_wrappers.f90 \
+  io/netcdf_basic/netcdf_field_name_options.f90 \
+  io/netcdf_basic/netcdf_inquire_dimensions.f90 \
+  io/netcdf_basic/netcdf_inquire_grid_mesh.f90 \
+  io/netcdf_basic/netcdf_read_var_master.f90 \
+  io/netcdf_basic/netcdf_check_dimensions.f90 \
+  io/netcdf_basic/netcdf_write_var_master.f90 \
+  io/netcdf_basic/netcdf_check_fields.f90 \
+  io/netcdf_basic/netcdf_find_timeframe.f90 \
+  io/netcdf_basic/netcdf_save_single_variables.f90 \
+  io/netcdf_basic/netcdf_basic.f90 \
+  \
+  io/netcdf_input/netcdf_determine_indexing.f90 \
+  io/netcdf_input/netcdf_setup_grid_mesh_from_file.f90 \
+  io/netcdf_input/netcdf_read_field_from_mesh_file.f90 \
+  io/netcdf_input/netcdf_read_field_from_lonlat_grid_file.f90 \
+  io/netcdf_input/netcdf_read_field_from_xy_grid_file.f90 \
+  io/netcdf_input/netcdf_read_and_map_field_from_file.f90 \
+  io/netcdf_input/netcdf_input.f90 \
+  \
+  io/netcdf_output/netcdf_generate_numbered_filename.f90 \
+  io/netcdf_output/netcdf_add_write_scalar_variables.f90 \
+  io/netcdf_output/netcdf_add_basic_dimensions.f90 \
+  io/netcdf_output/netcdf_bedrock_CDF.f90 \
+  io/netcdf_output/netcdf_add_field_grid.f90 \
+  io/netcdf_output/netcdf_add_field_mesh.f90 \
+  io/netcdf_output/netcdf_setup_grid_mesh_in_file.f90 \
+  io/netcdf_output/netcdf_write_field_grid.f90 \
+  io/netcdf_output/netcdf_write_field_mesh.f90 \
+  io/netcdf_output/netcdf_resource_tracking.f90 \
+  io/netcdf_output/netcdf_output.f90 \
+  \
+  io/netcdf_io_main.f90 \
   \
   reference_states/reference_geometries.f90 \
   \
@@ -271,6 +299,9 @@ UFEMISM_source = \
   validation/unit_tests/ut_mesh_remapping_mesh_to_mesh.f90 \
   validation/unit_tests/ut_mesh_remapping.f90 \
   validation/unit_tests/ut_mesh.f90 \
+  validation/unit_tests/ut_netcdf_xy_grid.f90 \
+  validation/unit_tests/ut_netcdf_mesh.f90 \
+  validation/unit_tests/ut_netcdf.f90 \
   validation/unit_tests/ut_tracer_tracking.f90 \
   validation/unit_tests/unit_tests.f90 \
   \

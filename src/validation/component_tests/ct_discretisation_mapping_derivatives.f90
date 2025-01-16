@@ -9,12 +9,8 @@ module ct_discretisation_mapping_derivatives
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash, colour_string
   use mpi_basic, only: par, sync
   use mesh_types, only: type_mesh
-  use netcdf_basic, only: open_existing_netcdf_file_for_reading, close_netcdf_file, create_new_netcdf_file_for_writing
-  use netcdf_input, only: setup_mesh_from_file
+  use netcdf_io_main
   use petsc_basic, only: multiply_CSR_matrix_with_vector_1D
-  use netcdf_output, only: setup_mesh_in_netcdf_file, add_field_mesh_dp_2D_notime, add_field_mesh_dp_2D_b_notime, &
-    add_field_mesh_dp_2D_c_notime, write_to_field_multopt_mesh_dp_2D_notime, write_to_field_multopt_mesh_dp_2D_b_notime, &
-    write_to_field_multopt_mesh_dp_2D_c_notime
   use assertions_basic
   use tests_main
 

@@ -17,10 +17,7 @@ MODULE ocean_main
   USE ocean_utilities                                        , ONLY: initialise_ocean_vertical_grid, calc_ocean_temperature_at_shelf_base, calc_ocean_freezing_point_at_shelf_base
   USE ocean_realistic                                        , ONLY: initialise_ocean_model_realistic, run_ocean_model_realistic
   USE ocean_idealised                                        , ONLY: initialise_ocean_model_idealised, run_ocean_model_idealised
-  USE netcdf_basic                                           , ONLY: create_new_netcdf_file_for_writing, close_netcdf_file, open_existing_netcdf_file_for_writing
-  USE netcdf_output                                          , ONLY: generate_filename_XXXXXdotnc, setup_mesh_in_netcdf_file, add_time_dimension_to_file, &
-                                                                     add_field_mesh_dp_3D_ocean, add_depth_dimension_to_file, write_time_to_file, write_to_field_multopt_mesh_dp_3D_ocean
-  USE netcdf_debug                                           , ONLY: save_variable_as_netcdf_dp_2D, save_variable_as_netcdf_dp_1D
+  use netcdf_io_main
 
   IMPLICIT NONE
 
@@ -413,7 +410,7 @@ CONTAINS
     IF     (choice_ocean_model == 'none') THEN
       ! No need to do anything
     ELSEIF (choice_ocean_model == 'idealised') THEN
-      ! Not implemented yet TODO 
+      ! Not implemented yet TODO
       CALL crash('Remapping after mesh update not implemented yet for idealised ocean')
     ELSEIF (choice_ocean_model == 'realistic') THEN
       CALL crash('Remapping after mesh update not implemented yet for realistic ocean')

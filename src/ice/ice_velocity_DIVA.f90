@@ -12,9 +12,6 @@ MODULE ice_velocity_DIVA
   USE mpi_basic                                              , ONLY: par, cerr, ierr, recv_status, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
-  USE netcdf_debug                                           , ONLY: write_PETSc_matrix_to_NetCDF, write_CSR_matrix_to_NetCDF, &
-                                                                     save_variable_as_netcdf_int_1D, save_variable_as_netcdf_int_2D, &
-                                                                     save_variable_as_netcdf_dp_1D , save_variable_as_netcdf_dp_2D
   USE parameters
   USE petsc_basic                                            , ONLY: solve_matrix_equation_CSR_PETSc
   USE mesh_types                                             , ONLY: type_mesh
@@ -25,11 +22,7 @@ MODULE ice_velocity_DIVA
   USE mesh_utilities                                         , ONLY: find_ti_copy_ISMIP_HOM_periodic
   USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp, allocate_matrix_CSR_dist, add_entry_CSR_dist, read_single_row_CSR_dist, &
                                                                      deallocate_matrix_CSR_dist
-  USE netcdf_basic                                           , ONLY: create_new_netcdf_file_for_writing, close_netcdf_file, open_existing_netcdf_file_for_writing
-  USE netcdf_output                                          , ONLY: generate_filename_XXXXXdotnc, setup_mesh_in_netcdf_file, add_time_dimension_to_file, &
-                                                                     add_field_mesh_dp_2D_b, add_field_mesh_dp_3D_b, write_time_to_file, write_to_field_multopt_mesh_dp_2D_b, &
-                                                                     write_to_field_multopt_mesh_dp_3D_b, add_zeta_dimension_to_file
-  USE netcdf_input                                           , ONLY: read_field_from_mesh_file_2D_b, read_field_from_mesh_file_3D_b
+  use netcdf_io_main
   use mpi_distributed_memory, only: gather_to_all
   USE ice_flow_laws                                          , ONLY: calc_effective_viscosity_Glen_3D_uv_only, calc_ice_rheology_Glen
   USE reallocate_mod                                         , ONLY: reallocate_bounds, reallocate_clean
@@ -97,7 +90,7 @@ CONTAINS
   END SUBROUTINE initialise_DIVA_solver
 
   SUBROUTINE solve_DIVA( mesh, ice, DIVA, &
-    n_visc_its, n_Axb_its, min_Axb_its_per_visc_it, max_Axb_its_per_visc_it, &
+    n_visc_its, n_Axb_its, &
     BC_prescr_mask_b, BC_prescr_u_b, BC_prescr_v_b)
     ! Calculate ice velocities by solving the Depth-Integrated Viscosity Approximation
 
@@ -109,8 +102,6 @@ CONTAINS
     TYPE(type_ice_velocity_solver_DIVA), INTENT(INOUT)           :: DIVA
     integer,                             intent(out)             :: n_visc_its               ! Number of non-linear viscosity iterations
     integer,                             intent(out)             :: n_Axb_its                ! Number of iterations in iterative solver for linearised momentum balance
-    integer,                             intent(out)             :: min_Axb_its_per_visc_it  ! Smallest number of iterations in iterative solver for linearised momentum balance per non-linear viscosity iteration
-    integer,                             intent(out)             :: max_Axb_its_per_visc_it  ! Largest number of iterations in iterative solver for linearised momentum balance per non-linear viscosity iteration
     INTEGER,  DIMENSION(:    ),          INTENT(IN)   , OPTIONAL :: BC_prescr_mask_b         ! Mask of triangles where velocity is prescribed
     REAL(dp), DIMENSION(:    ),          INTENT(IN)   , OPTIONAL :: BC_prescr_u_b            ! Prescribed velocities in the x-direction
     REAL(dp), DIMENSION(:    ),          INTENT(IN)   , OPTIONAL :: BC_prescr_v_b            ! Prescribed velocities in the y-direction
@@ -175,10 +166,8 @@ CONTAINS
     Glens_flow_law_epsilon_sq_0_applied = C%Glens_flow_law_epsilon_sq_0
 
     ! Initialise stability info
-    n_visc_its               = 0
-    n_Axb_its                = 0
-    min_Axb_its_per_visc_it  = huge( min_Axb_its_per_visc_it)
-    max_Axb_its_per_visc_it  = 0
+    n_visc_its = 0
+    n_Axb_its  = 0
 
     ! The viscosity iteration
     viscosity_iteration_i = 0
@@ -207,8 +196,6 @@ CONTAINS
 
       ! Update stability info
       n_Axb_its = n_Axb_its + n_Axb_its_visc_it
-      min_Axb_its_per_visc_it = min( min_Axb_its_per_visc_it, n_Axb_its_visc_it)
-      max_Axb_its_per_visc_it = max( max_Axb_its_per_visc_it, n_Axb_its_visc_it)
 
       ! Limit velocities for improved stability
       CALL apply_velocity_limits( mesh, DIVA)
@@ -1976,18 +1963,18 @@ CONTAINS
     ! Read velocities from the file
     IF (timeframe == 1E9_dp) THEN
       ! Assume the file has no time dimension
-      CALL read_field_from_mesh_file_2D_b( filename, 'u_vav_b' , DIVA%u_vav_b )
-      CALL read_field_from_mesh_file_2D_b( filename, 'v_vav_b' , DIVA%v_vav_b )
-      CALL read_field_from_mesh_file_2D_b( filename, 'tau_bx_b', DIVA%tau_bx_b)
-      CALL read_field_from_mesh_file_2D_b( filename, 'tau_by_b', DIVA%tau_by_b)
-      CALL read_field_from_mesh_file_3D_b( filename, 'eta_3D_b', DIVA%eta_3D_b)
+      CALL read_field_from_mesh_file_dp_2D_b( filename, 'u_vav_b' , DIVA%u_vav_b )
+      CALL read_field_from_mesh_file_dp_2D_b( filename, 'v_vav_b' , DIVA%v_vav_b )
+      CALL read_field_from_mesh_file_dp_2D_b( filename, 'tau_bx_b', DIVA%tau_bx_b)
+      CALL read_field_from_mesh_file_dp_2D_b( filename, 'tau_by_b', DIVA%tau_by_b)
+      CALL read_field_from_mesh_file_dp_3D_b( filename, 'eta_3D_b', DIVA%eta_3D_b)
     ELSE
       ! Read specified timeframe
-      CALL read_field_from_mesh_file_2D_b( filename, 'u_vav_b' , DIVA%u_vav_b , time_to_read = timeframe)
-      CALL read_field_from_mesh_file_2D_b( filename, 'v_vav_b' , DIVA%v_vav_b , time_to_read = timeframe)
-      CALL read_field_from_mesh_file_2D_b( filename, 'tau_bx_b', DIVA%tau_bx_b, time_to_read = timeframe)
-      CALL read_field_from_mesh_file_2D_b( filename, 'tau_by_b', DIVA%tau_by_b, time_to_read = timeframe)
-      CALL read_field_from_mesh_file_3D_b( filename, 'eta_3D_b', DIVA%eta_3D_b, time_to_read = timeframe)
+      CALL read_field_from_mesh_file_dp_2D_b( filename, 'u_vav_b' , DIVA%u_vav_b , time_to_read = timeframe)
+      CALL read_field_from_mesh_file_dp_2D_b( filename, 'v_vav_b' , DIVA%v_vav_b , time_to_read = timeframe)
+      CALL read_field_from_mesh_file_dp_2D_b( filename, 'tau_bx_b', DIVA%tau_bx_b, time_to_read = timeframe)
+      CALL read_field_from_mesh_file_dp_2D_b( filename, 'tau_by_b', DIVA%tau_by_b, time_to_read = timeframe)
+      CALL read_field_from_mesh_file_dp_3D_b( filename, 'eta_3D_b', DIVA%eta_3D_b, time_to_read = timeframe)
     END IF
 
     ! Finalise routine path

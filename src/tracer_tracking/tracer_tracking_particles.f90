@@ -15,11 +15,8 @@ module tracer_tracking_model_particles
   use mesh_utilities, only: find_containing_triangle, find_containing_vertex, &
     interpolate_to_point_dp_2D, interpolate_to_point_dp_3D
   use reallocate_mod, only: reallocate
-  use netcdf_basic, only: create_new_netcdf_file_for_writing, create_dimension, create_variable, &
-    close_netcdf_file, open_existing_netcdf_file_for_writing, field_name_options_time, inquire_dim_multopt, &
-    write_var_master_int8_2D, write_var_master_dp_2D, write_var_master_dp_3D
   use netcdf, only: NF90_UNLIMITED, NF90_INT64, NF90_DOUBLE
-  use netcdf_output, only: write_time_to_file
+  use netcdf_io_main
 
   implicit none
 
@@ -629,11 +626,11 @@ contains
     end if
 
     ! Write data
-    call write_var_master_int8_2D( filename, ncid, particles%nc%id_var_id       , id_with_time      , &
+    call write_var_master( filename, ncid, particles%nc%id_var_id       , id_with_time      , &
       start = [1,ti], count = [particles%n_max,1])
-    call write_var_master_dp_3D  ( filename, ncid, particles%nc%id_var_r        , r_with_time       , &
+    call write_var_master( filename, ncid, particles%nc%id_var_r        , r_with_time       , &
       start = [1,1,ti], count = [particles%n_max,3,1])
-    call write_var_master_dp_2D  ( filename, ncid, particles%nc%id_var_t_origin , t_origin_with_time, &
+    call write_var_master( filename, ncid, particles%nc%id_var_t_origin , t_origin_with_time, &
       start = [1,ti], count = [particles%n_max,1])
 
     call close_netcdf_file( ncid)

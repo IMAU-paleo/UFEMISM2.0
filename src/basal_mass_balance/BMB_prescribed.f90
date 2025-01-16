@@ -7,7 +7,7 @@ MODULE BMB_prescribed
   !
   ! If the BMB model = 'prescribed_fixed', the subgrid melt schem is only applied during initialisation. Hence, the integrated
   ! metric BMB_total will be constant throughout the run, regardless of GL migration or calving. GL advance will lead to nonzero
-  ! BMB_gr, which may be useful to maintain the GL position. 
+  ! BMB_gr, which may be useful to maintain the GL position.
 
 ! ===== Preamble =====
 ! ====================
@@ -21,7 +21,7 @@ MODULE BMB_prescribed
   USE ice_model_types                                        , ONLY: type_ice_model
   USE climate_model_types                                    , ONLY: type_climate_model
   USE BMB_model_types                                        , ONLY: type_BMB_model
-  USE netcdf_input                                           , ONLY: read_field_from_file_2D
+  use netcdf_io_main
 
   IMPLICIT NONE
 
