@@ -32,6 +32,7 @@ module ice_model_utilities
   use masks_mod
   use zeta_gradients
   use subgrid_ice_margin
+  use ice_thickness_safeties
 
   implicit none
 
