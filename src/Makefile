@@ -250,6 +250,7 @@ UFEMISM_source = \
   ice_dynamics/utilities/subgrid_grounded_fractions_bilin_TAF.f90 \
   ice_dynamics/utilities/subgrid_grounded_fractions_bedrock_CDF.f90 \
   ice_dynamics/utilities/subgrid_grounded_fractions_main.f90 \
+  ice_dynamics/utilities/masks_mod.f90 \
   ice_dynamics/ice_model_utilities.f90 \
   ice_dynamics/ice_flow_laws.f90 \
   ice_dynamics/conservation_of_momentum/SIA/SIA_main.f90 \
