@@ -1,4 +1,4 @@
-module ice_velocity_DIVA
+module DIVA_main
 
   ! Routines for calculating ice velocities using the Depth-Integrated Viscosity Approximation (DIVA)
 
@@ -2049,4 +2049,4 @@ contains
 
   end subroutine create_restart_file_DIVA
 
-end module ice_velocity_DIVA
+end module DIVA_main

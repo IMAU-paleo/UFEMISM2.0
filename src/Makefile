@@ -249,8 +249,8 @@ UFEMISM_source = \
   ice_dynamics/ice_model_utilities.f90 \
   ice_dynamics/ice_flow_laws.f90 \
   ice_dynamics/conservation_of_momentum/SIA/SIA_main.f90 \
-  ice_dynamics/conservation_of_momentum/SSA/SSA_main.f90 \
-  ice_dynamics/ice_velocity_DIVA.f90 \
+  ice_dynamics/conservation_of_momentum/SSA_DIVA/SSA_main.f90 \
+  ice_dynamics/conservation_of_momentum/SSA_DIVA/DIVA_main.f90 \
   ice_dynamics/ice_velocity_BPA.f90 \
   ice_dynamics/ice_velocity_hybrid_DIVA_BPA.f90 \
   ice_dynamics/ice_velocity_main.f90 \

@@ -18,10 +18,10 @@ MODULE ice_velocity_hybrid_DIVA_BPA
   USE ice_model_types                                        , ONLY: type_ice_model, type_ice_velocity_solver_DIVA, type_ice_velocity_solver_BPA, type_ice_velocity_solver_hybrid
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   use remapping_main, only: map_from_mesh_to_mesh_with_reallocation_2D, map_from_mesh_to_mesh_with_reallocation_3D
-  USE ice_velocity_DIVA                                      , ONLY: allocate_DIVA_solver, remap_DIVA_solver, calc_DIVA_stiffness_matrix_row_free, &
-                                                                     calc_DIVA_stiffness_matrix_row_BC_west, calc_DIVA_stiffness_matrix_row_BC_east, &
-                                                                     calc_DIVA_stiffness_matrix_row_BC_south, calc_DIVA_stiffness_matrix_row_BC_north, &
-                                                                     calc_DIVA_sans_stiffness_matrix_row_free
+  use DIVA_main, only: allocate_DIVA_solver, remap_DIVA_solver, calc_DIVA_stiffness_matrix_row_free, &
+    calc_DIVA_stiffness_matrix_row_BC_west, calc_DIVA_stiffness_matrix_row_BC_east, &
+    calc_DIVA_stiffness_matrix_row_BC_south, calc_DIVA_stiffness_matrix_row_BC_north, &
+    calc_DIVA_sans_stiffness_matrix_row_free
   USE ice_velocity_BPA                                       , ONLY: allocate_BPA_solver , remap_BPA_solver, calc_BPA_stiffness_matrix_row_free, &
                                                                      calc_BPA_stiffness_matrix_row_BC_west, calc_BPA_stiffness_matrix_row_BC_east, &
                                                                      calc_BPA_stiffness_matrix_row_BC_south, calc_BPA_stiffness_matrix_row_BC_north, &
@@ -1398,7 +1398,7 @@ CONTAINS
   SUBROUTINE calc_driving_stress_DIVA( mesh, ice, DIVA)
     ! Calculate the driving stress
 
-    USE ice_velocity_DIVA, ONLY: calc_driving_stress
+    USE DIVA_main, ONLY: calc_driving_stress
 
     IMPLICIT NONE
 
@@ -1423,7 +1423,7 @@ CONTAINS
   SUBROUTINE calc_horizontal_strain_rates_DIVA( mesh, DIVA)
     ! Calculate the horizontal strain rates
 
-    USE ice_velocity_DIVA, ONLY: calc_horizontal_strain_rates
+    USE DIVA_main, ONLY: calc_horizontal_strain_rates
 
     IMPLICIT NONE
 
@@ -1447,7 +1447,7 @@ CONTAINS
   SUBROUTINE calc_vertical_shear_strain_rates_DIVA( mesh, DIVA)
     ! Calculate the vertical shear strain rates
 
-    USE ice_velocity_DIVA, ONLY: calc_vertical_shear_strain_rates
+    USE DIVA_main, ONLY: calc_vertical_shear_strain_rates
 
     IMPLICIT NONE
 
@@ -1471,7 +1471,7 @@ CONTAINS
   SUBROUTINE calc_effective_viscosity_DIVA( mesh, ice, DIVA, Glens_flow_law_epsilon_sq_0_applied)
     ! Calculate the effective viscosity eta, the product term N = eta*H, and the gradients of N
 
-    USE ice_velocity_DIVA, ONLY: calc_effective_viscosity
+    USE DIVA_main, ONLY: calc_effective_viscosity
 
     IMPLICIT NONE
 
@@ -1497,7 +1497,7 @@ CONTAINS
   SUBROUTINE calc_F_integrals_DIVA( mesh, ice, DIVA)
     ! Calculate the F-integrals on the a-grid (Lipscomb et al. (2019), Eq. 30)
 
-    USE ice_velocity_DIVA, ONLY: calc_F_integrals
+    USE DIVA_main, ONLY: calc_F_integrals
 
     IMPLICIT NONE
 
@@ -1522,7 +1522,7 @@ CONTAINS
   SUBROUTINE calc_effective_basal_friction_coefficient_DIVA( mesh, ice, DIVA)
     ! Calculate the "effective" friction coefficient (turning the SSA into the DIVA)
 
-    USE ice_velocity_DIVA, ONLY: calc_effective_basal_friction_coefficient
+    USE DIVA_main, ONLY: calc_effective_basal_friction_coefficient
 
     IMPLICIT NONE
 
@@ -1547,7 +1547,7 @@ CONTAINS
   SUBROUTINE calc_basal_shear_stress_DIVA( mesh, DIVA)
     ! Calculate the basal shear stress (Lipscomb et al., 2019, just above Eq. 33)
 
-    USE ice_velocity_DIVA, ONLY: calc_basal_shear_stress
+    USE DIVA_main, ONLY: calc_basal_shear_stress
 
     IMPLICIT NONE
 
@@ -1571,7 +1571,7 @@ CONTAINS
   SUBROUTINE calc_basal_velocities_DIVA( mesh, DIVA)
     ! Calculate basal velocities (Lipscomb et al., 2019, Eq. 32)
 
-    USE ice_velocity_DIVA, ONLY: calc_basal_velocities
+    USE DIVA_main, ONLY: calc_basal_velocities
 
     IMPLICIT NONE
 
