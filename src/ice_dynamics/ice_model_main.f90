@@ -31,9 +31,9 @@ MODULE ice_model_main
   USE geothermal_heat_flux                                   , ONLY: initialise_geothermal_heat_flux
   USE basal_hydrology                                        , ONLY: initialise_basal_hydrology_model
   USE bed_roughness                                          , ONLY: initialise_bed_roughness
-  USE ice_velocity_main                                      , ONLY: initialise_velocity_solver, solve_stress_balance, remap_velocity_solver, &
-                                                                     create_restart_file_ice_velocity, write_to_restart_file_ice_velocity, &
-                                                                     map_velocities_from_b_to_c_2D
+  use conservation_of_momentum_main, only: initialise_velocity_solver, &
+    solve_stress_balance, remap_velocity_solver, create_restart_file_ice_velocity, &
+    write_to_restart_file_ice_velocity, map_velocities_from_b_to_c_2D
   use mpi_distributed_memory, only: gather_to_all, distribute_from_master
   use netcdf_io_main
   USE reallocate_mod                                         , ONLY: reallocate_bounds

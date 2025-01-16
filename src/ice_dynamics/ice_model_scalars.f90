@@ -17,7 +17,7 @@ module ice_model_scalars
   use BMB_model_types                                        , ONLY: type_BMB_model
   use LMB_model_types                                        , ONLY: type_LMB_model
   use reference_geometries                                   , ONLY: type_reference_geometry
-  USE ice_velocity_main                                      , ONLY: map_velocities_from_b_to_c_2D
+  use conservation_of_momentum_main, only: map_velocities_from_b_to_c_2D
   use mpi_distributed_memory, only: gather_to_all
 
   implicit none
