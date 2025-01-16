@@ -1,4 +1,4 @@
-module ice_model_main
+module ice_dynamics_main
 
   !< The main ice-dynamical model
 
@@ -2760,4 +2760,4 @@ contains
 
   end subroutine LMB_inversion
 
-end module ice_model_main
+end module ice_dynamics_main
