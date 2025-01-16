@@ -1291,7 +1291,7 @@ contains
 
   end subroutine calc_SSA_stiffness_matrix_row_BC_north
 
-! == Calculate several intermediate terms in the SSA
+  ! == Calculate several intermediate terms in the SSA
 
   subroutine calc_driving_stress( mesh, ice, SSA)
     !< Calculate the driving stress
@@ -1475,7 +1475,7 @@ contains
 
   end subroutine calc_applied_basal_friction_coefficient
 
-! == Some useful tools for improving numerical stability of the viscosity iteration
+  ! == Some useful tools for improving numerical stability of the viscosity iteration
 
   subroutine relax_viscosity_iterations( mesh, SSA, visc_it_relax)
     !< Reduce the change between velocity solutions
@@ -1577,7 +1577,7 @@ contains
 
   end subroutine apply_velocity_limits
 
-! == Initialisation
+  ! == Initialisation
 
   subroutine initialise_SSA_velocities_from_file( mesh, SSA, region_name)
     ! Initialise the velocities for the SSA solver from an external NetCDF file
@@ -1618,7 +1618,8 @@ contains
     end select
 
     ! write to terminal
-    if (par%master) write(0,*) '   Initialising SSA velocities from file "' // colour_string( trim( filename),'light blue') // '"...'
+    if (par%master) write(0,*) '   Initialising SSA velocities from file "' // &
+      colour_string( trim( filename),'light blue') // '"...'
 
     ! Read velocities from the file
     if (timeframe == 1E9_dp) then
@@ -1674,7 +1675,7 @@ contains
 
   end subroutine allocate_SSA_solver
 
-! == Restart NetCDF files
+  ! == Restart NetCDF files
 
   subroutine write_to_restart_file_SSA( mesh, SSA, time)
 
