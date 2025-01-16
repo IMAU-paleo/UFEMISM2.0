@@ -22,6 +22,7 @@ MODULE laddie_main
   USE laddie_thickness                                       , ONLY: compute_H_npx
   USE laddie_velocity                                        , ONLY: compute_UV_npx, compute_viscUV
   USE laddie_tracers                                         , ONLY: compute_TS_npx, compute_diffTS
+  USE mesh_utilities                                         , ONLY: extrapolate_Gaussian
   USE mpi_distributed_memory                                 , ONLY: gather_to_all
 
   IMPLICIT NONE
@@ -31,7 +32,7 @@ CONTAINS
 ! ===== Main routines =====
 ! =========================
 
-  SUBROUTINE run_laddie_model( mesh, ice, ocean, laddie, time)
+  SUBROUTINE run_laddie_model( mesh, ice, ocean, laddie, time, duration)
     ! Run the laddie model
 
     ! In- and output variables
@@ -41,12 +42,16 @@ CONTAINS
     TYPE(type_ocean_model),                 INTENT(IN)    :: ocean
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
     REAL(dp),                               INTENT(IN)    :: time
+    REAL(dp),                               INTENT(IN)    :: duration
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'run_laddie_model'
-    INTEGER                                               :: vi, ti
+    INTEGER                                               :: vi, ti, ei
     REAL(dp)                                              :: tl               ! [s] Laddie time
     REAL(dp)                                              :: dt               ! [s] Laddie time step
+    REAL(dp), PARAMETER                                   :: time_relax_laddie = 0.02_dp ! [days]
+    REAL(dp), PARAMETER                                   :: fac_dt_relax = 3.0_dp ! Reduction factor of time step
+
  
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -54,15 +59,11 @@ CONTAINS
     ! == Preparation ==
     ! =================
 
-    ! Get time step
-    tl = 0.0_dp
-    dt = C%dt_laddie
+    ! Extrapolate data into new cells
+    CALL extrapolate_laddie_variables( mesh, ice, laddie)
 
     ! == Update masks ==
     CALL update_laddie_masks( mesh, ice, laddie)
-
-    ! Extrapolate new cells
-    ! TODO, use Gaussian extrap routine
 
     ! Set values to zero if outside laddie mask
     DO vi = mesh%vi1, mesh%vi2
@@ -83,12 +84,26 @@ CONTAINS
       END IF
     END DO
 
-    laddie%H_c = 0.0_dp
+    ! Simply set H_c zero everywhere, will be recomputed through mapping later
+    DO ei = mesh%ei1, mesh%ei2
+      laddie%H_c( ei) = 0.0_dp
+    END DO
 
     ! == Main time loop ==
     ! ====================
 
-    DO WHILE (tl < C%time_duration_laddie * sec_per_day)
+    tl = 0.0_dp
+
+    DO WHILE (tl < duration * sec_per_day)
+
+      ! Set time step
+      IF (tl < time_relax_laddie * sec_per_day) THEN
+        ! Relaxation, take short time step
+        dt = C%dt_laddie / fac_dt_relax
+      ELSE
+        ! Regular timestep
+        dt = C%dt_laddie
+      END IF
 
       SELECT CASE(C%choice_laddie_integration_scheme)
         CASE DEFAULT
@@ -420,6 +435,9 @@ CONTAINS
       ELSE IF (ice%Hib( vi) - ice%Hb( vi) < 2*C%laddie_thickness_minimum) THEN
         laddie%mask_a( vi)    = .false.
         laddie%mask_gr_a( vi) = .true.
+      ELSE IF (ice%Hi( vi) < 1.0 .and. ice%mask_floating_ice( vi)) THEN
+        laddie%mask_a( vi)    = .false.
+        laddie%mask_oc_a( vi) = .true.
       ELSE
         ! Inherit regular masks
         laddie%mask_a( vi)    = ice%mask_floating_ice( vi)
@@ -503,6 +521,79 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE update_laddie_masks
+
+  SUBROUTINE extrapolate_laddie_variables( mesh, ice, laddie)
+    ! Update bunch of masks for laddie at the start of a new run
+
+    ! In- and output variables
+
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh
+    TYPE(type_ice_model),                   INTENT(IN)    :: ice
+    TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'extrapolate_laddie_variables'
+    INTEGER                                               :: vi
+    INTEGER, DIMENSION(mesh%vi1: mesh%vi2)                :: mask
+    REAL(dp), PARAMETER                                   :: sigma = 16000.0_dp
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Initialise mask
+    mask = 0
+
+    ! Determine mask for seed (2: previously floating cells), fill (1: new floating cells), or ignore (0: grounded/ocean)
+    DO vi = mesh%vi1, mesh%vi2
+      ! Skip if vertex is at border
+      IF (mesh%VBI( vi) > 0) CYCLE
+
+      ! Skip if water column thickness is insufficient, treated as grounded for now
+      IF (ice%Hib( vi) - ice%Hb( vi) < 2*C%laddie_thickness_minimum) CYCLE
+
+      IF (ice%Hi( vi) < 1.0 .and. ice%mask_floating_ice( vi)) CYCLE
+
+      ! Currently floating ice, so either seed or fill here
+      IF (ice%mask_floating_ice( vi)) THEN
+        IF (laddie%mask_a( vi)) THEN
+          ! Data already available here, so use as seed
+          mask( vi) = 2
+        ELSE
+          ! New floating cells, so fill here
+          mask (vi) = 1
+        END IF
+      END IF
+    END DO
+
+    ! Apply extrapolation to H, T and S 
+    CALL extrapolate_Gaussian( mesh, mask, laddie%now%H, sigma)
+    CALL extrapolate_Gaussian( mesh, mask, laddie%now%T, sigma)
+    CALL extrapolate_Gaussian( mesh, mask, laddie%now%S, sigma)
+
+    ! Make sure all zero-thicknesses are gone
+    DO vi = mesh%vi1, mesh%vi2
+      ! Skip if vertex is at border
+      IF (mesh%VBI( vi) > 0) CYCLE
+
+      ! Skip if water column thickness is insufficient, treated as grounded for now
+      IF (ice%Hib( vi) - ice%Hb( vi) < 2*C%laddie_thickness_minimum) CYCLE
+
+      IF (ice%Hi( vi) < 1.0 .and. ice%mask_floating_ice( vi)) CYCLE
+
+      ! Currently floating ice, so either seed or fill here
+      IF (ice%mask_floating_ice( vi)) THEN
+        IF (laddie%now%H( vi) == 0.0_dp) THEN
+          laddie%now%H( vi) = C%laddie_thickness_minimum
+          laddie%now%T( vi) = laddie%T_amb( vi) + C%laddie_initial_T_offset 
+          laddie%now%S( vi) = laddie%S_amb( vi) + C%laddie_initial_S_offset
+        END IF
+      END IF
+    END DO
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE extrapolate_laddie_variables
 
 END MODULE laddie_main
 
