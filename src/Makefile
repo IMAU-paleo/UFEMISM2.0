@@ -255,7 +255,6 @@ UFEMISM_source = \
   ice_dynamics/utilities/subgrid_ice_margin.f90 \
   ice_dynamics/utilities/ice_thickness_safeties.f90 \
   ice_dynamics/utilities/inversion_utilities.f90 \
-  ice_dynamics/ice_model_utilities.f90 \
   ice_dynamics/ice_flow_laws.f90 \
   ice_dynamics/conservation_of_momentum/SIA/SIA_main.f90 \
   ice_dynamics/conservation_of_momentum/SSA_DIVA/SSA_main.f90 \

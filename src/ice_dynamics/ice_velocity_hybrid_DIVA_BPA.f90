@@ -31,7 +31,7 @@ MODULE ice_velocity_hybrid_DIVA_BPA
   use mesh_ROI_polygons
   use plane_geometry, only: is_in_polygon, is_in_polygons
   use mpi_distributed_memory, only: gather_to_all
-  USE ice_model_utilities                                    , ONLY: calc_zeta_gradients
+  use zeta_gradients, only: calc_zeta_gradients
   USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp, allocate_matrix_CSR_dist, add_entry_CSR_dist, read_single_row_CSR_dist, &
                                                                      deallocate_matrix_CSR_dist, add_empty_row_CSR_dist
   use grid_basic, only: type_grid, calc_grid_mask_as_polygons

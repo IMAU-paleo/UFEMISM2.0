@@ -26,9 +26,6 @@ module ice_dynamics_main
     remap_velocity_solver, create_restart_file_ice_velocity, write_to_restart_file_ice_velocity, &
     initialise_velocity_solver
   use mesh_utilities, only: extrapolate_Gaussian
-  use ice_model_utilities, only: MB_inversion, alter_ice_thickness, determine_masks, &
-    calc_grounded_fractions, calc_effective_thickness, calc_zeta_gradients, calc_mask_noice, &
-    initialise_dHi_dt_target, initialise_uabs_surf_target, initialise_bedrock_CDFs, calc_bedrock_CDFs
   use reallocate_mod, only: reallocate_bounds
   use netcdf_io_main
   use ice_geometry_basics, only: ice_surface_elevation, thickness_above_floatation, Hi_from_Hb_Hs_and_SL
@@ -37,6 +34,13 @@ module ice_dynamics_main
   use basal_hydrology, only: initialise_basal_hydrology_model
   use bed_roughness, only: initialise_bed_roughness
   use ice_model_memory, only: allocate_ice_model
+  use inversion_utilities, only: MB_inversion, initialise_dHi_dt_target, initialise_uabs_surf_target
+  use ice_thickness_safeties, only: alter_ice_thickness
+  use masks_mod, only: determine_masks, calc_mask_noice
+  use subgrid_grounded_fractions_main, only: calc_grounded_fractions
+  use bedrock_cumulative_density_functions, only: calc_bedrock_CDFs, initialise_bedrock_CDFs
+  use subgrid_ice_margin, only: calc_effective_thickness
+  use zeta_gradients, only: calc_zeta_gradients
 
   implicit none
 
