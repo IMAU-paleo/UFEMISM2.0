@@ -57,56 +57,6 @@ contains
 ! == Trivia
 ! =========
 
-  subroutine MISMIPplus_adapt_flow_factor( mesh, ice)
-    !< Automatically adapt the uniform flow factor A to achieve
-    ! a steady-state mid-stream grounding-line position at x = 450 km in the MISMIP+ experiment
-
-    ! In- and output variables
-    type(type_mesh),      intent(in   ) :: mesh
-    type(type_ice_model), intent(in   ) :: ice
-
-    ! Local variables:
-    character(len=1024), parameter :: routine_name = 'MISMIPplus_adapt_flow_factor'
-    real(dp), dimension(2)         :: pp,qq
-    integer                        :: ti_in
-    real(dp)                       :: TAFp,TAFq,lambda_GL, x_GL
-    real(dp)                       :: A_flow_old, f, A_flow_new
-
-    ! Add routine to path
-    call init_routine( routine_name)
-
-    ! Safety
-    if (C%choice_ice_rheology_Glen /= 'uniform') then
-      call crash('only works in MISMIP+ geometry with a uniform flow factor!')
-    end if
-
-    ! Determine mid-channel grounding-line position
-    pp = [mesh%xmin, 0._dp]
-    qq = pp
-    TAFp = 1._dp
-    TAFq = 1._dp
-    ti_in = 1
-    do while (TAFp * TAFq > 0._dp)
-      pp   = qq
-      TAFp = TAFq
-      qq = pp + [C%maximum_resolution_grounding_line, 0._dp]
-      call interpolate_to_point_dp_2D( mesh, ice%TAF, qq, ti_in, TAFq)
-    end do
-
-    lambda_GL = TAFp / (TAFp - TAFq)
-    x_GL = lambda_GL * qq( 1) + (1._dp - lambda_GL) * pp( 1)
-
-    ! Adjust the flow factor
-    f = 2._dp ** ((x_GL - 450E3_dp) / 80000._dp)
-    C%uniform_Glens_flow_factor = C%uniform_Glens_flow_factor * f
-
-    if (par%master) write(0,*) '    MISMIPplus_adapt_flow_factor: x_GL = ', x_GL/1E3, ' km; changed flow factor to ', C%uniform_Glens_flow_factor
-
-    ! Finalise routine path
-    call finalise_routine( routine_name)
-
-  end subroutine MISMIPplus_adapt_flow_factor
-
 ! == Target dHi_dt initialisation
 ! ===============================
 
