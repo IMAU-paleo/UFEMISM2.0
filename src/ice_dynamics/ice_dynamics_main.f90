@@ -22,9 +22,10 @@ module ice_dynamics_main
   use conservation_of_mass_main, only: calc_dHi_dt, apply_ice_thickness_BC_explicit, &
     apply_mask_noice_direct
   use mpi_distributed_memory, only: gather_to_all, distribute_from_master
-  use conservation_of_momentum_main, only: solve_stress_balance, map_velocities_from_b_to_c_2D, &
-    remap_velocity_solver, create_restart_file_ice_velocity, write_to_restart_file_ice_velocity, &
+  use conservation_of_momentum_main, only: solve_stress_balance, remap_velocity_solver, &
+    create_restart_file_ice_velocity, write_to_restart_file_ice_velocity, &
     initialise_velocity_solver
+  use map_velocities_to_c_grid, only: map_velocities_from_b_to_c_2D
   use mesh_utilities, only: extrapolate_Gaussian
   use reallocate_mod, only: reallocate_bounds
   use netcdf_io_main
