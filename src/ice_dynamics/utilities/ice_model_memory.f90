@@ -9,6 +9,10 @@ module ice_model_memory
 
   implicit none
 
+  private
+
+  public :: allocate_ice_model
+
 contains
 
   subroutine allocate_ice_model( mesh, ice)
@@ -184,14 +188,14 @@ contains
     allocate( ice%dw_dy_3D( mesh%vi1:mesh%vi2,mesh%nz), source = 0._dp)
     allocate( ice%dw_dz_3D( mesh%vi1:mesh%vi2,mesh%nz), source = 0._dp)
 
-  ! == Ice flow regime ==
-  ! =====================
+    ! == Ice flow regime ==
+    ! =====================
 
     allocate( ice%divQ   ( mesh%vi1:mesh%vi2), source = 0._dp)
     allocate( ice%R_shear( mesh%vi1:mesh%vi2), source = 0._dp)
 
-  ! == Basal hydrology ==
-  ! =====================
+    ! == Basal hydrology ==
+    ! =====================
 
     ! Basal hydrology
     allocate( ice%pore_water_pressure  ( mesh%vi1:mesh%vi2), source = 0._dp)
@@ -200,8 +204,8 @@ contains
     allocate( ice%pore_water_likelihood( mesh%vi1:mesh%vi2), source = 0._dp)
     allocate( ice%pore_water_fraction  ( mesh%vi1:mesh%vi2), source = 0._dp)
 
-  ! == Basal sliding ==
-  ! ===================
+    ! == Basal sliding ==
+    ! ===================
 
     ! Sliding law coefficients
     allocate( ice%till_friction_angle( mesh%vi1:mesh%vi2), source = 0._dp)
