@@ -254,7 +254,6 @@ UFEMISM_source = \
   ice_dynamics/utilities/zeta_gradients.f90 \
   ice_dynamics/utilities/subgrid_ice_margin.f90 \
   ice_dynamics/utilities/ice_thickness_safeties.f90 \
-  ice_dynamics/utilities/inversion_utilities.f90 \
   ice_dynamics/utilities/map_velocities_to_c_grid.f90 \
   ice_dynamics/ice_flow_laws.f90 \
   ice_dynamics/conservation_of_momentum/SIA/SIA_main.f90 \
@@ -265,6 +264,7 @@ UFEMISM_source = \
   ice_dynamics/conservation_of_mass/vertical_velocities.f90 \
   ice_dynamics/conservation_of_momentum/conservation_of_momentum_main.f90 \
   ice_dynamics/conservation_of_mass/conservation_of_mass_main.f90 \
+  ice_dynamics/utilities/inversion_utilities.f90 \
   ice_dynamics/ice_model_scalars.f90 \
   ice_dynamics/ice_dynamics_main.f90 \
   \

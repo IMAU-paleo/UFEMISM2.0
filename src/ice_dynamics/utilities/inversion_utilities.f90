@@ -7,6 +7,7 @@ module inversion_utilities
   use precisions, only: dp
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash, colour_string
   use model_configuration, only: C
+  use region_types, only: type_model_region
   use mesh_types, only: type_mesh
   use ice_model_types, only: type_ice_model
   use reference_geometry_types, only: type_reference_geometry
@@ -18,13 +19,16 @@ module inversion_utilities
   use netcdf_io_main
   use mesh_ROI_polygons, only: calc_polygon_Patagonia
   use mesh_utilities, only: extrapolate_Gaussian, interpolate_to_point_dp_2D
+  use conservation_of_mass_main, only: calc_dHi_dt
+  use mpi_distributed_memory, only: gather_to_all
+  use map_velocities_to_c_grid, only: map_velocities_from_b_to_c_2D
 
   implicit none
 
   private
 
   public :: MB_inversion, initialise_dHi_dt_target, initialise_uabs_surf_target, &
-    MISMIPplus_adapt_flow_factor
+    MISMIPplus_adapt_flow_factor, SMB_inversion, BMB_inversion, LMB_inversion
 
 contains
 
@@ -483,5 +487,496 @@ contains
     call finalise_routine( routine_name)
 
   end subroutine MISMIPplus_adapt_flow_factor
+
+  subroutine SMB_inversion( region, dt)
+    !< Invert the surface mass balance that would keep the ice sheet in check
+
+    ! In/output variables:
+    type(type_model_region), intent(inout) :: region
+    real(dp),                intent(in   ) :: dt
+
+    ! Local variables:
+    character(len=1024), parameter                       :: routine_name = 'SMB_inversion'
+    integer                                              :: vi
+    integer,  dimension(region%mesh%vi1:region%mesh%vi2) :: extrapolation_mask
+    real(dp)                                             :: dt_dummy
+    real(dp), dimension(region%mesh%vi1:region%mesh%vi2) :: SMB_dummy, BMB_dummy, LMB_dummy, AMB_dummy, dHi_dt_dummy, Hi_dummy
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Check if this inversion is desired
+    if (.not. C%do_SMB_removal_icefree_land) then
+      ! Finalise routine path
+      call finalise_routine( routine_name)
+      ! And exit subroutine
+      return
+    end if
+
+    ! Initialise
+    extrapolation_mask = 0
+
+    ! == Equilibrium SMB
+    ! ==================
+
+    ! Set dummy mass balance terms to 0
+    SMB_dummy    = 0._dp
+    BMB_dummy    = 0._dp
+    LMB_dummy    = 0._dp
+    AMB_dummy    = 0._dp
+
+    ! Copy model time step
+    dt_dummy = dt
+
+    ! Use full mass balance to invert SMB values
+    call calc_dHi_dt( region%mesh, region%ice%Hi, region%ice%Hb, region%ice%SL, region%ice%u_vav_b, region%ice%v_vav_b, region%SMB%SMB, region%BMB%BMB, region%LMB%LMB, AMB_dummy, region%ice%fraction_margin, &
+                      region%ice%mask_noice, dt_dummy, dHi_dt_dummy, Hi_dummy, region%ice%divQ, region%ice%dHi_dt_target)
+
+    ! Compute equilibrium LMB
+    do vi = region%mesh%vi1, region%mesh%vi2
+
+      ! Skip vertices where land should not necessarily be ice-free
+      if (.not. region%ice%mask_icefree_land( vi) .OR. .not. region%refgeo_PD%Hi( vi) == 0._dp) CYCLE
+
+      ! Equilibrium SMB field
+      region%SMB%SMB( vi) = region%SMB%SMB(vi) - dHi_dt_dummy( vi)
+
+    end do
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine SMB_inversion
+
+  subroutine BMB_inversion( region, dt)
+    !< Invert the basal mass balance that would keep the ice shelves in equilibrium
+
+    ! In/output variables:
+    type(type_model_region), intent(inout) :: region
+    real(dp),                intent(in   ) :: dt
+
+    ! Local variables:
+    character(len=1024), parameter                       :: routine_name = 'BMB_inversion'
+    integer                                              :: vi
+    integer,  dimension(region%mesh%vi1:region%mesh%vi2) :: extrapolation_mask
+    real(dp)                                             :: dt_dummy
+    real(dp), dimension(region%mesh%vi1:region%mesh%vi2) :: SMB_dummy, BMB_dummy, LMB_dummy, AMB_dummy, dHi_dt_dummy, Hi_dummy
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Check if this inversion is desired
+    if (C%do_BMB_inversion .and. &
+        region%time >= C%BMB_inversion_t_start .and. &
+        region%time <= C%BMB_inversion_t_end) then
+      ! Go for it
+    else
+      ! Finalise routine path
+      call finalise_routine( routine_name)
+      ! And exit subroutine
+      return
+    end if
+
+    ! Initialise
+    extrapolation_mask = 0
+
+    ! == Equilibrium LMB
+    ! ==================
+
+    ! Set dummy mass balance terms to 0
+    SMB_dummy    = 0._dp
+    BMB_dummy    = 0._dp
+    LMB_dummy    = 0._dp
+    AMB_dummy    = 0._dp
+
+    ! Copy model time step
+    dt_dummy = dt
+
+    ! Use no basal or lateral mass balance to invert BMB values for an ice shelf in equilibrium
+    call calc_dHi_dt( region%mesh, region%ice%Hi, region%ice%Hb, region%ice%SL, region%ice%u_vav_b, region%ice%v_vav_b, region%SMB%SMB, BMB_dummy, LMB_dummy, AMB_dummy, region%ice%fraction_margin, &
+                      region%ice%mask_noice, dt_dummy, dHi_dt_dummy, Hi_dummy, region%ice%divQ, region%ice%dHi_dt_target)
+
+    ! Initialise
+    region%BMB%BMB_inv = 0._dp
+
+    ! Compute equilibrium LMB
+    do vi = region%mesh%vi1, region%mesh%vi2
+
+      ! Skip vertices where BMB does not operate
+      if (.not. region%ice%mask_gl_gr( vi) .and. &
+          .not. region%ice%mask_floating_ice( vi) .and. &
+          .not. region%ice%mask_cf_fl( vi)) cycle
+
+      ! Equilibrium BMB field
+      region%BMB%BMB_inv( vi) = -dHi_dt_dummy( vi)
+
+      ! Add to extrapolation seeds
+      extrapolation_mask( vi) = 2
+
+    end do
+
+    ! == Calving fronts
+    ! =================
+
+    do vi = region%mesh%vi1, region%mesh%vi2
+
+      ! Detect shelf fronts where upstream BMB can be extrapolated into
+      if (region%ice%mask_cf_fl( vi) .and. .not. region%ice%mask_gl_fl( vi)) then
+        extrapolation_mask( vi) = 1
+      end if
+
+    end do
+
+    ! Perform the extrapolation - mask: 2 -> use as seed; 1 -> extrapolate; 0 -> ignore
+    call extrapolate_Gaussian( region%mesh, extrapolation_mask, region%BMB%BMB_inv, 10000._dp)
+
+    ! == Total BMB
+    ! ============
+
+    ! Initialise
+    region%BMB%BMB = 0._dp
+
+    ! Compute total BMB
+    do vi = region%mesh%vi1, region%mesh%vi2
+
+      ! Skip vertices where BMB does not operate
+      if (.not. region%ice%mask_gl_gr( vi) .and. &
+          .not. region%ice%mask_floating_ice( vi) .and. &
+          .not. region%ice%mask_cf_fl( vi)) cycle
+
+      ! Final BMB field
+      region%BMB%BMB( vi) = region%BMB%BMB_inv( vi)
+
+    end do
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine BMB_inversion
+
+  subroutine LMB_inversion( region, dt)
+    !< Invert the lateral mass balance that would keep the calving front in equilibrium
+
+    ! In/output variables:
+    type(type_model_region), intent(inout) :: region
+    real(dp),                intent(in   ) :: dt
+
+    ! Local variables:
+    character(len=1024), parameter                       :: routine_name = 'LMB_inversion'
+    integer                                              :: vi, vj, ci, ei
+    real(dp), dimension(region%mesh%ei1:region%mesh%ei2) :: u_vav_c, v_vav_c
+    real(dp), dimension(region%mesh%nE)                  :: u_vav_c_tot, v_vav_c_tot
+    real(dp)                                             :: dt_dummy, calving_rate, calving_ratio, calving_perp, L_c, V_calved
+    real(dp), dimension(region%mesh%vi1:region%mesh%vi2) :: SMB_dummy, BMB_dummy, LMB_dummy, AMB_dummy, dHi_dt_dummy, Hi_dummy, divQ_eff, LMB_trans
+    real(dp), dimension(region%mesh%nV)                  :: Hi_tot, fraction_margin_tot
+    logical                                              :: found_advancing_calving_front, found_calving_front_neighbour
+    logical,  dimension(region%mesh%vi1:region%mesh%vi2) :: mask_advancing_calving_front
+    logical,  dimension(region%mesh%nV)                  :: mask_advancing_calving_front_tot, mask_cf_fl_tot, mask_icefree_ocean_tot
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Check if this inversion is desired
+    if (C%do_LMB_inversion .and. &
+        region%time >= C%LMB_inversion_t_start .and. &
+        region%time <= C%LMB_inversion_t_end) then
+      ! Go for it
+    else
+      ! Finalise routine path
+      call finalise_routine( routine_name)
+      ! And exit subroutine
+      return
+    end if
+
+    ! == Equilibrium LMB
+    ! ==================
+
+    ! Set dummy mass balance terms to 0
+    SMB_dummy    = 0._dp
+    BMB_dummy    = 0._dp
+    LMB_dummy    = 0._dp
+    AMB_dummy    = 0._dp
+
+    ! Copy model time step
+    dt_dummy = dt
+
+    ! Use no lateral mass balance to invert its value for a calving front in equilibrium
+    call calc_dHi_dt( region%mesh, region%ice%Hi, region%ice%Hb, region%ice%SL, region%ice%u_vav_b, region%ice%v_vav_b, region%SMB%SMB, region%BMB%BMB, LMB_dummy, AMB_dummy, region%ice%fraction_margin, &
+                      region%ice%mask_noice, dt_dummy, dHi_dt_dummy, Hi_dummy, region%ice%divQ, region%ice%dHi_dt_target)
+
+    ! Initialise
+    region%LMB%LMB_inv = 0._dp
+
+    ! Compute equilibrium LMB
+    do vi = region%mesh%vi1, region%mesh%vi2
+
+      ! Skip vertices where LMB does not operate
+      if (.not. region%ice%mask_cf_fl( vi) .and. &
+          .not. region%ice%mask_cf_gr( vi) .and. &
+          .not. region%ice%mask_icefree_ocean( vi)) CYCLE
+
+      ! Equilibrium LMB field: let positive values remain, since the final goal is
+      ! that the *sum* of the equilibrium and transient LMB be equal to the target rate
+      region%LMB%LMB_inv( vi) = -dHi_dt_dummy( vi)
+
+    end do
+
+    ! == Transient LMB
+    ! ================
+
+    ! Gather data from all processes
+    call gather_to_all(      region%ice%Hi_eff, Hi_tot)
+    call gather_to_all(      region%ice%fraction_margin, fraction_margin_tot)
+
+    ! Gather masks from all processes
+    call gather_to_all( region%ice%mask_cf_fl, mask_cf_fl_tot)
+    call gather_to_all( region%ice%mask_icefree_ocean, mask_icefree_ocean_tot)
+
+    ! Calculate vertically averaged ice velocities on the edges
+    call map_velocities_from_b_to_c_2D( region%mesh, region%ice%u_vav_b, region%ice%v_vav_b, u_vav_c, v_vav_c)
+    call gather_to_all( u_vav_c, u_vav_c_tot)
+    call gather_to_all( v_vav_c, v_vav_c_tot)
+
+    ! Initialise
+    LMB_trans = 0._dp
+
+    ! ! Translate imposed transient calving rates into LMB
+    ! do vi = region%mesh%vi1, region%mesh%vi2
+
+    !   V_calved = 0._dp
+
+    !   ! Skip vertices where LMB does not operate
+    !   if (.not. region%ice%mask_cf_fl( vi) .and. .not. region%ice%mask_icefree_ocean( vi)) CYCLE
+
+    !   calving_rate = 0._dp
+
+    !   if (C%choice_refgeo_PD_ANT == 'idealised' .and. region%time > 10000._dp) then
+    !     if (C%choice_refgeo_init_idealised == 'calvmip_circular') then
+    !       calving_rate = -300._dp * SIN(2._dp * pi * region%time / 1000._dp)
+    !     elseif (C%choice_refgeo_init_idealised == 'calvmip_Thule') then
+    !       calving_rate = -750._dp * SIN(2._dp * pi * region%time / 1000._dp)
+    !     end if
+    !   end if
+
+    !   if (region%ice%uabs_vav( vi) > 0._dp) then
+    !     calving_ratio = calving_rate / region%ice%uabs_vav( vi)
+    !   end if
+
+    !   ! Loop over all connections of vertex vi
+    !   do ci = 1, region%mesh%nC( vi)
+
+    !     ! Connection ci from vertex vi leads through edge ei to vertex vj
+    !     ei = region%mesh%VE( vi,ci)
+    !     vj = region%mesh%C(  vi,ci)
+
+    !     ! The shared Voronoi cell boundary section between the
+    !     ! Voronoi cells of vertices vi and vj has length L_c
+    !     L_c = region%mesh%Cw( vi,ci)
+
+    !     ! Calculate calving rate component perpendicular to this shared Voronoi cell boundary section
+    !     calving_perp = calving_ratio * ABS( u_vav_c_tot( ei) * mesh%D_x( vi, ci)/mesh%D( vi, ci) + v_vav_c_tot( ei) * mesh%D_y( vi, ci)/mesh%D( vi, ci))
+
+    !     ! Calving front vertices: check if neighbour is open ocean
+    !     if (region%ice%mask_cf_fl( vi) .and. mask_icefree_ocean_tot( vj)) then
+
+    !       ! Volume calved laterally: perpendicular calving rate times area of the ice front face [m^3/yr]
+    !       V_calved = V_calved + L_c * calving_perp * Hi_tot( vi)
+
+    !     ! Ice-free ocean vertices: check if neighbour is a fully advanced calving front
+    !     elseif (region%ice%mask_icefree_ocean( vi) .and. mask_cf_fl_tot( vj) .and. fraction_margin_tot( vj) >= 1._dp) then
+
+    !       ! Volume calved laterally: perpendicular calving rate times area of the ice front face [m^3/yr]
+    !       V_calved = V_calved + L_c * calving_perp * Hi_tot( vj)
+
+    !     end if
+
+    !   end do
+
+    !   ! Translate lateral volume loss into vertical thinning rate [m/yr]
+    !   LMB_trans( vi) = V_calved / region%mesh%A( vi)
+
+    ! end do
+
+    ! == Total LMB
+    ! ============
+
+    ! Initialise
+    region%LMB%LMB = 0._dp
+
+    ! Compute total LMB
+    do vi = region%mesh%vi1, region%mesh%vi2
+
+      ! Skip vertices where LMB does not operate
+      if (.not. region%ice%mask_cf_fl( vi) .and. &
+          .not. region%ice%mask_cf_gr( vi) .and. &
+          .not. region%ice%mask_icefree_ocean( vi)) cycle
+
+      ! Final LMB field: now _this_ one should never be positive
+      region%LMB%LMB( vi) = MIN( 0._dp, region%LMB%LMB_inv( vi) + LMB_trans( vi))
+
+    end do
+
+    ! ! == Effective ice divergence
+    ! ! ===========================
+
+    ! ! Set dummy mass balance terms to 0
+    ! SMB_dummy    = 0._dp
+    ! BMB_dummy    = 0._dp
+    ! LMB_dummy    = 0._dp
+    ! AMB_dummy    = 0._dp
+
+    ! ! Copy model time step
+    ! dt_dummy = dt
+
+    ! ! Use no mass balance to get an estimate of the effective flux divergence
+    ! call calc_dHi_dt( region%mesh, region%ice%Hi, region%ice%Hb, region%ice%SL, region%ice%u_vav_b, region%ice%v_vav_b, SMB_dummy, BMB_dummy, LMB_dummy, AMB_dummy, region%ice%fraction_margin, &
+    !                   region%ice%mask_noice, dt_dummy, dHi_dt_dummy, Hi_dummy, region%ice%divQ, region%ice%dHi_dt_target)
+
+    ! ! Effective flux divergence
+    ! divQ_eff = -dHi_dt_dummy
+
+    ! ! Initialise mask of advancing fronts
+    ! mask_advancing_calving_front = .false.
+
+    ! ! Identify advancing calving fronts
+    ! do vi = region%mesh%vi1, region%mesh%vi2
+    !   if (region%ice%mask_icefree_ocean( vi) .and. divQ_eff(vi) < 0._dp) then
+    !     mask_advancing_calving_front( vi) = .true.
+    !   end if
+    ! end do
+
+    ! ! == Valid areas
+    ! ! ==============
+
+    ! ! Set dummy mass balance terms to 0
+    ! SMB_dummy    = 0._dp
+    ! BMB_dummy    = 0._dp
+    ! LMB_dummy    = 0._dp
+    ! AMB_dummy    = 0._dp
+
+    ! ! Copy model time step
+    ! dt_dummy = dt
+
+    ! ! Use total mass balance to check whether the advancing calving front will survive the incoming lateral mass balance
+    ! call calc_dHi_dt( region%mesh, region%ice%Hi, region%ice%Hb, region%ice%SL, region%ice%u_vav_b, region%ice%v_vav_b, region%SMB%SMB, region%BMB%BMB, region%LMB%LMB, AMB_dummy, region%ice%fraction_margin, &
+    !                   region%ice%mask_noice, dt_dummy, dHi_dt_dummy, Hi_dummy, region%ice%divQ, region%ice%dHi_dt_target)
+
+    ! ! Check predicted dHi/dt
+    ! do vi = region%mesh%vi1, region%mesh%vi2
+    !   if (region%ice%mask_icefree_ocean( vi) .and. dHi_dt_dummy( vi) <= 0._dp) then
+
+    !     ! It will not, so do not consider this point an advancing front
+    !     mask_advancing_calving_front( vi) = .false.
+
+    !     ! Apply only equilibrium LMB here
+    !     region%LMB%LMB( vi) = MIN( 0._dp, region%LMB%LMB_inv( vi))
+
+    !   end if
+    ! end do
+
+    ! ! Gather advancing and floating calving front masks from all processes
+    ! call gather_to_all( mask_advancing_calving_front, mask_advancing_calving_front_tot)
+
+    ! ! Identify vertices where LMB will operate
+    ! do vi = region%mesh%vi1, region%mesh%vi2
+
+    !   ! Valid calving front vertices
+    !   if (region%ice%mask_cf_fl( vi)) then
+    !     ! Initialise flag
+    !     found_advancing_calving_front = .false.
+
+    !     ! Check for advancing front neighbours
+    !     do ci = 1, region%mesh%nC( vi)
+    !       vj = region%mesh%C( vi,ci)
+    !       if (mask_advancing_calving_front_tot( vj)) then
+    !         found_advancing_calving_front = .true.
+    !         exit
+    !       end if
+    !     end do
+
+    !     if (found_advancing_calving_front) then
+    !       ! do not apply LMB here, since it will be applied on its advancing neighbour
+    !       region%LMB%LMB( vi) = 0._dp
+    !     end if
+
+    !   end if
+
+    !   ! Valid ocean vertices
+    !   if (region%ice%mask_icefree_ocean( vi)) then
+    !     ! Initialise flag
+    !     found_calving_front_neighbour = .false.
+
+    !     ! Check for calving front neighbours
+    !     do ci = 1, region%mesh%nC( vi)
+    !       vj = region%mesh%C( vi,ci)
+    !       if (mask_cf_fl_tot( vj)) then
+    !         found_calving_front_neighbour = .true.
+    !         exit
+    !       end if
+    !     end do
+
+    !     if (.not. found_calving_front_neighbour) then
+    !       ! No calving front neighbours: apply only equilibrium LMB here
+    !       region%LMB%LMB( vi) = MIN( 0._dp, region%LMB%LMB_inv( vi))
+    !     end if
+
+    !   end if
+
+    ! end do
+
+    ! == DENK DROM
+    ! ============
+
+    ! if (C%choice_refgeo_PD_ANT == 'idealised' .and. &
+    !      (C%choice_refgeo_init_idealised == 'calvmip_circular' .OR. &
+    !       C%choice_refgeo_init_idealised == 'calvmip_Thule')) then
+
+    !   if (region%time >= 6000._dp) then
+    !     if (C%choice_regions_of_interest == 'CalvMIP_quarter') then
+    !       C%ROI_maximum_resolution_grounding_line = 5000._dp
+    !       ! C%ROI_maximum_resolution_calving_front  = 8000._dp
+    !       ! C%ROI_maximum_resolution_floating_ice   = 10000._dp
+    !       ! C%ROI_maximum_resolution_grounded_ice   = 20000._dp
+    !     else
+    !       C%maximum_resolution_grounding_line = 5000._dp
+    !       ! C%maximum_resolution_calving_front  = 8000._dp
+    !       ! C%maximum_resolution_floating_ice   = 10000._dp
+    !     end if
+    !   end if
+
+    !   if (region%time >= 7000._dp) then
+    !     if (C%choice_regions_of_interest == 'CalvMIP_quarter') then
+    !       C%ROI_maximum_resolution_grounding_line = 3000._dp
+    !       ! C%ROI_maximum_resolution_calving_front  = 5000._dp
+    !       ! C%ROI_maximum_resolution_floating_ice   = 8000._dp
+    !       ! C%ROI_maximum_resolution_grounded_ice   = 16000._dp
+    !     else
+    !       C%maximum_resolution_grounding_line = 3000._dp
+    !       ! C%maximum_resolution_calving_front  = 5000._dp
+    !       ! C%maximum_resolution_floating_ice   = 8000._dp
+    !     end if
+    !   end if
+
+    !   if (region%time >= 9000._dp) then
+    !     C%allow_mesh_updates = .false.
+    !     if (C%choice_refgeo_init_idealised == 'calvmip_circular') then
+    !       C%calving_threshold_thickness_shelf = 10._dp
+    !     end if
+    !   else
+    !     do vi = region%mesh%vi1, region%mesh%vi2
+    !       if (SQRT(region%mesh%V( vi,1)**2 + region%mesh%V( vi,2)**2) < 750000._dp) then
+    !         region%LMB%LMB( vi) = 0._dp
+    !       else
+    !         region%LMB%LMB( vi) = -100._dp
+    !       end if
+    !     end do
+    !   end if
+
+    ! end if
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine LMB_inversion
 
 end module inversion_utilities
