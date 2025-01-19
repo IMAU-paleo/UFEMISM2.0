@@ -1,4 +1,4 @@
-module ice_model_scalars
+module ice_mass_and_fluxes
   !< Integrate ice volume/mass and ice mass fluxes
 
   use mpi
@@ -18,9 +18,13 @@ module ice_model_scalars
 
   implicit none
 
+  private
+
+  public :: calc_ice_mass_and_fluxes
+
 contains
 
-  subroutine calc_ice_model_scalars( mesh, ice, SMB, BMB, LMB, refgeo_PD, scalars)
+  subroutine calc_ice_mass_and_fluxes( mesh, ice, SMB, BMB, LMB, refgeo_PD, scalars)
     !< Determine regional ice-sheet-wide scalar quantities
 
     ! In/output variables:
@@ -65,7 +69,7 @@ contains
     ! Finalise routine path
     call finalise_routine( routine_name)
 
-  end subroutine calc_ice_model_scalars
+  end subroutine calc_ice_mass_and_fluxes
 
 ! ===== Geometry =====
 ! ====================
@@ -441,4 +445,4 @@ contains
 
   end subroutine calc_ice_transitional_fluxes
 
-end module ice_model_scalars
+end module ice_mass_and_fluxes

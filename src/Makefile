@@ -256,6 +256,7 @@ UFEMISM_source = \
   ice_dynamics/utilities/ice_thickness_safeties.f90 \
   ice_dynamics/utilities/map_velocities_to_c_grid.f90 \
   ice_dynamics/utilities/time_step_criteria.f90 \
+  ice_dynamics/utilities/ice_mass_and_fluxes.f90 \
   ice_dynamics/ice_flow_laws.f90 \
   ice_dynamics/conservation_of_momentum/SIA/SIA_main.f90 \
   ice_dynamics/conservation_of_momentum/SSA_DIVA/SSA_main.f90 \
@@ -266,7 +267,6 @@ UFEMISM_source = \
   ice_dynamics/conservation_of_momentum/conservation_of_momentum_main.f90 \
   ice_dynamics/conservation_of_mass/conservation_of_mass_main.f90 \
   ice_dynamics/utilities/inversion_utilities.f90 \
-  ice_dynamics/ice_model_scalars.f90 \
   ice_dynamics/time_stepping/direct_scheme.f90 \
   ice_dynamics/time_stepping/predictor_corrector_scheme.f90 \
   ice_dynamics/ice_dynamics_main.f90 \
