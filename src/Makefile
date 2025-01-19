@@ -267,6 +267,7 @@ UFEMISM_source = \
   ice_dynamics/conservation_of_mass/conservation_of_mass_main.f90 \
   ice_dynamics/utilities/inversion_utilities.f90 \
   ice_dynamics/ice_model_scalars.f90 \
+  ice_dynamics/time_stepping/direct_scheme.f90 \
   ice_dynamics/time_stepping/predictor_corrector_scheme.f90 \
   ice_dynamics/ice_dynamics_main.f90 \
   \
