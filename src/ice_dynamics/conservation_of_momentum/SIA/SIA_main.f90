@@ -9,7 +9,7 @@ module SIA_main
   use ice_model_types, only: type_ice_model, type_ice_velocity_solver_SIA
   use parameters, only: grav, ice_density
   use reallocate_mod, only: reallocate_bounds
-  use ice_flow_laws, only: calc_ice_rheology_Glen
+  use constitutive_equation, only: calc_ice_rheology_Glen
   use mesh_disc_apply_operators, only: ddx_a_b_2D, ddy_a_b_2D, map_a_b_2D, map_a_b_3D, ddx_a_a_2D, ddy_a_a_2D
   use mesh_zeta, only: integrate_from_zeta_is_one_to_zeta_is_zetap
 

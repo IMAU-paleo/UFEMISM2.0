@@ -15,7 +15,7 @@ module SSA_main
   use netcdf_io_main
   use sliding_laws, only: calc_basal_friction_coefficient
   use mesh_disc_apply_operators, only: ddx_a_b_2D, ddy_a_b_2D, map_a_b_2D, ddx_b_a_2D, ddy_b_a_2D, map_b_a_2D
-  use ice_flow_laws, only: calc_ice_rheology_Glen, calc_effective_viscosity_Glen_2D
+  use constitutive_equation, only: calc_ice_rheology_Glen, calc_effective_viscosity_Glen_2D
   use mesh_zeta, only: vertical_average
   use mesh_utilities, only: find_ti_copy_ismip_hom_periodic
   use mpi_distributed_memory, only: gather_to_all

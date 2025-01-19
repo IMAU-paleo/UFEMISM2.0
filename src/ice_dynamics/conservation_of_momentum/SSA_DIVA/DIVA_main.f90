@@ -17,7 +17,7 @@ module DIVA_main
   use mesh_disc_apply_operators, only: map_a_b_2D, map_a_b_3D, ddx_a_b_2D, ddy_a_b_2D, &
     map_b_a_2D, map_b_a_3D, ddx_b_a_2D, ddy_b_a_2D
   use mesh_zeta, only: integrate_from_zeta_is_one_to_zeta_is_zetap, vertical_average
-  use ice_flow_laws, only: calc_ice_rheology_Glen, calc_effective_viscosity_Glen_3D_uv_only
+  use constitutive_equation, only: calc_ice_rheology_Glen, calc_effective_viscosity_Glen_3D_uv_only
   use mesh_utilities, only: find_ti_copy_ISMIP_HOM_periodic
   use mpi_distributed_memory, only: gather_to_all
   use petsc_basic, only: solve_matrix_equation_CSR_PETSc

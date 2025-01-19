@@ -27,7 +27,7 @@ MODULE ice_velocity_BPA
                                                                      deallocate_matrix_CSR_dist
   use netcdf_io_main
   use mpi_distributed_memory, only: gather_to_all
-  USE ice_flow_laws                                          , ONLY: calc_effective_viscosity_Glen_3D_uv_only, calc_ice_rheology_Glen
+  use constitutive_equation, only: calc_effective_viscosity_Glen_3D_uv_only, calc_ice_rheology_Glen
   use zeta_gradients, only: calc_zeta_gradients
   USE reallocate_mod                                         , ONLY: reallocate_bounds, reallocate_clean
   use remapping_main, only: map_from_mesh_to_mesh_with_reallocation_2D, map_from_mesh_to_mesh_with_reallocation_3D
