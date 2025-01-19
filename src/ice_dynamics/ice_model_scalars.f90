@@ -1,22 +1,18 @@
 module ice_model_scalars
-
-  ! Generally useful functions used by the ice model.
-
-! ===== Preamble =====
-! ====================
+  !< Integrate ice volume/mass and ice mass fluxes
 
   use mpi
-  use precisions                                             , ONLY: dp
-  use mpi_basic                                              , ONLY: par, ierr
-  use control_resources_and_error_messaging                  , ONLY: init_routine, finalise_routine
-  use parameters                                             , ONLY: ice_density, seawater_density, ocean_area
-  use mesh_types                                             , ONLY: type_mesh
-  use scalar_types                                           , ONLY: type_regional_scalars
-  use ice_model_types                                        , ONLY: type_ice_model
-  use SMB_model_types                                        , ONLY: type_SMB_model
-  use BMB_model_types                                        , ONLY: type_BMB_model
-  use LMB_model_types                                        , ONLY: type_LMB_model
-  use reference_geometries                                   , ONLY: type_reference_geometry
+  use precisions, only: dp
+  use mpi_basic, only: par, ierr
+  use control_resources_and_error_messaging, only: init_routine, finalise_routine
+  use parameters, only: ice_density, seawater_density, ocean_area
+  use mesh_types, only: type_mesh
+  use scalar_types, only: type_regional_scalars
+  use ice_model_types, only: type_ice_model
+  use SMB_model_types, only: type_SMB_model
+  use BMB_model_types, only: type_BMB_model
+  use LMB_model_types, only: type_LMB_model
+  use reference_geometries, only: type_reference_geometry
   use map_velocities_to_c_grid, only: map_velocities_from_b_to_c_2D
   use mpi_distributed_memory, only: gather_to_all
 
@@ -24,25 +20,20 @@ module ice_model_scalars
 
 contains
 
-! ===== Main routines =====
-! =========================
-
   subroutine calc_ice_model_scalars( mesh, ice, SMB, BMB, LMB, refgeo_PD, scalars)
-    ! Determine regional ice-sheet-wide scalar quantities
-
-    implicit none
+    !< Determine regional ice-sheet-wide scalar quantities
 
     ! In/output variables:
-    type(type_mesh),               intent(in)    :: mesh
-    type(type_ice_model),          intent(in)    :: ice
-    type(type_SMB_model),          intent(in)    :: SMB
-    type(type_BMB_model),          intent(in)    :: BMB
-    type(type_LMB_model),          intent(in)    :: LMB
-    type(type_reference_geometry), intent(in)    :: refgeo_PD
-    type(type_regional_scalars),   intent(out)   :: scalars
+    type(type_mesh),               intent(in   ) :: mesh
+    type(type_ice_model),          intent(in   ) :: ice
+    type(type_SMB_model),          intent(in   ) :: SMB
+    type(type_BMB_model),          intent(in   ) :: BMB
+    type(type_LMB_model),          intent(in   ) :: LMB
+    type(type_reference_geometry), intent(in   ) :: refgeo_PD
+    type(type_regional_scalars),   intent(  out) :: scalars
 
     ! Local variables:
-    character(len=256), parameter       :: routine_name = 'calc_ice_model_scalars'
+    character(len=1024), parameter :: routine_name = 'calc_ice_model_scalars'
 
     ! === Initialisation ===
     ! ======================
@@ -76,26 +67,21 @@ contains
 
   end subroutine calc_ice_model_scalars
 
-! ===== Geometric =====
-! =====================
+! ===== Geometry =====
+! ====================
 
   subroutine calc_icesheet_volume_and_area_PD( mesh, refgeo_PD, scalars)
-    ! Calculate total present-day regional ice volume and area
-
-    implicit none
+    !< Calculate total present-day regional ice volume and area
 
     ! In/output variables:
-    type(type_mesh),               intent(in)    :: mesh
-    type(type_reference_geometry), intent(in)    :: refgeo_PD
-    type(type_regional_scalars),   intent(out)   :: scalars
+    type(type_mesh),               intent(in   ) :: mesh
+    type(type_reference_geometry), intent(in   ) :: refgeo_PD
+    type(type_regional_scalars),   intent(  out) :: scalars
 
     ! Local variables:
-    character(len=256), parameter                :: routine_name = 'calc_icesheet_volume_and_area_PD'
-    integer                                      :: vi
-    real(dp)                                     :: sea_level_PD, thickness_af_PD
-
-    ! === Initialisation ===
-    ! ======================
+    character(len=1024), parameter :: routine_name = 'calc_icesheet_volume_and_area_PD'
+    integer                        :: vi
+    real(dp)                       :: sea_level_PD, thickness_af_PD
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -107,9 +93,6 @@ contains
 
     ! Sea level at PD assumed to be 0
     sea_level_PD = 0._dp
-
-    ! === Area and volume ===
-    ! =======================
 
     ! Calculate ice area and volume for each process
     do vi = mesh%vi1, mesh%vi2
@@ -137,9 +120,6 @@ contains
     call MPI_ALLREDUCE( MPI_IN_PLACE, scalars%ice_volume_PD,    1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
     call MPI_ALLREDUCE( MPI_IN_PLACE, scalars%ice_volume_af_PD, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
 
-    ! === Finalisation ===
-    ! ====================
-
     ! Finalise routine path
     call finalise_routine( routine_name)
 
@@ -148,19 +128,14 @@ contains
   subroutine calc_icesheet_volume_and_area( mesh, ice, scalars)
     ! Calculate total regional ice volume and area
 
-    implicit none
-
     ! In/output variables:
     type(type_mesh),             intent(in)  :: mesh
     type(type_ice_model),        intent(in)  :: ice
     type(type_regional_scalars), intent(out) :: scalars
 
     ! Local variables:
-    character(len=256), parameter            :: routine_name = 'calc_icesheet_volume_and_area'
-    integer                                  :: vi
-
-    ! === Initialisation ===
-    ! ======================
+    character(len=1024), parameter :: routine_name = 'calc_icesheet_volume_and_area'
+    integer                        :: vi
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -169,9 +144,6 @@ contains
     scalars%ice_area      = 0._dp
     scalars%ice_volume    = 0._dp
     scalars%ice_volume_af = 0._dp
-
-    ! === Area and volume ===
-    ! =======================
 
     ! Calculate ice area and volume for each process
     do vi = mesh%vi1, mesh%vi2
@@ -189,43 +161,32 @@ contains
     call MPI_ALLREDUCE( MPI_IN_PLACE, scalars%ice_volume,    1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
     call MPI_ALLREDUCE( MPI_IN_PLACE, scalars%ice_volume_af, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
 
-    ! === Finalisation ===
-    ! ====================
-
     ! Finalise routine path
     call finalise_routine( routine_name)
 
   end subroutine calc_icesheet_volume_and_area
 
-! =====
-! =====
+! ===== Mass fluxes =====
+! =======================
 
   subroutine calc_icesheet_integrated_fluxes( mesh, ice, SMB, BMB, LMB, scalars)
-    ! Calculate total regional SMB, BMB, LMB, etc.
-
-    implicit none
+    !< Calculate total regional SMB, BMB, LMB, etc.
 
     ! In/output variables:
-    type(type_mesh),             intent(in)  :: mesh
-    type(type_ice_model),        intent(in)  :: ice
-    type(type_SMB_model),        intent(in)  :: SMB
-    type(type_BMB_model),        intent(in)  :: BMB
-    type(type_LMB_model),        intent(in)  :: LMB
-    type(type_regional_scalars), intent(out) :: scalars
+    type(type_mesh),             intent(in   ) :: mesh
+    type(type_ice_model),        intent(in   ) :: ice
+    type(type_SMB_model),        intent(in   ) :: SMB
+    type(type_BMB_model),        intent(in   ) :: BMB
+    type(type_LMB_model),        intent(in   ) :: LMB
+    type(type_regional_scalars), intent(  out) :: scalars
 
     ! Local variables:
-    character(len=256), parameter            :: routine_name = 'calc_icesheet_integrated_fluxes'
-    integer                                  :: vi
-    real(dp)                                 :: total_amb
-
-    ! === Initialisation ===
-    ! ======================
+    character(len=1024), parameter :: routine_name = 'calc_icesheet_integrated_fluxes'
+    integer                        :: vi
+    real(dp)                       :: total_amb
 
     ! Add routine to path
     call init_routine( routine_name)
-
-    ! === Surface and basal mass balance ===
-    ! ======================================
 
     ! Initialise
     scalars%SMB_total = 0._dp
@@ -301,13 +262,6 @@ contains
     ! Compute lateral fluxes for transition zones: grounding line, calving fronts, margins
     call calc_ice_transitional_fluxes( mesh, ice, scalars)
 
-    ! Add together values from each process
-    call MPI_ALLREDUCE( MPI_IN_PLACE, scalars%gl_flux,           1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
-    call MPI_ALLREDUCE( MPI_IN_PLACE, scalars%cf_gr_flux,        1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
-    call MPI_ALLREDUCE( MPI_IN_PLACE, scalars%cf_fl_flux,        1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
-    call MPI_ALLREDUCE( MPI_IN_PLACE, scalars%margin_land_flux,  1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
-    call MPI_ALLREDUCE( MPI_IN_PLACE, scalars%margin_ocean_flux, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
-
     ! === Additional mass input/output ===
     ! ====================================
 
@@ -355,17 +309,14 @@ contains
     call MPI_ALLREDUCE( MPI_IN_PLACE, scalars%AMB_land,  1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
     call MPI_ALLREDUCE( MPI_IN_PLACE, scalars%AMB_ocean, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
 
-    ! === Finalisation ===
-    ! ====================
-
     ! Finalise routine path
     call finalise_routine( routine_name)
 
   end subroutine calc_icesheet_integrated_fluxes
 
   subroutine calc_ice_transitional_fluxes( mesh, ice, scalars)
-    ! Calculate the ice flux through transition zones using an upwind scheme
-    !
+    !< Calculate the ice flux through transition zones using an upwind scheme
+
     ! The vertically averaged ice flux divergence represents the net ice volume (which,
     ! assuming constant density, is proportional to the ice mass) exiting each Voronoi
     ! cell per unit time. This is found by calculating the ice fluxes through each
@@ -375,25 +326,23 @@ contains
     ! course, the length L_c of the shared boundary). The sum of each of these outward
     ! fluxes along the entire transition zone gives the final result.
 
-    implicit none
-
     ! In/output variables:
-    type(type_mesh),             intent(in)    :: mesh
-    type(type_ice_model),        intent(in)    :: ice
+    type(type_mesh),             intent(in   ) :: mesh
+    type(type_ice_model),        intent(in   ) :: ice
     type(type_regional_scalars), intent(inout) :: scalars
 
     ! Local variables:
-    character(len=256), parameter              :: routine_name = 'calc_ice_transitional_fluxes'
-    real(dp), dimension(mesh%ei1:mesh%ei2)     :: u_vav_c, v_vav_c
-    real(dp), dimension(mesh%nE)               :: u_vav_c_tot, v_vav_c_tot
-    real(dp), dimension(mesh%nV)               :: Hi_tot
-    real(dp), dimension(mesh%nV)               :: fraction_margin_tot
-    logical,  dimension(mesh%nV)               :: mask_floating_ice_tot
-    logical,  dimension(mesh%nV)               :: mask_icefree_land_tot
-    logical,  dimension(mesh%nV)               :: mask_icefree_ocean_tot
-    integer                                    :: vi, ci, ei, vj
-    real(dp)                                   :: A_i, L_c
-    real(dp)                                   :: u_perp
+    character(len=1024), parameter         :: routine_name = 'calc_ice_transitional_fluxes'
+    real(dp), dimension(mesh%ei1:mesh%ei2) :: u_vav_c, v_vav_c
+    real(dp), dimension(mesh%nE)           :: u_vav_c_tot, v_vav_c_tot
+    real(dp), dimension(mesh%nV)           :: Hi_tot
+    real(dp), dimension(mesh%nV)           :: fraction_margin_tot
+    logical,  dimension(mesh%nV)           :: mask_floating_ice_tot
+    logical,  dimension(mesh%nV)           :: mask_icefree_land_tot
+    logical,  dimension(mesh%nV)           :: mask_icefree_ocean_tot
+    integer                                :: vi, ci, ei, vj
+    real(dp)                               :: A_i, L_c
+    real(dp)                               :: u_perp
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -479,6 +428,13 @@ contains
       end do ! do ci = 1, mesh%nC( vi)
 
     end do ! do vi = mesh%vi1, mesh%vi2
+
+    ! Add together values from each process
+    call MPI_ALLREDUCE( MPI_IN_PLACE, scalars%gl_flux,           1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+    call MPI_ALLREDUCE( MPI_IN_PLACE, scalars%cf_gr_flux,        1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+    call MPI_ALLREDUCE( MPI_IN_PLACE, scalars%cf_fl_flux,        1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+    call MPI_ALLREDUCE( MPI_IN_PLACE, scalars%margin_land_flux,  1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+    call MPI_ALLREDUCE( MPI_IN_PLACE, scalars%margin_ocean_flux, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
