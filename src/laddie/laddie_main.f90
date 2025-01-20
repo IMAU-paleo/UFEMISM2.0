@@ -597,5 +597,139 @@ CONTAINS
 
   END SUBROUTINE extrapolate_laddie_variables
 
+  SUBROUTINE remap_laddie_model( mesh_old, mesh_new, laddie)
+    ! Reallocate and remap laddie variables
+
+    ! In- and output variables
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh_old
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh_new
+    TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'remap_laddie_model'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! == Regular variables ==
+
+    ! Thickness
+    CALL reallocate_bounds( laddie%dH_dt,                mesh_new%vi1, mesh_new%vi2)
+
+    ! Temperatures
+    CALL reallocate_bounds( laddie%T_amb,                mesh_new%vi1, mesh_new%vi2)
+    CALL reallocate_bounds( laddie%T_base,               mesh_new%vi1, mesh_new%vi2)
+    CALL reallocate_bounds( laddie%T_freeze,             mesh_new%vi1, mesh_new%vi2)
+
+    ! Salinities
+    CALL reallocate_bounds( laddie%S_amb,                mesh_new%vi1, mesh_new%vi2)
+    CALL reallocate_bounds( laddie%S_base,               mesh_new%vi1, mesh_new%vi2)
+
+    ! Densities and buoyancies
+    CALL reallocate_bounds( laddie%rho,                  mesh_new%vi1, mesh_new%vi2)
+    CALL reallocate_bounds( laddie%rho_amb,              mesh_new%vi1, mesh_new%vi2)
+    CALL reallocate_bounds( laddie%drho_amb,             mesh_new%vi1, mesh_new%vi2)
+    CALL reallocate_bounds( laddie%Hdrho_amb,            mesh_new%vi1, mesh_new%vi2)
+    CALL reallocate_bounds( laddie%Hdrho_amb_b,          mesh_new%ti1, mesh_new%ti2)
+    CALL reallocate_bounds( laddie%drho_base,            mesh_new%vi1, mesh_new%vi2)
+
+    ! Friction velocity
+    CALL reallocate_bounds( laddie%u_star,               mesh_new%vi1, mesh_new%vi2)
+
+    ! Physical parameter fields
+    CALL reallocate_bounds( laddie%gamma_T,              mesh_new%vi1, mesh_new%vi2)
+    CALL reallocate_bounds( laddie%gamma_S,              mesh_new%vi1, mesh_new%vi2)
+    CALL reallocate_bounds( laddie%A_h,                  mesh_new%ti1, mesh_new%ti2)
+    CALL reallocate_bounds( laddie%K_h,                  mesh_new%vi1, mesh_new%vi2)
+
+    ! Vertical rates
+    CALL reallocate_bounds( laddie%melt,                 mesh_new%vi1, mesh_new%vi2)
+    CALL reallocate_bounds( laddie%entr,                 mesh_new%vi1, mesh_new%vi2)
+    CALL reallocate_bounds( laddie%entr_dmin,            mesh_new%vi1, mesh_new%vi2)
+    CALL reallocate_bounds( laddie%detr,                 mesh_new%vi1, mesh_new%vi2)
+    CALL reallocate_bounds( laddie%entr_tot,             mesh_new%vi1, mesh_new%vi2)
+
+    ! Horizontal fluxes
+    CALL reallocate_bounds( laddie%divQH,                mesh_new%vi1, mesh_new%vi2)
+    CALL reallocate_bounds( laddie%divQU,                mesh_new%ti1, mesh_new%ti2)
+    CALL reallocate_bounds( laddie%divQV,                mesh_new%ti1, mesh_new%ti2)
+    CALL reallocate_bounds( laddie%divQT,                mesh_new%vi1, mesh_new%vi2)
+    CALL reallocate_bounds( laddie%divQS,                mesh_new%vi1, mesh_new%vi2)
+
+    ! Viscosities
+    CALL reallocate_bounds( laddie%viscU,                mesh_new%ti1, mesh_new%ti2)
+    CALL reallocate_bounds( laddie%viscV,                mesh_new%ti1, mesh_new%ti2)
+
+    ! Diffusivities
+    CALL reallocate_bounds( laddie%diffT,                mesh_new%vi1, mesh_new%vi2)
+    CALL reallocate_bounds( laddie%diffS,                mesh_new%vi1, mesh_new%vi2)
+
+    ! RHS terms
+    CALL reallocate_bounds( laddie%ddrho_amb_dx_b,       mesh_new%ti1, mesh_new%ti2)
+    CALL reallocate_bounds( laddie%ddrho_amb_dy_b,       mesh_new%ti1, mesh_new%ti2)
+    CALL reallocate_bounds( laddie%dH_dx_b,              mesh_new%ti1, mesh_new%ti2)
+    CALL reallocate_bounds( laddie%dH_dy_b,              mesh_new%ti1, mesh_new%ti2)
+    CALL reallocate_bounds( laddie%detr_b,               mesh_new%ti1, mesh_new%ti2)
+
+    ! Masks
+    CALL reallocate_bounds( laddie%mask_a,               mesh_new%vi1, mesh_new%vi2)
+    CALL reallocate_bounds( laddie%mask_gr_a,            mesh_new%vi1, mesh_new%vi2)
+    CALL reallocate_bounds( laddie%mask_oc_a,            mesh_new%vi1, mesh_new%vi2)
+    CALL reallocate_bounds( laddie%mask_b,               mesh_new%ti1, mesh_new%ti2)
+    CALL reallocate_bounds( laddie%mask_gl_b,            mesh_new%ti1, mesh_new%ti2)
+    CALL reallocate_bounds( laddie%mask_cf_b,            mesh_new%ti1, mesh_new%ti2)
+    CALL reallocate_bounds( laddie%mask_oc_b,            mesh_new%ti1, mesh_new%ti2)
+
+    ! == Timestep variables ==
+    CALL remap_laddie_timestep( mesh_old, mesh_new, laddie%now)
+
+    SELECT CASE(C%choice_laddie_integration_scheme)
+      CASE DEFAULT
+        CALL crash('unknown choice_laddie_integration_scheme "' // TRIM( C%choice_laddie_integration_scheme) // '"')
+      CASE ('euler')
+        CALL remap_laddie_timestep( mesh_old, mesh_new, laddie%np1)
+      CASE ('fbrk3')
+        CALL remap_laddie_timestep( mesh_old, mesh_new, laddie%np13)
+        CALL remap_laddie_timestep( mesh_old, mesh_new, laddie%np12)
+        CALL remap_laddie_timestep( mesh_old, mesh_new, laddie%np1)
+    END SELECT
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE remap_laddie_model
+
+  SUBROUTINE remap_laddie_timestep( mesh_old, mesh_new, npx)
+    ! Remap laddie timestep
+
+    ! In- and output variables
+
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh_old
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh_new
+    TYPE(type_laddie_timestep),             INTENT(INOUT) :: npx
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'remap_laddie_timestep'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    CALL reallocate_bounds( npx%H,                       mesh_new%vi1, mesh_new%vi2)
+    CALL reallocate_bounds( npx%H_b,                     mesh_new%ti1, mesh_new%ti2)
+    CALL reallocate_bounds( npx%H_c,                     mesh_new%ei1, mesh_new%ei2)
+    CALL reallocate_bounds( npx%U,                       mesh_new%ti1, mesh_new%ti2)
+    CALL reallocate_bounds( npx%U_a,                     mesh_new%vi1, mesh_new%vi2)
+    CALL reallocate_bounds( npx%U_c,                     mesh_new%ei1, mesh_new%ei2)
+    CALL reallocate_bounds( npx%V,                       mesh_new%ti1, mesh_new%ti2)
+    CALL reallocate_bounds( npx%V_a,                     mesh_new%vi1, mesh_new%vi2)
+    CALL reallocate_bounds( npx%V_c,                     mesh_new%ei1, mesh_new%ei2)
+    CALL reallocate_bounds( npx%T,                       mesh_new%vi1, mesh_new%vi2)
+    CALL reallocate_bounds( npx%S,                       mesh_new%vi1, mesh_new%vi2)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE remap_laddie_timestep
+
 END MODULE laddie_main
 
