@@ -90,7 +90,7 @@ CONTAINS
             ! No need to do anything
           CASE ('prescribed_fixed')
             ! No need to do anything
-          CASE ('laddie2')
+          CASE ('laddie')
             ! No need to do anything
           CASE DEFAULT
             CALL apply_BMB_subgrid_scheme( mesh, ice, BMB)
@@ -124,9 +124,9 @@ CONTAINS
         CALL run_BMB_model_parameterised( mesh, ice, ocean, BMB)
       CASE ('inverted')
         CALL run_BMB_model_inverted( mesh, ice, BMB, time)
-      CASE ('laddie')
+      CASE ('laddie_py')
         CALL run_BMB_model_laddie( mesh, BMB, time)
-      CASE ('laddie2')
+      CASE ('laddie')
         IF (time == C%start_time_of_run) THEN
           CALL run_laddie_model( mesh, ice, ocean, BMB%laddie, time, C%time_duration_laddie_init)
         ELSE
@@ -146,7 +146,7 @@ CONTAINS
         ! No need to do anything
       CASE ('prescribed_fixed')
         ! No need to do anything
-      CASE ('laddie2')
+      CASE ('laddie')
         ! No need to do anything
       CASE DEFAULT
         CALL apply_BMB_subgrid_scheme( mesh, ice, BMB)
@@ -233,9 +233,9 @@ CONTAINS
         CALL initialise_BMB_model_parameterised( mesh, BMB)
       CASE ('inverted')
         ! No need to do anything
-      CASE ('laddie')
+      CASE ('laddie_py')
         CALL initialise_BMB_model_laddie( mesh, BMB)
-      CASE ('laddie2')
+      CASE ('laddie')
         CALL initialise_laddie_model( mesh, BMB%laddie, ocean, ice)
       CASE DEFAULT
         CALL crash('unknown choice_BMB_model "' // TRIM( choice_BMB_model) // '"')
@@ -290,9 +290,9 @@ CONTAINS
         ! No need to do anything
       CASE ('inverted')
         CALL write_to_restart_file_BMB_model_region( mesh, BMB, region_name, time)
-      CASE ('laddie')
+      CASE ('laddie_py')
         ! No need to do anything
-      CASE ('laddie2')
+      CASE ('laddie')
         ! No need to do anything
       CASE DEFAULT
         CALL crash('unknown choice_BMB_model "' // TRIM( choice_BMB_model) // '"')
@@ -389,9 +389,9 @@ CONTAINS
         ! No need to do anything
       CASE ('inverted')
         CALL create_restart_file_BMB_model_region( mesh, BMB, region_name)
-      CASE ('laddie')
+      CASE ('laddie_py')
         ! No need to do anything
-      CASE ('laddie2')
+      CASE ('laddie')
         ! No need to do anything
       CASE DEFAULT
         CALL crash('unknown choice_BMB_model "' // TRIM( choice_BMB_model) // '"')
@@ -518,9 +518,9 @@ CONTAINS
         CALL crash('Remapping after mesh update not implemented yet for parameterised BMB')
       CASE ('inverted')
         ! No need to do anything
-      CASE ('laddie')
+      CASE ('laddie_py')
         CALL remap_BMB_model_laddie( mesh_new, BMB)
-      CASE ('laddie2')
+      CASE ('laddie')
         ! EL to be filled later
         CALL crash('Remapping for LADDIE2 model not implemented yet')
       CASE DEFAULT

@@ -796,7 +796,7 @@ MODULE model_configuration
     ! "parameterised"
     REAL(dp)            :: BMB_Favier2019_gamma_config                  = 99.32E-5
 
-    ! "laddie"
+    ! "laddie_py"
     CHARACTER(LEN=256)  :: choice_BMB_laddie_system_config              = ''                               ! System on which the model is running: 'local_mac' or 'slurm_HPC'
     CHARACTER(LEN=256)  :: filename_BMB_laddie_configname_config        = ''                               ! File name of basal melt provided by LADDIE
     CHARACTER(LEN=256)  :: filename_BMB_laddie_initial_restart_config   = ''                               ! File name containing restart for laddie from laddie spinup
