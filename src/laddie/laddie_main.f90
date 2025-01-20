@@ -109,9 +109,9 @@ CONTAINS
         CASE DEFAULT
           CALL crash('unknown choice_laddie_integration_scheme "' // TRIM( C%choice_laddie_integration_scheme) // '"')
         CASE ('euler')
-          CALL integrate_euler( mesh, ice, ocean, laddie, tl, dt)  
+          CALL integrate_euler( mesh, ice, ocean, laddie, tl, time, dt)  
         CASE ('fbrk3')
-          CALL integrate_fbrk3( mesh, ice, ocean, laddie, tl, dt)  
+          CALL integrate_fbrk3( mesh, ice, ocean, laddie, tl, time, dt)  
       END SELECT
 
       ! Display or save fields
@@ -219,7 +219,7 @@ CONTAINS
 
   END SUBROUTINE initialise_laddie_model_timestep
 
-  SUBROUTINE integrate_euler( mesh, ice, ocean, laddie, tl, dt)
+  SUBROUTINE integrate_euler( mesh, ice, ocean, laddie, tl, time, dt)
     ! Integrate 1 timestep Euler scheme 
 
     ! In- and output variables
@@ -229,6 +229,7 @@ CONTAINS
     TYPE(type_ocean_model),                 INTENT(IN)    :: ocean
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
     REAL(dp),                               INTENT(INOUT) :: tl
+    REAL(dp),                               INTENT(IN)    :: time
     REAL(dp),                               INTENT(IN)    :: dt
 
     ! Local variables:
@@ -238,7 +239,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Integrate H 1 time step
-    CALL compute_H_npx( mesh, ice, ocean, laddie, laddie%now, laddie%np1, dt)
+    CALL compute_H_npx( mesh, ice, ocean, laddie, laddie%now, laddie%np1, time, dt)
 
     ! Update diffusive terms based on now time step
     CALL update_diffusive_terms( mesh, ice, laddie, laddie%now)
@@ -257,7 +258,7 @@ CONTAINS
 
   END SUBROUTINE integrate_euler
 
-  SUBROUTINE integrate_fbrk3( mesh, ice, ocean, laddie, tl, dt)
+  SUBROUTINE integrate_fbrk3( mesh, ice, ocean, laddie, tl, time, dt)
     ! Integrate 1 timestep Forward-Backward Runge Kutta 3 scheme 
 
     ! Based on Lilly et al (2023, MWR) doi:10.1175/MWR-D-23-0113.1
@@ -269,6 +270,7 @@ CONTAINS
     TYPE(type_ocean_model),                 INTENT(IN)    :: ocean
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
     REAL(dp),                               INTENT(INOUT) :: tl
+    REAL(dp),                               INTENT(IN)    :: time
     REAL(dp),                               INTENT(IN)    :: dt
 
     ! Local variables:
@@ -283,7 +285,7 @@ CONTAINS
     ! ====================================
  
     ! Integrate H 1/3 time step
-    CALL compute_H_npx( mesh, ice, ocean, laddie, laddie%now, laddie%np13, dt/3)
+    CALL compute_H_npx( mesh, ice, ocean, laddie, laddie%now, laddie%np13, time, dt/3)
 
     ! Compute Hstar
     Hstar = C%laddie_fbrk3_beta1 * laddie%np13%H + (1-C%laddie_fbrk3_beta1) * laddie%now%H
@@ -302,7 +304,7 @@ CONTAINS
     ! ====================================
 
     ! Integrate H 1/2 time step
-    CALL compute_H_npx( mesh, ice, ocean, laddie, laddie%np13, laddie%np12, dt/2)
+    CALL compute_H_npx( mesh, ice, ocean, laddie, laddie%np13, laddie%np12, time, dt/2)
 
     ! Compute new Hstar
     Hstar = C%laddie_fbrk3_beta2 * laddie%np12%H + (1-C%laddie_fbrk3_beta2) * laddie%now%H
@@ -321,7 +323,7 @@ CONTAINS
     ! ====================================
 
     ! Integrate H 1 time step
-    CALL compute_H_npx( mesh, ice, ocean, laddie, laddie%np12, laddie%np1, dt)
+    CALL compute_H_npx( mesh, ice, ocean, laddie, laddie%np12, laddie%np1, time, dt)
 
     ! Compute new Hstar
     Hstar = C%laddie_fbrk3_beta3 * laddie%np1%H + (1-2*C%laddie_fbrk3_beta3) * laddie%np12%H + C%laddie_fbrk3_beta3 * laddie%now%H

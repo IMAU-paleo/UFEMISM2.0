@@ -27,7 +27,7 @@ CONTAINS
 ! ===== Main routines =====
 ! =========================
 
-  SUBROUTINE compute_H_npx( mesh, ice, ocean, laddie, npxref, npx, dt)
+  SUBROUTINE compute_H_npx( mesh, ice, ocean, laddie, npxref, npx, time, dt)
     ! Integrate H by time step dt
 
     ! In- and output variables
@@ -38,6 +38,7 @@ CONTAINS
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
     TYPE(type_laddie_timestep),             INTENT(IN)    :: npxref    ! Reference time step as input
     TYPE(type_laddie_timestep),             INTENT(INOUT) :: npx       ! New timestep as output
+    REAL(dp),                               INTENT(IN)    :: time
     REAL(dp),                               INTENT(IN)    :: dt
 
     ! Local variables:
@@ -61,7 +62,7 @@ CONTAINS
     CALL compute_buoyancy( mesh, ice, laddie, npx, npxref%H)
 
     ! Compute melt rate
-    CALL compute_melt_rate( mesh, ice, laddie, npxref, npxref%H)
+    CALL compute_melt_rate( mesh, ice, laddie, npxref, npxref%H, time)
      
     ! Compute entrainment                                    
     CALL compute_entrainment( mesh, ice, laddie, npxref, npxref%H)
