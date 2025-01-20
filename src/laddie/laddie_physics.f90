@@ -23,7 +23,7 @@ CONTAINS
 ! ===== Main routines =====
 ! =========================
 
-  SUBROUTINE compute_melt_rate( mesh, ice, laddie, npx, Hstar)
+  SUBROUTINE compute_melt_rate( mesh, ice, laddie, npx, Hstar, time)
     ! Compute melt rate using the three equations
 
     ! In- and output variables
@@ -33,6 +33,7 @@ CONTAINS
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
     TYPE(type_laddie_timestep),             INTENT(IN)    :: npx
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: Hstar
+    REAL(dp),                               INTENT(IN)    :: time
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_melt_rate'
@@ -74,8 +75,12 @@ CONTAINS
        IF (laddie%mask_a( vi)) THEN
          ! Solve three equations
          That = freezing_lambda_2 + freezing_lambda_3*ice%Hib( vi)
-         Chat = cp_ocean / L_fusion
-         !Chat = cp_ocean / (L_fusion - cp_ice * ice%Ti( vi, 1))
+         IF (time == C%start_time_of_run .OR. C%choice_thermo_model == 'none') THEN
+           ! Ignore heat diffusion into ice
+           Chat = cp_ocean / L_fusion
+         ELSE 
+           Chat = cp_ocean / (L_fusion - cp_ice * ice%Ti( vi, 1))
+         END IF
 
          Bval = Chat*laddie%gamma_T( vi)*(That - npx%T( vi)) + laddie%gamma_S( vi)*(1 + Chat*Ctil*(That + freezing_lambda_1*npx%S( vi)))
          Cval = Chat*laddie%gamma_T( vi)*laddie%gamma_S( vi) * (That-npx%T( vi) + freezing_lambda_1*npx%S( vi))
@@ -94,8 +99,12 @@ CONTAINS
            ! Seems like a very unlikely case, but better to be careful
            laddie%T_base( vi) = laddie%T_freeze( vi)
          ELSE
-           laddie%T_base( vi) = (laddie%melt( vi) * L_fusion - cp_ocean * laddie%gamma_T( vi) * npx%T( vi)) / Dval 
-           !laddie%T_base( vi) = (laddie%melt( vi) * (L_fusion - cp_ice * ice%Ti( vi, 1)) - cp_ocean * laddie%gamma_T( vi) * npx%T( vi)) / Dval 
+           IF (time == C%start_time_of_run .OR. C%choice_thermo_model == 'none') THEN
+             ! Ignore heat diffusion into ice
+             laddie%T_base( vi) = (laddie%melt( vi) * L_fusion - cp_ocean * laddie%gamma_T( vi) * npx%T( vi)) / Dval 
+           ELSE
+             laddie%T_base( vi) = (laddie%melt( vi) * (L_fusion - cp_ice * ice%Ti( vi, 1)) - cp_ocean * laddie%gamma_T( vi) * npx%T( vi)) / Dval 
+           END IF
          END IF
 
        END IF
