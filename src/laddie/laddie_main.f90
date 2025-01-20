@@ -610,6 +610,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'remap_laddie_model'
+    INTEGER                                               :: vi
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -683,21 +684,26 @@ CONTAINS
     CALL reallocate_bounds( laddie%mask_cf_b,            mesh_new%ti1, mesh_new%ti2)
     CALL reallocate_bounds( laddie%mask_oc_b,            mesh_new%ti1, mesh_new%ti2)
 
+    ! Re-initialise mask
+    DO vi = mesh_new%vi1, mesh_new%vi2
+      laddie%mask_a( vi)  = ice%mask_floating_ice( vi)
+    END DO
+
     ! == Timestep variables ==
-    CALL remap_laddie_timestep( mesh_old, mesh_new, laddie%now)
+    CALL remap_laddie_timestep( mesh_old, mesh_new, ice, ocean, laddie, laddie%now)
 
     SELECT CASE(C%choice_laddie_integration_scheme)
       CASE DEFAULT
         CALL crash('unknown choice_laddie_integration_scheme "' // TRIM( C%choice_laddie_integration_scheme) // '"')
       CASE ('euler')
-        CALL remap_laddie_timestep( mesh_old, mesh_new, laddie%np1)
+        CALL remap_laddie_timestep( mesh_old, mesh_new, ice, ocean, laddie, laddie%np1)
       CASE ('fbrk3')
-        CALL remap_laddie_timestep( mesh_old, mesh_new, laddie%np13)
-        CALL remap_laddie_timestep( mesh_old, mesh_new, laddie%np12)
-        CALL remap_laddie_timestep( mesh_old, mesh_new, laddie%np1)
+        CALL remap_laddie_timestep( mesh_old, mesh_new, ice, ocean, laddie, laddie%np13)
+        CALL remap_laddie_timestep( mesh_old, mesh_new, ice, ocean, laddie, laddie%np12)
+        CALL remap_laddie_timestep( mesh_old, mesh_new, ice, ocean, laddie, laddie%np1)
     END SELECT
 
-    ! Run new initialisation
+    ! == Re-initialise ==
     CALL run_laddie_model( mesh_new, ice, ocean, laddie, time, C%time_duration_laddie_init)
 
     ! Finalise routine path
@@ -705,21 +711,26 @@ CONTAINS
 
   END SUBROUTINE remap_laddie_model
 
-  SUBROUTINE remap_laddie_timestep( mesh_old, mesh_new, npx)
+  SUBROUTINE remap_laddie_timestep( mesh_old, mesh_new, ice, ocean, laddie, npx)
     ! Remap laddie timestep
 
     ! In- and output variables
 
     TYPE(type_mesh),                        INTENT(IN)    :: mesh_old
     TYPE(type_mesh),                        INTENT(IN)    :: mesh_new
+    TYPE(type_ice_model),                   INTENT(IN)    :: ice
+    TYPE(type_ocean_model),                 INTENT(IN)    :: ocean
+    TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
     TYPE(type_laddie_timestep),             INTENT(INOUT) :: npx
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'remap_laddie_timestep'
+    INTEGER                                               :: vi
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    ! Reallocate
     CALL reallocate_bounds( npx%H,                       mesh_new%vi1, mesh_new%vi2)
     CALL reallocate_bounds( npx%H_b,                     mesh_new%ti1, mesh_new%ti2)
     CALL reallocate_bounds( npx%H_c,                     mesh_new%ei1, mesh_new%ei2)
@@ -731,6 +742,30 @@ CONTAINS
     CALL reallocate_bounds( npx%V_c,                     mesh_new%ei1, mesh_new%ei2)
     CALL reallocate_bounds( npx%T,                       mesh_new%vi1, mesh_new%vi2)
     CALL reallocate_bounds( npx%S,                       mesh_new%vi1, mesh_new%vi2)
+
+    ! == Re-initialise ==
+
+    ! Layer thickness 
+    DO vi = mesh_new%vi1, mesh_new%vi2
+       IF (laddie%mask_a( vi)) THEN
+         npx%H( vi)      = C%laddie_initial_thickness
+       END IF
+    END DO
+
+    ! Layer thickness on b and c grid
+    CALL map_H_a_b( mesh_new, laddie, npx%H, npx%H_b)
+    CALL map_H_a_c( mesh_new, laddie, npx%H, npx%H_c)
+
+    ! Initialise ambient T and S
+    CALL compute_ambient_TS( mesh_new, ice, ocean, laddie, npx%H)
+
+    ! Initialise main T and S
+    DO vi = mesh_new%vi1, mesh_new%vi2
+       IF (laddie%mask_a( vi)) THEN
+         npx%T( vi)      = laddie%T_amb( vi) + C%laddie_initial_T_offset 
+         npx%S( vi)      = laddie%S_amb( vi) + C%laddie_initial_S_offset
+       END IF
+    END DO
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
