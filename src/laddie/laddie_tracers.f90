@@ -216,7 +216,8 @@ CONTAINS
           ! u_perp < 0: flow is entering this vertex from vertex vj
           ELSE
             IF (mask_oc_a_tot( vj)) THEN
-              !CYCLE ! no inflow
+              CYCLE ! no inflow
+              ! TODO fix boundary condition inflow
               laddie%divQT( vi) = laddie%divQT( vi) + mesh%Cw( vi, ci) * u_perp * Hstar_tot( vi) * T_tot( vi) / mesh%A( vi)
               laddie%divQS( vi) = laddie%divQS( vi) + mesh%Cw( vi, ci) * u_perp * Hstar_tot( vi) * S_tot( vi) / mesh%A( vi)
             ELSE
