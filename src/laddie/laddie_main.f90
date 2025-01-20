@@ -597,13 +597,16 @@ CONTAINS
 
   END SUBROUTINE extrapolate_laddie_variables
 
-  SUBROUTINE remap_laddie_model( mesh_old, mesh_new, laddie)
+  SUBROUTINE remap_laddie_model( mesh_old, mesh_new, ice, ocean, laddie, time)
     ! Reallocate and remap laddie variables
 
     ! In- and output variables
     TYPE(type_mesh),                        INTENT(IN)    :: mesh_old
     TYPE(type_mesh),                        INTENT(IN)    :: mesh_new
+    TYPE(type_ice_model),                   INTENT(IN)    :: ice
+    TYPE(type_ocean_model),                 INTENT(IN)    :: ocean
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
+    REAL(dp),                               INTENT(IN)    :: time
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'remap_laddie_model'
@@ -693,6 +696,9 @@ CONTAINS
         CALL remap_laddie_timestep( mesh_old, mesh_new, laddie%np12)
         CALL remap_laddie_timestep( mesh_old, mesh_new, laddie%np1)
     END SELECT
+
+    ! Run new initialisation
+    CALL run_laddie_model( mesh_new, ice, ocean, laddie, time, C%time_duration_laddie_init)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

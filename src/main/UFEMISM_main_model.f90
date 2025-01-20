@@ -1172,7 +1172,7 @@ CONTAINS
     CALL remap_climate_model(      region%mesh, mesh_new,             region%climate, region%name)
     CALL remap_ocean_model(        region%mesh, mesh_new,             region%ocean  , region%name)
     CALL remap_SMB_model(          region%mesh, mesh_new,             region%SMB    , region%name)
-    CALL remap_BMB_model(          region%mesh, mesh_new, region%ice, region%BMB    , region%name)
+    CALL remap_BMB_model(          region%mesh, mesh_new, region%ice, region%ocean, region%BMB    , region%name, region%time)
     CALL remap_LMB_model(          region%mesh, mesh_new,             region%LMB    , region%name)
     CALL remap_AMB_model(          region%mesh, mesh_new,             region%AMB                 )
     CALL remap_GIA_model(          region%mesh, mesh_new,             region%GIA                 )
