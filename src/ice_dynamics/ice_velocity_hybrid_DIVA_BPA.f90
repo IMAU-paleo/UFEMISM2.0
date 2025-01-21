@@ -22,10 +22,10 @@ MODULE ice_velocity_hybrid_DIVA_BPA
     calc_DIVA_stiffness_matrix_row_BC_west, calc_DIVA_stiffness_matrix_row_BC_east, &
     calc_DIVA_stiffness_matrix_row_BC_south, calc_DIVA_stiffness_matrix_row_BC_north, &
     calc_DIVA_sans_stiffness_matrix_row_free
-  USE ice_velocity_BPA                                       , ONLY: allocate_BPA_solver , remap_BPA_solver, calc_BPA_stiffness_matrix_row_free, &
-                                                                     calc_BPA_stiffness_matrix_row_BC_west, calc_BPA_stiffness_matrix_row_BC_east, &
-                                                                     calc_BPA_stiffness_matrix_row_BC_south, calc_BPA_stiffness_matrix_row_BC_north, &
-                                                                     calc_BPA_stiffness_matrix_row_BC_base, calc_BPA_stiffness_matrix_row_BC_surf
+  use BPA_main, ONLY: allocate_BPA_solver , remap_BPA_solver, calc_BPA_stiffness_matrix_row_free, &
+    calc_BPA_stiffness_matrix_row_BC_west, calc_BPA_stiffness_matrix_row_BC_east, &
+    calc_BPA_stiffness_matrix_row_BC_south, calc_BPA_stiffness_matrix_row_BC_north, &
+    calc_BPA_stiffness_matrix_row_BC_base, calc_BPA_stiffness_matrix_row_BC_surf
   use mesh_disc_apply_operators, only: map_a_b_2D, map_b_a_2D, map_b_a_3D, map_a_b_3D
   use mesh_disc_calc_matrix_operators_3D, only: calc_3D_matrix_operators_mesh
   use mesh_ROI_polygons
@@ -1597,7 +1597,7 @@ CONTAINS
   SUBROUTINE calc_driving_stress_BPA( mesh, ice, BPA)
     ! Calculate the driving stress
 
-    USE ice_velocity_BPA, ONLY: calc_driving_stress
+    USE BPA_main, ONLY: calc_driving_stress
 
     IMPLICIT NONE
 
@@ -1622,7 +1622,7 @@ CONTAINS
   SUBROUTINE calc_strain_rates_BPA( mesh, BPA)
     ! Calculate the strain rates
 
-    USE ice_velocity_BPA, ONLY: calc_strain_rates
+    USE BPA_main, ONLY: calc_strain_rates
 
     IMPLICIT NONE
 
@@ -1646,7 +1646,7 @@ CONTAINS
   SUBROUTINE calc_effective_viscosity_BPA( mesh, ice, BPA, Glens_flow_law_epsilon_sq_0_applied)
     ! Calculate the effective viscosity eta, the product term N = eta*H, and the gradients of N
 
-    USE ice_velocity_BPA, ONLY: calc_effective_viscosity
+    USE BPA_main, ONLY: calc_effective_viscosity
 
     IMPLICIT NONE
 
@@ -1672,7 +1672,7 @@ CONTAINS
   SUBROUTINE calc_applied_basal_friction_coefficient_BPA( mesh, ice, BPA)
     ! Calculate the applied basal friction coefficient beta_b
 
-    USE ice_velocity_BPA, ONLY: calc_applied_basal_friction_coefficient
+    USE BPA_main, ONLY: calc_applied_basal_friction_coefficient
 
     IMPLICIT NONE
 
