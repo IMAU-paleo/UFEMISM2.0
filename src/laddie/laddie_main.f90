@@ -85,9 +85,7 @@ CONTAINS
     END DO
 
     ! Simply set H_c zero everywhere, will be recomputed through mapping later
-    DO ei = mesh%ei1, mesh%ei2
-      laddie%now%H_c( ei) = 0.0_dp
-    END DO
+    laddie%H_c = 0.0_dp
 
     ! == Main time loop ==
     ! ====================
@@ -572,7 +570,9 @@ CONTAINS
     CALL extrapolate_Gaussian( mesh, mask, laddie%now%T, sigma)
     CALL extrapolate_Gaussian( mesh, mask, laddie%now%S, sigma)
 
-    ! Make sure all zero-thicknesses are gone
+    ! The above should ensure that all (newly) floating vertices have a non-zero thickness
+    ! In case the extrapolation did not cover this, apply a backup check to set values
+    ! at non-zero initialisation
     DO vi = mesh%vi1, mesh%vi2
       ! Skip if vertex is at border
       IF (mesh%VBI( vi) > 0) CYCLE
