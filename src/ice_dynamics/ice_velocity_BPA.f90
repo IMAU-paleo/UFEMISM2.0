@@ -1,169 +1,157 @@
-MODULE ice_velocity_BPA
+module ice_velocity_BPA
 
   ! Routines for calculating ice velocities using the Blatter-Pattyn Approximation (BPA)
 
-! ===== Preamble =====
-! ====================
-
-#include <petsc/finclude/petscksp.h>
-  USE petscksp
-  USE mpi
-  USE precisions                                             , ONLY: dp
-  USE mpi_basic                                              , ONLY: par, cerr, ierr, recv_status, sync
-  USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
-  USE model_configuration                                    , ONLY: C
-  USE petsc_basic                                            , ONLY: solve_matrix_equation_CSR_PETSc
-  USE mesh_types                                             , ONLY: type_mesh
-  USE ice_model_types                                        , ONLY: type_ice_model, type_ice_velocity_solver_BPA
-  USE parameters
+  use mpi
+  use precisions, only: dp
+  use mpi_basic, only: par, cerr, ierr, recv_status, sync
+  use control_resources_and_error_messaging, only: warning, crash, happy, init_routine, finalise_routine, colour_string
+  use model_configuration, only: C
+  use petsc_basic, only: solve_matrix_equation_CSR_PETSc
+  use mesh_types, only: type_mesh
+  use ice_model_types, only: type_ice_model, type_ice_velocity_solver_BPA
+  use parameters
   use mesh_disc_apply_operators, only: map_a_b_2D, map_a_b_3D, ddx_a_b_2D, ddy_a_b_2D, &
     ddx_b_a_3D, ddy_b_a_3D, calc_3D_gradient_bk_ak, calc_3D_gradient_bk_bks, &
     map_ak_bks, map_bks_ak, calc_3D_gradient_ak_bk, calc_3D_gradient_bks_bk, map_b_a_3D
   use mesh_disc_calc_matrix_operators_3D, only: calc_3D_matrix_operators_mesh
-  USE mesh_zeta                                              , ONLY: vertical_average
-  USE sliding_laws                                           , ONLY: calc_basal_friction_coefficient
-  USE mesh_utilities                                         , ONLY: find_ti_copy_ISMIP_HOM_periodic
-  USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp, allocate_matrix_CSR_dist, add_entry_CSR_dist, read_single_row_CSR_dist, &
-                                                                     deallocate_matrix_CSR_dist
+  use mesh_zeta, only: vertical_average
+  use sliding_laws, only: calc_basal_friction_coefficient
+  use mesh_utilities, only: find_ti_copy_ISMIP_HOM_periodic
+  use CSR_sparse_matrix_utilities, only: type_sparse_matrix_CSR_dp, allocate_matrix_CSR_dist, add_entry_CSR_dist, read_single_row_CSR_dist, &
+    deallocate_matrix_CSR_dist
   use netcdf_io_main
   use mpi_distributed_memory, only: gather_to_all
   use constitutive_equation, only: calc_effective_viscosity_Glen_3D_uv_only, calc_ice_rheology_Glen
   use zeta_gradients, only: calc_zeta_gradients
-  USE reallocate_mod                                         , ONLY: reallocate_bounds, reallocate_clean
+  use reallocate_mod, only: reallocate_bounds, reallocate_clean
   use remapping_main, only: map_from_mesh_to_mesh_with_reallocation_2D, map_from_mesh_to_mesh_with_reallocation_3D
 
-  IMPLICIT NONE
+  implicit none
 
-CONTAINS
-
-! ===== Subroutines =====
-! =======================
+contains
 
 ! == Main routines
 
-  SUBROUTINE initialise_BPA_solver( mesh, BPA, region_name)
-    ! Initialise the BPA solver
-
-    IMPLICIT NONE
+  subroutine initialise_BPA_solver( mesh, BPA, region_name)
 
     ! In/output variables:
-    TYPE(type_mesh),                     INTENT(IN)    :: mesh
-    TYPE(type_ice_velocity_solver_BPA),  INTENT(OUT)   :: BPA
-    CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
+    type(type_mesh),                    intent(in   ) :: mesh
+    type(type_ice_velocity_solver_BPA), intent(  out) :: BPA
+    character(len=3),                   intent(in   ) :: region_name
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_BPA_solver'
-    CHARACTER(LEN=256)                                 :: choice_initial_velocity
+    character(len=1024), parameter :: routine_name = 'initialise_BPA_solver'
+    character(len=256)             :: choice_initial_velocity
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
-    ! Allocate memory
-    CALL allocate_BPA_solver( mesh, BPA)
+    ! allocate memory
+    call allocate_BPA_solver( mesh, BPA)
 
     ! Determine the choice of initial velocities for this model region
-    IF     (region_name == 'NAM') THEN
+    select case (region_name)
+    case default
+      call crash('unknown model region "' // region_name // '"!')
+    case ('NAM')
       choice_initial_velocity  = C%choice_initial_velocity_NAM
-    ELSEIF (region_name == 'EAS') THEN
+    case ('EAS')
       choice_initial_velocity  = C%choice_initial_velocity_EAS
-    ELSEIF (region_name == 'GRL') THEN
+    case ('GRL')
       choice_initial_velocity  = C%choice_initial_velocity_GRL
-    ELSEIF (region_name == 'ANT') THEN
+    case ('ANT')
       choice_initial_velocity  = C%choice_initial_velocity_ANT
-    ELSE
-      CALL crash('unknown model region "' // region_name // '"!')
-    END IF
+    end select
 
     ! Initialise velocities according to the specified method
-    IF     (choice_initial_velocity == 'zero') THEN
+    select case (choice_initial_velocity)
+    case ('zero')
       BPA%u_bk = 0._dp
       BPA%v_bk = 0._dp
-    ELSEIF (choice_initial_velocity == 'read_from_file') THEN
-      CALL initialise_BPA_velocities_from_file( mesh, BPA, region_name)
-    ELSE
-      CALL crash('unknown choice_initial_velocity "' // TRIM( choice_initial_velocity) // '"!')
-    END IF
+    case ('read_from_file')
+      call initialise_BPA_velocities_from_file( mesh, BPA, region_name)
+    case default
+      call crash('unknown choice_initial_velocity "' // trim( choice_initial_velocity) // '"!')
+    end select
 
     ! Set tolerances for PETSc matrix solver for the linearised BPA
     BPA%PETSc_rtol   = C%stress_balance_PETSc_rtol
     BPA%PETSc_abstol = C%stress_balance_PETSc_abstol
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE initialise_BPA_solver
+  end subroutine initialise_BPA_solver
 
-  SUBROUTINE solve_BPA( mesh, ice, BPA, &
-    n_visc_its, n_Axb_its, &
+  subroutine solve_BPA( mesh, ice, BPA, n_visc_its, n_Axb_its, &
     BC_prescr_mask_bk, BC_prescr_u_bk, BC_prescr_v_bk)
-    ! Calculate ice velocities by solving the Blatter-Pattyn Approximation
-
-    IMPLICIT NONE
+    !< Calculate ice velocities by solving the Blatter-Pattyn Approximation
 
     ! In/output variables:
-    TYPE(type_mesh),                     INTENT(INOUT)           :: mesh
-    TYPE(type_ice_model),                INTENT(INOUT)           :: ice
-    TYPE(type_ice_velocity_solver_BPA),  INTENT(INOUT)           :: BPA
-    integer,                             intent(out)             :: n_visc_its            ! Number of non-linear viscosity iterations
-    integer,                             intent(out)             :: n_Axb_its             ! Number of iterations in iterative solver for linearised momentum balance
-    INTEGER,  DIMENSION(:,:  ),          INTENT(IN)   , OPTIONAL :: BC_prescr_mask_bk     ! Mask of triangles where velocity is prescribed
-    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)   , OPTIONAL :: BC_prescr_u_bk        ! Prescribed velocities in the x-direction
-    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)   , OPTIONAL :: BC_prescr_v_bk        ! Prescribed velocities in the y-direction
+    type(type_mesh),                    intent(inout) :: mesh
+    type(type_ice_model),               intent(inout) :: ice
+    type(type_ice_velocity_solver_BPA), intent(inout) :: BPA
+    integer,                            intent(  out) :: n_visc_its            ! Number of non-linear viscosity iterations
+    integer,                            intent(  out) :: n_Axb_its             ! Number of iterations in iterative solver for linearised momentum balance
+    integer,  dimension(:,:), optional, intent(in   ) :: BC_prescr_mask_bk     ! Mask of triangles where velocity is prescribed
+    real(dp), dimension(:,:), optional, intent(in   ) :: BC_prescr_u_bk        ! Prescribed velocities in the x-direction
+    real(dp), dimension(:,:), optional, intent(in   ) :: BC_prescr_v_bk        ! Prescribed velocities in the y-direction
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'solve_BPA'
-    LOGICAL                                                      :: grounded_ice_exists
-    INTEGER,  DIMENSION(:,:  ), ALLOCATABLE                      :: BC_prescr_mask_bk_applied
-    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                      :: BC_prescr_u_bk_applied
-    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                      :: BC_prescr_v_bk_applied
-    INTEGER                                                      :: viscosity_iteration_i
-    LOGICAL                                                      :: has_converged
-    REAL(dp)                                                     :: resid_UV, resid_UV_prev
-    REAL(dp)                                                     :: uv_min, uv_max
-    REAL(dp)                                                     :: visc_it_relax_applied
-    REAL(dp)                                                     :: Glens_flow_law_epsilon_sq_0_applied
-    INTEGER                                                      :: nit_diverg_consec
-    integer                                                      :: n_Axb_its_visc_it
+    character(len=1024), parameter        :: routine_name = 'solve_BPA'
+    logical                               :: grounded_ice_exists
+    integer,  dimension(:,:), allocatable :: BC_prescr_mask_bk_applied
+    real(dp), dimension(:,:), allocatable :: BC_prescr_u_bk_applied
+    real(dp), dimension(:,:), allocatable :: BC_prescr_v_bk_applied
+    integer                               :: viscosity_iteration_i
+    logical                               :: has_converged
+    real(dp)                              :: resid_UV, resid_UV_prev
+    real(dp)                              :: uv_min, uv_max
+    real(dp)                              :: visc_it_relax_applied
+    real(dp)                              :: Glens_flow_law_epsilon_sq_0_applied
+    integer                               :: nit_diverg_consec
+    integer                               :: n_Axb_its_visc_it
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
-    ! If there is no grounded ice, or no sliding, no need to solve the BPA
-    grounded_ice_exists = ANY( ice%mask_grounded_ice)
-    CALL MPI_ALLREDUCE( MPI_IN_PLACE, grounded_ice_exists, 1, MPI_LOGICAL, MPI_LOR, MPI_COMM_WORLD, ierr)
-    IF (.NOT. grounded_ice_exists) THEN
+    ! if there is no grounded ice, or no sliding, no need to solve the BPA
+    grounded_ice_exists = any( ice%mask_grounded_ice)
+    call MPI_ALLREDUCE( MPI_IN_PLACE, grounded_ice_exists, 1, MPI_logical, MPI_LOR, MPI_COMM_WORLD, ierr)
+    if (.not. grounded_ice_exists) then
       BPA%u_bk = 0._dp
       BPA%v_bk = 0._dp
-      CALL finalise_routine( routine_name)
-      RETURN
-    END IF
+      call finalise_routine( routine_name)
+      return
+    end if
 
     ! Handle the optional prescribed u,v boundary conditions
-    ALLOCATE( BC_prescr_mask_bk_applied( mesh%ti1:mesh%ti2,mesh%nz))
-    ALLOCATE( BC_prescr_u_bk_applied(    mesh%ti1:mesh%ti2,mesh%nz))
-    ALLOCATE( BC_prescr_v_bk_applied(    mesh%ti1:mesh%ti2,mesh%nz))
-    IF (PRESENT( BC_prescr_mask_bk) .OR. PRESENT( BC_prescr_u_bk) .OR. PRESENT( BC_prescr_v_bk)) THEN
+    allocate( BC_prescr_mask_bk_applied( mesh%ti1:mesh%ti2,mesh%nz))
+    allocate( BC_prescr_u_bk_applied(    mesh%ti1:mesh%ti2,mesh%nz))
+    allocate( BC_prescr_v_bk_applied(    mesh%ti1:mesh%ti2,mesh%nz))
+    if (present( BC_prescr_mask_bk) .or. present( BC_prescr_u_bk) .or. present( BC_prescr_v_bk)) then
       ! Safety
-      IF (.NOT. (PRESENT( BC_prescr_mask_bk) .AND. PRESENT( BC_prescr_u_bk) .AND. PRESENT( BC_prescr_v_bk))) THEN
-        CALL crash('need to provide prescribed u,v fields and mask!')
-      END IF
+      if (.not. (present( BC_prescr_mask_bk) .and. present( BC_prescr_u_bk) .and. present( BC_prescr_v_bk))) then
+        call crash('need to provide prescribed u,v fields and mask!')
+      end if
       BC_prescr_mask_bk_applied = BC_prescr_mask_bk
       BC_prescr_u_bk_applied    = BC_prescr_u_bk
       BC_prescr_v_bk_applied    = BC_prescr_v_bk
-    ELSE
+    else
       BC_prescr_mask_bk_applied = 0
       BC_prescr_u_bk_applied    = 0._dp
       BC_prescr_v_bk_applied    = 0._dp
-    END IF
+    end if
 
     ! Calculate zeta gradients
-    CALL calc_zeta_gradients( mesh, ice)
+    call calc_zeta_gradients( mesh, ice)
 
     ! Calculate 3-D matrix operators for the current ice geometry
-    CALL calc_3D_matrix_operators_mesh( mesh, ice)
+    call calc_3D_matrix_operators_mesh( mesh, ice)
 
     ! Calculate the driving stress
-    CALL calc_driving_stress( mesh, ice, BPA)
+    call calc_driving_stress( mesh, ice, BPA)
 
     ! Adaptive relaxation parameter for the viscosity iteration
     resid_UV                            = 1E9_dp
@@ -177,204 +165,189 @@ CONTAINS
 
     ! The viscosity iteration
     viscosity_iteration_i = 0
-    has_converged         = .FALSE.
-    viscosity_iteration: DO WHILE (.NOT. has_converged)
+    has_converged         = .false.
+    viscosity_iteration: do while (.not. has_converged)
       viscosity_iteration_i = viscosity_iteration_i + 1
 
       ! Calculate the strain rates for the current velocity solution
-      CALL calc_strain_rates( mesh, BPA)
+      call calc_strain_rates( mesh, BPA)
 
       ! Calculate the effective viscosity for the current velocity solution
-      CALL calc_effective_viscosity( mesh, ice, BPA, Glens_flow_law_epsilon_sq_0_applied)
+      call calc_effective_viscosity( mesh, ice, BPA, Glens_flow_law_epsilon_sq_0_applied)
 
       ! Calculate the basal friction coefficient betab for the current velocity solution
-      CALL calc_applied_basal_friction_coefficient( mesh, ice, BPA)
+      call calc_applied_basal_friction_coefficient( mesh, ice, BPA)
 
       ! Solve the linearised BPA to calculate a new velocity solution
-      CALL solve_BPA_linearised( mesh, ice, BPA, n_Axb_its_visc_it, &
+      call solve_BPA_linearised( mesh, ice, BPA, n_Axb_its_visc_it, &
         BC_prescr_mask_bk_applied, BC_prescr_u_bk_applied, BC_prescr_v_bk_applied)
 
       ! Update stability info
       n_Axb_its = n_Axb_its + n_Axb_its_visc_it
 
       ! Limit velocities for improved stability
-      CALL apply_velocity_limits( mesh, BPA)
+      call apply_velocity_limits( mesh, BPA)
 
       ! Reduce the change between velocity solutions
-      CALL relax_viscosity_iterations( mesh, BPA, visc_it_relax_applied)
+      call relax_viscosity_iterations( mesh, BPA, visc_it_relax_applied)
 
       ! Calculate the L2-norm of the two consecutive velocity solutions
       resid_UV_prev = resid_UV
-      CALL calc_visc_iter_UV_resid( mesh, BPA, resid_UV)
+      call calc_visc_iter_UV_resid( mesh, BPA, resid_UV)
 
-      ! If the viscosity iteration diverges, lower the relaxation parameter
-      IF (resid_UV > resid_UV_prev) THEN
+      ! if the viscosity iteration diverges, lower the relaxation parameter
+      if (resid_UV > resid_UV_prev) then
         nit_diverg_consec = nit_diverg_consec + 1
-      ELSE
+      else
         nit_diverg_consec = 0
-      END IF
-      IF (nit_diverg_consec > 2) THEN
+      end if
+      if (nit_diverg_consec > 2) then
         nit_diverg_consec = 0
         visc_it_relax_applied               = visc_it_relax_applied               * 0.9_dp
         Glens_flow_law_epsilon_sq_0_applied = Glens_flow_law_epsilon_sq_0_applied * 1.2_dp
-      END IF
-      IF (visc_it_relax_applied <= 0.05_dp .OR. Glens_flow_law_epsilon_sq_0_applied >= 1E-5_dp) THEN
-        IF (visc_it_relax_applied < 0.05_dp) THEN
-          CALL crash('viscosity iteration still diverges even with very low relaxation factor!')
-        ELSEIF (Glens_flow_law_epsilon_sq_0_applied > 1E-5_dp) THEN
-          CALL crash('viscosity iteration still diverges even with very high effective strain rate regularisation!')
-        END IF
-      END IF
+      end if
+      if (visc_it_relax_applied <= 0.05_dp .or. Glens_flow_law_epsilon_sq_0_applied >= 1E-5_dp) then
+        if (visc_it_relax_applied < 0.05_dp) then
+          call crash('viscosity iteration still diverges even with very low relaxation factor!')
+        elseif (Glens_flow_law_epsilon_sq_0_applied > 1E-5_dp) then
+          call crash('viscosity iteration still diverges even with very high effective strain rate regularisation!')
+        end if
+      end if
 
       ! DENK DROM
-      uv_min = MINVAL( BPA%u_bk)
-      uv_max = MAXVAL( BPA%u_bk)
-      CALL MPI_ALLREDUCE( MPI_IN_PLACE, uv_min, 1, MPI_DOUBLE_PRECISION, MPI_MIN, MPI_COMM_WORLD, ierr)
-      CALL MPI_ALLREDUCE( MPI_IN_PLACE, uv_max, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
-!      IF (par%master) WRITE(0,*) '    BPA - viscosity iteration ', viscosity_iteration_i, ', u = [', uv_min, ' - ', uv_max, '], resid = ', resid_UV
+      uv_min = minval( BPA%u_bk)
+      uv_max = maxval( BPA%u_bk)
+      call MPI_ALLREDUCE( MPI_IN_PLACE, uv_min, 1, MPI_doUBLE_PRECISION, MPI_MIN, MPI_COMM_WORLD, ierr)
+      call MPI_ALLREDUCE( MPI_IN_PLACE, uv_max, 1, MPI_doUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
+      ! if (par%master) WRITE(0,*) '    BPA - viscosity iteration ', viscosity_iteration_i, ', u = [', uv_min, ' - ', uv_max, '], resid = ', resid_UV
 
-      ! If the viscosity iteration has converged, or has reached the maximum allowed number of iterations, stop it.
-      has_converged = .FALSE.
-      IF (resid_UV < C%visc_it_norm_dUV_tol) THEN
-        has_converged = .TRUE.
-      END IF
+      ! if the viscosity iteration has converged, or has reached the maximum allowed number of iterations, stop it.
+      has_converged = .false.
+      if (resid_UV < C%visc_it_norm_dUV_tol) then
+        has_converged = .true.
+      end if
 
-      ! If we've reached the maximum allowed number of iterations without converging, throw a warning
-      IF (viscosity_iteration_i > C%visc_it_nit) THEN
-        IF (par%master) CALL warning('viscosity iteration failed to converge within {int_01} iterations!', int_01 = C%visc_it_nit)
-        EXIT viscosity_iteration
-      END IF
+      ! if we've reached the maximum allowed number of iterations without converging, throw a warning
+      if (viscosity_iteration_i > C%visc_it_nit) then
+        if (par%master) call warning('viscosity iteration failed to converge within {int_01} iterations!', int_01 = C%visc_it_nit)
+        exit viscosity_iteration
+      end if
 
-    END DO viscosity_iteration
-
-    ! Clean up after yourself
-    DEALLOCATE( BC_prescr_mask_bk_applied)
-    DEALLOCATE( BC_prescr_u_bk_applied   )
-    DEALLOCATE( BC_prescr_v_bk_applied   )
+    end do viscosity_iteration
 
     ! Stability info
     n_visc_its = viscosity_iteration_i
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE solve_BPA
+  end subroutine solve_BPA
 
-  SUBROUTINE remap_BPA_solver( mesh_old, mesh_new, BPA)
-    ! Remap the BPA solver
-
-    IMPLICIT NONE
+  subroutine remap_BPA_solver( mesh_old, mesh_new, BPA)
 
     ! In/output variables:
-    TYPE(type_mesh),                     INTENT(IN)    :: mesh_old
-    TYPE(type_mesh),                     INTENT(IN)    :: mesh_new
-    TYPE(type_ice_velocity_solver_BPA),  INTENT(INOUT) :: BPA
+    type(type_mesh),                    intent(in   ) :: mesh_old
+    type(type_mesh),                    intent(in   ) :: mesh_new
+    type(type_ice_velocity_solver_BPA), intent(inout) :: BPA
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'remap_BPA_solver'
-    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: u_ak
-    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: v_ak
+    character(len=1024), parameter        :: routine_name = 'remap_BPA_solver'
+    real(dp), dimension(:,:), allocatable :: u_ak
+    real(dp), dimension(:,:), allocatable :: v_ak
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
-  ! Remap the fields that are re-used during the viscosity iteration
-  ! ================================================================
+    ! Remap the fields that are re-used during the viscosity iteration
+    ! ================================================================
 
-    ! Allocate memory for velocities on the a-grid (vertices)
-    ALLOCATE( u_ak( mesh_old%vi1: mesh_old%vi2, mesh_old%nz))
-    ALLOCATE( v_ak( mesh_old%vi1: mesh_old%vi2, mesh_old%nz))
+    ! allocate memory for velocities on the a-grid (vertices)
+    allocate( u_ak( mesh_old%vi1: mesh_old%vi2, mesh_old%nz))
+    allocate( v_ak( mesh_old%vi1: mesh_old%vi2, mesh_old%nz))
 
     ! Map velocities from the triangles of the old mesh to the vertices of the old mesh
-    CALL map_b_a_3D( mesh_old, BPA%u_bk, u_ak)
-    CALL map_b_a_3D( mesh_old, BPA%v_bk, v_ak)
+    call map_b_a_3D( mesh_old, BPA%u_bk, u_ak)
+    call map_b_a_3D( mesh_old, BPA%v_bk, v_ak)
 
     ! Remap velocities from the vertices of the old mesh to the vertices of the new mesh
-    CALL map_from_mesh_to_mesh_with_reallocation_3D( mesh_old, mesh_new, u_ak, '2nd_order_conservative')
-    CALL map_from_mesh_to_mesh_with_reallocation_3D( mesh_old, mesh_new, v_ak, '2nd_order_conservative')
+    call map_from_mesh_to_mesh_with_reallocation_3D( mesh_old, mesh_new, u_ak, '2nd_order_conservative')
+    call map_from_mesh_to_mesh_with_reallocation_3D( mesh_old, mesh_new, v_ak, '2nd_order_conservative')
 
-    ! Reallocate memory for the velocities on the triangles
-    CALL reallocate_bounds( BPA%u_bk                        , mesh_new%ti1, mesh_new%ti2, mesh_new%nz)
-    CALL reallocate_bounds( BPA%v_bk                        , mesh_new%ti1, mesh_new%ti2, mesh_new%nz)
+    ! reallocate memory for the velocities on the triangles
+    call reallocate_bounds( BPA%u_bk, mesh_new%ti1, mesh_new%ti2, mesh_new%nz)
+    call reallocate_bounds( BPA%v_bk, mesh_new%ti1, mesh_new%ti2, mesh_new%nz)
 
     ! Map velocities from the vertices of the new mesh to the triangles of the new mesh
-    CALL map_a_b_3D( mesh_new, u_ak, BPA%u_bk)
-    CALL map_a_b_3D( mesh_new, v_ak, BPA%v_bk)
+    call map_a_b_3D( mesh_new, u_ak, BPA%u_bk)
+    call map_a_b_3D( mesh_new, v_ak, BPA%v_bk)
 
-    ! Clean up after yourself
-    DEALLOCATE( u_ak)
-    DEALLOCATE( v_ak)
+    ! reallocate everything else
+    ! ==========================
 
-  ! Reallocate everything else
-  ! ==========================
-
-    CALL reallocate_bounds( BPA%du_dx_ak                    , mesh_new%vi1 , mesh_new%vi2, mesh_new%nz  )       ! [yr^-1] 2-D horizontal strain rates
-    CALL reallocate_bounds( BPA%du_dy_ak                    , mesh_new%vi1 , mesh_new%vi2, mesh_new%nz  )
-    CALL reallocate_bounds( BPA%du_dz_ak                    , mesh_new%vi1 , mesh_new%vi2, mesh_new%nz  )
-    CALL reallocate_bounds( BPA%dv_dx_ak                    , mesh_new%vi1 , mesh_new%vi2, mesh_new%nz  )       ! [yr^-1] 2-D horizontal strain rates
-    CALL reallocate_bounds( BPA%dv_dy_ak                    , mesh_new%vi1 , mesh_new%vi2, mesh_new%nz  )
-    CALL reallocate_bounds( BPA%dv_dz_ak                    , mesh_new%vi1 , mesh_new%vi2, mesh_new%nz  )
-    CALL reallocate_bounds( BPA%du_dx_bks                   , mesh_new%ti1 , mesh_new%ti2, mesh_new%nz-1)       ! [yr^-1] 2-D horizontal strain rates
-    CALL reallocate_bounds( BPA%du_dy_bks                   , mesh_new%ti1 , mesh_new%ti2, mesh_new%nz-1)
-    CALL reallocate_bounds( BPA%du_dz_bks                   , mesh_new%ti1 , mesh_new%ti2, mesh_new%nz-1)
-    CALL reallocate_bounds( BPA%dv_dx_bks                   , mesh_new%ti1 , mesh_new%ti2, mesh_new%nz-1)       ! [yr^-1] 2-D horizontal strain rates
-    CALL reallocate_bounds( BPA%dv_dy_bks                   , mesh_new%ti1 , mesh_new%ti2, mesh_new%nz-1)
-    CALL reallocate_bounds( BPA%dv_dz_bks                   , mesh_new%ti1 , mesh_new%ti2, mesh_new%nz-1)
-    CALL reallocate_bounds( BPA%eta_ak                      , mesh_new%vi1 , mesh_new%vi2, mesh_new%nz  )       ! Effective viscosity
-    CALL reallocate_bounds( BPA%eta_bks                     , mesh_new%ti1 , mesh_new%ti2, mesh_new%nz-1)
-    CALL reallocate_bounds( BPA%eta_bk                      , mesh_new%ti1 , mesh_new%ti2, mesh_new%nz  )
-    CALL reallocate_bounds( BPA%deta_dx_bk                  , mesh_new%ti1 , mesh_new%ti2, mesh_new%nz  )       ! Gradients of eta
-    CALL reallocate_bounds( BPA%deta_dy_bk                  , mesh_new%ti1 , mesh_new%ti2, mesh_new%nz  )       ! Gradients of eta
-    CALL reallocate_bounds( BPA%deta_dz_bk                  , mesh_new%ti1 , mesh_new%ti2, mesh_new%nz  )       ! Gradients of eta
-    CALL reallocate_bounds( BPA%basal_friction_coefficient_b, mesh_new%ti1 , mesh_new%ti2               )       ! Basal friction coefficient (basal_shear_stress = u * basal_friction_coefficient)
-    CALL reallocate_bounds( BPA%dh_dx_b                     , mesh_new%ti1 , mesh_new%ti2               )       ! Surface slope
-    CALL reallocate_bounds( BPA%dh_dy_b                     , mesh_new%ti1 , mesh_new%ti2               )
-    CALL reallocate_bounds( BPA%db_dx_b                     , mesh_new%ti1 , mesh_new%ti2               )       ! Basal slope
-    CALL reallocate_bounds( BPA%db_dy_b                     , mesh_new%ti1 , mesh_new%ti2               )
-    CALL reallocate_bounds( BPA%tau_dx_b                    , mesh_new%ti1 , mesh_new%ti2               )       ! Driving stress
-    CALL reallocate_bounds( BPA%tau_dy_b                    , mesh_new%ti1 , mesh_new%ti2               )
-    CALL reallocate_clean ( BPA%u_bk_prev                   , mesh_new%nTri              , mesh_new%nz  )       ! Velocity solution from previous viscosity iteration
-    CALL reallocate_clean ( BPA%v_bk_prev                   , mesh_new%nTri              , mesh_new%nz  )
+    call reallocate_bounds( BPA%du_dx_ak                    , mesh_new%vi1 , mesh_new%vi2, mesh_new%nz  )       ! [yr^-1] 2-D horizontal strain rates
+    call reallocate_bounds( BPA%du_dy_ak                    , mesh_new%vi1 , mesh_new%vi2, mesh_new%nz  )
+    call reallocate_bounds( BPA%du_dz_ak                    , mesh_new%vi1 , mesh_new%vi2, mesh_new%nz  )
+    call reallocate_bounds( BPA%dv_dx_ak                    , mesh_new%vi1 , mesh_new%vi2, mesh_new%nz  )       ! [yr^-1] 2-D horizontal strain rates
+    call reallocate_bounds( BPA%dv_dy_ak                    , mesh_new%vi1 , mesh_new%vi2, mesh_new%nz  )
+    call reallocate_bounds( BPA%dv_dz_ak                    , mesh_new%vi1 , mesh_new%vi2, mesh_new%nz  )
+    call reallocate_bounds( BPA%du_dx_bks                   , mesh_new%ti1 , mesh_new%ti2, mesh_new%nz-1)       ! [yr^-1] 2-D horizontal strain rates
+    call reallocate_bounds( BPA%du_dy_bks                   , mesh_new%ti1 , mesh_new%ti2, mesh_new%nz-1)
+    call reallocate_bounds( BPA%du_dz_bks                   , mesh_new%ti1 , mesh_new%ti2, mesh_new%nz-1)
+    call reallocate_bounds( BPA%dv_dx_bks                   , mesh_new%ti1 , mesh_new%ti2, mesh_new%nz-1)       ! [yr^-1] 2-D horizontal strain rates
+    call reallocate_bounds( BPA%dv_dy_bks                   , mesh_new%ti1 , mesh_new%ti2, mesh_new%nz-1)
+    call reallocate_bounds( BPA%dv_dz_bks                   , mesh_new%ti1 , mesh_new%ti2, mesh_new%nz-1)
+    call reallocate_bounds( BPA%eta_ak                      , mesh_new%vi1 , mesh_new%vi2, mesh_new%nz  )       ! Effective viscosity
+    call reallocate_bounds( BPA%eta_bks                     , mesh_new%ti1 , mesh_new%ti2, mesh_new%nz-1)
+    call reallocate_bounds( BPA%eta_bk                      , mesh_new%ti1 , mesh_new%ti2, mesh_new%nz  )
+    call reallocate_bounds( BPA%deta_dx_bk                  , mesh_new%ti1 , mesh_new%ti2, mesh_new%nz  )       ! Gradients of eta
+    call reallocate_bounds( BPA%deta_dy_bk                  , mesh_new%ti1 , mesh_new%ti2, mesh_new%nz  )       ! Gradients of eta
+    call reallocate_bounds( BPA%deta_dz_bk                  , mesh_new%ti1 , mesh_new%ti2, mesh_new%nz  )       ! Gradients of eta
+    call reallocate_bounds( BPA%basal_friction_coefficient_b, mesh_new%ti1 , mesh_new%ti2               )       ! Basal friction coefficient (basal_shear_stress = u * basal_friction_coefficient)
+    call reallocate_bounds( BPA%dh_dx_b                     , mesh_new%ti1 , mesh_new%ti2               )       ! Surface slope
+    call reallocate_bounds( BPA%dh_dy_b                     , mesh_new%ti1 , mesh_new%ti2               )
+    call reallocate_bounds( BPA%db_dx_b                     , mesh_new%ti1 , mesh_new%ti2               )       ! Basal slope
+    call reallocate_bounds( BPA%db_dy_b                     , mesh_new%ti1 , mesh_new%ti2               )
+    call reallocate_bounds( BPA%tau_dx_b                    , mesh_new%ti1 , mesh_new%ti2               )       ! Driving stress
+    call reallocate_bounds( BPA%tau_dy_b                    , mesh_new%ti1 , mesh_new%ti2               )
+    call reallocate_clean ( BPA%u_bk_prev                   , mesh_new%nTri              , mesh_new%nz  )       ! Velocity solution from previous viscosity iteration
+    call reallocate_clean ( BPA%v_bk_prev                   , mesh_new%nTri              , mesh_new%nz  )
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE remap_BPA_solver
+  end subroutine remap_BPA_solver
 
 ! == Assemble and solve the linearised BPA
 
-  SUBROUTINE solve_BPA_linearised( mesh, ice, BPA, n_Axb_its, &
+  subroutine solve_BPA_linearised( mesh, ice, BPA, n_Axb_its, &
     BC_prescr_mask_bk, BC_prescr_u_bk, BC_prescr_v_bk)
-    ! Solve the linearised BPA
-
-    IMPLICIT NONE
 
     ! In/output variables:
-    TYPE(type_mesh),                     INTENT(IN)              :: mesh
-    TYPE(type_ice_model),                INTENT(IN)              :: ice
-    TYPE(type_ice_velocity_solver_BPA),  INTENT(INOUT)           :: BPA
-    integer,                                         intent(out) :: n_Axb_its             ! Number of iterations used in the iterative solver
-    INTEGER,  DIMENSION(mesh%ti1:mesh%ti2,mesh%nz),  INTENT(IN)  :: BC_prescr_mask_bk      ! Mask of triangles where velocity is prescribed
-    REAL(dp), DIMENSION(mesh%ti1:mesh%ti2,mesh%nz),  INTENT(IN)  :: BC_prescr_u_bk         ! Prescribed velocities in the x-direction
-    REAL(dp), DIMENSION(mesh%ti1:mesh%ti2,mesh%nz),  INTENT(IN)  :: BC_prescr_v_bk         ! Prescribed velocities in the y-direction
+    type(type_mesh),                                intent(in   ) :: mesh
+    type(type_ice_model),                           intent(in   ) :: ice
+    type(type_ice_velocity_solver_BPA),             intent(inout) :: BPA
+    integer,                                        intent(  out) :: n_Axb_its              ! Number of iterations used in the iterative solver
+    integer,  dimension(mesh%ti1:mesh%ti2,mesh%nz), intent(in   ) :: BC_prescr_mask_bk      ! Mask of triangles where velocity is prescribed
+    real(dp), dimension(mesh%ti1:mesh%ti2,mesh%nz), intent(in   ) :: BC_prescr_u_bk         ! Prescribed velocities in the x-direction
+    real(dp), dimension(mesh%ti1:mesh%ti2,mesh%nz), intent(in   ) :: BC_prescr_v_bk         ! Prescribed velocities in the y-direction
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'solve_BPA_linearised'
-    INTEGER                                                      :: ncols, ncols_loc, nrows, nrows_loc, nnz_est_proc
-    TYPE(type_sparse_matrix_CSR_dp)                              :: A_CSR
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: bb
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: uv_bkuv
-    INTEGER                                                      :: row_tikuv,ti,k,uv
+    character(len=1024), parameter      :: routine_name = 'solve_BPA_linearised'
+    integer                             :: ncols, ncols_loc, nrows, nrows_loc, nnz_est_proc
+    type(type_sparse_matrix_CSR_dp)     :: A_CSR
+    real(dp), dimension(:), allocatable :: bb
+    real(dp), dimension(:), allocatable :: uv_bkuv
+    integer                             :: row_tikuv,ti,k,uv
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
     ! Store the previous solution
-    CALL gather_to_all( BPA%u_bk, BPA%u_bk_prev)
-    CALL gather_to_all( BPA%v_bk, BPA%v_bk_prev)
+    call gather_to_all( BPA%u_bk, BPA%u_bk_prev)
+    call gather_to_all( BPA%v_bk, BPA%v_bk_prev)
 
-  ! == Initialise the stiffness matrix using the native UFEMISM CSR-matrix format
-  ! =============================================================================
+    ! == Initialise the stiffness matrix using the native UFEMISM CSR-matrix format
+    ! =============================================================================
 
     ! Matrix size
     ncols           = mesh%nTri     * mesh%nz * 2      ! from
@@ -383,15 +356,15 @@ CONTAINS
     nrows_loc       = mesh%nTri_loc * mesh%nz * 2
     nnz_est_proc    = mesh%M2_ddx_bk_bk%nnz   * 4
 
-    CALL allocate_matrix_CSR_dist( A_CSR, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+    call allocate_matrix_CSR_dist( A_CSR, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
 
-    ! Allocate memory for the load vector and the solution
-    ALLOCATE( bb(      A_CSR%i1:A_CSR%i2))
-    ALLOCATE( uv_bkuv( A_CSR%i1:A_CSR%i2))
+    ! allocate memory for the load vector and the solution
+    allocate( bb(      A_CSR%i1:A_CSR%i2))
+    allocate( uv_bkuv( A_CSR%i1:A_CSR%i2))
 
     ! Fill in the current velocity solution
-    DO ti = mesh%ti1, mesh%ti2
-    DO k  = 1, mesh%nz
+    do ti = mesh%ti1, mesh%ti2
+    do k  = 1, mesh%nz
 
       ! u
       row_tikuv = mesh%tikuv2n( ti,k,1)
@@ -401,82 +374,82 @@ CONTAINS
       row_tikuv = mesh%tikuv2n( ti,k,2)
       uv_bkuv( row_tikuv) = BPA%v_bk( ti,k)
 
-    END DO ! DO k  = 1, mesh%nz
-    END DO ! DO ti = mesh%ti1, mesh%ti2
+    end do ! do k  = 1, mesh%nz
+    end do ! do ti = mesh%ti1, mesh%ti2
 
-  ! == Construct the stiffness matrix for the linearised BPA
-  ! ========================================================
+    ! == Construct the stiffness matrix for the linearised BPA
+    ! ========================================================
 
-    DO row_tikuv = A_CSR%i1, A_CSR%i2
+    do row_tikuv = A_CSR%i1, A_CSR%i2
 
       ti = mesh%n2tikuv( row_tikuv,1)
       k  = mesh%n2tikuv( row_tikuv,2)
       uv = mesh%n2tikuv( row_tikuv,3)
 
-      IF (BC_prescr_mask_bk( ti,k) == 1) THEN
+      if (BC_prescr_mask_bk( ti,k) == 1) then
         ! Dirichlet boundary condition; velocities are prescribed for this triangle
 
         ! Stiffness matrix: diagonal element set to 1
-        CALL add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv, 1._dp)
+        call add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv, 1._dp)
 
         ! Load vector: prescribed velocity
-        IF     (uv == 1) THEN
+        if     (uv == 1) then
           bb( row_tikuv) = BC_prescr_u_bk( ti,k)
-        ELSEIF (uv == 2) THEN
+        elseif (uv == 2) then
           bb( row_tikuv) = BC_prescr_v_bk( ti,k)
-        ELSE
-          CALL crash('uv can only be 1 or 2!')
-        END IF
+        else
+          call crash('uv can only be 1 or 2!')
+        end if
 
-      ELSEIF (mesh%TriBI( ti) == 1 .OR. mesh%TriBI( ti) == 2) THEN
+      elseif (mesh%TriBI( ti) == 1 .or. mesh%TriBI( ti) == 2) then
         ! Northern domain border
 
-        CALL calc_BPA_stiffness_matrix_row_BC_north( mesh, BPA, A_CSR, bb, row_tikuv)
+        call calc_BPA_stiffness_matrix_row_BC_north( mesh, BPA, A_CSR, bb, row_tikuv)
 
-      ELSEIF (mesh%TriBI( ti) == 3 .OR. mesh%TriBI( ti) == 4) THEN
+      elseif (mesh%TriBI( ti) == 3 .or. mesh%TriBI( ti) == 4) then
         ! Eastern domain border
 
-        CALL calc_BPA_stiffness_matrix_row_BC_east( mesh, BPA, A_CSR, bb, row_tikuv)
+        call calc_BPA_stiffness_matrix_row_BC_east( mesh, BPA, A_CSR, bb, row_tikuv)
 
-      ELSEIF (mesh%TriBI( ti) == 5 .OR. mesh%TriBI( ti) == 6) THEN
+      elseif (mesh%TriBI( ti) == 5 .or. mesh%TriBI( ti) == 6) then
         ! Southern domain border
 
-        CALL calc_BPA_stiffness_matrix_row_BC_south( mesh, BPA, A_CSR, bb, row_tikuv)
+        call calc_BPA_stiffness_matrix_row_BC_south( mesh, BPA, A_CSR, bb, row_tikuv)
 
-      ELSEIF (mesh%TriBI( ti) == 7 .OR. mesh%TriBI( ti) == 8) THEN
+      elseif (mesh%TriBI( ti) == 7 .or. mesh%TriBI( ti) == 8) then
         ! Western domain border
 
-        CALL calc_BPA_stiffness_matrix_row_BC_west( mesh, BPA, A_CSR, bb, row_tikuv)
+        call calc_BPA_stiffness_matrix_row_BC_west( mesh, BPA, A_CSR, bb, row_tikuv)
 
-      ELSEIF (k == 1) THEN
+      elseif (k == 1) then
         ! Ice surface
 
-        CALL calc_BPA_stiffness_matrix_row_BC_surf( mesh, ice, BPA, A_CSR, bb, row_tikuv)
+        call calc_BPA_stiffness_matrix_row_BC_surf( mesh, ice, BPA, A_CSR, bb, row_tikuv)
 
-      ELSEIF (k == mesh%nz) THEN
+      elseif (k == mesh%nz) then
         ! Ice base
 
-        CALL calc_BPA_stiffness_matrix_row_BC_base( mesh, ice, BPA, A_CSR, bb, row_tikuv)
+        call calc_BPA_stiffness_matrix_row_BC_base( mesh, ice, BPA, A_CSR, bb, row_tikuv)
 
-      ELSE
+      else
         ! No boundary conditions apply; solve the BPA
 
-        CALL calc_BPA_stiffness_matrix_row_free( mesh, BPA, A_CSR, bb, row_tikuv)
+        call calc_BPA_stiffness_matrix_row_free( mesh, BPA, A_CSR, bb, row_tikuv)
 
-      END IF
+      end if
 
-    END DO ! DO row_tikuv = A_CSR%i1, A_CSR%i2
+    end do ! do row_tikuv = A_CSR%i1, A_CSR%i2
 
-  ! == Solve the matrix equation
-  ! ============================
+    ! == Solve the matrix equation
+    ! ============================
 
     ! Use PETSc to solve the matrix equation
-    CALL solve_matrix_equation_CSR_PETSc( A_CSR, bb, uv_bkuv, BPA%PETSc_rtol, BPA%PETSc_abstol, &
+    call solve_matrix_equation_CSR_PETSc( A_CSR, bb, uv_bkuv, BPA%PETSc_rtol, BPA%PETSc_abstol, &
       n_Axb_its)
 
     ! Disentangle the u and v components of the velocity solution
-    DO ti = mesh%ti1, mesh%ti2
-    DO k  = 1, mesh%nz
+    do ti = mesh%ti1, mesh%ti2
+    do k  = 1, mesh%nz
 
       ! u
       row_tikuv = mesh%tikuv2n( ti,k,1)
@@ -486,22 +459,17 @@ CONTAINS
       row_tikuv = mesh%tikuv2n( ti,k,2)
       BPA%v_bk( ti,k) = uv_bkuv( row_tikuv)
 
-    END DO ! DO k  = 1, mesh%nz
-    END DO ! DO ti = mesh%ti1, mesh%ti2
-
-    ! Clean up after yourself
-    CALL deallocate_matrix_CSR_dist( A_CSR)
-    DEALLOCATE( bb)
-    DEALLOCATE( uv_bkuv)
+    end do
+    end do
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE solve_BPA_linearised
+  end subroutine solve_BPA_linearised
 
-  SUBROUTINE calc_BPA_stiffness_matrix_row_free( mesh, BPA, A_CSR, bb, row_tikuv)
-    ! Add coefficients to this matrix row to represent the linearised BPA
-    !
+  subroutine calc_BPA_stiffness_matrix_row_free( mesh, BPA, A_CSR, bb, row_tikuv)
+    !< Add coefficients to this matrix row to represent the linearised BPA
+
     ! The BPA reads;
     !
     !   d/dx [ 2 eta ( 2 du/dx + dv/dy )] + d/dy [ eta ( du/dy + dv/dx)] + d/dz [ eta du/dz] = -tau_dx
@@ -531,30 +499,28 @@ CONTAINS
     ! (vertices, regular vertical) and the bks-grid (triangles, staggered vertical).
     ! From this, we then calculate the gradients of eta on the bk-grid.
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    TYPE(type_mesh),                     INTENT(IN)              :: mesh
-    TYPE(type_ice_velocity_solver_BPA),  INTENT(IN)              :: BPA
-    TYPE(type_sparse_matrix_CSR_dp),     INTENT(INOUT)           :: A_CSR
-    REAL(dp), DIMENSION(A_CSR%i1:A_CSR%i2), INTENT(INOUT)        :: bb
-    INTEGER,                             INTENT(IN)              :: row_tikuv
+    type(type_mesh),                        intent(in   ) :: mesh
+    type(type_ice_velocity_solver_BPA),     intent(in   ) :: BPA
+    type(type_sparse_matrix_CSR_dp),        intent(inout) :: A_CSR
+    real(dp), dimension(A_CSR%i1:A_CSR%i2), intent(inout) :: bb
+    integer,                                intent(in   ) :: row_tikuv
 
     ! Local variables:
-    INTEGER                                                      :: ti, k, uv
-    REAL(dp)                                                     :: eta, deta_dx, deta_dy, deta_dz, tau_dx, tau_dy
-    INTEGER,  DIMENSION(:    ), ALLOCATABLE                      :: single_row_ind
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: single_row_ddx_val
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: single_row_ddy_val
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: single_row_ddz_val
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: single_row_d2dx2_val
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: single_row_d2dxdy_val
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: single_row_d2dy2_val
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: single_row_d2dz2_val
-    INTEGER                                                      :: single_row_nnz
-    INTEGER                                                      :: row_tik
-    REAL(dp)                                                     :: Au, Av
-    INTEGER                                                      :: n, row_tjkk, tj, kk, col_tjkku, col_tjkkv
+    integer                             :: ti, k, uv
+    real(dp)                            :: eta, deta_dx, deta_dy, deta_dz, tau_dx, tau_dy
+    integer,  dimension(:), allocatable :: single_row_ind
+    real(dp), dimension(:), allocatable :: single_row_ddx_val
+    real(dp), dimension(:), allocatable :: single_row_ddy_val
+    real(dp), dimension(:), allocatable :: single_row_ddz_val
+    real(dp), dimension(:), allocatable :: single_row_d2dx2_val
+    real(dp), dimension(:), allocatable :: single_row_d2dxdy_val
+    real(dp), dimension(:), allocatable :: single_row_d2dy2_val
+    real(dp), dimension(:), allocatable :: single_row_d2dz2_val
+    integer                             :: single_row_nnz
+    integer                             :: row_tik
+    real(dp)                            :: Au, Av
+    integer                             :: n, row_tjkk, tj, kk, col_tjkku, col_tjkkv
 
     ! Relevant indices for this triangle and layer
     ti = mesh%n2tikuv( row_tikuv,1)
@@ -569,30 +535,30 @@ CONTAINS
     tau_dx  = BPA%tau_dx_b(   ti  )
     tau_dy  = BPA%tau_dy_b(   ti  )
 
-    ! Allocate memory for single matrix rows
-    ALLOCATE( single_row_ind(        mesh%nC_mem*3*2))
-    ALLOCATE( single_row_ddx_val(    mesh%nC_mem*3*2))
-    ALLOCATE( single_row_ddy_val(    mesh%nC_mem*3*2))
-    ALLOCATE( single_row_ddz_val(    mesh%nC_mem*3*2))
-    ALLOCATE( single_row_d2dx2_val(  mesh%nC_mem*3*2))
-    ALLOCATE( single_row_d2dxdy_val( mesh%nC_mem*3*2))
-    ALLOCATE( single_row_d2dy2_val(  mesh%nC_mem*3*2))
-    ALLOCATE( single_row_d2dz2_val(  mesh%nC_mem*3*2))
+    ! allocate memory for single matrix rows
+    allocate( single_row_ind(        mesh%nC_mem*3*2))
+    allocate( single_row_ddx_val(    mesh%nC_mem*3*2))
+    allocate( single_row_ddy_val(    mesh%nC_mem*3*2))
+    allocate( single_row_ddz_val(    mesh%nC_mem*3*2))
+    allocate( single_row_d2dx2_val(  mesh%nC_mem*3*2))
+    allocate( single_row_d2dxdy_val( mesh%nC_mem*3*2))
+    allocate( single_row_d2dy2_val(  mesh%nC_mem*3*2))
+    allocate( single_row_d2dz2_val(  mesh%nC_mem*3*2))
 
     ! Read coefficients of the operator matrices
     row_tik = mesh%tik2n( ti,k)
-    CALL read_single_row_CSR_dist( mesh%M2_ddx_bk_bk   , row_tik, single_row_ind, single_row_ddx_val   , single_row_nnz)
-    CALL read_single_row_CSR_dist( mesh%M2_ddy_bk_bk   , row_tik, single_row_ind, single_row_ddy_val   , single_row_nnz)
-    CALL read_single_row_CSR_dist( mesh%M2_ddz_bk_bk   , row_tik, single_row_ind, single_row_ddz_val   , single_row_nnz)
-    CALL read_single_row_CSR_dist( mesh%M2_d2dx2_bk_bk , row_tik, single_row_ind, single_row_d2dx2_val , single_row_nnz)
-    CALL read_single_row_CSR_dist( mesh%M2_d2dxdy_bk_bk, row_tik, single_row_ind, single_row_d2dxdy_val, single_row_nnz)
-    CALL read_single_row_CSR_dist( mesh%M2_d2dy2_bk_bk , row_tik, single_row_ind, single_row_d2dy2_val , single_row_nnz)
-    CALL read_single_row_CSR_dist( mesh%M2_d2dz2_bk_bk , row_tik, single_row_ind, single_row_d2dz2_val , single_row_nnz)
+    call read_single_row_CSR_dist( mesh%M2_ddx_bk_bk   , row_tik, single_row_ind, single_row_ddx_val   , single_row_nnz)
+    call read_single_row_CSR_dist( mesh%M2_ddy_bk_bk   , row_tik, single_row_ind, single_row_ddy_val   , single_row_nnz)
+    call read_single_row_CSR_dist( mesh%M2_ddz_bk_bk   , row_tik, single_row_ind, single_row_ddz_val   , single_row_nnz)
+    call read_single_row_CSR_dist( mesh%M2_d2dx2_bk_bk , row_tik, single_row_ind, single_row_d2dx2_val , single_row_nnz)
+    call read_single_row_CSR_dist( mesh%M2_d2dxdy_bk_bk, row_tik, single_row_ind, single_row_d2dxdy_val, single_row_nnz)
+    call read_single_row_CSR_dist( mesh%M2_d2dy2_bk_bk , row_tik, single_row_ind, single_row_d2dy2_val , single_row_nnz)
+    call read_single_row_CSR_dist( mesh%M2_d2dz2_bk_bk , row_tik, single_row_ind, single_row_d2dz2_val , single_row_nnz)
 
-    IF (uv == 1) THEN
+    if (uv == 1) then
       ! x-component
 
-      DO n = 1, single_row_nnz
+      do n = 1, single_row_nnz
 
         ! Relevant indices for this neighbouring triangle
         row_tjkk  = single_row_ind( n)
@@ -617,18 +583,18 @@ CONTAINS
                      deta_dy * single_row_ddx_val(    n)      !   deta/dy  dv/dx
 
         ! Add coefficients to the stiffness matrix
-        CALL add_entry_CSR_dist( A_CSR, row_tikuv, col_tjkku, Au)
-        CALL add_entry_CSR_dist( A_CSR, row_tikuv, col_tjkkv, Av)
+        call add_entry_CSR_dist( A_CSR, row_tikuv, col_tjkku, Au)
+        call add_entry_CSR_dist( A_CSR, row_tikuv, col_tjkkv, Av)
 
-      END DO
+      end do
 
       ! Load vector
       bb( row_tikuv) = -tau_dx
 
-    ELSEIF (uv == 2) THEN
+    elseif (uv == 2) then
       ! y-component
 
-      DO n = 1, single_row_nnz
+      do n = 1, single_row_nnz
 
         ! Releuant indices for this neighbouring triangle
         row_tjkk  = single_row_ind( n)
@@ -653,31 +619,23 @@ CONTAINS
                      deta_dx * single_row_ddy_val(    n)      !   deta/dx  du/dy
 
         ! Add coefficients to the stiffness matrix
-        CALL add_entry_CSR_dist( A_CSR, row_tikuv, col_tjkkv, Av)
-        CALL add_entry_CSR_dist( A_CSR, row_tikuv, col_tjkku, Au)
+        call add_entry_CSR_dist( A_CSR, row_tikuv, col_tjkkv, Av)
+        call add_entry_CSR_dist( A_CSR, row_tikuv, col_tjkku, Au)
 
-      END DO
+      end do
 
       ! Load uector
       bb( row_tikuv) = -tau_dy
 
-    ELSE
-      CALL crash('uv can only be 1 or 2!')
-    END IF
+    else
+      call crash('uv can only be 1 or 2!')
+    end if
 
-    ! Clean up after yourself
-    DEALLOCATE( single_row_ind)
-    DEALLOCATE( single_row_ddx_val)
-    DEALLOCATE( single_row_ddy_val)
-    DEALLOCATE( single_row_d2dx2_val)
-    DEALLOCATE( single_row_d2dxdy_val)
-    DEALLOCATE( single_row_d2dy2_val)
+  end subroutine calc_BPA_stiffness_matrix_row_free
 
-  END SUBROUTINE calc_BPA_stiffness_matrix_row_free
+  subroutine calc_BPA_stiffness_matrix_row_BC_surf( mesh, ice, BPA, A_CSR, bb, row_tikuv)
+    !< Add coefficients to this matrix row to represent the boundary conditions to the BPA at the ice surface
 
-  SUBROUTINE calc_BPA_stiffness_matrix_row_BC_surf( mesh, ice, BPA, A_CSR, bb, row_tikuv)
-    ! Add coefficients to this matrix row to represent the boundary conditions to the BPA at the ice surface
-    !
     ! At the ice surface (k=1), the zero-stress boundary condition implies that:
     !
     ! [1]     2 dh/dx (2 du/dx + dv/dy) + dh/dy (du/dy + dv/dx) - du/dz = 0
@@ -741,31 +699,29 @@ CONTAINS
     !         u( k+1) [             2 eta / dzeta^2 (dzeta/dz)^2] + ...
     !         u( k  ) [            -2 eta / dzeta^2 (dzeta/dz)^2] = -tau_d,x
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    TYPE(type_mesh),                     INTENT(IN)              :: mesh
-    TYPE(type_ice_velocity_solver_BPA),  INTENT(IN)              :: BPA
-    TYPE(type_ice_model),                INTENT(IN)              :: ice
-    TYPE(type_sparse_matrix_CSR_dp),     INTENT(INOUT)           :: A_CSR
-    REAL(dp), DIMENSION(A_CSR%i1:A_CSR%i2), INTENT(INOUT)        :: bb
-    INTEGER,                             INTENT(IN)              :: row_tikuv
+    type(type_mesh),                     intent(in   )           :: mesh
+    type(type_ice_velocity_solver_BPA),  intent(in   )           :: BPA
+    type(type_ice_model),                intent(in   )           :: ice
+    type(type_sparse_matrix_CSR_dp),     intent(inout)           :: A_CSR
+    real(dp), dimension(A_CSR%i1:A_CSR%i2), intent(inout)        :: bb
+    integer,                             intent(in   )           :: row_tikuv
 
     ! Local variables:
-    INTEGER                                                      :: ti, k, uv
-    REAL(dp)                                                     :: eta, deta_dx, deta_dy, deta_dz, tau_dx, tau_dy, dh_dx, dh_dy, dzeta_dz, dzeta
-    INTEGER,  DIMENSION(:    ), ALLOCATABLE                      :: single_row_ind
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: single_row_ddx_val
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: single_row_ddy_val
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: single_row_d2dx2_val
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: single_row_d2dxdy_val
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: single_row_d2dy2_val
-    INTEGER                                                      :: single_row_nnz
-    INTEGER                                                      :: row_tik
-    REAL(dp)                                                     :: cu_dudx, cu_dudy, cu_d2udx2, cu_d2udy2, cu_dvdx, cu_dvdy, cu_d2vdxdy, cu_uk, cu_ukp1
-    REAL(dp)                                                     :: cv_dvdy, cv_dvdx, cv_d2vdy2, cv_d2vdx2, cv_dudy, cv_dudx, cv_d2udxdy, cv_vk, cv_vkp1
-    REAL(dp)                                                     :: Au, Av
-    INTEGER                                                      :: n, row_tjkk, tj, kk, col_tjkku, col_tjkkv
+    integer                             :: ti, k, uv
+    real(dp)                            :: eta, deta_dx, deta_dy, deta_dz, tau_dx, tau_dy, dh_dx, dh_dy, dzeta_dz, dzeta
+    integer,  dimension(:), allocatable :: single_row_ind
+    real(dp), dimension(:), allocatable :: single_row_ddx_val
+    real(dp), dimension(:), allocatable :: single_row_ddy_val
+    real(dp), dimension(:), allocatable :: single_row_d2dx2_val
+    real(dp), dimension(:), allocatable :: single_row_d2dxdy_val
+    real(dp), dimension(:), allocatable :: single_row_d2dy2_val
+    integer                             :: single_row_nnz
+    integer                             :: row_tik
+    real(dp)                            :: cu_dudx, cu_dudy, cu_d2udx2, cu_d2udy2, cu_dvdx, cu_dvdy, cu_d2vdxdy, cu_uk, cu_ukp1
+    real(dp)                            :: cv_dvdy, cv_dvdx, cv_d2vdy2, cv_d2vdx2, cv_dudy, cv_dudx, cv_d2udxdy, cv_vk, cv_vkp1
+    real(dp)                            :: Au, Av
+    integer                             :: n, row_tjkk, tj, kk, col_tjkku, col_tjkkv
 
     ! Relevant indices for this triangle and layer
     ti = mesh%n2tikuv( row_tikuv,1)
@@ -773,7 +729,7 @@ CONTAINS
     uv = mesh%n2tikuv( row_tikuv,3)
 
     ! Safety
-    IF (k /= 1) CALL crash('Received k = {int_01}; only applicable at ice surface!', int_01 = k)
+    if (k /= 1) call crash('Received k = {int_01}; only applicable at ice surface!', int_01 = k)
 
     ! eta, deta/dx, deta/dy, deta/dz, tau_dx, and tau_dy on this triangle and layer
     eta      = BPA%eta_bks(     ti,1)
@@ -788,7 +744,7 @@ CONTAINS
     dzeta    = mesh%zeta( 2) - mesh%zeta( 1)
 
     ! Calculate coefficients for the different gradients of u and v
-    IF (uv == 1) THEN
+    if (uv == 1) then
       ! x-component
 
       ! 4 eta d2u/dx2 + eta d2u/dy2 + 3 eta d2v/dxdy + ...
@@ -809,7 +765,7 @@ CONTAINS
       cu_uk      = -2._dp * eta / dzeta**2 * dzeta_dz**2
       cu_ukp1    =  2._dp * eta / dzeta**2 * dzeta_dz**2
 
-    ELSEIF (uv == 2) THEN
+    elseif (uv == 2) then
       ! y-component
 
       ! 4 eta d2v/dy2 + eta d2v/dx2 + 3 eta d2u/dxdy + ...
@@ -830,30 +786,30 @@ CONTAINS
       cv_vk      = -2._dp * eta / dzeta**2 * dzeta_dz**2
       cv_vkp1    =  2._dp * eta / dzeta**2 * dzeta_dz**2
 
-    ELSE
-      CALL crash('uv can only be 1 or 2!')
-    END IF
+    else
+      call crash('uv can only be 1 or 2!')
+    end if
 
-    ! Allocate memory for single matrix rows
-    ALLOCATE( single_row_ind(        mesh%nC_mem*3*2))
-    ALLOCATE( single_row_ddx_val(    mesh%nC_mem*3*2))
-    ALLOCATE( single_row_ddy_val(    mesh%nC_mem*3*2))
-    ALLOCATE( single_row_d2dx2_val(  mesh%nC_mem*3*2))
-    ALLOCATE( single_row_d2dxdy_val( mesh%nC_mem*3*2))
-    ALLOCATE( single_row_d2dy2_val(  mesh%nC_mem*3*2))
+    ! allocate memory for single matrix rows
+    allocate( single_row_ind(        mesh%nC_mem*3*2))
+    allocate( single_row_ddx_val(    mesh%nC_mem*3*2))
+    allocate( single_row_ddy_val(    mesh%nC_mem*3*2))
+    allocate( single_row_d2dx2_val(  mesh%nC_mem*3*2))
+    allocate( single_row_d2dxdy_val( mesh%nC_mem*3*2))
+    allocate( single_row_d2dy2_val(  mesh%nC_mem*3*2))
 
     ! Read coefficients of the operator matrices
     row_tik = mesh%tik2n( ti,k)
-    CALL read_single_row_CSR_dist( mesh%M2_ddx_bk_bk   , row_tik, single_row_ind, single_row_ddx_val   , single_row_nnz)
-    CALL read_single_row_CSR_dist( mesh%M2_ddy_bk_bk   , row_tik, single_row_ind, single_row_ddy_val   , single_row_nnz)
-    CALL read_single_row_CSR_dist( mesh%M2_d2dx2_bk_bk , row_tik, single_row_ind, single_row_d2dx2_val , single_row_nnz)
-    CALL read_single_row_CSR_dist( mesh%M2_d2dxdy_bk_bk, row_tik, single_row_ind, single_row_d2dxdy_val, single_row_nnz)
-    CALL read_single_row_CSR_dist( mesh%M2_d2dy2_bk_bk , row_tik, single_row_ind, single_row_d2dy2_val , single_row_nnz)
+    call read_single_row_CSR_dist( mesh%M2_ddx_bk_bk   , row_tik, single_row_ind, single_row_ddx_val   , single_row_nnz)
+    call read_single_row_CSR_dist( mesh%M2_ddy_bk_bk   , row_tik, single_row_ind, single_row_ddy_val   , single_row_nnz)
+    call read_single_row_CSR_dist( mesh%M2_d2dx2_bk_bk , row_tik, single_row_ind, single_row_d2dx2_val , single_row_nnz)
+    call read_single_row_CSR_dist( mesh%M2_d2dxdy_bk_bk, row_tik, single_row_ind, single_row_d2dxdy_val, single_row_nnz)
+    call read_single_row_CSR_dist( mesh%M2_d2dy2_bk_bk , row_tik, single_row_ind, single_row_d2dy2_val , single_row_nnz)
 
-    IF (uv == 1) THEN
+    if (uv == 1) then
       ! x-component
 
-      DO n = 1, single_row_nnz
+      do n = 1, single_row_nnz
 
         ! Relevant indices for this neighbouring triangle
         row_tjkk  = single_row_ind( n)
@@ -867,26 +823,26 @@ CONTAINS
              cu_dudy    * single_row_ddy_val(    n) + &
              cu_d2udx2  * single_row_d2dx2_val(  n) + &
              cu_d2udy2  * single_row_d2dy2_val(  n)
-        IF (tj == ti .AND. kk == k  ) Au = Au + cu_uk
-        IF (tj == ti .AND. kk == k+1) Au = Au + cu_ukp1
+        if (tj == ti .and. kk == k  ) Au = Au + cu_uk
+        if (tj == ti .and. kk == k+1) Au = Au + cu_ukp1
 
         Av = cu_dvdy    * single_row_ddy_val(    n) + &
              cu_dvdx    * single_row_ddx_val(    n) + &
              cu_d2vdxdy * single_row_d2dxdy_val( n)
 
         ! Add coefficients to the stiffness matrix
-        CALL add_entry_CSR_dist( A_CSR, row_tikuv, col_tjkku, Au)
-        CALL add_entry_CSR_dist( A_CSR, row_tikuv, col_tjkkv, Av)
+        call add_entry_CSR_dist( A_CSR, row_tikuv, col_tjkku, Au)
+        call add_entry_CSR_dist( A_CSR, row_tikuv, col_tjkkv, Av)
 
-      END DO
+      end do
 
       ! Load vector
       bb( row_tikuv) = -tau_dx
 
-    ELSEIF (uv == 2) THEN
+    elseif (uv == 2) then
       ! y-component
 
-      DO n = 1, single_row_nnz
+      do n = 1, single_row_nnz
 
         ! Relevant indices for this neighbouring triangle
         row_tjkk  = single_row_ind( n)
@@ -900,39 +856,31 @@ CONTAINS
              cv_dvdx    * single_row_ddx_val(    n) + &
              cv_d2vdy2  * single_row_d2dy2_val(  n) + &
              cv_d2vdx2  * single_row_d2dx2_val(  n)
-        IF (tj == ti .AND. kk == k  ) Av = Av + cv_vk
-        IF (tj == ti .AND. kk == k+1) Av = Av + cv_vkp1
+        if (tj == ti .and. kk == k  ) Av = Av + cv_vk
+        if (tj == ti .and. kk == k+1) Av = Av + cv_vkp1
 
         Au = cv_dudx    * single_row_ddx_val(    n) + &
              cv_dudy    * single_row_ddy_val(    n) + &
              cv_d2udxdy * single_row_d2dxdy_val( n)
 
         ! Add coefficients to the stiffness matrix
-        CALL add_entry_CSR_dist( A_CSR, row_tikuv, col_tjkkv, Av)
-        CALL add_entry_CSR_dist( A_CSR, row_tikuv, col_tjkku, Au)
+        call add_entry_CSR_dist( A_CSR, row_tikuv, col_tjkkv, Av)
+        call add_entry_CSR_dist( A_CSR, row_tikuv, col_tjkku, Au)
 
-      END DO
+      end do
 
       ! Load uector
       bb( row_tikuv) = -tau_dy
 
-    ELSE
-      CALL crash('uv can only be 1 or 2!')
-    END IF
+    else
+      call crash('uv can only be 1 or 2!')
+    end if
 
-    ! Clean up after yourself
-    DEALLOCATE( single_row_ind)
-    DEALLOCATE( single_row_ddx_val)
-    DEALLOCATE( single_row_ddy_val)
-    DEALLOCATE( single_row_d2dx2_val)
-    DEALLOCATE( single_row_d2dxdy_val)
-    DEALLOCATE( single_row_d2dy2_val)
+  end subroutine calc_BPA_stiffness_matrix_row_BC_surf
 
-  END SUBROUTINE calc_BPA_stiffness_matrix_row_BC_surf
+  subroutine calc_BPA_stiffness_matrix_row_BC_base( mesh, ice, BPA, A_CSR, bb, row_tikuv)
+    !< Add coefficients to this matrix row to represent the boundary conditions to the BPA at the ice base
 
-  SUBROUTINE calc_BPA_stiffness_matrix_row_BC_base( mesh, ice, BPA, A_CSR, bb, row_tikuv)
-    ! Add coefficients to this matrix row to represent the boundary conditions to the BPA at the ice base
-    !
     ! At the ice surface (k=1), the zero-stress boundary condition implies that:
     !
     ! [1]     2 db/dx (2 du/dx + dv/dy) + db/dy (du/dy + dv/dx) - du/dz + beta_b/eta u = 0
@@ -1010,31 +958,29 @@ CONTAINS
     !         u( k  ) [R beta_b/eta - Q] + ...
     !         u( k-1) [Q] = -tau_d,x
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    TYPE(type_mesh),                     INTENT(IN)              :: mesh
-    TYPE(type_ice_velocity_solver_BPA),  INTENT(IN)              :: BPA
-    TYPE(type_ice_model),                INTENT(IN)              :: ice
-    TYPE(type_sparse_matrix_CSR_dp),     INTENT(INOUT)           :: A_CSR
-    REAL(dp), DIMENSION(A_CSR%i1:A_CSR%i2), INTENT(INOUT)        :: bb
-    INTEGER,                             INTENT(IN)              :: row_tikuv
+    type(type_mesh),                        intent(in   ) :: mesh
+    type(type_ice_velocity_solver_BPA),     intent(in   ) :: BPA
+    type(type_ice_model),                   intent(in   ) :: ice
+    type(type_sparse_matrix_CSR_dp),        intent(inout) :: A_CSR
+    real(dp), dimension(A_CSR%i1:A_CSR%i2), intent(inout) :: bb
+    integer,                                intent(in   ) :: row_tikuv
 
     ! Local variables:
-    INTEGER                                                      :: ti, k, uv
-    REAL(dp)                                                     :: eta, deta_dx, deta_dy, deta_dz, tau_dx, tau_dy, db_dx, db_dy, dzeta_dz, dzeta, basal_friction_coefficient, Q, R
-    INTEGER,  DIMENSION(:    ), ALLOCATABLE                      :: single_row_ind
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: single_row_ddx_val
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: single_row_ddy_val
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: single_row_d2dx2_val
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: single_row_d2dxdy_val
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: single_row_d2dy2_val
-    INTEGER                                                      :: single_row_nnz
-    INTEGER                                                      :: row_tik
-    REAL(dp)                                                     :: cu_dudx, cu_dudy, cu_d2udx2, cu_d2udy2, cu_dvdx, cu_dvdy, cu_d2vdxdy, cu_uk, cu_ukm1
-    REAL(dp)                                                     :: cv_dvdy, cv_dvdx, cv_d2vdy2, cv_d2vdx2, cv_dudy, cv_dudx, cv_d2udxdy, cv_vk, cv_vkm1
-    REAL(dp)                                                     :: Au, Av
-    INTEGER                                                      :: n, row_tjkk, tj, kk, col_tjkku, col_tjkkv
+    integer                             :: ti, k, uv
+    real(dp)                            :: eta, deta_dx, deta_dy, deta_dz, tau_dx, tau_dy, db_dx, db_dy, dzeta_dz, dzeta, basal_friction_coefficient, Q, R
+    integer,  dimension(:), allocatable :: single_row_ind
+    real(dp), dimension(:), allocatable :: single_row_ddx_val
+    real(dp), dimension(:), allocatable :: single_row_ddy_val
+    real(dp), dimension(:), allocatable :: single_row_d2dx2_val
+    real(dp), dimension(:), allocatable :: single_row_d2dxdy_val
+    real(dp), dimension(:), allocatable :: single_row_d2dy2_val
+    integer                             :: single_row_nnz
+    integer                             :: row_tik
+    real(dp)                            :: cu_dudx, cu_dudy, cu_d2udx2, cu_d2udy2, cu_dvdx, cu_dvdy, cu_d2vdxdy, cu_uk, cu_ukm1
+    real(dp)                            :: cv_dvdy, cv_dvdx, cv_d2vdy2, cv_d2vdx2, cv_dudy, cv_dudx, cv_d2udxdy, cv_vk, cv_vkm1
+    real(dp)                            :: Au, Av
+    integer                             :: n, row_tjkk, tj, kk, col_tjkku, col_tjkkv
 
     ! Relevant indices for this triangle and layer
     ti = mesh%n2tikuv( row_tikuv,1)
@@ -1042,15 +988,15 @@ CONTAINS
     uv = mesh%n2tikuv( row_tikuv,3)
 
     ! Safety
-    IF (k /= mesh%nz) CALL crash('Received k = {int_01}; only applicable at ice base!', int_01 = k)
+    if (k /= mesh%nz) call crash('Received k = {int_01}; only applicable at ice base!', int_01 = k)
 
     ! Exception for the case of no sliding
-    IF (C%choice_sliding_law == 'no_sliding') THEN
+    if (C%choice_sliding_law == 'no_sliding') then
       ! u = v = 0
-      CALL add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv, 1._dp)
+      call add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv, 1._dp)
       bb( row_tikuv) = 0._dp
-      RETURN
-    END IF
+      return
+    end if
 
     ! eta, deta/dx, deta/dy, deta/dz, tau_dx, and tau_dy on this triangle and layer
     eta                        = BPA%eta_bks(                      ti,mesh%nz-1)
@@ -1072,7 +1018,7 @@ CONTAINS
     R = 2._dp * eta / dzeta    * dzeta_dz    + deta_dz
 
     ! Calculate coefficients for the different gradients of u and v
-    IF (uv == 1) THEN
+    if (uv == 1) then
       ! x-component
 
       ! [13]    4 eta d2u/dx2  + eta d2u/dy2 + 3 eta d2v/dxdy + ...
@@ -1093,7 +1039,7 @@ CONTAINS
       cu_uk      = ( R * basal_friction_coefficient / eta) - Q
       cu_ukm1    = Q
 
-    ELSEIF (uv == 2) THEN
+    elseif (uv == 2) then
       ! y-component
 
       ! [13]    4 eta d2v/dy2  + eta d2v/dx2 + 3 eta d2u/dydx + ...
@@ -1114,30 +1060,30 @@ CONTAINS
       cv_vk      = ( R * basal_friction_coefficient / eta) - Q
       cv_vkm1    = Q
 
-    ELSE
-      CALL crash('uv can only be 1 or 2!')
-    END IF
+    else
+      call crash('uv can only be 1 or 2!')
+    end if
 
-    ! Allocate memory for single matrix rows
-    ALLOCATE( single_row_ind(        mesh%nC_mem*3*2))
-    ALLOCATE( single_row_ddx_val(    mesh%nC_mem*3*2))
-    ALLOCATE( single_row_ddy_val(    mesh%nC_mem*3*2))
-    ALLOCATE( single_row_d2dx2_val(  mesh%nC_mem*3*2))
-    ALLOCATE( single_row_d2dxdy_val( mesh%nC_mem*3*2))
-    ALLOCATE( single_row_d2dy2_val(  mesh%nC_mem*3*2))
+    ! allocate memory for single matrix rows
+    allocate( single_row_ind(        mesh%nC_mem*3*2))
+    allocate( single_row_ddx_val(    mesh%nC_mem*3*2))
+    allocate( single_row_ddy_val(    mesh%nC_mem*3*2))
+    allocate( single_row_d2dx2_val(  mesh%nC_mem*3*2))
+    allocate( single_row_d2dxdy_val( mesh%nC_mem*3*2))
+    allocate( single_row_d2dy2_val(  mesh%nC_mem*3*2))
 
     ! Read coefficients of the operator matrices
     row_tik = mesh%tik2n( ti,k)
-    CALL read_single_row_CSR_dist( mesh%M2_ddx_bk_bk   , row_tik, single_row_ind, single_row_ddx_val   , single_row_nnz)
-    CALL read_single_row_CSR_dist( mesh%M2_ddy_bk_bk   , row_tik, single_row_ind, single_row_ddy_val   , single_row_nnz)
-    CALL read_single_row_CSR_dist( mesh%M2_d2dx2_bk_bk , row_tik, single_row_ind, single_row_d2dx2_val , single_row_nnz)
-    CALL read_single_row_CSR_dist( mesh%M2_d2dxdy_bk_bk, row_tik, single_row_ind, single_row_d2dxdy_val, single_row_nnz)
-    CALL read_single_row_CSR_dist( mesh%M2_d2dy2_bk_bk , row_tik, single_row_ind, single_row_d2dy2_val , single_row_nnz)
+    call read_single_row_CSR_dist( mesh%M2_ddx_bk_bk   , row_tik, single_row_ind, single_row_ddx_val   , single_row_nnz)
+    call read_single_row_CSR_dist( mesh%M2_ddy_bk_bk   , row_tik, single_row_ind, single_row_ddy_val   , single_row_nnz)
+    call read_single_row_CSR_dist( mesh%M2_d2dx2_bk_bk , row_tik, single_row_ind, single_row_d2dx2_val , single_row_nnz)
+    call read_single_row_CSR_dist( mesh%M2_d2dxdy_bk_bk, row_tik, single_row_ind, single_row_d2dxdy_val, single_row_nnz)
+    call read_single_row_CSR_dist( mesh%M2_d2dy2_bk_bk , row_tik, single_row_ind, single_row_d2dy2_val , single_row_nnz)
 
-    IF (uv == 1) THEN
+    if (uv == 1) then
       ! x-component
 
-      DO n = 1, single_row_nnz
+      do n = 1, single_row_nnz
 
         ! Relevant indices for this neighbouring triangle
         row_tjkk  = single_row_ind( n)
@@ -1151,26 +1097,26 @@ CONTAINS
              cu_dudy    * single_row_ddy_val(    n) + &
              cu_d2udx2  * single_row_d2dx2_val(  n) + &
              cu_d2udy2  * single_row_d2dy2_val(  n)
-        IF (tj == ti .AND. kk == k  ) Au = Au + cu_uk
-        IF (tj == ti .AND. kk == k-1) Au = Au + cu_ukm1
+        if (tj == ti .and. kk == k  ) Au = Au + cu_uk
+        if (tj == ti .and. kk == k-1) Au = Au + cu_ukm1
 
         Av = cu_dvdy    * single_row_ddy_val(    n) + &
              cu_dvdx    * single_row_ddx_val(    n) + &
              cu_d2vdxdy * single_row_d2dxdy_val( n)
 
         ! Add coefficients to the stiffness matrix
-        CALL add_entry_CSR_dist( A_CSR, row_tikuv, col_tjkku, Au)
-        CALL add_entry_CSR_dist( A_CSR, row_tikuv, col_tjkkv, Av)
+        call add_entry_CSR_dist( A_CSR, row_tikuv, col_tjkku, Au)
+        call add_entry_CSR_dist( A_CSR, row_tikuv, col_tjkkv, Av)
 
-      END DO
+      end do
 
       ! Load vector
       bb( row_tikuv) = -tau_dx
 
-    ELSEIF (uv == 2) THEN
+    elseif (uv == 2) then
       ! y-component
 
-      DO n = 1, single_row_nnz
+      do n = 1, single_row_nnz
 
         ! Relevant indices for this neighbouring triangle
         row_tjkk  = single_row_ind( n)
@@ -1184,643 +1130,624 @@ CONTAINS
              cv_dvdx    * single_row_ddx_val(    n) + &
              cv_d2vdy2  * single_row_d2dy2_val(  n) + &
              cv_d2vdx2  * single_row_d2dx2_val(  n)
-        IF (tj == ti .AND. kk == k  ) Av = Av + cv_vk
-        IF (tj == ti .AND. kk == k-1) Av = Av + cv_vkm1
+        if (tj == ti .and. kk == k  ) Av = Av + cv_vk
+        if (tj == ti .and. kk == k-1) Av = Av + cv_vkm1
 
         Au = cv_dudx    * single_row_ddx_val(    n) + &
              cv_dudy    * single_row_ddy_val(    n) + &
              cv_d2udxdy * single_row_d2dxdy_val( n)
 
         ! Add coefficients to the stiffness matrix
-        CALL add_entry_CSR_dist( A_CSR, row_tikuv, col_tjkkv, Av)
-        CALL add_entry_CSR_dist( A_CSR, row_tikuv, col_tjkku, Au)
+        call add_entry_CSR_dist( A_CSR, row_tikuv, col_tjkkv, Av)
+        call add_entry_CSR_dist( A_CSR, row_tikuv, col_tjkku, Au)
 
-      END DO
+      end do
 
       ! Load uector
       bb( row_tikuv) = -tau_dy
 
-    ELSE
-      CALL crash('uv can only be 1 or 2!')
-    END IF
+    else
+      call crash('uv can only be 1 or 2!')
+    end if
 
-    ! Clean up after yourself
-    DEALLOCATE( single_row_ind)
-    DEALLOCATE( single_row_ddx_val)
-    DEALLOCATE( single_row_ddy_val)
-    DEALLOCATE( single_row_d2dx2_val)
-    DEALLOCATE( single_row_d2dxdy_val)
-    DEALLOCATE( single_row_d2dy2_val)
+  end subroutine calc_BPA_stiffness_matrix_row_BC_base
 
-  END SUBROUTINE calc_BPA_stiffness_matrix_row_BC_base
-
-  SUBROUTINE calc_BPA_stiffness_matrix_row_BC_west( mesh, BPA, A_CSR, bb, row_tikuv)
-    ! Add coefficients to this matrix row to represent boundary conditions at the
-    ! western domain border.
-
-    IMPLICIT NONE
+  subroutine calc_BPA_stiffness_matrix_row_BC_west( mesh, BPA, A_CSR, bb, row_tikuv)
+    !< Add coefficients to this matrix row to represent boundary conditions at the
+    !< western domain border.
 
     ! In/output variables:
-    TYPE(type_mesh),                     INTENT(IN)              :: mesh
-    TYPE(type_ice_velocity_solver_BPA),  INTENT(IN)              :: BPA
-    TYPE(type_sparse_matrix_CSR_dp),     INTENT(INOUT)           :: A_CSR
-    REAL(dp), DIMENSION(A_CSR%i1:A_CSR%i2), INTENT(INOUT)        :: bb
-    INTEGER,                             INTENT(IN)              :: row_tikuv
+    type(type_mesh),                        intent(in   ) :: mesh
+    type(type_ice_velocity_solver_BPA),     intent(in   ) :: BPA
+    type(type_sparse_matrix_CSR_dp),        intent(inout) :: A_CSR
+    real(dp), dimension(A_CSR%i1:A_CSR%i2), intent(inout) :: bb
+    integer,                                intent(in   ) :: row_tikuv
 
     ! Local variables:
-    INTEGER                                                      :: ti,k,uv,row_ti
-    INTEGER                                                      :: tj, col_tjkuv
-    INTEGER,  DIMENSION(mesh%nC_mem)                             :: ti_copy
-    REAL(dp), DIMENSION(mesh%nC_mem)                             :: wti_copy
-    REAL(dp)                                                     :: u_fixed, v_fixed
-    INTEGER                                                      :: n, n_neighbours
+    integer                          :: ti,k,uv,row_ti
+    integer                          :: tj, col_tjkuv
+    integer,  dimension(mesh%nC_mem) :: ti_copy
+    real(dp), dimension(mesh%nC_mem) :: wti_copy
+    real(dp)                         :: u_fixed, v_fixed
+    integer                          :: n, n_neighbours
 
     ti = mesh%n2tikuv( row_tikuv,1)
     k  = mesh%n2tikuv( row_tikuv,2)
     uv = mesh%n2tikuv( row_tikuv,3)
     row_ti = mesh%ti2n( ti)
 
-    IF (uv == 1) THEN
+    if (uv == 1) then
       ! x-component
 
-      IF     (C%BC_u_west == 'infinite') THEN
+      if     (C%BC_u_west == 'infinite') then
         ! du/dx = 0
         !
-        ! NOTE: using the d/dx operator matrix doesn't always work well, not sure why...
+        ! notE: using the d/dx operator matrix doesn't always work well, not sure why...
 
         ! Set u on this triangle equal to the average value on its neighbours
         n_neighbours = 0
-        DO n = 1, 3
+        do n = 1, 3
           tj = mesh%TriC( ti,n)
-          IF (tj == 0) CYCLE
+          if (tj == 0) CYCLE
           n_neighbours = n_neighbours + 1
           col_tjkuv = mesh%tikuv2n( tj,k,uv)
-          CALL add_entry_CSR_dist( A_CSR, row_tikuv, col_tjkuv, 1._dp)
-        END DO
-        IF (n_neighbours == 0) CALL crash('whaa!')
-        CALL add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv, -1._dp * REAL( n_neighbours,dp))
+          call add_entry_CSR_dist( A_CSR, row_tikuv, col_tjkuv, 1._dp)
+        end do
+        if (n_neighbours == 0) call crash('whaa!')
+        call add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv, -1._dp * real( n_neighbours,dp))
 
         ! Load vector
         bb( row_tikuv) = 0._dp
 
-      ELSEIF (C%BC_u_west == 'zero') THEN
+      elseif (C%BC_u_west == 'zero') then
         ! u = 0
 
         ! Stiffness matrix
-        CALL add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv, 1._dp)
+        call add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv, 1._dp)
 
         ! Load vector
         bb( row_tikuv) = 0._dp
 
-      ELSEIF (C%BC_u_west == 'periodic_ISMIP-HOM') THEN
+      elseif (C%BC_u_west == 'periodic_ISMIP-HOM') then
         ! u(x,y) = u(x+-L/2,y+-L/2)
 
         ! Find the triangle ti_copy that is displaced by [x+-L/2,y+-L/2] relative to ti
-        CALL find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy, wti_copy)
+        call find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy, wti_copy)
 
         ! Set value at ti equal to value at ti_copy
-        CALL add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv,  1._dp)
+        call add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv,  1._dp)
         u_fixed = 0._dp
-        DO n = 1, mesh%nC_mem
+        do n = 1, mesh%nC_mem
           tj = ti_copy( n)
-          IF (tj == 0) CYCLE
+          if (tj == 0) CYCLE
           u_fixed = u_fixed + wti_copy( n) * BPA%u_bk_prev( tj,k)
-        END DO
+        end do
         ! Relax solution to improve stability
         u_fixed = (C%visc_it_relax * u_fixed) + ((1._dp - C%visc_it_relax) * BPA%u_bk_prev( ti,k))
         ! Set load vector
         bb( row_tikuv) = u_fixed
 
-      ELSE
-        CALL crash('unknown BC_u_west "' // TRIM( C%BC_u_west) // '"!')
-      END IF
+      else
+        call crash('unknown BC_u_west "' // trim( C%BC_u_west) // '"!')
+      end if
 
-    ELSEIF (uv == 2) THEN
+    elseif (uv == 2) then
       ! y-component
 
-      IF     (C%BC_v_west == 'infinite') THEN
+      if     (C%BC_v_west == 'infinite') then
         ! dv/dx = 0
         !
-        ! NOTE: using the d/dx operator matrix doesn't always work well, not sure why...
+        ! notE: using the d/dx operator matrix doesn't always work well, not sure why...
 
         ! Set v on this triangle equal to the average value on its neighbours
         n_neighbours = 0
-        DO n = 1, 3
+        do n = 1, 3
           tj = mesh%TriC( ti,n)
-          IF (tj == 0) CYCLE
+          if (tj == 0) CYCLE
           n_neighbours = n_neighbours + 1
           col_tjkuv = mesh%tikuv2n( tj,k,uv)
-          CALL add_entry_CSR_dist( A_CSR, row_tikuv, col_tjkuv, 1._dp)
-        END DO
-        IF (n_neighbours == 0) CALL crash('whaa!')
-        CALL add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv, -1._dp * REAL( n_neighbours,dp))
+          call add_entry_CSR_dist( A_CSR, row_tikuv, col_tjkuv, 1._dp)
+        end do
+        if (n_neighbours == 0) call crash('whaa!')
+        call add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv, -1._dp * real( n_neighbours,dp))
 
         ! Load vector
         bb( row_tikuv) = 0._dp
 
-      ELSEIF (C%BC_v_west == 'zero') THEN
+      elseif (C%BC_v_west == 'zero') then
         ! v = 0
 
         ! Stiffness matrix
-        CALL add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv, 1._dp)
+        call add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv, 1._dp)
 
         ! Load vector
         bb( row_tikuv) = 0._dp
 
-      ELSEIF (C%BC_v_west == 'periodic_ISMIP-HOM') THEN
+      elseif (C%BC_v_west == 'periodic_ISMIP-HOM') then
         ! v(x,y) = v(x+-L/2,y+-L/2)
 
         ! Find the triangle ti_copy that is displaced by [x+-L/2,y+-L/2] relative to ti
-        CALL find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy, wti_copy)
+        call find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy, wti_copy)
 
         ! Set value at ti equal to value at ti_copy
-        CALL add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv,  1._dp)
+        call add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv,  1._dp)
         v_fixed = 0._dp
-        DO n = 1, mesh%nC_mem
+        do n = 1, mesh%nC_mem
           tj = ti_copy( n)
-          IF (tj == 0) CYCLE
+          if (tj == 0) CYCLE
           v_fixed = v_fixed + wti_copy( n) * BPA%v_bk_prev( tj,k)
-        END DO
+        end do
         ! Relax solution to improve stability
         v_fixed = (C%visc_it_relax * v_fixed) + ((1._dp - C%visc_it_relax) * BPA%v_bk_prev( ti,k))
         ! Set load vector
         bb( row_tikuv) = v_fixed
 
-      ELSE
-        CALL crash('unknown BC_u_west "' // TRIM( C%BC_u_west) // '"!')
-      END IF
+      else
+        call crash('unknown BC_u_west "' // trim( C%BC_u_west) // '"!')
+      end if
 
-    ELSE
-      CALL crash('uv can only be 1 or 2!')
-    END IF
+    else
+      call crash('uv can only be 1 or 2!')
+    end if
 
-  END SUBROUTINE calc_BPA_stiffness_matrix_row_BC_west
+  end subroutine calc_BPA_stiffness_matrix_row_BC_west
 
-  SUBROUTINE calc_BPA_stiffness_matrix_row_BC_east( mesh, BPA, A_CSR, bb, row_tikuv)
-    ! Add coefficients to this matrix row to represent boundary conditions at the
-    ! eastern domain border.
-
-    IMPLICIT NONE
+  subroutine calc_BPA_stiffness_matrix_row_BC_east( mesh, BPA, A_CSR, bb, row_tikuv)
+    !< Add coefficients to this matrix row to represent boundary conditions at the
+    !< eastern domain border.
 
     ! In/output variables:
-    TYPE(type_mesh),                     INTENT(IN)              :: mesh
-    TYPE(type_ice_velocity_solver_BPA),  INTENT(IN)              :: BPA
-    TYPE(type_sparse_matrix_CSR_dp),     INTENT(INOUT)           :: A_CSR
-    REAL(dp), DIMENSION(A_CSR%i1:A_CSR%i2), INTENT(INOUT)        :: bb
-    INTEGER,                             INTENT(IN)              :: row_tikuv
+    type(type_mesh),                        intent(in   ) :: mesh
+    type(type_ice_velocity_solver_BPA),     intent(in   ) :: BPA
+    type(type_sparse_matrix_CSR_dp),        intent(inout) :: A_CSR
+    real(dp), dimension(A_CSR%i1:A_CSR%i2), intent(inout) :: bb
+    integer,                                intent(in   ) :: row_tikuv
 
     ! Local variables:
-    INTEGER                                                      :: ti,k,uv,row_ti
-    INTEGER                                                      :: tj, col_tjkuv
-    INTEGER,  DIMENSION(mesh%nC_mem)                             :: ti_copy
-    REAL(dp), DIMENSION(mesh%nC_mem)                             :: wti_copy
-    REAL(dp)                                                     :: u_fixed, v_fixed
-    INTEGER                                                      :: n, n_neighbours
+    integer                          :: ti,k,uv,row_ti
+    integer                          :: tj, col_tjkuv
+    integer,  dimension(mesh%nC_mem) :: ti_copy
+    real(dp), dimension(mesh%nC_mem) :: wti_copy
+    real(dp)                         :: u_fixed, v_fixed
+    integer                          :: n, n_neighbours
 
     ti = mesh%n2tikuv( row_tikuv,1)
     k  = mesh%n2tikuv( row_tikuv,2)
     uv = mesh%n2tikuv( row_tikuv,3)
     row_ti = mesh%ti2n( ti)
 
-    IF (uv == 1) THEN
+    if (uv == 1) then
       ! x-component
 
-      IF     (C%BC_u_east == 'infinite') THEN
+      if     (C%BC_u_east == 'infinite') then
         ! du/dx = 0
         !
-        ! NOTE: using the d/dx operator matrix doesn't always work well, not sure why...
+        ! notE: using the d/dx operator matrix doesn't always work well, not sure why...
 
         ! Set u on this triangle equal to the average value on its neighbours
         n_neighbours = 0
-        DO n = 1, 3
+        do n = 1, 3
           tj = mesh%TriC( ti,n)
-          IF (tj == 0) CYCLE
+          if (tj == 0) CYCLE
           n_neighbours = n_neighbours + 1
           col_tjkuv = mesh%tikuv2n( tj,k,uv)
-          CALL add_entry_CSR_dist( A_CSR, row_tikuv, col_tjkuv, 1._dp)
-        END DO
-        IF (n_neighbours == 0) CALL crash('whaa!')
-        CALL add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv, -1._dp * REAL( n_neighbours,dp))
+          call add_entry_CSR_dist( A_CSR, row_tikuv, col_tjkuv, 1._dp)
+        end do
+        if (n_neighbours == 0) call crash('whaa!')
+        call add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv, -1._dp * real( n_neighbours,dp))
 
         ! Load vector
         bb( row_tikuv) = 0._dp
 
-      ELSEIF (C%BC_u_east == 'zero') THEN
+      elseif (C%BC_u_east == 'zero') then
         ! u = 0
 
         ! Stiffness matrix
-        CALL add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv, 1._dp)
+        call add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv, 1._dp)
 
         ! Load vector
         bb( row_tikuv) = 0._dp
 
-      ELSEIF (C%BC_u_east == 'periodic_ISMIP-HOM') THEN
+      elseif (C%BC_u_east == 'periodic_ISMIP-HOM') then
         ! u(x,y) = u(x+-L/2,y+-L/2)
 
         ! Find the triangle ti_copy that is displaced by [x+-L/2,y+-L/2] relative to ti
-        CALL find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy, wti_copy)
+        call find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy, wti_copy)
 
         ! Set value at ti equal to value at ti_copy
-        CALL add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv,  1._dp)
+        call add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv,  1._dp)
         u_fixed = 0._dp
-        DO n = 1, mesh%nC_mem
+        do n = 1, mesh%nC_mem
           tj = ti_copy( n)
-          IF (tj == 0) CYCLE
+          if (tj == 0) CYCLE
           u_fixed = u_fixed + wti_copy( n) * BPA%u_bk_prev( tj,k)
-        END DO
+        end do
         ! Relax solution to improve stability
         u_fixed = (C%visc_it_relax * u_fixed) + ((1._dp - C%visc_it_relax) * BPA%u_bk_prev( ti,k))
         ! Set load vector
         bb( row_tikuv) = u_fixed
 
-      ELSE
-        CALL crash('unknown BC_u_east "' // TRIM( C%BC_u_east) // '"!')
-      END IF
+      else
+        call crash('unknown BC_u_east "' // trim( C%BC_u_east) // '"!')
+      end if
 
-    ELSEIF (uv == 2) THEN
+    elseif (uv == 2) then
       ! y-component
 
-      IF     (C%BC_v_east == 'infinite') THEN
+      if     (C%BC_v_east == 'infinite') then
         ! dv/dx = 0
         !
-        ! NOTE: using the d/dx operator matrix doesn't always work well, not sure why...
+        ! notE: using the d/dx operator matrix doesn't always work well, not sure why...
 
         ! Set v on this triangle equal to the average value on its neighbours
         n_neighbours = 0
-        DO n = 1, 3
+        do n = 1, 3
           tj = mesh%TriC( ti,n)
-          IF (tj == 0) CYCLE
+          if (tj == 0) CYCLE
           n_neighbours = n_neighbours + 1
           col_tjkuv = mesh%tikuv2n( tj,k,uv)
-          CALL add_entry_CSR_dist( A_CSR, row_tikuv, col_tjkuv, 1._dp)
-        END DO
-        IF (n_neighbours == 0) CALL crash('whaa!')
-        CALL add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv, -1._dp * REAL( n_neighbours,dp))
+          call add_entry_CSR_dist( A_CSR, row_tikuv, col_tjkuv, 1._dp)
+        end do
+        if (n_neighbours == 0) call crash('whaa!')
+        call add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv, -1._dp * real( n_neighbours,dp))
 
         ! Load vector
         bb( row_tikuv) = 0._dp
 
-      ELSEIF (C%BC_v_east == 'zero') THEN
+      elseif (C%BC_v_east == 'zero') then
         ! v = 0
 
         ! Stiffness matrix
-        CALL add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv, 1._dp)
+        call add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv, 1._dp)
 
         ! Load vector
         bb( row_tikuv) = 0._dp
 
-      ELSEIF (C%BC_v_east == 'periodic_ISMIP-HOM') THEN
+      elseif (C%BC_v_east == 'periodic_ISMIP-HOM') then
         ! v(x,y) = v(x+-L/2,y+-L/2)
 
         ! Find the triangle ti_copy that is displaced by [x+-L/2,y+-L/2] relative to ti
-        CALL find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy, wti_copy)
+        call find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy, wti_copy)
 
         ! Set value at ti equal to value at ti_copy
-        CALL add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv,  1._dp)
+        call add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv,  1._dp)
         v_fixed = 0._dp
-        DO n = 1, mesh%nC_mem
+        do n = 1, mesh%nC_mem
           tj = ti_copy( n)
-          IF (tj == 0) CYCLE
+          if (tj == 0) CYCLE
           v_fixed = v_fixed + wti_copy( n) * BPA%v_bk_prev( tj,k)
-        END DO
+        end do
         ! Relax solution to improve stability
         v_fixed = (C%visc_it_relax * v_fixed) + ((1._dp - C%visc_it_relax) * BPA%v_bk_prev( ti,k))
         ! Set load vector
         bb( row_tikuv) = v_fixed
 
-      ELSE
-        CALL crash('unknown BC_u_east "' // TRIM( C%BC_u_east) // '"!')
-      END IF
+      else
+        call crash('unknown BC_u_east "' // trim( C%BC_u_east) // '"!')
+      end if
 
-    ELSE
-      CALL crash('uv can only be 1 or 2!')
-    END IF
+    else
+      call crash('uv can only be 1 or 2!')
+    end if
 
-  END SUBROUTINE calc_BPA_stiffness_matrix_row_BC_east
+  end subroutine calc_BPA_stiffness_matrix_row_BC_east
 
-  SUBROUTINE calc_BPA_stiffness_matrix_row_BC_south( mesh, BPA, A_CSR, bb, row_tikuv)
-    ! Add coefficients to this matrix row to represent boundary conditions at the
-    ! southern domain border.
-
-    IMPLICIT NONE
+  subroutine calc_BPA_stiffness_matrix_row_BC_south( mesh, BPA, A_CSR, bb, row_tikuv)
+    !< Add coefficients to this matrix row to represent boundary conditions at the
+    !< southern domain border.
 
     ! In/output variables:
-    TYPE(type_mesh),                     INTENT(IN)              :: mesh
-    TYPE(type_ice_velocity_solver_BPA),  INTENT(IN)              :: BPA
-    TYPE(type_sparse_matrix_CSR_dp),     INTENT(INOUT)           :: A_CSR
-    REAL(dp), DIMENSION(A_CSR%i1:A_CSR%i2), INTENT(INOUT)        :: bb
-    INTEGER,                             INTENT(IN)              :: row_tikuv
+    type(type_mesh),                        intent(in   ) :: mesh
+    type(type_ice_velocity_solver_BPA),     intent(in   ) :: BPA
+    type(type_sparse_matrix_CSR_dp),        intent(inout) :: A_CSR
+    real(dp), dimension(A_CSR%i1:A_CSR%i2), intent(inout) :: bb
+    integer,                                intent(in   ) :: row_tikuv
 
     ! Local variables:
-    INTEGER                                                      :: ti,k,uv,row_ti
-    INTEGER                                                      :: tj, col_tjkuv
-    INTEGER,  DIMENSION(mesh%nC_mem)                             :: ti_copy
-    REAL(dp), DIMENSION(mesh%nC_mem)                             :: wti_copy
-    REAL(dp)                                                     :: u_fixed, v_fixed
-    INTEGER                                                      :: n, n_neighbours
+    integer                          :: ti,k,uv,row_ti
+    integer                          :: tj, col_tjkuv
+    integer,  dimension(mesh%nC_mem) :: ti_copy
+    real(dp), dimension(mesh%nC_mem) :: wti_copy
+    real(dp)                         :: u_fixed, v_fixed
+    integer                          :: n, n_neighbours
 
     ti = mesh%n2tikuv( row_tikuv,1)
     k  = mesh%n2tikuv( row_tikuv,2)
     uv = mesh%n2tikuv( row_tikuv,3)
     row_ti = mesh%ti2n( ti)
 
-    IF (uv == 1) THEN
+    if (uv == 1) then
       ! x-component
 
-      IF     (C%BC_u_south == 'infinite') THEN
+      if     (C%BC_u_south == 'infinite') then
         ! du/dy = 0
         !
-        ! NOTE: using the d/dy operator matrix doesn't always work well, not sure why...
+        ! notE: using the d/dy operator matrix doesn't always work well, not sure why...
 
         ! Set u on this triangle equal to the average value on its neighbours
         n_neighbours = 0
-        DO n = 1, 3
+        do n = 1, 3
           tj = mesh%TriC( ti,n)
-          IF (tj == 0) CYCLE
+          if (tj == 0) CYCLE
           n_neighbours = n_neighbours + 1
           col_tjkuv = mesh%tikuv2n( tj,k,uv)
-          CALL add_entry_CSR_dist( A_CSR, row_tikuv, col_tjkuv, 1._dp)
-        END DO
-        IF (n_neighbours == 0) CALL crash('whaa!')
-        CALL add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv, -1._dp * REAL( n_neighbours,dp))
+          call add_entry_CSR_dist( A_CSR, row_tikuv, col_tjkuv, 1._dp)
+        end do
+        if (n_neighbours == 0) call crash('whaa!')
+        call add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv, -1._dp * real( n_neighbours,dp))
 
         ! Load vector
         bb( row_tikuv) = 0._dp
 
-      ELSEIF (C%BC_u_south == 'zero') THEN
+      elseif (C%BC_u_south == 'zero') then
         ! u = 0
 
         ! Stiffness matrix
-        CALL add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv, 1._dp)
+        call add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv, 1._dp)
 
         ! Load vector
         bb( row_tikuv) = 0._dp
 
-      ELSEIF (C%BC_u_south == 'periodic_ISMIP-HOM') THEN
+      elseif (C%BC_u_south == 'periodic_ISMIP-HOM') then
         ! u(x,y) = u(x+-L/2,y+-L/2)
 
         ! Find the triangle ti_copy that is displaced by [x+-L/2,y+-L/2] relative to ti
-        CALL find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy, wti_copy)
+        call find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy, wti_copy)
 
         ! Set value at ti equal to value at ti_copy
-        CALL add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv,  1._dp)
+        call add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv,  1._dp)
         u_fixed = 0._dp
-        DO n = 1, mesh%nC_mem
+        do n = 1, mesh%nC_mem
           tj = ti_copy( n)
-          IF (tj == 0) CYCLE
+          if (tj == 0) CYCLE
           u_fixed = u_fixed + wti_copy( n) * BPA%u_bk_prev( tj,k)
-        END DO
+        end do
         ! Relax solution to improve stability
         u_fixed = (C%visc_it_relax * u_fixed) + ((1._dp - C%visc_it_relax) * BPA%u_bk_prev( ti,k))
         ! Set load vector
         bb( row_tikuv) = u_fixed
 
-      ELSE
-        CALL crash('unknown BC_u_south "' // TRIM( C%BC_u_south) // '"!')
-      END IF
+      else
+        call crash('unknown BC_u_south "' // trim( C%BC_u_south) // '"!')
+      end if
 
-    ELSEIF (uv == 2) THEN
+    elseif (uv == 2) then
       ! y-component
 
-      IF     (C%BC_v_south == 'infinite') THEN
+      if     (C%BC_v_south == 'infinite') then
         ! dv/dy = 0
         !
-        ! NOTE: using the d/dy operator matrix doesn't always work well, not sure why...
+        ! notE: using the d/dy operator matrix doesn't always work well, not sure why...
 
         ! Set v on this triangle equal to the average value on its neighbours
         n_neighbours = 0
-        DO n = 1, 3
+        do n = 1, 3
           tj = mesh%TriC( ti,n)
-          IF (tj == 0) CYCLE
+          if (tj == 0) CYCLE
           n_neighbours = n_neighbours + 1
           col_tjkuv = mesh%tikuv2n( tj,k,uv)
-          CALL add_entry_CSR_dist( A_CSR, row_tikuv, col_tjkuv, 1._dp)
-        END DO
-        IF (n_neighbours == 0) CALL crash('whaa!')
-        CALL add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv, -1._dp * REAL( n_neighbours,dp))
+          call add_entry_CSR_dist( A_CSR, row_tikuv, col_tjkuv, 1._dp)
+        end do
+        if (n_neighbours == 0) call crash('whaa!')
+        call add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv, -1._dp * real( n_neighbours,dp))
 
         ! Load vector
         bb( row_tikuv) = 0._dp
 
-      ELSEIF (C%BC_v_south == 'zero') THEN
+      elseif (C%BC_v_south == 'zero') then
         ! v = 0
 
         ! Stiffness matrix
-        CALL add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv, 1._dp)
+        call add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv, 1._dp)
 
         ! Load vector
         bb( row_tikuv) = 0._dp
 
-      ELSEIF (C%BC_v_south == 'periodic_ISMIP-HOM') THEN
+      elseif (C%BC_v_south == 'periodic_ISMIP-HOM') then
         ! v(x,y) = v(x+-L/2,y+-L/2)
 
         ! Find the triangle ti_copy that is displaced by [x+-L/2,y+-L/2] relative to ti
-        CALL find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy, wti_copy)
+        call find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy, wti_copy)
 
         ! Set value at ti equal to value at ti_copy
-        CALL add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv,  1._dp)
+        call add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv,  1._dp)
         v_fixed = 0._dp
-        DO n = 1, mesh%nC_mem
+        do n = 1, mesh%nC_mem
           tj = ti_copy( n)
-          IF (tj == 0) CYCLE
+          if (tj == 0) CYCLE
           v_fixed = v_fixed + wti_copy( n) * BPA%v_bk_prev( tj,k)
-        END DO
+        end do
         ! Relax solution to improve stability
         v_fixed = (C%visc_it_relax * v_fixed) + ((1._dp - C%visc_it_relax) * BPA%v_bk_prev( ti,k))
         ! Set load vector
         bb( row_tikuv) = v_fixed
 
-      ELSE
-        CALL crash('unknown BC_u_south "' // TRIM( C%BC_u_south) // '"!')
-      END IF
+      else
+        call crash('unknown BC_u_south "' // trim( C%BC_u_south) // '"!')
+      end if
 
-    ELSE
-      CALL crash('uv can only be 1 or 2!')
-    END IF
+    else
+      call crash('uv can only be 1 or 2!')
+    end if
 
-  END SUBROUTINE calc_BPA_stiffness_matrix_row_BC_south
+  end subroutine calc_BPA_stiffness_matrix_row_BC_south
 
-  SUBROUTINE calc_BPA_stiffness_matrix_row_BC_north( mesh, BPA, A_CSR, bb, row_tikuv)
-    ! Add coefficients to this matrix row to represent boundary conditions at the
-    ! northern domain border.
-
-    IMPLICIT NONE
+  subroutine calc_BPA_stiffness_matrix_row_BC_north( mesh, BPA, A_CSR, bb, row_tikuv)
+    !< Add coefficients to this matrix row to represent boundary conditions at the
+    !< northern domain border.
 
     ! In/output variables:
-    TYPE(type_mesh),                     INTENT(IN)              :: mesh
-    TYPE(type_ice_velocity_solver_BPA),  INTENT(IN)              :: BPA
-    TYPE(type_sparse_matrix_CSR_dp),     INTENT(INOUT)           :: A_CSR
-    REAL(dp), DIMENSION(A_CSR%i1:A_CSR%i2), INTENT(INOUT)        :: bb
-    INTEGER,                             INTENT(IN)              :: row_tikuv
+    type(type_mesh),                        intent(in   ) :: mesh
+    type(type_ice_velocity_solver_BPA),     intent(in   ) :: BPA
+    type(type_sparse_matrix_CSR_dp),        intent(inout) :: A_CSR
+    real(dp), dimension(A_CSR%i1:A_CSR%i2), intent(inout) :: bb
+    integer,                                intent(in   ) :: row_tikuv
 
     ! Local variables:
-    INTEGER                                                      :: ti,k,uv,row_ti
-    INTEGER                                                      :: tj, col_tjkuv
-    INTEGER,  DIMENSION(mesh%nC_mem)                             :: ti_copy
-    REAL(dp), DIMENSION(mesh%nC_mem)                             :: wti_copy
-    REAL(dp)                                                     :: u_fixed, v_fixed
-    INTEGER                                                      :: n, n_neighbours
+    integer                          :: ti,k,uv,row_ti
+    integer                          :: tj, col_tjkuv
+    integer,  dimension(mesh%nC_mem) :: ti_copy
+    real(dp), dimension(mesh%nC_mem) :: wti_copy
+    real(dp)                         :: u_fixed, v_fixed
+    integer                          :: n, n_neighbours
 
     ti = mesh%n2tikuv( row_tikuv,1)
     k  = mesh%n2tikuv( row_tikuv,2)
     uv = mesh%n2tikuv( row_tikuv,3)
     row_ti = mesh%ti2n( ti)
 
-    IF (uv == 1) THEN
+    if (uv == 1) then
       ! x-component
 
-      IF     (C%BC_u_north == 'infinite') THEN
+      if     (C%BC_u_north == 'infinite') then
         ! du/dy = 0
         !
-        ! NOTE: using the d/dy operator matrix doesn't always work well, not sure why...
+        ! notE: using the d/dy operator matrix doesn't always work well, not sure why...
 
         ! Set u on this triangle equal to the average value on its neighbours
         n_neighbours = 0
-        DO n = 1, 3
+        do n = 1, 3
           tj = mesh%TriC( ti,n)
-          IF (tj == 0) CYCLE
+          if (tj == 0) CYCLE
           n_neighbours = n_neighbours + 1
           col_tjkuv = mesh%tikuv2n( tj,k,uv)
-          CALL add_entry_CSR_dist( A_CSR, row_tikuv, col_tjkuv, 1._dp)
-        END DO
-        IF (n_neighbours == 0) CALL crash('whaa!')
-        CALL add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv, -1._dp * REAL( n_neighbours,dp))
+          call add_entry_CSR_dist( A_CSR, row_tikuv, col_tjkuv, 1._dp)
+        end do
+        if (n_neighbours == 0) call crash('whaa!')
+        call add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv, -1._dp * real( n_neighbours,dp))
 
         ! Load vector
         bb( row_tikuv) = 0._dp
 
-      ELSEIF (C%BC_u_north == 'zero') THEN
+      elseif (C%BC_u_north == 'zero') then
         ! u = 0
 
         ! Stiffness matrix
-        CALL add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv, 1._dp)
+        call add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv, 1._dp)
 
         ! Load vector
         bb( row_tikuv) = 0._dp
 
-      ELSEIF (C%BC_u_north == 'periodic_ISMIP-HOM') THEN
+      elseif (C%BC_u_north == 'periodic_ISMIP-HOM') then
         ! u(x,y) = u(x+-L/2,y+-L/2)
 
         ! Find the triangle ti_copy that is displaced by [x+-L/2,y+-L/2] relative to ti
-        CALL find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy, wti_copy)
+        call find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy, wti_copy)
 
         ! Set value at ti equal to value at ti_copy
-        CALL add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv,  1._dp)
+        call add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv,  1._dp)
         u_fixed = 0._dp
-        DO n = 1, mesh%nC_mem
+        do n = 1, mesh%nC_mem
           tj = ti_copy( n)
-          IF (tj == 0) CYCLE
+          if (tj == 0) CYCLE
           u_fixed = u_fixed + wti_copy( n) * BPA%u_bk_prev( tj,k)
-        END DO
+        end do
         ! Relax solution to improve stability
         u_fixed = (C%visc_it_relax * u_fixed) + ((1._dp - C%visc_it_relax) * BPA%u_bk_prev( ti,k))
         ! Set load vector
         bb( row_tikuv) = u_fixed
 
-      ELSE
-        CALL crash('unknown BC_u_north "' // TRIM( C%BC_u_north) // '"!')
-      END IF
+      else
+        call crash('unknown BC_u_north "' // trim( C%BC_u_north) // '"!')
+      end if
 
-    ELSEIF (uv == 2) THEN
+    elseif (uv == 2) then
       ! y-component
 
-      IF     (C%BC_v_north == 'infinite') THEN
+      if     (C%BC_v_north == 'infinite') then
         ! dv/dy = 0
         !
-        ! NOTE: using the d/dy operator matrix doesn't always work well, not sure why...
+        ! notE: using the d/dy operator matrix doesn't always work well, not sure why...
 
         ! Set v on this triangle equal to the average value on its neighbours
         n_neighbours = 0
-        DO n = 1, 3
+        do n = 1, 3
           tj = mesh%TriC( ti,n)
-          IF (tj == 0) CYCLE
+          if (tj == 0) CYCLE
           n_neighbours = n_neighbours + 1
           col_tjkuv = mesh%tikuv2n( tj,k,uv)
-          CALL add_entry_CSR_dist( A_CSR, row_tikuv, col_tjkuv, 1._dp)
-        END DO
-        IF (n_neighbours == 0) CALL crash('whaa!')
-        CALL add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv, -1._dp * REAL( n_neighbours,dp))
+          call add_entry_CSR_dist( A_CSR, row_tikuv, col_tjkuv, 1._dp)
+        end do
+        if (n_neighbours == 0) call crash('whaa!')
+        call add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv, -1._dp * real( n_neighbours,dp))
 
         ! Load vector
         bb( row_tikuv) = 0._dp
 
-      ELSEIF (C%BC_v_north == 'zero') THEN
+      elseif (C%BC_v_north == 'zero') then
         ! v = 0
 
         ! Stiffness matrix
-        CALL add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv, 1._dp)
+        call add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv, 1._dp)
 
         ! Load vector
         bb( row_tikuv) = 0._dp
 
-      ELSEIF (C%BC_v_north == 'periodic_ISMIP-HOM') THEN
+      elseif (C%BC_v_north == 'periodic_ISMIP-HOM') then
         ! v(x,y) = v(x+-L/2,y+-L/2)
 
         ! Find the triangle ti_copy that is displaced by [x+-L/2,y+-L/2] relative to ti
-        CALL find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy, wti_copy)
+        call find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy, wti_copy)
 
         ! Set value at ti equal to value at ti_copy
-        CALL add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv,  1._dp)
+        call add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv,  1._dp)
         v_fixed = 0._dp
-        DO n = 1, mesh%nC_mem
+        do n = 1, mesh%nC_mem
           tj = ti_copy( n)
-          IF (tj == 0) CYCLE
+          if (tj == 0) CYCLE
           v_fixed = v_fixed + wti_copy( n) * BPA%v_bk_prev( tj,k)
-        END DO
+        end do
         ! Relax solution to improve stability
         v_fixed = (C%visc_it_relax * v_fixed) + ((1._dp - C%visc_it_relax) * BPA%v_bk_prev( ti,k))
         ! Set load vector
         bb( row_tikuv) = v_fixed
 
-      ELSE
-        CALL crash('unknown BC_u_north "' // TRIM( C%BC_u_north) // '"!')
-      END IF
+      else
+        call crash('unknown BC_u_north "' // trim( C%BC_u_north) // '"!')
+      end if
 
-    ELSE
-      CALL crash('uv can only be 1 or 2!')
-    END IF
+    else
+      call crash('uv can only be 1 or 2!')
+    end if
 
-  END SUBROUTINE calc_BPA_stiffness_matrix_row_BC_north
+  end subroutine calc_BPA_stiffness_matrix_row_BC_north
 
 ! == Calculate several intermediate terms in the BPA
 
-  SUBROUTINE calc_driving_stress( mesh, ice, BPA)
-    ! Calculate the driving stress
-
-    IMPLICIT NONE
+  subroutine calc_driving_stress( mesh, ice, BPA)
 
     ! In/output variables:
-    TYPE(type_mesh),                     INTENT(IN)              :: mesh
-    TYPE(type_ice_model),                INTENT(IN)              :: ice
-    TYPE(type_ice_velocity_solver_BPA),  INTENT(INOUT)           :: BPA
+    type(type_mesh),                    intent(in   ) :: mesh
+    type(type_ice_model),               intent(in   ) :: ice
+    type(type_ice_velocity_solver_BPA), intent(inout) :: BPA
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'calc_driving_stress'
-    INTEGER                                                      :: ti
+    character(len=1024), parameter :: routine_name = 'calc_driving_stress'
+    integer                        :: ti
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
     ! Calculate dh/dx, dh/dy, db/dx, db/dy on the b-grid
-    CALL ddx_a_b_2D( mesh, ice%Hs , BPA%dh_dx_b)
-    CALL ddy_a_b_2D( mesh, ice%Hs , BPA%dh_dy_b)
-    CALL ddx_a_b_2D( mesh, ice%Hib, BPA%db_dx_b)
-    CALL ddy_a_b_2D( mesh, ice%Hib, BPA%db_dy_b)
+    call ddx_a_b_2D( mesh, ice%Hs , BPA%dh_dx_b)
+    call ddy_a_b_2D( mesh, ice%Hs , BPA%dh_dy_b)
+    call ddx_a_b_2D( mesh, ice%Hib, BPA%db_dx_b)
+    call ddy_a_b_2D( mesh, ice%Hib, BPA%db_dy_b)
 
     ! Calculate the driving stress
-    DO ti = mesh%ti1, mesh%ti2
+    do ti = mesh%ti1, mesh%ti2
       BPA%tau_dx_b( ti) = -ice_density * grav * BPA%dh_dx_b( ti)
       BPA%tau_dy_b( ti) = -ice_density * grav * BPA%dh_dy_b( ti)
-    END DO
+    end do
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE calc_driving_stress
+  end subroutine calc_driving_stress
 
-  SUBROUTINE calc_strain_rates( mesh, BPA)
-    ! Calculate the strain rates
-    !
+  subroutine calc_strain_rates( mesh, BPA)
+    !< Calculate the strain rates
+
     ! The velocities u and v are defined on the bk-grid (triangles, regular vertical)
     !
     ! The horizontal stretch/shear strain rates du/dx, du/dy, dv/dx, dv/dy are
@@ -1831,141 +1758,139 @@ CONTAINS
     ! (triangles, staggered vertical), and are then mapped to the ak-grid (vertices,
     ! regular vertical).
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    TYPE(type_mesh),                     INTENT(IN)              :: mesh
-    TYPE(type_ice_velocity_solver_BPA),  INTENT(INOUT)           :: BPA
+    type(type_mesh),                    intent(in   ) :: mesh
+    type(type_ice_velocity_solver_BPA), intent(inout) :: BPA
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'calc_strain_rates'
+    character(len=1024), parameter :: routine_name = 'calc_strain_rates'
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
     ! Calculate horizontal stretch/strain rates on the ak-grid
-    CALL calc_3D_gradient_bk_ak(  mesh, mesh%M_ddx_bk_ak , BPA%u_bk, BPA%du_dx_ak )
-    CALL calc_3D_gradient_bk_ak(  mesh, mesh%M_ddy_bk_ak , BPA%u_bk, BPA%du_dy_ak )
-    CALL calc_3D_gradient_bk_ak(  mesh, mesh%M_ddx_bk_ak , BPA%v_bk, BPA%dv_dx_ak )
-    CALL calc_3D_gradient_bk_ak(  mesh, mesh%M_ddy_bk_ak , BPA%v_bk, BPA%dv_dy_ak )
+    call calc_3D_gradient_bk_ak(  mesh, mesh%M_ddx_bk_ak , BPA%u_bk, BPA%du_dx_ak )
+    call calc_3D_gradient_bk_ak(  mesh, mesh%M_ddy_bk_ak , BPA%u_bk, BPA%du_dy_ak )
+    call calc_3D_gradient_bk_ak(  mesh, mesh%M_ddx_bk_ak , BPA%v_bk, BPA%dv_dx_ak )
+    call calc_3D_gradient_bk_ak(  mesh, mesh%M_ddy_bk_ak , BPA%v_bk, BPA%dv_dy_ak )
 
     ! Calculate vertical shear strain rates on the bks-grid
-    CALL calc_3D_gradient_bk_bks( mesh, mesh%M_ddz_bk_bks, BPA%u_bk, BPA%du_dz_bks)
-    CALL calc_3D_gradient_bk_bks( mesh, mesh%M_ddz_bk_bks, BPA%v_bk, BPA%dv_dz_bks)
+    call calc_3D_gradient_bk_bks( mesh, mesh%M_ddz_bk_bks, BPA%u_bk, BPA%du_dz_bks)
+    call calc_3D_gradient_bk_bks( mesh, mesh%M_ddz_bk_bks, BPA%v_bk, BPA%dv_dz_bks)
 
     ! Map horizontal stretch/shear strain rates from the ak-grid to the bks-grid
-    CALL map_ak_bks( mesh, mesh%M_map_ak_bks, BPA%du_dx_ak, BPA%du_dx_bks)
-    CALL map_ak_bks( mesh, mesh%M_map_ak_bks, BPA%du_dy_ak, BPA%du_dy_bks)
-    CALL map_ak_bks( mesh, mesh%M_map_ak_bks, BPA%dv_dx_ak, BPA%dv_dx_bks)
-    CALL map_ak_bks( mesh, mesh%M_map_ak_bks, BPA%dv_dy_ak, BPA%dv_dy_bks)
+    call map_ak_bks( mesh, mesh%M_map_ak_bks, BPA%du_dx_ak, BPA%du_dx_bks)
+    call map_ak_bks( mesh, mesh%M_map_ak_bks, BPA%du_dy_ak, BPA%du_dy_bks)
+    call map_ak_bks( mesh, mesh%M_map_ak_bks, BPA%dv_dx_ak, BPA%dv_dx_bks)
+    call map_ak_bks( mesh, mesh%M_map_ak_bks, BPA%dv_dy_ak, BPA%dv_dy_bks)
 
     ! Map vertical shear strain rates from the bks-grid to the ak-grid
-    CALL map_bks_ak( mesh, mesh%M_map_bks_ak, BPA%du_dz_bks, BPA%du_dz_ak)
-    CALL map_bks_ak( mesh, mesh%M_map_bks_ak, BPA%dv_dz_bks, BPA%dv_dz_ak)
+    call map_bks_ak( mesh, mesh%M_map_bks_ak, BPA%du_dz_bks, BPA%du_dz_ak)
+    call map_bks_ak( mesh, mesh%M_map_bks_ak, BPA%dv_dz_bks, BPA%dv_dz_ak)
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE calc_strain_rates
+  end subroutine calc_strain_rates
 
-  SUBROUTINE calc_effective_viscosity( mesh, ice, BPA, Glens_flow_law_epsilon_sq_0_applied)
-    ! Calculate the effective viscosity eta, the product term N = eta*H, and the gradients of N
-    !
+  subroutine calc_effective_viscosity( mesh, ice, BPA, Glens_flow_law_epsilon_sq_0_applied)
+    !< Calculate the effective viscosity eta, the product term N = eta*H, and the gradients of N
+
     ! The effective viscosity eta is calculated separately on both the ak-grid (vertices, regular vertical)
     ! and on the bks-grid (triangles, staggered vertical), using the strain rates calculated in calc_strain_rates.
     !
     ! eta_bk, deta_dx_bk, and deta_dy_bk are calculated from eta_ak
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    TYPE(type_mesh),                     INTENT(IN)              :: mesh
-    TYPE(type_ice_model),                INTENT(INOUT)           :: ice
-    TYPE(type_ice_velocity_solver_BPA),  INTENT(INOUT)           :: BPA
-    REAL(dp),                            INTENT(IN)              :: Glens_flow_law_epsilon_sq_0_applied
+    type(type_mesh),                    intent(in   ) :: mesh
+    type(type_ice_model),               intent(inout) :: ice
+    type(type_ice_velocity_solver_BPA), intent(inout) :: BPA
+    real(dp),                           intent(in   ) :: Glens_flow_law_epsilon_sq_0_applied
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'calc_effective_viscosity'
-    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                      ::  A_flow_bks
-    INTEGER                                                      :: vi,ti,k,ks
-    REAL(dp)                                                     :: A_min, eta_max
-    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE                      :: eta_bk_from_ak, eta_bk_from_bks
-    REAL(dp)                                                     :: uabs_base, uabs_surf, R_shear
+    character(len=1024), parameter        :: routine_name = 'calc_effective_viscosity'
+    real(dp), dimension(:,:), allocatable ::  A_flow_bks
+    integer                               :: vi,ti,k,ks
+    real(dp)                              :: A_min, eta_max
+    real(dp), dimension(:,:), allocatable :: eta_bk_from_ak, eta_bk_from_bks
+    real(dp)                              :: uabs_base, uabs_surf, R_shear
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
     ! Calculate maximum allowed effective viscosity, for stability
     A_min = 1E-18_dp
     eta_max = 0.5_dp * A_min**(-1._dp / C%Glens_flow_law_exponent) * (Glens_flow_law_epsilon_sq_0_applied)**((1._dp - C%Glens_flow_law_exponent)/(2._dp*C%Glens_flow_law_exponent))
 
-    ! Allocate memory
-    ALLOCATE( A_flow_bks( mesh%ti1:mesh%ti2, mesh%nz-1))
+    ! allocate memory
+    allocate( A_flow_bks( mesh%ti1:mesh%ti2, mesh%nz-1))
 
-  ! == Calculate effective viscosity on the ak-grid
+    ! == Calculate effective viscosity on the ak-grid
 
     ! Calculate the effective viscosity eta
-    IF (C%choice_flow_law == 'Glen') THEN
+    select case (C%choice_flow_law)
+    case default
+      call crash('unknown choice_flow_law "' // trim( C%choice_flow_law) // '"!')
+    case ('Glen')
       ! Calculate the effective viscosity eta according to Glen's flow law
 
       ! Calculate flow factors
-      CALL calc_ice_rheology_Glen( mesh, ice)
+      call calc_ice_rheology_Glen( mesh, ice)
 
       ! Calculate effective viscosity
-      DO vi = mesh%vi1, mesh%vi2
-      DO k  = 1, mesh%nz
+      do vi = mesh%vi1, mesh%vi2
+      do k  = 1, mesh%nz
         BPA%eta_ak( vi,k) = calc_effective_viscosity_Glen_3D_uv_only( Glens_flow_law_epsilon_sq_0_applied, &
           BPA%du_dx_ak( vi,k), BPA%du_dy_ak( vi,k), BPA%du_dz_ak( vi,k), &
           BPA%dv_dx_ak( vi,k), BPA%dv_dy_ak( vi,k), BPA%dv_dz_ak( vi,k), ice%A_flow( vi,k))
-      END DO
-      END DO
+      end do
+      end do
 
-    ELSE
-      CALL crash('unknown choice_flow_law "' // TRIM( C%choice_flow_law) // '"!')
-    END IF
+    end select
 
     ! Safety
-    BPA%eta_ak = MIN( MAX( BPA%eta_ak, C%visc_eff_min), eta_max)
+    BPA%eta_ak = min( max( BPA%eta_ak, C%visc_eff_min), eta_max)
 
-  ! == Calculate effective viscosity on the bks-grid
+    ! == Calculate effective viscosity on the bks-grid
 
     ! Calculate the effective viscosity eta
-    IF (C%choice_flow_law == 'Glen') THEN
+    select case (C%choice_flow_law)
+    case default
+      call crash('unknown choice_flow_law "' // trim( C%choice_flow_law) // '"!')
+    case ('Glen')
       ! Calculate the effective viscosity according to Glen's flow law
 
       ! Calculate flow factors: map ice flow factor from the ak-grid to the bks-grid
-      CALL map_ak_bks( mesh, mesh%M_map_ak_bks, ice%A_flow, A_flow_bks)
+      call map_ak_bks( mesh, mesh%M_map_ak_bks, ice%A_flow, A_flow_bks)
 
       ! Calculate effective viscosity
-      DO ti = mesh%ti1, mesh%ti2
-      DO ks  = 1, mesh%nz-1
+      do ti = mesh%ti1, mesh%ti2
+      do ks  = 1, mesh%nz-1
         BPA%eta_bks( ti,ks) = calc_effective_viscosity_Glen_3D_uv_only( C%Glens_flow_law_epsilon_sq_0, &
           BPA%du_dx_bks( ti,ks), BPA%du_dy_bks( ti,ks), BPA%du_dz_bks( ti,ks), &
           BPA%dv_dx_bks( ti,ks), BPA%dv_dy_bks( ti,ks), BPA%dv_dz_bks( ti,ks), A_flow_bks( ti,ks))
-      END DO
-      END DO
+      end do
+      end do
 
-    ELSE
-      CALL crash('unknown choice_flow_law "' // TRIM( C%choice_flow_law) // '"!')
-    END IF
+    end select
 
     ! Safety
-    BPA%eta_bks = MIN( MAX( BPA%eta_bks, C%visc_eff_min), eta_max)
+    BPA%eta_bks = min( max( BPA%eta_bks, C%visc_eff_min), eta_max)
 
     ! Calculate the horizontal gradients of the effective viscosity from its value on the ak-grid
-    CALL calc_3D_gradient_ak_bk(  mesh, mesh%M_ddx_ak_bk , BPA%eta_ak , BPA%deta_dx_bk)
-    CALL calc_3D_gradient_ak_bk(  mesh, mesh%M_ddy_ak_bk , BPA%eta_ak , BPA%deta_dy_bk)
+    call calc_3D_gradient_ak_bk(  mesh, mesh%M_ddx_ak_bk , BPA%eta_ak , BPA%deta_dx_bk)
+    call calc_3D_gradient_ak_bk(  mesh, mesh%M_ddy_ak_bk , BPA%eta_ak , BPA%deta_dy_bk)
 
     ! Calculate the vertical gradients of the effective viscosity from its value on the bks-grid
-    CALL calc_3D_gradient_bks_bk( mesh, mesh%M_ddz_bks_bk, BPA%eta_bks, BPA%deta_dz_bk)
+    call calc_3D_gradient_bks_bk( mesh, mesh%M_ddz_bks_bk, BPA%eta_bks, BPA%deta_dz_bk)
 
     ! Map the effective viscosity from the ak- and bks-grids to the bk-grid
 
-    ALLOCATE( eta_bk_from_ak(  mesh%ti1:mesh%ti2,mesh%nz))
-    ALLOCATE( eta_bk_from_bks( mesh%ti1:mesh%ti2,mesh%nz))
+    allocate( eta_bk_from_ak(  mesh%ti1:mesh%ti2,mesh%nz))
+    allocate( eta_bk_from_bks( mesh%ti1:mesh%ti2,mesh%nz))
 
-    CALL map_a_b_3D( mesh, BPA%eta_ak, eta_bk_from_ak)
-    CALL calc_3D_gradient_bks_bk( mesh, mesh%M_map_bks_bk, BPA%eta_bks, eta_bk_from_bks)
+    call map_a_b_3D( mesh, BPA%eta_ak, eta_bk_from_ak)
+    call calc_3D_gradient_bks_bk( mesh, mesh%M_map_bks_bk, BPA%eta_bks, eta_bk_from_bks)
 
     ! Preliminary experiments suggest that in settings where ice flow is dominated by
     ! vertical shear (e.g. the Halfar dome with no sliding), the solver is only stable
@@ -1974,11 +1899,11 @@ CONTAINS
     ! R_shear serves to provide a crude approximation to which flow mode dominates,
     ! which is then use to calculate a weighted average between the two versions of eta.
 
-    DO ti = mesh%ti1, mesh%ti2
+    do ti = mesh%ti1, mesh%ti2
 
       ! Calculate the shear factor R_shear
-      uabs_surf = SQRT( 0.1_dp + BPA%u_bk( ti,1      )**2 + BPA%v_bk( ti,1      )**2)
-      uabs_base = SQRT( 0.1_dp + BPA%u_bk( ti,mesh%nz)**2 + BPA%v_bk( ti,mesh%nz)**2)
+      uabs_surf = sqrt( 0.1_dp + BPA%u_bk( ti,1      )**2 + BPA%v_bk( ti,1      )**2)
+      uabs_base = sqrt( 0.1_dp + BPA%u_bk( ti,mesh%nz)**2 + BPA%v_bk( ti,mesh%nz)**2)
       R_shear = uabs_base / uabs_surf
 
       ! By the nature of ice flow, uabs_base <= uabs_surf, so 0 <= R_shear <= 1,
@@ -1988,42 +1913,35 @@ CONTAINS
       ! Weighted average
       BPA%eta_bk( ti,:) = R_shear * eta_bk_from_ak( ti,:) + (1._dp - R_shear) * eta_bk_from_bks( ti,:)
 
-    END DO ! DO ti = mesh%ti1, mesh%ti2
-
-    ! Clean up after yourself
-    DEALLOCATE( A_flow_bks)
-    DEALLOCATE( eta_bk_from_ak)
-    DEALLOCATE( eta_bk_from_bks)
+    end do
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE calc_effective_viscosity
+  end subroutine calc_effective_viscosity
 
-  SUBROUTINE calc_applied_basal_friction_coefficient( mesh, ice, BPA)
-    ! Calculate the applied basal friction coefficient beta_b, i.e. on the b-grid
-    ! and scaled with the sub-grid grounded fraction
-    !
+  subroutine calc_applied_basal_friction_coefficient( mesh, ice, BPA)
+    !< Calculate the applied basal friction coefficient beta_b, i.e. on the b-grid
+    !< and scaled with the sub-grid grounded fraction
+
     ! This is where the sliding law is called!
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    TYPE(type_mesh),                     INTENT(IN)              :: mesh
-    TYPE(type_ice_model),                INTENT(INOUT)           :: ice
-    TYPE(type_ice_velocity_solver_BPA),  INTENT(INOUT)           :: BPA
+    type(type_mesh),                    intent(in   ) :: mesh
+    type(type_ice_model),               intent(inout) :: ice
+    type(type_ice_velocity_solver_BPA), intent(inout) :: BPA
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'calc_applied_basal_friction_coefficient'
-    INTEGER                                                      :: ti
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE                      :: u_base_b, v_base_b
+    character(len=1024), parameter      :: routine_name = 'calc_applied_basal_friction_coefficient'
+    integer                             :: ti
+    real(dp), dimension(:), allocatable :: u_base_b, v_base_b
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
-    ! Allocate memory
-    ALLOCATE( u_base_b( mesh%ti1:mesh%ti2))
-    ALLOCATE( v_base_b( mesh%ti1:mesh%ti2))
+    ! allocate memory
+    allocate( u_base_b( mesh%ti1:mesh%ti2))
+    allocate( v_base_b( mesh%ti1:mesh%ti2))
 
     ! Copy basal velocities from 3-D fields
     u_base_b = BPA%u_bk( :,mesh%nz)
@@ -2031,76 +1949,72 @@ CONTAINS
 
     ! Calculate the basal friction coefficient beta_b for the current velocity solution
     ! This is where the sliding law is called!
-    CALL calc_basal_friction_coefficient( mesh, ice, u_base_b, v_base_b)
+    call calc_basal_friction_coefficient( mesh, ice, u_base_b, v_base_b)
 
     ! Map basal friction coefficient beta_b to the b-grid
-    CALL map_a_b_2D( mesh, ice%basal_friction_coefficient, BPA%basal_friction_coefficient_b)
+    call map_a_b_2D( mesh, ice%basal_friction_coefficient, BPA%basal_friction_coefficient_b)
 
     ! Apply the sub-grid grounded fraction, and limit the friction coefficient to improve stability
-    IF (C%do_GL_subgrid_friction) THEN
-      DO ti = mesh%ti1, mesh%ti2
+    if (C%do_GL_subgrid_friction) then
+      do ti = mesh%ti1, mesh%ti2
         BPA%basal_friction_coefficient_b( ti) = BPA%basal_friction_coefficient_b( ti) * ice%fraction_gr_b( ti)**C%subgrid_friction_exponent_on_B_grid
-      END DO
-    END IF
+      end do
+    end if
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE calc_applied_basal_friction_coefficient
+  end subroutine calc_applied_basal_friction_coefficient
 
 ! == Some useful tools for improving numerical stability of the viscosity iteration
 
-  SUBROUTINE relax_viscosity_iterations( mesh, BPA, visc_it_relax)
-    ! Reduce the change between velocity solutions
-
-    IMPLICIT NONE
+  subroutine relax_viscosity_iterations( mesh, BPA, visc_it_relax)
+    !< Reduce the change between velocity solutions
 
     ! In/output variables:
-    TYPE(type_mesh),                     INTENT(IN)              :: mesh
-    TYPE(type_ice_velocity_solver_BPA),  INTENT(INOUT)           :: BPA
-    REAL(dp),                            INTENT(IN)              :: visc_it_relax
+    type(type_mesh),                    intent(in   ) :: mesh
+    type(type_ice_velocity_solver_BPA), intent(inout) :: BPA
+    real(dp),                           intent(in   ) :: visc_it_relax
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'relax_viscosity_iterations'
-    INTEGER                                                      :: ti
+    character(len=1024), parameter :: routine_name = 'relax_viscosity_iterations'
+    integer                        :: ti
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
-    DO ti = mesh%ti1, mesh%ti2
+    do ti = mesh%ti1, mesh%ti2
       BPA%u_bk( ti,:) = (visc_it_relax * BPA%u_bk( ti,:)) + ((1._dp - visc_it_relax) * BPA%u_bk_prev( ti,:))
       BPA%v_bk( ti,:) = (visc_it_relax * BPA%v_bk( ti,:)) + ((1._dp - visc_it_relax) * BPA%v_bk_prev( ti,:))
-    END DO
+    end do
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE relax_viscosity_iterations
+  end subroutine relax_viscosity_iterations
 
-  SUBROUTINE calc_visc_iter_UV_resid( mesh, BPA, resid_UV)
-    ! Calculate the L2-norm of the two consecutive velocity solutions
-
-    IMPLICIT NONE
+  subroutine calc_visc_iter_UV_resid( mesh, BPA, resid_UV)
+    !< Calculate the L2-norm of the two consecutive velocity solutions
 
     ! In/output variables:
-    TYPE(type_mesh),                     INTENT(IN)              :: mesh
-    TYPE(type_ice_velocity_solver_BPA),  INTENT(IN)              :: BPA
-    REAL(dp),                            INTENT(OUT)             :: resid_UV
+    type(type_mesh),                    intent(in   ) :: mesh
+    type(type_ice_velocity_solver_BPA), intent(in   ) :: BPA
+    real(dp),                           intent(  out) :: resid_UV
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'calc_visc_iter_UV_resid'
-    INTEGER                                                      :: ierr
-    INTEGER                                                      :: ti,k
-    REAL(dp)                                                     :: res1, res2
+    character(len=1024), parameter :: routine_name = 'calc_visc_iter_UV_resid'
+    integer                        :: ierr
+    integer                        :: ti,k
+    real(dp)                       :: res1, res2
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
     res1 = 0._dp
     res2 = 0._dp
 
-    DO ti = mesh%ti1, mesh%ti2
-    DO k  = 1, mesh%nz
+    do ti = mesh%ti1, mesh%ti2
+    do k  = 1, mesh%nz
 
       res1 = res1 + (BPA%u_bk( ti,k) - BPA%u_bk_prev( ti,k))**2
       res1 = res1 + (BPA%v_bk( ti,k) - BPA%v_bk_prev( ti,k))**2
@@ -2108,301 +2022,259 @@ CONTAINS
       res2 = res2 + (BPA%u_bk( ti,k) + BPA%u_bk_prev( ti,k))**2
       res2 = res2 + (BPA%v_bk( ti,k) + BPA%v_bk_prev( ti,k))**2
 
-    END DO
-    END DO
+    end do
+    end do
 
     ! Combine results from all processes
-    CALL MPI_ALLREDUCE( MPI_IN_PLACE, res1, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
-    CALL MPI_ALLREDUCE( MPI_IN_PLACE, res2, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+    call MPI_ALLREDUCE( MPI_IN_PLACE, res1, 1, MPI_doUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+    call MPI_ALLREDUCE( MPI_IN_PLACE, res2, 1, MPI_doUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
 
     ! Calculate residual
     resid_UV = 2._dp * res1 / MAX( res2, 1E-8_dp)
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE calc_visc_iter_UV_resid
+  end subroutine calc_visc_iter_UV_resid
 
-  SUBROUTINE apply_velocity_limits( mesh, BPA)
-    ! Limit velocities for improved stability
-
-    IMPLICIT NONE
+  subroutine apply_velocity_limits( mesh, BPA)
+    !< Limit velocities for improved stability
 
     ! In/output variables:
-    TYPE(type_mesh),                     INTENT(IN)              :: mesh
-    TYPE(type_ice_velocity_solver_BPA),  INTENT(INOUT)           :: BPA
+    type(type_mesh),                    intent(in   ) :: mesh
+    type(type_ice_velocity_solver_BPA), intent(inout) :: BPA
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'apply_velocity_limits'
-    INTEGER                                                      :: ti,k
-    REAL(dp)                                                     :: uabs
+    character(len=1024), parameter :: routine_name = 'apply_velocity_limits'
+    integer                        :: ti,k
+    real(dp)                       :: uabs
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
-    DO ti = mesh%ti1, mesh%ti2
-    DO k  = 1, mesh%nz
+    do ti = mesh%ti1, mesh%ti2
+    do k  = 1, mesh%nz
 
       ! Calculate absolute speed
       uabs = SQRT( BPA%u_bk( ti,k)**2 + BPA%v_bk( ti,k)**2)
 
       ! Reduce velocities if neceBPAry
-      IF (uabs > C%vel_max) THEN
+      if (uabs > C%vel_max) then
         BPA%u_bk( ti,k) = BPA%u_bk( ti,k) * C%vel_max / uabs
         BPA%v_bk( ti,k) = BPA%v_bk( ti,k) * C%vel_max / uabs
-      END IF
+      end if
 
-    END DO
-    END DO
+    end do
+    end do
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE apply_velocity_limits
+  end subroutine apply_velocity_limits
 
 ! == Initialisation
 
-  SUBROUTINE initialise_BPA_velocities_from_file( mesh, BPA, region_name)
-    ! Initialise the velocities for the BPA solver from an external NetCDF file
-
-    IMPLICIT NONE
+  subroutine initialise_BPA_velocities_from_file( mesh, BPA, region_name)
+    !< Initialise the velocities for the BPA solver from an external NetCDF file
 
     ! In/output variables:
-    TYPE(type_mesh),                     INTENT(IN)    :: mesh
-    TYPE(type_ice_velocity_solver_BPA),  INTENT(INOUT) :: BPA
-    CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
+    type(type_mesh),                    intent(in   ) :: mesh
+    type(type_ice_velocity_solver_BPA), intent(inout) :: BPA
+    character(len=3),                   intent(in   ) :: region_name
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_BPA_velocities_from_file'
-    REAL(dp)                                           :: dummy1
-    CHARACTER(LEN=256)                                 :: filename
-    REAL(dp)                                           :: timeframe
+    character(len=1024), parameter :: routine_name = 'initialise_BPA_velocities_from_file'
+    real(dp)                       :: dummy1
+    character(len=256)             :: filename
+    real(dp)                       :: timeframe
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
     ! To prevent compiler warnings
     dummy1 = mesh%xmin
 
     ! Determine the filename and timeframe to read for this model region
-    IF     (region_name == 'NAM') THEN
+    select case (region_name)
+    case default
+      call crash('unknown model region "' // region_name // '"!')
+    case ('NAM')
       filename  = C%filename_initial_velocity_NAM
       timeframe = C%timeframe_initial_velocity_NAM
-    ELSEIF (region_name == 'EAS') THEN
+    case ('EAS')
       filename  = C%filename_initial_velocity_EAS
       timeframe = C%timeframe_initial_velocity_EAS
-    ELSEIF (region_name == 'GRL') THEN
+    case ('GRL')
       filename  = C%filename_initial_velocity_GRL
       timeframe = C%timeframe_initial_velocity_GRL
-    ELSEIF (region_name == 'ANT') THEN
+    case ('ANT')
       filename  = C%filename_initial_velocity_ANT
       timeframe = C%timeframe_initial_velocity_ANT
-    ELSE
-      CALL crash('unknown model region "' // region_name // '"!')
-    END IF
+    end select
 
     ! Write to terminal
-    IF (par%master) WRITE(0,*) '   Initialising BPA velocities from file "' // colour_string( TRIM( filename),'light blue') // '"...'
+    if (par%master) write(0,*) '   Initialising BPA velocities from file "' // colour_string( trim( filename),'light blue') // '"...'
 
     ! Read velocities from the file
-    IF (timeframe == 1E9_dp) THEN
+    if (timeframe == 1E9_dp) then
       ! Assume the file has no time dimension
-      CALL read_field_from_mesh_file_dp_3D_b( filename, 'u_bk', BPA%u_bk)
-      CALL read_field_from_mesh_file_dp_3D_b( filename, 'v_bk', BPA%v_bk)
-    ELSE
+      call read_field_from_mesh_file_dp_3D_b( filename, 'u_bk', BPA%u_bk)
+      call read_field_from_mesh_file_dp_3D_b( filename, 'v_bk', BPA%v_bk)
+    else
       ! Read specified timeframe
-      CALL read_field_from_mesh_file_dp_3D_b( filename, 'u_bk', BPA%u_bk, time_to_read = timeframe)
-      CALL read_field_from_mesh_file_dp_3D_b( filename, 'v_bk', BPA%v_bk, time_to_read = timeframe)
-    END IF
+      call read_field_from_mesh_file_dp_3D_b( filename, 'u_bk', BPA%u_bk, time_to_read = timeframe)
+      call read_field_from_mesh_file_dp_3D_b( filename, 'v_bk', BPA%v_bk, time_to_read = timeframe)
+    end if
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE initialise_BPA_velocities_from_file
+  end subroutine initialise_BPA_velocities_from_file
 
-  SUBROUTINE allocate_BPA_solver( mesh, BPA)
-    ! Allocate memory the BPA solver
-
-    IMPLICIT NONE
+  subroutine allocate_BPA_solver( mesh, BPA)
 
     ! In/output variables:
-    TYPE(type_mesh),                     INTENT(IN)    :: mesh
-    TYPE(type_ice_velocity_solver_BPA),  INTENT(OUT)   :: BPA
+    type(type_mesh),                    intent(in   ) :: mesh
+    type(type_ice_velocity_solver_BPA), intent(  out) :: BPA
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'allocate_BPA_solver'
+    character(len=1024), parameter :: routine_name = 'allocate_BPA_solver'
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
     ! Solution
-    ALLOCATE( BPA%u_bk(          mesh%ti1:mesh%ti2,mesh%nz))                   ! [m yr^-1] 2-D horizontal ice velocity
-    BPA%u_bk = 0._dp
-    ALLOCATE( BPA%v_bk(          mesh%ti1:mesh%ti2,mesh%nz))
-    BPA%v_bk = 0._dp
+    allocate( BPA%u_bk( mesh%ti1:mesh%ti2,mesh%nz))
+    allocate( BPA%v_bk( mesh%ti1:mesh%ti2,mesh%nz))
 
     ! Intermediate data fields
-    ALLOCATE( BPA%du_dx_ak(      mesh%vi1:mesh%vi2,mesh%nz))                   ! [yr^-1] 2-D horizontal strain rates
-    BPA%du_dx_ak = 0._dp
-    ALLOCATE( BPA%du_dy_ak(      mesh%vi1:mesh%vi2,mesh%nz))
-    BPA%du_dy_ak = 0._dp
-    ALLOCATE( BPA%du_dz_ak(      mesh%vi1:mesh%vi2,mesh%nz))
-    BPA%du_dz_ak = 0._dp
-    ALLOCATE( BPA%dv_dx_ak(      mesh%vi1:mesh%vi2,mesh%nz))                   ! [yr^-1] 2-D horizontal strain rates
-    BPA%dv_dx_ak = 0._dp
-    ALLOCATE( BPA%dv_dy_ak(      mesh%vi1:mesh%vi2,mesh%nz))
-    BPA%dv_dy_ak = 0._dp
-    ALLOCATE( BPA%dv_dz_ak(      mesh%vi1:mesh%vi2,mesh%nz))
-    BPA%dv_dz_ak = 0._dp
-    ALLOCATE( BPA%du_dx_bks(     mesh%ti1:mesh%ti2,mesh%nz-1))                 ! [yr^-1] 2-D horizontal strain rates
-    BPA%du_dx_bks = 0._dp
-    ALLOCATE( BPA%du_dy_bks(     mesh%ti1:mesh%ti2,mesh%nz-1))
-    BPA%du_dy_bks = 0._dp
-    ALLOCATE( BPA%du_dz_bks(     mesh%ti1:mesh%ti2,mesh%nz-1))
-    BPA%du_dz_bks = 0._dp
-    ALLOCATE( BPA%dv_dx_bks(     mesh%ti1:mesh%ti2,mesh%nz-1))                 ! [yr^-1] 2-D horizontal strain rates
-    BPA%dv_dx_bks = 0._dp
-    ALLOCATE( BPA%dv_dy_bks(     mesh%ti1:mesh%ti2,mesh%nz-1))
-    BPA%dv_dy_bks = 0._dp
-    ALLOCATE( BPA%dv_dz_bks(     mesh%ti1:mesh%ti2,mesh%nz-1))
-    BPA%dv_dz_bks = 0._dp
-    ALLOCATE( BPA%eta_ak(        mesh%vi1:mesh%vi2,mesh%nz))                   ! Effective viscosity
-    BPA%eta_ak = 0._dp
-    ALLOCATE( BPA%eta_bks(       mesh%ti1:mesh%ti2,mesh%nz-1))
-    BPA%eta_bks = 0._dp
-    ALLOCATE( BPA%eta_bk(        mesh%ti1:mesh%ti2,mesh%nz))
-    BPA%eta_bk = 0._dp
-    ALLOCATE( BPA%deta_dx_bk(    mesh%ti1:mesh%ti2,mesh%nz))                   ! Gradients of eta
-    BPA%deta_dx_bk = 0._dp
-    ALLOCATE( BPA%deta_dy_bk(    mesh%ti1:mesh%ti2,mesh%nz))                   ! Gradients of eta
-    BPA%deta_dy_bk = 0._dp
-    ALLOCATE( BPA%deta_dz_bk(    mesh%ti1:mesh%ti2,mesh%nz))                   ! Gradients of eta
-    BPA%deta_dz_bk = 0._dp
-    ALLOCATE( BPA%basal_friction_coefficient_b(      mesh%ti1:mesh%ti2))       ! Basal friction coefficient (basal_shear_stress = u * basal_friction_coefficient)
-    BPA%basal_friction_coefficient_b = 0._dp
-    ALLOCATE( BPA%dh_dx_b(       mesh%ti1:mesh%ti2))                           ! Surface slope
-    BPA%dh_dx_b = 0._dp
-    ALLOCATE( BPA%dh_dy_b(       mesh%ti1:mesh%ti2))
-    BPA%dh_dy_b = 0._dp
-    ALLOCATE( BPA%db_dx_b(       mesh%ti1:mesh%ti2))                           ! Basal slope
-    BPA%db_dx_b = 0._dp
-    ALLOCATE( BPA%db_dy_b(       mesh%ti1:mesh%ti2))
-    BPA%db_dy_b = 0._dp
-    ALLOCATE( BPA%tau_dx_b(      mesh%ti1:mesh%ti2))                           ! Driving stress
-    BPA%tau_dx_b = 0._dp
-    ALLOCATE( BPA%tau_dy_b(      mesh%ti1:mesh%ti2))
-    BPA%tau_dy_b = 0._dp
-    ALLOCATE( BPA%u_bk_prev(     mesh%nTri,mesh%nz))                   ! Velocity solution from previous viscosity iteration
-    BPA%u_bk_prev = 0._dp
-    ALLOCATE( BPA%v_bk_prev(     mesh%nTri,mesh%nz))
-    BPA%v_bk_prev = 0._dp
+    allocate( BPA%du_dx_ak(                     mesh%vi1:mesh%vi2,mesh%nz))
+    allocate( BPA%du_dy_ak(                     mesh%vi1:mesh%vi2,mesh%nz))
+    allocate( BPA%du_dz_ak(                     mesh%vi1:mesh%vi2,mesh%nz))
+    allocate( BPA%dv_dx_ak(                     mesh%vi1:mesh%vi2,mesh%nz))
+    allocate( BPA%dv_dy_ak(                     mesh%vi1:mesh%vi2,mesh%nz))
+    allocate( BPA%dv_dz_ak(                     mesh%vi1:mesh%vi2,mesh%nz))
+    allocate( BPA%du_dx_bks(                    mesh%ti1:mesh%ti2,mesh%nz-1))
+    allocate( BPA%du_dy_bks(                    mesh%ti1:mesh%ti2,mesh%nz-1))
+    allocate( BPA%du_dz_bks(                    mesh%ti1:mesh%ti2,mesh%nz-1))
+    allocate( BPA%dv_dx_bks(                    mesh%ti1:mesh%ti2,mesh%nz-1))
+    allocate( BPA%dv_dy_bks(                    mesh%ti1:mesh%ti2,mesh%nz-1))
+    allocate( BPA%dv_dz_bks(                    mesh%ti1:mesh%ti2,mesh%nz-1))
+    allocate( BPA%eta_ak(                       mesh%vi1:mesh%vi2,mesh%nz))
+    allocate( BPA%eta_bks(                      mesh%ti1:mesh%ti2,mesh%nz-1))
+    allocate( BPA%eta_bk(                       mesh%ti1:mesh%ti2,mesh%nz))
+    allocate( BPA%deta_dx_bk(                   mesh%ti1:mesh%ti2,mesh%nz))
+    allocate( BPA%deta_dy_bk(                   mesh%ti1:mesh%ti2,mesh%nz))
+    allocate( BPA%deta_dz_bk(                   mesh%ti1:mesh%ti2,mesh%nz))
+    allocate( BPA%basal_friction_coefficient_b( mesh%ti1:mesh%ti2))
+    allocate( BPA%dh_dx_b(                      mesh%ti1:mesh%ti2))
+    allocate( BPA%dh_dy_b(                      mesh%ti1:mesh%ti2))
+    allocate( BPA%db_dx_b(                      mesh%ti1:mesh%ti2))
+    allocate( BPA%db_dy_b(                      mesh%ti1:mesh%ti2))
+    allocate( BPA%tau_dx_b(                     mesh%ti1:mesh%ti2))
+    allocate( BPA%tau_dy_b(                     mesh%ti1:mesh%ti2))
+    allocate( BPA%u_bk_prev(                    mesh%nTri,mesh%nz))
+    allocate( BPA%v_bk_prev(                    mesh%nTri,mesh%nz))
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE allocate_BPA_solver
+  end subroutine allocate_BPA_solver
 
 ! == Restart NetCDF files
 
-  SUBROUTINE write_to_restart_file_BPA( mesh, BPA, time)
-    ! Write to the restart NetCDF file for the BPA solver
-
-    IMPLICIT NONE
+  subroutine write_to_restart_file_BPA( mesh, BPA, time)
 
     ! In/output variables:
-    TYPE(type_mesh),                     INTENT(IN)              :: mesh
-    TYPE(type_ice_velocity_solver_BPA),  INTENT(IN)              :: BPA
-    REAL(dp),                            INTENT(IN)              :: time
+    type(type_mesh),                    intent(in   ) :: mesh
+    type(type_ice_velocity_solver_BPA), intent(in   ) :: BPA
+    real(dp),                           intent(in   ) :: time
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'write_to_restart_file_BPA'
-    INTEGER                                                      :: ncid
+    character(len=1024), parameter :: routine_name = 'write_to_restart_file_BPA'
+    integer                        :: ncid
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
-    ! If no NetCDF output should be created, do nothing
-    IF (.NOT. C%do_create_netcdf_output) THEN
-      CALL finalise_routine( routine_name)
-      RETURN
-    END IF
+    ! if no NetCDF output should be created, do nothing
+    if (.not. C%do_create_netcdf_output) then
+      call finalise_routine( routine_name)
+      return
+    end if
 
     ! Print to terminal
-    IF (par%master) WRITE(0,'(A)') '   Writing to BPA restart file "' // &
-      colour_string( TRIM( BPA%restart_filename), 'light blue') // '"...'
+    if (par%master) WRITE(0,'(A)') '   Writing to BPA restart file "' // &
+      colour_string( trim( BPA%restart_filename), 'light blue') // '"...'
 
     ! Open the NetCDF file
-    CALL open_existing_netcdf_file_for_writing( BPA%restart_filename, ncid)
+    call open_existing_netcdf_file_for_writing( BPA%restart_filename, ncid)
 
     ! Write the time to the file
-    CALL write_time_to_file( BPA%restart_filename, ncid, time)
+    call write_time_to_file( BPA%restart_filename, ncid, time)
 
     ! Write the velocity fields to the file
-    CALL write_to_field_multopt_mesh_dp_3D_b( mesh, BPA%restart_filename, ncid, 'u_bk', BPA%u_bk)
-    CALL write_to_field_multopt_mesh_dp_3D_b( mesh, BPA%restart_filename, ncid, 'v_bk', BPA%v_bk)
+    call write_to_field_multopt_mesh_dp_3D_b( mesh, BPA%restart_filename, ncid, 'u_bk', BPA%u_bk)
+    call write_to_field_multopt_mesh_dp_3D_b( mesh, BPA%restart_filename, ncid, 'v_bk', BPA%v_bk)
 
     ! Close the file
-    CALL close_netcdf_file( ncid)
+    call close_netcdf_file( ncid)
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE write_to_restart_file_BPA
+  end subroutine write_to_restart_file_BPA
 
-  SUBROUTINE create_restart_file_BPA( mesh, BPA)
-    ! Create a restart NetCDF file for the BPA solver
-    ! Includes generation of the procedural filename (e.g. "restart_BPA_00001.nc")
-
-    IMPLICIT NONE
+  subroutine create_restart_file_BPA( mesh, BPA)
 
     ! In/output variables:
-    TYPE(type_mesh),                     INTENT(IN)              :: mesh
-    TYPE(type_ice_velocity_solver_BPA),  INTENT(INOUT)           :: BPA
+    type(type_mesh),                    intent(in   ) :: mesh
+    type(type_ice_velocity_solver_BPA), intent(inout) :: BPA
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'create_restart_file_BPA'
-    CHARACTER(LEN=256)                                           :: filename_base
-    INTEGER                                                      :: ncid
+    character(len=1024), parameter :: routine_name = 'create_restart_file_BPA'
+    character(len=256)             :: filename_base
+    integer                        :: ncid
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
-    ! If no NetCDF output should be created, do nothing
-    IF (.NOT. C%do_create_netcdf_output) THEN
-      CALL finalise_routine( routine_name)
-      RETURN
-    END IF
+    ! if no NetCDF output should be created, do nothing
+    if (.not. C%do_create_netcdf_output) then
+      call finalise_routine( routine_name)
+      return
+    end if
 
     ! Set the filename
-    filename_base = TRIM( C%output_dir) // 'restart_ice_velocity_BPA'
-    CALL generate_filename_XXXXXdotnc( filename_base, BPA%restart_filename)
+    filename_base = trim( C%output_dir) // 'restart_ice_velocity_BPA'
+    call generate_filename_XXXXXdotnc( filename_base, BPA%restart_filename)
 
     ! Print to terminal
-    IF (par%master) WRITE(0,'(A)') '   Creating BPA restart file "' // &
-      colour_string( TRIM( BPA%restart_filename), 'light blue') // '"...'
+    if (par%master) WRITE(0,'(A)') '   Creating BPA restart file "' // &
+      colour_string( trim( BPA%restart_filename), 'light blue') // '"...'
 
     ! Create the NetCDF file
-    CALL create_new_netcdf_file_for_writing( BPA%restart_filename, ncid)
+    call create_new_netcdf_file_for_writing( BPA%restart_filename, ncid)
 
     ! Set up the mesh in the file
-    CALL setup_mesh_in_netcdf_file( BPA%restart_filename, ncid, mesh)
+    call setup_mesh_in_netcdf_file( BPA%restart_filename, ncid, mesh)
 
     ! Add a time dimension to the file
-    CALL add_time_dimension_to_file( BPA%restart_filename, ncid)
+    call add_time_dimension_to_file( BPA%restart_filename, ncid)
 
     ! Add a zeta dimension to the file
-    CALL add_zeta_dimension_to_file( BPA%restart_filename, ncid, mesh%zeta)
+    call add_zeta_dimension_to_file( BPA%restart_filename, ncid, mesh%zeta)
 
     ! Add the velocity fields to the file
-    CALL add_field_mesh_dp_3D_b( BPA%restart_filename, ncid, 'u_bk', long_name = '3-D horizontal ice velocity in the x-direction', units = 'm/yr')
-    CALL add_field_mesh_dp_3D_b( BPA%restart_filename, ncid, 'v_bk', long_name = '3-D horizontal ice velocity in the y-direction', units = 'm/yr')
+    call add_field_mesh_dp_3D_b( BPA%restart_filename, ncid, 'u_bk', long_name = '3-D horizontal ice velocity in the x-direction', units = 'm/yr')
+    call add_field_mesh_dp_3D_b( BPA%restart_filename, ncid, 'v_bk', long_name = '3-D horizontal ice velocity in the y-direction', units = 'm/yr')
 
     ! Close the file
-    CALL close_netcdf_file( ncid)
+    call close_netcdf_file( ncid)
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE create_restart_file_BPA
+  end subroutine create_restart_file_BPA
 
-END MODULE ice_velocity_BPA
+end module ice_velocity_BPA
