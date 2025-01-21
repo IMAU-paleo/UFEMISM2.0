@@ -85,9 +85,7 @@ CONTAINS
     END DO
 
     ! Simply set H_c zero everywhere, will be recomputed through mapping later
-    DO ei = mesh%ei1, mesh%ei2
-      laddie%H_c( ei) = 0.0_dp
-    END DO
+    laddie%H_c = 0.0_dp
 
     ! == Main time loop ==
     ! ====================
