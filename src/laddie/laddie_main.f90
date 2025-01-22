@@ -85,7 +85,7 @@ CONTAINS
     END DO
 
     ! Simply set H_c zero everywhere, will be recomputed through mapping later
-    laddie%H_c = 0.0_dp
+    laddie%now%H_c = 0.0_dp
 
     ! == Main time loop ==
     ! ====================
