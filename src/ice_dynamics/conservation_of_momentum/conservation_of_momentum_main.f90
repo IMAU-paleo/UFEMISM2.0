@@ -18,7 +18,7 @@ module conservation_of_momentum_main
     create_restart_file_DIVA, write_to_restart_file_DIVA
   use BPA_main, only: initialise_BPA_solver, solve_BPA, remap_BPA_solver, &
     create_restart_file_BPA, write_to_restart_file_BPA
-  use ice_velocity_hybrid_DIVA_BPA, only: initialise_hybrid_DIVA_BPA_solver, solve_hybrid_DIVA_BPA, &
+  use hybrid_DIVA_BPA_main, only: initialise_hybrid_DIVA_BPA_solver, solve_hybrid_DIVA_BPA, &
     remap_hybrid_DIVA_BPA_solver
   use mesh_disc_apply_operators, only: ddx_a_a_2D, ddy_a_a_2D, map_b_a_2D, map_b_a_3D
   use mpi_distributed_memory, only: gather_to_all

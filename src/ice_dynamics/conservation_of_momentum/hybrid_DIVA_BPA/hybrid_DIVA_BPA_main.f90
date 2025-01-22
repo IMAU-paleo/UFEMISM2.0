@@ -1,4 +1,4 @@
-module ice_velocity_hybrid_DIVA_BPA
+module hybrid_DIVA_BPA_main
 
   ! Routines for calculating ice velocities using the hybrid DIVA/BPA
 
@@ -1492,4 +1492,4 @@ contains
 
   end subroutine allocate_hybrid_DIVA_BPA_solver
 
-end module ice_velocity_hybrid_DIVA_BPA
+end module hybrid_DIVA_BPA_main
