@@ -1650,25 +1650,25 @@ contains
     call init_routine( routine_name)
 
     ! Solution
-    allocate( SSA%u_b(                          mesh%ti1:mesh%ti2))   ! [m yr^-1] 2-D horizontal ice velocity
-    allocate( SSA%v_b(                          mesh%ti1:mesh%ti2))
+    allocate( SSA%u_b(                          mesh%ti1:mesh%ti2), source = 0._dp)
+    allocate( SSA%v_b(                          mesh%ti1:mesh%ti2), source = 0._dp)
 
     ! Intermediate data fields
-    allocate( SSA%A_flow_vav_a(                 mesh%vi1:mesh%vi2))   ! [Pa^-3 y^-1] Vertically averaged Glen's flow law parameter
-    allocate( SSA%du_dx_a(                      mesh%vi1:mesh%vi2))   ! [yr^-1] 2-D horizontal strain rates
-    allocate( SSA%du_dy_a(                      mesh%vi1:mesh%vi2))
-    allocate( SSA%dv_dx_a(                      mesh%vi1:mesh%vi2))
-    allocate( SSA%dv_dy_a(                      mesh%vi1:mesh%vi2))
-    allocate( SSA%eta_a(                        mesh%vi1:mesh%vi2))   ! Effective viscosity
-    allocate( SSA%N_a(                          mesh%vi1:mesh%vi2))   ! Product term N = eta * H
-    allocate( SSA%N_b(                          mesh%ti1:mesh%ti2))
-    allocate( SSA%dN_dx_b(                      mesh%ti1:mesh%ti2))   ! Gradients of N
-    allocate( SSA%dN_dy_b(                      mesh%ti1:mesh%ti2))
-    allocate( SSA%basal_friction_coefficient_b( mesh%ti1:mesh%ti2))   ! Basal friction coefficient (basal_shear_stress = u * basal_friction_coefficient)
-    allocate( SSA%tau_dx_b(                     mesh%ti1:mesh%ti2))   ! Driving stress
-    allocate( SSA%tau_dy_b(                     mesh%ti1:mesh%ti2))
-    allocate( SSA%u_b_prev(                     mesh%nTri        ))   ! Velocity solution from previous viscosity iteration
-    allocate( SSA%v_b_prev(                     mesh%nTri        ))
+    allocate( SSA%A_flow_vav_a(                 mesh%vi1:mesh%vi2), source = 0._dp)
+    allocate( SSA%du_dx_a(                      mesh%vi1:mesh%vi2), source = 0._dp)
+    allocate( SSA%du_dy_a(                      mesh%vi1:mesh%vi2), source = 0._dp)
+    allocate( SSA%dv_dx_a(                      mesh%vi1:mesh%vi2), source = 0._dp)
+    allocate( SSA%dv_dy_a(                      mesh%vi1:mesh%vi2), source = 0._dp)
+    allocate( SSA%eta_a(                        mesh%vi1:mesh%vi2), source = 0._dp)
+    allocate( SSA%N_a(                          mesh%vi1:mesh%vi2), source = 0._dp)
+    allocate( SSA%N_b(                          mesh%ti1:mesh%ti2), source = 0._dp)
+    allocate( SSA%dN_dx_b(                      mesh%ti1:mesh%ti2), source = 0._dp)
+    allocate( SSA%dN_dy_b(                      mesh%ti1:mesh%ti2), source = 0._dp)
+    allocate( SSA%basal_friction_coefficient_b( mesh%ti1:mesh%ti2), source = 0._dp)
+    allocate( SSA%tau_dx_b(                     mesh%ti1:mesh%ti2), source = 0._dp)
+    allocate( SSA%tau_dy_b(                     mesh%ti1:mesh%ti2), source = 0._dp)
+    allocate( SSA%u_b_prev(                     mesh%nTri        ), source = 0._dp)
+    allocate( SSA%v_b_prev(                     mesh%nTri        ), source = 0._dp)
 
     ! Finalise routine path
     call finalise_routine( routine_name)

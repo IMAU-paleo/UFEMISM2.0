@@ -1468,24 +1468,24 @@ contains
     call init_routine( routine_name)
 
     ! Solution
-    allocate( hybrid%u_vav_b( mesh%ti1:mesh%ti2        ))
-    allocate( hybrid%v_vav_b( mesh%ti1:mesh%ti2        ))
-    allocate( hybrid%u_bk   ( mesh%ti1:mesh%ti2,mesh%nz))
-    allocate( hybrid%v_bk   ( mesh%ti1:mesh%ti2,mesh%nz))
+    allocate( hybrid%u_vav_b( mesh%ti1:mesh%ti2        ), source = 0._dp)
+    allocate( hybrid%v_vav_b( mesh%ti1:mesh%ti2        ), source = 0._dp)
+    allocate( hybrid%u_bk   ( mesh%ti1:mesh%ti2,mesh%nz), source = 0._dp)
+    allocate( hybrid%v_bk   ( mesh%ti1:mesh%ti2,mesh%nz), source = 0._dp)
 
     ! Separate DIVA/BPA solvers
     call allocate_DIVA_solver( mesh, hybrid%DIVA)
     call allocate_BPA_solver ( mesh, hybrid%BPA )
 
     ! Solver masks
-    allocate( hybrid%mask_DIVA_b        ( mesh%ti1:mesh%ti2))
-    allocate( hybrid%mask_BPA_b         ( mesh%ti1:mesh%ti2))
-    allocate( hybrid%mask_3D_from_DIVA_b( mesh%ti1:mesh%ti2))
-    allocate( hybrid%mask_vav_from_BPA_b( mesh%ti1:mesh%ti2))
+    allocate( hybrid%mask_DIVA_b        ( mesh%ti1:mesh%ti2), source = .false.)
+    allocate( hybrid%mask_BPA_b         ( mesh%ti1:mesh%ti2), source = .false.)
+    allocate( hybrid%mask_3D_from_DIVA_b( mesh%ti1:mesh%ti2), source = .false.)
+    allocate( hybrid%mask_vav_from_BPA_b( mesh%ti1:mesh%ti2), source = .false.)
 
     ! Intermediate data fields
-    allocate( hybrid%u_bk_prev( mesh%nTri,mesh%nz))
-    allocate( hybrid%v_bk_prev( mesh%nTri,mesh%nz))
+    allocate( hybrid%u_bk_prev( mesh%nTri,mesh%nz), source = 0._dp)
+    allocate( hybrid%v_bk_prev( mesh%nTri,mesh%nz), source = 0._dp)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
