@@ -1904,40 +1904,40 @@ contains
     call init_routine( routine_name)
 
     ! Solution
-    allocate( DIVA%u_vav_b(      mesh%ti1:mesh%ti2))                   ! [m yr^-1] 2-D vertically averaged horizontal ice velocity
-    allocate( DIVA%v_vav_b(      mesh%ti1:mesh%ti2))
-    allocate( DIVA%u_base_b(     mesh%ti1:mesh%ti2))                   ! [m yr^-1] 2-D horizontal ice velocity at the ice base
-    allocate( DIVA%v_base_b(     mesh%ti1:mesh%ti2))
-    allocate( DIVA%u_3D_b(       mesh%ti1:mesh%ti2,mesh%nz))           ! [m yr^-1] 3-D horizontal ice velocity
-    allocate( DIVA%v_3D_b(       mesh%ti1:mesh%ti2,mesh%nz))
+    allocate( DIVA%u_vav_b(  mesh%ti1:mesh%ti2        ), source = 0._dp)
+    allocate( DIVA%v_vav_b(  mesh%ti1:mesh%ti2        ), source = 0._dp)
+    allocate( DIVA%u_base_b( mesh%ti1:mesh%ti2        ), source = 0._dp)
+    allocate( DIVA%v_base_b( mesh%ti1:mesh%ti2        ), source = 0._dp)
+    allocate( DIVA%u_3D_b(   mesh%ti1:mesh%ti2,mesh%nz), source = 0._dp)
+    allocate( DIVA%v_3D_b(   mesh%ti1:mesh%ti2,mesh%nz), source = 0._dp)
 
     ! Intermediate data fields
-    allocate( DIVA%du_dx_a(                      mesh%vi1:mesh%vi2))         ! [yr^-1] 2-D horizontal strain rates
-    allocate( DIVA%du_dy_a(                      mesh%vi1:mesh%vi2))
-    allocate( DIVA%dv_dx_a(                      mesh%vi1:mesh%vi2))
-    allocate( DIVA%dv_dy_a(                      mesh%vi1:mesh%vi2))
-    allocate( DIVA%du_dz_3D_a(                   mesh%vi1:mesh%vi2,mesh%nz)) ! [yr^-1] 3-D vertical shear strain rates
-    allocate( DIVA%dv_dz_3D_a(                   mesh%vi1:mesh%vi2,mesh%nz))
-    allocate( DIVA%eta_3D_a(                     mesh%vi1:mesh%vi2,mesh%nz)) ! Effective viscosity
-    allocate( DIVA%eta_3D_b(                     mesh%ti1:mesh%ti2,mesh%nz))
-    allocate( DIVA%eta_vav_a(                    mesh%vi1:mesh%vi2))
-    allocate( DIVA%N_a(                          mesh%vi1:mesh%vi2))         ! Product term N = eta * H
-    allocate( DIVA%N_b(                          mesh%ti1:mesh%ti2))
-    allocate( DIVA%dN_dx_b(                      mesh%ti1:mesh%ti2))         ! Gradients of N
-    allocate( DIVA%dN_dy_b(                      mesh%ti1:mesh%ti2))
-    allocate( DIVA%F1_3D_a(                      mesh%vi1:mesh%vi2,mesh%nz)) ! F-integrals
-    allocate( DIVA%F2_3D_a(                      mesh%vi1:mesh%vi2,mesh%nz))
-    allocate( DIVA%F1_3D_b(                      mesh%ti1:mesh%ti2,mesh%nz))
-    allocate( DIVA%F2_3D_b(                      mesh%ti1:mesh%ti2,mesh%nz))
-    allocate( DIVA%basal_friction_coefficient_b( mesh%ti1:mesh%ti2))         ! Basal friction coefficient (basal_shear_stress = u * basal_friction_coefficient)
-    allocate( DIVA%beta_eff_a(                   mesh%vi1:mesh%vi2))         ! "Effective" friction coefficient (turning the SSA into the DIVA)
-    allocate( DIVA%beta_eff_b(                   mesh%ti1:mesh%ti2))
-    allocate( DIVA%tau_bx_b(                     mesh%ti1:mesh%ti2))         ! Basal shear stress
-    allocate( DIVA%tau_by_b(                     mesh%ti1:mesh%ti2))
-    allocate( DIVA%tau_dx_b(                     mesh%ti1:mesh%ti2))         ! Driving stress
-    allocate( DIVA%tau_dy_b(                     mesh%ti1:mesh%ti2))
-    allocate( DIVA%u_b_prev(                     mesh%nTri))                 ! Velocity solution from previous viscosity iteration
-    allocate( DIVA%v_b_prev(                     mesh%nTri))
+    allocate( DIVA%du_dx_a(                      mesh%vi1:mesh%vi2        ), source = 0._dp)
+    allocate( DIVA%du_dy_a(                      mesh%vi1:mesh%vi2        ), source = 0._dp)
+    allocate( DIVA%dv_dx_a(                      mesh%vi1:mesh%vi2        ), source = 0._dp)
+    allocate( DIVA%dv_dy_a(                      mesh%vi1:mesh%vi2        ), source = 0._dp)
+    allocate( DIVA%du_dz_3D_a(                   mesh%vi1:mesh%vi2,mesh%nz), source = 0._dp)
+    allocate( DIVA%dv_dz_3D_a(                   mesh%vi1:mesh%vi2,mesh%nz), source = 0._dp)
+    allocate( DIVA%eta_3D_a(                     mesh%vi1:mesh%vi2,mesh%nz), source = 0._dp)
+    allocate( DIVA%eta_3D_b(                     mesh%ti1:mesh%ti2,mesh%nz), source = 0._dp)
+    allocate( DIVA%eta_vav_a(                    mesh%vi1:mesh%vi2        ), source = 0._dp)
+    allocate( DIVA%N_a(                          mesh%vi1:mesh%vi2        ), source = 0._dp)
+    allocate( DIVA%N_b(                          mesh%ti1:mesh%ti2        ), source = 0._dp)
+    allocate( DIVA%dN_dx_b(                      mesh%ti1:mesh%ti2        ), source = 0._dp)
+    allocate( DIVA%dN_dy_b(                      mesh%ti1:mesh%ti2        ), source = 0._dp)
+    allocate( DIVA%F1_3D_a(                      mesh%vi1:mesh%vi2,mesh%nz), source = 0._dp)
+    allocate( DIVA%F2_3D_a(                      mesh%vi1:mesh%vi2,mesh%nz), source = 0._dp)
+    allocate( DIVA%F1_3D_b(                      mesh%ti1:mesh%ti2,mesh%nz), source = 0._dp)
+    allocate( DIVA%F2_3D_b(                      mesh%ti1:mesh%ti2,mesh%nz), source = 0._dp)
+    allocate( DIVA%basal_friction_coefficient_b( mesh%ti1:mesh%ti2        ), source = 0._dp)
+    allocate( DIVA%beta_eff_a(                   mesh%vi1:mesh%vi2        ), source = 0._dp)
+    allocate( DIVA%beta_eff_b(                   mesh%ti1:mesh%ti2        ), source = 0._dp)
+    allocate( DIVA%tau_bx_b(                     mesh%ti1:mesh%ti2        ), source = 0._dp)
+    allocate( DIVA%tau_by_b(                     mesh%ti1:mesh%ti2        ), source = 0._dp)
+    allocate( DIVA%tau_dx_b(                     mesh%ti1:mesh%ti2        ), source = 0._dp)
+    allocate( DIVA%tau_dy_b(                     mesh%ti1:mesh%ti2        ), source = 0._dp)
+    allocate( DIVA%u_b_prev(                     mesh%nTri                ), source = 0._dp)
+    allocate( DIVA%v_b_prev(                     mesh%nTri                ), source = 0._dp)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
