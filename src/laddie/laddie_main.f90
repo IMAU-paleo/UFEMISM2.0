@@ -16,6 +16,7 @@ MODULE laddie_main
   USE ocean_model_types                                      , ONLY: type_ocean_model
   USE BMB_model_types                                        , ONLY: type_BMB_model
   USE reallocate_mod                                         , ONLY: reallocate_bounds
+  USE remapping_main                                         , ONLY: map_from_mesh_to_mesh_with_reallocation_2D
   USE laddie_utilities                                       , ONLY: compute_ambient_TS, allocate_laddie_model, &
                                                                      allocate_laddie_timestep, map_H_a_b, map_H_a_c, &
                                                                      print_diagnostics
@@ -85,7 +86,7 @@ CONTAINS
     END DO
 
     ! Simply set H_c zero everywhere, will be recomputed through mapping later
-    laddie%H_c = 0.0_dp
+    laddie%now%H_c = 0.0_dp
 
     ! == Main time loop ==
     ! ====================
@@ -731,7 +732,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Reallocate
-    CALL reallocate_bounds( npx%H,                       mesh_new%vi1, mesh_new%vi2)
+    CALL map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, npx%H, '2nd_order_conservative')
     CALL reallocate_bounds( npx%H_b,                     mesh_new%ti1, mesh_new%ti2)
     CALL reallocate_bounds( npx%H_c,                     mesh_new%ei1, mesh_new%ei2)
     CALL reallocate_bounds( npx%U,                       mesh_new%ti1, mesh_new%ti2)
@@ -740,32 +741,14 @@ CONTAINS
     CALL reallocate_bounds( npx%V,                       mesh_new%ti1, mesh_new%ti2)
     CALL reallocate_bounds( npx%V_a,                     mesh_new%vi1, mesh_new%vi2)
     CALL reallocate_bounds( npx%V_c,                     mesh_new%ei1, mesh_new%ei2)
-    CALL reallocate_bounds( npx%T,                       mesh_new%vi1, mesh_new%vi2)
-    CALL reallocate_bounds( npx%S,                       mesh_new%vi1, mesh_new%vi2)
+    CALL map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, npx%T, '2nd_order_conservative')
+    CALL map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, npx%S, '2nd_order_conservative')
 
     ! == Re-initialise ==
-
-    ! Layer thickness 
-    DO vi = mesh_new%vi1, mesh_new%vi2
-       IF (laddie%mask_a( vi)) THEN
-         npx%H( vi)      = C%laddie_initial_thickness
-       END IF
-    END DO
 
     ! Layer thickness on b and c grid
     CALL map_H_a_b( mesh_new, laddie, npx%H, npx%H_b)
     CALL map_H_a_c( mesh_new, laddie, npx%H, npx%H_c)
-
-    ! Initialise ambient T and S
-    CALL compute_ambient_TS( mesh_new, ice, ocean, laddie, npx%H)
-
-    ! Initialise main T and S
-    DO vi = mesh_new%vi1, mesh_new%vi2
-       IF (laddie%mask_a( vi)) THEN
-         npx%T( vi)      = laddie%T_amb( vi) + C%laddie_initial_T_offset 
-         npx%S( vi)      = laddie%S_amb( vi) + C%laddie_initial_S_offset
-       END IF
-    END DO
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
