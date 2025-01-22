@@ -245,18 +245,31 @@ UFEMISM_source = \
   \
   artificial_mass_balance/AMB_main.f90 \
   \
-  ice/ice_model_memory.f90 \
-  ice/ice_model_utilities.f90 \
-  ice/ice_flow_laws.f90 \
-  ice/ice_velocity_SIA.f90 \
-  ice/ice_velocity_SSA.f90 \
-  ice/ice_velocity_DIVA.f90 \
-  ice/ice_velocity_BPA.f90 \
-  ice/ice_velocity_hybrid_DIVA_BPA.f90 \
-  ice/ice_velocity_main.f90 \
-  ice/ice_thickness.f90 \
-  ice/ice_model_scalars.f90 \
-  ice/ice_model_main.f90 \
+  ice_dynamics/utilities/ice_model_memory.f90 \
+  ice_dynamics/utilities/bedrock_cumulative_density_functions.f90 \
+  ice_dynamics/utilities/subgrid_grounded_fractions_bilin_TAF.f90 \
+  ice_dynamics/utilities/subgrid_grounded_fractions_bedrock_CDF.f90 \
+  ice_dynamics/utilities/subgrid_grounded_fractions_main.f90 \
+  ice_dynamics/utilities/masks_mod.f90 \
+  ice_dynamics/utilities/zeta_gradients.f90 \
+  ice_dynamics/utilities/subgrid_ice_margin.f90 \
+  ice_dynamics/utilities/ice_thickness_safeties.f90 \
+  ice_dynamics/utilities/map_velocities_to_c_grid.f90 \
+  ice_dynamics/utilities/time_step_criteria.f90 \
+  ice_dynamics/utilities/ice_mass_and_fluxes.f90 \
+  ice_dynamics/rheology/constitutive_equation.f90 \
+  ice_dynamics/conservation_of_momentum/SIA/SIA_main.f90 \
+  ice_dynamics/conservation_of_momentum/SSA_DIVA/SSA_main.f90 \
+  ice_dynamics/conservation_of_momentum/SSA_DIVA/DIVA_main.f90 \
+  ice_dynamics/conservation_of_momentum/BPA/BPA_main.f90 \
+  ice_dynamics/conservation_of_momentum/hybrid_DIVA_BPA/hybrid_DIVA_BPA_main.f90 \
+  ice_dynamics/conservation_of_mass/vertical_velocities.f90 \
+  ice_dynamics/conservation_of_momentum/conservation_of_momentum_main.f90 \
+  ice_dynamics/conservation_of_mass/conservation_of_mass_main.f90 \
+  ice_dynamics/utilities/inversion_utilities.f90 \
+  ice_dynamics/time_stepping/direct_scheme.f90 \
+  ice_dynamics/time_stepping/predictor_corrector_scheme.f90 \
+  ice_dynamics/ice_dynamics_main.f90 \
   \
   thermodynamics/thermodynamics_utilities.f90 \
   thermodynamics/thermodynamics_3D_heat_equation.f90 \

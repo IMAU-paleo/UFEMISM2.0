@@ -37,7 +37,7 @@ PROGRAM UFEMISM_program
   use netcdf_io_main
   USE region_types                                           , ONLY: type_model_region
   USE UFEMISM_main_model                                     , ONLY: initialise_model_region, run_model_region
-  USE ice_model_utilities                                    , ONLY: MISMIPplus_adapt_flow_factor
+  use inversion_utilities, only: MISMIPplus_adapt_flow_factor
   USE unit_tests                                             , ONLY: run_all_unit_tests
   USE component_tests                                        , ONLY: run_all_component_tests
 
