@@ -1,6 +1,7 @@
 MODULE BMB_laddie
 
-  ! LADDIE model
+  ! LADDIE1.0 model (python implementation)
+  ! Called when BMB model config is 'laddie_py'
   ! Lambert et al. (2023) doi: 10.5194/tc-17-3203-2023
   ! To use this option, get the code here: https://github.com/erwinlambert/laddie
 
@@ -188,6 +189,5 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE wait_for_laddie_to_finish
-
 
 END MODULE BMB_laddie

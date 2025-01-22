@@ -217,6 +217,9 @@ CONTAINS
           ELSE
             IF (mask_oc_a_tot( vj)) THEN
               CYCLE ! no inflow
+              ! TODO fix boundary condition inflow
+              laddie%divQT( vi) = laddie%divQT( vi) + mesh%Cw( vi, ci) * u_perp * Hstar_tot( vi) * T_tot( vi) / mesh%A( vi)
+              laddie%divQS( vi) = laddie%divQS( vi) + mesh%Cw( vi, ci) * u_perp * Hstar_tot( vi) * S_tot( vi) / mesh%A( vi)
             ELSE
               laddie%divQT( vi) = laddie%divQT( vi) + mesh%Cw( vi, ci) * u_perp * Hstar_tot( vj) * T_tot( vj) / mesh%A( vi)
               laddie%divQS( vi) = laddie%divQS( vi) + mesh%Cw( vi, ci) * u_perp * Hstar_tot( vj) * S_tot( vj) / mesh%A( vi)

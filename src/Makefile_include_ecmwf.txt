@@ -6,7 +6,6 @@
 # module load hdf5-parallel/1.12.2
 # module load netcdf4-parallel/4.9.1
 # module load petsc/3.20.1
-# module load openblas/0.3.21
 
 # Compiler names:
   F90 = mpifort
@@ -18,9 +17,6 @@
   NFLIB     = $(shell nf-config --flibs)
   PETSCINC  = $(shell pkg-config petsc --cflags)
   PETSCLIB  = $(shell pkg-config petsc --libs)
-  LAPACKINC = $(shell pkg-config openblas --cflags)
-  LAPACKLIB = $(shell pkg-config openblas --libs)
-
 
 # Compiler flags:
 
@@ -35,7 +31,7 @@
   COMPILER_FLAGS_CHECK   = -fbounds-check -fcheck-array-temporaries -fimplicit-none
 
   F90FLAGS                = ${COMPILER_FLAGS_BASIC} ${COMPILER_FLAGS_CHECK}\
-                            ${NCINC} ${NFINC} ${PETSCINC} ${LAPACKINC}
+                            ${NCINC} ${NFINC} ${PETSCINC}
 
 # Linking flags of libaries:
-  LDFLAGS                 = ${NCLIB} ${NFLIB} ${PETSCLIB} ${LAPACKLIB} -g
+  LDFLAGS                 = ${NCLIB} ${NFLIB} ${PETSCLIB} -g

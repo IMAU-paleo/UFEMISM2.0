@@ -796,7 +796,7 @@ MODULE model_configuration
     ! "parameterised"
     REAL(dp)            :: BMB_Favier2019_gamma_config                  = 99.32E-5
 
-    ! "laddie"
+    ! "laddie_py"
     CHARACTER(LEN=256)  :: choice_BMB_laddie_system_config              = ''                               ! System on which the model is running: 'local_mac' or 'slurm_HPC'
     CHARACTER(LEN=256)  :: filename_BMB_laddie_configname_config        = ''                               ! File name of basal melt provided by LADDIE
     CHARACTER(LEN=256)  :: filename_BMB_laddie_initial_restart_config   = ''                               ! File name containing restart for laddie from laddie spinup
@@ -809,6 +809,7 @@ MODULE model_configuration
     ! Time step
     REAL(dp)            :: dt_laddie_config                             = 360._dp                          ! [s] Time step for integration of laddie model
     REAL(dp)            :: time_duration_laddie_config                  = 6._dp                            ! [days] Duration of each run cycle
+    REAL(dp)            :: time_duration_laddie_init_config             = 30._dp                           ! [days] Duration of initial run cycle
 
     ! Integration
     CHARACTER(LEN=256)  :: choice_laddie_integration_scheme_config      = ''                               ! Choose integration scheme. Options: 'euler', 'fbrk3'
@@ -1784,6 +1785,7 @@ MODULE model_configuration
     ! Time step
     REAL(dp)            :: dt_laddie
     REAL(dp)            :: time_duration_laddie
+    REAL(dp)            :: time_duration_laddie_init
 
     ! Integration
     CHARACTER(LEN=256)  :: choice_laddie_integration_scheme
@@ -2685,6 +2687,7 @@ CONTAINS
       dir_BMB_laddie_model_config                                 , &
       dt_laddie_config                                            , &
       time_duration_laddie_config                                 , &
+      time_duration_laddie_init_config                            , &
       choice_laddie_integration_scheme_config                     , &
       laddie_fbrk3_beta1_config                                   , &
       laddie_fbrk3_beta2_config                                   , &
@@ -3637,6 +3640,7 @@ CONTAINS
     ! Time step
     C%dt_laddie                                              = dt_laddie_config
     C%time_duration_laddie                                   = time_duration_laddie_config
+    C%time_duration_laddie_init                              = time_duration_laddie_init_config
 
     ! Integration
     C%choice_laddie_integration_scheme                       = choice_laddie_integration_scheme_config
