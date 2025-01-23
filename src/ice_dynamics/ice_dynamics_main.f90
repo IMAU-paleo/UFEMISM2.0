@@ -742,11 +742,9 @@ contains
 
     end do ! do vi = mesh_new%vi1, mesh_new%vi2
 
-    do ti = mesh_new%ti1, mesh_new%ti2
-      ! Horizontal derivatives
-      ice%dHib_dx_b( ti) = 0._dp
-      ice%dHib_dy_b( ti) = 0._dp
-    end do ! do ti = mesh_new%ti1, mesh_new%ti2
+    ! Horizontal derivatives
+    call ddx_a_b_2D( mesh_new, ice%Hib, ice%dHib_dx_b)
+    call ddy_a_b_2D( mesh_new, ice%Hib, ice%dHib_dy_b)
 
     ! Calculate zeta gradients
     call calc_zeta_gradients( mesh_new, ice)

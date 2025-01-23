@@ -219,9 +219,6 @@ CONTAINS
     ALLOCATE( laddie%dH_dy_b            ( mesh%ti1:mesh%ti2), source=0._dp) ! [m^-2]          
     ALLOCATE( laddie%detr_b             ( mesh%ti1:mesh%ti2), source=0._dp) ! [m s^-1]        Detrainment on b grid
 
-    ! Mapped main variables
-    ALLOCATE( laddie%H_c                ( mesh%ei1:mesh%ei2), source=0._dp) ! [m]             Layer thickness on c grid 
-
     ! Masks
     ALLOCATE( laddie%mask_a             ( mesh%vi1:mesh%vi2), source=.false.) !                 Mask on a-grid
     ALLOCATE( laddie%mask_gr_a          ( mesh%vi1:mesh%vi2), source=.false.) !                 Grounded mask on a-grid
