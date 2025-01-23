@@ -5,7 +5,7 @@ from matplotlib.patches import Polygon
 from matplotlib.collections import PatchCollection
 from colormaps import *
 
-def plot_figure(vars,inputfolder,outputfolder,run,mesh,t,ncols=1,dpi=600):
+def plot_figure(vars,inputfolder,outputfolder,run,mesh,t,ncols=1,dpi=1200):
     #Read data
     fname = f'{inputfolder}/{run}/main_output_ANT_{mesh:05d}.nc'
     ds = xr.open_dataset(fname)
@@ -56,4 +56,6 @@ def plot_figure(vars,inputfolder,outputfolder,run,mesh,t,ncols=1,dpi=600):
         os.makedirs(outputfolder)
 
     #Save figure
-    plt.savefig(f'{outputfolder}/frame_{int(ds.time[t].values):06d}.pdf')#,dpi=dpi)
+    plt.savefig(f'{outputfolder}/frame_{int(ds.time[t].values):06d}',dpi=dpi)
+    plt.close()
+    print(f'Created frame_{int(ds.time[t].values):06d}')
