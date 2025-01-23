@@ -62,3 +62,28 @@ class Run(object):
 
         # Close data set
         ds.close()
+
+    def make_movie(self,variables,framerate=10):
+        """ Make a movie of variables """
+
+        f = 1 #Frame counter
+
+        #Loop over available meshes
+        for m in range(1,self.Nmeshes+1):
+            mesh = self.get_mesh(m)
+
+            #Loop over time slices
+            for t in range(0,mesh.Ntimes):
+                mesh.make_plot(variables,t,f,purpose='movie')
+                f += 1
+        
+        #Make video
+        moviename = f'{self.directory}/movie/'
+        for varname in variables:
+                moviename += f'{varname}_'
+        moviename = moviename[:-1] #Remove last underscore
+
+        os.system(f'ffmpeg -r {framerate} -f image2 -i {self.directory}/movie/frame_%03d.png -pix_fmt yuv420p -vcodec libx264 -crf 24 {moviename}.mp4')
+
+        #Remove frames
+        os.system(f'rm {self.directory}/movie/frame*.png')

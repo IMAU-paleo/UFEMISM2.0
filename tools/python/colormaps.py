@@ -24,14 +24,19 @@ def get_cmap(varname):
     elif varname == 'Hi':
         cmap = copy(plt.get_cmap('cmo.ice'))
         norm = mpl.colors.Normalize(vmin=0,vmax=4000,clip=True)
+
+    elif varname == 'Hib':
+        cmap = copy(plt.get_cmap('cmo.deep'))
+        norm = mpl.colors.Normalize(vmin=-500,vmax=0,clip=True)
     
     elif varname == 'Hs':
         cmap = copy(plt.get_cmap('cmo.ice'))
         norm = mpl.colors.Normalize(vmin=0,vmax=1000,clip=True)
 
     elif varname == 'uabs_surf':
-        cmap = copy(plt.get_cmap('CMRmap_r'))
-        norm = mpl.colors.LogNorm(vmin=1.,vmax=3000,clip=True)
+        cmap = copy(plt.get_cmap('turbo'))
+        norm = mpl.colors.Normalize(vmin=0,vmax=2000,clip=True)
+        #norm = mpl.colors.LogNorm(vmin=1.,vmax=3000,clip=True)
     
     else:
         print(f'ERROR: no colormap available yet for {varname}, add one to colormaps.py')

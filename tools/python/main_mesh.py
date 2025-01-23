@@ -22,8 +22,14 @@ class Mesh(object):
         self.open()
         self.close()
 
-    def make_plot(self,variables,t,ncols=1,dpi=1200,format='png'):
+    def make_plot(self,variables,t,f=None,ncols=1,dpi=1200,format='png',purpose='single'):
         """ Make a figure of requested variables at time slice t """
+
+        assert purpose in ['single','movie'], 'ERROR: invalid purpose in make_plot'
+
+        if purpose == 'movie':
+            assert f is not None, "ERROR: provide frame number f in make_plot or change purpose to 'single' "
+            assert format == 'png', "ERROR: format for movie must be 'png'"
 
         # Open data set
         self.open()
@@ -42,14 +48,21 @@ class Mesh(object):
             ax[v].set_ylim([self.ds.ymin,self.ds.ymax])
             ax[v].set_aspect(1)
 
-        #Make outputfolder if necessary
-        check_create_dir(f'{self.directory}/figures')
+        #Add time if movie
+        if purpose=='movie':
+            ax[0].set_title(f'Year {self.ds.time[t].values:.0f}')
 
         #Save figure
-        figname = f'{self.directory}/figures/'
-        for varname in variables:
-            figname += f'{varname}_'
-        figname += f'{int(self.ds.time[t].values):06d}.{format}'
+        if purpose=='single':
+            check_create_dir(f'{self.directory}/figures')
+            figname = f'{self.directory}/figures/'
+            for varname in variables:
+                figname += f'{varname}_'
+            figname += f'{int(self.ds.time[t].values):06d}.{format}'
+        elif purpose=='movie':
+            check_create_dir(f'{self.directory}/movie')
+            figname = f'{self.directory}/movie/frame_{f:03d}.png'
+
         plt.savefig(figname,dpi=dpi)
         print(f'Created {figname}')
 
