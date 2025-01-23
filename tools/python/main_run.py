@@ -16,5 +16,8 @@ class Run(object):
     def get_mesh(self,mesh):
         """ Gather info on a given mesh """
 
+        assert mesh <= self.Nmeshes, 'Mesh number too high, not available in output'
+
         mesh = Mesh(self.directory,mesh)
+        
         return mesh

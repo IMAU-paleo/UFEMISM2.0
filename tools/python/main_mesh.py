@@ -4,23 +4,22 @@ import xarray as xr
 from matplotlib.patches import Polygon
 from matplotlib.collections import PatchCollection
 
-from main_run import Run
 from colormaps import *
 
-class Mesh(Run):
+class Mesh(object):
     """ Properties and functions of a single mesh """
 
     def __init__(self, directory, mesh):
         """ Gather basic info from run """
-        super().__init__(directory)
 
+        self.directory = directory
         self.mesh = mesh
 
         self.got_voronois = False
         self.got_triangles = False
-        
-        assert self.mesh <= self.Nmeshes, 'Mesh number too high, not available in output'
 
+        self.open()
+        self.close()
 
     def make_plot(self,variables,t,ncols=1,dpi=1200,format='png'):
         """ Make a figure of requested variables at time slice t """
