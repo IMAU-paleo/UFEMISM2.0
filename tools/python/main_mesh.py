@@ -5,6 +5,7 @@ from matplotlib.patches import Polygon
 from matplotlib.collections import PatchCollection
 
 from colormaps import *
+from utils import *
 
 class Mesh(object):
     """ Properties and functions of a single mesh """
@@ -42,8 +43,7 @@ class Mesh(object):
             ax[v].set_aspect(1)
 
         #Make outputfolder if necessary
-        if not os.path.isdir(f'{self.directory}/figures'):
-            os.makedirs(f'{self.directory}/figures')
+        check_create_dir(f'{self.directory}/figures')
 
         #Save figure
         figname = f'{self.directory}/figures/'
