@@ -15,8 +15,51 @@ class Mesh(Run):
         super().__init__(directory)
 
         self.mesh = mesh
+
+        self.got_voronois = False
+        self.got_triangles = False
         
         assert self.mesh <= self.Nmeshes, 'Mesh number too high, not available in output'
+
+
+    def make_plot(self,variables,t,ncols=1,dpi=1200,format='png'):
+        """ Make a figure of requested variables at time slice t """
+
+        # Open data set
+        self.open()
+
+        #Prepare figure
+        fig,ax = plt.subplots(len(variables),ncols,sharex=True,sharey=True)
+
+        #Add data (voronois / triangles)
+        for v,varname in enumerate(variables):
+            pcoll = self.get_pcoll(varname,t)
+
+            ax[v].add_collection(pcoll)
+
+            #Make up subplot
+            ax[v].set_xlim([self.ds.xmin,self.ds.xmax])
+            ax[v].set_ylim([self.ds.ymin,self.ds.ymax])
+            ax[v].set_aspect(1)
+
+        #Make outputfolder if necessary
+        if not os.path.isdir(f'{self.directory}/figures'):
+            os.makedirs(f'{self.directory}/figures')
+
+        #Save figure
+        figname = f'{self.directory}/figures/'
+        for varname in variables:
+            figname += f'{varname}_'
+        figname += f'{int(self.ds.time[t].values):06d}.{format}'
+        plt.savefig(figname,dpi=dpi)
+        print(f'Created {figname}')
+
+        #Clean up
+        plt.close()
+        del fig, ax, pcoll
+
+        # Close data set
+        self.close()
 
     def open(self):
         self.ds = xr.open_dataset(f'{self.directory}/main_output_ANT_{self.mesh:05d}.nc')
@@ -25,7 +68,7 @@ class Mesh(Run):
     def close(self):
         self.ds.close()
 
-    def get_voronoi(self):
+    def get_voronois(self):
         """ Extract Voronoi cells as patches """
         self.voronois = []
         for vi in range(0,len(self.ds.vi)):
@@ -33,6 +76,8 @@ class Mesh(Run):
             VVor = self.ds.VVor[:nVVor,vi].values
             Vor = self.ds.Vor[:,VVor-1].values
             self.voronois.append(Polygon(Vor.T))
+        
+        self.got_voronois = True
 
     def get_triangles(self):
         """ Extract triangles as patches """
@@ -42,6 +87,8 @@ class Mesh(Run):
             #VVor = self.ds.VVor[:nVVor,vi].values
             #Vor = self.ds.Vor[:,VVor-1].values
             #self.triangles.append(Polygon(Tri.T))
+        
+        self.got_triangles = True
 
     def get_pcoll(self,varname,t):
         """ Get patch collection """
@@ -54,11 +101,15 @@ class Mesh(Run):
 
         #Check type (voronoi / triangle)
         if 'vi' in var.dims:
+            if not self.got_voronois:
+                self.get_voronois()
             pcoll = PatchCollection(self.voronois,cmap=cmap,norm=norm)
         elif 'ti' in var.dims:
+            if not self.got_triangles:
+                self.get_triangles()
             pcoll = PatchCollection(self.triangles,cmap=cmap,norm=norm)
         else:
-            print(f'ERROR: variable {var} is not on vertices or triangles')
+            print(f'ERROR: variable {varname} is not on vertices or triangles')
 
         # Fill array
         if varname == 'BMB':
