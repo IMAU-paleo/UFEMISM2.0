@@ -229,6 +229,11 @@ contains
       call refine_mesh_line_ROI( mesh, p_line_ice_front     , C%ROI_maximum_resolution_ice_front     , C%ROI_ice_front_width     , C%alpha_min, poly_ROI)
       call refine_mesh_line_ROI( mesh, p_line_coastline     , C%ROI_maximum_resolution_coastline     , C%ROI_coastline_width     , C%alpha_min, poly_ROI)
 
+      ! Save poly_ROI in type mesh to use later to determine ROI mask; note this only works for the last one now
+      allocate( mesh%poly_ROI( mesh%nVor,2), source = 0._dp)
+
+      mesh%poly_ROI = poly_ROI
+
       ! Clean up after yourself
       deallocate( poly_ROI)
 

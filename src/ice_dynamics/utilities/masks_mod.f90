@@ -9,6 +9,7 @@ module masks_mod
   use ice_model_types, only: type_ice_model
   use ice_geometry_basics, only: is_floating
   use projections, only: oblique_sg_projection
+  use plane_geometry, only: is_in_polygon
 
   implicit none
 
@@ -35,6 +36,7 @@ contains
     ! mask_cf_gr              ! T: grounded ice next to ice-free water (sea or lake), F: otherwise
     ! mask_cf_fl              ! T: floating ice next to ice-free water (sea or lake), F: otherwise
     ! mask_coastline          ! T: ice-free land next to ice-free ocean, F: otherwise
+    ! mask_ROI                ! T: inside ROI, F: outside ROI
 
     ! In- and output variables
     type(type_mesh),      intent(in   ) :: mesh
@@ -47,6 +49,7 @@ contains
     logical, dimension(mesh%nV)    :: mask_icefree_ocean_tot
     logical, dimension(mesh%nV)    :: mask_grounded_ice_tot
     logical, dimension(mesh%nV)    :: mask_floating_ice_tot
+    real(dp), dimension(2)         :: point
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -124,6 +127,7 @@ contains
     ice%mask_cf_gr     = .false.
     ice%mask_cf_fl     = .false.
     ice%mask_coastline = .false.
+    ice%mask_ROI       = .false.
 
     do vi = mesh%vi1, mesh%vi2
 
@@ -192,6 +196,37 @@ contains
           end if
         end do
       end if
+
+    end do ! do vi = mesh%vi1, mesh%vi2
+
+    ! ==== ROI masks ==== !
+    ! =====================
+    ! print *, "mesh%nV number of vertices = ", mesh%nV
+
+    ! if (allocated(ice%mask_ROI)) then
+    !   print *, "ice%mask_ROI is allocated with size: ", size(ice%mask_ROI)
+    ! else
+    !   print *, "ice%mask_ROI is not allocated"
+    ! end if
+
+    ! if (allocated(ice%mask_coastline)) then
+    !   print *, "ice%mask_coastline is allocated with size: ", size(ice%mask_coastline)
+    ! else
+    !   print *, "ice%mask_coastline is not allocated"
+    ! end if
+
+    do vi = mesh%vi1, mesh%vi2
+
+      do ci = 1, mesh%nC(vi)
+          vj = mesh%C( vi,ci)
+          point = mesh%V( vj,:) ! Make sure it's in the right format
+
+          if (is_in_polygon(mesh%poly_ROI, point)) then
+            ! add to mask_ROI if vertices are in polygon
+            ice%mask_ROI(vi) = .true.
+          end if
+
+      end do
 
     end do ! do vi = mesh%vi1, mesh%vi2
 
