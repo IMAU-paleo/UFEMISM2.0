@@ -50,6 +50,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'run_BMB_model'
     CHARACTER(LEN=256)                                    :: choice_BMB_model
+    CHARACTER(LEN=256)                                    :: choice_BMB_model_ROI
     INTEGER                                               :: vi
 
     ! Add routine to path
@@ -140,6 +141,29 @@ CONTAINS
         CALL crash('unknown choice_BMB_model "' // TRIM( choice_BMB_model) // '"')
     END SELECT
 
+    choice_BMB_model_ROI = 'uniform'
+
+    ! Check hybrid_ROI_BMB
+    SELECT CASE (choice_BMB_model_ROI)
+      CASE ('identical_to_choice_BMB_model')
+        ! No need to do anything
+
+      CASE ('uniform')
+        ! Update BMB only for cells in ROI
+        DO vi = mesh%vi1, mesh%vi2 !!! HIER MOET DUS ALLEEN LOOPEN OVER DE ROI CELLS - kan dat???
+          ! if ice%mask_ROI( vi) (so if cell is within ROI) AND 
+          IF (ice%mask_ROI(vi)) THEN
+            IF (ice%mask_floating_ice( vi) .OR. ice%mask_icefree_ocean( vi) .OR. ice%mask_gl_gr( vi)) THEN 
+              BMB%BMB_shelf( vi) = -5.0_dp ! C%uniform_BMB_ROI
+            END IF
+          END IF
+        END DO
+
+      CASE DEFAULT
+        CALL crash('unknown choice_BMB_model_ROI "' // TRIM( choice_BMB_model_ROI) // '"')
+    END SELECT
+
+
     ! Apply subgrid scheme of old BMB to new mask
     SELECT CASE (choice_BMB_model)
       CASE ('inverted')
@@ -170,6 +194,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'initialise_BMB_model'
     CHARACTER(LEN=256)                                    :: choice_BMB_model
+    CHARACTER(LEN=256)                                    :: choice_BMB_model_ROI
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -239,6 +264,18 @@ CONTAINS
         CALL initialise_laddie_model( mesh, BMB%laddie, ocean, ice)
       CASE DEFAULT
         CALL crash('unknown choice_BMB_model "' // TRIM( choice_BMB_model) // '"')
+    END SELECT
+
+    choice_BMB_model_ROI = 'uniform'
+
+    ! Check hybrid_ROI_BMB
+    SELECT CASE (choice_BMB_model_ROI)
+      CASE ('identical_to_choice_BMB_model')
+        ! No need to do anything
+      CASE ('uniform')
+        ! No need to do anything
+      CASE DEFAULT
+        CALL crash('unknown choice_BMB_model_ROI "' // TRIM( choice_BMB_model_ROI) // '"')
     END SELECT
 
     ! Finalise routine path
