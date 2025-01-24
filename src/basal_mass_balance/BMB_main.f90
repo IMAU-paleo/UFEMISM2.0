@@ -59,13 +59,17 @@ CONTAINS
     ! Determine which BMB model to run for this region
     SELECT CASE (region_name)
       CASE ('NAM')
-        choice_BMB_model = C%choice_BMB_model_NAM
+        choice_BMB_model      = C%choice_BMB_model_NAM
+        choice_BMB_model_ROI  = C%choice_BMB_model_NAM_ROI
       CASE ('EAS')
-        choice_BMB_model = C%choice_BMB_model_EAS
+        choice_BMB_model      = C%choice_BMB_model_EAS
+        choice_BMB_model_ROI  = C%choice_BMB_model_EAS_ROI
       CASE ('GRL')
-        choice_BMB_model = C%choice_BMB_model_GRL
+        choice_BMB_model      = C%choice_BMB_model_GRL
+        choice_BMB_model_ROI  = C%choice_BMB_model_GRL_ROI
       CASE ('ANT')
-        choice_BMB_model = C%choice_BMB_model_ANT
+        choice_BMB_model      = C%choice_BMB_model_ANT
+        choice_BMB_model_ROI  = C%choice_BMB_model_ANT_ROI
       CASE DEFAULT
         CALL crash('unknown region_name "' // region_name // '"')
     END SELECT
@@ -141,24 +145,20 @@ CONTAINS
         CALL crash('unknown choice_BMB_model "' // TRIM( choice_BMB_model) // '"')
     END SELECT
 
-    choice_BMB_model_ROI = 'uniform'
-
     ! Check hybrid_ROI_BMB
     SELECT CASE (choice_BMB_model_ROI)
       CASE ('identical_to_choice_BMB_model')
         ! No need to do anything
-
       CASE ('uniform')
         ! Update BMB only for cells in ROI
         DO vi = mesh%vi1, mesh%vi2 !!! HIER MOET DUS ALLEEN LOOPEN OVER DE ROI CELLS - kan dat???
           ! if ice%mask_ROI( vi) (so if cell is within ROI) AND 
           IF (ice%mask_ROI(vi)) THEN
             IF (ice%mask_floating_ice( vi) .OR. ice%mask_icefree_ocean( vi) .OR. ice%mask_gl_gr( vi)) THEN 
-              BMB%BMB_shelf( vi) = -5.0_dp ! C%uniform_BMB_ROI
+              BMB%BMB_shelf( vi) = C%uniform_BMB_ROI
             END IF
           END IF
         END DO
-
       CASE DEFAULT
         CALL crash('unknown choice_BMB_model_ROI "' // TRIM( choice_BMB_model_ROI) // '"')
     END SELECT
@@ -205,13 +205,17 @@ CONTAINS
     ! Determine which BMB model to initialise for this region
     SELECT CASE (region_name)
       CASE ('NAM')
-        choice_BMB_model = C%choice_BMB_model_NAM
+        choice_BMB_model      = C%choice_BMB_model_NAM
+        choice_BMB_model_ROI  = C%choice_BMB_model_NAM_ROI
       CASE ('EAS')
-        choice_BMB_model = C%choice_BMB_model_EAS
+        choice_BMB_model      = C%choice_BMB_model_EAS
+        choice_BMB_model_ROI  = C%choice_BMB_model_EAS_ROI
       CASE ('GRL')
-        choice_BMB_model = C%choice_BMB_model_GRL
+        choice_BMB_model      = C%choice_BMB_model_GRL
+        choice_BMB_model_ROI  = C%choice_BMB_model_GRL_ROI
       CASE ('ANT')
-        choice_BMB_model = C%choice_BMB_model_ANT
+        choice_BMB_model      = C%choice_BMB_model_ANT
+        choice_BMB_model_ROI  = C%choice_BMB_model_ANT_ROI
       CASE DEFAULT
         CALL crash('unknown region_name "' // region_name // '"')
     END SELECT
@@ -265,8 +269,6 @@ CONTAINS
       CASE DEFAULT
         CALL crash('unknown choice_BMB_model "' // TRIM( choice_BMB_model) // '"')
     END SELECT
-
-    choice_BMB_model_ROI = 'uniform'
 
     ! Check hybrid_ROI_BMB
     SELECT CASE (choice_BMB_model_ROI)

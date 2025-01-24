@@ -766,6 +766,13 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: choice_BMB_model_GRL_config                  = 'uniform'
     CHARACTER(LEN=256)  :: choice_BMB_model_ANT_config                  = 'uniform'
 
+    ! Choice of BMB model in ROI
+    CHARACTER(LEN=256)  :: choice_BMB_model_NAM_ROI_config              = 'identical_to_choice_BMB_model'
+    CHARACTER(LEN=256)  :: choice_BMB_model_EAS_ROI_config              = 'identical_to_choice_BMB_model'
+    CHARACTER(LEN=256)  :: choice_BMB_model_GRL_ROI_config              = 'identical_to_choice_BMB_model'
+    CHARACTER(LEN=256)  :: choice_BMB_model_ANT_ROI_config              = 'identical_to_choice_BMB_model'
+
+
     ! Prescribed BMB forcing
     CHARACTER(LEN=256)  :: choice_BMB_prescribed_NAM_config             = ''
     CHARACTER(LEN=256)  :: choice_BMB_prescribed_EAS_config             = ''
@@ -792,6 +799,7 @@ MODULE model_configuration
 
     ! "uniform"
     REAL(dp)            :: uniform_BMB_config                           = 0._dp
+    REAL(dp)            :: uniform_BMB_ROI_config                       = 0._dp
 
     ! "parameterised"
     REAL(dp)            :: BMB_Favier2019_gamma_config                  = 99.32E-5
@@ -1742,6 +1750,12 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: choice_BMB_model_GRL
     CHARACTER(LEN=256)  :: choice_BMB_model_ANT
 
+    ! Choice of BMB model in ROI
+    CHARACTER(LEN=256)  :: choice_BMB_model_NAM_ROI 
+    CHARACTER(LEN=256)  :: choice_BMB_model_EAS_ROI 
+    CHARACTER(LEN=256)  :: choice_BMB_model_GRL_ROI
+    CHARACTER(LEN=256)  :: choice_BMB_model_ANT_ROI
+
     ! Prescribed BMB forcing
     CHARACTER(LEN=256)  :: choice_BMB_prescribed_NAM
     CHARACTER(LEN=256)  :: choice_BMB_prescribed_EAS
@@ -1768,6 +1782,7 @@ MODULE model_configuration
 
     ! "uniform"
     REAL(dp)            :: uniform_BMB
+    REAL(dp)            :: uniform_BMB_ROI
 
     ! "parameterised"
     REAL(dp)            :: BMB_Favier2019_gamma
@@ -2664,6 +2679,10 @@ CONTAINS
       choice_BMB_model_EAS_config                                 , &
       choice_BMB_model_GRL_config                                 , &
       choice_BMB_model_ANT_config                                 , &
+      choice_BMB_model_NAM_ROI_config                             , &
+      choice_BMB_model_EAS_ROI_config                             , &
+      choice_BMB_model_GRL_ROI_config                             , &
+      choice_BMB_model_ANT_ROI_config                             , &
       choice_BMB_prescribed_NAM_config                            , &
       choice_BMB_prescribed_EAS_config                            , &
       choice_BMB_prescribed_GRL_config                            , &
@@ -2679,6 +2698,7 @@ CONTAINS
       choice_BMB_model_idealised_config                           , &
       choice_BMB_model_parameterised_config                       , &
       uniform_BMB_config                                          , &
+      uniform_BMB_ROI_config                                      , &
       BMB_Favier2019_gamma_config                                 , &
       choice_BMB_laddie_system_config                             , &
       filename_BMB_laddie_configname_config                       , &
@@ -3597,6 +3617,12 @@ CONTAINS
     C%choice_BMB_model_GRL                                   = choice_BMB_model_GRL_config
     C%choice_BMB_model_ANT                                   = choice_BMB_model_ANT_config
 
+    ! Choice of BMB model in ROI
+    C%choice_BMB_model_NAM_ROI                               = choice_BMB_model_NAM_ROI_config
+    C%choice_BMB_model_EAS_ROI                               = choice_BMB_model_EAS_ROI_config
+    C%choice_BMB_model_GRL_ROI                               = choice_BMB_model_GRL_ROI_config
+    C%choice_BMB_model_ANT_ROI                               = choice_BMB_model_ANT_ROI_config
+
     ! Prescribed BMB forcing
     C%choice_BMB_prescribed_NAM                              = choice_BMB_prescribed_NAM_config
     C%choice_BMB_prescribed_EAS                              = choice_BMB_prescribed_EAS_config
@@ -3623,6 +3649,7 @@ CONTAINS
 
     ! "uniform"
     C%uniform_BMB                                            = uniform_BMB_config
+    C%uniform_BMB_ROI                                        = uniform_BMB_ROI_config
 
     ! "parameterised"
     C%BMB_Favier2019_gamma                                   = BMB_Favier2019_gamma_config
