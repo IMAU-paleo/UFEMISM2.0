@@ -410,8 +410,7 @@ CONTAINS
     IF     (choice_ocean_model == 'none') THEN
       ! No need to do anything
     ELSEIF (choice_ocean_model == 'idealised') THEN
-      ! Not implemented yet TODO
-      CALL crash('Remapping after mesh update not implemented yet for idealised ocean')
+      CALL initialise_ocean_model_idealised( mesh_new, ocean)
     ELSEIF (choice_ocean_model == 'realistic') THEN
       CALL crash('Remapping after mesh update not implemented yet for realistic ocean')
     ELSE

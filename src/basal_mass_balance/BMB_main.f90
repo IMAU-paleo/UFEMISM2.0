@@ -21,7 +21,7 @@ MODULE BMB_main
   USE BMB_prescribed                                         , ONLY: initialise_BMB_model_prescribed, run_BMB_model_prescribed
   USE BMB_parameterised                                      , ONLY: initialise_BMB_model_parameterised, run_BMB_model_parameterised
   USE BMB_laddie                                             , ONLY: initialise_BMB_model_laddie, run_BMB_model_laddie, remap_BMB_model_laddie
-  USE laddie_main                                            , ONLY: initialise_laddie_model, run_laddie_model
+  USE laddie_main                                            , ONLY: initialise_laddie_model, run_laddie_model, remap_laddie_model
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   use ice_geometry_basics, only: is_floating
   USE mesh_utilities                                         , ONLY: extrapolate_Gaussian
@@ -453,15 +453,17 @@ CONTAINS
 
   END SUBROUTINE create_restart_file_BMB_model_region
 
-  SUBROUTINE remap_BMB_model( mesh_old, mesh_new, ice, BMB, region_name)
+  SUBROUTINE remap_BMB_model( mesh_old, mesh_new, ice, ocean, BMB, region_name, time)
     ! Remap the BMB model
 
     ! In- and output variables
     TYPE(type_mesh),                        INTENT(IN)    :: mesh_old
     TYPE(type_mesh),                        INTENT(IN)    :: mesh_new
     TYPE(type_ice_model),                   INTENT(IN)    :: ice
-    TYPE(type_BMB_model),                   INTENT(OUT)   :: BMB
+    TYPE(type_ocean_model),                 INTENT(IN)    :: ocean
+    TYPE(type_BMB_model),                   INTENT(INOUT) :: BMB
     CHARACTER(LEN=3),                       INTENT(IN)    :: region_name
+    REAL(dp),                               INTENT(IN)    :: time
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'remap_BMB_model'
@@ -521,8 +523,7 @@ CONTAINS
       CASE ('laddie_py')
         CALL remap_BMB_model_laddie( mesh_new, BMB)
       CASE ('laddie')
-        ! EL to be filled later
-        CALL crash('Remapping for LADDIE2 model not implemented yet')
+        CALL remap_laddie_model( mesh_old, mesh_new, ice, ocean, BMB%laddie, time)
       CASE DEFAULT
         CALL crash('unknown choice_BMB_model "' // TRIM( choice_BMB_model) // '"')
     END SELECT
