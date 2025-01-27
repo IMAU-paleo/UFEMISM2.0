@@ -146,7 +146,7 @@ subroutine read_var_master_int_1D( filename, ncid, id_var, d, start, count)
 
   ! Read the data
   if (par%master) then
-    call handle_netcdf_error( NF90_GET_VAR( ncid, id_var, d), &
+    call handle_netcdf_error( NF90_GET_VAR( ncid, id_var, d, start_applied, count_applied), &
       filename = filename, dimvarname = var_name)
   end if
 
@@ -229,7 +229,7 @@ subroutine read_var_master_int_2D( filename, ncid, id_var, d, start, count)
 
   ! Read the data
   if (par%master) then
-    call handle_netcdf_error( NF90_GET_VAR( ncid, id_var, d), &
+    call handle_netcdf_error( NF90_GET_VAR( ncid, id_var, d, start_applied, count_applied), &
       filename = filename, dimvarname = var_name)
   end if
 
@@ -312,7 +312,7 @@ subroutine read_var_master_int_3D( filename, ncid, id_var, d, start, count)
 
   ! Read the data
   if (par%master) then
-    call handle_netcdf_error( NF90_GET_VAR( ncid, id_var, d), &
+    call handle_netcdf_error( NF90_GET_VAR( ncid, id_var, d, start_applied, count_applied), &
       filename = filename, dimvarname = var_name)
   end if
 
@@ -395,7 +395,7 @@ subroutine read_var_master_int_4D( filename, ncid, id_var, d, start, count)
 
   ! Read the data
   if (par%master) then
-    call handle_netcdf_error( NF90_GET_VAR( ncid, id_var, d), &
+    call handle_netcdf_error( NF90_GET_VAR( ncid, id_var, d, start_applied, count_applied), &
       filename = filename, dimvarname = var_name)
   end if
 
@@ -520,7 +520,7 @@ subroutine read_var_master_dp_1D( filename, ncid, id_var, d, start, count)
 
   ! Read the data
   if (par%master) then
-    call handle_netcdf_error( NF90_GET_VAR( ncid, id_var, d), &
+    call handle_netcdf_error( NF90_GET_VAR( ncid, id_var, d, start_applied, count_applied), &
       filename = filename, dimvarname = var_name)
   end if
 
@@ -603,7 +603,7 @@ subroutine read_var_master_dp_2D( filename, ncid, id_var, d, start, count)
 
   ! Read the data
   if (par%master) then
-    call handle_netcdf_error( NF90_GET_VAR( ncid, id_var, d), &
+    call handle_netcdf_error( NF90_GET_VAR( ncid, id_var, d, start_applied, count_applied), &
       filename = filename, dimvarname = var_name)
   end if
 
@@ -686,7 +686,7 @@ subroutine read_var_master_dp_3D( filename, ncid, id_var, d, start, count)
 
   ! Read the data
   if (par%master) then
-    call handle_netcdf_error( NF90_GET_VAR( ncid, id_var, d), &
+    call handle_netcdf_error( NF90_GET_VAR( ncid, id_var, d, start_applied, count_applied), &
       filename = filename, dimvarname = var_name)
   end if
 
@@ -769,7 +769,7 @@ subroutine read_var_master_dp_4D( filename, ncid, id_var, d, start, count)
 
   ! Read the data
   if (par%master) then
-    call handle_netcdf_error( NF90_GET_VAR( ncid, id_var, d), &
+    call handle_netcdf_error( NF90_GET_VAR( ncid, id_var, d, start_applied, count_applied), &
       filename = filename, dimvarname = var_name)
   end if
 
