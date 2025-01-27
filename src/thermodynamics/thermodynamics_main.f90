@@ -428,6 +428,10 @@ CONTAINS
     IF (par%master) WRITE (0,*) '  Initialising ice temperatures from file "' // &
       colour_string( TRIM( filename_initial_ice_temperature), 'light blue') // '"...'
 
+    ! Allocate
+    ALLOCATE( zeta_read (mesh%nz), source=0.0_dp)
+    ALLOCATE( Ti_read (mesh%nz, mesh%nV), source=0.0_dp)
+
     ! Read data
     IF (timeframe_initial_ice_temperature == 1E9_dp) THEN
       ! Assume the file has no time dimension
