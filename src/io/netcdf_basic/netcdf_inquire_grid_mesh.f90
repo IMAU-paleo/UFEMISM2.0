@@ -108,7 +108,7 @@ contains
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'inquire_mesh'
     integer                        :: ncid
-    integer                        :: id_dim_vi, id_dim_ti, id_dim_ci, id_dim_two, id_dim_three
+    integer                        :: id_dim_vi, id_dim_ti, id_dim_pi, id_dim_ci, id_dim_two, id_dim_three
     integer                        :: id_var_V, id_var_nC, id_var_C, id_var_niTri, id_var_iTri, id_var_VBI
     integer                        :: id_var_Tri, id_var_Tricc, id_var_TriC, id_var_TrIBI
 
@@ -121,6 +121,8 @@ contains
     ! inquire mesh dimensions
     call inquire_dim_multopt( filename, ncid, field_name_options_dim_nV    , id_dim_vi   )
     call inquire_dim_multopt( filename, ncid, field_name_options_dim_nTri  , id_dim_ti   )
+    !call inquire_dim_multopt( filename, ncid, field_name_options_dim_npoly_ROI  , id_dim_pi   )
+
     call inquire_dim_multopt( filename, ncid, field_name_options_dim_nC_mem, id_dim_ci   )
     call inquire_dim_multopt( filename, ncid, field_name_options_dim_two   , id_dim_two  )
     call inquire_dim_multopt( filename, ncid, field_name_options_dim_three , id_dim_three)
@@ -141,6 +143,7 @@ contains
     has_mesh = (&
       id_dim_vi    /= -1 .and. &
       id_dim_ti    /= -1 .and. &
+     ! id_dim_pi    /= -1 .and. &
       id_dim_ci    /= -1 .and. &
       id_dim_two   /= -1 .and. &
       id_dim_three /= -1 .and. &

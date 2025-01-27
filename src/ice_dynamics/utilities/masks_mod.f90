@@ -15,7 +15,7 @@ module masks_mod
 
   private
 
-  public :: determine_masks, calc_mask_noice, calc_mask_noice_remove_Ellesmere
+  public :: determine_masks, calc_mask_noice, calc_mask_ROI, calc_mask_noice_remove_Ellesmere
 
 contains
 
@@ -49,7 +49,6 @@ contains
     logical, dimension(mesh%nV)    :: mask_icefree_ocean_tot
     logical, dimension(mesh%nV)    :: mask_grounded_ice_tot
     logical, dimension(mesh%nV)    :: mask_floating_ice_tot
-    real(dp), dimension(2)         :: point
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -129,6 +128,8 @@ contains
     ice%mask_coastline = .false.
     ice%mask_ROI       = .false.
 
+    ! local_mesh_poly_ROI = mesh%poly_ROI
+
     do vi = mesh%vi1, mesh%vi2
 
       ! Ice margin
@@ -201,7 +202,6 @@ contains
 
     ! ==== ROI masks ==== !
     ! =====================
-    ! print *, "mesh%nV number of vertices = ", mesh%nV
 
     ! if (allocated(ice%mask_ROI)) then
     !   print *, "ice%mask_ROI is allocated with size: ", size(ice%mask_ROI)
@@ -209,13 +209,35 @@ contains
     !   print *, "ice%mask_ROI is not allocated"
     ! end if
 
-    ! if (allocated(ice%mask_coastline)) then
-    !   print *, "ice%mask_coastline is allocated with size: ", size(ice%mask_coastline)
+    ! if (allocated(mesh%poly_ROI)) then
+    !   print *, "mesh%poly_ROI is allocated with size: ", size(mesh%poly_ROI)
     ! else
-    !   print *, "ice%mask_coastline is not allocated"
+    !   print *, "mesh%poly_ROI is not allocated"
     ! end if
 
-    do vi = mesh%vi1, mesh%vi2
+
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine determine_masks
+
+  subroutine calc_mask_ROI( mesh, ice)
+    !< Calculate the ROI mask
+
+    ! In/output variables:
+    type(type_mesh),      intent(in   ) :: mesh
+    type(type_ice_model), intent(inout) :: ice
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'calc_mask_ROI'
+    integer                        :: vi, ci, vj
+    real(dp), dimension(2)         :: point
+
+
+
+    ! mask_ROI only needs update when mesh changes? So maybe need to do this somewhere else
+    do vi = mesh%vi1, mesh%vi2 
 
       do ci = 1, mesh%nC(vi)
           vj = mesh%C( vi,ci)
@@ -230,10 +252,8 @@ contains
 
     end do ! do vi = mesh%vi1, mesh%vi2
 
-    ! Finalise routine path
-    call finalise_routine( routine_name)
+  end subroutine calc_mask_ROI
 
-  end subroutine determine_masks
 
   subroutine calc_mask_noice( mesh, ice)
     !< Calculate the no-ice mask

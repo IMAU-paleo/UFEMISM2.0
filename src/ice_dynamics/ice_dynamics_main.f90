@@ -24,7 +24,7 @@ module ice_dynamics_main
     apply_mask_noice_direct
   use ice_geometry_basics, only: ice_surface_elevation, thickness_above_floatation, &
     Hi_from_Hb_Hs_and_SL
-  use masks_mod, only: determine_masks, calc_mask_noice
+  use masks_mod, only: determine_masks, calc_mask_noice, calc_mask_ROI
   use subgrid_ice_margin, only: calc_effective_thickness
   use zeta_gradients, only: calc_zeta_gradients
   use subgrid_grounded_fractions_main, only: calc_grounded_fractions
@@ -301,6 +301,9 @@ contains
     ! call it twice so also the "prev" versions are set
     call determine_masks( mesh, ice)
     call determine_masks( mesh, ice)
+
+    ! Determine mask_ROI
+    call calc_mask_ROI( mesh, ice) ! Now only at initialisation
 
     ! Effective ice thickness
     ! =======================

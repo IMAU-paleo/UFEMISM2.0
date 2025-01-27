@@ -88,7 +88,7 @@ contains
     test_name = trim( test_name_parent) // '/' // trim( test_name_local)
 
     ! Allocate memory
-    call allocate_mesh_primary( mesh, trim(test_name)//'_mesh', 1000, 2000, 32)
+    call allocate_mesh_primary( mesh, trim(test_name)//'_mesh', 1000, 2000, 1000, 32)
 
     ! Initialise dummy mesh
     call initialise_dummy_mesh_5( mesh, xmin, xmax, ymin, ymax)
@@ -156,7 +156,7 @@ contains
     test_name = trim( test_name_parent) // '/' // trim( test_name_local)
 
     ! Allocate memory
-    call allocate_mesh_primary( mesh, trim(test_name)//'_mesh', 1000, 2000, 32)
+    call allocate_mesh_primary( mesh, trim(test_name)//'_mesh', 1000, 2000, 1000, 32)
 
     ! Initialise dummy mesh
     call initialise_dummy_mesh_5( mesh, xmin, xmax, ymin, ymax)
@@ -222,7 +222,7 @@ contains
     test_name = trim( test_name_parent) // '/' // trim( test_name_local)
 
     ! Allocate memory
-    call allocate_mesh_primary( mesh, trim(test_name)//'_mesh', 1000, 2000, 32)
+    call allocate_mesh_primary( mesh, trim(test_name)//'_mesh', 1000, 2000, 1000, 32)
 
     ! Initialise dummy mesh
     call initialise_dummy_mesh_5( mesh, xmin, xmax, ymin, ymax)
@@ -297,7 +297,7 @@ contains
     test_name = trim( test_name_parent) // '/' // trim( test_name_local)
 
     ! Allocate memory
-    call allocate_mesh_primary( mesh, trim(test_name)//'_mesh', 1000, 2000, 32)
+    call allocate_mesh_primary( mesh, trim(test_name)//'_mesh', 1000, 2000, 1000, 32)
 
     ! Initialise dummy mesh
     call initialise_dummy_mesh_5( mesh, xmin, xmax, ymin, ymax)
@@ -381,7 +381,7 @@ contains
     test_name = trim( test_name_parent) // '/' // trim( test_name_local)
 
     ! Allocate memory
-    call allocate_mesh_primary( mesh, trim(test_name)//'_mesh', 1000, 2000, 32)
+    call allocate_mesh_primary( mesh, trim(test_name)//'_mesh', 1000, 2000, 1000, 32)
 
     ! Initialise dummy mesh
     call initialise_dummy_mesh_5( mesh, xmin, xmax, ymin, ymax)
@@ -483,7 +483,7 @@ contains
     test_name = trim( test_name_parent) // '/' // trim( test_name_local)
 
     ! Allocate memory
-    call allocate_mesh_primary( mesh, trim(test_name)//'_mesh', 1000, 2000, 32)
+    call allocate_mesh_primary( mesh, trim(test_name)//'_mesh', 1000, 2000, 1000, 32)
 
     ! Initialise dummy mesh
     call initialise_dummy_mesh_5( mesh, xmin, xmax, ymin, ymax)
@@ -575,7 +575,7 @@ contains
     test_name = trim( test_name_parent) // '/' // trim( test_name_local)
 
     ! Allocate memory
-    call allocate_mesh_primary( mesh, trim(test_name)//'_mesh', 1000, 2000, 32)
+    call allocate_mesh_primary( mesh, trim(test_name)//'_mesh', 1000, 2000, 1000, 32)
 
     ! Initialise dummy mesh
     call initialise_dummy_mesh_5( mesh, xmin, xmax, ymin, ymax)
@@ -643,7 +643,7 @@ contains
     test_name = trim( test_name_parent) // '/' // trim( test_name_local)
 
     ! Allocate memory
-    call allocate_mesh_primary( mesh, trim(test_name)//'_mesh', 1000, 2000, 32)
+    call allocate_mesh_primary( mesh, trim(test_name)//'_mesh', 1000, 2000, 1000, 32)
 
     ! Initialise dummy mesh
     call initialise_dummy_mesh_5( mesh, xmin, xmax, ymin, ymax)

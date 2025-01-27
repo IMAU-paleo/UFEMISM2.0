@@ -22,7 +22,7 @@ module netcdf_field_name_options
     field_name_options_VorC, field_name_options_nVVor, field_name_options_VVor, field_name_options_TriGC, &
     field_name_options_A, field_name_options_R, field_name_options_Hi, field_name_options_Hb, field_name_options_Hs, &
     field_name_options_SL, field_name_options_dHb, field_name_options_Ti, field_name_options_T_ocean, &
-    field_name_options_S_ocean
+    field_name_options_S_ocean, field_name_options_dim_npoly_ROI, field_name_options_poly_ROI
 
   public :: inquire_dim_multopt, inquire_var_multopt, get_first_option_from_list
 
@@ -39,6 +39,7 @@ module netcdf_field_name_options
   ! Mesh data
   character(len=1024), parameter :: field_name_options_dim_nV         = 'vi'
   character(len=1024), parameter :: field_name_options_dim_nTri       = 'ti'
+  character(len=1024), parameter :: field_name_options_dim_npoly_ROI  = 'pi'
   character(len=1024), parameter :: field_name_options_dim_nC_mem     = 'ci'
   character(len=1024), parameter :: field_name_options_dim_nE         = 'ei'
   character(len=1024), parameter :: field_name_options_dim_nVor       = 'vori'
@@ -76,6 +77,9 @@ module netcdf_field_name_options
   character(len=1024), parameter :: field_name_options_TriGC          = 'TriGC'
   character(len=1024), parameter :: field_name_options_A              = 'A'
   character(len=1024), parameter :: field_name_options_R              = 'R'
+
+  character(len=1024), parameter :: field_name_options_poly_ROI       = 'poly_ROI'
+
 
   ! Ice model variables
   character(len=1024), parameter :: field_name_options_Hi             = 'Hi||thickness||lithk'

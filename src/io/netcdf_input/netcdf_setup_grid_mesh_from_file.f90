@@ -141,11 +141,11 @@ contains
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'setup_mesh_from_file'
     character(len=1024)            :: name
-    integer                        :: id_dim_vi, id_dim_ti, id_dim_ci, id_dim_two, id_dim_three
-    integer                        :: nV_mem, nTri_mem, nC_mem, n_two, n_three
-    integer                        :: id_var_xmin, id_var_xmax, id_var_ymin, id_var_ymax, id_var_tol_dist, id_var_lambda_M, id_var_phi_M, id_var_beta_stereo
+    integer                        :: id_dim_vi, id_dim_ti, id_dim_pi, id_dim_ci, id_dim_two, id_dim_three
+    integer                        :: nV_mem, nTri_mem, npoly_ROI_mem, nC_mem, n_two, n_three
+    integer                        :: id_var_xmin, id_var_xmax, id_var_ymin, id_var_ymax, id_var_tol_dist, id_var_lambda_M, id_var_phi_M, id_var_beta_stereo ! , id_var_poly_ROI ! FJFJ
     integer                        :: id_var_V, id_var_nC, id_var_C, id_var_niTri, id_var_iTri, id_var_VBI
-    integer                        :: id_var_Tri, id_var_Tricc, id_var_TriC
+    integer                        :: id_var_Tri, id_var_Tricc, id_var_TriC, id_var_poly_ROI ! FJFJ
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -159,15 +159,17 @@ contains
     ! Inquire mesh dimensions
     call inquire_dim_multopt( filename, ncid, field_name_options_dim_nV    , id_dim_vi   , dim_length = nV_mem  )
     call inquire_dim_multopt( filename, ncid, field_name_options_dim_nTri  , id_dim_ti   , dim_length = nTri_mem)
+    call inquire_dim_multopt( filename, ncid, field_name_options_dim_npoly_ROI  , id_dim_pi   , dim_length = npoly_ROI_mem)
     call inquire_dim_multopt( filename, ncid, field_name_options_dim_nC_mem, id_dim_ci   , dim_length = nC_mem  )
     call inquire_dim_multopt( filename, ncid, field_name_options_dim_two   , id_dim_two  , dim_length = n_two   )
     call inquire_dim_multopt( filename, ncid, field_name_options_dim_three , id_dim_three, dim_length = n_three )
 
     ! allocate memory for the mesh
     if (par%master) then
-      call allocate_mesh_primary( mesh, name, nV_mem, nTri_mem, nC_mem)
+      call allocate_mesh_primary( mesh, name, nV_mem, nTri_mem, npoly_ROI_mem, nC_mem)
       mesh%nV   = mesh%nV_mem
       mesh%nTri = mesh%nTri_mem
+      mesh%npoly_ROI = mesh%npoly_ROI_mem
     end if
 
     ! == Inquire mesh variables
@@ -195,6 +197,7 @@ contains
     call inquire_var_multopt( filename, ncid, field_name_options_Tri           , id_var_Tri           )
     call inquire_var_multopt( filename, ncid, field_name_options_Tricc         , id_var_Tricc         )
     call inquire_var_multopt( filename, ncid, field_name_options_TriC          , id_var_TriC          )
+    call inquire_var_multopt( filename, ncid, field_name_options_poly_ROI      , id_var_poly_ROI      ) ! FJFJ
 
     ! == Read mesh data
     ! =================
@@ -210,7 +213,7 @@ contains
     call read_var_master(  filename, ncid, id_var_beta_stereo   , mesh%beta_stereo   )
 
     ! Vertex data
-    call read_var_master(  filename, ncid, id_var_V             , mesh%V             )
+    call read_var_master( filename, ncid, id_var_V             , mesh%V             )
     call read_var_master( filename, ncid, id_var_nC            , mesh%nC            )
     call read_var_master( filename, ncid, id_var_C             , mesh%C             )
     call read_var_master( filename, ncid, id_var_niTri         , mesh%niTri         )
@@ -219,8 +222,11 @@ contains
 
     ! Triangle data
     call read_var_master( filename, ncid, id_var_Tri           , mesh%Tri           )
-    call read_var_master(  filename, ncid, id_var_Tricc         , mesh%Tricc         )
+    call read_var_master( filename, ncid, id_var_Tricc         , mesh%Tricc         )
     call read_var_master( filename, ncid, id_var_TriC          , mesh%TriC          )
+    
+    !call read_var_master( filename, ncid, id_var_poly_ROI      , mesh%poly_ROI      ) ! FJFJ 
+
 
     ! Safety - check if the mesh data read from NetCDF makes sense
     if (par%master) call check_mesh( mesh)

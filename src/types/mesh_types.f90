@@ -28,6 +28,10 @@ module mesh_types
     real(dp)                                :: tol_dist                      ! [m]       Horizontal distance tolerance; points closer together than this are assumed to be identical (typically set to a billionth of linear domain size)
     integer                                 :: nV_mem                        !           Size of allocated memory for vertices
     integer                                 :: nTri_mem                      !           Size of allocated memory for triangles
+
+    integer                                 :: npoly_ROI_mem                      !          FJFJFJ
+    integer                                 :: npoly_ROI                     !          FJFJFJ
+
     integer                                 :: nC_mem                        !           Maximum allowed number of connections per vertex
     integer                                 :: nV                            !           Number of vertices
     integer                                 :: nTri                          !           Number of triangles

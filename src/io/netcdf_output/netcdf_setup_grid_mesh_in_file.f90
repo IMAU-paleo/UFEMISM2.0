@@ -95,6 +95,7 @@ contains
 
     integer :: id_dim_vi
     integer :: id_dim_ti
+    integer :: id_dim_pi
     integer :: id_dim_ci
     integer :: id_dim_ei
     integer :: id_dim_vori
@@ -154,6 +155,8 @@ contains
     ! Create mesh dimensions
     call create_dimension( filename, ncid, get_first_option_from_list( field_name_options_dim_nV    ), mesh%nV    , id_dim_vi   )
     call create_dimension( filename, ncid, get_first_option_from_list( field_name_options_dim_nTri  ), mesh%nTri  , id_dim_ti   )
+    call create_dimension( filename, ncid, get_first_option_from_list( field_name_options_dim_npoly_ROI  ), mesh%npoly_ROI  , id_dim_pi   )
+
     call create_dimension( filename, ncid, get_first_option_from_list( field_name_options_dim_nC_mem), mesh%nC_mem, id_dim_ci   )
     call create_dimension( filename, ncid, get_first_option_from_list( field_name_options_dim_nE    ), mesh%nE    , id_dim_ei   )
     call create_dimension( filename, ncid, get_first_option_from_list( field_name_options_dim_nVor  ), mesh%nVor  , id_dim_vori )
@@ -461,7 +464,7 @@ contains
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'write_mesh_translation_tables_to_netcdf_file'
-    integer :: id_dim_nz, id_dim_nzp1, id_dim_vi, id_dim_ti, id_dim_ei, id_dim_two, id_dim_three
+    integer :: id_dim_nz, id_dim_nzp1, id_dim_vi, id_dim_ti, id_dim_pi, id_dim_ei, id_dim_two, id_dim_three
     integer :: ierr
     integer :: grp_ncid
     integer :: id_dim_nna, id_dim_nnauv, id_dim_nnak, id_dim_nnaks, id_dim_nnakuv, id_dim_nnaksuv
@@ -484,6 +487,8 @@ contains
 
     call inquire_dim_multopt( filename, ncid, get_first_option_from_list( field_name_options_dim_nV    ), id_dim_vi)
     call inquire_dim_multopt( filename, ncid, get_first_option_from_list( field_name_options_dim_nTri  ), id_dim_ti)
+    call inquire_dim_multopt( filename, ncid, get_first_option_from_list( field_name_options_dim_npoly_ROI  ), id_dim_pi)
+
     call inquire_dim_multopt( filename, ncid, get_first_option_from_list( field_name_options_dim_nE    ), id_dim_ei)
     call inquire_dim_multopt( filename, ncid, get_first_option_from_list( field_name_options_dim_two   ), id_dim_two)
     call inquire_dim_multopt( filename, ncid, get_first_option_from_list( field_name_options_dim_three ), id_dim_three)
