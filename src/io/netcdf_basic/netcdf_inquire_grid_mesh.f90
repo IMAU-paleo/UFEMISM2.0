@@ -97,6 +97,47 @@ contains
 
   end subroutine inquire_lonlat_grid
 
+  subroutine inquire_orca_grid( filename, has_orca_grid)
+    !< Inquire if a NetCDF file contains all the dimensions and variables
+    !< describing an ORCA or eORCA grid
+
+    ! In/output variables:
+    character(len=*), intent(in   ) :: filename
+    logical,          intent(  out) :: has_orca_grid
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'inquire_orca_grid'
+    integer                        :: ncid
+    integer                        :: id_dim_x, id_dim_y
+    integer                        :: id_var_lon, id_var_lat
+
+    ! Add routine to path
+    call init_routine( routine_name, do_track_resource_use = .false.)
+
+    ! Open the NetCDF file
+    call open_existing_netcdf_file_for_reading( filename, ncid)
+
+    ! Look for x and y dimensions and lon/lat variables
+    call inquire_dim_multopt( filename, ncid, field_name_options_x, id_dim_x)
+    call inquire_dim_multopt( filename, ncid, field_name_options_y, id_dim_y)
+    call inquire_var_multopt( filename, ncid, field_name_options_lon, id_var_lon)
+    call inquire_var_multopt( filename, ncid, field_name_options_lat, id_var_lat)
+
+    ! Check if everything is there
+    has_orca_grid = (&
+      id_dim_lon /= -1 .and. &
+      id_dim_lat /= -1 .and. &
+      id_var_lon /= -1 .and. &
+      id_var_lat /= -1)
+
+    ! Close the NetCDF file
+    call close_netcdf_file( ncid)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine inquire_orca_grid
+
   subroutine inquire_mesh( filename, has_mesh)
     !< Inquire if a NetCDF file contains all the dimensions and variables
     !< describing a mesh.
