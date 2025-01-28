@@ -110,7 +110,7 @@ contains
     integer                        :: ncid
     integer                        :: id_dim_vi, id_dim_ti, id_dim_ci, id_dim_two, id_dim_three
     integer                        :: id_var_V, id_var_nC, id_var_C, id_var_niTri, id_var_iTri, id_var_VBI
-    integer                        :: id_var_Tri, id_var_Tricc, id_var_TriC, id_var_TrIBI
+    integer                        :: id_var_Tri, id_var_Tricc, id_var_TriC, id_var_TrIBI,id_var_poly_ROI
 
     ! Add routine to path
     call init_routine( routine_name, do_track_resource_use = .false.)
@@ -136,6 +136,8 @@ contains
     call inquire_var_multopt( filename, ncid, field_name_options_Tricc     , id_var_Tricc)
     call inquire_var_multopt( filename, ncid, field_name_options_TriC      , id_var_TriC )
     call inquire_var_multopt( filename, ncid, field_name_options_TriBI     , id_var_TriBI)
+
+    call inquire_var_multopt( filename, ncid, field_name_options_poly_ROI     , id_var_poly_ROI)
 
     ! Check if everything is there
     has_mesh = (&

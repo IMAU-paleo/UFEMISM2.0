@@ -508,6 +508,17 @@ subroutine check_mesh_dimensions( filename, ncid)
   if (.not. (dims_of_var( 1) == id_dim_ti .and. dims_of_var( 2) == id_dim_three)) &
     call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have ti and three as dimensions!')
 
+  ! poly_ROI
+  call inquire_var_multopt( filename, ncid, field_name_options_poly_ROI, id_var, var_name = var_name, &
+    var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
+  if (id_var == -1) call crash('no valid poly_ROI variable could be found in file "' // trim( filename) // '"!')
+  if (.not. (var_type == NF90_FLOAT .or. var_type == NF90_DOUBLE)) &
+    call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
+  if (ndims_of_var /= 2) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+  if (.not. (dims_of_var( 1) == id_dim_ti .and. dims_of_var( 2) == id_dim_two)) &
+    call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have ti and two as dimensions!')
+
+
   ! Finalise routine path
   call finalise_routine( routine_name)
 
