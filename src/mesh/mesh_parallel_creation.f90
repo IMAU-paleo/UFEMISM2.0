@@ -38,7 +38,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'broadcast_mesh'
-    INTEGER                                       :: nV_mem, nTri_mem, nC_mem, npoly_ROI_mem
+    INTEGER                                       :: nV_mem, nTri_mem, nC_mem
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -55,19 +55,16 @@ CONTAINS
       nV_mem    = mesh%nV_mem
       nTri_mem  = mesh%nTri_mem
       nC_mem    = mesh%nC_mem
-      npoly_ROI_mem = mesh%npoly_ROI_mem
     END IF
 
     CALL MPI_BCAST( nV_mem          , 1                , MPI_INTEGER         , 0, MPI_COMM_WORLD, ierr)
     CALL MPI_BCAST( nTri_mem        , 1                , MPI_INTEGER         , 0, MPI_COMM_WORLD, ierr)
-    CALL MPI_BCAST( npoly_ROI_mem   , 1                , MPI_INTEGER         , 0, MPI_COMM_WORLD, ierr)
-
     CALL MPI_BCAST( nC_mem          , 1                , MPI_INTEGER         , 0, MPI_COMM_WORLD, ierr)
     CALL MPI_BCAST( mesh%name       , 256              , MPI_CHAR            , 0, MPI_COMM_WORLD, ierr)
 
     ! Allocate memory on non-master processes
     IF (.NOT. par%master) THEN
-      CALL allocate_mesh_primary( mesh, mesh%name, nV_mem, nTri_mem, npoly_ROI_mem, nC_mem)
+      CALL allocate_mesh_primary( mesh, mesh%name, nV_mem, nTri_mem, nC_mem)
     END IF
 
     ! Broadcast mesh data
@@ -99,7 +96,8 @@ CONTAINS
     CALL MPI_BCAST( mesh%Tricc      , nTri_mem * 2     , MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
 
     ! ROI data
-    CALL MPI_BCAST( mesh%poly_ROI   , npoly_ROI_mem * 2, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr) ! FJFJ
+    CALL MPI_BCAST( mesh%poly_ROI   , nTri_mem * 2     , MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+    CALL MPI_BCAST( mesh%npoly_ROI  , 1                , MPI_INTEGER         , 0, MPI_COMM_WORLD, ierr)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -195,6 +193,8 @@ CONTAINS
     CALL MPI_SEND( mesh%Tricc   , mesh%nTri_mem * 2          , MPI_DOUBLE_PRECISION, p_to, 0, MPI_COMM_WORLD, ierr)
 
     CALL MPI_SEND( mesh%poly_ROI, mesh%nTri_mem * 2          , MPI_DOUBLE_PRECISION, p_to, 0, MPI_COMM_WORLD, ierr)
+    CALL MPI_SEND( mesh%npoly_ROI, 1                         , MPI_INTEGER         , p_to, 0, MPI_COMM_WORLD, ierr)
+
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -212,7 +212,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'receive_submesh'
-    INTEGER                                       :: nV_mem, nTri_mem, npoly_ROI_mem, nC_mem, nV, nTri
+    INTEGER                                       :: nV_mem, nTri_mem, nC_mem, nV, nTri
     CHARACTER(LEN=256)                            :: mesh_name
 
     ! Add routine to path
@@ -221,15 +221,14 @@ CONTAINS
     ! Receive mesh size
     CALL MPI_RECV( nV_mem       , 1                          , MPI_INTEGER         , p_from, MPI_ANY_TAG, MPI_COMM_WORLD, recv_status, ierr)
     CALL MPI_RECV( nTri_mem     , 1                          , MPI_INTEGER         , p_from, MPI_ANY_TAG, MPI_COMM_WORLD, recv_status, ierr)
-    ! CALL MPI_RECV( npoly_ROI_mem     , 1                          , MPI_INTEGER         , p_from, MPI_ANY_TAG, MPI_COMM_WORLD, recv_status, ierr)
-
     CALL MPI_RECV( nC_mem       , 1                          , MPI_INTEGER         , p_from, MPI_ANY_TAG, MPI_COMM_WORLD, recv_status, ierr)
     CALL MPI_RECV( nV           , 1                          , MPI_INTEGER         , p_from, MPI_ANY_TAG, MPI_COMM_WORLD, recv_status, ierr)
     CALL MPI_RECV( nTri         , 1                          , MPI_INTEGER         , p_from, MPI_ANY_TAG, MPI_COMM_WORLD, recv_status, ierr)
 
+
     ! Allocate memory for mesh
     mesh_name = 'mesh_recv'
-    CALL allocate_mesh_primary( mesh, mesh_name, nV_mem, nTri_mem, npoly_ROI_mem, nC_mem)
+    CALL allocate_mesh_primary( mesh, mesh_name, nV_mem, nTri_mem, nC_mem)
 
     mesh%nV   = nV
     mesh%nTri = nTri
@@ -253,7 +252,8 @@ CONTAINS
     CALL MPI_RECV( mesh%TriC    , mesh%nTri_mem * 3          , MPI_INTEGER         , p_from, MPI_ANY_TAG, MPI_COMM_WORLD, recv_status, ierr)
     CALL MPI_RECV( mesh%Tricc   , mesh%nTri_mem * 2          , MPI_DOUBLE_PRECISION, p_from, MPI_ANY_TAG, MPI_COMM_WORLD, recv_status, ierr)
 
-    CALL MPI_RECV( mesh%poly_ROI, mesh%npoly_ROI_mem * 2     , MPI_DOUBLE_PRECISION, p_from, MPI_ANY_TAG, MPI_COMM_WORLD, recv_status, ierr)
+    CALL MPI_RECV( mesh%poly_ROI, mesh%nTri_mem * 2          , MPI_DOUBLE_PRECISION, p_from, MPI_ANY_TAG, MPI_COMM_WORLD, recv_status, ierr)
+    CALL MPI_RECV( mesh%npoly_ROI , 1                          , MPI_INTEGER         , p_from, MPI_ANY_TAG, MPI_COMM_WORLD, recv_status, ierr)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

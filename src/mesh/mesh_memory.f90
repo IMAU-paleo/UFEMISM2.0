@@ -21,7 +21,7 @@ CONTAINS
 ! ===== Subroutines =====
 ! =======================
 
-  SUBROUTINE allocate_mesh_primary( mesh, name, nV_mem, nTri_mem, npoly_ROI_mem, nC_mem)
+  SUBROUTINE allocate_mesh_primary( mesh, name, nV_mem, nTri_mem, nC_mem)
     ! Allocate memory for primary mesh data (everything thats's needed for mesh creation & refinement)
 
     IMPLICIT NONE
@@ -29,7 +29,7 @@ CONTAINS
     ! In/output variables:
     TYPE(type_mesh),                 INTENT(INOUT)     :: mesh
     CHARACTER(LEN=*),                INTENT(IN)        :: name
-    INTEGER,                         INTENT(IN)        :: nV_mem, nTri_mem, npoly_ROI_mem, nC_mem
+    INTEGER,                         INTENT(IN)        :: nV_mem, nTri_mem, nC_mem
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'allocate_mesh_primary'
@@ -40,8 +40,6 @@ CONTAINS
     mesh%name     = trim(name)
     mesh%nV_mem   = nV_mem
     mesh%nTri_mem = nTri_mem
-    mesh%npoly_ROI_mem = npoly_ROI_mem
-
     mesh%nC_mem   = nC_mem
 
     ! Safety: check to make sure that no memory is allocated for this mesh yet
@@ -53,12 +51,13 @@ CONTAINS
         ALLOCATED( mesh%VBI             ) .OR. &
         ALLOCATED( mesh%Tri             ) .OR. &
         ALLOCATED( mesh%Tricc           ) .OR. &
+        ALLOCATED( mesh%poly_ROI        ) .OR. &
+        ! ALLOCATED( mesh%npoly_ROI       ) .OR. &
         ALLOCATED( mesh%TriC            ) .OR. &
         ALLOCATED( mesh%Tri_flip_list   ) .OR. &
         ALLOCATED( mesh%refinement_map  ) .OR. &
         ALLOCATED( mesh%refinement_stack) .OR. &
-        ALLOCATED( mesh%Tri_li          ) .OR. &
-        ALLOCATED( mesh%poly_ROI        )) THEN
+        ALLOCATED( mesh%Tri_li          )) THEN
       CALL crash('memory is already allocated for mesh "' // TRIM( name) // '"!')
     END IF
 
@@ -78,15 +77,15 @@ CONTAINS
     ALLOCATE( mesh%Tricc            (nTri_mem, 2     ), source = 0._dp)
     ALLOCATE( mesh%TriC             (nTri_mem, 3     ), source = 0    )
 
+    ALLOCATE( mesh%poly_ROI         (nTri_mem, 2     ), source = 0._dp)
+    ! ALLOCATE( mesh%npoly_ROI        (nTri_mem_new    ), source = 0    )
+
     ! Mesh generation/refinement data
     ALLOCATE( mesh%Tri_flip_list    (nTri_mem*2, 2   ), source = 0    )
     ALLOCATE( mesh%refinement_map   (nTri_mem        ), source = 0    )
     ALLOCATE( mesh%refinement_stack (nTri_mem        ), source = 0    )
     mesh%refinement_stackN = 0
     ALLOCATE( mesh%Tri_li           (nTri_mem, 2     ), source = 0    )
-    
-    ! ROI. FJFJF
-    ALLOCATE( mesh%poly_ROI         (npoly_ROI_mem, 2), source = 0._dp)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -111,8 +110,6 @@ CONTAINS
 
     mesh%nV_mem   = nV_mem_new
     mesh%nTri_mem = nTri_mem_new
-    ! mesh%npoly_ROI_mem = npoly_ROI_mem_new
-
 
     ! Vertex data
     CALL reallocate( mesh%V               , nV_mem_new  , 2          )
@@ -134,6 +131,7 @@ CONTAINS
     CALL reallocate( mesh%Tri_li          , nTri_mem_new, 2          )
 
     CALL reallocate( mesh%poly_ROI        , nTri_mem_new, 2          )
+    ! CALL reallocate( mesh%npoly_ROI       , 1          )
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -185,6 +183,7 @@ CONTAINS
       CALL reallocate( mesh%Tri_li          , mesh%nTri, 2          )
 
       CALL reallocate( mesh%poly_ROI        , mesh%nTri, 2          )
+      ! CALL reallocate( mesh%npoly_ROI        , 1        )
 
     END IF ! IF (mesh%nTri_mem > mesh%nTri) THEN
 
@@ -229,6 +228,9 @@ CONTAINS
     IF (ALLOCATED( mesh%TriC            )) DEALLOCATE( mesh%TriC            )
     IF (ALLOCATED( mesh%Tricc           )) DEALLOCATE( mesh%Tricc           )
 
+    IF (ALLOCATED( mesh%poly_ROI        )) DEALLOCATE( mesh%poly_ROI        )
+    ! IF (ALLOCATED( mesh%npoly_ROI       )) DEALLOCATE( mesh%npoly_ROI        )
+
   ! Refinement data
   ! ===============
 
@@ -236,9 +238,6 @@ CONTAINS
     IF (ALLOCATED( mesh%refinement_map  )) DEALLOCATE( mesh%refinement_map  )
     IF (ALLOCATED( mesh%refinement_stack)) DEALLOCATE( mesh%refinement_stack)
     IF (ALLOCATED( mesh%Tri_li          )) DEALLOCATE( mesh%Tri_li          )
-
-    IF (ALLOCATED( mesh%poly_ROI        )) DEALLOCATE( mesh%poly_ROI        )
-
 
   ! Secondary mesh data (everything that can be calculated after mesh creation is finished)
   ! =======================================================================================

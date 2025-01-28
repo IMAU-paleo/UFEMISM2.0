@@ -99,7 +99,7 @@ contains
     if (par%master) then
 
       ! allocate mesh memory
-      call allocate_mesh_primary( mesh, name, 1000, 2000, 1000, C%nC_mem)
+      call allocate_mesh_primary( mesh, name, 1000, 2000, C%nC_mem)
 
       ! Initialise the dummy mesh
       call initialise_dummy_mesh_5( mesh, xmin, xmax, ymin, ymax)
@@ -218,7 +218,7 @@ contains
     end if ! if (par%master) then
 
     ! Broadcast the Master's mesh
-    call broadcast_mesh( mesh) ! FJFJ - hier moet ik alles mesh%poly_ROI in aanpassen
+    call broadcast_mesh( mesh)
 
     ! == Calculate secondary geometry data
     ! ====================================

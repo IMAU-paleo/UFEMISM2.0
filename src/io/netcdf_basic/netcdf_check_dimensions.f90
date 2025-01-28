@@ -302,9 +302,9 @@ subroutine check_mesh_dimensions( filename, ncid)
 
   ! Local variables:
   character(len=1024), parameter          :: routine_name = 'check_mesh_dimensions'
-  integer                                 :: id_dim_vi, id_dim_ti, id_dim_pi, id_dim_ci, id_dim_two, id_dim_three
-  integer                                 :: nV, nTri, npoly_ROI, nC_mem, n_two, n_three
-  character(len=1024)                     :: dim_name_vi, dim_name_ti, dim_name_pi, dim_name_ci, dim_name_two, dim_name_three
+  integer                                 :: id_dim_vi, id_dim_ti, id_dim_ci, id_dim_two, id_dim_three
+  integer                                 :: nV, nTri, nC_mem, n_two, n_three
+  character(len=1024)                     :: dim_name_vi, dim_name_ti, dim_name_ci, dim_name_two, dim_name_three
   integer                                 :: id_var
   character(len=1024)                     :: var_name
   integer                                 :: var_type
@@ -319,8 +319,6 @@ subroutine check_mesh_dimensions( filename, ncid)
 
   call inquire_dim_multopt( filename, ncid, field_name_options_dim_nV    , id_dim_vi   , dim_length = nV     , dim_name = dim_name_vi   )
   call inquire_dim_multopt( filename, ncid, field_name_options_dim_nTri  , id_dim_ti   , dim_length = nTri   , dim_name = dim_name_ti   )
-  call inquire_dim_multopt( filename, ncid, field_name_options_dim_npoly_ROI  , id_dim_pi   , dim_length = npoly_ROI   , dim_name = dim_name_pi   )
-
   call inquire_dim_multopt( filename, ncid, field_name_options_dim_nC_mem, id_dim_ci   , dim_length = nC_mem , dim_name = dim_name_ci   )
   call inquire_dim_multopt( filename, ncid, field_name_options_dim_two   , id_dim_two  , dim_length = n_two  , dim_name = dim_name_two  )
   call inquire_dim_multopt( filename, ncid, field_name_options_dim_three , id_dim_three, dim_length = n_three, dim_name = dim_name_three)
@@ -328,23 +326,18 @@ subroutine check_mesh_dimensions( filename, ncid)
   ! Safety checks on dimensions
   if (id_dim_vi    == -1) call crash('no valid vi    dimension could be found in file "' // trim( filename) // '"!')
   if (id_dim_ti    == -1) call crash('no valid ti    dimension could be found in file "' // trim( filename) // '"!')
-  ! if (id_dim_pi    == -1) call crash('no valid pi    dimension could be found in file "' // trim( filename) // '"!')
-
   if (id_dim_ci    == -1) call crash('no valid ci    dimension could be found in file "' // trim( filename) // '"!')
   if (id_dim_two   == -1) call crash('no valid two   dimension could be found in file "' // trim( filename) // '"!')
   if (id_dim_three == -1) call crash('no valid three dimension could be found in file "' // trim( filename) // '"!')
 
   if (nV      == NF90_UNLIMITED) call crash('vi    dimension in file "' // trim( filename) // '" is unlimited!')
   if (nTri    == NF90_UNLIMITED) call crash('ti    dimension in file "' // trim( filename) // '" is unlimited!')
-  ! if (npoly_ROI   == NF90_UNLIMITED) call crash('pi    dimension in file "' // trim( filename) // '" is unlimited!')
-
   if (nC_mem  == NF90_UNLIMITED) call crash('ci    dimension in file "' // trim( filename) // '" is unlimited!')
   if (n_two   == NF90_UNLIMITED) call crash('two   dimension in file "' // trim( filename) // '" is unlimited!')
   if (n_three == NF90_UNLIMITED) call crash('three dimension in file "' // trim( filename) // '" is unlimited!')
 
   if (nV      <  1) call crash('vi    dimension in file "' // trim( filename) // '" has length n = {int_01}!', int_01  = nV     )
   if (nTri    <  1) call crash('ti    dimension in file "' // trim( filename) // '" has length n = {int_01}!', int_01  = nTri   )
-
   if (nC_mem  <  1) call crash('ci    dimension in file "' // trim( filename) // '" has length n = {int_01}!', int_01  = nC_mem )
   if (n_two   /= 2) call crash('two   dimension in file "' // trim( filename) // '" has length n = {int_01}!', int_01  = n_two  )
   if (n_three /= 3) call crash('three dimension in file "' // trim( filename) // '" has length n = {int_01}!', int_01  = n_three)

@@ -526,7 +526,6 @@ CONTAINS
           mask_int = 0
         END WHERE
         CALL write_to_field_multopt_mesh_int_2D( region%mesh, filename, ncid, 'mask_coastline', mask_int)
-
       CASE ('mask_ROI')
         WHERE (region%ice%mask_ROI .EQV. .TRUE.)
           mask_int = 1
@@ -534,7 +533,6 @@ CONTAINS
           mask_int = 0
         END WHERE
         CALL write_to_field_multopt_mesh_int_2D( region%mesh, filename, ncid, 'mask_ROI', mask_int)
-
       CASE ('mask')
         CALL write_to_field_multopt_mesh_int_2D( region%mesh, filename, ncid, 'mask', region%ice%mask)
       CASE ('basin_ID')

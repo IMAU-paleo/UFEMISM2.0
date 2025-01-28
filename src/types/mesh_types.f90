@@ -28,10 +28,6 @@ module mesh_types
     real(dp)                                :: tol_dist                      ! [m]       Horizontal distance tolerance; points closer together than this are assumed to be identical (typically set to a billionth of linear domain size)
     integer                                 :: nV_mem                        !           Size of allocated memory for vertices
     integer                                 :: nTri_mem                      !           Size of allocated memory for triangles
-
-    integer                                 :: npoly_ROI_mem                      !          FJFJFJ
-    integer                                 :: npoly_ROI                     !          FJFJFJ
-
     integer                                 :: nC_mem                        !           Maximum allowed number of connections per vertex
     integer                                 :: nV                            !           Number of vertices
     integer                                 :: nTri                          !           Number of triangles
@@ -64,7 +60,11 @@ module mesh_types
     integer,  dimension(:    ), allocatable :: refinement_stack              !           Stack  of triangles that ...
     integer                                 :: refinement_stackN             !           Number of triangles that...
     integer,  dimension(:,:  ), allocatable :: Tri_li                        !           List of overlap ranges between triangles and line segments (for line-based mesh refinement)
+    
+  ! ROI polygon
+  ! ===========
     real(dp), dimension(:,:  ), allocatable :: poly_ROI                      !           Polygon of region of interest (ROI)
+    integer                                 :: npoly_ROI                     !           Number of coordinates in polygon of ROI
 
   ! Secondary mesh data (everything that can be calculated after mesh creation is finished)
   ! =======================================================================================

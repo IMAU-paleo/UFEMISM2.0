@@ -38,8 +38,12 @@ contains
     integer                                       :: i
     character(len=256)                            :: all_names_ROI, name_ROI
     real(dp), dimension(:,:  ), allocatable       :: poly_ROI
-    integer                                       :: n1,n2,nn
+    integer                                       :: n1,n2,nn, n3
     real(dp), dimension(:,:  ), allocatable       :: poly
+    ! Assuming poly_ROI can vary in size
+    integer :: n_poly_ROI
+
+
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -230,9 +234,10 @@ contains
       call refine_mesh_line_ROI( mesh, p_line_coastline     , C%ROI_maximum_resolution_coastline     , C%ROI_coastline_width     , C%alpha_min, poly_ROI)
 
       ! Save poly_ROI in type mesh to use later to determine ROI mask; note this only works for the last one now
-      mesh%poly_ROI = poly_ROI ! FJFJ poly_ROI should be appended here, instead of replaced. Such that you can store multiple polygons, which will then be looped through to find mask for all ROIs
+      mesh%poly_ROI = poly_ROI
+      mesh%npoly_ROI = size(poly_ROI(:,1))
+      print*, size(poly_ROI(:,1))
 
-      ! Clean up after yourself
       deallocate( poly_ROI)
 
       ! if no names are left, we are finished

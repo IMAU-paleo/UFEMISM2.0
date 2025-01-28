@@ -24,7 +24,7 @@ module ice_dynamics_main
     apply_mask_noice_direct
   use ice_geometry_basics, only: ice_surface_elevation, thickness_above_floatation, &
     Hi_from_Hb_Hs_and_SL
-  use masks_mod, only: determine_masks, calc_mask_noice, calc_mask_ROI
+  use masks_mod, only: determine_masks, calc_mask_ROI, calc_mask_noice
   use subgrid_ice_margin, only: calc_effective_thickness
   use zeta_gradients, only: calc_zeta_gradients
   use subgrid_grounded_fractions_main, only: calc_grounded_fractions
@@ -302,8 +302,8 @@ contains
     call determine_masks( mesh, ice)
     call determine_masks( mesh, ice)
 
-    ! Determine mask_ROI
-    call calc_mask_ROI( mesh, ice) ! Now only at initialisation
+    ! Compute mask_ROI only at initialisation
+    call calc_mask_ROI( mesh, ice)
 
     ! Effective ice thickness
     ! =======================
@@ -563,7 +563,7 @@ contains
     call reallocate_bounds( ice%mask_cf_gr             , mesh_new%vi1, mesh_new%vi2)  ! T: grounded ice next to ice-free water (sea or lake), F: otherwise
     call reallocate_bounds( ice%mask_cf_fl             , mesh_new%vi1, mesh_new%vi2)  ! T: floating ice next to ice-free water (sea or lake), F: otherwise
     call reallocate_bounds( ice%mask_coastline         , mesh_new%vi1, mesh_new%vi2)  ! T: ice-free land next to ice-free ocean, F: otherwise
-    call reallocate_bounds( ice%mask_ROI               , mesh_new%vi1, mesh_new%vi2)  ! T: in ROI, F: otherwise
+    call reallocate_bounds( ice%mask_ROI               , mesh_new%vi1, mesh_new%vi2)  ! T: ice-free land next to ice-free ocean, F: otherwise
     ! call reallocate_bounds( ice%mask_noice           , mesh_new%vi1, mesh_new%vi2)  ! T: no ice is allowed here, F: ice is allowed here
     call reallocate_bounds( ice%mask                   , mesh_new%vi1, mesh_new%vi2)  ! Diagnostic, only meant for quick visual inspection in output
     call reallocate_bounds( ice%basin_ID               , mesh_new%vi1, mesh_new%vi2)  ! The drainage basin to which each vertex belongs

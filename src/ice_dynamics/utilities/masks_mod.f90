@@ -15,7 +15,7 @@ module masks_mod
 
   private
 
-  public :: determine_masks, calc_mask_noice, calc_mask_ROI, calc_mask_noice_remove_Ellesmere
+  public :: determine_masks, calc_mask_ROI, calc_mask_noice, calc_mask_noice_remove_Ellesmere
 
 contains
 
@@ -36,6 +36,7 @@ contains
     ! mask_cf_gr              ! T: grounded ice next to ice-free water (sea or lake), F: otherwise
     ! mask_cf_fl              ! T: floating ice next to ice-free water (sea or lake), F: otherwise
     ! mask_coastline          ! T: ice-free land next to ice-free ocean, F: otherwise
+    ! mask_ROI                ! T: inside ROI, F: outside ROI
 
     ! In- and output variables
     type(type_mesh),      intent(in   ) :: mesh
@@ -196,30 +197,13 @@ contains
 
     end do ! do vi = mesh%vi1, mesh%vi2
 
-    ! ==== ROI masks ==== !
-    ! =====================
-
-    ! if (allocated(ice%mask_ROI)) then
-    !   print *, "ice%mask_ROI is allocated with size: ", size(ice%mask_ROI)
-    ! else
-    !   print *, "ice%mask_ROI is not allocated"
-    ! end if
-
-    ! if (allocated(mesh%poly_ROI)) then
-    !   print *, "mesh%poly_ROI is allocated with size: ", size(mesh%poly_ROI)
-    ! else
-    !   print *, "mesh%poly_ROI is not allocated"
-    ! end if
-
-    ! call calc_mask_ROI( mesh, ice)
-
     ! Finalise routine path
     call finalise_routine( routine_name)
 
   end subroutine determine_masks
 
   subroutine calc_mask_ROI( mesh, ice)
-    !< Calculate the ROI mask (ice%mask_ROI), only in initialisation or mesh update (last should still be implemented)
+    !< Calculate ROI mask
 
     ! In/output variables:
     type(type_mesh),      intent(in   ) :: mesh
@@ -227,33 +211,28 @@ contains
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'calc_mask_ROI'
-    integer                        :: vi, ci, vj
+    integer                        :: vi, vj, ci, npoly_ROI
     real(dp), dimension(2)         :: point
 
-    ! make sure to start with all data .false.
-    ! ice%mask_ROI = .false.
+    ! Add routine to path
+    call init_routine( routine_name)
 
-    ! print*, mesh%poly_ROI
+    npoly_ROI = mesh%npoly_ROI
+    print*, 'npoly_ROI=', npoly_ROI
 
-    ! loop over all vertices
-    do vi = mesh%vi1, mesh%vi2 
-
+    ! Check for each grid point whether it is located within the polygon of the ROI
+    do vi = mesh%vi1, mesh%vi2
       do ci = 1, mesh%nC(vi)
-
           vj = mesh%C( vi,ci)
-
-          point = mesh%V( vj,:) ! Make sure it's in the right format
-
-          if (is_in_polygon(mesh%poly_ROI, point)) then
-            ! print*, 'Im in!'
-            ! add to mask_ROI if vertices are in polygon
+          point = mesh%V( vj,:) ! Just to make sure it's in the right format
+          if (is_in_polygon(mesh%poly_ROI(1:npoly_ROI,:), point)) then
             ice%mask_ROI(vi) = .true.
-
           end if
-
       end do
-
     end do ! do vi = mesh%vi1, mesh%vi2
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
 
   end subroutine calc_mask_ROI
 

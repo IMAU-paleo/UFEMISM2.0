@@ -282,7 +282,7 @@ contains
       '_nit_Lloyd_'//trim(adjustl(nit_Lloyds_algorithm_str))
 
     ! Allocate memory
-    call allocate_mesh_primary( mesh, trim(mesh_name), 1000, 2000, 1000, 32)
+    call allocate_mesh_primary( mesh, trim(mesh_name), 1000, 2000, 32)
 
     ! Initialise the dummy mesh
     call initialise_dummy_mesh_5( mesh, xmin, xmax, ymin, ymax)
@@ -355,7 +355,7 @@ contains
       '-'//trim(adjustl(res_max_str))//'_m_'//orientation
 
     ! Allocate memory
-    call allocate_mesh_primary( mesh, trim(mesh_name), 1000, 2000, 1000, 32)
+    call allocate_mesh_primary( mesh, trim(mesh_name), 1000, 2000, 32)
 
     ! Initialise the dummy mesh
     call initialise_dummy_mesh_5( mesh, xmin, xmax, ymin, ymax)
@@ -455,7 +455,7 @@ contains
       '_nit_Lloyd_'//trim(adjustl(nit_Lloyds_algorithm_str))
 
     ! Allocate memory
-    call allocate_mesh_primary( mesh, trim(mesh_name), 1000, 2000, 1000, 32)
+    call allocate_mesh_primary( mesh, trim(mesh_name), 1000, 2000, 32)
 
     ! Initialise the dummy mesh
     call initialise_dummy_mesh_5( mesh, xmin, xmax, ymin, ymax)
