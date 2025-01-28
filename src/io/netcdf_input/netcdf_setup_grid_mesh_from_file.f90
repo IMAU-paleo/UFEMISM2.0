@@ -132,7 +132,7 @@ contains
   end subroutine setup_lonlat_grid_from_file
 
   subroutine setup_orca_grid_from_file( filename, ncid, grid)
-    !< Set up a lon/lat-grid from a NetCDF file
+    !< Set up an ORCA grid from a NetCDF file
 
     ! In/output variables:
     character(len=*),       intent(in   ) :: filename
@@ -141,7 +141,7 @@ contains
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'setup_orca_grid_from_file'
-    integer                        :: id_dim_lon, id_dim_lat
+    integer                        :: id_dim_x, id_dim_y
     integer                        :: id_var_lon, id_var_lat
     integer                        :: ierr
 
@@ -151,11 +151,10 @@ contains
     ! Give the grid a nice name
     grid%name = 'orca_grid_from_file_"' // trim( filename) // '"'
 
-    ! TODO
+    ! TODO EL
 
     ! Check grid dimensions and variables for validity
-    ! call check_lon( filename, ncid)
-    ! call check_lat( filename, ncid)
+    call check_orca( filename, ncid)
 
     ! Inquire lon and lat dimensions
     ! call inquire_dim_multopt( filename, ncid, field_name_options_lon, id_dim_lon, dim_length = grid%nlon)

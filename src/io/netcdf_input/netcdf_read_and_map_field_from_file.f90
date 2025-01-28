@@ -532,11 +532,14 @@ contains
 
     elseif (has_orca_grid) then
       ! Data is provided on an ORCA grid
-      ! TODO
+
       ! Set up the grid from the file
       call open_existing_netcdf_file_for_reading( filename, ncid)
-      !call setup_lonlat_grid_from_file( filename, ncid, grid_lonlat_from_file)
-      !call setup_depth_from_file( filename, ncid, ndepth_loc, depth_loc)
+      
+      ! TODO EL
+      
+      call setup_orca_grid_from_file( filename, ncid, grid_orca_from_file)
+      call setup_depth_from_file( filename, ncid, ndepth_loc, depth_loc)
       call close_netcdf_file( ncid)
 
       ! allocate memory for gridded data
