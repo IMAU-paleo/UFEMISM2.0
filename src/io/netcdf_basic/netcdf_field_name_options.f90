@@ -30,11 +30,11 @@ module netcdf_field_name_options
   character(len=1024), parameter :: field_name_options_x              = 'x||X||x1||X1||nx||NX||x-coordinate||X-coordinate||easting||Easting'
   character(len=1024), parameter :: field_name_options_y              = 'y||Y||y1||Y1||ny||NY||y-coordinate||Y-coordinate||northing||Northing'
   character(len=1024), parameter :: field_name_options_zeta           = 'zeta||Zeta'
-  character(len=1024), parameter :: field_name_options_lon            = 'lon||Lon||long||Long||longitude||Longitude'
-  character(len=1024), parameter :: field_name_options_lat            = 'lat||Lat||latitude||Latitude'
-  character(len=1024), parameter :: field_name_options_time           = 'time||Time||t||nt'
+  character(len=1024), parameter :: field_name_options_lon            = 'lon||Lon||long||Long||longitude||Longitude||nav_lon'
+  character(len=1024), parameter :: field_name_options_lat            = 'lat||Lat||latitude||Latitude||nav_lat'
+  character(len=1024), parameter :: field_name_options_time           = 'time||Time||t||nt||time_counter'
   character(len=1024), parameter :: field_name_options_month          = 'month||Month'
-  character(len=1024), parameter :: field_name_options_depth          = 'depth||Depth'
+  character(len=1024), parameter :: field_name_options_depth          = 'depth||Depth||deptht'
 
   ! Mesh data
   character(len=1024), parameter :: field_name_options_dim_nV         = 'vi'

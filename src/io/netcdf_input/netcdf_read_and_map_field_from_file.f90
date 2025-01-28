@@ -434,10 +434,11 @@ contains
     ! Local variables:
     character(len=1024), parameter        :: routine_name = 'read_field_from_file_3D_ocean'
     logical                               :: file_exists
-    logical                               :: has_xy_grid, has_lonlat_grid, has_mesh
+    logical                               :: has_xy_grid, has_lonlat_grid, has_orca_grid, has_mesh
     integer                               :: ncid
     type(type_grid)                       :: grid_from_file
     type(type_grid_lonlat)                :: grid_lonlat_from_file
+    type(type_grid_orca)                  :: grid_orca_from_file
     type(type_mesh)                       :: mesh_from_file
     real(dp), dimension(:,:), allocatable :: d_grid_vec_partial_from_file
     real(dp), dimension(:,:), allocatable :: d_grid_lonlat_vec_partial_from_file
@@ -459,6 +460,7 @@ contains
     ! Find out on what kind of grid the file is defined
     call inquire_xy_grid(     filename, has_xy_grid    )
     call inquire_lonlat_grid( filename, has_lonlat_grid)
+    call inquire_orca_grid(   filename, has_orca_grid  )
     call inquire_mesh(        filename, has_mesh       )
 
     ! Files with more than one grid are not recognised
@@ -524,6 +526,35 @@ contains
       call deallocate_lonlat_grid( grid_lonlat_from_file)
       deallocate( d_grid_lonlat_vec_partial_from_file)
       deallocate( d_partial_raw_layers)
+
+    elseif (has_orca_grid) then
+      ! Data is provided on an ORCA grid
+      ! TODO
+      ! Set up the grid from the file
+      call open_existing_netcdf_file_for_reading( filename, ncid)
+      !call setup_lonlat_grid_from_file( filename, ncid, grid_lonlat_from_file)
+      !call setup_depth_from_file( filename, ncid, ndepth_loc, depth_loc)
+      call close_netcdf_file( ncid)
+
+      ! allocate memory for gridded data
+      !allocate( d_grid_lonlat_vec_partial_from_file( grid_lonlat_from_file%n1: grid_lonlat_from_file%n2, ndepth_loc))
+
+      ! Read gridded data
+      !call read_field_from_lonlat_file_3D_ocean( filename, field_name_options, d_grid_lonlat_vec_partial_from_file, time_to_read = time_to_read)
+
+      ! allocate memory for meshed data using all data layers
+      !allocate( d_partial_raw_layers( mesh%vi1:mesh%vi2, ndepth_loc))
+
+      ! Remap data horizontally
+      !call map_from_lonlat_grid_to_mesh_3D( grid_lonlat_from_file, mesh, d_grid_lonlat_vec_partial_from_file, d_partial_raw_layers)
+
+      ! Remap data vertically
+      !call map_from_vertical_to_vertical_2D_ocean( mesh, depth_loc, C%z_ocean, d_partial_raw_layers, d_partial)
+
+      ! Clean up after yourself
+      !call deallocate_lonlat_grid( grid_lonlat_from_file)
+      !deallocate( d_grid_lonlat_vec_partial_from_file)
+      !deallocate( d_partial_raw_layers)
 
     elseif (has_mesh) then
       ! Data is provided on a mesh
