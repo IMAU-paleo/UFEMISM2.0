@@ -15,11 +15,13 @@ module netcdf_read_and_map_field_from_file
   use remapping_main
   use grid_basic, only: deallocate_grid
   use grid_lonlat_basic, only: deallocate_lonlat_grid
+  use grid_orca_basic, only: deallocate_orca_grid
   use mesh_memory, only: deallocate_mesh
   use netcdf_basic
   use netcdf_setup_grid_mesh_from_file
   use netcdf_read_field_from_mesh_file
   use netcdf_read_field_from_lonlat_grid_file
+  use netcdf_read_field_from_orca_grid_file
   use netcdf_read_field_from_xy_grid_file
   use netcdf, only: NF90_MAX_VAR_DIMS
 
@@ -442,6 +444,7 @@ contains
     type(type_mesh)                       :: mesh_from_file
     real(dp), dimension(:,:), allocatable :: d_grid_vec_partial_from_file
     real(dp), dimension(:,:), allocatable :: d_grid_lonlat_vec_partial_from_file
+    real(dp), dimension(:,:), allocatable :: d_grid_orca_vec_partial_from_file
     real(dp), dimension(:,:), allocatable :: d_mesh_partial_from_file
     real(dp), dimension(:,:), allocatable :: d_partial_raw_layers
     character(len=1024), parameter        :: method_mesh2mesh = '2nd_order_conservative'
