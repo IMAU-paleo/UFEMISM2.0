@@ -12,9 +12,6 @@ MODULE thermodynamics_main
   USE mpi_basic                                              , ONLY: par, cerr, ierr, recv_status, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
-  USE netcdf_debug                                           , ONLY: write_PETSc_matrix_to_NetCDF, write_CSR_matrix_to_NetCDF, &
-                                                                     save_variable_as_netcdf_int_1D, save_variable_as_netcdf_int_2D, &
-                                                                     save_variable_as_netcdf_dp_1D , save_variable_as_netcdf_dp_2D
   USE parameters
   USE region_types                                           , ONLY: type_model_region
   USE mesh_types                                             , ONLY: type_mesh
@@ -22,8 +19,7 @@ MODULE thermodynamics_main
   USE climate_model_types                                    , ONLY: type_climate_model
   USE SMB_model_types                                        , ONLY: type_SMB_model
   USE BMB_model_types                                        , ONLY: type_BMB_model
-  USE netcdf_basic                                           , ONLY: field_name_options_Ti
-  USE netcdf_input                                           , ONLY: read_field_from_file_3D
+  use netcdf_io_main
   USE thermodynamics_3D_heat_equation                        , ONLY: solve_3D_heat_equation, create_restart_file_thermo_3D_heat_equation, &
                                                                      write_to_restart_file_thermo_3D_heat_equation
   USE thermodynamics_utilities                               , ONLY: calc_pressure_melting_point, replace_Ti_with_robin_solution, calc_homologous_temperature
@@ -431,6 +427,10 @@ CONTAINS
     ! Print to terminal
     IF (par%master) WRITE (0,*) '  Initialising ice temperatures from file "' // &
       colour_string( TRIM( filename_initial_ice_temperature), 'light blue') // '"...'
+
+    ! Allocate
+    ALLOCATE( zeta_read (mesh%nz), source=0.0_dp)
+    ALLOCATE( Ti_read (mesh%nV, mesh%nz), source=0.0_dp)
 
     ! Read data
     IF (timeframe_initial_ice_temperature == 1E9_dp) THEN

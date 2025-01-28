@@ -237,7 +237,7 @@ MODULE ice_model_types
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHi_dt_residual             ! [m yr^-1] Residual ice thickness rate of change for inversions
 
     ! Horizontal derivatives
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHib_dx_b                   ! [] Horizontal derivative of ice draft on b-grid 
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHib_dx_b                   ! [] Horizontal derivative of ice draft on b-grid
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHib_dy_b                   ! [] Horizontal derivative of ice draft on b-grid
 
     ! Target quantities
@@ -437,18 +437,9 @@ MODULE ice_model_types
   ! === Numerical stability info ===
   ! ================================
 
-    integer                                 :: n_dt_ice                    !      Total number of ice-dynamical time steps
-    real(dp)                                :: min_dt_ice                  ! [yr] Smallest ice-dynamical time step
-    real(dp)                                :: max_dt_ice                  ! [yr] Largest ice-dynamical time step
-    real(dp)                                :: mean_dt_ice                 ! [yr] Mean ice-dynamical time step
-    integer                                 :: n_visc_its                  !      Total number of non-linear viscosity iterations
-    integer                                 :: min_visc_its_per_dt         !      Smallest number of non-linear viscosity iterations in a single ice-dynamical time step
-    integer                                 :: max_visc_its_per_dt         !      Largest number of non-linear viscosity iterations in a single ice-dynamical time step
-    real(dp)                                :: mean_visc_its_per_dt        !      Mean number of non-linear viscosity iterations in a single ice-dynamical time step
-    integer                                 :: n_Axb_its                   !      Total number of iterations in iterative solver for linearised momentum balance
-    integer                                 :: min_Axb_its_per_visc_it     !      Smallest number of iterations in iterative solver for linearised momentum balance per non-linear viscosity iteration
-    integer                                 :: max_Axb_its_per_visc_it     !      Largest number of iterations in iterative solver for linearised momentum balance per non-linear viscosity iteration
-    real(dp)                                :: mean_Axb_its_per_visc_it    !      Mean number of iterations in iterative solver for linearised momentum balance per non-linear viscosity iteration
+    real(dp)                                :: dt_ice                      ! [yr] Ice-dynamical time step
+    integer                                 :: n_visc_its                  !      Number of non-linear viscosity iterations
+    integer                                 :: n_Axb_its                   !      Number of iterations in iterative solver for linearised momentum balance
 
   END TYPE type_ice_model
 

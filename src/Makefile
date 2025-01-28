@@ -176,11 +176,39 @@ UFEMISM_source = \
   mesh/creation/mesh_creation_from_reduced_geometry.f90 \
   mesh/creation/mesh_creation_main.f90 \
   \
-  netcdf/netcdf_basic.f90 \
-  netcdf/netcdf_debug.f90 \
-  netcdf/netcdf_input.f90 \
-  netcdf/netcdf_output.f90 \
-  netcdf/netcdf_resource_tracking.f90 \
+  io/netcdf_basic/netcdf_basic_wrappers.f90 \
+  io/netcdf_basic/netcdf_field_name_options.f90 \
+  io/netcdf_basic/netcdf_inquire_dimensions.f90 \
+  io/netcdf_basic/netcdf_inquire_grid_mesh.f90 \
+  io/netcdf_basic/netcdf_read_var_master.f90 \
+  io/netcdf_basic/netcdf_check_dimensions.f90 \
+  io/netcdf_basic/netcdf_write_var_master.f90 \
+  io/netcdf_basic/netcdf_check_fields.f90 \
+  io/netcdf_basic/netcdf_find_timeframe.f90 \
+  io/netcdf_basic/netcdf_save_single_variables.f90 \
+  io/netcdf_basic/netcdf_basic.f90 \
+  \
+  io/netcdf_input/netcdf_determine_indexing.f90 \
+  io/netcdf_input/netcdf_setup_grid_mesh_from_file.f90 \
+  io/netcdf_input/netcdf_read_field_from_mesh_file.f90 \
+  io/netcdf_input/netcdf_read_field_from_lonlat_grid_file.f90 \
+  io/netcdf_input/netcdf_read_field_from_xy_grid_file.f90 \
+  io/netcdf_input/netcdf_read_and_map_field_from_file.f90 \
+  io/netcdf_input/netcdf_input.f90 \
+  \
+  io/netcdf_output/netcdf_generate_numbered_filename.f90 \
+  io/netcdf_output/netcdf_add_write_scalar_variables.f90 \
+  io/netcdf_output/netcdf_add_basic_dimensions.f90 \
+  io/netcdf_output/netcdf_bedrock_CDF.f90 \
+  io/netcdf_output/netcdf_add_field_grid.f90 \
+  io/netcdf_output/netcdf_add_field_mesh.f90 \
+  io/netcdf_output/netcdf_setup_grid_mesh_in_file.f90 \
+  io/netcdf_output/netcdf_write_field_grid.f90 \
+  io/netcdf_output/netcdf_write_field_mesh.f90 \
+  io/netcdf_output/netcdf_resource_tracking.f90 \
+  io/netcdf_output/netcdf_output.f90 \
+  \
+  io/netcdf_io_main.f90 \
   \
   reference_states/reference_geometries.f90 \
   \
@@ -217,18 +245,31 @@ UFEMISM_source = \
   \
   artificial_mass_balance/AMB_main.f90 \
   \
-  ice/ice_model_memory.f90 \
-  ice/ice_model_utilities.f90 \
-  ice/ice_flow_laws.f90 \
-  ice/ice_velocity_SIA.f90 \
-  ice/ice_velocity_SSA.f90 \
-  ice/ice_velocity_DIVA.f90 \
-  ice/ice_velocity_BPA.f90 \
-  ice/ice_velocity_hybrid_DIVA_BPA.f90 \
-  ice/ice_velocity_main.f90 \
-  ice/ice_thickness.f90 \
-  ice/ice_model_scalars.f90 \
-  ice/ice_model_main.f90 \
+  ice_dynamics/utilities/ice_model_memory.f90 \
+  ice_dynamics/utilities/bedrock_cumulative_density_functions.f90 \
+  ice_dynamics/utilities/subgrid_grounded_fractions_bilin_TAF.f90 \
+  ice_dynamics/utilities/subgrid_grounded_fractions_bedrock_CDF.f90 \
+  ice_dynamics/utilities/subgrid_grounded_fractions_main.f90 \
+  ice_dynamics/utilities/masks_mod.f90 \
+  ice_dynamics/utilities/zeta_gradients.f90 \
+  ice_dynamics/utilities/subgrid_ice_margin.f90 \
+  ice_dynamics/utilities/ice_thickness_safeties.f90 \
+  ice_dynamics/utilities/map_velocities_to_c_grid.f90 \
+  ice_dynamics/utilities/time_step_criteria.f90 \
+  ice_dynamics/utilities/ice_mass_and_fluxes.f90 \
+  ice_dynamics/rheology/constitutive_equation.f90 \
+  ice_dynamics/conservation_of_momentum/SIA/SIA_main.f90 \
+  ice_dynamics/conservation_of_momentum/SSA_DIVA/SSA_main.f90 \
+  ice_dynamics/conservation_of_momentum/SSA_DIVA/DIVA_main.f90 \
+  ice_dynamics/conservation_of_momentum/BPA/BPA_main.f90 \
+  ice_dynamics/conservation_of_momentum/hybrid_DIVA_BPA/hybrid_DIVA_BPA_main.f90 \
+  ice_dynamics/conservation_of_mass/vertical_velocities.f90 \
+  ice_dynamics/conservation_of_momentum/conservation_of_momentum_main.f90 \
+  ice_dynamics/conservation_of_mass/conservation_of_mass_main.f90 \
+  ice_dynamics/utilities/inversion_utilities.f90 \
+  ice_dynamics/time_stepping/direct_scheme.f90 \
+  ice_dynamics/time_stepping/predictor_corrector_scheme.f90 \
+  ice_dynamics/ice_dynamics_main.f90 \
   \
   thermodynamics/thermodynamics_utilities.f90 \
   thermodynamics/thermodynamics_3D_heat_equation.f90 \
@@ -271,6 +312,9 @@ UFEMISM_source = \
   validation/unit_tests/ut_mesh_remapping_mesh_to_mesh.f90 \
   validation/unit_tests/ut_mesh_remapping.f90 \
   validation/unit_tests/ut_mesh.f90 \
+  validation/unit_tests/ut_netcdf_xy_grid.f90 \
+  validation/unit_tests/ut_netcdf_mesh.f90 \
+  validation/unit_tests/ut_netcdf.f90 \
   validation/unit_tests/ut_tracer_tracking.f90 \
   validation/unit_tests/unit_tests.f90 \
   \

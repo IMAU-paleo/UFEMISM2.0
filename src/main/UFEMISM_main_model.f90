@@ -12,16 +12,13 @@ MODULE UFEMISM_main_model
                                                                      insert_val_into_string_dp
   USE model_configuration                                    , ONLY: C
   USE parameters
-  USE netcdf_debug                                           , ONLY: write_PETSc_matrix_to_NetCDF, write_CSR_matrix_to_NetCDF, &
-                                                                     save_variable_as_netcdf_int_1D, save_variable_as_netcdf_int_2D, &
-                                                                     save_variable_as_netcdf_dp_1D , save_variable_as_netcdf_dp_2D
   USE region_types                                           , ONLY: type_model_region
   USE ice_model_types                                        , ONLY: type_ice_model
   USE mesh_types                                             , ONLY: type_mesh
   USE reference_geometry_types                               , ONLY: type_reference_geometry
   USE reference_geometries                                   , ONLY: initialise_reference_geometries_raw, initialise_reference_geometries_on_model_mesh
-  USE ice_model_main                                         , ONLY: initialise_ice_dynamics_model, run_ice_dynamics_model, remap_ice_dynamics_model, &
-                                                                     create_restart_files_ice_model, write_to_restart_files_ice_model, apply_geometry_relaxation
+  use ice_dynamics_main, only: initialise_ice_dynamics_model, run_ice_dynamics_model, remap_ice_dynamics_model, &
+    create_restart_files_ice_model, write_to_restart_files_ice_model, apply_geometry_relaxation
   USE basal_hydrology                                        , ONLY: run_basal_hydrology_model, initialise_pore_water_fraction_inversion, run_pore_water_fraction_inversion
   USE bed_roughness                                          , ONLY: run_bed_roughness_model
   USE thermodynamics_main                                    , ONLY: initialise_thermodynamics_model, run_thermodynamics_model, &
@@ -39,8 +36,7 @@ MODULE UFEMISM_main_model
   USE GIA_main                                               , ONLY: initialise_GIA_model, run_GIA_model, remap_GIA_model, &
                                                                      create_restart_file_GIA_model, write_to_restart_file_GIA_model
   USE basal_inversion_main                                   , ONLY: initialise_basal_inversion, run_basal_inversion
-  USE netcdf_basic                                           , ONLY: open_existing_netcdf_file_for_reading, close_netcdf_file
-  USE netcdf_input                                           , ONLY: setup_mesh_from_file
+  use netcdf_io_main
   USE mesh_creation_main                                     , ONLY: create_mesh_from_gridded_geometry, create_mesh_from_meshed_geometry, write_mesh_success
   USE grid_basic                                             , ONLY: setup_square_grid
   USE main_regional_output                                   , ONLY: create_main_regional_output_file_mesh,   create_main_regional_output_file_grid, &
@@ -51,7 +47,7 @@ MODULE UFEMISM_main_model
   use plane_geometry, only: longest_triangle_leg
   use apply_maps, only: clear_all_maps_involving_this_mesh
   USE mesh_memory                                            , ONLY: deallocate_mesh
-  USE ice_model_scalars                                      , ONLY: calc_ice_model_scalars
+  use ice_mass_and_fluxes, only: calc_ice_mass_and_fluxes
   use tracer_tracking_model_main, only: initialise_tracer_tracking_model
 
   IMPLICIT NONE
@@ -151,7 +147,7 @@ CONTAINS
       END IF
 
       ! Calculate ice-sheet integrated values (total volume, area, etc.)
-      CALL calc_ice_model_scalars( region%mesh, region%ice, region%SMB, region%BMB, region%LMB, region%refgeo_PD, region%scalars)
+      CALL calc_ice_mass_and_fluxes( region%mesh, region%ice, region%SMB, region%BMB, region%LMB, region%refgeo_PD, region%scalars)
 
       ! Write to the main regional output NetCDF file
       CALL write_to_regional_output_files( region)
@@ -205,6 +201,9 @@ CONTAINS
 
     ! Add routine to path
     CALL init_routine( routine_name)
+
+    ! Write to scalar regional output file
+    CALL write_to_scalar_regional_output_file( region)
 
     ! Determine time of next output event
     t_closest = MIN( region%output_t_next, region%output_restart_t_next, region%output_grid_t_next)
@@ -274,9 +273,6 @@ CONTAINS
       DO i = 1, region%nROI
         CALL write_to_main_regional_output_file_grid_ROI( region, region%output_grids_ROI( i), region%output_filenames_grid_ROI( i))
       END DO
-
-      ! Write to scalar regional output file
-      CALL write_to_scalar_regional_output_file( region)
     END IF
 
     IF (do_output_restart) THEN
@@ -558,7 +554,7 @@ CONTAINS
     ! ==============================
 
     ! Calculate ice-sheet integrated values (total volume, area, etc.)
-    CALL calc_ice_model_scalars( region%mesh, region%ice, region%SMB, region%BMB, region%LMB, region%refgeo_PD, region%scalars)
+    CALL calc_ice_mass_and_fluxes( region%mesh, region%ice, region%SMB, region%BMB, region%LMB, region%refgeo_PD, region%scalars)
 
     ! ===== Regional output =====
     ! ===========================
@@ -1176,7 +1172,7 @@ CONTAINS
     CALL remap_climate_model(      region%mesh, mesh_new,             region%climate, region%name)
     CALL remap_ocean_model(        region%mesh, mesh_new,             region%ocean  , region%name)
     CALL remap_SMB_model(          region%mesh, mesh_new,             region%SMB    , region%name)
-    CALL remap_BMB_model(          region%mesh, mesh_new, region%ice, region%BMB    , region%name)
+    CALL remap_BMB_model(          region%mesh, mesh_new, region%ice, region%ocean, region%BMB    , region%name, region%time)
     CALL remap_LMB_model(          region%mesh, mesh_new,             region%LMB    , region%name)
     CALL remap_AMB_model(          region%mesh, mesh_new,             region%AMB                 )
     CALL remap_GIA_model(          region%mesh, mesh_new,             region%GIA                 )

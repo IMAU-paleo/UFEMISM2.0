@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<single_run>
+    <name>L160</name>
+    <category>integrated_tests/idealised/ISMIP_HOM/experiment_A/SIASSA</category>
+    <date_and_time>14-Jan-2025 11:17:07</date_and_time>
+    <git_hash_string>abfa1f7611c867f292d447a052cd1420f2a71176</git_hash_string>
+    <cost_functions>
+        <name>rmse</name>
+        <definition>sqrt( mean( (u_surf - u_ensemble).^2 ))</definition>
+        <value>3.406</value>
+    </cost_functions>
+</single_run>

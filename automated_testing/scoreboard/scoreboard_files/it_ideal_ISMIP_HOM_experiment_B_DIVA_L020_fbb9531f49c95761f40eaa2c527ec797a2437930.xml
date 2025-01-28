@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<single_run>
+    <name>L020</name>
+    <category>integrated_tests/idealised/ISMIP_HOM/experiment_B/DIVA</category>
+    <date_and_time>21-Jan-2025 15:07:50</date_and_time>
+    <git_hash_string>fbb9531f49c95761f40eaa2c527ec797a2437930</git_hash_string>
+    <cost_functions>
+        <name>rmse</name>
+        <definition>sqrt( mean( (u_surf - u_ensemble).^2 ))</definition>
+        <value>1.1449</value>
+    </cost_functions>
+    <cost_functions>
+        <name>n_dt_ice</name>
+        <definition>total number of ice-dynamical time steps</definition>
+        <value>1</value>
+    </cost_functions>
+    <cost_functions>
+        <name>n_visc_its</name>
+        <definition>total number of viscosity iterations</definition>
+        <value>51</value>
+    </cost_functions>
+    <cost_functions>
+        <name>n_Axb_its</name>
+        <definition>total number of linear solver iterations</definition>
+        <value>933</value>
+    </cost_functions>
+</single_run>

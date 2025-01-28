@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<single_run>
+    <name>mesh_Ant_gradient_8.0000E+05-4.0000E+05_m_y_TO_grid_Ant_1.6000E+04_m</name>
+    <category>component_tests/remapping/mesh_to_grid</category>
+    <date_and_time>27-Jan-2025 18:52:19</date_and_time>
+    <git_hash_string>9aca21b86c742479fae06b17966261c00aa77d4b</git_hash_string>
+    <cost_functions>
+        <name>rmse</name>
+        <definition>sqrt( mean( (d_grid - d_grid_ex).^2))</definition>
+        <value>110.5855</value>
+    </cost_functions>
+    <cost_functions>
+        <name>bounds_max</name>
+        <definition>max( 0, max( d_grid(:)) - max( d_mesh_ex(:)))</definition>
+        <value>0</value>
+    </cost_functions>
+    <cost_functions>
+        <name>bounds_min</name>
+        <definition>max( 0, min( d_mesh_ex(:)) - min( d_grid(:)))</definition>
+        <value>0</value>
+    </cost_functions>
+    <cost_functions>
+        <name>int_err</name>
+        <definition>abs( 1 - int_grid / int_mesh)</definition>
+        <value>0.0010053</value>
+    </cost_functions>
+</single_run>

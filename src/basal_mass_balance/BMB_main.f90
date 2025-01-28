@@ -21,13 +21,11 @@ MODULE BMB_main
   USE BMB_prescribed                                         , ONLY: initialise_BMB_model_prescribed, run_BMB_model_prescribed
   USE BMB_parameterised                                      , ONLY: initialise_BMB_model_parameterised, run_BMB_model_parameterised
   USE BMB_laddie                                             , ONLY: initialise_BMB_model_laddie, run_BMB_model_laddie, remap_BMB_model_laddie
-  USE laddie_main                                            , ONLY: initialise_laddie_model, run_laddie_model
+  USE laddie_main                                            , ONLY: initialise_laddie_model, run_laddie_model, remap_laddie_model
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   use ice_geometry_basics, only: is_floating
   USE mesh_utilities                                         , ONLY: extrapolate_Gaussian
-  USE netcdf_basic                                           , ONLY: create_new_netcdf_file_for_writing, close_netcdf_file, open_existing_netcdf_file_for_writing
-  USE netcdf_output                                          , ONLY: generate_filename_XXXXXdotnc, setup_mesh_in_netcdf_file, add_time_dimension_to_file, &
-                                                                     add_field_mesh_dp_2D, write_to_field_multopt_mesh_dp_2D, write_time_to_file, write_to_field_multopt_mesh_dp_3D_ocean
+  use netcdf_io_main
 
   IMPLICIT NONE
 
@@ -92,6 +90,8 @@ CONTAINS
             ! No need to do anything
           CASE ('prescribed_fixed')
             ! No need to do anything
+          CASE ('laddie')
+            ! No need to do anything
           CASE DEFAULT
             CALL apply_BMB_subgrid_scheme( mesh, ice, BMB)
         END SELECT
@@ -124,12 +124,17 @@ CONTAINS
         CALL run_BMB_model_parameterised( mesh, ice, ocean, BMB)
       CASE ('inverted')
         CALL run_BMB_model_inverted( mesh, ice, BMB, time)
-      CASE ('laddie')
+      CASE ('laddie_py')
         CALL run_BMB_model_laddie( mesh, BMB, time)
-      CASE ('laddie2')
-        CALL run_laddie_model( mesh, ice, ocean, BMB%laddie, time)
+      CASE ('laddie')
+        IF (time == C%start_time_of_run) THEN
+          CALL run_laddie_model( mesh, ice, ocean, BMB%laddie, time, C%time_duration_laddie_init)
+        ELSE
+          CALL run_laddie_model( mesh, ice, ocean, BMB%laddie, time, C%time_duration_laddie)
+        END IF
+
         DO vi = mesh%vi1, mesh%vi2
-          BMB%BMB_shelf( vi) = -BMB%laddie%melt( vi) * sec_per_year
+          BMB%BMB( vi) = -BMB%laddie%melt( vi) * sec_per_year
         END DO
       CASE DEFAULT
         CALL crash('unknown choice_BMB_model "' // TRIM( choice_BMB_model) // '"')
@@ -140,6 +145,8 @@ CONTAINS
       CASE ('inverted')
         ! No need to do anything
       CASE ('prescribed_fixed')
+        ! No need to do anything
+      CASE ('laddie')
         ! No need to do anything
       CASE DEFAULT
         CALL apply_BMB_subgrid_scheme( mesh, ice, BMB)
@@ -226,9 +233,9 @@ CONTAINS
         CALL initialise_BMB_model_parameterised( mesh, BMB)
       CASE ('inverted')
         ! No need to do anything
-      CASE ('laddie')
+      CASE ('laddie_py')
         CALL initialise_BMB_model_laddie( mesh, BMB)
-      CASE ('laddie2')
+      CASE ('laddie')
         CALL initialise_laddie_model( mesh, BMB%laddie, ocean, ice)
       CASE DEFAULT
         CALL crash('unknown choice_BMB_model "' // TRIM( choice_BMB_model) // '"')
@@ -283,9 +290,9 @@ CONTAINS
         ! No need to do anything
       CASE ('inverted')
         CALL write_to_restart_file_BMB_model_region( mesh, BMB, region_name, time)
-      CASE ('laddie')
+      CASE ('laddie_py')
         ! No need to do anything
-      CASE ('laddie2')
+      CASE ('laddie')
         ! No need to do anything
       CASE DEFAULT
         CALL crash('unknown choice_BMB_model "' // TRIM( choice_BMB_model) // '"')
@@ -382,9 +389,9 @@ CONTAINS
         ! No need to do anything
       CASE ('inverted')
         CALL create_restart_file_BMB_model_region( mesh, BMB, region_name)
-      CASE ('laddie')
+      CASE ('laddie_py')
         ! No need to do anything
-      CASE ('laddie2')
+      CASE ('laddie')
         ! No need to do anything
       CASE DEFAULT
         CALL crash('unknown choice_BMB_model "' // TRIM( choice_BMB_model) // '"')
@@ -446,15 +453,17 @@ CONTAINS
 
   END SUBROUTINE create_restart_file_BMB_model_region
 
-  SUBROUTINE remap_BMB_model( mesh_old, mesh_new, ice, BMB, region_name)
+  SUBROUTINE remap_BMB_model( mesh_old, mesh_new, ice, ocean, BMB, region_name, time)
     ! Remap the BMB model
 
     ! In- and output variables
     TYPE(type_mesh),                        INTENT(IN)    :: mesh_old
     TYPE(type_mesh),                        INTENT(IN)    :: mesh_new
     TYPE(type_ice_model),                   INTENT(IN)    :: ice
-    TYPE(type_BMB_model),                   INTENT(OUT)   :: BMB
+    TYPE(type_ocean_model),                 INTENT(IN)    :: ocean
+    TYPE(type_BMB_model),                   INTENT(INOUT) :: BMB
     CHARACTER(LEN=3),                       INTENT(IN)    :: region_name
+    REAL(dp),                               INTENT(IN)    :: time
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'remap_BMB_model'
@@ -511,11 +520,10 @@ CONTAINS
         CALL crash('Remapping after mesh update not implemented yet for parameterised BMB')
       CASE ('inverted')
         ! No need to do anything
-      CASE ('laddie')
+      CASE ('laddie_py')
         CALL remap_BMB_model_laddie( mesh_new, BMB)
-      CASE ('laddie2')
-        ! EL to be filled later
-        CALL crash('Remapping for LADDIE2 model not implemented yet')
+      CASE ('laddie')
+        CALL remap_laddie_model( mesh_old, mesh_new, ice, ocean, BMB%laddie, time)
       CASE DEFAULT
         CALL crash('unknown choice_BMB_model "' // TRIM( choice_BMB_model) // '"')
     END SELECT

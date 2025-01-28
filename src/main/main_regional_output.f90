@@ -12,31 +12,7 @@ MODULE main_regional_output
   USE model_configuration                                    , ONLY: C
   USE grid_basic                                             , ONLY: type_grid
   USE region_types                                           , ONLY: type_model_region
-  USE netcdf_basic                                           , ONLY: create_new_netcdf_file_for_writing, open_existing_netcdf_file_for_writing, close_netcdf_file
-  USE netcdf_output                                          , ONLY: generate_filename_XXXXXdotnc, setup_mesh_in_netcdf_file, setup_xy_grid_in_netcdf_file, setup_CDF_in_netcdf_file, &
-                                                                     add_time_dimension_to_file, add_zeta_dimension_to_file, add_month_dimension_to_file, &
-                                                                     write_time_to_file, &
-                                                                     add_field_mesh_int_2D, add_field_mesh_int_2D_notime, &
-                                                                     add_field_mesh_dp_2D, add_field_mesh_dp_2D_notime, &
-                                                                     add_field_mesh_dp_2D_monthly, add_field_mesh_dp_2D_monthly_notime, &
-                                                                     add_field_mesh_dp_3D, add_field_mesh_dp_3D_notime, &
-                                                                     add_field_mesh_dp_2D_b, add_field_mesh_dp_2D_b_notime, &
-                                                                     add_field_mesh_dp_3D_b, add_field_mesh_dp_3D_b_notime, &
-                                                                     add_field_grid_dp_2D, add_field_grid_dp_2D_notime, &
-                                                                     add_field_grid_dp_3D, add_field_grid_dp_3D_notime, &
-                                                                     add_field_grid_dp_2D_monthly, add_field_grid_dp_2D_monthly_notime, &
-                                                                     add_field_dp_0D, add_field_int_0D, &
-                                                                     write_to_field_multopt_mesh_int_2D, write_to_field_multopt_mesh_int_2D_notime, &
-                                                                     write_to_field_multopt_mesh_dp_2D, write_to_field_multopt_mesh_dp_2D_notime, &
-                                                                     write_to_field_multopt_mesh_dp_2D_monthly, write_to_field_multopt_mesh_dp_2D_monthly_notime, &
-                                                                     write_to_field_multopt_mesh_dp_3D, write_to_field_multopt_mesh_dp_3D_notime, &
-                                                                     write_to_field_multopt_mesh_dp_2D_b, write_to_field_multopt_mesh_dp_2D_b_notime, &
-                                                                     write_to_field_multopt_mesh_dp_3D_b, write_to_field_multopt_mesh_dp_3D_b_notime, &
-                                                                     write_to_field_multopt_grid_dp_2D, write_to_field_multopt_grid_dp_2D_notime, &
-                                                                     write_to_field_multopt_grid_dp_2D_monthly, write_to_field_multopt_grid_dp_2D_monthly_notime, &
-                                                                     write_to_field_multopt_grid_dp_3D, write_to_field_multopt_grid_dp_3D_notime, &
-                                                                     write_to_field_multopt_dp_0D, write_to_field_multopt_int_0D, &
-                                                                     write_matrix_operators_to_netcdf_file
+  use netcdf_io_main
   use remapping_main, only: map_from_mesh_to_xy_grid_2D, map_from_mesh_to_xy_grid_3D, map_from_mesh_to_xy_grid_2D_minval
 
   IMPLICIT NONE
@@ -1416,9 +1392,6 @@ CONTAINS
       RETURN
     END IF
 
-    ! Print to terminal
-    IF (par%master) WRITE(0,'(A)') '   Writing to scalar output file "' // colour_string( TRIM( region%output_filename_scalar), 'light blue') // '"...'
-
     ! Open the NetCDF file
     CALL open_existing_netcdf_file_for_writing( region%output_filename_scalar, ncid)
 
@@ -1462,37 +1435,9 @@ CONTAINS
     CALL write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'margin_ocean_flux', region%scalars%margin_ocean_flux)
 
     ! Numerical stability info
-    call write_to_field_multopt_int_0D( region%output_filename_scalar, ncid, 'n_dt_ice',         region%ice%n_dt_ice)
-    call write_to_field_multopt_dp_0D ( region%output_filename_scalar, ncid, 'min_dt_ice',       region%ice%min_dt_ice)
-    call write_to_field_multopt_dp_0D ( region%output_filename_scalar, ncid, 'max_dt_ice',       region%ice%max_dt_ice)
-    region%ice%mean_dt_ice = C%dt_output / real( region%ice%n_dt_ice,dp)
-    call write_to_field_multopt_dp_0D ( region%output_filename_scalar, ncid, 'mean_dt_ice',      region%ice%mean_dt_ice)
-
-    call write_to_field_multopt_int_0D( region%output_filename_scalar, ncid, 'n_visc_its',           region%ice%n_visc_its)
-    call write_to_field_multopt_int_0D( region%output_filename_scalar, ncid, 'min_visc_its_per_dt',  region%ice%min_visc_its_per_dt)
-    call write_to_field_multopt_int_0D( region%output_filename_scalar, ncid, 'max_visc_its_per_dt',  region%ice%max_visc_its_per_dt)
-    region%ice%mean_visc_its_per_dt = real( region%ice%n_visc_its,dp) / real( region%ice%n_dt_ice,dp)
-    call write_to_field_multopt_dp_0D ( region%output_filename_scalar, ncid, 'mean_visc_its_per_dt', region%ice%mean_visc_its_per_dt)
-
-    call write_to_field_multopt_int_0D( region%output_filename_scalar, ncid, 'n_Axb_its',                region%ice%n_Axb_its)
-    call write_to_field_multopt_int_0D( region%output_filename_scalar, ncid, 'min_Axb_its_per_visc_it',  region%ice%min_Axb_its_per_visc_it)
-    call write_to_field_multopt_int_0D( region%output_filename_scalar, ncid, 'max_Axb_its_per_visc_it',  region%ice%max_Axb_its_per_visc_it)
-    region%ice%mean_visc_its_per_dt = real( region%ice%n_Axb_its,dp) / real( region%ice%n_visc_its,dp)
-    call write_to_field_multopt_dp_0D ( region%output_filename_scalar, ncid, 'mean_Axb_its_per_visc_it', region%ice%mean_Axb_its_per_visc_it)
-
-    ! Reset stability info
-    region%ice%n_dt_ice                 = 0
-    region%ice%min_dt_ice               = huge( region%ice%min_dt_ice)
-    region%ice%max_dt_ice               = 0._dp
-    region%ice%mean_dt_ice              = 0._dp
-    region%ice%n_visc_its               = 0
-    region%ice%min_visc_its_per_dt      = huge( region%ice%min_visc_its_per_dt)
-    region%ice%max_visc_its_per_dt      = 0
-    region%ice%mean_visc_its_per_dt     = 0._dp
-    region%ice%n_Axb_its                = 0
-    region%ice%min_Axb_its_per_visc_it  = huge( region%ice%min_Axb_its_per_visc_it)
-    region%ice%max_Axb_its_per_visc_it  = 0
-    region%ice%mean_Axb_its_per_visc_it = 0._dp
+    call write_to_field_multopt_dp_0D(  region%output_filename_scalar, ncid, 'dt_ice',     region%ice%dt_ice)
+    call write_to_field_multopt_int_0D( region%output_filename_scalar, ncid, 'n_visc_its', region%ice%n_visc_its)
+    call write_to_field_multopt_int_0D( region%output_filename_scalar, ncid, 'n_Axb_its',  region%ice%n_Axb_its)
 
     ! Close the file
     CALL close_netcdf_file( ncid)
@@ -1542,7 +1487,7 @@ CONTAINS
 
     IF (C%choice_subgrid_grounded_fraction == 'bedrock_CDF' .OR. C%choice_subgrid_grounded_fraction == 'bilin_interp_TAF+bedrock_CDF') THEN
       ! Set up bedrock CDF in the file
-      CALL setup_CDF_in_netcdf_file( region%output_filename_mesh, ncid, region%ice)
+      CALL setup_bedrock_CDF_in_netcdf_file( region%output_filename_mesh, ncid, region%ice)
     END IF
 
     ! Add time, zeta, and month dimensions+variables to the file
@@ -2783,20 +2728,9 @@ CONTAINS
     CALL create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'margin_ocean_flux')
 
     ! Numerical stability info
-    call create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'n_dt_ice')
-    call create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'min_dt_ice')
-    call create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'max_dt_ice')
-    call create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'mean_dt_ice')
-
+    call create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'dt_ice')
     call create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'n_visc_its')
-    call create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'min_visc_its_per_dt')
-    call create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'max_visc_its_per_dt')
-    call create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'mean_visc_its_per_dt')
-
     call create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'n_Axb_its')
-    call create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'min_Axb_its_per_visc_it')
-    call create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'max_Axb_its_per_visc_it')
-    call create_scalar_regional_output_file_field( region%output_filename_scalar, ncid, 'mean_Axb_its_per_visc_it')
 
     ! Close the file
     CALL close_netcdf_file( ncid)
@@ -2951,53 +2885,17 @@ CONTAINS
       CASE ('margin_ocean_flux')
         CALL add_field_dp_0D( filename, ncid, 'margin_ocean_flux', long_name = 'Total lateral flux exiting the ice margin into water', units = 'Gt yr^-1')
 
-      ! Total number of ice-dynamical time steps
-      case ('n_dt_ice')
-        call add_field_int_0D( filename, ncid, 'n_dt_ice', long_name = 'Total number of ice-dynamical time steps')
+      ! Ice-dynamical time step
+      case ('dt_ice')
+        call add_field_dp_0D( filename, ncid, 'dt_ice', long_name = 'Ice-dynamical time step', units = 'yr')
 
-      ! Smallest ice-dynamical time step
-      case ('min_dt_ice')
-        call add_field_dp_0D( filename, ncid, 'min_dt_ice', long_name = 'Smallest ice-dynamical time step', units = 'yr')
-
-      ! Largest ice-dynamical time step
-      case ('max_dt_ice')
-        call add_field_dp_0D( filename, ncid, 'max_dt_ice', long_name = 'Largest ice-dynamical time step', units = 'yr')
-
-      ! Mean ice-dynamical time step
-      case ('mean_dt_ice')
-        call add_field_dp_0D( filename, ncid, 'mean_dt_ice', long_name = 'Mean ice-dynamical time step', units = 'yr')
-
-      ! Total number of non-linear viscosity iterations
+      ! Number of non-linear viscosity iterations
       case ('n_visc_its')
-        call add_field_int_0D( filename, ncid, 'n_visc_its', long_name = 'Total number of non-linear viscosity iterations')
+        call add_field_int_0D( filename, ncid, 'n_visc_its', long_name = 'Number of non-linear viscosity iterations')
 
-      ! Smallest number of non-linear viscosity iterations in a single ice-dynamical time step
-      case ('min_visc_its_per_dt')
-        call add_field_int_0D( filename, ncid, 'min_visc_its_per_dt', long_name = 'Smallest number of non-linear viscosity iterations in a single ice-dynamical time step')
-
-      ! Largest number of non-linear viscosity iterations in a single ice-dynamical time step
-      case ('max_visc_its_per_dt')
-        call add_field_int_0D( filename, ncid, 'max_visc_its_per_dt', long_name = 'Largest number of non-linear viscosity iterations in a single ice-dynamical time step')
-
-      ! Mean number of non-linear viscosity iterations in a single ice-dynamical time step
-      case ('mean_visc_its_per_dt')
-        call add_field_dp_0D( filename, ncid, 'mean_visc_its_per_dt', long_name = 'Mean number of non-linear viscosity iterations in a single ice-dynamical time step')
-
-      ! Total number of iterations in iterative solver for linearised momentum balance
+      ! Number of iterations in iterative solver for linearised momentum balance
       case ('n_Axb_its')
-        call add_field_int_0D( filename, ncid, 'n_Axb_its', long_name = 'Total number of iterations in iterative solver for linearised momentum balance')
-
-      ! Smallest number of iterations in iterative solver for linearised momentum balance per non-linear viscosity iteration
-      case ('min_Axb_its_per_visc_it')
-        call add_field_int_0D( filename, ncid, 'min_Axb_its_per_visc_it', long_name = 'Smallest number of iterations in iterative solver for linearised momentum balance per non-linear viscosity iteration')
-
-      ! Largest number of iterations in iterative solver for linearised momentum balance per non-linear viscosity iteration
-      case ('max_Axb_its_per_visc_it')
-        call add_field_int_0D( filename, ncid, 'max_Axb_its_per_visc_it', long_name = 'Largest number of iterations in iterative solver for linearised momentum balance per non-linear viscosity iteration')
-
-      ! Mean number of iterations in iterative solver for linearised momentum balance per non-linear viscosity iteration
-      case ('mean_Axb_its_per_visc_it')
-        call add_field_dp_0D( filename, ncid, 'mean_Axb_its_per_visc_it', long_name = 'Mean number of iterations in iterative solver for linearised momentum balance per non-linear viscosity iteration')
+        call add_field_int_0D( filename, ncid, 'n_Axb_its', long_name = 'Number of iterations in iterative solver for linearised momentum balance')
 
     ! ===== End of user-defined output fields =====
     ! =============================================

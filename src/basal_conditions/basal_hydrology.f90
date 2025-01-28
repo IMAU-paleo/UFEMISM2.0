@@ -23,8 +23,7 @@ MODULE basal_hydrology
   use plane_geometry, only: triangle_area
   use mpi_distributed_memory, only: gather_to_all
   use mesh_data_smoothing, only: smooth_Gaussian
-  USE netcdf_debug                                           , ONLY: save_variable_as_netcdf_dp_1D, save_variable_as_netcdf_dp_2D
-  USE netcdf_input                                           , ONLY: read_field_from_file_2D
+  use netcdf_io_main
 
   IMPLICIT NONE
 
