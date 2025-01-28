@@ -11,7 +11,7 @@ module netcdf_inquire_grid_mesh
 
   private
 
-  public :: inquire_xy_grid, inquire_lonlat_grid, inquire_mesh
+  public :: inquire_xy_grid, inquire_lonlat_grid, inquire_orca_grid, inquire_mesh
 
 contains
 
@@ -125,8 +125,8 @@ contains
 
     ! Check if everything is there
     has_orca_grid = (&
-      id_dim_lon /= -1 .and. &
-      id_dim_lat /= -1 .and. &
+      id_dim_x   /= -1 .and. &
+      id_dim_y   /= -1 .and. &
       id_var_lon /= -1 .and. &
       id_var_lat /= -1)
 

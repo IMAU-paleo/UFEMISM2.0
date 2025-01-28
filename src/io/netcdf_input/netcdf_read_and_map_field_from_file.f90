@@ -11,7 +11,7 @@ module netcdf_read_and_map_field_from_file
   use model_configuration, only: C
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash
   use mesh_types, only: type_mesh
-  use grid_types, only: type_grid, type_grid_lonlat
+  use grid_types, only: type_grid, type_grid_lonlat, type_grid_orca
   use remapping_main
   use grid_basic, only: deallocate_grid
   use grid_lonlat_basic, only: deallocate_lonlat_grid
