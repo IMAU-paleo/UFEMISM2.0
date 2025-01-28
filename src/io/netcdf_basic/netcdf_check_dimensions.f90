@@ -336,14 +336,14 @@ subroutine check_orca( filename, ncid)
   if (.not. (var_lat_type == NF90_FLOAT .or. var_lat_type == NF90_DOUBLE)) call crash('latitude variable in file "' // trim( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
   if (ndims_of_var_lon /= 2) call crash('longitude variable in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var_lon)
   if (ndims_of_var_lat /= 2) call crash('latitude variable in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var_lat)
-  if (dims_of_var_lon( 1) /= id_dim_y) call crash('longitude variable in file "' // trim( filename) // '" does not have y as a first dimension!')
-  if (dims_of_var_lon( 2) /= id_dim_x) call crash('longitude variable in file "' // trim( filename) // '" does not have x as a second dimension!')
-  if (dims_of_var_lat( 1) /= id_dim_y) call crash('latitude variable in file "' // trim( filename) // '" does not have y as a first dimension!')
-  if (dims_of_var_lat( 2) /= id_dim_x) call crash('latitude variable in file "' // trim( filename) // '" does not have x as a second dimension!')
+  if (dims_of_var_lon( 1) /= id_dim_x) call crash('longitude variable in file "' // trim( filename) // '" does not have x as a first dimension!')
+  if (dims_of_var_lon( 2) /= id_dim_y) call crash('longitude variable in file "' // trim( filename) // '" does not have y as a second dimension!')
+  if (dims_of_var_lat( 1) /= id_dim_x) call crash('latitude variable in file "' // trim( filename) // '" does not have x as a first dimension!')
+  if (dims_of_var_lat( 2) /= id_dim_y) call crash('latitude variable in file "' // trim( filename) // '" does not have y as a second dimension!')
 
   ! allocate memory
-  allocate( lon( n_y, n_x))
-  allocate( lat( n_y, n_x))
+  allocate( lon( n_x, n_y))
+  allocate( lat( n_x, n_y))
 
   ! Read variable
   call read_var_master( filename, ncid, id_var_lon, lon)
