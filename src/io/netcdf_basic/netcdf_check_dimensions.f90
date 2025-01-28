@@ -14,7 +14,7 @@ module netcdf_check_dimensions
   private
 
   public :: check_x, check_y, check_lon, check_lat, check_mesh_dimensions, check_zeta, &
-    check_month, check_time, check_depth
+    check_month, check_time, check_depth, check_orca
 
 contains
 
@@ -292,6 +292,74 @@ subroutine check_lat( filename, ncid)
   call finalise_routine( routine_name)
 
 end subroutine check_lat
+
+subroutine check_orca( filename, ncid)
+  !< Check if this file contains valid ORCA dimensions and variables
+
+  ! In/output variables:
+  character(len=*), intent(in   ) :: filename
+  integer,          intent(in   ) :: ncid
+
+  ! Local variables:
+  character(len=1024), parameter          :: routine_name = 'check_orca'
+  integer                                 :: id_dim_x, id_dim_y
+  integer                                 :: n_x, n_y
+  character(len=1024)                     :: dim_name_x, dim_name_y
+  integer                                 :: id_var_lon, id_var_lat
+  character(len=1024)                     :: var_lon_name, var_lat_name
+  integer                                 :: var_lon_type, var_lat_type
+  integer                                 :: ndims_of_var_lon, ndims_of_var_lat
+  integer,  dimension( NF90_MAX_VAR_DIMS) :: dims_of_var_lon, dims_of_var_lat
+  real(dp), dimension(:,:), allocatable   :: lon, lat
+
+  ! Add routine to path
+  call init_routine( routine_name, do_track_resource_use = .false.)
+
+  ! inquire dimensions
+  call inquire_dim_multopt( filename, ncid, field_name_options_x, id_dim_x, dim_length = n_x, dim_name = dim_name_x)
+  call inquire_dim_multopt( filename, ncid, field_name_options_y, id_dim_y, dim_length = n_y, dim_name = dim_name_y)
+
+  ! Safety checks on dimension
+  if (id_dim_x == -1) call crash('no valid x dimension could be found in file "' // trim( filename) // '"!')
+  if (id_dim_y == -1) call crash('no valid y dimension could be found in file "' // trim( filename) // '"!')
+  if (n_x == NF90_UNLIMITED) call crash('x dimension in file "' // trim( filename) // '" is unlimited!')
+  if (n_y == NF90_UNLIMITED) call crash('y dimension in file "' // trim( filename) // '" is unlimited!')
+  if (n_x < 1) call crash('x dimension in file "' // trim( filename) // '" has length n = {int_01}!', int_01  = n_x)
+  if (n_y < 1) call crash('y dimension in file "' // trim( filename) // '" has length n = {int_01}!', int_01  = n_y)
+
+  ! inquire variables
+  call inquire_var_multopt( filename, ncid, field_name_options_lon, id_var_lon, var_name = var_lon_name, var_type = var_lon_type, ndims_of_var = ndims_of_var_lon, dims_of_var = dims_of_var_lon)
+  call inquire_var_multopt( filename, ncid, field_name_options_lat, id_var_lat, var_name = var_lat_name, var_type = var_lat_type, ndims_of_var = ndims_of_var_lat, dims_of_var = dims_of_var_lat)
+  if (id_var_lon == -1) call crash('no valid longitude variable could be found in file "' // trim( filename) // '"!')
+  if (id_var_lat == -1) call crash('no valid latitude variable could be found in file "' // trim( filename) // '"!')
+  if (.not. (var_lon_type == NF90_FLOAT .or. var_lon_type == NF90_DOUBLE)) call crash('longitude variable in file "' // trim( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
+  if (.not. (var_lat_type == NF90_FLOAT .or. var_lat_type == NF90_DOUBLE)) call crash('latitude variable in file "' // trim( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
+  if (ndims_of_var_lon /= 2) call crash('longitude variable in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var_lon)
+  if (ndims_of_var_lat /= 2) call crash('latitude variable in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var_lat)
+  if (dims_of_var_lon( 1) /= id_dim_y) call crash('longitude variable in file "' // trim( filename) // '" does not have y as a first dimension!')
+  if (dims_of_var_lon( 2) /= id_dim_x) call crash('longitude variable in file "' // trim( filename) // '" does not have x as a second dimension!')
+  if (dims_of_var_lat( 1) /= id_dim_y) call crash('latitude variable in file "' // trim( filename) // '" does not have y as a first dimension!')
+  if (dims_of_var_lat( 2) /= id_dim_x) call crash('latitude variable in file "' // trim( filename) // '" does not have x as a second dimension!')
+
+  ! allocate memory
+  allocate( lon( n_y, n_x))
+  allocate( lat( n_y, n_x))
+
+  ! Read variable
+  call read_var_master( filename, ncid, id_var_lon, lon)
+  call read_var_master( filename, ncid, id_var_lat, lat)
+
+  if (par%master) call assert( (.not. any( isnan( lon))), 'found NaNs in lon')
+  if (par%master) call assert( (.not. any( isnan( lat))), 'found NaNs in lat')
+
+  ! Clean up after yourself
+  deallocate( lon)
+  deallocate( lat)
+
+  ! Finalise routine path
+  call finalise_routine( routine_name)
+
+end subroutine check_orca
 
 subroutine check_mesh_dimensions( filename, ncid)
   !< Check if this file contains valid mesh dimensions and variables
