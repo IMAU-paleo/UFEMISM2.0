@@ -36,7 +36,6 @@ contains
     ! mask_cf_gr              ! T: grounded ice next to ice-free water (sea or lake), F: otherwise
     ! mask_cf_fl              ! T: floating ice next to ice-free water (sea or lake), F: otherwise
     ! mask_coastline          ! T: ice-free land next to ice-free ocean, F: otherwise
-    ! mask_ROI                ! T: inside ROI, F: outside ROI
 
     ! In- and output variables
     type(type_mesh),      intent(in   ) :: mesh
@@ -126,9 +125,6 @@ contains
     ice%mask_cf_gr     = .false.
     ice%mask_cf_fl     = .false.
     ice%mask_coastline = .false.
-    ice%mask_ROI       = .false.
-
-    ! local_mesh_poly_ROI = mesh%poly_ROI
 
     do vi = mesh%vi1, mesh%vi2
 
@@ -215,7 +211,7 @@ contains
     !   print *, "mesh%poly_ROI is not allocated"
     ! end if
 
-
+    ! call calc_mask_ROI( mesh, ice)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -223,7 +219,7 @@ contains
   end subroutine determine_masks
 
   subroutine calc_mask_ROI( mesh, ice)
-    !< Calculate the ROI mask
+    !< Calculate the ROI mask (ice%mask_ROI), only in initialisation or mesh update (last should still be implemented)
 
     ! In/output variables:
     type(type_mesh),      intent(in   ) :: mesh
@@ -234,18 +230,25 @@ contains
     integer                        :: vi, ci, vj
     real(dp), dimension(2)         :: point
 
+    ! make sure to start with all data .false.
+    ! ice%mask_ROI = .false.
 
+    ! print*, mesh%poly_ROI
 
-    ! mask_ROI only needs update when mesh changes? So maybe need to do this somewhere else
+    ! loop over all vertices
     do vi = mesh%vi1, mesh%vi2 
 
       do ci = 1, mesh%nC(vi)
+
           vj = mesh%C( vi,ci)
+
           point = mesh%V( vj,:) ! Make sure it's in the right format
 
           if (is_in_polygon(mesh%poly_ROI, point)) then
+            ! print*, 'Im in!'
             ! add to mask_ROI if vertices are in polygon
             ice%mask_ROI(vi) = .true.
+
           end if
 
       end do

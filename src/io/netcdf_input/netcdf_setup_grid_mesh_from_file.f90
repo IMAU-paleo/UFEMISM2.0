@@ -224,8 +224,7 @@ contains
     call read_var_master( filename, ncid, id_var_Tri           , mesh%Tri           )
     call read_var_master( filename, ncid, id_var_Tricc         , mesh%Tricc         )
     call read_var_master( filename, ncid, id_var_TriC          , mesh%TriC          )
-    
-    !call read_var_master( filename, ncid, id_var_poly_ROI      , mesh%poly_ROI      ) ! FJFJ 
+    call read_var_master( filename, ncid, id_var_poly_ROI      , mesh%poly_ROI      ) ! FJFJ 
 
 
     ! Safety - check if the mesh data read from NetCDF makes sense
