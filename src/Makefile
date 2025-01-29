@@ -260,6 +260,7 @@ UFEMISM_source = \
   ice_dynamics/rheology/constitutive_equation.f90 \
   ice_dynamics/conservation_of_momentum/SIA/SIA_main.f90 \
   ice_dynamics/conservation_of_momentum/SSA_DIVA/SSA_DIVA_utilities.f90 \
+  ice_dynamics/conservation_of_momentum/SSA_DIVA/solve_linearised_SSA_DIVA.f90 \
   ice_dynamics/conservation_of_momentum/SSA_DIVA/SSA_main.f90 \
   ice_dynamics/conservation_of_momentum/SSA_DIVA/DIVA_main.f90 \
   ice_dynamics/conservation_of_momentum/BPA/BPA_main.f90 \
