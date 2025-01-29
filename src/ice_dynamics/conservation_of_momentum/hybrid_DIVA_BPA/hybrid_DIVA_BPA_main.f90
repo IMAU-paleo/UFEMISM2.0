@@ -16,14 +16,14 @@ module hybrid_DIVA_BPA_main
     calc_DIVA_stiffness_matrix_row_BC_west, calc_DIVA_stiffness_matrix_row_BC_east, &
     calc_DIVA_stiffness_matrix_row_BC_south, calc_DIVA_stiffness_matrix_row_BC_north, &
     calc_DIVA_sans_stiffness_matrix_row_free, &
-    calc_driving_stress_DIVA => calc_driving_stress, &
-    calc_horizontal_strain_rates_DIVA => calc_horizontal_strain_rates, &
     calc_vertical_shear_strain_rates_DIVA => calc_vertical_shear_strain_rates, &
     calc_effective_viscosity_DIVA => calc_effective_viscosity, &
     calc_F_integrals_DIVA => calc_F_integrals, &
     calc_effective_basal_friction_coefficient_DIVA => calc_effective_basal_friction_coefficient, &
     calc_basal_shear_stress_DIVA => calc_basal_shear_stress, &
     calc_basal_velocities_DIVA => calc_basal_velocities
+  use SSA_DIVA_utilities, only: calc_driving_stress_DIVA => calc_driving_stress, &
+    calc_horizontal_strain_rates_DIVA => calc_horizontal_strain_rates
   use BPA_main, only: allocate_BPA_solver , remap_BPA_solver, calc_BPA_stiffness_matrix_row_free, &
     calc_BPA_stiffness_matrix_row_BC_west, calc_BPA_stiffness_matrix_row_BC_east, &
     calc_BPA_stiffness_matrix_row_BC_south, calc_BPA_stiffness_matrix_row_BC_north, &
@@ -175,7 +175,7 @@ contains
     call calc_3D_matrix_operators_mesh( mesh, ice)
 
     ! Calculate the driving stress
-    call calc_driving_stress_DIVA( mesh, ice, hybrid%DIVA)
+    call calc_driving_stress_DIVA( mesh, ice, hybrid%DIVA%tau_dx_b, hybrid%DIVA%tau_dy_b)
     call calc_driving_stress_BPA ( mesh, ice, hybrid%BPA )
 
     ! Calculate the solving masks for the hybrid solver
@@ -201,7 +201,8 @@ contains
       ! ========================================
 
       ! Calculate the horizontal strain rates for the current velocity solution
-      call calc_horizontal_strain_rates_DIVA( mesh, hybrid%DIVA)
+      call calc_horizontal_strain_rates_DIVA( mesh, hybrid%DIVA%u_vav_b, hybrid%DIVA%v_vav_b, &
+        hybrid%DIVA%du_dx_a, hybrid%DIVA%du_dy_a, hybrid%DIVA%dv_dx_a, hybrid%DIVA%dv_dy_a)
 
       ! Calculate the vertical shear strain rates
       call calc_vertical_shear_strain_rates_DIVA( mesh, hybrid%DIVA)

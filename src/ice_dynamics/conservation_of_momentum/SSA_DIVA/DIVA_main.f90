@@ -22,6 +22,8 @@ module DIVA_main
   use mpi_distributed_memory, only: gather_to_all
   use petsc_basic, only: solve_matrix_equation_CSR_PETSc
   use reallocate_mod, only: reallocate_bounds, reallocate_clean
+  use SSA_DIVA_utilities, only: calc_driving_stress, calc_horizontal_strain_rates, relax_viscosity_iterations, &
+    apply_velocity_limits, calc_L2_norm_uv
 
   implicit none
 
@@ -103,7 +105,7 @@ contains
     real(dp), dimension(:), allocatable :: BC_prescr_v_b_applied
     integer                             :: viscosity_iteration_i
     logical                             :: has_converged
-    real(dp)                            :: resid_UV, resid_UV_prev
+    real(dp)                            :: L2_uv, L2_uv_prev
     real(dp)                            :: uv_min, uv_max
     real(dp)                            :: visc_it_relax_applied
     real(dp)                            :: Glens_flow_law_epsilon_sq_0_applied
@@ -146,10 +148,10 @@ contains
     end if
 
     ! Calculate the driving stress
-    call calc_driving_stress( mesh, ice, DIVA)
+    call calc_driving_stress( mesh, ice, DIVA%tau_dx_b, DIVA%tau_dy_b)
 
     ! Adaptive relaxation parameter for the viscosity iteration
-    resid_UV                            = 1E9_dp
+    L2_uv                               = 1E9_dp
     nit_diverg_consec                   = 0
     visc_it_relax_applied               = C%visc_it_relax
     Glens_flow_law_epsilon_sq_0_applied = C%Glens_flow_law_epsilon_sq_0
@@ -165,7 +167,7 @@ contains
       viscosity_iteration_i = viscosity_iteration_i + 1
 
       ! Calculate the horizontal strain rates for the current velocity solution
-      call calc_horizontal_strain_rates( mesh, DIVA)
+      call calc_horizontal_strain_rates( mesh, DIVA%u_vav_b, DIVA%v_vav_b, DIVA%du_dx_a, DIVA%du_dy_a, DIVA%dv_dx_a, DIVA%dv_dy_a)
 
       ! Calculate the vertical shear strain rates
       call calc_vertical_shear_strain_rates( mesh, DIVA)
@@ -187,10 +189,10 @@ contains
       n_Axb_its = n_Axb_its + n_Axb_its_visc_it
 
       ! Limit velocities for improved stability
-      call apply_velocity_limits( mesh, DIVA)
+      call apply_velocity_limits( mesh, DIVA%u_vav_b, DIVA%v_vav_b)
 
       ! Reduce the change between velocity solutions
-      call relax_viscosity_iterations( mesh, DIVA, visc_it_relax_applied)
+      call relax_viscosity_iterations( mesh, DIVA%u_vav_b, DIVA%v_vav_b, DIVA%u_b_prev, DIVA%v_b_prev, visc_it_relax_applied)
 
       ! Calculate basal velocities
       call calc_basal_velocities( mesh, DIVA)
@@ -199,11 +201,11 @@ contains
       call calc_basal_shear_stress( mesh, DIVA)
 
       ! Calculate the L2-norm of the two consecutive velocity solutions
-      resid_UV_prev = resid_UV
-      call calc_visc_iter_UV_resid( mesh, DIVA, resid_UV)
+      L2_uv_prev = L2_uv
+      call calc_L2_norm_uv( mesh, DIVA%u_vav_b, DIVA%v_vav_b, DIVA%u_b_prev, DIVA%v_b_prev, L2_uv)
 
       ! if the viscosity iteration diverges, lower the relaxation parameter
-      if (resid_UV > resid_UV_prev) then
+      if (L2_uv > L2_uv_prev) then
         nit_diverg_consec = nit_diverg_consec + 1
       else
         nit_diverg_consec = 0
@@ -230,7 +232,7 @@ contains
 
       ! if the viscosity iteration has converged, or has reached the maximum allowed number of iterations, stop it.
       has_converged = .false.
-      if (resid_UV < C%visc_it_norm_dUV_tol) then
+      if (L2_uv < C%visc_it_norm_dUV_tol) then
         has_converged = .true.
       end if
 
@@ -1359,67 +1361,6 @@ contains
 
   ! == Calculate several intermediate terms in the DIVA
 
-  subroutine calc_driving_stress( mesh, ice, DIVA)
-
-    ! In/output variables:
-    type(type_mesh),                     intent(in   ) :: mesh
-    type(type_ice_model),                intent(in   ) :: ice
-    type(type_ice_velocity_solver_DIVA), intent(inout) :: DIVA
-
-    ! Local variables:
-    character(len=1024), parameter      :: routine_name = 'calc_driving_stress'
-    real(dp), dimension(:), allocatable :: Hi_b
-    real(dp), dimension(:), allocatable :: dHs_dx_b
-    real(dp), dimension(:), allocatable :: dHs_dy_b
-    integer                             :: ti
-
-    ! Add routine to path
-    call init_routine( routine_name)
-
-    ! allocate shared memory
-    allocate( Hi_b(     mesh%ti1:mesh%ti2))
-    allocate( dHs_dx_b( mesh%ti1:mesh%ti2))
-    allocate( dHs_dy_b( mesh%ti1:mesh%ti2))
-
-    ! Calculate Hi, dHs/dx, and dHs/dy on the b-grid
-    call map_a_b_2D( mesh, ice%Hi, Hi_b    )
-    call ddx_a_b_2D( mesh, ice%Hs, dHs_dx_b)
-    call ddy_a_b_2D( mesh, ice%Hs, dHs_dy_b)
-
-    ! Calculate the driving stress
-    do ti = mesh%ti1, mesh%ti2
-      DIVA%tau_dx_b( ti) = -ice_density * grav * Hi_b( ti) * dHs_dx_b( ti)
-      DIVA%tau_dy_b( ti) = -ice_density * grav * Hi_b( ti) * dHs_dy_b( ti)
-    end do
-
-    ! Finalise routine path
-    call finalise_routine( routine_name)
-
-  end subroutine calc_driving_stress
-
-  subroutine calc_horizontal_strain_rates( mesh, DIVA)
-
-    ! In/output variables:
-    type(type_mesh),                     intent(in   ) :: mesh
-    type(type_ice_velocity_solver_DIVA), intent(inout) :: DIVA
-
-    ! Local variables:
-    character(len=1024), parameter :: routine_name = 'calc_horizontal_strain_rates'
-
-    ! Add routine to path
-    call init_routine( routine_name)
-
-    ! Calculate the strain rates
-    call ddx_b_a_2D( mesh, DIVA%u_vav_b, DIVA%du_dx_a)
-    call ddy_b_a_2D( mesh, DIVA%u_vav_b, DIVA%du_dy_a)
-    call ddx_b_a_2D( mesh, DIVA%v_vav_b, DIVA%dv_dx_a)
-    call ddy_b_a_2D( mesh, DIVA%v_vav_b, DIVA%dv_dy_a)
-
-    ! Finalise routine path
-    call finalise_routine( routine_name)
-
-  end subroutine calc_horizontal_strain_rates
-
   subroutine calc_vertical_shear_strain_rates( mesh, DIVA)
     ! Calculate the vertical shear strain rates
 
@@ -1721,108 +1662,6 @@ contains
     call finalise_routine( routine_name)
 
   end subroutine calc_3D_velocities
-
-  ! == Some useful tools for improving numerical stability of the viscosity iteration
-
-  subroutine relax_viscosity_iterations( mesh, DIVA, visc_it_relax)
-    ! Reduce the change between velocity solutions
-
-    ! In/output variables:
-    type(type_mesh),                     intent(in   ) :: mesh
-    type(type_ice_velocity_solver_DIVA), intent(inout) :: DIVA
-    real(dp),                            intent(in   ) :: visc_it_relax
-
-    ! Local variables:
-    character(len=1024), parameter :: routine_name = 'relax_viscosity_iterations'
-    integer                        :: ti
-
-    ! Add routine to path
-    call init_routine( routine_name)
-
-    do ti = mesh%ti1, mesh%ti2
-      DIVA%u_vav_b( ti) = (visc_it_relax * DIVA%u_vav_b( ti)) + ((1._dp - visc_it_relax) * DIVA%u_b_prev( ti))
-      DIVA%v_vav_b( ti) = (visc_it_relax * DIVA%v_vav_b( ti)) + ((1._dp - visc_it_relax) * DIVA%v_b_prev( ti))
-    end do
-
-    ! Finalise routine path
-    call finalise_routine( routine_name)
-
-  end subroutine relax_viscosity_iterations
-
-  subroutine calc_visc_iter_UV_resid( mesh, DIVA, resid_UV)
-    !< Calculate the L2-norm of the two consecutive velocity solutions
-
-    ! In/output variables:
-    type(type_mesh),                     intent(in   ) :: mesh
-    type(type_ice_velocity_solver_DIVA), intent(in   ) :: DIVA
-    real(dp),                            intent(  out) :: resid_UV
-
-    ! Local variables:
-    character(len=1024), parameter :: routine_name = 'calc_visc_iter_UV_resid'
-    integer                        :: ierr
-    integer                        :: ti
-    real(dp)                       :: res1, res2
-
-    ! Add routine to path
-    call init_routine( routine_name)
-
-    res1 = 0._dp
-    res2 = 0._dp
-
-    do ti = mesh%ti1, mesh%ti2
-
-      res1 = res1 + (DIVA%u_vav_b( ti) - DIVA%u_b_prev( ti))**2
-      res1 = res1 + (DIVA%v_vav_b( ti) - DIVA%v_b_prev( ti))**2
-
-      res2 = res2 + (DIVA%u_vav_b( ti) + DIVA%u_b_prev( ti))**2
-      res2 = res2 + (DIVA%v_vav_b( ti) + DIVA%v_b_prev( ti))**2
-
-    end do
-
-    ! Combine results from all processes
-    call MPI_ALLREDUCE( MPI_IN_PLACE, res1, 1, MPI_doUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
-    call MPI_ALLREDUCE( MPI_IN_PLACE, res2, 1, MPI_doUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
-
-    ! Calculate residual
-    resid_UV = 2._dp * res1 / max( res2, 1E-8_dp)
-
-    ! Finalise routine path
-    call finalise_routine( routine_name)
-
-  end subroutine calc_visc_iter_UV_resid
-
-  subroutine apply_velocity_limits( mesh, DIVA)
-    !< Limit velocities for improved stability
-
-    ! In/output variables:
-    type(type_mesh),                     intent(in   ) :: mesh
-    type(type_ice_velocity_solver_DIVA), intent(inout) :: DIVA
-
-    ! Local variables:
-    character(len=1024), parameter :: routine_name = 'apply_velocity_limits'
-    integer                        :: ti
-    real(dp)                       :: uabs
-
-    ! Add routine to path
-    call init_routine( routine_name)
-
-    do ti = mesh%ti1, mesh%ti2
-
-      ! Calculate absolute speed
-      uabs = sqrt( DIVA%u_vav_b( ti)**2 + DIVA%v_vav_b( ti)**2)
-
-      ! Reduce velocities if necessary
-      if (uabs > C%vel_max) then
-        DIVA%u_vav_b( ti) = DIVA%u_vav_b( ti) * C%vel_max / uabs
-        DIVA%v_vav_b( ti) = DIVA%v_vav_b( ti) * C%vel_max / uabs
-      end if
-
-    end do
-
-    ! Finalise routine path
-    call finalise_routine( routine_name)
-
-  end subroutine apply_velocity_limits
 
   ! == Initialisation
 

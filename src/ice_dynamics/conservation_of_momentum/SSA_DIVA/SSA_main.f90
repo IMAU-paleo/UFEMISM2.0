@@ -21,6 +21,8 @@ module SSA_main
   use mpi_distributed_memory, only: gather_to_all
   use petsc_basic, only: solve_matrix_equation_CSR_PETSc
   use reallocate_mod, only: reallocate_bounds, reallocate_clean
+  use SSA_DIVA_utilities, only: calc_driving_stress, calc_horizontal_strain_rates, relax_viscosity_iterations, &
+    apply_velocity_limits, calc_L2_norm_uv
 
   implicit none
 
@@ -102,7 +104,7 @@ contains
     real(dp), dimension(:), allocatable :: BC_prescr_v_b_applied
     integer                             :: viscosity_iteration_i
     logical                             :: has_converged
-    real(dp)                            :: resid_UV, resid_UV_prev
+    real(dp)                            :: L2_uv, L2_uv_prev
     real(dp)                            :: uv_min, uv_max
     real(dp)                            :: visc_it_relax_applied
     real(dp)                            :: Glens_flow_law_epsilon_sq_0_applied
@@ -141,10 +143,10 @@ contains
     end if
 
     ! Calculate the driving stress
-    call calc_driving_stress( mesh, ice, SSA)
+    call calc_driving_stress( mesh, ice, SSA%tau_dx_b, SSA%tau_dy_b)
 
     ! Adaptive relaxation parameter for the viscosity iteration
-    resid_UV                            = 1E9_dp
+    L2_uv                               = 1E9_dp
     nit_diverg_consec                   = 0
     visc_it_relax_applied               = C%visc_it_relax
     Glens_flow_law_epsilon_sq_0_applied = C%Glens_flow_law_epsilon_sq_0
@@ -160,7 +162,7 @@ contains
       viscosity_iteration_i = viscosity_iteration_i + 1
 
       ! Calculate the strain rates for the current velocity solution
-      call calc_strain_rates( mesh, SSA)
+      call calc_horizontal_strain_rates( mesh, SSA%u_b, SSA%v_b, SSA%du_dx_a, SSA%du_dy_a, SSA%dv_dx_a, SSA%dv_dy_a)
 
       ! Calculate the effective viscosity for the current velocity solution
       call calc_effective_viscosity( mesh, ice, SSA, Glens_flow_law_epsilon_sq_0_applied)
@@ -176,17 +178,17 @@ contains
       n_Axb_its = n_Axb_its + n_Axb_its_visc_it
 
       ! Limit velocities for improved stability
-      call apply_velocity_limits( mesh, SSA)
+      call apply_velocity_limits( mesh, SSA%u_b, SSA%v_b)
 
       ! Reduce the change between velocity solutions
-      call relax_viscosity_iterations( mesh, SSA, visc_it_relax_applied)
+      call relax_viscosity_iterations( mesh, SSA%u_b, SSA%v_b, SSA%u_b_prev, SSA%v_b_prev, visc_it_relax_applied)
 
       ! Calculate the L2-norm of the two consecutive velocity solutions
-      resid_UV_prev = resid_UV
-      call calc_visc_iter_UV_resid( mesh, SSA, resid_UV)
+      L2_uv_prev = L2_uv
+      call calc_L2_norm_uv( mesh, SSA%u_b, SSA%v_b, SSA%u_b_prev, SSA%v_b_prev, L2_uv)
 
       ! if the viscosity iteration diverges, lower the relaxation parameter
-      if (resid_UV > resid_UV_prev) then
+      if (L2_uv > L2_uv_prev) then
         nit_diverg_consec = nit_diverg_consec + 1
       else
         nit_diverg_consec = 0
@@ -213,7 +215,7 @@ contains
 
       ! if the viscosity iteration has converged, or has reached the maximum allowed number of iterations, stop it.
       has_converged = .false.
-      if (resid_UV < C%visc_it_norm_dUV_tol) then
+      if (L2_uv < C%visc_it_norm_dUV_tol) then
         has_converged = .TRUE.
       end if
 
@@ -1293,69 +1295,6 @@ contains
 
   ! == Calculate several intermediate terms in the SSA
 
-  subroutine calc_driving_stress( mesh, ice, SSA)
-    !< Calculate the driving stress
-
-    ! In/output variables:
-    type(type_mesh),                    intent(in   ):: mesh
-    type(type_ice_model),               intent(in   ):: ice
-    type(type_ice_velocity_solver_SSA), intent(inout):: SSA
-
-    ! Local variables:
-    character(len=1024), parameter      :: routine_name = 'calc_driving_stress'
-    real(dp), dimension(:), allocatable :: Hi_b
-    real(dp), dimension(:), allocatable :: dHs_dx_b
-    real(dp), dimension(:), allocatable :: dHs_dy_b
-    integer                             :: ti
-
-    ! Add routine to path
-    call init_routine( routine_name)
-
-    ! allocate shared memory
-    allocate( Hi_b(     mesh%ti1:mesh%ti2))
-    allocate( dHs_dx_b( mesh%ti1:mesh%ti2))
-    allocate( dHs_dy_b( mesh%ti1:mesh%ti2))
-
-    ! Calculate Hi, dHs/dx, and dHs/dy on the b-grid
-    call map_a_b_2D( mesh, ice%Hi, Hi_b    )
-    call ddx_a_b_2D( mesh, ice%Hs, dHs_dx_b)
-    call ddy_a_b_2D( mesh, ice%Hs, dHs_dy_b)
-
-    ! Calculate the driving stress
-    do ti = mesh%ti1, mesh%ti2
-      SSA%tau_dx_b( ti) = -ice_density * grav * Hi_b( ti) * dHs_dx_b( ti)
-      SSA%tau_dy_b( ti) = -ice_density * grav * Hi_b( ti) * dHs_dy_b( ti)
-    end do
-
-    ! Finalise routine path
-    call finalise_routine( routine_name)
-
-  end subroutine calc_driving_stress
-
-  subroutine calc_strain_rates( mesh, SSA)
-    !< Calculate the strain rates
-
-    ! In/output variables:
-    type(type_mesh),                     intent(in   ) :: mesh
-    type(type_ice_velocity_solver_SSA),  intent(inout) :: SSA
-
-    ! Local variables:
-    character(len=1024), parameter :: routine_name = 'calc_strain_rates'
-
-    ! Add routine to path
-    call init_routine( routine_name)
-
-    ! Calculate the strain rates
-    call ddx_b_a_2D( mesh, SSA%u_b, SSA%du_dx_a)
-    call ddy_b_a_2D( mesh, SSA%u_b, SSA%du_dy_a)
-    call ddx_b_a_2D( mesh, SSA%v_b, SSA%dv_dx_a)
-    call ddy_b_a_2D( mesh, SSA%v_b, SSA%dv_dy_a)
-
-    ! Finalise routine path
-    call finalise_routine( routine_name)
-
-  end subroutine calc_strain_rates
-
   subroutine calc_vertically_averaged_flow_parameter( mesh, ice, SSA)
     !< Calculate the vertical average of Glen's flow parameter A
 
@@ -1474,108 +1413,6 @@ contains
     call finalise_routine( routine_name)
 
   end subroutine calc_applied_basal_friction_coefficient
-
-  ! == Some useful tools for improving numerical stability of the viscosity iteration
-
-  subroutine relax_viscosity_iterations( mesh, SSA, visc_it_relax)
-    !< Reduce the change between velocity solutions
-
-    ! In/output variables:
-    type(type_mesh),                    intent(in   ) :: mesh
-    type(type_ice_velocity_solver_SSA), intent(inout) :: SSA
-    real(dp),                           intent(in   ) :: visc_it_relax
-
-    ! Local variables:
-    character(len=1024), parameter :: routine_name = 'relax_viscosity_iterations'
-    integer                        :: ti
-
-    ! Add routine to path
-    call init_routine( routine_name)
-
-    do ti = mesh%ti1, mesh%ti2
-      SSA%u_b( ti) = (visc_it_relax * SSA%u_b( ti)) + ((1._dp - visc_it_relax) * SSA%u_b_prev( ti))
-      SSA%v_b( ti) = (visc_it_relax * SSA%v_b( ti)) + ((1._dp - visc_it_relax) * SSA%v_b_prev( ti))
-    end do
-
-    ! Finalise routine path
-    call finalise_routine( routine_name)
-
-  end subroutine relax_viscosity_iterations
-
-  subroutine calc_visc_iter_UV_resid( mesh, SSA, resid_UV)
-    !< Calculate the L2-norm of the two consecutive velocity solutions
-
-    ! In/output variables:
-    type(type_mesh),                    intent(in   ) :: mesh
-    type(type_ice_velocity_solver_SSA), intent(in   ) :: SSA
-    real(dp),                           intent(  out) :: resid_UV
-
-    ! Local variables:
-    character(len=1024), parameter :: routine_name = 'calc_visc_iter_UV_resid'
-    integer                        :: ierr
-    integer                        :: ti
-    real(dp)                       :: res1, res2
-
-    ! Add routine to path
-    call init_routine( routine_name)
-
-    res1 = 0._dp
-    res2 = 0._dp
-
-    do ti = mesh%ti1, mesh%ti2
-
-      res1 = res1 + (SSA%u_b( ti) - SSA%u_b_prev( ti))**2
-      res1 = res1 + (SSA%v_b( ti) - SSA%v_b_prev( ti))**2
-
-      res2 = res2 + (SSA%u_b( ti) + SSA%u_b_prev( ti))**2
-      res2 = res2 + (SSA%v_b( ti) + SSA%v_b_prev( ti))**2
-
-    end do
-
-    ! Combine results from all processes
-    call MPI_ALLREDUCE( MPI_IN_PLACE, res1, 1, MPI_doUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
-    call MPI_ALLREDUCE( MPI_IN_PLACE, res2, 1, MPI_doUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
-
-    ! Calculate residual
-    resid_UV = 2._dp * res1 / max( res2, 1E-8_dp)
-
-    ! Finalise routine path
-    call finalise_routine( routine_name)
-
-  end subroutine calc_visc_iter_UV_resid
-
-  subroutine apply_velocity_limits( mesh, SSA)
-    !< Limit velocities for improved stability
-
-    ! In/output variables:
-    type(type_mesh),                    intent(in   ) :: mesh
-    type(type_ice_velocity_solver_SSA), intent(inout) :: SSA
-
-    ! Local variables:
-    character(len=1024), parameter :: routine_name = 'apply_velocity_limits'
-    integer                        :: ti
-    real(dp)                       :: uabs
-
-    ! Add routine to path
-    call init_routine( routine_name)
-
-    do ti = mesh%ti1, mesh%ti2
-
-      ! Calculate absolute speed
-      uabs = sqrt( SSA%u_b( ti)**2 + SSA%v_b( ti)**2)
-
-      ! Reduce velocities if necessary
-      if (uabs > C%vel_max) then
-        SSA%u_b( ti) = SSA%u_b( ti) * C%vel_max / uabs
-        SSA%v_b( ti) = SSA%v_b( ti) * C%vel_max / uabs
-      end if
-
-    end do
-
-    ! Finalise routine path
-    call finalise_routine( routine_name)
-
-  end subroutine apply_velocity_limits
 
   ! == Initialisation
 
