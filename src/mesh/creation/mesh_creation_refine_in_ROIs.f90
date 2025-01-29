@@ -40,11 +40,7 @@ contains
     real(dp), dimension(:,:  ), allocatable       :: poly_ROI
     integer                                       :: n1,n2,nn, n3
     real(dp), dimension(:,:  ), allocatable       :: poly
-    ! Assuming poly_ROI can vary in size
-    integer :: n_poly_ROI
-
-
-
+    
     ! Add routine to path
     call init_routine( routine_name)
 

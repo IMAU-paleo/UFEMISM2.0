@@ -260,8 +260,12 @@ contains
     call add_attribute_char( filename, ncid, id_var_poly_ROI, 'units'      , ''                          )
 
     ! npoly_ROI
-    call create_variable( filename, ncid, get_first_option_from_list( field_name_options_npoly_ROI), NF90_INT, (/ id_dim_ti /), id_var_npoly_ROI)
+    call create_scalar_variable( filename, ncid, 'npoly_ROI', NF90_INT, id_var_npoly_ROI)
     call add_attribute_char( filename, ncid, id_var_npoly_ROI, 'long_name'  , 'Number of ROI polygon coordinates')
+    call add_attribute_char( filename, ncid, id_var_npoly_ROI, 'units', '')
+
+    ! call create_variable( filename, ncid, get_first_option_from_list( field_name_options_npoly_ROI), NF90_INT, (/ id_dim_ti /), id_var_npoly_ROI)
+    ! call add_attribute_char( filename, ncid, id_var_npoly_ROI, 'long_name'  , 'Number of ROI polygon coordinates')
 
     ! == Create mesh variables - edge data
     ! ====================================
