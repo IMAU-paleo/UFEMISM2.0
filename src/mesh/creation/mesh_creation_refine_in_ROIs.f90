@@ -40,7 +40,7 @@ contains
     real(dp), dimension(:,:  ), allocatable       :: poly_ROI
     integer                                       :: n1,n2,nn, n3
     real(dp), dimension(:,:  ), allocatable       :: poly
-    
+
     ! Add routine to path
     call init_routine( routine_name)
 
@@ -232,8 +232,8 @@ contains
       ! Save poly_ROI in type mesh to use later to determine ROI mask; note this only works for the last one now
       mesh%poly_ROI = poly_ROI
       mesh%npoly_ROI = size(poly_ROI(:,1))
-      print*, size(poly_ROI(:,1))
-
+      
+      ! Clean up after yourself
       deallocate( poly_ROI)
 
       ! if no names are left, we are finished

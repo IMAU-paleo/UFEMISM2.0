@@ -218,7 +218,6 @@ contains
     call init_routine( routine_name)
 
     npoly_ROI = mesh%npoly_ROI
-    print*, 'npoly_ROI=', npoly_ROI
 
     ! Check for each grid point whether it is located within the polygon of the ROI
     do vi = mesh%vi1, mesh%vi2
