@@ -145,7 +145,7 @@ contains
     integer                        :: nV_mem, nTri_mem, nC_mem, n_two, n_three
     integer                        :: id_var_xmin, id_var_xmax, id_var_ymin, id_var_ymax, id_var_tol_dist, id_var_lambda_M, id_var_phi_M, id_var_beta_stereo
     integer                        :: id_var_V, id_var_nC, id_var_C, id_var_niTri, id_var_iTri, id_var_VBI
-    integer                        :: id_var_Tri, id_var_Tricc, id_var_TriC
+    integer                        :: id_var_Tri, id_var_Tricc, id_var_TriC, id_var_poly_ROI, id_var_npoly_ROI
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -196,6 +196,10 @@ contains
     call inquire_var_multopt( filename, ncid, field_name_options_Tricc         , id_var_Tricc         )
     call inquire_var_multopt( filename, ncid, field_name_options_TriC          , id_var_TriC          )
 
+    ! ROI data
+    call inquire_var_multopt( filename, ncid, field_name_options_poly_ROI      , id_var_poly_ROI      )
+    call inquire_var_multopt( filename, ncid, field_name_options_npoly_ROI     , id_var_npoly_ROI     )
+
     ! == Read mesh data
     ! =================
 
@@ -210,7 +214,7 @@ contains
     call read_var_master(  filename, ncid, id_var_beta_stereo   , mesh%beta_stereo   )
 
     ! Vertex data
-    call read_var_master(  filename, ncid, id_var_V             , mesh%V             )
+    call read_var_master( filename, ncid, id_var_V             , mesh%V             )
     call read_var_master( filename, ncid, id_var_nC            , mesh%nC            )
     call read_var_master( filename, ncid, id_var_C             , mesh%C             )
     call read_var_master( filename, ncid, id_var_niTri         , mesh%niTri         )
@@ -221,6 +225,10 @@ contains
     call read_var_master( filename, ncid, id_var_Tri           , mesh%Tri           )
     call read_var_master( filename, ncid, id_var_Tricc         , mesh%Tricc         )
     call read_var_master( filename, ncid, id_var_TriC          , mesh%TriC          )
+
+    ! ROI data 
+    call read_var_master( filename, ncid, id_var_poly_ROI      , mesh%poly_ROI      )
+    call read_var_master( filename, ncid, id_var_npoly_ROI     , mesh%npoly_ROI     )
 
     ! Safety - check if the mesh data read from NetCDF makes sense
     if (par%master) call check_mesh( mesh)

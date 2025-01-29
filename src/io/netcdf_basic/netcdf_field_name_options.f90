@@ -88,7 +88,7 @@ module netcdf_field_name_options
   character(len=1024), parameter :: field_name_options_S_ocean        = 'S_ocean||s_ocean||s_an'
 
   character(len=1024), parameter :: field_name_options_poly_ROI       = 'poly_ROI'
-  character(len=1024), parameter :: field_name_options_npoly_ROI       = 'npoly_ROI'
+  character(len=1024), parameter :: field_name_options_npoly_ROI      = 'npoly_ROI'
 
 
 contains

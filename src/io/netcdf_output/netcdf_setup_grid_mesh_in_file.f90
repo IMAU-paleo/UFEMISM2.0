@@ -253,19 +253,18 @@ contains
     call add_attribute_char( filename, ncid, id_var_TriBI, 'long_name'  , 'Triangle boundary index')
     call add_attribute_char( filename, ncid, id_var_TriBI, 'orientation', '1 = N, 2 = NE, 3 = E, 4 = SE, 5 = S, 6 = SW, 7 = W, 8 = NW')
 
+    ! ROI data
+    ! ========
 
     ! poly_ROI
-    call create_variable( filename, ncid, get_first_option_from_list( field_name_options_poly_ROI         ), NF90_DOUBLE, (/ id_dim_ti, id_dim_two   /), id_var_poly_ROI         )
+    call create_variable( filename, ncid, get_first_option_from_list( field_name_options_poly_ROI         ), NF90_DOUBLE, (/ id_dim_ti, id_dim_two   /), id_var_poly_ROI   )
     call add_attribute_char( filename, ncid, id_var_poly_ROI, 'long_name'  , 'ROI polygon coordinates')
     call add_attribute_char( filename, ncid, id_var_poly_ROI, 'units'      , ''                          )
 
     ! npoly_ROI
-    call create_scalar_variable( filename, ncid, 'npoly_ROI', NF90_INT, id_var_npoly_ROI)
+    call create_scalar_variable( filename, ncid, get_first_option_from_list( field_name_options_npoly_ROI ), NF90_INT, id_var_npoly_ROI                                    )
     call add_attribute_char( filename, ncid, id_var_npoly_ROI, 'long_name'  , 'Number of ROI polygon coordinates')
     call add_attribute_char( filename, ncid, id_var_npoly_ROI, 'units', '')
-
-    ! call create_variable( filename, ncid, get_first_option_from_list( field_name_options_npoly_ROI), NF90_INT, (/ id_dim_ti /), id_var_npoly_ROI)
-    ! call add_attribute_char( filename, ncid, id_var_npoly_ROI, 'long_name'  , 'Number of ROI polygon coordinates')
 
     ! == Create mesh variables - edge data
     ! ====================================
