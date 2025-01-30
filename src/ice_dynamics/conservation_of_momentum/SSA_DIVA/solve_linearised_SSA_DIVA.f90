@@ -1,23 +1,23 @@
 module solve_linearised_SSA_DIVA
 
   use precisions, only: dp
-  use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash
+  use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash, warning
   use model_configuration, only: C
   use mesh_types, only: type_mesh
   use CSR_sparse_matrix_type, only: type_sparse_matrix_CSR_dp
   use CSR_sparse_matrix_utilities, only: allocate_matrix_CSR_dist, add_entry_CSR_dist, read_single_row_CSR_dist
   use mesh_utilities, only: find_ti_copy_ISMIP_HOM_periodic
   use mpi_distributed_memory, only: gather_to_all
-  use petsc_basic, only: solve_matrix_equation_CSR_PETSc
+  use petsc_basic, only: multiply_CSR_matrix_with_vector_1D, solve_matrix_equation_CSR_PETSc
 
   implicit none
 
   private
 
-  public :: solve_SSA_DIVA_linearised, &
-    calc_SSA_DIVA_stiffness_matrix_row_free, calc_SSA_DIVA_sans_stiffness_matrix_row_free, &
-    calc_SSA_DIVA_stiffness_matrix_row_BC_west, calc_SSA_DIVA_stiffness_matrix_row_BC_east, &
-    calc_SSA_DIVA_stiffness_matrix_row_BC_south, calc_SSA_DIVA_stiffness_matrix_row_BC_north
+  public :: solve_SSA_DIVA_linearised!, &
+    ! calc_SSA_DIVA_stiffness_matrix_row_free, calc_SSA_DIVA_sans_stiffness_matrix_row_free, &
+    ! calc_SSA_DIVA_stiffness_matrix_row_BC_west, calc_SSA_DIVA_stiffness_matrix_row_BC_east, &
+    ! calc_SSA_DIVA_stiffness_matrix_row_BC_south, calc_SSA_DIVA_stiffness_matrix_row_BC_north
 
 contains
 
@@ -40,103 +40,137 @@ contains
     real(dp), dimension(mesh%ti1:mesh%ti2), intent(in   ) :: BC_prescr_v_b         ! Prescribed velocities in the y-direction
 
     ! Local variables:
-    character(len=1024), parameter      :: routine_name = 'solve_SSA_DIVA_linearised'
-    integer                             :: ncols, ncols_loc, nrows, nrows_loc, nnz_est_proc
-    type(type_sparse_matrix_CSR_dp)     :: A_CSR
-    real(dp), dimension(:), allocatable :: bb
-    real(dp), dimension(:), allocatable :: uv_buv
-    integer                             :: row_tiuv,ti,uv
+    character(len=1024), parameter         :: routine_name = 'solve_SSA_DIVA_linearised'
+    real(dp), dimension(mesh%ti1:mesh%ti2) :: du_dx_b, du_dy_b, d2u_dxdy_b
+    real(dp), dimension(mesh%ti1:mesh%ti2) :: dv_dx_b, dv_dy_b, d2v_dxdy_b
 
     ! Add routine to path
     call init_routine( routine_name)
 
+    ! x-component
+    ! ===========
+
     ! Store the previous solution
     call gather_to_all( u_b, u_b_prev)
+
+    ! Calculate strain rates of v
+    call multiply_CSR_matrix_with_vector_1D( mesh%M2_ddx_b_b   , v_b, dv_dx_b)
+    call multiply_CSR_matrix_with_vector_1D( mesh%M2_ddy_b_b   , v_b, dv_dy_b)
+    call multiply_CSR_matrix_with_vector_1D( mesh%M2_d2dxdy_b_b, v_b, d2v_dxdy_b)
+
+    ! Solve the first equation for u, keeping v fixed
+    call solve_SSA_DIVA_linearised_x( mesh, u_b, N_b, dN_dx_b, dN_dy_b, &
+      basal_friction_coefficient_b, tau_dx_b, u_b_prev, dv_dx_b, dv_dy_b, d2v_dxdy_b, &
+      PETSc_rtol, PETSc_abstol, n_Axb_its, BC_prescr_mask_b, BC_prescr_u_b)
+
+    ! y-component
+    ! ===========
+
+    ! Store the previous solution
     call gather_to_all( v_b, v_b_prev)
+
+    ! Calculate strain rates of v
+    call multiply_CSR_matrix_with_vector_1D( mesh%M2_ddx_b_b   , u_b, du_dx_b)
+    call multiply_CSR_matrix_with_vector_1D( mesh%M2_ddy_b_b   , u_b, du_dy_b)
+    call multiply_CSR_matrix_with_vector_1D( mesh%M2_d2dxdy_b_b, u_b, d2u_dxdy_b)
+
+    ! Solve the first equation for u, keeping v fixed
+    call solve_SSA_DIVA_linearised_y( mesh, v_b, N_b, dN_dx_b, dN_dy_b, &
+      basal_friction_coefficient_b, tau_dy_b, v_b_prev, du_dx_b, du_dy_b, d2u_dxdy_b, &
+      PETSc_rtol, PETSc_abstol, n_Axb_its, BC_prescr_mask_b, BC_prescr_v_b)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine solve_SSA_DIVA_linearised
+
+  subroutine solve_SSA_DIVA_linearised_x( mesh, u_b, N_b, dN_dx_b, dN_dy_b, &
+    basal_friction_coefficient_b, tau_dx_b, u_b_prev, dv_dx_b, dv_dy_b, d2v_dxdy_b, &
+    PETSc_rtol, PETSc_abstol, n_Axb_its, BC_prescr_mask_b, BC_prescr_u_b)
+    !< Solve the linearised SSA
+
+    ! In/output variables:
+    type(type_mesh),                        intent(in   ) :: mesh
+    real(dp), dimension(mesh%ti1:mesh%ti2), intent(inout) :: u_b
+    real(dp), dimension(mesh%ti1:mesh%ti2), intent(in   ) :: N_b, dN_dx_b, dN_dy_b
+    real(dp), dimension(mesh%ti1:mesh%ti2), intent(in   ) :: basal_friction_coefficient_b
+    real(dp), dimension(mesh%ti1:mesh%ti2), intent(in   ) :: tau_dx_b
+    real(dp), dimension(mesh%nTri),         intent(inout) :: u_b_prev
+    real(dp), dimension(mesh%ti1:mesh%ti2), intent(in   ) :: dv_dx_b, dv_dy_b, d2v_dxdy_b
+    real(dp),                               intent(in   ) :: PETSc_rtol, PETSc_abstol
+    integer,                                intent(  out) :: n_Axb_its             ! Number of iterations used in the iterative solver
+    integer,  dimension(mesh%ti1:mesh%ti2), intent(in   ) :: BC_prescr_mask_b      ! Mask of triangles where velocity is prescribed
+    real(dp), dimension(mesh%ti1:mesh%ti2), intent(in   ) :: BC_prescr_u_b         ! Prescribed velocities in the x-direction
+
+    ! Local variables:
+    character(len=1024), parameter         :: routine_name = 'solve_SSA_DIVA_linearised_x'
+    integer                                :: ncols, ncols_loc, nrows, nrows_loc, nnz_est_proc
+    type(type_sparse_matrix_CSR_dp)        :: A_CSR
+    real(dp), dimension(mesh%ti1:mesh%ti2) :: bb
+    integer                                :: ti
+    character(len=256)                     :: choice_BC
+
+    ! Add routine to path
+    call init_routine( routine_name)
 
     ! == Initialise the stiffness matrix using the native UFEMISM CSR-matrix format
     ! =============================================================================
 
     ! Matrix size
-    ncols           = mesh%nTri     * 2      ! from
-    ncols_loc       = mesh%nTri_loc * 2
-    nrows           = mesh%nTri     * 2      ! to
-    nrows_loc       = mesh%nTri_loc * 2
-    nnz_est_proc    = mesh%M2_ddx_b_b%nnz * 4
+    ncols           = mesh%nTri          ! from
+    ncols_loc       = mesh%nTri_loc
+    nrows           = mesh%nTri          ! to
+    nrows_loc       = mesh%nTri_loc
+    nnz_est_proc    = mesh%M2_ddx_b_b%nnz
 
     call allocate_matrix_CSR_dist( A_CSR, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
-
-    ! allocate memory for the load vector and the solution
-    allocate( bb(     mesh%ti1*2-1: mesh%ti2*2))
-    allocate( uv_buv( mesh%ti1*2-1: mesh%ti2*2))
-
-    ! Fill in the current velocity solution
-    do ti = mesh%ti1, mesh%ti2
-
-      ! u
-      row_tiuv = mesh%tiuv2n( ti,1)
-      uv_buv( row_tiuv) = u_b( ti)
-
-      ! v
-      row_tiuv = mesh%tiuv2n( ti,2)
-      uv_buv( row_tiuv) = v_b( ti)
-
-    end do
 
     ! == Construct the stiffness matrix for the linearised SSA
     ! ========================================================
 
-    do row_tiuv = A_CSR%i1, A_CSR%i2
-
-      ti = mesh%n2tiuv( row_tiuv,1)
-      uv = mesh%n2tiuv( row_tiuv,2)
+    do ti = mesh%ti1, mesh%ti2
 
       if (BC_prescr_mask_b( ti) == 1) then
         ! Dirichlet boundary condition; velocities are prescribed for this triangle
 
         ! Stiffness matrix: diagonal element set to 1
-        call add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, 1._dp)
+        call add_entry_CSR_dist( A_CSR, ti, ti, 1._dp)
 
         ! Load vector: prescribed velocity
-        if     (uv == 1) then
-          bb( row_tiuv) = BC_prescr_u_b( ti)
-        elseif (uv == 2) then
-          bb( row_tiuv) = BC_prescr_v_b( ti)
-        else
-          call crash('uv can only be 1 or 2!')
+        bb( ti) = BC_prescr_u_b( ti)
+
+      elseif (mesh%TriBI( ti) > 0) then
+        ! Domain border; apply boundary conditions
+
+        if (mesh%TriBI( ti) == 1 .or. mesh%TriBI( ti) == 2) then
+          ! Northern domain border
+          choice_BC = C%BC_u_north
+        elseif (mesh%TriBI( ti) == 3 .or. mesh%TriBI( ti) == 4) then
+          ! Eastern domain border
+          choice_BC = C%BC_u_east
+        elseif (mesh%TriBI( ti) == 5 .or. mesh%TriBI( ti) == 6) then
+          ! Southern domain border
+          choice_BC = C%BC_u_south
+        elseif (mesh%TriBI( ti) == 7 .or. mesh%TriBI( ti) == 8) then
+          ! Western domain border
+          choice_BC = C%BC_u_west
         end if
 
-      elseif (mesh%TriBI( ti) == 1 .or. mesh%TriBI( ti) == 2) then
-        ! Northern domain border
-
-        call calc_SSA_DIVA_stiffness_matrix_row_BC_north( mesh, u_b_prev, v_b_prev, A_CSR, bb, row_tiuv)
-
-      elseif (mesh%TriBI( ti) == 3 .or. mesh%TriBI( ti) == 4) then
-        ! Eastern domain border
-
-        call calc_SSA_DIVA_stiffness_matrix_row_BC_east( mesh, u_b_prev, v_b_prev, A_CSR, bb, row_tiuv)
-
-      elseif (mesh%TriBI( ti) == 5 .or. mesh%TriBI( ti) == 6) then
-        ! Southern domain border
-
-        call calc_SSA_DIVA_stiffness_matrix_row_BC_south( mesh, u_b_prev, v_b_prev, A_CSR, bb, row_tiuv)
-
-      elseif (mesh%TriBI( ti) == 7 .or. mesh%TriBI( ti) == 8) then
-        ! Western domain border
-
-        call calc_SSA_DIVA_stiffness_matrix_row_BC_west( mesh, u_b_prev, v_b_prev, A_CSR, bb, row_tiuv)
+        call calc_SSA_DIVA_stiffness_matrix_row_BC( mesh, u_b_prev, A_CSR, bb, ti, choice_BC)
 
       else
         ! No boundary conditions apply; solve the SSA
 
         if (C%do_include_SSADIVA_crossterms) then
           ! Calculate matrix coefficients for the full SSA
-          call calc_SSA_DIVA_stiffness_matrix_row_free( mesh, N_b, dN_dx_b, dN_dy_b, &
-            basal_friction_coefficient_b, tau_dx_b, tau_dy_b, A_CSR, bb, row_tiuv)
+          call calc_SSA_DIVA_stiffness_matrix_row_free_x( mesh, N_b, dN_dx_b, dN_dy_b, &
+            basal_friction_coefficient_b, tau_dx_b, dv_dx_b, dv_dy_b, d2v_dxdy_b, &
+            A_CSR, bb, ti)
         else
           ! Calculate matrix coefficients for the SSA sans the gradients of the effective viscosity (the "cross-terms")
-          call calc_SSA_DIVA_sans_stiffness_matrix_row_free( mesh, N_b, &
-            basal_friction_coefficient_b, tau_dx_b, tau_dy_b, A_CSR, bb, row_tiuv)
+          call crash('whaa!')
+          ! call calc_SSA_DIVA_sans_stiffness_matrix_row_free_u( mesh, N_b, &
+          !   basal_friction_coefficient_b, tau_dx_b, tau_dy_b, A_CSR, bb, ti)
         end if
 
       end if
@@ -147,29 +181,119 @@ contains
     ! ============================
 
     ! Use PETSc to solve the matrix equation
-    call solve_matrix_equation_CSR_PETSc( A_CSR, bb, uv_buv, PETSc_rtol, PETSc_abstol, &
-      n_Axb_its)
-
-    ! Disentangle the u and v components of the velocity solution
-    do ti = mesh%ti1, mesh%ti2
-
-      ! u
-      row_tiuv = mesh%tiuv2n( ti,1)
-      u_b( ti) = uv_buv( row_tiuv)
-
-      ! v
-      row_tiuv = mesh%tiuv2n( ti,2)
-      v_b( ti) = uv_buv( row_tiuv)
-
-    end do
+    call solve_matrix_equation_CSR_PETSc( A_CSR, bb, u_b, PETSc_rtol, PETSc_abstol, n_Axb_its)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
 
-  end subroutine solve_SSA_DIVA_linearised
+  end subroutine solve_SSA_DIVA_linearised_x
 
-  subroutine calc_SSA_DIVA_stiffness_matrix_row_free( mesh, N_b, dN_dx_b, dN_dy_b, &
-    basal_friction_coefficient_b, tau_dx_b, tau_dy_b, A_CSR, bb, row_tiuv)
+  subroutine solve_SSA_DIVA_linearised_y( mesh, v_b, N_b, dN_dx_b, dN_dy_b, &
+    basal_friction_coefficient_b, tau_dy_b, v_b_prev, du_dx_b, du_dy_b, d2u_dxdy_b, &
+    PETSc_rtol, PETSc_abstol, n_Axb_its, BC_prescr_mask_b, BC_prescr_v_b)
+    !< Solve the linearised SSA
+
+    ! In/output variables:
+    type(type_mesh),                        intent(in   ) :: mesh
+    real(dp), dimension(mesh%ti1:mesh%ti2), intent(inout) :: v_b
+    real(dp), dimension(mesh%ti1:mesh%ti2), intent(in   ) :: N_b, dN_dx_b, dN_dy_b
+    real(dp), dimension(mesh%ti1:mesh%ti2), intent(in   ) :: basal_friction_coefficient_b
+    real(dp), dimension(mesh%ti1:mesh%ti2), intent(in   ) :: tau_dy_b
+    real(dp), dimension(mesh%nTri),         intent(inout) :: v_b_prev
+    real(dp), dimension(mesh%ti1:mesh%ti2), intent(in   ) :: du_dx_b, du_dy_b, d2u_dxdy_b
+    real(dp),                               intent(in   ) :: PETSc_rtol, PETSc_abstol
+    integer,                                intent(  out) :: n_Axb_its             ! Number of iterations used in the iterative solver
+    integer,  dimension(mesh%ti1:mesh%ti2), intent(in   ) :: BC_prescr_mask_b      ! Mask of triangles where velocity is prescribed
+    real(dp), dimension(mesh%ti1:mesh%ti2), intent(in   ) :: BC_prescr_v_b         ! Prescribed velocities in the y-direction
+
+    ! Local variables:
+    character(len=1024), parameter         :: routine_name = 'solve_SSA_DIVA_linearised_y'
+    integer                                :: ncols, ncols_loc, nrows, nrows_loc, nnz_est_proc
+    type(type_sparse_matrix_CSR_dp)        :: A_CSR
+    real(dp), dimension(mesh%ti1:mesh%ti2) :: bb
+    integer                                :: ti
+    character(len=256)                     :: choice_BC
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! == Initialise the stiffness matrix using the native UFEMISM CSR-matrix format
+    ! =============================================================================
+
+    ! Matrix size
+    ncols           = mesh%nTri          ! from
+    ncols_loc       = mesh%nTri_loc
+    nrows           = mesh%nTri          ! to
+    nrows_loc       = mesh%nTri_loc
+    nnz_est_proc    = mesh%M2_ddx_b_b%nnz
+
+    call allocate_matrix_CSR_dist( A_CSR, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+
+    ! == Construct the stiffness matrix for the linearised SSA
+    ! ========================================================
+
+    do ti = mesh%ti1, mesh%ti2
+
+      if (BC_prescr_mask_b( ti) == 1) then
+        ! Dirichlet boundary condition; velocities are prescribed for this triangle
+
+        ! Stiffness matrix: diagonal element set to 1
+        call add_entry_CSR_dist( A_CSR, ti, ti, 1._dp)
+
+        ! Load vector: prescribed velocity
+        bb( ti) = BC_prescr_v_b( ti)
+
+      elseif (mesh%TriBI( ti) > 0) then
+        ! Domain border; apply boundary conditions
+
+        if (mesh%TriBI( ti) == 1 .or. mesh%TriBI( ti) == 2) then
+          ! Northern domain border
+          choice_BC = C%BC_v_north
+        elseif (mesh%TriBI( ti) == 3 .or. mesh%TriBI( ti) == 4) then
+          ! Eastern domain border
+          choice_BC = C%BC_v_east
+        elseif (mesh%TriBI( ti) == 5 .or. mesh%TriBI( ti) == 6) then
+          ! Southern domain border
+          choice_BC = C%BC_v_south
+        elseif (mesh%TriBI( ti) == 7 .or. mesh%TriBI( ti) == 8) then
+          ! Western domain border
+          choice_BC = C%BC_v_west
+        end if
+
+        call calc_SSA_DIVA_stiffness_matrix_row_BC( mesh, v_b_prev, A_CSR, bb, ti, choice_BC)
+
+      else
+        ! No boundary conditions apply; solve the SSA
+
+        if (C%do_include_SSADIVA_crossterms) then
+          ! Calculate matrix coefficients for the full SSA
+          call calc_SSA_DIVA_stiffness_matrix_row_free_y( mesh, N_b, dN_dx_b, dN_dy_b, &
+            basal_friction_coefficient_b, tau_dy_b, du_dx_b, du_dy_b, d2u_dxdy_b, &
+            A_CSR, bb, ti)
+        else
+          ! Calculate matrix coefficients for the SSA sans the gradients of the effective viscosity (the "cross-terms")
+          call crash('whaa!')
+          ! call calc_SSA_DIVA_sans_stiffness_matrix_row_free_u( mesh, N_b, &
+          !   basal_friction_coefficient_b, tau_dx_b, tau_dy_b, A_CSR, bb, ti)
+        end if
+
+      end if
+
+    end do
+
+    ! == Solve the matrix equation
+    ! ============================
+
+    ! Use PETSc to solve the matrix equation
+    call solve_matrix_equation_CSR_PETSc( A_CSR, bb, v_b, PETSc_rtol, PETSc_abstol, n_Axb_its)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine solve_SSA_DIVA_linearised_y
+
+  subroutine calc_SSA_DIVA_stiffness_matrix_row_free_x( mesh, N_b, dN_dx_b, dN_dy_b, &
+    basal_friction_coefficient_b, tau_dx_b, dv_dx_b, dv_dy_b, d2v_dxdy_b, A_CSR, bb, ti)
     !< Add coefficients to this matrix row to represent the linearised SSA
 
     ! The SSA reads;
@@ -194,135 +318,84 @@ contains
     !   4 N d2v/dy2  + 4 dN/dy dv/dy + N d2v/dx2 + dN/dx dv/dx - beta_b v + ...
     !   3 N d2u/dxdy + 2 dN/dy du/dx +             dN/dx du/dy = -tau_dy
     !
+    ! Moving all terms involving v to the right-hand side of the first equation,
+    ! and all terms involving u to the right-hand side of the second equation, yields:
+    !
+    !   4 N d2u/dx2  + 4 dN/dx du/dx + N d2u/dy2 + dN/dy du/dy - beta_b u = ...
+    !   -tau_dx - 3 N d2v/dxdy - 2 dN/dx dv/dy - dN/dy dv/dx
+    !
+    !   4 N d2v/dy2  + 4 dN/dy dv/dy + N d2v/dx2 + dN/dx dv/dx - beta_b v = ...
+    !   -tau_dy - 3 N d2u/dxdy - 2 dN/dy du/dx - dN/dx du/dy
+    !
     ! We define the velocities u,v, the basal friction coefficient beta_b, and the driving
     ! stress tau_d on the b-grid (triangles), and the effective viscosity eta and the
     ! product term N = eta H on the a-grid (vertices).
 
     ! In/output variables:
-    type(type_mesh),                               intent(in   ) :: mesh
-    real(dp), dimension(mesh%ti1:mesh%ti2),        intent(in   ) :: N_b, dN_dx_b, dN_dy_b
-    real(dp), dimension(mesh%ti1:mesh%ti2),        intent(in   ) :: basal_friction_coefficient_b
-    real(dp), dimension(mesh%ti1:mesh%ti2),        intent(in   ) :: tau_dx_b, tau_dy_b
-    type(type_sparse_matrix_CSR_dp),               intent(inout) :: A_CSR
-    real(dp), dimension(mesh%ti1*2-1: mesh%ti2*2), intent(inout) :: bb
-    integer,                                       intent(in   ) :: row_tiuv
+    type(type_mesh),                        intent(in   ) :: mesh
+    real(dp), dimension(mesh%ti1:mesh%ti2), intent(in   ) :: N_b, dN_dx_b, dN_dy_b
+    real(dp), dimension(mesh%ti1:mesh%ti2), intent(in   ) :: basal_friction_coefficient_b
+    real(dp), dimension(mesh%ti1:mesh%ti2), intent(in   ) :: tau_dx_b
+    real(dp), dimension(mesh%ti1:mesh%ti2), intent(in   ) :: dv_dx_b, dv_dy_b, d2v_dxdy_b
+    type(type_sparse_matrix_CSR_dp),        intent(inout) :: A_CSR
+    real(dp), dimension(mesh%ti1:mesh%ti2), intent(inout) :: bb
+    integer,                                intent(in   ) :: ti
 
     ! Local variables:
-    integer                             :: ti, uv
-    real(dp)                            :: N, dN_dx, dN_dy, basal_friction_coefficient, tau_dx, tau_dy
-    integer,  dimension(:), allocatable :: single_row_ind
-    real(dp), dimension(:), allocatable :: single_row_ddx_val
-    real(dp), dimension(:), allocatable :: single_row_ddy_val
-    real(dp), dimension(:), allocatable :: single_row_d2dx2_val
-    real(dp), dimension(:), allocatable :: single_row_d2dxdy_val
-    real(dp), dimension(:), allocatable :: single_row_d2dy2_val
-    integer                             :: single_row_nnz
-    real(dp)                            :: Au, Av
-    integer                             :: k, tj, col_tju, col_tjv
+    real(dp)                           :: N, dN_dx, dN_dy, basal_friction_coefficient, tau_dx
+    integer,  dimension(mesh%nC_mem*2) :: single_row_ind
+    real(dp), dimension(mesh%nC_mem*2) :: single_row_ddx_val
+    real(dp), dimension(mesh%nC_mem*2) :: single_row_ddy_val
+    real(dp), dimension(mesh%nC_mem*2) :: single_row_d2dx2_val
+    real(dp), dimension(mesh%nC_mem*2) :: single_row_d2dy2_val
+    integer                            :: single_row_nnz
+    real(dp)                           :: A
+    integer                            :: k, tj
 
-    ! Relevant indices for this triangle
-    ti = mesh%n2tiuv( row_tiuv,1)
-    uv = mesh%n2tiuv( row_tiuv,2)
-
-    ! N, dN/dx, dN/dy, basal_friction_coefficient_b, tau_dx, and tau_dy on this triangle
+    ! N, dN/dx, dN/dy, basal_friction_coefficient_b, and tau_dx on this triangle
     N                          = N_b(      ti)
     dN_dx                      = dN_dx_b(  ti)
     dN_dy                      = dN_dy_b(  ti)
     basal_friction_coefficient = basal_friction_coefficient_b( ti)
     tau_dx                     = tau_dx_b( ti)
-    tau_dy                     = tau_dy_b( ti)
-
-    ! allocate memory for single matrix rows
-    allocate( single_row_ind(        mesh%nC_mem*2))
-    allocate( single_row_ddx_val(    mesh%nC_mem*2))
-    allocate( single_row_ddy_val(    mesh%nC_mem*2))
-    allocate( single_row_d2dx2_val(  mesh%nC_mem*2))
-    allocate( single_row_d2dxdy_val( mesh%nC_mem*2))
-    allocate( single_row_d2dy2_val(  mesh%nC_mem*2))
 
     ! Read coefficients of the operator matrices
     call read_single_row_CSR_dist( mesh%M2_ddx_b_b   , ti, single_row_ind, single_row_ddx_val   , single_row_nnz)
     call read_single_row_CSR_dist( mesh%M2_ddy_b_b   , ti, single_row_ind, single_row_ddy_val   , single_row_nnz)
     call read_single_row_CSR_dist( mesh%M2_d2dx2_b_b , ti, single_row_ind, single_row_d2dx2_val , single_row_nnz)
-    call read_single_row_CSR_dist( mesh%M2_d2dxdy_b_b, ti, single_row_ind, single_row_d2dxdy_val, single_row_nnz)
     call read_single_row_CSR_dist( mesh%M2_d2dy2_b_b , ti, single_row_ind, single_row_d2dy2_val , single_row_nnz)
 
-    if (uv == 1) then
-      ! x-component
+    do k = 1, single_row_nnz
 
-      do k = 1, single_row_nnz
+      ! Relevant indices for this neighbouring triangle
+      tj = single_row_ind( k)
 
-        ! Relevant indices for this neighbouring triangle
-        tj      = single_row_ind( k)
-        col_tju = mesh%tiuv2n( tj,1)
-        col_tjv = mesh%tiuv2n( tj,2)
+    !   4 N d2u/dx2  + 4 dN/dx du/dx + N d2u/dy2 + dN/dy du/dy - beta_b u = ...
+    !   -tau_dx - 3 N d2v/dxdy - 2 dN/dx dv/dy - dN/dy dv/dx
 
-        !   4 N d2u/dx2  + 4 dN/dx du/dx + N d2u/dy2 + dN/dy du/dy - beta_b u + ...
-        !   3 N d2v/dxdy + 2 dN/dx dv/dy +             dN/dy dv/dx = -tau_dx
+      ! Combine the mesh operators
+      A = 4._dp * N     * single_row_d2dx2_val(  k) + &  ! 4  N    d2u/dx2
+          4._dp * dN_dx * single_row_ddx_val(    k) + &  ! 4 dN/dx du/dx
+                  N     * single_row_d2dy2_val(  k) + &  !    N    d2u/dy2
+                  dN_dy * single_row_ddy_val(    k)      !   dN/dy du/dy
+      if (tj == ti) A = A - basal_friction_coefficient   ! - beta_b u
 
-        ! Combine the mesh operators
-        Au = 4._dp * N     * single_row_d2dx2_val(  k) + &  ! 4  N    d2u/dx2
-            4._dp * dN_dx * single_row_ddx_val(    k) + &  ! 4 dN/dx du/dx
-                    N     * single_row_d2dy2_val(  k) + &  !    N    d2u/dy2
-                    dN_dy * single_row_ddy_val(    k)      !   dN/dy du/dy
-        if (tj == ti) Au = Au - basal_friction_coefficient  ! - beta_b u
+      ! Add coefficients to the stiffness matrix
+      call add_entry_CSR_dist( A_CSR, ti, tj, A)
 
-        Av = 3._dp * N     * single_row_d2dxdy_val( k) + &  ! 3  N    d2v/dxdy
-            2._dp * dN_dx * single_row_ddy_val(    k) + &  ! 2 dN/dx dv/dy
-                    dN_dy * single_row_ddx_val(    k)      !   dN/dy dv/dx
+    end do
 
-        ! Add coefficients to the stiffness matrix
-        call add_entry_CSR_dist( A_CSR, row_tiuv, col_tju, Au)
-        call add_entry_CSR_dist( A_CSR, row_tiuv, col_tjv, Av)
+    ! Load vector
+    bb( ti) = -tau_dx &
+            - 3._dp *  N    * d2v_dxdy_b( ti) &
+            - 2._dp * dN_dx * dv_dy_b( ti) &
+            -         dN_dy * dv_dx_b( ti)
 
-      end do
+  end subroutine calc_SSA_DIVA_stiffness_matrix_row_free_x
 
-      ! Load vector
-      bb( row_tiuv) = -tau_dx
-
-    elseif (uv == 2) then
-      ! y-component
-
-      do k = 1, single_row_nnz
-
-        ! Relevant indices for this neighbouring triangle
-        tj      = single_row_ind( k)
-        col_tju = mesh%tiuv2n( tj,1)
-        col_tjv = mesh%tiuv2n( tj,2)
-
-        !   4 N d2v/dy2  + 4 dN/dy dv/dy + N d2v/dx2 + dN/dx dv/dx - beta_b v + ...
-        !   3 N d2u/dxdy + 2 dN/dy du/dx +             dN/dx du/dy = -tau_dy
-
-        ! Combine the mesh operators
-        Av = 4._dp * N     * single_row_d2dy2_val(  k) + &  ! 4  N    d2v/dy2
-            4._dp * dN_dy * single_row_ddy_val(    k) + &  ! 4 dN/dy dv/dy
-                    N     * single_row_d2dx2_val(  k) + &  !    N    d2v/dx2
-                    dN_dx * single_row_ddx_val(    k)      !   dN/dx dv/dx
-        if (tj == ti) Av = Av - basal_friction_coefficient  ! - beta_b v
-
-        Au = 3._dp * N     * single_row_d2dxdy_val( k) + &  ! 3  N    d2u/dxdy
-            2._dp * dN_dy * single_row_ddx_val(    k) + &  ! 2 dN/dy du/dx
-                    dN_dx * single_row_ddy_val(    k)      !   dN/dx du/dy
-
-        ! Add coefficients to the stiffness matrix
-        call add_entry_CSR_dist( A_CSR, row_tiuv, col_tju, Au)
-        call add_entry_CSR_dist( A_CSR, row_tiuv, col_tjv, Av)
-
-      end do
-
-      ! Load vector
-      bb( row_tiuv) = -tau_dy
-
-    else
-      call crash('uv can only be 1 or 2!')
-    end if
-
-  end subroutine calc_SSA_DIVA_stiffness_matrix_row_free
-
-  subroutine calc_SSA_DIVA_sans_stiffness_matrix_row_free( mesh, N_b, basal_friction_coefficient_b, &
-    tau_dx_b, tau_dy_b, A_CSR, bb, row_tiuv)
+  subroutine calc_SSA_DIVA_stiffness_matrix_row_free_y( mesh, N_b, dN_dx_b, dN_dy_b, &
+    basal_friction_coefficient_b, tau_dy_b, du_dx_b, du_dy_b, d2u_dxdy_b, A_CSR, bb, ti)
     !< Add coefficients to this matrix row to represent the linearised SSA
-    !< sans the gradients of the effective viscosity (the "cross-terms")
 
     ! The SSA reads;
     !
@@ -338,691 +411,157 @@ contains
     !   4 N d2v/dy2 + 4 dN/dy dv/dy + 2 N d2u/dxdy + 2 dN/dy du/dx + ...
     !     N d2v/dx2 +   dN/dx dv/dx +   N d2u/dxdy +   dN/dx du/dy - beta_b v = -tau_dy
     !
-    ! The "sans" approximation neglects the gradients dN/dx, dN/dy of N:
+    ! Rearranging to gather the terms involving u and v gives:
     !
-    !   4 N d2u/dx2 + N d2u/dy2 + 3 N d2v/dxdy - beta_b u = -tau_dx
-    !   4 N d2v/dy2 + N d2v/dx2 + 3 N d2u/dxdy - beta_b v = -tau_dy
+    !   4 N d2u/dx2  + 4 dN/dx du/dx + N d2u/dy2 + dN/dy du/dy - beta_b u + ...
+    !   3 N d2v/dxdy + 2 dN/dx dv/dy +             dN/dy dv/dx = -tau_dx
     !
-    ! Dividing both sides by N yields:
+    !   4 N d2v/dy2  + 4 dN/dy dv/dy + N d2v/dx2 + dN/dx dv/dx - beta_b v + ...
+    !   3 N d2u/dxdy + 2 dN/dy du/dx +             dN/dx du/dy = -tau_dy
     !
-    !   4 d2u/dx2 + d2u/dy2 + 3 d2v/dxdy - beta_b u / N = -tau_dx / N
-    !   4 d2v/dy2 + d2v/dx2 + 3 d2u/dxdy - beta_b v / N = -tau_dy / N
+    ! Moving all terms involving v to the right-hand side of the first equation,
+    ! and all terms involving u to the right-hand side of the second equation, yields:
     !
-    ! Note that there is no clear mathematical or physical reason why this should be allowed.
-    ! However, while I (Tijn Berends, 2023) have found a few cases where there are noticeable
-    ! differences in the solutions (e.g. ISMIP-HOM experiments with high strain rates),
-    ! most of the time the difference with respect to the full SSA/DIVA is very small.
-    ! The "sans" option makes the solver quite a lot more stable and therefore faster.
-    ! Someone really ought to perform some proper experiments to determine whether or not
-    ! this should be the default.
+    !   4 N d2u/dx2  + 4 dN/dx du/dx + N d2u/dy2 + dN/dy du/dy - beta_b u = ...
+    !   -tau_dx - 3 N d2v/dxdy - 2 dN/dx dv/dy - dN/dy dv/dx
+    !
+    !   4 N d2v/dy2  + 4 dN/dy dv/dy + N d2v/dx2 + dN/dx dv/dx - beta_b v = ...
+    !   -tau_dy - 3 N d2u/dxdy - 2 dN/dy du/dx - dN/dx du/dy
     !
     ! We define the velocities u,v, the basal friction coefficient beta_b, and the driving
     ! stress tau_d on the b-grid (triangles), and the effective viscosity eta and the
     ! product term N = eta H on the a-grid (vertices).
 
     ! In/output variables:
-    type(type_mesh),                               intent(in   ) :: mesh
-    real(dp), dimension(mesh%ti1:mesh%ti2),        intent(in   ) :: N_b
-    real(dp), dimension(mesh%ti1:mesh%ti2),        intent(in   ) :: basal_friction_coefficient_b
-    real(dp), dimension(mesh%ti1:mesh%ti2),        intent(in   ) :: tau_dx_b, tau_dy_b
-    type(type_sparse_matrix_CSR_dp),               intent(inout) :: A_CSR
-    real(dp), dimension(mesh%ti1*2-1: mesh%ti2*2), intent(inout) :: bb
-    integer,                                       intent(in   ) :: row_tiuv
+    type(type_mesh),                        intent(in   ) :: mesh
+    real(dp), dimension(mesh%ti1:mesh%ti2), intent(in   ) :: N_b, dN_dx_b, dN_dy_b
+    real(dp), dimension(mesh%ti1:mesh%ti2), intent(in   ) :: basal_friction_coefficient_b
+    real(dp), dimension(mesh%ti1:mesh%ti2), intent(in   ) :: tau_dy_b
+    real(dp), dimension(mesh%ti1:mesh%ti2), intent(in   ) :: du_dx_b, du_dy_b, d2u_dxdy_b
+    type(type_sparse_matrix_CSR_dp),        intent(inout) :: A_CSR
+    real(dp), dimension(mesh%ti1:mesh%ti2), intent(inout) :: bb
+    integer,                                intent(in   ) :: ti
 
     ! Local variables:
-    integer                             :: ti, uv
-    real(dp)                            :: N, basal_friction_coefficient, tau_dx, tau_dy
-    integer,  dimension(:), allocatable :: single_row_ind
-    real(dp), dimension(:), allocatable :: single_row_ddx_val
-    real(dp), dimension(:), allocatable :: single_row_ddy_val
-    real(dp), dimension(:), allocatable :: single_row_d2dx2_val
-    real(dp), dimension(:), allocatable :: single_row_d2dxdy_val
-    real(dp), dimension(:), allocatable :: single_row_d2dy2_val
-    integer                             :: single_row_nnz
-    real(dp)                            :: Au, Av
-    integer                             :: k, tj, col_tju, col_tjv
+    real(dp)                           :: N, dN_dx, dN_dy, basal_friction_coefficient, tau_dy
+    integer,  dimension(mesh%nC_mem*2) :: single_row_ind
+    real(dp), dimension(mesh%nC_mem*2) :: single_row_ddx_val
+    real(dp), dimension(mesh%nC_mem*2) :: single_row_ddy_val
+    real(dp), dimension(mesh%nC_mem*2) :: single_row_d2dx2_val
+    real(dp), dimension(mesh%nC_mem*2) :: single_row_d2dy2_val
+    integer                            :: single_row_nnz
+    real(dp)                           :: A
+    integer                            :: k, tj
 
-    ! Relevant indices for this triangle
-    ti = mesh%n2tiuv( row_tiuv,1)
-    uv = mesh%n2tiuv( row_tiuv,2)
-
-    ! N, beta_b, tau_dx, and tau_dy on this triangle
+    ! N, dN/dx, dN/dy, basal_friction_coefficient_b, and tau_dy on this triangle
     N                          = N_b(      ti)
+    dN_dx                      = dN_dx_b(  ti)
+    dN_dy                      = dN_dy_b(  ti)
     basal_friction_coefficient = basal_friction_coefficient_b( ti)
-    tau_dx                     = tau_dx_b( ti)
     tau_dy                     = tau_dy_b( ti)
-
-    ! allocate memory for single matrix rows
-    allocate( single_row_ind(        mesh%nC_mem*2))
-    allocate( single_row_ddx_val(    mesh%nC_mem*2))
-    allocate( single_row_ddy_val(    mesh%nC_mem*2))
-    allocate( single_row_d2dx2_val(  mesh%nC_mem*2))
-    allocate( single_row_d2dxdy_val( mesh%nC_mem*2))
-    allocate( single_row_d2dy2_val(  mesh%nC_mem*2))
 
     ! Read coefficients of the operator matrices
     call read_single_row_CSR_dist( mesh%M2_ddx_b_b   , ti, single_row_ind, single_row_ddx_val   , single_row_nnz)
     call read_single_row_CSR_dist( mesh%M2_ddy_b_b   , ti, single_row_ind, single_row_ddy_val   , single_row_nnz)
     call read_single_row_CSR_dist( mesh%M2_d2dx2_b_b , ti, single_row_ind, single_row_d2dx2_val , single_row_nnz)
-    call read_single_row_CSR_dist( mesh%M2_d2dxdy_b_b, ti, single_row_ind, single_row_d2dxdy_val, single_row_nnz)
     call read_single_row_CSR_dist( mesh%M2_d2dy2_b_b , ti, single_row_ind, single_row_d2dy2_val , single_row_nnz)
 
-    if (uv == 1) then
-      ! x-component
+    do k = 1, single_row_nnz
 
-      do k = 1, single_row_nnz
+      ! Relevant indices for this neighbouring triangle
+      tj = single_row_ind( k)
 
-        ! Relevant indices for this neighbouring triangle
-        tj      = single_row_ind( k)
-        col_tju = mesh%tiuv2n( tj,1)
-        col_tjv = mesh%tiuv2n( tj,2)
+    !   4 N d2v/dy2  + 4 dN/dy dv/dy + N d2v/dx2 + dN/dx dv/dx - beta_b v = ...
+    !   -tau_dy - 3 N d2u/dxdy - 2 dN/dy du/dx - dN/dx du/dy
 
-        !   4 d2u/dx2 + d2u/dy2 + 3 d2v/dxdy - beta_b u / N = -tau_dx / N
+      ! Combine the mesh operators
+      A = 4._dp * N     * single_row_d2dy2_val(  k) + &  ! 4  N    d2v/dy2
+          4._dp * dN_dy * single_row_ddy_val(    k) + &  ! 4 dN/dx dv/dy
+                  N     * single_row_d2dx2_val(  k) + &  !    N    d2v/dx2
+                  dN_dx * single_row_ddx_val(    k)      !   dN/dx dv/dx
+      if (tj == ti) A = A - basal_friction_coefficient   ! - beta_b u
 
-        ! Combine the mesh operators
-        Au = 4._dp * single_row_d2dx2_val(  k) + &             ! 4 d2u/dx2
-                    single_row_d2dy2_val(  k)                 !   d2u/dy2
-        if (tj == ti) Au = Au - basal_friction_coefficient / N ! - beta_b u / N
+      ! Add coefficients to the stiffness matrix
+      call add_entry_CSR_dist( A_CSR, ti, tj, A)
 
-        Av = 3._dp * single_row_d2dxdy_val( k)                 ! 3 d2v/dxdy
+    end do
 
-        ! Add coefficients to the stiffness matrix
-        call add_entry_CSR_dist( A_CSR, row_tiuv, col_tju, Au)
-        call add_entry_CSR_dist( A_CSR, row_tiuv, col_tjv, Av)
+    ! Load vector
+    bb( ti) = -tau_dy &
+            - 3._dp *  N    * d2u_dxdy_b( ti) &
+            - 2._dp * dN_dy * du_dx_b( ti) &
+            -         dN_dx * du_dy_b( ti)
 
-      end do
+  end subroutine calc_SSA_DIVA_stiffness_matrix_row_free_y
 
-      ! Load vector
-      bb( row_tiuv) = -tau_dx / N
-
-    elseif (uv == 2) then
-      ! y-component
-
-      do k = 1, single_row_nnz
-
-        ! Relevant indices for this neighbouring triangle
-        tj      = single_row_ind( k)
-        col_tju = mesh%tiuv2n( tj,1)
-        col_tjv = mesh%tiuv2n( tj,2)
-
-        !   4 d2v/dy2 + d2v/dx2 + 3 d2u/dxdy - beta_b v / N = -tau_dy / N
-
-        ! Combine the mesh operators
-        Av = 4._dp * single_row_d2dy2_val(  k) + &             ! 4 d2v/dy2
-                    single_row_d2dx2_val(  k)                 !   d2v/dx2
-        if (tj == ti) Av = Av - basal_friction_coefficient / N ! - beta_b v / N
-
-        Au = 3._dp * single_row_d2dxdy_val( k)                 ! 3 d2u/dxdy
-
-        ! Add coefficients to the stiffness matrix
-        call add_entry_CSR_dist( A_CSR, row_tiuv, col_tju, Au)
-        call add_entry_CSR_dist( A_CSR, row_tiuv, col_tjv, Av)
-
-      end do
-
-      ! Load vector
-      bb( row_tiuv) = -tau_dy / N
-
-    else
-      call crash('uv can only be 1 or 2!')
-    end if
-
-  end subroutine calc_SSA_DIVA_sans_stiffness_matrix_row_free
-
-  subroutine calc_SSA_DIVA_stiffness_matrix_row_BC_west( mesh, u_b_prev, v_b_prev, A_CSR, bb, row_tiuv)
+  subroutine calc_SSA_DIVA_stiffness_matrix_row_BC( mesh, u_b_prev, A_CSR, bb, ti, choice_BC)
     !< Add coefficients to this matrix row to represent boundary conditions at the
     !< western domain border.
 
     ! In/output variables:
     type(type_mesh),                        intent(in   ) :: mesh
-    real(dp), dimension(mesh%nTri),         intent(in   ) :: u_b_prev, v_b_prev
+    real(dp), dimension(mesh%nTri),         intent(in   ) :: u_b_prev
     type(type_sparse_matrix_CSR_dp),        intent(inout) :: A_CSR
-    real(dp), dimension(A_CSR%i1:A_CSR%i2), intent(inout) :: bb
-    integer,                                intent(in   ) :: row_tiuv
+    real(dp), dimension(mesh%ti1:mesh%ti2), intent(inout) :: bb
+    integer,                                intent(in   ) :: ti
+    character(len=*),                       intent(in   ) :: choice_BC
 
     ! Local variables:
-    integer                          :: ti,uv,row_ti
-    integer                          :: tj, col_tjuv
+    integer                          :: tj
     integer,  dimension(mesh%nC_mem) :: ti_copy
     real(dp), dimension(mesh%nC_mem) :: wti_copy
-    real(dp)                         :: u_fixed, v_fixed
+    real(dp)                         :: u_fixed
     integer                          :: n, n_neighbours
 
-    ti = mesh%n2tiuv( row_tiuv,1)
-    uv = mesh%n2tiuv( row_tiuv,2)
-    row_ti = mesh%ti2n( ti)
+    if (choice_BC == 'infinite') then
+      ! du/dx = 0
+      !
+      ! NOTE: using the d/dx operator matrix doesn't always work well, not sure why...
 
-    if (uv == 1) then
-      ! x-component
+      ! Set u on this triangle equal to the average value on its neighbours
+      n_neighbours = 0
+      do n = 1, 3
+        tj = mesh%TriC( ti,n)
+        if (tj == 0) cycle
+        n_neighbours = n_neighbours + 1
+        call add_entry_CSR_dist( A_CSR, ti, tj, 1._dp)
+      end do
+      if (n_neighbours == 0) call crash('whaa!')
+      call add_entry_CSR_dist( A_CSR, ti, ti, -1._dp * real( n_neighbours,dp))
 
-      if     (C%BC_u_west == 'infinite') then
-        ! du/dx = 0
-        !
-        ! NOTE: using the d/dx operator matrix doesn't always work well, not sure why...
+      bb( ti) = 0._dp
 
-        ! Set u on this triangle equal to the average value on its neighbours
-        n_neighbours = 0
-        do n = 1, 3
-          tj = mesh%TriC( ti,n)
-          if (tj == 0) cycle
-          n_neighbours = n_neighbours + 1
-          col_tjuv = mesh%tiuv2n( tj,uv)
-          call add_entry_CSR_dist( A_CSR, row_tiuv, col_tjuv, 1._dp)
-        end do
-        if (n_neighbours == 0) call crash('whaa!')
-        call add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, -1._dp * real( n_neighbours,dp))
+    elseif (choice_BC == 'zero') then
+      ! u = 0
 
-        ! Load vector
-        bb( row_tiuv) = 0._dp
+      call add_entry_CSR_dist( A_CSR, ti, ti, 1._dp)
+      bb( ti) = 0._dp
 
-      elseif (C%BC_u_west == 'zero') then
-        ! u = 0
+    elseif (choice_BC == 'periodic_ISMIP-HOM') then
+      ! u(x,y) = u(x+-L/2,y+-L/2)
 
-        ! Stiffness matrix
-        call add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, 1._dp)
+      ! Find the triangle ti_copy that is displaced by [x+-L/2,y+-L/2] relative to ti
+      call find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy, wti_copy)
 
-        ! Load vector
-        bb( row_tiuv) = 0._dp
+      ! Interpolate previous velocity solution to this location
+      u_fixed = 0._dp
+      do n = 1, mesh%nC_mem
+        tj = ti_copy( n)
+        if (tj == 0) cycle
+        u_fixed = u_fixed + wti_copy( n) * u_b_prev( tj)
+      end do
 
-      elseif (C%BC_u_west == 'periodic_ISMIP-HOM') then
-        ! u(x,y) = u(x+-L/2,y+-L/2)
+      ! Relax solution to improve stability
+      u_fixed = (C%visc_it_relax * u_fixed) + ((1._dp - C%visc_it_relax) * u_b_prev( ti))
 
-        ! Find the triangle ti_copy that is displaced by [x+-L/2,y+-L/2] relative to ti
-        call find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy, wti_copy)
-
-        ! Set value at ti equal to value at ti_copy
-        call add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv,  1._dp)
-        u_fixed = 0._dp
-        do n = 1, mesh%nC_mem
-          tj = ti_copy( n)
-          if (tj == 0) cycle
-          u_fixed = u_fixed + wti_copy( n) * u_b_prev( tj)
-        end do
-        ! Relax solution to improve stability
-        u_fixed = (C%visc_it_relax * u_fixed) + ((1._dp - C%visc_it_relax) * u_b_prev( ti))
-        ! Set load vector
-        bb( row_tiuv) = u_fixed
-
-      else
-        call crash('unknown BC_u_west "' // trim( C%BC_u_west) // '"!')
-      end if
-
-    elseif (uv == 2) then
-      ! y-component
-
-      if     (C%BC_v_west == 'infinite') then
-        ! dv/dx = 0
-        !
-        ! NOTE: using the d/dx operator matrix doesn't always work well, not sure why...
-
-        ! Set v on this triangle equal to the average value on its neighbours
-        n_neighbours = 0
-        do n = 1, 3
-          tj = mesh%TriC( ti,n)
-          if (tj == 0) cycle
-          n_neighbours = n_neighbours + 1
-          col_tjuv = mesh%tiuv2n( tj,uv)
-          call add_entry_CSR_dist( A_CSR, row_tiuv, col_tjuv, 1._dp)
-        end do
-        if (n_neighbours == 0) call crash('whaa!')
-        call add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, -1._dp * real( n_neighbours,dp))
-
-        ! Load vector
-        bb( row_tiuv) = 0._dp
-
-      elseif (C%BC_v_west == 'zero') then
-        ! v = 0
-
-        ! Stiffness matrix
-        call add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, 1._dp)
-
-        ! Load vector
-        bb( row_tiuv) = 0._dp
-
-      elseif (C%BC_v_west == 'periodic_ISMIP-HOM') then
-        ! v(x,y) = v(x+-L/2,y+-L/2)
-
-        ! Find the triangle ti_copy that is displaced by [x+-L/2,y+-L/2] relative to ti
-        call find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy, wti_copy)
-
-        ! Set value at ti equal to value at ti_copy
-        call add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv,  1._dp)
-        v_fixed = 0._dp
-        do n = 1, mesh%nC_mem
-          tj = ti_copy( n)
-          if (tj == 0) cycle
-          v_fixed = v_fixed + wti_copy( n) * v_b_prev( tj)
-        end do
-        ! Relax solution to improve stability
-        v_fixed = (C%visc_it_relax * v_fixed) + ((1._dp - C%visc_it_relax) * v_b_prev( ti))
-        ! Set load vector
-        bb( row_tiuv) = v_fixed
-
-      else
-        call crash('unknown BC_u_west "' // trim( C%BC_u_west) // '"!')
-      end if
+      ! Set value at ti equal to value at ti_copy
+      call add_entry_CSR_dist( A_CSR, ti, ti,  1._dp)
+      bb( ti) = u_fixed
 
     else
-      call crash('uv can only be 1 or 2!')
+      call crash('unknown choice_BC "' // trim( choice_BC) // '"!')
     end if
 
-  end subroutine calc_SSA_DIVA_stiffness_matrix_row_BC_west
-
-  subroutine calc_SSA_DIVA_stiffness_matrix_row_BC_east( mesh, u_b_prev, v_b_prev, A_CSR, bb, row_tiuv)
-    !< Add coefficients to this matrix row to represent boundary conditions at the
-    !< eastern domain border.
-
-    ! In/output variables:
-    type(type_mesh),                        intent(in   ) :: mesh
-    real(dp), dimension(mesh%nTri),         intent(in   ) :: u_b_prev, v_b_prev
-    type(type_sparse_matrix_CSR_dp),        intent(inout) :: A_CSR
-    real(dp), dimension(A_CSR%i1:A_CSR%i2), intent(inout) :: bb
-    integer,                                intent(in   ) :: row_tiuv
-
-    ! Local variables:
-    integer                          :: ti,uv,row_ti
-    integer                          :: tj, col_tjuv
-    integer,  dimension(mesh%nC_mem) :: ti_copy
-    real(dp), dimension(mesh%nC_mem) :: wti_copy
-    real(dp)                         :: u_fixed, v_fixed
-    integer                          :: n, n_neighbours
-
-    ti = mesh%n2tiuv( row_tiuv,1)
-    uv = mesh%n2tiuv( row_tiuv,2)
-    row_ti = mesh%ti2n( ti)
-
-    if (uv == 1) then
-      ! x-component
-
-      if     (C%BC_u_east == 'infinite') then
-        ! du/dx = 0
-        !
-        ! NOTE: using the d/dx operator matrix doesn't always work well, not sure why...
-
-        ! Set u on this triangle equal to the average value on its neighbours
-        n_neighbours = 0
-        do n = 1, 3
-          tj = mesh%TriC( ti,n)
-          if (tj == 0) cycle
-          n_neighbours = n_neighbours + 1
-          col_tjuv = mesh%tiuv2n( tj,uv)
-          call add_entry_CSR_dist( A_CSR, row_tiuv, col_tjuv, 1._dp)
-        end do
-        if (n_neighbours == 0) call crash('whaa!')
-        call add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, -1._dp * real( n_neighbours,dp))
-
-        ! Load vector
-        bb( row_tiuv) = 0._dp
-
-      elseif (C%BC_u_east == 'zero') then
-        ! u = 0
-
-        ! Stiffness matrix
-        call add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, 1._dp)
-
-        ! Load vector
-        bb( row_tiuv) = 0._dp
-
-      elseif (C%BC_u_east == 'periodic_ISMIP-HOM') then
-        ! u(x,y) = u(x+-L/2,y+-L/2)
-
-        ! Find the triangle ti_copy that is displaced by [x+-L/2,y+-L/2] relative to ti
-        call find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy, wti_copy)
-
-        ! Set value at ti equal to value at ti_copy
-        call add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv,  1._dp)
-        u_fixed = 0._dp
-        do n = 1, mesh%nC_mem
-          tj = ti_copy( n)
-          if (tj == 0) cycle
-          u_fixed = u_fixed + wti_copy( n) * u_b_prev( tj)
-        end do
-        ! Relax solution to improve stability
-        u_fixed = (C%visc_it_relax * u_fixed) + ((1._dp - C%visc_it_relax) * u_b_prev( ti))
-        ! Set load vector
-        bb( row_tiuv) = u_fixed
-
-      else
-        call crash('unknown BC_u_east "' // trim( C%BC_u_east) // '"!')
-      end if
-
-    elseif (uv == 2) then
-      ! y-component
-
-      if     (C%BC_v_east == 'infinite') then
-        ! dv/dx = 0
-        !
-        ! NOTE: using the d/dx operator matrix doesn't always work well, not sure why...
-
-        ! Set v on this triangle equal to the average value on its neighbours
-        n_neighbours = 0
-        do n = 1, 3
-          tj = mesh%TriC( ti,n)
-          if (tj == 0) cycle
-          n_neighbours = n_neighbours + 1
-          col_tjuv = mesh%tiuv2n( tj,uv)
-          call add_entry_CSR_dist( A_CSR, row_tiuv, col_tjuv, 1._dp)
-        end do
-        if (n_neighbours == 0) call crash('whaa!')
-        call add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, -1._dp * real( n_neighbours,dp))
-
-        ! Load vector
-        bb( row_tiuv) = 0._dp
-
-      elseif (C%BC_v_east == 'zero') then
-        ! v = 0
-
-        ! Stiffness matrix
-        call add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, 1._dp)
-
-        ! Load vector
-        bb( row_tiuv) = 0._dp
-
-      elseif (C%BC_v_east == 'periodic_ISMIP-HOM') then
-        ! v(x,y) = v(x+-L/2,y+-L/2)
-
-        ! Find the triangle ti_copy that is displaced by [x+-L/2,y+-L/2] relative to ti
-        call find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy, wti_copy)
-
-        ! Set value at ti equal to value at ti_copy
-        call add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv,  1._dp)
-        v_fixed = 0._dp
-        do n = 1, mesh%nC_mem
-          tj = ti_copy( n)
-          if (tj == 0) cycle
-          v_fixed = v_fixed + wti_copy( n) * v_b_prev( tj)
-        end do
-        ! Relax solution to improve stability
-        v_fixed = (C%visc_it_relax * v_fixed) + ((1._dp - C%visc_it_relax) * v_b_prev( ti))
-        ! Set load vector
-        bb( row_tiuv) = v_fixed
-
-      else
-        call crash('unknown BC_u_east "' // trim( C%BC_u_east) // '"!')
-      end if
-
-    else
-      call crash('uv can only be 1 or 2!')
-    end if
-
-  end subroutine calc_SSA_DIVA_stiffness_matrix_row_BC_east
-
-  subroutine calc_SSA_DIVA_stiffness_matrix_row_BC_north( mesh, u_b_prev, v_b_prev, A_CSR, bb, row_tiuv)
-    !< Add coefficients to this matrix row to represent boundary conditions at the
-    !< northern domain border.
-
-    ! In/output variables:
-    type(type_mesh),                        intent(in   ) :: mesh
-    real(dp), dimension(mesh%nTri),         intent(in   ) :: u_b_prev, v_b_prev
-    type(type_sparse_matrix_CSR_dp),        intent(inout) :: A_CSR
-    real(dp), dimension(A_CSR%i1:A_CSR%i2), intent(inout) :: bb
-    integer,                                intent(in   ) :: row_tiuv
-
-    ! Local variables:
-    integer                          :: ti,uv,row_ti
-    integer                          :: tj, col_tjuv
-    integer,  dimension(mesh%nC_mem) :: ti_copy
-    real(dp), dimension(mesh%nC_mem) :: wti_copy
-    real(dp)                         :: u_fixed, v_fixed
-    integer                          :: n, n_neighbours
-
-    ti = mesh%n2tiuv( row_tiuv,1)
-    uv = mesh%n2tiuv( row_tiuv,2)
-    row_ti = mesh%ti2n( ti)
-
-    if (uv == 1) then
-      ! x-component
-
-      if     (C%BC_u_north == 'infinite') then
-        ! du/dy = 0
-        !
-        ! NOTE: using the d/dy operator matrix doesn't always work well, not sure why...
-
-        ! Set u on this triangle equal to the average value on its neighbours
-        n_neighbours = 0
-        do n = 1, 3
-          tj = mesh%TriC( ti,n)
-          if (tj == 0) cycle
-          n_neighbours = n_neighbours + 1
-          col_tjuv = mesh%tiuv2n( tj,uv)
-          call add_entry_CSR_dist( A_CSR, row_tiuv, col_tjuv, 1._dp)
-        end do
-        if (n_neighbours == 0) call crash('whaa!')
-        call add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, -1._dp * real( n_neighbours,dp))
-
-        ! Load vector
-        bb( row_tiuv) = 0._dp
-
-      elseif (C%BC_u_north == 'zero') then
-        ! u = 0
-
-        ! Stiffness matrix
-        call add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, 1._dp)
-
-        ! Load vector
-        bb( row_tiuv) = 0._dp
-
-      elseif (C%BC_u_north == 'periodic_ISMIP-HOM') then
-        ! u(x,y) = u(x+-L/2,y+-L/2)
-
-        ! Find the triangle ti_copy that is displaced by [x+-L/2,y+-L/2] relative to ti
-        call find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy, wti_copy)
-
-        ! Set value at ti equal to value at ti_copy
-        call add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv,  1._dp)
-        u_fixed = 0._dp
-        do n = 1, mesh%nC_mem
-          tj = ti_copy( n)
-          if (tj == 0) cycle
-          u_fixed = u_fixed + wti_copy( n) * u_b_prev( tj)
-        end do
-        ! Relax solution to improve stability
-        u_fixed = (C%visc_it_relax * u_fixed) + ((1._dp - C%visc_it_relax) * u_b_prev( ti))
-        ! Set load vector
-        bb( row_tiuv) = u_fixed
-
-      else
-        call crash('unknown BC_u_north "' // trim( C%BC_u_north) // '"!')
-      end if
-
-    elseif (uv == 2) then
-      ! y-component
-
-      if     (C%BC_v_north == 'infinite') then
-        ! dv/dy = 0
-        !
-        ! NOTE: using the d/dy operator matrix doesn't always work well, not sure why...
-
-        ! Set v on this triangle equal to the average value on its neighbours
-        n_neighbours = 0
-        do n = 1, 3
-          tj = mesh%TriC( ti,n)
-          if (tj == 0) cycle
-          n_neighbours = n_neighbours + 1
-          col_tjuv = mesh%tiuv2n( tj,uv)
-          call add_entry_CSR_dist( A_CSR, row_tiuv, col_tjuv, 1._dp)
-        end do
-        if (n_neighbours == 0) call crash('whaa!')
-        call add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, -1._dp * real( n_neighbours,dp))
-
-        ! Load vector
-        bb( row_tiuv) = 0._dp
-
-      elseif (C%BC_v_north == 'zero') then
-        ! v = 0
-
-        ! Stiffness matrix
-        call add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, 1._dp)
-
-        ! Load vector
-        bb( row_tiuv) = 0._dp
-
-      elseif (C%BC_v_north == 'periodic_ISMIP-HOM') then
-        ! v(x,y) = v(x+-L/2,y+-L/2)
-
-        ! Find the triangle ti_copy that is displaced by [x+-L/2,y+-L/2] relative to ti
-        call find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy, wti_copy)
-
-        ! Set value at ti equal to value at ti_copy
-        call add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv,  1._dp)
-        v_fixed = 0._dp
-        do n = 1, mesh%nC_mem
-          tj = ti_copy( n)
-          if (tj == 0) cycle
-          v_fixed = v_fixed + wti_copy( n) * v_b_prev( tj)
-        end do
-        ! Relax solution to improve stability
-        v_fixed = (C%visc_it_relax * v_fixed) + ((1._dp - C%visc_it_relax) * v_b_prev( ti))
-        ! Set load vector
-        bb( row_tiuv) = v_fixed
-
-      else
-        call crash('unknown BC_u_north "' // trim( C%BC_u_north) // '"!')
-      end if
-
-    else
-      call crash('uv can only be 1 or 2!')
-    end if
-
-  end subroutine calc_SSA_DIVA_stiffness_matrix_row_BC_north
-
-  subroutine calc_SSA_DIVA_stiffness_matrix_row_BC_south( mesh, u_b_prev, v_b_prev, A_CSR, bb, row_tiuv)
-    !< Add coefficients to this matrix row to represent boundary conditions at the
-    !< southern domain border.
-
-    ! In/output variables:
-    type(type_mesh),                        intent(in   ) :: mesh
-    real(dp), dimension(mesh%nTri),         intent(in   ) :: u_b_prev, v_b_prev
-    type(type_sparse_matrix_CSR_dp),        intent(inout) :: A_CSR
-    real(dp), dimension(A_CSR%i1:A_CSR%i2), intent(inout) :: bb
-    integer,                                intent(in   ) :: row_tiuv
-
-    ! Local variables:
-    integer                          :: ti,uv,row_ti
-    integer                          :: tj, col_tjuv
-    integer,  dimension(mesh%nC_mem) :: ti_copy
-    real(dp), dimension(mesh%nC_mem) :: wti_copy
-    real(dp)                         :: u_fixed, v_fixed
-    integer                          :: n, n_neighbours
-
-    ti = mesh%n2tiuv( row_tiuv,1)
-    uv = mesh%n2tiuv( row_tiuv,2)
-    row_ti = mesh%ti2n( ti)
-
-    if (uv == 1) then
-      ! x-component
-
-      if     (C%BC_u_south == 'infinite') then
-        ! du/dy = 0
-        !
-        ! NOTE: using the d/dy operator matrix doesn't always work well, not sure why...
-
-        ! Set u on this triangle equal to the average value on its neighbours
-        n_neighbours = 0
-        do n = 1, 3
-          tj = mesh%TriC( ti,n)
-          if (tj == 0) cycle
-          n_neighbours = n_neighbours + 1
-          col_tjuv = mesh%tiuv2n( tj,uv)
-          call add_entry_CSR_dist( A_CSR, row_tiuv, col_tjuv, 1._dp)
-        end do
-        if (n_neighbours == 0) call crash('whaa!')
-        call add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, -1._dp * real( n_neighbours,dp))
-
-        ! Load vector
-        bb( row_tiuv) = 0._dp
-
-      elseif (C%BC_u_south == 'zero') then
-        ! u = 0
-
-        ! Stiffness matrix
-        call add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, 1._dp)
-
-        ! Load vector
-        bb( row_tiuv) = 0._dp
-
-      elseif (C%BC_u_south == 'periodic_ISMIP-HOM') then
-        ! u(x,y) = u(x+-L/2,y+-L/2)
-
-        ! Find the triangle ti_copy that is displaced by [x+-L/2,y+-L/2] relative to ti
-        call find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy, wti_copy)
-
-        ! Set value at ti equal to value at ti_copy
-        call add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv,  1._dp)
-        u_fixed = 0._dp
-        do n = 1, mesh%nC_mem
-          tj = ti_copy( n)
-          if (tj == 0) cycle
-          u_fixed = u_fixed + wti_copy( n) * u_b_prev( tj)
-        end do
-        ! Relax solution to improve stability
-        u_fixed = (C%visc_it_relax * u_fixed) + ((1._dp - C%visc_it_relax) * u_b_prev( ti))
-        ! Set load vector
-        bb( row_tiuv) = u_fixed
-
-      else
-        call crash('unknown BC_u_south "' // trim( C%BC_u_south) // '"!')
-      end if
-
-    elseif (uv == 2) then
-      ! y-component
-
-      if     (C%BC_v_south == 'infinite') then
-        ! dv/dy = 0
-        !
-        ! NOTE: using the d/dy operator matrix doesn't always work well, not sure why...
-
-        ! Set v on this triangle equal to the average value on its neighbours
-        n_neighbours = 0
-        do n = 1, 3
-          tj = mesh%TriC( ti,n)
-          if (tj == 0) cycle
-          n_neighbours = n_neighbours + 1
-          col_tjuv = mesh%tiuv2n( tj,uv)
-          call add_entry_CSR_dist( A_CSR, row_tiuv, col_tjuv, 1._dp)
-        end do
-        if (n_neighbours == 0) call crash('whaa!')
-        call add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, -1._dp * real( n_neighbours,dp))
-
-        ! Load vector
-        bb( row_tiuv) = 0._dp
-
-      elseif (C%BC_v_south == 'zero') then
-        ! v = 0
-
-        ! Stiffness matrix
-        call add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, 1._dp)
-
-        ! Load vector
-        bb( row_tiuv) = 0._dp
-
-      elseif (C%BC_v_south == 'periodic_ISMIP-HOM') then
-        ! v(x,y) = v(x+-L/2,y+-L/2)
-
-        ! Find the triangle ti_copy that is displaced by [x+-L/2,y+-L/2] relative to ti
-        call find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy, wti_copy)
-
-        ! Set value at ti equal to value at ti_copy
-        call add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv,  1._dp)
-        v_fixed = 0._dp
-        do n = 1, mesh%nC_mem
-          tj = ti_copy( n)
-          if (tj == 0) cycle
-          v_fixed = v_fixed + wti_copy( n) * v_b_prev( tj)
-        end do
-        ! Relax solution to improve stability
-        v_fixed = (C%visc_it_relax * v_fixed) + ((1._dp - C%visc_it_relax) * v_b_prev( ti))
-        ! Set load vector
-        bb( row_tiuv) = v_fixed
-
-      else
-        call crash('unknown BC_u_south "' // trim( C%BC_u_south) // '"!')
-      end if
-
-    else
-      call crash('uv can only be 1 or 2!')
-    end if
-
-  end subroutine calc_SSA_DIVA_stiffness_matrix_row_BC_south
+  end subroutine calc_SSA_DIVA_stiffness_matrix_row_BC
 
 end module solve_linearised_SSA_DIVA
