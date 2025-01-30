@@ -21,9 +21,9 @@ module hybrid_DIVA_BPA_main
     calc_basal_velocities_DIVA => calc_basal_velocities
   use SSA_DIVA_utilities, only: calc_driving_stress_DIVA => calc_driving_stress, &
     calc_horizontal_strain_rates_DIVA => calc_horizontal_strain_rates
-  use solve_linearised_SSA_DIVA, only: calc_SSA_DIVA_stiffness_matrix_row_free, calc_SSA_DIVA_sans_stiffness_matrix_row_free, &
-    calc_SSA_DIVA_stiffness_matrix_row_BC_west, calc_SSA_DIVA_stiffness_matrix_row_BC_east, &
-    calc_SSA_DIVA_stiffness_matrix_row_BC_south, calc_SSA_DIVA_stiffness_matrix_row_BC_north
+  ! use solve_linearised_SSA_DIVA, only: calc_SSA_DIVA_stiffness_matrix_row_free, calc_SSA_DIVA_sans_stiffness_matrix_row_free, &
+  !   calc_SSA_DIVA_stiffness_matrix_row_BC_west, calc_SSA_DIVA_stiffness_matrix_row_BC_east, &
+  !   calc_SSA_DIVA_stiffness_matrix_row_BC_south, calc_SSA_DIVA_stiffness_matrix_row_BC_north
   use BPA_main, only: allocate_BPA_solver , remap_BPA_solver, calc_BPA_stiffness_matrix_row_free, &
     calc_BPA_stiffness_matrix_row_BC_west, calc_BPA_stiffness_matrix_row_BC_east, &
     calc_BPA_stiffness_matrix_row_BC_south, calc_BPA_stiffness_matrix_row_BC_north, &
@@ -1057,34 +1057,34 @@ contains
       elseif (mesh%TriBI( ti) == 1 .or. mesh%TriBI( ti) == 2) then
         ! Northern domain border
 
-        call calc_SSA_DIVA_stiffness_matrix_row_BC_north( mesh, DIVA%u_b_prev, DIVA%v_b_prev, A_DIVA, b_DIVA, row_tiuv)
+        ! call calc_SSA_DIVA_stiffness_matrix_row_BC_north( mesh, DIVA%u_b_prev, DIVA%v_b_prev, A_DIVA, b_DIVA, row_tiuv)
 
       elseif (mesh%TriBI( ti) == 3 .or. mesh%TriBI( ti) == 4) then
         ! Eastern domain border
 
-        call calc_SSA_DIVA_stiffness_matrix_row_BC_east( mesh, DIVA%u_b_prev, DIVA%v_b_prev, A_DIVA, b_DIVA, row_tiuv)
+        ! call calc_SSA_DIVA_stiffness_matrix_row_BC_east( mesh, DIVA%u_b_prev, DIVA%v_b_prev, A_DIVA, b_DIVA, row_tiuv)
 
       elseif (mesh%TriBI( ti) == 5 .or. mesh%TriBI( ti) == 6) then
         ! Southern domain border
 
-        call calc_SSA_DIVA_stiffness_matrix_row_BC_south( mesh, DIVA%u_b_prev, DIVA%v_b_prev, A_DIVA, b_DIVA, row_tiuv)
+        ! call calc_SSA_DIVA_stiffness_matrix_row_BC_south( mesh, DIVA%u_b_prev, DIVA%v_b_prev, A_DIVA, b_DIVA, row_tiuv)
 
       elseif (mesh%TriBI( ti) == 7 .or. mesh%TriBI( ti) == 8) then
         ! Western domain border
 
-        call calc_SSA_DIVA_stiffness_matrix_row_BC_west( mesh, DIVA%u_b_prev, DIVA%v_b_prev, A_DIVA, b_DIVA, row_tiuv)
+        ! call calc_SSA_DIVA_stiffness_matrix_row_BC_west( mesh, DIVA%u_b_prev, DIVA%v_b_prev, A_DIVA, b_DIVA, row_tiuv)
 
       else
         ! No boundary conditions apply; solve the DIVA
 
         if (C%do_include_SSADIVA_crossterms) then
           ! Calculate matrix coefficients for the full DIVA
-          call calc_SSA_DIVA_stiffness_matrix_row_free( mesh, DIVA%N_b, DIVA%dN_dx_b, DIVA%dN_dy_b, &
-            DIVA%beta_eff_b, DIVA%tau_dx_b, DIVA%tau_dy_b, A_DIVA, b_DIVA, row_tiuv)
+          ! call calc_SSA_DIVA_stiffness_matrix_row_free( mesh, DIVA%N_b, DIVA%dN_dx_b, DIVA%dN_dy_b, &
+          !   DIVA%beta_eff_b, DIVA%tau_dx_b, DIVA%tau_dy_b, A_DIVA, b_DIVA, row_tiuv)
         else
           ! Calculate matrix coefficients for the DIVA sans the gradients of the effective viscosity (the "cross-terms")
-          call calc_SSA_DIVA_sans_stiffness_matrix_row_free( mesh, DIVA%N_b, &
-            DIVA%beta_eff_b, DIVA%tau_dx_b, DIVA%tau_dy_b, A_DIVA, b_DIVA, row_tiuv)
+          ! call calc_SSA_DIVA_sans_stiffness_matrix_row_free( mesh, DIVA%N_b, &
+          !   DIVA%beta_eff_b, DIVA%tau_dx_b, DIVA%tau_dy_b, A_DIVA, b_DIVA, row_tiuv)
         end if
 
       end if
