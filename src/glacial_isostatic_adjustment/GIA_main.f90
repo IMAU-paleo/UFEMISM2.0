@@ -16,6 +16,7 @@ MODULE GIA_main
   USE region_types                                           , ONLY: type_model_region
   USE grid_basic                                             , ONLY: setup_square_grid
   USE reallocate_mod                                         , ONLY: reallocate_bounds
+  USE GIA_ELRA
 
   IMPLICIT NONE
 
@@ -57,7 +58,7 @@ CONTAINS
       IF     (C%choice_GIA_model == 'none') THEN
         ! No need to do anything
       ELSEIF (C%choice_GIA_model == 'ELRA') THEN
-        CALL crash('fixme!')
+        CALL run_ELRA_model( region)
       ELSE
         CALL crash('unknown choice_GIA_model "' // TRIM( C%choice_GIA_model) // '"!')
       END IF
@@ -94,7 +95,7 @@ CONTAINS
 
   END SUBROUTINE run_GIA_model
 
-  SUBROUTINE initialise_GIA_model( mesh, GIA, region_name)
+  SUBROUTINE initialise_GIA_model( mesh, GIA, region_name, refgeo_GIAeq)
     ! Initialise the GIA model
 
     IMPLICIT NONE
@@ -103,6 +104,7 @@ CONTAINS
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
     TYPE(type_GIA_model),                   INTENT(OUT)   :: GIA
     CHARACTER(LEN=3),                       INTENT(IN)    :: region_name
+    TYPE(type_reference_geometry), optional, INTENT(IN)    :: refgeo_GIAeq    
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'initialise_GIA_model'
@@ -144,7 +146,8 @@ CONTAINS
     IF     (C%choice_GIA_model == 'none') THEN
       ! No need to do anything
     ELSEIF (C%choice_GIA_model == 'ELRA') THEN
-      CALL crash('fixme!')
+    ! added refgeo_GIAeq to the subroutine initialise_GIA_model
+      CALL initialise_ELRA_model( mesh, GIA%grid, GIA, refgeo_GIAeq)
     ELSE
       CALL crash('unknown choice_GIA_model "' // TRIM( C%choice_GIA_model) // '"')
     END IF
@@ -215,7 +218,7 @@ CONTAINS
 
   END SUBROUTINE create_restart_file_GIA_model
 
-  SUBROUTINE remap_GIA_model( mesh_old, mesh_new, GIA)
+  SUBROUTINE remap_GIA_model( mesh_old, mesh_new, GIA, refgeo_GIAeq)
     ! Remap the GIA model
 
     IMPLICIT NONE
@@ -223,7 +226,10 @@ CONTAINS
     ! In- and output variables
     TYPE(type_mesh),                        INTENT(IN)    :: mesh_old
     TYPE(type_mesh),                        INTENT(IN)    :: mesh_new
+    ! should I change GIA variable to INOUT? not sure..
     TYPE(type_GIA_model),                   INTENT(OUT)   :: GIA
+    ! added refgeo_GIAeq to the inputs
+    TYPE(type_reference_geometry), optional, INTENT(IN)    :: refgeo_GIAeq        
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'remap_GIA_model'
@@ -245,7 +251,7 @@ CONTAINS
     IF     (C%choice_GIA_model == 'none') THEN
       ! No need to do anything
     ELSEIF (C%choice_GIA_model == 'ELRA') THEN
-      CALL crash('fixme!')
+      CALL remap_ELRA_model( mesh_old, mesh_new, GIA, refgeo_GIAeq, GIA%grid)
     ELSE
       CALL crash('unknown choice_GIA_model "' // TRIM( C%choice_GIA_model) // '"')
     END IF

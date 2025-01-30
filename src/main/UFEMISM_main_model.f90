@@ -531,7 +531,7 @@ CONTAINS
     ! ===== Glacial isostatic adjustment =====
     ! ========================================
 
-    CALL initialise_GIA_model( region%mesh, region%GIA, region%name)
+    CALL initialise_GIA_model( region%mesh, region%GIA, region%name, region%refgeo_GIAeq)
 
     ! ===== Basal inversion =====
     ! ===========================

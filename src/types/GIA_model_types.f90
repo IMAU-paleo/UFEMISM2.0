@@ -33,16 +33,16 @@ MODULE GIA_model_types
 
     ! ELRA
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: surface_load_mesh           ! [Pa] 
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: surface_load_grid           ! [Pa]
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: relative_surface_load_ext_grid           ! [Pa]     
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHb_eq_grid
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHb_grid
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHb_dt_grid
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHb_grid_partial            ! [Pa] 
+    REAL(dp), DIMENSION(: , :), ALLOCATABLE :: dHb_grid_tot
+    REAL(dp), DIMENSION(: , :), ALLOCATABLE :: dHb_eq_grid
+    REAL(dp), DIMENSION(: , :), ALLOCATABLE :: dHb_dt_grid
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHb_dt_grid_partial    
+    REAL(dp), DIMENSION(: , :), ALLOCATABLE :: relative_surface_load_grid_tot   
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: surface_load_PD_mesh
-     
-    INTEGER,                                :: flex_prof_rad               ! radius of the flexoral profile
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: flex_prof_grid
-
+    integer                                 :: flex_prof_rad               ! radius of the flexoral profile
+    REAL(dp), DIMENSION(:,:), ALLOCATABLE :: flex_prof_grid
+    
   END TYPE type_GIA_model
 
 CONTAINS
