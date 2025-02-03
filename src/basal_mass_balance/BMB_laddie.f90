@@ -48,13 +48,13 @@ CONTAINS
     IF (time > C%start_time_of_run) THEN
 
       ! Define filename of BMB output from LADDIE
-      filename_BMB_laddie_output      = TRIM(C%fixed_output_dir) // '/laddie_output/output_BMB.nc'
+      filename_BMB_laddie_output      = TRIM(C%fixed_output_dir) // '/laddie_output/BMB_latest_v00.nc'
 
       ! Run LADDIE
       IF (par%master) THEN
         ! Different commands are needed to run laddie on different systems. local_mac or slurm_HPC (the latter is used for snellius)
         IF (C%choice_BMB_laddie_system == 'local_mac') THEN
-          CALL system('cd ' // TRIM(C%dir_BMB_laddie_model) // '; conda activate laddie ; python3 runladdie.py ' // TRIM(C%filename_BMB_laddie_configname) // '; conda deactivate')
+          CALL system('cd ' // TRIM(C%dir_BMB_laddie_model) // '; source /Users/5941962/opt/anaconda3/etc/profile.d/conda.sh; conda activate ; python3 runladdie.py ' // TRIM(C%filename_BMB_laddie_configname) // '; conda deactivate')
         ELSEIF (C%choice_BMB_laddie_system == 'slurm_HPC') THEN
           CALL system('cd ' // TRIM(C%dir_BMB_laddie_model) // '; srun --ntasks=1 --exact --overlap --cpu-bind=cores python3 runladdie.py ' // TRIM(C%filename_BMB_laddie_configname))
         ELSE
@@ -72,6 +72,12 @@ CONTAINS
       IF (found_laddie_file) THEN
         CALL read_field_from_file_2D( filename_BMB_laddie_output, 'BMBext', mesh, BMB%BMB_shelf)
       END IF
+
+      ! Convert from kg/m^2/s to m.i.e./yr =>  31557600 seconds per year, divided by rhoice = 918 in laddie.
+      ! IF (par%master) THEN
+      BMB%BMB_shelf = 31557600._dp * BMB%BMB_shelf / ice_density
+        ! END IF
+      ! CALL sync
 
     END IF ! (time > C%start_time_of_run)
 
@@ -115,6 +121,11 @@ CONTAINS
 
     ! Read in BMB data from LADDIE
     CALL read_field_from_file_2D( C%filename_BMB_laddie_initial_output, 'BMBext', mesh, BMB%BMB_shelf)
+
+          ! Convert from kg/m^2/s to m.i.e./yr =>  31557600 seconds per year, divided by rhoice = 918 in laddie.
+    ! IF (par%master) THEN
+    BMB%BMB_shelf = 31557600._dp * BMB%BMB_shelf / ice_density
+
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

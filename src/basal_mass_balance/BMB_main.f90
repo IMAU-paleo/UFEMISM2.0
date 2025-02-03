@@ -159,6 +159,10 @@ CONTAINS
             END IF
           END IF
         END DO
+      ! CASE ('parameterised')
+      !   CALL run_BMB_model_parameterised( mesh, ice, ocean, BMB) ! Can I pass only mask_ROI here? 
+      CASE ('laddie_py')
+        ! Run laddie for ROI only.
       CASE DEFAULT
         CALL crash('unknown choice_BMB_model_ROI "' // TRIM( choice_BMB_model_ROI) // '"')
     END SELECT
