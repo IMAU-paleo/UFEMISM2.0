@@ -20,7 +20,7 @@ MODULE BMB_main
   USE BMB_idealised                                          , ONLY: initialise_BMB_model_idealised, run_BMB_model_idealised
   USE BMB_prescribed                                         , ONLY: initialise_BMB_model_prescribed, run_BMB_model_prescribed
   USE BMB_parameterised                                      , ONLY: initialise_BMB_model_parameterised, run_BMB_model_parameterised
-  USE BMB_laddie                                             , ONLY: initialise_BMB_model_laddie, run_BMB_model_laddie, remap_BMB_model_laddie
+  USE BMB_laddie                                             , ONLY: initialise_BMB_model_laddie, run_BMB_model_laddie, remap_BMB_model_laddie, initialise_BMB_model_laddie_ROI, run_BMB_model_laddie_ROI
   USE laddie_main                                            , ONLY: initialise_laddie_model, run_laddie_model, remap_laddie_model
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   use ice_geometry_basics, only: is_floating
@@ -162,7 +162,8 @@ CONTAINS
       ! CASE ('parameterised')
       !   CALL run_BMB_model_parameterised( mesh, ice, ocean, BMB) ! Can I pass only mask_ROI here? 
       CASE ('laddie_py')
-        ! Run laddie for ROI only.
+        ! run_BMB_model_laddie and read BMB values only for region of interest
+        CALL run_BMB_model_laddie_ROI( mesh, ice, BMB, time)
       CASE DEFAULT
         CALL crash('unknown choice_BMB_model_ROI "' // TRIM( choice_BMB_model_ROI) // '"')
     END SELECT
@@ -173,8 +174,6 @@ CONTAINS
       CASE ('inverted')
         ! No need to do anything
       CASE ('prescribed_fixed')
-        ! No need to do anything
-      CASE ('laddie')
         ! No need to do anything
       CASE DEFAULT
         CALL apply_BMB_subgrid_scheme( mesh, ice, BMB)
@@ -280,6 +279,8 @@ CONTAINS
         ! No need to do anything
       CASE ('uniform')
         ! No need to do anything
+      CASE ('laddie_py')
+         CALL initialise_BMB_model_laddie_ROI( mesh, BMB)
       CASE DEFAULT
         CALL crash('unknown choice_BMB_model_ROI "' // TRIM( choice_BMB_model_ROI) // '"')
     END SELECT
