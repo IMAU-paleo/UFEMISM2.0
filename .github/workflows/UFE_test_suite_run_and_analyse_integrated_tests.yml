@@ -20,5 +20,8 @@ jobs:
   integrated_tests_idealised_MISMIPplus:
     uses: ./.github/workflows/zz_integrated_tests_idealised_MISMIPplus.yml
 
+  integrated_tests_idealised_SSA_icestream:
+    uses: ./.github/workflows/zz_integrated_tests_idealised_SSA_icestream.yml
+
   integrated_tests_realistic_Antarctica_initialisation_Ant_init_20kyr_invBMB_invpwf_40km:
     uses: ./.github/workflows/zz_integrated_tests_realistic_Antarctica_initialisation_Ant_init_20kyr_invBMB_invpwf_40km.yml
