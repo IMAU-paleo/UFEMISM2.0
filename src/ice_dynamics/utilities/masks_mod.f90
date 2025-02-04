@@ -36,7 +36,6 @@ contains
     ! mask_cf_gr              ! T: grounded ice next to ice-free water (sea or lake), F: otherwise
     ! mask_cf_fl              ! T: floating ice next to ice-free water (sea or lake), F: otherwise
     ! mask_coastline          ! T: ice-free land next to ice-free ocean, F: otherwise
-    ! mask_ROI                ! T: inside ROI, F: outside ROI
 
     ! In- and output variables
     type(type_mesh),      intent(in   ) :: mesh
