@@ -14,10 +14,8 @@ module solve_linearised_SSA_DIVA
 
   private
 
-  public :: solve_SSA_DIVA_linearised, &
-    calc_SSA_DIVA_stiffness_matrix_row_free, calc_SSA_DIVA_sans_stiffness_matrix_row_free, &
-    calc_SSA_DIVA_stiffness_matrix_row_BC_west, calc_SSA_DIVA_stiffness_matrix_row_BC_east, &
-    calc_SSA_DIVA_stiffness_matrix_row_BC_south, calc_SSA_DIVA_stiffness_matrix_row_BC_north
+  public :: solve_SSA_DIVA_linearised, calc_SSA_DIVA_stiffness_matrix_row_BC, &
+    calc_SSA_DIVA_stiffness_matrix_row_free, calc_SSA_DIVA_sans_stiffness_matrix_row_free
 
 contains
 
@@ -46,6 +44,7 @@ contains
     real(dp), dimension(:), allocatable :: bb
     real(dp), dimension(:), allocatable :: uv_buv
     integer                             :: row_tiuv,ti,uv
+    character(len=256)                  :: choice_BC_u, choice_BC_v
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -106,25 +105,32 @@ contains
           call crash('uv can only be 1 or 2!')
         end if
 
-      elseif (mesh%TriBI( ti) == 1 .or. mesh%TriBI( ti) == 2) then
-        ! Northern domain border
+      elseif (mesh%TriBI( ti) > 0) then
+        ! Domain border: apply boundary conditions
 
-        call calc_SSA_DIVA_stiffness_matrix_row_BC_north( mesh, u_b_prev, v_b_prev, A_CSR, bb, row_tiuv)
+        select case (mesh%TriBI( ti))
+        case default
+          call crash('invalid TriBI value at triangle {int_01}', int_01 = ti)
+        case (1,2)
+          ! Northern domain border
+          choice_BC_u = C%BC_u_north
+          choice_BC_v = C%BC_v_north
+        case (3,4)
+          ! Eastern domain border
+          choice_BC_u = C%BC_u_east
+          choice_BC_v = C%BC_v_east
+        case (5,6)
+          ! Southern domain border
+          choice_BC_u = C%BC_u_south
+          choice_BC_v = C%BC_v_south
+        case (7,8)
+          ! Western domain border
+          choice_BC_u = C%BC_u_west
+          choice_BC_v = C%BC_v_west
+        end select
 
-      elseif (mesh%TriBI( ti) == 3 .or. mesh%TriBI( ti) == 4) then
-        ! Eastern domain border
-
-        call calc_SSA_DIVA_stiffness_matrix_row_BC_east( mesh, u_b_prev, v_b_prev, A_CSR, bb, row_tiuv)
-
-      elseif (mesh%TriBI( ti) == 5 .or. mesh%TriBI( ti) == 6) then
-        ! Southern domain border
-
-        call calc_SSA_DIVA_stiffness_matrix_row_BC_south( mesh, u_b_prev, v_b_prev, A_CSR, bb, row_tiuv)
-
-      elseif (mesh%TriBI( ti) == 7 .or. mesh%TriBI( ti) == 8) then
-        ! Western domain border
-
-        call calc_SSA_DIVA_stiffness_matrix_row_BC_west( mesh, u_b_prev, v_b_prev, A_CSR, bb, row_tiuv)
+        call calc_SSA_DIVA_stiffness_matrix_row_BC( mesh, u_b_prev, v_b_prev, &
+          A_CSR, bb, row_tiuv, choice_BC_u, choice_BC_v)
 
       else
         ! No boundary conditions apply; solve the SSA
@@ -469,9 +475,9 @@ contains
 
   end subroutine calc_SSA_DIVA_sans_stiffness_matrix_row_free
 
-  subroutine calc_SSA_DIVA_stiffness_matrix_row_BC_west( mesh, u_b_prev, v_b_prev, A_CSR, bb, row_tiuv)
-    !< Add coefficients to this matrix row to represent boundary conditions at the
-    !< western domain border.
+  subroutine calc_SSA_DIVA_stiffness_matrix_row_BC( mesh, u_b_prev, v_b_prev, &
+    A_CSR, bb, row_tiuv, choice_BC_u, choice_BC_v)
+    !< Add coefficients to this matrix row to represent boundary conditions at the domain border.
 
     ! In/output variables:
     type(type_mesh),                        intent(in   ) :: mesh
@@ -479,6 +485,7 @@ contains
     type(type_sparse_matrix_CSR_dp),        intent(inout) :: A_CSR
     real(dp), dimension(A_CSR%i1:A_CSR%i2), intent(inout) :: bb
     integer,                                intent(in   ) :: row_tiuv
+    character(len=*),                       intent(in   ) :: choice_BC_u, choice_BC_v
 
     ! Local variables:
     integer                          :: ti,uv,row_ti
@@ -492,10 +499,16 @@ contains
     uv = mesh%n2tiuv( row_tiuv,2)
     row_ti = mesh%ti2n( ti)
 
-    if (uv == 1) then
+    select case (uv)
+    case default
+      call crash('uv can only be 1 or 2!')
+    case (1)
       ! x-component
 
-      if     (C%BC_u_west == 'infinite') then
+      select case (choice_BC_u)
+      case default
+        call crash('unknown choice_BC_u "' // trim( choice_BC_u) // '"!')
+      case('infinite')
         ! du/dx = 0
         !
         ! NOTE: using the d/dx operator matrix doesn't always work well, not sure why...
@@ -515,7 +528,7 @@ contains
         ! Load vector
         bb( row_tiuv) = 0._dp
 
-      elseif (C%BC_u_west == 'zero') then
+      case ('zero')
         ! u = 0
 
         ! Stiffness matrix
@@ -524,7 +537,7 @@ contains
         ! Load vector
         bb( row_tiuv) = 0._dp
 
-      elseif (C%BC_u_west == 'periodic_ISMIP-HOM') then
+      case ('periodic_ISMIP-HOM')
         ! u(x,y) = u(x+-L/2,y+-L/2)
 
         ! Find the triangle ti_copy that is displaced by [x+-L/2,y+-L/2] relative to ti
@@ -543,14 +556,15 @@ contains
         ! Set load vector
         bb( row_tiuv) = u_fixed
 
-      else
-        call crash('unknown BC_u_west "' // trim( C%BC_u_west) // '"!')
-      end if
+      end select
 
-    elseif (uv == 2) then
+    case (2)
       ! y-component
 
-      if     (C%BC_v_west == 'infinite') then
+      select case (choice_BC_v)
+      case default
+        call crash('unknown choice_BC_v "' // trim( choice_BC_v) // '"!')
+      case('infinite')
         ! dv/dx = 0
         !
         ! NOTE: using the d/dx operator matrix doesn't always work well, not sure why...
@@ -570,7 +584,7 @@ contains
         ! Load vector
         bb( row_tiuv) = 0._dp
 
-      elseif (C%BC_v_west == 'zero') then
+      case ('zero')
         ! v = 0
 
         ! Stiffness matrix
@@ -579,7 +593,7 @@ contains
         ! Load vector
         bb( row_tiuv) = 0._dp
 
-      elseif (C%BC_v_west == 'periodic_ISMIP-HOM') then
+      case ('periodic_ISMIP-HOM')
         ! v(x,y) = v(x+-L/2,y+-L/2)
 
         ! Find the triangle ti_copy that is displaced by [x+-L/2,y+-L/2] relative to ti
@@ -598,431 +612,10 @@ contains
         ! Set load vector
         bb( row_tiuv) = v_fixed
 
-      else
-        call crash('unknown BC_u_west "' // trim( C%BC_u_west) // '"!')
-      end if
+      end select
 
-    else
-      call crash('uv can only be 1 or 2!')
-    end if
+    end select
 
-  end subroutine calc_SSA_DIVA_stiffness_matrix_row_BC_west
-
-  subroutine calc_SSA_DIVA_stiffness_matrix_row_BC_east( mesh, u_b_prev, v_b_prev, A_CSR, bb, row_tiuv)
-    !< Add coefficients to this matrix row to represent boundary conditions at the
-    !< eastern domain border.
-
-    ! In/output variables:
-    type(type_mesh),                        intent(in   ) :: mesh
-    real(dp), dimension(mesh%nTri),         intent(in   ) :: u_b_prev, v_b_prev
-    type(type_sparse_matrix_CSR_dp),        intent(inout) :: A_CSR
-    real(dp), dimension(A_CSR%i1:A_CSR%i2), intent(inout) :: bb
-    integer,                                intent(in   ) :: row_tiuv
-
-    ! Local variables:
-    integer                          :: ti,uv,row_ti
-    integer                          :: tj, col_tjuv
-    integer,  dimension(mesh%nC_mem) :: ti_copy
-    real(dp), dimension(mesh%nC_mem) :: wti_copy
-    real(dp)                         :: u_fixed, v_fixed
-    integer                          :: n, n_neighbours
-
-    ti = mesh%n2tiuv( row_tiuv,1)
-    uv = mesh%n2tiuv( row_tiuv,2)
-    row_ti = mesh%ti2n( ti)
-
-    if (uv == 1) then
-      ! x-component
-
-      if     (C%BC_u_east == 'infinite') then
-        ! du/dx = 0
-        !
-        ! NOTE: using the d/dx operator matrix doesn't always work well, not sure why...
-
-        ! Set u on this triangle equal to the average value on its neighbours
-        n_neighbours = 0
-        do n = 1, 3
-          tj = mesh%TriC( ti,n)
-          if (tj == 0) cycle
-          n_neighbours = n_neighbours + 1
-          col_tjuv = mesh%tiuv2n( tj,uv)
-          call add_entry_CSR_dist( A_CSR, row_tiuv, col_tjuv, 1._dp)
-        end do
-        if (n_neighbours == 0) call crash('whaa!')
-        call add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, -1._dp * real( n_neighbours,dp))
-
-        ! Load vector
-        bb( row_tiuv) = 0._dp
-
-      elseif (C%BC_u_east == 'zero') then
-        ! u = 0
-
-        ! Stiffness matrix
-        call add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, 1._dp)
-
-        ! Load vector
-        bb( row_tiuv) = 0._dp
-
-      elseif (C%BC_u_east == 'periodic_ISMIP-HOM') then
-        ! u(x,y) = u(x+-L/2,y+-L/2)
-
-        ! Find the triangle ti_copy that is displaced by [x+-L/2,y+-L/2] relative to ti
-        call find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy, wti_copy)
-
-        ! Set value at ti equal to value at ti_copy
-        call add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv,  1._dp)
-        u_fixed = 0._dp
-        do n = 1, mesh%nC_mem
-          tj = ti_copy( n)
-          if (tj == 0) cycle
-          u_fixed = u_fixed + wti_copy( n) * u_b_prev( tj)
-        end do
-        ! Relax solution to improve stability
-        u_fixed = (C%visc_it_relax * u_fixed) + ((1._dp - C%visc_it_relax) * u_b_prev( ti))
-        ! Set load vector
-        bb( row_tiuv) = u_fixed
-
-      else
-        call crash('unknown BC_u_east "' // trim( C%BC_u_east) // '"!')
-      end if
-
-    elseif (uv == 2) then
-      ! y-component
-
-      if     (C%BC_v_east == 'infinite') then
-        ! dv/dx = 0
-        !
-        ! NOTE: using the d/dx operator matrix doesn't always work well, not sure why...
-
-        ! Set v on this triangle equal to the average value on its neighbours
-        n_neighbours = 0
-        do n = 1, 3
-          tj = mesh%TriC( ti,n)
-          if (tj == 0) cycle
-          n_neighbours = n_neighbours + 1
-          col_tjuv = mesh%tiuv2n( tj,uv)
-          call add_entry_CSR_dist( A_CSR, row_tiuv, col_tjuv, 1._dp)
-        end do
-        if (n_neighbours == 0) call crash('whaa!')
-        call add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, -1._dp * real( n_neighbours,dp))
-
-        ! Load vector
-        bb( row_tiuv) = 0._dp
-
-      elseif (C%BC_v_east == 'zero') then
-        ! v = 0
-
-        ! Stiffness matrix
-        call add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, 1._dp)
-
-        ! Load vector
-        bb( row_tiuv) = 0._dp
-
-      elseif (C%BC_v_east == 'periodic_ISMIP-HOM') then
-        ! v(x,y) = v(x+-L/2,y+-L/2)
-
-        ! Find the triangle ti_copy that is displaced by [x+-L/2,y+-L/2] relative to ti
-        call find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy, wti_copy)
-
-        ! Set value at ti equal to value at ti_copy
-        call add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv,  1._dp)
-        v_fixed = 0._dp
-        do n = 1, mesh%nC_mem
-          tj = ti_copy( n)
-          if (tj == 0) cycle
-          v_fixed = v_fixed + wti_copy( n) * v_b_prev( tj)
-        end do
-        ! Relax solution to improve stability
-        v_fixed = (C%visc_it_relax * v_fixed) + ((1._dp - C%visc_it_relax) * v_b_prev( ti))
-        ! Set load vector
-        bb( row_tiuv) = v_fixed
-
-      else
-        call crash('unknown BC_u_east "' // trim( C%BC_u_east) // '"!')
-      end if
-
-    else
-      call crash('uv can only be 1 or 2!')
-    end if
-
-  end subroutine calc_SSA_DIVA_stiffness_matrix_row_BC_east
-
-  subroutine calc_SSA_DIVA_stiffness_matrix_row_BC_north( mesh, u_b_prev, v_b_prev, A_CSR, bb, row_tiuv)
-    !< Add coefficients to this matrix row to represent boundary conditions at the
-    !< northern domain border.
-
-    ! In/output variables:
-    type(type_mesh),                        intent(in   ) :: mesh
-    real(dp), dimension(mesh%nTri),         intent(in   ) :: u_b_prev, v_b_prev
-    type(type_sparse_matrix_CSR_dp),        intent(inout) :: A_CSR
-    real(dp), dimension(A_CSR%i1:A_CSR%i2), intent(inout) :: bb
-    integer,                                intent(in   ) :: row_tiuv
-
-    ! Local variables:
-    integer                          :: ti,uv,row_ti
-    integer                          :: tj, col_tjuv
-    integer,  dimension(mesh%nC_mem) :: ti_copy
-    real(dp), dimension(mesh%nC_mem) :: wti_copy
-    real(dp)                         :: u_fixed, v_fixed
-    integer                          :: n, n_neighbours
-
-    ti = mesh%n2tiuv( row_tiuv,1)
-    uv = mesh%n2tiuv( row_tiuv,2)
-    row_ti = mesh%ti2n( ti)
-
-    if (uv == 1) then
-      ! x-component
-
-      if     (C%BC_u_north == 'infinite') then
-        ! du/dy = 0
-        !
-        ! NOTE: using the d/dy operator matrix doesn't always work well, not sure why...
-
-        ! Set u on this triangle equal to the average value on its neighbours
-        n_neighbours = 0
-        do n = 1, 3
-          tj = mesh%TriC( ti,n)
-          if (tj == 0) cycle
-          n_neighbours = n_neighbours + 1
-          col_tjuv = mesh%tiuv2n( tj,uv)
-          call add_entry_CSR_dist( A_CSR, row_tiuv, col_tjuv, 1._dp)
-        end do
-        if (n_neighbours == 0) call crash('whaa!')
-        call add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, -1._dp * real( n_neighbours,dp))
-
-        ! Load vector
-        bb( row_tiuv) = 0._dp
-
-      elseif (C%BC_u_north == 'zero') then
-        ! u = 0
-
-        ! Stiffness matrix
-        call add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, 1._dp)
-
-        ! Load vector
-        bb( row_tiuv) = 0._dp
-
-      elseif (C%BC_u_north == 'periodic_ISMIP-HOM') then
-        ! u(x,y) = u(x+-L/2,y+-L/2)
-
-        ! Find the triangle ti_copy that is displaced by [x+-L/2,y+-L/2] relative to ti
-        call find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy, wti_copy)
-
-        ! Set value at ti equal to value at ti_copy
-        call add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv,  1._dp)
-        u_fixed = 0._dp
-        do n = 1, mesh%nC_mem
-          tj = ti_copy( n)
-          if (tj == 0) cycle
-          u_fixed = u_fixed + wti_copy( n) * u_b_prev( tj)
-        end do
-        ! Relax solution to improve stability
-        u_fixed = (C%visc_it_relax * u_fixed) + ((1._dp - C%visc_it_relax) * u_b_prev( ti))
-        ! Set load vector
-        bb( row_tiuv) = u_fixed
-
-      else
-        call crash('unknown BC_u_north "' // trim( C%BC_u_north) // '"!')
-      end if
-
-    elseif (uv == 2) then
-      ! y-component
-
-      if     (C%BC_v_north == 'infinite') then
-        ! dv/dy = 0
-        !
-        ! NOTE: using the d/dy operator matrix doesn't always work well, not sure why...
-
-        ! Set v on this triangle equal to the average value on its neighbours
-        n_neighbours = 0
-        do n = 1, 3
-          tj = mesh%TriC( ti,n)
-          if (tj == 0) cycle
-          n_neighbours = n_neighbours + 1
-          col_tjuv = mesh%tiuv2n( tj,uv)
-          call add_entry_CSR_dist( A_CSR, row_tiuv, col_tjuv, 1._dp)
-        end do
-        if (n_neighbours == 0) call crash('whaa!')
-        call add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, -1._dp * real( n_neighbours,dp))
-
-        ! Load vector
-        bb( row_tiuv) = 0._dp
-
-      elseif (C%BC_v_north == 'zero') then
-        ! v = 0
-
-        ! Stiffness matrix
-        call add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, 1._dp)
-
-        ! Load vector
-        bb( row_tiuv) = 0._dp
-
-      elseif (C%BC_v_north == 'periodic_ISMIP-HOM') then
-        ! v(x,y) = v(x+-L/2,y+-L/2)
-
-        ! Find the triangle ti_copy that is displaced by [x+-L/2,y+-L/2] relative to ti
-        call find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy, wti_copy)
-
-        ! Set value at ti equal to value at ti_copy
-        call add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv,  1._dp)
-        v_fixed = 0._dp
-        do n = 1, mesh%nC_mem
-          tj = ti_copy( n)
-          if (tj == 0) cycle
-          v_fixed = v_fixed + wti_copy( n) * v_b_prev( tj)
-        end do
-        ! Relax solution to improve stability
-        v_fixed = (C%visc_it_relax * v_fixed) + ((1._dp - C%visc_it_relax) * v_b_prev( ti))
-        ! Set load vector
-        bb( row_tiuv) = v_fixed
-
-      else
-        call crash('unknown BC_u_north "' // trim( C%BC_u_north) // '"!')
-      end if
-
-    else
-      call crash('uv can only be 1 or 2!')
-    end if
-
-  end subroutine calc_SSA_DIVA_stiffness_matrix_row_BC_north
-
-  subroutine calc_SSA_DIVA_stiffness_matrix_row_BC_south( mesh, u_b_prev, v_b_prev, A_CSR, bb, row_tiuv)
-    !< Add coefficients to this matrix row to represent boundary conditions at the
-    !< southern domain border.
-
-    ! In/output variables:
-    type(type_mesh),                        intent(in   ) :: mesh
-    real(dp), dimension(mesh%nTri),         intent(in   ) :: u_b_prev, v_b_prev
-    type(type_sparse_matrix_CSR_dp),        intent(inout) :: A_CSR
-    real(dp), dimension(A_CSR%i1:A_CSR%i2), intent(inout) :: bb
-    integer,                                intent(in   ) :: row_tiuv
-
-    ! Local variables:
-    integer                          :: ti,uv,row_ti
-    integer                          :: tj, col_tjuv
-    integer,  dimension(mesh%nC_mem) :: ti_copy
-    real(dp), dimension(mesh%nC_mem) :: wti_copy
-    real(dp)                         :: u_fixed, v_fixed
-    integer                          :: n, n_neighbours
-
-    ti = mesh%n2tiuv( row_tiuv,1)
-    uv = mesh%n2tiuv( row_tiuv,2)
-    row_ti = mesh%ti2n( ti)
-
-    if (uv == 1) then
-      ! x-component
-
-      if     (C%BC_u_south == 'infinite') then
-        ! du/dy = 0
-        !
-        ! NOTE: using the d/dy operator matrix doesn't always work well, not sure why...
-
-        ! Set u on this triangle equal to the average value on its neighbours
-        n_neighbours = 0
-        do n = 1, 3
-          tj = mesh%TriC( ti,n)
-          if (tj == 0) cycle
-          n_neighbours = n_neighbours + 1
-          col_tjuv = mesh%tiuv2n( tj,uv)
-          call add_entry_CSR_dist( A_CSR, row_tiuv, col_tjuv, 1._dp)
-        end do
-        if (n_neighbours == 0) call crash('whaa!')
-        call add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, -1._dp * real( n_neighbours,dp))
-
-        ! Load vector
-        bb( row_tiuv) = 0._dp
-
-      elseif (C%BC_u_south == 'zero') then
-        ! u = 0
-
-        ! Stiffness matrix
-        call add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, 1._dp)
-
-        ! Load vector
-        bb( row_tiuv) = 0._dp
-
-      elseif (C%BC_u_south == 'periodic_ISMIP-HOM') then
-        ! u(x,y) = u(x+-L/2,y+-L/2)
-
-        ! Find the triangle ti_copy that is displaced by [x+-L/2,y+-L/2] relative to ti
-        call find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy, wti_copy)
-
-        ! Set value at ti equal to value at ti_copy
-        call add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv,  1._dp)
-        u_fixed = 0._dp
-        do n = 1, mesh%nC_mem
-          tj = ti_copy( n)
-          if (tj == 0) cycle
-          u_fixed = u_fixed + wti_copy( n) * u_b_prev( tj)
-        end do
-        ! Relax solution to improve stability
-        u_fixed = (C%visc_it_relax * u_fixed) + ((1._dp - C%visc_it_relax) * u_b_prev( ti))
-        ! Set load vector
-        bb( row_tiuv) = u_fixed
-
-      else
-        call crash('unknown BC_u_south "' // trim( C%BC_u_south) // '"!')
-      end if
-
-    elseif (uv == 2) then
-      ! y-component
-
-      if     (C%BC_v_south == 'infinite') then
-        ! dv/dy = 0
-        !
-        ! NOTE: using the d/dy operator matrix doesn't always work well, not sure why...
-
-        ! Set v on this triangle equal to the average value on its neighbours
-        n_neighbours = 0
-        do n = 1, 3
-          tj = mesh%TriC( ti,n)
-          if (tj == 0) cycle
-          n_neighbours = n_neighbours + 1
-          col_tjuv = mesh%tiuv2n( tj,uv)
-          call add_entry_CSR_dist( A_CSR, row_tiuv, col_tjuv, 1._dp)
-        end do
-        if (n_neighbours == 0) call crash('whaa!')
-        call add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, -1._dp * real( n_neighbours,dp))
-
-        ! Load vector
-        bb( row_tiuv) = 0._dp
-
-      elseif (C%BC_v_south == 'zero') then
-        ! v = 0
-
-        ! Stiffness matrix
-        call add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv, 1._dp)
-
-        ! Load vector
-        bb( row_tiuv) = 0._dp
-
-      elseif (C%BC_v_south == 'periodic_ISMIP-HOM') then
-        ! v(x,y) = v(x+-L/2,y+-L/2)
-
-        ! Find the triangle ti_copy that is displaced by [x+-L/2,y+-L/2] relative to ti
-        call find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy, wti_copy)
-
-        ! Set value at ti equal to value at ti_copy
-        call add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv,  1._dp)
-        v_fixed = 0._dp
-        do n = 1, mesh%nC_mem
-          tj = ti_copy( n)
-          if (tj == 0) cycle
-          v_fixed = v_fixed + wti_copy( n) * v_b_prev( tj)
-        end do
-        ! Relax solution to improve stability
-        v_fixed = (C%visc_it_relax * v_fixed) + ((1._dp - C%visc_it_relax) * v_b_prev( ti))
-        ! Set load vector
-        bb( row_tiuv) = v_fixed
-
-      else
-        call crash('unknown BC_u_south "' // trim( C%BC_u_south) // '"!')
-      end if
-
-    else
-      call crash('uv can only be 1 or 2!')
-    end if
-
-  end subroutine calc_SSA_DIVA_stiffness_matrix_row_BC_south
+  end subroutine calc_SSA_DIVA_stiffness_matrix_row_BC
 
 end module solve_linearised_SSA_DIVA
