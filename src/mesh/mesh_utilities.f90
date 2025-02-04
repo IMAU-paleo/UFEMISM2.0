@@ -2507,7 +2507,7 @@ CONTAINS
 
   END SUBROUTINE calc_mesh_mask_as_polygon
 
-! == ISMIP-HOM periodic boundary conditions
+  ! == ISMIP-HOM periodic boundary conditions
 
   SUBROUTINE find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy, wti_copy)
     ! Periodic boundary conditions in the ISMIP-HOM experiments are implemented by
@@ -2566,7 +2566,58 @@ CONTAINS
 
   END SUBROUTINE find_ti_copy_ISMIP_HOM_periodic
 
-! == Diagnostic tools
+  subroutine find_ti_copy_SSA_icestream_infinite( mesh, ti, ti_copy, wti_copy)
+    ! Neumann boundary conditions in the SSA_icestream experiments are implemented by
+    ! taking advantage of the fact that du/dx = 0 in the entire domain.
+    !
+    ! Velocities at the boundary can therefore be set equal to the interior value
+    ! at the same y coordinate.
+    !
+    ! This routine finds the interior triangle to copy velocities from
+
+    ! In/output variables:
+    type(type_mesh),                  intent(in   ) :: mesh
+    integer,                          intent(in   ) :: ti
+    integer,  dimension(mesh%nC_mem), intent(  out) :: ti_copy
+    real(dp), dimension(mesh%nC_mem), intent(  out) :: wti_copy
+
+    ! Local variables:
+    real(dp), dimension(2) :: gc, p
+    integer                :: vi, iti, tj
+    real(dp)               :: dist
+
+    ! This triangle's geometric centre
+    gc = mesh%TriGC( ti,:)
+
+    ! The point where we want to copy the previous velocity solution
+    p(2) = gc(2)
+    if (gc( 1) < 0._dp) then
+      p( 1) = mesh%xmin + (mesh%xmax - mesh%xmin) * 1._dp/ 3._dp
+    else
+      p( 1) = mesh%xmin + (mesh%xmax - mesh%xmin) * 2._dp/ 3._dp
+    end if
+
+    ! The vertex whose Voronoi cell contains this point
+    vi = 5
+    call find_containing_vertex( mesh, p, vi)
+
+    ! Weighted average over the triangles surrounding this vertex
+    ti_copy  = 0
+    wti_copy = 0._dp
+
+    do iti = 1, mesh%niTri( vi)
+      tj = mesh%iTri( vi,iti)
+      dist = norm2( p - mesh%TriGC( tj,:))
+      ti_copy(  iti) = tj
+      wti_copy( iti) = 1._dp / dist**2
+    end do
+
+    ! Normalise weights
+    wti_copy( 1:mesh%niTri( vi)) = wti_copy( 1:mesh%niTri( vi)) / sum( wti_copy( 1:mesh%niTri( vi)))
+
+  end subroutine find_ti_copy_SSA_icestream_infinite
+
+  ! == Diagnostic tools
 
   SUBROUTINE check_if_meshes_are_identical( mesh1, mesh2, isso)
     ! Check if two meshes are identical
