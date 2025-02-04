@@ -6,7 +6,7 @@ module solve_linearised_SSA_DIVA
   use mesh_types, only: type_mesh
   use CSR_sparse_matrix_type, only: type_sparse_matrix_CSR_dp
   use CSR_sparse_matrix_utilities, only: allocate_matrix_CSR_dist, add_entry_CSR_dist, read_single_row_CSR_dist
-  use mesh_utilities, only: find_ti_copy_ISMIP_HOM_periodic
+  use mesh_utilities, only: find_ti_copy_ISMIP_HOM_periodic, find_ti_copy_SSA_icestream_infinite
   use mpi_distributed_memory, only: gather_to_all
   use petsc_basic, only: solve_matrix_equation_CSR_PETSc
 
@@ -542,6 +542,25 @@ contains
 
         ! Find the triangle ti_copy that is displaced by [x+-L/2,y+-L/2] relative to ti
         call find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy, wti_copy)
+
+        ! Set value at ti equal to value at ti_copy
+        call add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv,  1._dp)
+        u_fixed = 0._dp
+        do n = 1, mesh%nC_mem
+          tj = ti_copy( n)
+          if (tj == 0) cycle
+          u_fixed = u_fixed + wti_copy( n) * u_b_prev( tj)
+        end do
+        ! Relax solution to improve stability
+        u_fixed = (C%visc_it_relax * u_fixed) + ((1._dp - C%visc_it_relax) * u_b_prev( ti))
+        ! Set load vector
+        bb( row_tiuv) = u_fixed
+
+      case ('infinite_SSA_icestream')
+        ! du/dx = 0 everywhere
+
+        ! Find the triangle ti_copy that is displaced by [x+-L/2,y+-L/2] relative to ti
+        call find_ti_copy_SSA_icestream_infinite( mesh, ti, ti_copy, wti_copy)
 
         ! Set value at ti equal to value at ti_copy
         call add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv,  1._dp)
