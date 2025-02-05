@@ -129,49 +129,4 @@ contains
 
   end subroutine extend_single_row_memory
 
-  subroutine coinc_ind_mesh_old2new( vi_in, ti_on, ei_on, finished, coinc_ind)
-    integer, intent(in) :: vi_in, ti_on, ei_on
-    logical, intent(in) :: finished
-    type(type_coinc_ind_mesh), intent(out) :: coinc_ind
-    if (vi_in > 0) then
-      call assert( ti_on == 0, 'vi_in > 0 and ti_on > 0')
-      call assert( ei_on == 0, 'vi_in > 0 and ei_on > 0')
-      coinc_ind%grid = a_grid
-      coinc_ind%i = vi_in
-    elseif (ti_on > 0) then
-      call assert( vi_in == 0, 'ti_on > 0 and vi_in > 0')
-      call assert( ei_on == 0, 'ti_on > 0 and ei_on > 0')
-      coinc_ind%grid = b_grid
-      coinc_ind%i = ti_on
-    elseif (ei_on > 0) then
-      call assert( vi_in == 0, 'ei_on > 0 and vi_in > 0')
-      call assert( ti_on == 0, 'ei_on > 0 and ti_on > 0')
-      coinc_ind%grid = c_grid
-      coinc_ind%i = ei_on
-    elseif (finished) then
-      coinc_ind%grid = no_value
-      coinc_ind%i = 0
-    else
-      call crash('vi_in, ti_on, ei_on are all zero but finished = false')
-    end if
-  end subroutine coinc_ind_mesh_old2new
-  subroutine coinc_ind_mesh_new2old( coinc_ind, vi_in, ti_on, ei_on)
-    type(type_coinc_ind_mesh), intent(in) :: coinc_ind
-    integer, intent(out) :: vi_in, ti_on, ei_on
-    vi_in = 0
-    ti_on = 0
-    ei_on = 0
-    select case (coinc_ind%grid)
-    case default
-      call crash('invalid grid in coincidence indicator')
-    case (a_grid)
-      vi_in = coinc_ind%i
-    case (b_grid)
-      ti_on = coinc_ind%i
-    case (c_grid)
-      ei_on = coinc_ind%i
-    case (no_value)
-    end select
-  end subroutine coinc_ind_mesh_new2old
-
 end module line_tracing_basic
