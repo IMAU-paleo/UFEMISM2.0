@@ -15,8 +15,53 @@ module netcdf_setup_grid_mesh_in_file
   private
 
   public :: setup_xy_grid_in_netcdf_file, setup_mesh_in_netcdf_file, write_matrix_operators_to_netcdf_file
+  public :: save_xy_grid_as_netcdf, save_mesh_as_netcdf
 
 contains
+
+subroutine save_xy_grid_as_netcdf( grid, filename)
+
+  ! In/output variables:
+  type(type_grid),  intent(in   ) :: grid
+  character(len=*), intent(in   ) :: filename
+
+  ! Local variables:
+  character(len=1024), parameter :: routine_name = 'save_xy_grid_as_netcdf'
+  integer                        :: ncid
+
+  ! Add routine to path
+  call init_routine( routine_name)
+
+  call create_new_netcdf_file_for_writing( filename, ncid)
+  call setup_xy_grid_in_netcdf_file( filename, ncid, grid)
+  call close_netcdf_file( ncid)
+
+  ! Finalise routine path
+  call finalise_routine( routine_name)
+
+end subroutine save_xy_grid_as_netcdf
+
+  subroutine save_mesh_as_netcdf( mesh, filename)
+
+    ! In/output variables:
+    type(type_mesh),  intent(in   ) :: mesh
+    character(len=*), intent(in   ) :: filename
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'save_mesh_as_netcdf'
+    integer                        :: ncid
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    call create_new_netcdf_file_for_writing( filename, ncid)
+    call setup_mesh_in_netcdf_file( filename, ncid, mesh)
+    call close_netcdf_file( ncid)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine save_mesh_as_netcdf
 
   subroutine setup_xy_grid_in_netcdf_file( filename, ncid, grid)
     !< Set up a regular x/y-grid in an existing NetCDF file
