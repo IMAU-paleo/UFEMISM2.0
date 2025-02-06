@@ -2,7 +2,7 @@
 <single_run>
     <name>grid_Ant_1.2800E+05_m_TO_mesh_Ant_gradient_8.0000E+05-4.0000E+05_m_x</name>
     <category>component_tests/remapping/grid_to_mesh</category>
-    <date_and_time>06-Feb-2025 14:05:13</date_and_time>
+    <date_and_time>06-Feb-2025 15:44:25</date_and_time>
     <git_hash_string>82d094e0f9716bf8be58b83b6e965fb4cd390172</git_hash_string>
     <cost_functions>
         <name>rmse</name>
