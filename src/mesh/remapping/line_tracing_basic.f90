@@ -14,7 +14,6 @@ module line_tracing_basic
 
   public :: add_integrals_to_single_row
   public :: type_coinc_ind_grid, type_coinc_ind_mesh, no_value, a_grid, b_grid, c_grid, cx_grid, cy_grid
-  public :: coinc_ind_mesh_old2new, coinc_ind_mesh_new2old
 
   type type_coinc_ind_grid
     integer :: grid

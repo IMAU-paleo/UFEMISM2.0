@@ -4,5 +4,6 @@ module netcdf_io_main
   use netcdf_basic
   use netcdf_input
   use netcdf_output
+  use read_and_remap_field_from_file
 
 end module netcdf_io_main
