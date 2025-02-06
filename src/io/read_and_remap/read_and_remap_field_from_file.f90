@@ -1,4 +1,4 @@
-module netcdf_read_and_map_field_from_file
+module read_and_remap_field_from_file
 !< Routines for flexibly reading 2-D, 2-D monthly, 3-D, and 3-D ocean data fields from NetCDF files.
 
 ! The files can contain the data on a regular x/y-grid, a regular lon/lat-grid, or a mesh.
@@ -26,9 +26,6 @@ module netcdf_read_and_map_field_from_file
   implicit none
 
 contains
-
-  ! ===== Top-level functions =====
-  ! ===============================
 
   ! Read and map to mesh
   subroutine read_field_from_file_2D( filename, field_name_options, &
@@ -650,4 +647,4 @@ contains
 
   end subroutine read_field_from_file_0D
 
-end module netcdf_read_and_map_field_from_file
+end module read_and_remap_field_from_file
