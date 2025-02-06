@@ -73,9 +73,8 @@ CONTAINS
         CALL read_field_from_file_2D( filename_BMB_laddie_output, 'BMBext', mesh, BMB%BMB_shelf)
       END IF
 
-      ! Convert from kg/m^2/s to m.i.e./yr =>  31557600 seconds per year, divided by rhoice = 918 in laddie.
       ! IF (par%master) THEN
-      BMB%BMB_shelf = 31557600._dp * BMB%BMB_shelf / ice_density
+      ! BMB%BMB_shelf = 31557600._dp * BMB%BMB_shelf / ice_density
         ! END IF
       ! CALL sync
 
@@ -124,7 +123,7 @@ CONTAINS
 
           ! Convert from kg/m^2/s to m.i.e./yr =>  31557600 seconds per year, divided by rhoice = 918 in laddie.
     ! IF (par%master) THEN
-    BMB%BMB_shelf = 31557600._dp * BMB%BMB_shelf / ice_density
+    ! BMB%BMB_shelf = 31557600._dp * BMB%BMB_shelf / ice_density
 
 
     ! Finalise routine path
@@ -189,7 +188,9 @@ CONTAINS
       DO vi = mesh%vi1, mesh%vi2
         IF (ice%mask_ROI(vi)) THEN
           IF (ice%mask_floating_ice( vi) .OR. ice%mask_icefree_ocean( vi) .OR. ice%mask_gl_gr( vi)) THEN 
-            BMB%BMB_shelf( vi) = 31557600._dp * temp_BMB(vi) / ice_density
+            ! BMB%BMB_shelf( vi) = 31557600._dp * temp_BMB(vi) / ice_density
+            BMB%BMB_shelf( vi) = temp_BMB(vi)
+
           END IF
         END IF
       END DO
@@ -203,7 +204,8 @@ CONTAINS
       DO vi = mesh%vi1, mesh%vi2
         IF (ice%mask_ROI(vi)) THEN
           IF (ice%mask_floating_ice( vi) .OR. ice%mask_icefree_ocean( vi) .OR. ice%mask_gl_gr( vi)) THEN 
-            BMB%BMB_shelf( vi) = 31557600._dp * temp_BMB_2(vi) / ice_density
+            ! BMB%BMB_shelf( vi) = 31557600._dp * temp_BMB_2(vi) / ice_density
+            BMB%BMB_shelf( vi) = temp_BMB_2(vi)
           END IF
         END IF
       END DO
