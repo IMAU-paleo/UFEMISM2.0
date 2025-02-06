@@ -51,8 +51,8 @@ contains
 
     ! Dump the two meshes to NetCDF. If the remapping crashes, having these available will
     ! help Tijn to find the error. If not, then they will be deleted at the end of this routine.
-    filename_mesh_src = trim(C%output_dir) // '/mesh2mesh_mesh_src_dump.nc'
-    filename_mesh_dst = trim(C%output_dir) // '/mesh2mesh_mesh_dst_dump.nc'
+    filename_mesh_src = trim(C%output_dir) // '/mesh2mesh_nn_mesh_src_dump.nc'
+    filename_mesh_dst = trim(C%output_dir) // '/mesh2mesh_nn_mesh_dst_dump.nc'
     call save_mesh_as_netcdf( filename_mesh_src, mesh_src)
     call save_mesh_as_netcdf( filename_mesh_dst, mesh_dst)
 
@@ -142,8 +142,8 @@ contains
 
     ! Dump the two meshes to NetCDF. If the remapping crashes, having these available will
     ! help Tijn to find the error. If not, then they will be deleted at the end of this routine.
-    filename_mesh_src = trim(C%output_dir) // '/mesh2mesh_mesh_src_dump.nc'
-    filename_mesh_dst = trim(C%output_dir) // '/mesh2mesh_mesh_dst_dump.nc'
+    filename_mesh_src = trim(C%output_dir) // '/mesh2mesh_trilin_mesh_src_dump.nc'
+    filename_mesh_dst = trim(C%output_dir) // '/mesh2mesh_trilin_mesh_dst_dump.nc'
     call save_mesh_as_netcdf( filename_mesh_src, mesh_src)
     call save_mesh_as_netcdf( filename_mesh_dst, mesh_dst)
 
@@ -262,8 +262,8 @@ contains
 
     ! Dump the two meshes to NetCDF. If the remapping crashes, having these available will
     ! help Tijn to find the error. If not, then they will be deleted at the end of this routine.
-    filename_mesh_src = trim(C%output_dir) // '/mesh2mesh_mesh_src_dump.nc'
-    filename_mesh_dst = trim(C%output_dir) // '/mesh2mesh_mesh_dst_dump.nc'
+    filename_mesh_src = trim(C%output_dir) // '/mesh2mesh_cons_mesh_src_dump.nc'
+    filename_mesh_dst = trim(C%output_dir) // '/mesh2mesh_cons_mesh_dst_dump.nc'
     call save_mesh_as_netcdf( filename_mesh_src, mesh_src)
     call save_mesh_as_netcdf( filename_mesh_dst, mesh_dst)
 
