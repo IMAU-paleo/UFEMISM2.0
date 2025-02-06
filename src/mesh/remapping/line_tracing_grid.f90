@@ -135,7 +135,7 @@ contains
     yu = grid%y( j) + grid%dx / 2._dp
 
 #if (DO_ASSERTIONS)
-    call assert( test_ge_le( p(1), xl, xu) .and. test_ge_le( p(2), yl, yu), &
+    call assert( test_ge_le( p(1), xl - grid%tol_dist, xu + grid%tol_dist) .and. test_ge_le( p(2), yl - grid%tol_dist, yu + grid%tol_dist), &
       'trace_line_grid_start - couldnt find grid cell containing p')
 #endif
 

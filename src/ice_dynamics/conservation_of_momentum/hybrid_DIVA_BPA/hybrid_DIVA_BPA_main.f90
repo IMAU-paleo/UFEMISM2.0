@@ -21,9 +21,8 @@ module hybrid_DIVA_BPA_main
     calc_basal_velocities_DIVA => calc_basal_velocities
   use SSA_DIVA_utilities, only: calc_driving_stress_DIVA => calc_driving_stress, &
     calc_horizontal_strain_rates_DIVA => calc_horizontal_strain_rates
-  use solve_linearised_SSA_DIVA, only: calc_SSA_DIVA_stiffness_matrix_row_free, calc_SSA_DIVA_sans_stiffness_matrix_row_free, &
-    calc_SSA_DIVA_stiffness_matrix_row_BC_west, calc_SSA_DIVA_stiffness_matrix_row_BC_east, &
-    calc_SSA_DIVA_stiffness_matrix_row_BC_south, calc_SSA_DIVA_stiffness_matrix_row_BC_north
+  use solve_linearised_SSA_DIVA, only: calc_SSA_DIVA_stiffness_matrix_row_free, &
+    calc_SSA_DIVA_sans_stiffness_matrix_row_free, calc_SSA_DIVA_stiffness_matrix_row_BC
   use BPA_main, only: allocate_BPA_solver , remap_BPA_solver, calc_BPA_stiffness_matrix_row_free, &
     calc_BPA_stiffness_matrix_row_BC_west, calc_BPA_stiffness_matrix_row_BC_east, &
     calc_BPA_stiffness_matrix_row_BC_south, calc_BPA_stiffness_matrix_row_BC_north, &
@@ -1007,6 +1006,7 @@ contains
     character(len=1024), parameter :: routine_name = 'calc_masked_DIVA_stiffness_matrix_and_load_vector'
     integer                        :: ncols, ncols_loc, nrows, nrows_loc, nnz_est_proc
     integer                        :: row_tiuv,ti,uv
+    character(len=256)             :: choice_BC_u, choice_BC_v
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -1054,25 +1054,32 @@ contains
 
         call add_empty_row_CSR_dist( A_DIVA, row_tiuv)
 
-      elseif (mesh%TriBI( ti) == 1 .or. mesh%TriBI( ti) == 2) then
-        ! Northern domain border
+      elseif (mesh%TriBI( ti) > 0) then
+        ! Domain border: apply boundary conditions
 
-        call calc_SSA_DIVA_stiffness_matrix_row_BC_north( mesh, DIVA%u_b_prev, DIVA%v_b_prev, A_DIVA, b_DIVA, row_tiuv)
+        select case (mesh%TriBI( ti))
+        case default
+          call crash('invalid TriBI value at triangle {int_01}', int_01 = ti)
+        case (1,2)
+          ! Northern domain border
+          choice_BC_u = C%BC_u_north
+          choice_BC_v = C%BC_v_north
+        case (3,4)
+          ! Eastern domain border
+          choice_BC_u = C%BC_u_east
+          choice_BC_v = C%BC_v_east
+        case (5,6)
+          ! Southern domain border
+          choice_BC_u = C%BC_u_south
+          choice_BC_v = C%BC_v_south
+        case (7,8)
+          ! Western domain border
+          choice_BC_u = C%BC_u_west
+          choice_BC_v = C%BC_v_west
+        end select
 
-      elseif (mesh%TriBI( ti) == 3 .or. mesh%TriBI( ti) == 4) then
-        ! Eastern domain border
-
-        call calc_SSA_DIVA_stiffness_matrix_row_BC_east( mesh, DIVA%u_b_prev, DIVA%v_b_prev, A_DIVA, b_DIVA, row_tiuv)
-
-      elseif (mesh%TriBI( ti) == 5 .or. mesh%TriBI( ti) == 6) then
-        ! Southern domain border
-
-        call calc_SSA_DIVA_stiffness_matrix_row_BC_south( mesh, DIVA%u_b_prev, DIVA%v_b_prev, A_DIVA, b_DIVA, row_tiuv)
-
-      elseif (mesh%TriBI( ti) == 7 .or. mesh%TriBI( ti) == 8) then
-        ! Western domain border
-
-        call calc_SSA_DIVA_stiffness_matrix_row_BC_west( mesh, DIVA%u_b_prev, DIVA%v_b_prev, A_DIVA, b_DIVA, row_tiuv)
+        call calc_SSA_DIVA_stiffness_matrix_row_BC( mesh, DIVA%u_b_prev, DIVA%v_b_prev, &
+          A_DIVA, b_DIVA, row_tiuv, choice_BC_u, choice_BC_v)
 
       else
         ! No boundary conditions apply; solve the DIVA
