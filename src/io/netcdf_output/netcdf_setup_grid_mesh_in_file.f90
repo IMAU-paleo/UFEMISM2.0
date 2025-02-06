@@ -19,33 +19,33 @@ module netcdf_setup_grid_mesh_in_file
 
 contains
 
-subroutine save_xy_grid_as_netcdf( grid, filename)
-
-  ! In/output variables:
-  type(type_grid),  intent(in   ) :: grid
-  character(len=*), intent(in   ) :: filename
-
-  ! Local variables:
-  character(len=1024), parameter :: routine_name = 'save_xy_grid_as_netcdf'
-  integer                        :: ncid
-
-  ! Add routine to path
-  call init_routine( routine_name)
-
-  call create_new_netcdf_file_for_writing( filename, ncid)
-  call setup_xy_grid_in_netcdf_file( filename, ncid, grid)
-  call close_netcdf_file( ncid)
-
-  ! Finalise routine path
-  call finalise_routine( routine_name)
-
-end subroutine save_xy_grid_as_netcdf
-
-  subroutine save_mesh_as_netcdf( mesh, filename)
+  subroutine save_xy_grid_as_netcdf( filename, grid)
 
     ! In/output variables:
-    type(type_mesh),  intent(in   ) :: mesh
     character(len=*), intent(in   ) :: filename
+    type(type_grid),  intent(in   ) :: grid
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'save_xy_grid_as_netcdf'
+    integer                        :: ncid
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    call create_new_netcdf_file_for_writing( filename, ncid)
+    call setup_xy_grid_in_netcdf_file( filename, ncid, grid)
+    call close_netcdf_file( ncid)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine save_xy_grid_as_netcdf
+
+  subroutine save_mesh_as_netcdf( filename, mesh)
+
+    ! In/output variables:
+    character(len=*), intent(in   ) :: filename
+    type(type_mesh),  intent(in   ) :: mesh
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'save_mesh_as_netcdf'
