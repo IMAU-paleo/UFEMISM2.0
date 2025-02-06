@@ -41,6 +41,7 @@ function mesh = read_mesh_from_file( filename)
   mesh.VVor           = ncread( filename, 'VVor');
   
   mesh.TriGC          = ncread( filename,'TriGC');
+  mesh.TriA           = ncread( filename,'TriA');
   mesh.R              = ncread( filename,'R');
   mesh.A              = ncread( filename,'A');
   mesh.lon            = ncread( filename,'lon');
