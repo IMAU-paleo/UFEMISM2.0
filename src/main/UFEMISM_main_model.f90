@@ -1024,9 +1024,9 @@ CONTAINS
               CALL calc_polygon_Tijn_test_ISMIP_HOM_A( poly_ROI)
             CASE ('CalvMIP_quarter')
               ! Not interesting; skip
+              CYCLE
             CASE ('Franka_WAIS')
               CALL calc_polygon_Franka_WAIS( poly_ROI)
-              CYCLE
             CASE DEFAULT
               ! Requested area not in this model domain; skip
               CYCLE
