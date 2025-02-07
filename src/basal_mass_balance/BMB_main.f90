@@ -164,10 +164,10 @@ CONTAINS
       CASE ('laddie_py')
         ! run_BMB_model_laddie and read BMB values only for region of interest
         CALL run_BMB_model_laddie_ROI( mesh, ice, BMB, time)
+        CALL apply_BMB_subgrid_scheme_ROI( mesh, ice, BMB)
       CASE DEFAULT
         CALL crash('unknown choice_BMB_model_ROI "' // TRIM( choice_BMB_model_ROI) // '"')
     END SELECT
-
 
     ! Apply subgrid scheme of old BMB to new mask
     SELECT CASE (choice_BMB_model)
@@ -763,6 +763,7 @@ CONTAINS
         IF     (C%choice_BMB_subgrid == 'FCMP') THEN
           ! Apply FCMP scheme
           IF (ice%mask_floating_ice( vi)) BMB%BMB( vi) = BMB%BMB_shelf( vi)
+
         ELSEIF (C%choice_BMB_subgrid == 'PMP') THEN
           ! Apply PMP scheme
           IF (ice%mask_floating_ice( vi) .OR. ice%mask_gl_gr( vi)) BMB%BMB( vi) = (1._dp - ice%fraction_gr( vi)) * BMB%BMB_shelf( vi)
@@ -780,5 +781,53 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE apply_BMB_subgrid_scheme
+
+    SUBROUTINE apply_BMB_subgrid_scheme_ROI( mesh, ice, BMB)
+    ! Apply selected scheme for sub-grid shelf melt
+    ! (see Leguy et al. 2021 for explanations of the three schemes)
+
+    ! In- and output variables
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh
+    TYPE(type_ice_model),                   INTENT(IN)    :: ice
+    TYPE(type_BMB_model),                   INTENT(INOUT)   :: BMB
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'apply_BMB_subgrid_scheme_ROI'
+    CHARACTER(LEN=256)                                    :: choice_BMB_subgrid
+    INTEGER                                               :: vi
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Note: apply extrapolation_FCMP_to_PMP to non-laddie BMB models before applying sub-grid schemes
+
+
+    DO vi = mesh%vi1, mesh%vi2
+      ! Only for ROI cells
+      IF (ice%mask_ROI(vi)) THEN
+        ! Different sub-grid schemes for sub-shelf melt
+        IF (C%do_subgrid_BMB_at_grounding_line) THEN
+          IF     (C%choice_BMB_subgrid == 'FCMP') THEN
+            ! Apply FCMP scheme
+            IF (ice%mask_floating_ice( vi)) BMB%BMB( vi) = BMB%BMB_shelf( vi)
+
+          ELSEIF (C%choice_BMB_subgrid == 'PMP') THEN
+            ! Apply PMP scheme
+            IF (ice%mask_floating_ice( vi) .OR. ice%mask_gl_gr( vi)) BMB%BMB( vi) = (1._dp - ice%fraction_gr( vi)) * BMB%BMB_shelf( vi)
+          ELSE
+            CALL crash('unknown choice_BMB_subgrid "' // TRIM(C%choice_BMB_subgrid) // '"!')
+          END IF
+        ELSE
+          ! Apply NMP scheme
+          IF (ice%fraction_gr( vi) == 0._dp) BMB%BMB( vi) = BMB%BMB_shelf( vi)
+        END IF
+      END IF
+    END DO
+    CALL sync
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE apply_BMB_subgrid_scheme_ROI
 
 END MODULE BMB_main
