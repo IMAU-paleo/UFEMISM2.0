@@ -36,9 +36,9 @@ contains
     !
     ! By default uses 2nd-order conservative remapping.
     !
-    ! NOTE: the current implementation is a compromise. For "small" triangles (defined as having an area smaller
+    ! NOTE: the current implementation is a compromise. For "small" vertices (defined as having a Voronoi cell smaller
     !       than ten times that of a square grid cell), a 2nd-order conservative remapping operation is calculated
-    !       explicitly, using the line integrals around area of overlap. However, for "large" triangles (defined as
+    !       explicitly, using the line integrals around area of overlap. However, for "large" vertices (defined as
     !       all the rest), the result is very close to simply averaging over all the overlapping grid cells.
     !       Explicitly calculating the line integrals around all the grid cells is very slow, so this
     !       seems like a reasonable compromise.
@@ -54,8 +54,9 @@ contains
     logical                                :: count_coincidences
     integer                                :: nrows, ncols, nrows_loc, ncols_loc, nnz_est, nnz_est_proc, nnz_per_row_max
     type(type_sparse_matrix_CSR_dp)        :: A_xdy_a_g_CSR, A_mxydx_a_g_CSR, A_xydy_a_g_CSR
-    integer,  dimension(:), allocatable    :: mask_do_simple_average
-    integer                                :: vi
+    logical, dimension(mesh%vi1:mesh%vi2)  :: lies_outside_grid_domain
+    logical, dimension(mesh%vi1:mesh%vi2)  :: mask_do_simple_average
+    integer                                :: vi, vvi, vori
     real(dp), dimension( mesh%nC_mem,2)    :: Vor
     integer,  dimension( mesh%nC_mem  )    :: Vor_vi
     integer,  dimension( mesh%nC_mem  )    :: Vor_ti
@@ -131,17 +132,43 @@ contains
     allocate( single_row_grid%LI_mxydx(   single_row_grid%n_max))
     allocate( single_row_grid%LI_xydy(    single_row_grid%n_max))
 
-    allocate( mask_do_simple_average( mesh%nV), source = 0)
+    ! Identify vertices whose Voronoi cell lies partially outside the grid domain
+    ! (so they can be skipped)
+    lies_outside_grid_domain = .false.
+    do vi = mesh%vi1, mesh%vi2
+      do vvi = 1, mesh%nVVor( vi)
+        vori = mesh%VVor( vi,vvi)
+        if (mesh%Vor( vori,1) <= grid%xmin .or. mesh%Vor( vori,1) >= grid%xmax .or. &
+            mesh%Vor( vori,2) <= grid%ymin .or. mesh%Vor( vori,2) >= grid%ymax) then
+          lies_outside_grid_domain( vi) = .true.
+        end if
+      end do
+    end do
+
+    ! Identify vertices whose Voronoi cell is large enough that we can simply average
+    ! over the overlapping grid cells, without needing to calculate all the line integrals
+    mask_do_simple_average = .false.
+    do vi = mesh%vi1, mesh%vi2
+      if (mesh%A( vi) >= 10._dp * grid%dx**2) then
+        mask_do_simple_average( vi) = .true.
+      end if
+    end do
 
     ! Calculate line integrals around all Voronoi cells
     do row = mesh%vi1, mesh%vi2
 
       vi = mesh%n2vi( row)
 
-      if (mesh%A( vi) < 10._dp * grid%dx**2) then
-        ! This Voronoi cell is small enough to warrant a proper line integral
+      ! If the Voronoi cell of this vertex lies (partially) outside the domain of the grid, skip it.
+      if (lies_outside_grid_domain( vi)) then
+        call add_empty_row_CSR_dist( A_xdy_a_g_CSR,   row)
+        call add_empty_row_CSR_dist( A_mxydx_a_g_CSR, row)
+        call add_empty_row_CSR_dist( A_xydy_a_g_CSR,  row)
+        cycle
+      end if
 
-        mask_do_simple_average( vi) = 0
+      if (.not. mask_do_simple_average( vi)) then
+        ! This Voronoi cell is small enough to warrant a proper line integral
 
         ! Clean up single row results
         single_row_Vor%n          = 0
@@ -162,7 +189,9 @@ contains
         end do
 
         ! Safety
-        if (single_row_Vor%n == 0) call crash('couldnt find any grid cells overlapping with this small Voronoi cell!')
+        if (single_row_Vor%n == 0) then
+          call crash('couldnt find any grid cells overlapping with the small Voronoi cell of vertex {int_01}', int_01 = vi)
+        end if
 
         ! Next integrate around the grid cells overlapping with this Voronoi cell
         do k = 1, single_row_Vor%n
@@ -219,10 +248,8 @@ contains
 
         end do ! do k = 1, single_row_Vor%n
 
-      else ! if (mesh%A( vi) < 10._dp * grid%dx**2) then
+      else
         ! This Voronoi cell is big enough that we can just average over the grid cells it contains
-
-        mask_do_simple_average( vi) = 1
 
         ! Clean up single row results
         single_row_Vor%n = 0
@@ -270,10 +297,9 @@ contains
           call add_entry_CSR_dist( A_xydy_a_g_CSR , vi, col, single_row_Vor%LI_xydy(  k))
         end do
 
-      end if ! if (mesh%A( vi) < 4._dp * grid%dx**2) then
+      end if
 
-    end do ! do vi = mesh%vi1, mesh%vi2
-    call sync
+    end do
 
     ! Clean up after yourself
     deallocate( single_row_Vor%index_left )
@@ -297,6 +323,14 @@ contains
 
       vi = mesh%n2vi( row)
 
+      if (lies_outside_grid_domain( vi)) then
+        ! Skip these
+        call add_empty_row_CSR_dist( w0_CSR,  row)
+        call add_empty_row_CSR_dist( w1x_CSR, row)
+        call add_empty_row_CSR_dist( w1y_CSR, row)
+        cycle
+      end if
+
       k1 = A_xdy_a_g_CSR%ptr( row  )
       k2 = A_xdy_a_g_CSR%ptr( row+1) - 1
 
@@ -307,7 +341,7 @@ contains
         call add_entry_CSR_dist( w0_CSR, row, col, A_xdy_a_g_CSR%val( k) / A_overlap_tot)
       end do
 
-      if (mask_do_simple_average( vi) == 0) then
+      if (.not. mask_do_simple_average( vi)) then
         ! For small vertices, include the gradient terms
 
         do k = k1, k2
@@ -325,10 +359,9 @@ contains
         call add_empty_row_CSR_dist( w1x_CSR, row)
         call add_empty_row_CSR_dist( w1y_CSR, row)
 
-      end if ! if (mask_do_simple_average( vi) == 0) then
+      end if
 
-    end do ! do row = mesh%vi1, mesh%vi2
-    call sync
+    end do
 
     ! Clean up after yourself
     call deallocate_matrix_CSR_dist( A_xdy_a_g_CSR  )
@@ -360,7 +393,6 @@ contains
     ! Clean up after yourself
     call MatDestroy( M1, perr)
     call MatDestroy( M2, perr)
-    deallocate( mask_do_simple_average)
 
     ! Delete grid & mesh netcdf dumps
     if (par%master) then
@@ -398,8 +430,9 @@ contains
     logical                                :: count_coincidences
     integer                                :: nrows, ncols, nrows_loc, ncols_loc, nnz_est, nnz_est_proc, nnz_per_row_max
     type(type_sparse_matrix_CSR_dp)        :: A_xdy_b_g_CSR, A_mxydx_b_g_CSR, A_xydy_b_g_CSR
-    integer,  dimension(:), allocatable    :: mask_do_simple_average
-    integer                                :: ti
+    logical, dimension(mesh%ti1:mesh%ti2)  :: lies_outside_grid_domain
+    logical, dimension(mesh%ti1:mesh%ti2)  :: mask_do_simple_average
+    integer                                :: ti, n, vi
     integer                                :: n1, n2, via, vib, vic
     real(dp), dimension(2)                 :: p, q
     integer                                :: k, i, j, kk, tj
@@ -472,17 +505,45 @@ contains
     allocate( single_row_grid%LI_mxydx(   single_row_grid%n_max))
     allocate( single_row_grid%LI_xydy(    single_row_grid%n_max))
 
-    allocate( mask_do_simple_average( mesh%nTri), source = 0)
+    ! Identify triangles that lie partially outside the grid domain
+    ! (so they can be skipped)
+    lies_outside_grid_domain = .false.
+    do ti = mesh%ti1, mesh%ti2
+      do n = 1, 3
+        vi = mesh%Tri( ti,n)
+        if (mesh%V( vi,1) <= grid%xmin .or. mesh%V( vi,1) >= grid%xmax .or. &
+            mesh%V( vi,2) <= grid%ymin .or. mesh%V( vi,2) >= grid%ymax) then
+          lies_outside_grid_domain( ti) = .true.
+        end if
+      end do
+    end do
+
+    ! Identify triangles that are large enough that we can simply average
+    ! over the overlapping grid cells, without needing to calculate all the line integrals
+    mask_do_simple_average = .false.
+    do ti = mesh%ti1, mesh%ti2
+      if (mesh%TriA( ti) >= 10._dp * grid%dx**2) then
+        mask_do_simple_average( ti) = .true.
+      end if
+    end do
 
     ! Calculate line integrals around all triangles
     do row = mesh%ti1, mesh%ti2
 
       ti = mesh%n2ti( row)
 
-      if (mesh%TriA( ti) < 10._dp * grid%dx**2) then
+      ! If this triangle lies (partially) outside the domain of the grid, skip it.
+      if (lies_outside_grid_domain( ti)) then
+        call add_empty_row_CSR_dist( A_xdy_b_g_CSR,   row)
+        call add_empty_row_CSR_dist( A_mxydx_b_g_CSR, row)
+        call add_empty_row_CSR_dist( A_xydy_b_g_CSR,  row)
+        cycle
+      end if
+
+      if (.not. mask_do_simple_average( ti)) then
         ! This triangle is small enough to warrant a proper line integral
 
-        mask_do_simple_average( ti) = 0
+        mask_do_simple_average( ti) = .false.
 
         ! Clean up single row results
         single_row_tri%n          = 0
@@ -504,7 +565,9 @@ contains
         end do
 
         ! Safety
-        if (single_row_tri%n == 0) call crash('couldnt find any grid cells overlapping with this small triangle!')
+        if (single_row_tri%n == 0) then
+          call crash('couldnt find any grid cells overlapping with small triangle ti = {int_01}', int_01 = ti)
+        end if
 
         ! Next integrate around the grid cells overlapping with this triangle
         do k = 1, single_row_tri%n
@@ -561,10 +624,10 @@ contains
 
         end do ! do k = 1, single_row_tri%n
 
-      else ! if (mesh%TriA( ti) < 10._dp * grid%dx**2) then
+      else
         ! This triangle is big enough that we can just average over the grid cells it contains
 
-        mask_do_simple_average( ti) = 1
+        mask_do_simple_average( ti) = .true.
 
         ! Clean up single row results
         single_row_tri%n = 0
@@ -618,9 +681,9 @@ contains
           call add_entry_CSR_dist( A_xydy_b_g_CSR , ti, col, single_row_tri%LI_xydy(  k))
         end do
 
-      end if ! if (mesh%TriA( ti) < 10._dp * grid%dx**2) then
+      end if
 
-    end do ! do row = mesh%ti1, mesh%ti2
+    end do
 
     ! Clean up after yourself
     deallocate( single_row_tri%index_left )
@@ -644,6 +707,14 @@ contains
 
       ti = mesh%n2ti( row)
 
+      if (lies_outside_grid_domain( ti)) then
+        ! Skip these
+        call add_empty_row_CSR_dist( w0_CSR,  row)
+        call add_empty_row_CSR_dist( w1x_CSR, row)
+        call add_empty_row_CSR_dist( w1y_CSR, row)
+        cycle
+      end if
+
       k1 = A_xdy_b_g_CSR%ptr( row  )
       k2 = A_xdy_b_g_CSR%ptr( row+1) - 1
 
@@ -654,7 +725,7 @@ contains
         call add_entry_CSR_dist( w0_CSR, row, col, A_xdy_b_g_CSR%val( k) / A_overlap_tot)
       end do
 
-      if (mask_do_simple_average( ti) == 0) then
+      if (.not. mask_do_simple_average( ti)) then
         ! For small triangles, include the gradient terms
 
         do k = k1, k2
@@ -672,9 +743,9 @@ contains
         call add_empty_row_CSR_dist( w1x_CSR, row)
         call add_empty_row_CSR_dist( w1y_CSR, row)
 
-      end if ! if (mask_do_simple_average( vi) == 0) then
+      end if
 
-    end do ! do row = mesh%ti1, mesh%ti2
+    end do
 
     ! Clean up after yourself
     call deallocate_matrix_CSR_dist( A_xdy_b_g_CSR  )
@@ -706,7 +777,6 @@ contains
     ! Clean up after yourself
     call MatDestroy( M1, perr)
     call MatDestroy( M2, perr)
-    deallocate( mask_do_simple_average)
 
     ! Delete grid & mesh netcdf dumps
     if (par%master) then
