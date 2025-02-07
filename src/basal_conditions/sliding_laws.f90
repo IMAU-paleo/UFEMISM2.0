@@ -423,48 +423,76 @@ CONTAINS
 
   END SUBROUTINE calc_sliding_law_ZoetIverson
 
-  SUBROUTINE calc_sliding_law_idealised(  mesh, ice, u_a, v_a)
+  subroutine calc_sliding_law_idealised(  mesh, ice, u_a, v_a)
     ! Sliding laws for some idealised experiments
 
-    IMPLICIT NONE
-
     ! In- and output variables:
-    TYPE(type_mesh),                        INTENT(IN)    :: mesh
-    TYPE(type_ice_model),                   INTENT(INOUT) :: ice
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: u_a, v_a
+    type(type_mesh),                        intent(in   ) :: mesh
+    type(type_ice_model),                   intent(inout) :: ice
+    real(dp), dimension(mesh%vi1:mesh%vi2), intent(in   ) :: u_a, v_a
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'calc_sliding_law_idealised'
-    REAL(dp)                                              :: dummy1
+    character(len=256), parameter :: routine_name = 'calc_sliding_law_idealised'
 
     ! Add routine to path
-    CALL init_routine( routine_name)
-
-    ! To prevent compiler warnings
-    dummy1 = u_a( mesh%vi1)
-    dummy1 = v_a( mesh%vi1)
+    call init_routine( routine_name)
 
     ! Use the specified idealised sliding law
-    IF     (C%choice_idealised_sliding_law == 'ISMIP-HOM_C') THEN
+    select case (C%choice_idealised_sliding_law)
+    case default
+      call crash('unknown choice_idealised_sliding_law "' // trim( C%choice_idealised_sliding_law) // '"!')
+    case ('SSA_icestream')
+      call calc_sliding_law_idealised_SSA_icestream( mesh, ice, u_a, v_a)
+    case ('ISMIP-HOM_C')
       ! ISMIP-HOM experiment C
-      CALL calc_sliding_law_idealised_ISMIP_HOM_C( mesh, ice)
-    ELSEIF (C%choice_idealised_sliding_law == 'ISMIP-HOM_D') THEN
+      call calc_sliding_law_idealised_ISMIP_HOM_C( mesh, ice)
+    case ('ISMIP-HOM_D')
       ! ISMIP-HOM experiment D
-      CALL calc_sliding_law_idealised_ISMIP_HOM_D( mesh, ice)
-    ELSEIF (C%choice_idealised_sliding_law == 'ISMIP-HOM_E') THEN
+      call calc_sliding_law_idealised_ISMIP_HOM_D( mesh, ice)
+    case ('ISMIP-HOM_E')
       ! ISMIP-HOM experiment E
-      CALL crash('the Glacier Arolla experiment is not implemented in UFEMISM!')
-    ELSEIF (C%choice_idealised_sliding_law == 'ISMIP-HOM_F') THEN
+      call crash('the Glacier Arolla experiment is not implemented in UFEMISM!')
+    case ('ISMIP-HOM_F')
       ! ISMIP-HOM experiment F
-      CALL calc_sliding_law_idealised_ISMIP_HOM_F( mesh, ice)
-    ELSE
-      CALL crash('unknown choice_idealised_sliding_law "' // TRIM( C%choice_idealised_sliding_law) // '"!')
-    END IF
+      call calc_sliding_law_idealised_ISMIP_HOM_F( mesh, ice)
+    end select
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE calc_sliding_law_idealised
+  end subroutine calc_sliding_law_idealised
+
+  subroutine calc_sliding_law_idealised_SSA_icestream( mesh, ice, u_a, v_a)
+    ! Sliding laws for some idealised experiments
+    !
+    ! SSA_icestream
+
+    ! In- and output variables:
+    type(type_mesh),                        intent(in   ) :: mesh
+    type(type_ice_model),                   intent(inout) :: ice
+    real(dp), dimension(mesh%vi1:mesh%vi2), intent(in   ) :: u_a, v_a
+
+    ! Local variables:
+    character(len=256), parameter :: routine_name = 'calc_sliding_law_idealised_SSA_icestream'
+    integer                       :: vi
+    real(dp)                      :: uabs
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    do vi = mesh%vi1, mesh%vi2
+
+      ! Include a normalisation term following Bueler & Brown (2009) to prevent divide-by-zero errors.
+      uabs = sqrt( C%slid_delta_v**2 + u_a( vi)**2 + v_a( vi)**2)
+
+      ice%basal_friction_coefficient( vi) = ice%till_yield_stress( vi) / uabs
+
+    end do
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine calc_sliding_law_idealised_SSA_icestream
 
   SUBROUTINE calc_sliding_law_idealised_ISMIP_HOM_C( mesh, ice)
     ! Sliding laws for some idealised experiments

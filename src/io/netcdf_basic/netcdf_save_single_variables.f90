@@ -71,7 +71,7 @@ contains
     call gather_CSR_dist_to_master( AA, AA_tot)
 
     ! Append output directory to filename
-    filename_applied = trim( C%output_dir) // trim( filename) // '.nc'
+    filename_applied = trim( C%output_dir) // '/' // trim( filename) // '.nc'
     call delete_existing_file( filename_applied)
 
     ! Create a new NetCDF file
@@ -154,7 +154,7 @@ contains
     call init_routine( routine_name)
 
     ! Determine file name
-    filename = trim( C%output_dir) // trim( field_name) // '.nc'
+    filename = trim( C%output_dir) // '/' // trim( field_name) // '.nc'
     call delete_existing_file( filename)
 
     ! Create a new NetCDF file
@@ -208,7 +208,7 @@ contains
     call init_routine( routine_name)
 
     ! Determine file name
-    filename = trim( C%output_dir) // trim( field_name) // '.nc'
+    filename = trim( C%output_dir) // '/' // trim( field_name) // '.nc'
     call delete_existing_file( filename)
 
     ! Create a new NetCDF file
@@ -264,7 +264,7 @@ contains
     call init_routine( routine_name)
 
     ! Determine file name
-    filename = trim( C%output_dir) // trim( field_name) // '.nc'
+    filename = trim( C%output_dir) // '/' // trim( field_name) // '.nc'
     call delete_existing_file( filename)
 
     ! Create a new NetCDF file
@@ -318,7 +318,7 @@ contains
     call init_routine( routine_name)
 
     ! Determine file name
-    filename = trim( C%output_dir) // trim( field_name) // '.nc'
+    filename = trim( C%output_dir) // '/' // trim( field_name) // '.nc'
     call delete_existing_file( filename)
 
     ! Create a new NetCDF file

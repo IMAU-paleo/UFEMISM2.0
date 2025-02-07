@@ -41,6 +41,8 @@ function analyse_remapping_test( filename_short)
   d_grid_ex = ncread( filename_full, 'd_grid_ex');
   d_mesh    = ncread( filename_full, 'd_mesh');
   d_mesh_ex = ncread( filename_full, 'd_mesh_ex');
+  d_tri     = ncread( filename_full, 'd_tri');
+  d_tri_ex  = ncread( filename_full, 'd_tri_ex');
   d_err = d_mesh - d_mesh_ex;
 
   clim = [-1,1] * 200;
@@ -86,11 +88,11 @@ function analyse_remapping_test( filename_short)
 
   end
 
-  write_to_scoreboard_file( filename_short, grid, d_grid_ex, mesh, d_mesh_ex, d_mesh)
+  write_to_scoreboard_file( filename_short, grid, d_grid_ex, mesh, d_mesh_ex, d_mesh, d_tri_ex, d_tri)
   
 end
 
-function write_to_scoreboard_file( filename_short, grid, d_grid_ex, mesh, d_mesh_ex, d_mesh)
+function write_to_scoreboard_file( filename_short, grid, d_grid_ex, mesh, d_mesh_ex, d_mesh,  d_tri_ex, d_tri)
 
   % Set up a scoreboard results structure
   test_name = filename_short(5:end-3);
@@ -98,20 +100,37 @@ function write_to_scoreboard_file( filename_short, grid, d_grid_ex, mesh, d_mesh
     'component_tests/remapping/grid_to_mesh');
 
   % Calculate cost functions
-  rmse = sqrt( mean( (d_mesh - d_mesh_ex).^2));
+  rmse     = sqrt( mean( (d_mesh - d_mesh_ex).^2));
+  rmse_tri = sqrt( mean( (d_tri  - d_tri_ex ).^2));
 
-  bounds_max = max( 0, max( d_mesh(:)) - max( d_grid_ex(:)));
-  bounds_min = max( 0, min( d_grid_ex(:)) - min( d_mesh(:)));
+  bounds_max     = max( 0, max( d_mesh(:)) - max( d_grid_ex(:)));
+  bounds_min     = max( 0, min( d_grid_ex(:)) - min( d_mesh(:)));
+  bounds_max_tri = max( 0, max( d_tri(:)) - max( d_grid_ex(:)));
+  bounds_min_tri = max( 0, min( d_grid_ex(:)) - min( d_tri(:)));
 
-  int_mesh = sum( d_mesh .* mesh.A);
-  int_grid = sum( d_grid_ex(:)) * grid.dx^2;
-  int_err = abs( 1 - int_mesh / int_grid);
+  int_mesh     = sum( d_mesh .* mesh.A);
+  int_mesh_tri = sum( d_tri .* mesh.TriA);
+  int_grid     = sum( d_grid_ex(:)) * grid.dx^2;
+  int_err      = abs( 1 - int_mesh     / int_grid);
+  int_err_tri  = abs( 1 - int_mesh_tri / int_grid);
 
   % Add cost functions to results structure
-  single_run = add_cost_function_to_single_run( single_run, 'rmse'       , 'sqrt( mean( (d_mesh - d_mesh_ex).^2))'        , rmse);
-  single_run = add_cost_function_to_single_run( single_run, 'bounds_max' , 'max( 0, max( d_mesh(:)) - max( d_grid_ex(:)))', bounds_max);
-  single_run = add_cost_function_to_single_run( single_run, 'bounds_min' , 'max( 0, min( d_grid_ex(:)) - min( d_mesh(:)))', bounds_min);
-  single_run = add_cost_function_to_single_run( single_run, 'int_err'    , 'abs( 1 - int_mesh / int_grid)'                , int_err);
+  single_run = add_cost_function_to_single_run( single_run, 'rmse', ...
+    'sqrt( mean( (d_mesh - d_mesh_ex).^2))'        , rmse);
+  single_run = add_cost_function_to_single_run( single_run, 'rmse_tri', ...
+    'sqrt( mean( (d_tri - d_tri_ex).^2))'          , rmse_tri);
+  single_run = add_cost_function_to_single_run( single_run, 'bounds_max', ...
+    'max( 0, max( d_mesh(:)) - max( d_grid_ex(:)))', bounds_max);
+  single_run = add_cost_function_to_single_run( single_run, 'bounds_min', ...
+    'max( 0, min( d_grid_ex(:)) - min( d_mesh(:)))', bounds_min);
+  single_run = add_cost_function_to_single_run( single_run, 'bounds_max_tri', ...
+    'max( 0, max( d_tri(:)) - max( d_grid_ex(:)))', bounds_max_tri);
+  single_run = add_cost_function_to_single_run( single_run, 'bounds_min_tri', ...
+    'max( 0, min( d_grid_ex(:)) - min( d_tri(:)))', bounds_min_tri);
+  single_run = add_cost_function_to_single_run( single_run, 'int_err', ...
+    'abs( 1 - int_mesh / int_grid)'                , int_err);
+  single_run = add_cost_function_to_single_run( single_run, 'int_err_tri', ...
+    'abs( 1 - int_mesh_tri / int_grid)'                , int_err_tri);
 
   % Write to scoreboard file
   write_scoreboard_file( foldername_automated_testing, single_run);

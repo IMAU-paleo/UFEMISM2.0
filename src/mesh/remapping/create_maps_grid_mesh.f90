@@ -19,6 +19,7 @@ module create_maps_grid_mesh
   use line_tracing_triangles, only: trace_line_tri
   use line_tracing_Voronoi, only: trace_line_Vor
   use grid_basic, only: calc_matrix_operators_grid
+  use netcdf_output
 
   implicit none
 
@@ -43,40 +44,49 @@ contains
     !       seems like a reasonable compromise.
 
     ! In/output variables
-    type(type_grid),                     intent(in)    :: grid
-    type(type_mesh),                     intent(in)    :: mesh
-    type(type_map),                      intent(inout) :: map
+    type(type_grid), intent(in)    :: grid
+    type(type_mesh), intent(in)    :: mesh
+    type(type_map),  intent(inout) :: map
 
     ! Local variables:
-    character(len=1024), parameter                     :: routine_name = 'create_map_from_xy_grid_to_mesh'
-    type(PetscErrorCode)                               :: perr
-    logical                                            :: count_coincidences
-    integer                                            :: nrows, ncols, nrows_loc, ncols_loc, nnz_est, nnz_est_proc, nnz_per_row_max
-    type(type_sparse_matrix_CSR_dp)                    :: A_xdy_a_g_CSR, A_mxydx_a_g_CSR, A_xydy_a_g_CSR
-    integer,  dimension(:    ), allocatable            :: mask_do_simple_average
-    integer                                            :: vi
-    real(dp), dimension( mesh%nC_mem,2)                :: Vor
-    integer,  dimension( mesh%nC_mem  )                :: Vor_vi
-    integer,  dimension( mesh%nC_mem  )                :: Vor_ti
-    integer                                            :: nVor
-    integer                                            :: vori1, vori2
-    real(dp), dimension(2)                             :: p, q
-    integer                                            :: k, i, j, kk, vj
-    real(dp)                                           :: xl, xu, yl, yu
-    real(dp), dimension(2)                             :: sw, se, nw, ne
-    integer                                            :: vi_hint
-    real(dp)                                           :: xmin, xmax, ymin, ymax
-    integer                                            :: il, iu, jl, ju
-    type(type_single_row_mapping_matrices)             :: single_row_Vor, single_row_grid
-    type(type_sparse_matrix_CSR_dp)                    :: w0_CSR, w1x_CSR, w1y_CSR
-    type(tMat)                                         :: w0    , w1x    , w1y
-    integer                                            :: row, k1, k2, col
-    real(dp)                                           :: A_overlap_tot
-    type(tMat)                                         :: grid_M_ddx, grid_M_ddy
-    type(tMat)                                         :: M1, M2
+    character(len=1024), parameter         :: routine_name = 'create_map_from_xy_grid_to_mesh'
+    type(PetscErrorCode)                   :: perr
+    logical                                :: count_coincidences
+    integer                                :: nrows, ncols, nrows_loc, ncols_loc, nnz_est, nnz_est_proc, nnz_per_row_max
+    type(type_sparse_matrix_CSR_dp)        :: A_xdy_a_g_CSR, A_mxydx_a_g_CSR, A_xydy_a_g_CSR
+    integer,  dimension(:), allocatable    :: mask_do_simple_average
+    integer                                :: vi
+    real(dp), dimension( mesh%nC_mem,2)    :: Vor
+    integer,  dimension( mesh%nC_mem  )    :: Vor_vi
+    integer,  dimension( mesh%nC_mem  )    :: Vor_ti
+    integer                                :: nVor
+    integer                                :: vori1, vori2
+    real(dp), dimension(2)                 :: p, q
+    integer                                :: k, i, j, kk, vj
+    real(dp)                               :: xl, xu, yl, yu
+    real(dp), dimension(2)                 :: sw, se, nw, ne
+    integer                                :: vi_hint
+    real(dp)                               :: xmin, xmax, ymin, ymax
+    integer                                :: il, iu, jl, ju
+    type(type_single_row_mapping_matrices) :: single_row_Vor, single_row_grid
+    type(type_sparse_matrix_CSR_dp)        :: w0_CSR, w1x_CSR, w1y_CSR
+    type(tMat)                             :: w0    , w1x    , w1y
+    integer                                :: row, k1, k2, col
+    real(dp)                               :: A_overlap_tot
+    type(tMat)                             :: grid_M_ddx, grid_M_ddy
+    type(tMat)                             :: M1, M2
+    character(len=1024)                    :: filename_grid, filename_mesh
+    integer                                :: stat
 
     ! Add routine to path
     call init_routine( routine_name)
+
+    ! Dump grid and mesh to NetCDF. If the remapping crashes, having these available will
+    ! help Tijn to find the error. If not, then they will be deleted at the end of this routine.
+    filename_grid = trim(C%output_dir) // '/grid2mesh_grid_dump.nc'
+    filename_mesh = trim(C%output_dir) // '/grid2mesh_mesh_dump.nc'
+    call save_xy_grid_as_netcdf( filename_grid, grid)
+    call save_mesh_as_netcdf(    filename_mesh, mesh)
 
     ! Safety
     if (map%is_in_use) call crash('this map is already in use!')
@@ -352,6 +362,14 @@ contains
     call MatDestroy( M2, perr)
     deallocate( mask_do_simple_average)
 
+    ! Delete grid & mesh netcdf dumps
+    if (par%master) then
+      open(unit = 1234, iostat = stat, file = filename_grid, status = 'old')
+      if (stat == 0) close(1234, status = 'delete')
+      open(unit = 1234, iostat = stat, file = filename_mesh, status = 'old')
+      if (stat == 0) close(1234, status = 'delete')
+    end if
+
     ! Finalise routine path
     call finalise_routine( routine_name)
 
@@ -370,37 +388,46 @@ contains
     !       seems like a reasonable compromise.
 
     ! In/output variables
-    type(type_grid),                     intent(in)    :: grid
-    type(type_mesh),                     intent(in)    :: mesh
-    type(type_map),                      intent(inout) :: map
+    type(type_grid), intent(in)    :: grid
+    type(type_mesh), intent(in)    :: mesh
+    type(type_map),  intent(inout) :: map
 
     ! Local variables:
-    character(len=1024), parameter                     :: routine_name = 'create_map_from_xy_grid_to_mesh_triangles'
-    type(PetscErrorCode)                               :: perr
-    logical                                            :: count_coincidences
-    integer                                            :: nrows, ncols, nrows_loc, ncols_loc, nnz_est, nnz_est_proc, nnz_per_row_max
-    type(type_sparse_matrix_CSR_dp)                    :: A_xdy_b_g_CSR, A_mxydx_b_g_CSR, A_xydy_b_g_CSR
-    integer,  dimension(:    ), allocatable            :: mask_do_simple_average
-    integer                                            :: ti
-    integer                                            :: n1, n2, via, vib, vic
-    real(dp), dimension(2)                             :: p, q
-    integer                                            :: k, i, j, kk, tj
-    real(dp)                                           :: xl, xu, yl, yu
-    real(dp), dimension(2)                             :: sw, se, nw, ne
-    integer                                            :: ti_hint
-    real(dp)                                           :: xmin, xmax, ymin, ymax
-    integer                                            :: il, iu, jl, ju
-    type(type_single_row_mapping_matrices)             :: single_row_tri, single_row_grid
-    real(dp), dimension(2)                             :: pa, pb, pc
-    type(type_sparse_matrix_CSR_dp)                    :: w0_CSR, w1x_CSR, w1y_CSR
-    type(tMat)                                         :: w0    , w1x    , w1y
-    integer                                            :: row, k1, k2, col
-    real(dp)                                           :: A_overlap_tot
-    type(tMat)                                         :: grid_M_ddx, grid_M_ddy
-    type(tMat)                                         :: M1, M2
+    character(len=1024), parameter         :: routine_name = 'create_map_from_xy_grid_to_mesh_triangles'
+    type(PetscErrorCode)                   :: perr
+    logical                                :: count_coincidences
+    integer                                :: nrows, ncols, nrows_loc, ncols_loc, nnz_est, nnz_est_proc, nnz_per_row_max
+    type(type_sparse_matrix_CSR_dp)        :: A_xdy_b_g_CSR, A_mxydx_b_g_CSR, A_xydy_b_g_CSR
+    integer,  dimension(:), allocatable    :: mask_do_simple_average
+    integer                                :: ti
+    integer                                :: n1, n2, via, vib, vic
+    real(dp), dimension(2)                 :: p, q
+    integer                                :: k, i, j, kk, tj
+    real(dp)                               :: xl, xu, yl, yu
+    real(dp), dimension(2)                 :: sw, se, nw, ne
+    integer                                :: ti_hint
+    real(dp)                               :: xmin, xmax, ymin, ymax
+    integer                                :: il, iu, jl, ju
+    type(type_single_row_mapping_matrices) :: single_row_tri, single_row_grid
+    real(dp), dimension(2)                 :: pa, pb, pc
+    type(type_sparse_matrix_CSR_dp)        :: w0_CSR, w1x_CSR, w1y_CSR
+    type(tMat)                             :: w0    , w1x    , w1y
+    integer                                :: row, k1, k2, col
+    real(dp)                               :: A_overlap_tot
+    type(tMat)                             :: grid_M_ddx, grid_M_ddy
+    type(tMat)                             :: M1, M2
+    character(len=1024)                    :: filename_grid, filename_mesh
+    integer                                :: stat
 
     ! Add routine to path
     call init_routine( routine_name)
+
+    ! Dump grid and mesh to NetCDF. If the remapping crashes, having these available will
+    ! help Tijn to find the error. If not, then they will be deleted at the end of this routine.
+    filename_grid = trim(C%output_dir) // '/grid2mesh_grid_dump.nc'
+    filename_mesh = trim(C%output_dir) // '/grid2mesh_mesh_dump.nc'
+    call save_xy_grid_as_netcdf( filename_grid, grid)
+    call save_mesh_as_netcdf(    filename_mesh, mesh)
 
     ! Safety
     if (map%is_in_use) call crash('this map is already in use!')
@@ -681,6 +708,14 @@ contains
     call MatDestroy( M2, perr)
     deallocate( mask_do_simple_average)
 
+    ! Delete grid & mesh netcdf dumps
+    if (par%master) then
+      open(unit = 1234, iostat = stat, file = filename_grid, status = 'old')
+      if (stat == 0) close(1234, status = 'delete')
+      open(unit = 1234, iostat = stat, file = filename_mesh, status = 'old')
+      if (stat == 0) close(1234, status = 'delete')
+    end if
+
     ! Finalise routine path
     call finalise_routine( routine_name)
 
@@ -699,44 +734,53 @@ contains
     !       seems like a reasonable compromise.
 
     ! In/output variables
-    type(type_mesh),                     intent(in)    :: mesh
-    type(type_grid),                     intent(in)    :: grid
-    type(type_map),                      intent(inout) :: map
+    type(type_mesh), intent(in)    :: mesh
+    type(type_grid), intent(in)    :: grid
+    type(type_map),  intent(inout) :: map
 
     ! Local variables:
-    character(len=1024), parameter                     :: routine_name = 'create_map_from_mesh_to_xy_grid'
-    integer                                            :: ierr
-    type(PetscErrorCode)                               :: perr
-    logical                                            :: count_coincidences
-    integer,  dimension(:,:  ), allocatable            :: overlaps_with_small_triangle, containing_triangle
-    integer                                            :: row, ti
-    integer                                            :: via, vib, vic
-    real(dp), dimension(2)                             :: pa, pb, pc
-    real(dp)                                           :: xmin, xmax, ymin, ymax
-    integer                                            :: il, iu, jl, ju
-    integer                                            :: i, j, n_ext, ii, jj
-    integer                                            :: nrows, ncols, nrows_loc, ncols_loc, nnz_est, nnz_est_proc, nnz_per_row_max
-    type(type_sparse_matrix_CSR_dp)                    :: A_xdy_g_b_CSR, A_mxydx_g_b_CSR, A_xydy_g_b_CSR
-    type(type_single_row_mapping_matrices)             :: single_row_grid, single_row_Tri
-    integer                                            :: ti_hint
-    real(dp), dimension(2)                             :: p
-    real(dp)                                           :: xl, xu, yl, yu
-    real(dp), dimension(2)                             :: sw, se, nw, ne
-    integer                                            :: k, kk, nn
-    real(dp)                                           :: LI_xdy, LI_mxydx, LI_xydy
-    type(type_sparse_matrix_CSR_dp)                    :: w0_CSR, w1x_CSR, w1y_CSR
-    type(tMat)                                         :: w0    , w1x    , w1y
-    integer                                            :: k1, k2, col
-    real(dp)                                           :: A_overlap_tot
-    type(tMat)                                         :: M_map_a_b, M_ddx_a_b, M_ddy_a_b
-    type(tMat)                                         :: M1, M2
-    integer                                            :: ncols_row
-    integer,  dimension(:    ), allocatable            :: cols_row
-    real(dp), dimension(:    ), allocatable            :: vals_row
-    logical                                            :: has_value
+    character(len=1024), parameter         :: routine_name = 'create_map_from_mesh_to_xy_grid'
+    integer                                :: ierr
+    type(PetscErrorCode)                   :: perr
+    logical                                :: count_coincidences
+    integer,  dimension(:,:), allocatable  :: overlaps_with_small_triangle, containing_triangle
+    integer                                :: row, ti
+    integer                                :: via, vib, vic
+    real(dp), dimension(2)                 :: pa, pb, pc
+    real(dp)                               :: xmin, xmax, ymin, ymax
+    integer                                :: il, iu, jl, ju
+    integer                                :: i, j, n_ext, ii, jj
+    integer                                :: nrows, ncols, nrows_loc, ncols_loc, nnz_est, nnz_est_proc, nnz_per_row_max
+    type(type_sparse_matrix_CSR_dp)        :: A_xdy_g_b_CSR, A_mxydx_g_b_CSR, A_xydy_g_b_CSR
+    type(type_single_row_mapping_matrices) :: single_row_grid, single_row_Tri
+    integer                                :: ti_hint
+    real(dp), dimension(2)                 :: p
+    real(dp)                               :: xl, xu, yl, yu
+    real(dp), dimension(2)                 :: sw, se, nw, ne
+    integer                                :: k, kk, nn
+    real(dp)                               :: LI_xdy, LI_mxydx, LI_xydy
+    type(type_sparse_matrix_CSR_dp)        :: w0_CSR, w1x_CSR, w1y_CSR
+    type(tMat)                             :: w0    , w1x    , w1y
+    integer                                :: k1, k2, col
+    real(dp)                               :: A_overlap_tot
+    type(tMat)                             :: M_map_a_b, M_ddx_a_b, M_ddy_a_b
+    type(tMat)                             :: M1, M2
+    integer                                :: ncols_row
+    integer,  dimension(:), allocatable    :: cols_row
+    real(dp), dimension(:), allocatable    :: vals_row
+    logical                                :: has_value
+    character(len=1024)                    :: filename_grid, filename_mesh
+    integer                                :: stat
 
     ! Add routine to path
     call init_routine( routine_name)
+
+    ! Dump grid and mesh to NetCDF. If the remapping crashes, having these available will
+    ! help Tijn to find the error. If not, then they will be deleted at the end of this routine.
+    filename_grid = trim(C%output_dir) // '/mesh2grid_grid_dump.nc'
+    filename_mesh = trim(C%output_dir) // '/mesh2grid_mesh_dump.nc'
+    call save_xy_grid_as_netcdf( filename_grid, grid)
+    call save_mesh_as_netcdf(    filename_mesh, mesh)
 
     ! Safety
     if (map%is_in_use) call crash('this map is already in use!')
@@ -1130,6 +1174,14 @@ contains
     ! Clean up after yourself
     deallocate( cols_row)
     deallocate( vals_row)
+
+    ! Delete grid & mesh netcdf dumps
+    if (par%master) then
+      open(unit = 1234, iostat = stat, file = filename_grid, status = 'old')
+      if (stat == 0) close(1234, status = 'delete')
+      open(unit = 1234, iostat = stat, file = filename_mesh, status = 'old')
+      if (stat == 0) close(1234, status = 'delete')
+    end if
 
     ! Finalise routine path
     call finalise_routine( routine_name)

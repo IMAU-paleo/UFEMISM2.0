@@ -16,6 +16,7 @@ module create_maps_mesh_mesh
   use petsc_basic, only: mat_CSR2petsc, mat_petsc2CSR, MatConvert
   use line_tracing_triangles, only: trace_line_tri
   use line_tracing_Voronoi, only: trace_line_Vor
+  use netcdf_output
 
   implicit none
 
@@ -42,9 +43,18 @@ contains
     integer                         :: row, vi_dst
     real(dp), dimension(2)          :: p
     integer                         :: vi_src, col
+    character(len=1024)             :: filename_mesh_src, filename_mesh_dst
+    integer                         :: stat
 
     ! Add routine to path
     call init_routine( routine_name)
+
+    ! Dump the two meshes to NetCDF. If the remapping crashes, having these available will
+    ! help Tijn to find the error. If not, then they will be deleted at the end of this routine.
+    filename_mesh_src = trim(C%output_dir) // '/mesh2mesh_nn_mesh_src_dump.nc'
+    filename_mesh_dst = trim(C%output_dir) // '/mesh2mesh_nn_mesh_dst_dump.nc'
+    call save_mesh_as_netcdf( filename_mesh_src, mesh_src)
+    call save_mesh_as_netcdf( filename_mesh_dst, mesh_dst)
 
     ! Safety
     if (map%is_in_use) call crash('this map is already in use!')
@@ -93,6 +103,14 @@ contains
     ! Clean up after yourself
     call deallocate_matrix_CSR_dist( M_CSR)
 
+    ! Delete mesh netcdf dumps
+    if (par%master) then
+      open(unit = 1234, iostat = stat, file = filename_mesh_src, status = 'old')
+      if (stat == 0) close(1234, status = 'delete')
+      open(unit = 1234, iostat = stat, file = filename_mesh_dst, status = 'old')
+      if (stat == 0) close(1234, status = 'delete')
+    end if
+
     ! Finalise routine path
     call finalise_routine( routine_name)
 
@@ -116,9 +134,18 @@ contains
     real(dp), dimension(2)          :: pa, pb, pc
     real(dp)                        :: Atri_abp, Atri_bcp, Atri_cap, Atri_abc, wa, wb, wc
     integer                         :: cola, colb, colc
+    character(len=1024)             :: filename_mesh_src, filename_mesh_dst
+    integer                         :: stat
 
     ! Add routine to path
     call init_routine( routine_name)
+
+    ! Dump the two meshes to NetCDF. If the remapping crashes, having these available will
+    ! help Tijn to find the error. If not, then they will be deleted at the end of this routine.
+    filename_mesh_src = trim(C%output_dir) // '/mesh2mesh_trilin_mesh_src_dump.nc'
+    filename_mesh_dst = trim(C%output_dir) // '/mesh2mesh_trilin_mesh_dst_dump.nc'
+    call save_mesh_as_netcdf( filename_mesh_src, mesh_src)
+    call save_mesh_as_netcdf( filename_mesh_dst, mesh_dst)
 
     ! Safety
     if (map%is_in_use) call crash('this map is already in use!')
@@ -190,6 +217,14 @@ contains
     ! Clean up after yourself
     call deallocate_matrix_CSR_dist( M_CSR)
 
+    ! Delete mesh netcdf dumps
+    if (par%master) then
+      open(unit = 1234, iostat = stat, file = filename_mesh_src, status = 'old')
+      if (stat == 0) close(1234, status = 'delete')
+      open(unit = 1234, iostat = stat, file = filename_mesh_dst, status = 'old')
+      if (stat == 0) close(1234, status = 'delete')
+    end if
+
     ! Finalise routine path
     call finalise_routine( routine_name)
 
@@ -204,24 +239,33 @@ contains
     type(type_map),  intent(inout) :: map
 
     ! Local variables:
-    character(len=1024), parameter          :: routine_name = 'create_map_from_mesh_to_mesh_2nd_order_conservative'
-    type(PetscErrorCode)                    :: perr
-    logical                                 :: count_coincidences
-    integer                                 :: nnz_per_row_max
-    type(tMat)                              :: B_xdy_b_a  , B_mxydx_b_a  , B_xydy_b_a
-    type(tMat)                              :: B_xdy_a_b  , B_mxydx_a_b  , B_xydy_a_b
-    type(tMat)                              :: B_xdy_b_a_T, B_mxydx_b_a_T, B_xydy_b_a_T
-    type(tMat)                              :: w0, w1x, w1y
-    integer                                 :: istart, iend, n, k, ti
-    integer                                 :: ncols
-    integer,  dimension(:    ), allocatable :: cols
-    real(dp), dimension(:    ), allocatable :: vals, w0_row, w1x_row, w1y_row
-    real(dp)                                :: A_overlap_tot
-    type(tMat)                              :: M_map_a_b, M_ddx_a_b, M_ddy_a_b
-    type(tMat)                              :: M1, M2, M_cons_1st_order
+    character(len=1024), parameter      :: routine_name = 'create_map_from_mesh_to_mesh_2nd_order_conservative'
+    type(PetscErrorCode)                :: perr
+    logical                             :: count_coincidences
+    integer                             :: nnz_per_row_max
+    type(tMat)                          :: B_xdy_b_a  , B_mxydx_b_a  , B_xydy_b_a
+    type(tMat)                          :: B_xdy_a_b  , B_mxydx_a_b  , B_xydy_a_b
+    type(tMat)                          :: B_xdy_b_a_T, B_mxydx_b_a_T, B_xydy_b_a_T
+    type(tMat)                          :: w0, w1x, w1y
+    integer                             :: istart, iend, n, k, ti
+    integer                             :: ncols
+    integer,  dimension(:), allocatable :: cols
+    real(dp), dimension(:), allocatable :: vals, w0_row, w1x_row, w1y_row
+    real(dp)                            :: A_overlap_tot
+    type(tMat)                          :: M_map_a_b, M_ddx_a_b, M_ddy_a_b
+    type(tMat)                          :: M1, M2, M_cons_1st_order
+    character(len=1024)                 :: filename_mesh_src, filename_mesh_dst
+    integer                             :: stat
 
     ! Add routine to path
     call init_routine( routine_name)
+
+    ! Dump the two meshes to NetCDF. If the remapping crashes, having these available will
+    ! help Tijn to find the error. If not, then they will be deleted at the end of this routine.
+    filename_mesh_src = trim(C%output_dir) // '/mesh2mesh_cons_mesh_src_dump.nc'
+    filename_mesh_dst = trim(C%output_dir) // '/mesh2mesh_cons_mesh_dst_dump.nc'
+    call save_mesh_as_netcdf( filename_mesh_src, mesh_src)
+    call save_mesh_as_netcdf( filename_mesh_dst, mesh_dst)
 
     ! Safety
     if (map%is_in_use) call crash('this map is already in use!')
@@ -365,6 +409,14 @@ contains
     call correct_mesh_to_mesh_map( mesh_src, mesh_dst, M_cons_1st_order, map%M)
 
     call MatDestroy( M_cons_1st_order, perr)
+
+    ! Delete mesh netcdf dumps
+    if (par%master) then
+      open(unit = 1234, iostat = stat, file = filename_mesh_src, status = 'old')
+      if (stat == 0) close(1234, status = 'delete')
+      open(unit = 1234, iostat = stat, file = filename_mesh_dst, status = 'old')
+      if (stat == 0) close(1234, status = 'delete')
+    end if
 
     ! Finalise routine path
     call finalise_routine( routine_name)

@@ -160,16 +160,6 @@ UFEMISM_source = \
   mesh/discretisation/mesh_disc_calc_matrix_operators_2D.f90 \
   mesh/discretisation/mesh_disc_calc_matrix_operators_3D.f90 \
   mesh/discretisation/mesh_disc_apply_operators.f90 \
-  mesh/remapping/line_tracing_basic.f90 \
-  mesh/remapping/line_tracing_grid.f90 \
-  mesh/remapping/line_tracing_triangles.f90 \
-  mesh/remapping/line_tracing_Voronoi.f90 \
-  mesh/remapping/create_maps_grid_mesh.f90 \
-  mesh/remapping/create_maps_gridlonlat_mesh.f90 \
-  mesh/remapping/create_maps_mesh_mesh.f90 \
-  mesh/remapping/apply_maps.f90 \
-  mesh/remapping/remapping_main.f90 \
-  mesh/mesh_data_smoothing.f90 \
   mesh/mesh_secondary.f90 \
   mesh/creation/reduce_ice_geometry.f90 \
   mesh/creation/mesh_creation_refine_in_ROIs.f90 \
@@ -193,7 +183,6 @@ UFEMISM_source = \
   io/netcdf_input/netcdf_read_field_from_mesh_file.f90 \
   io/netcdf_input/netcdf_read_field_from_lonlat_grid_file.f90 \
   io/netcdf_input/netcdf_read_field_from_xy_grid_file.f90 \
-  io/netcdf_input/netcdf_read_and_map_field_from_file.f90 \
   io/netcdf_input/netcdf_input.f90 \
   \
   io/netcdf_output/netcdf_generate_numbered_filename.f90 \
@@ -208,6 +197,18 @@ UFEMISM_source = \
   io/netcdf_output/netcdf_resource_tracking.f90 \
   io/netcdf_output/netcdf_output.f90 \
   \
+  mesh/remapping/line_tracing_basic.f90 \
+  mesh/remapping/line_tracing_grid.f90 \
+  mesh/remapping/line_tracing_triangles.f90 \
+  mesh/remapping/line_tracing_Voronoi.f90 \
+  mesh/remapping/create_maps_grid_mesh.f90 \
+  mesh/remapping/create_maps_gridlonlat_mesh.f90 \
+  mesh/remapping/create_maps_mesh_mesh.f90 \
+  mesh/remapping/apply_maps.f90 \
+  mesh/remapping/remapping_main.f90 \
+  mesh/mesh_data_smoothing.f90 \
+  \
+  io/read_and_remap/read_and_remap_field_from_file.f90 \
   io/netcdf_io_main.f90 \
   \
   reference_states/reference_geometries.f90 \

@@ -19,7 +19,7 @@ module netcdf_field_name_options
     field_name_options_VE, field_name_options_EV, field_name_options_ETri, field_name_options_TriE, field_name_options_EBI, &
     field_name_options_vi2vori, field_name_options_ti2vori, field_name_options_ei2vori, field_name_options_vori2vi, &
     field_name_options_vori2ti, field_name_options_vori2ei, field_name_options_Vor, field_name_options_VornC, &
-    field_name_options_VorC, field_name_options_nVVor, field_name_options_VVor, field_name_options_TriGC, &
+    field_name_options_VorC, field_name_options_nVVor, field_name_options_VVor, field_name_options_TriGC, field_name_options_TriA, &
     field_name_options_A, field_name_options_R, field_name_options_Hi, field_name_options_Hb, field_name_options_Hs, &
     field_name_options_SL, field_name_options_dHb, field_name_options_Ti, field_name_options_T_ocean, &
     field_name_options_S_ocean, field_name_options_poly_ROI, field_name_options_npoly_ROI
@@ -74,6 +74,7 @@ module netcdf_field_name_options
   character(len=1024), parameter :: field_name_options_nVVor          = 'nVVor'
   character(len=1024), parameter :: field_name_options_VVor           = 'VVor'
   character(len=1024), parameter :: field_name_options_TriGC          = 'TriGC'
+  character(len=1024), parameter :: field_name_options_TriA           = 'TriA'
   character(len=1024), parameter :: field_name_options_A              = 'A'
   character(len=1024), parameter :: field_name_options_R              = 'R'
 
