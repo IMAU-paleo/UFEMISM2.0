@@ -7,6 +7,7 @@ module remapping_main
   use mesh_types, only: type_mesh
   use interpolation, only: remap_cons_2nd_order_1D
   use mesh_utilities, only: extrapolate_Gaussian, check_if_meshes_are_identical
+  use remapping_grid_to_mesh_vertices
   use create_maps_grid_mesh
   use create_maps_gridlonlat_mesh
   use create_maps_mesh_mesh
@@ -66,7 +67,7 @@ contains
       do mi = 1, size( Atlas,1)
         if (.not. Atlas( mi)%is_in_use) then
           found_empty_page = .true.
-          call create_map_from_xy_grid_to_mesh( grid, mesh, Atlas( mi))
+          call create_map_from_xy_grid_to_mesh_vertices( grid, mesh, Atlas( mi))
           mi_valid = mi
           exit
         end if
@@ -121,7 +122,7 @@ contains
       do mi = 1, size( Atlas,1)
         if (.not. Atlas( mi)%is_in_use) then
           found_empty_page = .true.
-          call create_map_from_xy_grid_to_mesh( grid, mesh, Atlas( mi))
+          call create_map_from_xy_grid_to_mesh_vertices( grid, mesh, Atlas( mi))
           mi_valid = mi
           exit
         end if

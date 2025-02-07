@@ -44,7 +44,8 @@ module bedrock_cumulative_density_functions
   use ice_model_types, only: type_ice_model
   use CSR_sparse_matrix_type, only: type_sparse_matrix_CSR_dp
   use remapping_main, only: Atlas
-  use create_maps_grid_mesh, only: create_map_from_xy_grid_to_mesh, create_map_from_xy_grid_to_mesh_triangles
+  use remapping_grid_to_mesh_vertices, only: create_map_from_xy_grid_to_mesh_vertices
+  use create_maps_grid_mesh, only: create_map_from_xy_grid_to_mesh_triangles
   use petsc_basic, only: mat_petsc2CSR
   use mpi_distributed_memory_grid, only: gather_gridded_data_to_master
   use netcdf_io_main
@@ -215,7 +216,7 @@ end subroutine initialise_bedrock_CDFs_from_file
       do mi = 1, size( Atlas,1)
         if (.not. Atlas( mi)%is_in_use) then
           found_empty_page = .true.
-          call create_map_from_xy_grid_to_mesh( refgeo%grid_raw, mesh, Atlas( mi))
+          call create_map_from_xy_grid_to_mesh_vertices( refgeo%grid_raw, mesh, Atlas( mi))
           mi_valid = mi
           exit
         end if

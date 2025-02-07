@@ -25,389 +25,10 @@ module create_maps_grid_mesh
 
   private
 
-  public :: create_map_from_xy_grid_to_mesh
   public :: create_map_from_xy_grid_to_mesh_triangles
   public :: create_map_from_mesh_to_xy_grid
 
 contains
-
-  subroutine create_map_from_xy_grid_to_mesh( grid, mesh, map)
-    ! Create a new mapping object from an x/y-grid to a mesh.
-    !
-    ! By default uses 2nd-order conservative remapping.
-    !
-    ! NOTE: the current implementation is a compromise. For "small" vertices (defined as having a Voronoi cell smaller
-    !       than ten times that of a square grid cell), a 2nd-order conservative remapping operation is calculated
-    !       explicitly, using the line integrals around area of overlap. However, for "large" vertices (defined as
-    !       all the rest), the result is very close to simply averaging over all the overlapping grid cells.
-    !       Explicitly calculating the line integrals around all the grid cells is very slow, so this
-    !       seems like a reasonable compromise.
-
-    ! In/output variables
-    type(type_grid), intent(in)    :: grid
-    type(type_mesh), intent(in)    :: mesh
-    type(type_map),  intent(inout) :: map
-
-    ! Local variables:
-    character(len=1024), parameter         :: routine_name = 'create_map_from_xy_grid_to_mesh'
-    type(PetscErrorCode)                   :: perr
-    logical                                :: count_coincidences
-    integer                                :: nrows, ncols, nrows_loc, ncols_loc, nnz_est, nnz_est_proc, nnz_per_row_max
-    type(type_sparse_matrix_CSR_dp)        :: A_xdy_a_g_CSR, A_mxydx_a_g_CSR, A_xydy_a_g_CSR
-    logical, dimension(mesh%vi1:mesh%vi2)  :: lies_outside_grid_domain
-    logical, dimension(mesh%vi1:mesh%vi2)  :: mask_do_simple_average
-    integer                                :: vi, vvi, vori
-    real(dp), dimension( mesh%nC_mem,2)    :: Vor
-    integer,  dimension( mesh%nC_mem  )    :: Vor_vi
-    integer,  dimension( mesh%nC_mem  )    :: Vor_ti
-    integer                                :: nVor
-    integer                                :: vori1, vori2
-    real(dp), dimension(2)                 :: p, q
-    integer                                :: k, i, j, kk, vj
-    real(dp)                               :: xl, xu, yl, yu
-    real(dp), dimension(2)                 :: sw, se, nw, ne
-    integer                                :: vi_hint
-    real(dp)                               :: xmin, xmax, ymin, ymax
-    integer                                :: il, iu, jl, ju
-    type(type_single_row_mapping_matrices) :: single_row_Vor, single_row_grid
-    type(type_sparse_matrix_CSR_dp)        :: w0_CSR, w1x_CSR, w1y_CSR
-    type(tMat)                             :: w0    , w1x    , w1y
-    integer                                :: row, k1, k2, col
-    real(dp)                               :: A_overlap_tot
-    type(tMat)                             :: grid_M_ddx, grid_M_ddy
-    type(tMat)                             :: M1, M2
-    character(len=1024)                    :: filename_grid, filename_mesh
-    integer                                :: stat
-
-    ! Add routine to path
-    call init_routine( routine_name)
-
-    ! Dump grid and mesh to NetCDF. If the remapping crashes, having these available will
-    ! help Tijn to find the error. If not, then they will be deleted at the end of this routine.
-    filename_grid = trim(C%output_dir) // '/grid2mesh_grid_dump.nc'
-    filename_mesh = trim(C%output_dir) // '/grid2mesh_mesh_dump.nc'
-    call save_xy_grid_as_netcdf( filename_grid, grid)
-    call save_mesh_as_netcdf(    filename_mesh, mesh)
-
-    ! Safety
-    if (map%is_in_use) call crash('this map is already in use!')
-
-    ! == Initialise map metadata
-    ! ==========================
-
-    map%is_in_use = .true.
-    map%name_src  = grid%name
-    map%name_dst  = mesh%name
-    map%method    = '2nd_order_conservative'
-
-    ! == Initialise the three matrices using the native UFEMISM CSR-matrix format
-    ! ===========================================================================
-
-    ! Matrix size
-    nrows           = mesh%nV  ! to
-    nrows_loc       = mesh%nV_loc
-    ncols           = grid%n   ! from
-    ncols_loc       = grid%n_loc
-    nnz_est         = 4 * max( nrows, ncols)
-    nnz_est_proc    = ceiling( real( nnz_est, dp) / real( par%n, dp))
-    nnz_per_row_max = max( 32, max( ceiling( 2._dp * maxval( mesh%A) / (grid%dx**2)), &
-                                    ceiling( 2._dp * (grid%dx**2) / minval( mesh%A))) )
-
-    call allocate_matrix_CSR_dist( A_xdy_a_g_CSR  , nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
-    call allocate_matrix_CSR_dist( A_mxydx_a_g_CSR, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
-    call allocate_matrix_CSR_dist( A_xydy_a_g_CSR , nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
-
-    ! allocate memory for single row results
-    single_row_Vor%n_max = nnz_per_row_max
-    single_row_Vor%n     = 0
-    allocate( single_row_Vor%index_left( single_row_Vor%n_max))
-    allocate( single_row_Vor%LI_xdy(     single_row_Vor%n_max))
-    allocate( single_row_Vor%LI_mxydx(   single_row_Vor%n_max))
-    allocate( single_row_Vor%LI_xydy(    single_row_Vor%n_max))
-
-    single_row_grid%n_max = nnz_per_row_max
-    single_row_grid%n     = 0
-    allocate( single_row_grid%index_left( single_row_grid%n_max))
-    allocate( single_row_grid%LI_xdy(     single_row_grid%n_max))
-    allocate( single_row_grid%LI_mxydx(   single_row_grid%n_max))
-    allocate( single_row_grid%LI_xydy(    single_row_grid%n_max))
-
-    ! Identify vertices whose Voronoi cell lies partially outside the grid domain
-    ! (so they can be skipped)
-    lies_outside_grid_domain = .false.
-    do vi = mesh%vi1, mesh%vi2
-      do vvi = 1, mesh%nVVor( vi)
-        vori = mesh%VVor( vi,vvi)
-        if (mesh%Vor( vori,1) <= grid%xmin - grid%dx/2._dp .or. &
-            mesh%Vor( vori,1) >= grid%xmax + grid%dx/2._dp .or. &
-            mesh%Vor( vori,2) <= grid%ymin - grid%dx/2._dp .or. &
-            mesh%Vor( vori,2) >= grid%ymax + grid%dx/2._dp) then
-          lies_outside_grid_domain( vi) = .true.
-        end if
-      end do
-    end do
-
-    ! Identify vertices whose Voronoi cell is large enough that we can simply average
-    ! over the overlapping grid cells, without needing to calculate all the line integrals
-    mask_do_simple_average = .false.
-    do vi = mesh%vi1, mesh%vi2
-      if (mesh%A( vi) >= 10._dp * grid%dx**2) then
-        mask_do_simple_average( vi) = .true.
-      end if
-    end do
-
-    ! Calculate line integrals around all Voronoi cells
-    do row = mesh%vi1, mesh%vi2
-
-      vi = mesh%n2vi( row)
-
-      ! If the Voronoi cell of this vertex lies (partially) outside the domain of the grid, skip it.
-      if (lies_outside_grid_domain( vi)) then
-        call add_empty_row_CSR_dist( A_xdy_a_g_CSR,   row)
-        call add_empty_row_CSR_dist( A_mxydx_a_g_CSR, row)
-        call add_empty_row_CSR_dist( A_xydy_a_g_CSR,  row)
-        cycle
-      end if
-
-      if (.not. mask_do_simple_average( vi)) then
-        ! This Voronoi cell is small enough to warrant a proper line integral
-
-        ! Clean up single row results
-        single_row_Vor%n          = 0
-        single_row_Vor%index_left = 0
-        single_row_Vor%LI_xdy     = 0._dp
-        single_row_Vor%LI_mxydx   = 0._dp
-        single_row_Vor%LI_xydy    = 0._dp
-
-        ! Integrate around the complete Voronoi cell boundary
-        call calc_Voronoi_cell( mesh, vi, 0._dp, Vor, Vor_vi, Vor_ti, nVor)
-        do vori1 = 1, nVor
-          vori2 = vori1 + 1
-          if (vori2 > nVor) vori2 = 1
-          p = Vor( vori1,:)
-          q = Vor( vori2,:)
-          count_coincidences = .true.
-          call trace_line_grid( grid, p, q, single_row_Vor, count_coincidences)
-        end do
-
-        ! Safety
-        if (single_row_Vor%n == 0) then
-          call crash('couldnt find any grid cells overlapping with the small Voronoi cell of vertex {int_01}', int_01 = vi)
-        end if
-
-        ! Next integrate around the grid cells overlapping with this Voronoi cell
-        do k = 1, single_row_Vor%n
-
-          ! Clean up single row results
-          single_row_grid%n          = 0
-          single_row_grid%index_left = 0
-          single_row_grid%LI_xdy     = 0._dp
-          single_row_grid%LI_mxydx   = 0._dp
-          single_row_grid%LI_xydy    = 0._dp
-
-          ! The grid cell
-          col = single_row_Vor%index_left( k)
-          i   = grid%n2ij( col,1)
-          j   = grid%n2ij( col,2)
-
-          xl = grid%x( i) - grid%dx / 2._dp
-          xu = grid%x( i) + grid%dx / 2._dp
-          yl = grid%y( j) - grid%dx / 2._dp
-          yu = grid%y( j) + grid%dx / 2._dp
-
-          sw = [xl,yl]
-          nw = [xl,yu]
-          se = [xu,yl]
-          ne = [xu,yu]
-
-          ! Integrate around the grid cell
-          vi_hint = vi
-          count_coincidences = .false.
-          call trace_line_Vor( mesh, sw, se, single_row_grid, count_coincidences, vi_hint)
-          call trace_line_Vor( mesh, se, ne, single_row_grid, count_coincidences, vi_hint)
-          call trace_line_Vor( mesh, ne, nw, single_row_grid, count_coincidences, vi_hint)
-          call trace_line_Vor( mesh, nw, sw, single_row_grid, count_coincidences, vi_hint)
-
-          ! Safety
-          if (single_row_grid%n == 0) call crash('couldnt find any Voronoi cells overlapping with this grid cell!')
-
-          ! Add contribution for this particular triangle
-          do kk = 1, single_row_grid%n
-            vj = single_row_grid%index_left( kk)
-            if (vj == vi) then
-              ! Add contribution to this triangle
-              single_row_Vor%LI_xdy(   k) = single_row_Vor%LI_xdy(   k) + single_row_grid%LI_xdy(   kk)
-              single_row_Vor%LI_mxydx( k) = single_row_Vor%LI_mxydx( k) + single_row_grid%LI_mxydx( kk)
-              single_row_Vor%LI_xydy(  k) = single_row_Vor%LI_xydy(  k) + single_row_grid%LI_xydy(  kk)
-              exit
-            end if
-          end do ! do kk = 1, single_row_grid%n
-
-          ! Add entries to the big matrices
-          call add_entry_CSR_dist( A_xdy_a_g_CSR  , row, col, single_row_Vor%LI_xdy(   k))
-          call add_entry_CSR_dist( A_mxydx_a_g_CSR, row, col, single_row_Vor%LI_mxydx( k))
-          call add_entry_CSR_dist( A_xydy_a_g_CSR , row, col, single_row_Vor%LI_xydy(  k))
-
-        end do ! do k = 1, single_row_Vor%n
-
-      else
-        ! This Voronoi cell is big enough that we can just average over the grid cells it contains
-
-        ! Clean up single row results
-        single_row_Vor%n = 0
-
-        ! Find the square of grid cells enveloping this Voronoi cell
-        call calc_Voronoi_cell( mesh, vi, 0._dp, Vor, Vor_vi, Vor_ti, nVor)
-
-        xmin = minval( Vor( 1:nVor,1))
-        xmax = maxval( Vor( 1:nVor,1))
-        ymin = minval( Vor( 1:nVor,2))
-        ymax = maxval( Vor( 1:nVor,2))
-
-        il = max( 1, min( grid%nx, 1 + floor( (xmin - grid%xmin + grid%dx / 2._dp) / grid%dx) ))
-        iu = max( 1, min( grid%nx, 1 + floor( (xmax - grid%xmin + grid%dx / 2._dp) / grid%dx) ))
-        jl = max( 1, min( grid%ny, 1 + floor( (ymin - grid%ymin + grid%dx / 2._dp) / grid%dx) ))
-        ju = max( 1, min( grid%ny, 1 + floor( (ymax - grid%ymin + grid%dx / 2._dp) / grid%dx) ))
-
-        ! Check which of the grid cells in this square lie inside the triangle
-        do i = il, iu
-        do j = jl, ju
-
-          col = grid%ij2n( i,j)
-          p   = [grid%x( i), grid%y( j)]
-
-          if (is_in_Voronoi_cell( mesh, p, vi)) then
-            ! This grid cell lies inside the triangle; add it to the single row
-            single_row_Vor%n = single_row_Vor%n + 1
-            single_row_Vor%index_left( single_row_Vor%n) = col
-            single_row_Vor%LI_xdy(     single_row_Vor%n) = grid%dx**2
-            single_row_Vor%LI_mxydx(   single_row_Vor%n) = grid%x( i) * grid%dx**2
-            single_row_Vor%LI_xydy(    single_row_Vor%n) = grid%y( j) * grid%dx**2
-          end if
-
-        end do
-        end do
-
-        ! Safety
-        if (single_row_Vor%n == 0) call crash('couldnt find any grid cells overlapping with this big Voronoi cell!')
-
-        ! Add entries to the big matrices
-        do k = 1, single_row_Vor%n
-          col = single_row_Vor%index_left( k)
-          call add_entry_CSR_dist( A_xdy_a_g_CSR  , vi, col, single_row_Vor%LI_xdy(   k))
-          call add_entry_CSR_dist( A_mxydx_a_g_CSR, vi, col, single_row_Vor%LI_mxydx( k))
-          call add_entry_CSR_dist( A_xydy_a_g_CSR , vi, col, single_row_Vor%LI_xydy(  k))
-        end do
-
-      end if
-
-    end do
-
-    ! Clean up after yourself
-    deallocate( single_row_Vor%index_left )
-    deallocate( single_row_Vor%LI_xdy     )
-    deallocate( single_row_Vor%LI_mxydx   )
-    deallocate( single_row_Vor%LI_xydy    )
-
-    deallocate( single_row_grid%index_left )
-    deallocate( single_row_grid%LI_xdy     )
-    deallocate( single_row_grid%LI_mxydx   )
-    deallocate( single_row_grid%LI_xydy    )
-
-    ! Calculate w0, w1x, w1y for the mesh-to-grid remapping operator
-    ! ==============================================================
-
-    call allocate_matrix_CSR_dist( w0_CSR , nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
-    call allocate_matrix_CSR_dist( w1x_CSR, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
-    call allocate_matrix_CSR_dist( w1y_CSR, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
-
-    do row = mesh%vi1, mesh%vi2
-
-      vi = mesh%n2vi( row)
-
-      if (lies_outside_grid_domain( vi)) then
-        ! Skip these
-        call add_empty_row_CSR_dist( w0_CSR,  row)
-        call add_empty_row_CSR_dist( w1x_CSR, row)
-        call add_empty_row_CSR_dist( w1y_CSR, row)
-        cycle
-      end if
-
-      k1 = A_xdy_a_g_CSR%ptr( row  )
-      k2 = A_xdy_a_g_CSR%ptr( row+1) - 1
-
-      A_overlap_tot = sum( A_xdy_a_g_CSR%val( k1:k2))
-
-      do k = k1, k2
-        col = A_xdy_a_g_CSR%ind( k)
-        call add_entry_CSR_dist( w0_CSR, row, col, A_xdy_a_g_CSR%val( k) / A_overlap_tot)
-      end do
-
-      if (.not. mask_do_simple_average( vi)) then
-        ! For small vertices, include the gradient terms
-
-        do k = k1, k2
-          col = A_xdy_a_g_CSR%ind( k)
-          ! Grid cell
-          i = grid%n2ij( col,1)
-          j = grid%n2ij( col,2)
-          call add_entry_CSR_dist( w1x_CSR, row, col, (A_mxydx_a_g_CSR%val( k) / A_overlap_tot) - (grid%x( i) * w0_CSR%val( k)))
-          call add_entry_CSR_dist( w1y_CSR, row, col, (A_xydy_a_g_CSR%val(  k) / A_overlap_tot) - (grid%y( j) * w0_CSR%val( k)))
-        end do
-
-      else
-        ! For large vertices, don't include the gradient terms
-
-        call add_empty_row_CSR_dist( w1x_CSR, row)
-        call add_empty_row_CSR_dist( w1y_CSR, row)
-
-      end if
-
-    end do
-
-    ! Clean up after yourself
-    call deallocate_matrix_CSR_dist( A_xdy_a_g_CSR  )
-    call deallocate_matrix_CSR_dist( A_mxydx_a_g_CSR)
-    call deallocate_matrix_CSR_dist( A_xydy_a_g_CSR )
-
-    ! Convert matrices from Fortran to PETSc types
-    call mat_CSR2petsc( w0_CSR , w0 )
-    call mat_CSR2petsc( w1x_CSR, w1x)
-    call mat_CSR2petsc( w1y_CSR, w1y)
-
-    ! Calculate the remapping matrix
-
-    call calc_matrix_operators_grid( grid, grid_M_ddx, grid_M_ddy)
-
-    call MatDuplicate( w0, MAT_COPY_VALUES, map%M, perr)
-    call MatMatMult( w1x, grid_M_ddx, MAT_INITIAL_MATRIX, PETSC_DEFAULT_real, M1, perr)  ! This can be done more efficiently now that the non-zero structure is known...
-    call MatMatMult( w1y, grid_M_ddy, MAT_INITIAL_MATRIX, PETSC_DEFAULT_real, M2, perr)
-
-    call MatDestroy( grid_M_ddx    , perr)
-    call MatDestroy( grid_M_ddy    , perr)
-    call MatDestroy( w0            , perr)
-    call MatDestroy( w1x           , perr)
-    call MatDestroy( w1y           , perr)
-
-    call MatAXPY( map%M, 1._dp, M1, DifFERENT_NONZERO_PATTERN, perr)
-    call MatAXPY( map%M, 1._dp, M2, DifFERENT_NONZERO_PATTERN, perr)
-
-    ! Clean up after yourself
-    call MatDestroy( M1, perr)
-    call MatDestroy( M2, perr)
-
-    ! Delete grid & mesh netcdf dumps
-    if (par%master) then
-      open(unit = 1234, iostat = stat, file = filename_grid, status = 'old')
-      if (stat == 0) close(1234, status = 'delete')
-      open(unit = 1234, iostat = stat, file = filename_mesh, status = 'old')
-      if (stat == 0) close(1234, status = 'delete')
-    end if
-
-    ! Finalise routine path
-    call finalise_routine( routine_name)
-
-  end subroutine create_map_from_xy_grid_to_mesh
 
   subroutine create_map_from_xy_grid_to_mesh_triangles( grid, mesh, map)
     ! Create a new mapping object from an x/y-grid to the triangles of a mesh.
@@ -452,17 +73,11 @@ contains
     type(tMat)                             :: grid_M_ddx, grid_M_ddy
     type(tMat)                             :: M1, M2
     character(len=1024)                    :: filename_grid, filename_mesh
-    integer                                :: stat
 
     ! Add routine to path
     call init_routine( routine_name)
 
-    ! Dump grid and mesh to NetCDF. If the remapping crashes, having these available will
-    ! help Tijn to find the error. If not, then they will be deleted at the end of this routine.
-    filename_grid = trim(C%output_dir) // '/grid2mesh_grid_dump.nc'
-    filename_mesh = trim(C%output_dir) // '/grid2mesh_mesh_dump.nc'
-    call save_xy_grid_as_netcdf( filename_grid, grid)
-    call save_mesh_as_netcdf(    filename_mesh, mesh)
+    call dump_grid_and_mesh_to_netcdf( grid, mesh, filename_grid, filename_mesh)
 
     ! Safety
     if (map%is_in_use) call crash('this map is already in use!')
@@ -782,13 +397,7 @@ contains
     call MatDestroy( M1, perr)
     call MatDestroy( M2, perr)
 
-    ! Delete grid & mesh netcdf dumps
-    if (par%master) then
-      open(unit = 1234, iostat = stat, file = filename_grid, status = 'old')
-      if (stat == 0) close(1234, status = 'delete')
-      open(unit = 1234, iostat = stat, file = filename_mesh, status = 'old')
-      if (stat == 0) close(1234, status = 'delete')
-    end if
+    call delete_grid_and_mesh_netcdf_dump_files( filename_grid, filename_mesh)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -844,17 +453,11 @@ contains
     real(dp), dimension(:), allocatable    :: vals_row
     logical                                :: has_value
     character(len=1024)                    :: filename_grid, filename_mesh
-    integer                                :: stat
 
     ! Add routine to path
     call init_routine( routine_name)
 
-    ! Dump grid and mesh to NetCDF. If the remapping crashes, having these available will
-    ! help Tijn to find the error. If not, then they will be deleted at the end of this routine.
-    filename_grid = trim(C%output_dir) // '/mesh2grid_grid_dump.nc'
-    filename_mesh = trim(C%output_dir) // '/mesh2grid_mesh_dump.nc'
-    call save_xy_grid_as_netcdf( filename_grid, grid)
-    call save_mesh_as_netcdf(    filename_mesh, mesh)
+    call dump_grid_and_mesh_to_netcdf( grid, mesh, filename_grid, filename_mesh)
 
     ! Safety
     if (map%is_in_use) call crash('this map is already in use!')
@@ -1249,6 +852,52 @@ contains
     deallocate( cols_row)
     deallocate( vals_row)
 
+    call delete_grid_and_mesh_netcdf_dump_files( filename_grid, filename_mesh)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine create_map_from_mesh_to_xy_grid
+
+  subroutine dump_grid_and_mesh_to_netcdf( grid, mesh, filename_grid, filename_mesh)
+    !< Dump grid and mesh to NetCDF files that will be deleted after the remapping
+    !< operator has been successfully calculated. If the remapping crashes, the NetCDF
+    !< files will still be there, so that Tijn can use them to figure out the bug.
+
+    ! In/output variables
+    type(type_grid),  intent(in   ) :: grid
+    type(type_mesh),  intent(in   ) :: mesh
+    character(len=*), intent(  out) :: filename_grid, filename_mesh
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'dump_grid_and_mesh_to_netcdf'
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    filename_grid = trim(C%output_dir) // '/grid2mesh_grid_dump.nc'
+    filename_mesh = trim(C%output_dir) // '/grid2mesh_mesh_dump.nc'
+
+    call save_xy_grid_as_netcdf( filename_grid, grid)
+    call save_mesh_as_netcdf(    filename_mesh, mesh)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine dump_grid_and_mesh_to_netcdf
+
+  subroutine delete_grid_and_mesh_netcdf_dump_files( filename_grid, filename_mesh)
+
+    ! In/output variables
+    character(len=*), intent(in   ) :: filename_grid, filename_mesh
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'delete_grid_and_mesh_netcdf_dump_files'
+    integer                        :: stat
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
     ! Delete grid & mesh netcdf dumps
     if (par%master) then
       open(unit = 1234, iostat = stat, file = filename_grid, status = 'old')
@@ -1260,6 +909,6 @@ contains
     ! Finalise routine path
     call finalise_routine( routine_name)
 
-  end subroutine create_map_from_mesh_to_xy_grid
+  end subroutine delete_grid_and_mesh_netcdf_dump_files
 
 end module create_maps_grid_mesh
