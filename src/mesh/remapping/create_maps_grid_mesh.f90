@@ -138,8 +138,10 @@ contains
     do vi = mesh%vi1, mesh%vi2
       do vvi = 1, mesh%nVVor( vi)
         vori = mesh%VVor( vi,vvi)
-        if (mesh%Vor( vori,1) <= grid%xmin .or. mesh%Vor( vori,1) >= grid%xmax .or. &
-            mesh%Vor( vori,2) <= grid%ymin .or. mesh%Vor( vori,2) >= grid%ymax) then
+        if (mesh%Vor( vori,1) <= grid%xmin - grid%dx/2._dp .or. &
+            mesh%Vor( vori,1) >= grid%xmax + grid%dx/2._dp .or. &
+            mesh%Vor( vori,2) <= grid%ymin - grid%dx/2._dp .or. &
+            mesh%Vor( vori,2) >= grid%ymax + grid%dx/2._dp) then
           lies_outside_grid_domain( vi) = .true.
         end if
       end do
@@ -511,8 +513,10 @@ contains
     do ti = mesh%ti1, mesh%ti2
       do n = 1, 3
         vi = mesh%Tri( ti,n)
-        if (mesh%V( vi,1) <= grid%xmin .or. mesh%V( vi,1) >= grid%xmax .or. &
-            mesh%V( vi,2) <= grid%ymin .or. mesh%V( vi,2) >= grid%ymax) then
+        if (mesh%V( vi,1) <= grid%xmin - grid%dx/2._dp .or. &
+            mesh%V( vi,1) >= grid%xmax + grid%dx/2._dp .or. &
+            mesh%V( vi,2) <= grid%ymin - grid%dx/2._dp .or. &
+            mesh%V( vi,2) >= grid%ymax + grid%dx/2._dp) then
           lies_outside_grid_domain( ti) = .true.
         end if
       end do
