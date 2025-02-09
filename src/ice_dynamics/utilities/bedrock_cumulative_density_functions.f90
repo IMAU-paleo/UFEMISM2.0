@@ -45,7 +45,7 @@ module bedrock_cumulative_density_functions
   use CSR_sparse_matrix_type, only: type_sparse_matrix_CSR_dp
   use remapping_main, only: Atlas
   use remapping_grid_to_mesh_vertices, only: create_map_from_xy_grid_to_mesh_vertices
-  use create_maps_grid_mesh, only: create_map_from_xy_grid_to_mesh_triangles
+  use remapping_grid_to_mesh_triangles, only: create_map_from_xy_grid_to_mesh_triangles
   use petsc_basic, only: mat_petsc2CSR
   use mpi_distributed_memory_grid, only: gather_gridded_data_to_master
   use netcdf_io_main

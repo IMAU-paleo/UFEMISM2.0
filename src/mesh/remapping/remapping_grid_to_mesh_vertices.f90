@@ -46,9 +46,9 @@ contains
 
     ! Local variables:
     character(len=1024), parameter        :: routine_name = 'create_map_from_xy_grid_to_mesh_vertices'
-    type(type_sparse_matrix_CSR_dp)       :: A_xdy_a_g_CSR, A_mxydx_a_g_CSR, A_xydy_a_g_CSR
     logical, dimension(mesh%vi1:mesh%vi2) :: lies_outside_grid_domain
     logical, dimension(mesh%vi1:mesh%vi2) :: is_large_vertex
+    type(type_sparse_matrix_CSR_dp)       :: A_xdy_a_g_CSR, A_mxydx_a_g_CSR, A_xydy_a_g_CSR
     type(tMat)                            :: w0, w1x, w1y
     type(tMat)                            :: grid_M_ddx, grid_M_ddy
     character(len=1024)                   :: filename_grid, filename_mesh
@@ -219,12 +219,12 @@ contains
       single_row_Vor%LI_mxydx   = 0._dp
       single_row_Vor%LI_xydy    = 0._dp
 
-      if (.not. is_large_vertex( vi)) then
-        call calc_A_matrices_small_vertex( grid, mesh, row, vi, &
-          single_row_Vor, single_row_grid, A_xdy_a_g_CSR, A_mxydx_a_g_CSR, A_xydy_a_g_CSR)
-      else
+      if (is_large_vertex( vi)) then
         call calc_A_matrices_large_vertex( grid, mesh, row, vi, &
          single_row_Vor, A_xdy_a_g_CSR, A_mxydx_a_g_CSR, A_xydy_a_g_CSR)
+      else
+        call calc_A_matrices_small_vertex( grid, mesh, row, vi, &
+          single_row_Vor, single_row_grid, A_xdy_a_g_CSR, A_mxydx_a_g_CSR, A_xydy_a_g_CSR)
       end if
 
     end do
@@ -240,9 +240,9 @@ contains
     !< (i.e., calculating the line integrals rather than simply averaging over the grid cells)
 
     ! In/output variables
-    integer,                                intent(in   ) :: row, vi
     type(type_grid),                        intent(in   ) :: grid
     type(type_mesh),                        intent(in   ) :: mesh
+    integer,                                intent(in   ) :: row, vi
     type(type_single_row_mapping_matrices), intent(inout) :: single_row_Vor, single_row_grid
     type(type_sparse_matrix_CSR_dp),        intent(inout) :: A_xdy_a_g_CSR, A_mxydx_a_g_CSR, A_xydy_a_g_CSR
 
@@ -340,9 +340,9 @@ contains
     !< (i.e., simply averaging over the grid cells rather than calculating the line integrals)
 
     ! In/output variables
-    integer,                                intent(in   ) :: row, vi
     type(type_grid),                        intent(in   ) :: grid
     type(type_mesh),                        intent(in   ) :: mesh
+    integer,                                intent(in   ) :: row, vi
     type(type_single_row_mapping_matrices), intent(inout) :: single_row_Vor
     type(type_sparse_matrix_CSR_dp),        intent(inout) :: A_xdy_a_g_CSR, A_mxydx_a_g_CSR, A_xydy_a_g_CSR
 
