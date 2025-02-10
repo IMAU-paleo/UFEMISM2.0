@@ -19,7 +19,7 @@ module ut_mesh_remapping_mesh_to_mesh
   use mesh_secondary, only: calc_all_secondary_mesh_data
   use mesh_translation_tables, only: calc_field_to_vector_form_translation_tables
   use mesh_disc_calc_matrix_operators_2D, only: calc_matrix_operators_mesh_a_b
-  use create_maps_mesh_mesh, only: create_map_from_mesh_to_mesh_nearest_neighbour, &
+  use remapping_mesh_to_mesh, only: create_map_from_mesh_to_mesh_nearest_neighbour, &
     create_map_from_mesh_to_mesh_trilin, create_map_from_mesh_to_mesh_2nd_order_conservative
   use CSR_sparse_matrix_utilities, only: type_sparse_matrix_CSR_dp, gather_CSR_dist_to_master
   use petsc_basic, only: mat_petsc2CSR
