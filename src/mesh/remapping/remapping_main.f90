@@ -11,7 +11,7 @@ module remapping_main
   use remapping_grid_to_mesh_triangles
   use remapping_mesh_vertices_to_grid
   use create_maps_gridlonlat_mesh
-  use create_maps_mesh_mesh
+  use remapping_mesh_to_mesh
   use apply_maps
 
   implicit none

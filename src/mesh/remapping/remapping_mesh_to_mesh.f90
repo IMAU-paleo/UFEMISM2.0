@@ -1,6 +1,4 @@
-module create_maps_mesh_mesh
-
-  ! Create remapping objects between two meshes.
+module remapping_mesh_to_mesh
 
 #include <petsc/finclude/petscksp.h>
   use petscksp
@@ -32,8 +30,8 @@ contains
   subroutine create_map_from_mesh_to_mesh_nearest_neighbour( mesh_src, mesh_dst, map)
 
     ! In/output variables
-    type(type_mesh), intent(in)    :: mesh_src
-    type(type_mesh), intent(in)    :: mesh_dst
+    type(type_mesh), intent(in   ) :: mesh_src
+    type(type_mesh), intent(in   ) :: mesh_dst
     type(type_map),  intent(inout) :: map
 
     ! Local variables:
@@ -56,19 +54,12 @@ contains
     call save_mesh_as_netcdf( filename_mesh_src, mesh_src)
     call save_mesh_as_netcdf( filename_mesh_dst, mesh_dst)
 
-    ! Safety
+    ! Initialise map metadata
     if (map%is_in_use) call crash('this map is already in use!')
-
-    ! == Initialise map metadata
-    ! ==========================
-
     map%is_in_use = .true.
     map%name_src  = mesh_src%name
     map%name_dst  = mesh_dst%name
     map%method    = 'nearest_neighbour'
-
-    ! == Initialise the matrix using the native UFEMISM CSR-matrix format
-    ! ===================================================================
 
     ! Matrix size
     nrows           = mesh_dst%nV   ! to
@@ -80,7 +71,7 @@ contains
 
     call allocate_matrix_CSR_dist( M_CSR, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
 
-    ! For all mesh_dst vertices, find the mesh_src triangle containing them
+    ! For all mesh_dst vertices, find the mesh_src vertex containing them
     vi_src = 1
     do row = mesh_dst%vi1, mesh_dst%vi2
 
@@ -94,14 +85,10 @@ contains
       ! Add to the matrix
       call add_entry_CSR_dist( M_CSR, row, col, 1._dp)
 
-    end do ! do row = mesh_dst%vi1, mesh_dst%vi2
-    call sync
+    end do
 
     ! Convert matrices from Fortran to PETSc types
     call mat_CSR2petsc( M_CSR, map%M)
-
-    ! Clean up after yourself
-    call deallocate_matrix_CSR_dist( M_CSR)
 
     ! Delete mesh netcdf dumps
     if (par%master) then
@@ -120,8 +107,8 @@ contains
   subroutine create_map_from_mesh_to_mesh_trilin( mesh_src, mesh_dst, map)
 
     ! In/output variables
-    type(type_mesh), intent(in)    :: mesh_src
-    type(type_mesh), intent(in)    :: mesh_dst
+    type(type_mesh), intent(in   ) :: mesh_src
+    type(type_mesh), intent(in   ) :: mesh_dst
     type(type_map),  intent(inout) :: map
 
     ! Local variables:
@@ -147,19 +134,12 @@ contains
     call save_mesh_as_netcdf( filename_mesh_src, mesh_src)
     call save_mesh_as_netcdf( filename_mesh_dst, mesh_dst)
 
-    ! Safety
+    ! Initialise map metadata
     if (map%is_in_use) call crash('this map is already in use!')
-
-    ! == Initialise map metadata
-    ! ==========================
-
     map%is_in_use = .true.
     map%name_src  = mesh_src%name
     map%name_dst  = mesh_dst%name
     map%method    = 'trilin'
-
-    ! == Initialise the matrix using the native UFEMISM CSR-matrix format
-    ! ===================================================================
 
     ! Matrix size
     nrows           = mesh_dst%nV   ! to
@@ -208,14 +188,10 @@ contains
       call add_entry_CSR_dist( M_CSR, row, colb, wb)
       call add_entry_CSR_dist( M_CSR, row, colc, wc)
 
-    end do ! do row = mesh_dst%vi1, mesh_dst%vi2
-    call sync
+    end do
 
     ! Convert matrices from Fortran to PETSc types
     call mat_CSR2petsc( M_CSR, map%M)
-
-    ! Clean up after yourself
-    call deallocate_matrix_CSR_dist( M_CSR)
 
     ! Delete mesh netcdf dumps
     if (par%master) then
@@ -234,26 +210,15 @@ contains
   subroutine create_map_from_mesh_to_mesh_2nd_order_conservative( mesh_src, mesh_dst, map)
 
     ! In/output variables
-    type(type_mesh), intent(in)    :: mesh_src
-    type(type_mesh), intent(in)    :: mesh_dst
+    type(type_mesh), intent(in   ) :: mesh_src
+    type(type_mesh), intent(in   ) :: mesh_dst
     type(type_map),  intent(inout) :: map
 
     ! Local variables:
     character(len=1024), parameter      :: routine_name = 'create_map_from_mesh_to_mesh_2nd_order_conservative'
-    type(PetscErrorCode)                :: perr
-    logical                             :: count_coincidences
-    integer                             :: nnz_per_row_max
-    type(tMat)                          :: B_xdy_b_a  , B_mxydx_b_a  , B_xydy_b_a
-    type(tMat)                          :: B_xdy_a_b  , B_mxydx_a_b  , B_xydy_a_b
-    type(tMat)                          :: B_xdy_b_a_T, B_mxydx_b_a_T, B_xydy_b_a_T
+    type(tMat)                          :: A_xdy_a_b, A_mxydx_a_b, A_xydy_a_b
     type(tMat)                          :: w0, w1x, w1y
-    integer                             :: istart, iend, n, k, ti
-    integer                             :: ncols
-    integer,  dimension(:), allocatable :: cols
-    real(dp), dimension(:), allocatable :: vals, w0_row, w1x_row, w1y_row
-    real(dp)                            :: A_overlap_tot
-    type(tMat)                          :: M_map_a_b, M_ddx_a_b, M_ddy_a_b
-    type(tMat)                          :: M1, M2, M_cons_1st_order
+    type(tMat)                          :: M_cons_1st_order
     character(len=1024)                 :: filename_mesh_src, filename_mesh_dst
     integer                             :: stat
 
@@ -267,43 +232,101 @@ contains
     call save_mesh_as_netcdf( filename_mesh_src, mesh_src)
     call save_mesh_as_netcdf( filename_mesh_dst, mesh_dst)
 
-    ! Safety
+    ! Initialise map metadata
     if (map%is_in_use) call crash('this map is already in use!')
-
-    ! == Initialise map metadata
-    ! ==========================
-
     map%is_in_use = .true.
     map%name_src  = mesh_src%name
     map%name_dst  = mesh_dst%name
     map%method    = '2nd_order_conservative'
 
+    call calc_A_matrices( mesh_src, mesh_dst, A_xdy_a_b, A_mxydx_a_b, A_xydy_a_b)
+
+    call calc_w_matrices( mesh_src, mesh_dst, A_xdy_a_b, A_mxydx_a_b, A_xydy_a_b, w0, w1x, w1y)
+
+    call calc_remapping_matrix( mesh_src, w0, w1x, w1y, M_cons_1st_order, map%M)
+
+    call correct_mesh_to_mesh_map( mesh_src, mesh_dst, M_cons_1st_order, map%M)
+
+    ! Delete mesh netcdf dumps
+    if (par%master) then
+      open(unit = 1234, iostat = stat, file = filename_mesh_src, status = 'old')
+      if (stat == 0) close(1234, status = 'delete')
+      open(unit = 1234, iostat = stat, file = filename_mesh_dst, status = 'old')
+      if (stat == 0) close(1234, status = 'delete')
+    end if
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine create_map_from_mesh_to_mesh_2nd_order_conservative
+
+  subroutine calc_A_matrices( mesh_src, mesh_dst, A_xdy_a_b, A_mxydx_a_b, A_xydy_a_b)
+    !< Calculate the A-matrices for the mesh-to-mesh remapping operator
+
+    ! In/output variables
+    type(type_mesh), intent(in   ) :: mesh_src
+    type(type_mesh), intent(in   ) :: mesh_dst
+    type(tMat),      intent(  out) :: A_xdy_a_b, A_mxydx_a_b, A_xydy_a_b
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'calc_A_matrices'
+    logical                        :: count_coincidences
+    type(tMat)                     :: A_xdy_b_a  , A_mxydx_b_a  , A_xydy_b_a
+    type(tMat)                     :: A_xdy_b_a_T, A_mxydx_b_a_T, A_xydy_b_a_T
+    type(PetscErrorCode)           :: perr
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
     ! Integrate around the Voronoi cells of the destination mesh through the triangles of the source mesh
     count_coincidences = .true.
-    call integrate_Voronoi_cells_through_triangles( mesh_dst, mesh_src, B_xdy_a_b, B_mxydx_a_b, B_xydy_a_b, count_coincidences)
+    call integrate_Voronoi_cells_through_triangles( mesh_dst, mesh_src, A_xdy_a_b, A_mxydx_a_b, A_xydy_a_b, count_coincidences)
 
     ! Integrate around the triangles of the source mesh through the Voronoi cells of the destination mesh
     count_coincidences = .false.
-    call integrate_triangles_through_Voronoi_cells( mesh_src, mesh_dst, B_xdy_b_a, B_mxydx_b_a, B_xydy_b_a, count_coincidences)
+    call integrate_triangles_through_Voronoi_cells( mesh_src, mesh_dst, A_xdy_b_a, A_mxydx_b_a, A_xydy_b_a, count_coincidences)
 
     ! Transpose line integral matrices
-    call MatCreateTranspose( B_xdy_b_a  , B_xdy_b_a_T  , perr)
-    call MatCreateTranspose( B_mxydx_b_a, B_mxydx_b_a_T, perr)
-    call MatCreateTranspose( B_xydy_b_a , B_xydy_b_a_T , perr)
+    call MatCreateTranspose( A_xdy_b_a  , A_xdy_b_a_T  , perr)
+    call MatCreateTranspose( A_mxydx_b_a, A_mxydx_b_a_T, perr)
+    call MatCreateTranspose( A_xydy_b_a , A_xydy_b_a_T , perr)
 
     ! Combine line integrals around areas of overlap to get surface integrals over areas of overlap
-    call MatAXPY( B_xdy_a_b  , 1._dp, B_xdy_b_a_T  , UNKNOWN_NONZERO_PATTERN, perr)
-    call MatAXPY( B_mxydx_a_b, 1._dp, B_mxydx_b_a_T, UNKNOWN_NONZERO_PATTERN, perr)
-    call MatAXPY( B_xydy_a_b , 1._dp, B_xydy_b_a_T , UNKNOWN_NONZERO_PATTERN, perr)
+    call MatAXPY( A_xdy_a_b  , 1._dp, A_xdy_b_a_T  , UNKNOWN_NONZERO_PATTERN, perr)
+    call MatAXPY( A_mxydx_a_b, 1._dp, A_mxydx_b_a_T, UNKNOWN_NONZERO_PATTERN, perr)
+    call MatAXPY( A_xydy_a_b , 1._dp, A_xydy_b_a_T , UNKNOWN_NONZERO_PATTERN, perr)
 
-    call MatDestroy( B_xdy_b_a_T  , perr)
-    call MatDestroy( B_mxydx_b_a_T, perr)
-    call MatDestroy( B_xydy_b_a_T , perr)
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine calc_A_matrices
+
+  subroutine calc_w_matrices( mesh_src, mesh_dst, A_xdy_a_b, A_mxydx_a_b, A_xydy_a_b, w0, w1x, w1y)
+    !< Calculate the w-matrices for the mesh-to-mesh remapping operator
+
+    ! In/output variables
+    type(type_mesh), intent(in   ) :: mesh_src
+    type(type_mesh), intent(in   ) :: mesh_dst
+    type(tMat),      intent(in   ) :: A_xdy_a_b, A_mxydx_a_b, A_xydy_a_b
+    type(tMat),      intent(  out) :: w0, w1x, w1y
+
+    ! Local variables:
+    character(len=1024), parameter      :: routine_name = 'calc_w_matrices'
+    type(PetscErrorCode)                :: perr
+    integer                             :: nnz_per_row_max
+    integer                             :: istart, iend, n, k, ti
+    integer                             :: ncols
+    integer,  dimension(:), allocatable :: cols
+    real(dp), dimension(:), allocatable :: vals, w0_row, w1x_row, w1y_row
+    real(dp)                            :: A_overlap_tot
+
+    ! Add routine to path
+    call init_routine( routine_name)
 
     ! Calculate w0, w1x, w1y for the mesh-to-grid remapping operator
-    call MatConvert( B_xdy_a_b, MATAIJ, MAT_INITIAL_MATRIX, w0, perr)
-    call MatConvert( B_xdy_a_b, MATAIJ, MAT_INITIAL_MATRIX, w1x, perr)
-    call MatConvert( B_xdy_a_b, MATAIJ, MAT_INITIAL_MATRIX, w1y, perr)
+    call MatConvert( A_xdy_a_b, MATAIJ, MAT_INITIAL_MATRIX, w0, perr)
+    call MatConvert( A_xdy_a_b, MATAIJ, MAT_INITIAL_MATRIX, w1x, perr)
+    call MatConvert( A_xdy_a_b, MATAIJ, MAT_INITIAL_MATRIX, w1y, perr)
 
     ! Estimate maximum number of non-zeros per row (i.e. maximum number of grid cells overlapping with a mesh triangle)
     nnz_per_row_max = max( 32, max( ceiling( 2._dp * maxval( mesh_src%TriA) / minval( mesh_dst%A   )), &
@@ -316,44 +339,44 @@ contains
     allocate( w1x_row( nnz_per_row_max))
     allocate( w1y_row( nnz_per_row_max))
 
-    call MatGetOwnershipRange( B_xdy_a_b  , istart, iend, perr)
+    call MatGetOwnershipRange( A_xdy_a_b  , istart, iend, perr)
 
     do n = istart+1, iend ! +1 because PETSc indexes from 0
 
       ! Calculate area of overlap
-      call MatGetRow( B_xdy_a_b, n-1, ncols, cols, vals, perr)
+      call MatGetRow( A_xdy_a_b, n-1, ncols, cols, vals, perr)
       A_overlap_tot = sum( vals( 1:ncols))
-      call MatRestoreRow( B_xdy_a_b, n-1, ncols, cols, vals, perr)
+      call MatRestoreRow( A_xdy_a_b, n-1, ncols, cols, vals, perr)
 
       ! Skip vertices with zero overlap (which can happen if the boundary
       ! of their Voronoi cell coincides with that of this one)
       if (A_overlap_tot <= tiny( A_overlap_tot) * 16._dp) cycle
 
       ! w0
-      call MatGetRow( B_xdy_a_b, n-1, ncols, cols, vals, perr)
+      call MatGetRow( A_xdy_a_b, n-1, ncols, cols, vals, perr)
       do k = 1, ncols
         w0_row( k) = vals( k) / A_overlap_tot
         call MatSetValues( w0, 1, [n-1], 1, [cols( k)], [w0_row( k)], INSERT_VALUES, perr)
       end do
-      call MatRestoreRow( B_xdy_a_b, n-1, ncols, cols, vals, perr)
+      call MatRestoreRow( A_xdy_a_b, n-1, ncols, cols, vals, perr)
 
       ! w1x
-      call MatGetRow( B_mxydx_a_b, n-1, ncols, cols, vals, perr)
+      call MatGetRow( A_mxydx_a_b, n-1, ncols, cols, vals, perr)
       do k = 1, ncols
         ti = cols( k)+1
         w1x_row( k) = (vals( k) / A_overlap_tot) - (mesh_src%TriGC( ti,1) * w0_row( k))
         call MatSetValues( w1x, 1, [n-1], 1, [cols( k)], [w1x_row( k)], INSERT_VALUES, perr)
       end do
-      call MatRestoreRow( B_mxydx_a_b, n-1, ncols, cols, vals, perr)
+      call MatRestoreRow( A_mxydx_a_b, n-1, ncols, cols, vals, perr)
 
       ! w1y
-      call MatGetRow( B_xydy_a_b, n-1, ncols, cols, vals, perr)
+      call MatGetRow( A_xydy_a_b, n-1, ncols, cols, vals, perr)
       do k = 1, ncols
         ti = cols( k)+1
         w1y_row( k) = (vals( k) / A_overlap_tot) - (mesh_src%TriGC( ti,2) * w0_row( k))
         call MatSetValues( w1y, 1, [n-1], 1, [cols( k)], [w1y_row( k)], INSERT_VALUES, perr)
       end do
-      call MatRestoreRow( B_xydy_a_b, n-1, ncols, cols, vals, perr)
+      call MatRestoreRow( A_xydy_a_b, n-1, ncols, cols, vals, perr)
 
     end do
 
@@ -363,14 +386,28 @@ contains
     call MatAssemblyEnd(   w1x, MAT_FINAL_ASSEMBLY, perr)
     call MatAssemblyBegin( w1y, MAT_FINAL_ASSEMBLY, perr)
     call MatAssemblyEnd(   w1y, MAT_FINAL_ASSEMBLY, perr)
-    call sync
 
-    call MatDestroy( B_xdy_a_b  , perr)
-    call MatDestroy( B_mxydx_a_b, perr)
-    call MatDestroy( B_xydy_a_b , perr)
+    ! Finalise routine path
+    call finalise_routine( routine_name)
 
-    ! == Calculate the remapping matrices
-    ! ===================================
+  end subroutine calc_w_matrices
+
+  subroutine calc_remapping_matrix( mesh_src, w0, w1x, w1y, M_cons_1st_order, M)
+    !< Calculate the mesh-to-mesh remapping matrix M
+
+    ! In/output variables
+    type(type_mesh), intent(in   ) :: mesh_src
+    type(tMat),      intent(in   ) :: w0, w1x, w1y
+    type(tMat),      intent(  out) :: M_cons_1st_order, M
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'calc_remapping_matrix'
+    type(PetscErrorCode)           :: perr
+    type(tMat)                     :: M_map_a_b, M_ddx_a_b, M_ddy_a_b
+    type(tMat)                     :: M1, M2
+
+    ! Add routine to path
+    call init_routine( routine_name)
 
     ! Safety
     if (.not. allocated( mesh_src%vi2n)) then
@@ -389,44 +426,20 @@ contains
     call MatMatMult( w1x, M_ddx_a_b, MAT_INITIAL_MATRIX, PETSC_DEFAULT_real, M1, perr)  ! This can be done more efficiently now that the non-zero structure is known...
     call MatMatMult( w1y, M_ddy_a_b, MAT_INITIAL_MATRIX, PETSC_DEFAULT_real, M2, perr)
 
-    call MatConvert( M_cons_1st_order, MATAIJ, MAT_INITIAL_MATRIX, map%M, perr)
-    call MatAXPY( map%M, 1._dp, M1, DifFERENT_NONZERO_PATTERN, perr)
-    call MatAXPY( map%M, 1._dp, M2, DifFERENT_NONZERO_PATTERN, perr)
-
-    call MatDestroy( w0       , perr)
-    call MatDestroy( w1x      , perr)
-    call MatDestroy( w1y      , perr)
-    call MatDestroy( M_map_a_b, perr)
-    call MatDestroy( M_ddx_a_b, perr)
-    call MatDestroy( M_ddy_a_b, perr)
-
-    call MatDestroy( M1              , perr)
-    call MatDestroy( M2              , perr)
-
-    ! == Apply some final corrections
-    ! ===============================
-
-    call correct_mesh_to_mesh_map( mesh_src, mesh_dst, M_cons_1st_order, map%M)
-
-    call MatDestroy( M_cons_1st_order, perr)
-
-    ! Delete mesh netcdf dumps
-    if (par%master) then
-      open(unit = 1234, iostat = stat, file = filename_mesh_src, status = 'old')
-      if (stat == 0) close(1234, status = 'delete')
-      open(unit = 1234, iostat = stat, file = filename_mesh_dst, status = 'old')
-      if (stat == 0) close(1234, status = 'delete')
-    end if
+    call MatConvert( M_cons_1st_order, MATAIJ, MAT_INITIAL_MATRIX, M, perr)
+    call MatAXPY( M, 1._dp, M1, DifFERENT_NONZERO_PATTERN, perr)
+    call MatAXPY( M, 1._dp, M2, DifFERENT_NONZERO_PATTERN, perr)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
 
-  end subroutine create_map_from_mesh_to_mesh_2nd_order_conservative
+  end subroutine calc_remapping_matrix
 
-  !> Apply some final corrections to the 2nd-order conservative mesh-to-mesh remapping operator:
-  !> - set remapped data to zero on the domain border
-  !> - use direct copying for identical vertices
   subroutine correct_mesh_to_mesh_map( mesh_src, mesh_dst, M_cons_1st_order, M_cons_2nd_order)
+    !< Apply some final corrections to the 2nd-order conservative mesh-to-mesh remapping operator
+    !
+    ! - set remapped data to zero on the domain border
+    ! - use direct copying for identical vertices
 
     ! In/output variables
     type(type_mesh), intent(in)    :: mesh_src
@@ -672,20 +685,20 @@ contains
 
   !> Integrate around the triangles of mesh_tri through the Voronoi cells of mesh_Vor
   subroutine integrate_triangles_through_Voronoi_cells( mesh_tri, mesh_Vor, &
-    B_xdy_b_a, B_mxydx_b_a, B_xydy_b_a, count_coincidences)
+    A_xdy_b_a, A_mxydx_b_a, A_xydy_b_a, count_coincidences)
 
     ! In/output variables
     type(type_mesh), intent(in)    :: mesh_tri
     type(type_mesh), intent(in)    :: mesh_Vor
-    type(tMat),      intent(out)   :: B_xdy_b_a
-    type(tMat),      intent(out)   :: B_mxydx_b_a
-    type(tMat),      intent(out)   :: B_xydy_b_a
+    type(tMat),      intent(out)   :: A_xdy_b_a
+    type(tMat),      intent(out)   :: A_mxydx_b_a
+    type(tMat),      intent(out)   :: A_xydy_b_a
     logical,         intent(in)    :: count_coincidences
 
     ! Local variables:
     character(len=1024), parameter         :: routine_name = 'integrate_triangles_through_Voronoi_cells'
     integer                                :: nrows, ncols, nrows_loc, ncols_loc, nnz_est, nnz_est_proc, nnz_per_row_max
-    type(type_sparse_matrix_CSR_dp)        :: B_xdy_b_a_CSR, B_mxydx_b_a_CSR, B_xydy_b_a_CSR
+    type(type_sparse_matrix_CSR_dp)        :: A_xdy_b_a_CSR, A_mxydx_b_a_CSR, A_xydy_b_a_CSR
     type(type_single_row_mapping_matrices) :: single_row
     integer                                :: via, vib, vic, ti, vi_hint, k
     real(dp), dimension(2)                 :: p, q
@@ -706,9 +719,9 @@ contains
     nnz_per_row_max = max( 32, max( ceiling( 2._dp * maxval( mesh_tri%TriA) / minval( mesh_Vor%A   )), &
                                     ceiling( 2._dp * maxval( mesh_Vor%A   ) / minval( mesh_tri%TriA)) ))
 
-    call allocate_matrix_CSR_dist( B_xdy_b_a_CSR  , nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
-    call allocate_matrix_CSR_dist( B_mxydx_b_a_CSR, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
-    call allocate_matrix_CSR_dist( B_xydy_b_a_CSR , nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+    call allocate_matrix_CSR_dist( A_xdy_b_a_CSR  , nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+    call allocate_matrix_CSR_dist( A_mxydx_b_a_CSR, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+    call allocate_matrix_CSR_dist( A_xydy_b_a_CSR , nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
 
     ! Initialise results from integrating a single triangle through the Voronoi cells
     single_row%n_max = 100
@@ -752,35 +765,23 @@ contains
 
       ! Add the results for this triangle to the sparse matrix
       if (single_row%n == 0) then
-        call add_empty_row_CSR_dist( B_xdy_b_a_CSR  , ti)
-        call add_empty_row_CSR_dist( B_mxydx_b_a_CSR, ti)
-        call add_empty_row_CSR_dist( B_xydy_b_a_CSR , ti)
+        call add_empty_row_CSR_dist( A_xdy_b_a_CSR  , ti)
+        call add_empty_row_CSR_dist( A_mxydx_b_a_CSR, ti)
+        call add_empty_row_CSR_dist( A_xydy_b_a_CSR , ti)
       else
         do k = 1, single_row%n
-          call add_entry_CSR_dist( B_xdy_b_a_CSR  , ti, single_row%index_left( k), single_row%LI_xdy(   k))
-          call add_entry_CSR_dist( B_mxydx_b_a_CSR, ti, single_row%index_left( k), single_row%LI_mxydx( k))
-          call add_entry_CSR_dist( B_xydy_b_a_CSR , ti, single_row%index_left( k), single_row%LI_xydy(  k))
+          call add_entry_CSR_dist( A_xdy_b_a_CSR  , ti, single_row%index_left( k), single_row%LI_xdy(   k))
+          call add_entry_CSR_dist( A_mxydx_b_a_CSR, ti, single_row%index_left( k), single_row%LI_mxydx( k))
+          call add_entry_CSR_dist( A_xydy_b_a_CSR , ti, single_row%index_left( k), single_row%LI_xydy(  k))
         end do
       end if
 
-    end do ! do ti = mesh_tri%ti1, mesh_tri%ti2
-    call sync
+    end do
 
     ! Convert matrices from Fortran to PETSc types
-    call mat_CSR2petsc( B_xdy_b_a_CSR  , B_xdy_b_a  )
-    call mat_CSR2petsc( B_mxydx_b_a_CSR, B_mxydx_b_a)
-    call mat_CSR2petsc( B_xydy_b_a_CSR , B_xydy_b_a )
-
-    ! Clean up the Fortran versions
-    call deallocate_matrix_CSR_dist( B_xdy_b_a_CSR  )
-    call deallocate_matrix_CSR_dist( B_mxydx_b_a_CSR)
-    call deallocate_matrix_CSR_dist( B_xydy_b_a_CSR )
-
-    ! Clean up after yourself
-    deallocate( single_row%index_left )
-    deallocate( single_row%LI_xdy     )
-    deallocate( single_row%LI_mxydx   )
-    deallocate( single_row%LI_xydy    )
+    call mat_CSR2petsc( A_xdy_b_a_CSR  , A_xdy_b_a  )
+    call mat_CSR2petsc( A_mxydx_b_a_CSR, A_mxydx_b_a)
+    call mat_CSR2petsc( A_xydy_b_a_CSR , A_xydy_b_a )
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -789,20 +790,20 @@ contains
 
   !> Integrate around the grid cells of the grid through the triangles of the mesh
   subroutine integrate_Voronoi_cells_through_triangles( mesh_Vor, mesh_tri, &
-    B_xdy_a_b, B_mxydx_a_b, B_xydy_a_b, count_coincidences)
+    A_xdy_a_b, A_mxydx_a_b, A_xydy_a_b, count_coincidences)
 
     ! In/output variables
     type(type_mesh), intent(in)    :: mesh_Vor
     type(type_mesh), intent(in)    :: mesh_tri
-    type(tMat),      intent(out)   :: B_xdy_a_b
-    type(tMat),      intent(out)   :: B_mxydx_a_b
-    type(tMat),      intent(out)   :: B_xydy_a_b
+    type(tMat),      intent(out)   :: A_xdy_a_b
+    type(tMat),      intent(out)   :: A_mxydx_a_b
+    type(tMat),      intent(out)   :: A_xydy_a_b
     logical,         intent(in)    :: count_coincidences
 
     ! Local variables:
     character(len=1024), parameter          :: routine_name = 'integrate_Voronoi_cells_through_triangles'
     integer                                 :: nrows, ncols, nrows_loc, ncols_loc, nnz_est, nnz_est_proc, nnz_per_row_max
-    type(type_sparse_matrix_CSR_dp)         :: B_xdy_a_b_CSR, B_mxydx_a_b_CSR, B_xydy_a_b_CSR
+    type(type_sparse_matrix_CSR_dp)         :: A_xdy_a_b_CSR, A_mxydx_a_b_CSR, A_xydy_a_b_CSR
     type(type_single_row_mapping_matrices)  :: single_row
     integer                                 :: vi, vori1, vori2, k, ti_hint
     real(dp), dimension( mesh_Vor%nC_mem,2) :: Vor
@@ -827,9 +828,9 @@ contains
     nnz_per_row_max = max( 32, max( ceiling( 2._dp * maxval( mesh_tri%TriA) / minval( mesh_vor%A   )), &
                                     ceiling( 2._dp * maxval( mesh_vor%A   ) / minval( mesh_tri%TriA)) ))
 
-    call allocate_matrix_CSR_dist( B_xdy_a_b_CSR  , nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
-    call allocate_matrix_CSR_dist( B_mxydx_a_b_CSR, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
-    call allocate_matrix_CSR_dist( B_xydy_a_b_CSR , nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+    call allocate_matrix_CSR_dist( A_xdy_a_b_CSR  , nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+    call allocate_matrix_CSR_dist( A_mxydx_a_b_CSR, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+    call allocate_matrix_CSR_dist( A_xydy_a_b_CSR , nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
 
     ! Initialise results from integrating a single triangle through the Voronoi cells
     single_row%n_max = 100
@@ -844,7 +845,7 @@ contains
 
     ti_hint = 1
 
-    do vi = mesh_Vor%vi1, mesh_Vor%vi2 ! +1 because PETSc indexes from 0
+    do vi = mesh_Vor%vi1, mesh_Vor%vi2
 
       ! Clean up single row results
       single_row%n            = 0
@@ -865,39 +866,27 @@ contains
 
       ! Add the results for this triangle to the sparse matrix
       if (single_row%n == 0) then
-        call add_empty_row_CSR_dist( B_xdy_a_b_CSR  , vi)
-        call add_empty_row_CSR_dist( B_mxydx_a_b_CSR, vi)
-        call add_empty_row_CSR_dist( B_xydy_a_b_CSR , vi)
+        call add_empty_row_CSR_dist( A_xdy_a_b_CSR  , vi)
+        call add_empty_row_CSR_dist( A_mxydx_a_b_CSR, vi)
+        call add_empty_row_CSR_dist( A_xydy_a_b_CSR , vi)
       else
         do k = 1, single_row%n
-          call add_entry_CSR_dist( B_xdy_a_b_CSR  , vi, single_row%index_left( k), single_row%LI_xdy(   k))
-          call add_entry_CSR_dist( B_mxydx_a_b_CSR, vi, single_row%index_left( k), single_row%LI_mxydx( k))
-          call add_entry_CSR_dist( B_xydy_a_b_CSR , vi, single_row%index_left( k), single_row%LI_xydy(  k))
+          call add_entry_CSR_dist( A_xdy_a_b_CSR  , vi, single_row%index_left( k), single_row%LI_xdy(   k))
+          call add_entry_CSR_dist( A_mxydx_a_b_CSR, vi, single_row%index_left( k), single_row%LI_mxydx( k))
+          call add_entry_CSR_dist( A_xydy_a_b_CSR , vi, single_row%index_left( k), single_row%LI_xydy(  k))
         end do
       end if
 
-    end do ! do vi = mesh_Vor%vi1, mesh_Vor%vi2
-    call sync
+    end do
 
     ! Convert matrices from Fortran to PETSc types
-    call mat_CSR2petsc( B_xdy_a_b_CSR  , B_xdy_a_b  )
-    call mat_CSR2petsc( B_mxydx_a_b_CSR, B_mxydx_a_b)
-    call mat_CSR2petsc( B_xydy_a_b_CSR , B_xydy_a_b )
-
-    ! Clean up the Fortran versions
-    call deallocate_matrix_CSR_dist( B_xdy_a_b_CSR  )
-    call deallocate_matrix_CSR_dist( B_mxydx_a_b_CSR)
-    call deallocate_matrix_CSR_dist( B_xydy_a_b_CSR )
-
-    ! Clean up after yourself
-    deallocate( single_row%index_left )
-    deallocate( single_row%LI_xdy     )
-    deallocate( single_row%LI_mxydx   )
-    deallocate( single_row%LI_xydy    )
+    call mat_CSR2petsc( A_xdy_a_b_CSR  , A_xdy_a_b  )
+    call mat_CSR2petsc( A_mxydx_a_b_CSR, A_mxydx_a_b)
+    call mat_CSR2petsc( A_xydy_a_b_CSR , A_xydy_a_b )
 
     ! Finalise routine path
     call finalise_routine( routine_name)
 
   end subroutine integrate_Voronoi_cells_through_triangles
 
-end module create_maps_mesh_mesh
+end module remapping_mesh_to_mesh
