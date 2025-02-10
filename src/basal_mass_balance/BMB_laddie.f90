@@ -55,6 +55,7 @@ CONTAINS
         ! Different commands are needed to run laddie on different systems. local_mac or slurm_HPC (the latter is used for snellius)
         IF (C%choice_BMB_laddie_system == 'local_mac') THEN
           CALL system('cd ' // TRIM(C%dir_BMB_laddie_model) // '; source /Users/5941962/opt/anaconda3/etc/profile.d/conda.sh; conda activate ; python3 runladdie.py ' // TRIM(C%filename_BMB_laddie_configname) // '; conda deactivate')
+          CALL system('cd ' // TRIM(C%dir_BMB_laddie_model) // ';' // TRIM(C%conda_activate_prompt) // '; python3 runladdie.py ' // TRIM(C%filename_BMB_laddie_configname) // '; conda deactivate')
         ELSEIF (C%choice_BMB_laddie_system == 'slurm_HPC') THEN
           CALL system('cd ' // TRIM(C%dir_BMB_laddie_model) // '; srun --ntasks=1 --exact --overlap --cpu-bind=cores python3 runladdie.py ' // TRIM(C%filename_BMB_laddie_configname))
         ELSE
@@ -155,6 +156,8 @@ CONTAINS
         ! Different commands are needed to run laddie on different systems. local_mac or slurm_HPC (the latter is used for snellius)
         IF (C%choice_BMB_laddie_system == 'local_mac') THEN
           CALL system('cd ' // TRIM(C%dir_BMB_laddie_model) // '; source /Users/5941962/opt/anaconda3/etc/profile.d/conda.sh; conda activate ; python3 runladdie.py ' // TRIM(C%filename_BMB_laddie_configname) // '; conda deactivate')
+          CALL system('cd ' // TRIM(C%dir_BMB_laddie_model) // ';' // TRIM(C%conda_activate_prompt) // '; python3 runladdie.py ' // TRIM(C%filename_BMB_laddie_configname) // '; conda deactivate')
+
         ELSEIF (C%choice_BMB_laddie_system == 'slurm_HPC') THEN
           CALL system('cd ' // TRIM(C%dir_BMB_laddie_model) // '; srun --ntasks=1 --exact --overlap --cpu-bind=cores python3 runladdie.py ' // TRIM(C%filename_BMB_laddie_configname))
         ELSE

@@ -810,7 +810,8 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: filename_BMB_laddie_initial_restart_config   = ''                               ! File name containing restart for laddie from laddie spinup
     CHARACTER(LEN=256)  :: filename_BMB_laddie_initial_output_config    = ''                               ! File name containing output from laddie spinup
     CHARACTER(LEN=256)  :: dir_BMB_laddie_model_config                  = ''                               ! Directory where laddie code is located
-
+    CHARACTER(LEN=256)  :: conda_activate_prompt_config                 = 'conda activate laddie'          ! Prompt to activate conda environment used for running laddie
+    
   ! == LADDIE model
   ! ===============
 
@@ -1793,6 +1794,7 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: filename_BMB_laddie_initial_restart
     CHARACTER(LEN=256)  :: filename_BMB_laddie_initial_output
     CHARACTER(LEN=256)  :: dir_BMB_laddie_model
+    CHARACTER(LEN=256)  :: conda_activate_prompt
 
   ! == LADDIE model
   ! ===============
@@ -2705,6 +2707,7 @@ CONTAINS
       filename_BMB_laddie_initial_restart_config                  , &
       filename_BMB_laddie_initial_output_config                   , &
       dir_BMB_laddie_model_config                                 , &
+      conda_activate_prompt_config                                , &
       dt_laddie_config                                            , &
       time_duration_laddie_config                                 , &
       time_duration_laddie_init_config                            , &
@@ -3660,6 +3663,7 @@ CONTAINS
     C%filename_BMB_laddie_initial_restart                    = filename_BMB_laddie_initial_restart_config
     C%filename_BMB_laddie_initial_output                     = filename_BMB_laddie_initial_output_config
     C%dir_BMB_laddie_model                                   = dir_BMB_laddie_model_config
+    C%conda_activate_prompt                                  = conda_activate_prompt_config
 
   ! == LADDIE model
   ! ===============
