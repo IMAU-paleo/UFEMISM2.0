@@ -109,7 +109,8 @@ contains
     character(len=1024)                   :: mesh_name1, mesh_name2
     integer                               :: ncid
     type(type_mesh)                       :: mesh1, mesh2
-    real(dp), dimension(:), allocatable   :: d_mesh1_ex, d_mesh2_ex, d_mesh2
+    real(dp), dimension(:), allocatable   :: d_mesh1_ex, d_mesh2_ex
+    real(dp), dimension(:), allocatable   :: d_mesh2_nn, d_mesh2_trilin, d_mesh2_cons
     real(dp), dimension(:), allocatable   :: d_mesh1_ex_tot
     character(len=1024)                   :: filename
     integer                               :: id_dim_mesh1_nV, id_var_mesh1_A, id_var_d_mesh1_ex
@@ -141,8 +142,13 @@ contains
     call calc_test_function_on_mesh( mesh2, d_mesh2_ex)
 
     ! Map data to the new mesh
-    allocate( d_mesh2( mesh2%nV_loc))
-    call map_from_mesh_to_mesh_2D( mesh1, mesh2, d_mesh1_ex, d_mesh2)
+    allocate( d_mesh2_nn    ( mesh2%nV_loc))
+    allocate( d_mesh2_trilin( mesh2%nV_loc))
+    allocate( d_mesh2_cons  ( mesh2%nV_loc))
+
+    call map_from_mesh_to_mesh_2D( mesh1, mesh2, d_mesh1_ex, d_mesh2_nn    , 'nearest_neighbour')
+    call map_from_mesh_to_mesh_2D( mesh1, mesh2, d_mesh1_ex, d_mesh2_trilin, 'trilin')
+    call map_from_mesh_to_mesh_2D( mesh1, mesh2, d_mesh1_ex, d_mesh2_cons  , '2nd_order_conservative')
 
     ! Write results to NetCDF
     ! (NOTE: deviates slightly from the style of the other tests, as there is no easy support
@@ -157,7 +163,9 @@ contains
     call create_variable( filename, ncid, 'd_mesh1_ex', NF90_DOUBLE, (/ id_dim_mesh1_nV /), id_var_d_mesh1_ex)
 
     call add_field_mesh_dp_2D_notime( filename, ncid, 'd_mesh2_ex')
-    call add_field_mesh_dp_2D_notime( filename, ncid, 'd_mesh2')
+    call add_field_mesh_dp_2D_notime( filename, ncid, 'd_mesh2_nn')
+    call add_field_mesh_dp_2D_notime( filename, ncid, 'd_mesh2_trilin')
+    call add_field_mesh_dp_2D_notime( filename, ncid, 'd_mesh2_cons')
 
     if (par%master) allocate( d_mesh1_ex_tot( mesh1%nV))
     call gather_to_master( d_mesh1_ex, d_mesh1_ex_tot)
@@ -167,8 +175,10 @@ contains
       nerr = NF90_PUT_VAR( ncid, id_var_d_mesh1_ex, d_mesh1_ex_tot)
     end if
 
-    call write_to_field_multopt_mesh_dp_2D_notime( mesh2, filename, ncid, 'd_mesh2_ex', d_mesh2_ex)
-    call write_to_field_multopt_mesh_dp_2D_notime( mesh2, filename, ncid, 'd_mesh2'   , d_mesh2)
+    call write_to_field_multopt_mesh_dp_2D_notime( mesh2, filename, ncid, 'd_mesh2_ex'    , d_mesh2_ex)
+    call write_to_field_multopt_mesh_dp_2D_notime( mesh2, filename, ncid, 'd_mesh2_nn'    , d_mesh2_nn)
+    call write_to_field_multopt_mesh_dp_2D_notime( mesh2, filename, ncid, 'd_mesh2_trilin', d_mesh2_trilin)
+    call write_to_field_multopt_mesh_dp_2D_notime( mesh2, filename, ncid, 'd_mesh2_cons'  , d_mesh2_cons)
 
     call close_netcdf_file( ncid)
 
