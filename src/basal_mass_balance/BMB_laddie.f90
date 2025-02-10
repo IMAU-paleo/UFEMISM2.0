@@ -73,11 +73,6 @@ CONTAINS
         CALL read_field_from_file_2D( filename_BMB_laddie_output, 'BMBext', mesh, BMB%BMB_shelf)
       END IF
 
-      ! IF (par%master) THEN
-      ! BMB%BMB_shelf = 31557600._dp * BMB%BMB_shelf / ice_density
-        ! END IF
-      ! CALL sync
-
     END IF ! (time > C%start_time_of_run)
 
     ! Finalise routine path
@@ -120,11 +115,6 @@ CONTAINS
 
     ! Read in BMB data from LADDIE
     CALL read_field_from_file_2D( C%filename_BMB_laddie_initial_output, 'BMBext', mesh, BMB%BMB_shelf)
-
-          ! Convert from kg/m^2/s to m.i.e./yr =>  31557600 seconds per year, divided by rhoice = 918 in laddie.
-    ! IF (par%master) THEN
-    ! BMB%BMB_shelf = 31557600._dp * BMB%BMB_shelf / ice_density
-
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -183,14 +173,11 @@ CONTAINS
         CALL read_field_from_file_2D( filename_BMB_laddie_output, 'BMBext', mesh, temp_BMB)
       END IF
 
-      ! Convert from kg/m^2/s to m.i.e./yr =>  31557600 seconds per year, divided by rhoice = 918 in laddie.
       ! Only read for mask_ROI
       DO vi = mesh%vi1, mesh%vi2
         IF (ice%mask_ROI(vi)) THEN
           IF (ice%mask_floating_ice( vi) .OR. ice%mask_icefree_ocean( vi) .OR. ice%mask_gl_gr( vi)) THEN 
-            ! BMB%BMB_shelf( vi) = 31557600._dp * temp_BMB(vi) / ice_density
             BMB%BMB_shelf( vi) = temp_BMB(vi)
-
           END IF
         END IF
       END DO
@@ -200,11 +187,9 @@ CONTAINS
       ! Read in BMB data from laddie data; path given in config
       CALL read_field_from_file_2D( C%filename_BMB_laddie_initial_output, 'BMBext', mesh, temp_BMB_2)
 
-      ! Convert from kg/m^2/s to m.i.e./yr =>  31557600 seconds per year, divided by rhoice = 918 in laddie.
       DO vi = mesh%vi1, mesh%vi2
         IF (ice%mask_ROI(vi)) THEN
           IF (ice%mask_floating_ice( vi) .OR. ice%mask_icefree_ocean( vi) .OR. ice%mask_gl_gr( vi)) THEN 
-            ! BMB%BMB_shelf( vi) = 31557600._dp * temp_BMB_2(vi) / ice_density
             BMB%BMB_shelf( vi) = temp_BMB_2(vi)
           END IF
         END IF

@@ -38,7 +38,7 @@ contains
     integer                                       :: i
     character(len=256)                            :: all_names_ROI, name_ROI
     real(dp), dimension(:,:  ), allocatable       :: poly_ROI
-    integer                                       :: n1,n2,nn, n3
+    integer                                       :: n1,n2,nn
     real(dp), dimension(:,:  ), allocatable       :: poly
 
     ! Add routine to path
