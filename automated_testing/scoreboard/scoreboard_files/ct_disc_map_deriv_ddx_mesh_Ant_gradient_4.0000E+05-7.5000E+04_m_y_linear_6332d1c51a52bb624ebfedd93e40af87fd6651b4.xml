@@ -2,7 +2,7 @@
 <single_run>
     <name>mesh_Ant_gradient_4.0000E+05-7.5000E+04_m_y_linear</name>
     <category>component_tests/discretisation/mapping_and_derivatives/ddx</category>
-    <date_and_time>10-Feb-2025 20:21:12</date_and_time>
+    <date_and_time>10-Feb-2025 20:29:43</date_and_time>
     <git_hash_string>6332d1c51a52bb624ebfedd93e40af87fd6651b4</git_hash_string>
     <cost_functions>
         <name>max_err_ddx_a_a</name>

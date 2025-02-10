@@ -2,7 +2,7 @@
 <single_run>
     <name>mesh_Ant_uniform_1.5000E+05_m_nit_Lloyd_2_TO_grid_Ant_6.4000E+04_m</name>
     <category>component_tests/remapping/mesh_to_grid</category>
-    <date_and_time>10-Feb-2025 20:24:15</date_and_time>
+    <date_and_time>10-Feb-2025 20:33:22</date_and_time>
     <git_hash_string>6332d1c51a52bb624ebfedd93e40af87fd6651b4</git_hash_string>
     <cost_functions>
         <name>rmse</name>
