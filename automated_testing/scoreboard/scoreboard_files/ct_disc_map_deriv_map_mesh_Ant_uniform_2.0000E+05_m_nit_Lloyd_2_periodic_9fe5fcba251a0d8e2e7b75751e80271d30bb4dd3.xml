@@ -2,7 +2,7 @@
 <single_run>
     <name>mesh_Ant_uniform_2.0000E+05_m_nit_Lloyd_2_periodic</name>
     <category>component_tests/discretisation/mapping_and_derivatives/map</category>
-    <date_and_time>10-Feb-2025 17:47:40</date_and_time>
+    <date_and_time>10-Feb-2025 17:52:55</date_and_time>
     <git_hash_string>9fe5fcba251a0d8e2e7b75751e80271d30bb4dd3</git_hash_string>
     <cost_functions>
         <name>max_err_map_a_b</name>

@@ -2,7 +2,7 @@
 <single_run>
     <name>mesh_Ant_gradient_4.0000E+05-7.5000E+04_m_y_quadratic</name>
     <category>component_tests/discretisation/mapping_and_derivatives/ddy</category>
-    <date_and_time>10-Feb-2025 17:46:48</date_and_time>
+    <date_and_time>10-Feb-2025 17:51:40</date_and_time>
     <git_hash_string>9fe5fcba251a0d8e2e7b75751e80271d30bb4dd3</git_hash_string>
     <cost_functions>
         <name>max_err_ddy_a_a</name>
