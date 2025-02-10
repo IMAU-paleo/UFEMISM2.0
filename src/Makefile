@@ -201,7 +201,9 @@ UFEMISM_source = \
   mesh/remapping/line_tracing_grid.f90 \
   mesh/remapping/line_tracing_triangles.f90 \
   mesh/remapping/line_tracing_Voronoi.f90 \
-  mesh/remapping/create_maps_grid_mesh.f90 \
+  mesh/remapping/remapping_grid_to_mesh_vertices.f90 \
+  mesh/remapping/remapping_grid_to_mesh_triangles.f90 \
+  mesh/remapping/remapping_mesh_vertices_to_grid.f90 \
   mesh/remapping/create_maps_gridlonlat_mesh.f90 \
   mesh/remapping/create_maps_mesh_mesh.f90 \
   mesh/remapping/apply_maps.f90 \
