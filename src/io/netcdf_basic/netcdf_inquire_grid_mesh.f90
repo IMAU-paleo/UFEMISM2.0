@@ -110,7 +110,7 @@ contains
     integer                        :: ncid
     integer                        :: id_dim_vi, id_dim_ti, id_dim_ci, id_dim_two, id_dim_three
     integer                        :: id_var_V, id_var_nC, id_var_C, id_var_niTri, id_var_iTri, id_var_VBI
-    integer                        :: id_var_Tri, id_var_Tricc, id_var_TriC, id_var_TrIBI, id_var_poly_ROI, id_var_npoly_ROI
+    integer                        :: id_var_Tri, id_var_Tricc, id_var_TriC, id_var_TrIBI
 
     ! Add routine to path
     call init_routine( routine_name, do_track_resource_use = .false.)
@@ -137,9 +137,6 @@ contains
     call inquire_var_multopt( filename, ncid, field_name_options_TriC      , id_var_TriC )
     call inquire_var_multopt( filename, ncid, field_name_options_TriBI     , id_var_TriBI)
 
-    call inquire_var_multopt( filename, ncid, field_name_options_poly_ROI  , id_var_poly_ROI)
-    call inquire_var_multopt( filename, ncid, field_name_options_npoly_ROI , id_var_npoly_ROI)
-
     ! Check if everything is there
     has_mesh = (&
       id_dim_vi         /= -1 .and. &
@@ -156,9 +153,7 @@ contains
       id_var_Tri        /= -1 .and. &
       id_var_Tricc      /= -1 .and. &
       id_var_TriC       /= -1 .and. &
-      id_var_TriBI      /= -1 .and. &
-      id_var_poly_ROI   /= -1 .and. &
-      id_var_npoly_ROI  /= -1)
+      id_var_TriBI      /= -1)
 
     ! Close the NetCDF file
     call close_netcdf_file( ncid)
