@@ -767,10 +767,10 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: choice_BMB_model_ANT_config                  = 'uniform'
 
     ! Choice of BMB model in ROI
-    CHARACTER(LEN=256)  :: choice_BMB_model_NAM_ROI_config              = 'identical_to_choice_BMB_model'
-    CHARACTER(LEN=256)  :: choice_BMB_model_EAS_ROI_config              = 'identical_to_choice_BMB_model'
-    CHARACTER(LEN=256)  :: choice_BMB_model_GRL_ROI_config              = 'identical_to_choice_BMB_model'
-    CHARACTER(LEN=256)  :: choice_BMB_model_ANT_ROI_config              = 'identical_to_choice_BMB_model'
+    CHARACTER(LEN=256)  :: choice_BMB_model_NAM_ROI_config              = 'identical_to_choice_BMB_model'  ! Choose BMB model in ROI, options: 'identical_to_choice_BMB_model', 'uniform', 'laddie_py'
+    CHARACTER(LEN=256)  :: choice_BMB_model_EAS_ROI_config              = 'identical_to_choice_BMB_model'  ! Choose BMB model in ROI, options: 'identical_to_choice_BMB_model', 'uniform', 'laddie_py'
+    CHARACTER(LEN=256)  :: choice_BMB_model_GRL_ROI_config              = 'identical_to_choice_BMB_model'  ! Choose BMB model in ROI, options: 'identical_to_choice_BMB_model', 'uniform', 'laddie_py'
+    CHARACTER(LEN=256)  :: choice_BMB_model_ANT_ROI_config              = 'identical_to_choice_BMB_model'  ! Choose BMB model in ROI, options: 'identical_to_choice_BMB_model', 'uniform', 'laddie_py'
 
 
     ! Prescribed BMB forcing
@@ -811,7 +811,7 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: filename_BMB_laddie_initial_output_config    = ''                               ! File name containing output from laddie spinup
     CHARACTER(LEN=256)  :: dir_BMB_laddie_model_config                  = ''                               ! Directory where laddie code is located
     CHARACTER(LEN=256)  :: conda_activate_prompt_config                 = 'conda activate laddie'          ! Prompt to activate conda environment used for running laddie
-    
+
   ! == LADDIE model
   ! ===============
 

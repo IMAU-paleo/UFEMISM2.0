@@ -203,6 +203,7 @@ contains
 
   subroutine calc_mask_ROI( mesh, ice)
     !< Calculate ROI mask
+    ! NOTE: This works only for one single ROI right now
 
     ! In/output variables:
     type(type_mesh),      intent(in   ) :: mesh

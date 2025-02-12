@@ -302,7 +302,7 @@ contains
     call determine_masks( mesh, ice)
     call determine_masks( mesh, ice)
 
-    ! Compute mask_ROI only at initialisation
+    ! Compute mask_ROI only at initialisation, (NOTE: This works only for one single ROI right now)
     call calc_mask_ROI( mesh, ice)
 
     ! Effective ice thickness
@@ -563,7 +563,7 @@ contains
     call reallocate_bounds( ice%mask_cf_gr             , mesh_new%vi1, mesh_new%vi2)  ! T: grounded ice next to ice-free water (sea or lake), F: otherwise
     call reallocate_bounds( ice%mask_cf_fl             , mesh_new%vi1, mesh_new%vi2)  ! T: floating ice next to ice-free water (sea or lake), F: otherwise
     call reallocate_bounds( ice%mask_coastline         , mesh_new%vi1, mesh_new%vi2)  ! T: ice-free land next to ice-free ocean, F: otherwise
-    call reallocate_bounds( ice%mask_ROI               , mesh_new%vi1, mesh_new%vi2)  ! T: ice-free land next to ice-free ocean, F: otherwise
+    call reallocate_bounds( ice%mask_ROI               , mesh_new%vi1, mesh_new%vi2)  ! T: located in ROI, F: otherwise
     ! call reallocate_bounds( ice%mask_noice           , mesh_new%vi1, mesh_new%vi2)  ! T: no ice is allowed here, F: ice is allowed here
     call reallocate_bounds( ice%mask                   , mesh_new%vi1, mesh_new%vi2)  ! Diagnostic, only meant for quick visual inspection in output
     call reallocate_bounds( ice%basin_ID               , mesh_new%vi1, mesh_new%vi2)  ! The drainage basin to which each vertex belongs
