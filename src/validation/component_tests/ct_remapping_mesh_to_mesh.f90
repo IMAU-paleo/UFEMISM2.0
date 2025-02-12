@@ -159,8 +159,8 @@ contains
     call setup_mesh_in_netcdf_file( filename, ncid, mesh2)
 
     call create_dimension( filename, ncid, 'mesh1_nV', mesh1%nV, id_dim_mesh1_nV)
-    call create_variable( filename, ncid, 'mesh1_A'   , NF90_DOUBLE, (/ id_dim_mesh1_nV /), id_var_mesh1_A)
-    call create_variable( filename, ncid, 'd_mesh1_ex', NF90_DOUBLE, (/ id_dim_mesh1_nV /), id_var_d_mesh1_ex)
+    call create_variable(  filename, ncid, 'mesh1_A'   , NF90_DOUBLE, (/ id_dim_mesh1_nV /), id_var_mesh1_A)
+    call create_variable(  filename, ncid, 'd_mesh1_ex', NF90_DOUBLE, (/ id_dim_mesh1_nV /), id_var_d_mesh1_ex)
 
     call add_field_mesh_dp_2D_notime( filename, ncid, 'd_mesh2_ex')
     call add_field_mesh_dp_2D_notime( filename, ncid, 'd_mesh2_nn')
