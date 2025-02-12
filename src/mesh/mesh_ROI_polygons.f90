@@ -785,4 +785,74 @@ subroutine calc_polygon_CalvMIP_quarter( poly)
 
 end subroutine calc_polygon_CalvMIP_quarter
 
+subroutine calc_polygon_Franka_WAIS( poly)
+  ! Return a polygon enveloping PIG, THW, and CD drainage basins
+
+  ! In/output variables:
+  real(dp), dimension(:,:), allocatable, intent(out) :: poly
+
+  ! Local variables:
+  character(len=256), parameter :: routine_name = 'calc_polygon_Franka_WAIS'
+
+  ! Add routine to path
+  call init_routine( routine_name)
+
+  allocate( poly( 49,2))
+
+  poly(  1,:) = [ -1.067649e6_dp, -2.389460e5_dp]
+  poly(  2,:) = [ -1.083626e6_dp, -2.749513e5_dp]
+  poly(  3,:) = [ -1.099971e6_dp, -3.261952e5_dp]
+  poly(  4,:) = [ -1.086908e6_dp, -3.794976e5_dp]
+  poly(  5,:) = [ -1.086874e6_dp, -4.297385e5_dp]
+  poly(  6,:) = [ -1.106102e6_dp, -4.962918e5_dp]
+  poly(  7,:) = [ -1.127440e6_dp, -5.594330e5_dp]
+  poly(  8,:) = [ -1.150831e6_dp, -6.302047e5_dp]
+  poly(  9,:) = [ -1.169688e6_dp, -6.953044e5_dp]
+  poly( 10,:) = [ -1.199417e6_dp, -7.510359e5_dp]
+  poly( 11,:) = [ -1.218135e6_dp, -8.169631e5_dp]
+  poly( 12,:) = [ -1.262344e6_dp, -7.980657e5_dp]
+  poly( 13,:) = [ -1.306049e6_dp, -7.573541e5_dp]
+  poly( 14,:) = [ -1.369227e6_dp, -7.392547e5_dp]
+  poly( 15,:) = [ -1.431547e6_dp, -7.236201e5_dp]
+  poly( 16,:) = [ -1.494554e6_dp, -7.078608e5_dp]
+  poly( 17,:) = [ -1.557047e6_dp, -7.071623e5_dp]
+  poly( 18,:) = [ -1.595950e6_dp, -6.934250e5_dp]
+  poly( 19,:) = [ -1.733956e6_dp, -3.668159e5_dp]
+  poly( 20,:) = [ -1.717921e6_dp, -2.903907e5_dp]
+  poly( 21,:) = [ -1.725877e6_dp, -2.215324e5_dp]
+  poly( 22,:) = [ -1.738146e6_dp, -1.729808e5_dp]
+  poly( 23,:) = [ -1.781543e6_dp, -1.265068e5_dp]
+  poly( 24,:) = [ -1.756807e6_dp, -8.943395e4_dp]
+  poly( 25,:) = [ -1.746682e6_dp, -4.915999e4_dp]
+  poly( 26,:) = [ -1.755599e6_dp, -1.686297e4_dp]
+  poly( 27,:) = [ -1.741802e6_dp, 1.058750e4_dp]
+  poly( 28,:) = [ -1.712282e6_dp, 3.618599e4_dp]
+  poly( 29,:) = [ -1.683568e6_dp, 8.043884e4_dp]
+  poly( 30,:) = [ -1.650550e6_dp, 9.680165e4_dp]
+  poly( 31,:) = [ -1.603154e6_dp, 8.566953e4_dp]
+  poly( 32,:) = [ -1.542980e6_dp, 8.095809e4_dp]
+  poly( 33,:) = [ -1.509540e6_dp, 4.239154e4_dp]
+  poly( 34,:) = [ -1.472178e6_dp, -1.924253e3_dp]
+  poly( 35,:) = [ -1.433291e6_dp, -3.426486e4_dp]
+  poly( 36,:) = [ -1.410628e6_dp, -4.678015e4_dp]
+  poly( 37,:) = [ -1.389430e6_dp, -3.021530e4_dp]
+  poly( 38,:) = [ -1.352290e6_dp, -1.080577e4_dp]
+  poly( 39,:) = [ -1.317960e6_dp, 1.190183e4_dp]
+  poly( 40,:) = [ -1.272197e6_dp, 3.837878e4_dp]
+  poly( 41,:) = [ -1.257608e6_dp, 6.008563e4_dp]
+  poly( 42,:) = [ -1.219491e6_dp, 1.980493e4_dp]
+  poly( 43,:) = [ -1.179582e6_dp, 1.178385e4_dp]
+  poly( 44,:) = [ -1.132424e6_dp, -1.729169e4_dp]
+  poly( 45,:) = [ -1.093011e6_dp, -4.302789e4_dp]
+  poly( 46,:) = [ -1.042725e6_dp, -8.342796e4_dp]
+  poly( 47,:) = [ -1.000538e6_dp, -1.366113e5_dp]
+  poly( 48,:) = [ -1.009121e6_dp, -1.815426e5_dp]
+  poly( 49,:) = [ -1.048750e6_dp, -2.290763e5_dp]
+
+  ! Finalise routine path
+  call finalise_routine( routine_name)
+
+end subroutine calc_polygon_Franka_WAIS
+
+
 end module mesh_ROI_polygons

@@ -947,7 +947,7 @@ CONTAINS
         CASE ('')
          ! No region requested: don't need to do anything
          EXIT
-        CASE ('PineIsland','Thwaites','Amery','RiiserLarsen','SipleCoast','LarsenC','TransMounts','DotsonCrosson', & ! Antarctica
+        CASE ('PineIsland','Thwaites','Amery','RiiserLarsen','SipleCoast','LarsenC','TransMounts','DotsonCrosson', 'Franka_WAIS', & ! Antarctica
               'Narsarsuaq','Nuuk','Jakobshavn','NGIS','Qaanaaq', &                                                   ! Greenland
               'Patagonia', &                                                                                         ! Patagonia
               'Tijn_test_ISMIP_HOM_A','CalvMIP_quarter')                                                             ! Idealised
@@ -1025,6 +1025,8 @@ CONTAINS
             CASE ('CalvMIP_quarter')
               ! Not interesting; skip
               CYCLE
+            CASE ('Franka_WAIS')
+              CALL calc_polygon_Franka_WAIS( poly_ROI)
             CASE DEFAULT
               ! Requested area not in this model domain; skip
               CYCLE

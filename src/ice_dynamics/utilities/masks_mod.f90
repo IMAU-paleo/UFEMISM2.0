@@ -9,12 +9,13 @@ module masks_mod
   use ice_model_types, only: type_ice_model
   use ice_geometry_basics, only: is_floating
   use projections, only: oblique_sg_projection
+  use plane_geometry, only: is_in_polygon
 
   implicit none
 
   private
 
-  public :: determine_masks, calc_mask_noice, calc_mask_noice_remove_Ellesmere
+  public :: determine_masks, calc_mask_ROI, calc_mask_noice, calc_mask_noice_remove_Ellesmere
 
 contains
 
@@ -199,6 +200,40 @@ contains
     call finalise_routine( routine_name)
 
   end subroutine determine_masks
+
+  subroutine calc_mask_ROI( mesh, ice)
+    !< Calculate ROI mask
+
+    ! In/output variables:
+    type(type_mesh),      intent(in   ) :: mesh
+    type(type_ice_model), intent(inout) :: ice
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'calc_mask_ROI'
+    integer                        :: vi, vj, ci, npoly_ROI
+    real(dp), dimension(2)         :: point
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    npoly_ROI = mesh%npoly_ROI
+
+    ! Check for each grid point whether it is located within the polygon of the ROI
+    do vi = mesh%vi1, mesh%vi2
+      do ci = 1, mesh%nC(vi)
+          vj = mesh%C( vi,ci)
+          point = mesh%V( vj,:) ! Just to make sure it's in the right format
+          if (is_in_polygon(mesh%poly_ROI(1:npoly_ROI,:), point)) then
+            ice%mask_ROI(vi) = .true.
+          end if
+      end do
+    end do ! do vi = mesh%vi1, mesh%vi2
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine calc_mask_ROI
+
 
   subroutine calc_mask_noice( mesh, ice)
     !< Calculate the no-ice mask
