@@ -68,10 +68,7 @@ CONTAINS
       ! Let UFEMISM sleep until LADDIE is finished
       CALL wait_for_laddie_to_finish( filename_laddieready, found_laddie_file)
 
-      ! If laddieready is found, read in BMB data from LADDIE
-      IF (found_laddie_file) THEN
-        CALL read_field_from_file_2D( filename_BMB_laddie_output, 'BMBext', mesh, BMB%BMB_shelf)
-      END IF
+      CALL read_field_from_file_2D( filename_BMB_laddie_output, 'BMBext', mesh, BMB%BMB_shelf)
 
     END IF ! (time > C%start_time_of_run)
 
@@ -169,10 +166,7 @@ CONTAINS
       ! Let UFEMISM sleep until LADDIE is finished
       CALL wait_for_laddie_to_finish( filename_laddieready, found_laddie_file)
 
-      ! If laddieready is found, read in BMB data from LADDIE
-      IF (found_laddie_file) THEN
-        CALL read_field_from_file_2D( filename_BMB_laddie_output, 'BMBext', mesh, temp_BMB)
-      END IF
+      CALL read_field_from_file_2D( filename_BMB_laddie_output, 'BMBext', mesh, temp_BMB)
 
       ! Only read for mask_ROI
       DO vi = mesh%vi1, mesh%vi2
