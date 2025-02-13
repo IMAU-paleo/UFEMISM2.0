@@ -45,20 +45,16 @@ CONTAINS
 
     ! Add routine to path
     CALL init_routine( routine_name)
-
-    ! I will comment this bcs it will be controled by GIA_main
-    !IF (region%do_ELRA) THEN
-    CALL calculate_ELRA_bedrock_deformation_rate( region%mesh, region%GIA%grid, region%ice, region%GIA)
-    !  region%t_last_ELRA = region%time
-    !END IF
     
+    ! Calculate the bedrock deformation rate
+    CALL calculate_ELRA_bedrock_deformation_rate( region%mesh, region%GIA%grid, region%ice, region%GIA)
+        
     ! Update bedrock with last calculated deformation rate
-    ! this is done in GIA_main now, commented
-    !DO vi = region%mesh%vi1, region%mesh%vi2
-    !  region%ice%Hb(  vi) = region%ice%Hb( vi) + region%ice%dHb_dt( vi) * region%dt
-    !  region%ice%dHb( vi) = region%ice%Hb( vi) - region%refgeo_GIAeq%Hb( vi) 
-    !END DO
-    !CALL sync
+    DO vi = region%mesh%vi1, region%mesh%vi2
+      region%ice%Hb(  vi) = region%ice%Hb( vi) + region%GIA%dHb_next( vi) !* C%dt_GIA
+      region%ice%dHb( vi) = region%ice%Hb( vi) - region%refgeo_GIAeq%Hb( vi) 
+    END DO
+    CALL sync
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -72,8 +68,6 @@ CONTAINS
     ! In/output variables:
     TYPE(type_mesh),                     INTENT(IN)    :: mesh
     TYPE(type_grid),                     INTENT(IN)    :: grid
-    ! maybe this one should be only IN and not INOUT? the changes in ice will be done in GIA_main
-    ! CHECK if write the result of ELRA in GIA%Hb_next is right, if it is right, change ice to IN
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
     TYPE(type_GIA_model),                INTENT(INOUT) :: GIA
 
@@ -92,7 +86,6 @@ CONTAINS
     
     DO vi = mesh%vi1, mesh%vi2
 
-! I am not really sure if this is needed, I think it is so I will keep it however, ice could be just IN not necessary INOUT
       ! Absolute surface load
       IF (is_floating( ice%Hi( vi), ice%Hb( vi), ice%SL( vi))) THEN
         GIA%surface_load_mesh( vi) = (ice%SL( vi) - ice%Hb( vi)) * grid%dx**2 * seawater_density
@@ -102,28 +95,18 @@ CONTAINS
         GIA%surface_load_mesh( vi) = 0._dp
       END IF
 
-
       ! Relative surface load
-      !asegurarse que surface load PD mesh haya sido calculado
       GIA%relative_surface_load_mesh( vi) = GIA%surface_load_mesh( vi) - GIA%surface_load_PD_mesh( vi)
 
     END DO
     CALL sync
 
     ! Map relative surface load to the GIA grid
-    
-    !! ---
-    ! changed function map_mesh2grid_2D() to map_from_mesh_to_xy_grid_2D
-    !! ----
-    !! THIS IS FINE, it goes from mesh to xy grid both partial, so the output is (n1:n2)
     CALL map_from_mesh_to_xy_grid_2D( mesh, grid, GIA%relative_surface_load_mesh, GIA%relative_surface_load_grid)
     
-    !! HERE I WILL gather data to master goes from partial vec to total 2D
-    !! CHECK IF THIS "LIBRARY"HAS TO BE ADDED at the begining
+    !! Gather data to master
     call gather_gridded_data_to_master( grid, GIA%relative_surface_load_grid, GIA%relative_surface_load_grid_tot)
-    
-    
-    ! GIA%flex_prof_rad added to GIA_model_types.f90
+        
     n = GIA%flex_prof_rad
     
     ! Let the master do the actual work
@@ -145,10 +128,9 @@ CONTAINS
           
     end if ! if (par%master) then
     
-    ! Map the actual bedrock deformation to the grid
-    ! ice%dHb_grid changed to GIA%dHb_grid_partial    
+    ! Map the actual bedrock deformation from the mesh to the grid
     call map_from_mesh_to_xy_grid_2D( mesh, grid, ice%dHb, GIA%dHb_grid_partial)
-    
+       
     ! gather data from all processors to master, from partial grid vec to total 2D grid 
     call gather_gridded_data_to_master( grid, GIA%dHb_grid_partial, GIA%dHb_grid_tot)    
 
@@ -158,25 +140,21 @@ CONTAINS
     ! Calculate the bedrock deformation rate from the difference between the current and the equilibrium deformation
     DO i = 1, grid%nx    
     DO j = 1, grid%ny
-    ! ice%dHb_dt_grid changed to GIA%dHb_dt_grid
       GIA%dHb_dt_grid( i,j) = (GIA%dHb_eq_grid( i,j) - GIA%dHb_grid_tot( i,j)) / C%ELRA_bedrock_relaxation_time
     END DO
     END DO
     
-    write(*,*) 'dHb_dt_grid, nx and ny:', GIA%dHb_dt_grid, grid%nx, grid%ny
-!    GIA%relative_surface_load_grid_tot = GIA%dHb_dt_grid
     end if ! if (par%master) then
    
    ! distribute from 2D grid data on master to vector grid data on all processors
    call distribute_gridded_data_from_master( grid, GIA%dHb_dt_grid, GIA%dHb_dt_grid_partial)
-!   call distribute_gridded_data_from_master( grid, GIA%relative_surface_load_grid_tot, GIA%relative_surface_load_grid)
-!   print*, "before remapping xy grid to mesh GIA%dHb_dt_grid_partial", GIA%dHb_dt_grid_partial
-   ! remap from partial grid vec data to mesh model
-   ! add the changed dHb directly to GIA%dHb_next, this will be used later on GIA_main
-   call map_from_xy_grid_to_mesh_2D( grid, mesh, GIA%dHb_dt_grid_partial, GIA%dHb_next)
-!   call map_from_xy_grid_to_mesh_2D( grid, mesh, GIA%relative_surface_load_grid, GIA%relative_surface_load_mesh)
-!   GIA%dHb_next=GIA%relative_surface_load_mesh
 
+   ! remap from partial grid vec data to mesh model
+   call map_from_xy_grid_to_mesh_2D( grid, mesh, GIA%dHb_dt_grid_partial, GIA%dHb_dt_mesh)
+   
+   ! multiply the GIA time-step to calculate the bedrock deformation
+   GIA%dHb_next = GIA%dHb_dt_mesh * C%dt_GIA
+   
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
@@ -205,27 +183,15 @@ CONTAINS
 
     ! Allocate memory
     ALLOCATE( GIA%surface_load_PD_mesh( mesh%vi1:mesh%vi2))
-    ! relative_surface_load_mesh already allocated in GIA_main
-    ! relative_surface_load_grid already allocated in GIA_main as     
-    ! ALLOCATE( GIA%relative_surface_load_grid( GIA%grid%n1:GIA%grid%n2)) is a vector not 2D grid..
     ALLOCATE( GIA%relative_surface_load_grid_tot( grid%nx, grid%ny))
     ALLOCATE( GIA%surface_load_mesh( mesh%vi1:mesh%vi2))
     ALLOCATE( GIA%dHb_eq_grid( grid%nx, grid%ny))
     ALLOCATE( GIA%dHb_grid_partial( grid%n1:grid%n2))
     ALLOCATE( GIA%dHb_grid_tot( grid%nx, grid%ny))
     ALLOCATE( GIA%dHb_dt_grid( grid%nx, grid%ny))
-    ALLOCATE( GIA%dHb_dt_grid_partial( grid%n1:grid%n2))    
+    ALLOCATE( GIA%dHb_dt_grid_partial( grid%n1:grid%n2))
+    ALLOCATE( GIA%dHb_dt_mesh( mesh%vi1:mesh%vi2))    
     
-!    ALLOCATE( GIA%dHb_grid( grid%nx, grid%ny))
-!    ALLOCATE( GIA%dHb_dt_grid( grid%nx, grid%ny)) 
-!    CALL allocate_shared_dp_1D( mesh%nV,          ice%surface_load_PD_mesh,  ice%wsurface_load_PD_mesh )
-!    CALL allocate_shared_dp_1D( mesh%nV,          ice%surface_load_mesh,     ice%wsurface_load_mesh    )
-!    CALL allocate_shared_dp_1D( mesh%nV,          ice%surface_load_rel_mesh, ice%wsurface_load_rel_mesh)
-!    CALL allocate_shared_dp_2D( grid%nx, grid%ny, ice%surface_load_rel_grid, ice%wsurface_load_rel_grid)
-!    CALL allocate_shared_dp_2D( grid%nx, grid%ny, ice%dHb_eq_grid,           ice%wdHb_eq_grid          )
-!    CALL allocate_shared_dp_2D( grid%nx, grid%ny, ice%dHb_grid,              ice%wdHb_grid             )
-!    CALL allocate_shared_dp_2D( grid%nx, grid%ny, ice%dHb_dt_grid,           ice%wdHb_dt_grid          )
-
     ! Fill in the 2D flexural profile (= Kelvin function), with which
     ! a surface load is convoluted to find the surface deformation
     ! ============================================================
@@ -234,11 +200,7 @@ CONTAINS
     Lr = (C%ELRA_lithosphere_flex_rigidity / (C%ELRA_mantle_density * grav))**0.25_dp
 
     ! Calculate radius (in number of grid cells) of the flexural profile
-    
-    !! In the original here it comes an allocate of the flex_prof_rad but this is not done anymore in Ufe2
-    !! I will omit it now but maybe I have to add something to make it work
-    !CALL allocate_shared_int_0D( ice%flex_prof_rad, ice%wflex_prof_rad)
-    
+       
     IF (par%master) THEN
     GIA%flex_prof_rad = MIN( CEILING(grid%dx/2._dp), MAX(1, INT(6._dp * Lr / grid%dx) - 1))
     n = 2 * GIA%flex_prof_rad + 1
@@ -246,12 +208,6 @@ CONTAINS
     CALL sync
     
     ALLOCATE( GIA%flex_prof_grid( n, n))
-
-! CHECK IF THIS IS RIGHT, DO NOT DELETE THE PREVIOUS    
-!	ALLOCATE( GIA%flex_prof_grid( n, n))
-!	ALLOCATE( GIA%relative_surface_load_ext_grid( grid%nx +n, grid%ny + n))
-!    CALL allocate_shared_dp_2D( n,         n,         ice%flex_prof_grid,            ice%wflex_prof_grid           )
-!    CALL allocate_shared_dp_2D( grid%nx+n, grid%ny+n, ice%surface_load_rel_ext_grid, ice%wsurface_load_rel_ext_grid)
 
     ! Calculate flexural profile
     IF (par%master) THEN
@@ -269,10 +225,6 @@ CONTAINS
     ! Calculate the PD reference load
     ! ===============================
 
-! HERE I ADDED GIA%grid
-! should here ice be replaced by GIA?
-! CHECK!
-!!
     CALL initialise_ELRA_PD_reference_load( mesh, grid, GIA, refgeo_GIAeq)
 
     ! Finalise routine path
@@ -286,9 +238,7 @@ CONTAINS
     ! In/output variables:
     TYPE(type_mesh),                     INTENT(IN)    :: mesh
     TYPE(type_grid),                     INTENT(IN)    :: grid
-    ! I changed ice for GIA here 
     TYPE(type_GIA_model),                INTENT(INOUT) :: GIA    
-!    TYPE(type_ice_model),                INTENT(INOUT) :: ice
     TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo_GIAeq
 
     ! Local variables:
@@ -298,11 +248,8 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
     
-    IF (par%master) WRITE (0,*) '  Initialising ELRA PD reference load...'
-
     ! Calculate PD reference load on the mesh
     DO vi = mesh%vi1, mesh%vi2
-!            print*, "refgeo Hi(vi)", refgeo_GIAeq%Hi(vi)
       IF (is_floating( refgeo_GIAeq%Hi( vi), refgeo_GIAeq%Hb( vi), 0._dp)) THEN
         GIA%surface_load_PD_mesh( vi) = -refgeo_GIAeq%Hb( vi) * grid%dx**2 * seawater_density
       ELSEIF (refgeo_GIAeq%Hi( vi) > 0._dp) THEN
@@ -313,8 +260,6 @@ CONTAINS
     END DO
     CALL sync
     
-    IF (par%master) WRITE (0,*) '  Finalising ELRA PD reference load...'
-
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
@@ -337,21 +282,10 @@ CONTAINS
 
     ! Add routine to path
     CALL init_routine( routine_name)
-! here I Will comment this and also the map type variable of the subroutine
-! this was used to prevent compiler warnings for unused variables in previous version of Ufe
-!    int_dummy = mesh_old%nV
-!    int_dummy = map%int_dummy
 	CALL reallocate_bounds( GIA%surface_load_PD_mesh, mesh_new%vi1, mesh_new%vi2)
 	CALL reallocate_bounds( GIA%surface_load_mesh, mesh_new%vi1, mesh_new%vi2)
-	! this one is also in GIA_main, is needed here?
-	!CALL reallocate_bounds( GIA%relative_surface_load_mesh, mesh_new%vi1, mesh_new%vi2) commented is already in GIA_main
-	
-    !CALL reallocate_shared_dp_1D( mesh_new%nV, ice%surface_load_PD_mesh,  ice%wsurface_load_PD_mesh )
-    !CALL reallocate_shared_dp_1D( mesh_new%nV, ice%surface_load_mesh,     ice%wsurface_load_mesh    )
-    !CALL reallocate_shared_dp_1D( mesh_new%nV, ice%surface_load_rel_mesh, ice%wsurface_load_rel_mesh)
 
     ! Recalculate the PD reference load on the GIA grid
-    ! I think the call here to ice should be GIA
     CALL initialise_ELRA_PD_reference_load( mesh_new, grid, GIA, refgeo_GIAeq)
 
     ! Finalise routine path

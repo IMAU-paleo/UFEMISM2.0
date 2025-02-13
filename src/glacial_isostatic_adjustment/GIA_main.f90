@@ -146,7 +146,6 @@ CONTAINS
     IF     (C%choice_GIA_model == 'none') THEN
       ! No need to do anything
     ELSEIF (C%choice_GIA_model == 'ELRA') THEN
-    ! added refgeo_GIAeq to the subroutine initialise_GIA_model
       CALL initialise_ELRA_model( mesh, GIA%grid, GIA, refgeo_GIAeq)
     ELSE
       CALL crash('unknown choice_GIA_model "' // TRIM( C%choice_GIA_model) // '"')
@@ -226,9 +225,7 @@ CONTAINS
     ! In- and output variables
     TYPE(type_mesh),                        INTENT(IN)    :: mesh_old
     TYPE(type_mesh),                        INTENT(IN)    :: mesh_new
-    ! should I change GIA variable to INOUT? not sure..
     TYPE(type_GIA_model),                   INTENT(OUT)   :: GIA
-    ! added refgeo_GIAeq to the inputs
     TYPE(type_reference_geometry), optional, INTENT(IN)    :: refgeo_GIAeq        
 
     ! Local variables:

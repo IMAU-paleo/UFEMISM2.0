@@ -801,7 +801,20 @@ CONTAINS
       ! Main AMB variables
       CASE ('AMB')
         CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'AMB', region%AMB%AMB)
+        
+    ! == Glacial isostatic adjustment ==
+    ! ==================================
 
+      ! Main GIA variables
+      CASE ('dHb_next')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'dHb_next', region%GIA%dHb_next) 
+!      CASE ('relative_surface_load_mesh')   
+!        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'relative_surface_load_mesh', region%GIA%relative_surface_load_mesh) 
+!      CASE ('surface_load_mesh')
+!        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'surface_load_mesh', region%GIA%surface_load_mesh)
+!      CASE ('surface_load_PD_mesh')
+!        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'surface_load_PD_mesh', region%GIA%surface_load_PD_mesh)
+                
     ! ===== End of user-defined output fields =====
     ! =============================================
 
@@ -1351,6 +1364,24 @@ CONTAINS
       CASE ('AMB')
         CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%AMB%AMB, d_grid_vec_partial_2D)
         CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'AMB', d_grid_vec_partial_2D)
+        
+    ! == Glacial isostatic adjustment ==
+    ! ==================================
+
+      ! Main GIA variables
+      CASE ('dHb_next')
+      	CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%GIA%dHb_next, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'dHb_next', d_grid_vec_partial_2D) 
+!      CASE ('relative_surface_load_mesh')
+!      	CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%GIA%relative_surface_load_mesh, d_grid_vec_partial_2D)
+!        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'relative_surface_load_mesh', d_grid_vec_partial_2D) 
+!      CASE ('surface_load_mesh')
+!      	CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%GIA%surface_load_mesh, d_grid_vec_partial_2D)
+!        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'surface_load_mesh', d_grid_vec_partial_2D) 
+!      CASE ('surface_load_PD_mesh')
+!      	CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%GIA%surface_load_PD_mesh, d_grid_vec_partial_2D)
+!        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'surface_load_PD_mesh', d_grid_vec_partial_2D) 
+
 
     ! ===== End of user-defined output fields =====
     ! =============================================
@@ -2208,6 +2239,19 @@ CONTAINS
       ! Main AMB variables
       CASE ('AMB')
         CALL add_field_mesh_dp_2D( filename, ncid, 'AMB', long_name = 'Artificial mass balance', units = 'm yr^-1')
+        
+    ! == Glacial isostatic adjustment ==
+    ! ==================================
+
+      ! Main GIA variables
+      CASE ('dHb_next')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'dHb_next', long_name = 'Bedrock elevation difference from ELRA', units = 'm')
+!      CASE ('relative_surface_load_mesh')
+!        CALL add_field_mesh_dp_2D( filename, ncid, 'relative_surface_load_mesh', long_name = 'drelative_surface_load_mesh', units = 'idk yet')
+!      CASE ('surface_load_mesh')
+!        CALL add_field_mesh_dp_2D( filename, ncid, 'surface_load_mesh', long_name = 'surface_load_mesh', units = 'idk yet')
+!      CASE ('surface_load_PD_mesh')
+!        CALL add_field_mesh_dp_2D( filename, ncid, 'surface_load_PD_mesh', long_name = 'surface_load_PD_mesh', units = 'idk yet')
 
     ! ===== End of user-defined output fields =====
     ! =============================================
@@ -2638,6 +2682,19 @@ CONTAINS
       ! Main AMB variables
       CASE ('AMB')
         CALL add_field_grid_dp_2D( filename, ncid, 'AMB', long_name = 'Artificial mass balance', units = 'm yr^-1')
+        
+    ! == Glacial isostatic adjustment ==
+    ! ==================================
+
+      ! Main GIA variables
+      CASE ('dHb_next')
+        CALL add_field_grid_dp_2D( filename, ncid, 'dHb_next', long_name = 'Bedrock elevation difference from ELRA', units = 'm')
+!      CASE ('relative_surface_load_mesh')
+!        CALL add_field_grid_dp_2D( filename, ncid, 'relative_surface_load_mesh', long_name = 'GIA%dHB_eq_grid', units = 'idk yet')       
+!      CASE ('surface_load_mesh')
+!        CALL add_field_grid_dp_2D( filename, ncid, 'surface_load_mesh', long_name = 'surface_load_mesh', units = 'idk yet')       
+!      CASE ('surface_load_PD_mesh')
+!        CALL add_field_grid_dp_2D( filename, ncid, 'surface_load_PD_mesh', long_name = 'relative_surface_load_mesh test', units = 'idk yet')       
 
     ! ===== End of user-defined output fields =====
     ! =============================================
