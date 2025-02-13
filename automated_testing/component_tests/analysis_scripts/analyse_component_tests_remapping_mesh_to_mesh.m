@@ -34,12 +34,17 @@ function analyse_remapping_test( filename_short)
   filename_full = [foldername_results '/' filename_short];
 
   % Read test results
-  mesh1.A    = ncread( filename_full, 'mesh1_A');
-  mesh2      = read_mesh_from_file( filename_full);
-  d_mesh1_ex = ncread( filename_full, 'd_mesh1_ex');
-  d_mesh2_ex = ncread( filename_full, 'd_mesh2_ex');
-  d_mesh2    = ncread( filename_full, 'd_mesh2');
-  d_err = d_mesh2 - d_mesh2_ex;
+  mesh1.A        = ncread( filename_full, 'mesh1_A');
+  mesh2          = read_mesh_from_file( filename_full);
+  d_mesh1_ex     = ncread( filename_full, 'd_mesh1_ex');
+  d_mesh2_ex     = ncread( filename_full, 'd_mesh2_ex');
+  d_mesh2_nn     = ncread( filename_full, 'd_mesh2_nn');
+  d_mesh2_trilin = ncread( filename_full, 'd_mesh2_trilin');
+  d_mesh2_cons   = ncread( filename_full, 'd_mesh2_cons');
+
+  d_err_nn     = d_mesh2_nn     - d_mesh2_ex;
+  d_err_trilin = d_mesh2_trilin - d_mesh2_ex;
+  d_err_cons   = d_mesh2_cons   - d_mesh2_ex;
 
   clim = [-1,1] * 200;
 
@@ -84,11 +89,13 @@ function analyse_remapping_test( filename_short)
 
   end
 
-  write_to_scoreboard_file( filename_short, mesh1, d_mesh1_ex, mesh2, d_mesh2_ex, d_mesh2)
+  write_to_scoreboard_file( filename_short, mesh1, d_mesh1_ex, mesh2, d_mesh2_ex, ...
+    d_mesh2_nn, d_mesh2_trilin, d_mesh2_cons)
   
 end
 
-function write_to_scoreboard_file( filename_short, mesh1, d_mesh1_ex, mesh2, d_mesh2_ex, d_mesh2)
+  function write_to_scoreboard_file( filename_short, mesh1, d_mesh1_ex, mesh2, d_mesh2_ex, ...
+      d_mesh2_nn, d_mesh2_trilin, d_mesh2_cons)
 
   % Set up a scoreboard results structure
   test_name = filename_short(5:end-3);
@@ -96,20 +103,44 @@ function write_to_scoreboard_file( filename_short, mesh1, d_mesh1_ex, mesh2, d_m
     'component_tests/remapping/mesh_to_mesh');
 
   % Calculate cost functions
-  rmse = sqrt( mean( (d_mesh2 - d_mesh2_ex).^2));
+  rmse_nn     = sqrt( mean( (d_mesh2_nn     - d_mesh2_ex).^2));
+  rmse_trilin = sqrt( mean( (d_mesh2_trilin - d_mesh2_ex).^2));
+  rmse_cons   = sqrt( mean( (d_mesh2_cons   - d_mesh2_ex).^2));
 
-  bounds_max = max( 0, max( d_mesh2(:)) - max( d_mesh1_ex(:)));
-  bounds_min = max( 0, min( d_mesh2_ex(:)) - min( d_mesh2(:)));
+  bounds_max_nn     = max( 0, max( d_mesh2_nn(    :)) - max( d_mesh1_ex(:)));
+  bounds_max_trilin = max( 0, max( d_mesh2_trilin(:)) - max( d_mesh1_ex(:)));
+  bounds_max_cons   = max( 0, max( d_mesh2_cons(  :)) - max( d_mesh1_ex(:)));
+
+  bounds_min_nn     = max( 0, min( d_mesh2_ex(:)) - min( d_mesh2_nn(    :)));
+  bounds_min_trilin = max( 0, min( d_mesh2_ex(:)) - min( d_mesh2_trilin(:)));
+  bounds_min_cons   = max( 0, min( d_mesh2_ex(:)) - min( d_mesh2_cons(  :)));
 
   int_mesh1 = sum( d_mesh1_ex .* mesh1.A);
-  int_mesh2 = sum( d_mesh2    .* mesh2.A);
-  int_err = abs( 1 - int_mesh2 / int_mesh1);
+
+  int_mesh2_nn     = sum( d_mesh2_nn     .* mesh2.A);
+  int_mesh2_trilin = sum( d_mesh2_trilin .* mesh2.A);
+  int_mesh2_cons   = sum( d_mesh2_cons   .* mesh2.A);
+
+  int_err_nn     = abs( 1 - int_mesh2_nn     / int_mesh1);
+  int_err_trilin = abs( 1 - int_mesh2_trilin / int_mesh1);
+  int_err_cons   = abs( 1 - int_mesh2_cons   / int_mesh1);
 
   % Add cost functions to results structure
-  single_run = add_cost_function_to_single_run( single_run, 'rmse'       , 'sqrt( mean( (d_mesh2 - d_mesh2_ex).^2))'        , rmse);
-  single_run = add_cost_function_to_single_run( single_run, 'bounds_max' , 'max( 0, max( d_mesh2(:)) - max( d_mesh1_ex(:)))', bounds_max);
-  single_run = add_cost_function_to_single_run( single_run, 'bounds_min' , 'max( 0, min( d_mesh2_ex(:)) - min( d_mesh2(:)))', bounds_min);
-  single_run = add_cost_function_to_single_run( single_run, 'int_err'    , 'abs( 1 - int_mesh2 / int_mesh1)'                , int_err);
+  single_run = add_cost_function_to_single_run( single_run, 'rmse_nn'           , 'sqrt( mean( (d_mesh2_nn     - d_mesh2_ex).^2))'        , rmse_nn);
+  single_run = add_cost_function_to_single_run( single_run, 'rmse_trilin'       , 'sqrt( mean( (d_mesh2_trilin - d_mesh2_ex).^2))'        , rmse_trilin);
+  single_run = add_cost_function_to_single_run( single_run, 'rmse_cons'         , 'sqrt( mean( (d_mesh2_cons   - d_mesh2_ex).^2))'        , rmse_cons);
+
+  single_run = add_cost_function_to_single_run( single_run, 'bounds_max_nn'     , 'max( 0, max( d_mesh2_nn(    :)) - max( d_mesh1_ex(:)))', bounds_max_nn);
+  single_run = add_cost_function_to_single_run( single_run, 'bounds_max_trilin' , 'max( 0, max( d_mesh2_trilin(:)) - max( d_mesh1_ex(:)))', bounds_max_trilin);
+  single_run = add_cost_function_to_single_run( single_run, 'bounds_max_cons'   , 'max( 0, max( d_mesh2_cons(  :)) - max( d_mesh1_ex(:)))', bounds_max_cons);
+
+  single_run = add_cost_function_to_single_run( single_run, 'bounds_min_nn'     , 'max( 0, min( d_mesh2_ex(:)) - min( d_mesh2_nn(    :)))', bounds_min_nn);
+  single_run = add_cost_function_to_single_run( single_run, 'bounds_min_trilin' , 'max( 0, min( d_mesh2_ex(:)) - min( d_mesh2_trilin(:)))', bounds_min_trilin);
+  single_run = add_cost_function_to_single_run( single_run, 'bounds_min_cons'   , 'max( 0, min( d_mesh2_ex(:)) - min( d_mesh2_cons(  :)))', bounds_min_cons);
+
+  single_run = add_cost_function_to_single_run( single_run, 'int_err_nn'        , 'abs( 1 - int_mesh2_nn     / int_mesh1)'                , int_err_nn);
+  single_run = add_cost_function_to_single_run( single_run, 'int_err_trilin'    , 'abs( 1 - int_mesh2_trilin / int_mesh1)'                , int_err_trilin);
+  single_run = add_cost_function_to_single_run( single_run, 'int_err_cons'      , 'abs( 1 - int_mesh2_cons   / int_mesh1)'                , int_err_cons);
 
   % Write to scoreboard file
   write_scoreboard_file( foldername_automated_testing, single_run);

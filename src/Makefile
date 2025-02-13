@@ -205,7 +205,7 @@ UFEMISM_source = \
   mesh/remapping/remapping_grid_to_mesh_triangles.f90 \
   mesh/remapping/remapping_mesh_vertices_to_grid.f90 \
   mesh/remapping/create_maps_gridlonlat_mesh.f90 \
-  mesh/remapping/create_maps_mesh_mesh.f90 \
+  mesh/remapping/remapping_mesh_to_mesh.f90 \
   mesh/remapping/apply_maps.f90 \
   mesh/remapping/remapping_main.f90 \
   mesh/mesh_data_smoothing.f90 \
