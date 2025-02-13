@@ -120,9 +120,9 @@ CONTAINS
 
 
   SUBROUTINE run_BMB_model_laddie_ROI( mesh, ice, BMB, time)
-    ! Calculate the basal mass balance
-    !
-    ! Call the external LADDIE model
+    ! Call the external laddie model to compute BMB for the ROI
+    ! NOTE: This currently works properly for one single ROI
+    ! When you define multiple ROIs in your config file, laddie only computes melt for one ROI grid file specified in the laddie config.
 
     ! In/output variables:
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
@@ -135,8 +135,7 @@ CONTAINS
     CHARACTER(LEN=256)                                    :: filename_BMB_laddie_output
     CHARACTER(LEN=256)                                    :: filename_laddieready
     LOGICAL                                               :: found_laddie_file
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: temp_BMB
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: temp_BMB_2
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: temporary_BMB
     INTEGER                                               :: vi
 
     ! Add routine to path
@@ -166,13 +165,13 @@ CONTAINS
       ! Let UFEMISM sleep until LADDIE is finished
       CALL wait_for_laddie_to_finish( filename_laddieready, found_laddie_file)
 
-      CALL read_field_from_file_2D( filename_BMB_laddie_output, 'BMBext', mesh, temp_BMB)
+      CALL read_field_from_file_2D( filename_BMB_laddie_output, 'BMBext', mesh, temporary_BMB)
 
       ! Only read for mask_ROI
       DO vi = mesh%vi1, mesh%vi2
         IF (ice%mask_ROI(vi)) THEN
           IF (ice%mask_floating_ice( vi) .OR. ice%mask_icefree_ocean( vi) .OR. ice%mask_gl_gr( vi)) THEN 
-            BMB%BMB_shelf( vi) = temp_BMB(vi)
+            BMB%BMB_shelf( vi) = temporary_BMB(vi)
           END IF
         END IF
       END DO
@@ -180,12 +179,12 @@ CONTAINS
     ELSE ! (time = C%start_time_of_run)
 
       ! Read in BMB data from laddie data; path given in config
-      CALL read_field_from_file_2D( C%filename_BMB_laddie_initial_output, 'BMBext', mesh, temp_BMB_2)
+      CALL read_field_from_file_2D( C%filename_BMB_laddie_initial_output, 'BMBext', mesh, temporary_BMB)
 
       DO vi = mesh%vi1, mesh%vi2
         IF (ice%mask_ROI(vi)) THEN
           IF (ice%mask_floating_ice( vi) .OR. ice%mask_icefree_ocean( vi) .OR. ice%mask_gl_gr( vi)) THEN 
-            BMB%BMB_shelf( vi) = temp_BMB_2(vi)
+            BMB%BMB_shelf( vi) = temporary_BMB(vi)
           END IF
         END IF
       END DO
@@ -199,9 +198,9 @@ CONTAINS
   END SUBROUTINE run_BMB_model_laddie_ROI
 
   SUBROUTINE initialise_BMB_model_laddie_ROI( mesh, BMB)
-    ! Initialise the BMB model
-    !
-    ! Call the external LADDIE model
+    ! Initialise the external laddie model to compute BMB for the ROI
+    ! NOTE: This currently works properly for one single ROI
+    ! When you define multiple ROIs in your config file, laddie only computes melt for one ROI grid file specified in the laddie config.
 
     ! In/output variables:
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
