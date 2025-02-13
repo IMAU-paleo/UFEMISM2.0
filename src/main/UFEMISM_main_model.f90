@@ -919,9 +919,6 @@ CONTAINS
     ! Initialise
     region%nROI = 0
 
-    ! FJFJ: implement this function because now it is used three times
-    ! CALL compute_ROI_polygon(poly_ROI)
-
     ! Go over all listed regions of interest
     all_names_ROI = C%choice_regions_of_interest
 
@@ -1039,9 +1036,6 @@ CONTAINS
           CALL crash('unknown region name "' // region%name // '"!')
       END SELECT
 
-      ! FJFJ: END CALL calc_poly_ROI
-
-      
       ! Add to this region's regions of interest
       region%nROI = region%nROI + 1
 

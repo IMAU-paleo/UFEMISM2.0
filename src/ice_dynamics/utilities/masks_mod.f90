@@ -226,9 +226,6 @@ contains
       return
     end if
 
-    ! FJFJ: implement this function because now it is used three times
-    ! CALL compute_ROI_polygon(poly_ROI)
-
     all_names_ROI = C%choice_regions_of_interest
 
     do while (.true.)
@@ -343,8 +340,6 @@ contains
         case default
           call crash('unknown region name "' // region_name // '"!')
       end select
-      
-      ! FJFJ: END CALL calc_poly_ROI
 
       ! Check for each grid point whether it is located within the polygon of the ROI
       do vi = mesh%vi1, mesh%vi2
