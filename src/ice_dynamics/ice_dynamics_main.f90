@@ -303,7 +303,7 @@ contains
     call determine_masks( mesh, ice)
 
     ! Compute mask_ROI only at initialisation, (NOTE: This works only for one single ROI right now)
-    call calc_mask_ROI( mesh, ice)
+    call calc_mask_ROI( mesh, ice, region_name)
 
     ! Effective ice thickness
     ! =======================

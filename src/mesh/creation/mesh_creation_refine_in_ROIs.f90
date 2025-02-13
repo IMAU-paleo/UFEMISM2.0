@@ -50,6 +50,8 @@ contains
       return
     end if
 
+    ! FJFJ: implement this function because now it is used three times
+    ! CALL compute_ROI_polygon(poly_ROI)
     all_names_ROI = C%choice_regions_of_interest
 
     do while (.true.)
@@ -165,6 +167,9 @@ contains
           call crash('unknown region name "' // region_name // '"!')
       end select
 
+      ! FJFJ: implement this function because now it is used three times
+      ! CALL compute_ROI_polygon(poly_ROI)
+
       ! Refine the mesh in the specified region of interest
       ! ===================================================
 
@@ -230,10 +235,6 @@ contains
       call refine_mesh_line_ROI( mesh, p_line_calving_front , C%ROI_maximum_resolution_calving_front , C%ROI_calving_front_width , C%alpha_min, poly_ROI)
       call refine_mesh_line_ROI( mesh, p_line_ice_front     , C%ROI_maximum_resolution_ice_front     , C%ROI_ice_front_width     , C%alpha_min, poly_ROI)
       call refine_mesh_line_ROI( mesh, p_line_coastline     , C%ROI_maximum_resolution_coastline     , C%ROI_coastline_width     , C%alpha_min, poly_ROI)
-
-      ! Save poly_ROI in type mesh to use later to determine ROI mask; note this only works for the last one now
-      mesh%poly_ROI = poly_ROI
-      mesh%npoly_ROI = size(poly_ROI(:,1))
       
       ! Clean up after yourself
       deallocate( poly_ROI)

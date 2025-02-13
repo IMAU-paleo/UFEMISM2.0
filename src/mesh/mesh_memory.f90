@@ -51,7 +51,6 @@ CONTAINS
         ALLOCATED( mesh%VBI             ) .OR. &
         ALLOCATED( mesh%Tri             ) .OR. &
         ALLOCATED( mesh%Tricc           ) .OR. &
-        ALLOCATED( mesh%poly_ROI        ) .OR. &
         ALLOCATED( mesh%TriC            ) .OR. &
         ALLOCATED( mesh%Tri_flip_list   ) .OR. &
         ALLOCATED( mesh%refinement_map  ) .OR. &
@@ -75,9 +74,6 @@ CONTAINS
     ALLOCATE( mesh%Tri              (nTri_mem, 3     ), source = 0    )
     ALLOCATE( mesh%Tricc            (nTri_mem, 2     ), source = 0._dp)
     ALLOCATE( mesh%TriC             (nTri_mem, 3     ), source = 0    )
-
-    ! ROI polygon data
-    ALLOCATE( mesh%poly_ROI         (nTri_mem, 2     ), source = 0._dp)
 
     ! Mesh generation/refinement data
     ALLOCATE( mesh%Tri_flip_list    (nTri_mem*2, 2   ), source = 0    )
@@ -129,9 +125,6 @@ CONTAINS
     CALL reallocate( mesh%refinement_stack, nTri_mem_new             )
     CALL reallocate( mesh%Tri_li          , nTri_mem_new, 2          )
 
-    ! ROI polygon data
-    CALL reallocate( mesh%poly_ROI        , nTri_mem_new, 2          )
-
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
@@ -181,9 +174,6 @@ CONTAINS
       CALL reallocate( mesh%refinement_stack, mesh%nTri             )
       CALL reallocate( mesh%Tri_li          , mesh%nTri, 2          )
 
-      ! ROI polygon data
-      CALL reallocate( mesh%poly_ROI        , mesh%nTri, 2          )
-
     END IF ! IF (mesh%nTri_mem > mesh%nTri) THEN
 
     ! Finalise routine path
@@ -226,9 +216,6 @@ CONTAINS
     IF (ALLOCATED( mesh%Tri             )) DEALLOCATE( mesh%Tri             )
     IF (ALLOCATED( mesh%TriC            )) DEALLOCATE( mesh%TriC            )
     IF (ALLOCATED( mesh%Tricc           )) DEALLOCATE( mesh%Tricc           )
-
-    ! ROI polygon data
-    IF (ALLOCATED( mesh%poly_ROI        )) DEALLOCATE( mesh%poly_ROI        )
 
   ! Refinement data
   ! ===============

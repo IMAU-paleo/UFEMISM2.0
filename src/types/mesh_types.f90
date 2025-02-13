@@ -60,11 +60,6 @@ module mesh_types
     integer,  dimension(:    ), allocatable :: refinement_stack              !           Stack  of triangles that ...
     integer                                 :: refinement_stackN             !           Number of triangles that...
     integer,  dimension(:,:  ), allocatable :: Tri_li                        !           List of overlap ranges between triangles and line segments (for line-based mesh refinement)
-    
-  ! ROI polygon
-  ! ===========
-    real(dp), dimension(:,:  ), allocatable :: poly_ROI                      !           Polygon of region of interest (ROI)
-    integer                                 :: npoly_ROI                     !           Number of coordinates in polygon of ROI
 
   ! Secondary mesh data (everything that can be calculated after mesh creation is finished)
   ! =======================================================================================
