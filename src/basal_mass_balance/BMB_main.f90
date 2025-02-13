@@ -165,6 +165,8 @@ CONTAINS
         ! run_BMB_model_laddie and read BMB values only for region of interest
         CALL run_BMB_model_laddie_ROI( mesh, ice, BMB, time)
         CALL apply_BMB_subgrid_scheme_ROI( mesh, ice, BMB)
+      CASE ('prescribed', 'prescribed_fixed', 'idealised', 'parameterised', 'inverted', 'laddie')
+        CALL crash('this BMB_model "' // TRIM( choice_BMB_model_ROI) // '" is not implemented for hybrid-BMB in ROI yet')
       CASE DEFAULT
         CALL crash('unknown choice_BMB_model_ROI "' // TRIM( choice_BMB_model_ROI) // '"')
     END SELECT
@@ -281,6 +283,8 @@ CONTAINS
         ! No need to do anything
       CASE ('laddie_py')
          CALL initialise_BMB_model_laddie_ROI( mesh, BMB)
+      CASE ('prescribed', 'prescribed_fixed', 'idealised', 'parameterised', 'inverted', 'laddie')
+        CALL crash('this BMB_model "' // TRIM( choice_BMB_model_ROI) // '" is not implemented for hybrid-BMB in ROI yet')
       CASE DEFAULT
         CALL crash('unknown choice_BMB_model_ROI "' // TRIM( choice_BMB_model_ROI) // '"')
     END SELECT
