@@ -7,9 +7,11 @@ module remapping_main
   use mesh_types, only: type_mesh
   use interpolation, only: remap_cons_2nd_order_1D
   use mesh_utilities, only: extrapolate_Gaussian, check_if_meshes_are_identical
-  use create_maps_grid_mesh
+  use remapping_grid_to_mesh_vertices
+  use remapping_grid_to_mesh_triangles
+  use remapping_mesh_vertices_to_grid
   use create_maps_gridlonlat_mesh
-  use create_maps_mesh_mesh
+  use remapping_mesh_to_mesh
   use apply_maps
 
   implicit none
@@ -66,7 +68,7 @@ contains
       do mi = 1, size( Atlas,1)
         if (.not. Atlas( mi)%is_in_use) then
           found_empty_page = .true.
-          call create_map_from_xy_grid_to_mesh( grid, mesh, Atlas( mi))
+          call create_map_from_xy_grid_to_mesh_vertices( grid, mesh, Atlas( mi))
           mi_valid = mi
           exit
         end if
@@ -121,7 +123,7 @@ contains
       do mi = 1, size( Atlas,1)
         if (.not. Atlas( mi)%is_in_use) then
           found_empty_page = .true.
-          call create_map_from_xy_grid_to_mesh( grid, mesh, Atlas( mi))
+          call create_map_from_xy_grid_to_mesh_vertices( grid, mesh, Atlas( mi))
           mi_valid = mi
           exit
         end if
@@ -399,7 +401,7 @@ contains
       do mi = 1, size( Atlas,1)
         if (.not. Atlas( mi)%is_in_use) then
           found_empty_page = .true.
-          call create_map_from_mesh_to_xy_grid( mesh, grid,Atlas( mi))
+          call create_map_from_mesh_triangles_to_xy_grid( mesh, grid,Atlas( mi))
           mi_valid = mi
           exit
         end if
@@ -454,7 +456,7 @@ contains
       do mi = 1, size( Atlas,1)
         if (.not. Atlas( mi)%is_in_use) then
           found_empty_page = .true.
-          call create_map_from_mesh_to_xy_grid( mesh, grid,Atlas( mi))
+          call create_map_from_mesh_triangles_to_xy_grid( mesh, grid,Atlas( mi))
           mi_valid = mi
           exit
         end if
@@ -511,7 +513,7 @@ contains
       do mi = 1, size( Atlas,1)
         if (.not. Atlas( mi)%is_in_use) then
           found_empty_page = .true.
-          call create_map_from_mesh_to_xy_grid( mesh, grid,Atlas( mi))
+          call create_map_from_mesh_triangles_to_xy_grid( mesh, grid,Atlas( mi))
           mi_valid = mi
           exit
         end if

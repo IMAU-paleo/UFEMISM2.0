@@ -12,9 +12,10 @@ module ct_remapping_grid_to_mesh
   use mesh_types, only: type_mesh
   use netcdf_io_main
   use apply_maps, only: clear_all_maps_involving_this_mesh
-  use remapping_main, only: map_from_xy_grid_to_mesh_2D
+  use remapping_main, only: map_from_xy_grid_to_mesh_2D, map_from_xy_grid_to_mesh_triangles_2D
   use analytical_solutions, only: Halfar_dome
-  use ct_remapping_basic, only: calc_test_function_on_grid, calc_test_function_on_mesh
+  use ct_remapping_basic, only: calc_test_function_on_grid, calc_test_function_on_mesh, &
+    calc_test_function_on_mesh_triangles
 
   implicit none
 
@@ -111,7 +112,7 @@ contains
     integer                               :: ncid
     type(type_grid)                       :: grid
     type(type_mesh)                       :: mesh
-    real(dp), dimension(:), allocatable   :: d_grid_ex, d_mesh_ex, d_mesh
+    real(dp), dimension(:), allocatable   :: d_grid_ex, d_mesh_ex, d_mesh, d_tri_ex, d_tri
     character(len=1024)                   :: filename
 
     ! Add routine to call stack
@@ -126,48 +127,6 @@ contains
     if (par%master) write(0,*) '        grid: ', colour_string( trim( grid_name),'light blue')
     if (par%master) write(0,*) '        mesh: ', colour_string( trim( mesh_name),'light blue')
 
-    ! DENK DROM
-    if ((grid_name == 'grid_Ant_6.4000E+04_m' .and. &
-         mesh_name == 'comp_test_mesh_Ant_uniform_2.0000E+05_m_nit_Lloyd_2') .or. &
-        (grid_name == 'grid_Ant_6.4000E+04_m' .and. &
-         mesh_name == 'comp_test_mesh_Ant_uniform_1.5000E+05_m_nit_Lloyd_2') .or. &
-        (grid_name == 'grid_Ant_3.2000E+04_m' .and. &
-         mesh_name == 'comp_test_mesh_Ant_uniform_1.5000E+05_m_nit_Lloyd_2') .or. &
-        (grid_name == 'grid_Ant_6.4000E+04_m' .and. &
-         mesh_name == 'comp_test_mesh_Ant_uniform_1.0000E+05_m_nit_Lloyd_2') .or. &
-        (grid_name == 'grid_Ant_6.4000E+04_m' .and. &
-         mesh_name == 'comp_test_mesh_Ant_uniform_7.5000E+04_m_nit_Lloyd_2') .or. &
-        (grid_name == 'grid_Ant_1.6000E+04_m' .and. &
-         mesh_name == 'comp_test_mesh_Ant_uniform_7.5000E+04_m_nit_Lloyd_2') .or. &
-        (grid_name == 'grid_Ant_6.4000E+04_m' .and. &
-         mesh_name == 'comp_test_mesh_Ant_gradient_4.0000E+05-7.5000E+04_m_x') .or. &
-        (grid_name == 'grid_Ant_1.6000E+04_m' .and. &
-         mesh_name == 'comp_test_mesh_Ant_gradient_4.0000E+05-7.5000E+04_m_x') .or. &
-        (grid_name == 'grid_Ant_6.4000E+04_m' .and. &
-         mesh_name == 'comp_test_mesh_Ant_gradient_4.0000E+05-7.5000E+04_m_y') .or. &
-        (grid_name == 'grid_Ant_1.6000E+04_m' .and. &
-         mesh_name == 'comp_test_mesh_Ant_gradient_4.0000E+05-7.5000E+04_m_y') .or. &
-        (grid_name == 'grid_Ant_6.4000E+04_m' .and. &
-         mesh_name == 'comp_test_mesh_Ant_uniform_1.5000E+05_m_nit_Lloyd_4') .or. &
-        (grid_name == 'grid_Ant_3.2000E+04_m' .and. &
-         mesh_name == 'comp_test_mesh_Ant_uniform_1.5000E+05_m_nit_Lloyd_4') .or. &
-        (grid_name == 'grid_Ant_6.4000E+04_m' .and. &
-         mesh_name == 'comp_test_mesh_Ant_uniform_1.5000E+05_m_nit_Lloyd_6') .or. &
-        (grid_name == 'grid_Ant_3.2000E+04_m' .and. &
-         mesh_name == 'comp_test_mesh_Ant_uniform_1.5000E+05_m_nit_Lloyd_6') .or. &
-        (grid_name == 'grid_Ant_6.4000E+04_m' .and. &
-         mesh_name == 'comp_test_mesh_Ant_uniform_1.5000E+05_m_nit_Lloyd_8') .or. &
-        (grid_name == 'grid_Ant_3.2000E+04_m' .and. &
-         mesh_name == 'comp_test_mesh_Ant_uniform_1.5000E+05_m_nit_Lloyd_8') .or. &
-        (grid_name == 'grid_Ant_6.4000E+04_m' .and. &
-         mesh_name == 'comp_test_mesh_Ant_uniform_1.5000E+05_m_nit_Lloyd_10') .or. &
-        (grid_name == 'grid_Ant_3.2000E+04_m' .and. &
-         mesh_name == 'comp_test_mesh_Ant_uniform_1.5000E+05_m_nit_Lloyd_10')) then
-      if (par%master) call warning('skipping this one as it fails due to an unknown remapping bug!')
-      call finalise_routine( routine_name)
-      return
-    end if
-
     ! Set up the mesh and the grid from the provided files
     call open_existing_netcdf_file_for_reading( filename_mesh, ncid)
     call setup_mesh_from_file( filename_mesh, ncid, mesh)
@@ -178,25 +137,33 @@ contains
     call close_netcdf_file( ncid)
 
     ! Calculate exact solution on the grid and the mesh
-    call calc_test_function_on_grid( grid, d_grid_ex)
-    call calc_test_function_on_mesh( mesh, d_mesh_ex)
+    call calc_test_function_on_grid(           grid, d_grid_ex)
+    call calc_test_function_on_mesh(           mesh, d_mesh_ex)
+    call calc_test_function_on_mesh_triangles( mesh, d_tri_ex )
 
     ! Map gridded data to the mesh
     allocate( d_mesh( mesh%vi1:mesh%vi2))
-    call map_from_xy_grid_to_mesh_2D( grid, mesh, d_grid_ex, d_mesh)
+    allocate( d_tri(  mesh%ti1:mesh%ti2))
+
+    call map_from_xy_grid_to_mesh_2D(           grid, mesh, d_grid_ex, d_mesh)
+    call map_from_xy_grid_to_mesh_triangles_2D( grid, mesh, d_grid_ex, d_tri )
 
     ! Write results to NetCDF
     call create_new_netcdf_file_for_writing( filename, ncid)
     call setup_mesh_in_netcdf_file( filename, ncid, mesh)
     call setup_xy_grid_in_netcdf_file( filename, ncid, grid)
 
-    call add_field_mesh_dp_2D_notime( filename, ncid, 'd_mesh_ex')
-    call add_field_grid_dp_2D_notime( filename, ncid, 'd_grid_ex')
-    call add_field_mesh_dp_2D_notime( filename, ncid, 'd_mesh')
+    call add_field_mesh_dp_2D_notime(   filename, ncid, 'd_mesh_ex')
+    call add_field_mesh_dp_2D_b_notime( filename, ncid, 'd_tri_ex' )
+    call add_field_grid_dp_2D_notime(   filename, ncid, 'd_grid_ex')
+    call add_field_mesh_dp_2D_notime(   filename, ncid, 'd_mesh'   )
+    call add_field_mesh_dp_2D_b_notime( filename, ncid, 'd_tri'    )
 
-    call write_to_field_multopt_mesh_dp_2D_notime( mesh, filename, ncid, 'd_mesh_ex', d_mesh_ex)
-    call write_to_field_multopt_grid_dp_2D_notime( grid, filename, ncid, 'd_grid_ex', d_grid_ex)
-    call write_to_field_multopt_mesh_dp_2D_notime( mesh, filename, ncid, 'd_mesh'   , d_mesh   )
+    call write_to_field_multopt_mesh_dp_2D_notime(   mesh, filename, ncid, 'd_mesh_ex', d_mesh_ex)
+    call write_to_field_multopt_mesh_dp_2D_b_notime( mesh, filename, ncid, 'd_tri_ex' , d_tri_ex )
+    call write_to_field_multopt_grid_dp_2D_notime(   grid, filename, ncid, 'd_grid_ex', d_grid_ex)
+    call write_to_field_multopt_mesh_dp_2D_notime(   mesh, filename, ncid, 'd_mesh'   , d_mesh   )
+    call write_to_field_multopt_mesh_dp_2D_b_notime( mesh, filename, ncid, 'd_tri'    , d_tri    )
 
     call close_netcdf_file( ncid)
 

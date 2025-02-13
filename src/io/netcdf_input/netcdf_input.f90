@@ -6,6 +6,5 @@ module netcdf_input
   use netcdf_read_field_from_mesh_file
   use netcdf_read_field_from_lonlat_grid_file
   use netcdf_read_field_from_xy_grid_file
-  use netcdf_read_and_map_field_from_file
 
 end module netcdf_input

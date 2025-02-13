@@ -13,7 +13,7 @@ module ct_remapping_basic
 
   private
 
-  public :: calc_test_function_on_mesh, calc_test_function_on_grid
+  public :: calc_test_function_on_mesh, calc_test_function_on_mesh_triangles, calc_test_function_on_grid
 
 contains
 
@@ -34,6 +34,23 @@ contains
     end do
 
   end subroutine calc_test_function_on_mesh
+
+  subroutine calc_test_function_on_mesh_triangles( mesh, d_mesh_ex_vec_partial)
+
+    ! In/output variables:
+    type(type_mesh),                     intent(in)  :: mesh
+    real(dp), dimension(:), allocatable, intent(out) :: d_mesh_ex_vec_partial
+
+    ! Local variables:
+    integer :: ti
+
+    ! Distributed vector form on the mesh is trivial
+    allocate( d_mesh_ex_vec_partial( mesh%ti1: mesh%ti2))
+    do ti = mesh%ti1, mesh%ti2
+      d_mesh_ex_vec_partial( ti) = test_function_Halfar( mesh%Tricc( ti,1), mesh%Tricc( ti,2))
+    end do
+
+  end subroutine calc_test_function_on_mesh_triangles
 
   !> Calculate the test function on a gridded data field, in distributed form
   subroutine calc_test_function_on_grid( grid, d_grid_ex_vec_partial)

@@ -12,14 +12,14 @@ module ut_mesh_remapping_mesh_to_mesh
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, warning
   use mesh_types, only: type_mesh
   use remapping_types, only: type_map
-  use mesh_memory, only: allocate_mesh_primary
+  use mesh_memory, only: allocate_mesh_primary, crop_mesh_primary
   use mesh_dummy_meshes, only: initialise_dummy_mesh_5, initialise_dummy_mesh_9, &
     initialise_dummy_mesh_16
   use mesh_refinement_basic, only: refine_mesh_uniform
   use mesh_secondary, only: calc_all_secondary_mesh_data
   use mesh_translation_tables, only: calc_field_to_vector_form_translation_tables
   use mesh_disc_calc_matrix_operators_2D, only: calc_matrix_operators_mesh_a_b
-  use create_maps_mesh_mesh, only: create_map_from_mesh_to_mesh_nearest_neighbour, &
+  use remapping_mesh_to_mesh, only: create_map_from_mesh_to_mesh_nearest_neighbour, &
     create_map_from_mesh_to_mesh_trilin, create_map_from_mesh_to_mesh_2nd_order_conservative
   use CSR_sparse_matrix_utilities, only: type_sparse_matrix_CSR_dp, gather_CSR_dist_to_master
   use petsc_basic, only: mat_petsc2CSR
@@ -33,29 +33,29 @@ module ut_mesh_remapping_mesh_to_mesh
 
 contains
 
-subroutine test_remapping_mesh_to_mesh( test_name_parent)
-  ! Test the mesh-to-mesh remapping subroutines
+  subroutine test_remapping_mesh_to_mesh( test_name_parent)
+    ! Test the mesh-to-mesh remapping subroutines
 
-  ! In/output variables:
-  character(len=*), intent(in) :: test_name_parent
+    ! In/output variables:
+    character(len=*), intent(in) :: test_name_parent
 
-  ! Local variables:
-  character(len=1024), parameter :: routine_name = 'test_remapping_mesh_to_mesh'
-  character(len=1024), parameter :: test_name_local = 'mesh_to_mesh'
-  character(len=1024)            :: test_name
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'test_remapping_mesh_to_mesh'
+    character(len=1024), parameter :: test_name_local = 'mesh_to_mesh'
+    character(len=1024)            :: test_name
 
-  ! Add routine to call stack
-  call init_routine( routine_name)
+    ! Add routine to call stack
+    call init_routine( routine_name)
 
-  ! Add test name to list
-  test_name = trim( test_name_parent) // '/' // trim( test_name_local)
+    ! Add test name to list
+    test_name = trim( test_name_parent) // '/' // trim( test_name_local)
 
-  call test_remapping_mesh_to_mesh_identity( test_name)
+    call test_remapping_mesh_to_mesh_identity( test_name)
 
-  ! Remove routine from call stack
-  call finalise_routine( routine_name)
+    ! Remove routine from call stack
+    call finalise_routine( routine_name)
 
-end subroutine test_remapping_mesh_to_mesh
+  end subroutine test_remapping_mesh_to_mesh
 
   subroutine test_remapping_mesh_to_mesh_identity( test_name_parent)
     ! Test the mesh-to-mesh remapping subroutines
@@ -100,6 +100,11 @@ end subroutine test_remapping_mesh_to_mesh
     alpha_min = 25._dp * pi / 180._dp
     res_max = pi / 20._dp
     call refine_mesh_uniform( mesh_refined, res_max, alpha_min)
+
+    call crop_mesh_primary( mesh_nV5)
+    call crop_mesh_primary( mesh_nV9)
+    call crop_mesh_primary( mesh_nV16)
+    call crop_mesh_primary( mesh_refined)
 
     call calc_all_secondary_mesh_data( mesh_nV5    , C%lambda_M_ANT, C%phi_M_ANT, C%beta_stereo_ANT)
     call calc_all_secondary_mesh_data( mesh_nV9    , C%lambda_M_ANT, C%phi_M_ANT, C%beta_stereo_ANT)

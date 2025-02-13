@@ -15,8 +15,53 @@ module netcdf_setup_grid_mesh_in_file
   private
 
   public :: setup_xy_grid_in_netcdf_file, setup_mesh_in_netcdf_file, write_matrix_operators_to_netcdf_file
+  public :: save_xy_grid_as_netcdf, save_mesh_as_netcdf
 
 contains
+
+  subroutine save_xy_grid_as_netcdf( filename, grid)
+
+    ! In/output variables:
+    character(len=*), intent(in   ) :: filename
+    type(type_grid),  intent(in   ) :: grid
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'save_xy_grid_as_netcdf'
+    integer                        :: ncid
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    call create_new_netcdf_file_for_writing( filename, ncid)
+    call setup_xy_grid_in_netcdf_file( filename, ncid, grid)
+    call close_netcdf_file( ncid)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine save_xy_grid_as_netcdf
+
+  subroutine save_mesh_as_netcdf( filename, mesh)
+
+    ! In/output variables:
+    character(len=*), intent(in   ) :: filename
+    type(type_mesh),  intent(in   ) :: mesh
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'save_mesh_as_netcdf'
+    integer                        :: ncid
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    call create_new_netcdf_file_for_writing( filename, ncid)
+    call setup_mesh_in_netcdf_file( filename, ncid, mesh)
+    call close_netcdf_file( ncid)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine save_mesh_as_netcdf
 
   subroutine setup_xy_grid_in_netcdf_file( filename, ncid, grid)
     !< Set up a regular x/y-grid in an existing NetCDF file
@@ -143,6 +188,7 @@ contains
     integer :: id_var_VVor
 
     integer :: id_var_TriGC
+    integer :: id_var_TriA
     integer :: id_var_R
     integer :: id_var_A
     integer :: id_var_lon
@@ -323,6 +369,9 @@ contains
     call create_variable( filename, ncid, get_first_option_from_list( field_name_options_TriGC         ), NF90_DOUBLE, (/ id_dim_ti, id_dim_two   /), id_var_TriGC         )
     call add_attribute_char( filename, ncid, id_var_TriGC, 'long_name'  , 'Triangle geometric centre coordinates')
     call add_attribute_char( filename, ncid, id_var_TriGC, 'units'      , 'm')
+    ! TriA
+    call add_field_mesh_dp_2D_b_notime( filename, ncid, get_first_option_from_list( field_name_options_TriA), long_name = 'Triangle area', units = 'm^2')
+    call inquire_var(                   filename, ncid, get_first_option_from_list( field_name_options_TriA), id_var_TriA)
     ! R
     call add_field_mesh_dp_2D_notime( filename, ncid, get_first_option_from_list( field_name_options_R), long_name = 'Resolution', units = 'm')
     call inquire_var(                 filename, ncid, get_first_option_from_list( field_name_options_R), id_var_R)
@@ -386,6 +435,7 @@ contains
 
     ! Secondary geometry data
     call write_var_master( filename, ncid, id_var_TriGC, mesh%TriGC)
+    call write_var_master( filename, ncid, id_var_TriA , mesh%TriA )
     call write_var_master( filename, ncid, id_var_R    , mesh%R    )
     call write_var_master( filename, ncid, id_var_A    , mesh%A    )
     call write_var_master( filename, ncid, id_var_lon  , mesh%lon  )
