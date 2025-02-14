@@ -561,6 +561,8 @@ contains
     integer,  dimension(region%mesh%vi1:region%mesh%vi2) :: extrapolation_mask
     real(dp)                                             :: dt_dummy
     real(dp), dimension(region%mesh%vi1:region%mesh%vi2) :: SMB_dummy, BMB_dummy, LMB_dummy, AMB_dummy, dHi_dt_dummy, Hi_dummy
+    logical  :: do_not_apply_inversion_in_ROI
+    REAL(dp)                                              :: w1, w2
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -633,19 +635,44 @@ contains
     ! == Total BMB
     ! ============
 
+    ! FJFJFJ: ADD OPTION TO DO INVERSION ONLY FOR NOT MASK ROI: apply inversion only on cells that are outside ROI (except when you want to run inverted BMB in ROI too)
+    do_not_apply_inversion_in_ROI = .TRUE.
     ! Initialise
-    region%BMB%BMB = 0._dp
+    ! region%BMB%BMB = 0._dp
+    w1 = 1.0_dp - ((region%time - 80000._dp)/(80050._dp - 80000._dp))
+    w2 = 1.0_dp - w1 
+
+    print*, w1
+    print*, w2
 
     ! Compute total BMB
     do vi = region%mesh%vi1, region%mesh%vi2
 
-      ! Skip vertices where BMB does not operate
-      if (.not. region%ice%mask_gl_gr( vi) .and. &
+      IF (region%ice%mask_ROI( vi) .and. do_not_apply_inversion_in_ROI) THEN 
+        ! BUILD IN loopje dat hij slide naar ROI???
+        if (region%time >= 80000._dp .and. &     ! C%BMB_smooth_inversion_t_start
+        region%time <= 80050._dp) then           ! C%BMB_smooth_inversion_t_start
+
+          region%BMB%BMB( vi) = w1 * region%BMB%BMB_inv( vi) + w2* region%BMB%BMB( vi)
+
+        else 
+          ! do nothing and just use the ROI BMB without smoothing
+        end if 
+        ! do nothing in ROI if the choice_BMB_model_ROI is not inverted
+        ! USE BMB COMPUTED IN BMB_MODEL
+      ELSE
+        ! Initialise
+        region%BMB%BMB( vi) = 0._dp
+
+        ! Skip vertices where BMB does not operate
+        if (.not. region%ice%mask_gl_gr( vi) .and. &
           .not. region%ice%mask_floating_ice( vi) .and. &
           .not. region%ice%mask_cf_fl( vi)) cycle
 
-      ! Final BMB field
-      region%BMB%BMB( vi) = region%BMB%BMB_inv( vi)
+        ! Final BMB field
+        region%BMB%BMB( vi) = region%BMB%BMB_inv( vi)
+
+      END IF
 
     end do
 

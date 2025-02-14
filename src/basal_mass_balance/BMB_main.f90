@@ -151,16 +151,14 @@ CONTAINS
         ! No need to do anything
       CASE ('uniform')
         ! Update BMB only for cells in ROI
-        DO vi = mesh%vi1, mesh%vi2 !!! HIER MOET DUS ALLEEN LOOPEN OVER DE ROI CELLS - kan dat???
-          ! if ice%mask_ROI( vi) (so if cell is within ROI) AND 
+        DO vi = mesh%vi1, mesh%vi2
           IF (ice%mask_ROI(vi)) THEN
             IF (ice%mask_floating_ice( vi) .OR. ice%mask_icefree_ocean( vi) .OR. ice%mask_gl_gr( vi)) THEN 
               BMB%BMB_shelf( vi) = C%uniform_BMB_ROI
             END IF
           END IF
         END DO
-      ! CASE ('parameterised')
-      !   CALL run_BMB_model_parameterised( mesh, ice, ocean, BMB) ! Can I pass only mask_ROI here? 
+        CALL apply_BMB_subgrid_scheme_ROI( mesh, ice, BMB)
       CASE ('laddie_py')
         ! run_BMB_model_laddie and read BMB values only for region of interest
         CALL run_BMB_model_laddie( mesh, ice, BMB, time, .TRUE.)
