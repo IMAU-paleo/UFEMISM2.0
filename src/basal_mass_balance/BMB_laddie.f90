@@ -26,26 +26,31 @@ CONTAINS
 ! ===== Main routines =====
 ! =========================
 
-  SUBROUTINE run_BMB_model_laddie( mesh, BMB, time)
+  SUBROUTINE run_BMB_model_laddie( mesh, ice, BMB, time, do_hybrid)
     ! Calculate the basal mass balance
     !
     ! Call the external LADDIE model
 
     ! In/output variables:
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
+    TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_BMB_model),                   INTENT(INOUT) :: BMB
     REAL(dp),                               INTENT(IN)    :: time
+    LOGICAL,                                INTENT(IN)    :: do_hybrid
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'run_BMB_model_laddie'
     CHARACTER(LEN=256)                                    :: filename_BMB_laddie_output
     CHARACTER(LEN=256)                                    :: filename_laddieready
     LOGICAL                                               :: found_laddie_file
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: temporary_BMB
+    INTEGER                                               :: vi
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
     IF (time > C%start_time_of_run) THEN
+      ! Compute and read laddie values for current geometry
 
       ! Define filename of BMB output from LADDIE
       filename_BMB_laddie_output      = TRIM(C%fixed_output_dir) // '/laddie_output/BMB_latest_v00.nc'
@@ -67,8 +72,45 @@ CONTAINS
 
       ! Let UFEMISM sleep until LADDIE is finished
       CALL wait_for_laddie_to_finish( filename_laddieready, found_laddie_file)
+    
+      IF (do_hybrid .eqv. .FALSE. ) THEN
+        ! Apply values to all ice shelf grid cells
+        CALL read_field_from_file_2D( filename_BMB_laddie_output, 'BMBext', mesh, BMB%BMB_shelf)
+      
+      ELSEIF (do_hybrid .eqv. .TRUE. ) THEN 
+        ! Only apply values to ROI
+        CALL read_field_from_file_2D( filename_BMB_laddie_output, 'BMBext', mesh, temporary_BMB)
 
-      CALL read_field_from_file_2D( filename_BMB_laddie_output, 'BMBext', mesh, BMB%BMB_shelf)
+        DO vi = mesh%vi1, mesh%vi2
+          IF (ice%mask_ROI(vi)) THEN 
+            IF (ice%mask_floating_ice( vi) .OR. ice%mask_icefree_ocean( vi) .OR. ice%mask_gl_gr( vi)) THEN 
+              BMB%BMB_shelf( vi) = temporary_BMB(vi)
+            END IF
+          END IF
+        END DO
+
+      END IF
+
+    ELSE ! (time = C%start_time_of_run)
+      ! Read values from laddie initial output
+
+      IF (do_hybrid .eqv. .FALSE. ) THEN 
+        ! Apply values to all ice shelf grid cells
+        CALL read_field_from_file_2D( C%filename_BMB_laddie_initial_output, 'BMBext', mesh, BMB%BMB_shelf)
+      
+      ELSEIF (do_hybrid .eqv. .TRUE. ) THEN 
+        ! Only apply values to ROI
+        CALL read_field_from_file_2D( C%filename_BMB_laddie_initial_output, 'BMBext', mesh, temporary_BMB)
+
+        DO vi = mesh%vi1, mesh%vi2
+          IF (ice%mask_ROI(vi)) THEN
+            IF (ice%mask_floating_ice( vi) .OR. ice%mask_icefree_ocean( vi) .OR. ice%mask_gl_gr( vi)) THEN 
+              BMB%BMB_shelf( vi) = temporary_BMB(vi)
+            END IF
+          END IF
+        END DO
+
+      END IF
 
     END IF ! (time > C%start_time_of_run)
 
@@ -110,132 +152,10 @@ CONTAINS
     END IF
     CALL sync
 
-    ! Read in BMB data from LADDIE
-    CALL read_field_from_file_2D( C%filename_BMB_laddie_initial_output, 'BMBext', mesh, BMB%BMB_shelf)
-
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE initialise_BMB_model_laddie
-
-
-  SUBROUTINE run_BMB_model_laddie_ROI( mesh, ice, BMB, time)
-    ! Call the external laddie model to compute BMB for the ROI
-    ! NOTE: This currently works properly for one single ROI
-    ! When you define multiple ROIs in your config file, laddie only computes melt for one ROI grid file specified in the laddie config.
-
-    ! In/output variables:
-    TYPE(type_mesh),                        INTENT(IN)    :: mesh
-    TYPE(type_ice_model),                   INTENT(IN)    :: ice
-    TYPE(type_BMB_model),                   INTENT(INOUT) :: BMB
-    REAL(dp),                               INTENT(IN)    :: time
-
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'run_BMB_model_laddie_ROI'
-    CHARACTER(LEN=256)                                    :: filename_BMB_laddie_output
-    CHARACTER(LEN=256)                                    :: filename_laddieready
-    LOGICAL                                               :: found_laddie_file
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: temporary_BMB
-    INTEGER                                               :: vi
-
-    ! Add routine to path
-    CALL init_routine( routine_name)
-
-    IF (time > C%start_time_of_run) THEN
-
-      ! Define filename of BMB output from LADDIE
-      filename_BMB_laddie_output      = TRIM(C%fixed_output_dir) // '/laddie_output/BMB_latest_v00.nc'
-
-      ! Run LADDIE
-      IF (par%master) THEN
-        ! Different commands are needed to run laddie on different systems. local_mac or slurm_HPC (the latter is used for snellius)
-        IF (C%choice_BMB_laddie_system == 'local_mac') THEN
-          CALL system('cd ' // TRIM(C%dir_BMB_laddie_model) // ';' // TRIM(C%conda_activate_prompt) // '; python3 runladdie.py ' // TRIM(C%filename_BMB_laddie_configname) // '; conda deactivate')
-
-        ELSEIF (C%choice_BMB_laddie_system == 'slurm_HPC') THEN
-          CALL system('cd ' // TRIM(C%dir_BMB_laddie_model) // '; srun --ntasks=1 --exact --overlap --cpu-bind=cores python3 runladdie.py ' // TRIM(C%filename_BMB_laddie_configname))
-        ELSE
-          CALL crash('C%BMB_laddie_system not recognized, should be "local_mac" or "slurm_HPC".')
-        END IF
-      END IF
-
-      ! Other cores wait for master core to finish
-      CALL sync
-
-      ! Let UFEMISM sleep until LADDIE is finished
-      CALL wait_for_laddie_to_finish( filename_laddieready, found_laddie_file)
-
-      CALL read_field_from_file_2D( filename_BMB_laddie_output, 'BMBext', mesh, temporary_BMB)
-
-      ! Only read for mask_ROI
-      DO vi = mesh%vi1, mesh%vi2
-        IF (ice%mask_ROI(vi)) THEN
-          IF (ice%mask_floating_ice( vi) .OR. ice%mask_icefree_ocean( vi) .OR. ice%mask_gl_gr( vi)) THEN 
-            BMB%BMB_shelf( vi) = temporary_BMB(vi)
-          END IF
-        END IF
-      END DO
-
-    ELSE ! (time = C%start_time_of_run)
-
-      ! Read in BMB data from laddie data; path given in config
-      CALL read_field_from_file_2D( C%filename_BMB_laddie_initial_output, 'BMBext', mesh, temporary_BMB)
-
-      DO vi = mesh%vi1, mesh%vi2
-        IF (ice%mask_ROI(vi)) THEN
-          IF (ice%mask_floating_ice( vi) .OR. ice%mask_icefree_ocean( vi) .OR. ice%mask_gl_gr( vi)) THEN 
-            BMB%BMB_shelf( vi) = temporary_BMB(vi)
-          END IF
-        END IF
-      END DO
-
-    END IF ! (time > C%start_time_of_run)
-    
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE run_BMB_model_laddie_ROI
-
-  SUBROUTINE initialise_BMB_model_laddie_ROI( mesh, BMB)
-    ! Initialise the external laddie model to compute BMB for the ROI
-    ! NOTE: This currently works properly for one single ROI
-    ! When you define multiple ROIs in your config file, laddie only computes melt for one ROI grid file specified in the laddie config.
-
-    ! In/output variables:
-    TYPE(type_mesh),                        INTENT(IN)    :: mesh
-    TYPE(type_BMB_model),                   INTENT(INOUT) :: BMB
-
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'initialise_BMB_model_laddie_ROI'
-    LOGICAL                                               :: file_exists
-
-    ! Add routine to path
-    CALL init_routine( routine_name)
-
-    IF (par%master) THEN
-
-      ! Check if LADDIE restartfile exists to copy into laddie_output directory
-      INQUIRE( EXIST = file_exists, FILE = TRIM( C%filename_BMB_laddie_initial_restart))
-      IF (.NOT. file_exists) THEN
-        CALL crash('file "' // TRIM( C%filename_BMB_laddie_initial_restart) // '" not found!')
-      END IF
-
-      ! Create folder for laddie output in fixed_output_dir,
-      CALL system('mkdir ' // TRIM(C%fixed_output_dir) // '/laddie_output')
-
-      ! Copy initial restart file to restart_latest.nc
-      CALL system('cp ' // TRIM(C%filename_BMB_laddie_initial_restart) // ' ' // TRIM(C%fixed_output_dir) // '/laddie_output/restart_latest.nc')
-
-    END IF
-    CALL sync
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE initialise_BMB_model_laddie_ROI
-
-
 
   SUBROUTINE remap_BMB_model_laddie( mesh, BMB)
     ! Remap the BMB model

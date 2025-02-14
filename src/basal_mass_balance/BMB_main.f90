@@ -20,7 +20,7 @@ MODULE BMB_main
   USE BMB_idealised                                          , ONLY: initialise_BMB_model_idealised, run_BMB_model_idealised
   USE BMB_prescribed                                         , ONLY: initialise_BMB_model_prescribed, run_BMB_model_prescribed
   USE BMB_parameterised                                      , ONLY: initialise_BMB_model_parameterised, run_BMB_model_parameterised
-  USE BMB_laddie                                             , ONLY: initialise_BMB_model_laddie, run_BMB_model_laddie, remap_BMB_model_laddie, initialise_BMB_model_laddie_ROI, run_BMB_model_laddie_ROI
+  USE BMB_laddie                                             , ONLY: initialise_BMB_model_laddie, run_BMB_model_laddie, remap_BMB_model_laddie!, initialise_BMB_model_laddie_ROI, run_BMB_model_laddie_ROI
   USE laddie_main                                            , ONLY: initialise_laddie_model, run_laddie_model, remap_laddie_model
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   use ice_geometry_basics, only: is_floating
@@ -130,7 +130,7 @@ CONTAINS
       CASE ('inverted')
         CALL run_BMB_model_inverted( mesh, ice, BMB, time)
       CASE ('laddie_py')
-        CALL run_BMB_model_laddie( mesh, BMB, time)
+        CALL run_BMB_model_laddie( mesh, ice, BMB, time, .FALSE.)
       CASE ('laddie')
         IF (time == C%start_time_of_run) THEN
           CALL run_laddie_model( mesh, ice, ocean, BMB%laddie, time, C%time_duration_laddie_init)
@@ -163,7 +163,7 @@ CONTAINS
       !   CALL run_BMB_model_parameterised( mesh, ice, ocean, BMB) ! Can I pass only mask_ROI here? 
       CASE ('laddie_py')
         ! run_BMB_model_laddie and read BMB values only for region of interest
-        CALL run_BMB_model_laddie_ROI( mesh, ice, BMB, time)
+        CALL run_BMB_model_laddie( mesh, ice, BMB, time, .TRUE.)
         CALL apply_BMB_subgrid_scheme_ROI( mesh, ice, BMB)
       CASE ('prescribed', 'prescribed_fixed', 'idealised', 'parameterised', 'inverted', 'laddie')
         CALL crash('this BMB_model "' // TRIM( choice_BMB_model_ROI) // '" is not implemented for hybrid-BMB in ROI yet')
@@ -282,7 +282,7 @@ CONTAINS
       CASE ('uniform')
         ! No need to do anything
       CASE ('laddie_py')
-         CALL initialise_BMB_model_laddie_ROI( mesh, BMB)
+         CALL initialise_BMB_model_laddie( mesh, BMB)
       CASE ('prescribed', 'prescribed_fixed', 'idealised', 'parameterised', 'inverted', 'laddie')
         CALL crash('this BMB_model "' // TRIM( choice_BMB_model_ROI) // '" is not implemented for hybrid-BMB in ROI yet')
       CASE DEFAULT
