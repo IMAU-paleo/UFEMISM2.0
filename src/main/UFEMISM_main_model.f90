@@ -850,6 +850,11 @@ CONTAINS
       CALL crash('unknown region name "' // TRIM( region%name) // '"!')
     END IF
 
+    ! Exception for when we want to flexible read the last output file of a previous UFEMISM simulation
+    if (index( filename_initial_mesh,'_LAST.nc') > 1) then
+      call find_last_output_file( filename_initial_mesh)
+    end if
+
     ! Print to screen
     IF (par%master) WRITE(0,'(A)') '   Reading mesh from file "' // colour_string( TRIM( filename_initial_mesh),'light blue') // '"...'
 
