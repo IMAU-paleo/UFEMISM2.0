@@ -73,11 +73,7 @@ CONTAINS
       ! Let UFEMISM sleep until LADDIE is finished
       CALL wait_for_laddie_to_finish( filename_laddieready, found_laddie_file)
     
-      IF (do_hybrid .eqv. .FALSE. ) THEN
-        ! Apply values to all ice shelf grid cells
-        CALL read_field_from_file_2D( filename_BMB_laddie_output, 'BMBext', mesh, BMB%BMB_shelf)
-      
-      ELSEIF (do_hybrid .eqv. .TRUE. ) THEN 
+      IF (do_hybrid) THEN 
         ! Only apply values to ROI
         CALL read_field_from_file_2D( filename_BMB_laddie_output, 'BMBext', mesh, temporary_BMB)
 
@@ -88,6 +84,10 @@ CONTAINS
             END IF
           END IF
         END DO
+
+      ELSE
+        ! Apply values to all ice shelf grid cells
+        CALL read_field_from_file_2D( filename_BMB_laddie_output, 'BMBext', mesh, BMB%BMB_shelf)
 
       END IF
 
