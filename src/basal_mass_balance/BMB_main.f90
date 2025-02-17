@@ -158,6 +158,7 @@ CONTAINS
             END IF
           END IF
         END DO
+
         CALL apply_BMB_subgrid_scheme_ROI( mesh, ice, BMB)
 
           DO vi = mesh%vi1, mesh%vi2
