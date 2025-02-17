@@ -107,6 +107,7 @@ CONTAINS
     REAL(dp)                                              :: Kh
     REAL(dp), DIMENSION(mesh%nV)                          :: T_tot, S_tot
     LOGICAL, DIMENSION(mesh%nV)                           :: mask_a_tot
+    REAL(dp), DIMENSION(mesh%nE)                          :: H_c_tot
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -115,6 +116,7 @@ CONTAINS
     CALL gather_to_all( npxref%T, T_tot)
     CALL gather_to_all( npxref%S, S_tot)
     CALL gather_to_all( laddie%mask_a, mask_a_tot)
+    CALL gather_to_all( npxref%H_c, H_c_tot)
 
     ! Initialise at 0
     laddie%diffT = 0.0_dp
@@ -135,8 +137,8 @@ CONTAINS
 
             Kh = C%laddie_diffusivity 
 
-            laddie%diffT( vi) = laddie%diffT( vi) + (T_tot( vj) - T_tot( vi)) * Kh * npxref%H_c( ei) / mesh%A( vi) * mesh%Cw( vi, ci)/mesh%D( vi, ci)
-            laddie%diffS( vi) = laddie%diffS( vi) + (S_tot( vj) - S_tot( vi)) * Kh * npxref%H_c( ei) / mesh%A( vi) * mesh%Cw( vi, ci)/mesh%D( vi, ci)
+            laddie%diffT( vi) = laddie%diffT( vi) + (T_tot( vj) - T_tot( vi)) * Kh * H_c_tot( ei) / mesh%A( vi) * mesh%Cw( vi, ci)/mesh%D( vi, ci)
+            laddie%diffS( vi) = laddie%diffS( vi) + (S_tot( vj) - S_tot( vi)) * Kh * H_c_tot( ei) / mesh%A( vi) * mesh%Cw( vi, ci)/mesh%D( vi, ci)
           END IF
         END DO
 
