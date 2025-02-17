@@ -159,11 +159,21 @@ CONTAINS
           END IF
         END DO
         CALL apply_BMB_subgrid_scheme_ROI( mesh, ice, BMB)
+
+          DO vi = mesh%vi1, mesh%vi2
+            BMB%BMB_ROI( vi) = BMB%BMB( vi) ! Save BMB in BMB_ROI such that you can use it later in inversion
+          END DO
+
       CASE ('laddie_py')
         ! run_BMB_model_laddie and read BMB values only for region of interest
         CALL run_BMB_model_laddie( mesh, ice, BMB, time, .TRUE.)
         CALL apply_BMB_subgrid_scheme_ROI( mesh, ice, BMB)
-      CASE ('prescribed', 'prescribed_fixed', 'idealised', 'parameterised', 'inverted', 'laddie')
+          
+          DO vi = mesh%vi1, mesh%vi2
+            BMB%BMB_ROI( vi) = BMB%BMB( vi) ! Save BMB in BMB_ROI such that you can use it later in inversion
+          END DO
+
+        CASE ('prescribed', 'prescribed_fixed', 'idealised', 'parameterised', 'inverted', 'laddie')
         CALL crash('this BMB_model "' // TRIM( choice_BMB_model_ROI) // '" is not implemented for hybrid-BMB in ROI yet')
       CASE DEFAULT
         CALL crash('unknown choice_BMB_model_ROI "' // TRIM( choice_BMB_model_ROI) // '"')
@@ -238,6 +248,13 @@ CONTAINS
     ! Allocate reference BMB
     ALLOCATE( BMB%BMB_ref( mesh%vi1:mesh%vi2))
     BMB%BMB_ref = 0._dp
+
+    ! Allocate reference BMB
+    ALLOCATE( BMB%BMB_smooth( mesh%vi1:mesh%vi2))
+    BMB%BMB_smooth = 0._dp
+    ! Allocate reference BMB
+    ALLOCATE( BMB%BMB_ROI( mesh%vi1:mesh%vi2))
+    BMB%BMB_ROI = 0._dp
 
     ! Allocate mask for cavities
     ALLOCATE( BMB%mask_floating_ice( mesh%vi1:mesh%vi2))
@@ -540,6 +557,8 @@ CONTAINS
     CALL reallocate_bounds( BMB%BMB_shelf, mesh_new%vi1, mesh_new%vi2)
     CALL reallocate_bounds( BMB%BMB_inv, mesh_new%vi1, mesh_new%vi2)
     CALL reallocate_bounds( BMB%BMB_ref, mesh_new%vi1, mesh_new%vi2)
+    CALL reallocate_bounds( BMB%BMB_smooth, mesh_new%vi1, mesh_new%vi2)
+    CALL reallocate_bounds( BMB%BMB_ROI, mesh_new%vi1, mesh_new%vi2)
 
     ! Reallocate memory for cavity mask
     CALL reallocate_bounds( BMB%mask_floating_ice, mesh_new%vi1, mesh_new%vi2)

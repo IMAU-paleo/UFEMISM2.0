@@ -111,7 +111,7 @@ contains
 
     ! Store previous values
     previous_field = BMB%BMB_inv
-
+    print*, 'entering MB inversion'
     ! Initialise extrapolation mask
     mask = 0
 
@@ -561,7 +561,7 @@ contains
     integer,  dimension(region%mesh%vi1:region%mesh%vi2) :: extrapolation_mask
     real(dp)                                             :: dt_dummy
     real(dp), dimension(region%mesh%vi1:region%mesh%vi2) :: SMB_dummy, BMB_dummy, LMB_dummy, AMB_dummy, dHi_dt_dummy, Hi_dummy
-    logical  :: do_not_apply_inversion_in_ROI
+    logical  :: do_not_apply_inversion_in_ROI, do_print
     REAL(dp)                                              :: w1, w2
 
     ! Add routine to path
@@ -639,11 +639,13 @@ contains
     do_not_apply_inversion_in_ROI = .TRUE.
     ! Initialise
     ! region%BMB%BMB = 0._dp
-    w1 = 1.0_dp - ((region%time - 80000._dp)/(80050._dp - 80000._dp))
+    w1 = 1.0_dp - ((region%time - 80000._dp)/(80010._dp - 80000._dp))
     w2 = 1.0_dp - w1 
-
+    ! w1 = .5_dp 
+    ! w2 = .5_dp
     print*, w1
     print*, w2
+    do_print = .TRUE.
 
     ! Compute total BMB
     do vi = region%mesh%vi1, region%mesh%vi2
@@ -651,12 +653,39 @@ contains
       IF (region%ice%mask_ROI( vi) .and. do_not_apply_inversion_in_ROI) THEN 
         ! BUILD IN loopje dat hij slide naar ROI???
         if (region%time >= 80000._dp .and. &     ! C%BMB_smooth_inversion_t_start
-        region%time <= 80050._dp) then           ! C%BMB_smooth_inversion_t_start
+        region%time <= 80010._dp) then           ! C%BMB_smooth_inversion_t_start
 
-          region%BMB%BMB( vi) = w1 * region%BMB%BMB_inv( vi) + w2* region%BMB%BMB( vi)
+                  ! Skip vertices where BMB does not operate
+          if (.not. region%ice%mask_gl_gr( vi) .and. &
+            .not. region%ice%mask_floating_ice( vi) .and. &
+            .not. region%ice%mask_cf_fl( vi)) cycle
+
+          if (do_print) then
+            print*, 'old BMB'
+            print*, region%BMB%BMB( vi)
+            print*, 'BMB_ROI'
+            print*, region%BMB%BMB_ROI( vi)
+            print*, 'BMB_inv'
+            print*, region%BMB%BMB_inv( vi)
+            region%BMB%BMB( vi) = w1 * region%BMB%BMB_inv( vi) + w2 * region%BMB%BMB_ROI( vi)
+            print*, 'new BMB'
+            print*, region%BMB%BMB( vi)
+            ! Save smoothed BMB field
+            region%BMB%BMB_smooth( vi) = region%BMB%BMB( vi)
+            print*, 'smoothed BMB field for output'
+            print*, region%BMB%BMB_smooth( vi)
+            print*, 'done'
+
+            do_print=.FALSE.
+          else
+            region%BMB%BMB( vi) = w1 * region%BMB%BMB_inv( vi) + w2 * region%BMB%BMB_ROI( vi)
+            region%BMB%BMB_smooth( vi) = region%BMB%BMB( vi)
+
+          end if 
 
         else 
           ! do nothing and just use the ROI BMB without smoothing
+
         end if 
         ! do nothing in ROI if the choice_BMB_model_ROI is not inverted
         ! USE BMB COMPUTED IN BMB_MODEL
@@ -675,6 +704,8 @@ contains
       END IF
 
     end do
+
+    
 
     ! Finalise routine path
     call finalise_routine( routine_name)
