@@ -788,7 +788,7 @@ contains
     call determine_masks( mesh_new, ice)
 
     ! Compute mask_ROI
-    call calc_mask_ROI( mesh, ice, region_name)
+    call calc_mask_ROI( mesh_new, ice, region_name)
 
     ! ! Smooth the ice at the calving front to improve model stability
     ! call relax_calving_front_after_mesh_update( mesh_new, ice)
