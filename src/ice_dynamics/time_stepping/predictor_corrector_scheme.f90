@@ -420,40 +420,50 @@ contains
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'initialise_pc_scheme_from_file'
+    character(len=1024)            :: filename_applied
+    real(dp)                       :: timeframe_applied
 
     ! Add routine to path
     call init_routine( routine_name)
+
+    ! Exception for when we want to flexible read the last output file of a previous UFEMISM simulation
+    filename_applied  = filename
+    timeframe_applied = timeframe
+    if (index( filename_applied,'_LAST.nc') > 1) then
+      call find_last_output_file( filename_applied)
+      call find_last_timeframe(   filename_applied, timeframe_applied)
+    end if
 
     ! write to terminal
     if (par%master) write(0,*) '   Initialising ice thickness predictor/corrector scheme from file "' // colour_string( trim( filename),'light blue') // '"...'
 
     ! Read values from the file
-    if (timeframe == 1E9_dp) then
+    if (timeframe_applied == 1E9_dp) then
       ! Assume the file has no time dimension
-      call read_field_from_file_0D(         filename, 'dt_n'                    , pc%dt_n                    )
-      call read_field_from_file_0D(         filename, 'dt_np1'                  , pc%dt_np1                  )
-      call read_field_from_file_0D(         filename, 'zeta_t'                  , pc%zeta_t                  )
-      call read_field_from_mesh_file_dp_2D( filename, 'dHi_dt_Hi_nm1_u_nm1'     , pc%dHi_dt_Hi_nm1_u_nm1     )
-      call read_field_from_mesh_file_dp_2D( filename, 'dHi_dt_Hi_n_u_n'         , pc%dHi_dt_Hi_n_u_n         )
-      call read_field_from_mesh_file_dp_2D( filename, 'Hi_star_np1'             , pc%Hi_star_np1             )
-      call read_field_from_mesh_file_dp_2D( filename, 'dHi_dt_Hi_star_np1_u_np1', pc%dHi_dt_Hi_star_np1_u_np1)
-      call read_field_from_mesh_file_dp_2D( filename, 'Hi_np1'                  , pc%Hi_np1                  )
-      call read_field_from_mesh_file_dp_2D( filename, 'tau_np1'                 , pc%tau_np1                 )
-      call read_field_from_file_0D(         filename, 'eta_n'                   , pc%eta_n                   )
-      call read_field_from_file_0D(         filename, 'eta_np1'                 , pc%eta_np1                 )
+      call read_field_from_file_0D(         filename_applied, 'dt_n'                    , pc%dt_n                    )
+      call read_field_from_file_0D(         filename_applied, 'dt_np1'                  , pc%dt_np1                  )
+      call read_field_from_file_0D(         filename_applied, 'zeta_t'                  , pc%zeta_t                  )
+      call read_field_from_mesh_file_dp_2D( filename_applied, 'dHi_dt_Hi_nm1_u_nm1'     , pc%dHi_dt_Hi_nm1_u_nm1     )
+      call read_field_from_mesh_file_dp_2D( filename_applied, 'dHi_dt_Hi_n_u_n'         , pc%dHi_dt_Hi_n_u_n         )
+      call read_field_from_mesh_file_dp_2D( filename_applied, 'Hi_star_np1'             , pc%Hi_star_np1             )
+      call read_field_from_mesh_file_dp_2D( filename_applied, 'dHi_dt_Hi_star_np1_u_np1', pc%dHi_dt_Hi_star_np1_u_np1)
+      call read_field_from_mesh_file_dp_2D( filename_applied, 'Hi_np1'                  , pc%Hi_np1                  )
+      call read_field_from_mesh_file_dp_2D( filename_applied, 'tau_np1'                 , pc%tau_np1                 )
+      call read_field_from_file_0D(         filename_applied, 'eta_n'                   , pc%eta_n                   )
+      call read_field_from_file_0D(         filename_applied, 'eta_np1'                 , pc%eta_np1                 )
     else
       ! Read specified timeframe
-      call read_field_from_file_0D(         filename, 'dt_n'                    , pc%dt_n                    , time_to_read = timeframe)
-      call read_field_from_file_0D(         filename, 'dt_np1'                  , pc%dt_np1                  , time_to_read = timeframe)
-      call read_field_from_file_0D(         filename, 'zeta_t'                  , pc%zeta_t                  , time_to_read = timeframe)
-      call read_field_from_mesh_file_dp_2D( filename, 'dHi_dt_Hi_nm1_u_nm1'     , pc%dHi_dt_Hi_nm1_u_nm1     , time_to_read = timeframe)
-      call read_field_from_mesh_file_dp_2D( filename, 'dHi_dt_Hi_n_u_n'         , pc%dHi_dt_Hi_n_u_n         , time_to_read = timeframe)
-      call read_field_from_mesh_file_dp_2D( filename, 'Hi_star_np1'             , pc%Hi_star_np1             , time_to_read = timeframe)
-      call read_field_from_mesh_file_dp_2D( filename, 'dHi_dt_Hi_star_np1_u_np1', pc%dHi_dt_Hi_star_np1_u_np1, time_to_read = timeframe)
-      call read_field_from_mesh_file_dp_2D( filename, 'Hi_np1'                  , pc%Hi_np1                  , time_to_read = timeframe)
-      call read_field_from_mesh_file_dp_2D( filename, 'tau_np1'                 , pc%tau_np1                 , time_to_read = timeframe)
-      call read_field_from_file_0D(         filename, 'eta_n'                   , pc%eta_n                   , time_to_read = timeframe)
-      call read_field_from_file_0D(         filename, 'eta_np1'                 , pc%eta_np1                 , time_to_read = timeframe)
+      call read_field_from_file_0D(         filename_applied, 'dt_n'                    , pc%dt_n                    , time_to_read = timeframe_applied)
+      call read_field_from_file_0D(         filename_applied, 'dt_np1'                  , pc%dt_np1                  , time_to_read = timeframe_applied)
+      call read_field_from_file_0D(         filename_applied, 'zeta_t'                  , pc%zeta_t                  , time_to_read = timeframe_applied)
+      call read_field_from_mesh_file_dp_2D( filename_applied, 'dHi_dt_Hi_nm1_u_nm1'     , pc%dHi_dt_Hi_nm1_u_nm1     , time_to_read = timeframe_applied)
+      call read_field_from_mesh_file_dp_2D( filename_applied, 'dHi_dt_Hi_n_u_n'         , pc%dHi_dt_Hi_n_u_n         , time_to_read = timeframe_applied)
+      call read_field_from_mesh_file_dp_2D( filename_applied, 'Hi_star_np1'             , pc%Hi_star_np1             , time_to_read = timeframe_applied)
+      call read_field_from_mesh_file_dp_2D( filename_applied, 'dHi_dt_Hi_star_np1_u_np1', pc%dHi_dt_Hi_star_np1_u_np1, time_to_read = timeframe_applied)
+      call read_field_from_mesh_file_dp_2D( filename_applied, 'Hi_np1'                  , pc%Hi_np1                  , time_to_read = timeframe_applied)
+      call read_field_from_mesh_file_dp_2D( filename_applied, 'tau_np1'                 , pc%tau_np1                 , time_to_read = timeframe_applied)
+      call read_field_from_file_0D(         filename_applied, 'eta_n'                   , pc%eta_n                   , time_to_read = timeframe_applied)
+      call read_field_from_file_0D(         filename_applied, 'eta_np1'                 , pc%eta_np1                 , time_to_read = timeframe_applied)
     end if
 
     ! Finalise routine path
