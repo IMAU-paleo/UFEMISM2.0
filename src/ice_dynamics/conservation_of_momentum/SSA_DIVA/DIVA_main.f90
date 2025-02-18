@@ -711,6 +711,12 @@ contains
       timeframe = C%timeframe_initial_velocity_ANT
     end select
 
+    ! Exception for when we want to flexible read the last output file of a previous UFEMISM simulation
+    if (index( filename,'_LAST.nc') > 1) then
+      call find_last_output_file( filename)
+      call find_last_timeframe(   filename, timeframe)
+    end if
+
     ! Write to terminal
     if (par%master) write(0,*) '   Initialising DIVA velocities from file "' // &
       colour_string( trim( filename),'light blue') // '"...'
