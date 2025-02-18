@@ -424,6 +424,12 @@ CONTAINS
       CALL crash('unknown region_name "' // region_name // '"')
     END IF
 
+    ! Exception for when we want to flexible read the last output file of a previous UFEMISM simulation
+    if (index( filename_initial_ice_temperature,'_LAST.nc') > 1) then
+      call find_last_output_file( filename_initial_ice_temperature)
+      call find_last_timeframe(   filename_initial_ice_temperature, timeframe_initial_ice_temperature)
+    end if
+
     ! Print to terminal
     IF (par%master) WRITE (0,*) '  Initialising ice temperatures from file "' // &
       colour_string( TRIM( filename_initial_ice_temperature), 'light blue') // '"...'
