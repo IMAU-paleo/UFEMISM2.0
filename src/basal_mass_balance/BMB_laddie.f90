@@ -36,7 +36,7 @@ CONTAINS
     TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_BMB_model),                   INTENT(INOUT) :: BMB
     REAL(dp),                               INTENT(IN)    :: time
-    LOGICAL,                                INTENT(IN)    :: do_hybrid
+    LOGICAL,                                INTENT(IN)    :: do_hybrid  ! If .TRUE. run laddie within ROI, and a different BMB model outside ROI. If .FALSE. run laddie for the full domain.
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'run_BMB_model_laddie'
@@ -94,11 +94,7 @@ CONTAINS
     ELSE ! (time = C%start_time_of_run)
       ! Read values from laddie initial output
 
-      IF (do_hybrid .eqv. .FALSE. ) THEN 
-        ! Apply values to all ice shelf grid cells
-        CALL read_field_from_file_2D( C%filename_BMB_laddie_initial_output, 'BMBext', mesh, BMB%BMB_shelf)
-      
-      ELSEIF (do_hybrid .eqv. .TRUE. ) THEN 
+      IF (do_hybrid) THEN 
         ! Only apply values to ROI
         CALL read_field_from_file_2D( C%filename_BMB_laddie_initial_output, 'BMBext', mesh, temporary_BMB)
 
@@ -110,6 +106,10 @@ CONTAINS
           END IF
         END DO
 
+      ELSE
+        ! Apply values to all ice shelf grid cells
+        CALL read_field_from_file_2D( C%filename_BMB_laddie_initial_output, 'BMBext', mesh, BMB%BMB_shelf)
+      
       END IF
 
     END IF ! (time > C%start_time_of_run)
