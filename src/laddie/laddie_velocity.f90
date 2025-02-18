@@ -199,6 +199,7 @@ CONTAINS
     REAL(dp)                                              :: D_x, D_y, D, Ah, dUabs
     REAL(dp), DIMENSION(mesh%nTri)                        :: U_tot, V_tot
     LOGICAL, DIMENSION(mesh%nTri)                         :: mask_oc_b_tot
+    REAL(dp), DIMENSION(mesh%nE)                          :: H_c_tot
     
     ! Add routine to path
     CALL init_routine( routine_name)        
@@ -207,6 +208,7 @@ CONTAINS
     CALL gather_to_all( npxref%U, U_tot)            
     CALL gather_to_all( npxref%V, V_tot)            
     CALL gather_to_all( laddie%mask_oc_b, mask_oc_b_tot)
+    CALL gather_to_all( npxref%H_c, H_c_tot)
 
     ! Loop over triangles                                  
     DO ti = mesh%ti1, mesh%ti2
@@ -233,15 +235,15 @@ CONTAINS
             laddie%viscV( ti) = laddie%viscV( ti) - npxref%V( ti) * Ah * npxref%H_b( ti) / mesh%TriA( ti)
           ELSE
             ! Skip calving front - ocean connection: d/dx = d/dy = 0 
-            IF (laddie%mask_oc_b( tj)) CYCLE
+            IF (mask_oc_b_tot( tj)) CYCLE
 
             dUabs = SQRT((U_tot( tj) - U_tot( ti))**2 + (V_tot( tj) - V_tot( ti))**2)
             Ah = C%laddie_viscosity * dUabs * mesh%triCw( ti, ci) / 100.0_dp
             
             ! Add viscosity flux based on dU/dx and dV/dy. 
             ! Note: for grounded neighbours, U_tot( tj) = 0, meaning this is a no slip option. Can be expanded
-            laddie%viscU( ti) = laddie%viscU( ti) + (U_tot( tj) - U_tot( ti)) * Ah * npxref%H_c( ei) / mesh%TriA( ti) * mesh%TriCw( ti, ci) / D
-            laddie%viscV( ti) = laddie%viscV( ti) + (V_tot( tj) - V_tot( ti)) * Ah * npxref%H_c( ei) / mesh%TriA( ti) * mesh%TriCw( ti, ci) / D
+            laddie%viscU( ti) = laddie%viscU( ti) + (U_tot( tj) - U_tot( ti)) * Ah * H_c_tot( ei) / mesh%TriA( ti) * mesh%TriCw( ti, ci) / D
+            laddie%viscV( ti) = laddie%viscV( ti) + (V_tot( tj) - V_tot( ti)) * Ah * H_c_tot( ei) / mesh%TriA( ti) * mesh%TriCw( ti, ci) / D
           END IF
         END DO
 

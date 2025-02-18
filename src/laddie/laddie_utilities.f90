@@ -71,11 +71,13 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'map_H_a_b'
     INTEGER                                               :: i, vi, ti, n
     REAL(dp), DIMENSION(mesh%nV)                          :: H_a_tot
+    LOGICAL, DIMENSION(mesh%nV)                           :: laddie_mask_a_tot
  
     ! Add routine to path
     CALL init_routine( routine_name)
 
     CALL gather_to_all( H_a, H_a_tot)
+    CALL gather_to_all( laddie%mask_a, laddie_mask_a_tot)
 
     ! Get T and S at layer base
     DO ti = mesh%ti1, mesh%ti2
@@ -88,7 +90,7 @@ CONTAINS
          ! Loop over vertices
          DO i = 1, 3
            vi = mesh%Tri( ti, i)
-           IF (laddie%mask_a( vi)) THEN
+           IF (laddie_mask_a_tot( vi)) THEN
              H_b( ti) = H_b( ti) + H_a_tot( vi)
              n = n + 1
            END IF
@@ -118,11 +120,13 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'map_H_a_c'
     INTEGER                                               :: ei, vi, vj
     REAL(dp), DIMENSION(mesh%nV)                          :: H_a_tot
+    LOGICAL, DIMENSION(mesh%nV)                           :: laddie_mask_a_tot
  
     ! Add routine to path
     CALL init_routine( routine_name)
 
     CALL gather_to_all( H_a, H_a_tot)
+    CALL gather_to_all( laddie%mask_a, laddie_mask_a_tot)
 
     DO ei = mesh%ei1, mesh%ei2
        
@@ -131,11 +135,11 @@ CONTAINS
        vj = mesh%EV( ei, 2)
 
        ! Get masked average between the two vertices
-       IF (laddie%mask_a( vi) .AND. laddie%mask_a( vj)) THEN
+       IF (laddie_mask_a_tot( vi) .AND. laddie_mask_a_tot( vj)) THEN
          H_c( ei) = 0.5_dp * (H_a_tot( vi) + H_a_tot( vj))
-       ELSEIF (laddie%mask_a( vi)) THEN
+       ELSEIF (laddie_mask_a_tot( vi)) THEN
          H_c( ei) = H_a_tot( vi)
-       ELSEIF (laddie%mask_a( vj)) THEN
+       ELSEIF (laddie_mask_a_tot( vj)) THEN
          H_c( ei) = H_a_tot( vj)
        ELSE
          H_c( ei) = 0.0_dp
