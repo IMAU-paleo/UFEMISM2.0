@@ -77,7 +77,7 @@ contains
         case ('')
           ! No region requested: don't need to do anything
           exit
-        case ('PineIsland','Thwaites','Amery','RiiserLarsen','SipleCoast', 'LarsenC','TransMounts','DotsonCrosson', & ! Antarctica
+        case ('PineIsland','Thwaites','Amery','RiiserLarsen','SipleCoast', 'LarsenC','TransMounts','DotsonCrosson', 'Franka_WAIS', & ! Antarctica
               'Narsarsuaq','Nuuk','Jakobshavn','NGIS','Qaanaaq', &                                                    ! Greenland
               'Patagonia', &                                                                                          ! Patagonia
               'Tijn_test_ISMIP_HOM_A','CalvMIP_quarter')                                                              ! Idealised
@@ -154,6 +154,8 @@ contains
               call calc_polygon_Tijn_test_ISMIP_HOM_A( poly_ROI)
             case ('CalvMIP_quarter')
               call calc_polygon_CalvMIP_quarter( poly_ROI)
+            case ('Franka_WAIS')
+              call calc_polygon_Franka_WAIS( poly_ROI)
             case default
               ! Requested area not in this model domain; skip
               cycle
@@ -228,7 +230,7 @@ contains
       call refine_mesh_line_ROI( mesh, p_line_calving_front , C%ROI_maximum_resolution_calving_front , C%ROI_calving_front_width , C%alpha_min, poly_ROI)
       call refine_mesh_line_ROI( mesh, p_line_ice_front     , C%ROI_maximum_resolution_ice_front     , C%ROI_ice_front_width     , C%alpha_min, poly_ROI)
       call refine_mesh_line_ROI( mesh, p_line_coastline     , C%ROI_maximum_resolution_coastline     , C%ROI_coastline_width     , C%alpha_min, poly_ROI)
-
+      
       ! Clean up after yourself
       deallocate( poly_ROI)
 

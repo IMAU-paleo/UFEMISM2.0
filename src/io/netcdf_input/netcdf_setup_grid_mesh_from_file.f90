@@ -210,7 +210,7 @@ contains
     call read_var_master(  filename, ncid, id_var_beta_stereo   , mesh%beta_stereo   )
 
     ! Vertex data
-    call read_var_master(  filename, ncid, id_var_V             , mesh%V             )
+    call read_var_master( filename, ncid, id_var_V             , mesh%V             )
     call read_var_master( filename, ncid, id_var_nC            , mesh%nC            )
     call read_var_master( filename, ncid, id_var_C             , mesh%C             )
     call read_var_master( filename, ncid, id_var_niTri         , mesh%niTri         )
@@ -219,7 +219,7 @@ contains
 
     ! Triangle data
     call read_var_master( filename, ncid, id_var_Tri           , mesh%Tri           )
-    call read_var_master(  filename, ncid, id_var_Tricc         , mesh%Tricc         )
+    call read_var_master( filename, ncid, id_var_Tricc         , mesh%Tricc         )
     call read_var_master( filename, ncid, id_var_TriC          , mesh%TriC          )
 
     ! Safety - check if the mesh data read from NetCDF makes sense

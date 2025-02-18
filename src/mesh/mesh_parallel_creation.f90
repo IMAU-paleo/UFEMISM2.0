@@ -217,6 +217,7 @@ CONTAINS
     CALL MPI_RECV( nV           , 1                          , MPI_INTEGER         , p_from, MPI_ANY_TAG, MPI_COMM_WORLD, recv_status, ierr)
     CALL MPI_RECV( nTri         , 1                          , MPI_INTEGER         , p_from, MPI_ANY_TAG, MPI_COMM_WORLD, recv_status, ierr)
 
+
     ! Allocate memory for mesh
     mesh_name = 'mesh_recv'
     CALL allocate_mesh_primary( mesh, mesh_name, nV_mem, nTri_mem, nC_mem)
