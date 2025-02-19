@@ -16,16 +16,19 @@ dependencies:
   - beautifulsoup4=4.13.3=pyha770c72_0
   - bleach=6.2.0=pyh29332c3_4
   - bleach-with-css=6.2.0=h82add2a_4
+  - blosc=1.21.6=he440d0b_1
   - brotli=1.1.0=hb9d3cd8_2
   - brotli-bin=1.1.0=hb9d3cd8_2
   - brotli-python=1.1.0=py313h46c70d0_2
   - bzip2=1.0.8=h4bc722e_7
+  - c-ares=1.34.4=hb9d3cd8_0
   - ca-certificates=2025.1.31=hbcca054_0
   - cached-property=1.5.2=hd8ed1ab_1
   - cached_property=1.5.2=pyha770c72_1
   - cairo=1.18.2=h3394656_1
   - certifi=2025.1.31=pyhd8ed1ab_0
   - cffi=1.17.1=py313hfab6e84_0
+  - cftime=1.6.4=py313ha014f3b_1
   - charset-normalizer=3.4.1=pyhd8ed1ab_0
   - cmocean=4.0.3=pyhd8ed1ab_1
   - colorspacious=1.1.2=pyhecae5ae_1
@@ -55,6 +58,8 @@ dependencies:
   - h11=0.14.0=pyhd8ed1ab_1
   - h2=4.2.0=pyhd8ed1ab_0
   - harfbuzz=10.2.0=h4bba637_0
+  - hdf4=4.2.15=h2a13503_7
+  - hdf5=1.14.4=nompi_h2d575fe_105
   - hpack=4.1.0=pyhd8ed1ab_0
   - httpcore=1.0.7=pyh29332c3_1
   - httpx=0.28.1=pyhd8ed1ab_0
@@ -92,6 +97,7 @@ dependencies:
   - lcms2=2.17=h717163a_0
   - ld_impl_linux-64=2.43=h712a8e2_2
   - lerc=4.0.0=h27087fc_0
+  - libaec=1.1.3=h59595ed_0
   - libblas=3.9.0=28_h59b9bed_openblas
   - libbrotlicommon=1.1.0=hb9d3cd8_2
   - libbrotlidec=1.1.0=hb9d3cd8_2
@@ -100,10 +106,12 @@ dependencies:
   - libclang-cpp19.1=19.1.7=default_hb5137d0_1
   - libclang13=19.1.7=default_h9c6a7e4_1
   - libcups=2.3.3=h4637d8d_4
+  - libcurl=8.12.1=h332b0f4_0
   - libdeflate=1.23=h4ddbbb0_0
   - libdrm=2.4.124=hb9d3cd8_0
   - libedit=3.1.20250104=pl5321h7949ede_0
   - libegl=1.7.0=ha4b6fd6_2
+  - libev=4.33=hd590300_2
   - libexpat=2.6.4=h5888daf_0
   - libffi=3.4.6=h2dba641_0
   - libgcc=14.2.0=h77fa898_1
@@ -121,6 +129,8 @@ dependencies:
   - libllvm19=19.1.7=ha7bfdaf_1
   - liblzma=5.6.4=hb9d3cd8_0
   - libmpdec=4.0.0=h4bc722e_0
+  - libnetcdf=4.9.2=nompi_h5ddbaa4_116
+  - libnghttp2=1.64.0=h161d5f1_0
   - libntlm=1.8=hb9d3cd8_0
   - libopenblas=0.3.28=pthreads_h94d23a6_1
   - libopengl=1.7.0=ha4b6fd6_2
@@ -129,6 +139,7 @@ dependencies:
   - libpq=17.3=h27ae623_0
   - libsodium=1.0.20=h4ab18f5_0
   - libsqlite=3.48.0=hee588c1_1
+  - libssh2=1.11.1=hf672d98_0
   - libstdcxx=14.2.0=hc0a3c3a_1
   - libstdcxx-ng=14.2.0=h4852527_1
   - libtiff=4.7.0=hd9ff511_3
@@ -139,6 +150,9 @@ dependencies:
   - libxml2=2.13.5=h8d12d68_1
   - libxslt=1.1.39=h76b75d6_0
   - libzlib=1.3.1=hb9d3cd8_2
+  - libzip=1.11.2=h6991a6a_0
+  - libzlib=1.3.1=hb9d3cd8_2
+  - lz4-c=1.10.0=h5888daf_1
   - markupsafe=3.0.2=py313h8060acc_1
   - matplotlib=3.10.0=py313h78bf25f_0
   - matplotlib-base=3.10.0=py313h129903b_0
@@ -152,6 +166,7 @@ dependencies:
   - nbformat=5.10.4=pyhd8ed1ab_1
   - ncurses=6.5=h2d0b736_3
   - nest-asyncio=1.6.0=pyhd8ed1ab_1
+  - netcdf4=1.7.2=nompi_py313h1dd084c_101
   - notebook=7.3.2=pyhd8ed1ab_0
   - notebook-shim=0.2.4=pyhd8ed1ab_1
   - numpy=2.2.3=py313h17eae1a_0
@@ -203,6 +218,7 @@ dependencies:
   - send2trash=1.8.3=pyh0d859eb_1
   - setuptools=75.8.0=pyhff2d567_0
   - six=1.17.0=pyhd8ed1ab_0
+  - snappy=1.2.1=h8bd8927_1
   - sniffio=1.3.1=pyhd8ed1ab_1
   - soupsieve=2.5=pyhd8ed1ab_1
   - stack_data=0.6.3=pyhd8ed1ab_1
@@ -251,5 +267,6 @@ dependencies:
   - yaml=0.2.5=h7f98852_2
   - zeromq=4.3.5=h3b0a872_7
   - zipp=3.21.0=pyhd8ed1ab_1
+  - zlib=1.3.1=hb9d3cd8_2
   - zstandard=0.23.0=py313h80202fe_1
   - zstd=1.5.6=ha6fb4c9_0
