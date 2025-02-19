@@ -101,3 +101,5 @@ def plot_resources(names,tcomps,baselevel,baseroutine,savename='test.png',toplev
     ax.set_yticks([])
     ax.set_title(f'{baseroutine}')
     plt.savefig(savename)
+    plt.close()
+    print(f'Created {savename}')
