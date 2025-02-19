@@ -53,8 +53,8 @@ def plot_resources(names,tcomps,baselevel,baseroutine,savename='test.png',toplev
 
     plt.rcParams["axes.prop_cycle"] = plt.cycler("color", plt.get_cmap('Dark2')(np.linspace(0,1,8)))
     plt.rcParams["figure.subplot.left"] = .01
-    plt.rcParams["figure.subplot.right"] = .99
-    plt.rcParams["figure.subplot.bottom"] = .2
+    plt.rcParams["figure.subplot.right"] = .95
+    plt.rcParams["figure.subplot.bottom"] = .25
     plt.rcParams["figure.subplot.top"] = .95
 
     fig,ax = plt.subplots(1,1,figsize=(7,8))
