@@ -539,6 +539,8 @@ CONTAINS
 
     ! Local variables:
     character(len=256), parameter                         :: routine_name = 'update_laddie_operators'
+    integer                                               :: ncols, ncols_loc, nrows, nrows_loc, nnz_per_row_est, nnz_est_proc
+    integer                                               :: ti, n, i, vi
     real(dp), dimension(3)                                :: cM_map_H_a_b
     logical, dimension(mesh%nV)                           :: laddie_mask_a_tot
 

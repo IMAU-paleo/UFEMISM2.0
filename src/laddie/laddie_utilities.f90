@@ -17,6 +17,7 @@ MODULE laddie_utilities
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   USE ocean_utilities                                        , ONLY: interpolate_ocean_depth
   USE mpi_distributed_memory                                 , ONLY: gather_to_all
+  use petsc_basic                                            , only: multiply_CSR_matrix_with_vector_1D
 
   IMPLICIT NONE
     
@@ -57,54 +58,28 @@ CONTAINS
 
   END SUBROUTINE compute_ambient_TS
 
-  SUBROUTINE map_H_a_b( mesh, laddie, H_a, H_b)
+  subroutine map_H_a_b( mesh, laddie, H_a, H_b)
     ! Map layer thickness from a to b grid, accounting for BCs
 
     ! In- and output variables
 
-    TYPE(type_mesh),                        INTENT(IN)    :: mesh
-    TYPE(type_laddie_model),                INTENT(IN)    :: laddie
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: H_a
-    REAL(dp), DIMENSION(mesh%ti1:mesh%ti2), INTENT(INOUT) :: H_b
+    type(type_mesh),                        intent(in)    :: mesh
+    type(type_laddie_model),                intent(in)    :: laddie
+    real(dp), dimension(mesh%vi1:mesh%vi2), intent(in)    :: H_a
+    real(dp), dimension(mesh%ti1:mesh%ti2), intent(inout) :: H_b
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'map_H_a_b'
-    INTEGER                                               :: i, vi, ti, n
-    REAL(dp), DIMENSION(mesh%nV)                          :: H_a_tot
-    LOGICAL, DIMENSION(mesh%nV)                           :: laddie_mask_a_tot
+    character(len=256), parameter                         :: routine_name = 'map_H_a_b'
  
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
-    CALL gather_to_all( H_a, H_a_tot)
-    CALL gather_to_all( laddie%mask_a, laddie_mask_a_tot)
-
-    ! Get T and S at layer base
-    DO ti = mesh%ti1, mesh%ti2
-       H_b( ti) = 0.0_dp
-       IF (laddie%mask_b( ti)) THEN
-         
-         ! Set zero
-         n = 0
-
-         ! Loop over vertices
-         DO i = 1, 3
-           vi = mesh%Tri( ti, i)
-           IF (laddie_mask_a_tot( vi)) THEN
-             H_b( ti) = H_b( ti) + H_a_tot( vi)
-             n = n + 1
-           END IF
-         END DO
-
-         H_b( ti) = H_b( ti) / real( n, dp)
-
-       END IF
-    END DO
+    call multiply_CSR_matrix_with_vector_1D( laddie%M_map_H_a_b, H_a, H_b) 
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE map_H_a_b
+  end subroutine map_H_a_b
 
   SUBROUTINE map_H_a_c( mesh, laddie, H_a, H_c)
     ! Map layer thickness from a to c grid, accounting for BCs
