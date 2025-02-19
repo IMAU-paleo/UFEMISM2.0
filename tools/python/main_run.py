@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from main_mesh import Mesh
 
 from utils import *
+from analyse_resources import *
 
 class Run(object):
     """ Properties and functions from a Ufemism run """
@@ -87,3 +88,26 @@ class Run(object):
 
         #Remove frames
         os.system(f'rm {self.directory}/movie/frame*.png')
+
+    def plot_comptime(self,baselevel,baseroutine,toplevel=0,toproutine='UFEMISM_program'):
+        """ Plot computation time of subroutines """
+
+        #Make outputfolder if necessary
+        check_create_dir(f'{self.directory}/figures')
+
+        #Read scalar data
+        ds = xr.open_dataset(f'{self.directory}/resource_tracking.nc')
+        ds = ds.sum(dim='time')
+
+        #Get names and computation times of subroutines down to required level
+        names,tcomps = get_allnames(ds,maxlev=baselevel+3)
+
+        #Output name
+        savename = f'{self.directory}/figures/resources_{baseroutine}.png'
+
+        #Make plot
+        plot_resources(names,tcomps,baselevel,baseroutine,savename=savename,toplevel=toplevel,toproutine=toproutine)
+
+        # Close data set
+        ds.close()
+        
