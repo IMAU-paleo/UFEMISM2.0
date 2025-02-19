@@ -545,10 +545,12 @@ CONTAINS
     integer                                               :: ncols, ncols_loc, nrows, nrows_loc, nnz_per_row_est, nnz_est_proc
     integer                                               :: ti, n, i, vi
     real(dp), dimension(3)                                :: cM_map_H_a_b
-    logical, dimension(mesh%nV)                           :: laddie_mask_a_tot
+    logical, dimension(mesh%nV)                           :: mask_a_tot
 
     ! Add routine to path
     call init_routine( routine_name)
+
+    CALL gather_to_all( laddie%mask_a, mask_a_tot)
 
     ! Make sure to deallocate before allocating
     call deallocate_matrix_CSR_dist( laddie%M_map_H_a_b)
@@ -583,7 +585,7 @@ CONTAINS
         do i = 1, 3
           vi = mesh%Tri( ti, i)
           ! Only add vertex if in mask_a
-          if (laddie_mask_a_tot( vi)) then
+          if (mask_a_tot( vi)) then
             ! Set weight factor
             cM_map_H_a_b( i) = 1._dp
             n = n + 1
@@ -777,10 +779,11 @@ CONTAINS
     CALL reallocate_bounds( laddie%mask_cf_b,            mesh_new%ti1, mesh_new%ti2)
     CALL reallocate_bounds( laddie%mask_oc_b,            mesh_new%ti1, mesh_new%ti2)
 
-    ! Re-initialise mask
-    DO vi = mesh_new%vi1, mesh_new%vi2
-      laddie%mask_a( vi)  = ice%mask_floating_ice( vi)
-    END DO
+    ! == Re-initialise masks ==
+    CALL update_laddie_masks( mesh_new, ice, laddie)
+
+    ! == Update operators ==
+    CALL update_laddie_operators( mesh_new, ice, laddie)
 
     ! == Timestep variables ==
     CALL remap_laddie_timestep( mesh_old, mesh_new, ice, ocean, laddie, laddie%now)
