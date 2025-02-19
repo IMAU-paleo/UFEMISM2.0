@@ -25,6 +25,8 @@ MODULE laddie_main
   USE laddie_tracers                                         , ONLY: compute_TS_npx, compute_diffTS
   USE mesh_utilities                                         , ONLY: extrapolate_Gaussian
   USE mpi_distributed_memory                                 , ONLY: gather_to_all
+  USE CSR_sparse_matrix_utilities                            , ONLY: allocate_matrix_CSR_dist, deallocate_matrix_CSR_dist, &
+                                                                     add_entry_CSR_dist, add_empty_row_CSR_dist, crop_matrix_CSR_dist
 
   IMPLICIT NONE
     
@@ -87,6 +89,9 @@ CONTAINS
 
     ! Simply set H_c zero everywhere, will be recomputed through mapping later
     laddie%now%H_c = 0.0_dp
+
+    ! == Update operators ==
+    CALL update_laddie_operators( mesh, ice, laddie)
 
     ! == Main time loop ==
     ! ====================
@@ -522,6 +527,90 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE update_laddie_masks
+
+  subroutine update_laddie_operators( mesh, ice, laddie)
+    ! Update matrix operators at the start of a new run
+
+    ! In- and output variables
+
+    type(type_mesh),                        intent(in)    :: mesh
+    type(type_ice_model),                   intent(in)    :: ice
+    type(type_laddie_model),                intent(inout) :: laddie
+
+    ! Local variables:
+    character(len=256), parameter                         :: routine_name = 'update_laddie_operators'
+    real(dp), dimension(3)                                :: cM_map_H_a_b
+    logical, dimension(mesh%nV)                           :: laddie_mask_a_tot
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Make sure to deallocate before allocating
+    if (allocated( laddie%M_map_H_a_b) then
+      call deallocate_matrix_CSR_dist( laddie%M_map_H_a_b)
+    end if
+
+    ! == Initialise the matrix using the native UFEMISM CSR-matrix format
+    ! ===================================================================
+
+    ! Matrix size
+    ncols           = mesh%nV        ! from
+    ncols_loc       = mesh%nV_loc
+    nrows           = mesh%nTri      ! to
+    nrows_loc       = mesh%nTri_loc
+    nnz_per_row_est = 3
+    nnz_est_proc    = nrows_loc * nnz_per_row_est
+ 
+    call allocate_matrix_CSR_dist( laddie%M_map_H_a_b, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+
+    ! == Calculate coefficients
+    ! =========================
+
+    do ti = mesh%ti1, mesh%ti2
+
+      if (laddie%mask_b( ti)) then
+
+        ! Initialise
+        cM_map_H_a_b = 0._dp
+
+        ! Set counter of vertices to average over
+        n = 0
+
+        ! Loop over vertices
+        do i = 1, 3
+          vi = mesh%Tri( ti, i)
+          ! Only add vertex if in mask_a
+          if (laddie_mask_a_tot( vi)) then
+            ! Set weight factor
+            cM_map_H_a_b( i) = 1._dp
+            n = n + 1
+          end if
+        end do
+
+        ! Scale weight factor by number of available vertices
+        cM_map_H_a_b = cM_map_H_a_b / real( n, dp)
+
+        ! Add weight to matrix
+        do i = 1, 3
+          vi = mesh%Tri( ti, i)
+          call add_entry_CSR_dist( laddie%M_map_H_a_b, ti, vi, cM_map_H_a_b( i)
+        end do
+
+      else
+        ! Outside laddie domain, so skip
+        call add_empty_row_CSR_dist( laddie%M_map_H_a_b, ti) 
+
+      end if
+
+    end do
+
+    ! Crop matrix memory
+    call crop_matrix_CSR_dist( laddie%M_map_H_a_b)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine update_laddie_operators
 
   SUBROUTINE extrapolate_laddie_variables( mesh, ice, laddie)
     ! Update bunch of masks for laddie at the start of a new run
