@@ -1,5 +1,6 @@
 import xarray as xr
 import numpy as np
+import matplotlib.pyplot as plt
 
 def get_name(rname):
     lev = 0
@@ -48,11 +49,15 @@ def get_allnames(ds,maxlev=7):
         tcomps.append(ds.tcomp[r].values)
     return names,tcomps
 
-def plot_resources(names,tcomps,baselevel,baseroutine,toplevel=0,toproutine='UFEMISM_program'):
+def plot_resources(names,tcomps,baselevel,baseroutine,savename='test.png',toplevel=0,toproutine='UFEMISM_program'):
 
     plt.rcParams["axes.prop_cycle"] = plt.cycler("color", plt.get_cmap('Dark2')(np.linspace(0,1,8)))
+    plt.rcParams["figure.subplot.left"] = .01
+    plt.rcParams["figure.subplot.right"] = .99
+    plt.rcParams["figure.subplot.bottom"] = .2
+    plt.rcParams["figure.subplot.top"] = .95
 
-    fig,ax = plt.subplots(1,1)
+    fig,ax = plt.subplots(1,1,figsize=(7,8))
 
     for i,tcomp in enumerate(tcomps):
         if len(names[i]) < baselevel+1:
@@ -65,15 +70,18 @@ def plot_resources(names,tcomps,baselevel,baseroutine,toplevel=0,toproutine='UFE
             # Get total tcomp for x-scaling
             x1 = 0
             xscale = tcomp
+            ax.fill_betweenx([0,1],0,1,color='.8')
         elif len(names[i])==baselevel+2:
             # Get width
             x0 = x1
             x1 += tcomp/xscale
+            
+            ax.axvline(x1,0,1,lw=.5,c='k')
             y1 = 0
             yscale = tcomp
             if tcomp/xscale > .01:
                 # At least 1 percent of total
-                ax.text((x0+x1)/2-.02,0,names[i][baselevel+1],rotation=-60,va='top',ha='left')
+                ax.text((x0+x1)/2-.02,0,f'{names[i][baselevel+1]} ({100*tcomp/xscale:.1f}%)',rotation=-60,va='top',ha='left')
         elif len(names[i])==baselevel+3:
             # Get height
             y0 = y1
@@ -83,10 +91,13 @@ def plot_resources(names,tcomps,baselevel,baseroutine,toplevel=0,toproutine='UFE
             if tcomp/xscale > .01:
                 if (y1-y0>x1-x0):
                     # Vertical
-                    ax.text((x0+x1)/2,(y0+y1)/2,names[i][baselevel+2],rotation=-90,va='center',ha='center')
+                    ax.text((x0+x1)/2,(y0+y1)/2,f'{names[i][baselevel+2]} ({100*tcomp/xscale:.1f}%)',rotation=-90,va='center',ha='center')
                 else:
                     # Horizontal
-                    ax.text((x0+x1)/2,(y0+y1)/2,names[i][baselevel+2],va='center',ha='center')
-    ax.axis("off")
+                    ax.text((x0+x1)/2,(y0+y1)/2,f'{names[i][baselevel+2]} ({100*tcomp/xscale:.1f}%)',va='center',ha='center')
+    ax.set_xlim([0,1])
+    ax.set_ylim([0,1])
+    ax.set_xticks([])
+    ax.set_yticks([])
     ax.set_title(f'{baseroutine}')
-    plt.show()
+    plt.savefig(savename)
