@@ -139,21 +139,21 @@ contains
 
     ! Check if everything is there
     has_mesh = (&
-      id_dim_vi    /= -1 .and. &
-      id_dim_ti    /= -1 .and. &
-      id_dim_ci    /= -1 .and. &
-      id_dim_two   /= -1 .and. &
-      id_dim_three /= -1 .and. &
-      id_var_V     /= -1 .and. &
-      id_var_nC    /= -1 .and. &
-      id_var_C     /= -1 .and. &
-      id_var_niTri /= -1 .and. &
-      id_var_iTri  /= -1 .and. &
-      id_var_VBI   /= -1 .and. &
-      id_var_Tri   /= -1 .and. &
-      id_var_Tricc /= -1 .and. &
-      id_var_TriC  /= -1 .and. &
-      id_var_TriBI /= -1)
+      id_dim_vi         /= -1 .and. &
+      id_dim_ti         /= -1 .and. &
+      id_dim_ci         /= -1 .and. &
+      id_dim_two        /= -1 .and. &
+      id_dim_three      /= -1 .and. &
+      id_var_V          /= -1 .and. &
+      id_var_nC         /= -1 .and. &
+      id_var_C          /= -1 .and. &
+      id_var_niTri      /= -1 .and. &
+      id_var_iTri       /= -1 .and. &
+      id_var_VBI        /= -1 .and. &
+      id_var_Tri        /= -1 .and. &
+      id_var_Tricc      /= -1 .and. &
+      id_var_TriC       /= -1 .and. &
+      id_var_TriBI      /= -1)
 
     ! Close the NetCDF file
     call close_netcdf_file( ncid)

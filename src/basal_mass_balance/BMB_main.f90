@@ -50,6 +50,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'run_BMB_model'
     CHARACTER(LEN=256)                                    :: choice_BMB_model
+    CHARACTER(LEN=256)                                    :: choice_BMB_model_ROI
     INTEGER                                               :: vi
 
     ! Add routine to path
@@ -58,13 +59,17 @@ CONTAINS
     ! Determine which BMB model to run for this region
     SELECT CASE (region_name)
       CASE ('NAM')
-        choice_BMB_model = C%choice_BMB_model_NAM
+        choice_BMB_model      = C%choice_BMB_model_NAM
+        choice_BMB_model_ROI  = C%choice_BMB_model_NAM_ROI
       CASE ('EAS')
-        choice_BMB_model = C%choice_BMB_model_EAS
+        choice_BMB_model      = C%choice_BMB_model_EAS
+        choice_BMB_model_ROI  = C%choice_BMB_model_EAS_ROI
       CASE ('GRL')
-        choice_BMB_model = C%choice_BMB_model_GRL
+        choice_BMB_model      = C%choice_BMB_model_GRL
+        choice_BMB_model_ROI  = C%choice_BMB_model_GRL_ROI
       CASE ('ANT')
-        choice_BMB_model = C%choice_BMB_model_ANT
+        choice_BMB_model      = C%choice_BMB_model_ANT
+        choice_BMB_model_ROI  = C%choice_BMB_model_ANT_ROI
       CASE DEFAULT
         CALL crash('unknown region_name "' // region_name // '"')
     END SELECT
@@ -125,7 +130,7 @@ CONTAINS
       CASE ('inverted')
         CALL run_BMB_model_inverted( mesh, ice, BMB, time)
       CASE ('laddie_py')
-        CALL run_BMB_model_laddie( mesh, BMB, time)
+        CALL run_BMB_model_laddie( mesh, ice, BMB, time, .FALSE.)
       CASE ('laddie')
         IF (time == C%start_time_of_run) THEN
           CALL run_laddie_model( mesh, ice, ocean, BMB%laddie, time, C%time_duration_laddie_init)
@@ -138,6 +143,29 @@ CONTAINS
         END DO
       CASE DEFAULT
         CALL crash('unknown choice_BMB_model "' // TRIM( choice_BMB_model) // '"')
+    END SELECT
+
+    ! Check hybrid_ROI_BMB
+    SELECT CASE (choice_BMB_model_ROI)
+      CASE ('identical_to_choice_BMB_model')
+        ! No need to do anything
+      CASE ('uniform')
+        ! Update BMB only for cells in ROI
+        DO vi = mesh%vi1, mesh%vi2
+          IF (ice%mask_ROI(vi)) THEN
+            IF (ice%mask_floating_ice( vi) .OR. ice%mask_icefree_ocean( vi) .OR. ice%mask_gl_gr( vi)) THEN 
+              BMB%BMB_shelf( vi) = C%uniform_BMB_ROI
+            END IF
+          END IF
+        END DO
+      CASE ('laddie_py')
+        ! run_BMB_model_laddie and read BMB values only for region of interest
+        CALL run_BMB_model_laddie( mesh, ice, BMB, time, .TRUE.)
+        CALL apply_BMB_subgrid_scheme_ROI( mesh, ice, BMB)
+      CASE ('prescribed', 'prescribed_fixed', 'idealised', 'parameterised', 'inverted', 'laddie')
+        CALL crash('this BMB_model "' // TRIM( choice_BMB_model_ROI) // '" is not implemented for hybrid-BMB in ROI yet')
+      CASE DEFAULT
+        CALL crash('unknown choice_BMB_model_ROI "' // TRIM( choice_BMB_model_ROI) // '"')
     END SELECT
 
     ! Apply subgrid scheme of old BMB to new mask
@@ -170,6 +198,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'initialise_BMB_model'
     CHARACTER(LEN=256)                                    :: choice_BMB_model
+    CHARACTER(LEN=256)                                    :: choice_BMB_model_ROI
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -180,13 +209,17 @@ CONTAINS
     ! Determine which BMB model to initialise for this region
     SELECT CASE (region_name)
       CASE ('NAM')
-        choice_BMB_model = C%choice_BMB_model_NAM
+        choice_BMB_model      = C%choice_BMB_model_NAM
+        choice_BMB_model_ROI  = C%choice_BMB_model_NAM_ROI
       CASE ('EAS')
-        choice_BMB_model = C%choice_BMB_model_EAS
+        choice_BMB_model      = C%choice_BMB_model_EAS
+        choice_BMB_model_ROI  = C%choice_BMB_model_EAS_ROI
       CASE ('GRL')
-        choice_BMB_model = C%choice_BMB_model_GRL
+        choice_BMB_model      = C%choice_BMB_model_GRL
+        choice_BMB_model_ROI  = C%choice_BMB_model_GRL_ROI
       CASE ('ANT')
-        choice_BMB_model = C%choice_BMB_model_ANT
+        choice_BMB_model      = C%choice_BMB_model_ANT
+        choice_BMB_model_ROI  = C%choice_BMB_model_ANT_ROI
       CASE DEFAULT
         CALL crash('unknown region_name "' // region_name // '"')
     END SELECT
@@ -239,6 +272,20 @@ CONTAINS
         CALL initialise_laddie_model( mesh, BMB%laddie, ocean, ice)
       CASE DEFAULT
         CALL crash('unknown choice_BMB_model "' // TRIM( choice_BMB_model) // '"')
+    END SELECT
+
+    ! Check hybrid_ROI_BMB
+    SELECT CASE (choice_BMB_model_ROI)
+      CASE ('identical_to_choice_BMB_model')
+        ! No need to do anything
+      CASE ('uniform')
+        ! No need to do anything
+      CASE ('laddie_py')
+         CALL initialise_BMB_model_laddie( mesh, BMB)
+      CASE ('prescribed', 'prescribed_fixed', 'idealised', 'parameterised', 'inverted', 'laddie')
+        CALL crash('this BMB_model "' // TRIM( choice_BMB_model_ROI) // '" is not implemented for hybrid-BMB in ROI yet')
+      CASE DEFAULT
+        CALL crash('unknown choice_BMB_model_ROI "' // TRIM( choice_BMB_model_ROI) // '"')
     END SELECT
 
     ! Finalise routine path
@@ -699,7 +746,7 @@ CONTAINS
     ! In- and output variables
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
     TYPE(type_ice_model),                   INTENT(IN)    :: ice
-    TYPE(type_BMB_model),                   INTENT(INOUT)   :: BMB
+    TYPE(type_BMB_model),                   INTENT(INOUT) :: BMB
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'apply_BMB_subgrid_scheme'
@@ -715,20 +762,7 @@ CONTAINS
 
     DO vi = mesh%vi1, mesh%vi2
       ! Different sub-grid schemes for sub-shelf melt
-      IF (C%do_subgrid_BMB_at_grounding_line) THEN
-        IF     (C%choice_BMB_subgrid == 'FCMP') THEN
-          ! Apply FCMP scheme
-          IF (ice%mask_floating_ice( vi)) BMB%BMB( vi) = BMB%BMB_shelf( vi)
-        ELSEIF (C%choice_BMB_subgrid == 'PMP') THEN
-          ! Apply PMP scheme
-          IF (ice%mask_floating_ice( vi) .OR. ice%mask_gl_gr( vi)) BMB%BMB( vi) = (1._dp - ice%fraction_gr( vi)) * BMB%BMB_shelf( vi)
-        ELSE
-          CALL crash('unknown choice_BMB_subgrid "' // TRIM(C%choice_BMB_subgrid) // '"!')
-        END IF
-      ELSE
-        ! Apply NMP scheme
-        IF (ice%fraction_gr( vi) == 0._dp) BMB%BMB( vi) = BMB%BMB_shelf( vi)
-      END IF
+      CALL compute_subgrid_BMB(ice, BMB, vi)
     END DO
     CALL sync
 
@@ -736,5 +770,69 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE apply_BMB_subgrid_scheme
+
+    SUBROUTINE apply_BMB_subgrid_scheme_ROI( mesh, ice, BMB)
+    ! Apply selected scheme for sub-grid shelf melt
+    ! (see Leguy et al. 2021 for explanations of the three schemes)
+
+    ! In- and output variables
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh
+    TYPE(type_ice_model),                   INTENT(IN)    :: ice
+    TYPE(type_BMB_model),                   INTENT(INOUT) :: BMB
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'apply_BMB_subgrid_scheme_ROI'
+    CHARACTER(LEN=256)                                    :: choice_BMB_subgrid
+    INTEGER                                               :: vi
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Note: apply extrapolation_FCMP_to_PMP to non-laddie BMB models before applying sub-grid schemes
+    
+    DO vi = mesh%vi1, mesh%vi2
+      ! Only for ROI cells
+      IF (ice%mask_ROI(vi)) THEN
+        CALL compute_subgrid_BMB(ice, BMB, vi)
+      END IF
+    END DO
+    CALL sync
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE apply_BMB_subgrid_scheme_ROI
+
+  SUBROUTINE compute_subgrid_BMB(ice, BMB, vi)
+
+    INTEGER                     , INTENT(IN)              :: vi
+    TYPE(type_ice_model),                   INTENT(IN)    :: ice
+    TYPE(type_BMB_model),                   INTENT(INOUT) :: BMB
+
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_subgrid_BMB'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Different sub-grid schemes for sub-shelf melt
+        IF (C%do_subgrid_BMB_at_grounding_line) THEN
+          IF     (C%choice_BMB_subgrid == 'FCMP') THEN
+            ! Apply FCMP scheme
+            IF (ice%mask_floating_ice( vi)) BMB%BMB( vi) = BMB%BMB_shelf( vi)
+
+          ELSEIF (C%choice_BMB_subgrid == 'PMP') THEN
+            ! Apply PMP scheme
+            IF (ice%mask_floating_ice( vi) .OR. ice%mask_gl_gr( vi)) BMB%BMB( vi) = (1._dp - ice%fraction_gr( vi)) * BMB%BMB_shelf( vi)
+          ELSE
+            CALL crash('unknown choice_BMB_subgrid "' // TRIM(C%choice_BMB_subgrid) // '"!')
+          END IF
+        ELSE
+          ! Apply NMP scheme
+          IF (ice%fraction_gr( vi) == 0._dp) BMB%BMB( vi) = BMB%BMB_shelf( vi)
+        END IF
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE compute_subgrid_BMB
 
 END MODULE BMB_main

@@ -537,57 +537,60 @@ CONTAINS
 
   END SUBROUTINE initialise_reference_geometry_raw_idealised
 
-  SUBROUTINE initialise_reference_geometry_raw_from_file( region_name, refgeo_name, refgeo, filename_refgeo, timeframe_refgeo)
-    ! Initialise a reference geometry on the raw grid/mesh for the given set of config choices!
-    !
-    ! For the case of a (probably) realistic geometry provided through a NetCDF file
-
-    IMPLICIT NONE
+  subroutine initialise_reference_geometry_raw_from_file( region_name, refgeo_name, refgeo, filename_refgeo, timeframe_refgeo)
+    !< Initialise a raw reference geometry from a file
 
     ! In/output variables:
-    CHARACTER(LEN=3)                                   , INTENT(IN)    :: region_name
-    CHARACTER(LEN=*)                                   , INTENT(IN)    :: refgeo_name
-    TYPE(type_reference_geometry)                      , INTENT(OUT)   :: refgeo
-    CHARACTER(LEN=256)                                 , INTENT(IN)    :: filename_refgeo
-    REAL(dp)                                           , INTENT(IN)    :: timeframe_refgeo
+    character(len=3)             , intent(in   ) :: region_name
+    character(len=*)             , intent(in   ) :: refgeo_name
+    type(type_reference_geometry), intent(  out) :: refgeo
+    character(len=*)             , intent(in   ) :: filename_refgeo
+    real(dp)                     , intent(in   ) :: timeframe_refgeo
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'initialise_reference_geometry_raw_from_file'
-    LOGICAL                                                            :: has_xy_grid, has_lonlat_grid, has_mesh
+    character(len=256), parameter :: routine_name = 'initialise_reference_geometry_raw_from_file'
+    character(len=1024)           :: filename_refgeo_applied
+    real(dp)                      :: timeframe_refgeo_applied
+    logical                       :: has_xy_grid, has_lonlat_grid, has_mesh
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
+
+    ! Exception for when we want to flexible read the last output file of a previous UFEMISM simulation
+    filename_refgeo_applied  = filename_refgeo
+    timeframe_refgeo_applied =  timeframe_refgeo
+    if (index( filename_refgeo,'_LAST.nc') > 1) then
+      call find_last_output_file( filename_refgeo_applied)
+      call find_last_timeframe(   filename_refgeo_applied, timeframe_refgeo_applied)
+    end if
 
     ! Print to screen
-    IF (par%master) WRITE(0,'(A)') '   Initialising ' // TRIM( refgeo_name) // ' geometry for model region ' // &
-      colour_string( region_name,'light blue') // ' from file "' // colour_string( TRIM( filename_refgeo),'light blue') // '"...'
-
+    if (par%master) write(0,'(A)') '   Initialising ' // trim( refgeo_name) // ' geometry for model region ' // &
+      colour_string( region_name,'light blue') // ' from file "' // colour_string( trim( filename_refgeo_applied),'light blue') // '"...'
 
     ! Find out on what kind of grid the file is defined
-    CALL inquire_xy_grid(     filename_refgeo, has_xy_grid    )
-    CALL inquire_lonlat_grid( filename_refgeo, has_lonlat_grid)
-    CALL inquire_mesh(        filename_refgeo, has_mesh       )
+    call inquire_xy_grid(     filename_refgeo_applied, has_xy_grid    )
+    call inquire_lonlat_grid( filename_refgeo_applied, has_lonlat_grid)
+    call inquire_mesh(        filename_refgeo_applied, has_mesh       )
 
     ! Files with more than one grid are not recognised
-    IF (has_xy_grid     .AND. has_lonlat_grid) CALL crash('file "' // TRIM( filename_refgeo) // '" contains both an x/y-grid and a lon/lat-grid!')
-    IF (has_xy_grid     .AND. has_mesh       ) CALL crash('file "' // TRIM( filename_refgeo) // '" contains both an x/y-grid and a mesh!')
-    IF (has_lonlat_grid .AND. has_mesh       ) CALL crash('file "' // TRIM( filename_refgeo) // '" contains both a lon/lat-grid and a mesh!')
+    if (has_xy_grid     .and. has_lonlat_grid) call crash('file "' // trim( filename_refgeo_applied) // '" contains both an x/y-grid and a lon/lat-grid!')
+    if (has_xy_grid     .and. has_mesh       ) call crash('file "' // trim( filename_refgeo_applied) // '" contains both an x/y-grid and a mesh!')
+    if (has_lonlat_grid .and. has_mesh       ) call crash('file "' // trim( filename_refgeo_applied) // '" contains both a lon/lat-grid and a mesh!')
 
-    ! Read the grid'mesh and data from the file
-    IF (has_xy_grid) THEN
-      ! Read reference ice sheet geometry data from an xy-gridded file
-      CALL initialise_reference_geometry_raw_from_file_grid( region_name, refgeo, filename_refgeo, timeframe_refgeo)
-    ELSEIF (has_mesh) THEN
-      ! Read reference ice sheet geometry data from a meshed file
-      CALL initialise_reference_geometry_raw_from_file_mesh(              refgeo, filename_refgeo, timeframe_refgeo)
-    ELSE
-      CALL crash('can only read reference geometry from gridded or meshed data files!')
-    END IF
+    ! Read the grid/mesh and data from the file
+    if (has_xy_grid) then
+      call initialise_reference_geometry_raw_from_file_grid( region_name, refgeo, filename_refgeo_applied, timeframe_refgeo_applied)
+    elseif (has_mesh) then
+      CALL initialise_reference_geometry_raw_from_file_mesh(              refgeo, filename_refgeo_applied, timeframe_refgeo_applied)
+    else
+      call crash('can only read reference geometry from gridded or meshed data files!')
+    endif
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE initialise_reference_geometry_raw_from_file
+  end subroutine initialise_reference_geometry_raw_from_file
 
   SUBROUTINE initialise_reference_geometry_raw_from_file_grid( region_name, refgeo, filename_refgeo, timeframe_refgeo)
     ! Initialise a reference geometry on the raw grid/mesh for the given set of config choices!
@@ -696,77 +699,73 @@ CONTAINS
 
   END SUBROUTINE initialise_reference_geometry_raw_from_file_grid
 
-  SUBROUTINE initialise_reference_geometry_raw_from_file_mesh( refgeo, filename_refgeo, timeframe_refgeo)
-    ! Initialise a reference geometry on the raw grid/mesh for the given set of config choices!
-    !
-    ! For the case of a (probably) realistic geometry provided through a meshed NetCDF file
-
-    IMPLICIT NONE
+  subroutine initialise_reference_geometry_raw_from_file_mesh( refgeo, filename_refgeo, timeframe_refgeo)
+    !< Initialise a raw reference geometry from a mesh file
 
     ! In/output variables:
-    TYPE(type_reference_geometry)                      , INTENT(OUT)   :: refgeo
-    CHARACTER(LEN=256)                                 , INTENT(IN)    :: filename_refgeo
-    REAL(dp)                                           , INTENT(IN)    :: timeframe_refgeo
+    type(type_reference_geometry), intent(  out) :: refgeo
+    character(len=*)             , intent(in   ) :: filename_refgeo
+    real(dp)                     , intent(in   ) :: timeframe_refgeo
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'initialise_reference_geometry_raw_from_file_mesh'
-    INTEGER                                                            :: ncid, id_var
-    LOGICAL                                                            :: has_SL
+    character(len=1024), parameter :: routine_name = 'initialise_reference_geometry_raw_from_file_mesh'
+    integer                        :: ncid, id_var
+    logical                        :: has_SL
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
     ! Set up the mesh from the file
-    CALL open_existing_netcdf_file_for_reading( filename_refgeo, ncid)
-    CALL setup_mesh_from_file( filename_refgeo, ncid, refgeo%mesh_raw)
-    CALL close_netcdf_file( ncid)
+    call open_existing_netcdf_file_for_reading( filename_refgeo, ncid)
+    call setup_mesh_from_file( filename_refgeo, ncid, refgeo%mesh_raw)
+    call close_netcdf_file( ncid)
 
     ! Allocate memory for the raw meshed data
-    ALLOCATE( refgeo%Hi_mesh_raw( refgeo%mesh_raw%vi1:refgeo%mesh_raw%vi2))
-    ALLOCATE( refgeo%Hb_mesh_raw( refgeo%mesh_raw%vi1:refgeo%mesh_raw%vi2))
-    ALLOCATE( refgeo%Hs_mesh_raw( refgeo%mesh_raw%vi1:refgeo%mesh_raw%vi2))
-    ALLOCATE( refgeo%SL_mesh_raw( refgeo%mesh_raw%vi1:refgeo%mesh_raw%vi2))
+    allocate( refgeo%Hi_mesh_raw( refgeo%mesh_raw%vi1:refgeo%mesh_raw%vi2))
+    allocate( refgeo%Hb_mesh_raw( refgeo%mesh_raw%vi1:refgeo%mesh_raw%vi2))
+    allocate( refgeo%Hs_mesh_raw( refgeo%mesh_raw%vi1:refgeo%mesh_raw%vi2))
+    allocate( refgeo%SL_mesh_raw( refgeo%mesh_raw%vi1:refgeo%mesh_raw%vi2))
 
     ! Check if a sea level variable exists in the file
-    CALL open_existing_netcdf_file_for_reading( filename_refgeo, ncid)
-    CALL inquire_var_multopt( filename_refgeo, ncid, 'default_options_SL', id_var)
+    call open_existing_netcdf_file_for_reading( filename_refgeo, ncid)
+    call inquire_var_multopt( filename_refgeo, ncid, 'default_options_SL', id_var)
     has_SL = id_var /= -1
-    CALL close_netcdf_file( ncid)
+    call close_netcdf_file( ncid)
 
-    IF (timeframe_refgeo /= 1E9_dp) THEN
+    if (timeframe_refgeo /= 1E9_dp) then
       ! We need to read a specific time frame
 
-      CALL read_field_from_mesh_file_dp_2D( filename_refgeo, 'default_options_Hi', refgeo%Hi_mesh_raw, time_to_read = timeframe_refgeo)
-      CALL read_field_from_mesh_file_dp_2D( filename_refgeo, 'default_options_Hb', refgeo%Hb_mesh_raw, time_to_read = timeframe_refgeo)
-      CALL read_field_from_mesh_file_dp_2D( filename_refgeo, 'default_options_Hs', refgeo%Hs_mesh_raw, time_to_read = timeframe_refgeo)
+      call read_field_from_mesh_file_dp_2D( filename_refgeo, 'default_options_Hi', refgeo%Hi_mesh_raw, time_to_read = timeframe_refgeo)
+      call read_field_from_mesh_file_dp_2D( filename_refgeo, 'default_options_Hb', refgeo%Hb_mesh_raw, time_to_read = timeframe_refgeo)
+      call read_field_from_mesh_file_dp_2D( filename_refgeo, 'default_options_Hs', refgeo%Hs_mesh_raw, time_to_read = timeframe_refgeo)
 
       ! If the file has a sea-level field, read that; if not, assume present-day (i.e. zero)
-      IF (has_SL) THEN
-        CALL read_field_from_mesh_file_dp_2D( filename_refgeo, 'default_options_SL', refgeo%SL_mesh_raw, time_to_read = timeframe_refgeo)
-      ELSE
+      if (has_SL) then
+        call read_field_from_mesh_file_dp_2D( filename_refgeo, 'default_options_SL', refgeo%SL_mesh_raw, time_to_read = timeframe_refgeo)
+      else
         refgeo%SL_mesh_raw = 0._dp
-      END IF
+      end if
 
-    ELSE !  IF (timeframe_refgeo /= 1E9_dp) THEN
+    else !  IF (timeframe_refgeo /= 1E9_dp) THEN
       ! We need to read data from a time-less NetCDF file
 
-      CALL read_field_from_mesh_file_dp_2D( filename_refgeo, 'default_options_Hi', refgeo%Hi_mesh_raw)
-      CALL read_field_from_mesh_file_dp_2D( filename_refgeo, 'default_options_Hb', refgeo%Hb_mesh_raw)
-      CALL read_field_from_mesh_file_dp_2D( filename_refgeo, 'default_options_Hs', refgeo%Hs_mesh_raw)
+      call read_field_from_mesh_file_dp_2D( filename_refgeo, 'default_options_Hi', refgeo%Hi_mesh_raw)
+      call read_field_from_mesh_file_dp_2D( filename_refgeo, 'default_options_Hb', refgeo%Hb_mesh_raw)
+      call read_field_from_mesh_file_dp_2D( filename_refgeo, 'default_options_Hs', refgeo%Hs_mesh_raw)
 
       ! If the file has a sea-level field, read that; if not, assume present-day (i.e. zero)
-      IF (has_SL) THEN
-        CALL read_field_from_mesh_file_dp_2D( filename_refgeo, 'default_options_SL', refgeo%SL_mesh_raw)
-      ELSE
+      if (has_SL) then
+        call read_field_from_mesh_file_dp_2D( filename_refgeo, 'default_options_SL', refgeo%SL_mesh_raw)
+      else
         refgeo%SL_mesh_raw = 0._dp
-      END IF
+      end if
 
-    END IF !  IF (timeframe_refgeo /= 1E9_dp) THEN
+    end if !  IF (timeframe_refgeo /= 1E9_dp) THEN
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE initialise_reference_geometry_raw_from_file_mesh
+  end subroutine initialise_reference_geometry_raw_from_file_mesh
 
   ! Initialise idealised geometries on the model mesh
   ! =================================================

@@ -9,12 +9,14 @@ module masks_mod
   use ice_model_types, only: type_ice_model
   use ice_geometry_basics, only: is_floating
   use projections, only: oblique_sg_projection
+  use plane_geometry, only: is_in_polygon
+  use mesh_ROI_polygons
 
   implicit none
 
   private
 
-  public :: determine_masks, calc_mask_noice, calc_mask_noice_remove_Ellesmere
+  public :: determine_masks, calc_mask_ROI, calc_mask_noice, calc_mask_noice_remove_Ellesmere
 
 contains
 
@@ -199,6 +201,166 @@ contains
     call finalise_routine( routine_name)
 
   end subroutine determine_masks
+
+  subroutine calc_mask_ROI( mesh, ice, region_name)
+    !< Calculate the ROI mask 
+
+    ! In/output variables:
+    type(type_mesh),      intent(in   )           :: mesh
+    type(type_ice_model), intent(inout)           :: ice
+    character(len=3),     intent(in   )           :: region_name
+
+    ! Local variables:
+    character(len=1024), parameter                :: routine_name = 'calc_mask_ROI'
+    character(len=256)                            :: all_names_ROI, name_ROI
+    integer                                       :: vi, vj, ci, i
+    real(dp), dimension(:,:  ), allocatable       :: poly_ROI
+    real(dp), dimension(2)                        :: point
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! if no regions of interest are specified, do nothing
+    if (C%choice_regions_of_interest == '') then
+      call finalise_routine( routine_name)
+      return
+    end if
+
+    all_names_ROI = C%choice_regions_of_interest
+
+    do while (.true.)
+
+      ! == Parse list of input ROIs
+      ! ===========================
+
+      ! Get the first region of interest from the list
+      i = INDEX( all_names_ROI, '||')
+      if (i == 0) then
+        ! There is only one left in the list
+        name_ROI = TRIM( all_names_ROI)
+        all_names_ROI = ''
+      else
+        ! Get the first first one from the list and remove it
+        name_ROI = all_names_ROI( 1:i-1)
+        all_names_ROI = all_names_ROI( i+2:LEN_TRIM( all_names_ROI))
+      end if
+
+      ! == Check validity of requested ROIs
+      ! ===================================
+
+      ! Check if current region is indeed defined in the model
+      select case (name_ROI)
+        case ('')
+          ! No region requested: don't need to do anything
+          exit
+        case ('PineIsland','Thwaites','Amery','RiiserLarsen','SipleCoast', 'LarsenC','TransMounts','DotsonCrosson', 'Franka_WAIS', & ! Antarctica
+              'Narsarsuaq','Nuuk','Jakobshavn','NGIS','Qaanaaq', &                                                    ! Greenland
+              'Patagonia', &                                                                                          ! Patagonia
+              'Tijn_test_ISMIP_HOM_A','CalvMIP_quarter')                                                              ! Idealised
+          ! List of known regions of interest: these pass the test
+        case default
+          ! Region not found
+          call crash('unknown region of interest "' // TRIM( name_ROI) // '"!')
+      end select
+
+      ! == Calculate ROIs
+      ! =================
+
+      ! Calculate the polygon describing the specified region of interest
+      select case (region_name)
+        case ('NAM')
+          ! North america
+
+          select case (name_ROI)
+            case default
+              ! Requested area not in this model domain; skip
+              cycle
+          end select
+
+        case ('EAS')
+          ! Eurasia
+
+          select case (name_ROI)
+            case default
+              ! Requested area not in this model domain; skip
+              cycle
+          end select
+
+        case ('GRL')
+          ! Greenland
+
+          select case (name_ROI)
+            case ('Narsarsuaq')
+              call calc_polygon_Narsarsuaq( poly_ROI)
+            case ('Nuuk')
+              call calc_polygon_Nuuk( poly_ROI)
+            case ('Jakobshavn')
+              call calc_polygon_Jakobshavn( poly_ROI)
+            case ('NGIS')
+              call calc_polygon_NGIS( poly_ROI)
+            case ('Qaanaaq')
+              call calc_polygon_Qaanaaq( poly_ROI)
+            case default
+              ! Requested area not in this model domain; skip
+              cycle
+          end select
+
+        case ('ANT')
+
+          select case (name_ROI)
+            case ('PineIsland')
+              call calc_polygon_Pine_Island_Glacier( poly_ROI)
+            case ('Thwaites')
+              call calc_polygon_Thwaites_Glacier( poly_ROI)
+            case ('Amery')
+              call calc_polygon_Amery_ice_shelf( poly_ROI)
+            case ('RiiserLarsen')
+              call calc_polygon_Riiser_Larsen_ice_shelf( poly_ROI)
+            case ('SipleCoast')
+              call calc_polygon_Siple_Coast( poly_ROI)
+            case ('LarsenC')
+              call calc_polygon_Larsen_ice_shelf( poly_ROI)
+            case ('TransMounts')
+              call calc_polygon_Transantarctic_Mountains( poly_ROI)
+            case ('DotsonCrosson')
+              call calc_polygon_DotsonCrosson_ice_shelf( poly_ROI)
+            case ('Patagonia')
+              call calc_polygon_Patagonia( poly_ROI)
+            case ('Tijn_test_ISMIP_HOM_A')
+              call calc_polygon_Tijn_test_ISMIP_HOM_A( poly_ROI)
+            case ('CalvMIP_quarter')
+              call calc_polygon_CalvMIP_quarter( poly_ROI)
+            case ('Franka_WAIS')
+              call calc_polygon_Franka_WAIS( poly_ROI)
+            case default
+              ! Requested area not in this model domain; skip
+              cycle
+          end select
+
+        case default
+          call crash('unknown region name "' // region_name // '"!')
+      end select
+
+      ! Check for each grid point whether it is located within the polygon of the ROI
+      do vi = mesh%vi1, mesh%vi2
+        do ci = 1, mesh%nC(vi)
+            vj = mesh%C( vi,ci)
+            point = mesh%V( vj,:) ! Just to make sure it's in the right format
+            if (is_in_polygon(poly_ROI, point)) then
+              ice%mask_ROI(vi) = .true.
+            end if
+        end do
+      end do ! do vi = mesh%vi1, mesh%vi2
+
+      ! Clean up after yourself
+      deallocate( poly_ROI)
+
+    end do
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine calc_mask_ROI
 
   subroutine calc_mask_noice( mesh, ice)
     !< Calculate the no-ice mask

@@ -8,13 +8,13 @@ module netcdf_setup_grid_mesh_from_file
   use grid_types, only: type_grid, type_grid_lonlat
   use mesh_types, only: type_mesh
   use mesh_memory, only: allocate_mesh_primary
-  use mesh_utilities, only: check_mesh
   use mesh_parallel_creation, only: broadcast_mesh
   use mesh_secondary, only: calc_all_secondary_mesh_data
   use mesh_disc_calc_matrix_operators_2D, only: calc_all_matrix_operators_mesh
   use grid_lonlat_basic, only: calc_lonlat_field_to_vector_form_translation_tables
   use grid_basic, only: calc_secondary_grid_data
   use netcdf_basic
+  use tests_main
 
   implicit none
 
@@ -210,7 +210,7 @@ contains
     call read_var_master(  filename, ncid, id_var_beta_stereo   , mesh%beta_stereo   )
 
     ! Vertex data
-    call read_var_master(  filename, ncid, id_var_V             , mesh%V             )
+    call read_var_master( filename, ncid, id_var_V             , mesh%V             )
     call read_var_master( filename, ncid, id_var_nC            , mesh%nC            )
     call read_var_master( filename, ncid, id_var_C             , mesh%C             )
     call read_var_master( filename, ncid, id_var_niTri         , mesh%niTri         )
@@ -219,11 +219,13 @@ contains
 
     ! Triangle data
     call read_var_master( filename, ncid, id_var_Tri           , mesh%Tri           )
-    call read_var_master(  filename, ncid, id_var_Tricc         , mesh%Tricc         )
+    call read_var_master( filename, ncid, id_var_Tricc         , mesh%Tricc         )
     call read_var_master( filename, ncid, id_var_TriC          , mesh%TriC          )
 
     ! Safety - check if the mesh data read from NetCDF makes sense
-    if (par%master) call check_mesh( mesh)
+    if (par%master) then
+      if (.not. test_mesh_is_self_consistent( mesh)) call crash('invalid mesh in file ' // trim( filename))
+    end if
 
     ! Broadcast read mesh from the master to the other processes
     call broadcast_mesh( mesh)

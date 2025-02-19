@@ -766,6 +766,13 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: choice_BMB_model_GRL_config                  = 'uniform'
     CHARACTER(LEN=256)  :: choice_BMB_model_ANT_config                  = 'uniform'
 
+    ! Choice of BMB model in ROI
+    CHARACTER(LEN=256)  :: choice_BMB_model_NAM_ROI_config              = 'identical_to_choice_BMB_model'  ! Choose BMB model in ROI, options: 'identical_to_choice_BMB_model', 'uniform', 'laddie_py'
+    CHARACTER(LEN=256)  :: choice_BMB_model_EAS_ROI_config              = 'identical_to_choice_BMB_model'  ! Choose BMB model in ROI, options: 'identical_to_choice_BMB_model', 'uniform', 'laddie_py'
+    CHARACTER(LEN=256)  :: choice_BMB_model_GRL_ROI_config              = 'identical_to_choice_BMB_model'  ! Choose BMB model in ROI, options: 'identical_to_choice_BMB_model', 'uniform', 'laddie_py'
+    CHARACTER(LEN=256)  :: choice_BMB_model_ANT_ROI_config              = 'identical_to_choice_BMB_model'  ! Choose BMB model in ROI, options: 'identical_to_choice_BMB_model', 'uniform', 'laddie_py'
+
+
     ! Prescribed BMB forcing
     CHARACTER(LEN=256)  :: choice_BMB_prescribed_NAM_config             = ''
     CHARACTER(LEN=256)  :: choice_BMB_prescribed_EAS_config             = ''
@@ -792,6 +799,7 @@ MODULE model_configuration
 
     ! "uniform"
     REAL(dp)            :: uniform_BMB_config                           = 0._dp
+    REAL(dp)            :: uniform_BMB_ROI_config                       = 0._dp
 
     ! "parameterised"
     REAL(dp)            :: BMB_Favier2019_gamma_config                  = 99.32E-5
@@ -802,6 +810,7 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: filename_BMB_laddie_initial_restart_config   = ''                               ! File name containing restart for laddie from laddie spinup
     CHARACTER(LEN=256)  :: filename_BMB_laddie_initial_output_config    = ''                               ! File name containing output from laddie spinup
     CHARACTER(LEN=256)  :: dir_BMB_laddie_model_config                  = ''                               ! Directory where laddie code is located
+    CHARACTER(LEN=256)  :: conda_activate_prompt_config                 = 'conda activate laddie'          ! Prompt to activate conda environment used for running laddie
 
   ! == LADDIE model
   ! ===============
@@ -1745,6 +1754,12 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: choice_BMB_model_GRL
     CHARACTER(LEN=256)  :: choice_BMB_model_ANT
 
+    ! Choice of BMB model in ROI
+    CHARACTER(LEN=256)  :: choice_BMB_model_NAM_ROI 
+    CHARACTER(LEN=256)  :: choice_BMB_model_EAS_ROI 
+    CHARACTER(LEN=256)  :: choice_BMB_model_GRL_ROI
+    CHARACTER(LEN=256)  :: choice_BMB_model_ANT_ROI
+
     ! Prescribed BMB forcing
     CHARACTER(LEN=256)  :: choice_BMB_prescribed_NAM
     CHARACTER(LEN=256)  :: choice_BMB_prescribed_EAS
@@ -1771,6 +1786,7 @@ MODULE model_configuration
 
     ! "uniform"
     REAL(dp)            :: uniform_BMB
+    REAL(dp)            :: uniform_BMB_ROI
 
     ! "parameterised"
     REAL(dp)            :: BMB_Favier2019_gamma
@@ -1781,6 +1797,7 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: filename_BMB_laddie_initial_restart
     CHARACTER(LEN=256)  :: filename_BMB_laddie_initial_output
     CHARACTER(LEN=256)  :: dir_BMB_laddie_model
+    CHARACTER(LEN=256)  :: conda_activate_prompt
 
   ! == LADDIE model
   ! ===============
@@ -2671,6 +2688,10 @@ CONTAINS
       choice_BMB_model_EAS_config                                 , &
       choice_BMB_model_GRL_config                                 , &
       choice_BMB_model_ANT_config                                 , &
+      choice_BMB_model_NAM_ROI_config                             , &
+      choice_BMB_model_EAS_ROI_config                             , &
+      choice_BMB_model_GRL_ROI_config                             , &
+      choice_BMB_model_ANT_ROI_config                             , &
       choice_BMB_prescribed_NAM_config                            , &
       choice_BMB_prescribed_EAS_config                            , &
       choice_BMB_prescribed_GRL_config                            , &
@@ -2686,12 +2707,14 @@ CONTAINS
       choice_BMB_model_idealised_config                           , &
       choice_BMB_model_parameterised_config                       , &
       uniform_BMB_config                                          , &
+      uniform_BMB_ROI_config                                      , &
       BMB_Favier2019_gamma_config                                 , &
       choice_BMB_laddie_system_config                             , &
       filename_BMB_laddie_configname_config                       , &
       filename_BMB_laddie_initial_restart_config                  , &
       filename_BMB_laddie_initial_output_config                   , &
       dir_BMB_laddie_model_config                                 , &
+      conda_activate_prompt_config                                , &
       dt_laddie_config                                            , &
       time_duration_laddie_config                                 , &
       time_duration_laddie_init_config                            , &
@@ -3607,6 +3630,12 @@ CONTAINS
     C%choice_BMB_model_GRL                                   = choice_BMB_model_GRL_config
     C%choice_BMB_model_ANT                                   = choice_BMB_model_ANT_config
 
+    ! Choice of BMB model in ROI
+    C%choice_BMB_model_NAM_ROI                               = choice_BMB_model_NAM_ROI_config
+    C%choice_BMB_model_EAS_ROI                               = choice_BMB_model_EAS_ROI_config
+    C%choice_BMB_model_GRL_ROI                               = choice_BMB_model_GRL_ROI_config
+    C%choice_BMB_model_ANT_ROI                               = choice_BMB_model_ANT_ROI_config
+
     ! Prescribed BMB forcing
     C%choice_BMB_prescribed_NAM                              = choice_BMB_prescribed_NAM_config
     C%choice_BMB_prescribed_EAS                              = choice_BMB_prescribed_EAS_config
@@ -3633,6 +3662,7 @@ CONTAINS
 
     ! "uniform"
     C%uniform_BMB                                            = uniform_BMB_config
+    C%uniform_BMB_ROI                                        = uniform_BMB_ROI_config
 
     ! "parameterised"
     C%BMB_Favier2019_gamma                                   = BMB_Favier2019_gamma_config
@@ -3643,6 +3673,7 @@ CONTAINS
     C%filename_BMB_laddie_initial_restart                    = filename_BMB_laddie_initial_restart_config
     C%filename_BMB_laddie_initial_output                     = filename_BMB_laddie_initial_output_config
     C%dir_BMB_laddie_model                                   = dir_BMB_laddie_model_config
+    C%conda_activate_prompt                                  = conda_activate_prompt_config
 
   ! == LADDIE model
   ! ===============

@@ -77,6 +77,7 @@ contains
     allocate( ice%mask_cf_gr             ( mesh%vi1:mesh%vi2), source = .false.)
     allocate( ice%mask_cf_fl             ( mesh%vi1:mesh%vi2), source = .false.)
     allocate( ice%mask_coastline         ( mesh%vi1:mesh%vi2), source = .false.)
+    allocate( ice%mask_ROI               ( mesh%vi1:mesh%vi2), source = .false.)
     allocate( ice%mask_noice             ( mesh%vi1:mesh%vi2), source = .false.)
     allocate( ice%mask                   ( mesh%vi1:mesh%vi2), source = 0)
     allocate( ice%basin_ID               ( mesh%vi1:mesh%vi2), source = 0)

@@ -26,35 +26,40 @@ CONTAINS
 ! ===== Main routines =====
 ! =========================
 
-  SUBROUTINE run_BMB_model_laddie( mesh, BMB, time)
+  SUBROUTINE run_BMB_model_laddie( mesh, ice, BMB, time, do_hybrid)
     ! Calculate the basal mass balance
     !
     ! Call the external LADDIE model
 
     ! In/output variables:
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
+    TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_BMB_model),                   INTENT(INOUT) :: BMB
     REAL(dp),                               INTENT(IN)    :: time
+    LOGICAL,                                INTENT(IN)    :: do_hybrid  ! If .TRUE. run laddie within ROI, and a different BMB model outside ROI. If .FALSE. run laddie for the full domain.
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'run_BMB_model_laddie'
     CHARACTER(LEN=256)                                    :: filename_BMB_laddie_output
     CHARACTER(LEN=256)                                    :: filename_laddieready
     LOGICAL                                               :: found_laddie_file
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: temporary_BMB
+    INTEGER                                               :: vi
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
     IF (time > C%start_time_of_run) THEN
+      ! Compute and read laddie values for current geometry
 
       ! Define filename of BMB output from LADDIE
-      filename_BMB_laddie_output      = TRIM(C%fixed_output_dir) // '/laddie_output/output_BMB.nc'
+      filename_BMB_laddie_output      = TRIM(C%fixed_output_dir) // '/laddie_output/BMB_latest_v00.nc'
 
       ! Run LADDIE
       IF (par%master) THEN
         ! Different commands are needed to run laddie on different systems. local_mac or slurm_HPC (the latter is used for snellius)
         IF (C%choice_BMB_laddie_system == 'local_mac') THEN
-          CALL system('cd ' // TRIM(C%dir_BMB_laddie_model) // '; conda activate laddie ; python3 runladdie.py ' // TRIM(C%filename_BMB_laddie_configname) // '; conda deactivate')
+          CALL system('cd ' // TRIM(C%dir_BMB_laddie_model) // ';' // TRIM(C%conda_activate_prompt) // '; python3 runladdie.py ' // TRIM(C%filename_BMB_laddie_configname) // '; conda deactivate')
         ELSEIF (C%choice_BMB_laddie_system == 'slurm_HPC') THEN
           CALL system('cd ' // TRIM(C%dir_BMB_laddie_model) // '; srun --ntasks=1 --exact --overlap --cpu-bind=cores python3 runladdie.py ' // TRIM(C%filename_BMB_laddie_configname))
         ELSE
@@ -67,10 +72,44 @@ CONTAINS
 
       ! Let UFEMISM sleep until LADDIE is finished
       CALL wait_for_laddie_to_finish( filename_laddieready, found_laddie_file)
+    
+      IF (do_hybrid) THEN 
+        ! Only apply values to ROI
+        CALL read_field_from_file_2D( filename_BMB_laddie_output, 'BMBext', mesh, temporary_BMB)
 
-      ! If laddieready is found, read in BMB data from LADDIE
-      IF (found_laddie_file) THEN
+        DO vi = mesh%vi1, mesh%vi2
+          IF (ice%mask_ROI(vi)) THEN 
+            IF (ice%mask_floating_ice( vi) .OR. ice%mask_icefree_ocean( vi) .OR. ice%mask_gl_gr( vi)) THEN 
+              BMB%BMB_shelf( vi) = temporary_BMB(vi)
+            END IF
+          END IF
+        END DO
+
+      ELSE
+        ! Apply values to all ice shelf grid cells
         CALL read_field_from_file_2D( filename_BMB_laddie_output, 'BMBext', mesh, BMB%BMB_shelf)
+
+      END IF
+
+    ELSE ! (time = C%start_time_of_run)
+      ! Read values from laddie initial output
+
+      IF (do_hybrid) THEN 
+        ! Only apply values to ROI
+        CALL read_field_from_file_2D( C%filename_BMB_laddie_initial_output, 'BMBext', mesh, temporary_BMB)
+
+        DO vi = mesh%vi1, mesh%vi2
+          IF (ice%mask_ROI(vi)) THEN
+            IF (ice%mask_floating_ice( vi) .OR. ice%mask_icefree_ocean( vi) .OR. ice%mask_gl_gr( vi)) THEN 
+              BMB%BMB_shelf( vi) = temporary_BMB(vi)
+            END IF
+          END IF
+        END DO
+
+      ELSE
+        ! Apply values to all ice shelf grid cells
+        CALL read_field_from_file_2D( C%filename_BMB_laddie_initial_output, 'BMBext', mesh, BMB%BMB_shelf)
+      
       END IF
 
     END IF ! (time > C%start_time_of_run)
@@ -112,9 +151,6 @@ CONTAINS
 
     END IF
     CALL sync
-
-    ! Read in BMB data from LADDIE
-    CALL read_field_from_file_2D( C%filename_BMB_laddie_initial_output, 'BMBext', mesh, BMB%BMB_shelf)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

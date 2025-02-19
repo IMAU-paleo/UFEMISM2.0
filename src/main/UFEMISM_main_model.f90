@@ -850,6 +850,11 @@ CONTAINS
       CALL crash('unknown region name "' // TRIM( region%name) // '"!')
     END IF
 
+    ! Exception for when we want to flexible read the last output file of a previous UFEMISM simulation
+    if (index( filename_initial_mesh,'_LAST.nc') > 1) then
+      call find_last_output_file( filename_initial_mesh)
+    end if
+
     ! Print to screen
     IF (par%master) WRITE(0,'(A)') '   Reading mesh from file "' // colour_string( TRIM( filename_initial_mesh),'light blue') // '"...'
 
@@ -947,7 +952,7 @@ CONTAINS
         CASE ('')
          ! No region requested: don't need to do anything
          EXIT
-        CASE ('PineIsland','Thwaites','Amery','RiiserLarsen','SipleCoast','LarsenC','TransMounts','DotsonCrosson', & ! Antarctica
+        CASE ('PineIsland','Thwaites','Amery','RiiserLarsen','SipleCoast','LarsenC','TransMounts','DotsonCrosson', 'Franka_WAIS', & ! Antarctica
               'Narsarsuaq','Nuuk','Jakobshavn','NGIS','Qaanaaq', &                                                   ! Greenland
               'Patagonia', &                                                                                         ! Patagonia
               'Tijn_test_ISMIP_HOM_A','CalvMIP_quarter')                                                             ! Idealised
@@ -1025,6 +1030,8 @@ CONTAINS
             CASE ('CalvMIP_quarter')
               ! Not interesting; skip
               CYCLE
+            CASE ('Franka_WAIS')
+              CALL calc_polygon_Franka_WAIS( poly_ROI)
             CASE DEFAULT
               ! Requested area not in this model domain; skip
               CYCLE
