@@ -561,8 +561,7 @@ contains
     integer,  dimension(region%mesh%vi1:region%mesh%vi2) :: extrapolation_mask
     real(dp)                                             :: dt_dummy
     real(dp), dimension(region%mesh%vi1:region%mesh%vi2) :: SMB_dummy, BMB_dummy, LMB_dummy, AMB_dummy, dHi_dt_dummy, Hi_dummy
-    logical  :: do_not_apply_inversion_in_ROI, do_print
-    REAL(dp)                                              :: w1, w2
+    real(dp)                                             :: w1, w2
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -634,31 +633,23 @@ contains
 
     ! == Total BMB
     ! ============
-
-    ! FJFJFJ: ADD OPTION TO DO INVERSION ONLY FOR NOT MASK ROI: apply inversion only on cells that are outside ROI (except when you want to run inverted BMB in ROI too)
-    do_not_apply_inversion_in_ROI = .TRUE.
     
     ! Initialise
-    ! region%BMB%BMB = 0._dp
+    region%BMB%BMB = 0._dp
     
-    w1 = 1.0_dp - ((region%time - 80000._dp)/(80490._dp - 80000._dp))
+    ! Compute smoothing weights
+    w1 = 1.0_dp - ((region%time - C%BMB_smooth_inversion_t_start)/(C%BMB_smooth_inversion_t_end - C%BMB_smooth_inversion_t_start))
     w2 = 1.0_dp - w1 
-
-    print*, w1
-    print*, w2
-    do_print = .FALSE.
 
     ! Compute total BMB
     do vi = region%mesh%vi1, region%mesh%vi2
 
-      IF (region%ice%mask_ROI( vi) .and. do_not_apply_inversion_in_ROI) THEN 
-        ! BUILD IN loopje dat hij slide naar ROI???
-        if (region%time >= 80000._dp .and. &     ! C%BMB_smooth_inversion_t_start
-        region%time <= 80490._dp) then           ! C%BMB_smooth_inversion_t_start
-          
-          ! Initialise
-          region%BMB%BMB( vi) = 0._dp
-          region%BMB%BMB_smooth( vi) = region%BMB%BMB( vi) ! just for diagnostic output
+      IF (region%ice%mask_ROI( vi) .and. C%do_BMB_smooth_inversion) THEN 
+        ! Within ROI: apply smoothing from inverted to computed BMB when in specified smoothing time window
+
+        if (region%time >= C%BMB_smooth_inversion_t_start .and. &
+        region%time <= C%BMB_smooth_inversion_t_end) then
+        ! if region time is in specified smoothing time window, apply smoothing
 
           ! Skip vertices where BMB does not operate
           if (.not. region%ice%mask_gl_gr( vi) .and. &
@@ -667,17 +658,15 @@ contains
           
           ! Apply scaling between inverted BMB field and BMB field computed by BMB model in ROI
           region%BMB%BMB( vi) = w1 * region%BMB%BMB_inv( vi) + w2 * region%BMB%BMB_ROI( vi)
-          region%BMB%BMB_smooth( vi) = region%BMB%BMB( vi) ! just for diagnostic output
 
         else 
-          ! do nothing and just use the ROI BMB without smoothing
-
+        ! if region time is not in specified smoothing time window, use the computed BMB in ROI
+          region%BMB%BMB( vi) = region%BMB%BMB_ROI( vi)
+        ! This might now break for not ROI? CHECK FJFJ!
         end if 
-        ! do nothing in ROI if the choice_BMB_model_ROI is not inverted
-        ! USE BMB COMPUTED IN BMB_MODEL
+
       ELSE
-        ! Initialise
-        region%BMB%BMB( vi) = 0._dp
+        ! Outside ROI: do not apply smoothing
 
         ! Skip vertices where BMB does not operate
         if (.not. region%ice%mask_gl_gr( vi) .and. &
@@ -688,7 +677,10 @@ contains
         region%BMB%BMB( vi) = region%BMB%BMB_inv( vi)
 
       END IF
-
+      
+      ! Save smoothed BMB field for diagnostic output
+      region%BMB%BMB_smooth( vi) = region%BMB%BMB( vi) 
+    
     end do
 
     
