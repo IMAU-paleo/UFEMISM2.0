@@ -18,6 +18,7 @@ MODULE laddie_utilities
   USE ocean_utilities                                        , ONLY: interpolate_ocean_depth
   USE mpi_distributed_memory                                 , ONLY: gather_to_all
   use petsc_basic                                            , only: multiply_CSR_matrix_with_vector_1D
+  use CSR_sparse_matrix_utilities                            , only: allocate_matrix_CSR_dist
 
   IMPLICIT NONE
     
@@ -136,6 +137,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'allocate_laddie_model'
+    INTEGER                                               :: ncols, ncols_loc, nrows, nrows_loc, nnz_per_row_est, nnz_est_proc
  
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -206,6 +208,19 @@ CONTAINS
     ALLOCATE( laddie%mask_gl_b          ( mesh%ti1:mesh%ti2), source=.false.) !                 Grounding line mask on b-grid
     ALLOCATE( laddie%mask_cf_b          ( mesh%ti1:mesh%ti2), source=.false.) !                 Calving front mask on b-grid
     ALLOCATE( laddie%mask_oc_b          ( mesh%ti1:mesh%ti2), source=.false.) !                 Icefree ocean mask on b-grid
+
+    ! == Initialise the matrix using the native UFEMISM CSR-matrix format
+    ! ===================================================================
+
+    ! Matrix size
+    ncols           = mesh%nV        ! from
+    ncols_loc       = mesh%nV_loc
+    nrows           = mesh%nTri      ! to
+    nrows_loc       = mesh%nTri_loc
+    nnz_per_row_est = 3
+    nnz_est_proc    = nrows_loc * nnz_per_row_est
+
+    call allocate_matrix_CSR_dist( laddie%M_map_H_a_b, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

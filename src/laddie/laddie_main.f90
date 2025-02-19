@@ -156,6 +156,9 @@ CONTAINS
       laddie%mask_a( vi)  = ice%mask_floating_ice( vi)
     END DO
 
+    ! == Update operators ==
+    CALL update_laddie_operators( mesh, ice, laddie)
+
     ! Initialise requested timesteps
     CALL initialise_laddie_model_timestep( mesh, laddie, ocean, ice, laddie%now)
 
@@ -548,9 +551,7 @@ CONTAINS
     call init_routine( routine_name)
 
     ! Make sure to deallocate before allocating
-    if (allocated( laddie%M_map_H_a_b)) then
-      call deallocate_matrix_CSR_dist( laddie%M_map_H_a_b)
-    end if
+    call deallocate_matrix_CSR_dist( laddie%M_map_H_a_b)
 
     ! == Initialise the matrix using the native UFEMISM CSR-matrix format
     ! ===================================================================
