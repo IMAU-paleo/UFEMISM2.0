@@ -548,7 +548,7 @@ CONTAINS
     call init_routine( routine_name)
 
     ! Make sure to deallocate before allocating
-    if (allocated( laddie%M_map_H_a_b) then
+    if (allocated( laddie%M_map_H_a_b)) then
       call deallocate_matrix_CSR_dist( laddie%M_map_H_a_b)
     end if
 
@@ -595,7 +595,7 @@ CONTAINS
         ! Add weight to matrix
         do i = 1, 3
           vi = mesh%Tri( ti, i)
-          call add_entry_CSR_dist( laddie%M_map_H_a_b, ti, vi, cM_map_H_a_b( i)
+          call add_entry_CSR_dist( laddie%M_map_H_a_b, ti, vi, cM_map_H_a_b( i))
         end do
 
       else

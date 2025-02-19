@@ -104,7 +104,7 @@ MODULE laddie_model_types
     LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_oc_b                   !                   Icefree ocean mask on b-grid
 
     ! Mapping operators
-    TYPE(type_sparse_matrix_CSR_dp)         :: M_map_H_a_b
+    TYPE(type_sparse_matrix_CSR_dp), ALLOCATABLE :: M_map_H_a_b
    
     ! Timestepping types
     TYPE(type_laddie_timestep)              :: now                         !                   Timestep now  
