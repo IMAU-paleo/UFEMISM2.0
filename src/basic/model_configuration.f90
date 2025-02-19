@@ -755,6 +755,11 @@ MODULE model_configuration
     LOGICAL             :: do_BMB_inversion_config                      = .FALSE.                          ! Whether or not the BMB should be inverted to keep whatever geometry the floating areas have at any given moment
     REAL(dp)            :: BMB_inversion_t_start_config                 = +9.9E9_dp                        ! [yr] Start time for BMB inversion based on computed thinning rates in marine areas
     REAL(dp)            :: BMB_inversion_t_end_config                   = +9.9E9_dp                        ! [yr] End   time for BMB inversion based on computed thinning rates in marine areas
+    
+    ! Inversion smoothing
+    LOGICAL             :: do_BMB_smooth_inversion_config               = .FALSE.                          ! Whether or not the inverted BMB should be smoothed to a modelled BMB over a specified time window (only applied when do_BMB_inversion_config = .TRUE.)
+    REAL(dp)            :: BMB_smooth_inversion_t_start_config          = +9.9E9_dp                        ! [yr] Start time for BMB inversion smoothing 
+    REAL(dp)            :: BMB_smooth_inversion_t_end_config            = +9.9E9_dp                        ! [yr] Start time for BMB inversion smoothing 
 
     ! Grounding line treatment
     LOGICAL             :: do_subgrid_BMB_at_grounding_line_config      = .FALSE.                          ! Whether or not to apply basal melt rates under a partially floating grounding line; if so, use choice_BMB_subgrid; if not, apply "NMP"
@@ -1741,6 +1746,11 @@ MODULE model_configuration
     REAL(dp)            :: BMB_inversion_t_start
     REAL(dp)            :: BMB_inversion_t_end
 
+    ! Inversion smoothing
+    LOGICAL             :: do_BMB_smooth_inversion
+    REAL(dp)            :: BMB_smooth_inversion_t_start
+    REAL(dp)            :: BMB_smooth_inversion_t_end
+
     ! Grounding line treatment
     LOGICAL             :: do_subgrid_BMB_at_grounding_line
     CHARACTER(LEN=256)  :: choice_BMB_subgrid
@@ -2675,6 +2685,9 @@ CONTAINS
       do_BMB_inversion_config                                     , &
       BMB_inversion_t_start_config                                , &
       BMB_inversion_t_end_config                                  , &
+      do_BMB_smooth_inversion_config                              , &
+      BMB_smooth_inversion_t_start_config                         , &
+      BMB_smooth_inversion_t_end_config                           , &
       do_subgrid_BMB_at_grounding_line_config                     , &
       choice_BMB_subgrid_config                                   , &
       choice_BMB_model_NAM_config                                 , &
@@ -3609,6 +3622,11 @@ CONTAINS
     C%do_BMB_inversion                                       = do_BMB_inversion_config
     C%BMB_inversion_t_start                                  = BMB_inversion_t_start_config
     C%BMB_inversion_t_end                                    = BMB_inversion_t_end_config
+
+    ! Inversion smoothing
+    C%do_BMB_smooth_inversion                                = do_BMB_smooth_inversion_config
+    C%BMB_smooth_inversion_t_start                           = BMB_smooth_inversion_t_start_config
+    C%BMB_smooth_inversion_t_end                             = BMB_smooth_inversion_t_end_config
 
     ! Grounding line treatment
     C%do_subgrid_BMB_at_grounding_line                       = do_subgrid_BMB_at_grounding_line_config
