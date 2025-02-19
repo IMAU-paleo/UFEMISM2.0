@@ -37,7 +37,7 @@ def get_allnames(ds,maxlev=7):
     names = []
     tcomps = []
     for r in range(len(ds.n_routines)):
-        name = get_fullstring(ds.routine_names_encoded[:,r].values)
+        name = get_name(ds.routine_names_encoded[:,r].values)
         if len(name)==1:
             # Reached last non-placeholder name
             break
