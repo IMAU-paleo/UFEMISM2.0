@@ -348,11 +348,11 @@ SUBROUTINE initialise_SMB_model_parameterised( mesh, SMB, climate, region_name)
     ! Read firn layer from file
     IF (timeframe_refgeo_SMB == 1E9_dp) THEN
       ! Assume the file has no time dimension
-      CALL read_field_from_file_3D( filename_restart_SMB, 'FirnDepth', mesh, SMB%FirnDepth, nzeta=12)
+      CALL read_field_from_file_2D_monthly( filename_restart_SMB, 'FirnDepth', mesh, SMB%FirnDepth)
       CALL read_field_from_file_2D( filename_restart_SMB, 'MeltPreviousYear', mesh, SMB%MeltPreviousYear)
     ELSE
       ! Assume the file has a time dimension, and read the specified timeframe
-      CALL read_field_from_file_3D( filename_restart_SMB, 'FirnDepth', mesh, SMB%FirnDepth, time_to_read = timeframe_refgeo_SMB, nzeta=12)
+      CALL read_field_from_file_2D_monthly( filename_restart_SMB, 'FirnDepth', mesh, SMB%FirnDepth, time_to_read = timeframe_refgeo_SMB)
       CALL read_field_from_file_2D( filename_restart_SMB, 'MeltPreviousYear', mesh, SMB%MeltPreviousYear, time_to_read = timeframe_refgeo_SMB)
     END IF
 
