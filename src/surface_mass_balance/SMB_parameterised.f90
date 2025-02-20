@@ -59,15 +59,15 @@ contains
     ! use a parameterised SMB scheme
 
     ! In- and output variables
-    type(type_mesh),      intent(in)    :: mesh
-    type(type_ice),       intent(in)    :: ice
-    type(type_climate),   intent(in)    :: climate
-    type(type_SMB_model), intent(inout) :: SMB
+    type(type_mesh),          intent(in)    :: mesh
+    type(type_ice_model),     intent(in)    :: ice
+    type(type_climate_model), intent(in)    :: climate
+    type(type_SMB_model),     intent(inout) :: SMB
 
     ! Local variables:
     character(len=256), parameter :: routine_name = 'run_SMB_model_parameterised_IMAUITM'
     integer                       :: vi
-    integer                       :: mprev
+    integer                       :: m,mprev
     real(dp)                      :: snowfrac, liquid_water, sup_imp_wat
     real(dp)                      :: dummy_dp
 
@@ -102,8 +102,8 @@ contains
 
         ! Determine ablation as a function of surface temperature and albedo/insolation according to Bintanja et al. (2002)
         SMB%Melt( m,vi) = MAX(0._dp, ( SMB%C_abl_Ts         * (climate%T2m( m,vi) - T0) + &
-                                        SMB%C_abl_Q          * (1.0_dp - SMB%Albedo( m,vi)) * climate%Q_TOA( m,vi) - &
-                                        SMB%C_abl_constant)  * sec_per_year / (L_fusion * 1000._dp * 12._dp))
+                                       SMB%C_abl_Q          * (1.0_dp - SMB%Albedo( m,vi)) * climate%Q_TOA( m,vi) - &
+                                       SMB%C_abl_constant)  * sec_per_year / (L_fusion * 1000._dp * 12._dp))
 
         ! Determine accumulation with snow/rain fraction from Ohmura et al. (1999), liquid water content (rain and melt water) and snow depth
 
@@ -153,15 +153,16 @@ contains
 
   end subroutine run_SMB_model_parameterised_IMAUITM
 
-SUBROUTINE initialise_SMB_model_parameterised( mesh, SMB, climate)
+SUBROUTINE initialise_SMB_model_parameterised( mesh, SMB, climate, region_name)
     ! Initialise the SMB model
     !
     ! Use a parameterised SMB scheme
 
     ! In- and output variables
-    TYPE(type_mesh),                        INTENT(IN)    :: mesh
-    TYPE(type_climate),                     INTENT(IN)    :: climate
-    TYPE(type_BMB_model),                   INTENT(INOUT) :: SMB
+    TYPE(type_mesh),          INTENT(IN)    :: mesh
+    TYPE(type_climate_model), INTENT(IN)    :: climate
+    TYPE(type_BMB_model),     INTENT(INOUT) :: SMB
+    CHARACTER(LEN=3),         INTENT(IN)    :: region_name
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'initialise_SMB_model_parameterised'
@@ -176,7 +177,7 @@ SUBROUTINE initialise_SMB_model_parameterised( mesh, SMB, climate)
     ! Initialise the chosen parameterised SMB model
     SELECT CASE (C%choice_SMB_model_parameterised)
       CASE ('IMAU-ITM')
-        CALL initialise_SMB_model_parameterised_IMAUITM( mesh, ice, SMB, climate)
+        CALL initialise_SMB_model_parameterised_IMAUITM( mesh, ice, SMB, climate, region_name)
       CASE DEFAULT
         CALL crash('unknown choice_SMB_model_parameterised "' // TRIM( C%choice_SMB_model_parameterised) // '"')
     END SELECT
@@ -192,11 +193,11 @@ SUBROUTINE initialise_SMB_model_parameterised( mesh, SMB, climate)
     IMPLICIT NONE
 
     ! In/output variables
-    TYPE(type_mesh),               INTENT(IN)    :: mesh
-    TYPE(type_ice),                INTENT(IN)    :: ice
-    TYPE(type_climate),            INTENT(IN)    :: climate
-    CHARACTER(LEN=3),              INTENT(IN)    :: region_name
-    TYPE(type_SMB),                INTENT(INOUT) :: SMB
+    TYPE(type_mesh),          INTENT(IN)    :: mesh
+    TYPE(type_ice_model),     INTENT(IN)    :: ice
+    TYPE(type_climate_model), INTENT(IN)    :: climate
+    CHARACTER(LEN=3),         INTENT(IN)    :: region_name
+    TYPE(type_SMB_model),     INTENT(INOUT) :: SMB
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_SMB_model_parameterised_IMAUITM'
