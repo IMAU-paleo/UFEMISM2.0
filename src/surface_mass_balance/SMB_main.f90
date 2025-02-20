@@ -266,7 +266,7 @@ CONTAINS
       CASE ('reconstructed')
         ! No need to do anything
       CASE ('parameterised')  
-        ! No need to do anything    
+        !TODO:  (No) need to do anything(?)
       CASE DEFAULT
         CALL crash('unknown choice_SMB_model "' // TRIM( choice_SMB_model) // '"')
     END SELECT
