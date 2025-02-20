@@ -758,7 +758,7 @@ MODULE model_configuration
     
     ! Inversion smoothing
     LOGICAL             :: do_BMB_smooth_inversion_config               = .FALSE.                          ! Whether or not the inverted BMB should be smoothed to a modelled BMB over a specified time window (only applied when do_BMB_inversion_config = .TRUE.)
-    REAL(dp)            :: BMB_smooth_inversion_t_start_config          = +9.9E9_dp                        ! [yr] Start time for BMB inversion smoothing 
+    REAL(dp)            :: BMB_smooth_inversion_t_start_config          = +9.8E9_dp                        ! [yr] Start time for BMB inversion smoothing 
     REAL(dp)            :: BMB_smooth_inversion_t_end_config            = +9.9E9_dp                        ! [yr] Start time for BMB inversion smoothing 
 
     ! Grounding line treatment
