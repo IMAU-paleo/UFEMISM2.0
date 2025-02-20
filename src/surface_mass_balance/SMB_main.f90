@@ -17,6 +17,7 @@ MODULE SMB_main
   USE SMB_model_types                                        , ONLY: type_SMB_model
   USE SMB_idealised                                          , ONLY: initialise_SMB_model_idealised, run_SMB_model_idealised
   USE SMB_prescribed                                         , ONLY: initialise_SMB_model_prescribed, run_SMB_model_prescribed
+  USE SMB_parameterised                                      , ONLY: initialise_SMB_model_parameterised, run_SMB_model_parameterised
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   use mesh_ROI_polygons, only: calc_polygon_Patagonia
   use plane_geometry, only: is_in_polygon
@@ -97,6 +98,8 @@ CONTAINS
         CALL run_SMB_model_prescribed( mesh, ice, SMB, region_name, time)
       CASE ('reconstructed')
         CALL run_SMB_model_reconstructed( mesh, grid_smooth, ice, SMB, region_name, time)
+      CASE ('parameterised')  
+        CALL run_SMB_model_parameterised( mesh, ice, SMB, climate, time)
       CASE DEFAULT
         CALL crash('unknown choice_SMB_model "' // TRIM( choice_SMB_model) // '"')
     END SELECT
@@ -157,6 +160,8 @@ CONTAINS
         CALL initialise_SMB_model_prescribed( mesh, SMB, region_name)
       CASE ('reconstructed')
         CALL initialise_SMB_model_reconstructed( mesh, SMB, region_name)
+      CASE ('parameterised')  
+        CALL initialise_SMB_model_parameterised( mesh, ice, SMB, climate, time)  
       CASE DEFAULT
         CALL crash('unknown choice_SMB_model "' // TRIM( choice_SMB_model) // '"')
     END SELECT
@@ -208,6 +213,8 @@ CONTAINS
         ! No need to do anything
       CASE ('reconstructed')
         ! No need to do anything
+      CASE ('parameterised')  
+        ! No need to do anything  
       CASE DEFAULT
         CALL crash('unknown choice_SMB_model "' // TRIM( choice_SMB_model) // '"')
     END SELECT
@@ -258,6 +265,8 @@ CONTAINS
         ! No need to do anything
       CASE ('reconstructed')
         ! No need to do anything
+      CASE ('parameterised')  
+        ! No need to do anything    
       CASE DEFAULT
         CALL crash('unknown choice_SMB_model "' // TRIM( choice_SMB_model) // '"')
     END SELECT
@@ -313,8 +322,10 @@ CONTAINS
         ! No need to do anything
       CASE ('prescribed')
         CALL initialise_SMB_model_prescribed( mesh_new, SMB, region_name)
+      CASE ('parameterised')  
+        CALL initialise_SMB_model_parameterised( mesh, ice, SMB, climate, time)  
       CASE ('reconstructed')
-        CALL crash('Remapping after mesh update not implemented yet for reconstructed SMB')
+        CALL crash('Remapping after mesh update not implemented yet for reconstructed SMB')  
       CASE DEFAULT
         CALL crash('unknown choice_SMB_model "' // TRIM( choice_SMB_model) // '"')
     END SELECT
