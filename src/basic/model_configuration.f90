@@ -1760,6 +1760,37 @@ MODULE model_configuration
     REAL(dp)            :: timeframe_SMB_prescribed_GRL
     REAL(dp)            :: timeframe_SMB_prescribed_ANT
 
+    ! Parameterised SMB forcing
+    CHARACTER(LEN=256)  :: choice_SMB_parameterised_NAM
+    CHARACTER(LEN=256)  :: choice_SMB_parameterised_EAS
+    CHARACTER(LEN=256)  :: choice_SMB_parameterised_GRL
+    CHARACTER(LEN=256)  :: choice_SMB_parameterised_ANT
+
+    ! Tuning parameters for the IMAU-ITM SMB model
+    CHARACTER(LEN=256)  :: choice_SMB_IMAUITM_init_firn_NAM
+    CHARACTER(LEN=256)  :: choice_SMB_IMAUITM_init_firn_EAS
+    CHARACTER(LEN=256)  :: choice_SMB_IMAUITM_init_firn_GRL
+    CHARACTER(LEN=256)  :: choice_SMB_IMAUITM_init_firn_ANT
+    REAL(dp)            :: SMB_IMAUITM_initial_firn_thickness
+    REAL(dp)            :: SMB_IMAUITM_C_abl_constant_NAM
+    REAL(dp)            :: SMB_IMAUITM_C_abl_constant_EAS
+    REAL(dp)            :: SMB_IMAUITM_C_abl_constant_GRL
+    REAL(dp)            :: SMB_IMAUITM_C_abl_constant_ANT
+    REAL(dp)            :: SMB_IMAUITM_C_abl_Ts_NAM
+    REAL(dp)            :: SMB_IMAUITM_C_abl_Ts_EAS
+    REAL(dp)            :: SMB_IMAUITM_C_abl_Ts_GRL
+    REAL(dp)            :: SMB_IMAUITM_C_abl_Ts_ANT
+    REAL(dp)            :: SMB_IMAUITM_C_abl_Q_NAM
+    REAL(dp)            :: SMB_IMAUITM_C_abl_Q_EAS
+    REAL(dp)            :: SMB_IMAUITM_C_abl_Q_GRL
+    REAL(dp)            :: SMB_IMAUITM_C_abl_Q_ANT
+    REAL(dp)            :: SMB_IMAUITM_C_refr_NAM
+    REAL(dp)            :: SMB_IMAUITM_C_refr_EAS
+    REAL(dp)            :: SMB_IMAUITM_C_refr_GRL
+    REAL(dp)            :: SMB_IMAUITM_C_refr_ANT
+
+
+
   ! == Basal mass balance
   ! =====================
 
