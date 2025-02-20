@@ -186,7 +186,7 @@ SUBROUTINE initialise_SMB_model_parameterised( mesh, SMB, climate)
 
   END SUBROUTINE initialise_SMB_model_parameterised
 
-  SUBROUTINE initialise_SMB_model_parameterised_IMAUITM( mesh, ice, SMB, climate)
+  SUBROUTINE initialise_SMB_model_parameterised_IMAUITM( mesh, ice, SMB, climate, region_name)
     ! Allocate memory for the data fields of the SMB model.
 
     IMPLICIT NONE
@@ -195,6 +195,7 @@ SUBROUTINE initialise_SMB_model_parameterised( mesh, SMB, climate)
     TYPE(type_mesh),               INTENT(IN)    :: mesh
     TYPE(type_ice),                INTENT(IN)    :: ice
     TYPE(type_climate),            INTENT(IN)    :: climate
+    CHARACTER(LEN=3),              INTENT(IN)    :: region_name
     TYPE(type_SMB),                INTENT(INOUT) :: SMB
 
     ! Local variables:
@@ -301,5 +302,63 @@ SUBROUTINE initialise_SMB_model_parameterised( mesh, SMB, climate)
     ! Finalise routine path
     CALL finalise_routine( routine_name)
   END SUBROUTINE initialise_climate_model_parameterised_IMAUITM
+
+  SUBROUTINE initialise_IMAUITM_firn_from_file( mesh, SMB, region_name)
+    ! If this is a restarted run, read the firn depth and meltpreviousyear data from the restart file
+
+    IMPLICIT NONE
+
+    ! In/output variables
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
+    TYPE(type_SMB),                      INTENT(INOUT) :: SMB
+    CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_IMAUITM_firn_restart'
+    CHARACTER(LEN=256)                                 :: filename_restart_SMB
+    REAL(dp)                                           :: timeframe_refgeo_SMB
+    TYPE(type_restart_data)                            :: restart
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Assume that SMB and geometry are read from the same restart file
+    SELECT CASE (region_name)
+    CASE('NAM') 
+      filename_restart_SMB = C%filename_refgeo_init_NAM
+      timeframe_refgeo_SMB = C%timeframe_refgeo_init_NAM
+    CASE('EAS') 
+      filename_restart_SMB = C%filename_refgeo_init_EAS
+      timeframe_refgeo_SMB = C%timeframe_refgeo_init_EAS
+    CASE('GRL') 
+      filename_restart_SMB = C%filename_refgeo_init_GRL
+      timeframe_refgeo_SMB = C%timeframe_refgeo_init_GRL
+    CASE('ANT') 
+      filename_restart_SMB = C%filename_refgeo_init_ANT
+      timeframe_refgeo_SMB = C%timeframe_refgeo_init_ANT
+    CASE DEFAULT
+        CALL crash('unknown region_name "' // TRIM( region_name) // '"!')
+    END SELECT
+
+     ! Print to terminal
+    IF (par%master)  WRITE(*,"(A)") '   Initialising SMB-model firn layer from file "' // colour_string( TRIM(filename_restart_SMB),'light blue') // '"...'
+
+
+    ! Read firn layer from file
+    IF (timeframe_refgeo_SMB == 1E9_dp) THEN
+      ! Assume the file has no time dimension
+      CALL read_field_from_file_3D( filename_restart_SMB, 'FirnDepth', mesh, SMB%FirnDepth, nzeta=12)
+      CALL read_field_from_file_2D( filename_restart_SMB, 'MeltPreviousYear', mesh, SMB%MeltPreviousYear)
+    ELSE
+      ! Assume the file has a time dimension, and read the specified timeframe
+      CALL read_field_from_file_3D( filename_restart_SMB, 'FirnDepth', mesh, SMB%FirnDepth, time_to_read = timeframe_refgeo_SMB, nzeta=12)
+      CALL read_field_from_file_2D( filename_restart_SMB, 'MeltPreviousYear', mesh, SMB%MeltPreviousYear, time_to_read = timeframe_refgeo_SMB)
+    END IF
+
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE initialise_IMAUITM_firn_from_file
 
 end module SMB_parameterised
