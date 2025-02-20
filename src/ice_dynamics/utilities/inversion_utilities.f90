@@ -111,7 +111,7 @@ contains
 
     ! Store previous values
     previous_field = BMB%BMB_inv
-    print*, 'entering MB inversion'
+
     ! Initialise extrapolation mask
     mask = 0
 
