@@ -642,7 +642,7 @@ contains
 
       IF (C%BMB_smooth_inversion_t_start == C%BMB_smooth_inversion_t_end) THEN
         ! Cannot have do_BMB_smooth_start and end at same time - no smoothing applied in that case 
-        call warning('C%do_BMB_smooth_inversion is ".TRUE." , but since BMB_smooth_inversion_t_start_config == BMB_smooth_inversion_t_end, no smoothing is applied. Turning C%do_BMB_inversion to .FALSE.')
+        call warning('C%do_BMB_smooth_inversion is ".TRUE.", but BMB_smooth_inversion_t_start_config is equivalent to BMB_smooth_inversion_t_end. Therefore, no smoothing is applied. Setting C%do_BMB_inversion to ".FALSE."')
         C%do_BMB_smooth_inversion = .FALSE.
       ELSE 
         w1 = 1.0_dp - ((region%time - C%BMB_smooth_inversion_t_start)/(C%BMB_smooth_inversion_t_end - C%BMB_smooth_inversion_t_start))
