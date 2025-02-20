@@ -14,6 +14,7 @@ module unit_tests
   use ut_mesh, only: unit_tests_mesh_main
   use ut_netcdf, only: unit_tests_netcdf_main
   use ut_tracer_tracking, only: unit_tests_tracer_tracking_main
+  use ut_bedrock_CDFs, only: unit_tests_bedrock_CDFs_main
 
   implicit none
 
@@ -50,6 +51,7 @@ contains
     call unit_tests_mesh_main                  ( test_name)
     call unit_tests_netcdf_main                ( test_name)
     call unit_tests_tracer_tracking_main       ( test_name)
+    call unit_tests_bedrock_CDFs_main          ( test_name)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
