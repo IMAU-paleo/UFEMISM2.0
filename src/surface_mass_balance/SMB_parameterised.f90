@@ -21,7 +21,7 @@ module SMB_Parameterised
 
 contains
 
-  subroutine run_SMB_model_parameterised( mesh, ice, SMB, climate, time, mask_noice)
+  subroutine run_SMB_model_parameterised( mesh, ice, SMB, climate, time)
     ! Calculate the surface mass balance
     !
     ! use an idealised SMB scheme
@@ -32,7 +32,6 @@ contains
     type(type_SMB_model), intent(inout) :: SMB
     type(climate),        intent(in)    :: climate
     real(dp),             intent(in)    :: time
-    integer,dimension(:)  intent(in)    :: mask_noice
 
     ! Local variables:
     character(len=256), parameter :: routine_name = 'run_SMB_model_parameterised'
@@ -54,7 +53,7 @@ contains
 
   end subroutine run_SMB_model_parameterised
 
-  subroutine run_SMB_model_parameterised_IMAUITM( mesh, ice, SMB, climate, SMB, mask_noice)
+  subroutine run_SMB_model_parameterised_IMAUITM( mesh, ice, SMB, climate, SMB)
     ! Initialise the SMB model
     !
     ! use a parameterised SMB scheme
@@ -64,7 +63,6 @@ contains
     type(type_ice),       intent(in)    :: ice
     type(type_climate),   intent(in)    :: climate
     type(type_SMB_model), intent(inout) :: SMB
-    INTEGER,DIMENSION(:), intent(in)    :: mask_noice
 
     ! Local variables:
     character(len=256), parameter :: routine_name = 'run_SMB_model_parameterised_IMAUITM'
@@ -90,8 +88,8 @@ contains
     DO vi = mesh%vi1, mesh%vi2
       ! Background albedo
       SMB%AlbedoSurf( vi) = albedo_soil
-      IF ((ice%mask_ocean_a( vi) == 1 .AND. ice%mask_shelf_a( vi) == 0) .OR. mask_noice( vi) == 1) SMB%AlbedoSurf( vi) = albedo_water
-      IF (ice%mask_ice_a(    vi) == 1) SMB%AlbedoSurf( vi) = albedo_ice
+      IF ((ice%mask_ocean( vi) == 1 .AND. ice%mask_shelf( vi) == 0) .OR. ice%mask_noice( vi) == 1) SMB%AlbedoSurf( vi) = albedo_water
+      IF (ice%mask_ice(    vi) == 1) SMB%AlbedoSurf( vi) = albedo_ice
 
       DO m = 1, 12  ! Month loop
 
@@ -100,7 +98,7 @@ contains
 
         SMB%Albedo( m,vi) = MIN(albedo_snow, MAX( SMB%AlbedoSurf( vi), albedo_snow - (albedo_snow - SMB%AlbedoSurf( vi))  * &
                              EXP(-15._dp * SMB%FirnDepth( mprev,vi)) - 0.015_dp * SMB%MeltPreviousYear( vi)))
-        IF ((ice%mask_ocean_a( vi) == 1 .AND. ice%mask_shelf_a( vi) == 0) .OR. mask_noice( vi) == 1) SMB%Albedo( m,vi) = albedo_water
+        IF ((ice%mask_ocean( vi) == 1 .AND. ice%mask_shelf( vi) == 0) .OR. ice%mask_noice( vi) == 1) SMB%Albedo( m,vi) = albedo_water
 
         ! Determine ablation as a function of surface temperature and albedo/insolation according to Bintanja et al. (2002)
         SMB%Melt( m,vi) = MAX(0._dp, ( SMB%C_abl_Ts         * (climate%T2m( m,vi) - T0) + &
@@ -135,7 +133,7 @@ contains
       liquid_water = SUM(SMB%Rainfall( :,vi)) + SUM(SMB%Melt( :,vi))
 
       SMB%Refreezing_year( vi) = MIN( MIN( sup_imp_wat, liquid_water), SUM(climate%Precip( :,vi)))
-      IF (ice%mask_ice_a( vi)==0) SMB%Refreezing_year( vi) = 0._dp
+      IF (ice%mask_ice( vi)==0) SMB%Refreezing_year( vi) = 0._dp
 
       DO m = 1, 12
         SMB%Refreezing( m,vi) = SMB%Refreezing_year( vi) / 12._dp
@@ -269,7 +267,7 @@ SUBROUTINE initialise_SMB_model_parameterised( mesh, SMB, climate)
       ! Initialise with a uniform firn layer over the ice sheet
 
       DO vi = mesh%vi1, mesh%vi2
-        IF (ice%Hi_a( vi) > 0._dp) THEN
+        IF (ice%Hi( vi) > 0._dp) THEN
           SMB%FirnDepth(        :,vi) = C%SMB_IMAUITM_initial_firn_thickness
           SMB%MeltPreviousYear(   vi) = 0._dp
         ELSE
@@ -293,7 +291,7 @@ SUBROUTINE initialise_SMB_model_parameterised( mesh, SMB, climate)
       ELSE
         SMB%AlbedoSurf( vi) = albedo_soil
       END IF
-      IF (ice%Hi_a( vi) > 0._dp) THEN
+      IF (ice%Hi( vi) > 0._dp) THEN
         SMB%AlbedoSurf(  vi) = albedo_snow
       END IF
       SMB%Albedo( :,vi) = SMB%AlbedoSurf( vi)
