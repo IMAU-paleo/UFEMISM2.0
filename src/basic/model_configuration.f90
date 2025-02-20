@@ -744,6 +744,37 @@ MODULE model_configuration
     REAL(dp)            :: timeframe_SMB_prescribed_GRL_config          = 1E9_dp
     REAL(dp)            :: timeframe_SMB_prescribed_ANT_config          = 1E9_dp
 
+    ! Parameterised SMB forcing
+    CHARACTER(LEN=256)  :: choice_SMB_parameterised_NAM_config          = ''
+    CHARACTER(LEN=256)  :: choice_SMB_parameterised_EAS_config          = ''
+    CHARACTER(LEN=256)  :: choice_SMB_parameterised_GRL_config          = ''
+    CHARACTER(LEN=256)  :: choice_SMB_parameterised_ANT_config          = 'IMAU-ITM'
+
+
+    ! Tuning parameters for the IMAU-ITM SMB model
+    CHARACTER(LEN=256)  :: choice_SMB_IMAUITM_init_firn_NAM_config     = 'uniform'                        ! How to initialise the firn layer in the IMAU-ITM SMB model: "uniform", "restart"
+    CHARACTER(LEN=256)  :: choice_SMB_IMAUITM_init_firn_EAS_config     = 'uniform'
+    CHARACTER(LEN=256)  :: choice_SMB_IMAUITM_init_firn_GRL_config     = 'uniform'
+    CHARACTER(LEN=256)  :: choice_SMB_IMAUITM_init_firn_ANT_config     = 'uniform'
+    REAL(dp)            :: SMB_IMAUITM_initial_firn_thickness_config   = 1._dp                            ! Initial firn thickness of the IMAU-ITEM SMB model [m] (used when SMB_IMAUITM_choice_init_firn = "uniform")
+    REAL(dp)            :: SMB_IMAUITM_C_abl_constant_NAM_config       = -49._dp                          ! 34._dp    (commented values are old ANICE defaults, but since refreezing was not calculated right
+    REAL(dp)            :: SMB_IMAUITM_C_abl_constant_EAS_config       = -49._dp                          !            and this has since been fixed, these values will still not give the same results as
+    REAL(dp)            :: SMB_IMAUITM_C_abl_constant_GRL_config       = -49._dp                          !            they used to in ANICE.)
+    REAL(dp)            :: SMB_IMAUITM_C_abl_constant_ANT_config       = -49._dp
+    REAL(dp)            :: SMB_IMAUITM_C_abl_Ts_NAM_config             = 10._dp                           ! 10._dp
+    REAL(dp)            :: SMB_IMAUITM_C_abl_Ts_EAS_config             = 10._dp
+    REAL(dp)            :: SMB_IMAUITM_C_abl_Ts_GRL_config             = 10._dp
+    REAL(dp)            :: SMB_IMAUITM_C_abl_Ts_ANT_config             = 10._dp
+    REAL(dp)            :: SMB_IMAUITM_C_abl_Q_NAM_config              = 0.0227_dp                        ! 0.513_dp
+    REAL(dp)            :: SMB_IMAUITM_C_abl_Q_EAS_config              = 0.0227_dp
+    REAL(dp)            :: SMB_IMAUITM_C_abl_Q_GRL_config              = 0.0227_dp
+    REAL(dp)            :: SMB_IMAUITM_C_abl_Q_ANT_config              = 0.0227_dp
+    REAL(dp)            :: SMB_IMAUITM_C_refr_NAM_config               = 0.051_dp                         ! 0.012_dp
+    REAL(dp)            :: SMB_IMAUITM_C_refr_EAS_config               = 0.051_dp
+    REAL(dp)            :: SMB_IMAUITM_C_refr_GRL_config               = 0.051_dp
+    REAL(dp)            :: SMB_IMAUITM_C_refr_ANT_config               = 0.051_dp
+
+
   ! == Basal mass balance
   ! =====================
 
