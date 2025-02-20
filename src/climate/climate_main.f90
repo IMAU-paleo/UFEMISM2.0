@@ -130,8 +130,10 @@ CONTAINS
     END IF
 
     ! Allocate memory for main variables
+    ALLOCATE( climate%Hs(    mesh%vi1:mesh%vi2,12))
     ALLOCATE( climate%T2m(    mesh%vi1:mesh%vi2,12))
     ALLOCATE( climate%Precip( mesh%vi1:mesh%vi2,12))
+    climate%Hs     = 0._dp
     climate%T2m    = 0._dp
     climate%Precip = 0._dp
 

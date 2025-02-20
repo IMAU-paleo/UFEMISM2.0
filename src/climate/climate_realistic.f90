@@ -93,6 +93,7 @@ CONTAINS
         CALL crash('unknown region_name "' // region_name // '"')
       END IF
 
+      CALL read_field_from_file_2D( filename_climate_snapshot, 'Hs', mesh, climate%Hs)
       CALL read_field_from_file_2D_monthly( filename_climate_snapshot, 'T2m', mesh, climate%T2m)
       CALL read_field_from_file_2D_monthly( filename_climate_snapshot, 'Precip', mesh, climate%Precip)
 
