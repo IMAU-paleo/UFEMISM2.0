@@ -58,93 +58,93 @@ module bedrock_cumulative_density_functions
 
 contains
 
-subroutine initialise_bedrock_CDFs( mesh, refgeo, ice, region_name)
-  !< Initialise the sub-grid bedrock cumulative density functions
+  subroutine initialise_bedrock_CDFs( mesh, refgeo, ice, region_name)
+    !< Initialise the sub-grid bedrock cumulative density functions
 
-  ! In/output variables:
-  type(type_mesh),               intent(in   ) :: mesh
-  type(type_reference_geometry), intent(in   ) :: refgeo
-  type(type_ice_model),          intent(inout) :: ice
-  character(len=3),              intent(in   ) :: region_name
+    ! In/output variables:
+    type(type_mesh),               intent(in   ) :: mesh
+    type(type_reference_geometry), intent(in   ) :: refgeo
+    type(type_ice_model),          intent(inout) :: ice
+    character(len=3),              intent(in   ) :: region_name
 
-  ! Local variables:
-  character(len=1024), parameter :: routine_name = 'initialise_bedrock_CDFs'
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'initialise_bedrock_CDFs'
 
-  ! Add routine to path
-  call init_routine( routine_name)
+    ! Add routine to path
+    call init_routine( routine_name)
 
-  if (.not. C%choice_subgrid_grounded_fraction == 'bedrock_CDF' .and. &
-      .not. C%choice_subgrid_grounded_fraction == 'bilin_interp_TAF+bedrock_CDF') then
+    if (.not. C%choice_subgrid_grounded_fraction == 'bedrock_CDF' .and. &
+        .not. C%choice_subgrid_grounded_fraction == 'bilin_interp_TAF+bedrock_CDF') then
+      ! Finalise routine path
+      call finalise_routine( routine_name)
+      return
+    end if
+
+    if (par%master) then
+      write(*,"(A)") '     Initialising the sub-grid bedrock cumulative density functions...'
+    end if
+
+    if (C%do_read_bedrock_cdf_from_file) then
+      ! Read them from the corresponding mesh file
+      call initialise_bedrock_CDFs_from_file( mesh, ice, region_name)
+    else
+      ! Compute them from scratch
+      call calc_bedrock_CDFs( mesh, refgeo, ice)
+    end if
+
     ! Finalise routine path
     call finalise_routine( routine_name)
-    return
-  end if
 
-  if (par%master) then
-    write(*,"(A)") '     Initialising the sub-grid bedrock cumulative density functions...'
-  end if
+  end subroutine initialise_bedrock_CDFs
 
-  if (C%do_read_bedrock_cdf_from_file) then
-    ! Read them from the corresponding mesh file
-    call initialise_bedrock_CDFs_from_file( mesh, ice, region_name)
-  else
-    ! Compute them from scratch
-    call calc_bedrock_CDFs( mesh, refgeo, ice)
-  end if
+  subroutine initialise_bedrock_CDFs_from_file( mesh, ice, region_name)
+    !< Initialise the velocities for the DIVA solver from an external NetCDF file
 
-  ! Finalise routine path
-  call finalise_routine( routine_name)
+    ! In/output variables:
+    type(type_mesh),      intent(in   ) :: mesh
+    type(type_ice_model), intent(inout) :: ice
+    character(len=3),     intent(in   ) :: region_name
 
-end subroutine initialise_bedrock_CDFs
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'initialise_bedrock_CDFs_from_file'
+    character(len=256)             :: filename, check
 
-subroutine initialise_bedrock_CDFs_from_file( mesh, ice, region_name)
-  !< Initialise the velocities for the DIVA solver from an external NetCDF file
+    ! Add routine to path
+    call init_routine( routine_name)
 
-  ! In/output variables:
-  type(type_mesh),      intent(in   ) :: mesh
-  type(type_ice_model), intent(inout) :: ice
-  character(len=3),     intent(in   ) :: region_name
+    ! Determine the filename to read for this model region
+    select case (region_name)
+    case default
+      call crash('unknown model region "' // region_name // '"!')
+    case ('NAM')
+      filename  = C%filename_initial_mesh_NAM
+      check = C%choice_initial_mesh_NAM
+    case ('EAS')
+      filename  = C%filename_initial_mesh_EAS
+      check = C%choice_initial_mesh_EAS
+    case ('GRL')
+      filename  = C%filename_initial_mesh_GRL
+      check = C%choice_initial_mesh_GRL
+    case ('ANT')
+      filename  = C%filename_initial_mesh_ANT
+      check = C%choice_initial_mesh_ANT
+    end select
 
-  ! Local variables:
-  character(len=1024), parameter :: routine_name = 'initialise_bedrock_CDFs_from_file'
-  character(len=256)             :: filename, check
+    ! Write to terminal
+    if (par%master) write(0,*) '      Reading CDF functions from file "' // colour_string( trim( filename),'light blue') // '"...'
 
-  ! Add routine to path
-  call init_routine( routine_name)
+    if (.not. check == 'read_from_file') then
+      call crash('The initial mesh was not read from a file. Reading a bedrock CDF this way makes no sense!')
+    end if
 
-  ! Determine the filename to read for this model region
-  select case (region_name)
-  case default
-    call crash('unknown model region "' // region_name // '"!')
-  case ('NAM')
-    filename  = C%filename_initial_mesh_NAM
-    check = C%choice_initial_mesh_NAM
-  case ('EAS')
-    filename  = C%filename_initial_mesh_EAS
-    check = C%choice_initial_mesh_EAS
-  case ('GRL')
-    filename  = C%filename_initial_mesh_GRL
-    check = C%choice_initial_mesh_GRL
-  case ('ANT')
-    filename  = C%filename_initial_mesh_ANT
-    check = C%choice_initial_mesh_ANT
-  end select
+    ! Read meshed data
+    call read_field_from_mesh_file_CDF(   filename, 'bedrock_cdf',   ice%bedrock_cdf   )
+    call read_field_from_mesh_file_CDF_b( filename, 'bedrock_cdf_b', ice%bedrock_cdf_b )
 
-  ! Write to terminal
-  if (par%master) write(0,*) '      Reading CDF functions from file "' // colour_string( trim( filename),'light blue') // '"...'
+    ! Finalise routine path
+    call finalise_routine( routine_name)
 
-  if (.not. check == 'read_from_file') then
-    call crash('The initial mesh was not read from a file. Reading a bedrock CDF this way makes no sense!')
-  end if
-
-  ! Read meshed data
-  call read_field_from_mesh_file_CDF(   filename, 'bedrock_cdf',   ice%bedrock_cdf   )
-  call read_field_from_mesh_file_CDF_b( filename, 'bedrock_cdf_b', ice%bedrock_cdf_b )
-
-  ! Finalise routine path
-  call finalise_routine( routine_name)
-
-end subroutine initialise_bedrock_CDFs_from_file
+  end subroutine initialise_bedrock_CDFs_from_file
 
   subroutine calc_bedrock_CDFs( mesh, refgeo, ice)
     !< Calculate the sub-grid bedrock cumulative density functions
