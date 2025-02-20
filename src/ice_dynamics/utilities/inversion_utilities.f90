@@ -5,7 +5,7 @@ module inversion_utilities
 
   use mpi_basic, only: par
   use precisions, only: dp
-  use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash, colour_string
+  use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash, colour_string, warning
   use model_configuration, only: C
   use region_types, only: type_model_region
   use mesh_types, only: type_mesh
@@ -636,10 +636,21 @@ contains
     
     ! Initialise
     region%BMB%BMB = 0._dp
-    
-    ! Compute smoothing weights
-    w1 = 1.0_dp - ((region%time - C%BMB_smooth_inversion_t_start)/(C%BMB_smooth_inversion_t_end - C%BMB_smooth_inversion_t_start))
-    w2 = 1.0_dp - w1 
+
+    IF (C%do_BMB_smooth_inversion) THEN
+      ! Compute smoothing weights for BMB inversion smoothing
+
+      IF (C%BMB_smooth_inversion_t_start == C%BMB_smooth_inversion_t_end) THEN
+        ! Cannot have do_BMB_smooth_start and end at same time - no smoothing applied in that case 
+        call warning('C%do_BMB_smooth_inversion is ".TRUE." , but since BMB_smooth_inversion_t_start_config == BMB_smooth_inversion_t_end, no smoothing is applied. Turning C%do_BMB_inversion to .FALSE.')
+        C%do_BMB_smooth_inversion = .FALSE.
+      ELSE 
+        w1 = 1.0_dp - ((region%time - C%BMB_smooth_inversion_t_start)/(C%BMB_smooth_inversion_t_end - C%BMB_smooth_inversion_t_start))
+        w2 = 1.0_dp - w1 
+
+      END IF
+
+    END IF
 
     ! Compute total BMB
     do vi = region%mesh%vi1, region%mesh%vi2
@@ -661,6 +672,12 @@ contains
 
         else 
         ! if region time is not in specified smoothing time window, use the computed BMB in ROI
+
+          ! Skip vertices where BMB does not operate
+          if (.not. region%ice%mask_gl_gr( vi) .and. &
+            .not. region%ice%mask_floating_ice( vi) .and. &
+            .not. region%ice%mask_cf_fl( vi)) cycle
+
           region%BMB%BMB( vi) = region%BMB%BMB_ROI( vi)
         ! This might now break for not ROI? CHECK FJFJ!
         end if 
@@ -682,8 +699,6 @@ contains
       region%BMB%BMB_smooth( vi) = region%BMB%BMB( vi) 
     
     end do
-
-    
 
     ! Finalise routine path
     call finalise_routine( routine_name)
