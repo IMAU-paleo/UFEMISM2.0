@@ -739,6 +739,12 @@ CONTAINS
       ! Main BMB variables
       CASE ('BMB')
         CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'BMB', region%BMB%BMB)
+      CASE ('BMB_inv')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'BMB_inv', region%BMB%BMB_inv)      
+      CASE ('BMB_smooth')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'BMB_smooth', region%BMB%BMB_smooth)
+      CASE ('BMB_modelled')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'BMB_modelled', region%BMB%BMB_modelled)
 
     ! == LADDIE ==
     ! ============
@@ -1270,6 +1276,15 @@ CONTAINS
       CASE ('BMB')
         CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%BMB, d_grid_vec_partial_2D)
         CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'BMB', d_grid_vec_partial_2D)
+      CASE ('BMB_inv')
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%BMB_inv, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'BMB_inv', d_grid_vec_partial_2D)      
+      CASE ('BMB_smooth')
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%BMB_smooth, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'BMB_smooth', d_grid_vec_partial_2D)
+      CASE ('BMB_modelled')
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%BMB_modelled, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'BMB_modelled', d_grid_vec_partial_2D)
 
     ! == LADDIE ==
     ! ============
@@ -2149,6 +2164,12 @@ CONTAINS
       ! Main BMB variables
       CASE ('BMB')
         CALL add_field_mesh_dp_2D( filename, ncid, 'BMB', long_name = 'Basal mass balance', units = 'm yr^-1')
+      CASE ('BMB_inv')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'BMB_inv', long_name = 'Basal mass balance - inverted', units = 'm yr^-1')
+      CASE ('BMB_smooth')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'BMB_smooth', long_name = 'Basal mass balance - smoothed', units = 'm yr^-1')
+      CASE ('BMB_modelled')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'BMB_modelled', long_name = 'Basal mass balance - modelled', units = 'm yr^-1')
 
     ! == LADDIE ==
     ! ============
@@ -2579,6 +2600,12 @@ CONTAINS
       ! Main BMB variables
       CASE ('BMB')
         CALL add_field_grid_dp_2D( filename, ncid, 'BMB', long_name = 'Basal mass balance', units = 'm yr^-1')
+      CASE ('BMB_inv')
+        CALL add_field_grid_dp_2D( filename, ncid, 'BMB_inv', long_name = 'Basal mass balance - inverted', units = 'm yr^-1')
+      CASE ('BMB_smooth')
+        CALL add_field_grid_dp_2D( filename, ncid, 'BMB_smooth', long_name = 'Basal mass balance - smoothed', units = 'm yr^-1')
+      CASE ('BMB_modelled')
+        CALL add_field_grid_dp_2D( filename, ncid, 'BMB_modelled', long_name = 'Basal mass balance - modelled', units = 'm yr^-1')
 
     ! == LADDIE ==
     ! ============
