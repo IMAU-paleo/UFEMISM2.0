@@ -759,7 +759,7 @@ MODULE model_configuration
     ! Inversion smoothing
     LOGICAL             :: do_BMB_smooth_inversion_config               = .FALSE.                          ! Whether or not the inverted BMB should be smoothed to a modelled BMB over a specified time window (only applied when do_BMB_inversion_config = .TRUE.)
     REAL(dp)            :: BMB_smooth_inversion_t_start_config          = +9.8E9_dp                        ! [yr] Start time for BMB inversion smoothing 
-    REAL(dp)            :: BMB_smooth_inversion_t_end_config            = +9.9E9_dp                        ! [yr] Start time for BMB inversion smoothing 
+    REAL(dp)            :: BMB_smooth_inversion_t_end_config            = +9.9E9_dp                        ! [yr] End   time for BMB inversion smoothing 
 
     ! Grounding line treatment
     LOGICAL             :: do_subgrid_BMB_at_grounding_line_config      = .FALSE.                          ! Whether or not to apply basal melt rates under a partially floating grounding line; if so, use choice_BMB_subgrid; if not, apply "NMP"

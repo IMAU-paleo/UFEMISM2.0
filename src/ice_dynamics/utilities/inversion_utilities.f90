@@ -635,18 +635,25 @@ contains
     ! ============
     
     ! Initialise
-    region%BMB%BMB = 0._dp
+    region%BMB%BMB        = 0._dp
+    region%BMB%BMB_smooth = 0._dp
 
     IF (C%do_BMB_smooth_inversion) THEN
       ! Compute smoothing weights for BMB inversion smoothing
 
       IF (C%BMB_smooth_inversion_t_start == C%BMB_smooth_inversion_t_end) THEN
-        ! Cannot have do_BMB_smooth_start and end at same time - no smoothing applied in that case 
+        ! If start and end time of smoothing window is equal, no smoothing is applied.
         call warning('C%do_BMB_smooth_inversion is ".TRUE.", but BMB_smooth_inversion_t_start_config is equivalent to BMB_smooth_inversion_t_end. Therefore, no smoothing is applied. Setting C%do_BMB_inversion to ".FALSE."')
         C%do_BMB_smooth_inversion = .FALSE.
-      ELSE 
+
+      ELSEIF (region%time >= C%BMB_smooth_inversion_t_start .and. &
+        region%time <= C%BMB_smooth_inversion_t_end) then
+        ! If region time is in smoothing window, compute smoothing weights
         w1 = 1.0_dp - ((region%time - C%BMB_smooth_inversion_t_start)/(C%BMB_smooth_inversion_t_end - C%BMB_smooth_inversion_t_start))
-        w2 = 1.0_dp - w1 
+        w2 = 1.0_dp - w1
+
+      ELSE 
+        ! If region time is outside smoothing window, do nothing
 
       END IF
 
@@ -655,49 +662,38 @@ contains
     ! Compute total BMB
     do vi = region%mesh%vi1, region%mesh%vi2
 
-      IF (region%ice%mask_ROI( vi) .and. C%do_BMB_smooth_inversion) THEN 
-        ! Within ROI: apply smoothing from inverted to computed BMB when in specified smoothing time window
-
-        if (region%time >= C%BMB_smooth_inversion_t_start .and. &
-        region%time <= C%BMB_smooth_inversion_t_end) then
-        ! if region time is in specified smoothing time window, apply smoothing
-
-          ! Skip vertices where BMB does not operate
-          if (.not. region%ice%mask_gl_gr( vi) .and. &
-            .not. region%ice%mask_floating_ice( vi) .and. &
-            .not. region%ice%mask_cf_fl( vi)) cycle
-          
-          ! Apply scaling between inverted BMB field and BMB field computed by BMB model in ROI
-          region%BMB%BMB( vi) = w1 * region%BMB%BMB_inv( vi) + w2 * region%BMB%BMB_ROI( vi)
-
-        else 
-        ! if region time is not in specified smoothing time window, use the computed BMB in ROI
-
-          ! Skip vertices where BMB does not operate
-          if (.not. region%ice%mask_gl_gr( vi) .and. &
-            .not. region%ice%mask_floating_ice( vi) .and. &
-            .not. region%ice%mask_cf_fl( vi)) cycle
-
-          region%BMB%BMB( vi) = region%BMB%BMB_ROI( vi)
-        ! This might now break for not ROI? CHECK FJFJ!
-        end if 
-
-      ELSE
-        ! Outside ROI: do not apply smoothing
-
-        ! Skip vertices where BMB does not operate
-        if (.not. region%ice%mask_gl_gr( vi) .and. &
+      ! Skip vertices where BMB does not operate
+      if (.not. region%ice%mask_gl_gr( vi) .and. &
           .not. region%ice%mask_floating_ice( vi) .and. &
           .not. region%ice%mask_cf_fl( vi)) cycle
 
-        ! Final BMB field
+      IF (C%do_BMB_smooth_inversion) THEN 
+        ! If BMB_smooth_inversion is turned ON
+
+        IF (region%time >= C%BMB_smooth_inversion_t_start .and. &
+            region%time <= C%BMB_smooth_inversion_t_end) THEN
+          ! If time is in smoothing window: apply smoothing from inverted to modelled melt rates
+          region%BMB%BMB( vi) = w1 * region%BMB%BMB_inv( vi) + w2 * region%BMB%BMB_modelled( vi)
+
+        ELSEIF (region%time < C%BMB_smooth_inversion_t_start ) THEN 
+          ! If time is before start smoothing window: use inverted melt rates
+          region%BMB%BMB( vi) = region%BMB%BMB_inv( vi)
+
+        ELSEIF (region%time > C%BMB_smooth_inversion_t_end ) THEN
+          ! If time is beyond end smoothing window: use modelled melt rates
+          region%BMB%BMB( vi) = region%BMB%BMB_modelled( vi)
+
+        END IF
+
+        ! Save smoothed BMB field for diagnostic output
+        region%BMB%BMB_smooth( vi) = region%BMB%BMB( vi) 
+
+      ELSE 
+        ! If BMB_smooth_inversion is turned OFF, just apply inverted melt rates
         region%BMB%BMB( vi) = region%BMB%BMB_inv( vi)
 
       END IF
-      
-      ! Save smoothed BMB field for diagnostic output
-      region%BMB%BMB_smooth( vi) = region%BMB%BMB( vi) 
-    
+
     end do
 
     ! Finalise routine path
