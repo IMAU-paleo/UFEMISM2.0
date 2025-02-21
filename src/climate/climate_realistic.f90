@@ -48,6 +48,8 @@ CONTAINS
     ELSEIF (C%choice_climate_model_realistic == 'climate_matrix') THEN
       ! This is probably where we will update insolation, CO2, etc...
       CALL crash('choice_climate_model_realistic climate_matrix not implemented yet!"')
+      CALL get_insolation_at_time( mesh, time, forcing, climate%Q_TOA)
+      !CALL get_climate_at_time( mesh, time, forcing, climate)
     ELSE
       CALL crash('unknown choice_climate_model_realistic "' // TRIM( C%choice_climate_model_realistic) // '"')
     END IF
@@ -104,8 +106,13 @@ CONTAINS
       CALL read_field_from_file_2D_monthly( filename_climate_snapshot, 'Precip', mesh, climate%Precip)
 
       CALL initialise_global_forcings( mesh, forcing, climate) ! TODO: initialise gobal/solar forcing
-      ! TODO: what should be the timeframe_init_insolation?
-      timeframe_init_insolation = C%start_time_of_run
+      
+      ! If the simulation is properly set up with times in [ka], we just get the absolute value of the initial time
+      IF C%start_time_of_run < 0._dp
+        timeframe_init_insolation = ABS(C%start_time_of_run)
+      ELSE
+        timeframe_init_insolation = 0._dp
+      END IF
       CALL get_insolation_at_time( mesh, timeframe_init_insolation, forcing, climate%Q_TOA)
 
     ELSE
@@ -133,11 +140,10 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    !TODO: do stuff...
     ! read and load the insolation data
     CALL initialise_insolation_forcing( forcing)
 
-    !TODO: read and load whatever record we need/want: d18O, CO2, GI, etc...
+    !TODO: read and load whatever other record we need/want: d18O, CO2, GI, etc...
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -187,6 +193,8 @@ CONTAINS
       ! Inquire into the insolation forcing netcdf file
       ALLOCATE( forcing%ins_nyears)
       ALLOCATE( forcing%ins_nlat)
+      ALLOCATE( forcing%wins_nlat  )
+      ALLOCATE( forcing%wins_nyears)
 
       IF (par%master) CALL inquire_insolation_file( forcing) !TODO
       CALL sync
@@ -196,6 +204,8 @@ CONTAINS
       ALLOCATE(forcing%ins_lat        (   forcing%ins_nlat))
       ALLOCATE(forcing%Q_TOA0         (forcing%ins_nlat,12))
       ALLOCATE(forcing%Q_TOA1         (forcing%ins_nlat,12))
+      
+      
       
       ! Read time and latitude data
       IF (par%master) THEN
@@ -278,7 +288,7 @@ CONTAINS
       ilat_l = FLOOR(mesh%lat(vi) + 91)
       ilat_u = ilat_l + 1
 
-      wlat_l = forcing%ins_lat(ilat_u) - mesh%lat(j,i)
+      wlat_l = forcing%ins_lat(ilat_u) - mesh%lat(vi)
       wlat_u = 1._dp - wlat_l
 
       DO m = 1, 12
