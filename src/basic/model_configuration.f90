@@ -750,12 +750,25 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: choice_SMB_parameterised_GRL_config          = ''
     CHARACTER(LEN=256)  :: choice_SMB_parameterised_ANT_config          = 'IMAU-ITM'
 
-
-    ! Tuning parameters for the IMAU-ITM SMB model
+    ! IMAU-ITM SMB model
     CHARACTER(LEN=256)  :: choice_SMB_IMAUITM_init_firn_NAM_config     = 'uniform'                        ! How to initialise the firn layer in the IMAU-ITM SMB model: "uniform", "restart"
     CHARACTER(LEN=256)  :: choice_SMB_IMAUITM_init_firn_EAS_config     = 'uniform'
     CHARACTER(LEN=256)  :: choice_SMB_IMAUITM_init_firn_GRL_config     = 'uniform'
     CHARACTER(LEN=256)  :: choice_SMB_IMAUITM_init_firn_ANT_config     = 'uniform'
+
+  ! Files containing the firn model (yearly firn depth and melt)
+    CHARACTER(LEN=256)  :: filename_firn_IMAUITM_NAM_config            = ''
+    CHARACTER(LEN=256)  :: filename_firn_IMAUITM_EAS_config            = ''
+    CHARACTER(LEN=256)  :: filename_firn_IMAUITM_GRL_config            = ''
+    CHARACTER(LEN=256)  :: filename_firn_IMAUITM_ANT_config            = ''
+
+    ! timeframe for restarting from the firn model
+    REAL(dp)            :: timeframe_firn_IMAUITM_NAM_config           = 1E9_dp
+    REAL(dp)            :: timeframe_firn_IMAUITM_EAS_config           = 1E9_dp
+    REAL(dp)            :: timeframe_firn_IMAUITM_GRL_config           = 1E9_dp
+    REAL(dp)            :: timeframe_firn_IMAUITM_ANT_config           = 1E9_dp
+
+    ! Tuning parameters for the IMAU-ITM SMB model
     REAL(dp)            :: SMB_IMAUITM_initial_firn_thickness_config   = 1._dp                            ! Initial firn thickness of the IMAU-ITEM SMB model [m] (used when SMB_IMAUITM_choice_init_firn = "uniform")
     REAL(dp)            :: SMB_IMAUITM_C_abl_constant_NAM_config       = -49._dp                          ! 34._dp    (commented values are old ANICE defaults, but since refreezing was not calculated right
     REAL(dp)            :: SMB_IMAUITM_C_abl_constant_EAS_config       = -49._dp                          !            and this has since been fixed, these values will still not give the same results as
@@ -1766,11 +1779,25 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: choice_SMB_parameterised_GRL
     CHARACTER(LEN=256)  :: choice_SMB_parameterised_ANT
 
-    ! Tuning parameters for the IMAU-ITM SMB model
+    ! IMAU-ITM SMB model
     CHARACTER(LEN=256)  :: choice_SMB_IMAUITM_init_firn_NAM
     CHARACTER(LEN=256)  :: choice_SMB_IMAUITM_init_firn_EAS
     CHARACTER(LEN=256)  :: choice_SMB_IMAUITM_init_firn_GRL
     CHARACTER(LEN=256)  :: choice_SMB_IMAUITM_init_firn_ANT
+
+    ! Files containing the firn model (yearly firn depth and melt)
+    CHARACTER(LEN=256)  :: filename_firn_IMAUITM_NAM
+    CHARACTER(LEN=256)  :: filename_firn_IMAUITM_EAS
+    CHARACTER(LEN=256)  :: filename_firn_IMAUITM_GRL
+    CHARACTER(LEN=256)  :: filename_firn_IMAUITM_ANT
+
+    ! timeframe for restarting from the firn model
+    REAL(dp)            :: timeframe_firn_IMAUITM_NAM
+    REAL(dp)            :: timeframe_firn_IMAUITM_EAS
+    REAL(dp)            :: timeframe_firn_IMAUITM_GRL
+    REAL(dp)            :: timeframe_firn_IMAUITM_ANT
+
+    ! Tuning parameters for the IMAU-ITM SMB model
     REAL(dp)            :: SMB_IMAUITM_initial_firn_thickness
     REAL(dp)            :: SMB_IMAUITM_C_abl_constant_NAM
     REAL(dp)            :: SMB_IMAUITM_C_abl_constant_EAS
@@ -2732,6 +2759,22 @@ CONTAINS
       timeframe_SMB_prescribed_EAS_config                         , &
       timeframe_SMB_prescribed_GRL_config                         , &
       timeframe_SMB_prescribed_ANT_config                         , &
+      choice_SMB_parameterised_NAM_config                         , &
+      choice_SMB_parameterised_EAS_config                         , &
+      choice_SMB_parameterised_GRL_config                         , &
+      choice_SMB_parameterised_ANT_config                         , &
+      choice_SMB_IMAUITM_init_firn_NAM                            , &
+      choice_SMB_IMAUITM_init_firn_EAS                            , &
+      choice_SMB_IMAUITM_init_firn_GRL                            , &
+      choice_SMB_IMAUITM_init_firn_ANT                            , &
+      filename_firn_IMAUITM_NAM                                   , &
+      filename_firn_IMAUITM_EAS                                   , &
+      filename_firn_IMAUITM_GRL                                   , &
+      filename_firn_IMAUITM_ANT                                   , &
+      timeframe_firn_IMAUITM_NAM                                  , &
+      timeframe_firn_IMAUITM_EAS                                  , &
+      timeframe_firn_IMAUITM_GRL                                  , &
+      timeframe_firn_IMAUITM_ANT                                  , &
       do_asynchronous_BMB_config                                  , &
       dt_BMB_config                                               , &
       do_BMB_inversion_config                                     , &
