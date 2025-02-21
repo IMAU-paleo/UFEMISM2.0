@@ -28,8 +28,8 @@ MODULE SMB_model_types
     REAL(dp), DIMENSION(:,:),     ALLOCATABLE :: Runoff                  ! Monthly runoff (m)
     REAL(dp), DIMENSION(:,:),     ALLOCATABLE :: Albedo                  ! Monthly albedo
     REAL(dp), DIMENSION(:  ),     ALLOCATABLE :: Albedo_year             ! Yearly albedo
-    REAL(dp), DIMENSION(:,:),     ALLOCATABLE :: SMB                     ! [m] Monthly SMB
-    REAL(dp), DIMENSION(:  ),     ALLOCATABLE :: SMB_year                ! Yearly  SMB (m)
+    REAL(dp), DIMENSION(:,:),     ALLOCATABLE :: SMB_monthly             ! [m] Monthly SMB
+    REAL(dp), DIMENSION(:  ),     ALLOCATABLE :: SMB                     ! Yearly  SMB (m)
 
     ! Tuning parameters for the IMAU-ITM SMB model (different for each region, set from config)
     REAL(dp), ALLOCATABLE  :: C_abl_constant

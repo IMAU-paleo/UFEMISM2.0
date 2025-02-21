@@ -136,12 +136,12 @@ contains
       IF (ice%mask_ice( vi)==0) SMB%Refreezing_year( vi) = 0._dp
 
       DO m = 1, 12
-        SMB%Refreezing( m,vi) = SMB%Refreezing_year( vi) / 12._dp
-        SMB%Runoff(     m,vi) = SMB%Melt( m,vi) + SMB%Rainfall( m,vi) - SMB%Refreezing( m,vi)
-        SMB%SMB(        m,vi) = SMB%Snowfall( m,vi) + SMB%Refreezing( m,vi) - SMB%Melt( m,vi)
+        SMB%Refreezing(  m,vi) = SMB%Refreezing_year( vi) / 12._dp
+        SMB%Runoff(      m,vi) = SMB%Melt( m,vi) + SMB%Rainfall( m,vi) - SMB%Refreezing( m,vi)
+        SMB%SMB_monthly( m,vi) = SMB%Snowfall( m,vi) + SMB%Refreezing( m,vi) - SMB%Melt( m,vi)
       END DO
 
-      SMB%SMB_year( vi) = SUM(SMB%SMB( :,vi))
+      SMB%SMB( vi) = SUM(SMB%SMB_monthly( :,vi))
 
       ! Calculate total melt over this year, to be used for determining next year's albedo
       SMB%MeltPreviousYear( vi) = SUM(SMB%Melt( :,vi))
@@ -161,7 +161,7 @@ SUBROUTINE initialise_SMB_model_parameterised( mesh, SMB, climate, region_name)
     ! In- and output variables
     TYPE(type_mesh),          INTENT(IN)    :: mesh
     TYPE(type_climate_model), INTENT(IN)    :: climate
-    TYPE(type_BMB_model),     INTENT(INOUT) :: SMB
+    TYPE(type_SMB_model),     INTENT(INOUT) :: SMB
     CHARACTER(LEN=3),         INTENT(IN)    :: region_name
 
     ! Local variables:
@@ -202,7 +202,7 @@ SUBROUTINE initialise_SMB_model_parameterised( mesh, SMB, climate, region_name)
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_SMB_model_parameterised_IMAUITM'
     INTEGER                                            :: vi
-    CHARACTER(LEN=256)                                 :: SMB_IMAUITM_choice_init_firn
+    CHARACTER(LEN=256)                                 :: choice_SMB_IMAUITM_init_firn
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -220,8 +220,8 @@ SUBROUTINE initialise_SMB_model_parameterised( mesh, SMB, climate, region_name)
     ALLOCATE(SMB%Runoff          (12,mesh%vi1:mesh%vi2))
     ALLOCATE(SMB%Albedo          (12,mesh%vi1:mesh%vi2))
     ALLOCATE(SMB%Albedo_year     (   mesh%vi1:mesh%vi2))
-    ALLOCATE(SMB%SMB             (12,mesh%vi1:mesh%vi2))
-    ALLOCATE(SMB%SMB_year        (   mesh%vi1:mesh%vi2))
+    ALLOCATE(SMB%SMB_monthly     (12,mesh%vi1:mesh%vi2))
+    ALLOCATE(SMB%SMB             (   mesh%vi1:mesh%vi2))
 
     ! Tuning parameters
     ALLOCATE( SMB%C_abl_constant)
@@ -311,13 +311,13 @@ SUBROUTINE initialise_SMB_model_parameterised( mesh, SMB, climate, region_name)
 
     ! In/output variables
     TYPE(type_mesh),                     INTENT(IN)    :: mesh
-    TYPE(type_SMB),                      INTENT(INOUT) :: SMB
+    TYPE(type_SMB_model),                INTENT(INOUT) :: SMB
     CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_IMAUITM_firn_restart'
-    CHARACTER(LEN=256)                                 :: filename_restart_SMB
-    REAL(dp)                                           :: timeframe_refgeo_SMB
+    CHARACTER(LEN=256)                                 :: filename_restart_firn
+    REAL(dp)                                           :: timeframe_restart_firn
     TYPE(type_restart_data)                            :: restart
 
     ! Add routine to path
@@ -346,7 +346,7 @@ SUBROUTINE initialise_SMB_model_parameterised( mesh, SMB, climate, region_name)
 
 
     ! Read firn layer from file
-    IF (timeframe_refgeo_SMB == 1E9_dp) THEN
+    IF (timeframe_restart_firn == 1E9_dp) THEN
       ! Assume the file has no time dimension
       CALL read_field_from_file_2D_monthly( filename_restart_firn, 'FirnDepth', mesh, SMB%FirnDepth)
       CALL read_field_from_file_2D( filename_restart_firn, 'MeltPreviousYear', mesh, SMB%MeltPreviousYear)
