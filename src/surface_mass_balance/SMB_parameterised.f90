@@ -53,7 +53,7 @@ contains
 
   end subroutine run_SMB_model_parameterised
 
-  subroutine run_SMB_model_parameterised_IMAUITM( mesh, ice, SMB, climate, SMB)
+  subroutine run_SMB_model_parameterised_IMAUITM( mesh, ice, SMB, climate)
     ! Initialise the SMB model
     !
     ! use a parameterised SMB scheme
