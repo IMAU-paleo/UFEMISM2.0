@@ -668,6 +668,11 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: filename_climate_snapshot_GRL_config         = ''
     CHARACTER(LEN=256)  :: filename_climate_snapshot_ANT_config         = ''
 
+    ! == Climate - Insolation
+    CHARACTER(LEN=256)  :: choice_insolation_forcing_config             = ''                               ! 'static' or 'realistic'
+    CHARACTER(LEN=256)  :: filename_insolation_config                   = ''                               ! File with the insolation solution (Laskar 2004)
+    REAL(dp)            :: static_insolation_time_config                = 0._dp                            ! [ka?] time to use for a static insolation
+
   ! == Ocean
   ! ========
 
@@ -1697,6 +1702,11 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: filename_climate_snapshot_GRL
     CHARACTER(LEN=256)  :: filename_climate_snapshot_ANT
 
+    ! == Climate - Insolation
+    CHARACTER(LEN=256)  :: choice_insolation_forcing
+    CHARACTER(LEN=256)  :: filename_insolation
+    REAL(dp)            :: static_insolation_time
+
   ! == Ocean
   ! ========
 
@@ -2718,6 +2728,9 @@ CONTAINS
       filename_climate_snapshot_EAS_config                        , &
       filename_climate_snapshot_GRL_config                        , &
       filename_climate_snapshot_ANT_config                        , &
+      choice_insolation_forcing_config                            , &
+      filename_insolation_config                                  , &
+      static_insolation_time_config                               , &
       do_asynchronous_ocean_config                                , &
       dt_ocean_config                                             , &
       ocean_vertical_grid_max_depth_config                        , &
