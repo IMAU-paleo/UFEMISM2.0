@@ -37,6 +37,34 @@ MODULE climate_model_types
 
   END TYPE type_climate_model
 
+  TYPE type_global_forcing
+    ! Data structure containing model forcing data - CO2 record, d18O record, (global) insolation record
+
+      ! CO2 record
+      REAL(dp), DIMENSION(:    ), ALLOCATABLE     :: CO2_time
+      REAL(dp), DIMENSION(:    ), ALLOCATABLE     :: CO2_record
+      REAL(dp),                   ALLOCATABLE     :: CO2_obs
+      INTEGER :: wCO2_time, wCO2_record, wCO2_obs
+
+      ! d18O record
+      REAL(dp), DIMENSION(:    ), ALLOCATABLE     :: d18O_time
+      REAL(dp), DIMENSION(:    ), ALLOCATABLE     :: d18O_record
+      REAL(dp),                   ALLOCATABLE     :: d18O_obs
+      REAL(dp),                   ALLOCATABLE     :: d18O_obs_PD
+      INTEGER :: wd18O_time, wd18O_record, wd18O_obs, wd18O_obs_PD
+
+      ! Insolation reconstruction
+      TYPE(type_netcdf_insolation)            :: netcdf_ins
+      INTEGER,                    ALLOCATABLE     :: ins_nyears
+      INTEGER,                    ALLOCATABLE     :: ins_nlat
+      REAL(dp), DIMENSION(:    ), ALLOCATABLE     :: ins_time
+      REAL(dp), DIMENSION(:    ), ALLOCATABLE     :: ins_lat
+      REAL(dp),                   ALLOCATABLE     :: ins_t0, ins_t1
+      REAL(dp), DIMENSION(:,:  ), ALLOCATABLE     :: ins_Q_TOA0, ins_Q_TOA1
+      INTEGER :: wins_nyears, wins_nlat, wins_time, wins_lat, wins_t0, wins_t1, wins_Q_TOA0, wins_Q_TOA1
+
+  END TYPE type_global_forcing
+
 CONTAINS
 
 END MODULE climate_model_types
