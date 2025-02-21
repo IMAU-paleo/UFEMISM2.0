@@ -280,7 +280,7 @@ SUBROUTINE initialise_SMB_model_parameterised( mesh, SMB, climate, region_name)
 
     ELSEIF (choice_SMB_IMAUITM_init_firn == 'read_from_file') THEN
       ! Initialise with the firn layer of a previous run
-      CALL initialise_IMAU_ITM_firn_restart( mesh, SMB, region_name)
+      CALL initialise_IMAUITM_firn_from_file( mesh, SMB, region_name)
     ELSE
       CALL crash('unknown choice_SMB_IMAUITM_init_firn "' // TRIM( SMB_IMAUITM_choice_init_firn) // '"!')
     END IF
@@ -326,17 +326,17 @@ SUBROUTINE initialise_SMB_model_parameterised( mesh, SMB, climate, region_name)
     ! Assume that SMB and geometry are read from the same restart file
     SELECT CASE (region_name)
     CASE('NAM') 
-      filename_restart_SMB = C%filename_refgeo_init_NAM
-      timeframe_refgeo_SMB = C%timeframe_refgeo_init_NAM
+      filename_restart_firn = C%filename_firn_IMAUITM_NAM
+      timeframe_restart_firn = C%timeframe_firn_IMAUITM_NAM
     CASE('EAS') 
-      filename_restart_SMB = C%filename_refgeo_init_EAS
-      timeframe_refgeo_SMB = C%timeframe_refgeo_init_EAS
+      filename_restart_firn = C%filename_firn_IMAUITM_EAS
+      timeframe_restart_firn = C%timeframe_firn_IMAUITM_EAS
     CASE('GRL') 
-      filename_restart_SMB = C%filename_refgeo_init_GRL
-      timeframe_refgeo_SMB = C%timeframe_refgeo_init_GRL
+      filename_restart_firn = C%filename_firn_IMAUITM_GRL
+      timeframe_restart_firn = C%timeframe_firn_IMAUITM_GRL
     CASE('ANT') 
-      filename_restart_SMB = C%filename_refgeo_init_ANT
-      timeframe_refgeo_SMB = C%timeframe_refgeo_init_ANT
+      filename_restart_firn = C%filename_firn_IMAUITM_ANT
+      timeframe_restart_firn = C%timeframe_firn_IMAUITM_ANT
     CASE DEFAULT
         CALL crash('unknown region_name "' // TRIM( region_name) // '"!')
     END SELECT
@@ -348,12 +348,12 @@ SUBROUTINE initialise_SMB_model_parameterised( mesh, SMB, climate, region_name)
     ! Read firn layer from file
     IF (timeframe_refgeo_SMB == 1E9_dp) THEN
       ! Assume the file has no time dimension
-      CALL read_field_from_file_2D_monthly( filename_restart_SMB, 'FirnDepth', mesh, SMB%FirnDepth)
-      CALL read_field_from_file_2D( filename_restart_SMB, 'MeltPreviousYear', mesh, SMB%MeltPreviousYear)
+      CALL read_field_from_file_2D_monthly( filename_restart_firn, 'FirnDepth', mesh, SMB%FirnDepth)
+      CALL read_field_from_file_2D( filename_restart_firn, 'MeltPreviousYear', mesh, SMB%MeltPreviousYear)
     ELSE
       ! Assume the file has a time dimension, and read the specified timeframe
-      CALL read_field_from_file_2D_monthly( filename_restart_SMB, 'FirnDepth', mesh, SMB%FirnDepth, time_to_read = timeframe_refgeo_SMB)
-      CALL read_field_from_file_2D( filename_restart_SMB, 'MeltPreviousYear', mesh, SMB%MeltPreviousYear, time_to_read = timeframe_refgeo_SMB)
+      CALL read_field_from_file_2D_monthly( filename_restart_firn, 'FirnDepth', mesh, SMB%FirnDepth, time_to_read = timeframe_restart_firn)
+      CALL read_field_from_file_2D( filename_restart_firn, 'MeltPreviousYear', mesh, SMB%MeltPreviousYear, time_to_read = timeframe_restart_firn)
     END IF
 
 
