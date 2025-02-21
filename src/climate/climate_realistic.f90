@@ -22,7 +22,7 @@ CONTAINS
 ! ===== Main routines =====
 ! =========================
 
-  SUBROUTINE run_climate_model_realistic( mesh, ice, climate, time)
+  SUBROUTINE run_climate_model_realistic( mesh, ice, climate, forcing, time)
     ! Calculate the climate
     !
     ! Use an realistic climate scheme
@@ -33,6 +33,7 @@ CONTAINS
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
     TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_climate_model),               INTENT(INOUT) :: climate
+    TYPE(type_global_forcing)               INTENT(INOUT) :: forcing
     REAL(dp),                               INTENT(IN)    :: time
 
     ! Local variables:
@@ -56,7 +57,7 @@ CONTAINS
 
   END SUBROUTINE run_climate_model_realistic
 
-  SUBROUTINE initialise_climate_model_realistic( mesh, climate, region_name)
+  SUBROUTINE initialise_climate_model_realistic( mesh, climate, forcing, region_name)
     ! Initialise the climate model
     !
     ! Use a realistic climate scheme
@@ -66,11 +67,13 @@ CONTAINS
     ! In- and output variables
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
     TYPE(type_climate_model),               INTENT(INOUT) :: climate
+    TYPE(type_global_forcing)               INTENT(INOUT) :: forcing
     CHARACTER(LEN=3),                       INTENT(IN)    :: region_name
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'initialise_climate_model_realistic'
     CHARACTER(LEN=256)                                    :: filename_climate_snapshot
+    REAL(dp)                                              :: timeframe_init_insolation
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -102,6 +105,7 @@ CONTAINS
 
       CALL initialise_global_forcings( mesh, forcing, climate) ! TODO: initialise gobal/solar forcing
       ! TODO: what should be the timeframe_init_insolation?
+      timeframe_init_insolation = C%start_time_of_run
       CALL get_insolation_at_time( mesh, timeframe_init_insolation, forcing, climate%Q_TOA)
 
     ELSE
@@ -184,7 +188,7 @@ CONTAINS
       ALLOCATE( forcing%ins_nyears)
       ALLOCATE( forcing%ins_nlat)
 
-      IF (par%master) CALL inquire_insolation_file( forcing)
+      IF (par%master) CALL inquire_insolation_file( forcing) !TODO
       CALL sync
 
       ! Insolation

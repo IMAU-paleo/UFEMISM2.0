@@ -471,7 +471,7 @@ CONTAINS
     ! ===== Climate =====
     ! ===================
 
-    CALL initialise_climate_model( region%mesh, region%climate, region%name)
+    CALL initialise_climate_model( region%mesh, region%climate, region%forcing, region%name)
 
     ! ===== Ocean =====
     ! =================
@@ -507,7 +507,7 @@ CONTAINS
     ! ============================================================
 
     ! Run the models
-    CALL run_climate_model( region%mesh, region%ice, region%climate, region%name, C%start_time_of_run)
+    CALL run_climate_model( region%mesh, region%ice, region%climate, region%forcing, region%name, C%start_time_of_run)
     CALL run_ocean_model( region%mesh, region%ice, region%ocean, region%name, C%start_time_of_run)
     CALL run_SMB_model( region%mesh, region%grid_smooth, region%ice, region%climate, region%SMB, region%name, C%start_time_of_run)
     CALL run_BMB_model( region%mesh, region%ice, region%ocean, region%refgeo_PD, region%SMB, region%BMB, region%name, C%start_time_of_run)

@@ -12,7 +12,7 @@ MODULE climate_main
   USE parameters
   USE mesh_types                                             , ONLY: type_mesh
   USE ice_model_types                                        , ONLY: type_ice_model
-  USE climate_model_types                                    , ONLY: type_climate_model
+  USE climate_model_types                                    , ONLY: type_climate_model, type_global_forcing
   USE climate_idealised                                      , ONLY: initialise_climate_model_idealised, run_climate_model_idealised
   USE climate_realistic                                      , ONLY: initialise_climate_model_realistic, run_climate_model_realistic
   USE reallocate_mod                                         , ONLY: reallocate_bounds
@@ -25,7 +25,7 @@ CONTAINS
 ! ===== Main routines =====
 ! =========================
 
-  SUBROUTINE run_climate_model( mesh, ice, climate, region_name, time)
+  SUBROUTINE run_climate_model( mesh, ice, climate, forcing, region_name, time)
     ! Calculate the climate
 
     IMPLICIT NONE
@@ -34,6 +34,7 @@ CONTAINS
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
     TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_climate_model),               INTENT(INOUT) :: climate
+    TYPE(type_global_forcing),              INTENT(INOUT) :: forcing
     CHARACTER(LEN=3),                       INTENT(IN)    :: region_name
     REAL(dp),                               INTENT(IN)    :: time
 
@@ -96,7 +97,7 @@ CONTAINS
 
   END SUBROUTINE run_climate_model
 
-  SUBROUTINE initialise_climate_model( mesh, climate, region_name)
+  SUBROUTINE initialise_climate_model( mesh, climate, forcing, region_name)
     ! Initialise the climate model
 
     IMPLICIT NONE
@@ -104,6 +105,7 @@ CONTAINS
     ! In- and output variables
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
     TYPE(type_climate_model),               INTENT(OUT)   :: climate
+    TYPE(type_global_forcing),              INTENT(INOUT) :: forcing
     CHARACTER(LEN=3),                       INTENT(IN)    :: region_name
 
     ! Local variables:
@@ -146,7 +148,7 @@ CONTAINS
     ELSEIF (choice_climate_model == 'idealised') THEN
       CALL initialise_climate_model_idealised( mesh, climate)
     ELSEIF (choice_climate_model == 'realistic') THEN
-      CALL initialise_climate_model_realistic( mesh, climate, region_name)
+      CALL initialise_climate_model_realistic( mesh, climate, forcing, region_name)
     ELSE
       CALL crash('unknown choice_climate_model "' // TRIM( choice_climate_model) // '"')
     END IF
