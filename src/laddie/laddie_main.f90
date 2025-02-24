@@ -543,14 +543,14 @@ CONTAINS
     ! Local variables:
     character(len=256), parameter                         :: routine_name = 'update_laddie_operators'
     integer                                               :: ncols, ncols_loc, nrows, nrows_loc, nnz_per_row_est, nnz_est_proc
-    integer                                               :: ti, n, i, vi
+    integer                                               :: row, ti, n, i, vi
     real(dp), dimension(3)                                :: cM_map_H_a_b
     logical, dimension(mesh%nV)                           :: mask_a_tot
 
     ! Add routine to path
     call init_routine( routine_name)
 
-    CALL gather_to_all( laddie%mask_a, mask_a_tot)
+    call gather_to_all( laddie%mask_a, mask_a_tot)
 
     ! Make sure to deallocate before allocating
     call deallocate_matrix_CSR_dist( laddie%M_map_H_a_b)
@@ -571,7 +571,11 @@ CONTAINS
     ! == Calculate coefficients
     ! =========================
 
-    do ti = mesh%ti1, mesh%ti2
+
+    do row = laddie%M_map_H_a_b%i1, laddie%M_map_H_a_b%i2
+
+      ! The vertex represented by this matrix row
+      ti = mesh%n2ti( row)
 
       if (laddie%mask_b( ti)) then
 
