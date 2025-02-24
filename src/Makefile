@@ -322,6 +322,7 @@ UFEMISM_source = \
   validation/unit_tests/ut_netcdf_mesh.f90 \
   validation/unit_tests/ut_netcdf.f90 \
   validation/unit_tests/ut_tracer_tracking.f90 \
+  validation/unit_tests/ut_bedrock_CDFs.f90 \
   validation/unit_tests/unit_tests.f90 \
   \
   validation/component_tests/ct_create_test_meshes.f90 \
