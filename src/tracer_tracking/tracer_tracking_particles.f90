@@ -4,7 +4,7 @@ module tracer_tracking_model_particles
 
   use tests_main
   use assertions_basic
-  use precisions, only: dp, int8
+  use precisions, only: dp
   use mpi_basic, only: par
   use mpi
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash, warning
@@ -24,16 +24,18 @@ module tracer_tracking_model_particles
 
   public :: initialise_tracer_tracking_model_particles, calc_particle_zeta, &
     interpolate_3d_velocities_to_3D_point, calc_particles_to_mesh_map, add_particle, &
-    move_and_remove_particle, create_particles_netcdf_file, write_to_netcdf_file
+    create_particles_netcdf_file, write_to_netcdf_file
 
-  integer, parameter :: n_tracers         = 1
-  integer, parameter :: n_nearest_to_find = 4
+  integer,  parameter :: n_tracers         = 1
+  integer,  parameter :: n_nearest_to_find = 4
+  real(dp), parameter :: particle_dx       = 1e3_dp   ! [m]  Distance that tracer-tracking particles should move in a single particle time step
+  real(dp), parameter :: particle_min_dt   = 1._dp    ! [yr] Minimum allowed time step for tracer-tracking particles
+  real(dp), parameter :: particle_max_dt   = 100._dp  ! [yr] Maximum allowed time step for tracer-tracking particles
 
 contains
 
   subroutine initialise_tracer_tracking_model_particles( mesh, ice, particles, n_max)
-    !< Initialise the particle-based tracer-tracking model.
-    !< Allocates memory for a number of particles.
+    !< Initialise the particle-based tracer-tracking model
 
     ! In- and output variables
     type(type_mesh),                            intent(in   ) :: mesh
@@ -51,17 +53,22 @@ contains
     if (par%master)  write(*,'(a)') '     Initialising particle-based tracer tracking model...'
 
     particles%n_max  = n_max
-    particles%id_max = 0_int8
-    allocate( particles%is_in_use( particles%n_max           ), source = .false.)
-    allocate( particles%id       ( particles%n_max           ), source = 0_int8 )
-    allocate( particles%r        ( particles%n_max, 3        ), source = 0._dp  )
-    allocate( particles%zeta     ( particles%n_max           ), source = 0._dp  )
-    allocate( particles%vi_in    ( particles%n_max           ), source = 1      )
-    allocate( particles%ti_in    ( particles%n_max           ), source = 1      )
-    allocate( particles%u        ( particles%n_max, 3        ), source = 0._dp  )
-    allocate( particles%r_origin ( particles%n_max, 3        ), source = 0._dp  )
-    allocate( particles%t_origin ( particles%n_max           ), source = 0._dp  )
-    allocate( particles%tracers  ( particles%n_max, n_tracers), source = 0._dp  )
+    particles%id_max = 0
+    allocate( particles%is_in_use    ( particles%n_max           ), source = .false.)
+    allocate( particles%id           ( particles%n_max           ), source = 0      )
+    allocate( particles%r            ( particles%n_max, 3        ), source = 0._dp  )
+    allocate( particles%zeta         ( particles%n_max           ), source = 0._dp  )
+    allocate( particles%vi_in        ( particles%n_max           ), source = 1      )
+    allocate( particles%ti_in        ( particles%n_max           ), source = 1      )
+    allocate( particles%u            ( particles%n_max, 3        ), source = 0._dp  )
+    allocate( particles%r_origin     ( particles%n_max, 3        ), source = 0._dp  )
+    allocate( particles%t_origin     ( particles%n_max           ), source = 0._dp  )
+    allocate( particles%tracers      ( particles%n_max, n_tracers), source = 0._dp  )
+
+    allocate( particles%t0           ( particles%n_max           ), source = 0._dp  )
+    allocate( particles%t1           ( particles%n_max           ), source = 0._dp  )
+    allocate( particles%r_t0         ( particles%n_max, 3        ), source = 0._dp  )
+    allocate( particles%r_t1         ( particles%n_max, 3        ), source = 0._dp  )
 
     particles%map%n = n_nearest_to_find
     allocate( particles%map%ip( mesh%nV, C%nz, particles%map%n), source = 0)
@@ -72,23 +79,67 @@ contains
 
   end subroutine initialise_tracer_tracking_model_particles
 
-  subroutine move_and_remove_particle( mesh, ice, particles, ip, dt)
-    !< Move particle ip for time dt to a new position.
-    !< Assumes velocity has alread been calculated for the current position.
-    !< Calculates velocities for the new position.
-    !< Removes the particle if its new position lies outside the ice sheet.
+  subroutine run_tracer_tracking_model_particles( mesh, ice, particles, time)
+    !< Run the particle-based tracer-tracking model
+
+    ! In- and output variables
+    type(type_mesh),                            intent(in   ) :: mesh
+    type(type_ice_model),                       intent(in   ) :: ice
+    type(type_tracer_tracking_model_particles), intent(inout) :: particles
+    real(dp),                                   intent(in   ) :: time
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'run_tracer_tracking_model_particles'
+    integer                        :: ip
+    real(dp)                       :: w0, w1
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    do ip = 1, particles%n_max
+
+      if (.not. particles%is_in_use( ip)) cycle
+
+      ! If needed, update particle velocity and timeframes
+      do while (particles%t1( ip) < time)
+
+        particles%r( ip,:) = particles%r_t1( ip,:)
+        call update_particle_velocity( mesh, ice, particles, ip)
+
+        ! If the particle has been removed, stop tracing it
+        if (.not. particles%is_in_use( ip)) exit
+
+      end do
+
+      ! If the particle has been removed, stop tracing it
+      if (.not. particles%is_in_use( ip)) cycle
+
+      ! Interpolate particle position between timeframes
+      w0 = (particles%t1( ip) - time) / (particles%t1( ip) - particles%t0( ip))
+      w1 = 1._dp - w0
+      particles%r( ip,:) = (w0 * particles%r_t0( ip,:)) + (w1 * particles%r_t1( ip,:))
+
+    end do
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine run_tracer_tracking_model_particles
+
+  subroutine update_particle_velocity( mesh, ice, particles, ip)
+    !< Update particle velocity and timeframes
 
     ! In- and output variables
     type(type_mesh),                            intent(in   ) :: mesh
     type(type_ice_model),                       intent(in   ) :: ice
     type(type_tracer_tracking_model_particles), intent(inout) :: particles
     integer,                                    intent(in   ) :: ip
-    real(dp),                                   intent(in   ) :: dt
 
     ! Local variables:
-    character(len=1024), parameter :: routine_name = 'move_and_remove_particle'
+    character(len=1024), parameter :: routine_name = 'update_particle_velocity'
     real(dp), dimension(2)         :: p
     real(dp)                       :: Hi_interp
+    real(dp)                       :: dt
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -98,29 +149,15 @@ contains
     call assert( particles%is_in_use( ip), 'particle is not in use')
 #endif
 
-    ! Using the interpolated velocities from the last time
-    ! this model was run, move the particle to its new position
-    particles%r( ip,:) = particles%r( ip,:) + particles%u( ip,:) * dt
-
-    ! If the new position is outside the mesh domain, remove the particle
-    if ((.not. test_ge_le( particles%r( ip,1), mesh%xmin, mesh%xmax)) .or. &
-        (.not. test_ge_le( particles%r( ip,2), mesh%ymin, mesh%ymax))) then
-      call remove_particle( particles, ip)
-      call finalise_routine( routine_name)
-      return
-    end if
-
-    ! Find the vertex and triangle containing the new position
+    ! Locate the particle inside the ice sheet
     p = particles%r( ip,1:2)
     call find_containing_triangle( mesh, p, particles%ti_in( ip))
     call find_containing_vertex  ( mesh, p, particles%vi_in( ip))
-
-    ! Calculate the zeta coordinate of the new position
     call calc_particle_zeta( mesh, ice%Hi, ice%Hs, &
       particles%r( ip,1), particles%r( ip,2), particles%r( ip,3), particles%ti_in( ip), &
       particles%zeta( ip), Hi_interp_ = Hi_interp)
 
-    ! If the new position is outside the ice sheet, remove the particle
+    ! If the particle now lies outside the ice sheet, remove it
     if (particles%zeta( ip) < 0._dp .or. particles%zeta( ip) > 1._dp .or. Hi_interp < 0.1_dp) then
       call remove_particle( particles, ip)
       call finalise_routine( routine_name)
@@ -133,10 +170,29 @@ contains
       particles%vi_in( ip), particles%ti_in( ip), &
       particles%u( ip,1), particles%u( ip,2), particles%u( ip,3))
 
+    ! Calculate particle time step
+    dt = calc_particle_dt( particles%u( ip,1), particles%u( ip,2), particles%u( ip,3))
+
+    ! Update timeframes
+    particles%t0  ( ip  ) = particles%t1( ip)
+    particles%t1  ( ip  ) = particles%t1( ip) + dt
+    particles%r_t0( ip,:) = particles%r_t1( ip,:)
+    particles%r_t1( ip,:) = particles%r_t1( ip,:) + dt * particles%u( ip,:)
+
+    ! If the particle's new position takes it ouside the mesh domain, remove it
+    if (particles%r_t1( ip,1) < mesh%xmin + particle_dx .or. &
+        particles%r_t1( ip,1) > mesh%xmax - particle_dx .or. &
+        particles%r_t1( ip,2) < mesh%ymin + particle_dx .or. &
+        particles%r_t1( ip,2) > mesh%ymax - particle_dx) then
+      call remove_particle( particles, ip)
+      call finalise_routine( routine_name)
+      return
+    end if
+
     ! Finalise routine path
     call finalise_routine( routine_name)
 
-  end subroutine move_and_remove_particle
+  end subroutine update_particle_velocity
 
   subroutine add_particle( mesh, ice, particles, x, y, z, time)
     !< Add a new particle to the particle-based tracer tracking model.
@@ -151,38 +207,15 @@ contains
 
     ! Local variables
     character(len=1024), parameter :: routine_name = 'add_particle'
+    integer                        :: ipp, ip
+    logical                        :: out_of_memory
     real(dp), dimension(2)         :: p
     integer                        :: ti_in, vi_in
     real(dp)                       :: zeta, Hi_interp
-    real(dp)                       :: u,v,w
-    integer                        :: ipp, ip
-    logical                        :: out_of_memory
+    real(dp)                       :: u,v,w,dt
 
     ! Add routine to path
     call init_routine( routine_name)
-
-#if (DO_ASSERTIONS)
-    call assert( test_ge_le( x, mesh%xmin, mesh%xmax) .and. test_ge_le( y, mesh%ymin, mesh%ymax), &
-      '[x,y] lies outside the mesh domain')
-#endif
-
-    ! Find where on the mesh the new particle is located
-    p = [x,y]
-    vi_in = 1
-    call find_containing_vertex  ( mesh, p, vi_in)
-    ti_in = mesh%iTri( vi_in,1)
-    call find_containing_triangle( mesh, p, ti_in)
-
-    call calc_particle_zeta( mesh, ice%Hi, ice%Hs, x, y, z, &
-      ti_in, zeta, Hi_interp_ = Hi_interp)
-
-#if (DO_ASSERTIONS)
-    call assert( test_ge_le( zeta, 0._dp, 1._dp) .and. Hi_interp > 0.1_dp, &
-      '[x,y,z] does not lie inside the ice sheet')
-#endif
-
-    call interpolate_3d_velocities_to_3D_point( mesh, ice%u_3D_b, ice%v_3D_b, ice%w_3D, &
-      x, y, zeta, vi_in, ti_in, u, v, w)
 
     ! Find the first empty memory slot. If none can be found, throw an error.
     out_of_memory = .true.
@@ -198,8 +231,35 @@ contains
       call crash('Out of memory - exceeded maximum number of particles')
     end if
 
+    ! Locate the particle inside the ice sheet
+#if (DO_ASSERTIONS)
+    call assert( test_ge_le( x, mesh%xmin, mesh%xmax) .and. test_ge_le( y, mesh%ymin, mesh%ymax), &
+      '[x,y] lies outside the mesh domain')
+#endif
+
+    p = [x,y]
+    vi_in = 1
+    call find_containing_vertex  ( mesh, p, vi_in)
+    ti_in = mesh%iTri( vi_in,1)
+    call find_containing_triangle( mesh, p, ti_in)
+
+    call calc_particle_zeta( mesh, ice%Hi, ice%Hs, x, y, z, &
+      ti_in, zeta, Hi_interp_ = Hi_interp)
+
+#if (DO_ASSERTIONS)
+    call assert( test_ge_le( zeta, 0._dp, 1._dp) .and. Hi_interp > 0.1_dp, &
+      '[x,y,z] does not lie inside the ice sheet')
+#endif
+
+    ! Interpolate ice velocity to particle position
+    call interpolate_3d_velocities_to_3D_point( mesh, ice%u_3D_b, ice%v_3D_b, ice%w_3D, &
+      x, y, zeta, vi_in, ti_in, u, v, w)
+
+    ! Calculate particle time step
+    dt = calc_particle_dt( u, v, w)
+
     ! Add the new particle data to the list
-    particles%id_max = particles%id_max + 1_int8
+    particles%id_max = particles%id_max + 1
 
     particles%is_in_use( ip  ) = .true.
     particles%id       ( ip  ) = particles%id_max
@@ -210,6 +270,11 @@ contains
     particles%u        ( ip,:) = [u,v,w]
     particles%r_origin ( ip,:) = [x,y,z]
     particles%t_origin ( ip  ) = time
+
+    particles%t0       ( ip  ) = time
+    particles%t1       ( ip  ) = time + dt
+    particles%r_t0     ( ip,:) = [x,y,z]
+    particles%r_t1     ( ip,:) = [x,y,z] + dt * [u,v,w]
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -235,7 +300,7 @@ contains
 #endif
 
     particles%is_in_use( ip   ) = .false.
-    particles%id       ( ip   ) = 0_int8
+    particles%id       ( ip   ) = 0
     particles%r        ( ip, :) = 0._dp
     particles%zeta     ( ip   ) = 0._dp
     particles%vi_in    ( ip   ) = 1
@@ -245,10 +310,31 @@ contains
     particles%t_origin ( ip   ) = 0._dp
     particles%tracers  ( ip, :) = 0._dp
 
+    particles%t0       ( ip  ) = 0._dp
+    particles%t1       ( ip  ) = 0._dp
+    particles%r_t0     ( ip,:) = 0._dp
+    particles%r_t1     ( ip,:) = 0._dp
+
     ! Finalise routine path
     call finalise_routine( routine_name)
 
   end subroutine remove_particle
+
+  function calc_particle_dt( u, v, w) result( dt)
+    !< Calculate particle time step
+
+    ! In- and output variables
+    real(dp), intent(in   ) :: u,v,w
+    real(dp)                :: dt
+
+    ! Local variables
+    real(dp)                :: uabs
+
+    uabs = sqrt( u**2 + v**2 + w**2)
+    dt = particle_dx / uabs
+    dt = min( particle_max_dt, max( particle_min_dt, dt))
+
+  end function calc_particle_dt
 
   subroutine calc_particle_zeta( mesh, Hi, Hs, x, y, z, ti_in, zeta, Hi_interp_, Hs_interp_)
     !< Calculate the zeta coordinate of a particle located at position [x,y,z]
@@ -594,12 +680,12 @@ contains
     real(dp),                                   intent(in) :: time
 
     ! Local variables:
-    character(len=1024), parameter               :: routine_name = 'write_to_netcdf_file'
-    character(len=1024)                          :: filename
-    integer                                      :: ncid, id_dim_time, ti
-    integer(int8), dimension(:,:  ), allocatable :: id_with_time
-    real(dp),      dimension(:,:,:), allocatable :: r_with_time
-    real(dp),      dimension(:,:  ), allocatable :: t_origin_with_time
+    character(len=1024), parameter          :: routine_name = 'write_to_netcdf_file'
+    character(len=1024)                     :: filename
+    integer                                 :: ncid, id_dim_time, ti
+    integer,  dimension(:,:  ), allocatable :: id_with_time
+    real(dp), dimension(:,:,:), allocatable :: r_with_time
+    real(dp), dimension(:,:  ), allocatable :: t_origin_with_time
 
     ! Add routine to path
     call init_routine( routine_name)
