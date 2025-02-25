@@ -63,6 +63,7 @@ def plot_resources(names,tcomps,Nlevels,savename='test.png',toplevel=0,toproutin
     fig,ax = plt.subplots(1,1,figsize=(width,height))
 
     y0 = np.zeros((Nlevels,1))
+    y1 = np.zeros((Nlevels,1))
     x = np.linspace(0,1,Nlevels+1)
     x0 = x[:-1]
     x1 = x[1:]
@@ -93,22 +94,22 @@ def plot_resources(names,tcomps,Nlevels,savename='test.png',toplevel=0,toproutin
             
             levnew = len(names[i])-toplevel-2
             if levnew == lev:
-                y0[levnew] = y1
+                y0[levnew] = y1[levnew]
             elif levnew > lev:
                 y0[levnew] = y0[levnew-1]
             else:
-                y0[levnew] = y1
+                y0[levnew] = y1[levnew]
 
             lev = levnew
-            y1 = y0[lev] + tcomp/ttot
-            ax.fill_between([x0[lev],x1[lev]],y0[lev][:],y1[:],lw=0)
+            y1[lev] = y0[lev] + tcomp/ttot
+            ax.fill_between([x0[lev],x1[lev]],y0[lev],y1[lev],lw=0)
 
             if tcomp/ttot > .01:
                 # At least 1 percent of total
-                rotation = 180/3.14* np.arctan((y1[0]-y0[lev][0])/(x1[lev]-x0[lev])*height/width)
+                rotation = 180/3.14* np.arctan((y1[lev][0]-y0[lev][0])/(x1[lev]-x0[lev])*height/width)
                 if rotation < 10:
                     rotation = 0
-                ax.text((x0[lev]+x1[lev])/2,(y0[lev]+y1)/2,f'{names[i][lev+1]} ({100*tcomp/ttot:.1f}%)',rotation=rotation,va='center',ha='center',fontsize=6)
+                ax.text((x0[lev]+x1[lev])/2,(y0[lev]+y1[lev])/2,f'{names[i][lev+1]} ({100*tcomp/ttot:.1f}%)',rotation=rotation,va='center',ha='center',fontsize=6)
 
     ax.set_xlim([0,1])
     ax.set_ylim([0,1])
