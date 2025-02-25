@@ -89,7 +89,7 @@ class Run(object):
         #Remove frames
         os.system(f'rm {self.directory}/movie/frame*.png')
 
-    def plot_comptime(self,baselevel,baseroutine,toplevel=0,toproutine='UFEMISM_program'):
+    def plot_comptime(self,Nlevels=9,toplevel=0,toproutine='UFEMISM_program'):
         """ Plot computation time of subroutines """
 
         #Make outputfolder if necessary
@@ -100,13 +100,13 @@ class Run(object):
         ds = ds.sum(dim='time')
 
         #Get names and computation times of subroutines down to required level
-        names,tcomps = get_allnames(ds,maxlev=baselevel+3)
+        names,tcomps = get_allnames(ds,maxlev=toplevel+Nlevels+2)
 
         #Output name
-        savename = f'{self.directory}/figures/resources_{baseroutine}.png'
+        savename = f'{self.directory}/figures/resources_{toproutine}_{Nlevels:.0f}.pdf'
 
         #Make plot
-        plot_resources(names,tcomps,baselevel,baseroutine,savename=savename,toplevel=toplevel,toproutine=toproutine)
+        plot_resources(names,tcomps,Nlevels,savename=savename,toplevel=toplevel,toproutine=toproutine)
 
         # Close data set
         ds.close()
