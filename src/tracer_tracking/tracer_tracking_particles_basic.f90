@@ -6,10 +6,10 @@ module tracer_tracking_model_particles_basic
   use mpi_basic, only: par
   use mpi
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash, warning
+  use model_configuration, only: C
   use mesh_types, only: type_mesh
   use ice_model_types, only: type_ice_model
   use tracer_tracking_model_types, only: type_tracer_tracking_model_particles
-  use model_configuration, only: C
   use mesh_utilities, only: find_containing_triangle, find_containing_vertex, &
     interpolate_to_point_dp_2D, interpolate_to_point_dp_3D
   use reallocate_mod, only: reallocate
@@ -21,10 +21,6 @@ module tracer_tracking_model_particles_basic
   private
 
   public :: create_particle, destroy_particle, update_particle_velocity
-
-  real(dp), parameter :: particle_dx       = 1e3_dp   ! [m]  Distance that tracer-tracking particles should move in a single particle time step
-  real(dp), parameter :: particle_min_dt   = 1._dp    ! [yr] Minimum allowed time step for tracer-tracking particles
-  real(dp), parameter :: particle_max_dt   = 100._dp  ! [yr] Maximum allowed time step for tracer-tracking particles
 
 contains
 
@@ -83,10 +79,10 @@ contains
     particles%r_t1( ip,:) = particles%r_t1( ip,:) + dt * particles%u( ip,:)
 
     ! If the particle's new position takes it ouside the mesh domain, remove it
-    if (particles%r_t1( ip,1) < mesh%xmin + particle_dx .or. &
-        particles%r_t1( ip,1) > mesh%xmax - particle_dx .or. &
-        particles%r_t1( ip,2) < mesh%ymin + particle_dx .or. &
-        particles%r_t1( ip,2) > mesh%ymax - particle_dx) then
+    if (particles%r_t1( ip,1) < mesh%xmin + C%tractrackpart_dx_particle .or. &
+        particles%r_t1( ip,1) > mesh%xmax - C%tractrackpart_dx_particle .or. &
+        particles%r_t1( ip,2) < mesh%ymin + C%tractrackpart_dx_particle .or. &
+        particles%r_t1( ip,2) > mesh%ymax - C%tractrackpart_dx_particle) then
       call destroy_particle( particles, ip)
       call finalise_routine( routine_name)
       return
@@ -231,8 +227,8 @@ contains
     real(dp)                :: uabs
 
     uabs = sqrt( u**2 + v**2 + w**2)
-    dt = particle_dx / uabs
-    dt = min( particle_max_dt, max( particle_min_dt, dt))
+    dt = C%tractrackpart_dx_particle / uabs
+    dt = min( C%tractrackpart_dt_particle_max, max( C%tractrackpart_dt_particle_min, dt))
 
   end function calc_particle_dt
 

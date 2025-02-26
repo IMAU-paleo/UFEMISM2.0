@@ -18,21 +18,17 @@ module tracer_tracking_model_particles_main
 
   public :: initialise_tracer_tracking_model_particles, run_tracer_tracking_model_particles
 
-  integer,  parameter :: n_tracers         = 1
-  integer,  parameter :: n_nearest_to_find = 4
-  real(dp), parameter :: dt_tracer_tracking_add_new_particles = 100._dp
-  real(dp), parameter :: dx_tracer_tracking_add_new_particles = 50e3_dp
+  ! integer,  parameter :: n_tracers         = 1
 
 contains
 
-  subroutine initialise_tracer_tracking_model_particles( mesh, ice, particles, n_max)
+  subroutine initialise_tracer_tracking_model_particles( mesh, ice, particles)
     !< Initialise the particle-based tracer-tracking model
 
     ! In- and output variables
     type(type_mesh),                            intent(in   ) :: mesh
     type(type_ice_model),                       intent(in   ) :: ice
     type(type_tracer_tracking_model_particles), intent(  out) :: particles
-    integer                                   , intent(in   ) :: n_max
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'initialise_tracer_tracking_model_particles'
@@ -42,10 +38,10 @@ contains
     call init_routine( routine_name)
 
     ! Print to terminal
-    if (par%master)  write(*,'(a)') '     Initialising particle-based tracer tracking model...'
+    if (par%master)  write(*,'(a)') '     Initialising particle-based tracer-tracking model...'
 
     ! Basic data
-    particles%n_max  = n_max
+    particles%n_max  = C%tractrackpart_n_max_particles
     particles%id_max = 0
     allocate( particles%is_in_use    ( particles%n_max           ), source = .false.)
     allocate( particles%id           ( particles%n_max           ), source = 0      )
@@ -56,7 +52,7 @@ contains
     allocate( particles%u            ( particles%n_max, 3        ), source = 0._dp  )
     allocate( particles%r_origin     ( particles%n_max, 3        ), source = 0._dp  )
     allocate( particles%t_origin     ( particles%n_max           ), source = 0._dp  )
-    allocate( particles%tracers      ( particles%n_max, n_tracers), source = 0._dp  )
+    ! allocate( particles%tracers      ( particles%n_max, n_tracers), source = 0._dp  )
 
     ! Position timeframes (to enable asynchronous time-stepping)
     allocate( particles%t0           ( particles%n_max           ), source = 0._dp  )
@@ -65,14 +61,15 @@ contains
     allocate( particles%r_t1         ( particles%n_max, 3        ), source = 0._dp  )
 
     ! Particles-to-mesh mapping
-    particles%map%n = n_nearest_to_find
+    particles%map%n = C%tractrackpart_remap_n_nearest
     allocate( particles%map%ip( mesh%nV, C%nz, particles%map%n), source = 0)
     allocate( particles%map%d ( mesh%nV, C%nz, particles%map%n), source = 0._dp)
 
     ! Grid for creating new particles
+    particles%t_add_new_particles = -huge( particles%t_add_new_particles)
     grid_name = 'particle_creation_grid'
     call setup_square_grid( grid_name, mesh%xmin, mesh%xmax, mesh%ymin, mesh%ymax, &
-      dx_tracer_tracking_add_new_particles, particles%grid_new_particles, &
+      C%tractrackpart_dx_new_particles, particles%grid_new_particles, &
       mesh%lambda_M, mesh%phi_M, mesh%beta_stereo)
 
     ! Finalise routine path
@@ -100,7 +97,7 @@ contains
 
     ! If the time is right, add a new batch of particles
     if (time >= particles%t_add_new_particles) then
-      particles%t_add_new_particles = particles%t_add_new_particles + dt_tracer_tracking_add_new_particles
+      particles%t_add_new_particles = particles%t_add_new_particles + C%tractrackpart_dt_new_particles
       call add_new_particles_from_SMB( mesh, ice, SMB, particles, time)
     end if
 
