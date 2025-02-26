@@ -13,7 +13,8 @@ module netcdf_check_fields
 
   public :: check_xy_grid_field_int_2D, check_xy_grid_field_int_3D, check_xy_grid_field_dp_2D, &
     check_xy_grid_field_dp_2D_monthly, check_xy_grid_field_dp_3D, check_xy_grid_field_dp_3D_ocean, &
-    check_lonlat_grid_field_int_2D, check_lonlat_grid_field_dp_2D, check_lonlat_grid_field_dp_2D_monthly, &
+    check_lat_grid_field_dp_1D_monthly, check_lonlat_grid_field_int_2D, check_lonlat_grid_field_dp_2D, & 
+    check_lonlat_grid_field_dp_2D_monthly, &
     check_lonlat_grid_field_dp_3D, check_lonlat_grid_field_dp_3D_ocean, check_mesh_field_int_2D, &
     check_mesh_field_int_2D_b, check_mesh_field_int_2D_c, check_mesh_field_dp_2D, &
     check_mesh_field_dp_2D_b, check_mesh_field_dp_2D_c, check_mesh_field_dp_2D_monthly, &
@@ -629,6 +630,105 @@ contains
   end subroutine check_xy_grid_field_dp_3D_ocean
 
   ! lon/lat-grid field variables
+  subroutine check_lat_grid_field_dp_1D_monthly( filename, ncid, var_name, should_have_time)
+    ! Check if this file contains a 2-D monthly lon/lat-grid variable by this name
+
+    ! In/output variables:
+    character(len=*),           intent(in   ) :: filename
+    integer,                    intent(in   ) :: ncid
+    character(len=*),           intent(in   ) :: var_name
+    logical,          optional, intent(in   ) :: should_have_time
+
+    ! Local variables:
+    character(len=1024), parameter         :: routine_name = 'check_lat_grid_field_dp_1D_monthly'
+    integer                                :: id_dim_lat, id_dim_month, id_dim_time, id_var
+    integer                                :: var_type
+    integer                                :: ndims_of_var
+    integer, dimension( NF90_MAX_VAR_DIMS) :: dims_of_var
+    logical                                :: file_has_time
+
+    ! Add routine to path
+    call init_routine( routine_name, do_track_resource_use = .false.)
+
+    ! Check if the file has valid lat dimension and variables
+    call check_lat(   filename, ncid)
+    call check_month( filename, ncid)
+
+    ! inquire lon,lat dimensions
+    call inquire_dim_multopt( filename, ncid, field_name_options_lat  , id_dim_lat  )
+    call inquire_dim_multopt( filename, ncid, field_name_options_month, id_dim_month)
+
+    ! inquire variable
+    call inquire_var( filename, ncid, var_name, id_var)
+    if (id_var == -1) call crash('variable "' // trim( var_name) // '" could not be found in file "' // trim( filename) // '"!')
+
+    ! inquire variable info
+    call inquire_var_info( filename, ncid, id_var, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
+
+    ! Check variable type
+    if (.not. (var_type == NF90_FLOAT .or. var_type == NF90_DOUBLE)) then
+      call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
+    end if
+
+    ! Check lon,lat dimensions
+    if (.not. any( dims_of_var == id_dim_lat  )) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have latitude as a dimension!')
+    if (.not. any( dims_of_var == id_dim_month)) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have month as a dimension!')
+
+    if (.not. present( should_have_time)) then
+      ! This variable is allowed to either have or not have a time dimension
+
+      ! Check if the file contains a time dimension
+      call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
+      if (id_dim_time == -1) then
+        file_has_time = .false.
+      else
+        file_has_time = .true.
+      end if
+
+      if (file_has_time) then
+        ! Check if the variable has time as a dimension
+        if (ndims_of_var == 2) then
+          ! The variable only has lat,m as dimensions.
+        else
+          if (ndims_of_var == 3) then
+            if (.not. any( dims_of_var == id_dim_time)) call crash('no-longitude variable "' // trim( var_name) // '" in file "' &
+              // trim( filename) // '" has three dimensions, but the third one is not time!')
+          else
+            call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+          end if
+        end if
+      else ! if (file_has_time) then
+        ! The file does not have a time dimension; the variable should only have lon,lat,m as dimensions
+        if (ndims_of_var /= 2) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+      end if ! if (file_has_time) then
+
+    else ! if (.not. present( should_have_time)) then
+      if (should_have_time) then
+        ! This variable should have a time dimension
+
+        ! Check if the file has a valid time dimension
+        call check_time( filename, ncid)
+
+        ! inquire the time dimension
+        call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
+
+        ! Check if the variable has time as a dimension
+        if (ndims_of_var /= 3) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+        if (.not. any( dims_of_var == id_dim_time)) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have time as a dimension!')
+
+      else ! if (should_have_time) then
+        ! This variable should not have a time dimension; the variable should only have lon,lat,m as dimensions
+
+        if (ndims_of_var /= 2) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+
+      end if ! if (should_have_time) then
+    end if ! if (.not. present( should_have_time)) then
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine check_lat_grid_field_dp_1D_monthly
+
   subroutine check_lonlat_grid_field_int_2D( filename, ncid, var_name, should_have_time)
     ! Check if this file contains a 2-D lon/lat-grid variable by this name
 
