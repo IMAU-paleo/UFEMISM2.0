@@ -9,7 +9,7 @@ module tracer_tracking_model_main
   use mesh_types, only: type_mesh
   use ice_model_types, only: type_ice_model
   use tracer_tracking_model_types, only: type_tracer_tracking_model
-  use tracer_tracking_model_particles, only: initialise_tracer_tracking_model_particles
+  use tracer_tracking_model_particles_main, only: initialise_tracer_tracking_model_particles
 
   implicit none
 
