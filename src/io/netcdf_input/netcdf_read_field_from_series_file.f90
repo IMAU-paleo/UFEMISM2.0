@@ -186,6 +186,7 @@ contains
     ! Clean up after yourself
     if (par%master) deallocate( d_grid)
     call deallocate_lonlat_grid( grid_loc)
+    call deallocate_lat_grid(vec_loc)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
