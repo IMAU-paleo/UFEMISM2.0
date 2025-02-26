@@ -641,10 +641,14 @@ contains
     if (C%do_BMB_smooth_inversion) then
       ! Compute smoothing weights for BMB inversion smoothing
 
-      if (C%BMB_smooth_inversion_t_start == C%BMB_smooth_inversion_t_end) then
-        ! If start and end time of smoothing window is equal, no smoothing is applied.
-        call warning('C%do_BMB_smooth_inversion is ".TRUE.", but BMB_smooth_inversion_t_start_config is equivalent to BMB_smooth_inversion_t_end. Therefore, no smoothing is applied. Setting C%do_BMB_inversion to ".FALSE."')
-        C%do_BMB_smooth_inversion = .FALSE.
+      ! Check whether smoothing time window is within inversion time window
+      if (C%BMB_smooth_inversion_t_start < C%BMB_inversion_t_start .or. C%BMB_smooth_inversion_t_end > C%BMB_inversion_t_end ) then 
+        ! If the window of smoothing falls outside window of BMB inversion, crash. 
+        call crash(' The time window for BMB smoothing does not fall within the time window for BMB inversion. Make sure that "BMB_smooth_inversion_t_start" >= "BMB_inversion_t_start", and "BMB_smooth_inversion_t_end" <= "BMB_inversion_t_end".')
+
+      if (C%BMB_smooth_inversion_t_start >= C%BMB_smooth_inversion_t_end) then
+        ! If start and end time of smoothing window is equal or start > end, crash.
+        call crash(' "BMB_smooth_inversion_t_start" is equivalent or larger than "BMB_smooth_inversion_t_end".')
 
       elseif (region%time >= C%BMB_smooth_inversion_t_start .and. &
         region%time <= C%BMB_smooth_inversion_t_end) then
