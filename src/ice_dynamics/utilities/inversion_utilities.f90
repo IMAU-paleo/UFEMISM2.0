@@ -561,7 +561,7 @@ contains
     integer,  dimension(region%mesh%vi1:region%mesh%vi2) :: extrapolation_mask
     real(dp)                                             :: dt_dummy
     real(dp), dimension(region%mesh%vi1:region%mesh%vi2) :: SMB_dummy, BMB_dummy, LMB_dummy, AMB_dummy, dHi_dt_dummy, Hi_dummy
-    real(dp)                                             :: w1, w2
+    real(dp)                                             :: w
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -653,8 +653,7 @@ contains
       elseif (region%time >= C%BMB_smooth_inversion_t_start .and. &
         region%time <= C%BMB_smooth_inversion_t_end) then
         ! If region time is in smoothing window, compute smoothing weights
-        w1 = 1.0_dp - ((region%time - C%BMB_smooth_inversion_t_start)/(C%BMB_smooth_inversion_t_end - C%BMB_smooth_inversion_t_start))
-        w2 = 1.0_dp - w1
+        w = 1.0_dp - ((region%time - C%BMB_smooth_inversion_t_start)/(C%BMB_smooth_inversion_t_end - C%BMB_smooth_inversion_t_start))
 
       else 
         ! If region time is outside smoothing window, do nothing
@@ -677,7 +676,7 @@ contains
         if (region%time >= C%BMB_smooth_inversion_t_start .and. &
             region%time <= C%BMB_smooth_inversion_t_end) then
           ! If time is in smoothing window: apply smoothing from inverted to modelled melt rates
-          region%BMB%BMB( vi) = w1 * region%BMB%BMB_inv( vi) + w2 * region%BMB%BMB_modelled( vi)
+          region%BMB%BMB( vi) = w * region%BMB%BMB_inv( vi) + (1.0_dp - w) * region%BMB%BMB_modelled( vi)
 
         elseif (region%time < C%BMB_smooth_inversion_t_start ) then 
           ! If time is before start smoothing window: use inverted melt rates
