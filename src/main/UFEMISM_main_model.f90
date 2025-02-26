@@ -531,7 +531,7 @@ CONTAINS
     ! ===== Glacial isostatic adjustment =====
     ! ========================================
 
-    CALL initialise_GIA_model( region%mesh, region%GIA, region%name, region%refgeo_GIAeq)
+    CALL initialise_GIA_model( region%mesh, region%GIA, region%name, region%refgeo_GIAeq, region%ELRA)
 
     ! ===== Basal inversion =====
     ! ===========================
@@ -1182,7 +1182,7 @@ CONTAINS
     CALL remap_BMB_model(          region%mesh, mesh_new, region%ice, region%ocean, region%BMB    , region%name, region%time)
     CALL remap_LMB_model(          region%mesh, mesh_new,             region%LMB    , region%name)
     CALL remap_AMB_model(          region%mesh, mesh_new,             region%AMB                 )
-    CALL remap_GIA_model(          region%mesh, mesh_new,             region%GIA                 )
+    CALL remap_GIA_model(          region%mesh, mesh_new,             region%GIA    , region%refgeo_GIAeq, region%ELRA)
 
     ! Set all model component timers so that they will all be run right after the mesh update
     region%ice%t_Hi_next  = region%time
