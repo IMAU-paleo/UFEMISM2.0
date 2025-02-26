@@ -287,7 +287,9 @@ UFEMISM_source = \
   glacial_isostatic_adjustment/GIA_ELRA.f90 \
   glacial_isostatic_adjustment/GIA_main.f90 \
   \
-  tracer_tracking/tracer_tracking_particles.f90 \
+  tracer_tracking/tracer_tracking_particles_basic.f90 \
+  tracer_tracking/tracer_tracking_particles_remapping.f90 \
+  tracer_tracking/tracer_tracking_particles_main.f90 \
   tracer_tracking/tracer_tracking_main.f90 \
   \
   main/main_regional_output.f90 \
@@ -321,7 +323,6 @@ UFEMISM_source = \
   validation/unit_tests/ut_netcdf_xy_grid.f90 \
   validation/unit_tests/ut_netcdf_mesh.f90 \
   validation/unit_tests/ut_netcdf.f90 \
-  validation/unit_tests/ut_tracer_tracking.f90 \
   validation/unit_tests/ut_bedrock_CDFs.f90 \
   validation/unit_tests/unit_tests.f90 \
   \
