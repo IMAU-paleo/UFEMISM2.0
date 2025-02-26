@@ -543,9 +543,9 @@ CONTAINS
     ! Local variables:
     character(len=256), parameter                         :: routine_name = 'update_laddie_operators'
     integer                                               :: ncols, ncols_loc, nrows, nrows_loc, nnz_per_row_est, nnz_est_proc
-    integer                                               :: row, ti, n, i, vi, vj, ei
+    integer                                               :: row, ti, n, i, vi, vj, ei, til, tir
     real(dp), dimension(3)                                :: cM_map_H_a_b
-    real(dp), dimension(2)                                :: cM_map_H_a_c
+    real(dp), dimension(2)                                :: cM_map_H_a_c, cM_map_UV_b_c
     logical, dimension(mesh%nV)                           :: mask_a_tot
 
     ! Add routine to path
@@ -556,6 +556,8 @@ CONTAINS
     ! Make sure to deallocate before allocating
     call deallocate_matrix_CSR_dist( laddie%M_map_H_a_b)
     call deallocate_matrix_CSR_dist( laddie%M_map_H_a_c)
+    call deallocate_matrix_CSR_dist( laddie%M_map_U_b_c)
+    call deallocate_matrix_CSR_dist( laddie%M_map_V_b_c)
 
     ! == Initialise the matrix using the native UFEMISM CSR-matrix format
     ! ===================================================================
@@ -657,9 +659,55 @@ CONTAINS
 
     end do
 
+    ! == Initialise the matrix using the native UFEMISM CSR-matrix format
+    ! ===================================================================
+
+    ! Matrix size
+    ncols           = mesh%nTri        ! from
+    ncols_loc       = mesh%nTri_loc
+    nrows           = mesh%nE        ! to
+    nrows_loc       = mesh%nE_loc
+    nnz_per_row_est = 2
+    nnz_est_proc    = nrows_loc * nnz_per_row_est
+ 
+    call allocate_matrix_CSR_dist( laddie%M_map_U_b_c, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+    call allocate_matrix_CSR_dist( laddie%M_map_V_b_c, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+
+    ! == Calculate coefficients
+    ! =========================
+
+    do row = laddie%M_map_U_b_c%i1, laddie%M_map_U_b_c%i2
+
+      ! The vertex represented by this matrix row
+      ei = mesh%n2ei( row)
+
+      ! Get neighbouring triangles
+      til = mesh%ETri( ei, 1)
+      tir = mesh%ETri( ei, 2)
+
+      if     (til == 0 .and. tir > 0) then
+        cM_map_UV_b_c = [0._dp, 1._dp]
+      elseif (tir == 0 .and. til > 0) then
+        cM_map_UV_b_c = [1._dp, 0._dp]
+      elseif (til > 0 .and. tir > 0) then
+        cM_map_UV_b_c = [0.5_dp, 0.5_dp]
+      else
+        call crash('something is seriously wrong with the ETri array of this mesh!')
+      end if
+
+      ! Add weight to matrix
+      call add_entry_CSR_dist( laddie%M_map_U_b_c, ei, til, cM_map_UV_b_c( 1))
+      call add_entry_CSR_dist( laddie%M_map_U_b_c, ei, tir, cM_map_UV_b_c( 2))
+      call add_entry_CSR_dist( laddie%M_map_V_b_c, ei, til, cM_map_UV_b_c( 1))
+      call add_entry_CSR_dist( laddie%M_map_V_b_c, ei, tir, cM_map_UV_b_c( 2))
+
+    end do
+
     ! Crop matrix memory
     call crop_matrix_CSR_dist( laddie%M_map_H_a_b)
     call crop_matrix_CSR_dist( laddie%M_map_H_a_c)
+    call crop_matrix_CSR_dist( laddie%M_map_U_b_c)
+    call crop_matrix_CSR_dist( laddie%M_map_V_b_c)
 
     ! Finalise routine path
     call finalise_routine( routine_name)

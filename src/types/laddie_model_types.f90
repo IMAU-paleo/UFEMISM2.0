@@ -106,6 +106,8 @@ MODULE laddie_model_types
     ! Mapping operators
     TYPE(type_sparse_matrix_CSR_dp)         :: M_map_H_a_b
     TYPE(type_sparse_matrix_CSR_dp)         :: M_map_H_a_c
+    TYPE(type_sparse_matrix_CSR_dp)         :: M_map_U_b_c
+    TYPE(type_sparse_matrix_CSR_dp)         :: M_map_V_b_c
    
     ! Timestepping types
     TYPE(type_laddie_timestep)              :: now                         !                   Timestep now  
