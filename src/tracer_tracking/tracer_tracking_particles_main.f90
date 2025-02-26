@@ -9,6 +9,8 @@ module tracer_tracking_model_particles_main
   use model_configuration, only: C
   use tracer_tracking_model_particles_basic, only: update_particle_velocity, create_particle
   use SMB_model_types, only: type_SMB_model
+  use grid_basic, only: setup_square_grid
+  use remapping_main, only: map_from_mesh_to_xy_grid_2D
 
   implicit none
 
@@ -19,6 +21,7 @@ module tracer_tracking_model_particles_main
   integer,  parameter :: n_tracers         = 1
   integer,  parameter :: n_nearest_to_find = 4
   real(dp), parameter :: dt_tracer_tracking_add_new_particles = 100._dp
+  real(dp), parameter :: dx_tracer_tracking_add_new_particles = 50e3_dp
 
 contains
 
@@ -33,6 +36,7 @@ contains
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'initialise_tracer_tracking_model_particles'
+    character(len=256)             :: grid_name
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -65,6 +69,11 @@ contains
     allocate( particles%map%ip( mesh%nV, C%nz, particles%map%n), source = 0)
     allocate( particles%map%d ( mesh%nV, C%nz, particles%map%n), source = 0._dp)
 
+    ! Grid for creating new particles
+    grid_name = 'particle_creation_grid'
+    call setup_square_grid( grid_name, mesh%xmin, mesh%xmax, mesh%ymin, mesh%ymax, &
+      dx_tracer_tracking_add_new_particles, particles%grid_new_particles, &
+      mesh%lambda_M, mesh%phi_M, mesh%beta_stereo)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -89,6 +98,11 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
+    ! If the time is right, add a new batch of particles
+    if (time >= particles%t_add_new_particles) then
+      particles%t_add_new_particles = particles%t_add_new_particles + dt_tracer_tracking_add_new_particles
+      call add_new_particles_from_SMB( mesh, ice, SMB, particles, time)
+    end if
 
     ! Move and remove particles
     do ip = 1, particles%n_max
@@ -120,5 +134,50 @@ contains
     call finalise_routine( routine_name)
 
   end subroutine run_tracer_tracking_model_particles
+
+  subroutine add_new_particles_from_SMB( mesh, ice, SMB, particles, time)
+
+    ! In- and output variables
+    type(type_mesh),                            intent(in   ) :: mesh
+    type(type_ice_model),                       intent(in   ) :: ice
+    type(type_SMB_model),                       intent(in   ) :: SMB
+    type(type_tracer_tracking_model_particles), intent(inout) :: particles
+    real(dp),                                   intent(in   ) :: time
+
+    ! Local variables:
+    character(len=1024), parameter      :: routine_name = 'add_new_particles_from_SMB'
+    real(dp), dimension(:), allocatable :: Hs_grid_vec_partial
+    real(dp), dimension(:), allocatable :: SMB_grid_vec_partial
+    integer                             :: n,i,j
+    real(dp)                            :: x,y,z
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Map surface elevation and SMB to the particle creation grid
+    allocate( Hs_grid_vec_partial ( particles%grid_new_particles%n1: particles%grid_new_particles%n2))
+    allocate( SMB_grid_vec_partial( particles%grid_new_particles%n1: particles%grid_new_particles%n2))
+
+    call map_from_mesh_to_xy_grid_2D( mesh, particles%grid_new_particles, &
+      ice%Hs , Hs_grid_vec_partial)
+    call map_from_mesh_to_xy_grid_2D( mesh, particles%grid_new_particles, &
+      SMB%SMB, SMB_grid_vec_partial)
+
+    ! For each grid point with a positive SMB, add a new particle
+    do n = particles%grid_new_particles%n1, particles%grid_new_particles%n2
+      if (SMB_grid_vec_partial( n) > 0._dp) then
+        i = particles%grid_new_particles%n2ij( n,1)
+        j = particles%grid_new_particles%n2ij( n,2)
+        x = particles%grid_new_particles%x( i)
+        y = particles%grid_new_particles%y( j)
+        z = Hs_grid_vec_partial( n)
+        call create_particle( mesh, ice, particles, x, y, z, time)
+      end if
+    end do
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine add_new_particles_from_SMB
 
 end module tracer_tracking_model_particles_main

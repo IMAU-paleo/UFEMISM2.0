@@ -1,6 +1,7 @@
 module tracer_tracking_model_types
 
   use precisions, only: dp
+  use grid_types, only: type_grid
 
   implicit none
 
@@ -54,6 +55,9 @@ module tracer_tracking_model_types
     real(dp), dimension(:  ), allocatable :: t1             !< Next timeframe
     real(dp), dimension(:,:), allocatable :: r_t0           !< Particle position at time t0
     real(dp), dimension(:,:), allocatable :: r_t1           !< Particle position at time t1
+
+    real(dp)                              :: t_add_new_particles !< Time when a new batch of particles should be created
+    type(type_grid)                       :: grid_new_particles  !< Grid for adding new particles quickly
 
     type(type_map_particles_to_mesh)      :: map            !< Map from the particles to the mesh
 
