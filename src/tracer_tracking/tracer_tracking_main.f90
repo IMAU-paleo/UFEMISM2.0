@@ -17,8 +17,7 @@ module tracer_tracking_model_main
 
   public :: initialise_tracer_tracking_model
 
-  integer, parameter :: n_particles_init = 100
-  integer, parameter :: n_tracers        = 16
+  ! integer, parameter :: n_tracers        = 16
 
 contains
 
@@ -39,7 +38,7 @@ contains
     if (par%master)  write(*,'(a)') '   Initialising tracer tracking model...'
 
     allocate( tracer_tracking%age    ( mesh%nV, C%nz           ))
-    allocate( tracer_tracking%tracers( mesh%nV, C%nz, n_tracers))
+    ! allocate( tracer_tracking%tracers( mesh%nV, C%nz, n_tracers))
 
     ! call initialise_tracer_tracking_model_particles( mesh, ice, tracer_tracking%particles)
 

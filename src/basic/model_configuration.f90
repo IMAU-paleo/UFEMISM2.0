@@ -935,6 +935,21 @@ MODULE model_configuration
     INTEGER             :: SELEN_TABOO_DEG1_config                      = 1                               !     Tidal love numbers degree
     REAL(dp)            :: SELEN_TABOO_RCMB_config                      = 3480._dp                        ! [m] Radius of CMB
 
+  ! == Tracer tracking
+  ! ==================
+
+    CHARACTER(LEN=256)  :: choice_tracer_tracking_model_config          = 'none'                          ! Which tracer-tracking model to use (current options: 'none', 'particles')
+
+    ! Settings for the particle-based tracer-tracking model
+    REAL(dp)            :: tractrackpart_dt_coupling_config             = 100._dp                         ! [yr] Coupling interval for the particle-based tracer-tracking model
+    REAL(dp)            :: tractrackpart_dx_particle_config             = 1e3_dp                          ! [m]  Distance that tracer-tracking particles should move in a single particle time step
+    REAL(dp)            :: tractrackpart_dt_particle_min_config         = 1._dp                           ! [yr] Minimum allowed time step for tracer-tracking particles
+    REAL(dp)            :: tractrackpart_dt_particle_max_config         = 1000._dp                        ! [yr] Maximum allowed time step for tracer-tracking particles
+    INTEGER             :: tractrackpart_n_max_particles_config         = 1000000                         !      Maximum number of particles (i.e. for how many particles is memory allocated)
+    REAL(dp)            :: tractrackpart_dt_new_particles_config        = 100._dp                         ! [yr] How often new batches of particles should be added
+    REAL(dp)            :: tractrackpart_dx_new_particles_config        = 50e3_dp                         ! [m]  How far new particles should be spaced apart (square grid)
+    INTEGER             :: tractrackpart_remap_n_nearest_config         = 4                               !      Between how many nearest particles should be interpolated when mapping tracers to the mesh
+
   ! == Output
   ! =========
 
@@ -1752,10 +1767,11 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: choice_BMB_model_ANT
 
     ! Choice of BMB model in ROI
-    CHARACTER(LEN=256)  :: choice_BMB_model_NAM_ROI 
-    CHARACTER(LEN=256)  :: choice_BMB_model_EAS_ROI 
+    CHARACTER(LEN=256)  :: choice_BMB_model_NAM_ROI
+    CHARACTER(LEN=256)  :: choice_BMB_model_EAS_ROI
     CHARACTER(LEN=256)  :: choice_BMB_model_GRL_ROI
     CHARACTER(LEN=256)  :: choice_BMB_model_ANT_ROI
+
 
     ! Prescribed BMB forcing
     CHARACTER(LEN=256)  :: choice_BMB_prescribed_NAM
@@ -1914,6 +1930,21 @@ MODULE model_configuration
     INTEGER             :: SELEN_TABOO_TLOVE
     INTEGER             :: SELEN_TABOO_DEG1
     REAL(dp)            :: SELEN_TABOO_RCMB
+
+  ! == Tracer tracking
+  ! ==================
+
+    CHARACTER(LEN=256)  :: choice_tracer_tracking_model
+
+    ! Settings for the particle-based tracer-tracking model
+    REAL(dp)            :: tractrackpart_dt_coupling
+    REAL(dp)            :: tractrackpart_dx_particle
+    REAL(dp)            :: tractrackpart_dt_particle_min
+    REAL(dp)            :: tractrackpart_dt_particle_max
+    INTEGER             :: tractrackpart_n_max_particles
+    REAL(dp)            :: tractrackpart_dt_new_particles
+    REAL(dp)            :: tractrackpart_dx_new_particles
+    INTEGER             :: tractrackpart_remap_n_nearest
 
   ! == Output
   ! =========
@@ -2771,6 +2802,15 @@ CONTAINS
       SELEN_TABOO_TLOVE_config                                    , &
       SELEN_TABOO_DEG1_config                                     , &
       SELEN_TABOO_RCMB_config                                     , &
+      choice_tracer_tracking_model_config                         , &
+      tractrackpart_dt_coupling_config                            , &
+      tractrackpart_dx_particle_config                            , &
+      tractrackpart_dt_particle_min_config                        , &
+      tractrackpart_dt_particle_max_config                        , &
+      tractrackpart_n_max_particles_config                        , &
+      tractrackpart_dt_new_particles_config                       , &
+      tractrackpart_dx_new_particles_config                       , &
+      tractrackpart_remap_n_nearest_config                        , &
       do_create_netcdf_output_config                              , &
       dt_output_config                                            , &
       dt_output_restart_config                                    , &
@@ -3783,6 +3823,21 @@ CONTAINS
     C%SELEN_TABOO_TLOVE                                      = SELEN_TABOO_TLOVE_config
     C%SELEN_TABOO_DEG1                                       = SELEN_TABOO_DEG1_config
     C%SELEN_TABOO_RCMB                                       = SELEN_TABOO_RCMB_config
+
+  ! == Tracer tracking
+  ! ==================
+
+    C%choice_tracer_tracking_model                           = choice_tracer_tracking_model_config
+
+    ! Settings for the particle-based tracer-tracking model
+    C%tractrackpart_dt_coupling                              = tractrackpart_dt_coupling_config
+    C%tractrackpart_dx_particle                              = tractrackpart_dx_particle_config
+    C%tractrackpart_dt_particle_min                          = tractrackpart_dt_particle_min_config
+    C%tractrackpart_dt_particle_max                          = tractrackpart_dt_particle_max_config
+    C%tractrackpart_n_max_particles                          = tractrackpart_n_max_particles_config
+    C%tractrackpart_dt_new_particles                         = tractrackpart_dt_new_particles_config
+    C%tractrackpart_dx_new_particles                         = tractrackpart_dx_new_particles_config
+    C%tractrackpart_remap_n_nearest                          = tractrackpart_remap_n_nearest_config
 
   ! == Output
   ! =========
