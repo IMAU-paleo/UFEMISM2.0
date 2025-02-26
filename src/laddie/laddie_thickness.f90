@@ -43,8 +43,6 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_H_npx'
-    INTEGER                                               :: vi
-    REAL(dp)                                              :: dHdt
  
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -67,9 +65,39 @@ CONTAINS
     ! Compute entrainment                                    
     CALL compute_entrainment( mesh, ice, laddie, npxref, npxref%H)
 
+    ! Do integration
+    CALL integrate_H( mesh, ice, laddie, npx, dt)
+
+    ! Map new values of H to b grid and c grid
+    CALL map_H_a_b( mesh, laddie, npx%H, npx%H_b)
+    CALL map_H_a_c( mesh, laddie, npx%H, npx%H_c)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE compute_H_npx
+
+  subroutine integrate_H( mesh, ice, laddie, npx, dt)
+    ! Do the actual computation of npx%H
+
+    ! In/output variables:
+    type(type_mesh),                        intent(in)    :: mesh
+    type(type_ice_model),                   intent(in)    :: ice
+    type(type_laddie_model),                intent(inout) :: laddie
+    type(type_laddie_timestep),             intent(inout) :: npx       ! New timestep as output
+    real(dp),                               intent(in)    :: dt
+
+    ! Local variables:
+    character(len=256), parameter                         :: routine_name = 'integrate_H'
+    integer                                               :: vi
+    real(dp)                                              :: dHdt
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
     ! Loop over vertices
-    DO vi = mesh%vi1, mesh%vi2
-      IF (laddie%mask_a( vi)) THEN
+    do vi = mesh%vi1, mesh%vi2
+      if (laddie%mask_a( vi)) then
 
         ! Get first guess at dHdt
         dHdt = -laddie%divQH( vi) + laddie%melt( vi) + laddie%entr( vi)
@@ -84,9 +112,9 @@ CONTAINS
         laddie%entr( vi) = laddie%entr( vi) + MIN( ice%Hib( vi)-ice%Hb( vi) - npx%H( vi), 0.0_dp) / dt
 
         ! Prevent strong entr_dmin and strong detrainment
-        IF (laddie%entr_dmin(vi) > 0) THEN
+        if (laddie%entr_dmin(vi) > 0) then
           laddie%entr( vi) = MAX(laddie%entr( vi), 0.0_dp)
-        END IF
+        end if
 
         ! Update detrainment. Shouldn't matter but just in case
         laddie%detr( vi) = - MIN(laddie%entr( vi),0.0_dp)
@@ -97,17 +125,13 @@ CONTAINS
         ! Get actual H_n
         npx%H( vi) = laddie%now%H( vi) + dHdt * dt
 
-      END IF !(laddie%mask_a( vi)) THEN
-    END DO !vi = mesh%vi, mesh%v2
-
-    ! Map new values of H to b grid and c grid
-    CALL map_H_a_b( mesh, laddie, npx%H, npx%H_b)
-    CALL map_H_a_c( mesh, laddie, npx%H, npx%H_c)
+      end if !(laddie%mask_a( vi)) THEN
+    end do !vi = mesh%vi, mesh%v2
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE compute_H_npx
+  end subroutine integrate_H
 
   SUBROUTINE compute_divQH( mesh, laddie, npx)
     ! Divergence of layer thickness based on first order upwind scheme
