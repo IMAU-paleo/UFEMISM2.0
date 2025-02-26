@@ -649,7 +649,7 @@ contains
         ! If start and end time of smoothing window is equal or start > end, crash.
         call crash(' "BMB_smooth_inversion_t_start" is equivalent or larger than "BMB_smooth_inversion_t_end".')
 
-      end if ! safety
+      end if
 
       ! Compute smoothing weights for BMB inversion smoothing
       if (region%time < C%BMB_smooth_inversion_t_start) then 
