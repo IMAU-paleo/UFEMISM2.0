@@ -102,7 +102,12 @@ def plot_resources(names,tcomps,Nlevels,savename='test.png',toplevel=0,toproutin
 
             lev = levnew
             y1[lev] = y0[lev] + tcomp/ttot
-            ax.fill_between([x0[lev],x1[lev]],y0[lev],y1[lev],lw=0)
+            if 'gather_to_all' in names[i][lev+1]:
+                ax.fill_between([x0[lev],x1[lev]],y0[lev],y1[lev],lw=0,color='.3')
+            elif 'multiply_CSR_matrix' in names[i][lev+1]:
+                ax.fill_between([x0[lev],x1[lev]],y0[lev],y1[lev],lw=0,color='tab:red')
+            else:
+                ax.fill_between([x0[lev],x1[lev]],y0[lev],y1[lev],lw=0)
 
             if tcomp/ttot > .01:
                 # At least 1 percent of total
