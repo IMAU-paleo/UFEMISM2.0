@@ -1,6 +1,7 @@
 module tracer_tracking_model_types
 
-  use precisions, only: dp, int8
+  use precisions, only: dp
+  use grid_types, only: type_grid
 
   implicit none
 
@@ -37,20 +38,28 @@ module tracer_tracking_model_types
   type type_tracer_tracking_model_particles
     !< The data structure for the particle-based tracer tracking model
 
-    integer                                    :: n_max       !< Size of allocated memory
-    logical,       dimension(:  ), allocatable :: is_in_use   !< Whether or not memory slot i is in use
-    integer(int8), dimension(:  ), allocatable :: id          !< Unique ID for each particle
-    integer(int8)                              :: id_max      !< Largest ID used so far (i.e. how many particles have existed in this simulation)
-    real(dp),      dimension(:,:), allocatable :: r           !< Particle coordinates (x,y,z)
-    real(dp),      dimension(:  ), allocatable :: zeta        !< Particle zeta coordinate
-    integer,       dimension(:  ), allocatable :: vi_in       !< Which mesh vertex' Voronoi cell each particle is located in
-    integer,       dimension(:  ), allocatable :: ti_in       !< Which mesh triangle             each particle is located in
-    real(dp),      dimension(:,:), allocatable :: u           !< Particle velocity (u,v,w)
-    real(dp),      dimension(:,:), allocatable :: r_origin    !< Coordinates of particle origin (x,y,z)
-    real(dp),      dimension(:  ), allocatable :: t_origin    !< Time of particle origin (i.e. time of snow deposition)
-    real(dp),      dimension(:,:), allocatable :: tracers     !< Values of different tracers
+    integer                               :: n_max          !< Size of allocated memory
+    logical,  dimension(:  ), allocatable :: is_in_use      !< Whether or not memory slot i is in use
+    integer,  dimension(:  ), allocatable :: id             !< Unique ID for each particle
+    integer                               :: id_max         !< Largest ID used so far (i.e. how many particles have existed in this simulation)
+    real(dp), dimension(:,:), allocatable :: r              !< Particle coordinates (x,y,z)
+    real(dp), dimension(:  ), allocatable :: zeta           !< Particle zeta coordinate
+    integer,  dimension(:  ), allocatable :: vi_in          !< Which mesh vertex' Voronoi cell each particle is located in
+    integer,  dimension(:  ), allocatable :: ti_in          !< Which mesh triangle             each particle is located in
+    real(dp), dimension(:,:), allocatable :: u              !< Particle velocity (u,v,w)
+    real(dp), dimension(:,:), allocatable :: r_origin       !< Coordinates of particle origin (x,y,z)
+    real(dp), dimension(:  ), allocatable :: t_origin       !< Time of particle origin (i.e. time of snow deposition)
+    real(dp), dimension(:,:), allocatable :: tracers        !< Values of different tracers
 
-    type(type_map_particles_to_mesh)           :: map         !< Map from the particles to the mesh
+    real(dp), dimension(:  ), allocatable :: t0             !< Previous timeframe
+    real(dp), dimension(:  ), allocatable :: t1             !< Next timeframe
+    real(dp), dimension(:,:), allocatable :: r_t0           !< Particle position at time t0
+    real(dp), dimension(:,:), allocatable :: r_t1           !< Particle position at time t1
+
+    real(dp)                              :: t_add_new_particles !< Time when a new batch of particles should be created
+    type(type_grid)                       :: grid_new_particles  !< Grid for adding new particles quickly
+
+    type(type_map_particles_to_mesh)      :: map            !< Map from the particles to the mesh
 
     type(type_tracer_tracking_model_particles_netcdf) :: nc   !< NetCDF IDs for the output file
 
