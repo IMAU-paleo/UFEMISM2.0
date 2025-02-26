@@ -543,7 +543,7 @@ CONTAINS
     ! Local variables:
     character(len=256), parameter                         :: routine_name = 'update_laddie_operators'
     integer                                               :: ncols, ncols_loc, nrows, nrows_loc, nnz_per_row_est, nnz_est_proc
-    integer                                               :: row, ti, n, i, vi, vj
+    integer                                               :: row, ti, n, i, vi, vj, ei
     real(dp), dimension(3)                                :: cM_map_H_a_b
     real(dp), dimension(2)                                :: cM_map_H_a_c
     logical, dimension(mesh%nV)                           :: mask_a_tot
@@ -641,11 +641,11 @@ CONTAINS
       vj = mesh%EV( ei, 2)
 
       ! Get masked average between the two vertices
-      if (laddie_mask_a_tot( vi) .and. laddie_mask_a_tot( vj)) then
+      if (mask_a_tot( vi) .and. mask_a_tot( vj)) then
         cM_map_H_a_c = [0.5_dp, 0.5_dp]
-      elseif (laddie_mask_a_tot( vi)) then
+      elseif (mask_a_tot( vi)) then
         cM_map_H_a_c = [1._dp, 0._dp]
-      elseif (laddie_mask_a_tot( vj)) then
+      elseif (mask_a_tot( vj)) then
         cM_map_H_a_c = [0._dp, 1._dp]
       else
         cM_map_H_a_c = 0._dp

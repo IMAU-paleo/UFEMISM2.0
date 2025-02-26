@@ -58,7 +58,7 @@ def plot_resources(names,tcomps,Nlevels,savename='test.png',toplevel=0,toproutin
     plt.rcParams["figure.subplot.top"] = .99
 
     width = 14
-    height = 6
+    height = 8
 
     fig,ax = plt.subplots(1,1,figsize=(width,height))
 

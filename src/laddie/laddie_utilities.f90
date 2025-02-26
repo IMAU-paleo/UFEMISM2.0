@@ -82,51 +82,28 @@ CONTAINS
 
   end subroutine map_H_a_b
 
-  SUBROUTINE map_H_a_c( mesh, laddie, H_a, H_c)
+  subroutine map_H_a_c( mesh, laddie, H_a, H_c)
     ! Map layer thickness from a to c grid, accounting for BCs
 
     ! In- and output variables
 
-    TYPE(type_mesh),                        INTENT(IN)    :: mesh
-    TYPE(type_laddie_model),                INTENT(IN)    :: laddie
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: H_a
-    REAL(dp), DIMENSION(mesh%ei1:mesh%ei2), INTENT(INOUT) :: H_c
+    type(type_mesh),                        intent(in)    :: mesh
+    type(type_laddie_model),                intent(in)    :: laddie
+    real(dp), dimension(mesh%vi1:mesh%vi2), intent(in)    :: H_a
+    real(dp), dimension(mesh%ei1:mesh%ei2), intent(inout) :: H_c
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'map_H_a_c'
-    INTEGER                                               :: ei, vi, vj
-    REAL(dp), DIMENSION(mesh%nV)                          :: H_a_tot
-    LOGICAL, DIMENSION(mesh%nV)                           :: laddie_mask_a_tot
+    character(len=256), parameter                         :: routine_name = 'map_H_a_c'
  
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
-    CALL gather_to_all( H_a, H_a_tot)
-    CALL gather_to_all( laddie%mask_a, laddie_mask_a_tot)
-
-    DO ei = mesh%ei1, mesh%ei2
-       
-       ! Get neighbouring vertices
-       vi = mesh%EV( ei, 1)
-       vj = mesh%EV( ei, 2)
-
-       ! Get masked average between the two vertices
-       IF (laddie_mask_a_tot( vi) .AND. laddie_mask_a_tot( vj)) THEN
-         H_c( ei) = 0.5_dp * (H_a_tot( vi) + H_a_tot( vj))
-       ELSEIF (laddie_mask_a_tot( vi)) THEN
-         H_c( ei) = H_a_tot( vi)
-       ELSEIF (laddie_mask_a_tot( vj)) THEN
-         H_c( ei) = H_a_tot( vj)
-       ELSE
-         H_c( ei) = 0.0_dp
-       END IF
-
-    END DO
+    call multiply_CSR_matrix_with_vector_1D( laddie%M_map_H_a_c, H_a, H_c) 
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE map_H_a_c
+  end subroutine map_H_a_c
 
   SUBROUTINE allocate_laddie_model( mesh, laddie)
     ! Allocate variables of the laddie model
