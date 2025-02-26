@@ -543,8 +543,9 @@ CONTAINS
     ! Local variables:
     character(len=256), parameter                         :: routine_name = 'update_laddie_operators'
     integer                                               :: ncols, ncols_loc, nrows, nrows_loc, nnz_per_row_est, nnz_est_proc
-    integer                                               :: row, ti, n, i, vi
+    integer                                               :: row, ti, n, i, vi, vj
     real(dp), dimension(3)                                :: cM_map_H_a_b
+    real(dp), dimension(2)                                :: cM_map_H_a_c
     logical, dimension(mesh%nV)                           :: mask_a_tot
 
     ! Add routine to path
@@ -554,6 +555,7 @@ CONTAINS
 
     ! Make sure to deallocate before allocating
     call deallocate_matrix_CSR_dist( laddie%M_map_H_a_b)
+    call deallocate_matrix_CSR_dist( laddie%M_map_H_a_c)
 
     ! == Initialise the matrix using the native UFEMISM CSR-matrix format
     ! ===================================================================
@@ -613,8 +615,51 @@ CONTAINS
 
     end do
 
+    ! == Initialise the matrix using the native UFEMISM CSR-matrix format
+    ! ===================================================================
+
+    ! Matrix size
+    ncols           = mesh%nV        ! from
+    ncols_loc       = mesh%nV_loc
+    nrows           = mesh%nE        ! to
+    nrows_loc       = mesh%nE_loc
+    nnz_per_row_est = 2
+    nnz_est_proc    = nrows_loc * nnz_per_row_est
+ 
+    call allocate_matrix_CSR_dist( laddie%M_map_H_a_c, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+
+    ! == Calculate coefficients
+    ! =========================
+
+    do row = laddie%M_map_H_a_c%i1, laddie%M_map_H_a_c%i2
+
+      ! The vertex represented by this matrix row
+      ei = mesh%n2ei( row)
+
+      ! Get neighbouring vertices
+      vi = mesh%EV( ei, 1)
+      vj = mesh%EV( ei, 2)
+
+      ! Get masked average between the two vertices
+      if (laddie_mask_a_tot( vi) .and. laddie_mask_a_tot( vj)) then
+        cM_map_H_a_c = [0.5_dp, 0.5_dp]
+      elseif (laddie_mask_a_tot( vi)) then
+        cM_map_H_a_c = [1._dp, 0._dp]
+      elseif (laddie_mask_a_tot( vj)) then
+        cM_map_H_a_c = [0._dp, 1._dp]
+      else
+        cM_map_H_a_c = 0._dp
+      end if
+
+      ! Add weight to matrix
+      call add_entry_CSR_dist( laddie%M_map_H_a_c, ei, vi, cM_map_H_a_c( 1))
+      call add_entry_CSR_dist( laddie%M_map_H_a_c, ei, vj, cM_map_H_a_c( 2))
+
+    end do
+
     ! Crop matrix memory
     call crop_matrix_CSR_dist( laddie%M_map_H_a_b)
+    call crop_matrix_CSR_dist( laddie%M_map_H_a_c)
 
     ! Finalise routine path
     call finalise_routine( routine_name)

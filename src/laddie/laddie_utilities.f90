@@ -222,6 +222,16 @@ CONTAINS
 
     call allocate_matrix_CSR_dist( laddie%M_map_H_a_b, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
 
+    ! Matrix size
+    ncols           = mesh%nV        ! from
+    ncols_loc       = mesh%nV_loc
+    nrows           = mesh%nE      ! to
+    nrows_loc       = mesh%nE_loc
+    nnz_per_row_est = 2
+    nnz_est_proc    = nrows_loc * nnz_per_row_est
+
+    call allocate_matrix_CSR_dist( laddie%M_map_H_a_c, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
