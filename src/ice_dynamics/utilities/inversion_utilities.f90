@@ -639,24 +639,28 @@ contains
     region%BMB%BMB_smooth = 0._dp
 
     if (C%do_BMB_smooth_inversion) then
-      ! Compute smoothing weights for BMB inversion smoothing
 
-      ! Check whether smoothing time window is within inversion time window
+      ! Safety
       if (C%BMB_smooth_inversion_t_start < C%BMB_inversion_t_start .or. C%BMB_smooth_inversion_t_end > C%BMB_inversion_t_end ) then 
         ! If the window of smoothing falls outside window of BMB inversion, crash. 
         call crash(' The time window for BMB smoothing does not fall within the time window for BMB inversion. Make sure that "BMB_smooth_inversion_t_start" >= "BMB_inversion_t_start", and "BMB_smooth_inversion_t_end" <= "BMB_inversion_t_end".')
 
-      if (C%BMB_smooth_inversion_t_start >= C%BMB_smooth_inversion_t_end) then
+      elseif (C%BMB_smooth_inversion_t_start >= C%BMB_smooth_inversion_t_end) then
         ! If start and end time of smoothing window is equal or start > end, crash.
         call crash(' "BMB_smooth_inversion_t_start" is equivalent or larger than "BMB_smooth_inversion_t_end".')
 
+      end if ! safety
+
+      ! Compute smoothing weights for BMB inversion smoothing
+      if (region%time < C%BMB_smooth_inversion_t_start) then 
+        w = 1.0_dp
+
       elseif (region%time >= C%BMB_smooth_inversion_t_start .and. &
         region%time <= C%BMB_smooth_inversion_t_end) then
-        ! If region time is in smoothing window, compute smoothing weights
         w = 1.0_dp - ((region%time - C%BMB_smooth_inversion_t_start)/(C%BMB_smooth_inversion_t_end - C%BMB_smooth_inversion_t_start))
 
-      else 
-        ! If region time is outside smoothing window, do nothing
+      elseif (region%time > C%BMB_smooth_inversion_t_end) then 
+        w = 0.0_dp
 
       end if
 
@@ -671,23 +675,9 @@ contains
           .not. region%ice%mask_cf_fl( vi)) cycle
 
       if (C%do_BMB_smooth_inversion) then 
-        ! If BMB_smooth_inversion is turned ON
-
-        if (region%time >= C%BMB_smooth_inversion_t_start .and. &
-            region%time <= C%BMB_smooth_inversion_t_end) then
-          ! If time is in smoothing window: apply smoothing from inverted to modelled melt rates
-          region%BMB%BMB( vi) = w * region%BMB%BMB_inv( vi) + (1.0_dp - w) * region%BMB%BMB_modelled( vi)
-
-        elseif (region%time < C%BMB_smooth_inversion_t_start ) then 
-          ! If time is before start smoothing window: use inverted melt rates
-          region%BMB%BMB( vi) = region%BMB%BMB_inv( vi)
-
-        elseif (region%time > C%BMB_smooth_inversion_t_end ) then
-          ! If time is beyond end smoothing window: use modelled melt rates
-          region%BMB%BMB( vi) = region%BMB%BMB_modelled( vi)
-
-        end if
-
+        ! If BMB_smooth_inversion is turned ON, use weight 'w' to compute BMB field
+        region%BMB%BMB( vi) = w * region%BMB%BMB_inv( vi) + (1.0_dp - w) * region%BMB%BMB_modelled( vi)
+        
         ! Save smoothed BMB field for diagnostic output
         region%BMB%BMB_smooth( vi) = region%BMB%BMB( vi) 
 
