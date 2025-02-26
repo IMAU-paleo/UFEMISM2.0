@@ -286,7 +286,9 @@ UFEMISM_source = \
   \
   glacial_isostatic_adjustment/GIA_main.f90 \
   \
-  tracer_tracking/tracer_tracking_particles.f90 \
+  tracer_tracking/tracer_tracking_particles_basic.f90 \
+  tracer_tracking/tracer_tracking_particles_remapping.f90 \
+  tracer_tracking/tracer_tracking_particles_main.f90 \
   tracer_tracking/tracer_tracking_main.f90 \
   \
   main/main_regional_output.f90 \
