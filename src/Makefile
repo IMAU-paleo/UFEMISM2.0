@@ -231,6 +231,7 @@ UFEMISM_source = \
   ocean/ocean_realistic.f90 \
   ocean/ocean_main.f90 \
   \
+  laddie/laddie_operators.f90 \
   laddie/laddie_utilities.f90 \
   laddie/laddie_physics.f90 \
   laddie/laddie_thickness.f90 \

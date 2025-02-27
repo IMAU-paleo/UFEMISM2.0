@@ -17,6 +17,8 @@ MODULE laddie_utilities
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   USE ocean_utilities                                        , ONLY: interpolate_ocean_depth
   USE mpi_distributed_memory                                 , ONLY: gather_to_all
+  use petsc_basic                                            , only: multiply_CSR_matrix_with_vector_1D
+  use CSR_sparse_matrix_utilities                            , only: allocate_matrix_CSR_dist
 
   IMPLICIT NONE
     
@@ -57,100 +59,51 @@ CONTAINS
 
   END SUBROUTINE compute_ambient_TS
 
-  SUBROUTINE map_H_a_b( mesh, laddie, H_a, H_b)
+  subroutine map_H_a_b( mesh, laddie, H_a, H_b)
     ! Map layer thickness from a to b grid, accounting for BCs
 
     ! In- and output variables
 
-    TYPE(type_mesh),                        INTENT(IN)    :: mesh
-    TYPE(type_laddie_model),                INTENT(IN)    :: laddie
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: H_a
-    REAL(dp), DIMENSION(mesh%ti1:mesh%ti2), INTENT(INOUT) :: H_b
+    type(type_mesh),                        intent(in)    :: mesh
+    type(type_laddie_model),                intent(in)    :: laddie
+    real(dp), dimension(mesh%vi1:mesh%vi2), intent(in)    :: H_a
+    real(dp), dimension(mesh%ti1:mesh%ti2), intent(inout) :: H_b
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'map_H_a_b'
-    INTEGER                                               :: i, vi, ti, n
-    REAL(dp), DIMENSION(mesh%nV)                          :: H_a_tot
-    LOGICAL, DIMENSION(mesh%nV)                           :: laddie_mask_a_tot
+    character(len=256), parameter                         :: routine_name = 'map_H_a_b'
  
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
-    CALL gather_to_all( H_a, H_a_tot)
-    CALL gather_to_all( laddie%mask_a, laddie_mask_a_tot)
-
-    ! Get T and S at layer base
-    DO ti = mesh%ti1, mesh%ti2
-       H_b( ti) = 0.0_dp
-       IF (laddie%mask_b( ti)) THEN
-         
-         ! Set zero
-         n = 0
-
-         ! Loop over vertices
-         DO i = 1, 3
-           vi = mesh%Tri( ti, i)
-           IF (laddie_mask_a_tot( vi)) THEN
-             H_b( ti) = H_b( ti) + H_a_tot( vi)
-             n = n + 1
-           END IF
-         END DO
-
-         H_b( ti) = H_b( ti) / real( n, dp)
-
-       END IF
-    END DO
+    call multiply_CSR_matrix_with_vector_1D( laddie%M_map_H_a_b, H_a, H_b) 
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE map_H_a_b
+  end subroutine map_H_a_b
 
-  SUBROUTINE map_H_a_c( mesh, laddie, H_a, H_c)
+  subroutine map_H_a_c( mesh, laddie, H_a, H_c)
     ! Map layer thickness from a to c grid, accounting for BCs
 
     ! In- and output variables
 
-    TYPE(type_mesh),                        INTENT(IN)    :: mesh
-    TYPE(type_laddie_model),                INTENT(IN)    :: laddie
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: H_a
-    REAL(dp), DIMENSION(mesh%ei1:mesh%ei2), INTENT(INOUT) :: H_c
+    type(type_mesh),                        intent(in)    :: mesh
+    type(type_laddie_model),                intent(in)    :: laddie
+    real(dp), dimension(mesh%vi1:mesh%vi2), intent(in)    :: H_a
+    real(dp), dimension(mesh%ei1:mesh%ei2), intent(inout) :: H_c
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'map_H_a_c'
-    INTEGER                                               :: ei, vi, vj
-    REAL(dp), DIMENSION(mesh%nV)                          :: H_a_tot
-    LOGICAL, DIMENSION(mesh%nV)                           :: laddie_mask_a_tot
+    character(len=256), parameter                         :: routine_name = 'map_H_a_c'
  
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
-    CALL gather_to_all( H_a, H_a_tot)
-    CALL gather_to_all( laddie%mask_a, laddie_mask_a_tot)
-
-    DO ei = mesh%ei1, mesh%ei2
-       
-       ! Get neighbouring vertices
-       vi = mesh%EV( ei, 1)
-       vj = mesh%EV( ei, 2)
-
-       ! Get masked average between the two vertices
-       IF (laddie_mask_a_tot( vi) .AND. laddie_mask_a_tot( vj)) THEN
-         H_c( ei) = 0.5_dp * (H_a_tot( vi) + H_a_tot( vj))
-       ELSEIF (laddie_mask_a_tot( vi)) THEN
-         H_c( ei) = H_a_tot( vi)
-       ELSEIF (laddie_mask_a_tot( vj)) THEN
-         H_c( ei) = H_a_tot( vj)
-       ELSE
-         H_c( ei) = 0.0_dp
-       END IF
-
-    END DO
+    call multiply_CSR_matrix_with_vector_1D( laddie%M_map_H_a_c, H_a, H_c) 
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE map_H_a_c
+  end subroutine map_H_a_c
 
   SUBROUTINE allocate_laddie_model( mesh, laddie)
     ! Allocate variables of the laddie model
@@ -161,6 +114,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'allocate_laddie_model'
+    INTEGER                                               :: ncols, ncols_loc, nrows, nrows_loc, nnz_per_row_est, nnz_est_proc
  
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -231,6 +185,39 @@ CONTAINS
     ALLOCATE( laddie%mask_gl_b          ( mesh%ti1:mesh%ti2), source=.false.) !                 Grounding line mask on b-grid
     ALLOCATE( laddie%mask_cf_b          ( mesh%ti1:mesh%ti2), source=.false.) !                 Calving front mask on b-grid
     ALLOCATE( laddie%mask_oc_b          ( mesh%ti1:mesh%ti2), source=.false.) !                 Icefree ocean mask on b-grid
+
+    ! == Initialise the matrix using the native UFEMISM CSR-matrix format
+    ! ===================================================================
+
+    ! Matrix size
+    ncols           = mesh%nV        ! from
+    ncols_loc       = mesh%nV_loc
+    nrows           = mesh%nTri      ! to
+    nrows_loc       = mesh%nTri_loc
+    nnz_per_row_est = 3
+    nnz_est_proc    = nrows_loc * nnz_per_row_est
+
+    call allocate_matrix_CSR_dist( laddie%M_map_H_a_b, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+
+    ! Matrix size
+    ncols           = mesh%nV        ! from
+    ncols_loc       = mesh%nV_loc
+    nrows           = mesh%nE      ! to
+    nrows_loc       = mesh%nE_loc
+    nnz_per_row_est = 2
+    nnz_est_proc    = nrows_loc * nnz_per_row_est
+
+    call allocate_matrix_CSR_dist( laddie%M_map_H_a_c, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+
+    ! Matrix size
+    ncols           = mesh%nTri        ! from
+    ncols_loc       = mesh%nTri_loc
+    nrows           = mesh%nE      ! to
+    nrows_loc       = mesh%nE_loc
+    nnz_per_row_est = 2
+    nnz_est_proc    = nrows_loc * nnz_per_row_est
+
+    call allocate_matrix_CSR_dist( laddie%M_map_UV_b_c, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
