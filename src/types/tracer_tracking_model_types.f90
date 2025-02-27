@@ -68,9 +68,15 @@ module tracer_tracking_model_types
   type type_tracer_tracking_model
     !< The main tracer tracking model data structure.
 
+    ! Model-independent tracer tracking data
     real(dp), dimension(:,:  ), allocatable :: age           !< Age of ice [nV, zeta]
     real(dp), dimension(:,:,:), allocatable :: tracers       !< Age of ice [nV, zeta, i_tracer]
 
+    ! Coupling time stepping
+    real(dp)                                :: t_prev        !< [yr] Time of the previous coupling
+    real(dp)                                :: t_next        !< [yr] Time of the next coupling
+
+    ! Model choices
     type(type_tracer_tracking_model_particles) :: particles
 
   end type type_tracer_tracking_model

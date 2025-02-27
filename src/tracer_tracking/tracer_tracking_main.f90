@@ -4,22 +4,65 @@ module tracer_tracking_model_main
 
   use precisions, only: dp
   use mpi_basic, only: par
-  use control_resources_and_error_messaging, only: init_routine, finalise_routine
+  use control_resources_and_error_messaging, only: init_routine, finalise_routine, colour_string, crash
   use model_configuration, only: C
   use mesh_types, only: type_mesh
   use ice_model_types, only: type_ice_model
+  use SMB_model_types, only: type_SMB_model
   use tracer_tracking_model_types, only: type_tracer_tracking_model
-  use tracer_tracking_model_particles_main, only: initialise_tracer_tracking_model_particles
+  use tracer_tracking_model_particles_main, only: initialise_tracer_tracking_model_particles, &
+    run_tracer_tracking_model_particles
 
   implicit none
 
   private
 
-  public :: initialise_tracer_tracking_model
+  public :: initialise_tracer_tracking_model, run_tracer_tracking_model
 
   ! integer, parameter :: n_tracers        = 16
 
 contains
+
+  subroutine run_tracer_tracking_model( mesh, ice, SMB, tracer_tracking, time)
+
+    ! In- and output variables
+    type(type_mesh),                  intent(in   ) :: mesh
+    type(type_ice_model),             intent(in   ) :: ice
+    type(type_SMB_model),             intent(in   ) :: SMB
+    type(type_tracer_tracking_model), intent(inout) :: tracer_tracking
+    real(dp),                         intent(in   ) :: time
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'run_tracer_tracking_model'
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    if (C%choice_tracer_tracking_model == 'none') return
+
+    if (time == tracer_tracking%t_next) then
+
+      tracer_tracking%t_prev = tracer_tracking%t_next
+      tracer_tracking%t_next = tracer_tracking%t_prev + C%tractrackpart_dt_coupling
+
+      select case (C%choice_tracer_tracking_model)
+      case default
+        call crash('unknown choice_tracer_tracking_model "' // trim(C%choice_tracer_tracking_model) // '"')
+      case ('particles')
+        call run_tracer_tracking_model_particles( mesh, ice, SMB, tracer_tracking%particles, time)
+      end select
+
+    elseif (time > tracer_tracking%t_next) THEN
+      ! This should not be possible
+      call crash('overshot the tracer tracking model coupling time step')
+    else
+      ! No need to do anything
+    end if
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine run_tracer_tracking_model
 
   subroutine initialise_tracer_tracking_model( mesh, ice, tracer_tracking)
 
@@ -34,13 +77,27 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    ! Print to terminal
-    if (par%master)  write(*,'(a)') '   Initialising tracer tracking model...'
+    if (C%choice_tracer_tracking_model == 'none') return
 
+    ! Print to terminal
+    if (par%master)  write(*,'(a)') '   Initialising tracer-tracking model ' // &
+      colour_string( trim(C%choice_tracer_tracking_model), 'light blue') // '...'
+
+    ! Allocate memory for the model-independent tracer-tracking data
     allocate( tracer_tracking%age    ( mesh%nV, C%nz           ))
     ! allocate( tracer_tracking%tracers( mesh%nV, C%nz, n_tracers))
 
-    ! call initialise_tracer_tracking_model_particles( mesh, ice, tracer_tracking%particles)
+    ! Initialise coupling times
+    tracer_tracking%t_prev = -huge( tracer_tracking%t_prev)
+    tracer_tracking%t_next = C%start_time_of_run
+
+    ! Initialise the chosen tracer-tracking model
+    select case (C%choice_tracer_tracking_model)
+    case default
+      call crash('unknown choice_tracer_tracking_model "' // trim(C%choice_tracer_tracking_model) // '"')
+    case ('particles')
+      call initialise_tracer_tracking_model_particles( mesh, ice, tracer_tracking%particles)
+    end select
 
     ! Finalise routine path
     call finalise_routine( routine_name)
