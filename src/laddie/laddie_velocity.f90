@@ -365,8 +365,8 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    call multiply_CSR_matrix_with_vector_1D( laddie%M_map_U_b_c, u_b_partial, u_c)
-    call multiply_CSR_matrix_with_vector_1D( laddie%M_map_V_b_c, v_b_partial, v_c)
+    call multiply_CSR_matrix_with_vector_1D( laddie%M_map_UV_b_c, u_b_partial, u_c)
+    call multiply_CSR_matrix_with_vector_1D( laddie%M_map_UV_b_c, v_b_partial, v_c)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

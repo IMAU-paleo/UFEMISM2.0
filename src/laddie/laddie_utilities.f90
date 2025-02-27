@@ -217,8 +217,7 @@ CONTAINS
     nnz_per_row_est = 2
     nnz_est_proc    = nrows_loc * nnz_per_row_est
 
-    call allocate_matrix_CSR_dist( laddie%M_map_U_b_c, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
-    call allocate_matrix_CSR_dist( laddie%M_map_V_b_c, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+    call allocate_matrix_CSR_dist( laddie%M_map_UV_b_c, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

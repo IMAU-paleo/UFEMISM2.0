@@ -556,8 +556,7 @@ CONTAINS
     ! Make sure to deallocate before allocating
     call deallocate_matrix_CSR_dist( laddie%M_map_H_a_b)
     call deallocate_matrix_CSR_dist( laddie%M_map_H_a_c)
-    call deallocate_matrix_CSR_dist( laddie%M_map_U_b_c)
-    call deallocate_matrix_CSR_dist( laddie%M_map_V_b_c)
+    call deallocate_matrix_CSR_dist( laddie%M_map_UV_b_c)
 
     ! == Initialise the matrix using the native UFEMISM CSR-matrix format
     ! ===================================================================
@@ -670,13 +669,12 @@ CONTAINS
     nnz_per_row_est = 2
     nnz_est_proc    = nrows_loc * nnz_per_row_est
  
-    call allocate_matrix_CSR_dist( laddie%M_map_U_b_c, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
-    call allocate_matrix_CSR_dist( laddie%M_map_V_b_c, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+    call allocate_matrix_CSR_dist( laddie%M_map_UV_b_c, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
 
     ! == Calculate coefficients
     ! =========================
 
-    do row = laddie%M_map_U_b_c%i1, laddie%M_map_U_b_c%i2
+    do row = laddie%M_map_UV_b_c%i1, laddie%M_map_UV_b_c%i2
 
       ! The vertex represented by this matrix row
       ei = mesh%n2ei( row)
@@ -686,16 +684,12 @@ CONTAINS
       tir = mesh%ETri( ei, 2)
 
       if     (til == 0 .and. tir > 0) then
-        call add_entry_CSR_dist( laddie%M_map_U_b_c, ei, tir, 1._dp)
-        call add_entry_CSR_dist( laddie%M_map_V_b_c, ei, tir, 1._dp)
+        call add_entry_CSR_dist( laddie%M_map_UV_b_c, ei, tir, 1._dp)
       elseif (tir == 0 .and. til > 0) then
-        call add_entry_CSR_dist( laddie%M_map_U_b_c, ei, til, 1._dp)
-        call add_entry_CSR_dist( laddie%M_map_V_b_c, ei, til, 1._dp)
+        call add_entry_CSR_dist( laddie%M_map_UV_b_c, ei, til, 1._dp)
       elseif (til > 0 .and. tir > 0) then
-        call add_entry_CSR_dist( laddie%M_map_U_b_c, ei, til, 0.5_dp)
-        call add_entry_CSR_dist( laddie%M_map_U_b_c, ei, tir, 0.5_dp)
-        call add_entry_CSR_dist( laddie%M_map_V_b_c, ei, til, 0.5_dp)
-        call add_entry_CSR_dist( laddie%M_map_V_b_c, ei, tir, 0.5_dp)
+        call add_entry_CSR_dist( laddie%M_map_UV_b_c, ei, til, 0.5_dp)
+        call add_entry_CSR_dist( laddie%M_map_UV_b_c, ei, tir, 0.5_dp)
       else
         call crash('something is seriously wrong with the ETri array of this mesh!')
       end if
@@ -705,8 +699,7 @@ CONTAINS
     ! Crop matrix memory
     call crop_matrix_CSR_dist( laddie%M_map_H_a_b)
     call crop_matrix_CSR_dist( laddie%M_map_H_a_c)
-    call crop_matrix_CSR_dist( laddie%M_map_U_b_c)
-    call crop_matrix_CSR_dist( laddie%M_map_V_b_c)
+    call crop_matrix_CSR_dist( laddie%M_map_UV_b_c)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
