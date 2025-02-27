@@ -545,7 +545,7 @@ CONTAINS
     integer                                               :: ncols, ncols_loc, nrows, nrows_loc, nnz_per_row_est, nnz_est_proc
     integer                                               :: row, ti, n, i, vi, vj, ei, til, tir
     real(dp), dimension(3)                                :: cM_map_H_a_b
-    real(dp), dimension(2)                                :: cM_map_H_a_c, cM_map_UV_b_c
+    real(dp), dimension(2)                                :: cM_map_H_a_c
     logical, dimension(mesh%nV)                           :: mask_a_tot
 
     ! Add routine to path
@@ -686,20 +686,19 @@ CONTAINS
       tir = mesh%ETri( ei, 2)
 
       if     (til == 0 .and. tir > 0) then
-        cM_map_UV_b_c = [0._dp, 1._dp]
+        call add_entry_CSR_dist( laddie%M_map_U_b_c, ei, tir, 1._dp)
+        call add_entry_CSR_dist( laddie%M_map_V_b_c, ei, tir, 1._dp)
       elseif (tir == 0 .and. til > 0) then
-        cM_map_UV_b_c = [1._dp, 0._dp]
+        call add_entry_CSR_dist( laddie%M_map_U_b_c, ei, til, 1._dp)
+        call add_entry_CSR_dist( laddie%M_map_V_b_c, ei, til, 1._dp)
       elseif (til > 0 .and. tir > 0) then
-        cM_map_UV_b_c = [0.5_dp, 0.5_dp]
+        call add_entry_CSR_dist( laddie%M_map_U_b_c, ei, til, 0.5_dp)
+        call add_entry_CSR_dist( laddie%M_map_U_b_c, ei, tir, 0.5_dp)
+        call add_entry_CSR_dist( laddie%M_map_V_b_c, ei, til, 0.5_dp)
+        call add_entry_CSR_dist( laddie%M_map_V_b_c, ei, tir, 0.5_dp)
       else
         call crash('something is seriously wrong with the ETri array of this mesh!')
       end if
-
-      ! Add weight to matrix
-      call add_entry_CSR_dist( laddie%M_map_U_b_c, ei, til, cM_map_UV_b_c( 1))
-      call add_entry_CSR_dist( laddie%M_map_U_b_c, ei, tir, cM_map_UV_b_c( 2))
-      call add_entry_CSR_dist( laddie%M_map_V_b_c, ei, til, cM_map_UV_b_c( 1))
-      call add_entry_CSR_dist( laddie%M_map_V_b_c, ei, tir, cM_map_UV_b_c( 2))
 
     end do
 
