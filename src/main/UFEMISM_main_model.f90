@@ -48,7 +48,7 @@ MODULE UFEMISM_main_model
   use apply_maps, only: clear_all_maps_involving_this_mesh
   USE mesh_memory                                            , ONLY: deallocate_mesh
   use ice_mass_and_fluxes, only: calc_ice_mass_and_fluxes
-  use tracer_tracking_model_main, only: initialise_tracer_tracking_model
+  use tracer_tracking_model_main, only: initialise_tracer_tracking_model, run_tracer_tracking_model
 
   IMPLICIT NONE
 
@@ -145,6 +145,10 @@ CONTAINS
       IF (C%do_pore_water_nudging) THEN
         CALL run_pore_water_fraction_inversion( region%mesh, region%grid_smooth, region%ice, region%refgeo_PD, region%HIV, region%time)
       END IF
+
+      ! Run the tracer-tracking model
+      call run_tracer_tracking_model( region%mesh, region%ice, region%SMB, &
+        region%tracer_tracking, region%time)
 
       ! Calculate ice-sheet integrated values (total volume, area, etc.)
       CALL calc_ice_mass_and_fluxes( region%mesh, region%ice, region%SMB, region%BMB, region%LMB, region%refgeo_PD, region%scalars)
@@ -366,6 +370,11 @@ CONTAINS
       END IF
     END IF
 
+    ! Tracer tracking
+    if (.not. C%choice_tracer_tracking_model == 'none') then
+      time_of_next_action = min( time_of_next_action, region%tracer_tracking%t_next)
+    end if
+
     ! Output
     time_of_next_action = MIN( time_of_next_action, region%output_t_next)
     time_of_next_action = MIN( time_of_next_action, region%output_restart_t_next)
@@ -501,7 +510,7 @@ CONTAINS
     ! ===== Tracer tracking model =====
     ! =================================
 
-    ! call initialise_tracer_tracking_model( region%mesh, region%ice, region%tracer_tracking)
+    call initialise_tracer_tracking_model( region%mesh, region%ice, region%tracer_tracking)
 
     ! ===== Run the climate, ocean, SMB, BMB, and LMB models =====
     ! ============================================================
