@@ -39,7 +39,7 @@ def get_allnames(ds,maxlev=7):
     tcomps = []
     for r in range(len(ds.n_routines)):
         name = get_name(ds.routine_names_encoded[:,r].values)
-        if len(name)==1:
+        if (len(name)==1):
             # Reached last non-placeholder name
             break
         if len(name)>maxlev:
@@ -49,57 +49,78 @@ def get_allnames(ds,maxlev=7):
         tcomps.append(ds.tcomp[r].values)
     return names,tcomps
 
-def plot_resources(names,tcomps,baselevel,baseroutine,savename='test.png',toplevel=0,toproutine='UFEMISM_program'):
+def plot_resources(names,tcomps,Nlevels,savename='test.png',toplevel=0,toproutine='UFEMISM_program'):
 
     plt.rcParams["axes.prop_cycle"] = plt.cycler("color", plt.get_cmap('Dark2')(np.linspace(0,1,8)))
     plt.rcParams["figure.subplot.left"] = .01
-    plt.rcParams["figure.subplot.right"] = .95
-    plt.rcParams["figure.subplot.bottom"] = .25
-    plt.rcParams["figure.subplot.top"] = .95
+    plt.rcParams["figure.subplot.right"] = .99
+    plt.rcParams["figure.subplot.bottom"] = .01
+    plt.rcParams["figure.subplot.top"] = .99
 
-    fig,ax = plt.subplots(1,1,figsize=(7,8))
+    width = 14
+    height = 8
+
+    fig,ax = plt.subplots(1,1,figsize=(width,height))
+
+    y0 = np.zeros((Nlevels,1))
+    y1 = np.zeros((Nlevels,1))
+    x = np.linspace(0,1,Nlevels+1)
+    x0 = x[:-1]
+    x1 = x[1:]
+    lev = -1
+
+    # Get ttot
+    ttot = 0
+    for i,tcomp in enumerate(tcomps):
+        if len(names[i]) == toplevel+2:
+            ttot += tcomp
+    print(ttot)
 
     for i,tcomp in enumerate(tcomps):
-        if len(names[i]) < baselevel+1:
-            continue
-        if names[i][toplevel] != toproutine:
-            continue
-        if names[i][baselevel] != baseroutine:
-            continue
-        elif len(names[i])==baselevel+1:
-            # Get total tcomp for x-scaling
-            x1 = 0
-            xscale = tcomp
-            ax.fill_betweenx([0,1],0,1,color='.8')
-        elif len(names[i])==baselevel+2:
-            # Get width
-            x0 = x1
-            x1 += tcomp/xscale
-            
-            ax.axvline(x1,0,1,lw=.5,c='k')
-            y1 = 0
-            yscale = tcomp
-            if tcomp/xscale > .01:
-                # At least 1 percent of total
-                ax.text((x0+x1)/2-.02,0,f'{names[i][baselevel+1]} ({100*tcomp/xscale:.1f}%)',rotation=-60,va='top',ha='left')
-        elif len(names[i])==baselevel+3:
-            # Get height
-            y0 = y1
-            y1 += tcomp/yscale
 
-            ax.fill_betweenx([y0,y1],x0,x1)
-            if tcomp/xscale > .01:
-                if (y1-y0>x1-x0):
-                    # Vertical
-                    ax.text((x0+x1)/2,(y0+y1)/2,f'{names[i][baselevel+2]} ({100*tcomp/xscale:.1f}%)',rotation=-90,va='center',ha='center')
-                else:
-                    # Horizontal
-                    ax.text((x0+x1)/2,(y0+y1)/2,f'{names[i][baselevel+2]} ({100*tcomp/xscale:.1f}%)',va='center',ha='center')
+        if len(names[i]) == toplevel+1:
+            ttot = tcomp
+
+        if len(names[i]) < toplevel+1:
+            # Not enough levels
+            continue
+        elif names[i][toplevel] != toproutine:
+            # Doesn't fall within toproutine, so skip
+            continue
+        elif len(names[i]) > toplevel+Nlevels+1:
+            # Too deep, don't show
+            continue
+        else:
+            
+            levnew = len(names[i])-toplevel-2
+            if levnew == lev:
+                y0[levnew] = y1[levnew]
+            elif levnew > lev:
+                y0[levnew] = y0[levnew-1]
+            else:
+                y0[levnew] = y1[levnew]
+
+            lev = levnew
+            y1[lev] = y0[lev] + tcomp/ttot
+            if 'gather_to_all' in names[i][lev+1]:
+                ax.fill_between([x0[lev],x1[lev]],y0[lev],y1[lev],lw=0,color='.3')
+            elif 'multiply_CSR_matrix' in names[i][lev+1]:
+                ax.fill_between([x0[lev],x1[lev]],y0[lev],y1[lev],lw=0,color='tab:red')
+            else:
+                ax.fill_between([x0[lev],x1[lev]],y0[lev],y1[lev],lw=0)
+
+            if tcomp/ttot > .01:
+                # At least 1 percent of total
+                rotation = 180/3.14* np.arctan((y1[lev][0]-y0[lev][0])/(x1[lev]-x0[lev])*height/width)
+                if rotation < 10:
+                    rotation = 0
+                ax.text((x0[lev]+x1[lev])/2,(y0[lev]+y1[lev])/2,f'{names[i][lev+1]} ({100*tcomp/ttot:.1f}%)',rotation=rotation,va='center',ha='center',fontsize=6)
+
     ax.set_xlim([0,1])
     ax.set_ylim([0,1])
     ax.set_xticks([])
     ax.set_yticks([])
-    ax.set_title(f'{baseroutine}')
+    #ax.set_title(f'{baseroutine}')
     plt.savefig(savename)
-    plt.close()
+    #plt.close()
     print(f'Created {savename}')
