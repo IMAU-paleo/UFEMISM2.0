@@ -952,6 +952,7 @@ MODULE model_configuration
     REAL(dp)            :: tractrackpart_dt_new_particles_config        = 100._dp                         ! [yr] How often new batches of particles should be added
     REAL(dp)            :: tractrackpart_dx_new_particles_config        = 50e3_dp                         ! [m]  How far new particles should be spaced apart (square grid)
     INTEGER             :: tractrackpart_remap_n_nearest_config         = 4                               !      Between how many nearest particles should be interpolated when mapping tracers to the mesh
+    LOGICAL             :: tractrackpart_write_raw_output_config        = .FALSE.                         !      Whether or not to write the raw particle data to a NetCDF output file
 
   ! == Output
   ! =========
@@ -1952,6 +1953,7 @@ MODULE model_configuration
     REAL(dp)            :: tractrackpart_dt_new_particles
     REAL(dp)            :: tractrackpart_dx_new_particles
     INTEGER             :: tractrackpart_remap_n_nearest
+    LOGICAL             :: tractrackpart_write_raw_output
 
   ! == Output
   ! =========
@@ -2821,6 +2823,7 @@ CONTAINS
       tractrackpart_dt_new_particles_config                       , &
       tractrackpart_dx_new_particles_config                       , &
       tractrackpart_remap_n_nearest_config                        , &
+      tractrackpart_write_raw_output_config                       , &
       do_create_netcdf_output_config                              , &
       dt_output_config                                            , &
       dt_output_restart_config                                    , &
@@ -3851,6 +3854,7 @@ CONTAINS
     C%tractrackpart_dt_new_particles                         = tractrackpart_dt_new_particles_config
     C%tractrackpart_dx_new_particles                         = tractrackpart_dx_new_particles_config
     C%tractrackpart_remap_n_nearest                          = tractrackpart_remap_n_nearest_config
+    C%tractrackpart_write_raw_output                         = tractrackpart_write_raw_output_config
 
   ! == Output
   ! =========
