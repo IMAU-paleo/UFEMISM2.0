@@ -38,7 +38,10 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    if (C%choice_tracer_tracking_model == 'none') return
+    if (C%choice_tracer_tracking_model == 'none') then
+      call finalise_routine( routine_name)
+      return
+    end if
 
     if (time == tracer_tracking%t_next) then
 
@@ -77,7 +80,10 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    if (C%choice_tracer_tracking_model == 'none') return
+    if (C%choice_tracer_tracking_model == 'none') then
+      call finalise_routine( routine_name)
+      return
+    end if
 
     ! Print to terminal
     if (par%master)  write(*,'(a)') '   Initialising tracer-tracking model ' // &
