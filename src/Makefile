@@ -284,6 +284,8 @@ UFEMISM_source = \
   climate/climate_realistic.f90 \
   climate/climate_main.f90 \
   \
+  glacial_isostatic_adjustment/kelvin_function.f90 \
+  glacial_isostatic_adjustment/GIA_ELRA.f90 \
   glacial_isostatic_adjustment/GIA_main.f90 \
   \
   tracer_tracking/tracer_tracking_particles_basic.f90 \
