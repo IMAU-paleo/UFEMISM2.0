@@ -11,7 +11,7 @@ module tracer_tracking_model_particles_basic
   use ice_model_types, only: type_ice_model
   use tracer_tracking_model_types, only: type_tracer_tracking_model_particles
   use mesh_utilities, only: find_containing_triangle, find_containing_vertex, &
-    interpolate_to_point_dp_2D, interpolate_to_point_dp_3D
+    interpolate_to_point_dp_2D_singlecore, interpolate_to_point_dp_3D_singlecore
   use reallocate_mod, only: reallocate
   use netcdf, only: NF90_UNLIMITED, NF90_INT64, NF90_DOUBLE
   use netcdf_io_main
@@ -20,17 +20,20 @@ module tracer_tracking_model_particles_basic
 
   private
 
-  public :: create_particle, destroy_particle, update_particle_velocity
+  public :: create_particle_at_ice_surface, destroy_particle, update_particle_velocity
 
 contains
 
-  subroutine update_particle_velocity( mesh, ice, particles, ip)
+  subroutine update_particle_velocity( mesh, Hi_tot, Hs_tot, u_3D_b_tot, v_3D_b_tot, w_3D_tot, &
+    particles, ip)
     !< Update the velocity and position timeframes of particle ip,
     !< and remove the particle if it exits the ice sheet or the region domain
 
     ! In- and output variables
     type(type_mesh),                            intent(in   ) :: mesh
-    type(type_ice_model),                       intent(in   ) :: ice
+    real(dp), dimension(mesh%nV),               intent(in   ) :: Hi_tot, Hs_tot
+    real(dp), dimension(mesh%nTri,C%nz),        intent(in   ) :: u_3D_b_tot, v_3D_b_tot
+    real(dp), dimension(mesh%nV  ,C%nz),        intent(in   ) :: w_3D_tot
     type(type_tracer_tracking_model_particles), intent(inout) :: particles
     integer,                                    intent(in   ) :: ip
 
@@ -52,7 +55,7 @@ contains
     p = particles%r( ip,1:2)
     call find_containing_triangle( mesh, p, particles%ti_in( ip))
     call find_containing_vertex  ( mesh, p, particles%vi_in( ip))
-    call calc_particle_zeta( mesh, ice%Hi, ice%Hs, &
+    call calc_particle_zeta( mesh, Hi_tot, Hs_tot, &
       particles%r( ip,1), particles%r( ip,2), particles%r( ip,3), particles%ti_in( ip), &
       particles%zeta( ip), Hi_interp_ = Hi_interp)
 
@@ -64,7 +67,7 @@ contains
     end if
 
     ! Interpolate the current ice velocity solution to the new position
-    call interpolate_3d_velocities_to_3D_point( mesh, ice%u_3D_b, ice%v_3D_b, ice%w_3D, &
+    call interpolate_3d_velocities_to_3D_point( mesh, u_3D_b_tot, v_3D_b_tot, w_3D_tot, &
       particles%r( ip,1), particles%r( ip,2), particles%zeta( ip), &
       particles%vi_in( ip), particles%ti_in( ip), &
       particles%u( ip,1), particles%u( ip,2), particles%u( ip,3))
@@ -93,22 +96,25 @@ contains
 
   end subroutine update_particle_velocity
 
-  subroutine create_particle( mesh, ice, particles, x, y, z, time)
-    !< Create a new particle at position [x,y,z]
+  subroutine create_particle_at_ice_surface( mesh, Hi_tot, Hs_tot, u_3D_b_tot, v_3D_b_tot, w_3D_tot, &
+    particles, x, y, time)
+    !< Create a new particle at position [x,y,zeta=0]
 
     ! In/output variables
     type(type_mesh),                            intent(in   ) :: mesh
-    type(type_ice_model),                       intent(in   ) :: ice
+    real(dp), dimension(mesh%nV),               intent(in   ) :: Hi_tot, Hs_tot
+    real(dp), dimension(mesh%nTri,C%nz),        intent(in   ) :: u_3D_b_tot, v_3D_b_tot
+    real(dp), dimension(mesh%nV  ,C%nz),        intent(in   ) :: w_3D_tot
     type(type_tracer_tracking_model_particles), intent(inout) :: particles
-    real(dp),                                   intent(in   ) :: x, y, z, time
+    real(dp),                                   intent(in   ) :: x, y, time
 
     ! Local variables
-    character(len=1024), parameter :: routine_name = 'create_particle'
+    character(len=1024), parameter :: routine_name = 'create_particle_at_ice_surface'
     integer                        :: ipp, ip
     logical                        :: out_of_memory
     real(dp), dimension(2)         :: p
     integer                        :: ti_in, vi_in
-    real(dp)                       :: zeta, Hi_interp
+    real(dp)                       :: zeta, z, Hi_interp
     real(dp)                       :: u,v,w,dt
 
     ! Add routine to path
@@ -140,23 +146,18 @@ contains
     ti_in = mesh%iTri( vi_in,1)
     call find_containing_triangle( mesh, p, ti_in)
 
-    call calc_particle_zeta( mesh, ice%Hi, ice%Hs, x, y, z, &
-      ti_in, zeta, Hi_interp_ = Hi_interp)
-
-#if (DO_ASSERTIONS)
-    call assert( test_ge_le( zeta, 0._dp, 1._dp) .and. Hi_interp > 0.1_dp, &
-      '[x,y,z] does not lie inside the ice sheet')
-#endif
+    zeta = 0._dp
+    call calc_particle_z( mesh, Hi_tot, Hs_tot, x, y, zeta, ti_in, z, Hi_interp_ = Hi_interp)
 
     ! Interpolate ice velocity to particle position
-    call interpolate_3d_velocities_to_3D_point( mesh, ice%u_3D_b, ice%v_3D_b, ice%w_3D, &
+    call interpolate_3d_velocities_to_3D_point( mesh, u_3D_b_tot, v_3D_b_tot, w_3D_tot, &
       x, y, zeta, vi_in, ti_in, u, v, w)
 
     ! Calculate particle time step
     dt = calc_particle_dt( u, v, w)
 
     ! Add the new particle data to the list
-    particles%id_max = particles%id_max + 1
+    particles%id_max = particles%id_max + par%n
 
     particles%is_in_use( ip  ) = .true.
     particles%id       ( ip  ) = particles%id_max
@@ -176,7 +177,7 @@ contains
     ! Finalise routine path
     call finalise_routine( routine_name)
 
-  end subroutine create_particle
+  end subroutine create_particle_at_ice_surface
 
   subroutine destroy_particle( particles, ip)
     !< Destroy particle ip
@@ -204,7 +205,7 @@ contains
     particles%u        ( ip, :) = 0._dp
     particles%r_origin ( ip, :) = 0._dp
     particles%t_origin ( ip   ) = 0._dp
-    particles%tracers  ( ip, :) = 0._dp
+    ! particles%tracers  ( ip, :) = 0._dp
 
     particles%t0       ( ip  ) = 0._dp
     particles%t1       ( ip  ) = 0._dp
@@ -232,18 +233,18 @@ contains
 
   end function calc_particle_dt
 
-  subroutine calc_particle_zeta( mesh, Hi, Hs, x, y, z, ti_in, zeta, Hi_interp_, Hs_interp_)
+  subroutine calc_particle_zeta( mesh, Hi_tot, Hs_tot, x, y, z, ti_in, zeta, Hi_interp_, Hs_interp_)
     !< Calculate the zeta coordinate of a particle located at position [x,y,z]
     !< NOTE: allows the particle to be located outside the ice sheet
     !< (in which case, zeta will be < 0 or > 1).
 
     ! In- and output variables
-    type(type_mesh),                        intent(in   ) :: mesh
-    real(dp), dimension(mesh%vi1:mesh%vi2), intent(in   ) :: Hi, Hs
-    real(dp),                               intent(in   ) :: x,y,z
-    integer,                                intent(inout) :: ti_in
-    real(dp),                               intent(  out) :: zeta
-    real(dp), optional,                     intent(  out) :: Hi_interp_, Hs_interp_
+    type(type_mesh),              intent(in   ) :: mesh
+    real(dp), dimension(mesh%nV), intent(in   ) :: Hi_tot, Hs_tot
+    real(dp),                     intent(in   ) :: x,y,z
+    integer,                      intent(inout) :: ti_in
+    real(dp),                     intent(  out) :: zeta
+    real(dp), optional,           intent(  out) :: Hi_interp_, Hs_interp_
 
     ! Local variables
     real(dp), dimension(2) :: p
@@ -251,8 +252,8 @@ contains
 
     ! Interpolate Hi, Hs horizontally to [x,y]
     p = [x,y]
-    call interpolate_to_point_dp_2D( mesh, Hi, p, ti_in, Hi_interp)
-    call interpolate_to_point_dp_2D( mesh, Hs, p, ti_in, Hs_interp)
+    call interpolate_to_point_dp_2D_singlecore( mesh, Hi_tot, p, ti_in, Hi_interp)
+    call interpolate_to_point_dp_2D_singlecore( mesh, Hs_tot, p, ti_in, Hs_interp)
 
     Hi_interp = max( 0.1_dp, Hi_interp)
 
@@ -264,27 +265,59 @@ contains
 
   end subroutine calc_particle_zeta
 
-  subroutine interpolate_3d_velocities_to_3D_point( mesh, u_3D_b, v_3D_b, w_3D, &
+  subroutine calc_particle_z( mesh, Hi_tot, Hs_tot, x, y, zeta, ti_in, z, Hi_interp_, Hs_interp_)
+    !< Calculate the z coordinate of a particle located at position [x,y,zeta]
+    !< NOTE: allows the particle to be located outside the ice sheet
+    !< (in which case, zeta will be < 0 or > 1).
+
+    ! In- and output variables
+    type(type_mesh),              intent(in   ) :: mesh
+    real(dp), dimension(mesh%nV), intent(in   ) :: Hi_tot, Hs_tot
+    real(dp),                     intent(in   ) :: x,y,zeta
+    integer,                      intent(inout) :: ti_in
+    real(dp),                     intent(  out) :: z
+    real(dp), optional,           intent(  out) :: Hi_interp_, Hs_interp_
+
+    ! Local variables
+    real(dp), dimension(2) :: p
+    real(dp)               :: Hi_interp, Hs_interp
+
+    ! Interpolate Hi, Hs horizontally to [x,y]
+    p = [x,y]
+    call interpolate_to_point_dp_2D_singlecore( mesh, Hi_tot, p, ti_in, Hi_interp)
+    call interpolate_to_point_dp_2D_singlecore( mesh, Hs_tot, p, ti_in, Hs_interp)
+
+    Hi_interp = max( 0.1_dp, Hi_interp)
+
+    ! Calculate z
+    z = Hs_interp - zeta * Hi_interp
+
+    if (present( Hi_interp_)) Hi_interp_ = Hi_interp
+    if (present( Hs_interp_)) Hs_interp_ = Hs_interp
+
+  end subroutine calc_particle_z
+
+  subroutine interpolate_3d_velocities_to_3D_point( mesh, u_3D_b_tot, v_3D_b_tot, w_3D_tot, &
     x, y, zeta, vi_in, ti_in, u, v, w)
     !< Interpolate the ice velocity fields u,v,w to a particle located at [x,y,zeta]
 
     ! In- and output variables
-    type(type_mesh),                             intent(in   ) :: mesh
-    real(dp), dimension(mesh%ti1:mesh%ti2,C%nz), intent(in   ) :: u_3D_b, v_3D_b
-    real(dp), dimension(mesh%vi1:mesh%vi2,C%nz), intent(in   ) :: w_3D
-    real(dp),                                    intent(in   ) :: x,y,zeta
-    integer,                                     intent(in   ) :: vi_in, ti_in
-    real(dp),                                    intent(  out) :: u,v,w
+    type(type_mesh),                     intent(in   ) :: mesh
+    real(dp), dimension(mesh%nTri,C%nz), intent(in   ) :: u_3D_b_tot, v_3D_b_tot
+    real(dp), dimension(mesh%nV  ,C%nz), intent(in   ) :: w_3D_tot
+    real(dp),                            intent(in   ) :: x,y,zeta
+    integer,                             intent(in   ) :: vi_in, ti_in
+    real(dp),                            intent(  out) :: u,v,w
 
     ! Local variables
     real(dp), dimension(C%nz) :: u_col, v_col, w_col
     real(dp)                  :: zeta_limited, wwk1, wwk2
     integer                   :: k1, k2
 
-    call interpolate_3d_velocities_to_3D_point_uv( mesh, u_3D_b, v_3D_b, &
+    call interpolate_3d_velocities_to_3D_point_uv( mesh, u_3D_b_tot, v_3D_b_tot, &
       x, y, vi_in, u_col, v_col)
 
-    call interpolate_3d_velocities_to_3D_point_w( mesh, w_3D, &
+    call interpolate_3d_velocities_to_3D_point_w( mesh, w_3D_tot, &
       x, y, ti_in, w_col)
 
     ! Interpolate u,v,w vertically
@@ -305,27 +338,26 @@ contains
 
   end subroutine interpolate_3d_velocities_to_3D_point
 
-  subroutine interpolate_3d_velocities_to_3D_point_uv( mesh, u_3D_b, v_3D_b, &
+  subroutine interpolate_3d_velocities_to_3D_point_uv( mesh, u_3D_b_tot, v_3D_b_tot, &
     x, y, vi_in, u_col, v_col)
     !< Interpolate the horizontal ice velocity fields u,v to a particle located at [x,y]
     !< NOTE: does not include vertical interpolation; instead, returns
     !< velocity columns u_col( nz), v_col( nz)
 
     ! In- and output variables
-    type(type_mesh),                             intent(in   ) :: mesh
-    real(dp), dimension(mesh%ti1:mesh%ti2,C%nz), intent(in   ) :: u_3D_b, v_3D_b
-    real(dp),                                    intent(in   ) :: x,y
-    integer,                                     intent(in   ) :: vi_in
-    real(dp), dimension(C%nz),                   intent(  out) :: u_col, v_col
+    type(type_mesh),                     intent(in   ) :: mesh
+    real(dp), dimension(mesh%ntri,C%nz), intent(in   ) :: u_3D_b_tot, v_3D_b_tot
+    real(dp),                            intent(in   ) :: x,y
+    integer,                             intent(in   ) :: vi_in
+    real(dp), dimension(C%nz),           intent(  out) :: u_col, v_col
 
     ! Local variables
-    integer                   :: iti, ti, ti_nearest, ierr
+    integer                   :: iti, ti
     real(dp)                  :: ww_sum, dist_min, dist, ww
     real(dp), dimension(C%nz) :: u, v, u_nearest, v_nearest, u_col_sum, v_col_sum
 
     ! u,v are defined on the triangles, so average over itriangles around vi_in
 
-    ti_nearest = 0
     ww_sum     = 0._dp
     u_col_sum  = 0._dp
     v_col_sum  = 0._dp
@@ -334,28 +366,23 @@ contains
     do iti = 1, mesh%niTri( vi_in)
       ti = mesh%iTri( vi_in,iti)
 
-      if (test_ge_le( ti, mesh%ti1, mesh%ti2)) then
-        u = u_3D_b( ti,:)
-        v = v_3D_b( ti,:)
-      else
-        u = -huge( u)
-        v = -huge( v)
-      end if
-      call MPI_ALLREDUCE( MPI_IN_PLACE, u, C%nz, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
-      call MPI_ALLREDUCE( MPI_IN_PLACE, v, C%nz, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
+      u = u_3D_b_tot( ti,:)
+      v = v_3D_b_tot( ti,:)
 
       dist = norm2( mesh%Tricc( ti,:) - [x,y])
       ww = 1._dp / dist**2
       ww_sum    = ww_sum    + ww
       u_col_sum = u_col_sum + ww * u
       v_col_sum = v_col_sum + ww * v
+
       if (dist < dist_min) then
-        dist_min   = dist
-        ti_nearest = ti
+        dist_min  = dist
         u_nearest = u
         v_nearest = v
       end if
+
     end do
+
     if (dist_min < mesh%tol_dist) then
       ! p lies on a triangle circumcentre; just use u,v from that triangle
       u_col = u_nearest
@@ -367,18 +394,18 @@ contains
 
   end subroutine interpolate_3d_velocities_to_3D_point_uv
 
-  subroutine interpolate_3d_velocities_to_3D_point_w( mesh, w_3D, &
+  subroutine interpolate_3d_velocities_to_3D_point_w( mesh, w_3D_tot, &
     x, y, ti_in, w_col)
     !< Interpolate the vertical ice velocity field w to a particle located at [x,y]
     !< NOTE: does not include vertical interpolation; instead, returns
     !< velocity column w_col( nz)
 
     ! In- and output variables
-    type(type_mesh),                             intent(in   ) :: mesh
-    real(dp), dimension(mesh%vi1:mesh%vi2,C%nz), intent(in   ) :: w_3D
-    real(dp),                                    intent(in   ) :: x,y
-    integer,                                     intent(in   ) :: ti_in
-    real(dp), dimension(C%nz),                   intent(  out) :: w_col
+    type(type_mesh),                   intent(in   ) :: mesh
+    real(dp), dimension(mesh%nV,C%nz), intent(in   ) :: w_3D_tot
+    real(dp),                          intent(in   ) :: x,y
+    integer,                           intent(in   ) :: ti_in
+    real(dp), dimension(C%nz),         intent(  out) :: w_col
 
     ! Local variables
     real(dp), dimension(2) :: p
@@ -387,7 +414,7 @@ contains
     ! w is defined on the vertices
     p = [x,y]
     ti_in_ = ti_in
-    call interpolate_to_point_dp_3D( mesh, w_3D, p, ti_in_, w_col)
+    call interpolate_to_point_dp_3D_singlecore( mesh, w_3D_tot, p, ti_in_, w_col)
 
   end subroutine interpolate_3d_velocities_to_3D_point_w
 

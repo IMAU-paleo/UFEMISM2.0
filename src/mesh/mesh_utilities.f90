@@ -1452,6 +1452,78 @@ CONTAINS
 
 ! == Spatial interpolation / integration / averaging
 
+  subroutine interpolate_to_point_dp_2D_singlecore( mesh, d, p, ti_in, d_int)
+    !< Find the value d_int of the 2-D data field d at the point p
+    !< NOTE: no mpi communication included; requires d on all vertices!
+
+    ! In/output variables:
+    type(type_mesh),                         intent(in   ) :: mesh
+    real(dp), dimension( mesh%nV),           intent(in   ) :: d
+    real(dp), dimension(2),                  intent(in   ) :: p
+    integer,                                 intent(inout) :: ti_in
+    real(dp),                                intent(  out) :: d_int
+
+    ! Local variables:
+    integer                :: via, vib, vic
+    real(dp)               :: da, db, dc
+    real(dp), dimension(2) :: pa, pb, pc
+
+    ! Find the triangle containing p
+    call find_containing_triangle( mesh, p, ti_in)
+
+    ! The three vertices spanning ti_in
+    via = mesh%Tri( ti_in,1)
+    vib = mesh%Tri( ti_in,2)
+    vic = mesh%Tri( ti_in,3)
+
+    pa = mesh%V( via,:)
+    pb = mesh%V( vib,:)
+    pc = mesh%V( vic,:)
+
+    da = d( via)
+    db = d( vib)
+    dc = d( vic)
+
+    call interpolate_inside_triangle( pa, pb, pc, da, db, dc, p, d_int, mesh%tol_dist)
+
+  end subroutine interpolate_to_point_dp_2D_singlecore
+
+  subroutine interpolate_to_point_dp_3D_singlecore( mesh, d, p, ti_in, d_int)
+    !< Find the value d_int of the 3-D data field d at the point p
+    !< NOTE: no mpi communication included; requires d on all vertices!
+
+    ! In/output variables:
+    type(type_mesh),                         intent(in   ) :: mesh
+    real(dp), dimension(mesh%nV,C%nz),       intent(in   ) :: d
+    real(dp), dimension(2),                  intent(in   ) :: p
+    integer,                                 intent(inout) :: ti_in
+    real(dp), dimension(C%nz),               intent(  out) :: d_int
+
+    ! Local variables:
+    integer                   :: via, vib, vic
+    real(dp), dimension(C%nz) :: da, db, dc
+    real(dp), dimension(2)    :: pa, pb, pc
+
+    ! Find the triangle containing p
+    call find_containing_triangle( mesh, p, ti_in)
+
+    ! The three vertices spanning ti_in
+    via = mesh%Tri( ti_in,1)
+    vib = mesh%Tri( ti_in,2)
+    vic = mesh%Tri( ti_in,3)
+
+    pa = mesh%V( via,:)
+    pb = mesh%V( vib,:)
+    pc = mesh%V( vic,:)
+
+    da = d( via,:)
+    db = d( vib,:)
+    dc = d( vic,:)
+
+    call interpolate_inside_triangle( pa, pb, pc, da, db, dc, p, d_int, mesh%tol_dist)
+
+  end subroutine interpolate_to_point_dp_3D_singlecore
+
   SUBROUTINE interpolate_to_point_dp_2D( mesh, d, p, ti_in, d_int)
     ! Find the value d_int of the 2-D data field d at the point p
 

@@ -291,6 +291,7 @@ UFEMISM_source = \
   \
   tracer_tracking/tracer_tracking_particles_basic.f90 \
   tracer_tracking/tracer_tracking_particles_remapping.f90 \
+  tracer_tracking/tracer_tracking_particles_io.f90 \
   tracer_tracking/tracer_tracking_particles_main.f90 \
   tracer_tracking/tracer_tracking_main.f90 \
   \
