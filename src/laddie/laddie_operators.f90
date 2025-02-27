@@ -39,11 +39,13 @@ contains
     real(dp), dimension(3)                                :: cM_map_H_a_b
     real(dp), dimension(2)                                :: cM_map_H_a_c
     logical, dimension(mesh%nV)                           :: mask_a_tot
+    logical, dimension(mesh%nTri)                         :: mask_b_tot
 
     ! Add routine to path
     call init_routine( routine_name)
 
     call gather_to_all( laddie%mask_a, mask_a_tot)
+    call gather_to_all( laddie%mask_b, mask_b_tot)
 
     ! Make sure to deallocate before allocating
     call deallocate_matrix_CSR_dist( laddie%M_map_H_a_b)
@@ -174,15 +176,36 @@ contains
       til = mesh%ETri( ei, 1)
       tir = mesh%ETri( ei, 2)
 
-      if     (til == 0 .and. tir > 0) then
-        call add_entry_CSR_dist( laddie%M_map_UV_b_c, ei, tir, 1._dp)
+      if (til == 0 .and. tir > 0) then
+        ! Only triangle on right side exists
+        if (mask_b_tot( tir)) then
+          ! Within laddie domain, so add
+          call add_entry_CSR_dist( laddie%M_map_UV_b_c, ei, tir, 1._dp)
+        else
+          ! Outside laddie domain, so omit
+          call add_empty_row_CSR_dist( laddie%M_map_UV_b_c, ei) 
+        end if
       elseif (tir == 0 .and. til > 0) then
-        call add_entry_CSR_dist( laddie%M_map_UV_b_c, ei, til, 1._dp)
+        ! Only triangle on left side exists
+        if (mask_b_tot( til)) then
+          ! Within laddie domain, so add
+          call add_entry_CSR_dist( laddie%M_map_UV_b_c, ei, til, 1._dp)
+        else
+          ! Outside laddie domain, so omit
+          call add_empty_row_CSR_dist( laddie%M_map_UV_b_c, ei) 
+        end if
       elseif (til > 0 .and. tir > 0) then
-        call add_entry_CSR_dist( laddie%M_map_UV_b_c, ei, til, 0.5_dp)
-        call add_entry_CSR_dist( laddie%M_map_UV_b_c, ei, tir, 0.5_dp)
+        ! Both triangles exist
+        if (mask_b_tot( til) .or. mask_b_tot( tir)) then
+          ! At least one traingle in laddie domain, so add average
+          call add_entry_CSR_dist( laddie%M_map_UV_b_c, ei, til, 0.5_dp)
+          call add_entry_CSR_dist( laddie%M_map_UV_b_c, ei, tir, 0.5_dp)
+        else
+          ! Both outside laddie domain, so omit
+          call add_empty_row_CSR_dist( laddie%M_map_UV_b_c, ei) 
+        end if
       else
-        call crash('something is seriously wrong with the ETri array of this mesh!')
+          call crash('something is seriously wrong with the ETri array of this mesh!')
       end if
 
     end do
