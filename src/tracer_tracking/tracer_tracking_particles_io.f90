@@ -117,9 +117,9 @@ contains
     particles%nc%filename = trim(filename)
 
     ! Define dimensions
-    call create_dimension( filename, ncid, 'n',     particles%n_max * 3, particles%nc%id_dim_n    )
-    call create_dimension( filename, ncid, 'three', 3                  , particles%nc%id_dim_three)
-    call create_dimension( filename, ncid, 'time',  NF90_UNLIMITED     , particles%nc%id_dim_time )
+    call create_dimension( filename, ncid, 'n',     particles%n_max * par%n, particles%nc%id_dim_n    )
+    call create_dimension( filename, ncid, 'three', 3                      , particles%nc%id_dim_three)
+    call create_dimension( filename, ncid, 'time',  NF90_UNLIMITED         , particles%nc%id_dim_time )
 
     ! Abbreviations for shorter code
     n     = particles%nc%id_dim_n
