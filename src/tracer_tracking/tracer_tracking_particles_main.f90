@@ -129,10 +129,10 @@ contains
     call move_and_remove_particles( mesh, particles, time, &
       Hi_tot, Hs_tot, u_3D_b_tot, v_3D_b_tot, w_3D_tot)
 
-    ! ! Write raw particle data to output file
-    ! if (C%tractrackpart_write_raw_output) then
-    !   call write_to_particles_netcdf_file( particles, time)
-    ! end if
+    ! Write raw particle data to output file
+    if (C%tractrackpart_write_raw_output) then
+      call write_to_particles_netcdf_file( particles, time)
+    end if
 
     ! Map tracers to the model mesh
     call calc_particles_to_mesh_map( mesh, particles)
