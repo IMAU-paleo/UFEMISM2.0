@@ -171,14 +171,13 @@ contains
 
   end subroutine determine_lonlat_indexing
 
-  subroutine determine_lat_indexing( filename, ncid, var_name, indexing, latdir)
+  subroutine determine_lat_indexing( filename, ncid, var_name, latdir)
     !< Determine the indexing and dimension directions of a variable in a lat-only grid file
 
     ! In/output variables:
     character(len=*),    intent(in   ) :: filename
     integer,             intent(in   ) :: ncid
     character(len=*),    intent(in   ) :: var_name
-    character(len=1024), intent(  out) :: indexing
     character(len=1024), intent(  out) :: latdir
 
     ! Local variables:
