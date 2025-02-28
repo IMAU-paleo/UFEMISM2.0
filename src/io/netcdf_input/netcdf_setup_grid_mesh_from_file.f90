@@ -332,8 +332,8 @@ contains
 
     ! Local variables:
     character(len=1024), parameter       :: routine_name = 'setup_lonlat_grid_from_lat_file'
-    integer                              :: id_dim_lon, id_dim_lat
-    integer                              :: id_var_lon, id_var_lat
+    integer                              :: id_dim_lat
+    integer                              :: id_var_lat
     integer                              :: ierr, i
     integer, parameter                   :: nlon = 360
     real(dp), parameter                  :: dlon = 1.0
