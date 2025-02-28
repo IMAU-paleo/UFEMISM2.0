@@ -8,7 +8,6 @@ module netcdf_read_field_from_series_file
   use netcdf_basic
   use grid_lonlat_basic
   use netcdf_setup_grid_mesh_from_file
-  use netcdf_input
   use grid_types, only: type_grid_lonlat, type_grid_lat
   use flip_mod
 
