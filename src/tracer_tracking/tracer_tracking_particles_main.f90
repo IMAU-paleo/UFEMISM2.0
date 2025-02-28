@@ -15,12 +15,14 @@ module tracer_tracking_model_particles_main
   use mpi_distributed_memory_grid, only: gather_gridded_data_to_all
   use tracer_tracking_model_particles_io, only: create_particles_netcdf_file, write_to_particles_netcdf_file
   use tracer_tracking_model_particles_remapping, only: calc_particles_to_mesh_map, map_tracer_to_mesh
+  use mesh_utilities, only: find_containing_vertex, find_containing_triangle
 
   implicit none
 
   private
 
-  public :: initialise_tracer_tracking_model_particles, run_tracer_tracking_model_particles
+  public :: initialise_tracer_tracking_model_particles, run_tracer_tracking_model_particles, &
+    remap_tracer_tracking_model_particles
 
   ! integer,  parameter :: n_tracers         = 1
 
@@ -79,6 +81,7 @@ contains
 
     ! Raw particle data output file
     if (C%tractrackpart_write_raw_output) then
+      particles%t_write_raw_output = C%start_time_of_run
       filename = trim( C%output_dir) // '/tracer_tracking_particles.nc'
       call create_particles_netcdf_file( filename, particles)
     end if
@@ -129,15 +132,18 @@ contains
     call move_and_remove_particles( mesh, particles, time, &
       Hi_tot, Hs_tot, u_3D_b_tot, v_3D_b_tot, w_3D_tot)
 
-    ! Write raw particle data to output file
-    if (C%tractrackpart_write_raw_output) then
-      call write_to_particles_netcdf_file( particles, time)
-    end if
-
     ! Map tracers to the model mesh
     call calc_particles_to_mesh_map( mesh, particles)
     age_p = time - particles%t_origin
     call map_tracer_to_mesh( mesh, particles, age_p, age)
+
+    ! If the time is right, write raw particle data to output file
+    if (C%tractrackpart_write_raw_output) then
+      if (time >= particles%t_write_raw_output) then
+        particles%t_write_raw_output = particles%t_write_raw_output + C%tractrackpart_dt_raw_output
+        call write_to_particles_netcdf_file( particles, time)
+      end if
+    end if
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -291,5 +297,43 @@ contains
     call finalise_routine( routine_name)
 
   end subroutine move_and_remove_particles
+
+  subroutine remap_tracer_tracking_model_particles( mesh_old, mesh_new, particles, time, age)
+    !< Run the particle-based tracer-tracking model
+
+    ! In- and output variables
+    type(type_mesh),                                     intent(in   ) :: mesh_old, mesh_new
+    type(type_tracer_tracking_model_particles),          intent(inout) :: particles
+    real(dp),                                            intent(in   ) :: time
+    real(dp), dimension(mesh_new%vi1:mesh_new%vi2,C%nz), intent(  out) :: age
+
+    ! Local variables:
+    character(len=1024), parameter        :: routine_name = 'remap_tracer_tracking_model_particles'
+    integer                               :: ip, vi, ti
+    real(dp), dimension(2)                :: p
+    real(dp), dimension(particles%n_max)  :: age_p
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    particles%vi_in = 1
+    particles%ti_in = 1
+    do ip = 1, particles%n_max
+      if (.not. particles%is_in_use( ip)) cycle
+      p = particles%r( ip,1:2)
+      call find_containing_vertex  ( mesh_new, p, particles%vi_in( ip))
+      particles%ti_in( ip) = mesh_new%iTri( particles%vi_in( ip),1)
+      call find_containing_triangle( mesh_new, p, particles%ti_in( ip))
+    end do
+
+    ! Map tracers from the particles to the new model mesh
+    call calc_particles_to_mesh_map( mesh_new, particles)
+    age_p = time - particles%t_origin
+    call map_tracer_to_mesh( mesh_new, particles, age_p, age)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine remap_tracer_tracking_model_particles
 
 end module tracer_tracking_model_particles_main

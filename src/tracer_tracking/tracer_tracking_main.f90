@@ -4,20 +4,21 @@ module tracer_tracking_model_main
 
   use precisions, only: dp
   use mpi_basic, only: par
-  use control_resources_and_error_messaging, only: init_routine, finalise_routine, colour_string, crash
+  use control_resources_and_error_messaging, only: init_routine, finalise_routine, colour_string, warning, crash
   use model_configuration, only: C
   use mesh_types, only: type_mesh
   use ice_model_types, only: type_ice_model
   use SMB_model_types, only: type_SMB_model
   use tracer_tracking_model_types, only: type_tracer_tracking_model
   use tracer_tracking_model_particles_main, only: initialise_tracer_tracking_model_particles, &
-    run_tracer_tracking_model_particles
+    run_tracer_tracking_model_particles, remap_tracer_tracking_model_particles
+  use reallocate_mod
 
   implicit none
 
   private
 
-  public :: initialise_tracer_tracking_model, run_tracer_tracking_model
+  public :: initialise_tracer_tracking_model, run_tracer_tracking_model, remap_tracer_tracking_model
 
   ! integer, parameter :: n_tracers        = 16
 
@@ -110,5 +111,38 @@ contains
     call finalise_routine( routine_name)
 
   end subroutine initialise_tracer_tracking_model
+
+  subroutine remap_tracer_tracking_model( mesh_old, mesh_new, tracer_tracking, time)
+
+    ! In- and output variables
+    type(type_mesh),                  intent(in   ) :: mesh_old, mesh_new
+    type(type_tracer_tracking_model), intent(inout) :: tracer_tracking
+    real(dp),                         intent(in   ) :: time
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'remap_tracer_tracking_model'
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    if (C%choice_tracer_tracking_model == 'none') then
+      call finalise_routine( routine_name)
+      return
+    end if
+
+    call reallocate_bounds( tracer_tracking%age, mesh_new%vi1, mesh_new%vi2, mesh_new%nz)
+
+    select case (C%choice_tracer_tracking_model)
+    case default
+      call crash('unknown choice_tracer_tracking_model "' // trim(C%choice_tracer_tracking_model) // '"')
+    case ('particles')
+      call remap_tracer_tracking_model_particles( mesh_old, mesh_new, &
+        tracer_tracking%particles, time, tracer_tracking%age)
+    end select
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine remap_tracer_tracking_model
 
 end module tracer_tracking_model_main
