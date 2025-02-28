@@ -181,8 +181,8 @@ CONTAINS
         CALL apply_BMB_subgrid_scheme( mesh, ice, BMB)
     END SELECT
 
-    ! save BMB in BMB_modelled if doing smoothing
-    IF (C%do_BMB_smooth_inversion) THEN
+    ! save BMB in BMB_modelled if applying transition phase
+    IF (C%do_BMB_transition_phase) THEN
       DO vi = mesh%vi1, mesh%vi2
         BMB%BMB_modelled( vi) = BMB%BMB( vi)
       END DO
@@ -248,9 +248,9 @@ CONTAINS
     ALLOCATE( BMB%BMB_ref( mesh%vi1:mesh%vi2))
     BMB%BMB_ref = 0._dp
 
-    ! Allocate smoothed BMB
-    ALLOCATE( BMB%BMB_smooth( mesh%vi1:mesh%vi2))
-    BMB%BMB_smooth = 0._dp
+    ! Allocate transition phase BMB
+    ALLOCATE( BMB%BMB_transition_phase( mesh%vi1:mesh%vi2))
+    BMB%BMB_transition_phase = 0._dp
 
     ! Allocate modelled BMB
     ALLOCATE( BMB%BMB_modelled( mesh%vi1:mesh%vi2))
@@ -557,7 +557,7 @@ CONTAINS
     CALL reallocate_bounds( BMB%BMB_shelf, mesh_new%vi1, mesh_new%vi2)
     CALL reallocate_bounds( BMB%BMB_inv, mesh_new%vi1, mesh_new%vi2)
     CALL reallocate_bounds( BMB%BMB_ref, mesh_new%vi1, mesh_new%vi2)
-    CALL reallocate_bounds( BMB%BMB_smooth, mesh_new%vi1, mesh_new%vi2)
+    CALL reallocate_bounds( BMB%BMB_transition_phase, mesh_new%vi1, mesh_new%vi2)
     CALL reallocate_bounds( BMB%BMB_modelled, mesh_new%vi1, mesh_new%vi2)
 
     ! Reallocate memory for cavity mask

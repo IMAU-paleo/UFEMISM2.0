@@ -636,30 +636,30 @@ contains
     
     ! Initialise
     region%BMB%BMB        = 0._dp
-    region%BMB%BMB_smooth = 0._dp
+    region%BMB%BMB_transition_phase = 0._dp
 
-    if (C%do_BMB_smooth_inversion) then
+    if (C%do_BMB_transition_phase) then
 
       ! Safety
-      if (C%BMB_smooth_inversion_t_start < C%BMB_inversion_t_start .or. C%BMB_smooth_inversion_t_end > C%BMB_inversion_t_end ) then 
+      if (C%BMB_transition_phase_t_start < C%BMB_inversion_t_start .or. C%BMB_transition_phase_t_end > C%BMB_inversion_t_end ) then 
         ! If the window of smoothing falls outside window of BMB inversion, crash. 
-        call crash(' The time window for BMB smoothing does not fall within the time window for BMB inversion. Make sure that "BMB_smooth_inversion_t_start" >= "BMB_inversion_t_start", and "BMB_smooth_inversion_t_end" <= "BMB_inversion_t_end".')
+        call crash(' The time window for BMB smoothing does not fall within the time window for BMB inversion. Make sure that "BMB_transition_phase_t_start" >= "BMB_inversion_t_start", and "BMB_transition_phase_t_end" <= "BMB_inversion_t_end".')
 
-      elseif (C%BMB_smooth_inversion_t_start >= C%BMB_smooth_inversion_t_end) then
+      elseif (C%BMB_transition_phase_t_start >= C%BMB_transition_phase_t_end) then
         ! If start and end time of smoothing window is equal or start > end, crash.
-        call crash(' "BMB_smooth_inversion_t_start" is equivalent or larger than "BMB_smooth_inversion_t_end".')
+        call crash(' "BMB_transition_phase_t_start" is equivalent or larger than "BMB_transition_phase_t_end".')
 
       end if
 
       ! Compute smoothing weights for BMB inversion smoothing
-      if (region%time < C%BMB_smooth_inversion_t_start) then 
+      if (region%time < C%BMB_transition_phase_t_start) then 
         w = 1.0_dp
 
-      elseif (region%time >= C%BMB_smooth_inversion_t_start .and. &
-        region%time <= C%BMB_smooth_inversion_t_end) then
-        w = 1.0_dp - ((region%time - C%BMB_smooth_inversion_t_start)/(C%BMB_smooth_inversion_t_end - C%BMB_smooth_inversion_t_start))
+      elseif (region%time >= C%BMB_transition_phase_t_start .and. &
+        region%time <= C%BMB_transition_phase_t_end) then
+        w = 1.0_dp - ((region%time - C%BMB_transition_phase_t_start)/(C%BMB_transition_phase_t_end - C%BMB_transition_phase_t_start))
 
-      elseif (region%time > C%BMB_smooth_inversion_t_end) then 
+      elseif (region%time > C%BMB_transition_phase_t_end) then 
         w = 0.0_dp
 
       end if
@@ -674,15 +674,15 @@ contains
           .not. region%ice%mask_floating_ice( vi) .and. &
           .not. region%ice%mask_cf_fl( vi)) cycle
 
-      if (C%do_BMB_smooth_inversion) then 
-        ! If BMB_smooth_inversion is turned ON, use weight 'w' to compute BMB field
+      if (C%do_BMB_transition_phase) then 
+        ! If BMB_transition_phase is turned ON, use weight 'w' to compute BMB field
         region%BMB%BMB( vi) = w * region%BMB%BMB_inv( vi) + (1.0_dp - w) * region%BMB%BMB_modelled( vi)
         
         ! Save smoothed BMB field for diagnostic output
-        region%BMB%BMB_smooth( vi) = region%BMB%BMB( vi) 
+        region%BMB%BMB_transition_phase( vi) = region%BMB%BMB( vi) 
 
       else 
-        ! If BMB_smooth_inversion is turned OFF, just apply inverted melt rates
+        ! If BMB_transition_phase is turned OFF, just apply inverted melt rates
         region%BMB%BMB( vi) = region%BMB%BMB_inv( vi)
 
       end if
