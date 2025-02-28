@@ -6,6 +6,7 @@ module netcdf_read_field_from_series_file
   use model_configuration, only: C
   use mpi_distributed_memory, only: distribute_from_master
   use netcdf_basic
+  use netcdf_input
   use grid_lonlat_basic
   use netcdf_setup_grid_mesh_from_file
   use grid_types, only: type_grid_lonlat, type_grid_lat
@@ -65,7 +66,7 @@ contains
     series = monthly_cycle
 
     ! Clean up after yourself
-    if (par%master) deallocate (monthly_cycle)
+    if (par%master) deallocate(monthly_cycle)
 
     ! Close the NetCDF file
     call close_netcdf_file( ncid)
@@ -227,7 +228,7 @@ contains
     call inquire_var_multopt( filename, ncid, field_name_options_time, id_var_time)
 
     ! allocate memory
-    if (par%master) allocate( time_from_file( nt)) ! TODO: do we need to allocate time?
+    !if (par%master) allocate( time_from_file( nt)) ! TODO: do we need to allocate time?
 
     ! Read time from file
     call read_var_master( filename, ncid, id_var_time, time_from_file)
