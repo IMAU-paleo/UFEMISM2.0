@@ -2776,18 +2776,35 @@ CONTAINS
       choice_SMB_parameterised_EAS_config                         , &
       choice_SMB_parameterised_GRL_config                         , &
       choice_SMB_parameterised_ANT_config                         , &
-      choice_SMB_IMAUITM_init_firn_NAM                            , &
-      choice_SMB_IMAUITM_init_firn_EAS                            , &
-      choice_SMB_IMAUITM_init_firn_GRL                            , &
-      choice_SMB_IMAUITM_init_firn_ANT                            , &
-      filename_firn_IMAUITM_NAM                                   , &
-      filename_firn_IMAUITM_EAS                                   , &
-      filename_firn_IMAUITM_GRL                                   , &
-      filename_firn_IMAUITM_ANT                                   , &
-      timeframe_firn_IMAUITM_NAM                                  , &
-      timeframe_firn_IMAUITM_EAS                                  , &
-      timeframe_firn_IMAUITM_GRL                                  , &
-      timeframe_firn_IMAUITM_ANT                                  , &
+      choice_SMB_IMAUITM_init_firn_NAM_config                     , &
+      choice_SMB_IMAUITM_init_firn_EAS_config                     , &
+      choice_SMB_IMAUITM_init_firn_GRL_config                     , &
+      choice_SMB_IMAUITM_init_firn_ANT_config                     , &
+      filename_firn_IMAUITM_NAM_config                            , &
+      filename_firn_IMAUITM_EAS_config                            , &
+      filename_firn_IMAUITM_GRL_config                            , &
+      filename_firn_IMAUITM_ANT_config                            , &
+      timeframe_firn_IMAUITM_NAM_config                           , &
+      timeframe_firn_IMAUITM_EAS_config                           , &
+      timeframe_firn_IMAUITM_GRL_config                           , &
+      timeframe_firn_IMAUITM_ANT_config                           , &
+      SMB_IMAUITM_initial_firn_thickness_config                   , &
+      SMB_IMAUITM_C_abl_constant_NAM_config                       , &
+      SMB_IMAUITM_C_abl_constant_EAS_config                       , &
+      SMB_IMAUITM_C_abl_constant_GRL_config                       , &
+      SMB_IMAUITM_C_abl_constant_ANT_config                       , &
+      SMB_IMAUITM_C_abl_Ts_NAM_config                             , &
+      SMB_IMAUITM_C_abl_Ts_EAS_config                             , &
+      SMB_IMAUITM_C_abl_Ts_GRL_config                             , &
+      SMB_IMAUITM_C_abl_Ts_ANT_config                             , &
+      SMB_IMAUITM_C_abl_Q_NAM_config                              , &
+      SMB_IMAUITM_C_abl_Q_EAS_config                              , &
+      SMB_IMAUITM_C_abl_Q_GRL_config                              , &
+      SMB_IMAUITM_C_abl_Q_ANT_config                              , &
+      SMB_IMAUITM_C_refr_NAM_config                               , &
+      SMB_IMAUITM_C_refr_EAS_config                               , &
+      SMB_IMAUITM_C_refr_GRL_config                               , &
+      SMB_IMAUITM_C_refr_ANT_config                               , &
       do_asynchronous_BMB_config                                  , &
       dt_BMB_config                                               , &
       do_BMB_inversion_config                                     , &
@@ -3715,6 +3732,50 @@ CONTAINS
     C%timeframe_SMB_prescribed_EAS                           = timeframe_SMB_prescribed_EAS_config
     C%timeframe_SMB_prescribed_GRL                           = timeframe_SMB_prescribed_GRL_config
     C%timeframe_SMB_prescribed_ANT                           = timeframe_SMB_prescribed_ANT_config
+
+    ! Parameterised SMB forcing
+    C%choice_SMB_parameterised_NAM                           = choice_SMB_parameterised_NAM_config
+    C%choice_SMB_parameterised_EAS                           = choice_SMB_parameterised_EAS_config
+    C%choice_SMB_parameterised_GRL                           = choice_SMB_parameterised_GRL_config
+    C%choice_SMB_parameterised_ANT                           = choice_SMB_parameterised_ANT_config
+
+    ! IMAU-ITM SMB model
+    C%choice_SMB_IMAUITM_init_firn_NAM                       = choice_SMB_IMAUITM_init_firn_NAM_config
+    C%choice_SMB_IMAUITM_init_firn_EAS                       = choice_SMB_IMAUITM_init_firn_EAS_config
+    C%choice_SMB_IMAUITM_init_firn_GRL                       = choice_SMB_IMAUITM_init_firn_GRL_config
+    C%choice_SMB_IMAUITM_init_firn_ANT                       = choice_SMB_IMAUITM_init_firn_ANT_config
+
+    ! Files containing the firn model (yearly firn depth and melt)
+    C%filename_firn_IMAUITM_NAM                              = filename_firn_IMAUITM_NAM_config
+    C%filename_firn_IMAUITM_EAS                              = filename_firn_IMAUITM_EAS_config
+    C%filename_firn_IMAUITM_GRL                              = filename_firn_IMAUITM_GRL_config
+    C%filename_firn_IMAUITM_ANT                              = filename_firn_IMAUITM_ANT_config
+
+    ! timeframe for restarting from the firn model
+    C%timeframe_firn_IMAUITM_NAM                             = timeframe_firn_IMAUITM_NAM_config
+    C%timeframe_firn_IMAUITM_EAS                             = timeframe_firn_IMAUITM_EAS_config
+    C%timeframe_firn_IMAUITM_GRL                             = timeframe_firn_IMAUITM_GRL_config
+    C%timeframe_firn_IMAUITM_ANT                             = timeframe_firn_IMAUITM_ANT_config
+
+    ! Tuning parameters for the IMAU-ITM SMB model
+    C%SMB_IMAUITM_initial_firn_thickness                     = SMB_IMAUITM_initial_firn_thickness_config
+    C%SMB_IMAUITM_C_abl_constant_NAM                         = SMB_IMAUITM_C_abl_constant_NAM_config
+    C%SMB_IMAUITM_C_abl_constant_EAS                         = SMB_IMAUITM_C_abl_constant_EAS_config
+    C%SMB_IMAUITM_C_abl_constant_GRL                         = SMB_IMAUITM_C_abl_constant_GRL_config
+    C%SMB_IMAUITM_C_abl_constant_ANT                         = SMB_IMAUITM_C_abl_constant_ANT_config
+    C%SMB_IMAUITM_C_abl_Ts_NAM                               = SMB_IMAUITM_C_abl_Ts_NAM_config
+    C%SMB_IMAUITM_C_abl_Ts_EAS                               = SMB_IMAUITM_C_abl_Ts_EAS_config
+    C%SMB_IMAUITM_C_abl_Ts_GRL                               = SMB_IMAUITM_C_abl_Ts_GRL_config
+    C%SMB_IMAUITM_C_abl_Ts_ANT                               = SMB_IMAUITM_C_abl_Ts_ANT_config
+    C%SMB_IMAUITM_C_abl_Q_NAM                                = SMB_IMAUITM_C_abl_Q_NAM_config
+    C%SMB_IMAUITM_C_abl_Q_EAS                                = SMB_IMAUITM_C_abl_Q_EAS_config
+    C%SMB_IMAUITM_C_abl_Q_GRL                                = SMB_IMAUITM_C_abl_Q_GRL_config
+    C%SMB_IMAUITM_C_abl_Q_ANT                                = SMB_IMAUITM_C_abl_Q_ANT_config
+    C%SMB_IMAUITM_C_refr_NAM                                 = SMB_IMAUITM_C_refr_NAM_config
+    C%SMB_IMAUITM_C_refr_EAS                                 = SMB_IMAUITM_C_refr_EAS_config
+    C%SMB_IMAUITM_C_refr_GRL                                 = SMB_IMAUITM_C_refr_GRL_config
+    C%SMB_IMAUITM_C_refr_ANT                                 = SMB_IMAUITM_C_refr_ANT_config
+
 
   ! == Basal mass balance
   ! =====================
