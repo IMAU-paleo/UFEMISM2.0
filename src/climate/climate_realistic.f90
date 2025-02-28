@@ -203,7 +203,7 @@ CONTAINS
         call read_time_from_file( C%filename_insolation, forcing%ins_time)
         forcing%ins_nyears = len(forcing%ins_time) ! TODO: is this the proper way to do it?!
 
-        ! TODO: do we need to find the closest timeframe for ins_t0 and ins_t1?
+        ! Read the fields at the closest timeframes from ins_t0 and ins_t1 (function find_timeframe will do that)
         call read_field_from_file_1D_monthly( C%filename_insolation, field_name_options_insolation, mesh, forcing%ins_Q_TOA0, forcing%ins_t0)
         call read_field_from_file_1D_monthly( C%filename_insolation, field_name_options_insolation, mesh, forcing%ins_Q_TOA1, forcing%ins_t1)
         
@@ -267,8 +267,8 @@ CONTAINS
       CALL update_insolation_timeframes_from_file( forcing, time_applied) ! TODO
     END IF
 
-    ! TODO: Allocate shared memory for timeframe-interpolated lat-month-only insolation
-    ALLOCATE(forcing%Q_TOA             (mesh%vi1:mesh%vi2,12))
+    ! TODO: Is it necessary to allocate shared memory for timeframe-interpolated lat-month-only insolation?
+    ALLOCATE(Q_TOA             (mesh%vi1:mesh%vi2,12))
 
     ! Calculate timeframe interpolation weights
     wt0 = (forcing%ins_t1 - time_applied) / (forcing%ins_t1 - forcing%ins_t0)
@@ -281,9 +281,8 @@ CONTAINS
       end do
     end do
 
-
     ! TODO: what do we need to clean up?!
-    CALL deallocate_shared( wQ_TOA_int)
+    !CALL deallocate_shared( wQ_TOA_int)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
