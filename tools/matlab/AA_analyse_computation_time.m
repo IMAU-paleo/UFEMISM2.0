@@ -1,14 +1,14 @@
 function AA_analyse_computation_time
   
-filename = '/Users/Beren017/Documents/GitHub/UFEMISM2.0/automated_testing/integrated_tests/idealised/Halfar_dome/Halfar_5km/results/resource_tracking.nc';
+filename = '../../automated_testing/integrated_tests/realistic/Antarctica/initialisation/Ant_init_20kyr_invBMB_invpwf_40km/results/resource_tracking.nc';
 
 R = read_resource_tracking_file( filename);
 
 tcomp_tot_all = R.tcomp_tot;
 
 % Set up GUI
-wa = 1200;
-ha = 800;
+wa = 1000;
+ha = 700;
 
 wf = 25 + wa + 25;
 hf = 25 + ha + 25;

@@ -231,6 +231,7 @@ UFEMISM_source = \
   ocean/ocean_realistic.f90 \
   ocean/ocean_main.f90 \
   \
+  laddie/laddie_operators.f90 \
   laddie/laddie_utilities.f90 \
   laddie/laddie_physics.f90 \
   laddie/laddie_thickness.f90 \
@@ -284,9 +285,13 @@ UFEMISM_source = \
   climate/climate_realistic.f90 \
   climate/climate_main.f90 \
   \
+  glacial_isostatic_adjustment/kelvin_function.f90 \
+  glacial_isostatic_adjustment/GIA_ELRA.f90 \
   glacial_isostatic_adjustment/GIA_main.f90 \
   \
-  tracer_tracking/tracer_tracking_particles.f90 \
+  tracer_tracking/tracer_tracking_particles_basic.f90 \
+  tracer_tracking/tracer_tracking_particles_remapping.f90 \
+  tracer_tracking/tracer_tracking_particles_main.f90 \
   tracer_tracking/tracer_tracking_main.f90 \
   \
   main/main_regional_output.f90 \
@@ -320,7 +325,6 @@ UFEMISM_source = \
   validation/unit_tests/ut_netcdf_xy_grid.f90 \
   validation/unit_tests/ut_netcdf_mesh.f90 \
   validation/unit_tests/ut_netcdf.f90 \
-  validation/unit_tests/ut_tracer_tracking.f90 \
   validation/unit_tests/ut_bedrock_CDFs.f90 \
   validation/unit_tests/unit_tests.f90 \
   \

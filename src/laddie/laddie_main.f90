@@ -23,6 +23,7 @@ MODULE laddie_main
   USE laddie_thickness                                       , ONLY: compute_H_npx
   USE laddie_velocity                                        , ONLY: compute_UV_npx, compute_viscUV
   USE laddie_tracers                                         , ONLY: compute_TS_npx, compute_diffTS
+  use laddie_operators                                       , only: update_laddie_operators
   USE mesh_utilities                                         , ONLY: extrapolate_Gaussian
   USE mpi_distributed_memory                                 , ONLY: gather_to_all
 
@@ -88,6 +89,9 @@ CONTAINS
     ! Simply set H_c zero everywhere, will be recomputed through mapping later
     laddie%now%H_c = 0.0_dp
 
+    ! == Update operators ==
+    CALL update_laddie_operators( mesh, ice, laddie)
+
     ! == Main time loop ==
     ! ====================
 
@@ -150,6 +154,9 @@ CONTAINS
     DO vi = mesh%vi1, mesh%vi2
       laddie%mask_a( vi)  = ice%mask_floating_ice( vi)
     END DO
+
+    ! == Update operators ==
+    CALL update_laddie_operators( mesh, ice, laddie)
 
     ! Initialise requested timesteps
     CALL initialise_laddie_model_timestep( mesh, laddie, ocean, ice, laddie%now)
@@ -685,10 +692,11 @@ CONTAINS
     CALL reallocate_bounds( laddie%mask_cf_b,            mesh_new%ti1, mesh_new%ti2)
     CALL reallocate_bounds( laddie%mask_oc_b,            mesh_new%ti1, mesh_new%ti2)
 
-    ! Re-initialise mask
-    DO vi = mesh_new%vi1, mesh_new%vi2
-      laddie%mask_a( vi)  = ice%mask_floating_ice( vi)
-    END DO
+    ! == Re-initialise masks ==
+    CALL update_laddie_masks( mesh_new, ice, laddie)
+
+    ! == Update operators ==
+    CALL update_laddie_operators( mesh_new, ice, laddie)
 
     ! == Timestep variables ==
     CALL remap_laddie_timestep( mesh_old, mesh_new, ice, ocean, laddie, laddie%now)
