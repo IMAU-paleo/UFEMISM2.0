@@ -6,7 +6,9 @@ module netcdf_read_field_from_series_file
   use model_configuration, only: C
   use mpi_distributed_memory, only: distribute_from_master
   use netcdf_basic
+  use grid_lonlat_basic
   use netcdf_setup_grid_mesh_from_file
+  use netcdf_input
   use grid_types, only: type_grid_lonlat, type_grid_lat
   use flip_mod
 
@@ -52,13 +54,13 @@ contains
     call check_month( filename, ncid)
 
     !Allocate memory for time series
-    if par%master allocate( monthly_cycle( 12, 1))
+    if (par%master) allocate( monthly_cycle( 12, 1))
 
     ! Find out which timeframe to read
     call find_timeframe( filename, ncid, time_to_read, ti)
 
     ! Read data
-    call read_var_master( filename, ncid, id_var, monthly_cycle, start=(/ 1, ti), count=(/ 12, 1 /) )
+    call read_var_master( filename, ncid, id_var, monthly_cycle, start=(/ 1, ti /), count=(/ 12, 1 /) )
 
     ! Copy to output memory
     series = monthly_cycle
@@ -98,7 +100,7 @@ contains
     real(dp), dimension(:,:,:),   allocatable :: d_vec_with_time
     real(dp), dimension(:,:,:  ), allocatable :: d_grid
     real(dp), dimension(:,:,:,:), allocatable :: d_grid_with_time
-    integer                                   :: ti
+    integer                                   :: ti, i
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -226,7 +228,7 @@ contains
     call inquire_var_multopt( filename, ncid, field_name_options_time, id_var_time)
 
     ! allocate memory
-    if par%master allocate( time_from_file( nt)) ! TODO: do we need to allocate time?
+    if (par%master) allocate( time_from_file( nt)) ! TODO: do we need to allocate time?
 
     ! Read time from file
     call read_var_master( filename, ncid, id_var_time, time_from_file)
